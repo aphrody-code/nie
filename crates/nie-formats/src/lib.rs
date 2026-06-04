@@ -10,7 +10,8 @@
 //! - [`nxtch`] — chunks de texture Switch NXTCH + déswizzle GOB Tegra X1.
 //! - [`g4md`] — métadonnées de modèle G4MD (sous-mailles + attributs vertex + materials).
 //! - [`g4mg`] — géométrie G4MG (positions/normales/UV0/indices) pilotée par le `.g4md`.
-//! - [`g4sk`] — squelettes G4SK (header garanti ; hiérarchie heuristique/INCOMPLET).
+//! - [`g4sk`] — squelettes G4SK (header garanti + hiérarchie d'os RÉSOLUE via la table
+//!   d'offsets de l'en-tête, recoupée sur un `.g4sk` réel ; fallback heuristique).
 //! - [`g4pk`] — archives Level-5 G4PK / G4RA (table offsets/tailles/hashes/noms).
 //!
 //! ## Compatibilité `no_std`
@@ -19,11 +20,14 @@
 //! `std` directes en dehors de `thiserror` (qui requiert `std` pour
 //! `std::error::Error`). Il est donc compatible `no_std + alloc + std`.
 //!
-//! ## Chiffrement CPK IEVR
+//! ## Chiffrement CPK IEVR (déchiffré, vérifié au réel)
 //!
-//! Tous les CPK d'Inazuma Eleven: Victory Road sont chiffrés par une enveloppe
-//! propriétaire : [`cpk::parse_cpk`] renvoie [`FormatError::BadMagic`] sur ces
-//! fichiers. Le déchiffrement (clé non publique) n'est pas implémenté ici.
+//! Les CPK de `data/packs/` d'Inazuma Eleven: Victory Road sont chiffrés par l'enveloppe
+//! CRI Middleware « position-based XOR », clé dérivée du **nom de fichier** (CRC32 standard).
+//! [`cpk::decrypt_and_check_cpk`] déchiffre en place et vérifie que le résultat est un en-tête
+//! `CPK ` + table `@UTF` (anti-hallucination). Porté de `CriwareCrypt.cs` / `NativeCrypto.cs`
+//! et recoupé sur des octets réels du dump VPS. La constante d'audit `0x1717E18E`
+//! ([`cpk::VIOLA_FIXED_KEY`]) est la clé Viola des `cfg.bin`, PAS celle des packs.
 #![forbid(unsafe_code)]
 
 use thiserror::Error;

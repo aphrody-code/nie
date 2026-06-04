@@ -33,8 +33,32 @@
 //! Un CPK valide (non chiffré) commence par `CPK ` (0x43 0x50 0x4B 0x20)
 //! suivi de 12 octets de champs internes, puis d'une table `@UTF` à l'offset 0x10.
 //!
-//! **Les CPK IEVR sont chiffrés** : leur magic en clair n'est pas `CPK `.
-//! [`parse_cpk`] renvoie une erreur explicite dans ce cas.
+//! ## Chiffrement CPK IEVR (déchiffrement porté et VÉRIFIÉ au réel)
+//!
+//! Les `.cpk` de `data/packs/` d'Inazuma Eleven: Victory Road sont chiffrés par
+//! l'enveloppe CRI Middleware « position-based XOR ». La clé n'est **pas** une
+//! constante : elle est dérivée du **nom de fichier** par un CRC32 standard
+//! (poly `0xEDB88320`, init/xorout `0xFFFFFFFF`). Le flux est ensuite XORé par mots
+//! de 4 octets, chaque mot dérivé d'un état CRC réinitialisé sur l'offset du mot.
+//!
+//! Port fidèle de :
+//! - `IECODE.Core/Formats/Criware/CriFs/Encryption/CriwareCrypt.cs` (`CalculateKeyFromFilename`,
+//!   `DecryptBlock`, `UpdateCrcStateFast`, `ComputeXorByte`) ;
+//! - `IECODE.Core/Native/NativeCrypto.cs` (même algorithme, variante SIMD côté C#) ;
+//! - sélection de clé : `CpkDecryptionStream.FromFile` → `CalculateKeyFromFilename(Path.GetFileName(cpkPath))`.
+//!
+//! **Vérification terrain (octets réels du dump VPS, non fabriqués)** : la clé dérivée
+//! du nom déchiffre les CPK réels en un en-tête `CPK ` valide suivi de `@UTF` à 0x10.
+//! Exemple recoupé : `1d08dda99e8549431c6c7b459ed8deab.cpk` → clé `0xBD281847` →
+//! magic `43 50 4B 20` ("CPK ") + `@UTF` @0x10. Idem pour 3 autres CPK testés.
+//!
+//! ⚠️ **Distinction critique** : la constante `0x1717E18E` relevée par l'audit iecode
+//! (`IEVRGame.CriEncryptionKey`, `NativeCrypto.IEVRCriKey`) est la clé **fixe Viola**
+//! utilisée pour les `cfg.bin` empaquetés (`Viola/Pack/Logic/CPack.cs`), **PAS** pour
+//! les `.cpk` de `data/packs/`. Appliquée à un CPK réel elle produit du bruit
+//! (`14 ff 0a 0b…`, pas `CPK `). Les deux clés partagent le même `DecryptBlock`.
+//! [`decrypt_cpk`] dérive donc la clé du nom de fichier (comportement vérifié) ;
+//! [`decrypt_block`] reste exposé pour fournir une clé arbitraire (dont la fixe Viola).
 //!
 //! ## `std`
 //!
@@ -66,6 +90,189 @@ const UTF_MIN_TOTAL: usize = 0x20;
 const STORAGE_ZERO: u8 = 0x00;  // valeur zéro implicite, aucun stockage
 const STORAGE_CONST: u8 = 0x10; // valeur constante (défaut dans le schéma)
 const STORAGE_ROW: u8 = 0x20;   // valeur par ligne dans la section rows
+
+/// Polynôme CRC32 réfléchi standard (`CriwareCrypt.cs` L20, `NativeCrypto.cs` L35).
+const CRC32_POLY: u32 = 0xEDB8_8320;
+
+/// Clé fixe « Viola » relevée par l'audit iecode (`IEVRGame.CriEncryptionKey`).
+///
+/// **Ne s'applique PAS** aux `.cpk` de `data/packs/` (qui utilisent une clé dérivée du
+/// nom de fichier). Réservée aux `cfg.bin` empaquetés Viola (`CPack.cs`). Exposée pour
+/// pouvoir la passer explicitement à [`decrypt_block`] si besoin ; jamais utilisée par
+/// [`decrypt_cpk`]. Voir le module-doc.
+pub const VIOLA_FIXED_KEY: u32 = 0x1717_E18E;
+
+// ---------------------------------------------------------------------------
+// Déchiffrement CRI (port fidèle de CriwareCrypt.cs / NativeCrypto.cs)
+// ---------------------------------------------------------------------------
+
+/// Construit la table CRC32 (256 entrées) — port de `InitializeTable` (`CriwareCrypt.cs` L16).
+///
+/// `const fn` pour être évaluée au build (pas d'état mutable global, compatible wasm + no_std).
+const fn crc32_table() -> [u32; 256] {
+    let mut table = [0u32; 256];
+    let mut i = 0u32;
+    while i < 256 {
+        let mut crc = i;
+        let mut j = 0;
+        while j < 8 {
+            crc = if crc & 1 == 1 { (crc >> 1) ^ CRC32_POLY } else { crc >> 1 };
+            j += 1;
+        }
+        table[i as usize] = crc;
+        i += 1;
+    }
+    table
+}
+
+/// Table CRC32 figée au build.
+const CRC32_TABLE: [u32; 256] = crc32_table();
+
+/// Dérive la clé de déchiffrement depuis le **nom de fichier** d'un CPK.
+///
+/// Port exact de `CriwareCrypt.CalculateKeyFromFilename` / `NativeCrypto.CalculateKeyFromFilename` :
+/// CRC32 standard (init `0xFFFFFFFF`, xorout `0xFFFFFFFF`) sur les octets UTF-8 du nom.
+///
+/// `name` doit être le **nom de base** (ex. `1d08dda99e8549431c6c7b459ed8deab.cpk`), pas un
+/// chemin complet — le C# applique `Path.GetFileName` en amont. La casse n'est pas modifiée ici
+/// (les noms de packs IEVR sont déjà en hexadécimal minuscule).
+#[must_use]
+pub fn key_from_filename(name: &str) -> u32 {
+    let mut crc = 0xFFFF_FFFFu32;
+    for b in name.bytes() {
+        let idx = ((crc ^ u32::from(b)) & 0xFF) as usize;
+        crc = (crc >> 8) ^ CRC32_TABLE[idx];
+    }
+    !crc
+}
+
+/// Recalcule l'état CRC pour le mot de 4 octets démarrant à `seed`
+/// (port de `UpdateCrcStateFast`, `CriwareCrypt.cs` L113).
+fn update_crc_state(seed: u32, k: [u8; 4]) -> u32 {
+    let mut crc = !seed;
+    let mut i = 0;
+    while i < 4 {
+        let idx = ((crc & 0xFF) as u8 ^ k[i]) as usize;
+        crc = (crc >> 8) ^ CRC32_TABLE[idx];
+        i += 1;
+    }
+    !crc
+}
+
+/// Calcule l'octet XOR pour `position` (0..4) dans le mot CRC courant
+/// (port de `ComputeXorByte`, `CriwareCrypt.cs` L101).
+fn compute_xor_byte(crc: u32, position: u32) -> u8 {
+    let base_shift = position * 2;
+    let mut r8 = (crc >> (base_shift + 8)) & 3;
+    r8 |= ((crc >> base_shift) & 0xFF) << 2 & 0xFF;
+    r8 = ((r8 << 2) & 0xFF) | ((crc >> (base_shift + 16)) & 3);
+    r8 = ((r8 << 2) & 0xFF) | ((crc >> (base_shift + 24)) & 3);
+    r8 as u8
+}
+
+/// Déchiffre (en place, position-aware) un bloc CPK CRI.
+///
+/// Port fidèle de `CriwareCrypt.DecryptBlock` / `NativeCrypto.DecryptBlock`. Le chiffrement
+/// est un XOR involutif : appeler deux fois avec la même clé et le même `file_offset` rétablit
+/// le clair. `file_offset` est la position **absolue** du début de `buffer` dans le fichier
+/// (permet le déchiffrement aléatoire / par fenêtres).
+///
+/// `key` est typiquement issue de [`key_from_filename`] ; on peut aussi passer une clé
+/// arbitraire (ex. [`VIOLA_FIXED_KEY`]).
+pub fn decrypt_block(buffer: &mut [u8], file_offset: u64, key: u32) {
+    if buffer.is_empty() {
+        return;
+    }
+
+    let k = [
+        key as u8,
+        (key >> 8) as u8,
+        (key >> 16) as u8,
+        (key >> 24) as u8,
+    ];
+
+    let length = buffer.len();
+    let mut i = 0usize;
+
+    // Aligner sur une frontière de 4 octets si nécessaire.
+    let align_offset = file_offset & 3;
+    if align_offset != 0 {
+        let current_crc = update_crc_state((file_offset & !3u64) as u32, k);
+        let align_count = core::cmp::min((4 - align_offset) as usize, length);
+        let mut j = 0;
+        while j < align_count {
+            let pos = ((file_offset + i as u64) & 3) as u32;
+            buffer[i] ^= compute_xor_byte(current_crc, pos);
+            j += 1;
+            i += 1;
+        }
+    }
+
+    // Boucle principale : 4 octets à la fois (un mot CRC complet).
+    let mut base_offset = file_offset + i as u64;
+    while i + 4 <= length {
+        let crc = update_crc_state(base_offset as u32, k);
+        buffer[i] ^= compute_xor_byte(crc, 0);
+        buffer[i + 1] ^= compute_xor_byte(crc, 1);
+        buffer[i + 2] ^= compute_xor_byte(crc, 2);
+        buffer[i + 3] ^= compute_xor_byte(crc, 3);
+        i += 4;
+        base_offset += 4;
+    }
+
+    // Octets restants (< 4).
+    if i < length {
+        let crc = update_crc_state(base_offset as u32, k);
+        let mut pos = 0u32;
+        while i < length {
+            buffer[i] ^= compute_xor_byte(crc, pos);
+            i += 1;
+            pos += 1;
+        }
+    }
+}
+
+/// Déchiffre en place tout un CPK chiffré, clé dérivée de `filename`.
+///
+/// Le `buffer` doit contenir l'intégralité du fichier à partir de l'offset 0. Après l'appel,
+/// `buffer` commence par `CPK ` si le déchiffrement est correct (clé adéquate). Cette fonction
+/// **ne vérifie pas** le résultat (utiliser [`decrypt_and_check_cpk`] pour valider).
+///
+/// `filename` = nom de base du fichier (ex. `1d08dda99e8549431c6c7b459ed8deab.cpk`).
+pub fn decrypt_cpk_in_place(buffer: &mut [u8], filename: &str) {
+    let key = key_from_filename(filename);
+    decrypt_block(buffer, 0, key);
+}
+
+/// Déchiffre un CPK chiffré et **vérifie** que le résultat est plausible.
+///
+/// Dérive la clé du `filename`, déchiffre tout le `buffer` en place, puis exige que le résultat
+/// commence par le magic `CPK ` ET porte une table `@UTF` à l'offset 0x10 (en-tête CPK canonique).
+/// C'est la garantie anti-hallucination : si la clé ne « colle » pas au réel, l'appel échoue au
+/// lieu de renvoyer des octets fabriqués.
+///
+/// Retourne la clé dérivée en cas de succès.
+///
+/// # Erreurs
+///
+/// - [`FormatError::TooShort`] si `buffer` < 0x14 octets.
+/// - [`FormatError::BadMagic`] si après déchiffrement le magic n'est pas `CPK ` ou si la table
+///   `@UTF` attendue à 0x10 est absente.
+pub fn decrypt_and_check_cpk(buffer: &mut [u8], filename: &str) -> Result<u32, FormatError> {
+    if buffer.len() < 0x14 {
+        return Err(FormatError::TooShort { got: buffer.len(), need: 0x14 });
+    }
+    let key = key_from_filename(filename);
+    decrypt_block(buffer, 0, key);
+
+    if buffer[..4] != CPK_MAGIC {
+        return Err(FormatError::BadMagic { format: "CPK (déchiffrement)" });
+    }
+    if buffer[0x10..0x14] != UTF_MAGIC {
+        return Err(FormatError::BadMagic { format: "@UTF embarqué CPK (déchiffrement)" });
+    }
+    Ok(key)
+}
 
 // ---------------------------------------------------------------------------
 // Types publics
@@ -784,5 +991,82 @@ mod tests {
         assert_eq!(table.row_count(), 2);
         assert_eq!(table.rows[0][0], UtfValue::U32(255));
         assert_eq!(table.rows[1][0], UtfValue::U32(255));
+    }
+
+    // -------------------------------------------------------------------
+    // Déchiffrement CRI — valeurs RÉELLES (octets du dump VPS)
+    // -------------------------------------------------------------------
+
+    /// Header chiffré réel (512 octets) du CPK `1d08dda99e8549431c6c7b459ed8deab.cpk`,
+    /// extrait tel quel du dump Steam IEVR (`data/packs/`). Octets BRUTS chiffrés.
+    const REAL_CPK_HEAD_ENC: &[u8] =
+        include_bytes!("../tests/fixtures/1d08dda99e8549431c6c7b459ed8deab.cpk.head512.enc");
+
+    /// Nom de base correspondant (la clé en dérive).
+    const REAL_CPK_NAME: &str = "1d08dda99e8549431c6c7b459ed8deab.cpk";
+
+    #[test]
+    fn key_from_filename_valeur_reelle() {
+        // Clé recoupée empiriquement : ce nom déchiffre le CPK réel en "CPK ".
+        assert_eq!(key_from_filename(REAL_CPK_NAME), 0xBD28_1847);
+        // Autres CPK réels du même dump (clés recoupées par déchiffrement → "CPK "/"@UTF").
+        assert_eq!(key_from_filename("fc62c6effe5a8c4748ab9cb3721c1017.cpk"), 0x00DE_44F8);
+        assert_eq!(key_from_filename("48d8f85b93565fb22212eb77d7b9eda0.cpk"), 0x5629_F92E);
+        assert_eq!(key_from_filename("6a3ab1ffb3d2e6c5dc62215be407f063.cpk"), 0x52B4_1918);
+    }
+
+    #[test]
+    fn dechiffre_cpk_reel_donne_magic_cpk_et_utf() {
+        // Le test anti-hallucination : on part d'octets RÉELS chiffrés et on exige
+        // que le déchiffrement produise un en-tête CPK canonique.
+        let mut buf = REAL_CPK_HEAD_ENC.to_vec();
+        let key = decrypt_and_check_cpk(&mut buf, REAL_CPK_NAME)
+            .expect("le CPK réel doit se déchiffrer en en-tête CPK valide");
+        assert_eq!(key, 0xBD28_1847);
+        assert_eq!(&buf[..4], b"CPK ");
+        assert_eq!(&buf[0x10..0x14], b"@UTF");
+    }
+
+    #[test]
+    fn cle_fixe_viola_ne_dechiffre_pas_un_pack_cpk() {
+        // La constante 0x1717E18E (clé Viola cfg.bin) NE déchiffre PAS un .cpk de packs/ :
+        // appliquée au header réel, elle ne produit pas "CPK ". On le prouve.
+        let mut buf = REAL_CPK_HEAD_ENC.to_vec();
+        decrypt_block(&mut buf, 0, VIOLA_FIXED_KEY);
+        assert_ne!(&buf[..4], b"CPK ", "0x1717E18E ne doit PAS donner 'CPK ' sur un pack");
+    }
+
+    #[test]
+    fn decrypt_block_est_involutif() {
+        // XOR position-aware : déchiffrer puis re-chiffrer (même clé/offset) = identité.
+        let mut buf = REAL_CPK_HEAD_ENC.to_vec();
+        let original = buf.clone();
+        let key = key_from_filename(REAL_CPK_NAME);
+        decrypt_block(&mut buf, 0, key);
+        decrypt_block(&mut buf, 0, key);
+        assert_eq!(buf, original, "double déchiffrement doit rétablir le clair chiffré");
+    }
+
+    #[test]
+    fn decrypt_block_position_aware_par_fenetres() {
+        // Déchiffrer par fenêtres avec le bon file_offset == déchiffrer d'un coup.
+        let key = key_from_filename(REAL_CPK_NAME);
+        let mut whole = REAL_CPK_HEAD_ENC.to_vec();
+        decrypt_block(&mut whole, 0, key);
+
+        let mut windowed = REAL_CPK_HEAD_ENC.to_vec();
+        // Fenêtres volontairement non alignées sur 4 (teste le chemin d'alignement).
+        for (start, len) in [(0usize, 7usize), (7, 9), (16, 64), (80, 432)] {
+            decrypt_block(&mut windowed[start..start + len], start as u64, key);
+        }
+        assert_eq!(whole, windowed, "déchiffrement par fenêtres = déchiffrement global");
+    }
+
+    #[test]
+    fn crc32_table_valeurs_canoniques() {
+        // Table CRC32 poly 0xEDB88320 : valeurs canoniques connues.
+        assert_eq!(CRC32_TABLE[0], 0x0000_0000);
+        assert_eq!(CRC32_TABLE[1], 0x7707_3096);
+        assert_eq!(CRC32_TABLE[255], 0x2D02_EF8D);
     }
 }

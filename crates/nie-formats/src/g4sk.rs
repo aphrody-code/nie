@@ -1,27 +1,57 @@
 //! Lecteur de squelettes G4SK (Level-5 « Graphics 4 Skeleton »).
 //!
-//! Port Rust de `IECODE.Core/Formats/Level5/G4skParser.cs`.
+//! Port Rust de `IECODE.Core/Formats/Level5/G4skParser.cs`, **complété** par le vrai layout
+//! recoupé sur un `.g4sk` réel extrait du jeu (`s28g001b.g4sk`, 19 os).
 //!
 //! ## En-tête : DÉTERMINISTE et vérifiable
 //!
-//! `ParseHeader` (G4skParser.cs L51) lit des champs à offsets fixes :
-//! magic `0x4B533447` "G4SK", header_size u16 @0x04, type_id u16 @0x06, file_size u32 @0x0C,
-//! bone_count u16 @0x20. C'est garanti et porté tel quel.
+//! `ParseHeader` (G4skParser.cs L51) lit des champs à offsets fixes : magic `0x4B533447`
+//! "G4SK", header_size u16 @0x04, type_id u16 @0x06, file_size u32 @0x0C, bone_count u16 @0x20.
+//! Porté tel quel.
 //!
-//! ## Hiérarchie d'os : INCOMPLET (heuristique, non recoupée au réel)
+//! ## Hiérarchie d'os : RÉSOLUE au réel (table d'offsets de l'en-tête)
 //!
-//! Le parser C# `ParseBones` (L69) est explicitement HEURISTIQUE : `FindParentIndicesOffset`
-//! scanne à partir de 0x1000 pour trouver `bone_count` shorts ∈ [-1, bone_count), et
-//! `IsValidStringTable` devine la table de noms. Le vrai layout d'os IEVR n'a PAS pu être
-//! recoupé : les `.g4sk` réels vivent dans les `.cpk` chr chiffrés (absents/illisibles ici), et
-//! la ref `StudioElevenLib` ne couvre que les anciens formats IE (XPCK/XPVB/RES), pas G4SK.
+//! Le parser C# `ParseBones` (L69) était **heuristique** : `FindParentIndicesOffset` scanne à
+//! partir de `0x1000`. Or les `.g4sk` réels font **moins de 0x1000 octets** (s28g001b.g4sk =
+//! 3344 octets) → cette heuristique **ne se déclenche jamais** et la hiérarchie restait vide.
 //!
-//! On expose donc :
-//! - [`parse_header`] — header garanti (magic + bone_count) ;
-//! - [`parse_parents_heuristic`] — la MÊME heuristique bornée que le C#, marquée non fiable.
+//! Le vrai layout, recoupé octet par octet sur `s28g001b.g4sk`, est une **table d'offsets**
+//! immédiatement après `bone_count` :
 //!
-//! On NE fabrique PAS de layout d'os inventé. Tant que la disposition réelle n'est pas recoupée
-//! contre un dump connu, la hiérarchie reste marquée INCOMPLET (`heuristic = true`).
+//! ```text
+//! @0x20  u16  bone_count                 (= N, ici 19)
+//! @0x22  u16  slot[0]  matrices bind-pose (dwords depuis 0x40)
+//! @0x24  u16  slot[1]  matrices (autre jeu)
+//! @0x26  u16  slot[2]  matrices (autre jeu)
+//! @0x28  u16  slot[3]  données transform
+//! @0x2A  u16  slot[4]  ► PARENT INDICES : N × i16 (sentinelle = bone_count → racine)
+//! @0x2C  u16  slot[5]  permutation/remap d'os (N × i16, permutation de 0..N)
+//! @0x2E  u16  slot[6]  …
+//! @0x30  u16  slot[7]  …
+//! @0x32  u16  slot[8]  ► NAME OFFSET TABLE : N × u16 (offsets relatifs à la base de cette table)
+//! ```
+//!
+//! Chaque `slot[i]` est un **compte de dwords** : adresse fichier = `0x40 + slot[i] * 4`.
+//! (header_size @0x04 = 0x40 = fin d'en-tête.)
+//!
+//! - **Parents** (`slot[4]`) : `N` `i16`. La sentinelle racine est `bone_count` (et non `-1`).
+//!   Validation : chaque parent ∈ `[0, N]` (où `N` = racine) ou `-1`, et l'arbre est acyclique.
+//! - **Noms** (`slot[8]`) : `N` `u16` formant une table d'offsets ; `name[i]` est la chaîne
+//!   nulle-terminée à `base_table + offset[i]`, où `base_table` est l'adresse fichier du slot 8.
+//!
+//! Recoupement réel (`s28g001b.g4sk`) :
+//! `parents = [19,0,1,2,1,1,5,5,5,5,5,5,5,5,5,19,15,16,16]` → arbre acyclique cohérent ;
+//! `names   = [s28g001b_map, bk00_s28g001b, spatial_b_00, range_00_1, model_a_00, model_r_00,
+//!             ao200, ao241, s28g001g01..07, instance, bk00, ao241_bk00_01, ao241_bk00_02]`.
+//! L'os 0 (`s28g001b_map`) a pour parent `19` = sentinelle racine.
+//!
+//! ## Garde-fous anti-hallucination
+//!
+//! [`parse_hierarchy`] **valide** la table avant de l'accepter (parents bornés + arbre
+//! acyclique + noms imprimables résolvables). Si la validation échoue, on retombe sur
+//! [`parse_parents_heuristic`] (le scan C# d'origine, marqué `heuristic = true`) plutôt que de
+//! fabriquer une hiérarchie. Les deux chemins renvoient le même type ; `heuristic` indique la
+//! provenance.
 //!
 //! Compatible `no_std + alloc`.
 
@@ -35,6 +65,21 @@ pub const MAGIC: u32 = 0x4B53_3447;
 /// Magic « G4SK » en octets.
 pub const MAGIC_BYTES: [u8; 4] = *b"G4SK";
 
+/// Fin de l'en-tête fixe (= `header_size` réel observé). Base des slots de la table d'offsets.
+const HEADER_END: usize = 0x40;
+
+/// Offset du `bone_count` (u16).
+const BONE_COUNT_OFF: usize = 0x20;
+
+/// Offset du premier slot de la table d'offsets (juste après `bone_count`).
+const SLOT_TABLE_OFF: usize = 0x22;
+
+/// Index du slot pointant la table des parents (recoupé sur le réel).
+const SLOT_PARENTS: usize = 4;
+
+/// Index du slot pointant la table d'offsets de noms (recoupé sur le réel).
+const SLOT_NAMES: usize = 8;
+
 /// En-tête G4SK (déterministe, vérifiable).
 #[derive(Debug, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -43,32 +88,37 @@ pub struct G4skHeader {
     pub header_size: u16,
     /// Identifiant de type (@0x06).
     pub type_id: u16,
-    /// Taille totale du fichier (@0x0C).
+    /// Taille totale du fichier (@0x0C). Note : le pool de chaînes peut s'étendre au-delà.
     pub file_size: u32,
     /// Nombre d'os (@0x20).
     pub bone_count: u16,
 }
 
-/// Os décodé. `parent_index`/`name` ne sont fiables que si `heuristic == false` (jamais le cas
-/// actuellement : le vrai layout n'est pas recoupé).
+/// Os décodé.
+///
+/// `parent_index`/`name` sont fiables si `heuristic == false` (résolus via la table d'offsets
+/// réelle). Si `heuristic == true`, ils proviennent du scan C# non recoupé (indicatif).
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Bone {
     /// Index de l'os.
     pub index: usize,
-    /// Index du parent (-1 = racine), via heuristique.
+    /// Index du parent. `-1` = racine. Note : dans le format réel la sentinelle racine est
+    /// `bone_count` ; [`parse_hierarchy`] la **normalise en `-1`** ici pour une sémantique
+    /// uniforme.
     pub parent_index: i16,
     /// Nom (peut être `Bone_<i>` si non résolu).
     pub name: String,
 }
 
-/// Hiérarchie d'os extraite par heuristique (marquée non fiable).
+/// Hiérarchie d'os.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct G4skBones {
-    /// Os résolus (heuristiquement).
+    /// Os résolus.
     pub bones: Vec<Bone>,
-    /// Toujours `true` ici : layout non recoupé au réel ⇒ résultat INDICATIF.
+    /// `false` = résolu via la table d'offsets réelle (fiable) ; `true` = heuristique C#
+    /// (indicatif, non recoupé).
     pub heuristic: bool,
 }
 
@@ -95,14 +145,127 @@ pub fn parse_header(data: &[u8]) -> Result<G4skHeader, FormatError> {
         header_size: read_u16(data, 0x04)?,
         type_id: read_u16(data, 0x06)?,
         file_size: read_u32(data, 0x0C)?,
-        bone_count: read_u16(data, 0x20)?,
+        bone_count: read_u16(data, BONE_COUNT_OFF)?,
     })
+}
+
+/// Résout l'adresse fichier d'un slot de la table d'offsets de l'en-tête.
+///
+/// `slot[i]` (u16 @ `0x22 + i*2`) est un compte de dwords depuis [`HEADER_END`] (0x40).
+/// Renvoie `None` si l'index ou l'adresse calculée sort des limites.
+#[must_use]
+pub fn slot_offset(data: &[u8], slot: usize) -> Option<usize> {
+    let raw = read_u16(data, SLOT_TABLE_OFF + slot * 2).ok()? as usize;
+    let addr = HEADER_END.checked_add(raw.checked_mul(4)?)?;
+    if addr <= data.len() { Some(addr) } else { None }
+}
+
+/// Parse la hiérarchie d'os via la **table d'offsets réelle** de l'en-tête.
+///
+/// Lit `slot[4]` → parents (`N` × i16), `slot[8]` → table d'offsets de noms, puis valide
+/// (parents bornés, arbre acyclique, noms résolvables). En cas de succès, renvoie une
+/// [`G4skBones`] avec `heuristic = false`. En cas d'échec de validation, **retombe** sur
+/// [`parse_parents_heuristic`] (sans fabrication).
+///
+/// La sentinelle racine du format (`parent == bone_count`) est normalisée en `-1`.
+#[must_use]
+pub fn parse_hierarchy(data: &[u8], header: &G4skHeader) -> G4skBones {
+    match try_parse_real_hierarchy(data, header) {
+        Some(bones) => bones,
+        None => parse_parents_heuristic(data, header),
+    }
+}
+
+/// Tentative stricte de lecture via la table d'offsets. `None` si quoi que ce soit ne valide pas.
+fn try_parse_real_hierarchy(data: &[u8], header: &G4skHeader) -> Option<G4skBones> {
+    let n = header.bone_count as usize;
+    if n == 0 {
+        return Some(G4skBones { bones: Vec::new(), heuristic: false });
+    }
+
+    let parents_off = slot_offset(data, SLOT_PARENTS)?;
+    let names_table_off = slot_offset(data, SLOT_NAMES)?;
+
+    // --- 1) Lire et valider les parents ---
+    // Sentinelle racine = bone_count (format réel). Parents valides ∈ [-1, bone_count].
+    let mut parents: Vec<i16> = Vec::with_capacity(n);
+    parents_off.checked_add(n * 2)?;
+    if parents_off + n * 2 > data.len() {
+        return None;
+    }
+    for i in 0..n {
+        let val = read_u16(data, parents_off + i * 2).ok()? as i16;
+        // -1 (déjà racine) OU 0..=bone_count (bone_count = sentinelle racine).
+        if val < -1 || (val as i64) > n as i64 {
+            return None;
+        }
+        parents.push(val);
+    }
+    // Normaliser la sentinelle bone_count en -1 et vérifier l'acyclicité.
+    let normalized: Vec<i16> = parents
+        .iter()
+        .map(|&p| if p as i64 == n as i64 { -1 } else { p })
+        .collect();
+    if !is_acyclic_forest(&normalized) {
+        return None;
+    }
+
+    // --- 2) Lire et valider la table d'offsets de noms ---
+    if names_table_off + n * 2 > data.len() {
+        return None;
+    }
+    let mut names: Vec<String> = Vec::with_capacity(n);
+    for i in 0..n {
+        let name_off = read_u16(data, names_table_off + i * 2).ok()? as usize;
+        let abs = names_table_off.checked_add(name_off)?;
+        let name = read_printable_cstr(data, abs)?;
+        // Un nom d'os IEVR n'est jamais vide.
+        if name.is_empty() {
+            return None;
+        }
+        names.push(name);
+    }
+
+    let bones = (0..n)
+        .map(|i| Bone { index: i, parent_index: normalized[i], name: names[i].clone() })
+        .collect();
+
+    Some(G4skBones { bones, heuristic: false })
+}
+
+/// Vrai si `parents` (où `-1` = racine) forme une forêt acyclique d'indices valides.
+fn is_acyclic_forest(parents: &[i16]) -> bool {
+    let n = parents.len();
+    for start in 0..n {
+        let mut cur = start as i64;
+        let mut steps = 0usize;
+        loop {
+            let p = parents[cur as usize];
+            if p == -1 {
+                break;
+            }
+            if p < 0 || (p as usize) >= n {
+                return false;
+            }
+            // Auto-parent ⇒ cycle.
+            if p as usize == cur as usize {
+                return false;
+            }
+            cur = p as i64;
+            steps += 1;
+            if steps > n {
+                return false; // cycle détecté (chemin plus long que le nombre d'os).
+            }
+        }
+    }
+    true
 }
 
 /// Heuristique de parent-indices (port de `FindParentIndicesOffset`, G4skParser.cs L147).
 ///
 /// Cherche, à partir de 0x1000, une suite de `bone_count` i16 ∈ [-1, bone_count) contenant au
-/// moins un 0 ou un -1. **Non fiable** — voir le module-doc. Renvoie l'offset trouvé ou `None`.
+/// moins un 0 ou un -1. **Fallback uniquement** (ne se déclenche que sur des fichiers ≥ 0x1000,
+/// ce qui est rare). Conservé pour fidélité au C#. Renvoie l'offset trouvé ou `None`.
 #[must_use]
 pub fn find_parent_indices_offset(data: &[u8], bone_count: usize) -> Option<usize> {
     if bone_count == 0 {
@@ -135,8 +298,8 @@ pub fn find_parent_indices_offset(data: &[u8], bone_count: usize) -> Option<usiz
     None
 }
 
-/// Extrait les parents d'os par heuristique bornée (port de `ParseBones`). Marqué non fiable.
-/// Les noms ne sont pas devinés ici (la table de chaînes n'est pas recoupée) : `Bone_<i>`.
+/// Extrait les parents d'os par heuristique bornée (port de `ParseBones`). **Fallback** : marqué
+/// non fiable (`heuristic = true`). Les noms ne sont pas devinés ici : `Bone_<i>`.
 #[must_use]
 pub fn parse_parents_heuristic(data: &[u8], header: &G4skHeader) -> G4skBones {
     let bone_count = header.bone_count as usize;
@@ -152,6 +315,27 @@ pub fn parse_parents_heuristic(data: &[u8], header: &G4skHeader) -> G4skBones {
     }
 
     G4skBones { bones, heuristic: true }
+}
+
+/// Lit une chaîne nulle-terminée **imprimable** (ASCII 0x20..=0x7E) à `off`. `None` si le
+/// premier octet n'est pas imprimable, si pas de terminateur, ou hors limites.
+fn read_printable_cstr(data: &[u8], off: usize) -> Option<String> {
+    if off >= data.len() {
+        return None;
+    }
+    let mut end = off;
+    while end < data.len() && data[end] != 0 {
+        let b = data[end];
+        if !(0x20..=0x7E).contains(&b) {
+            return None;
+        }
+        end += 1;
+    }
+    if end >= data.len() {
+        return None; // pas de terminateur ⇒ chaîne tronquée, on refuse.
+    }
+    // Tous les octets sont ASCII imprimable ⇒ UTF-8 valide.
+    String::from_utf8(data[off..end].to_vec()).ok()
 }
 
 fn read_u16(data: &[u8], off: usize) -> Result<u16, FormatError> {
@@ -174,7 +358,11 @@ fn read_u32(data: &[u8], off: usize) -> Result<u32, FormatError> {
 mod tests {
     use super::*;
 
-    /// Construit un en-tête G4SK synthétique (header DÉTERMINISTE : c'est ce qu'on garantit).
+    /// G4SK réel extrait du jeu (`s28g001b.g4pk` → `s28g001b.g4sk`, 19 os).
+    /// Octets BRUTS du dump VPS — aucune fabrication.
+    const REAL_G4SK: &[u8] = include_bytes!("../tests/fixtures/s28g001b.g4sk");
+
+    /// Construit un en-tête G4SK synthétique (header DÉTERMINISTE : ce qu'on garantit).
     fn build_header(bone_count: u16, file_size: u32) -> Vec<u8> {
         let mut buf = alloc::vec![0u8; 0x22];
         buf[0..4].copy_from_slice(&MAGIC_BYTES);
@@ -209,9 +397,95 @@ mod tests {
         assert!(matches!(parse_header(&buf), Err(FormatError::BadMagic { .. })));
     }
 
+    // ------------------------------------------------------------------
+    // Valeurs RÉELLES recoupées sur s28g001b.g4sk
+    // ------------------------------------------------------------------
+
+    #[test]
+    fn header_reel_s28g001b() {
+        let h = parse_header(REAL_G4SK).expect("header G4SK réel");
+        assert_eq!(&REAL_G4SK[..4], b"G4SK");
+        assert_eq!(h.header_size, 0x40);
+        assert_eq!(h.type_id, 0x68);
+        assert_eq!(h.bone_count, 19);
+    }
+
+    #[test]
+    fn slots_offsets_reels() {
+        // Adresses fichier recoupées : slot[4]=parents @0xB6C, slot[8]=noms @0xC1C.
+        assert_eq!(slot_offset(REAL_G4SK, SLOT_PARENTS), Some(0xB6C));
+        assert_eq!(slot_offset(REAL_G4SK, SLOT_NAMES), Some(0xC1C));
+        assert_eq!(slot_offset(REAL_G4SK, 0), Some(0x40)); // matrices bind-pose @0x40
+    }
+
+    #[test]
+    fn hierarchie_reelle_resolue_non_heuristique() {
+        let h = parse_header(REAL_G4SK).unwrap();
+        let res = parse_hierarchy(REAL_G4SK, &h);
+
+        // C'est la résolution réelle, PAS l'heuristique.
+        assert!(!res.heuristic, "la hiérarchie réelle doit être résolue (heuristic=false)");
+        assert_eq!(res.bones.len(), 19);
+
+        // Parents recoupés (sentinelle bone_count=19 normalisée en -1 pour les racines 0 et 15).
+        let expected_parents: [i16; 19] =
+            [-1, 0, 1, 2, 1, 1, 5, 5, 5, 5, 5, 5, 5, 5, 5, -1, 15, 16, 16];
+        let got: Vec<i16> = res.bones.iter().map(|b| b.parent_index).collect();
+        assert_eq!(got, expected_parents);
+
+        // Noms recoupés.
+        let expected_names = [
+            "s28g001b_map", "bk00_s28g001b", "spatial_b_00", "range_00_1", "model_a_00",
+            "model_r_00", "ao200", "ao241", "s28g001g01", "s28g001g02", "s28g001g03",
+            "s28g001g04", "s28g001g05", "s28g001g06", "s28g001g07", "instance", "bk00",
+            "ao241_bk00_01", "ao241_bk00_02",
+        ];
+        let got_names: Vec<&str> = res.bones.iter().map(|b| b.name.as_str()).collect();
+        assert_eq!(got_names, expected_names);
+    }
+
+    #[test]
+    fn arbre_reel_acyclique_et_racines() {
+        let h = parse_header(REAL_G4SK).unwrap();
+        let res = parse_hierarchy(REAL_G4SK, &h);
+        let parents: Vec<i16> = res.bones.iter().map(|b| b.parent_index).collect();
+        assert!(is_acyclic_forest(&parents), "l'arbre d'os réel doit être acyclique");
+        // Deux racines réelles : os 0 (s28g001b_map) et os 15 (instance).
+        let roots: Vec<usize> =
+            res.bones.iter().filter(|b| b.parent_index == -1).map(|b| b.index).collect();
+        assert_eq!(roots, alloc::vec![0, 15]);
+    }
+
+    #[test]
+    fn is_acyclic_detecte_cycle() {
+        // 0->1->0 : cycle.
+        assert!(!is_acyclic_forest(&[1, 0]));
+        // auto-parent.
+        assert!(!is_acyclic_forest(&[0]));
+        // index hors limites.
+        assert!(!is_acyclic_forest(&[5, -1]));
+        // forêt valide.
+        assert!(is_acyclic_forest(&[-1, 0, 1, -1]));
+    }
+
+    #[test]
+    fn fallback_heuristique_si_table_invalide() {
+        // Un buffer où les slots pointent sur du bruit non validable → fallback heuristique
+        // (jamais de fabrication silencieuse d'une fausse hiérarchie « fiable »).
+        let mut buf = alloc::vec![0xABu8; 0x200];
+        buf[0..4].copy_from_slice(&MAGIC_BYTES);
+        buf[0x04..0x06].copy_from_slice(&0x40u16.to_le_bytes());
+        buf[0x20..0x22].copy_from_slice(&8u16.to_le_bytes()); // 8 os
+        // slot[4] et slot[8] pointent vers des zones de 0xAB → parents hors plage → invalide.
+        let h = parse_header(&buf).unwrap();
+        let res = parse_hierarchy(&buf, &h);
+        assert!(res.heuristic, "table invalide ⇒ retombe en heuristique, pas de fabrication");
+        assert_eq!(res.bones.len(), 8);
+    }
+
     #[test]
     fn heuristique_parents_marquee_non_fiable() {
-        // Place 3 parents [-1, 0, 1] à 0x1000 et vérifie que l'heuristique les retrouve.
+        // Place 3 parents [-1, 0, 1] à 0x1000 et vérifie que l'heuristique (fallback) les retrouve.
         let mut buf = alloc::vec![0u8; 0x1000 + 6];
         buf[0..4].copy_from_slice(&MAGIC_BYTES);
         buf[0x20..0x22].copy_from_slice(&3u16.to_le_bytes());
@@ -221,7 +495,7 @@ mod tests {
 
         let h = G4skHeader { header_size: 0x20, type_id: 0, file_size: 0, bone_count: 3 };
         let res = parse_parents_heuristic(&buf, &h);
-        assert!(res.heuristic, "la hiérarchie DOIT être marquée heuristique/INCOMPLET");
+        assert!(res.heuristic, "la hiérarchie heuristique DOIT être marquée non fiable");
         assert_eq!(res.bones.len(), 3);
         assert_eq!(res.bones[0].parent_index, -1);
         assert_eq!(res.bones[1].parent_index, 0);
@@ -232,9 +506,6 @@ mod tests {
     #[test]
     fn find_parents_absent_renvoie_none() {
         let buf = alloc::vec![0xFFu8; 0x1000 + 8];
-        // Valeurs 0xFFFF = -1 partout : valides mais bone_count grand → dépend ; ici 2 os.
-        // 0xFFFF as i16 = -1 → valide. zero_or_neg = true → trouvé. Pour tester None, bone_count
-        // tel qu'aucune fenêtre ne soit valide : on met des valeurs hors plage.
         let mut b2 = buf.clone();
         for x in b2.iter_mut().skip(0x1000) {
             *x = 0x7F; // 0x7F7F = 32639 ≥ bone_count(2) → invalide
