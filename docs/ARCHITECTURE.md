@@ -98,7 +98,9 @@ Vérification byte-à-byte contre la table `.pdata` (unwind d'exception x64, gé
 
 **Couverture HONNÊTE : 48 787 / 52 783 = 92,43 %** des fonctions réelles, sur adresses correctes + graphe d'appels réel + cohésion de vtable. Le dénominateur s'est **agrandi** (50 674 → 52 783, +2 109 feuilles découvertes par vtable) et la couverture a tout de même monté (90,43 % → 92,43 %).
 
-**Prochains leviers** : propagation **pondérée par type d'arête** (direct 1.0, vtable 0.5, RTTI 2-3 — grok §3, +4-5 pts estimés) ; découverte des feuilles restantes (cibles d'appel directes hors `.pdata`/vtable) ; puis l'axe « jeu jouable » (`nie-core`, `nie-data`, `nie-formats`).
+**Propagation pondérée — FAIT (levier de précision, pas de couverture).** Arêtes typées (appel direct 1.0, cohésion de vtable 0.5) + amortissement de degré anti-hub (`1/ln(deg+2)` : un utilitaire alloc/string appelé par des milliers de fonctions ne domine plus le label de ses voisins). **Couverture inchangée à 92,43 %** : la pondération change *quel* label gagne et la confiance, pas *quels* nœuds sont atteignables (la couverture est bornée par la connectivité du graphe, pas les poids). C'est une amélioration de **robustesse/justesse** des labels, utile pour le port, mais ce n'est pas un levier de couverture (estimation grok §3 « +4-5 pts » revue à la baisse, vérifiée empiriquement).
+
+**Prochains leviers de couverture** (les vrais) : (a) plus d'**ancres** (règles strings, RTTI étendu) ; (b) **découverte de feuilles** supplémentaires (cibles d'appel directes `.text` hors `.pdata`/vtable, à enregistrer comme nœuds) ; (c) le résidu (~4 000 fonctions) est largement **isolé** (ni string, ni RTTI, ni arête vers une fonction étiquetée) → rendements décroissants. **L'axe à plus forte valeur est désormais le « jeu jouable »** : `nie-core` (sim), `nie-data` (port inagle), `nie-formats` (rejoint l'axe assets du `coverage-100-plan`), `nie-wasm`.
 
 ## Couverture atteinte (sur l'index Ghidra — espace-graphe)
 

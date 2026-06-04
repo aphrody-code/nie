@@ -153,20 +153,24 @@ pub fn propagate_db(db: &mut Db, binary_id: i64, rounds: usize) -> Result<Stats>
     debug!("graphe: {} nœuds, {} labels distincts", graph.nodes.len(), u32_to_label.len());
 
     // --- Étape 5 : arêtes (xref kind='call') ------------------------------------
-    let xrefs: Vec<(i64, i64)> = {
+    // Arêtes typées : appel direct (réel) = 1.0, cohésion de vtable = 0.5
+    // (indice plus faible, évite de sur-diffuser un label via une grosse vtable).
+    let xrefs: Vec<(i64, i64, f32)> = {
         let mut stmt = db.conn().prepare(
-            "SELECT from_addr, to_addr FROM xref WHERE binary_id=?1 AND kind IN ('call','vtable')",
+            "SELECT from_addr, to_addr, kind FROM xref WHERE binary_id=?1 AND kind IN ('call','vtable')",
         )?;
         stmt.query_map([binary_id], |r| {
-            Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?))
+            let kind: String = r.get(2)?;
+            let w = if kind == "vtable" { 0.5_f32 } else { 1.0_f32 };
+            Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?, w))
         })?
         .collect::<std::result::Result<_, _>>()?
     };
 
     let mut edges_added = 0usize;
-    for (from, to) in &xrefs {
+    for (from, to, w) in &xrefs {
         if let (Some(&a), Some(&b)) = (vaddr_to_node.get(from), vaddr_to_node.get(to)) {
-            graph.add_edge(a, b);
+            graph.add_edge(a, b, *w);
             edges_added += 1;
         }
     }
