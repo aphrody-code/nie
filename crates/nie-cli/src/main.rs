@@ -324,14 +324,15 @@ fn rebuild(db_path: &std::path::Path, exe_path: &std::path::Path, rounds: usize)
     )?;
 
     let rb = nie_re::pdata::rebuild_from_pdata(&mut db, src_bin, dst_bin, exe_path)?;
+    let vt = nie_re::vtable::vtable_edges_into(&mut db, src_bin, dst_bin, exe_path)?;
     let dis = nie_re::disasm::recover_call_edges(&mut db, dst_bin, exe_path)?;
     let prop = nie_re::loop_db::propagate_db(&mut db, dst_bin, rounds)?;
 
     println!(
-        "rebuild roots={} str={} const={} ce={} rtti={} | disasm new={} | propagate anchors(s/r/c)={}/{}/{} cov={}/{} ({:.2}%)",
-        rb.roots, rb.str_refs_moved, rb.consts_moved, rb.ce_edges_mapped, rb.rtti_copied,
-        dis.edges_new, prop.anchored_str, prop.anchored_rtti, prop.anchored_const,
-        prop.classified_after, prop.total, prop.coverage_after
+        "rebuild roots={} str={} ce={} rtti={} | vtable methods={} leaf+={} edges={} | disasm new={} | cov={}/{} ({:.2}%)",
+        rb.roots, rb.str_refs_moved, rb.ce_edges_mapped, rb.rtti_copied,
+        vt.methods, vt.new_leaf_funcs, vt.cohesion_edges,
+        dis.edges_new, prop.classified_after, prop.total, prop.coverage_after
     );
     Ok(())
 }
