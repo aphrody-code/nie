@@ -12,7 +12,12 @@
 //! implémentée dans [`nie_index_json`].
 #![forbid(unsafe_code)]
 
+pub mod formats;
+pub mod inagle;
 pub mod nie_index_json;
+pub mod rtti_classes;
+
+use std::path::Path;
 
 /// Statistiques d'une passe d'ingestion.
 #[derive(Debug, Default, Clone, serde::Serialize)]
@@ -24,10 +29,57 @@ pub struct Stats {
     pub globals: usize,
     pub rtti_classes: usize,
     pub anchors: usize,
+    /// Nombre de formats documentés insérés.
+    pub formats: usize,
+    /// Nombre de couples (hash, nom) inagle insérés.
+    pub hash_names: usize,
 }
 
 /// Version du seeder.
 #[must_use]
 pub fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")
+}
+
+/// Lance l'intégralité de l'ingestion connaissance et renvoie les compteurs.
+///
+/// - `binary_id` : id du binaire dans `nie_index::Db` (déjà inséré via `upsert_binary`).
+/// - `refs_root` : racine du répertoire `refs/` (contient `iecode-re/research/nie-rtti-classes.txt`).
+/// - `inagle_sqlite_dir` : répertoire contenant les fichiers `supabase-*.sqlite`
+///   (typiquement `apps/azalee/data/backups/`).
+///
+/// # Erreurs
+///
+/// Retourne une erreur agrégée si l'une des étapes critiques échoue.
+pub fn ingest_all(
+    db: &mut nie_index::Db,
+    binary_id: i64,
+    refs_root: &Path,
+    inagle_sqlite_dir: Option<&Path>,
+) -> anyhow::Result<Stats> {
+    let mut stats = Stats::default();
+
+    // 1. Classes RTTI
+    let rtti_path = refs_root
+        .join("iecode-re")
+        .join("research")
+        .join("nie-rtti-classes.txt");
+    stats.rtti_classes = rtti_classes::ingest_rtti_classes(db, binary_id, &rtti_path)?;
+    // anchors = une ancre par classe RTTI
+    stats.anchors += stats.rtti_classes;
+
+    // 2. Formats Level-5 / Criware
+    stats.formats = formats::ingest_formats(db)?;
+
+    // 3. Hash→nom inagle (optionnel si la DB n'est pas disponible)
+    if let Some(dir) = inagle_sqlite_dir {
+        match inagle::ingest_inagle_hashes(db, dir) {
+            Ok(n) => stats.hash_names = n,
+            Err(e) => {
+                tracing::warn!("ingestion inagle ignorée : {e:#}");
+            }
+        }
+    }
+
+    Ok(stats)
 }
