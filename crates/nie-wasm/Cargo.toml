@@ -1,6 +1,6 @@
 [package]
 name = "nie-wasm"
-description = "Bindings WebAssembly pour nie-formats : expose detect, crilayla, @UTF au navigateur via wasm-bindgen"
+description = "Bindings WebAssembly pour le savoir niers vérifié : nie-formats (detect/CRILAYLA/@UTF/G4*), nie-core (stats growth + FSM de match) et nie-data (lookup skill/aura/item) exposés au navigateur via wasm-bindgen"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -16,6 +16,12 @@ workspace = true
 
 [dependencies]
 nie-formats.workspace = true
+# nie-core (calcul de stats/growth + machine à états de match) et nie-data (lookup
+# skill/aura/item) avec la feature `serde` pour sérialiser les résultats en JSON côté
+# navigateur. Déclarés en path direct : ces deux crates ne sont pas (encore) dans la
+# `[workspace.dependencies]` racine.
+nie-core = { path = "../nie-core", features = ["serde"] }
+nie-data = { path = "../nie-data", features = ["serde"] }
 serde_json.workspace = true
 
 # wasm-bindgen épinglé à la même version qu'aphrody (=0.2.121).
