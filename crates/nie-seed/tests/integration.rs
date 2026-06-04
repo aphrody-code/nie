@@ -29,16 +29,27 @@ fn ingest_all_reel() {
     let refs_root = Path::new("/home/ubuntu/niers/refs");
     let inagle_dir = Path::new(INAGLE_DIR);
 
-    let stats = nie_seed::ingest_all(&mut db, BINARY_ID, refs_root, Some(inagle_dir))
+    // Catalogue iecode optionnel : présent si `iecode export-knowledge` a été lancé.
+    let catalog = Path::new("/tmp/iecode-format-catalog.json");
+    let catalog_opt = catalog.exists().then_some(catalog);
+
+    let stats = nie_seed::ingest_all(&mut db, BINARY_ID, refs_root, Some(inagle_dir), catalog_opt)
         .expect("ingest_all");
 
     println!(
         "=== ingest_all résultats ===\n\
-         classes RTTI  : {}\n\
-         formats       : {}\n\
-         hash inagle   : {}\n\
-         ancres        : {}",
-        stats.rtti_classes, stats.formats, stats.hash_names, stats.anchors
+         classes RTTI    : {}\n\
+         formats         : {}\n\
+         catalogue (fmt) : {}\n\
+         catalogue (champs) : {}\n\
+         hash inagle     : {}\n\
+         ancres          : {}",
+        stats.rtti_classes,
+        stats.formats,
+        stats.catalog_formats,
+        stats.catalog_fields,
+        stats.hash_names,
+        stats.anchors
     );
 
     assert!(

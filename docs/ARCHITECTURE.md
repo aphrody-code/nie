@@ -38,7 +38,7 @@ Objectif littéral : au lancement de `niers` (en Rust), avoir **100 % du jeu** d
 
 1. **INDEX** (`nie-re::indexer`) — pilote `rizin` en sous-processus (`aaa`, sorties JSON `aflj`/`izzj`/`iij`/`axtj`), peuple `nie-index` : sections, fonctions, strings, xrefs, imports. RTTI MSVC récupéré (`nie-re::rtti`) → classes `lives::*` + hiérarchie (`rtti_base`).
 2. **SEED** (`nie-seed`) — importe le savoir **déjà fusionné** comme ancres de vérité :
-   - catalogue des formats Level-5 documentés par `iecode/src/IECODE.Core/Formats/**` (offsets, magics) ;
+   - catalogue des formats Level-5 / Criware documentés par `iecode/src/IECODE.Core/Formats/**` : magics + layouts de champs d'en-tête (offset/taille/type), exportés par iecode (`iecode export-knowledge`, JSON `schema_version`) et ingérés par `nie-seed/src/format_catalog.rs` (tables `format` + `format_field`) ;
    - tables `hash → nom` d'`inagle` (CRC32/FNV des IDs persos/skills/items — des milliers d'ancres) ;
    - noms de classes RTTI ↔ structures connues.
 3. **QUEUE** (`nie-queue`, redis) — frontière récursive : les fonctions/structures non résolues sont poussées dans une file dédupliquée ; des workers les dépilent (parallélisme).
