@@ -1,0 +1,21 @@
+[package]
+name = "nie-core"
+description = "Logique de jeu reversée en Rust pur (ballon, IA tactique, états de match, calcul gardien, stats joueur)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+thiserror.workspace = true
+serde = { workspace = true, optional = true }
+
+[features]
+default = []
+serde = ["dep:serde"]
+
+[dev-dependencies]
