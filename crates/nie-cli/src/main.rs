@@ -181,6 +181,13 @@ fn propagate(db_path: &std::path::Path, rounds: usize) -> anyhow::Result<()> {
         .context("propagation")?;
 
     println!("propagation terminée : {} rounds", stats.rounds);
+    println!();
+    println!("ancres posées par mécanisme :");
+    println!("  chaînes (str)    : {}", stats.anchored_str);
+    println!("  RTTI             : {}", stats.anchored_rtti);
+    println!("  constante-magic  : {}", stats.anchored_const);
+    println!("  total ancres     : {}", stats.anchored_str + stats.anchored_rtti + stats.anchored_const);
+    println!();
     println!(
         "couverture AVANT : {}/{} ({:.2}%)",
         stats.classified_before, stats.total, stats.coverage_before
@@ -190,9 +197,23 @@ fn propagate(db_path: &std::path::Path, rounds: usize) -> anyhow::Result<()> {
         stats.classified_after, stats.total, stats.coverage_after
     );
     println!(
-        "fonctions nouvellement étiquetées : {}",
+        "gain propagation  : {} fonctions nouvellement étiquetées",
         stats.labeled
     );
+    println!(
+        "gain total        : +{} (+{:.2}%)",
+        stats.classified_after - stats.classified_before,
+        stats.coverage_after - stats.coverage_before
+    );
+
+    // Top sous-systèmes après propagation.
+    let by_sub = nie_index::query::by_subsystem(db.conn(), bin)?;
+    println!();
+    println!("répartition par sous-système :");
+    for (ns, n) in &by_sub {
+        println!("  {ns:<18} {n}");
+    }
+
     Ok(())
 }
 
