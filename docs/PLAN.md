@@ -37,8 +37,8 @@ en Rust ; iecode/inagle ne sont pas des dépendances permanentes, ce sont des v�
 - **Mesure réelle** : 4999 LOC, 92 fn publiques, 56 struct/enum, **126 tests + 9 doctests verts, 0 stub**, `#![forbid(unsafe_code)]`. Porté de `soccer_match_state_machine.c`, `soccer_command_effect.c`, `soccer_action_ctrl.c` (formules score `min*10000+sec`, strides, sentinelles confirmés ligne-par-ligne). **Ce n'est pas un squelette.**
 
 ### 3bis. Acquisition Steam — `nie-steam` (download natif des dépôts, port du Steam C# d'iecode)
-- **Fondation** : crate `nie-steam` sur **`steamroom`** (+ `steamroom-client`, MIT/Apache-2.0) — équivalent Rust de SteamKit2 (protocole CM, auth/Steam Guard, manifest, chunk, CDN). **Build vert.**
-- **EN COURS** : port de la couche spécifique iecode (`SteamDepotResolver` filtres OS/arch/langue, `SteamTokenStore`, `SteamDownloadOptions`, orchestration `download/sync`, presets IEVR app **2799860**) ; le lourd (protocole) est fourni par steamroom, pas réimplémenté.
+- **FAIT (2026-06-05, `be3811f`)** : port complet de `IECODE.Core/Steam/Content/` sur **`steamroom`** + `steamroom-client` (MIT/Apache, = équivalent SteamKit2). Modules : `depot_resolver` (filtres OS/arch/langue, **fidélité C# vérifiée**), `token_store` (cache refresh-token round-trip), `options`, `session` (login refresh/credentials/2FA/anon, PICS, depot keys), `downloader` (orchestration `DepotJob`, proxy `depotfromapp`), + CLI `nie-steam`. **33 tests verts, clippy 0, 0 stub.** Le protocole (CM/auth/manifest/chunk/CDN) vient de steamroom, pas réimplémenté.
+- **E2E live** en attente de creds Steam (`session`/`downloader` font de vrais appels steamroom, non testables sans login + réseau).
 - **Hors scope** (pilier distinct « jeu en cours d'exécution ») : `SteamApi` (FFI `libsteam_api` → crate `steamworks`), `SteamEncryptedAppTicket` (EOS Windows-only).
 
 ### 4. Runtime + portabilité — `nie-headless`, `nie-wasm`
