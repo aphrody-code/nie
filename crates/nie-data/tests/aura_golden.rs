@@ -85,28 +85,30 @@ fn aura_cmd_info_0_champs() {
 fn hissatsu_non_resolu_sans_skill_pas_d_invention() {
     let auras = parse_all_aura_cmds(&aura_node_fixture());
     let a = &auras[0];
-    // Carte de skills VIDE : skillId1 (0x0F8C620D) introuvable → None (comme le dump réel
-    // où aura_skill_config 1.04.09 ne mappe vers aucun skill_config 4/5).
+    // Carte de skills VIDE → None (pas d'invention) : sans table de skills chargée on ne
+    // résout rien. (NB : avec le vrai skill_config, skillId1 0x0F8C620D RÉSOUT bien vers
+    // whs01780 — cf. le test positif ci-dessous ; ~61/1548 auras résolvent réellement.)
     let empty = build_skill_map(Vec::new());
     assert!(resolve_aura_hissatsu(&a.config, &empty).is_none());
 }
 
 #[test]
 fn hissatsu_resolu_chaine_skillid1_vers_skill_config() {
-    // Résolution POSITIVE : on construit un SkillInfo dont le skillID == skillId1 de l'aura,
-    // pour prouver la chaîne config.skillId1 → SkillInfo (name/type/element/power).
-    // On réutilise le skill réel whs00010 (Tir/Vent/70-440) mais réindexé sur 0x0F8C620D.
+    // Résolution POSITIVE avec le VRAI skill whs01780 (= skillId1 0x0F8C620D de l'aura).
+    // Valeurs réelles tirées de skill_config_4.00.17.00 (vérifiées) :
+    //   0x0F8C620D / whs01780 / nameId 0x6B9C3E18 / power 100-640 / element 3 (Feu) /
+    //   category 1 (Tir) / consumeTp 100 / recastTime 90.
     let skill_value = json!({
         "skillID": "0x0F8C620D",
-        "skillIDStr": "whs00010",
+        "skillIDStr": "whs01780",
         "eventID": "0x00000000", "eventIDName": "",
         "failEventID": "0x00000000", "failEventIDName": "",
-        "skillNameId": "0x07ADF4B1", "skillDescId": "0x87AB9FB9",
-        "cmdOptIdx": 2, "skillEffectBitFlag": 16,
-        "power_min": 70, "power_max": 440,
-        "element": 1, "colorIdx": 1, "category": 1, "growthType": 4,
-        "foulRate": 0, "consumeTp": 70, "focusBattleEffectId": "0x00000000",
-        "recastTime": 90, "partnerType": 2,
+        "skillNameId": "0x6B9C3E18", "skillDescId": "0x00000000",
+        "cmdOptIdx": 0, "skillEffectBitFlag": 0,
+        "power_min": 100, "power_max": 640,
+        "element": 3, "colorIdx": 1, "category": 1, "growthType": 0,
+        "foulRate": 0, "consumeTp": 100, "focusBattleEffectId": "0x00000000",
+        "recastTime": 90, "partnerType": 0,
         "partner1": "0x00000000", "partner2": "0x00000000", "partner3": "0x00000000",
         "telopInfoId": "0x00000000", "eldorado": false,
         "seriesIdCrc": "0x00000000", "isDisablePlayableUntilNextPatch": false
@@ -115,13 +117,14 @@ fn hissatsu_resolu_chaine_skillid1_vers_skill_config() {
     let map = build_skill_map(alloc_vec(skill));
 
     let auras = parse_all_aura_cmds(&aura_node_fixture());
-    let h = resolve_aura_hissatsu(&auras[0].config, &map).expect("skillId1 doit résoudre");
+    let h = resolve_aura_hissatsu(&auras[0].config, &map)
+        .expect("skillId1 0x0F8C620D doit résoudre vers whs01780");
 
     assert_eq!(h.skill_id, HashId(0x0F8C_620D));
-    assert_eq!(h.skill_id_str.as_deref(), Some("whs00010"));
-    assert_eq!(h.category, SkillCategory::Shoot);
-    assert_eq!(h.element, SkillElement::Wind);
-    assert_eq!(h.power, (70, 440));
+    assert_eq!(h.skill_id_str.as_deref(), Some("whs01780"));
+    assert_eq!(h.category, SkillCategory::Shoot); // category 1 = Tir
+    assert_eq!(h.element, SkillElement::Fire); // element 3 = Feu
+    assert_eq!(h.power, (100, 640));
 }
 
 #[test]
