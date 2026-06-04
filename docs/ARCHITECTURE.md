@@ -59,17 +59,38 @@ nie-wasm      bindings wasm-bindgen + cible web/Next.js
 
 Contrainte wasm : `wasm32-unknown-unknown` std fournie par la toolchain `nightly-x86_64-unknown-linux-gnu` (la seule présente avec la std wasm). `nie-formats`/`nie-data`/`nie-core` restent `#![no_std]`-compatibles autant que possible (alloc only) pour la portabilité wasm.
 
-## Crates (état actuel)
+## Crates (état atteint)
+
+9 crates, 192 tests verts, compile natif (nightly-2026-05-17) + `wasm32-unknown-unknown`.
 
 | Crate | Rôle | État |
 |---|---|---|
-| `nie-index` | base de connaissance sqlite (schéma + accès) | fondation |
-| `nie-re` | moteur RE : driver rizin, indexer, RTTI, propagation | fondation |
-| `nie-queue` | frontière redis + coordination workers | fondation |
-| `nie-seed` | import ground-truth iecode + inagle | fondation |
-| `nie-formats` | parsers Level-5 portés en Rust | amorce (cfg.bin) |
-| `nie-cli` | binaire `niers` (re/fmt/loop/coverage) | fondation |
+| `nie-index` | base de connaissance sqlite (schéma + ingest/query) | FAIT |
+| `nie-seed` | ingest nie-index.json (60183 fn) + RTTI/formats/inagle | FAIT |
+| `nie-re` | RTTI MSVC, indexer aphrody-re, propagation auto-ML | FAIT |
+| `nie-queue` | frontière BFS redis | FAIT |
+| `nie-formats` | CRILAYLA decompress, @UTF, cfg.bin/RDBN | FAIT (CPK chiffré + valeurs RDBN = NON_FAIT) |
+| `nie-core` | logique de jeu : ball, soccer, keeper, tactics AI, stats | amorce (14 fn portées) |
+| `nie-cli` | binaire `niers` (seed/index/rtti/propagate/coverage/queue) | FAIT |
+| `nie-headless` | runner CLI sans moteur Windows | FAIT |
+| `nie-wasm` | surface wasm-bindgen (detect/crilayla/utf), glue JS | FAIT |
+
+## Couverture atteinte
+
+Pipeline `niers seed → index → rtti → propagate` sur le vrai `nie.exe` :
+
+- **86,92 %** des 60 183 fonctions classifiées en sous-systèmes (menu, physics, chara, gameplay, audio, network, script, render, vfs, animation, level, input) via 3 112 ancres (strings + RTTI-namespace + const-magic) et label-spreading.
+- RTTI : 1 234/1 234 classes attendues + 6 472 relations d'héritage.
+- **Plafond identifié (honnête)** : 6 089 des 7 870 fonctions restantes ont **zéro arête `call`** dans l'index Ghidra → îlots inatteignables par propagation. Dépasser ~87 % exige de **récupérer les arêtes d'appel manquantes par désassemblage** (iced-x86 sur la section `.text`, déjà disponible via `aphrody-re`) — c'est le prochain levier majeur.
+
+## Reste vers 100 %
+
+1. **Récupération des arêtes d'appel** (iced-x86) : désassembler `.text`, résoudre les `call`/`jmp` directs et indirects (vtables) → enrichir le call-graph → repropager au-delà de 87 %.
+2. **nie-core** : étendre la logique de jeu portée (sim de match complète, skills/auras, IA), valider contre inagle.
+3. **nie-data** : structures de données du jeu (port inagle) en Rust.
+4. **Déchiffrement enveloppe CPK** (clé non publique — RE à faire).
+5. **nie-wasm** : étendre la surface (nie-core, nie-data) + intégration web.
 
 ## Honnêteté
 
-Reverser 100 % d'un jeu AAA est un effort de longue haleine. Ce repo livre la **boucle réelle** (pas un stub) : index runnable sur le vrai `nie.exe`, seed depuis le vrai savoir iecode/inagle, propagation mesurable, et une couverture % qui progresse. Chaque livrable est classé FAIT / INCOMPLET / NON_FAIT.
+Reverser 100 % d'un jeu AAA est un effort de longue haleine. Ce repo livre la **boucle réelle** (pas un stub) : index runnable sur le vrai `nie.exe`, seed depuis le vrai savoir iecode/inagle, propagation mesurée à 86,92 %, formats décodés et portés en wasm, logique de jeu amorcée, headless + navigateur fonctionnels. Chaque livrable est classé FAIT / INCOMPLET / NON_FAIT.
