@@ -35,12 +35,13 @@ impl Node {
     }
 }
 
-/// Graphe de propagation : nœuds + arêtes non orientées (dérivées des callees/callers).
+/// Graphe de propagation : nœuds + arêtes non orientées **pondérées** (dérivées
+/// des callees/callers, des vtables, etc.).
 #[derive(Debug, Default, Clone)]
 pub struct PropagationGraph {
     pub nodes: Vec<Node>,
-    /// Adjacence (indices de nœuds). Symétrique attendue.
-    pub adj: Vec<Vec<u32>>,
+    /// Adjacence pondérée : `(voisin, poids)`. Symétrique attendue.
+    pub adj: Vec<Vec<(u32, f32)>>,
 }
 
 impl PropagationGraph {
@@ -59,8 +60,9 @@ impl PropagationGraph {
         idx
     }
 
-    /// Arête non orientée entre `a` et `b`.
-    pub fn add_edge(&mut self, a: u32, b: u32) {
+    /// Arête non orientée pondérée entre `a` et `b` (poids = force de l'indice :
+    /// appel direct 1.0, cohésion de vtable < 1.0, etc.).
+    pub fn add_edge(&mut self, a: u32, b: u32, weight: f32) {
         if a == b {
             return;
         }
@@ -68,8 +70,8 @@ impl PropagationGraph {
         if self.adj.len() <= max {
             self.adj.resize(max + 1, Vec::new());
         }
-        self.adj[a as usize].push(b);
-        self.adj[b as usize].push(a);
+        self.adj[a as usize].push((b, weight));
+        self.adj[b as usize].push((a, weight));
     }
 
     /// Atténuation par round : la confiance diffusée décroît avec la distance aux ancres.
@@ -78,6 +80,12 @@ impl PropagationGraph {
     /// Exécute jusqu'à `max_rounds` rounds (ou jusqu'à stabilisation). Renvoie le nombre de
     /// nœuds nouvellement étiquetés.
     pub fn run(&mut self, max_rounds: usize) -> usize {
+        // Amortissement par degré (anti-hub) : un nœud très connecté (utilitaires
+        // alloc/string appelés partout) diffuse une influence atténuée par
+        // `1/ln(deg+2)`, pour ne pas noyer les labels spécifiques.
+        let degree_damp: Vec<f32> =
+            self.adj.iter().map(|a| 1.0 / ((a.len() as f32) + 2.0).ln()).collect();
+
         let mut newly_labeled = 0usize;
         for _ in 0..max_rounds {
             let mut changed = false;
@@ -89,15 +97,16 @@ impl PropagationGraph {
                 if self.nodes[i].locked {
                     continue;
                 }
-                // Vote pondéré des voisins étiquetés : pour chaque label on suit la masse
-                // totale (somme des confiances → pureté) et la confiance max d'un parent
-                // (→ décroissance avec la distance à l'ancre).
+                // Vote des voisins étiquetés, pondéré par le poids d'arête × l'amortissement
+                // de degré du voisin : pour chaque label on suit la masse totale (→ pureté)
+                // et la contribution max d'un parent (→ décroissance avec la distance/force).
                 let mut votes: HashMap<u32, (f32, f32)> = HashMap::new();
-                for &nb in &self.adj[i] {
+                for &(nb, w) in &self.adj[i] {
                     if let Some((lbl, conf)) = snapshot[nb as usize] {
+                        let contrib = conf * w * degree_damp[nb as usize];
                         let e = votes.entry(lbl).or_insert((0.0, 0.0));
-                        e.0 += conf;
-                        e.1 = e.1.max(conf);
+                        e.0 += contrib;
+                        e.1 = e.1.max(contrib);
                     }
                 }
                 let Some((&best_label, &(best_sum, best_max))) = votes
@@ -150,9 +159,9 @@ mod tests {
         let b = g.add_node(Node::unknown());
         let c = g.add_node(Node::unknown());
         let d = g.add_node(Node::unknown());
-        g.add_edge(a, b);
-        g.add_edge(b, c);
-        g.add_edge(c, d);
+        g.add_edge(a, b, 1.0);
+        g.add_edge(b, c, 1.0);
+        g.add_edge(c, d, 1.0);
         let newly = g.run(16);
         assert_eq!(newly, 3, "les 3 nœuds inconnus reçoivent un label");
         assert_eq!(g.nodes[b as usize].label, Some(1));
@@ -169,8 +178,8 @@ mod tests {
         let g1 = g.add_node(Node::anchor(1));
         let m2 = g.add_node(Node::anchor(2));
         let mid = g.add_node(Node::unknown());
-        g.add_edge(g1, mid);
-        g.add_edge(m2, mid);
+        g.add_edge(g1, mid, 1.0);
+        g.add_edge(m2, mid, 1.0);
         g.run(8);
         // À égalité parfaite le label est l'un des deux ; il doit être étiqueté.
         assert!(g.nodes[mid as usize].label.is_some());
