@@ -75,7 +75,23 @@ Contrainte wasm : `wasm32-unknown-unknown` std fournie par la toolchain `nightly
 | `nie-headless` | runner CLI sans moteur Windows | FAIT |
 | `nie-wasm` | surface wasm-bindgen (detect/crilayla/utf), glue JS | FAIT |
 
-## Couverture atteinte
+## Découverte majeure : l'index Ghidra est désaligné — `.pdata` est la vérité terrain
+
+Vérification byte-à-byte contre la table `.pdata` (unwind d'exception x64, générée par le compilateur — vérité incontestable) :
+
+- `.pdata` = **94 748 entrées** `RUNTIME_FUNCTION` = **44 074 fragments chaînés** (`UNW_FLAG_CHAININFO`) + **50 674 fonctions racines** réelles.
+- Des 59 991 adresses `FUN_<hex>` de `nie-index.json`, seules **2 243 (3,7 %)** coïncident avec un début de fonction réel ; **≥54,9 %** tombent *strictement à l'intérieur* d'un corps de fonction `.pdata` (preuve : ce ne sont pas des débuts), et l'ensemble est artificiellement aligné sur 16 octets à **99,2 %**.
+- Spot-checks décodés : les adresses Ghidra non alignées pointent sur des **épilogues / milieux d'instruction** (ex. `FUN_140100390` = `mov rsi,[rsp+0x40]; add rsp,…`).
+- Le champ `ce` (callees) n'est pas le graphe d'appels directs réels (vérifié : `FUN_140024b80` appelle réellement `0x14098c0a0/0x14004fc60/0x1400500e0`, son `ce` liste 5 fonctions toutes différentes).
+
+**Conséquence honnête** : l'index Ghidra reste exploitable comme **graphe de métadonnées** (chaînes, namespaces, relations) — la propagation à 88 % est un *clustering en espace-graphe* cohérent — mais ses **adresses ne sont pas des débuts de fonction physiques**. Donc :
+
+1. Le « +774 » du levier `disasm` (commit `99b89c3`) est **en grande partie du bruit physique** : décoder depuis des points milieu-de-fonction produit des arêtes majoritairement fortuites (seules 0,3 % des arêtes `call` ont leurs deux extrémités sur un début réel). Le *code* de `disasm` est correct ; c'est son *entrée* (adresses Ghidra) qui est fausse. Il redeviendra valide alimenté par les débuts `.pdata`.
+2. La **vraie couverture** se mesurera sur les ~50 674 fonctions racines réelles, pas sur les 60 183 nœuds Ghidra désalignés.
+
+**Prochain levier (refondation)** : reconstruire la carte des fonctions sur `.pdata` (`nie-re::pdata`, commande `niers pdata`, table `pdata_func`), ré-ancrer les métadonnées Ghidra par inclusion (nœud Ghidra à l'adresse `a` → fonction racine contenant `a`), relancer `disasm` depuis les vrais débuts, puis propager. Levier complémentaire haute précision : arêtes de **vtables** (`.rdata`, reliées aux classes RTTI déjà localisées).
+
+## Couverture atteinte (sur l'index Ghidra — espace-graphe)
 
 Pipeline `niers seed → rtti → disasm → propagate` sur le vrai `nie.exe` :
 

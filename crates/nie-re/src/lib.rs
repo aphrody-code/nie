@@ -17,6 +17,7 @@ pub mod anchors;
 pub mod disasm;
 pub mod indexer;
 pub mod loop_db;
+pub mod pdata;
 pub mod propagate;
 pub mod rtti;
 

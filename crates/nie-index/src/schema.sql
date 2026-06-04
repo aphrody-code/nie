@@ -137,6 +137,19 @@ CREATE TABLE IF NOT EXISTS rtti_base (
     UNIQUE(class_id, base_class_id)
 );
 
+-- Fonctions AUTORITAIRES découvertes via la table .pdata (exception unwind x64).
+-- Chaque entrée = une fonction racine réelle (RUNTIME_FUNCTION non chaînée),
+-- avec ses bornes [start, end). C'est la vérité terrain des débuts de fonction,
+-- là où les adresses FUN_ de l'index Ghidra sont massivement désalignées.
+CREATE TABLE IF NOT EXISTS pdata_func (
+    id        INTEGER PRIMARY KEY,
+    binary_id INTEGER NOT NULL REFERENCES binary(id) ON DELETE CASCADE,
+    start     INTEGER NOT NULL,
+    end       INTEGER NOT NULL,
+    UNIQUE(binary_id, start)
+);
+CREATE INDEX IF NOT EXISTS idx_pdata_start ON pdata_func(binary_id, start);
+
 -- Symboles (imports/exports + seed).
 CREATE TABLE IF NOT EXISTS symbol (
     id        INTEGER PRIMARY KEY,

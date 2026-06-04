@@ -87,6 +87,15 @@ enum Cmd {
         #[arg(long)]
         exe: PathBuf,
     },
+    /// Découvre les fonctions AUTORITAIRES via `.pdata` et mesure le désalignement Ghidra.
+    Pdata {
+        /// Base sqlite cible.
+        #[arg(long, default_value = "var/niers.sqlite")]
+        db: PathBuf,
+        /// Binaire PE x64 (nie_eacpatched.exe ou nie.exe).
+        #[arg(long)]
+        exe: PathBuf,
+    },
 }
 
 #[derive(Subcommand)]
@@ -105,8 +114,9 @@ enum QueueOp {
 }
 
 fn main() -> anyhow::Result<()> {
+    // CLI interne (consommé par l'agent) : sortie minimale. `RUST_LOG=info` réactive les traces.
     tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env().add_directive(tracing::Level::INFO.into()))
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env().add_directive(tracing::Level::WARN.into()))
         .init();
     let cli = Cli::parse();
     match cli.cmd {
@@ -117,6 +127,7 @@ fn main() -> anyhow::Result<()> {
         Cmd::Rtti { db, exe } => rtti(&db, &exe),
         Cmd::Index { db, exe } => index(&db, &exe),
         Cmd::Disasm { db, exe } => disasm(&db, &exe),
+        Cmd::Pdata { db, exe } => pdata(&db, &exe),
     }
 }
 
@@ -139,9 +150,11 @@ fn seed(db_path: &std::path::Path, json: &std::path::Path, exe: Option<&std::pat
 
     let stats = nie_seed::nie_index_json::ingest_file(&mut db, bin, json)?;
     let cov = db.snapshot_coverage(bin)?;
-    println!("seed: {} fonctions, {} appels, {} str-refs, {} consts, {} globals, {} ancres",
-        stats.functions, stats.xrefs, stats.str_refs, stats.consts, stats.globals, stats.anchors);
-    println!("couverture: {}/{} classifiées ({:.2}%), {} nommées", cov.classified, cov.total, cov.pct, cov.named);
+    println!(
+        "seed fn={} call={} str={} const={} glob={} anchor={} cov={}/{} ({:.2}%)",
+        stats.functions, stats.xrefs, stats.str_refs, stats.consts, stats.globals, stats.anchors,
+        cov.classified, cov.total, cov.pct
+    );
     Ok(())
 }
 
@@ -152,11 +165,9 @@ fn coverage(db_path: &std::path::Path) -> anyhow::Result<()> {
         .query_row("SELECT id FROM binary ORDER BY id LIMIT 1", [], |r| r.get(0))
         .context("aucun binaire indexé — lancer `niers seed` d'abord")?;
     let cov = nie_index::query::coverage(db.conn(), bin)?;
-    println!("couverture: {}/{} fonctions classifiées ({:.2}%), {} nommées", cov.classified, cov.total, cov.pct, cov.named);
-    println!("\npar sous-système :");
-    for (ns, n) in nie_index::query::by_subsystem(db.conn(), bin)? {
-        println!("  {ns:<16} {n}");
-    }
+    let by_sub = nie_index::query::by_subsystem(db.conn(), bin)?;
+    let subs = by_sub.iter().map(|(ns, n)| format!("{ns}={n}")).collect::<Vec<_>>().join(" ");
+    println!("cov {}/{} ({:.2}%) named={} | {}", cov.classified, cov.total, cov.pct, cov.named, subs);
     Ok(())
 }
 
@@ -190,40 +201,11 @@ fn propagate(db_path: &std::path::Path, rounds: usize) -> anyhow::Result<()> {
     let stats = nie_re::loop_db::propagate_db(&mut db, bin, rounds)
         .context("propagation")?;
 
-    println!("propagation terminée : {} rounds", stats.rounds);
-    println!();
-    println!("ancres posées par mécanisme :");
-    println!("  chaînes (str)    : {}", stats.anchored_str);
-    println!("  RTTI             : {}", stats.anchored_rtti);
-    println!("  constante-magic  : {}", stats.anchored_const);
-    println!("  total ancres     : {}", stats.anchored_str + stats.anchored_rtti + stats.anchored_const);
-    println!();
     println!(
-        "couverture AVANT : {}/{} ({:.2}%)",
-        stats.classified_before, stats.total, stats.coverage_before
+        "propagate rounds={} anchors(str/rtti/const)={}/{}/{} cov {:.2}%->{:.2}% (+{} fn)",
+        stats.rounds, stats.anchored_str, stats.anchored_rtti, stats.anchored_const,
+        stats.coverage_before, stats.coverage_after, stats.classified_after - stats.classified_before
     );
-    println!(
-        "couverture APRÈS  : {}/{} ({:.2}%)",
-        stats.classified_after, stats.total, stats.coverage_after
-    );
-    println!(
-        "gain propagation  : {} fonctions nouvellement étiquetées",
-        stats.labeled
-    );
-    println!(
-        "gain total        : +{} (+{:.2}%)",
-        stats.classified_after - stats.classified_before,
-        stats.coverage_after - stats.coverage_before
-    );
-
-    // Top sous-systèmes après propagation.
-    let by_sub = nie_index::query::by_subsystem(db.conn(), bin)?;
-    println!();
-    println!("répartition par sous-système :");
-    for (ns, n) in &by_sub {
-        println!("  {ns:<18} {n}");
-    }
-
     Ok(())
 }
 
@@ -240,11 +222,10 @@ fn rtti(db_path: &std::path::Path, exe_path: &std::path::Path) -> anyhow::Result
     let stats = nie_re::rtti::parse_and_ingest(&mut db, bin, &bytes)
         .context("parsing RTTI")?;
 
-    println!("RTTI parsing terminé :");
-    println!("  candidats COL trouvés : {}", stats.candidates);
-    println!("  TypeDescriptors valides : {}", stats.valid_type_descs);
-    println!("  classes ingérées : {}", stats.classes_ingested);
-    println!("  relations d'héritage : {}", stats.bases_ingested);
+    println!(
+        "rtti col={} td={} classes={} bases={}",
+        stats.candidates, stats.valid_type_descs, stats.classes_ingested, stats.bases_ingested
+    );
     Ok(())
 }
 
@@ -258,11 +239,10 @@ fn index(db_path: &std::path::Path, exe_path: &std::path::Path) -> anyhow::Resul
     let stats = nie_re::indexer::triage_into(&mut db, bin, exe_path)
         .context("indexation PE")?;
 
-    println!("indexation terminée :");
-    println!("  format : {}", stats.format);
-    println!("  sections ingérées : {}", stats.sections);
-    println!("  imports ingérés : {}", stats.imports);
-    println!("  exports ingérés : {}", stats.exports);
+    println!(
+        "index fmt={} sections={} imports={} exports={}",
+        stats.format, stats.sections, stats.imports, stats.exports
+    );
     Ok(())
 }
 
@@ -276,15 +256,33 @@ fn disasm(db_path: &std::path::Path, exe_path: &std::path::Path) -> anyhow::Resu
     let stats = nie_re::disasm::recover_call_edges(&mut db, bin, exe_path)
         .context("désassemblage des arêtes d'appel")?;
 
-    println!("désassemblage terminé :");
-    println!("  fonctions balayées : {}", stats.functions_scanned);
-    println!("  instructions décodées : {}", stats.instructions_decoded);
-    println!("  call (toutes formes) : {}", stats.call_insns);
-    println!("  call directs (rel32) : {}", stats.call_near);
-    println!("  jmp directs (tail-calls) : {}", stats.jmp_near);
-    println!("  arêtes via thunk (jmp-relais) : {}", stats.thunk_resolved);
-    println!("  cibles directes non résolues : {}", stats.near_target_miss);
-    println!("  arêtes candidates : {}", stats.edges_candidates);
-    println!("  arêtes NOUVELLES (manquées par Ghidra) : {}", stats.edges_new);
+    println!(
+        "disasm insn={} call={} jmp={} thunk={} miss={} cand={} new={}",
+        stats.instructions_decoded, stats.call_near, stats.jmp_near, stats.thunk_resolved,
+        stats.near_target_miss, stats.edges_candidates, stats.edges_new
+    );
+    Ok(())
+}
+
+fn pdata(db_path: &std::path::Path, exe_path: &std::path::Path) -> anyhow::Result<()> {
+    let mut db = nie_index::Db::open(db_path).context("ouverture base")?;
+    let bin: i64 = db
+        .conn()
+        .query_row("SELECT id FROM binary ORDER BY id LIMIT 1", [], |r| r.get(0))
+        .context("aucun binaire indexé — lancer `niers seed` d'abord")?;
+
+    let stats = nie_re::pdata::discover_into(&mut db, bin, exe_path)
+        .context("découverte .pdata")?;
+
+    let pct_aligned = if stats.ghidra_total > 0 {
+        100.0 * stats.overlap_ghidra as f64 / stats.ghidra_total as f64
+    } else {
+        0.0
+    };
+    println!(
+        "pdata entries={} chained={} roots={} inserted={} | ghidra {}/{} aligned ({:.1}%) inside_body={}",
+        stats.entries, stats.chained_fragments, stats.roots, stats.inserted,
+        stats.overlap_ghidra, stats.ghidra_total, pct_aligned, stats.ghidra_inside_body
+    );
     Ok(())
 }
