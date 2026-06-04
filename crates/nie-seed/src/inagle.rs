@@ -134,6 +134,76 @@ pub fn ingest_inagle_hashes(db: &mut Db, sqlite_dir: &Path) -> Result<usize> {
         0
     });
 
+    // ── inagle_skills : id = "0xXXXXXXXX", name_fr ───────────────────────────
+    total += ingest_table_simple(&src, &tx, "inagle_skills", "id", "name_fr", "skill", None)
+        .unwrap_or_else(|e| {
+            warn!("inagle_skills: {e}");
+            0
+        });
+
+    // ── inagle_passives : id = "0xXXXXXXXX", name_fr ─────────────────────────
+    total += ingest_table_simple(&src, &tx, "inagle_passives", "id", "name_fr", "passive", None)
+        .unwrap_or_else(|e| {
+            warn!("inagle_passives: {e}");
+            0
+        });
+
+    // ── inagle_trophies : trophy_id = "0xXXXXXXXX", name_fr ──────────────────
+    total += ingest_table_simple(&src, &tx, "inagle_trophies", "trophy_id", "name_fr", "trophy", None)
+        .unwrap_or_else(|e| {
+            warn!("inagle_trophies: {e}");
+            0
+        });
+
+    // ── inagle_missions : mission_id = "0xXXXXXXXX", name_fr ─────────────────
+    total += ingest_table_simple(&src, &tx, "inagle_missions", "mission_id", "name_fr", "mission", None)
+        .unwrap_or_else(|e| {
+            warn!("inagle_missions: {e}");
+            0
+        });
+
+    // ── inagle_keshins : id = "0xXXXXXXXX", name_fr ──────────────────────────
+    total += ingest_table_simple(&src, &tx, "inagle_keshins", "id", "name_fr", "keshin", None)
+        .unwrap_or_else(|e| {
+            warn!("inagle_keshins: {e}");
+            0
+        });
+
+    // ── inagle_emblems : emblem_id = "0xXXXXXXXX", emblem_name ───────────────
+    total += ingest_table_simple(&src, &tx, "inagle_emblems", "emblem_id", "emblem_name", "emblem", None)
+        .unwrap_or_else(|e| {
+            warn!("inagle_emblems: {e}");
+            0
+        });
+
+    // ── inagle_special_tactics : id = "0xXXXXXXXX", name_fr ──────────────────
+    total += ingest_table_simple(&src, &tx, "inagle_special_tactics", "id", "name_fr", "special_tactic", None)
+        .unwrap_or_else(|e| {
+            warn!("inagle_special_tactics: {e}");
+            0
+        });
+
+    // ── inagle_formations : id = "0xXXXXXXXX", name_fr ───────────────────────
+    total += ingest_table_simple(&src, &tx, "inagle_formations", "id", "name_fr", "formation", None)
+        .unwrap_or_else(|e| {
+            warn!("inagle_formations: {e}");
+            0
+        });
+
+    // ── inagle_basara : character_id = "0xXXXXXXXX", name_localised ──────────
+    total += ingest_table_simple(&src, &tx, "inagle_basara", "character_id", "name_localised", "basara", None)
+        .unwrap_or_else(|e| {
+            warn!("inagle_basara: {e}");
+            0
+        });
+
+    // ── inagle_stadiums : id = "0xXXXXXXXX", image_path ──────────────────────
+    total += ingest_table_simple(&src, &tx, "inagle_stadiums", "id", "image_path", "stadium", None)
+        .unwrap_or_else(|e| {
+            warn!("inagle_stadiums: {e}");
+            0
+        });
+
     tx.commit().context("commit inagle hashes")?;
     Ok(total)
 }
@@ -271,7 +341,7 @@ fn ingest_quests(src: &Connection, tx: &Connection) -> Result<usize> {
             .or_else(|| {
                 data_json
                     .as_deref()
-                    .and_then(|json| extract_quest_title(json))
+                    .and_then(extract_quest_title)
             });
 
         let Some(name) = name else {
