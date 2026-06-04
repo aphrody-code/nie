@@ -49,15 +49,18 @@ pub enum ActionSlotState {
 /// Stockée comme tableau d'octets pour refléter fidèlement l'opacité RE.
 ///
 /// RE incertain: layout interne des 160 bytes. Le commentaire Ghidra suggère:
+///
 /// - `+0x00`: type d'action (enum)
 /// - `+0x10-0x30`: position 3D cible
 /// - `+0x30-0x50`: direction
 /// - `+0x50-0xA0`: données collision/résultat
+///
 /// Mais ce n'est pas vérifié par le code C décompilé.
 #[derive(Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ActionData {
     /// Données brutes (160 bytes, initialisées à 0).
+    #[cfg_attr(feature = "serde", serde(with = "crate::serde_byte_array"))]
     pub raw: [u8; ACTION_DATA_SIZE],
 }
 
@@ -100,7 +103,39 @@ impl ActionData {
     pub fn clear(&mut self) {
         self.raw = [0u8; ACTION_DATA_SIZE];
     }
+
+    /// Copie fidèle de `copy_action` (`FUN_1412ca660`) avec sémantique EINVAL.
+    ///
+    /// Source : `soccer_action_ctrl.c` L106-135. Reproduit EXACTEMENT le contrat :
+    /// - dest nulle (`param_1 == 0`) → erreur `0x16` (EINVAL), rien copié.
+    /// - dest non nulle, source nulle (`param_3 == 0`) → la dest est mise à zéro
+    ///   (`memset(param_1, 0, 0xA0)`) PUIS erreur `0x16` est renvoyée.
+    /// - source ET dest non nulles → copie de 0xA0 bytes (20 qwords), `Ok(())`.
+    ///
+    /// En Rust `self` (dest) n'est jamais nul ; on modélise donc la dest nulle
+    /// via [`SoccerActionCtrl::copy_action`]. Ici on traite le cas source nulle.
+    ///
+    /// # Errors
+    ///
+    /// Renvoie `Err(0x16)` (EINVAL) si `src` est `None` ; la dest est alors
+    /// remise à zéro, fidèle au `memset` du décompilé.
+    pub fn copy_action(&mut self, src: Option<&Self>) -> Result<(), u32> {
+        if let Some(s) = src {
+            // Copie des 0xA0 bytes = 20 qwords (affectations pairées du C).
+            self.raw = s.raw;
+            Ok(())
+        } else {
+            // Source nulle : mise à zéro de la dest puis EINVAL.
+            self.clear();
+            Err(EINVAL)
+        }
+    }
 }
+
+/// Code d'erreur `EINVAL` (0x16) renvoyé par `copy_action`/`init_transform`.
+///
+/// Source : `soccer_action_ctrl.c` — `*puVar2 = 0x16` (L132, L156).
+pub const EINVAL: u32 = 0x16;
 
 /// Un slot d'action individuel (partie d'un `SoccerActionCtrl`).
 ///
@@ -139,7 +174,12 @@ impl ActionSlot {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ActionTransform {
-    /// Échelle sur l'axe X pour les 3 composantes.
+    /// 3 paires position/rotation, initialisées à zéro.
+    ///
+    /// Source: `FUN_1412ca7f0` L162-167 — `*param_1 = 0` … `param_1[5] = 0`
+    /// (6 qwords = 3 paires (0, 0)).
+    pub positions: [[f32; 2]; 3],
+    /// 6 paires d'échelle (1.0f, 1.0f).
     ///
     /// Source: `param_1[6..11] = 0x3f8000003f800000` (deux f32 = 1.0 dans un qword).
     /// Valeur exacte confirmée par les bits IEEE 754.
@@ -148,17 +188,31 @@ pub struct ActionTransform {
 
 impl Default for ActionTransform {
     fn default() -> Self {
-        // init_transform: `param_1[6..11] = 0x3f8000003f800000`
-        // = paires (1.0f, 1.0f) × 6 slots
-        Self { scales: [[1.0f32, 1.0f32]; 6] }
+        Self::init_transform()
     }
 }
 
 impl ActionTransform {
+    /// Reproduit `init_transform` (`FUN_1412ca7f0`, L144-192).
+    ///
+    /// Pose 3 paires position/rotation à zéro (L162-167) et 6 paires d'échelle
+    /// à `(1.0, 1.0)` = `0x3F800000` en IEEE 754 (L171-176).
+    #[must_use]
+    pub fn init_transform() -> Self {
+        Self {
+            positions: [[0.0f32, 0.0f32]; 3],
+            scales: [[1.0f32, 1.0f32]; 6],
+        }
+    }
+
     /// Vérifie que toutes les scales sont à l'identité (1.0).
     #[must_use]
     pub fn is_identity(&self) -> bool {
-        self.scales.iter().all(|&[a, b]| a == 1.0 && b == 1.0)
+        // Comparaison exacte par bits IEEE 754 (1.0f = 0x3F800000) — on veut
+        // l'égalité stricte aux valeurs initialisées, pas une tolérance.
+        self.scales
+            .iter()
+            .all(|&[a, b]| a.to_bits() == 0x3F80_0000 && b.to_bits() == 0x3F80_0000)
     }
 }
 
@@ -212,7 +266,27 @@ impl SoccerActionCtrl {
     /// Retourne le premier slot libre, ou `None` si tous sont occupés.
     #[must_use]
     pub fn first_free_slot(&self) -> Option<usize> {
-        self.slots.iter().position(|s| s.is_free())
+        self.slots.iter().position(ActionSlot::is_free)
+    }
+
+    /// Copie une action vers le slot `dst_idx` depuis une source optionnelle.
+    ///
+    /// Modélise `copy_action` (`FUN_1412ca660`) au niveau contrôleur :
+    /// - `dst_idx` hors borne (équivalent dest nulle `param_1 == 0`) → `Err(0x16)`,
+    ///   aucun slot modifié.
+    /// - `src == None` (source nulle) → le slot dest est mis à zéro puis `Err(0x16)`.
+    /// - `src == Some` → copie de 0xA0 bytes, `Ok(())`.
+    ///
+    /// # Errors
+    ///
+    /// Renvoie `Err(0x16)` (EINVAL) si `dst_idx` est hors borne ou si `src` est
+    /// `None`.
+    pub fn copy_action(&mut self, dst_idx: usize, src: Option<&ActionData>) -> Result<(), u32> {
+        // dest nulle : index hors borne → EINVAL, rien touché.
+        let Some(slot) = self.slots.get_mut(dst_idx) else {
+            return Err(EINVAL);
+        };
+        slot.data.copy_action(src)
     }
 
     /// Compte les slots actifs (vérifié depuis `active_count`).
@@ -289,6 +363,58 @@ mod tests {
             assert_eq!(pair[0].to_bits(), 0x3F80_0000);
             assert_eq!(pair[1].to_bits(), 0x3F80_0000);
         }
+    }
+
+    #[test]
+    fn init_transform_positions_zero_scales_one() {
+        // init_transform pose 6 scales == 1.0f (bits 0x3F800000) et positions à 0.
+        let t = ActionTransform::init_transform();
+        for pair in &t.positions {
+            assert_eq!(pair[0], 0.0);
+            assert_eq!(pair[1], 0.0);
+        }
+        assert_eq!(t.scales.len(), 6);
+        for pair in &t.scales {
+            assert_eq!(pair[0].to_bits(), 0x3F80_0000);
+            assert_eq!(pair[1].to_bits(), 0x3F80_0000);
+        }
+    }
+
+    #[test]
+    fn copy_action_some_copies_data() {
+        let mut src = ActionData::default();
+        src.raw[3] = 0x7E;
+        let mut dst = ActionData::default();
+        assert_eq!(dst.copy_action(Some(&src)), Ok(()));
+        assert_eq!(dst.raw[3], 0x7E);
+    }
+
+    #[test]
+    fn copy_action_none_zeroes_and_errors() {
+        // Source nulle → slot remis à zéro PUIS Err(0x16).
+        let mut dst = ActionData::default();
+        dst.raw[0] = 0xAB;
+        dst.raw[10] = 0xCD;
+        assert_eq!(dst.copy_action(None), Err(EINVAL));
+        assert_eq!(EINVAL, 0x16);
+        // Mis à zéro fidèle au memset du décompilé.
+        assert!(dst.raw.iter().all(|&b| b == 0));
+    }
+
+    #[test]
+    fn ctrl_copy_action_out_of_bounds_is_einval() {
+        // dest nulle (index hors borne) → Err(0x16), rien modifié.
+        let mut ctrl = SoccerActionCtrl::new();
+        let src = ActionData::default();
+        assert_eq!(ctrl.copy_action(99, Some(&src)), Err(EINVAL));
+    }
+
+    #[test]
+    fn ctrl_copy_action_none_zeroes_slot() {
+        let mut ctrl = SoccerActionCtrl::new();
+        ctrl.slots[0].data.raw[0] = 0xFF;
+        assert_eq!(ctrl.copy_action(0, None), Err(EINVAL));
+        assert!(ctrl.slots[0].data.raw.iter().all(|&b| b == 0));
     }
 
     #[test]

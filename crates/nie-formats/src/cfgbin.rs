@@ -210,6 +210,13 @@ pub struct RdbnData {
     pub roots: Vec<RdbnRootEntry>,
     /// Table de chaînes (hashes CRC32 ↔ noms).
     pub strings: RdbnStringTable,
+    /// Offset absolu (dans le tampon) du bloc de valeurs : `(value_offset << 2) + data_offset`.
+    /// Source de vérité : `RdbnReader.Read` L60 (`valueOffset = (header.ValueOffset << 2) + dataOffset`).
+    pub value_abs: usize,
+    /// Offset absolu (dans le tampon) du début de la table de chaînes :
+    /// `string_offset + data_offset`. Utilisé par le type `Condition` (0x14) qui traite la
+    /// valeur lue comme un offset dans cette table. Source : `RdbnReader.Read` L56.
+    pub string_abs: usize,
 }
 
 impl RdbnData {
@@ -269,15 +276,204 @@ pub fn parse(data: &[u8]) -> Result<RdbnData, FormatError> {
     let value_abs = (read_i16_le(data, 0x36)? as usize * 4) + da;
     let string_abs = read_i32_le(data, 0x38)? as usize + da;
 
-    let _ = value_abs; // utilisé par les appelants (ReadFieldValue), pas dans ce parseur de header
-
     let types = parse_types(data, type_abs, header.type_count as usize)?;
     let fields = parse_fields(data, field_abs, header.field_count as usize)?;
     let roots = parse_roots(data, root_abs, header.root_count as usize)?;
     let strings =
         parse_strings(data, header.hash_count as usize, hash_abs, offsets_abs, string_abs)?;
 
-    Ok(RdbnData { header, types, fields, roots, strings })
+    Ok(RdbnData { header, types, fields, roots, strings, value_abs, string_abs })
+}
+
+// ---------------------------------------------------------------------------
+// Décodage des VALEURS RDBN (corps des listes typées)
+//
+// Port exact de `RdbnReader.CreateRdbnData` (L194), `ReadFieldValue` (L249) et
+// `ReadConditionValue` (L293). Vérifié octet par octet contre le vrai fichier
+// `/home/ubuntu/rg/iecode/re/menu/extracted/fonts/font_color.cfg.bin` (liste
+// `m_FontColorDataList`, type `FONT_COLOR`, 7 champs, 64 lignes de 100 octets).
+// ---------------------------------------------------------------------------
+
+/// Valeur typée décodée d'un champ RDBN.
+///
+/// Correspondance 1:1 avec le `switch` de `ReadFieldValue` (RdbnReader.cs L257-290) :
+/// - `Bool` (type 3) — un octet, `!= 0`.
+/// - `Byte` (type 4) — un octet brut.
+/// - `Short` (type 5) — i16 LE.
+/// - `Int` (type 6) — i32 LE.
+/// - `ActType` (type 9) — i16 LE (même lecture que `Short`).
+/// - `Flag` (type 10) — i32 LE (même lecture que `Int`).
+/// - `Float` (type 13) — f32 LE.
+/// - `Hash` (type 15) — u32 LE brut (le C# le formate `0x%08X`).
+/// - `Rates` (type 18) / `Position` (type 19) — 4 × f32 LE.
+/// - `Condition` (type 20) — u32 traité comme offset dans la table de chaînes.
+/// - `ShortTuple` (type 21) — 2 × i16 LE.
+/// - `Blob` — octets bruts (types 0/1/2 et tout type inconnu : `ReadBlobAsHex`).
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum RdbnValue {
+    /// `RdbnFieldType::Bool` (3) — octet non nul.
+    Bool(bool),
+    /// `RdbnFieldType::Byte` (4) — octet brut.
+    Byte(u8),
+    /// `RdbnFieldType::Short` (5) — i16 LE.
+    Short(i16),
+    /// `RdbnFieldType::Int` (6) — i32 LE.
+    Int(i32),
+    /// `RdbnFieldType::ActType` (9) — i16 LE.
+    ActType(i16),
+    /// `RdbnFieldType::Flag` (10) — i32 LE.
+    Flag(i32),
+    /// `RdbnFieldType::Float` (13) — f32 LE.
+    Float(f32),
+    /// `RdbnFieldType::Hash` (15) — u32 LE brut.
+    Hash(u32),
+    /// `RdbnFieldType::Rates` (18) — 4 × f32 LE.
+    Rates([f32; 4]),
+    /// `RdbnFieldType::Position` (19) — 4 × f32 LE.
+    Position([f32; 4]),
+    /// `RdbnFieldType::Condition` (20) — chaîne résolue depuis la table de chaînes.
+    Condition(String),
+    /// `RdbnFieldType::ShortTuple` (21) — 2 × i16 LE.
+    ShortTuple([i16; 2]),
+    /// Types 0/1/2 et inconnus — octets bruts (`field.value_size` octets).
+    Blob(Vec<u8>),
+    /// Lecture impossible (offset + taille hors du tampon) — équivalent C# `"<invalid>"`.
+    Invalid,
+}
+
+/// Une ligne d'une liste RDBN : association ordonnée (nom de champ → valeur décodée).
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct RdbnRow {
+    /// Champs de la ligne, dans l'ordre de la table de types (nom résolu, valeur).
+    pub fields: Vec<(String, RdbnValue)>,
+}
+
+/// Une liste RDBN décodée (équivalent de `RdbnList` C#).
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct RdbnList {
+    /// Nom de la liste (résolu depuis `root.name_hash`, sinon `Unknown_0x…`).
+    pub name: String,
+    /// Nom du type de la liste (résolu depuis `type.name_hash`, sinon `Type_0x…`).
+    pub type_name: String,
+    /// Lignes décodées (`root.value_count` entrées de `root.value_size` octets).
+    pub rows: Vec<RdbnRow>,
+}
+
+/// Décode le corps de toutes les listes RDBN (port de `RdbnReader.CreateRdbnData`).
+///
+/// Pour chaque `root` :
+/// 1. résout le nom de liste (`root.name_hash`) et de type (`type.name_hash`) ;
+/// 2. itère `root.value_count` lignes, chacune à
+///    `value_abs + root.value_offset + v * root.value_size` ;
+/// 3. pour chaque champ du type (`type.field_index .. + type.field_count`), lit la valeur à
+///    `entry + field.value_offset` selon [`RdbnFieldType`].
+///
+/// Aucune valeur n'est fabriquée : un offset hors limites donne [`RdbnValue::Invalid`]
+/// (équivalent du `"<invalid>"` C#, `ReadFieldValue` L252-253).
+#[must_use]
+pub fn read_values(rdbn: &RdbnData, data: &[u8]) -> Vec<RdbnList> {
+    let mut lists = Vec::with_capacity(rdbn.roots.len());
+
+    for root in &rdbn.roots {
+        let name = rdbn
+            .strings
+            .resolve(root.name_hash)
+            .map_or_else(|| alloc::format!("Unknown_0x{:08X}", root.name_hash), String::from);
+
+        // type_index doit être un index valide dans la table de types.
+        let Some(ty) = usize::try_from(root.type_index).ok().and_then(|i| rdbn.types.get(i)) else {
+            // Type hors plage : on émet une liste vide nommée, sans fabriquer de lignes.
+            lists.push(RdbnList { name, type_name: alloc::format!("Type_0x{:08X}", 0u32), rows: Vec::new() });
+            continue;
+        };
+
+        let type_name = rdbn
+            .strings
+            .resolve(ty.name_hash)
+            .map_or_else(|| alloc::format!("Type_0x{:08X}", ty.name_hash), String::from);
+
+        let root_value_offset = rdbn.value_abs.wrapping_add(root.value_offset as usize);
+        let mut rows = Vec::with_capacity(root.value_count.max(0) as usize);
+
+        for v in 0..root.value_count.max(0) {
+            let entry_offset = root_value_offset.wrapping_add(v as usize * root.value_size as usize);
+            let mut fields = Vec::with_capacity(ty.field_count.max(0) as usize);
+
+            for f in 0..ty.field_count.max(0) {
+                let field_idx = ty.field_index as i64 + f as i64;
+                let Some(field) = usize::try_from(field_idx).ok().and_then(|i| rdbn.fields.get(i)) else {
+                    continue;
+                };
+                let field_name = rdbn
+                    .strings
+                    .resolve(field.name_hash)
+                    .map_or_else(|| alloc::format!("Field_0x{:08X}", field.name_hash), String::from);
+
+                let field_value_offset = entry_offset.wrapping_add(field.value_offset as usize);
+                let value = read_field_value(data, field_value_offset, field, rdbn.string_abs);
+                fields.push((field_name, value));
+            }
+
+            rows.push(RdbnRow { fields });
+        }
+
+        lists.push(RdbnList { name, type_name, rows });
+    }
+
+    lists
+}
+
+/// Lit une valeur de champ unique (port de `ReadFieldValue`, RdbnReader.cs L249).
+fn read_field_value(data: &[u8], offset: usize, field: &RdbnFieldEntry, string_abs: usize) -> RdbnValue {
+    let size = field.value_size.max(0) as usize;
+    // Garde stricte identique au C# : `offset + ValueSize > data.Length` ⇒ "<invalid>".
+    if offset.checked_add(size).is_none_or(|end| end > data.len()) {
+        return RdbnValue::Invalid;
+    }
+
+    match field.field_type {
+        RdbnFieldType::Bool => RdbnValue::Bool(data[offset] != 0),
+        RdbnFieldType::Byte => RdbnValue::Byte(data[offset]),
+        RdbnFieldType::Short => read_i16_le(data, offset).map_or(RdbnValue::Invalid, RdbnValue::Short),
+        RdbnFieldType::Int => read_i32_le(data, offset).map_or(RdbnValue::Invalid, RdbnValue::Int),
+        RdbnFieldType::ActType => read_i16_le(data, offset).map_or(RdbnValue::Invalid, RdbnValue::ActType),
+        RdbnFieldType::Flag => read_i32_le(data, offset).map_or(RdbnValue::Invalid, RdbnValue::Flag),
+        RdbnFieldType::Float => read_f32_le(data, offset).map_or(RdbnValue::Invalid, RdbnValue::Float),
+        RdbnFieldType::Hash => read_u32_le(data, offset).map_or(RdbnValue::Invalid, RdbnValue::Hash),
+        RdbnFieldType::Rates => read_vec4_le(data, offset).map_or(RdbnValue::Invalid, RdbnValue::Rates),
+        RdbnFieldType::Position => read_vec4_le(data, offset).map_or(RdbnValue::Invalid, RdbnValue::Position),
+        RdbnFieldType::Condition => read_condition_value(data, offset, string_abs),
+        RdbnFieldType::ShortTuple => match (read_i16_le(data, offset), read_i16_le(data, offset + 2)) {
+            (Ok(a), Ok(b)) => RdbnValue::ShortTuple([a, b]),
+            _ => RdbnValue::Invalid,
+        },
+        // Types 0/1/2 (AbilityData/EnhanceData/StatusRate) et inconnus ⇒ blob brut.
+        RdbnFieldType::AbilityData
+        | RdbnFieldType::EnhanceData
+        | RdbnFieldType::StatusRate
+        | RdbnFieldType::Unknown(_) => RdbnValue::Blob(data[offset..offset + size].to_vec()),
+    }
+}
+
+/// Port de `ReadConditionValue` (RdbnReader.cs L293) : lit un u32 à `offset`, le traite comme
+/// offset relatif dans la table de chaînes (`string_abs + value`), et lit la chaîne null-terminée.
+/// Si la position résolue est hors limites, on renvoie la valeur numérique sous forme de blob u32.
+fn read_condition_value(data: &[u8], offset: usize, string_abs: usize) -> RdbnValue {
+    let Ok(value) = read_u32_le(data, offset) else {
+        return RdbnValue::Invalid;
+    };
+    let str_pos = string_abs.wrapping_add(value as usize);
+    // Le C# exige `strPos < data.Length && strPos > 0`. `string_abs > 0` toujours (≥ data_offset),
+    // donc on reproduit seulement la borne haute.
+    if str_pos < data.len() && str_pos > 0 {
+        RdbnValue::Condition(read_cstr(data, str_pos))
+    } else {
+        // Pas une chaîne résoluble : on conserve la valeur brute (équivalent du `return value;` C#).
+        RdbnValue::Hash(value)
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -394,6 +590,20 @@ fn read_u32_le(data: &[u8], off: usize) -> Result<u32, FormatError> {
 
 fn read_i32_le(data: &[u8], off: usize) -> Result<i32, FormatError> {
     read_u32_le(data, off).map(|v| v as i32)
+}
+
+fn read_f32_le(data: &[u8], off: usize) -> Result<f32, FormatError> {
+    read_u32_le(data, off).map(f32::from_bits)
+}
+
+/// Lit 4 f32 LE consécutifs (types `Rates` / `Position`).
+fn read_vec4_le(data: &[u8], off: usize) -> Result<[f32; 4], FormatError> {
+    Ok([
+        read_f32_le(data, off)?,
+        read_f32_le(data, off + 4)?,
+        read_f32_le(data, off + 8)?,
+        read_f32_le(data, off + 12)?,
+    ])
 }
 
 // ---------------------------------------------------------------------------
@@ -577,5 +787,145 @@ mod tests {
     #[test]
     fn rdbn_field_type_inconnu() {
         assert!(matches!(RdbnFieldType::from_i16(0x7F), RdbnFieldType::Unknown(0x7F)));
+    }
+
+    // -------------------------------------------------------------------
+    // Décodage des VALEURS — golden values issues du VRAI fichier
+    // /home/ubuntu/rg/iecode/re/menu/extracted/fonts/font_color.cfg.bin
+    // (copié dans tests/fixtures/). Header tracé octet par octet :
+    //   header_size=0x50, version=100, data_offset=0x14(×4=0x50),
+    //   type_count=1, field_offset=8, field_count=7, root_offset=0x40,
+    //   root_count=1, hash_count=9, value_offset=0x5a(×4+0x50=0x1B8),
+    //   string_offset=0x1a68.
+    // Liste m_FontColorDataList / type FONT_COLOR / 64 lignes de 100 octets.
+    // -------------------------------------------------------------------
+
+    const FONT_COLOR_FIXTURE: &[u8] =
+        include_bytes!("../tests/fixtures/font_color.cfg.bin");
+
+    #[test]
+    fn font_color_header_golden() {
+        let rdbn = parse(FONT_COLOR_FIXTURE).expect("parse font_color");
+        assert_eq!(rdbn.header.version, 100);
+        assert_eq!(rdbn.header.data_offset, 0x50);
+        assert_eq!(rdbn.header.type_count, 1);
+        assert_eq!(rdbn.header.field_count, 7);
+        assert_eq!(rdbn.header.root_count, 1);
+        assert_eq!(rdbn.header.hash_count, 9);
+        // value_abs = (0x5a << 2) + 0x50 = 0x168 + 0x50 = 0x1B8.
+        assert_eq!(rdbn.value_abs, 0x1B8);
+        // string_abs = 0x1a68 + 0x50 = 0x1AB8.
+        assert_eq!(rdbn.string_abs, 0x1A68 + 0x50);
+    }
+
+    #[test]
+    fn font_color_strings_resolved() {
+        let rdbn = parse(FONT_COLOR_FIXTURE).unwrap();
+        // 9 chaînes : 1 type + 7 champs + 1 liste.
+        assert_eq!(rdbn.strings.entries.len(), 9);
+        // Hashes vérifiés via crc32() : tous présents.
+        assert_eq!(rdbn.strings.resolve(crc32(b"FONT_COLOR")), Some("FONT_COLOR"));
+        assert_eq!(rdbn.strings.resolve(crc32(b"fontColorId")), Some("fontColorId"));
+        assert_eq!(rdbn.strings.resolve(crc32(b"red")), Some("red"));
+        assert_eq!(rdbn.strings.resolve(crc32(b"m_FontColorDataList")), Some("m_FontColorDataList"));
+    }
+
+    #[test]
+    fn font_color_values_golden() {
+        let rdbn = parse(FONT_COLOR_FIXTURE).unwrap();
+        let lists = read_values(&rdbn, FONT_COLOR_FIXTURE);
+
+        assert_eq!(lists.len(), 1);
+        let list = &lists[0];
+        assert_eq!(list.name, "m_FontColorDataList");
+        assert_eq!(list.type_name, "FONT_COLOR");
+        // root.value_count = 0x40 = 64 lignes.
+        assert_eq!(list.rows.len(), 64);
+
+        // Ligne 0 : 7 champs dans l'ordre du type.
+        let r0 = &list.rows[0];
+        assert_eq!(r0.fields.len(), 7);
+        // Noms de champs résolus, dans l'ordre.
+        let names: Vec<&str> = r0.fields.iter().map(|(n, _)| n.as_str()).collect();
+        assert_eq!(names, ["fontColorId", "red", "green", "blue", "rubiRed", "rubiGreen", "rubiBlue"]);
+
+        // Valeurs golden de la ligne 0, lues @0x1B8 (tracées au xxd) :
+        //   fontColorId (Hash) = 0x270d2bda
+        //   red=245 green=230 blue=245 rubiRed=245 rubiGreen=245 rubiBlue=230
+        assert_eq!(r0.fields[0].1, RdbnValue::Hash(0x270D_2BDA));
+        assert_eq!(r0.fields[1].1, RdbnValue::Int(245));
+        assert_eq!(r0.fields[2].1, RdbnValue::Int(230));
+        assert_eq!(r0.fields[3].1, RdbnValue::Int(245));
+        assert_eq!(r0.fields[4].1, RdbnValue::Int(245));
+        assert_eq!(r0.fields[5].1, RdbnValue::Int(245));
+        assert_eq!(r0.fields[6].1, RdbnValue::Int(230));
+    }
+
+    #[test]
+    fn read_field_value_types_synthetiques() {
+        // Vérifie chaque branche du switch sur des octets contrôlés.
+        // Bool (3)
+        let f = |t: RdbnFieldType, size: i32| RdbnFieldEntry {
+            name_hash: 0,
+            field_type: t,
+            type_category: 0,
+            value_size: size,
+            value_offset: 0,
+            value_count: 1,
+        };
+        assert_eq!(read_field_value(&[1], 0, &f(RdbnFieldType::Bool, 1), 0), RdbnValue::Bool(true));
+        assert_eq!(read_field_value(&[0], 0, &f(RdbnFieldType::Bool, 1), 0), RdbnValue::Bool(false));
+        assert_eq!(read_field_value(&[0xAB], 0, &f(RdbnFieldType::Byte, 1), 0), RdbnValue::Byte(0xAB));
+        assert_eq!(
+            read_field_value(&0x1234i16.to_le_bytes(), 0, &f(RdbnFieldType::Short, 2), 0),
+            RdbnValue::Short(0x1234)
+        );
+        assert_eq!(
+            read_field_value(&(-5i32).to_le_bytes(), 0, &f(RdbnFieldType::Int, 4), 0),
+            RdbnValue::Int(-5)
+        );
+        assert_eq!(
+            read_field_value(&1.5f32.to_le_bytes(), 0, &f(RdbnFieldType::Float, 4), 0),
+            RdbnValue::Float(1.5)
+        );
+        assert_eq!(
+            read_field_value(&0xDEAD_BEEFu32.to_le_bytes(), 0, &f(RdbnFieldType::Hash, 4), 0),
+            RdbnValue::Hash(0xDEAD_BEEF)
+        );
+        // ShortTuple (21) : 2 i16.
+        let mut buf = Vec::new();
+        buf.extend_from_slice(&3i16.to_le_bytes());
+        buf.extend_from_slice(&7i16.to_le_bytes());
+        assert_eq!(
+            read_field_value(&buf, 0, &f(RdbnFieldType::ShortTuple, 4), 0),
+            RdbnValue::ShortTuple([3, 7])
+        );
+        // Rates (18) : 4 floats.
+        let mut rb = Vec::new();
+        for x in [1.0f32, 2.0, 3.0, 4.0] {
+            rb.extend_from_slice(&x.to_le_bytes());
+        }
+        assert_eq!(
+            read_field_value(&rb, 0, &f(RdbnFieldType::Rates, 16), 0),
+            RdbnValue::Rates([1.0, 2.0, 3.0, 4.0])
+        );
+        // Hors limites ⇒ Invalid.
+        assert_eq!(read_field_value(&[0u8; 2], 0, &f(RdbnFieldType::Int, 4), 0), RdbnValue::Invalid);
+        // Type inconnu / blob (AbilityData=0) ⇒ octets bruts.
+        assert_eq!(
+            read_field_value(&[1, 2, 3, 4], 0, &f(RdbnFieldType::AbilityData, 4), 0),
+            RdbnValue::Blob(alloc::vec![1, 2, 3, 4])
+        );
+    }
+
+    #[test]
+    fn condition_value_resolution() {
+        // Table de chaînes synthétique : string_abs=8, à +8 "ABC\0".
+        // Champ Condition à offset 0 contenant u32 = 0 → pointe sur "ABC".
+        let mut buf = alloc::vec![0u8; 4];
+        buf.extend_from_slice(b"ABC\0");
+        // value (u32 @0) = 0 → str_pos = string_abs(4) + 0 = 4 → "ABC".
+        let v = read_condition_value(&buf, 0, 4);
+        assert_eq!(v, RdbnValue::Condition("ABC".into()));
     }
 }

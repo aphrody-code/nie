@@ -18,7 +18,7 @@
 //! - Reset pose `phase_active = 1` : FIABLE (`FUN_14140df20`)
 //! - Taille zone IA = 0x400 bytes : FIABLE (observé dans `CSoccerCtrlAI` ctor)
 //! - Logique de fallback phase 0 dans `update()` : FIABLE (portée fidèlement)
-//! - Vtable calls (on_enter/on_exit/update) : NON PORTÉS (remplacés par trait `PhaseController`)
+//! - Vtable calls (`on_enter`/`on_exit`/`update`) : NON PORTÉS (remplacés par trait `PhaseController`)
 
 /// Index de phase de jeu (`CSoccerCtrl` offset 0x700-0x702).
 ///
@@ -176,6 +176,7 @@ pub struct SoccerCtrlAi {
     ///
     /// Source: `FUN_1416709b0(param_1 + 0x60, 0, 0x400)` dans le ctor.
     /// RE incertain: structure interne inconnue (table de décision? poids?).
+    #[cfg_attr(feature = "serde", serde(with = "crate::serde_byte_array"))]
     pub ai_data: [u8; 1024],
     /// Phase IA (offset 0x702 dans le ctor de `CSoccerCtrlAI`, remis à 0).
     ///

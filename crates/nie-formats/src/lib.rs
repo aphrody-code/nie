@@ -5,7 +5,13 @@
 //!
 //! - [`crilayla`] — décompresseur CRILAYLA complet (LZ bitstream inversé).
 //! - [`cpk`] — lecteur de tables `@UTF` et d'archives CPK Criware (big-endian).
-//! - [`cfgbin`] — lecteur de fichiers RDBN (cfg.bin Level-5, little-endian).
+//! - [`cfgbin`] — lecteur de fichiers RDBN (cfg.bin Level-5) + décodage des VALEURS typées.
+//! - [`g4tx`] — conteneurs de textures G4TX (header + entrées + atlas + noms).
+//! - [`nxtch`] — chunks de texture Switch NXTCH + déswizzle GOB Tegra X1.
+//! - [`g4md`] — métadonnées de modèle G4MD (sous-mailles + attributs vertex + materials).
+//! - [`g4mg`] — géométrie G4MG (positions/normales/UV0/indices) pilotée par le `.g4md`.
+//! - [`g4sk`] — squelettes G4SK (header garanti ; hiérarchie heuristique/INCOMPLET).
+//! - [`g4pk`] — archives Level-5 G4PK / G4RA (table offsets/tailles/hashes/noms).
 //!
 //! ## Compatibilité `no_std`
 //!
@@ -25,6 +31,12 @@ use thiserror::Error;
 pub mod cfgbin;
 pub mod cpk;
 pub mod crilayla;
+pub mod g4md;
+pub mod g4mg;
+pub mod g4pk;
+pub mod g4sk;
+pub mod g4tx;
+pub mod nxtch;
 
 #[derive(Debug, Error)]
 pub enum FormatError {

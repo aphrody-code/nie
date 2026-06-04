@@ -54,7 +54,7 @@ use crate::FormatError;
 const UTF_MAGIC: [u8; 4] = [0x40, 0x55, 0x54, 0x46];
 
 /// Magic `CPK ` en octets.
-const CPK_MAGIC: [u8; 4] = [b'C', b'P', b'K', b' '];
+const CPK_MAGIC: [u8; 4] = *b"CPK ";
 
 /// Offset absolu dans le flux où commence la « base » relative des offsets UTF.
 const UTF_BASE: usize = 0x08;
@@ -409,7 +409,7 @@ pub fn parse_cpk(data: &[u8]) -> Result<CpkHeader, FormatError> {
     if data.len() < 0x14 {
         return Err(FormatError::TooShort { got: data.len(), need: 0x14 });
     }
-    if &data[..4] != &CPK_MAGIC {
+    if data[..4] != CPK_MAGIC {
         return Err(FormatError::BadMagic { format: "CPK" });
     }
     // 12 octets de champs internes CPK → la table @UTF commence à 0x10.
