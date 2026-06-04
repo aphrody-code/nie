@@ -23,7 +23,7 @@ en Rust ; iecode/inagle ne sont pas des dépendances permanentes, ce sont des v�
 ### 1. Formats — `nie-formats` (lecture pure-Rust de tous les conteneurs Level-5/Criware)
 - **FAIT** : RDBN (cfg.bin), g4tx (en-tête), g4md (en-tête/submesh), g4mg (géométrie), g4pk/g4ra (archive, validé sur 3 vrais .g4pk).
 - **FAIT (2026-06-05)** : `@UTF` (TOC des CPK) — modèle de stockage corrigé en **bits** (`HAS_NAME=0x10`, `HAS_DEFAULT=0x20`, `ROW_STORAGE=0x40`, priorité DEFAULT>ROW), ancré sur iecode `UtfTable.cs`. Avant : enum faux → 0 extrait sur vrais CPK.
-- **INCOMPLET / blocage actuel** : **décompression CRILAYLA** — ~90 % des g4tx sont CRILAYLA-compressés et échouent ; fix en cours ancré sur iecode `CriLayla.cs`. C'est le verrou de l'extraction d'assets.
+- **FAIT (2026-06-05)** : **décompression CRILAYLA** — bug off-by-one corrigé (décrément `write_pos` avant calcul de la source du backref LZ, conforme C#). Extraction g4tx **300/300, 0 échec** ; **validée croisée Rust↔C#** (mêmes width/height que le parseur iecode sur les fichiers communs : 308×180, 512×256, 32×32). Le verrou de l'extraction d'assets est levé.
 - **INCOMPLET** : nxtch deswizzle (offsets en-tête off-by-4 vs struct C# `NxtchHeader`) ; g4sk hiérarchie d'os (heuristique ne se déclenche pas sur les fichiers dispo).
 - **NON_FAIT** : audio Criware (HCA/ACB/AWB/ADX), déchiffrement enveloppe CPK côté niers (clé dérivée du nom OK ; le reste à porter depuis iecode).
 - **Correction honnête** : l'« extraction CPK FAIT » (`c91faeb`) était un **faux FAIT** — jamais validée end-to-end ; cassait sur les vrais CPK (cause = @UTF + CRILAYLA ci-dessus).
@@ -36,6 +36,11 @@ en Rust ; iecode/inagle ne sont pas des dépendances permanentes, ce sont des v�
 - **FAIT (7/7)** : stat-tables, exp-level, skill-model, aura-model, match-fsm, command-effect-slots, action-ctrl-ring.
 - **Mesure réelle** : 4999 LOC, 92 fn publiques, 56 struct/enum, **126 tests + 9 doctests verts, 0 stub**, `#![forbid(unsafe_code)]`. Porté de `soccer_match_state_machine.c`, `soccer_command_effect.c`, `soccer_action_ctrl.c` (formules score `min*10000+sec`, strides, sentinelles confirmés ligne-par-ligne). **Ce n'est pas un squelette.**
 
+### 3bis. Acquisition Steam — `nie-steam` (download natif des dépôts, port du Steam C# d'iecode)
+- **Fondation** : crate `nie-steam` sur **`steamroom`** (+ `steamroom-client`, MIT/Apache-2.0) — équivalent Rust de SteamKit2 (protocole CM, auth/Steam Guard, manifest, chunk, CDN). **Build vert.**
+- **EN COURS** : port de la couche spécifique iecode (`SteamDepotResolver` filtres OS/arch/langue, `SteamTokenStore`, `SteamDownloadOptions`, orchestration `download/sync`, presets IEVR app **2799860**) ; le lourd (protocole) est fourni par steamroom, pas réimplémenté.
+- **Hors scope** (pilier distinct « jeu en cours d'exécution ») : `SteamApi` (FFI `libsteam_api` → crate `steamworks`), `SteamEncryptedAppTicket` (EOS Windows-only).
+
 ### 4. Runtime + portabilité — `nie-headless`, `nie-wasm`
 - **FAIT** : runner CLI headless ; surface wasm-bindgen (detect/crilayla/@UTF) sur `wasm32-unknown-unknown`.
 - **À étendre** : exposer nie-core/nie-data en wasm → boucle de jeu navigateur.
@@ -47,8 +52,8 @@ en Rust ; iecode/inagle ne sont pas des dépendances permanentes, ce sont des v�
 ## Roadmap priorisée (vers le jeu jouable)
 
 **P0 — débloquer l'extraction d'assets (pilier Formats)**
-1. Finir la décompression **CRILAYLA** (en cours) → ~90 %+ des g4tx extraits en Rust pur.
-2. Recaler les offsets **nxtch** (off-by-4) + test à valeurs réelles → textures déswizzlées correctes.
+1. ~~Finir la décompression **CRILAYLA**~~ → **FAIT** (300/300 g4tx extraits, validé croisé Rust↔C#).
+2. Recaler les offsets **nxtch** (off-by-4) + test à valeurs réelles → textures déswizzlées correctes (prochain).
 
 **P0 — corriger les données fausses (pilier Données)**
 3. `chara-param` : inverser le pairing vers « level-first » ; retirer le test qui entérine la mauvaise valeur.
