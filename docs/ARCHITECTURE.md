@@ -89,7 +89,12 @@ Vérification byte-à-byte contre la table `.pdata` (unwind d'exception x64, gé
 1. Le « +774 » du levier `disasm` (commit `99b89c3`) est **en grande partie du bruit physique** : décoder depuis des points milieu-de-fonction produit des arêtes majoritairement fortuites (seules 0,3 % des arêtes `call` ont leurs deux extrémités sur un début réel). Le *code* de `disasm` est correct ; c'est son *entrée* (adresses Ghidra) qui est fausse. Il redeviendra valide alimenté par les débuts `.pdata`.
 2. La **vraie couverture** se mesurera sur les ~50 674 fonctions racines réelles, pas sur les 60 183 nœuds Ghidra désalignés.
 
-**Prochain levier (refondation)** : reconstruire la carte des fonctions sur `.pdata` (`nie-re::pdata`, commande `niers pdata`, table `pdata_func`), ré-ancrer les métadonnées Ghidra par inclusion (nœud Ghidra à l'adresse `a` → fonction racine contenant `a`), relancer `disasm` depuis les vrais débuts, puis propager. Levier complémentaire haute précision : arêtes de **vtables** (`.rdata`, reliées aux classes RTTI déjà localisées).
+**Refondation `.pdata` — FAIT** (`niers rebuild`, `nie-re::pdata::rebuild_from_pdata`) : la carte des fonctions est reconstruite sur les 50 674 racines réelles ; les métadonnées Ghidra sont ré-ancrées **par inclusion** (nœud à l'adresse `a` → fonction racine contenant `a` : 17 403 chaînes, 340 100 constantes, 55 142 arêtes `ce` repliées, 1 575 classes RTTI), puis `disasm` tourne depuis les **vrais débuts** et propage. Résultats sur le vrai `nie.exe` :
+
+- `disasm` depuis les bons débuts trouve **124 868 arêtes d'appel directes réelles** (×18 vs les 6 721 du graphe désaligné — preuve que le décodage est désormais physiquement correct).
+- **Couverture HONNÊTE : 45 823 / 50 674 = 90,43 %** des fonctions réelles (à unwind), sur des adresses correctes et un graphe d'appels réel. C'est la vraie mesure de référence (les ~7 700 chaînes Ghidra hors de toute fonction racine — régions feuilles sans unwind — ne sont pas couvertes : `.pdata` est un plancher autoritaire).
+
+**Prochain levier** : arêtes de **vtables** (`.rdata`, reliées aux classes RTTI déjà localisées) pour le résidu appelé uniquement indirectement ; propagation pondérée par type d'arête (direct 1.0, indirect 0.5, RTTI 2-3) ; découverte des fonctions feuilles sans unwind (balayage des cibles d'appel hors `.pdata`).
 
 ## Couverture atteinte (sur l'index Ghidra — espace-graphe)
 

@@ -218,6 +218,167 @@ pub fn discover_into(db: &mut Db, binary_id: i64, exe_path: &std::path::Path) ->
     Ok(stats)
 }
 
+/// Renvoie l'adresse de début de la fonction racine **contenant** `a`
+/// (`start <= a < end`), ou `None`. `starts` doit être trié et correspondre
+/// élément par élément à `roots`.
+fn root_containing(starts: &[u64], roots: &[RootFn], a: u64) -> Option<u64> {
+    let idx = starts.partition_point(|&s| s <= a);
+    if idx == 0 {
+        return None;
+    }
+    let r = roots[idx - 1];
+    (a < r.end).then_some(r.start)
+}
+
+/// Statistiques de la refondation `.pdata`.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct RebuildStats {
+    /// Fonctions racines insérées comme nœuds.
+    pub roots: usize,
+    /// Références de chaînes ré-ancrées sur la fonction contenante.
+    pub str_refs_moved: usize,
+    /// Constantes ré-ancrées.
+    pub consts_moved: usize,
+    /// Arêtes `ce` Ghidra repliées sur les racines contenantes.
+    pub ce_edges_mapped: usize,
+    /// Classes RTTI copiées vers la cible.
+    pub rtti_copied: usize,
+    /// Métadonnées Ghidra sans fonction racine contenante (perdues).
+    pub unmapped: usize,
+}
+
+/// Reconstruit la carte des fonctions sur la **vérité terrain `.pdata`** : insère
+/// les 50 674 fonctions racines comme nœuds dans `dst_bin`, puis **ré-ancre** les
+/// métadonnées de l'index Ghidra (`src_bin`) par *inclusion* — chaque nœud Ghidra
+/// à l'adresse `a` (massivement désaligné, souvent au milieu d'un corps) voit ses
+/// chaînes / constantes / arêtes transférées à la fonction racine réelle qui
+/// contient `a`. Le résultat : un graphe à adresses correctes sur lequel `disasm`
+/// (vrais débuts) et `propagate` redeviennent physiquement valides.
+pub fn rebuild_from_pdata(
+    db: &mut Db,
+    src_bin: i64,
+    dst_bin: i64,
+    exe_path: &std::path::Path,
+) -> Result<RebuildStats> {
+    let bytes = std::fs::read(exe_path).with_context(|| format!("lecture {}", exe_path.display()))?;
+    let roots = parse_roots(&bytes)?;
+    let starts: Vec<u64> = roots.iter().map(|r| r.start).collect();
+    let find_root = |a: u64| -> Option<u64> { root_containing(&starts, &roots, a) };
+
+    // --- Lectures de la source (avant d'ouvrir la transaction d'écriture) ------
+    let str_rows: Vec<(u64, String)> = {
+        let mut q = db.conn().prepare(
+            "SELECT f.vaddr, s.value FROM func_str_ref s JOIN function f ON f.id=s.function_id WHERE f.binary_id=?1",
+        )?;
+        q.query_map([src_bin], |r| Ok((r.get::<_, i64>(0)? as u64, r.get::<_, String>(1)?)))?
+            .collect::<std::result::Result<_, _>>()?
+    };
+    let const_rows: Vec<(u64, i64)> = {
+        let mut q = db.conn().prepare(
+            "SELECT f.vaddr, c.value FROM func_const c JOIN function f ON f.id=c.function_id WHERE f.binary_id=?1",
+        )?;
+        q.query_map([src_bin], |r| Ok((r.get::<_, i64>(0)? as u64, r.get::<_, i64>(1)?)))?
+            .collect::<std::result::Result<_, _>>()?
+    };
+    let ce_rows: Vec<(u64, u64)> = {
+        let mut q = db
+            .conn()
+            .prepare("SELECT from_addr, to_addr FROM xref WHERE binary_id=?1 AND kind='call'")?;
+        q.query_map([src_bin], |r| Ok((r.get::<_, i64>(0)? as u64, r.get::<_, i64>(1)? as u64)))?
+            .collect::<std::result::Result<_, _>>()?
+    };
+    let rtti_rows: Vec<(String, Option<String>, Option<String>)> = {
+        let mut q = db
+            .conn()
+            .prepare("SELECT name, namespace, mangled FROM rtti_class WHERE binary_id=?1")?;
+        q.query_map([src_bin], |r| {
+            Ok((r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?, r.get::<_, Option<String>>(2)?))
+        })?
+        .collect::<std::result::Result<_, _>>()?
+    };
+
+    let mut stats = RebuildStats { roots: roots.len(), ..Default::default() };
+    let tx = db.conn_mut().transaction()?;
+
+    // --- 1. Insère les fonctions racines (vraies entrées + tailles) -----------
+    {
+        let mut ins = tx.prepare_cached(
+            "INSERT OR IGNORE INTO function(binary_id, vaddr, size, name_source, subsystem, confidence)
+             VALUES(?1,?2,?3,'pdata','standalone',0.0)",
+        )?;
+        for r in &roots {
+            ins.execute(rusqlite::params![dst_bin, r.start as i64, (r.end - r.start) as i64])?;
+        }
+    }
+    // Carte vaddr → function_id pour la cible.
+    let mut root_fid: hashbrown::HashMap<u64, i64> = hashbrown::HashMap::with_capacity(roots.len());
+    {
+        let mut q = tx.prepare("SELECT vaddr, id FROM function WHERE binary_id=?1")?;
+        let rows = q.query_map([dst_bin], |r| Ok((r.get::<_, i64>(0)? as u64, r.get::<_, i64>(1)?)))?;
+        for row in rows {
+            let (v, id) = row?;
+            root_fid.insert(v, id);
+        }
+    }
+
+    // --- 2. Ré-ancre les chaînes par inclusion --------------------------------
+    {
+        let mut ins = tx.prepare_cached(
+            "INSERT INTO func_str_ref(binary_id, function_id, value) VALUES(?1,?2,?3)",
+        )?;
+        for (va, val) in &str_rows {
+            match find_root(*va).and_then(|s| root_fid.get(&s)) {
+                Some(&fid) => {
+                    ins.execute(rusqlite::params![dst_bin, fid, val])?;
+                    stats.str_refs_moved += 1;
+                }
+                None => stats.unmapped += 1,
+            }
+        }
+    }
+    // --- 3. Ré-ancre les constantes -------------------------------------------
+    {
+        let mut ins = tx.prepare_cached("INSERT INTO func_const(function_id, value) VALUES(?1,?2)")?;
+        for (va, val) in &const_rows {
+            if let Some(&fid) = find_root(*va).and_then(|s| root_fid.get(&s)) {
+                ins.execute(rusqlite::params![fid, val])?;
+                stats.consts_moved += 1;
+            }
+        }
+    }
+    // --- 4. Replie les arêtes d'appel Ghidra sur les racines ------------------
+    {
+        let mut ins = tx.prepare_cached(
+            "INSERT OR IGNORE INTO xref(binary_id, from_addr, to_addr, kind) VALUES(?1,?2,?3,'call')",
+        )?;
+        for (from, to) in &ce_rows {
+            if let (Some(rf), Some(rt)) = (find_root(*from), find_root(*to)) {
+                if rf != rt {
+                    ins.execute(rusqlite::params![dst_bin, rf as i64, rt as i64])?;
+                    stats.ce_edges_mapped += 1;
+                }
+            }
+        }
+    }
+    // --- 5. Copie les classes RTTI --------------------------------------------
+    {
+        let mut ins = tx.prepare_cached(
+            "INSERT OR IGNORE INTO rtti_class(binary_id, name, namespace, mangled) VALUES(?1,?2,?3,?4)",
+        )?;
+        for (name, ns, mangled) in &rtti_rows {
+            ins.execute(rusqlite::params![dst_bin, name, ns, mangled])?;
+            stats.rtti_copied += 1;
+        }
+    }
+
+    tx.commit()?;
+    info!(
+        "rebuild: {} racines, {} str ré-ancrées ({} perdues), {} consts, {} arêtes ce, {} rtti",
+        stats.roots, stats.str_refs_moved, stats.unmapped, stats.consts_moved, stats.ce_edges_mapped, stats.rtti_copied
+    );
+    Ok(stats)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -234,6 +395,26 @@ mod tests {
         let frag = (UNW_FLAG_CHAININFO << 3) | 1; // flags=CHAININFO → fragment
         assert_eq!((root >> 3) & 0x1f & UNW_FLAG_CHAININFO, 0);
         assert_ne!((frag >> 3) & 0x1f & UNW_FLAG_CHAININFO, 0);
+    }
+
+    /// Vérifie le test d'inclusion (adresse → fonction racine contenante).
+    #[test]
+    fn inclusion_dans_la_fonction_racine() {
+        let roots = [
+            RootFn { start: 0x1000, end: 0x1100 },
+            RootFn { start: 0x2000, end: 0x2400 },
+        ];
+        let starts: Vec<u64> = roots.iter().map(|r| r.start).collect();
+        // Début exact → la fonction elle-même.
+        assert_eq!(root_containing(&starts, &roots, 0x1000), Some(0x1000));
+        // Milieu de corps → la fonction contenante.
+        assert_eq!(root_containing(&starts, &roots, 0x2200), Some(0x2000));
+        // Dans le trou entre deux fonctions (0x1100..0x2000) → None.
+        assert_eq!(root_containing(&starts, &roots, 0x1500), None);
+        // Avant la première → None.
+        assert_eq!(root_containing(&starts, &roots, 0x0500), None);
+        // À la borne de fin (exclusive) → None.
+        assert_eq!(root_containing(&starts, &roots, 0x2400), None);
     }
 
     /// Vérifie le tri + déduplication des racines.
