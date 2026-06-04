@@ -410,4 +410,78 @@ mod tests {
         buf[..4].copy_from_slice(b"XXXX");
         assert!(matches!(parse(&buf), Err(FormatError::BadMagic { .. })));
     }
+
+    /// Forge un buffer G4TX minimal (texture_count=1, total_count=1, sub_texture_count=0)
+    /// avec width=256, height=128 dans les champs d'entrée.
+    /// Vérifie : header correctement parsé, 1 texture, dimensions issues des champs
+    /// d'entrée (pas de payload DDS présent), nom "tex".
+    #[test]
+    fn forge_minimal_g4tx_buffer() {
+        // Layout calculé :
+        //   HEADER_SIZE = 0x60
+        //   entry_offset = 0x60, entry_size = 0x30  → fin entrées = 0x90
+        //   sub_entry_offset = 0x90 (sub_count=0)
+        //   hash_offset = align16(0x90) = 0x90
+        //   id_offset = 0x90 + 1*4 = 0x94
+        //   string_offset = align4(0x94 + 1) = align4(0x95) = 0x98
+        //   string offsets table : [0x98..0x9A] (1 × i16)
+        //   nom "tex\0" démarre à 0x9A (rel_offset=0 depuis 0x98)
+        //   nxtch_base = align16(header_size=0x60 + table_size=0x40) = align16(0xA0) = 0xA0
+        //   Taille buffer = 0xA0
+
+        const BUF_LEN: usize = 0xA0;
+        let mut buf = [0u8; BUF_LEN];
+
+        // magic
+        buf[0..4].copy_from_slice(b"G4TX");
+        // header_size = 0x60
+        buf[4..6].copy_from_slice(&0x60u16.to_le_bytes());
+        // file_type = 0x65
+        buf[6..8].copy_from_slice(&0x65u16.to_le_bytes());
+        // table_size = 0x40
+        buf[0x0C..0x10].copy_from_slice(&0x40u32.to_le_bytes());
+        // texture_count = 1
+        buf[0x20..0x22].copy_from_slice(&1u16.to_le_bytes());
+        // total_count = 1
+        buf[0x22..0x24].copy_from_slice(&1u16.to_le_bytes());
+        // sub_texture_count = 0
+        buf[0x25] = 0;
+        // texture_data_size = 0
+        buf[0x2C..0x30].copy_from_slice(&0u32.to_le_bytes());
+
+        // G4txEntry à entry_offset=0x60 :
+        //   nxtch_offset @+0x04 = 0 (payload à nxtch_base+0 = 0xA0 = hors buffer)
+        buf[0x64..0x68].copy_from_slice(&0u32.to_le_bytes());
+        //   nxtch_size @+0x08 = 0
+        buf[0x68..0x6C].copy_from_slice(&0u32.to_le_bytes());
+        //   width @+0x18 = 256
+        buf[0x78..0x7A].copy_from_slice(&256i16.to_le_bytes());
+        //   height @+0x1A = 128
+        buf[0x7A..0x7C].copy_from_slice(&128i16.to_le_bytes());
+
+        // hash table @0x90 : 1 × u32 = 0 (hash non utilisé dans le parse actuel)
+        buf[0x90..0x94].copy_from_slice(&0u32.to_le_bytes());
+        // id table @0x94 : 1 × u8 = 42
+        buf[0x94] = 42;
+        // string offsets @0x98 : 1 × i16 = 2 (relatif à string_offset=0x98, pointe sur 0x9A)
+        buf[0x98..0x9A].copy_from_slice(&2i16.to_le_bytes());
+        // nom "tex\0" @0x9A
+        buf[0x9A..0x9E].copy_from_slice(b"tex\0");
+
+        let g = parse(&buf).expect("parse buffer forgé");
+        assert_eq!(g.header.header_size, 0x60);
+        assert_eq!(g.header.texture_count, 1);
+        assert_eq!(g.header.total_count, 1);
+        assert_eq!(g.header.sub_texture_count, 0);
+        assert_eq!(g.textures.len(), 1);
+
+        let t = &g.textures[0];
+        assert_eq!(t.id, 42);
+        assert_eq!(t.name, "tex");
+        // Payload hors limites (nxtch_base=0xA0 = fin buffer) → is_dds=false, dims depuis entrée.
+        assert!(!t.is_dds);
+        assert_eq!(t.width, 256);
+        assert_eq!(t.height, 128);
+        assert!(t.sub_textures.is_empty());
+    }
 }

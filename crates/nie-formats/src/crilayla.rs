@@ -353,7 +353,9 @@ impl BitReader {
         }
 
         let take1 = self.bits_left.min(bit_count);
-        let result1 = (input[self.ptr] >> (self.bits_left - take1)) & ((1u8 << take1) - 1);
+        // take1 peut valoir 8 : utiliser u16 pour éviter l'overflow de (1u8 << 8).
+        let mask1 = if take1 >= 8 { 0xFFu8 } else { (1u8 << take1) - 1 };
+        let result1 = (input[self.ptr] >> (self.bits_left - take1)) & mask1;
         bit_count -= take1;
 
         // Avancer vers l'octet suivant.
@@ -364,7 +366,8 @@ impl BitReader {
         self.ptr -= 1;
 
         let take2 = self.bits_left.min(bit_count);
-        let result2 = (input[self.ptr] >> (self.bits_left - take2)) & ((1u8 << take2) - 1);
+        let mask2 = if take2 >= 8 { 0xFFu8 } else { (1u8 << take2) - 1 };
+        let result2 = (input[self.ptr] >> (self.bits_left - take2)) & mask2;
         bit_count -= take2;
 
         let mut result = ((result1 as u16) << take2) | result2 as u16;
@@ -382,7 +385,8 @@ impl BitReader {
         self.ptr -= 1;
 
         let take3 = bit_count;
-        result = (result << take3) | ((input[self.ptr] >> (self.bits_left - take3)) as u16 & ((1u16 << take3) - 1));
+        let mask3: u16 = if take3 >= 16 { 0xFFFF } else { (1u16 << take3) - 1 };
+        result = (result << take3) | ((input[self.ptr] >> (self.bits_left - take3)) as u16 & mask3);
         self.bits_left -= take3;
         Ok(result)
     }
