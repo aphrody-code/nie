@@ -8,12 +8,18 @@
 //! # Modules
 //!
 //! - [`ball`] — Composant ballon (`game::BallComponent`, contrôleurs de mouvement)
-//! - [`match_state`] — Machine à états du match (`game::CSceneSoccer`)
+//! - [`match_state`] — Machine à états du match d'entraînement (`game::CSceneSoccer`)
+//! - [`match_fsm`] — FSM de match 11 états + score final (`tick`/`final_score`)
 //! - [`soccer_ctrl`] — Contrôleur de match et transitions de phase
 //! - [`action`] — Contrôleur d'actions joueur (`game::SoccerActionCtrl`)
+//! - [`command_effect`] — Tables de slots d'effets de commande de match
 //! - [`keeper`] — Calcul d'arrêt du gardien (`game::SoccerCalcKeeperSaveComponent`)
 //! - [`tactics`] — IA tactique par joueur (`game::SoccerCharaTacticsAI`)
-//! - [`stats`] — Calcul de statistiques joueur avec courbe de progression
+//! - [`stats`] — Courbe d'interpolation 3-segments des statistiques
+//! - [`growth`] — Tables de croissance + lookup à fallback + `calculate_stats`
+//! - [`exp`] — Table d'XP par niveau + multiplicateur de rareté
+//! - [`skill`] — Modèle de technique (hissatsu) + maps élément/catégorie
+//! - [`aura`] — Modèle d'aura (Keshin/Soul/…) + résolution du hissatsu lié
 //!
 //! # Conventions de portage
 //!
@@ -31,10 +37,46 @@
 // Pour l'instant on reste std pour simplicité; une feature no_std peut être
 // ajoutée plus tard avec libm si nécessaire pour wasm bare-metal.
 
+/// Helpers serde pour les grands tableaux d'octets (serde n'impl. pas les
+/// arrays > 32 nativement). (Dé)sérialise un `[u8; N]` comme une séquence.
+///
+/// N'est compilé que sous la feature `serde`.
+#[cfg(feature = "serde")]
+pub(crate) mod serde_byte_array {
+    use core::convert::TryInto;
+    use serde::de::{Deserialize, Deserializer, Error};
+    use serde::ser::Serializer;
+
+    /// Sérialise `[u8; N]` comme un slice d'octets.
+    pub fn serialize<S, const N: usize>(arr: &[u8; N], s: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        s.serialize_bytes(arr)
+    }
+
+    /// Désérialise un `[u8; N]` depuis un `Vec<u8>` de longueur exacte.
+    pub fn deserialize<'de, D, const N: usize>(d: D) -> Result<[u8; N], D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let v = <Vec<u8>>::deserialize(d)?;
+        v.as_slice()
+            .try_into()
+            .map_err(|_| D::Error::custom("longueur de tableau d'octets invalide"))
+    }
+}
+
 pub mod action;
+pub mod aura;
 pub mod ball;
+pub mod command_effect;
+pub mod exp;
+pub mod growth;
 pub mod keeper;
+pub mod match_fsm;
 pub mod match_state;
+pub mod skill;
 pub mod soccer_ctrl;
 pub mod stats;
 pub mod tactics;

@@ -127,6 +127,9 @@ pub fn calculate_single_stat(
 /// Interpolation linéaire entière (floor) entre deux valeurs `u16`.
 ///
 /// Source: `stat-calculator.ts` — `lerp(start, end, t) = floor(start + (end - start) * t)`.
+// Le résultat est borné entre `start` et `end` (deux u16 ≥ 0) pour t ∈ [0,1],
+// donc le floor+cast est sûr (jamais négatif, jamais > 65535).
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 fn lerp_u16(start: u16, end: u16, t: f32) -> u16 {
     let s = f32::from(start);
     let e = f32::from(end);

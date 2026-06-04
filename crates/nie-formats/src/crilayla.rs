@@ -305,7 +305,7 @@ impl BitReader {
     ///
     /// Si `bits_left == 0`, charge un nouvel octet. Peut croiser 2 octets si nécessaire.
     fn read_max8(&mut self, bit_count: u32, input: &[u8]) -> Result<u8, FormatError> {
-        debug_assert!(bit_count >= 1 && bit_count <= 7);
+        debug_assert!((1..=7).contains(&bit_count));
         // Charger si épuisé.
         if self.bits_left == 0 {
             if self.ptr == 0x10 {

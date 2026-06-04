@@ -111,6 +111,9 @@ impl MatchScore {
     }
 
     /// Decode une valeur encodée en `MatchScore`.
+    // `encoded % 10_000` < 10000 et un score de match réel garde `minutes`
+    // largement < 65536 ; la troncature `as u16` est sûre dans ce domaine.
+    #[allow(clippy::cast_possible_truncation)]
     #[must_use]
     pub fn decode(encoded: u32) -> Self {
         Self {
@@ -126,7 +129,7 @@ impl MatchScore {
 /// l'index de la phase, interprété via le `switch` de `FUN_1412aa4a0`.
 ///
 /// Les libellés sont extraits des strings embarquées dans le binaire
-/// ("TrainingResetWaitTimer", "TrainingWaitEndTimer", etc.).
+/// (`TrainingResetWaitTimer`, `TrainingWaitEndTimer`, etc.).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(u8)]
@@ -232,11 +235,11 @@ impl TrainingStateMachine {
     ///
     /// Source: `FUN_1412aa4a0` case 1.
     pub fn on_timer_done(&mut self, is_training: bool, result: TrainingResult) {
-        if !is_training {
-            self.phase = MatchPhase::Transition;
-        } else {
+        if is_training {
             self.training_result = Some(result);
             self.phase = MatchPhase::WaitResultUi;
+        } else {
+            self.phase = MatchPhase::Transition;
         }
     }
 

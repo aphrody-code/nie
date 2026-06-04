@@ -13,9 +13,17 @@ workspace = true
 [dependencies]
 thiserror.workspace = true
 serde = { workspace = true, optional = true }
+# serde_json est utilisé uniquement pour charger les tables de données réelles
+# embarquées (`growth`, `exp`, `skill`, `aura`). Compatible wasm32 (alloc).
+serde_json = { workspace = true, optional = true }
 
 [features]
-default = []
+# `data` active le chargement des tables réelles IEVR embarquées via include_str!.
+# Activée par défaut car c'est le cœur des modules growth/exp/skill/aura.
+# Le chargement utilise des structs `#[derive(serde::Deserialize)]` → `data`
+# tire `serde` (avec derive) ET `serde_json`.
+default = ["data"]
 serde = ["dep:serde"]
+data = ["dep:serde", "dep:serde_json"]
 
 [dev-dependencies]

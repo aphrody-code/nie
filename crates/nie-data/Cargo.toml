@@ -1,0 +1,23 @@
+[package]
+name = "nie-data"
+description = "Modèles de données de jeu IEVR portés en Rust pur (skills, auras, chara_param, items, growth/exp tables, passifs) depuis le pipeline @rose-griffon/inagle — no_std+alloc, wasm-friendly"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+# serde_json en mode no_std+alloc (parse des dumps cfg.bin.json) — pas de std requis.
+# Version alignée sur la racine (Cargo.lock = 1.0.150) ; on ne peut pas hériter du workspace
+# tout en désactivant default-features, d'où la déclaration directe.
+serde_json = { version = "1", default-features = false, features = ["alloc"] }
+serde = { workspace = true, optional = true }
+
+[features]
+default = []
+# Dérive Serialize/Deserialize sur les structs publiques.
+serde = ["dep:serde"]
