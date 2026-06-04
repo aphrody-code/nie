@@ -27,7 +27,7 @@ pub const NXTCH_MAGIC40: u64 = 0x48_4354_584E;
 /// Magic NXTCH en octets.
 pub const NXTCH_MAGIC_BYTES: [u8; 5] = *b"NXTCH";
 /// Taille de l'en-tête NXTCH (44 octets).
-pub const NXTCH_HEADER_SIZE: usize = 44;
+pub const NXTCH_HEADER_SIZE: usize = 48;
 
 /// Taille d'un GOB Tegra X1 (octets).
 const GOB_SIZE: usize = 512;
@@ -92,21 +92,23 @@ impl NxtchFormat {
     }
 }
 
-/// En-tête NXTCH (44 octets). Champs vérifiés contre la struct C# `NxtchHeader`.
+/// En-tête NXTCH (48 octets). Offsets alignés 1:1 sur la struct C# `NxtchHeader`
+/// (`IECODE.Core/Formats/Level5/G4txParser.cs` l.77, layout séquentiel : `Magic` u64
+/// @0x00 puis 10 `int`). Les champs `UnknownN` ne sont pas portés.
 #[derive(Debug, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct NxtchHeader {
-    /// Taille des données texture (champ d'en-tête).
+    /// `TextureDataSize` (@0x08).
     pub texture_data_size: i32,
-    /// Largeur en pixels (@0x10).
+    /// Largeur en pixels (`Width` @0x14).
     pub width: i32,
-    /// Hauteur en pixels (@0x14).
+    /// Hauteur en pixels (`Height` @0x18).
     pub height: i32,
-    /// Code de format (@0x20).
+    /// Code de format (`Format` @0x24).
     pub format: i32,
-    /// Nombre de mips (@0x24).
+    /// Nombre de mips (`MipMapCount` @0x28).
     pub mipmap_count: i32,
-    /// Taille des données texture (second champ, @0x28).
+    /// Seconde taille des données texture (`TextureDataSize2` @0x2C).
     pub texture_data_size2: i32,
 }
 
@@ -128,7 +130,7 @@ pub fn is_nxtch(data: &[u8]) -> bool {
 ///
 /// # Erreurs
 ///
-/// - [`FormatError::TooShort`] si `data` < 44 octets.
+/// - [`FormatError::TooShort`] si `data` < 48 octets.
 /// - [`FormatError::BadMagic`] si le magic 40 bits n'est pas NXTCH.
 pub fn parse_header(data: &[u8]) -> Result<NxtchHeader, FormatError> {
     if data.len() < NXTCH_HEADER_SIZE {
@@ -138,17 +140,16 @@ pub fn parse_header(data: &[u8]) -> Result<NxtchHeader, FormatError> {
         return Err(FormatError::BadMagic { format: "NXTCH" });
     }
 
-    // Offsets de la SPEC du livrable (en-tête NXTCH 44 octets) :
-    //   texture_data_size @0x08, width @0x10, height @0x14, format @0x20,
-    //   mipmap_count @0x24, texture_data_size2 @0x28.
-    // (Source : description du livrable g4tx-deswizzle-nxtch + NxtchParser.cs. Aucun fichier
-    //  NXTCH réel sur ce VPS pour départager — on suit la spec annotée du livrable.)
+    // Offsets 1:1 de la struct C# `NxtchHeader` (G4txParser.cs l.77, layout séquentiel) :
+    //   Magic u64 @0x00 ; TextureDataSize @0x08 ; Unknown1 @0x0C ; Unknown2 @0x10 ;
+    //   Width @0x14 ; Height @0x18 ; Unknown3 @0x1C ; Unknown4 @0x20 ; Format @0x24 ;
+    //   MipMapCount @0x28 ; TextureDataSize2 @0x2C. (HEADER_SIZE = 0x30 = 48.)
     let texture_data_size = read_i32_le(data, 0x08)?;
-    let width = read_i32_le(data, 0x10)?;
-    let height = read_i32_le(data, 0x14)?;
-    let format = read_i32_le(data, 0x20)?;
-    let mipmap_count = read_i32_le(data, 0x24)?;
-    let texture_data_size2 = read_i32_le(data, 0x28)?;
+    let width = read_i32_le(data, 0x14)?;
+    let height = read_i32_le(data, 0x18)?;
+    let format = read_i32_le(data, 0x24)?;
+    let mipmap_count = read_i32_le(data, 0x28)?;
+    let texture_data_size2 = read_i32_le(data, 0x2C)?;
 
     Ok(NxtchHeader {
         texture_data_size,
@@ -313,5 +314,38 @@ mod tests {
     #[test]
     fn header_trop_court_rejete() {
         assert!(matches!(parse_header(&[0u8; 10]), Err(FormatError::TooShort { .. })));
+    }
+
+    #[test]
+    fn parse_header_offsets_alignes_sur_struct_csharp() {
+        // En-tête synthétique aux offsets EXACTS de la struct C# `NxtchHeader`
+        // (Magic@0x00, TextureDataSize@0x08, Width@0x14, Height@0x18, Format@0x24,
+        //  MipMapCount@0x28, TextureDataSize2@0x2C ; HEADER_SIZE=48). Place des valeurs
+        // distinctes aux trous `UnknownN` pour attraper tout décalage (l'ancien bug
+        // off-by-4 lisait Width@0x10 = Unknown2).
+        let mut h = alloc::vec![0u8; NXTCH_HEADER_SIZE];
+        h[0..5].copy_from_slice(b"NXTCH");
+        let put = |h: &mut alloc::vec::Vec<u8>, off: usize, v: i32| {
+            h[off..off + 4].copy_from_slice(&v.to_le_bytes());
+        };
+        put(&mut h, 0x08, 0x4000); // TextureDataSize
+        put(&mut h, 0x0C, 111); // Unknown1 (piège)
+        put(&mut h, 0x10, 222); // Unknown2 (piège : l'ancien code lisait width ici)
+        put(&mut h, 0x14, 256); // Width
+        put(&mut h, 0x18, 128); // Height
+        put(&mut h, 0x1C, 333); // Unknown3 (piège)
+        put(&mut h, 0x20, 444); // Unknown4 (piège : l'ancien code lisait format ici)
+        put(&mut h, 0x24, 0x03); // Format = BC3
+        put(&mut h, 0x28, 5); // MipMapCount
+        put(&mut h, 0x2C, 0x8000); // TextureDataSize2
+
+        let hdr = parse_header(&h).expect("en-tête valide");
+        assert_eq!(hdr.texture_data_size, 0x4000);
+        assert_eq!(hdr.width, 256, "Width @0x14 (et non Unknown2=222 @0x10)");
+        assert_eq!(hdr.height, 128, "Height @0x18");
+        assert_eq!(hdr.format, 0x03, "Format @0x24 (et non Unknown4=444 @0x20)");
+        assert_eq!(hdr.texture_format(), NxtchFormat::Bc3);
+        assert_eq!(hdr.mipmap_count, 5, "MipMapCount @0x28");
+        assert_eq!(hdr.texture_data_size2, 0x8000, "TextureDataSize2 @0x2C");
     }
 }
