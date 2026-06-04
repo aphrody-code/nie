@@ -96,6 +96,17 @@ enum Cmd {
         #[arg(long)]
         exe: PathBuf,
     },
+    /// Refonde la carte sur `.pdata` (vrais débuts), ré-ancre Ghidra, disasm + propage. Couverture HONNÊTE.
+    Rebuild {
+        /// Base sqlite cible.
+        #[arg(long, default_value = "var/niers.sqlite")]
+        db: PathBuf,
+        /// Binaire PE x64.
+        #[arg(long)]
+        exe: PathBuf,
+        #[arg(long, default_value_t = 16)]
+        rounds: usize,
+    },
 }
 
 #[derive(Subcommand)]
@@ -128,6 +139,7 @@ fn main() -> anyhow::Result<()> {
         Cmd::Index { db, exe } => index(&db, &exe),
         Cmd::Disasm { db, exe } => disasm(&db, &exe),
         Cmd::Pdata { db, exe } => pdata(&db, &exe),
+        Cmd::Rebuild { db, exe, rounds } => rebuild(&db, &exe, rounds),
     }
 }
 
@@ -283,6 +295,43 @@ fn pdata(db_path: &std::path::Path, exe_path: &std::path::Path) -> anyhow::Resul
         "pdata entries={} chained={} roots={} inserted={} | ghidra {}/{} aligned ({:.1}%) inside_body={}",
         stats.entries, stats.chained_fragments, stats.roots, stats.inserted,
         stats.overlap_ghidra, stats.ghidra_total, pct_aligned, stats.ghidra_inside_body
+    );
+    Ok(())
+}
+
+fn rebuild(db_path: &std::path::Path, exe_path: &std::path::Path, rounds: usize) -> anyhow::Result<()> {
+    let mut db = nie_index::Db::open(db_path).context("ouverture base")?;
+    let src_bin: i64 = db
+        .conn()
+        .query_row("SELECT id FROM binary ORDER BY id LIMIT 1", [], |r| r.get(0))
+        .context("aucun binaire indexé — lancer `niers seed` d'abord")?;
+
+    // Binaire cible distinct (vérité .pdata) : sha dérivé pour ne pas écraser la source.
+    let (path_str, src_sha): (String, String) = db.conn().query_row(
+        "SELECT path, sha256 FROM binary WHERE id=?1",
+        [src_bin],
+        |r| Ok((r.get(0)?, r.get(1)?)),
+    )?;
+    let dst_bin = db.upsert_binary(
+        &format!("{path_str}#pdata"),
+        &format!("{src_sha}-pdata"),
+        "x86_64",
+        64,
+        NIE_IMAGE_BASE,
+        0,
+        None,
+        None,
+    )?;
+
+    let rb = nie_re::pdata::rebuild_from_pdata(&mut db, src_bin, dst_bin, exe_path)?;
+    let dis = nie_re::disasm::recover_call_edges(&mut db, dst_bin, exe_path)?;
+    let prop = nie_re::loop_db::propagate_db(&mut db, dst_bin, rounds)?;
+
+    println!(
+        "rebuild roots={} str={} const={} ce={} rtti={} | disasm new={} | propagate anchors(s/r/c)={}/{}/{} cov={}/{} ({:.2}%)",
+        rb.roots, rb.str_refs_moved, rb.consts_moved, rb.ce_edges_mapped, rb.rtti_copied,
+        dis.edges_new, prop.anchored_str, prop.anchored_rtti, prop.anchored_const,
+        prop.classified_after, prop.total, prop.coverage_after
     );
     Ok(())
 }
