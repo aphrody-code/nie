@@ -2,6 +2,7 @@
 #![forbid(unsafe_code)]
 #![allow(clippy::pedantic)]
 
+use std::io::Write;
 use std::path::PathBuf;
 
 use anyhow::Context;
@@ -108,6 +109,24 @@ enum Cmd {
         #[arg(long, default_value_t = 16)]
         rounds: usize,
     },
+    /// Scanne les fichiers .g4tx dans les CPK du jeu et produit un manifeste NDJSON d'en-têtes.
+    Textures {
+        /// Répertoire racine de l'installation du jeu (contenant data/cpk_list.cfg.bin).
+        #[arg(long, default_value = "/home/ubuntu/.local/share/Steam/iecode/inazuma")]
+        game_dir: PathBuf,
+        /// Borne dure : nombre maximum de .g4tx à traiter (défaut 500).
+        #[arg(long, default_value_t = 500)]
+        limit: usize,
+        /// Chemin du manifeste NDJSON de sortie.
+        #[arg(long, default_value = "var/g4tx-manifest.ndjson")]
+        manifest: PathBuf,
+        /// Pousse aussi dans Redis db3 (iev:tex:*).
+        #[arg(long)]
+        redis: bool,
+        /// URL Redis (db3).
+        #[arg(long, default_value = "redis://127.0.0.1/3")]
+        redis_url: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -141,6 +160,9 @@ fn main() -> anyhow::Result<()> {
         Cmd::Disasm { db, exe } => disasm(&db, &exe),
         Cmd::Pdata { db, exe } => pdata(&db, &exe),
         Cmd::Rebuild { db, exe, rounds } => rebuild(&db, &exe, rounds),
+        Cmd::Textures { game_dir, limit, manifest, redis: use_redis, redis_url } => {
+            textures(&game_dir, limit, &manifest, use_redis, &redis_url)
+        }
     }
 }
 
@@ -337,3 +359,222 @@ fn rebuild(db_path: &std::path::Path, exe_path: &std::path::Path, rounds: usize)
     );
     Ok(())
 }
+
+/// Entrée du manifeste NDJSON pour une texture G4TX.
+#[derive(serde::Serialize)]
+struct TexEntry<'a> {
+    path: &'a str,
+    cpk: &'a str,
+    width: i32,
+    height: i32,
+    format: &'static str,
+    mips: u8,
+}
+
+fn textures(
+    game_dir: &std::path::Path,
+    limit: usize,
+    manifest_path: &std::path::Path,
+    use_redis: bool,
+    redis_url: &str,
+) -> anyhow::Result<()> {
+    use nie_formats::vfs::Vfs;
+    use nie_formats::g4tx;
+
+    let data_dir = game_dir.join("data");
+
+    // Initialiser le VFS depuis cpk_list.cfg.bin
+    let mut vfs = Vfs::new();
+    vfs.init(&data_dir).context("init VFS depuis cpk_list.cfg.bin")?;
+
+    // Collecter tous les chemins .g4tx indexés
+    let all_g4tx: Vec<(String, String)> = {
+        // Accès à l'index interne via itération : on utilise find() sur les clés connues,
+        // mais l'API publique n'expose pas d'itérateur. On reconstruit la liste via
+        // la méthode asset_count() pour vérifier, puis on scanne via une méthode d'itération
+        // publique si disponible.
+        // Comme l'API Vfs n'expose pas d'itérateur direct, on charge le cfg.bin nous-mêmes
+        // pour collecter les chemins .g4tx.
+        collect_g4tx_paths(&data_dir)?
+    };
+
+    let total_found = all_g4tx.len();
+    let to_process = all_g4tx.len().min(limit);
+    let dropped = total_found.saturating_sub(limit);
+
+    tracing::info!(total_found, to_process, dropped, "fichiers .g4tx découverts");
+
+    // Préparer le fichier manifeste
+    if let Some(parent) = manifest_path.parent() {
+        std::fs::create_dir_all(parent).ok();
+    }
+    let mut manifest_file = std::fs::File::create(manifest_path)
+        .with_context(|| format!("création manifeste {}", manifest_path.display()))?;
+
+    // Connexion Redis optionnelle
+    let mut redis_conn: Option<redis::Connection> = if use_redis {
+        match redis::Client::open(redis_url).and_then(|c| c.get_connection()) {
+            Ok(conn) => {
+                tracing::info!("Redis connecté : {redis_url}");
+                Some(conn)
+            }
+            Err(e) => {
+                tracing::warn!("Redis indisponible ({e}) — poursuite sans Redis");
+                None
+            }
+        }
+    } else {
+        None
+    };
+
+    let mut parsed = 0usize;
+    let mut failed = 0usize;
+
+    for (internal_path, cpk_name) in all_g4tx.iter().take(limit) {
+        let raw = match vfs.read(internal_path) {
+            Ok(b) => b,
+            Err(e) => {
+                tracing::warn!("échec extraction {internal_path}: {e}");
+                failed += 1;
+                continue;
+            }
+        };
+
+        let g = match g4tx::parse(&raw) {
+            Ok(g) => g,
+            Err(e) => {
+                tracing::warn!("échec parse g4tx {internal_path}: {e}");
+                failed += 1;
+                continue;
+            }
+        };
+
+        // Pour chaque texture dans le conteneur g4tx
+        for tex in &g.textures {
+            // Format : on déduit depuis is_dds ; mips : approximation depuis les dimensions
+            // (le champ mips n'est pas dans le header G4TX public — on expose 0 comme sentinelle)
+            let format_str: &'static str = if tex.is_dds { "DDS" } else { "NXTCH" };
+            let mips: u8 = 0; // G4txHeader n'expose pas de champ mips explicite
+
+            let entry = TexEntry {
+                path: internal_path.as_str(),
+                cpk: cpk_name.as_str(),
+                width: tex.width,
+                height: tex.height,
+                format: format_str,
+                mips,
+            };
+
+            let line = serde_json::to_string(&entry).context("sérialisation JSON")?;
+            writeln!(manifest_file, "{line}").context("écriture manifeste")?;
+
+            // Pousser dans Redis si activé
+            if let Some(ref mut conn) = redis_conn {
+                use redis::Commands;
+                let redis_path_key = format!("iev:tex:{internal_path}");
+                if let Err(e) = conn.sadd::<_, _, i64>("iev:tex:index", internal_path.as_str()) {
+                    tracing::warn!("redis SADD échec: {e}");
+                }
+                if let Err(e) = conn.hset_multiple::<_, _, _, ()>(&redis_path_key, &[
+                    ("width", tex.width.to_string()),
+                    ("height", tex.height.to_string()),
+                    ("format", format_str.to_string()),
+                    ("mips", mips.to_string()),
+                    ("cpk", cpk_name.clone()),
+                ]) {
+                    tracing::warn!("redis HSET échec: {e}");
+                }
+            }
+        }
+
+        parsed += 1;
+    }
+
+    // Écrire meta Redis
+    if let Some(ref mut conn) = redis_conn {
+        use redis::Commands;
+        if let Err(e) = conn.hset_multiple::<_, _, _, ()>("iev:tex:meta", &[
+            ("parsed", parsed.to_string()),
+            ("failed", failed.to_string()),
+            ("total_found", total_found.to_string()),
+            ("limit", limit.to_string()),
+            ("dropped", dropped.to_string()),
+        ]) {
+            tracing::warn!("redis meta HSET échec: {e}");
+        }
+    }
+
+    // Comptage Redis pour sortie terse
+    let redis_count: usize = if let Some(ref mut conn) = redis_conn {
+        use redis::Commands;
+        conn.scard::<_, usize>("iev:tex:index").unwrap_or(0)
+    } else {
+        0
+    };
+
+    // Sortie terse (convention niers : 1 ligne clé=val)
+    if dropped > 0 {
+        println!(
+            "tex.parsed={parsed} tex.failed={failed} tex.total={total_found} tex.dropped={dropped} manifest={} redis_index={}",
+            manifest_path.display(),
+            redis_count
+        );
+    } else {
+        println!(
+            "tex.parsed={parsed} tex.failed={failed} tex.total={total_found} manifest={} redis_index={}",
+            manifest_path.display(),
+            redis_count
+        );
+    }
+
+    Ok(())
+}
+
+/// Charge le cpk_list.cfg.bin et extrait tous les chemins internes se terminant par `.g4tx`.
+/// Retourne (internal_path, cpk_filename).
+fn collect_g4tx_paths(data_dir: &std::path::Path) -> anyhow::Result<Vec<(String, String)>> {
+    use std::io::Read;
+
+    let cpk_list_path = data_dir.join("cpk_list.cfg.bin");
+    let mut file = std::fs::File::open(&cpk_list_path)
+        .with_context(|| format!("ouverture {}", cpk_list_path.display()))?;
+    let mut data = Vec::new();
+    file.read_to_end(&mut data).context("lecture cpk_list.cfg.bin")?;
+
+    // Déchiffrer avec la clé fixe Viola
+    nie_formats::cpk::decrypt_block(&mut data, 0, nie_formats::cpk::VIOLA_FIXED_KEY);
+
+    let cfg = nie_formats::cfgbin::cfgbin_parse(&data)
+        .map_err(|e| anyhow::anyhow!("parse cfg.bin: {e}"))?;
+
+    let mut result = Vec::new();
+    for root_entry in &cfg.entries {
+        for child in &root_entry.children {
+            if child.variables.len() < 5 {
+                continue;
+            }
+            let directory = match &child.variables[0] {
+                nie_formats::cfgbin::Value::String(s) => s.as_str(),
+                _ => continue,
+            };
+            let filename = match &child.variables[1] {
+                nie_formats::cfgbin::Value::String(s) => s.as_str(),
+                _ => continue,
+            };
+            let cpk_hash = match &child.variables[3] {
+                nie_formats::cfgbin::Value::String(s) => s.clone(),
+                _ => continue,
+            };
+
+            if !filename.ends_with(".g4tx") {
+                continue;
+            }
+
+            let internal_path = format!("{directory}{filename}");
+            result.push((internal_path, cpk_hash));
+        }
+    }
+
+    Ok(result)
+}
+

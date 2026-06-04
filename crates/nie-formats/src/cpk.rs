@@ -25,8 +25,11 @@
 //!  …        …     data pool   (blobs binaires)
 //! ```
 //!
-//! Chaque descripteur de colonne est un octet de flags suivi de 4 octets
-//! d'offset de nom dans le string pool.  Voir [`ColumnFlags`].
+//! Chaque descripteur de colonne commence par un octet de flags (nibble bas = type,
+//! nibble haut = bits indépendants HAS_NAME/HAS_DEFAULT/ROW_STORAGE). Si HAS_NAME est
+//! positionné, 4 octets d'offset de nom suivent ; si HAS_DEFAULT est positionné, la valeur
+//! par défaut (taille du type) suit ensuite. Voir [`FLAG_HAS_NAME`], [`FLAG_HAS_DEFAULT`],
+//! [`FLAG_ROW_STORAGE`].
 //!
 //! ## Format CPK
 //!
@@ -86,10 +89,12 @@ const UTF_BASE: usize = 0x08;
 /// Taille minimale d'une table @UTF (header 0x18 + 8 octets outer).
 const UTF_MIN_TOTAL: usize = 0x20;
 
-// Flags de stockage (bits 4-7 du byte de flags de colonne).
-const STORAGE_ZERO: u8 = 0x00;  // valeur zéro implicite, aucun stockage
-const STORAGE_CONST: u8 = 0x10; // valeur constante (défaut dans le schéma)
-const STORAGE_ROW: u8 = 0x20;   // valeur par ligne dans la section rows
+// Bits indépendants du nibble haut (bits 4-7) du byte de flags d'une colonne @UTF.
+// Ces bits sont cumulables : une colonne peut avoir FLAG_HAS_NAME|FLAG_HAS_DEFAULT,
+// ou FLAG_HAS_NAME|FLAG_ROW_STORAGE, etc.
+const FLAG_HAS_NAME: u8 = 0x10;     // un offset de nom (4 octets BE) suit dans le schéma
+const FLAG_HAS_DEFAULT: u8 = 0x20;  // une valeur constante suit dans le schéma ; n'avance PAS row_cursor
+const FLAG_ROW_STORAGE: u8 = 0x40;  // la valeur est stockée par ligne dans la section rows
 
 /// Polynôme CRC32 réfléchi standard (`CriwareCrypt.cs` L20, `NativeCrypto.cs` L35).
 const CRC32_POLY: u32 = 0xEDB8_8320;
@@ -413,7 +418,8 @@ pub struct UtfColumn {
     pub name: String,
     /// Type des valeurs de cette colonne.
     pub col_type: ColumnType,
-    /// Byte de flags brut (bits 4-7 = stockage, bits 0-3 = type).
+    /// Byte de flags brut. Bits 0-3 = type ; bits 4-7 = flags indépendants
+    /// (0x10 = HAS_NAME, 0x20 = HAS_DEFAULT, 0x40 = ROW_STORAGE).
     pub flags: u8,
 }
 
@@ -523,9 +529,12 @@ pub fn parse_utf(data: &[u8]) -> Result<UtfTable, FormatError> {
     let table_name = read_cstr(data, string_pool, table_name_off)?;
 
     // --- Schéma des colonnes ---
-    // Les descripteurs commencent à l'offset 0x20.
-    // Chaque descripteur = 1 octet flags + 4 octets name_off = 5 octets minimaux.
-    // Si la colonne a HasDefault (0x20), la valeur par défaut suit immédiatement.
+    // Les descripteurs commencent à l'offset 0x20. Chaque descripteur :
+    //   1 octet flags
+    //   + 4 octets name_off  (UNIQUEMENT si FLAG_HAS_NAME est positionné)
+    //   + wire_size(type)    (UNIQUEMENT si FLAG_HAS_DEFAULT est positionné ; valeur constante)
+    // Le nibble haut contient des bits indépendants (FLAG_HAS_NAME, FLAG_HAS_DEFAULT,
+    // FLAG_ROW_STORAGE) — ce ne sont PAS des valeurs d'un enum de classe de stockage.
 
     // Structs internes pour les colonnes.
     struct ColDef {
@@ -546,17 +555,22 @@ pub fn parse_utf(data: &[u8]) -> Result<UtfTable, FormatError> {
         col_off += 1;
 
         let type_nibble = flags & 0x0F;
-        let storage_class = flags & 0xF0;
         let col_type = ColumnType::from_nibble(type_nibble)?;
 
-        // Offset du nom dans le string pool.
-        let name_off = read_u32_be(data, col_off)? as usize;
-        col_off += 4;
-        let name = read_cstr(data, string_pool, name_off)
-            .unwrap_or_else(|_| alloc::format!("col_{i}"));
+        // Nom : présent uniquement si FLAG_HAS_NAME est positionné.
+        let name = if (flags & FLAG_HAS_NAME) != 0 {
+            let name_off = read_u32_be(data, col_off)? as usize;
+            col_off += 4;
+            read_cstr(data, string_pool, name_off)
+                .unwrap_or_else(|_| alloc::format!("col_{i}"))
+        } else {
+            alloc::format!("col_{i}")
+        };
 
-        // Valeur par défaut (uniquement pour STORAGE_CONST).
-        let default_value = if storage_class == STORAGE_CONST {
+        // Valeur par défaut : présente uniquement si FLAG_HAS_DEFAULT est positionné.
+        // Cette valeur est constante pour toutes les lignes et ne consomme AUCUN octet
+        // par ligne dans la section rows.
+        let default_value = if (flags & FLAG_HAS_DEFAULT) != 0 {
             let val = read_value(data, col_off, col_type, string_pool, data_pool)?;
             col_off += col_type.wire_size();
             Some(val)
@@ -575,20 +589,20 @@ pub fn parse_utf(data: &[u8]) -> Result<UtfTable, FormatError> {
         let mut row: Vec<UtfValue> = Vec::with_capacity(col_count);
 
         for def in &col_defs {
-            let storage = def.flags & 0xF0;
-            let val = match storage {
-                STORAGE_ZERO => zero_value(def.col_type),
-                STORAGE_CONST => {
-                    def.default_value.clone().ok_or(FormatError::Corrupt(
-                        "@UTF : valeur constante manquante",
-                    ))?
-                },
-                STORAGE_ROW => {
-                    let v = read_value(data, row_cursor, def.col_type, string_pool, data_pool)?;
-                    row_cursor += def.col_type.wire_size();
-                    v
-                },
-                _ => return Err(FormatError::Corrupt("@UTF : classe de stockage inconnue")),
+            // Priorité : FLAG_HAS_DEFAULT > FLAG_ROW_STORAGE > zéro implicite.
+            // FLAG_HAS_DEFAULT : valeur constante stockée dans le schéma, n'avance PAS row_cursor.
+            // FLAG_ROW_STORAGE : valeur inline dans la section rows, avance row_cursor.
+            // Ni l'un ni l'autre : valeur zéro, n'avance pas row_cursor.
+            let val = if (def.flags & FLAG_HAS_DEFAULT) != 0 {
+                def.default_value.clone().ok_or(FormatError::Corrupt(
+                    "@UTF : valeur constante manquante",
+                ))?
+            } else if (def.flags & FLAG_ROW_STORAGE) != 0 {
+                let v = read_value(data, row_cursor, def.col_type, string_pool, data_pool)?;
+                row_cursor += def.col_type.wire_size();
+                v
+            } else {
+                zero_value(def.col_type)
             };
             row.push(val);
         }
@@ -946,8 +960,8 @@ mod tests {
 
     /// Construit une table @UTF avec 2 colonnes et 2 lignes.
     ///
-    /// - Col 0 "ColA" : U32, STORAGE_ROW (flags 0x24)
-    /// - Col 1 "ColB" : String, STORAGE_ROW (flags 0x2A)
+    /// - Col 0 "ColA" : U32, HAS_NAME|ROW_STORAGE (flags 0x54)
+    /// - Col 1 "ColB" : String, HAS_NAME|ROW_STORAGE (flags 0x5A)
     /// - Ligne 0 : ColA=42, ColB="hello"
     /// - Ligne 1 : ColA=99, ColB="world"
     fn build_utf_fixture() -> Vec<u8> {
@@ -961,10 +975,11 @@ mod tests {
             b"TestTable\0ColA\0ColB\0hello\0world\0";
         assert_eq!(string_pool.len(), 32);
 
-        // Schéma : 2 colonnes × 5 octets.
+        // Schéma : 2 colonnes × 5 octets chacune (1 byte flags + 4 bytes name_off).
+        // flags = FLAG_HAS_NAME(0x10) | FLAG_ROW_STORAGE(0x40) | type
         let schema: &[u8] = &[
-            0x24, 0x00, 0x00, 0x00, 0x0A, // Col 0 : flags=0x24 (ROW|U32), name_off=10
-            0x2A, 0x00, 0x00, 0x00, 0x0F, // Col 1 : flags=0x2A (ROW|String), name_off=15
+            0x54, 0x00, 0x00, 0x00, 0x0A, // Col 0 : flags=0x54 (HAS_NAME|ROW|U32), name_off=10
+            0x5A, 0x00, 0x00, 0x00, 0x0F, // Col 1 : flags=0x5A (HAS_NAME|ROW|String), name_off=15
         ];
 
         // Row data : 2 lignes, stride = 8 (4 + 4).
@@ -1100,20 +1115,24 @@ mod tests {
 
     #[test]
     fn storage_zero_produit_valeur_nulle() {
-        // Construire une table avec une colonne STORAGE_ZERO (flags = 0x04, pas de 0x20 ni 0x40).
-        // Elle doit produire UtfValue::U32(0) pour chaque ligne.
+        // Construire une table avec une colonne nommée sans stockage (pas de HAS_DEFAULT ni
+        // ROW_STORAGE). flags = FLAG_HAS_NAME(0x10) | U32(0x04) = 0x14.
+        // Elle doit produire UtfValue::U32(0) pour chaque ligne (zéro implicite).
 
         // String pool minimal.
         let string_pool: &[u8] = b"\0ColZ\0"; // table_name = "" (off 0), col = "ColZ" (off 1)
 
-        // Schema : 1 col, flags = 0x04 (STORAGE_ZERO | U32), name_off = 1.
-        let schema: &[u8] = &[0x04, 0x00, 0x00, 0x00, 0x01];
+        // Schema : 1 col, flags = 0x14 (HAS_NAME | U32), name_off = 1.
+        // Ni HAS_DEFAULT ni ROW_STORAGE → valeur zéro, n'avance pas row_cursor.
+        let schema: &[u8] = &[0x14, 0x00, 0x00, 0x00, 0x01];
 
         // 1 ligne, stride = 0 (aucune col row-storage).
         let row_data: &[u8] = &[];
 
-        let rows_offset_rel: u32 = 0x13; // 0x18 - 0x08 + schema.len()
-        let string_offset_rel: u32 = rows_offset_rel;
+        // header body = 0x18 octets, schéma = 5 octets (1 flags + 4 name_off car HAS_NAME)
+        // rows à body[0x1D] → rows_offset_rel = 0x1D (relatif à UTF_BASE)
+        let rows_offset_rel: u32 = 0x1D;
+        let string_offset_rel: u32 = rows_offset_rel; // stride=0 → 0 octets de row data
         let data_offset_rel: u32 = string_offset_rel + string_pool.len() as u32;
 
         let mut body: Vec<u8> = Vec::new();
@@ -1140,20 +1159,22 @@ mod tests {
 
     #[test]
     fn storage_const_partage_meme_valeur() {
-        // Col STORAGE_CONST U32 = 0xFF pour chaque ligne.
-        // flags = 0x14 (STORAGE_CONST=0x10 | U32=0x04), default value = 0xFF.
+        // Col HAS_NAME|HAS_DEFAULT U32 = 0xFF pour chaque ligne.
+        // flags = 0x34 (FLAG_HAS_NAME=0x10 | FLAG_HAS_DEFAULT=0x20 | U32=0x04).
+        // La valeur par défaut (constante) suit le name_off dans le schéma.
+        // Cette colonne ne consomme AUCUN octet par ligne (row_stride = 0).
 
         let string_pool: &[u8] = b"\0ConstCol\0";
         let schema: &[u8] = &[
-            0x14,                     // flags = CONST | U32
+            0x34,                     // flags = HAS_NAME | HAS_DEFAULT | U32
             0x00, 0x00, 0x00, 0x01,   // name_off = 1 → "ConstCol"
             0x00, 0x00, 0x00, 0xFF,   // valeur par défaut U32 = 255
         ];
 
-        // body header = 0x18 octets, schema = 9 octets → rows commencent à body[0x21]
-        // rows_offset relatif à base (0x08) = 0x21
+        // body header = 0x18 octets, schéma = 9 octets (1+4+4) → rows commencent à body[0x21]
+        // rows_offset relatif à UTF_BASE (0x08) = 0x21
         let rows_offset_rel: u32 = 0x21;
-        let string_offset_rel: u32 = rows_offset_rel; // stride=0, 2 lignes → 0 octets de row data
+        let string_offset_rel: u32 = rows_offset_rel; // stride=0, 2 lignes → 0 octets de row data, string pool suit immédiatement
         let data_offset_rel: u32 = string_offset_rel + string_pool.len() as u32;
 
         let mut body: Vec<u8> = Vec::new();
