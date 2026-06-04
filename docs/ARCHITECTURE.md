@@ -89,12 +89,16 @@ Vérification byte-à-byte contre la table `.pdata` (unwind d'exception x64, gé
 1. Le « +774 » du levier `disasm` (commit `99b89c3`) est **en grande partie du bruit physique** : décoder depuis des points milieu-de-fonction produit des arêtes majoritairement fortuites (seules 0,3 % des arêtes `call` ont leurs deux extrémités sur un début réel). Le *code* de `disasm` est correct ; c'est son *entrée* (adresses Ghidra) qui est fausse. Il redeviendra valide alimenté par les débuts `.pdata`.
 2. La **vraie couverture** se mesurera sur les ~50 674 fonctions racines réelles, pas sur les 60 183 nœuds Ghidra désalignés.
 
-**Refondation `.pdata` — FAIT** (`niers rebuild`, `nie-re::pdata::rebuild_from_pdata`) : la carte des fonctions est reconstruite sur les 50 674 racines réelles ; les métadonnées Ghidra sont ré-ancrées **par inclusion** (nœud à l'adresse `a` → fonction racine contenant `a` : 17 403 chaînes, 340 100 constantes, 55 142 arêtes `ce` repliées, 1 575 classes RTTI), puis `disasm` tourne depuis les **vrais débuts** et propage. Résultats sur le vrai `nie.exe` :
+**Refondation `.pdata` + vtables — FAIT** (`niers rebuild`). Pipeline complet sur des adresses **correctes** :
 
-- `disasm` depuis les bons débuts trouve **124 868 arêtes d'appel directes réelles** (×18 vs les 6 721 du graphe désaligné — preuve que le décodage est désormais physiquement correct).
-- **Couverture HONNÊTE : 45 823 / 50 674 = 90,43 %** des fonctions réelles (à unwind), sur des adresses correctes et un graphe d'appels réel. C'est la vraie mesure de référence (les ~7 700 chaînes Ghidra hors de toute fonction racine — régions feuilles sans unwind — ne sont pas couvertes : `.pdata` est un plancher autoritaire).
+1. **`pdata::rebuild_from_pdata`** : carte reconstruite sur les 50 674 racines réelles ; métadonnées Ghidra ré-ancrées **par inclusion** (nœud à l'adresse `a` → fonction racine contenant `a` : 17 403 chaînes, 340 100 constantes, 55 142 arêtes `ce` repliées, 1 575 classes RTTI).
+2. **`vtable::vtable_edges_into`** : pour chaque vtable localisée par RTTI (méthodes à `vtable_vaddr+8`), lecture des slots `.text` → **6 681 méthodes**, dont **2 109 fonctions feuilles** (sans unwind, absentes de `.pdata`) ajoutées comme nœuds, + **13 927 arêtes de cohésion de classe** (`kind='vtable'`) reliant les co-méthodes.
+3. **`disasm`** depuis les bons débuts → **125 029 arêtes d'appel directes réelles** (×18 vs les 6 721 du graphe désaligné — preuve que le décodage est physiquement correct).
+4. **Propagation** sur le graphe `call`+`vtable`.
 
-**Prochain levier** : arêtes de **vtables** (`.rdata`, reliées aux classes RTTI déjà localisées) pour le résidu appelé uniquement indirectement ; propagation pondérée par type d'arête (direct 1.0, indirect 0.5, RTTI 2-3) ; découverte des fonctions feuilles sans unwind (balayage des cibles d'appel hors `.pdata`).
+**Couverture HONNÊTE : 48 787 / 52 783 = 92,43 %** des fonctions réelles, sur adresses correctes + graphe d'appels réel + cohésion de vtable. Le dénominateur s'est **agrandi** (50 674 → 52 783, +2 109 feuilles découvertes par vtable) et la couverture a tout de même monté (90,43 % → 92,43 %).
+
+**Prochains leviers** : propagation **pondérée par type d'arête** (direct 1.0, vtable 0.5, RTTI 2-3 — grok §3, +4-5 pts estimés) ; découverte des feuilles restantes (cibles d'appel directes hors `.pdata`/vtable) ; puis l'axe « jeu jouable » (`nie-core`, `nie-data`, `nie-formats`).
 
 ## Couverture atteinte (sur l'index Ghidra — espace-graphe)
 

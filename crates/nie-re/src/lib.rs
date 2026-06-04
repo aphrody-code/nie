@@ -20,6 +20,7 @@ pub mod loop_db;
 pub mod pdata;
 pub mod propagate;
 pub mod rtti;
+pub mod vtable;
 
 /// Version du moteur.
 #[must_use]

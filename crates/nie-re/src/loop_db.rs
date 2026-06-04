@@ -155,7 +155,7 @@ pub fn propagate_db(db: &mut Db, binary_id: i64, rounds: usize) -> Result<Stats>
     // --- Étape 5 : arêtes (xref kind='call') ------------------------------------
     let xrefs: Vec<(i64, i64)> = {
         let mut stmt = db.conn().prepare(
-            "SELECT from_addr, to_addr FROM xref WHERE binary_id=?1 AND kind='call'",
+            "SELECT from_addr, to_addr FROM xref WHERE binary_id=?1 AND kind IN ('call','vtable')",
         )?;
         stmt.query_map([binary_id], |r| {
             Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?))
