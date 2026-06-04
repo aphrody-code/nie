@@ -1,0 +1,27 @@
+/target
+**/*.rs.bk
+Cargo.lock.bak
+
+# Index RE généré (volumineux, reproductible depuis le binaire)
+/var
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.rzdb
+
+# Artefacts RE bruts (ne jamais committer le binaire du jeu)
+nie.exe
+*.pdb
+/dumps
+
+# Fichiers IA locaux (convention rg/aphrody)
+.claude/
+.agents/
+CLAUDE.md
+AGENTS.md
+GEMINI.md
+
+# wasm build
+/pkg
+/dist
+refs/

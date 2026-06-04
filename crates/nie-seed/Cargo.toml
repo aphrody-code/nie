@@ -1,0 +1,19 @@
+[package]
+name = "nie-seed"
+description = "Import du savoir fusionné (index Ghidra nie-index.json, RTTI, formats iecode, hash→nom inagle) comme ancres de la boucle RE niers"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+nie-index.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
