@@ -78,6 +78,7 @@
 //! compilateur à partir des attributs `#[wasm_bindgen]`, hors du scope de `forbid`.
 
 #![forbid(unsafe_code)]
+#![allow(clippy::pedantic)]
 
 use nie_formats::{FileFormat, cfgbin, cpk, crilayla, detect};
 
@@ -595,6 +596,108 @@ impl PipeOk for String {
     fn pipe_ok<E>(self) -> Result<Self, E> {
         Ok(self)
     }
+}
+
+// ---------------------------------------------------------------------------
+// G4MD & G4MG WebGPU 3D support
+// ---------------------------------------------------------------------------
+
+/// Parse un fichier G4MD et retourne son JSON descriptif.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn g4md_parse_json(bytes: &[u8]) -> Result<String, JsValue> {
+    let parsed = nie_formats::g4md::parse(bytes).map_err(|e| JsValue::from_str(&e.to_string()))?;
+    serde_json::to_string(&parsed).map_err(|e| JsValue::from_str(&e.to_string()))
+}
+
+/// Parse un fichier G4MD (version native).
+#[cfg(not(target_arch = "wasm32"))]
+pub fn g4md_parse_json(bytes: &[u8]) -> Result<String, String> {
+    let parsed = nie_formats::g4md::parse(bytes).map_err(|e| e.to_string())?;
+    serde_json::to_string(&parsed).map_err(|e| e.to_string())
+}
+
+/// Parse un fichier cfg.bin (T2B) et retourne son JSON structurel.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn cfgbin_parse_json(bytes: &[u8]) -> Result<String, JsValue> {
+    let parsed = nie_formats::cfgbin::cfgbin_parse(bytes).map_err(|e| JsValue::from_str(&e.to_string()))?;
+    serde_json::to_string(&parsed).map_err(|e| JsValue::from_str(&e.to_string()))
+}
+
+/// Parse un fichier cfg.bin (T2B) (version native).
+#[cfg(not(target_arch = "wasm32"))]
+pub fn cfgbin_parse_json(bytes: &[u8]) -> Result<String, String> {
+    let parsed = nie_formats::cfgbin::cfgbin_parse(bytes).map_err(|e| e.to_string())?;
+    serde_json::to_string(&parsed).map_err(|e| e.to_string())
+}
+
+
+/// Extrait la géométrie d'un fichier G4MG à l'aide des métadonnées G4MD fournies au format JSON.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn g4mg_extract_json(g4mg_bytes: &[u8], g4md_json: &str) -> Result<String, JsValue> {
+    let g4md: nie_formats::g4md::G4md = serde_json::from_str(g4md_json).map_err(|e| JsValue::from_str(&e.to_string()))?;
+    let geom = nie_formats::g4mg::extract_geometry(g4mg_bytes, &g4md);
+    serde_json::to_string(&geom).map_err(|e| JsValue::from_str(&e.to_string()))
+}
+
+/// Extrait la géométrie d'un fichier G4MG (version native).
+#[cfg(not(target_arch = "wasm32"))]
+pub fn g4mg_extract_json(g4mg_bytes: &[u8], g4md_json: &str) -> Result<String, String> {
+    let g4md: nie_formats::g4md::G4md = serde_json::from_str(g4md_json).map_err(|e| e.to_string())?;
+    let geom = nie_formats::g4mg::extract_geometry(g4mg_bytes, &g4md);
+    serde_json::to_string(&geom).map_err(|e| e.to_string())
+}
+
+// ---------------------------------------------------------------------------
+// CPK Decryption & Extraction
+// ---------------------------------------------------------------------------
+
+/// Parse un fichier CPK et retourne son TOC (Table of Contents) au format JSON.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn cpk_parse_entries(cpk_bytes: &[u8], cpk_filename: &str) -> Result<String, JsValue> {
+    let reader = nie_formats::cpk::CpkReader::new(cpk_bytes, cpk_filename)
+        .map_err(|e| JsValue::from_str(&e.to_string()))?;
+    serde_json::to_string(&reader.entries).map_err(|e| JsValue::from_str(&e.to_string()))
+}
+
+/// Parse un fichier CPK (version native).
+#[cfg(not(target_arch = "wasm32"))]
+pub fn cpk_parse_entries(cpk_bytes: &[u8], cpk_filename: &str) -> Result<String, String> {
+    let reader = nie_formats::cpk::CpkReader::new(cpk_bytes, cpk_filename)
+        .map_err(|e| e.to_string())?;
+    serde_json::to_string(&reader.entries).map_err(|e| e.to_string())
+}
+
+/// Extrait et décompresse un fichier d'un CPK.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn cpk_extract_file(
+    cpk_bytes: &[u8],
+    cpk_filename: &str,
+    entry_json: &str,
+) -> Result<Vec<u8>, JsValue> {
+    let reader = nie_formats::cpk::CpkReader::new(cpk_bytes, cpk_filename)
+        .map_err(|e| JsValue::from_str(&e.to_string()))?;
+    let entry: nie_formats::cpk::CpkEntry = serde_json::from_str(entry_json)
+        .map_err(|e| JsValue::from_str(&e.to_string()))?;
+    reader.extract(cpk_bytes, &entry).map_err(|e| JsValue::from_str(&e.to_string()))
+}
+
+/// Extrait et décompresse un fichier d'un CPK (version native).
+#[cfg(not(target_arch = "wasm32"))]
+pub fn cpk_extract_file(
+    cpk_bytes: &[u8],
+    cpk_filename: &str,
+    entry_json: &str,
+) -> Result<Vec<u8>, String> {
+    let reader = nie_formats::cpk::CpkReader::new(cpk_bytes, cpk_filename)
+        .map_err(|e| e.to_string())?;
+    let entry: nie_formats::cpk::CpkEntry = serde_json::from_str(entry_json)
+        .map_err(|e| e.to_string())?;
+    reader.extract(cpk_bytes, &entry).map_err(|e| e.to_string())
 }
 
 // ---------------------------------------------------------------------------
