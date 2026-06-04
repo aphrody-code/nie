@@ -10,6 +10,14 @@ use sha2::{Digest, Sha256};
 /// Image base de nie.exe (PE32+ Level-5).
 const NIE_IMAGE_BASE: i64 = 0x1_4000_0000;
 
+/// Parse une adresse décimale ou hexadécimale (`0x...`).
+fn parse_addr(s: &str) -> Result<i64, String> {
+    match s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")) {
+        Some(hex) => u64::from_str_radix(hex, 16).map(|v| v as i64).map_err(|e| e.to_string()),
+        None => s.parse::<i64>().map_err(|e| e.to_string()),
+    }
+}
+
 #[derive(Parser)]
 #[command(name = "niers", about = "Boucle RE + réimplémentation Rust d'Inazuma Eleven: Victory Road")]
 struct Cli {
@@ -45,19 +53,40 @@ enum Cmd {
         #[arg(long, default_value = "nie")]
         tag: String,
     },
-    /// Propage les labels sur le call-graph (auto-ML). Câblage en cours.
+    /// Propage les labels sur le call-graph (auto-ML, ancrage strings + label-spreading).
     Propagate {
         #[arg(long, default_value = "var/niers.sqlite")]
         db: PathBuf,
         #[arg(long, default_value_t = 16)]
         rounds: usize,
     },
+    /// Extrait les classes RTTI MSVC depuis nie_eacpatched.exe et les ingère dans la base.
+    Rtti {
+        /// Base sqlite cible.
+        #[arg(long, default_value = "var/niers.sqlite")]
+        db: PathBuf,
+        /// Chemin vers nie_eacpatched.exe (ou nie.exe).
+        #[arg(long)]
+        exe: PathBuf,
+    },
+    /// Triage PE/ELF via aphrody-re : sections + imports/exports ingérés dans la base.
+    Index {
+        /// Base sqlite cible.
+        #[arg(long, default_value = "var/niers.sqlite")]
+        db: PathBuf,
+        /// Binaire à indexer.
+        #[arg(long)]
+        exe: PathBuf,
+    },
 }
 
 #[derive(Subcommand)]
 enum QueueOp {
-    /// Empile une adresse.
-    Push { addr: i64 },
+    /// Empile une adresse (décimale ou hex `0x...`).
+    Push {
+        #[arg(value_parser = parse_addr)]
+        addr: i64,
+    },
     /// Dépile la prochaine adresse.
     Pop,
     /// Taille de la frontière.
@@ -76,6 +105,8 @@ fn main() -> anyhow::Result<()> {
         Cmd::Coverage { db } => coverage(&db),
         Cmd::Queue { op, redis, tag } => queue(op, &redis, &tag),
         Cmd::Propagate { db, rounds } => propagate(&db, rounds),
+        Cmd::Rtti { db, exe } => rtti(&db, &exe),
+        Cmd::Index { db, exe } => index(&db, &exe),
     }
 }
 
@@ -140,8 +171,66 @@ fn queue(op: QueueOp, redis: &str, tag: &str) -> anyhow::Result<()> {
 }
 
 fn propagate(db_path: &std::path::Path, rounds: usize) -> anyhow::Result<()> {
-    // Câblage Db → PropagationGraph en cours d'implémentation par la boucle.
-    let _db = nie_index::Db::open(db_path)?;
-    println!("propagate: {rounds} rounds — câblage call-graph → label-spreading en cours (nie-re::propagate prêt, intégration DB à finaliser)");
+    let mut db = nie_index::Db::open(db_path).context("ouverture base")?;
+    let bin: i64 = db
+        .conn()
+        .query_row("SELECT id FROM binary ORDER BY id LIMIT 1", [], |r| r.get(0))
+        .context("aucun binaire indexé — lancer `niers seed` d'abord")?;
+
+    let stats = nie_re::loop_db::propagate_db(&mut db, bin, rounds)
+        .context("propagation")?;
+
+    println!("propagation terminée : {} rounds", stats.rounds);
+    println!(
+        "couverture AVANT : {}/{} ({:.2}%)",
+        stats.classified_before, stats.total, stats.coverage_before
+    );
+    println!(
+        "couverture APRÈS  : {}/{} ({:.2}%)",
+        stats.classified_after, stats.total, stats.coverage_after
+    );
+    println!(
+        "fonctions nouvellement étiquetées : {}",
+        stats.labeled
+    );
+    Ok(())
+}
+
+fn rtti(db_path: &std::path::Path, exe_path: &std::path::Path) -> anyhow::Result<()> {
+    let mut db = nie_index::Db::open(db_path).context("ouverture base")?;
+    let bin: i64 = db
+        .conn()
+        .query_row("SELECT id FROM binary ORDER BY id LIMIT 1", [], |r| r.get(0))
+        .context("aucun binaire indexé — lancer `niers seed` d'abord")?;
+
+    let bytes = std::fs::read(exe_path)
+        .with_context(|| format!("lecture {}", exe_path.display()))?;
+
+    let stats = nie_re::rtti::parse_and_ingest(&mut db, bin, &bytes)
+        .context("parsing RTTI")?;
+
+    println!("RTTI parsing terminé :");
+    println!("  candidats COL trouvés : {}", stats.candidates);
+    println!("  TypeDescriptors valides : {}", stats.valid_type_descs);
+    println!("  classes ingérées : {}", stats.classes_ingested);
+    println!("  relations d'héritage : {}", stats.bases_ingested);
+    Ok(())
+}
+
+fn index(db_path: &std::path::Path, exe_path: &std::path::Path) -> anyhow::Result<()> {
+    let mut db = nie_index::Db::open(db_path).context("ouverture base")?;
+    let bin: i64 = db
+        .conn()
+        .query_row("SELECT id FROM binary ORDER BY id LIMIT 1", [], |r| r.get(0))
+        .context("aucun binaire indexé — lancer `niers seed` d'abord")?;
+
+    let stats = nie_re::indexer::triage_into(&mut db, bin, exe_path)
+        .context("indexation PE")?;
+
+    println!("indexation terminée :");
+    println!("  format : {}", stats.format);
+    println!("  sections ingérées : {}", stats.sections);
+    println!("  imports ingérés : {}", stats.imports);
+    println!("  exports ingérés : {}", stats.exports);
     Ok(())
 }
