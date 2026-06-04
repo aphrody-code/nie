@@ -5,6 +5,14 @@
 //! arêtes d'appel, construit le graphe, exécute la propagation, puis réécrit
 //! les champs `subsystem`, `confidence`, `subsys_src` pour les nœuds
 //! nouvellement étiquetés et insère une `hypothesis` par changement.
+//!
+//! Ordre des étapes :
+//! 1. Ancrage par chaînes   ([`crate::anchors::anchor_by_strings`]).
+//! 2. Ancrage RTTI          ([`crate::anchors::anchor_by_rtti`]).
+//! 3. Ancrage const-magic   ([`crate::anchors::anchor_by_const`]).
+//! 4. Chargement du graphe et construction des arêtes.
+//! 5. Propagation (`N` rounds).
+//! 6. Écriture en base + hypothèses.
 
 use anyhow::{Context, Result};
 use hashbrown::HashMap;
@@ -17,36 +25,34 @@ use tracing::{debug, info};
 
 use crate::propagate::{Node, PropagationGraph};
 
-/// Statistiques de la propagation.
+/// Statistiques de la propagation complète (ancrage + diffusion).
 #[derive(Debug, Clone, Copy)]
 pub struct Stats {
-    /// Fonctions nouvellement étiquetées (label vide → label reçu).
+    /// Fonctions nouvellement étiquetées par la diffusion de labels.
     pub labeled: usize,
     /// Nombre de rounds exécutés.
     pub rounds: usize,
-    /// Couverture avant propagation (%).
+    /// Couverture avant tout ancrage (%).
     pub coverage_before: f64,
     /// Couverture après propagation (%).
     pub coverage_after: f64,
-    /// Fonctions classifiées avant.
+    /// Fonctions classifiées avant tout ancrage.
     pub classified_before: i64,
-    /// Fonctions classifiées après.
+    /// Fonctions classifiées après propagation.
     pub classified_after: i64,
     /// Total de fonctions.
     pub total: i64,
+    /// Ancres posées par chaînes.
+    pub anchored_str: usize,
+    /// Ancres posées par RTTI.
+    pub anchored_rtti: usize,
+    /// Ancres posées par constante magique.
+    pub anchored_const: usize,
 }
 
 /// Charge les fonctions + xrefs du binaire, construit le graphe, propage les
 /// labels, et réécrit `function.subsystem` + `confidence` + `subsys_src='ml'`
 /// sous une transaction unique. Insère une `hypothesis` par changement.
-///
-/// Workflow :
-/// 1. Ancrage par chaînes ([`crate::anchors::anchor_by_strings`]).
-/// 2. Chargement des nœuds (fonctions) et construction de la bimap
-///    `label_str ↔ u32`.
-/// 3. Construction des arêtes depuis `xref(kind='call')`.
-/// 4. `run(rounds)`.
-/// 5. Mise à jour DB + hypothèses sous transaction.
 pub fn propagate_db(db: &mut Db, binary_id: i64, rounds: usize) -> Result<Stats> {
     // --- Étape 0 : couverture initiale ------------------------------------------
     let cov_before = nie_index::query::coverage(db.conn(), binary_id)?;
@@ -56,15 +62,30 @@ pub fn propagate_db(db: &mut Db, binary_id: i64, rounds: usize) -> Result<Stats>
     );
 
     // --- Étape 1 : ancrage par chaînes ------------------------------------------
-    {
-        let anchored =
-            crate::anchors::anchor_by_strings(db.conn(), binary_id).context("ancrage strings")?;
-        info!("ancrage strings: {} fonctions ancrées", anchored.anchored);
-    }
+    let anchored_str = {
+        let n = crate::anchors::anchor_by_strings(db.conn(), binary_id)
+            .context("ancrage strings")?;
+        info!("ancrage strings: {} fonctions ancrées", n);
+        n
+    };
 
-    // --- Étape 2 : chargement des fonctions ------------------------------------
-    // On charge id, vaddr, subsystem, name, confidence pour toutes les fonctions
-    // du binaire.
+    // --- Étape 2 : ancrage par RTTI ---------------------------------------------
+    let anchored_rtti = {
+        let n = crate::anchors::anchor_by_rtti(db.conn(), binary_id)
+            .context("ancrage RTTI")?;
+        info!("ancrage RTTI: {} fonctions ancrées", n);
+        n
+    };
+
+    // --- Étape 3 : ancrage par constante magique --------------------------------
+    let anchored_const = {
+        let n = crate::anchors::anchor_by_const(db.conn(), binary_id)
+            .context("ancrage const-magic")?;
+        info!("ancrage const-magic: {} fonctions ancrées", n);
+        n
+    };
+
+    // --- Étape 4 : chargement des fonctions ------------------------------------
     let funcs: Vec<(i64, i64, Option<String>, Option<String>, f64)> = {
         let mut stmt = db.conn().prepare(
             "SELECT id, vaddr, subsystem, name, confidence FROM function WHERE binary_id=?1",
@@ -114,12 +135,8 @@ pub fn propagate_db(db: &mut Db, binary_id: i64, rounds: usize) -> Result<Stats>
                 Node { label: Some(lbl), confidence: *confidence as f32, locked: true }
             }
             _ if is_named => {
-                // Fonction nommée sans sous-système : ancre faible (verrouillée
-                // mais sans label → elle peut recevoir un label de ses voisins,
-                // mais ne sera pas réécrite si elle est déjà classifiée).
-                // On la laisse non verrouillée pour qu'elle puisse recevoir un
-                // label via propagation : son nom est informatif mais pas un
-                // sous-système validé.
+                // Fonction nommée sans sous-système : laissée libre pour
+                // recevoir un label par propagation depuis ses voisins.
                 Node::unknown()
             }
             _ => Node::unknown(),
@@ -131,7 +148,7 @@ pub fn propagate_db(db: &mut Db, binary_id: i64, rounds: usize) -> Result<Stats>
 
     debug!("graphe: {} nœuds, {} labels distincts", graph.nodes.len(), u32_to_label.len());
 
-    // --- Étape 3 : arêtes (xref kind='call') ------------------------------------
+    // --- Étape 5 : arêtes (xref kind='call') ------------------------------------
     let xrefs: Vec<(i64, i64)> = {
         let mut stmt = db.conn().prepare(
             "SELECT from_addr, to_addr FROM xref WHERE binary_id=?1 AND kind='call'",
@@ -151,7 +168,7 @@ pub fn propagate_db(db: &mut Db, binary_id: i64, rounds: usize) -> Result<Stats>
     }
     info!("propagate_db: {} arêtes call ajoutées", edges_added);
 
-    // --- Étape 4 : propagation --------------------------------------------------
+    // --- Étape 6 : propagation --------------------------------------------------
     let labeled_count_before = graph.labeled_count();
     let newly_labeled = graph.run(rounds);
     let labeled_count_after = graph.labeled_count();
@@ -160,7 +177,7 @@ pub fn propagate_db(db: &mut Db, binary_id: i64, rounds: usize) -> Result<Stats>
         rounds, newly_labeled, labeled_count_before, labeled_count_after
     );
 
-    // --- Étape 5 : écriture DB sous transaction ---------------------------------
+    // --- Étape 7 : écriture DB sous transaction ---------------------------------
     let tx = db.conn_mut().transaction()?;
     let mut updated = 0usize;
 
@@ -200,7 +217,7 @@ pub fn propagate_db(db: &mut Db, binary_id: i64, rounds: usize) -> Result<Stats>
     tx.commit().context("commit propagation")?;
     info!("propagate_db: {} fonctions mises à jour en DB", updated);
 
-    // --- Étape 6 : couverture finale -------------------------------------------
+    // --- Étape 8 : couverture finale -------------------------------------------
     let cov_after = nie_index::query::coverage(db.conn(), binary_id)?;
     info!(
         "propagate_db: couverture finale {}/{} ({:.2}%)",
@@ -218,6 +235,9 @@ pub fn propagate_db(db: &mut Db, binary_id: i64, rounds: usize) -> Result<Stats>
         classified_before: cov_before.classified,
         classified_after: cov_after.classified,
         total: cov_before.total,
+        anchored_str,
+        anchored_rtti,
+        anchored_const,
     })
 }
 
@@ -270,6 +290,39 @@ mod tests {
         // La couverture finale doit être supérieure à l'initiale.
         assert!(stats.coverage_after > stats.coverage_before,
             "pct avant={:.2} après={:.2}", stats.coverage_before, stats.coverage_after);
+
+        Ok(())
+    }
+
+    /// Vérifie que l'ancrage RTTI enrichit les statistiques.
+    #[test]
+    fn propagate_db_ancres_rtti_comptees() -> anyhow::Result<()> {
+        let mut db = Db::open_in_memory()?;
+        let bin = db.upsert_binary("test.exe", "abc456", "x86_64", 64, 0x1_4000_0000, 0, None, None)?;
+
+        {
+            let tx = db.conn_mut().transaction()?;
+            // Fonction standalone qui référence un nom de classe RTTI game::
+            ingest::function(&tx, bin, 0x5000, None, Some("re"), "standalone", "leaf", 0.0)?;
+            let fid = tx.query_row("SELECT id FROM function WHERE vaddr=0x5000", [], |r| r.get(0))?;
+            ingest::str_ref(&tx, bin, fid, "BallMoveBezier")?;
+            // Classe RTTI correspondante dans game:: namespace
+            ingest::rtti_class(&tx, bin, "BallMoveBezier", Some("game"), Some(".?AVBallMoveBezier@game@@"))?;
+            tx.commit()?;
+        }
+
+        let stats = propagate_db(&mut db, bin, 4)?;
+
+        // La fonction doit être ancrée par RTTI ou str
+        assert!(
+            stats.anchored_str > 0 || stats.anchored_rtti > 0,
+            "au moins une ancre doit être posée (str={}, rtti={})",
+            stats.anchored_str, stats.anchored_rtti
+        );
+        assert!(
+            stats.classified_after > stats.classified_before,
+            "la couverture doit augmenter"
+        );
 
         Ok(())
     }
