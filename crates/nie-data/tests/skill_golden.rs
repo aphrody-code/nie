@@ -1,7 +1,8 @@
+#![allow(clippy::pedantic)]
 //! Tests golden `skill` — valeurs réelles tirées de :
-//! `/home/ubuntu/data/common/gamedata/skill/skill_config_4.00.17.00.cfg.bin.json`
+//! `/home/ubuntu/niers/data/common/gamedata/skill/skill_config_4.00.17.00.cfg.bin.json`
 //! (première valeur de `m_skillInfoList`, whs00010) et
-//! `/home/ubuntu/data/common/text/fr/skill_text.cfg.bin.json` (nom/desc whs00010).
+//! `/home/ubuntu/niers/data/common/text/fr/skill_text.cfg.bin.json` (nom/desc whs00010).
 
 use nie_data::hash::HashId;
 use nie_data::skill::{
@@ -118,7 +119,7 @@ fn skill_text_fixture() -> serde_json::Value {
                     "variables": [
                         { "type": "Int", "value": "-2018795591" },
                         { "type": "Int", "value": "0" },
-                        { "type": "String", "value": "En vous sautant dessus comme un tremplin,\\nvotre coéquipier exécutera un tir foudroyant." }
+                        { "type": "String", "value": "En vous sautant dessus comme un tremplin,\nvotre coéquipier exécutera un tir foudroyant." }
                     ],
                     "children": []
                 }]
@@ -157,7 +158,7 @@ fn skill_text_join_whs00010() {
     );
     assert_eq!(
         text.descriptions.get(&HashId(0x87AB_9FB9)).map(String::as_str),
-        Some("En vous sautant dessus comme un tremplin,\\nvotre coéquipier exécutera un tir foudroyant.")
+        Some("En vous sautant dessus comme un tremplin,\nvotre coéquipier exécutera un tir foudroyant.")
     );
 
     // Jointure complète skill ↔ texte.

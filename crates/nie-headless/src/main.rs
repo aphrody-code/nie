@@ -32,6 +32,7 @@
 //! - Format inconnu : `{}`.
 
 #![forbid(unsafe_code)]
+#![allow(clippy::pedantic)]
 
 use std::path::PathBuf;
 

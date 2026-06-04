@@ -638,6 +638,216 @@ pub fn crc32(data: &[u8]) -> u32 {
     !crc
 }
 
+use alloc::collections::BTreeMap;
+
+/// Formats possibles de fichiers de configuration Level-5.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum Format {
+    Rdbn,
+    T2b,
+}
+
+/// Valeur d'une variable CfgBin typée pour T2B.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum Value {
+    String(String),
+    Int(i32),
+    Float(f32),
+}
+
+/// Entrée de configuration Level-5 structurée de façon hiérarchique.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct CfgEntry {
+    pub name: String,
+    pub variables: Vec<Value>,
+    pub children: Vec<CfgEntry>,
+}
+
+/// Fichier de configuration Level-5 décodé (RDBN ou T2B).
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct CfgBinFile {
+    pub format: Format,
+    pub entries: Vec<CfgEntry>,
+}
+
+/// Parse un fichier cfg.bin (T2B).
+pub fn cfgbin_parse(data: &[u8]) -> Result<CfgBinFile, FormatError> {
+    parse_t2b(data)
+}
+
+/// Parse un fichier binaire T2B Level-5.
+pub fn parse_t2b(data: &[u8]) -> Result<CfgBinFile, FormatError> {
+    if data.len() < 16 {
+        return Err(FormatError::TooShort { got: data.len(), need: 16 });
+    }
+
+    let entries_count = i32::from_le_bytes(data[0..4].try_into().unwrap());
+    let string_table_off = i32::from_le_bytes(data[4..8].try_into().unwrap()) as usize;
+    let string_table_len = i32::from_le_bytes(data[8..12].try_into().unwrap()) as usize;
+    let string_table_count = i32::from_le_bytes(data[12..16].try_into().unwrap()) as usize;
+
+    if string_table_off < 16 || string_table_off + string_table_len > data.len() {
+        return Err(FormatError::Corrupt("String table offset out of bounds"));
+    }
+
+    let mut strings = BTreeMap::new();
+    {
+        let mut pos = 0;
+        let mut count = 0;
+        while pos < string_table_len && count < string_table_count {
+            let start = string_table_off + pos;
+            let slice = &data[start..string_table_off + string_table_len];
+            let nul = slice.iter().position(|&b| b == 0).unwrap_or(slice.len());
+            let s = String::from_utf8_lossy(&slice[..nul]).into_owned();
+            strings.insert(pos as i32, s.clone());
+            pos += s.len() + 1;
+            count += 1;
+        }
+    }
+
+    let key_table_offset = ((string_table_off + string_table_len + 15) / 16) * 16;
+    let mut key_table = BTreeMap::new();
+    if key_table_offset + 16 <= data.len() {
+        let key_length = i32::from_le_bytes(data[key_table_offset..key_table_offset + 4].try_into().unwrap()) as usize;
+        if key_length > 0 && key_table_offset + key_length <= data.len() {
+            let key_count = i32::from_le_bytes(data[key_table_offset + 4..key_table_offset + 8].try_into().unwrap()) as usize;
+            let key_str_off = i32::from_le_bytes(data[key_table_offset + 8..key_table_offset + 12].try_into().unwrap()) as usize;
+            let key_str_len = i32::from_le_bytes(data[key_table_offset + 12..key_table_offset + 16].try_into().unwrap()) as usize;
+
+            let max_possible = key_length / 8;
+            if key_count <= max_possible && key_str_off < key_length {
+                let key_base = key_table_offset + 16;
+                let str_blob = key_table_offset + key_str_off;
+
+                for i in 0..key_count {
+                    let ep = key_base + i * 8;
+                    if ep + 8 > data.len() {
+                        break;
+                    }
+                    let crc = u32::from_le_bytes(data[ep..ep + 4].try_into().unwrap());
+                    let str_start = i32::from_le_bytes(data[ep + 4..ep + 8].try_into().unwrap()) as usize;
+
+                    if str_start < key_str_len {
+                        let slice = &data[str_blob + str_start..key_table_offset + key_length];
+                        let nul = slice.iter().position(|&b| b == 0).unwrap_or(slice.len());
+                        let s = String::from_utf8_lossy(&slice[..nul]).into_owned();
+                        key_table.insert(crc, s);
+                    }
+                }
+            }
+        }
+    }
+
+    let mut flat_entries = Vec::new();
+    {
+        let mut pos = 16usize;
+        let buf_len = string_table_off;
+        for _ in 0..entries_count {
+            if pos + 5 > buf_len {
+                break;
+            }
+            let crc = u32::from_le_bytes(data[pos..pos + 4].try_into().unwrap());
+            let param_count = data[pos + 4] as usize;
+            pos += 5;
+
+            let type_bytes = (param_count + 3) / 4;
+            let mut param_types = Vec::new();
+            let mut pi = 0;
+            for _ in 0..type_bytes {
+                if pos >= buf_len {
+                    break;
+                }
+                let tb = data[pos];
+                pos += 1;
+                for k in 0..4 {
+                    if pi < param_count {
+                        param_types.push((tb >> (2 * k)) & 3);
+                        pi += 1;
+                    }
+                }
+            }
+
+            let total_header = 5 + type_bytes;
+            if total_header % 4 != 0 {
+                pos += 4 - (total_header % 4);
+            }
+
+            let name = if let Some(s) = key_table.get(&crc) {
+                s.clone()
+            } else {
+                alloc::format!("UNKNOWN_{:08X}", crc)
+            };
+
+            let mut variables = Vec::new();
+            for j in 0..param_count {
+                if pos + 4 > buf_len {
+                    break;
+                }
+                let val_bytes = &data[pos..pos + 4];
+                let ty = param_types.get(j).copied().unwrap_or(0);
+                match ty {
+                    0 => {
+                        let off = i32::from_le_bytes(val_bytes.try_into().unwrap());
+                        let s = if off != -1 {
+                            strings.get(&off).cloned().unwrap_or_default()
+                        } else {
+                            String::new()
+                        };
+                        variables.push(Value::String(s));
+                    }
+                    1 => {
+                        let val = i32::from_le_bytes(val_bytes.try_into().unwrap());
+                        variables.push(Value::Int(val));
+                    }
+                    2 => {
+                        let val = f32::from_le_bytes(val_bytes.try_into().unwrap());
+                        variables.push(Value::Float(val));
+                    }
+                    _ => {
+                        let val = i32::from_le_bytes(val_bytes.try_into().unwrap());
+                        variables.push(Value::Int(val));
+                    }
+                }
+                pos += 4;
+            }
+
+            flat_entries.push(CfgEntry {
+                name,
+                variables,
+                children: Vec::new(),
+            });
+        }
+    }
+
+    fn parse_sub(iter: &mut impl Iterator<Item = CfgEntry>) -> Vec<CfgEntry> {
+        let mut children = Vec::new();
+        while let Some(mut entry) = iter.next() {
+            let is_end = entry.name.ends_with("_END") || entry.name == "_PTREE" || entry.name.contains("_END_");
+            if entry.variables.is_empty() && is_end {
+                break;
+            }
+            let is_begin = entry.name.ends_with("_BEG") || entry.name.ends_with("_BEGIN") || entry.name.contains("_BEG_") || entry.name.starts_with("PTREE");
+            if is_begin {
+                entry.children = parse_sub(iter);
+            }
+            children.push(entry);
+        }
+        children
+    }
+
+    let mut iter = flat_entries.into_iter();
+    let entries = parse_sub(&mut iter);
+
+    Ok(CfgBinFile {
+        format: Format::T2b,
+        entries,
+    })
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------

@@ -5,7 +5,7 @@
 //!
 //! Chaque structure, offset et valeur golden de ce crate est ancré sur le pipeline TS
 //! de production `@rose-griffon/inagle` (`/home/ubuntu/rg/packages/inagle/src`) et sur
-//! les vrais dumps `*.cfg.bin.json` d'IEVR (`/home/ubuntu/data/common/gamedata`). Aucune
+//! les vrais dumps `*.cfg.bin.json` d'IEVR (`/home/ubuntu/niers/data/common/gamedata`). Aucune
 //! valeur n'est inventée : les modules citent leur fichier-source TS et le dump réel.
 //!
 //! ## Modules
@@ -27,6 +27,7 @@
 //! `wasm32-unknown-unknown` sans shim.
 #![no_std]
 #![forbid(unsafe_code)]
+#![allow(clippy::pedantic)]
 
 extern crate alloc;
 

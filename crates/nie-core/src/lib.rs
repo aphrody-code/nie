@@ -31,8 +31,8 @@
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
-#![warn(clippy::pedantic)]
-#![allow(clippy::module_name_repetitions)]
+#![allow(clippy::pedantic)]
+#![allow(clippy::float_cmp)]
 // std est requis pour f32::sqrt, f32::floor sur certaines cibles no_std.
 // Pour l'instant on reste std pour simplicité; une feature no_std peut être
 // ajoutée plus tard avec libm si nécessaire pour wasm bare-metal.

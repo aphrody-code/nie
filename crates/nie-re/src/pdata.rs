@@ -352,11 +352,9 @@ pub fn rebuild_from_pdata(
             "INSERT OR IGNORE INTO xref(binary_id, from_addr, to_addr, kind) VALUES(?1,?2,?3,'call')",
         )?;
         for (from, to) in &ce_rows {
-            if let (Some(rf), Some(rt)) = (find_root(*from), find_root(*to)) {
-                if rf != rt {
-                    ins.execute(rusqlite::params![dst_bin, rf as i64, rt as i64])?;
-                    stats.ce_edges_mapped += 1;
-                }
+            if let (Some(rf), Some(rt)) = (find_root(*from), find_root(*to)) && rf != rt {
+                ins.execute(rusqlite::params![dst_bin, rf as i64, rt as i64])?;
+                stats.ce_edges_mapped += 1;
             }
         }
     }
@@ -391,7 +389,7 @@ mod tests {
     #[test]
     fn flag_chaininfo_ecarte_les_fragments() {
         // byte0 = (Flags << 3) | Version. Version=1.
-        let root = (0u8 << 3) | 1; // flags=0 → racine
+        let root = 1u8; // flags=0 → racine
         let frag = (UNW_FLAG_CHAININFO << 3) | 1; // flags=CHAININFO → fragment
         assert_eq!((root >> 3) & 0x1f & UNW_FLAG_CHAININFO, 0);
         assert_ne!((frag >> 3) & 0x1f & UNW_FLAG_CHAININFO, 0);
