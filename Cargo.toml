@@ -92,3 +92,9 @@ codegen-units = 1
 inherits = "release"
 lto = "thin"
 codegen-units = 16
+
+# Dev rapide pour la boucle RE : on optimise les DEPENDANCES (iced-x86, goblin, rusqlite,
+# rayon…) à opt-level=2 — la boucle disasm/seed/propagate tourne ~5-10x plus vite en dev —
+# tout en gardant les crates niers à opt-level=0 (compilation rapide à chaque edit).
+[profile.dev.package."*"]
+opt-level = 2

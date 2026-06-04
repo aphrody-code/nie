@@ -1,7 +1,20 @@
 # Conventions build aphrody.
 [build]
 # v0 mangling = symboles démanglés lisibles dans les stacktraces / outils RE.
+# (Fallback pour les cibles sans override ci-dessous.)
 rustflags = ["-C", "symbol-mangling-version=v0"]
+
+# Cible native (build + RE sur ce VPS uniquement) :
+# - mold : linker ~5-10x plus rapide que GNU ld (les rustflags d'une cible REMPLACENT
+#   ceux de [build] → on ré-inclut symbol-mangling=v0).
+# - target-cpu=native : Haswell/AVX2+BMI+FMA → désassemblage iced-x86 / hashing / sqlite
+#   nettement plus rapides à l'exécution (niers ne tourne que sur ce VPS).
+[target.x86_64-unknown-linux-gnu]
+rustflags = [
+  "-C", "symbol-mangling-version=v0",
+  "-C", "link-arg=-fuse-ld=mold",
+  "-C", "target-cpu=native",
+]
 
 # Cible wasm : features WASM standardisées (phase 4) + SIMD128 (2-4x sur le vectoriel).
 [target.wasm32-unknown-unknown]
