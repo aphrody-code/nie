@@ -1,13 +1,29 @@
 //! Parsers de formats Level-5 / Criware portés en Rust, `no_std`-friendly (alloc) pour
 //! la portabilité wasm.
 //!
-//! État : détection de format (magics) + helpers CRILAYLA. Les décodeurs complets
-//! (cfg.bin/RDBN, CPK déchiffré, G4MG/G4MD/G4TX/G4SK/G4PKM, CRILAYLA) sont portés au fil
-//! de la boucle depuis iecode (C#) et les fonctions Ghidra décompilées.
+//! ## Modules disponibles
+//!
+//! - [`crilayla`] — décompresseur CRILAYLA complet (LZ bitstream inversé).
+//! - [`cpk`] — lecteur de tables `@UTF` et d'archives CPK Criware (big-endian).
+//! - [`cfgbin`] — lecteur de fichiers RDBN (cfg.bin Level-5, little-endian).
+//!
+//! ## Compatibilité `no_std`
+//!
+//! Ce crate utilise `alloc` (via `extern crate alloc`) mais n'a pas de dépendances
+//! `std` directes en dehors de `thiserror` (qui requiert `std` pour
+//! `std::error::Error`). Il est donc compatible `no_std + alloc + std`.
+//!
+//! ## Chiffrement CPK IEVR
+//!
+//! Tous les CPK d'Inazuma Eleven: Victory Road sont chiffrés par une enveloppe
+//! propriétaire : [`cpk::parse_cpk`] renvoie [`FormatError::BadMagic`] sur ces
+//! fichiers. Le déchiffrement (clé non publique) n'est pas implémenté ici.
 #![forbid(unsafe_code)]
 
 use thiserror::Error;
 
+pub mod cfgbin;
+pub mod cpk;
 pub mod crilayla;
 
 #[derive(Debug, Error)]
