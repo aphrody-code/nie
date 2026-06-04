@@ -4,6 +4,8 @@
 //! - `rtti` : récupération RTTI MSVC (`.rdata` → classes `lives::*`/`game::*` + hiérarchie).
 //! - `indexer` : ré-indexation du binaire (goblin + iced-x86 via `aphrody-re`) pour
 //!   vérification/reproductibilité quand `nie.exe` change.
+//! - `disasm` : récupération des arêtes d'appel manquantes par désassemblage `iced-x86`
+//!   de `.text` (enrichit le call-graph au-delà du plafond de l'export Ghidra).
 //! - `propagate` : propagation de labels semi-supervisée sur le call-graph (auto-ML),
 //!   depuis les ancres du seed Ghidra/iecode vers les ~60 000 fonctions.
 //! - `anchors` : ancrage des fonctions par leurs références de chaînes (table de règles
@@ -12,6 +14,7 @@
 #![forbid(unsafe_code)]
 
 pub mod anchors;
+pub mod disasm;
 pub mod indexer;
 pub mod loop_db;
 pub mod propagate;

@@ -807,6 +807,7 @@ dependencies = [
  "aphrody-re",
  "goblin",
  "hashbrown 0.14.5",
+ "iced-x86",
  "nie-index",
  "petgraph",
  "serde",

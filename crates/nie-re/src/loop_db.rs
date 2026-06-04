@@ -25,6 +25,9 @@ use tracing::{debug, info};
 
 use crate::propagate::{Node, PropagationGraph};
 
+/// Ligne de fonction chargée pour la propagation : `(id, vaddr, subsystem, name, confidence)`.
+type FuncRow = (i64, i64, Option<String>, Option<String>, f64);
+
 /// Statistiques de la propagation complète (ancrage + diffusion).
 #[derive(Debug, Clone, Copy)]
 pub struct Stats {
@@ -86,7 +89,8 @@ pub fn propagate_db(db: &mut Db, binary_id: i64, rounds: usize) -> Result<Stats>
     };
 
     // --- Étape 4 : chargement des fonctions ------------------------------------
-    let funcs: Vec<(i64, i64, Option<String>, Option<String>, f64)> = {
+    // (id, vaddr, subsystem, name, confidence)
+    let funcs: Vec<FuncRow> = {
         let mut stmt = db.conn().prepare(
             "SELECT id, vaddr, subsystem, name, confidence FROM function WHERE binary_id=?1",
         )?;
@@ -127,7 +131,7 @@ pub fn propagate_db(db: &mut Db, binary_id: i64, rounds: usize) -> Result<Stats>
     let mut graph = PropagationGraph::with_capacity(total);
 
     for (fid, vaddr, subsystem, name, confidence) in &funcs {
-        let is_named = name.as_deref().map_or(false, |n| !n.starts_with("FUN_"));
+        let is_named = name.as_deref().is_some_and(|n| !n.starts_with("FUN_"));
         let node = match subsystem {
             Some(sub) if sub != "standalone" => {
                 // Nœud ancre : label connu, verrouillé.
