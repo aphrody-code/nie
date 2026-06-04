@@ -64,6 +64,7 @@ nie-queue = { path = "crates/nie-queue" }
 nie-seed = { path = "crates/nie-seed" }
 nie-formats = { path = "crates/nie-formats" }
 nie-headless = { path = "crates/nie-headless" }
+nie-save = { path = "crates/nie-save" }
 
 # tests CLI (dev-dep commune)
 assert_cmd = "2"
