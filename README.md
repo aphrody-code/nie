@@ -1,30 +1,43 @@
 # niers
 
-Reverse-engineering + réimplémentation **Rust headless + wasm** d'*Inazuma Eleven: Victory Road*
-(IEVR, moteur Level-5 « Lives »), piloté par une boucle RE autonome (RE ° auto-ML ° sqlite ° redis)
-qui ingère le savoir déjà fusionné (index Ghidra des 60 183 fonctions de `nie.exe`, iecode, inagle)
-et le pousse vers 100 % de couverture, puis le porte en crates Rust pures.
+**Réécriture intégrale d'*Inazuma Eleven: Victory Road* (IEVR, moteur Level-5 « Lives ») en Rust pur —
+jouable en headless + WebAssembly, sans le binaire Windows ni le moteur propriétaire.**
 
-Voir `docs/ARCHITECTURE.md`. Conventions alignées sur l'écosystème aphrody (nightly-2026-05-17,
-edition 2024, lints RFC 3389, RE pur-Rust goblin+iced-x86).
+niers n'est pas un outil d'analyse : c'est une **réimplémentation du jeu**. Le reverse-engineering de `nie.exe`
+(boucle autonome RE ° auto-ML ° sqlite ° redis, **92,43 %** des fonctions réelles classifiées) est **le moyen** —
+il résout la logique du binaire pour la **porter** en crates Rust. Les références de portage sont `iecode` (C#)
+et `inagle` (TS) + le réel, validés byte-à-byte ; la cible est que niers fasse **tout** lui-même en Rust.
+
+Plan maître : **`docs/PLAN.md`**. Architecture & boucle RE : `docs/ARCHITECTURE.md`. Avancement :
+`docs/jeu-jouable-avancement.md`, `docs/assets-wasm-avancement.md`.
 
 ## Crates
 
-- `nie-index` — base de connaissance sqlite (schéma + ingest/query).
-- `nie-seed` — ingestion du corpus Ghidra (nie-index.json) + iecode/inagle.
-- `nie-re` — moteur RE : RTTI MSVC, indexer goblin/iced, propagation de labels.
+Le jeu (la fin) :
+
+- `nie-formats` — lecture pure-Rust des conteneurs Level-5/Criware (CPK/@UTF/CRILAYLA, g4tx/g4md/g4mg/g4sk/g4pk, cfg.bin RDBN, nxtch).
+- `nie-data` — modèles `no_std` des données du jeu (port inagle : chara_param, skill, item, aura, passive, growth, exp).
+- `nie-core` — logique de jeu reversée (FSM de match, effets de commande, action-ctrl, stats, skills, auras) — 126 tests.
+- `nie-headless` — runner natif headless (sans moteur Windows).
+- `nie-wasm` — bindings wasm-bindgen, cible `wasm32-unknown-unknown` / web.
+
+L'échafaudage (le moyen) :
+
+- `nie-index` — base de connaissance sqlite (schéma + ingest/query, table `coverage`).
+- `nie-seed` — ingestion du corpus (index Ghidra `nie.exe` + RTTI + formats iecode + hash→nom inagle).
+- `nie-re` — moteur RE : RTTI MSVC, refondation `.pdata`, désassemblage iced-x86 (arêtes d'appel), propagation auto-ML.
 - `nie-queue` — frontière BFS redis (workers parallèles).
-- `nie-formats` — parsers Level-5/Criware portés en Rust.
-- `nie-cli` — binaire `niers` (seed / coverage / queue / propagate).
+- `nie-cli` — binaire `niers` (seed / rtti / rebuild / disasm / propagate / coverage / queue / textures).
 
 ## Build
 
-Toolchain : `nightly-2026-05-17` (présente sous `~/.rustup/toolchains`, rustup absent →
-invoquer son cargo directement). Wasm via la toolchain `nightly` (seule avec la std wasm32).
+Toolchain : `nightly-2026-05-17` (présente sous `~/.rustup/toolchains`, rustup absent → invoquer son cargo
+directement). Wasm via la toolchain `nightly` (seule avec la std `wasm32`).
 
 ```
 cargo build --workspace
 cargo test --workspace
 niers seed --db var/niers.sqlite --json refs/iecode-re/research/nie-index.json --exe nie_eacpatched.exe
+niers rebuild --db var/niers.sqlite --exe nie_eacpatched.exe   # refonde sur .pdata (vérité terrain)
 niers coverage --db var/niers.sqlite
 ```

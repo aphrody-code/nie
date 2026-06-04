@@ -61,19 +61,20 @@ Contrainte wasm : `wasm32-unknown-unknown` std fournie par la toolchain `nightly
 
 ## Crates (état atteint)
 
-9 crates, 192 tests verts, compile natif (nightly-2026-05-17) + `wasm32-unknown-unknown`.
+**10 crates**, compile natif (nightly-2026-05-17) + `wasm32-unknown-unknown`. Plan maître : `docs/PLAN.md`.
 
 | Crate | Rôle | État |
 |---|---|---|
-| `nie-index` | base de connaissance sqlite (schéma + ingest/query) | FAIT |
-| `nie-seed` | ingest nie-index.json (60183 fn) + RTTI/formats/inagle | FAIT |
-| `nie-re` | RTTI MSVC, indexer aphrody-re, **disasm iced-x86 (arêtes d'appel)**, propagation auto-ML | FAIT |
+| `nie-formats` | lecture pure-Rust Level-5/Criware (cfg.bin/RDBN, g4tx/g4md/g4mg/g4pk, @UTF, CRILAYLA, nxtch) | RDBN/g4* FAIT ; **@UTF corrigé** ; CRILAYLA/nxtch INCOMPLET ; audio/CPK chiffré NON_FAIT |
+| `nie-data` | modèles `no_std` du jeu (port inagle) | 5/7 FAIT ; chara-param + aura-cmd INCOMPLET |
+| `nie-core` | logique de jeu reversée (FSM match, effets commande, action-ctrl, stats, skills, auras) | **7/7 FAIT — 126 tests, 0 stub** |
+| `nie-headless` | runner CLI headless sans moteur Windows | FAIT |
+| `nie-wasm` | surface wasm-bindgen (detect/crilayla/@UTF), glue JS | FAIT (à étendre nie-core/nie-data) |
+| `nie-index` | base de connaissance sqlite (schéma + ingest/query, table `coverage`) | FAIT |
+| `nie-seed` | ingest index Ghidra (60183 fn) + RTTI/formats iecode/hash→nom inagle | FAIT |
+| `nie-re` | RTTI MSVC, refondation `.pdata`, **disasm iced-x86 (arêtes d'appel)**, propagation auto-ML | FAIT (92,43 %) |
 | `nie-queue` | frontière BFS redis | FAIT |
-| `nie-formats` | CRILAYLA decompress, @UTF, cfg.bin/RDBN | FAIT (CPK chiffré + valeurs RDBN = NON_FAIT) |
-| `nie-core` | logique de jeu : ball, soccer, keeper, tactics AI, stats | amorce (14 fn portées) |
-| `nie-cli` | binaire `niers` (seed/index/rtti/disasm/propagate/coverage/queue) | FAIT |
-| `nie-headless` | runner CLI sans moteur Windows | FAIT |
-| `nie-wasm` | surface wasm-bindgen (detect/crilayla/utf), glue JS | FAIT |
+| `nie-cli` | binaire `niers` (seed/rtti/rebuild/disasm/propagate/coverage/queue/textures) | FAIT |
 
 ## Découverte majeure : l'index Ghidra est désaligné — `.pdata` est la vérité terrain
 
