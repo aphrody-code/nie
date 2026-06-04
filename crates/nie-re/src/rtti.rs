@@ -74,12 +74,12 @@ pub struct RttiStats {
 /// classes/hiérarchie dans la base. Renvoie les statistiques.
 pub fn parse_and_ingest(db: &mut Db, binary_id: i64, bytes: &[u8]) -> Result<RttiStats> {
     let pe = PE::parse(bytes).context("goblin: parse PE")?;
-    let image_base = pe.image_base as u64;
+    let image_base = pe.image_base;
     let mut stats = RttiStats::default();
 
     // Trouve .rdata (lecture seule, données initialisées = RTTI vit là).
     let rdata = pe.sections.iter().find(|s| {
-        s.name().map_or(false, |n| n.starts_with(".rdata"))
+        s.name().is_ok_and(|n| n.starts_with(".rdata"))
     });
     let Some(rdata_sec) = rdata else {
         warn!("section .rdata non trouvée dans le PE");

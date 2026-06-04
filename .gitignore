@@ -23,5 +23,6 @@ GEMINI.md
 
 # wasm build
 /pkg
+crates/*/pkg/
 /dist
 refs/

@@ -20,4 +20,5 @@ tracing.workspace = true
 petgraph.workspace = true
 hashbrown.workspace = true
 goblin.workspace = true
+iced-x86.workspace = true
 aphrody-re.workspace = true

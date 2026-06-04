@@ -78,6 +78,15 @@ enum Cmd {
         #[arg(long)]
         exe: PathBuf,
     },
+    /// Récupère les arêtes d'appel manquantes par désassemblage iced-x86 de `.text`.
+    Disasm {
+        /// Base sqlite cible.
+        #[arg(long, default_value = "var/niers.sqlite")]
+        db: PathBuf,
+        /// Binaire à désassembler (nie_eacpatched.exe ou nie.exe).
+        #[arg(long)]
+        exe: PathBuf,
+    },
 }
 
 #[derive(Subcommand)]
@@ -107,6 +116,7 @@ fn main() -> anyhow::Result<()> {
         Cmd::Propagate { db, rounds } => propagate(&db, rounds),
         Cmd::Rtti { db, exe } => rtti(&db, &exe),
         Cmd::Index { db, exe } => index(&db, &exe),
+        Cmd::Disasm { db, exe } => disasm(&db, &exe),
     }
 }
 
@@ -253,5 +263,28 @@ fn index(db_path: &std::path::Path, exe_path: &std::path::Path) -> anyhow::Resul
     println!("  sections ingérées : {}", stats.sections);
     println!("  imports ingérés : {}", stats.imports);
     println!("  exports ingérés : {}", stats.exports);
+    Ok(())
+}
+
+fn disasm(db_path: &std::path::Path, exe_path: &std::path::Path) -> anyhow::Result<()> {
+    let mut db = nie_index::Db::open(db_path).context("ouverture base")?;
+    let bin: i64 = db
+        .conn()
+        .query_row("SELECT id FROM binary ORDER BY id LIMIT 1", [], |r| r.get(0))
+        .context("aucun binaire indexé — lancer `niers seed` d'abord")?;
+
+    let stats = nie_re::disasm::recover_call_edges(&mut db, bin, exe_path)
+        .context("désassemblage des arêtes d'appel")?;
+
+    println!("désassemblage terminé :");
+    println!("  fonctions balayées : {}", stats.functions_scanned);
+    println!("  instructions décodées : {}", stats.instructions_decoded);
+    println!("  call (toutes formes) : {}", stats.call_insns);
+    println!("  call directs (rel32) : {}", stats.call_near);
+    println!("  jmp directs (tail-calls) : {}", stats.jmp_near);
+    println!("  arêtes via thunk (jmp-relais) : {}", stats.thunk_resolved);
+    println!("  cibles directes non résolues : {}", stats.near_target_miss);
+    println!("  arêtes candidates : {}", stats.edges_candidates);
+    println!("  arêtes NOUVELLES (manquées par Ghidra) : {}", stats.edges_new);
     Ok(())
 }
