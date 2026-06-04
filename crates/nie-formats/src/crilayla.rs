@@ -176,18 +176,24 @@ pub fn decompress(input: &[u8]) -> Result<Vec<u8>, FormatError> {
                 }
             }
 
-            // Copie LZ : les octets source sont à write_pos + offset (déjà écrits).
+            // Copie LZ : les octets source sont à (write_pos - 1) + offset (déjà écrits).
+            //
+            // Sémantique : dans le C# `*writePtr = writePtr[offset]; writePtr--`.
+            // En Rust, `write_pos` représente la prochaine position D'ÉCRITURE (celle qui
+            // sera décrémentée en premier), équivalent à `writePtr + 1` du C#.
+            // Donc la source correcte est `(write_pos - 1) + offset`, soit `write_pos - 1`
+            // APRÈS décrément de `write_pos`.
             for _ in 0..length {
                 if write_pos <= RAW_HEADER_SIZE {
                     return Err(FormatError::Corrupt("CRILAYLA : backref dépasse le début de la sortie"));
                 }
+                write_pos -= 1;
                 let src = write_pos
                     .checked_add(offset)
                     .ok_or(FormatError::Corrupt("CRILAYLA : overflow backref src"))?;
                 if src >= total_size {
                     return Err(FormatError::Corrupt("CRILAYLA : backref source hors limites"));
                 }
-                write_pos -= 1;
                 output[write_pos] = output[src];
             }
         }
@@ -634,5 +640,171 @@ mod tests {
         let buf = build_literal_crilayla(&payload, 0x00);
         let result = decompress(&buf).expect("256 octets littéraux OK");
         assert_eq!(&result[0x100..], payload.as_slice());
+    }
+
+    // -- Tests avec backref (régression bug : calcul src avant/après décrément) --
+    //
+    // Constructeur CRILAYLA avec un backref encodé manuellement.
+    //
+    // Payload cible : [0x41, 0x42, 0x43, 0x44, 0x41, 0x42, 0x43, 0x44]
+    // (4 littéraux puis une copie des 4 précédents avec offset=4, longueur=4)
+    //
+    // Ordre de décompression (write_pos descend de total_size-1 vers 0x100) :
+    //   Lit d'abord les symboles encodant les positions les PLUS HAUTES.
+    //   output[total_size-1] → output[0x100] de droite à gauche.
+    //
+    // Pour output[0x100..0x108] = [0x41,0x42,0x43,0x44,0x41,0x42,0x43,0x44] :
+    //   positions 0x100..0x104 = [0x41,0x42,0x43,0x44] écrites EN DERNIER (write_pos décroît)
+    //   positions 0x104..0x108 = [0x41,0x42,0x43,0x44] écrites EN PREMIER
+    //
+    // Donc le bitstream encode (de gauche à droite = premier lu) :
+    //   1. backref (off_raw=1, len=4) → écrit output[0x107..0x104], source à +4
+    //      soit off_raw=4-3=1, lvl2=1 (3+1=4)
+    //   2. lit 0x44 → output[0x103]
+    //   3. lit 0x43 → output[0x102]
+    //   4. lit 0x42 → output[0x101]
+    //   5. lit 0x41 → output[0x100]
+    //
+    // Note : la copie backref à write_pos=0x107 et offset=4 doit lire output[0x107+4=0x10B].
+    // Mais output ne fait que 0x108 octets → hors limites ?
+    //
+    // C'est le bug corrigé ! Le décompresseur décrémente write_pos D'ABORD,
+    // puis lit src = write_pos + offset = 0x106 + 4 = 0x10A > total_size = 0x108.
+    // Toujours hors limites...
+    //
+    // Reprenons la sémantique : avec write_pos = total_size au départ,
+    // après le décrément D'ABORD, write_pos = total_size - 1 = 0x107.
+    // src = 0x107 + 4 = 0x10B ≥ 0x108 → erreur.
+    //
+    // Cas valide : la copie backref ne peut référencer que des positions
+    // DÉJÀ ÉCRITES (> write_pos courant). Donc pour un offset=4 à write_pos=0x107 :
+    // src = 0x10B > total_out. Impossible pour le premier symbole.
+    //
+    // Un backref valide initial : après 4 littéraux, write_pos = 0x103.
+    // src = 0x103 + 4 = 0x107 < total_size = 0x108. Valide !
+    //
+    // Donc la séquence correcte d'encodage :
+    //   1. lit 0x41 → output[0x107] (write_pos descend de 0x108 → 0x107)
+    //   2. lit 0x42 → output[0x106]
+    //   3. lit 0x43 → output[0x105]
+    //   4. lit 0x44 → output[0x104]
+    //   5. backref off_raw=1, len=4 → écrit output[0x103..0x100], src=write_pos+4
+    //      write_pos=0x103 → src=0x107=output[0x107]=0x41 ✓
+    //      write_pos=0x102 → src=0x106=output[0x106]=0x42 ✓
+    //      write_pos=0x101 → src=0x105=output[0x105]=0x43 ✓
+    //      write_pos=0x100 → src=0x104=output[0x104]=0x44 ✓
+    //
+    // Résultat final : output[0x100..0x108] = [0x44,0x43,0x42,0x41,0x41,0x42,0x43,0x44]
+    // (les littéraux écrits en ordre décroissant de write_pos donnent l'ordre croissant)
+
+    fn build_backref_crilayla() -> Vec<u8> {
+        // Construit le bitstream encodant :
+        //   4 littéraux 0x41,0x42,0x43,0x44 puis un backref(off=4, len=4).
+        //
+        // Ordre d'encodage : ce qui est lu EN PREMIER doit correspondre
+        // à ce qui est écrit EN PREMIER (write_pos le plus haut).
+        // Premier écrit = lit 0x41 → encodé EN PREMIER dans le bitstream.
+        // Dernier écrit = backref → encodé EN DERNIER.
+        // Le bitstream est inversé avant insertion dans le fichier.
+
+        let mut bw = BitWriter::new();
+
+        // Lit 0x41 (encode en premier → lu en premier → écrit en premier)
+        bw.push_bit(0);
+        bw.push_bits(0x41, 8);
+        // Lit 0x42
+        bw.push_bit(0);
+        bw.push_bits(0x42, 8);
+        // Lit 0x43
+        bw.push_bit(0);
+        bw.push_bits(0x43, 8);
+        // Lit 0x44
+        bw.push_bit(0);
+        bw.push_bits(0x44, 8);
+        // Backref off_raw=1 (offset=4), len=4 (lvl2=1)
+        bw.push_bit(1);           // flag = backref
+        bw.push_bits(1, 13);      // off_raw = 1 → offset = 4
+        bw.push_bits(1, 2);       // lvl2 = 1 → length = 3 + 1 = 4 (< max 3, pas lvl3)
+
+        let mut bitstream = bw.finish();
+        // Inverser : le premier bit émis doit être lu EN PREMIER (à raw_block_start-1).
+        bitstream.reverse();
+
+        let header_offset = bitstream.len() as u32;
+        let uncompressed_size = 8u32; // 4 lits + 4 backref
+
+        let mut out: Vec<u8> = Vec::new();
+        out.extend_from_slice(b"CRILAYLA");
+        out.extend_from_slice(&uncompressed_size.to_le_bytes());
+        out.extend_from_slice(&header_offset.to_le_bytes());
+        out.extend_from_slice(&bitstream);
+        out.extend(alloc::vec![0xBBu8; 0x100]);
+        out
+    }
+
+    #[test]
+    fn decode_backref_simple() {
+        // Vérification de la copie LZ backref : 4 littéraux + backref(offset=4, len=4).
+        let buf = build_backref_crilayla();
+        let result = decompress(&buf).expect("backref simple doit décompresser");
+
+        // output[0x100..0x108] attendu :
+        //   [0x44, 0x43, 0x42, 0x41, 0x41, 0x42, 0x43, 0x44]
+        // (4 lits écrits à rebours aux positions 0x107..0x104, puis backref aux positions 0x103..0x100)
+        assert_eq!(result.len(), 0x100 + 8, "taille incorrecte");
+        assert!(result[..0x100].iter().all(|&b| b == 0xBB), "raw block incorrect");
+        let payload = &result[0x100..];
+        // Les 4 littéraux sont écrits D'ABORD (write_pos décroît depuis total_size-1) :
+        //   write_pos=0x107 → lit 0x41 ; [0x106] → 0x42 ; [0x105] → 0x43 ; [0x104] → 0x44
+        // Donc payload[7]=0x41, [6]=0x42, [5]=0x43, [4]=0x44.
+        assert_eq!(payload[7], 0x41, "lit 0x41 écrit à write_pos=0x107");
+        assert_eq!(payload[6], 0x42, "lit 0x42 écrit à write_pos=0x106");
+        assert_eq!(payload[5], 0x43, "lit 0x43 écrit à write_pos=0x105");
+        assert_eq!(payload[4], 0x44, "lit 0x44 écrit à write_pos=0x104");
+        // Le backref (offset=4, len=4) copie ensuite aux positions 0x103..0x100 :
+        //   write_pos=0x103 → src=0x107 → 0x41 ; etc.
+        assert_eq!(payload[3], 0x41, "backref[3] copie output[0x107]=0x41");
+        assert_eq!(payload[2], 0x42, "backref[2] copie output[0x106]=0x42");
+        assert_eq!(payload[1], 0x43, "backref[1] copie output[0x105]=0x43");
+        assert_eq!(payload[0], 0x44, "backref[0] copie output[0x104]=0x44");
+    }
+
+    #[test]
+    fn decode_repetition_run() {
+        // Test run-length : répétition d'un octet via backref(offset=3, len=MIN_COPY=3).
+        // Backref minimal offset=3 : source = write_pos+3.
+        // Si les 3 octets à write_pos+1..+3 sont identiques, la copie reproduit le run.
+        //
+        // Payload = [0xAB, 0xAB, 0xAB, 0xAB, 0xAB, 0xAB] (6 fois 0xAB)
+        // Encodage : 3 lits 0xAB, puis backref(off_raw=0, len=3)
+        //   → output[0x105..0x103] = lits (0xAB écrit 3 fois), backref aux 0x102..0x100
+        //   backref à write_pos=0x102, src=0x102+3=0x105, output[0x105]=0xAB ✓
+
+        let mut bw = BitWriter::new();
+        // 3 lits 0xAB (encodés dans l'ordre : premier lit = lit le plus haut write_pos)
+        bw.push_bit(0); bw.push_bits(0xAB, 8);
+        bw.push_bit(0); bw.push_bits(0xAB, 8);
+        bw.push_bit(0); bw.push_bits(0xAB, 8);
+        // Backref off_raw=0 (offset=3), len=3 (lvl2=0)
+        bw.push_bit(1);
+        bw.push_bits(0, 13);  // off_raw=0 → offset=3
+        bw.push_bits(0, 2);   // lvl2=0 → length=3+0=3
+
+        let mut bs = bw.finish();
+        bs.reverse();
+        let ho = bs.len() as u32;
+
+        let mut buf: Vec<u8> = Vec::new();
+        buf.extend_from_slice(b"CRILAYLA");
+        buf.extend_from_slice(&6u32.to_le_bytes()); // uncompressed_size = 6
+        buf.extend_from_slice(&ho.to_le_bytes());
+        buf.extend_from_slice(&bs);
+        buf.extend(alloc::vec![0xCCu8; 0x100]);
+
+        let result = decompress(&buf).expect("run-length via backref doit décompresser");
+        assert_eq!(result.len(), 0x100 + 6);
+        assert!(result[..0x100].iter().all(|&b| b == 0xCC));
+        assert!(result[0x100..].iter().all(|&b| b == 0xAB),
+            "run-length incorrect: {:?}", &result[0x100..]);
     }
 }
