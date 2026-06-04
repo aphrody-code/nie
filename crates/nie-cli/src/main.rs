@@ -109,6 +109,11 @@ enum Cmd {
         #[arg(long, default_value_t = 16)]
         rounds: usize,
     },
+    /// Opérations sur les saves IEVR (Lives format) : decrypt/read/edit.
+    Save {
+        #[command(subcommand)]
+        op: SaveOp,
+    },
     /// Scanne les fichiers .g4tx dans les CPK du jeu et produit un manifeste NDJSON d'en-têtes.
     Textures {
         /// Répertoire racine de l'installation du jeu (contenant data/cpk_list.cfg.bin).
@@ -126,6 +131,58 @@ enum Cmd {
         /// URL Redis (db3).
         #[arg(long, default_value = "redis://127.0.0.1/3")]
         redis_url: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum SaveOp {
+    /// Déchiffre et affiche un résumé terse d'un fichier de sauvegarde Lives.
+    Read {
+        /// Chemin vers le fichier de sauvegarde (ex. `002AB8F4-SYSTEMLIVE`).
+        #[arg(long)]
+        file: std::path::PathBuf,
+        /// Affiche aussi les N premiers octets du corps de chaque blob.
+        #[arg(long, default_value_t = 0)]
+        hexdump: usize,
+    },
+    /// Déchiffre un fichier de sauvegarde et écrit le plaintext.
+    Decrypt {
+        /// Chemin vers le fichier de sauvegarde chiffré.
+        #[arg(long)]
+        file: std::path::PathBuf,
+        /// Chemin de sortie pour le plaintext.
+        #[arg(long)]
+        out: std::path::PathBuf,
+    },
+    /// Chiffre un fichier plaintext (issu de `decrypt`) et produit le fichier sauvegarde.
+    Encrypt {
+        /// Chemin vers le plaintext.
+        #[arg(long)]
+        file: std::path::PathBuf,
+        /// Nom de slot (ex. `002AB8F4-SYSTEMLIVE`) pour dériver la clé.
+        #[arg(long)]
+        slot: String,
+        /// Chemin de sortie pour le fichier chiffré.
+        #[arg(long)]
+        out: std::path::PathBuf,
+    },
+    /// Édite un byte dans le corps d'un blob et rechiffre.
+    Edit {
+        /// Chemin vers le fichier de sauvegarde.
+        #[arg(long)]
+        file: std::path::PathBuf,
+        /// Nom interne du blob (ex. `SYSTEM_data.bin`).
+        #[arg(long)]
+        blob: String,
+        /// Offset dans le corps du blob (décimal ou `0x…`).
+        #[arg(long, value_parser = parse_addr)]
+        offset: i64,
+        /// Nouvelle valeur du byte (décimal ou `0x…`).
+        #[arg(long, value_parser = parse_addr)]
+        value: i64,
+        /// Fichier de sortie (défaut : écrase l'entrée).
+        #[arg(long)]
+        out: Option<std::path::PathBuf>,
     },
 }
 
@@ -160,6 +217,7 @@ fn main() -> anyhow::Result<()> {
         Cmd::Disasm { db, exe } => disasm(&db, &exe),
         Cmd::Pdata { db, exe } => pdata(&db, &exe),
         Cmd::Rebuild { db, exe, rounds } => rebuild(&db, &exe, rounds),
+        Cmd::Save { op } => save_cmd(op),
         Cmd::Textures { game_dir, limit, manifest, redis: use_redis, redis_url } => {
             textures(&game_dir, limit, &manifest, use_redis, &redis_url)
         }
@@ -527,6 +585,74 @@ fn textures(
         );
     }
 
+    Ok(())
+}
+
+fn save_cmd(op: SaveOp) -> anyhow::Result<()> {
+    use nie_save::io::{edit_blob_byte, hexdump_blob_body, print_summary, read_save, write_save};
+
+    match op {
+        SaveOp::Read { file, hexdump } => {
+            let container = read_save(&file)
+                .map_err(|e| anyhow::anyhow!("lecture save : {e}"))?;
+            print_summary(&container);
+            if hexdump > 0 {
+                for (i, blob) in container.blobs.iter().enumerate() {
+                    println!("  hexdump blob[{i}]:");
+                    hexdump_blob_body(blob, hexdump);
+                }
+            }
+        }
+        SaveOp::Decrypt { file, out } => {
+            // XOR direct sur le fichier brut : le keystream est involutif, donc
+            // decrypt = encrypt = XOR(données, keystream).
+            // On n'utilise PAS serialize_plaintext() pour rester byte-identique à l'original.
+            let raw = std::fs::read(&file)
+                .with_context(|| format!("lecture {}", file.display()))?;
+            let filename = file
+                .file_name()
+                .and_then(|s| s.to_str())
+                .ok_or_else(|| anyhow::anyhow!("nom de fichier invalide : {}", file.display()))?;
+            let key = nie_save::key_from_filename(filename);
+            let mut plain = raw;
+            nie_save::decrypt_block(&mut plain, 0, key);
+            std::fs::write(&out, &plain)
+                .with_context(|| format!("écriture plaintext {}", out.display()))?;
+            println!("decrypt ok={} bytes={}", out.display(), plain.len());
+        }
+        SaveOp::Encrypt { file, slot, out } => {
+            let plain = std::fs::read(&file)
+                .with_context(|| format!("lecture {}", file.display()))?;
+            // Chiffrer le plaintext avec la clé dérivée du nom de slot
+            let key = nie_save::key_from_filename(&slot);
+            let mut enc = plain;
+            nie_save::decrypt_block(&mut enc, 0, key);
+            std::fs::write(&out, &enc)
+                .with_context(|| format!("écriture {}", out.display()))?;
+            println!("encrypt slot={slot} key=0x{key:08X} out={} bytes={}", out.display(), enc.len());
+        }
+        SaveOp::Edit { file, blob: blob_name, offset, value, out } => {
+            if !(0..=255).contains(&value) {
+                anyhow::bail!("valeur {value} hors plage [0, 255]");
+            }
+            if offset < 0 {
+                anyhow::bail!("offset {offset} négatif");
+            }
+            let mut container = read_save(&file)
+                .map_err(|e| anyhow::anyhow!("lecture save : {e}"))?;
+            let ok = edit_blob_byte(&mut container, &blob_name, offset as usize, value as u8);
+            if !ok {
+                anyhow::bail!("blob '{}' introuvable ou offset {} hors limites", blob_name, offset);
+            }
+            let out_path = out.as_deref().unwrap_or(&file);
+            write_save(&container, out_path)
+                .map_err(|e| anyhow::anyhow!("écriture save : {e}"))?;
+            println!(
+                "edit blob={blob_name} offset=0x{offset:X} value=0x{value:02X} out={}",
+                out_path.display()
+            );
+        }
+    }
     Ok(())
 }
 
