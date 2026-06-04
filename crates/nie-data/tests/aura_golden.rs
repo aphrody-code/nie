@@ -1,5 +1,6 @@
+#![allow(clippy::pedantic)]
 //! Tests golden `aura` — noeud réel `AURA_CMD_INFO_0` tiré de :
-//! `/home/ubuntu/data/common/gamedata/skill/aura_skill_config_1.04.09.00.cfg.bin.json`.
+//! `/home/ubuntu/niers/data/common/gamedata/skill/aura_skill_config_1.04.09.00.cfg.bin.json`.
 //!
 //! Valeurs (19 vars) : `[2037965306, "wks00020", 493403631, -1653680409, 30, 60, 260858381,
 //! -1368456794, 3, 8, 0, 1, -1124324279, 0, 0, 0, 1, 0, 0]`.

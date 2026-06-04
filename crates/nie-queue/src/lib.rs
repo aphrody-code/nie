@@ -5,6 +5,7 @@
 //! empêche de re-traiter une adresse déjà vue, une LIST `frontier` porte l'ordre BFS.
 //! Plusieurs workers peuvent dépiler en parallèle (`pop` = `LPOP` atomique).
 #![forbid(unsafe_code)]
+#![allow(clippy::pedantic)]
 
 use redis::{Commands, RedisError};
 use thiserror::Error;

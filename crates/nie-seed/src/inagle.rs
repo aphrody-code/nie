@@ -204,6 +204,34 @@ pub fn ingest_inagle_hashes(db: &mut Db, sqlite_dir: &Path) -> Result<usize> {
             0
         });
 
+    // ── inagle_costumes : id = "0xXXXXXXXX", model_ref ───────────────────────
+    total += ingest_table_simple(&src, &tx, "inagle_costumes", "id", "model_ref", "costume", None)
+        .unwrap_or_else(|e| {
+            warn!("inagle_costumes: {e}");
+            0
+        });
+
+    // ── inagle_super_tactics : crc_id = "0xXXXXXXXX", id ──────────────────────
+    total += ingest_table_simple(&src, &tx, "inagle_super_tactics", "crc_id", "id", "super_tactic", None)
+        .unwrap_or_else(|e| {
+            warn!("inagle_super_tactics: {e}");
+            0
+        });
+
+    // ── inagle_tricks : id = "0xXXXXXXXX", trick_id_name ─────────────────────
+    total += ingest_table_simple(&src, &tx, "inagle_tricks", "id", "trick_id_name", "trick", None)
+        .unwrap_or_else(|e| {
+            warn!("inagle_tricks: {e}");
+            0
+        });
+
+    // ── inagle_opponent_teams : id = "0xXXXXXXXX", team_id ────────────────────
+    total += ingest_table_simple(&src, &tx, "inagle_opponent_teams", "id", "team_id", "opponent_team", None)
+        .unwrap_or_else(|e| {
+            warn!("inagle_opponent_teams: {e}");
+            0
+        });
+
     tx.commit().context("commit inagle hashes")?;
     Ok(total)
 }

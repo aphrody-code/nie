@@ -3,6 +3,8 @@
 //! Ces tests requièrent les fichiers de données réels présents sur le VPS.
 //! Ils sont ignorés par défaut pour ne pas bloquer la CI sans données.
 
+#![allow(clippy::pedantic)]
+
 use std::path::Path;
 
 use nie_index::Db;

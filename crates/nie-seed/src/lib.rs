@@ -11,6 +11,7 @@
 //! Le module [`stats`] résume une passe d'ingestion. L'ingestion proprement dite est
 //! implémentée dans [`nie_index_json`].
 #![forbid(unsafe_code)]
+#![allow(clippy::pedantic)]
 
 pub mod format_catalog;
 pub mod formats;

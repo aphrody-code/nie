@@ -9,7 +9,7 @@
 //!
 //! Source : `packages/inagle/src/core/config-parser.ts` (ConfigNode/ConfigVariable),
 //! `packages/inagle/src/characters/types.ts` (CfgBinEntry/CfgBinVariable). Échantillon réel :
-//! `/home/ubuntu/data/common/text/fr/skill_text.cfg.bin.json`.
+//! `/home/ubuntu/niers/data/common/text/fr/skill_text.cfg.bin.json`.
 
 use alloc::string::String;
 use alloc::vec::Vec;

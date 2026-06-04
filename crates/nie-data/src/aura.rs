@@ -4,7 +4,7 @@
 //!
 //! - Parser TS : `packages/inagle/src/skills/mapper-aura.ts` (`parseAuraCmdInfo` l.389-469,
 //!   `determineSubType` l.232-293, `resolveAuraHissatsu` l.181-216, `getElement` l.320-329).
-//! - Données : `/home/ubuntu/data/common/gamedata/skill/aura_skill_config_1.04.09.00.cfg.bin.json`.
+//! - Données : `/home/ubuntu/niers/data/common/gamedata/skill/aura_skill_config_1.04.09.00.cfg.bin.json`.
 //!
 //! Noeud vérifié `AURA_CMD_INFO_0` (19 vars) :
 //! `[2037965306, "wks00020", 493403631, -1653680409, 30, 60, 260858381, -1368456794, 3, 8, 0,

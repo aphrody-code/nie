@@ -1,6 +1,6 @@
 # Avancement — Axe « jeu jouable » niers
 
-Synthèse des verdicts par crate (recoupement adversarial contre la vérité terrain : dumps réels `/home/ubuntu/data`, parseurs TS `packages/inagle`, mirror SQLite azalee, C# décompilé `IECODE.Core`). Statut global : **3 crates buildent vert, tests passent**. 18 livrables FAIT / 4 INCOMPLET / 0 NON_FAIT. **4 hallucinations détectées**, toutes localisées à 2 livrables (chara-param, aura-cmd) + 1 en-tête bugué (nxtch).
+Synthèse des verdicts par crate (recoupement adversarial contre la vérité terrain : dumps réels `/home/ubuntu/niers/data`, parseurs TS `packages/inagle`, mirror SQLite azalee, C# décompilé `IECODE.Core`). Statut global : **3 crates buildent vert, tests passent**. 18 livrables FAIT / 4 INCOMPLET / 0 NON_FAIT. **4 hallucinations détectées**, toutes localisées à 2 livrables (chara-param, aura-cmd) + 1 en-tête bugué (nxtch).
 
 ---
 

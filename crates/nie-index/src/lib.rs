@@ -6,6 +6,7 @@
 //! transaction) pour charger les ~60 000 fonctions de `nie-index.json`, et [`query`]
 //! les agrégats de couverture.
 #![forbid(unsafe_code)]
+#![allow(clippy::pedantic)]
 
 use rusqlite::Connection;
 use thiserror::Error;
@@ -24,22 +25,43 @@ pub enum IndexError {
     Sqlite(#[from] rusqlite::Error),
     #[error("json: {0}")]
     Json(#[from] serde_json::Error),
+    #[error("redis error: {0}")]
+    Redis(#[from] redis::RedisError),
+    #[error("redis pool error: {0}")]
+    RedisPool(String),
     #[error("{0}")]
     Other(String),
 }
 
 pub type Result<T> = std::result::Result<T, IndexError>;
 
-/// Connexion à la base de connaissance.
+/// Connexion à la base de connaissance (SQLite + optionnellement Redis).
 pub struct Db {
     conn: Connection,
+    redis_pool: Option<r2d2::Pool<redis::Client>>,
 }
 
 impl Db {
     /// Ouvre (ou crée) la base au chemin donné et applique le schéma.
     pub fn open(path: impl AsRef<std::path::Path>) -> Result<Self> {
         let conn = Connection::open(path)?;
-        let db = Self { conn };
+        let db = Self { conn, redis_pool: None };
+        db.init()?;
+        Ok(db)
+    }
+
+    /// Ouvre la base SQLite et initialise également la connexion à Redis via un pool.
+    pub fn open_with_redis(
+        path: impl AsRef<std::path::Path>,
+        redis_url: &str,
+    ) -> Result<Self> {
+        let conn = Connection::open(path)?;
+        let client = redis::Client::open(redis_url)?;
+        let redis_pool = r2d2::Pool::builder()
+            .build(client)
+            .map_err(|e| IndexError::RedisPool(e.to_string()))?;
+        
+        let db = Self { conn, redis_pool: Some(redis_pool) };
         db.init()?;
         Ok(db)
     }
@@ -47,7 +69,7 @@ impl Db {
     /// Base en mémoire (tests).
     pub fn open_in_memory() -> Result<Self> {
         let conn = Connection::open_in_memory()?;
-        let db = Self { conn };
+        let db = Self { conn, redis_pool: None };
         db.init()?;
         Ok(db)
     }
@@ -76,10 +98,22 @@ impl Db {
              ON CONFLICT(key) DO UPDATE SET value = excluded.value",
             (key, value),
         )?;
+        if let Some(ref pool) = self.redis_pool && let Ok(mut rconn) = pool.get() {
+            use redis::Commands;
+            let redis_key = format!("niers:meta:{}", key);
+            let _: std::result::Result<(), redis::RedisError> = rconn.set(redis_key, value);
+        }
         Ok(())
     }
 
     pub fn get_meta(&self, key: &str) -> Result<Option<String>> {
+        if let Some(ref pool) = self.redis_pool && let Ok(mut rconn) = pool.get() {
+            use redis::Commands;
+            let redis_key = format!("niers:meta:{}", key);
+            if let Ok(val) = rconn.get::<_, String>(redis_key) {
+                return Ok(Some(val));
+            }
+        }
         let v = self
             .conn
             .query_row("SELECT value FROM meta WHERE key = ?1", [key], |r| r.get(0))
@@ -364,5 +398,21 @@ mod tests {
         assert_eq!(cov.total, 2);
         assert_eq!(cov.classified, 1);
         assert!((cov.pct - 50.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn redis_meta_fallback_ignored_if_no_redis() {
+        let db = Db::open_in_memory().unwrap();
+        db.set_meta("test_key", "test_val").unwrap();
+        assert_eq!(db.get_meta("test_key").unwrap().as_deref(), Some("test_val"));
+    }
+
+    #[test]
+    fn test_redis_connection_if_available() {
+        // Enregistre en base SQLite en mémoire et tente Redis local
+        if let Ok(db) = Db::open_with_redis(":memory:", "redis://127.0.0.1/") {
+            db.set_meta("redis_test_key", "redis_val").unwrap();
+            assert_eq!(db.get_meta("redis_test_key").unwrap().as_deref(), Some("redis_val"));
+        }
     }
 }

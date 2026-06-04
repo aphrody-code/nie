@@ -1,5 +1,6 @@
+#![allow(clippy::pedantic)]
 //! Tests golden `item` — noeud réel `ITEM_SHOES_INFO_0` + `ITEM_CONSUME_INFO_0` tirés de :
-//! `/home/ubuntu/data/common/gamedata/item/item_config_1.03.65.00.cfg.bin.json`.
+//! `/home/ubuntu/niers/data/common/gamedata/item/item_config_1.03.65.00.cfg.bin.json`.
 //!
 //! ITEM_SHOES_INFO_0 (19 vars) :
 //! `[1834815904, 0, 1853054332, 0, 1401, 30, 31, 999, 0, 0, 0, "eq_sh110001", 1, 0, 0, 224, 0, 0, 961180446]`

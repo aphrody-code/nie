@@ -624,6 +624,192 @@ pub fn parse_cpk(data: &[u8]) -> Result<CpkHeader, FormatError> {
     Ok(CpkHeader { utf })
 }
 
+/// Déchiffre une table @UTF (XOR progressif avec multiplicateur 0x15).
+pub fn decrypt_table(data: &mut [u8]) {
+    let mut xor_val: u8 = 0x5F;
+    for b in data.iter_mut() {
+        *b ^= xor_val;
+        xor_val = xor_val.wrapping_mul(0x15);
+    }
+}
+
+/// Parse une table @UTF depuis un conteneur CRI (CPK/TOC/ETOC).
+///
+/// Le conteneur fait 16 octets : magic(4) + pad(4) + size_le(4) + pad(4),
+/// suivi des données de la table.
+pub fn parse_table_container(data: &[u8], container_offset: usize) -> Result<UtfTable, FormatError> {
+    if container_offset + 16 > data.len() {
+        return Err(FormatError::TooShort { got: data.len(), need: container_offset + 16 });
+    }
+    let table_size = u32::from_le_bytes(data[container_offset + 8..container_offset + 12].try_into().unwrap()) as usize;
+    let table_start = container_offset + 16;
+    if table_start + table_size > data.len() {
+        return Err(FormatError::TooShort { got: data.len(), need: table_start + table_size });
+    }
+
+    let mut table_data = data[table_start..table_start + table_size].to_vec();
+    if table_size >= 4 {
+        let magic = u32::from_le_bytes(table_data[0..4].try_into().unwrap());
+        // 0x46545540 = "@UTF" en LE
+        if magic != 0x46545540 {
+            decrypt_table(&mut table_data);
+            let dec_magic = u32::from_le_bytes(table_data[0..4].try_into().unwrap());
+            if dec_magic != 0x46545540 {
+                return Err(FormatError::BadMagic { format: "@UTF dechiffree" });
+            }
+        }
+    }
+
+    parse_utf(&table_data)
+}
+
+/// Entrée décrivant un fichier dans un CPK.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct CpkEntry {
+    pub filename: String,
+    pub directory: String,
+    pub offset: u64,
+    pub size: u64,
+    pub extract_size: u64,
+    pub is_compressed: bool,
+}
+
+/// Lecteur d'archive CPK IEVR complet.
+pub struct CpkReader {
+    pub entries: Vec<CpkEntry>,
+    pub file_key: Option<u32>,
+    pub is_encrypted: bool,
+}
+
+impl CpkReader {
+    /// Initialise et parse l'archive CPK (détecte le chiffrement à la volée).
+    pub fn new(data: &[u8], filename: &str) -> Result<Self, FormatError> {
+        let mut is_encrypted = false;
+        let mut file_key = None;
+
+        if data.len() < 16 {
+            return Err(FormatError::TooShort { got: data.len(), need: 16 });
+        }
+
+        let magic = u32::from_le_bytes(data[0..4].try_into().unwrap());
+        if magic != 0x204B5043 { // "CPK " en LE
+            let name_with_appid = alloc::format!("002AB8F4-{}", filename);
+            let key_with_appid = key_from_filename(&name_with_appid);
+            let key_without = key_from_filename(filename);
+
+            let try_key = |k: u32| -> bool {
+                let mut test = [0u8; 4];
+                test.copy_from_slice(&data[0..4]);
+                decrypt_block(&mut test, 0, k);
+                let dm = u32::from_le_bytes(test);
+                dm == 0x204B5043
+            };
+
+            if try_key(key_with_appid) {
+                is_encrypted = true;
+                file_key = Some(key_with_appid);
+            } else if try_key(key_without) {
+                is_encrypted = true;
+                file_key = Some(key_without);
+            } else {
+                return Err(FormatError::BadMagic { format: "CPK (non dechiffrable)" });
+            }
+        }
+
+        let read_region = |offset: usize, size: usize| -> Result<Vec<u8>, FormatError> {
+            if offset + size > data.len() {
+                return Err(FormatError::TooShort { got: data.len(), need: offset + size });
+            }
+            let mut region = data[offset..offset + size].to_vec();
+            if is_encrypted {
+                if let Some(k) = file_key {
+                    decrypt_block(&mut region, offset as u64, k);
+                }
+            }
+            Ok(region)
+        };
+
+        let header_container = read_region(0, 16)?;
+        let header_table_size = u32::from_le_bytes(header_container[8..12].try_into().unwrap()) as usize;
+        let header_total = 16 + header_table_size;
+
+        let header_data = read_region(0, header_total)?;
+        let header_utf = parse_table_container(&header_data, 0)?;
+
+        let toc_offset = header_utf.get_i64(0, "TocOffset").unwrap_or(-1);
+        let mut content_offset = header_utf.get_i64(0, "ContentOffset").unwrap_or(-1);
+        if content_offset < 0 || toc_offset < content_offset {
+            content_offset = toc_offset;
+        }
+
+        if toc_offset < 0 {
+            return Err(FormatError::Corrupt("TocOffset introuvable"));
+        }
+
+        let toc_abs = toc_offset as usize;
+        let toc_container = read_region(toc_abs, 16)?;
+        let toc_table_size = u32::from_le_bytes(toc_container[8..12].try_into().unwrap()) as usize;
+        let toc_total = 16 + toc_table_size;
+
+        let toc_data = read_region(toc_abs, toc_total)?;
+        let toc_utf = parse_table_container(&toc_data, 0)?;
+
+        let mut entries = Vec::with_capacity(toc_utf.row_count());
+        for i in 0..toc_utf.row_count() {
+            let fname = toc_utf.get_str(i, "FileName").unwrap_or("").to_owned();
+            let dirname = toc_utf.get_str(i, "DirName").unwrap_or("").to_owned();
+            let file_off = toc_utf.get_i64(i, "FileOffset").unwrap_or(0);
+            let file_size = toc_utf.get_i64(i, "FileSize").unwrap_or(0) as u64;
+            let extract_size = toc_utf.get_i64(i, "ExtractSize").unwrap_or(0) as u64;
+            let offset = (file_off + content_offset) as u64;
+            let is_compressed = extract_size != file_size && file_size > 0;
+
+            entries.push(CpkEntry {
+                filename: fname,
+                directory: dirname,
+                offset,
+                size: file_size,
+                extract_size,
+                is_compressed,
+            });
+        }
+
+        Ok(CpkReader {
+            entries,
+            file_key,
+            is_encrypted,
+        })
+    }
+
+    /// Extrait et décompresse un fichier depuis le CPK.
+    pub fn extract(&self, data: &[u8], entry: &CpkEntry) -> Result<Vec<u8>, FormatError> {
+        if entry.size == 0 {
+            return Ok(Vec::new());
+        }
+        let offset = entry.offset as usize;
+        let size = entry.size as usize;
+        if offset + size > data.len() {
+            return Err(FormatError::TooShort { got: data.len(), need: offset + size });
+        }
+        let mut raw = data[offset..offset + size].to_vec();
+        if self.is_encrypted {
+            if let Some(k) = self.file_key {
+                decrypt_block(&mut raw, offset as u64, k);
+            }
+        }
+
+        if entry.is_compressed && crate::detect(&raw) == crate::FileFormat::CriLayla {
+            let decompressed = crate::crilayla::decompress(&raw)
+                .map_err(|_| FormatError::Corrupt("echec de decompression CRILAYLA"))?;
+            Ok(decompressed)
+        } else {
+            Ok(raw)
+        }
+    }
+}
+
+
 // ---------------------------------------------------------------------------
 // Helpers internes (pas d'unsafe, no_std-friendly)
 // ---------------------------------------------------------------------------
@@ -1068,5 +1254,19 @@ mod tests {
         assert_eq!(CRC32_TABLE[0], 0x0000_0000);
         assert_eq!(CRC32_TABLE[1], 0x7707_3096);
         assert_eq!(CRC32_TABLE[255], 0x2D02_EF8D);
+    }
+
+    #[test]
+    fn test_decrypt_table() {
+        let mut data = [0x5F ^ 0x40, 0x5F ^ 0x40]; // décrypté donne '@', etc.
+        decrypt_table(&mut data);
+        assert_eq!(data[0], 0x40);
+    }
+
+    #[test]
+    fn test_cpk_reader_invalid_data() {
+        let bad_data = [0u8; 10];
+        let reader = CpkReader::new(&bad_data, "test.cpk");
+        assert!(reader.is_err());
     }
 }

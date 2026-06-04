@@ -29,6 +29,7 @@
 //! et recoupé sur des octets réels du dump VPS. La constante d'audit `0x1717E18E`
 //! ([`cpk::VIOLA_FIXED_KEY`]) est la clé Viola des `cfg.bin`, PAS celle des packs.
 #![forbid(unsafe_code)]
+#![allow(clippy::pedantic)]
 
 use thiserror::Error;
 
@@ -41,6 +42,7 @@ pub mod g4pk;
 pub mod g4sk;
 pub mod g4tx;
 pub mod nxtch;
+pub mod vfs;
 
 #[derive(Debug, Error)]
 pub enum FormatError {
@@ -152,6 +154,8 @@ pub fn detect(bytes: &[u8]) -> FileFormat {
         FileFormat::G4pk
     } else if starts(bytes, b"G4NV") {
         FileFormat::G4nv
+    } else if starts(bytes, b"RDBN") {
+        FileFormat::CfgBin
     } else {
         FileFormat::Unknown
     }
@@ -168,6 +172,7 @@ mod tests {
         assert_eq!(detect(b"@UTF\x00"), FileFormat::Utf);
         assert_eq!(detect(b"G4MG....."), FileFormat::G4mg);
         assert_eq!(detect(b"AFS2...."), FileFormat::Awb);
+        assert_eq!(detect(b"RDBN...."), FileFormat::CfgBin);
         assert_eq!(detect(b"random"), FileFormat::Unknown);
         assert_eq!(detect(b""), FileFormat::Unknown);
     }

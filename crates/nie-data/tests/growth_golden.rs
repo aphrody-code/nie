@@ -1,5 +1,6 @@
+#![allow(clippy::pedantic)]
 //! Tests golden `growth` — tables réelles tirées de :
-//! `/home/ubuntu/data/all-gamedata/growth_tables.json` (lv1=36, lv30=144, main=48, sub=48).
+//! `/home/ubuntu/niers/data/all-gamedata/growth_tables.json` (lv1=36, lv30=144, main=48, sub=48).
 //!
 //! Échantillons : Lv1[0] mainPos=2 sub=3 → Kc=13,Cr=14,Tc=12,Pr=10,Ps=10,Ag=9,It=11 ;
 //! Lv30[0] charaRank=5 → Kc_30=106… ; Main[0] charaRank=5 → Kc_50=164,Kc_99=261.

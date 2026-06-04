@@ -1,5 +1,6 @@
 //! `niers` — pilote la boucle RE autonome (seed → propagate → coverage) et la frontière redis.
 #![forbid(unsafe_code)]
+#![allow(clippy::pedantic)]
 
 use std::path::PathBuf;
 

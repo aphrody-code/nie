@@ -4,7 +4,7 @@
 //!
 //! - Parser TS : `packages/inagle/src/parsers/item-config.ts` (`CATEGORY_MAP` l.51-72,
 //!   `traverse` l.155-241).
-//! - Données : `/home/ubuntu/data/common/gamedata/item/item_config_1.03.65.00.cfg.bin.json`.
+//! - Données : `/home/ubuntu/niers/data/common/gamedata/item/item_config_1.03.65.00.cfg.bin.json`.
 //!
 //! Mapping de variables (port tel quel) : var0 = `itemId`, var2 = `nameId`, var3 = `descId`,
 //! var4 = `price`, var5/var6 = stats (shoes/misanga/accessory/special/fashion), var11 =

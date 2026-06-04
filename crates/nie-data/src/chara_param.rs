@@ -4,7 +4,7 @@
 //!
 //! - Parser TS : `packages/inagle/src/parsers/chara-param.ts` (`parseParamNode` l.71-152,
 //!   helpers `positionIdToCode`/`elementIdToNames` l.221-260).
-//! - Données : `/home/ubuntu/data/common/gamedata/character/chara_param_1.03.66.00.cfg.bin.json`.
+//! - Données : `/home/ubuntu/niers/data/common/gamedata/character/chara_param_1.03.66.00.cfg.bin.json`.
 //!
 //! Noeud vérifié `CHARA_PARAM_INFO_1` (43 vars Int) :
 //! `[-357386801, 1128709053, 4, 2, 4, 1, 11, 1, 0, 3, 0, 604761586, 1, 598373713, 13,

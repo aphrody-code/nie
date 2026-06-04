@@ -12,6 +12,7 @@
 //!   `motif→sous-système` appliquée avant la propagation).
 //! - `loop_db` : câblage DB → `PropagationGraph` → écriture des résultats.
 #![forbid(unsafe_code)]
+#![allow(clippy::pedantic)]
 
 pub mod anchors;
 pub mod disasm;

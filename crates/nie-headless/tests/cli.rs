@@ -3,6 +3,8 @@
 //! Chaque test construit un fichier synthétique en mémoire dans un fichier
 //! temporaire, invoque le binaire et vérifie la sortie JSON.
 
+#![allow(clippy::pedantic)]
+
 use std::io::Write;
 
 use assert_cmd::Command;

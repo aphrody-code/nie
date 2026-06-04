@@ -274,7 +274,7 @@ mod tests {
         // lv 15 = moitié du segment 1-30
         // lerp(10, 30, 14/29) ≈ floor(10 + 20 * 0.4828) ≈ floor(19.65) = 19
         let result = calculate_single_stat(15, 10, 30, 50, 80);
-        assert!(result >= 18 && result <= 20, "attendu ≈19, obtenu {result}");
+        assert!((18..=20).contains(&result), "attendu ≈19, obtenu {result}");
     }
 
     #[test]

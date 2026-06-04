@@ -100,7 +100,7 @@ mod tests {
     #[test]
     fn signe_vers_non_signe_comme_js() {
         // -357386801 >>> 0 === 3937580495 === 0xEAB2B5CF (var0 de CHARA_PARAM_INFO_1, dump réel).
-        // Source : /home/ubuntu/data/common/gamedata/character/chara_param_1.03.66.00.cfg.bin.json
+        // Source : /home/ubuntu/niers/data/common/gamedata/character/chara_param_1.03.66.00.cfg.bin.json
         assert_eq!(HashId::from_signed(-357386801).get(), 3_937_580_495);
         assert_eq!(HashId::from_signed(-357386801).to_hex(), "0xEAB2B5CF");
     }
