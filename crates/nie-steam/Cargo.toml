@@ -13,7 +13,7 @@ workspace = true
 [dependencies]
 steamroom = "0.2"
 steamroom-client = "0.2"
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs", "sync"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs", "sync", "time"] }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
@@ -21,6 +21,15 @@ anyhow.workspace = true
 tracing.workspace = true
 regex = "1"
 base64 = "0.22"
+# Nécessaire pour TokenStore (default_path) et decompress_if_zipped (manifest CDN).
+dirs-next = "2"
+zip = "2"
+clap = { version = "4", features = ["derive", "color", "env"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [dev-dependencies]
 tempfile = "3"
+
+[[bin]]
+name = "nie-steam"
+path = "src/bin/nie_steam.rs"
