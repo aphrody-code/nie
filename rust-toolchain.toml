@@ -1,0 +1,8 @@
+# Aligné aphrody : nightly épinglé byte-exact. Présent sur ce VPS sous
+# ~/.rustup/toolchains/nightly-2026-05-17-x86_64-unknown-linux-gnu (rustup absent →
+# invoquer son cargo directement pour le natif). Le wasm32 std n'est dispo que dans
+# la toolchain `nightly-x86_64-unknown-linux-gnu` → l'utiliser pour `--target wasm32`.
+[toolchain]
+channel = "nightly-2026-05-17"
+components = ["rustfmt", "clippy", "rust-src", "rust-analyzer"]
+targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]

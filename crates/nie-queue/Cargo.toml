@@ -1,0 +1,16 @@
+[package]
+name = "nie-queue"
+description = "Frontière BFS dédupliquée (redis) de la boucle RE niers : workers parallèles sur les fonctions non résolues"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+redis.workspace = true
+thiserror.workspace = true
+tracing.workspace = true

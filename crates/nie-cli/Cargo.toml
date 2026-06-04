@@ -1,0 +1,27 @@
+[package]
+name = "nie-cli"
+description = "Binaire `niers` : pilote la boucle RE (seed, propagate, coverage) et la frontière redis"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "niers"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+nie-index.workspace = true
+nie-seed.workspace = true
+nie-queue.workspace = true
+nie-re.workspace = true
+clap.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+sha2.workspace = true
+hex.workspace = true

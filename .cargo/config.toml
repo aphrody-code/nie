@@ -1,0 +1,14 @@
+# Conventions build aphrody.
+[build]
+# v0 mangling = symboles démanglés lisibles dans les stacktraces / outils RE.
+rustflags = ["-C", "symbol-mangling-version=v0"]
+
+# Cible wasm : features WASM standardisées (phase 4) + SIMD128 (2-4x sur le vectoriel).
+[target.wasm32-unknown-unknown]
+rustflags = [
+  "-C", "symbol-mangling-version=v0",
+  "-C", "target-feature=+bulk-memory,+mutable-globals,+nontrapping-fptoint,+sign-ext,+simd128",
+]
+
+[alias]
+xt = "nextest run --workspace --all-features"
