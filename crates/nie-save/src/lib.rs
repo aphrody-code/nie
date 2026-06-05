@@ -540,6 +540,151 @@ fn crc32_of(data: &[u8]) -> u32 {
 }
 
 // ---------------------------------------------------------------------------
+// Roster : personnages possédés avec résolution optionnelle des noms
+// ---------------------------------------------------------------------------
+
+/// Référence à un personnage possédé par le joueur.
+///
+/// Porte l'identifiant brut extrait de la save (`id` = clé primaire `inagle_characters`)
+/// et, optionnellement, le nom résolu côté consommateur (azalee / wasm-consumer).
+///
+/// Le crate `nie-save` ne lit pas le miroir SQLite : il renvoie les `CharaId` bruts.
+/// La résolution `id → name_fr` est effectuée en dehors du crate (page azalee ou
+/// via un manifeste JSON injecté au moment du build).
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct CharaRef {
+    /// Identifiant brut u32 LE (= colonne `id` de `inagle_characters`).
+    /// Ex. `0xF5E1E7CD` = Max Scara.
+    pub id: body::autosave_roster::CharaId,
+
+    /// Nom résolu facultatif (ex. `"Max Scara"`).
+    /// `None` si la résolution n'a pas été effectuée ou si l'id est inconnu du miroir.
+    pub name: Option<String>,
+}
+
+impl CharaRef {
+    /// Construit un `CharaRef` depuis un `CharaId` brut, sans résolution de nom.
+    #[must_use]
+    pub fn from_id(id: body::autosave_roster::CharaId) -> Self {
+        CharaRef { id, name: None }
+    }
+
+    /// Construit un `CharaRef` avec nom résolu.
+    #[must_use]
+    pub fn with_name(id: body::autosave_roster::CharaId, name: impl Into<String>) -> Self {
+        CharaRef { id, name: Some(name.into()) }
+    }
+}
+
+/// Roster complet du joueur (personnages possédés).
+///
+/// ## Sources
+///
+/// Extrait du blob AUTOSAVE (sous-blob EEFF 0x0510, TLV hash `0xBA162C11`).
+/// Validation forte (VPS 2026-06-05) : 4484 ids uniques, 100% présents dans
+/// `inagle_characters`. Les 50 doublons correspondent à des personnages en double
+/// slot dans la save (normal côté moteur jeu).
+///
+/// ## Résolution des noms
+///
+/// `nie-save` renvoie les ids bruts (`CharaId`). La résolution vers `name_fr`
+/// se fait côté consommateur via le miroir SQLite azalee ou un manifeste JSON.
+/// Utiliser [`Roster::resolve`] pour injecter les noms résolus.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Roster {
+    /// Personnages possédés (slots non-nuls du tableau roster).
+    ///
+    /// Ordre de stockage dans la save préservé. Taille typique ≈ 4534 sur la save VPS.
+    /// Maximum théorique = 6000.
+    pub owned: Vec<CharaRef>,
+
+    /// Nombre total de slots du tableau roster (incluant les vides).
+    /// Toujours 6000 si le TLV de roster est trouvé, 0 sinon.
+    pub total_slots: usize,
+}
+
+impl Roster {
+    /// Résout les noms en appliquant un mapping `id_raw → name_fr`.
+    ///
+    /// `resolver` est une closure reçue côté consommateur (ex. lookup dans le miroir SQLite).
+    /// Si elle retourne `None` pour un id, le champ `name` reste `None`.
+    ///
+    /// ## Exemple
+    ///
+    /// ```rust,no_run
+    /// # use nie_save::Roster;
+    /// # use std::collections::HashMap;
+    /// # let mut roster = Roster { owned: vec![], total_slots: 0 };
+    /// let noms: HashMap<u32, &str> = HashMap::new(); // remplir depuis le miroir
+    /// roster.resolve(|id| noms.get(&id).map(|s| s.to_string()));
+    /// ```
+    pub fn resolve<F>(&mut self, resolver: F)
+    where
+        F: Fn(u32) -> Option<String>,
+    {
+        for entry in &mut self.owned {
+            if entry.name.is_none() {
+                entry.name = resolver(entry.id.raw());
+            }
+        }
+    }
+
+    /// Nombre de personnages possédés (slots non-nuls).
+    #[must_use]
+    pub fn count(&self) -> usize {
+        self.owned.len()
+    }
+
+    /// Itère sur les ids bruts possédés (sans nom).
+    #[must_use]
+    pub fn ids(&self) -> impl Iterator<Item = body::autosave_roster::CharaId> + '_ {
+        self.owned.iter().map(|r| r.id)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Team : équipe active du joueur
+// ---------------------------------------------------------------------------
+
+/// Équipe active du joueur.
+///
+/// ## Statut anti-hallucination (2026-06-05, VPS)
+///
+/// La structure de l'équipe dans le blob AUTOSAVE est **OPAQUE**.
+/// L'investigation complète montre que :
+/// - Les 30 slots CharaParam (0x728..0x5C70) sont tous vides dans cette save.
+/// - Le tableau roster (6000 × 4 octets) est présent deux fois dans le body mais
+///   ne contient pas la formation d'équipe de façon exploitable.
+/// - La section main_data (0x5CD2..0xBD0593, ~12 Mo) contient les données d'équipe
+///   sous forme de SF-TLV entrelacé — format non encore décodé.
+///
+/// Ce struct est prévu pour extension future. Actuellement vide.
+/// La page azalee affichera les informations d'équipe via Steam + EA Juno à la place.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Team {
+    /// Personnages de l'équipe active.
+    ///
+    /// **Toujours vide dans la version actuelle** : la section équipe du body AUTOSAVE
+    /// est OPAQUE (non décodée). Sera peuplé lorsque le format sera reversé.
+    pub members: Vec<CharaRef>,
+
+    /// Indique si l'équipe a été extraite avec succès.
+    /// `false` = section OPAQUE non décodée (état normal actuel).
+    pub resolved: bool,
+}
+
+impl Team {
+    /// Construit une `Team` non résolue (état initial — section OPAQUE).
+    #[must_use]
+    pub fn unresolved() -> Self {
+        Team { members: Vec::new(), resolved: false }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // SaveSummary : agrégat des champs parsés (headersave + autosave)
 // ---------------------------------------------------------------------------
 
@@ -547,7 +692,9 @@ fn crc32_of(data: &[u8]) -> u32 {
 /// extraits du HEADERSAVE et de l'AUTOSAVE.
 ///
 /// Seuls les champs **validés sur octets réels** sont exposés. Les régions
-/// OPAQUE (argent, équipe, progression, inventaire) ne sont PAS représentées.
+/// OPAQUE (argent, inventaire) ne sont PAS représentées.
+/// L'équipe active est exposée via [`SaveSummary::team`] mais reste OPAQUE
+/// (section main_data non décodée — voir [`Team`]).
 ///
 /// ## Utilisation
 ///
@@ -557,7 +704,8 @@ fn crc32_of(data: &[u8]) -> u32 {
 /// # let filename = "002AB8F4-USERDATALIVE";
 /// let container = parse(bytes, filename).expect("parsing");
 /// let summary = summarize(&container);
-/// println!("joueur={} niveau={}", summary.player_name, summary.level_str);
+/// println!("joueur={} niveau={} possede={} persos",
+///     summary.player_name, summary.level_str, summary.roster.count());
 /// ```
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -593,22 +741,33 @@ pub struct SaveSummary {
     /// Nombre maximal de slots (HEADERSAVE). `None` si absent.
     pub max_slots: Option<u32>,
 
-    /// Identifiants des personnages possédés (depuis le roster AUTOSAVE,
-    /// blob imbriqué EEFF 0x0510, TLV hash `0xBA162C11`).
+    /// Roster complet du joueur (personnages possédés).
     ///
-    /// Chaque `CharaId` correspond à la colonne `id` de `inagle_characters`
-    /// (miroir SQLite azalee). Vecteur vide si le blob AUTOSAVE est absent.
-    ///
-    /// Validation forte (VPS 2026-06-05) : 4534 ids non-nuls, tous présents
-    /// dans `inagle_characters`. Aucun faux positif.
-    pub roster: Vec<body::autosave_roster::CharaId>,
+    /// Validation forte (VPS 2026-06-05) : 4534 ids (4484 uniques),
+    /// 100% matchent `inagle_characters`. Résolution des noms non effectuée
+    /// par défaut (utiliser [`Roster::resolve`] côté consommateur).
+    pub roster: Roster,
 
-    /// Nombre total de slots du roster (incluant les vides).
-    /// Typiquement 6000 sur une save réelle. 0 si AUTOSAVE absent.
-    pub roster_slots: usize,
+    /// Équipe active du joueur.
+    ///
+    /// **Actuellement non résolue** : la section équipe du body AUTOSAVE
+    /// est OPAQUE. `team.resolved == false`, `team.members` vide.
+    pub team: Team,
 
     /// Scalaires AUTOSAVE (datetime + playtime), `None` si non parsables.
     pub autosave_scalars: Option<body::autosave_roster::AutosaveScalars>,
+
+    // Champs legacy (rétrocompatibilité — pointent sur roster.owned)
+    // NE PAS utiliser dans le nouveau code ; préférer summary.roster.owned.
+
+    /// DEPRECATED — utiliser `summary.roster.owned` à la place.
+    /// Conservé pour rétrocompatibilité avec le code existant (page /save azalee).
+    #[doc(hidden)]
+    pub roster_ids: Vec<body::autosave_roster::CharaId>,
+
+    /// DEPRECATED — utiliser `summary.roster.total_slots` à la place.
+    #[doc(hidden)]
+    pub roster_slots: usize,
 }
 
 /// Construit un [`SaveSummary`] depuis un [`LivesContainer`] déchiffré.
@@ -629,7 +788,7 @@ pub struct SaveSummary {
 /// let summary = summarize(&container);
 /// assert_eq!(summary.player_name, "AstraJinWoo");
 /// assert_eq!(summary.level_str, "218");
-/// assert!(!summary.roster.is_empty());
+/// assert!(summary.roster.count() > 0);
 /// ```
 #[must_use]
 pub fn summarize(container: &LivesContainer) -> SaveSummary {
@@ -660,13 +819,21 @@ pub fn summarize(container: &LivesContainer) -> SaveSummary {
         .blob_by_subtype(BlobSubtype::Autosave)
         .and_then(|blob| parse_autosave_roster(&blob.body).ok());
 
-    let (roster, roster_slots, autosave_scalars) = match autosave {
+    let (raw_ids, total_slots, autosave_scalars) = match autosave {
         Some(r) => {
             let sc = r.scalars;
             (r.owned, r.roster_slots, sc)
         }
         None => (Vec::new(), 0, None),
     };
+
+    // Construire le Roster depuis les CharaId bruts (sans résolution de noms).
+    let owned: Vec<CharaRef> = raw_ids.iter().map(|&id| CharaRef::from_id(id)).collect();
+    let roster_ids_legacy = raw_ids.clone();
+    let roster = Roster { owned, total_slots };
+
+    // Équipe active : section OPAQUE non décodée — Team vide.
+    let team = Team::unresolved();
 
     // Temps de jeu : scalaire AUTOSAVE prioritaire, sinon slot HEADERSAVE.
     let playtime_secs = autosave_scalars
@@ -684,8 +851,11 @@ pub fn summarize(container: &LivesContainer) -> SaveSummary {
         used_slots,
         max_slots: max_slots_v,
         roster,
-        roster_slots,
+        team,
         autosave_scalars,
+        // Legacy
+        roster_ids: roster_ids_legacy,
+        roster_slots: total_slots,
     }
 }
 
@@ -992,5 +1162,136 @@ mod tests {
         buf[8] = 10;   // max_slots=10
         buf[12] = 0;   // used_slots=0
         let _ = parse_headersave(&buf);
+    }
+
+    // -----------------------------------------------------------------------
+    // Tests Roster / CharaRef / Team
+    // -----------------------------------------------------------------------
+
+    /// CharaRef::from_id crée une entrée sans nom.
+    #[test]
+    fn chara_ref_from_id_sans_nom() {
+        use crate::body::autosave_roster::CharaId;
+        let r = CharaRef::from_id(CharaId(0xF5E1_E7CD));
+        assert_eq!(r.id.raw(), 0xF5E1_E7CD);
+        assert!(r.name.is_none());
+    }
+
+    /// CharaRef::with_name crée une entrée avec nom.
+    #[test]
+    fn chara_ref_with_name() {
+        use crate::body::autosave_roster::CharaId;
+        let r = CharaRef::with_name(CharaId(0xF5E1_E7CD), "Max Scara");
+        assert_eq!(r.name.as_deref(), Some("Max Scara"));
+    }
+
+    /// Roster::resolve injecte les noms via une closure.
+    #[test]
+    fn roster_resolve_injecte_noms() {
+        use crate::body::autosave_roster::CharaId;
+        let mut roster = Roster {
+            owned: vec![
+                CharaRef::from_id(CharaId(0xF5E1_E7CD)),
+                CharaRef::from_id(CharaId(0x1234_5678)),
+            ],
+            total_slots: 6000,
+        };
+        roster.resolve(|id| {
+            if id == 0xF5E1_E7CD { Some("Max Scara".to_string()) } else { None }
+        });
+        assert_eq!(roster.owned[0].name.as_deref(), Some("Max Scara"));
+        assert!(roster.owned[1].name.is_none(), "id inconnu → None");
+        assert_eq!(roster.count(), 2);
+    }
+
+    /// Roster::ids itère sur les CharaId bruts.
+    #[test]
+    fn roster_ids_itere_sur_bruts() {
+        use crate::body::autosave_roster::CharaId;
+        let roster = Roster {
+            owned: vec![
+                CharaRef::from_id(CharaId(0xAAAA_AAAA)),
+                CharaRef::from_id(CharaId(0xBBBB_BBBB)),
+            ],
+            total_slots: 2,
+        };
+        let ids: Vec<u32> = roster.ids().map(|c| c.raw()).collect();
+        assert_eq!(ids, vec![0xAAAA_AAAA, 0xBBBB_BBBB]);
+    }
+
+    /// Team::unresolved produit une équipe vide non résolue.
+    #[test]
+    fn team_unresolved_est_vide() {
+        let team = Team::unresolved();
+        assert!(!team.resolved, "team.resolved doit être false");
+        assert!(team.members.is_empty(), "team.members doit être vide");
+    }
+
+    /// summarize sur un conteneur sans AUTOSAVE produit un Roster vide.
+    #[test]
+    fn summarize_sans_autosave_roster_vide() {
+        let plain = build_synthetic_lives(); // blob SYSTEM uniquement
+        let enc = encrypt_buf(&plain, FAKE_SLOT_NAME);
+        let container = parse(&enc, FAKE_SLOT_NAME).unwrap();
+        let summary = summarize(&container);
+        assert_eq!(summary.roster.count(), 0);
+        assert_eq!(summary.roster.total_slots, 0);
+        assert!(!summary.team.resolved);
+    }
+
+    /// Validation roster réel : count + unicité + ancres (VPS uniquement).
+    ///
+    /// Validation croisée vs inagle_characters documentée :
+    /// - 4534 ids extraits, 4484 uniques (50 doublons normaux côté moteur jeu)
+    /// - 4484/4484 ids uniques matchent `inagle_characters` dans le miroir SQLite azalee
+    ///   (validé manuellement par script Python, 2026-06-05)
+    ///
+    /// Nécessite la save réelle du VPS. Skip si absent.
+    #[test]
+    #[cfg_attr(not(feature = "real-saves"), ignore)]
+    fn integration_roster_ancres_et_unicite() {
+        use std::collections::HashSet;
+
+        let save_path = "/home/ubuntu/niers/data/saves/002AB8F4-USERDATALIVE";
+        if !std::path::Path::new(save_path).exists() {
+            eprintln!("SKIP: save absente");
+            return;
+        }
+
+        let data = std::fs::read(save_path).expect("lecture save");
+        let container = parse(&data, "002AB8F4-USERDATALIVE").expect("parse");
+        let summary = summarize(&container);
+
+        // Ancres validées (VPS 2026-06-05)
+        assert_eq!(summary.roster.count(), 4534, "roster_count=4534");
+        assert_eq!(summary.roster.total_slots, 6000, "roster_total_slots=6000");
+
+        let unique_ids: HashSet<u32> = summary.roster.ids().map(|c| c.raw()).collect();
+        assert_eq!(unique_ids.len(), 4484, "unique_ids=4484");
+
+        // Ancre forte : l'id 0xF5E1E7CD (Max Scara) doit être présent
+        assert!(
+            unique_ids.contains(&0xF5E1_E7CD),
+            "id ancre 0xF5E1E7CD (Max Scara) absent du roster"
+        );
+
+        // Team : non résolue (section OPAQUE)
+        assert!(!summary.team.resolved, "team.resolved doit être false");
+        assert!(summary.team.members.is_empty());
+
+        // Champs HEADERSAVE toujours cohérents
+        assert_eq!(summary.player_name, "AstraJinWoo");
+        assert_eq!(summary.level_str, "218");
+
+        // Compatibilité legacy : roster_ids/roster_slots toujours peuplés
+        assert_eq!(summary.roster_ids.len(), 4534, "legacy roster_ids");
+        assert_eq!(summary.roster_slots, 6000, "legacy roster_slots");
+
+        eprintln!(
+            "roster_ancres ok: count={} unique={} first_id=0x{:08X}",
+            summary.roster.count(),
+            unique_ids.len(),
+            summary.roster.owned[0].id.raw(),
+        );
     }
 }
