@@ -754,6 +754,10 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         }
     }
 
+    // Strippe la query string (`?v=3` cache-bust d'azalee) : le code modèle vit dans le
+    // path seul. Sans ça, `strip_suffix(".glb")` échoue sur `c….glb?v=3` -> "code invalide".
+    let path = path.split('?').next().unwrap_or(path);
+
     // Routing.
     if path == "/health" {
         respond_text(&mut stream, 200, "OK", "ok");
