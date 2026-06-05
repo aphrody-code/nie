@@ -48,7 +48,13 @@ en Rust ; iecode/inagle ne sont pas des dépendances permanentes, ce sont des v�
 - **FAIT (`448bc9c`)** : migration du cœur game-data de l'azalee CLI TS → **13 sous-commandes `niers wiki`** (chara/skill/item/team/compare/search/db/random-team/team-builder/status/redis/audit/dialogue), lecture du miroir SQLite via `rusqlite` + calcul `nie-core`/`nie-data` + rendu. (push/sync/rag/translate restent TS.)
 
 ### 3quinquies. Moteur décompilé — `nie-engine` (portage des fonctions C de nie.exe)
-- **EN COURS** : portage massif des **60 fonctions C décompilées** (Ghidra, `refs/iecode-re/research/ghidra-export/decompiled/*.c`) → Rust par sous-système (render/animation/audio/physics-physx/menu/network/scripting/cfgbin/cpk/g4/app). Fan-out parallèle, ~15k LOC. C'est le gros de la réimplémentation moteur.
+- **FAIT (socle)** : portage des **60 fonctions C décompilées** (Ghidra) → Rust, **11 modules / ~15k LOC** (render/animation/audio/physics-physx/menu/network/scripting/cfgbin/cpk/g4/app), `forbid(unsafe)`, workspace build vert, tests par module. Reste : étendre vers une boucle moteur réelle + résoudre les `// EXTERN:` (refs vers fonctions non encore portées).
+
+### 3sexies. Assemblage 3D — `nie-formats/assemble.rs` (modèle complet joueur)
+- **PROTOTYPE_OK** : fusion **corps + face + uniforme** en un GLB. Matching reversé : face = GLB de l'internalCode, corps = mesh PARTAGÉ `base_*` (par type_idx, 99% couverts), uniforme = team→kit→`ModelIdCrc` (uniform_config). Merge validé (Mark 357v corps + 1214v face = 1571v). Reste opaque : CRI ResourceManager (CRC→fichier CPK), skinning, textures g4tx.
+
+### 3septies. Données Steam — `better-auth-steam` (côté rg, alimenté par la RE nie.exe)
+- Constantes Steam extraites de nie.exe (app 2799860, 27 interfaces Steamworks, 52 succès `ACHIEVEMENT_%04u`, EncryptedAppTicket/Cloud/DLC) + manifeste 230 succès→noms. Cf. mémoire `project-steam-integration` (le plugin vit dans rg, pas niers).
 
 ### 4. Runtime + portabilité — `nie-headless`, `nie-wasm`
 - **FAIT** : runner CLI headless ; surface wasm-bindgen (detect/crilayla/@UTF) sur `wasm32-unknown-unknown`.
