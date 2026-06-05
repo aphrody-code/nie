@@ -18,6 +18,9 @@ serde = { workspace = true, optional = true }
 [features]
 default = []
 serde = ["dep:serde", "nie-formats/serde"]
+# Active le test d'intégration qui lit les saves réelles du VPS (chemin data/saves/).
+# Désactivé par défaut (CI n'a pas accès aux fichiers).
+real-saves = []
 
 [dev-dependencies]
 tempfile.workspace = true

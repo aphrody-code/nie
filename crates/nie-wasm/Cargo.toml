@@ -22,6 +22,7 @@ nie-formats = { workspace = true, features = ["serde"] }
 # `[workspace.dependencies]` racine.
 nie-core = { path = "../nie-core", features = ["serde"] }
 nie-data = { path = "../nie-data", features = ["serde"] }
+nie-save = { workspace = true, features = ["serde"] }
 serde_json.workspace = true
 
 # wasm-bindgen épinglé à la même version qu'aphrody (=0.2.121).

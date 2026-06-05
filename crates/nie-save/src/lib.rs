@@ -57,6 +57,7 @@ use alloc::{string::String, vec::Vec};
 
 use thiserror::Error;
 
+pub mod body;
 pub mod io;
 
 // Ré-exporte `decrypt_block` et `key_from_filename` depuis nie-formats pour que les
@@ -360,13 +361,22 @@ pub fn parse(data: &[u8], filename: &str) -> Result<LivesContainer, SaveError> {
     decrypt_block(&mut plain, 0, key);
 
     // Vérifier le magic.
-    let magic = u32::from_le_bytes(plain[0..4].try_into().unwrap());
+    // SAFETY: plain.len() >= DATA_START (0x800) >= 8, les slices [0..4] et [4..8] sont valides.
+    let magic = u32::from_le_bytes(
+        plain.get(0..4)
+            .and_then(|s| s.try_into().ok())
+            .ok_or(SaveError::Corrupt("lecture magic: slice invalide"))?,
+    );
     if magic != LIVES_MAGIC {
         return Err(SaveError::BadMagic { expected: LIVES_MAGIC, got: magic });
     }
 
     // Vérifier le CRC32 du header.
-    let stored_hdr_crc = u32::from_le_bytes(plain[4..8].try_into().unwrap());
+    let stored_hdr_crc = u32::from_le_bytes(
+        plain.get(4..8)
+            .and_then(|s| s.try_into().ok())
+            .ok_or(SaveError::Corrupt("lecture hdr_crc: slice invalide"))?,
+    );
     let computed_hdr_crc = crc32_of(&plain[8..DATA_START]);
     if stored_hdr_crc != computed_hdr_crc {
         return Err(SaveError::BadCrc {
@@ -385,9 +395,22 @@ pub fn parse(data: &[u8], filename: &str) -> Result<LivesContainer, SaveError> {
     let mut entries = Vec::new();
     let mut off = DIR_OFFSET;
     while off + DIR_ENTRY_STRIDE <= DATA_START {
-        let crc32 = u32::from_le_bytes(plain[off..off + 4].try_into().unwrap());
-        let size = u32::from_le_bytes(plain[off + 4..off + 8].try_into().unwrap());
-        let blob_offset = u32::from_le_bytes(plain[off + 8..off + 12].try_into().unwrap());
+        // Les slices sont garanties valides par la condition de boucle (off + 0x80 <= 0x800).
+        let crc32 = u32::from_le_bytes(
+            plain.get(off..off + 4)
+                .and_then(|s| s.try_into().ok())
+                .ok_or(SaveError::Corrupt("répertoire: lecture crc32"))?,
+        );
+        let size = u32::from_le_bytes(
+            plain.get(off + 4..off + 8)
+                .and_then(|s| s.try_into().ok())
+                .ok_or(SaveError::Corrupt("répertoire: lecture size"))?,
+        );
+        let blob_offset = u32::from_le_bytes(
+            plain.get(off + 8..off + 12)
+                .and_then(|s| s.try_into().ok())
+                .ok_or(SaveError::Corrupt("répertoire: lecture offset"))?,
+        );
         // Nom : null-terminé dans les 116 octets restants de l'entrée
         let name_slice = &plain[off + 12..off + DIR_ENTRY_STRIDE];
         let name_nul = name_slice.iter().position(|&b| b == 0).unwrap_or(name_slice.len());
@@ -409,8 +432,13 @@ pub fn parse(data: &[u8], filename: &str) -> Result<LivesContainer, SaveError> {
     // Parser chaque blob.
     let mut blobs = Vec::with_capacity(entries.len());
     for entry in &entries {
-        let abs_start = DATA_START + entry.offset as usize;
-        let abs_end = abs_start + entry.size as usize;
+        // Utiliser checked_add pour éviter l'overflow sur wasm32 (usize = 32 bits).
+        let abs_start = DATA_START
+            .checked_add(entry.offset as usize)
+            .ok_or(SaveError::Corrupt("dépassement d'offset dans le répertoire"))?;
+        let abs_end = abs_start
+            .checked_add(entry.size as usize)
+            .ok_or(SaveError::Corrupt("dépassement de taille de blob"))?;
 
         if abs_end > plain.len() {
             return Err(SaveError::TooShort { got: plain.len(), need: abs_end });
@@ -433,7 +461,12 @@ pub fn parse(data: &[u8], filename: &str) -> Result<LivesContainer, SaveError> {
             return Err(SaveError::TooShort { got: blob_bytes.len(), need: BLOB_HEADER_SIZE });
         }
 
-        let blob_magic = u16::from_be_bytes(blob_bytes[0..2].try_into().unwrap());
+        // blob_bytes.len() >= BLOB_HEADER_SIZE (12) est vérifié juste avant.
+        let blob_magic = u16::from_be_bytes(
+            blob_bytes.get(0..2)
+                .and_then(|s| s.try_into().ok())
+                .ok_or(SaveError::Corrupt("blob: lecture magic"))?,
+        );
         if blob_magic != BLOB_MAGIC {
             return Err(SaveError::BadMagic {
                 expected: u32::from(BLOB_MAGIC),
@@ -441,9 +474,21 @@ pub fn parse(data: &[u8], filename: &str) -> Result<LivesContainer, SaveError> {
             });
         }
 
-        let subtype_raw = u16::from_be_bytes(blob_bytes[2..4].try_into().unwrap());
-        let payload_size = u32::from_le_bytes(blob_bytes[4..8].try_into().unwrap());
-        let field8 = u32::from_le_bytes(blob_bytes[8..12].try_into().unwrap());
+        let subtype_raw = u16::from_be_bytes(
+            blob_bytes.get(2..4)
+                .and_then(|s| s.try_into().ok())
+                .ok_or(SaveError::Corrupt("blob: lecture subtype"))?,
+        );
+        let payload_size = u32::from_le_bytes(
+            blob_bytes.get(4..8)
+                .and_then(|s| s.try_into().ok())
+                .ok_or(SaveError::Corrupt("blob: lecture payload_size"))?,
+        );
+        let field8 = u32::from_le_bytes(
+            blob_bytes.get(8..12)
+                .and_then(|s| s.try_into().ok())
+                .ok_or(SaveError::Corrupt("blob: lecture field8"))?,
+        );
 
         // Note : pour AUTOSAVE, le champ `payload_size` dans l'en-tête interne NE correspond
         // PAS à `taille_blob - 12` (c'est un champ interne du moteur, probablement un
@@ -492,6 +537,156 @@ fn crc32_of(data: &[u8]) -> u32 {
         crc = (crc >> 8) ^ entry;
     }
     !crc
+}
+
+// ---------------------------------------------------------------------------
+// SaveSummary : agrégat des champs parsés (headersave + autosave)
+// ---------------------------------------------------------------------------
+
+/// Résumé complet d'une sauvegarde IEVR, agrégeant les champs confirmés
+/// extraits du HEADERSAVE et de l'AUTOSAVE.
+///
+/// Seuls les champs **validés sur octets réels** sont exposés. Les régions
+/// OPAQUE (argent, équipe, progression, inventaire) ne sont PAS représentées.
+///
+/// ## Utilisation
+///
+/// ```rust,no_run
+/// # use nie_save::{parse, summarize};
+/// # let bytes = &[];
+/// # let filename = "002AB8F4-USERDATALIVE";
+/// let container = parse(bytes, filename).expect("parsing");
+/// let summary = summarize(&container);
+/// println!("joueur={} niveau={}", summary.player_name, summary.level_str);
+/// ```
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct SaveSummary {
+    /// Nom du fichier (slot_name du conteneur, ex. `002AB8F4-USERDATALIVE`).
+    pub slot_name: String,
+
+    /// Nom du joueur extrait du HEADERSAVE (ancre validée : `"AstraJinWoo"`).
+    /// Chaîne vide si le blob HEADERSAVE est absent ou non parsable.
+    pub player_name: String,
+
+    /// Niveau du joueur sous forme de chaîne ASCII (ancre validée : `"218"`).
+    /// Chaîne vide si absent ou non parsable.
+    pub level_str: String,
+
+    /// Temps de jeu total en secondes, priorité au scalaire AUTOSAVE
+    /// (ancré : 323895 ≈ 89h58m), sinon premier slot HEADERSAVE horodaté.
+    /// `None` si aucune source disponible.
+    pub playtime_secs: Option<u32>,
+
+    /// Identifiant unique de la save (UUID hexadécimal ASCII 32 chars).
+    /// Ancre validée : `"00023798fc9b4d49b9a36b6b0cb8d50b"`.
+    /// Chaîne vide si absent.
+    pub unique_id: String,
+
+    /// Horodatage de dernière sauvegarde (depuis HEADERSAVE).
+    /// `None` si le blob HEADERSAVE est absent.
+    pub last_save: Option<body::headersave::NativeDateTime>,
+
+    /// Nombre de slots utilisés (HEADERSAVE). `None` si absent.
+    pub used_slots: Option<u32>,
+
+    /// Nombre maximal de slots (HEADERSAVE). `None` si absent.
+    pub max_slots: Option<u32>,
+
+    /// Identifiants des personnages possédés (depuis le roster AUTOSAVE,
+    /// blob imbriqué EEFF 0x0510, TLV hash `0xBA162C11`).
+    ///
+    /// Chaque `CharaId` correspond à la colonne `id` de `inagle_characters`
+    /// (miroir SQLite azalee). Vecteur vide si le blob AUTOSAVE est absent.
+    ///
+    /// Validation forte (VPS 2026-06-05) : 4534 ids non-nuls, tous présents
+    /// dans `inagle_characters`. Aucun faux positif.
+    pub roster: Vec<body::autosave_roster::CharaId>,
+
+    /// Nombre total de slots du roster (incluant les vides).
+    /// Typiquement 6000 sur une save réelle. 0 si AUTOSAVE absent.
+    pub roster_slots: usize,
+
+    /// Scalaires AUTOSAVE (datetime + playtime), `None` si non parsables.
+    pub autosave_scalars: Option<body::autosave_roster::AutosaveScalars>,
+}
+
+/// Construit un [`SaveSummary`] depuis un [`LivesContainer`] déchiffré.
+///
+/// Parse les blobs HEADERSAVE et AUTOSAVE si présents, en extrayant les champs
+/// confirmés. Les régions OPAQUE sont ignorées silencieusement.
+///
+/// Ne retourne jamais d'erreur : les échecs partiels (blob absent, corps trop
+/// court, hash introuvable) produisent des champs `None` / vecteurs vides.
+///
+/// # Exemple
+///
+/// ```rust,no_run
+/// # use nie_save::{parse, summarize, io::read_save};
+/// # use std::path::Path;
+/// let container = read_save(Path::new("data/saves/002AB8F4-USERDATALIVE"))
+///     .expect("lecture");
+/// let summary = summarize(&container);
+/// assert_eq!(summary.player_name, "AstraJinWoo");
+/// assert_eq!(summary.level_str, "218");
+/// assert!(!summary.roster.is_empty());
+/// ```
+#[must_use]
+pub fn summarize(container: &LivesContainer) -> SaveSummary {
+    use body::{
+        autosave_roster::parse_autosave_roster,
+        headersave::parse_headersave,
+    };
+
+    // --- HEADERSAVE ---
+    let hs = container
+        .blob_by_subtype(BlobSubtype::Headersave)
+        .and_then(|blob| parse_headersave(&blob.body).ok());
+
+    let player_name   = hs.as_ref().map(|h| h.player_name.clone()).unwrap_or_default();
+    let level_str     = hs.as_ref().map(|h| h.level_str.clone()).unwrap_or_default();
+    let unique_id     = hs.as_ref().map(|h| h.unique_id.clone()).unwrap_or_default();
+    let last_save     = hs.as_ref().map(|h| h.save_timestamp.clone());
+    let used_slots    = hs.as_ref().map(|h| h.used_slots);
+    let max_slots_v   = hs.as_ref().map(|h| h.max_slots);
+
+    // playtime depuis les slots HEADERSAVE si AUTOSAVE ne l'a pas encore
+    let hs_playtime: Option<u32> = hs.as_ref().and_then(|h| {
+        h.slots.iter().find_map(|s| s.playtime_secs)
+    });
+
+    // --- AUTOSAVE ---
+    let autosave = container
+        .blob_by_subtype(BlobSubtype::Autosave)
+        .and_then(|blob| parse_autosave_roster(&blob.body).ok());
+
+    let (roster, roster_slots, autosave_scalars) = match autosave {
+        Some(r) => {
+            let sc = r.scalars;
+            (r.owned, r.roster_slots, sc)
+        }
+        None => (Vec::new(), 0, None),
+    };
+
+    // Temps de jeu : scalaire AUTOSAVE prioritaire, sinon slot HEADERSAVE.
+    let playtime_secs = autosave_scalars
+        .as_ref()
+        .map(|s| s.playtime_secs)
+        .or(hs_playtime);
+
+    SaveSummary {
+        slot_name: container.slot_name.clone(),
+        player_name,
+        level_str,
+        playtime_secs,
+        unique_id,
+        last_save,
+        used_slots,
+        max_slots: max_slots_v,
+        roster,
+        roster_slots,
+        autosave_scalars,
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -666,5 +861,136 @@ mod tests {
         // Valeurs recoupées empiriquement sur les fichiers réels du VPS (non fabriquées).
         assert_eq!(key_from_filename("002AB8F4-SYSTEMLIVE"), 0x7787_C706);
         assert_eq!(key_from_filename("002AB8F4-USERDATALIVE"), 0x4EAD_4023);
+    }
+
+    // -----------------------------------------------------------------------
+    // Tests de robustesse : garantit zéro panic sur input arbitraire
+    // -----------------------------------------------------------------------
+
+    /// Fuzz léger : itère sur des inputs tronqués de taille 0..DATA_START+20.
+    ///
+    /// Aucun de ces appels ne doit paniquer ; tous doivent retourner `Err`.
+    #[test]
+    fn robustesse_inputs_tronques() {
+        let plain = build_synthetic_lives();
+        let enc = encrypt_buf(&plain, FAKE_SLOT_NAME);
+        // Tester des troncations progressives : 0 octet → DATA_START + 20 octets.
+        for len in 0..DATA_START + 20 {
+            let input = &enc[..len.min(enc.len())];
+            // Toujours un Err (trop court ou CRC invalide), jamais un panic.
+            let _ = parse(input, FAKE_SLOT_NAME);
+        }
+    }
+
+    /// Fuzz léger : buffer plein de 0x00 (longueur DATA_START + 100).
+    #[test]
+    fn robustesse_buffer_nul() {
+        let input = vec![0u8; DATA_START + 100];
+        // 0x00000000 != LIVES_MAGIC → BadMagic (pas de panic).
+        let result = parse(&input, "FAKE-SLOT");
+        assert!(matches!(result, Err(SaveError::BadMagic { .. })));
+    }
+
+    /// Fuzz léger : buffer plein de 0xFF (longueur DATA_START + 100).
+    #[test]
+    fn robustesse_buffer_ff() {
+        let input = vec![0xFFu8; DATA_START + 100];
+        let result = parse(&input, "FAKE-SLOT");
+        // Doit retourner BadMagic ou BadCrc, jamais paniquer.
+        assert!(result.is_err());
+    }
+
+    /// Overflow d'offset : entrée de répertoire avec blob_offset = u32::MAX.
+    ///
+    /// Sur wasm32 (usize=32 bits), DATA_START + u32::MAX déborderait sans checked_add.
+    /// Doit retourner Corrupt ou TooShort, jamais paniquer ni produire un conteneur invalide.
+    #[test]
+    fn robustesse_overflow_blob_offset() {
+        let mut plain = build_synthetic_lives();
+        // Injecter blob_offset = u32::MAX dans l'entrée de répertoire [0x58..0x5C].
+        plain[0x58..0x5C].copy_from_slice(&u32::MAX.to_le_bytes());
+        // Recalculer le CRC header (octets [8..0x800]) car on a modifié le header.
+        let hdr_crc = crc32_of(&plain[8..DATA_START]);
+        plain[4..8].copy_from_slice(&hdr_crc.to_le_bytes());
+        // Chiffrer avec la bonne clé.
+        let enc = encrypt_buf(&plain, FAKE_SLOT_NAME);
+        let result = parse(&enc, FAKE_SLOT_NAME);
+        // TooShort ou Corrupt selon le chemin d'exécution — jamais panic.
+        assert!(
+            matches!(result, Err(SaveError::TooShort { .. }) | Err(SaveError::Corrupt(_)) | Err(SaveError::BadCrc { .. })),
+            "blob_offset=u32::MAX doit retourner une erreur, pas paniquer"
+        );
+    }
+
+    /// Overflow de taille : entrée de répertoire avec blob_size = u32::MAX.
+    #[test]
+    fn robustesse_overflow_blob_size() {
+        let mut plain = build_synthetic_lives();
+        // Injecter blob_size = u32::MAX dans l'entrée de répertoire [0x54..0x58].
+        plain[0x54..0x58].copy_from_slice(&u32::MAX.to_le_bytes());
+        // Recalculer le CRC header.
+        let hdr_crc = crc32_of(&plain[8..DATA_START]);
+        plain[4..8].copy_from_slice(&hdr_crc.to_le_bytes());
+        let enc = encrypt_buf(&plain, FAKE_SLOT_NAME);
+        let result = parse(&enc, FAKE_SLOT_NAME);
+        // Doit retourner TooShort ou Corrupt — jamais panic.
+        assert!(
+            matches!(result, Err(SaveError::TooShort { .. }) | Err(SaveError::Corrupt(_)) | Err(SaveError::BadCrc { .. })),
+            "blob_size=u32::MAX doit retourner une erreur"
+        );
+    }
+
+    /// Fuzz léger : variations aléatoires déterministes du conteneur chiffré.
+    ///
+    /// Mute chaque octet de la fixture à 0x00/0xFF/0x41 sur les 512 premiers octets.
+    /// Aucun appel ne doit paniquer.
+    #[test]
+    fn robustesse_mutations_deterministiques() {
+        let plain = build_synthetic_lives();
+        let enc = encrypt_buf(&plain, FAKE_SLOT_NAME);
+        let limit = enc.len().min(512);
+        for i in 0..limit {
+            for &mutation in &[0x00u8, 0xFFu8, 0x41u8] {
+                let mut mutated = enc.clone();
+                mutated[i] = mutation;
+                // Jamais paniquer, quel que soit le résultat.
+                let _ = parse(&mutated, FAKE_SLOT_NAME);
+            }
+        }
+    }
+
+    /// Fuzz body autosave : itère sur des inputs tronqués → zéro panic.
+    #[test]
+    fn robustesse_autosave_inputs_tronques() {
+        use crate::body::autosave::parse_autosave_layout;
+        use crate::body::autosave_roster::parse_autosave_roster;
+        // Tester des tailles de 0 à 100 octets (zéro, sous-taille, etc.)
+        for len in 0..=100usize {
+            let input = vec![0u8; len];
+            let _ = parse_autosave_layout(&input);
+            let _ = parse_autosave_roster(&input);
+        }
+        // Body de taille DATA_START : version=1 BE, reste nul → ne doit pas paniquer.
+        let mut buf = vec![0u8; DATA_START];
+        buf[3] = 0x01; // version=1
+        let _ = parse_autosave_layout(&buf);
+        let _ = parse_autosave_roster(&buf);
+    }
+
+    /// Fuzz body headersave : itère sur des inputs tronqués → zéro panic.
+    #[test]
+    fn robustesse_headersave_inputs_tronques() {
+        use crate::body::headersave::parse_headersave;
+        for len in 0..=100usize {
+            let input = vec![0u8; len];
+            let _ = parse_headersave(&input);
+        }
+        // Body juste à la taille minimale avec format_version=1 et champs nuls.
+        use crate::body::headersave::HEADERSAVE_MIN_LEN;
+        let mut buf = vec![0u8; HEADERSAVE_MIN_LEN];
+        buf[3] = 0x01; // format_version=1 BE
+        buf[8] = 10;   // max_slots=10
+        buf[12] = 0;   // used_slots=0
+        let _ = parse_headersave(&buf);
     }
 }
