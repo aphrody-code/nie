@@ -805,6 +805,35 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         return;
     }
 
+    // `/tex/<vfs-path>.png` — décode N'IMPORTE QUEL G4TX du VFS en PNG. Les textures
+    // perso (face/uniforme/corps sous `dx11/chr/`) sont absentes du dump ET non servies
+    // par le décodeur menu live (:8788) ; seul ce service a le décodeur nie-formats. La
+    // source est `<path>.g4tx` (l'URL en `.png` est mappée dessus). Anti-traversal strict.
+    if let Some(rest) = path.strip_prefix("/tex/") {
+        let g4tx_rel = rest
+            .strip_suffix(".png")
+            .map(|s| format!("{s}.g4tx"))
+            .unwrap_or_else(|| rest.to_string());
+        let vfs_path = if g4tx_rel.starts_with("data/") {
+            g4tx_rel
+        } else {
+            format!("data/{g4tx_rel}")
+        };
+        if vfs_path.contains("..") || !vfs_path.ends_with(".g4tx") {
+            respond_text(&mut stream, 400, "Bad Request", "chemin invalide (.g4tx/.png attendu)");
+            return;
+        }
+        let g4tx = {
+            let vfs = state.vfs.lock().unwrap();
+            vfs.read(&vfs_path).ok()
+        };
+        match g4tx.as_deref().and_then(decode_best_g4tx_to_png) {
+            Some(png) => respond(&mut stream, 200, "OK", "image/png", &png),
+            None => respond_text(&mut stream, 404, "Not Found", "texture absente/non décodée"),
+        }
+        return;
+    }
+
     // `/model-full/<code>.glb`
     if let Some(rest) = path.strip_prefix("/model-full/") {
         let code = rest.strip_suffix(".glb").unwrap_or(rest);
