@@ -1,0 +1,37 @@
+[package]
+name = "nie-zukan"
+description = "Ingesteur de l'encyclopédie officielle Level-5 Inagle (zukan.inazuma.jp) — 3 langues (JP/FR/EN), perso/skills/items, croisement avec le miroir inagle"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+clap = { version = "4", features = ["derive", "color", "env"] }
+rusqlite.workspace = true
+
+# HTTP + HTML
+reqwest = { version = "0.13", features = ["blocking"] }
+scraper = "0.22"
+
+# encodage
+base64 = "0.22"
+percent-encoding = "2"
+
+# concurrence / rate-limiting
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs", "sync", "time", "io-util"] }
+tokio-util = { version = "0.7", features = ["io"] }
+
+[[bin]]
+name = "nie-zukan"
+path = "src/bin/nie_zukan.rs"
