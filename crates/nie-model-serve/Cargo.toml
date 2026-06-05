@@ -25,3 +25,7 @@ rusqlite.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 clap.workspace = true
+# Décodage DDS (BC1/BC3/BC5/BC7) → RGBA pour les textures G4TX (face + uniforme)
+image_dds = { version = "0.7", default-features = false }
+# Encodage RGBA → PNG pour l'embed dans le GLB
+png = "0.18"
