@@ -700,6 +700,201 @@ pub fn cpk_extract_file(
     reader.extract(cpk_bytes, &entry).map_err(|e| e.to_string())
 }
 
+// ===========================================================================
+// nie-save — parsing de saves IEVR côté navigateur (privacy-first)
+// ===========================================================================
+
+/// Résumé du conteneur Lives (champs sérialisables, sans les corps bruts).
+///
+/// Structure JSON retournée par [`parse_save_json`] :
+///
+/// ```text
+/// {
+///   "slot_name": "002AB8F4-USERDATALIVE",
+///   "key": 1320666147,
+///   "blobs": [
+///     {
+///       "filename": "AUTOSAVE_data.bin",
+///       "subtype": "Autosave",
+///       "size": 12345678,
+///       "crc32": 305419896
+///     },
+///     ...
+///   ],
+///   "headersave": { ... },   // présent si blob HEADERSAVE parsé
+///   "autosave": { ... }      // présent si blob AUTOSAVE parsé
+/// }
+/// ```
+///
+/// Les corps bruts (> 12 Mo pour AUTOSAVE) ne sont jamais sérialisés.
+fn parse_save_impl(bytes: &[u8], filename: &str) -> Result<String, String> {
+    use nie_save::{
+        BlobSubtype,
+        body::{
+            autosave::parse_autosave_layout,
+            autosave_roster::parse_autosave_roster,
+            headersave::parse_headersave,
+        },
+    };
+
+    let container = nie_save::parse(bytes, filename).map_err(|e| e.to_string())?;
+
+    // --- Résumé des blobs (sans les corps bruts) ---
+    let blobs_summary: Vec<serde_json::Value> = container
+        .entries
+        .iter()
+        .zip(container.blobs.iter())
+        .map(|(entry, blob)| {
+            let subtype = match blob.header.subtype {
+                BlobSubtype::System => "System",
+                BlobSubtype::Autosave => "Autosave",
+                BlobSubtype::Headersave => "Headersave",
+                BlobSubtype::Unknown(_) => "Unknown",
+            };
+            serde_json::json!({
+                "filename": entry.filename,
+                "subtype":  subtype,
+                "size":     entry.size,
+                "crc32":    entry.crc32,
+                "field8":   blob.header.field8,
+            })
+        })
+        .collect();
+
+    // --- Parse HEADERSAVE si présent ---
+    let headersave_json: Option<serde_json::Value> = container
+        .blob_by_subtype(BlobSubtype::Headersave)
+        .and_then(|blob| {
+            parse_headersave(&blob.body)
+                .ok()
+                .map(|hs| {
+                    let ts = &hs.save_timestamp;
+                    let slots: Vec<serde_json::Value> = hs
+                        .slots
+                        .iter()
+                        .enumerate()
+                        .map(|(i, s)| {
+                            let dt = s.slot_datetime.as_ref().map(|d| {
+                                serde_json::json!({
+                                    "year":   d.year,
+                                    "month":  d.month,
+                                    "day":    d.day,
+                                    "hour":   d.hour,
+                                    "minute": d.minute,
+                                    "second": d.second,
+                                })
+                            });
+                            serde_json::json!({
+                                "index":         i,
+                                "is_active":     s.is_active,
+                                "section_role":  s.section_role,
+                                "slot_variant":  s.slot_variant,
+                                "slot_datetime": dt,
+                                "playtime_secs": s.playtime_secs,
+                            })
+                        })
+                        .collect();
+                    serde_json::json!({
+                        "format_version": hs.format_version,
+                        "max_slots":      hs.max_slots,
+                        "used_slots":     hs.used_slots,
+                        "player_name":    hs.player_name,
+                        "level_str":      hs.level_str,
+                        "unique_id":      hs.unique_id,
+                        "save_timestamp": {
+                            "year":   ts.year,
+                            "month":  ts.month,
+                            "day":    ts.day,
+                            "hour":   ts.hour,
+                            "minute": ts.minute,
+                            "second": ts.second,
+                        },
+                        "slots": slots,
+                    })
+                })
+        });
+
+    // --- Parse AUTOSAVE (layout + roster + scalaires) si présent ---
+    let autosave_json: Option<serde_json::Value> = container
+        .blob_by_subtype(BlobSubtype::Autosave)
+        .and_then(|blob| {
+            // Layout macroscopique (sections + table CharaParam)
+            let layout = parse_autosave_layout(&blob.body).ok()?;
+
+            // Roster + scalaires (section EEFF 0x0510)
+            let roster = parse_autosave_roster(&blob.body).ok()?;
+
+            let scalars_json = roster.scalars.as_ref().map(|s| {
+                let (h, m, sec) = s.playtime_hms();
+                serde_json::json!({
+                    "save_year":    s.save_year,
+                    "save_month":   s.save_month,
+                    "save_day":     s.save_day,
+                    "save_hour":    s.save_hour,
+                    "save_minute":  s.save_minute,
+                    "save_second":  s.save_second,
+                    "playtime_secs": s.playtime_secs,
+                    "playtime_hms": { "h": h, "m": m, "s": sec },
+                })
+            });
+
+            // Le roster complet peut être ~18 Ko de JSON (4534 ids × 12 chars) —
+            // acceptable dans un contexte navigateur (la save elle-même fait 12 Mo).
+            let owned_ids: Vec<u32> = roster.owned.iter().map(|c| c.raw()).collect();
+
+            Some(serde_json::json!({
+                "version":            layout.version,
+                "opaque_4":           layout.opaque_4,
+                "scalar_record_count": layout.scalar_record_count,
+                "chara_slot_count":   layout.chara_param_slots.len(),
+                "section2_range":     layout.section2_range,
+                "main_data_range":    layout.main_data_range,
+                "scalars":            scalars_json,
+                "roster_slots":       roster.roster_slots,
+                "owned_count":        roster.owned.len(),
+                "owned_ids":          owned_ids,
+            }))
+        });
+
+    let result = serde_json::json!({
+        "slot_name":  container.slot_name,
+        "key":        container.key,
+        "blobs":      blobs_summary,
+        "headersave": headersave_json,
+        "autosave":   autosave_json,
+    });
+
+    serde_json::to_string(&result).map_err(|e| e.to_string())
+}
+
+/// Déchiffre et parse un fichier de sauvegarde IEVR, retourne un JSON résumé.
+///
+/// La save ne quitte PAS le navigateur : tout le traitement est effectué
+/// client-side dans le module WebAssembly.
+///
+/// - `bytes` : contenu brut du fichier de sauvegarde (ex. `002AB8F4-USERDATALIVE`).
+/// - `filename` : nom de base du fichier (sert à dériver la clé CRC32).
+///
+/// Retourne un JSON avec :
+/// - `slot_name`, `key` : métadonnées du conteneur.
+/// - `blobs` : liste des entrées (filename, subtype, size, crc32, field8).
+/// - `headersave` : champs HEADERSAVE parsés (joueur, niveau, horodatage, slots).
+/// - `autosave` : layout macroscopique + scalaires + roster complet (owned_ids).
+///
+/// Lève une `Error` JS (wasm32) ou retourne `Err(String)` (natif) si le fichier
+/// est invalide ou la clé ne correspond pas au nom.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn parse_save_json(bytes: &[u8], filename: &str) -> Result<String, JsValue> {
+    parse_save_impl(bytes, filename).map_err(|e| JsValue::from_str(&e))
+}
+
+/// Déchiffre et parse une save IEVR (version native, sans `JsValue`).
+#[cfg(not(target_arch = "wasm32"))]
+pub fn parse_save_json(bytes: &[u8], filename: &str) -> Result<String, String> {
+    parse_save_impl(bytes, filename)
+}
+
 // ---------------------------------------------------------------------------
 // Tests natifs
 // ---------------------------------------------------------------------------
@@ -1104,5 +1299,108 @@ mod tests {
     #[test]
     fn item_lookup_json_invalide_erreur() {
         assert!(item_lookup("nope").is_err());
+    }
+
+    // -----------------------------------------------------------------------
+    // nie-save — parse_save_json
+    // -----------------------------------------------------------------------
+
+    /// Construit un conteneur Lives synthétique minimal (1 blob HEADERSAVE),
+    /// chiffre avec la clé CRC32 du nom, puis vérifie que parse_save_json
+    /// retourne le bon slot_name et les bonnes métadonnées de blob.
+    #[test]
+    fn parse_save_json_conteneur_minimal() {
+        use nie_save::{
+            Blob, BlobHeader, BlobSubtype, DirEntry, LivesContainer,
+            BLOB_MAGIC, BLOB_SUBTYPE_HEADERSAVE, DATA_START, DIR_OFFSET,
+            DIR_ENTRY_STRIDE, LIVES_MAGIC, LIVES_CONST2, BLOB_HEADER_SIZE,
+            crc32_of_pub, key_from_filename, decrypt_block,
+        };
+
+        let slot = "DEADBEEF-USERDATALIVE";
+
+        // Corps minimal du blob HEADERSAVE (1 octet pour passer les bornes)
+        let body = vec![0u8; 4];
+        let blob = Blob {
+            header: BlobHeader {
+                subtype: BlobSubtype::Headersave,
+                payload_size: body.len() as u32,
+                field8: 0xABCD_1234,
+            },
+            body,
+        };
+        let blob_bytes = {
+            let mut v = Vec::new();
+            v.extend_from_slice(&BLOB_MAGIC.to_be_bytes());
+            v.extend_from_slice(&BLOB_SUBTYPE_HEADERSAVE.to_be_bytes());
+            v.extend_from_slice(&(blob.body.len() as u32).to_le_bytes());
+            v.extend_from_slice(&blob.header.field8.to_le_bytes());
+            v.extend_from_slice(&blob.body);
+            v
+        };
+        let blob_crc = crc32_of_pub(&blob_bytes);
+
+        // Construire le header plaintext (0x800)
+        let mut hdr = vec![0u8; DATA_START];
+        hdr[8..12].copy_from_slice(&LIVES_CONST2.to_le_bytes());
+        let sn = slot.as_bytes();
+        hdr[0x10..0x10 + sn.len()].copy_from_slice(sn);
+        hdr[DIR_OFFSET..DIR_OFFSET + 4].copy_from_slice(&blob_crc.to_le_bytes());
+        hdr[DIR_OFFSET + 4..DIR_OFFSET + 8].copy_from_slice(&(blob_bytes.len() as u32).to_le_bytes());
+        hdr[DIR_OFFSET + 8..DIR_OFFSET + 12].copy_from_slice(&0u32.to_le_bytes());
+        let fname = b"HEADERSAVE_data.bin";
+        hdr[DIR_OFFSET + 12..DIR_OFFSET + 12 + fname.len()].copy_from_slice(fname);
+        let hdr_crc = crc32_of_pub(&hdr[8..DATA_START]);
+        hdr[4..8].copy_from_slice(&hdr_crc.to_le_bytes());
+        hdr[0..4].copy_from_slice(&LIVES_MAGIC.to_le_bytes());
+
+        let mut plain = hdr;
+        plain.extend_from_slice(&blob_bytes);
+
+        let key = key_from_filename(slot);
+        let mut enc = plain.clone();
+        decrypt_block(&mut enc, 0, key);
+
+        let json_str = parse_save_json(&enc, slot).expect("parse_save_json ne doit pas échouer");
+        let json: serde_json::Value = serde_json::from_str(&json_str).expect("JSON valide");
+
+        assert_eq!(json["slot_name"], slot);
+        assert_eq!(json["key"], key);
+
+        let blobs = json["blobs"].as_array().expect("blobs est un tableau");
+        assert_eq!(blobs.len(), 1);
+        assert_eq!(blobs[0]["filename"], "HEADERSAVE_data.bin");
+        assert_eq!(blobs[0]["subtype"], "Headersave");
+        assert_eq!(blobs[0]["field8"], 0xABCD_1234u32);
+
+        // Le blob HEADERSAVE body fait 4 octets (trop court pour parse_headersave) →
+        // headersave doit être null (pas d'erreur fatale).
+        assert!(json["headersave"].is_null(), "headersave null sur body trop court");
+        // Pas de blob AUTOSAVE → autosave null.
+        assert!(json["autosave"].is_null());
+    }
+
+    /// Vérifie que parse_save_json retourne une erreur sur un fichier vide.
+    #[test]
+    fn parse_save_json_tampon_vide_erreur() {
+        assert!(parse_save_json(&[], "TEST-LIVE").is_err());
+    }
+
+    /// Vérifie que parse_save_json retourne une erreur sur une mauvaise clé.
+    #[test]
+    fn parse_save_json_mauvaise_cle_erreur() {
+        // On encode avec "DEADBEEF-USERDATALIVE" mais on parse avec un autre nom.
+        use nie_save::{LIVES_MAGIC, LIVES_CONST2, DATA_START, key_from_filename, decrypt_block, crc32_of_pub};
+        let slot = "DEADBEEF-USERDATALIVE";
+        let mut hdr = vec![0u8; DATA_START];
+        hdr[8..12].copy_from_slice(&LIVES_CONST2.to_le_bytes());
+        let hdr_crc = crc32_of_pub(&hdr[8..DATA_START]);
+        hdr[4..8].copy_from_slice(&hdr_crc.to_le_bytes());
+        hdr[0..4].copy_from_slice(&LIVES_MAGIC.to_le_bytes());
+        let key = key_from_filename(slot);
+        let mut enc = hdr;
+        decrypt_block(&mut enc, 0, key);
+        // Parser avec un nom différent → mauvaise clé → BadMagic.
+        assert!(parse_save_json(&enc, "CAFEBABE-LIVE").is_err());
     }
 }
