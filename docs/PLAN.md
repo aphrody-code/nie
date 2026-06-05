@@ -30,6 +30,7 @@ en Rust ; iecode/inagle ne sont pas des dépendances permanentes, ce sont des v�
 
 ### 2. Données — `nie-data` (modèles no_std du jeu, port inagle)
 - **FAIT (5/7)** : skill-info, item-info, growth-tables, exp-table, passive-skill (validés byte contre les vrais cfg.bin + recalcul `calculateStats` inagle au bit près).
+- **FAIT (2026-06-06) : base passives unifiée** — `nie-data/src/passives.rs` (+ `bin/export_passives.rs`, `tests/passives_golden.rs`). Lit `passive_skill_config_5.00.07.00.cfg.bin.json` (**1716 passives joueur**, texte résolu via `skill_text` NOUN_INFO fr/en/ja), `soccer_team_passive_config` (21 team passives), `team_passive_lot_table_config` (653 lots). Export → `apps/azalee/data/passives-full.json` (consommé par la page azalee `/passive`). Méta vérifiée : `player_count=1716`, `team_count=21`, `lot_count=653`, `unique_effect_count=128`.
 - **INCOMPLET (2/7)** : `chara-param` (pairing skill/niveau **off-by-one** à inverser vers « level-first », cf. inagle commit 07ee6ce) ; `aura-cmd` (conclusion « 0/1549 résolvent » **hallucinée** → réalité 61/1548 ; corriger le bun-check hex/décimal et baser le test sur le vrai whs01780).
 
 ### 3. Moteur / gameplay — `nie-core` (logique reversée portée du C décompilé)
@@ -51,7 +52,10 @@ en Rust ; iecode/inagle ne sont pas des dépendances permanentes, ce sont des v�
 - **FAIT (socle)** : portage des **60 fonctions C décompilées** (Ghidra) → Rust, **11 modules / ~15k LOC** (render/animation/audio/physics-physx/menu/network/scripting/cfgbin/cpk/g4/app), `forbid(unsafe)`, workspace build vert, tests par module. Reste : étendre vers une boucle moteur réelle + résoudre les `// EXTERN:` (refs vers fonctions non encore portées).
 
 ### 3sexies. Assemblage 3D — `nie-formats/assemble.rs` (modèle complet joueur)
-- **PROTOTYPE_OK** : fusion **corps + face + uniforme** en un GLB. Matching reversé : face = GLB de l'internalCode, corps = mesh PARTAGÉ `base_*` (par type_idx, 99% couverts), uniforme = team→kit→`ModelIdCrc` (uniform_config). Merge validé (Mark 357v corps + 1214v face = 1571v). Reste opaque : CRI ResourceManager (CRC→fichier CPK), skinning, textures g4tx.
+- **FAIT (2026-06-06)** : fusion **corps + face + uniforme TEXTURÉS** en un GLB. Matching reversé : face = GLB de l'internalCode, corps = mesh PARTAGÉ `base_*` (par type_idx, 99 % couverts), uniforme = team→kit→`ModelIdCrc = crc32_std(code)` (manifeste `var/uniform-model-map.ndjson`, **3550** entrées). **Textures g4tx→PNG (BC1-7) embarquées** dans le GLB (face + uniforme). Keshin (`k*`) / armures (`ka*`) aussi assemblés. Reste : skinning complet (animations), codes hors `c/k/ka` (uniforme isolé `n*` non assemblable seul).
+
+### 3sexies-bis. Serving live — `nie-model-serve` (HTTP, assemblage GLB à la volée)
+- **FAIT (2026-06-06)** : `crates/nie-model-serve` (binaire) sert `GET /model-full/<code>.glb` = assemblage **live** (corps+visage+uniforme texturés) depuis les CPK, sans dump. Déployé : `nie-model-serve.service` (systemd VPS, :8790), proxifié par nginx `cdn.rosegriffon.fr/model-full/`. Args : `--game-dir`, `--glb-dir`, `--crc-manifest var/model-crc-manifest.ndjson`, `--body-manifest var/body-type-manifest.ndjson`, `--cache-dir var/model-cache`. Vérifié live : `c11250030`/`k000010`/`c05021090` → 200, ~175-436 Ko, textures embarquées. ⚠ Binaire dans `/home/ubuntu/aphrody/target/linux-gnu/release/` (target-dir partagé avec aphrody — un `cargo clean` d'aphrody supprime le binaire ; le service survit sur l'inode mais **rebuild avant restart**). Consommé par azalee (page `/cpk` + fiches perso, cache-bust `?v=3`).
 
 ### 3septies. Données Steam — `better-auth-steam` (côté rg, alimenté par la RE nie.exe)
 - Constantes Steam extraites de nie.exe (app 2799860, 27 interfaces Steamworks, 52 succès `ACHIEVEMENT_%04u`, EncryptedAppTicket/Cloud/DLC) + manifeste 230 succès→noms. Cf. mémoire `project-steam-integration` (le plugin vit dans rg, pas niers).
@@ -59,6 +63,12 @@ en Rust ; iecode/inagle ne sont pas des dépendances permanentes, ce sont des v�
 ### 4. Runtime + portabilité — `nie-headless`, `nie-wasm`
 - **FAIT** : runner CLI headless ; surface wasm-bindgen (detect/crilayla/@UTF) sur `wasm32-unknown-unknown`.
 - **À étendre** : exposer nie-core/nie-data en wasm → boucle de jeu navigateur.
+
+### 4bis. Encyclopédie web — `nie-zukan` (ingesteur zukan.inazuma.jp)
+- **FAIT (2026-06-06)** : `crates/nie-zukan` ingère l'encyclopédie officielle `zukan.inazuma.jp`. **Algo `?q=` reversé** (`forge.rs`) : `json → complément-à-1 octet par octet → base64url sans padding → percent-encode` (round-trip validé en live, ancre Endou `c01000010`). Client JA/EN (`client.rs`/`pull.rs`), modèles (`models.rs`), parser HTML (`parser.rs`), module `cross.rs`. Croisement vérité terrain : **99,98 % de match avec inagle** (les fiches zukan recoupent les `inagle_characters`). Sert à câbler les **courbes de stats** + données encyclopédiques manquantes côté azalee (RESTANT).
+
+### 4ter. Index des fichiers CPK — export `iev:file:index` → azalee
+- **FAIT (2026-06-06)** : l'arbre complet des **250 800 fichiers** des CPK (common 193 540 / dx11 57 260) est indexé en Redis db3 `iev:file:index` (HASH `path → cpk`) et exporté en artefact tracké `apps/azalee/data/cpk-index.ndjson.gz` (~3,9 Mo, via `apps/azalee/scripts/build-cpk-index.ts`). Alimente le navigateur CPK d'azalee (`/cpk`, `/api/cpk`) — cf. `rg/docs/cpk-browser.md`. Couplé au serving live (g4tx→png :8788, GLB texturé :8790) = exploration totale des assets du jeu.
 
 ### 5. Échafaudage RE — `nie-re`, `nie-index`, `nie-seed`, `nie-queue`
 - **FAIT** : pipeline `seed → rtti → rebuild(.pdata) → disasm → propagate`. **92,43 %** (48 787/52 783 fonctions réelles) classifié, sur adresses correctes (`.pdata` = 50 674 racines + 2 109 feuilles vtable) + graphe d'appels réel (125 029 arêtes directes). Table `coverage` dans `var/niers.sqlite`.
@@ -79,8 +89,8 @@ en Rust ; iecode/inagle ne sont pas des dépendances permanentes, ce sont des v�
 6. **Modèle d'équipe / formation** : exploiter `command-effect-slots` (TeamBuild, SpecialTactics) déjà mappés.
 7. **Validation bout-en-bout** : test golden d'un match complet (kickoff → score `min*10000+sec` → fin) recoupé au C décompilé.
 
-**P1 — pipeline d'assets visuels (pilier Formats → rendu)**
-8. Une fois nxtch recalé : chaîner g4tx → g4md → g4mg → g4sk pour produire des **meshes texturés** (rendu personnages), puis rendu GPU/webgpu.
+**P1 — pipeline d'assets visuels (pilier Formats → rendu)** — **largement FAIT**
+8. ~~Chaîner g4tx → g4md → g4mg pour produire des **meshes texturés**~~ → **FAIT** : `assemble.rs` produit des GLB corps+visage+uniforme texturés (g4tx→PNG BC1-7 embarqués), servis live par `nie-model-serve` (:8790, `cdn.rosegriffon.fr/model-full/`). Reste : g4sk (skinning/animations), nxtch deswizzle pour le résidu de textures non-BC, rendu GPU/webgpu de la boucle moteur.
 
 **P2 — étendre la couverture RE (échafaudage, rendements décroissants)**
 9. Arêtes **indirectes** (références `lea reg,[fn]`, slots de vtable `.rdata` reliés aux classes RTTI) — meilleur levier sur le résidu (~4 000 fns isolées).
