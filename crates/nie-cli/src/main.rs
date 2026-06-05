@@ -114,6 +114,11 @@ enum Cmd {
         #[command(subcommand)]
         op: SaveOp,
     },
+    /// Exploration game-data depuis le miroir SQLite (personnages, skills, items, équipes).
+    Wiki {
+        #[command(subcommand)]
+        op: WikiOp,
+    },
     /// Scanne les fichiers .g4tx dans les CPK du jeu et produit un manifeste NDJSON d'en-têtes.
     Textures {
         /// Répertoire racine de l'installation du jeu (contenant data/cpk_list.cfg.bin).
@@ -201,6 +206,484 @@ enum QueueOp {
     Reset,
 }
 
+#[derive(Subcommand)]
+enum WikiOp {
+    /// Profil complet d'un personnage (stats, techniques, auras).
+    Chara {
+        /// Nom, ID ou code interne du personnage (ex: "Mark", "0x99A1C150", "c01000010").
+        query: String,
+        /// Sortie JSON machine.
+        #[arg(long, short = 'j')]
+        json: bool,
+        /// Chemin vers le miroir SQLite (override NIE_WIKI_DB / SQLITE_DB_PATH).
+        #[arg(long, env = "NIE_WIKI_DB")]
+        db: Option<std::path::PathBuf>,
+    },
+    /// Profil d'une technique / skill.
+    Skill {
+        /// Nom, ID ou code interne de la technique (ex: "Tempête du désert", "whd00580").
+        query: String,
+        #[arg(long, short = 'j')]
+        json: bool,
+        #[arg(long, env = "NIE_WIKI_DB")]
+        db: Option<std::path::PathBuf>,
+    },
+    /// Profil d'un item / objet.
+    Item {
+        /// Nom, ID ou code interne de l'objet.
+        query: String,
+        #[arg(long, short = 'j')]
+        json: bool,
+        #[arg(long, env = "NIE_WIKI_DB")]
+        db: Option<std::path::PathBuf>,
+    },
+    /// Profil d'une équipe.
+    Team {
+        /// Nom, ID ou code interne de l'équipe (ex: "Raimon", "0xF01BB293").
+        query: String,
+        #[arg(long, short = 'j')]
+        json: bool,
+        #[arg(long, env = "NIE_WIKI_DB")]
+        db: Option<std::path::PathBuf>,
+    },
+    /// Compare deux personnages côte à côte (stats interpolées, moveset, diff).
+    Compare {
+        /// Premier personnage (nom / ID / code interne).
+        chara1: String,
+        /// Deuxième personnage.
+        chara2: String,
+        /// Niveau pour l'interpolation de stats (1–99).
+        #[arg(long, short = 'l', default_value = "99")]
+        level: u8,
+        #[arg(long, short = 'j')]
+        json: bool,
+        #[arg(long, env = "NIE_WIKI_DB")]
+        db: Option<std::path::PathBuf>,
+    },
+    /// Recherche multi-tables (characters / skills / items / teams / auras / keshins / souls).
+    Search {
+        /// Terme de recherche.
+        query: String,
+        /// Nombre maximum de résultats (défaut 20).
+        #[arg(long, short = 'n', default_value = "20")]
+        limit: usize,
+        #[arg(long, short = 'j')]
+        json: bool,
+        #[arg(long, env = "NIE_WIKI_DB")]
+        db: Option<std::path::PathBuf>,
+    },
+    /// Exécute une requête SQL read-only sur le miroir et affiche le résultat.
+    ///
+    /// Seuls SELECT, PRAGMA, EXPLAIN et WITH … SELECT sont autorisés.
+    Db {
+        /// Requête SQL (ex: "SELECT COUNT(*) FROM inagle_characters").
+        sql: String,
+        #[arg(long, short = 'j')]
+        json: bool,
+        #[arg(long, env = "NIE_WIKI_DB")]
+        db: Option<std::path::PathBuf>,
+    },
+    /// Génère une équipe aléatoire depuis le miroir.
+    ///
+    /// Requiert un seed explicite — le RNG non seédé est interdit dans niers.
+    RandomTeam {
+        /// Seed entier pour le PRNG (déterministe).
+        #[arg(long, short = 's')]
+        seed: u64,
+        /// Formation (ex: 4-4-2, 4-3-3, 3-5-2). Défaut: 4-4-2.
+        #[arg(long, short = 'f', default_value = "4-4-2")]
+        formation: String,
+        /// Filtre élément (Feu/Vent/Forêt/Montagne/Néant). Optionnel.
+        #[arg(long, short = 'e')]
+        element: Option<String>,
+        /// Filtre style de jeu. Optionnel.
+        #[arg(long, short = 'p')]
+        playstyle: Option<String>,
+        #[arg(long, short = 'j')]
+        json: bool,
+        #[arg(long, env = "NIE_WIKI_DB")]
+        db: Option<std::path::PathBuf>,
+    },
+    /// Gère les compositions d'équipes depuis le miroir (actions: list / show / calc).
+    ///
+    /// Note : list/add/delete dans PostgreSQL (user_teams) nécessitent DATABASE_URL.
+    /// La partie miroir SQLite (inagle_team_build) est accessible sans réseau.
+    TeamBuilder {
+        /// Action : list | show <id> | calc <id>.
+        action: String,
+        /// Arguments de l'action (ex: ID pour show/calc).
+        #[arg(trailing_var_arg = true)]
+        args: Vec<String>,
+        #[arg(long, short = 'j')]
+        json: bool,
+        #[arg(long, env = "NIE_WIKI_DB")]
+        db: Option<std::path::PathBuf>,
+    },
+    /// Diagnostic du miroir SQLite + ping Redis db0/db3.
+    Status {
+        #[arg(long, short = 'j')]
+        json: bool,
+        #[arg(long, env = "NIE_WIKI_DB")]
+        db: Option<std::path::PathBuf>,
+    },
+    /// Commande Redis simple (get / set / del) sur db0 par défaut.
+    Redis {
+        /// Commande : get | set | del.
+        cmd: String,
+        /// Clé Redis.
+        key: String,
+        /// Valeur (requis pour set).
+        val: Option<String>,
+        /// URL Redis complète (ex: redis://127.0.0.1/3 pour db3).
+        #[arg(long, default_value = "redis://127.0.0.1/0")]
+        redis_url: String,
+        #[arg(long, short = 'j')]
+        json: bool,
+    },
+    /// Audite la cohérence du miroir (counts, nulls sur tables clés).
+    Audit {
+        #[arg(long, short = 'j')]
+        json: bool,
+        #[arg(long, env = "NIE_WIKI_DB")]
+        db: Option<std::path::PathBuf>,
+    },
+    /// Recherche dans les sous-titres / dialogues de `inagle_event_subtitles`.
+    Dialogue {
+        /// Texte à rechercher (FR / EN / JA).
+        query: String,
+        /// Nombre de résultats max (défaut 10).
+        #[arg(long, short = 'n', default_value = "10")]
+        limit: usize,
+        #[arg(long, short = 'j')]
+        json: bool,
+        #[arg(long, env = "NIE_WIKI_DB")]
+        db: Option<std::path::PathBuf>,
+    },
+}
+
+fn wiki_cmd(op: WikiOp) -> anyhow::Result<()> {
+    use nie_wiki::{mirror, query, render};
+
+    match op {
+        // ─── Commandes existantes ────────────────────────────────────────────
+        WikiOp::Chara { query: q, json, db } => {
+            let conn = mirror::open(db.as_deref())?;
+            let matches = query::search_characters(&conn, &q)?;
+
+            if matches.is_empty() {
+                if json {
+                    println!("[]");
+                } else {
+                    println!("Aucun personnage trouve pour : \"{}\"", q);
+                }
+                return Ok(());
+            }
+
+            if matches.len() > 1 && !json {
+                // Vérifier si c'est une correspondance exacte sur un seul personnage logique
+                let first_chara_id = &matches[0].chara_id;
+                let all_same = matches.iter().all(|m| &m.chara_id == first_chara_id);
+                if !all_same {
+                    println!("Plusieurs personnages correspondent a \"{}\" :", q);
+                    for m in &matches {
+                        println!(
+                            "  - {} / {} (ID: {} | Code: {})",
+                            m.name_fr.as_deref().unwrap_or("N/A"),
+                            m.name_en.as_deref().unwrap_or("N/A"),
+                            m.id,
+                            m.internal_code.as_deref().unwrap_or("N/A"),
+                        );
+                    }
+                    return Ok(());
+                }
+            }
+
+            // Charger le profil complet du premier match
+            let target_id = &matches[0].id;
+            let profile = query::get_character(&conn, target_id)?
+                .ok_or_else(|| anyhow::anyhow!("profil introuvable pour {}", target_id))?;
+
+            if json {
+                println!("{}", serde_json::to_string_pretty(&profile)?);
+            } else {
+                println!("{}", render::render_chara_profile(&profile, &conn));
+            }
+        }
+
+        WikiOp::Skill { query: q, json, db } => {
+            let conn = mirror::open(db.as_deref())?;
+
+            // Essai par ID exact d'abord
+            let mut skill = query::get_skill(&conn, &q)?;
+
+            if skill.is_none() {
+                let matches = query::search_skills(&conn, &q)?;
+                if matches.is_empty() {
+                    if json {
+                        println!("[]");
+                    } else {
+                        println!("Aucune technique trouvee pour : \"{}\"", q);
+                    }
+                    return Ok(());
+                }
+                if matches.len() > 1 && !json {
+                    println!("Plusieurs techniques correspondent a \"{}\" :", q);
+                    for m in &matches {
+                        println!(
+                            "  - {} / {} (ID: {})",
+                            m.name_fr.as_deref().unwrap_or("N/A"),
+                            m.name_en.as_deref().unwrap_or("N/A"),
+                            m.id,
+                        );
+                    }
+                    return Ok(());
+                }
+                skill = matches.into_iter().next();
+            }
+
+            let sk = skill.ok_or_else(|| anyhow::anyhow!("skill introuvable"))?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&sk)?);
+            } else {
+                println!("{}", render::render_skill_profile(&sk));
+            }
+        }
+
+        WikiOp::Item { query: q, json, db } => {
+            let conn = mirror::open(db.as_deref())?;
+
+            let mut item = query::get_item(&conn, &q)?;
+
+            if item.is_none() {
+                let matches = query::search_items(&conn, &q)?;
+                if matches.is_empty() {
+                    if json {
+                        println!("[]");
+                    } else {
+                        println!("Aucun item trouve pour : \"{}\"", q);
+                    }
+                    return Ok(());
+                }
+                if matches.len() > 1 && !json {
+                    println!("Plusieurs items correspondent a \"{}\" :", q);
+                    for m in &matches {
+                        println!(
+                            "  - {} / {} (ID: {})",
+                            m.name_fr.as_deref().unwrap_or("N/A"),
+                            m.name_en.as_deref().unwrap_or("N/A"),
+                            m.id,
+                        );
+                    }
+                    return Ok(());
+                }
+                item = matches.into_iter().next();
+            }
+
+            let it = item.ok_or_else(|| anyhow::anyhow!("item introuvable"))?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&it)?);
+            } else {
+                println!("{}", render::render_item_profile(&it));
+            }
+        }
+
+        WikiOp::Team { query: q, json, db } => {
+            let conn = mirror::open(db.as_deref())?;
+
+            let mut team = query::get_team(&conn, &q)?;
+
+            if team.is_none() {
+                let matches = query::search_teams(&conn, &q)?;
+                if matches.is_empty() {
+                    if json {
+                        println!("[]");
+                    } else {
+                        println!("Aucune equipe trouvee pour : \"{}\"", q);
+                    }
+                    return Ok(());
+                }
+                if matches.len() > 1 && !json {
+                    println!("Plusieurs equipes correspondent a \"{}\" :", q);
+                    for m in &matches {
+                        println!(
+                            "  - {} / {} (ID: {})",
+                            m.name_fr.as_deref().unwrap_or("N/A"),
+                            m.name_en.as_deref().unwrap_or("N/A"),
+                            m.id,
+                        );
+                    }
+                    return Ok(());
+                }
+                team = matches.into_iter().next();
+            }
+
+            let t = team.ok_or_else(|| anyhow::anyhow!("equipe introuvable"))?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&t)?);
+            } else {
+                println!("{}", render::render_team_profile(&t));
+            }
+        }
+
+        // ─── Nouvelles commandes ─────────────────────────────────────────────
+
+        WikiOp::Compare { chara1, chara2, level, json, db } => {
+            anyhow::ensure!(
+                (1..=99).contains(&level),
+                "le niveau doit être compris entre 1 et 99 (reçu: {})",
+                level
+            );
+            let conn = mirror::open(db.as_deref())?;
+            let result = query::compare_characters(&conn, &chara1, &chara2, level)?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&result)?);
+            } else {
+                println!("{}", render::render_compare(&result));
+            }
+        }
+
+        WikiOp::Search { query: q, limit, json, db } => {
+            if q.trim().is_empty() {
+                anyhow::bail!("terme de recherche vide");
+            }
+            let conn = mirror::open(db.as_deref())?;
+            let results = query::search_all(&conn, &q, limit)?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&results)?);
+            } else {
+                println!("{}", render::render_search_results(&results));
+            }
+        }
+
+        WikiOp::Db { sql, json, db } => {
+            if sql.trim().is_empty() {
+                anyhow::bail!("requête SQL vide");
+            }
+            let conn = mirror::open(db.as_deref())?;
+            let rows = query::exec_readonly_sql(&conn, &sql)?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&rows)?);
+            } else {
+                println!("Resultats ({} lignes) :", rows.len());
+                println!("{}", render::render_ascii_table(&rows));
+            }
+        }
+
+        WikiOp::RandomTeam { seed, formation, element, playstyle, json, db } => {
+            let conn = mirror::open(db.as_deref())?;
+            let team = query::random_team(
+                &conn,
+                &formation,
+                element.as_deref(),
+                playstyle.as_deref(),
+                seed,
+            )?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&team)?);
+            } else {
+                println!("{}", render::render_random_team(&team));
+            }
+        }
+
+        WikiOp::TeamBuilder { action, args, json, db } => {
+            let conn = mirror::open(db.as_deref())?;
+            match action.as_str() {
+                "list" => {
+                    let entries = query::team_build_list(&conn)?;
+                    if json {
+                        println!("{}", serde_json::to_string_pretty(&entries)?);
+                    } else {
+                        println!("{}", render::render_team_build_list(&entries));
+                    }
+                }
+                "show" | "calc" => {
+                    let id = args.first().ok_or_else(|| {
+                        anyhow::anyhow!("Usage: niers wiki team-builder {} <id>", action)
+                    })?;
+                    let entry = query::team_build_calc(&conn, id)?;
+                    match entry {
+                        None => {
+                            if json {
+                                println!("null");
+                            } else {
+                                println!("Aucune entree trouvee pour : \"{}\"", id);
+                            }
+                        }
+                        Some(e) => {
+                            if json {
+                                println!("{}", serde_json::to_string_pretty(&e)?);
+                            } else {
+                                println!("{}", render::render_team_build_entry(&e));
+                            }
+                        }
+                    }
+                }
+                other => {
+                    anyhow::bail!(
+                        "action inconnue : '{}'. Actions supportées depuis le miroir : list / show <id> / calc <id>.\n\
+                         Note : add/delete/save opèrent sur PostgreSQL (user_teams) et ne sont pas portés ici.",
+                        other
+                    );
+                }
+            }
+        }
+
+        WikiOp::Status { json, db } => {
+            let conn = mirror::open(db.as_deref())?;
+            let report = query::status_report(&conn)?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                println!("{}", render::render_status(&report));
+            }
+        }
+
+        WikiOp::Redis { cmd, key, val, redis_url, json } => {
+            let result = query::redis_cmd(&redis_url, &cmd, &key, val.as_deref())?;
+            if json {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&serde_json::json!({
+                        "cmd": cmd,
+                        "key": key,
+                        "value": result,
+                    }))?
+                );
+            } else {
+                match &result {
+                    None => println!("(nil)"),
+                    Some(v) => println!("{}", v),
+                }
+            }
+        }
+
+        WikiOp::Audit { json, db } => {
+            let conn = mirror::open(db.as_deref())?;
+            let report = query::audit_mirror(&conn)?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            } else {
+                println!("{}", render::render_audit(&report));
+            }
+        }
+
+        WikiOp::Dialogue { query: q, limit, json, db } => {
+            if q.trim().is_empty() {
+                anyhow::bail!("terme de recherche vide");
+            }
+            let conn = mirror::open(db.as_deref())?;
+            let matches = query::search_dialogues(&conn, &q, limit)?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&matches)?);
+            } else {
+                println!("{}", render::render_dialogues(&matches, &q));
+            }
+        }
+    }
+
+    Ok(())
+}
+
 fn main() -> anyhow::Result<()> {
     // CLI interne (consommé par l'agent) : sortie minimale. `RUST_LOG=info` réactive les traces.
     tracing_subscriber::fmt()
@@ -218,6 +701,7 @@ fn main() -> anyhow::Result<()> {
         Cmd::Pdata { db, exe } => pdata(&db, &exe),
         Cmd::Rebuild { db, exe, rounds } => rebuild(&db, &exe, rounds),
         Cmd::Save { op } => save_cmd(op),
+        Cmd::Wiki { op } => wiki_cmd(op),
         Cmd::Textures { game_dir, limit, manifest, redis: use_redis, redis_url } => {
             textures(&game_dir, limit, &manifest, use_redis, &redis_url)
         }
