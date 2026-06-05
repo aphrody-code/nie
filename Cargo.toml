@@ -68,6 +68,8 @@ nie-save = { path = "crates/nie-save" }
 nie-wiki = { path = "crates/nie-wiki" }
 nie-core = { path = "crates/nie-core" }
 nie-data = { path = "crates/nie-data" }
+nie-engine = { path = "crates/nie-engine" }
+nie-model-serve = { path = "crates/nie-model-serve" }
 
 # tests CLI (dev-dep commune)
 assert_cmd = "2"
