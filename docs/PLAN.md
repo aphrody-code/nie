@@ -41,6 +41,15 @@ en Rust ; iecode/inagle ne sont pas des dépendances permanentes, ce sont des v�
 - **E2E live** en attente de creds Steam (`session`/`downloader` font de vrais appels steamroom, non testables sans login + réseau).
 - **Hors scope** (pilier distinct « jeu en cours d'exécution ») : `SteamApi` (FFI `libsteam_api` → crate `steamworks`), `SteamEncryptedAppTicket` (EOS Windows-only).
 
+### 3ter. Saves — `nie-save` (déchiffrement/lecture/édition native)
+- **FAIT (2026-06-05, `a08e6b7`)** : déchiffre/lit/édite les saves IEVR (Lives) en Rust pur. Algo = **XOR position-based, clé CRC32(nom de fichier)** (même que les packs CPK). Conteneur magic `0x9DCE66C3`/`0x2EC3031F`, répertoire stride 0x80, data @0x800, blocs internes magic `0xEEFF` (SYSTEM/AUTOSAVE/HEADERSAVE). Vérifié : entropie **8.0→0.01**, round-trip identique, **12 tests**. CLI `niers save read/decrypt/edit`.
+
+### 3quater. CLI wiki — `nie-wiki` (exploration game-data, ex-azalee CLI)
+- **FAIT (`448bc9c`)** : migration du cœur game-data de l'azalee CLI TS → **13 sous-commandes `niers wiki`** (chara/skill/item/team/compare/search/db/random-team/team-builder/status/redis/audit/dialogue), lecture du miroir SQLite via `rusqlite` + calcul `nie-core`/`nie-data` + rendu. (push/sync/rag/translate restent TS.)
+
+### 3quinquies. Moteur décompilé — `nie-engine` (portage des fonctions C de nie.exe)
+- **EN COURS** : portage massif des **60 fonctions C décompilées** (Ghidra, `refs/iecode-re/research/ghidra-export/decompiled/*.c`) → Rust par sous-système (render/animation/audio/physics-physx/menu/network/scripting/cfgbin/cpk/g4/app). Fan-out parallèle, ~15k LOC. C'est le gros de la réimplémentation moteur.
+
 ### 4. Runtime + portabilité — `nie-headless`, `nie-wasm`
 - **FAIT** : runner CLI headless ; surface wasm-bindgen (detect/crilayla/@UTF) sur `wasm32-unknown-unknown`.
 - **À étendre** : exposer nie-core/nie-data en wasm → boucle de jeu navigateur.
