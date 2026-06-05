@@ -64,6 +64,8 @@ use nie_formats::assemble::{
 use nie_formats::g4tx::{G4txTexture, parse as parse_g4tx};
 use nie_formats::vfs::Vfs;
 
+mod menu;
+
 use image_dds::{ImageFormat as DdsImageFormat, Surface as DdsSurface};
 
 // ── CLI ───────────────────────────────────────────────────────────────────────
@@ -100,6 +102,10 @@ struct Cli {
     #[arg(long, default_value = "/home/ubuntu/niers/var/model-cache")]
     cache_dir: PathBuf,
 
+    /// Répertoire des layouts de menu (`<screen>.json`) pour le rendu serveur `/menu-render/`.
+    #[arg(long, default_value = "/home/ubuntu/rg/apps/azalee/app/menu/_layouts")]
+    layout_dir: PathBuf,
+
     /// Port d'écoute (localhost uniquement).
     #[arg(long, default_value_t = 8790)]
     port: u16,
@@ -133,6 +139,8 @@ struct State {
     cache_dir: PathBuf,
     /// SQLite mirror : résolution uniforme via inagle_*.
     db_path: Option<PathBuf>,
+    /// Répertoire des layouts de menu (`<screen>.json`).
+    layout_dir: PathBuf,
 }
 
 impl State {
@@ -346,8 +354,24 @@ fn decode_best_g4tx_to_png(g4tx_data: &[u8]) -> Option<Vec<u8>> {
     decode_texture_to_png(g4tx_data, tex)
 }
 
+/// Variante RGBA de [`decode_best_g4tx_to_png`] : renvoie `(w, h, rgba8)` sans ré-encoder
+/// en PNG (utilisé par le compositeur de menu pour blitter directement).
+fn decode_best_g4tx_to_rgba(g4tx_data: &[u8]) -> Option<(u32, u32, Vec<u8>)> {
+    let g4tx = parse_g4tx(g4tx_data).ok()?;
+    let tex = g4tx.textures.iter()
+        .filter(|t| t.is_dds)
+        .max_by_key(|t| (t.width as u64) * (t.height as u64))?;
+    decode_texture_to_rgba(g4tx_data, tex)
+}
+
 /// Décode une entrée `G4txTexture` (DDS BC7/BC1/BC3/BC5) en PNG via `image_dds`.
 fn decode_texture_to_png(g4tx_data: &[u8], tex: &G4txTexture) -> Option<Vec<u8>> {
+    let (w, h, rgba) = decode_texture_to_rgba(g4tx_data, tex)?;
+    encode_rgba_to_png(&rgba, w as usize, h as usize)
+}
+
+/// Décode une entrée `G4txTexture` (DDS BC7/BC1/BC3/BC5) en RGBA8 brut `(w, h, data)`.
+fn decode_texture_to_rgba(g4tx_data: &[u8], tex: &G4txTexture) -> Option<(u32, u32, Vec<u8>)> {
     if !tex.is_dds {
         debug!("texture G4TX non-DDS ignorée ({}x{})", tex.width, tex.height);
         return None;
@@ -404,9 +428,7 @@ fn decode_texture_to_png(g4tx_data: &[u8], tex: &G4txTexture) -> Option<Vec<u8>>
     };
 
     let rgba_surface = surface.decode_rgba8().ok()?;
-    let rgba = rgba_surface.data;
-
-    encode_rgba_to_png(&rgba, w as usize, h as usize)
+    Some((w, h, rgba_surface.data))
 }
 
 /// Encode un buffer RGBA brut en PNG.
@@ -834,6 +856,49 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         return;
     }
 
+    // `/menu-render/<screen>.png` — rend un layout de menu (sprites) en PNG côté serveur.
+    // Remplace le renderer WebGPU navigateur (fragile). Déterministe + identique partout.
+    if let Some(rest) = path.strip_prefix("/menu-render/") {
+        let screen = rest.strip_suffix(".png").unwrap_or(rest);
+        if screen.is_empty()
+            || screen.len() > 64
+            || !screen.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+        {
+            respond_text(&mut stream, 400, "Bad Request", "écran invalide");
+            return;
+        }
+        let layout_path = state.layout_dir.join(format!("{screen}.json"));
+        let Ok(txt) = fs::read_to_string(&layout_path) else {
+            respond_text(&mut stream, 404, "Not Found", "layout introuvable");
+            return;
+        };
+        let layout: menu::Layout = match serde_json::from_str(&txt) {
+            Ok(l) => l,
+            Err(e) => {
+                warn!("layout {screen} invalide : {e}");
+                respond_text(&mut stream, 500, "Internal Server Error", "layout illisible");
+                return;
+            }
+        };
+        let png = menu::render_menu(&layout, |logical_path| {
+            let vfs_path = if logical_path.starts_with("data/") {
+                logical_path.to_string()
+            } else {
+                format!("data/{logical_path}")
+            };
+            let g4tx = {
+                let vfs = state.vfs.lock().unwrap();
+                vfs.read(&vfs_path).ok()
+            }?;
+            decode_best_g4tx_to_rgba(&g4tx)
+        });
+        match png {
+            Some(bytes) => respond(&mut stream, 200, "OK", "image/png", &bytes),
+            None => respond_text(&mut stream, 500, "Internal Server Error", "rendu échoué"),
+        }
+        return;
+    }
+
     // `/model-full/<code>.glb`
     if let Some(rest) = path.strip_prefix("/model-full/") {
         let code = rest.strip_suffix(".glb").unwrap_or(rest);
@@ -978,6 +1043,7 @@ fn main() -> Result<()> {
         body_map,
         cache_dir: cli.cache_dir.clone(),
         db_path,
+        layout_dir: cli.layout_dir.clone(),
     });
 
     // Bind du serveur TCP.
