@@ -21,6 +21,7 @@ nie-queue.workspace = true
 nie-re.workspace = true
 nie-formats = { workspace = true, features = ["serde"] }
 nie-save.workspace = true
+nie-wiki.workspace = true
 clap.workspace = true
 anyhow.workspace = true
 tracing.workspace = true

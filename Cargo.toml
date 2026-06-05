@@ -65,6 +65,9 @@ nie-seed = { path = "crates/nie-seed" }
 nie-formats = { path = "crates/nie-formats" }
 nie-headless = { path = "crates/nie-headless" }
 nie-save = { path = "crates/nie-save" }
+nie-wiki = { path = "crates/nie-wiki" }
+nie-core = { path = "crates/nie-core" }
+nie-data = { path = "crates/nie-data" }
 
 # tests CLI (dev-dep commune)
 assert_cmd = "2"
