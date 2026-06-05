@@ -57,11 +57,14 @@ use serde_json::Value;
 use tracing::{debug, error, info, warn};
 
 use nie_formats::assemble::{
-    CharacterAssemblyInput, SeasonKey, TextureUriConfig, assemble_armed,
-    assemble_character_model, assemble_keshin, g4md_to_g4mg_path, load_manifest,
+    CharacterAssemblyInput, EmbeddedTexture, MeshComponent, SeasonKey,
+    assemble_armed, assemble_character_model, assemble_keshin, g4md_to_g4mg_path, load_manifest,
     resolve_crc_to_g4md_path,
 };
+use nie_formats::g4tx::{G4txTexture, parse as parse_g4tx};
 use nie_formats::vfs::Vfs;
+
+use image_dds::{ImageFormat as DdsImageFormat, Surface as DdsSurface};
 
 // ── CLI ───────────────────────────────────────────────────────────────────────
 
@@ -112,7 +115,6 @@ struct State {
     /// internal_code → body_type_idx (depuis var/body-type-manifest.ndjson).
     body_map: HashMap<String, u8>,
     cache_dir: PathBuf,
-    tex_cfg: TextureUriConfig,
     /// SQLite mirror : résolution uniforme via inagle_*.
     db_path: Option<PathBuf>,
 }
@@ -266,6 +268,169 @@ fn resolve_uniform_crc(db_path: &Path, internal_code: &str) -> Option<u32> {
     u32::from_str_radix(hex, 16).ok()
 }
 
+// ── Décodage G4TX → PNG ───────────────────────────────────────────────────────
+
+/// Table de correspondance DXGI format → `image_dds::ImageFormat`.
+fn dxgi_to_image_format(dxgi: u32) -> Option<DdsImageFormat> {
+    match dxgi {
+        // BC1
+        71 => Some(DdsImageFormat::BC1RgbaUnorm),
+        72 => Some(DdsImageFormat::BC1RgbaUnormSrgb),
+        // BC2
+        73 => Some(DdsImageFormat::BC2RgbaUnorm),
+        74 => Some(DdsImageFormat::BC2RgbaUnormSrgb),
+        // BC3
+        77 => Some(DdsImageFormat::BC3RgbaUnorm),
+        78 => Some(DdsImageFormat::BC3RgbaUnormSrgb),
+        // BC4
+        79 | 80 => Some(DdsImageFormat::BC4RUnorm),
+        // BC5
+        83 | 84 => Some(DdsImageFormat::BC5RgUnorm),
+        // BC6H
+        95 => Some(DdsImageFormat::BC6hRgbUfloat),
+        96 => Some(DdsImageFormat::BC6hRgbSfloat),
+        // BC7
+        98 => Some(DdsImageFormat::BC7RgbaUnorm),
+        99 => Some(DdsImageFormat::BC7RgbaUnormSrgb),
+        _ => None,
+    }
+}
+
+/// Décode une texture spécifique d'un G4TX (l'entrée ayant la plus grande résolution parmi is_dds=true).
+fn decode_best_g4tx_to_png(g4tx_data: &[u8]) -> Option<Vec<u8>> {
+    let g4tx = parse_g4tx(g4tx_data).ok()?;
+    // Prend la texture DDS avec le plus grand nombre de pixels.
+    let tex = g4tx.textures.iter()
+        .filter(|t| t.is_dds)
+        .max_by_key(|t| (t.width as u64) * (t.height as u64))?;
+    decode_texture_to_png(g4tx_data, tex)
+}
+
+/// Décode une entrée `G4txTexture` (DDS BC7/BC1/BC3/BC5) en PNG via `image_dds`.
+fn decode_texture_to_png(g4tx_data: &[u8], tex: &G4txTexture) -> Option<Vec<u8>> {
+    if !tex.is_dds {
+        debug!("texture G4TX non-DDS ignorée ({}x{})", tex.width, tex.height);
+        return None;
+    }
+
+    let offset = tex.data_offset;
+    const DX10_DXGI_OFFSET: usize = 4 + 124; // magic(4) + DDS_HEADER(124) = 128
+    const PIXEL_OFFSET: usize = 4 + 124 + 20; // magic + DDS_HEADER + DX10_EXT = 148
+
+    if offset + PIXEL_OFFSET > g4tx_data.len() {
+        warn!("G4TX : DDS payload trop court pour {offset}+{PIXEL_OFFSET} (len={})", g4tx_data.len());
+        return None;
+    }
+
+    let dds_slice = &g4tx_data[offset..];
+
+    // Vérifie le magic DDS.
+    let magic = u32::from_le_bytes(dds_slice[..4].try_into().ok()?);
+    if magic != 0x2053_4444 {
+        warn!("G4TX : magic DDS attendu, trouvé {:#010x}", magic);
+        return None;
+    }
+
+    // Lit le DXGI format depuis le header DX10.
+    let dxgi_format = u32::from_le_bytes(
+        dds_slice[DX10_DXGI_OFFSET..DX10_DXGI_OFFSET + 4].try_into().ok()?,
+    );
+
+    let image_fmt = match dxgi_to_image_format(dxgi_format) {
+        Some(f) => f,
+        None => {
+            warn!("G4TX : DXGI format {dxgi_format} non supporté");
+            return None;
+        }
+    };
+
+    let w = tex.width as u32;
+    let h = tex.height as u32;
+    if w == 0 || h == 0 {
+        return None;
+    }
+
+    let pixel_data = &dds_slice[PIXEL_OFFSET..];
+
+    // Construit une `Surface` image_dds avec mip0 seulement.
+    let surface = DdsSurface {
+        width: w,
+        height: h,
+        depth: 1,
+        layers: 1,
+        mipmaps: 1,
+        image_format: image_fmt,
+        data: pixel_data,
+    };
+
+    let rgba_surface = surface.decode_rgba8().ok()?;
+    let rgba = rgba_surface.data;
+
+    encode_rgba_to_png(&rgba, w as usize, h as usize)
+}
+
+/// Encode un buffer RGBA brut en PNG.
+fn encode_rgba_to_png(rgba: &[u8], w: usize, h: usize) -> Option<Vec<u8>> {
+    let mut out_buf: Vec<u8> = Vec::with_capacity(w * h);
+    {
+        let mut encoder = png::Encoder::new(std::io::Cursor::new(&mut out_buf), w as u32, h as u32);
+        encoder.set_color(png::ColorType::Rgba);
+        encoder.set_depth(png::BitDepth::Eight);
+        let mut writer = encoder.write_header().ok()?;
+        writer.write_image_data(rgba).ok()?;
+    }
+    Some(out_buf)
+}
+
+/// Construit le chemin VFS d'un G4TX de face depuis le code personnage.
+/// Le dossier de série est déduit directement du code interne (préfixe c01/c02…)
+/// pour éviter de dépendre du libellé en base qui peut varier.
+fn face_g4tx_vfs_path(code: &str) -> String {
+    let series_dir = series_dir_from_code_upper(code).unwrap_or("01_IE1");
+    format!("data/dx11/chr/_face/{series_dir}/{code}/{code}.g4tx")
+}
+
+/// Résout le dossier de série (casse exacte des CPK, ex. `"01_IE1"`) depuis un code interne.
+/// Ces valeurs correspondent aux vrais noms de dossiers VFS extraits de `model-crc-manifest.ndjson`.
+fn series_dir_from_code_upper(code: &str) -> Option<&'static str> {
+    // Préfixe = les 3 premiers caractères après 'c' : c01… → "01"
+    let prefix = code.get(1..3)?;
+    match prefix {
+        "01" => Some("01_IE1"),
+        "02" => Some("02_IE2"),
+        "03" => Some("03_IE3"),
+        "04" => Some("04_GO1"),
+        "05" => Some("05_GO2"),
+        "06" => Some("06_GO3"),
+        "07" => Some("07_ARES"),
+        "08" => Some("08_ORION"),
+        "11" => Some("11_VICTORY"),
+        "20" => Some("20_EDIT"),
+        "21" => Some("21_MANNEQUIN"),
+        "22" => Some("22_COMBO"),
+        _ => None,
+    }
+}
+
+
+/// Tente de charger et décoder la texture de face d'un personnage en PNG.
+/// Retourne `None` si le G4TX est absent ou le décodage échoue.
+fn load_face_texture_png(state: &State, code: &str) -> Option<Vec<u8>> {
+    let vfs_path = face_g4tx_vfs_path(code);
+    debug!("chargement texture face : {vfs_path}");
+
+    let g4tx_data = {
+        let vfs = state.vfs.lock().unwrap();
+        vfs.read(&vfs_path).ok()
+    }?;
+
+    let png = decode_best_g4tx_to_png(&g4tx_data);
+    if png.is_none() {
+        warn!("décodage G4TX face {code} échoué");
+    }
+    png
+}
+
 // ── Assemblage du modèle ──────────────────────────────────────────────────────
 
 /// Résultat de l'assemblage : bytes GLB.
@@ -308,7 +473,19 @@ fn assemble_chara(state: &State, code: &str) -> Result<GlbBytes> {
     let mut model = assemble_character_model(&input)
         .with_context(|| format!("assemblage personnage {code}"))?;
 
-    Ok(model.to_glb_textured(&state.tex_cfg))
+    // Tente de charger et décoder la texture de face depuis le VFS.
+    if let Some(png_bytes) = load_face_texture_png(state, code) {
+        info!("texture face embarquée : {} ({} B PNG)", code, png_bytes.len());
+        model.embedded_textures.push(EmbeddedTexture {
+            component: MeshComponent::Face,
+            name: format!("{code}_face"),
+            png_bytes,
+        });
+    } else {
+        debug!("texture face absente/non décodée pour {code} — matériau Default");
+    }
+
+    Ok(model.to_glb_embedded())
 }
 
 /// Charge les données G4MD+G4MG d'un uniforme depuis le VFS via le manifeste CRC.
@@ -623,7 +800,6 @@ fn main() -> Result<()> {
         crc_manifest,
         body_map,
         cache_dir: cli.cache_dir.clone(),
-        tex_cfg: TextureUriConfig::default(),
         db_path,
     });
 
