@@ -39,6 +39,7 @@ pub mod growth;
 pub mod hash;
 pub mod item;
 pub mod passive;
+pub mod passives;
 pub mod skill;
 
 pub use hash::HashId;
