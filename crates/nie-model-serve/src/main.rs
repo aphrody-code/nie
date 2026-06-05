@@ -62,6 +62,7 @@ use nie_formats::assemble::{
     resolve_crc_to_g4md_path, type_idx_to_glb_name,
 };
 use nie_formats::g4tx::{G4txTexture, parse as parse_g4tx};
+use nie_formats::cfgbin;
 use nie_formats::vfs::Vfs;
 
 mod menu;
@@ -362,6 +363,55 @@ fn decode_best_g4tx_to_rgba(g4tx_data: &[u8]) -> Option<(u32, u32, Vec<u8>)> {
         .filter(|t| t.is_dds)
         .max_by_key(|t| (t.width as u64) * (t.height as u64))?;
     decode_texture_to_rgba(g4tx_data, tex)
+}
+
+/// Décode un `cfg.bin`/`objbin`/`fxbin`/`mevbin` RDBN en JSON exploitable :
+/// `{ format, lists: [ { name, type, count, rows: [ { champ: valeur } ] } ] }`.
+/// Les noms de listes/types/champs sont résolus depuis la table de chaînes (lisible).
+fn cfgbin_to_json(data: &[u8]) -> Option<serde_json::Value> {
+    use serde_json::{json, Map, Value};
+    if !cfgbin::is_rdbn(data) {
+        // Format T2B (cfg.bin Level-5 classique, le cas réel sur IEVR) : arbre
+        // hiérarchique {name, variables, children} — sérialisé directement.
+        let cfg = cfgbin::cfgbin_parse(data).ok()?;
+        return serde_json::to_value(&cfg).ok();
+    }
+    let rdbn = cfgbin::parse(data).ok()?;
+    let lists = cfgbin::read_values(&rdbn, data);
+    let to_val = |v: &cfgbin::RdbnValue| -> Value {
+        use cfgbin::RdbnValue as R;
+        match v {
+            R::Bool(b) => json!(b),
+            R::Byte(n) => json!(n),
+            R::Short(n) | R::ActType(n) => json!(n),
+            R::Int(n) | R::Flag(n) => json!(n),
+            R::Float(f) => json!(f),
+            R::Hash(h) => json!(format!("0x{h:08X}")),
+            R::Rates(a) | R::Position(a) => json!(a),
+            R::Condition(s) => json!(s),
+            R::ShortTuple(t) => json!(t),
+            R::Blob(b) => json!(format!("blob[{}o]", b.len())),
+            _ => Value::Null,
+        }
+    };
+    let lists_json: Vec<Value> = lists
+        .iter()
+        .map(|l| {
+            let rows: Vec<Value> = l
+                .rows
+                .iter()
+                .map(|row| {
+                    let mut m = Map::new();
+                    for (name, val) in &row.fields {
+                        m.insert(name.clone(), to_val(val));
+                    }
+                    Value::Object(m)
+                })
+                .collect();
+            json!({ "name": l.name, "type": l.type_name, "count": rows.len(), "rows": rows })
+        })
+        .collect();
+    Some(json!({ "format": "rdbn", "lists": lists_json }))
 }
 
 /// Décode une entrée `G4txTexture` (DDS BC7/BC1/BC3/BC5) en PNG via `image_dds`.
@@ -852,6 +902,61 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         match g4tx.as_deref().and_then(decode_best_g4tx_to_png) {
             Some(png) => respond(&mut stream, 200, "OK", "image/png", &png),
             None => respond_text(&mut stream, 404, "Not Found", "texture absente/non décodée"),
+        }
+        return;
+    }
+
+    // `/cfg/<vfs-path>.json` — décode un cfg.bin/objbin/fxbin/mevbin RDBN en JSON natif.
+    if let Some(rest) = path.strip_prefix("/cfg/") {
+        let rel = rest.strip_suffix(".json").unwrap_or(rest);
+        let vfs_path = if rel.starts_with("data/") {
+            rel.to_string()
+        } else {
+            format!("data/{rel}")
+        };
+        if vfs_path.contains("..") {
+            respond_text(&mut stream, 400, "Bad Request", "chemin invalide");
+            return;
+        }
+        let bytes = {
+            let vfs = state.vfs.lock().unwrap();
+            vfs.read(&vfs_path).ok()
+        };
+        match bytes.as_deref().and_then(cfgbin_to_json) {
+            Some(json) => {
+                let body = serde_json::to_vec(&json).unwrap_or_default();
+                respond(&mut stream, 200, "OK", "application/json; charset=utf-8", &body);
+            }
+            None => respond_text(&mut stream, 404, "Not Found", "cfg.bin absent ou non-RDBN"),
+        }
+        return;
+    }
+
+    // `/raw/<vfs-path>` — bytes décompressés/déchiffrés bruts du CPK (texte, download).
+    if let Some(rest) = path.strip_prefix("/raw/") {
+        let vfs_path = if rest.starts_with("data/") {
+            rest.to_string()
+        } else {
+            format!("data/{rest}")
+        };
+        if vfs_path.contains("..") {
+            respond_text(&mut stream, 400, "Bad Request", "chemin invalide");
+            return;
+        }
+        let bytes = {
+            let vfs = state.vfs.lock().unwrap();
+            vfs.read(&vfs_path).ok()
+        };
+        match bytes {
+            Some(b) => {
+                let ct = if std::str::from_utf8(&b).is_ok() {
+                    "text/plain; charset=utf-8"
+                } else {
+                    "application/octet-stream"
+                };
+                respond(&mut stream, 200, "OK", ct, &b);
+            }
+            None => respond_text(&mut stream, 404, "Not Found", "fichier absent du VFS"),
         }
         return;
     }
