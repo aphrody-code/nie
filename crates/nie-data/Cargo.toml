@@ -21,3 +21,10 @@ serde = { workspace = true, optional = true }
 default = []
 # Dérive Serialize/Deserialize sur les structs publiques.
 serde = ["dep:serde"]
+# Active std pour les binaires (réactive les features std de serde_json).
+std = ["serde_json/std"]
+
+[[bin]]
+name = "export_passives"
+path = "src/bin/export_passives.rs"
+required-features = ["serde", "std"]
