@@ -207,4 +207,9 @@ impl Vfs {
     pub fn cpk_count(&self) -> usize {
         self.cpk_names.len()
     }
+
+    /// Itère sur toutes les entrées indexées (chemin_interne, entrée VFS).
+    pub fn iter(&self) -> impl Iterator<Item = (&str, &VfsEntry)> {
+        self.index.iter().map(|(k, v)| (k.as_str(), v))
+    }
 }

@@ -133,6 +133,23 @@ const fn crc32_table() -> [u32; 256] {
 /// Table CRC32 figée au build.
 const CRC32_TABLE: [u32; 256] = crc32_table();
 
+/// Calcule le CRC32 du jeu IEVR pour identifier un asset (ModelIdCrc, etc.).
+///
+/// Algorithme identique à `nie-engine::g4::crc32_of` : CRC32 standard (init `0xFFFFFFFF`,
+/// polynôme `0xEDB88320`) **sans** la finalisation `~crc`. C'est l'accumulateur brut.
+///
+/// Utilisé pour les champs `uniformKeeperModelIdCrc`, `uniformFielderModelIdCrc`, etc.
+/// dans les données d'uniformes (inagle_uniforms.models).
+#[must_use]
+pub fn crc32_nie(data: &[u8]) -> u32 {
+    let mut crc: u32 = 0xFFFF_FFFF;
+    for &b in data {
+        let idx = ((crc & 0xFF) ^ u32::from(b)) as usize;
+        crc = (crc >> 8) ^ CRC32_TABLE[idx];
+    }
+    crc // PAS de ~crc
+}
+
 /// Dérive la clé de déchiffrement depuis le **nom de fichier** d'un CPK.
 ///
 /// Port exact de `CriwareCrypt.CalculateKeyFromFilename` / `NativeCrypto.CalculateKeyFromFilename` :
