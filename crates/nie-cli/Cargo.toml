@@ -31,3 +31,9 @@ hex.workspace = true
 redis.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+rayon.workspace = true
+
+# pré-décodage sprites menu (g4tx -> DDS -> RGBA -> PNG)
+# default-features=false pour exclure `encode` (intel_tex_2 / C++ ISPC = linker error)
+image_dds = { version = "0.7", default-features = false, features = ["ddsfile", "image"] }
+image = { version = "0.25", default-features = false, features = ["png"] }

@@ -2,6 +2,8 @@
 #![forbid(unsafe_code)]
 #![allow(clippy::pedantic)]
 
+mod menu_predecode;
+
 use std::io::Write;
 use std::path::PathBuf;
 
@@ -119,6 +121,16 @@ enum Cmd {
         #[command(subcommand)]
         op: WikiOp,
     },
+    /// Construit le manifeste CRC32->chemin pour tous les fichiers .g4md/.g4mg des CPK.
+    /// Utilisé pour résoudre les ModelIdCrc des inagle_uniforms vers les chemins réels.
+    UniformMap {
+        /// Répertoire racine de l'installation du jeu (contenant data/cpk_list.cfg.bin).
+        #[arg(long, default_value = "/home/ubuntu/.local/share/Steam/iecode/inazuma")]
+        game_dir: PathBuf,
+        /// Chemin du manifeste NDJSON de sortie (crc32->path).
+        #[arg(long, default_value = "var/model-crc-manifest.ndjson")]
+        out: PathBuf,
+    },
     /// Scanne les fichiers .g4tx dans les CPK du jeu et produit un manifeste NDJSON d'en-têtes.
     Textures {
         /// Répertoire racine de l'installation du jeu (contenant data/cpk_list.cfg.bin).
@@ -136,6 +148,27 @@ enum Cmd {
         /// URL Redis (db3).
         #[arg(long, default_value = "redis://127.0.0.1/3")]
         redis_url: String,
+    },
+    /// Pré-décode les sprites menu IEVR (g4tx→DDS→RGBA→PNG) dans le dump disque.
+    ///
+    /// Lit l'index Redis db3 (iev:file:index) pour localiser les g4tx dans les CPK,
+    /// décode chacun via nie-formats + image_dds (BC1/BC3/BC7), et écrit le PNG
+    /// à <game_dir>/data/dx11/menu/.../<nom>.png (idempotent : skip si non-vide).
+    ///
+    /// Priorité : sprites des 32 layouts azalee (<layouts_dir>/*.json) ; le reste si --all.
+    MenuPredecode {
+        /// Répertoire racine du jeu (contenant data/packs/).
+        #[arg(long, default_value = "/home/ubuntu/.local/share/Steam/iecode/inazuma")]
+        game_dir: PathBuf,
+        /// Répertoire des layouts azalee (*.json).
+        #[arg(long, default_value = "/home/ubuntu/rg/apps/azalee/app/menu/_layouts")]
+        layouts_dir: PathBuf,
+        /// URL Redis db3 (iev:file:index).
+        #[arg(long, default_value = "redis://127.0.0.1/3")]
+        redis_url: String,
+        /// Traite aussi TOUS les g4tx menu fr+en+base (pas seulement les sprites des layouts).
+        #[arg(long)]
+        all: bool,
     },
 }
 
@@ -702,8 +735,12 @@ fn main() -> anyhow::Result<()> {
         Cmd::Rebuild { db, exe, rounds } => rebuild(&db, &exe, rounds),
         Cmd::Save { op } => save_cmd(op),
         Cmd::Wiki { op } => wiki_cmd(op),
+        Cmd::UniformMap { game_dir, out } => uniform_map(&game_dir, &out),
         Cmd::Textures { game_dir, limit, manifest, redis: use_redis, redis_url } => {
             textures(&game_dir, limit, &manifest, use_redis, &redis_url)
+        }
+        Cmd::MenuPredecode { game_dir, layouts_dir, redis_url, all } => {
+            menu_predecode_cmd(&game_dir, &layouts_dir, &redis_url, all)
         }
     }
 }
@@ -1140,6 +1177,55 @@ fn save_cmd(op: SaveOp) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Construit un manifeste NDJSON CRC32->chemin pour tous les fichiers .g4md et .g4mg du VFS.
+/// Chaque ligne JSON : `{"crc":3735928559,"path":"chr/c01000010.g4md","cpk":"abc123.cpk"}`
+///
+/// Le CRC32 est calculé avec l'algorithme du jeu (accumulteur sans inversion finale,
+/// sur le nom de fichier complet sans extension, en minuscules, sans chemin).
+fn uniform_map(game_dir: &std::path::Path, out: &std::path::Path) -> anyhow::Result<()> {
+    use std::io::Write as IoWrite;
+    use nie_formats::vfs::Vfs;
+
+    let data_dir = game_dir.join("data");
+    let mut vfs = Vfs::new();
+    vfs.init(&data_dir).context("init VFS depuis cpk_list.cfg.bin")?;
+
+    tracing::info!(
+        asset_count = vfs.asset_count(),
+        cpk_count = vfs.cpk_count(),
+        "VFS initialisé"
+    );
+
+    if let Some(parent) = out.parent() {
+        std::fs::create_dir_all(parent).ok();
+    }
+    let mut f = std::fs::File::create(out)
+        .with_context(|| format!("création manifeste {}", out.display()))?;
+
+    let mut count = 0usize;
+    for (path, entry) in vfs.iter() {
+        let lower = path.to_lowercase();
+        if !lower.ends_with(".g4md") && !lower.ends_with(".g4mg") {
+            continue;
+        }
+        // Nom sans extension pour le CRC (selon l'usage dans g4.rs)
+        let stem = path.rsplit('/').next().unwrap_or(path);
+        let stem_no_ext = stem.rfind('.').map(|i| &stem[..i]).unwrap_or(stem);
+        let crc = nie_formats::cpk::crc32_nie(stem_no_ext.as_bytes());
+        let line = serde_json::json!({
+            "crc": crc,
+            "crc_hex": format!("0x{crc:08X}"),
+            "path": path,
+            "cpk": entry.cpk_filename,
+        });
+        writeln!(f, "{line}")?;
+        count += 1;
+    }
+
+    eprintln!("uniform-map: {count} fichiers .g4md/.g4mg indexés → {}", out.display());
+    Ok(())
+}
+
 /// Charge le cpk_list.cfg.bin et extrait tous les chemins internes se terminant par `.g4tx`.
 /// Retourne (internal_path, cpk_filename).
 fn collect_g4tx_paths(data_dir: &std::path::Path) -> anyhow::Result<Vec<(String, String)>> {
@@ -1188,3 +1274,92 @@ fn collect_g4tx_paths(data_dir: &std::path::Path) -> anyhow::Result<Vec<(String,
     Ok(result)
 }
 
+// ---------------------------------------------------------------------------
+// MenuPredecode
+// ---------------------------------------------------------------------------
+
+fn menu_predecode_cmd(
+    game_dir: &std::path::Path,
+    layouts_dir: &std::path::Path,
+    redis_url: &str,
+    all_menu: bool,
+) -> anyhow::Result<()> {
+    // dump_root = game_dir/data (les sprite logicalPaths commencent par "dx11/...")
+    let dump_root = game_dir.join("data");
+    let packs_dir = game_dir.join("data").join("packs");
+
+    // Extraire les sprites des layouts azalee (champ sprite.logicalPath des JSON).
+    let priority_paths = extract_layout_sprites(layouts_dir)?;
+    eprintln!(
+        "predecode layouts={} sprites_uniques={}",
+        count_json_files(layouts_dir),
+        priority_paths.len()
+    );
+
+    let stats = menu_predecode::run(
+        &dump_root,
+        &packs_dir,
+        redis_url,
+        &priority_paths,
+        all_menu,
+    )?;
+
+    println!(
+        "decoded={} skipped={} failed={}",
+        stats.decoded, stats.skipped, stats.failed
+    );
+    Ok(())
+}
+
+/// Extrait les `sprite.logicalPath` (`.g4tx`) uniques depuis tous les *.json du dossier layouts.
+fn extract_layout_sprites(layouts_dir: &std::path::Path) -> anyhow::Result<Vec<String>> {
+    use std::collections::HashSet;
+
+    let mut seen: HashSet<String> = HashSet::new();
+    let mut result: Vec<String> = Vec::new();
+
+    let entries = std::fs::read_dir(layouts_dir)
+        .with_context(|| format!("lecture layouts {}", layouts_dir.display()))?;
+
+    for entry in entries {
+        let entry = entry?;
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("json") {
+            continue;
+        }
+        let content = std::fs::read_to_string(&path)
+            .with_context(|| format!("lecture {}", path.display()))?;
+        let json: serde_json::Value = serde_json::from_str(&content)
+            .with_context(|| format!("parse JSON {}", path.display()))?;
+
+        if let Some(objects) = json.get("objects").and_then(|v| v.as_array()) {
+            for obj in objects {
+                if let Some(sprite) = obj.get("sprite") {
+                    if let Some(logical_path) = sprite
+                        .get("logicalPath")
+                        .and_then(|v| v.as_str())
+                    {
+                        if logical_path.ends_with(".g4tx") && seen.insert(logical_path.to_string()) {
+                            result.push(logical_path.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(result)
+}
+
+fn count_json_files(layouts_dir: &std::path::Path) -> usize {
+    std::fs::read_dir(layouts_dir)
+        .ok()
+        .map(|rd| {
+            rd.filter_map(|e| e.ok())
+                .filter(|e| {
+                    e.path().extension().and_then(|x| x.to_str()) == Some("json")
+                })
+                .count()
+        })
+        .unwrap_or(0)
+}
