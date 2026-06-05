@@ -88,6 +88,10 @@ struct Cli {
     #[arg(long, default_value = "/home/ubuntu/niers/var/model-crc-manifest.ndjson")]
     crc_manifest: PathBuf,
 
+    /// Manifeste uniforme CRC32→G4MD+G4TX (var/uniform-model-map.ndjson, généré depuis chara_parts).
+    #[arg(long, default_value = "/home/ubuntu/niers/var/uniform-model-map.ndjson")]
+    uniform_map: PathBuf,
+
     /// Manifeste body_type_idx (var/body-type-manifest.ndjson, optionnel — fallback type_idx=0).
     #[arg(long, default_value = "/home/ubuntu/niers/var/body-type-manifest.ndjson")]
     body_manifest: PathBuf,
@@ -107,11 +111,23 @@ struct Cli {
 
 // ── État partagé ──────────────────────────────────────────────────────────────
 
+/// Entrée du manifeste uniforme CRC→G4MD+G4TX (var/uniform-model-map.ndjson).
+///
+/// Chaque ligne : `{"crc":2636889360,"crc_hex":"0x9D2BBD10","code":"u010101_10",
+///                  "g4md":"data/common/chr/_uniform/u000101/u000101.g4md",
+///                  "g4tx":"data/dx11/chr/_uniform/u000101/u010101_10.g4tx"}`
+struct UniformMapEntry {
+    g4md: String,
+    g4tx: String,
+}
+
 /// État partagé entre les threads (derrière Arc).
 struct State {
     vfs: std::sync::Mutex<Vfs>,
     glb_dir: PathBuf,
     crc_manifest: Vec<nie_formats::assemble::ManifestEntry>,
+    /// CRC uniforme → chemins G4MD+G4TX (depuis var/uniform-model-map.ndjson).
+    uniform_map: HashMap<u32, UniformMapEntry>,
     /// internal_code → body_type_idx (depuis var/body-type-manifest.ndjson).
     body_map: HashMap<String, u8>,
     cache_dir: PathBuf,
@@ -131,6 +147,30 @@ impl State {
         let entries = load_manifest(&s);
         info!("manifeste CRC : {} entrées", entries.len());
         Ok(entries)
+    }
+
+    /// Charge le manifeste uniforme CRC→G4MD+G4TX depuis le fichier NDJSON.
+    fn load_uniform_map(path: &Path) -> HashMap<u32, UniformMapEntry> {
+        if !path.exists() {
+            warn!("manifeste uniforme absent : {} (uniforme non disponible)", path.display());
+            return HashMap::new();
+        }
+        let Ok(content) = fs::read_to_string(path) else {
+            warn!("impossible de lire uniform-model-map : {}", path.display());
+            return HashMap::new();
+        };
+        let mut map = HashMap::new();
+        for line in content.lines() {
+            let line = line.trim();
+            if line.is_empty() { continue; }
+            let Ok(v): std::result::Result<Value, _> = serde_json::from_str(line) else { continue };
+            let Some(crc) = v["crc"].as_u64().map(|c| c as u32) else { continue };
+            let Some(g4md) = v["g4md"].as_str().map(str::to_string) else { continue };
+            let Some(g4tx) = v["g4tx"].as_str().map(str::to_string) else { continue };
+            map.insert(crc, UniformMapEntry { g4md, g4tx });
+        }
+        info!("uniform-model-map : {} entrées", map.len());
+        map
     }
 
     /// Charge le manifeste body_type_idx depuis le fichier NDJSON.
@@ -431,6 +471,23 @@ fn load_face_texture_png(state: &State, code: &str) -> Option<Vec<u8>> {
     png
 }
 
+/// Tente de charger et décoder la texture d'uniforme depuis un chemin VFS G4TX.
+/// Retourne `None` si le G4TX est absent ou le décodage échoue.
+fn load_uniform_texture_png(state: &State, g4tx_vfs_path: &str) -> Option<Vec<u8>> {
+    debug!("chargement texture uniforme : {g4tx_vfs_path}");
+
+    let g4tx_data = {
+        let vfs = state.vfs.lock().unwrap();
+        vfs.read(g4tx_vfs_path).ok()
+    }?;
+
+    let png = decode_best_g4tx_to_png(&g4tx_data);
+    if png.is_none() {
+        warn!("décodage G4TX uniforme {g4tx_vfs_path} échoué");
+    }
+    png
+}
+
 // ── Assemblage du modèle ──────────────────────────────────────────────────────
 
 /// Résultat de l'assemblage : bytes GLB.
@@ -447,17 +504,17 @@ fn assemble_chara(state: &State, code: &str) -> Result<GlbBytes> {
         .and_then(|db| resolve_uniform_crc(db, code))
         .unwrap_or(0);
 
-    // Tentative de chargement des données G4MD/G4MG de l'uniforme depuis le VFS.
-    let (uniform_g4md, uniform_g4mg) = if uniform_crc != 0 {
+    // Tentative de chargement des données G4MD/G4MG+G4TX de l'uniforme depuis le VFS.
+    let (uniform_g4md, uniform_g4mg, uniform_g4tx_path) = if uniform_crc != 0 {
         match load_uniform_from_vfs(state, uniform_crc) {
-            Ok((md, mg)) => (Some(md), Some(mg)),
+            Ok(ud) => (Some(ud.g4md), Some(ud.g4mg), ud.g4tx_path),
             Err(e) => {
                 debug!("uniforme {:#010x} non chargé depuis VFS : {e}", uniform_crc);
-                (None, None)
+                (None, None, None)
             }
         }
     } else {
-        (None, None)
+        (None, None, None)
     };
 
     let input = CharacterAssemblyInput {
@@ -485,13 +542,57 @@ fn assemble_chara(state: &State, code: &str) -> Result<GlbBytes> {
         debug!("texture face absente/non décodée pour {code} — matériau Default");
     }
 
+    // Tente de charger et décoder la texture de l'uniforme depuis le VFS.
+    if let Some(g4tx_path) = uniform_g4tx_path {
+        match load_uniform_texture_png(state, &g4tx_path) {
+            Some(png_bytes) => {
+                info!("texture uniforme embarquée : {} ({} B PNG, {})", code, png_bytes.len(), g4tx_path);
+                model.embedded_textures.push(EmbeddedTexture {
+                    component: MeshComponent::Uniform,
+                    name: format!("{code}_uniform"),
+                    png_bytes,
+                });
+            }
+            None => {
+                debug!("texture uniforme {g4tx_path} absente/non décodée — matériau Default");
+            }
+        }
+    }
+
     Ok(model.to_glb_embedded())
 }
 
-/// Charge les données G4MD+G4MG d'un uniforme depuis le VFS via le manifeste CRC.
-fn load_uniform_from_vfs(state: &State, crc: u32) -> Result<(Vec<u8>, Vec<u8>)> {
+/// Résultat du chargement d'un uniforme depuis le VFS.
+struct UniformData {
+    g4md: Vec<u8>,
+    g4mg: Vec<u8>,
+    /// Chemin VFS du G4TX de texture (pour chargement séparé).
+    g4tx_path: Option<String>,
+}
+
+/// Charge les données G4MD+G4MG d'un uniforme depuis le VFS.
+///
+/// Priorité 1 : `uniform-model-map.ndjson` (CRC = crc32_std du code logique, couvre IE1/GO/VR).
+/// Priorité 2 : `model-crc-manifest.ndjson` (CRC = crc32_nie du stem fichier, couvre VR uniquement).
+fn load_uniform_from_vfs(state: &State, crc: u32) -> Result<UniformData> {
+    // Priorité 1 : manifeste uniforme (chara_parts).
+    if let Some(entry) = state.uniform_map.get(&crc) {
+        let g4md_path = &entry.g4md;
+        let g4mg_path = g4md_to_g4mg_path(g4md_path);
+        let g4tx_path = entry.g4tx.clone();
+
+        let vfs = state.vfs.lock().unwrap();
+        let g4md = vfs.read(g4md_path.as_str())
+            .with_context(|| format!("lecture G4MD uniforme {g4md_path}"))?;
+        let g4mg = vfs.read(&g4mg_path)
+            .with_context(|| format!("lecture G4MG uniforme {g4mg_path}"))?;
+
+        return Ok(UniformData { g4md, g4mg, g4tx_path: Some(g4tx_path) });
+    }
+
+    // Priorité 2 : manifeste CRC (fallback pour VR — espace CRC différent).
     let g4md_path = resolve_crc_to_g4md_path(&state.crc_manifest, crc)
-        .ok_or_else(|| anyhow::anyhow!("CRC {:#010x} absent du manifeste", crc))?;
+        .ok_or_else(|| anyhow::anyhow!("CRC uniforme {:#010x} absent des deux manifestes", crc))?;
     let g4mg_path = g4md_to_g4mg_path(g4md_path);
 
     let vfs = state.vfs.lock().unwrap();
@@ -500,7 +601,7 @@ fn load_uniform_from_vfs(state: &State, crc: u32) -> Result<(Vec<u8>, Vec<u8>)> 
     let g4mg = vfs.read(&g4mg_path)
         .with_context(|| format!("lecture G4MG {g4mg_path}"))?;
 
-    Ok((g4md, g4mg))
+    Ok(UniformData { g4md, g4mg, g4tx_path: None })
 }
 
 /// Assemble un keshin (code `kXXXXXX`).
@@ -786,6 +887,7 @@ fn main() -> Result<()> {
 
     // Charge les manifestes.
     let crc_manifest = State::load_crc_manifest(&cli.crc_manifest)?;
+    let uniform_map = State::load_uniform_map(&cli.uniform_map);
     let body_map = State::load_body_map(&cli.body_manifest);
 
     // Résout le miroir SQLite.
@@ -798,6 +900,7 @@ fn main() -> Result<()> {
         vfs: std::sync::Mutex::new(vfs),
         glb_dir: cli.glb_dir.clone(),
         crc_manifest,
+        uniform_map,
         body_map,
         cache_dir: cli.cache_dir.clone(),
         db_path,
