@@ -599,9 +599,21 @@ pub fn parse_utf(data: &[u8]) -> Result<UtfTable, FormatError> {
     }
 
     // --- Lignes ---
+    // Certains ACB (Criware) encodent rows_offset > table_size (valeur résiduelle).
+    // Dans ce cas la zone row réelle est juste après le schéma de colonnes : elle
+    // s'étend de (string_pool - row_stride*row_count) jusqu'à string_pool.
+    // On détecte ce cas par rows_offset >= data.len() et on fallback sur la position
+    // calculée depuis string_pool.
+    let effective_rows_offset = if row_count > 0 && rows_offset >= data.len() {
+        let fallback = string_pool.saturating_sub(row_stride * row_count);
+        fallback
+    } else {
+        rows_offset
+    };
+
     let mut rows: Vec<Vec<UtfValue>> = Vec::with_capacity(row_count);
     for r in 0..row_count {
-        let row_base = rows_offset + r * row_stride;
+        let row_base = effective_rows_offset + r * row_stride;
         let mut row_cursor = row_base;
         let mut row: Vec<UtfValue> = Vec::with_capacity(col_count);
 
