@@ -925,6 +925,50 @@ fn decode_awb_first_entry(data: &[u8], vfs_path: &str) -> anyhow::Result<Vec<u8>
     anyhow::bail!("AWB {vfs_path} : aucune entrée HCA/ADX valide trouvée")
 }
 
+/// Réencapsule un flux H.264 Annex-B brut en MP4 fragmenté (lisible directement
+/// par un `<video>` navigateur) via ffmpeg en remux sans réencodage (`-c copy`).
+///
+/// Le H.264 brut sorti du démux USM n'a ni conteneur ni timing -> on lui impose
+/// 60 fps (cadence réelle des films IEVR) et on produit un MP4 `frag_keyframe`
+/// (sortie séquentielle compatible pipe). Renvoie `None` si ffmpeg est absent ou
+/// échoue -> l'appelant retombe alors sur le H.264 brut (téléchargement).
+fn mux_h264_to_mp4(h264: &[u8]) -> Option<Vec<u8>> {
+    use std::process::{Command, Stdio};
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+
+    // Fichier d'entrée temporaire (évite le deadlock écriture-stdin/lecture-stdout).
+    let n = SEQ.fetch_add(1, Ordering::Relaxed);
+    let tmp = std::env::temp_dir().join(format!("nms-h264-{}-{}.264", std::process::id(), n));
+    std::fs::write(&tmp, h264).ok()?;
+
+    let out = Command::new("ffmpeg")
+        .args(["-loglevel", "error", "-r", "60", "-i"])
+        .arg(&tmp)
+        .args([
+            "-c:v",
+            "copy",
+            "-an",
+            "-f",
+            "mp4",
+            "-movflags",
+            "frag_keyframe+empty_moov+default_base_moof",
+            "pipe:1",
+        ])
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .output();
+    let _ = std::fs::remove_file(&tmp);
+
+    let out = out.ok()?;
+    if out.status.success() && !out.stdout.is_empty() {
+        Some(out.stdout)
+    } else {
+        None
+    }
+}
+
 /// Retourne les bytes du GLB : depuis le cache disque ou assemblage live + mise en cache.
 fn get_or_build_glb(state: &State, code: &str) -> Result<GlbBytes> {
     let cache_path = state.cache_dir.join(format!("{code}.glb"));
@@ -1334,7 +1378,12 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                             return;
                         }
                         let (ct, body) = match result.video_codec {
-                            VideoCodec::H264 => ("video/h264", result.video_data),
+                            // H.264 brut -> remux MP4 fragmenté (lisible <video>) ;
+                            // repli sur le flux brut si ffmpeg indisponible.
+                            VideoCodec::H264 => match mux_h264_to_mp4(&result.video_data) {
+                                Some(mp4) => ("video/mp4", mp4),
+                                None => ("video/h264", result.video_data),
+                            },
                             VideoCodec::Vp9  => ("video/webm", result.video_data),
                             VideoCodec::Unknown => ("application/octet-stream", result.video_data),
                         };
