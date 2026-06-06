@@ -57,13 +57,17 @@ use serde_json::Value;
 use tracing::{debug, error, info, warn};
 
 use nie_formats::assemble::{
-    CharacterAssemblyInput, EmbeddedTexture, MeshComponent, SeasonKey,
-    assemble_armed, assemble_character_model, assemble_keshin, g4md_to_g4mg_path, load_manifest,
-    resolve_crc_to_g4md_path, type_idx_to_glb_name,
+    CharacterAssemblyInput, EmbeddedTexture, GenericModelInput, MeshComponent, SeasonKey,
+    assemble_armed, assemble_character_model, assemble_generic_model, assemble_keshin,
+    g4md_to_g4mg_path, load_manifest, resolve_crc_to_g4md_path, type_idx_to_glb_name,
 };
 use nie_formats::g4tx::{G4txTexture, parse as parse_g4tx};
 use nie_formats::cfgbin;
 use nie_formats::vfs::Vfs;
+use nie_formats::cri_audio::{
+    Awb, acb_parse, adx_decode, is_adx, is_hca,
+    encode_pcm16_wav, usm_demux, VideoCodec,
+};
 
 mod menu;
 
@@ -772,6 +776,155 @@ fn assemble_code(state: &State, code: &str) -> Result<GlbBytes> {
     }
 }
 
+/// Sous-domaines `common/chr/_<sub>/` servables comme modèles génériques (g4md+g4mg).
+/// Liste fermée pour interdire toute traversée arbitraire du VFS via le nom de sous-dossier.
+const CHR_GENERIC_SUBS: &[&str] = &["waza", "item", "animal", "armd", "keshin"];
+
+/// Assemble un modèle générique d'un sous-domaine `common/chr/_<sub>/<code>/<code>.g4md|.g4mg`.
+///
+/// Couvre les modèles non liés à un personnage : techniques (`_waza`), objets 3D (`_item`),
+/// animaux (`_animal`). Maillage + matériaux résolus depuis le G4MD ; pas de texture embarquée
+/// (même rendu que keshin/armures). Échoue (404 côté HTTP) si la paire g4md+g4mg est absente.
+fn assemble_chr_generic(state: &State, sub: &str, code: &str) -> Result<GlbBytes> {
+    if !CHR_GENERIC_SUBS.contains(&sub) {
+        bail!("sous-domaine chr non servable : {sub}");
+    }
+    let g4md_path = format!("data/common/chr/_{sub}/{code}/{code}.g4md");
+    let g4mg_path = format!("data/common/chr/_{sub}/{code}/{code}.g4mg");
+
+    let (g4md, g4mg) = {
+        let vfs = state.vfs.lock().unwrap();
+        let g4md = vfs
+            .read(&g4md_path)
+            .with_context(|| format!("G4MD {g4md_path}"))?;
+        let g4mg = vfs
+            .read(&g4mg_path)
+            .with_context(|| format!("G4MG {g4mg_path}"))?;
+        (g4md, g4mg)
+    };
+
+    let model = assemble_generic_model(GenericModelInput {
+        code: code.to_string(),
+        g4md,
+        g4mg,
+        component: MeshComponent::Generic,
+    })
+    .with_context(|| format!("assemblage {sub}/{code}"))?;
+
+    Ok(model.to_glb())
+}
+
+// ── Décodage audio ─────────────────────────────────────────────────────────────
+
+/// Décode un fichier HCA Criware en PCM 16-bit via la crate `cridecoder`.
+///
+/// `cridecoder::HcaDecoder` implémente l'algorithme HCA complet (MDCT + overlap-add
+/// + scale factors + intensity stereo). Pour IEVR, ciph_type = 0 (non chiffré),
+/// donc la clé peut rester à 0.
+fn hca_decode_to_pcm16(raw: &[u8]) -> anyhow::Result<(Vec<i16>, u32, u32)> {
+    use cridecoder::{HcaDecoder, HcaDecoderError};
+    use std::io::Cursor;
+
+    let cursor = Cursor::new(raw);
+    let mut decoder = HcaDecoder::from_reader(cursor)
+        .map_err(|e| anyhow::anyhow!("HCA init: {e}"))?;
+
+    let info = decoder.info().clone();
+    let channels = info.channel_count as u32;
+    let sample_rate = info.sampling_rate;
+    let frame_samples = info.samples_per_block * info.channel_count as usize;
+    let mut pcm_buf = vec![0i16; frame_samples];
+    let mut all_samples: Vec<i16> = Vec::with_capacity(
+        info.block_count as usize * frame_samples
+    );
+
+    loop {
+        match decoder.decode_frame_i16(&mut pcm_buf) {
+            Ok(0) => {} // trame delay (encoder delay initial)
+            Ok(n) => {
+                // n = nombre de sample-frames, pcm_buf est déjà entrelacé
+                let count = n * channels as usize;
+                all_samples.extend_from_slice(&pcm_buf[..count]);
+            }
+            Err(HcaDecoderError::Eof) => break,
+            Err(e) => return Err(anyhow::anyhow!("HCA frame: {e}")),
+        }
+    }
+
+    Ok((all_samples, channels, sample_rate))
+}
+
+/// Décode n'importe quel format audio Criware en WAV PCM 16-bit.
+///
+/// Dispatch selon le magic détecté dans `raw` et l'extension de `vfs_path` :
+///   - HCA direct (`HCA\0`) → `hca_decode_to_pcm16` (cridecoder)
+///   - ADX direct (`0x8000`) → `adx_decode`
+///   - AWB (`AFS2`) → `Awb::parse`, première entrée HCA/ADX
+///   - ACB (`@UTF`) → `acb_parse`, AWB embarqué, première entrée HCA/ADX
+fn decode_audio_to_wav(raw: &[u8], vfs_path: &str) -> anyhow::Result<Vec<u8>> {
+    // Identifie le format par le magic
+    if is_hca(raw) {
+        // HCA direct — décodage via cridecoder (algorithme complet)
+        let (samples, channels, sample_rate) = hca_decode_to_pcm16(raw)
+            .map_err(|e| anyhow::anyhow!("HCA decode: {e}"))?;
+        return Ok(encode_pcm16_wav(&samples, channels, sample_rate));
+    }
+
+    if is_adx(raw) {
+        // ADX direct
+        let pcm = adx_decode(raw)
+            .map_err(|e| anyhow::anyhow!("ADX decode: {e}"))?;
+        return Ok(encode_pcm16_wav(&pcm.samples, pcm.channels, pcm.sample_rate));
+    }
+
+    if raw.starts_with(b"AFS2") {
+        // AWB → extrait la première entrée HCA/ADX
+        return decode_awb_first_entry(raw, vfs_path);
+    }
+
+    if raw.starts_with(b"@UTF") {
+        // ACB → extrait le AWB embarqué, puis première entrée
+        let acb = acb_parse(raw)
+            .map_err(|e| anyhow::anyhow!("ACB parse: {e}"))?;
+        if !acb.embedded_awb.is_empty() {
+            return decode_awb_first_entry(&acb.embedded_awb, vfs_path);
+        }
+        // AWB externe : signalé par nom sans données embarquées — signaler à l'appelant
+        anyhow::bail!("ACB sans AWB");
+    }
+
+    anyhow::bail!("format audio non reconnu (magic: {:02x?})", &raw[..raw.len().min(4)])
+}
+
+/// Extrait et décode la première entrée HCA/ADX d'un AWB AFS2.
+fn decode_awb_first_entry(data: &[u8], vfs_path: &str) -> anyhow::Result<Vec<u8>> {
+    let awb = Awb::parse(data)
+        .map_err(|e| anyhow::anyhow!("AWB parse: {e}"))?;
+
+    if awb.entries.is_empty() {
+        anyhow::bail!("AWB {vfs_path} sans entrée");
+    }
+
+    for entry in &awb.entries {
+        let entry_data = awb.entry_bytes(data, entry);
+        if entry_data.is_empty() {
+            continue;
+        }
+        if is_hca(entry_data) {
+            let (samples, channels, sample_rate) = hca_decode_to_pcm16(entry_data)
+                .map_err(|e| anyhow::anyhow!("HCA decode entrée cue={}: {e}", entry.cue_id))?;
+            return Ok(encode_pcm16_wav(&samples, channels, sample_rate));
+        }
+        if is_adx(entry_data) {
+            let pcm = adx_decode(entry_data)
+                .map_err(|e| anyhow::anyhow!("ADX decode entrée cue={}: {e}", entry.cue_id))?;
+            return Ok(encode_pcm16_wav(&pcm.samples, pcm.channels, pcm.sample_rate));
+        }
+    }
+
+    anyhow::bail!("AWB {vfs_path} : aucune entrée HCA/ADX valide trouvée")
+}
+
 /// Retourne les bytes du GLB : depuis le cache disque ou assemblage live + mise en cache.
 fn get_or_build_glb(state: &State, code: &str) -> Result<GlbBytes> {
     let cache_path = state.cache_dir.join(format!("{code}.glb"));
@@ -792,6 +945,29 @@ fn get_or_build_glb(state: &State, code: &str) -> Result<GlbBytes> {
         warn!("écriture cache {code} échouée : {e}");
     } else {
         debug!("cache écrit : {code} ({}B)", glb.len());
+    }
+
+    Ok(glb)
+}
+
+/// Variante sous-domaine chr : cache préfixé `chr_<sub>_<code>.glb` (évite la collision
+/// d'espace de noms avec `/model-full/<code>`).
+fn get_or_build_chr_glb(state: &State, sub: &str, code: &str) -> Result<GlbBytes> {
+    let cache_path = state.cache_dir.join(format!("chr_{sub}_{code}.glb"));
+
+    if cache_path.exists() {
+        debug!("cache hit : chr_{sub}_{code}");
+        return fs::read(&cache_path)
+            .with_context(|| format!("lecture cache {}", cache_path.display()));
+    }
+
+    info!("assemblage live : chr_{sub}_{code}");
+    let glb = assemble_chr_generic(state, sub, code)?;
+
+    if let Err(e) = fs::write(&cache_path, &glb) {
+        warn!("écriture cache chr_{sub}_{code} échouée : {e}");
+    } else {
+        debug!("cache écrit : chr_{sub}_{code} ({}B)", glb.len());
     }
 
     Ok(glb)
@@ -1004,6 +1180,36 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         return;
     }
 
+    // `/model-chr/<sub>/<code>.glb` — modèle générique d'un sous-domaine `common/chr/_<sub>/`
+    // (techniques `waza`, objets `item`, animaux `animal`). Maillage g4md+g4mg, sans texture
+    // embarquée. Sous-domaines whitelistés (anti-traversal).
+    if let Some(rest) = path.strip_prefix("/model-chr/") {
+        let body = rest.strip_suffix(".glb").unwrap_or(rest);
+        let mut parts = body.splitn(2, '/');
+        let sub = parts.next().unwrap_or("");
+        let code = parts.next().unwrap_or("");
+        let valid = |s: &str| {
+            !s.is_empty() && s.len() <= 32 && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+        };
+        if !valid(sub) || !valid(code) {
+            respond_text(&mut stream, 400, "Bad Request", "sous-domaine/code invalide");
+            return;
+        }
+        match get_or_build_chr_glb(&state, sub, code) {
+            Ok(glb) => respond(&mut stream, 200, "OK", "model/gltf-binary", &glb),
+            Err(e) => {
+                debug!("assemblage chr {sub}/{code} échoué : {e}");
+                respond_text(
+                    &mut stream,
+                    404,
+                    "Not Found",
+                    &format!("modèle {sub}/{code} non disponible : {e}"),
+                );
+            }
+        }
+        return;
+    }
+
     // `/model-full/<code>.glb`
     if let Some(rest) = path.strip_prefix("/model-full/") {
         let code = rest.strip_suffix(".glb").unwrap_or(rest);
@@ -1029,6 +1235,114 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             Err(e) => {
                 warn!("assemblage {code} échoué : {e}");
                 respond_text(&mut stream, 404, "Not Found", &format!("modèle {code} non disponible : {e}"));
+            }
+        }
+        return;
+    }
+
+    // `/audio/<vfs-path>` — décode HCA/ADX depuis le VFS en WAV PCM 16-bit.
+    // Sources possibles :
+    //   - `.hca` : décode directement.
+    //   - `.adx` : décode directement.
+    //   - `.acb` : extrait le AWB embarqué puis décode la première piste HCA/ADX.
+    //   - `.awb` : extrait et décode la première entrée HCA/ADX.
+    // Paramètre optionnel `?cue=N` pour sélectionner une entrée spécifique dans un AWB/ACB.
+    if let Some(rest) = path.strip_prefix("/audio/") {
+        let vfs_path = if rest.starts_with("data/") {
+            rest.to_string()
+        } else {
+            format!("data/{rest}")
+        };
+        if vfs_path.contains("..") {
+            respond_text(&mut stream, 400, "Bad Request", "chemin invalide");
+            return;
+        }
+        let bytes = {
+            let vfs = state.vfs.lock().unwrap();
+            vfs.read(&vfs_path).ok()
+        };
+        match bytes {
+            None => {
+                respond_text(&mut stream, 404, "Not Found", "fichier audio absent du VFS");
+            }
+            Some(raw) => {
+                // Tente le décodage direct ; si l'ACB signale "sans AWB", cherche le .awb externe
+                let result = decode_audio_to_wav(&raw, &vfs_path).or_else(|e| {
+                    let msg = e.to_string();
+                    if msg.contains("ACB sans AWB") {
+                        // AWB externe : même chemin, extension .awb
+                        let awb_path = if vfs_path.ends_with(".acb") {
+                            format!("{}.awb", &vfs_path[..vfs_path.len() - 4])
+                        } else {
+                            return Err(e);
+                        };
+                        let vfs_guard = state.vfs.lock().unwrap();
+                        let awb_bytes = vfs_guard.read(&awb_path)
+                            .map_err(|_| anyhow::anyhow!("AWB externe {awb_path} absent du VFS"))?;
+                        drop(vfs_guard);
+                        decode_awb_first_entry(&awb_bytes, &awb_path)
+                    } else {
+                        Err(e)
+                    }
+                });
+                match result {
+                    Ok(wav) => respond(&mut stream, 200, "OK", "audio/wav", &wav),
+                    Err(e) => {
+                        warn!("décodage audio {vfs_path} échoué : {e}");
+                        respond_text(&mut stream, 500, "Internal Server Error",
+                            &format!("décodage audio échoué : {e}"));
+                    }
+                }
+            }
+        }
+        return;
+    }
+
+    // `/video/<vfs-path>` — démultiplexe un USM Sofdec2 depuis le VFS.
+    // Résultat : flux vidéo H.264 brut (`.264`) ou VP9 (`.ivf`), piste audio WAV si présente.
+    // Par défaut, renvoie la vidéo (Content-Type: video/mp4 pour H.264, video/webm pour VP9).
+    // Le WAV audio peut être récupéré en suffixant `?track=audio`.
+    if let Some(rest) = path.strip_prefix("/video/") {
+        let vfs_path = if rest.starts_with("data/") {
+            rest.to_string()
+        } else {
+            format!("data/{rest}")
+        };
+        if vfs_path.contains("..") {
+            respond_text(&mut stream, 400, "Bad Request", "chemin invalide");
+            return;
+        }
+        let bytes = {
+            let vfs = state.vfs.lock().unwrap();
+            vfs.read(&vfs_path).ok()
+        };
+        match bytes {
+            None => {
+                respond_text(&mut stream, 404, "Not Found", "fichier vidéo absent du VFS");
+            }
+            Some(raw) => {
+                match usm_demux(&raw) {
+                    Err(e) => {
+                        warn!("démux USM {vfs_path} échoué : {e}");
+                        respond_text(&mut stream, 500, "Internal Server Error",
+                            &format!("démux USM échoué : {e}"));
+                    }
+                    Ok(result) => {
+                        if result.video_data.is_empty() {
+                            respond_text(&mut stream, 404, "Not Found",
+                                "USM sans piste vidéo");
+                            return;
+                        }
+                        let (ct, body) = match result.video_codec {
+                            VideoCodec::H264 => ("video/h264", result.video_data),
+                            VideoCodec::Vp9  => ("video/webm", result.video_data),
+                            VideoCodec::Unknown => ("application/octet-stream", result.video_data),
+                        };
+                        info!("USM {} démuxé : {} frames, {}B",
+                            vfs_path, result.frame_count, body.len());
+                        respond(&mut stream, 200, "OK", ct, &body);
+                    }
+                }
             }
         }
         return;

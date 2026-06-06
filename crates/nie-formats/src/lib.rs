@@ -37,6 +37,7 @@ pub mod assemble;
 pub mod cfgbin;
 pub mod cpk;
 pub mod crilayla;
+pub mod cri_audio;
 pub mod g4md;
 pub mod g4mg;
 pub mod g4pk;

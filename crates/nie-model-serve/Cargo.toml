@@ -17,6 +17,7 @@ workspace = true
 [dependencies]
 nie-formats = { path = "../nie-formats", features = ["serde"] }
 nie-wiki = { path = "../nie-wiki" }
+cridecoder.workspace = true
 anyhow.workspace = true
 thiserror.workspace = true
 serde.workspace = true
