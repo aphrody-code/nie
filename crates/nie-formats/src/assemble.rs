@@ -370,6 +370,8 @@ pub struct MeshPrimitive {
     pub normals: Vec<g4mg::Vec3>,
     /// UV0 float2 (U, V). Vide si non disponibles.
     pub uv0: Vec<g4mg::Vec2>,
+    /// Couleurs float4 (R, G, B, A). Vide si non disponibles.
+    pub colors: Vec<g4mg::Vec4>,
     /// Indices u32 locaux (commencent à 0).
     pub indices: Vec<u32>,
 }
@@ -725,6 +727,44 @@ fn extract_primitives_from_glb(
                 } else { Vec::new() }
             } else { Vec::new() };
 
+            // COLOR_0 (VEC4 ou VEC3, float/ubyte/ushort).
+            let colors = if let Some(col_idx) = attrs["COLOR_0"].as_u64() {
+                if let Some((off, stride_hint, count)) = read_accessor(col_idx as usize) {
+                    let acc = &accessors[col_idx as usize];
+                    let attr_type = acc["type"].as_str().unwrap_or("VEC4");
+                    let comp_type = acc["componentType"].as_u64().unwrap_or(5126);
+                    let is_vec3 = attr_type == "VEC3";
+                    let num_components = if is_vec3 { 3 } else { 4 };
+                    let component_size = match comp_type {
+                        5126 => 4, // float
+                        5121 => 1, // unsigned byte
+                        5123 => 2, // unsigned short
+                        _ => 4,
+                    };
+                    let stride = if stride_hint == 0 { num_components * component_size } else { stride_hint };
+                    let mut cols = Vec::with_capacity(count);
+                    for i in 0..count {
+                        let p = off + i * stride;
+                        if p + num_components * component_size > bin.len() { break; }
+                        let read_component = |offset_idx: usize| -> f32 {
+                            let cop = p + offset_idx * component_size;
+                            match comp_type {
+                                5126 => f32::from_le_bytes([bin[cop], bin[cop+1], bin[cop+2], bin[cop+3]]),
+                                5121 => bin[cop] as f32 / 255.0,
+                                5123 => u16::from_le_bytes([bin[cop], bin[cop+1]]) as f32 / 65535.0,
+                                _ => 1.0,
+                            }
+                        };
+                        let r = read_component(0);
+                        let g = read_component(1);
+                        let b = read_component(2);
+                        let a = if is_vec3 { 1.0 } else { read_component(3) };
+                        cols.push(g4mg::Vec4 { x: r, y: g, z: b, w: a });
+                    }
+                    cols
+                } else { Vec::new() }
+            } else { Vec::new() };
+
             // Indices.
             let indices = if let Some(idx_acc) = prim["indices"].as_u64() {
                 let acc = &accessors[idx_acc as usize];
@@ -760,6 +800,7 @@ fn extract_primitives_from_glb(
                 positions,
                 normals,
                 uv0,
+                colors,
                 indices,
             });
 
@@ -797,6 +838,7 @@ fn extract_primitives_from_g4md_g4mg(
                 positions: sg.positions,
                 normals: sg.normals,
                 uv0: sg.uv0,
+                colors: sg.colors,
                 indices: sg.indices,
             }
         })
@@ -1207,6 +1249,15 @@ fn build_glb(model: &AssembledModel, with_textures: bool) -> Vec<u8> {
                     &raw, prim.uv0.len(), 5126, "VEC2", None, None))
             } else { None };
 
+            // Colors → VEC4 float32 (5126), optionnel.
+            let color_acc = if !prim.colors.is_empty() {
+                let raw: Vec<u8> = prim.colors.iter().flat_map(|v| {
+                    [v.x.to_le_bytes(), v.y.to_le_bytes(), v.z.to_le_bytes(), v.w.to_le_bytes()].concat()
+                }).collect();
+                Some(add_accessor(&mut bv_data, &mut buffer_views_json, &mut accessor_defs,
+                    &raw, prim.colors.len(), 5126, "VEC4", None, None))
+            } else { None };
+
             // Indices → SCALAR uint16 ou uint32.
             let use_u32 = prim.positions.len() > 65535;
             let (idx_comp_type, idx_raw): (u32, Vec<u8>) = if use_u32 {
@@ -1233,6 +1284,7 @@ fn build_glb(model: &AssembledModel, with_textures: bool) -> Vec<u8> {
             let mut attrs_obj = json!({ "POSITION": pos_acc });
             if let Some(n) = normal_acc { attrs_obj["NORMAL"] = json!(n); }
             if let Some(u) = uv_acc { attrs_obj["TEXCOORD_0"] = json!(u); }
+            if let Some(c) = color_acc { attrs_obj["COLOR_0"] = json!(c); }
 
             prim_defs.push(json!({
                 "attributes": attrs_obj,
@@ -1509,6 +1561,15 @@ fn build_glb_embedded(model: &AssembledModel) -> Vec<u8> {
                     &raw, prim.uv0.len(), 5126, "VEC2", None, None))
             } else { None };
 
+            // Colors → VEC4 float32 (5126), optionnel.
+            let color_acc = if !prim.colors.is_empty() {
+                let raw: Vec<u8> = prim.colors.iter().flat_map(|v| {
+                    [v.x.to_le_bytes(), v.y.to_le_bytes(), v.z.to_le_bytes(), v.w.to_le_bytes()].concat()
+                }).collect();
+                Some(add_accessor(&mut bv_data, &mut buffer_views_json, &mut accessor_defs,
+                    &raw, prim.colors.len(), 5126, "VEC4", None, None))
+            } else { None };
+
             let use_u32 = prim.positions.len() > 65535;
             let (idx_comp_type, idx_raw): (u32, Vec<u8>) = if use_u32 {
                 (5125, prim.indices.iter().flat_map(|&i| i.to_le_bytes()).collect())
@@ -1528,6 +1589,7 @@ fn build_glb_embedded(model: &AssembledModel) -> Vec<u8> {
             let mut attrs_obj = json!({ "POSITION": pos_acc });
             if let Some(n) = normal_acc { attrs_obj["NORMAL"] = json!(n); }
             if let Some(u) = uv_acc { attrs_obj["TEXCOORD_0"] = json!(u); }
+            if let Some(c) = color_acc { attrs_obj["COLOR_0"] = json!(c); }
 
             prim_defs.push(json!({
                 "attributes": attrs_obj,
