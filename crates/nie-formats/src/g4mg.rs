@@ -55,6 +55,20 @@ pub struct Vec2 {
     pub v: f32,
 }
 
+/// Vecteur 4 composantes (couleurs).
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Vec4 {
+    /// Composante X (R).
+    pub x: f32,
+    /// Composante Y (G).
+    pub y: f32,
+    /// Composante Z (B).
+    pub z: f32,
+    /// Composante W (A).
+    pub w: f32,
+}
+
 /// Géométrie d'une sous-maille extraite.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -75,6 +89,8 @@ pub struct SubmeshGeometry {
     pub normals: Vec<Vec3>,
     /// UV0 décodés (vide si attribut absent/illisible).
     pub uv0: Vec<Vec2>,
+    /// Couleurs décodées (vide si attribut absent/illisible).
+    pub colors: Vec<Vec4>,
     /// Indices locaux à la sous-maille.
     pub indices: Vec<u32>,
 }
@@ -85,6 +101,7 @@ pub fn extract_geometry(g4mg: &[u8], g4md: &G4md) -> Vec<SubmeshGeometry> {
     let face_data_base = g4md.header.face_data_base as usize;
     let normal_attr = g4md.find_attribute(2);
     let uv_attr = g4md.find_attribute(10);
+    let color_attr = g4md.find_attribute(8);
 
     // Stride dérivé : région vertex [0, face_data_base) / nombre total de vertices.
     let total_verts: usize = g4md.submeshes.iter().map(|s| s.vertex_count as usize).sum();
@@ -113,7 +130,7 @@ pub fn extract_geometry(g4mg: &[u8], g4md: &G4md) -> Vec<SubmeshGeometry> {
             continue;
         }
 
-        // Décodage conditionnel des normales/UV : l'attribut doit tenir dans le stride.
+        // Décodage conditionnel des normales/UV/couleurs : l'attribut doit tenir dans le stride.
         let decode_normal = normal_attr.filter(|a| {
             let sz = vec3_byte_size(a.datatype);
             sz > 0 && a.offset as usize + sz <= stride
@@ -122,10 +139,15 @@ pub fn extract_geometry(g4mg: &[u8], g4md: &G4md) -> Vec<SubmeshGeometry> {
             let sz = vec2_byte_size(a.datatype);
             sz > 0 && a.offset as usize + sz <= stride
         });
+        let decode_color = color_attr.filter(|a| {
+            let sz = vec4_byte_size(a.datatype);
+            sz > 0 && a.offset as usize + sz <= stride
+        });
 
         let mut positions = Vec::with_capacity(vertex_count);
         let mut normals = Vec::with_capacity(if decode_normal.is_some() { vertex_count } else { 0 });
         let mut uv0 = Vec::with_capacity(if decode_uv.is_some() { vertex_count } else { 0 });
+        let mut colors = Vec::with_capacity(if decode_color.is_some() { vertex_count } else { 0 });
 
         for i in 0..vertex_count {
             let p = v_offset + i * stride;
@@ -139,6 +161,9 @@ pub fn extract_geometry(g4mg: &[u8], g4md: &G4md) -> Vec<SubmeshGeometry> {
             }
             if let Some(a) = decode_uv {
                 uv0.push(decode_uv_at(g4mg, p + a.offset as usize, a.datatype));
+            }
+            if let Some(a) = decode_color {
+                colors.push(decode_color_at(g4mg, p + a.offset as usize, a.datatype));
             }
         }
 
@@ -171,6 +196,7 @@ pub fn extract_geometry(g4mg: &[u8], g4md: &G4md) -> Vec<SubmeshGeometry> {
             positions,
             normals,
             uv0,
+            colors,
             indices,
         });
     }
@@ -182,6 +208,17 @@ pub fn extract_geometry(g4mg: &[u8], g4md: &G4md) -> Vec<SubmeshGeometry> {
 #[must_use]
 pub fn material_base_name<'a>(g4md: &'a G4md, sm: &SubmeshGeometry) -> Option<&'a String> {
     g4md.material_base_names.get(sm.material_index as usize)
+}
+
+/// Taille (octets) d'un vecteur 4 composantes (2/3=float→16 ; 12=ubyte4→4 ; 14/18/20=short/ushort→8).
+#[must_use]
+pub fn vec4_byte_size(datatype: u32) -> usize {
+    match datatype {
+        2 | 3 => 16,
+        12 => 4,
+        14 | 18 | 20 => 8,
+        _ => 0,
+    }
 }
 
 /// Taille (octets) d'un vecteur 3 composantes (2/3=float→12 ; 18/20=short SNORM16→6).
@@ -201,6 +238,48 @@ pub fn vec2_byte_size(datatype: u32) -> usize {
         2 | 3 => 8,
         14 | 18 | 20 => 4,
         _ => 0,
+    }
+}
+
+/// Décode une couleur (4 composantes) à `off` (port de `DecodeColor`).
+fn decode_color_at(data: &[u8], off: usize, datatype: u32) -> Vec4 {
+    match datatype {
+        2 | 3 => {
+            Vec4 {
+                x: sanitize(read_f32(data, off)),
+                y: sanitize(read_f32(data, off + 4)),
+                z: sanitize(read_f32(data, off + 8)),
+                w: sanitize(read_f32(data, off + 12)),
+            }
+        }
+        12 => {
+            if off + 4 <= data.len() {
+                Vec4 {
+                    x: data[off] as f32 / 255.0,
+                    y: data[off + 1] as f32 / 255.0,
+                    z: data[off + 2] as f32 / 255.0,
+                    w: data[off + 3] as f32 / 255.0,
+                }
+            } else {
+                Vec4 { x: 1.0, y: 1.0, z: 1.0, w: 1.0 }
+            }
+        }
+        14 => {
+            Vec4 {
+                x: f32::from(read_u16(data, off)) / 65535.0,
+                y: f32::from(read_u16(data, off + 2)) / 65535.0,
+                z: f32::from(read_u16(data, off + 4)) / 65535.0,
+                w: f32::from(read_u16(data, off + 6)) / 65535.0,
+            }
+        }
+        _ => {
+            Vec4 {
+                x: snorm16(read_i16(data, off)),
+                y: snorm16(read_i16(data, off + 2)),
+                z: snorm16(read_i16(data, off + 4)),
+                w: snorm16(read_i16(data, off + 6)),
+            }
+        }
     }
 }
 
@@ -282,9 +361,9 @@ mod tests {
     use crate::g4md;
 
     /// Construit un g4md + g4mg synthétiques cohérents avec le layout chr/_uniform :
-    /// stride 68, normale short×3 @12, uv ushort×2 @64, face_data_base placé après les vertices.
+    /// stride 72, normale short×3 @12, uv ushort×2 @64, couleur ubyte4 @68, face_data_base placé après les vertices.
     fn build_pair(vertex_count: usize) -> (g4md::G4md, Vec<u8>) {
-        let stride = 68usize;
+        let stride = 72usize;
         let face_data_base = vertex_count * stride; // bloc d'index juste après les vertices
         let submesh_info = 0x60usize;
         let attr_table = submesh_info + SUBMESH_RECORD_SIZE_LOCAL + 8;
@@ -295,7 +374,7 @@ mod tests {
         md[0x04..0x06].copy_from_slice(&(submesh_info as u16).to_le_bytes());
         md[0x20..0x22].copy_from_slice(&1u16.to_le_bytes()); // submesh_count
         md[0x22..0x24].copy_from_slice(&1u16.to_le_bytes()); // material_count
-        md[0x26] = 3; // vlayout_count
+        md[0x26] = 4; // vlayout_count (position + normal + uv + color)
         md[0x5C..0x60].copy_from_slice(&(face_data_base as u32).to_le_bytes());
 
         let r = submesh_info;
@@ -313,6 +392,7 @@ mod tests {
         put(&mut md, attr_table, 1, 0, 3); // position float
         put(&mut md, attr_table + 8, 2, 12, 18); // normale short SNORM16
         put(&mut md, attr_table + 16, 10, 64, 14); // uv ushort UNORM16
+        put(&mut md, attr_table + 24, 8, 68, 12); // color ubyte4 @68
         md.extend_from_slice(b"mat_10M\0mat_10\0");
 
         let parsed = g4md::parse(&md).expect("g4md synthétique");
@@ -330,6 +410,11 @@ mod tests {
             // uv @64 : (65535, 0) → UNORM16 (1.0, 0.0)
             mg[p + 64..p + 66].copy_from_slice(&65535u16.to_le_bytes());
             mg[p + 66..p + 68].copy_from_slice(&0u16.to_le_bytes());
+            // color @68 : (255, 128, 0, 255) → RGBA float
+            mg[p + 68] = 255;
+            mg[p + 69] = 128;
+            mg[p + 70] = 0;
+            mg[p + 71] = 255;
         }
         // indices 0,1,2
         for (k, v) in [0u16, 1, 2].into_iter().enumerate() {
@@ -349,7 +434,7 @@ mod tests {
         assert_eq!(geo.len(), 1);
         let g = &geo[0];
         assert_eq!(g.vertex_count, 3);
-        assert_eq!(g.stride, 68);
+        assert_eq!(g.stride, 72);
 
         // Positions = (0,0,0),(1,0,0),(2,0,0).
         assert_eq!(g.positions[0], Vec3 { x: 0.0, y: 0.0, z: 0.0 });
@@ -369,6 +454,15 @@ mod tests {
         for uv in &g.uv0 {
             assert!((uv.u - 1.0).abs() < 1e-4);
             assert!(uv.v.abs() < 1e-4);
+        }
+
+        // Couleurs décodées ubyte4 -> f32.
+        assert_eq!(g.colors.len(), 3);
+        for c in &g.colors {
+            assert!((c.x - 1.0).abs() < 1e-4); // R
+            assert!((c.y - 128.0 / 255.0).abs() < 1e-4); // G
+            assert!(c.z.abs() < 1e-4); // B
+            assert!((c.w - 1.0).abs() < 1e-4); // A
         }
 
         // Indices locaux 0,1,2.
