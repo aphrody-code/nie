@@ -1813,6 +1813,7 @@ mod tests {
             face_glb: "test".into(),
             uniform_crc: 0,
             primitives: Vec::new(),
+            embedded_textures: Vec::new(),
         };
         let glb = model.to_glb();
         assert!(glb.len() >= 12);
@@ -1978,6 +1979,7 @@ mod tests {
             face_glb: String::new(),
             uniform_crc: 0,
             primitives: Vec::new(),
+            embedded_textures: Vec::new(),
         };
         let cfg = TextureUriConfig::default();
         let glb = model.to_glb_textured(&cfg);
