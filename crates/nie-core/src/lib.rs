@@ -71,6 +71,7 @@ pub mod action;
 pub mod aura;
 pub mod ball;
 pub mod command_effect;
+pub mod crand;
 pub mod exp;
 pub mod growth;
 pub mod keeper;

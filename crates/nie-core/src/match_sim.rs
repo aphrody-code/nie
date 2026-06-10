@@ -28,37 +28,15 @@ use crate::{
 use nie_data::formation::{FormationConfig, SoccerFormationInfo, SoccerFormPlacementInfo};
 
 // ============================================================================
-// PRNG déterministe — Splitmix64
-// NOMINAL : algorithme choisi pour déterminisme, non confirmé depuis nie.exe.
+// PRNG du match — le VRAI `lives::CRand` (MT19937), cf. crate::crand.
+// La décompilation Ghidra a confirmé MT19937 32-bit canonique dans nie.exe ;
+// on l'utilise ici à la place de l'ancien Splitmix64 nominal.
+// NB : le MODÈLE de but qui consomme ce RNG reste nominal (la vraie résolution
+// est event-driven + data-driven, pas une formule inline — cf.
+// docs/recherche-modele-match-decompile.md). Seul le RNG est désormais réel.
 // ============================================================================
 
-struct Rng(u64);
-
-impl Rng {
-    fn new(seed: u64) -> Self {
-        // Évite l'état zéro qui produirait une séquence dégénérée.
-        let s = if seed == 0 { 0x9e3779b97f4a7c15_u64 } else { seed };
-        Self(s)
-    }
-
-    fn next_u64(&mut self) -> u64 {
-        self.0 = self.0.wrapping_add(0x9e3779b97f4a7c15);
-        let mut z = self.0;
-        z = (z ^ (z >> 30)).wrapping_mul(0xbf58476d1ce4e5b9);
-        z = (z ^ (z >> 27)).wrapping_mul(0x94d049bb133111eb);
-        z ^ (z >> 31)
-    }
-
-    /// Retourne un `f32` dans [0.0, 1.0) via les 24 bits de mantisse.
-    fn next_f32(&mut self) -> f32 {
-        let bits = self.next_u64() >> 40; // 24 bits significatifs
-        // Sûr : bits < 2^24 ≤ 16_777_216 qui représente exactement en f32.
-        #[allow(clippy::cast_precision_loss)]
-        {
-            bits as f32 / 16_777_216.0_f32
-        }
-    }
-}
+use crate::crand::CRand;
 
 // ============================================================================
 // Types publics — position terrain
@@ -496,7 +474,7 @@ pub fn simulate_match(home: TeamSetup, away: TeamSetup, seed: u64) -> MatchResul
     let home_placements = home.placements.clone();
     let away_placements = away.placements.clone();
 
-    let mut rng = Rng::new(seed);
+    let mut rng = CRand::from_u64(seed);
     let mut home_score: u8 = 0;
     let mut away_score: u8 = 0;
     let mut events: Vec<MatchEvent> = Vec::with_capacity(128);
