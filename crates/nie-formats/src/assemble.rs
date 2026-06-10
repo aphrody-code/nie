@@ -1250,7 +1250,7 @@ fn build_glb(model: &AssembledModel, with_textures: bool) -> Vec<u8> {
             } else { None };
 
             // Colors → VEC4 float32 (5126), optionnel.
-            let color_acc = if !prim.colors.is_empty() {
+            let _color_acc = if !prim.colors.is_empty() {
                 let raw: Vec<u8> = prim.colors.iter().flat_map(|v| {
                     [v.x.to_le_bytes(), v.y.to_le_bytes(), v.z.to_le_bytes(), v.w.to_le_bytes()].concat()
                 }).collect();
@@ -1563,7 +1563,7 @@ fn build_glb_embedded(model: &AssembledModel) -> Vec<u8> {
             } else { None };
 
             // Colors → VEC4 float32 (5126), optionnel.
-            let color_acc = if !prim.colors.is_empty() {
+            let _color_acc = if !prim.colors.is_empty() {
                 let raw: Vec<u8> = prim.colors.iter().flat_map(|v| {
                     [v.x.to_le_bytes(), v.y.to_le_bytes(), v.z.to_le_bytes(), v.w.to_le_bytes()].concat()
                 }).collect();
