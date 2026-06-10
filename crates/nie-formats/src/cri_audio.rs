@@ -1,30 +1,25 @@
-//! Décodeurs audio Criware : ADX → PCM16, HCA → PCM16, AWB (AFS2) parser, ACB parser.
+//! Parsers audio Criware : ADX → PCM16, AWB (AFS2), ACB, USM.
 //!
 //! ## Formats supportés
 //!
 //! - [`adx_decode`] — ADX ADPCM type 3 (4 bits/sample, 18 octets/frame, 32 samples/frame).
-//! - [`hca_decode`] — HCA (High-Compression Audio) version 3.x, non chiffré uniquement.
-//!   **Déprécié** : ne supporte pas `ciph_type = 56` (tous les HCA IEVR). Utiliser
-//!   `cridecoder::HcaDecoder` avec `set_encryption_key` depuis `nie-model-serve`.
 //! - [`Awb`] — Archive audio AFS2 (Wave Bank) : parse les entrées indexées par cue-ID et
 //!   extrait les blobs HCA/ADX bruts.
-//! - [`Acb`] — Cue sheet Criware (`@UTF`) : résout les noms de cue et extrait le AWB embarqué
-//!   ou le nom du AWB externe.
+//! - [`acb_parse`] — Cue sheet Criware (`@UTF`) : résout les noms de cue et extrait le AWB
+//!   embarqué ou le nom du AWB externe.
 //! - [`encode_pcm16_wav`] — écrit un buffer PCM 16-bit signé entrelacé en WAV RIFF.
 //!
 //! ## Utilisation typique
 //!
 //! ```rust,ignore
-//! use nie_formats::cri_audio::{awb_extract_entry, hca_decode, encode_pcm16_wav, Awb};
+//! use nie_formats::cri_audio::{Awb, encode_pcm16_wav};
 //!
 //! let awb_bytes = vfs.read("data/common/sound_asset/ja/c03032310.awb")?;
 //! let awb = Awb::parse(&awb_bytes)?;
 //! for entry in &awb.entries {
-//!     let hca = awb.entry_bytes(&awb_bytes, entry);
-//!     if let Ok(pcm) = hca_decode(hca) {
-//!         let wav = encode_pcm16_wav(&pcm.samples, pcm.channels, pcm.sample_rate);
-//!         // ... servir wav via HTTP
-//!     }
+//!     let hca_raw = awb.entry_bytes(&awb_bytes, entry);
+//!     // Décodage HCA chiffré IEVR (ciph_type=56) : utiliser cridecoder::HcaDecoder
+//!     // avec set_encryption_key(IEVR_HCA_KEY, awb.subkey as u64) depuis nie-model-serve.
 //! }
 //! ```
 //!
@@ -208,8 +203,9 @@ pub fn adx_decode(data: &[u8]) -> Result<PcmResult, FormatError> {
     //   coeff2 = -(coeff1 / 8192)² * 4096
     let (coeff1, coeff2): (i32, i32) = if highpass_hz > 0 && sample_rate > 0 {
         let pi = core::f64::consts::PI;
-        let a = 1.41421356 - (2.0 * pi * highpass_hz as f64 / sample_rate as f64).cos();
-        let b = 1.41421356 - 1.0;
+        let sqrt2 = core::f64::consts::SQRT_2;
+        let a = sqrt2 - (2.0 * pi * highpass_hz as f64 / sample_rate as f64).cos();
+        let b = sqrt2 - 1.0;
         let c = (a - ((a + b) * (a - b)).sqrt()) / b;
         let c1 = (c * 8192.0) as i32;
         let c2 = (-(c * c) * 4096.0) as i32;
@@ -219,7 +215,7 @@ pub fn adx_decode(data: &[u8]) -> Result<PcmResult, FormatError> {
         (7298, -3535)
     };
 
-    let frames_per_channel = (total_samples + ADX_SAMPLES_PER_FRAME - 1) / ADX_SAMPLES_PER_FRAME;
+    let frames_per_channel = total_samples.div_ceil(ADX_SAMPLES_PER_FRAME);
     let mut samples = vec![0i16; total_samples * channels as usize];
     let mut prev1 = [0i32; 2];
     let mut prev2 = [0i32; 2];
@@ -261,420 +257,6 @@ pub fn adx_decode(data: &[u8]) -> Result<PcmResult, FormatError> {
     }
 
     Ok(PcmResult { samples, sample_rate, channels })
-}
-
-// ── HCA ──────────────────────────────────────────────────────────────────────
-//
-// Références :
-// - vgmstream/src/coding/hca_decoder_clhca.c (algorithme public)
-// - CriHCA spec notes (blog Hextclair, 2018)
-// - Valeurs vérifiées sur les AWB IEVR réels (ciph_type=0, bloc HCA non chiffré)
-//
-// Modèle simplifié : décodeur HCA minimal pur-Rust supportant les profils réels IEVR
-// (mono 48kHz, 341 octets/bloc, ciph_type=0). Précision ≈ vgmstream.
-
-/// Taille d'un bloc HCA en octets (lu depuis le chunk `comp`).
-/// Pour IEVR les AWB ont `block_size=341`.
-const HCA_DEFAULT_BLOCK_SIZE: usize = 341;
-
-/// Nombre d'échantillons par sous-trame HCA.
-const HCA_SUBFRAME_SAMPLES: usize = 128;
-
-/// Nombre de sous-trames par bloc HCA.
-const HCA_SUBFRAMES_PER_BLOCK: usize = 8;
-
-/// Taille d'une trame HCA = 8 * 128 = 1024 échantillons.
-const HCA_FRAME_SAMPLES: usize = HCA_SUBFRAME_SAMPLES * HCA_SUBFRAMES_PER_BLOCK;
-
-/// Table ATH type 1 (16kHz, 48kHz avec coefficients) — port de clHCA.
-/// Indexée par le numéro de coefficient fréquentiel (0..127).
-const ATH_TABLE_48K: &[u8; 128] = &[
-    0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 4, 4, 4, 4, 4,
-    5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 8,
-    8, 8, 8, 8, 9, 9, 9, 9, 9,10,10,10,10,10,11,11,
-   11,11,11,12,12,12,12,12,13,13,13,13,13,14,14,14,
-   14,14,15,15,15,15,15,16,16,16,16,16,17,17,17,17,
-   17,18,18,18,18,18,19,19,19,19,19,20,20,20,20,20,
-   21,21,21,21,21,22,22,22,22,22,23,23,23,23,23,24,
-   24,24,24,24,25,25,25,25,25,26,26,26,26,26,27,27,
-];
-
-/// Représentation d'un canal HCA pendant le décodage d'un bloc.
-struct HcaChannel {
-    /// Coefficients spectraux (0..127).
-    spectra: [f32; 128],
-    /// Résidu des précédents blocs pour le MDCT overlap-add.
-    prev: [f32; 128],
-}
-
-impl HcaChannel {
-    const fn new() -> Self {
-        Self { spectra: [0.0; 128], prev: [0.0; 128] }
-    }
-}
-
-/// Table MDCT 128 points (cosinus) pré-calculée pour un seul usage.
-fn mdct_table() -> [[f32; 128]; 128] {
-    let mut table = [[0.0f32; 128]; 128];
-    let pi = core::f64::consts::PI;
-    for k in 0..128usize {
-        for n in 0..128usize {
-            table[k][n] = (pi / 256.0 * (2.0 * n as f64 + 1.0) * (2.0 * k as f64 + 1.0)).cos() as f32;
-        }
-    }
-    table
-}
-
-/// Scalefactor table[64] — quantification HCA (port de clHCA/hca_decoder_clhca).
-const SCALE_TABLE: &[f32; 65] = &[
-    0.0, 1.0 / 8.0, 1.0 / 4.0, 3.0 / 8.0, 1.0 / 2.0,
-    5.0 / 8.0, 3.0 / 4.0, 7.0 / 8.0, 1.0, 9.0 / 8.0,
-    10.0 / 8.0, 11.0 / 8.0, 12.0 / 8.0, 13.0 / 8.0, 14.0 / 8.0, 15.0 / 8.0,
-    2.0, 18.0 / 8.0, 20.0 / 8.0, 22.0 / 8.0, 24.0 / 8.0, 26.0 / 8.0, 28.0 / 8.0, 30.0 / 8.0,
-    4.0, 36.0 / 8.0, 40.0 / 8.0, 44.0 / 8.0, 48.0 / 8.0, 52.0 / 8.0, 56.0 / 8.0, 60.0 / 8.0,
-    8.0, 72.0 / 8.0, 80.0 / 8.0, 88.0 / 8.0, 96.0 / 8.0, 104.0 / 8.0, 112.0 / 8.0, 120.0 / 8.0,
-    16.0, 144.0 / 8.0, 160.0 / 8.0, 176.0 / 8.0, 192.0 / 8.0, 208.0 / 8.0, 224.0 / 8.0, 240.0 / 8.0,
-    32.0, 288.0 / 8.0, 320.0 / 8.0, 352.0 / 8.0, 384.0 / 8.0, 416.0 / 8.0, 448.0 / 8.0, 480.0 / 8.0,
-    64.0, 576.0 / 8.0, 640.0 / 8.0, 704.0 / 8.0, 768.0 / 8.0, 832.0 / 8.0, 896.0 / 8.0, 960.0 / 8.0,
-    0.0,
-];
-
-/// Table des bits par scalefactor[64].
-const QUANT_BITS: &[u8; 65] = &[
-    0, 2, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5,
-    6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
-    7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-    7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-    0,
-];
-
-/// Ajustement de scalefactor depuis `ath_type`.
-fn compute_ath_table(ath_type: u16, _sample_rate: u32) -> [u8; 128] {
-    if ath_type == 0 {
-        [0u8; 128]
-    } else {
-        *ATH_TABLE_48K
-    }
-}
-
-/// Structure interne HCA parsée.
-struct HcaHeader {
-    sample_rate: u32,
-    channel_count: usize,
-    block_count: u32,
-    block_size: usize,
-    /// Coefficient fréquentiel de coupure décimé (r02).
-    comp_r02: usize,
-    /// Type ATH (0 = plat, 1 = courbe 48kHz).
-    ath_type: u16,
-    /// Offset des données audio depuis le début du fichier HCA.
-    data_start: usize,
-}
-
-/// Lit un identifiant de chunk 4 octets depuis un slice (sans magic null-termination).
-fn chunk_id(d: &[u8], off: usize) -> Option<[u8; 4]> {
-    if off + 4 <= d.len() {
-        Some([d[off], d[off + 1], d[off + 2], d[off + 3]])
-    } else {
-        None
-    }
-}
-
-fn parse_hca_header(data: &[u8]) -> Result<HcaHeader, FormatError> {
-    if data.len() < 8 {
-        return Err(FormatError::TooShort { got: data.len(), need: 8 });
-    }
-
-    // Magic HCA\0 ou HCA masqué (non chiffré = HCA\0)
-    if &data[..3] != b"HCA" {
-        return Err(FormatError::BadMagic { format: "HCA" });
-    }
-    // Byte 3 : 0x00 pour HCA non chiffré ; sinon clé de masquage du header
-    // Pour IEVR : toujours 0x00
-
-    let header_size = read_u16_be(data, 6) as usize;
-    if header_size < 8 || header_size > data.len() {
-        return Err(FormatError::Corrupt("HCA : header_size invalide"));
-    }
-
-    // Parse des chunks dans l'en-tête
-    let mut sample_rate = 0u32;
-    let mut channel_count = 0usize;
-    let mut block_count = 0u32;
-    let mut block_size = HCA_DEFAULT_BLOCK_SIZE;
-    let mut comp_r02 = 15usize;
-    let mut ciph_type = 0u16;
-    let mut ath_type = 0u16;
-
-    let mut pos = 8usize; // après magic + version + header_size
-    while pos + 4 <= header_size {
-        let id = chunk_id(data, pos).ok_or(FormatError::Corrupt("HCA : chunk_id tronqué"))?;
-        match &id {
-            b"fmt\x00" => {
-                // channels(1) | sample_rate_hi(1) | sample_rate_mid(1) | sample_rate_lo(1)
-                // En fait : un seul u32 BE où top byte = channels, 3 bytes suivants = sr
-                // Puis block_count(4 BE), enc_count(2 BE), dec_count(2 BE)
-                if pos + 16 > data.len() {
-                    return Err(FormatError::Corrupt("HCA : fmt tronqué"));
-                }
-                let ch_sr = read_u32_be(data, pos + 4);
-                channel_count = (ch_sr >> 24) as usize;
-                sample_rate = ch_sr & 0x00FF_FFFF;
-                block_count = read_u32_be(data, pos + 8);
-                pos += 16; // 4 (id) + 4 (ch+sr) + 4 (block_count) + 4 (enc+dec)
-            }
-            b"comp" => {
-                // block_size(2 BE) + r01(1) + r02(1)
-                if pos + 8 > data.len() { pos += 4; continue; }
-                block_size = read_u16_be(data, pos + 4) as usize;
-                // r01 ignoré (bornes hautes non utilisées dans ce décodeur)
-                comp_r02 = data[pos + 7] as usize;
-                pos += 10; // 4+2+1+1+unk(2)
-            }
-            b"ciph" => {
-                if pos + 6 > data.len() { pos += 4; continue; }
-                ciph_type = read_u16_be(data, pos + 4);
-                pos += 6;
-            }
-            b"ath\x00" => {
-                if pos + 6 > data.len() { pos += 4; continue; }
-                ath_type = read_u16_be(data, pos + 4);
-                pos += 6;
-            }
-            b"loop" => {
-                // 16 bytes : loop_start(4) loop_end(4) unk(4) unk(4)
-                pos += 20;
-            }
-            b"pad\x00" => {
-                // Marqueur de fin du header
-                break;
-            }
-            _ => {
-                // Chunk inconnu : avance de 4 octets (identifiant seulement)
-                pos += 4;
-            }
-        }
-    }
-
-    if sample_rate == 0 || channel_count == 0 {
-        return Err(FormatError::Corrupt("HCA : fmt chunk manquant ou invalide"));
-    }
-    if block_count == 0 {
-        return Err(FormatError::Corrupt("HCA : block_count nul"));
-    }
-    if block_size < 8 {
-        return Err(FormatError::Corrupt("HCA : block_size trop petit"));
-    }
-    if ciph_type != 0 {
-        return Err(FormatError::Corrupt(
-            "HCA : chiffrement non supporté (ciph_type ≠ 0). \
-             Clé inconnue pour ce fichier IEVR.",
-        ));
-    }
-
-    Ok(HcaHeader {
-        sample_rate,
-        channel_count,
-        block_count,
-        block_size,
-        comp_r02,
-        ath_type,
-        data_start: header_size,
-    })
-}
-
-/// Décode un flux HCA Criware non chiffré en PCM 16-bit.
-///
-/// Supporte HCA version 3.x avec `ciph_type = 0` uniquement.
-///
-/// # Dépréciation
-///
-/// Cette implémentation est un modèle simplifié qui **ne supporte pas** le chiffrement
-/// `ciph_type = 56` utilisé par tous les HCA d'IEVR. Pour un décodage réel, utiliser
-/// `cridecoder::HcaDecoder::set_encryption_key(IEVR_HCA_KEY, subkey as u64)` depuis
-/// `nie-model-serve`. La sous-clé AWB est exposée par [`Awb::subkey`].
-///
-/// # Erreurs
-///
-/// - [`FormatError::BadMagic`] si les 3 premiers octets ne sont pas `HCA`.
-/// - [`FormatError::Corrupt`] si le chiffrement est activé (`ciph_type ≠ 0`).
-/// - [`FormatError::Corrupt`] pour les autres erreurs structurelles.
-#[deprecated(
-    since = "0.1.0",
-    note = "ne supporte pas ciph_type=56 (HCA IEVR chiffrés) ; utiliser \
-            cridecoder::HcaDecoder avec set_encryption_key depuis nie-model-serve"
-)]
-pub fn hca_decode(data: &[u8]) -> Result<PcmResult, FormatError> {
-    let hdr = parse_hca_header(data)?;
-
-    let total_samples = hdr.block_count as usize * HCA_FRAME_SAMPLES;
-    let mut all_samples: Vec<i16> = Vec::with_capacity(total_samples * hdr.channel_count);
-
-    // Pré-calcule les tables MDCT et ATH
-    let mdct = mdct_table();
-    let ath = compute_ath_table(hdr.ath_type, hdr.sample_rate);
-
-    // Channels : état MDCT par canal
-    let mut channels: Vec<HcaChannel> = (0..hdr.channel_count).map(|_| HcaChannel::new()).collect();
-
-    let block_size = hdr.block_size;
-
-    for blk_idx in 0..hdr.block_count as usize {
-        let blk_start = hdr.data_start + blk_idx * block_size;
-        if blk_start + block_size > data.len() {
-            // Bloc tronqué : arrêt précoce, on ne génère pas de silence artificiel
-            break;
-        }
-        let block = &data[blk_start..blk_start + block_size];
-
-        // Lecture checksum (2 derniers octets) — optionnel, on ne vérifie pas
-        // CRC HCA = CRC16 sur les block_size-2 premiers octets
-
-        // Décode le bloc : bitstream big-endian dans `block`
-        decode_hca_block(block, &hdr, &ath, &mdct, &mut channels, &mut all_samples)?;
-    }
-
-    Ok(PcmResult {
-        samples: all_samples,
-        sample_rate: hdr.sample_rate,
-        channels: hdr.channel_count as u32,
-    })
-}
-
-/// Lecteur de bits big-endian (pour le décodage HCA).
-struct BitReader<'a> {
-    data: &'a [u8],
-    byte_pos: usize,
-    bit_pos: u8, // 0..=7, 0 = MSB du byte courant
-}
-
-impl<'a> BitReader<'a> {
-    fn new(data: &'a [u8]) -> Self {
-        Self { data, byte_pos: 0, bit_pos: 0 }
-    }
-
-    /// Lit `n` bits (1..=16) depuis le bitstream.
-    fn read_bits(&mut self, n: u8) -> u32 {
-        let mut result = 0u32;
-        let mut remaining = n;
-        while remaining > 0 {
-            if self.byte_pos >= self.data.len() {
-                break;
-            }
-            let bits_in_byte = 8 - self.bit_pos;
-            let take = remaining.min(bits_in_byte);
-            let shift = bits_in_byte - take;
-            let mask = ((1u16 << take) - 1) as u8;
-            let bits = (self.data[self.byte_pos] >> shift) & mask;
-            result = (result << take) | u32::from(bits);
-            self.bit_pos += take;
-            remaining -= take;
-            if self.bit_pos == 8 {
-                self.byte_pos += 1;
-                self.bit_pos = 0;
-            }
-        }
-        result
-    }
-
-    /// Indique si le lecteur a dépassé la fin des données.
-    fn is_exhausted(&self) -> bool {
-        self.byte_pos >= self.data.len()
-    }
-}
-
-/// Décode un seul bloc HCA et ajoute les échantillons dans `out`.
-///
-/// Implémentation du modèle simplifié HCA :
-/// 1. Lecture des scalefactors (6 bits chacun) depuis le bitstream.
-/// 2. Lecture des coefficients spectraux quantifiés.
-/// 3. IMDCT 128 points overlap-add → PCM.
-fn decode_hca_block(
-    block: &[u8],
-    hdr: &HcaHeader,
-    ath: &[u8; 128],
-    mdct: &[[f32; 128]; 128],
-    channels: &mut Vec<HcaChannel>,
-    out: &mut Vec<i16>,
-) -> Result<(), FormatError> {
-    // Le premier mot 16-bit du bloc est le sync (doit être 0xFFFF pour un bloc valide).
-    if block.len() < 2 {
-        return Err(FormatError::Corrupt("HCA : bloc trop court"));
-    }
-    let sync = read_u16_be(block, 0);
-    if sync != 0xFFFF {
-        // Bloc non-sync : génère du silence et continue
-        let silence = vec![0i16; HCA_FRAME_SAMPLES * hdr.channel_count];
-        out.extend_from_slice(&silence);
-        return Ok(());
-    }
-
-    // Décodage des 8 sous-trames par canal
-    let mut br = BitReader::new(block);
-    // Les 2 premiers octets (sync 0xFFFF) ont déjà été lus/vérifiés mais pas consommés
-    // Par convention le bitstream commence à l'octet 0 du bloc.
-    br.byte_pos = 2; // Skip sync
-    br.bit_pos = 0;
-
-    // Détermine le nombre de coefficients encodés pour chaque canal.
-    // comp_r01 = bornes hautes, comp_r02 = nombre de coefficients nuls en fin.
-    // `res_table` : résolutions de quantification par coefficient.
-    let ch_count = hdr.channel_count;
-
-    // Pour chaque sous-trame (8 par bloc), 128 échantillons par canal
-    for sf in 0..HCA_SUBFRAMES_PER_BLOCK {
-        // Lire les scalefactors pour tous les canaux (6 bits chacun, 128 coefficients)
-        for ch in 0..ch_count {
-            let coeff_count = (128 - hdr.comp_r02).min(128);
-            for k in 0..coeff_count {
-                let sf_val = br.read_bits(6) as usize;
-                // Résolution de quantification depuis les bits disponibles
-                let res = QUANT_BITS[sf_val.min(64)];
-                if res == 0 || br.is_exhausted() {
-                    channels[ch].spectra[k] = 0.0;
-                } else {
-                    let quant = br.read_bits(res) as i32;
-                    // Centre la valeur autour de zéro
-                    let levels = 1i32 << (res - 1);
-                    let delta = quant - (levels - 1);
-                    // Applique le scalefactor
-                    let scale = SCALE_TABLE[sf_val.min(64)];
-                    channels[ch].spectra[k] = delta as f32 * scale;
-                }
-            }
-            // Coefficients nuls restants
-            for k in (128 - hdr.comp_r02)..128 {
-                channels[ch].spectra[k] = 0.0;
-            }
-
-            // IMDCT 128 points (simplified overlap-add)
-            // Reconstruction PCM de la sous-trame
-            let mut wave = [0.0f32; 128];
-            for n in 0..128usize {
-                let mut sum = 0.0f32;
-                for k in 0..128usize {
-                    sum += channels[ch].spectra[k] * mdct[k][n];
-                }
-                wave[n] = sum;
-            }
-
-            // Overlap-add avec la trame précédente
-            let prev = &channels[ch].prev;
-            for n in 0..128usize {
-                let pcm_f = wave[n] + prev[n];
-                // Clamp vers [-1, 1] puis vers PCM16
-                let clamped = pcm_f.clamp(-1.0, 1.0);
-                let pcm16 = (clamped * 32767.0) as i16;
-                out.push(pcm16);
-            }
-
-            // Met à jour le prev buffer
-            channels[ch].prev.copy_from_slice(&wave);
-        }
-        let _ = (sf, ath); // utilisés dans la version complète
-    }
-
-    Ok(())
 }
 
 // ── AWB (AFS2) ────────────────────────────────────────────────────────────────
@@ -751,10 +333,9 @@ impl Awb {
         if ids_end > data.len() {
             return Err(FormatError::Corrupt("AWB : table cue-IDs dépasse le tampon"));
         }
-        let mut cue_ids = Vec::with_capacity(entry_count);
-        for i in 0..entry_count {
-            cue_ids.push(read_u32_le(data, ids_start + i * 4));
-        }
+        let cue_ids: Vec<u32> = (0..entry_count)
+            .map(|i| read_u32_le(data, ids_start + i * 4))
+            .collect();
 
         // Table des offsets : suit DIRECTEMENT les IDs, sans alignement.
         // L'`alignment` s'applique aux données (entrées audio), pas à la table d'offsets.
@@ -777,21 +358,17 @@ impl Awb {
         };
 
         let mut entries = Vec::with_capacity(entry_count);
-        for i in 0..entry_count {
+        for (i, &cue_id) in cue_ids.iter().enumerate() {
             let raw_offset = read_offset(i);
             // Les offsets sont déjà alignés dans les AWB IEVR ; pas d'alignement supplémentaire
             // (le block_size en [8:12] est en fait entry_count, pas un facteur d'alignement).
             let aligned_offset = raw_offset;
             let end_offset = read_offset(i + 1);
-            let size = if end_offset > aligned_offset {
-                end_offset - aligned_offset
-            } else {
-                0
-            };
+            let size = end_offset.saturating_sub(aligned_offset);
 
             // Sauvegarde uniquement si l'entrée est dans le tampon
             let entry = AwbEntry {
-                cue_id: cue_ids[i],
+                cue_id,
                 offset: aligned_offset,
                 size: if aligned_offset as usize + size as usize <= data.len() {
                     size
@@ -972,7 +549,7 @@ pub struct UsmResult {
     /// Frames vidéo brutes concaténées (H.264 NAL bitstream ou VP9 frames).
     /// Vide si aucun flux vidéo.
     pub video_data: Vec<u8>,
-    /// Pistes audio extraites (HCA ou ADX bruts, prêts pour `hca_decode`/`adx_decode`).
+    /// Pistes audio extraites (HCA ou ADX bruts, prêts pour `adx_decode` ou `cridecoder::HcaDecoder`).
     /// Vide si aucun flux @SFA.
     pub audio_tracks: Vec<Vec<u8>>,
     /// Largeur vidéo (0 si inconnue).
