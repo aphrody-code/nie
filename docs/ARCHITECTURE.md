@@ -72,7 +72,7 @@ Contrainte wasm : `wasm32-unknown-unknown` std fournie par la toolchain `nightly
 | `nie-wasm` | surface wasm-bindgen (detect/crilayla/@UTF), glue JS | FAIT (à étendre nie-core/nie-data) |
 | `nie-index` | base de connaissance sqlite (schéma + ingest/query, table `coverage`) | FAIT |
 | `nie-seed` | ingest index Ghidra (60183 fn) + RTTI/formats iecode/hash→nom inagle | FAIT |
-| `nie-re` | RTTI MSVC, refondation `.pdata`, **disasm iced-x86 (arêtes d'appel)**, propagation auto-ML | FAIT (92,43 %) |
+| `nie-re` | RTTI MSVC, refondation `.pdata`, **disasm iced-x86 (arêtes d'appel)**, propagation auto-ML | FAIT (92,45 %) |
 | `nie-queue` | frontière BFS redis | FAIT |
 | `nie-cli` | binaire `niers` (seed/rtti/rebuild/disasm/propagate/coverage/queue/textures) | FAIT |
 
@@ -94,12 +94,12 @@ Vérification byte-à-byte contre la table `.pdata` (unwind d'exception x64, gé
 
 1. **`pdata::rebuild_from_pdata`** : carte reconstruite sur les 50 674 racines réelles ; métadonnées Ghidra ré-ancrées **par inclusion** (nœud à l'adresse `a` → fonction racine contenant `a` : 17 403 chaînes, 340 100 constantes, 55 142 arêtes `ce` repliées, 1 575 classes RTTI).
 2. **`vtable::vtable_edges_into`** : pour chaque vtable localisée par RTTI (méthodes à `vtable_vaddr+8`), lecture des slots `.text` → **6 681 méthodes**, dont **2 109 fonctions feuilles** (sans unwind, absentes de `.pdata`) ajoutées comme nœuds, + **13 927 arêtes de cohésion de classe** (`kind='vtable'`) reliant les co-méthodes.
-3. **`disasm`** depuis les bons débuts → **125 029 arêtes d'appel directes réelles** (×18 vs les 6 721 du graphe désaligné — preuve que le décodage est physiquement correct).
+3. **`disasm`** depuis les bons débuts → **169 828 arêtes d'appel directes réelles** (≈×25 vs les 6 721 du graphe désaligné — preuve que le décodage est physiquement correct). *(L'ancien chiffre « 125 029 » d'une passe disasm antérieure n'est plus reproductible depuis `var/niers.sqlite` ; la base en contient 169 828, dédupliquées, les deux extrémités étant de vrais débuts de fonction.)*
 4. **Propagation** sur le graphe `call`+`vtable`.
 
-**Couverture HONNÊTE : 48 787 / 52 783 = 92,43 %** des fonctions réelles, sur adresses correctes + graphe d'appels réel + cohésion de vtable. Le dénominateur s'est **agrandi** (50 674 → 52 783, +2 109 feuilles découvertes par vtable) et la couverture a tout de même monté (90,43 % → 92,43 %).
+**Couverture HONNÊTE : 48 796 / 52 783 = 92,45 %** des fonctions **classifiées** — label de sous-système propagé, **pas un nom** : 0 fonction nommée (`symbol`/`hash_name` vides), ≈1 707 à ancre forte (≥0,75), 81,8 % des labels ML à confiance < 0,1. Sur adresses correctes + graphe d'appels réel + cohésion de vtable. Le dénominateur s'est **agrandi** (50 674 → 52 783, +2 109 feuilles découvertes par vtable) et la couverture a tout de même monté (90,43 % → 92,45 %).
 
-**Propagation pondérée — FAIT (levier de précision, pas de couverture).** Arêtes typées (appel direct 1.0, cohésion de vtable 0.5) + amortissement de degré anti-hub (`1/ln(deg+2)` : un utilitaire alloc/string appelé par des milliers de fonctions ne domine plus le label de ses voisins). **Couverture inchangée à 92,43 %** : la pondération change *quel* label gagne et la confiance, pas *quels* nœuds sont atteignables (la couverture est bornée par la connectivité du graphe, pas les poids). C'est une amélioration de **robustesse/justesse** des labels, utile pour le port, mais ce n'est pas un levier de couverture (estimation grok §3 « +4-5 pts » revue à la baisse, vérifiée empiriquement).
+**Propagation pondérée — FAIT (levier de précision, pas de couverture).** Arêtes typées (appel direct 1.0, cohésion de vtable 0.5) + amortissement de degré anti-hub (`1/ln(deg+2)` : un utilitaire alloc/string appelé par des milliers de fonctions ne domine plus le label de ses voisins). **Couverture inchangée à 92,45 %** : la pondération change *quel* label gagne et la confiance, pas *quels* nœuds sont atteignables (la couverture est bornée par la connectivité du graphe, pas les poids). C'est une amélioration de **robustesse/justesse** des labels, utile pour le port, mais ce n'est pas un levier de couverture (estimation grok §3 « +4-5 pts » revue à la baisse, vérifiée empiriquement).
 
 **Prochains leviers de couverture** (les vrais) : (a) plus d'**ancres** (règles strings, RTTI étendu) ; (b) **découverte de feuilles** supplémentaires (cibles d'appel directes `.text` hors `.pdata`/vtable, à enregistrer comme nœuds) ; (c) le résidu (~4 000 fonctions) est largement **isolé** (ni string, ni RTTI, ni arête vers une fonction étiquetée) → rendements décroissants. **L'axe à plus forte valeur est désormais le « jeu jouable »** : `nie-core` (sim), `nie-data` (port inagle), `nie-formats` (rejoint l'axe assets du `coverage-100-plan`), `nie-wasm`.
 
