@@ -14,6 +14,11 @@ nie.exe
 *.pdb
 /dumps
 
+# Fragments réels du jeu pour tests golden (copyright Level-5) — local uniquement.
+# Présents sur disque pour `cargo test -p nie-formats --features real-fixtures` ;
+# jamais distribués (le clone public compile/teste sans, feature off par défaut).
+crates/nie-formats/tests/fixtures/
+
 # Data de jeu consolidée (2,4 Go, symlink depuis ~/data) — JAMAIS committer
 /data
 /data/
@@ -24,6 +29,7 @@ nie.exe
 CLAUDE.md
 AGENTS.md
 GEMINI.md
+skills-lock.json
 
 # wasm build
 /pkg

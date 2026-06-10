@@ -18,3 +18,7 @@ serde_json.workspace = true
 [features]
 default = []
 serde = ["dep:serde"]
+# Active les tests golden adossés à des fragments RÉELS du jeu (copyright Level-5),
+# non distribués : ils vivent en local sous `crates/nie-formats/tests/fixtures/`
+# (gitignoré). Off par défaut → un clone public compile et teste sans ces données.
+real-fixtures = []

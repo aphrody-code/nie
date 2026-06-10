@@ -340,7 +340,9 @@ mod tests {
     // Fixtures réelles tronquées au début du payload (header + tables), copiées de
     // /home/ubuntu/rg/iecode/re/menu/extracted/fonts/. Le payload DDS volumineux est coupé :
     // on valide nom/id/dimensions(entrée)/régions, pas les pixels.
+    #[cfg(feature = "real-fixtures")]
     const FONT_DEF_HEAD: &[u8] = include_bytes!("../tests/fixtures/font_def.g4tx.head");
+    #[cfg(feature = "real-fixtures")]
     const GAIJI_HEAD: &[u8] = include_bytes!("../tests/fixtures/gaiji_game.g4tx.head");
 
     #[test]
@@ -350,6 +352,7 @@ mod tests {
         assert!(!is_g4tx(b""));
     }
 
+    #[cfg(feature = "real-fixtures")]
     #[test]
     fn font_def_header_golden() {
         let g = parse(FONT_DEF_HEAD).expect("parse font_def header");
@@ -364,6 +367,7 @@ mod tests {
         assert_eq!(g.textures[0].data_offset, 0xB0);
     }
 
+    #[cfg(feature = "real-fixtures")]
     #[test]
     fn font_def_texture_named() {
         let g = parse(FONT_DEF_HEAD).unwrap();
@@ -379,6 +383,7 @@ mod tests {
         assert_eq!(t.data_size, 0x02A0_0080);
     }
 
+    #[cfg(feature = "real-fixtures")]
     #[test]
     fn gaiji_header_and_atlas_golden() {
         let g = parse(GAIJI_HEAD).expect("parse gaiji header");

@@ -1010,9 +1010,11 @@ mod tests {
     // Liste m_FontColorDataList / type FONT_COLOR / 64 lignes de 100 octets.
     // -------------------------------------------------------------------
 
+    #[cfg(feature = "real-fixtures")]
     const FONT_COLOR_FIXTURE: &[u8] =
         include_bytes!("../tests/fixtures/font_color.cfg.bin");
 
+    #[cfg(feature = "real-fixtures")]
     #[test]
     fn font_color_header_golden() {
         let rdbn = parse(FONT_COLOR_FIXTURE).expect("parse font_color");
@@ -1028,6 +1030,7 @@ mod tests {
         assert_eq!(rdbn.string_abs, 0x1A68 + 0x50);
     }
 
+    #[cfg(feature = "real-fixtures")]
     #[test]
     fn font_color_strings_resolved() {
         let rdbn = parse(FONT_COLOR_FIXTURE).unwrap();
@@ -1040,6 +1043,7 @@ mod tests {
         assert_eq!(rdbn.strings.resolve(crc32(b"m_FontColorDataList")), Some("m_FontColorDataList"));
     }
 
+    #[cfg(feature = "real-fixtures")]
     #[test]
     fn font_color_values_golden() {
         let rdbn = parse(FONT_COLOR_FIXTURE).unwrap();
