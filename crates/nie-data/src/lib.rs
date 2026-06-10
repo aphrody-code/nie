@@ -41,6 +41,7 @@ pub mod formation;
 pub mod growth;
 pub mod hash;
 pub mod item;
+pub mod party;
 pub mod passive;
 pub mod passives;
 pub mod skill;
