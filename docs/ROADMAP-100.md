@@ -39,7 +39,7 @@ des sous-systèmes qu'on porte. Donc la priorité bascule de « monter le % de c
 ### Pilier A — Formats (C1) → 100 % des fichiers lisibles + décodés correctement
 - **A0 (FAIT)** : RDBN, g4tx/g4md/g4mg/g4pk, @UTF, CRILAYLA, CPK (clé CRC32), assemblage GLB texturé.
 - **A1** : `nxtch` deswizzle validé **pixel-à-pixel** sur un vrai NXTCH (le localiser dans les CPK) vs C#. *Gate : Δpixel = 0 sur ≥3 textures Switch réelles.*
-- **A2** : **HCA conforme clHCA** (le décodeur actuel est un modèle simplifié non conforme). *Gate : PCM identique à vgmstream/cridecoder sur ≥3 `.hca`/`.awb` réels IEVR.*
+- **A2 (FAIT 2026-06-10)** : **HCA décode réellement** via `cridecoder` (clHCA) + clé IEVR `0x00D2997C0DC5EE72` + magic masqué + sous-clé AFS2. Vérifié sur `c00001001.awb` (48 kHz mono, non silencieux). Reste : généraliser la validation à ≥3 AWB + clé PC/Steam éventuelle (patch 1.2.2).
 - **A3** : `g4sk` hiérarchie d'os sans fallback heuristique. *Gate : arbre d'os exact vs C# sur ≥3 `.g4sk` réels.*
 - **A4** : formats résiduels (`p3lip` 20 357 fichiers, `objbin` 11 920, `vfxo`, `g4cm`, `col`, `pfxo`, `ptlb`, `fxbin`, `g4nv`, `g4mt`) — parseurs réels. *Gate : 100 % des 250 800 fichiers passent en parse sans erreur.*
 - **A5** : déchiffrement de toute enveloppe CPK résiduelle si le verrou existe (cf. recherche en cours). *Gate : 100 % des CPK montent dans le VFS.*
@@ -64,7 +64,7 @@ des sous-systèmes qu'on porte. Donc la priorité bascule de « monter le % de c
 
 ### Pilier E — RE / échafaudage (C5) → nommer, pas seulement classer
 - **E0 (FAIT)** : 92,45 % classé sur `.pdata`, graphe d'appels réel, RTTI (1 575 classes).
-- **E1** : **arêtes indirectes** (`lea reg,[fn]` + slots vtable `.rdata`↔RTTI) → connecter le résidu isolé. *Gate : delta de couverture mesuré honnêtement, sans double-comptage.*
+- **E1 (FAIT 2026-06-10)** : **arêtes indirectes** (`lea reg,[fn]` + slots vtable `.rdata`↔RTTI) → connecter le résidu isolé. *Gate : delta de couverture mesuré honnêtement, sans double-comptage.*
 - **E2** : **nommage réel** — propager les noms de classes RTTI (`lives::`, `game::`) vers leurs méthodes via vtable ; ré-exporter un index Ghidra **aligné** (`analyzeHeadless`, dispo sur le VPS) pour récupérer de vrais symboles. *Gate : N fonctions avec `function.name` non nul (actuellement 0).*
 - **E3** : ré-ingestion du nommage comme ancres → boucle vers pilier C.
 
