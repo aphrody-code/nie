@@ -1284,7 +1284,8 @@ fn build_glb(model: &AssembledModel, with_textures: bool) -> Vec<u8> {
             let mut attrs_obj = json!({ "POSITION": pos_acc });
             if let Some(n) = normal_acc { attrs_obj["NORMAL"] = json!(n); }
             if let Some(u) = uv_acc { attrs_obj["TEXCOORD_0"] = json!(u); }
-            if let Some(c) = color_acc { attrs_obj["COLOR_0"] = json!(c); }
+            // Desactive COLOR_0 pour eviter que les shaders standards n'appliquent des couleurs de debug/masquage
+            // if let Some(c) = color_acc { attrs_obj["COLOR_0"] = json!(c); }
 
             prim_defs.push(json!({
                 "attributes": attrs_obj,
@@ -1589,7 +1590,8 @@ fn build_glb_embedded(model: &AssembledModel) -> Vec<u8> {
             let mut attrs_obj = json!({ "POSITION": pos_acc });
             if let Some(n) = normal_acc { attrs_obj["NORMAL"] = json!(n); }
             if let Some(u) = uv_acc { attrs_obj["TEXCOORD_0"] = json!(u); }
-            if let Some(c) = color_acc { attrs_obj["COLOR_0"] = json!(c); }
+            // Desactive COLOR_0 pour eviter que les shaders standards n'appliquent des couleurs de debug/masquage
+            // if let Some(c) = color_acc { attrs_obj["COLOR_0"] = json!(c); }
 
             prim_defs.push(json!({
                 "attributes": attrs_obj,
