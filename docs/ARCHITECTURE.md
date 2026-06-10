@@ -72,7 +72,7 @@ Contrainte wasm : `wasm32-unknown-unknown` std fournie par la toolchain `nightly
 | `nie-wasm` | surface wasm-bindgen (detect/crilayla/@UTF), glue JS | FAIT (à étendre nie-core/nie-data) |
 | `nie-index` | base de connaissance sqlite (schéma + ingest/query, table `coverage`) | FAIT |
 | `nie-seed` | ingest index Ghidra (60183 fn) + RTTI/formats iecode/hash→nom inagle | FAIT |
-| `nie-re` | RTTI MSVC, refondation `.pdata`, **disasm iced-x86 (arêtes d'appel)**, propagation auto-ML | FAIT (92,45 %) |
+| `nie-re` | RTTI MSVC, refondation `.pdata`, **disasm iced-x86 (arêtes d'appel + LEA)**, ancrage vtable→RTTI, propagation auto-ML | FAIT (93,36 % classé, 6 429 nommées) |
 | `nie-queue` | frontière BFS redis | FAIT |
 | `nie-cli` | binaire `niers` (seed/rtti/rebuild/disasm/propagate/coverage/queue/textures) | FAIT |
 
@@ -97,7 +97,11 @@ Vérification byte-à-byte contre la table `.pdata` (unwind d'exception x64, gé
 3. **`disasm`** depuis les bons débuts → **169 828 arêtes d'appel directes réelles** (≈×25 vs les 6 721 du graphe désaligné — preuve que le décodage est physiquement correct). *(L'ancien chiffre « 125 029 » d'une passe disasm antérieure n'est plus reproductible depuis `var/niers.sqlite` ; la base en contient 169 828, dédupliquées, les deux extrémités étant de vrais débuts de fonction.)*
 4. **Propagation** sur le graphe `call`+`vtable`.
 
-**Couverture HONNÊTE : 48 796 / 52 783 = 92,45 %** des fonctions **classifiées** — label de sous-système propagé, **pas un nom** : 0 fonction nommée (`symbol`/`hash_name` vides), ≈1 707 à ancre forte (≥0,75), 81,8 % des labels ML à confiance < 0,1. Sur adresses correctes + graphe d'appels réel + cohésion de vtable. Le dénominateur s'est **agrandi** (50 674 → 52 783, +2 109 feuilles découvertes par vtable) et la couverture a tout de même monté (90,43 % → 92,45 %).
+**Couverture HONNÊTE : 49 280 / 52 783 = 93,36 %** des fonctions **classifiées** — label de sous-système propagé, **pas un nom**. Sur adresses correctes + graphe d'appels réel + cohésion de vtable. Le dénominateur s'est **agrandi** (50 674 → 52 783, +2 109 feuilles découvertes par vtable) et la couverture a monté (90,43 % → 92,45 % → **93,36 %**).
+
+**Lever « arêtes indirectes » — FAIT (2026-06-10), mesuré A/B.** (a) **LEA rip-relatif** (`lea reg,[rip+fn]` dont la cible est un début de fonction `.pdata`, gate strict `Mnemonic::Lea`) → 5 477 arêtes `kind='lea'` (poids propagation 0,4). (b) **Ancrage vtable→RTTI** : une méthode standalone d'une vtable de classe classifiable hérite du sous-système de sa classe (conf 0,7, saute les thunks partagés). Résultat honnête : **+484 fonctions** atteignables (92,45 → 93,36 %), dont seulement **+17 à confiance ≥ 0,3** (les ancres RTTI dures) — le reste est du label faible via LEA. La mesure double-seuil (brut + conf≥0,3) évite de gonfler le %.
+
+**Nommage structurel — AMORCÉ (2026-06-10).** `function.name` était NULL partout (0 nommée). Chaque méthode de vtable d'une classe RTTI reçoit un nom **structurel** `Namespace::Classe::vmethod_N` (`name_source='vtable-struct'`) → **6 429 fonctions (12,18 %) nommées**. Ce sont des noms de **position** (classe + slot), **pas** les symboles C++ originaux (`Update`/`Release`/…) — distincts d'un futur import PDB/Ghidra aligné (pilier E2). Prochain levier de couverture : pointeurs absolus 8 octets en `.rdata`/`.data` (~1 651 fn estimées).
 
 **Propagation pondérée — FAIT (levier de précision, pas de couverture).** Arêtes typées (appel direct 1.0, cohésion de vtable 0.5) + amortissement de degré anti-hub (`1/ln(deg+2)` : un utilitaire alloc/string appelé par des milliers de fonctions ne domine plus le label de ses voisins). **Couverture inchangée à 92,45 %** : la pondération change *quel* label gagne et la confiance, pas *quels* nœuds sont atteignables (la couverture est bornée par la connectivité du graphe, pas les poids). C'est une amélioration de **robustesse/justesse** des labels, utile pour le port, mais ce n'est pas un levier de couverture (estimation grok §3 « +4-5 pts » revue à la baisse, vérifiée empiriquement).
 
