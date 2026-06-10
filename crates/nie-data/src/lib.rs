@@ -46,5 +46,6 @@ pub mod passive;
 pub mod passives;
 pub mod phase;
 pub mod skill;
+pub mod soccer;
 
 pub use hash::HashId;
