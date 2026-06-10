@@ -76,6 +76,8 @@ en Rust ; iecode/inagle ne sont pas des dépendances permanentes, ce sont des v�
 
 ## Roadmap priorisée (vers le jeu jouable)
 
+> **Trajectoire complète et mesurable vers 100 % pixel-perfect : `docs/ROADMAP-100.md`** (décomposition en 5 couvertures C1–C5, jalons à *gates* vérifiables, vagues d'exécution, tableau de bord honnête). La section ci-dessous reste le court terme opérationnel.
+
 **P0 — débloquer l'extraction d'assets (pilier Formats)**
 1. ~~Finir la décompression **CRILAYLA**~~ → **FAIT** (300/300 g4tx extraits, validé croisé Rust↔C#).
 2. Recaler les offsets **nxtch** (off-by-4) + test à valeurs réelles → textures déswizzlées correctes (prochain).
