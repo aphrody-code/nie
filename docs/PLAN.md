@@ -12,7 +12,7 @@ décodés, le tout portable navigateur.
 ## Le moyen ≠ la fin
 
 Le **reverse-engineering** (boucle `nie-re`/`nie-index`/`nie-seed`/`nie-queue` : index Ghidra, désassemblage
-iced-x86, propagation de labels auto-ML, **92,43 %** des 52 783 fonctions réelles classifiées) est **l'échafaudage**.
+iced-x86, propagation de labels auto-ML, **92,45 %** des 52 783 fonctions réelles classifiées) est **l'échafaudage**.
 Il sert à *résoudre* la logique de `nie.exe` pour la **porter** en Rust. Les références de portage sont
 [iecode](../../rg/iecode) (C# .NET 10) et `inagle` (TS) + le réel (`/home/ubuntu/niers/data`, `.pdata`) :
 chaque format/fonction porté est validé **byte-à-byte** contre eux. La cible est que niers fasse **tout** lui-même
@@ -49,7 +49,7 @@ en Rust ; iecode/inagle ne sont pas des dépendances permanentes, ce sont des v�
 - **FAIT (`448bc9c`)** : migration du cœur game-data de l'azalee CLI TS → **13 sous-commandes `niers wiki`** (chara/skill/item/team/compare/search/db/random-team/team-builder/status/redis/audit/dialogue), lecture du miroir SQLite via `rusqlite` + calcul `nie-core`/`nie-data` + rendu. (push/sync/rag/translate restent TS.)
 
 ### 3quinquies. Moteur décompilé — `nie-engine` (portage des fonctions C de nie.exe)
-- **FAIT (socle)** : portage des **60 fonctions C décompilées** (Ghidra) → Rust, **11 modules / ~15k LOC** (render/animation/audio/physics-physx/menu/network/scripting/cfgbin/cpk/g4/app), `forbid(unsafe)`, workspace build vert, tests par module. Reste : étendre vers une boucle moteur réelle + résoudre les `// EXTERN:` (refs vers fonctions non encore portées).
+- **FAIT (socle)** : portage de **~55 fonctions distinctes** (depuis les 60 fichiers `.c` décompilés Ghidra) → Rust, **11 modules / ~15k LOC** (render/animation/audio/physics-physx/menu/network/scripting/cfgbin/cpk/g4/app), `forbid(unsafe)`, workspace build vert, tests par module. **434 marqueurs `// EXTERN:`** (≈7,6 par fonction portée) = refs vers fonctions non encore portées : le socle est un îlot, pas une boucle moteur. Reste : étendre vers une boucle moteur réelle + résoudre les `// EXTERN:`.
 
 ### 3sexies. Assemblage 3D — `nie-formats/assemble.rs` (modèle complet joueur)
 - **FAIT (2026-06-06)** : fusion **corps + face + uniforme TEXTURÉS** en un GLB. Matching reversé : face = GLB de l'internalCode, corps = mesh PARTAGÉ `base_*` (par type_idx, 99 % couverts), uniforme = team→kit→`ModelIdCrc = crc32_std(code)` (manifeste `var/uniform-model-map.ndjson`, **3550** entrées). **Textures g4tx→PNG (BC1-7) embarquées** dans le GLB (face + uniforme). Keshin (`k*`) / armures (`ka*`) aussi assemblés. Reste : skinning complet (animations), codes hors `c/k/ka` (uniforme isolé `n*` non assemblable seul).
@@ -71,7 +71,7 @@ en Rust ; iecode/inagle ne sont pas des dépendances permanentes, ce sont des v�
 - **FAIT (2026-06-06)** : l'arbre complet des **250 800 fichiers** des CPK (common 193 540 / dx11 57 260) est indexé en Redis db3 `iev:file:index` (HASH `path → cpk`) et exporté en artefact tracké `apps/azalee/data/cpk-index.ndjson.gz` (~3,9 Mo, via `apps/azalee/scripts/build-cpk-index.ts`). Alimente le navigateur CPK d'azalee (`/cpk`, `/api/cpk`) — cf. `rg/docs/cpk-browser.md`. Couplé au serving live (g4tx→png :8788, GLB texturé :8790) = exploration totale des assets du jeu.
 
 ### 5. Échafaudage RE — `nie-re`, `nie-index`, `nie-seed`, `nie-queue`
-- **FAIT** : pipeline `seed → rtti → rebuild(.pdata) → disasm → propagate`. **92,43 %** (48 787/52 783 fonctions réelles) classifié, sur adresses correctes (`.pdata` = 50 674 racines + 2 109 feuilles vtable) + graphe d'appels réel (125 029 arêtes directes). Table `coverage` dans `var/niers.sqlite`.
+- **FAIT** : pipeline `seed → rtti → rebuild(.pdata) → disasm → propagate`. **92,45 %** (48 796/52 783 fonctions réelles) **classifié** — c.-à-d. doté d'un *label de sous-système* propagé (ML), **pas d'un nom** : 0 fonction nommée (tables `symbol`/`hash_name` vides), et 81,8 % des labels ML ont une confiance < 0,1 (≈1 707 fonctions à ancre forte ≥0,75). Sur adresses correctes (`.pdata` = 50 674 racines + 2 109 feuilles vtable) + graphe d'appels réel (169 828 arêtes directes). Table `coverage` dans `var/niers.sqlite`.
 - **Découverte clé** : l'index Ghidra est **désaligné** (3,7 % des `FUN_` sont de vrais débuts) ; `.pdata` est la vérité terrain. Toujours s'y adosser.
 
 ## Roadmap priorisée (vers le jeu jouable)
