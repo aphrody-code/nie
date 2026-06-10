@@ -950,11 +950,27 @@ fn rebuild(db_path: &std::path::Path, exe_path: &std::path::Path, rounds: usize)
         0.0
     };
 
+    // Noms réels écrits : fonctions ayant un `name` non nul dans dst_bin.
+    // Inclut les noms 'vtable-struct' générés à cette exécution ainsi que
+    // tout nom antérieur (name_source != NULL).  N'exclut pas de préfixe
+    // car les noms structurels ne commencent pas par 'FUN_'.
+    let named_total: i64 = db.conn().query_row(
+        "SELECT COUNT(*) FROM function WHERE binary_id=?1 AND name IS NOT NULL",
+        [dst_bin],
+        |r| r.get(0),
+    )?;
+    let pct_named = if prop.total > 0 {
+        100.0 * named_total as f64 / prop.total as f64
+    } else {
+        0.0
+    };
+
     println!(
-        "rebuild roots={} str={} ce={} rtti={} | vtable methods={} leaf+={} cohesion={} anchored={} | disasm new={} lea_new={} | cov_brut={}/{} ({:.2}%) cov_conf>=0.3={}/{} ({:.2}%)",
+        "rebuild roots={} str={} ce={} rtti={} | vtable methods={} leaf+={} cohesion={} anchored={} named_struct={} | disasm new={} lea_new={} | named={}/{} ({:.2}%) | cov_brut={}/{} ({:.2}%) cov_conf>=0.3={}/{} ({:.2}%)",
         rb.roots, rb.str_refs_moved, rb.ce_edges_mapped, rb.rtti_copied,
-        vt.methods, vt.new_leaf_funcs, vt.cohesion_edges, vt.class_anchored,
+        vt.methods, vt.new_leaf_funcs, vt.cohesion_edges, vt.class_anchored, vt.named_struct,
         dis.edges_new, dis.lea_edges_new,
+        named_total, prop.total, pct_named,
         prop.classified_after, prop.total, prop.coverage_after,
         classified_conf, prop.total, pct_conf
     );
