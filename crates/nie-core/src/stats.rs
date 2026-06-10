@@ -143,7 +143,11 @@ fn lerp_u16(start: u16, end: u16, t: f32) -> u16 {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct GrowthParams {
-    /// Position principale (1=GK, 2=DF, 3=MF, 4=FW).
+    /// Position principale (1=GK, 2=FW, 3=MF, 4=DF).
+    ///
+    /// Vérité terrain : `refs/iecode-re/cli/include/iecode/gamedata/types.h:28`
+    /// (`enum Position { GK=1, FW=2, MF=3, DF=4 }`) et
+    /// `refs/iecode-re/cli/src/gamedata/loader.cpp:178`.
     pub main_position: u8,
     /// Sous-position (0 = aucune).
     pub sub_position: u8,
