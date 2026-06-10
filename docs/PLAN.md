@@ -25,7 +25,8 @@ en Rust ; iecode/inagle ne sont pas des dépendances permanentes, ce sont des v�
 - **FAIT (2026-06-05)** : `@UTF` (TOC des CPK) — modèle de stockage corrigé en **bits** (`HAS_NAME=0x10`, `HAS_DEFAULT=0x20`, `ROW_STORAGE=0x40`, priorité DEFAULT>ROW), ancré sur iecode `UtfTable.cs`. Avant : enum faux → 0 extrait sur vrais CPK.
 - **FAIT (2026-06-05)** : **décompression CRILAYLA** — bug off-by-one corrigé (décrément `write_pos` avant calcul de la source du backref LZ, conforme C#). Extraction g4tx **300/300, 0 échec** ; **validée croisée Rust↔C#** (mêmes width/height que le parseur iecode sur les fichiers communs : 308×180, 512×256, 32×32). Le verrou de l'extraction d'assets est levé.
 - **INCOMPLET** : nxtch deswizzle (offsets en-tête off-by-4 vs struct C# `NxtchHeader`) ; g4sk hiérarchie d'os (heuristique ne se déclenche pas sur les fichiers dispo).
-- **NON_FAIT** : audio Criware (HCA/ACB/AWB/ADX), déchiffrement enveloppe CPK côté niers (clé dérivée du nom OK ; le reste à porter depuis iecode).
+- **Déchiffrement CPK — RÉSOLU (rien à RE)** : recherche 2026-06-10 — il n'existe **aucune 2ᵉ enveloppe ni clé non publique**. Le seul chemin iecode est : magic `CPK ` → clair, sinon clé = CRC32(nom de fichier) puis XOR position-based — déjà porté (`cpk.rs` `key_from_filename`/`decrypt_block`). Vérifié : **921/921 CPK de `data/packs/` déchiffrent** en `CPK `+`@UTF`, 0 échec. La « clé fixe Viola `0x1717E18E` » n'est pas un secret : c'est `key_from_filename("cpk_list.cfg.bin")`.
+- **Audio Criware** : ADX/AWB/ACB/USM = conteneurs réels portés. **HCA — clé de déchiffrement IEVR récupérée** (`SoundPlayManager.DecryptionKey = 0x00D2997C0DC5EE72`, dump il2cpp ; absente de la liste publique vgmstream) ; décodage réel via `cridecoder` (port clHCA complet) — *câblage de la clé en cours* (le stub `cri_audio::hca_decode` était non conforme et n'appliquait jamais la clé → silence).
 - **Correction honnête** : l'« extraction CPK FAIT » (`c91faeb`) était un **faux FAIT** — jamais validée end-to-end ; cassait sur les vrais CPK (cause = @UTF + CRILAYLA ci-dessus).
 
 ### 2. Données — `nie-data` (modèles no_std du jeu, port inagle)
@@ -96,7 +97,7 @@ en Rust ; iecode/inagle ne sont pas des dépendances permanentes, ce sont des v�
 
 **P2 — étendre la couverture RE (échafaudage, rendements décroissants)**
 9. Arêtes **indirectes** (références `lea reg,[fn]`, slots de vtable `.rdata` reliés aux classes RTTI) — meilleur levier sur le résidu (~4 000 fns isolées).
-10. Audio Criware (HCA/ACB/AWB/ADX) + déchiffrement enveloppe CPK en Rust.
+10. Audio Criware : finir le câblage de la clé HCA (`cridecoder` + `IEVR_HCA_KEY` + sous-clé AFS2). *(Déchiffrement enveloppe CPK : RÉSOLU, cf. pilier Formats — pas un verrou.)*
 
 ## Méthode
 
