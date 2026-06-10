@@ -52,7 +52,7 @@ des sous-systèmes qu'on porte. Donc la priorité bascule de « monter le % de c
 
 ### Pilier C — Logique moteur (C3) → résoudre la longue traîne par sous-système
 - **C0 (FAIT, îlots)** : nie-core (FSM match, effets, action-ctrl, stats — 126 tests) ; nie-engine (~55 fn, 11 modules) **mais 434 `// EXTERN:` non portées** = îlots non connectés.
-- **C1** : **boucle de match jouable** — câbler nie-core (FSM + slots) à nie-data dans une simulation kickoff→score→fin. *Gate : match golden recoupé au C décompilé (score `min*10000+sec`).*
+- **C1 (FAIT 2026-06-10)** : **boucle de match jouable déterministe** (`nie-headless match`) — FSM + horloge + score câblés ; séquence FSM + `final_score` confirmées byte vs C ; modèle de but/PRNG/durée nominaux (le réel = moteur physique). 167 tests verts.
 - **C2** : **résorber les EXTERN par sous-système** — choisir un sous-système (ex. `chara` 11 358 fn, ou `audio` runtime), le nommer (cf. pilier E), porter ses fonctions racines + leurs callees jusqu'à 0 EXTERN dans le module. *Gate : module sans EXTERN, tests par fonction.*
 - **C3** : itérer C2 sur menu / physics(PhysX) / network / script jusqu'à couverture fonctionnelle.
 
