@@ -605,8 +605,7 @@ pub fn parse_utf(data: &[u8]) -> Result<UtfTable, FormatError> {
     // On détecte ce cas par rows_offset >= data.len() et on fallback sur la position
     // calculée depuis string_pool.
     let effective_rows_offset = if row_count > 0 && rows_offset >= data.len() {
-        let fallback = string_pool.saturating_sub(row_stride * row_count);
-        fallback
+        string_pool.saturating_sub(row_stride * row_count)
     } else {
         rows_offset
     };
@@ -765,10 +764,8 @@ impl CpkReader {
                 return Err(FormatError::TooShort { got: data.len(), need: offset + size });
             }
             let mut region = data[offset..offset + size].to_vec();
-            if is_encrypted {
-                if let Some(k) = file_key {
-                    decrypt_block(&mut region, offset as u64, k);
-                }
+            if is_encrypted && let Some(k) = file_key {
+                decrypt_block(&mut region, offset as u64, k);
             }
             Ok(region)
         };
@@ -836,10 +833,8 @@ impl CpkReader {
             return Err(FormatError::TooShort { got: data.len(), need: offset + size });
         }
         let mut raw = data[offset..offset + size].to_vec();
-        if self.is_encrypted {
-            if let Some(k) = self.file_key {
-                decrypt_block(&mut raw, offset as u64, k);
-            }
+        if self.is_encrypted && let Some(k) = self.file_key {
+            decrypt_block(&mut raw, offset as u64, k);
         }
 
         if entry.is_compressed && crate::detect(&raw) == crate::FileFormat::CriLayla {

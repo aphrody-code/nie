@@ -709,7 +709,7 @@ pub fn parse_t2b(data: &[u8]) -> Result<CfgBinFile, FormatError> {
         }
     }
 
-    let key_table_offset = ((string_table_off + string_table_len + 15) / 16) * 16;
+    let key_table_offset = (string_table_off + string_table_len).div_ceil(16) * 16;
     let mut key_table = BTreeMap::new();
     if key_table_offset + 16 <= data.len() {
         let key_length = i32::from_le_bytes(data[key_table_offset..key_table_offset + 4].try_into().unwrap()) as usize;
@@ -754,7 +754,7 @@ pub fn parse_t2b(data: &[u8]) -> Result<CfgBinFile, FormatError> {
             let param_count = data[pos + 4] as usize;
             pos += 5;
 
-            let type_bytes = (param_count + 3) / 4;
+            let type_bytes = param_count.div_ceil(4);
             let mut param_types = Vec::new();
             let mut pi = 0;
             for _ in 0..type_bytes {
@@ -772,7 +772,7 @@ pub fn parse_t2b(data: &[u8]) -> Result<CfgBinFile, FormatError> {
             }
 
             let total_header = 5 + type_bytes;
-            if total_header % 4 != 0 {
+            if !total_header.is_multiple_of(4) {
                 pos += 4 - (total_header % 4);
             }
 

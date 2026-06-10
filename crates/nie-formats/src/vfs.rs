@@ -13,6 +13,9 @@ use std::sync::{Arc, Mutex};
 use crate::cpk::CpkReader;
 use crate::FormatError;
 
+/// Cache des CPK déjà chargés : nom CPK → (lecteur, octets bruts).
+type CpkCacheMap = Mutex<HashMap<String, Arc<(CpkReader, Vec<u8>)>>>;
+
 /// Entrée du VFS.
 #[derive(Debug, Clone)]
 pub struct VfsEntry {
@@ -27,7 +30,7 @@ pub struct Vfs {
     loose_files: bool,
     index: HashMap<String, VfsEntry>,
     cpk_names: HashSet<String>,
-    cpk_cache: Mutex<HashMap<String, Arc<(CpkReader, Vec<u8>)>>>,
+    cpk_cache: CpkCacheMap,
 }
 
 impl Default for Vfs {
@@ -164,7 +167,7 @@ impl Vfs {
         }
 
         let entry = self.find(internal_path)
-            .ok_or_else(|| FormatError::Corrupt("fichier non trouve dans le VFS"))?;
+            .ok_or(FormatError::Corrupt("fichier non trouve dans le VFS"))?;
         
         let cpk_filename = &entry.cpk_filename;
         let mut cache = self.cpk_cache.lock().unwrap();
@@ -188,10 +191,10 @@ impl Vfs {
         let (reader, cpk_bytes) = &*reader_arc;
         
         // Trouver l'entrée CPK par nom de fichier (ends_with ou match exact)
-        let filename = internal_path.split('/').last().unwrap_or(internal_path);
+        let filename = internal_path.split('/').next_back().unwrap_or(internal_path);
         
         let cpk_entry = reader.entries.iter().find(|e| e.filename == filename)
-            .ok_or_else(|| FormatError::Corrupt("fichier non trouve dans le CPK"))?;
+            .ok_or(FormatError::Corrupt("fichier non trouve dans le CPK"))?;
 
         reader.extract(cpk_bytes, cpk_entry)
     }
