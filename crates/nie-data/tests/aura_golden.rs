@@ -6,8 +6,11 @@
 //! -1368456794, 3, 8, 0, 1, -1124324279, 0, 0, 0, 1, 0, 0]`.
 //! → auraId=0x7978E1FA, assetCode=wks00020, skillId1(var6)=0x0F8C620D, element(var8)=3.
 //!
-//! Résolution hissatsu : dans CE dump, skillId1 ne résout vers aucun skill_config v4/v5
-//! → `None` (pas d'invention). On teste aussi la résolution POSITIVE avec une carte construite.
+//! Résolution hissatsu : AURA_CMD_INFO_0 skillId1 0x0F8C620D résout vers **whs01780**
+//! (Feu/Tir, 100-640) dans le vrai skill_config_4. Le fichier contient 387 AURA_CMD_INFO
+//! réels (19 vars) ; les 1161 AURA_CMD_INFO_REF (2 vars) sont filtrés (var_count < 4).
+//! La conclusion « 0/1549 → None » était hallucinée (bun-check bugué).
+//! Tests : carte vide → None ; inline whs01780 ; vrais dumps fichiers (skip si absent VPS).
 
 use nie_data::aura::{
     build_skill_map, determine_sub_type, parse_all_aura_cmds, resolve_aura_hissatsu, AuraCmd,
@@ -138,6 +141,58 @@ fn determine_sub_type_prefixes() {
     assert_eq!(determine_sub_type("wko00010", None), AuraSubType::Keshin);
     assert_eq!(determine_sub_type("was00010", None), AuraSubType::Keshin);
     assert_eq!(determine_sub_type("xyz00010", None), AuraSubType::Aura);
+}
+
+#[test]
+fn hissatsu_0f8c620d_resout_whs01780_vrai_fichier() {
+    // Validation byte-à-byte contre les vrais dumps. Skip si absents du VPS.
+    // Vérité terrain : AURA_CMD_INFO_0 var6 = 260858381 = 0x0F8C620D (aura_skill_config),
+    // skill_id_str = "whs01780", power 100-640, element 3 (Feu), category 1 (Tir)
+    // (skill_config_4.00.17.00). ~61/1548 auras résolvent réellement.
+    let aura_path = "/home/ubuntu/niers/data/common/gamedata/skill/aura_skill_config_1.04.09.00.cfg.bin.json";
+    let skill_path =
+        "/home/ubuntu/niers/data/common/gamedata/skill/skill_config_4.00.17.00.cfg.bin.json";
+    if !std::path::Path::new(aura_path).exists()
+        || !std::path::Path::new(skill_path).exists()
+    {
+        return;
+    }
+
+    let aura_root: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(aura_path).expect("lecture aura"))
+            .expect("JSON aura");
+    let skill_root: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(skill_path).expect("lecture skill"))
+            .expect("JSON skill");
+
+    let auras = parse_all_aura_cmds(&aura_root);
+    // 387 AURA_CMD_INFO réels (19 vars) ; les 1161 AURA_CMD_INFO_REF (2 vars) sont filtrés
+    // par from_node (var_count < 4). Nombre total dans le fichier : 1548 enfants.
+    assert_eq!(
+        auras.len(),
+        387,
+        "387 AURA_CMD_INFO réels (non-REF, ≥4 vars) attendus dans aura_skill_config_1.04.09.00"
+    );
+
+    let skills = nie_data::skill::parse_skill_config(&skill_root);
+    let map = build_skill_map(skills);
+
+    // AURA_CMD_INFO_0 : auraId=0x7978E1FA, skillId1=0x0F8C620D → whs01780.
+    let a0 = &auras[0];
+    assert_eq!(a0.aura_id.to_hex(), "0x7978E1FA", "AURA_CMD_INFO_0 auraId");
+    assert_eq!(
+        a0.config.skill_id1.unwrap().to_hex(),
+        "0x0F8C620D",
+        "AURA_CMD_INFO_0 skillId1"
+    );
+
+    let h = resolve_aura_hissatsu(&a0.config, &map)
+        .expect("0x0F8C620D doit résoudre vers whs01780 dans skill_config_4.00.17.00");
+    assert_eq!(h.skill_id, HashId(0x0F8C_620D));
+    assert_eq!(h.skill_id_str.as_deref(), Some("whs01780"));
+    assert_eq!(h.element, SkillElement::Fire);    // element 3
+    assert_eq!(h.category, SkillCategory::Shoot); // category 1
+    assert_eq!(h.power, (100, 640));
 }
 
 /// Helper de test : Vec à un élément.

@@ -276,10 +276,10 @@ pub fn load_noun_texts(root: &Value) -> BTreeMap<u32, String> {
             }
             if let Some(children) = entry.get("children").and_then(Value::as_array) {
                 for child in children {
-                    if let Some(child_name) = child.get("name").and_then(Value::as_str) {
-                        if !child_name.starts_with("NOUN_INFO_") {
-                            continue;
-                        }
+                    if let Some(child_name) = child.get("name").and_then(Value::as_str)
+                        && !child_name.starts_with("NOUN_INFO_")
+                    {
+                        continue;
                     }
                     if let Some(vars) = child.get("variables").and_then(Value::as_array) {
                         // vars[0] = hash (signé i64 → u32)
@@ -386,59 +386,59 @@ pub fn parse_player_passives(
     for entry in entries {
         let entry_name = entry.get("name").and_then(Value::as_str).unwrap_or("");
 
-        if entry_name.contains("PASSIVE_SKILL_EFFECT_LIST") {
-            if let Some(children) = entry.get("children").and_then(Value::as_array) {
-                for (idx, child) in children.iter().enumerate() {
-                    let child_name = child.get("name").and_then(Value::as_str).unwrap_or("");
-                    if !child_name.starts_with("PASSIVE_SKILL_EFFECT_")
-                        || child_name.contains("_LIST_")
-                    {
-                        continue;
-                    }
-                    let vars = match child.get("variables").and_then(Value::as_array) {
-                        Some(v) => v,
-                        None => continue,
-                    };
-                    // vars[1..] = params (Float), filtrer les INVALID
-                    let mut params: Vec<f64> = Vec::new();
-                    for v in vars.iter().skip(1) {
-                        let raw = v.get("value").and_then(Value::as_str).unwrap_or("0");
-                        let ty = v.get("type").and_then(Value::as_str).unwrap_or("");
-                        let parsed: i64 = raw.parse().unwrap_or(0);
-                        if parsed == INVALID_PARAM {
-                            break; // Les sentinelles marquent la fin des params réels
-                        }
-                        if ty == "Float" {
-                            let f: f64 = raw.replace(',', ".").parse().unwrap_or(0.0);
-                            params.push(f);
-                        } else {
-                            params.push(parsed as f64);
-                        }
-                    }
-                    effect_params.insert(idx, params);
+        if entry_name.contains("PASSIVE_SKILL_EFFECT_LIST")
+            && let Some(children) = entry.get("children").and_then(Value::as_array)
+        {
+            for (idx, child) in children.iter().enumerate() {
+                let child_name = child.get("name").and_then(Value::as_str).unwrap_or("");
+                if !child_name.starts_with("PASSIVE_SKILL_EFFECT_")
+                    || child_name.contains("_LIST_")
+                {
+                    continue;
                 }
+                let vars = match child.get("variables").and_then(Value::as_array) {
+                    Some(v) => v,
+                    None => continue,
+                };
+                // vars[1..] = params (Float), filtrer les INVALID
+                let mut params: Vec<f64> = Vec::new();
+                for v in vars.iter().skip(1) {
+                    let raw = v.get("value").and_then(Value::as_str).unwrap_or("0");
+                    let ty = v.get("type").and_then(Value::as_str).unwrap_or("");
+                    let parsed: i64 = raw.parse().unwrap_or(0);
+                    if parsed == INVALID_PARAM {
+                        break; // Les sentinelles marquent la fin des params réels
+                    }
+                    if ty == "Float" {
+                        let f: f64 = raw.replace(',', ".").parse().unwrap_or(0.0);
+                        params.push(f);
+                    } else {
+                        params.push(parsed as f64);
+                    }
+                }
+                effect_params.insert(idx, params);
             }
         }
 
-        if entry_name.contains("PASSIVE_SKILL_BUFF_ICON_LIST") {
-            if let Some(children) = entry.get("children").and_then(Value::as_array) {
-                for (idx, child) in children.iter().enumerate() {
-                    let child_name = child.get("name").and_then(Value::as_str).unwrap_or("");
-                    if !child_name.starts_with("PASSIVE_SKILL_BUFF_ICON_")
-                        || child_name.contains("_LIST_")
-                    {
-                        continue;
-                    }
-                    let icon_val = child
-                        .get("variables")
-                        .and_then(Value::as_array)
-                        .and_then(|v| v.first())
-                        .and_then(|v| v.get("value"))
-                        .and_then(Value::as_str)
-                        .and_then(|s| s.parse::<u8>().ok())
-                        .unwrap_or(0);
-                    buff_icons.insert(idx, icon_val);
+        if entry_name.contains("PASSIVE_SKILL_BUFF_ICON_LIST")
+            && let Some(children) = entry.get("children").and_then(Value::as_array)
+        {
+            for (idx, child) in children.iter().enumerate() {
+                let child_name = child.get("name").and_then(Value::as_str).unwrap_or("");
+                if !child_name.starts_with("PASSIVE_SKILL_BUFF_ICON_")
+                    || child_name.contains("_LIST_")
+                {
+                    continue;
                 }
+                let icon_val = child
+                    .get("variables")
+                    .and_then(Value::as_array)
+                    .and_then(|v| v.first())
+                    .and_then(|v| v.get("value"))
+                    .and_then(Value::as_str)
+                    .and_then(|s| s.parse::<u8>().ok())
+                    .unwrap_or(0);
+                buff_icons.insert(idx, icon_val);
             }
         }
     }

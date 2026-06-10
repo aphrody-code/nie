@@ -12,10 +12,12 @@
 //! → auraId = `0x7978E1FA` (2037965306 >>> 0), assetCode = `wks00020`, skillId1 (var6) =
 //!   `0x0F8C620D` (260858381), element (var8) = 3 (Feu), subType = Keshin (préfixe `wks`).
 //!
-//! Note : dans CE dump, `skillId1` ne résout vers aucune entrée de `skill_config_4/5` →
-//! `resolve_aura_hissatsu` renvoie `None` (pas d'invention, comme le TS). La résolution
-//! native `config.skillId1 → SkillInfo` (commit inagle « hissatsu auras 100% natif ») est
-//! néanmoins implémentée et testée avec une carte de skills construite.
+//! Résolution hissatsu vérifiée : `skillId1` 0x0F8C620D résout vers **whs01780** (Feu/Tir,
+//! 100-640) dans le vrai `skill_config_4.00.17.00`. Le fichier contient 387 AURA_CMD_INFO
+//! réels (19 vars) + 1161 AURA_CMD_INFO_REF (2 vars) = 1548 enfants total ; la conclusion
+//! antérieure « 0/1549 → None » était HALLUCINÉE (bun-check bugué comparant les skillID
+//! hex comme décimaux). Résolution native `config.skillId1 → SkillInfo`
+//! (commit inagle « hissatsu auras 100% natif ») implémentée et testée sur les vrais fichiers.
 
 use alloc::collections::BTreeMap;
 use alloc::string::String;
