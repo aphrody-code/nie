@@ -3,8 +3,9 @@
 //! ## Formats supportés
 //!
 //! - [`adx_decode`] — ADX ADPCM type 3 (4 bits/sample, 18 octets/frame, 32 samples/frame).
-//! - [`hca_decode`] — HCA (High-Compression Audio) version 3.x, `ciph_type = 0` (non chiffré).
-//!   Pour les fichiers HCA chiffrés (`ciph_type ≠ 0`) la fonction retourne une erreur explicite.
+//! - [`hca_decode`] — HCA (High-Compression Audio) version 3.x, non chiffré uniquement.
+//!   **Déprécié** : ne supporte pas `ciph_type = 56` (tous les HCA IEVR). Utiliser
+//!   `cridecoder::HcaDecoder` avec `set_encryption_key` depuis `nie-model-serve`.
 //! - [`Awb`] — Archive audio AFS2 (Wave Bank) : parse les entrées indexées par cue-ID et
 //!   extrait les blobs HCA/ADX bruts.
 //! - [`Acb`] — Cue sheet Criware (`@UTF`) : résout les noms de cue et extrait le AWB embarqué
@@ -27,10 +28,15 @@
 //! }
 //! ```
 //!
-//! ## Clé HCA IEVR
+//! ## Chiffrement HCA IEVR
 //!
-//! Les fichiers HCA d'Inazuma Eleven: Victory Road ont `ciph_type = 0` (non chiffrés).
-//! Aucune clé n'est nécessaire.
+//! Les fichiers HCA d'Inazuma Eleven: Victory Road ont `ciph_type = 56` (chiffrés XOR).
+//! La clé principale (`IEVR_HCA_KEY = 59_278_503_195_307_634`, source : `SoundPlayManager.DecryptionKey`
+//! dans le dump il2cpp) et la sous-clé AWB (u16 LE à l'offset `0x0E` de l'en-tête AFS2,
+//! exposée par [`Awb::subkey`]) doivent être transmises à
+//! `cridecoder::HcaDecoder::set_encryption_key` avant de décoder la première trame.
+//! Cette logique vit dans `nie-model-serve` (dépendance std `cridecoder`) ;
+//! `nie-formats` ne fait que le parsing du conteneur AWB/ACB.
 
 extern crate alloc;
 use alloc::{string::String, vec::Vec};
@@ -477,16 +483,27 @@ fn parse_hca_header(data: &[u8]) -> Result<HcaHeader, FormatError> {
     })
 }
 
-/// Décode un flux HCA Criware en PCM 16-bit.
+/// Décode un flux HCA Criware non chiffré en PCM 16-bit.
 ///
-/// Supporte HCA version 3.x non chiffré (`ciph_type = 0`).
-/// Les fichiers IEVR sont systématiquement non chiffrés dans les AWB du jeu.
+/// Supporte HCA version 3.x avec `ciph_type = 0` uniquement.
+///
+/// # Dépréciation
+///
+/// Cette implémentation est un modèle simplifié qui **ne supporte pas** le chiffrement
+/// `ciph_type = 56` utilisé par tous les HCA d'IEVR. Pour un décodage réel, utiliser
+/// `cridecoder::HcaDecoder::set_encryption_key(IEVR_HCA_KEY, subkey as u64)` depuis
+/// `nie-model-serve`. La sous-clé AWB est exposée par [`Awb::subkey`].
 ///
 /// # Erreurs
 ///
 /// - [`FormatError::BadMagic`] si les 3 premiers octets ne sont pas `HCA`.
 /// - [`FormatError::Corrupt`] si le chiffrement est activé (`ciph_type ≠ 0`).
 /// - [`FormatError::Corrupt`] pour les autres erreurs structurelles.
+#[deprecated(
+    since = "0.1.0",
+    note = "ne supporte pas ciph_type=56 (HCA IEVR chiffrés) ; utiliser \
+            cridecoder::HcaDecoder avec set_encryption_key depuis nie-model-serve"
+)]
 pub fn hca_decode(data: &[u8]) -> Result<PcmResult, FormatError> {
     let hdr = parse_hca_header(data)?;
 
@@ -674,10 +691,18 @@ pub struct AwbEntry {
 }
 
 /// Archive audio AWB (AFS2).
+///
+/// La sous-clé de déchiffrement HCA ([`Awb::subkey`], u16 LE à l'offset `0x0E` de
+/// l'en-tête AFS2) doit être transmise à `cridecoder::HcaDecoder::set_encryption_key`
+/// pour déchiffrer les entrées HCA (`ciph_type = 56`). Varie par fichier AWB ;
+/// ex. `c00001001.awb` (IEVR) → `0xC62A`.
 #[derive(Debug, Clone)]
 pub struct Awb {
-    /// Clé AWB (utilisée pour le déchiffrement HCA si `ciph_type = 2` ; 0 pour IEVR).
-    pub key: u32,
+    /// Sous-clé de déchiffrement HCA, u16 LE lue à l'offset `0x0E` de l'en-tête AFS2.
+    ///
+    /// À transmettre à `cridecoder::HcaDecoder::set_encryption_key(IEVR_HCA_KEY, subkey as u64)`
+    /// avant de décoder les trames HCA (`ciph_type = 56`).
+    pub subkey: u16,
     /// Entrées indexées par cue-ID.
     pub entries: Vec<AwbEntry>,
 }
@@ -714,7 +739,10 @@ impl Awb {
         // alignment = uint32 LE à l'offset [12:16] (utilisé pour aligner la table d'offsets).
         let entry_count = read_u32_le(data, 8) as usize;
         let _alignment = read_u32_le(data, 12) as usize; // champ de structure, non utilisé par la table d'offsets
-        let key = 0u32; // la clé HCA n'est pas stockée à cet offset dans ce format
+        // Sous-clé de déchiffrement HCA : u16 LE à l'offset 0x0E de l'en-tête AFS2.
+        // Situé dans le champ [12:16] (alignment/flags) ; les 2 octets de poids fort
+        // [0x0E:0x10] portent la sous-clé AWB utilisée avec la clé principale IEVR.
+        let subkey = read_u16_le(data, 0x0E);
 
         // Table des cue-IDs : uint32 LE chacun, à partir de 0x10.
         // 4 octets par ID (observé sur AWB IEVR réels, vérifiés sur les données terrain).
@@ -776,7 +804,7 @@ impl Awb {
             entries.push(entry);
         }
 
-        Ok(Self { key, entries })
+        Ok(Self { subkey, entries })
     }
 
     /// Extrait les bytes d'une entrée depuis le tampon AWB.
@@ -1075,7 +1103,12 @@ pub fn is_adx(data: &[u8]) -> bool {
 }
 
 /// Détecte si un slice commence par un en-tête HCA valide.
+///
+/// Accepte les deux formes : le magic clair `HCA\0` **et** le magic **masqué**
+/// `0xC8 0xC3 0xC1` (`'HCA' | 0x80` octet par octet), utilisé par tous les HCA
+/// d'IEVR. On ne dé-masque PAS le tampon ici (cridecoder le fait en interne) —
+/// on reconnaît seulement l'entrée comme HCA.
 #[must_use]
 pub fn is_hca(data: &[u8]) -> bool {
-    data.len() >= 3 && &data[..3] == b"HCA"
+    data.len() >= 3 && (&data[..3] == b"HCA" || data[..3] == [0xC8, 0xC3, 0xC1])
 }
