@@ -31,6 +31,7 @@
 
 extern crate alloc;
 
+pub mod ai;
 pub mod aura;
 pub mod cfgbin;
 pub mod chara_param;
