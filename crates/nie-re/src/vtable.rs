@@ -41,6 +41,14 @@ pub struct VtableStats {
     pub cohesion_edges: usize,
     /// Méthodes ancrées par RTTI de classe (`subsys_src='vtable'`).
     pub class_anchored: usize,
+    /// Noms **structurels** écrits (`name_source='vtable-struct'`).
+    ///
+    /// Il s'agit de noms de la forme `Namespace::Classe::vmethod_N` dérivés du
+    /// nom de classe RTTI et de l'index de slot dans la vtable.  Ce sont des
+    /// noms **structurels** (position dans la vtable), **pas** des symboles PDB
+    /// originaux : ils identifient la méthode de façon non ambiguë mais ne
+    /// renseignent pas sur la sémantique (le nom C++ réel reste inconnu).
+    pub named_struct: usize,
 }
 
 /// Lit les vtables localisées par RTTI (`src_bin`), ajoute les méthodes feuilles
@@ -184,6 +192,13 @@ pub fn vtable_edges_into(
     //    classe (confiance 0.7, ancre dure, n'écrase jamais un label existant).
     //    On saute les thunks partagés (méthode présente dans >1 namespace
     //    top-level distinct : _purecall, vector deleting destructor…).
+    //
+    // 4. Nommage structurel : pour chaque méthode non-thunk de chaque groupe,
+    //    si `name IS NULL`, on écrit un nom de la forme
+    //    `Namespace::Classe::vmethod_N` (N = index de slot dans la vtable).
+    //    `name_source = 'vtable-struct'` distingue ces noms structurels des
+    //    symboles PDB originaux : ils identifient sans ambiguïté la méthode
+    //    (classe RTTI + rang) mais n'indiquent pas la sémantique C++ réelle.
     if !skip_anchor {
         let mut upd = tx.prepare_cached(
             "UPDATE function SET subsystem=?1, subsys_src='vtable', confidence=0.7
@@ -201,12 +216,33 @@ pub fn vtable_edges_into(
                     upd.execute(rusqlite::params![sub, dst_bin, m as i64])?;
             }
         }
+
+        // Nommage structurel : itère TOUS les groupes (pas seulement les
+        // classifiables) pour nommer chaque méthode à son index de slot.
+        let mut upd_name = tx.prepare_cached(
+            "UPDATE function SET name=?1, name_source='vtable-struct'
+             WHERE binary_id=?2 AND vaddr=?3 AND name IS NULL",
+        )?;
+        for (methods, class, ns) in &groups {
+            for (i, &m) in methods.iter().enumerate() {
+                if method_to_ns.get(&m).map_or(0, |s| s.len()) > 1 {
+                    continue; // thunk partagé entre plusieurs classes
+                }
+                let struct_name = if ns.is_empty() {
+                    format!("{class}::vmethod_{i}")
+                } else {
+                    format!("{ns}::{class}::vmethod_{i}")
+                };
+                stats.named_struct +=
+                    upd_name.execute(rusqlite::params![struct_name, dst_bin, m as i64])?;
+            }
+        }
     }
     tx.commit()?;
 
     info!(
-        "vtable: {} vtables, {} méthodes, {} feuilles ajoutées, {} arêtes cohésion",
-        stats.vtables, stats.methods, stats.new_leaf_funcs, stats.cohesion_edges
+        "vtable: {} vtables, {} méthodes, {} feuilles ajoutées, {} arêtes cohésion, {} noms-struct",
+        stats.vtables, stats.methods, stats.new_leaf_funcs, stats.cohesion_edges, stats.named_struct
     );
     Ok(stats)
 }
