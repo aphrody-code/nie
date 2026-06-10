@@ -38,7 +38,7 @@ des sous-systèmes qu'on porte. Donc la priorité bascule de « monter le % de c
 
 ### Pilier A — Formats (C1) → 100 % des fichiers lisibles + décodés correctement
 - **A0 (FAIT)** : RDBN, g4tx/g4md/g4mg/g4pk, @UTF, CRILAYLA, CPK (clé CRC32), assemblage GLB texturé.
-- **A1** : `nxtch` deswizzle validé **pixel-à-pixel** sur un vrai NXTCH (le localiser dans les CPK) vs C#. *Gate : Δpixel = 0 sur ≥3 textures Switch réelles.*
+- **A1 (N/A pour le PC — vérifié 2026-06-10)** : `nxtch` est la variante texture **Switch** ; **0/250 800** fichiers de l'IEVR PC sont NXTCH (textures = DDS dans g4tx, déjà décodées via `image_dds`). Le code deswizzle reste pour complétude/Switch mais **hors chemin critique** du pixel-perfect PC.
 - **A2 (FAIT 2026-06-10)** : **HCA décode réellement** via `cridecoder` (clHCA) + clé IEVR `0x00D2997C0DC5EE72` + magic masqué + sous-clé AFS2. Vérifié sur `c00001001.awb` (48 kHz mono, non silencieux). Reste : généraliser la validation à ≥3 AWB + clé PC/Steam éventuelle (patch 1.2.2).
 - **A3** : `g4sk` hiérarchie d'os sans fallback heuristique. *Gate : arbre d'os exact vs C# sur ≥3 `.g4sk` réels.*
 - **A4** : formats résiduels (`p3lip` 20 357 fichiers, `objbin` 11 920, `vfxo`, `g4cm`, `col`, `pfxo`, `ptlb`, `fxbin`, `g4nv`, `g4mt`) — parseurs réels. *Gate : 100 % des 250 800 fichiers passent en parse sans erreur.*
