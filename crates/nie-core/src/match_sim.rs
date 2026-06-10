@@ -278,6 +278,63 @@ impl TeamSetup {
             .collect();
         Self::from_players(name, &stats)
     }
+
+    /// Crée une équipe en calculant les stats depuis des
+    /// [`nie_data::chara_param::CharaParam`] et des niveaux.
+    ///
+    /// Pour chaque joueur `(chara_param, level)`, les champs `main_position`,
+    /// `sub_position` et `growth_pattern` sont projetés vers un
+    /// [`crate::growth::GrowthParams`], puis les stats sont calculées via les
+    /// tables de croissance IEVR embarquées et agrégées par [`Self::from_players`].
+    ///
+    /// ## NOMINAL
+    ///
+    /// - `chara_rank` (rareté) est absent de [`nie_data::chara_param::CharaParam`] :
+    ///   il est fixé à `0` (rang N) par défaut. Les stats résultantes sont
+    ///   **sous-estimées** pour les personnages de rareté R/SR/SSR/UR/LR.
+    ///   Pour un calcul exact, utiliser [`Self::from_growth_params`] en précisant
+    ///   le `chara_rank` manuellement.
+    /// - `play_style` est aussi absent de `CharaParam` et défaut à `0`.
+    /// - L'agrégation reste une moyenne simple (même réserve que
+    ///   [`Self::from_players`]).
+    ///
+    /// # Panics
+    ///
+    /// Panique si `players` est vide.
+    #[cfg(feature = "data")]
+    #[must_use]
+    pub fn from_chara_params_and_levels(
+        name: impl Into<String>,
+        players: &[(&nie_data::chara_param::CharaParam, u8)],
+    ) -> Self {
+        use crate::growth::{calculate_stats, GrowthParams, GrowthTables};
+        assert!(
+            !players.is_empty(),
+            "TeamSetup::from_chara_params_and_levels : liste vide"
+        );
+        let tables = GrowthTables::load_embedded();
+        // Les codes de position (1-4), sous-position (0-4) et growth_pattern (0-2)
+        // tiennent tous dans un u8 (données réelles bornées, vérifiées via les golden
+        // tests de nie-data). nie-core autorise clippy::pedantic, donc pas de lint ici.
+        let stats: Vec<StatBlock> = players
+            .iter()
+            .map(|(cp, level)| {
+                #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+                let params = GrowthParams {
+                    main_position: cp.main_position as u8,
+                    sub_position: cp.sub_position as u8,
+                    growth_pattern: cp.growth_pattern as u8,
+                    // chara_rank absent de CharaParam : défaut N (rang 0).
+                    // Réserve documentée : les stats sont sous-estimées pour R à LR.
+                    // Utiliser from_growth_params pour préciser le rang exact.
+                    chara_rank: 0,
+                    play_style: 0,
+                };
+                calculate_stats(&tables, &params, *level)
+            })
+            .collect();
+        Self::from_players(name, &stats)
+    }
 }
 
 /// Événement survenu pendant un match simulé.

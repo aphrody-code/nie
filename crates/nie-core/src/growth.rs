@@ -31,7 +31,11 @@ use crate::stats::{calculate_single_stat, rarity_to_growth_rank, StatBlock};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct GrowthTableLv1 {
-    /// Position principale (1=GK, 2=DF, 3=MF, 4=FW).
+    /// Position principale (1=GK, 2=FW, 3=MF, 4=DF).
+    ///
+    /// Vérité terrain : `refs/iecode-re/cli/include/iecode/gamedata/types.h:28`
+    /// (`enum Position { GK=1, FW=2, MF=3, DF=4 }`) et
+    /// `refs/iecode-re/cli/src/gamedata/loader.cpp:178`.
     pub main_position: u8,
     /// Sous-position (0 = aucune).
     pub sub_position: u8,
@@ -47,7 +51,7 @@ pub struct GrowthTableLv1 {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct GrowthTableLv30 {
-    /// Position principale (1-4).
+    /// Position principale (1=GK, 2=FW, 3=MF, 4=DF).
     pub main_position: u8,
     /// Sous-position (0 = aucune).
     pub sub_position: u8,
@@ -61,13 +65,13 @@ pub struct GrowthTableLv30 {
 
 /// Entrée de la courbe principale (lv50 + lv99) par position/pattern/rang.
 ///
-/// Source : `m_growthTableMainList`. Échantillon `main[0]` (mainPosition 2,
+/// Source : `m_growthTableMainList`. Échantillon `main[0]` (mainPosition 2=FW,
 /// pattern 0, rank 5) : lv50 `[164,160,146,130,127,122,144]`,
 /// lv99 `[261,258,235,210,202,195,230]`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct GrowthTableMain {
-    /// Position principale (1-4).
+    /// Position principale (1=GK, 2=FW, 3=MF, 4=DF).
     pub main_position: u8,
     /// Pattern de croissance (0 ou 1).
     pub growth_pattern: u8,
@@ -120,7 +124,11 @@ pub struct GrowthTables {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct GrowthParams {
-    /// Position principale (1=GK, 2=DF, 3=MF, 4=FW).
+    /// Position principale (1=GK, 2=FW, 3=MF, 4=DF).
+    ///
+    /// Vérité terrain : `refs/iecode-re/cli/include/iecode/gamedata/types.h:28`
+    /// (`enum Position { GK=1, FW=2, MF=3, DF=4 }`) et
+    /// `refs/iecode-re/cli/src/gamedata/loader.cpp:178`.
     pub main_position: u8,
     /// Sous-position (0 = aucune).
     pub sub_position: u8,
@@ -473,7 +481,9 @@ mod tests {
 
     #[test]
     fn golden_fw_ur() {
-        // FW rang UR : mainPosition 4, sub 0, pattern 0, rank 5.
+        // DF rang UR : mainPosition 4, sub 0, pattern 0, rank 5.
+        // Note : le nom de ce test est conservé pour compatibilité ; mainPosition=4 correspond
+        // à DF (GK=1, FW=2, MF=3, DF=4 — types.h:28 / loader.cpp:178).
         let t = GrowthTables::load_embedded();
         let params = p(4, 0, 0, 5);
         assert_eq!(
@@ -496,7 +506,8 @@ mod tests {
 
     #[test]
     fn golden_df_sub3_ur() {
-        // DF sub3 rang UR : ancre directe sur lv30[0] et main[0].
+        // FW sub3 rang UR : ancre directe sur lv30[0] et main[0].
+        // Note : le nom conservé pour compatibilité ; mainPosition=2 = FW (types.h:28 / loader.cpp:178).
         let t = GrowthTables::load_embedded();
         let params = p(2, 3, 0, 5);
         assert_eq!(
