@@ -360,6 +360,7 @@ mod tests {
 
     /// G4SK réel extrait du jeu (`s28g001b.g4pk` → `s28g001b.g4sk`, 19 os).
     /// Octets BRUTS du dump VPS — aucune fabrication.
+    #[cfg(feature = "real-fixtures")]
     const REAL_G4SK: &[u8] = include_bytes!("../tests/fixtures/s28g001b.g4sk");
 
     /// Construit un en-tête G4SK synthétique (header DÉTERMINISTE : ce qu'on garantit).
@@ -401,6 +402,7 @@ mod tests {
     // Valeurs RÉELLES recoupées sur s28g001b.g4sk
     // ------------------------------------------------------------------
 
+    #[cfg(feature = "real-fixtures")]
     #[test]
     fn header_reel_s28g001b() {
         let h = parse_header(REAL_G4SK).expect("header G4SK réel");
@@ -410,6 +412,7 @@ mod tests {
         assert_eq!(h.bone_count, 19);
     }
 
+    #[cfg(feature = "real-fixtures")]
     #[test]
     fn slots_offsets_reels() {
         // Adresses fichier recoupées : slot[4]=parents @0xB6C, slot[8]=noms @0xC1C.
@@ -418,6 +421,7 @@ mod tests {
         assert_eq!(slot_offset(REAL_G4SK, 0), Some(0x40)); // matrices bind-pose @0x40
     }
 
+    #[cfg(feature = "real-fixtures")]
     #[test]
     fn hierarchie_reelle_resolue_non_heuristique() {
         let h = parse_header(REAL_G4SK).unwrap();
@@ -444,6 +448,7 @@ mod tests {
         assert_eq!(got_names, expected_names);
     }
 
+    #[cfg(feature = "real-fixtures")]
     #[test]
     fn arbre_reel_acyclique_et_racines() {
         let h = parse_header(REAL_G4SK).unwrap();

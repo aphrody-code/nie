@@ -1235,6 +1235,7 @@ mod tests {
 
     /// Header chiffré réel (512 octets) du CPK `1d08dda99e8549431c6c7b459ed8deab.cpk`,
     /// extrait tel quel du dump Steam IEVR (`data/packs/`). Octets BRUTS chiffrés.
+    #[cfg(feature = "real-fixtures")]
     const REAL_CPK_HEAD_ENC: &[u8] =
         include_bytes!("../tests/fixtures/1d08dda99e8549431c6c7b459ed8deab.cpk.head512.enc");
 
@@ -1251,6 +1252,7 @@ mod tests {
         assert_eq!(key_from_filename("6a3ab1ffb3d2e6c5dc62215be407f063.cpk"), 0x52B4_1918);
     }
 
+    #[cfg(feature = "real-fixtures")]
     #[test]
     fn dechiffre_cpk_reel_donne_magic_cpk_et_utf() {
         // Le test anti-hallucination : on part d'octets RÉELS chiffrés et on exige
@@ -1263,6 +1265,7 @@ mod tests {
         assert_eq!(&buf[0x10..0x14], b"@UTF");
     }
 
+    #[cfg(feature = "real-fixtures")]
     #[test]
     fn cle_fixe_viola_ne_dechiffre_pas_un_pack_cpk() {
         // La constante 0x1717E18E (clé Viola cfg.bin) NE déchiffre PAS un .cpk de packs/ :
@@ -1272,6 +1275,7 @@ mod tests {
         assert_ne!(&buf[..4], b"CPK ", "0x1717E18E ne doit PAS donner 'CPK ' sur un pack");
     }
 
+    #[cfg(feature = "real-fixtures")]
     #[test]
     fn decrypt_block_est_involutif() {
         // XOR position-aware : déchiffrer puis re-chiffrer (même clé/offset) = identité.
@@ -1283,6 +1287,7 @@ mod tests {
         assert_eq!(buf, original, "double déchiffrement doit rétablir le clair chiffré");
     }
 
+    #[cfg(feature = "real-fixtures")]
     #[test]
     fn decrypt_block_position_aware_par_fenetres() {
         // Déchiffrer par fenêtres avec le bon file_offset == déchiffrer d'un coup.
