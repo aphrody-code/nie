@@ -89,3 +89,39 @@ fn niveau_first_slot_est_zero_comme_inagle() {
     let p = &parsed[0];
     assert_eq!(p.skills[0].learn_level, 0, "level-first @10 → niveau du slot 0 = 0");
 }
+
+#[test]
+fn chara_param_240bedf2_niveau_zero_vrai_fichier() {
+    // Validation byte-à-byte contre le vrai dump chara_param_1.03.66.00.cfg.bin.json.
+    // Skip si absent du VPS (le fichier est gitignore).
+    // Source inagle : chara-param.ts commit 07ee6ce l.93-118 (level-first @10, hash@11).
+    // Vérité terrain DB prod : 0x240BEDF2 → learnLevel 0 (index 10 = 0 dans CHARA_PARAM_INFO_1).
+    let path =
+        "/home/ubuntu/niers/data/common/gamedata/character/chara_param_1.03.66.00.cfg.bin.json";
+    if !std::path::Path::new(path).exists() {
+        return;
+    }
+    let content = std::fs::read_to_string(path)
+        .unwrap_or_else(|e| panic!("Impossible de lire {path}: {e}"));
+    let root: serde_json::Value =
+        serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide: {e}"));
+    let params = parse_all_chara_params(&root);
+    assert!(!params.is_empty(), "aucun CharaParam parsé dans {path}");
+
+    // La techniqueId 0x240BEDF2 (604761586) doit avoir learnLevel = 0 (niveau@10 = 0).
+    let skill_target = HashId(0x240B_EDF2);
+    let found = params
+        .iter()
+        .flat_map(|p| p.skills.iter())
+        .find(|s| s.skill_id == skill_target);
+    assert!(
+        found.is_some(),
+        "techniqueId 0x240BEDF2 introuvable dans le vrai dump {path}"
+    );
+    assert_eq!(
+        found.unwrap().learn_level,
+        0,
+        "0x240BEDF2 doit avoir learnLevel=0 (niveau@index10=0 dans CHARA_PARAM_INFO_1) — \
+         level-first @10, inagle commit 07ee6ce l.93-118"
+    );
+}

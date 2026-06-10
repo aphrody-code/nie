@@ -62,7 +62,7 @@ pub struct CharaParam {
     pub sub_position: i64,
     /// var8 — `growthPattern`.
     pub growth_pattern: i64,
-    /// Techniques (hash-first @11, niveau validé ∈ [0,99]).
+    /// Techniques (level-first @10, hash@11 — port 1:1 inagle chara-param.ts l.102-118).
     pub skills: Vec<LearnedSkill>,
     /// Toutes les variables Int brutes (debug / RE).
     pub raw_variables: Vec<i64>,
