@@ -1,7 +1,7 @@
 //! Tests d'intégration CLI `nie-headless` via `assert_cmd`.
 //!
 //! Chaque test construit un fichier synthétique en mémoire dans un fichier
-//! temporaire, invoque le binaire et vérifie la sortie JSON.
+//! temporaire, invoque le binaire et vérifie la sortie JSON ou terse.
 
 #![allow(clippy::pedantic)]
 
@@ -14,7 +14,6 @@ use assert_cmd::Command;
 // ---------------------------------------------------------------------------
 
 /// Crée un fichier temporaire avec le contenu donné et retourne son chemin.
-/// Le fichier est supprimé à la fin du test (NamedTempFile).
 fn fichier_temp(contenu: &[u8]) -> tempfile::NamedTempFile {
     let mut f = tempfile::NamedTempFile::new().expect("tempfile");
     f.write_all(contenu).expect("écriture temp");
@@ -28,18 +27,14 @@ fn cmd() -> Command {
 
 // ---------------------------------------------------------------------------
 // Helper : construit un fichier @UTF minimal (2 colonnes, 2 lignes)
-// (copié depuis les tests unitaires de nie-formats::cpk)
 // ---------------------------------------------------------------------------
 
 fn build_utf_fixture() -> Vec<u8> {
-    // String pool : "TestTable\0ColA\0ColB\0hello\0world\0"
     let string_pool: &[u8] = b"TestTable\0ColA\0ColB\0hello\0world\0";
-    // Schéma : 2 colonnes × 5 octets
     let schema: &[u8] = &[
-        0x24, 0x00, 0x00, 0x00, 0x0A, // Col 0 ROW|U32
-        0x2A, 0x00, 0x00, 0x00, 0x0F, // Col 1 ROW|String
+        0x24, 0x00, 0x00, 0x00, 0x0A,
+        0x2A, 0x00, 0x00, 0x00, 0x0F,
     ];
-    // Données de lignes : 2 lignes × 8 octets
     let row_data: &[u8] = &[
         0x00, 0x00, 0x00, 42,
         0x00, 0x00, 0x00, 20,
@@ -55,10 +50,10 @@ fn build_utf_fixture() -> Vec<u8> {
     body.extend_from_slice(&rows_offset_rel.to_be_bytes());
     body.extend_from_slice(&string_offset_rel.to_be_bytes());
     body.extend_from_slice(&data_offset_rel.to_be_bytes());
-    body.extend_from_slice(&0u32.to_be_bytes()); // table_name_off
-    body.extend_from_slice(&2u16.to_be_bytes()); // col_count
-    body.extend_from_slice(&8u16.to_be_bytes()); // row_stride
-    body.extend_from_slice(&2u32.to_be_bytes()); // row_count
+    body.extend_from_slice(&0u32.to_be_bytes());
+    body.extend_from_slice(&2u16.to_be_bytes());
+    body.extend_from_slice(&8u16.to_be_bytes());
+    body.extend_from_slice(&2u32.to_be_bytes());
     body.extend_from_slice(schema);
     body.extend_from_slice(row_data);
     body.extend_from_slice(string_pool);
@@ -73,7 +68,6 @@ fn build_utf_fixture() -> Vec<u8> {
 
 // ---------------------------------------------------------------------------
 // Helper : construit un fichier CRILAYLA avec un payload littéral
-// (adapté depuis les tests unitaires de nie-formats::crilayla)
 // ---------------------------------------------------------------------------
 
 fn build_crilayla_payload(payload: &[u8]) -> Vec<u8> {
@@ -132,9 +126,9 @@ fn build_crilayla_payload(payload: &[u8]) -> Vec<u8> {
 fn build_rdbn_vide() -> Vec<u8> {
     let mut buf = vec![0u8; 0x50];
     buf[0..4].copy_from_slice(b"RDBN");
-    buf[4..6].copy_from_slice(&0x50i16.to_le_bytes()); // header_size
-    buf[6..10].copy_from_slice(&100i32.to_le_bytes()); // version
-    buf[10..12].copy_from_slice(&0x14i16.to_le_bytes()); // data_offset /4
+    buf[4..6].copy_from_slice(&0x50i16.to_le_bytes());
+    buf[6..10].copy_from_slice(&100i32.to_le_bytes());
+    buf[10..12].copy_from_slice(&0x14i16.to_le_bytes());
     buf
 }
 
@@ -152,13 +146,14 @@ fn build_cpk_minimal() -> Vec<u8> {
 }
 
 // ---------------------------------------------------------------------------
-// Tests
+// Tests sous-commande `detect`
 // ---------------------------------------------------------------------------
 
 #[test]
 fn format_utf_detecte() {
     let f = fichier_temp(&build_utf_fixture());
     let sortie = cmd()
+        .arg("detect")
         .arg(f.path())
         .arg("--indent=0")
         .assert()
@@ -177,6 +172,7 @@ fn format_utf_detecte() {
 fn format_cpk_detecte() {
     let f = fichier_temp(&build_cpk_minimal());
     let sortie = cmd()
+        .arg("detect")
         .arg(f.path())
         .arg("--indent=0")
         .assert()
@@ -194,6 +190,7 @@ fn format_crilayla_detecte() {
     let payload = b"hello headless";
     let f = fichier_temp(&build_crilayla_payload(payload));
     let sortie = cmd()
+        .arg("detect")
         .arg(f.path())
         .arg("--indent=0")
         .assert()
@@ -203,7 +200,6 @@ fn format_crilayla_detecte() {
         .clone();
     let json: serde_json::Value = serde_json::from_slice(&sortie).expect("JSON valide");
     assert_eq!(json["format"], "CRILAYLA");
-    // taille_decompresse = RAW_HEADER_SIZE (0x100) + payload.len()
     assert_eq!(json["detail"]["taille_decompresse"], 0x100 + payload.len());
 }
 
@@ -211,6 +207,7 @@ fn format_crilayla_detecte() {
 fn format_cfgbin_detecte() {
     let f = fichier_temp(&build_rdbn_vide());
     let sortie = cmd()
+        .arg("detect")
         .arg(f.path())
         .arg("--indent=0")
         .assert()
@@ -230,6 +227,7 @@ fn format_cfgbin_detecte() {
 fn format_inconnu_renvoie_vide() {
     let f = fichier_temp(b"NOFORMAT_RANDOM_DATA_XYZ\x00\x01\x02\x03");
     let sortie = cmd()
+        .arg("detect")
         .arg(f.path())
         .arg("--indent=0")
         .assert()
@@ -248,6 +246,7 @@ fn taille_octets_correcte() {
     let taille = donnees.len() as u64;
     let f = fichier_temp(&donnees);
     let sortie = cmd()
+        .arg("detect")
         .arg(f.path())
         .arg("--indent=0")
         .assert()
@@ -262,6 +261,7 @@ fn taille_octets_correcte() {
 #[test]
 fn fichier_inexistant_renvoie_erreur() {
     cmd()
+        .arg("detect")
         .arg("/tmp/__nie_headless_inexistant_abc123.bin")
         .assert()
         .failure();
@@ -271,6 +271,7 @@ fn fichier_inexistant_renvoie_erreur() {
 fn sortie_json_compacte_valide() {
     let f = fichier_temp(&build_utf_fixture());
     let sortie = cmd()
+        .arg("detect")
         .arg(f.path())
         .arg("--indent=0")
         .assert()
@@ -278,7 +279,6 @@ fn sortie_json_compacte_valide() {
         .get_output()
         .stdout
         .clone();
-    // La sortie compacte ne doit pas contenir de sauts de ligne dans le JSON.
     let s = String::from_utf8(sortie).expect("UTF-8");
     let lignes: Vec<&str> = s.lines().collect();
     assert_eq!(lignes.len(), 1, "JSON compact = 1 seule ligne");
@@ -288,6 +288,7 @@ fn sortie_json_compacte_valide() {
 fn sortie_json_pretty_valide() {
     let f = fichier_temp(&build_utf_fixture());
     let sortie = cmd()
+        .arg("detect")
         .arg(f.path())
         .arg("--indent=2")
         .assert()
@@ -297,4 +298,125 @@ fn sortie_json_pretty_valide() {
         .clone();
     let json: serde_json::Value = serde_json::from_slice(&sortie).expect("JSON valide (pretty)");
     assert!(json["format"].is_string());
+}
+
+// ---------------------------------------------------------------------------
+// Tests sous-commande `match`
+// ---------------------------------------------------------------------------
+
+/// La sous-commande `match` sans arguments produit une sortie terse valide.
+#[test]
+fn match_sortie_terse_valide() {
+    let sortie = cmd()
+        .arg("match")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let s = String::from_utf8(sortie).expect("UTF-8");
+    let s = s.trim();
+    // Format attendu : "home=... away=... résultat=H-A horloge=CLOCK"
+    assert!(s.starts_with("home="), "sortie doit commencer par 'home=': {s}");
+    assert!(s.contains("résultat="), "sortie doit contenir 'résultat=': {s}");
+    assert!(s.contains("horloge="), "sortie doit contenir 'horloge=': {s}");
+}
+
+/// L'horloge finale est toujours 900_000 pour 90 minutes (CONFIRMÉ).
+///
+/// Formule C : `minutes * 10_000 + seconds` (`FUN_1412aa4a0` case 7 L282-288).
+#[test]
+fn match_horloge_900000() {
+    let sortie = cmd()
+        .arg("match")
+        .arg("--seed=42")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let s = String::from_utf8(sortie).expect("UTF-8");
+    assert!(s.contains("horloge=900000"), "horloge finale doit être 900000 : {s}");
+}
+
+/// Deux exécutions avec la même graine produisent la même sortie (déterminisme).
+#[test]
+fn match_determinisme_meme_seed() {
+    let run = |seed: u64| {
+        String::from_utf8(
+            cmd()
+                .arg("match")
+                .arg(format!("--seed={seed}"))
+                .assert()
+                .success()
+                .get_output()
+                .stdout
+                .clone(),
+        )
+        .expect("UTF-8")
+    };
+    let r1 = run(999);
+    let r2 = run(999);
+    assert_eq!(r1, r2, "même graine → même sortie");
+}
+
+/// Deux graines différentes produisent des sorties différentes.
+#[test]
+fn match_graines_differentes() {
+    let run = |seed: u64| {
+        String::from_utf8(
+            cmd()
+                .arg("match")
+                .arg(format!("--seed={seed}"))
+                .assert()
+                .success()
+                .get_output()
+                .stdout
+                .clone(),
+        )
+        .expect("UTF-8")
+    };
+    let r1 = run(1);
+    let r2 = run(2);
+    assert_ne!(r1, r2, "graines différentes → sorties différentes");
+}
+
+/// Les noms d'équipes passés en argument apparaissent dans la sortie.
+#[test]
+fn match_noms_equipes_dans_sortie() {
+    let sortie = cmd()
+        .arg("match")
+        .arg("--home=Raimon")
+        .arg("--away=Teikoku")
+        .arg("--seed=1")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let s = String::from_utf8(sortie).expect("UTF-8");
+    assert!(s.contains("home=Raimon"), "nom domicile manquant : {s}");
+    assert!(s.contains("away=Teikoku"), "nom visiteur manquant : {s}");
+}
+
+/// Les stats personnalisées sont acceptées et produisent une sortie valide.
+#[test]
+fn match_stats_personnalisees_valides() {
+    cmd()
+        .arg("match")
+        .arg("--home-stats=200:190:185:175:160:170:155")
+        .arg("--away-stats=180:175:170:165:155:160:150")
+        .arg("--seed=7")
+        .assert()
+        .success();
+}
+
+/// Des stats malformées produisent une erreur.
+#[test]
+fn match_stats_malformees_erreur() {
+    cmd()
+        .arg("match")
+        .arg("--home-stats=200:190")   // seulement 2 valeurs au lieu de 7
+        .assert()
+        .failure();
 }

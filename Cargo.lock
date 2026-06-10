@@ -2041,6 +2041,7 @@ dependencies = [
  "anyhow",
  "assert_cmd",
  "clap",
+ "nie-core",
  "nie-formats",
  "serde",
  "serde_json",

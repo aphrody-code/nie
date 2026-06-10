@@ -75,6 +75,7 @@ pub mod exp;
 pub mod growth;
 pub mod keeper;
 pub mod match_fsm;
+pub mod match_sim;
 pub mod match_state;
 pub mod skill;
 pub mod soccer_ctrl;
