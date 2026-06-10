@@ -118,7 +118,7 @@ Pipeline `niers seed → rtti → disasm → propagate` sur le vrai `nie.exe` :
 1. **Arêtes indirectes** : références de pointeurs de fonctions (`lea reg,[fn]`, entrées de vtable `.rdata` reliées aux classes RTTI déjà localisées) → connecter les méthodes virtuelles à leur sous-système de classe. Levier le plus prometteur pour le résidu (haute précision via RTTI).
 2. **nie-core** : étendre la logique de jeu portée (sim de match complète, skills/auras, IA), valider contre inagle.
 3. **nie-data** : structures de données du jeu (port inagle) en Rust ; catalogue de formats iecode ingéré via `nie-seed::format_catalog`.
-4. **Déchiffrement enveloppe CPK** (clé non publique — RE à faire).
+4. ~~**Déchiffrement enveloppe CPK**~~ — **RÉSOLU** (2026-06-10) : pas de clé non publique ni d'enveloppe ; clé = CRC32(nom de fichier), déjà portée, 921/921 CPK déchiffrés. Restant audio : câblage de la clé HCA (`cridecoder` + clé IEVR récupérée du dump il2cpp).
 5. **nie-wasm** : étendre la surface (nie-core, nie-data) + intégration web.
 
 ## Honnêteté
