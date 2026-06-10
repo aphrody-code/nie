@@ -153,15 +153,20 @@ pub fn propagate_db(db: &mut Db, binary_id: i64, rounds: usize) -> Result<Stats>
     debug!("graphe: {} nœuds, {} labels distincts", graph.nodes.len(), u32_to_label.len());
 
     // --- Étape 5 : arêtes (xref kind='call') ------------------------------------
-    // Arêtes typées : appel direct (réel) = 1.0, cohésion de vtable = 0.5
-    // (indice plus faible, évite de sur-diffuser un label via une grosse vtable).
+    // Arêtes typées : appel direct (réel) = 1.0, cohésion de vtable = 0.5,
+    // référence LEA `lea reg,[rip+fn]` = 0.4 (indice indirect plus faible —
+    // évite de sur-diffuser un label via une table de pointeurs / un callback).
     let xrefs: Vec<(i64, i64, f32)> = {
         let mut stmt = db.conn().prepare(
-            "SELECT from_addr, to_addr, kind FROM xref WHERE binary_id=?1 AND kind IN ('call','vtable')",
+            "SELECT from_addr, to_addr, kind FROM xref WHERE binary_id=?1 AND kind IN ('call','vtable','lea')",
         )?;
         stmt.query_map([binary_id], |r| {
             let kind: String = r.get(2)?;
-            let w = if kind == "vtable" { 0.5_f32 } else { 1.0_f32 };
+            let w = match kind.as_str() {
+                "vtable" => 0.5_f32,
+                "lea" => 0.4_f32,
+                _ => 1.0_f32,
+            };
             Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?, w))
         })?
         .collect::<std::result::Result<_, _>>()?

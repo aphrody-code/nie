@@ -867,13 +867,16 @@ fn disasm(db_path: &std::path::Path, exe_path: &std::path::Path) -> anyhow::Resu
         .query_row("SELECT id FROM binary ORDER BY id LIMIT 1", [], |r| r.get(0))
         .context("aucun binaire indexé — lancer `niers seed` d'abord")?;
 
-    let stats = nie_re::disasm::recover_call_edges(&mut db, bin, exe_path)
+    // A/B : NIE_NO_INDIRECT=1 détecte les LEA (stats) mais ne les insère pas.
+    let skip_lea = std::env::var("NIE_NO_INDIRECT").is_ok();
+    let stats = nie_re::disasm::recover_call_edges(&mut db, bin, exe_path, skip_lea)
         .context("désassemblage des arêtes d'appel")?;
 
     println!(
-        "disasm insn={} call={} jmp={} thunk={} miss={} cand={} new={}",
+        "disasm insn={} call={} jmp={} thunk={} miss={} cand={} new={} | lea_insn={} lea_cand={} lea_new={}",
         stats.instructions_decoded, stats.call_near, stats.jmp_near, stats.thunk_resolved,
-        stats.near_target_miss, stats.edges_candidates, stats.edges_new
+        stats.near_target_miss, stats.edges_candidates, stats.edges_new,
+        stats.lea_insns, stats.lea_candidates, stats.lea_edges_new
     );
     Ok(())
 }
@@ -925,16 +928,35 @@ fn rebuild(db_path: &std::path::Path, exe_path: &std::path::Path, rounds: usize)
         None,
     )?;
 
+    // A/B leviers indirects : NIE_NO_INDIRECT=1 saute l'ancrage de classe (vtable)
+    // ET l'insertion des arêtes LEA → mesure du delta de couverture réel.
+    let skip_indirect = std::env::var("NIE_NO_INDIRECT").is_ok();
+
     let rb = nie_re::pdata::rebuild_from_pdata(&mut db, src_bin, dst_bin, exe_path)?;
-    let vt = nie_re::vtable::vtable_edges_into(&mut db, src_bin, dst_bin, exe_path)?;
-    let dis = nie_re::disasm::recover_call_edges(&mut db, dst_bin, exe_path)?;
+    let vt = nie_re::vtable::vtable_edges_into(&mut db, src_bin, dst_bin, exe_path, skip_indirect)?;
+    let dis = nie_re::disasm::recover_call_edges(&mut db, dst_bin, exe_path, skip_indirect)?;
     let prop = nie_re::loop_db::propagate_db(&mut db, dst_bin, rounds)?;
 
+    // Couverture HONNÊTE à deux seuils : classé brut (≥1 voisin labellisé, même
+    // confiance quasi-nulle) ET confiance ≥ 0.3 (label sémantiquement utile).
+    let classified_conf: i64 = db.conn().query_row(
+        "SELECT COUNT(*) FROM function WHERE binary_id=?1 AND subsystem!='standalone' AND confidence>=0.3",
+        [dst_bin],
+        |r| r.get(0),
+    )?;
+    let pct_conf = if prop.total > 0 {
+        100.0 * classified_conf as f64 / prop.total as f64
+    } else {
+        0.0
+    };
+
     println!(
-        "rebuild roots={} str={} ce={} rtti={} | vtable methods={} leaf+={} edges={} | disasm new={} | cov={}/{} ({:.2}%)",
+        "rebuild roots={} str={} ce={} rtti={} | vtable methods={} leaf+={} cohesion={} anchored={} | disasm new={} lea_new={} | cov_brut={}/{} ({:.2}%) cov_conf>=0.3={}/{} ({:.2}%)",
         rb.roots, rb.str_refs_moved, rb.ce_edges_mapped, rb.rtti_copied,
-        vt.methods, vt.new_leaf_funcs, vt.cohesion_edges,
-        dis.edges_new, prop.classified_after, prop.total, prop.coverage_after
+        vt.methods, vt.new_leaf_funcs, vt.cohesion_edges, vt.class_anchored,
+        dis.edges_new, dis.lea_edges_new,
+        prop.classified_after, prop.total, prop.coverage_after,
+        classified_conf, prop.total, pct_conf
     );
     Ok(())
 }

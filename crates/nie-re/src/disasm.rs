@@ -35,7 +35,7 @@
 use anyhow::{Context, Result};
 use goblin::pe::PE;
 use hashbrown::HashSet;
-use iced_x86::{Decoder, DecoderOptions, FlowControl, Instruction, OpKind};
+use iced_x86::{Decoder, DecoderOptions, FlowControl, Instruction, Mnemonic, OpKind};
 use nie_index::{rusqlite, Db};
 use tracing::info;
 
@@ -66,11 +66,19 @@ pub struct DisasmStats {
     pub edges_candidates: usize,
     /// Arêtes réellement nouvelles insérées dans `xref` (absentes de Ghidra).
     pub edges_new: usize,
+    /// Instructions `lea reg, [rip+disp32]` rencontrées.
+    pub lea_insns: u64,
+    /// Arêtes LEA candidates distinctes (cible = début de fonction connu).
+    pub lea_candidates: usize,
+    /// Arêtes LEA réellement nouvelles insérées dans `xref` (kind=`lea`).
+    pub lea_edges_new: usize,
 }
 
 /// Résultat brut du balayage de `.text` (avant écriture en base).
 struct ScanResult {
     edges: HashSet<(i64, i64)>,
+    /// Arêtes `lea reg,[rip+disp]` vers un début de fonction connu.
+    lea_edges: HashSet<(i64, i64)>,
     functions_scanned: usize,
     instructions_decoded: u64,
     call_insns: u64,
@@ -78,6 +86,7 @@ struct ScanResult {
     jmp_near: u64,
     thunk_resolved: u64,
     near_target_miss: u64,
+    lea_insns: u64,
 }
 
 /// Suit **un seul** relais depuis `target` : si `target` n'est pas un début de
@@ -130,9 +139,11 @@ fn scan_text(
     starts_set: &HashSet<i64>,
 ) -> ScanResult {
     let mut edges: HashSet<(i64, i64)> = HashSet::new();
+    let mut lea_edges: HashSet<(i64, i64)> = HashSet::new();
     let mut insn = Instruction::default();
     let mut res = ScanResult {
         edges: HashSet::new(),
+        lea_edges: HashSet::new(),
         functions_scanned: 0,
         instructions_decoded: 0,
         call_insns: 0,
@@ -140,6 +151,7 @@ fn scan_text(
         jmp_near: 0,
         thunk_resolved: 0,
         near_target_miss: 0,
+        lea_insns: 0,
     };
 
     for (i, &f) in starts.iter().enumerate() {
@@ -169,6 +181,17 @@ fn scan_text(
                 break;
             }
             res.instructions_decoded += 1;
+
+            // LEA RIP-relative : arête indirecte vers un début de fonction connu.
+            // Gate IMPÉRATIF sur Mnemonic::Lea — mov/cmp/add [rip+x] pointent vers
+            // l'IAT ou des données → faux positifs massifs si on ne filtre pas.
+            if insn.mnemonic() == Mnemonic::Lea && insn.is_ip_rel_memory_operand() {
+                res.lea_insns += 1;
+                let t = insn.ip_rel_memory_address() as i64;
+                if t != f && starts_set.contains(&t) {
+                    lea_edges.insert((f, t));
+                }
+            }
 
             let fc = insn.flow_control();
             let is_call = fc == FlowControl::Call;
@@ -207,6 +230,7 @@ fn scan_text(
     }
 
     res.edges = edges;
+    res.lea_edges = lea_edges;
     res
 }
 
@@ -224,16 +248,28 @@ impl ScanResult {
             near_target_miss: self.near_target_miss,
             edges_candidates: self.edges.len(),
             edges_new: 0,
+            lea_insns: self.lea_insns,
+            lea_candidates: self.lea_edges.len(),
+            lea_edges_new: 0,
         }
     }
 }
 
 /// Désassemble `.text` du binaire `exe_path`, résout les arêtes d'appel
-/// directes manquantes et les insère dans `xref` (kind=`call`).
+/// directes et les arêtes `lea reg,[rip+fn]` manquantes, et les insère dans
+/// `xref` (kind=`call` et kind=`lea`).
 ///
 /// Idempotent : `INSERT OR IGNORE` sur l'unicité `(binary_id, from, to, kind)`.
-/// `edges_new` compte uniquement les arêtes absentes du call-graph existant.
-pub fn recover_call_edges(db: &mut Db, binary_id: i64, exe_path: &std::path::Path) -> Result<DisasmStats> {
+/// `edges_new`/`lea_edges_new` comptent uniquement les arêtes absentes.
+///
+/// Si `skip_lea` est vrai, les arêtes LEA sont détectées (statistiques) mais
+/// **non insérées** en base — utilisé pour le test A/B `NIE_NO_INDIRECT=1`.
+pub fn recover_call_edges(
+    db: &mut Db,
+    binary_id: i64,
+    exe_path: &std::path::Path,
+    skip_lea: bool,
+) -> Result<DisasmStats> {
     let bytes = std::fs::read(exe_path).with_context(|| format!("lecture {}", exe_path.display()))?;
     let pe = PE::parse(&bytes).context("goblin: parse PE")?;
     let image_base = pe.image_base;
@@ -275,14 +311,16 @@ pub fn recover_call_edges(db: &mut Db, binary_id: i64, exe_path: &std::path::Pat
 
     let scan = scan_text(text_bytes, text_va, text_end_va, &starts, &starts_set);
     info!(
-        "disasm: {} fonctions, {} instructions, {} call directs, {} jmp directs, {} via thunk, {} ratées, {} arêtes candidates",
+        "disasm: {} fonctions, {} instructions, {} call directs, {} jmp directs, {} via thunk, {} ratées, {} arêtes call candidates, {} lea rip-rel, {} arêtes lea candidates",
         scan.functions_scanned,
         scan.instructions_decoded,
         scan.call_near,
         scan.jmp_near,
         scan.thunk_resolved,
         scan.near_target_miss,
-        scan.edges.len()
+        scan.edges.len(),
+        scan.lea_insns,
+        scan.lea_edges.len()
     );
 
     let before: i64 = db.conn().query_row(
@@ -314,6 +352,38 @@ pub fn recover_call_edges(db: &mut Db, binary_id: i64, exe_path: &std::path::Pat
         "disasm: {} nouvelles arêtes call insérées (total {} → {})",
         stats.edges_new, before, after
     );
+
+    // --- Arêtes LEA -----------------------------------------------------------
+    if !skip_lea {
+        let before_lea: i64 = db.conn().query_row(
+            "SELECT COUNT(*) FROM xref WHERE binary_id=?1 AND kind='lea'",
+            [binary_id],
+            |r| r.get(0),
+        )?;
+        {
+            let tx = db.conn_mut().transaction()?;
+            {
+                let mut stmt = tx.prepare_cached(
+                    "INSERT OR IGNORE INTO xref(binary_id, from_addr, to_addr, kind) VALUES(?1,?2,?3,'lea')",
+                )?;
+                for (from, to) in &scan.lea_edges {
+                    stmt.execute(rusqlite::params![binary_id, from, to])?;
+                }
+            }
+            tx.commit()?;
+        }
+        let after_lea: i64 = db.conn().query_row(
+            "SELECT COUNT(*) FROM xref WHERE binary_id=?1 AND kind='lea'",
+            [binary_id],
+            |r| r.get(0),
+        )?;
+        stats.lea_edges_new = (after_lea - before_lea).max(0) as usize;
+        info!(
+            "disasm: {} nouvelles arêtes lea insérées (total {} → {})",
+            stats.lea_edges_new, before_lea, after_lea
+        );
+    }
+
     Ok(stats)
 }
 
@@ -427,6 +497,107 @@ mod tests {
             res.edges
         );
         assert_eq!(res.thunk_resolved, 1, "exactement une résolution via thunk");
+    }
+
+    // --------------------------------------------------------------------------
+    // Tests arêtes LEA RIP-relative
+    // --------------------------------------------------------------------------
+
+    /// Encode `48 8D 05 disp32` (`lea rax, [rip+disp32]`) à `ip` vers `target`
+    /// (7 octets : REX + opcode + ModRM + disp32).
+    fn lea_rax_rip_rel(ip: u64, target: u64) -> [u8; 7] {
+        let next = ip + 7;
+        let disp = (target as i64 - next as i64) as i32;
+        let b = disp.to_le_bytes();
+        [0x48, 0x8D, 0x05, b[0], b[1], b[2], b[3]]
+    }
+
+    /// Encode `48 8B 05 disp32` (`mov rax, [rip+disp32]`) à `ip` vers `target`
+    /// (7 octets). Même ModRM que lea — seul l'opcode diffère (8B vs 8D).
+    fn mov_rax_rip_rel(ip: u64, target: u64) -> [u8; 7] {
+        let next = ip + 7;
+        let disp = (target as i64 - next as i64) as i32;
+        let b = disp.to_le_bytes();
+        [0x48, 0x8B, 0x05, b[0], b[1], b[2], b[3]]
+    }
+
+    /// `lea rax, [rip+x]` pointant vers un début de fonction connu → arête LEA créée.
+    #[test]
+    fn lea_rip_rel_cree_arete_vers_fonction() {
+        let text_va = 0x1000u64;
+        let mut buf = vec![0xCCu8; 0x1010]; // [0x1000, 0x2010)
+        let put = |buf: &mut Vec<u8>, va: u64, bytes: &[u8]| {
+            let off = (va - text_va) as usize;
+            buf[off..off + bytes.len()].copy_from_slice(bytes);
+        };
+        // Fonction A @0x1000 : lea rax, [rip → 0x2000], ret.
+        put(&mut buf, 0x1000, &lea_rax_rip_rel(0x1000, 0x2000));
+        put(&mut buf, 0x1007, &[0xC3]);
+        // Fonction B @0x2000 : ret.
+        put(&mut buf, 0x1000, &lea_rax_rip_rel(0x1000, 0x2000));
+        let text_end_va = text_va + buf.len() as u64;
+        let starts: Vec<i64> = vec![0x1000, 0x2000];
+        let starts_set: HashSet<i64> = starts.iter().copied().collect();
+
+        let res = scan_text(&buf, text_va, text_end_va, &starts, &starts_set);
+
+        assert!(
+            res.lea_edges.contains(&(0x1000, 0x2000)),
+            "lea vers début de fonction connu → arête lea créée : {:?}",
+            res.lea_edges
+        );
+        assert!(res.lea_insns >= 1, "au moins une lea rip-rel comptée");
+    }
+
+    /// `lea rax, [rip+x]` pointant vers une adresse non-fonction → arête filtrée.
+    #[test]
+    fn lea_rip_rel_filtre_non_fonction() {
+        let text_va = 0x1000u64;
+        let mut buf = vec![0xCCu8; 0x100]; // [0x1000, 0x1100)
+        let put = |buf: &mut Vec<u8>, va: u64, bytes: &[u8]| {
+            let off = (va - text_va) as usize;
+            buf[off..off + bytes.len()].copy_from_slice(bytes);
+        };
+        // lea rax, [rip → 0x1080] : dans .text mais pas un début de fonction.
+        put(&mut buf, 0x1000, &lea_rax_rip_rel(0x1000, 0x1080));
+        put(&mut buf, 0x1007, &[0xC3]);
+        let text_end_va = text_va + buf.len() as u64;
+        let starts: Vec<i64> = vec![0x1000]; // seul 0x1000 est fonction
+        let starts_set: HashSet<i64> = starts.iter().copied().collect();
+
+        let res = scan_text(&buf, text_va, text_end_va, &starts, &starts_set);
+
+        assert!(res.lea_edges.is_empty(), "cible non-fonction → aucune arête lea");
+        assert!(res.lea_insns >= 1, "la lea rip-rel a bien été comptée");
+    }
+
+    /// `mov rax, [rip+disp32]` (opcode 8B, même ModRM que lea 8D) → AUCUNE
+    /// arête LEA : le gate `Mnemonic::Lea` doit rejeter cet encodage.
+    #[test]
+    fn mov_rip_rel_aucune_arete_gate_mnemonic() {
+        let text_va = 0x1000u64;
+        let mut buf = vec![0xCCu8; 0x1010]; // [0x1000, 0x2010)
+        let put = |buf: &mut Vec<u8>, va: u64, bytes: &[u8]| {
+            let off = (va - text_va) as usize;
+            buf[off..off + bytes.len()].copy_from_slice(bytes);
+        };
+        // mov rax, [rip → 0x2000] — identique à lea sauf opcode 8B.
+        put(&mut buf, 0x1000, &mov_rax_rip_rel(0x1000, 0x2000));
+        put(&mut buf, 0x1007, &[0xC3]);
+        let text_end_va = text_va + buf.len() as u64;
+        // 0x2000 est un début de fonction connu — sans le gate Mnemonic::Lea,
+        // ceci produirait une fausse arête.
+        let starts: Vec<i64> = vec![0x1000, 0x2000];
+        let starts_set: HashSet<i64> = starts.iter().copied().collect();
+
+        let res = scan_text(&buf, text_va, text_end_va, &starts, &starts_set);
+
+        assert!(
+            res.lea_edges.is_empty(),
+            "mov [rip+x] ne doit pas créer d'arête lea (gate Mnemonic::Lea) : {:?}",
+            res.lea_edges
+        );
+        assert_eq!(res.lea_insns, 0, "mov n'est pas une lea → lea_insns=0");
     }
 
     /// Diagnostic manuel (ignoré) : décode une fonction connue du vrai binaire
