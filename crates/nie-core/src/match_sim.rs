@@ -25,6 +25,7 @@ use crate::{
     match_fsm::{final_score, tick, MatchContext, MatchState},
     stats::StatBlock,
 };
+use nie_data::formation::{FormationConfig, SoccerFormationInfo, SoccerFormPlacementInfo};
 
 // ============================================================================
 // PRNG déterministe — Splitmix64
@@ -60,13 +61,89 @@ impl Rng {
 }
 
 // ============================================================================
-// Types publics
+// Types publics — position terrain
+// ============================================================================
+
+/// Coordonnée terrain 2D (x, y), dans le système de coordonnées IEVR.
+///
+/// Dérivée de `nie_data::formation::Vec2` lors du chargement de formation.
+/// Système de coordonnées observé : `x` = horizontal (−1..+1), `y` = profondeur
+/// (0 ≈ camp adverse, 1 ≈ propre but — GK `start_pos.y ≈ 0.96`).
+///
+/// ## CONFIRMÉ
+///
+/// Les valeurs sont copiées byte-à-byte depuis `formation_config_*.cfg.bin.json`
+/// via [`PlayerPlacement::from_slot`]. Voir le test golden
+/// `nie_data::tests::formation_golden` pour la validation octet-par-octet.
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct FieldPos {
+    /// Composante horizontale (symétrie gauche/droite).
+    pub x: f32,
+    /// Composante profondeur (0 = devant, 1 = derrière).
+    pub y: f32,
+}
+
+impl FieldPos {
+    /// Position nulle.
+    pub const ZERO: Self = Self { x: 0.0, y: 0.0 };
+}
+
+/// Placement initial d'un joueur dans la simulation, dérivé des vraies données IEVR.
+///
+/// Construit depuis [`SoccerFormPlacementInfo`] via [`TeamSetup::with_formation`] +
+/// [`FormationConfig::placements_of`]. Chaque champ correspond directement à un champ
+/// du dump `formation_config_*.cfg.bin.json`.
+///
+/// ## CONFIRMÉ
+///
+/// Les positions terrain (`start_pos`, `defense_pos`, `offense_pos`) proviennent
+/// des vraies données Level-5, validées byte-à-byte dans `nie_data::tests::formation_golden`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct PlayerPlacement {
+    /// Position au coup d'envoi (`startPos` du placement IEVR).
+    pub start_pos: FieldPos,
+    /// Position cible en phase défensive (`defensePos`).
+    pub defense_pos: FieldPos,
+    /// Position cible en phase offensive (`offensePos`).
+    pub offense_pos: FieldPos,
+    /// Index du slot dans la formation (0–10 pour une formation standard).
+    pub position_no: i64,
+    /// Type de position (1=GK, 2..=10 = positions de champ ; voir
+    /// `SoccerPositionInfo::position_id`).
+    pub position_id: i64,
+    /// `true` si ce joueur tire le coup d'envoi.
+    pub b_kickoff: bool,
+}
+
+impl PlayerPlacement {
+    /// Construit un [`PlayerPlacement`] depuis un slot réel `SoccerFormPlacementInfo`.
+    ///
+    /// Copie byte-à-byte les champs de position terrain. Les champs annexes
+    /// (corner, pk, bustup) ne sont pas stockés car hors scope de la simulation actuelle.
+    fn from_slot(slot: &SoccerFormPlacementInfo) -> Self {
+        Self {
+            start_pos: FieldPos { x: slot.start_pos.x, y: slot.start_pos.y },
+            defense_pos: FieldPos { x: slot.defense_pos.x, y: slot.defense_pos.y },
+            offense_pos: FieldPos { x: slot.offense_pos.x, y: slot.offense_pos.y },
+            position_no: slot.position_no,
+            position_id: slot.position_id,
+            b_kickoff: slot.b_kickoff,
+        }
+    }
+}
+
+// ============================================================================
+// Types publics — équipe
 // ============================================================================
 
 /// Configuration d'une équipe pour la simulation.
 ///
 /// Les `aggregate_stats` représentent les statistiques moyennes de l'équipe
 /// (typiquement la moyenne des 11 titulaires calculée avec [`StatBlock`]).
+/// Le champ `placements` est optionnel : s'il est fourni (via [`Self::with_formation`]),
+/// les positions initiales des joueurs sont dérivées des vraies données IEVR.
 ///
 /// ## NOMINAL
 ///
@@ -83,6 +160,7 @@ impl Rng {
 /// let stats = StatBlock::from_array([207, 216, 218, 235, 242, 210, 261]);
 /// let equipe = TeamSetup::new("Alpha", stats);
 /// assert_eq!(equipe.aggregate_stats.kc, 207);
+/// assert!(equipe.placements.is_none());
 /// ```
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -91,13 +169,18 @@ pub struct TeamSetup {
     pub name: String,
     /// Stats agrégées : `[Kc, Cr, Tc, Pr, Ps, Ag, It]`.
     pub aggregate_stats: StatBlock,
+    /// Placements initiaux des 11 joueurs (issus des vraies formations IEVR).
+    ///
+    /// `None` si non initialisé (simulation nominale). Rempli par
+    /// [`Self::with_formation`] depuis les vraies données `formation_config`.
+    pub placements: Option<Vec<PlayerPlacement>>,
 }
 
 impl TeamSetup {
-    /// Crée une équipe depuis ses stats agrégées.
+    /// Crée une équipe depuis ses stats agrégées (chemin nominal, placements absents).
     #[must_use]
     pub fn new(name: impl Into<String>, stats: StatBlock) -> Self {
-        Self { name: name.into(), aggregate_stats: stats }
+        Self { name: name.into(), aggregate_stats: stats, placements: None }
     }
 
     /// Crée une équipe depuis une liste de joueurs (moyenne des stats).
@@ -133,6 +216,67 @@ impl TeamSetup {
             (sum[6] / n) as u16,
         ]);
         Self::new(name, avg)
+    }
+
+    /// Initialise le placement des 11 joueurs depuis les vraies données IEVR.
+    ///
+    /// `cfg` est la [`FormationConfig`] chargée depuis
+    /// `formation_config_*.cfg.bin.json` ; `formation` est l'entrée de formation
+    /// choisie (voir [`FormationConfig::formations`] ou [`FormationConfig::find_by_id`]).
+    ///
+    /// Les positions [`FieldPos`] de chaque [`PlayerPlacement`] sont copiées
+    /// byte-à-byte depuis `SoccerFormPlacementInfo` — elles sont donc confirmées
+    /// par les tests golden de `nie_data`.
+    ///
+    /// ## CONFIRMÉ (données)
+    ///
+    /// Les valeurs `start_pos`, `defense_pos`, `offense_pos` proviennent
+    /// de `formation_config_*.cfg.bin.json` Level-5, validées byte-à-byte.
+    ///
+    /// ## Exemple d'usage
+    ///
+    /// Voir le test d'intégration `crates/nie-core/tests/simulation_formation.rs`
+    /// pour un exemple complet sur le vrai fichier.
+    #[must_use]
+    pub fn with_formation(
+        mut self,
+        cfg: &FormationConfig,
+        formation: &SoccerFormationInfo,
+    ) -> Self {
+        let slots = cfg.placements_of(formation);
+        self.placements = Some(slots.iter().map(PlayerPlacement::from_slot).collect());
+        self
+    }
+
+    /// Crée une équipe en calculant les stats depuis les vraies tables de croissance
+    /// IEVR embarquées (nécessite la feature `data`).
+    ///
+    /// Chaque entrée `(params, level)` calcule un [`StatBlock`] via
+    /// [`crate::growth::calculate_stats`] + [`crate::growth::GrowthTables::load_embedded`].
+    /// Les stats individuelles sont agrégées par [`Self::from_players`].
+    ///
+    /// ## NOMINAL
+    ///
+    /// L'agrégation par moyenne simple reste nominale ; le poids par position
+    /// (GK / FW / MF / DF) n'est pas implémenté.
+    ///
+    /// # Panics
+    ///
+    /// Panique si `players` est vide.
+    #[cfg(feature = "data")]
+    #[must_use]
+    pub fn from_growth_params(
+        name: impl Into<String>,
+        players: &[(crate::growth::GrowthParams, u8)],
+    ) -> Self {
+        use crate::growth::{calculate_stats, GrowthTables};
+        assert!(!players.is_empty(), "TeamSetup::from_growth_params : liste vide");
+        let tables = GrowthTables::load_embedded();
+        let stats: Vec<StatBlock> = players
+            .iter()
+            .map(|(params, level)| calculate_stats(&tables, params, *level))
+            .collect();
+        Self::from_players(name, &stats)
     }
 }
 
@@ -197,6 +341,7 @@ pub enum MatchEvent {
 ///
 /// let res = simulate_match(home, away, 42);
 /// assert_eq!(res.final_clock, 900_000); // 90 minutes × 10_000 + 0 secondes
+/// assert!(res.home_placements.is_none()); // pas de formation fournie
 /// ```
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -215,6 +360,16 @@ pub struct MatchResult {
     pub final_clock: u32,
     /// Séquence complète d'événements (jeu + FSM post-match).
     pub events: Vec<MatchEvent>,
+    /// Placements initiaux des joueurs domicile (issus des vraies données IEVR).
+    ///
+    /// `None` si aucune [`FormationConfig`] n'a été fournie via
+    /// [`TeamSetup::with_formation`].
+    pub home_placements: Option<Vec<PlayerPlacement>>,
+    /// Placements initiaux des joueurs visiteur (issus des vraies données IEVR).
+    ///
+    /// `None` si aucune [`FormationConfig`] n'a été fournie via
+    /// [`TeamSetup::with_formation`].
+    pub away_placements: Option<Vec<PlayerPlacement>>,
 }
 
 // ============================================================================
@@ -258,6 +413,13 @@ const GOAL_RATE_BASE: f32 = 0.035;
 /// Les deux tirages sont indépendants (un but domicile et un but visiteur
 /// peuvent survenir la même minute, cas réel de nie.exe non modélisé).
 ///
+/// ## Formations (CONFIRMÉ — données)
+///
+/// Si `home` ou `away` ont été enrichis avec [`TeamSetup::with_formation`],
+/// leurs [`PlayerPlacement`] (positions `start_pos` / `defense_pos` /
+/// `offense_pos` issues des vraies données `formation_config`) sont propagés
+/// dans [`MatchResult::home_placements`] / [`MatchResult::away_placements`].
+///
 /// ## FSM post-match (CONFIRMÉ)
 ///
 /// Après le coup de sifflet final, la FSM progresse depuis [`MatchState::Init`]
@@ -273,6 +435,10 @@ const GOAL_RATE_BASE: f32 = 0.035;
 /// - Les scores dépendent du PRNG (NOMINAL) : tester via `result == run2`.
 #[must_use]
 pub fn simulate_match(home: TeamSetup, away: TeamSetup, seed: u64) -> MatchResult {
+    // Récupère les placements avant de consommer les TeamSetup.
+    let home_placements = home.placements.clone();
+    let away_placements = away.placements.clone();
+
     let mut rng = Rng::new(seed);
     let mut home_score: u8 = 0;
     let mut away_score: u8 = 0;
@@ -336,7 +502,7 @@ pub fn simulate_match(home: TeamSetup, away: TeamSetup, seed: u64) -> MatchResul
         }
     }
 
-    MatchResult { home_score, away_score, final_clock, events }
+    MatchResult { home_score, away_score, final_clock, events, home_placements, away_placements }
 }
 
 // ============================================================================
@@ -613,5 +779,101 @@ mod tests {
         // La simulation produit des scores raisonnables avec ces stats réelles
         assert!(res.home_score <= 15, "home_score={} avec stats réelles", res.home_score);
         assert!(res.away_score <= 15, "away_score={} avec stats réelles", res.away_score);
+    }
+
+    // ------------------------------------------------------------------
+    // Placements (nouveau chemin IEVR)
+    // ------------------------------------------------------------------
+
+    /// Sans formation, simulate_match retourne home_placements = None.
+    #[test]
+    fn sans_formation_placements_none() {
+        let (home, away) = equipes_identiques();
+        let res = simulate_match(home, away, 42);
+        assert!(res.home_placements.is_none(), "home_placements = None sans formation");
+        assert!(res.away_placements.is_none(), "away_placements = None sans formation");
+    }
+
+    /// TeamSetup::new() initialise placements = None.
+    #[test]
+    fn new_initialise_placements_none() {
+        let stats = stats_fw_ur_lv99();
+        let equipe = TeamSetup::new("Test", stats);
+        assert!(equipe.placements.is_none());
+    }
+
+    /// TeamSetup::from_players() initialise placements = None.
+    #[test]
+    fn from_players_initialise_placements_none() {
+        let s = stats_fw_ur_lv99();
+        let equipe = TeamSetup::from_players("Test", &[s]);
+        assert!(equipe.placements.is_none());
+    }
+
+    /// Déterminisme préservé sur les nouveaux champs home_placements / away_placements.
+    ///
+    /// Deux runs sans formation → placements = None reproductible.
+    #[test]
+    fn determinisme_champs_placements_none() {
+        let (h1, a1) = equipes_identiques();
+        let (h2, a2) = equipes_identiques();
+        let r1 = simulate_match(h1, a1, 0xABCD_EF01);
+        let r2 = simulate_match(h2, a2, 0xABCD_EF01);
+        assert_eq!(r1.home_placements, r2.home_placements, "home_placements identiques");
+        assert_eq!(r1.away_placements, r2.away_placements, "away_placements identiques");
+    }
+
+    /// FieldPos::ZERO est correctement défini.
+    #[test]
+    fn field_pos_zero() {
+        assert_eq!(FieldPos::ZERO.x, 0.0_f32);
+        assert_eq!(FieldPos::ZERO.y, 0.0_f32);
+    }
+
+    // ------------------------------------------------------------------
+    // TeamSetup::from_growth_params (feature `data`)
+    // ------------------------------------------------------------------
+
+    /// from_growth_params calcule des stats à partir des tables réelles embarquées.
+    ///
+    /// Utilise GrowthParams FW UR lv99 (confirmé par growth.rs golden_fw_ur) :
+    /// le Kc calculé doit correspondre aux stats réelles IEVR.
+    #[cfg(feature = "data")]
+    #[test]
+    fn from_growth_params_fw_ur_lv99() {
+        use crate::growth::GrowthParams;
+        // FW (mainPosition=2 dans GrowthTables selon growth.rs), pattern=0, rank=5 (UR)
+        // Golden confirmé : main[0] lv99 Kc=261 (growth.rs::embedded_main_first_entry)
+        let params = GrowthParams {
+            main_position: 2,
+            sub_position: 0,
+            growth_pattern: 0,
+            chara_rank: 5, // UR
+            play_style: 0,
+        };
+        let equipe = TeamSetup::from_growth_params("Test", &[(params, 99)]);
+        // Kc à lv99 pour FW UR pattern 0 = 261 (golden growth.rs)
+        assert_eq!(
+            equipe.aggregate_stats.kc, 261,
+            "Kc FW UR lv99 depuis tables réelles = 261"
+        );
+        assert!(equipe.placements.is_none(), "from_growth_params ne fixe pas les placements");
+    }
+
+    /// from_growth_params sur plusieurs joueurs calcule la moyenne correctement.
+    #[cfg(feature = "data")]
+    #[test]
+    fn from_growth_params_moyenne_joueurs() {
+        use crate::growth::GrowthParams;
+        let params_fw = GrowthParams {
+            main_position: 2,
+            sub_position: 0,
+            growth_pattern: 0,
+            chara_rank: 5, // UR
+            play_style: 0,
+        };
+        // Deux fois le même joueur → moyenne = stats individuelles
+        let equipe = TeamSetup::from_growth_params("Test", &[(params_fw, 99), (params_fw, 99)]);
+        assert_eq!(equipe.aggregate_stats.kc, 261, "moyenne de deux fois le même Kc = 261");
     }
 }
