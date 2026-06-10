@@ -448,31 +448,26 @@ impl AssembledModel {
     }
 
     /// Primitives appartenant au corps.
-    #[must_use]
     pub fn body_primitives(&self) -> impl Iterator<Item = &MeshPrimitive> {
         self.primitives.iter().filter(|p| p.component == MeshComponent::Body)
     }
 
     /// Primitives appartenant au visage.
-    #[must_use]
     pub fn face_primitives(&self) -> impl Iterator<Item = &MeshPrimitive> {
         self.primitives.iter().filter(|p| p.component == MeshComponent::Face)
     }
 
     /// Primitives appartenant à l'uniforme.
-    #[must_use]
     pub fn uniform_primitives(&self) -> impl Iterator<Item = &MeshPrimitive> {
         self.primitives.iter().filter(|p| p.component == MeshComponent::Uniform)
     }
 
     /// Primitives appartenant au keshin.
-    #[must_use]
     pub fn keshin_primitives(&self) -> impl Iterator<Item = &MeshPrimitive> {
         self.primitives.iter().filter(|p| p.component == MeshComponent::Keshin)
     }
 
     /// Primitives appartenant à une armure (armed).
-    #[must_use]
     pub fn armed_primitives(&self) -> impl Iterator<Item = &MeshPrimitive> {
         self.primitives.iter().filter(|p| p.component == MeshComponent::Armed)
     }
@@ -1041,7 +1036,7 @@ pub fn load_manifest(ndjson: &str) -> Vec<ManifestEntry> {
 /// Cherche l'entrée avec `crc == target_crc` ET dont l'extension est `.g4md`. Retourne
 /// le chemin interne (ex. `"data/common/chr/_uniform/u011001/u011001.g4md"`) ou `None`.
 #[must_use]
-pub fn resolve_crc_to_g4md_path<'a>(manifest: &'a [ManifestEntry], target_crc: u32) -> Option<&'a str> {
+pub fn resolve_crc_to_g4md_path(manifest: &[ManifestEntry], target_crc: u32) -> Option<&str> {
     manifest.iter()
         .find(|e| e.crc == target_crc && e.path.ends_with(".g4md"))
         .map(|e| e.path.as_str())
@@ -1080,6 +1075,7 @@ fn build_glb(model: &AssembledModel, with_textures: bool) -> Vec<u8> {
     let mut buffer_views_json: Vec<Value> = Vec::new();
 
     /// Ajoute un bufferView + accessor et renvoie l'index accessor.
+    #[allow(clippy::too_many_arguments)]
     fn add_accessor(
         bv_data: &mut Vec<u8>,
         buffer_views_json: &mut Vec<Value>,
@@ -1094,7 +1090,7 @@ fn build_glb(model: &AssembledModel, with_textures: bool) -> Vec<u8> {
         let bv_offset = bv_data.len();
         bv_data.extend_from_slice(raw);
         // alignement 4B (glTF spec)
-        while bv_data.len() % 4 != 0 {
+        while !bv_data.len().is_multiple_of(4) {
             bv_data.push(0);
         }
 
@@ -1392,6 +1388,7 @@ fn build_glb_embedded(model: &AssembledModel) -> Vec<u8> {
     let mut accessor_defs: Vec<Value> = Vec::new();
     let mut buffer_views_json: Vec<Value> = Vec::new();
 
+    #[allow(clippy::too_many_arguments)]
     fn add_accessor(
         bv_data: &mut Vec<u8>,
         buffer_views_json: &mut Vec<Value>,
@@ -1405,7 +1402,7 @@ fn build_glb_embedded(model: &AssembledModel) -> Vec<u8> {
     ) -> usize {
         let bv_offset = bv_data.len();
         bv_data.extend_from_slice(raw);
-        while bv_data.len() % 4 != 0 { bv_data.push(0); }
+        while !bv_data.len().is_multiple_of(4) { bv_data.push(0); }
         let bv_idx = buffer_views_json.len();
         buffer_views_json.push(json!({
             "buffer": 0, "byteOffset": bv_offset, "byteLength": raw.len()
@@ -1442,7 +1439,7 @@ fn build_glb_embedded(model: &AssembledModel) -> Vec<u8> {
         // Injecte les bytes PNG dans le BIN (aligné 4B).
         let png_off = bv_data.len();
         bv_data.extend_from_slice(&etex.png_bytes);
-        while bv_data.len() % 4 != 0 { bv_data.push(0); }
+        while !bv_data.len().is_multiple_of(4) { bv_data.push(0); }
 
         let bv_idx = buffer_views_json.len();
         buffer_views_json.push(json!({
