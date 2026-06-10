@@ -22,9 +22,11 @@
 
 use anyhow::{Context, Result};
 use goblin::pe::PE;
-use hashbrown::HashSet;
+use hashbrown::{HashMap, HashSet};
 use nie_index::{rusqlite, Db};
 use tracing::info;
+
+use crate::anchors::classify_rtti;
 
 /// Statistiques de la récupération de vtables.
 #[derive(Debug, Clone, Copy, Default)]
@@ -37,16 +39,22 @@ pub struct VtableStats {
     pub new_leaf_funcs: usize,
     /// Arêtes de cohésion insérées.
     pub cohesion_edges: usize,
+    /// Méthodes ancrées par RTTI de classe (`subsys_src='vtable'`).
+    pub class_anchored: usize,
 }
 
 /// Lit les vtables localisées par RTTI (`src_bin`), ajoute les méthodes feuilles
-/// manquantes comme nœuds dans `dst_bin`, et insère les arêtes de cohésion de
-/// classe (`kind='vtable'`) qui relient les co-méthodes pour la propagation.
+/// manquantes comme nœuds dans `dst_bin`, insère les arêtes de cohésion de
+/// classe (`kind='vtable'`) et ancre les méthodes standalone par leur appartenance
+/// à une classe RTTI identifiée (sous-système dérivé via [`crate::anchors::classify_rtti`]).
+///
+/// Si `skip_anchor` est vrai, l'ancrage RTTI de classe est omis (A/B `NIE_NO_INDIRECT=1`).
 pub fn vtable_edges_into(
     db: &mut Db,
     src_bin: i64,
     dst_bin: i64,
     exe_path: &std::path::Path,
+    skip_anchor: bool,
 ) -> Result<VtableStats> {
     let bytes = std::fs::read(exe_path).with_context(|| format!("lecture {}", exe_path.display()))?;
     let pe = PE::parse(&bytes).context("goblin: parse PE")?;
@@ -80,13 +88,20 @@ pub fn vtable_edges_into(
         rdata_bytes.get(off..off + 8).map(|b| u64::from_le_bytes(b.try_into().unwrap()))
     };
 
-    // Vtables localisées par RTTI.
-    let vtables: Vec<u64> = {
+    // Vtables localisées par RTTI : adresse + nom de classe + namespace.
+    // Namespace depuis src_bin=1 (RTTI), fonctions à ancrer dans dst_bin=2.
+    let vtables: Vec<(u64, String, String)> = {
         let mut q = db.conn().prepare(
-            "SELECT vtable_vaddr FROM rtti_class WHERE binary_id=?1 AND vtable_vaddr IS NOT NULL",
+            "SELECT vtable_vaddr, name, COALESCE(namespace,'') FROM rtti_class WHERE binary_id=?1 AND vtable_vaddr IS NOT NULL",
         )?;
-        q.query_map([src_bin], |r| r.get::<_, i64>(0).map(|v| v as u64))?
-            .collect::<std::result::Result<_, _>>()?
+        q.query_map([src_bin], |r| {
+            Ok((
+                r.get::<_, i64>(0).map(|v| v as u64)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?,
+            ))
+        })?
+        .collect::<std::result::Result<_, _>>()?
     };
 
     // Fonctions connues de la cible.
@@ -98,10 +113,10 @@ pub fn vtable_edges_into(
 
     let mut stats = VtableStats::default();
     let mut all_methods: HashSet<u64> = HashSet::new();
-    // Liste des vtables → méthodes (pour les arêtes après insertion des nœuds).
-    let mut groups: Vec<Vec<u64>> = Vec::with_capacity(vtables.len());
+    // Liste des vtables → (méthodes, nom_classe, namespace).
+    let mut groups: Vec<(Vec<u64>, String, String)> = Vec::with_capacity(vtables.len());
 
-    for vt in vtables {
+    for (vt, name, ns) in vtables {
         let mut methods = Vec::new();
         let mut k = 1u64; // saute le pointeur COL en +0
         while k < 256 {
@@ -116,10 +131,23 @@ pub fn vtable_edges_into(
         }
         if methods.len() >= 2 {
             stats.vtables += 1;
-            groups.push(methods);
+            groups.push((methods, name, ns));
         }
     }
     stats.methods = all_methods.len();
+
+    // Détecte les thunks partagés : méthode présente dans des vtables de
+    // plusieurs namespaces top-level distincts (_purecall, deleting-dtor…).
+    // Ces méthodes ne seront pas ancrées pour éviter les confusions.
+    let mut method_to_ns: HashMap<u64, HashSet<String>> = HashMap::new();
+    if !skip_anchor {
+        for (methods, _, ns) in &groups {
+            let top_ns = ns.split("::").next().unwrap_or(ns).to_string();
+            for &m in methods {
+                method_to_ns.entry(m).or_default().insert(top_ns.clone());
+            }
+        }
+    }
 
     let tx = db.conn_mut().transaction()?;
     // 1. Ajoute les méthodes feuilles manquantes comme nœuds.
@@ -141,13 +169,36 @@ pub fn vtable_edges_into(
         let mut ins = tx.prepare_cached(
             "INSERT OR IGNORE INTO xref(binary_id, from_addr, to_addr, kind) VALUES(?1,?2,?3,'vtable')",
         )?;
-        for g in &groups {
-            let hub = g[0] as i64;
-            for &m in &g[1..] {
+        for (methods, _, _) in &groups {
+            let hub = methods[0] as i64;
+            for &m in &methods[1..] {
                 if m as i64 != hub {
                     stats.cohesion_edges +=
                         ins.execute(rusqlite::params![dst_bin, hub, m as i64])?;
                 }
+            }
+        }
+    }
+    // 3. Ancrage RTTI de classe : une méthode standalone d'une vtable dont la
+    //    classe est classifiable (`classify_rtti`) hérite du sous-système de sa
+    //    classe (confiance 0.7, ancre dure, n'écrase jamais un label existant).
+    //    On saute les thunks partagés (méthode présente dans >1 namespace
+    //    top-level distinct : _purecall, vector deleting destructor…).
+    if !skip_anchor {
+        let mut upd = tx.prepare_cached(
+            "UPDATE function SET subsystem=?1, subsys_src='vtable', confidence=0.7
+             WHERE binary_id=?2 AND vaddr=?3 AND (subsystem IS NULL OR subsystem='standalone')",
+        )?;
+        for (methods, name, ns) in &groups {
+            let Some(sub) = classify_rtti(ns, name) else {
+                continue;
+            };
+            for &m in methods {
+                if method_to_ns.get(&m).map_or(0, |s| s.len()) > 1 {
+                    continue; // thunk partagé entre plusieurs classes
+                }
+                stats.class_anchored +=
+                    upd.execute(rusqlite::params![sub, dst_bin, m as i64])?;
             }
         }
     }
