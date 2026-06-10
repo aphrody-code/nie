@@ -34,6 +34,7 @@ extern crate alloc;
 pub mod aura;
 pub mod cfgbin;
 pub mod chara_param;
+pub mod command;
 pub mod exp;
 pub mod formation;
 pub mod growth;
