@@ -16,6 +16,9 @@ serde = { workspace = true, optional = true }
 # serde_json est utilisé uniquement pour charger les tables de données réelles
 # embarquées (`growth`, `exp`, `skill`, `aura`). Compatible wasm32 (alloc).
 serde_json = { workspace = true, optional = true }
+# nie-data : types de données IEVR (formation, chara_param, growth…).
+# no_std+alloc — compatible std (features additives dans Cargo).
+nie-data.workspace = true
 
 [features]
 # `data` active le chargement des tables réelles IEVR embarquées via include_str!.
@@ -27,3 +30,5 @@ serde = ["dep:serde"]
 data = ["dep:serde", "dep:serde_json"]
 
 [dev-dependencies]
+# Accès serde_json dans les tests d'intégration (chargement des vrais fichiers).
+serde_json = { workspace = true }
