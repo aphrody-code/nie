@@ -45,6 +45,7 @@ pub mod party;
 pub mod passive;
 pub mod passives;
 pub mod phase;
+pub mod rpg_battle;
 pub mod skill;
 pub mod soccer;
 
