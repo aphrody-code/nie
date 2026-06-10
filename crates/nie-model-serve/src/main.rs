@@ -591,6 +591,51 @@ fn load_uniform_texture_png(state: &State, g4tx_vfs_path: &str) -> Option<Vec<u8
     png
 }
 
+/// Tente de charger et décoder la texture de keshin en PNG.
+fn load_keshin_texture_png(state: &State, code: &str) -> Option<Vec<u8>> {
+    let path = format!("data/dx11/chr/_keshin/{code}/{code}.g4tx");
+    debug!("chargement texture keshin : {path}");
+
+    let g4tx_data = {
+        let vfs = state.vfs.lock().unwrap();
+        vfs.read(&path).ok()
+    }?;
+
+    let png = decode_best_g4tx_to_png(&g4tx_data);
+    if png.is_none() {
+        warn!("décodage G4TX keshin {code} échoué");
+    }
+    png
+}
+
+/// Tente de charger et décoder la texture d'armure en PNG.
+fn load_armed_texture_png(state: &State, code: &str) -> Option<Vec<u8>> {
+    let dir_name = &code[..code.len().min(8)];
+    let path = format!("data/dx11/chr/_armd/{dir_name}/{code}_10.g4tx");
+    debug!("chargement texture armure : {path}");
+
+    let g4tx_data = {
+        let vfs = state.vfs.lock().unwrap();
+        vfs.read(&path).ok()
+    };
+
+    // Fallback si la texture n'a pas "_10"
+    let g4tx_data = match g4tx_data {
+        Some(d) => Some(d),
+        None => {
+            let path_fallback = format!("data/dx11/chr/_armd/{dir_name}/{code}.g4tx");
+            let vfs = state.vfs.lock().unwrap();
+            vfs.read(&path_fallback).ok()
+        }
+    }?;
+
+    let png = decode_best_g4tx_to_png(&g4tx_data);
+    if png.is_none() {
+        warn!("décodage G4TX armure {code} échoué");
+    }
+    png
+}
+
 // ── Assemblage du modèle ──────────────────────────────────────────────────────
 
 /// Résultat de l'assemblage : bytes GLB.
@@ -735,10 +780,19 @@ fn assemble_keshin_code(state: &State, code: &str) -> Result<GlbBytes> {
         (g4md, g4mg)
     };
 
-    let model = assemble_keshin(code, g4md, g4mg)
+    let mut model = assemble_keshin(code, g4md, g4mg)
         .with_context(|| format!("assemblage keshin {code}"))?;
 
-    Ok(model.to_glb())
+    if let Some(png_bytes) = load_keshin_texture_png(state, code) {
+        info!("texture keshin embarquée : {} ({} B PNG)", code, png_bytes.len());
+        model.embedded_textures.push(EmbeddedTexture {
+            component: MeshComponent::Keshin,
+            name: format!("{code}_keshin"),
+            png_bytes,
+        });
+    }
+
+    Ok(model.to_glb_embedded())
 }
 
 /// Assemble une armure (code `kaXXXXXX`).
@@ -757,10 +811,19 @@ fn assemble_armed_code(state: &State, code: &str) -> Result<GlbBytes> {
         (g4md, g4mg)
     };
 
-    let model = assemble_armed(code, g4md, g4mg)
+    let mut model = assemble_armed(code, g4md, g4mg)
         .with_context(|| format!("assemblage armure {code}"))?;
 
-    Ok(model.to_glb())
+    if let Some(png_bytes) = load_armed_texture_png(state, code) {
+        info!("texture armure embarquée : {} ({} B PNG)", code, png_bytes.len());
+        model.embedded_textures.push(EmbeddedTexture {
+            component: MeshComponent::Armed,
+            name: format!("{code}_armed"),
+            png_bytes,
+        });
+    }
+
+    Ok(model.to_glb_embedded())
 }
 
 /// Point d'entrée d'assemblage : dispatch selon le code.
