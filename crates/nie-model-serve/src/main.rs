@@ -879,18 +879,39 @@ fn assemble_chr_generic(state: &State, sub: &str, code: &str) -> Result<GlbBytes
 
 // ── Décodage audio ─────────────────────────────────────────────────────────────
 
-/// Décode un fichier HCA Criware en PCM 16-bit via la crate `cridecoder`.
+/// Clé de déchiffrement HCA IEVR (fixe pour tout le jeu).
 ///
-/// `cridecoder::HcaDecoder` implémente l'algorithme HCA complet (MDCT + overlap-add
-/// + scale factors + intensity stereo). Pour IEVR, ciph_type = 0 (non chiffré),
-/// donc la clé peut rester à 0.
-fn hca_decode_to_pcm16(raw: &[u8]) -> anyhow::Result<(Vec<i16>, u32, u32)> {
+/// Source : `public const ulong DecryptionKey = 59278503195307634` dans
+/// `SoundPlayManager.cs` extrait du dump il2cpp IEVR
+/// (`data/cross-apk/work/laneA-il2cpp/dump/cs/.../Soccer/Sound/SoundPlayManager.cs`).
+/// Valeur hex : `0x00D2997C0DC5EE72`.
+const IEVR_HCA_KEY: u64 = 59_278_503_195_307_634;
+
+/// Décode un fichier HCA Criware chiffré (ciph_type=56) en PCM 16-bit via `cridecoder`.
+///
+/// `cridecoder::HcaDecoder` implémente l'algorithme HCA complet (MDCT + overlap-add +
+/// scale factors + intensity stereo + cipher type 0/1/56 conforme vgmstream).
+///
+/// La clé principale `IEVR_HCA_KEY` est fixe ; `subkey` est la sous-clé AWB lue à
+/// l'offset `0x0E` de l'en-tête AFS2 (voir [`Awb::subkey`]). Passer `subkey=0` pour
+/// les HCA hors AWB (flux direct, ACB embarqué sans AFS2).
+///
+/// **Important** : `set_encryption_key` doit être appelé AVANT la première trame —
+/// avec `keycode==0` cridecoder traite le fichier comme `ciph_type=0` (aucun
+/// déchiffrement), produisant du bruit silencieux sur les HCA IEVR.
+fn hca_decode_to_pcm16(raw: &[u8], subkey: u16) -> anyhow::Result<(Vec<i16>, u32, u32)> {
     use cridecoder::{HcaDecoder, HcaDecoderError};
     use std::io::Cursor;
 
     let cursor = Cursor::new(raw);
     let mut decoder = HcaDecoder::from_reader(cursor)
         .map_err(|e| anyhow::anyhow!("HCA init: {e}"))?;
+
+    // Déchiffrement HCA IEVR (ciph_type=56) : DOIT être posé avant toute trame.
+    // La formule de combinaison clé+sous-clé (vgmstream) :
+    //   combined = keycode * ((subkey << 16) | (!subkey_u16 + 2))   si subkey != 0
+    //   combined = keycode                                            si subkey == 0
+    decoder.set_encryption_key(IEVR_HCA_KEY, u64::from(subkey));
 
     let info = decoder.info().clone();
     let channels = info.channel_count as u32;
@@ -927,8 +948,8 @@ fn hca_decode_to_pcm16(raw: &[u8]) -> anyhow::Result<(Vec<i16>, u32, u32)> {
 fn decode_audio_to_wav(raw: &[u8], vfs_path: &str) -> anyhow::Result<Vec<u8>> {
     // Identifie le format par le magic
     if is_hca(raw) {
-        // HCA direct — décodage via cridecoder (algorithme complet)
-        let (samples, channels, sample_rate) = hca_decode_to_pcm16(raw)
+        // HCA direct (hors AWB) — sous-clé 0 car pas d'en-tête AFS2.
+        let (samples, channels, sample_rate) = hca_decode_to_pcm16(raw, 0)
             .map_err(|e| anyhow::anyhow!("HCA decode: {e}"))?;
         return Ok(encode_pcm16_wav(&samples, channels, sample_rate));
     }
@@ -960,6 +981,9 @@ fn decode_audio_to_wav(raw: &[u8], vfs_path: &str) -> anyhow::Result<Vec<u8>> {
 }
 
 /// Extrait et décode la première entrée HCA/ADX d'un AWB AFS2.
+///
+/// La sous-clé AWB (`awb.subkey`, u16 LE à l'offset `0x0E` de l'en-tête AFS2)
+/// est propagée à `hca_decode_to_pcm16` pour le déchiffrement IEVR (`ciph_type=56`).
 fn decode_awb_first_entry(data: &[u8], vfs_path: &str) -> anyhow::Result<Vec<u8>> {
     let awb = Awb::parse(data)
         .map_err(|e| anyhow::anyhow!("AWB parse: {e}"))?;
@@ -968,14 +992,18 @@ fn decode_awb_first_entry(data: &[u8], vfs_path: &str) -> anyhow::Result<Vec<u8>
         anyhow::bail!("AWB {vfs_path} sans entrée");
     }
 
+    // La sous-clé est commune à toutes les entrées HCA du même fichier AWB.
+    let subkey = awb.subkey;
+
     for entry in &awb.entries {
         let entry_data = awb.entry_bytes(data, entry);
         if entry_data.is_empty() {
             continue;
         }
         if is_hca(entry_data) {
-            let (samples, channels, sample_rate) = hca_decode_to_pcm16(entry_data)
-                .map_err(|e| anyhow::anyhow!("HCA decode entrée cue={}: {e}", entry.cue_id))?;
+            let (samples, channels, sample_rate) =
+                hca_decode_to_pcm16(entry_data, subkey)
+                    .map_err(|e| anyhow::anyhow!("HCA decode entrée cue={}: {e}", entry.cue_id))?;
             return Ok(encode_pcm16_wav(&samples, channels, sample_rate));
         }
         if is_adx(entry_data) {
@@ -1600,4 +1628,65 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+// ── Tests ─────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    // L'unique test du module est adossé à un vrai AWB → gardé derrière la
+    // feature `real-audio` (comme l'import, sinon inutilisé sans la feature).
+    #[cfg(feature = "real-audio")]
+    use super::*;
+
+    /// Valide le déchiffrement HCA réel depuis le premier AWB IEVR.
+    ///
+    /// Gated derrière la feature `real-audio` (même convention que `real-saves`/
+    /// `real-fixtures`) car le fichier AWB n'est pas distribué avec le repo.
+    ///
+    /// Asserte :
+    /// - décodage `Ok` — pas de `SyncError`/`ChecksumFailed` → clé correcte
+    /// - `sample_rate == 48000` Hz
+    /// - `channels == 1` (mono)
+    /// - signal non silencieux (au moins un sample i16 non nul → RMS > 0)
+    #[cfg(feature = "real-audio")]
+    #[test]
+    fn hca_ievr_dechiffrement_cle_correcte() {
+        const AWB_PATH: &str =
+            "/home/ubuntu/niers/data/cross-apk/work/laneE-audio/staging/c00001001.awb";
+
+        let data = std::fs::read(AWB_PATH).expect(
+            "fichier AWB absent — lancer avec `--features real-audio` sur le VPS IEVR",
+        );
+
+        let awb = Awb::parse(&data).expect("AWB parse échoué");
+        assert!(!awb.entries.is_empty(), "AWB sans entrée");
+
+        // Trouve la première entrée HCA.
+        let entry_data = awb
+            .entries
+            .iter()
+            .map(|e| awb.entry_bytes(&data, e))
+            .find(|d| is_hca(d))
+            .expect("aucune entrée HCA dans l'AWB de test");
+
+        // Sous-clé AFS2 : 0xC62A pour c00001001.awb (vérifié sur le fichier réel).
+        assert_eq!(awb.subkey, 0xC62A, "sous-clé AWB inattendue");
+
+        let (samples, channels, sample_rate) =
+            hca_decode_to_pcm16(entry_data, awb.subkey)
+                .expect("décodage HCA IEVR échoué — clé ou format incorrect");
+
+        assert_eq!(sample_rate, 48_000, "sample_rate attendu : 48000 Hz");
+        assert_eq!(channels, 1, "canal attendu : mono (1)");
+        assert!(!samples.is_empty(), "aucun sample décodé — encoder_delay absorbe tout ?");
+
+        // Signal non silencieux : avec la bonne clé, les samples doivent être non nuls.
+        // Sans la clé (keycode=0), le déchiffrement est l'identité → bruit bas/nul.
+        let non_zero = samples.iter().any(|&s| s != 0);
+        assert!(
+            non_zero,
+            "tous les samples sont nuls — vérifier que set_encryption_key est bien appliqué"
+        );
+    }
 }

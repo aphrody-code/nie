@@ -11,6 +11,12 @@ rust-version.workspace = true
 name = "nie-model-serve"
 path = "src/main.rs"
 
+[features]
+# Active les tests de décodage audio sur les vrais fichiers AWB/HCA IEVR (non distribués).
+# Convention identique à `real-saves` (nie-save) et `real-fixtures` (nie-formats).
+# Lancer : cargo test -p nie-model-serve --features real-audio
+real-audio = []
+
 [lints]
 workspace = true
 
