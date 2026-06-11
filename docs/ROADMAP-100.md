@@ -13,8 +13,8 @@
 | Couverture | Définition opérationnelle | Métrique | État (mis à jour 2026-06-10) |
 |---|---|---|---|
 | **C1 Formats** | tout conteneur/asset du jeu est lu nativement en Rust | % des 250 800 fichiers CPK lisibles + décodés correctement | **84,06 %** lisibles ; **audio HCA décode** ✓ (clé IEVR + magic masqué) |
-| **C2 Données** | toute famille de config du jeu est portée et recalculée au bit | familles `cfg.bin` portées / 58 existantes | **7/58 = 12,1 %** (+ formation/command/ai, golden réel) |
-| **C3 Logique** | toute fonction de gameplay/moteur reversée est portée et validée | fonctions portées / 52 783 réelles ; masse `.text` portée | **~55 fn = 0,1 %** ; **~0,3 %** de `.text` ; **boucle de match jouable** déterministe **pilotée par les vraies données** (formations + stats CharaParam) |
+| **C2 Données** | toute famille de config du jeu est portée et recalculée au bit | familles `cfg.bin` portées / 58 existantes | **11/58 = 19,0 %** (+ formation/command/ai/party/phase/soccer/rpg_battle, golden réel) |
+| **C3 Logique** | toute fonction de gameplay/moteur reversée est portée et validée | fonctions portées / 52 783 réelles ; masse `.text` portée | **~56 fn = 0,1 %** ; **boucle de match jouable** pilotée par les vraies données ; **PRNG `lives::CRand` (MT19937) porté BYTE-EXACT** (validé vs vecteur réf) — 1er primitif moteur réel |
 | **C4 Rendu** | la sortie visuelle est identique au jeu | Δpixel vs capture de référence (PSNR/SSIM) sur scènes-test | **non démarré** (assemblage GLB statique seulement) |
 | **C5 RE (échafaudage)** | toute fonction réelle est identifiée (classée ET nommée) | classées + **nommées** / 52 783 | **93,36 % classées** (92,45 → arêtes indirectes) ; **6 429 (12,18 %) nommées** structurellement (0 → vtable-struct) |
 
@@ -45,15 +45,16 @@ des sous-systèmes qu'on porte. Donc la priorité bascule de « monter le % de c
 - **A5** : déchiffrement de toute enveloppe CPK résiduelle si le verrou existe (cf. recherche en cours). *Gate : 100 % des CPK montent dans le VFS.*
 
 ### Pilier B — Données (C2) → 58/58 familles portées, recalcul au bit
-- **B0 (FAIT 7/58)** : skill, item, growth, exp, passives, aura-cmd, chara-param, **formation, command, ai** (golden réel byte).
+- **B0 (FAIT 11/58)** : skill, item, growth, exp, passives, aura-cmd, chara-param, **formation, command, ai, party, phase, soccer, rpg_battle** (golden réel byte ; soccer/rpg_battle = sous-ensemble config-de-match, contenu restant documenté).
 - **B1 (FAIT)** : INCOMPLET clos — `chara-param` (pairing level-first), `aura-cmd` (whs01780 réel). *Gate tenu : golden byte contre `data/common/gamedata`.*
-- **B2** : porter les 51 familles restantes par lots (team, soccer, shop, gacha, story, npc, encounter…). *Gate : pour chaque famille, round-trip parse + 1 golden réel.*
+- **B2** : porter les 47 familles restantes par lots (team, shop, gacha, story, npc, encounter, event, mission…). *Gate : pour chaque famille, round-trip parse + 1 golden réel.*
 - **B3** : moteur de calcul dérivé (stats finales, formations, bonus d'équipe) recoupé inagle au bit.
 
 ### Pilier C — Logique moteur (C3) → résoudre la longue traîne par sous-système
 - **C0 (FAIT, îlots)** : nie-core (FSM match, effets, action-ctrl, stats — 126 tests) ; nie-engine (~55 fn, 11 modules) **mais 434 `// EXTERN:` non portées** = îlots non connectés.
 - **C1 (FAIT 2026-06-10)** : **boucle de match jouable déterministe** (`nie-headless match`) — FSM + horloge + score câblés ; séquence FSM + `final_score` confirmées byte vs C. **Désormais pilotée par les vraies données** : `TeamSetup::with_formation` place les 11 joueurs aux positions byte-exactes du dump `formation_config`, `from_chara_params_and_levels` dérive leurs stats réelles via les tables de croissance (mapping position GK=1/FW=2/MF=3/DF=4 tranché par iecode `types.h:28`). Restent nominaux : modèle de but, PRNG, pondération d'agrégation, `chara_rank` (le réel = moteur physique). 172 tests nie-core.
 - **C2** : **résorber les EXTERN par sous-système** — choisir un sous-système (ex. `chara` 11 358 fn, ou `audio` runtime), le nommer (cf. pilier E), porter ses fonctions racines + leurs callees jusqu'à 0 EXTERN dans le module. *Gate : module sans EXTERN, tests par fonction.*
+- **C1bis (FAIT 2026-06-10)** : **PRNG `lives::CRand` porté BYTE-EXACT** (`crate::crand`, MT19937 32-bit) — décompilé via Ghidra (`docs/recherche-modele-match-decompile.md`), validé contre le vecteur de référence MT19937 (graine 5489). Remplace le Splitmix64 nominal. **Découverte structurante** : la vraie résolution de match n'est PAS une formule inline mais **event-driven (IDs hachés) + data-driven (cfg.bin)** → le modèle de but de `match_sim` reste nominal, à reconstruire depuis le système d'événements (`FUN_1412C0970`, prochaine cible RE).
 - **C3** : itérer C2 sur menu / physics(PhysX) / network / script jusqu'à couverture fonctionnelle.
 
 ### Pilier D — Rendu (C4) → pixel-perfect
@@ -96,8 +97,8 @@ suivait le mauvais binaire id=1 à 88 % — remplacée.)
 ```
                        baseline →  2026-06-10        cible
 C1 fichiers lisibles : 84,06 %  →  84,06 % +audio✓   100 %
-C2 familles données  : 4/58     →  7/58 (réel byte)  58/58
-C3 fn logique portées: ~55      →  ~55 +match (vraies données) sous-systèmes fonctionnels
+C2 familles données  : 4/58     →  11/58 (réel byte) 58/58
+C3 fn logique portées: ~55      →  ~56 +match(vraies données)+CRand MT19937 byte-exact  sous-systèmes fonctionnels
 C4 rendu SSIM        : —         →  —                 ≥0,99 sur scènes-test
 C5 classé            : 92,45 %   →  93,36 %           croissant (lever suivant : pointeurs absolus .rdata)
 C5 nommé             : 0         →  6 429 (12,18 %)   croissant (structurel → puis symboles PDB/Ghidra)
