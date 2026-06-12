@@ -332,3 +332,37 @@ Priorisées par valeur pour le port :
 
 Aucun de ces points n'est résolu ici ; ils sont la suite logique. Ce document ne déclare FAIT
 que la **décompilation** des 9 cibles (8 + correction d'1) et l'**identification du PRNG**.
+
+---
+
+## 8. Addendum 2026-06-12 — verdict sur le point 3 (cataloguer les hashes) et forme du dispatcher
+
+Investigation read-only sur `var/niers.sqlite` (vue `.pdata`, binary live) pour préparer la
+prochaine vague. Deux faits tranchés, à ne pas re-tenter :
+
+- **Les 4 hashes d'événement primaires ne sont PAS dans la table `hash_name`** (jointure inagle
+  hash→nom). Testés `0x6AD2B143` (types focus 1 & 2), `0xB98AFD39` (type 3), `0xDD36D36B`
+  (type 4), `0xF6954E2D` (type 5), plus le sous-ID `0xFB7527AE` : zéro correspondance. La table
+  `hash_name` couvre les hashes de **noms de fichiers/données** (CRC Level-5 de chaînes d'asset),
+  PAS les **IDs d'événement internes du moteur**. => Le point 3 « cataloguer via inagle/iecode »
+  est un **cul-de-sac** pour ces IDs : ils ne sont nommables qu'en décompilant la table de
+  dispatch de `FUN_1412C0970` (l'inverse-hash d'une chaîne event interne, ou le mapping
+  ID→handler câblé en dur). Reclasser le point 3 : non par lookup, mais par décompilation.
+
+- **`FUN_1412C0970` confirmé `gameplay` (confiance 0,8 ; 541 octets)** mais ses arêtes d'appel
+  (`n_calls_in`/`n_calls_out`) sont **vides** dans la base : c'est un **dispatcher à appel
+  indirect** (vtable/table de fonctions), d'où l'absence d'arêtes statiques et l'échec du nommage
+  par graphe. Le résolveur appelant `FUN_1410729D0` est classé `menu` (confiance 0,14, faible).
+
+- **Layout de la struct d'événement** construite par le résolveur avant dispatch (relu depuis
+  `var/ghidra-decompile/FocusBtl_resolver_1410729d0.c`), passée en 4ᵉ arg à
+  `FUN_1412C0970(out, &UNK_141753018, 1, &event)` : 16 slots de 20 octets zéro-initialisés, puis
+  `[0]=2`, `[+4]=0xFB7527AE` (sous-ID constant), `[+16]=hash event-type`, `[+20]=2`,
+  `[+...]=1` (plusieurs flags), `[...]=0x04A47B7B`, `[...]=3`, `[...]=0x3F800000` (= `1.0f`).
+  Le résultat renvoyé est `{u32, u8}` (2 champs) recopié dans la sortie de l'appelant.
+
+**Prochaine action concrète** (vague RE dédiée, hors fragment) : décompiler `FUN_1412C0970`
+(0x1412C0970) en Ghidra headless pour récupérer (a) sa table de dispatch ID→handler, (b) le rôle
+de `UNK_141753018` (1ᵉʳ arg, probable contexte/registre d'événements), (c) le sens des 2 champs
+de retour `{u32, u8}` — vraisemblablement `{résultat_hashé, succès/booléen}`. C'est le verrou
+restant entre `match_sim` nominal et la résolution de focus fidèle au moteur.
