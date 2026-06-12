@@ -55,6 +55,26 @@ des sous-systèmes qu'on porte. Donc la priorité bascule de « monter le % de c
   - *Non-data (assets/système, hors C2-données)* : font, motion, movie, live2d, staffroll, debug, common, data_file, nfc, w17, inacode, menu (rendu). Le dénominateur « 58 » est donc large ; ~40 sont de vraies familles de données.
 - **B3** : moteur de calcul dérivé (stats finales, formations, bonus d'équipe) recoupé inagle au bit.
 
+### Pilier B′ — Pont azalee : livrer la donnée portée à l'app web compagnon (objectif de valeur)
+**Rappel de cap (2026-06-12)** : porter une famille avec golden ne sert à rien tant que la donnée
+n'atteint pas **azalee** (`rg/apps/azalee`, proxifiée `cdn.rosegriffon.fr`). azalee lit le **miroir
+SQLite/Supabase** (67 tables `inagle_*`, peuplées par le pipeline TS inagle) + quelques **JSON plats**
+dans `apps/azalee/data/` (modèle `nie-data/bin/export_passives.rs` → `passives-full.json`, lu par `/passive`).
+niers apporte une valeur UNIQUE sur trois leviers :
+- **B′1 — Combler les trous du miroir** : tables vides/maigres qu'inagle n'a pas peuplées mais que
+  niers a portées byte-exact. Cibles identifiées : `inagle_formations = 0` (← `formation`, 115
+  formations portées), `inagle_missions = 1` (← `mission`), `inagle_drops_treasures = 0`.
+- **B′2 — Remplacer les approximations codées en dur** : ex. `azalee/lib/formations.ts` contient des
+  positions **estimées à l'œil depuis du CSS de zukan.inazuma.jp** → remplacer par les `start_pos`/
+  `offense_pos`/`defense_pos` f32 **réels du jeu** (déjà décodés dans `formation.rs`).
+- **B′3 — Industrialiser l'export** : un binaire `export_<famille>` (std+serde) par famille livrable →
+  JSON schéma stable dans `apps/azalee/data/`, consommé par la page correspondante. *Gate : le JSON
+  généré se charge dans azalee et la page rend la vraie donnée.*
+- **Livrable phare (en cours)** : `export_formations` → `apps/azalee/data/formations-full.json` (115
+  formations + positions des 11 joueurs), branché sur `/equipe`/`/tactic`. Mapping pages↔familles :
+  `/gallery`↔gallery, `/succes`↔trophy, `/quete`↔quest, `/capsule`↔capsule, `/boutique`↔shop,
+  `/passive`↔passives (FAIT), `/equipe`↔formation+team.
+
 ### Pilier C — Logique moteur (C3) → résoudre la longue traîne par sous-système
 - **C0 (FAIT, îlots)** : nie-core (FSM match, effets, action-ctrl, stats — 126 tests) ; nie-engine (~55 fn, 11 modules) **mais 434 `// EXTERN:` non portées** = îlots non connectés.
 - **C1 (FAIT 2026-06-10)** : **boucle de match jouable déterministe** (`nie-headless match`) — FSM + horloge + score câblés ; séquence FSM + `final_score` confirmées byte vs C. **Désormais pilotée par les vraies données** : `TeamSetup::with_formation` place les 11 joueurs aux positions byte-exactes du dump `formation_config`, `from_chara_params_and_levels` dérive leurs stats réelles via les tables de croissance (mapping position GK=1/FW=2/MF=3/DF=4 tranché par iecode `types.h:28`). Restent nominaux : modèle de but, PRNG, pondération d'agrégation, `chara_rank` (le réel = moteur physique). 172 tests nie-core.
