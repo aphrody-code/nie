@@ -47,7 +47,12 @@ des sous-systèmes qu'on porte. Donc la priorité bascule de « monter le % de c
 ### Pilier B — Données (C2) → 58/58 familles portées, recalcul au bit
 - **B0 (FAIT 31/58)** : skill, item, growth, exp, passives, aura-cmd, chara-param, formation, command, ai, party, phase, soccer, rpg_battle, mission, dungeon, boost_grp, record, chronicle_top, friendmap, fast_travel, weather, light, dictionary, **+ gallery, banner, search_word, scene_archive, music_app, photo_mode, update_notice, chat_emote, user_name_plate, input** (golden réel byte ; soccer/rpg_battle/event-like = sous-ensembles, contenu restant documenté). 847 tests nie-data.
 - **B1 (FAIT)** : INCOMPLET clos — `chara-param` (pairing level-first), `aura-cmd` (whs01780 réel). *Gate tenu : golden byte contre `data/common/gamedata`.*
-- **B2** : porter les 37 familles restantes par lots (team, shop, gacha, story, npc, encounter, event, character, quest…). *Gate : pour chaque famille, round-trip parse + 1 golden réel.* **Méthode rodée** : workflow worktree-isolé (golden via chemin absolu vers le main tree) + vérif adversariale du golden ; attention disque (VPS ~99 % plein — petits lots, nettoyer les worktrees après).
+- **B2** : porter les 27 répertoires restants par lots. *Gate : pour chaque famille, round-trip parse + 1 golden réel.* **Méthode rodée** : workflow SÉQUENTIEL sur le main tree (un seul `target/`, disque-léger) + vérif adversariale parallèle — bat le worktree parallèle quand le VPS est plein. **Cartographie du reste (scopée 2026-06-12)** :
+  - *Petites/moyennes data, lot en cours* : chara_bank, skill_view, post, craft, trophy, setting_menu, vsroute, help.
+  - *Grosses single-file portables* : shop (9,5M), capsule (gacha, 6,6M), trophy.
+  - *Multi-fichiers à batcher* : quest (66 fichiers, 3M), system (28, 6M), team (4 : team_config/opponent_team/enjoy_mode/rpg_team_name — **nourrit le match, prioritaire**), players_universe, post.
+  - *Énormes à subsetter (comme soccer/rpg_battle)* : event (54 fichiers, 272M — scripting/cutscene), character (45 sous-fichiers, 131M — **déjà partiellement couvert** : chara_param/exp/growth/passives en sont issus ; le reste est surtout config de **rendu** chara_model/mesh/texture/uniform → relève plutôt de C4).
+  - *Non-data (assets/système, hors C2-données)* : font, motion, movie, live2d, staffroll, debug, common, data_file, nfc, w17, inacode, menu (rendu). Le dénominateur « 58 » est donc large ; ~40 sont de vraies familles de données.
 - **B3** : moteur de calcul dérivé (stats finales, formations, bonus d'équipe) recoupé inagle au bit.
 
 ### Pilier C — Logique moteur (C3) → résoudre la longue traîne par sous-système
