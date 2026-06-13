@@ -33,3 +33,8 @@ required-features = ["serde", "std"]
 name = "export_formations"
 path = "src/bin/export_formations.rs"
 required-features = ["serde", "std"]
+
+[[bin]]
+name = "export_skills"
+path = "src/bin/export_skills.rs"
+required-features = ["serde", "std"]
