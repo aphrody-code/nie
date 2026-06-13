@@ -29,8 +29,8 @@ fn role_of(position_id: i64) -> &'static str {
     match position_id {
         1 => "GK",
         2 | 3 => "DF",
-        4 | 5 | 6 | 7 => "MF",
-        8 | 9 | 10 => "FW",
+        4..=7 => "MF",
+        8..=10 => "FW",
         _ => "?",
     }
 }
