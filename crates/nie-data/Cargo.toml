@@ -38,3 +38,8 @@ required-features = ["serde", "std"]
 name = "export_skills"
 path = "src/bin/export_skills.rs"
 required-features = ["serde", "std"]
+
+[[bin]]
+name = "export_aphrody"
+path = "src/bin/export_aphrody.rs"
+required-features = ["serde", "std"]
