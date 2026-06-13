@@ -8,11 +8,13 @@
 #   4. patch Turbopack : `new URL(..., import.meta.url)` -> throw (force module_or_path)
 #   5. copie vers azalee (lib/nie-wasm-web/ + public/wasm/)
 #
-# La version du CLI wasm-bindgen DOIT égaler le pin `=0.2.121` du workspace.
+# La version du CLI wasm-bindgen DOIT égaler le pin du workspace (cf. Cargo.toml).
 set -euo pipefail
 
-ROOT="/home/ubuntu/niers"
-AZALEE="/home/ubuntu/rg/apps/azalee"
+# Chemins dérivés (portables) : ROOT = racine du repo (parent de scripts/),
+# AZALEE surchargeable par env. Défaut = repo `rg` côte-à-côte du $HOME.
+ROOT="${NIE_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+AZALEE="${AZALEE_DIR:-$HOME/rg/apps/azalee}"
 PKG="$ROOT/crates/nie-wasm/pkg"
 WASM="$ROOT/target/wasm32-unknown-unknown/release/nie_wasm.wasm"
 
