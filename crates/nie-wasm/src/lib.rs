@@ -95,10 +95,20 @@ use wasm_bindgen::prelude::*;
 ///
 /// Appeler cette fonction UNE FOIS au démarrage (après `await init()`) pour que
 /// toute panique Rust apparaisse dans la console du navigateur avec un message
-/// lisible au lieu d'une erreur Wasm opaque.
+/// lisible au lieu d'une erreur Wasm opaque. Conservée pour compat ; le hook est
+/// désormais aussi installé automatiquement par [`__wasm_start`] (best practice).
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub fn init_panic_hook() {
     #[cfg(target_arch = "wasm32")]
+    console_error_panic_hook::set_once();
+}
+
+/// Point d'entrée **auto-exécuté à l'instanciation** du module (attribut `start`,
+/// best practice wasm-bindgen) : installe le hook de panique sans dépendre d'un
+/// appel JS explicite — toute panique reste lisible même si l'hôte oublie l'init.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen(start)]
+pub fn __wasm_start() {
     console_error_panic_hook::set_once();
 }
 
