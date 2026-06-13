@@ -28,6 +28,7 @@ serde_json.workspace = true
 # `image_dds` default-features=false = décodeur pur Rust (compatible wasm32).
 image_dds = { version = "0.7", default-features = false }
 png = "0.18"
+cridecoder = { version = "0.2.3", default-features = false }
 
 # wasm-bindgen épinglé à la même version qu'aphrody (=0.2.121).
 # Gate via cfg(target_arch = "wasm32") dans le code source.
