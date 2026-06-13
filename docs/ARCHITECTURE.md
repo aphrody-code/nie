@@ -53,25 +53,36 @@ Objectif littéral : au lancement de `niers` (en Rust), avoir **100 % du jeu** d
 nie-formats   parsers binaires (no_std-friendly → wasm)
 nie-data      structures de données du jeu (port inagle)
 nie-core      logique de jeu reversée (sim soccer, skills, auras…)
+nie-engine    port décompilé de nie.exe (render/menu/audio/anim/script)
+nie-game      host GUI natif wgpu (rendu pixel-perfect, pilier D1) — CHEMIN CENTRAL
 nie-headless  runner headless natif (CLI)
-nie-wasm      bindings wasm-bindgen + cible web/Next.js
+nie-wasm      bindings wasm-bindgen + cible web/Next.js (compagnon secondaire)
 ```
+
+La **cible de rendu primaire est le natif** (`nie-game`/wgpu, pilier D1/C4 pixel-perfect) ; le wasm/web (`nie-wasm` → azalee) reste un **compagnon**.
 
 Contrainte wasm : `wasm32-unknown-unknown` std fournie par la toolchain `nightly-x86_64-unknown-linux-gnu` (la seule présente avec la std wasm). `nie-formats`/`nie-data`/`nie-core` restent `#![no_std]`-compatibles autant que possible (alloc only) pour la portabilité wasm.
 
 ## Crates (état atteint)
 
-**10 crates**, compile natif (nightly-2026-05-17) + `wasm32-unknown-unknown`. Plan maître : `docs/PLAN.md`.
+**17 crates** (mesuré `ls crates/*/`, 2026-06-13), compile natif (nightly-2026-05-17) + `wasm32-unknown-unknown`. Plan maître : `docs/PLAN.md`. Stack runtime : `docs/STACK.md`. Inventaire par pilier : `docs/INVENTAIRE.md`.
 
 | Crate | Rôle | État |
 |---|---|---|
-| `nie-formats` | lecture pure-Rust Level-5/Criware (cfg.bin/RDBN, g4tx/g4md/g4mg/g4pk, @UTF, CRILAYLA, nxtch) | RDBN/g4* FAIT ; **@UTF corrigé** ; CRILAYLA/nxtch INCOMPLET ; audio/CPK chiffré NON_FAIT |
-| `nie-data` | modèles `no_std` du jeu (port inagle) | 5/7 FAIT ; chara-param + aura-cmd INCOMPLET |
-| `nie-core` | logique de jeu reversée (FSM match, effets commande, action-ctrl, stats, skills, auras) | **7/7 FAIT — 126 tests, 0 stub** |
-| `nie-headless` | runner CLI headless sans moteur Windows | FAIT |
-| `nie-wasm` | surface wasm-bindgen (detect/crilayla/@UTF), glue JS | FAIT (à étendre nie-core/nie-data) |
+| `nie-game` | **host GUI natif wgpu (pilier D1/C4 pixel-perfect, chemin central)** — capture PNG headless + fenêtre, rend les vrais assets `.g4tx` | **FAIT (squelette, wgpu 22)** ; bump 29 + retarget `render.rs` à venir |
+| `nie-formats` | lecture pure-Rust Level-5/Criware (cfg.bin/RDBN, g4tx/g4md/g4mg/g4pk, @UTF, CRILAYLA, nxtch, HCA) | g4*/RDBN/@UTF/CRILAYLA/CPK **FAIT** ; **HCA décode** ✓ ; g4sk hiérarchie INCOMPLET ; **105 tests lib** |
+| `nie-data` | modèles `no_std` du jeu (port inagle) | **34 familles golden + 8 B2** ; chara-param/aura-cmd clos |
+| `nie-core` | logique de jeu reversée (FSM match, effets commande, action-ctrl, stats, CRand) | **FAIT — 152 tests lib, CRand MT19937 byte-exact, match jouable, 0 stub** |
+| `nie-engine` | port décompilé de `nie.exe` (render D3D11/PhysX/menu/audio/animation/scripting/network) | socle 15 070 LOC, 271 tests, **434 `// EXTERN:`** = îlot à connecter |
+| `nie-model-serve` | serving live GLB/tex/audio/vidéo/lip/typed depuis les CPK (HTTP :8790) | FAIT (8 routes, `cdn.rosegriffon.fr`) |
+| `nie-headless` | runner CLI headless sans moteur Windows (boucle de match jouable) | FAIT |
+| `nie-wasm` | surface wasm-bindgen (detect/crilayla/@UTF, g4tx→PNG, audio→WAV, cfg.bin typé) | FAIT (compagnon, pas le cap) |
+| `nie-save` | déchiffrement/lecture/édition des saves (XOR clé CRC32) | FAIT (12 tests) |
+| `nie-wiki` | CLI game-data (13 sous-commandes, miroir SQLite) | FAIT |
+| `nie-zukan` | ingesteur encyclopédie `zukan.inazuma.jp` (algo `?q=` reversé) | FAIT |
+| `nie-steam` | download natif des dépôts Steam (port C# iecode sur steamroom) | FAIT (33 tests ; E2E live en attente creds) |
 | `nie-index` | base de connaissance sqlite (schéma + ingest/query, table `coverage`) | FAIT |
-| `nie-seed` | ingest index Ghidra (60183 fn) + RTTI/formats iecode/hash→nom inagle | FAIT |
+| `nie-seed` | ingest index Ghidra + RTTI/formats iecode/hash→nom inagle | FAIT |
 | `nie-re` | RTTI MSVC, refondation `.pdata`, **disasm iced-x86 (arêtes d'appel + LEA)**, ancrage vtable→RTTI, propagation auto-ML | FAIT (93,36 % classé, 6 429 nommées) |
 | `nie-queue` | frontière BFS redis | FAIT |
 | `nie-cli` | binaire `niers` (seed/rtti/rebuild/disasm/propagate/coverage/queue/textures) | FAIT |
@@ -105,7 +116,7 @@ Vérification byte-à-byte contre la table `.pdata` (unwind d'exception x64, gé
 
 **Propagation pondérée — FAIT (levier de précision, pas de couverture).** Arêtes typées (appel direct 1.0, cohésion de vtable 0.5) + amortissement de degré anti-hub (`1/ln(deg+2)` : un utilitaire alloc/string appelé par des milliers de fonctions ne domine plus le label de ses voisins). **Couverture inchangée à 92,45 %** : la pondération change *quel* label gagne et la confiance, pas *quels* nœuds sont atteignables (la couverture est bornée par la connectivité du graphe, pas les poids). C'est une amélioration de **robustesse/justesse** des labels, utile pour le port, mais ce n'est pas un levier de couverture (estimation grok §3 « +4-5 pts » revue à la baisse, vérifiée empiriquement).
 
-**Prochains leviers de couverture** (les vrais) : (a) plus d'**ancres** (règles strings, RTTI étendu) ; (b) **découverte de feuilles** supplémentaires (cibles d'appel directes `.text` hors `.pdata`/vtable, à enregistrer comme nœuds) ; (c) le résidu (~4 000 fonctions) est largement **isolé** (ni string, ni RTTI, ni arête vers une fonction étiquetée) → rendements décroissants. **L'axe à plus forte valeur est désormais le « jeu jouable »** : `nie-core` (sim), `nie-data` (port inagle), `nie-formats` (rejoint l'axe assets du `coverage-100-plan`), `nie-wasm`.
+**Prochains leviers de couverture** (les vrais) : (a) plus d'**ancres** (règles strings, RTTI étendu) ; (b) **découverte de feuilles** supplémentaires (cibles d'appel directes `.text` hors `.pdata`/vtable, à enregistrer comme nœuds) ; (c) le résidu (~4 000 fonctions) est largement **isolé** (ni string, ni RTTI, ni arête vers une fonction étiquetée) → rendements décroissants. **L'axe à plus forte valeur est désormais le « jeu jouable », porté par la GUI native `nie-game` (D1/C4) en tête de pont** : bump wgpu 29, gate pixel-diff (image-compare/SSIM + égalité octet sha2), retarget des transforms du compositor (`nie-engine/render.rs`), puis skinning g4sk (D2) et scène de match (D3). Socle déjà acquis : `nie-core` (sim + CRand byte-exact), `nie-data` (34 familles golden), `nie-formats` (assets + HCA). `nie-wasm`/azalee = compagnon. Détail : `docs/STACK.md`.
 
 ## Couverture atteinte (sur l'index Ghidra — espace-graphe)
 
