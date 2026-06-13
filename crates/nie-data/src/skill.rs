@@ -17,7 +17,8 @@
 //! `isDisablePlayableUntilNextPatch` (présents dans le JSON, absents du type TS). On porte les 28.
 
 use alloc::collections::BTreeMap;
-use alloc::string::String;
+use alloc::format;
+use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use serde_json::Value;
 
@@ -213,6 +214,27 @@ pub struct SkillInfo {
     pub is_disable_playable_until_next_patch: bool,
 }
 
+/// Chemins VFS des assets de cut-in d'un hissatsu, dérivés par [`SkillInfo::cutin_assets`].
+/// Préfixés `data/` (directement utilisables par `nie-model-serve` `/raw`/`/tex`/`/cfg`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct CutinAssets {
+    /// Nom d'event lié (ex. `ev60_00340`).
+    pub event_id_name: String,
+    /// Modèle 3D du cut-in (géométrie) : `data/common/chr/_waza/<ev>/<ev>.g4mg`.
+    pub model_g4mg: String,
+    /// Descripteur du modèle : `data/common/chr/_waza/<ev>/<ev>.g4md`.
+    pub model_g4md: String,
+    /// Texture du modèle de cut-in : `data/dx11/chr/_waza/<ev>/<ev>.g4tx`.
+    pub texture_g4tx: String,
+    /// Config son (cues) : `data/common/event_cfg/snd/<ev>_snd.cfg.bin`.
+    pub sound_cfg: String,
+    /// Répertoire des effets de particules : `data/common/event/<grp>/<ev>/`.
+    pub effects_dir: String,
+    /// Telop (nom du skill rendu) par langue : `(lang, chemin .g4tx)`.
+    pub telop_by_lang: Vec<(String, String)>,
+}
+
 impl SkillInfo {
     /// Élément typé.
     #[must_use]
@@ -230,6 +252,42 @@ impl SkillInfo {
     #[must_use]
     pub fn partner_type(&self) -> SkillPartnerType {
         SkillPartnerType::from_id(self.partner_type)
+    }
+
+    /// Construit les **chemins VFS des assets de cut-in** du hissatsu, dérivés de
+    /// `event_id_name` (ex. `ev60_00340`) et `skill_id_str` (ex. `whs00340`). Templates
+    /// vérifiés byte-exact sur whs00340 (« God Knows ») : modèle 3D `chr/_waza/<ev>/<ev>.g4mg`,
+    /// texture `dx11/chr/_waza/<ev>/<ev>.g4tx`, son `event_cfg/snd/<ev>_snd.cfg.bin`, effets
+    /// `event/<grp>/<ev>/`, telop par langue `menu/220_img/telop_waza/<lang>/<skill_id_str>.g4tx`.
+    /// `None` si le skill n'a pas d'event de cut-in (`event_id_name` vide). Le caller vérifie
+    /// l'existence réelle (toutes les langues ne sont pas présentes pour tous les skills).
+    #[must_use]
+    pub fn cutin_assets(&self) -> Option<CutinAssets> {
+        let ev = self.event_id_name.as_str();
+        if ev.is_empty() {
+            return None;
+        }
+        let grp = ev.split('_').next().unwrap_or(ev);
+        // Langues réellement utilisées par les telop de cut-in (pas de `ja` : retombe sur `base`).
+        const TELOP_LANGS: [&str; 8] = ["de", "en", "es", "fr", "it", "pt", "zh_hans", "zh_hant"];
+        let telop_by_lang = TELOP_LANGS
+            .iter()
+            .map(|l| {
+                (
+                    (*l).to_string(),
+                    format!("data/dx11/menu/220_img/telop_waza/{l}/{}.g4tx", self.skill_id_str),
+                )
+            })
+            .collect();
+        Some(CutinAssets {
+            event_id_name: ev.to_string(),
+            model_g4mg: format!("data/common/chr/_waza/{ev}/{ev}.g4mg"),
+            model_g4md: format!("data/common/chr/_waza/{ev}/{ev}.g4md"),
+            texture_g4tx: format!("data/dx11/chr/_waza/{ev}/{ev}.g4tx"),
+            sound_cfg: format!("data/common/event_cfg/snd/{ev}_snd.cfg.bin"),
+            effects_dir: format!("data/common/event/{grp}/{ev}/"),
+            telop_by_lang,
+        })
     }
 
     /// Parse une valeur `values[]` de `m_skillInfoList` (objet JSON aux 28 clés). `None` si
