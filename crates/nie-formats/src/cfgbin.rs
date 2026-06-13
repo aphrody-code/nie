@@ -686,11 +686,31 @@ pub fn parse_t2b(data: &[u8]) -> Result<CfgBinFile, FormatError> {
     }
 
     let entries_count = i32::from_le_bytes(data[0..4].try_into().unwrap());
-    let string_table_off = i32::from_le_bytes(data[4..8].try_into().unwrap()) as usize;
-    let string_table_len = i32::from_le_bytes(data[8..12].try_into().unwrap()) as usize;
+    let string_table_off_i = i32::from_le_bytes(data[4..8].try_into().unwrap());
+    let string_table_len_i = i32::from_le_bytes(data[8..12].try_into().unwrap());
     let string_table_count = i32::from_le_bytes(data[12..16].try_into().unwrap()) as usize;
 
-    if string_table_off < 16 || string_table_off + string_table_len > data.len() {
+    // En-tête T2B : nombre d'entrées, offset et longueur de la table de chaînes sont
+    // des entiers non signés en pratique. Une entrée du jeu chiffrée ou compressée (p.ex.
+    // `cpk_list.cfg.bin` sur certaines installations Steam) produit ici des valeurs
+    // aberrantes ou négatives. Les caster directement en `usize` les transforme en
+    // valeurs proches de `usize::MAX`, puis l'addition `off + len` déborde — panic en
+    // debug (overflow check), wrap silencieux en release (pire : parse de données fausses).
+    // On valide donc le signe puis on additionne en `checked_add` : un fichier valide
+    // (offsets petits et positifs) est inchangé byte-exact ; un fichier illisible renvoie
+    // proprement `Corrupt` au lieu de paniquer.
+    if entries_count < 0 || string_table_off_i < 0 || string_table_len_i < 0 {
+        return Err(FormatError::Corrupt(
+            "T2B header: negative count/offset/length (fichier chiffré ou corrompu ?)",
+        ));
+    }
+    let string_table_off = string_table_off_i as usize;
+    let string_table_len = string_table_len_i as usize;
+
+    let string_table_end = string_table_off
+        .checked_add(string_table_len)
+        .ok_or(FormatError::Corrupt("T2B string table offset/length overflow"))?;
+    if string_table_off < 16 || string_table_end > data.len() {
         return Err(FormatError::Corrupt("String table offset out of bounds"));
     }
 
@@ -709,7 +729,7 @@ pub fn parse_t2b(data: &[u8]) -> Result<CfgBinFile, FormatError> {
         }
     }
 
-    let key_table_offset = (string_table_off + string_table_len).div_ceil(16) * 16;
+    let key_table_offset = string_table_end.div_ceil(16) * 16;
     let mut key_table = BTreeMap::new();
     if key_table_offset + 16 <= data.len() {
         let key_length = i32::from_le_bytes(data[key_table_offset..key_table_offset + 4].try_into().unwrap()) as usize;
@@ -1141,5 +1161,49 @@ mod tests {
         // value (u32 @0) = 0 → str_pos = string_abs(4) + 0 = 4 → "ABC".
         let v = read_condition_value(&buf, 0, 4);
         assert_eq!(v, RdbnValue::Condition("ABC".into()));
+    }
+
+    // -------------------------------------------------------------------
+    // parse_t2b : robustesse en-tête (anti-panic sur données chiffrées)
+    // -------------------------------------------------------------------
+
+    /// En-tête T2B avec offset de table de chaînes négatif (i32 = -1) : caster en `usize`
+    /// donne `usize::MAX`, et l'addition `off + len` débordait (panic debug / wrap release).
+    /// Doit désormais renvoyer `Corrupt` proprement, jamais paniquer.
+    #[test]
+    fn parse_t2b_offset_negatif_ne_panique_pas() {
+        let mut data = alloc::vec![0u8; 16];
+        data[0..4].copy_from_slice(&1i32.to_le_bytes()); // entries_count = 1
+        data[4..8].copy_from_slice(&(-1i32).to_le_bytes()); // string_table_off = -1
+        data[8..12].copy_from_slice(&16i32.to_le_bytes()); // string_table_len = 16
+        let r = parse_t2b(&data);
+        assert!(matches!(r, Err(FormatError::Corrupt(_))), "got {r:?}");
+    }
+
+    /// Offset + longueur tous deux énormes mais positifs : `checked_add` doit intercepter
+    /// le débordement et renvoyer `Corrupt`.
+    #[test]
+    fn parse_t2b_overflow_offset_plus_len() {
+        let mut data = alloc::vec![0u8; 16];
+        data[0..4].copy_from_slice(&0i32.to_le_bytes());
+        data[4..8].copy_from_slice(&i32::MAX.to_le_bytes()); // off = 2^31-1
+        data[8..12].copy_from_slice(&i32::MAX.to_le_bytes()); // len = 2^31-1
+        // off + len = ~2^32 < usize::MAX sur 64 bits → pas d'overflow usize, mais > data.len()
+        // → borne dépassée → Corrupt (et surtout : aucun panic).
+        let r = parse_t2b(&data);
+        assert!(matches!(r, Err(FormatError::Corrupt(_))), "got {r:?}");
+    }
+
+    /// Données chiffrées réalistes (entête haute-entropie type `cpk_list.cfg.bin`) :
+    /// le parseur ne doit jamais paniquer, seulement renvoyer une erreur.
+    #[test]
+    fn parse_t2b_donnees_chiffrees_ne_paniquent_pas() {
+        // Premiers octets réels observés sur une install Steam (cpk_list.cfg.bin chiffré).
+        let data = [
+            0x9du8, 0x9b, 0x87, 0x19, 0x68, 0x0b, 0xd1, 0x32, 0x5d, 0x84, 0x4d, 0xda, 0x05, 0x10,
+            0xb0, 0x5b, 0xef, 0xff, 0x11, 0xf6, 0xf3, 0x46, 0x8f, 0xb9, 0xa1, 0x85, 0xd9, 0x3f,
+        ];
+        let r = parse_t2b(&data);
+        assert!(r.is_err(), "données chiffrées doivent échouer proprement, got {r:?}");
     }
 }
