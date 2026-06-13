@@ -29,6 +29,10 @@ pub struct Vfs {
     game_data_dir: PathBuf,
     loose_files: bool,
     index: HashMap<String, VfsEntry>,
+    /// Index supplémentaire `chemin_interne → nom_cpk` pour les CPK ABSENTS de
+    /// `cpk_list.cfg.bin` (films, sound_asset…) : alimenté depuis l'index global
+    /// `path → cpk` (cf. [`Vfs::add_extra_index`]). `read()` y bascule sur miss.
+    index_extra: HashMap<String, String>,
     cpk_names: HashSet<String>,
     cpk_cache: CpkCacheMap,
 }
@@ -47,9 +51,28 @@ impl Vfs {
             game_data_dir: PathBuf::new(),
             loose_files: false,
             index: HashMap::new(),
+            index_extra: HashMap::new(),
             cpk_names: HashSet::new(),
             cpk_cache: Mutex::new(HashMap::new()),
         }
+    }
+
+    /// Ajoute des entrées `(chemin_interne, nom_cpk)` à l'index supplémentaire — pour les
+    /// fichiers dont le CPK n'est pas listé dans `cpk_list.cfg.bin` (films, sound_asset…).
+    /// Les entrées déjà présentes dans l'index principal restent prioritaires. Le CPK
+    /// référencé doit exister dans `packs/`. Retourne le nombre d'entrées ajoutées.
+    pub fn add_extra_index<I>(&mut self, entries: I) -> usize
+    where
+        I: IntoIterator<Item = (String, String)>,
+    {
+        let mut added = 0;
+        for (path, cpk) in entries {
+            if !self.index.contains_key(&path) {
+                self.index_extra.insert(path, cpk);
+                added += 1;
+            }
+        }
+        added
     }
 
     /// Initialise le VFS à partir du répertoire du jeu (contenant `data/cpk_list.cfg.bin`).
@@ -166,10 +189,17 @@ impl Vfs {
             return Ok(data);
         }
 
-        let entry = self.find(internal_path)
-            .ok_or(FormatError::Corrupt("fichier non trouve dans le VFS"))?;
-        
-        let cpk_filename = &entry.cpk_filename;
+        // Résolution du CPK : index principal (cpk_list.cfg.bin) puis index supplémentaire
+        // (films, sound_asset… : CPK présents dans packs/ mais hors cpk_list).
+        let cpk_filename: String = match self.find(internal_path) {
+            Some(entry) => entry.cpk_filename.clone(),
+            None => self
+                .index_extra
+                .get(internal_path)
+                .cloned()
+                .ok_or(FormatError::Corrupt("fichier non trouve dans le VFS"))?,
+        };
+        let cpk_filename = &cpk_filename;
         let mut cache = self.cpk_cache.lock().unwrap();
 
         let reader_arc = if let Some(arc) = cache.get(cpk_filename) {
@@ -190,10 +220,16 @@ impl Vfs {
 
         let (reader, cpk_bytes) = &*reader_arc;
         
-        // Trouver l'entrée CPK par nom de fichier (ends_with ou match exact)
+        // Trouver l'entrée CPK par nom de fichier : match exact prioritaire, puis repli
+        // insensible à la casse — l'index supplémentaire (scan azalee) abaisse la casse
+        // des chemins, alors que la TOC CPK garde la casse d'origine (`Chronicle_Title_CN_01.usm`).
         let filename = internal_path.split('/').next_back().unwrap_or(internal_path);
-        
-        let cpk_entry = reader.entries.iter().find(|e| e.filename == filename)
+
+        let cpk_entry = reader
+            .entries
+            .iter()
+            .find(|e| e.filename == filename)
+            .or_else(|| reader.entries.iter().find(|e| e.filename.eq_ignore_ascii_case(filename)))
             .ok_or(FormatError::Corrupt("fichier non trouve dans le CPK"))?;
 
         reader.extract(cpk_bytes, cpk_entry)
