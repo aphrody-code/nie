@@ -98,11 +98,21 @@ implémenter au jugé, cohérents avec les tokens ci-dessus.
 3. ✓ **FAIT** (partiel) — sélection `primary container` / `on primary container` ; hover state-layer
    `on-surface/8 %`. (Focus 10 % / drag 16 % : à compléter.)
 5. ✓ **FAIT** — `CpkFilePreview` branché dans le panneau détail (viewers wasm natifs).
-7. ✓ **FAIT** (partiel) — icônes typées par extension (`nodeIcon`) + breadcrumb text-buttons.
-   Reste : auto-scroll/reveal de l'arbre jusqu'au fichier deep-linké (ref `TreeApi.scrollTo`).
-4. **TODO** — toggle liste/grille (segmented) ; vue grille = elevated cards 12dp `surface container low`.
-6. **TODO** — search app bar + floating toolbar de multi-sélection.
-8. **TODO** — onglets (cosmic-files) ; tri nom/taille/date (filebrowser).
+7. ✓ **FAIT** — icônes typées par extension + breadcrumb text-buttons + **auto-reveal** de l'arbre
+   vers le fichier deep-linké (`TreeApi.scrollTo`/`open`/`select`).
+4. ✓ **FAIT** — toggle **liste/grille** (segmented) ; vue grille = elevated cards 12dp
+   `surface container low` + thumbnails ; `CpkFolderView` (tri nom/type, « afficher plus »).
+6. ✓ **FAIT** — **search app bar** (recherche GLOBALE serveur `searchFiles`/`/api/cpk?q` sur les
+   250 800 fichiers) + **floating toolbar M3** de multi-sélection (arborist `onSelect`).
+8. ✓ **FAIT** — **onglets** de dossiers (cosmic-files) ; **tri** nom/type (filebrowser).
+
+### ✓ FAIT — robustesse & binaires opaques
+
+- **Binaires non-cfg.bin** (`.bin`/`.objbin`/`.fxbin`/`.mevbin`, ~83k fichiers) : le viewer config
+  retombe sur un **aperçu hexadécimal** au lieu du cul-de-sac « Décodage indisponible ».
+- **Service `nie-model-serve`** : `Restart=always` (reprenait pas sur exit propre — le cache CPK
+  en RAM saturait, exit 0 à ~14,7 G) + budget cache abaissé à **8 GiB** (drop-in `memory.conf`).
+  Sans ça, tout fichier **non caché par le CDN** renvoyait 502 (« indisponible peu importe le format »).
 
 Sources : m3.material.io — window-size-classes, canonical-examples/list-detail, components/{lists,
 cards,navigation-rail,top-app-bar,toolbars}/specs, foundations/interaction/states/state-layers,
