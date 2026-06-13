@@ -1,0 +1,28 @@
+[package]
+name = "nie-game"
+description = "Hôte GUI natif wgpu — rend les vrais assets IEVR (pilier D1/C4 pixel-perfect)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "nie-game"
+path = "src/main.rs"
+
+[dependencies]
+nie-formats = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+wgpu = "22"
+winit = "0.30"
+pollster = "0.3"
+bytemuck = { version = "1", features = ["derive"] }
+image_dds = { version = "0.7", default-features = false }
+png = "0.18"
