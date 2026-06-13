@@ -5,7 +5,7 @@
 
 #![cfg(not(target_arch = "wasm32"))]
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -13,8 +13,60 @@ use std::sync::{Arc, Mutex};
 use crate::cpk::CpkReader;
 use crate::FormatError;
 
-/// Cache des CPK déjà chargés : nom CPK → (lecteur, octets bruts).
-type CpkCacheMap = Mutex<HashMap<String, Arc<(CpkReader, Vec<u8>)>>>;
+/// Budget mémoire du cache CPK (octets bruts cumulés). Servir les 921 CPK (57 Go)
+/// sans borne saturerait la RAM ; 2 Gio bornent le résident tout en gardant chaud
+/// l'essentiel (un CPK fait ~1–300 Mo). Éviction LRU au-delà.
+const CPK_CACHE_BUDGET: usize = 2 * 1024 * 1024 * 1024;
+
+/// Cache LRU borné des CPK chargés (nom CPK → lecteur + octets bruts). Évince le moins
+/// récemment utilisé quand le total dépasse [`CPK_CACHE_BUDGET`]. Un `Arc` cloné par un
+/// `read()` en cours garde sa donnée vivante même après éviction (extraction sûre).
+struct CpkCache {
+    map: HashMap<String, Arc<(CpkReader, Vec<u8>)>>,
+    /// Ordre d'utilisation : avant = moins récent (candidat à l'éviction).
+    order: VecDeque<String>,
+    bytes: usize,
+    budget: usize,
+}
+
+impl CpkCache {
+    fn new(budget: usize) -> Self {
+        Self { map: HashMap::new(), order: VecDeque::new(), bytes: 0, budget }
+    }
+
+    /// Récupère un CPK et le marque comme récemment utilisé.
+    fn get(&mut self, key: &str) -> Option<Arc<(CpkReader, Vec<u8>)>> {
+        let arc = self.map.get(key)?.clone();
+        if let Some(pos) = self.order.iter().position(|k| k == key) {
+            self.order.remove(pos);
+        }
+        self.order.push_back(key.to_string());
+        Some(arc)
+    }
+
+    /// Insère un CPK et évince les moins récents tant que le budget est dépassé.
+    fn insert(&mut self, key: String, arc: Arc<(CpkReader, Vec<u8>)>) {
+        let size = arc.1.len();
+        if let Some(old) = self.map.insert(key.clone(), arc) {
+            self.bytes = self.bytes.saturating_sub(old.1.len());
+            if let Some(pos) = self.order.iter().position(|k| k == &key) {
+                self.order.remove(pos);
+            }
+        }
+        self.bytes += size;
+        self.order.push_back(key);
+        while self.bytes > self.budget && self.order.len() > 1 {
+            if let Some(old_key) = self.order.pop_front() {
+                if let Some(old) = self.map.remove(&old_key) {
+                    self.bytes = self.bytes.saturating_sub(old.1.len());
+                }
+            }
+        }
+    }
+}
+
+/// Cache des CPK déjà chargés, borné LRU (cf. [`CpkCache`]).
+type CpkCacheMap = Mutex<CpkCache>;
 
 /// Entrée du VFS.
 #[derive(Debug, Clone)]
@@ -53,7 +105,7 @@ impl Vfs {
             index: HashMap::new(),
             index_extra: HashMap::new(),
             cpk_names: HashSet::new(),
-            cpk_cache: Mutex::new(HashMap::new()),
+            cpk_cache: Mutex::new(CpkCache::new(CPK_CACHE_BUDGET)),
         }
     }
 
@@ -203,7 +255,7 @@ impl Vfs {
         let mut cache = self.cpk_cache.lock().unwrap();
 
         let reader_arc = if let Some(arc) = cache.get(cpk_filename) {
-            arc.clone()
+            arc
         } else {
             let cpk_path = self.game_data_dir.join("packs").join(cpk_filename);
             let mut file = File::open(&cpk_path)
