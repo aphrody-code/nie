@@ -1494,6 +1494,33 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         return;
     }
 
+    // `/lip/<vfs-path>.json` — décode une piste de lip-sync `.p3lip` en visèmes datés
+    // (`{duration_s, frames:[{time_s, viseme, channel, param}]}`) à jouer en synchro voix.
+    if let Some(rest) = path.strip_prefix("/lip/") {
+        let rel = rest.strip_suffix(".json").unwrap_or(rest);
+        let vfs_path =
+            if rel.starts_with("data/") { rel.to_string() } else { format!("data/{rel}") };
+        if vfs_path.contains("..") {
+            respond_text(&mut stream, 400, "Bad Request", "chemin invalide");
+            return;
+        }
+        let bytes = {
+            let vfs = state.vfs.lock().unwrap();
+            vfs.read(&vfs_path).ok()
+        };
+        match bytes.as_deref().map(nie_formats::lip::parse) {
+            Some(Ok(lip)) => {
+                let body = serde_json::to_vec(&lip).unwrap_or_default();
+                respond(&mut stream, 200, "OK", "application/json; charset=utf-8", &body);
+            }
+            Some(Err(e)) => {
+                respond_text(&mut stream, 422, "Unprocessable Entity", &format!("p3lip invalide : {e}"));
+            }
+            None => respond_text(&mut stream, 404, "Not Found", "fichier absent du VFS"),
+        }
+        return;
+    }
+
     // `/raw/<vfs-path>` — bytes décompressés/déchiffrés bruts du CPK (texte, download).
     if let Some(rest) = path.strip_prefix("/raw/") {
         let vfs_path = if rest.starts_with("data/") {
