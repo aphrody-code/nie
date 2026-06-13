@@ -99,6 +99,12 @@ struct Cli {
     #[arg(long, default_value = "/home/ubuntu/niers/var/uniform-model-map.ndjson")]
     uniform_map: PathBuf,
 
+    /// Index global `[chemin, cpk]` (NDJSON, .gz accepté) des fichiers de TOUS les CPK,
+    /// y compris ceux hors `cpk_list.cfg.bin` (films, sound_asset…). Alimente l'index
+    /// supplémentaire du VFS pour les rendre lisibles. Vide/absent = ignoré.
+    #[arg(long, default_value = "/home/ubuntu/rg/apps/azalee/data/cpk-index.ndjson.gz")]
+    cpk_file_index: PathBuf,
+
     /// Manifeste body_type_idx (var/body-type-manifest.ndjson, optionnel — fallback type_idx=0).
     #[arg(long, default_value = "/home/ubuntu/niers/var/body-type-manifest.ndjson")]
     body_manifest: PathBuf,
@@ -1805,6 +1811,45 @@ fn resolve_db(db_override: Option<&Path>) -> Option<PathBuf> {
     None
 }
 
+/// Charge l'index global `[chemin, cpk]` (NDJSON, gzip si extension `.gz`) en paires
+/// `(chemin_interne, nom_cpk)` pour l'index supplémentaire du VFS. Le `.gz` est décompressé
+/// via `zcat` (pas de dépendance flate2). Chemin absent → `Ok(vec![])`.
+fn load_cpk_file_index(path: &std::path::Path) -> Result<Vec<(String, String)>> {
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+    let raw: Vec<u8> = if path.extension().and_then(|e| e.to_str()) == Some("gz") {
+        let out = std::process::Command::new("zcat")
+            .arg(path)
+            .output()
+            .with_context(|| format!("zcat {}", path.display()))?;
+        if !out.status.success() {
+            anyhow::bail!("zcat a échoué pour {}", path.display());
+        }
+        out.stdout
+    } else {
+        std::fs::read(path).with_context(|| format!("lecture {}", path.display()))?
+    };
+    let text = String::from_utf8_lossy(&raw);
+    let mut entries = Vec::new();
+    for line in text.lines() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        // Chaque ligne : `["data/.../x.usm","<hash>.cpk"]`.
+        if let Ok(serde_json::Value::Array(arr)) = serde_json::from_str::<serde_json::Value>(line) {
+            if let (Some(p), Some(c)) = (
+                arr.first().and_then(serde_json::Value::as_str),
+                arr.get(1).and_then(serde_json::Value::as_str),
+            ) {
+                entries.push((p.to_string(), c.to_string()));
+            }
+        }
+    }
+    Ok(entries)
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 fn main() -> Result<()> {
@@ -1827,6 +1872,17 @@ fn main() -> Result<()> {
     vfs.init(&game_data)
         .with_context(|| format!("init VFS depuis {}", game_data.display()))?;
     info!("VFS initialisé ({} fichiers indexés)", vfs.asset_count());
+
+    // Index supplémentaire : rend lisibles les fichiers des CPK hors cpk_list.cfg.bin
+    // (films .usm, sound_asset .acb…) via l'index global [chemin, cpk].
+    match load_cpk_file_index(&cli.cpk_file_index) {
+        Ok(entries) if !entries.is_empty() => {
+            let added = vfs.add_extra_index(entries);
+            info!("index VFS supplémentaire : +{added} fichiers (CPK hors cpk_list)");
+        }
+        Ok(_) => {}
+        Err(e) => warn!("index VFS supplémentaire ignoré ({}): {e}", cli.cpk_file_index.display()),
+    }
 
     // Charge les manifestes.
     let crc_manifest = State::load_crc_manifest(&cli.crc_manifest)?;
