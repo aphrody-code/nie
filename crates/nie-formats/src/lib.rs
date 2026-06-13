@@ -43,6 +43,7 @@ pub mod g4mg;
 pub mod g4pk;
 pub mod g4sk;
 pub mod g4tx;
+pub mod lip;
 pub mod nxtch;
 pub mod vfs;
 

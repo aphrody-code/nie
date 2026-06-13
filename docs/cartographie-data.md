@@ -10,9 +10,9 @@ Généré/recoupé le 2026-06-13. Source : `redis-cli -n 3 hkeys iev:file:index`
 ## Vue d'ensemble
 
 - **250 800** fichiers indexés.
-- **211 966 (84,5 %)** dans un format déjà parsé **et** servi (g4tx, g4pk/g4pkm, g4mg/g4md,
-  g4sk, audio acb/awb/adx/hca, usm, cfg.bin).
-- **38 834 (15,5 %)** dans un format **non encore exploité** (détail plus bas).
+- **232 323 (92,6 %)** dans un format déjà parsé **et** servi (g4tx, g4pk/g4pkm, g4mg/g4md,
+  g4sk, audio acb/awb/adx/hca, usm, cfg.bin, **p3lip lip-sync**).
+- **18 477 (7,4 %)** dans un format **non encore exploité** (détail plus bas).
 
 ## Dossiers de niveau 2 (`data/<root>/<groupe>`) par volume
 
@@ -22,7 +22,7 @@ Généré/recoupé le 2026-06-13. Source : `redis-cli -n 3 hkeys iev:file:index`
 | 43 701 | `common/text` | textes localisés ja/fr/en/de/es/it/pt/zh (cfg.bin) | ✓ parsé (cfgbin, skill/chara/item/event) |
 | 40 158 | `dx11/menu` | UI : icônes, telop, atlas (g4tx) | ✓ servi (`/tex`, décodage g4tx→png) |
 | 20 580 | `common/chr` | modèles perso/waza/keshin (g4md/g4mg/g4sk), motion | ✓ assemblé (`/model-*`) |
-| 20 460 | `common/sound` | **lip-sync `.p3lip`** par langue (voix) | ✗ **non exploité** |
+| 20 460 | `common/sound` | **lip-sync `.p3lip`** par langue (voix) | ✓ parsé + servi (`nie-formats::lip`, `/lip`) |
 | 12 479 | `common/map` | maps : objets objbin, navmesh g4nv, modèles | ✗ (objbin/g4nv non lus) |
 | 10 807 | `common/sound_asset` | voix/SE (acb/awb) | ✓ servi (`/audio`→WAV) |
 | 9 810 | `common/event_cfg` | config d'events (son, séquences) | partiel (`snd` cfg.bin ✓) |
@@ -44,7 +44,7 @@ Généré/recoupé le 2026-06-13. Source : `redis-cli -n 3 hkeys iev:file:index`
 
 | Count | Ext | Nature (déduite de l'emplacement) | Valeur pour le jeu jouable |
 |---:|---|---|---|
-| 20 357 | `.p3lip` | **lip-sync** voix (`common/sound/<lang>/<event>.p3lip`) | **haute** — synchro labiale en dialogue |
+| ~~20 357~~ | ~~`.p3lip`~~ | **lip-sync** voix — **✓ FAIT** : `nie-formats::lip` (visèmes datés) + route `/lip` | — |
 | 11 920 | `.objbin` | objets de scène / lumières (`map/_light`, `effect`, `gamedata`) | moyenne — rendu de map, éclairage |
 | 1 335 | `.vfxo` | shaders d'effet vertex (`dx11/shader`) | moyenne — rendu d'effets |
 | 1 210 | `.g4cm` | **caméra de cutscene** (`event/<ev>/<ev>_camera.g4cm`) | **haute** — mise en scène des events |
@@ -62,9 +62,9 @@ Généré/recoupé le 2026-06-13. Source : `redis-cli -n 3 hkeys iev:file:index`
 
 Classés par rapport valeur/effort, ancrés sur la finalité « jeu jouable WASM » + « nourrir azalee ».
 
-1. **`.p3lip` lip-sync** (20 357) — parser le format + l'associer aux voix `sound_asset` et aux
-   répliques d'event (déjà extraites pour Aphrody). Brancherait la synchro labiale en dialogue,
-   et côté azalee une timeline voix↔texte. *Plus gros volume non exploité, lien direct au gameplay.*
+1. ~~**`.p3lip` lip-sync** (20 357)~~ — **✓ FAIT** : `nie-formats::lip::parse` (magic/durée/visèmes
+   datés, validé byte-à-byte sur échantillons réels) + route serve `/lip/<vfs>.json`. Reste à
+   croiser côté azalee (timeline voix↔texte↔visèmes) et à piloter les morphs faciaux en jeu.
 2. **`.g4cm` caméra** (1 210) — parser les courbes de caméra d'event ; rejoue la mise en scène des
    cutscenes (croisement avec les dialogues déjà cartographiés par event).
 3. **`.col` collision** (1 143) — meshes de collision de map : prérequis du déplacement/physique du

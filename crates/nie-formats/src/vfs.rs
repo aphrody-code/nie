@@ -65,10 +65,10 @@ impl CpkCache {
         self.bytes += size;
         self.order.push_back(key);
         while self.bytes > self.budget && self.order.len() > 1 {
-            if let Some(old_key) = self.order.pop_front() {
-                if let Some(old) = self.map.remove(&old_key) {
-                    self.bytes = self.bytes.saturating_sub(old.1.len());
-                }
+            if let Some(old_key) = self.order.pop_front()
+                && let Some(old) = self.map.remove(&old_key)
+            {
+                self.bytes = self.bytes.saturating_sub(old.1.len());
             }
         }
     }
