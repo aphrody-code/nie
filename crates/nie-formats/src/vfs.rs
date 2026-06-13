@@ -13,10 +13,19 @@ use std::sync::{Arc, Mutex};
 use crate::cpk::CpkReader;
 use crate::FormatError;
 
-/// Budget mémoire du cache CPK (octets bruts cumulés). Servir les 921 CPK (57 Go)
-/// sans borne saturerait la RAM ; 2 Gio bornent le résident tout en gardant chaud
-/// l'essentiel (un CPK fait ~1–300 Mo). Éviction LRU au-delà.
-const CPK_CACHE_BUDGET: usize = 2 * 1024 * 1024 * 1024;
+/// Budget mémoire du cache CPK (octets bruts cumulés), large pour garder un maximum de
+/// CPK chauds en RAM (« tout chargé comme nie.exe »). Configurable via l'env
+/// `NIE_CPK_CACHE_BUDGET_GIB` (défaut 16 Gio). L'éviction LRU n'intervient qu'au-delà :
+/// borne de sécurité pour ne pas saturer l'hôte partagé (les 57 Go de CPK ne tiennent
+/// pas dans les 45 Gio de la machine).
+fn cpk_cache_budget() -> usize {
+    let gib = std::env::var("NIE_CPK_CACHE_BUDGET_GIB")
+        .ok()
+        .and_then(|s| s.trim().parse::<usize>().ok())
+        .filter(|&g| g > 0)
+        .unwrap_or(16);
+    gib.saturating_mul(1024 * 1024 * 1024)
+}
 
 /// Cache LRU borné des CPK chargés (nom CPK → lecteur + octets bruts). Évince le moins
 /// récemment utilisé quand le total dépasse [`CPK_CACHE_BUDGET`]. Un `Arc` cloné par un
@@ -105,7 +114,7 @@ impl Vfs {
             index: HashMap::new(),
             index_extra: HashMap::new(),
             cpk_names: HashSet::new(),
-            cpk_cache: Mutex::new(CpkCache::new(CPK_CACHE_BUDGET)),
+            cpk_cache: Mutex::new(CpkCache::new(cpk_cache_budget())),
         }
     }
 
