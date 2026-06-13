@@ -83,6 +83,13 @@ redéploiement nginx). **azalee** : explorateur `/cpk` refondu en vrais viewers
 (`app/cpk/Cpk{ConfigViewer,FormationViewer,JsonTree,HexViewer}.tsx` + `lib/cpk/shared.ts::cpkTypedUrl`) ;
 `CpkFormationViewer` = terrain interactif 11 joueurs aux coords f32 réelles → **remplace B′2**
 (positions CSS codées en dur de `lib/formations.ts`). Lien modèle `/model` mort -> `/model-full` réel.
+
+**B′2/B′3 LIVRÉ (2026-06-13)** : binaire `nie-data/bin/export_formations` -> `apps/azalee/data/formations-full.json`
+(115 formations, **83 valides** = 11 joueurs/1 GK ; label DF-MF-FW dérivé de `position_id` 1..10 ;
+positions f32 start/offense/defense). `azalee/lib/formations.ts` expose `GAME_FORMATIONS` (83 vraies,
+mappées en top/left %) en plus des 8 legacy (compat des `id` persistés) → le **My Team builder**
+(`/tools/my-team`) propose désormais les vraies formations du jeu. C'est le 2e export industrialisé
+après `export_passives`.
 Reste B′1 : peupler les **tables miroir** `inagle_*` (lecture serveur d'azalee) ; `/typed` couvre la
 lecture live mais pas l'écriture miroir/SSG. Mapping pages↔familles : `/gallery`↔gallery,
 `/succes`↔trophy, `/quete`↔quest, `/capsule`↔capsule, `/boutique`↔shop, `/passive`↔passives (FAIT),
