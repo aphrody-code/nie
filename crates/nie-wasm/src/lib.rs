@@ -747,6 +747,107 @@ pub fn cfgbin_typed_json(bytes: &[u8], filename: &str) -> Result<String, String>
     cfgbin_typed_json_impl(bytes, filename)
 }
 
+// ── G4TX -> PNG (textures décodées NATIVEMENT in-browser) ──────────────────────
+// DDS BC1/BC2/BC3/BC4/BC5/BC6H/BC7 -> RGBA8 (image_dds) -> PNG (png). Réplique la
+// logique de nie-model-serve `/tex` côté navigateur.
+
+/// Table DXGI format -> `image_dds::ImageFormat`.
+fn nw_dxgi_to_image_format(dxgi: u32) -> Option<image_dds::ImageFormat> {
+    use image_dds::ImageFormat as F;
+    match dxgi {
+        71 => Some(F::BC1RgbaUnorm),
+        72 => Some(F::BC1RgbaUnormSrgb),
+        73 => Some(F::BC2RgbaUnorm),
+        74 => Some(F::BC2RgbaUnormSrgb),
+        77 => Some(F::BC3RgbaUnorm),
+        78 => Some(F::BC3RgbaUnormSrgb),
+        79 | 80 => Some(F::BC4RUnorm),
+        83 | 84 => Some(F::BC5RgUnorm),
+        95 => Some(F::BC6hRgbUfloat),
+        96 => Some(F::BC6hRgbSfloat),
+        98 => Some(F::BC7RgbaUnorm),
+        99 => Some(F::BC7RgbaUnormSrgb),
+        _ => None,
+    }
+}
+
+/// Décode une entrée `G4txTexture` (payload DDS) en RGBA8 `(w, h, data)`.
+fn nw_decode_texture_rgba(
+    g4tx_data: &[u8],
+    tex: &nie_formats::g4tx::G4txTexture,
+) -> Option<(u32, u32, Vec<u8>)> {
+    if !tex.is_dds {
+        return None;
+    }
+    let offset = tex.data_offset;
+    const DX10_DXGI_OFFSET: usize = 128; // magic(4) + DDS_HEADER(124)
+    const PIXEL_OFFSET: usize = 148; // + DX10_EXT(20)
+    if offset + PIXEL_OFFSET > g4tx_data.len() {
+        return None;
+    }
+    let dds = &g4tx_data[offset..];
+    if u32::from_le_bytes(dds[..4].try_into().ok()?) != 0x2053_4444 {
+        return None;
+    }
+    let dxgi = u32::from_le_bytes(dds[DX10_DXGI_OFFSET..DX10_DXGI_OFFSET + 4].try_into().ok()?);
+    let fmt = nw_dxgi_to_image_format(dxgi)?;
+    let w = tex.width as u32;
+    let h = tex.height as u32;
+    if w == 0 || h == 0 {
+        return None;
+    }
+    let surface = image_dds::Surface {
+        width: w,
+        height: h,
+        depth: 1,
+        layers: 1,
+        mipmaps: 1,
+        image_format: fmt,
+        data: &dds[PIXEL_OFFSET..],
+    };
+    let rgba = surface.decode_rgba8().ok()?;
+    Some((w, h, rgba.data))
+}
+
+/// Encode un buffer RGBA8 en PNG.
+fn nw_encode_png(rgba: &[u8], w: u32, h: u32) -> Option<Vec<u8>> {
+    let mut out: Vec<u8> = Vec::new();
+    {
+        let mut enc = png::Encoder::new(std::io::Cursor::new(&mut out), w, h);
+        enc.set_color(png::ColorType::Rgba);
+        enc.set_depth(png::BitDepth::Eight);
+        let mut wr = enc.write_header().ok()?;
+        wr.write_image_data(rgba).ok()?;
+    }
+    Some(out)
+}
+
+/// Décode la meilleure texture (plus grande) d'un `.g4tx` en PNG.
+fn g4tx_to_png_impl(bytes: &[u8]) -> Result<Vec<u8>, String> {
+    let g4tx = nie_formats::g4tx::parse(bytes).map_err(|e| e.to_string())?;
+    let tex = g4tx
+        .textures
+        .iter()
+        .filter(|t| t.is_dds)
+        .max_by_key(|t| (t.width as u64) * (t.height as u64))
+        .ok_or("aucune texture DDS dans le G4TX")?;
+    let (w, h, rgba) = nw_decode_texture_rgba(bytes, tex).ok_or("décodage DDS échoué")?;
+    nw_encode_png(&rgba, w, h).ok_or_else(|| "encodage PNG échoué".to_string())
+}
+
+/// Décode un `.g4tx` (octets bruts) en PNG (octets), in-browser.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn g4tx_to_png(bytes: &[u8]) -> Result<Vec<u8>, JsValue> {
+    g4tx_to_png_impl(bytes).map_err(|e| JsValue::from_str(&e))
+}
+
+/// Décode un `.g4tx` en PNG (version native).
+#[cfg(not(target_arch = "wasm32"))]
+pub fn g4tx_to_png(bytes: &[u8]) -> Result<Vec<u8>, String> {
+    g4tx_to_png_impl(bytes)
+}
+
 
 /// Extrait la géométrie d'un fichier G4MG à l'aide des métadonnées G4MD fournies au format JSON.
 #[cfg(target_arch = "wasm32")]
