@@ -878,6 +878,34 @@ pub fn g4pk_parse_json(bytes: &[u8]) -> Result<String, String> {
     serde_json::to_string(&g4pk).map_err(|e| e.to_string())
 }
 
+// ── Modèle 3D g4md+g4mg -> GLB (assemblé NATIVEMENT in-browser) ────────────────
+
+/// Assemble un modèle générique (paire G4MD + G4MG) en **GLB** (géométrie, glTF binaire).
+fn model_to_glb_impl(g4md: &[u8], g4mg: &[u8]) -> Result<Vec<u8>, String> {
+    use nie_formats::assemble::{assemble_generic_model, GenericModelInput, MeshComponent};
+    let model = assemble_generic_model(GenericModelInput {
+        code: String::new(),
+        g4md: g4md.to_vec(),
+        g4mg: g4mg.to_vec(),
+        component: MeshComponent::Generic,
+    })
+    .map_err(|e| e.to_string())?;
+    Ok(model.to_glb_embedded())
+}
+
+/// Assemble une paire G4MD+G4MG (octets bruts) en GLB, in-browser.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn model_to_glb(g4md: &[u8], g4mg: &[u8]) -> Result<Vec<u8>, JsValue> {
+    model_to_glb_impl(g4md, g4mg).map_err(|e| JsValue::from_str(&e))
+}
+
+/// Assemble un modèle G4MD+G4MG en GLB (version native).
+#[cfg(not(target_arch = "wasm32"))]
+pub fn model_to_glb(g4md: &[u8], g4mg: &[u8]) -> Result<Vec<u8>, String> {
+    model_to_glb_impl(g4md, g4mg)
+}
+
 // ── Audio CRI -> WAV (décodé NATIVEMENT in-browser) ────────────────────────────
 // HCA (cridecoder, déchiffrement IEVR ciph_type=56) + ADX + conteneurs AWB/ACB
 // (nie-formats) -> PCM16 -> WAV. Réplique la logique de nie-model-serve `/audio`.
