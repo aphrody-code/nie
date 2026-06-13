@@ -2159,11 +2159,13 @@ version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
  "getrandom 0.2.17",
+ "image_dds",
  "nie-core",
  "nie-data",
  "nie-formats",
  "nie-save",
  "parking_lot",
+ "png",
  "serde_json",
  "wasm-bindgen",
  "wasm-bindgen-futures",
