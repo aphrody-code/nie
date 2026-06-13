@@ -848,6 +848,36 @@ pub fn g4tx_to_png(bytes: &[u8]) -> Result<Vec<u8>, String> {
     g4tx_to_png_impl(bytes)
 }
 
+/// Métadonnées d'un `.g4tx` (textures : nom, dimensions, DDS) en JSON, in-browser.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn g4tx_info_json(bytes: &[u8]) -> Result<String, JsValue> {
+    let g4tx = nie_formats::g4tx::parse(bytes).map_err(|e| JsValue::from_str(&e.to_string()))?;
+    serde_json::to_string(&g4tx).map_err(|e| JsValue::from_str(&e.to_string()))
+}
+
+/// Métadonnées d'un `.g4tx` (version native).
+#[cfg(not(target_arch = "wasm32"))]
+pub fn g4tx_info_json(bytes: &[u8]) -> Result<String, String> {
+    let g4tx = nie_formats::g4tx::parse(bytes).map_err(|e| e.to_string())?;
+    serde_json::to_string(&g4tx).map_err(|e| e.to_string())
+}
+
+/// Parse une archive `.g4pk` (en-tête + sous-fichiers) en JSON, in-browser.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn g4pk_parse_json(bytes: &[u8]) -> Result<String, JsValue> {
+    let g4pk = nie_formats::g4pk::parse(bytes).map_err(|e| JsValue::from_str(&e.to_string()))?;
+    serde_json::to_string(&g4pk).map_err(|e| JsValue::from_str(&e.to_string()))
+}
+
+/// Parse une archive `.g4pk` (version native).
+#[cfg(not(target_arch = "wasm32"))]
+pub fn g4pk_parse_json(bytes: &[u8]) -> Result<String, String> {
+    let g4pk = nie_formats::g4pk::parse(bytes).map_err(|e| e.to_string())?;
+    serde_json::to_string(&g4pk).map_err(|e| e.to_string())
+}
+
 // ── Audio CRI -> WAV (décodé NATIVEMENT in-browser) ────────────────────────────
 // HCA (cridecoder, déchiffrement IEVR ciph_type=56) + ADX + conteneurs AWB/ACB
 // (nie-formats) -> PCM16 -> WAV. Réplique la logique de nie-model-serve `/audio`.
