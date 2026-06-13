@@ -72,6 +72,7 @@ pub mod skill;
 pub mod skill_view;
 pub mod soccer;
 pub mod trophy;
+pub mod typed;
 pub mod update_notice;
 pub mod user_name_plate;
 pub mod vsroute;
