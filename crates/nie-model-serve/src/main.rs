@@ -1415,6 +1415,72 @@ fn respond_text(stream: &mut TcpStream, status: u16, reason: &str, body: &str) {
     respond(stream, status, reason, "text/plain; charset=utf-8", body.as_bytes());
 }
 
+/// Parse `Range: bytes=START-END` (END optionnel) → `(start, end_inclus)` borné à `total`.
+fn parse_range(header: &str, total: usize) -> Option<(usize, usize)> {
+    let spec = header.trim().strip_prefix("bytes=")?;
+    // On ne gère que la 1re plage (cas navigateur courant), pas le multipart.
+    let spec = spec.split(',').next()?.trim();
+    let (a, b) = spec.split_once('-')?;
+    if total == 0 {
+        return None;
+    }
+    let last = total - 1;
+    let (start, end) = if a.is_empty() {
+        // suffixe `-N` : les N derniers octets.
+        let n: usize = b.trim().parse().ok()?;
+        (total.saturating_sub(n), last)
+    } else {
+        let start: usize = a.trim().parse().ok()?;
+        let end = if b.is_empty() { last } else { b.trim().parse::<usize>().ok()?.min(last) };
+        (start, end)
+    };
+    if start > end || start > last {
+        return None;
+    }
+    Some((start, end))
+}
+
+/// Réponse honorant `Range` : `206 Partial Content` + `Content-Range` si une plage valide est
+/// demandée, sinon `200` complet. Toujours `Accept-Ranges: bytes` (le navigateur peut seek).
+/// Le corps étant déjà en mémoire (WAV/MP4 décodé), le slice est immédiat.
+fn respond_ranged(stream: &mut TcpStream, content_type: &str, body: &[u8], range: Option<&str>) {
+    if let Some((start, end)) = range.and_then(|r| parse_range(r, body.len())) {
+        let slice = &body[start..=end];
+        let headers = format!(
+            "HTTP/1.1 206 Partial Content\r\n\
+             Content-Type: {content_type}\r\n\
+             Content-Length: {}\r\n\
+             Content-Range: bytes {start}-{end}/{}\r\n\
+             Accept-Ranges: bytes\r\n\
+             Cache-Control: public, max-age=31536000, immutable\r\n\
+             Access-Control-Allow-Origin: *\r\n\
+             Cross-Origin-Resource-Policy: cross-origin\r\n\
+             Connection: close\r\n\
+             \r\n",
+            slice.len(),
+            body.len(),
+        );
+        let _ = stream.write_all(headers.as_bytes());
+        let _ = stream.write_all(slice);
+        return;
+    }
+    let headers = format!(
+        "HTTP/1.1 200 OK\r\n\
+         Content-Type: {content_type}\r\n\
+         Content-Length: {}\r\n\
+         Accept-Ranges: bytes\r\n\
+         Cache-Control: public, max-age=31536000, immutable\r\n\
+         Access-Control-Allow-Origin: *\r\n\
+         Cross-Origin-Resource-Policy: cross-origin\r\n\
+         X-Content-Type-Options: nosniff\r\n\
+         Connection: close\r\n\
+         \r\n",
+        body.len(),
+    );
+    let _ = stream.write_all(headers.as_bytes());
+    let _ = stream.write_all(body);
+}
+
 /// Parse la méthode + le chemin depuis la première ligne de la requête HTTP.
 fn parse_request_line(line: &str) -> Option<(&str, &str)> {
     let mut parts = line.splitn(3, ' ');
@@ -1443,7 +1509,8 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         return;
     }
 
-    // Drain les headers (on n'en a pas besoin).
+    // Lit les headers ; on ne capture que `Range` (seek audio/vidéo).
+    let mut range_header: Option<String> = None;
     loop {
         let mut line = String::new();
         match reader.read_line(&mut line) {
@@ -1453,7 +1520,11 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         if line == "\r\n" || line == "\n" {
             break;
         }
+        if let Some(v) = line.trim_end().strip_prefix("Range:").or_else(|| line.trim_end().strip_prefix("range:")) {
+            range_header = Some(v.trim().to_string());
+        }
     }
+    let range_header = range_header.as_deref();
 
     // Strippe la query string (`?v=3` cache-bust d'azalee) : le code modèle vit dans le
     // path seul. Sans ça, `strip_suffix(".glb")` échoue sur `c….glb?v=3` -> "code invalide".
@@ -1760,7 +1831,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                     }
                 });
                 match result {
-                    Ok(wav) => respond(&mut stream, 200, "OK", "audio/wav", &wav),
+                    Ok(wav) => respond_ranged(&mut stream, "audio/wav", &wav, range_header),
                     Err(e) => {
                         warn!("décodage audio {vfs_path} échoué : {e}");
                         respond_text(&mut stream, 500, "Internal Server Error",
@@ -1819,7 +1890,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                         };
                         info!("USM {} démuxé : {} frames, {}B",
                             vfs_path, result.frame_count, body.len());
-                        respond(&mut stream, 200, "OK", ct, &body);
+                        respond_ranged(&mut stream, ct, &body, range_header);
                     }
                 }
             }

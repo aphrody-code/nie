@@ -102,3 +102,24 @@ implémenter au jugé, cohérents avec les tokens ci-dessus.
 Sources : m3.material.io — window-size-classes, canonical-examples/list-detail, components/{lists,
 cards,navigation-rail,top-app-bar,toolbars}/specs, foundations/interaction/states/state-layers,
 styles/{color/roles,elevation}.
+
+## Références file-manager externes (patterns à reprendre)
+
+| Projet | Stack / licence | Ce qu'on en retient |
+|---|---|---|
+| **COSMIC Files** (pop-os) | Rust / libcosmic·iced — **GPLv3** (patterns seulement, pas de code) | **Onglets** (plusieurs dossiers ouverts), sidebar + breadcrumb, toggle liste/grille, multi-sélection + actions par lot, menu contextuel, drag-drop, recherche+preview. → ajouter les **onglets** au plan. |
+| **Filebrowser** | Go + Vue, Material Design — **Apache-2.0** (réutilisable) | Valide notre archi : **abstraction VFS** (`/api/cpk`), **routing par content-type** (`CpkFilePreview` par `previewKind`), **liens partageables** (déjà via routes `/cpk/<path>`), **tri** (à ajouter), preview multi-format. |
+| **Bun File I/O** | `Bun.file()` lazy, `.stream()`, Blob `.slice()` | **Streaming + HTTP Range** pour gros fichiers → a motivé le **support Range / 206** côté `nie-model-serve` (ci-dessous). Côté azalee (Bun) : `Bun.file().stream()` pour tout service local. |
+
+### ✓ FAIT — HTTP Range (seek audio/vidéo)
+
+`nie-model-serve` honore désormais `Range: bytes=…` sur `/audio` et `/video` : **206 Partial
+Content** + `Content-Range` + `Accept-Ranges: bytes` (corps déjà décodé en mémoire → slice
+immédiat). Vérifié de bout en bout via le CDN. Débloque le **scrub de la timeline** vidéo/audio
+(avant : 200 complet, pas de seek).
+
+### Ajouts au plan
+
+8. **Onglets** de dossiers (COSMIC).
+9. **Tri** (nom / taille / date / type) + **liens partageables** explicites (Filebrowser).
+10. Service de fichiers local éventuel côté azalee : `Bun.file().stream()` + Range.
