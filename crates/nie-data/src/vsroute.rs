@@ -122,7 +122,7 @@ impl UnlockPieceInfo {
 /// déplacement d'une case vers les 4 diagonales (HautGauche/BasGauche/HautDroite/BasDroite).
 ///
 /// Vérité terrain : `m_pieceMoveRouteInfoList[1]`
-/// = `{moveRouteLU: 0, moveRouteLD: 0, moveRouteRU: 0x32A9A186, moveRouteRD: 0}`.
+/// = `{moveRouteLU: 0x009FC304, moveRouteLD: 0, moveRouteRU: 0x32A9A186, moveRouteRD: 0}`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PieceMoveRouteInfo {

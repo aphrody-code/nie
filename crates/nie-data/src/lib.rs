@@ -51,6 +51,7 @@ pub mod friendmap;
 pub mod gallery;
 pub mod growth;
 pub mod hash;
+pub mod help;
 pub mod input;
 pub mod item;
 pub mod light;
