@@ -32,6 +32,7 @@
 extern crate alloc;
 
 pub mod ai;
+pub mod aphrody;
 pub mod aura;
 pub mod banner;
 pub mod boost_grp;
