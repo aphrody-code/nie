@@ -632,6 +632,121 @@ pub fn cfgbin_parse_json(bytes: &[u8]) -> Result<String, String> {
     serde_json::to_string(&parsed).map_err(|e| e.to_string())
 }
 
+// ── cfg.bin -> structures de jeu TYPÉES (décodage natif in-browser) ─────────────
+// Reshape vers la forme iecode (`lists`/`entries`) puis dispatch `nie_data::typed`
+// (37 familles). Remplace côté navigateur la route serveur `/typed`.
+
+/// Octets bruts en hex MAJUSCULE (identique au dump iecode `defensePos`).
+fn nw_hex_upper(bytes: &[u8]) -> String {
+    use core::fmt::Write;
+    let mut s = String::with_capacity(bytes.len() * 2);
+    for b in bytes {
+        let _ = write!(s, "{b:02X}");
+    }
+    s
+}
+
+/// [`nie_formats::cfgbin::RdbnValue`] -> JSON, encodage identique iecode (hash `0x..`, blob hex MAJ).
+fn nw_rdbn_value_to_json(v: &nie_formats::cfgbin::RdbnValue) -> serde_json::Value {
+    use nie_formats::cfgbin::RdbnValue as R;
+    use serde_json::{json, Value};
+    match v {
+        R::Bool(b) => json!(b),
+        R::Byte(n) => json!(n),
+        R::Short(n) | R::ActType(n) => json!(n),
+        R::Int(n) | R::Flag(n) => json!(n),
+        R::Float(f) => json!(f),
+        R::Hash(h) => json!(format!("0x{h:08X}")),
+        R::Rates(a) | R::Position(a) => json!(a),
+        R::Condition(s) => json!(s),
+        R::ShortTuple(t) => json!(t),
+        R::Blob(b) => json!(nw_hex_upper(b)),
+        _ => Value::Null,
+    }
+}
+
+/// Liste de frères T2B -> forme iecode, avec réplication du suffixe d'index `<base>_<i>`
+/// d'iecode (exigé par `walk_named`) et variables `{type, value:"<string>"}`.
+fn nw_t2b_siblings(siblings: &[nie_formats::cfgbin::CfgEntry]) -> Vec<serde_json::Value> {
+    use nie_formats::cfgbin::Value as CfgValue;
+    use serde_json::{json, Value};
+    use std::collections::HashMap;
+    let mut counts: HashMap<&str, usize> = HashMap::new();
+    siblings
+        .iter()
+        .map(|e| {
+            let idx = counts.entry(e.name.as_str()).or_insert(0);
+            let name = format!("{}_{}", e.name, *idx);
+            *idx += 1;
+            let variables: Vec<Value> = e
+                .variables
+                .iter()
+                .map(|v| match v {
+                    CfgValue::String(s) => json!({ "type": "String", "value": s }),
+                    CfgValue::Int(n) => json!({ "type": "Int", "value": n.to_string() }),
+                    CfgValue::Float(f) => json!({ "type": "Float", "value": f.to_string() }),
+                })
+                .collect();
+            json!({ "name": name, "variables": variables, "children": nw_t2b_siblings(&e.children) })
+        })
+        .collect()
+}
+
+/// Décode un `cfg.bin` vers la forme iecode adaptée (RDBN `lists` ou T2B `entries`).
+fn nw_cfgbin_to_iecode(data: &[u8]) -> Option<serde_json::Value> {
+    use serde_json::{json, Map, Value};
+    if nie_formats::cfgbin::is_rdbn(data) {
+        let rdbn = nie_formats::cfgbin::parse(data).ok()?;
+        let lists = nie_formats::cfgbin::read_values(&rdbn, data);
+        let lists_json: Vec<Value> = lists
+            .iter()
+            .map(|l| {
+                let values: Vec<Value> = l
+                    .rows
+                    .iter()
+                    .map(|row| {
+                        let mut m = Map::new();
+                        for (name, val) in &row.fields {
+                            m.insert(name.clone(), nw_rdbn_value_to_json(val));
+                        }
+                        Value::Object(m)
+                    })
+                    .collect();
+                json!({ "name": l.name, "typeName": l.type_name, "values": values })
+            })
+            .collect();
+        Some(json!({ "lists": lists_json }))
+    } else {
+        let cfg = nie_formats::cfgbin::cfgbin_parse(data).ok()?;
+        Some(json!({ "entries": nw_t2b_siblings(&cfg.entries) }))
+    }
+}
+
+/// Impl partagée : `cfg.bin` brut + nom de fichier -> `{family, data}` (famille typée) ou
+/// `{family:null, key, generic}` (RDBN/T2B brut iecode).
+fn cfgbin_typed_json_impl(bytes: &[u8], filename: &str) -> Result<String, String> {
+    let root = nw_cfgbin_to_iecode(bytes).ok_or("cfg.bin non décodable (ni RDBN ni T2B)")?;
+    let key = nie_data::typed::family_key(filename);
+    let out = match nie_data::typed::decode_by_key(&key, &root) {
+        Some((family, data)) => serde_json::json!({ "family": family, "data": data }),
+        None => serde_json::json!({ "family": serde_json::Value::Null, "key": key, "generic": root }),
+    };
+    serde_json::to_string(&out).map_err(|e| e.to_string())
+}
+
+/// Décode un `cfg.bin` (octets bruts) en structure de jeu typée selon le nom de fichier.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn cfgbin_typed_json(bytes: &[u8], filename: &str) -> Result<String, JsValue> {
+    cfgbin_typed_json_impl(bytes, filename).map_err(|e| JsValue::from_str(&e))
+}
+
+/// Décode un `cfg.bin` typé (version native).
+#[cfg(not(target_arch = "wasm32"))]
+pub fn cfgbin_typed_json(bytes: &[u8], filename: &str) -> Result<String, String> {
+    cfgbin_typed_json_impl(bytes, filename)
+}
+
 
 /// Extrait la géométrie d'un fichier G4MG à l'aide des métadonnées G4MD fournies au format JSON.
 #[cfg(target_arch = "wasm32")]
