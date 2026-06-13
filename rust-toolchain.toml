@@ -2,6 +2,23 @@
 # ~/.rustup/toolchains/nightly-2026-05-17-x86_64-unknown-linux-gnu (rustup absent →
 # invoquer son cargo directement pour le natif). Le wasm32 std n'est dispo que dans
 # la toolchain `nightly-x86_64-unknown-linux-gnu` → l'utiliser pour `--target wasm32`.
+#
+# Décision toolchain (revue 2026-06-13, cf. docs/STACK.md § Toolchain) : CONSERVER ce pin.
+# Il satisfait déjà 100 % des MSRV de la stack runtime ciblée (edition 2024 ≥1.85 ;
+# wgpu 29 MSRV 1.87 ; winit 0.30.13 ; mlua 0.11.6 ; cpal 0.18.1 ; glam 0.33.1) — le
+# rustc 1.97.0-nightly est largement au-dessus. Aucun `#![feature(...)]` n'est utilisé :
+# la vraie raison du nightly est l'alignement écosystème aphrody (rustfmt instable), pas
+# les libs graphiques. La toolchain n'affecte JAMAIS les goldens byte/pixel (IEEE-754
+# déterministe, pas de fast-math) — un bump ne change que le hash binaire.
+#
+# Bump éventuel (NE PAS faire unilatéralement) : cible propre = nightly-2026-06-12.
+#   1) l'installer d'abord (absente de ce VPS au 2026-06-13) :
+#      rustup toolchain install nightly-2026-06-12 --profile minimal \
+#        --component rustfmt clippy rust-src rust-analyzer \
+#        --target x86_64-unknown-linux-gnu wasm32-unknown-unknown
+#   2) éditer EN LOCKSTEP, dans le MÊME commit, ce fichier ET
+#      ../aphrody/rust-toolchain.toml (dep path `aphrody-re` → desync sinon) ;
+#   3) reformat rustfmt + `cargo clippy -D warnings` dans un commit dédié.
 [toolchain]
 channel = "nightly-2026-05-17"
 components = ["rustfmt", "clippy", "rust-src", "rust-analyzer"]

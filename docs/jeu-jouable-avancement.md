@@ -2,6 +2,10 @@
 
 Synthèse des verdicts par crate (recoupement adversarial contre la vérité terrain : dumps réels `/home/ubuntu/niers/data`, parseurs TS `packages/inagle`, mirror SQLite azalee, C# décompilé `IECODE.Core`). Statut global : **3 crates buildent vert, tests passent**. 18 livrables FAIT / 4 INCOMPLET / 0 NON_FAIT. **4 hallucinations détectées**, toutes localisées à 2 livrables (chara-param, aura-cmd) + 1 en-tête bugué (nxtch).
 
+## Mise à jour 2026-06-13 — cap GUI native
+
+> Le **chemin central** vers le jeu jouable est désormais le host natif **`nie-game`** (pilier D1/C4, wgpu). État des crates depuis cette synthèse (mesuré 2026-06-13) : **`nie-data` 34 familles golden + 8 B2** ; **`nie-formats`** HCA décode + p3lip 20 357 fichiers + **fix cfgbin** (105 tests lib) ; **`nie-core`** match jouable + **CRand MT19937 byte-exact** (2026-06-10, 152 tests lib) ; **`nie-engine`** 15 070 LOC / 434 `// EXTERN:`. Les verdicts détaillés ci-dessous **restent valables** pour les livrables qu'ils couvrent (historique conservé). Stack runtime : `docs/STACK.md` ; inventaire complet : `docs/INVENTAIRE.md`.
+
 ---
 
 ## nie-core — 7/7 FAIT
@@ -68,14 +72,20 @@ Fichiers : `crates/nie-formats/src/`.
 
 ## Reste à faire (correctifs prioritaires)
 
+> **MAJ** : les correctifs P0 `chara-param` (pairing level-first) et `aura-cmd` (61/1548, vrai whs01780) ont été **clos le 2026-06-10** ; le **fix cfgbin overflow** (`parse_t2b`) l'a été le **2026-06-13** (commit `7f3e09c`). Voir `PLAN.md` / `INVENTAIRE.md`. La liste ci-dessous reste l'historique du verdict initial.
+
 1. **nie-data / chara-param** (P0 — donnée fausse) : inverser le pairing vers « level-first » (skill@11 impair → niveau@10 pair), conforme au commit inagle 07ee6ce. Corriger/retirer le test `lecture_level_first_serait_fausse` qui entérine la mauvaise valeur. Valider 0x240BEDF2 → learnLevel 0 et 0x5EDD8114 → level 1/13 via mirror SQLite prod.
 2. **nie-formats / g4tx-deswizzle-nxtch** (P0 — bug latent) : recaler les offsets de `parse_header` sur la struct C# `NxtchHeader` (Width@0x14, Height@0x18, Format@0x24, MipMapCount@0x28, TextureDataSize2@0x2C) et ajouter un test à valeurs réelles. Retirer le doc-comment mensonger.
 3. **nie-data / aura-cmd** (P1 — conclusion fausse) : corriger le bun-check (comparer skillID en hex, pas décimal), remplacer la claim « 0/1549 → None » par « 61/1548 résolvent », et baser le test positif sur le vrai whs01780 au lieu d'un skill synthétique.
 4. **nie-formats / g4sk-skeleton** (P2) : résoudre la hiérarchie d'os sur un g4sk ≥ 0x1000 (heuristique actuelle ne déclenche jamais sur les fichiers disponibles).
 
+## nie-game — host natif wgpu (pilier D1/C4)
+
+**FAIT (2026-06-13, squelette de pipeline)** : capture PNG hors-écran **bit-exacte** (`Rgba8Unorm`/`Nearest`/sans sRGB, readback aligné 256 o) + fenêtre (`ApplicationHandler`), rend une **vraie texture `.g4tx`** décodée RGBA8 (vérifié sur `soccer00_01.g4tx` 352×148). Le bug pré-existant `cfgbin.rs:693` rencontré au montage VFS a été **corrigé** (commit `7f3e09c`) ; le repli scan-CPK-direct reste en place par robustesse. **Reste** : bump wgpu 22→29 + pipeline shaders/transforms (retarget `nie-engine/render.rs`) + gate SSIM.
+
 ## Prochains livrables prioritaires (vers le jeu jouable)
 
-- **Câblage runtime** : relier nie-core (FSM match + slots d'action + effets de commande) à nie-data (stats/skills/auras corrigés) dans une boucle de simulation de match jouable.
-- **Modèle d'équipe / formation** : exploiter `command-effect-slots` (TeamBuild, SpecialTactics) déjà mappés pour assembler une équipe complète.
-- **Pipeline d'assets visuels** : une fois nxtch recalé, chaîner g4tx→g4md→g4mg→g4sk pour produire des meshes texturés (rendu personnages).
-- **Validation bout-en-bout** : un test golden de match complet (kickoff → score min*10000+sec → fin) recoupant le C décompilé.
+- **Rendu natif pixel-perfect (pilier D1, CHEMIN CENTRAL)** : `nie-game` bump **wgpu 22→29**, gate pixel-diff (**image-compare SSIM ≥ 0,99 + égalité octet sha2/blake3**), port des transforms du compositor menu (`nie-engine/render.rs`), **Lua réel** via crate `nie-lua` (`mlua` `lua52` vendored). Détail : `docs/STACK.md`.
+- **Skinning g4sk + animations (D2)** : port maison f32 scalaire + glam `scalar-math` (pas d'ozz) → modèles animés rendus.
+- **Validation bout-en-bout** : test golden d'un match complet (kickoff → score `min*10000+sec` → fin) recoupant le C décompilé — *la boucle `simulate_match` pilotée par les vraies données est déjà FAIT (cf. PLAN §3)*.
+- **Compagnon (secondaire)** : export des familles portées vers azalee (`/typed`, `export_*`) — livré, maintenu, mais **plus le cap**.
