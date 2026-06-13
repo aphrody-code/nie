@@ -878,6 +878,21 @@ pub fn g4pk_parse_json(bytes: &[u8]) -> Result<String, String> {
     serde_json::to_string(&g4pk).map_err(|e| e.to_string())
 }
 
+/// Décode une piste de lip-sync `.p3lip` (visèmes datés) en JSON, in-browser.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn lip_to_json(bytes: &[u8]) -> Result<String, JsValue> {
+    let lip = nie_formats::lip::parse(bytes).map_err(|e| JsValue::from_str(&e.to_string()))?;
+    serde_json::to_string(&lip).map_err(|e| JsValue::from_str(&e.to_string()))
+}
+
+/// Décode une piste de lip-sync `.p3lip` (version native).
+#[cfg(not(target_arch = "wasm32"))]
+pub fn lip_to_json(bytes: &[u8]) -> Result<String, String> {
+    let lip = nie_formats::lip::parse(bytes).map_err(|e| e.to_string())?;
+    serde_json::to_string(&lip).map_err(|e| e.to_string())
+}
+
 // ── Modèle 3D g4md+g4mg -> GLB (assemblé NATIVEMENT in-browser) ────────────────
 
 /// Assemble un modèle générique (paire G4MD + G4MG) en **GLB** (géométrie, glTF binaire).
@@ -949,8 +964,12 @@ fn nw_awb_first_entry(data: &[u8]) -> Result<Vec<u8>, String> {
         return Err("AWB sans entrée".into());
     }
     let subkey = awb.subkey;
-    for entry in &awb.entries {
-        let ed = awb.entry_bytes(data, entry);
+    // Entrée la plus volumineuse d'abord : pour une banque de voix, la 1re entrée est souvent
+    // un court grognement, la plus grosse une vraie réplique (cf. nie-model-serve /audio).
+    let mut order: Vec<usize> = (0..awb.entries.len()).collect();
+    order.sort_by_key(|&k| core::cmp::Reverse(awb.entry_bytes(data, &awb.entries[k]).len()));
+    for k in order {
+        let ed = awb.entry_bytes(data, &awb.entries[k]);
         if ed.is_empty() {
             continue;
         }
