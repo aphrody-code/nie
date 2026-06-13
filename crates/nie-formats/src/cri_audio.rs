@@ -510,25 +510,6 @@ const USM_STMID_CRID: u32 = 0x4352_4944; // "CRID"
 const USM_STMID_SFV: u32  = 0x4053_4656; // "@SFV"
 const USM_STMID_SFA: u32  = 0x4053_4641; // "@SFA"
 
-/// Types de chunks USM.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum UsmChunkType {
-    Header = 0,
-    Stream = 1,
-    End    = 2,
-    Other,
-}
-
-impl UsmChunkType {
-    fn from_u8(v: u8) -> Self {
-        match v {
-            0 => Self::Header,
-            1 => Self::Stream,
-            2 => Self::End,
-            _ => Self::Other,
-        }
-    }
-}
 
 /// Codec vidéo détecté dans le flux @SFV.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -592,7 +573,7 @@ pub fn usm_demux(data: &[u8]) -> Result<UsmResult, FormatError> {
     let mut video_codec = VideoCodec::Unknown;
     let width = 0u32;
     let height = 0u32;
-    let mut frame_rate = 0u32;
+    let frame_rate = 0u32;
     let mut frame_count = 0u32;
 
     let mut pos = 0usize;
@@ -605,50 +586,37 @@ pub fn usm_demux(data: &[u8]) -> Result<UsmResult, FormatError> {
             break;
         }
 
-        if data_size >= 20 {
-            let chunk_type = UsmChunkType::from_u8(data[pos + 11]);
-            let blk_frame_rate = read_u32_be(data, pos + 16);
-            let data_offset = if data_size >= 20 {
-                read_u16_be(data, pos + 24) as usize
-            } else {
-                0x1c
-            };
-            let padding = if data_size >= 20 {
-                read_u16_be(data, pos + 26) as usize
-            } else {
-                0
-            };
+        // En-tête de bloc CRI USM (Sofdec2) : `data_offset` u8 @0x09 (depuis 0x08),
+        // `padding` u16 BE @0x0A, `channel` u8 @0x0C, `block_type` u8 @0x0F
+        // (0 = données, 1 = header, 2 = fin de section, 3 = métadonnées/seek). Le flux
+        // H.264 Annex-B (AUD + SPS + PPS + slices) vit dans les blocs `type == 0`.
+        if data_size >= 0x18 {
+            let data_offset = data[pos + 0x09] as usize;
+            let padding = read_u16_be(data, pos + 0x0A) as usize;
+            let channel_no = data[pos + 0x0C] as usize;
+            let block_type = data[pos + 0x0F];
 
-            // Offset effectif du payload depuis le début du bloc
-            let eff_offset = if data_offset >= 8 { data_offset } else { 0x1c };
-            let payload_start_abs = pos + eff_offset;
-            let payload_avail = block_total.saturating_sub(eff_offset).saturating_sub(padding);
+            let payload_start_abs = pos + 8 + data_offset;
+            let payload_avail = data_size.saturating_sub(data_offset).saturating_sub(padding);
 
-            if chunk_type == UsmChunkType::Stream && payload_avail > 0
+            if block_type == 0
+                && payload_avail > 0
                 && payload_start_abs + payload_avail <= data.len()
             {
                 let payload = &data[payload_start_abs..payload_start_abs + payload_avail];
 
                 if stmid == USM_STMID_SFV {
-                    // Détection du codec au premier frame non-nul
-                    if video_codec == VideoCodec::Unknown && payload.len() >= 8 {
-                        // H.264 : commence typiquement par 8 octets nuls puis start-code 0x00000001
-                        if payload.get(4..8) == Some(b"\x00\x00\x00\x01")
-                            || payload.get(8..12) == Some(b"\x00\x00\x00\x01")
-                        {
-                            video_codec = VideoCodec::H264;
+                    if video_codec == VideoCodec::Unknown && payload.len() >= 5 {
+                        // H.264 Annex-B : start-code `00 00 00 01` en tête de bloc.
+                        video_codec = if payload.starts_with(&[0, 0, 0, 1]) {
+                            VideoCodec::H264
                         } else {
-                            video_codec = VideoCodec::Vp9;
-                        }
-                    }
-                    if blk_frame_rate > 0 && frame_rate == 0 {
-                        frame_rate = blk_frame_rate;
+                            VideoCodec::Vp9
+                        };
                     }
                     video_data.extend_from_slice(payload);
                     frame_count += 1;
                 } else if stmid == USM_STMID_SFA {
-                    // Détermine le numéro de piste audio depuis r01 (channel_no)
-                    let channel_no = read_u16_be(data, pos + 8) as usize;
                     while audio_tracks.len() <= channel_no {
                         audio_tracks.push(Vec::new());
                     }
