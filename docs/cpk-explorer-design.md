@@ -91,13 +91,18 @@ implémenter au jugé, cohérents avec les tokens ci-dessus.
 
 ## Plan d'implémentation (priorisé)
 
-1. `bun add react-arborist` ; composant `CpkTree` virtualisé + lazy `onToggle` → `/api/cpk`.
-2. Layout 2-panes (expanded) / 3-panes (large) list-detail ; nav rail `surface container`.
-3. Classe utilitaire `state-layer` (8/10/16 %) réutilisable ; sélection `primary container`.
-4. Toggle liste/grille (segmented) ; vue grille = elevated cards 12dp `surface container low`.
-5. Branche `CpkFilePreview` dans le supporting pane (détails + preview wasm).
-6. Search app bar + floating toolbar de multi-sélection.
-7. Icônes typées par extension + breadcrumb (text buttons).
+1. ✓ **FAIT** — `react-arborist` installé ; `CpkTree` virtualisé + lazy `onToggle` → `/api/cpk`
+   (`lib/cpk/tree.ts` : nœuds lazy, sentinelle `__loading__`, `fetchChildren`/`setChildren`).
+2. ✓ **FAIT** — `CpkExplorer` 2-panes list-detail ; nav rail `surface container`, détail `surface` ;
+   page `/cpk` rend l'explorateur (deep-link `/cpk/<path>` → preview + sync URL `history`).
+3. ✓ **FAIT** (partiel) — sélection `primary container` / `on primary container` ; hover state-layer
+   `on-surface/8 %`. (Focus 10 % / drag 16 % : à compléter.)
+5. ✓ **FAIT** — `CpkFilePreview` branché dans le panneau détail (viewers wasm natifs).
+7. ✓ **FAIT** (partiel) — icônes typées par extension (`nodeIcon`) + breadcrumb text-buttons.
+   Reste : auto-scroll/reveal de l'arbre jusqu'au fichier deep-linké (ref `TreeApi.scrollTo`).
+4. **TODO** — toggle liste/grille (segmented) ; vue grille = elevated cards 12dp `surface container low`.
+6. **TODO** — search app bar + floating toolbar de multi-sélection.
+8. **TODO** — onglets (cosmic-files) ; tri nom/taille/date (filebrowser).
 
 Sources : m3.material.io — window-size-classes, canonical-examples/list-detail, components/{lists,
 cards,navigation-rail,top-app-bar,toolbars}/specs, foundations/interaction/states/state-layers,
