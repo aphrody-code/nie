@@ -281,15 +281,21 @@ impl Vfs {
 
         let (reader, cpk_bytes) = &*reader_arc;
         
-        // Trouver l'entrée CPK par nom de fichier : match exact prioritaire, puis repli
-        // insensible à la casse — l'index supplémentaire (scan azalee) abaisse la casse
-        // des chemins, alors que la TOC CPK garde la casse d'origine (`Chronicle_Title_CN_01.usm`).
+        // Trouver l'entrée CPK : on matche le CHEMIN COMPLET (`directory/filename`) en
+        // priorité — sinon les fichiers de même nom de base dans des dossiers différents du
+        // MÊME cpk (ex. `common/text/fr/skill_text.cfg.bin` vs `.../de/...`, `.../ja/...`)
+        // collisionnent et on sert toujours le premier (bug de langue). Repli sur le basename
+        // (exact puis insensible à la casse) pour l'index supplémentaire dont le scan azalee
+        // abaisse la casse des chemins (TOC CPK : casse d'origine `Chronicle_Title_CN_01.usm`).
         let filename = internal_path.split('/').next_back().unwrap_or(internal_path);
+        let full_path = |e: &crate::cpk::CpkEntry| format!("{}/{}", e.directory, e.filename);
 
         let cpk_entry = reader
             .entries
             .iter()
-            .find(|e| e.filename == filename)
+            .find(|e| full_path(e) == internal_path)
+            .or_else(|| reader.entries.iter().find(|e| full_path(e).eq_ignore_ascii_case(internal_path)))
+            .or_else(|| reader.entries.iter().find(|e| e.filename == filename))
             .or_else(|| reader.entries.iter().find(|e| e.filename.eq_ignore_ascii_case(filename)))
             .ok_or(FormatError::Corrupt("fichier non trouve dans le CPK"))?;
 
