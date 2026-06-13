@@ -1062,27 +1062,38 @@ const CHR_GENERIC_SUBS: &[&str] = &["waza", "item", "animal", "armd", "keshin"];
 /// Assemble un modèle générique d'un sous-domaine `common/chr/_<sub>/<code>/<code>.g4md|.g4mg`.
 ///
 /// Couvre les modèles non liés à un personnage : techniques (`_waza`), objets 3D (`_item`),
-/// animaux (`_animal`). Maillage + matériaux résolus depuis le G4MD ; pas de texture embarquée
-/// (même rendu que keshin/armures). Échoue (404 côté HTTP) si la paire g4md+g4mg est absente.
+/// animaux (`_animal`). Le **G4MD peut être absent en fichier libre** : pour les modèles de
+/// cut-in (`_waza`), il est empaqueté dans le `.g4pkm` voisin — on l'en extrait alors. La
+/// **texture** `dx11/chr/_<sub>/<code>/<code>.g4tx` est embarquée si présente (rendu texturé).
+/// Échoue (404 côté HTTP) si le G4MG ou le G4MD restent introuvables.
 fn assemble_chr_generic(state: &State, sub: &str, code: &str) -> Result<GlbBytes> {
     if !CHR_GENERIC_SUBS.contains(&sub) {
         bail!("sous-domaine chr non servable : {sub}");
     }
     let g4md_path = format!("data/common/chr/_{sub}/{code}/{code}.g4md");
     let g4mg_path = format!("data/common/chr/_{sub}/{code}/{code}.g4mg");
+    let g4pkm_path = format!("data/common/chr/_{sub}/{code}/{code}.g4pkm");
 
     let (g4md, g4mg) = {
         let vfs = state.vfs.lock().unwrap();
-        let g4md = vfs
-            .read(&g4md_path)
-            .with_context(|| format!("G4MD {g4md_path}"))?;
         let g4mg = vfs
             .read(&g4mg_path)
             .with_context(|| format!("G4MG {g4mg_path}"))?;
+        // G4MD libre, sinon extrait du g4pkm (cas des modèles waza).
+        let g4md = match vfs.read(&g4md_path) {
+            Ok(b) => b,
+            Err(_) => {
+                let pkm = vfs
+                    .read(&g4pkm_path)
+                    .with_context(|| format!("ni G4MD libre ni g4pkm pour {sub}/{code}"))?;
+                extract_g4md_from_g4pkm(&pkm)
+                    .with_context(|| format!("G4MD absent du g4pkm {g4pkm_path}"))?
+            }
+        };
         (g4md, g4mg)
     };
 
-    let model = assemble_generic_model(GenericModelInput {
+    let mut model = assemble_generic_model(GenericModelInput {
         code: code.to_string(),
         g4md,
         g4mg,
@@ -1090,7 +1101,37 @@ fn assemble_chr_generic(state: &State, sub: &str, code: &str) -> Result<GlbBytes
     })
     .with_context(|| format!("assemblage {sub}/{code}"))?;
 
+    // Texture du cut-in (dx11/chr/_<sub>/<code>/<code>.g4tx) → embarquée.
+    let g4tx_path = format!("data/dx11/chr/_{sub}/{code}/{code}.g4tx");
+    let g4tx = {
+        let vfs = state.vfs.lock().unwrap();
+        vfs.read(&g4tx_path).ok()
+    };
+    if let Some(png_bytes) = g4tx.as_deref().and_then(decode_best_g4tx_to_png) {
+        model.embedded_textures.push(EmbeddedTexture {
+            component: MeshComponent::Generic,
+            name: format!("{code}_{sub}"),
+            png_bytes,
+        });
+        return Ok(model.to_glb_embedded());
+    }
+
     Ok(model.to_glb())
+}
+
+/// Extrait les octets du premier fichier `.g4md` d'une archive `.g4pkm` (paquet de modèle waza).
+fn extract_g4md_from_g4pkm(pkm: &[u8]) -> Result<Vec<u8>> {
+    let pk = nie_formats::g4pk::parse(pkm).context("parse g4pkm")?;
+    let f = pk
+        .files
+        .iter()
+        .find(|f| f.name.ends_with(".g4md"))
+        .context("aucun .g4md dans le g4pkm")?;
+    let end = f.offset + f.size;
+    if end > pkm.len() {
+        bail!("entrée g4md hors limites du g4pkm");
+    }
+    Ok(pkm[f.offset..end].to_vec())
 }
 
 // ── Décodage audio ─────────────────────────────────────────────────────────────
@@ -1201,31 +1242,51 @@ fn decode_audio_to_wav(raw: &[u8], vfs_path: &str) -> anyhow::Result<Vec<u8>> {
 /// La sous-clé AWB (`awb.subkey`, u16 LE à l'offset `0x0E` de l'en-tête AFS2)
 /// est propagée à `hca_decode_to_pcm16` pour le déchiffrement IEVR (`ciph_type=56`).
 fn decode_awb_first_entry(data: &[u8], vfs_path: &str) -> anyhow::Result<Vec<u8>> {
-    let awb = Awb::parse(data)
-        .map_err(|e| anyhow::anyhow!("AWB parse: {e}"))?;
+    decode_awb_entry(data, vfs_path, None)
+}
 
+/// Décode **une** entrée d'un AWB en WAV. `which` = index d'entrée (`?cue=N`) ; par défaut
+/// (`None`), choisit l'entrée la **plus volumineuse** — pour une banque de voix, la première
+/// entrée est souvent un court grognement, alors que la plus grosse est une vraie réplique.
+fn decode_awb_entry(data: &[u8], vfs_path: &str, which: Option<usize>) -> anyhow::Result<Vec<u8>> {
+    let awb = Awb::parse(data).map_err(|e| anyhow::anyhow!("AWB parse: {e}"))?;
     if awb.entries.is_empty() {
         anyhow::bail!("AWB {vfs_path} sans entrée");
     }
-
-    // La sous-clé est commune à toutes les entrées HCA du même fichier AWB.
     let subkey = awb.subkey;
 
-    for entry in &awb.entries {
+    // Ordre d'essai : l'index demandé en premier, sinon par taille décroissante.
+    let mut order: Vec<usize> = (0..awb.entries.len()).collect();
+    match which {
+        Some(i) if i < awb.entries.len() => {
+            order.retain(|&k| k != i);
+            order.insert(0, i);
+        }
+        Some(i) => anyhow::bail!("cue {i} hors limites ({} entrées)", awb.entries.len()),
+        None => order.sort_by_key(|&k| {
+            core::cmp::Reverse(awb.entry_bytes(data, &awb.entries[k]).len())
+        }),
+    }
+
+    for k in order {
+        let entry = &awb.entries[k];
         let entry_data = awb.entry_bytes(data, entry);
         if entry_data.is_empty() {
             continue;
         }
         if is_hca(entry_data) {
-            let (samples, channels, sample_rate) =
-                hca_decode_to_pcm16(entry_data, subkey)
-                    .map_err(|e| anyhow::anyhow!("HCA decode entrée cue={}: {e}", entry.cue_id))?;
+            let (samples, channels, sample_rate) = hca_decode_to_pcm16(entry_data, subkey)
+                .map_err(|e| anyhow::anyhow!("HCA decode entrée cue={}: {e}", entry.cue_id))?;
             return Ok(encode_pcm16_wav(&samples, channels, sample_rate));
         }
         if is_adx(entry_data) {
             let pcm = adx_decode(entry_data)
                 .map_err(|e| anyhow::anyhow!("ADX decode entrée cue={}: {e}", entry.cue_id))?;
             return Ok(encode_pcm16_wav(&pcm.samples, pcm.channels, pcm.sample_rate));
+        }
+        // Si une cue précise a été demandée et n'est pas décodable, on n'essaie pas les autres.
+        if which.is_some() {
+            anyhow::bail!("cue {k} non décodable (ni HCA ni ADX)");
         }
     }
 
