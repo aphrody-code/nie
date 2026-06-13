@@ -23,6 +23,11 @@ Le verrou stratégique : **C5 (RE) est un moyen, pas la fin.** 92 % classé ≠ 
 des sous-systèmes qu'on porte. Donc la priorité bascule de « monter le % de classification » vers
 « nommer + porter par sous-système ».
 
+Le chemin **opérationnel** vers le jeu jouable passe désormais par la **GUI native** (crate `nie-game`,
+host wgpu, pilier D1/C4) : c'est la **pointe active**. Le pont **azalee** (pilier B′) redevient un
+**compagnon web secondaire** (livré, plus le cap). Détail de la stack runtime : `docs/STACK.md` ;
+inventaire mesuré par pilier : `docs/INVENTAIRE.md`.
+
 ## 2. Théorie de la victoire (pourquoi c'est atteignable, et comment on le prouve)
 
 1. **La vérité terrain existe et est triple** : iecode (C# .NET, formats + engine partiellement reversés),
@@ -55,7 +60,9 @@ des sous-systèmes qu'on porte. Donc la priorité bascule de « monter le % de c
   - *Non-data (assets/système, hors C2-données)* : font, motion, movie, live2d, staffroll, debug, common, data_file, nfc, w17, inacode, menu (rendu). Le dénominateur « 58 » est donc large ; ~40 sont de vraies familles de données.
 - **B3** : moteur de calcul dérivé (stats finales, formations, bonus d'équipe) recoupé inagle au bit.
 
-### Pilier B′ — Pont azalee : livrer la donnée portée à l'app web compagnon (objectif de valeur)
+### Pilier B′ — Pont azalee : compagnon web secondaire (livré — n'est plus le cap)
+> **Reprioritisé 2026-06-13** : valeur réelle livrée (route `/typed` 37 familles, `export_formations`/`export_passives`, explorateur CPK refondu), mais le **cap opérationnel est désormais D1 natif** (`nie-game`/wgpu). Ce pilier reste maintenu comme compagnon, pas comme tête de pont.
+
 **Rappel de cap (2026-06-12)** : porter une famille avec golden ne sert à rien tant que la donnée
 n'atteint pas **azalee** (`rg/apps/azalee`, proxifiée `cdn.rosegriffon.fr`). azalee lit le **miroir
 SQLite/Supabase** (67 tables `inagle_*`, peuplées par le pipeline TS inagle) + quelques **JSON plats**
@@ -102,10 +109,13 @@ lecture live mais pas l'écriture miroir/SSG. Mapping pages↔familles : `/galle
 - **C1bis (FAIT 2026-06-10)** : **PRNG `lives::CRand` porté BYTE-EXACT** (`crate::crand`, MT19937 32-bit) — décompilé via Ghidra (`docs/recherche-modele-match-decompile.md`), validé contre le vecteur de référence MT19937 (graine 5489). Remplace le Splitmix64 nominal. **Découverte structurante** : la vraie résolution de match n'est PAS une formule inline mais **event-driven (IDs hachés) + data-driven (cfg.bin)** → le modèle de but de `match_sim` reste nominal, à reconstruire depuis le système d'événements (`FUN_1412C0970`, prochaine cible RE).
 - **C3** : itérer C2 sur menu / physics(PhysX) / network / script jusqu'à couverture fonctionnelle.
 
-### Pilier D — Rendu (C4) → pixel-perfect
-- **D0 (FAIT partiel)** : assemblage GLB statique (corps+face+uniforme texturés), servi par nie-model-serve.
-- **D1** : pipeline GPU **wgpu/webgpu** portant les shaders et la math de transform du moteur (le menu compositor révèle déjà des transforms à reverser). *Gate : Δpixel borné (SSIM ≥ 0,99) vs capture du jeu sur scènes-test menu.*
-- **D2** : skinning g4sk + animations → modèles animés. *Gate : pose identique sur frame-test.*
+### Pilier D — Rendu (C4) → pixel-perfect — **LA POINTE ACTIVE**
+- **D0 (FAIT partiel)** : assemblage GLB statique (corps+face+uniforme texturés), servi par nie-model-serve, **ET rendu par le host natif `crates/nie-game`** (wgpu 22 + winit 0.30, modes `--capture` PNG headless / `--window`, rend une vraie texture `.g4tx` décodée RGBA8, readback aligné 256 o **déjà bit-exact**, 1 180 LOC).
+- **D1 — CHEMIN CENTRAL** : bump **wgpu 22→29.0.3** (+ winit 0.30.13, pollster 0.4 — migration vérifiée point par point dans `STACK.md`) et **retarget du port D3D11** `nie-engine/src/render.rs` (`FUN_14045ab10`/`c780`/`459110`/`459210`) vers `wgpu::Surface` + le pipeline plein écran déjà écrit dans `nie-game`. *Gate pixel-diff à deux étages : **égalité octet** (sha2/blake3 du RGBA8 dé-paddé) PUIS **SSIM ≥ 0,99 / PSNR** (image-compare) vs capture du jeu sur scènes-test menu.*
+- **D-audio** : `cpal 0.18.1` en **pur transport**, mixeur **CRI Atom Ex maison** (`nie-engine/src/audio.rs`), PCM depuis `cridecoder`. *Gate : PCM bit-identique à CRI.*
+- **D-vidéo** : `media-codec-vpx 0.8` (**VP9**, le décodeur du jeu) — **CORRIGER** l'étiquetage H.264 faux (`cri_audio.rs` / `cartographie-data.md` ; `nie.exe` n'a **aucun** chemin H.264). Prérequis : déchiffrement Level-5 des USM avant `usm_demux`. *Gate : YUV→RGBA via la matrice CRI Mana.*
+- **D-lua** : **VM Lua réelle** via crate `nie-lua` (`mlua =0.11.6`, `lua52`+`vendored` = PUC-Rio 5.2.4, la VM exacte du jeu) en remplacement du simulateur de dispatch de `scripting.rs`. *Gate : scripts gameplay déterministes identiques.*
+- **D2** : skinning g4sk + animations → modèles animés (**port maison f32 scalaire + glam `scalar-math`**, pas d'ozz). *Gate : pose identique sur frame-test.*
 - **D3** : scène de match rendue. *Gate : SSIM sur séquence de match.*
 
 ### Pilier E — RE / échafaudage (C5) → nommer, pas seulement classer
@@ -127,8 +137,8 @@ orchestrer agents code + recherche → **vérifier (build + clippy -D warnings +
 - **Vague 6 — FAIT** : match piloté par les **vraies données** — `with_formation` (placements byte-exacts) + `from_chara_params_and_levels` (stats réelles via croissance, mapping position tranché par iecode) ; +3 familles C2 (formation, command, ai), 4→7/58.
 
 **Vagues suivantes** :
-- **Vague 7** : E2 complet (ré-export Ghidra aligné → vrais symboles) ; B2 (familles `team`/`soccer`/`party`/`phase` → enrichir le match) ; C2-logique (résorber les EXTERN par sous-système).
-- **Vague 8+** : longue traîne — B2 (51 familles), D1–D3 (rendu wgpu pixel-perfect), modèle de but/PRNG réels (RE), nettoyage décodeur HCA déprécié.
+- **Vague 7 (cap actuel)** : **D1 natif** — bump wgpu 29 + retarget `render.rs` + **premier rendu d'une scène menu avec gate pixel-diff (SSIM + égalité octet)** ; puis B2 (familles `team`/`soccer`/`party`/`phase` → enrichir le match) ; C2-logique (résorber les EXTERN par sous-système) ; E2 complet (ré-export Ghidra aligné → vrais symboles).
+- **Vague 8+** : longue traîne — **D2 skinning g4sk** (port maison + glam scalaire) puis **D3 scène de match rendue** ; D-lua (mlua) / D-audio (cpal) / D-vidéo (libvpx VP9) ; B2 (familles restantes), modèle de but/PRNG réels (RE), nettoyage décodeur HCA déprécié.
 
 **Heartbeat RE de fond** (`var/re-heartbeat.log`, PID dans `var/re-heartbeat.pid`) : rejoue le vrai pipeline
 `.pdata→vtable[+ancrage+nommage]→disasm[+lea]→propagate` sur binary_id=2 et logue la couverture réelle ;
@@ -144,10 +154,14 @@ suivait le mauvais binaire id=1 à 88 % — remplacée.)
 C1 fichiers lisibles : 84,06 %  →  84,06 % +audio✓   100 %
 C2 familles données  : 4/58     →  31/58 (réel byte) 58/58
 C3 fn logique portées: ~55      →  ~56 +match(vraies données)+CRand MT19937 byte-exact  sous-systèmes fonctionnels
-C4 rendu SSIM        : —         →  —                 ≥0,99 sur scènes-test
+C4 rendu SSIM        : —         →  — (host en place)  ≥0,99 sur scènes-test
 C5 classé            : 92,45 %   →  93,36 %           croissant (lever suivant : pointeurs absolus .rdata)
 C5 nommé             : 0         →  6 429 (12,18 %)   croissant (structurel → puis symboles PDB/Ghidra)
 ```
+
+> **Notes de reconciliation (2026-06-13)** :
+> - **C1** : la métrique officielle reste **84,06 %** (2026-06-10) ; `docs/cartographie-data.md` mesure **92,6 %** après l'ajout de p3lip (20 357 fichiers lip-sync) — à reconcilier en métrique officielle, sans effacer le 84,06 %.
+> - **C4** : le **host natif `nie-game`** est **en place** (2026-06-13, rend une vraie `.g4tx`, capture PNG bit-exacte) ; le pipeline shaders/transforms + la gate SSIM = **D1, à venir** (cap de la Vague 7). Aucune mesure SSIM encore.
 
 ## 6. Honnêteté (le cadre, pas une excuse)
 
