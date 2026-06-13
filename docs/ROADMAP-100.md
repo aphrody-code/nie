@@ -70,10 +70,23 @@ niers apporte une valeur UNIQUE sur trois leviers :
 - **B′3 — Industrialiser l'export** : un binaire `export_<famille>` (std+serde) par famille livrable →
   JSON schéma stable dans `apps/azalee/data/`, consommé par la page correspondante. *Gate : le JSON
   généré se charge dans azalee et la page rend la vraie donnée.*
-- **Livrable phare (en cours)** : `export_formations` → `apps/azalee/data/formations-full.json` (115
-  formations + positions des 11 joueurs), branché sur `/equipe`/`/tactic`. Mapping pages↔familles :
-  `/gallery`↔gallery, `/succes`↔trophy, `/quete`↔quest, `/capsule`↔capsule, `/boutique`↔shop,
-  `/passive`↔passives (FAIT), `/equipe`↔formation+team.
+
+**LIVRÉ (2026-06-13) — pont générique `/typed` + explorateur CPK refondu.** Plutôt qu'un binaire
+d'export par famille, la route `nie-model-serve GET /typed/<vfs>.json` décode N'IMPORTE quel cfg.bin
+live en structures typées nie-data (dispatch par nom de fichier, **37 familles**, RDBN-`lists` +
+T2B-`entries`). Vérifié byte-exact live : formation (115, coords f32), mission (`msa999999`), aura
+(387), item (4153), skill (1001), chara_param (6148). Détails dans `nie-model-serve/src/main.rs`
+(`cfgbin_to_iecode_root`, `cfgbin_to_t2b_iecode_root` qui réplique le suffixe `<base>_<i>` d'iecode,
+`typed_decode`) ; `/cfg` rendu lossless (Blob -> hex MAJ). **nginx** : bloc `location ^~ /typed/`
+ajouté à `/etc/nginx/conf.d/cdn.rosegriffon.conf` (proxy 8790, **hors git** — re-vérifier après tout
+redéploiement nginx). **azalee** : explorateur `/cpk` refondu en vrais viewers
+(`app/cpk/Cpk{ConfigViewer,FormationViewer,JsonTree,HexViewer}.tsx` + `lib/cpk/shared.ts::cpkTypedUrl`) ;
+`CpkFormationViewer` = terrain interactif 11 joueurs aux coords f32 réelles → **remplace B′2**
+(positions CSS codées en dur de `lib/formations.ts`). Lien modèle `/model` mort -> `/model-full` réel.
+Reste B′1 : peupler les **tables miroir** `inagle_*` (lecture serveur d'azalee) ; `/typed` couvre la
+lecture live mais pas l'écriture miroir/SSG. Mapping pages↔familles : `/gallery`↔gallery,
+`/succes`↔trophy, `/quete`↔quest, `/capsule`↔capsule, `/boutique`↔shop, `/passive`↔passives (FAIT),
+`/equipe`↔formation+team.
 
 ### Pilier C — Logique moteur (C3) → résoudre la longue traîne par sous-système
 - **C0 (FAIT, îlots)** : nie-core (FSM match, effets, action-ctrl, stats — 126 tests) ; nie-engine (~55 fn, 11 modules) **mais 434 `// EXTERN:` non portées** = îlots non connectés.
