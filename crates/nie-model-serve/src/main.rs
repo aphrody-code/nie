@@ -382,22 +382,6 @@ fn cfgbin_to_json(data: &[u8]) -> Option<serde_json::Value> {
     }
     let rdbn = cfgbin::parse(data).ok()?;
     let lists = cfgbin::read_values(&rdbn, data);
-    let to_val = |v: &cfgbin::RdbnValue| -> Value {
-        use cfgbin::RdbnValue as R;
-        match v {
-            R::Bool(b) => json!(b),
-            R::Byte(n) => json!(n),
-            R::Short(n) | R::ActType(n) => json!(n),
-            R::Int(n) | R::Flag(n) => json!(n),
-            R::Float(f) => json!(f),
-            R::Hash(h) => json!(format!("0x{h:08X}")),
-            R::Rates(a) | R::Position(a) => json!(a),
-            R::Condition(s) => json!(s),
-            R::ShortTuple(t) => json!(t),
-            R::Blob(b) => json!(format!("blob[{}o]", b.len())),
-            _ => Value::Null,
-        }
-    };
     let lists_json: Vec<Value> = lists
         .iter()
         .map(|l| {
@@ -407,7 +391,7 @@ fn cfgbin_to_json(data: &[u8]) -> Option<serde_json::Value> {
                 .map(|row| {
                     let mut m = Map::new();
                     for (name, val) in &row.fields {
-                        m.insert(name.clone(), to_val(val));
+                        m.insert(name.clone(), rdbn_value_to_json(val));
                     }
                     Value::Object(m)
                 })
@@ -416,6 +400,232 @@ fn cfgbin_to_json(data: &[u8]) -> Option<serde_json::Value> {
         })
         .collect();
     Some(json!({ "format": "rdbn", "lists": lists_json }))
+}
+
+/// Encode des octets bruts en hex MAJUSCULE sans séparateur (ex. `"000000008FC2753F"`),
+/// identique au dump iecode des champs `position`/`blob`.
+fn hex_upper(bytes: &[u8]) -> String {
+    use core::fmt::Write;
+    let mut s = String::with_capacity(bytes.len() * 2);
+    for b in bytes {
+        let _ = write!(s, "{b:02X}");
+    }
+    s
+}
+
+/// Convertit une [`cfgbin::RdbnValue`] en JSON, encodage **identique au dump iecode**
+/// (`hash` -> `"0x........"`, `blob`/`position` -> hex MAJUSCULE), donc directement
+/// consommable par les parseurs typés de `nie-data` (cf. `typed_decode`).
+fn rdbn_value_to_json(v: &cfgbin::RdbnValue) -> serde_json::Value {
+    use cfgbin::RdbnValue as R;
+    use serde_json::{json, Value};
+    match v {
+        R::Bool(b) => json!(b),
+        R::Byte(n) => json!(n),
+        R::Short(n) | R::ActType(n) => json!(n),
+        R::Int(n) | R::Flag(n) => json!(n),
+        R::Float(f) => json!(f),
+        R::Hash(h) => json!(format!("0x{h:08X}")),
+        R::Rates(a) | R::Position(a) => json!(a),
+        R::Condition(s) => json!(s),
+        R::ShortTuple(t) => json!(t),
+        // Octets bruts en hex MAJUSCULE (identique iecode `defensePos` =
+        // "000000008FC2753F") au lieu de l'ancien `"blob[8o]"` qui jetait la donnee.
+        R::Blob(b) => json!(hex_upper(b)),
+        _ => Value::Null,
+    }
+}
+
+/// Décode un `cfg.bin` RDBN vers la forme **canonique iecode** attendue par les
+/// parseurs typés de `nie-data` : `{ "version", "lists": [ { "name", "typeName",
+/// "values": [ { champ: valeur } ] } ] }`. `None` si le fichier n'est pas du RDBN à
+/// listes (T2B/`entries` non couvert ici).
+fn cfgbin_to_iecode_root(data: &[u8]) -> Option<serde_json::Value> {
+    use serde_json::{json, Map, Value};
+    if !cfgbin::is_rdbn(data) {
+        return None;
+    }
+    let rdbn = cfgbin::parse(data).ok()?;
+    let lists = cfgbin::read_values(&rdbn, data);
+    let lists_json: Vec<Value> = lists
+        .iter()
+        .map(|l| {
+            let values: Vec<Value> = l
+                .rows
+                .iter()
+                .map(|row| {
+                    let mut m = Map::new();
+                    for (name, val) in &row.fields {
+                        m.insert(name.clone(), rdbn_value_to_json(val));
+                    }
+                    Value::Object(m)
+                })
+                .collect();
+            json!({ "name": l.name, "typeName": l.type_name, "values": values })
+        })
+        .collect();
+    Some(json!({ "lists": lists_json }))
+}
+
+/// Convertit une liste de frères T2B [`cfgbin::CfgEntry`] vers la forme **iecode**
+/// attendue par les parseurs `entries` de `nie-data`, en répliquant le suffixe
+/// d'index d'iecode : chaque nœud est renommé `<base>_<i>` où `i` est son rang
+/// d'occurrence parmi les frères de même nom (`MISSION_CONFIG_INFO` -> `..._0`,
+/// `ITEM_CONSUME_INFO` -> `..._0`, `_1`, `_2`…). Indispensable car les parseurs
+/// matchent un préfixe **avec underscore final** (`"MISSION_CONFIG_INFO_"`).
+/// `value` est toujours une chaîne (les parseurs la re-parsent ; `type` indicatif).
+fn t2b_siblings_to_iecode(siblings: &[cfgbin::CfgEntry]) -> Vec<serde_json::Value> {
+    use serde_json::{json, Value};
+    use std::collections::HashMap;
+    let mut counts: HashMap<&str, usize> = HashMap::new();
+    siblings
+        .iter()
+        .map(|e| {
+            let idx = counts.entry(e.name.as_str()).or_insert(0);
+            let name = format!("{}_{}", e.name, *idx);
+            *idx += 1;
+            let variables: Vec<Value> = e
+                .variables
+                .iter()
+                .map(|v| match v {
+                    cfgbin::Value::String(s) => json!({ "type": "String", "value": s }),
+                    cfgbin::Value::Int(n) => json!({ "type": "Int", "value": n.to_string() }),
+                    cfgbin::Value::Float(f) => json!({ "type": "Float", "value": f.to_string() }),
+                })
+                .collect();
+            let children = t2b_siblings_to_iecode(&e.children);
+            json!({ "name": name, "variables": variables, "children": children })
+        })
+        .collect()
+}
+
+/// Décode un `cfg.bin` **T2B** (`entries`) vers la forme iecode `{ "entries": [...] }`
+/// consommable par les parseurs `entries` de `nie-data` (music_app, record, item…).
+/// `None` si le fichier est du RDBN (utiliser [`cfgbin_to_iecode_root`]).
+fn cfgbin_to_t2b_iecode_root(data: &[u8]) -> Option<serde_json::Value> {
+    use serde_json::json;
+    if cfgbin::is_rdbn(data) {
+        return None;
+    }
+    let cfg = cfgbin::cfgbin_parse(data).ok()?;
+    Some(json!({ "entries": t2b_siblings_to_iecode(&cfg.entries) }))
+}
+
+/// Décode un `cfg.bin` vers la forme iecode adaptée à son format (RDBN `lists` ou
+/// T2B `entries`) : aiguille vers [`cfgbin_to_iecode_root`] ou [`cfgbin_to_t2b_iecode_root`].
+fn cfgbin_to_typed_root(data: &[u8]) -> Option<serde_json::Value> {
+    if cfgbin::is_rdbn(data) {
+        cfgbin_to_iecode_root(data)
+    } else {
+        cfgbin_to_t2b_iecode_root(data)
+    }
+}
+
+/// Dérive la **clé de famille** d'un cfg.bin depuis son chemin VFS : nom de base,
+/// suffixes `.json`/`.cfg.bin` retirés, suffixe de version `_<chiffres.points>` final
+/// retiré. Ex. `formation_config_0.02.16.cfg.bin` -> `formation_config`,
+/// `phase_set_c21_0.00.00.cfg.bin` -> `phase_set_c21`, `record_config.cfg.bin` -> `record_config`.
+fn cfg_family_key(vfs_path: &str) -> String {
+    let base = vfs_path.rsplit('/').next().unwrap_or(vfs_path);
+    let base = base.strip_suffix(".json").unwrap_or(base);
+    let base = base.strip_suffix(".cfg.bin").unwrap_or(base);
+    if let Some(idx) = base.rfind('_') {
+        let tail = &base[idx + 1..];
+        if !tail.is_empty() && tail.bytes().all(|b| b.is_ascii_digit() || b == b'.') {
+            return base[..idx].to_string();
+        }
+    }
+    base.to_string()
+}
+
+/// Dispatche un `root` (forme iecode, cf. [`cfgbin_to_iecode_root`]) vers le parseur
+/// typé `nie-data` correspondant à la `key` de famille, et renvoie `(label, json)`.
+/// `None` si aucune famille typée ne correspond (le caller renvoie alors le générique).
+///
+/// Couvre 38 familles game-data validées golden byte-exact dans `nie-data`. Chaque
+/// arme transforme la structure de jeu nommée en JSON — c'est le **pont natif** qui
+/// remplace l'affichage RDBN brut par des données structurées (positions de formation,
+/// listes de skills/items, missions…), consommé par l'explorateur azalee et les exports.
+#[allow(clippy::too_many_lines)]
+fn typed_decode(
+    key: &str,
+    root: &serde_json::Value,
+) -> Option<(&'static str, serde_json::Value)> {
+    use serde_json::to_value;
+    macro_rules! t {
+        ($label:literal, $call:expr) => {
+            to_value($call).ok().map(|v| ($label, v))
+        };
+    }
+    match key {
+        "formation_config" => t!("formation", nie_data::formation::parse_formation_config(root)),
+        "item_config" => t!("item", nie_data::item::parse_all_items(root)),
+        "skill_config" => t!("skill", nie_data::skill::parse_skill_config(root)),
+        // `skill_text` (SkillTextMaps) exclu : ses clés sont des HashId (serde
+        // transparent -> nombre), incompatibles avec une clé de map JSON. Les
+        // noms/descriptions de skills se joignent côté `skill` à l'affichage.
+        "mission_config" => t!("mission", nie_data::mission::parse_mission_config(root)),
+        "aura_skill_config" => t!("aura", nie_data::aura::parse_all_aura_cmds(root)),
+        "trophy_config" => t!("trophy", nie_data::trophy::parse_trophy_config(root)),
+        "gallery_config" => t!("gallery", nie_data::gallery::parse_gallery_config(root)),
+        "record_config" => t!("record", nie_data::record::parse_record_config(root)),
+        "dictionary_config" => t!("dictionary", nie_data::dictionary::parse_dictionary_config(root)),
+        "help_list_config" => t!("help", nie_data::help::parse_help_list_config(root)),
+        "setting_list_config" => {
+            t!("setting_menu", nie_data::setting_menu::parse_setting_list_config(root))
+        }
+        "scene_archive_config" => {
+            t!("scene_archive", nie_data::scene_archive::parse_scene_archive_config(root))
+        }
+        "music_app_config" => t!("music_app", nie_data::music_app::parse_music_app_config(root)),
+        "chara_param" => t!("chara_param", nie_data::chara_param::parse_all_chara_params(root)),
+        "chara_exp_table_config" => t!("exp", nie_data::exp::parse_exp_table(root)),
+        "soccer_game_config" => t!("soccer_game", nie_data::soccer::parse_soccer_game_config(root)),
+        "tutorial_banner_config" => t!("banner", nie_data::banner::parse_banner_config(root)),
+        "boost_player_group_config" => {
+            t!("boost_grp", nie_data::boost_grp::parse_boost_grp_config(root))
+        }
+        "chronicle_top_caravan_config" => {
+            t!("chronicle_top", nie_data::chronicle_top::parse_chronicle_top_caravan_config(root))
+        }
+        "craft_obj_config" => t!("craft", nie_data::craft::parse_craft_obj_config(root)),
+        "fast_travel_config" => t!("fast_travel", nie_data::fast_travel::parse_fast_travel_config(root)),
+        "friendmap_config" => t!("friendmap", nie_data::friendmap::parse_friendmap_config(root)),
+        "light_overwrite_config" => t!("light", nie_data::light::parse_light_overwrite_config(root)),
+        "photo_mode_random_pose_config" => {
+            t!("photo_mode", nie_data::photo_mode::parse_photo_mode_random_pose_config(root))
+        }
+        "info_bookmark_config" => {
+            t!("search_word", nie_data::search_word::parse_info_bookmark_config(root))
+        }
+        "update_notice_config" => {
+            t!("update_notice", nie_data::update_notice::parse_update_notice_config(root))
+        }
+        "user_name_plate_config" => {
+            t!("user_name_plate", nie_data::user_name_plate::parse_user_name_plate_config(root))
+        }
+        "chronicle_vs_route_config" => {
+            t!("vsroute", nie_data::vsroute::parse_chronicle_vs_route_config(root))
+        }
+        "weather_convert" => t!("weather", nie_data::weather::parse_weather_convert(root)),
+        "gimmick_system_num_config" => {
+            t!("dungeon", nie_data::dungeon::parse_gimmick_system_num_config(root))
+        }
+        "soccer_club_room_config" => {
+            t!("chara_bank", nie_data::chara_bank::parse_soccer_club_room_config(root))
+        }
+        "advent_calendar_config" => {
+            t!("advent_calendar", nie_data::post::parse_advent_calendar_config(root))
+        }
+        "delivery_config" => t!("delivery", nie_data::post::parse_delivery_config(root)),
+        "delivery_list_config" => t!("delivery_list", nie_data::post::parse_delivery_list_config(root)),
+        "password_list_config" => t!("password_list", nie_data::post::parse_password_list_config(root)),
+        "post_notice_config" => t!("post_notice", nie_data::post::parse_post_notice_config(root)),
+        "skill_view_preset_config" => {
+            t!("skill_view", nie_data::skill_view::parse_skill_view_preset_config(root))
+        }
+        _ => None,
+    }
 }
 
 /// Décode une entrée `G4txTexture` (DDS BC7/BC1/BC3/BC5) en PNG via `image_dds`.
@@ -1239,6 +1449,41 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                 respond(&mut stream, 200, "OK", "application/json; charset=utf-8", &body);
             }
             None => respond_text(&mut stream, 404, "Not Found", "cfg.bin absent ou non-RDBN"),
+        }
+        return;
+    }
+
+    // `/typed/<vfs-path>.json` — décode un cfg.bin en STRUCTURE DE JEU typée `nie-data`
+    // (formation, skill, item…) au lieu du RDBN brut. Renvoie `{family, data}` ; repli
+    // `{family:null, key, generic:<rdbn iecode>}` si la famille n'a pas de parseur typé.
+    if let Some(rest) = path.strip_prefix("/typed/") {
+        let rel = rest.strip_suffix(".json").unwrap_or(rest);
+        let vfs_path = if rel.starts_with("data/") {
+            rel.to_string()
+        } else {
+            format!("data/{rel}")
+        };
+        if vfs_path.contains("..") {
+            respond_text(&mut stream, 400, "Bad Request", "chemin invalide");
+            return;
+        }
+        let bytes = {
+            let vfs = state.vfs.lock().unwrap();
+            vfs.read(&vfs_path).ok()
+        };
+        match bytes.as_deref().and_then(cfgbin_to_typed_root) {
+            Some(root) => {
+                let key = cfg_family_key(&vfs_path);
+                let out = match typed_decode(&key, &root) {
+                    Some((family, data)) => serde_json::json!({ "family": family, "data": data }),
+                    None => {
+                        serde_json::json!({ "family": serde_json::Value::Null, "key": key, "generic": root })
+                    }
+                };
+                let body = serde_json::to_vec(&out).unwrap_or_default();
+                respond(&mut stream, 200, "OK", "application/json; charset=utf-8", &body);
+            }
+            None => respond_text(&mut stream, 404, "Not Found", "cfg.bin absent ou non-RDBN a listes"),
         }
         return;
     }
