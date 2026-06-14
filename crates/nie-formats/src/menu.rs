@@ -161,6 +161,128 @@ pub fn assemble_object(
     }
 }
 
+// ── Compositeur CPU (blit affine + bilinéaire + blend « over ») ───────────────
+
+/// Sprite à composer : pixels RGBA8 (`width`×`height`), transform écran, ancre normalisée.
+pub struct CompositeSprite<'a> {
+    /// Pixels RGBA8 du sprite, `width * height * 4` octets.
+    pub rgba: &'a [u8],
+    /// Largeur native du sprite en pixels.
+    pub width: u32,
+    /// Hauteur native du sprite en pixels.
+    pub height: u32,
+    /// Transform écran (issu de [`place_on_canvas`]).
+    pub transform: ScreenTransform,
+    /// Ancre X normalisée (0=gauche, 0.5=centre, 1=droite).
+    pub anchor_x: f32,
+    /// Ancre Y normalisée (0=haut, 0.5=centre, 1=bas).
+    pub anchor_y: f32,
+}
+
+/// Compose une liste de sprites positionnés sur un canvas RGBA8 transparent.
+///
+/// Les sprites sont dessinés dans l'ordre de la slice (back-to-front : trier par
+/// `draw_priority` croissant en amont). Chaque sprite est blitté par mapping affine inverse,
+/// échantillonnage bilinéaire et blend « over » (alpha droit).
+/// Port en f32 de `nie-model-serve/src/menu.rs` (`blit_sprite`/`sample_bilinear`).
+#[must_use]
+pub fn compose(canvas_w: u32, canvas_h: u32, sprites: &[CompositeSprite]) -> Vec<u8> {
+    let mut canvas = alloc::vec![0u8; (canvas_w as usize) * (canvas_h as usize) * 4];
+    for s in sprites {
+        blit_sprite(&mut canvas, canvas_w as i64, canvas_h as i64, s);
+    }
+    canvas
+}
+
+fn blit_sprite(canvas: &mut [u8], cw: i64, ch: i64, s: &CompositeSprite) {
+    let t = &s.transform;
+    if t.scale_x.abs() < 1e-9 || t.scale_y.abs() < 1e-9 || s.width == 0 || s.height == 0 {
+        return; // dégénéré → invisible
+    }
+    let (qw, qh) = (s.width as f32, s.height as f32);
+    let (sin, cos) = (t.rot.sin(), t.rot.cos());
+    let ax = s.anchor_x * qw;
+    let ay = s.anchor_y * qh;
+
+    // Forward : local(px sprite) → canvas (v = local−anchor ; s = v·scale ; r = R·s ; +pos).
+    let fwd = |lx: f32, ly: f32| -> (f32, f32) {
+        let vx = (lx - ax) * t.scale_x;
+        let vy = (ly - ay) * t.scale_y;
+        (t.x_px + vx * cos - vy * sin, t.y_px + vx * sin + vy * cos)
+    };
+    let corners = [fwd(0.0, 0.0), fwd(qw, 0.0), fwd(0.0, qh), fwd(qw, qh)];
+    let min_x = corners.iter().map(|c| c.0).fold(f32::INFINITY, f32::min).floor() as i64;
+    let max_x = corners.iter().map(|c| c.0).fold(f32::NEG_INFINITY, f32::max).ceil() as i64;
+    let min_y = corners.iter().map(|c| c.1).fold(f32::INFINITY, f32::min).floor() as i64;
+    let max_y = corners.iter().map(|c| c.1).fold(f32::NEG_INFINITY, f32::max).ceil() as i64;
+    let (x0, y0) = (min_x.max(0), min_y.max(0));
+    let (x1, y1) = (max_x.min(cw), max_y.min(ch));
+    if x0 >= x1 || y0 >= y1 {
+        return;
+    }
+    let (inv_sx, inv_sy) = (1.0 / t.scale_x, 1.0 / t.scale_y);
+
+    for py in y0..y1 {
+        for px in x0..x1 {
+            let dx = (px as f32 + 0.5) - t.x_px;
+            let dy = (py as f32 + 0.5) - t.y_px;
+            let lx = (dx * cos + dy * sin) * inv_sx + ax; // R^-1 puis un-scale
+            let ly = (-dx * sin + dy * cos) * inv_sy + ay;
+            if lx < 0.0 || ly < 0.0 || lx >= qw || ly >= qh {
+                continue;
+            }
+            let u = (lx / qw) * s.width as f32 - 0.5;
+            let v = (ly / qh) * s.height as f32 - 0.5;
+            let (sr, sg, sb, sa) = sample_bilinear(s.rgba, s.width, s.height, u, v);
+            if sa <= 0.0 {
+                continue;
+            }
+            let di = ((py * cw + px) * 4) as usize;
+            let dr = f32::from(canvas[di]) / 255.0;
+            let dg = f32::from(canvas[di + 1]) / 255.0;
+            let db = f32::from(canvas[di + 2]) / 255.0;
+            let da = f32::from(canvas[di + 3]) / 255.0;
+            let oa = sa + da * (1.0 - sa);
+            if oa <= 0.0 {
+                continue;
+            }
+            let or = (sr * sa + dr * da * (1.0 - sa)) / oa;
+            let og = (sg * sa + dg * da * (1.0 - sa)) / oa;
+            let ob = (sb * sa + db * da * (1.0 - sa)) / oa;
+            canvas[di] = (or * 255.0).round().clamp(0.0, 255.0) as u8;
+            canvas[di + 1] = (og * 255.0).round().clamp(0.0, 255.0) as u8;
+            canvas[di + 2] = (ob * 255.0).round().clamp(0.0, 255.0) as u8;
+            canvas[di + 3] = (oa * 255.0).round().clamp(0.0, 255.0) as u8;
+        }
+    }
+}
+
+/// Échantillon bilinéaire RGBA (0..1) avec clamp aux bords ; `u`,`v` en coords texel.
+fn sample_bilinear(rgba: &[u8], tw: u32, th: u32, u: f32, v: f32) -> (f32, f32, f32, f32) {
+    let (x0, y0) = (u.floor(), v.floor());
+    let (fx, fy) = (u - x0, v - y0);
+    let cx = |x: f32| (x as i64).clamp(0, tw as i64 - 1) as usize;
+    let cy = |y: f32| (y as i64).clamp(0, th as i64 - 1) as usize;
+    let texel = |xc: usize, yc: usize| -> (f32, f32, f32, f32) {
+        let i = (yc * tw as usize + xc) * 4;
+        (
+            f32::from(rgba[i]) / 255.0,
+            f32::from(rgba[i + 1]) / 255.0,
+            f32::from(rgba[i + 2]) / 255.0,
+            f32::from(rgba[i + 3]) / 255.0,
+        )
+    };
+    let (x0c, x1c) = (cx(x0), cx(x0 + 1.0));
+    let (y0c, y1c) = (cy(y0), cy(y0 + 1.0));
+    let lerp = |a: f32, b: f32, t: f32| a + (b - a) * t;
+    let mix = |a: (f32, f32, f32, f32), b: (f32, f32, f32, f32), t: f32| {
+        (lerp(a.0, b.0, t), lerp(a.1, b.1, t), lerp(a.2, b.2, t), lerp(a.3, b.3, t))
+    };
+    let top = mix(texel(x0c, y0c), texel(x1c, y0c), fx);
+    let bot = mix(texel(x0c, y1c), texel(x1c, y1c), fx);
+    mix(top, bot, fy)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -262,5 +384,49 @@ mod tests {
         assert!((st.x_px - 640.0).abs() < 1.0, "x={}", st.x_px);
         assert!((st.y_px - 360.0).abs() < 1.0, "y={}", st.y_px);
         assert!((st.scale_x - 1280.0 / 1920.0).abs() < 1e-3, "sx={}", st.scale_x);
+    }
+
+    // ── Compositeur CPU ─────────────────────────────────────────────────────
+
+    fn at(canvas: &[u8], w: usize, x: usize, y: usize) -> (u8, u8, u8, u8) {
+        let i = (y * w + x) * 4;
+        (canvas[i], canvas[i + 1], canvas[i + 2], canvas[i + 3])
+    }
+
+    /// Un sprite 4×4 rouge opaque, ancre centre, posé au centre d'un canvas 8×8 (scale 1,
+    /// pas de rotation) → couvre [2,6)² ; le centre est rouge, le coin est transparent.
+    #[test]
+    fn compose_blits_opaque_sprite_at_position() {
+        let rgba = alloc::vec![255u8, 0, 0, 255].repeat(16); // 4×4 rouge opaque
+        let sprite = CompositeSprite {
+            rgba: &rgba,
+            width: 4,
+            height: 4,
+            transform: ScreenTransform { x_px: 4.0, y_px: 4.0, scale_x: 1.0, scale_y: 1.0, rot: 0.0 },
+            anchor_x: 0.5,
+            anchor_y: 0.5,
+        };
+        let canvas = compose(8, 8, &[sprite]);
+        assert_eq!(at(&canvas, 8, 4, 4), (255, 0, 0, 255), "centre rouge");
+        assert_eq!(at(&canvas, 8, 2, 2), (255, 0, 0, 255), "coin sprite rouge");
+        assert_eq!(at(&canvas, 8, 0, 0), (0, 0, 0, 0), "hors sprite transparent");
+        assert_eq!(at(&canvas, 8, 7, 7), (0, 0, 0, 0), "hors sprite transparent");
+    }
+
+    /// Z-order : le 2e sprite (bleu) est dessiné PAR-DESSUS le 1er (rouge) → bleu gagne.
+    #[test]
+    fn compose_respects_z_order() {
+        let red = alloc::vec![255u8, 0, 0, 255].repeat(16);
+        let blue = alloc::vec![0u8, 0, 255, 255].repeat(16);
+        let mk = |rgba: &[u8]| -> ScreenTransform {
+            let _ = rgba;
+            ScreenTransform { x_px: 4.0, y_px: 4.0, scale_x: 1.0, scale_y: 1.0, rot: 0.0 }
+        };
+        let sprites = alloc::vec![
+            CompositeSprite { rgba: &red, width: 4, height: 4, transform: mk(&red), anchor_x: 0.5, anchor_y: 0.5 },
+            CompositeSprite { rgba: &blue, width: 4, height: 4, transform: mk(&blue), anchor_x: 0.5, anchor_y: 0.5 },
+        ];
+        let canvas = compose(8, 8, &sprites);
+        assert_eq!(at(&canvas, 8, 4, 4), (0, 0, 255, 255), "le dernier dessiné (bleu) gagne");
     }
 }
