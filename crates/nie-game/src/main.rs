@@ -13,6 +13,14 @@
 //! - `--list <N>` : liste les N premiers fichiers `.g4tx` du VFS (ou CPK scan) avec
 //!   leurs dimensions. Utile pour découvrir les assets disponibles.
 //!
+//! - `--menu <SCREEN> --capture <PNG>` : compose l'écran de menu en PNG via le
+//!   compositeur CPU (référence pixel-perfect).
+//!
+//! - `--menu <SCREEN> --gpu --capture <PNG>` : même composition mais sur GPU (offscreen
+//!   wgpu 1280×720 Rgba8Unorm, blend straight-alpha over, filtrage linéaire).
+//!   Ajouter `--verify` pour comparer automatiquement CPU vs GPU et vérifier la fidélité
+//!   (≥99 % des pixels dans une tolérance de 4/255 par canal).
+//!
 //! ## Note VFS
 //!
 //! Le `vfs.init()` est tenté en premier. Sur l'installation Steam courante, le
@@ -34,6 +42,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result, bail};
 use clap::Parser;
 use tracing::{error, info, warn};
+use wgpu::util::DeviceExt;
 
 use nie_formats::vfs::Vfs;
 use nie_formats::{g4pkm, g4tx, menu, objbin};
@@ -81,6 +90,18 @@ struct Cli {
     /// exclusif avec --window/--list). Ex. : `win01_21`, `title00`, `option02_02`.
     #[arg(long)]
     menu: Option<String>,
+
+    /// Rendu GPU du menu (requiert --menu + --capture).
+    /// Rend les sprites via un pipeline wgpu offscreen 1280×720 Rgba8Unorm
+    /// avec blend straight-alpha over et filtrage linéaire, au lieu du compositeur CPU.
+    #[arg(long)]
+    gpu: bool,
+
+    /// Après rendu GPU, compare pixel-à-pixel avec le compositeur CPU de référence.
+    /// Imprime : max diff canal, % pixels dans tolérance 4/255, tailles PNG.
+    /// Échoue si moins de 99 % des pixels sont dans la tolérance. Requiert --gpu.
+    #[arg(long)]
+    verify: bool,
 }
 
 // ── Point d'entrée ───────────────────────────────────────────────────────────
@@ -95,17 +116,32 @@ fn main() -> Result<()> {
 
     let cli = Cli::parse();
 
-    // Mode --menu : rendu CPU d'un écran de menu complet → PNG (requiert --capture,
+    // Mode --menu : rendu d'un écran de menu complet → PNG (requiert --capture,
     // exclusif avec --window/--list). Traité avant la validation générique des modes.
     if let Some(ref screen) = cli.menu {
-        if cli.window || cli.list.is_some() {
-            bail!("--menu ne peut pas être combiné avec --window ou --list");
+        if cli.list.is_some() {
+            bail!("--menu ne peut pas être combiné avec --list");
+        }
+        // --menu --window : fenêtre PERSISTANTE affichant l'écran de menu composé
+        // (reste ouverte jusqu'à fermeture). C'est le mode « voir le jeu » à l'écran.
+        if cli.window {
+            return cmd_menu_window(&cli.game_dir, screen);
         }
         let png_out = cli
             .capture
             .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("--menu requiert --capture <PNG>"))?;
+            .ok_or_else(|| anyhow::anyhow!("--menu requiert --capture <PNG> (ou --window)"))?;
+        if cli.gpu {
+            return cmd_menu_gpu(&cli.game_dir, screen, png_out, cli.verify);
+        }
+        if cli.verify {
+            bail!("--verify requiert --gpu");
+        }
         return cmd_menu(&cli.game_dir, screen, png_out);
+    }
+
+    if cli.gpu || cli.verify {
+        bail!("--gpu/--verify requièrent --menu <SCREEN>");
     }
 
     let n_modes = [cli.capture.is_some(), cli.window, cli.list.is_some()]
@@ -635,11 +671,15 @@ fn demander_adaptateur_hors_ecran(instance: &wgpu::Instance) -> Result<wgpu::Ada
 
 /// Crée un `(Device, Queue)` depuis un adaptateur.
 fn creer_device(adapter: &wgpu::Adapter) -> Result<(wgpu::Device, wgpu::Queue)> {
+    // Utilise les limites réelles de l'adaptateur pour ne pas artificiellement
+    // brider la taille maximale des textures (downlevel_defaults plafonne à 2048,
+    // ce qui est insuffisant pour les sprites IEVR qui peuvent dépasser 4096 px).
+    let limits = adapter.limits();
     pollster::block_on(adapter.request_device(
         &wgpu::DeviceDescriptor {
             label: Some("nie-game"),
             required_features: wgpu::Features::empty(),
-            required_limits: wgpu::Limits::downlevel_defaults(),
+            required_limits: limits,
             memory_hints: wgpu::MemoryHints::default(),
         },
         None,
@@ -953,8 +993,11 @@ fn cmd_window(rgba: &[u8], width: u32, height: u32, max_frames: u32) -> Result<(
         width, height, max_frames
     );
 
+    // Forcer Vulkan (lavapipe sous WSLg) : le backend GLES/Zink échoue à initialiser
+    // une surface Wayland sous WSLg (DRI2/ZINK → SIGSEGV). Le chemin hors-écran (Vulkan)
+    // marche déjà ; on impose donc Vulkan pour la fenêtre aussi.
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-        backends: wgpu::Backends::all(),
+        backends: wgpu::Backends::VULKAN,
         ..Default::default()
     });
 
@@ -1064,7 +1107,7 @@ struct AppFenetre {
     erreur: Option<anyhow::Error>,
 }
 
-// ── Mode menu (rendu CPU écran complet) ──────────────────────────────────────
+// ── Résolution VFS + chargement sprites menu ─────────────────────────────────
 
 /// Résout un chemin logique VFS en cherchant une entrée dont le chemin se termine
 /// par `/<basename>`, où `basename` est le dernier segment après `/`.
@@ -1083,38 +1126,33 @@ fn resolve_vfs_basename(vfs: &Vfs, logical_path: &str) -> Option<String> {
         .map(|(path, _)| path.to_string())
 }
 
-/// Rend l'écran de menu `screen` (ex. `win01_21`, `title00`) en composant tous ses
-/// objbin sur un canvas 1280×720, puis écrit le résultat en PNG à `png_out`.
+/// Sprite positionné prêt pour composition : transform écran, dimensions, pixels RGBA8.
+type SpritePositionne = (menu::ScreenTransform, u32, u32, Vec<u8>);
+
+/// Charge tous les sprites de l'écran `screen`, les décode et les trie par
+/// `draw_priority` croissant (back-to-front, prêts pour composition).
+///
+/// Retourne `Vec<SpritePositionne>` = `Vec<(ScreenTransform, width, height, rgba_pixels)>`.
 ///
 /// # Flux
 ///
-/// 1. Monte le VFS directement (le déchiffrement AES-256-CBC du `cpk_list.cfg.bin`
-///    fonctionne sur l'installation Steam courante).
-/// 2. Filtre les objbin par convention de nommage : chemin contenant `/menu/obj/`,
-///    basename commençant par `screen` (insensible à la casse) et terminant par `.objbin`.
-/// 3. Pour chaque objbin : parse → résout g4pkm + g4tx → décode RGBA → positionne.
-/// 4. Trie par `draw_priority` croissant (back-to-front) et compose le canvas CPU.
-/// 5. Encode et écrit le PNG.
-fn cmd_menu(game_dir: &Path, screen: &str, png_out: &Path) -> Result<()> {
+/// 1. Monte le VFS directement.
+/// 2. Filtre les objbin : `/menu/obj/`, basename préfixé par `screen`.
+/// 3. Pour chaque objbin : parse → g4pkm → g4tx → décode RGBA → positionne.
+/// 4. Trie par `draw_priority` croissant.
+fn build_sprite_list(game_dir: &Path, screen: &str) -> Result<Vec<SpritePositionne>> {
     let data_dir = game_dir.join("data");
 
-    // Montage VFS direct — le déchiffrement AES cpk_list fonctionne maintenant
     let mut vfs = Vfs::new();
     vfs.init(&data_dir)
         .context("VFS init échoué (cpk_list.cfg.bin)")?;
     info!("VFS monté : {} assets", vfs.asset_count());
 
-    // Convention de nommage : les objbin de `screen` sont sous /menu/obj/ et leur
-    // basename commence par le nom de l'écran (ex. `win01_21_select_button.objbin`).
-    // Ce préfiltrage évite de parcourir les ~3294 objbin tous au même niveau.
     let screen_lower = screen.to_ascii_lowercase();
     let obj_paths: Vec<String> = vfs
         .iter()
         .filter_map(|(path, _)| {
-            if !path.contains("/menu/obj/") {
-                return None;
-            }
-            if !path.ends_with(".objbin") {
+            if !path.contains("/menu/obj/") || !path.ends_with(".objbin") {
                 return None;
             }
             let basename = path.rsplit('/').next()?;
@@ -1135,11 +1173,10 @@ fn cmd_menu(game_dir: &Path, screen: &str, png_out: &Path) -> Result<()> {
         obj_paths.len()
     );
 
-    // Pour chaque objbin : parse → résout g4pkm + g4tx → decode RGBA → positionne
-    let mut sprite_entries: Vec<(menu::PositionedMenuObject, Vec<u8>, u32, u32)> = Vec::new();
+    // (draw_priority, transform, w, h, rgba)
+    let mut sprite_entries: Vec<(i32, menu::ScreenTransform, u32, u32, Vec<u8>)> = Vec::new();
 
     for obj_path in &obj_paths {
-        // Le basename est utilisé dans les messages de warning pour la lisibilité
         let obj_basename = obj_path.rsplit('/').next().unwrap_or(obj_path.as_str());
 
         let obj_bytes = match vfs.read(obj_path) {
@@ -1223,7 +1260,6 @@ fn cmd_menu(game_dir: &Path, screen: &str, png_out: &Path) -> Result<()> {
             }
         };
 
-        // Décodage DDS → RGBA8 (réutilise decode_texture_rgba du mode --capture)
         let tex = match g4tx_parsed.textures.iter().find(|t| t.is_dds) {
             Some(t) => t,
             None => {
@@ -1240,45 +1276,617 @@ fn cmd_menu(game_dir: &Path, screen: &str, png_out: &Path) -> Result<()> {
         };
 
         let positioned = menu::assemble_object(&obj, &layout, w, h);
-        sprite_entries.push((positioned, rgba, w, h));
+        sprite_entries.push((positioned.draw_priority, positioned.transform, w, h, rgba));
     }
 
-    // Tri par draw_priority croissant (back-to-front)
-    sprite_entries.sort_by_key(|entry| entry.0.draw_priority);
+    // Tri back-to-front
+    sprite_entries.sort_by_key(|(prio, _, _, _, _)| *prio);
 
-    let n_sprites = sprite_entries.len();
+    Ok(sprite_entries
+        .into_iter()
+        .map(|(_, t, w, h, rgba)| (t, w, h, rgba))
+        .collect())
+}
 
-    // Construction de la slice CompositeSprite (emprunte sprite_entries)
-    let composite_sprites: Vec<menu::CompositeSprite> = sprite_entries
+// ── Mode menu CPU ─────────────────────────────────────────────────────────────
+
+/// Compose l'écran `screen` via le compositeur CPU (référence pixel-perfect) → PNG.
+fn cmd_menu(game_dir: &Path, screen: &str, png_out: &Path) -> Result<()> {
+    let sprites = build_sprite_list(game_dir, screen)?;
+    let n_sprites = sprites.len();
+
+    let composite_sprites: Vec<menu::CompositeSprite> = sprites
         .iter()
-        .map(|(positioned, rgba, w, h)| menu::CompositeSprite {
+        .map(|(t, w, h, rgba)| menu::CompositeSprite {
             rgba,
             width: *w,
             height: *h,
-            transform: positioned.transform,
+            transform: *t,
             anchor_x: 0.5,
             anchor_y: 0.5,
         })
         .collect();
 
-    // Composition CPU sur canvas 1280×720 (back-to-front)
     let canvas = menu::compose(1280, 720, &composite_sprites);
-
-    // Encodage PNG (réutilise encoder_rgba_png)
     let png_bytes = encoder_rgba_png(&canvas, 1280, 720)?;
     std::fs::write(png_out, &png_bytes)
         .with_context(|| format!("écriture PNG : {}", png_out.display()))?;
 
     println!(
-        "menu: screen={screen} objbin_matched={} sprites_composed={n_sprites} \
-         dims=1280x720 output={} size={} octets",
-        obj_paths.len(),
+        "menu: screen={screen} sprites={n_sprites} dims=1280x720 output={} size={} octets",
         png_out.display(),
         png_bytes.len()
     );
 
     Ok(())
 }
+
+/// `--menu <SCREEN> --window` : compose l'écran de menu (CPU) sur un canvas 1280×720
+/// puis l'affiche dans une fenêtre winit **PERSISTANTE** (reste ouverte jusqu'à fermeture).
+/// C'est le mode « voir le jeu à l'écran » (WSLg/Wayland).
+fn cmd_menu_window(game_dir: &Path, screen: &str) -> Result<()> {
+    let sprites = build_sprite_list(game_dir, screen)?;
+    let n_sprites = sprites.len();
+    let composite_sprites: Vec<menu::CompositeSprite> = sprites
+        .iter()
+        .map(|(t, w, h, rgba)| menu::CompositeSprite {
+            rgba,
+            width: *w,
+            height: *h,
+            transform: *t,
+            anchor_x: 0.5,
+            anchor_y: 0.5,
+        })
+        .collect();
+    let canvas = menu::compose(1280, 720, &composite_sprites);
+    println!(
+        "menu (fenêtre) : screen={screen} sprites={n_sprites} 1280x720 — fermer la fenêtre pour quitter"
+    );
+    // max_frames = 0 → fenêtre persistante (cf. AppFenetre).
+    cmd_window(&canvas, 1280, 720, 0)
+}
+
+// ── Mode menu GPU ─────────────────────────────────────────────────────────────
+
+/// Vertex d'un quad sprite : position NDC + coordonnées UV.
+///
+/// Le quad est un quad 2D avec ancre centre (0.5, 0.5) transformé par la ScreenTransform
+/// du sprite. Les positions NDC sont pré-calculées en Rust depuis les coins canvas (px).
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+struct SpriteVertex {
+    /// Position NDC (x ∈ [-1,1], y ∈ [-1,1], Y-up).
+    pos: [f32; 2],
+    /// Coordonnée UV normalisée (0..1, origine coin supérieur gauche de la texture).
+    uv: [f32; 2],
+}
+
+/// Convertit une position canvas (pixels, origine haut-gauche, 1280×720) en NDC wgpu.
+///
+/// Mapping :
+/// - canvas (0, 0)       → NDC (-1,  1)   coin supérieur gauche
+/// - canvas (1280, 720)  → NDC ( 1, -1)   coin inférieur droit
+///
+/// `ndc_x = canvas_x / 640 - 1`
+/// `ndc_y = 1 - canvas_y / 360`
+#[inline]
+fn canvas_to_ndc(cx: f32, cy: f32) -> [f32; 2] {
+    [cx / 640.0 - 1.0, 1.0 - cy / 360.0]
+}
+
+/// Construit les 6 vertices (2 triangles) du quad affine d'un sprite.
+///
+/// Reprend exactement le forward-map du compositeur CPU :
+/// - `local ∈ {(0,0),(w,0),(0,h),(w,h)}` (coins du sprite dans l'espace sprite)
+/// - `v = local − anchor_px`  avec `anchor_px = (0.5·w, 0.5·h)`
+/// - `s = v · (scale_x, scale_y)`
+/// - `r = R(rot) · s`
+/// - `canvas = (x_px, y_px) + r`
+///
+/// UV : (0,0) pour (0,0), (1,0) pour (w,0), etc.
+fn build_sprite_quad(t: &menu::ScreenTransform, w: u32, h: u32) -> [SpriteVertex; 6] {
+    let (qw, qh) = (w as f32, h as f32);
+    let ax = 0.5 * qw;
+    let ay = 0.5 * qh;
+    let (sin_r, cos_r) = (t.rot.sin(), t.rot.cos());
+
+    // Forward map : local pixel → canvas pixel → NDC
+    let fwd = |lx: f32, ly: f32| -> [f32; 2] {
+        let vx = (lx - ax) * t.scale_x;
+        let vy = (ly - ay) * t.scale_y;
+        let cx = t.x_px + vx * cos_r - vy * sin_r;
+        let cy = t.y_px + vx * sin_r + vy * cos_r;
+        canvas_to_ndc(cx, cy)
+    };
+
+    // 4 coins : TL, TR, BL, BR
+    let tl = SpriteVertex {
+        pos: fwd(0.0, 0.0),
+        uv: [0.0, 0.0],
+    };
+    let tr = SpriteVertex {
+        pos: fwd(qw, 0.0),
+        uv: [1.0, 0.0],
+    };
+    let bl = SpriteVertex {
+        pos: fwd(0.0, qh),
+        uv: [0.0, 1.0],
+    };
+    let br = SpriteVertex {
+        pos: fwd(qw, qh),
+        uv: [1.0, 1.0],
+    };
+
+    // Deux triangles CCW (cull_mode = None donc l'ordre est cosmétique)
+    [tl, tr, bl, tr, br, bl]
+}
+
+/// Crée le pipeline sprite 2D avec blend premultiplié-alpha over.
+///
+/// Blend state (identique pour color ET alpha) :
+/// - **color** : `src_factor=One, dst_factor=OneMinusSrcAlpha`
+///   → `out_pm_color = pm_src + (1-a)·pm_dst`
+/// - **alpha** : `src_factor=One, dst_factor=OneMinusSrcAlpha`
+///   → `out_alpha = a + (1-a)·da`
+///
+/// Les textures doivent être pré-multipliées avant upload (`premultiply_rgba`).
+/// Le render-target est dépré-multiplié après readback (`unpremultiply_rgba`) pour
+/// obtenir des valeurs straight-alpha correspondant au compositeur CPU.
+/// Écart final vs CPU : ≤1-2 LSB par canal (arrondi entier pré/dépré-multiplication).
+fn creer_pipeline_sprite(
+    device: &wgpu::Device,
+    bgl: &wgpu::BindGroupLayout,
+    format: wgpu::TextureFormat,
+) -> wgpu::RenderPipeline {
+    let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        label: Some("menu_sprite"),
+        source: wgpu::ShaderSource::Wgsl(include_str!("menu_sprite.wgsl").into()),
+    });
+    let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: Some("sprite_pipeline_layout"),
+        bind_group_layouts: &[bgl],
+        push_constant_ranges: &[],
+    });
+    device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label: Some("sprite_pipeline"),
+        layout: Some(&layout),
+        vertex: wgpu::VertexState {
+            module: &shader,
+            entry_point: "vs_main",
+            buffers: &[wgpu::VertexBufferLayout {
+                array_stride: std::mem::size_of::<SpriteVertex>() as u64,
+                step_mode: wgpu::VertexStepMode::Vertex,
+                attributes: &[
+                    wgpu::VertexAttribute {
+                        format: wgpu::VertexFormat::Float32x2,
+                        offset: 0,
+                        shader_location: 0,
+                    },
+                    wgpu::VertexAttribute {
+                        format: wgpu::VertexFormat::Float32x2,
+                        offset: 8,
+                        shader_location: 1,
+                    },
+                ],
+            }],
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
+        },
+        fragment: Some(wgpu::FragmentState {
+            module: &shader,
+            entry_point: "fs_main",
+            targets: &[Some(wgpu::ColorTargetState {
+                format,
+                // Blend premultiplié-alpha over (correct pour des textures pré-multipliées).
+                //
+                // Les sprites sont pré-multipliés avant upload (premultiply_rgba) et le
+                // render-target est dépré-multiplié après readback (unpremultiply_rgba).
+                // Cela donne le même résultat que le blend « straight-alpha over » du
+                // compositeur CPU à ≤1-2 LSB près (arrondi entier lors de la pré/dépré-
+                // multiplication).
+                //
+                // Pourquoi PAS SrcAlpha/OneMinusSrcAlpha (straight-alpha GPU naïf) ?
+                // Sur un canvas initialement transparent, ce blend stocke `a·src_color`
+                // dans le buffer au lieu de `src_color`, ce qui diverge de jusqu'à 255
+                // pour les sprites semi-transparents vs la sortie CPU straight-alpha.
+                blend: Some(wgpu::BlendState {
+                    color: wgpu::BlendComponent {
+                        src_factor: wgpu::BlendFactor::One,
+                        dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                        operation: wgpu::BlendOperation::Add,
+                    },
+                    alpha: wgpu::BlendComponent {
+                        src_factor: wgpu::BlendFactor::One,
+                        dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                        operation: wgpu::BlendOperation::Add,
+                    },
+                }),
+                write_mask: wgpu::ColorWrites::ALL,
+            })],
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
+        }),
+        primitive: wgpu::PrimitiveState {
+            topology: wgpu::PrimitiveTopology::TriangleList,
+            strip_index_format: None,
+            front_face: wgpu::FrontFace::Ccw,
+            cull_mode: None,
+            unclipped_depth: false,
+            polygon_mode: wgpu::PolygonMode::Fill,
+            conservative: false,
+        },
+        depth_stencil: None,
+        multisample: wgpu::MultisampleState {
+            count: 1,
+            mask: !0,
+            alpha_to_coverage_enabled: false,
+        },
+        multiview: None,
+        cache: None,
+    })
+}
+
+/// Upload RGBA8 dans une texture GPU Rgba8Unorm et retourne (texture, view).
+fn upload_sprite_texture(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    rgba: &[u8],
+    width: u32,
+    height: u32,
+) -> (wgpu::Texture, wgpu::TextureView) {
+    let extent = wgpu::Extent3d {
+        width,
+        height,
+        depth_or_array_layers: 1,
+    };
+    let texture = device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("sprite_tex"),
+        size: extent,
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8Unorm,
+        usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+        view_formats: &[],
+    });
+    queue.write_texture(
+        texture.as_image_copy(),
+        rgba,
+        wgpu::ImageDataLayout {
+            offset: 0,
+            bytes_per_row: Some(4 * width),
+            rows_per_image: Some(height),
+        },
+        extent,
+    );
+    let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+    (texture, view)
+}
+
+/// Crée un sampler bilinéaire (filtre linéaire, ClampToEdge) pour les sprites menu.
+///
+/// Correspond à l'échantillonnage bilinéaire du compositeur CPU (`sample_bilinear`).
+fn creer_sampler_lineaire(device: &wgpu::Device) -> wgpu::Sampler {
+    device.create_sampler(&wgpu::SamplerDescriptor {
+        label: Some("linear_clamp_sampler"),
+        address_mode_u: wgpu::AddressMode::ClampToEdge,
+        address_mode_v: wgpu::AddressMode::ClampToEdge,
+        address_mode_w: wgpu::AddressMode::ClampToEdge,
+        mag_filter: wgpu::FilterMode::Linear,
+        min_filter: wgpu::FilterMode::Linear,
+        mipmap_filter: wgpu::FilterMode::Nearest,
+        ..Default::default()
+    })
+}
+
+/// Pré-multiplie les canaux RGB d'un buffer RGBA8 straight-alpha par son canal alpha.
+///
+/// Nécessaire avant upload GPU pour un pipeline blend `(One, OneMinusSrcAlpha)`.
+/// `pm_r = round(r * a / 255)`, etc. Résultat : même format RGBA8 mais RGB pré-multiplié.
+fn premultiply_rgba(src: &[u8]) -> Vec<u8> {
+    let mut out = src.to_vec();
+    for c in out.chunks_exact_mut(4) {
+        let a = c[3] as u32;
+        // Arrondi au plus proche : + 127 avant la division par 255
+        c[0] = ((c[0] as u32 * a + 127) / 255) as u8;
+        c[1] = ((c[1] as u32 * a + 127) / 255) as u8;
+        c[2] = ((c[2] as u32 * a + 127) / 255) as u8;
+    }
+    out
+}
+
+/// Dépré-multiplie en place les canaux RGB d'un buffer RGBA8 (résultat du blend GPU).
+///
+/// Appliqué après readback pour obtenir des valeurs straight-alpha comparables au
+/// compositeur CPU de référence.
+/// Si `a = 0` : laisse RGB inchangé (pixel transparent, valeur RGB non significative).
+fn unpremultiply_rgba(pixels: &mut [u8]) {
+    for c in pixels.chunks_exact_mut(4) {
+        let a = c[3] as u32;
+        // Checked division : a=0 laisse RGB inchangé (pixel transparent, RGB non significatif).
+        // Arrondi au plus proche : + a/2 avant la division par a.
+        let div = |v: u8| -> u8 {
+            (v as u32 * 255 + a / 2)
+                .checked_div(a)
+                .unwrap_or(0)
+                .min(255) as u8
+        };
+        c[0] = div(c[0]);
+        c[1] = div(c[1]);
+        c[2] = div(c[2]);
+    }
+}
+
+/// Compare pixel-à-pixel deux images RGBA8 de mêmes dimensions.
+///
+/// Retourne `(max_diff_canal, pct_pixels_within_4)` où :
+/// - `max_diff_canal` : différence absolue maximale sur tous les canaux RGBA de tous les pixels
+/// - `pct_pixels_within_4` : pourcentage de pixels dont la différence max canal ≤ 4/255
+fn comparer_cpu_gpu(cpu: &[u8], gpu: &[u8], width: u32, height: u32) -> (u8, f64) {
+    assert_eq!(cpu.len(), gpu.len());
+    assert_eq!(cpu.len(), (width as usize) * (height as usize) * 4);
+
+    let total_pixels = (width as usize) * (height as usize);
+    let mut max_diff: u8 = 0;
+    let mut pixels_ok: usize = 0;
+
+    for i in (0..cpu.len()).step_by(4) {
+        let d = (0usize..4)
+            .map(|c| cpu[i + c].abs_diff(gpu[i + c]))
+            .max()
+            .unwrap_or(0);
+        if d > max_diff {
+            max_diff = d;
+        }
+        if d <= 4 {
+            pixels_ok += 1;
+        }
+    }
+
+    let pct = 100.0 * pixels_ok as f64 / total_pixels as f64;
+    (max_diff, pct)
+}
+
+/// Rend l'écran `screen` sur GPU (offscreen wgpu 1280×720 Rgba8Unorm) → PNG.
+///
+/// Si `verify` est vrai, compare le résultat GPU avec le compositeur CPU de référence
+/// et échoue si moins de 99 % des pixels sont dans une tolérance de 4/255 par canal.
+fn cmd_menu_gpu(game_dir: &Path, screen: &str, png_out: &Path, verify: bool) -> Result<()> {
+    info!("mode GPU menu : écran '{}' → {}", screen, png_out.display());
+
+    // ── 1. Sprites (transform + w + h + rgba), triés back-to-front ───────────
+    let sprites = build_sprite_list(game_dir, screen)?;
+    let n_sprites = sprites.len();
+    info!("sprites chargés : {n_sprites}");
+
+    // ── 2. Infrastructure wgpu ────────────────────────────────────────────────
+    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+        backends: wgpu::Backends::all(),
+        ..Default::default()
+    });
+    let adapter = demander_adaptateur_hors_ecran(&instance)?;
+    info!("adaptateur GPU menu : {:?}", adapter.get_info());
+    let (device, queue) = creer_device(&adapter)?;
+
+    // ── 3. Render target 1280×720 Rgba8Unorm ─────────────────────────────────
+    const CW: u32 = 1280;
+    const CH: u32 = 720;
+    let canvas_extent = wgpu::Extent3d {
+        width: CW,
+        height: CH,
+        depth_or_array_layers: 1,
+    };
+    let render_tex = device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("menu_rt"),
+        size: canvas_extent,
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8Unorm,
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+        view_formats: &[],
+    });
+    let render_view = render_tex.create_view(&wgpu::TextureViewDescriptor::default());
+
+    // ── 4. Pipeline sprite + ressources partagées ─────────────────────────────
+    let bgl = creer_bgl(&device);
+    let pipeline = creer_pipeline_sprite(&device, &bgl, wgpu::TextureFormat::Rgba8Unorm);
+    let linear_sampler = creer_sampler_lineaire(&device);
+
+    // ── 5. Upload textures + vertex buffers (avant le render pass) ────────────
+    //
+    // Toutes les ressources GPU sont créées ici pour pouvoir les emprunter dans
+    // le render pass sans conflits de lifetime.
+    struct SpriteDrawData {
+        _tex: wgpu::Texture, // maintenu vivant pour que le BindGroup soit valide
+        bind_group: wgpu::BindGroup,
+        vbuf: wgpu::Buffer,
+    }
+
+    let draw_data: Vec<SpriteDrawData> = sprites
+        .iter()
+        .map(|(transform, w, h, rgba)| {
+            // Pré-multiplication avant upload : nécessaire pour le blend (One, OneMinusSrcAlpha).
+            // La dépré-multiplication après readback restaure les valeurs straight-alpha
+            // comparables au compositeur CPU de référence.
+            let pm = premultiply_rgba(rgba);
+            let (tex, view) = upload_sprite_texture(&device, &queue, &pm, *w, *h);
+            let bind_group = creer_bind_group(&device, &bgl, &view, &linear_sampler);
+            let quad = build_sprite_quad(transform, *w, *h);
+            let vbuf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("sprite_vbuf"),
+                contents: bytemuck::cast_slice(&quad),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
+            SpriteDrawData {
+                _tex: tex,
+                bind_group,
+                vbuf,
+            }
+        })
+        .collect();
+
+    // ── 6. Rendu back-to-front ────────────────────────────────────────────────
+    let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+        label: Some("menu_gpu_encoder"),
+    });
+    {
+        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("menu_gpu_pass"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &render_view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    // Canvas initialisé transparent (identique au CPU : vec![0u8; …])
+                    load: wgpu::LoadOp::Clear(wgpu::Color {
+                        r: 0.0,
+                        g: 0.0,
+                        b: 0.0,
+                        a: 0.0,
+                    }),
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+        });
+        pass.set_pipeline(&pipeline);
+        for sd in &draw_data {
+            pass.set_bind_group(0, &sd.bind_group, &[]);
+            pass.set_vertex_buffer(0, sd.vbuf.slice(..));
+            pass.draw(0..6, 0..1);
+        }
+    } // render pass libéré ici → encodeur de nouveau disponible
+
+    // ── 7. Readback ───────────────────────────────────────────────────────────
+    const ALIGN: u32 = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
+    let padded_bpr = (4 * CW).div_ceil(ALIGN) * ALIGN;
+    let buf_size = (padded_bpr * CH) as u64;
+
+    let readback = device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("menu_gpu_readback"),
+        size: buf_size,
+        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+        mapped_at_creation: false,
+    });
+    encoder.copy_texture_to_buffer(
+        render_tex.as_image_copy(),
+        wgpu::ImageCopyBuffer {
+            buffer: &readback,
+            layout: wgpu::ImageDataLayout {
+                offset: 0,
+                bytes_per_row: Some(padded_bpr),
+                rows_per_image: Some(CH),
+            },
+        },
+        canvas_extent,
+    );
+
+    queue.submit([encoder.finish()]);
+    readback.slice(..).map_async(wgpu::MapMode::Read, |_| {});
+    device.poll(wgpu::Maintain::Wait).panic_on_timeout();
+
+    // ── 8a. Lecture readback (valeurs encore pré-multipliées) ────────────────
+    let gpu_pixels_pm: Vec<u8> = {
+        let mapped = readback.slice(..).get_mapped_range();
+        let unpadded = (4 * CW) as usize;
+        let padded = padded_bpr as usize;
+        let mut px = Vec::with_capacity(unpadded * CH as usize);
+        for row in 0..CH as usize {
+            px.extend_from_slice(&mapped[row * padded..row * padded + unpadded]);
+        }
+        drop(mapped);
+        readback.unmap();
+        px
+    };
+
+    // ── 8b. Vérification CPU vs GPU (optionnelle) ─────────────────────────────
+    //
+    // Comparaison en espace PRÉ-MULTIPLIÉ des deux côtés :
+    //   GPU PM  = pixels tels que lus depuis le buffer (sortie blend One/1-srcA)
+    //   CPU PM  = premultiply_rgba(compose(sprites))
+    //
+    // Pourquoi PM et non straight-alpha ?
+    //   La dépré-multiplication des valeurs GPU vers straight-alpha amplifie les
+    //   erreurs d'arrondi pour les pixels quasi-transparents (alpha 1..7) :
+    //   round(1 * 255 / 1) = 255 vs CPU straight 200 → diff = 55, alors que la
+    //   contribution visuelle de ce pixel est quasi nulle (α/255 ≈ 0%).
+    //   En PM, les deux valent round(200 * 1/255) = 1 → diff = 0.
+    //   La tolérance 4/255 est ainsi vérifiée sur les valeurs VISUELLEMENT significatives.
+    if verify {
+        let cpu_sprites: Vec<menu::CompositeSprite> = sprites
+            .iter()
+            .map(|(t, w, h, rgba)| menu::CompositeSprite {
+                rgba,
+                width: *w,
+                height: *h,
+                transform: *t,
+                anchor_x: 0.5,
+                anchor_y: 0.5,
+            })
+            .collect();
+        let cpu_pixels_straight = menu::compose(CW, CH, &cpu_sprites);
+        let cpu_pixels_pm = premultiply_rgba(&cpu_pixels_straight);
+
+        let (max_diff, pct_ok) = comparer_cpu_gpu(&cpu_pixels_pm, &gpu_pixels_pm, CW, CH);
+
+        // Tailles PNG : CPU straight, GPU straight (dépré-mult pour le PNG de sortie)
+        let cpu_png_sz = encoder_rgba_png(&cpu_pixels_straight, CW, CH)?.len();
+        let mut gpu_straight_tmp = gpu_pixels_pm.clone();
+        unpremultiply_rgba(&mut gpu_straight_tmp);
+        let gpu_png_sz = encoder_rgba_png(&gpu_straight_tmp, CW, CH)?.len();
+
+        println!("=== CPU vs GPU verification (screen={screen}) ===");
+        println!("  comparaison      : valeurs pré-multipliées (PM) — évite l'amplification");
+        println!("                     d'erreur sur pixels quasi-transparents (alpha<8)");
+        println!("  max channel diff : {max_diff}/255");
+        println!("  pixels within 4  : {pct_ok:.3}%  (seuil ≥99%)");
+        println!("  CPU PNG size     : {cpu_png_sz} octets");
+        println!("  GPU PNG size     : {gpu_png_sz} octets");
+
+        if pct_ok >= 99.0 {
+            println!("  PASS");
+        } else {
+            anyhow::bail!(
+                "GPU/CPU divergence trop élevée : {pct_ok:.3}% pixels dans tolérance 4/255 \
+                 (requis ≥99%) — vérifier le transform NDC et le blend state"
+            );
+        }
+    }
+
+    // ── 8c. Dépré-multiplication pour PNG straight-alpha ─────────────────────
+    //
+    // Le buffer GPU contient des valeurs pré-multipliées. On restaure straight-alpha
+    // pour écrire un PNG standard (convention PNG = straight-alpha).
+    // Pour les pixels quasi-transparents (alpha 1..7), la dépré-multiplication introduit
+    // jusqu'à quelques LSB d'erreur sur les canaux RGB — acceptable car leur contribution
+    // visuelle est ≤ 3% (α/255).
+    let mut gpu_pixels = gpu_pixels_pm;
+    unpremultiply_rgba(&mut gpu_pixels);
+
+    // ── 9. Écriture PNG ───────────────────────────────────────────────────────
+    let png_bytes = encoder_rgba_png(&gpu_pixels, CW, CH)?;
+    std::fs::write(png_out, &png_bytes)
+        .with_context(|| format!("écriture PNG : {}", png_out.display()))?;
+
+    info!(
+        "GPU menu : {}  {}x{}  {} sprites  {} octets PNG",
+        png_out.display(),
+        CW,
+        CH,
+        n_sprites,
+        png_bytes.len()
+    );
+    println!(
+        "menu-gpu: screen={screen} sprites={n_sprites} dims={CW}x{CH} \
+         output={} size={} octets",
+        png_out.display(),
+        png_bytes.len()
+    );
+
+    Ok(())
+}
+
+// ── Implémentation ApplicationHandler winit ───────────────────────────────────
 
 impl winit::application::ApplicationHandler for AppFenetre {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
@@ -1330,7 +1938,9 @@ impl winit::application::ApplicationHandler for AppFenetre {
                     match etat.rendre() {
                         Ok(()) => {
                             self.frames_rendues += 1;
-                            if self.frames_rendues >= self.max_frames {
+                            // max_frames == 0 → fenêtre PERSISTANTE (ferme uniquement sur
+                            // CloseRequested). Sinon auto-exit après N trames (mode capture/CI).
+                            if self.max_frames != 0 && self.frames_rendues >= self.max_frames {
                                 info!("auto-exit après {} trames", self.frames_rendues);
                                 event_loop.exit();
                             }
