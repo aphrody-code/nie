@@ -35,6 +35,7 @@ use thiserror::Error;
 
 pub mod assemble;
 pub mod cfgbin;
+pub mod objbin;
 pub mod cpk;
 pub mod crilayla;
 pub mod cri_audio;
