@@ -53,6 +53,10 @@ petgraph = "0.6"
 # décodage audio CRI (HCA, ACB, AWB) — licence MIT
 cridecoder = { version = "0.2.3", default-features = false }
 
+# AES (RustCrypto, MIT/Apache) — déchiffrement AES-256-CBC du cpk_list.cfg.bin
+# (clé/IV embarqués dans nie.exe, reversés ; cf. cpk.rs). no_std + alloc.
+aes = { version = "0.8", default-features = false }
+
 # hash / util
 sha2 = "0.10"
 hex = "0.4"
