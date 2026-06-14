@@ -2594,6 +2594,7 @@ dependencies = [
  "nie-re",
  "nie-save",
  "nie-seed",
+ "nie-trace",
  "nie-wiki",
  "rayon",
  "redis",
@@ -2782,6 +2783,14 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "zip 2.4.2",
+]
+
+[[package]]
+name = "nie-trace"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

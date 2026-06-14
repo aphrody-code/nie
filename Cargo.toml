@@ -64,8 +64,13 @@ memmap2 = "0.9"
 rayon = "1"
 hashbrown = "0.14"
 
+# RE en direct (runtime) : lecture mémoire d'un nie.exe sous Wine via process_vm_readv(2).
+# FFI Linux-only, isolé dans le seul crate nie-trace (cf. son lib.rs).
+libc = "0.2"
+
 # crates internes
 nie-index = { path = "crates/nie-index" }
+nie-trace = { path = "crates/nie-trace" }
 nie-re = { path = "crates/nie-re" }
 nie-queue = { path = "crates/nie-queue" }
 nie-seed = { path = "crates/nie-seed" }

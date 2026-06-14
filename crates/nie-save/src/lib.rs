@@ -69,7 +69,7 @@ pub use nie_formats::cpk::{decrypt_block, key_from_filename};
 // ---------------------------------------------------------------------------
 
 /// Magic du conteneur « Lives » (u32 LE, plaintext après déchiffrement).
-pub const LIVES_MAGIC: u32 = 0x9DCE6_6C3;
+pub const LIVES_MAGIC: u32 = 0x9DCE_66C3;
 
 /// Constante à l'offset [8..12] du header, stockée en little-endian (octets `1F 03 C3 2E`).
 pub const LIVES_CONST2: u32 = 0x2EC3_031F;
@@ -638,7 +638,6 @@ impl Roster {
     }
 
     /// Itère sur les ids bruts possédés (sans nom).
-    #[must_use]
     pub fn ids(&self) -> impl Iterator<Item = body::autosave_roster::CharaId> + '_ {
         self.owned.iter().map(|r| r.id)
     }
