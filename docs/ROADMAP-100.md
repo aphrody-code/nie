@@ -161,7 +161,7 @@ C5 nommé             : 0         →  6 429 (12,18 %)   croissant (structurel �
 
 > **Notes de reconciliation (2026-06-13)** :
 > - **C1** : la métrique officielle reste **84,06 %** (2026-06-10) ; `docs/cartographie-data.md` mesure **92,6 %** après l'ajout de p3lip (20 357 fichiers lip-sync) — à reconcilier en métrique officielle, sans effacer le 84,06 %.
-> - **C4** : le **host natif `nie-game`** est **en place** (2026-06-13, rend une vraie `.g4tx`, capture PNG bit-exacte) ; le pipeline shaders/transforms + la gate SSIM = **D1, à venir** (cap de la Vague 7). Aucune mesure SSIM encore.
+> - **C4** : le **host natif `nie-game`** est **en place** (2026-06-13, rend une vraie `.g4tx`, capture PNG bit-exacte). **Premier écran de menu composé de bout en bout (2026-06-14)** : `nie-game --menu title00` → 15 sprites réels (objbin+g4pkm+g4tx → placement byte-exact → blit CPU) → l'écran d'avertissement santé du jeu, reconnaissable. Reste : pipeline GPU + **gate SSIM** (nécessite une capture de référence du vrai jeu) — aucune mesure SSIM encore (pas de prétention pixel-perfect).
 
 ## 6. Honnêteté (le cadre, pas une excuse)
 
