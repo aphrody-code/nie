@@ -149,8 +149,11 @@ impl Vfs {
         file.read_to_end(&mut data)
             .map_err(|_| FormatError::Corrupt("impossible de lire cpk_list.cfg.bin"))?;
 
-        // Déchiffrer avec la clé fixe Viola
-        crate::cpk::decrypt_block(&mut data, 0, crate::cpk::VIOLA_FIXED_KEY);
+        // Déchiffrer le cpk_list.cfg.bin : AES-256-CBC (clé/IV embarqués dans nie.exe,
+        // reversés — PAS l'enveloppe XOR position-based ni la clé fixe Viola, qui ne
+        // déchiffrent pas ce fichier sur les builds Steam actuels). Cf.
+        // `cpk::decrypt_cpk_list`.
+        let data = crate::cpk::decrypt_cpk_list(&data)?;
 
         // Parser le cfg.bin
         let cfg = crate::cfgbin::cfgbin_parse(&data)
@@ -317,5 +320,37 @@ impl Vfs {
     /// Itère sur toutes les entrées indexées (chemin_interne, entrée VFS).
     pub fn iter(&self) -> impl Iterator<Item = (&str, &VfsEntry)> {
         self.index.iter().map(|(k, v)| (k.as_str(), v))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Mount end-to-end du VRAI jeu Steam s'il est présent (sinon skip). Prouve que
+    /// `Vfs::init()` — cassé tant que `cpk_list.cfg.bin` n'était pas déchiffré (AES-256-CBC
+    /// reversé de nie.exe, cf. `cpk::decrypt_cpk_list`) — indexe désormais les ~250 800
+    /// fichiers logiques sans panic ni repli.
+    #[test]
+    fn vfs_init_monte_le_vrai_jeu() {
+        let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
+            "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road"
+                .to_string()
+        });
+        let data = std::path::Path::new(&dir).join("data");
+        if !data.join("cpk_list.cfg.bin").exists() {
+            eprintln!("skip vfs_init_monte_le_vrai_jeu : jeu absent");
+            return;
+        }
+        let mut vfs = Vfs::new();
+        vfs.init(&data).expect("Vfs::init via cpk_list AES");
+        let n = vfs.asset_count();
+        assert!(n > 250_000, "attendu > 250 000 fichiers indexés, obtenu {n}");
+        // L'index logique contient de vrais chemins (au moins une texture g4tx).
+        let has_g4tx = vfs
+            .iter()
+            .any(|(p, _)| p.to_ascii_lowercase().ends_with(".g4tx"));
+        assert!(has_g4tx, "aucun .g4tx dans l'index VFS");
+        eprintln!("VFS monté : {n} fichiers logiques indexés depuis cpk_list.cfg.bin");
     }
 }

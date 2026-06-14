@@ -254,6 +254,94 @@ pub fn decrypt_block(buffer: &mut [u8], file_offset: u64, key: u32) {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Déchiffrement du cpk_list.cfg.bin (AES-256-CBC, reversé de nie.exe)
+// ---------------------------------------------------------------------------
+//
+// Le `data/cpk_list.cfg.bin` (index logique chemin→CPK des ~250 800 fichiers) N'EST
+// PAS chiffré par l'enveloppe CRI position-XOR (ni la clé fixe Viola ni une clé dérivée
+// du nom) — c'est une couche distincte, plus forte. Reversé statiquement depuis le
+// loader de `nie.exe` (fonction @ VA 0x14168D5E0, build Steam 2026, image base
+// 0x140000000) :
+//
+//   1. KEY (32 o) = decrypt_block(blob_obfusqué_256bits, offset=0, seed=0x8A90ABA9)
+//   2. IV  (16 o) = decrypt_block(blob_obfusqué_128bits, offset=0, seed=0x4C801618)
+//   3. clair = AES-256-CBC-decrypt(fichier, KEY, IV)   (sans unpad : le T2B se borne
+//      par ses offsets d'en-tête ; le résidu de bloc final est ignoré par le parseur)
+//
+// Les blobs `*_OBF` sont les immédiats exacts posés sur la pile par le loader
+// (`mov dword [rbp+…], …`), désobfusqués par le MÊME `decrypt_block` (position-XOR CRC32)
+// avec une clé fixe — pas une clé de nom de fichier. Vérifié au réel : l'AES-256-CBC
+// produit un T2B valide (footer `01 74 32 62`, en-tête cohérent : entries≈254 203,
+// string_table_off+len ≈ taille fichier). iecode N'A PAS ce déchiffrement (sa commande
+// `crypto decrypt` renvoie « Unknown encryption »).
+
+/// Blob de clé AES-256 obfusqué, embarqué dans `nie.exe` (8 dwords LE, posés sur la pile
+/// par le loader cpk_list). Désobfusqué par [`decrypt_block`] + [`CPK_LIST_KEY_SEED`].
+const CPK_LIST_KEY_OBF: [u32; 8] = [
+    0x72C9_CB21, 0x178B_F2F9, 0x6450_E29D, 0x4DA9_8CD1, 0x1E90_8D53, 0x750D_F696, 0x43D9_A87A,
+    0x584F_E242,
+];
+/// Clé fixe de désobfuscation de la clé AES (immédiat `mov r8d,8A90ABA9h` du loader).
+const CPK_LIST_KEY_SEED: u32 = 0x8A90_ABA9;
+/// Blob d'IV AES-128 obfusqué (4 dwords LE). Désobfusqué par [`CPK_LIST_IV_SEED`].
+const CPK_LIST_IV_OBF: [u32; 4] = [0x3F8E_4B6D, 0xF0C9_492F, 0x3844_E69D, 0xB0CB_1EE3];
+/// Clé fixe de désobfuscation de l'IV (immédiat `mov r8d,4C801618h` du loader).
+const CPK_LIST_IV_SEED: u32 = 0x4C80_1618;
+
+/// Dérive la clé AES-256 (32 o) et l'IV (16 o) du `cpk_list.cfg.bin`, byte-exact comme
+/// `nie.exe` : désobfuscation des blobs embarqués par [`decrypt_block`] (position-XOR CRC32).
+#[must_use]
+pub fn cpk_list_key_iv() -> ([u8; 32], [u8; 16]) {
+    let mut key = [0u8; 32];
+    for (i, w) in CPK_LIST_KEY_OBF.iter().enumerate() {
+        key[i * 4..i * 4 + 4].copy_from_slice(&w.to_le_bytes());
+    }
+    decrypt_block(&mut key, 0, CPK_LIST_KEY_SEED);
+
+    let mut iv = [0u8; 16];
+    for (i, w) in CPK_LIST_IV_OBF.iter().enumerate() {
+        iv[i * 4..i * 4 + 4].copy_from_slice(&w.to_le_bytes());
+    }
+    decrypt_block(&mut iv, 0, CPK_LIST_IV_SEED);
+
+    (key, iv)
+}
+
+/// Déchiffre le `cpk_list.cfg.bin` (AES-256-CBC) → cfg.bin T2B clair.
+///
+/// Reversé de `nie.exe` (cf. module-doc de cette section). La clé/IV sont dérivés par
+/// [`cpk_list_key_iv`]. `data` doit être le fichier chiffré brut (taille multiple de 16).
+///
+/// # Errors
+/// [`FormatError::Corrupt`] si la taille n'est pas un multiple de bloc AES (16 o) — signe
+/// que l'entrée n'est pas un `cpk_list.cfg.bin` AES-CBC de ce build.
+pub fn decrypt_cpk_list(data: &[u8]) -> Result<Vec<u8>, FormatError> {
+    use aes::Aes256;
+    use aes::cipher::generic_array::GenericArray;
+    use aes::cipher::{BlockDecrypt, KeyInit};
+
+    if data.is_empty() || !data.len().is_multiple_of(16) {
+        return Err(FormatError::Corrupt(
+            "cpk_list: taille non multiple de 16 (pas un AES-256-CBC de ce build)",
+        ));
+    }
+    let (key, iv) = cpk_list_key_iv();
+    let cipher = Aes256::new(GenericArray::from_slice(&key));
+
+    let mut out = Vec::with_capacity(data.len());
+    let mut prev = iv;
+    for chunk in data.chunks_exact(16) {
+        let mut block = GenericArray::clone_from_slice(chunk);
+        cipher.decrypt_block(&mut block);
+        for j in 0..16 {
+            out.push(block[j] ^ prev[j]);
+        }
+        prev.copy_from_slice(chunk); // CBC : le bloc chiffré courant devient le « previous »
+    }
+    Ok(out)
+}
+
 /// Déchiffre en place tout un CPK chiffré, clé dérivée de `filename`.
 ///
 /// Le `buffer` doit contenir l'intégralité du fichier à partir de l'offset 0. Après l'appel,
@@ -1318,5 +1406,76 @@ mod tests {
         let bad_data = [0u8; 10];
         let reader = CpkReader::new(&bad_data, "test.cpk");
         assert!(reader.is_err());
+    }
+
+    // -------------------------------------------------------------------
+    // cpk_list.cfg.bin : AES-256-CBC (clé/IV reversés de nie.exe)
+    // -------------------------------------------------------------------
+
+    fn to_hex(b: &[u8]) -> String {
+        b.iter().map(|x| alloc::format!("{x:02x}")).collect()
+    }
+
+    /// Pin byte-exact de la dérivation clé/IV : désobfuscation des blobs embarqués de
+    /// `nie.exe` (loader cpk_list @ 0x14168D5E0). Valeurs reversées le 2026-06-14.
+    /// Ne nécessite AUCUN fichier du jeu — régression pure sur la dérivation.
+    #[test]
+    fn cpk_list_key_iv_byte_exact() {
+        let (key, iv) = cpk_list_key_iv();
+        assert_eq!(
+            to_hex(&key),
+            "99ad1240bac70843e461279d535c86d21f331ebd211bdbb0f7f3fb2b34ea3556"
+        );
+        assert_eq!(to_hex(&iv), "c1a1e44478f0fbedf0e9828875425566");
+    }
+
+    /// Taille non multiple de 16 → erreur propre (pas de panic).
+    #[test]
+    fn cpk_list_rejects_non_block_aligned() {
+        assert!(decrypt_cpk_list(&[0u8; 17]).is_err());
+        assert!(decrypt_cpk_list(&[]).is_err());
+    }
+
+    /// Bout-en-bout sur le VRAI `cpk_list.cfg.bin` Steam s'il est présent (sinon skip,
+    /// comme le test iecode). Déchiffre (AES-256-CBC) → footer T2B `01 74 32 62` présent
+    /// → cfgbin_parse → l'entrée racine contient des milliers de fichiers CPK.
+    #[test]
+    fn cpk_list_decrypts_real_file() {
+        let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
+            "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road"
+                .to_string()
+        });
+        let path = std::path::Path::new(&dir).join("data").join("cpk_list.cfg.bin");
+        let Ok(enc) = std::fs::read(&path) else {
+            eprintln!("skip cpk_list_decrypts_real_file : {} absent", path.display());
+            return;
+        };
+        let clear = decrypt_cpk_list(&enc).expect("déchiffrement AES-256-CBC");
+
+        // Footer T2B dans les 64 derniers octets.
+        let tail = &clear[clear.len().saturating_sub(64)..];
+        assert!(
+            tail.windows(4).any(|w| w == [0x01, 0x74, 0x32, 0x62]),
+            "footer T2B 01 74 32 62 absent → déchiffrement faux"
+        );
+
+        // En-tête T2B cohérent.
+        let entries = i32::from_le_bytes(clear[0..4].try_into().unwrap());
+        assert!(
+            (1000..1_000_000).contains(&entries),
+            "entries_count aberrant : {entries}"
+        );
+
+        // Parse réel + nombre d'enfants (fichiers CPK indexés).
+        let cfg = crate::cfgbin::cfgbin_parse(&clear).expect("parse T2B cpk_list");
+        let children: usize = cfg.entries.iter().map(|e| e.children.len()).sum();
+        assert!(
+            children > 1000,
+            "attendu > 1000 entrées CPK, obtenu {children}"
+        );
+        eprintln!(
+            "cpk_list OK : {} octets clairs, entries_count={entries}, {children} enfants",
+            clear.len()
+        );
     }
 }
