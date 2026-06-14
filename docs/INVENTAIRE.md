@@ -6,17 +6,18 @@
 
 ## C1 — Formats (lecture pure-Rust des conteneurs)
 
-**Source** : `crates/nie-formats/src/` (14 modules, **9 665 LOC** mesurés 2026-06-13 après le fix cfgbin), `docs/cartographie-data.md` (2026-06-13).
+**Source** : `crates/nie-formats/src/` (16 modules — +`objbin`, +`g4pkm` au 2026-06-14), `docs/cartographie-data.md` (2026-06-13).
 
-- **14/14 modules implémentés** ; **13/14 parsent du réel** (seul `nxtch.rs` sans fichier IEVR PC réel — variante Switch, 0/250 800).
+- **16/16 modules implémentés** ; **15/16 parsent du réel** (seul `nxtch.rs` sans fichier IEVR PC réel — variante Switch, 0/250 800).
+- **Trilogie menu — FAIT (2026-06-14)** : `objbin` (objet-menu = quoi : texture/z-order/composants), `g4pkm` (transform 2D = où : squelette G4SK → poses bind écran), `g4tx` (pixels) → un écran de menu est entièrement descriptible nativement. Portés d'iecode, **validés byte-exact via le VFS réel** (cpk_list déchiffré) : `win01_21` draw_priority 300, `option02_02` os nvidia X0/Y0/1920×1080, etc.
 - **Fichiers lisibles : 232 323 / 250 800 = 92,6 %** (cartographie-data.md, 2026-06-13). *Métrique officielle ROADMAP = 84,06 % (2026-06-10, antérieure à p3lip — à reconcilier, cf. gaps.)*
 - **p3lip (lip-sync) : 20 357 fichiers réels validés byte-à-byte (2026-06-13)** — `lip.rs` (185 LOC), magic `lip\0`, visèmes u8, route `/lip`.
 - **HCA décode réellement (A2, 2026-06-10)** : clé IEVR `0x00D2997C0DC5EE72` + magic masqué `0xC8C3C1` + sous-clé AFS2, via `cridecoder` (clHCA). Vérifié `c00001001.awb` (48 kHz mono, non silencieux).
 - **CPK : 921/921 déchiffrent** (clé = CRC32 du nom, XOR position-based). Pas de 2ᵉ enveloppe/clé non publique (A5 résolu).
 - **Gates** : **A0 FAIT** (RDBN, g4tx/g4md/g4mg/g4pk, @UTF, CRILAYLA, CPK, GLB texturé) ; **A1 FAIT** (nxtch N/A PC) ; **A2 FAIT** (HCA). **A3/A4/A5 = résidu**.
-- **Tests** : **105 nie-formats (lib) / 0 échec** (mesuré 2026-06-13 : 102 + 3 régression cfgbin) + **30 nie-wasm / 0 échec** (jumeaux natifs).
+- **Tests** : **125 nie-formats (lib) / 0 échec** (mesuré 2026-06-14 : +cpk_list AES, +objbin, +g4pkm, validés byte-exact sur le VFS réel) + **30 nie-wasm / 0 échec** (jumeaux natifs).
 
-**Reste (A4) — 18 477 fichiers (7,4 %) sans parseur réel** : `objbin` 11 920 · `vfxo` 1 335 · `g4cm` 1 210 · `col` 1 143 · `pfxo` 1 113 · `ptlb` 655 · `fxbin` 372 · `mevbin` 328 · `g4nv` 156 · `g4mt` 63 · `clobin` 39 · `g4ma` 35 · script Lua 616 (non décompilé). Priorité gameplay : `g4cm` (caméra cutscene) > `col` (collision) > `g4nv` (navmesh) > `mevbin` (motion-event).
+**Reste (A4) — ~6 557 fichiers (2,6 %) sans parseur réel** (après objbin, plus gros restant levé) : `vfxo` 1 335 · `g4cm` 1 210 · `col` 1 143 · `pfxo` 1 113 · `ptlb` 655 · `fxbin` 372 · `mevbin` 328 · `g4nv` 156 · `g4mt` 63 · `clobin` 39 · `g4ma` 35 · script Lua 616 (non décompilé). Priorité gameplay : `g4cm` (caméra cutscene) > `col` (collision) > `g4nv` (navmesh) > `mevbin` (motion-event). *(`objbin` 11 920 — **levé 2026-06-14**, cf. trilogie menu.)*
 
 **Dettes** : A3 `g4sk` garde un fallback heuristique (`parse_parents_heuristic`, g4sk.rs l.371-392) — hiérarchie résolue par table d'offsets sur `s28g001b.g4sk` (19 os) mais slots `SLOT_PARENTS=4`/`SLOT_NAMES=8` hardcodés ; HCA multikey validée sur 1 AWB seulement (généraliser à ≥3) ; G4MD/G4MG validés sur fixture synthétique + `u11130090` (pas de `.g4md` isolé réel) ; `vfs.rs` est std-only (cache LRU budget `NIE_CPK_CACHE_BUDGET_GIB`, défaut 16 Gio).
 
@@ -53,6 +54,8 @@
 - **D1/D2/D3 NON DÉMARRÉS** : pas encore de pipeline portant les shaders/transforms du moteur ; pas de skinning g4sk animé rendu ; pas de scène de match rendue. **C4 SSIM = — (aucune mesure).**
 - **Bug réel découvert par le host, CORRIGÉ (2026-06-13, commit `7f3e09c`)** : `nie-formats/src/cfgbin.rs:693` débordait (`off + len`) dans `parse_t2b` sur un en-tête chiffré → panic en debug, wrap silencieux en release (pire). `parse_t2b` valide désormais le signe + `checked_add` → renvoie `Corrupt` proprement (+3 tests de régression). Plus aucun panic sur les binaires du workspace.
 - **`cpk_list.cfg.bin` déchiffré — RÉSOLU (2026-06-14, commit `bdb45a6`)** : ce n'est ni l'enveloppe XOR (Viola/nom) ni du compressé, mais **AES-256-CBC**. Clé/IV **reversés statiquement de `nie.exe`** (loader @ VA `0x14168D5E0`, xref string `0x1418BA8E8`, désassemblé via `nie-re`/iced-x86) : `KEY = decrypt_block(blob256, 0, seed 0x8A90ABA9)`, `IV = decrypt_block(blob128, 0, seed 0x4C801618)`, puis AES-256-CBC. Porté (`cpk::decrypt_cpk_list`, dép `aes` RustCrypto), `vfs::init()` recâblé. **Vérifié réel** : footer T2B `01 74 32 62`, `entries_count=254203`, **`Vfs::init()` indexe 254 202 fichiers logiques** (était cassé/repli). iecode N'A PAS ce déchiffrement (« Unknown encryption »). Le scan CPK `@UTF` reste un chemin valide en parallèle.
+
+**Données menu PRÊTES (2026-06-14)** : la trilogie `objbin`+`g4pkm`+`g4tx` (cf. C1) décrit entièrement un écran de menu en Rust natif (objets, transforms 2D byte-exacts, atlas). Reste pour le RENDU : un compositeur (objbin∪g4pkm∪g4tx → sprites positionnés z-ordonnés ; réf. `nie-model-serve/menu.rs` blit affine + `MenuLayoutExporter` iecode) branché sur le pipeline GPU, puis la gate pixel-diff (nécessite une capture de référence du vrai jeu).
 
 **Chemin D1→D3** (cf. `docs/STACK.md`) : bump wgpu 22→29 + retarget `nie-engine/render.rs` (D3D11) → gate pixel-diff (image-compare SSIM + égalité octet) → skinning (port maison + glam scalaire) → audio runtime (cpal + CRI maison) → vidéo (libvpx VP9) → Lua réel (mlua lua52). Azalee/wasm = compagnon, pas le chemin.
 
