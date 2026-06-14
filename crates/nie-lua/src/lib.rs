@@ -72,6 +72,81 @@ pub fn load_bytecode(
     Ok(func)
 }
 
+/// Installe la fonction hôte `INCLUDE(name)` — le **système de modules** du moteur : le
+/// script appelle `INCLUDE("…")`, l'hôte résout le nom en bytecode `.lua.bin` (via `resolver`)
+/// et l'exécute dans la MÊME VM. Renvoie les valeurs du module inclus (ou rien si introuvable,
+/// comportement aligné sur iecode `DefaultLuaHost`).
+///
+/// `resolver` : nom logique d'include → bytecode du module (typiquement adossé au VFS).
+///
+/// # Errors
+/// [`mlua::Error`] si l'enregistrement de la fonction échoue.
+pub fn install_include<F>(lua: &mlua::Lua, resolver: F) -> mlua::Result<()>
+where
+    F: Fn(&str) -> Option<Vec<u8>> + 'static,
+{
+    let f = lua.create_function(move |lua, name: String| {
+        let Some(bytes) = resolver(&name) else {
+            return Ok(mlua::MultiValue::new()); // introuvable → vide (comme iecode)
+        };
+        // Un module peut être du bytecode (.lua.bin) ou de la source ; on tente le bytecode.
+        let mode = if is_lua52_bytecode(&bytes) {
+            mlua::ChunkMode::Binary
+        } else {
+            mlua::ChunkMode::Text
+        };
+        let func = lua
+            .load(&bytes)
+            .set_name(format!("@{name}"))
+            .set_mode(mode)
+            .into_function()?;
+        func.call::<mlua::MultiValue>(())
+    })?;
+    lua.globals().set("INCLUDE", f)?;
+    Ok(())
+}
+
+/// Exécute un script `.lua.bin` du jeu dans une VM instrumentée et retourne la liste TRIÉE
+/// des **globals hôtes** qu'il référence (fonctions/tables fournies par le moteur C++).
+///
+/// Technique : une métatable sur `_G` dont `__index` enregistre chaque accès à un global
+/// indéfini et renvoie un stub appelable (qui renvoie lui-même un stub), afin que le script
+/// s'exécute le plus loin possible sans planter. Donne la **surface d'API hôte** réelle à
+/// implémenter pour faire tourner ce menu. Ne prétend pas exécuter la logique — c'est un
+/// outil de bring-up moteur.
+///
+/// # Errors
+/// [`LuaError`] si le bytecode est invalide ou si l'instrumentation échoue.
+pub fn discover_host_calls(data: &[u8], name: &str) -> Result<Vec<String>, LuaError> {
+    let lua = new_vm();
+    // Instrumentation : enregistre tout global indéfini, renvoie un stub appelable récursif.
+    lua.load(
+        r#"
+        _HOST_SEEN = {}
+        local function stub() return setmetatable({}, { __call = function() return stub() end }) end
+        setmetatable(_G, { __index = function(_, k)
+            _HOST_SEEN[k] = (_HOST_SEEN[k] or 0) + 1
+            return stub()
+        end })
+        "#,
+    )
+    .set_name("<host-recorder>")
+    .exec()?;
+
+    let func = load_bytecode(&lua, data, name)?;
+    // pcall : on tolère une erreur d'exécution (stubs imparfaits) ; on veut juste la collecte.
+    let _ = func.call::<()>(());
+
+    let seen: mlua::Table = lua.globals().get("_HOST_SEEN")?;
+    let mut names: Vec<String> = Vec::new();
+    for pair in seen.pairs::<String, i64>() {
+        let (k, _) = pair?;
+        names.push(k);
+    }
+    names.sort();
+    Ok(names)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -138,5 +213,145 @@ mod tests {
             Ok(_func) => eprintln!("OK : bytecode du jeu chargé dans la VM Lua 5.2 réelle (mlua)"),
             Err(e) => panic!("mlua refuse le bytecode du jeu : {e}"),
         }
+    }
+
+    /// Bring-up moteur : exécute de vrais scripts de menu et révèle la **surface d'API hôte**
+    /// (fonctions du moteur C++ que les scripts appellent) à implémenter pour les faire tourner.
+    #[test]
+    fn discover_host_api_of_real_menus() {
+        let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
+            "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road"
+                .to_string()
+        });
+        let data_dir = std::path::Path::new(&dir).join("data");
+        if !data_dir.join("cpk_list.cfg.bin").exists() {
+            eprintln!("skip discover_host_api_of_real_menus : jeu absent");
+            return;
+        }
+        let mut vfs = nie_formats::vfs::Vfs::new();
+        if vfs.init(&data_dir).is_err() {
+            eprintln!("skip : vfs.init KO");
+            return;
+        }
+        // Quelques scripts de menu réels.
+        let scripts: Vec<String> = vfs
+            .iter()
+            .map(|(p, _)| p.to_string())
+            .filter(|p| p.starts_with("data/common/script/lua/menu/") && p.ends_with(".lua.bin"))
+            .take(5)
+            .collect();
+        if scripts.is_empty() {
+            eprintln!("skip : aucun script de menu");
+            return;
+        }
+        let mut union: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+        for path in &scripts {
+            let Ok(bytes) = vfs.read(path) else { continue };
+            match discover_host_calls(&bytes, path) {
+                Ok(names) => {
+                    eprintln!("\n{path}\n  → {} globals hôtes : {:?}", names.len(), names);
+                    union.extend(names);
+                }
+                Err(e) => eprintln!("{path} : {e}"),
+            }
+        }
+        eprintln!(
+            "\n=== UNION API hôte sur {} menus ({} fonctions) ===\n{:#?}",
+            scripts.len(),
+            union.len(),
+            union
+        );
+        assert!(!union.is_empty(), "les scripts doivent référencer des fonctions hôtes");
+    }
+
+    /// Bring-up moteur, couche 2 : avec un VRAI `INCLUDE` adossé au VFS, un script de menu
+    /// charge ses modules → révèle l'API hôte PLUS PROFONDE (ce que les modules appellent).
+    #[test]
+    fn run_menu_with_real_include() {
+        use std::cell::RefCell;
+        use std::rc::Rc;
+        let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
+            "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road"
+                .to_string()
+        });
+        let data_dir = std::path::Path::new(&dir).join("data");
+        if !data_dir.join("cpk_list.cfg.bin").exists() {
+            eprintln!("skip run_menu_with_real_include : jeu absent");
+            return;
+        }
+        let mut vfs = nie_formats::vfs::Vfs::new();
+        if vfs.init(&data_dir).is_err() {
+            eprintln!("skip : vfs.init KO");
+            return;
+        }
+        // Index basename(.lua.bin, minuscule) → chemin VFS (résolution rapide des includes).
+        let mut by_base: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+        for (p, _) in vfs.iter() {
+            if let Some(b) = p.rsplit('/').next()
+                && b.ends_with(".lua.bin")
+            {
+                by_base.entry(b.to_ascii_lowercase()).or_insert_with(|| p.to_string());
+            }
+        }
+        let vfs = Rc::new(vfs);
+        let by_base = Rc::new(by_base);
+        let requested: Rc<RefCell<Vec<(String, bool)>>> = Rc::new(RefCell::new(Vec::new()));
+
+        // Choisir un script de menu réel.
+        let Some(top) = vfs
+            .iter()
+            .map(|(p, _)| p.to_string())
+            .find(|p| p.starts_with("data/common/script/lua/menu/") && p.ends_with(".lua.bin"))
+        else {
+            eprintln!("skip : aucun script menu");
+            return;
+        };
+        let top_bytes = vfs.read(&top).expect("read top");
+
+        let lua = new_vm();
+        {
+            let vfs = Rc::clone(&vfs);
+            let by_base = Rc::clone(&by_base);
+            let requested = Rc::clone(&requested);
+            install_include(&lua, move |name| {
+                // Essais de résolution : <name>.lua.bin, <name> tel quel, basename.
+                let cands = [
+                    format!("{}.lua.bin", name.to_ascii_lowercase()),
+                    name.to_ascii_lowercase(),
+                ];
+                let mut found = None;
+                for c in &cands {
+                    if let Some(path) = by_base.get(c) {
+                        found = vfs.read(path).ok();
+                        break;
+                    }
+                }
+                requested.borrow_mut().push((name.to_string(), found.is_some()));
+                found
+            })
+            .expect("install INCLUDE");
+        }
+        // Recorder pour les AUTRES globals hôtes (INCLUDE est déjà réel).
+        lua.load(
+            r#"_HOST_SEEN={}
+               local function stub() return setmetatable({},{__call=function() return stub() end}) end
+               setmetatable(_G,{__index=function(_,k) _HOST_SEEN[k]=(_HOST_SEEN[k] or 0)+1; return stub() end})"#,
+        )
+        .exec()
+        .expect("recorder");
+
+        let func = load_bytecode(&lua, &top_bytes, &top).expect("load top");
+        let run = func.call::<()>(());
+        eprintln!("\nscript={top}\n exécution : {run:?}");
+        // Jalon : le bytecode RÉEL du jeu s'EXÉCUTE dans la VM (au-delà du simple chargement).
+        assert!(run.is_ok(), "le script du jeu doit s'exécuter sans erreur VM : {run:?}");
+        eprintln!(" includes demandés :");
+        for (n, ok) in requested.borrow().iter() {
+            eprintln!("   - {n}  [{}]", if *ok { "résolu" } else { "INTROUVABLE" });
+        }
+        let seen: mlua::Table = lua.globals().get("_HOST_SEEN").unwrap();
+        let mut deeper: Vec<String> = seen.pairs::<String, i64>().filter_map(Result::ok).map(|(k, _)| k).collect();
+        deeper.sort();
+        eprintln!(" API hôte profonde ({}) : {:?}", deeper.len(), deeper);
     }
 }
