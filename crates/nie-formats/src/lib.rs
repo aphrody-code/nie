@@ -42,6 +42,7 @@ pub mod cri_audio;
 pub mod g4md;
 pub mod g4mg;
 pub mod g4pk;
+pub mod g4pkm;
 pub mod g4sk;
 pub mod g4tx;
 pub mod lip;
