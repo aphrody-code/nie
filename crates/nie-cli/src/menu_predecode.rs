@@ -189,7 +189,7 @@ pub fn run(
                 // Idempotent : skip si le PNG existe et est non-vide.
                 if png_out.exists() {
                     let meta = std::fs::metadata(&png_out).ok();
-                    if meta.map_or(false, |m| m.len() > 0) {
+                    if meta.is_some_and(|m| m.len() > 0) {
                         skipped.fetch_add(1, Ordering::Relaxed);
                         continue;
                     }

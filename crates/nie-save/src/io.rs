@@ -83,13 +83,11 @@ pub fn edit_blob_byte(
     value: u8,
 ) -> bool {
     for (entry, blob) in container.entries.iter().zip(container.blobs.iter_mut()) {
-        if entry.filename == internal_filename {
-            if offset < blob.body.len() {
-                blob.body[offset] = value;
-                // Ne pas mettre à jour payload_size : ce champ est interne au moteur jeu
-                // et n'est pas nécessairement la taille du corps (ex. AUTOSAVE).
-                return true;
-            }
+        if entry.filename == internal_filename && offset < blob.body.len() {
+            blob.body[offset] = value;
+            // Ne pas mettre à jour payload_size : ce champ est interne au moteur jeu
+            // et n'est pas nécessairement la taille du corps (ex. AUTOSAVE).
+            return true;
         }
     }
     false

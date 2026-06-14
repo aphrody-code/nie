@@ -334,7 +334,7 @@ fn parse_chara_table(body: &[u8], start_offset: usize) -> Vec<CharaParamSlot> {
     for i in 0..CHARA_SLOT_COUNT {
         // checked_add pour éviter l'overflow sur wasm32 (usize = 32 bits).
         let sep_offset = match start_offset
-            .checked_add(i.checked_mul(CHARA_SLOT_STRIDE).unwrap_or(usize::MAX))
+            .checked_add(i.saturating_mul(CHARA_SLOT_STRIDE))
         {
             Some(v) => v,
             None => break,
