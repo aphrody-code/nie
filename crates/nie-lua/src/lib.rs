@@ -1,5 +1,11 @@
 //! `nie-lua` — la VM Lua **réelle** du jeu (mlua, PUC-Rio Lua 5.2.4 vendored).
 //!
+//! ## Modules
+//!
+//! - Ce fichier (`lib.rs`) — VM, chargement bytecode, découverte API hôte.
+//! - [`menu_host`] — modèle [`menu_host::MenuState`], [`menu_host::install_menu_host`],
+//!   [`menu_host::run_menu`].
+//!
 //! Le moteur Level-5 « Lives » pilote ses menus, scènes et événements par des scripts
 //! Lua 5.2 compilés en bytecode (`.lua.bin`, ~616 fichiers sous `data/common/script/lua/`).
 //! Reproduire le jeu À L'IDENTIQUE impose d'exécuter CES scripts dans LEUR VM exacte —
@@ -13,6 +19,9 @@
 //!
 //! Charger du bytecode Lua arbitraire exige `Lua::unsafe_new` (un bytecode malformé peut
 //! corrompre la VM) : cette crate est donc volontairement hors `forbid(unsafe_code)`.
+
+pub mod menu_host;
+pub use menu_host::{install_menu_host, run_menu, MenuLayerState, MenuObjectState, MenuState};
 
 use thiserror::Error;
 
@@ -262,6 +271,234 @@ mod tests {
             union
         );
         assert!(!union.is_empty(), "les scripts doivent référencer des fonctions hôtes");
+    }
+
+    /// **Milestone moteur** : exécute la vraie logique Lua de menus avec le host complet
+    /// (`funcLuaMenuCommand` + `INCLUDE` VFS) et inspecte le [`MenuState`] résultant.
+    ///
+    /// Pour chaque script de menu sous `data/common/script/lua/menu/` :
+    /// - charge + exécute (définis les callbacks)
+    /// - appelle `OnSetupLayer` puis `OnOpenLayer` si présents
+    /// - rapporte layers/objets créés et fonctions hôtes appelées
+    ///
+    /// Résultat honête : si aucun script ne peuple via OnOpenLayer, on rapporte
+    /// exactement ce qu'ils ont appelé pour diagnostiquer la convention réelle.
+    #[test]
+    fn run_menu_with_menu_host() {
+        use std::rc::Rc;
+        use crate::menu_host::{install_menu_host, run_menu};
+
+        let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
+            "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road"
+                .to_string()
+        });
+        let data_dir = std::path::Path::new(&dir).join("data");
+        if !data_dir.join("cpk_list.cfg.bin").exists() {
+            eprintln!("skip run_menu_with_menu_host : jeu absent");
+            return;
+        }
+        let mut vfs = nie_formats::vfs::Vfs::new();
+        if vfs.init(&data_dir).is_err() {
+            eprintln!("skip : vfs.init KO");
+            return;
+        }
+
+        // Index basename(.lua.bin, minuscule) → chemin VFS.
+        let mut by_base: std::collections::HashMap<String, String> =
+            std::collections::HashMap::new();
+        for (p, _) in vfs.iter() {
+            if let Some(b) = p.rsplit('/').next()
+                && b.ends_with(".lua.bin")
+            {
+                by_base.entry(b.to_ascii_lowercase()).or_insert_with(|| p.to_string());
+            }
+        }
+        let vfs = Rc::new(vfs);
+        let by_base = Rc::new(by_base);
+
+        // Sélectionner les scripts de menu — triés pour un ordre déterministe.
+        let mut scripts: Vec<String> = vfs
+            .iter()
+            .map(|(p, _)| p.to_string())
+            .filter(|p| {
+                p.starts_with("data/common/script/lua/menu/") && p.ends_with(".lua.bin")
+            })
+            .collect();
+        scripts.sort();
+        scripts.truncate(30);
+
+        if scripts.is_empty() {
+            eprintln!("skip : aucun script de menu");
+            return;
+        }
+
+        eprintln!("\n=== run_menu_with_menu_host : {} scripts ===\n", scripts.len());
+
+        let mut found_populated = false;
+        let mut total_unknown_cmds: std::collections::BTreeMap<u32, usize> =
+            std::collections::BTreeMap::new();
+
+        for path in &scripts {
+            let Ok(bytes) = vfs.read(path) else { continue };
+
+            // Nouvelle VM par script (état propre).
+            let lua = new_vm();
+
+            // Installe INCLUDE adossé au VFS.
+            {
+                let vfs = Rc::clone(&vfs);
+                let by_base = Rc::clone(&by_base);
+                install_include(&lua, move |name| {
+                    let cands = [
+                        format!("{}.lua.bin", name.to_ascii_lowercase()),
+                        name.to_ascii_lowercase(),
+                    ];
+                    for c in &cands {
+                        if let Some(vfs_path) = by_base.get(c) {
+                            return vfs.read(vfs_path).ok();
+                        }
+                    }
+                    None
+                })
+                .expect("install_include");
+            }
+
+            // Installe le host de menu.
+            let state = match install_menu_host(&lua) {
+                Ok(s) => s,
+                Err(e) => { eprintln!("{path}: install_menu_host KO: {e}"); continue }
+            };
+
+            // Détermine un layerId plausible : on essaie 0 (iecode utilise general_win
+            // = 292844459 pour qrcode_menu ; sans le dico on essaie 0 puis 0x1176F7AB).
+            // Les scripts qui définissent OnOpenLayer(layerId) utiliseront souvent le
+            // layerId passé pour filtrer ; on tente 0 = « tous les layers ».
+            let layer_id: u32 = 0;
+
+            let script_name = path.rsplit('/').next().unwrap_or(path.as_str());
+            let run_result = run_menu(&lua, &bytes, path, layer_id);
+
+            let st = state.borrow();
+            let has_on_open = matches!(&run_result, Ok(true));
+            let n_layers = st.layers.len();
+            let n_objects: usize = st.layers.values().map(|l| l.objects.len()).sum();
+            let n_known_calls = st.known_cmd_log.len();
+            let n_unknown = st.unknown_cmd_log.len();
+
+            // Accumule les cmdIds inconnus pour le rapport global.
+            for (cmd_id, _, _) in &st.unknown_cmd_log {
+                *total_unknown_cmds.entry(*cmd_id).or_insert(0) += 1;
+            }
+
+            eprintln!(
+                "{script_name}\n  OnOpenLayer={has_on_open}  run={run_result:?}\n  \
+                 layers={n_layers}  objects={n_objects}  known_calls={n_known_calls}  \
+                 unknown_cmds={n_unknown}"
+            );
+
+            if !st.known_cmd_log.is_empty() {
+                eprintln!("  commandes connues : {:?}", st.known_cmd_log);
+            }
+            if n_layers > 0 || n_objects > 0 {
+                found_populated = true;
+                eprintln!("  *** PEUPLÉ *** layers: {:?}", st.layers.keys().collect::<Vec<_>>());
+                for (lid, layer) in &st.layers {
+                    eprintln!(
+                        "    layer 0x{lid:08X}: visible={} enabled={} focus={:?} objects={}",
+                        layer.visible, layer.enabled, layer.focus, layer.objects.len()
+                    );
+                    for (oid, obj) in &layer.objects {
+                        eprintln!(
+                            "      obj 0x{oid:08X}: visible={} sprite={:?} text={:?}",
+                            obj.visible, obj.sprite_texture_hash, obj.text
+                        );
+                    }
+                }
+            }
+            if !st.unknown_cmd_log.is_empty() {
+                // Affiche les 5 premiers appels inconnus pour la découverte.
+                eprintln!("  cmdIds inconnus (premiers 5) :");
+                for (cmd_id, layer_id, repr) in st.unknown_cmd_log.iter().take(5) {
+                    eprintln!("    0x{cmd_id:08X} layer=0x{layer_id:08X} args=[{repr}]");
+                }
+            }
+        }
+
+        // Rapport global des cmdIds inconnus (utile pour étendre le dispatch).
+        if !total_unknown_cmds.is_empty() {
+            eprintln!(
+                "\n=== cmdIds funcLuaMenuCommand non reversés ({} distincts) ===",
+                total_unknown_cmds.len()
+            );
+            for (cmd_id, count) in &total_unknown_cmds {
+                eprintln!("  0x{cmd_id:08X}  ×{count}");
+            }
+        }
+
+        eprintln!(
+            "\n=== Bilan enquête : {} scripts — {} avec MenuState peuplé ===",
+            scripts.len(),
+            if found_populated { "≥1" } else { "0" }
+        );
+
+        // ── Assertion ciblée : loading_menu_trial_1.03.64.lua.bin ────────────
+        // Ce script est CONFIRMÉ peupler le MenuState lors de l'exécution
+        // principale (SetObjectVisible sur layer 0x738D7BFD, objet 0x00000000).
+        // On le teste directement pour une assertion robuste.
+        let loading_trial_path = vfs
+            .iter()
+            .map(|(p, _)| p.to_string())
+            .find(|p| p.ends_with("loading_menu_trial_1.03.64.lua.bin"));
+
+        if let Some(ref path) = loading_trial_path {
+            let bytes = vfs.read(path).expect("read loading_menu_trial");
+            let lua_t = new_vm();
+            {
+                let vfs = Rc::clone(&vfs);
+                let by_base = Rc::clone(&by_base);
+                install_include(&lua_t, move |name| {
+                    let c = format!("{}.lua.bin", name.to_ascii_lowercase());
+                    by_base.get(&c).and_then(|p| vfs.read(p).ok())
+                })
+                .expect("install_include");
+            }
+            let state_t = install_menu_host(&lua_t).expect("install_menu_host");
+            let _ = run_menu(&lua_t, &bytes, path, 0);
+            let st = state_t.borrow();
+
+            eprintln!(
+                "\n=== Assertion loading_menu_trial : layers={} objects={} known_calls={} ===",
+                st.layers.len(),
+                st.layers.values().map(|l| l.objects.len()).sum::<usize>(),
+                st.known_cmd_log.len()
+            );
+            for (lid, layer) in &st.layers {
+                eprintln!("  layer 0x{lid:08X}: {} objets", layer.objects.len());
+                for (oid, obj) in &layer.objects {
+                    eprintln!(
+                        "    obj 0x{oid:08X}: visible={} sprite={:?}",
+                        obj.visible, obj.sprite_texture_hash
+                    );
+                }
+            }
+
+            // Assertion forte : le script a peuplé ≥1 layer avec ≥1 objet.
+            assert!(
+                !st.layers.is_empty(),
+                "loading_menu_trial doit créer ≥1 layer dans le MenuState"
+            );
+            let total_objects: usize = st.layers.values().map(|l| l.objects.len()).sum();
+            assert!(
+                total_objects > 0,
+                "loading_menu_trial doit créer ≥1 objet dans le MenuState"
+            );
+            assert!(
+                !st.known_cmd_log.is_empty(),
+                "loading_menu_trial doit avoir appelé ≥1 commande hôte connue"
+            );
+        } else {
+            eprintln!("SKIP assertion ciblée : loading_menu_trial_1.03.64.lua.bin introuvable");
+        }
     }
 
     /// Bring-up moteur, couche 2 : avec un VRAI `INCLUDE` adossé au VFS, un script de menu
