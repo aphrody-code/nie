@@ -1,6 +1,6 @@
 [package]
 name = "nie-trace"
-description = "RE en direct (runtime) : lecture de la mémoire live d'un nie.exe sous Wine via process_vm_readv(2) — résolution de base de module, hex dump, dump de plages, scan de motif. Linux-only."
+description = "RE en direct (runtime) : lecture de la mémoire live d'un nie.exe — process_vm_readv(2) si Wine/Linux, ReadProcessMemory si Windows natif. Résolution de module, hex dump, dump de plages, scan. Binaire nie-mem cross-compilable depuis WSL."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,7 +10,25 @@ rust-version.workspace = true
 [lints]
 workspace = true
 
+[[bin]]
+# Lecteur mémoire autonome — cross-compilé vers Windows (x86_64-pc-windows-gnu) depuis WSL et
+# lancé via l'interop pour inspecter le vrai nie.exe natif. Compile aussi sous Linux (backend Wine).
+name = "nie-mem"
+path = "src/bin/nie-mem.rs"
+
 [dependencies]
-# FFI process_vm_readv/writev — seul crate de niers qui touche libc (RE runtime Linux).
-libc = { workspace = true }
 thiserror.workspace = true
+
+# Backend Linux/Wine : process_vm_readv/writev via libc.
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = { workspace = true }
+
+# Backend Windows natif : OpenProcess/ReadProcessMemory/Toolhelp32/VirtualQueryEx.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    "Win32_System_Threading",
+    "Win32_System_Memory",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_Diagnostics_Debug",
+] }

@@ -1,27 +1,30 @@
-//! `nie-trace` — RE **en direct** (runtime) d'`nie.exe` exécuté sous Wine sur Linux.
+//! `nie-trace` — RE **en direct** (runtime) d'`nie.exe` : lecture de sa mémoire vivante pour
+//! valider au réel les structures C++ reversées statiquement (offsets, vtables, état de scène).
 //!
-//! Le binaire du jeu tourne sous Wine/Proton (le PE est chargé dans l'espace d'adressage
-//! Linux du process — cf. [`wine_memory`]). Ce crate lit/scanne sa mémoire **sans le stopper**
-//! via `process_vm_readv(2)`, pour valider au réel les structures C++ reversées statiquement
-//! (offsets, vtables, clés, état de scène) — l'objectif pixel-perfect impose de vérifier que
-//! les structs miroir Rust collent aux instances vivantes.
+//! ## Deux backends, une API
 //!
-//! ## Chaîne RE runtime (cf. `scripts/`)
+//! - **Windows natif** ([`win_memory`], `cfg(windows)`) — le vrai jeu Steam tourne sous Windows ;
+//!   on lit via `OpenProcess`+`ReadProcessMemory` (Toolhelp32 pour les PID/modules, `VirtualQueryEx`
+//!   pour les plages). Le binaire [`nie-mem`](../bin/nie-mem.rs) se **cross-compile depuis WSL**
+//!   (`x86_64-pc-windows-gnu`, mingw) et se lance via l'interop WSL→Windows : WSL2 est une VM
+//!   distincte, ses `/proc` ne voient PAS les process Windows — il FAUT l'API Windows.
+//! - **Wine/Linux** ([`wine_memory`], `cfg(target_os="linux")`) — si le jeu tourne sous Wine, le PE
+//!   est chargé dans l'espace d'adressage Linux → `process_vm_readv(2)` sur `/proc/<pid>/maps`.
 //!
-//! 1. [`patch_eac`] — neutralise la **modale fatale** d'init EAC sur une **copie**
-//!    (`nie_eacpatched.exe`), pour que le boot headless *offline* ne meure pas dessus.
-//!    Ne touche jamais l'original ; vérifie les 5 octets avant d'écrire.
-//! 2. `scripts/boot-nie-direct.sh` — lance le `.exe` headless (Proton `runinprefix`, DXVK
-//!    lavapipe, Xvfb). Le lanceur est **parent** du jeu → ancêtre → ptrace permis (yama=1).
-//! 3. [`wine_memory`] — lit la mémoire live (`maps` / `base` / `read` / [`dump_regions`] /
-//!    [`scan_regions`]).
+//! L'API publique ([`read`], [`find_pid_by_name`], [`find_module_base`], [`module_range`],
+//! [`enumerate_regions`]) dispatch vers le backend de la plateforme courante. Les helpers neutres
+//! ([`scan_regions`], [`dump_regions`], [`patch_eac`]) s'appuient dessus.
+//!
+//! ## EAC
+//!
+//! [`patch_eac`] neutralise la **modale fatale** d'init EAC (NOP du `call` @ [`EAC_PATCH_OFFSET`])
+//! sur une **copie** : permet de lancer `nie.exe` **directement** (sans `EACLauncher.exe`), donc
+//! sans driver EAC kernel → `ReadProcessMemory` autorisé. RE single-player offline d'un jeu possédé.
 //!
 //! ## `unsafe`
 //!
-//! Seul crate de niers à appeler libc : `process_vm_readv`/`writev` sont des FFI. L'unsafe est
-//! confiné à [`wine_memory::read`]/[`wine_memory::write`] (deux blocs, documentés `SAFETY`),
-//! Linux-only ; tout le reste (`/proc`, patch, scan) est sûr. Ce crate n'a donc PAS
-//! `#![forbid(unsafe_code)]`, contrairement au reste du workspace.
+//! Seul crate de niers à faire de la FFI OS (libc / windows-sys), confinée aux backends et
+//! documentée `SAFETY`. Le reste (types, scan, patch) est sûr. Pas de `forbid(unsafe_code)`.
 
 use std::fs;
 use std::io::{Read, Seek, SeekFrom, Write as _};
@@ -29,22 +32,178 @@ use std::path::Path;
 
 use thiserror::Error;
 
+#[cfg(target_os = "linux")]
 pub mod wine_memory;
+#[cfg(windows)]
+pub mod win_memory;
 
-pub use wine_memory::{
-    MapEntry, WineMemoryError, find_module_base, find_module_base_in, find_module_regions,
-    find_pid_by_comm, is_ancestor_of, likely_permitted, module_image_range, parse_map_line, read,
-    read_exact, read_maps, read_ptrace_scope, read_u32, read_u64, write,
-};
+// Extras spécifiques au backend Wine/Linux (avertissement ptrace côté CLI).
+#[cfg(target_os = "linux")]
+pub use wine_memory::{likely_permitted, read_ptrace_scope};
+
+// ─── Types partagés ────────────────────────────────────────────────────────────────
+
+/// Une plage mémoire du process cible (issue de `/proc/<pid>/maps` sous Linux, de `VirtualQueryEx`
+/// sous Windows). `perms` est normalisé `rwx` (`-` si absent).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MapEntry {
+    pub start: u64,
+    pub end: u64,
+    pub perms: String,
+    pub offset: u64,
+    pub path: String,
+}
+
+impl MapEntry {
+    #[must_use]
+    pub fn size(&self) -> u64 {
+        self.end.saturating_sub(self.start)
+    }
+    #[must_use]
+    pub fn is_readable(&self) -> bool {
+        self.perms.as_bytes().first() == Some(&b'r')
+    }
+    #[must_use]
+    pub fn is_writable(&self) -> bool {
+        self.perms.as_bytes().get(1) == Some(&b'w')
+    }
+    #[must_use]
+    pub fn is_executable(&self) -> bool {
+        self.perms.as_bytes().get(2) == Some(&b'x')
+    }
+}
+
+/// Échec d'une lecture mémoire, détail OS décodé.
+#[derive(Debug, Error)]
+pub enum MemError {
+    #[error("{op} a échoué pid={pid} addr=0x{addr:x} len={len} errno={errno}{hint}")]
+    Syscall { op: &'static str, pid: i32, addr: u64, len: usize, errno: i32, hint: &'static str },
+    #[error("{op} a échoué pid={pid} addr=0x{addr:x} len={len} GetLastError={code}{hint}")]
+    Win { op: &'static str, pid: i32, addr: u64, len: usize, code: u32, hint: &'static str },
+    #[error("{op} lecture partielle pid={pid} addr=0x{addr:x} demandé={requested} lu={got}")]
+    Partial { op: &'static str, pid: i32, addr: u64, requested: usize, got: usize },
+    #[error("lecture mémoire indisponible sur cette plateforme")]
+    Unsupported,
+}
+
+// ─── API publique : dispatch par backend ───────────────────────────────────────────
+
+/// Lit jusqu'à `dest.len()` octets à l'adresse virtuelle `addr` du process `pid`. Ne stoppe pas la
+/// cible. Renvoie le nombre d'octets lus (peut être `< dest.len()` aux frontières de plage).
+pub fn read(pid: i32, addr: u64, dest: &mut [u8]) -> Result<usize, MemError> {
+    #[cfg(target_os = "linux")]
+    return wine_memory::read(pid, addr, dest);
+    #[cfg(windows)]
+    return win_memory::read(pid, addr, dest);
+    #[cfg(not(any(target_os = "linux", windows)))]
+    {
+        let _ = (pid, addr);
+        if dest.is_empty() { Ok(0) } else { Err(MemError::Unsupported) }
+    }
+}
+
+/// PID du premier process dont le nom d'image vaut `name` (ex. `"nie.exe"`).
+#[must_use]
+pub fn find_pid_by_name(name: &str) -> Option<i32> {
+    #[cfg(target_os = "linux")]
+    return wine_memory::find_pid_by_name(name);
+    #[cfg(windows)]
+    return win_memory::find_pid_by_name(name);
+    #[cfg(not(any(target_os = "linux", windows)))]
+    {
+        let _ = name;
+        None
+    }
+}
+
+/// Adresse de chargement (base) du module dont le chemin/nom contient `fragment`.
+#[must_use]
+pub fn find_module_base(pid: i32, fragment: &str) -> Option<u64> {
+    #[cfg(target_os = "linux")]
+    return wine_memory::find_module_base(pid, fragment);
+    #[cfg(windows)]
+    return win_memory::find_module_base(pid, fragment);
+    #[cfg(not(any(target_os = "linux", windows)))]
+    {
+        let _ = (pid, fragment);
+        None
+    }
+}
+
+/// Étendue VA `[base, base+taille)` du module (taille = `SizeOfImage` PE sous Linux, `modBaseSize`
+/// Toolhelp sous Windows).
+#[must_use]
+pub fn module_range(pid: i32, fragment: &str) -> Option<(u64, u64)> {
+    #[cfg(target_os = "linux")]
+    return wine_memory::module_range(pid, fragment);
+    #[cfg(windows)]
+    return win_memory::module_range(pid, fragment);
+    #[cfg(not(any(target_os = "linux", windows)))]
+    {
+        let _ = (pid, fragment);
+        None
+    }
+}
+
+/// Toutes les plages mémoire (committées) du process.
+#[must_use]
+pub fn enumerate_regions(pid: i32) -> Vec<MapEntry> {
+    #[cfg(target_os = "linux")]
+    return wine_memory::enumerate_regions(pid);
+    #[cfg(windows)]
+    return win_memory::enumerate_regions(pid);
+    #[cfg(not(any(target_os = "linux", windows)))]
+    {
+        let _ = pid;
+        Vec::new()
+    }
+}
+
+/// Plages du module `fragment` uniquement (intersection avec [`module_range`]), ou toutes si `all`.
+#[must_use]
+pub fn module_regions(pid: i32, fragment: &str, all: bool) -> Vec<MapEntry> {
+    let regions = enumerate_regions(pid);
+    if all {
+        return regions;
+    }
+    match module_range(pid, fragment) {
+        Some((base, end)) if end > base => {
+            regions.into_iter().filter(|m| m.start < end && m.end > base).collect()
+        }
+        _ => regions.into_iter().filter(|m| m.path.to_lowercase().contains(&fragment.to_lowercase())).collect(),
+    }
+}
+
+/// Lit exactement `length` octets ou échoue (lecture partielle = échec).
+pub fn read_exact(pid: i32, addr: u64, length: usize) -> Result<Vec<u8>, MemError> {
+    let mut buf = vec![0u8; length];
+    let got = read(pid, addr, &mut buf)?;
+    if got != length {
+        return Err(MemError::Partial { op: "read", pid, addr, requested: length, got });
+    }
+    Ok(buf)
+}
+
+/// Lit un `u32` little-endian (x86-64).
+pub fn read_u32(pid: i32, addr: u64) -> Result<u32, MemError> {
+    let b = read_exact(pid, addr, 4)?;
+    Ok(u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+}
+
+/// Lit un `u64` little-endian (x86-64).
+pub fn read_u64(pid: i32, addr: u64) -> Result<u64, MemError> {
+    let b = read_exact(pid, addr, 8)?;
+    Ok(u64::from_le_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]]))
+}
 
 // ─── EAC patch (port de scripts/patch-eac.sh) ──────────────────────────────────────
 
 /// File offset du `call` vers le constructeur de modale fatale (VA `0x14114ea02`,
-/// image base `0x140000000`). NOP-er ces 5 octets rend l'échec d'init EAC headless non-fatal.
+/// image base `0x140000000`). NOP-er ces 5 octets rend l'échec d'init EAC non-fatal.
 pub const EAC_PATCH_OFFSET: u64 = 0x0114_DE02;
 /// Octets d'origine attendus : `call 0x140afa1a0` (`e8 99 b7 9a ff`). Garde-fou anti-mauvais-build.
 pub const EAC_PATCH_ORIG: [u8; 5] = [0xE8, 0x99, 0xB7, 0x9A, 0xFF];
-/// 5× `nop` — neutralise le call.
+/// 5× `nop`.
 pub const EAC_PATCH_NOP: [u8; 5] = [0x90, 0x90, 0x90, 0x90, 0x90];
 
 /// Erreur du patch EAC.
@@ -52,9 +211,7 @@ pub const EAC_PATCH_NOP: [u8; 5] = [0x90, 0x90, 0x90, 0x90, 0x90];
 pub enum EacPatchError {
     #[error("E/S sur le patch EAC : {0}")]
     Io(#[from] std::io::Error),
-    #[error(
-        "octets @0x{offset:X} = {got}, attendu {want} — build de nie.exe différent, abandon"
-    )]
+    #[error("octets @0x{offset:X} = {got}, attendu {want} — build de nie.exe différent, abandon")]
     Mismatch { offset: u64, got: String, want: String },
 }
 
@@ -67,12 +224,8 @@ pub struct EacPatchReport {
     pub dst_len: u64,
 }
 
-/// Crée `dst` comme **copie** de `src` puis NOP le `call` de modale fatale EAC @
-/// [`EAC_PATCH_OFFSET`]. Vérifie que les 5 octets valent [`EAC_PATCH_ORIG`] avant d'écrire
-/// (sinon [`EacPatchError::Mismatch`]). **Ne touche jamais `src`**.
-///
-/// Équivalent natif de `scripts/patch-eac.sh` ; opère sur une copie dans le dossier du jeu pour
-/// que les DLL voisines (Goldberg `steam_api64`, proxy EOSSDK) se résolvent.
+/// Crée `dst` comme **copie** de `src` puis NOP le `call` de modale fatale EAC @ [`EAC_PATCH_OFFSET`].
+/// Vérifie que les 5 octets valent [`EAC_PATCH_ORIG`] avant d'écrire. **Ne touche jamais `src`**.
 pub fn patch_eac(src: &Path, dst: &Path) -> Result<EacPatchReport, EacPatchError> {
     fs::copy(src, dst)?;
     let mut f = fs::OpenOptions::new().read(true).write(true).open(dst)?;
@@ -93,19 +246,14 @@ pub fn patch_eac(src: &Path, dst: &Path) -> Result<EacPatchReport, EacPatchError
     f.flush()?;
     let dst_len = f.metadata()?.len();
 
-    Ok(EacPatchReport {
-        offset: EAC_PATCH_OFFSET,
-        original: EAC_PATCH_ORIG,
-        patched: EAC_PATCH_NOP,
-        dst_len,
-    })
+    Ok(EacPatchReport { offset: EAC_PATCH_OFFSET, original: EAC_PATCH_ORIG, patched: EAC_PATCH_NOP, dst_len })
 }
 
 fn hex5(b: &[u8; 5]) -> String {
     b.iter().map(|x| format!("{x:02x}")).collect()
 }
 
-// ─── Dump / scan de plages (capacités « dumper la mémoire ») ───────────────────────
+// ─── Dump / scan de plages ──────────────────────────────────────────────────────────
 
 /// Un hit de [`scan_regions`].
 #[derive(Debug, Clone)]
@@ -123,13 +271,9 @@ pub struct DumpStats {
     pub bytes: u64,
 }
 
-/// Dumpe les plages **lisibles** de `regions` (du process `pid`) vers `out_dir`, un fichier
-/// `<start>-<end>.bin` par plage. Saute silencieusement les plages volatiles/refusées.
-pub fn dump_regions(
-    pid: i32,
-    regions: &[MapEntry],
-    out_dir: &Path,
-) -> std::io::Result<DumpStats> {
+/// Dumpe les plages **lisibles** vers `out_dir` (`<start>-<end>.bin` par plage). Saute les plages
+/// volatiles/refusées.
+pub fn dump_regions(pid: i32, regions: &[MapEntry], out_dir: &Path) -> std::io::Result<DumpStats> {
     fs::create_dir_all(out_dir)?;
     let mut stats = DumpStats::default();
     for m in regions {
@@ -139,7 +283,7 @@ pub fn dump_regions(
         let mut buf = vec![0u8; m.size() as usize];
         let got = match read(pid, m.start, &mut buf) {
             Ok(n) if n > 0 => n,
-            _ => continue, // plage volatile/refusée : on saute
+            _ => continue,
         };
         let name = format!("{:012x}-{:012x}.bin", m.start, m.end);
         fs::write(out_dir.join(name), &buf[..got])?;
@@ -149,15 +293,9 @@ pub fn dump_regions(
     Ok(stats)
 }
 
-/// Cherche `needle` dans les plages **lisibles** de `regions`, jusqu'à `limit` hits.
-/// `base` (optionnel) sert à calculer la RVA module-relative de chaque hit.
-pub fn scan_regions(
-    pid: i32,
-    regions: &[MapEntry],
-    base: Option<u64>,
-    needle: &[u8],
-    limit: usize,
-) -> Vec<ScanHit> {
+/// Cherche `needle` dans les plages **lisibles**, jusqu'à `limit` hits. `base` sert à calculer la RVA.
+#[must_use]
+pub fn scan_regions(pid: i32, regions: &[MapEntry], base: Option<u64>, needle: &[u8], limit: usize) -> Vec<ScanHit> {
     let mut hits = Vec::new();
     if needle.is_empty() {
         return hits;
@@ -184,8 +322,7 @@ pub fn scan_regions(
     hits
 }
 
-/// Première occurrence de `needle` dans `hay` (recherche naïve ; suffisant pour des plages
-/// de quelques Mo et un motif court).
+/// Première occurrence de `needle` dans `hay` (recherche naïve).
 fn find_subslice(hay: &[u8], needle: &[u8]) -> Option<usize> {
     if needle.is_empty() || needle.len() > hay.len() {
         return None;
@@ -205,35 +342,38 @@ mod tests {
     }
 
     #[test]
+    fn map_entry_perms() {
+        let e = MapEntry { start: 0x1000, end: 0x2000, perms: "r-x".into(), offset: 0, path: "m".into() };
+        assert!(e.is_readable() && !e.is_writable() && e.is_executable());
+        assert_eq!(e.size(), 0x1000);
+    }
+
+    #[test]
     fn patch_eac_nops_only_when_bytes_match() {
         let dir = std::env::temp_dir().join(format!("nie-trace-eac-{}", std::process::id()));
         let _ = fs::create_dir_all(&dir);
         let src = dir.join("src.bin");
         let dst = dir.join("dst.bin");
 
-        // Faux binaire : assez grand pour contenir l'offset EAC (0x114DE02 ≈ 18 Mo),
-        // rempli de 0x00, avec le `call` original posé à l'offset.
+        // Faux binaire assez grand pour contenir l'offset EAC (~18 Mo), avec le `call` à l'offset.
         let size = EAC_PATCH_OFFSET as usize + 0x1000;
         let mut data = vec![0u8; size];
-        data[EAC_PATCH_OFFSET as usize..EAC_PATCH_OFFSET as usize + 5]
-            .copy_from_slice(&EAC_PATCH_ORIG);
+        data[EAC_PATCH_OFFSET as usize..EAC_PATCH_OFFSET as usize + 5].copy_from_slice(&EAC_PATCH_ORIG);
         fs::write(&src, &data).unwrap();
 
         let report = patch_eac(&src, &dst).expect("patch ok");
         assert_eq!(report.original, EAC_PATCH_ORIG);
         assert_eq!(report.patched, EAC_PATCH_NOP);
 
-        // src intact, dst patché.
         let src_after = fs::read(&src).unwrap();
         assert_eq!(&src_after[EAC_PATCH_OFFSET as usize..EAC_PATCH_OFFSET as usize + 5], &EAC_PATCH_ORIG);
         let dst_after = fs::read(&dst).unwrap();
         assert_eq!(&dst_after[EAC_PATCH_OFFSET as usize..EAC_PATCH_OFFSET as usize + 5], &EAC_PATCH_NOP);
 
-        // Octets différents → Mismatch, et on n'a pas écrasé src.
         let bad_src = dir.join("bad.bin");
         let bad_dst = dir.join("bad_dst.bin");
         let mut bad = vec![0u8; size];
-        bad[EAC_PATCH_OFFSET as usize] = 0xCC; // pas le call attendu
+        bad[EAC_PATCH_OFFSET as usize] = 0xCC;
         fs::write(&bad_src, &bad).unwrap();
         assert!(matches!(patch_eac(&bad_src, &bad_dst), Err(EacPatchError::Mismatch { .. })));
 
@@ -241,8 +381,7 @@ mod tests {
     }
 
     #[test]
-    fn scan_finds_pattern_with_rva() {
-        // Pas de process réel : on teste find_subslice (cœur du scan).
+    fn scan_find_subslice() {
         let hay = b"....DEADBEEF....DEADBEEF";
         assert_eq!(find_subslice(hay, b"DEAD"), Some(4));
         // 2e "DEAD" @ index absolu 16 → dans hay[5..] : 16 - 5 = 11.

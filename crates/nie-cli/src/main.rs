@@ -841,7 +841,7 @@ fn mem_preflight(pid: i32) -> anyhow::Result<i32> {
         anyhow::bail!("`niers mem` est Linux-only (process_vm_readv).");
     }
     let pid = if pid <= 0 {
-        let p = nie_trace::find_pid_by_comm("nie.exe")
+        let p = nie_trace::find_pid_by_name("nie.exe")
             .context("nie.exe introuvable — lance le jeu (boot-nie-direct.sh) ou précise --pid")?;
         eprintln!("# nie.exe → pid {p}");
         p
@@ -851,6 +851,7 @@ fn mem_preflight(pid: i32) -> anyhow::Result<i32> {
     if !std::path::Path::new(&format!("/proc/{pid}")).exists() {
         anyhow::bail!("pid {pid} inexistant.");
     }
+    #[cfg(target_os = "linux")]
     if !nie_trace::likely_permitted(pid) {
         let scope = nie_trace::read_ptrace_scope();
         eprintln!(
@@ -862,26 +863,9 @@ fn mem_preflight(pid: i32) -> anyhow::Result<i32> {
     Ok(pid)
 }
 
-/// Plages pertinentes : tout le process si `all`, sinon l'IMAGE COMPLÈTE du module (bornée par
-/// `[base, base+SizeOfImage)` lu dans l'en-tête PE en mémoire — sous Wine seul l'en-tête porte
-/// le chemin dans /proc/maps, donc un filtre par chemin ne verrait que la page d'en-tête).
-fn mem_module_maps(pid: i32, module: &str, all: bool) -> Vec<nie_trace::MapEntry> {
-    if all {
-        return nie_trace::read_maps(pid).unwrap_or_default();
-    }
-    match nie_trace::module_image_range(pid, module) {
-        Some((base, end)) if end > base => nie_trace::read_maps(pid)
-            .unwrap_or_default()
-            .into_iter()
-            .filter(|m| m.start < end && m.end > base)
-            .collect(),
-        _ => nie_trace::find_module_regions(pid, module), // fallback : au moins l'en-tête
-    }
-}
-
 fn mem_maps(pid: i32, module: &str, all: bool) -> anyhow::Result<()> {
     let pid = mem_preflight(pid)?;
-    let maps = mem_module_maps(pid, module, all);
+    let maps = nie_trace::module_regions(pid, module, all);
     let mut total: u64 = 0;
     for m in &maps {
         total += m.size();
@@ -921,7 +905,7 @@ fn mem_read(addr: &str, len: usize, pid: i32, output: Option<&std::path::Path>) 
 
 fn mem_dump(pid: i32, module: &str, all: bool, output: &std::path::Path) -> anyhow::Result<()> {
     let pid = mem_preflight(pid)?;
-    let maps = mem_module_maps(pid, module, all);
+    let maps = nie_trace::module_regions(pid, module, all);
     let stats = nie_trace::dump_regions(pid, &maps, output)?;
     println!(
         "  {} plage(s) dumpée(s), {} octets → {}",
@@ -935,7 +919,7 @@ fn mem_dump(pid: i32, module: &str, all: bool, output: &std::path::Path) -> anyh
 fn mem_scan(pattern: &str, pid: i32, module: &str, all: bool, limit: usize) -> anyhow::Result<()> {
     let pid = mem_preflight(pid)?;
     let (needle, label) = mem_parse_pattern(pattern)?;
-    let maps = mem_module_maps(pid, module, all);
+    let maps = nie_trace::module_regions(pid, module, all);
     let base = nie_trace::find_module_base(pid, module);
     let hits = nie_trace::scan_regions(pid, &maps, base, &needle, limit);
     for h in &hits {
