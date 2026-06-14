@@ -353,4 +353,54 @@ mod tests {
         assert!(has_g4tx, "aucun .g4tx dans l'index VFS");
         eprintln!("VFS monté : {n} fichiers logiques indexés depuis cpk_list.cfg.bin");
     }
+
+    /// Chaîne de LECTURE complète sur le vrai jeu : `init` → résoudre chemin→CPK →
+    /// ouvrir le CPK → déchiffrer (clé dérivée du nom) → extraire le fichier. Lit un
+    /// fichier dont le CPK conteneur est le plus PETIT sur disque (lecture bon marché),
+    /// puis vérifie que les octets extraits sont non vides et cohérents.
+    #[test]
+    fn vfs_read_chaine_complete() {
+        let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
+            "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road"
+                .to_string()
+        });
+        let data = std::path::Path::new(&dir).join("data");
+        if !data.join("cpk_list.cfg.bin").exists() {
+            eprintln!("skip vfs_read_chaine_complete : jeu absent");
+            return;
+        }
+        let mut vfs = Vfs::new();
+        vfs.init(&data).expect("init");
+
+        // Dédupliquer par CPK (≈933 conteneurs, pas 254 k entrées) : un seul `stat` par
+        // CPK — sinon 254 k stats sur /mnt/c prennent des minutes. On ignore les entrées
+        // sans CPK (films/loose, résolus ailleurs) et on choisit le plus PETIT conteneur.
+        let packs = data.join("packs");
+        let mut first_path: std::collections::HashMap<String, String> =
+            std::collections::HashMap::new();
+        for (path, entry) in vfs.iter() {
+            if entry.cpk_filename.is_empty() || entry.file_size == 0 {
+                continue;
+            }
+            first_path
+                .entry(entry.cpk_filename.clone())
+                .or_insert_with(|| path.to_string());
+        }
+        let mut best: Option<(u64, String, String)> = None; // (taille_cpk, chemin, cpk)
+        for (cpk, path) in &first_path {
+            let Ok(meta) = std::fs::metadata(packs.join(cpk)) else {
+                continue;
+            };
+            if meta.is_file() && meta.len() > 0 && best.as_ref().is_none_or(|(b, ..)| meta.len() < *b)
+            {
+                best = Some((meta.len(), path.clone(), cpk.clone()));
+            }
+        }
+        let (cpk_sz, path, cpk) = best.expect("au moins un CPK lisible");
+        eprintln!("lecture de {path} (CPK {cpk}, {cpk_sz} octets sur disque)");
+
+        let bytes = vfs.read(&path).expect("vfs.read chaîne complète");
+        assert!(!bytes.is_empty(), "fichier extrait vide");
+        eprintln!("OK : {} octets extraits via le VFS", bytes.len());
+    }
 }
