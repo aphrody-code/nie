@@ -35,8 +35,8 @@ use anyhow::{Context, Result, bail};
 use clap::Parser;
 use tracing::{error, info, warn};
 
-use nie_formats::g4tx;
 use nie_formats::vfs::Vfs;
+use nie_formats::{g4pkm, g4tx, menu, objbin};
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
 
@@ -76,6 +76,11 @@ struct Cli {
     /// Nombre de trames avant fermeture automatique (mode --window uniquement).
     #[arg(long, default_value = "120")]
     frames: u32,
+
+    /// Mode rendu de menu : compose l'écran `SCREEN` en PNG (requiert --capture,
+    /// exclusif avec --window/--list). Ex. : `win01_21`, `title00`, `option02_02`.
+    #[arg(long)]
+    menu: Option<String>,
 }
 
 // ── Point d'entrée ───────────────────────────────────────────────────────────
@@ -89,6 +94,19 @@ fn main() -> Result<()> {
         .init();
 
     let cli = Cli::parse();
+
+    // Mode --menu : rendu CPU d'un écran de menu complet → PNG (requiert --capture,
+    // exclusif avec --window/--list). Traité avant la validation générique des modes.
+    if let Some(ref screen) = cli.menu {
+        if cli.window || cli.list.is_some() {
+            bail!("--menu ne peut pas être combiné avec --window ou --list");
+        }
+        let png_out = cli
+            .capture
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("--menu requiert --capture <PNG>"))?;
+        return cmd_menu(&cli.game_dir, screen, png_out);
+    }
 
     let n_modes = [cli.capture.is_some(), cli.window, cli.list.is_some()]
         .iter()
@@ -1044,6 +1062,222 @@ struct AppFenetre {
     frames_rendues: u32,
     etat: Option<EtatFenetre>,
     erreur: Option<anyhow::Error>,
+}
+
+// ── Mode menu (rendu CPU écran complet) ──────────────────────────────────────
+
+/// Résout un chemin logique VFS en cherchant une entrée dont le chemin se termine
+/// par `/<basename>`, où `basename` est le dernier segment après `/`.
+///
+/// Les chemins qui contiennent `<LG>` le portent uniquement dans la partie
+/// répertoire — jamais dans le basename lui-même — donc aucun stripping n'est requis.
+fn resolve_vfs_basename(vfs: &Vfs, logical_path: &str) -> Option<String> {
+    let basename = logical_path.rsplit('/').next().filter(|s| !s.is_empty())?;
+    vfs.iter()
+        .find(|(path, _)| {
+            let p: &str = path;
+            p.ends_with(basename)
+                && (p.len() == basename.len()
+                    || p.as_bytes().get(p.len() - basename.len() - 1) == Some(&b'/'))
+        })
+        .map(|(path, _)| path.to_string())
+}
+
+/// Rend l'écran de menu `screen` (ex. `win01_21`, `title00`) en composant tous ses
+/// objbin sur un canvas 1280×720, puis écrit le résultat en PNG à `png_out`.
+///
+/// # Flux
+///
+/// 1. Monte le VFS directement (le déchiffrement AES-256-CBC du `cpk_list.cfg.bin`
+///    fonctionne sur l'installation Steam courante).
+/// 2. Filtre les objbin par convention de nommage : chemin contenant `/menu/obj/`,
+///    basename commençant par `screen` (insensible à la casse) et terminant par `.objbin`.
+/// 3. Pour chaque objbin : parse → résout g4pkm + g4tx → décode RGBA → positionne.
+/// 4. Trie par `draw_priority` croissant (back-to-front) et compose le canvas CPU.
+/// 5. Encode et écrit le PNG.
+fn cmd_menu(game_dir: &Path, screen: &str, png_out: &Path) -> Result<()> {
+    let data_dir = game_dir.join("data");
+
+    // Montage VFS direct — le déchiffrement AES cpk_list fonctionne maintenant
+    let mut vfs = Vfs::new();
+    vfs.init(&data_dir)
+        .context("VFS init échoué (cpk_list.cfg.bin)")?;
+    info!("VFS monté : {} assets", vfs.asset_count());
+
+    // Convention de nommage : les objbin de `screen` sont sous /menu/obj/ et leur
+    // basename commence par le nom de l'écran (ex. `win01_21_select_button.objbin`).
+    // Ce préfiltrage évite de parcourir les ~3294 objbin tous au même niveau.
+    let screen_lower = screen.to_ascii_lowercase();
+    let obj_paths: Vec<String> = vfs
+        .iter()
+        .filter_map(|(path, _)| {
+            if !path.contains("/menu/obj/") {
+                return None;
+            }
+            if !path.ends_with(".objbin") {
+                return None;
+            }
+            let basename = path.rsplit('/').next()?;
+            if basename
+                .to_ascii_lowercase()
+                .starts_with(screen_lower.as_str())
+            {
+                Some(path.to_string())
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    info!(
+        "écran '{}' : {} objbin correspondants",
+        screen,
+        obj_paths.len()
+    );
+
+    // Pour chaque objbin : parse → résout g4pkm + g4tx → decode RGBA → positionne
+    let mut sprite_entries: Vec<(menu::PositionedMenuObject, Vec<u8>, u32, u32)> = Vec::new();
+
+    for obj_path in &obj_paths {
+        // Le basename est utilisé dans les messages de warning pour la lisibilité
+        let obj_basename = obj_path.rsplit('/').next().unwrap_or(obj_path.as_str());
+
+        let obj_bytes = match vfs.read(obj_path) {
+            Ok(d) => d,
+            Err(e) => {
+                warn!("skip {obj_basename} : lecture erreur : {e}");
+                continue;
+            }
+        };
+        let obj = match objbin::parse(&obj_bytes) {
+            Ok(o) => o,
+            Err(e) => {
+                warn!("skip {obj_basename} : parse erreur : {e}");
+                continue;
+            }
+        };
+
+        // Résolution g4pkm
+        let g4pkm_logical = match obj.g4pkm_path.as_deref() {
+            Some(p) => p.to_string(),
+            None => {
+                warn!("skip {obj_basename} : pas de g4pkm_path");
+                continue;
+            }
+        };
+        let g4pkm_vfs = match resolve_vfs_basename(&vfs, &g4pkm_logical) {
+            Some(p) => p,
+            None => {
+                warn!(
+                    "skip {obj_basename} : g4pkm '{}' absent du VFS",
+                    g4pkm_logical
+                );
+                continue;
+            }
+        };
+        let g4pkm_bytes = match vfs.read(&g4pkm_vfs) {
+            Ok(d) => d,
+            Err(e) => {
+                warn!("skip {obj_basename} : lecture g4pkm erreur : {e}");
+                continue;
+            }
+        };
+        let layout = match g4pkm::parse(&g4pkm_bytes) {
+            Ok(l) => l,
+            Err(e) => {
+                warn!("skip {obj_basename} : parse g4pkm erreur : {e}");
+                continue;
+            }
+        };
+
+        // Résolution g4tx
+        let g4tx_logical = match obj.g4tx_path.as_deref() {
+            Some(p) => p.to_string(),
+            None => {
+                warn!("skip {obj_basename} : pas de g4tx_path");
+                continue;
+            }
+        };
+        let g4tx_vfs = match resolve_vfs_basename(&vfs, &g4tx_logical) {
+            Some(p) => p,
+            None => {
+                warn!(
+                    "skip {obj_basename} : g4tx '{}' absent du VFS",
+                    g4tx_logical
+                );
+                continue;
+            }
+        };
+        let g4tx_bytes = match vfs.read(&g4tx_vfs) {
+            Ok(d) => d,
+            Err(e) => {
+                warn!("skip {obj_basename} : lecture g4tx erreur : {e}");
+                continue;
+            }
+        };
+        let g4tx_parsed = match g4tx::parse(&g4tx_bytes) {
+            Ok(p) => p,
+            Err(e) => {
+                warn!("skip {obj_basename} : parse g4tx erreur : {e}");
+                continue;
+            }
+        };
+
+        // Décodage DDS → RGBA8 (réutilise decode_texture_rgba du mode --capture)
+        let tex = match g4tx_parsed.textures.iter().find(|t| t.is_dds) {
+            Some(t) => t,
+            None => {
+                warn!("skip {obj_basename} : aucune texture DDS dans g4tx");
+                continue;
+            }
+        };
+        let (w, h, rgba) = match decode_texture_rgba(&g4tx_bytes, tex) {
+            Some(r) => r,
+            None => {
+                warn!("skip {obj_basename} : échec décodage DDS ({g4tx_vfs})");
+                continue;
+            }
+        };
+
+        let positioned = menu::assemble_object(&obj, &layout, w, h);
+        sprite_entries.push((positioned, rgba, w, h));
+    }
+
+    // Tri par draw_priority croissant (back-to-front)
+    sprite_entries.sort_by_key(|entry| entry.0.draw_priority);
+
+    let n_sprites = sprite_entries.len();
+
+    // Construction de la slice CompositeSprite (emprunte sprite_entries)
+    let composite_sprites: Vec<menu::CompositeSprite> = sprite_entries
+        .iter()
+        .map(|(positioned, rgba, w, h)| menu::CompositeSprite {
+            rgba,
+            width: *w,
+            height: *h,
+            transform: positioned.transform,
+            anchor_x: 0.5,
+            anchor_y: 0.5,
+        })
+        .collect();
+
+    // Composition CPU sur canvas 1280×720 (back-to-front)
+    let canvas = menu::compose(1280, 720, &composite_sprites);
+
+    // Encodage PNG (réutilise encoder_rgba_png)
+    let png_bytes = encoder_rgba_png(&canvas, 1280, 720)?;
+    std::fs::write(png_out, &png_bytes)
+        .with_context(|| format!("écriture PNG : {}", png_out.display()))?;
+
+    println!(
+        "menu: screen={screen} objbin_matched={} sprites_composed={n_sprites} \
+         dims=1280x720 output={} size={} octets",
+        obj_paths.len(),
+        png_out.display(),
+        png_bytes.len()
+    );
+
+    Ok(())
 }
 
 impl winit::application::ApplicationHandler for AppFenetre {
