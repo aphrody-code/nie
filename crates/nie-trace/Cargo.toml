@@ -1,0 +1,16 @@
+[package]
+name = "nie-trace"
+description = "RE en direct (runtime) : lecture de la mémoire live d'un nie.exe sous Wine via process_vm_readv(2) — résolution de base de module, hex dump, dump de plages, scan de motif. Linux-only."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+# FFI process_vm_readv/writev — seul crate de niers qui touche libc (RE runtime Linux).
+libc = { workspace = true }
+thiserror.workspace = true

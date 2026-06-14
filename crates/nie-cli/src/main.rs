@@ -170,6 +170,80 @@ enum Cmd {
         #[arg(long)]
         all: bool,
     },
+    /// RE en direct : lit/scanne/dumpe la mémoire live d'un nie.exe sous Wine (process_vm_readv).
+    ///
+    /// Le jeu doit tourner (cf. crates/nie-trace/scripts/boot-nie-direct.sh) ; s'attache à un
+    /// process existant, ne le lance jamais, ne le stoppe pas. Linux-only.
+    Mem {
+        #[command(subcommand)]
+        op: MemOp,
+    },
+}
+
+/// Sous-commandes de `niers mem` (RE runtime via nie-trace).
+#[derive(Subcommand)]
+enum MemOp {
+    /// Liste les plages mémoire (filtrées par --module sauf --all).
+    Maps {
+        #[arg(long, short = 'p', default_value_t = 0)]
+        pid: i32,
+        #[arg(long, short = 'm', default_value = "nie.exe")]
+        module: String,
+        #[arg(long)]
+        all: bool,
+    },
+    /// Affiche l'adresse de chargement (base) d'un module.
+    Base {
+        #[arg(long, short = 'p', default_value_t = 0)]
+        pid: i32,
+        #[arg(long, short = 'm', default_value = "nie.exe")]
+        module: String,
+    },
+    /// Lit des octets à une adresse (hex dump, ou -o fichier brut).
+    Read {
+        /// Adresse `0x…` ou module-relative `nie.exe+0xF600CA`.
+        addr: String,
+        #[arg(long, short = 'n', default_value_t = 256)]
+        len: usize,
+        #[arg(long, short = 'p', default_value_t = 0)]
+        pid: i32,
+        /// Écrit les octets bruts ici (sinon hex dump stdout).
+        #[arg(long, short = 'o')]
+        output: Option<PathBuf>,
+    },
+    /// Dumpe les plages lisibles (module ou --all) vers un dossier.
+    Dump {
+        #[arg(long, short = 'p', default_value_t = 0)]
+        pid: i32,
+        #[arg(long, short = 'm', default_value = "nie.exe")]
+        module: String,
+        #[arg(long)]
+        all: bool,
+        #[arg(long, short = 'o', default_value = "./memdump")]
+        output: PathBuf,
+    },
+    /// Cherche un motif : hex `48 8B 0D`, texte `str:Closing`, ou UTF-16LE `wstr:Title`.
+    Scan {
+        /// Motif hex (`DE AD BE EF`), `str:…` (UTF-8) ou `wstr:…` (UTF-16LE, chaînes Windows).
+        pattern: String,
+        #[arg(long, short = 'p', default_value_t = 0)]
+        pid: i32,
+        #[arg(long, short = 'm', default_value = "nie.exe")]
+        module: String,
+        #[arg(long)]
+        all: bool,
+        #[arg(long, short = 'l', default_value_t = 20)]
+        limit: usize,
+    },
+    /// Patche EAC : crée une copie `--dst` de `--src` avec le call de modale fatale NOPé.
+    PatchEac {
+        /// nie.exe d'origine (jamais modifié).
+        #[arg(long)]
+        src: PathBuf,
+        /// Sortie patchée (ex. nie_eacpatched.exe).
+        #[arg(long)]
+        dst: PathBuf,
+    },
 }
 
 #[derive(Subcommand)]
@@ -739,9 +813,209 @@ fn main() -> anyhow::Result<()> {
         Cmd::Textures { game_dir, limit, manifest, redis: use_redis, redis_url } => {
             textures(&game_dir, limit, &manifest, use_redis, &redis_url)
         }
+        Cmd::Mem { op } => mem_cmd(op),
         Cmd::MenuPredecode { game_dir, layouts_dir, redis_url, all } => {
             menu_predecode_cmd(&game_dir, &layouts_dir, &redis_url, all)
         }
+    }
+}
+
+// ─── niers mem — RE en direct via nie-trace (process_vm_readv) ─────────────────────
+
+fn mem_cmd(op: MemOp) -> anyhow::Result<()> {
+    match op {
+        MemOp::Maps { pid, module, all } => mem_maps(pid, &module, all),
+        MemOp::Base { pid, module } => mem_base(pid, &module),
+        MemOp::Read { addr, len, pid, output } => mem_read(&addr, len, pid, output.as_deref()),
+        MemOp::Dump { pid, module, all, output } => mem_dump(pid, &module, all, &output),
+        MemOp::Scan { pattern, pid, module, all, limit } => {
+            mem_scan(&pattern, pid, &module, all, limit)
+        }
+        MemOp::PatchEac { src, dst } => mem_patch_eac(&src, &dst),
+    }
+}
+
+/// Résout/valide le pid (auto-détecte nie.exe si 0) + avertit sur ptrace_scope. Linux-only.
+fn mem_preflight(pid: i32) -> anyhow::Result<i32> {
+    if !cfg!(target_os = "linux") {
+        anyhow::bail!("`niers mem` est Linux-only (process_vm_readv).");
+    }
+    let pid = if pid <= 0 {
+        let p = nie_trace::find_pid_by_comm("nie.exe")
+            .context("nie.exe introuvable — lance le jeu (boot-nie-direct.sh) ou précise --pid")?;
+        eprintln!("# nie.exe → pid {p}");
+        p
+    } else {
+        pid
+    };
+    if !std::path::Path::new(&format!("/proc/{pid}")).exists() {
+        anyhow::bail!("pid {pid} inexistant.");
+    }
+    if !nie_trace::likely_permitted(pid) {
+        let scope = nie_trace::read_ptrace_scope();
+        eprintln!(
+            "# Attention: ptrace_scope={scope} et le lecteur n'est pas ancêtre de {pid}. \
+             Lecture probablement refusée (EPERM). Remède: \
+             `echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope`."
+        );
+    }
+    Ok(pid)
+}
+
+/// Plages pertinentes : tout le process si `all`, sinon l'IMAGE COMPLÈTE du module (bornée par
+/// `[base, base+SizeOfImage)` lu dans l'en-tête PE en mémoire — sous Wine seul l'en-tête porte
+/// le chemin dans /proc/maps, donc un filtre par chemin ne verrait que la page d'en-tête).
+fn mem_module_maps(pid: i32, module: &str, all: bool) -> Vec<nie_trace::MapEntry> {
+    if all {
+        return nie_trace::read_maps(pid).unwrap_or_default();
+    }
+    match nie_trace::module_image_range(pid, module) {
+        Some((base, end)) if end > base => nie_trace::read_maps(pid)
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|m| m.start < end && m.end > base)
+            .collect(),
+        _ => nie_trace::find_module_regions(pid, module), // fallback : au moins l'en-tête
+    }
+}
+
+fn mem_maps(pid: i32, module: &str, all: bool) -> anyhow::Result<()> {
+    let pid = mem_preflight(pid)?;
+    let maps = mem_module_maps(pid, module, all);
+    let mut total: u64 = 0;
+    for m in &maps {
+        total += m.size();
+        println!("  0x{:012x}-0x{:012x}  {}  {:>12}  {}", m.start, m.end, m.perms, m.size(), m.path);
+    }
+    let suffix = if all { String::new() } else { format!(" (module « {module} »)") };
+    println!("\n  {} plage(s), {total} octets{suffix}", maps.len());
+    Ok(())
+}
+
+fn mem_base(pid: i32, module: &str) -> anyhow::Result<()> {
+    let pid = mem_preflight(pid)?;
+    match nie_trace::find_module_base(pid, module) {
+        Some(base) => println!("  {module} @ 0x{base:x} (pid {pid})"),
+        None => anyhow::bail!("Module « {module} » introuvable dans /proc/{pid}/maps"),
+    }
+    Ok(())
+}
+
+fn mem_read(addr: &str, len: usize, pid: i32, output: Option<&std::path::Path>) -> anyhow::Result<()> {
+    let pid = mem_preflight(pid)?;
+    let address = mem_resolve_addr(addr, pid)?;
+    let mut buf = vec![0u8; len];
+    let got = nie_trace::read(pid, address, &mut buf).context("process_vm_readv")?;
+    if got == 0 {
+        anyhow::bail!("0 octet lu (plage non mappée ?)");
+    }
+    match output {
+        Some(p) => {
+            std::fs::write(p, &buf[..got])?;
+            println!("  {got} octets @ 0x{address:x} → {}", p.display());
+        }
+        None => mem_hexdump(&buf[..got], address),
+    }
+    Ok(())
+}
+
+fn mem_dump(pid: i32, module: &str, all: bool, output: &std::path::Path) -> anyhow::Result<()> {
+    let pid = mem_preflight(pid)?;
+    let maps = mem_module_maps(pid, module, all);
+    let stats = nie_trace::dump_regions(pid, &maps, output)?;
+    println!(
+        "  {} plage(s) dumpée(s), {} octets → {}",
+        stats.regions,
+        stats.bytes,
+        output.canonicalize().unwrap_or_else(|_| output.to_path_buf()).display()
+    );
+    Ok(())
+}
+
+fn mem_scan(pattern: &str, pid: i32, module: &str, all: bool, limit: usize) -> anyhow::Result<()> {
+    let pid = mem_preflight(pid)?;
+    let (needle, label) = mem_parse_pattern(pattern)?;
+    let maps = mem_module_maps(pid, module, all);
+    let base = nie_trace::find_module_base(pid, module);
+    let hits = nie_trace::scan_regions(pid, &maps, base, &needle, limit);
+    for h in &hits {
+        let rva = match h.rva {
+            Some(r) => format!(" ({module}+0x{r:x})"),
+            None => String::new(),
+        };
+        println!("  0x{:012x}{rva}  [{}]", h.addr, h.perms);
+    }
+    let capped = if hits.len() >= limit { format!(" (limité à {limit})") } else { String::new() };
+    println!("\n  {} hit(s) pour {label}{capped}", hits.len());
+    Ok(())
+}
+
+fn mem_patch_eac(src: &std::path::Path, dst: &std::path::Path) -> anyhow::Result<()> {
+    let report = nie_trace::patch_eac(src, dst).context("patch EAC")?;
+    println!(
+        "  OK  offset 0x{:X}: {} -> {}  ({} octets)  {}",
+        report.offset,
+        report.original.iter().map(|b| format!("{b:02x}")).collect::<String>(),
+        report.patched.iter().map(|b| format!("{b:02x}")).collect::<String>(),
+        report.dst_len,
+        dst.display()
+    );
+    Ok(())
+}
+
+/// Parse `0x…` (absolu) ou `module+0xRVA` (résolu via la base du module).
+fn mem_resolve_addr(addr: &str, pid: i32) -> anyhow::Result<u64> {
+    let s = addr.trim();
+    if let Some(plus) = s.find('+') {
+        let module = &s[..plus];
+        let rva = parse_u64_hex(&s[plus + 1..]).with_context(|| format!("RVA invalide: {}", &s[plus + 1..]))?;
+        let base = nie_trace::find_module_base(pid, module)
+            .with_context(|| format!("Module « {module} » introuvable"))?;
+        return Ok(base + rva);
+    }
+    parse_u64_hex(s).with_context(|| format!("Adresse invalide: {s}"))
+}
+
+fn parse_u64_hex(s: &str) -> anyhow::Result<u64> {
+    let s = s.trim();
+    let s = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")).unwrap_or(s);
+    Ok(u64::from_str_radix(s, 16)?)
+}
+
+/// Parse un motif : `wstr:texte` (UTF-16LE), `str:texte` (UTF-8), ou octets hex `48 8B 0D`.
+fn mem_parse_pattern(pattern: &str) -> anyhow::Result<(Vec<u8>, String)> {
+    if let Some(text) = pattern.strip_prefix("wstr:") {
+        let needle: Vec<u8> = text.encode_utf16().flat_map(u16::to_le_bytes).collect();
+        anyhow::ensure!(!needle.is_empty(), "Motif wstr: vide");
+        return Ok((needle, format!("wstr \"{text}\"")));
+    }
+    if let Some(text) = pattern.strip_prefix("str:") {
+        anyhow::ensure!(!text.is_empty(), "Motif str: vide");
+        return Ok((text.as_bytes().to_vec(), format!("\"{text}\"")));
+    }
+    let hex: String = pattern.chars().filter(|c| !c.is_whitespace() && *c != '-').collect();
+    anyhow::ensure!(!hex.is_empty() && hex.len().is_multiple_of(2), "Motif hex de longueur impaire/vide");
+    let mut bytes = Vec::with_capacity(hex.len() / 2);
+    for i in (0..hex.len()).step_by(2) {
+        bytes.push(u8::from_str_radix(&hex[i..i + 2], 16).with_context(|| format!("Octet hex invalide à {i}"))?);
+    }
+    let label = format!("hex {}", bytes.iter().map(|b| format!("{b:02X}")).collect::<Vec<_>>().join("-"));
+    Ok((bytes, label))
+}
+
+fn mem_hexdump(data: &[u8], base: u64) {
+    for (i, line) in data.chunks(16).enumerate() {
+        let off = base + (i * 16) as u64;
+        let mut hex = String::new();
+        for j in 0..16 {
+            if j < line.len() {
+                hex.push_str(&format!("{:02x} ", line[j]));
+            } else {
+                hex.push_str("   ");
+            }
+        }
+        let ascii: String = line.iter().map(|&b| if (0x20..0x7f).contains(&b) { b as char } else { '.' }).collect();
+        println!("  0x{off:012x}  {hex} {ascii}");
     }
 }
 
@@ -1372,15 +1646,12 @@ fn extract_layout_sprites(layouts_dir: &std::path::Path) -> anyhow::Result<Vec<S
 
         if let Some(objects) = json.get("objects").and_then(|v| v.as_array()) {
             for obj in objects {
-                if let Some(sprite) = obj.get("sprite") {
-                    if let Some(logical_path) = sprite
-                        .get("logicalPath")
-                        .and_then(|v| v.as_str())
-                    {
-                        if logical_path.ends_with(".g4tx") && seen.insert(logical_path.to_string()) {
-                            result.push(logical_path.to_string());
-                        }
-                    }
+                if let Some(sprite) = obj.get("sprite")
+                    && let Some(logical_path) = sprite.get("logicalPath").and_then(|v| v.as_str())
+                    && logical_path.ends_with(".g4tx")
+                    && seen.insert(logical_path.to_string())
+                {
+                    result.push(logical_path.to_string());
                 }
             }
         }
