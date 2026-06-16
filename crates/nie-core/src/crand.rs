@@ -13,9 +13,13 @@
 //!   compilateur de `(y << s) & B`, vérifiées bit-exact) ;
 //! - bornage par la **méthode de Lemire** (`bounded`).
 //!
-//! Réserve honnête (cf. doc) : le masque de tempering `d` (étape `y >> 11`) est stocké dans la
-//! struct binaire plutôt qu'en littéral ; il vaut quasi certainement `0xFFFF_FFFF` (valeur MT19937
-//! canonique, prise ici). À reconfirmer si un jour la valeur de struct est lue à l'exécution.
+//! Masque de tempering `d` (étape `y >> 11`) — **CONFIRMÉ `0xFFFF_FFFF`** (2026-06-16, lecture du
+//! binaire) : le constructeur par défaut `lives::CRand::CRand()` à `nie.exe:0x1402bf010` fait
+//! `mov dword [this+0x138C], 0xFFFFFFFF` (le champ `d`), et la passe de tempering le lit
+//! (`and eax, [this+8+0x1384]` à `0x1402c5ca3`, soit `[this+0x138C]`). C'est la valeur MT19937
+//! canonique ⇒ `y ^= y>>11` exact. **Plus aucune réserve : le port est byte-exact.** Bonus : la
+//! graine par défaut du constructeur est `0x1571 = 5489` — exactement le vecteur de référence du
+//! test ci-dessous (le défaut du moteur est donc le défaut canonique de MT19937).
 //!
 //! Ce port **remplace** l'ancien Splitmix64 nominal de `match_sim` : c'est désormais le vrai RNG
 //! du moteur, validé contre le vecteur de référence MT19937 (graine 5489).
@@ -79,7 +83,7 @@ impl CRand {
         }
         let mut y = self.mt[self.index];
         self.index += 1;
-        // Tempering canonique (d = 0xFFFFFFFF).
+        // Tempering canonique (d = 0xFFFFFFFF, confirmé nie.exe:0x1402bf031).
         y ^= y >> 11;
         y ^= (y << 7) & 0x9D2C_5680;
         y ^= (y << 15) & 0xEFC6_0000;
