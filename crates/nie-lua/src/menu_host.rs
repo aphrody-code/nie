@@ -327,6 +327,32 @@ const CMD_SET_LIST_ITEM_VALUES_MULTI: u32 = 0x83B4_F0AC; // (layerId, objId, <ta
 // — getter —
 const CMD_GET_NODE_INDEX_BY_HASH: u32 = 0x06B1_9AFF; // (objId, index, hash) -> int ; 0x140CF0340 : FindObjectInLayer puis recherche un sous-nœud par `hash` (0x1405427C0) et renvoie son index via PushRet. CONFIRMÉ getter ; renvoie 0 par défaut (lookup moteur non simulé).
 
+/// Famille « set/apply état moteur → return 1 », reversée en **BATCH via la table de dispatch**
+/// (`scripts/extract_funclua_table.py` → handler, puis désassemblage r2). Chaque handler lit ses
+/// args, applique une valeur à l'état moteur (`call 0x1405CF730`/`0x1404Exxx`) et renvoie **AL=1**
+/// sur le chemin principal (garde no-arg → 0). Critère de sûreté vérifié sur CHAQUE entrée : **≤ 2
+/// `ret`, aucun retour-valeur alternatif** (`mov al,1` dominant, pas de `setXX`/getter) — exclus les
+/// handlers à 3+ ret, à retour 0, ou à valeur conditionnelle. niers ne réplique pas la mutation
+/// moteur, mais le RETOUR correct est **1** (le défaut getter `0` serait FAUX si le script teste le
+/// retour). Tous observés comme inconnus sur `shop`. Handlers (cmdId → VA) :
+/// `0x061919E0→0x140CF38B0` `0x2145E72C→0x140CC6C30` `0x32565F92→0x140CF4610` `0x36830727→0x140CE5BD0`
+/// `0x3CB1C712→0x140CD07C0` `0x546C3F5D→0x140CC21A0` `0x72D88B24→0x140CE5CD0` `0x84FCEF86→0x140CF5A90`
+/// `0x9021B6E8→0x140CB1BA0` `0x9B2AAF08→0x140CE6A10` `0x9BAD0175→0x140CC2260` `0xA1D31171→0x140CE5EE0`.
+const REVERSED_RETURN1: &[u32] = &[
+    0x0619_19E0,
+    0x2145_E72C,
+    0x3256_5F92,
+    0x3683_0727,
+    0x3CB1_C712,
+    0x546C_3F5D,
+    0x72D8_8B24,
+    0x84FC_EF86,
+    0x9021_B6E8,
+    0x9B2A_AF08,
+    0x9BAD_0175,
+    0xA1D3_1171,
+];
+
 /// Nom lisible d'un `cmdId` `funcLuaMenuCommand` reversé, ou `None` si non encore identifié.
 #[must_use]
 pub fn command_name(cmd_id: u32) -> Option<&'static str> {
@@ -377,6 +403,8 @@ pub fn command_name(cmd_id: u32) -> Option<&'static str> {
         CMD_SET_LIST_ITEM_VALUES => "SetListItemValues",
         CMD_SET_LIST_ITEM_VALUES_MULTI => "SetListItemValuesMulti",
         CMD_GET_NODE_INDEX_BY_HASH => "GetNodeIndexByHash",
+        // Batch « apply état moteur → return 1 » (cf. REVERSED_RETURN1).
+        c if REVERSED_RETURN1.contains(&c) => "ApplyReturn1(=>1)",
         _ => return None,
     })
 }
@@ -945,6 +973,16 @@ fn dispatch_menu_command(state: &mut MenuState, cmd_id: u32, args: &[Value]) -> 
             return 1.0;
         }
 
+        // Batch « apply état moteur → return 1 » (12 handlers reversés via la table de dispatch ;
+        // ≤2 ret + `mov al,1` dominant vérifié sur chacun, cf. REVERSED_RETURN1). Même sémantique
+        // de retour que la famille ci-dessus.
+        c if REVERSED_RETURN1.contains(&c) => {
+            if let Some(name) = command_name(cmd_id) {
+                state.known_cmd_log.push((name.to_string(), state.current_layer));
+            }
+            return 1.0;
+        }
+
         // ── RegisterItemListCount (0x16C1C4C0) : handler 0x140CD8E30 reversé ──
         // Enregistre `object_attr[objId] = count` (arg3) dans le manager d'items que GetObjectAttr
         // relit → GetItemButtonNum renvoie le count fourni par le SCRIPT. Renvoie 1 (al=1) si ≥4 args.
@@ -1254,6 +1292,20 @@ mod dispatch_tests {
             .call::<f64>((f64::from(CMD_SET_GLOBAL_FLAG_TRUE), false))
             .unwrap();
         assert_eq!(ret, 1.0, "SetGlobalFlag(bool) : handler reversé renvoie AL=1");
+    }
+
+    /// Batch « apply état moteur → return 1 » (12 cmdId reversés via la table de dispatch +
+    /// désassemblage : `≤2 ret`, `mov al,1` dominant vérifié sur chacun). Chacun doit renvoyer 1.0
+    /// (appelé avec un objId factice) et être nommé. Ancré sur le binaire, pas deviné.
+    #[test]
+    fn reversed_return1_batch_returns_one() {
+        let (lua, _state) = host();
+        for &cid in REVERSED_RETURN1 {
+            assert_eq!(command_name(cid), Some("ApplyReturn1(=>1)"), "0x{cid:08X} nommé");
+            let ret: f64 = menu_cmd(&lua).call::<f64>((f64::from(cid), 1.0)).unwrap();
+            assert_eq!(ret, 1.0, "cmdId 0x{cid:08X} : handler reversé renvoie AL=1");
+        }
+        assert_eq!(REVERSED_RETURN1.len(), 12);
     }
 
     /// `RegisterItemListCount` (cmdId `0x16C1C4C0`) — handler `0x140CD8E30` REVERSÉ : enregistre
