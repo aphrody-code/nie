@@ -43,6 +43,7 @@ pub mod g4md;
 pub mod g4mg;
 pub mod g4pk;
 pub mod g4pkm;
+pub mod g4pkm_motion;
 pub mod g4sk;
 pub mod menu;
 pub mod mevbin;

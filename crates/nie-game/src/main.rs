@@ -45,7 +45,7 @@ use tracing::{error, info, warn};
 use wgpu::util::DeviceExt;
 
 use nie_formats::vfs::Vfs;
-use nie_formats::{g4pkm, g4tx, menu, objbin};
+use nie_formats::{cfgbin, g4pkm, g4tx, menu, objbin};
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
 
@@ -82,6 +82,31 @@ struct Cli {
     #[arg(long)]
     list: Option<usize>,
 
+    /// Diagnostic render-from-runtime : charge le `.g4tx` désigné par `--g4tx <path>` et liste ses
+    /// **régions d'atlas** (nom + rect `x,y,w,h`) — les cibles de `SetIconSprite(obj, CRC32(path),
+    /// CRC32(region))`. Sert à prouver que `region_name` (runtime) → sous-texture réelle.
+    #[arg(long)]
+    g4tx_regions: bool,
+
+    /// Render-from-runtime : ROGNE la région d'atlas nommée du `.g4tx` (`--g4tx <path>`) et, avec
+    /// `--capture <PNG>`, écrit ses pixels réels. C'est l'étape « commande runtime → pixels » : le
+    /// crop `(x,y,w,h)` résolu (`g4tx::region_rect`) extrait le sprite exact de la texture DDS.
+    #[arg(long)]
+    g4tx_region: Option<String>,
+
+    /// Construit l'index `nom-de-région → chemin g4tx` (render-from-runtime) en chargeant les atlas
+    /// d'icônes listés dans `data/re/menu-icon-atlases.txt` et en indexant TOUTES leurs régions.
+    /// Écrit le JSON au chemin indiqué (consommé pour résoudre les `spriteRegion` du runtime →
+    /// fichier g4tx → rect). C'est le chaînon `gtxt_rarity01_05 → icon_rarity.g4tx`.
+    #[arg(long)]
+    build_region_index: Option<PathBuf>,
+
+    /// Render-from-runtime FINAL : COMPOSE un layout JSON (produit par `--runtime --export-layout`)
+    /// en PNG (`--capture`), en rognant chaque `spriteRect` de son `spriteRegionG4tx` et en le posant
+    /// au `transform` de l'objet (ancre + échelle). C'est « données runtime → image composée ».
+    #[arg(long)]
+    compose_layout: Option<PathBuf>,
+
     /// Nombre de trames avant fermeture automatique (mode --window uniquement).
     #[arg(long, default_value = "120")]
     frames: u32,
@@ -90,6 +115,12 @@ struct Cli {
     /// exclusif avec --window/--list). Ex. : `win01_21`, `title00`, `option02_02`.
     #[arg(long)]
     menu: Option<String>,
+
+    /// Compose l'écran depuis sa définition `<menu>_menu_setting.cfg.bin` (liste `MENU_LAYER_INFO`,
+    /// D1.c-driver brique (a)) au lieu du filtre par préfixe de nom d'objbin. La valeur de `--menu`
+    /// est alors le préfixe du fichier setting (ex. `main_menu` → `main_menu_setting.cfg.bin`).
+    #[arg(long)]
+    from_setting: bool,
 
     /// Rendu GPU du menu (requiert --menu + --capture).
     /// Rend les sprites via un pipeline wgpu offscreen 1280×720 Rgba8Unorm
@@ -102,6 +133,25 @@ struct Cli {
     /// Échoue si moins de 99 % des pixels sont dans la tolérance. Requiert --gpu.
     #[arg(long)]
     verify: bool,
+
+    /// Exporte le LAYOUT de l'écran `--menu` en JSON (contrat `@rose-griffon/menu-render`,
+    /// consommé par azalee). Au lieu de composer un PNG, écrit objets + transforms (placement
+    /// motion-fallback D1.a + sélection texture D1.b, déterministe) au chemin indiqué.
+    #[arg(long)]
+    export_layout: Option<PathBuf>,
+
+    /// Nom d'écran à écrire dans le champ `screen` du layout exporté (défaut = valeur de `--menu`).
+    /// Ex. : niers énumère le préfixe objbin `mainmenu` mais azalee attend `100_mainmenu`.
+    #[arg(long)]
+    screen_name: Option<String>,
+
+    /// Génère le layout AU RUNTIME comme nie.exe : au lieu d'exporter le layout statique,
+    /// exécute les vrais scripts Lua de l'écran (driver reversé : `OnInit`/`OnSetupLayer`/
+    /// `OnOpenLayer`) dans la VM Lua 5.2 réelle, récupère le `MenuState` produit, et l'applique
+    /// au layout (visibilité/sprite/texte par objet, joint via crc32 du nom). Requiert
+    /// `--menu` + `--export-layout`.
+    #[arg(long)]
+    runtime: bool,
 }
 
 // ── Point d'entrée ───────────────────────────────────────────────────────────
@@ -122,6 +172,18 @@ fn main() -> Result<()> {
         if cli.list.is_some() {
             bail!("--menu ne peut pas être combiné avec --list");
         }
+        // --menu --export-layout : exporte le layout JSON (azalee) au lieu de composer un PNG.
+        if let Some(ref out) = cli.export_layout {
+            let name = cli.screen_name.as_deref().unwrap_or(screen);
+            // --runtime : génère le layout en exécutant les vrais scripts Lua (comme nie.exe).
+            if cli.runtime {
+                return cmd_export_layout_runtime(&cli.game_dir, screen, name, out, cli.from_setting);
+            }
+            return cmd_export_layout(&cli.game_dir, screen, name, out, cli.from_setting);
+        }
+        if cli.runtime {
+            bail!("--runtime requiert --export-layout <JSON>");
+        }
         // --menu --window : fenêtre PERSISTANTE affichant l'écran de menu composé
         // (reste ouverte jusqu'à fermeture). C'est le mode « voir le jeu » à l'écran.
         if cli.window {
@@ -137,11 +199,35 @@ fn main() -> Result<()> {
         if cli.verify {
             bail!("--verify requiert --gpu");
         }
-        return cmd_menu(&cli.game_dir, screen, png_out);
+        return cmd_menu(&cli.game_dir, screen, png_out, cli.from_setting);
     }
 
     if cli.gpu || cli.verify {
         bail!("--gpu/--verify requièrent --menu <SCREEN>");
+    }
+
+    // Diagnostic régions d'atlas (render-from-runtime) : indépendant des modes capture/window/list.
+    if cli.g4tx_regions {
+        return cmd_g4tx_regions(&cli.game_dir, cli.g4tx.as_deref());
+    }
+
+    // Render-from-runtime : rogne une région nommée → pixels réels (PNG si --capture).
+    if let Some(ref region) = cli.g4tx_region {
+        return cmd_g4tx_region(&cli.game_dir, cli.g4tx.as_deref(), region, cli.capture.as_deref());
+    }
+
+    // Construit l'index region->g4tx depuis les atlas d'icônes de menu.
+    if let Some(ref out) = cli.build_region_index {
+        return cmd_build_region_index(&cli.game_dir, out);
+    }
+
+    // Render-from-runtime final : compose un layout JSON en PNG.
+    if let Some(ref json_in) = cli.compose_layout {
+        let png = cli
+            .capture
+            .as_deref()
+            .ok_or_else(|| anyhow::anyhow!("--compose-layout requiert --capture <PNG>"))?;
+        return cmd_compose_layout(&cli.game_dir, json_in, png);
     }
 
     let n_modes = [cli.capture.is_some(), cli.window, cli.list.is_some()]
@@ -519,6 +605,397 @@ fn decoder_g4tx_bytes(donnees: &[u8], chemin: &str) -> Result<(String, u32, u32,
         .ok_or_else(|| anyhow::anyhow!("échec décodage DDS dans {chemin}"))?;
 
     Ok((chemin.to_string(), w, h, rgba))
+}
+
+/// Récupère les octets bruts d'un `.g4tx` par chemin logique (basename ou chemin VFS).
+/// VFS d'abord (résolution locale via [`resolve_vfs_basename`]), repli sur le scan CPK direct
+/// (`internal_path == p` ou `ends_with(p)`). Retourne `(chemin résolu, octets)`.
+fn obtenir_g4tx_bytes(game_dir: &Path, path: &str) -> Result<(String, Vec<u8>)> {
+    let data_dir = game_dir.join("data");
+    if let Some(vfs) = tenter_vfs(&data_dir) {
+        // Chemin VFS exact, sinon résolution par basename (gère le placeholder de locale `<LG>`).
+        if let Ok(d) = vfs.read(path) {
+            return Ok((path.to_string(), d));
+        }
+        if let Some(resolved) = resolve_vfs_basename(&vfs, path, MENU_LOCALE)
+            && let Ok(d) = vfs.read(&resolved)
+        {
+            return Ok((resolved, d));
+        }
+    }
+    let assets = scanner_cpks_g4tx(game_dir)?;
+    let asset = assets
+        .iter()
+        .find(|a| a.internal_path == path || a.internal_path.ends_with(path))
+        .cloned()
+        .ok_or_else(|| anyhow::anyhow!("chemin '{path}' non trouvé (VFS + {} CPK assets)", assets.len()))?;
+    let donnees = extraire_g4tx_depuis_cpk(game_dir, &asset)?;
+    Ok((asset.internal_path, donnees))
+}
+
+/// Diagnostic render-from-runtime : liste les régions d'atlas (sous-textures) d'un `.g4tx`.
+///
+/// Prouve que la cible d'un `SetIconSprite(obj, CRC32(chemin), CRC32(region))` résolu au runtime
+/// (ex. `icon_rarity.g4tx` + `gtxt_rarity01_05`) correspond à une vraie sous-texture `(x,y,w,h)`.
+fn cmd_g4tx_regions(game_dir: &Path, g4tx_path: Option<&str>) -> Result<()> {
+    let path =
+        g4tx_path.ok_or_else(|| anyhow::anyhow!("--g4tx-regions requiert --g4tx <chemin|basename>"))?;
+    let (resolved, bytes) = obtenir_g4tx_bytes(game_dir, path)?;
+    let parsed = g4tx::parse(&bytes).with_context(|| format!("parsing G4TX : {resolved}"))?;
+
+    println!(
+        "=== {resolved} : {} texture(s), {} régions totales (header) ===",
+        parsed.textures.len(),
+        parsed.header.sub_texture_count
+    );
+    let mut n = 0usize;
+    for t in &parsed.textures {
+        if t.sub_textures.is_empty() {
+            continue;
+        }
+        println!(
+            "texture \"{}\" id={} {}x{} dds={} — {} régions :",
+            t.name,
+            t.id,
+            t.width,
+            t.height,
+            t.is_dds,
+            t.sub_textures.len()
+        );
+        for s in &t.sub_textures {
+            println!(
+                "  {:<30} x={:>5} y={:>5}  {:>4}x{:<4}",
+                s.name, s.x, s.y, s.width, s.height
+            );
+            n += 1;
+        }
+    }
+    println!("total: {n} régions d'atlas nommées");
+    Ok(())
+}
+
+/// Rogne un sous-rectangle `(x, y, w, h)` d'un buffer RGBA8 `full_w × full_h`.
+///
+/// Coordonnées en pixels-texture (= l'espace des régions d'atlas g4tx). Renvoie `None` si le rect
+/// est dégénéré (≤ 0) ou déborde de la texture — jamais de panique ni de pixels hors-bornes.
+fn crop_rgba(
+    full: &[u8],
+    full_w: u32,
+    full_h: u32,
+    rect: (i16, i16, i16, i16),
+) -> Option<(u32, u32, Vec<u8>)> {
+    let (rx, ry, rw, rh) = rect;
+    if rx < 0 || ry < 0 || rw <= 0 || rh <= 0 {
+        return None;
+    }
+    let (x, y, w, h) = (rx as u32, ry as u32, rw as u32, rh as u32);
+    if x.checked_add(w)? > full_w || y.checked_add(h)? > full_h {
+        return None;
+    }
+    if full.len() < (full_w as usize) * (full_h as usize) * 4 {
+        return None;
+    }
+    let stride = full_w as usize * 4;
+    let row_bytes = w as usize * 4;
+    let mut out = Vec::with_capacity(w as usize * h as usize * 4);
+    for row in 0..h {
+        let start = (y + row) as usize * stride + x as usize * 4;
+        out.extend_from_slice(&full[start..start + row_bytes]);
+    }
+    Some((w, h, out))
+}
+
+/// Render-from-runtime — rogne la **région d'atlas nommée** d'un g4tx en ses pixels réels.
+///
+/// Étape finale « commande runtime → pixels » : résout `region` → `(texture porteuse, rect)` via
+/// [`g4tx::G4tx::region`], décode la texture DDS, rogne le rect. Avec `capture`, écrit le PNG.
+fn cmd_g4tx_region(
+    game_dir: &Path,
+    g4tx_path: Option<&str>,
+    region: &str,
+    capture: Option<&Path>,
+) -> Result<()> {
+    let path = g4tx_path
+        .ok_or_else(|| anyhow::anyhow!("--g4tx-region requiert --g4tx <chemin|basename>"))?;
+    let (resolved, bytes) = obtenir_g4tx_bytes(game_dir, path)?;
+    let parsed = g4tx::parse(&bytes).with_context(|| format!("parsing G4TX : {resolved}"))?;
+
+    let (tex, sub) = parsed
+        .region(region)
+        .ok_or_else(|| anyhow::anyhow!("région '{region}' absente de {resolved}"))?;
+    let rect = (sub.x, sub.y, sub.width, sub.height);
+    let (rx, ry) = (sub.x, sub.y);
+
+    let (fw, fh, full) = decode_texture_rgba(&bytes, tex).ok_or_else(|| {
+        anyhow::anyhow!("échec décodage de la texture '{}' de {resolved}", tex.name)
+    })?;
+    let tex_name = tex.name.clone();
+    let (cw, ch, crop) = crop_rgba(&full, fw, fh, rect)
+        .ok_or_else(|| anyhow::anyhow!("rect {rect:?} hors de la texture {fw}x{fh}"))?;
+
+    // Compte de pixels non transparents : preuve grossière que le crop n'est pas vide.
+    let opaques = crop.chunks_exact(4).filter(|p| p[3] != 0).count();
+    println!(
+        "région '{region}' → texture '{tex_name}' {fw}x{fh} DDS → crop {cw}x{ch} @ ({rx},{ry}) ; \
+         {opaques}/{} px non transparents",
+        cw as usize * ch as usize
+    );
+
+    if let Some(out) = capture {
+        let png = encoder_rgba_png(&crop, cw, ch)?;
+        std::fs::write(out, &png).with_context(|| format!("écriture {}", out.display()))?;
+        println!("PNG écrit : {} ({} octets)", out.display(), png.len());
+    }
+    Ok(())
+}
+
+/// Chemin du fichier listant les atlas d'icônes de menu (un chemin VFS logique par ligne, `#`=commentaire).
+const MENU_ICON_ATLASES: &str = "data/re/menu-icon-atlases.txt";
+
+/// Construit l'index `nom-de-région → chemin g4tx` (render-from-runtime).
+///
+/// Charge chaque atlas listé dans [`MENU_ICON_ATLASES`], parse ses régions d'atlas, et associe
+/// CHAQUE nom de région au chemin g4tx logique qui la contient. C'est le chaînon manquant : le
+/// runtime fournit un `spriteRegion` (ex. `gtxt_rarity01_05`) mais pas toujours le chemin g4tx ;
+/// cet index le résout (→ `icon_rarity.g4tx` → `region_rect` → pixels).
+fn cmd_build_region_index(game_dir: &Path, out: &Path) -> Result<()> {
+    let manifest = game_dir.join(MENU_ICON_ATLASES);
+    // Repli : chemin relatif au CWD si le manifeste n'est pas sous game_dir (data symlinks cassés).
+    let liste = std::fs::read_to_string(&manifest)
+        .or_else(|_| std::fs::read_to_string(MENU_ICON_ATLASES))
+        .with_context(|| format!("lecture du manifeste d'atlas {}", manifest.display()))?;
+    // NB : les chemins VFS commencent par `#` (`#/menu/...`) — on ne peut PAS filtrer les commentaires
+    // par `#`. Un atlas valide est une ligne contenant `.g4tx` ; tout le reste (en-tête) est ignoré.
+    let paths: Vec<&str> = liste
+        .lines()
+        .map(str::trim)
+        .filter(|l| l.contains(".g4tx"))
+        .collect();
+
+    let mut index: std::collections::BTreeMap<String, String> = std::collections::BTreeMap::new();
+    let mut collisions = 0usize;
+    let (mut ok, mut ko) = (0usize, 0usize);
+    for logical in &paths {
+        match obtenir_g4tx_bytes(game_dir, logical) {
+            Ok((_, bytes)) => match g4tx::parse(&bytes) {
+                Ok(parsed) => {
+                    ok += 1;
+                    for t in &parsed.textures {
+                        for s in &t.sub_textures {
+                            if s.name.is_empty() {
+                                continue;
+                            }
+                            // 1ʳᵉ occurrence gagne (les atlas sont disjoints en pratique ; on log les collisions).
+                            if let Some(prev) = index.get(&s.name) {
+                                if prev != logical {
+                                    collisions += 1;
+                                }
+                            } else {
+                                index.insert(s.name.clone(), (*logical).to_string());
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    ko += 1;
+                    warn!("parse g4tx '{logical}' : {e}");
+                }
+            },
+            Err(e) => {
+                ko += 1;
+                warn!("chargement '{logical}' : {e}");
+            }
+        }
+    }
+
+    let json = serde_json::to_string_pretty(&index).context("sérialisation de l'index")?;
+    std::fs::write(out, &json).with_context(|| format!("écriture {}", out.display()))?;
+    println!(
+        "index region->g4tx : {} régions depuis {ok}/{} atlas ({ko} échecs, {collisions} collisions) -> {}",
+        index.len(),
+        paths.len(),
+        out.display()
+    );
+    Ok(())
+}
+
+/// Redimensionne un buffer RGBA8 `sw×sh` en `dw×dh` par échantillonnage au plus proche voisin.
+/// Suffisant pour les sprites de menu posés à l'échelle du `transform` (pas de filtrage : on reste
+/// pixel-exact sur les zones non redimensionnées, et déterministe).
+fn scale_nearest(src: &[u8], sw: u32, sh: u32, dw: u32, dh: u32) -> Vec<u8> {
+    if [sw, sh, dw, dh].contains(&0) || src.len() < (sw as usize * sh as usize * 4) {
+        return Vec::new();
+    }
+    let mut out = vec![0u8; dw as usize * dh as usize * 4];
+    for y in 0..dh {
+        let sy = y * sh / dh;
+        for x in 0..dw {
+            let sx = x * sw / dw;
+            let s = (sy as usize * sw as usize + sx as usize) * 4;
+            let d = (y as usize * dw as usize + x as usize) * 4;
+            out[d..d + 4].copy_from_slice(&src[s..s + 4]);
+        }
+    }
+    out
+}
+
+/// Composite `src` (RGBA8 `sw×sh`) sur `canvas` (`cw×ch`) au coin `(dx,dy)`, **straight alpha-over**
+/// (`out = src·a + dst·(1−a)`). Clippe aux bords ; `(dx,dy)` peuvent être négatifs.
+fn blit_over(
+    canvas: &mut [u8],
+    (cw, ch): (u32, u32),
+    src: &[u8],
+    (sw, sh): (u32, u32),
+    (dx, dy): (i32, i32),
+) {
+    for sy in 0..sh as i32 {
+        let cy = dy + sy;
+        if cy < 0 || cy >= ch as i32 {
+            continue;
+        }
+        for sx in 0..sw as i32 {
+            let cx = dx + sx;
+            if cx < 0 || cx >= cw as i32 {
+                continue;
+            }
+            let s = (sy as usize * sw as usize + sx as usize) * 4;
+            let a = u32::from(src[s + 3]);
+            if a == 0 {
+                continue;
+            }
+            let d = (cy as usize * cw as usize + cx as usize) * 4;
+            for k in 0..3 {
+                let sc = u32::from(src[s + k]);
+                let dc = u32::from(canvas[d + k]);
+                canvas[d + k] = ((sc * a + dc * (255 - a) + 127) / 255) as u8;
+            }
+            let da = u32::from(canvas[d + 3]);
+            canvas[d + 3] = (a + da * (255 - a) / 255).min(255) as u8;
+        }
+    }
+}
+
+/// Render-from-runtime FINAL : compose un layout JSON (`--runtime --export-layout`) en image.
+///
+/// Pour chaque objet VISIBLE portant `runtime.spriteRegionG4tx` + `runtime.spriteRegion` + un
+/// `transform`, charge le g4tx, décode la texture porteuse, rogne la région (`region_rect`),
+/// l'échelonne (`scaleX/Y` du transform) et la pose au `transform` (ancre `anchorX/Y`) sur un
+/// canevas 1280×720, en alpha-over. C'est l'aboutissement « commande runtime → image composée ».
+fn cmd_compose_layout(game_dir: &Path, json_in: &Path, png_out: &Path) -> Result<()> {
+    const W: u32 = 1280;
+    const H: u32 = 720;
+    let txt = std::fs::read_to_string(json_in)
+        .with_context(|| format!("lecture du layout {}", json_in.display()))?;
+    let doc: serde_json::Value = serde_json::from_str(&txt).context("layout JSON invalide")?;
+    let objs = doc["objects"].as_array().cloned().unwrap_or_default();
+
+    let mut canvas = vec![0u8; W as usize * H as usize * 4]; // transparent
+    // Cache (octets, parse) par chemin g4tx logique.
+    let mut cache: std::collections::HashMap<String, Option<(Vec<u8>, g4tx::G4tx)>> =
+        std::collections::HashMap::new();
+
+    // Un élément à dessiner : pixels RGBA + position écran + priorité de dessin (z-order).
+    struct DrawItem {
+        prio: i64,
+        order: usize,
+        rgba: Vec<u8>,
+        w: u32,
+        h: u32,
+        dx: i32,
+        dy: i32,
+    }
+    let mut items: Vec<DrawItem> = Vec::new();
+    let (mut n_region, mut n_static) = (0usize, 0usize);
+
+    for (order, o) in objs.iter().enumerate() {
+        if !o["visible"].as_bool().unwrap_or(false) {
+            continue;
+        }
+        // Charge la SOURCE de pixels : région d'atlas (runtime) en priorité, sinon texture statique.
+        let rt = &o["runtime"];
+        let region_src = (|| {
+            let (g4tx_path, region) =
+                (rt["spriteRegionG4tx"].as_str()?, rt["spriteRegion"].as_str()?);
+            let entry = cache.entry(g4tx_path.to_string()).or_insert_with(|| {
+                obtenir_g4tx_bytes(game_dir, g4tx_path)
+                    .ok()
+                    .and_then(|(_, b)| g4tx::parse(&b).ok().map(|p| (b, p)))
+            });
+            let (bytes, parsed) = entry.as_ref()?;
+            let (tex, sub) = parsed.region(region)?;
+            let (fw, fh, full) = decode_texture_rgba(bytes, tex)?;
+            crop_rgba(&full, fw, fh, (sub.x, sub.y, sub.width, sub.height))
+        })();
+        let mut static_src = || {
+            let logical = o["sprite"]["logicalPath"].as_str()?;
+            let basename = logical.rsplit('/').next()?;
+            let stem = basename.strip_suffix(".g4tx").unwrap_or(basename);
+            let entry = cache.entry(logical.to_string()).or_insert_with(|| {
+                obtenir_g4tx_bytes(game_dir, basename)
+                    .ok()
+                    .and_then(|(_, b)| g4tx::parse(&b).ok().map(|p| (b, p)))
+            });
+            let (bytes, parsed) = entry.as_ref()?;
+            let tex = g4tx::select_main_texture(parsed, stem)?;
+            decode_texture_rgba(bytes, tex)
+        };
+        let (is_region, (cw, chh, crop)) = match region_src {
+            Some(src) => (true, src),
+            None => match static_src() {
+                Some(src) => (false, src),
+                None => continue,
+            },
+        };
+
+        // Transform : échelle + ancre. Défauts neutres si absents.
+        let tr = &o["transform"];
+        let f = |k: &str, def: f64| tr[k].as_f64().unwrap_or(def);
+        let (sx, sy) = (f("scaleX", 1.0).max(0.0), f("scaleY", 1.0).max(0.0));
+        let (ax, ay) = (f("anchorX", 0.5), f("anchorY", 0.5));
+        let (px, py) = (f("x", 0.0), f("y", 0.0));
+        let dw = ((f64::from(cw) * sx).round() as u32).max(1);
+        let dh = ((f64::from(chh) * sy).round() as u32).max(1);
+        let scaled = scale_nearest(&crop, cw, chh, dw, dh);
+        if scaled.is_empty() {
+            continue;
+        }
+        let dx = (px - ax * f64::from(dw)).round() as i32;
+        let dy = (py - ay * f64::from(dh)).round() as i32;
+        if is_region {
+            n_region += 1;
+        } else {
+            n_static += 1;
+        }
+        items.push(DrawItem {
+            prio: o["drawPriority"].as_i64().unwrap_or(0),
+            order,
+            rgba: scaled,
+            w: dw,
+            h: dh,
+            dx,
+            dy,
+        });
+    }
+
+    // Z-order : priorité de dessin croissante (fond d'abord), départage par ordre de déclaration.
+    items.sort_by(|a, b| a.prio.cmp(&b.prio).then(a.order.cmp(&b.order)));
+    for it in &items {
+        blit_over(&mut canvas, (W, H), &it.rgba, (it.w, it.h), (it.dx, it.dy));
+    }
+    let n_drawn = items.len();
+
+    let png = encoder_rgba_png(&canvas, W, H)?;
+    std::fs::write(png_out, &png).with_context(|| format!("écriture {}", png_out.display()))?;
+    let opaques = canvas.chunks_exact(4).filter(|p| p[3] != 0).count();
+    println!(
+        "compose-layout : {n_drawn} sprites composés ({n_static} statiques + {n_region} régions runtime) \
+         sur {}×{} ; {opaques} px opaques -> {} ({} octets)",
+        W,
+        H,
+        png_out.display(),
+        png.len()
+    );
+    Ok(())
 }
 
 /// Sélectionne automatiquement un chemin `.g4tx` prioritaire depuis le VFS.
@@ -1109,22 +1586,72 @@ struct AppFenetre {
 
 // ── Résolution VFS + chargement sprites menu ─────────────────────────────────
 
+/// Locale par défaut pour les assets de menu localisés (`<LG>`). Les captures de référence du repo
+/// (`start.png`/`menu.png`) sont en français → `fr`. TODO : exposer via `--locale`.
+const MENU_LOCALE: &str = "fr";
+
 /// Résout un chemin logique VFS en cherchant une entrée dont le chemin se termine
 /// par `/<basename>`, où `basename` est le dernier segment après `/`.
 ///
 /// Les chemins qui contiennent `<LG>` le portent uniquement dans la partie
 /// répertoire — jamais dans le basename lui-même — donc aucun stripping n'est requis.
-fn resolve_vfs_basename(vfs: &Vfs, logical_path: &str) -> Option<String> {
+fn resolve_vfs_basename(vfs: &Vfs, logical_path: &str, locale: &str) -> Option<String> {
     let basename = logical_path.rsplit('/').next().filter(|s| !s.is_empty())?;
-    vfs.iter()
-        .find(|(path, _)| {
-            let p: &str = path;
+
+    // Tous les chemins VFS finissant par `/basename`. Le VFS est indexé par HashMap (ordre
+    // d'itération NON déterministe) → on COLLECTE + TRIE pour un résultat reproductible : un
+    // `.find()` direct choisissait une locale au hasard à chaque run (rendu non déterministe,
+    // fatal pour le gate pixel-perfect byte-exact).
+    let mut matches: Vec<String> = vfs
+        .iter()
+        .map(|(p, _)| p.to_string())
+        .filter(|p| {
             p.ends_with(basename)
                 && (p.len() == basename.len()
                     || p.as_bytes().get(p.len() - basename.len() - 1) == Some(&b'/'))
         })
-        .map(|(path, _)| path.to_string())
+        .collect();
+    matches.sort_unstable();
+
+    // Segment de répertoire juste avant le basename (= tag de locale pour les assets localisés,
+    // ex. `.../title02_01/fr/title02_01.g4tx` → "fr" ; non-localisé → nom du dossier de texture).
+    let parent_seg = |p: &str| -> String {
+        p.get(..p.len() - basename.len() - 1)
+            .and_then(|d| d.rsplit('/').next())
+            .unwrap_or("")
+            .to_string()
+    };
+
+    // Priorité (port de l'ordre iecode `MenuLayoutExporter.RenderSpriteAsync`) :
+    // 1. locale demandée ; 2. non-localisé (parent ≠ tag de locale) ; 3. common ; 4. en ;
+    // 5. à défaut, le 1ᵉʳ par ordre lexicographique (toujours déterministe).
+    if let Some(p) = matches.iter().find(|p| parent_seg(p) == locale) {
+        return Some(p.clone());
+    }
+    if let Some(p) = matches.iter().find(|p| !is_locale_tag(&parent_seg(p))) {
+        return Some(p.clone());
+    }
+    for fb in ["common", "en"] {
+        if let Some(p) = matches.iter().find(|p| parent_seg(p) == fb) {
+            return Some(p.clone());
+        }
+    }
+    matches.into_iter().next()
 }
+
+/// Tags de locale connus du jeu (sous-dossiers `<LG>` des assets de menu).
+fn is_locale_tag(seg: &str) -> bool {
+    matches!(
+        seg,
+        "de" | "en" | "es" | "fr" | "it" | "pt" | "ja" | "ko" | "zh_hans" | "zh_hant" | "common"
+    )
+}
+
+// NB (expérience FOND plein écran — gate SSIM 2026-06-15, REVERTÉE) : rendre le `bg_*` (`bg_title02_02`
+// 2640×1200) plein écran pour `title02_00` n'améliore PAS la SSIM (0.2511 → 0.2497) et la texture rend
+// **noir** (alpha/format, ou elle exige le mapping UV du mesh, pas un blit plein cadre). Le fond reste
+// bloqué sur la compose mesh-UV (cf. DESIGN.md §6 : géométrie décodée, mais UV atlas-region + rendu
+// mesh-UV à faire). Pas de sprite faux conservé (anti-faux-FAIT).
 
 /// Sprite positionné prêt pour composition : transform écran, dimensions, pixels RGBA8.
 type SpritePositionne = (menu::ScreenTransform, u32, u32, Vec<u8>);
@@ -1149,7 +1676,7 @@ fn build_sprite_list(game_dir: &Path, screen: &str) -> Result<Vec<SpritePosition
     info!("VFS monté : {} assets", vfs.asset_count());
 
     let screen_lower = screen.to_ascii_lowercase();
-    let obj_paths: Vec<String> = vfs
+    let mut obj_paths: Vec<String> = vfs
         .iter()
         .filter_map(|(path, _)| {
             if !path.contains("/menu/obj/") || !path.ends_with(".objbin") {
@@ -1166,6 +1693,10 @@ fn build_sprite_list(game_dir: &Path, screen: &str) -> Result<Vec<SpritePosition
             }
         })
         .collect();
+    // Le VFS est indexé par HashMap (ordre non déterministe). On TRIE pour un ordre de
+    // traitement reproductible : le tri stable par `draw_priority` en aval préserve cet ordre
+    // pour les ex æquo → rendu byte-identique d'un run à l'autre (prérequis du gate pixel-perfect).
+    obj_paths.sort_unstable();
 
     info!(
         "écran '{}' : {} objbin correspondants",
@@ -1175,108 +1706,10 @@ fn build_sprite_list(game_dir: &Path, screen: &str) -> Result<Vec<SpritePosition
 
     // (draw_priority, transform, w, h, rgba)
     let mut sprite_entries: Vec<(i32, menu::ScreenTransform, u32, u32, Vec<u8>)> = Vec::new();
-
     for obj_path in &obj_paths {
-        let obj_basename = obj_path.rsplit('/').next().unwrap_or(obj_path.as_str());
-
-        let obj_bytes = match vfs.read(obj_path) {
-            Ok(d) => d,
-            Err(e) => {
-                warn!("skip {obj_basename} : lecture erreur : {e}");
-                continue;
-            }
-        };
-        let obj = match objbin::parse(&obj_bytes) {
-            Ok(o) => o,
-            Err(e) => {
-                warn!("skip {obj_basename} : parse erreur : {e}");
-                continue;
-            }
-        };
-
-        // Résolution g4pkm
-        let g4pkm_logical = match obj.g4pkm_path.as_deref() {
-            Some(p) => p.to_string(),
-            None => {
-                warn!("skip {obj_basename} : pas de g4pkm_path");
-                continue;
-            }
-        };
-        let g4pkm_vfs = match resolve_vfs_basename(&vfs, &g4pkm_logical) {
-            Some(p) => p,
-            None => {
-                warn!(
-                    "skip {obj_basename} : g4pkm '{}' absent du VFS",
-                    g4pkm_logical
-                );
-                continue;
-            }
-        };
-        let g4pkm_bytes = match vfs.read(&g4pkm_vfs) {
-            Ok(d) => d,
-            Err(e) => {
-                warn!("skip {obj_basename} : lecture g4pkm erreur : {e}");
-                continue;
-            }
-        };
-        let layout = match g4pkm::parse(&g4pkm_bytes) {
-            Ok(l) => l,
-            Err(e) => {
-                warn!("skip {obj_basename} : parse g4pkm erreur : {e}");
-                continue;
-            }
-        };
-
-        // Résolution g4tx
-        let g4tx_logical = match obj.g4tx_path.as_deref() {
-            Some(p) => p.to_string(),
-            None => {
-                warn!("skip {obj_basename} : pas de g4tx_path");
-                continue;
-            }
-        };
-        let g4tx_vfs = match resolve_vfs_basename(&vfs, &g4tx_logical) {
-            Some(p) => p,
-            None => {
-                warn!(
-                    "skip {obj_basename} : g4tx '{}' absent du VFS",
-                    g4tx_logical
-                );
-                continue;
-            }
-        };
-        let g4tx_bytes = match vfs.read(&g4tx_vfs) {
-            Ok(d) => d,
-            Err(e) => {
-                warn!("skip {obj_basename} : lecture g4tx erreur : {e}");
-                continue;
-            }
-        };
-        let g4tx_parsed = match g4tx::parse(&g4tx_bytes) {
-            Ok(p) => p,
-            Err(e) => {
-                warn!("skip {obj_basename} : parse g4tx erreur : {e}");
-                continue;
-            }
-        };
-
-        let tex = match g4tx_parsed.textures.iter().find(|t| t.is_dds) {
-            Some(t) => t,
-            None => {
-                warn!("skip {obj_basename} : aucune texture DDS dans g4tx");
-                continue;
-            }
-        };
-        let (w, h, rgba) = match decode_texture_rgba(&g4tx_bytes, tex) {
-            Some(r) => r,
-            None => {
-                warn!("skip {obj_basename} : échec décodage DDS ({g4tx_vfs})");
-                continue;
-            }
-        };
-
-        let positioned = menu::assemble_object(&obj, &layout, w, h);
-        sprite_entries.push((positioned.draw_priority, positioned.transform, w, h, rgba));
+        if let Some(entry) = process_objbin_layer(&vfs, obj_path) {
+            sprite_entries.push(entry);
+        }
     }
 
     // Tri back-to-front
@@ -1288,11 +1721,985 @@ fn build_sprite_list(game_dir: &Path, screen: &str) -> Result<Vec<SpritePosition
         .collect())
 }
 
+/// Traite UN objbin de layer (commun à `build_sprite_list` filtre-par-nom et
+/// `build_sprite_list_from_setting` liste-de-layers) : objbin → g4pkm → g4tx (param `Texture`
+/// OU dérivé co-localisé, D1.c) → décodage DDS → placement. `None` si une étape manque (le layer
+/// n'a pas de sprite statique — contenu runtime), avec un `warn!` traçant la cause.
+///
+/// Retour : `(draw_priority, transform écran, largeur, hauteur, pixels RGBA8)`.
+fn process_objbin_layer(
+    vfs: &Vfs,
+    obj_path: &str,
+) -> Option<(i32, menu::ScreenTransform, u32, u32, Vec<u8>)> {
+    let obj_basename = obj_path.rsplit('/').next().unwrap_or(obj_path);
+
+    let obj_bytes = match vfs.read(obj_path) {
+        Ok(d) => d,
+        Err(e) => {
+            warn!("skip {obj_basename} : lecture erreur : {e}");
+            return None;
+        }
+    };
+    let obj = match objbin::parse(&obj_bytes) {
+        Ok(o) => o,
+        Err(e) => {
+            warn!("skip {obj_basename} : parse erreur : {e}");
+            return None;
+        }
+    };
+
+    // Résolution g4pkm
+    let g4pkm_logical = match obj.g4pkm_path.as_deref() {
+        Some(p) => p.to_string(),
+        None => {
+            warn!("skip {obj_basename} : pas de g4pkm_path");
+            return None;
+        }
+    };
+    let g4pkm_vfs = match resolve_vfs_basename(vfs, &g4pkm_logical, MENU_LOCALE) {
+        Some(p) => p,
+        None => {
+            warn!("skip {obj_basename} : g4pkm '{g4pkm_logical}' absent du VFS");
+            return None;
+        }
+    };
+    let g4pkm_bytes = match vfs.read(&g4pkm_vfs) {
+        Ok(d) => d,
+        Err(e) => {
+            warn!("skip {obj_basename} : lecture g4pkm erreur : {e}");
+            return None;
+        }
+    };
+    let layout = match g4pkm::parse(&g4pkm_bytes) {
+        Ok(l) => l,
+        Err(e) => {
+            warn!("skip {obj_basename} : parse g4pkm erreur : {e}");
+            return None;
+        }
+    };
+
+    // Résolution g4tx : param `Texture` explicite OU dérivé co-localisé du g4pkm (D1.c — cas
+    // mainmenu : le g4md de menu n'a pas de `material_base_names`, la texture est nommée comme le
+    // conteneur du mesh ; chemin g4pkm AUTORITAIRE, ex. objbin `mainmenu01_07` → mesh `mainmenu01_07c`).
+    // iecode a la MÊME limite (sprite gated sur `G4txPath`) → RE originale au-delà d'iecode.
+    let g4tx_logical = match obj.g4tx_path.as_deref() {
+        Some(p) => p.to_string(),
+        None => match g4pkm_logical
+            .rsplit('/')
+            .next()
+            .and_then(|b| b.strip_suffix(".g4pkm"))
+            .map(|stem| format!("{stem}.g4tx"))
+        {
+            Some(derived) => derived,
+            None => {
+                warn!("skip {obj_basename} : pas de g4tx_path (ni dérivable du g4pkm)");
+                return None;
+            }
+        },
+    };
+    let g4tx_vfs = match resolve_vfs_basename(vfs, &g4tx_logical, MENU_LOCALE) {
+        Some(p) => p,
+        None => {
+            warn!("skip {obj_basename} : g4tx '{g4tx_logical}' absent du VFS");
+            return None;
+        }
+    };
+    let g4tx_bytes = match vfs.read(&g4tx_vfs) {
+        Ok(d) => d,
+        Err(e) => {
+            warn!("skip {obj_basename} : lecture g4tx erreur : {e}");
+            return None;
+        }
+    };
+    let g4tx_parsed = match g4tx::parse(&g4tx_bytes) {
+        Ok(p) => p,
+        Err(e) => {
+            warn!("skip {obj_basename} : parse g4tx erreur : {e}");
+            return None;
+        }
+    };
+
+    // Basename du conteneur (sans `.g4tx`) pour la résolution par nom (D1.b) :
+    // évite de piocher un dummy 4×4 placé en tête de l'atlas.
+    let g4tx_base = g4tx_vfs
+        .rsplit('/')
+        .next()
+        .unwrap_or(g4tx_vfs.as_str())
+        .strip_suffix(".g4tx")
+        .unwrap_or("");
+    let tex = match g4tx::select_main_texture(&g4tx_parsed, g4tx_base) {
+        Some(t) => t,
+        None => {
+            warn!("skip {obj_basename} : aucune texture DDS dans g4tx");
+            return None;
+        }
+    };
+    let (w, h, rgba) = match decode_texture_rgba(&g4tx_bytes, tex) {
+        Some(r) => r,
+        None => {
+            warn!("skip {obj_basename} : échec décodage DDS ({g4tx_vfs})");
+            return None;
+        }
+    };
+
+    let positioned = menu::assemble_object(&obj, &layout, w, h);
+    Some((positioned.draw_priority, positioned.transform, w, h, rgba))
+}
+
+/// Compose un écran depuis sa **définition `*_menu_setting.cfg.bin`** (D1.c-driver, brique (a)) :
+/// itère la liste `MENU_LAYER_INFO` (`nie_data::menu_setting`) au lieu du filtre par préfixe de nom.
+///
+/// C'est la composition CORRECTE d'un écran : `main_menu` mêle des layers `mainmenu90_*` (fond,
+/// en-tête), `cmn01_*`, `mainmenu01_*` et `rpg00_*` — que le filtre `starts_with(screen)` rate. Le
+/// `setting` est le préfixe du fichier (`main_menu` → `main_menu_setting.cfg.bin`).
+///
+/// NB : le PLACEMENT des widgets animés reste imparfait (bind pose hors-écran → driver, cf. §6) ;
+/// mais les layers statiques on-écran (fond plein cadre, en-tête) se composent correctement.
+fn build_sprite_list_from_setting(game_dir: &Path, setting: &str) -> Result<Vec<SpritePositionne>> {
+    let data_dir = game_dir.join("data");
+    let mut vfs = Vfs::new();
+    vfs.init(&data_dir)
+        .context("VFS init échoué (cpk_list.cfg.bin)")?;
+    info!("VFS monté : {} assets", vfs.asset_count());
+
+    let obj_paths = setting_objbin_paths(&vfs, setting);
+    if obj_paths.is_empty() {
+        bail!("menu_setting '{setting}_setting.cfg.bin' introuvable / sans layer dans le VFS");
+    }
+    info!("menu_setting '{setting}' : {} layers", obj_paths.len());
+
+    let mut sprite_entries: Vec<(i32, menu::ScreenTransform, u32, u32, Vec<u8>)> = Vec::new();
+    for obj_path in &obj_paths {
+        if let Some(entry) = process_objbin_layer(&vfs, obj_path) {
+            sprite_entries.push(entry);
+        }
+    }
+
+    // Tri back-to-front (stable sur l'ordre du menu_setting pour les ex æquo).
+    sprite_entries.sort_by_key(|(prio, _, _, _, _)| *prio);
+    Ok(sprite_entries
+        .into_iter()
+        .map(|(_, t, w, h, rgba)| (t, w, h, rgba))
+        .collect())
+}
+
+/// Résout, dans l'ordre de composition, les chemins VFS des objbin d'un écran depuis sa **définition
+/// `<setting>_setting.cfg.bin`** (liste `MENU_LAYER_INFO`, `nie_data::menu_setting`). C'est la
+/// composition CORRECTE (multi-préfixes : `mainmenu90_*`/`cmn01_*`/`mainmenu01_*`/`rpg00_*`), partagée
+/// par le rendu PNG (`build_sprite_list_from_setting`) et l'export azalee (`collect_layout_objects`).
+/// `Vec` vide si le setting est absent/illisible. Basename EXACT → déterministe (évite
+/// `victory_road_main_menu_setting` pour `main_menu`).
+fn setting_objbin_paths(vfs: &Vfs, setting: &str) -> Vec<String> {
+    let target = format!("{setting}_setting.cfg.bin");
+    let Some(setting_path) = vfs
+        .iter()
+        .map(|(p, _)| p.to_string())
+        .filter(|p| p.contains("/menu/cfg/") && p.rsplit('/').next() == Some(target.as_str()))
+        .min()
+    else {
+        return Vec::new();
+    };
+    let Ok(bytes) = vfs.read(&setting_path) else {
+        return Vec::new();
+    };
+    let Ok(parsed) = cfgbin::parse_t2b(&bytes) else {
+        return Vec::new();
+    };
+    let root = serde_json::json!({ "entries": t2b_siblings_to_iecode(&parsed.entries) });
+    let ms = nie_data::menu_setting::parse(&root);
+    ms.layers
+        .iter()
+        .filter_map(|l| {
+            let basename = l.objbin_path.rsplit('/').next().unwrap_or(&l.objbin_path);
+            let resolved = vfs
+                .iter()
+                .map(|(p, _)| p.to_string())
+                .filter(|p| p.rsplit('/').next() == Some(basename))
+                .min();
+            if resolved.is_none() {
+                warn!("layer '{}' : objbin '{basename}' absent du VFS", l.name);
+            }
+            resolved
+        })
+        .collect()
+}
+
+// ── Export de layout (contrat azalee `@rose-griffon/menu-render`) ─────────────
+
+/// Exporte le LAYOUT d'un écran de menu en JSON consommé par azalee (renderer WebGPU /
+/// PNG serveur), en lieu et place de l'export iecode. Réutilise le pipeline niers amélioré :
+/// placement **motion-fallback** (D1.a, `menu::place_on_canvas`) + sélection de texture
+/// non-dummy (D1.b, `g4tx::select_main_texture`) + résolution de locale déterministe.
+///
+/// Inclut TOUS les objbin de l'écran (ceux sans sprite statique → `sprite: null`, contenu
+/// instancié au runtime côté jeu — cf. DESIGN.md §5/§13). Schéma = `MenuLayout` de
+/// `packages/menu-render/src/types.ts`.
+fn cmd_export_layout(
+    game_dir: &Path,
+    screen: &str,
+    screen_name: &str,
+    out: &Path,
+    from_setting: bool,
+) -> Result<()> {
+    use serde_json::json;
+
+    let data_dir = game_dir.join("data");
+    let mut vfs = Vfs::new();
+    vfs.init(&data_dir).context("VFS init échoué (cpk_list.cfg.bin)")?;
+    info!("VFS monté : {} assets", vfs.asset_count());
+
+    let (objs, n_sprites) = collect_layout_objects(&vfs, screen, from_setting);
+    let n_objects = objs.len();
+    let objects: Vec<serde_json::Value> = objs.iter().map(LayoutObj::to_json).collect();
+
+    let layout = json!({
+        "screen": screen_name,
+        "locale": MENU_LOCALE,
+        "canvas": { "w": 1280, "h": 720 },
+        "objects": objects,
+    });
+    let txt = serde_json::to_string_pretty(&layout)?;
+    std::fs::write(out, &txt).with_context(|| format!("écriture {}", out.display()))?;
+    println!(
+        "export-layout: screen={screen_name} objets={n_objects} sprites={n_sprites} -> {} ({} octets)",
+        out.display(),
+        txt.len()
+    );
+    Ok(())
+}
+
+/// Un objet de layout de menu en cours de construction (placement statique + overrides runtime).
+///
+/// Les champs `visible`/`text`/`runtime` ne sont pris en compte que par la sérialisation runtime
+/// ([`LayoutObj::to_json_runtime`]) ; la sérialisation statique ([`LayoutObj::to_json`]) émet
+/// exactement le schéma `MenuLayout` historique (contrat azalee inchangé).
+struct LayoutObj {
+    /// Nom de l'objbin (clé du join crc32 avec le `MenuState`).
+    name: String,
+    /// Transform écran (placement motion-fallback D1.a).
+    transform: serde_json::Value,
+    draw_priority: i32,
+    draw_type: i32,
+    camera: u32,
+    /// Sprite statique résolu (texture non-dummy D1.b) ou `Null`.
+    sprite: serde_json::Value,
+    /// Métadonnées d'animation (`open`/`close`) ou `Null`.
+    anim: serde_json::Value,
+    /// Visibilité — défaut `true`, mise à `false` par le runtime Lua (`SetObjectVisible`).
+    visible: bool,
+    /// Texte affiché — `Null` en statique, renseigné par le runtime (`SetText`/`SetObjectNum`).
+    text: serde_json::Value,
+    /// Diagnostic des mutations runtime appliquées à cet objet (ou `Null` si non joint).
+    runtime: serde_json::Value,
+}
+
+impl LayoutObj {
+    /// Sérialise au schéma `MenuLayout` historique (azalee) — strictement les champs d'origine.
+    fn to_json(&self) -> serde_json::Value {
+        serde_json::json!({
+            "name": self.name,
+            "parent": serde_json::Value::Null,
+            "transform": self.transform,
+            "drawPriority": self.draw_priority,
+            "drawType": self.draw_type,
+            "camera": format!("0x{:08X}", self.camera),
+            "sprite": self.sprite,
+            "text": self.text,
+            "anim": self.anim,
+            "primitive": serde_json::Value::Null,
+            "charModel": serde_json::Value::Null,
+        })
+    }
+
+    /// Sérialise au schéma `MenuLayout` + champs runtime (`visible`, `runtime`) — layout généré
+    /// par l'exécution des scripts Lua.
+    fn to_json_runtime(&self) -> serde_json::Value {
+        let mut v = self.to_json();
+        if let serde_json::Value::Object(m) = &mut v {
+            m.insert("visible".into(), serde_json::Value::Bool(self.visible));
+            m.insert("runtime".into(), self.runtime.clone());
+        }
+        v
+    }
+}
+
+/// Construit la liste des objets de layout d'un écran (placement + sprite statiques), triée
+/// back-to-front par `draw_priority`. Logique partagée par l'export statique et l'export runtime.
+///
+/// Retourne `(objets, nb_sprites_résolus)`.
+/// Convertit des frères T2B en forme iecode (suffixe `_<idx>` par nom, récursif) pour le résolveur
+/// de texte universel `nie_data::text` (réplique de `t2b_siblings_to_iecode` de nie-model-serve).
+fn t2b_siblings_to_iecode(siblings: &[cfgbin::CfgEntry]) -> Vec<serde_json::Value> {
+    use serde_json::json;
+    use std::collections::HashMap;
+    let mut counts: HashMap<&str, usize> = HashMap::new();
+    siblings
+        .iter()
+        .map(|e| {
+            let idx = counts.entry(e.name.as_str()).or_insert(0);
+            let name = format!("{}_{}", e.name, *idx);
+            *idx += 1;
+            let variables: Vec<serde_json::Value> = e
+                .variables
+                .iter()
+                .map(|v| match v {
+                    cfgbin::Value::String(s) => json!({ "type": "String", "value": s }),
+                    cfgbin::Value::Int(n) => json!({ "type": "Int", "value": n.to_string() }),
+                    cfgbin::Value::Float(f) => json!({ "type": "Float", "value": f.to_string() }),
+                })
+                .collect();
+            json!({ "name": name, "variables": variables, "children": t2b_siblings_to_iecode(&e.children) })
+        })
+        .collect()
+}
+
+/// Charge la table `menu_text` (locale [`MENU_LOCALE`]) en `(HashId, String)` via le résolveur
+/// universel de `nie-data`, pour résoudre les libellés **statiques** de menu. Vide si absente.
+///
+/// Cf. DESIGN.md §7 : `menu_text` est la source confirmée des libellés UI statiques (ex.
+/// `0x40687BAD` → « Informations ») ; les libellés runtime (noms d'items) restent au driver.
+fn load_menu_text(vfs: &Vfs) -> Vec<(nie_data::hash::HashId, String)> {
+    let needle = format!("/text/{MENU_LOCALE}/");
+    let Some(path) = vfs.iter().map(|(p, _)| p.to_string()).find(|p| {
+        p.contains(&needle) && p.rsplit('/').next() == Some("menu_text.cfg.bin")
+    }) else {
+        return Vec::new();
+    };
+    let Ok(bytes) = vfs.read(&path) else { return Vec::new() };
+    let Ok(file) = cfgbin::parse_t2b(&bytes) else { return Vec::new() };
+    let root = serde_json::json!({ "entries": t2b_siblings_to_iecode(&file.entries) });
+    nie_data::text::parse_text_file(&root)
+}
+
+fn collect_layout_objects(vfs: &Vfs, screen: &str, from_setting: bool) -> (Vec<LayoutObj>, usize) {
+    use serde_json::{json, Value};
+
+    // Table de texte de menu (locale fr) : résout les libellés STATIQUES (cf. DESIGN.md §7).
+    let menu_text = load_menu_text(vfs);
+
+    // Source des objbin : soit la **définition `menu_setting`** (composition correcte multi-préfixes,
+    // D1.c-driver brique (a)), soit le filtre historique par préfixe de nom.
+    let obj_paths: Vec<String> = if from_setting {
+        setting_objbin_paths(vfs, screen)
+    } else {
+        let screen_lower = screen.to_ascii_lowercase();
+        let mut v: Vec<String> = vfs
+            .iter()
+            .filter_map(|(path, _)| {
+                if !path.contains("/menu/obj/") || !path.ends_with(".objbin") {
+                    return None;
+                }
+                let basename = path.rsplit('/').next()?;
+                basename
+                    .to_ascii_lowercase()
+                    .starts_with(screen_lower.as_str())
+                    .then(|| path.to_string())
+            })
+            .collect();
+        v.sort_unstable(); // ordre déterministe (VFS = HashMap)
+        v
+    };
+
+    let mut objects: Vec<LayoutObj> = Vec::new();
+    let mut n_sprites = 0usize;
+
+    for obj_path in &obj_paths {
+        let Ok(obj_bytes) = vfs.read(obj_path) else { continue };
+        let Ok(obj) = objbin::parse(&obj_bytes) else { continue };
+
+        // Métadonnées de composants.
+        let (mut draw_priority, mut draw_type, mut camera) = (0i32, 0i32, 0u32);
+        let mut anim = Value::Null;
+        let mut text_labels: Vec<Value> = Vec::new();
+        for c in &obj.components {
+            match c {
+                objbin::MenuComponent::Render(r) => {
+                    draw_priority = r.draw_priority;
+                    draw_type = r.draw_type;
+                    camera = r.camera_name_hash;
+                }
+                objbin::MenuComponent::Animation(a) => {
+                    let hx = |h: u32| if h != 0 { json!(format!("0x{h:08X}")) } else { Value::Null };
+                    anim = json!({ "open": hx(a.mot_open_hash), "close": hx(a.mot_close_hash) });
+                }
+                objbin::MenuComponent::Text(tc) => {
+                    // Résolution des libellés STATIQUES : pour chaque slot, le 1ᵉʳ hash présent
+                    // dans `menu_text` (pas toujours `hashes[0]` — cf. DESIGN.md §7). Les slots
+                    // non résolus (libellés runtime, ex. « COMMENCER ») restent au driver D1.c.
+                    for e in &tc.entries {
+                        if let Some(label) = e
+                            .hashes
+                            .iter()
+                            .find_map(|h| nie_data::text::find_text(&menu_text, nie_data::hash::HashId(*h)))
+                        {
+                            text_labels.push(json!({ "slot": e.key, "text": label }));
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // Placement (motion-fallback) + sprite (texture non-dummy), si assets résolus.
+        let mut transform = json!({
+            "x": 640.0, "y": 360.0, "scaleX": 1.0, "scaleY": 1.0,
+            "rot": 0.0, "anchorX": 0.5, "anchorY": 0.5
+        });
+        let mut sprite = Value::Null;
+
+        // g4tx explicite (param `Texture`) OU dérivé co-localisé du g4pkm (cas mainmenu01, cf.
+        // `build_sprite_list` D1.c) : `<mesh-stem>.g4tx`, résolu par basename dans le VFS.
+        let g4tx_logical: Option<String> = obj.g4tx_path.as_deref().map(str::to_string).or_else(|| {
+            obj.g4pkm_path
+                .as_deref()
+                .and_then(|p| p.rsplit('/').next())
+                .and_then(|b| b.strip_suffix(".g4pkm"))
+                .map(|stem| format!("{stem}.g4tx"))
+        });
+        if let (Some(g4pkm_logical), Some(g4tx_logical)) =
+            (obj.g4pkm_path.as_deref(), g4tx_logical.as_deref())
+            && let Some(g4pkm_vfs) = resolve_vfs_basename(vfs, g4pkm_logical, MENU_LOCALE)
+            && let Ok(g4pkm_bytes) = vfs.read(&g4pkm_vfs)
+            && let Ok(skel) = g4pkm::parse(&g4pkm_bytes)
+            && let Some(g4tx_vfs) = resolve_vfs_basename(vfs, g4tx_logical, MENU_LOCALE)
+            && let Ok(g4tx_bytes) = vfs.read(&g4tx_vfs)
+            && let Ok(parsed) = g4tx::parse(&g4tx_bytes)
+        {
+            let base = g4tx_vfs
+                .rsplit('/')
+                .next()
+                .unwrap_or("")
+                .strip_suffix(".g4tx")
+                .unwrap_or("");
+            if let Some(tex) = g4tx::select_main_texture(&parsed, base) {
+                let (w, h) = (tex.width.max(0) as u32, tex.height.max(0) as u32);
+                let st = menu::place_on_canvas(&skel, w, h);
+                transform = json!({
+                    "x": st.x_px, "y": st.y_px, "scaleX": st.scale_x, "scaleY": st.scale_y,
+                    "rot": st.rot, "anchorX": 0.5, "anchorY": 0.5
+                });
+                // logicalPath = chemin VFS sans `data/` ; pngUrl = `/<logical>` en `.png`.
+                let logical = g4tx_vfs.strip_prefix("data/").unwrap_or(&g4tx_vfs).to_string();
+                let stem = logical.strip_suffix(".g4tx").unwrap_or(&logical);
+                sprite = json!({
+                    "logicalPath": logical, "pngUrl": format!("/{stem}.png"), "w": w, "h": h
+                });
+                n_sprites += 1;
+            }
+        }
+
+        objects.push(LayoutObj {
+            name: obj.name,
+            transform,
+            draw_priority,
+            draw_type,
+            camera,
+            sprite,
+            anim,
+            visible: true,
+            text: if text_labels.is_empty() { Value::Null } else { json!(text_labels) },
+            runtime: Value::Null,
+        });
+    }
+
+    // Tri back-to-front (stable : ex æquo en ordre alphabétique déterministe).
+    objects.sort_by_key(|o| o.draw_priority);
+    (objects, n_sprites)
+}
+
+/// Compte les **item-buttons par layer-list** depuis les slots `AttachLocator` des objbin de
+/// l'écran — la donnée de scène que `GetObjectAttr` (`0x4612788B`) renvoie au script (lu par
+/// `GetItemButtonNum`). Sans elle, le menu reste vide (`GetItemButtonNum` = 0).
+///
+/// Format `NullLayerName` (vérifié sur `title02_02_item_atc_locator_2`) : liste plate de quads
+/// `[hashLocatorA, hashLocatorB, layerHash, slotIndex]`. Le nombre de slots d'un layer = nombre
+/// de quads portant ce `layerHash`. Ex. title02 : `2250456639`→8 (#L7_7), `3873872512`→3
+/// (#L8_8), `3180406576`→11 — concordent exactement avec les tables du script décompilé.
+///
+/// Retourne `layerHash -> nombre d'items`.
+fn collect_item_counts(vfs: &Vfs, screen: &str) -> std::collections::BTreeMap<u32, i32> {
+    let screen_lower = screen.to_ascii_lowercase();
+    let mut counts: std::collections::BTreeMap<u32, i32> = std::collections::BTreeMap::new();
+    for (path, _) in vfs.iter() {
+        if !path.contains("/menu/obj/") || !path.ends_with(".objbin") {
+            continue;
+        }
+        let Some(basename) = path.rsplit('/').next() else { continue };
+        if !basename.to_ascii_lowercase().starts_with(screen_lower.as_str()) {
+            continue;
+        }
+        let Ok(bytes) = vfs.read(path) else { continue };
+        let Ok(obj) = objbin::parse(&bytes) else { continue };
+        for c in &obj.components {
+            if let objbin::MenuComponent::AttachLocator(a) = c {
+                // Quads [A, B, layerHash, slotIndex] : compter par layerHash.
+                for quad in a.null_layer_hashes.chunks_exact(4) {
+                    *counts.entry(quad[2]).or_insert(0) += 1;
+                }
+            }
+        }
+    }
+    counts
+}
+
+// ── Export de layout AU RUNTIME (driver Lua réel, comme nie.exe) ──────────────
+
+/// État runtime fusionné d'un objet de menu (issu du `MenuState` Lua), pour le join crc32.
+struct MergedObj {
+    /// Visibilité — `false` si un script a appelé `SetObjectVisible(.., false)`.
+    visible: bool,
+    /// Hash de texture/chemin g4tx du sprite (`SetSprite`/`SetIconSprite` arg1).
+    sprite_hash: Option<u32>,
+    /// Hash de la région/texture dans l'atlas (`SetIconSprite` arg2). Paire (chemin, région).
+    sprite_region: Option<u32>,
+    /// Texte affiché (`SetText`).
+    text: Option<String>,
+    /// Valeur numérique (`SetObjectNum`).
+    number: Option<i32>,
+}
+
+impl Default for MergedObj {
+    fn default() -> Self {
+        Self { visible: true, sprite_hash: None, sprite_region: None, text: None, number: None }
+    }
+}
+
+/// Aiguillage écran → préfixe de script `.lua.bin` (vérité terrain MEMORY.md / DESIGN.md §13).
+///
+/// Pour les écrans connus, renvoie le préfixe du script PRIMAIRE (évite de piloter les 11
+/// variantes `title_menu_*`) ; sinon, recherche par le nom d'écran tel quel.
+fn screen_script_needles(screen: &str) -> Vec<String> {
+    match screen.to_ascii_lowercase().as_str() {
+        "mainmenu" | "main_menu" => vec!["main_menu".into()],
+        "title" | "title02" | "titlemenu" => vec!["title_menu_2".into()],
+        "topmenu" | "topmenu_top" => vec!["topmenu_top".into()],
+        other => vec![other.to_string()],
+    }
+}
+
+/// Charge le dictionnaire CRC32→nom reversé du corpus Lua DÉCOMPILÉ
+/// (`data/re/menu-crc32-dictionary.json`, 160513 entrées, récupéré du VPS 2026-06-16). Les hash de
+/// menu (sprites, nœuds, objets) SONT du CRC32 de noms (vérifié `CRC32("Focus")=0xA30165ED`) → ce
+/// dico les résout en noms lisibles. `HashMap` vide si le fichier est absent (résolution best-effort).
+fn load_menu_crc32_dict() -> std::collections::HashMap<u32, String> {
+    let mut m = std::collections::HashMap::new();
+    let candidates = [
+        std::path::PathBuf::from("data/re/menu-crc32-dictionary.json"),
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/re/menu-crc32-dictionary.json"),
+    ];
+    for cand in candidates {
+        if let Ok(txt) = std::fs::read_to_string(&cand)
+            && let Ok(raw) = serde_json::from_str::<std::collections::HashMap<String, String>>(&txt)
+        {
+            for (k, v) in raw {
+                if let Some(h) = k.strip_prefix("0x").and_then(|s| u32::from_str_radix(s, 16).ok()) {
+                    m.insert(h, v);
+                }
+            }
+            break;
+        }
+    }
+    m
+}
+
+/// Charge l'index `nom-de-région → chemin g4tx` (généré par `--build-region-index`).
+/// Résout les `spriteRegion` du runtime (ex. `gtxt_rarity01_05`) vers le fichier g4tx qui les
+/// contient quand le `spritePath` runtime est un nom de nœud et non un chemin g4tx.
+fn load_region_index() -> std::collections::HashMap<String, String> {
+    let candidates = [
+        std::path::PathBuf::from("data/re/menu-region-index.json"),
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/re/menu-region-index.json"),
+    ];
+    for cand in candidates {
+        if let Ok(txt) = std::fs::read_to_string(&cand)
+            && let Ok(raw) =
+                serde_json::from_str::<std::collections::HashMap<String, String>>(&txt)
+        {
+            return raw;
+        }
+    }
+    std::collections::HashMap::new()
+}
+
+/// Génère le layout d'un écran AU RUNTIME comme `nie.exe` : exécute les vrais scripts Lua de
+/// l'écran via le driver reversé (`OnInit` → `OnSetupLayer` → `OnOpenLayer`, manager `0x14109D190`)
+/// dans la VM Lua 5.2 réelle ([`nie_lua`]), récupère le `MenuState` produit, puis l'applique au
+/// layout statique (placement D1.a + sprite D1.b) en joignant par `crc32(nom d'objbin)`.
+///
+/// Honnêteté : le `MenuState` peut être PARTIEL (voire vide) tant que la couche données
+/// scène/save (lue par les fonctions de script `GetItemButtonNum`/…) n'est pas fournie — le
+/// livrable est le CHEMIN runtime câblé + un diagnostic honnête, pas 100% du contenu.
+fn cmd_export_layout_runtime(
+    game_dir: &Path,
+    screen: &str,
+    screen_name: &str,
+    out: &Path,
+    from_setting: bool,
+) -> Result<()> {
+    use std::collections::{BTreeMap, HashMap};
+    use std::rc::Rc;
+
+    use nie_formats::cfgbin::crc32;
+    use nie_lua::{
+        drive_menu, enumerate_header_tabs, include_logical_base, install_include, install_menu_host,
+        new_vm, script_logical_base, HeaderTab,
+    };
+    use serde_json::{json, Value};
+
+    let data_dir = game_dir.join("data");
+    let mut vfs = Vfs::new();
+    vfs.init(&data_dir).context("VFS init échoué (cpk_list.cfg.bin)")?;
+    info!("VFS monté : {} assets", vfs.asset_count());
+
+    // 1) Layout statique de l'écran (placement + sprite) — base à muter par le runtime.
+    let (mut objects, n_sprites) = collect_layout_objects(&vfs, screen, from_setting);
+
+    // 2) Index basename(.lua.bin) → chemin VFS (résolveur INCLUDE + découverte des scripts).
+    //    `by_base`    : basename exact minuscule → chemin (résolution directe d'INCLUDE).
+    //    `by_logical` : base versionless (`main_menu_inc`) → chemin, pour résoudre les noms
+    //                   LOGIQUES du moteur (`INCLUDE("LUA_MAIN_MENU_INC")`) vers le bon fichier
+    //                   `main_menu_inc_3.00.01.00.lua.bin`. SANS ça, `MAIN_MENU` (défini par cet
+    //                   include) reste nil et tout `OnInit`/`OnSetupLayer` du main_menu avorte.
+    let mut by_base: HashMap<String, String> = HashMap::new();
+    let mut by_logical: HashMap<String, String> = HashMap::new();
+    let mut menu_scripts: Vec<String> = Vec::new();
+    for (p, _) in vfs.iter() {
+        if let Some(b) = p.rsplit('/').next().filter(|b| b.ends_with(".lua.bin")) {
+            by_base.entry(b.to_ascii_lowercase()).or_insert_with(|| p.to_string());
+            by_logical.entry(script_logical_base(b)).or_insert_with(|| p.to_string());
+            if p.starts_with("data/common/script/lua/menu/") {
+                menu_scripts.push(p.to_string());
+            }
+        }
+    }
+    menu_scripts.sort();
+
+    // 3) Scripts candidats pour cet écran (alias vérité terrain + filtrage par sous-chaîne).
+    let needles = screen_script_needles(screen);
+    let scripts: Vec<String> = menu_scripts
+        .iter()
+        .filter(|p| {
+            let b = p.rsplit('/').next().unwrap_or(p).to_ascii_lowercase();
+            needles.iter().any(|n| b.contains(n.as_str()))
+        })
+        .cloned()
+        .collect();
+    if scripts.is_empty() {
+        warn!("aucun script .lua.bin pour l'écran '{screen}' (needles={needles:?})");
+    }
+
+    // Donnée de scène : nombre d'item-buttons par layer-list (slots AttachLocator des objbin).
+    // C'est ce que `GetObjectAttr`/`GetItemButtonNum` lit ; sans elle le menu reste vide.
+    let item_counts = collect_item_counts(&vfs, screen);
+    info!("item_counts (layer-list -> #items) : {item_counts:?}");
+
+    // layerIds à piloter : les hashes crc32 des NOMS d'objets objbin de l'écran (= les vrais
+    // layerIds sur lesquels OnSetupLayer/OnOpenLayer du script dispatchent, donc ce qui joint au
+    // layout) + les layers item-list (slots AttachLocator) + 0 (= tous) + crc32(nom d'écran).
+    let screen_hash = crc32(screen.as_bytes());
+    let mut drive_layers: Vec<u32> = objects.iter().map(|o| crc32(o.name.as_bytes())).collect();
+    drive_layers.extend(item_counts.keys().copied());
+    drive_layers.push(0);
+    drive_layers.push(screen_hash);
+    drive_layers.sort_unstable();
+    drive_layers.dedup();
+
+    let vfs = Rc::new(vfs);
+    let by_base = Rc::new(by_base);
+    let by_logical = Rc::new(by_logical);
+
+    // 4) DRIVE chaque script dans sa propre VM (état propre), fusionne les MenuState.
+    let mut merged_objs: BTreeMap<u32, MergedObj> = BTreeMap::new();
+    let mut merged_layers: BTreeMap<u32, bool> = BTreeMap::new();
+    let mut total_known = 0usize;
+    let mut total_list_items = 0usize;
+    // cmdId -> (nombre d'appels, échantillon de représentation des args — aide à la RE du handler).
+    let mut unknown_cmds: BTreeMap<u32, (usize, String)> = BTreeMap::new();
+    let mut script_reports: Vec<(String, bool, usize, usize, usize)> = Vec::new();
+    // Onglets d'en-tête virtuels (sous-items absents de l'objbin), énumérés depuis la vraie
+    // logique du script (GetSortOfTabs + GetMenuObjectNameFromTabType). Clé = hash d'objet.
+    let mut header_tabs: BTreeMap<u32, HeaderTab> = BTreeMap::new();
+
+    for path in &scripts {
+        let Ok(bytes) = vfs.read(path) else { continue };
+        let name = path.rsplit('/').next().unwrap_or(path);
+
+        let lua = new_vm();
+        {
+            let (vfs, by_base, by_logical) =
+                (Rc::clone(&vfs), Rc::clone(&by_base), Rc::clone(&by_logical));
+            install_include(&lua, move |n| {
+                // 1) basename exact ("foo" → "foo.lua.bin" ou "foo").
+                let lower = n.to_ascii_lowercase();
+                let exact = format!("{lower}.lua.bin");
+                by_base
+                    .get(&exact)
+                    .or_else(|| by_base.get(&lower))
+                    // 2) nom LOGIQUE moteur ("LUA_MAIN_MENU_INC" → base "main_menu_inc").
+                    .or_else(|| by_logical.get(&include_logical_base(n)))
+                    .and_then(|p| vfs.read(p).ok())
+            })
+            .map_err(|e| anyhow::anyhow!("install_include : {e}"))?;
+        }
+        let state = install_menu_host(&lua).map_err(|e| anyhow::anyhow!("install_menu_host : {e}"))?;
+        // Seed la donnée de scène AVANT le pilotage : GetObjectAttr/GetItemButtonNum la lit
+        // pendant OnInit (le compte est mis en cache à ce moment-là).
+        state.borrow_mut().object_attr.clone_from(&item_counts);
+        let report = match drive_menu(&lua, &bytes, name, &drive_layers, &item_counts) {
+            Ok(r) => r,
+            Err(e) => {
+                warn!("drive_menu {name} : {e}");
+                continue;
+            }
+        };
+
+        // Énumère les onglets d'en-tête PENDANT que la VM est vivante (sous-items virtuels :
+        // les 9 onglets du main_menu absents de l'objbin, issus de GetSortOfTabs réel).
+        for tab in enumerate_header_tabs(&lua) {
+            header_tabs.entry(tab.obj_hash).or_insert(tab);
+        }
+
+        let st = state.borrow();
+        let n_layers = st.layers.len();
+        let n_objs: usize = st.layers.values().map(|l| l.objects.len()).sum();
+        total_known += st.known_cmd_log.len();
+        total_list_items += st
+            .layers
+            .values()
+            .flat_map(|l| l.objects.values())
+            .map(|o| o.sub_items.len())
+            .sum::<usize>();
+        for (c, _, args_repr) in &st.unknown_cmd_log {
+            let e = unknown_cmds.entry(*c).or_insert((0, args_repr.clone()));
+            e.0 += 1;
+        }
+        // Fusion déterministe (itération BTreeMap ordonnée) : visibilité ET-combinée, premiers
+        // sprite/text/number gagnants.
+        for (lid, layer) in &st.layers {
+            let e = merged_layers.entry(*lid).or_insert(true);
+            *e = *e && layer.visible;
+            for (oid, o) in &layer.objects {
+                let m = merged_objs.entry(*oid).or_default();
+                m.visible = m.visible && o.visible;
+                if m.sprite_hash.is_none() {
+                    m.sprite_hash = o.sprite_texture_hash;
+                    m.sprite_region = o.sprite_region_hash;
+                }
+                if m.text.is_none() {
+                    m.text = o.text.clone();
+                }
+                if m.number.is_none() {
+                    m.number = o.number;
+                }
+            }
+        }
+        info!(
+            "driver {name} : top_level_ok={} on_init={:?} on_open={} layers={n_layers} \
+             objects={n_objs} known={} unknown={}",
+            report.top_level_ok,
+            report.on_init,
+            report.on_open,
+            st.known_cmd_log.len(),
+            st.unknown_cmd_log.len()
+        );
+        script_reports.push((name.to_string(), report.on_open, n_layers, n_objs, st.known_cmd_log.len()));
+    }
+
+    // 5) APPLIQUE le MenuState fusionné au layout via crc32(objbin.name).
+    // Dico CRC32→nom (corpus Lua décompilé) : résout les hash de sprites/nœuds en noms lisibles.
+    let crc_dict = load_menu_crc32_dict();
+    let region_index = load_region_index();
+    // Cache des g4tx parsés (chemin logique → parse), pour résoudre les rects de région sans
+    // recharger/remonter le VFS à chaque objet (render-from-runtime, étape rect).
+    let mut g4tx_cache: std::collections::HashMap<String, Option<g4tx::G4tx>> =
+        std::collections::HashMap::new();
+    let (mut n_matched, mut n_hidden, mut n_sprite_mut, mut n_text_mut, mut n_sprite_named) =
+        (0usize, 0usize, 0usize, 0usize, 0usize);
+    let mut n_region_rect = 0usize;
+    for o in &mut objects {
+        let h = crc32(o.name.as_bytes());
+        let Some(m) = merged_objs.get(&h) else { continue };
+        n_matched += 1;
+        let mut rt = serde_json::Map::new();
+        rt.insert("matched".into(), Value::Bool(true));
+        rt.insert("objHash".into(), json!(format!("0x{h:08X}")));
+        if let Some(sh) = m.sprite_hash {
+            rt.insert("spriteHash".into(), json!(format!("0x{sh:08X}")));
+            // RÉSOLU (2026-06-16) : les hash de sprite SONT du CRC32 de noms — résolus via le dico du
+            // corpus Lua décompilé (`menu-crc32-dictionary.json`). Pour `SetIconSprite` : la PAIRE
+            // (chemin g4tx, région) = (spriteHash, spriteRegion) → texture réelle (render-from-runtime).
+            if let Some(name) = crc_dict.get(&sh) {
+                rt.insert("spritePath".into(), Value::String(name.clone()));
+                n_sprite_named += 1;
+            }
+            if let Some(rh) = m.sprite_region {
+                rt.insert("spriteRegionHash".into(), json!(format!("0x{rh:08X}")));
+                if let Some(rn) = crc_dict.get(&rh) {
+                    rt.insert("spriteRegion".into(), Value::String(rn.clone()));
+                    // RENDER-FROM-RUNTIME : le nom de région → fichier g4tx (index) → rect de crop.
+                    // Câble le chaînon manquant quand le `spritePath` runtime est un nom de nœud.
+                    if let Some(g4tx_path) = region_index.get(rn) {
+                        rt.insert("spriteRegionG4tx".into(), Value::String(g4tx_path.clone()));
+                        let parsed = g4tx_cache.entry(g4tx_path.clone()).or_insert_with(|| {
+                            obtenir_g4tx_bytes(game_dir, g4tx_path)
+                                .ok()
+                                .and_then(|(_, b)| g4tx::parse(&b).ok())
+                        });
+                        if let Some(p) = parsed
+                            && let Some((x, y, w, h)) = p.region_rect(rn)
+                        {
+                            rt.insert(
+                                "spriteRect".into(),
+                                json!({"x": x, "y": y, "w": w, "h": h}),
+                            );
+                            n_region_rect += 1;
+                        }
+                    }
+                }
+            }
+        }
+        if !m.visible {
+            o.visible = false;
+            n_hidden += 1;
+        }
+        if m.sprite_hash.is_some() {
+            n_sprite_mut += 1;
+        }
+        if let Some(t) = &m.text {
+            o.text = Value::String(t.clone());
+            rt.insert("text".into(), Value::String(t.clone()));
+            n_text_mut += 1;
+        } else if let Some(num) = m.number {
+            o.text = json!(num);
+            rt.insert("number".into(), json!(num));
+            n_text_mut += 1;
+        }
+        o.runtime = Value::Object(rt);
+    }
+
+    // 5b) ONGLETS D'EN-TÊTE VIRTUELS : les 9 onglets du main_menu sont des sous-items absents de
+    //     l'objbin (cf. MEMORY menu-rendering-data-trilogy + main_menu_1.02.92.00). Issus de la
+    //     VRAIE logique du script (GetSortOfTabs -> GetMenuObjectNameFromTabType -> GetTabTextIdCRC),
+    //     on les AJOUTE comme objets de layout (légitime : ce sont les vrais onglets). Placement
+    //     dérivé : barre horizontale en haut (transform exact non disponible côté objbin).
+    let static_hashes: std::collections::HashSet<u32> =
+        objects.iter().map(|o| crc32(o.name.as_bytes())).collect();
+    let n_tab_total = header_tabs.len();
+    let mut n_tabs = 0usize;
+    for (hash, tab) in &header_tabs {
+        if static_hashes.contains(hash) {
+            continue; // déjà présent dans l'objbin (n'arrive pas pour le main_menu) -> pas de doublon
+        }
+        // Position dérivée selon l'ORDRE VISUEL de l'onglet (tab.index = ordre GetSortOfTabs).
+        let frac = if n_tab_total > 1 { tab.index as f64 / (n_tab_total as f64 - 1.0) } else { 0.0 };
+        let x = 180.0 + frac * 920.0;
+        let transform = json!({
+            "x": x, "y": 44.0, "scaleX": 1.0, "scaleY": 1.0,
+            "rot": 0.0, "anchorX": 0.5, "anchorY": 0.5
+        });
+        let text = if tab.text_id != 0 {
+            Value::String(format!("0x{:08X}", tab.text_id))
+        } else {
+            Value::Null
+        };
+        let mut rt = serde_json::Map::new();
+        rt.insert("matched".into(), Value::Bool(true));
+        rt.insert("virtual".into(), Value::Bool(true));
+        rt.insert("tabType".into(), json!(tab.tab_type));
+        rt.insert("tabIndex".into(), json!(tab.index));
+        rt.insert("objHash".into(), json!(format!("0x{hash:08X}")));
+        if tab.text_id != 0 {
+            rt.insert("textId".into(), json!(format!("0x{:08X}", tab.text_id)));
+        }
+        objects.push(LayoutObj {
+            name: format!("mainmenu_header_tab_{:02}", tab.tab_type),
+            transform,
+            draw_priority: 1000, // au-dessus du fond/contenu (en-tête au premier plan)
+            draw_type: 0,
+            camera: 0,
+            sprite: Value::Null,
+            anim: Value::Null,
+            visible: true,
+            text,
+            runtime: Value::Object(rt),
+        });
+        n_tabs += 1;
+    }
+    // Re-tri back-to-front (les onglets injectés à priorité 1000 vont au premier plan).
+    objects.sort_by_key(|o| o.draw_priority);
+    let n_matched_total = n_matched + n_tabs;
+
+    // 6) Sérialise (schéma MenuLayout + champs runtime `visible`/`runtime`).
+    let json_objects: Vec<Value> = objects.iter().map(LayoutObj::to_json_runtime).collect();
+    let n_objects = json_objects.len();
+    let n_visible = objects.iter().filter(|o| o.visible).count();
+    let unknown_list: Vec<Value> = unknown_cmds
+        .iter()
+        .map(|(c, (n, args))| json!({ "cmdId": format!("0x{c:08X}"), "count": n, "args": args }))
+        .collect();
+    let script_names: Vec<&str> = scripts.iter().map(|s| s.rsplit('/').next().unwrap_or(s)).collect();
+
+    let layout = json!({
+        "screen": screen_name,
+        "locale": MENU_LOCALE,
+        "canvas": { "w": 1280, "h": 720 },
+        "generatedBy": "runtime-lua",
+        "objects": json_objects,
+        "runtimeSummary": {
+            "scripts": script_names,
+            "layersTouched": merged_layers.len(),
+            "objectsInMenuState": merged_objs.len(),
+            "objectsMatched": n_matched,
+            "headerTabsAdded": n_tabs,
+            "objectsMatchedTotal": n_matched_total,
+            "listItemsRecorded": total_list_items,
+            "objectsHidden": n_hidden,
+            "spritesMutated": n_sprite_mut,
+            "spritesNamed": n_sprite_named,
+            "regionRects": n_region_rect,
+            "textsMutated": n_text_mut,
+            "knownCmdCalls": total_known,
+            "unknownCmds": unknown_list,
+        },
+    });
+    let txt = serde_json::to_string_pretty(&layout)?;
+    std::fs::write(out, &txt).with_context(|| format!("écriture {}", out.display()))?;
+
+    // 7) Résumé honnête sur stdout.
+    println!(
+        "export-layout-runtime: screen={screen_name} objets={n_objects} (sprites statiques={n_sprites}) \
+         scripts={} | MenuState: objets={} mutés[matched={n_matched_total} (statique={n_matched} \
+         + onglets={n_tabs}) hidden={n_hidden} sprite={n_sprite_mut} text={n_text_mut} listItems={total_list_items}] \
+         | cmds connus={total_known} inconnus_distincts={} | visibles={n_visible} -> {} ({} octets)",
+        scripts.len(),
+        merged_objs.len(),
+        unknown_cmds.len(),
+        out.display(),
+        txt.len()
+    );
+    for (name, on_open, nl, no, nk) in &script_reports {
+        println!("  · {name} : on_open={on_open} layers={nl} objects={no} known_calls={nk}");
+    }
+    if n_matched_total == 0 {
+        println!(
+            "  NOTE honnête : 0 objet muté par le runtime. Le chemin driver -> MenuState -> layout \
+             est CÂBLÉ et exécute les vrais scripts, mais `GetItemButtonNum` (fonction DU script) \
+             lit l'état scène/save C++ que niers ne fournit pas encore => OnSetupLayer crée 0 objet. \
+             Couche données runtime à compléter pour 100% comme nie.exe (cf. DESIGN.md §13)."
+        );
+    }
+    Ok(())
+}
+
 // ── Mode menu CPU ─────────────────────────────────────────────────────────────
 
 /// Compose l'écran `screen` via le compositeur CPU (référence pixel-perfect) → PNG.
-fn cmd_menu(game_dir: &Path, screen: &str, png_out: &Path) -> Result<()> {
-    let sprites = build_sprite_list(game_dir, screen)?;
+fn cmd_menu(game_dir: &Path, screen: &str, png_out: &Path, from_setting: bool) -> Result<()> {
+    let sprites = if from_setting {
+        build_sprite_list_from_setting(game_dir, screen)?
+    } else {
+        build_sprite_list(game_dir, screen)?
+    };
     let n_sprites = sprites.len();
 
     let composite_sprites: Vec<menu::CompositeSprite> = sprites
@@ -2020,5 +3427,83 @@ impl AppFenetre {
             pipeline,
             bind_group,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{blit_over, crop_rgba, scale_nearest};
+
+    /// Buffer 4×2 RGBA où chaque pixel encode son index dans le canal R, pour vérifier que
+    /// `crop_rgba` extrait exactement le bon sous-rectangle (ligne par ligne, sans débordement).
+    fn ramp(w: u32, h: u32) -> Vec<u8> {
+        let mut v = Vec::with_capacity((w * h * 4) as usize);
+        for i in 0..(w * h) {
+            v.extend_from_slice(&[i as u8, 0, 0, 255]);
+        }
+        v
+    }
+
+    #[test]
+    fn crop_rgba_extrait_le_bon_sous_rect() {
+        // 4×2 : indices 0..7 (ligne 0 : 0 1 2 3 ; ligne 1 : 4 5 6 7).
+        let full = ramp(4, 2);
+        // Crop 2×2 à (1,0) → pixels d'index 1,2 (ligne 0) puis 5,6 (ligne 1).
+        let (w, h, out) = crop_rgba(&full, 4, 2, (1, 0, 2, 2)).expect("crop valide");
+        assert_eq!((w, h), (2, 2));
+        let reds: Vec<u8> = out.chunks_exact(4).map(|p| p[0]).collect();
+        assert_eq!(reds, [1, 2, 5, 6]);
+    }
+
+    #[test]
+    fn scale_nearest_double_et_reduit() {
+        // 2×1 : rouge (255,0,0) puis vert (0,255,0).
+        let src = vec![255, 0, 0, 255, 0, 255, 0, 255];
+        // Double en largeur → 4×1 : R R V V.
+        let up = scale_nearest(&src, 2, 1, 4, 1);
+        let reds: Vec<u8> = up.chunks_exact(4).map(|p| p[0]).collect();
+        let greens: Vec<u8> = up.chunks_exact(4).map(|p| p[1]).collect();
+        assert_eq!(reds, [255, 255, 0, 0]);
+        assert_eq!(greens, [0, 0, 255, 255]);
+        // Dimensions nulles → vide (jamais de panique).
+        assert!(scale_nearest(&src, 2, 1, 0, 1).is_empty());
+    }
+
+    #[test]
+    fn blit_over_alpha_et_clip() {
+        // Canevas 3×1 noir opaque.
+        let mut canvas = vec![0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255];
+        // Source 2×1 : blanc semi-transparent (a=128) puis blanc opaque.
+        let src = vec![255, 255, 255, 128, 255, 255, 255, 255];
+        // Pose à x=1 → couvre pixels 1 et 2.
+        blit_over(&mut canvas, (3, 1), &src, (2, 1), (1, 0));
+        // Pixel 0 inchangé (noir).
+        assert_eq!(&canvas[0..4], &[0, 0, 0, 255]);
+        // Pixel 1 : blanc 50% sur noir → ~128.
+        assert_eq!(canvas[4], 128);
+        // Pixel 2 : blanc opaque → 255.
+        assert_eq!(&canvas[8..12], &[255, 255, 255, 255]);
+        // Pixel entièrement transparent ne modifie rien : re-blit a=0.
+        let before = canvas.clone();
+        let transp = vec![9, 9, 9, 0];
+        blit_over(&mut canvas, (3, 1), &transp, (1, 1), (0, 0));
+        assert_eq!(canvas, before);
+        // Hors bornes (dx au-delà du canevas) : pas de panique, pas d'effet.
+        blit_over(&mut canvas, (3, 1), &src, (2, 1), (10, 0));
+        assert_eq!(canvas, before);
+    }
+
+    #[test]
+    fn crop_rgba_rejette_hors_bornes_et_degenere() {
+        let full = ramp(4, 2);
+        // Déborde en largeur (x+w > 4).
+        assert!(crop_rgba(&full, 4, 2, (3, 0, 2, 1)).is_none());
+        // Déborde en hauteur.
+        assert!(crop_rgba(&full, 4, 2, (0, 1, 1, 2)).is_none());
+        // Dégénéré (w ≤ 0) et coordonnée négative.
+        assert!(crop_rgba(&full, 4, 2, (0, 0, 0, 1)).is_none());
+        assert!(crop_rgba(&full, 4, 2, (-1, 0, 2, 1)).is_none());
+        // Pleine surface : OK.
+        assert!(crop_rgba(&full, 4, 2, (0, 0, 4, 2)).is_some());
     }
 }

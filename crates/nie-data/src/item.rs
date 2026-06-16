@@ -230,3 +230,25 @@ pub fn parse_all_items(root: &Value) -> Vec<ItemInfo> {
     });
     out
 }
+
+/// Résout le **nom localisé** d'un objet via une liste `item_text` (issue de
+/// [`crate::text::parse_text_file`]).
+///
+/// Port de la jointure de `buildItemDatabase` (`item-config.ts` : `textMap.get(nameIdHex)`) :
+/// le nom est résolu par `name_id` (var2) dans la table `item_text`. `None` si absent.
+#[must_use]
+pub fn resolve_name<'a>(item: &ItemInfo, item_text: &'a [(HashId, String)]) -> Option<&'a str> {
+    crate::text::find_text(item_text, item.name_id)
+}
+
+/// Résout la **description localisée** d'un objet via la **même** table `item_text`.
+///
+/// Port fidèle : *« il n'existe PAS de fichier `item_explain_text` — les descriptions vivent DANS
+/// `item_text`, résolues via le `descId` (var3) »* (`item-config.ts`). `None` si absent.
+#[must_use]
+pub fn resolve_description<'a>(
+    item: &ItemInfo,
+    item_text: &'a [(HashId, String)],
+) -> Option<&'a str> {
+    crate::text::find_text(item_text, item.desc_id)
+}

@@ -360,7 +360,12 @@ fn match_determinisme_meme_seed() {
     assert_eq!(r1, r2, "même graine → même sortie");
 }
 
-/// Deux graines différentes produisent des sorties différentes.
+/// La simulation est **sensible à la graine** : sur une plage de graines, plusieurs résultats
+/// distincts apparaissent.
+///
+/// NB : tester deux graines *précises* (ex. 1 vs 2) est fragile — le modèle de but étant
+/// probabiliste et grossier, certaines paires collisionnent sur un même score (1 et 2 donnent
+/// tous deux « 1-1 »). On vérifie donc la sensibilité sur un balayage : ≥ 2 sorties distinctes.
 #[test]
 fn match_graines_differentes() {
     let run = |seed: u64| {
@@ -376,9 +381,12 @@ fn match_graines_differentes() {
         )
         .expect("UTF-8")
     };
-    let r1 = run(1);
-    let r2 = run(2);
-    assert_ne!(r1, r2, "graines différentes → sorties différentes");
+    let distinctes: std::collections::HashSet<String> = (1..=10u64).map(run).collect();
+    assert!(
+        distinctes.len() >= 2,
+        "graines différentes → sorties variées (sim sensible à la graine) ; obtenu {} distincte(s) sur 10 graines",
+        distinctes.len()
+    );
 }
 
 /// Les noms d'équipes passés en argument apparaissent dans la sortie.

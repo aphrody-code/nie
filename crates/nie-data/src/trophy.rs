@@ -301,8 +301,34 @@ pub fn parse_trophy_config(root: &Value) -> TrophyConfig {
     }
 }
 
-/// Parse la liste des paliers en fusionnant chaque `TROPHY_TIER_REF_REWARD_N` dans le
-/// `TROPHY_TIER_N` qui le précède.
+/// Résout le **nom localisé** d'un trophée via une liste `trophy_text` (issue de
+/// [`crate::text::parse_text_file`]).
+///
+/// Port de la jointure de `trophy-config.ts` (`loadTextFile("trophy").get(nameHash)`) : clé
+/// `name_text_id` (var4). `None` si absent.
+#[must_use]
+pub fn resolve_name<'a>(info: &TrophyInfo, trophy_text: &'a [(HashId, String)]) -> Option<&'a str> {
+    crate::text::find_text(trophy_text, info.name_text_id)
+}
+
+/// Résout la **description localisée** d'un trophée via la **même** table `trophy_text`
+/// (clé `desc_text_id` = var6 ; port de `loadTextFile("trophy").get(descHash)`). `None` si absent.
+#[must_use]
+pub fn resolve_description<'a>(
+    info: &TrophyInfo,
+    trophy_text: &'a [(HashId, String)],
+) -> Option<&'a str> {
+    crate::text::find_text(trophy_text, info.desc_text_id)
+}
+
+/// Décode la **condition de déblocage** d'un trophée (`open_cond`, var8, base64 opaque) via
+/// [`crate::unlock_condition::decode_unlock_condition`].
+///
+/// `open_cond` vaut `"0"` (sentinelle Int) quand absent → condition triviale `Always`.
+#[must_use]
+pub fn decode_unlock(info: &TrophyInfo) -> crate::unlock_condition::UnlockCondition {
+    crate::unlock_condition::decode_unlock_condition(&info.open_cond)
+}
 fn parse_tiers(root: &Value) -> Vec<TrophyTier> {
     let mut tiers = Vec::new();
     let Some(list) = find_entry(root, "TROPHY_TIER_LIST_BEG") else {
