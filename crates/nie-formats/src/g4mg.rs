@@ -111,6 +111,28 @@ pub fn extract_geometry(g4mg: &[u8], g4md: &G4md) -> Vec<SubmeshGeometry> {
         0
     };
 
+    // Extent minimal d'un vertex = max(offset + taille) sur les attributs (position float3 @0 = 12 ;
+    // normale vec3 ; UV vec2 ; couleur vec4). Le stride NE PEUT PAS être inférieur. Or sur les meshes
+    // de menu MULTI-submesh, `total_verts` double-compte les vertices PARTAGÉS entre submeshes (ex.
+    // title02_00 : `vertex_offset` répétés [0,124,236,236,124]) → `derived_stride = 384/20 = 19 < 32`
+    // (UV0 @24 + 8). On borne donc le stride dérivé par cet extent (vrai stride confirmé = 32 via dump
+    // octets : submesh[0] = quad propre (1,0)(0,0)(0,-1)(1,-1)). **Divergence ASSUMÉE d'iecode** —
+    // RE originale, ce layout multi-submesh étant non résolu dans iecode (cf. DESIGN.md §6). Sans
+    // effet sur les meshes de perso / mono-submesh (où `derived_stride >= attr_extent`).
+    let attr_extent = {
+        let mut e = 12usize;
+        if let Some(a) = normal_attr {
+            e = e.max(a.offset as usize + vec3_byte_size(a.datatype));
+        }
+        if let Some(a) = uv_attr {
+            e = e.max(a.offset as usize + vec2_byte_size(a.datatype));
+        }
+        if let Some(a) = color_attr {
+            e = e.max(a.offset as usize + vec4_byte_size(a.datatype));
+        }
+        e
+    };
+
     let mut out = Vec::with_capacity(g4md.submeshes.len());
 
     for (idx, sm) in g4md.submeshes.iter().enumerate() {
@@ -119,7 +141,11 @@ pub fn extract_geometry(g4mg: &[u8], g4md: &G4md) -> Vec<SubmeshGeometry> {
             continue;
         }
 
-        let stride = if sm.stride > 0 { sm.stride as usize } else { derived_stride };
+        let stride = if sm.stride > 0 {
+            sm.stride as usize
+        } else {
+            derived_stride.max(attr_extent)
+        };
         if stride < 12 {
             continue; // pas de place pour une position float3
         }

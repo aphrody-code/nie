@@ -50,12 +50,18 @@ pub struct ScreenTransform {
 /// Sélectionne la meilleure pose monde du squelette pour un sprite de dimensions données,
 /// puis la convertit en [`ScreenTransform`] (pixels canvas 1280×720).
 ///
-/// Port de `ReadBoneTransformAsync` + `PickBestPoseForSprite` : si le bone de placement a
-/// déjà une géométrie réelle (scale > 1), on l'utilise ; sinon (locator identité) on cherche
-/// le bone feuille dont la scale colle aux dimensions du sprite (±30 %).
+/// Port de `ReadBoneTransformAsync` + `PickBestPoseForSprite` (`MenuLayoutExporter.cs:213-247`) :
+/// 1. la pose de placement vient de [`crate::g4pkm_motion::motion_final_pose`] (bone de placement
+///    `pos_scl`/`base` + **fallback d'ancêtre** si hors-écran) — c'est la correction du « canvas
+///    quasi vide » : sans elle la bind pose hors-écran sortait les widgets du canvas ;
+/// 2. si cette pose a déjà une géométrie réelle (scale > 1), on l'utilise ; sinon (locator
+///    identité) on cherche le bone feuille dont la scale colle aux dimensions du sprite (±30 %).
 #[must_use]
 pub fn place_on_canvas(layout: &G4pkmLayout, sprite_w: u32, sprite_h: u32) -> ScreenTransform {
-    let pose = pick_best_pose(layout, sprite_w, sprite_h);
+    // `has_open_motion=false` : le drapeau n'est qu'une annotation, il ne change pas la pose
+    // (conforme iecode `G4pkmMotion.cs:79-82`).
+    let placement = crate::g4pkm_motion::motion_final_pose(layout, false).pose;
+    let pose = pick_best_pose(layout, placement, sprite_w, sprite_h);
     let (x_px, y_px) = pose.to_css_1280x720();
 
     // scale = (taille géométrie en px réf) × (ratio canvas/réf) / taille native du sprite.
@@ -74,18 +80,18 @@ pub fn place_on_canvas(layout: &G4pkmLayout, sprite_w: u32, sprite_h: u32) -> Sc
     ScreenTransform { x_px, y_px, scale_x, scale_y, rot: pose.rot }
 }
 
-/// Choisit la pose de placement (port de `PickBestPoseForSprite`).
-fn pick_best_pose(layout: &G4pkmLayout, sprite_w: u32, sprite_h: u32) -> Transform2D {
-    // Pose de base : premier bone à géométrie réelle (scale > 1), sinon le premier bone,
-    // sinon identité.
-    let base = layout
-        .bones
-        .iter()
-        .map(|b| b.world_bind_pose)
-        .find(|p| p.scale_x > 1.0)
-        .or_else(|| layout.bones.first().map(|b| b.world_bind_pose))
-        .unwrap_or(Transform2D::ZERO);
-
+/// Raffine une pose de placement pour un sprite donné (port de `PickBestPoseForSprite`).
+///
+/// `base` est la pose de placement déjà résolue (issue de [`crate::g4pkm_motion::motion_final_pose`],
+/// fallback d'ancêtre compris). Si elle a déjà une géométrie réelle (scale > 1), on la garde ;
+/// sinon (locator identité) on cherche le bone feuille dont la scale colle aux dimensions du
+/// sprite (±30 %).
+fn pick_best_pose(
+    layout: &G4pkmLayout,
+    base: Transform2D,
+    sprite_w: u32,
+    sprite_h: u32,
+) -> Transform2D {
     // Si la base a déjà une géométrie réelle (ou pas de sprite à matcher), on la garde.
     if base.scale_x > 1.0 || sprite_w == 0 || sprite_h == 0 {
         return base;

@@ -256,3 +256,25 @@ pub fn parse_mission_trigger(root: &Value) -> Vec<MissionTriggerItem> {
     });
     out
 }
+
+impl MissionConfigInfo {
+    /// `nameId` = var\[2\] = `raw[0]` — clé de jointure vers `mission_text`
+    /// (port de `nameId = vars[2]` de `mission-config.ts`).
+    #[must_use]
+    pub fn name_id(&self) -> HashId {
+        self.raw[0]
+    }
+}
+
+/// Résout le **nom localisé** d'une mission via une liste `mission_text` (issue de
+/// [`crate::text::parse_text_file`]).
+///
+/// Port de la jointure de `mission-config.ts` (`loadTextFile("mission", locale).get(nameIdHex)`)
+/// où `nameId` = var\[2\] = [`MissionConfigInfo::name_id`]. `None` si le hash n'a pas d'entrée.
+#[must_use]
+pub fn resolve_name<'a>(
+    mission: &MissionConfigInfo,
+    mission_text: &'a [(HashId, String)],
+) -> Option<&'a str> {
+    crate::text::find_text(mission_text, mission.name_id())
+}

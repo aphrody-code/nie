@@ -43,6 +43,8 @@ use crate::FormatError;
 const MAGIC_G4PK: u32 = 0x4B50_3447;
 /// Magic « G4SK » little-endian (`0x4B533447`).
 const MAGIC_G4SK: u32 = 0x4B53_3447;
+/// Magic « G4MD » little-endian (`0x444D3447`) — sous-fichier géométrie + matériaux.
+const MAGIC_G4MD: u32 = 0x444D_3447;
 
 /// Taille fixe de l'en-tête G4PK (octets).
 const G4PK_HEADER_SIZE: usize = 0x40;
@@ -231,6 +233,20 @@ pub fn parse_g4sk(g4sk_data: &[u8]) -> Result<G4pkmLayout, FormatError> {
     }
 
     Ok(G4pkmLayout { bones, world_pose_by_name })
+}
+
+/// Extrait le sous-fichier **G4MD** (géométrie + matériaux) d'un container G4PKM, s'il existe.
+///
+/// Sert à résoudre la texture des objets-menu dont l'objbin ne déclare **pas** de paramètre
+/// `Texture` : la texture base-color est alors nommée par le matériau g4md (cf.
+/// [`crate::g4md::G4md::material_base_names`]) plutôt que par l'objbin. Retourne `None` si le
+/// container est invalide ou n'a pas de bloc G4MD.
+#[must_use]
+pub fn extract_g4md(g4pkm_data: &[u8]) -> Option<&[u8]> {
+    if validate_g4pk_magic(g4pkm_data).is_err() {
+        return None;
+    }
+    extract_sub_file(g4pkm_data, MAGIC_G4MD)
 }
 
 // ── Validation et extraction du sous-fichier G4SK ────────────────────────────
