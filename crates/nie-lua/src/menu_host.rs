@@ -254,6 +254,12 @@ const CMD_APPLY_QUERY_TRUE: u32         = 0xC313_5B00; // () -> bool (toujours t
 //   (flag==0, = l'état frais de menu de niers)** : `apply 0x1405CF9E0(ctx,0)` → `mov al,1; ret`.
 //   (La branche flag!=0 appelle 0x1416935D0 — non atteinte hors save chargée.) Utilisé par `title02`.
 const CMD_APPLY_DEFAULT_TRUE: u32       = 0xB9FF_F3C9; // () -> bool (true en état par défaut)
+// 0x74578BF4 (handler 0x140CEECE0, trouvé via la table de dispatch extraite — cf.
+//   scripts/extract_funclua_table.py) : lit arg0, pose le FLAG GLOBAL `[0x1421AE9C3] = (arg0 != 0)`,
+//   `mov al,1; ret` (al=0 seulement si AUCUN arg). Effet = drapeau moteur global, HORS layout ;
+//   retour CONSTANT 1 dès qu'un arg est passé (toujours le cas : `shop` l'appelle avec un bool).
+//   Même forme « set engine flag → return 1 » que la famille ci-dessus, mais à 1 arg.
+const CMD_SET_GLOBAL_FLAG_TRUE: u32     = 0x7457_8BF4; // (bool) -> 1 (pose un flag moteur global)
 // (objId, hash, _, count) -> bool ; handler 0x140CD8E30 reversé : lit 4 args, appelle le manager
 // d'items 0x1410C18D0 (via 0x140CF5B60), renvoie al=1 (0 si <4 args). **Le MÊME manager 0x140CF5B60
 // est lu par GetObjectAttr (handler 0x140CF4F90)** → le `count` (arg3) ENREGISTRÉ ici est CELUI que
@@ -339,6 +345,7 @@ pub fn command_name(cmd_id: u32) -> Option<&'static str> {
         CMD_GET_OBJECT_ACTIVE => "GetObjectActive",
         CMD_APPLY_GLOBAL_CONFIG_TRUE => "ApplyGlobalConfig(=>true)",
         CMD_APPLY_QUERY_TRUE => "ApplyQuery(=>true)",
+        CMD_SET_GLOBAL_FLAG_TRUE => "SetGlobalFlag(=>1)",
         CMD_APPLY_DEFAULT_TRUE => "ApplyDefault(=>true)",
         CMD_REGISTER_ITEM_LIST_COUNT => "RegisterItemListCount",
         CMD_SET_SELECTED_INDEX => "SetSelectedIndex",
@@ -926,7 +933,12 @@ fn dispatch_menu_command(state: &mut MenuState, cmd_id: u32, args: &[Value]) -> 
         // et renvoie **AL=1** (inconditionnel pour les 2 premiers ; cas par défaut flag==0 pour le 3ᵉ
         // = l'état frais de niers). niers ne réplique pas la mutation moteur, mais le RETOUR correct
         // est `1` (le défaut getter `0` serait FAUX si le script teste le retour). Cf. consts.
-        CMD_APPLY_GLOBAL_CONFIG_TRUE | CMD_APPLY_QUERY_TRUE | CMD_APPLY_DEFAULT_TRUE => {
+        // `CMD_SET_GLOBAL_FLAG_TRUE` (0x74578BF4, 1 arg) partage la même sémantique de RETOUR :
+        // pose un flag moteur global (hors layout) et renvoie 1. Cf. son const pour le désassemblage.
+        CMD_APPLY_GLOBAL_CONFIG_TRUE
+        | CMD_APPLY_QUERY_TRUE
+        | CMD_APPLY_DEFAULT_TRUE
+        | CMD_SET_GLOBAL_FLAG_TRUE => {
             if let Some(name) = command_name(cmd_id) {
                 state.known_cmd_log.push((name.to_string(), state.current_layer));
             }
@@ -1220,6 +1232,7 @@ mod dispatch_tests {
         assert_eq!(command_name(0x65E8_25B1), Some("ApplyGlobalConfig(=>true)"));
         assert_eq!(command_name(0xC313_5B00), Some("ApplyQuery(=>true)"));
         assert_eq!(command_name(0xB9FF_F3C9), Some("ApplyDefault(=>true)"));
+        assert_eq!(command_name(0x7457_8BF4), Some("SetGlobalFlag(=>1)"));
         assert_eq!(command_name(0xDEAD_BEEF), None);
     }
 
@@ -1235,6 +1248,12 @@ mod dispatch_tests {
             let ret: f64 = menu_cmd(&lua).call::<f64>((f64::from(cid),)).unwrap();
             assert_eq!(ret, 1.0, "cmdId 0x{cid:08X} : handler reversé renvoie AL=1");
         }
+        // `SetGlobalFlag` (0x74578BF4, 1 arg) : handler 0x140CEECE0 reversé via la table de dispatch
+        // → pose un flag moteur global et renvoie AL=1 (avec son arg bool). Appelé avec le bool.
+        let ret: f64 = menu_cmd(&lua)
+            .call::<f64>((f64::from(CMD_SET_GLOBAL_FLAG_TRUE), false))
+            .unwrap();
+        assert_eq!(ret, 1.0, "SetGlobalFlag(bool) : handler reversé renvoie AL=1");
     }
 
     /// `RegisterItemListCount` (cmdId `0x16C1C4C0`) — handler `0x140CD8E30` REVERSÉ : enregistre
