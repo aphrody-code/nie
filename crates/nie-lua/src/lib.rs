@@ -21,7 +21,10 @@
 //! corrompre la VM) : cette crate est donc volontairement hors `forbid(unsafe_code)`.
 
 pub mod menu_host;
-pub use menu_host::{install_menu_host, run_menu, MenuLayerState, MenuObjectState, MenuState};
+pub use menu_host::{
+    drive_menu, enumerate_header_tabs, install_menu_host, run_menu, DriveReport, HeaderTab,
+    MenuLayerState, MenuListItem, MenuObjectState, MenuState,
+};
 
 use thiserror::Error;
 
@@ -115,6 +118,48 @@ where
     Ok(())
 }
 
+/// Convertit un **nom logique d'INCLUDE moteur** en base de fichier `.lua.bin`.
+///
+/// Les scripts du jeu appellent `INCLUDE("LUA_MAIN_MENU_INC")` avec un nom logique en
+/// MAJUSCULES préfixé `LUA_`. Le moteur le résout en un fichier dont le basename (sans
+/// suffixe de version) est ce nom en minuscules sans le préfixe : `LUA_MAIN_MENU_INC` →
+/// `main_menu_inc` (fichier `main_menu_inc_3.00.01.00.lua.bin`). Vérifié sur les trois
+/// includes du `main_menu` : `LUA_PROG_BASE`→`prog_base`, `LUA_MAIN_MENU_INC`→`main_menu_inc`,
+/// `LUA_SOCCER_TOP_MENU_INC`→`soccer_top_menu_inc`.
+///
+/// Si le nom n'a pas le préfixe `LUA_`, il est simplement mis en minuscules.
+#[must_use]
+pub fn include_logical_base(include_name: &str) -> String {
+    let lower = include_name.to_ascii_lowercase();
+    lower.strip_prefix("lua_").unwrap_or(&lower).to_string()
+}
+
+/// Réduit le basename d'un script (`"main_menu_inc_3.00.01.00.lua.bin"`) à sa **base
+/// logique versionless** (`"main_menu_inc"`), utilisée pour la résolution d'INCLUDE.
+///
+/// Retire l'extension `.lua.bin` puis, de façon répétée, tout segment de version final
+/// `_<chiffres et points>` (ex. `_3.00.01.00`, `_0.06.33`). Les fichiers sans version
+/// (`equip_medalset_inc.lua.bin`) sont renvoyés tels quels (base = `equip_medalset_inc`).
+#[must_use]
+pub fn script_logical_base(basename: &str) -> String {
+    let mut s = basename.to_ascii_lowercase();
+    for ext in [".lua.bin", ".lua"] {
+        if let Some(stripped) = s.strip_suffix(ext) {
+            s = stripped.to_string();
+            break;
+        }
+    }
+    // Retire les segments de version finaux `_<[0-9.]+>` (potentiellement plusieurs).
+    while let Some(idx) = s.rfind('_') {
+        let tail = &s[idx + 1..];
+        if tail.is_empty() || !tail.bytes().all(|b| b.is_ascii_digit() || b == b'.') {
+            break;
+        }
+        s.truncate(idx);
+    }
+    s
+}
+
 /// Exécute un script `.lua.bin` du jeu dans une VM instrumentée et retourne la liste TRIÉE
 /// des **globals hôtes** qu'il référence (fonctions/tables fournies par le moteur C++).
 ///
@@ -177,6 +222,38 @@ mod tests {
         assert!(is_lua52_bytecode(&[0x1B, 0x4C, 0x75, 0x61, 0x52, 0x00]));
         assert!(!is_lua52_bytecode(b"-- source lua"));
         assert!(!is_lua52_bytecode(&[0x1B, 0x4C, 0x75, 0x61, 0x51])); // 5.1
+    }
+
+    /// Les noms logiques d'INCLUDE moteur se réduisent à la base de fichier minuscule
+    /// (préfixe `LUA_` retiré) — vérité terrain des includes du `main_menu`.
+    #[test]
+    fn include_logical_base_strips_lua_prefix() {
+        assert_eq!(include_logical_base("LUA_MAIN_MENU_INC"), "main_menu_inc");
+        assert_eq!(include_logical_base("LUA_PROG_BASE"), "prog_base");
+        assert_eq!(include_logical_base("LUA_SOCCER_TOP_MENU_INC"), "soccer_top_menu_inc");
+        // Sans préfixe : simple minuscule.
+        assert_eq!(include_logical_base("menu_def"), "menu_def");
+    }
+
+    /// La base logique d'un basename retire l'extension `.lua.bin` et le suffixe de version.
+    #[test]
+    fn script_logical_base_strips_version_suffix() {
+        assert_eq!(
+            script_logical_base("main_menu_inc_3.00.01.00.lua.bin"),
+            "main_menu_inc"
+        );
+        assert_eq!(script_logical_base("prog_base_0.00.00.00.lua.bin"), "prog_base");
+        assert_eq!(
+            script_logical_base("soccer_top_menu_inc_1.04.19.01.lua.bin"),
+            "soccer_top_menu_inc"
+        );
+        // Sans suffixe de version : inchangé.
+        assert_eq!(script_logical_base("equip_medalset_inc.lua.bin"), "equip_medalset_inc");
+        // Boucle d'INCLUDE résout le logique du moteur vers le fichier réel.
+        assert_eq!(
+            script_logical_base("main_menu_inc_3.00.01.00.lua.bin"),
+            include_logical_base("LUA_MAIN_MENU_INC")
+        );
     }
 
     /// **Bout-en-bout sur le vrai jeu** : charge un `.lua.bin` réel dans la VM 5.2.

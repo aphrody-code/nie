@@ -16,6 +16,12 @@ path = "src/main.rs"
 
 [dependencies]
 nie-formats = { workspace = true }
+# VM Lua 5.2 réelle : exécute les vrais scripts de menu du jeu pour générer le layout au runtime
+# (driver reversé OnInit/OnSetupLayer/OnOpenLayer → MenuState), comme nie.exe. API safe seulement.
+nie-lua = { workspace = true }
+# Modèles de données + résolveur de texte universel : résout les libellés STATIQUES de menu
+# (`TextComponent.hashes` → `menu_text`) pour l'export de layout (cf. DESIGN.md §7).
+nie-data = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true }
 tracing = { workspace = true }
@@ -26,3 +32,7 @@ pollster = "0.3"
 bytemuck = { version = "1", features = ["derive"] }
 image_dds = { version = "0.7", default-features = false }
 png = "0.18"
+# Export du layout de menu (JSON contrat `@rose-griffon/menu-render` pour azalee).
+serde = { workspace = true }
+serde_json = { workspace = true }
+

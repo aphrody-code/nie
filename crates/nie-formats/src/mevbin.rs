@@ -303,13 +303,20 @@ mod tests {
             return;
         }
 
-        // Premier .mevbin trouvé dans l'index VFS (ordre non déterministe mais stable
-        // pour un run donné).
-        let mevbin_path = vfs
+        // .mevbin du VFS, choisi de façon DÉTERMINISTE (tri lexicographique du chemin) : `iter()`
+        // est un HashMap → `find()` piochait un fichier au hasard, rendant ce golden FLAKY. Certains
+        // `.mevbin` ont un en-tête `COUNT` qui SUR-COMPTE les motions : `c000302_p070` déclare
+        // `COUNT=[178, 457]` mais ne contient que **177 records MOT** (le compte d'EVENT, 457, est lui
+        // exact). Le parseur est donc CORRECT (177 motions parsées) — l'invariant fort header==parsé
+        // ne tient juste pas universellement (donnée jeu, pas un bug de parse ; vérifié par dump des
+        // records). Le tri ancre le golden sur le 1ᵉʳ fichier conforme (`_animal/an000100_p010`).
+        let mut mevbins: alloc::vec::Vec<alloc::string::String> = vfs
             .iter()
-            .map(|(k, _)| k)
-            .find(|k| k.ends_with(".mevbin"))
-            .map(|s| s.to_string());
+            .map(|(k, _)| k.to_string())
+            .filter(|k| k.ends_with(".mevbin"))
+            .collect();
+        mevbins.sort_unstable();
+        let mevbin_path = mevbins.into_iter().next();
 
         let Some(path) = mevbin_path else {
             eprintln!("skip real_file_golden (mevbin) : aucun .mevbin dans le VFS");

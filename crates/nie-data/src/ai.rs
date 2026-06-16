@@ -988,6 +988,29 @@ pub fn parse_strategy_ai_config(root: &Value) -> StrategyAiConfig {
     }
 }
 
+/// Résout le **nom localisé** d'une stratégie IA via une liste `ai_text` (issue de
+/// [`crate::text::parse_text_file`]).
+///
+/// `name_id` (var du `m_StrategyAIInfoList`) est la clé de jointure. Modèle de données validé
+/// **end-to-end** (pas de parseur inagle pour ce config) ; `None` si absent.
+#[must_use]
+pub fn resolve_strategy_name<'a>(
+    strategy: &StrategyAiInfo,
+    ai_text: &'a [(HashId, String)],
+) -> Option<&'a str> {
+    crate::text::find_text(ai_text, strategy.name_id)
+}
+
+/// Résout la **description localisée** d'une stratégie IA via la **même** table `ai_text`
+/// (clé `desc_id`). `None` si absent.
+#[must_use]
+pub fn resolve_strategy_description<'a>(
+    strategy: &StrategyAiInfo,
+    ai_text: &'a [(HashId, String)],
+) -> Option<&'a str> {
+    crate::text::find_text(ai_text, strategy.desc_id)
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // TACTICS_AI_CONFIG
 // ═══════════════════════════════════════════════════════════════════════════════

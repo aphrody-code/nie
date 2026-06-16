@@ -153,6 +153,97 @@ pub fn is_g4tx(data: &[u8]) -> bool {
     data.starts_with(&G4TX_MAGIC_BYTES)
 }
 
+/// `true` si une texture principale est un **dummy** (placeholder) à ne PAS dessiner :
+/// minuscule (≤ 4 px de côté, ex. les `4×4` de Level-5) ou nom contenant `dmy`.
+#[must_use]
+fn is_dummy_texture(tex: &G4txTexture) -> bool {
+    if tex.width <= 4 && tex.height <= 4 {
+        return true;
+    }
+    let n = tex.name.as_bytes();
+    let needle = b"dmy";
+    n.len() >= needle.len()
+        && n.windows(needle.len())
+            .any(|w| w.iter().zip(needle).all(|(a, b)| a.eq_ignore_ascii_case(b)))
+}
+
+/// Sélectionne la texture principale **réelle** d'un atlas g4tx pour un objet-menu.
+///
+/// Le compositeur naïf prenait la 1ʳᵉ texture DDS, souvent un **dummy 4×4** (`*_dmy*`) placé en
+/// tête de l'atlas → sprite invisible. Stratégie, alignée sur la résolution par nom d'iecode
+/// (`MenuPngService.DecodeNamedTexture`) :
+/// 1. texture principale DDS dont le nom == `basename` du conteneur (insensible à la casse) ;
+/// 2. sinon, plus grande texture principale DDS par aire, en **écartant les dummies** ;
+/// 3. sinon, plus grande texture DDS quelconque (tout est dummy/minuscule) ;
+/// 4. sinon `None` (aucune texture DDS décodable).
+///
+/// `basename` est le nom de fichier du `.g4tx` sans extension (ex. `title02_07`).
+#[must_use]
+pub fn select_main_texture<'a>(g4tx: &'a G4tx, basename: &str) -> Option<&'a G4txTexture> {
+    // 1. Nom exact == basename (insensible casse), DDS.
+    if let Some(t) = g4tx
+        .textures
+        .iter()
+        .find(|t| t.is_dds && t.name.eq_ignore_ascii_case(basename))
+    {
+        return Some(t);
+    }
+
+    // 2. Plus grande texture DDS non-dummy par aire.
+    let by_area = |t: &&G4txTexture| (t.width as i64) * (t.height as i64);
+    if let Some(t) = g4tx
+        .textures
+        .iter()
+        .filter(|t| t.is_dds && !is_dummy_texture(t))
+        .max_by_key(by_area)
+    {
+        return Some(t);
+    }
+
+    // 3. Plus grande texture DDS quelconque (dernier recours : tout est dummy).
+    g4tx.textures.iter().filter(|t| t.is_dds).max_by_key(by_area)
+}
+
+/// Cherche une **région d'atlas** par son nom dans tout le conteneur.
+///
+/// C'est la primitive « render-from-runtime » : `funcLuaMenuCommand(SetIconSprite, obj,
+/// CRC32(chemin_g4tx), CRC32(nom_région), …)` désigne un sprite par `(chemin g4tx, nom de région)` ;
+/// une fois le g4tx chargé, ce helper résout `nom_région` → la sous-texture `(x, y, w, h)` à
+/// rogner dans la texture principale (ex. `gtxt_rarity01_05` dans `icon_rarity.g4tx`).
+///
+/// Renvoie la texture porteuse **et** la région (la région seule ne dit pas dans quelle texture
+/// principale rogner). Comparaison de nom insensible à la casse, comme [`select_main_texture`].
+#[must_use]
+pub fn find_sub_texture<'a>(
+    g4tx: &'a G4tx,
+    region_name: &str,
+) -> Option<(&'a G4txTexture, &'a G4txSubTexture)> {
+    g4tx.textures.iter().find_map(|t| {
+        t.sub_textures
+            .iter()
+            .find(|s| s.name.eq_ignore_ascii_case(region_name))
+            .map(|s| (t, s))
+    })
+}
+
+impl G4tx {
+    /// Région d'atlas par nom — cf. [`find_sub_texture`].
+    #[must_use]
+    pub fn region(&self, region_name: &str) -> Option<(&G4txTexture, &G4txSubTexture)> {
+        find_sub_texture(self, region_name)
+    }
+
+    /// Rectangle `(x, y, w, h)` (en pixels) d'une région d'atlas par nom, ou `None` si absente.
+    ///
+    /// Ne valide PAS que le rect tient dans la texture (le décodeur DDS s'en charge) : renvoie les
+    /// coordonnées brutes telles que stockées, prêtes à être passées au compositeur de rendu.
+    #[must_use]
+    pub fn region_rect(&self, region_name: &str) -> Option<(i16, i16, i16, i16)> {
+        self.region(region_name)
+            .map(|(_, s)| (s.x, s.y, s.width, s.height))
+    }
+}
+
 /// Parse un conteneur G4TX.
 ///
 /// Le payload de chaque texture n'a PAS besoin d'être présent dans `data` : si le slice
@@ -350,6 +441,122 @@ mod tests {
         assert!(is_g4tx(b"G4TX...."));
         assert!(!is_g4tx(b"g4tx"));
         assert!(!is_g4tx(b""));
+    }
+
+    fn tex(name: &str, w: i32, h: i32, is_dds: bool) -> G4txTexture {
+        G4txTexture {
+            id: 0,
+            name: String::from(name),
+            width: w,
+            height: h,
+            is_dds,
+            data_offset: 0,
+            data_size: 0,
+            sub_textures: Vec::new(),
+        }
+    }
+
+    /// `select_main_texture` : priorité au nom == basename, sinon plus grande non-dummy.
+    #[test]
+    fn select_main_texture_prefers_basename_then_largest_non_dummy() {
+        // Cas title02_07-like : dummies 4×4 en tête, vraie texture nommée comme le conteneur.
+        let g = G4tx {
+            header: G4txHeader {
+                header_size: 0x60,
+                file_type: 0x65,
+                table_size: 0,
+                texture_count: 3,
+                total_count: 3,
+                sub_texture_count: 0,
+                texture_data_size: 0,
+            },
+            textures: alloc::vec![
+                tex("num_victory_dmy01", 4, 4, true),
+                tex("num_victory_dmy02", 4, 4, true),
+                tex("title02_07", 312, 104, true),
+            ],
+        };
+        // 1) nom exact == basename → la vraie texture, jamais le dummy en tête.
+        let t = select_main_texture(&g, "title02_07").expect("texture");
+        assert_eq!(t.name, "title02_07");
+        assert_eq!((t.width, t.height), (312, 104));
+        // 2) basename inconnu → plus grande non-dummy (même résultat ici).
+        let t2 = select_main_texture(&g, "inconnu").expect("texture");
+        assert_eq!(t2.name, "title02_07");
+    }
+
+    /// Dummies seuls → dernier recours = la plus grande DDS quelconque (jamais `None` à tort).
+    #[test]
+    fn select_main_texture_all_dummy_falls_back() {
+        let g = G4tx {
+            header: G4txHeader {
+                header_size: 0x60,
+                file_type: 0x65,
+                table_size: 0,
+                texture_count: 2,
+                total_count: 2,
+                sub_texture_count: 0,
+                texture_data_size: 0,
+            },
+            textures: alloc::vec![tex("a_dmy01", 4, 4, true), tex("b_dmy02", 4, 4, false)],
+        };
+        let t = select_main_texture(&g, "x").expect("fallback DDS");
+        assert_eq!(t.name, "a_dmy01", "seule DDS, même dummy");
+    }
+
+    #[test]
+    fn is_dummy_texture_detection() {
+        assert!(is_dummy_texture(&tex("foo_dmy01", 100, 100, true)));
+        assert!(is_dummy_texture(&tex("foo", 4, 4, true)));
+        assert!(!is_dummy_texture(&tex("title02_08", 60, 52, true)));
+    }
+
+    fn sub(name: &str, x: i16, y: i16, w: i16, h: i16) -> G4txSubTexture {
+        G4txSubTexture {
+            id: 0,
+            name: String::from(name),
+            x,
+            y,
+            width: w,
+            height: h,
+        }
+    }
+
+    /// `find_sub_texture` / `region` / `region_rect` : résout `nom de région` → `(texture, rect)`.
+    /// Reproduit la structure d'`icon_rarity.g4tx` : une texture-atlas DDS portant les régions
+    /// `gtxt_rarity01_*` désignées au runtime par `SetIconSprite(obj, CRC32(path), CRC32(region))`.
+    #[test]
+    fn region_lookup_resolves_atlas_subtexture() {
+        let mut atlas = tex("icon_rarity", 512, 256, true);
+        atlas.sub_textures = alloc::vec![
+            sub("gtxt_rarity_dmy01", 0, 0, 4, 4),
+            sub("gtxt_rarity01_05", 128, 64, 96, 32),
+            sub("gtxt_rarity01_10", 224, 64, 96, 32),
+        ];
+        let g = G4tx {
+            header: G4txHeader {
+                header_size: 0x60,
+                file_type: 0x65,
+                table_size: 0,
+                texture_count: 1,
+                total_count: 4,
+                sub_texture_count: 3,
+                texture_data_size: 0,
+            },
+            textures: alloc::vec![atlas],
+        };
+
+        // Région présente → texture porteuse + rect exact.
+        let (t, s) = g.region("gtxt_rarity01_05").expect("région présente");
+        assert_eq!(t.name, "icon_rarity");
+        assert_eq!((s.x, s.y, s.width, s.height), (128, 64, 96, 32));
+        // Helper rect direct.
+        assert_eq!(g.region_rect("gtxt_rarity01_10"), Some((224, 64, 96, 32)));
+        // Insensible à la casse (comme select_main_texture).
+        assert_eq!(g.region_rect("GTXT_RARITY01_05"), Some((128, 64, 96, 32)));
+        // Région absente → None (et non panique).
+        assert_eq!(g.region_rect("gtxt_rarity01_99"), None);
+        assert!(find_sub_texture(&g, "inconnue").is_none());
     }
 
     #[cfg(feature = "real-fixtures")]

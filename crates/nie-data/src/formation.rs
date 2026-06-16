@@ -410,6 +410,13 @@ pub fn parse_formation_config(root: &Value) -> FormationConfig {
     }
 }
 
+// NB (jointure texte formation NON portée — 2026-06-15) : inagle `formation-config.ts` résout le
+// nom/description via `loadTextFile("formation")` → `formation_text.cfg.bin`. Ce fichier **n'existe
+// PAS dans cette version du jeu** (vérifié : 0 candidat dans le VFS). Le `noun_id`/`desc_id` des
+// formations se résout donc ailleurs (les formations sont des items — cf. `ItemCategory::Formation`
+// — probablement via `item_text`), à confirmer end-to-end avant tout `resolve_*`. Pas de fonction
+// non validable ajoutée ici (doctrine anti-faux-FAIT).
+
 /// Parcourt une liste nommée du JSON et applique `f` à chaque entrée.
 fn extract_list<T, F>(root: &Value, name: &str, f: F) -> Vec<T>
 where

@@ -36,3 +36,7 @@ skills-lock.json
 crates/*/pkg/
 /dist
 refs/
+
+# Captures de référence du jeu (copyright Level-5) — SSIM gates ; NE PAS publier
+/start.png
+/menu.png

@@ -2094,9 +2094,6 @@ fn main() -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    // L'unique test du module est adossé à un vrai AWB → gardé derrière la
-    // feature `real-audio` (comme l'import, sinon inutilisé sans la feature).
-    #[cfg(feature = "real-audio")]
     use super::*;
 
     /// Valide le déchiffrement HCA réel depuis le premier AWB IEVR.
@@ -2147,6 +2144,101 @@ mod tests {
         assert!(
             non_zero,
             "tous les samples sont nuls — vérifier que set_encryption_key est bien appliqué"
+        );
+    }
+
+    /// Répertoire du jeu IEVR pour les tests adossés au VFS réel : `NIE_GAME_DIR` sinon
+    /// l'install Steam par défaut. `None` ⇒ le test se SKIP proprement (CI sans jeu).
+    fn game_dir_for_test() -> Option<std::path::PathBuf> {
+        let candidates = [
+            std::env::var("NIE_GAME_DIR").ok(),
+            Some(
+                "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road"
+                    .to_string(),
+            ),
+        ];
+        candidates
+            .into_iter()
+            .flatten()
+            .map(std::path::PathBuf::from)
+            .find(|p| p.join("data").is_dir())
+    }
+
+    /// A2 (généralisation) — le déchiffrement+décodage HCA IEVR est VALIDÉ sur **≥3 AWB réels
+    /// distincts** tirés du VFS du jeu (pas seulement `c00001001.awb`). Pour chacun : `Awb::parse`
+    /// → 1ʳᵉ entrée HCA → `hca_decode_to_pcm16(subkey)` ⇒ décodage `Ok`, samples non vides,
+    /// **signal non silencieux** (clé correcte), `sample_rate`/`channels` plausibles. Se SKIP si le
+    /// jeu est absent (CI). Ferme le « reste » A2 du ROADMAP (« généraliser la validation à ≥3 AWB »).
+    #[test]
+    fn hca_decode_generalise_sur_plusieurs_awb_reels() {
+        let Some(game) = game_dir_for_test() else {
+            eprintln!("skip hca_decode_generalise : jeu IEVR absent (NIE_GAME_DIR non posé)");
+            return;
+        };
+        let mut vfs = Vfs::new();
+        vfs.init(game.join("data").as_path()).expect("init VFS");
+
+        // Liste TRIÉE et déterministe des AWB → reproductibilité run-à-run. On exclut les **banques
+        // de streaming** (`anime_stream`/`bevent_stream`/`bgm`… = archives de plusieurs centaines de
+        // Mo, des dizaines de minutes d'audio) au profit des banques **par-cue** (voix `c*`/`ev*`/
+        // `sc*`) : lecture+parse rapides, même chemin de déchiffrement HCA.
+        let mut awb_paths: Vec<String> = vfs
+            .iter()
+            .map(|(p, _)| p.to_string())
+            .filter(|p| p.ends_with(".awb"))
+            .filter(|p| {
+                let base = p.rsplit('/').next().unwrap_or(p);
+                !base.contains("stream") && !base.starts_with("bgm")
+            })
+            .collect();
+        awb_paths.sort_unstable();
+        assert!(awb_paths.len() >= 3, "moins de 3 AWB dans le VFS ({})", awb_paths.len());
+
+        const TARGET: usize = 3;
+        let mut ok: Vec<(String, u32, u32, usize)> = Vec::new(); // (path, sr, ch, samples)
+        // Borne le nombre de tentatives pour garder le test rapide et déterministe.
+        for path in awb_paths.iter().take(40) {
+            if ok.len() >= TARGET {
+                break;
+            }
+            let Ok(data) = vfs.read(path) else { continue };
+            let Ok(awb) = Awb::parse(&data) else { continue };
+            // 1ʳᵉ entrée HCA (certains AWB peuvent être ADX — on les saute) ; on borne la taille
+            // brute (≤ 1 Mo) pour éviter les gros streams (`anime_stream`/`bgm` = dizaines de min
+            // de stéréo) → test rapide tout en validant du décodage réel sur de vrais fichiers.
+            let Some(entry_data) = awb
+                .entries
+                .iter()
+                .map(|e| awb.entry_bytes(&data, e))
+                .find(|d| is_hca(d) && d.len() <= 1_000_000)
+            else {
+                continue;
+            };
+            let Ok((samples, channels, sample_rate)) = hca_decode_to_pcm16(entry_data, awb.subkey)
+            else {
+                continue;
+            };
+            // Validations : signal réel, paramètres plausibles.
+            assert!(!samples.is_empty(), "{path} : 0 sample décodé");
+            assert!(
+                samples.iter().any(|&s| s != 0),
+                "{path} : signal entièrement nul (clé/subkey incorrecte ?)"
+            );
+            assert!(
+                (8_000..=48_000).contains(&sample_rate),
+                "{path} : sample_rate {sample_rate} hors plage plausible"
+            );
+            assert!((1..=2).contains(&channels), "{path} : channels {channels} inattendu");
+            ok.push((path.clone(), sample_rate, channels, samples.len()));
+        }
+
+        for (p, sr, ch, n) in &ok {
+            eprintln!("  HCA OK: {p}  {sr} Hz  {ch} ch  {n} samples");
+        }
+        assert!(
+            ok.len() >= TARGET,
+            "A2 : seulement {}/{TARGET} AWB HCA décodés+validés sur les 40 premiers",
+            ok.len()
         );
     }
 }

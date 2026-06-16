@@ -274,6 +274,27 @@ pub fn parse_all_aura_cmds(root: &Value) -> Vec<AuraCmd> {
     out
 }
 
+/// Résout le **nom localisé** d'une aura (Avatar / Keshin / hissatsu) via `skill_text`
+/// (issu de [`crate::text::parse_text_file`]).
+///
+/// Les noms d'aura sont des `NOUN_INFO` de `skill_text`, indexés par `name_id` (var2) ; vérifié
+/// **443/443** sur le vrai jeu (ex. `0x7978E1FA` → « Lancelot, le spadassin héroïque »,
+/// `0x2F22467C` → « Apollon, dieu du soleil »). `None` si absent.
+#[must_use]
+pub fn resolve_name<'a>(aura: &AuraCmd, skill_text: &'a [(HashId, String)]) -> Option<&'a str> {
+    crate::text::find_text(skill_text, aura.name_id)
+}
+
+/// Résout la **description localisée** d'une aura via `skill_text` (`TEXT_INFO`, clé `desc_id` =
+/// var3). `None` si absent.
+#[must_use]
+pub fn resolve_description<'a>(
+    aura: &AuraCmd,
+    skill_text: &'a [(HashId, String)],
+) -> Option<&'a str> {
+    crate::text::find_text(skill_text, aura.desc_id)
+}
+
 /// Construit une carte `skillID → SkillInfo` (clé de résolution hissatsu) depuis une liste de skills.
 #[must_use]
 pub fn build_skill_map(skills: Vec<SkillInfo>) -> BTreeMap<HashId, SkillInfo> {
