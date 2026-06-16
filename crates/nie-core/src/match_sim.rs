@@ -16,8 +16,8 @@
 //! - Modèle de probabilité de but : taux de base 3,5 %/minute pondéré par
 //!   `kc_attaquant / (kc_attaquant + ps_défenseur)`. Formule simple, non portée
 //!   du C.
-//! - Algorithme PRNG : Splitmix64 (choix déterministe ; nie.exe utilise
-//!   vraisemblablement Mersenne-Twister ou xorshift, non décompilé).
+//! - Algorithme PRNG : le **vrai** `lives::CRand` (MT19937 32-bit, byte-exact, cf.
+//!   [`crate::crand`]) — confirmé par décompilation de nie.exe, plus de Splitmix64 nominal.
 //! - Structure [`TeamSetup`] : agrégat de stats — nie.exe travaille avec des
 //!   structures de joueurs individuels (stride 0x570), non portées ici.
 
@@ -436,8 +436,9 @@ const GOAL_RATE_BASE: f32 = 0.035;
 ///
 /// ## Déterminisme garanti
 ///
-/// Le même `seed` produit toujours le même [`MatchResult`]. La graine zéro est
-/// remplacée par `0x9e3779b97f4a7c15` (init Splitmix64).
+/// Le même `seed` produit toujours le même [`MatchResult`]. La graine 64 bits est
+/// repliée sur 32 bits puis confiée à `CRand` (MT19937) ; `seed == 0` est une graine
+/// valide (MT19937 n'a pas de point fixe en 0, contrairement à un LCG).
 ///
 /// ## Phase de jeu (NOMINAL)
 ///
@@ -590,7 +591,7 @@ mod tests {
     }
 
     // ------------------------------------------------------------------
-    // Déterminisme (NOMINAL : dépend du PRNG Splitmix64)
+    // Déterminisme (NOMINAL : dépend du PRNG réel `CRand`/MT19937)
     // ------------------------------------------------------------------
 
     /// Deux exécutions avec la même graine produisent des résultats identiques.
