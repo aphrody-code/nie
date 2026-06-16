@@ -612,6 +612,71 @@ fn mainmenu01_ssim_vs_reference() {
     assert!(score >= 0.003, "SSIM {score:.4} < plancher 0.003 — régression (textures co-localisées ?)");
 }
 
+/// Étage 2quater — SSIM du **compositeur render-from-runtime** (`--compose-layout`) sur `main_menu`,
+/// mesuré end-to-end : `--runtime --from-setting --export-layout` → `--compose-layout` → PNG, comparé
+/// à `menu.png`. **Métrique honnête de la voie compose runtime** (distincte du compositeur statique
+/// `--from-setting` mesuré par `mainmenu_via_setting_ssim`).
+///
+/// DIAGNOSTIC (2026-06-16) : le modèle de placement CPU est VÉRIFIÉ identique au quad GPU
+/// (`build_sprite_quad`). Mais sur `main_menu`, deux artefacts de **transform-fallback** (D1.a)
+/// plombent la SSIM, PAS un bug du compositeur : (1) `mainmenu90_02_header_tab` (texture 5280×520)
+/// est dessiné à l'échelle **1.0** (défaut motion-fallback) → bande de 4× la largeur écran couvrant
+/// le centre ; (2) `mainmenu01_10/11` sont placés HORS écran (y>720, bind-pose ancêtre). Les deux
+/// confirment le gap connu : l'échelle/position RÉELLES viennent du DRIVER C++/Lua (machine d'état
+/// G4RA / `Setup*`), pas des fichiers (cf. §6/§13). Donc score informatif < voie statique tant que
+/// le driver-transform n'est pas émulé. Plancher de non-régression bas (mesure, pas cible).
+#[test]
+fn mainmenu_runtime_compose_ssim() {
+    let Some(game) = game_dir() else {
+        eprintln!("skip mainmenu_runtime_compose_ssim : jeu absent");
+        return;
+    };
+    let reference = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../menu.png");
+    if !reference.exists() {
+        eprintln!("skip : référence {reference:?} absente");
+        return;
+    }
+    let bin = env!("CARGO_BIN_EXE_nie-game");
+    let layout = std::env::temp_dir().join("nie_gate_mm_compose_layout.json");
+    let png = std::env::temp_dir().join("nie_gate_mm_compose.png");
+
+    let s1 = Command::new(bin)
+        .args(["--game-dir"])
+        .arg(&game)
+        .args(["--menu", "main_menu", "--runtime", "--from-setting", "--export-layout"])
+        .arg(&layout)
+        .env("RUST_LOG", "error")
+        .status()
+        .expect("export-layout runtime+from-setting main_menu");
+    assert!(s1.success(), "export-layout runtime main_menu a échoué");
+    let s2 = Command::new(bin)
+        .args(["--game-dir"])
+        .arg(&game)
+        .args(["--compose-layout"])
+        .arg(&layout)
+        .args(["--capture"])
+        .arg(&png)
+        .env("RUST_LOG", "error")
+        .status()
+        .expect("compose-layout main_menu");
+    assert!(s2.success(), "compose-layout main_menu a échoué");
+
+    let (rw, rh, render) = decode_png(&png);
+    assert_eq!((rw, rh), (1280, 720), "canvas canonique 1280×720");
+    let (ow, oh, orig) = decode_png(&reference);
+    let (dw, dh, downs) = downscale_2x(ow, oh, &orig);
+    assert_eq!((dw, dh), (1280, 720));
+
+    let score = ssim(1280, 720, &render, &downs);
+    eprintln!("\n=== SSIM main_menu COMPOSE-runtime vs menu.png = {score:.4} (informatif ; gap driver-transform) ===");
+    assert!(score.is_finite(), "SSIM doit être fini");
+    // RÉSULTAT (2026-06-16) : 0,4059 — la voie compose-RUNTIME est À PARITÉ avec le compositeur
+    // statique validé (`mainmenu_via_setting_ssim` = 0,418), bien que la bande header_tab (échelle
+    // fallback) coûte ~0,012. ⇒ le chemin render-from-runtime est quantitativement sain, pas qu'un
+    // « ça ressemble à un écran ». Plancher de non-régression à 0,30 (marge sous 0,4059).
+    assert!(score >= 0.30, "SSIM {score:.4} < plancher 0.30 — régression de la voie compose-runtime");
+}
+
 /// Étage 2ter — SSIM sur `main_menu` composé depuis sa **définition `menu_setting`** (D1.c-driver
 /// brique (a)) : `--menu main_menu --from-setting` itère la liste `MENU_LAYER_INFO` (13 layers, dont
 /// le FOND plein écran `mainmenu90_00` + l'en-tête `mainmenu90_01`) au lieu du filtre par préfixe
