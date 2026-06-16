@@ -153,6 +153,13 @@ nie-game --menu shop --runtime --export-layout /tmp/shop.json   # données runti
 nie-game --compose-layout /tmp/shop.json --capture /tmp/shop.png # layout → écran composé
 ```
 
+**Mesuré sur la métrique du plan (SSIM)** : `main_menu` composé par cette voie runtime atteint
+**SSIM 0,4059** contre la capture réelle `menu.png` — **à parité** avec le compositeur statique
+déjà validé (0,418). Le chemin render-from-runtime est donc **quantitativement sain**, pas seulement
+« ça ressemble à un écran ». Le plafond restant (vers 0,99) tient au **transform du driver**
+(échelle/position réelles des widgets), au **texte** et à la **résolution sprite des onglets** —
+tous dépendants de l'émulation du driver C++/Lua, un chantier multi-session.
+
 ### Code livré cette session
 - `nie-formats/g4tx.rs` : primitive `find_sub_texture` + méthodes `G4tx::region` /
   `G4tx::region_rect` (résolution `nom de région → texture porteuse + rect`), avec tests unitaires.
