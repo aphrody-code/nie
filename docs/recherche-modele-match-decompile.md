@@ -223,6 +223,23 @@ Désassemblage `r2` du sous-système d'événements (résultats **vérifiés sur
   réel (arg2 = `&UNK_141753018`, le descripteur de type d'événement), l'adresse 0x1412C0970 du doc
   étant incohérente avec ce build. Le mécanisme (service-locator + dispatch virtuel) est néanmoins
   confirmé et général.
+- **`UNK_141753018` est du CODE** (`.text`, pas `.rdata`/`.data`) = l'`arg2` du résolveur est un
+  **callback de recherche de table par ID**, pas un descripteur de données. Désassemblé : boucle
+  linéaire sur **128 entrées de 40 o** à `[rcx + 0x4DB758]`, renvoie l'entrée dont `[entrée+0xC] ==
+  r8d` (l'ID), sinon `null` ; le helper voisin (`0x141753040`) cherche une autre table (128 ×
+  192 o, clé à `+0x60`). Ce sont des **registres par-système indexés par ID**.
+
+**⇒ Méta-conclusion (confirmée, 2026-06-16) : la résolution de match est IRRÉDUCTIBLEMENT
+data-driven.** Chaque couche désassemblée n'est qu'une **indirection de lookup** : service-locator
+haché (`0x1404E0C30`) → dispatch virtuel (`vtable[0x70]`) → callbacks de recherche de table par ID
+(`UNK_141753018`). L'« issue » (qui gagne le focus, but/parade) n'est jamais une arithmétique
+inline `kc/(kc+ps)` — elle est déterminée par les **DONNÉES des tables** (état scène/config 128-
+entrées) que ces lookups parcourent. **Il n'existe donc pas de « formule » compacte à porter** :
+porter la résolution = porter l'**évaluateur table-driven + ses tables de données** (scène/config),
+soit un sous-système multi-session — la même nature de frontière que le driver-transform du menu
+(état scène C++ à émuler), pas une constante à lire. Ceci VALIDE et précise le constat §3.3 :
+« GOAL_RATE_BASE n'a aucun fondement » ⇒ le fondement réel est un évaluateur data-driven, pas un
+coefficient.
 
 ### 3.3 Portabilité : **PARTIELLE → NON pour l'instant**
 
