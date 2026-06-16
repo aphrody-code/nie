@@ -199,6 +199,31 @@ Les huit hashes (`0x6AD2B143`, `0xB98AFD39`, `0xDD36D36B`, `0xF6954E2D`, `0xFB75
 `hash_name` (inagle) — ce sont des CRC32 d'identifiants d'événement/anim/skill non encore
 catalogués.
 
+#### 3.2-bis Mécanisme du système d'événements — DÉCODÉ (architecture, 2026-06-16)
+
+Désassemblage `r2` du sous-système d'événements (résultats **vérifiés sur `data/nie.exe`**, base
+`0x140000000`) :
+
+- **`0x1404E0C30` = service-locator haché global** (primitif moteur réutilisable, à porter une
+  seule fois) : `lookup(hash u32) → objet*`. Lit un **singleton de registre** en `[0x142111210]`,
+  appelle `map.find` interne `0x1405364D0` (rcx = `registry+8`), puis indexe un tableau d'éléments
+  en `registry+0x10` (entrées de **24 octets** : constante magique `0x2AAAAAAAAAAAAAAB` = division
+  par 3, index tronqué 16 bits). Retourne `*element` ou `nullptr`. ⇒ Les « IDs hachés » du combat
+  de focus sont des **clés de service-locator**, pas des indices de table inline.
+- **Dispatch = appel virtuel** : un poster d'événement typique fait `obj = lookup(hash)` puis
+  `call [obj_vtable + 0x70]` avec `{nom d'événement (chaîne), 2 floats, flags}`. Donc **la logique
+  de résolution vit dans la vmethod `+0x70` du handler concret enregistré** — il faut trouver le
+  **site d'enregistrement** (init statique qui peuple `[0x142111210]`) pour connaître le type
+  concret, donc la vtable, donc la formule. C'est le prochain pas RE précis.
+- **⚠️ Correction d'adresse** : la fonction qui contient littéralement `0x1412C0970` **commence à
+  `0x1412c0950` et ne fait que ~112 o** (un poster d'événement « `ReservePopupMiss` » via
+  `lookup(0xE6B51AE7)` + `vtable[0x70]`), PAS le « résolveur 541 o » cité en §3.2. La signature du
+  vrai résolveur (`FUN_1412C0970(out, &UNK_141753018, 1, &bloc)`, 4 args) ne correspond pas à ce
+  poster (rcx + xmm0/xmm1). **Le résolveur de focus est donc à re-localiser** via son site d'appel
+  réel (arg2 = `&UNK_141753018`, le descripteur de type d'événement), l'adresse 0x1412C0970 du doc
+  étant incohérente avec ce build. Le mécanisme (service-locator + dispatch virtuel) est néanmoins
+  confirmé et général.
+
 ### 3.3 Portabilité : **PARTIELLE → NON pour l'instant**
 
 - vmethod_1 lui-même : portable comme machine d'état (flags `+0x10`, code de sortie `+0x24`
