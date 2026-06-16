@@ -133,17 +133,21 @@ appelée depuis le calcul de parade ») est donc **inexacte** : le tirage est `v
 `mulhi(r, range)` — c'est **l'algorithme de Lemire** (multiplication 64 bits, biais ~nul). Si
 `n == 0`, renvoie le brut.
 
-### 2.5 Portabilité : **DIRECTE (élevée)**, avec une seule réserve
+### 2.5 Portabilité : **DIRECTE — réserve LEVÉE, port byte-exact** (2026-06-16)
 
 - Algorithme = MT19937 de référence + bornage Lemire. Portage Rust trivial et **bit-exact pour
-  un même seed**, à condition de répliquer aussi l'étape `next(n)` (Lemire) et l'ordre de
-  consommation.
-- **Seule incertitude pour le bit-exact** : l'étape de tempering `y ^= (y >> 11) & d` utilise un
-  masque `d` **stocké dans la struct** (pas un littéral). En MT19937 canonique `d = 0xFFFFFFFF`
-  (i.e. `y ^= y>>11`). C'est presque certainement le cas ici, mais la valeur est posée ailleurs
-  (constructeur/init, non décompilé). **À vérifier** avant de déclarer un port byte-exact : lire
-  la valeur écrite au mot `0x4E1`. Tant que non vérifié : porter avec `d = 0xFFFFFFFF` et
-  marquer INCOMPLET.
+  un même seed**, à condition de répliquer aussi l'étape `next(n)` (Lemire **avec rejet**) et
+  l'ordre de consommation.
+- **~~Seule incertitude~~ RÉSOLUE** : le masque `d` (tempering `y ^= (y >> 11) & d`) est bien
+  `0xFFFFFFFF`. **Vérifié dans le binaire** : le constructeur par défaut `CRand::CRand()` à
+  `0x1402bf010` écrit `mov dword [this+0x138C], 0xFFFFFFFF` (le champ `d`), et la passe de
+  tempering (`0x1402c5c91`) le relit via `and eax, [this+8+0x1384]` (= `[this+0x138C]`). C'est la
+  valeur MT19937 canonique → `y ^= y>>11`. **Le port `nie-core/src/crand.rs` est donc byte-exact,
+  sans réserve.** Bonus : la **graine par défaut du constructeur est `0x1571 = 5489`** (= le défaut
+  canonique MT19937, et le vecteur de référence du test `vecteur_reference_mt19937_seed_5489`).
+- **Bornage Lemire AVEC rejet** (§2.4) désormais porté fidèlement dans `crand.rs::bounded`
+  (`vmethod_4`) : seuil `(-bound) % bound`, retour `mulhi`, `bound==0 → tirage brut` ; la boucle de
+  rejet rend la *consommation de tirages* identique au moteur (rejeu byte-exact).
 - **Conséquence pour `match_sim.rs`** : remplacer Splitmix64 (inventé) par MT19937. Mais attention
   (cf. §3-4) : le PRNG n'est *pas* le cœur de la résolution de tir/but — il est généraliste
   (`lives::`, aussi utilisé au rendu). Le porter ne « débloque » pas à lui seul la résolution.
