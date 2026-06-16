@@ -322,6 +322,7 @@ const CMD_SET_PART_PARAM_I: u32       = 0x2044_7515; // (objId, partId, v, [v3])
 const CMD_SET_PART_PARAM_F: u32       = 0x5F21_01DB; // (objId, partId, vi, vf, ...) ; 0x140CEE4E0 lit arg[3] en FLOAT (cvtsd2ss), arg[5] int, arg[6] bool. CONFIRMÉ layout (arg float) ; champ non modélisé -> objet enregistré.
 const CMD_SET_SUBNODE_ENABLED: u32    = 0x80AB_69F3; // (objId, subId, enabled, [v]) ; 0x140CE7A50 -> 0x140540FC0(obj, subId, enabled). CONFIRMÉ (classe visibilité).
 const CMD_SET_OBJECT_FLAG: u32        = 0x816C_D673; // (objId, flag, [layerId]) ; 0x140CCBBC0 résout l'objet dans la collection [layer+0x130] et écrit un bool. CONFIRMÉ layout ; champ non modélisé -> objet enregistré.
+const CMD_SET_ELEMENT_COLOR: u32      = 0x2FC4_7DA5; // (objId, _, hash, _, r, g, …) ; 0x140CC33F0 (trouvé via la table de dispatch) : lit ≥6 args dont plusieurs FLOATS (cvtsd2ss xmm7/8/9, défaut 1.0f), résout un SOUS-ÉLÉMENT (0x14051B5D0) et lui applique une COULEUR RGBA. CONFIRMÉ layout (couleur) ; sous-élément+canaux non modélisés -> objet enregistré.
 const CMD_SET_LIST_ITEM_VALUES: u32   = 0x1AF6_1E89; // (layerId, objId, <table>, [tag]) ; 0x140CB0240 : FindLayerById(layerId), lit la table (0x1404B0CA0) dans des tableaux de valeurs PAR ITEM de l'objet-liste ([sub+0x70C-0x250]/-0x128/+0). CONFIRMÉ layout ; tables non modélisées -> objet-liste enregistré.
 const CMD_SET_LIST_ITEM_VALUES_MULTI: u32 = 0x83B4_F0AC; // (layerId, objId, <table>×N) ; 0x140CB0460 : MÊME famille (FindLayerById + lecteurs de table 0x1404B0CA0/…BD0/…D80), plusieurs tableaux. CONFIRMÉ layout ; tables non modélisées -> objet-liste enregistré.
 // — getter —
@@ -400,6 +401,7 @@ pub fn command_name(cmd_id: u32) -> Option<&'static str> {
         CMD_SET_PART_PARAM_F => "SetPartParamF",
         CMD_SET_SUBNODE_ENABLED => "SetSubNodeEnabled",
         CMD_SET_OBJECT_FLAG => "SetObjectFlag",
+        CMD_SET_ELEMENT_COLOR => "SetElementColor",
         CMD_SET_LIST_ITEM_VALUES => "SetListItemValues",
         CMD_SET_LIST_ITEM_VALUES_MULTI => "SetListItemValuesMulti",
         CMD_GET_NODE_INDEX_BY_HASH => "GetNodeIndexByHash",
@@ -880,6 +882,7 @@ fn dispatch_menu_command(state: &mut MenuState, cmd_id: u32, args: &[Value]) -> 
         | CMD_SET_NODE_PARAM_BLOCK
         | CMD_SET_PART_PARAM_I
         | CMD_SET_PART_PARAM_F
+        | CMD_SET_ELEMENT_COLOR
         | CMD_SET_OBJECT_FLAG => {
             let obj_id = lua_to_u32(args.first());
             let layer = state.current_layer;
@@ -1688,10 +1691,24 @@ mod dispatch_tests {
             .unwrap();
         f.call::<f64>((f64::from(CMD_SET_PART_PARAM_F), f64::from(0xD5A7_61D9_u32), 1.0, 0.0, 0.24_f64))
             .unwrap();
+        // SetElementColor (0x2FC47DA5) — setter de couleur RGBA reversé via la table de dispatch
+        // (0x140CC33F0) : sous-élément + canaux non modélisés -> l'objet est enregistré.
+        f.call::<f64>((
+            f64::from(CMD_SET_ELEMENT_COLOR),
+            f64::from(0xC0C0_C0C0_u32),
+            0.0,
+            1.0_f64,
+            0.0,
+            0.627_f64,
+            0.941_f64,
+        ))
+        .unwrap();
         let st = state.borrow();
         let objs = &st.layers.get(&0xBBBB).unwrap().objects;
         assert!(objs.contains_key(&0x87DC_9C59), "SetNodeValue enregistre l'objet");
         assert!(objs.contains_key(&0xD5A7_61D9), "SetPartParamI/F enregistrent l'objet");
+        assert!(objs.contains_key(&0xC0C0_C0C0), "SetElementColor enregistre l'objet");
+        assert_eq!(command_name(CMD_SET_ELEMENT_COLOR), Some("SetElementColor"));
         assert!(st.unknown_cmd_log.is_empty(), "cmds reversés ≠ inconnus");
     }
 
