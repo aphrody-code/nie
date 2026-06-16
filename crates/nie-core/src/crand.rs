@@ -87,14 +87,31 @@ impl CRand {
         y
     }
 
-    /// Entier non biaisé dans `[0, bound)` par la méthode de Lemire.
-    /// Renvoie 0 si `bound == 0`.
+    /// Tirage borné — port **byte-exact** de `lives::CRand::vmethod_4(n)` (nie.exe), méthode de
+    /// Lemire **avec rejet** (cf. `recherche-modele-match-decompile.md` §2.4).
+    ///
+    /// - `bound == 0` → renvoie le **brut** `genrand()` (et non `0`), comme le moteur ;
+    /// - sinon : `m = (u64)r * bound` ; si les 32 bits bas `< bound`, re-tire tant que
+    ///   `low < seuil`, avec `seuil = 2^32 mod bound = (-bound) mod bound` ; renvoie `m >> 32`.
+    ///
+    /// La **boucle de rejet** est ce qui rend la *consommation de tirages* identique au moteur —
+    /// indispensable au rejeu byte-exact. L'ancienne variante sans rejet divergeait du moteur dès
+    /// qu'un rejet aurait lieu (séquence PRNG décalée), et renvoyait `0` au lieu d'un brut pour
+    /// `bound == 0`.
     pub fn bounded(&mut self, bound: u32) -> u32 {
         if bound == 0 {
-            return 0;
+            return self.next_u32(); // vmethod_4(this, 0) → brut
         }
-        // mulhi 64 bits : (r * bound) >> 32, biais ~nul.
-        let product = u64::from(self.next_u32()) * u64::from(bound);
+        let mut product = u64::from(self.next_u32()) * u64::from(bound);
+        let mut low = product as u32;
+        if low < bound {
+            // seuil = 2^32 mod bound, calculé sans 64 bits via (-bound) mod bound.
+            let threshold = bound.wrapping_neg() % bound;
+            while low < threshold {
+                product = u64::from(self.next_u32()) * u64::from(bound);
+                low = product as u32;
+            }
+        }
         (product >> 32) as u32
     }
 
@@ -158,7 +175,44 @@ mod tests {
         for _ in 0..10_000 {
             assert!(r.bounded(6) < 6);
         }
-        assert_eq!(r.bounded(0), 0);
+    }
+
+    /// `vmethod_4(this, 0)` renvoie le **brut** `genrand()` (pas 0) ET consomme un tirage —
+    /// deux clones divergent uniquement par cette sémantique : `bounded(0)` == `next_u32()`.
+    #[test]
+    fn bounded_zero_renvoie_brut_et_avance() {
+        let mut a = CRand::new(99);
+        let mut b = a.clone();
+        assert_eq!(a.bounded(0), b.next_u32(), "bound==0 → tirage brut");
+        // Les deux PRNG ont avancé d'exactement un tirage → restent synchronisés.
+        assert_eq!(a.next_u32(), b.next_u32(), "même consommation de tirages");
+    }
+
+    /// Le seuil de rejet `(-bound) % bound` est bien `2^32 mod bound` (identité sans 64 bits).
+    #[test]
+    fn seuil_rejet_egale_2pow32_mod_bound() {
+        for bound in [1u32, 3, 6, 7, 10, 100, 1000, 0x4000_0001, 0xFFFF_FFFF] {
+            let via_neg = bound.wrapping_neg() % bound;
+            let via_mod = ((1u64 << 32) % u64::from(bound)) as u32;
+            assert_eq!(via_neg, via_mod, "seuil pour bound={bound}");
+        }
+    }
+
+    /// Distribution sans biais grossier : sur un grand échantillon, `bounded(2)` répartit
+    /// ~50/50 (la boucle de rejet garantit l'absence de biais modulo).
+    #[test]
+    fn bounded_non_biaise() {
+        let mut r = CRand::new(2024);
+        let mut zeros = 0u32;
+        const N_SAMPLES: u32 = 100_000;
+        for _ in 0..N_SAMPLES {
+            if r.bounded(2) == 0 {
+                zeros += 1;
+            }
+        }
+        // ±2 % autour de 50 % — large mais détecte tout biais structurel.
+        let ratio = f64::from(zeros) / f64::from(N_SAMPLES);
+        assert!((0.48..0.52).contains(&ratio), "ratio de 0 = {ratio:.4} hors [0.48,0.52]");
     }
 
     #[test]
