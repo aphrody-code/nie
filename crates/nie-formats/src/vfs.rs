@@ -153,15 +153,24 @@ impl Vfs {
         file.read_to_end(&mut data)
             .map_err(|_| FormatError::Corrupt("impossible de lire cpk_list.cfg.bin"))?;
 
-        // Déchiffrer le cpk_list.cfg.bin : AES-256-CBC (clé/IV embarqués dans nie.exe,
-        // reversés — PAS l'enveloppe XOR position-based ni la clé fixe Viola, qui ne
-        // déchiffrent pas ce fichier sur les builds Steam actuels). Cf.
-        // `cpk::decrypt_cpk_list`.
-        let data = crate::cpk::decrypt_cpk_list(&data)?;
-
-        // Parser le cfg.bin
-        let cfg = crate::cfgbin::cfgbin_parse(&data)
-            .map_err(|_| FormatError::Corrupt("echec de parsing du cpk_list.cfg.bin"))?;
+        // Déchiffrement du cpk_list.cfg.bin — DEUX variantes coexistent selon le build :
+        //   - builds Steam récents : AES-256-CBC (clé/IV reversés de nie.exe) → `decrypt_cpk_list` ;
+        //   - dumps plus anciens : enveloppe à clé fixe Viola → `decrypt_block(_, 0, VIOLA_FIXED_KEY)`.
+        // On tente l'AES d'abord, puis Viola en repli, en VALIDANT chaque résultat par
+        // `cfgbin_parse` (durci contre les en-têtes chiffrés/corrompus : renvoie Err sans
+        // paniquer). Le premier déchiffrement produisant un cfg.bin valide gagne. Indispensable :
+        // un seul des deux déchiffre correctement un fichier donné (l'autre rend du garbage).
+        let cfg = crate::cpk::decrypt_cpk_list(&data)
+            .ok()
+            .and_then(|aes| crate::cfgbin::cfgbin_parse(&aes).ok())
+            .or_else(|| {
+                let mut viola = data.clone();
+                crate::cpk::decrypt_block(&mut viola, 0, crate::cpk::VIOLA_FIXED_KEY);
+                crate::cfgbin::cfgbin_parse(&viola).ok()
+            })
+            .ok_or(FormatError::Corrupt(
+                "echec de parsing du cpk_list.cfg.bin (ni AES-256-CBC ni clé Viola)",
+            ))?;
 
         // Parcourir les entrées et indexer les fichiers
         for root_entry in &cfg.entries {
