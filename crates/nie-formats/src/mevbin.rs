@@ -42,6 +42,7 @@ use crate::FormatError;
 /// Provient d'un record `EVENT_n` du cfg.bin sous-jacent (3 champs).
 /// Miroir exact de `MevbinEvent` C# (`IECODE.Core`).
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct MevbinEvent {
     /// Instant de déclenchement en secondes (champ `#0`, toujours float T2B).
     pub time: f32,
@@ -68,6 +69,7 @@ pub struct MevbinEvent {
 /// Provient d'un record `MOT_n` (un seul champ : hash CRC-32 Level-5)
 /// suivi de ses `EVENT_n`.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct MevbinMotion {
     /// Hash CRC-32 Level-5 de l'animation (champ unique du record `MOT_n`).
     pub hash: u32,
@@ -81,6 +83,7 @@ pub struct MevbinMotion {
 /// un `.mevbin` est un cfg.bin T2B dont les records décrivent les événements
 /// synchronisés à l'animation d'un personnage IEVR.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct MevbinDocument {
     /// Motions et leurs événements, dans l'ordre du fichier.
     pub motions: Vec<MevbinMotion>,

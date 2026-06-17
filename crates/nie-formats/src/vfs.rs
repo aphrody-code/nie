@@ -137,6 +137,10 @@ impl Vfs {
     }
 
     /// Initialise le VFS à partir du répertoire du jeu (contenant `data/cpk_list.cfg.bin`).
+    ///
+    /// Après avoir indexé les ~254 000 fichiers du `cpk_list.cfg.bin`, appelle automatiquement
+    /// [`Vfs::discover_extra_cpks`] pour indexer les CPK présents dans `packs/` mais absents
+    /// du `cpk_list` (par exemple les DLC ou mises à jour ajoutant de nouveaux packs).
     pub fn init<P: AsRef<Path>>(&mut self, game_data_dir: P) -> Result<(), FormatError> {
         let game_data_dir = game_data_dir.as_ref().to_path_buf();
         self.game_data_dir = game_data_dir;
@@ -190,12 +194,84 @@ impl Vfs {
                     file_size,
                 };
 
-                self.cpk_names.insert(cpk_hash.clone());
+                // Les entrées avec un nom CPK non vide sont des fichiers dans un pack.
+                // Les entrées avec un nom CPK vide sont des fichiers loose (ex. vidéos d'intro
+                // `IE_15th.usm`, `L5logo.usm`, config `app_config_6.00.23.00.cfg.bin`) :
+                // le jeu les charge directement depuis le disque. On les enregistre quand même
+                // afin que `read()` puisse les servir en fallback disque (cf. gestion en aval).
+                if !cpk_hash.is_empty() {
+                    self.cpk_names.insert(cpk_hash.clone());
+                }
                 self.index.insert(internal_path, entry);
             }
         }
 
+        // Auto-découverte des CPK supplémentaires : CPK présents dans `packs/` mais absents
+        // du `cpk_list.cfg.bin` (DLC, mises à jour ajoutant des packs avant la prochaine
+        // mise à jour du `cpk_list`). Retourne 0 si tous les packs sont déjà indexés.
+        self.discover_extra_cpks();
+
         Ok(())
+    }
+
+    /// Scanne `packs/*.cpk` et indexe dans [`Vfs::index_extra`] tous les fichiers des CPK
+    /// absents du `cpk_list` principal (CPK dont le nom n'est pas encore dans l'index).
+    ///
+    /// Appelé automatiquement par [`Vfs::init`]. Peut aussi être appelé manuellement pour
+    /// réindexer après avoir ajouté un CPK dans `packs/`. Retourne le nombre d'entrées
+    /// nouvellement indexées.
+    ///
+    /// Pour chaque CPK hors-index trouvé sur disque, le TOC complet est parsé et ses
+    /// chemins internes (`répertoire/nom`) sont ajoutés à `index_extra`. Les entrées déjà
+    /// présentes dans l'index principal restent prioritaires.
+    ///
+    /// # Robustesse
+    ///
+    /// Les CPK illisibles ou non-déchiffrables sont silencieusement ignorés (log sur stderr
+    /// en mode debug). La fonction est idempotente : un second appel ne ré-ajoute pas les
+    /// entrées déjà dans `index_extra`.
+    pub fn discover_extra_cpks(&mut self) -> usize {
+        if self.loose_files {
+            return 0;
+        }
+        let packs = self.game_data_dir.join("packs");
+        let Ok(dir_iter) = std::fs::read_dir(&packs) else {
+            return 0;
+        };
+
+        let mut added = 0usize;
+        for dir_entry in dir_iter.flatten() {
+            let name = dir_entry.file_name().to_string_lossy().to_string();
+            if !name.ends_with(".cpk") || self.cpk_names.contains(&name) {
+                continue; // Déjà dans l'index principal
+            }
+            // CPK présent sur disque mais absent du cpk_list : parser son TOC.
+            let cpk_path = packs.join(&name);
+            let Ok(mut f) = File::open(&cpk_path) else { continue; };
+            let mut bytes = Vec::new();
+            if f.read_to_end(&mut bytes).is_err() {
+                continue;
+            }
+            let Ok(reader) = CpkReader::new(&bytes, &name) else {
+                continue;
+            };
+            for e in &reader.entries {
+                if e.filename.is_empty() {
+                    continue;
+                }
+                let path = if e.directory.is_empty() {
+                    e.filename.clone()
+                } else {
+                    format!("{}/{}", e.directory, e.filename)
+                };
+                if !self.index.contains_key(&path) && !self.index_extra.contains_key(&path) {
+                    self.index_extra.insert(path, name.clone());
+                    added += 1;
+                }
+            }
+            self.cpk_names.insert(name);
+        }
+        added
     }
 
     /// Initialise le VFS en mode loose files (sans CPK).
@@ -242,6 +318,16 @@ impl Vfs {
     }
 
     /// Lit un fichier complet du VFS.
+    ///
+    /// Résolution en quatre étapes :
+    /// 1. Mode loose (`init_loose`) : lit directement depuis le disque.
+    /// 2. Index principal (cpk_list.cfg.bin) → CPK non vide : extrait du pack.
+    /// 3. Index principal → CPK vide : fichier "loose" enregistré dans cpk_list mais servi
+    ///    directement depuis le disque (ex. `IE_15th.usm`, `L5logo.usm`,
+    ///    `app_config_6.00.23.00.cfg.bin`). Le chemin interne commence par `data/` ; on retire
+    ///    ce préfixe pour reconstruire le chemin disque sous `game_data_dir`.
+    /// 4. Index supplémentaire (`index_extra`, peuplé par [`Vfs::discover_extra_cpks`]) →
+    ///    extrait du CPK hors-cpk_list correspondant.
     pub fn read(&self, internal_path: &str) -> Result<Vec<u8>, FormatError> {
         if self.loose_files {
             let disk_path = self.game_data_dir.join(internal_path);
@@ -254,7 +340,7 @@ impl Vfs {
         }
 
         // Résolution du CPK : index principal (cpk_list.cfg.bin) puis index supplémentaire
-        // (films, sound_asset… : CPK présents dans packs/ mais hors cpk_list).
+        // (CPK présents dans packs/ mais hors cpk_list, découverts par discover_extra_cpks).
         let cpk_filename: String = match self.find(internal_path) {
             Some(entry) => entry.cpk_filename.clone(),
             None => self
@@ -263,6 +349,21 @@ impl Vfs {
                 .cloned()
                 .ok_or(FormatError::Corrupt("fichier non trouve dans le VFS"))?,
         };
+
+        // Cas spécial : CPK vide → fichier loose enregistré dans cpk_list (vidéos d'intro,
+        // fichier de configuration système…). Le chemin interne débute par "data/" ; on retire
+        // ce préfixe pour obtenir un chemin relatif à game_data_dir.
+        if cpk_filename.is_empty() {
+            let rel = internal_path.strip_prefix("data/").unwrap_or(internal_path);
+            let disk_path = self.game_data_dir.join(rel);
+            let mut file = File::open(&disk_path)
+                .map_err(|_| FormatError::Corrupt("loose file manquant sur disque"))?;
+            let mut data = Vec::new();
+            file.read_to_end(&mut data)
+                .map_err(|_| FormatError::Corrupt("impossible de lire loose file cpk_list"))?;
+            return Ok(data);
+        }
+
         let cpk_filename = &cpk_filename;
         let mut cache = self.cpk_cache.lock().unwrap();
 
@@ -315,6 +416,20 @@ impl Vfs {
     #[must_use]
     pub fn cpk_count(&self) -> usize {
         self.cpk_names.len()
+    }
+
+    /// Nombre d'entrées dans l'index supplémentaire (CPKs hors cpk_list découverts par
+    /// [`Vfs::discover_extra_cpks`]).
+    #[must_use]
+    pub fn extra_count(&self) -> usize {
+        self.index_extra.len()
+    }
+
+    /// Nombre de fichiers "loose" dans l'index principal (CPK vide dans cpk_list) :
+    /// fichiers chargés directement depuis le disque plutôt qu'un pack.
+    #[must_use]
+    pub fn loose_count(&self) -> usize {
+        self.index.values().filter(|e| e.cpk_filename.is_empty()).count()
     }
 
     /// Itère sur toutes les entrées indexées (chemin_interne, entrée VFS).
@@ -402,5 +517,117 @@ mod tests {
         let bytes = vfs.read(&path).expect("vfs.read chaîne complète");
         assert!(!bytes.is_empty(), "fichier extrait vide");
         eprintln!("OK : {} octets extraits via le VFS", bytes.len());
+    }
+
+    /// Vérifie que `discover_extra_cpks()` est correct :
+    ///
+    /// - Sur l'installation actuelle (cpk_list complet), retourne 0 car tous les CPK
+    ///   présents dans `packs/` sont déjà indexés via le `cpk_list.cfg.bin`.
+    /// - Vérifie en outre que `cpk_count()` correspond au nombre réel de CPKs sur disque
+    ///   (preuve que la découverte ne double-compte pas).
+    /// - Si l'installation a des CPK supplémentaires futurs (DLC, mise à jour), le test
+    ///   rapporte le nombre exact découvert au lieu de 0.
+    #[test]
+    fn discover_extra_cpks_retourne_zero_sur_install_complete() {
+        let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
+            "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road"
+                .to_string()
+        });
+        let data = std::path::Path::new(&dir).join("data");
+        if !data.join("cpk_list.cfg.bin").exists() {
+            eprintln!("skip discover_extra_cpks: jeu absent");
+            return;
+        }
+        let mut vfs = Vfs::new();
+        vfs.init(&data).expect("init");
+
+        let extra = vfs.extra_count();
+        let loose = vfs.loose_count();
+        let n_index = vfs.asset_count();
+        let n_cpks = vfs.cpk_count();
+
+        // Sur l'installation testée, le cpk_list est complet : aucun CPK extra attendu.
+        assert_eq!(
+            extra, 0,
+            "discover_extra_cpks a trouvé {extra} fichiers non indexés dans packs/ \
+            (attendu 0 sur une installation complète)"
+        );
+
+        // Les entrées loose (CPK vide dans cpk_list) incluent IE_15th.usm, L5logo.usm,
+        // app_config_6.00.23.00.cfg.bin (5 entrées sur le build Steam 2026).
+        assert!(
+            loose >= 3,
+            "attendu au moins 3 entrées loose dans le cpk_list (IE_15th.usm, L5logo.usm, app_config…), obtenu {loose}"
+        );
+
+        eprintln!(
+            "discover_extra_cpks OK : {n_index} fichiers, {n_cpks} CPKs, {loose} loose, {extra} extra découverts"
+        );
+    }
+
+    /// Vérifie que `read()` sert correctement les fichiers "loose" enregistrés dans le
+    /// `cpk_list` avec un nom CPK vide. Ces fichiers existent directement sur disque sous
+    /// `game_data_dir/`. Exemple : `data/dx11/movie/IE_15th.usm` → lu depuis
+    /// `{game_data_dir}/dx11/movie/IE_15th.usm`.
+    ///
+    /// Avant ce correctif, `read()` tentait d'ouvrir `packs/` (répertoire), échouait
+    /// avec « impossible d'ouvrir le CPK », et les fichiers étaient inaccessibles.
+    #[test]
+    fn read_loose_file_avec_cpk_vide() {
+        let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
+            "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road"
+                .to_string()
+        });
+        let data_dir = std::path::Path::new(&dir).join("data");
+        if !data_dir.join("cpk_list.cfg.bin").exists() {
+            eprintln!("skip read_loose_file_avec_cpk_vide : jeu absent");
+            return;
+        }
+        let mut vfs = Vfs::new();
+        vfs.init(&data_dir).expect("init");
+
+        // Collecter toutes les entrées loose (CPK vide) dans l'index
+        let loose_entries: Vec<String> = vfs
+            .iter()
+            .filter(|(_, e)| e.cpk_filename.is_empty())
+            .map(|(p, _)| p.to_string())
+            .collect();
+
+        assert!(
+            !loose_entries.is_empty(),
+            "aucune entrée loose dans le cpk_list (attendu au moins IE_15th.usm)"
+        );
+        eprintln!("Entrées loose dans cpk_list : {:?}", loose_entries);
+
+        // Tester la lecture de chaque entrée loose dont le fichier disque existe
+        let mut read_ok = 0usize;
+        let mut missing_on_disk = 0usize;
+        for path in &loose_entries {
+            match vfs.read(path) {
+                Ok(bytes) if !bytes.is_empty() => {
+                    eprintln!("  OK  {path} : {} octets", bytes.len());
+                    read_ok += 1;
+                }
+                Ok(_) => {
+                    eprintln!("  VIDE {path}");
+                }
+                Err(crate::FormatError::Corrupt("loose file manquant sur disque")) => {
+                    eprintln!("  ABSENT-DISQUE {path}");
+                    missing_on_disk += 1;
+                }
+                Err(e) => {
+                    panic!("read({path}) a échoué avec une erreur inattendue : {e}");
+                }
+            }
+        }
+
+        // Au moins un fichier loose doit être lisible (IE_15th.usm ou L5logo.usm)
+        assert!(
+            read_ok > 0,
+            "aucun fichier loose n'a pu être lu (read_ok=0, missing_on_disk={missing_on_disk})"
+        );
+        eprintln!(
+            "read_loose_file OK : {read_ok} fichiers lus, {missing_on_disk} absents du disque"
+        );
     }
 }

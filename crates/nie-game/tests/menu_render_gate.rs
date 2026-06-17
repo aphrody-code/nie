@@ -563,12 +563,12 @@ fn title02_ssim_vs_reference() {
     eprintln!("\n=== SSIM title02 vs start.png (référence jeu) = {score:.4} ===");
     eprintln!("    (cible pixel-perfect : >= 0.99 hors ROI ; le rendu est encore incomplet — D1.c/d/e)\n");
 
-    // Plancher de non-régression. Baseline mesurée 2026-06-14 (D1.a+D1.b+déterminisme) :
-    // **SSIM ≈ 0.25** (rendu incomplet : fond/texte/3D absents, layout partiel). Plancher fixé
-    // sous la baseline pour rester vert ; **relever à chaque vague D1.x** (cible finale ≥ 0.99
-    // hors ROI). C'est la métrique de progression objective vers le pixel-perfect.
+    // Plancher de non-régression. Baseline mesurée 2026-06-16 (couche 1 placement `g4pkm_motion`
+    // + couche 2 texture non-dummy) : **SSIM = 0.2511** (plafonné ≈0.25 car le FOND de title02 est
+    // une SCÈNE 3D absente — cf. §4 ; le travail textures-menu seul ne peut dépasser ce plafond).
+    // Plancher RELEVÉ 0.20→0.24 (rendu déterministe) ; **relever à chaque vague D1.x** (cible ≥ 0.99).
     assert!(score.is_finite(), "SSIM doit être fini");
-    assert!(score >= 0.20, "SSIM {score:.4} < plancher 0.20 — régression de rendu");
+    assert!(score >= 0.24, "SSIM {score:.4} < plancher 0.24 — régression de rendu (baseline 0.2511)");
 }
 
 /// Étage 2bis — SSIM sur `mainmenu01` (réf `menu.png`). **C'est la métrique appropriée du travail
@@ -673,8 +673,8 @@ fn mainmenu_runtime_compose_ssim() {
     // RÉSULTAT (2026-06-16) : 0,4059 — la voie compose-RUNTIME est À PARITÉ avec le compositeur
     // statique validé (`mainmenu_via_setting_ssim` = 0,418), bien que la bande header_tab (échelle
     // fallback) coûte ~0,012. ⇒ le chemin render-from-runtime est quantitativement sain, pas qu'un
-    // « ça ressemble à un écran ». Plancher de non-régression à 0,30 (marge sous 0,4059).
-    assert!(score >= 0.30, "SSIM {score:.4} < plancher 0.30 — régression de la voie compose-runtime");
+    // « ça ressemble à un écran ». Plancher RELEVÉ 0,30→0,39 (marge sous la baseline 0,4059).
+    assert!(score >= 0.39, "SSIM {score:.4} < plancher 0.39 — régression de la voie compose-runtime (baseline 0.4059)");
 }
 
 /// Étage 2ter — SSIM sur `main_menu` composé depuis sa **définition `menu_setting`** (D1.c-driver
@@ -715,11 +715,13 @@ fn mainmenu_via_setting_ssim_vs_reference() {
     let score = ssim(1280, 720, &render, &downs);
     eprintln!("\n=== SSIM main_menu (via menu_setting, 13 layers) vs menu.png = {score:.4} ===");
     // La composition par menu_setting (fond plein écran + en-tête) doit BATTRE largement la voie
-    // préfixe `mainmenu01_*` (≈0.004, quasi vide). Baseline mesurée 2026-06-16. Plancher de
-    // non-régression sous la baseline ; à RELEVER quand le placement (driver D1.c) s'améliore.
+    // préfixe `mainmenu01_*` (≈0.004, quasi vide). Baseline mesurée 2026-06-16 = **0.4180**
+    // (placement couche 1 `g4pkm_motion` + sélection texture non-dummy couche 2 acquis). Plancher
+    // RELEVÉ 0.10→0.40 pour verrouiller ce gain (le rendu est déterministe, cf.
+    // `title02_render_is_deterministic`) ; à RELEVER de nouveau quand le driver D1.c affine le placement.
     assert!(score.is_finite(), "SSIM doit être fini");
     assert!(
-        score >= 0.10,
-        "SSIM {score:.4} < plancher 0.10 — la composition menu_setting devrait rendre le fond plein écran"
+        score >= 0.40,
+        "SSIM {score:.4} < plancher 0.40 — régression du placement/composition menu_setting (baseline 0.4180)"
     );
 }

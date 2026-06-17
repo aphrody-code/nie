@@ -1,0 +1,23 @@
+# Préchargement du plugin de formats de jeu IEVR.
+#
+# Bun exécute ce script AVANT tout module utilisateur lors de `bun run` (et `bun test`).
+# register.ts appelle Bun.plugin({ name: "nie-game-formats", setup }) une seule fois.
+# Après ça, tout `import` de .g4tx / .cfg.bin / .objbin / .g4pkm / .lip / .mev / .g4md
+# est intercepté par les handlers onLoad sans configuration supplémentaire.
+#
+# Pour l'usage bundler, passer le plugin explicitement :
+#   Bun.build({ plugins: [(await import("nie-plugin/register")).default] })
+preload = ["./packages/nie-plugin/src/register.ts"]
+
+[install]
+linker = "isolated"       # pnpm-style strict node_modules
+
+[install.scopes]
+# Aucun registry privé pour l'instant.
+
+[test]
+preload = ["./packages/nie-plugin/src/register.ts"]
+coverage = false
+
+[run]
+silent = false
