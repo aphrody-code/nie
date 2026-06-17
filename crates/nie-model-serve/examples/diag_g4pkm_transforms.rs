@@ -15,7 +15,7 @@ fn main() -> anyhow::Result<()> {
         ("data/common/menu/100_mainmenu/mainmenu90/mainmenu90_01/mainmenu90_01.g4pkm", 0.0, 0.0, "mainmenu90_01 (header, W=776 H=120)"),
     ];
     
-    for (g4pkm_path, sprite_w, sprite_h, label) in &test_cases {
+    for (g4pkm_path, sprite_w, _sprite_h, label) in &test_cases {
         println!("\n=== {label} ===");
         println!("g4pkm={g4pkm_path}");
         

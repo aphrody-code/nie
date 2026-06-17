@@ -2,6 +2,11 @@
 **/*.rs.bk
 Cargo.lock.bak
 
+# Bun monorepo
+node_modules/
+*.tsbuildinfo
+.bun/
+
 # Index RE généré (volumineux, reproductible depuis le binaire)
 /var
 *.sqlite
@@ -40,3 +45,7 @@ refs/
 # Captures de référence du jeu (copyright Level-5) — SSIM gates ; NE PAS publier
 /start.png
 /menu.png
+
+# Sprites de menu décodés (g4tx → PNG, dérivés © Level-5) — local uniquement, jamais publier.
+# Le code HTML/CSS/TS de web/ reste committé ; seuls les pixels réels sont ignorés.
+/web/assets/

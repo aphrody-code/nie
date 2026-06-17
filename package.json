@@ -1,0 +1,22 @@
+{
+  "name": "niers",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Bun monorepo — FFI bindings (packages/nie) + plugin + apps, racine workspace niers",
+  "type": "module",
+  "workspaces": {
+    "packages": ["packages/*", "apps/*"],
+    "catalog": {
+      "typescript": "^5.8.3",
+      "@types/bun": "latest"
+    }
+  },
+  "scripts": {
+    "build:ffi": "cargo build -p nie-ffi",
+    "test": "bun test packages/nie apps/menu apps/nie-decode",
+    "typecheck": "bun run --filter '*' typecheck"
+  },
+  "engines": {
+    "bun": ">=1.3.0"
+  }
+}

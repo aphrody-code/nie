@@ -16,9 +16,14 @@
 
 ## 0. TL;DR
 
-Les deux écrans sont **données-présentes** dans le VFS et niers sait *composer* en CPU/GPU — mais le
-rendu actuel est **quasi vide** parce qu'il manque les couches **runtime** que le moteur applique
-par-dessus les fichiers statiques. Constats clés vérifiés :
+> ⏱ **Note de fraîcheur (2026-06-16).** Les couches 1 (placement) et 2 (texture non-dummy) sont
+> maintenant FAITES — title02 rend 18/18 sprites on-écran (SSIM 0.2511), main_menu via-setting 0.4180.
+> Les constats « quasi vide / 10/18 » ci-dessous sont le snapshot HISTORIQUE de départ ; voir la table
+> d'état rafraîchie plus bas pour le vrai front (texte/police, driver D1.c, 3D).
+
+Les deux écrans sont **données-présentes** dans le VFS et niers sait *composer* en CPU/GPU — le
+rendu de départ était **quasi vide** parce qu'il manquait les couches **runtime** que le moteur applique
+par-dessus les fichiers statiques. Constats clés vérifiés (snapshot initial) :
 
 - `title02` (start.png) : **10/18 objbin** rendus, mais placés à leur **bind pose** (souvent
   hors-écran) ; et le compositeur **pioche la 1ʳᵉ texture DDS de l'atlas — souvent un dummy 4×4** →
@@ -42,14 +47,23 @@ par-dessus les fichiers statiques. Constats clés vérifiés :
   golden de l'étage SSIM, mais l'égalité-octet vs screenshot est impossible (raster GPU ≠, contenu
   dynamique).
 
-| # | Couche manquante | Effet visible | État |
+> **MISE À JOUR D'ÉTAT (2026-06-16, re-vérifiée).** Les couches **1 et 2 sont désormais FAITES**
+> (le snapshot « 10/18 quasi vide » ci-dessous est superseded) : `nie-game --menu title02 --capture`
+> rend **18/18 sprites ON-écran** (SSIM **0.2511** vs start.png) et `--menu main_menu --from-setting`
+> rend les 13 layers à SSIM **0.4180** vs menu.png. Planchers de non-régression RELEVÉS en conséquence
+> (`menu_render_gate` : title02 ≥0.24, compose-runtime ≥0.39, via-setting ≥0.40). Le gap restant n'est
+> plus le placement grossier (couche 1) ni le dummy 4×4 (couche 2) mais : **branchement du texte
+> dans le compositeur** (couche 4 — la primitive police/blitter est FAITE, cf. §7), **placement FIN
+> par driver D1.c** et **modèles 3D** (couche 5).
+
+| # | Couche | Effet visible | État (2026-06-16) |
 |---|---|---|---|
-| 1 | **Placement ancêtre-fallback** (`GetMotionFinalPose`) | éléments hors-écran (bind pose) | **NON_FAIT** (port borné) |
-| 2 | **Sélection texture/atlas** (éviter le dummy 4×4, cropper la sous-région) | sprites invisibles / mauvaise sous-image | **INCOMPLET** |
-| 3 | **Runtime Lua** (`OnOpenLayer` → MenuState) | visibilité/sprite/texte/nombre non appliqués | **INCOMPLET** (nie-lua non branché) |
-| 4 | **Texte + police** | aucun texte composé (ver, 212, 99) ; locale non substituée | **INCOMPLET** (`.g4tg` NON_FAIT) |
+| 1 | **Placement ancêtre-fallback** (`GetMotionFinalPose`) | éléments hors-écran (bind pose) | **FAIT** — `g4pkm_motion::motion_final_pose` câblé `menu.rs:63`, 7 tests verts ; raffinement fin = driver D1.c |
+| 2 | **Sélection texture/atlas** (éviter le dummy 4×4) | sprites invisibles / mauvaise sous-image | **FAIT (non-dummy)** — `g4tx::select_main_texture` (D1.b) ; reste le fenêtrage UV sous-région |
+| 3 | **Runtime Lua** (`OnOpenLayer` → MenuState) | visibilité/sprite/texte/nombre | **INCOMPLET** (driver branché en export-layout ; cmds connus, placement partiel) |
+| 4 | **Texte + police** | aucun texte composé (ver, 212, 99) ; locale non substituée | **PRIMITIVE FAITE** — `font.rs` parse `font.cfg.bin` + `glyph_blitter`/`draw_text` (validé 'A'/'AW' pixel) ; exposé FFI+Bun (`renderText`). PAS de `.g4tg` à reverser. **Reste** : kerning, balises couleur, branchement compositeur (cf. §7) |
 | 5 | **Modèles 3D in-menu** | AVATAR / VOTRE ÉQUIPE vides | **NON_FAIT** |
-| 6 | **Blend par draw_type + GATE** | glows additifs faux ; aucune preuve SSIM | **INCOMPLET** |
+| 6 | **Blend par draw_type + GATE** | glows additifs faux | **FAIT(over)** — les 13 layers main_menu sont `drawType=0` (cf. §5) ; additif non requis ici |
 
 ## 1. Objectif et portée
 
@@ -509,6 +523,21 @@ Critère de sortie : title02 ne doit plus avoir d'objbin placé hors-écran ; le
 
 ## 7. Texte + police (rendu des libellés de menu)
 
+> 🔴 **CORRECTION MAJEURE (2026-06-16) — le « bloqueur principal `.g4tg` » est un MYTHE.**
+> Les métriques de glyphes ne sont **PAS** dans un fichier `.g4tg` à reverser. **Aucun `.g4tg`
+> de police n'existe dans le VFS** (les seuls `.g4tg` sont des textures d'effets `effect/…`).
+> Les métriques vivent dans **`data/common/font/font/font_def/font.cfg.bin`** — un **T2B** que
+> `cfgbin::parse_t2b` décode déjà. **PORTÉ + VALIDÉ** : `nie-formats/src/font.rs`
+> (`parse_metrics` → `FontMetrics{atlas 4096×2048, glyphs: BTreeMap<cp, GlyphMetric{x,y,width,
+> bearing_x,advance,page,font,base}>}`, 2 polices, 7638 glyphes). Layout `CHR =
+> [font, base, codepoint, atlasX, atlasY, width, bearingX, advance, page]` — **le codepoint est
+> col[2]**, pas col[1]. Golden gated `font::tests::real_font_metrics_match` (A=1157,1,38,39 ;
+> W=47/48 ; i=7/12 ; tout l'ASCII imprimable). Le `g4.rs` calcule bien un chemin `"%s.g4tg"`,
+> mais c'est un format de **texture-group d'effets**, sans rapport avec la police.
+> ⇒ Reste pour le texte composé : (a) décoder l'atlas `font_def/font.g4tx` (DDS 4096×2048, le
+> g4tx decoder le fait déjà), (b) un **blitter de glyphes** (rect atlas → dest, avance/bearing),
+> (c) interpréter la table `KERN` (315 entrées). **PLUS de RE de format à faire** pour les métriques.
+
 > Périmètre : pourquoi aucun texte (COMMENCER, ver 6.0.2, VICTOIRES 212, NIVEAU DE
 > L'ÉQUIPE 99, AVATAR, VOTRE ÉQUIPE, Quitter le jeu, Guide joueur, Deluxe Edition…)
 > n'apparaît sur `title02` (start.png) et `mainmenu01` (menu.png), et plan pour le rendre
@@ -665,19 +694,34 @@ vérifiés dans `/tmp/vfs_g4tx.txt` (ex. `title02_01/`, `gtxt_title02`, banners)
   (`:352-363`) à la place du simple stockage ; (iii) sélection de locale (paramètre
   `--locale`, défaut depuis Steam — `scripting.rs:424`) propagée jusqu'à la substitution `<LG>`.
 
-#### (b) Parseur de police — NON_FAIT (le bloquant principal)
-- Reverser le format **`.g4tg`** (métriques : codepoint → {rect atlas, advance, bearing,
-  baseline}) pour `font_def`. Aucune référence existante (niers/iecode) → RE depuis le binaire
-  (chemin `"%s.g4tg"`, `g4.rs:789`) ou dump live (cf. nie-trace).
-- FAIT/réutilisable : parse du container G4TX + sous-régions (`g4tx.rs:167-272`, structs
-  `:84-116`) et décodage DDS (`nie-game/src/main.rs:204` `decode_texture_rgba`). `gaiji_game`
-  (117 régions nommées) est donc déjà parsable sans `.g4tg`.
+#### (b) Parseur de police — **FAIT (2026-06-16)** — l'hypothèse `.g4tg` était fausse
+- **Correction de fond** : le « bloquant principal » supposé (« reverser le format `.g4tg` »)
+  **n'existait pas**. Vérification VFS : **aucun `.g4tg` de police** n'est monté (les seuls
+  `.g4tg` sont des textures d'effets `effect/…`). Les métriques de glyphes vivent dans
+  **`data/common/font/font/font_def/font.cfg.bin`** — un **T2B** que `cfgbin::parse_t2b`
+  décodait déjà. Le chemin `"%s.g4tg"` calculé par `g4.rs:789` pointe sur un fichier absent
+  pour `font_def` (le moteur retombe sur le `.cfg.bin` / métriques internes).
+- **Porté** : `crates/nie-formats/src/font.rs` (`parse`) lit les entrées `INF`
+  (`[font, ascent, cell_height, descent, nGlyphs, atlasW, atlasH]`) et une `CHR` par glyphe
+  (`[font, base, codepoint, atlasX, atlasY, width, bearingX, advance, page]`). **Piège
+  identifié** : le point de code est la **colonne 2**, pas la 1 (col[1] = id de groupe partagé
+  entre variantes CJK). Validé contre des largeurs ASCII connues : `A` 38/39, `W` 47/48,
+  `i` 7/12, `0` 31/38, espace 1/16.
+- Réutilisé : container G4TX + sous-régions (`g4tx.rs:167-272`) et décodage DDS
+  (`nie-game/src/main.rs:204`). L'atlas police = `data/dx11/font/font_def/font.g4tx`
+  (DDS BGRA8 non compressé 4096×2048 ; pixels à `data_offset + 128`). **Reste** : la table
+  `KERN`/`KERNINF` (présente, non encore interprétée).
 
-#### (c) Rasteriseur de glyphes bit-exact — NON_FAIT
-- Composer une chaîne en blittant chaque glyphe (rect source `font_def`/`gaiji_game` → dest)
-  avec avance/kerning du `.g4tg`, couleur/teinte par balise, alignement (gauche/centre/droite)
-  et échelle issue de l'os `_gtxt_*` du g4pkm. Sortie sRGBA, sans anti-aliasing ajouté
-  (l'AA est dans l'atlas). Cible : égalité octet vs capture jeu.
+#### (c) Rasteriseur de glyphes bit-exact — **FAIT (2026-06-16)**
+- `font.rs` `glyph_blitter` mappe `atlas(ay+row, ax+col) → canvas(dst_y+row, dst_x+col)`,
+  masqué par l'alpha de l'atlas, composition **src-over** (la couleur RGB remplace la
+  destination, `out_a = atlas_a · color_a / 255`) — **aucun AA ajouté** (l'AA est cuit dans
+  l'atlas). `draw_text` enchaîne les glyphes : `dst_x = pen_x + bearing_x`,
+  `dst_y = pen_y − ascent`, `pen_x += advance`. Validé pixel : glyphe 'A' réel α=251 à
+  (row 20, col 0), 'A' à pen rendu 39×71, 'AW' à 87×71 (avance 39+48).
+- **Reste** : couleur/teinte par balise (`[CPASSIVE01]…`), alignement (centre/droite),
+  échelle issue de l'os `_gtxt_*` du g4pkm, et le kerning `KERN`. La primitive de blit, elle,
+  est bit-exacte vs l'atlas.
 
 #### (d) Intégration compositeur (`menu.rs` / `nie-game`) — INCOMPLET
 - FAIT : pipeline sprite (objbin→g4pkm→g4tx→DDS→blit trié par `draw_priority`,
@@ -704,8 +748,9 @@ vérifiés dans `/tmp/vfs_g4tx.txt` (ex. `title02_01/`, `gtxt_title02`, banners)
 | Container G4TX + sous-régions atlas | FAIT | `g4tx.rs:167-272` (structs :84-116) |
 | Décodage DDS police (`font_def`/`gaiji`) | FAIT | `g4tx.rs:7-10`, `main.rs:204` |
 | Déswizzle NXTCH | INCOMPLET (off-by-4) | `nxtch.rs`, `avancement.md:64` |
-| Parseur `.g4tg` (métriques glyphes) | NON_FAIT | `g4.rs:789` (chemin), aucun parseur |
-| Rasteriseur de glyphes | NON_FAIT | absent |
+| Parseur métriques glyphes (`font.cfg.bin` T2B, **pas** `.g4tg`) | **FAIT (2026-06-16)** | `font.rs` (`parse` INF/CHR → `GlyphMetric`) |
+| Rasteriseur de glyphes (blit atlas DDS) | **FAIT (2026-06-16)** | `font.rs` `glyph_blitter`/`draw_text` ; validé 'A' (α=251) |
+| Exposition FFI + Bun du rendu texte | **FAIT (2026-06-17)** | `nie-ffi` `nie_font_render_text` ; `packages/nie` `FontHandle.renderText` |
 | Intégration compositeur texte | NON_FAIT | `menu_host.rs:352-363` stocke sans rendre |
 
 ## 8. Runtime Lua — construction du menu réel

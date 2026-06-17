@@ -1,0 +1,26 @@
+[package]
+name = "nie-ffi"
+description = "Frontière FFI C-ABI: expose la logique niers (CRC32 RDBN, PRNG CRand MT19937, décodage formats, VFS) à Bun et autres runtimes"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+# nom de lib par défaut = nie_ffi -> produit target/debug/libnie_ffi.so
+
+[lints]
+workspace = true
+
+[dependencies]
+nie-core.workspace = true
+# serde feature : active serde::Serialize sur G4tx, CfgBinFile, RdbnData, G4pkmLayout,
+# G4md, LipSync, MevbinDocument, MenuObject, CpkHeader, G4pk — requis par nie_decode_json.
+nie-formats = { workspace = true, features = ["serde"] }
+serde_json.workspace = true
+# Décodage DDS BCn → RGBA8 pour nie_g4tx_to_png : `image_dds` (même crate que nie-game,
+# couvre BC1–BC7 via le DXGI du header DX10), puis encodage PNG via `image`.
+image_dds = { version = "0.7", default-features = false }
+image = { version = "0.25", default-features = false, features = ["png"] }
