@@ -1,0 +1,34 @@
+{
+  "name": "nie-plugin",
+  "version": "0.1.0",
+  "description": "Bun plugin — importe les formats de jeu IEVR (.g4tx, .cfg.bin, .objbin, .g4pkm, .lip, .mev, .g4md) et expose nie:re/* (artefacts RE + Lua décompilé)",
+  "type": "module",
+  "main": "src/index.ts",
+  "module": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    },
+    "./register": {
+      "import": "./src/register.ts",
+      "types": "./src/register.ts"
+    }
+  },
+  "license": "MIT",
+  "engines": {
+    "bun": ">=1.3.0"
+  },
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "bunx tsc --noEmit"
+  },
+  "dependencies": {
+    "nie": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "@types/bun": "catalog:"
+  }
+}

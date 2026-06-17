@@ -35,6 +35,7 @@ use thiserror::Error;
 
 pub mod assemble;
 pub mod cfgbin;
+pub mod font;
 pub mod objbin;
 pub mod cpk;
 pub mod crilayla;
@@ -92,7 +93,7 @@ pub enum FileFormat {
     G4sk,
     /// Pack/anim Level-5 (`G4PK`).
     G4pk,
-    /// Navmesh (`G4NV`).
+    /// Navmesh Level-5 (magic réel `NAVM`, extension `.g4nv`).
     G4nv,
     /// Inconnu.
     Unknown,
@@ -160,7 +161,9 @@ pub fn detect(bytes: &[u8]) -> FileFormat {
         FileFormat::G4sk
     } else if starts(bytes, b"G4PK") {
         FileFormat::G4pk
-    } else if starts(bytes, b"G4NV") {
+    } else if starts(bytes, b"NAVM") {
+        // Le magic réel des fichiers .g4nv est `NAVM` (vérifié sur 159 vrais fichiers).
+        // La variante `G4NV` n'apparaît jamais dans les assets IEVR.
         FileFormat::G4nv
     } else if starts(bytes, b"RDBN") {
         FileFormat::CfgBin
@@ -183,5 +186,84 @@ mod tests {
         assert_eq!(detect(b"RDBN...."), FileFormat::CfgBin);
         assert_eq!(detect(b"random"), FileFormat::Unknown);
         assert_eq!(detect(b""), FileFormat::Unknown);
+    }
+
+    /// Le magic réel des navmesh Level-5 (.g4nv) est `NAVM`, pas `G4NV`.
+    /// Vérifié par dump hexadécimal de 159 vrais fichiers IEVR.
+    #[test]
+    fn g4nv_magic_is_navm_not_g4nv() {
+        // Magic réel observé sur fichiers .g4nv du jeu (ex: k03.g4nv: 4E 41 56 4D ...)
+        let navm_header = b"NAVM\x60\x00\x66\x00\x00\x00\x18\x00";
+        assert_eq!(
+            detect(navm_header),
+            FileFormat::G4nv,
+            "detect() doit retourner G4nv pour un magic NAVM"
+        );
+        // L'ancien magic erroné G4NV ne doit PAS être reconnu comme G4nv
+        let wrong_magic = b"G4NV....";
+        assert_eq!(
+            detect(wrong_magic),
+            FileFormat::Unknown,
+            "detect() ne doit PAS reconnaître G4NV (absent des assets IEVR)"
+        );
+    }
+
+    /// Test golden gated sur NIE_GAME_DIR : lit le plus petit .g4nv via VFS
+    /// et vérifie que detect() retourne FileFormat::G4nv (magic NAVM).
+    #[test]
+    fn g4nv_detect_golden_via_vfs() {
+        let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
+            "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road"
+                .to_string()
+        });
+        let data = std::path::Path::new(&dir).join("data");
+        if !data.join("cpk_list.cfg.bin").exists() {
+            eprintln!("skip g4nv_detect_golden_via_vfs : NIE_GAME_DIR absent");
+            return;
+        }
+
+        let mut vfs = crate::vfs::Vfs::new();
+        vfs.init(&data).expect("Vfs::init");
+
+        // Sélectionne le plus petit .g4nv pour minimiser l'I/O
+        let smallest = vfs
+            .iter()
+            .filter(|(p, e)| p.ends_with(".g4nv") && e.file_size > 0)
+            .min_by_key(|(_, e)| e.file_size)
+            .map(|(p, _)| p.to_string());
+
+        let path = match smallest {
+            Some(p) => p,
+            None => {
+                eprintln!("skip g4nv_detect_golden_via_vfs : aucun .g4nv dans l'index VFS");
+                return;
+            }
+        };
+
+        let bytes = vfs.read(&path).unwrap_or_else(|e| panic!("vfs.read({path}): {e}"));
+        assert!(
+            bytes.len() >= 4,
+            "fichier .g4nv trop court ({} octets) : {path}",
+            bytes.len()
+        );
+
+        let fmt = detect(&bytes);
+        assert_eq!(
+            fmt,
+            FileFormat::G4nv,
+            "detect() a retourné {:?} au lieu de G4nv pour {path} (magic réel: {:?})",
+            fmt,
+            &bytes[..bytes.len().min(4)]
+        );
+
+        // Vérifie que les 4 premiers octets sont bien NAVM
+        assert_eq!(
+            &bytes[..4],
+            b"NAVM",
+            "magic inattendu dans {path}: {:?}",
+            &bytes[..4]
+        );
+
+        eprintln!("OK: detect({path}) == G4nv (magic NAVM, {} octets)", bytes.len());
     }
 }

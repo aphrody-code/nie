@@ -66,6 +66,7 @@ const CRC_OBJ_END: u32       = 0x8588_86BC;
 /// Objet de menu parsé depuis un fichier `.objbin`.
 /// Chaque fichier contient exactement un objet racine.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct MenuObject {
     /// Nom de l'objet (paramètre de `OBJ_BGN`, ex. `"title00_09_version"`).
     pub name: String,
@@ -81,6 +82,7 @@ pub struct MenuObject {
 
 /// Composant de menu — enum idomatique remplaçant la hiérarchie de classes C#.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub enum MenuComponent {
     /// `CMenuRenderComponent` — rendu (z-order, mode, caméra).
     Render(RenderComponent),
@@ -104,6 +106,7 @@ pub enum MenuComponent {
 
 /// `CMenuRenderComponent` — rendu (z-order, mode de dessin, caméra).
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct RenderComponent {
     /// Nom RTTI (`"CMenuRenderComponent"`).
     pub type_name: String,
@@ -117,6 +120,7 @@ pub struct RenderComponent {
 
 /// `CMenuAnimation` — animations d'ouverture / fermeture / sélection.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct AnimationComponent {
     /// Nom RTTI (`"CMenuAnimation"`).
     pub type_name: String,
@@ -130,6 +134,7 @@ pub struct AnimationComponent {
 
 /// `MenuTextSetting` — clés de texte localisées.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct TextComponent {
     /// Nom RTTI (`"MenuTextSetting"`).
     pub type_name: String,
@@ -141,6 +146,7 @@ pub struct TextComponent {
 
 /// Entrée texte : slot nommé + hash(es) CRC-32.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct TextEntry {
     /// Nom du slot (ex. `"_text_choice01_on"`).
     pub key: String,
@@ -150,6 +156,7 @@ pub struct TextEntry {
 
 /// `CMenuCreatePrimitiveComponent` — primitives graphiques (rectangles, jauges…).
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct PrimitiveComponent {
     /// Nom RTTI (`"CMenuCreatePrimitiveComponent"`).
     pub type_name: String,
@@ -161,6 +168,7 @@ pub struct PrimitiveComponent {
 
 /// Valeur maximale d'affichage pour une primitive (`DispMaxValue`).
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct DispMaxEntry {
     /// Hash CRC-32 de la primitive.
     pub primitive_hash: u32,
@@ -170,6 +178,7 @@ pub struct DispMaxEntry {
 
 /// `CMenuAttachLocator` — points d'attache (null layers).
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct AttachLocatorComponent {
     /// Nom RTTI (`"CMenuAttachLocator"`).
     pub type_name: String,
@@ -179,6 +188,7 @@ pub struct AttachLocatorComponent {
 
 /// `MenuCollisionSetting` — zones de collision tactile.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct CollisionComponent {
     /// Nom RTTI (`"MenuCollisionSetting"`).
     pub type_name: String,
@@ -190,6 +200,7 @@ pub struct CollisionComponent {
 
 /// Entrée de collision tactile.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct CollisionEntry {
     /// Nom du touch.
     pub key: String,
@@ -203,6 +214,7 @@ pub struct CollisionEntry {
 
 /// `CMenuSoundCmdProperty` — commandes sonores associées à l'objet.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct SoundCmdComponent {
     /// Nom RTTI (`"CMenuSoundCmdProperty"`).
     pub type_name: String,
@@ -212,6 +224,7 @@ pub struct SoundCmdComponent {
 
 /// Entrée son : commande nommée + paramètre entier.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct SoundCmdEntry {
     /// Nom de la commande sonore.
     pub command: String,
@@ -221,6 +234,7 @@ pub struct SoundCmdEntry {
 
 /// `CSetupMeshVisible` — visibilité de meshes nommés par CRC.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct MeshVisibleComponent {
     /// Nom RTTI (`"CSetupMeshVisible"`).
     pub type_name: String,
@@ -230,6 +244,7 @@ pub struct MeshVisibleComponent {
 
 /// Entrée de visibilité de mesh.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct MeshVisibleEntry {
     /// CRC-32 du nom du mesh (`meshNameCrc`).
     pub mesh_name_crc: u32,
@@ -240,6 +255,7 @@ pub struct MeshVisibleEntry {
 /// Composant générique pour les types RTTI non reconnus.
 /// Préserve le nom RTTI et les paramètres bruts de `PROP_PARAM`.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct UnknownComponent {
     /// Nom RTTI du composant (ex. `"CMenuScrollMaskComponent"`).
     pub type_name: String,

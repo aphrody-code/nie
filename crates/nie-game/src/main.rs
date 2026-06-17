@@ -1133,7 +1133,7 @@ fn demander_adaptateur_hors_ecran(instance: &wgpu::Instance) -> Result<wgpu::Ada
         compatible_surface: None,
         force_fallback_adapter: false,
     }));
-    if let Some(a) = adapter {
+    if let Ok(a) = adapter {
         return Ok(a);
     }
     // Tentative 2 : rendu logiciel
@@ -1143,7 +1143,7 @@ fn demander_adaptateur_hors_ecran(instance: &wgpu::Instance) -> Result<wgpu::Ada
         compatible_surface: None,
         force_fallback_adapter: true,
     }))
-    .ok_or_else(|| anyhow::anyhow!("aucun adaptateur wgpu (ni GPU ni logiciel)"))
+    .context("aucun adaptateur wgpu (ni GPU ni logiciel)")
 }
 
 /// Crée un `(Device, Queue)` depuis un adaptateur.
@@ -1157,9 +1157,10 @@ fn creer_device(adapter: &wgpu::Adapter) -> Result<(wgpu::Device, wgpu::Queue)> 
             label: Some("nie-game"),
             required_features: wgpu::Features::empty(),
             required_limits: limits,
+            experimental_features: wgpu::ExperimentalFeatures::disabled(),
             memory_hints: wgpu::MemoryHints::default(),
+            trace: wgpu::Trace::Off,
         },
-        None,
     ))
     .context("création device wgpu")
 }
@@ -1201,21 +1202,21 @@ fn creer_pipeline(
     });
     let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: Some("pipeline_layout"),
-        bind_group_layouts: &[bgl],
-        push_constant_ranges: &[],
+        bind_group_layouts: &[Some(bgl)],
+        immediate_size: 0,
     });
     device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
         label: Some("fullscreen_pipeline"),
         layout: Some(&layout),
         vertex: wgpu::VertexState {
             module: &shader,
-            entry_point: "vs_main",
+            entry_point: Some("vs_main"),
             buffers: &[],
             compilation_options: wgpu::PipelineCompilationOptions::default(),
         },
         fragment: Some(wgpu::FragmentState {
             module: &shader,
-            entry_point: "fs_main",
+            entry_point: Some("fs_main"),
             targets: &[Some(wgpu::ColorTargetState {
                 format,
                 blend: None,
@@ -1238,7 +1239,7 @@ fn creer_pipeline(
             mask: !0,
             alpha_to_coverage_enabled: false,
         },
-        multiview: None,
+        multiview_mask: None,
         cache: None,
     })
 }
@@ -1271,7 +1272,7 @@ fn charger_gpu_texture(
     queue.write_texture(
         texture.as_image_copy(),
         rgba,
-        wgpu::ImageDataLayout {
+        wgpu::TexelCopyBufferLayout {
             offset: 0,
             bytes_per_row: Some(4 * width),
             rows_per_image: Some(height),
@@ -1287,7 +1288,7 @@ fn charger_gpu_texture(
         address_mode_w: wgpu::AddressMode::ClampToEdge,
         mag_filter: wgpu::FilterMode::Nearest,
         min_filter: wgpu::FilterMode::Nearest,
-        mipmap_filter: wgpu::FilterMode::Nearest,
+        mipmap_filter: wgpu::MipmapFilterMode::Nearest,
         ..Default::default()
     });
 
@@ -1325,7 +1326,7 @@ fn cmd_capture(rgba: &[u8], width: u32, height: u32, png_out: &Path) -> Result<(
 
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
         backends: wgpu::Backends::all(),
-        ..Default::default()
+        ..wgpu::InstanceDescriptor::new_without_display_handle()
     });
 
     let adapter = demander_adaptateur_hors_ecran(&instance)?;
@@ -1365,6 +1366,7 @@ fn cmd_capture(rgba: &[u8], width: u32, height: u32, png_out: &Path) -> Result<(
             label: Some("capture_pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: &render_view,
+                depth_slice: None,
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
@@ -1374,6 +1376,7 @@ fn cmd_capture(rgba: &[u8], width: u32, height: u32, png_out: &Path) -> Result<(
             depth_stencil_attachment: None,
             timestamp_writes: None,
             occlusion_query_set: None,
+            multiview_mask: None,
         });
         pass.set_pipeline(&pipeline);
         pass.set_bind_group(0, &bind_group, &[]);
@@ -1394,9 +1397,9 @@ fn cmd_capture(rgba: &[u8], width: u32, height: u32, png_out: &Path) -> Result<(
 
     encoder.copy_texture_to_buffer(
         render_tex.as_image_copy(),
-        wgpu::ImageCopyBuffer {
+        wgpu::TexelCopyBufferInfo {
             buffer: &readback,
-            layout: wgpu::ImageDataLayout {
+            layout: wgpu::TexelCopyBufferLayout {
                 offset: 0,
                 bytes_per_row: Some(bytes_per_row_padded),
                 rows_per_image: Some(height),
@@ -1408,7 +1411,7 @@ fn cmd_capture(rgba: &[u8], width: u32, height: u32, png_out: &Path) -> Result<(
     queue.submit([encoder.finish()]);
 
     readback.slice(..).map_async(wgpu::MapMode::Read, |_| {});
-    device.poll(wgpu::Maintain::Wait).panic_on_timeout();
+    device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
 
     let mapped = readback.slice(..).get_mapped_range();
 
@@ -1475,7 +1478,7 @@ fn cmd_window(rgba: &[u8], width: u32, height: u32, max_frames: u32) -> Result<(
     // marche déjà ; on impose donc Vulkan pour la fenêtre aussi.
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
         backends: wgpu::Backends::VULKAN,
-        ..Default::default()
+        ..wgpu::InstanceDescriptor::new_without_display_handle()
     });
 
     let event_loop = EventLoop::new().context("création EventLoop winit")?;
@@ -1510,6 +1513,9 @@ fn cmd_window(rgba: &[u8], width: u32, height: u32, max_frames: u32) -> Result<(
 /// État de rendu lié à la fenêtre (créé dans `resumed`).
 struct EtatFenetre {
     fenetre: Arc<winit::window::Window>,
+    /// Instance wgpu conservée pour recréer la surface si elle est perdue (variante
+    /// `CurrentSurfaceTexture::Lost` en wgpu 29). `Instance` est Arc-backed (clone bon marché).
+    instance: wgpu::Instance,
     surface: wgpu::Surface<'static>,
     device: wgpu::Device,
     queue: wgpu::Queue,
@@ -1528,15 +1534,26 @@ impl EtatFenetre {
     }
 
     fn rendre(&mut self) -> Result<()> {
+        // wgpu 29 : `get_current_texture` renvoie l'enum `CurrentSurfaceTexture` (7 variantes),
+        // plus de `Result<_, SurfaceError>`.
+        use wgpu::CurrentSurfaceTexture as Cst;
         let output = match self.surface.get_current_texture() {
-            Ok(t) => t,
-            Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+            Cst::Success(frame) | Cst::Suboptimal(frame) => frame,
+            Cst::Outdated => {
                 self.surface.configure(&self.device, &self.config);
-                self.surface
-                    .get_current_texture()
-                    .context("surface reconfigurée mais get_current_texture échoue")?
+                match self.surface.get_current_texture() {
+                    Cst::Success(f) | Cst::Suboptimal(f) => f,
+                    _ => return Ok(()), // sauter la trame
+                }
             }
-            Err(e) => return Err(e.into()),
+            Cst::Lost => {
+                // Surface perdue : la recréer (pas juste reconfigure), re-tenter au prochain redraw.
+                self.surface = self.instance.create_surface(self.fenetre.clone())?;
+                self.surface.configure(&self.device, &self.config);
+                return Ok(());
+            }
+            // Trame sautée : `about_to_wait` re-demande un redraw.
+            Cst::Timeout | Cst::Occluded | Cst::Validation => return Ok(()),
         };
 
         let view = output
@@ -1552,6 +1569,7 @@ impl EtatFenetre {
                 label: Some("frame_pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &view,
+                    depth_slice: None,
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
@@ -1561,6 +1579,7 @@ impl EtatFenetre {
                 depth_stencil_attachment: None,
                 timestamp_writes: None,
                 occlusion_query_set: None,
+                multiview_mask: None,
             });
             pass.set_pipeline(&self.pipeline);
             pass.set_bind_group(0, &self.bind_group, &[]);
@@ -2851,15 +2870,15 @@ fn creer_pipeline_sprite(
     });
     let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: Some("sprite_pipeline_layout"),
-        bind_group_layouts: &[bgl],
-        push_constant_ranges: &[],
+        bind_group_layouts: &[Some(bgl)],
+        immediate_size: 0,
     });
     device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
         label: Some("sprite_pipeline"),
         layout: Some(&layout),
         vertex: wgpu::VertexState {
             module: &shader,
-            entry_point: "vs_main",
+            entry_point: Some("vs_main"),
             buffers: &[wgpu::VertexBufferLayout {
                 array_stride: std::mem::size_of::<SpriteVertex>() as u64,
                 step_mode: wgpu::VertexStepMode::Vertex,
@@ -2880,7 +2899,7 @@ fn creer_pipeline_sprite(
         },
         fragment: Some(wgpu::FragmentState {
             module: &shader,
-            entry_point: "fs_main",
+            entry_point: Some("fs_main"),
             targets: &[Some(wgpu::ColorTargetState {
                 format,
                 // Blend premultiplié-alpha over (correct pour des textures pré-multipliées).
@@ -2926,7 +2945,7 @@ fn creer_pipeline_sprite(
             mask: !0,
             alpha_to_coverage_enabled: false,
         },
-        multiview: None,
+        multiview_mask: None,
         cache: None,
     })
 }
@@ -2957,7 +2976,7 @@ fn upload_sprite_texture(
     queue.write_texture(
         texture.as_image_copy(),
         rgba,
-        wgpu::ImageDataLayout {
+        wgpu::TexelCopyBufferLayout {
             offset: 0,
             bytes_per_row: Some(4 * width),
             rows_per_image: Some(height),
@@ -2979,7 +2998,7 @@ fn creer_sampler_lineaire(device: &wgpu::Device) -> wgpu::Sampler {
         address_mode_w: wgpu::AddressMode::ClampToEdge,
         mag_filter: wgpu::FilterMode::Linear,
         min_filter: wgpu::FilterMode::Linear,
-        mipmap_filter: wgpu::FilterMode::Nearest,
+        mipmap_filter: wgpu::MipmapFilterMode::Nearest,
         ..Default::default()
     })
 }
@@ -3067,7 +3086,7 @@ fn cmd_menu_gpu(game_dir: &Path, screen: &str, png_out: &Path, verify: bool) -> 
     // ── 2. Infrastructure wgpu ────────────────────────────────────────────────
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
         backends: wgpu::Backends::all(),
-        ..Default::default()
+        ..wgpu::InstanceDescriptor::new_without_display_handle()
     });
     let adapter = demander_adaptateur_hors_ecran(&instance)?;
     info!("adaptateur GPU menu : {:?}", adapter.get_info());
@@ -3140,6 +3159,7 @@ fn cmd_menu_gpu(game_dir: &Path, screen: &str, png_out: &Path, verify: bool) -> 
             label: Some("menu_gpu_pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: &render_view,
+                depth_slice: None,
                 resolve_target: None,
                 ops: wgpu::Operations {
                     // Canvas initialisé transparent (identique au CPU : vec![0u8; …])
@@ -3155,6 +3175,7 @@ fn cmd_menu_gpu(game_dir: &Path, screen: &str, png_out: &Path, verify: bool) -> 
             depth_stencil_attachment: None,
             timestamp_writes: None,
             occlusion_query_set: None,
+            multiview_mask: None,
         });
         pass.set_pipeline(&pipeline);
         for sd in &draw_data {
@@ -3177,9 +3198,9 @@ fn cmd_menu_gpu(game_dir: &Path, screen: &str, png_out: &Path, verify: bool) -> 
     });
     encoder.copy_texture_to_buffer(
         render_tex.as_image_copy(),
-        wgpu::ImageCopyBuffer {
+        wgpu::TexelCopyBufferInfo {
             buffer: &readback,
-            layout: wgpu::ImageDataLayout {
+            layout: wgpu::TexelCopyBufferLayout {
                 offset: 0,
                 bytes_per_row: Some(padded_bpr),
                 rows_per_image: Some(CH),
@@ -3190,7 +3211,7 @@ fn cmd_menu_gpu(game_dir: &Path, screen: &str, png_out: &Path, verify: bool) -> 
 
     queue.submit([encoder.finish()]);
     readback.slice(..).map_async(wgpu::MapMode::Read, |_| {});
-    device.poll(wgpu::Maintain::Wait).panic_on_timeout();
+    device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
 
     // ── 8a. Lecture readback (valeurs encore pré-multipliées) ────────────────
     let gpu_pixels_pm: Vec<u8> = {
@@ -3385,7 +3406,7 @@ impl AppFenetre {
                 compatible_surface: Some(&surface),
                 force_fallback_adapter: false,
             }))
-            .ok_or_else(|| anyhow::anyhow!("aucun adaptateur wgpu compatible avec la surface"))?;
+            .context("aucun adaptateur wgpu compatible avec la surface")?;
 
         info!("adaptateur fenêtré : {:?}", adapter.get_info());
 
@@ -3420,6 +3441,7 @@ impl AppFenetre {
 
         Ok(EtatFenetre {
             fenetre,
+            instance: self.instance.clone(),
             surface,
             device,
             queue,
