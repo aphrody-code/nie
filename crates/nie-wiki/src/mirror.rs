@@ -51,11 +51,10 @@ pub fn resolve(db_override: Option<&Path>) -> anyhow::Result<PathBuf> {
 
     // 3. Répertoire de backups : fichier supabase-*.sqlite le plus récent (tri lexicographique)
     let backups_dir = PathBuf::from("/home/ubuntu/niers/data/backups");
-    if backups_dir.is_dir() {
-        if let Some(latest) = latest_sqlite_in(&backups_dir) {
+    if backups_dir.is_dir()
+        && let Some(latest) = latest_sqlite_in(&backups_dir) {
             return Ok(latest);
         }
-    }
 
     bail!(
         "aucun miroir SQLite trouvé — utilisez --db, NIE_WIKI_DB ou placez un fichier \

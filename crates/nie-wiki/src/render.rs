@@ -317,7 +317,7 @@ pub fn render_item_profile(item: &ItemProfile) -> String {
 
     lines.push(TOP.to_string());
     lines.push(two_col(
-        &format!("{}", name_fr),
+        name_fr,
         &format!("ID: {}", item.id),
     ));
     lines.push(two_col(
@@ -363,7 +363,7 @@ pub fn render_team_profile(team: &TeamProfile) -> String {
 
     lines.push(TOP.to_string());
     lines.push(two_col(
-        &format!("{}", name_fr),
+        name_fr,
         &format!("ID: {}", team.id),
     ));
     lines.push(two_col(
@@ -514,7 +514,9 @@ pub fn render_compare(result: &CompareResult) -> String {
     ));
     lines.push(border_mid.clone());
 
-    let stat_defs: &[(&str, fn(&crate::model::StatBlock) -> u16)] = &[
+    // (libellé, accesseur de stat) — alias pour éviter le type complexe répété.
+    type StatDef = (&'static str, fn(&crate::model::StatBlock) -> u16);
+    let stat_defs: &[StatDef] = &[
         ("Frappe", |s| s.kick),
         ("Controle", |s| s.control),
         ("Technique", |s| s.technique),
@@ -594,7 +596,7 @@ pub fn render_status(report: &StatusReport) -> String {
 
     lines.push("[SQLite]".to_string());
     if report.sqlite.healthy {
-        lines.push(format!("  Statut     : OK"));
+        lines.push("  Statut     : OK".to_string());
         lines.push(format!("  Base       : {}", report.sqlite.path));
         if let Some(mb) = report.sqlite.size_mb {
             lines.push(format!("  Taille     : {:.2} MB", mb));
@@ -615,7 +617,7 @@ pub fn render_status(report: &StatusReport) -> String {
             lines.push(format!("  Equipes    : {}", n));
         }
     } else {
-        lines.push(format!("  Statut     : ERREUR"));
+        lines.push("  Statut     : ERREUR".to_string());
         if let Some(e) = &report.sqlite.error {
             lines.push(format!("  Erreur     : {}", e));
         }
@@ -627,12 +629,12 @@ pub fn render_status(report: &StatusReport) -> String {
     ] {
         lines.push(format!("\n[{}]", label));
         if rs.healthy {
-            lines.push(format!("  Statut  : OK"));
+            lines.push("  Statut  : OK".to_string());
             if let Some(ms) = rs.latency_ms {
                 lines.push(format!("  Latence : {:.2} ms", ms));
             }
         } else {
-            lines.push(format!("  Statut  : HORS-LIGNE"));
+            lines.push("  Statut  : HORS-LIGNE".to_string());
             if let Some(e) = &rs.error {
                 lines.push(format!("  Erreur  : {}", e));
             }
@@ -797,7 +799,7 @@ pub fn render_team_build_entry(e: &TeamBuildEntry) -> String {
     let mut lines = Vec::new();
     lines.push(TOP.to_string());
     lines.push(two_col(
-        &format!("{}", e.name),
+        &e.name.to_string(),
         &format!("ID: {}", e.id),
     ));
     lines.push(two_col(

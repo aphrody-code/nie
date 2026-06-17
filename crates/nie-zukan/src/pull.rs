@@ -27,7 +27,7 @@ pub struct PullConfig {
     pub output_root: PathBuf,
     /// Langues à puller.
     pub langs: Vec<Lang>,
-    /// Nombre maximum de perso à puller via chara_param (0 = tous).
+    /// Nombre maximum de perso à puller via `chara_param` (0 = tous).
     pub chara_param_limit: usize,
 }
 
@@ -94,8 +94,8 @@ pub fn run_pull(config: &PullConfig) -> Result<PullStats> {
 // chara_list
 // ---------------------------------------------------------------------------
 
-/// Pull toutes les pages de chara_list pour une langue.
-/// Retourne la liste de toutes les entrées (game_id + q).
+/// Pull toutes les pages de `chara_list` pour une langue.
+/// Retourne la liste de toutes les entrées (`game_id` + q).
 pub fn pull_chara_list(
     client: &ZukanClient,
     lang: Lang,
@@ -153,7 +153,7 @@ pub fn pull_chara_list(
 // chara_param
 // ---------------------------------------------------------------------------
 
-/// Pull les chara_param pour une slice d'entrées.
+/// Pull les `chara_param` pour une slice d'entrées.
 /// Écrit les résultats en NDJSON (append).
 pub fn pull_chara_params(
     client: &ZukanClient,
@@ -435,11 +435,10 @@ fn already_fetched_ids(path: &Path, field: &str) -> Result<std::collections::Has
     }
     let content = std::fs::read_to_string(path)?;
     for line in content.lines() {
-        if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
-            if let Some(id) = v.get(field).and_then(|v| v.as_str()) {
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(line)
+            && let Some(id) = v.get(field).and_then(|v| v.as_str()) {
                 set.insert(id.to_owned());
             }
-        }
     }
     Ok(set)
 }

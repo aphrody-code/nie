@@ -836,7 +836,7 @@ impl LobbyManager {
         // `FUN_14008d830(&DAT_1420deb40, "%s:%s:%d", &DAT_14180a9a0, &DAT_14180aa24, 0)`
         // RE incertain : les globales DAT_14180a9a0 / DAT_14180aa24 contiennent
         // probablement le nom du jeu et le nom de build.
-        let bucket_id = format!("IEVR:build:0");
+        let bucket_id = "IEVR:build:0".to_string();
 
         // Reproduit : insertion dans la liste des lobbys actifs
         // `lVar1 = param_1[0x1c]; if (lVar1 == param_1[0x1d]) { grow } else { stride }`
