@@ -446,8 +446,8 @@ impl RngConfig {
             3 => None,
             // LAB_1405b97f0 : local_res8[0..4] = 0, puis CONCAT44(1, 0)
             0 | 4 => Some(Self { low: 0, high: 1 }),
-            // LAB_1405b97db : local_res8[0..4] = 2, puis CONCAT44(1, 2)
-            1 | 2 | _ => Some(Self { low: 2, high: 1 }),
+            // LAB_1405b97db : local_res8[0..4] = 2, puis CONCAT44(1, 2) — couvre 1, 2 et tout autre.
+            _ => Some(Self { low: 2, high: 1 }),
         }
     }
 }
@@ -949,6 +949,7 @@ impl CriManaSoundEx {
 ///
 /// Source: `audio_mana_player_create.c` — lignes 63-76.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub struct ManaAtomPlayerConfig {
     /// Données brutes de configuration (0x18 = 24 bytes).
     ///
@@ -956,11 +957,6 @@ pub struct ManaAtomPlayerConfig {
     pub raw: [u8; 0x18],
 }
 
-impl Default for ManaAtomPlayerConfig {
-    fn default() -> Self {
-        Self { raw: [0u8; 0x18] }
-    }
-}
 
 // ============================================================================
 // Création player CriMana — FUN_140683a20
@@ -1109,7 +1105,7 @@ mod tests {
             output_mode: 0,
         };
         let session = criatom_init(Some(cfg), None).expect("config explicite valide");
-        assert!(session.workspace.len() > 0);
+        assert!(!session.workspace.is_empty());
     }
 
     #[test]

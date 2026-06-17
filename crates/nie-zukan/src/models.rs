@@ -118,7 +118,7 @@ pub struct ZukanChara {
     pub chara_category: Option<String>,
     /// Stats par palier de niveau.
     pub stats: StatCurves,
-    /// URL de l'image portrait (CDN CloudFront).
+    /// URL de l'image portrait (CDN `CloudFront`).
     pub image_url: Option<String>,
     /// Hash de l'image (extrait du path CDN, ex. `dwho-wi8ruk`).
     pub image_hash: Option<String>,
@@ -164,14 +164,14 @@ pub struct ZukanItem {
     pub page: u32,
 }
 
-/// Résultats bruts d'une page chara_list.
+/// Résultats bruts d'une page `chara_list`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CharaListEntry {
     /// Identifiant jeu extrait du lien `chara_model_view/?q=`.
     pub game_id: String,
-    /// q pour chara_param (extrait du lien `chara_param/?q=`).
+    /// q pour `chara_param` (extrait du lien `chara_param/?q=`).
     pub q_param: String,
-    /// q pour chara_model_view.
+    /// q pour `chara_model_view`.
     pub q_model: String,
     /// Nom affiché sur la liste.
     pub name: String,

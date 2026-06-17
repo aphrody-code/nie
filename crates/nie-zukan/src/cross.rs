@@ -1,4 +1,4 @@
-//! Croisement des données Zukan avec le miroir inagle SQLite.
+//! Croisement des données Zukan avec le miroir inagle `SQLite`.
 //!
 //! Aligne `game_id` (ex. `c01000010`) avec `inagle_characters.chara_id`.
 //! Mesure :
@@ -28,7 +28,7 @@ pub fn cross_with_inagle(
             "SELECT DISTINCT internal_code FROM inagle_characters WHERE internal_code IS NOT NULL",
         )?;
         stmt.query_map([], |row| row.get(0))?
-            .filter_map(|r| r.ok())
+            .filter_map(std::result::Result::ok)
             .collect()
     };
 
@@ -63,7 +63,7 @@ pub fn cross_with_inagle(
                 },
             ))
         })?
-        .filter_map(|r| r.ok())
+        .filter_map(std::result::Result::ok)
         .collect()
     };
 
@@ -93,14 +93,13 @@ pub fn cross_with_inagle(
         .collect();
 
     for chara in sample {
-        let inagle = match inagle_stats.get(&chara.game_id) {
-            Some(s) => s,
-            None => continue,
+        let Some(inagle) = inagle_stats.get(&chara.game_id) else {
+            continue;
         };
 
         // Exemple 1 : description localisée (le zukan a souvent une bio que le wiki n'a pas)
-        if let Some(ref desc) = chara.description {
-            if !desc.is_empty() {
+        if let Some(ref desc) = chara.description
+            && !desc.is_empty() {
                 let inagle_desc = if inagle.description_ja.is_empty() {
                     None
                 } else {
@@ -116,7 +115,6 @@ pub fn cross_with_inagle(
                     });
                 }
             }
-        }
 
         // Exemple 2 : courbes de stats (le zukan donne des valeurs Lv50 différentes)
         if let Some(ref stats) = chara.stats.lv50 {
@@ -133,8 +131,8 @@ pub fn cross_with_inagle(
         }
 
         // Exemple 3 : acquisition (入手方法 — absent d'inagle)
-        if let Some(ref acq) = chara.acquisition {
-            if !acq.is_empty() {
+        if let Some(ref acq) = chara.acquisition
+            && !acq.is_empty() {
                 enrichment_examples.push(EnrichmentExample {
                     game_id: chara.game_id.clone(),
                     name_ja: inagle.name_ja.clone(),
@@ -143,7 +141,6 @@ pub fn cross_with_inagle(
                     inagle_value: None, // inagle n'a pas ce champ
                 });
             }
-        }
 
         if enrichment_examples.len() >= 15 {
             break;

@@ -250,7 +250,7 @@ pub fn cpk_scanner<P: AsRef<Path>>(packs_dir: P) -> Result<CpkScanResult, CpkErr
         .filter_map(|entry| {
             let entry = entry.ok()?;
             let path = entry.path();
-            if path.extension()?.to_ascii_lowercase() == "cpk" {
+            if path.extension()?.eq_ignore_ascii_case("cpk") {
                 Some(path)
             } else {
                 None

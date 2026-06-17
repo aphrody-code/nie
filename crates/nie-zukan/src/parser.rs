@@ -55,7 +55,7 @@ fn extract_name_from_ruby_span(span: scraper::ElementRef<'_>) -> String {
         // Pas de ruby : texte brut
         return text_of(span);
     }
-    rubies.iter().map(|r| ruby_text(*r)).collect::<Vec<_>>().join("")
+    rubies.iter().map(|r| ruby_text(*r)).collect::<String>()
 }
 
 // ---------------------------------------------------------------------------
@@ -64,7 +64,7 @@ fn extract_name_from_ruby_span(span: scraper::ElementRef<'_>) -> String {
 
 /// Parse une page de liste de personnages.
 ///
-/// Retourne la liste des entrées (game_id, q_param, q_model, name) et le nombre
+/// Retourne la liste des entrées (`game_id`, `q_param`, `q_model`, name) et le nombre
 /// total de pages (extrait de la pagination).
 pub fn parse_chara_list(html: &str) -> Result<(Vec<CharaListEntry>, u32)> {
     let doc = Html::parse_document(html);
@@ -157,13 +157,11 @@ fn extract_q_from_href(href: &str) -> String {
 /// Extrait `character_id` d'un JSON `{"character_id":["c01000010"]}`.
 fn extract_character_id_from_json(json: &str) -> String {
     // Parser JSON simple : chercher la valeur après "character_id":["]
-    if let Ok(v) = serde_json::from_str::<serde_json::Value>(json) {
-        if let Some(arr) = v.get("character_id").and_then(|v| v.as_array()) {
-            if let Some(id) = arr.first().and_then(|v| v.as_str()) {
+    if let Ok(v) = serde_json::from_str::<serde_json::Value>(json)
+        && let Some(arr) = v.get("character_id").and_then(|v| v.as_array())
+            && let Some(id) = arr.first().and_then(|v| v.as_str()) {
                 return id.to_owned();
             }
-        }
-    }
     String::new()
 }
 
@@ -178,11 +176,10 @@ fn extract_last_page(html: &str) -> u32 {
         let end = rest
             .find(|c: char| !c.is_ascii_digit())
             .unwrap_or(rest.len());
-        if !rest[..end].is_empty() {
-            if let Ok(n) = rest[..end].parse::<u32>() {
+        if !rest[..end].is_empty()
+            && let Ok(n) = rest[..end].parse::<u32>() {
                 max = max.max(n);
             }
-        }
         // Avancer la recherche au-delà de ce qu'on vient de trouver
         search = &search[pos + prefix.len() + end.max(1)..];
     }
@@ -223,7 +220,7 @@ pub fn parse_chara_param(html: &str, game_id: &str, lang: Lang) -> Result<Vec<Zu
     Ok(results)
 }
 
-/// Parse un `<li>` de résultat chara_param.
+/// Parse un `<li>` de résultat `chara_param`.
 fn parse_chara_param_item(
     item: &scraper::ElementRef<'_>,
     game_id: &str,
@@ -336,7 +333,7 @@ fn parse_chara_param_item(
             "学年" | "Grade" | "Niveau" => school_year = Some(val),
             "性別" | "Gender" | "Genre" => gender = Some(val),
             "キャラカテゴリ" | "Character Category" | "Catégorie" => {
-                chara_category = Some(val)
+                chara_category = Some(val);
             }
             _ => {}
         }
@@ -362,7 +359,7 @@ fn parse_chara_param_item(
     }))
 }
 
-/// Extrait les stats depuis un item `<li>` chara_param.
+/// Extrait les stats depuis un item `<li>` `chara_param`.
 ///
 /// Structure HTML : `.param li dl dt` = nom stat, `.param li dl dd table tbody tr td` = valeur
 /// Le HTML ne contient que Lv50 en rendu server-side.
@@ -591,7 +588,7 @@ pub fn parse_item_list(
 // Helpers
 // ---------------------------------------------------------------------------
 
-/// Extrait le hash CDN d'une URL CloudFront.
+/// Extrait le hash CDN d'une URL `CloudFront`.
 ///
 /// Pattern : `https://dxi4wb638ujep.cloudfront.net/1/k/<x>/<y>/<hash>.<ext>`
 fn extract_cdn_hash(url: &str) -> Option<String> {

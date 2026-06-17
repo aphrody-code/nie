@@ -47,7 +47,7 @@ fn main() -> anyhow::Result<()> {
             let off = base + i * STRIDE;
             if off + STRIDE > g4sk.len() { break; }
             
-            let r00 = f32::from_le_bytes(g4sk[off+0..off+4].try_into().unwrap());
+            let r00 = f32::from_le_bytes(g4sk[off..off+4].try_into().unwrap());
             let r01 = f32::from_le_bytes(g4sk[off+4..off+8].try_into().unwrap());
             let tx  = f32::from_le_bytes(g4sk[off+12..off+16].try_into().unwrap());
             let r10 = f32::from_le_bytes(g4sk[off+16..off+20].try_into().unwrap());

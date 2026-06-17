@@ -817,13 +817,12 @@ pub fn ability_list_dispatch(
 
     // --- Hash 0x7d5ab4f6 : guard « pending » ---
     // Source: L69-73 — if pending_flag == 1 : return immédiat (NoOp).
-    if cmd_hash == CMD_HASH_SELECT_ABILITY {
-        if pending_flag {
+    if cmd_hash == CMD_HASH_SELECT_ABILITY
+        && pending_flag {
             return AbilityDispatchResult::NoOp;
         }
         // Sinon : goto LAB_140f58bfa (shared open-menu path après le switch).
         // La logique ci-dessous gère cela (fall-through vers resolve_and_open).
-    }
 
     // --- Hash 0xad4a27a6 : lookup dans liste primaire / overflow ---
     // Source: L124-133 + L134-207.

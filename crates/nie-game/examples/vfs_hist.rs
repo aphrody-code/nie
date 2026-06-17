@@ -22,7 +22,7 @@ fn main() {
         if s.len() < 3 { s.push(path.to_string()); }
     }
     let mut v: Vec<_> = counts.into_iter().collect();
-    v.sort_by(|a, b| b.1.cmp(&a.1));
+    v.sort_by_key(|b| std::cmp::Reverse(b.1));
     println!("total assets = {}", vfs.asset_count());
     for (ext, c) in v.iter().take(50) {
         println!("{:>8}  .{:<14} | {}", c, ext, sample[ext].join("  ::  "));

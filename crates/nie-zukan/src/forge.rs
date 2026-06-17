@@ -93,16 +93,16 @@ pub fn decode_q(q: &str) -> Result<String> {
     Ok(json)
 }
 
-/// Forge un `?q=` pour `chara_param` (filtre par character_id).
+/// Forge un `?q=` pour `chara_param` (filtre par `character_id`).
 ///
-/// Utilise la clé `filter_chara_id_str` qui est la forme utilisée dans chara_list
-/// pour les liens vers chara_param.
+/// Utilise la clé `filter_chara_id_str` qui est la forme utilisée dans `chara_list`
+/// pour les liens vers `chara_param`.
 pub fn q_for_chara_param(character_id: &str) -> Result<String> {
     let json = format!(r#"{{"filter_chara_id_str":["{character_id}"]}}"#);
     encode_q(&json)
 }
 
-/// Forge un `?q=` pour `chara_model_view` (character_id direct).
+/// Forge un `?q=` pour `chara_model_view` (`character_id` direct).
 pub fn q_for_model_view(character_id: &str) -> Result<String> {
     let json = format!(r#"{{"character_id":["{character_id}"]}}"#);
     encode_q(&json)

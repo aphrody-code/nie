@@ -23,7 +23,7 @@ fn dump_headersave_body() {
                 for (i, chunk) in body.chunks(16).enumerate() {
                     let hex: String = chunk.iter().map(|b| format!("{b:02x} ")).collect();
                     let ascii: String = chunk.iter().map(|&b| {
-                        if b >= 0x20 && b < 0x7F { b as char } else { '.' }
+                        if (0x20..0x7F).contains(&b) { b as char } else { '.' }
                     }).collect();
                     println!("{:04x}: {:<48}|{}|", i*16, hex, ascii);
                 }
