@@ -355,6 +355,79 @@ fn dxgi_to_image_format(dxgi: u32) -> Option<DdsImageFormat> {
     }
 }
 
+/// FourCC legacy (`DDS_PIXELFORMAT.dwFourCC`, sans extension DX10) → `image_dds::ImageFormat`.
+///
+/// L'outillage Level-5 écrit certaines textures (visages `_face/*/_base`, mips de secours)
+/// en DDS **legacy** (DXT1/3/5, ATI1/2 = BC4/BC5) au lieu de l'extension DX10. `DXT1` est
+/// décodé comme `BC1RgbaUnorm` (le bit alpha 1-bit est porté par le bloc lui-même).
+fn fourcc_to_image_format(fourcc: &[u8; 4]) -> Option<DdsImageFormat> {
+    match fourcc {
+        b"DXT1" => Some(DdsImageFormat::BC1RgbaUnorm),
+        b"DXT2" | b"DXT3" => Some(DdsImageFormat::BC2RgbaUnorm),
+        b"DXT4" | b"DXT5" => Some(DdsImageFormat::BC3RgbaUnorm),
+        b"ATI1" | b"BC4U" => Some(DdsImageFormat::BC4RUnorm),
+        b"ATI2" | b"BC5U" => Some(DdsImageFormat::BC5RgUnorm),
+        _ => None,
+    }
+}
+
+/// Détermine `(format image_dds, offset des pixels)` depuis un DDS brut (slice débutant au
+/// magic `DDS `). Gère les **deux** familles d'en-tête :
+/// - **extension DX10** : `dxgiFormat` aux 4 octets suivant le `DDS_HEADER` (offset 128),
+///   pixels après l'extension de 20 octets (offset 148) ;
+/// - **legacy** : format lu dans `DDS_PIXELFORMAT` (FourCC compressé, ou masques RGB non
+///   compressés), pixels juste après le `DDS_HEADER` (offset 128).
+///
+/// Le décodeur historique ne lisait que le chemin DX10 → toute texture legacy tombait en
+/// « DXGI non supporté » et le modèle 3D était servi **sans** sa texture. Offsets `DDS_HEADER`
+/// (124 o) + `DDS_PIXELFORMAT` (ddspf à l'offset fichier 76) conformes à la spec Microsoft DDS.
+fn dds_format_and_pixel_offset(dds_slice: &[u8]) -> Option<(DdsImageFormat, usize)> {
+    const HDR_END: usize = 4 + 124; // magic(4) + DDS_HEADER(124) = 128
+    const DX10_PIXELS: usize = HDR_END + 20; // + DDS_HEADER_DXT10(20) = 148
+    // Offsets fichier dans DDS_PIXELFORMAT (struct à l'offset 76 : 4 magic + 72 dans le header).
+    const PF_FLAGS: usize = 80;
+    const PF_FOURCC: usize = 84;
+    const PF_BITCOUNT: usize = 88;
+    const PF_RMASK: usize = 92;
+    const PF_BMASK: usize = 100;
+    const DDPF_FOURCC: u32 = 0x4;
+    const DDPF_RGB: u32 = 0x40;
+
+    if dds_slice.len() < HDR_END {
+        return None;
+    }
+    let pf_flags = u32::from_le_bytes(dds_slice[PF_FLAGS..PF_FLAGS + 4].try_into().ok()?);
+    let fourcc: [u8; 4] = dds_slice[PF_FOURCC..PF_FOURCC + 4].try_into().ok()?;
+
+    if pf_flags & DDPF_FOURCC != 0 {
+        if &fourcc == b"DX10" {
+            if dds_slice.len() < DX10_PIXELS {
+                return None;
+            }
+            let dxgi = u32::from_le_bytes(dds_slice[HDR_END..HDR_END + 4].try_into().ok()?);
+            return dxgi_to_image_format(dxgi).map(|f| (f, DX10_PIXELS));
+        }
+        return fourcc_to_image_format(&fourcc).map(|f| (f, HDR_END));
+    }
+
+    if pf_flags & DDPF_RGB != 0 {
+        // Non compressé : bitcount + masques distinguent BGRA8/RGBA8 (cas 32 bpp Level-5).
+        let bitcount = u32::from_le_bytes(dds_slice[PF_BITCOUNT..PF_BITCOUNT + 4].try_into().ok()?);
+        let r_mask = u32::from_le_bytes(dds_slice[PF_RMASK..PF_RMASK + 4].try_into().ok()?);
+        let b_mask = u32::from_le_bytes(dds_slice[PF_BMASK..PF_BMASK + 4].try_into().ok()?);
+        if bitcount == 32 {
+            // R en octet bas (0x0000_00ff) ⇒ RGBA ; sinon B en octet bas ⇒ BGRA (défaut L5).
+            let fmt = if r_mask == 0x0000_00ff && b_mask == 0x00ff_0000 {
+                DdsImageFormat::Rgba8Unorm
+            } else {
+                DdsImageFormat::Bgra8Unorm
+            };
+            return Some((fmt, HDR_END));
+        }
+    }
+    None
+}
+
 /// Décode une texture spécifique d'un G4TX (l'entrée ayant la plus grande résolution parmi is_dds=true).
 fn decode_best_g4tx_to_png(g4tx_data: &[u8]) -> Option<Vec<u8>> {
     let g4tx = parse_g4tx(g4tx_data).ok()?;
@@ -648,11 +721,10 @@ fn decode_texture_to_rgba(g4tx_data: &[u8], tex: &G4txTexture) -> Option<(u32, u
     }
 
     let offset = tex.data_offset;
-    const DX10_DXGI_OFFSET: usize = 4 + 124; // magic(4) + DDS_HEADER(124) = 128
-    const PIXEL_OFFSET: usize = 4 + 124 + 20; // magic + DDS_HEADER + DX10_EXT = 148
+    const HDR_END: usize = 4 + 124; // magic(4) + DDS_HEADER(124) = 128
 
-    if offset + PIXEL_OFFSET > g4tx_data.len() {
-        warn!("G4TX : DDS payload trop court pour {offset}+{PIXEL_OFFSET} (len={})", g4tx_data.len());
+    if offset + HDR_END > g4tx_data.len() {
+        warn!("G4TX : DDS header trop court (offset {offset}, len {})", g4tx_data.len());
         return None;
     }
 
@@ -665,15 +737,11 @@ fn decode_texture_to_rgba(g4tx_data: &[u8], tex: &G4txTexture) -> Option<(u32, u
         return None;
     }
 
-    // Lit le DXGI format depuis le header DX10.
-    let dxgi_format = u32::from_le_bytes(
-        dds_slice[DX10_DXGI_OFFSET..DX10_DXGI_OFFSET + 4].try_into().ok()?,
-    );
-
-    let image_fmt = match dxgi_to_image_format(dxgi_format) {
-        Some(f) => f,
+    // Résout le format ET l'offset des pixels (DX10 @148 ou legacy/uncompressed @128).
+    let (image_fmt, pixel_offset) = match dds_format_and_pixel_offset(dds_slice) {
+        Some(v) => v,
         None => {
-            warn!("G4TX : DXGI format {dxgi_format} non supporté");
+            warn!("G4TX : format DDS non supporté (ni DX10 connu, ni FourCC/RGB legacy)");
             return None;
         }
     };
@@ -684,7 +752,10 @@ fn decode_texture_to_rgba(g4tx_data: &[u8], tex: &G4txTexture) -> Option<(u32, u
         return None;
     }
 
-    let pixel_data = &dds_slice[PIXEL_OFFSET..];
+    if pixel_offset > dds_slice.len() {
+        return None;
+    }
+    let pixel_data = &dds_slice[pixel_offset..];
 
     // Construit une `Surface` image_dds avec mip0 seulement.
     let surface = DdsSurface {
@@ -1171,7 +1242,7 @@ fn hca_decode_to_pcm16(raw: &[u8], subkey: u16) -> anyhow::Result<(Vec<i16>, u32
     decoder.set_encryption_key(IEVR_HCA_KEY, u64::from(subkey));
 
     let info = decoder.info().clone();
-    let channels = info.channel_count as u32;
+    let channels = info.channel_count;
     let sample_rate = info.sampling_rate;
     let frame_samples = info.samples_per_block * info.channel_count as usize;
     let mut pcm_buf = vec![0i16; frame_samples];
@@ -1997,13 +2068,13 @@ fn load_cpk_file_index(path: &std::path::Path) -> Result<Vec<(String, String)>> 
             continue;
         }
         // Chaque ligne : `["data/.../x.usm","<hash>.cpk"]`.
-        if let Ok(serde_json::Value::Array(arr)) = serde_json::from_str::<serde_json::Value>(line) {
-            if let (Some(p), Some(c)) = (
+        if let Ok(serde_json::Value::Array(arr)) = serde_json::from_str::<serde_json::Value>(line)
+            && let (Some(p), Some(c)) = (
                 arr.first().and_then(serde_json::Value::as_str),
                 arr.get(1).and_then(serde_json::Value::as_str),
-            ) {
-                entries.push((p.to_string(), c.to_string()));
-            }
+            )
+        {
+            entries.push((p.to_string(), c.to_string()));
         }
     }
     Ok(entries)
@@ -2095,6 +2166,68 @@ fn main() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Construit un en-tête DDS minimal (magic + DDS_HEADER de 124 o, + extension si DX10),
+    /// avec `ddspf.flags`/`fourCC` posés aux offsets spec. Suffit à tester la résolution
+    /// de format ; aucune donnée de pixels réelle requise.
+    fn dds_header(pf_flags: u32, fourcc: &[u8; 4], extra: &[(usize, u32)], len: usize) -> Vec<u8> {
+        let mut h = vec![0u8; len];
+        h[0..4].copy_from_slice(b"DDS ");
+        h[80..84].copy_from_slice(&pf_flags.to_le_bytes());
+        h[84..88].copy_from_slice(fourcc);
+        for &(off, val) in extra {
+            h[off..off + 4].copy_from_slice(&val.to_le_bytes());
+        }
+        h
+    }
+
+    #[test]
+    fn dds_legacy_dxt1_resolu_en_bc1_a_128() {
+        // FourCC DXT1 sans extension DX10 (le cas des visages EDIT `base_normal_00`).
+        let h = dds_header(0x4, b"DXT1", &[], 256);
+        let (fmt, off) = dds_format_and_pixel_offset(&h).expect("DXT1 doit être reconnu");
+        assert!(matches!(fmt, DdsImageFormat::BC1RgbaUnorm));
+        assert_eq!(off, 128, "pixels legacy juste après le DDS_HEADER");
+    }
+
+    #[test]
+    fn dds_legacy_ati2_resolu_en_bc5() {
+        let h = dds_header(0x4, b"ATI2", &[], 256);
+        let (fmt, off) = dds_format_and_pixel_offset(&h).expect("ATI2 doit être reconnu");
+        assert!(matches!(fmt, DdsImageFormat::BC5RgUnorm));
+        assert_eq!(off, 128);
+    }
+
+    #[test]
+    fn dds_dx10_bc7_resolu_a_148() {
+        // FourCC DX10 + dxgiFormat 98 (BC7RgbaUnorm) à l'offset 128 ; pixels à 148.
+        let h = dds_header(0x4, b"DX10", &[(128, 98)], 256);
+        let (fmt, off) = dds_format_and_pixel_offset(&h).expect("DX10 BC7 doit être reconnu");
+        assert!(matches!(fmt, DdsImageFormat::BC7RgbaUnorm));
+        assert_eq!(off, 148, "pixels DX10 après l'extension de 20 o");
+    }
+
+    #[test]
+    fn dds_uncompressed_bgra8_resolu_a_128() {
+        // DDPF_RGB, 32 bpp, B en octet bas (masque B=0xff) → BGRA8 (défaut Level-5).
+        let h = dds_header(0x40, &[0; 4], &[(88, 32), (92, 0x00ff_0000), (100, 0x0000_00ff)], 256);
+        let (fmt, off) = dds_format_and_pixel_offset(&h).expect("BGRA8 doit être reconnu");
+        assert!(matches!(fmt, DdsImageFormat::Bgra8Unorm));
+        assert_eq!(off, 128);
+    }
+
+    #[test]
+    fn dds_uncompressed_rgba8_resolu_a_128() {
+        let h = dds_header(0x40, &[0; 4], &[(88, 32), (92, 0x0000_00ff), (100, 0x00ff_0000)], 256);
+        let (fmt, _) = dds_format_and_pixel_offset(&h).expect("RGBA8 doit être reconnu");
+        assert!(matches!(fmt, DdsImageFormat::Rgba8Unorm));
+    }
+
+    #[test]
+    fn dds_fourcc_inconnu_rejete() {
+        let h = dds_header(0x4, b"ZZZZ", &[], 256);
+        assert!(dds_format_and_pixel_offset(&h).is_none());
+    }
 
     /// Valide le déchiffrement HCA réel depuis le premier AWB IEVR.
     ///
