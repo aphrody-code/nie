@@ -42,7 +42,7 @@
 #![forbid(unsafe_code)]
 #![allow(clippy::pedantic)]
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::fs;
 use std::io::{BufRead, BufReader, Write as IoWrite};
 use std::net::{TcpListener, TcpStream};
@@ -124,6 +124,12 @@ struct Cli {
     /// Nombre de threads de travail.
     #[arg(long, default_value_t = 4)]
     threads: usize,
+
+    /// Précharge TOUS les modèles servables (persos/keshin/armures/génériques) dans le cache
+    /// GLB au démarrage, en arrière-plan (le serveur sert immédiatement pendant le warm).
+    /// Idempotent et borné par l'espace disque.
+    #[arg(long)]
+    preload: bool,
 }
 
 // ── État partagé ──────────────────────────────────────────────────────────────
@@ -1456,6 +1462,146 @@ fn get_or_build_chr_glb(state: &State, sub: &str, code: &str) -> Result<GlbBytes
     Ok(glb)
 }
 
+// ── Préchargement du cache (warm) ───────────────────────────────────────────────
+
+/// Une unité de préchargement : un modèle servable à assembler dans le cache.
+enum WarmJob {
+    /// `/model-full/<code>` — personnage (`c…`), keshin (`k…`) ou armure (`ka…`).
+    Full(String),
+    /// `/model-chr/<sub>/<code>` — modèle générique (waza/item/animal).
+    Chr(String, String),
+}
+
+/// Extrait le code d'un chemin VFS de la forme `…<marker>…/<code>/<code><ext>` (dossier == fichier).
+/// Renvoie `None` si le motif ne correspond pas.
+fn code_of_dir_pair(path: &str, marker: &str, ext: &str) -> Option<String> {
+    if !path.contains(marker) || !path.ends_with(ext) {
+        return None;
+    }
+    let file = path.rsplit('/').next()?;
+    let code = file.strip_suffix(ext)?;
+    let parent_path = &path[..path.len() - file.len() - 1];
+    let parent = parent_path.rsplit('/').next()?;
+    (parent == code).then(|| code.to_string())
+}
+
+/// Énumère tous les modèles servables du VFS (persos, keshin, armures, génériques), dédupliqués.
+/// Base du préchargement exhaustif : chaque entrée mappe 1:1 sur une route `/model-full`
+/// ou `/model-chr` et donc sur un appel `get_or_build_*`.
+fn enumerate_servable_codes(vfs: &Vfs) -> Vec<WarmJob> {
+    let mut full: BTreeSet<String> = BTreeSet::new();
+    let mut chr: BTreeSet<(String, String)> = BTreeSet::new();
+    for (path, _) in vfs.iter() {
+        // Personnages : dx11/chr/_face/<série>/<code>/<code>.g4tx (code = c + chiffres).
+        if let Some(code) = code_of_dir_pair(path, "/_face/", ".g4tx")
+            && code.starts_with('c')
+            && code.len() > 1
+            && code[1..].bytes().all(|b| b.is_ascii_digit())
+        {
+            full.insert(code);
+            continue;
+        }
+        // Keshin : common/chr/_keshin/<code>/<code>.g4md (code = k + chiffres, pas `ka`).
+        if let Some(code) = code_of_dir_pair(path, "/_keshin/", ".g4md")
+            && code.starts_with('k')
+            && code.as_bytes().get(1).is_some_and(u8::is_ascii_digit)
+        {
+            full.insert(code);
+            continue;
+        }
+        // Armures : common/chr/_armd/<dir>/<code>.g4md (dossier ≠ code → pas de paire stricte).
+        if path.contains("/_armd/")
+            && path.ends_with(".g4md")
+            && let Some(code) = path.rsplit('/').next().and_then(|f| f.strip_suffix(".g4md"))
+            && code.starts_with("ka")
+        {
+            full.insert(code.to_string());
+            continue;
+        }
+        // Génériques waza/item/animal : common/chr/_<sub>/<code>/<code>.g4mg.
+        for sub in CHR_GENERIC_SUBS {
+            if *sub == "keshin" || *sub == "armd" {
+                continue; // déjà couverts par /model-full
+            }
+            if let Some(code) = code_of_dir_pair(path, &format!("/_{sub}/"), ".g4mg") {
+                chr.insert(((*sub).to_string(), code));
+                break;
+            }
+        }
+    }
+    full.into_iter()
+        .map(WarmJob::Full)
+        .chain(chr.into_iter().map(|(s, c)| WarmJob::Chr(s, c)))
+        .collect()
+}
+
+/// Octets disponibles sur le FS contenant `path` (via `df`). `None` si indéterminé.
+fn free_bytes(path: &Path) -> Option<u64> {
+    let out = std::process::Command::new("df")
+        .arg("-B1")
+        .arg("--output=avail")
+        .arg(path)
+        .output()
+        .ok()?;
+    String::from_utf8_lossy(&out.stdout).lines().nth(1)?.trim().parse::<u64>().ok()
+}
+
+/// Seuil d'arrêt du préchargement : on stoppe si l'espace libre passe sous 3 Gio.
+const PRELOAD_MIN_FREE_BYTES: u64 = 3 * 1024 * 1024 * 1024;
+
+/// Lance le préchargement en arrière-plan : assemble TOUS les modèles servables dans le cache.
+/// Le serveur reste disponible pendant le warm. Idempotent (cache hit = saut), multi-thread
+/// (`workers`), arrêté si le disque devient critique.
+fn spawn_preload(state: Arc<State>, workers: usize) {
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering::Relaxed};
+    thread::spawn(move || {
+        let jobs = {
+            let vfs = state.vfs.lock().unwrap();
+            enumerate_servable_codes(&vfs)
+        };
+        let total = jobs.len();
+        info!("préchargement : {total} modèles servables énumérés — warm du cache en cours…");
+        let jobs = Arc::new(jobs);
+        let next = Arc::new(AtomicUsize::new(0));
+        let done = Arc::new(AtomicUsize::new(0));
+        let stop = Arc::new(AtomicBool::new(false));
+        let mut handles = Vec::new();
+        for _ in 0..workers.max(1) {
+            let (jobs, next, done, stop, state) =
+                (jobs.clone(), next.clone(), done.clone(), stop.clone(), state.clone());
+            handles.push(thread::spawn(move || loop {
+                if stop.load(Relaxed) {
+                    break;
+                }
+                let i = next.fetch_add(1, Relaxed);
+                if i >= jobs.len() {
+                    break;
+                }
+                let res = match &jobs[i] {
+                    WarmJob::Full(code) => get_or_build_glb(&state, code).map(|_| ()),
+                    WarmJob::Chr(sub, code) => get_or_build_chr_glb(&state, sub, code).map(|_| ()),
+                };
+                if let Err(e) = res {
+                    debug!("préchargement : entrée {i} non assemblable : {e}");
+                }
+                let n = done.fetch_add(1, Relaxed) + 1;
+                if n.is_multiple_of(200) {
+                    if free_bytes(&state.cache_dir).is_some_and(|f| f < PRELOAD_MIN_FREE_BYTES) {
+                        warn!("préchargement : espace disque < 3 Gio — arrêt à {n}/{total}");
+                        stop.store(true, Relaxed);
+                        break;
+                    }
+                    info!("préchargement : {n}/{total} modèles traités");
+                }
+            }));
+        }
+        for h in handles {
+            let _ = h.join();
+        }
+        info!("préchargement terminé : {}/{total} modèles dans le cache", done.load(Relaxed));
+    });
+}
+
 // ── Serveur HTTP minimal ──────────────────────────────────────────────────────
 
 /// Réponse HTTP.
@@ -2142,6 +2288,11 @@ fn main() -> Result<()> {
         .with_context(|| format!("bind {addr}"))?;
     info!("nie-model-serve en écoute sur http://{addr}");
 
+    // Préchargement optionnel : warm exhaustif du cache GLB en arrière-plan.
+    if cli.preload {
+        spawn_preload(state.clone(), cli.threads);
+    }
+
     // Pool de threads simple (accepte les connexions dans le thread principal,
     // les traite dans des threads indépendants).
     for stream in listener.incoming() {
@@ -2227,6 +2378,29 @@ mod tests {
     fn dds_fourcc_inconnu_rejete() {
         let h = dds_header(0x4, b"ZZZZ", &[], 256);
         assert!(dds_format_and_pixel_offset(&h).is_none());
+    }
+
+    #[test]
+    fn preload_code_of_dir_pair() {
+        // Personnage : dossier == stem du fichier → code extrait.
+        assert_eq!(
+            code_of_dir_pair("data/dx11/chr/_face/01_IE1/c01000010/c01000010.g4tx", "/_face/", ".g4tx")
+                .as_deref(),
+            Some("c01000010")
+        );
+        // Keshin.
+        assert_eq!(
+            code_of_dir_pair("data/common/chr/_keshin/k000010/k000010.g4md", "/_keshin/", ".g4md")
+                .as_deref(),
+            Some("k000010")
+        );
+        // Dossier ≠ fichier (texture de partie, pas un modèle) → rejeté.
+        assert_eq!(
+            code_of_dir_pair("data/dx11/chr/_face/01_IE1/c01000010/base_normal_00.g4tx", "/_face/", ".g4tx"),
+            None
+        );
+        // Marqueur absent → rejeté.
+        assert_eq!(code_of_dir_pair("data/x/y/z.g4tx", "/_face/", ".g4tx"), None);
     }
 
     /// Valide le déchiffrement HCA réel depuis le premier AWB IEVR.
