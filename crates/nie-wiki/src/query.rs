@@ -417,7 +417,7 @@ fn skill_row_map(row: &rusqlite::Row<'_>) -> rusqlite::Result<SkillProfile> {
         .or_else(|| {
             merged.get("element").and_then(|v| v.as_str())
         })
-        .map(|e| crate::model::element_fr_to_en(e));
+        .map(crate::model::element_fr_to_en);
 
     let category = category_fr
         .as_deref()
@@ -429,7 +429,7 @@ fn skill_row_map(row: &rusqlite::Row<'_>) -> rusqlite::Result<SkillProfile> {
         .or_else(|| {
             merged.get("category").and_then(|v| v.as_str())
         })
-        .map(|c| crate::model::category_fr_to_en(c));
+        .map(crate::model::category_fr_to_en);
 
     // description fallbacks depuis merged
     let desc_fr = description_fr.or_else(|| {
@@ -554,8 +554,8 @@ fn item_row_map(row: &rusqlite::Row<'_>) -> rusqlite::Result<ItemProfile> {
 
 fn parse_shops(shops_col: Option<&str>, merged: &Value) -> Vec<String> {
     // Tente la colonne shops (JSON) puis merged.shops.fr
-    if let Some(s) = shops_col {
-        if let Ok(val) = serde_json::from_str::<Value>(s) {
+    if let Some(s) = shops_col
+        && let Ok(val) = serde_json::from_str::<Value>(s) {
             if let Some(arr) = val.as_array() {
                 let names: Vec<String> = arr
                     .iter()
@@ -576,7 +576,6 @@ fn parse_shops(shops_col: Option<&str>, merged: &Value) -> Vec<String> {
                 }
             }
         }
-    }
     // Fallback merged.shops
     merged
         .get("shops")
@@ -1177,6 +1176,8 @@ pub fn random_team(
         },
     )?;
 
+    // Ligne SQL d'un coordinateur : (game_id, name_ja, role, ?, ?).
+    type CoordRow = (i64, String, Option<String>, Option<String>, Option<String>);
     let mut coaches: Vec<_> = all_coords
         .iter()
         .filter(|(_, _, _, role, _)| role.as_deref() == Some("Coach") || role.as_deref() == Some("Manager"))
@@ -1186,9 +1187,7 @@ pub fn random_team(
         .filter(|(_, _, _, role, _)| role.as_deref() == Some("Coordinator"))
         .collect();
 
-    let pick_coord = |pool: &mut Vec<&(i64, String, Option<String>, Option<String>, Option<String>)>,
-                      rng: &mut SmallRng|
-     -> Option<RandomTeamCoord> {
+    let pick_coord = |pool: &mut Vec<&CoordRow>, rng: &mut SmallRng| -> Option<RandomTeamCoord> {
         if pool.is_empty() {
             return None;
         }

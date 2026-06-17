@@ -84,7 +84,7 @@ fn parse_headersave_ancres_validees() {
 
     // Le slot TYPE-B avec l'horodatage 2026-05-08T12:41:54 doit exister
     let type_b_with_dt = hs.slots.iter().find(|s| {
-        s.slot_datetime.as_ref().map_or(false, |dt| dt.year == 2026 && !dt.is_unset())
+        s.slot_datetime.as_ref().is_some_and(|dt| dt.year == 2026 && !dt.is_unset())
     });
     assert!(
         type_b_with_dt.is_some(),

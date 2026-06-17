@@ -947,7 +947,7 @@ fn nw_hca_to_pcm16(raw: &[u8], subkey: u16) -> Result<(Vec<i16>, u32, u32), Stri
     // ciph_type=56 : la clé DOIT être posée avant toute trame.
     decoder.set_encryption_key(NW_IEVR_HCA_KEY, u64::from(subkey));
     let info = decoder.info().clone();
-    let channels = info.channel_count as u32;
+    let channels = info.channel_count;
     let sample_rate = info.sampling_rate;
     let frame_samples = info.samples_per_block * info.channel_count as usize;
     let mut pcm_buf = vec![0i16; frame_samples];
@@ -1711,9 +1711,8 @@ mod tests {
     #[test]
     fn parse_save_json_conteneur_minimal() {
         use nie_save::{
-            Blob, BlobHeader, BlobSubtype, DirEntry, LivesContainer,
-            BLOB_MAGIC, BLOB_SUBTYPE_HEADERSAVE, DATA_START, DIR_OFFSET,
-            DIR_ENTRY_STRIDE, LIVES_MAGIC, LIVES_CONST2, BLOB_HEADER_SIZE,
+            Blob, BlobHeader, BlobSubtype,
+            BLOB_MAGIC, BLOB_SUBTYPE_HEADERSAVE, DATA_START, DIR_OFFSET, LIVES_MAGIC, LIVES_CONST2,
             crc32_of_pub, key_from_filename, decrypt_block,
         };
 

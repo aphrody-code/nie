@@ -524,11 +524,10 @@ pub fn bone_blend(
         }
 
         // Filtre weight_table : lVar15 == 0 || weight_table[local_bone_idx] > 0.0
-        if let Some(wtbl) = weight_table {
-            if wtbl.get(i).copied().unwrap_or(0.0) <= 0.0 {
+        if let Some(wtbl) = weight_table
+            && wtbl.get(i).copied().unwrap_or(0.0) <= 0.0 {
                 continue;
             }
-        }
 
         // Blend : FUN_140585c60(dst[bone_idx], src[bone_idx], fVar16)
         // RE incertain: FUN_140585c60 = interpolation linéaire de Transform3x4
@@ -542,11 +541,10 @@ pub fn bone_blend(
 
         // si parité == 1 : dirty[bone_idx] = 1
         // *(undefined1 *)(uVar11 + param_3[2]) = 1
-        if parity != 0 {
-            if let Some(d) = desc.dst_dirty.get_mut(global_bone_idx) {
+        if parity != 0
+            && let Some(d) = desc.dst_dirty.get_mut(global_bone_idx) {
                 *d = 1;
             }
-        }
     }
 
     // si bVar9 != 0 : *(float *)(param_3 + 3) = fVar16
@@ -722,6 +720,7 @@ pub fn update_pose_buffers(anim: &mut GmdCAnimation) -> Result<(), PoseAllocErro
 /// - 0 = animation simple (skeleton uniquement)
 /// - 1 = animation avec skeletal blend
 /// - 2 = animation avec ressource G4MT (motion table)
+///
 /// Tout autre valeur → retour succès immédiat sans action.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(i32)]

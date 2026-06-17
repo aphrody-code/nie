@@ -1001,11 +1001,11 @@ mod tests {
     fn parser_inline_ctrl_nonzero_utilise_inline_float() {
         let mut desc = make_descriptor_inline();
         desc.inline_ctrl = 1;
-        desc.inline_float = 3.14;
+        desc.inline_float = 2.5;
         let result = cfgbin_parser(&desc, None);
         if let ParseResult::Inline { inline_params, .. } = result {
-            // float_val = param_2[0x16] = inline_float
-            assert!((inline_params.float_val - 3.14_f32).abs() < 1e-5);
+            // float_val = param_2[0x16] = inline_float (valeur de test arbitraire)
+            assert!((inline_params.float_val - 2.5_f32).abs() < 1e-5);
         } else {
             panic!("attendu Inline");
         }

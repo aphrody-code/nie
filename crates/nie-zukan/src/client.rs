@@ -41,7 +41,7 @@ impl ZukanClient {
             .connect_timeout(Duration::from_secs(10))
             .build()
             .context("construction du client HTTP")?;
-        Ok(Self { cache_root, inner })
+        Ok(Self { inner, cache_root })
     }
 
     /// Retourne le chemin de cache pour une URL donnée.

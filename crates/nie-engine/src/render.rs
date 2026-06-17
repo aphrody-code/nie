@@ -27,6 +27,13 @@
 //! les fonctions renvoient des codes d'erreur correspondant au comportement d'absence d'adaptateur.
 //! Les IID DXGI sont stockés comme des tableaux d'octets documentés.
 
+// Port transitoire des structures C de D3D11/DXGI : chaque struct est documentée au niveau
+// struct (origine décompilée + offsets), et ses CHAMPS miroitent 1:1 les membres C à noms
+// canoniques. `missing_docs` est désactivé au niveau module pour ne pas exiger un commentaire
+// trivial par champ — les fonctions et enums publics restent documentés. (Module retargeté
+// vers wgpu, cf. docs/STACK.md ; le crate reste `#![warn(missing_docs)]`.)
+#![allow(missing_docs)]
+
 // porte de : d3d11_device_init.c, d3d11_fullscreen_quad_setup.c,
 //            d3d11_swapchain_display_setup.c, d3d11_texture_resource_create.c,
 //            dxgi_format_utils.c, compute_shader_tilelight_init.c,
@@ -69,12 +76,19 @@ use thiserror::Error;
 pub struct HResult(pub u32);
 
 impl HResult {
+    /// Succès (`S_OK`, 0).
     pub const S_OK: Self = Self(0);
+    /// Échec non spécifié (`E_FAIL`, 0x80004005).
     pub const E_FAIL: Self = Self(0x80004005);
+    /// Interface non supportée (`E_NOINTERFACE`, 0x80004002).
     pub const E_NOINTERFACE: Self = Self(0x80004002);
+    /// Argument invalide (`E_INVALIDARG`, 0x80070057).
     pub const E_INVALIDARG: Self = Self(0x80070057);
+    /// Mémoire insuffisante (`E_OUTOFMEMORY`, 0x8007000e).
     pub const E_OUTOFMEMORY: Self = Self(0x8007000e);
+    /// Non implémenté (`E_NOTIMPL`, 0x80004001).
     pub const E_NOTIMPL: Self = Self(0x80004001);
+    /// Échec inattendu (`E_UNEXPECTED`, 0x8000ffff).
     pub const E_UNEXPECTED: Self = Self(0x8000ffff);
     // Codes spécifiques D3D11 observés dans le décompilé
     /// ERROR_NOT_SUPPORTED (0x80070032) — format DXGI non supporté
@@ -86,10 +100,12 @@ impl HResult {
     /// ERROR_HANDLE_EOF (0x80070026) — données source insuffisantes
     pub const D3DERR_BUFFER_TOO_SMALL: Self = Self(0x80070026);
 
+    /// Vrai si le HRESULT indique un succès (bit de poids fort à 0, comme `SUCCEEDED`).
     #[inline]
     pub fn succeeded(self) -> bool {
         (self.0 as i32) >= 0
     }
+    /// Vrai si le HRESULT indique un échec (complément de [`HResult::succeeded`]).
     #[inline]
     pub fn failed(self) -> bool {
         !self.succeeded()
@@ -109,6 +125,7 @@ impl std::fmt::Display for HResult {
 /// Format DXGI — sous-ensemble des valeurs DXGI_FORMAT utilisées dans le moteur.
 /// Porte de : dxgi_format_utils.c (`FUN_140459110`, `FUN_140459210`)
 /// Les valeurs numériques correspondent exactement aux enum DXGI_FORMAT Windows.
+/// Les variantes sont un miroir 1:1 de l'enum C `DXGI_FORMAT` (noms canoniques).
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u32)]
@@ -435,7 +452,7 @@ pub fn dxgi_format_bits_per_element_corrected(fmt: u32) -> u32 {
         103 | 106 | 110 => 0xc,
         104 | 105 => 0x18,
         // Pour les cas 0x6f=111,0x70=112,0x71=113 le C retourne 8 (groupe 0x3c..=0x71)
-        111 | 112 | 113 => 8,
+        111..=113 => 8,
         _ => dxgi_format_bits_per_element(fmt),
     }
 }
@@ -629,20 +646,28 @@ pub struct D3d11DeviceInitResult {
 /// Erreur du pipeline de rendu.
 #[derive(Debug, Error)]
 pub enum RenderError {
+    /// Aucun adaptateur DXGI compatible n'a été trouvé.
     #[error("Pas d'adaptateur DXGI compatible trouvé")]
     NoAdapter,
+    /// La création du device D3D11 a échoué (HRESULT joint).
     #[error("Création du device D3D11 échouée : {0}")]
     DeviceCreationFailed(HResult),
+    /// Le format DXGI demandé n'est pas supporté (valeur jointe).
     #[error("Format DXGI non supporté : {0}")]
     UnsupportedFormat(u32),
+    /// Paramètre de texture invalide (HRESULT joint).
     #[error("Paramètre invalide pour la texture : {0}")]
     InvalidTextureParam(HResult),
+    /// La taille de surface calculée déborde (HRESULT joint).
     #[error("Overflow de taille de surface : {0}")]
     SurfaceOverflow(HResult),
+    /// Le buffer source fourni est trop petit.
     #[error("Buffer source insuffisant")]
     BufferTooSmall,
+    /// Le shader nommé est introuvable.
     #[error("Shader non trouvé : {0}")]
     ShaderNotFound(&'static str),
+    /// L'appel `D3DReflect` a échoué.
     #[error("D3DReflect échoué")]
     ReflectFailed,
 }
@@ -657,16 +682,21 @@ pub enum RenderError {
 /// +0x80 (dimension), +0x84 (misc_flags), +0x88 (array_size).
 #[derive(Debug, Clone)]
 pub struct DdsHeader {
+    /// Flags d'en-tête DDS (`dwFlags`, offset +4).
     pub flags: u32,
+    /// Hauteur en pixels (offset +8).
     pub height: u32,
+    /// Largeur en pixels (offset +0xc).
     pub width: u32,
     /// Depth (texture 3D) ou 0 pour 2D
     pub depth: u32,
     /// Nombre de niveaux mip
     pub mip_count: u32,
+    /// Flags secondaires (`ddspf.dwFlags`, offset +0x4c).
     pub flags2: u8,
     /// FourCC DDS (0x30315844 = "DX10" extension présente)
     pub fourcc: u32,
+    /// Caps DDS (`dwCaps`, offset +0x6c).
     pub caps: u32,
     /// Format DXGI (extension DX10)
     pub dxgi_format: u32,
@@ -969,8 +999,8 @@ pub fn d3d11_enumerate_display_modes(
     // param_4[1] == 0 → retour immédiat avec liste vide.
     // Note : le fallback mode fenêtré est géré à la fin même si la liste est vide.
 
-    let target_width = (params.current_resolution >> 16) as u32;
-    let target_height = (params.current_resolution & 0xffff) as u32;
+    let target_width = params.current_resolution >> 16;
+    let target_height = params.current_resolution & 0xffff;
     let target_float_h = target_height as f32;
 
     // Reproduit le filtre du décompilé :
@@ -1273,7 +1303,7 @@ pub fn d3d11_texture_resource_create(
             };
         }
         // Formats non supportés : 0x6f=111, 0x70=112, 0x71=113, 0x72=114
-        if matches!(fmt, 111 | 112 | 113 | 114) {
+        if matches!(fmt, 111..=114) {
             return TextureResourceCreateResult {
                 hresult: HResult::D3DERR_FORMAT_NOT_SUPPORTED,
                 subresource_count: 0,
