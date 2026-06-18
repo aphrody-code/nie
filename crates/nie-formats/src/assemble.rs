@@ -1456,7 +1456,7 @@ fn build_glb_embedded(model: &AssembledModel) -> Vec<u8> {
         }));
 
         let tex_idx = texture_defs.len();
-        texture_defs.push(json!({ "source": img_idx, "name": etex.name }));
+        texture_defs.push(json!({ "source": img_idx, "name": etex.name, "sampler": 0 }));
 
         let mat_idx = material_defs.len();
         material_defs.push(json!({
@@ -1623,6 +1623,10 @@ fn build_glb_embedded(model: &AssembledModel) -> Vec<u8> {
     if !image_defs.is_empty() {
         gltf_obj["images"] = json!(image_defs);
         gltf_obj["textures"] = json!(texture_defs);
+        // Wrap CLAMP_TO_EDGE (33071) au lieu du REPEAT par défaut : certains maillages (visage/
+        // cheveux) ont des UV hors [0,1] (ex. face mesh en [-1,1]) → en REPEAT l'atlas se RÉPÈTE
+        // sur toute la tête (visages/yeux tuilés, y compris à l'arrière). CLAMP fige sur le bord.
+        gltf_obj["samplers"] = json!([{ "wrapS": 33071, "wrapT": 33071 }]);
     }
 
     // ── Sérialisation GLB ─────────────────────────────────────────────────────
