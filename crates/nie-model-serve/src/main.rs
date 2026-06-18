@@ -59,7 +59,7 @@ use tracing::{debug, error, info, warn};
 use nie_formats::assemble::{
     CharacterAssemblyInput, EmbeddedTexture, GenericModelInput, MeshComponent, SeasonKey,
     assemble_armed, assemble_character_model, assemble_generic_model, assemble_keshin,
-    g4md_to_g4mg_path, load_manifest, resolve_crc_to_g4md_path, type_idx_to_glb_name,
+    g4md_to_g4mg_path, load_manifest, resolve_crc_to_g4md_path,
 };
 use nie_formats::g4tx::{G4txTexture, parse as parse_g4tx};
 use nie_formats::cfgbin;
@@ -840,32 +840,6 @@ fn load_face_texture_png(state: &State, code: &str) -> Option<Vec<u8>> {
     png
 }
 
-/// Construit le chemin VFS de la texture de **peau (corps)** depuis le type de corps.
-/// La maille de corps vient d'un GLB pré-converti `base_<classe>_NN` ; sa texture partage
-/// le même nom de base sous `dx11/chr/_face/20_EDIT/_base/` (vérifié sur model-crc-manifest).
-fn body_g4tx_vfs_path(body_type_idx: u8) -> Option<String> {
-    let name = type_idx_to_glb_name(body_type_idx)?;
-    Some(format!("data/dx11/chr/_face/20_EDIT/_base/{name}.g4tx"))
-}
-
-/// Tente de charger et décoder la texture de peau (corps) en PNG.
-/// Retourne `None` (→ corps en matériau `Default`, aucun changement) si la texture est
-/// absente ou indécodable : aucun risque de régression vs le comportement actuel.
-fn load_body_texture_png(state: &State, body_type_idx: u8) -> Option<Vec<u8>> {
-    let vfs_path = body_g4tx_vfs_path(body_type_idx)?;
-    debug!("chargement texture corps : {vfs_path}");
-
-    let g4tx_data = {
-        let vfs = state.vfs.lock().unwrap();
-        vfs.read(&vfs_path).ok()
-    }?;
-
-    let png = decode_best_g4tx_to_png(&g4tx_data);
-    if png.is_none() {
-        warn!("décodage G4TX corps {vfs_path} échoué");
-    }
-    png
-}
 
 /// Tente de charger et décoder la texture d'uniforme depuis un chemin VFS G4TX.
 /// Retourne `None` si le G4TX est absent ou le décodage échoue.
@@ -971,21 +945,27 @@ fn assemble_chara(state: &State, code: &str) -> Result<GlbBytes> {
     let mut model = assemble_character_model(&input)
         .with_context(|| format!("assemblage personnage {code}"))?;
 
-    // Tente de charger et décoder la texture de peau (corps) depuis le VFS.
-    // Le corps vient d'un GLB pré-converti sans material_name → sans ça, maille blanche
-    // (matériau `Default`) malgré ses UV. La peau de base vit sous `_face/20_EDIT/_base/`.
-    if let Some(png_bytes) = load_body_texture_png(state, body_type_idx) {
-        info!("texture corps embarquée : {} ({} B PNG)", code, png_bytes.len());
+    // Charge la texture d'UNIFORME une seule fois. Elle habille à la fois le maillage d'uniforme
+    // ET le corps de base : le corps VISIBLE du perso EST l'uniforme (réf. art officielle —
+    // tunique + ceinture), pas une « peau de base ». L'ancien placeholder
+    // `_face/20_EDIT/_base/{type}.g4tx` (32×32) donnait un corps jaune uni cassé.
+    let uniform_png = uniform_g4tx_path
+        .as_deref()
+        .and_then(|path| load_uniform_texture_png(state, path));
+
+    // Corps de base → texture d'uniforme (au lieu du placeholder de peau 32×32).
+    if let Some(png_bytes) = uniform_png.clone() {
+        info!("texture corps (uniforme) embarquée : {} ({} B PNG)", code, png_bytes.len());
         model.embedded_textures.push(EmbeddedTexture {
             component: MeshComponent::Body,
             name: format!("{code}_body"),
             png_bytes,
         });
     } else {
-        debug!("texture corps absente/non décodée pour {code} — matériau Default");
+        debug!("uniforme indisponible pour le corps de {code} — matériau Default");
     }
 
-    // Tente de charger et décoder la texture de face depuis le VFS.
+    // Visage : atlas de visage (inchangé).
     if let Some(png_bytes) = load_face_texture_png(state, code) {
         info!("texture face embarquée : {} ({} B PNG)", code, png_bytes.len());
         model.embedded_textures.push(EmbeddedTexture {
@@ -997,21 +977,16 @@ fn assemble_chara(state: &State, code: &str) -> Result<GlbBytes> {
         debug!("texture face absente/non décodée pour {code} — matériau Default");
     }
 
-    // Tente de charger et décoder la texture de l'uniforme depuis le VFS.
-    if let Some(g4tx_path) = uniform_g4tx_path {
-        match load_uniform_texture_png(state, &g4tx_path) {
-            Some(png_bytes) => {
-                info!("texture uniforme embarquée : {} ({} B PNG, {})", code, png_bytes.len(), g4tx_path);
-                model.embedded_textures.push(EmbeddedTexture {
-                    component: MeshComponent::Uniform,
-                    name: format!("{code}_uniform"),
-                    png_bytes,
-                });
-            }
-            None => {
-                debug!("texture uniforme {g4tx_path} absente/non décodée — matériau Default");
-            }
-        }
+    // Uniforme : même texture que le corps.
+    if let Some(png_bytes) = uniform_png {
+        info!("texture uniforme embarquée : {} ({} B PNG)", code, png_bytes.len());
+        model.embedded_textures.push(EmbeddedTexture {
+            component: MeshComponent::Uniform,
+            name: format!("{code}_uniform"),
+            png_bytes,
+        });
+    } else {
+        debug!("texture uniforme absente/non décodée pour {code} — matériau Default");
     }
 
     Ok(model.to_glb_embedded())
