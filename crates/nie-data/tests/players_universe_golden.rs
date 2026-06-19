@@ -222,7 +222,7 @@ fn star_sign_chara_rarete_et_taux() {
     assert_eq!(c0.chara_rate_boost_a, 0);
     assert!(c0.is_remarkable);
     assert_eq!(c0.enable_cond, "0xFFFFFFFF");
-    // Dernier perso de la fixture (entrée 5011 du dump) : Normal, non-remarquable.
+    // Dernier perso de la fixture (entrée 5009 du dump) : Normal, non-remarquable.
     let last = cfg.star_sign_charas.last().unwrap();
     assert_eq!(last.chara_param_id, HashId(0x2DB0_BE2E));
     assert_eq!(last.chara_rarity, 0);
@@ -320,6 +320,11 @@ fn event_effets_resultat() {
 // ════════════════════════════════════════════════════════════════════════════════
 //  Test optionnel sur le vrai dump complet (sauté si absent du disque, comme les
 //  autres golden : le cfg.bin vit dans le VFS, pas extrait en .json par défaut).
+//
+//  Vérité terrain = le .json de référence (5010 charas). NB : le .cfg.bin RDBN posé à
+//  côté est un snapshot ANTÉRIEUR (4793 charas, parsé byte-exact par nie-formats — les
+//  9 autres listes coïncident) ; le pool de tirage a grossi entre les deux extractions,
+//  même nom de version dans le fichier. Le golden valide le parsing nie-data du .json.
 // ════════════════════════════════════════════════════════════════════════════════
 
 const REAL_PATH: &str =
@@ -342,10 +347,10 @@ fn comptes_listes_vrai_dump() {
     assert_eq!(cfg.universe_star_signs.len(), 30, "m_universeStarSignInfoList");
     assert_eq!(cfg.universe_star_sign_sets.len(), 1, "m_universeStarSignSetDataList");
     assert_eq!(cfg.star_signs.len(), 30, "m_starSignInfoList");
-    assert_eq!(cfg.star_sign_charas.len(), 5012, "m_starSignCharaInfoList");
+    assert_eq!(cfg.star_sign_charas.len(), 5010, "m_starSignCharaInfoList");
     assert_eq!(cfg.star_sign_rarity_rates.len(), 90, "m_starSignRarityRateInfoList");
     assert_eq!(cfg.star_sign_chara_sets.len(), 30, "m_starSignCharaSetDataList");
     // Spot-check profond cohérent avec la fixture embarquée.
     assert_eq!(cfg.stars[0].star_name_hash, HashId(0x193E_6BEA));
-    assert_eq!(cfg.star_sign_charas[5011].chara_param_id, HashId(0x2DB0_BE2E));
+    assert_eq!(cfg.star_sign_charas[5009].chara_param_id, HashId(0x2DB0_BE2E));
 }
