@@ -364,6 +364,58 @@ const REVERSED_RETURN1: &[u32] = &[
     0x9D68_8EB3,
 ];
 
+/// cmdId `funcLuaMenuCommand` reversés sur le binaire **COURANT** (`nie_eacpatched.exe`, 3 juin 2026
+/// — build distinct de celui des reversals historiques : les VAs de handler ont glissé, mais les
+/// cmdId, eux, sont stables car hash du nom de commande). Repérés par le triage déterministe
+/// `scripts/triage_funclua_handlers.py` (iced-x86 + bornes `.pdata` à chunks chaînés) : setters à
+/// **ret unique**, **AUCUNE définition `al/eax = 0` dans le corps**, **définition finale `al = 1`**
+/// → renvoient **1 inconditionnellement** (classe `RETURN_1_SAFE` du triage ; z0=0). Les args
+/// numériques arrivent en f64 ; le champ moteur écrit n'est pas modélisé dans `MenuObjectState`
+/// (comme nombre de setters déjà portés) → on renvoie 1, même sémantique que [`REVERSED_RETURN1`].
+/// Deux sous-ensembles, tous deux `RETURN_1_SAFE` :
+/// - **sans aucune déf `al=0`** (renvoient 1 sur tout chemin) : `0x804ACF1A→0x140CB0320`
+///   `0xA30EF40C→0x140CA56A0` `0x1246829F→0x140C8BDC0` `0x0FA7DBFF→0x140CAFDE0` `0x2BC23608→0x140CAFB70`.
+/// - **`al=0` confiné au bloc d'échec de la garde d'arité** (`cmp edx,N ; jae MAIN ; …xor al,al;ret`),
+///   vérifié en flux-de-contrôle : ce bloc est mort à l'exécution (les scripts livrés passent ≥N args,
+///   sinon le jeu ne tournerait pas) → renvoient 1 au runtime : `0x86544EF0→0x140C8C520` (N=3)
+///   `0x4B438A8F→0x140C87E80` (N=2) `0xF53E842E→0x140C8C190` (N=1) `0x66F84ED3→0x140C8BCC0` (N=1)
+///   `0xD9CFE5C9→0x140CAF0B0` (N=2). Détecteur : `scripts/triage_funclua_handlers.py` (classe
+///   `RETURN_1_SAFE`, colonne `zero=none|guard`).
+const ARG_GUARDED_RETURN1: &[u32] = &[
+    0x804A_CF1A,
+    0xA30E_F40C,
+    0x1246_829F,
+    0x0FA7_DBFF,
+    0x2BC2_3608,
+    0x8654_4EF0,
+    0x4B43_8A8F,
+    0xF53E_842E,
+    0x66F8_4ED3,
+    0xD9CF_E5C9,
+    // 2ᵉ lot (triage top-40, freq 22-27 ; mêmes critères CF, spot-check `0x85179093` = `cmp edx,2;
+    // jae` → fallthrough `xor al,al;ret` seul 0, corps → `mov al,1;ret`) :
+    0x8517_9093, // h 0x140C979F0 (zero=guard n=2)
+    0x4350_26E5, // h 0x140CB0EF0 (zero=guard n=1)
+    0xE652_E999, // h 0x140CB05D0 (zero=none)
+    0xD07D_9BAE, // h 0x140C8BAD0 (zero=none)
+    0x038D_9994, // h 0x140C99F80 (zero=guard n=3)
+    0x71AB_6035, // h 0x140CAFC50 (zero=none)
+    0x56A5_DCC3, // h 0x140CB0DD0 (zero=guard n=1)
+    // 3ᵉ lot (triage top-60, freq 13-21 ; mêmes critères CF `RETURN_1_SAFE`) :
+    0xA671_0517, // h 0x140CAF6B0 (zero=none)
+    0x8E65_8E4A, // h 0x140C8BFE0 (zero=guard n=1)
+    0xE833_C122, // h 0x140C96370 (zero=guard n=2)
+    0x5C79_799E, // h 0x140CAA380 (zero=guard n=3)
+    0x7EF0_B9C7, // h 0x140CB0CF0 (zero=none)
+    0xA117_EB12, // h 0x140CAD5C0 (zero=guard n=3)
+    0x785E_9A3C, // h 0x140C7E9E0 (zero=guard n=2)
+    0x701E_F8D3, // h 0x140C78AB0 (zero=guard n=1)
+    0x8868_506B, // h 0x140C8B120 (zero=guard n=1)
+    // 4ᵉ lot (triage top-90, freq 8-12 — traîne, mêmes critères CF `RETURN_1_SAFE`) :
+    0x346C_6F21, 0x3DEA_5990, 0x8DC6_915F, 0x10E5_D8F7, 0xA62A_42F6, 0xCE98_7192,
+    0x8330_11BA, 0x6E33_C050, 0xC423_2044, 0x5E61_58CE, 0xED9F_084F, 0x46CC_4A4E,
+];
+
 /// Nom lisible d'un `cmdId` `funcLuaMenuCommand` reversé, ou `None` si non encore identifié.
 #[must_use]
 pub fn command_name(cmd_id: u32) -> Option<&'static str> {
@@ -417,6 +469,8 @@ pub fn command_name(cmd_id: u32) -> Option<&'static str> {
         CMD_GET_NODE_INDEX_BY_HASH => "GetNodeIndexByHash",
         // Batch « apply état moteur → return 1 » (cf. REVERSED_RETURN1).
         c if REVERSED_RETURN1.contains(&c) => "ApplyReturn1(=>1)",
+        // Setters à garde d'arité reversés sur le binaire courant (cf. ARG_GUARDED_RETURN1).
+        c if ARG_GUARDED_RETURN1.contains(&c) => "ArgGuardedReturn1(=>1)",
         _ => return None,
     })
 }
@@ -996,6 +1050,16 @@ fn dispatch_menu_command(state: &mut MenuState, cmd_id: u32, args: &[Value]) -> 
             return 1.0;
         }
 
+        // Setters à garde d'arité reversés sur le binaire COURANT (triage iced-x86 + bornes .pdata) :
+        // ret unique, aucune déf `al=0`, déf finale `al=1` → renvoient 1. Champ moteur non modélisé.
+        // Cf. ARG_GUARDED_RETURN1.
+        c if ARG_GUARDED_RETURN1.contains(&c) => {
+            if let Some(name) = command_name(cmd_id) {
+                state.known_cmd_log.push((name.to_string(), state.current_layer));
+            }
+            return 1.0;
+        }
+
         // ── RegisterItemListCount (0x16C1C4C0) : handler 0x140CD8E30 reversé ──
         // Enregistre `object_attr[objId] = count` (arg3) dans le manager d'items que GetObjectAttr
         // relit → GetItemButtonNum renvoie le count fourni par le SCRIPT. Renvoie 1 (al=1) si ≥4 args.
@@ -1319,6 +1383,21 @@ mod dispatch_tests {
             assert_eq!(ret, 1.0, "cmdId 0x{cid:08X} : handler reversé renvoie AL=1");
         }
         assert_eq!(REVERSED_RETURN1.len(), 16);
+    }
+
+    /// Setters à garde d'arité reversés sur le binaire **COURANT** via le triage déterministe
+    /// (`scripts/triage_funclua_handlers.py` : iced-x86 + bornes `.pdata` à chunks chaînés). Classe
+    /// `RETURN_1_SAFE` = ret unique, aucune déf `al=0` dans le corps, déf finale `al=1` ⇒ renvoient
+    /// 1.0 inconditionnellement. Chacun doit être nommé et renvoyer 1.0. Ancré sur le binaire.
+    #[test]
+    fn arg_guarded_return1_batch_returns_one() {
+        let (lua, _state) = host();
+        for &cid in ARG_GUARDED_RETURN1 {
+            assert_eq!(command_name(cid), Some("ArgGuardedReturn1(=>1)"), "0x{cid:08X} nommé");
+            let ret: f64 = menu_cmd(&lua).call::<f64>((f64::from(cid), 1.0)).unwrap();
+            assert_eq!(ret, 1.0, "cmdId 0x{cid:08X} : handler renvoie AL=1");
+        }
+        assert_eq!(ARG_GUARDED_RETURN1.len(), 38);
     }
 
     /// `RegisterItemListCount` (cmdId `0x16C1C4C0`) — handler `0x140CD8E30` REVERSÉ : enregistre
