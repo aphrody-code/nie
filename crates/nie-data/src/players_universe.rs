@@ -377,7 +377,7 @@ impl StarSignInfo {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-//  m_starSignCharaInfoList — STAR_SIGN_CHARA_INFO (5012)
+//  m_starSignCharaInfoList — STAR_SIGN_CHARA_INFO (5010)
 // ══════════════════════════════════════════════════════════════════════════════
 
 /// Entrée `STAR_SIGN_CHARA_INFO` — un personnage tirable + ses taux par boost.
@@ -537,7 +537,7 @@ pub struct PlayersUniverseConfig {
     pub universe_star_sign_sets: Vec<UniverseStarSignSetData>,
     /// `m_starSignInfoList` — signes/constellations (30 entrées).
     pub star_signs: Vec<StarSignInfo>,
-    /// `m_starSignCharaInfoList` — personnages tirables (5012 entrées).
+    /// `m_starSignCharaInfoList` — personnages tirables (5010 entrées dans le .json de référence).
     pub star_sign_charas: Vec<StarSignCharaInfo>,
     /// `m_starSignRarityRateInfoList` — taux par rareté (90 entrées).
     pub star_sign_rarity_rates: Vec<StarSignRarityRateInfo>,
@@ -578,7 +578,7 @@ impl PlayersUniverseConfig {
 /// Parse un `players_universe_config_*.cfg.bin.json` complet (10 listes).
 ///
 /// Vérité terrain : `players_universe_config_1.03.59.00.cfg.bin.json` →
-/// 1 / 240 / 30 / 240 / 30 / 1 / 30 / 5012 / 90 / 30 entrées.
+/// 1 / 240 / 30 / 240 / 30 / 1 / 30 / 5010 / 90 / 30 entrées.
 #[must_use]
 pub fn parse_players_universe_config(root: &Value) -> PlayersUniverseConfig {
     PlayersUniverseConfig {
