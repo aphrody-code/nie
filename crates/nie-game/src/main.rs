@@ -45,7 +45,7 @@ use tracing::{error, info, warn};
 use wgpu::util::DeviceExt;
 
 use nie_formats::vfs::Vfs;
-use nie_formats::{cfgbin, g4pkm, g4tx, menu, objbin};
+use nie_formats::{cfgbin, font, g4pkm, g4tx, menu, objbin};
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
 
@@ -152,6 +152,12 @@ struct Cli {
     /// `--menu` + `--export-layout`.
     #[arg(long)]
     runtime: bool,
+
+    /// Diagnostic **C4 / D1.d** (rendu de texte) : blit `TEXT` depuis l'atlas de police bitmap RÉEL
+    /// (`font_def/font.g4tx` + métriques `font_def/font.cfg.bin`) via `font::draw_text`. Avec
+    /// `--capture`, écrit le PNG. Cible du gate D1.d (« 212 / 99 / COMMENCER » depuis l'atlas pré-cuit).
+    #[arg(long)]
+    render_text: Option<String>,
 }
 
 // ── Point d'entrée ───────────────────────────────────────────────────────────
@@ -214,6 +220,11 @@ fn main() -> Result<()> {
     // Render-from-runtime : rogne une région nommée → pixels réels (PNG si --capture).
     if let Some(ref region) = cli.g4tx_region {
         return cmd_g4tx_region(&cli.game_dir, cli.g4tx.as_deref(), region, cli.capture.as_deref());
+    }
+
+    // Diagnostic C4/D1.d : rend du texte depuis l'atlas de police bitmap réel.
+    if let Some(ref text) = cli.render_text {
+        return cmd_render_text(&cli.game_dir, text, cli.capture.as_deref());
     }
 
     // Construit l'index region->g4tx depuis les atlas d'icônes de menu.
@@ -301,17 +312,22 @@ fn decode_texture_rgba(g4tx_data: &[u8], tex: &g4tx::G4txTexture) -> Option<(u32
     if u32::from_le_bytes(dds[..4].try_into().ok()?) != 0x2053_4444 {
         return None;
     }
+    let w = tex.width as u32;
+    let h = tex.height as u32;
+    if w == 0 || h == 0 {
+        return None;
+    }
+    // DDS LEGACY (pas d'extension DX10) : le fourCC du pixelformat (offset 0x54) ≠ "DX10".
+    // Cas non-compressé 32 bits (DDPF_RGB) — ex. atlas de police BGRA8. Décodage direct + swizzle.
+    if &dds[0x54..0x58] != b"DX10" {
+        return decode_legacy_uncompressed(dds, w, h);
+    }
     let dxgi = u32::from_le_bytes(
         dds[DX10_DXGI_OFFSET..DX10_DXGI_OFFSET + 4]
             .try_into()
             .ok()?,
     );
     let fmt = dxgi_to_image_format(dxgi)?;
-    let w = tex.width as u32;
-    let h = tex.height as u32;
-    if w == 0 || h == 0 {
-        return None;
-    }
     let surface = image_dds::Surface {
         width: w,
         height: h,
@@ -323,6 +339,32 @@ fn decode_texture_rgba(g4tx_data: &[u8], tex: &g4tx::G4txTexture) -> Option<(u32
     };
     let rgba = surface.decode_rgba8().ok()?;
     Some((w, h, rgba.data))
+}
+
+/// Décode un DDS **LEGACY non-compressé 32 bits** (DDPF_RGB) en RGBA8. Lit les masks du
+/// `DDS_PIXELFORMAT` pour l'ordre des canaux : `rmask==0x00FF0000` ⇒ rouge en 3ᵉ octet ⇒ ordre
+/// mémoire **BGRA8** (cas des atlas de police IEVR `font_def/font.g4tx`) → swizzle vers RGBA8 ;
+/// sinon RGBA8 direct. Pas d'extension DX10 → données pixel à l'offset 128.
+fn decode_legacy_uncompressed(dds: &[u8], w: u32, h: u32) -> Option<(u32, u32, Vec<u8>)> {
+    const LEGACY_PIXEL_OFFSET: usize = 128; // magic(4) + DDS_HEADER(124), sans ext DX10
+    let pf_flags = u32::from_le_bytes(dds.get(0x50..0x54)?.try_into().ok()?);
+    let bitcount = u32::from_le_bytes(dds.get(0x58..0x5C)?.try_into().ok()?);
+    let rmask = u32::from_le_bytes(dds.get(0x5C..0x60)?.try_into().ok()?);
+    if pf_flags & 0x40 == 0 || bitcount != 32 {
+        return None; // pas DDPF_RGB 32 bits — format legacy non géré ici
+    }
+    let need = (w as usize).checked_mul(h as usize)?.checked_mul(4)?;
+    let px = dds.get(LEGACY_PIXEL_OFFSET..LEGACY_PIXEL_OFFSET + need)?;
+    let bgra = rmask == 0x00FF_0000;
+    let mut rgba = Vec::with_capacity(need);
+    for p in px.chunks_exact(4) {
+        if bgra {
+            rgba.extend_from_slice(&[p[2], p[1], p[0], p[3]]);
+        } else {
+            rgba.extend_from_slice(p);
+        }
+    }
+    Some((w, h, rgba))
 }
 
 // ── Source d'assets ──────────────────────────────────────────────────────────
@@ -749,6 +791,91 @@ fn cmd_g4tx_region(
     Ok(())
 }
 
+/// Diagnostic **C4 / D1.d (rendu de texte)** : prouve le pipeline de texte de menu sur les VRAIES
+/// données. Décode l'atlas de police bitmap pré-cuit (`font_def/font.g4tx`) + les métriques de
+/// glyphes (`font_def/font.cfg.bin`, T2B), puis blit `text` via `font::draw_text` (atlas → glyphes).
+/// Avec `--capture`, écrit le PNG. C'est le premier pas C4 du rendu de texte (cf. gate D1.d).
+fn cmd_render_text(game_dir: &Path, text: &str, capture: Option<&Path>) -> Result<()> {
+    const ATLAS: &str = "data/dx11/font/font_def/font.g4tx";
+    const METRICS: &str = "data/common/font/font/font_def/font.cfg.bin";
+
+    // 1. Atlas de police : g4tx → texture principale → RGBA8.
+    let (atlas_path, atlas_bytes) = obtenir_g4tx_bytes(game_dir, ATLAS)?;
+    let parsed = g4tx::parse(&atlas_bytes).with_context(|| format!("parsing G4TX police : {atlas_path}"))?;
+    let tex = g4tx::select_main_texture(&parsed, "font_def")
+        .ok_or_else(|| anyhow::anyhow!("texture principale de l'atlas police introuvable dans {atlas_path}"))?;
+    let (aw, ah, atlas) = decode_texture_rgba(&atlas_bytes, tex)
+        .ok_or_else(|| anyhow::anyhow!("échec décodage de l'atlas police '{}'", tex.name))?;
+
+    // 2. Métriques de glyphes : font.cfg.bin (T2B) → FontMetrics.
+    let (m_path, m_bytes) = obtenir_g4tx_bytes(game_dir, METRICS)?;
+    let cfg = cfgbin::parse_t2b(&m_bytes).with_context(|| format!("parse_t2b métriques police : {m_path}"))?;
+    let metrics = font::parse_metrics(&cfg);
+
+    // 3. Canvas + draw_text (sommet de cellule = pen_y − ascent ⇒ pen_y = ascent, dst_y = 0).
+    let ch = u32::from(metrics.dims.cell_height).max(1);
+    let n_cp = text.chars().count() as u32;
+    let cw = (n_cp.max(1) * ch).max(ch); // borne large : avance ≤ n_cp × cell_height
+    let stride = cw * 4;
+    let mut canvas = alloc_canvas(cw, ch);
+    let advance = font::draw_text(
+        &atlas, aw, &metrics, text, &mut canvas, stride, 0,
+        i32::from(metrics.dims.ascent), [255, 255, 255, 255],
+    );
+    let opaques = canvas.chunks_exact(4).filter(|p| p[3] != 0).count();
+    let resolved = text.chars().filter(|c| metrics.glyph(*c as u32).is_some()).count();
+    println!(
+        "rendu texte {text:?} : atlas '{}' {aw}x{ah} ({} glyphes en table) ; {resolved}/{} codepoints \
+         résolus ; avance {advance}px ; {opaques} px opaques",
+        tex.name, metrics.glyph_count(), n_cp
+    );
+
+    if let Some(out) = capture {
+        let w = (advance.max(1) as u32).min(cw);
+        let (ow, oh, rgba) = crop_rgba(&canvas, cw, ch, (0, 0, w.min(i16::MAX as u32) as i16, ch.min(i16::MAX as u32) as i16))
+            .unwrap_or((cw, ch, canvas));
+        let png = encoder_rgba_png(&rgba, ow, oh)?;
+        std::fs::write(out, &png).with_context(|| format!("écriture {}", out.display()))?;
+        println!("PNG écrit : {} ({} octets)", out.display(), png.len());
+    }
+    Ok(())
+}
+
+/// Alloue un canevas RGBA8 transparent `w × h`.
+fn alloc_canvas(w: u32, h: u32) -> Vec<u8> {
+    vec![0u8; (w as usize) * (h as usize) * 4]
+}
+
+/// Charge la police de menu : atlas `font_def/font.g4tx` (RGBA8, legacy BGRA8) + métriques
+/// `font_def/font.cfg.bin` (T2B). Renvoie `(atlas_rgba, atlas_w, metrics)` ou `None` si absent.
+fn load_menu_font(game_dir: &Path) -> Option<(Vec<u8>, u32, font::FontMetrics)> {
+    const ATLAS: &str = "data/dx11/font/font_def/font.g4tx";
+    const METRICS: &str = "data/common/font/font/font_def/font.cfg.bin";
+    let (_, ab) = obtenir_g4tx_bytes(game_dir, ATLAS).ok()?;
+    let parsed = g4tx::parse(&ab).ok()?;
+    let tex = g4tx::select_main_texture(&parsed, "font_def")?;
+    let (aw, _ah, atlas) = decode_texture_rgba(&ab, tex)?;
+    let (_, mb) = obtenir_g4tx_bytes(game_dir, METRICS).ok()?;
+    let cfg = cfgbin::parse_t2b(&mb).ok()?;
+    Some((atlas, aw, font::parse_metrics(&cfg)))
+}
+
+/// Extrait le libellé texte RÉSOLU d'un objet de layout. Le champ `text` est hétérogène : un hash
+/// `"0x…"` non résolu ou un nombre → `None` (rien à rendre) ; un tableau `[{slot, text}]` (forme
+/// résolue par le résolveur de texte universel) → concatène les `text` non vides.
+fn resolved_text_label(text_val: &serde_json::Value) -> Option<String> {
+    let arr = text_val.as_array()?;
+    let parts: Vec<&str> = arr
+        .iter()
+        .filter_map(|e| e.get("text").and_then(serde_json::Value::as_str))
+        .filter(|s| !s.is_empty() && !s.starts_with("0x"))
+        .collect();
+    if parts.is_empty() {
+        return None;
+    }
+    Some(parts.join(" "))
+}
+
 /// Chemin du fichier listant les atlas d'icônes de menu (un chemin VFS logique par ligne, `#`=commentaire).
 const MENU_ICON_ATLASES: &str = "data/re/menu-icon-atlases.txt";
 
@@ -906,6 +1033,7 @@ fn cmd_compose_layout(game_dir: &Path, json_in: &Path, png_out: &Path) -> Result
     }
     let mut items: Vec<DrawItem> = Vec::new();
     let (mut n_region, mut n_static) = (0usize, 0usize);
+    let mut n_region_hash = 0usize;
 
     for (order, o) in objs.iter().enumerate() {
         if !o["visible"].as_bool().unwrap_or(false) {
@@ -926,6 +1054,41 @@ fn cmd_compose_layout(game_dir: &Path, json_in: &Path, png_out: &Path) -> Result
             let (fw, fh, full) = decode_texture_rgba(bytes, tex)?;
             crop_rgba(&full, fw, fh, (sub.x, sub.y, sub.width, sub.height))
         })();
+        // Résolution de région par HASH (D1.b) : si l'objet porte un `spriteRegionHash` (= CRC32 du
+        // nom de région) non résolu en nom, on croppe la sous-région de SON atlas dont
+        // `CRC32(nom) == hash` — au lieu de rendre l'atlas entier (toutes ses sous-textures empilées).
+        // Même mécanisme CRC32 que partout (cf. `nie-core::ecs`, `cfgbin::crc32`).
+        let region_hash_src = (|| {
+            let srh = rt["spriteRegionHash"]
+                .as_u64()
+                .or_else(|| {
+                    rt["spriteRegionHash"]
+                        .as_str()
+                        .and_then(|s| s.strip_prefix("0x"))
+                        .and_then(|h| u32::from_str_radix(h, 16).ok())
+                        .map(u64::from)
+                })? as u32;
+            if srh == 0 {
+                return None;
+            }
+            let logical = o["sprite"]["logicalPath"].as_str()?;
+            let basename = logical.rsplit('/').next()?;
+            let entry = cache.entry(logical.to_string()).or_insert_with(|| {
+                obtenir_g4tx_bytes(game_dir, basename)
+                    .ok()
+                    .and_then(|(_, b)| g4tx::parse(&b).ok().map(|p| (b, p)))
+            });
+            let (bytes, parsed) = entry.as_ref()?;
+            for t in &parsed.textures {
+                for s in &t.sub_textures {
+                    if cfgbin::crc32(s.name.as_bytes()) == srh {
+                        let (fw, fh, full) = decode_texture_rgba(bytes, t)?;
+                        return crop_rgba(&full, fw, fh, (s.x, s.y, s.width, s.height));
+                    }
+                }
+            }
+            None
+        })();
         let mut static_src = || {
             let logical = o["sprite"]["logicalPath"].as_str()?;
             let basename = logical.rsplit('/').next()?;
@@ -939,13 +1102,17 @@ fn cmd_compose_layout(game_dir: &Path, json_in: &Path, png_out: &Path) -> Result
             let tex = g4tx::select_main_texture(parsed, stem)?;
             decode_texture_rgba(bytes, tex)
         };
-        let (is_region, (cw, chh, crop)) = match region_src {
+        let via_hash = region_src.is_none() && region_hash_src.is_some();
+        let (is_region, (cw, chh, crop)) = match region_src.or(region_hash_src) {
             Some(src) => (true, src),
             None => match static_src() {
                 Some(src) => (false, src),
                 None => continue,
             },
         };
+        if via_hash {
+            n_region_hash += 1;
+        }
 
         // Transform : échelle + ancre. Défauts neutres si absents.
         let tr = &o["transform"];
@@ -977,6 +1144,50 @@ fn cmd_compose_layout(game_dir: &Path, json_in: &Path, png_out: &Path) -> Result
         });
     }
 
+    // ── Passe TEXTE (D1.d) : pose les libellés RÉSOLUS au transform de l'objet, au-dessus des
+    // sprites. Police chargée à la demande (atlas 44 Mo). Les positions viennent du driver — les
+    // libellés hors canevas (y>720) sont clippés par `blit_over` (limite de placement connue D1.c).
+    let mut font: Option<(Vec<u8>, u32, font::FontMetrics)> = None;
+    let mut font_tried = false;
+    let mut n_text = 0usize;
+    for (order, o) in objs.iter().enumerate() {
+        if !o["visible"].as_bool().unwrap_or(false) {
+            continue;
+        }
+        let Some(label) = resolved_text_label(&o["text"]) else {
+            continue;
+        };
+        if !font_tried {
+            font = load_menu_font(game_dir);
+            font_tried = true;
+        }
+        let Some((atlas, aw, metrics)) = font.as_ref() else {
+            break; // police absente — inutile de réessayer chaque objet
+        };
+        let ch = u32::from(metrics.dims.cell_height).max(1);
+        let cw = ((label.chars().count() as u32).max(1) * ch).max(ch);
+        let mut buf = alloc_canvas(cw, ch);
+        let adv = font::draw_text(
+            atlas, *aw, metrics, &label, &mut buf, cw * 4, 0,
+            i32::from(metrics.dims.ascent), [255, 255, 255, 255],
+        );
+        if adv <= 0 {
+            continue; // aucun glyphe résolu
+        }
+        let tr = &o["transform"];
+        let f = |k: &str, d: f64| tr[k].as_f64().unwrap_or(d);
+        items.push(DrawItem {
+            prio: o["drawPriority"].as_i64().unwrap_or(0) + 1000, // texte au-dessus des sprites
+            order: order + 1_000_000,
+            rgba: buf,
+            w: cw,
+            h: ch,
+            dx: f("x", 0.0).round() as i32,
+            dy: f("y", 0.0).round() as i32,
+        });
+        n_text += 1;
+    }
+
     // Z-order : priorité de dessin croissante (fond d'abord), départage par ordre de déclaration.
     items.sort_by(|a, b| a.prio.cmp(&b.prio).then(a.order.cmp(&b.order)));
     for it in &items {
@@ -988,8 +1199,8 @@ fn cmd_compose_layout(game_dir: &Path, json_in: &Path, png_out: &Path) -> Result
     std::fs::write(png_out, &png).with_context(|| format!("écriture {}", png_out.display()))?;
     let opaques = canvas.chunks_exact(4).filter(|p| p[3] != 0).count();
     println!(
-        "compose-layout : {n_drawn} sprites composés ({n_static} statiques + {n_region} régions runtime) \
-         sur {}×{} ; {opaques} px opaques -> {} ({} octets)",
+        "compose-layout : {n_drawn} éléments ({n_static} sprites statiques + {n_region} régions runtime \
+         + {n_region_hash} régions par hash + {n_text} libellés texte) sur {}×{} ; {opaques} px opaques -> {} ({} octets)",
         W,
         H,
         png_out.display(),
