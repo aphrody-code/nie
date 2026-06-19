@@ -7,12 +7,13 @@
 //!
 //! ## Vérité terrain (octet-pour-octet du dump réel)
 //!
-//! Comptes des 5 listes :
-//! - `m_UniformModelInfoList`    : 1247 lignes (`UNIFORM_MODEL_INFO`, 27 champs)
-//! - `m_UniformInfoList`         : 627  lignes (`UNIFORM_INFO`)
-//! - `m_UniformExModelInfoList`  : 1075 lignes (`UNIFORM_EX_MODEL_INFO`, 14 champs)
-//! - `m_UniformExInfoList`       : 540  lignes (`UNIFORM_EX_INFO`)
-//! - `m_CharaUniformExInfoList`  : 388  lignes (`CHARA_UNIFORM_EX_INFO`)
+//! Comptes des 5 listes (confirmés sur le .json de référence ET la lecture LIVE du VFS
+//! via model-serve `/cfg` — identiques) :
+//! - `m_UniformModelInfoList`    : 760 lignes (`UNIFORM_MODEL_INFO`, 27 champs)
+//! - `m_UniformInfoList`         : 384 lignes (`UNIFORM_INFO`)
+//! - `m_UniformExModelInfoList`  : 751 lignes (`UNIFORM_EX_MODEL_INFO`, 14 champs)
+//! - `m_UniformExInfoList`       : 378 lignes (`UNIFORM_EX_INFO`)
+//! - `m_CharaUniformExInfoList`  : 234 lignes (`CHARA_UNIFORM_EX_INFO`)
 //!
 //! ### m_UniformModelInfoList[0]
 //! - `uniformFielderModelIdCrc` = `0x9D2BBD10`, `uniformKeeperModelIdCrc` = `0x55CB3260`
@@ -368,12 +369,13 @@ fn load_real() -> Option<UniformConfig> {
 #[test]
 fn real_file_comptes_des_listes() {
     let Some(cfg) = load_real() else { return };
-    // Comptes réels du dump uniform_config_1.03.52.00.
-    assert_eq!(cfg.models.len(), 1247, "m_UniformModelInfoList");
-    assert_eq!(cfg.uniforms.len(), 627, "m_UniformInfoList");
-    assert_eq!(cfg.ex_models.len(), 1075, "m_UniformExModelInfoList");
-    assert_eq!(cfg.ex_uniforms.len(), 540, "m_UniformExInfoList");
-    assert_eq!(cfg.chara_ex_uniforms.len(), 388, "m_CharaUniformExInfoList");
+    // Comptes réels du dump uniform_config_1.03.52.00 (.json de référence == lecture
+    // LIVE du VFS Steam via model-serve /cfg, vérifié identique le 2026-06-19).
+    assert_eq!(cfg.models.len(), 760, "m_UniformModelInfoList");
+    assert_eq!(cfg.uniforms.len(), 384, "m_UniformInfoList");
+    assert_eq!(cfg.ex_models.len(), 751, "m_UniformExModelInfoList");
+    assert_eq!(cfg.ex_uniforms.len(), 378, "m_UniformExInfoList");
+    assert_eq!(cfg.chara_ex_uniforms.len(), 234, "m_CharaUniformExInfoList");
 }
 
 #[test]
