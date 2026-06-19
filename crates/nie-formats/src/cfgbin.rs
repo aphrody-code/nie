@@ -1063,6 +1063,41 @@ mod tests {
         assert_eq!(rdbn.strings.resolve(crc32(b"m_FontColorDataList")), Some("m_FontColorDataList"));
     }
 
+    /// `.fxbin` (shaders FX) et `.ptlb` (tables de particules) ne sont PAS des cfg.bin nominaux mais
+    /// le MÊME conteneur **T2B** (footer `0xFFFFFFFF`) → `parse_t2b` les lit. Prouve que ces 2
+    /// extensions (372 + 655 fichiers) sont **réellement parsées** par le parseur existant, pas
+    /// seulement « reconnues ». Validé live via model-serve `/cfg` sur les vrais fichiers.
+    #[cfg(feature = "real-fixtures")]
+    #[test]
+    fn fxbin_et_ptlb_parsent_comme_t2b() {
+        fn names(entries: &[CfgEntry], out: &mut Vec<String>) {
+            for e in entries {
+                out.push(e.name.clone());
+                names(&e.children, out);
+            }
+        }
+        let fx = parse_t2b(include_bytes!("../tests/fixtures/t2b/chr_pbrt1_cutout.fxbin"))
+            .expect("fxbin parse T2B");
+        let mut fxn = Vec::new();
+        names(&fx.entries, &mut fxn);
+        assert!(!fxn.is_empty());
+        assert!(fxn.iter().any(|n| n == "SHADERFX_MEMB_NUM"), "fxbin = FX shader T2B");
+        assert!(fxn.iter().any(|n| n == "TEC_BGN"), "technique présente");
+
+        let pt = parse_t2b(include_bytes!("../tests/fixtures/t2b/ega0077a.ptlb"))
+            .expect("ptlb parse T2B");
+        let mut ptn = Vec::new();
+        names(&pt.entries, &mut ptn);
+        assert!(ptn.iter().any(|n| n == "PARTICLE_NODE_INFO_BGN"), "ptlb = table de particules T2B");
+
+        // .clobin (collision/bone-line) est aussi un T2B → cfgbin le lit.
+        let cl = parse_t2b(include_bytes!("../tests/fixtures/t2b/sample.clobin"))
+            .expect("clobin parse T2B");
+        let mut cln = Vec::new();
+        names(&cl.entries, &mut cln);
+        assert!(cln.iter().any(|n| n == "DA_BONE_LINE_START"), "clobin = bone-line T2B");
+    }
+
     #[cfg(feature = "real-fixtures")]
     #[test]
     fn font_color_values_golden() {
