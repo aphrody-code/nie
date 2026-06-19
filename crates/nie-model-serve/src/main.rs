@@ -627,7 +627,7 @@ fn cfg_family_key(vfs_path: &str) -> String {
 /// typé `nie-data` correspondant à la `key` de famille, et renvoie `(label, json)`.
 /// `None` si aucune famille typée ne correspond (le caller renvoie alors le générique).
 ///
-/// Couvre 42 familles game-data validées golden byte-exact dans `nie-data`. Chaque
+/// Couvre 51 familles game-data validées golden byte-exact dans `nie-data`. Chaque
 /// arme transforme la structure de jeu nommée en JSON — c'est le **pont natif** qui
 /// remplace l'affichage RDBN brut par des données structurées (positions de formation,
 /// listes de skills/items, missions…), consommé par l'explorateur azalee et les exports.
@@ -720,6 +720,25 @@ fn typed_decode(
             nie_data::players_universe::parse_players_universe_event_config(root)
         ),
         "nfc_lottery_config" => t!("nfc_lottery", nie_data::nfc::parse_nfc_lottery_config(root)),
+        // 2e vague de familles golden sorties du vase clos (clés réelles vérifiées sur le VFS live,
+        // types JSON-propres — pas de map à clé HashId).
+        "search_word_config" => {
+            t!("search_word", nie_data::search_word::parse_search_word_config(root))
+        }
+        "passive_skill_config" => t!("passive", nie_data::passive::parse_passives(root)),
+        "soccer_ai_cmd_config" => t!("soccer_ai_cmd", nie_data::ai::parse_soccer_ai_cmd_config(root)),
+        "soccer_user_ai_config" => {
+            t!("soccer_user_ai", nie_data::ai::parse_soccer_user_ai_config(root))
+        }
+        "strategy_ai_config" => t!("strategy_ai", nie_data::ai::parse_strategy_ai_config(root)),
+        "tactics_ai_config" => t!("tactics_ai", nie_data::ai::parse_tactics_ai_config(root)),
+        "adaptive_trigger_def" => {
+            t!("adaptive_trigger", nie_data::input::parse_adaptive_trigger_def(root))
+        }
+        "haptic_feedback_def" => {
+            t!("haptic_feedback", nie_data::input::parse_haptic_feedback_def(root))
+        }
+        "vibration_def" => t!("vibration", nie_data::input::parse_vibration_def(root)),
         _ => None,
     }
 }
@@ -2366,35 +2385,30 @@ mod tests {
         assert!(dds_format_and_pixel_offset(&h).is_none());
     }
 
-    /// Garde le câblage `/typed` des 4 familles golden ajoutées (uniform, players_universe,
-    /// players_universe_event, nfc) : sur le .json de référence, `typed_decode` doit renvoyer le
-    /// bon label + un payload non vide. **Drift-résistant** (PAS de compte en dur — cf. la dérive
-    /// des golden corrigée ce cycle). Game-gated (skip si dump absent).
+    /// Garde le câblage `/typed` des familles golden sorties du vase clos : sur le .json de
+    /// référence, `typed_decode` doit renvoyer le bon label + un payload non vide. **Drift-résistant**
+    /// (PAS de compte en dur — cf. la dérive des golden corrigée ce cycle). Game-gated (skip si dump
+    /// absent). Couvre les 2 vagues (uniform/players_universe/nfc + search_word/passive/ai/input).
     #[test]
-    fn typed_decode_cable_les_4_familles_golden() {
-        let cases = [
-            (
-                "uniform_config",
-                "uniform",
-                "/home/ubuntu/niers/data/common/gamedata/character/uniform_config_1.03.52.00.cfg.bin.json",
-            ),
-            (
-                "players_universe_config",
-                "players_universe",
-                "/home/ubuntu/niers/data/common/gamedata/players_universe/players_universe_config_1.03.59.00.cfg.bin.json",
-            ),
-            (
-                "players_universe_event_config",
-                "players_universe_event",
-                "/home/ubuntu/niers/data/common/gamedata/players_universe/players_universe_event_config.cfg.bin.json",
-            ),
-            (
-                "nfc_lottery_config",
-                "nfc_lottery",
-                "/home/ubuntu/niers/data/common/gamedata/nfc/nfc_lottery_config.cfg.bin.json",
-            ),
+    fn typed_decode_cable_les_familles_golden() {
+        const G: &str = "/home/ubuntu/niers/data/common/gamedata";
+        let cases: [(&str, &str, String); 13] = [
+            ("uniform_config", "uniform", format!("{G}/character/uniform_config_1.03.52.00.cfg.bin.json")),
+            ("players_universe_config", "players_universe", format!("{G}/players_universe/players_universe_config_1.03.59.00.cfg.bin.json")),
+            ("players_universe_event_config", "players_universe_event", format!("{G}/players_universe/players_universe_event_config.cfg.bin.json")),
+            ("nfc_lottery_config", "nfc_lottery", format!("{G}/nfc/nfc_lottery_config.cfg.bin.json")),
+            ("search_word_config", "search_word", format!("{G}/search_word/search_word_config.cfg.bin.json")),
+            ("passive_skill_config", "passive", format!("{G}/skill/passive_skill_config_0.08.86.cfg.bin.json")),
+            ("soccer_ai_cmd_config", "soccer_ai_cmd", format!("{G}/ai/soccer_ai_cmd_config_0.05.91.cfg.bin.json")),
+            ("soccer_user_ai_config", "soccer_user_ai", format!("{G}/ai/soccer_user_ai_config_1.01.50.cfg.bin.json")),
+            ("strategy_ai_config", "strategy_ai", format!("{G}/ai/strategy_ai_config_1.01.50.cfg.bin.json")),
+            ("tactics_ai_config", "tactics_ai", format!("{G}/ai/tactics_ai_config_0.06.44.cfg.bin.json")),
+            ("adaptive_trigger_def", "adaptive_trigger", format!("{G}/input/adaptive_trigger_def_0.00.00.cfg.bin.json")),
+            ("haptic_feedback_def", "haptic_feedback", format!("{G}/input/haptic_feedback_def_0.00.00.cfg.bin.json")),
+            ("vibration_def", "vibration", format!("{G}/input/vibration_def_0.00.09.cfg.bin.json")),
         ];
-        for (key, label, path) in cases {
+        for (key, label, path) in &cases {
+            let (key, label): (&str, &str) = (key, label);
             if !std::path::Path::new(path).exists() {
                 eprintln!("dump absent, skip {key}");
                 continue;
