@@ -53,6 +53,8 @@ pub mod navm;
 pub mod g4cm;
 pub mod g4mt;
 pub mod g4ma;
+pub mod g4vs;
+pub mod g4la;
 pub mod col;
 pub mod dxbc;
 pub mod g4tx;

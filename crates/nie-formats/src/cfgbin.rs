@@ -1063,10 +1063,11 @@ mod tests {
         assert_eq!(rdbn.strings.resolve(crc32(b"m_FontColorDataList")), Some("m_FontColorDataList"));
     }
 
-    /// `.fxbin` (shaders FX) et `.ptlb` (tables de particules) ne sont PAS des cfg.bin nominaux mais
-    /// le MÊME conteneur **T2B** (footer `0xFFFFFFFF`) → `parse_t2b` les lit. Prouve que ces 2
-    /// extensions (372 + 655 fichiers) sont **réellement parsées** par le parseur existant, pas
-    /// seulement « reconnues ». Validé live via model-serve `/cfg` sur les vrais fichiers.
+    /// `.fxbin` (shaders FX), `.ptlb` (particules), `.clobin` (collision) et `.linb` (effets de
+    /// ligne/locus) ne sont PAS des cfg.bin nominaux mais le MÊME conteneur **T2B** (footer
+    /// `0xFFFFFFFF`) → `parse_t2b` les lit. Prouve que ces extensions (372 + 655 + 39 + 16 fichiers)
+    /// sont **réellement parsées** par le parseur existant, pas seulement « reconnues ». Validé live
+    /// via model-serve `/cfg` sur les vrais fichiers.
     #[cfg(feature = "real-fixtures")]
     #[test]
     fn fxbin_et_ptlb_parsent_comme_t2b() {
@@ -1096,6 +1097,14 @@ mod tests {
         let mut cln = Vec::new();
         names(&cl.entries, &mut cln);
         assert!(cln.iter().any(|n| n == "DA_BONE_LINE_START"), "clobin = bone-line T2B");
+
+        // .linb (effet de ligne/locus) est aussi un T2B → cfgbin le lit.
+        let lb = parse_t2b(include_bytes!("../tests/fixtures/t2b/sample.linb"))
+            .expect("linb parse T2B");
+        let mut lbn = Vec::new();
+        names(&lb.entries, &mut lbn);
+        assert!(lbn.iter().any(|n| n == "LINE_EFF_NODE_NUM"), "linb = effet de ligne T2B");
+        assert!(lbn.iter().any(|n| n == "LINE_EFF_INFO_BGN"), "linb : table d'infos présente");
     }
 
     #[cfg(feature = "real-fixtures")]
