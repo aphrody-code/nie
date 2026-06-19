@@ -18,14 +18,19 @@ import struct
 import sys
 from pathlib import Path
 
-# Anchor: SetIconSprite cmdId -> handler (verified). Used to locate + validate the table.
+# Anchor: SetIconSprite cmdId — unique 4-byte immediate in .rdata, sits 8 bytes after its
+# handler code-pointer in the dispatch table. Used to LOCATE the table (its handler VA is NOT
+# hard-coded here on purpose: the handler addresses shift between game builds — see note below).
 ANCHOR_CMDID = 0x214DA123
-KNOWN = {  # cmdId -> handler VA, from prior r2 reversals — the extraction must match these.
-    0x214DA123: 0x140CE74D0,  # SetIconSprite
-    0x6A06BC75: 0x140CE6B20,  # SetSelectedIndex
-    0x16C1C4C0: 0x140CD8E30,  # RegisterItemListCount
-    0x65E825B1: 0x140CBF150,  # apply-global-config -> true
-}
+
+# NOTE (binary drift, 2026-06-19): the funcLua handler VAs documented in nie-lua/menu_host.rs
+# (e.g. SetIconSprite -> 0x140CE74D0, table @ 0x141BDFD90) were reversed against an OLDER build of
+# nie.exe. The current `nie_eacpatched.exe` on the VPS is a different build: the SAME cmdId
+# (0x214DA123) now lives at table entry 0x141A85350 with handler 0x140CA3210. cmdId values are
+# stable across builds (they are hashes of the command name), but every handler/table VA shifts.
+# Therefore this extractor validates the table STRUCTURALLY (contiguous well-formed entries around
+# the unique anchor) rather than against frozen VAs, and the map it emits is build-specific: always
+# regenerate it for the exact exe you intend to disassemble.
 
 
 def parse_pe(data):
@@ -55,8 +60,16 @@ def va_to_off(va, sections):
     return None
 
 
+def off2va(off, sections):
+    for vstart, vend, raw, vaddr in sections:
+        if raw <= off < raw + (vend - vstart):
+            return vstart + (off - raw)
+    return 0
+
+
 def main():
-    exe = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("data/nie.exe")
+    default_exe = Path.home() / ".local/share/Steam/iecode/inazuma/nie_eacpatched.exe"
+    exe = Path(sys.argv[1]) if len(sys.argv) > 1 else default_exe
     data = exe.read_bytes()
     image_base, sections = parse_pe(data)
     code_lo, code_hi = image_base, image_base + 0x1000000  # handlers live in the code image
@@ -97,15 +110,20 @@ def main():
         h, cid = struct.unpack_from("<QI", data, off)
         table[f"0x{cid:08X}"] = f"0x{h:09X}"
 
-    # Validate against known reversals — extraction is wrong if any mismatch.
-    for cid, h in KNOWN.items():
-        got = table.get(f"0x{cid:08X}")
-        assert got == f"0x{h:09X}", f"mismatch 0x{cid:08X}: {got} != 0x{h:09X}"
+    # Structural validation (build-agnostic): the walked run must contain the anchor and span a
+    # plausible number of entries (the table holds ~1.1k menu commands). A run of a handful would
+    # mean we latched onto a stray code-ptr+u32 coincidence, not the real dispatch table.
+    anchor_handler = struct.unpack_from("<Q", data, anchor_off)[0]
+    assert table.get(f"0x{ANCHOR_CMDID:08X}") == f"0x{anchor_handler:09X}", "anchor not in walked run"
+    assert len(table) >= 500, f"table too small ({len(table)} entries) — likely a false anchor"
 
     out = Path("data/re/funclua-cmdid-handlers.json")
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(table, indent=0))
     print(f"funcLua dispatch table: {len(table)} entries -> {out}")
-    print(f"  validated {len(KNOWN)}/{len(KNOWN)} known handlers (exact match)")
+    print(f"  anchor 0x{ANCHOR_CMDID:08X} (SetIconSprite) -> handler 0x{anchor_handler:09X} "
+          f"@ entry VA 0x{off2va(anchor_off, sections):09X}")
+    print(f"  build-specific: handler VAs are valid ONLY for this exe ({exe.name})")
 
 
 if __name__ == "__main__":

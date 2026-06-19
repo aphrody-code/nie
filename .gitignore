@@ -49,3 +49,9 @@ refs/
 # Sprites de menu décodés (g4tx → PNG, dérivés © Level-5) — local uniquement, jamais publier.
 # Le code HTML/CSS/TS de web/ reste committé ; seuls les pixels réels sont ignorés.
 /web/assets/
+
+# Toolbox Python RE (venv uv local : capstone/pefile/lief/unicorn/iced-x86/…) — jamais committé.
+/.venv/
+.python-version
+__pycache__/
+*.pyc
