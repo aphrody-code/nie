@@ -627,7 +627,7 @@ fn cfg_family_key(vfs_path: &str) -> String {
 /// typé `nie-data` correspondant à la `key` de famille, et renvoie `(label, json)`.
 /// `None` si aucune famille typée ne correspond (le caller renvoie alors le générique).
 ///
-/// Couvre 38 familles game-data validées golden byte-exact dans `nie-data`. Chaque
+/// Couvre 42 familles game-data validées golden byte-exact dans `nie-data`. Chaque
 /// arme transforme la structure de jeu nommée en JSON — c'est le **pont natif** qui
 /// remplace l'affichage RDBN brut par des données structurées (positions de formation,
 /// listes de skills/items, missions…), consommé par l'explorateur azalee et les exports.
@@ -709,6 +709,17 @@ fn typed_decode(
         "skill_view_preset_config" => {
             t!("skill_view", nie_data::skill_view::parse_skill_view_preset_config(root))
         }
+        // Familles golden byte-exactes restées en « vase clos » (parseur validé mais non servi)
+        // — câblées 2026-06-19. uniform/players_universe revalidés ce cycle (comptes réels vs VFS live).
+        "uniform_config" => t!("uniform", nie_data::uniform::parse_uniform_config(root)),
+        "players_universe_config" => {
+            t!("players_universe", nie_data::players_universe::parse_players_universe_config(root))
+        }
+        "players_universe_event_config" => t!(
+            "players_universe_event",
+            nie_data::players_universe::parse_players_universe_event_config(root)
+        ),
+        "nfc_lottery_config" => t!("nfc_lottery", nie_data::nfc::parse_nfc_lottery_config(root)),
         _ => None,
     }
 }
@@ -2353,6 +2364,53 @@ mod tests {
     fn dds_fourcc_inconnu_rejete() {
         let h = dds_header(0x4, b"ZZZZ", &[], 256);
         assert!(dds_format_and_pixel_offset(&h).is_none());
+    }
+
+    /// Garde le câblage `/typed` des 4 familles golden ajoutées (uniform, players_universe,
+    /// players_universe_event, nfc) : sur le .json de référence, `typed_decode` doit renvoyer le
+    /// bon label + un payload non vide. **Drift-résistant** (PAS de compte en dur — cf. la dérive
+    /// des golden corrigée ce cycle). Game-gated (skip si dump absent).
+    #[test]
+    fn typed_decode_cable_les_4_familles_golden() {
+        let cases = [
+            (
+                "uniform_config",
+                "uniform",
+                "/home/ubuntu/niers/data/common/gamedata/character/uniform_config_1.03.52.00.cfg.bin.json",
+            ),
+            (
+                "players_universe_config",
+                "players_universe",
+                "/home/ubuntu/niers/data/common/gamedata/players_universe/players_universe_config_1.03.59.00.cfg.bin.json",
+            ),
+            (
+                "players_universe_event_config",
+                "players_universe_event",
+                "/home/ubuntu/niers/data/common/gamedata/players_universe/players_universe_event_config.cfg.bin.json",
+            ),
+            (
+                "nfc_lottery_config",
+                "nfc_lottery",
+                "/home/ubuntu/niers/data/common/gamedata/nfc/nfc_lottery_config.cfg.bin.json",
+            ),
+        ];
+        for (key, label, path) in cases {
+            if !std::path::Path::new(path).exists() {
+                eprintln!("dump absent, skip {key}");
+                continue;
+            }
+            let txt = std::fs::read_to_string(path).expect("lire json");
+            let root: serde_json::Value = serde_json::from_str(&txt).expect("json valide");
+            let (got_label, value) =
+                typed_decode(key, &root).unwrap_or_else(|| panic!("{key} : typed_decode → Some"));
+            assert_eq!(got_label, label, "{key} : label de famille");
+            let non_empty = match &value {
+                serde_json::Value::Array(a) => !a.is_empty(),
+                serde_json::Value::Object(o) => !o.is_empty(),
+                _ => false,
+            };
+            assert!(non_empty, "{key} : payload non vide");
+        }
     }
 
     #[test]
