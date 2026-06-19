@@ -725,3 +725,38 @@ fn mainmenu_via_setting_ssim_vs_reference() {
         "SSIM {score:.4} < plancher 0.40 — régression du placement/composition menu_setting (baseline 0.4180)"
     );
 }
+
+/// Gate **D1.d (rendu de texte)** : `--render-text 212` doit décoder l'atlas de police RÉEL
+/// (`font_def/font.g4tx`, DDS LEGACY BGRA8), charger les métriques (`font.cfg.bin`), résoudre les
+/// 3 codepoints et écrire un PNG non vide. Garde contre la régression du décodage atlas legacy +
+/// du pipeline `font::draw_text`. Game-gated (skip si le jeu est absent).
+#[test]
+fn render_text_212_from_real_font_atlas() {
+    let Some(game) = game_dir() else {
+        eprintln!("jeu absent — skip render_text_212_from_real_font_atlas");
+        return;
+    };
+    let bin = env!("CARGO_BIN_EXE_nie-game");
+    // Couvre chiffres ET un mot Latin réel : les DEUX classes de glyphes (cibles du gate D1.d).
+    for (text, expect) in [("212", "3/3 codepoints"), ("Sauvegarder", "11/11 codepoints")] {
+        let out = std::env::temp_dir().join("gate_render_text.png");
+        let output = Command::new(bin)
+            .args(["--game-dir"])
+            .arg(&game)
+            .args(["--render-text", text, "--capture"])
+            .arg(&out)
+            .env("RUST_LOG", "error")
+            .output()
+            .expect("lancer nie-game --render-text");
+        assert!(output.status.success(), "--render-text {text} a échoué");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        // Tous les codepoints doivent résoudre dans la table de glyphes réelle (atlas legacy BGRA8).
+        assert!(
+            stdout.contains(expect),
+            "« {text} » : tous les codepoints doivent résoudre ({expect}) depuis l'atlas réel : {stdout}"
+        );
+        // PNG non trivial = des glyphes ont été rendus (pas un canevas vide).
+        let png = std::fs::read(&out).expect("PNG render-text");
+        assert!(png.len() > 200, "PNG « {text} » trop petit ({} o) — rien rendu ?", png.len());
+    }
+}
