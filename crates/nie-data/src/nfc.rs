@@ -166,8 +166,9 @@ fn parse_items(item_list: Node<'_>) -> Vec<NfcLotteryItem> {
 
 /// Parse les tables d'un conteneur `NFC_LOTTERY_INFO_TABLE_LIST_BEG_*`.
 ///
-/// Port d'inagle l.72-97 adapté à l'encodage BEG plat : chaque `NFC_LOTTERY_INFO_TABLE_N`
-/// est suivi de son `NFC_LOTTERY_INFO_TABLE_ITEM_LIST_BEG_N` (nœud frère).
+/// Port d'inagle l.72-97. Gère les DEUX encodages cfg.bin.json : le `_ITEM_LIST_BEG_N` est soit
+/// un **enfant** du `NFC_LOTTERY_INFO_TABLE_N` (dumps imbriqués actuels), soit son **frère suivant**
+/// (ancien encodage BEG plat / fixtures hermétiques).
 fn parse_tables(table_list: Node<'_>) -> Vec<NfcLotteryTable> {
     let kids = table_list.children();
     let mut tables = Vec::new();
@@ -176,14 +177,23 @@ fn parse_tables(table_list: Node<'_>) -> Vec<NfcLotteryTable> {
         let node = kids[idx];
         if is_indexed(node.name(), "NFC_LOTTERY_INFO_TABLE_") {
             let table_id = node.hash(0);
-            // Le conteneur d'items est le frère suivant (encodage BEG plat).
-            let items = match kids.get(idx + 1) {
-                Some(next) if next.name().starts_with("NFC_LOTTERY_INFO_TABLE_ITEM_LIST_BEG") => {
-                    let parsed = parse_items(*next);
-                    idx += 1; // consomme le conteneur d'items
-                    parsed
-                }
-                _ => Vec::new(),
+            // Le conteneur d'items est soit un ENFANT du `NFC_LOTTERY_INFO_TABLE_N` (dump
+            // imbriqué actuel), soit le FRÈRE suivant (encodage BEG plat). Enfant d'abord.
+            let items = if let Some(il) = node
+                .children()
+                .into_iter()
+                .find(|c| c.name().starts_with("NFC_LOTTERY_INFO_TABLE_ITEM_LIST_BEG"))
+            {
+                parse_items(il)
+            } else if let Some(next) = kids
+                .get(idx + 1)
+                .filter(|n| n.name().starts_with("NFC_LOTTERY_INFO_TABLE_ITEM_LIST_BEG"))
+            {
+                let parsed = parse_items(*next);
+                idx += 1; // consomme le conteneur d'items (frère, encodage plat)
+                parsed
+            } else {
+                Vec::new()
             };
             tables.push(NfcLotteryTable { table_id, items });
         }
@@ -194,9 +204,11 @@ fn parse_tables(table_list: Node<'_>) -> Vec<NfcLotteryTable> {
 
 /// Parse un `nfc_lottery_config.cfg.bin.json` désérialisé en liste de [`NfcLottery`].
 ///
-/// Port 1:1 de `parseEntries` (`nfc-lottery-config.ts` l.55-103) adapté à l'encodage
-/// BEG plat de `nie-formats` : sous `NFC_LOTTERY_INFO_LIST_BEG`, chaque `NFC_LOTTERY_INFO_N`
-/// est suivi de son `NFC_LOTTERY_INFO_TABLE_LIST_BEG_N` (nœud frère, pas enfant).
+/// Port 1:1 de `parseEntries` (`nfc-lottery-config.ts` l.55-103). Gère les DEUX encodages
+/// cfg.bin.json : sous `NFC_LOTTERY_INFO_LIST_BEG`, le `_TABLE_LIST_BEG_N` de chaque
+/// `NFC_LOTTERY_INFO_N` est soit son **enfant** (dumps imbriqués actuels — fichier live du VPS),
+/// soit son **frère suivant** (ancien encodage BEG plat / fixtures hermétiques). Validé sur le
+/// vrai `nfc_lottery_config.cfg.bin.json` (3 loteries, 34/1/34 tables = 69) ET les fixtures.
 #[must_use]
 pub fn parse_nfc_lottery_config(root: &Value) -> Vec<NfcLottery> {
     let mut lotteries = Vec::new();
@@ -214,14 +226,24 @@ pub fn parse_nfc_lottery_config(root: &Value) -> Vec<NfcLottery> {
             let node = kids[idx];
             if is_indexed(node.name(), "NFC_LOTTERY_INFO_") {
                 let lottery_id = node.int(0);
-                // La liste des tables est le frère suivant (encodage BEG plat).
-                let tables = match kids.get(idx + 1) {
-                    Some(next) if next.name().starts_with("NFC_LOTTERY_INFO_TABLE_LIST_BEG") => {
-                        let parsed = parse_tables(*next);
-                        idx += 1; // consomme la liste des tables
-                        parsed
-                    }
-                    _ => Vec::new(),
+                // La liste des tables est soit un ENFANT du `NFC_LOTTERY_INFO_N` (dump imbriqué
+                // actuel), soit le FRÈRE suivant (encodage BEG plat des anciens dumps/fixtures).
+                // On tente l'enfant d'abord, puis le frère — robuste aux DEUX encodages.
+                let tables = if let Some(tl) = node
+                    .children()
+                    .into_iter()
+                    .find(|c| c.name().starts_with("NFC_LOTTERY_INFO_TABLE_LIST_BEG"))
+                {
+                    parse_tables(tl)
+                } else if let Some(next) = kids
+                    .get(idx + 1)
+                    .filter(|n| n.name().starts_with("NFC_LOTTERY_INFO_TABLE_LIST_BEG"))
+                {
+                    let parsed = parse_tables(*next);
+                    idx += 1; // consomme la liste des tables (frère, encodage plat)
+                    parsed
+                } else {
+                    Vec::new()
                 };
                 lotteries.push(NfcLottery {
                     lottery_id,
