@@ -20,6 +20,7 @@ SUITE = [
     ("validate_ball_ctor.py", "init objet ballon + contexte physique (gravité -9.8f) — SSE"),
     ("validate_parabola.py", "BallMoveSimpleParabora — trajectoire projectile (SSE)"),
     ("validate_lerp.py", "BallMoveLerp — interpolation adoucie (SSE + FMA3 émulée)"),
+    ("validate_targetfollow.py", "BallMoveTargetFollow — suivi cible (SSE3/4 haddps/insertps/sqrtps + FMA mem)"),
 ]
 
 ok = 0

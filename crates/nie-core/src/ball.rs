@@ -414,9 +414,54 @@ impl LerpMove {
     }
 }
 
+/// Mouvement de suivi de cible (easing linéaire borné + clamp de la composante y).
+///
+/// Port BYTE-FIDÈLE de `game::BallMoveTargetFollow::vmethod_3` (`0x14133c080`, SSE3/4 + FMA3),
+/// reversé de l'asm et **validé byte-exact** contre l'émulation Unicorn (`scripts/validate_targetfollow.py`,
+/// 3 cas). Les constantes `.data` (offset/biais) sont nulles dans le binaire (no-op).
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct TargetFollowMove {
+    /// Cible suivie, offset `0x70` de l'objet jeu.
+    pub target: Vec3,
+    /// Plancher de la composante y (`target.y` est borné `>= bound_y`), offset `0x94/0x98`.
+    pub bound_y: f32,
+    /// Temps écoulé, offset `0xb4`.
+    pub t: f32,
+    /// Durée totale (≤ 0 ⇒ ease = 1), offset `0xac`.
+    pub duration: f32,
+}
+
+impl TargetFollowMove {
+    /// Avance d'un pas `dt` depuis `origin`. `new_pos = origin + ease·(target_clampé − origin)`,
+    /// `ease = clamp(t/duration, 0, 1)` (1 si `duration ≤ 0`), `target.y` borné `≥ bound_y`.
+    #[must_use]
+    #[allow(clippy::manual_clamp)] // ordre minss(1.0) puis maxss(0.0) du binaire.
+    pub fn step(&mut self, origin: Vec3, dt: f32) -> Vec3 {
+        self.t += dt;
+        let ty = self.target.y.max(self.bound_y);
+        let ease = if self.duration > 0.0 { (self.t / self.duration).min(1.0).max(0.0) } else { 1.0 };
+        // step[i] = (delta[i]).mul_add(ease, 0) (consts .data = 0) ; new_pos = origin + step.
+        Vec3 {
+            x: origin.x + (self.target.x - origin.x).mul_add(ease, 0.0),
+            y: origin.y + (ty - origin.y).mul_add(ease, 0.0),
+            z: origin.z + (self.target.z - origin.z).mul_add(ease, 0.0),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn target_follow_step_byte_exact_vs_binaire() {
+        // Cas 1 de scripts/validate_targetfollow.py (validé byte-exact vs binaire).
+        let mut m = TargetFollowMove { target: Vec3 { x: 5.0, y: 8.0, z: 5.0 }, bound_y: 0.0, t: 0.0, duration: 2.0 };
+        let pos = m.step(Vec3 { x: 0.0, y: 0.0, z: 0.0 }, 0.5);
+        assert_eq!(pos.x.to_bits(), 1.25_f32.to_bits());
+        assert_eq!(pos.y.to_bits(), 2.0_f32.to_bits());
+        assert_eq!(pos.z.to_bits(), 1.25_f32.to_bits());
+    }
 
     #[test]
     fn lerp_step_byte_exact_vs_binaire() {
