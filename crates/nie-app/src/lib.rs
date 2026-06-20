@@ -11,6 +11,7 @@
 pub mod character;
 pub mod render;
 pub mod roster;
+pub mod story;
 
 pub use render::{CpuRenderer, Font, Screen, H, W};
 
