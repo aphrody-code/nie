@@ -105,36 +105,67 @@ class Emu:
 
         uc.hook_add(UC_HOOK_CODE, on_code)
 
-        # Émulation logicielle de la FMA3 (le TCG d'unicorn ne l'implémente pas → invalid insn).
+        # Émulation logicielle des instructions que le TCG d'unicorn n'implémente pas (FMA3, SSE3/4).
+        import capstone.x86 as _x86
         import unicorn.x86_const as _xc
 
+        self._md.detail = True  # opérandes détaillés (reg/mem/imm)
         xmm = {f"xmm{i}": getattr(_xc, f"UC_X86_REG_XMM{i}") for i in range(16)}
+        gpr = {
+            n: getattr(_xc, f"UC_X86_REG_{n.upper()}")
+            for n in ("rax", "rbx", "rcx", "rdx", "rsi", "rdi", "rbp", "rsp", *(f"r{i}" for i in range(8, 16)))
+        }
+
+        def f32(x):
+            return struct.unpack("<f", struct.pack("<f", x))[0]
+
+        def read_op(u, ins, op):
+            if op.type == _x86.X86_OP_REG:
+                return list(struct.unpack("<4f", u.reg_read(xmm[self._md.reg_name(op.reg)]).to_bytes(16, "little")))
+            if op.type == _x86.X86_OP_MEM:
+                m = op.mem
+                bn = self._md.reg_name(m.base) if m.base else None
+                addr = ins.address + ins.size + m.disp if bn == "rip" else (u.reg_read(gpr[bn]) if bn else 0) + m.disp
+                if m.index and bn != "rip":
+                    addr += u.reg_read(gpr[self._md.reg_name(m.index)]) * m.scale
+                return list(struct.unpack("<4f", bytes(u.mem_read(addr & 0xFFFFFFFFFFFFFFFF, 16))))
+            return None
 
         def on_invalid(u, _data):
             rip = u.reg_read(UC_X86_REG_RIP)
             ins = next(self._md.disasm(bytes(u.mem_read(rip, 16)), rip), None)
-            if ins is None or not ins.mnemonic.startswith("vfmadd"):
-                return False  # réellement invalide
-            ops = [o.strip() for o in ins.op_str.split(",")]
-            regs = [xmm.get(o) for o in ops]
-            if len(regs) != 3 or None in regs:
+            if ins is None or not ins.operands or ins.operands[0].type != _x86.X86_OP_REG:
                 return False
-            variant = ins.mnemonic[6:9]  # 132 / 213 / 231
-            n = 4 if ins.mnemonic.endswith("ps") else 1  # packed vs scalar
-
-            def rd(r):
-                return list(struct.unpack("<4f", u.reg_read(r).to_bytes(16, "little")))
-
-            d, s2, s3 = rd(regs[0]), rd(regs[1]), rd(regs[2])
-            for i in range(n):
-                if variant == "132":
-                    a, b, c = d[i], s3[i], s2[i]
-                elif variant == "213":
-                    a, b, c = s2[i], d[i], s3[i]
-                else:  # 231
-                    a, b, c = s2[i], s3[i], d[i]
-                d[i] = struct.unpack("<f", struct.pack("<f", math.fma(a, b, c)))[0]
-            u.reg_write(regs[0], int.from_bytes(struct.pack("<4f", *d), "little"))
+            m, ops = ins.mnemonic, ins.operands
+            dreg = xmm.get(self._md.reg_name(ops[0].reg))
+            if dreg is None:
+                return False
+            d = list(struct.unpack("<4f", u.reg_read(dreg).to_bytes(16, "little")))
+            if m.startswith("vfmadd"):
+                variant, n = m[6:9], (4 if m.endswith("ps") else 1)
+                s2, s3 = read_op(u, ins, ops[1]), read_op(u, ins, ops[2])
+                if s2 is None or s3 is None:
+                    return False
+                for i in range(n):
+                    a, b, c = ({"132": (d[i], s3[i], s2[i]), "213": (s2[i], d[i], s3[i])}.get(variant, (s2[i], s3[i], d[i])))
+                    d[i] = f32(math.fma(a, b, c))
+            elif m == "haddps":
+                s = read_op(u, ins, ops[1])
+                d = [f32(d[0] + d[1]), f32(d[2] + d[3]), f32(s[0] + s[1]), f32(s[2] + s[3])]
+            elif m == "insertps":
+                s = read_op(u, ins, ops[1])
+                imm = ops[2].imm
+                d[(imm >> 4) & 3] = s[(imm >> 6) & 3]
+                for i in range(4):
+                    if imm & (1 << i):
+                        d[i] = 0.0
+            elif m in ("sqrtps", "sqrtss"):
+                s = read_op(u, ins, ops[1])
+                for i in range(4 if m == "sqrtps" else 1):
+                    d[i] = f32(math.sqrt(s[i])) if s[i] >= 0 else float("nan")
+            else:
+                return False
+            u.reg_write(dreg, int.from_bytes(struct.pack("<4f", *d), "little"))
             u.reg_write(UC_X86_REG_RIP, rip + ins.size)
             return True
 
