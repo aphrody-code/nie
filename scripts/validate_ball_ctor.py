@@ -17,10 +17,13 @@ inventer. C'est la boucle reverse→valider que l'oracle débloque.
 import struct
 import sys
 
-from uemu import Emu, SCRATCH
+from uemu import SCRATCH, Emu
 
 N = 0x140
 e = Emu()
+# Émule l'init du ctor (depuis 0x14027ac00, après l'alloc, rax=ptr struct) jusqu'à la fin .pdata.
+# (Émulation mi-fonction propre, err=None ; le call-stubbing depuis le vrai début donne le MÊME
+# struct mais déclenche une lecture tardive via la vtable de l'objet alloué — non bloquant.)
 out = e.call(0x14027AC00, rax=SCRATCH, mem={SCRATCH: bytes(N)}, read={SCRATCH: N}, stop=0x14027ACA1)
 blob = out["mem"][SCRATCH]
 
