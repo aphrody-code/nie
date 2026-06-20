@@ -2141,11 +2141,20 @@ fn setting_objbin_paths(vfs: &Vfs, setting: &str) -> Vec<String> {
         .iter()
         .filter_map(|l| {
             let basename = l.objbin_path.rsplit('/').next().unwrap_or(&l.objbin_path);
+            let stem = basename.strip_suffix(".objbin").unwrap_or(basename);
+            let pref = format!("{stem}_");
+            // Le setting référence souvent le PRÉFIXE (`btl01_10.objbin`) alors que le fichier réel
+            // porte un suffixe descriptif (`btl01_10_battle_title.objbin`). On résout par match exact,
+            // sinon par préfixe + `_` (le plus court = le plus proche du préfixe).
             let resolved = vfs
                 .iter()
                 .map(|(p, _)| p.to_string())
-                .filter(|p| p.rsplit('/').next() == Some(basename))
-                .min();
+                .filter(|p| {
+                    let b = p.rsplit('/').next().unwrap_or(p);
+                    b == basename
+                        || b.strip_suffix(".objbin").is_some_and(|s| s == stem || s.starts_with(&pref))
+                })
+                .min_by_key(|p| p.rsplit('/').next().unwrap_or(p).len());
             if resolved.is_none() {
                 warn!("layer '{}' : objbin '{basename}' absent du VFS", l.name);
             }
@@ -2925,8 +2934,16 @@ fn cmd_export_layout_runtime(
 
 /// Compose l'écran `screen` via le compositeur CPU (référence pixel-perfect) → PNG.
 fn cmd_menu(game_dir: &Path, screen: &str, png_out: &Path, from_setting: bool) -> Result<()> {
+    // `--from-setting` d'abord ; si l'écran n'a pas de MENU_LAYER_INFO (popups/sous-fenêtres/
+    // écrans de combat), on RETOMBE sur le mode par préfixe d'objbin (le screen sans `_menu`).
     let sprites = if from_setting {
-        build_sprite_list_from_setting(game_dir, screen)?
+        match build_sprite_list_from_setting(game_dir, screen) {
+            Ok(s) if !s.is_empty() => s,
+            _ => {
+                let prefix = screen.strip_suffix("_menu").unwrap_or(screen);
+                build_sprite_list(game_dir, prefix).unwrap_or_default()
+            }
+        }
     } else {
         build_sprite_list(game_dir, screen)?
     };
