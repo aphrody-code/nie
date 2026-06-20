@@ -95,6 +95,45 @@ pub struct SubmeshGeometry {
     pub indices: Vec<u32>,
 }
 
+/// Skinning par vertex : jusqu'à 8 influences (os + poids). Décodé byte-exact (example
+/// `validate_skin`, c01000010 : 880/880 vertices poids = 1.0). WEIGHTS = `8× u16` UNORM (vtype 5),
+/// INDICES = `8× u8` (vtype 6) ; stride perso skinné = 68.
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct VertexSkin {
+    /// Indices d'os (LOCAUX au mesh — la palette os local→global g4sk reste à valider).
+    pub bones: [u8; 8],
+    /// Poids associés (somment à ≈1).
+    pub weights: [f32; 8],
+}
+
+/// Extrait le skinning par vertex d'une sous-maille (`None` si le mesh n'a pas d'attributs
+/// WEIGHTS/INDICES, ou si les données sortent des limites).
+#[must_use]
+pub fn extract_skin(g4mg: &[u8], g4md: &G4md, submesh: usize) -> Option<Vec<VertexSkin>> {
+    let w = g4md.find_attribute(5)?;
+    let idx = g4md.find_attribute(6)?;
+    let sm = g4md.submeshes.get(submesh)?;
+    // stride perso skinné = 68 ; le champ peut valoir 0 sur certains g4md → plancher.
+    let stride = if (sm.stride as usize) >= 12 { sm.stride as usize } else { 68 };
+    let vbase = sm.vertex_offset as usize;
+    let (wo0, io0) = (w.offset as usize, idx.offset as usize);
+    let mut out = Vec::with_capacity(sm.vertex_count as usize);
+    for v in 0..sm.vertex_count as usize {
+        let vo = vbase + v * stride;
+        let (wo, io) = (vo + wo0, vo + io0);
+        if wo + 16 > g4mg.len() || io + 8 > g4mg.len() {
+            return None;
+        }
+        let weights: [f32; 8] = core::array::from_fn(|k| {
+            f32::from(u16::from_le_bytes([g4mg[wo + k * 2], g4mg[wo + k * 2 + 1]])) / 65535.0
+        });
+        let bones: [u8; 8] = core::array::from_fn(|k| g4mg[io + k]);
+        out.push(VertexSkin { bones, weights });
+    }
+    Some(out)
+}
+
 /// Extrait la géométrie de toutes les sous-mailles d'un .g4mg piloté par le .g4md compagnon.
 #[must_use]
 pub fn extract_geometry(g4mg: &[u8], g4md: &G4md) -> Vec<SubmeshGeometry> {
