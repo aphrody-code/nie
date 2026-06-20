@@ -123,14 +123,18 @@ fn main() {
             }
         }
         println!("  rangée ASCII y={yb} : {} spans de glyphes", runs.len());
-        // ASCII imprimable commence à ' '(32). Les premiers spans visibles ≈ '!'(33)…
-        // Affiche les 24 premiers spans (gauche) avec leur largeur.
-        let show: Vec<String> = runs.iter().take(24).map(|(a, b)| format!("[{a}+{}]", b - a)).collect();
-        println!("  spans: {}", show.join(" "));
-        // Métriques col[3] de glyphes-repères pour recouper.
-        for (ch, cp) in [('!', 33u32), ('0', 48), ('9', 57), ('A', 65), ('Z', 90), ('a', 97)] {
-            if let Some(m) = metrics.glyph(cp) {
-                println!("    métrique '{ch}' col3(x)={} w={}", m.x, m.width);
+        // ALIGNEMENT : glyphes ASCII visibles triés par col3 ↔ spans physiques triés par X.
+        // → (char, col3 métrique, X physique, diff) pour révéler la fonction X.
+        let mut glyphs: Vec<(char, i32, i32)> = (33u32..127)
+            .filter_map(|cp| metrics.glyph(cp).map(|m| (char::from_u32(cp).unwrap(), i32::from(m.x), i32::from(m.width))))
+            .collect();
+        glyphs.sort_by_key(|&(_, x, _)| x);
+        let mut spans = runs.clone();
+        spans.sort();
+        println!("  alignement (char col3 → physX diff) :");
+        for (k, (ch, col3, _w)) in glyphs.iter().enumerate() {
+            if let Some(&(ps, _)) = spans.get(k) {
+                println!("    '{ch}' col3={col3} phys={ps} diff={}", ps as i32 - col3);
             }
         }
     }
