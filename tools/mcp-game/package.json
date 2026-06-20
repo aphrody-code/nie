@@ -1,0 +1,23 @@
+{
+  "name": "niers-mcp-game",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Serveur MCP exposant Inazuma Eleven Victory Road (projet RE niers) : VFS CPK, assets décodés, base de connaissance RE, code du repo.",
+  "module": "src/index.ts",
+  "bin": {
+    "niers-mcp-game": "src/index.ts"
+  },
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "smoke": "bun run test/smoke.ts",
+    "typecheck": "bunx tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}
