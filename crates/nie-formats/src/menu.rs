@@ -193,7 +193,22 @@ pub struct CompositeSprite<'a> {
 /// Port en f32 de `nie-model-serve/src/menu.rs` (`blit_sprite`/`sample_bilinear`).
 #[must_use]
 pub fn compose(canvas_w: u32, canvas_h: u32, sprites: &[CompositeSprite]) -> Vec<u8> {
-    let mut canvas = alloc::vec![0u8; (canvas_w as usize) * (canvas_h as usize) * 4];
+    let canvas = alloc::vec![0u8; (canvas_w as usize) * (canvas_h as usize) * 4];
+    compose_over(canvas, canvas_w, canvas_h, sprites)
+}
+
+/// Comme [`compose`], mais blitte les sprites par-dessus un canvas RGBA8 **déjà peint** (de
+/// dimensions `canvas_w × canvas_h`). Permet de poser un fond opaque (dégradé pastel du
+/// main_menu) avant le compositing, au lieu d'un canvas transparent (= noir en luma → marges
+/// noires qui plombent la SSIM vs la capture réelle pastel). Le canvas est consommé et rendu.
+#[must_use]
+pub fn compose_over(
+    mut canvas: Vec<u8>,
+    canvas_w: u32,
+    canvas_h: u32,
+    sprites: &[CompositeSprite],
+) -> Vec<u8> {
+    debug_assert_eq!(canvas.len(), (canvas_w as usize) * (canvas_h as usize) * 4);
     for s in sprites {
         blit_sprite(&mut canvas, canvas_w as i64, canvas_h as i64, s);
     }
