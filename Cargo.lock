@@ -2672,6 +2672,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "nie-formats",
  "png",
  "serde_json",
 ]
