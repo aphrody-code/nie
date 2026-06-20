@@ -1278,6 +1278,11 @@ fn assemble_map(state: &State, rel: &str) -> Result<GlbBytes> {
     })
     .with_context(|| format!("assemblage map {rel}"))?;
 
+    // Texture : binding par matériau NON RÉSOLU. Les textures sont au niveau STAGE (plusieurs :
+    // `<stage>.g4tx`, `<stage>g.g4tx`, `<stage>f.g4tx`, `<stage>i.g4tx`…), et `<stage>g.g4tx` (groupe)
+    // s'est avéré quasi transparent → ce n'est pas la base color du chunk. Tant que le binding
+    // matériau→g4tx n'est pas RE, on NE plaque PAS de texture (les UV [0,1] sont corrects dans le GLB,
+    // prêts pour quand le binding sera trouvé). Repli historique par-chunk (rare).
     let g4tx = {
         let vfs = state.vfs.lock().unwrap();
         vfs.read(&format!("data/dx11/map/{rel}/{base}.g4tx"))

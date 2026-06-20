@@ -120,16 +120,28 @@ fn map_tris(models: &[glb::Model]) -> (Vec<scene::Tri>, [f32; 3], f32) {
     (tris, center, extent)
 }
 
-/// Rend une map sous l'angle `angle` (caméra orbitale auto-cadrée sur la bbox).
-fn render_map_frame(tris: &[scene::Tri], center: [f32; 3], extent: f32, angle: f32, w: u32, h: u32) -> Vec<u8> {
+/// Caméra orbitale auto-cadrée sur la bbox d'une map.
+fn map_camera(center: [f32; 3], extent: f32, angle: f32) -> scene::Camera {
     let r = extent * 1.35;
-    let cam = scene::Camera {
+    scene::Camera {
         eye: [center[0] + r * angle.sin(), center[1] + extent * 0.65, center[2] + r * angle.cos()],
         target: center,
         up: [0.0, 1.0, 0.0],
         fov_y: 0.72,
-    };
-    scene::render_world(tris, &cam, w, h, [120, 150, 210], [196, 210, 226])
+    }
+}
+
+/// Rend une map en triangles plats colorés par hauteur (caméra orbitale).
+fn render_map_frame(tris: &[scene::Tri], center: [f32; 3], extent: f32, angle: f32, w: u32, h: u32) -> Vec<u8> {
+    scene::render_world(tris, &map_camera(center, extent, angle), w, h, [120, 150, 210], [196, 210, 226])
+}
+
+/// Rend une map TEXTURÉE : les modèles (chunks) en instances (transform identité, déjà en monde),
+/// échantillonnés avec leurs UV + atlas. Caméra orbitale auto-cadrée.
+fn render_map_textured(models: &[glb::Model], center: [f32; 3], extent: f32, angle: f32, w: u32, h: u32) -> Vec<u8> {
+    let inst: Vec<scene::Instance> =
+        models.iter().map(|m| scene::Instance { model: m, transform: scene::mat_identity(), two_sided: true }).collect();
+    scene::render_scene(&[], &inst, &map_camera(center, extent, angle), w, h, [120, 150, 210], [196, 210, 226])
 }
 
 /// Rend un modèle posé sur le sol via le compositeur de scène (caméra monde fixe).
@@ -140,7 +152,7 @@ fn render_scene_frame(model: &glb::Model, angle: f32, w: u32, h: u32) -> Vec<u8>
         up: [0.0, 1.0, 0.0],
         fov_y: 0.72,
     };
-    let inst = [scene::Instance { model, transform: place(model, angle) }];
+    let inst = [scene::Instance { model, transform: place(model, angle), two_sided: false }];
     scene::render_scene(&ground(), &inst, &cam, w, h, [120, 150, 210], [58, 86, 140])
 }
 
@@ -203,9 +215,15 @@ fn main() -> Result<()> {
         println!("map_tris={} (après filtrage des submeshes aberrants)", tris.len());
     }
 
+    // Map texturée si les modèles portent des textures, sinon coloration par hauteur.
+    let map_textured = cli.map && models.iter().any(|m| !m.textures.is_empty());
     let frame = |angle: f32| -> Vec<u8> {
         if let Some((tris, center, extent)) = &map_data {
-            render_map_frame(tris, *center, *extent, angle, cli.width, cli.height)
+            if map_textured {
+                render_map_textured(&models, *center, *extent, angle, cli.width, cli.height)
+            } else {
+                render_map_frame(tris, *center, *extent, angle, cli.width, cli.height)
+            }
         } else if cli.scene {
             render_scene_frame(model, angle, cli.width, cli.height)
         } else {
