@@ -377,9 +377,57 @@ impl ParabolaMove {
     }
 }
 
+/// Mouvement par interpolation adoucie (quartic ease-out) entre `origin` et `target`.
+///
+/// Port BYTE-FIDÈLE de `game::BallMoveLerp::vmethod_3` (`0x141339ba0`, SSE + FMA3), reversé de l'asm
+/// et **validé byte-exact** contre l'émulation Unicorn (`scripts/validate_lerp.py`, FMA3 émulée).
+/// La FMA `vfmadd231ps` correspond à `f32::mul_add` (rounding unique).
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct LerpMove {
+    /// Point cible (atteint à `t == duration`), offset `0x60` de l'objet jeu.
+    pub target: Vec3,
+    /// Temps écoulé, offset `0xa0`.
+    pub t: f32,
+    /// Durée totale, offset `0xa4`.
+    pub duration: f32,
+}
+
+impl LerpMove {
+    /// Avance d'un pas `dt` depuis `origin` (position courante). Renvoie la nouvelle position.
+    ///
+    /// Formule reversée (f32, ordre du binaire) : `t += dt` ; `s = t/duration` ;
+    /// `ease = min(1 − (s−1)⁴, 1) puis max(_, 0)` ; `pos = origin + ease·(target − origin)` (via FMA).
+    #[must_use]
+    #[allow(clippy::manual_clamp)] // ordre minss(1.0) PUIS maxss(0.0) du binaire (≠ clamp : sémantique NaN/ordre).
+    pub fn step(&mut self, origin: Vec3, dt: f32) -> Vec3 {
+        self.t += dt;
+        let s = self.t / self.duration;
+        let e2 = (s - 1.0) * (s - 1.0);
+        let e4 = e2 * e2;
+        let ease = (1.0_f32 - e4).min(1.0).max(0.0);
+        // pos[i] = ease·(target−origin) + origin  (vfmadd231ps = f32::mul_add).
+        Vec3 {
+            x: (self.target.x - origin.x).mul_add(ease, origin.x),
+            y: (self.target.y - origin.y).mul_add(ease, origin.y),
+            z: (self.target.z - origin.z).mul_add(ease, origin.z),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn lerp_step_byte_exact_vs_binaire() {
+        // Mêmes entrées que scripts/validate_lerp.py (validé byte-exact vs binaire, FMA3 émulée).
+        let mut m = LerpMove { target: Vec3 { x: 10.0, y: 20.0, z: 30.0 }, t: 0.0, duration: 2.0 };
+        let pos = m.step(Vec3 { x: 1.0, y: 2.0, z: 3.0 }, 0.5);
+        assert_eq!(pos.x.to_bits(), 7.152_343_75_f32.to_bits());
+        assert_eq!(pos.y.to_bits(), 14.304_687_5_f32.to_bits());
+        assert_eq!(pos.z.to_bits(), 21.457_031_25_f32.to_bits());
+        assert_eq!(m.t.to_bits(), 0.5_f32.to_bits());
+    }
 
     #[test]
     fn parabola_step_byte_exact_vs_binaire() {
