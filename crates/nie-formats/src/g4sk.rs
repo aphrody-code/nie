@@ -354,6 +354,129 @@ fn read_u32(data: &[u8], off: usize) -> Result<u32, FormatError> {
     Ok(u32::from_le_bytes(b))
 }
 
+fn read_f32(data: &[u8], off: usize) -> Option<f32> {
+    let b: [u8; 4] = data.get(off..off + 4)?.try_into().ok()?;
+    Some(f32::from_le_bytes(b))
+}
+
+// ============================================================================
+// Poses de bind (animation/skinning) — sections décodées byte-à-byte (workflow anim-re-crack,
+// validé : `max|A·B−I|<1.1e-7`, FK(C) reproduit la bind-pose monde à `<1e-7`).
+// Le répertoire d'offsets de l'en-tête (slots, [`slot_offset`]) pointe les sections en index de
+// float depuis 0x40 : slot[1]=B (inverse-bind), slot[2]=C (pose locale TRS).
+// ============================================================================
+
+/// Pose locale d'un os (relative au parent) : scale, quaternion `(x,y,z,w)`, translation.
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct LocalTrs {
+    pub scale: [f32; 3],
+    pub quat: [f32; 4],
+    pub translation: [f32; 3],
+}
+
+/// Pose de repos complète d'un os : TRS local (FK) + matrice inverse-bind (skinning).
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct BonePose {
+    /// Pose locale de repos — base de la cinématique directe animée.
+    pub local: LocalTrs,
+    /// Matrice inverse-bind 4×4 (col-major `m[col][row]`), pour transformer les sommets en espace os.
+    pub inverse_bind: [[f32; 4]; 4],
+}
+
+/// Lit une matrice 3×4 row-major (ligne `[m0,m1,m2,t]`) à l'octet `base + idx*48`, en 4×4 col-major
+/// avec dernière ligne `[0,0,0,1]`.
+#[allow(clippy::needless_range_loop)] // transposition row-major → col-major : indices explicites.
+fn read_mat3x4(data: &[u8], base: usize, idx: usize) -> Option<[[f32; 4]; 4]> {
+    let o = base + idx * 12 * 4;
+    let mut m = [[0.0f32; 4]; 4];
+    for r in 0..3 {
+        for c in 0..4 {
+            // élément ligne r, colonne c → m[col=c][row=r].
+            m[c][r] = read_f32(data, o + (r * 4 + c) * 4)?;
+        }
+    }
+    m[3][3] = 1.0;
+    Some(m)
+}
+
+/// Décode les poses de bind par os (sections B + C). Renvoie `None` si les offsets/longueurs
+/// sortent des limites. `header.bone_count` os attendus.
+#[must_use]
+pub fn parse_poses(data: &[u8], header: &G4skHeader) -> Option<Vec<BonePose>> {
+    let n = header.bone_count as usize;
+    let inv_base = slot_offset(data, 1)?; // section B (inverse-bind)
+    let trs_base = slot_offset(data, 2)?; // section C (pose locale TRS)
+    let mut poses = Vec::with_capacity(n);
+    for i in 0..n {
+        let inverse_bind = read_mat3x4(data, inv_base, i)?;
+        // C : 12 floats/os = [sx,sy,sz,_, qx,qy,qz,qw, tx,ty,tz,_].
+        let cf = |k: usize| read_f32(data, trs_base + (i * 12 + k) * 4);
+        let local = LocalTrs {
+            scale: [cf(0)?, cf(1)?, cf(2)?],
+            quat: [cf(4)?, cf(5)?, cf(6)?, cf(7)?],
+            translation: [cf(8)?, cf(9)?, cf(10)?],
+        };
+        poses.push(BonePose { local, inverse_bind });
+    }
+    Some(poses)
+}
+
+/// Matrice 4×4 col-major d'une pose locale TRS : `T · R(quat) · S`.
+#[must_use]
+pub fn local_matrix(trs: &LocalTrs) -> [[f32; 4]; 4] {
+    let [x, y, z, w] = trs.quat;
+    let (xx, yy, zz) = (x * x, y * y, z * z);
+    let (xy, xz, yz) = (x * y, x * z, y * z);
+    let (wx, wy, wz) = (w * x, w * y, w * z);
+    // Lignes de la matrice de rotation (convention standard quaternion → matrice).
+    let r = [
+        [1.0 - 2.0 * (yy + zz), 2.0 * (xy - wz), 2.0 * (xz + wy)],
+        [2.0 * (xy + wz), 1.0 - 2.0 * (xx + zz), 2.0 * (yz - wx)],
+        [2.0 * (xz - wy), 2.0 * (yz + wx), 1.0 - 2.0 * (xx + yy)],
+    ];
+    let s = trs.scale;
+    let t = trs.translation;
+    // Col-major m[col][row]. Colonne c = R[.][c]*scale[c] ; colonne 3 = translation.
+    [
+        [r[0][0] * s[0], r[1][0] * s[0], r[2][0] * s[0], 0.0],
+        [r[0][1] * s[1], r[1][1] * s[1], r[2][1] * s[1], 0.0],
+        [r[0][2] * s[2], r[1][2] * s[2], r[2][2] * s[2], 0.0],
+        [t[0], t[1], t[2], 1.0],
+    ]
+}
+
+/// Produit de deux matrices 4×4 col-major (`a·b`).
+#[must_use]
+pub fn mat_mul(a: &[[f32; 4]; 4], b: &[[f32; 4]; 4]) -> [[f32; 4]; 4] {
+    let mut m = [[0.0f32; 4]; 4];
+    for (c, col) in m.iter_mut().enumerate() {
+        for (r, cell) in col.iter_mut().enumerate() {
+            *cell = (0..4).map(|k| a[k][r] * b[c][k]).sum();
+        }
+    }
+    m
+}
+
+/// Matrices MONDE de repos par cinématique directe (composition des poses locales le long des
+/// parents). `parents[i] < 0` ou `>= i` ⇒ racine. Ordre des os = profondeur croissante en g4sk.
+#[must_use]
+pub fn rest_world_matrices(poses: &[BonePose], parents: &[i16]) -> Vec<[[f32; 4]; 4]> {
+    let mut world: Vec<[[f32; 4]; 4]> = Vec::with_capacity(poses.len());
+    for (i, p) in poses.iter().enumerate() {
+        let local = local_matrix(&p.local);
+        let par = parents.get(i).copied().unwrap_or(-1);
+        let m = if par < 0 || (par as usize) >= i {
+            local
+        } else {
+            mat_mul(&world[par as usize], &local)
+        };
+        world.push(m);
+    }
+    world
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
