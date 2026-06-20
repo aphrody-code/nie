@@ -12,6 +12,9 @@ workspace = true
 
 [dependencies]
 anyhow.workspace = true
+serde_json.workspace = true
 nie-formats = { path = "../nie-formats", features = ["serde"] }
 nie-render3d = { path = "../nie-render3d" }
+nie-core = { path = "../nie-core" }
+nie-data = { path = "../nie-data", features = ["serde", "std"] }
 bcdec_rs = "0.2.0"
