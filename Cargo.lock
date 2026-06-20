@@ -2671,6 +2671,7 @@ name = "nie-render3d"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bcdec_rs",
  "clap",
  "nie-formats",
  "png",
