@@ -153,18 +153,17 @@ pub fn render_scene(
     }
     let mut zbuf = vec![f32::INFINITY; (w * h) as usize];
 
-    // Monde → écran : translate par -eye, projette sur la base caméra, perspective.
-    let project = |p: V3| -> Option<(f32, f32, f32)> {
+    // Monde → espace caméra (x droite, y haut, z profondeur avant). Le clipping du plan proche
+    // se fait ICI (avant la division perspective) : un grand triangle traversant la caméra est
+    // découpé, pas rejeté — indispensable aux caméras rapprochées/intérieures (maps, cutscenes).
+    let cam_space = |p: V3| -> [f32; 3] {
         let v = sub(p, cam.eye);
-        let zc = dot(v, f); // profondeur le long de l'axe avant
-        if zc <= 0.05 {
-            return None;
-        }
-        let xc = dot(v, r);
-        let yc = dot(v, u);
-        let sx = w as f32 * 0.5 + xc / zc * focal * scale;
-        let sy = h as f32 * 0.5 - yc / zc * focal * scale;
-        Some((sx, sy, zc))
+        [dot(v, r), dot(v, u), dot(v, f)]
+    };
+    let to_screen = |cs: [f32; 3]| -> (f32, f32, f32) {
+        let sx = w as f32 * 0.5 + cs[0] / cs[2] * focal * scale;
+        let sy = h as f32 * 0.5 - cs[1] / cs[2] * focal * scale;
+        (sx, sy, cs[2])
     };
     let lambert = |wa: V3, wb: V3, wc: V3, lo: f32| -> f32 {
         let n = normv(cross(sub(wb, wa), sub(wc, wa)));
@@ -173,10 +172,14 @@ pub fn render_scene(
 
     // 1) Triangles plats (deux-faces : terrain vu de dessus).
     for tri in flat {
-        let (Some(a), Some(b), Some(c)) = (project(tri.p[0]), project(tri.p[1]), project(tri.p[2]))
-        else {
+        let poly = clip_near(&[
+            CVert::pos(cam_space(tri.p[0])),
+            CVert::pos(cam_space(tri.p[1])),
+            CVert::pos(cam_space(tri.p[2])),
+        ]);
+        if poly.len() < 3 {
             continue;
-        };
+        }
         let shade = lambert(tri.p[0], tri.p[1], tri.p[2], 0.45);
         let col = [
             (f32::from(tri.color[0]) * shade) as u8,
@@ -184,7 +187,10 @@ pub fn render_scene(
             (f32::from(tri.color[2]) * shade) as u8,
             255u8,
         ];
-        fill(&mut px, &mut zbuf, w, h, a, b, c, col);
+        let s: Vec<_> = poly.iter().map(|v| to_screen(v.c)).collect();
+        for i in 1..s.len() - 1 {
+            fill(&mut px, &mut zbuf, w, h, s[0], s[i], s[i + 1], col);
+        }
     }
 
     // 2) Instances de modèles texturés (vrais personnages), transformées en espace monde.
@@ -199,25 +205,81 @@ pub fn render_scene(
                 let wa = xform(&inst.transform, prim.positions[ia]);
                 let wb = xform(&inst.transform, prim.positions[ib]);
                 let wc = xform(&inst.transform, prim.positions[ic]);
-                let (Some(a), Some(b), Some(c)) = (project(wa), project(wb), project(wc)) else {
-                    continue;
-                };
-                // Backface culling (aire signée écran), comme le rendu mono-modèle.
-                if (b.0 - a.0) * (c.1 - a.1) - (b.1 - a.1) * (c.0 - a.0) <= 0.0 {
-                    continue;
-                }
-                let shade = lambert(wa, wb, wc, 0.35);
                 let uv = if tex.is_some() && ia < prim.uv.len() && ic < prim.uv.len() {
                     [prim.uv[ia], prim.uv[ib], prim.uv[ic]]
                 } else {
                     [[0.0, 0.0]; 3]
                 };
+                let poly = clip_near(&[
+                    CVert { c: cam_space(wa), uv: uv[0] },
+                    CVert { c: cam_space(wb), uv: uv[1] },
+                    CVert { c: cam_space(wc), uv: uv[2] },
+                ]);
+                if poly.len() < 3 {
+                    continue;
+                }
+                let s: Vec<_> = poly.iter().map(|v| to_screen(v.c)).collect();
+                // Backface culling (aire signée écran) sur le premier triangle de l'éventail.
+                if (s[1].0 - s[0].0) * (s[2].1 - s[0].1) - (s[1].1 - s[0].1) * (s[2].0 - s[0].0) <= 0.0
+                {
+                    continue;
+                }
+                let shade = lambert(wa, wb, wc, 0.35);
                 let use_tex = if uv == [[0.0, 0.0]; 3] { None } else { tex };
-                fill_tex(&mut px, &mut zbuf, w, h, a, b, c, uv, use_tex, shade);
+                for i in 1..s.len() - 1 {
+                    let uvs = [poly[0].uv, poly[i].uv, poly[i + 1].uv];
+                    fill_tex(&mut px, &mut zbuf, w, h, s[0], s[i], s[i + 1], uvs, use_tex, shade);
+                }
             }
         }
     }
     px
+}
+
+/// Sommet en espace caméra pour le clipping : position + attribut UV (interpolé aux intersections).
+#[derive(Clone, Copy)]
+struct CVert {
+    c: [f32; 3],
+    uv: [f32; 2],
+}
+
+impl CVert {
+    fn pos(c: [f32; 3]) -> Self {
+        Self { c, uv: [0.0, 0.0] }
+    }
+}
+
+/// Distance du plan proche (espace caméra). En deçà, le sommet est derrière la caméra.
+const NEAR: f32 = 0.05;
+
+/// Découpe un polygone (triangle) contre le plan proche `z = NEAR` (Sutherland-Hodgman),
+/// interpolant position ET UV aux intersections. Renvoie 0, 3 ou 4 sommets.
+fn clip_near(poly: &[CVert]) -> Vec<CVert> {
+    let n = poly.len();
+    let mut out = Vec::with_capacity(n + 1);
+    for i in 0..n {
+        let s = poly[i];
+        let e = poly[(i + 1) % n];
+        let (sin, ein) = (s.c[2] >= NEAR, e.c[2] >= NEAR);
+        if ein {
+            if !sin {
+                out.push(lerp_near(s, e));
+            }
+            out.push(e);
+        } else if sin {
+            out.push(lerp_near(s, e));
+        }
+    }
+    out
+}
+
+/// Intersection de l'arête `s→e` avec le plan `z = NEAR`.
+fn lerp_near(s: CVert, e: CVert) -> CVert {
+    let t = (NEAR - s.c[2]) / (e.c[2] - s.c[2]);
+    CVert {
+        c: [s.c[0] + (e.c[0] - s.c[0]) * t, s.c[1] + (e.c[1] - s.c[1]) * t, NEAR],
+        uv: [s.uv[0] + (e.uv[0] - s.uv[0]) * t, s.uv[1] + (e.uv[1] - s.uv[1]) * t],
+    }
 }
 
 /// Remplit un triangle écran (barycentrique) avec z-buffer (profondeur caméra interpolée).
@@ -362,5 +424,17 @@ mod tests {
         let buf = render_scene(&[], &inst, &cam, 96, 96, [20, 24, 40], [20, 24, 40]);
         let red = buf.chunks_exact(4).filter(|p| p[0] > 90 && p[0] > p[1] + 40 && p[0] > p[2] + 40).count();
         assert!(red > 30, "le triangle texturé rouge instancié doit apparaître ({red})");
+    }
+
+    #[test]
+    fn clippe_un_triangle_traversant_le_plan_proche() {
+        // Caméra à l'origine regardant +z ; triangle dont un sommet est DERRIÈRE (z<0). Sans
+        // clipping il serait rejeté entièrement ; avec clipping, sa partie visible se rend.
+        let g = [60u8, 180, 90];
+        let tris = vec![Tri { p: [[-2.0, -1.0, -1.0], [2.0, -1.0, 3.0], [0.0, 2.0, 3.0]], color: g }];
+        let cam = Camera { eye: [0.0, 0.0, 0.0], target: [0.0, 0.0, 1.0], up: [0.0, 1.0, 0.0], fov_y: 1.2 };
+        let buf = render_world(&tris, &cam, 96, 96, [10, 10, 20], [10, 10, 20]);
+        let lit = buf.chunks_exact(4).filter(|p| p[1] > p[0] + 20 && p[1] > p[2] + 20).count();
+        assert!(lit > 80, "la partie visible du triangle traversant doit se rendre ({lit})");
     }
 }

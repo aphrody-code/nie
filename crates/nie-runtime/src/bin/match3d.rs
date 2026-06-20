@@ -151,32 +151,22 @@ fn line_rect(out: &mut Vec<Tri>, x0: f32, z0: f32, x1: f32, z1: f32, hw: f32) {
 
 /// Construit la géométrie statique du terrain (gazon rayé + lignes + buts).
 fn build_pitch(out: &mut Vec<Tri>) {
-    // Sol carrelé en grille : un grand quad traversant le plan caméra serait rejeté faute de
-    // near-clipping ; en tuiles, seules celles sous la caméra tombent (gap invisible). Gazon rayé
-    // sur le terrain, surround sombre au-delà.
-    let (gx0, gx1) = (-HALF_LEN - 12.0, HALF_LEN + 12.0);
-    let (gz0, gz1) = (-HALF_WID - 8.0, HALF_WID + 8.0);
-    let (nx, nz) = (48, 24);
-    for ix in 0..nx {
-        let x0 = gx0 + (gx1 - gx0) * (ix as f32) / nx as f32;
-        let x1 = gx0 + (gx1 - gx0) * ((ix + 1) as f32) / nx as f32;
-        let stripe = ((x0 + HALF_LEN) / (2.0 * HALF_LEN) * 16.0) as i32 % 2 == 0;
-        for iz in 0..nz {
-            let z0 = gz0 + (gz1 - gz0) * (iz as f32) / nz as f32;
-            let z1 = gz0 + (gz1 - gz0) * ((iz + 1) as f32) / nz as f32;
-            let on_pitch = x1 <= HALF_LEN + 0.01
-                && x0 >= -HALF_LEN - 0.01
-                && z1 <= HALF_WID + 0.01
-                && z0 >= -HALF_WID - 0.01;
-            let g = if !on_pitch {
-                [22u8, 86, 40]
-            } else if stripe {
-                [46u8, 150, 64]
-            } else {
-                [40u8, 134, 58]
-            };
-            quad(out, w(x0, 0.0, z0), w(x1, 0.0, z0), w(x1, 0.0, z1), w(x0, 0.0, z1), g);
-        }
+    // Surround sombre + gazon rayé en grands quads. Le near-clipping du rastériseur gère les
+    // quads qui traversent le plan caméra (plus besoin de tuiler comme contournement).
+    quad(
+        out,
+        w(-HALF_LEN - 12.0, -0.05, -HALF_WID - 8.0),
+        w(HALF_LEN + 12.0, -0.05, -HALF_WID - 8.0),
+        w(HALF_LEN + 12.0, -0.05, HALF_WID + 8.0),
+        w(-HALF_LEN - 12.0, -0.05, HALF_WID + 8.0),
+        [22, 86, 40],
+    );
+    let stripes = 16;
+    for i in 0..stripes {
+        let x0 = -HALF_LEN + 2.0 * HALF_LEN * (i as f32) / stripes as f32;
+        let x1 = -HALF_LEN + 2.0 * HALF_LEN * ((i + 1) as f32) / stripes as f32;
+        let g = if i % 2 == 0 { [46u8, 150, 64] } else { [40u8, 134, 58] };
+        quad(out, w(x0, 0.0, -HALF_WID), w(x1, 0.0, -HALF_WID), w(x1, 0.0, HALF_WID), w(x0, 0.0, HALF_WID), g);
     }
     let hw = 0.12;
     // Bordure + ligne médiane.
