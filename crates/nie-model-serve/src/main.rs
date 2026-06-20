@@ -867,10 +867,43 @@ fn encode_rgba_to_png(rgba: &[u8], w: usize, h: usize) -> Option<Vec<u8>> {
 /// Compose une **scène de dialogue de mode histoire** (fond + boîte + onglet locuteur + texte wrappé)
 /// en PNG 1280×720, rendue dans la VRAIE police du jeu via `font::LatinAtlas` (edge-scan).
 /// `font_cfg`/`font_g4tx` = octets de `font.cfg.bin` / `font.g4tx`.
+/// Translittère les accents français vers l'ASCII de base (`é→e`, `ê→e`, `ç→c`, `«»→"`…).
+/// FALLBACK honnête en attendant l'extension de `LatinAtlas` à la rangée Latin-1 de l'atlas :
+/// `LatinAtlas` ne couvre que l'ASCII 0x21-0x7E, donc les accents tomberaient sinon (« arrête »→
+/// « arr te »). Translittéré = lisible, PAS fidèle (le jeu affiche les vrais accents).
+fn fr_accents_to_ascii(s: &str) -> String {
+    s.chars()
+        .map(|c| match c {
+            'à' | 'â' | 'ä' | 'á' | 'ã' => 'a',
+            'À' | 'Â' | 'Ä' => 'A',
+            'é' | 'è' | 'ê' | 'ë' => 'e',
+            'É' | 'È' | 'Ê' | 'Ë' => 'E',
+            'î' | 'ï' | 'í' | 'ì' => 'i',
+            'Î' | 'Ï' => 'I',
+            'ô' | 'ö' | 'ó' | 'ò' | 'õ' => 'o',
+            'Ô' | 'Ö' => 'O',
+            'û' | 'ü' | 'ú' | 'ù' => 'u',
+            'Û' | 'Ü' => 'U',
+            'ç' => 'c',
+            'Ç' => 'C',
+            'ñ' => 'n',
+            '«' | '»' | '“' | '”' => '"',
+            '’' | '‘' => '\'',
+            '–' | '—' => '-',
+            '…' => '.',
+            other => other,
+        })
+        .collect()
+}
+
 fn compose_story_png(font_cfg: &[u8], font_g4tx: &[u8], speaker: &str, text: &str) -> Option<Vec<u8>> {
     use nie_formats::{cfgbin, font, g4tx};
     const W: usize = 1280;
     const H: usize = 720;
+    let speaker = fr_accents_to_ascii(speaker);
+    let speaker = speaker.as_str();
+    let text = fr_accents_to_ascii(text);
+    let text = text.as_str();
 
     let cfg = cfgbin::parse_t2b(font_cfg).ok()?;
     let metrics = font::parse_metrics(&cfg);
