@@ -13,9 +13,11 @@ Usage (module) :
 """
 import struct
 
+import capstone
 import pefile
 from unicorn import (
     UC_ARCH_X86,
+    UC_HOOK_CODE,
     UC_HOOK_MEM_FETCH_UNMAPPED,
     UC_HOOK_MEM_READ_UNMAPPED,
     UC_HOOK_MEM_WRITE_UNMAPPED,
@@ -24,6 +26,7 @@ from unicorn import (
     UcError,
 )
 from unicorn.x86_const import (
+    UC_X86_REG_RIP,
     UC_X86_REG_RAX,
     UC_X86_REG_RCX,
     UC_X86_REG_RDX,
@@ -39,6 +42,7 @@ from unicorn.x86_const import (
 EXE = "/home/ubuntu/.local/share/Steam/iecode/inazuma/nie_eacpatched.exe"
 STACK = 0x7000_0000
 SCRATCH = 0x2000_0000
+STUB_HEAP = 0x5000_0000  # bump-alloc pour les `call` stubbés (chaque appel → ptr frais)
 SENTINEL = 0x1_4000_0000  # adresse de retour (mappée = sûre si refetch)
 
 
@@ -66,11 +70,30 @@ class Emu:
             UC_HOOK_MEM_READ_UNMAPPED | UC_HOOK_MEM_WRITE_UNMAPPED | UC_HOOK_MEM_FETCH_UNMAPPED,
             on_unmapped,
         )
+        uc.mem_map(STUB_HEAP, 0x10_0000)
+        self._md = capstone.Cs(capstone.CS_ARCH_X86, capstone.CS_MODE_64)
+        self._stub = False
+        self._heap = STUB_HEAP
+
+        def on_code(u, addr, size, _data):
+            # Stub des `call` (mode stub_calls) : ne pas entrer ; rax = ptr frais (alloc/factory),
+            # sauter l'instruction. Permet d'émuler ctors/fonctions appelantes (alloc, sous-inits).
+            if not self._stub:
+                return
+            ins = next(self._md.disasm(bytes(u.mem_read(addr, size)), addr), None)
+            if ins and ins.mnemonic == "call":
+                self._heap += 0x1000
+                u.reg_write(UC_X86_REG_RAX, self._heap)
+                u.reg_write(UC_X86_REG_RIP, addr + size)
+
+        uc.hook_add(UC_HOOK_CODE, on_code)
         self.uc = uc
         self.SCRATCH = SCRATCH
 
-    def call(self, vaddr, rcx=0, rdx=0, r8=0, r9=0, rax=0, xmm=(0.0, 0.0, 0.0, 0.0), mem=None, read=None, stop=None):
+    def call(self, vaddr, rcx=0, rdx=0, r8=0, r9=0, rax=0, xmm=(0.0, 0.0, 0.0, 0.0), mem=None, read=None, stop=None, stub_calls=False):
         uc = self.uc
+        self._stub = stub_calls
+        self._heap = STUB_HEAP
         if mem:
             for addr, data in mem.items():
                 uc.mem_write(addr, data)
