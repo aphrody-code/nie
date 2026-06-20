@@ -51,40 +51,6 @@ struct Cli {
     event_id: String,
 }
 
-/// Nettoie un dialogue IEVR : `<FLC:NAME>`/`<FUL:NAME>` → `Name`, retire les autres `<…>`,
-/// remplace les `\n` littéraux par une espace.
-fn clean_dialogue(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    let bytes = s.as_bytes();
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] == b'<' {
-            // Trouve la fin du tag.
-            if let Some(end) = s[i..].find('>') {
-                let tag = &s[i + 1..i + end];
-                if let Some((_, name)) = tag.split_once(':') {
-                    // <FLC:KISOJI> → "Kisoji"
-                    let mut cs = name.chars();
-                    if let Some(f) = cs.next() {
-                        out.push(f);
-                        out.extend(cs.flat_map(char::to_lowercase));
-                    }
-                }
-                i += end + 1;
-                continue;
-            }
-        }
-        if bytes[i] == b'\\' && i + 1 < bytes.len() && bytes[i + 1] == b'n' {
-            out.push(' ');
-            i += 2;
-            continue;
-        }
-        out.push(bytes[i] as char);
-        i += 1;
-    }
-    out.split_whitespace().collect::<Vec<_>>().join(" ")
-}
-
 /// Charge une vraie scène de dialogue (lignes EN consécutives d'un event), nettoyées.
 fn load_scene(db: &std::path::Path, event_id: &str) -> Result<Vec<String>> {
     let conn = rusqlite::Connection::open_with_flags(db, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
@@ -96,7 +62,7 @@ fn load_scene(db: &std::path::Path, event_id: &str) -> Result<Vec<String>> {
     let lines: Vec<String> = stmt
         .query_map([event_id], |r| r.get::<_, String>(0))?
         .filter_map(Result::ok)
-        .map(|s| clean_dialogue(&s))
+        .map(|s| nie_app::story::clean_dialogue(&s))
         .filter(|s| !s.is_empty())
         .collect();
     anyhow::ensure!(!lines.is_empty(), "aucune ligne pour l'event {event_id}");
