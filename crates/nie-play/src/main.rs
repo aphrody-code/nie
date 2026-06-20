@@ -40,6 +40,9 @@ struct Cli {
     /// Perso 3D : texture g4tx (BC7).
     #[arg(long)]
     char_tex: Option<std::path::PathBuf>,
+    /// Équipe domicile depuis de VRAIS chara_param (`chara_param_*.cfg.bin.json`) au lieu de stats en dur.
+    #[arg(long)]
+    chara_param: Option<std::path::PathBuf>,
 }
 
 fn team(name: &str, base: u16) -> TeamSetup {
@@ -65,8 +68,18 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
     std::fs::create_dir_all(&cli.out)?;
 
+    // Équipe domicile : vrais chara_param si fournis (pont données Phase 2), sinon stats en dur.
+    let home = match &cli.chara_param {
+        Some(p) => {
+            let t = nie_app::roster::team_from_chara_param_json("RAIMON", p, 11, 99)
+                .context("chargement équipe depuis chara_param")?;
+            println!("[nie-play] équipe RAIMON = 11 vrais chara_param (lv99) → stats réelles");
+            t
+        }
+        None => team("RAIMON", 120),
+    };
     // Match RÉEL via la FSM portée (nie-core).
-    let res = simulate_match(team("RAIMON", 120), team("ROYAL ACADEMY", 95), cli.seed);
+    let res = simulate_match(home, team("ROYAL ACADEMY", 95), cli.seed);
 
     // Renderer CPU (police + perso 3D optionnel), fourni au cœur nie-app.
     let chr = match (&cli.char_md, &cli.char_mg, &cli.char_sk, &cli.char_tex) {
