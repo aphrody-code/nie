@@ -2,20 +2,21 @@
 //!
 //! Usage : `cargo run -p nie-formats --example render_text -- <font.cfg.bin> <font.g4tx> <out.png>`
 //!
-//! ## État (2026-06-20)
-//! - **Décodage de l'atlas : OK.** `font.g4tx` → 1 texture DDS `4096×2048` BGRA8 non compressé,
-//!   pixels mip0 à l'offset `data_offset + 128` (en-tête DDS), 3 mips. L'alpha porte la couverture
-//!   des glyphes (CJK denses en haut, Latin/chiffres/ponctuation plus bas).
-//! - **Parse des métriques : OK** structurellement (`font::parse_metrics`) — 7469 glyphes, cell_h=71.
-//! - **MAPPING glyphe→atlas : NON RÉSOLU.** Pour 'A' (cp=65) le record CHR est
-//!   `[font=0, base=65, cp=65, 1157, 1, w=38, bearingX=1, adv=39, page=0]`. `parse_metrics` lit
-//!   col[3]=x=1157, col[4]=y=1 — MAIS l'atlas en (1157, 1) contient du CJK, et **tous** les Latin
-//!   ont col[4]=1 (donc col[4] n'est pas un Y pixel ni un simple index de rangée : la rangée 1 est
-//!   aussi du CJK). Le Latin existe dans l'atlas (visible en bas du dump) mais ni à x=1157 ni à y=1.
-//!   → X **et** Y passent par une indirection à décoder (table de coordonnées ? sémantique de
-//!   colonnes différente du port iecode ?). À RE avant tout rendu de texte fidèle (pas de faux-FAIT).
+//! ## État RE (2026-06-20) — progrès majeur, rendu texte encore PARTIEL
+//! - **Décodage de l'atlas : RÉSOLU.** `font.g4tx` → 1 texture DDS `4096×2048` BGRA8 non compressé,
+//!   pixels mip0 à `data_offset(176) + 128` (en-tête DDS), 3 mips. Alpha = couverture des glyphes
+//!   (CJK denses en haut, ASCII vers la rangée physique y≈950, kana/symboles ≈1035).
+//! - **Y logique RÉSOLU.** col[4] du record CHR = **Y de l'atlas LOGIQUE** : valeurs en rangées tous
+//!   les ~73 px (1, 74, 147, 220, …). Tout l'ASCII a col[4]=1 (rangée logique 0).
+//! - **Permutation des rangées.** font.g4tx **réordonne** les rangées vs l'atlas logique : la rangée
+//!   ASCII (logique 0) est physiquement à y≈950 (≈ rangée 13). On rend l'ASCII en forçant ce Y
+//!   (env `YBASE=950`).
+//! - **X NON RÉSOLU.** En forçant YBASE=950, les CHIFFRES rendent NET et une séquence consécutive
+//!   (ABCDEF…) sort dans l'ordre, mais du texte arbitraire (BUT, INAZUMA) GARBLE → l'X physique de
+//!   font.g4tx ne suit pas col[3] de façon cohérente (offset par bloc/permutation X). À RE avant un
+//!   rendu fidèle. Env de debug : `CROP="x0,x1,y0,y1"`, `TEXT="…" YBASE=950 XOFF=42`.
 //!
-//! Ce binaire DUMP l'atlas (downscalé) pour la suite de la RE, et n'affirme PAS rendre du texte.
+//! Décodage atlas + Y = FAIT ; rendu texte = PARTIEL (chiffres OK) ; X = prochain pas RE.
 
 use nie_formats::{cfgbin, font, g4tx};
 
@@ -34,6 +35,33 @@ fn main() {
             println!("  cp={cp} ({:?}) x={} y={} w={} adv={} page={}", char::from_u32(cp), m.x, m.y, m.width, m.advance, m.page);
         }
     }
+    // Sonde : records CHR bruts sur différents scripts (rangées atlas différentes) + histo col[4].
+    {
+        use nie_formats::cfgbin::Value;
+        let asi = |v: &Value| match v {
+            Value::Int(i) => *i,
+            Value::Float(f) => *f as i32,
+            Value::String(_) => -999,
+        };
+        let probe = [65i32, 48, 0x30A2, 0x4E9C, 0x3042, 0x30DE];
+        for e in &cfg.entries {
+            if e.name == "CHR"
+                && e.variables.len() >= 5
+                && let Value::Int(cp) = e.variables[2]
+                && probe.contains(&cp)
+            {
+                let cols: Vec<i32> = e.variables.iter().map(asi).collect();
+                println!("  CHR U+{cp:04X} ({:?}) cols={cols:?}", char::from_u32(cp as u32));
+            }
+        }
+        let mut hist: std::collections::BTreeMap<i32, u32> = std::collections::BTreeMap::new();
+        for e in &cfg.entries {
+            if e.name == "CHR" && e.variables.len() >= 5 {
+                *hist.entry(asi(&e.variables[4])).or_default() += 1;
+            }
+        }
+        println!("  col[4] : {} valeurs distinctes, échantillon={:?}", hist.len(), hist.iter().take(14).collect::<Vec<_>>());
+    }
 
     // Atlas → DDS BGRA8 mip0.
     let tx = g4tx::parse(&g4tx_bytes).expect("parse g4tx");
@@ -44,17 +72,62 @@ fn main() {
     let (aw, ah) = (t.width as usize, t.height as usize);
     println!("atlas {aw}×{ah} BGRA8 (dds@{} mip0@+{px_off})", t.data_offset);
 
-    // Dump downscalé ×8 (alpha en gris) pour visualiser la structure CJK/Latin.
-    let step = 8usize;
-    let (dw, dh) = ((aw / step) as u32, (ah / step) as u32);
-    let mut img = vec![0u8; (dw * dh * 4) as usize];
+    // Crop ciblé pleine résolution de la zone Latin (env CROP="x0,x1,y0,y1"), alpha en gris,
+    // avec une grille tous les 100 px (repères de coordonnées atlas).
     let stride = aw * 4;
-    for j in 0..dh as usize {
-        for i in 0..dw as usize {
-            let a = atlas.get((j * step) * stride + (i * step) * 4 + 3).copied().unwrap_or(0);
+    let crop: Vec<usize> = std::env::var("CROP")
+        .unwrap_or_else(|_| "1000,2600,1550,1790".into())
+        .split(',')
+        .filter_map(|s| s.parse().ok())
+        .collect();
+    let (cx0, cx1, cy0, cy1) = (crop[0], crop[1], crop[2], crop[3]);
+    let (dw, dh) = ((cx1 - cx0) as u32, (cy1 - cy0) as u32);
+    let mut img = vec![0u8; (dw * dh * 4) as usize];
+    for (j, ay) in (cy0..cy1).enumerate() {
+        for (i, ax) in (cx0..cx1).enumerate() {
+            let a = atlas.get(ay * stride + ax * 4 + 3).copied().unwrap_or(0);
             let o = (j * dw as usize + i) * 4;
-            img[o..o + 4].copy_from_slice(&[a, a, a, 255]);
+            // grille rouge tous les 100 px d'atlas pour lire les coordonnées.
+            if ax % 100 == 0 || ay % 100 == 0 {
+                img[o..o + 4].copy_from_slice(&[120, 30, 30, 255]);
+            } else {
+                img[o..o + 4].copy_from_slice(&[a, a, a, 255]);
+            }
         }
+    }
+    println!("crop atlas x[{cx0},{cx1}] y[{cy0},{cy1}] (grille rouge /100 px)");
+
+    // TEST rendu ASCII : blit une chaîne en forçant le Y physique de la rangée ASCII (env YBASE).
+    if let Ok(txt) = std::env::var("TEXT") {
+        let yb: u16 = std::env::var("YBASE").ok().and_then(|s| s.parse().ok()).unwrap_or(946);
+        let cell_h = metrics.dims.cell_height;
+        let (tw, th) = (1200u32, cell_h as u32 + 30);
+        let mut canvas = vec![0u8; (tw * th * 4) as usize];
+        for p in canvas.chunks_exact_mut(4) {
+            p.copy_from_slice(&[18, 24, 40, 255]);
+        }
+        let mut pen = 12i32;
+        for c in txt.chars() {
+            if let Some(m) = metrics.glyph(c as u32) {
+                let xoff: i32 = std::env::var("XOFF").ok().and_then(|s| s.parse().ok()).unwrap_or(0);
+                let mut m2 = *m;
+                m2.y = yb; // override : Y physique de la rangée ASCII
+                m2.x = (i32::from(m.x) + xoff).clamp(0, aw as i32 - 1) as u16;
+                font::glyph_blitter(atlas, aw as u32, &m2, cell_h, &mut canvas, tw * 4, pen + i32::from(m.bearing_x), 14, [245, 245, 250, 255]);
+                pen += i32::from(m.advance);
+            } else {
+                pen += i32::from(cell_h) / 3;
+            }
+        }
+        let mut tb = Vec::new();
+        {
+            let mut e = png::Encoder::new(std::io::Cursor::new(&mut tb), tw, th);
+            e.set_color(png::ColorType::Rgba);
+            e.set_depth(png::BitDepth::Eight);
+            e.write_header().unwrap().write_image_data(&canvas).unwrap();
+        }
+        std::fs::write("/tmp/text_render.png", &tb).unwrap();
+        println!("rendu texte (YBASE={yb}) → /tmp/text_render.png");
     }
     let mut buf = Vec::new();
     {
