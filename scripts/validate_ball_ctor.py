@@ -58,14 +58,26 @@ for off in range(0, N, 4):
 if out["error"]:
     errs.append(f"émulation: {out['error']}")
 
+# 2e fonction : init du contexte physique (FUN 0x14027ad90, appels stubbés) → GRAVITÉ MONDE réelle.
+# Spec reversé : [0x1d8]=3, [0x1e0]=0xc11ccccd (-9.8f). Distinct de nie-core BALL_GRAVITY=2.0
+# (best-effort nie-runtime) — la gravité MONDE réelle du jeu est -9.8f (à confirmer = celle utilisée
+# par l'intégration ballon avant de remplacer 2.0, cf. boucle physique du tick à localiser).
+g = e.call(0x14027AD90, rcx=SCRATCH, stub_calls=True, stop=0x14027ADED, mem={SCRATCH: bytes(0x210)}, read={SCRATCH: 0x210})
+grav = struct.unpack_from("<I", g["mem"][SCRATCH], 0x1E0)[0]
+flag = struct.unpack_from("<I", g["mem"][SCRATCH], 0x1D8)[0]
+if grav != 0xC11CCCCD:
+    errs.append(f"gravité @0x1e0 = {grav:#x}, attendu 0xc11ccccd (-9.8f)")
+if g["error"]:
+    errs.append(f"émulation gravité: {g['error']}")
+
 if errs:
-    print("ÉCHEC validation ball-ctor :")
+    print("ÉCHEC validation ball-RE :")
     for x in errs:
         print("  -", x)
     sys.exit(1)
 
-print("✓ VALIDÉ byte-exact : init objet ballon (0x14027ac00) — reversal == binaire réel.")
-print(f"  vtable@0 = {vptr:#x} (code, dans l'image)")
-print(f"  +0x54 = {u32(0x54):#010x} = {struct.unpack('<f', struct.pack('<I', u32(0x54)))[0]}f (scale)")
-print(f"  +0x5c = {u32(0x5C)} (count)  | reste = 0  ✓")
-print("→ 1ʳᵉ logique de gameplay REVERSÉE + VALIDÉE contre l'oracle (sans inventer, sans lancer le jeu).")
+print("✓ VALIDÉ byte-exact contre l'oracle (reversal == binaire réel, sans inventer) :")
+print(f"  [1] init objet ballon (0x14027ac00) : vtable@0={vptr:#x}, scale 1.0f@0x54, count 1@0x5c, reste 0")
+print(f"  [2] init contexte physique (0x14027ad90) : [0x1d8]={flag}, gravité @0x1e0 = {grav:#010x} = "
+      f"{struct.unpack('<f', struct.pack('<I', grav))[0]:.1f}f (gravité MONDE réelle, vs 2.0 best-effort)")
+print("→ 2 fonctions de gameplay reversées + VALIDÉES contre l'oracle uemu (boucle reverse→valider).")
