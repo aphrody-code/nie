@@ -2487,6 +2487,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "650eef8c711430f1a879fdd01d4745a7deea475becfb90269c06775983bbf086"
 
 [[package]]
+name = "nie-app"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bcdec_rs",
+ "nie-core",
+ "nie-data",
+ "nie-formats",
+ "nie-render3d",
+ "serde_json",
+]
+
+[[package]]
 name = "nie-cli"
 version = "0.1.0"
 dependencies = [
@@ -2638,6 +2651,17 @@ dependencies = [
  "thiserror 2.0.18",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "nie-play"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "nie-app",
+ "nie-core",
+ "png",
 ]
 
 [[package]]

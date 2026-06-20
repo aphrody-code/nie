@@ -1935,9 +1935,10 @@ fn build_sprite_list(game_dir: &Path, screen: &str) -> Result<Vec<SpritePosition
     );
 
     // (draw_priority, transform, w, h, rgba)
+    let blacklist = screen_lower == "main_menu" || screen_lower.starts_with("mainmenu");
     let mut sprite_entries: Vec<(i32, menu::ScreenTransform, u32, u32, Vec<u8>)> = Vec::new();
     for obj_path in &obj_paths {
-        if let Some(entry) = process_objbin_layer(&vfs, obj_path) {
+        if let Some(entry) = process_objbin_layer(&vfs, obj_path, blacklist) {
             sprite_entries.push(entry);
         }
     }
@@ -1960,8 +1961,36 @@ fn build_sprite_list(game_dir: &Path, screen: &str) -> Result<Vec<SpritePosition
 fn process_objbin_layer(
     vfs: &Vfs,
     obj_path: &str,
+    apply_blacklist: bool,
 ) -> Option<(i32, menu::ScreenTransform, u32, u32, Vec<u8>)> {
     let obj_basename = obj_path.rsplit('/').next().unwrap_or(obj_path);
+
+    // BLACKLIST de composition (D1.c) — layers dont le sprite statique décodé est un PARASITE
+    // vs la capture réelle du main_menu : (1) le FOND objbin `mainmenu90_00_background` est une
+    // texture bleu SATURÉ plein cadre (le vrai fond est pastel quasi-blanc) → remplacé par le
+    // dégradé peint en dur (`paint_menu_background`) ; (2) la bande `mainmenu90_02_header_tab`
+    // (atlas 5280×520) est posée à l'échelle 1.0 (fallback motion) → bande 4× la largeur écran qui
+    // couvre tout le centre ; (3) les badges « new » (icône orange `!`, pastille verte de check)
+    // n'existent pas dans la capture. Ces layers exigent le driver-transform C++/Lua (cf. §6/§13) ;
+    // tant qu'il n'est pas émulé, leur sprite brut dégrade la SSIM au lieu de l'améliorer.
+    const COMPOSE_BLACKLIST: &[&str] = &[
+        "mainmenu90_00_background",  // fond bleu saturé → dégradé pastel peint à la place
+        "mainmenu90_01_header",      // bande 5280×296 à l'échelle 1.0 → couvre le centre
+        "mainmenu90_02_header_tab",  // bande 5280×520 à l'échelle 1.0 → couvre le centre
+        "mainmenu90_02_2_header_tab_icon",
+        "cmn01_13_new_icon_middle",  // badge orange « ! »
+        "cmn01_12_new_icon",         // pastille verte de check
+        "cmn01_40_list_base_empty",  // panneau gris + box verte + toggle (placement fallback centre)
+        "mainmenu90_31_doc_item",    // dossier translucide + pastille check (placement fallback centre)
+        "mainmenu01_06_base_button_guide", // bande 4×92 dégénérée au centre
+        "mainmenu01_07_button_guide",      // 16×16 au centre
+        "rpg00_07_weekday_timezone_guide", // toggle décodé placé au centre (fallback)
+    ];
+    let obj_stem = obj_basename.strip_suffix(".objbin").unwrap_or(obj_basename);
+    if apply_blacklist && COMPOSE_BLACKLIST.contains(&obj_stem) {
+        warn!("skip {obj_basename} : layer blacklisté (parasite de composition statique)");
+        return None;
+    }
 
     let obj_bytes = match vfs.read(obj_path) {
         Ok(d) => d,
@@ -2098,12 +2127,22 @@ fn build_sprite_list_from_setting(game_dir: &Path, setting: &str) -> Result<Vec<
     }
     info!("menu_setting '{setting}' : {} layers", obj_paths.len());
 
+    // BLACKLIST de parasites + FOND peint : scopés au main_menu (cf. `cmd_menu`/`process_objbin_layer`).
+    let blacklist = setting == "main_menu";
     let mut sprite_entries: Vec<(i32, menu::ScreenTransform, u32, u32, Vec<u8>)> = Vec::new();
     for obj_path in &obj_paths {
-        if let Some(entry) = process_objbin_layer(&vfs, obj_path) {
+        if let Some(entry) = process_objbin_layer(&vfs, obj_path, blacklist) {
             sprite_entries.push(entry);
         }
     }
+
+    // NB logo : le logo « INAZUMA ELEVEN Victory Road » du main_menu n'est PAS un layer du
+    // menu_setting (posé au runtime par le driver). Tenté en STATIQUE depuis l'atlas de titre
+    // `title00_03.g4tx` placé centre-haut (rect réel ~ x435,y108,415×98) — mais MESURÉ comme
+    // RÉGRESSION SSIM (8×8 luma) : même bbox calée (w≈434/cy≈109 vs réel w419/cy118), les glyphes
+    // haute-fréquence ne s'alignent pas au pixel près et les pixels sombres du logo débordant sur le
+    // fond clair pénalisent plus que ne rapporte la zone alignée (0.6209 → 0.61 selon l'échelle).
+    // Conservé documenté ; à reprendre quand le placement viendra du driver (cf. §6/§13), pas en dur.
 
     // Tri back-to-front (stable sur l'ordre du menu_setting pour les ex æquo).
     sprite_entries.sort_by_key(|(prio, _, _, _, _)| *prio);
@@ -2932,6 +2971,32 @@ fn cmd_export_layout_runtime(
 
 // ── Mode menu CPU ─────────────────────────────────────────────────────────────
 
+/// Peint le FOND du main_menu : dégradé vertical pastel cyan-très-clair (haut) → blanc (bas),
+/// opaque, plein cadre. Le vrai main_menu est un fond pastel quasi-blanc plein cadre ; un canvas
+/// transparent (luma 0 = noir) plombe la SSIM sur ~70 % des pixels (marges/zones vides). Peindre
+/// ce fond en dur est plus robuste que de dépendre du layer de fond objbin (teinte saturée).
+/// Couleurs (cf. plan rendu main_menu) : haut `#d4eef9`, bas `#ffffff`.
+fn paint_menu_background(canvas_w: u32, canvas_h: u32) -> Vec<u8> {
+    const TOP: [f32; 3] = [0xd4 as f32, 0xee as f32, 0xf9 as f32];
+    const BOT: [f32; 3] = [0xff as f32, 0xff as f32, 0xff as f32];
+    let mut canvas = vec![0u8; (canvas_w as usize) * (canvas_h as usize) * 4];
+    for y in 0..canvas_h {
+        // Dégradé sur les ~85 % supérieurs puis blanc plein : le bas de l'écran réel est blanc.
+        let t = ((y as f32) / (canvas_h as f32 * 0.85)).min(1.0);
+        let r = (TOP[0] + (BOT[0] - TOP[0]) * t).round() as u8;
+        let g = (TOP[1] + (BOT[1] - TOP[1]) * t).round() as u8;
+        let b = (TOP[2] + (BOT[2] - TOP[2]) * t).round() as u8;
+        for x in 0..canvas_w {
+            let i = ((y * canvas_w + x) * 4) as usize;
+            canvas[i] = r;
+            canvas[i + 1] = g;
+            canvas[i + 2] = b;
+            canvas[i + 3] = 255;
+        }
+    }
+    canvas
+}
+
 /// Compose l'écran `screen` via le compositeur CPU (référence pixel-perfect) → PNG.
 fn cmd_menu(game_dir: &Path, screen: &str, png_out: &Path, from_setting: bool) -> Result<()> {
     // RENDU RÉEL par défaut : on compose via la DÉFINITION D'ÉCRAN (`<screen>_setting.cfg.bin`,
@@ -2962,7 +3027,15 @@ fn cmd_menu(game_dir: &Path, screen: &str, png_out: &Path, from_setting: bool) -
         })
         .collect();
 
-    let canvas = menu::compose(1280, 720, &composite_sprites);
+    // Fond pastel plein cadre AVANT compositing, UNIQUEMENT pour le main_menu (son vrai fond est
+    // un dégradé pastel quasi-blanc ; un canvas transparent = noir en luma → SSIM plombée). Les
+    // autres écrans (ex. title02, fond = scène 3D / key-art) gardent le canvas transparent d'origine
+    // pour ne pas régresser leur plancher SSIM.
+    let canvas = if screen == "main_menu" {
+        menu::compose_over(paint_menu_background(1280, 720), 1280, 720, &composite_sprites)
+    } else {
+        menu::compose(1280, 720, &composite_sprites)
+    };
     let png_bytes = encoder_rgba_png(&canvas, 1280, 720)?;
     std::fs::write(png_out, &png_bytes)
         .with_context(|| format!("écriture PNG : {}", png_out.display()))?;

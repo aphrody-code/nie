@@ -715,14 +715,15 @@ fn mainmenu_via_setting_ssim_vs_reference() {
     let score = ssim(1280, 720, &render, &downs);
     eprintln!("\n=== SSIM main_menu (via menu_setting, 13 layers) vs menu.png = {score:.4} ===");
     // La composition par menu_setting (fond plein écran + en-tête) doit BATTRE largement la voie
-    // préfixe `mainmenu01_*` (≈0.004, quasi vide). Baseline mesurée 2026-06-16 = **0.4180**
-    // (placement couche 1 `g4pkm_motion` + sélection texture non-dummy couche 2 acquis). Plancher
-    // RELEVÉ 0.10→0.40 pour verrouiller ce gain (le rendu est déterministe, cf.
-    // `title02_render_is_deterministic`) ; à RELEVER de nouveau quand le driver D1.c affine le placement.
+    // préfixe `mainmenu01_*` (≈0.004, quasi vide). Baseline 2026-06-16 = 0.4180, puis **0.6227**
+    // (2026-06-20, workflow fix-real-menu) via le FOND pastel peint + blacklist des sprites
+    // bleu-saturé mal placés (fallback bind-pose hors-écran). Plancher RELEVÉ 0.40→0.60 pour
+    // verrouiller ce gain ; à RELEVER quand le driver D1.c (placement pixel) ou les panneaux 3D
+    // AVATAR/ÉQUIPE poussent plus haut (cf. docs/DESIGN.md couche 5).
     assert!(score.is_finite(), "SSIM doit être fini");
     assert!(
-        score >= 0.40,
-        "SSIM {score:.4} < plancher 0.40 — régression du placement/composition menu_setting (baseline 0.4180)"
+        score >= 0.60,
+        "SSIM {score:.4} < plancher 0.60 — régression du placement/composition menu_setting (baseline 0.6227)"
     );
 }
 
