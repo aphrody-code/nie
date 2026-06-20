@@ -10,14 +10,24 @@ Usage (module) :
     e = Emu()
     out = e.call(0x14027ac10, rcx=e.SCRATCH, mem={e.SCRATCH: bytes(0x140)})
     print(out['mem'][e.SCRATCH].hex())
+
+LIMITE CONNUE : le TCG d'unicorn n'émule PAS la FMA3 (`vfmadd231ps`…) → « invalid instruction » sur
+les fonctions physiques qui l'utilisent (ex. BallMoveLerp). Le modèle CPU Haswell est posé (active
+AVX2 côté flags) mais la FMA3 n'est pas implémentée dans le TCG. Donc uemu valide byte-exact les
+fonctions SSE (ex. BallMoveSimpleParabora ✓) ; les fonctions FMA restent reverse-only (décodées mais
+non validables ici) jusqu'à une émulation FMA logicielle (hook UC_HOOK_INSN_INVALID + calcul f32-FMA)
+ou un support unicorn. NE PAS porter une fonction FMA sans validation (règle no-faux-FAIT).
 """
 import struct
 
 import capstone
 import pefile
+import math
+
 from unicorn import (
     UC_ARCH_X86,
     UC_HOOK_CODE,
+    UC_HOOK_INSN_INVALID,
     UC_HOOK_MEM_FETCH_UNMAPPED,
     UC_HOOK_MEM_READ_UNMAPPED,
     UC_HOOK_MEM_WRITE_UNMAPPED,
@@ -26,6 +36,7 @@ from unicorn import (
     UcError,
 )
 from unicorn.x86_const import (
+    UC_CPU_X86_HASWELL,
     UC_X86_REG_RIP,
     UC_X86_REG_RAX,
     UC_X86_REG_RCX,
@@ -55,6 +66,12 @@ class Emu:
             size = max(size, s.VirtualAddress + max(s.Misc_VirtualSize, len(s.get_data())))
         size = (size + 0xFFF) & ~0xFFF
         uc = Uc(UC_ARCH_X86, UC_MODE_64)
+        # Modèle CPU Haswell → active AVX2 + FMA3 (vfmadd…) ; sinon « invalid instruction » sur les
+        # fonctions physiques utilisant la FMA (ex. BallMoveLerp). SSE seul ne suffit pas.
+        try:
+            uc.ctl_set_cpu_model(UC_CPU_X86_HASWELL)
+        except Exception:
+            pass
         uc.mem_map(self.base, size + 0x1000)
         uc.mem_write(self.base, pe.header)
         for s in pe.sections:
@@ -87,6 +104,41 @@ class Emu:
                 u.reg_write(UC_X86_REG_RIP, addr + size)
 
         uc.hook_add(UC_HOOK_CODE, on_code)
+
+        # Émulation logicielle de la FMA3 (le TCG d'unicorn ne l'implémente pas → invalid insn).
+        import unicorn.x86_const as _xc
+
+        xmm = {f"xmm{i}": getattr(_xc, f"UC_X86_REG_XMM{i}") for i in range(16)}
+
+        def on_invalid(u, _data):
+            rip = u.reg_read(UC_X86_REG_RIP)
+            ins = next(self._md.disasm(bytes(u.mem_read(rip, 16)), rip), None)
+            if ins is None or not ins.mnemonic.startswith("vfmadd"):
+                return False  # réellement invalide
+            ops = [o.strip() for o in ins.op_str.split(",")]
+            regs = [xmm.get(o) for o in ops]
+            if len(regs) != 3 or None in regs:
+                return False
+            variant = ins.mnemonic[6:9]  # 132 / 213 / 231
+            n = 4 if ins.mnemonic.endswith("ps") else 1  # packed vs scalar
+
+            def rd(r):
+                return list(struct.unpack("<4f", u.reg_read(r).to_bytes(16, "little")))
+
+            d, s2, s3 = rd(regs[0]), rd(regs[1]), rd(regs[2])
+            for i in range(n):
+                if variant == "132":
+                    a, b, c = d[i], s3[i], s2[i]
+                elif variant == "213":
+                    a, b, c = s2[i], d[i], s3[i]
+                else:  # 231
+                    a, b, c = s2[i], s3[i], d[i]
+                d[i] = struct.unpack("<f", struct.pack("<f", math.fma(a, b, c)))[0]
+            u.reg_write(regs[0], int.from_bytes(struct.pack("<4f", *d), "little"))
+            u.reg_write(UC_X86_REG_RIP, rip + ins.size)
+            return True
+
+        uc.hook_add(UC_HOOK_INSN_INVALID, on_invalid)
         self.uc = uc
         self.SCRATCH = SCRATCH
 
