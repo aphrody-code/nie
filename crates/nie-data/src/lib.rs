@@ -34,6 +34,8 @@ extern crate alloc;
 pub mod ability_learning;
 pub mod academic_year;
 pub mod activity;
+pub mod add_content_equip;
+pub mod add_model;
 pub mod ai;
 pub mod aphrody;
 pub mod aura;
