@@ -366,6 +366,147 @@ pub fn draw_text(
     pen_x - pen_x_start
 }
 
+// ============================================================================
+// LatinAtlas — rendu de texte Latin par EDGE-SCAN (2026-06-20).
+// L'atlas `font.g4tx` REPACKE les glyphes (X non résolu via les métriques col3). MAIS la rangée
+// physique ASCII range les glyphes en ORDRE DE CODEPOINT CONTIGU depuis '!' (0x21) — vérifié
+// visuellement. On edge-scan l'alpha de cette rangée → spans (x0,x1) par colonne lumineuse → le
+// k-ième span = codepoint 0x21+k. Permet le rendu de texte Latin arbitraire sans le repacking.
+// ============================================================================
+
+/// Premier codepoint de la rangée physique ASCII (`!`).
+pub const LATIN_FIRST: u32 = 0x21;
+
+/// Atlas Latin résolu par edge-scan : spans physiques `(x0,x1)` par codepoint depuis [`LATIN_FIRST`].
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct LatinAtlas {
+    /// `(x0, x1)` du glyphe, indexé depuis `LATIN_FIRST`.
+    pub spans: Vec<(u16, u16)>,
+    /// Y physique de la rangée dans l'atlas.
+    pub y_base: u16,
+    /// Hauteur de cellule (à blitter).
+    pub cell_h: u16,
+}
+
+impl LatinAtlas {
+    /// Edge-scan d'une rangée physique de l'atlas. `atlas` = pixels BGRA8/RGBA8 (**alpha @ +3**),
+    /// `aw`×`ah` ; `y_base` = Y de la rangée ASCII (≈946 pour font_def) ; `cell_h` = hauteur cellule.
+    /// Fusionne les creux internes < 3 px (glyphes troués `!`, `%`…).
+    #[must_use]
+    pub fn from_atlas(atlas: &[u8], aw: usize, ah: usize, y_base: u16, cell_h: u16) -> Self {
+        let stride = aw * 4;
+        let (y0, y1) = (y_base as usize + 4, (y_base as usize + cell_h as usize).min(ah));
+        let mut raw: Vec<(u16, u16)> = Vec::new();
+        let (mut on, mut start) = (false, 0usize);
+        for ax in 0..aw {
+            let mut s = 0u32;
+            for ay in y0..y1 {
+                s += u32::from(atlas.get(ay * stride + ax * 4 + 3).copied().unwrap_or(0));
+            }
+            let lit = s > 180;
+            if lit && !on {
+                start = ax;
+                on = true;
+            } else if !lit && on {
+                raw.push((start as u16, ax as u16));
+                on = false;
+            }
+        }
+        if on {
+            raw.push((start as u16, aw as u16));
+        }
+        // Fusion des micro-creux internes (< 3 px) d'un même glyphe.
+        let mut spans: Vec<(u16, u16)> = Vec::new();
+        for (a, b) in raw {
+            if let Some(last) = spans.last_mut()
+                && a.saturating_sub(last.1) < 3
+            {
+                last.1 = b;
+                continue;
+            }
+            spans.push((a, b));
+        }
+        Self { spans, y_base, cell_h }
+    }
+
+    /// Span `(x0,x1)` d'un codepoint Latin, ou `None` si hors de la rangée scannée.
+    #[must_use]
+    pub fn span(&self, cp: u32) -> Option<(u16, u16)> {
+        if cp < LATIN_FIRST {
+            return None;
+        }
+        self.spans.get((cp - LATIN_FIRST) as usize).copied()
+    }
+
+    /// Largeur en pixels d'une ligne (espaces = `cell_h/3`, gap inter-glyphe 2 px).
+    #[must_use]
+    pub fn measure(&self, text: &str) -> u32 {
+        let mut w = 0i32;
+        for c in text.chars() {
+            if c == ' ' {
+                w += i32::from(self.cell_h) / 3;
+            } else if let Some((x0, x1)) = self.span(c as u32) {
+                w += i32::from(x1 - x0) + 2;
+            } else {
+                w += i32::from(self.cell_h) / 3;
+            }
+        }
+        w.max(0) as u32
+    }
+
+    /// Blit une ligne de texte sur un canvas RGBA8 existant (`cw` px de large), pen à `(x,y)`.
+    /// `atlas` = mêmes pixels que `from_atlas` (alpha @ +3). Couleur `fg` RGBA.
+    #[allow(clippy::too_many_arguments)] // primitive de blit bas-niveau (cf. glyph_blitter).
+    pub fn blit_line(
+        &self,
+        atlas: &[u8],
+        aw: usize,
+        canvas: &mut [u8],
+        cw: usize,
+        x: i32,
+        y: i32,
+        text: &str,
+        fg: [u8; 4],
+    ) {
+        let stride = aw * 4;
+        let ch = canvas.len() / (cw.max(1) * 4);
+        let mut pen = x;
+        for c in text.chars() {
+            if c == ' ' {
+                pen += i32::from(self.cell_h) / 3;
+                continue;
+            }
+            let Some((x0, x1)) = self.span(c as u32) else {
+                pen += i32::from(self.cell_h) / 3;
+                continue;
+            };
+            let gw = (x1 - x0) as usize;
+            for gy in 0..self.cell_h as usize {
+                let ay = self.y_base as usize + gy;
+                for gx in 0..gw {
+                    let a = atlas.get(ay * stride + (x0 as usize + gx) * 4 + 3).copied().unwrap_or(0);
+                    if a < 8 {
+                        continue;
+                    }
+                    let (px, py) = (pen + gx as i32, y + gy as i32);
+                    if px < 0 || py < 0 || px >= cw as i32 || py >= ch as i32 {
+                        continue;
+                    }
+                    let o = (py as usize * cw + px as usize) * 4;
+                    let af = f32::from(a) / 255.0;
+                    for k in 0..3 {
+                        canvas[o + k] =
+                            (f32::from(fg[k]) * af + f32::from(canvas[o + k]) * (1.0 - af)) as u8;
+                    }
+                    canvas[o + 3] = 255;
+                }
+            }
+            pen += gw as i32 + 2;
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
