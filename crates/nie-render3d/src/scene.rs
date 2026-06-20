@@ -31,6 +31,7 @@ pub struct Camera {
 }
 
 /// Un triangle du monde, couleur plate (l'éclairage Lambert la module).
+#[derive(Clone, Copy)]
 pub struct Tri {
     pub p: [V3; 3],
     pub color: [u8; 3],
