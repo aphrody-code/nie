@@ -330,9 +330,75 @@ impl BallComponent {
     }
 }
 
+/// Mouvement parabolique du ballon (projectile sous accélération constante).
+///
+/// Port BYTE-FIDÈLE de `game::BallMoveSimpleParabora::vmethod_3` (`0x141334600`), reversé de l'asm
+/// et **validé byte-exact** contre l'émulation Unicorn du binaire réel (`scripts/validate_parabola.py`).
+/// Remplace l'approximation best-effort de `nie-runtime` par la vraie physique du jeu.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct ParabolaMove {
+    /// Accélération constante (gravité du jeu), offset `0x160` de l'objet jeu.
+    pub accel: Vec3,
+    /// Vitesse courante (intégrée à chaque pas), offset `0x180`.
+    pub velocity: Vec3,
+    /// Temps écoulé du mouvement, offset `0x190`.
+    pub t: f32,
+    /// Durée totale du mouvement, offset `0x170`.
+    pub t_max: f32,
+}
+
+impl ParabolaMove {
+    /// Avance d'un pas `dt` depuis la position initiale `p0`. Renvoie `(nouvelle_position, fini)` où
+    /// `fini` = le temps a atteint `t_max` (sémantique `setae` du binaire).
+    ///
+    /// Formule reversée (ordre SSE EXACT du binaire, f32 simple précision = byte-fidèle) :
+    /// `pos = ((0.5·a)·dt)·dt + ((dt·v) + p0)` ; `v += dt·a` ; `t += dt`.
+    #[must_use]
+    pub fn step(&mut self, p0: Vec3, dt: f32) -> (Vec3, bool) {
+        if dt <= 0.0 {
+            return (p0, false);
+        }
+        if self.t_max <= self.t {
+            return (p0, true);
+        }
+        let comp = |a: f32, v: f32, p: f32| (((0.5_f32 * a) * dt) * dt) + ((dt * v) + p);
+        let new_pos = Vec3 {
+            x: comp(self.accel.x, self.velocity.x, p0.x),
+            y: comp(self.accel.y, self.velocity.y, p0.y),
+            z: comp(self.accel.z, self.velocity.z, p0.z),
+        };
+        self.velocity = Vec3 {
+            x: self.velocity.x + dt * self.accel.x,
+            y: self.velocity.y + dt * self.accel.y,
+            z: self.velocity.z + dt * self.accel.z,
+        };
+        self.t += dt;
+        (new_pos, self.t >= self.t_max)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parabola_step_byte_exact_vs_binaire() {
+        // Mêmes entrées que scripts/validate_parabola.py (validé byte-exact vs émulation du binaire).
+        let mut m = ParabolaMove {
+            accel: Vec3 { x: 0.0, y: -9.8, z: 0.0 },
+            velocity: Vec3 { x: 4.0, y: 5.0, z: 6.0 },
+            t: 0.0,
+            t_max: 10.0,
+        };
+        let (pos, fini) = m.step(Vec3 { x: 1.0, y: 2.0, z: 3.0 }, 0.5);
+        // Valeurs EXACTES capturées du binaire réel (f32 simple précision).
+        assert_eq!(pos.x.to_bits(), 3.0_f32.to_bits());
+        assert_eq!(pos.y.to_bits(), 3.275_000_095_367_431_6_f32.to_bits());
+        assert_eq!(pos.z.to_bits(), 6.0_f32.to_bits());
+        assert_eq!(m.velocity.y.to_bits(), 0.099_999_904_632_568_36_f32.to_bits());
+        assert_eq!(m.t.to_bits(), 0.5_f32.to_bits());
+        assert!(!fini);
+    }
     use crate::{BALL_GRAVITY, BALL_SCALE_DEFAULT, DISTANCE_UNINIT, INVALID_PLAYER_IDX};
 
     #[test]
