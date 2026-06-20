@@ -1422,6 +1422,10 @@ fn build_glb_embedded(model: &AssembledModel) -> Vec<u8> {
     // Les bufferViews des textures PNG ont un `target` absent (non vertex data).
     // Map component → (image_index, texture_index, material_index).
     let mut comp_to_mat: std::collections::HashMap<u8, usize> = std::collections::HashMap::new();
+    // Matching PAR NOM (texture embarquée → matériau), pour les modèles multi-matériaux (maps) :
+    // une primitive dont `material_name` égale le nom d'une texture utilise CE matériau. Additif —
+    // si aucun nom ne matche (perso, dont les noms diffèrent), on retombe sur le mapping component.
+    let mut name_to_mat: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
     let mut image_defs: Vec<Value> = Vec::new();
     let mut texture_defs: Vec<Value> = Vec::new();
     let mut material_defs: Vec<Value> = Vec::new();
@@ -1479,6 +1483,8 @@ fn build_glb_embedded(model: &AssembledModel) -> Vec<u8> {
         };
         // N'insère que la première texture pour chaque composant.
         comp_to_mat.entry(comp_key).or_insert(mat_idx);
+        // Index par nom (pour le matching matériau des maps).
+        name_to_mat.entry(etex.name.clone()).or_insert(mat_idx);
     }
 
     // ── Parcours des composants (identique à build_glb) ──────────────────────
@@ -1582,7 +1588,12 @@ fn build_glb_embedded(model: &AssembledModel) -> Vec<u8> {
             );
 
             // Matériau : utilise la texture embarquée du composant, sinon Default (0).
-            let mat_idx = comp_to_mat.get(&comp_key).copied().unwrap_or(0);
+            // Priorité au matching par NOM (maps multi-matériaux) ; sinon mapping component (perso).
+            let mat_idx = name_to_mat
+                .get(&prim.material_name)
+                .copied()
+                .or_else(|| comp_to_mat.get(&comp_key).copied())
+                .unwrap_or(0);
 
             let mut attrs_obj = json!({ "POSITION": pos_acc });
             if let Some(n) = normal_acc { attrs_obj["NORMAL"] = json!(n); }

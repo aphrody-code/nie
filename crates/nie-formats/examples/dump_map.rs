@@ -27,6 +27,11 @@ fn main() {
     println!("submesh_count={} material_count={} vlayout_count={} face_data_base=0x{:X}",
         md.header.submesh_count, md.header.material_count, md.header.vlayout_count, md.header.face_data_base);
     println!("attributs vertex: {:?}", md.attributes);
+    let mat_names = g4md::extract_map_material_names(g4md_bytes, md.header.material_count as usize);
+    println!("noms de texture PAR MATÉRIAU ({}) :", mat_names.len());
+    for (i, n) in mat_names.iter().enumerate() {
+        println!("  mat[{i}] = {n:?}");
+    }
     println!("noms de textures (material_base_names): {:?}", md.material_base_names);
     println!("g4mg: {} octets", g4mg_bytes.len());
 
