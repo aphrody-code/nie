@@ -1,7 +1,8 @@
 //! Rastériseur 3D CPU : projette un [`Model`](crate::glb::Model) en perspective et le remplit
-//! triangle par triangle avec **z-buffer** et **éclairage Lambert** (matcap argile). Headless,
-//! déterministe. Le rendu wgpu/3D texturé GPU est le pas suivant ; ici on prouve la 3D sur les
-//! **vrais maillages CPK**.
+//! triangle par triangle avec **z-buffer**, **backface culling**, **textures** (échantillonnage
+//! nearest perspective-correct, cutout alpha) modulées par un **éclairage Lambert**. Fallback
+//! argile pour les primitives sans texture. Headless, déterministe. Le portage GPU/wgpu est le pas
+//! suivant ; ici on rend les **vrais maillages + atlas CPK**.
 
 #![allow(
     clippy::cast_possible_truncation,
@@ -9,7 +10,7 @@
     clippy::cast_precision_loss
 )]
 
-use crate::glb::Model;
+use crate::glb::{Model, Texture};
 
 type V3 = [f32; 3];
 
@@ -97,6 +98,7 @@ pub fn render(model: &Model, angle: f32, w: u32, h: u32) -> Vec<u8> {
     };
 
     for prim in &model.primitives {
+        let tex = prim.texture.and_then(|t| model.textures.get(t));
         for tri in prim.indices.chunks_exact(3) {
             let (ia, ib, ic) = (tri[0] as usize, tri[1] as usize, tri[2] as usize);
             if ia >= prim.positions.len() || ib >= prim.positions.len() || ic >= prim.positions.len()
@@ -107,6 +109,12 @@ pub fn render(model: &Model, angle: f32, w: u32, h: u32) -> Vec<u8> {
             let (Some(a), Some(b), Some(c)) = (project(wa), project(wb), project(wc)) else {
                 continue;
             };
+            // Backface culling : aire signée écran (y vers le bas). Les faces arrière (crâne, intérieur
+            // des cheveux) sont éliminées → la tête cesse d'être « traversée ».
+            let screen_area = (b.0 - a.0) * (c.1 - a.1) - (b.1 - a.1) * (c.0 - a.0);
+            if screen_area <= 0.0 {
+                continue;
+            }
             // Normale de face (espace monde centré/orienté) pour Lambert.
             let na = [(wa[0] - center[0]) * inv, (wa[1] - center[1]) * inv, (wa[2] - center[2]) * inv];
             let nb = [(wb[0] - center[0]) * inv, (wb[1] - center[1]) * inv, (wb[2] - center[2]) * inv];
@@ -116,21 +124,34 @@ pub fn render(model: &Model, angle: f32, w: u32, h: u32) -> Vec<u8> {
                 sub(orient(nc, cy, sy, cx, sx), orient(na, cy, sy, cx, sx)),
             ));
             let lambert = dot(fn_, light).abs();
-            let shade = 0.25 + 0.75 * lambert;
-            let base = [206.0, 198.0, 188.0]; // argile neutre (matcap)
-            let col = [
-                (base[0] * shade) as u8,
-                (base[1] * shade) as u8,
-                (base[2] * shade) as u8,
-                255u8,
-            ];
-            fill_triangle(&mut px, &mut zbuf, w, h, a, b, c, col);
+            let shade = 0.35 + 0.65 * lambert; // texturé : moins d'écrasement que l'argile
+            // UV par sommet (vides si la primitive n'est pas texturée → fallback argile).
+            let uv = if tex.is_some() && ia < prim.uv.len() && ic < prim.uv.len() {
+                [prim.uv[ia], prim.uv[ib], prim.uv[ic]]
+            } else {
+                [[0.0, 0.0]; 3]
+            };
+            let use_tex = if uv == [[0.0, 0.0]; 3] { None } else { tex };
+            fill_triangle(&mut px, &mut zbuf, w, h, a, b, c, uv, use_tex, shade);
         }
     }
     px
 }
 
-/// Remplit un triangle écran (barycentrique) avec test/écriture z-buffer.
+/// Échantillonnage nearest d'une texture en UV [0,1] (CLAMP_TO_EDGE) → RGBA.
+fn sample(t: &Texture, u: f32, v: f32) -> [u8; 4] {
+    let uu = u.clamp(0.0, 1.0);
+    let vv = v.clamp(0.0, 1.0);
+    // Convention nearest : texel = floor(uv * dim), borné à dim-1 (le cas uv==1 retombe sur le dernier).
+    let x = ((uu * t.width as f32) as u32).min(t.width.saturating_sub(1));
+    let y = ((vv * t.height as f32) as u32).min(t.height.saturating_sub(1));
+    let idx = ((y * t.width + x) * 4) as usize;
+    [t.rgba[idx], t.rgba[idx + 1], t.rgba[idx + 2], t.rgba[idx + 3]]
+}
+
+/// Remplit un triangle écran (barycentrique) avec test/écriture z-buffer. Si `tex` est fourni,
+/// échantillonne la texture en UV **perspective-correct** (pondéré par 1/profondeur) et applique
+/// `shade` (Lambert) ; sinon remplit en argile teintée. Cutout : texel d'alpha < 8 ignoré.
 #[allow(clippy::too_many_arguments)]
 fn fill_triangle(
     px: &mut [u8],
@@ -140,7 +161,9 @@ fn fill_triangle(
     a: (f32, f32, f32),
     b: (f32, f32, f32),
     c: (f32, f32, f32),
-    col: [u8; 4],
+    uv: [[f32; 2]; 3],
+    tex: Option<&Texture>,
+    shade: f32,
 ) {
     let minx = a.0.min(b.0).min(c.0).floor().max(0.0) as i32;
     let maxx = a.0.max(b.0).max(c.0).ceil().min(w as f32 - 1.0) as i32;
@@ -151,6 +174,7 @@ fn fill_triangle(
         return;
     }
     let inv_area = 1.0 / area;
+    let clay = [206.0 * shade, 198.0 * shade, 188.0 * shade]; // fallback non texturé
     for y in miny..=maxy {
         for x in minx..=maxx {
             let fx = x as f32 + 0.5;
@@ -163,11 +187,30 @@ fn fill_triangle(
             }
             let depth = w0 * a.2 + w1 * b.2 + w2 * c.2;
             let zi = (y as u32 * w + x as u32) as usize;
-            if depth < zbuf[zi] {
-                zbuf[zi] = depth;
-                let i = zi * 4;
-                px[i..i + 4].copy_from_slice(&col);
+            if depth >= zbuf[zi] {
+                continue;
             }
+            let col = if let Some(t) = tex {
+                // Interpolation perspective-correct : on pondère u/z, v/z et 1/z.
+                let invz = w0 / a.2 + w1 / b.2 + w2 / c.2;
+                let u = (w0 * uv[0][0] / a.2 + w1 * uv[1][0] / b.2 + w2 * uv[2][0] / c.2) / invz;
+                let v = (w0 * uv[0][1] / a.2 + w1 * uv[1][1] / b.2 + w2 * uv[2][1] / c.2) / invz;
+                let s = sample(t, u, v);
+                if s[3] < 8 {
+                    continue; // texel transparent (cheveux/visage en cartes alpha)
+                }
+                [
+                    (f32::from(s[0]) * shade) as u8,
+                    (f32::from(s[1]) * shade) as u8,
+                    (f32::from(s[2]) * shade) as u8,
+                    255,
+                ]
+            } else {
+                [clay[0] as u8, clay[1] as u8, clay[2] as u8, 255]
+            };
+            zbuf[zi] = depth;
+            let i = zi * 4;
+            px[i..i + 4].copy_from_slice(&col);
         }
     }
 }
@@ -182,9 +225,39 @@ mod tests {
             primitives: vec![Primitive {
                 positions: vec![[-1.0, -1.0, 0.0], [1.0, -1.0, 0.0], [0.0, 1.0, 0.0]],
                 normals: vec![[0.0, 0.0, 1.0]; 3],
-                indices: vec![0, 1, 2],
+                uv: Vec::new(),
+                indices: vec![0, 2, 1], // front-facing (screen_area > 0, sinon culled)
+                texture: None,
             }],
+            textures: Vec::new(),
         }
+    }
+
+    #[test]
+    fn texture_modulee_par_shade() {
+        // Primitive texturée : un quad mappé sur une texture 2×2 rouge/vert/bleu/blanc.
+        let tex = Texture { width: 2, height: 2, rgba: vec![
+            255, 0, 0, 255, 0, 255, 0, 255,
+            0, 0, 255, 255, 255, 255, 255, 255,
+        ] };
+        let model = Model {
+            primitives: vec![Primitive {
+                positions: vec![[-1.0, -1.0, 0.0], [1.0, -1.0, 0.0], [1.0, 1.0, 0.0], [-1.0, 1.0, 0.0]],
+                normals: vec![[0.0, 0.0, 1.0]; 4],
+                uv: vec![[0.0, 1.0], [1.0, 1.0], [1.0, 0.0], [0.0, 0.0]],
+                indices: vec![0, 2, 1, 0, 3, 2], // winding inversé → front-facing (cf. backface culling)
+                texture: Some(0),
+            }],
+            textures: vec![tex],
+        };
+        let (w, h) = (96, 96);
+        let buf = render(&model, 0.0, w, h);
+        // Dominance de teinte (robuste au shade) : un coin où le rouge domine, un autre le bleu —
+        // preuve que la texture est bel et bien échantillonnée (et pas un aplat uniforme).
+        let red = buf.chunks_exact(4).any(|p| p[0] > 60 && p[0] > p[1] + 40 && p[0] > p[2] + 40);
+        let blue = buf.chunks_exact(4).any(|p| p[2] > 60 && p[2] > p[0] + 40 && p[2] > p[1] + 40);
+        assert!(red, "un coin rouge de la texture doit apparaître");
+        assert!(blue, "un coin bleu de la texture doit apparaître");
     }
 
     #[test]
