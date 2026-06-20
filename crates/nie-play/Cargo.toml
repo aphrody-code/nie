@@ -21,3 +21,5 @@ png = "0.18"
 nie-core = { path = "../nie-core" }
 nie-data = { path = "../nie-data" }
 nie-formats = { path = "../nie-formats", features = ["serde"] }
+nie-render3d = { path = "../nie-render3d" }
+bcdec_rs = "0.2.0"

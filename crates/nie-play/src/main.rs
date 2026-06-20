@@ -9,6 +9,8 @@
 //! C'est l'INTÉGRATION : un jeu navigable, pas des briques éparses.
 //! Usage : `nie-play --font-cfg <font.cfg.bin> --font-g4tx <font.g4tx> --out <dir>`
 
+mod character;
+
 use anyhow::{Context, Result};
 use clap::Parser;
 use nie_core::match_sim::{simulate_match, TeamSetup};
@@ -33,6 +35,18 @@ struct Cli {
     /// Graine du match.
     #[arg(long, default_value = "12345")]
     seed: u64,
+    /// Perso 3D affiché sur les écrans (optionnel) : mesh g4md.
+    #[arg(long)]
+    char_md: Option<std::path::PathBuf>,
+    /// Perso 3D : géométrie g4mg.
+    #[arg(long)]
+    char_mg: Option<std::path::PathBuf>,
+    /// Perso 3D : squelette g4sk.
+    #[arg(long)]
+    char_sk: Option<std::path::PathBuf>,
+    /// Perso 3D : texture g4tx (BC7).
+    #[arg(long)]
+    char_tex: Option<std::path::PathBuf>,
 }
 
 /// Atlas de police chargé (octets + LatinAtlas + dims), pour le rendu de texte.
@@ -67,6 +81,14 @@ struct Screen<'a> {
 impl<'a> Screen<'a> {
     fn new(f: &'a Font) -> Self {
         Self { buf: vec![0u8; W * H * 4], f }
+    }
+    /// Cadre initialisé depuis une frame RGBA existante (ex. rendu 3D du perso en toile de fond).
+    fn from_base(f: &'a Font, base: &[u8]) -> Self {
+        let mut buf = vec![0u8; W * H * 4];
+        if base.len() == buf.len() {
+            buf.copy_from_slice(base);
+        }
+        Self { buf, f }
     }
     fn gradient(&mut self, top: [u8; 3], bot: [u8; 3]) {
         for y in 0..H {
@@ -123,9 +145,13 @@ enum GameState {
 
 const MENU: [&str; 4] = ["MATCH", "STORY MODE", "MY TEAM", "KIZUNA TOWN"];
 
-/// Rend un état du jeu dans un cadre.
-fn render<'a>(state: &GameState, f: &'a Font) -> Screen<'a> {
-    let mut s = Screen::new(f);
+/// Rend un état du jeu dans un cadre. `char_bg` = frame 3D du perso (toile de fond menu/histoire).
+fn render<'a>(state: &GameState, f: &'a Font, char_bg: Option<&[u8]>) -> Screen<'a> {
+    // Base : la toile de fond 3D du perso si dispo, sinon un dégradé.
+    let mut s = match (state, char_bg) {
+        (GameState::MainMenu { .. } | GameState::Story { .. }, Some(bg)) => Screen::from_base(f, bg),
+        _ => Screen::new(f),
+    };
     match state {
         GameState::Title => {
             s.gradient([24, 32, 64], [8, 10, 20]);
@@ -134,18 +160,21 @@ fn render<'a>(state: &GameState, f: &'a Font) -> Screen<'a> {
             s.text_centered(560, "PRESS START", [200, 210, 230, 255]);
         }
         GameState::MainMenu { sel } => {
-            s.gradient([30, 40, 80], [14, 18, 34]);
+            if char_bg.is_none() {
+                s.gradient([30, 40, 80], [14, 18, 34]);
+            }
             s.rect(0, 0, W as i32, 70, [20, 60, 130, 255]);
             s.text(40, 16, "MAIN MENU", [220, 235, 255, 255]);
+            // Panneau d'options à GAUCHE (le perso 3D occupe la droite).
             for (i, item) in MENU.iter().enumerate() {
                 let y = 200 + i as i32 * 90;
                 let hot = i == *sel;
-                let bg = if hot { [60, 130, 220, 255] } else { [20, 30, 55, 220] };
-                s.rect(120, y, 1160, y + 70, bg);
+                let bg = if hot { [60, 130, 220, 235] } else { [16, 22, 44, 210] };
+                s.rect(70, y, 620, y + 70, bg);
                 if hot {
-                    s.rect(120, y, 126, y + 70, [120, 220, 255, 255]);
+                    s.rect(70, y, 76, y + 70, [120, 220, 255, 255]);
                 }
-                s.text(160, y + 16, item, [240, 245, 252, 255]);
+                s.text(110, y + 16, item, [240, 245, 252, 255]);
             }
         }
         GameState::Match { home, away } => {
@@ -159,7 +188,9 @@ fn render<'a>(state: &GameState, f: &'a Font) -> Screen<'a> {
             s.text_centered(600, verdict, [120, 255, 160, 255]);
         }
         GameState::Story { speaker, line } => {
-            s.gradient([20, 26, 54], [8, 10, 22]);
+            if char_bg.is_none() {
+                s.gradient([20, 26, 54], [8, 10, 22]);
+            }
             // Boîte de dialogue (réutilise le pattern /story-scene).
             let (bx0, bx1) = (60i32, W as i32 - 60);
             let by1 = H as i32 - 40;
@@ -186,6 +217,27 @@ fn main() -> Result<()> {
     std::fs::create_dir_all(&cli.out)?;
     let f = Font::load(&cli.font_cfg, &cli.font_g4tx).context("chargement police")?;
 
+    // Toile de fond 3D du perso (optionnelle) : rendue UNE fois, réutilisée par menu/histoire.
+    let char_bg: Option<Vec<u8>> = match (&cli.char_md, &cli.char_mg, &cli.char_sk, &cli.char_tex) {
+        (Some(md), Some(mg), Some(sk), Some(tex)) => {
+            let frame = character::render_character(
+                &std::fs::read(md)?,
+                &std::fs::read(mg)?,
+                &std::fs::read(sk)?,
+                &std::fs::read(tex)?,
+                W as u32,
+                H as u32,
+                0.55,
+                [30, 40, 80],
+                [12, 16, 30],
+            )
+            .context("rendu perso 3D")?;
+            println!("[nie-play] perso 3D rendu en toile de fond");
+            Some(frame)
+        }
+        _ => None,
+    };
+
     // Match RÉEL via la FSM portée (nie-core).
     let res = simulate_match(team("RAIMON", 120), team("ROYAL ACADEMY", 95), cli.seed);
 
@@ -208,7 +260,7 @@ fn main() -> Result<()> {
     let mut frame = 0u32;
     for (state, dur) in &flow {
         println!("[nie-play] etat = {state:?}");
-        let scr = render(state, &f);
+        let scr = render(state, &f, char_bg.as_deref());
         for _ in 0..*dur {
             scr.save(&cli.out.join(format!("f{frame:04}.png")))?;
             frame += 1;
