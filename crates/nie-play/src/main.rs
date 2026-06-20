@@ -93,10 +93,26 @@ fn main() -> Result<()> {
     let mut frame = 0u32;
     for (state, dur) in &flow {
         println!("[nie-play] etat = {state:?}");
-        let buf = renderer.render(state);
-        for _ in 0..*dur {
-            write_png(&buf, &cli.out.join(format!("f{frame:04}.png")))?;
-            frame += 1;
+        match state {
+            // Le match se JOUE : sim physique nie-runtime (best-effort, approximative — PAS la
+            // boucle C++ byte-fidèle, cf. docs/UNIFICATION.md fracture #1) rendue frame par frame.
+            nie_app::GameState::Match { .. } => {
+                let mut world = nie_runtime::World::kickoff();
+                for _ in 0..*dur {
+                    world.step(1.0 / 30.0);
+                    let fr = nie_runtime::render::render(&world, W as u32, H as u32);
+                    write_png(&fr.px, &cli.out.join(format!("f{frame:04}.png")))?;
+                    frame += 1;
+                }
+                println!("[nie-play]   match JOUÉ (nie-runtime, physique) score={:?}", world.score);
+            }
+            _ => {
+                let buf = renderer.render(state);
+                for _ in 0..*dur {
+                    write_png(&buf, &cli.out.join(format!("f{frame:04}.png")))?;
+                    frame += 1;
+                }
+            }
         }
     }
     println!(
