@@ -2666,6 +2666,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "nie-runtime"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "nie-core",
+ "png",
+]
+
+[[package]]
 name = "nie-save"
 version = "0.1.0"
 dependencies = [

@@ -1,0 +1,478 @@
+//! **Moteur de jeu niers** — boucle intégrée qui TOURNE (état-monde + physique + gameplay),
+//! en Rust pur, headless et **déterministe**. Le rendu top-down vit dans [`render`], la boucle
+//! et la sortie vidéo dans le binaire `nie-runtime`.
+//!
+//! C'est le *cadre* exécutable du moteur : une simulation de football jouable de bout en bout
+//! (22 joueurs + ballon, physique, possession, buts) où la logique reversée de IEVR se branche
+//! incrémentalement. Ancrages RE réels : la **gravité du ballon = [`nie_core::BALL_GRAVITY`]**
+//! (`2.0`, bits IEEE `0x40000000`, confirmés dans `ball_component.c`), 11 v 11, un GK par camp.
+//!
+//! Ce qui est **propre au moteur niers** (simulation temps-réel jouable) est distinct de ce qui
+//! est **porté byte-exact** de IEVR (constantes, structures). La physique PhysX exacte et la
+//! résolution de but event-driven de IEVR sont des pistes séparées (cf. `nie-engine`, le système
+//! d'événements reversé) qui remplaceront progressivement les approximations d'ici.
+
+#![forbid(unsafe_code)]
+
+pub mod render;
+
+use nie_core::BALL_GRAVITY;
+
+/// Vecteur 2D (plan du terrain, en mètres ; origine au centre).
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct V2 {
+    pub x: f32,
+    pub y: f32,
+}
+
+impl V2 {
+    #[must_use]
+    pub const fn new(x: f32, y: f32) -> Self {
+        Self { x, y }
+    }
+    /// Norme euclidienne.
+    #[must_use]
+    pub fn len(self) -> f32 {
+        self.x.hypot(self.y)
+    }
+    /// Vecteur unitaire (ou zéro si longueur nulle).
+    #[must_use]
+    pub fn norm(self) -> Self {
+        let l = self.len();
+        if l > 1e-6 { self * (1.0 / l) } else { Self::default() }
+    }
+}
+
+impl core::ops::Add for V2 {
+    type Output = Self;
+    fn add(self, o: Self) -> Self {
+        Self::new(self.x + o.x, self.y + o.y)
+    }
+}
+
+impl core::ops::Sub for V2 {
+    type Output = Self;
+    fn sub(self, o: Self) -> Self {
+        Self::new(self.x - o.x, self.y - o.y)
+    }
+}
+
+impl core::ops::Mul<f32> for V2 {
+    type Output = Self;
+    fn mul(self, s: f32) -> Self {
+        Self::new(self.x * s, self.y * s)
+    }
+}
+
+/// Vecteur 3D (plan terrain + hauteur `z`).
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct V3 {
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
+}
+
+impl V3 {
+    #[must_use]
+    pub const fn new(x: f32, y: f32, z: f32) -> Self {
+        Self { x, y, z }
+    }
+    /// Projection sur le plan du terrain.
+    #[must_use]
+    pub const fn ground(self) -> V2 {
+        V2::new(self.x, self.y)
+    }
+}
+
+// ── Dimensions du terrain (mètres, origine au centre) ───────────────────────────
+/// Demi-longueur (but à but) : terrain 105 m.
+pub const HALF_LEN: f32 = 52.5;
+/// Demi-largeur (touche à touche) : terrain 68 m.
+pub const HALF_WID: f32 = 34.0;
+/// Demi-largeur des buts (largeur réglementaire 7,32 m).
+pub const GOAL_HALF: f32 = 3.66;
+/// Hauteur de la barre transversale (2,44 m).
+pub const GOAL_HEIGHT: f32 = 2.44;
+
+// ── Paramètres physiques (unités-jeu ; gravité ancrée sur la RE) ─────────────────
+/// Restitution du ballon au sol (rebond).
+const RESTITUTION: f32 = 0.6;
+/// Friction de roulement au sol (par seconde).
+const GROUND_FRICTION: f32 = 0.9;
+/// Traînée aérienne légère (par seconde).
+const AIR_DRAG: f32 = 0.05;
+/// Rayon de contrôle du ballon par un joueur (mètres).
+const CONTROL_RADIUS: f32 = 1.4;
+/// Rayon de tacle : un adverse à cette distance vole la possession (< contrôle → hystérésis).
+const STEAL_RADIUS: f32 = 0.7;
+/// Distance au but adverse en deçà de laquelle le porteur tire au lieu de dribbler (m).
+const SHOOT_RANGE: f32 = 18.0;
+/// Vitesse de dribble du ballon poussé devant le porteur (m/s).
+const DRIBBLE_SPEED: f32 = 9.0;
+/// Vitesse de course max d'un joueur (m/s).
+const PLAYER_SPEED: f32 = 7.0;
+/// Puissance de frappe (m/s) imprimée au ballon vers le but adverse.
+const KICK_POWER: f32 = 26.0;
+/// Composante verticale d'une frappe (loft) — basse pour des tirs tendus qui restent sous la barre.
+const KICK_LOFT: f32 = 1.0;
+/// Cadence minimale entre deux frappes du même porteur (s).
+const KICK_COOLDOWN: f32 = 0.35;
+
+/// Rôle d'un joueur sur le terrain (détermine sa zone de base).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Role {
+    Goalkeeper,
+    Defender,
+    Midfielder,
+    Forward,
+}
+
+/// Un joueur : position/vitesse au sol, équipe (0 = domicile attaque +x, 1 = extérieur attaque −x).
+#[derive(Debug, Clone, Copy)]
+pub struct Player {
+    pub pos: V2,
+    pub vel: V2,
+    pub team: u8,
+    pub role: Role,
+    /// Position de base (ancrage de formation) vers laquelle le joueur revient hors action.
+    pub home: V2,
+}
+
+/// Le ballon : position 3D + vitesse 3D + gravité (ancrée RE).
+#[derive(Debug, Clone, Copy)]
+pub struct Ball {
+    pub pos: V3,
+    pub vel: V3,
+    pub gravity: f32,
+}
+
+impl Default for Ball {
+    fn default() -> Self {
+        Self { pos: V3::new(0.0, 0.0, 0.11), vel: V3::default(), gravity: BALL_GRAVITY }
+    }
+}
+
+/// État complet du monde simulé à un instant donné.
+#[derive(Debug, Clone)]
+pub struct World {
+    pub ball: Ball,
+    pub players: Vec<Player>,
+    /// Buts marqués `[domicile, extérieur]`.
+    pub score: [u32; 2],
+    /// Temps de jeu simulé (s).
+    pub time: f32,
+    /// Compteur de pas de simulation (déterministe).
+    pub tick: u64,
+    /// Index du dernier porteur (pour le cooldown de frappe), et son chrono.
+    possessor: Option<usize>,
+    kick_timer: f32,
+}
+
+/// Formation 4-4-2 en fractions du demi-terrain pour l'équipe domicile (attaque +x).
+/// `(x_frac, y_frac)` ∈ [−1, 1] ; mappé en mètres par [`HALF_LEN`]/[`HALF_WID`].
+const FORMATION_442: [(f32, f32, Role); 11] = [
+    (-0.95, 0.0, Role::Goalkeeper),
+    (-0.6, -0.7, Role::Defender),
+    (-0.6, -0.25, Role::Defender),
+    (-0.6, 0.25, Role::Defender),
+    (-0.6, 0.7, Role::Defender),
+    (-0.15, -0.7, Role::Midfielder),
+    (-0.15, -0.25, Role::Midfielder),
+    (-0.15, 0.25, Role::Midfielder),
+    (-0.15, 0.7, Role::Midfielder),
+    (-0.3, -0.2, Role::Forward),
+    (-0.3, 0.2, Role::Forward),
+];
+
+impl World {
+    /// Coup d'envoi : 22 joueurs en 4-4-2 (domicile + extérieur miroir), ballon au centre.
+    #[must_use]
+    pub fn kickoff() -> Self {
+        let mut players = Vec::with_capacity(22);
+        for &(xf, yf, role) in &FORMATION_442 {
+            // Domicile : attaque +x, sa moitié = −x.
+            let home0 = V2::new(xf * HALF_LEN, yf * HALF_WID);
+            players.push(Player { pos: home0, vel: V2::default(), team: 0, role, home: home0 });
+            // Extérieur : miroir (attaque −x).
+            let home1 = V2::new(-xf * HALF_LEN, yf * HALF_WID);
+            players.push(Player { pos: home1, vel: V2::default(), team: 1, role, home: home1 });
+        }
+        Self {
+            ball: Ball::default(),
+            players,
+            score: [0, 0],
+            time: 0.0,
+            tick: 0,
+            possessor: None,
+            kick_timer: 0.0,
+        }
+    }
+
+    /// Avance la simulation d'un pas `dt` (secondes). Déterministe.
+    pub fn step(&mut self, dt: f32) {
+        self.tick += 1;
+        self.time += dt;
+        if self.kick_timer > 0.0 {
+            self.kick_timer -= dt;
+        }
+        self.step_players(dt);
+        self.step_ball(dt);
+        self.resolve_possession(dt);
+        if self.detect_goal() {
+            self.reset_after_goal();
+        }
+    }
+
+    /// Déplace chaque joueur : le **porteur** fonce vers le but adverse (attaque), le plus proche
+    /// de l'équipe défendante chasse le ballon (sauf le GK qui garde sa cage), les autres tiennent
+    /// leur position de formation.
+    fn step_players(&mut self, dt: f32) {
+        let ball2 = self.ball.pos.ground();
+        let carrier = self.possessor;
+        // Plus proche par équipe.
+        let mut nearest = [usize::MAX, usize::MAX];
+        let mut best = [f32::MAX, f32::MAX];
+        for (i, p) in self.players.iter().enumerate() {
+            let d = (p.pos - ball2).len();
+            let t = p.team as usize;
+            if d < best[t] {
+                best[t] = d;
+                nearest[t] = i;
+            }
+        }
+        for (i, p) in self.players.iter_mut().enumerate() {
+            let target = if carrier == Some(i) {
+                // Porteur : sprinte vers le but adverse (avec le ballon devant lui).
+                V2::new(if p.team == 0 { HALF_LEN } else { -HALF_LEN }, 0.0)
+            } else if nearest[p.team as usize] == i
+                && !(p.role == Role::Goalkeeper && ball2.x.abs() < HALF_LEN * 0.5)
+            {
+                // Chasseur : récupère le ballon (le GK ne sort pas loin de sa cage).
+                ball2
+            } else {
+                p.home
+            };
+            let dir = (target - p.pos).norm();
+            p.vel = dir * PLAYER_SPEED;
+            p.pos = p.pos + p.vel * dt;
+            p.pos.x = p.pos.x.clamp(-HALF_LEN, HALF_LEN);
+            p.pos.y = p.pos.y.clamp(-HALF_WID, HALF_WID);
+        }
+    }
+
+    /// Physique du ballon : intégrateur d'Euler semi-implicite + gravité + rebond + frictions.
+    fn step_ball(&mut self, dt: f32) {
+        let b = &mut self.ball;
+        // Gravité (descend) + traînée aérienne.
+        b.vel.z -= b.gravity * dt;
+        let drag = 1.0 - AIR_DRAG * dt;
+        b.vel.x *= drag;
+        b.vel.y *= drag;
+        // Intégration position.
+        b.pos.x += b.vel.x * dt;
+        b.pos.y += b.vel.y * dt;
+        b.pos.z += b.vel.z * dt;
+        // Sol : rebond + friction de roulement.
+        if b.pos.z <= 0.0 {
+            b.pos.z = 0.0;
+            if b.vel.z < 0.0 {
+                b.vel.z = -b.vel.z * RESTITUTION;
+                if b.vel.z < 0.2 {
+                    b.vel.z = 0.0;
+                }
+            }
+            let roll = GROUND_FRICTION.powf(dt);
+            b.vel.x *= roll;
+            b.vel.y *= roll;
+        }
+        // Rebond sur les touches (la ligne de but est gérée par detect_goal).
+        if b.pos.y.abs() > HALF_WID {
+            b.pos.y = b.pos.y.clamp(-HALF_WID, HALF_WID);
+            b.vel.y = -b.vel.y * RESTITUTION;
+        }
+    }
+
+    /// Possession **collante** + dribble/tir. Le porteur courant garde le ballon tant qu'aucun
+    /// adverse n'entre dans le rayon de tacle ([`STEAL_RADIUS`]) ; il dribble vers le but adverse
+    /// et frappe une fois à portée de tir ([`SHOOT_RANGE`]). Crée un jeu directionnel (→ buts),
+    /// au lieu d'une oscillation centrale.
+    fn resolve_possession(&mut self, _dt: f32) {
+        let ball2 = self.ball.pos.ground();
+        let low = self.ball.pos.z < 0.6;
+
+        // Plus proche joueur (global) et son équipe.
+        let mut nearest = (usize::MAX, f32::MAX);
+        for (i, p) in self.players.iter().enumerate() {
+            let d = (p.pos - ball2).len();
+            if d < nearest.1 {
+                nearest = (i, d);
+            }
+        }
+
+        // Porteur courant conservé s'il reste à portée de contrôle.
+        let keep = self
+            .possessor
+            .filter(|&i| (self.players[i].pos - ball2).len() < CONTROL_RADIUS);
+        let owner = match keep {
+            // Conserve sauf si un ADVERSE entre dans le rayon de tacle (et est le plus proche).
+            Some(c) => {
+                let opp_steal = nearest.0 != usize::MAX
+                    && self.players[nearest.0].team != self.players[c].team
+                    && nearest.1 < STEAL_RADIUS;
+                if opp_steal { Some(nearest.0) } else { Some(c) }
+            }
+            // Sinon le plus proche prend, s'il est à portée de contrôle.
+            None if nearest.1 < CONTROL_RADIUS => Some(nearest.0),
+            None => None,
+        };
+        self.possessor = owner;
+
+        let Some(i) = owner else { return };
+        if !low {
+            return; // ballon en l'air : pas de contrôle au sol.
+        }
+        let team = self.players[i].team;
+        // But adverse : domicile (0) → +x, extérieur (1) → −x.
+        let goal = V2::new(if team == 0 { HALF_LEN } else { -HALF_LEN }, 0.0);
+        let to_goal = goal - ball2;
+        let dir = to_goal.norm();
+        if to_goal.len() < SHOOT_RANGE && self.kick_timer <= 0.0 {
+            // Tir cadré.
+            self.ball.vel = V3::new(dir.x * KICK_POWER, dir.y * KICK_POWER, KICK_LOFT);
+            self.kick_timer = KICK_COOLDOWN;
+        } else {
+            // Dribble : pousse le ballon devant soi vers le but (vitesse au sol modérée).
+            self.ball.vel.x = dir.x * DRIBBLE_SPEED;
+            self.ball.vel.y = dir.y * DRIBBLE_SPEED;
+        }
+    }
+
+    /// `true` si le ballon a franchi une ligne de but entre les poteaux et sous la barre.
+    fn detect_goal(&mut self) -> bool {
+        let b = self.ball.pos;
+        let inside = b.y.abs() < GOAL_HALF && b.z < GOAL_HEIGHT;
+        if b.x > HALF_LEN && inside {
+            self.score[0] += 1; // domicile marque dans le but +x
+            true
+        } else if b.x < -HALF_LEN && inside {
+            self.score[1] += 1;
+            true
+        } else {
+            // Sortie de but sans but : ramener le ballon dans le terrain (rebond simple).
+            if b.x.abs() > HALF_LEN {
+                self.ball.pos.x = b.x.clamp(-HALF_LEN, HALF_LEN);
+                self.ball.vel.x = -self.ball.vel.x * RESTITUTION;
+            }
+            false
+        }
+    }
+
+    /// Remet le ballon au centre et les joueurs à leur formation après un but.
+    fn reset_after_goal(&mut self) {
+        self.ball = Ball::default();
+        for p in &mut self.players {
+            p.pos = p.home;
+            p.vel = V2::default();
+        }
+        self.possessor = None;
+        self.kick_timer = KICK_COOLDOWN;
+    }
+
+    /// Index du porteur actuel (le plus proche à portée de contrôle), s'il y en a un.
+    #[must_use]
+    pub fn possessor(&self) -> Option<usize> {
+        self.possessor
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn kickoff_pose_22_joueurs_et_ballon_au_centre() {
+        let w = World::kickoff();
+        assert_eq!(w.players.len(), 22);
+        assert_eq!(w.players.iter().filter(|p| p.team == 0).count(), 11);
+        assert_eq!(w.players.iter().filter(|p| p.role == Role::Goalkeeper).count(), 2);
+        assert!(w.ball.pos.ground().len() < 0.01, "ballon au centre");
+        assert_eq!(w.ball.gravity, BALL_GRAVITY);
+    }
+
+    #[test]
+    fn ballon_tombe_sous_la_gravite() {
+        let mut w = World::kickoff();
+        w.players.clear(); // pas d'interférence de possession
+        w.ball.pos = V3::new(0.0, 0.0, 5.0);
+        w.ball.vel = V3::default();
+        let z0 = w.ball.pos.z;
+        for _ in 0..10 {
+            w.step(1.0 / 60.0);
+        }
+        assert!(w.ball.pos.z < z0, "le ballon descend ({} < {z0})", w.ball.pos.z);
+    }
+
+    #[test]
+    fn ballon_rebondit_au_sol_avec_perte() {
+        let mut w = World::kickoff();
+        w.players.clear();
+        w.ball.pos = V3::new(0.0, 0.0, 0.05);
+        w.ball.vel = V3::new(0.0, 0.0, -5.0);
+        w.step(1.0 / 60.0);
+        assert!(w.ball.vel.z > 0.0, "rebond : vitesse verticale inversée ({})", w.ball.vel.z);
+        assert!(w.ball.vel.z < 5.0, "rebond amorti (restitution < 1)");
+    }
+
+    #[test]
+    fn joueur_le_plus_proche_converge_vers_le_ballon() {
+        let mut w = World::kickoff();
+        w.ball.pos = V3::new(0.0, 0.0, 0.11);
+        let nearest = w
+            .players
+            .iter()
+            .enumerate()
+            .min_by(|a, b| {
+                a.1.pos
+                    .len()
+                    .partial_cmp(&b.1.pos.len())
+                    .unwrap_or(core::cmp::Ordering::Equal)
+            })
+            .map(|(i, _)| i)
+            .unwrap();
+        let d0 = w.players[nearest].pos.len();
+        for _ in 0..30 {
+            w.step(1.0 / 60.0);
+        }
+        let d1 = (w.players[nearest].pos - w.ball.pos.ground()).len();
+        assert!(d1 < d0, "le joueur se rapproche du ballon ({d1} < {d0})");
+    }
+
+    #[test]
+    fn but_incremente_le_score_et_relance_au_centre() {
+        let mut w = World::kickoff();
+        w.players.clear();
+        // Ballon juste devant la ligne de but +x, entre les poteaux, à ras de terre, lancé dedans.
+        w.ball.pos = V3::new(HALF_LEN - 0.1, 0.0, 0.1);
+        w.ball.vel = V3::new(30.0, 0.0, 0.0);
+        w.step(1.0 / 60.0);
+        assert_eq!(w.score, [1, 0], "but domicile compté");
+        assert!(w.ball.pos.ground().len() < 0.01, "ballon relancé au centre");
+    }
+
+    #[test]
+    fn simulation_deterministe() {
+        let run = || {
+            let mut w = World::kickoff();
+            for _ in 0..600 {
+                w.step(1.0 / 60.0);
+            }
+            (w.score, w.ball.pos, w.players[0].pos, w.tick)
+        };
+        let a = run();
+        let b = run();
+        assert_eq!(a.0, b.0);
+        assert_eq!(a.1, b.1);
+        assert_eq!(a.2, b.2);
+        assert_eq!(a.3, b.3);
+    }
+}
