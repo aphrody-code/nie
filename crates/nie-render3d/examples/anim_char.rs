@@ -1,9 +1,10 @@
-//! Rendu SOLIDE d'un personnage skinné animé : mesh (g4md/g4mg) déformé par un squelette g4sk
-//! animé d'un g4mt, rasterisé en triangles pleins ombrés (Lambert + z-buffer) → frames PNG.
-//! Usage : `cargo run -p nie-render3d --example anim_char -- <md> <mg> <g4sk> <g4pk> <outdir>`
+//! Rendu TEXTURÉ d'un personnage skinné animé : mesh (g4md/g4mg) déformé par un squelette g4sk
+//! animé d'un g4mt, rasterisé texturé (BC7 décodé du g4tx) + z-buffer → frames PNG.
+//! Usage : `cargo run -p nie-render3d --example anim_char -- <md> <mg> <g4sk> <g4pk> <g4tx> <outdir>`
 
-use nie_formats::{g4md, g4mg, g4mt, g4pk, g4sk};
-use nie_render3d::scene::{self, Camera, Tri};
+use nie_formats::{g4md, g4mg, g4mt, g4pk, g4sk, g4tx};
+use nie_render3d::glb::{Model, Primitive, Texture};
+use nie_render3d::scene::{self, Camera, Instance};
 
 fn xf(m: &[[f32; 4]; 4], p: [f32; 3]) -> [f32; 3] {
     [
@@ -13,19 +14,51 @@ fn xf(m: &[[f32; 4]; 4], p: [f32; 3]) -> [f32; 3] {
     ]
 }
 
+/// Décode la première texture BC7 (DXGI 98) d'un g4tx en RGBA8.
+fn decode_texture(g4tx_bytes: &[u8]) -> Texture {
+    let tx = g4tx::parse(g4tx_bytes).expect("parse g4tx");
+    let t = &tx.textures[0];
+    let dds = &g4tx_bytes[t.data_offset..];
+    let px_off = if dds.len() >= 88 && &dds[84..88] == b"DX10" { 148 } else { 128 };
+    let data = &dds[px_off..];
+    let (w, h) = (t.width as usize, t.height as usize);
+    let (bw, bh) = (w / 4, h / 4);
+    let mut rgba = vec![0u8; w * h * 4];
+    let mut block = [0u8; 64];
+    for by in 0..bh {
+        for bx in 0..bw {
+            let off = (by * bw + bx) * 16;
+            if off + 16 > data.len() {
+                break;
+            }
+            bcdec_rs::bc7(&data[off..off + 16], &mut block, 16);
+            for ry in 0..4 {
+                for rx in 0..4 {
+                    let dst = ((by * 4 + ry) * w + bx * 4 + rx) * 4;
+                    let src = ry * 16 + rx * 4;
+                    rgba[dst..dst + 4].copy_from_slice(&block[src..src + 4]);
+                }
+            }
+        }
+    }
+    Texture { width: w as u32, height: h as u32, rgba }
+}
+
 fn main() {
     let a: Vec<String> = std::env::args().collect();
     let md = g4md::parse(&std::fs::read(&a[1]).unwrap()).unwrap();
     let mg = std::fs::read(&a[2]).unwrap();
     let sk_bytes = std::fs::read(&a[3]).unwrap();
     let pk_bytes = std::fs::read(&a[4]).unwrap();
-    let outdir = a.get(5).map_or("/tmp/animchar", String::as_str);
+    let tex = decode_texture(&std::fs::read(&a[5]).unwrap());
+    let outdir = a.get(6).map_or("/tmp/animchar", String::as_str);
     std::fs::create_dir_all(outdir).unwrap();
 
     let geo = &g4mg::extract_geometry(&mg, &md)[0];
     let skin = g4mg::extract_skin(&mg, &md, 0).unwrap();
     let pos: Vec<[f32; 3]> = geo.positions.iter().map(|p| [p.x, p.y, p.z]).collect();
-    let idx = &geo.indices;
+    let uv: Vec<[f32; 2]> = geo.uv0.iter().map(|u| [u.u, u.v]).collect();
+    let idx: Vec<u32> = geo.indices.clone();
 
     let header = g4sk::parse_header(&sk_bytes).unwrap();
     let bones = g4sk::parse_hierarchy(&sk_bytes, &header);
@@ -37,8 +70,6 @@ fn main() {
     let f = pk.files.iter().find(|f| f.name.ends_with(".g4mt")).unwrap();
     let anim = g4mt::parse_animation(&pk_bytes[f.offset..f.offset + f.size]).unwrap();
     let rot: Vec<&g4mt::AnimChannel> = anim.channels.iter().filter(|c| c.is_rotation()).collect();
-    // Mapping canal→os : rot[k] → os (BASE+k). BASE saute les os non-squelettiques
-    // (0=output,1=boundingBox,2=mouth,3=eye) ; le 1er os squelettique animé = c_global (4).
     let base: usize = std::env::var("BASE").ok().and_then(|s| s.parse().ok()).unwrap_or(4);
     let mut bone_chan = vec![None; nb];
     for k in 0..rot.len() {
@@ -46,9 +77,9 @@ fn main() {
             bone_chan[base + k] = Some(k);
         }
     }
-    println!("verts={} tris={} os={nb} frames={}", pos.len(), idx.len() / 3, anim.frame_count);
+    let has_uv = uv.len() == pos.len();
+    println!("verts={} tris={} os={nb} frames={} uv={has_uv} tex={}x{}", pos.len(), idx.len() / 3, anim.frame_count, tex.width, tex.height);
 
-    // Caméra : devant le perso (~1.8 m), regard sur le tronc.
     let cam = Camera { eye: [0.0, 1.0, 3.2], target: [0.0, 0.95, 0.0], up: [0.0, 1.0, 0.0], fov_y: 0.6 };
 
     for frame in 0..anim.frame_count as usize {
@@ -72,15 +103,12 @@ fn main() {
         let skinm: Vec<[[f32; 4]; 4]> =
             (0..nb).map(|i| g4sk::mat_mul(&world[i], &poses[i].inverse_bind)).collect();
 
-        // Positions skinnées.
         let sp: Vec<[f32; 3]> = (0..pos.len())
             .map(|v| {
                 let s = &skin[v];
-                let mut acc = [0.0f32; 3];
-                let mut wsum = 0.0f32;
+                let (mut acc, mut wsum) = ([0.0f32; 3], 0.0f32);
                 for k in 0..8 {
-                    let w = s.weights[k];
-                    let b = s.bones[k] as usize;
+                    let (w, b) = (s.weights[k], s.bones[k] as usize);
                     if w <= 0.0 || b >= nb {
                         continue;
                     }
@@ -94,16 +122,16 @@ fn main() {
             })
             .collect();
 
-        // Triangles pleins (couleur peau/tissu uniforme).
-        let mut tris = Vec::with_capacity(idx.len() / 3);
-        for t in idx.chunks_exact(3) {
-            let (i0, i1, i2) = (t[0] as usize, t[1] as usize, t[2] as usize);
-            if i0 < sp.len() && i1 < sp.len() && i2 < sp.len() {
-                tris.push(Tri { p: [sp[i0], sp[i1], sp[i2]], color: [180, 150, 130] });
-            }
-        }
-        let px = scene::render_scene(&tris, &[], &cam, 480, 640, [30, 36, 54], [12, 14, 22]);
-        // RGBA → écrire PNG.
+        let prim = Primitive {
+            positions: sp,
+            normals: Vec::new(),
+            uv: if has_uv { uv.clone() } else { Vec::new() },
+            indices: idx.clone(),
+            texture: if has_uv { Some(0) } else { None },
+        };
+        let model = Model { primitives: vec![prim], textures: vec![tex_clone(&tex)] };
+        let inst = Instance { model: &model, transform: scene::mat_identity(), two_sided: true };
+        let px = scene::render_scene(&[], &[inst], &cam, 480, 640, [30, 36, 54], [12, 14, 22]);
         let mut out = Vec::new();
         {
             let mut e = png::Encoder::new(std::io::Cursor::new(&mut out), 480, 640);
@@ -114,4 +142,8 @@ fn main() {
         std::fs::write(format!("{outdir}/f{frame:03}.png"), &out).unwrap();
     }
     println!("→ {outdir}/f###.png");
+}
+
+fn tex_clone(t: &Texture) -> Texture {
+    Texture { width: t.width, height: t.height, rgba: t.rgba.clone() }
 }
