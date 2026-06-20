@@ -63,15 +63,18 @@ fn finite_ok(v: [f32; 3]) -> bool {
 /// Convertit le GLB en triangles plats colorés par hauteur (visualisation **map** : géométrie
 /// d'environnement deux-faces, indépendante des textures/winding). Renvoie (tris, centre, étendue).
 /// Ignore les triangles aberrants. Sert à rendre le **monde 3D** du jeu.
-fn map_tris(model: &glb::Model) -> (Vec<scene::Tri>, [f32; 3], f32) {
+fn map_tris(models: &[glb::Model]) -> (Vec<scene::Tri>, [f32; 3], f32) {
     // bbox **robuste par percentiles** : certains submeshes (layout non-RE) ont des positions
-    // aberrantes même < 1e6 ; on cadre sur le cœur (centile 1–99) de la distribution.
+    // aberrantes même < 1e6 ; on cadre sur le cœur (centile 1–99) de la distribution. Plusieurs
+    // modèles = chunks d'un stage, déjà en coordonnées monde → simple union.
     let mut axes: [Vec<f32>; 3] = [Vec::new(), Vec::new(), Vec::new()];
-    for p in &model.primitives {
-        for v in &p.positions {
-            if finite_ok(*v) {
-                for k in 0..3 {
-                    axes[k].push(v[k]);
+    for model in models {
+        for p in &model.primitives {
+            for v in &p.positions {
+                if finite_ok(*v) {
+                    for k in 0..3 {
+                        axes[k].push(v[k]);
+                    }
                 }
             }
         }
@@ -97,19 +100,21 @@ fn map_tris(model: &glb::Model) -> (Vec<scene::Tri>, [f32; 3], f32) {
     let lim = extent * 1.5;
     let near_core = |v: [f32; 3]| (0..3).all(|k| (v[k] - center[k]).abs() <= lim);
     let mut tris = Vec::new();
-    for p in &model.primitives {
-        for t in p.indices.chunks_exact(3) {
-            let (ia, ib, ic) = (t[0] as usize, t[1] as usize, t[2] as usize);
-            if ia.max(ib).max(ic) >= p.positions.len() {
-                continue;
+    for model in models {
+        for p in &model.primitives {
+            for t in p.indices.chunks_exact(3) {
+                let (ia, ib, ic) = (t[0] as usize, t[1] as usize, t[2] as usize);
+                if ia.max(ib).max(ic) >= p.positions.len() {
+                    continue;
+                }
+                let (a, b, c) = (p.positions[ia], p.positions[ib], p.positions[ic]);
+                if !(near_core(a) && near_core(b) && near_core(c)) {
+                    continue;
+                }
+                let yc = (((a[1] + b[1] + c[1]) / 3.0 - y0) / (y1 - y0)).clamp(0.0, 1.0);
+                let col = [(70.0 + 95.0 * yc) as u8, (92.0 + 78.0 * yc) as u8, (72.0 + 58.0 * yc) as u8];
+                tris.push(scene::Tri { p: [a, b, c], color: col });
             }
-            let (a, b, c) = (p.positions[ia], p.positions[ib], p.positions[ic]);
-            if !(near_core(a) && near_core(b) && near_core(c)) {
-                continue;
-            }
-            let yc = (((a[1] + b[1] + c[1]) / 3.0 - y0) / (y1 - y0)).clamp(0.0, 1.0);
-            let col = [(70.0 + 95.0 * yc) as u8, (92.0 + 78.0 * yc) as u8, (72.0 + 58.0 * yc) as u8];
-            tris.push(scene::Tri { p: [a, b, c], color: col });
         }
     }
     (tris, center, extent)
@@ -142,9 +147,10 @@ fn render_scene_frame(model: &glb::Model, angle: f32, w: u32, h: u32) -> Vec<u8>
 #[derive(Parser, Debug)]
 #[command(about = "Rend un GLB réel (asset CPK) en 3D → PNG/MP4 turntable (headless)")]
 struct Cli {
-    /// Fichier GLB d'entrée (ex. produit par model-serve /model-full/<code>.glb).
-    #[arg(long)]
-    glb: PathBuf,
+    /// Fichier(s) GLB d'entrée (ex. /model-full/<code>.glb). Répétable : en mode --map, tous les
+    /// GLB sont composés dans un même monde (les chunks de stage sont en coordonnées monde).
+    #[arg(long, required = true)]
+    glb: Vec<PathBuf>,
     /// Sortie : PNG si --frames 1, sinon MP4 turntable.
     #[arg(long, default_value = "/tmp/niers-model.png")]
     out: PathBuf,
@@ -180,14 +186,19 @@ fn encode_png(rgba: &[u8], w: u32, h: u32) -> Result<Vec<u8>> {
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
-    let data = std::fs::read(&cli.glb).with_context(|| format!("lire {}", cli.glb.display()))?;
-    let model = glb::parse(&data)?;
-    let tris: usize = model.primitives.iter().map(|p| p.indices.len() / 3).sum();
-    let verts: usize = model.primitives.iter().map(|p| p.positions.len()).sum();
-    println!("glb={} primitives={} vertices={verts} triangles={tris}", cli.glb.display(), model.primitives.len());
+    let mut models = Vec::with_capacity(cli.glb.len());
+    for path in &cli.glb {
+        let data = std::fs::read(path).with_context(|| format!("lire {}", path.display()))?;
+        models.push(glb::parse(&data)?);
+    }
+    let model = &models[0];
+    let tris: usize = models.iter().flat_map(|m| &m.primitives).map(|p| p.indices.len() / 3).sum();
+    let verts: usize = models.iter().flat_map(|m| &m.primitives).map(|p| p.positions.len()).sum();
+    let nprim: usize = models.iter().map(|m| m.primitives.len()).sum();
+    println!("glb={} primitives={nprim} vertices={verts} triangles={tris}", cli.glb.len());
 
-    // Mode map : pré-calcule la géométrie d'environnement une fois (coûteux).
-    let map_data = if cli.map { Some(map_tris(&model)) } else { None };
+    // Mode map : pré-calcule la géométrie d'environnement une fois (tous les chunks composés).
+    let map_data = if cli.map { Some(map_tris(&models)) } else { None };
     if let Some((tris, _, _)) = &map_data {
         println!("map_tris={} (après filtrage des submeshes aberrants)", tris.len());
     }
@@ -196,9 +207,9 @@ fn main() -> Result<()> {
         if let Some((tris, center, extent)) = &map_data {
             render_map_frame(tris, *center, *extent, angle, cli.width, cli.height)
         } else if cli.scene {
-            render_scene_frame(&model, angle, cli.width, cli.height)
+            render_scene_frame(model, angle, cli.width, cli.height)
         } else {
-            render::render(&model, angle, cli.width, cli.height)
+            render::render(model, angle, cli.width, cli.height)
         }
     };
 
