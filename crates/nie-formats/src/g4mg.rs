@@ -285,12 +285,17 @@ pub fn vec3_byte_size(datatype: u32) -> usize {
     }
 }
 
-/// Taille (octets) d'un vecteur 2 composantes (2/3=float→8 ; 14=ushort→4 ; 18/20=short→4).
+/// Taille (octets) d'un vecteur 2 composantes (2=ushort2→4 ; 3=float2→8 ; 14=ushort→4 ; 18/20=short→4).
+///
+/// **datatype 2 = ushort UNORM** (u16/65535 par composante, 4 o), distinct de datatype 3 = float32.
+/// Validé sur les maps : UV0 vtype=10 dt=2 @32 tient dans le stride (36) ⇒ 4 octets, et lu en
+/// ushort UNORM donne des UV sains [0,1] (lu en float/half = garbage). Les perso utilisent dt=14
+/// pour l'UV (pas dt=2) → ce changement ne les affecte pas.
 #[must_use]
 pub fn vec2_byte_size(datatype: u32) -> usize {
     match datatype {
-        2 | 3 => 8,
-        14 | 18 | 20 => 4,
+        2 | 14 | 18 | 20 => 4,
+        3 => 8,
         _ => 0,
     }
 }
@@ -367,8 +372,9 @@ fn decode_normal_at(data: &[u8], off: usize, datatype: u32) -> Vec3 {
 /// Décode un UV0 à `off` (port de `DecodeUv`).
 fn decode_uv_at(data: &[u8], off: usize, datatype: u32) -> Vec2 {
     let (u, v) = match datatype {
-        2 | 3 => (read_f32(data, off), read_f32(data, off + 4)),
-        14 => (
+        3 => (read_f32(data, off), read_f32(data, off + 4)),
+        2 | 14 => (
+            // ushort UNORM : u16/65535 (dt=2 sur les maps ; dt=14 sur les perso).
             f32::from(read_u16(data, off)) / 65535.0,
             f32::from(read_u16(data, off + 2)) / 65535.0,
         ),

@@ -358,7 +358,7 @@ fn main() -> Result<()> {
         if let (Some(h), Some(a)) = (&home, &away) {
             for p in &world.players {
                 let pm = if p.team == 0 { h } else { a };
-                inst.push(Instance { model: &pm.model, transform: pm.xform(p.pos.x, p.pos.y, heading(p)) });
+                inst.push(Instance { model: &pm.model, transform: pm.xform(p.pos.x, p.pos.y, heading(p)), two_sided: false });
             }
         }
         (flat, inst)
