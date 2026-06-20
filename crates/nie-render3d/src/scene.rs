@@ -103,9 +103,11 @@ fn xform(m: &Mat4, p: V3) -> V3 {
 }
 
 /// Une instance de modèle texturé placée dans le monde (modèle GLB + transform modèle→monde).
+/// `two_sided` désactive le backface culling (nécessaire pour les coquilles d'environnement/maps).
 pub struct Instance<'a> {
     pub model: &'a crate::glb::Model,
     pub transform: Mat4,
+    pub two_sided: bool,
 }
 
 /// Rendu de scène **plate uniquement** (triangles colorés). Conservé pour le match « boîtes ».
@@ -220,8 +222,10 @@ pub fn render_scene(
                     continue;
                 }
                 let s: Vec<_> = poly.iter().map(|v| to_screen(v.c)).collect();
-                // Backface culling (aire signée écran) sur le premier triangle de l'éventail.
-                if (s[1].0 - s[0].0) * (s[2].1 - s[0].1) - (s[1].1 - s[0].1) * (s[2].0 - s[0].0) <= 0.0
+                // Backface culling (aire signée écran) sauf instances deux-faces (maps).
+                if !inst.two_sided
+                    && (s[1].0 - s[0].0) * (s[2].1 - s[0].1) - (s[1].1 - s[0].1) * (s[2].0 - s[0].0)
+                        <= 0.0
                 {
                     continue;
                 }
@@ -421,7 +425,7 @@ mod tests {
             textures: vec![Texture { width: 1, height: 1, rgba: vec![230, 40, 40, 255] }],
         };
         let cam = Camera { eye: [0.0, 0.6, 3.0], target: [0.0, 0.6, 0.0], up: [0.0, 1.0, 0.0], fov_y: 0.8 };
-        let inst = [Instance { model: &model, transform: mat_identity() }];
+        let inst = [Instance { model: &model, transform: mat_identity(), two_sided: false }];
         let buf = render_scene(&[], &inst, &cam, 96, 96, [20, 24, 40], [20, 24, 40]);
         let red = buf.chunks_exact(4).filter(|p| p[0] > 90 && p[0] > p[1] + 40 && p[0] > p[2] + 40).count();
         assert!(red > 30, "le triangle texturé rouge instancié doit apparaître ({red})");
