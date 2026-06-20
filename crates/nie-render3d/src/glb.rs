@@ -1,27 +1,92 @@
-//! Parseur **GLB** (glTF binaire 2.0) minimal — extrait la géométrie (positions/normales/indices)
-//! des primitives de mesh. Cible : les GLB produits par `nie_formats::assemble::to_glb_embedded`
-//! (positions déjà en espace monde) ; on ignore donc les transforms de nœuds.
+//! Parseur **GLB** (glTF binaire 2.0) minimal — extrait la géométrie (positions/normales/UV/indices)
+//! **et les textures** (PNG embarqués) des primitives de mesh. Cible : les GLB produits par
+//! `nie_formats::assemble::to_glb_embedded` (positions déjà en espace monde) ; on ignore donc les
+//! transforms de nœuds. La chaîne matériau→texture est résolue
+//! (`primitive.material → materials[].baseColorTexture → textures[].source → images[]`).
 
 use anyhow::{Context, Result, bail};
 use serde_json::Value;
 
-/// Une primitive de mesh : triangles indexés, positions + normales (espace monde).
+/// Une texture décodée en RGBA8 (atlas du modèle : corps, visage, uniforme…).
+pub struct Texture {
+    pub width: u32,
+    pub height: u32,
+    pub rgba: Vec<u8>,
+}
+
+/// Une primitive de mesh : triangles indexés, positions + normales + UV (espace monde),
+/// et l'indice de sa texture dans [`Model::textures`] (s'il y en a une).
 pub struct Primitive {
     pub positions: Vec<[f32; 3]>,
     pub normals: Vec<[f32; 3]>,
+    pub uv: Vec<[f32; 2]>,
     pub indices: Vec<u32>,
+    pub texture: Option<usize>,
 }
 
-/// Modèle GLB chargé : toutes les primitives de tous les meshes.
+/// Modèle GLB chargé : toutes les primitives + les atlas de textures décodés.
 pub struct Model {
     pub primitives: Vec<Primitive>,
+    pub textures: Vec<Texture>,
 }
 
 fn rd_u32(b: &[u8], o: usize) -> u32 {
     u32::from_le_bytes([b[o], b[o + 1], b[o + 2], b[o + 3]])
 }
 
-/// Parse un buffer GLB complet.
+/// Décode un PNG (n'importe quel type de couleur) en RGBA8.
+fn decode_png(bytes: &[u8]) -> Result<Texture> {
+    let mut dec = png::Decoder::new(std::io::Cursor::new(bytes));
+    dec.set_transformations(png::Transformations::normalize_to_color8());
+    let mut reader = dec.read_info().context("png read_info")?;
+    let bufsz = reader.output_buffer_size().context("png output_buffer_size (overflow)")?;
+    let mut buf = vec![0u8; bufsz];
+    let info = reader.next_frame(&mut buf).context("png next_frame")?;
+    let (w, h) = (info.width, info.height);
+    let n = (w as usize) * (h as usize);
+    let mut rgba = vec![0u8; n * 4];
+    match info.color_type {
+        png::ColorType::Rgba => rgba.copy_from_slice(&buf[..n * 4]),
+        png::ColorType::Rgb => {
+            for i in 0..n {
+                rgba[i * 4] = buf[i * 3];
+                rgba[i * 4 + 1] = buf[i * 3 + 1];
+                rgba[i * 4 + 2] = buf[i * 3 + 2];
+                rgba[i * 4 + 3] = 255;
+            }
+        }
+        png::ColorType::Grayscale => {
+            for i in 0..n {
+                let g = buf[i];
+                rgba[i * 4] = g;
+                rgba[i * 4 + 1] = g;
+                rgba[i * 4 + 2] = g;
+                rgba[i * 4 + 3] = 255;
+            }
+        }
+        png::ColorType::GrayscaleAlpha => {
+            for i in 0..n {
+                let g = buf[i * 2];
+                rgba[i * 4] = g;
+                rgba[i * 4 + 1] = g;
+                rgba[i * 4 + 2] = g;
+                rgba[i * 4 + 3] = buf[i * 2 + 1];
+            }
+        }
+        png::ColorType::Indexed => bail!("PNG indexé non normalisé"),
+    }
+    Ok(Texture { width: w, height: h, rgba })
+}
+
+/// `primitive.material → materials[m].pbr.baseColorTexture.index → textures[t].source` (indice image).
+fn material_image(root: &Value, mat_idx: usize) -> Option<usize> {
+    let m = root["materials"].as_array()?.get(mat_idx)?;
+    let t = m["pbrMetallicRoughness"]["baseColorTexture"]["index"].as_u64()? as usize;
+    let src = root["textures"].as_array()?.get(t)?["source"].as_u64()? as usize;
+    Some(src)
+}
+
+/// Parse un buffer GLB complet (géométrie + textures embarquées).
 ///
 /// # Errors
 /// Si le magic n'est pas « glTF », si les chunks JSON/BIN manquent, ou si le glTF est malformé.
@@ -89,6 +154,18 @@ pub fn parse(data: &[u8]) -> Result<Model> {
         Ok(out)
     };
 
+    // Décode les atlas PNG embarqués (indexés par numéro d'image glTF).
+    let mut textures = Vec::new();
+    if let Some(imgs) = root["images"].as_array() {
+        for im in imgs {
+            let bvi = im["bufferView"].as_u64().context("image bufferView")? as usize;
+            let bv = &views[bvi];
+            let bo = bv["byteOffset"].as_u64().unwrap_or(0) as usize;
+            let bl = bv["byteLength"].as_u64().context("image byteLength")? as usize;
+            textures.push(decode_png(&bin[bo..bo + bl])?);
+        }
+    }
+
     let mut primitives = Vec::new();
     let empty = Vec::new();
     for mesh in root["meshes"].as_array().unwrap_or(&empty) {
@@ -104,17 +181,25 @@ pub fn parse(data: &[u8]) -> Result<Model> {
                     .collect(),
                 None => Vec::new(),
             };
+            let uv: Vec<[f32; 2]> = match attrs["TEXCOORD_0"].as_u64() {
+                Some(a) => read_floats(a as usize, 2)?.chunks_exact(2).map(|c| [c[0], c[1]]).collect(),
+                None => Vec::new(),
+            };
             let indices: Vec<u32> = match prim["indices"].as_u64() {
                 Some(a) => read_floats(a as usize, 1)?.iter().map(|&f| f as u32).collect(),
                 None => (0..positions.len() as u32).collect(),
             };
-            primitives.push(Primitive { positions, normals, indices });
+            let texture = prim["material"]
+                .as_u64()
+                .and_then(|mi| material_image(&root, mi as usize))
+                .filter(|&src| src < textures.len());
+            primitives.push(Primitive { positions, normals, uv, indices, texture });
         }
     }
     if primitives.is_empty() {
         bail!("aucune primitive de mesh dans le GLB");
     }
-    Ok(Model { primitives })
+    Ok(Model { primitives, textures })
 }
 
 #[cfg(test)]
