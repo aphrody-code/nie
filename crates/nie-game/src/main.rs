@@ -2997,6 +2997,156 @@ fn paint_menu_background(canvas_w: u32, canvas_h: u32) -> Vec<u8> {
     canvas
 }
 
+/// Atlas g4tx de la rangée d'onglets-icônes du menu principal (1 texture BC7, 167 régions
+/// 144×96). Repli si l'index `nom→g4tx` (généré par `--build-region-index`) est absent.
+const ICON_LIST_TAB_ATLAS: &str = "#/menu/200_icon/16_icon_list_tab/<LG>/icon_list_tab.g4tx";
+
+/// Onglets de la rangée d'icônes centrale du `main_menu`, dans l'ordre gauche→droite. État
+/// `…01` = variante claire (icône blanche). Le 1ᵉʳ onglet (Match) est l'entrée surlignée du jeu.
+/// L'atlas ne contient QUE le glyphe d'icône (blanc, fond transparent) : la tuile-parallélogramme
+/// bleue est dessinée par le moteur, on la reproduit ici ([`fill_parallelogram`]) par fidélité.
+const MAIN_MENU_ICON_TABS: [&str; 8] = [
+    "icon_list_tab_battle01",
+    "icon_list_tab_training01",
+    "icon_list_tab_equip01",
+    "icon_list_tab_quest01",
+    "icon_list_tab_kizuna01",
+    "icon_list_tab_tactics01",
+    "icon_list_tab_town01",
+    "icon_list_tab_record01",
+];
+
+/// Remplit un parallélogramme (côtés verticaux, dessus penché à droite par `slant` px) sur
+/// `canvas` (`cw×ch`), en dégradé vertical OPAQUE de `top` (rangée du haut) vers `bot` (du bas).
+/// `geom = (x_bottom, y_top, w, h, slant)` : `x_bottom` = abscisse du coin INFÉRIEUR gauche, le
+/// coin supérieur gauche est `x_bottom+slant`. Clippe aux bords. Reproduit la tuile bleue du menu.
+fn fill_parallelogram(
+    canvas: &mut [u8],
+    (cw, ch): (u32, u32),
+    geom: (i32, i32, u32, u32, i32),
+    top: [u8; 3],
+    bot: [u8; 3],
+) {
+    let (x_bottom, y_top, w, h, slant) = geom;
+    if h == 0 {
+        return;
+    }
+    for r in 0..h as i32 {
+        let cy = y_top + r;
+        if cy < 0 || cy >= ch as i32 {
+            continue;
+        }
+        // frac : 0 en haut, 1 en bas.
+        let frac = if h > 1 { f64::from(r) / f64::from(h - 1) } else { 0.0 };
+        let left = x_bottom + (f64::from(slant) * (1.0 - frac)).round() as i32;
+        let col = [
+            lerp_u8(top[0], bot[0], frac),
+            lerp_u8(top[1], bot[1], frac),
+            lerp_u8(top[2], bot[2], frac),
+        ];
+        for dx in 0..w as i32 {
+            let cx = left + dx;
+            if cx < 0 || cx >= cw as i32 {
+                continue;
+            }
+            let d = (cy as usize * cw as usize + cx as usize) * 4;
+            canvas[d] = col[0];
+            canvas[d + 1] = col[1];
+            canvas[d + 2] = col[2];
+            canvas[d + 3] = 255;
+        }
+    }
+}
+
+/// Interpolation linéaire `a→b` (octets) au facteur `t∈[0,1]`.
+fn lerp_u8(a: u8, b: u8, t: f64) -> u8 {
+    (f64::from(a) + (f64::from(b) - f64::from(a)) * t).round().clamp(0.0, 255.0) as u8
+}
+
+/// Pose la RANGÉE D'ICÔNES centrale du menu principal sur `canvas` (`cw×ch`) — FIDÉLITÉ VISUELLE.
+///
+/// Géométrie (tuile, slant, dégradé) calée sur la capture réelle `/tmp/real_menu.png` : 8 tuiles
+/// parallélogrammes bleues penchées (top y≈386, hauteur ≈80, pas ≈114, slant ≈30 px), 1ʳᵉ tuile
+/// (Match) surlignée. Pour chaque onglet ([`MAIN_MENU_ICON_TABS`]) : résout son chemin g4tx via
+/// l'index `nom→g4tx` ([`load_region_index`], repli [`ICON_LIST_TAB_ATLAS`]), charge/parse l'atlas
+/// via le VFS ([`obtenir_g4tx_bytes`]), décode la texture porteuse UNE fois (cache par `tex.id`,
+/// l'atlas BC7 1624×1596 ne se décode pas 8 fois), rogne le rect de la région ([`crop_rgba`], rect
+/// résolu par `g4tx::region`/`region_rect`), dessine la tuile bleue puis blitte le glyphe blanc
+/// centré ([`scale_nearest`] + [`blit_over`]). Sprites STATIQUES, aucun driver Lua. Renvoie le
+/// nombre d'onglets effectivement posés.
+fn paint_main_menu_icon_row(game_dir: &Path, canvas: &mut [u8], (cw, ch): (u32, u32)) -> usize {
+    // Rangée : tuiles bleues penchées, glyphe blanc centré (cf. capture réelle).
+    const TILE_W: u32 = 100; // largeur de l'arête inférieure
+    const TILE_H: u32 = 80;
+    const SLANT: i32 = 30; // dessus décalé de 30 px à droite ⇒ parallélogramme penché
+    const ROW_Y: i32 = 386; // y du bord supérieur de la rangée
+    const FIRST_X: i32 = 110; // abscisse du coin inférieur gauche de la 1ʳᵉ tuile
+    const STEP: i32 = 114; // pas horizontal entre tuiles
+    const ICON_W: u32 = 84; // glyphe (atlas 144×96, ratio 1.5) redimensionné
+    const ICON_H: u32 = 56;
+    // Dégradés : tuile normale (bleu moyen) vs surlignée (1ʳᵉ, plus claire).
+    const TILE_TOP: [u8; 3] = [0x4a, 0x8c, 0xd4];
+    const TILE_BOT: [u8; 3] = [0x1a, 0x46, 0x96];
+    const SEL_TOP: [u8; 3] = [0x7e, 0xbc, 0xf0];
+    const SEL_BOT: [u8; 3] = [0x32, 0x76, 0xcc];
+
+    let index = load_region_index();
+    // Toutes les régions vivent dans le même atlas : on résout son chemin une fois (1ʳᵉ région
+    // connue de l'index, sinon le chemin codé en dur).
+    let g4tx_path = MAIN_MENU_ICON_TABS
+        .iter()
+        .find_map(|r| index.get(*r).cloned())
+        .unwrap_or_else(|| ICON_LIST_TAB_ATLAS.to_string());
+    let Ok((_, bytes)) = obtenir_g4tx_bytes(game_dir, &g4tx_path) else {
+        warn!("main_menu : atlas d'onglets '{g4tx_path}' introuvable — rangée d'icônes ignorée");
+        return 0;
+    };
+    let Ok(parsed) = g4tx::parse(&bytes) else {
+        warn!("main_menu : parse de l'atlas d'onglets '{g4tx_path}' échoué");
+        return 0;
+    };
+
+    // Cache de la texture porteuse décodée (RGBA8 plein), par `tex.id` : 1 seul décodage BC7.
+    let mut decoded: std::collections::HashMap<u8, Option<(u32, u32, Vec<u8>)>> =
+        std::collections::HashMap::new();
+    let mut posed = 0usize;
+    for (i, region) in MAIN_MENU_ICON_TABS.iter().enumerate() {
+        let x_bottom = FIRST_X + i as i32 * STEP;
+        let selected = i == 0;
+        // 1) Tuile bleue penchée (dégradé). Toujours dessinée, même si la région échoue.
+        let (top, bot) = if selected { (SEL_TOP, SEL_BOT) } else { (TILE_TOP, TILE_BOT) };
+        fill_parallelogram(canvas, (cw, ch), (x_bottom, ROW_Y, TILE_W, TILE_H, SLANT), top, bot);
+
+        // 2) Glyphe blanc centré sur la tuile (à mi-hauteur, slant/2).
+        let center_x = x_bottom + SLANT / 2 + TILE_W as i32 / 2;
+        let center_y = ROW_Y + TILE_H as i32 / 2;
+        let icon_x = center_x - ICON_W as i32 / 2;
+        let icon_y = center_y - ICON_H as i32 / 2;
+
+        let Some((tex, sub)) = parsed.region(region) else {
+            warn!("main_menu : région '{region}' absente de l'atlas — glyphe ignoré");
+            continue;
+        };
+        let full = decoded
+            .entry(tex.id)
+            .or_insert_with(|| decode_texture_rgba(&bytes, tex));
+        let Some((fw, fh, full)) = full.as_ref() else {
+            continue;
+        };
+        let Some((rw, rh, crop)) = crop_rgba(full, *fw, *fh, (sub.x, sub.y, sub.width, sub.height))
+        else {
+            continue;
+        };
+        let scaled = scale_nearest(&crop, rw, rh, ICON_W, ICON_H);
+        if scaled.is_empty() {
+            continue;
+        }
+        blit_over(canvas, (cw, ch), &scaled, (ICON_W, ICON_H), (icon_x, icon_y));
+        posed += 1;
+    }
+    posed
+}
+
 /// Compose l'écran `screen` via le compositeur CPU (référence pixel-perfect) → PNG.
 fn cmd_menu(game_dir: &Path, screen: &str, png_out: &Path, from_setting: bool) -> Result<()> {
     // RENDU RÉEL par défaut : on compose via la DÉFINITION D'ÉCRAN (`<screen>_setting.cfg.bin`,
@@ -3031,11 +3181,19 @@ fn cmd_menu(game_dir: &Path, screen: &str, png_out: &Path, from_setting: bool) -
     // un dégradé pastel quasi-blanc ; un canvas transparent = noir en luma → SSIM plombée). Les
     // autres écrans (ex. title02, fond = scène 3D / key-art) gardent le canvas transparent d'origine
     // pour ne pas régresser leur plancher SSIM.
-    let canvas = if screen == "main_menu" {
+    let mut canvas = if screen == "main_menu" {
         menu::compose_over(paint_menu_background(1280, 720), 1280, 720, &composite_sprites)
     } else {
         menu::compose(1280, 720, &composite_sprites)
     };
+
+    // Rangée d'icônes centrale (onglets parallélogrammes bleus) — UNIQUEMENT pour le main_menu, par
+    // fidélité visuelle au vrai jeu (crops statiques de l'atlas `icon_list_tab`, aucun driver Lua).
+    if screen == "main_menu" {
+        let n = paint_main_menu_icon_row(game_dir, &mut canvas, (1280, 720));
+        info!("main_menu : {n}/{} onglets d'icônes posés", MAIN_MENU_ICON_TABS.len());
+    }
+
     let png_bytes = encoder_rgba_png(&canvas, 1280, 720)?;
     std::fs::write(png_out, &png_bytes)
         .with_context(|| format!("écriture PNG : {}", png_out.display()))?;
