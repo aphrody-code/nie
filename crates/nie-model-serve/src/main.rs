@@ -1270,6 +1270,19 @@ fn assemble_map(state: &State, rel: &str) -> Result<GlbBytes> {
         (g4md, g4mg)
     };
 
+    // Binding matériau (RE) AVANT de consommer g4md : nom de texture par matériau (table d'offsets)
+    // + material_index PAR SUBMESH (@+0x43 du record, propre aux maps ; @+0x33 vaut 0 partout).
+    let md_parsed = nie_formats::g4md::parse(&g4md).ok();
+    let mat_names = md_parsed.as_ref().map_or_else(Vec::new, |m| {
+        nie_formats::g4md::extract_map_material_names(&g4md, m.header.material_count as usize)
+    });
+    let submesh_mat: Vec<usize> = md_parsed.as_ref().map_or_else(Vec::new, |m| {
+        let si = m.header.submesh_info as usize;
+        (0..m.submeshes.len())
+            .map(|i| usize::from(*g4md.get(si + i * 0x50 + 0x43).unwrap_or(&0)))
+            .collect()
+    });
+
     let mut model = assemble_generic_model(GenericModelInput {
         code: base.to_string(),
         g4md,
@@ -1278,10 +1291,20 @@ fn assemble_map(state: &State, rel: &str) -> Result<GlbBytes> {
     })
     .with_context(|| format!("assemblage map {rel}"))?;
 
-    // Texture : le g4tx du STAGE (`<stage>g.g4tx`) contient des textures NOMMÉES par matériau
-    // (grass01_re, ground02_re, concrete02…). Le binding par matériau (noms dans le g4md) reste à
-    // RE → en attendant, on applique la **texture de sol dominante** (`ground`/`grass`, variante
-    // `.1` = base color) à toute la map : approximation visible (le sol couvre l'essentiel).
+    // Affecte à chaque primitive (= submesh) son nom de matériau (cœur, sans `_` final).
+    if !mat_names.is_empty() && !submesh_mat.is_empty() {
+        for (i, prim) in model.primitives.iter_mut().enumerate() {
+            if let Some(&mi) = submesh_mat.get(i)
+                && let Some(name) = mat_names.get(mi)
+            {
+                prim.material_name = name.trim_end_matches('_').to_string();
+            }
+        }
+    }
+
+    // Textures PAR MATÉRIAU depuis le g4tx du STAGE (`<stage>g.g4tx`, 32 textures nommées). Pour
+    // chaque matériau distinct, on embarque la texture dont le nom (`<core>.1` base color) matche
+    // le `material_name` de la primitive ; `to_glb_embedded` lie alors par nom.
     let stage_dir = rel.rsplit_once('/').map_or(rel, |(d, _)| d);
     let group = base.trim_end_matches(|c: char| c.is_ascii_digit());
     let stage_g4tx = {
@@ -1291,15 +1314,41 @@ fn assemble_map(state: &State, rel: &str) -> Result<GlbBytes> {
     if let Some(bytes) = &stage_g4tx
         && let Ok(g4tx) = parse_g4tx(bytes)
     {
-        let pick = g4tx
+        // Base color `.1` d'une texture : nom sans le suffixe `.N`.
+        let tex_base = |t: &nie_formats::g4tx::G4txTexture| -> String {
+            t.name.rsplit_once('.').map_or(t.name.clone(), |(b, _)| b.to_string())
+        };
+        let mut seen = std::collections::HashSet::new();
+        for core in model.primitives.iter().map(|p| p.material_name.clone()).collect::<Vec<_>>() {
+            if core.is_empty() || !seen.insert(core.clone()) {
+                continue;
+            }
+            // Texture base-color dont le base est un préfixe du nom de matériau (gère les noms
+            // concaténés du g4md, ex. ground02_re_…grass01 → ground02_re.1).
+            let pick = g4tx
+                .textures
+                .iter()
+                .filter(|t| t.is_dds && t.name.ends_with(".1"))
+                .find(|t| core.starts_with(&tex_base(t)));
+            if let Some(tex) = pick
+                && let Some(png_bytes) = decode_texture_to_png(bytes, tex)
+            {
+                model.embedded_textures.push(EmbeddedTexture {
+                    component: MeshComponent::Generic,
+                    name: core.clone(),
+                    png_bytes,
+                });
+            }
+        }
+        if !model.embedded_textures.is_empty() {
+            return Ok(model.to_glb_embedded());
+        }
+        // Repli : texture de sol dominante si aucun binding par matériau n'a abouti.
+        if let Some(tex) = g4tx
             .textures
             .iter()
             .filter(|t| t.is_dds && t.name.ends_with(".1"))
-            .find(|t| t.name.contains("ground"))
-            .or_else(|| {
-                g4tx.textures.iter().filter(|t| t.is_dds && t.name.ends_with(".1")).find(|t| t.name.contains("grass"))
-            });
-        if let Some(tex) = pick
+            .find(|t| t.name.contains("ground") || t.name.contains("grass"))
             && let Some(png_bytes) = decode_texture_to_png(bytes, tex)
         {
             model.embedded_textures.push(EmbeddedTexture {
