@@ -152,7 +152,6 @@ pub fn parse_animation(data: &[u8]) -> Option<Animation> {
             let (n_comp, stride) =
                 if m >= 4 { (body[m - 4] as usize, body[m - 3]) } else { (0, 0) };
             let valid = (n_comp == 4 && stride == 8) || (n_comp == 1 && stride == 2);
-            let kind = if stride == 8 { 0x09 } else { 0x0a };
             if valid && (2..=4096).contains(&key_count) {
                 let base = value_base + value_offset as usize;
                 if base + key_count * stride as usize <= body.len() {
@@ -165,6 +164,23 @@ pub fn parse_animation(data: &[u8]) -> Option<Animation> {
                         }
                         samples.push(s);
                     }
+                    // CLASSIFICATION pilotée par les données : un canal 4-vec (stride 8) est une
+                    // ROTATION (quaternion, type Level-5 0x0903) seulement si ses samples sont
+                    // majoritairement UNITAIRES ; sinon c'est un 4-vec non-rotation (0x0902 =
+                    // position/scale/tangent) à ne PAS appliquer comme quaternion. (Le walk en a 1
+                    // tard ; l'idle en a 2 tôt → sans ce tri ils faussaient l'alignement canal→os.)
+                    let kind = if stride == 8 {
+                        let unit = samples
+                            .iter()
+                            .filter(|s| {
+                                let n = (s[0] * s[0] + s[1] * s[1] + s[2] * s[2] + s[3] * s[3]).sqrt();
+                                (n - 1.0).abs() < 0.05
+                            })
+                            .count();
+                        if unit * 2 >= samples.len() { 0x09 } else { 0x02 }
+                    } else {
+                        0x0a
+                    };
                     channels.push(AnimChannel { kind, stride, value_offset, samples });
                     m += 12;
                     continue;
