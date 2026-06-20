@@ -15,7 +15,10 @@ use std::process::Command;
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use nie_render3d::scene::{Camera, Tri, render_world};
+use nie_render3d::glb;
+use nie_render3d::scene::{
+    Camera, Instance, Mat4, Tri, mat_mul, mat_rot_y, mat_scale, mat_translate, render_scene,
+};
 use nie_runtime::{
     GOAL_HALF, GOAL_HEIGHT, HALF_LEN, HALF_WID, Player, Role, World,
 };
@@ -39,6 +42,64 @@ struct Cli {
     /// Rendre une seule image PNG (la première) au lieu de la vidéo.
     #[arg(long)]
     png: bool,
+    /// GLB de l'équipe domicile : si fourni avec --away-glb, les joueurs sont les VRAIS modèles
+    /// texturés (au lieu de boîtes).
+    #[arg(long)]
+    home_glb: Option<PathBuf>,
+    /// GLB de l'équipe extérieure.
+    #[arg(long)]
+    away_glb: Option<PathBuf>,
+}
+
+/// Un modèle de joueur chargé + ses paramètres de pose (échelle vers ~1,85 m, centre, pieds).
+struct PlayerModel {
+    model: glb::Model,
+    s: f32,
+    cx: f32,
+    cz: f32,
+    min_y: f32,
+}
+
+impl PlayerModel {
+    fn load(path: &Path) -> Result<Self> {
+        let data = std::fs::read(path).with_context(|| format!("lire {}", path.display()))?;
+        let model = glb::parse(&data)?;
+        let (mut lo, mut hi) = ([f32::MAX; 3], [f32::MIN; 3]);
+        for p in &model.primitives {
+            for v in &p.positions {
+                for k in 0..3 {
+                    lo[k] = lo[k].min(v[k]);
+                    hi[k] = hi[k].max(v[k]);
+                }
+            }
+        }
+        Ok(Self {
+            s: 1.85 / (hi[1] - lo[1]).max(1e-3),
+            cx: (lo[0] + hi[0]) * 0.5,
+            cz: (lo[2] + hi[2]) * 0.5,
+            min_y: lo[1],
+            model,
+        })
+    }
+
+    /// Transform modèle→monde : pieds à y=0 au point terrain (px,pz), orienté `heading` (rad).
+    fn xform(&self, px: f32, pz: f32, heading: f32) -> Mat4 {
+        let recenter = mat_translate([-self.cx, -self.min_y, -self.cz]);
+        let m = mat_mul(&mat_scale(self.s), &recenter);
+        let m = mat_mul(&mat_rot_y(heading), &m);
+        mat_mul(&mat_translate([px, 0.0, pz]), &m)
+    }
+}
+
+/// Cap d'un joueur : direction de course si en mouvement, sinon vers le but attaqué.
+fn heading(p: &Player) -> f32 {
+    if p.vel.len() > 1.2 {
+        p.vel.x.atan2(p.vel.y)
+    } else if p.team == 0 {
+        std::f32::consts::FRAC_PI_2
+    } else {
+        -std::f32::consts::FRAC_PI_2
+    }
 }
 
 /// Mappe un point terrain (longueur `x`, largeur `z`, hauteur `y`) vers l'espace monde du renderer.
@@ -90,22 +151,32 @@ fn line_rect(out: &mut Vec<Tri>, x0: f32, z0: f32, x1: f32, z1: f32, hw: f32) {
 
 /// Construit la géométrie statique du terrain (gazon rayé + lignes + buts).
 fn build_pitch(out: &mut Vec<Tri>) {
-    // Surround sombre (pelouse d'enceinte).
-    quad(
-        out,
-        w(-HALF_LEN - 14.0, -0.05, -HALF_WID - 10.0),
-        w(HALF_LEN + 14.0, -0.05, -HALF_WID - 10.0),
-        w(HALF_LEN + 14.0, -0.05, HALF_WID + 10.0),
-        w(-HALF_LEN - 14.0, -0.05, HALF_WID + 10.0),
-        [22, 86, 40],
-    );
-    // Gazon rayé le long de la longueur.
-    let stripes = 16;
-    for i in 0..stripes {
-        let x0 = -HALF_LEN + 2.0 * HALF_LEN * (i as f32) / stripes as f32;
-        let x1 = -HALF_LEN + 2.0 * HALF_LEN * ((i + 1) as f32) / stripes as f32;
-        let g = if i % 2 == 0 { [46u8, 150, 64] } else { [40u8, 134, 58] };
-        quad(out, w(x0, 0.0, -HALF_WID), w(x1, 0.0, -HALF_WID), w(x1, 0.0, HALF_WID), w(x0, 0.0, HALF_WID), g);
+    // Sol carrelé en grille : un grand quad traversant le plan caméra serait rejeté faute de
+    // near-clipping ; en tuiles, seules celles sous la caméra tombent (gap invisible). Gazon rayé
+    // sur le terrain, surround sombre au-delà.
+    let (gx0, gx1) = (-HALF_LEN - 12.0, HALF_LEN + 12.0);
+    let (gz0, gz1) = (-HALF_WID - 8.0, HALF_WID + 8.0);
+    let (nx, nz) = (48, 24);
+    for ix in 0..nx {
+        let x0 = gx0 + (gx1 - gx0) * (ix as f32) / nx as f32;
+        let x1 = gx0 + (gx1 - gx0) * ((ix + 1) as f32) / nx as f32;
+        let stripe = ((x0 + HALF_LEN) / (2.0 * HALF_LEN) * 16.0) as i32 % 2 == 0;
+        for iz in 0..nz {
+            let z0 = gz0 + (gz1 - gz0) * (iz as f32) / nz as f32;
+            let z1 = gz0 + (gz1 - gz0) * ((iz + 1) as f32) / nz as f32;
+            let on_pitch = x1 <= HALF_LEN + 0.01
+                && x0 >= -HALF_LEN - 0.01
+                && z1 <= HALF_WID + 0.01
+                && z0 >= -HALF_WID - 0.01;
+            let g = if !on_pitch {
+                [22u8, 86, 40]
+            } else if stripe {
+                [46u8, 150, 64]
+            } else {
+                [40u8, 134, 58]
+            };
+            quad(out, w(x0, 0.0, z0), w(x1, 0.0, z0), w(x1, 0.0, z1), w(x0, 0.0, z1), g);
+        }
     }
     let hw = 0.12;
     // Bordure + ligne médiane.
@@ -154,11 +225,15 @@ fn push_player(out: &mut Vec<Tri>, p: &Player) {
     push_box(out, w(px - 0.26, 1.45, pz - 0.26), w(px + 0.26, 1.95, pz + 0.26), [236, 200, 168]);
 }
 
-fn build_scene(world: &World) -> Vec<Tri> {
+/// Géométrie plate de la scène : terrain + ballon, plus les joueurs-boîtes si `boxes`
+/// (sinon les joueurs sont des instances de modèles réels, ajoutées côté appelant).
+fn build_flat(world: &World, boxes: bool) -> Vec<Tri> {
     let mut tris = Vec::with_capacity(2048);
     build_pitch(&mut tris);
-    for p in &world.players {
-        push_player(&mut tris, p);
+    if boxes {
+        for p in &world.players {
+            push_player(&mut tris, p);
+        }
     }
     // Ballon (boîte blanche, position 3D : hauteur = z).
     let b = world.ball.pos;
@@ -167,14 +242,24 @@ fn build_scene(world: &World) -> Vec<Tri> {
     tris
 }
 
-/// Caméra télé : haute, derrière une touche, panoramique léger suivant le ballon.
-fn camera(world: &World) -> Camera {
+/// Caméra. Mode `close` (modèles réels) : plan d'action rapproché qui suit le ballon le long de la
+/// touche, pour voir les personnages en détail. Sinon : vue télé large (lisible pour les boîtes).
+fn camera(world: &World, close: bool) -> Camera {
     let b = world.ball.pos;
-    Camera {
-        eye: [b.x * 0.18, 44.0, -82.0],
-        target: [b.x * 0.45, 1.0, b.y * 0.35 + 2.0],
-        up: [0.0, 1.0, 0.0],
-        fov_y: 0.62,
+    if close {
+        Camera {
+            eye: [b.x * 0.6, 9.0, b.y * 0.5 - 17.0],
+            target: [b.x * 0.85, 0.6, b.y * 0.5 + 3.0],
+            up: [0.0, 1.0, 0.0],
+            fov_y: 0.72,
+        }
+    } else {
+        Camera {
+            eye: [b.x * 0.18, 44.0, -82.0],
+            target: [b.x * 0.45, 1.0, b.y * 0.35 + 2.0],
+            up: [0.0, 1.0, 0.0],
+            fov_y: 0.62,
+        }
     }
 }
 
@@ -195,26 +280,51 @@ fn main() -> Result<()> {
     let mut world = World::kickoff();
     let (bw, bh) = ([14u8, 20, 34], [30u8, 40, 58]); // ciel de stade
 
+    // Modèles réels si les deux GLB sont fournis ; sinon, joueurs-boîtes.
+    let (home, away) = match (&cli.home_glb, &cli.away_glb) {
+        (Some(h), Some(a)) => (Some(PlayerModel::load(h)?), Some(PlayerModel::load(a)?)),
+        _ => (None, None),
+    };
+    let real = home.is_some();
+
+    // Construit la scène d'une frame : (flat tris, instances de joueurs).
+    let frame_scene = |world: &World| -> (Vec<Tri>, Vec<Instance>) {
+        let flat = build_flat(world, !real);
+        let mut inst = Vec::new();
+        if let (Some(h), Some(a)) = (&home, &away) {
+            for p in &world.players {
+                let pm = if p.team == 0 { h } else { a };
+                inst.push(Instance { model: &pm.model, transform: pm.xform(p.pos.x, p.pos.y, heading(p)) });
+            }
+        }
+        (flat, inst)
+    };
+
     if cli.png {
-        let tris = build_scene(&world);
-        let rgba = render_world(&tris, &camera(&world), cli.width, cli.height, bw, bh);
+        let (flat, inst) = frame_scene(&world);
+        let rgba = render_scene(&flat, &inst, &camera(&world, real), cli.width, cli.height, bw, bh);
         std::fs::write(&cli.out, encode_png(&rgba, cli.width, cli.height)?)?;
-        println!("png={} tris={}", cli.out.display(), tris.len());
+        println!("png={} tris={} instances={}", cli.out.display(), flat.len(), inst.len());
         return Ok(());
     }
 
     let dir = std::env::temp_dir().join(format!("niers-m3d-{}", std::process::id()));
     std::fs::create_dir_all(&dir)?;
     for i in 0..cli.frames {
-        let tris = build_scene(&world);
-        let rgba = render_world(&tris, &camera(&world), cli.width, cli.height, bw, bh);
+        let (flat, inst) = frame_scene(&world);
+        let rgba = render_scene(&flat, &inst, &camera(&world, real), cli.width, cli.height, bw, bh);
         std::fs::write(dir.join(format!("f_{i:04}.png")), encode_png(&rgba, cli.width, cli.height)?)?;
         world.step(cli.dt);
     }
     encode_video(&dir, cli.fps, &cli.out)?;
     let _ = std::fs::remove_dir_all(&dir);
     let sz = std::fs::metadata(&cli.out).map(|m| m.len()).unwrap_or(0);
-    println!("video={} score={:?} ({sz} octets)", cli.out.display(), world.score);
+    println!(
+        "video={} mode={} score={:?} ({sz} octets)",
+        cli.out.display(),
+        if real { "modèles" } else { "boîtes" },
+        world.score
+    );
     Ok(())
 }
 
