@@ -37,9 +37,14 @@ fn main() {
     let f = pk.files.iter().find(|f| f.name.ends_with(".g4mt")).unwrap();
     let anim = g4mt::parse_animation(&pk_bytes[f.offset..f.offset + f.size]).unwrap();
     let rot: Vec<&g4mt::AnimChannel> = anim.channels.iter().filter(|c| c.is_rotation()).collect();
+    // Mapping canal→os : rot[k] → os (BASE+k). BASE saute les os non-squelettiques
+    // (0=output,1=boundingBox,2=mouth,3=eye) ; le 1er os squelettique animé = c_global (4).
+    let base: usize = std::env::var("BASE").ok().and_then(|s| s.parse().ok()).unwrap_or(4);
     let mut bone_chan = vec![None; nb];
-    for (i, slot) in bone_chan.iter_mut().enumerate().take(rot.len() + 1).skip(1) {
-        *slot = Some(i - 1);
+    for k in 0..rot.len() {
+        if base + k < nb {
+            bone_chan[base + k] = Some(k);
+        }
     }
     println!("verts={} tris={} os={nb} frames={}", pos.len(), idx.len() / 3, anim.frame_count);
 
