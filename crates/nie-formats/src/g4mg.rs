@@ -111,6 +111,30 @@ pub fn extract_geometry(g4mg: &[u8], g4md: &G4md) -> Vec<SubmeshGeometry> {
         0
     };
 
+    // `total_verts` n'est fiable que si les vertex_offsets sont DISTINCTS. Sur les meshes de menu,
+    // des submeshes PARTAGENT leurs vertices (offsets répétés) → `total_verts` double-compte →
+    // `derived_stride` trop petit, d'où le plancher `attr_extent`. Sur les **maps**, les offsets
+    // sont distincts et chaque submesh peut avoir son PROPRE stride (36/40/48 selon le format) :
+    // on le dérive alors de l'écart au prochain vertex_offset (pavage exact, sans padding).
+    let mut order: Vec<usize> = (0..g4md.submeshes.len()).collect();
+    order.sort_by_key(|&i| g4md.submeshes[i].vertex_offset);
+    let shared_vertices = order
+        .windows(2)
+        .any(|w| g4md.submeshes[w[0]].vertex_offset == g4md.submeshes[w[1]].vertex_offset);
+    // Stride par submesh = (vertex_offset suivant − courant) / vertex_count (borne finale =
+    // face_data_base, début du bloc d'index). 0 si indéterminable.
+    let mut gap_stride = vec![0usize; g4md.submeshes.len()];
+    for (k, &i) in order.iter().enumerate() {
+        let cnt = g4md.submeshes[i].vertex_count as usize;
+        if cnt == 0 {
+            continue;
+        }
+        let next = order
+            .get(k + 1)
+            .map_or(face_data_base, |&j| g4md.submeshes[j].vertex_offset as usize);
+        gap_stride[i] = next.saturating_sub(g4md.submeshes[i].vertex_offset as usize) / cnt;
+    }
+
     // Extent minimal d'un vertex = max(offset + taille) sur les attributs (position float3 @0 = 12 ;
     // normale vec3 ; UV vec2 ; couleur vec4). Le stride NE PEUT PAS être inférieur. Or sur les meshes
     // de menu MULTI-submesh, `total_verts` double-compte les vertices PARTAGÉS entre submeshes (ex.
@@ -143,6 +167,10 @@ pub fn extract_geometry(g4mg: &[u8], g4md: &G4md) -> Vec<SubmeshGeometry> {
 
         let stride = if sm.stride > 0 {
             sm.stride as usize
+        } else if shared_vertices {
+            derived_stride.max(attr_extent) // vertices partagés (menu) : derived sous-estime
+        } else if gap_stride[idx] >= 12 {
+            gap_stride[idx] // offsets distincts (maps/perso) : stride réel par l'écart au suivant
         } else {
             derived_stride.max(attr_extent)
         };
