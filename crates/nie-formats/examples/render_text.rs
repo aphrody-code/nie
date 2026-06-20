@@ -70,7 +70,10 @@ fn main() {
     let px_off = if dds.len() >= 88 && &dds[84..88] == b"DX10" { 148 } else { 128 };
     let atlas = &dds[px_off..];
     let (aw, ah) = (t.width as usize, t.height as usize);
-    println!("atlas {aw}×{ah} BGRA8 (dds@{} mip0@+{px_off})", t.data_offset);
+    println!("atlas {aw}×{ah} BGRA8 (dds@{} mip0@+{px_off}) sub_textures={}", t.data_offset, t.sub_textures.len());
+    for st in t.sub_textures.iter().take(6) {
+        println!("    sub id={} name={:?} x={} y={} w={} h={}", st.id, st.name, st.x, st.y, st.width, st.height);
+    }
 
     // Crop ciblé pleine résolution de la zone Latin (env CROP="x0,x1,y0,y1"), alpha en gris,
     // avec une grille tous les 100 px (repères de coordonnées atlas).
@@ -96,6 +99,41 @@ fn main() {
         }
     }
     println!("crop atlas x[{cx0},{cx1}] y[{cy0},{cy1}] (grille rouge /100 px)");
+
+    // SCAN des bords de glyphes dans la rangée ASCII physique (y≈[955,1015]) : colonnes d'alpha
+    // → spans de glyphes. Comparer aux col[3] métriques pour décoder le mapping X.
+    {
+        let yb: usize = std::env::var("YROW").ok().and_then(|s| s.parse().ok()).unwrap_or(950);
+        let mut runs: Vec<(usize, usize)> = Vec::new();
+        let (mut on, mut start) = (false, 0usize);
+        for ax in 300..2700usize {
+            let mut s = 0u32;
+            for ay in (yb + 5)..(yb + 65) {
+                s += u32::from(atlas.get(ay * stride + ax * 4 + 3).copied().unwrap_or(0));
+            }
+            let lit = s > 200;
+            if lit && !on {
+                start = ax;
+                on = true;
+            } else if !lit && on {
+                if ax - start >= 4 {
+                    runs.push((start, ax));
+                }
+                on = false;
+            }
+        }
+        println!("  rangée ASCII y={yb} : {} spans de glyphes", runs.len());
+        // ASCII imprimable commence à ' '(32). Les premiers spans visibles ≈ '!'(33)…
+        // Affiche les 24 premiers spans (gauche) avec leur largeur.
+        let show: Vec<String> = runs.iter().take(24).map(|(a, b)| format!("[{a}+{}]", b - a)).collect();
+        println!("  spans: {}", show.join(" "));
+        // Métriques col[3] de glyphes-repères pour recouper.
+        for (ch, cp) in [('!', 33u32), ('0', 48), ('9', 57), ('A', 65), ('Z', 90), ('a', 97)] {
+            if let Some(m) = metrics.glyph(cp) {
+                println!("    métrique '{ch}' col3(x)={} w={}", m.x, m.width);
+            }
+        }
+    }
 
     // TEST rendu ASCII : blit une chaîne en forçant le Y physique de la rangée ASCII (env YBASE).
     if let Ok(txt) = std::env::var("TEXT") {
