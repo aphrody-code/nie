@@ -2661,6 +2661,7 @@ dependencies = [
  "clap",
  "nie-app",
  "nie-core",
+ "nie-runtime",
  "png",
 ]
 
