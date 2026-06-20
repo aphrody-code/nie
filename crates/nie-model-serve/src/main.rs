@@ -1244,6 +1244,73 @@ fn assemble_chr_generic(state: &State, sub: &str, code: &str) -> Result<GlbBytes
     Ok(model.to_glb())
 }
 
+/// Assemble un modèle de **map/stage** : `data/common/map/<rel>/<base>.{g4mg,g4pkm}` où
+/// `base` = dernier composant de `rel`. Comme les maps n'ont pas de G4MD libre, il est **extrait
+/// du `.g4pkm`** voisin (même mécanique que les modèles waza) ; le G4MG porte la géométrie monde.
+/// Texture embarquée si un `.g4tx` voisin (dx11 ou common) est trouvé. C'est le **monde 3D** du jeu.
+fn assemble_map(state: &State, rel: &str) -> Result<GlbBytes> {
+    let base = rel.rsplit('/').next().unwrap_or(rel);
+    let g4mg_path = format!("data/common/map/{rel}/{base}.g4mg");
+    let g4md_path = format!("data/common/map/{rel}/{base}.g4md");
+    let g4pkm_path = format!("data/common/map/{rel}/{base}.g4pkm");
+
+    let (g4md, g4mg) = {
+        let vfs = state.vfs.lock().unwrap();
+        let g4mg = vfs.read(&g4mg_path).with_context(|| format!("G4MG {g4mg_path}"))?;
+        let g4md = match vfs.read(&g4md_path) {
+            Ok(b) => b,
+            Err(_) => {
+                let pkm = vfs
+                    .read(&g4pkm_path)
+                    .with_context(|| format!("ni G4MD libre ni g4pkm pour map {rel}"))?;
+                extract_g4md_from_g4pkm(&pkm)
+                    .with_context(|| format!("G4MD absent du g4pkm {g4pkm_path}"))?
+            }
+        };
+        (g4md, g4mg)
+    };
+
+    let mut model = assemble_generic_model(GenericModelInput {
+        code: base.to_string(),
+        g4md,
+        g4mg,
+        component: MeshComponent::Generic,
+    })
+    .with_context(|| format!("assemblage map {rel}"))?;
+
+    let g4tx = {
+        let vfs = state.vfs.lock().unwrap();
+        vfs.read(&format!("data/dx11/map/{rel}/{base}.g4tx"))
+            .ok()
+            .or_else(|| vfs.read(&format!("data/common/map/{rel}/{base}.g4tx")).ok())
+    };
+    if let Some(png_bytes) = g4tx.as_deref().and_then(decode_best_g4tx_to_png) {
+        model.embedded_textures.push(EmbeddedTexture {
+            component: MeshComponent::Generic,
+            name: format!("{base}_map"),
+            png_bytes,
+        });
+        return Ok(model.to_glb_embedded());
+    }
+    Ok(model.to_glb())
+}
+
+/// Cache disque pour un modèle de map (`map_<rel-sécurisé>.glb`).
+fn get_or_build_map_glb(state: &State, rel: &str) -> Result<GlbBytes> {
+    let cache_path = state.cache_dir.join(format!("map_{}.glb", rel.replace('/', "_")));
+    if cache_path.exists() {
+        debug!("cache hit : map {rel}");
+        return fs::read(&cache_path)
+            .with_context(|| format!("lecture cache {}", cache_path.display()));
+    }
+    info!("assemblage live : map {rel}");
+    let glb = assemble_map(state, rel)?;
+    if let Err(e) = fs::write(&cache_path, &glb) {
+        warn!("écriture cache map {rel} échouée : {e}");
+    }
+    Ok(glb)
+}
+
 /// Extrait les octets du premier fichier `.g4md` d'une archive `.g4pkm` (paquet de modèle waza).
 fn extract_g4md_from_g4pkm(pkm: &[u8]) -> Result<Vec<u8>> {
     let pk = nie_formats::g4pk::parse(pkm).context("parse g4pkm")?;
@@ -2015,6 +2082,29 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                     "Not Found",
                     &format!("modèle {sub}/{code} non disponible : {e}"),
                 );
+            }
+        }
+        return;
+    }
+
+    // `/model-map/<rel>.glb` — modèle de map/stage (géométrie du monde 3D, ex.
+    // `s/s02g001/s02g001g02`). Composants alphanum/_ uniquement (anti-traversal, pas de `..`).
+    if let Some(rest) = path.strip_prefix("/model-map/") {
+        let rel = rest.strip_suffix(".glb").unwrap_or(rest);
+        let valid = !rel.is_empty()
+            && rel.len() <= 96
+            && rel.split('/').all(|s| {
+                !s.is_empty() && s.len() <= 32 && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+            });
+        if !valid {
+            respond_text(&mut stream, 400, "Bad Request", "chemin map invalide");
+            return;
+        }
+        match get_or_build_map_glb(&state, rel) {
+            Ok(glb) => respond(&mut stream, 200, "OK", "model/gltf-binary", &glb),
+            Err(e) => {
+                debug!("assemblage map {rel} échoué : {e}");
+                respond_text(&mut stream, 404, "Not Found", &format!("map {rel} non disponible : {e}"));
             }
         }
         return;
