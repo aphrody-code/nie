@@ -2666,6 +2666,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "nie-render3d"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "png",
+ "serde_json",
+]
+
+[[package]]
 name = "nie-runtime"
 version = "0.1.0"
 dependencies = [
