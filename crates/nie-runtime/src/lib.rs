@@ -105,6 +105,8 @@ const AIR_DRAG: f32 = 0.05;
 const CONTROL_RADIUS: f32 = 1.4;
 /// Rayon de tacle : un adverse à cette distance vole la possession (< contrôle → hystérésis).
 const STEAL_RADIUS: f32 = 0.7;
+/// Rayon de parade du gardien : il dégage un tir/ballon bas passant à cette distance (m).
+const SAVE_RADIUS: f32 = 1.5;
 /// Distance au but adverse en deçà de laquelle le porteur tire au lieu de dribbler (m).
 const SHOOT_RANGE: f32 = 18.0;
 /// Vitesse de dribble du ballon poussé devant le porteur (m/s).
@@ -117,6 +119,8 @@ const KICK_POWER: f32 = 26.0;
 const KICK_LOFT: f32 = 1.0;
 /// Cadence minimale entre deux frappes du même porteur (s).
 const KICK_COOLDOWN: f32 = 0.35;
+/// Durée d'immunité au tacle après une récupération (s) — crée des courses d'attaque nettes.
+const POSSESSION_LOCK: f32 = 0.55;
 
 /// Rôle d'un joueur sur le terrain (détermine sa zone de base).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -166,6 +170,8 @@ pub struct World {
     /// Index du dernier porteur (pour le cooldown de frappe), et son chrono.
     possessor: Option<usize>,
     kick_timer: f32,
+    /// Immunité au tacle après récupération (s) : donne au porteur un burst d'attaque net.
+    steal_lock: f32,
 }
 
 /// Formation 4-4-2 en fractions du demi-terrain pour l'équipe domicile (attaque +x).
@@ -205,6 +211,7 @@ impl World {
             tick: 0,
             possessor: None,
             kick_timer: 0.0,
+            steal_lock: 0.0,
         }
     }
 
@@ -215,9 +222,13 @@ impl World {
         if self.kick_timer > 0.0 {
             self.kick_timer -= dt;
         }
+        if self.steal_lock > 0.0 {
+            self.steal_lock -= dt;
+        }
         self.step_players(dt);
         self.step_ball(dt);
         self.resolve_possession(dt);
+        self.keeper_save();
         if self.detect_goal() {
             self.reset_after_goal();
         }
@@ -242,8 +253,9 @@ impl World {
         }
         for (i, p) in self.players.iter_mut().enumerate() {
             let target = if carrier == Some(i) {
-                // Porteur : sprinte vers le but adverse (avec le ballon devant lui).
-                V2::new(if p.team == 0 { HALF_LEN } else { -HALF_LEN }, 0.0)
+                // Porteur : sprinte vers le but adverse en GARDANT sa position latérale
+                // (jeu 2D ; léger recentrage pour finir face au but).
+                V2::new(if p.team == 0 { HALF_LEN } else { -HALF_LEN }, p.pos.y * 0.85)
             } else if nearest[p.team as usize] == i
                 && !(p.role == Role::Goalkeeper && ball2.x.abs() < HALF_LEN * 0.5)
             {
@@ -310,13 +322,13 @@ impl World {
         }
 
         // Porteur courant conservé s'il reste à portée de contrôle.
-        let keep = self
-            .possessor
-            .filter(|&i| (self.players[i].pos - ball2).len() < CONTROL_RADIUS);
+        let prev = self.possessor;
+        let keep = prev.filter(|&i| (self.players[i].pos - ball2).len() < CONTROL_RADIUS);
         let owner = match keep {
-            // Conserve sauf si un ADVERSE entre dans le rayon de tacle (et est le plus proche).
+            // Conserve sauf si un ADVERSE entre dans le rayon de tacle (hors verrou de possession).
             Some(c) => {
-                let opp_steal = nearest.0 != usize::MAX
+                let opp_steal = self.steal_lock <= 0.0
+                    && nearest.0 != usize::MAX
                     && self.players[nearest.0].team != self.players[c].team
                     && nearest.1 < STEAL_RADIUS;
                 if opp_steal { Some(nearest.0) } else { Some(c) }
@@ -326,24 +338,65 @@ impl World {
             None => None,
         };
         self.possessor = owner;
+        if owner.is_some() && owner != prev {
+            self.steal_lock = POSSESSION_LOCK; // burst d'attaque à la récupération
+        }
 
         let Some(i) = owner else { return };
         if !low {
             return; // ballon en l'air : pas de contrôle au sol.
         }
         let team = self.players[i].team;
-        // But adverse : domicile (0) → +x, extérieur (1) → −x.
-        let goal = V2::new(if team == 0 { HALF_LEN } else { -HALF_LEN }, 0.0);
-        let to_goal = goal - ball2;
-        let dir = to_goal.norm();
+        // But adverse : domicile (0) → +x, extérieur (1) → −x. On vise le but en suivant la
+        // position latérale du PORTEUR (jeu/tirs 2D au lieu d'un axe central dégénéré) ; la cible
+        // reste dans la largeur du but à l'approche.
+        let goal_x = if team == 0 { HALF_LEN } else { -HALF_LEN };
+        // Dribble : pousse le ballon vers le but en suivant l'angle latéral du porteur.
+        let drib_y = (self.players[i].pos.y * 0.7).clamp(-HALF_WID * 0.5, HALF_WID * 0.5);
+        let to_goal = V2::new(goal_x, drib_y) - ball2;
         if to_goal.len() < SHOOT_RANGE && self.kick_timer <= 0.0 {
-            // Tir cadré.
+            // Tir placé : vise le poteau OPPOSÉ au gardien adverse (le bat s'il est mal placé).
+            let gk_y = self
+                .players
+                .iter()
+                .find(|p| p.team != team && p.role == Role::Goalkeeper)
+                .map_or(0.0, |g| g.pos.y);
+            let post = if gk_y >= 0.0 { -GOAL_HALF * 0.82 } else { GOAL_HALF * 0.82 };
+            let dir = (V2::new(goal_x, post) - ball2).norm();
             self.ball.vel = V3::new(dir.x * KICK_POWER, dir.y * KICK_POWER, KICK_LOFT);
             self.kick_timer = KICK_COOLDOWN;
         } else {
-            // Dribble : pousse le ballon devant soi vers le but (vitesse au sol modérée).
+            let dir = to_goal.norm();
             self.ball.vel.x = dir.x * DRIBBLE_SPEED;
             self.ball.vel.y = dir.y * DRIBBLE_SPEED;
+        }
+    }
+
+    /// Parade du gardien : si un ballon **bas** approche le but d'une équipe et que son GK est à
+    /// portée ([`SAVE_RADIUS`]), il le dégage vers le terrain et en reprend possession. Donne à la
+    /// défense un vrai outil → les buts se méritent (et le match s'équilibre).
+    fn keeper_save(&mut self) {
+        if self.ball.pos.z >= GOAL_HEIGHT {
+            return; // au-dessus de la barre : pas parable au sol.
+        }
+        let ball2 = self.ball.pos.ground();
+        for team in 0u8..2 {
+            let own_goal_x = if team == 0 { -HALF_LEN } else { HALF_LEN };
+            if (ball2.x - own_goal_x).abs() > 16.5 {
+                continue; // hors du tiers défensif proche du but.
+            }
+            let Some(gk) =
+                self.players.iter().position(|p| p.team == team && p.role == Role::Goalkeeper)
+            else {
+                continue;
+            };
+            if (self.players[gk].pos - ball2).len() < SAVE_RADIUS {
+                // Dégagement en cloche douce vers le centre du terrain.
+                let away = if team == 0 { 1.0 } else { -1.0 };
+                self.ball.vel = V3::new(away * 9.0, ball2.y * -0.2, 3.0);
+                self.possessor = Some(gk);
+                self.kick_timer = KICK_COOLDOWN;
+            }
         }
     }
 
@@ -376,6 +429,7 @@ impl World {
         }
         self.possessor = None;
         self.kick_timer = KICK_COOLDOWN;
+        self.steal_lock = 0.0;
     }
 
     /// Index du porteur actuel (le plus proche à portée de contrôle), s'il y en a un.
