@@ -627,7 +627,7 @@ fn cfg_family_key(vfs_path: &str) -> String {
 /// typé `nie-data` correspondant à la `key` de famille, et renvoie `(label, json)`.
 /// `None` si aucune famille typée ne correspond (le caller renvoie alors le générique).
 ///
-/// Couvre 51 familles game-data validées golden byte-exact dans `nie-data`. Chaque
+/// Couvre 94 familles game-data validées golden byte-exact dans `nie-data`. Chaque
 /// arme transforme la structure de jeu nommée en JSON — c'est le **pont natif** qui
 /// remplace l'affichage RDBN brut par des données structurées (positions de formation,
 /// listes de skills/items, missions…), consommé par l'explorateur azalee et les exports.
@@ -739,6 +739,49 @@ fn typed_decode(
             t!("haptic_feedback", nie_data::input::parse_haptic_feedback_def(root))
         }
         "vibration_def" => t!("vibration", nie_data::input::parse_vibration_def(root)),
+        "basara_chara_config" => t!("basara_chara", nie_data::basara::parse_basara_chara_config(root)),
+        "belong_team_config" => t!("belong_team", nie_data::belong_team::parse_belong_team_config(root)),
+        "capsule_config" => t!("capsule", nie_data::capsule::parse_capsule_database(root)),
+        "change_aura_skill_config" => t!("change_aura_skill", nie_data::change_aura_skill_config::parse_change_aura_skill_config(root)),
+        "chara_base" => t!("chara_base", nie_data::chara_base::parse_all_chara_base(root)),
+        "chara_costume" => t!("chara_costume", nie_data::chara_costume::parse_all_chara_costumes(root)),
+        "chara_description_text" => t!("chara_description", nie_data::chara_description::parse_chara_descriptions(root)),
+        "chara_details_config" => t!("chara_details", nie_data::chara_details::parse_chara_details(root)),
+        "chara_menu_resource" => t!("chara_menu_resource", nie_data::chara_menu_resource::parse_chara_menu_resource(root)),
+        "chara_series_config" => t!("chara_series", nie_data::chara_series::parse_chara_series_config(root)),
+        "chat_emote_config" => t!("chat_emote", nie_data::chat_emote::parse_chat_emote_config(root)),
+        "chat_emote_def_set_config" => t!("chat_emote_def_set", nie_data::chat_emote::parse_chat_emote_def_set_config(root)),
+        "soccer_cmd_action" => t!("soccer_cmd_action", nie_data::command::parse_cmd_actions(root)),
+        "rpg_cmd_action" => t!("rpg_cmd_action", nie_data::command::parse_cmd_actions(root)),
+        "soccer_cmd_event" => t!("soccer_cmd_event", nie_data::command::parse_cmd_events(root)),
+        "rpg_cmd_event" => t!("rpg_cmd_event", nie_data::command::parse_cmd_events(root)),
+        "chara_cmd_event_common" => t!("chara_cmd_common", nie_data::command::parse_chara_cmd_common(root)),
+        "craft_theme_config" => t!("craft_theme", nie_data::craft::parse_craft_theme_config(root)),
+        "ctrl_chara_config" => t!("ctrl_chara", nie_data::ctrl_chara::parse_all_ctrl_chara(root)),
+        "emblem_resource" => t!("emblem", nie_data::emblems::parse_emblem_resources(root)),
+        "extend_story_data_config" => t!("extend_story", nie_data::extend_story::parse_extend_story_config(root)),
+        "inacode_config" => t!("inacode", nie_data::inacode::parse_inacode_config(root)),
+        "item_emission_rarity_table_config" => t!("item_emission", nie_data::item_emission::parse_item_emission_rates(root)),
+        "msa999999_trigger" => t!("mission_trigger", nie_data::mission::parse_mission_trigger(root)),
+        "movie_playing_config" => t!("movie_playing", nie_data::movie::parse_movie_playing_config(root)),
+        "opponent_team_config" => t!("opponent_team", nie_data::opponent_team::parse_opponent_team_config(root)),
+        "override_skill_config" => t!("override_skill", nie_data::override_skill::parse_override_skill_config(root)),
+        "party_departure" => t!("party_departure", nie_data::party::parse_party_departure(root)),
+        "supecify_party0.00.00" => t!("specify_party", nie_data::party::parse_specify_party(root)),
+        "guest_limit_config" => t!("guest_limit", nie_data::party::parse_guest_limit_config(root)),
+        "phase_title_config" => t!("phase_title", nie_data::phase::parse_phase_title_config(root)),
+        "quest_config" => t!("quest", nie_data::quest::parse_quest_config(root)),
+        "real_skill_config" => t!("real_skill", nie_data::real_skill_config::parse_real_skill_config(root)),
+        "rpg_battle_rule_config" => t!("rpg_battle_rule", nie_data::rpg_battle::parse_rule_config(root)),
+        "rpg_battle_status_pattern_config" => t!("rpg_battle_status_pattern", nie_data::rpg_battle::parse_status_pattern_config(root)),
+        "rpg_battle_chara_swap_motion_config" => t!("rpg_battle_chara_swap_motion", nie_data::rpg_battle::parse_chara_swap_motion_config(root)),
+        "rpg_battle_party_config" => t!("rpg_battle_party", nie_data::rpg_battle::parse_party_config(root)),
+        "rpg_battle_cmd_event_config" => t!("rpg_battle_cmd_event", nie_data::rpg_battle::parse_cmd_event_config(root)),
+        "rpg_battle_cmd_obj_config" => t!("rpg_battle_cmd_obj", nie_data::rpg_battle::parse_cmd_obj_config(root)),
+        "rpg_battle_cmd_set_config" => t!("rpg_battle_cmd_set", nie_data::rpg_battle::parse_cmd_set_config(root)),
+        "rpg_battle_add_status_config" => t!("rpg_battle_add_status", nie_data::rpg_battle::parse_add_status_config(root)),
+        "shop_config" => t!("shop", nie_data::shop::parse_shop_config(root)),
+        "skill_technic_config" => t!("skill_technic", nie_data::skill_technic::parse_skill_technic_config(root)),
         _ => None,
     }
 }
@@ -2392,7 +2435,7 @@ mod tests {
     #[test]
     fn typed_decode_cable_les_familles_golden() {
         const G: &str = "/home/ubuntu/niers/data/common/gamedata";
-        let cases: [(&str, &str, String); 13] = [
+        let cases: [(&str, &str, String); 20] = [
             ("uniform_config", "uniform", format!("{G}/character/uniform_config_1.03.52.00.cfg.bin.json")),
             ("players_universe_config", "players_universe", format!("{G}/players_universe/players_universe_config_1.03.59.00.cfg.bin.json")),
             ("players_universe_event_config", "players_universe_event", format!("{G}/players_universe/players_universe_event_config.cfg.bin.json")),
@@ -2406,6 +2449,14 @@ mod tests {
             ("adaptive_trigger_def", "adaptive_trigger", format!("{G}/input/adaptive_trigger_def_0.00.00.cfg.bin.json")),
             ("haptic_feedback_def", "haptic_feedback", format!("{G}/input/haptic_feedback_def_0.00.00.cfg.bin.json")),
             ("vibration_def", "vibration", format!("{G}/input/vibration_def_0.00.09.cfg.bin.json")),
+            // Échantillon de la 3e vague (workflow d'analyse 31 familles).
+            ("basara_chara_config", "basara_chara", format!("{G}/character/basara_chara_config_0.00.00.00.cfg.bin.json")),
+            ("belong_team_config", "belong_team", format!("{G}/character/belong_team_config_0.00.00.cfg.bin.json")),
+            ("capsule_config", "capsule", format!("{G}/capsule/capsule_config_0.00.00.cfg.bin.json")),
+            ("chara_base", "chara_base", format!("{G}/character/chara_base_1.03.98.00.cfg.bin.json")),
+            ("shop_config", "shop", format!("{G}/shop/shop_config_3.00.22.cfg.bin.json")),
+            ("quest_config", "quest", format!("{G}/quest/quest_config_1.04.11.00.cfg.bin.json")),
+            ("real_skill_config", "real_skill", format!("{G}/skill/real_skill_config_1.03.74.00.cfg.bin.json")),
         ];
         for (key, label, path) in &cases {
             let (key, label): (&str, &str) = (key, label);
