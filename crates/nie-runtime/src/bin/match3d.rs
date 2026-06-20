@@ -17,7 +17,8 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use nie_render3d::glb;
 use nie_render3d::scene::{
-    Camera, Instance, Mat4, Tri, mat_mul, mat_rot_y, mat_scale, mat_translate, render_scene,
+    Camera, Instance, Mat4, Tri, mat_identity, mat_mul, mat_rot_y, mat_scale, mat_translate,
+    render_scene,
 };
 use nie_runtime::{
     GOAL_HALF, GOAL_HEIGHT, HALF_LEN, HALF_WID, Player, Role, World,
@@ -53,46 +54,6 @@ struct Cli {
     /// réel du jeu. Les chunks sont en coordonnées monde (cf. nie-render3d --map).
     #[arg(long)]
     stadium: Vec<PathBuf>,
-}
-
-/// Vrai (fini, magnitude raisonnable) — filtre d'éventuels sommets de submeshes non-RE.
-fn finite_ok(v: [f32; 3]) -> bool {
-    v.iter().all(|c| c.is_finite() && c.abs() < 1.0e6)
-}
-
-/// Triangles plats colorés par hauteur du décor de stade (union des chunks, déjà en monde).
-fn stadium_tris(models: &[glb::Model]) -> Vec<Tri> {
-    let (mut y0, mut y1) = (f32::MAX, f32::MIN);
-    for m in models {
-        for p in &m.primitives {
-            for v in &p.positions {
-                if finite_ok(*v) {
-                    y0 = y0.min(v[1]);
-                    y1 = y1.max(v[1]);
-                }
-            }
-        }
-    }
-    let yr = (y1 - y0).max(1.0);
-    let mut tris = Vec::new();
-    for m in models {
-        for p in &m.primitives {
-            for t in p.indices.chunks_exact(3) {
-                let (ia, ib, ic) = (t[0] as usize, t[1] as usize, t[2] as usize);
-                if ia.max(ib).max(ic) >= p.positions.len() {
-                    continue;
-                }
-                let (a, b, c) = (p.positions[ia], p.positions[ib], p.positions[ic]);
-                if !(finite_ok(a) && finite_ok(b) && finite_ok(c)) {
-                    continue;
-                }
-                let yc = (((a[1] + b[1] + c[1]) / 3.0 - y0) / yr).clamp(0.0, 1.0);
-                let col = [(74.0 + 88.0 * yc) as u8, (92.0 + 76.0 * yc) as u8, (76.0 + 56.0 * yc) as u8];
-                tris.push(Tri { p: [a, b, c], color: col });
-            }
-        }
-    }
-    tris
 }
 
 /// Un modèle de joueur chargé + ses paramètres de pose (échelle vers ~1,85 m, centre, pieds).
@@ -339,13 +300,13 @@ fn main() -> Result<()> {
             glb::parse(&data)
         })
         .collect::<Result<_>>()?;
-    let stade = if stadium.is_empty() { None } else { Some(stadium_tris(&stadium)) };
+    let has_stadium = !stadium.is_empty();
 
-    // Construit la scène d'une frame : (flat tris, instances de joueurs).
+    // Construit la scène d'une frame : (flat tris, instances). Avec stade : le décor TEXTURÉ est
+    // rendu en instances deux-faces (chunks déjà en coords monde), flat = juste le ballon.
     let frame_scene = |world: &World| -> (Vec<Tri>, Vec<Instance>) {
-        let mut flat = if let Some(st) = &stade {
-            let mut f = st.to_vec();
-            // Ballon (le décor remplace terrain+lignes).
+        let mut flat = if has_stadium {
+            let mut f = Vec::new();
             let b = world.ball.pos;
             let s = 0.16;
             push_box(&mut f, w(b.x - s, b.z, b.y - s), w(b.x + s, b.z + 2.0 * s, b.y + s), [245, 245, 248]);
@@ -355,6 +316,9 @@ fn main() -> Result<()> {
         };
         flat.shrink_to_fit();
         let mut inst = Vec::new();
+        for m in &stadium {
+            inst.push(Instance { model: m, transform: mat_identity(), two_sided: true });
+        }
         if let (Some(h), Some(a)) = (&home, &away) {
             for p in &world.players {
                 let pm = if p.team == 0 { h } else { a };
@@ -366,7 +330,7 @@ fn main() -> Result<()> {
 
     if cli.png {
         let (flat, inst) = frame_scene(&world);
-        let rgba = render_scene(&flat, &inst, &camera(&world, real, stade.is_some()), cli.width, cli.height, bw, bh);
+        let rgba = render_scene(&flat, &inst, &camera(&world, real, has_stadium), cli.width, cli.height, bw, bh);
         std::fs::write(&cli.out, encode_png(&rgba, cli.width, cli.height)?)?;
         println!("png={} tris={} instances={}", cli.out.display(), flat.len(), inst.len());
         return Ok(());
@@ -376,7 +340,7 @@ fn main() -> Result<()> {
     std::fs::create_dir_all(&dir)?;
     for i in 0..cli.frames {
         let (flat, inst) = frame_scene(&world);
-        let rgba = render_scene(&flat, &inst, &camera(&world, real, stade.is_some()), cli.width, cli.height, bw, bh);
+        let rgba = render_scene(&flat, &inst, &camera(&world, real, has_stadium), cli.width, cli.height, bw, bh);
         std::fs::write(dir.join(format!("f_{i:04}.png")), encode_png(&rgba, cli.width, cli.height)?)?;
         world.step(cli.dt);
     }
