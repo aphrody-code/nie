@@ -864,6 +864,90 @@ fn encode_rgba_to_png(rgba: &[u8], w: usize, h: usize) -> Option<Vec<u8>> {
     Some(out_buf)
 }
 
+/// Compose une **scène de dialogue de mode histoire** (fond + boîte + onglet locuteur + texte wrappé)
+/// en PNG 1280×720, rendue dans la VRAIE police du jeu via `font::LatinAtlas` (edge-scan).
+/// `font_cfg`/`font_g4tx` = octets de `font.cfg.bin` / `font.g4tx`.
+fn compose_story_png(font_cfg: &[u8], font_g4tx: &[u8], speaker: &str, text: &str) -> Option<Vec<u8>> {
+    use nie_formats::{cfgbin, font, g4tx};
+    const W: usize = 1280;
+    const H: usize = 720;
+
+    let cfg = cfgbin::parse_t2b(font_cfg).ok()?;
+    let metrics = font::parse_metrics(&cfg);
+    let tx = g4tx::parse(font_g4tx).ok()?;
+    let t = tx.textures.first()?;
+    let dds = font_g4tx.get(t.data_offset..)?;
+    let px_off = if dds.len() >= 88 && &dds[84..88] == b"DX10" { 148 } else { 128 };
+    let atlas = dds.get(px_off..)?;
+    let (aw, ah) = (t.width as usize, t.height as usize);
+    let cell_h = metrics.dims.cell_height;
+    let la = font::LatinAtlas::from_atlas(atlas, aw, ah, 946, cell_h);
+
+    // Fond dégradé bleu nuit (placeholder du rendu de scène 3D).
+    let mut buf = vec![0u8; W * H * 4];
+    for y in 0..H {
+        let tt = y as f32 / H as f32;
+        let (r, g, b) =
+            ((18.0 + 30.0 * tt) as u8, (24.0 + 36.0 * tt) as u8, (44.0 + 60.0 * (1.0 - tt)) as u8);
+        for x in 0..W {
+            let o = (y * W + x) * 4;
+            buf[o..o + 4].copy_from_slice(&[r, g, b, 255]);
+        }
+    }
+    let fill = |buf: &mut [u8], x0: i32, y0: i32, x1: i32, y1: i32, c: [u8; 4]| {
+        let a = f32::from(c[3]) / 255.0;
+        for y in y0.max(0)..y1.min(H as i32) {
+            for x in x0.max(0)..x1.min(W as i32) {
+                let o = (y as usize * W + x as usize) * 4;
+                for k in 0..3 {
+                    buf[o + k] = (f32::from(c[k]) * a + f32::from(buf[o + k]) * (1.0 - a)) as u8;
+                }
+                buf[o + 3] = 255;
+            }
+        }
+    };
+
+    // Wrap du texte par mots (gère `\n` littéral et réel).
+    let (bx0, bx1) = (60i32, W as i32 - 60);
+    let line_h = i32::from(cell_h) + 4;
+    let max_w = (bx1 - bx0 - 80) as u32;
+    let mut lines: Vec<String> = Vec::new();
+    for para in text.split('\n').flat_map(|p| p.split("\\n")) {
+        let mut cur = String::new();
+        for word in para.split_whitespace() {
+            let trial =
+                if cur.is_empty() { word.to_string() } else { format!("{cur} {word}") };
+            if la.measure(&trial) <= max_w {
+                cur = trial;
+            } else {
+                if !cur.is_empty() {
+                    lines.push(std::mem::take(&mut cur));
+                }
+                cur = word.to_string();
+            }
+        }
+        lines.push(cur);
+    }
+    if lines.is_empty() {
+        lines.push(String::new());
+    }
+
+    let by1 = H as i32 - 28;
+    let by0 = by1 - (lines.len() as i32 * line_h + 36);
+    fill(&mut buf, bx0, by0, bx1, by1, [10, 14, 28, 220]);
+    fill(&mut buf, bx0, by0, bx1, by0 + 3, [90, 200, 255, 255]);
+    let name_w = (la.measure(speaker) as i32 + 40).min(440);
+    fill(&mut buf, bx0 + 20, by0 - 40, bx0 + 20 + name_w, by0 + 2, [30, 60, 110, 235]);
+    fill(&mut buf, bx0 + 20, by0 - 40, bx0 + 20 + name_w, by0 - 37, [120, 220, 255, 255]);
+    la.blit_line(atlas, aw, &mut buf, W, bx0 + 38, by0 - 32, speaker, [200, 235, 255, 255]);
+    for (i, line) in lines.iter().enumerate() {
+        la.blit_line(atlas, aw, &mut buf, W, bx0 + 40, by0 + 22 + i as i32 * line_h, line, [240, 244, 250, 255]);
+    }
+    fill(&mut buf, bx1 - 36, by1 - 24, bx1 - 20, by1 - 8, [120, 220, 255, 255]);
+
+    encode_rgba_to_png(&buf, W, H)
+}
+
 /// Construit le chemin VFS d'un G4TX de face depuis le code personnage.
 /// Le dossier de série est déduit directement du code interne (préfixe c01/c02…)
 /// pour éviter de dépendre du libellé en base qui peut varier.
@@ -2120,6 +2204,61 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         match png {
             Some(bytes) => respond(&mut stream, 200, "OK", "image/png", &bytes),
             None => respond_text(&mut stream, 500, "Internal Server Error", "rendu échoué"),
+        }
+        return;
+    }
+
+    // `/story-scene[/<n>].png` — scène de dialogue du MODE HISTOIRE : un vrai dialogue
+    // (`inagle_event_subtitles`) rendu dans la VRAIE police + boîte + onglet locuteur. `<n>` =
+    // offset de ligne déterministe (défaut 0). Sert le mode histoire à azalee, sans dump.
+    if let Some(rest) = path.strip_prefix("/story-scene") {
+        let sel = rest.trim_start_matches('/').strip_suffix(".png").unwrap_or("").trim();
+        let offset: i64 = sel.parse().unwrap_or(0).max(0);
+        let Some(db) = state.db_path.clone() else {
+            respond_text(&mut stream, 503, "Service Unavailable", "miroir SQLite absent");
+            return;
+        };
+        let dialogue = Connection::open_with_flags(&db, OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .ok()
+            .and_then(|conn| {
+                let n: i64 = conn
+                    .query_row(
+                        "SELECT COUNT(*) FROM inagle_event_subtitles \
+                         WHERE text_en IS NOT NULL AND length(text_en)>5",
+                        [],
+                        |r| r.get(0),
+                    )
+                    .unwrap_or(0);
+                if n == 0 {
+                    return None;
+                }
+                conn.query_row(
+                    "SELECT COALESCE(line_label,'???'), COALESCE(text_fr, text_en) \
+                     FROM inagle_event_subtitles WHERE text_en IS NOT NULL AND length(text_en)>5 \
+                     ORDER BY event_id, line_index LIMIT 1 OFFSET ?1",
+                    [offset % n],
+                    |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)),
+                )
+                .ok()
+            });
+        let Some((speaker, text)) = dialogue else {
+            respond_text(&mut stream, 404, "Not Found", "dialogue introuvable (table inagle absente ?)");
+            return;
+        };
+        let (cfg, g4tx) = {
+            let vfs = state.vfs.lock().unwrap();
+            (
+                vfs.read("data/common/font/font/font_def/font.cfg.bin").ok(),
+                vfs.read("data/dx11/font/font_def/font.g4tx").ok(),
+            )
+        };
+        let (Some(cfg), Some(g4tx)) = (cfg, g4tx) else {
+            respond_text(&mut stream, 500, "Internal Server Error", "police absente du VFS");
+            return;
+        };
+        match compose_story_png(&cfg, &g4tx, &speaker, &text) {
+            Some(png) => respond(&mut stream, 200, "OK", "image/png", &png),
+            None => respond_text(&mut stream, 500, "Internal Server Error", "composition échouée"),
         }
         return;
     }
