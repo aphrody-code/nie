@@ -2934,19 +2934,20 @@ fn cmd_export_layout_runtime(
 
 /// Compose l'écran `screen` via le compositeur CPU (référence pixel-perfect) → PNG.
 fn cmd_menu(game_dir: &Path, screen: &str, png_out: &Path, from_setting: bool) -> Result<()> {
-    // `--from-setting` d'abord ; si l'écran n'a pas de MENU_LAYER_INFO (popups/sous-fenêtres/
-    // écrans de combat), on RETOMBE sur le mode par préfixe d'objbin (le screen sans `_menu`).
-    let sprites = if from_setting {
-        match build_sprite_list_from_setting(game_dir, screen) {
-            Ok(s) if !s.is_empty() => s,
-            _ => {
-                let prefix = screen.strip_suffix("_menu").unwrap_or(screen);
-                build_sprite_list(game_dir, prefix).unwrap_or_default()
-            }
-        }
-    } else {
-        build_sprite_list(game_dir, screen)?
+    // RENDU RÉEL par défaut : on compose via la DÉFINITION D'ÉCRAN (`<screen>_setting.cfg.bin`,
+    // liste MENU_LAYER_INFO) — c'est la vraie composition du jeu (logo, panneaux, icônes), pas un
+    // mélange de tous les objbins par préfixe. On essaie `screen` puis `screen_menu` (convention des
+    // settings), enfin on retombe sur le préfixe d'objbin pour les écrans sans setting.
+    let _ = from_setting; // le mode setting est désormais l'essai prioritaire dans tous les cas.
+    let try_set = |name: &str| {
+        build_sprite_list_from_setting(game_dir, name).ok().filter(|s| !s.is_empty())
     };
+    let sprites = try_set(screen)
+        .or_else(|| {
+            (!screen.ends_with("_menu")).then(|| try_set(&format!("{screen}_menu"))).flatten()
+        })
+        .or_else(|| build_sprite_list(game_dir, screen.strip_suffix("_menu").unwrap_or(screen)).ok())
+        .unwrap_or_default();
     let n_sprites = sprites.len();
 
     let composite_sprites: Vec<menu::CompositeSprite> = sprites
