@@ -1,0 +1,21 @@
+[package]
+name = "nie-runtime"
+description = "Moteur de jeu niers : boucle intégrée monde + physique + rendu top-down → frames/MP4 (headless, déterministe)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "nie-runtime"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+nie-core.workspace = true
+clap.workspace = true
+anyhow.workspace = true
+png = "0.18"
