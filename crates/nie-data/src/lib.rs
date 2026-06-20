@@ -47,6 +47,7 @@ pub mod chara_base;
 pub mod chara_costume;
 pub mod chara_description;
 pub mod chara_details;
+pub mod chara_edit;
 pub mod chara_menu_resource;
 pub mod chara_param;
 pub mod chara_series;
