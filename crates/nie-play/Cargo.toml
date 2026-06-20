@@ -1,6 +1,6 @@
 [package]
 name = "nie-play"
-description = "Jeu intégré niers : machine à états (Titre → Menu → Match → Histoire) câblant les systèmes reversés (match nie-core, dialogues + police nie-formats, données nie-data) en UN binaire jouable headless → playthrough PNG/MP4."
+description = "Front-end HEADLESS/GOLDEN du jeu niers : exécute la machine à états de nie-app via un flow scripté + un Renderer CPU, et écrit le playthrough en PNG/MP4 déterministes. Le match vient de la vraie FSM nie-core."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -18,8 +18,5 @@ workspace = true
 anyhow.workspace = true
 clap.workspace = true
 png = "0.18"
+nie-app = { path = "../nie-app" }
 nie-core = { path = "../nie-core" }
-nie-data = { path = "../nie-data" }
-nie-formats = { path = "../nie-formats", features = ["serde"] }
-nie-render3d = { path = "../nie-render3d" }
-bcdec_rs = "0.2.0"

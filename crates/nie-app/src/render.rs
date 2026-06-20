@@ -1,0 +1,203 @@
+//! Rendu CPU des écrans du jeu : [`Screen`] (cadre RGBA + helpers), [`Font`] (police réelle via
+//! `LatinAtlas`), [`render_state`] (un état → un cadre) et [`CpuRenderer`] (impl [`Renderer`] :
+//! police + toiles de fond 3D pré-rendues). Front-end headless/golden ; le temps-réel passe par wgpu.
+
+use std::path::Path;
+
+use anyhow::{Context, Result};
+use nie_formats::font::{self, LatinAtlas};
+use nie_formats::{cfgbin, g4tx};
+
+use crate::character;
+use crate::{GameState, Renderer, MENU};
+
+/// Largeur du canevas de rendu (px).
+pub const W: usize = 1280;
+/// Hauteur du canevas de rendu (px).
+pub const H: usize = 720;
+
+/// Atlas de police chargé (octets + `LatinAtlas` + largeur), pour le rendu de texte.
+pub struct Font {
+    atlas: Vec<u8>,
+    la: LatinAtlas,
+    aw: usize,
+}
+
+impl Font {
+    /// Charge la police depuis `font.cfg.bin` (métriques) + `font.g4tx` (atlas).
+    pub fn load(cfg_path: &Path, g4tx_path: &Path) -> Result<Self> {
+        let cfg = cfgbin::parse_t2b(&std::fs::read(cfg_path)?).map_err(|e| anyhow::anyhow!("cfg: {e:?}"))?;
+        let metrics = font::parse_metrics(&cfg);
+        let g4tx_bytes = std::fs::read(g4tx_path)?;
+        let tx = g4tx::parse(&g4tx_bytes).map_err(|e| anyhow::anyhow!("g4tx: {e:?}"))?;
+        let t = tx.textures.first().context("pas de texture police")?;
+        let dds = &g4tx_bytes[t.data_offset..];
+        let off = if dds.len() >= 88 && &dds[84..88] == b"DX10" { 148 } else { 128 };
+        let atlas = dds[off..].to_vec();
+        let (aw, ah) = (t.width as usize, t.height as usize);
+        let la = LatinAtlas::from_atlas(&atlas, aw, ah, 946, metrics.dims.cell_height);
+        Ok(Self { atlas, la, aw })
+    }
+}
+
+/// Cadre de rendu RGBA + helpers de dessin.
+pub struct Screen<'a> {
+    /// Tampon RGBA8 `W*H*4`.
+    pub buf: Vec<u8>,
+    f: &'a Font,
+}
+
+impl<'a> Screen<'a> {
+    fn new(f: &'a Font) -> Self {
+        Self { buf: vec![0u8; W * H * 4], f }
+    }
+    /// Cadre initialisé depuis une frame RGBA existante (ex. rendu 3D du perso en toile de fond).
+    fn from_base(f: &'a Font, base: &[u8]) -> Self {
+        let mut buf = vec![0u8; W * H * 4];
+        if base.len() == buf.len() {
+            buf.copy_from_slice(base);
+        }
+        Self { buf, f }
+    }
+    fn gradient(&mut self, top: [u8; 3], bot: [u8; 3]) {
+        for y in 0..H {
+            let t = y as f32 / H as f32;
+            let mix = |a: u8, b: u8| (f32::from(a) * (1.0 - t) + f32::from(b) * t) as u8;
+            let c = [mix(top[0], bot[0]), mix(top[1], bot[1]), mix(top[2], bot[2]), 255];
+            for x in 0..W {
+                let o = (y * W + x) * 4;
+                self.buf[o..o + 4].copy_from_slice(&c);
+            }
+        }
+    }
+    #[allow(clippy::needless_range_loop)] // blend RGBA : indices explicites (c[k] + buf[o+k]).
+    fn rect(&mut self, x0: i32, y0: i32, x1: i32, y1: i32, c: [u8; 4]) {
+        let a = f32::from(c[3]) / 255.0;
+        for y in y0.max(0)..y1.min(H as i32) {
+            for x in x0.max(0)..x1.min(W as i32) {
+                let o = (y as usize * W + x as usize) * 4;
+                for k in 0..3 {
+                    self.buf[o + k] = (f32::from(c[k]) * a + f32::from(self.buf[o + k]) * (1.0 - a)) as u8;
+                }
+                self.buf[o + 3] = 255;
+            }
+        }
+    }
+    fn text(&mut self, x: i32, y: i32, s: &str, color: [u8; 4]) {
+        self.f.la.blit_line(&self.f.atlas, self.f.aw, &mut self.buf, W, x, y, s, color);
+    }
+    fn text_centered(&mut self, y: i32, s: &str, color: [u8; 4]) {
+        let w = self.f.la.measure(s) as i32;
+        self.text((W as i32 - w) / 2, y, s, color);
+    }
+}
+
+/// Rend un état du jeu dans un cadre. `bg` = toile de fond 3D propre à cet état (perso, match…).
+#[must_use]
+pub fn render_state<'a>(state: &GameState, f: &'a Font, bg: Option<&[u8]>) -> Screen<'a> {
+    let mut s = match bg {
+        Some(b) => Screen::from_base(f, b),
+        None => Screen::new(f),
+    };
+    match state {
+        GameState::Title => {
+            s.gradient([24, 32, 64], [8, 10, 20]);
+            s.text_centered(250, "INAZUMA ELEVEN", [235, 240, 255, 255]);
+            s.text_centered(330, "VICTORY ROAD", [120, 200, 255, 255]);
+            s.text_centered(560, "PRESS START", [200, 210, 230, 255]);
+        }
+        GameState::MainMenu { sel } => {
+            if bg.is_none() {
+                s.gradient([30, 40, 80], [14, 18, 34]);
+            }
+            s.rect(0, 0, W as i32, 70, [20, 60, 130, 255]);
+            s.text(40, 16, "MAIN MENU", [220, 235, 255, 255]);
+            for (i, item) in MENU.iter().enumerate() {
+                let y = 200 + i as i32 * 90;
+                let hot = i == *sel;
+                let bg_c = if hot { [60, 130, 220, 235] } else { [16, 22, 44, 210] };
+                s.rect(70, y, 620, y + 70, bg_c);
+                if hot {
+                    s.rect(70, y, 76, y + 70, [120, 220, 255, 255]);
+                }
+                s.text(110, y + 16, item, [240, 245, 252, 255]);
+            }
+        }
+        GameState::Match { home, away } => {
+            if bg.is_none() {
+                s.gradient([18, 60, 30], [8, 24, 14]);
+            }
+            s.rect(0, 0, W as i32, 70, [20, 60, 130, 255]);
+            s.text(40, 16, "MATCH RESULT", [220, 235, 255, 255]);
+            s.text_centered(280, "RAIMON", [255, 240, 180, 255]);
+            s.text_centered(380, &format!("{home}  -  {away}"), [255, 255, 255, 255]);
+            s.text_centered(480, "ROYAL ACADEMY", [200, 210, 255, 255]);
+            let verdict = if home > away { "RAIMON WINS!" } else if home < away { "DEFEAT..." } else { "DRAW" };
+            s.text_centered(600, verdict, [120, 255, 160, 255]);
+        }
+        GameState::Story { speaker, line } => {
+            if bg.is_none() {
+                s.gradient([20, 26, 54], [8, 10, 22]);
+            }
+            let (bx0, bx1) = (60i32, W as i32 - 60);
+            let by1 = H as i32 - 40;
+            let by0 = by1 - 150;
+            s.rect(bx0, by0, bx1, by1, [10, 14, 28, 224]);
+            s.rect(bx0, by0, bx1, by0 + 3, [90, 200, 255, 255]);
+            s.rect(bx0 + 20, by0 - 40, bx0 + 280, by0 + 2, [30, 60, 110, 235]);
+            s.text(bx0 + 36, by0 - 32, speaker, [200, 235, 255, 255]);
+            s.text(bx0 + 40, by0 + 30, line, [240, 244, 250, 255]);
+        }
+    }
+    s
+}
+
+/// Chemins des assets d'un personnage 3D (toile de fond menu/histoire).
+pub struct CharAssets<'a> {
+    pub md: &'a Path,
+    pub mg: &'a Path,
+    pub sk: &'a Path,
+    pub tex: &'a Path,
+}
+
+/// Renderer CPU : police + toiles de fond 3D pré-rendues (perso, scène match), réutilisées par état.
+pub struct CpuRenderer {
+    font: Font,
+    char_bg: Option<Vec<u8>>,
+    match_bg: Option<Vec<u8>>,
+}
+
+impl CpuRenderer {
+    /// Construit le renderer : charge la police et, si `chr` fourni, pré-rend le perso 3D + la scène
+    /// de match (réutilisés comme toiles de fond).
+    pub fn new(font_cfg: &Path, font_g4tx: &Path, chr: Option<CharAssets<'_>>) -> Result<Self> {
+        let font = Font::load(font_cfg, font_g4tx).context("chargement police")?;
+        let (char_bg, match_bg) = match chr {
+            Some(c) => {
+                let model = character::build_skinned_model(
+                    &std::fs::read(c.md)?,
+                    &std::fs::read(c.mg)?,
+                    &std::fs::read(c.sk)?,
+                    &std::fs::read(c.tex)?,
+                )
+                .context("chargement perso 3D")?;
+                let cbg = character::render_character(&model, W as u32, H as u32, 0.55, [30, 40, 80], [12, 16, 30]);
+                let mbg = character::render_match_scene(&model, W as u32, H as u32);
+                (Some(cbg), Some(mbg))
+            }
+            None => (None, None),
+        };
+        Ok(Self { font, char_bg, match_bg })
+    }
+}
+
+impl Renderer for CpuRenderer {
+    fn render(&self, state: &GameState) -> Vec<u8> {
+        let bg = match state {
+            GameState::Match { .. } => self.match_bg.as_deref(),
+            GameState::MainMenu { .. } | GameState::Story { .. } => self.char_bg.as_deref(),
+            GameState::Title => None,
+        };
+        render_state(state, &self.font, bg).buf
+    }
+}
