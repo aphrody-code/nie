@@ -2682,6 +2682,7 @@ dependencies = [
  "anyhow",
  "clap",
  "nie-core",
+ "nie-render3d",
  "png",
 ]
 
