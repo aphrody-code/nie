@@ -260,6 +260,9 @@ pub struct BallComponent {
     pub detection_dist_secondary: f32,
     /// Données du contrôleur de mouvement normal (embarquées pour éviter alloc).
     pub move_normal: BallMoveNormal,
+    /// Contrôleur de mouvement actif (dispatche vers les physiques byte-fidèles validées).
+    /// Modélise la vftable `IBallMoveController` polymorphe du C++.
+    pub mover: BallMover,
 }
 
 impl Default for BallComponent {
@@ -283,6 +286,7 @@ impl Default for BallComponent {
             detection_dist_primary: DISTANCE_UNINIT,
             detection_dist_secondary: DISTANCE_UNINIT,
             move_normal: BallMoveNormal::default(),
+            mover: BallMover::Idle,
         }
     }
 }
@@ -328,6 +332,16 @@ impl BallComponent {
         self.interception = InterceptionData::none();
         self.targets = TargetIds::default();
     }
+
+    /// Avance le ballon d'un pas `dt` via le contrôleur de mouvement actif ([`BallMover`]).
+    ///
+    /// Met à jour `prev_position` puis `position` selon la physique byte-fidèle reversée
+    /// (parabole / lerp / suivi-cible — validées vs le binaire). Câble enfin les boucles de
+    /// physique prouvées dans la logique du ballon (remplace l'approximation best-effort).
+    pub fn update(&mut self, dt: f32) {
+        self.prev_position = self.position;
+        self.position = self.mover.step(self.position, dt);
+    }
 }
 
 /// Mouvement parabolique du ballon (projectile sous accélération constante).
@@ -336,6 +350,7 @@ impl BallComponent {
 /// et **validé byte-exact** contre l'émulation Unicorn du binaire réel (`scripts/validate_parabola.py`).
 /// Remplace l'approximation best-effort de `nie-runtime` par la vraie physique du jeu.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ParabolaMove {
     /// Accélération constante (gravité du jeu), offset `0x160` de l'objet jeu.
     pub accel: Vec3,
@@ -383,6 +398,7 @@ impl ParabolaMove {
 /// et **validé byte-exact** contre l'émulation Unicorn (`scripts/validate_lerp.py`, FMA3 émulée).
 /// La FMA `vfmadd231ps` correspond à `f32::mul_add` (rounding unique).
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LerpMove {
     /// Point cible (atteint à `t == duration`), offset `0x60` de l'objet jeu.
     pub target: Vec3,
@@ -420,6 +436,7 @@ impl LerpMove {
 /// reversé de l'asm et **validé byte-exact** contre l'émulation Unicorn (`scripts/validate_targetfollow.py`,
 /// 3 cas). Les constantes `.data` (offset/biais) sont nulles dans le binaire (no-op).
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TargetFollowMove {
     /// Cible suivie, offset `0x70` de l'objet jeu.
     pub target: Vec3,
@@ -449,9 +466,70 @@ impl TargetFollowMove {
     }
 }
 
+/// Contrôleur de mouvement actif du ballon, modélisant la polymorphie `IBallMoveController` du C++
+/// (la vftable du contrôleur actif). Dispatche vers les physiques **byte-fidèles** reversées + validées.
+///
+/// `step(current, dt) → new_pos` : `current` est la position courante du ballon. `Lerp` interpole
+/// depuis un `origin` FIXE (capturé au lancement, ≠ position courante — fidèle au binaire qui lit
+/// l'origine via `[[r8]+0x1410]`).
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum BallMover {
+    /// Aucun mouvement actif (le ballon reste sur place).
+    #[default]
+    Idle,
+    /// Trajectoire parabolique (projectile sous accélération) — [`ParabolaMove`].
+    Parabola(ParabolaMove),
+    /// Interpolation adoucie depuis une origine fixe — [`LerpMove`].
+    Lerp(LerpMove, Vec3),
+    /// Suivi de cible avec easing borné — [`TargetFollowMove`].
+    TargetFollow(TargetFollowMove),
+}
+
+impl BallMover {
+    /// Avance le ballon d'un pas `dt` depuis `current` et renvoie la nouvelle position.
+    /// Chaque branche appelle la physique byte-fidèle correspondante.
+    #[must_use]
+    pub fn step(&mut self, current: Vec3, dt: f32) -> Vec3 {
+        match self {
+            BallMover::Idle => current,
+            BallMover::Parabola(m) => m.step(current, dt).0,
+            BallMover::Lerp(m, origin) => m.step(*origin, dt),
+            BallMover::TargetFollow(m) => m.step(current, dt),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ball_component_update_uses_validated_physics() {
+        // Le ballon piloté par un mover Parabola avance selon la physique byte-fidèle :
+        // `update` doit produire EXACTEMENT le même résultat que `ParabolaMove::step` (dispatch correct).
+        let p0 = Vec3 { x: 1.0, y: 2.0, z: 3.0 };
+        let mv = ParabolaMove {
+            accel: Vec3 { x: 0.0, y: -9.8, z: 0.0 },
+            velocity: Vec3 { x: 4.0, y: 5.0, z: 6.0 },
+            t: 0.0,
+            t_max: 10.0,
+        };
+        let (expected, _) = { mv }.step(p0, 0.5);
+        let mut ball = BallComponent::new();
+        ball.position = p0;
+        ball.mover = BallMover::Parabola(mv);
+        ball.update(0.5);
+        assert_eq!(ball.prev_position, p0);
+        assert_eq!(ball.position, expected); // dispatch == physique validée vs binaire
+    }
+
+    #[test]
+    fn ball_mover_idle_keeps_position() {
+        let mut m = BallMover::Idle;
+        let p = Vec3 { x: 7.0, y: 8.0, z: 9.0 };
+        assert_eq!(m.step(p, 0.5), p);
+    }
 
     #[test]
     fn target_follow_step_byte_exact_vs_binaire() {
@@ -468,9 +546,9 @@ mod tests {
         // Mêmes entrées que scripts/validate_lerp.py (validé byte-exact vs binaire, FMA3 émulée).
         let mut m = LerpMove { target: Vec3 { x: 10.0, y: 20.0, z: 30.0 }, t: 0.0, duration: 2.0 };
         let pos = m.step(Vec3 { x: 1.0, y: 2.0, z: 3.0 }, 0.5);
-        assert_eq!(pos.x.to_bits(), 7.152_343_75_f32.to_bits());
+        assert_eq!(pos.x.to_bits(), f32::from_bits(0x40e4_e000).to_bits()); // 7.15234375
         assert_eq!(pos.y.to_bits(), 14.304_687_5_f32.to_bits());
-        assert_eq!(pos.z.to_bits(), 21.457_031_25_f32.to_bits());
+        assert_eq!(pos.z.to_bits(), f32::from_bits(0x41ab_a800).to_bits()); // 21.45703125
         assert_eq!(m.t.to_bits(), 0.5_f32.to_bits());
     }
 
@@ -486,9 +564,9 @@ mod tests {
         let (pos, fini) = m.step(Vec3 { x: 1.0, y: 2.0, z: 3.0 }, 0.5);
         // Valeurs EXACTES capturées du binaire réel (f32 simple précision).
         assert_eq!(pos.x.to_bits(), 3.0_f32.to_bits());
-        assert_eq!(pos.y.to_bits(), 3.275_000_095_367_431_6_f32.to_bits());
+        assert_eq!(pos.y.to_bits(), f32::from_bits(0x4051_999a).to_bits()); // 3.2750000953674316
         assert_eq!(pos.z.to_bits(), 6.0_f32.to_bits());
-        assert_eq!(m.velocity.y.to_bits(), 0.099_999_904_632_568_36_f32.to_bits());
+        assert_eq!(m.velocity.y.to_bits(), f32::from_bits(0x3dcc_ccc0).to_bits()); // 0.09999990463256836
         assert_eq!(m.t.to_bits(), 0.5_f32.to_bits());
         assert!(!fini);
     }
