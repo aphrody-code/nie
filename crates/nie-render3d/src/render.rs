@@ -139,7 +139,7 @@ pub fn render(model: &Model, angle: f32, w: u32, h: u32) -> Vec<u8> {
 }
 
 /// Échantillonnage nearest d'une texture en UV [0,1] (CLAMP_TO_EDGE) → RGBA.
-fn sample(t: &Texture, u: f32, v: f32) -> [u8; 4] {
+pub(crate) fn sample(t: &Texture, u: f32, v: f32) -> [u8; 4] {
     let uu = u.clamp(0.0, 1.0);
     let vv = v.clamp(0.0, 1.0);
     // Convention nearest : texel = floor(uv * dim), borné à dim-1 (le cas uv==1 retombe sur le dernier).
