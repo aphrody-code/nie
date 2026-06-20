@@ -43,6 +43,64 @@ struct Cli {
     /// Équipe domicile depuis de VRAIS chara_param (`chara_param_*.cfg.bin.json`) au lieu de stats en dur.
     #[arg(long)]
     chara_param: Option<std::path::PathBuf>,
+    /// Base SQLite (miroir inagle) : charge une VRAIE scène de dialogue (`inagle_event_subtitles`).
+    #[arg(long)]
+    db: Option<std::path::PathBuf>,
+    /// `event_id` de la scène à charger (défaut : une scène multi-lignes connue).
+    #[arg(long, default_value = "ev07_02900")]
+    event_id: String,
+}
+
+/// Nettoie un dialogue IEVR : `<FLC:NAME>`/`<FUL:NAME>` → `Name`, retire les autres `<…>`,
+/// remplace les `\n` littéraux par une espace.
+fn clean_dialogue(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'<' {
+            // Trouve la fin du tag.
+            if let Some(end) = s[i..].find('>') {
+                let tag = &s[i + 1..i + end];
+                if let Some((_, name)) = tag.split_once(':') {
+                    // <FLC:KISOJI> → "Kisoji"
+                    let mut cs = name.chars();
+                    if let Some(f) = cs.next() {
+                        out.push(f);
+                        out.extend(cs.flat_map(char::to_lowercase));
+                    }
+                }
+                i += end + 1;
+                continue;
+            }
+        }
+        if bytes[i] == b'\\' && i + 1 < bytes.len() && bytes[i + 1] == b'n' {
+            out.push(' ');
+            i += 2;
+            continue;
+        }
+        out.push(bytes[i] as char);
+        i += 1;
+    }
+    out.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// Charge une vraie scène de dialogue (lignes EN consécutives d'un event), nettoyées.
+fn load_scene(db: &std::path::Path, event_id: &str) -> Result<Vec<String>> {
+    let conn = rusqlite::Connection::open_with_flags(db, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+        .context("ouverture DB")?;
+    let mut stmt = conn.prepare(
+        "SELECT text_en FROM inagle_event_subtitles WHERE event_id=?1 AND text_en IS NOT NULL \
+         AND length(text_en)>0 ORDER BY line_index",
+    )?;
+    let lines: Vec<String> = stmt
+        .query_map([event_id], |r| r.get::<_, String>(0))?
+        .filter_map(Result::ok)
+        .map(|s| clean_dialogue(&s))
+        .filter(|s| !s.is_empty())
+        .collect();
+    anyhow::ensure!(!lines.is_empty(), "aucune ligne pour l'event {event_id}");
+    Ok(lines)
 }
 
 fn team(name: &str, base: u16) -> TeamSetup {
@@ -88,8 +146,27 @@ fn main() -> Result<()> {
     };
     let renderer = CpuRenderer::new(&cli.font_cfg, &cli.font_g4tx, chr).context("init renderer")?;
 
-    // Playthrough : la machine à états de nie-app, rendue par le front CPU.
-    let flow = demo_flow(res.home_score, res.away_score);
+    // Playthrough : la machine à états de nie-app. Avec --db, le segment Histoire joue une VRAIE
+    // scène de dialogue IEVR (sinon le flow de démo).
+    let flow: Vec<(nie_app::GameState, u32)> = if let Some(db) = &cli.db {
+        let scene = load_scene(db, &cli.event_id).context("chargement scène")?;
+        println!("[nie-play] scène réelle '{}' = {} lignes de dialogue", cli.event_id, scene.len());
+        let mut f = vec![
+            (nie_app::GameState::Title, 30),
+            (nie_app::GameState::MainMenu { sel: 0 }, 20),
+            (nie_app::GameState::Match { home: res.home_score, away: res.away_score }, 40),
+            (nie_app::GameState::MainMenu { sel: 1 }, 20),
+        ];
+        // Locuteur exact non résolu (line_label = id, pas un nom) → libellé de scène honnête.
+        let speaker = format!("Mode Histoire — {}", cli.event_id);
+        for line in scene {
+            f.push((nie_app::GameState::Story { speaker: speaker.clone(), line }, 35));
+        }
+        f.push((nie_app::GameState::MainMenu { sel: 3 }, 20));
+        f
+    } else {
+        demo_flow(res.home_score, res.away_score)
+    };
     let mut frame = 0u32;
     for (state, dur) in &flow {
         println!("[nie-play] etat = {state:?}");
