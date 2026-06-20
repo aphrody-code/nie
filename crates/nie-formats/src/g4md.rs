@@ -229,6 +229,100 @@ fn read_vertex_attributes(data: &[u8], header: &G4mdHeader) -> Vec<VertexAttribu
     attrs
 }
 
+/// Extrait les noms de texture **par matériau** d'un g4md de **MAP** via la table d'offsets u16
+/// (structure RE distincte des perso). Layout (validé sur s02g001g02) : un pool terminal de noms
+/// NUL-séparés, précédé d'une table d'offsets `u16` ; `base = pool_start − 2·N − 2`, la table à
+/// `base+2`, et `nom[i] = pool[base + offsets[i]]`. On essaie N ∈ {mc−2..=mc+1} et on retient le N
+/// qui résout le plus d'offsets vers de vrais débuts de noms. Renvoie les noms dans l'ordre des
+/// matériaux (vide si la structure n'est pas reconnue de façon fiable).
+#[must_use]
+pub fn extract_map_material_names(data: &[u8], material_count: usize) -> Vec<String> {
+    if material_count == 0 || data.len() < 32 {
+        return Vec::new();
+    }
+    // 1) Pool terminal : région de noms ASCII NUL-séparés en fin de fichier.
+    let mut end = data.len();
+    while end > 0 && data[end - 1] == 0 {
+        end -= 1;
+    }
+    // Détecte le pool par son PREMIER vrai nom : un run ≥6 d'ASCII débutant par une lettre,
+    // NUL-terminé (la table d'offsets en amont a des octets imprimables mais en runs de 1 → exclue).
+    // On scrute la dernière moitié du fichier.
+    let mut pool_start = end;
+    let mut i = data.len() / 2;
+    while i + 6 < end {
+        if data[i].is_ascii_alphabetic() {
+            let s = i;
+            while i < end && (0x20..=0x7E).contains(&data[i]) {
+                i += 1;
+            }
+            if i - s >= 6 && i < data.len() && data[i] == 0 {
+                pool_start = s;
+                break;
+            }
+        } else {
+            i += 1;
+        }
+    }
+    if pool_start >= end {
+        return Vec::new();
+    }
+    // Offsets (depuis pool_start) des débuts de noms.
+    let mut starts = alloc::collections::BTreeSet::new();
+    let mut at_start = true;
+    for (rel, &b) in data[pool_start..end].iter().enumerate() {
+        if b == 0 {
+            at_start = true;
+        } else {
+            if at_start {
+                starts.insert(rel);
+            }
+            at_start = false;
+        }
+    }
+    // 2) Cherche (N, base) maximisant les offsets résolvant un début de nom.
+    let mc = material_count as isize;
+    let mut best: Option<(usize, usize, usize)> = None; // (table_off, base, hits)
+    for n in (mc - 2).max(1)..=(mc + 1) {
+        let n = n as usize;
+        if pool_start < 2 * n + 2 {
+            continue;
+        }
+        let base = pool_start - 2 * n - 2;
+        let table = base + 2;
+        let hits = (0..n)
+            .filter(|&i| {
+                let off = u16::from_le_bytes([data[table + 2 * i], data[table + 2 * i + 1]]) as usize;
+                let abs = base + off;
+                abs >= pool_start && starts.contains(&(abs - pool_start))
+            })
+            .count();
+        if best.is_none_or(|(_, _, h)| hits > h) {
+            best = Some((table, base, hits));
+        }
+    }
+    let Some((table, base, hits)) = best else { return Vec::new() };
+    let n = (pool_start - table) / 2; // N = nombre d'offsets entre la table et le pool
+    if hits * 2 < n {
+        return Vec::new(); // moins de la moitié résolus → structure non reconnue
+    }
+    // 3) Lit les N noms.
+    (0..n)
+        .map(|i| {
+            let off = u16::from_le_bytes([data[table + 2 * i], data[table + 2 * i + 1]]) as usize;
+            let abs = base + off;
+            if abs < pool_start || abs >= end {
+                return String::new();
+            }
+            let mut e = abs;
+            while e < end && data[e] != 0 {
+                e += 1;
+            }
+            String::from_utf8_lossy(&data[abs..e]).into_owned()
+        })
+        .collect()
+}
+
 /// Extrait les noms base-color par matériau depuis le run terminal de chaînes
 /// (port de `ExtractMaterialBaseNames`, L261) : collecte les chaînes ASCII null-terminées
 /// contiguës en partant de la fin, garde les `2 * material_count` dernières et renvoie la
