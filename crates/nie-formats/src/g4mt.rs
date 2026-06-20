@@ -47,6 +47,138 @@ pub fn parse(data: &[u8]) -> Result<G4mt, FormatError> {
     Ok(G4mt { header, file_size: data.len() })
 }
 
+// ============================================================================
+// Décodage des PISTES D'ANIMATION SQUELETTIQUE du corps G4MT (spec workflow anim-re-crack,
+// confiance moyenne ; les quaternions dé-quantifiés i16/32767 sont UNITAIRES = check validable).
+// Corps = `data[0x40..]`. frame_count u16@corps+0x02 ; table de tracks @corps+0xA4 (8 o/track :
+// u32, u16 bone_idx, u16) ; canaux marqués par `01 00 00 00 | u32 value_off | u32 key_count` dans
+// [0x144, table_temps) ; descripteur 4 o avant le marqueur = [type, _, n_comp, stride] (type 0x09 =
+// 4-vec/quaternion, 0x0a/0b/0c = scalaire tx/ty/tz ; stride 8 ou 2) ; table des temps @corps+0xD00
+// (u32 count + count×i16) ; VALUE_BASE = align16(fin temps) ; data canal @ VALUE_BASE+value_off.
+// ============================================================================
+
+extern crate alloc;
+use alloc::{string::String, vec::Vec};
+
+/// Un canal d'animation : suite de samples (61 pour 60 frames, key0 = frame 0 implicite).
+#[derive(Debug, Clone)]
+pub struct AnimChannel {
+    /// Type Level-5 : `0x09` = 4-vecteur (quaternion de rotation), `0x0a/0b/0c` = scalaire (tx/ty/tz).
+    pub kind: u8,
+    /// Pas en octets d'un sample (`8` = 4×i16, `2` = 1×i16).
+    pub stride: u8,
+    /// Décalage de la donnée du canal depuis `VALUE_BASE`.
+    pub value_offset: u32,
+    /// Samples dé-quantifiés (i16/32767). 4-vec → `[x,y,z,w]` ; scalaire → `[v,0,0,0]`.
+    pub samples: Vec<[f32; 4]>,
+}
+
+impl AnimChannel {
+    /// `true` si c'est un canal de rotation (4-vec type 0x09, stride 8).
+    #[must_use]
+    pub fn is_rotation(&self) -> bool {
+        self.kind == 0x09 && self.stride == 8
+    }
+}
+
+/// Animation squelettique décodée d'un G4MT.
+#[derive(Debug, Clone)]
+pub struct Animation {
+    pub frame_count: u16,
+    /// Nom du clip (ASCIIZ @corps+0x84), ex. `b_flt001wlk001l`.
+    pub clip_name: String,
+    /// Indices d'os (réfèrent le g4sk) de la table de tracks @corps+0xA4.
+    pub bone_indices: Vec<u16>,
+    /// Canaux dans l'ordre du fichier.
+    pub channels: Vec<AnimChannel>,
+}
+
+fn ru16(d: &[u8], o: usize) -> u16 {
+    u16::from_le_bytes([d[o], d[o + 1]])
+}
+fn ru32(d: &[u8], o: usize) -> u32 {
+    u32::from_le_bytes([d[o], d[o + 1], d[o + 2], d[o + 3]])
+}
+
+/// Décode les pistes d'animation squelettique d'un corps G4MT. Renvoie `None` si la structure ne
+/// correspond pas (offsets hors limites, pas de table de temps cohérente).
+#[must_use]
+#[allow(clippy::missing_panics_doc)]
+pub fn parse_animation(data: &[u8]) -> Option<Animation> {
+    const BODY: usize = 0x40;
+    if data.len() < BODY + 0xD08 {
+        return None;
+    }
+    let body = &data[BODY..];
+    let frame_count = ru16(body, 0x02);
+    let track_count = ru16(body, 0x06) as usize;
+
+    // Nom de clip ASCIIZ @0x84.
+    let name_start = 0x84;
+    let mut name_end = name_start;
+    while name_end < body.len() && body[name_end] != 0 {
+        name_end += 1;
+    }
+    let clip_name = String::from_utf8_lossy(&body[name_start..name_end]).into_owned();
+
+    // Table de tracks @0xA4 : 8 o/track {u32, u16 bone_idx, u16}.
+    let mut bone_indices = Vec::new();
+    for t in 0..track_count.min(64) {
+        let o = 0xA4 + t * 8;
+        if o + 8 > body.len() {
+            break;
+        }
+        bone_indices.push(ru16(body, o + 4));
+    }
+
+    // Table des temps @0xD00 : u32 count + count×i16 ; VALUE_BASE = align16(fin).
+    let times_off = 0xD00;
+    let times_count = ru32(body, times_off) as usize;
+    if times_count == 0 || times_count > 4096 {
+        return None;
+    }
+    let times_end = times_off + 4 + times_count * 2;
+    let value_base = times_end.div_ceil(16) * 16;
+
+    // Scan des marqueurs de canaux `01 00 00 00` dans [0x144, times_off).
+    let mut channels = Vec::new();
+    let mut m = 0x144usize;
+    while m + 12 <= times_off {
+        if ru32(body, m) == 1 {
+            let value_offset = ru32(body, m + 4);
+            let key_count = ru32(body, m + 8) as usize;
+            // Descripteur : (n_composantes, stride) aux octets m-4, m-3 (calé byte-à-byte sur le
+            // réel : quaternion `04 08`, scalaire `01 02`). kind dérivé du stride.
+            let (n_comp, stride) =
+                if m >= 4 { (body[m - 4] as usize, body[m - 3]) } else { (0, 0) };
+            let valid = (n_comp == 4 && stride == 8) || (n_comp == 1 && stride == 2);
+            let kind = if stride == 8 { 0x09 } else { 0x0a };
+            if valid && (2..=4096).contains(&key_count) {
+                let base = value_base + value_offset as usize;
+                if base + key_count * stride as usize <= body.len() {
+                    let mut samples = Vec::with_capacity(key_count);
+                    for k in 0..key_count {
+                        let so = base + k * stride as usize;
+                        let mut s = [0.0f32; 4];
+                        for (c, slot) in s.iter_mut().enumerate().take(n_comp) {
+                            *slot = f32::from(ru16(body, so + c * 2) as i16) / 32767.0;
+                        }
+                        samples.push(s);
+                    }
+                    channels.push(AnimChannel { kind, stride, value_offset, samples });
+                    m += 12;
+                    continue;
+                }
+            }
+        }
+        m += 1;
+    }
+    if channels.is_empty() {
+        return None;
+    }
+    Some(Animation { frame_count, clip_name, bone_indices, channels })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
