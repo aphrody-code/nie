@@ -1,0 +1,21 @@
+[package]
+name = "nie-render3d"
+description = "Renderer 3D du moteur niers : charge un GLB réel (assets CPK) et le rend en perspective (rastérisation CPU z-buffer + éclairage) → PNG/MP4 turntable, headless"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "nie-render3d"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+serde_json.workspace = true
+png = "0.18"
