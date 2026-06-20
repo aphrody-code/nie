@@ -1,0 +1,49 @@
+# CI niers — runner SELF-HOSTED obligatoire.
+# Le repo n'est pas portable sur un runner GitHub-hosted : dep path ../aphrody,
+# linker mold, toolchain locale nightly-2026-05-17 (rustup absent), fixtures
+# real-fixtures/real-saves gitignorees, chemins VPS codes en dur. Ce workflow
+# valide donc uniquement les invariants verifiables : format, clippy 0 warning,
+# tests sans donnees copyright. Les tests #[ignore] (integration VPS) ne tournent pas.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: [self-hosted, niers-vps]
+    timeout-minutes: 30
+    env:
+      CARGO_TERM_COLOR: always
+      RUST_BACKTRACE: 1
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain & deps presents (pre-flight)
+        run: |
+          cargo --version
+          command -v mold   || { echo 'mold absent'; exit 1; }
+          test -d ../aphrody || { echo 'dep path ../aphrody absente'; exit 1; }
+
+      - name: Format (cargo fmt --check)
+        run: cargo fmt --all --check
+
+      - name: Clippy (0 warning attendu)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Build workspace
+        run: cargo build --workspace --locked
+
+      - name: Tests (sans fixtures copyright, sans #[ignore])
+        run: cargo test --workspace --locked
+
+      - name: Build wasm (portabilite crates jeu)
+        run: cargo build -p nie-wasm --target wasm32-unknown-unknown --release
