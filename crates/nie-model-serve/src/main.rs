@@ -1278,24 +1278,37 @@ fn assemble_map(state: &State, rel: &str) -> Result<GlbBytes> {
     })
     .with_context(|| format!("assemblage map {rel}"))?;
 
-    // Texture : binding par matériau NON RÉSOLU. Les textures sont au niveau STAGE (plusieurs :
-    // `<stage>.g4tx`, `<stage>g.g4tx`, `<stage>f.g4tx`, `<stage>i.g4tx`…), et `<stage>g.g4tx` (groupe)
-    // s'est avéré quasi transparent → ce n'est pas la base color du chunk. Tant que le binding
-    // matériau→g4tx n'est pas RE, on NE plaque PAS de texture (les UV [0,1] sont corrects dans le GLB,
-    // prêts pour quand le binding sera trouvé). Repli historique par-chunk (rare).
-    let g4tx = {
+    // Texture : le g4tx du STAGE (`<stage>g.g4tx`) contient des textures NOMMÉES par matériau
+    // (grass01_re, ground02_re, concrete02…). Le binding par matériau (noms dans le g4md) reste à
+    // RE → en attendant, on applique la **texture de sol dominante** (`ground`/`grass`, variante
+    // `.1` = base color) à toute la map : approximation visible (le sol couvre l'essentiel).
+    let stage_dir = rel.rsplit_once('/').map_or(rel, |(d, _)| d);
+    let group = base.trim_end_matches(|c: char| c.is_ascii_digit());
+    let stage_g4tx = {
         let vfs = state.vfs.lock().unwrap();
-        vfs.read(&format!("data/dx11/map/{rel}/{base}.g4tx"))
-            .ok()
-            .or_else(|| vfs.read(&format!("data/common/map/{rel}/{base}.g4tx")).ok())
+        vfs.read(&format!("data/dx11/map/{stage_dir}/{group}.g4tx")).ok()
     };
-    if let Some(png_bytes) = g4tx.as_deref().and_then(decode_best_g4tx_to_png) {
-        model.embedded_textures.push(EmbeddedTexture {
-            component: MeshComponent::Generic,
-            name: format!("{base}_map"),
-            png_bytes,
-        });
-        return Ok(model.to_glb_embedded());
+    if let Some(bytes) = &stage_g4tx
+        && let Ok(g4tx) = parse_g4tx(bytes)
+    {
+        let pick = g4tx
+            .textures
+            .iter()
+            .filter(|t| t.is_dds && t.name.ends_with(".1"))
+            .find(|t| t.name.contains("ground"))
+            .or_else(|| {
+                g4tx.textures.iter().filter(|t| t.is_dds && t.name.ends_with(".1")).find(|t| t.name.contains("grass"))
+            });
+        if let Some(tex) = pick
+            && let Some(png_bytes) = decode_texture_to_png(bytes, tex)
+        {
+            model.embedded_textures.push(EmbeddedTexture {
+                component: MeshComponent::Generic,
+                name: format!("{base}_map"),
+                png_bytes,
+            });
+            return Ok(model.to_glb_embedded());
+        }
     }
     Ok(model.to_glb())
 }
