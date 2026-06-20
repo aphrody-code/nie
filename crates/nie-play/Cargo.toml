@@ -21,3 +21,4 @@ png = "0.18"
 nie-app = { path = "../nie-app" }
 nie-core = { path = "../nie-core" }
 nie-runtime = { path = "../nie-runtime" }
+rusqlite.workspace = true
