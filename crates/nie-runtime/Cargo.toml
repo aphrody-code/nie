@@ -11,11 +11,16 @@ rust-version.workspace = true
 name = "nie-runtime"
 path = "src/main.rs"
 
+[[bin]]
+name = "nie-match3d"
+path = "src/bin/match3d.rs"
+
 [lints]
 workspace = true
 
 [dependencies]
 nie-core.workspace = true
+nie-render3d.workspace = true
 clap.workspace = true
 anyhow.workspace = true
 png = "0.18"
