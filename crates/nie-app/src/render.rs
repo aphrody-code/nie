@@ -90,6 +90,23 @@ impl<'a> Screen<'a> {
         let w = self.f.la.measure(s) as i32;
         self.text((W as i32 - w) / 2, y, s, color);
     }
+    /// Texte avec retour à la ligne par mot dans `max_w` (px). Interligne `line_h`.
+    fn text_wrapped(&mut self, x: i32, y: i32, max_w: i32, line_h: i32, s: &str, color: [u8; 4]) {
+        let (mut line, mut row) = (String::new(), 0i32);
+        for word in s.split_whitespace() {
+            let trial = if line.is_empty() { word.to_string() } else { format!("{line} {word}") };
+            if self.f.la.measure(&trial) as i32 > max_w && !line.is_empty() {
+                self.text(x, y + row * line_h, &line, color);
+                row += 1;
+                line = word.to_string();
+            } else {
+                line = trial;
+            }
+        }
+        if !line.is_empty() {
+            self.text(x, y + row * line_h, &line, color);
+        }
+    }
 }
 
 /// Rend un état du jeu dans un cadre. `bg` = toile de fond 3D propre à cet état (perso, match…).
@@ -146,7 +163,7 @@ pub fn render_state<'a>(state: &GameState, f: &'a Font, bg: Option<&[u8]>) -> Sc
             s.rect(bx0, by0, bx1, by0 + 3, [90, 200, 255, 255]);
             s.rect(bx0 + 20, by0 - 40, bx0 + 280, by0 + 2, [30, 60, 110, 235]);
             s.text(bx0 + 36, by0 - 32, speaker, [200, 235, 255, 255]);
-            s.text(bx0 + 40, by0 + 30, line, [240, 244, 250, 255]);
+            s.text_wrapped(bx0 + 40, by0 + 28, bx1 - bx0 - 80, 46, line, [240, 244, 250, 255]);
         }
     }
     s
