@@ -1296,6 +1296,72 @@ pub fn parse_save_json(bytes: &[u8], filename: &str) -> Result<String, String> {
 }
 
 // ---------------------------------------------------------------------------
+// Jeu jouable en navigateur (nie-app : FSM GameState + rendu CPU framebuffer)
+// ---------------------------------------------------------------------------
+
+/// Le JEU niers jouable dans le navigateur : pilote la machine à états [`nie_app::GameState`]
+/// (Title → MainMenu → Match → Story → …) et rend chaque écran en framebuffer RGBA8 `W*H*4` que JS
+/// peint sur un `<canvas>` (`ctx.putImageData`). Cœur 100 % Rust ; les octets de police sont fournis
+/// par JS (fetch des assets) via [`WasmGame::new`].
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub struct WasmGame {
+    font: nie_app::Font,
+    flow: Vec<(nie_app::GameState, u32)>,
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+impl WasmGame {
+    /// Construit le jeu depuis les octets de la police (`font.cfg.bin` + `font.g4tx`, fetchés par JS).
+    #[wasm_bindgen(constructor)]
+    pub fn new(font_cfg: &[u8], font_g4tx: &[u8]) -> Result<WasmGame, JsValue> {
+        let font = nie_app::Font::from_bytes(font_cfg, font_g4tx)
+            .map_err(|e| JsValue::from_str(&format!("font: {e}")))?;
+        Ok(WasmGame { font, flow: nie_app::demo_flow(0, 1) })
+    }
+
+    /// Largeur du framebuffer (px).
+    #[wasm_bindgen(getter)]
+    pub fn width(&self) -> usize {
+        nie_app::W
+    }
+
+    /// Hauteur du framebuffer (px).
+    #[wasm_bindgen(getter)]
+    pub fn height(&self) -> usize {
+        nie_app::H
+    }
+
+    /// Nombre total de frames du playthrough scripté (boucle Title→Menu→Match→Story→…).
+    #[wasm_bindgen(getter)]
+    pub fn total_frames(&self) -> u32 {
+        self.flow.iter().map(|(_, d)| *d).sum()
+    }
+
+    /// Rend la frame `frame_idx` du playthrough (modulo la durée totale) en RGBA8 `W*H*4`.
+    pub fn render_frame(&self, frame_idx: u32) -> Vec<u8> {
+        let total = self.total_frames().max(1);
+        let mut f = frame_idx % total;
+        let mut state = &self.flow[0].0;
+        for (s, d) in &self.flow {
+            if f < *d {
+                state = s;
+                break;
+            }
+            f -= *d;
+        }
+        nie_app::render::render_state(state, &self.font, None).buf
+    }
+
+    /// Rend le menu principal avec l'option `sel` surlignée (navigation interactive web). RGBA8 `W*H*4`.
+    pub fn render_menu(&self, sel: usize) -> Vec<u8> {
+        let state = nie_app::GameState::MainMenu { sel };
+        nie_app::render::render_state(&state, &self.font, None).buf
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Tests natifs
 // ---------------------------------------------------------------------------
 
