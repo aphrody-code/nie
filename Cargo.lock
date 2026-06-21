@@ -2552,6 +2552,7 @@ name = "nie-formats"
 version = "0.1.0"
 dependencies = [
  "aes 0.8.4",
+ "cridecoder",
  "image_dds",
  "png",
  "serde",
@@ -2625,7 +2626,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "cridecoder",
  "image_dds",
  "nie-data",
  "nie-formats",
@@ -2755,7 +2755,6 @@ name = "nie-wasm"
 version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
- "cridecoder",
  "getrandom 0.2.17",
  "nie-app",
  "nie-core",

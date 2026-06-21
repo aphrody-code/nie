@@ -856,92 +856,11 @@ pub fn model_to_glb(g4md: &[u8], g4mg: &[u8]) -> Result<Vec<u8>, String> {
     model_to_glb_impl(g4md, g4mg)
 }
 
-// ── Audio CRI -> WAV (décodé NATIVEMENT in-browser) ────────────────────────────
-// HCA (cridecoder, déchiffrement IEVR ciph_type=56) + ADX + conteneurs AWB/ACB
-// (nie-formats) -> PCM16 -> WAV. Réplique la logique de nie-model-serve `/audio`.
-
-/// Clé HCA IEVR (dump il2cpp, = `0x00D2997C0DC5EE72`).
-const NW_IEVR_HCA_KEY: u64 = 59_278_503_195_307_634;
-
-/// Décode un flux HCA chiffré en PCM16 `(samples, channels, sample_rate)`.
-fn nw_hca_to_pcm16(raw: &[u8], subkey: u16) -> Result<(Vec<i16>, u32, u32), String> {
-    use cridecoder::{HcaDecoder, HcaDecoderError};
-    use std::io::Cursor;
-    let mut decoder =
-        HcaDecoder::from_reader(Cursor::new(raw)).map_err(|e| format!("HCA init: {e}"))?;
-    // ciph_type=56 : la clé DOIT être posée avant toute trame.
-    decoder.set_encryption_key(NW_IEVR_HCA_KEY, u64::from(subkey));
-    let info = decoder.info().clone();
-    let channels = info.channel_count;
-    let sample_rate = info.sampling_rate;
-    let frame_samples = info.samples_per_block * info.channel_count as usize;
-    let mut pcm_buf = vec![0i16; frame_samples];
-    let mut all: Vec<i16> = Vec::new();
-    loop {
-        match decoder.decode_frame_i16(&mut pcm_buf) {
-            Ok(0) => {}
-            Ok(n) => {
-                let count = n * channels as usize;
-                all.extend_from_slice(&pcm_buf[..count]);
-            }
-            Err(HcaDecoderError::Eof) => break,
-            Err(e) => return Err(format!("HCA frame: {e}")),
-        }
-    }
-    Ok((all, channels, sample_rate))
-}
-
-/// Décode la première entrée HCA/ADX d'un AWB (AFS2) en WAV.
-fn nw_awb_first_entry(data: &[u8]) -> Result<Vec<u8>, String> {
-    use nie_formats::cri_audio::{adx_decode, encode_pcm16_wav, is_adx, is_hca, Awb};
-    let awb = Awb::parse(data).map_err(|e| format!("AWB parse: {e}"))?;
-    if awb.entries.is_empty() {
-        return Err("AWB sans entrée".into());
-    }
-    let subkey = awb.subkey;
-    // Entrée la plus volumineuse d'abord : pour une banque de voix, la 1re entrée est souvent
-    // un court grognement, la plus grosse une vraie réplique (cf. nie-model-serve /audio).
-    let mut order: Vec<usize> = (0..awb.entries.len()).collect();
-    order.sort_by_key(|&k| core::cmp::Reverse(awb.entry_bytes(data, &awb.entries[k]).len()));
-    for k in order {
-        let ed = awb.entry_bytes(data, &awb.entries[k]);
-        if ed.is_empty() {
-            continue;
-        }
-        if is_hca(ed) {
-            let (s, c, sr) = nw_hca_to_pcm16(ed, subkey)?;
-            return Ok(encode_pcm16_wav(&s, c, sr));
-        }
-        if is_adx(ed) {
-            let pcm = adx_decode(ed).map_err(|e| format!("ADX: {e}"))?;
-            return Ok(encode_pcm16_wav(&pcm.samples, pcm.channels, pcm.sample_rate));
-        }
-    }
-    Err("AWB: aucune entrée HCA/ADX valide".into())
-}
-
-/// Décode n'importe quel audio Criware (HCA/ADX/AWB/ACB) en WAV PCM16.
+// ── Audio CRI → WAV (in-browser) ──────────────────────────────────────────────
+// Délègue à la SOURCE UNIQUE `nie_formats::cri_audio::decode_to_wav` (feature `audio-decode`) :
+// le décode HCA chiffré IEVR + le dispatch ADX/AWB/ACB y vivent (dédup Phase 1d). Plus de copie ici.
 fn audio_to_wav_impl(raw: &[u8]) -> Result<Vec<u8>, String> {
-    use nie_formats::cri_audio::{acb_parse, adx_decode, encode_pcm16_wav, is_adx, is_hca};
-    if is_hca(raw) {
-        let (s, c, sr) = nw_hca_to_pcm16(raw, 0)?;
-        return Ok(encode_pcm16_wav(&s, c, sr));
-    }
-    if is_adx(raw) {
-        let pcm = adx_decode(raw).map_err(|e| format!("ADX: {e}"))?;
-        return Ok(encode_pcm16_wav(&pcm.samples, pcm.channels, pcm.sample_rate));
-    }
-    if raw.starts_with(b"AFS2") {
-        return nw_awb_first_entry(raw);
-    }
-    if raw.starts_with(b"@UTF") {
-        let acb = acb_parse(raw).map_err(|e| format!("ACB parse: {e}"))?;
-        if !acb.embedded_awb.is_empty() {
-            return nw_awb_first_entry(&acb.embedded_awb);
-        }
-        return Err("ACB sans AWB embarqué".into());
-    }
-    Err("format audio non reconnu".into())
+    nie_formats::cri_audio::decode_to_wav(raw)
 }
 
 /// Décode un audio CRI (HCA/ADX/AWB/ACB, octets bruts) en **WAV PCM16**, in-browser.
