@@ -95,7 +95,13 @@ avant** de retirer le décodeur de `nie-app::character.rs:18` ; la comparaison G
   conception** : le type est **axis-agnostique** (la convention y/z=hauteur vit dans le CODE de chaque crate, inchangé) + garde-fou
   documenté au type ET aux deux imports (« ne jamais convertir entre les deux »). Gate : nie-core 186 tests + nie-runtime 6 tests
   (golden physique/déterminisme préservés) + `build --workspace` RC=0. `nie-render3d` garde son `[f32;3]` (idiome distinct) ; `g4mg::Vec2 {u,v}` reste (stabilité JSON).
-- **Reste** : `nie-formats::raster2d` (blend `over` unique) — **byte-risqué** (change les pixels du compositeur menu) → gate pixel SSIM requis.
+- **Reste — `nie-formats::raster2d` = LANDMINE #5 (investigué 2026-06-21, NON fait à dessein)** : les blends `over` du workspace
+  **divergent réellement** — `nie-runtime::render::blend` = f32 tronqué `(cv*a + dst*(1-a)) as u8` ; `nie-game::blit_over` = entier
+  arrondi `(sc*a + dc*(255-a) + 127)/255`. Le blend MENU (`nie-formats::menu`) est **déjà** le canon byte-validé (f32, Phase 1c) — mais
+  il composite des MENUS ; les autres renderers dessinent **autre chose** (terrain de match, sprites) et peuvent diverger **par contexte**,
+  comme le jeu réel. **Unifier = guess** : sans RE du blend du jeu PAR contexte, on ne sait pas quelle formule est la « vraie » → fusionner
+  en aveugle enshrine une formule possiblement fausse (faux-FAIT). Comme Vec3/StatBlock : une divergence qui RESSEMBLE à un dup peut être
+  voulue. À ne faire qu'après RE des compositeurs du jeu. (`crop`/`scale_nearest` purs, eux, sont dédupables sans risque — sous-lot séparé.)
 - **Crate feuille `nie-geom`** (`#![no_std]` + alloc, 0 dep, **pas glam** ; sqrt/normalize derrière feature
   `std`/`libm`) : PODs `Vec2/Vec3/Vec4/Mat4`. Migrer `nie-core/src/lib.rs:169`, `nie-runtime/src/lib.rs:23,69`,
   `nie-render3d` (`scene.rs:9`+`render.rs:15`), `nie-formats/src/g4mg.rs:39,51`. **`g4sk::mat_mul` reste local** (landmine 2).
