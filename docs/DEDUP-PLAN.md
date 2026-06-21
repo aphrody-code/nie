@@ -138,6 +138,12 @@ avant** de retirer le décodeur de `nie-app::character.rs:18` ; la comparaison G
 > `match_state` est **orphelin** (0 consommateur) et son `MatchPhase` a les **mêmes 11 états** que `match_fsm::MatchState` avec
 > des **noms divergents + un piège** (`MatchPhase::ResultUi`=index **8** vs `MatchState::ResultUi`=index **2**). Fusion mécanique →
 > mauvais état mappé en silence (cf. landmine Vec3) ; valeur ≈ nulle (orphelin), risque réel → audit état-par-état requis, pas un re-export.
+> **MAJ investigation COMPLÈTE 2026-06-21 — le « merge match_state » est un FAUX-DÉDUP, NE PAS le faire.** `match_state` (lu
+> intégralement) est le **FSM d'ENTRAÎNEMENT DISTINCT** (`CSceneSoccer`/`FUN_1412aa4a0`) avec sa logique propre (`TrainingResult`
+> 0x52/0x53, `TrainingEndKind` switch iVar18, `TrainingStateMachine`). `match_fsm` = FSM de match GÉNÉRAL. 11 états par coïncidence de
+> structure, **sémantiques différentes** (la divergence `ResultUi` idx 8 vs 2 le PROUVE : même nom, sens/position différents = deux machines).
+> Orphelin car le mode entraînement n'est pas câblé (manque `match_live`), PAS redondant — RE byte-exact précieux. Fusionner = conflation
+> (landmine, cf. Vec3 / GameState-vs-Screen). **CONCLUSION : Phase 4 n'a AUCUN dédup sûr** — orchestration RE-bloquée + « merge » interdit.
 - Créer **`nie-core::match_live`** (boucle tick) orchestrant les modules byte-exact **aujourd'hui orphelins** :
   `ball::BallMover` (`ball.rs:341,477`), `keeper` (`keeper.rs:151`), `soccer_ctrl`, `tactics`, `action`,
   `play_cmd_manager` + `match_fsm::final_score`.
