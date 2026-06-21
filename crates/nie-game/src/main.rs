@@ -46,6 +46,8 @@ use wgpu::util::DeviceExt;
 
 use nie_formats::vfs::Vfs;
 use nie_formats::{cfgbin, font, g4pkm, g4tx, g4tx_decode, menu, objbin};
+// Primitives 2D pures centralisées dans nie-formats::raster2d (dédup Phase 2 ; le blend reste local, landmine #5).
+use nie_formats::raster2d::{crop_rgba, scale_nearest};
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
 
@@ -631,37 +633,6 @@ fn cmd_g4tx_regions(game_dir: &Path, g4tx_path: Option<&str>) -> Result<()> {
     Ok(())
 }
 
-/// Rogne un sous-rectangle `(x, y, w, h)` d'un buffer RGBA8 `full_w × full_h`.
-///
-/// Coordonnées en pixels-texture (= l'espace des régions d'atlas g4tx). Renvoie `None` si le rect
-/// est dégénéré (≤ 0) ou déborde de la texture — jamais de panique ni de pixels hors-bornes.
-fn crop_rgba(
-    full: &[u8],
-    full_w: u32,
-    full_h: u32,
-    rect: (i16, i16, i16, i16),
-) -> Option<(u32, u32, Vec<u8>)> {
-    let (rx, ry, rw, rh) = rect;
-    if rx < 0 || ry < 0 || rw <= 0 || rh <= 0 {
-        return None;
-    }
-    let (x, y, w, h) = (rx as u32, ry as u32, rw as u32, rh as u32);
-    if x.checked_add(w)? > full_w || y.checked_add(h)? > full_h {
-        return None;
-    }
-    if full.len() < (full_w as usize) * (full_h as usize) * 4 {
-        return None;
-    }
-    let stride = full_w as usize * 4;
-    let row_bytes = w as usize * 4;
-    let mut out = Vec::with_capacity(w as usize * h as usize * 4);
-    for row in 0..h {
-        let start = (y + row) as usize * stride + x as usize * 4;
-        out.extend_from_slice(&full[start..start + row_bytes]);
-    }
-    Some((w, h, out))
-}
-
 /// Render-from-runtime — rogne la **région d'atlas nommée** d'un g4tx en ses pixels réels.
 ///
 /// Étape finale « commande runtime → pixels » : résout `region` → `(texture porteuse, rect)` via
@@ -864,23 +835,6 @@ fn cmd_build_region_index(game_dir: &Path, out: &Path) -> Result<()> {
 /// Redimensionne un buffer RGBA8 `sw×sh` en `dw×dh` par échantillonnage au plus proche voisin.
 /// Suffisant pour les sprites de menu posés à l'échelle du `transform` (pas de filtrage : on reste
 /// pixel-exact sur les zones non redimensionnées, et déterministe).
-fn scale_nearest(src: &[u8], sw: u32, sh: u32, dw: u32, dh: u32) -> Vec<u8> {
-    if [sw, sh, dw, dh].contains(&0) || src.len() < (sw as usize * sh as usize * 4) {
-        return Vec::new();
-    }
-    let mut out = vec![0u8; dw as usize * dh as usize * 4];
-    for y in 0..dh {
-        let sy = y * sh / dh;
-        for x in 0..dw {
-            let sx = x * sw / dw;
-            let s = (sy as usize * sw as usize + sx as usize) * 4;
-            let d = (y as usize * dw as usize + x as usize) * 4;
-            out[d..d + 4].copy_from_slice(&src[s..s + 4]);
-        }
-    }
-    out
-}
-
 /// Composite `src` (RGBA8 `sw×sh`) sur `canvas` (`cw×ch`) au coin `(dx,dy)`, **straight alpha-over**
 /// (`out = src·a + dst·(1−a)`). Clippe aux bords ; `(dx,dy)` peuvent être négatifs.
 fn blit_over(
