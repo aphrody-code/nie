@@ -19,4 +19,5 @@ rusqlite.workspace = true
 tracing.workspace = true
 redis.workspace = true
 rand = { version = "0.8", features = ["small_rng"] }
-nie-core = { path = "../nie-core", features = ["serde"] }
+# NB : interpolation de stats réimplémentée localement (StatBlock 2-segments f64, model.rs/query.rs) —
+# divergence VOULUE de nie-core (3-segments f32, le miroir SQLite n'a pas le palier lv30) → pas de dép nie-core.
