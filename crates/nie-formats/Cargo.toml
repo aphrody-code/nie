@@ -19,6 +19,9 @@ aes.workspace = true
 # `default-features = false` = décodeur pur Rust, compatible no_std/wasm32.
 image_dds = { version = "0.7", default-features = false, optional = true }
 png = { version = "0.18", optional = true }
+# Décodage HCA chiffré (feature `audio-decode` uniquement, off par défaut).
+# `default-features = false` = pur Rust, compatible wasm32 (nie-wasm le prouve).
+cridecoder = { workspace = true, optional = true }
 
 [features]
 default = []
@@ -26,6 +29,9 @@ serde = ["dep:serde"]
 # Décodeur G4TX/DDS → RGBA8/PNG unique du workspace (module `g4tx_decode`). Tire `image_dds`
 # (std) : gardé off par défaut pour préserver le build no_std/wasm de `nie-formats`.
 textures = ["dep:image_dds", "dep:png"]
+# Décodeur audio Criware → WAV (HCA chiffré IEVR + dispatch ADX/AWB/ACB) — source unique
+# du workspace (cri_audio::decode_to_wav), consommée par nie-model-serve et nie-wasm.
+audio-decode = ["dep:cridecoder"]
 # Active les tests golden adossés à des fragments RÉELS du jeu (copyright Level-5),
 # non distribués : ils vivent en local sous `crates/nie-formats/tests/fixtures/`
 # (gitignoré). Off par défaut → un clone public compile et teste sans ces données.
