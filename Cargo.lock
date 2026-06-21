@@ -2525,6 +2525,7 @@ name = "nie-core"
 version = "0.1.0"
 dependencies = [
  "nie-data",
+ "nie-geom",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -2582,6 +2583,13 @@ dependencies = [
  "tracing-subscriber",
  "wgpu",
  "winit",
+]
+
+[[package]]
+name = "nie-geom"
+version = "0.1.0"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
