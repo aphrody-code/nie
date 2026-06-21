@@ -46,6 +46,8 @@ pub mod font;
 pub mod objbin;
 pub mod cpk;
 pub mod crilayla;
+/// Primitives 2D RGBA8 pures (crop/scale nearest) — source unique, no_std (le blend reste landmine #5).
+pub mod raster2d;
 /// Parseurs/décodeurs audio Criware (feature `std` : ADX décode via `f64::cos`/`sqrt`).
 #[cfg(feature = "std")]
 pub mod cri_audio;
