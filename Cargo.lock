@@ -2490,6 +2490,7 @@ dependencies = [
  "nie-data",
  "nie-formats",
  "nie-render3d",
+ "nie-runtime",
  "serde_json",
 ]
 
