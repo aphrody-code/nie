@@ -500,7 +500,7 @@ fn hex_upper(bytes: &[u8]) -> String {
 
 /// Convertit une [`cfgbin::RdbnValue`] en JSON, encodage **identique au dump iecode**
 /// (`hash` -> `"0x........"`, `blob`/`position` -> hex MAJUSCULE), donc directement
-/// consommable par les parseurs typés de `nie-data` (cf. `typed_decode`).
+/// consommable par les parseurs typés de `nie-data` (cf. `nie_data::typed::decode_by_key`).
 fn rdbn_value_to_json(v: &cfgbin::RdbnValue) -> serde_json::Value {
     use cfgbin::RdbnValue as R;
     use serde_json::{json, Value};
@@ -603,186 +603,6 @@ fn cfgbin_to_typed_root(data: &[u8]) -> Option<serde_json::Value> {
         cfgbin_to_iecode_root(data)
     } else {
         cfgbin_to_t2b_iecode_root(data)
-    }
-}
-
-/// Dérive la **clé de famille** d'un cfg.bin depuis son chemin VFS : nom de base,
-/// suffixes `.json`/`.cfg.bin` retirés, suffixe de version `_<chiffres.points>` final
-/// retiré. Ex. `formation_config_0.02.16.cfg.bin` -> `formation_config`,
-/// `phase_set_c21_0.00.00.cfg.bin` -> `phase_set_c21`, `record_config.cfg.bin` -> `record_config`.
-fn cfg_family_key(vfs_path: &str) -> String {
-    let base = vfs_path.rsplit('/').next().unwrap_or(vfs_path);
-    let base = base.strip_suffix(".json").unwrap_or(base);
-    let base = base.strip_suffix(".cfg.bin").unwrap_or(base);
-    if let Some(idx) = base.rfind('_') {
-        let tail = &base[idx + 1..];
-        if !tail.is_empty() && tail.bytes().all(|b| b.is_ascii_digit() || b == b'.') {
-            return base[..idx].to_string();
-        }
-    }
-    base.to_string()
-}
-
-/// Dispatche un `root` (forme iecode, cf. [`cfgbin_to_iecode_root`]) vers le parseur
-/// typé `nie-data` correspondant à la `key` de famille, et renvoie `(label, json)`.
-/// `None` si aucune famille typée ne correspond (le caller renvoie alors le générique).
-///
-/// Couvre 94 familles game-data validées golden byte-exact dans `nie-data`. Chaque
-/// arme transforme la structure de jeu nommée en JSON — c'est le **pont natif** qui
-/// remplace l'affichage RDBN brut par des données structurées (positions de formation,
-/// listes de skills/items, missions…), consommé par l'explorateur azalee et les exports.
-#[allow(clippy::too_many_lines)]
-fn typed_decode(
-    key: &str,
-    root: &serde_json::Value,
-) -> Option<(&'static str, serde_json::Value)> {
-    use serde_json::to_value;
-    macro_rules! t {
-        ($label:literal, $call:expr) => {
-            to_value($call).ok().map(|v| ($label, v))
-        };
-    }
-    match key {
-        "formation_config" => t!("formation", nie_data::formation::parse_formation_config(root)),
-        "item_config" => t!("item", nie_data::item::parse_all_items(root)),
-        "skill_config" => t!("skill", nie_data::skill::parse_skill_config(root)),
-        // `skill_text` (SkillTextMaps) exclu : ses clés sont des HashId (serde
-        // transparent -> nombre), incompatibles avec une clé de map JSON. Les
-        // noms/descriptions de skills se joignent côté `skill` à l'affichage.
-        "mission_config" => t!("mission", nie_data::mission::parse_mission_config(root)),
-        "aura_skill_config" => t!("aura", nie_data::aura::parse_all_aura_cmds(root)),
-        "trophy_config" => t!("trophy", nie_data::trophy::parse_trophy_config(root)),
-        "gallery_config" => t!("gallery", nie_data::gallery::parse_gallery_config(root)),
-        "record_config" => t!("record", nie_data::record::parse_record_config(root)),
-        "dictionary_config" => t!("dictionary", nie_data::dictionary::parse_dictionary_config(root)),
-        "help_list_config" => t!("help", nie_data::help::parse_help_list_config(root)),
-        "setting_list_config" => {
-            t!("setting_menu", nie_data::setting_menu::parse_setting_list_config(root))
-        }
-        "scene_archive_config" => {
-            t!("scene_archive", nie_data::scene_archive::parse_scene_archive_config(root))
-        }
-        "music_app_config" => t!("music_app", nie_data::music_app::parse_music_app_config(root)),
-        "chara_param" => t!("chara_param", nie_data::chara_param::parse_all_chara_params(root)),
-        "chara_exp_table_config" => t!("exp", nie_data::exp::parse_exp_table(root)),
-        "soccer_game_config" => t!("soccer_game", nie_data::soccer::parse_soccer_game_config(root)),
-        "tutorial_banner_config" => t!("banner", nie_data::banner::parse_banner_config(root)),
-        "boost_player_group_config" => {
-            t!("boost_grp", nie_data::boost_grp::parse_boost_grp_config(root))
-        }
-        "chronicle_top_caravan_config" => {
-            t!("chronicle_top", nie_data::chronicle_top::parse_chronicle_top_caravan_config(root))
-        }
-        "craft_obj_config" => t!("craft", nie_data::craft::parse_craft_obj_config(root)),
-        "fast_travel_config" => t!("fast_travel", nie_data::fast_travel::parse_fast_travel_config(root)),
-        "friendmap_config" => t!("friendmap", nie_data::friendmap::parse_friendmap_config(root)),
-        "light_overwrite_config" => t!("light", nie_data::light::parse_light_overwrite_config(root)),
-        "photo_mode_random_pose_config" => {
-            t!("photo_mode", nie_data::photo_mode::parse_photo_mode_random_pose_config(root))
-        }
-        "info_bookmark_config" => {
-            t!("search_word", nie_data::search_word::parse_info_bookmark_config(root))
-        }
-        "update_notice_config" => {
-            t!("update_notice", nie_data::update_notice::parse_update_notice_config(root))
-        }
-        "user_name_plate_config" => {
-            t!("user_name_plate", nie_data::user_name_plate::parse_user_name_plate_config(root))
-        }
-        "chronicle_vs_route_config" => {
-            t!("vsroute", nie_data::vsroute::parse_chronicle_vs_route_config(root))
-        }
-        "weather_convert" => t!("weather", nie_data::weather::parse_weather_convert(root)),
-        "gimmick_system_num_config" => {
-            t!("dungeon", nie_data::dungeon::parse_gimmick_system_num_config(root))
-        }
-        "soccer_club_room_config" => {
-            t!("chara_bank", nie_data::chara_bank::parse_soccer_club_room_config(root))
-        }
-        "advent_calendar_config" => {
-            t!("advent_calendar", nie_data::post::parse_advent_calendar_config(root))
-        }
-        "delivery_config" => t!("delivery", nie_data::post::parse_delivery_config(root)),
-        "delivery_list_config" => t!("delivery_list", nie_data::post::parse_delivery_list_config(root)),
-        "password_list_config" => t!("password_list", nie_data::post::parse_password_list_config(root)),
-        "post_notice_config" => t!("post_notice", nie_data::post::parse_post_notice_config(root)),
-        "skill_view_preset_config" => {
-            t!("skill_view", nie_data::skill_view::parse_skill_view_preset_config(root))
-        }
-        // Familles golden byte-exactes restées en « vase clos » (parseur validé mais non servi)
-        // — câblées 2026-06-19. uniform/players_universe revalidés ce cycle (comptes réels vs VFS live).
-        "uniform_config" => t!("uniform", nie_data::uniform::parse_uniform_config(root)),
-        "players_universe_config" => {
-            t!("players_universe", nie_data::players_universe::parse_players_universe_config(root))
-        }
-        "players_universe_event_config" => t!(
-            "players_universe_event",
-            nie_data::players_universe::parse_players_universe_event_config(root)
-        ),
-        "nfc_lottery_config" => t!("nfc_lottery", nie_data::nfc::parse_nfc_lottery_config(root)),
-        // 2e vague de familles golden sorties du vase clos (clés réelles vérifiées sur le VFS live,
-        // types JSON-propres — pas de map à clé HashId).
-        "search_word_config" => {
-            t!("search_word", nie_data::search_word::parse_search_word_config(root))
-        }
-        "passive_skill_config" => t!("passive", nie_data::passive::parse_passives(root)),
-        "soccer_ai_cmd_config" => t!("soccer_ai_cmd", nie_data::ai::parse_soccer_ai_cmd_config(root)),
-        "soccer_user_ai_config" => {
-            t!("soccer_user_ai", nie_data::ai::parse_soccer_user_ai_config(root))
-        }
-        "strategy_ai_config" => t!("strategy_ai", nie_data::ai::parse_strategy_ai_config(root)),
-        "tactics_ai_config" => t!("tactics_ai", nie_data::ai::parse_tactics_ai_config(root)),
-        "adaptive_trigger_def" => {
-            t!("adaptive_trigger", nie_data::input::parse_adaptive_trigger_def(root))
-        }
-        "haptic_feedback_def" => {
-            t!("haptic_feedback", nie_data::input::parse_haptic_feedback_def(root))
-        }
-        "vibration_def" => t!("vibration", nie_data::input::parse_vibration_def(root)),
-        "basara_chara_config" => t!("basara_chara", nie_data::basara::parse_basara_chara_config(root)),
-        "belong_team_config" => t!("belong_team", nie_data::belong_team::parse_belong_team_config(root)),
-        "capsule_config" => t!("capsule", nie_data::capsule::parse_capsule_database(root)),
-        "change_aura_skill_config" => t!("change_aura_skill", nie_data::change_aura_skill_config::parse_change_aura_skill_config(root)),
-        "chara_base" => t!("chara_base", nie_data::chara_base::parse_all_chara_base(root)),
-        "chara_costume" => t!("chara_costume", nie_data::chara_costume::parse_all_chara_costumes(root)),
-        "chara_description_text" => t!("chara_description", nie_data::chara_description::parse_chara_descriptions(root)),
-        "chara_details_config" => t!("chara_details", nie_data::chara_details::parse_chara_details(root)),
-        "chara_menu_resource" => t!("chara_menu_resource", nie_data::chara_menu_resource::parse_chara_menu_resource(root)),
-        "chara_series_config" => t!("chara_series", nie_data::chara_series::parse_chara_series_config(root)),
-        "chat_emote_config" => t!("chat_emote", nie_data::chat_emote::parse_chat_emote_config(root)),
-        "chat_emote_def_set_config" => t!("chat_emote_def_set", nie_data::chat_emote::parse_chat_emote_def_set_config(root)),
-        "soccer_cmd_action" => t!("soccer_cmd_action", nie_data::command::parse_cmd_actions(root)),
-        "rpg_cmd_action" => t!("rpg_cmd_action", nie_data::command::parse_cmd_actions(root)),
-        "soccer_cmd_event" => t!("soccer_cmd_event", nie_data::command::parse_cmd_events(root)),
-        "rpg_cmd_event" => t!("rpg_cmd_event", nie_data::command::parse_cmd_events(root)),
-        "chara_cmd_event_common" => t!("chara_cmd_common", nie_data::command::parse_chara_cmd_common(root)),
-        "craft_theme_config" => t!("craft_theme", nie_data::craft::parse_craft_theme_config(root)),
-        "ctrl_chara_config" => t!("ctrl_chara", nie_data::ctrl_chara::parse_all_ctrl_chara(root)),
-        "emblem_resource" => t!("emblem", nie_data::emblems::parse_emblem_resources(root)),
-        "extend_story_data_config" => t!("extend_story", nie_data::extend_story::parse_extend_story_config(root)),
-        "inacode_config" => t!("inacode", nie_data::inacode::parse_inacode_config(root)),
-        "item_emission_rarity_table_config" => t!("item_emission", nie_data::item_emission::parse_item_emission_rates(root)),
-        "msa999999_trigger" => t!("mission_trigger", nie_data::mission::parse_mission_trigger(root)),
-        "movie_playing_config" => t!("movie_playing", nie_data::movie::parse_movie_playing_config(root)),
-        "opponent_team_config" => t!("opponent_team", nie_data::opponent_team::parse_opponent_team_config(root)),
-        "override_skill_config" => t!("override_skill", nie_data::override_skill::parse_override_skill_config(root)),
-        "party_departure" => t!("party_departure", nie_data::party::parse_party_departure(root)),
-        "supecify_party0.00.00" => t!("specify_party", nie_data::party::parse_specify_party(root)),
-        "guest_limit_config" => t!("guest_limit", nie_data::party::parse_guest_limit_config(root)),
-        "phase_title_config" => t!("phase_title", nie_data::phase::parse_phase_title_config(root)),
-        "quest_config" => t!("quest", nie_data::quest::parse_quest_config(root)),
-        "real_skill_config" => t!("real_skill", nie_data::real_skill_config::parse_real_skill_config(root)),
-        "rpg_battle_rule_config" => t!("rpg_battle_rule", nie_data::rpg_battle::parse_rule_config(root)),
-        "rpg_battle_status_pattern_config" => t!("rpg_battle_status_pattern", nie_data::rpg_battle::parse_status_pattern_config(root)),
-        "rpg_battle_chara_swap_motion_config" => t!("rpg_battle_chara_swap_motion", nie_data::rpg_battle::parse_chara_swap_motion_config(root)),
-        "rpg_battle_party_config" => t!("rpg_battle_party", nie_data::rpg_battle::parse_party_config(root)),
-        "rpg_battle_cmd_event_config" => t!("rpg_battle_cmd_event", nie_data::rpg_battle::parse_cmd_event_config(root)),
-        "rpg_battle_cmd_obj_config" => t!("rpg_battle_cmd_obj", nie_data::rpg_battle::parse_cmd_obj_config(root)),
-        "rpg_battle_cmd_set_config" => t!("rpg_battle_cmd_set", nie_data::rpg_battle::parse_cmd_set_config(root)),
-        "rpg_battle_add_status_config" => t!("rpg_battle_add_status", nie_data::rpg_battle::parse_add_status_config(root)),
-        "shop_config" => t!("shop", nie_data::shop::parse_shop_config(root)),
-        "skill_technic_config" => t!("skill_technic", nie_data::skill_technic::parse_skill_technic_config(root)),
-        _ => None,
     }
 }
 
@@ -2127,8 +1947,8 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         };
         match bytes.as_deref().and_then(cfgbin_to_typed_root) {
             Some(root) => {
-                let key = cfg_family_key(&vfs_path);
-                let out = match typed_decode(&key, &root) {
+                let key = nie_data::typed::family_key(&vfs_path);
+                let out = match nie_data::typed::decode_by_key(&key, &root) {
                     Some((family, data)) => serde_json::json!({ "family": family, "data": data }),
                     None => {
                         serde_json::json!({ "family": serde_json::Value::Null, "key": key, "generic": root })
@@ -2796,7 +2616,8 @@ mod tests {
             let txt = std::fs::read_to_string(path).expect("lire json");
             let root: serde_json::Value = serde_json::from_str(&txt).expect("json valide");
             let (got_label, value) =
-                typed_decode(key, &root).unwrap_or_else(|| panic!("{key} : typed_decode → Some"));
+                nie_data::typed::decode_by_key(key, &root)
+                    .unwrap_or_else(|| panic!("{key} : decode_by_key → Some"));
             assert_eq!(got_label, label, "{key} : label de famille");
             let non_empty = match &value {
                 serde_json::Value::Array(a) => !a.is_empty(),
