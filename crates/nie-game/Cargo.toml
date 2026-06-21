@@ -15,7 +15,8 @@ name = "nie-game"
 path = "src/main.rs"
 
 [dependencies]
-nie-formats = { workspace = true }
+# Feature `textures` = décodeur G4TX/DDS → RGBA8/PNG partagé (`nie_formats::g4tx_decode`).
+nie-formats = { workspace = true, features = ["textures"] }
 # VM Lua 5.2 réelle : exécute les vrais scripts de menu du jeu pour générer le layout au runtime
 # (driver reversé OnInit/OnSetupLayer/OnOpenLayer → MenuState), comme nie.exe. API safe seulement.
 nie-lua = { workspace = true }
@@ -30,7 +31,7 @@ wgpu = "=29.0.3"
 winit = "0.30"
 pollster = "0.4"
 bytemuck = { version = "1", features = ["derive"] }
-image_dds = { version = "0.7", default-features = false }
+# Encodage PNG des captures/exports (le décodage DDS/BCn est passé dans nie-formats).
 png = "0.18"
 # Export du layout de menu (JSON contrat `@rose-griffon/menu-render` pour azalee).
 serde = { workspace = true }
