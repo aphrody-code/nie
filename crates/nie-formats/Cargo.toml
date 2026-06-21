@@ -30,3 +30,8 @@ textures = ["dep:image_dds", "dep:png"]
 # non distribués : ils vivent en local sous `crates/nie-formats/tests/fixtures/`
 # (gitignoré). Off par défaut → un clone public compile et teste sans ces données.
 real-fixtures = []
+
+[dev-dependencies]
+# Encodage PNG pour les examples/tests (atlas, anim, scène de dialogue) — indépendant
+# de la feature `textures` (qui ne gate que le décodeur DDS de la lib).
+png = "0.18"

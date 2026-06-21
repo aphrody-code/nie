@@ -42,3 +42,8 @@ rayon = { workspace = true }
 memmap2 = { workspace = true }
 libc = { workspace = true }
 
+[dev-dependencies]
+# Example `dump_g4tx` + test `menu_render_gate` réfèrent les variantes `ImageFormat` en direct
+# (le décodage applicatif passe par nie_formats::g4tx_decode, mais ces cibles de dev nomment l'enum).
+image_dds = { version = "0.7", default-features = false }
+
