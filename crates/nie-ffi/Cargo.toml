@@ -18,9 +18,9 @@ workspace = true
 nie-core.workspace = true
 # serde feature : active serde::Serialize sur G4tx, CfgBinFile, RdbnData, G4pkmLayout,
 # G4md, LipSync, MevbinDocument, MenuObject, CpkHeader, G4pk — requis par nie_decode_json.
-nie-formats = { workspace = true, features = ["serde"] }
+# Feature `textures` = décodeur G4TX/DDS → RGBA8/PNG partagé (`nie_formats::g4tx_decode`),
+# utilisé par nie_g4tx_to_png (le DDS/BCn vit désormais dans nie-formats).
+nie-formats = { workspace = true, features = ["serde", "textures"] }
 serde_json.workspace = true
-# Décodage DDS BCn → RGBA8 pour nie_g4tx_to_png : `image_dds` (même crate que nie-game,
-# couvre BC1–BC7 via le DXGI du header DX10), puis encodage PNG via `image`.
-image_dds = { version = "0.7", default-features = false }
+# `image` : encodage PNG des atlas de glyphes (make_glyph_png) + décodage dans les tests.
 image = { version = "0.25", default-features = false, features = ["png"] }

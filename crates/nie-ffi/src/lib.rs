@@ -609,85 +609,15 @@ pub unsafe extern "C" fn nie_g4tx_to_png_out(ptr: *const u8, len: usize, out: *m
 }
 
 /// Implémentation commune G4TX → PNG.
-/// Mappe un `DXGI_FORMAT` (header DDS DX10) vers le format BCn d'`image_dds`.
-/// Couvre BC1–BC7 (port 1:1 de `nie-game::dxgi_to_image_format`).
-fn dxgi_to_image_format(dxgi: u32) -> Option<image_dds::ImageFormat> {
-    use image_dds::ImageFormat as F;
-    match dxgi {
-        71 => Some(F::BC1RgbaUnorm),
-        72 => Some(F::BC1RgbaUnormSrgb),
-        73 => Some(F::BC2RgbaUnorm),
-        74 => Some(F::BC2RgbaUnormSrgb),
-        77 => Some(F::BC3RgbaUnorm),
-        78 => Some(F::BC3RgbaUnormSrgb),
-        79 | 80 => Some(F::BC4RUnorm),
-        83 | 84 => Some(F::BC5RgUnorm),
-        95 => Some(F::BC6hRgbUfloat),
-        96 => Some(F::BC6hRgbSfloat),
-        98 => Some(F::BC7RgbaUnorm),
-        99 => Some(F::BC7RgbaUnormSrgb),
-        _ => None,
-    }
-}
-
+///
+/// Délègue au décodeur partagé `nie_formats::g4tx_decode` (feature `textures`, source unique
+/// du workspace — Phase 1b dédup). Bonus vs l'ancienne copie locale (DX10 seul) : support
+/// FourCC legacy + non compressé + sélecteur anti-dummy [`g4tx::select_main_texture`].
 fn g4tx_to_png_impl(data: &[u8]) -> NieBytes {
-    use std::io::Cursor;
-    const DX10_DXGI_OFFSET: usize = 128; // magic(4) + DDS_HEADER(124)
-    const PIXEL_OFFSET: usize = 148; // + DX10_EXT(20)
-
-    let g4tx = match nie_formats::g4tx::parse(data) {
-        Ok(v) => v,
-        Err(_) => return NieBytes::empty(),
-    };
-    // Plus grande texture DDS de l'atlas (évite un dummy 4×4 placé en tête).
-    let tex = match g4tx
-        .textures
-        .iter()
-        .filter(|t| t.is_dds && t.width > 0 && t.height > 0)
-        .max_by_key(|t| i64::from(t.width) * i64::from(t.height))
-    {
-        Some(t) => t,
-        None => return NieBytes::empty(), // NXTCH (Switch swizzle) non géré ici
-    };
-    let dds = match data.get(tex.data_offset..) {
-        Some(b) if b.len() >= PIXEL_OFFSET => b,
-        _ => return NieBytes::empty(),
-    };
-    // Magic "DDS " little-endian.
-    if dds.get(..4).and_then(|b| b.try_into().ok()).map(u32::from_le_bytes) != Some(0x2053_4444) {
-        return NieBytes::empty();
+    match nie_formats::g4tx_decode::decode_best_to_png(data) {
+        Some(png) => NieBytes::from_vec(png),
+        None => NieBytes::empty(),
     }
-    let dxgi = match dds.get(DX10_DXGI_OFFSET..DX10_DXGI_OFFSET + 4).and_then(|b| b.try_into().ok()) {
-        Some(b) => u32::from_le_bytes(b),
-        None => return NieBytes::empty(),
-    };
-    let fmt = match dxgi_to_image_format(dxgi) {
-        Some(f) => f,
-        None => return NieBytes::empty(),
-    };
-    let (w, h) = (tex.width as u32, tex.height as u32); // > 0 garanti par le filtre ci-dessus
-    let surface = image_dds::Surface {
-        width: w,
-        height: h,
-        depth: 1,
-        layers: 1,
-        mipmaps: 1,
-        image_format: fmt,
-        data: &dds[PIXEL_OFFSET..],
-    };
-    let rgba = match surface.decode_rgba8() {
-        Ok(r) => r,
-        Err(_) => return NieBytes::empty(),
-    };
-    let img = match image::RgbaImage::from_raw(w, h, rgba.data) {
-        Some(i) => i,
-        None => return NieBytes::empty(),
-    };
-    let mut png_buf: Vec<u8> = Vec::new();
-    if img.write_to(&mut Cursor::new(&mut png_buf), image::ImageFormat::Png).is_err() {
-        return NieBytes::empty();
-    }
-    NieBytes::from_vec(png_buf)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
