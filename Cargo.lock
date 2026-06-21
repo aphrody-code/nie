@@ -2629,7 +2629,6 @@ dependencies = [
  "image_dds",
  "nie-data",
  "nie-formats",
- "png",
  "rusqlite",
  "serde",
  "serde_json",
