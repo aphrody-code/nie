@@ -88,14 +88,16 @@ nie-engine           = exclu des members → référence RE lecture seule  [FAIT
 *Garde : déménager les golden `typed` avec les arms ; **comparer `bcdec_rs`↔`image_dds` sur une vraie texture BC7
 avant** de retirer le décodeur de `nie-app::character.rs:18` ; la comparaison GPU↔CPU de nie-game reste verte.*
 
-### Phase 2 — Brique géométrie + raster — **géométrie FAIT** (render3d `44aae64` + nie-geom `af4c5ce`/`582368f`) ; `raster2d` byte-risqué reste (effort M)
+### Phase 2 — Brique géométrie + raster — **FAIT** (géométrie `44aae64`/`af4c5ce`/`582368f` + raster2d ops `80ee0df`) ; seul le blend reste (landmine #5, RE requise)
 - **FAIT (`44aae64`)** : sous-lot intra-crate render3d — helpers `V3/sub/cross/dot/normv` (dupliqués verbatim render.rs↔scene.rs) extraits dans `vecmath`.
 - **FAIT (`af4c5ce` + `582368f`)** : crate feuille **`nie-geom`** (no_std-optionnel, serde optionnel, 0 dep) = source unique
   de `Vec2`/`Vec3`. `nie-core::Vec3` et `nie-runtime::V3`/`V2` migrés (verbatim → byte-neutre). **Landmine #4 résolue par
   conception** : le type est **axis-agnostique** (la convention y/z=hauteur vit dans le CODE de chaque crate, inchangé) + garde-fou
   documenté au type ET aux deux imports (« ne jamais convertir entre les deux »). Gate : nie-core 186 tests + nie-runtime 6 tests
   (golden physique/déterminisme préservés) + `build --workspace` RC=0. `nie-render3d` garde son `[f32;3]` (idiome distinct) ; `g4mg::Vec2 {u,v}` reste (stabilité JSON).
-- **Reste — `nie-formats::raster2d` = LANDMINE #5 (investigué 2026-06-21, NON fait à dessein)** : les blends `over` du workspace
+- **FAIT (`80ee0df`)** : module `nie-formats::raster2d` créé (no_std, alloc-only) avec les ops **byte-identiques** `crop_rgba` + `scale_nearest`
+  (retirées de nie-game → import). Source unique de la couche raster 2D. Le **blend reste exclu** (landmine #5 ci-dessous).
+- **Reste = blend seul — LANDMINE #5 (investigué 2026-06-21, NON fait à dessein)** : les blends `over` du workspace
   **divergent réellement** — `nie-runtime::render::blend` = f32 tronqué `(cv*a + dst*(1-a)) as u8` ; `nie-game::blit_over` = entier
   arrondi `(sc*a + dc*(255-a) + 127)/255`. Le blend MENU (`nie-formats::menu`) est **déjà** le canon byte-validé (f32, Phase 1c) — mais
   il composite des MENUS ; les autres renderers dessinent **autre chose** (terrain de match, sprites) et peuvent diverger **par contexte**,

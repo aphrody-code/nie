@@ -144,9 +144,9 @@ pour ramener chaque famille de code à une **source de vérité unique** sans ca
   verbatim) ; rename `render::Screen`→`Frame` (collision résolue, golden nie-play byte-neutre). **Constat** : le « merge GameState » n'est PAS
   un dédup — `GameState` (DTO de rendu) et `Screen` (FSM) sont complémentaires (Screen délègue déjà son rendu à GameState) ; fusionner = pire.
   nie-game ne duplique pas MENU/MODES (vérifié). Il y a déjà UNE FSM.
-- **Phase 2 — géométrie FAIT** (`44aae64` render3d + `af4c5ce`/`582368f` nie-geom) : crate feuille `nie-geom` (Vec2/Vec3 POD, no_std-optionnel)
-  = source unique ; `nie-core::Vec3` + `nie-runtime::V3/V2` migrés byte-neutre (186 + 6 tests verts). **Landmine #4 résolue par conception**
-  (type axis-agnostique, conventions dans le code, garde-fou aux imports). Reste : `raster2d` (blend menu, byte-risqué → gate pixel).
+- **Phase 2 — FAIT** (`44aae64`/`af4c5ce`/`582368f` géométrie + `80ee0df` raster2d) : crate `nie-geom` (Vec2/Vec3 POD) = source unique,
+  nie-core/nie-runtime migrés byte-neutre (landmine #4 résolue par conception) ; module `nie-formats::raster2d` (crop/scale byte-identiques,
+  no_std) centralise la couche raster. **Seul le blend reste** = landmine #5 (formules divergentes par contexte → unifier sans RE = faux-FAIT).
 - **Phase 3 — FAIT** (`daf98fd` thiserror + `cdde444` `#![no_std]` strict) : nie-formats compile en `#![no_std]` strict via
   `--no-default-features` (cœur DONNÉES cfgbin/crilayla/cpk, `alloc`-only) ; build par défaut std INCHANGÉ (tous consommateurs/wasm/tests).
   **Byte-exact préservé SANS libm** : les parseurs à float (g4sk/g4mt/g4mg/g4pkm/menu) + I/O (assemble/vfs/cri_audio) gatés `std`. Débloque la
