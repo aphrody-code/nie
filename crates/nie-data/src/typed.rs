@@ -1,7 +1,7 @@
 //! Dispatch **typé** des `cfg.bin` : d'une `Value` au format iecode (`lists`/`entries`) +
 //! d'une clé de famille (dérivée du nom de fichier), vers la structure de jeu nommée
 //! correspondante sérialisée en JSON. Partagé entre `nie-model-serve` (route `/typed`) et
-//! `nie-wasm` (décodage in-browser) — source unique des 37 familles couvertes.
+//! `nie-wasm` (décodage in-browser) — **source unique** des 93 familles couvertes.
 //!
 //! `no_std + alloc` : `serde_json::to_value` fonctionne en mode `alloc`. Gated `serde`
 //! (les structures de famille ne dérivent `Serialize` que sous cette feature).
@@ -30,7 +30,8 @@ pub fn family_key(path: &str) -> String {
 
 /// Dispatche un `root` (forme iecode `lists`/`entries`) vers le parseur typé de la famille
 /// `key`, et renvoie `(label, json)`. `None` si aucune famille typée ne correspond (le caller
-/// renvoie alors le générique). Couvre 37 familles game-data validées golden byte-exact.
+/// renvoie alors le générique). Couvre 93 familles game-data (37 d'origine + 56 rapatriées
+/// de nie-model-serve le 2026-06-21), parseurs validés golden byte-exact.
 #[must_use]
 #[allow(clippy::too_many_lines)]
 pub fn decode_by_key(key: &str, root: &Value) -> Option<(&'static str, Value)> {
@@ -104,6 +105,78 @@ pub fn decode_by_key(key: &str, root: &Value) -> Option<(&'static str, Value)> {
         "skill_view_preset_config" => {
             t!("skill_view", crate::skill_view::parse_skill_view_preset_config(root))
         }
+        // ── 56 familles rapatriées de nie-model-serve (2026-06-21, dédup Phase 1a) ──────
+        // Étaient décodées en structuré côté serveur mais renvoyées en « generic » côté
+        // navigateur (nie-wasm passait par cette table à 37 arms) → incohérence corrigée.
+        "uniform_config" => t!("uniform", crate::uniform::parse_uniform_config(root)),
+        "players_universe_config" => {
+            t!("players_universe", crate::players_universe::parse_players_universe_config(root))
+        }
+        "players_universe_event_config" => t!(
+            "players_universe_event",
+            crate::players_universe::parse_players_universe_event_config(root)
+        ),
+        "nfc_lottery_config" => t!("nfc_lottery", crate::nfc::parse_nfc_lottery_config(root)),
+        "search_word_config" => {
+            t!("search_word", crate::search_word::parse_search_word_config(root))
+        }
+        "passive_skill_config" => t!("passive", crate::passive::parse_passives(root)),
+        "soccer_ai_cmd_config" => t!("soccer_ai_cmd", crate::ai::parse_soccer_ai_cmd_config(root)),
+        "soccer_user_ai_config" => {
+            t!("soccer_user_ai", crate::ai::parse_soccer_user_ai_config(root))
+        }
+        "strategy_ai_config" => t!("strategy_ai", crate::ai::parse_strategy_ai_config(root)),
+        "tactics_ai_config" => t!("tactics_ai", crate::ai::parse_tactics_ai_config(root)),
+        "adaptive_trigger_def" => {
+            t!("adaptive_trigger", crate::input::parse_adaptive_trigger_def(root))
+        }
+        "haptic_feedback_def" => {
+            t!("haptic_feedback", crate::input::parse_haptic_feedback_def(root))
+        }
+        "vibration_def" => t!("vibration", crate::input::parse_vibration_def(root)),
+        "basara_chara_config" => t!("basara_chara", crate::basara::parse_basara_chara_config(root)),
+        "belong_team_config" => t!("belong_team", crate::belong_team::parse_belong_team_config(root)),
+        "capsule_config" => t!("capsule", crate::capsule::parse_capsule_database(root)),
+        "change_aura_skill_config" => t!("change_aura_skill", crate::change_aura_skill_config::parse_change_aura_skill_config(root)),
+        "chara_base" => t!("chara_base", crate::chara_base::parse_all_chara_base(root)),
+        "chara_costume" => t!("chara_costume", crate::chara_costume::parse_all_chara_costumes(root)),
+        "chara_description_text" => t!("chara_description", crate::chara_description::parse_chara_descriptions(root)),
+        "chara_details_config" => t!("chara_details", crate::chara_details::parse_chara_details(root)),
+        "chara_menu_resource" => t!("chara_menu_resource", crate::chara_menu_resource::parse_chara_menu_resource(root)),
+        "chara_series_config" => t!("chara_series", crate::chara_series::parse_chara_series_config(root)),
+        "chat_emote_config" => t!("chat_emote", crate::chat_emote::parse_chat_emote_config(root)),
+        "chat_emote_def_set_config" => t!("chat_emote_def_set", crate::chat_emote::parse_chat_emote_def_set_config(root)),
+        "soccer_cmd_action" => t!("soccer_cmd_action", crate::command::parse_cmd_actions(root)),
+        "rpg_cmd_action" => t!("rpg_cmd_action", crate::command::parse_cmd_actions(root)),
+        "soccer_cmd_event" => t!("soccer_cmd_event", crate::command::parse_cmd_events(root)),
+        "rpg_cmd_event" => t!("rpg_cmd_event", crate::command::parse_cmd_events(root)),
+        "chara_cmd_event_common" => t!("chara_cmd_common", crate::command::parse_chara_cmd_common(root)),
+        "craft_theme_config" => t!("craft_theme", crate::craft::parse_craft_theme_config(root)),
+        "ctrl_chara_config" => t!("ctrl_chara", crate::ctrl_chara::parse_all_ctrl_chara(root)),
+        "emblem_resource" => t!("emblem", crate::emblems::parse_emblem_resources(root)),
+        "extend_story_data_config" => t!("extend_story", crate::extend_story::parse_extend_story_config(root)),
+        "inacode_config" => t!("inacode", crate::inacode::parse_inacode_config(root)),
+        "item_emission_rarity_table_config" => t!("item_emission", crate::item_emission::parse_item_emission_rates(root)),
+        "msa999999_trigger" => t!("mission_trigger", crate::mission::parse_mission_trigger(root)),
+        "movie_playing_config" => t!("movie_playing", crate::movie::parse_movie_playing_config(root)),
+        "opponent_team_config" => t!("opponent_team", crate::opponent_team::parse_opponent_team_config(root)),
+        "override_skill_config" => t!("override_skill", crate::override_skill::parse_override_skill_config(root)),
+        "party_departure" => t!("party_departure", crate::party::parse_party_departure(root)),
+        "supecify_party0.00.00" => t!("specify_party", crate::party::parse_specify_party(root)),
+        "guest_limit_config" => t!("guest_limit", crate::party::parse_guest_limit_config(root)),
+        "phase_title_config" => t!("phase_title", crate::phase::parse_phase_title_config(root)),
+        "quest_config" => t!("quest", crate::quest::parse_quest_config(root)),
+        "real_skill_config" => t!("real_skill", crate::real_skill_config::parse_real_skill_config(root)),
+        "rpg_battle_rule_config" => t!("rpg_battle_rule", crate::rpg_battle::parse_rule_config(root)),
+        "rpg_battle_status_pattern_config" => t!("rpg_battle_status_pattern", crate::rpg_battle::parse_status_pattern_config(root)),
+        "rpg_battle_chara_swap_motion_config" => t!("rpg_battle_chara_swap_motion", crate::rpg_battle::parse_chara_swap_motion_config(root)),
+        "rpg_battle_party_config" => t!("rpg_battle_party", crate::rpg_battle::parse_party_config(root)),
+        "rpg_battle_cmd_event_config" => t!("rpg_battle_cmd_event", crate::rpg_battle::parse_cmd_event_config(root)),
+        "rpg_battle_cmd_obj_config" => t!("rpg_battle_cmd_obj", crate::rpg_battle::parse_cmd_obj_config(root)),
+        "rpg_battle_cmd_set_config" => t!("rpg_battle_cmd_set", crate::rpg_battle::parse_cmd_set_config(root)),
+        "rpg_battle_add_status_config" => t!("rpg_battle_add_status", crate::rpg_battle::parse_add_status_config(root)),
+        "shop_config" => t!("shop", crate::shop::parse_shop_config(root)),
+        "skill_technic_config" => t!("skill_technic", crate::skill_technic::parse_skill_technic_config(root)),
         _ => None,
     }
 }
