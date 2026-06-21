@@ -10,10 +10,14 @@
 
 pub mod character;
 pub mod render;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod roster;
 pub mod story;
 
-pub use render::{CpuRenderer, Font, Screen, H, W};
+pub use render::{Font, Screen, H, W};
+/// Renderer CPU natif (charge les assets disque) — absent en wasm (le web utilise [`render::render_state`]).
+#[cfg(not(target_arch = "wasm32"))]
+pub use render::CpuRenderer;
 
 /// État du jeu — la machine à états centrale, partagée par tous les front-ends.
 ///
