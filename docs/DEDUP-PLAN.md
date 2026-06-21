@@ -17,7 +17,7 @@ préserve l'ancrage RE**. Contraintes à respecter dans chaque action :
 - **wasm-portable** : `nie-formats`/`nie-core`/`nie-wasm` sans `std::fs`/`println!`.
 - **`#![forbid(unsafe_code)]`** : intact sur les crates jeu ; la dédup est du câblage sûr.
 
-## Les 3 fusions INTERDITES (landmines)
+## Les 4 fusions INTERDITES (landmines)
 
 1. **CRC32 finalisé vs brut** = **deux fonctions distinctes**. `crc32` (`!crc`, noms cfg.bin, clés de
    fichier CPK, type-id ECS, CRC de save) ≠ `crc32_nie` (accumulateur brut sans complément, model-id CPK
@@ -26,6 +26,12 @@ préserve l'ancrage RE**. Contraintes à respecter dans chaque action :
    il est validé golden `real-fixtures` (skinning), un réordonnancement f32 casse le golden.
 3. **`StatBlock` de `nie-wiki`** (2 segments f64, `model.rs:97`/`query.rs:236`) diverge **volontairement**
    de `nie-core` (3 segments f32) : le miroir SQLite n'a pas le palier lv30. Ne pas fusionner.
+4. **`Vec3` : conventions d'axe vertical OPPOSÉES** (découvert 2026-06-21). `nie-core::Vec3` (`lib.rs:169`) :
+   **`y`=hauteur**, `z`=largeur terrain. `nie-runtime::V3` (`lib.rs:69`) : **`z`=hauteur**, `y`=largeur
+   (`ground()` = `{x,y}`). Structure identique mais sémantique opposée → les fusionner **corromprait la
+   physique** (gravité sur le mauvais axe) en silence, tests verts possibles. La fusion Vec3 de Phase 2 exige
+   un **audit du système de coordonnées** au préalable, PAS un simple re-export. (Idem `Vec2` : `g4mg::{u,v}`
+   UV ≠ `{x,y}` terrain → renommer changerait la sortie JSON servie.)
 
 ## Constat : 3 strates de risque
 
@@ -83,7 +89,11 @@ nie-engine           = exclu des members → référence RE lecture seule  [FAIT
 avant** de retirer le décodeur de `nie-app::character.rs:18` ; la comparaison GPU↔CPU de nie-game reste verte.*
 
 ### Phase 2 — Brique géométrie + raster — **AMORCÉ** (sous-lot render3d FAIT `44aae64` ; nie-geom + raster2d à faire) (effort M, soin no_std)
-- **FAIT (`44aae64`)** : sous-lot intra-crate render3d — helpers `V3/sub/cross/dot/normv` (dupliqués verbatim render.rs↔scene.rs) extraits dans `vecmath`. Reste : crate feuille `nie-geom` (PODs partagés cross-crate, landmine g4sk) + `nie-formats::raster2d` (blend unique).
+- **FAIT (`44aae64`)** : sous-lot intra-crate render3d — helpers `V3/sub/cross/dot/normv` (dupliqués verbatim render.rs↔scene.rs) extraits dans `vecmath`.
+- **BLOQUÉ (audit requis)** : la crate `nie-geom` + migration `Vec3`/`Vec2` est suspendue sur la **landmine #4** (conventions
+  d'axe opposées `nie-core::Vec3` y=hauteur vs `nie-runtime::V3` z=hauteur ; `Vec2` UV `{u,v}` vs terrain `{x,y}`). Ce n'est PAS
+  un re-export mécanique : exige un audit du système de coordonnées + revalidation physique avant toute fusion. `raster2d`
+  (blend unique) reste à faire (touche le compositeur menu byte-exact → gate pixel requis).
 - **Crate feuille `nie-geom`** (`#![no_std]` + alloc, 0 dep, **pas glam** ; sqrt/normalize derrière feature
   `std`/`libm`) : PODs `Vec2/Vec3/Vec4/Mat4`. Migrer `nie-core/src/lib.rs:169`, `nie-runtime/src/lib.rs:23,69`,
   `nie-render3d` (`scene.rs:9`+`render.rs:15`), `nie-formats/src/g4mg.rs:39,51`. **`g4sk::mat_mul` reste local** (landmine 2).
