@@ -104,20 +104,17 @@ avant** de retirer le décodeur de `nie-app::character.rs:18` ; la comparaison G
   `nie-model-serve/src/menu.rs:170`, `nie-runtime/src/render.rs:52`, `nie-app/src/render.rs:84`) sur le canon f32 du compositeur
   (byte-exact imposé seulement au chemin menu déjà testé). `crop_rgba`/`scale_nearest` de `nie-game/src/main.rs:724,953` → raster2d.
 
-### Phase 3 — `nie-formats` vraiment no_std — **AMORCÉ** : thiserror retiré FAIT `daf98fd` ; `#![no_std]` strict reste (effort L, *enabler*)
+### Phase 3 — `nie-formats` vraiment no_std — **FAIT** (`daf98fd` thiserror + `cdde444` `#![no_std]` strict)
 - **FAIT (`daf98fd`)** : `thiserror` retiré de nie-formats — `FormatError`/`AssembleError` implémentent `core::error::Error` +
-  `Display` à la main (no_std-ready, messages préservés). Gate `cargo build --workspace` RC=0 (tous consommateurs).
-- **Reste (gros lot, L — RECETTE PRÉCISE issue d'une tentative 2026-06-21, revertée pour ne pas casser l'arbre)** : ajouter
-  `#![cfg_attr(not(feature = "std"), no_std)]` + `[features] std=[] ; default=["std"]` (build par défaut INCHANGÉ, vérifié vert) ;
-  `textures`/`audio-decode`/`real-fixtures` impliquent `std` ; gater `pub mod assemble;`/`pub mod vfs;` derrière `#[cfg(feature="std")]`.
-  PUIS le vrai lot : `#[macro_use] extern crate alloc;` **à la racine** (lib.rs, PAS par-module — E0468) pour `vec!`/`format!`, et
-  dans chaque module du cœur qui les utilise bare : `use alloc::{vec::Vec, string::{String, ToString}, borrow::ToOwned};`. La tentative
-  a mesuré ~35 erreurs no_std concentrées sur **objbin/menu/cpk/cri_audio/g4mg** (`vec!`/`Vec`/`to_string`/`to_owned`) — le reste du cœur
-  (g4md/g4mg/g4sk/g4pk/level5/crilayla/dxbc/col/navm/g4tx) est déjà no_std-clean. Imports alloc **à variance par-module** (menu manque `Vec`,
-  d'autres l'ont déjà → un préambule uniforme donne des E0252 doublons) : tailler par module. **2e blocage découvert (2 tentatives, revertées,
-  build std toujours vert)** : `cri_audio::adx_decode` fait des **maths flottantes** (`f64::cos`/`sqrt` pour le filtre ADPCM) → en no_std il faut
-  `libm` (ou gater cri_audio entier derrière `std` — acceptable car nie-data n'a pas besoin d'audio). Vérifier aussi g4sk/g4mt/g4mg (matrices/normales sqrt).
-  `aes` à vérifier en no_std. Aucun risque byte (I/O + maths inchangées, juste via libm). Effort réel : L (multi-session).
+  `Display` à la main (no_std-ready, messages préservés).
+- **FAIT (`cdde444`)** : `#![cfg_attr(not(feature = "std"), no_std)]` + `[features] std=[] ; default=["std"]`. **Build par défaut
+  INCHANGÉ** (std) → tous consommateurs/wasm/tests intacts. En `--no-default-features`, nie-formats compile en `#![no_std]` strict :
+  cœur DONNÉES **cfgbin/crilayla/cpk** (ce dont nie-data a besoin), `alloc`-only. **Contrainte byte-exact respectée SANS libm** : les
+  parseurs à maths flottantes (g4sk/g4mt/g4mg/g4pkm/menu : sqrt/sin/cos/atan2) et I/O (assemble/vfs/cri_audio) sont gatés
+  `#[cfg(feature = "std")]` (22 modules) — ils gardent `f32::sqrt` etc. inchangés (libm diffère au dernier ULP → aurait cassé les golden
+  skinning/anim). `textures`/`audio-decode`/`real-fixtures` impliquent std. Gate : std + workspace + 173+9 golden + wasm32 + clippy
+  `--all-targets` ET `--no-default-features` = tous verts, 0 warning. (Recette des 3 tentatives — `#[macro_use]` racine invalide E0468,
+  imports alloc à variance par-module, float-math byte-exact — préservée dans l'historique git.)
 - **Débloque** (après le strict) : `nie-data` consomme enfin le **vrai parseur binaire**
   `nie_formats::cfgbin::CfgEntry/RdbnList` au lieu du JSON inagle → effondre la représentation cfg.bin parallèle
   (`nie-data/src/cfgbin.rs` `Node/Var/walk_named` devient un adaptateur transitoire tant qu'azalee ingère du JSON). **Débloque** : `nie-data` consomme enfin le **vrai parseur binaire**

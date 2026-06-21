@@ -145,8 +145,12 @@ pour ramener chaque famille de code à une **source de vérité unique** sans ca
 - **Phase 2 — géométrie FAIT** (`44aae64` render3d + `af4c5ce`/`582368f` nie-geom) : crate feuille `nie-geom` (Vec2/Vec3 POD, no_std-optionnel)
   = source unique ; `nie-core::Vec3` + `nie-runtime::V3/V2` migrés byte-neutre (186 + 6 tests verts). **Landmine #4 résolue par conception**
   (type axis-agnostique, conventions dans le code, garde-fou aux imports). Reste : `raster2d` (blend menu, byte-risqué → gate pixel).
-- **NON_FAIT — Phases 3, 4** : 3 `nie-formats` vraiment no_std (enabler) ; 4 unification des moteurs de match (= `docs/UNIFICATION.md`,
-  **risque byte-exact max** : créer `match_live`, rebrancher `World`, re-baseliner les golden). Exigent disque libéré + suites golden (VPS à 97 %).
+- **Phase 3 — FAIT** (`daf98fd` thiserror + `cdde444` `#![no_std]` strict) : nie-formats compile en `#![no_std]` strict via
+  `--no-default-features` (cœur DONNÉES cfgbin/crilayla/cpk, `alloc`-only) ; build par défaut std INCHANGÉ (tous consommateurs/wasm/tests).
+  **Byte-exact préservé SANS libm** : les parseurs à float (g4sk/g4mt/g4mg/g4pkm/menu) + I/O (assemble/vfs/cri_audio) gatés `std`. Débloque la
+  consommation du vrai parseur `cfgbin` par nie-data. Gate : std + workspace + 173+9 golden + wasm32 + clippy std ET no_std verts.
+- **NON_FAIT — Phase 4** : unification des moteurs de match (= `docs/UNIFICATION.md`, **risque byte-exact max** : créer `match_live`,
+  rebrancher `World`, re-baseliner les golden) — **bloquée amont** : boucles d'update C++ non reversées (pilier C3, RE multi-session).
 
 ## Roadmap priorisée (vers le jeu jouable)
 
