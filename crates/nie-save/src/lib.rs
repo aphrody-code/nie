@@ -521,22 +521,13 @@ pub fn crc32_of_pub(data: &[u8]) -> u32 {
     crc32_of(data)
 }
 
-/// Calcule CRC32 ISO-3309 (même table que `nie-formats/cpk`, poly `0xEDB88320`).
+/// Calcule CRC32 ISO-3309 (poly `0xEDB88320`, init/xorout `0xFFFFFFFF`).
 ///
-/// Réimplémenté ici pour éviter d'exposer des détails internes de `nie-formats`.
+/// **Source unique** du workspace : délègue à `nie_formats::cfgbin::crc32` (dédup Phase 1d).
+/// nie-save dépend déjà de nie-formats (`cpk::decrypt_block`/`key_from_filename`) — plus de copie locale.
 #[must_use]
 fn crc32_of(data: &[u8]) -> u32 {
-    const POLY: u32 = 0xEDB8_8320;
-    let mut crc = 0xFFFF_FFFFu32;
-    for &b in data {
-        let idx = ((crc ^ u32::from(b)) & 0xFF) as usize;
-        let mut entry = idx as u32;
-        for _ in 0..8 {
-            entry = if entry & 1 == 1 { (entry >> 1) ^ POLY } else { entry >> 1 };
-        }
-        crc = (crc >> 8) ^ entry;
-    }
-    !crc
+    nie_formats::cfgbin::crc32(data)
 }
 
 // ---------------------------------------------------------------------------
