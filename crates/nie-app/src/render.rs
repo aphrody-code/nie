@@ -1,4 +1,4 @@
-//! Rendu CPU des écrans du jeu : [`Screen`] (cadre RGBA + helpers), [`Font`] (police réelle via
+//! Rendu CPU des écrans du jeu : [`Frame`] (cadre RGBA + helpers), [`Font`] (police réelle via
 //! `LatinAtlas`), [`render_state`] (un état → un cadre) et [`CpuRenderer`] (impl [`Renderer`] :
 //! police + toiles de fond 3D pré-rendues). Front-end headless/golden ; le temps-réel passe par wgpu.
 
@@ -51,13 +51,13 @@ impl Font {
 }
 
 /// Cadre de rendu RGBA + helpers de dessin.
-pub struct Screen<'a> {
+pub struct Frame<'a> {
     /// Tampon RGBA8 `W*H*4`.
     pub buf: Vec<u8>,
     f: &'a Font,
 }
 
-impl<'a> Screen<'a> {
+impl<'a> Frame<'a> {
     fn new(f: &'a Font) -> Self {
         Self { buf: vec![0u8; W * H * 4], f }
     }
@@ -121,10 +121,10 @@ impl<'a> Screen<'a> {
 
 /// Rend un état du jeu dans un cadre. `bg` = toile de fond 3D propre à cet état (perso, match…).
 #[must_use]
-pub fn render_state<'a>(state: &GameState, f: &'a Font, bg: Option<&[u8]>) -> Screen<'a> {
+pub fn render_state<'a>(state: &GameState, f: &'a Font, bg: Option<&[u8]>) -> Frame<'a> {
     let mut s = match bg {
-        Some(b) => Screen::from_base(f, b),
-        None => Screen::new(f),
+        Some(b) => Frame::from_base(f, b),
+        None => Frame::new(f),
     };
     match state {
         GameState::Title => {
@@ -182,8 +182,8 @@ pub fn render_state<'a>(state: &GameState, f: &'a Font, bg: Option<&[u8]>) -> Sc
 /// Rendu générique d'un menu-liste (titre + items surlignables), adapté au nombre d'items.
 /// Sert au menu principal (9 onglets réels) et au sélecteur de mode (5 modes réels). RGBA8 `W*H*4`.
 #[must_use]
-pub fn render_list<'a>(title: &str, items: &[&str], sel: usize, f: &'a Font) -> Screen<'a> {
-    let mut s = Screen::new(f);
+pub fn render_list<'a>(title: &str, items: &[&str], sel: usize, f: &'a Font) -> Frame<'a> {
+    let mut s = Frame::new(f);
     s.gradient([30, 40, 80], [14, 18, 34]);
     s.rect(0, 0, W as i32, 70, [20, 60, 130, 255]);
     s.text(40, 16, title, [220, 235, 255, 255]);
