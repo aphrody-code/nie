@@ -102,15 +102,25 @@ avant** de retirer le décodeur de `nie-app::character.rs:18` ; la comparaison G
   `nie-model-serve/src/menu.rs:170`, `nie-runtime/src/render.rs:52`, `nie-app/src/render.rs:84`) sur le canon f32 du compositeur
   (byte-exact imposé seulement au chemin menu déjà testé). `crop_rgba`/`scale_nearest` de `nie-game/src/main.rs:724,953` → raster2d.
 
-### Phase 3 — `nie-formats` vraiment no_std — **NON_FAIT** (effort L, *enabler*)
-Gater `thiserror` derrière feature `std` (Display manuel `core::fmt` + `impl std::error::Error` sous `cfg(std)`) ;
-vérifier que `aes` compile en no_std. **Débloque** : `nie-data` consomme enfin le **vrai parseur binaire**
+### Phase 3 — `nie-formats` vraiment no_std — **AMORCÉ** : thiserror retiré FAIT `daf98fd` ; `#![no_std]` strict reste (effort L, *enabler*)
+- **FAIT (`daf98fd`)** : `thiserror` retiré de nie-formats — `FormatError`/`AssembleError` implémentent `core::error::Error` +
+  `Display` à la main (no_std-ready, messages préservés). Gate `cargo build --workspace` RC=0 (tous consommateurs).
+- **Reste (gros lot, L)** : `#![no_std]` strict exige de gater l'I/O `std` des parseurs — **`std::io::Cursor` dans 13 fichiers**
+  (vfs/assemble/g4pkm/font/cpk/objbin/mevbin/menu/lip…) → réécriture byte-reader no_std + gating `std` de vfs/assemble. `aes` à vérifier en no_std.
+- **Débloque** (après le strict) : `nie-data` consomme enfin le **vrai parseur binaire**
+  `nie_formats::cfgbin::CfgEntry/RdbnList` au lieu du JSON inagle → effondre la représentation cfg.bin parallèle
+  (`nie-data/src/cfgbin.rs` `Node/Var/walk_named` devient un adaptateur transitoire tant qu'azalee ingère du JSON). **Débloque** : `nie-data` consomme enfin le **vrai parseur binaire**
 `nie_formats::cfgbin::CfgEntry/RdbnList` au lieu du JSON inagle → effondre la représentation cfg.bin parallèle
 (`nie-data/src/cfgbin.rs` `Node/Var/walk_named` devient un adaptateur transitoire tant qu'azalee ingère du JSON).
 
-### Phase 4 — Unification des moteurs de match — **NON_FAIT** (effort L, **risque byte-exact max — le vrai prix**)
+### Phase 4 — Unification des moteurs de match — **NON_FAIT / BLOQUÉ amont** (effort L, **risque byte-exact max — le vrai prix**)
 = *Phase 1 de `docs/UNIFICATION.md`*, déjà actée. Aujourd'hui **3 moteurs coexistent sans se parler** : `match_sim`
 (statistique nominal), `nie-runtime::World` (physique Euler approximée), et tout le code byte-exact **orphelin**.
+> **BLOCAGE AMONT (cf. pilier C3, PLAN.md)** : les modules « orphelins » (keeper/soccer_ctrl/tactics/action/play_cmd_manager)
+> sont des **STRUCTS reversées SANS boucle d'update portée** — seules 3 physiques de ballon ont leur `update` byte-exact (via uemu).
+> Donc `match_live` ne peut PAS *orchestrer* une logique byte-exacte qui n'est pas encore reversée : créer un squelette qui
+> *prétend* unifier le moteur serait un **faux-FAIT**. Cette phase est gatée sur la RE des boucles d'update (oracle uemu / differential-testing,
+> multi-session). La part **purement dédup et sûre** ici = fusionner `match_state.rs` → `match_fsm.rs` (FSM dupliquée) ; le reste est du RE, pas de la dédup.
 - Créer **`nie-core::match_live`** (boucle tick) orchestrant les modules byte-exact **aujourd'hui orphelins** :
   `ball::BallMover` (`ball.rs:341,477`), `keeper` (`keeper.rs:151`), `soccer_ctrl`, `tactics`, `action`,
   `play_cmd_manager` + `match_fsm::final_score`.
