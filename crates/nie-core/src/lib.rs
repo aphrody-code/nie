@@ -159,115 +159,14 @@ pub const TACTICS_MAX_PRIORITY: u16 = 7;
 /// RE incertain: signification enum (0=off, 1=défensif, 2=normal, 3=offensif?).
 pub const TACTICS_DEFAULT_MODE: u64 = 2;
 
-/// Vec3 flottant, convention IEVR (x, y, z).
-///
-/// Les coordonnées IEVR semblent utiliser y vers le haut (système main-droite
-/// habituel 3D). Aucune confirmation absolue depuis le RE — système de
-/// coordonnées non vérifié.
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Vec3 {
-    /// Composante X (horizontale, axe longueur terrain)
-    pub x: f32,
-    /// Composante Y (verticale, hauteur)
-    pub y: f32,
-    /// Composante Z (horizontale, axe largeur terrain)
-    pub z: f32,
-}
-
-impl Vec3 {
-    /// Vecteur nul.
-    #[must_use]
-    pub const fn zero() -> Self {
-        Self { x: 0.0, y: 0.0, z: 0.0 }
-    }
-
-    /// Composante X du vecteur (abréviation).
-    #[must_use]
-    pub fn x(self) -> f32 { self.x }
-    /// Composante Y du vecteur (abréviation).
-    #[must_use]
-    pub fn y(self) -> f32 { self.y }
-    /// Composante Z du vecteur (abréviation).
-    #[must_use]
-    pub fn z(self) -> f32 { self.z }
-
-    /// Longueur euclidienne au carré (sans racine carrée, pour comparaisons).
-    #[must_use]
-    pub fn length_sq(self) -> f32 {
-        self.x * self.x + self.y * self.y + self.z * self.z
-    }
-
-    /// Longueur euclidienne.
-    #[must_use]
-    pub fn length(self) -> f32 {
-        self.length_sq().sqrt()
-    }
-
-    /// Normalise le vecteur (retourne `zero()` si norme < epsilon).
-    #[must_use]
-    pub fn normalize(self) -> Self {
-        let len = self.length();
-        if len < f32::EPSILON {
-            return Self::zero();
-        }
-        Self { x: self.x / len, y: self.y / len, z: self.z / len }
-    }
-
-    /// Lerp entre `self` et `other` avec poids `t` ∈ [0, 1].
-    #[must_use]
-    pub fn lerp(self, other: Self, t: f32) -> Self {
-        Self {
-            x: self.x + (other.x - self.x) * t,
-            y: self.y + (other.y - self.y) * t,
-            z: self.z + (other.z - self.z) * t,
-        }
-    }
-}
-
-impl core::fmt::Display for Vec3 {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "({:.3}, {:.3}, {:.3})", self.x, self.y, self.z)
-    }
-}
-
+/// `Vec3` flottant (x, y, z) — **source unique** `nie_geom::Vec3` (dédup Phase 2).
+/// Convention IEVR de nie-core : `y` = hauteur (portée dans le CODE ; le type est axis-agnostique).
+/// ⚠ Ne pas convertir vers/depuis `nie_runtime::V3` (z=hauteur) — cf. `docs/DEDUP-PLAN.md` landmine #4.
+pub use nie_geom::Vec3;
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn vec3_zero() {
-        let v = Vec3::zero();
-        assert_eq!(v.x, 0.0);
-        assert_eq!(v.y, 0.0);
-        assert_eq!(v.z, 0.0);
-    }
-
-    #[test]
-    fn vec3_length() {
-        let v = Vec3 { x: 3.0, y: 0.0, z: 4.0 };
-        assert!((v.length() - 5.0).abs() < 1e-5);
-    }
-
-    #[test]
-    fn vec3_normalize() {
-        let v = Vec3 { x: 0.0, y: 3.0, z: 0.0 };
-        let n = v.normalize();
-        assert!((n.y - 1.0).abs() < 1e-6);
-        assert_eq!(n.x, 0.0);
-        assert_eq!(n.z, 0.0);
-    }
-
-    #[test]
-    fn vec3_lerp() {
-        let a = Vec3 { x: 0.0, y: 0.0, z: 0.0 };
-        let b = Vec3 { x: 10.0, y: 20.0, z: 30.0 };
-        let mid = a.lerp(b, 0.5);
-        assert!((mid.x - 5.0).abs() < 1e-6);
-        assert!((mid.y - 10.0).abs() < 1e-6);
-        assert!((mid.z - 15.0).abs() < 1e-6);
-    }
 
     #[test]
     fn constants_coherents() {
