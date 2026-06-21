@@ -70,14 +70,14 @@ nie-engine           = exclu des members → référence RE lecture seule  [FAIT
   installer `cargo-machete` en garde-fou CI (absent du VPS).
 - *Garde : `cargo build/test --workspace` + clippy verts.* ✅
 
-### Phase 1 — Tuer les bugs de divergence — **1a + 1b + 1c FAIT · 1d en cours** (effort M, risque faible, gardé golden)
+### Phase 1 — Tuer les bugs de divergence — **FAIT (1a–1d)** (effort M, risque faible, gardé golden)
 
 | # | Action | file:line clés | Bug corrigé |
 |---|---|---|---|
 | **1a** | Rapatrier les **56 arms** de `model-serve::typed_decode` → `nie-data::typed::decode_by_key` ; supprimer `cfg_family_key`+`typed_decode` de model-serve (qui deviennent des appels à `nie_data::typed`). | `nie-data/src/typed.rs:18,36` (37 fam.) · `nie-model-serve/src/main.rs:613,635,2130` (93 fam.) · `nie-wasm/src/lib.rs:739` (consommateur correct) | wasm gagne 56 familles **gratis** → fin incohérence serveur/navigateur — **FAIT `a70008e`** |
 | **1b** | Nouveau **`nie-formats::g4tx_decode`** (feature `textures`, off par défaut, `image_dds` en `default-features=false` → wasm-OK), reprenant la variante **la plus complète** (model-serve : DX10 + FourCC + legacy). 5 crates l'appellent ; réutilise `g4tx::select_main_texture` (déjà l'unique sélecteur anti-dummy). | `nie-game/src/main.rs:282,302` · `nie-wasm/src/lib.rs:765,785,836` · `nie-ffi/src/lib.rs:614,633` · `nie-model-serve/src/main.rs:339,369,796` · `nie-formats/src/g4tx.rs:182` | textures invisibles en wasm (4 décodeurs divergents) — **FAIT `ed9340b`+fix `e88f1d8`** |
 | **1c** | `model-serve` compositeur de menu **f64 → `nie-formats::menu::compose` f32** (la référence pixel-perfect). | `nie-model-serve/src/menu.rs:107,191` (f64, prod /menu-render) · `nie-formats/src/menu.rs:218,282` (f32, réf) | CDN aligné sur le pixel-perfect — **FAIT `63bf17c`** |
-| **1d** | **CRC32 source unique** : `nie-save`/`nie-ffi` (qui dépendent déjà de nie-formats) importent `nie_formats::cfgbin::crc32` et suppriment leur copie ; `nie-core::ecs`/`nie-data::unlock_condition` (no_std) gardent leur copie + test croisé. Extraire **clé HCA `0x00D2997C0DC5EE72` + decode** dans un module std-gated partagé par wasm/model-serve. | `nie-formats/src/cfgbin.rs:625` (source) · `nie-save/src/lib.rs:528` · `nie-ffi/src/lib.rs:85` · `nie-model-serve/src/main.rs:1520` · `nie-wasm/src/lib.rs:939` | dérive silencieuse hash/audio |
+| **1d** | **CRC32 source unique** : `nie-save`/`nie-ffi` (qui dépendent déjà de nie-formats) importent `nie_formats::cfgbin::crc32` et suppriment leur copie ; `nie-core::ecs`/`nie-data::unlock_condition` (no_std) gardent leur copie + test croisé. Extraire **clé HCA `0x00D2997C0DC5EE72` + decode** dans un module std-gated partagé par wasm/model-serve. | `nie-formats/src/cfgbin.rs:625` (source) · `nie-save/src/lib.rs:528` · `nie-ffi/src/lib.rs:85` · `nie-model-serve/src/main.rs:1520` · `nie-wasm/src/lib.rs:939` | dérive silencieuse hash/audio — **FAIT** : CRC32 `…nie-save` + HCA `f918d9b` (byte-validé real-audio) |
 
 *Garde : déménager les golden `typed` avec les arms ; **comparer `bcdec_rs`↔`image_dds` sur une vraie texture BC7
 avant** de retirer le décodeur de `nie-app::character.rs:18` ; la comparaison GPU↔CPU de nie-game reste verte.*
