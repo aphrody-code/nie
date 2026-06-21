@@ -21,7 +21,8 @@ real-audio = []
 workspace = true
 
 [dependencies]
-nie-formats = { path = "../nie-formats", features = ["serde"] }
+# Feature `textures` = décodeur G4TX/DDS → RGBA8/PNG partagé (`nie_formats::g4tx_decode`).
+nie-formats = { path = "../nie-formats", features = ["serde", "textures"] }
 # Parseurs typés des familles game-data (formation, skill, item, mission…) :
 # alimentent la route `/typed` qui décode un cfg.bin en structures de jeu nommées.
 nie-data = { path = "../nie-data", features = ["serde"] }
@@ -34,7 +35,5 @@ rusqlite.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 clap.workspace = true
-# Décodage DDS (BC1/BC3/BC5/BC7) → RGBA pour les textures G4TX (face + uniforme)
-image_dds = { version = "0.7", default-features = false }
-# Encodage RGBA → PNG pour l'embed dans le GLB
+# Encodage RGBA → PNG pour le compositeur de menu (`menu.rs`).
 png = "0.18"

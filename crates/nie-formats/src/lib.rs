@@ -58,6 +58,9 @@ pub mod g4la;
 pub mod col;
 pub mod dxbc;
 pub mod g4tx;
+/// Décodeur G4TX/DDS → RGBA8/PNG (source unique du workspace, feature `textures`).
+#[cfg(feature = "textures")]
+pub mod g4tx_decode;
 pub mod lip;
 pub mod nxtch;
 pub mod vfs;

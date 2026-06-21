@@ -15,7 +15,9 @@ crate-type = ["cdylib", "rlib"]
 workspace = true
 
 [dependencies]
-nie-formats = { workspace = true, features = ["serde"] }
+# Feature `textures` = décodeur G4TX/DDS → RGBA8/PNG partagé (`nie_formats::g4tx_decode`).
+# `image_dds`/`png` arrivent transitivement via cette feature (pur Rust, compatible wasm32).
+nie-formats = { workspace = true, features = ["serde", "textures"] }
 # nie-core (calcul de stats/growth + machine à états de match) et nie-data (lookup
 # skill/aura/item) avec la feature `serde` pour sérialiser les résultats en JSON côté
 # navigateur. Déclarés en path direct : ces deux crates ne sont pas (encore) dans la
@@ -30,10 +32,6 @@ nie-app = { path = "../nie-app" }
 # top-down → expose `WasmMatch` (le vrai match tourne dans le navigateur). nie-render3d (3D CPU) suit.
 nie-runtime = { path = "../nie-runtime" }
 serde_json.workspace = true
-# Décodage textures G4TX (DDS BC1/BC3/BC5/BC7 → RGBA) + ré-encodage PNG, in-browser.
-# `image_dds` default-features=false = décodeur pur Rust (compatible wasm32).
-image_dds = { version = "0.7", default-features = false }
-png = "0.18"
 cridecoder = { version = "0.2.3", default-features = false }
 
 # wasm-bindgen épinglé à la même version qu'aphrody (=0.2.121).

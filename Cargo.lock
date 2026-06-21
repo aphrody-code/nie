@@ -2542,7 +2542,6 @@ name = "nie-ffi"
 version = "0.1.0"
 dependencies = [
  "image",
- "image_dds",
  "nie-core",
  "nie-formats",
  "serde_json",
@@ -2553,6 +2552,7 @@ name = "nie-formats"
 version = "0.1.0"
 dependencies = [
  "aes 0.8.4",
+ "image_dds",
  "png",
  "serde",
  "serde_json",
@@ -2566,7 +2566,6 @@ dependencies = [
  "anyhow",
  "bytemuck",
  "clap",
- "image_dds",
  "libc",
  "memmap2",
  "nie-data",
@@ -2626,7 +2625,6 @@ dependencies = [
  "anyhow",
  "clap",
  "cridecoder",
- "image_dds",
  "nie-data",
  "nie-formats",
  "png",
@@ -2758,7 +2756,6 @@ dependencies = [
  "console_error_panic_hook",
  "cridecoder",
  "getrandom 0.2.17",
- "image_dds",
  "nie-app",
  "nie-core",
  "nie-data",
@@ -2766,7 +2763,6 @@ dependencies = [
  "nie-runtime",
  "nie-save",
  "parking_lot",
- "png",
  "serde_json",
  "wasm-bindgen",
  "wasm-bindgen-futures",
