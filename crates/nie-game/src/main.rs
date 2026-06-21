@@ -49,8 +49,9 @@ use nie_formats::{cfgbin, font, g4pkm, g4tx, menu, objbin};
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
 
-const GAME_DIR_DEFAUT: &str =
-    "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road";
+// Racine du jeu sur CE VPS (contient `data/cpk_list.cfg.bin` via symlinks vers le dépôt Steam).
+// (L'ancien défaut était un chemin WSL Windows mort → VFS « corrompu » → driver lua dégradé.)
+const GAME_DIR_DEFAUT: &str = "/home/ubuntu/niers";
 
 /// Hôte GUI natif wgpu — pilier D1/C4 pixel-perfect pour niers.
 ///
