@@ -551,23 +551,43 @@ impl AssembledModel {
 // ── Erreurs d'assemblage ──────────────────────────────────────────────────────
 
 /// Erreur lors de l'assemblage d'un personnage.
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug)]
 pub enum AssembleError {
     /// Lecture du fichier GLB impossible.
-    #[error("fichier GLB introuvable ou illisible : {0}")]
     GlbNotFound(String),
-
     /// Données G4MD/G4MG invalides.
-    #[error("format invalide : {0}")]
-    Format(#[from] crate::FormatError),
-
+    Format(crate::FormatError),
     /// Le type corporel n'a pas de GLB base correspondant.
-    #[error("type_idx={0} sans GLB base (animal/vehicle/inconnu)")]
     NoBaseGlb(u8),
-
     /// Données GLB corrompues (JSON invalide ou buffer manquant).
-    #[error("GLB corrompu : {0}")]
     Corrupt(String),
+}
+
+// Display + Error + From MANUELS (no_std-ready via `core::error::Error`) — `thiserror` retiré (Phase 3 dédup).
+impl core::fmt::Display for AssembleError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::GlbNotFound(s) => write!(f, "fichier GLB introuvable ou illisible : {s}"),
+            Self::Format(e) => write!(f, "format invalide : {e}"),
+            Self::NoBaseGlb(i) => write!(f, "type_idx={i} sans GLB base (animal/vehicle/inconnu)"),
+            Self::Corrupt(s) => write!(f, "GLB corrompu : {s}"),
+        }
+    }
+}
+
+impl core::error::Error for AssembleError {
+    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
+        match self {
+            Self::Format(e) => Some(e),
+            _ => None,
+        }
+    }
+}
+
+impl From<crate::FormatError> for AssembleError {
+    fn from(e: crate::FormatError) -> Self {
+        Self::Format(e)
+    }
 }
 
 // ── Lecture GLB ──────────────────────────────────────────────────────────────

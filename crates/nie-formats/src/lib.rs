@@ -16,9 +16,10 @@
 //!
 //! ## Compatibilité `no_std`
 //!
-//! Ce crate utilise `alloc` (via `extern crate alloc`) mais n'a pas de dépendances
-//! `std` directes en dehors de `thiserror` (qui requiert `std` pour
-//! `std::error::Error`). Il est donc compatible `no_std + alloc + std`.
+//! Ce crate utilise `alloc` (via `extern crate alloc`). `FormatError`/`AssembleError`
+//! implémentent `core::error::Error` **à la main** (plus de dépendance `thiserror`, Phase 3 dédup) →
+//! types d'erreur `no_std`-ready. NB : le `#![no_std]` strict reste à faire (l'I/O des parseurs
+//! utilise encore `std::io::Cursor` ; gating à venir, cf. `docs/DEDUP-PLAN.md` Phase 3).
 //!
 //! ## Chiffrement CPK IEVR (déchiffré, vérifié au réel)
 //!
@@ -30,8 +31,6 @@
 //! ([`cpk::VIOLA_FIXED_KEY`]) est la clé Viola des `cfg.bin`, PAS celle des packs.
 #![forbid(unsafe_code)]
 #![allow(clippy::pedantic)]
-
-use thiserror::Error;
 
 pub mod assemble;
 pub mod cfgbin;
@@ -65,15 +64,30 @@ pub mod lip;
 pub mod nxtch;
 pub mod vfs;
 
-#[derive(Debug, Error)]
+#[derive(Debug)]
 pub enum FormatError {
-    #[error("tampon trop court : {got} octets, {need} attendus")]
+    /// Tampon trop court (`got` octets fournis, `need` requis).
     TooShort { got: usize, need: usize },
-    #[error("magic invalide pour {format}")]
+    /// Magic invalide pour le format attendu.
     BadMagic { format: &'static str },
-    #[error("données corrompues : {0}")]
+    /// Données corrompues.
     Corrupt(&'static str),
 }
+
+// Display + Error MANUELS (no_std-ready via `core::error::Error`) — `thiserror` retiré (Phase 3 dédup).
+impl core::fmt::Display for FormatError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::TooShort { got, need } => {
+                write!(f, "tampon trop court : {got} octets, {need} attendus")
+            }
+            Self::BadMagic { format } => write!(f, "magic invalide pour {format}"),
+            Self::Corrupt(s) => write!(f, "données corrompues : {s}"),
+        }
+    }
+}
+
+impl core::error::Error for FormatError {}
 
 /// Familles de formats reconnues dans l'écosystème IEVR.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
