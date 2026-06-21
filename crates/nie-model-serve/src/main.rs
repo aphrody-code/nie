@@ -65,10 +65,9 @@ use nie_formats::g4tx::parse as parse_g4tx;
 use nie_formats::g4tx_decode;
 use nie_formats::cfgbin;
 use nie_formats::vfs::Vfs;
-use nie_formats::cri_audio::{
-    Awb, acb_parse, adx_decode, is_adx, is_hca,
-    encode_pcm16_wav, usm_demux, VideoCodec,
-};
+use nie_formats::cri_audio::{VideoCodec, usm_demux};
+#[cfg(test)]
+use nie_formats::cri_audio::{Awb, is_hca};
 
 mod menu;
 
@@ -1138,162 +1137,24 @@ fn extract_g4md_from_g4pkm(pkm: &[u8]) -> Result<Vec<u8>> {
 }
 
 // ── Décodage audio ─────────────────────────────────────────────────────────────
+// SOURCE UNIQUE : le décode HCA chiffré IEVR + dispatch ADX/AWB/ACB → WAV vivent dans
+// `nie_formats::cri_audio` (feature `audio-decode`, dédup Phase 1d). Ici = wrappers minces
+// qui ajoutent le contexte `vfs_path` aux erreurs.
 
-/// Clé de déchiffrement HCA IEVR (fixe pour tout le jeu).
-///
-/// Source : `public const ulong DecryptionKey = 59278503195307634` dans
-/// `SoundPlayManager.cs` extrait du dump il2cpp IEVR
-/// (`data/cross-apk/work/laneA-il2cpp/dump/cs/.../Soccer/Sound/SoundPlayManager.cs`).
-/// Valeur hex : `0x00D2997C0DC5EE72`.
-const IEVR_HCA_KEY: u64 = 59_278_503_195_307_634;
-
-/// Décode un fichier HCA Criware chiffré (ciph_type=56) en PCM 16-bit via `cridecoder`.
-///
-/// `cridecoder::HcaDecoder` implémente l'algorithme HCA complet (MDCT + overlap-add +
-/// scale factors + intensity stereo + cipher type 0/1/56 conforme vgmstream).
-///
-/// La clé principale `IEVR_HCA_KEY` est fixe ; `subkey` est la sous-clé AWB lue à
-/// l'offset `0x0E` de l'en-tête AFS2 (voir [`Awb::subkey`]). Passer `subkey=0` pour
-/// les HCA hors AWB (flux direct, ACB embarqué sans AFS2).
-///
-/// **Important** : `set_encryption_key` doit être appelé AVANT la première trame —
-/// avec `keycode==0` cridecoder traite le fichier comme `ciph_type=0` (aucun
-/// déchiffrement), produisant du bruit silencieux sur les HCA IEVR.
-fn hca_decode_to_pcm16(raw: &[u8], subkey: u16) -> anyhow::Result<(Vec<i16>, u32, u32)> {
-    use cridecoder::{HcaDecoder, HcaDecoderError};
-    use std::io::Cursor;
-
-    let cursor = Cursor::new(raw);
-    let mut decoder = HcaDecoder::from_reader(cursor)
-        .map_err(|e| anyhow::anyhow!("HCA init: {e}"))?;
-
-    // Déchiffrement HCA IEVR (ciph_type=56) : DOIT être posé avant toute trame.
-    // La formule de combinaison clé+sous-clé (vgmstream) :
-    //   combined = keycode * ((subkey << 16) | (!subkey_u16 + 2))   si subkey != 0
-    //   combined = keycode                                            si subkey == 0
-    decoder.set_encryption_key(IEVR_HCA_KEY, u64::from(subkey));
-
-    let info = decoder.info().clone();
-    let channels = info.channel_count;
-    let sample_rate = info.sampling_rate;
-    let frame_samples = info.samples_per_block * info.channel_count as usize;
-    let mut pcm_buf = vec![0i16; frame_samples];
-    let mut all_samples: Vec<i16> = Vec::with_capacity(
-        info.block_count as usize * frame_samples
-    );
-
-    loop {
-        match decoder.decode_frame_i16(&mut pcm_buf) {
-            Ok(0) => {} // trame delay (encoder delay initial)
-            Ok(n) => {
-                // n = nombre de sample-frames, pcm_buf est déjà entrelacé
-                let count = n * channels as usize;
-                all_samples.extend_from_slice(&pcm_buf[..count]);
-            }
-            Err(HcaDecoderError::Eof) => break,
-            Err(e) => return Err(anyhow::anyhow!("HCA frame: {e}")),
-        }
-    }
-
-    Ok((all_samples, channels, sample_rate))
-}
-
-/// Décode n'importe quel format audio Criware en WAV PCM 16-bit.
-///
-/// Dispatch selon le magic détecté dans `raw` et l'extension de `vfs_path` :
-///   - HCA direct (`HCA\0`) → `hca_decode_to_pcm16` (cridecoder)
-///   - ADX direct (`0x8000`) → `adx_decode`
-///   - AWB (`AFS2`) → `Awb::parse`, première entrée HCA/ADX
-///   - ACB (`@UTF`) → `acb_parse`, AWB embarqué, première entrée HCA/ADX
+/// Décode n'importe quel audio Criware (HCA/ADX/AWB/ACB) en WAV PCM16.
 fn decode_audio_to_wav(raw: &[u8], vfs_path: &str) -> anyhow::Result<Vec<u8>> {
-    // Identifie le format par le magic
-    if is_hca(raw) {
-        // HCA direct (hors AWB) — sous-clé 0 car pas d'en-tête AFS2.
-        let (samples, channels, sample_rate) = hca_decode_to_pcm16(raw, 0)
-            .map_err(|e| anyhow::anyhow!("HCA decode: {e}"))?;
-        return Ok(encode_pcm16_wav(&samples, channels, sample_rate));
-    }
-
-    if is_adx(raw) {
-        // ADX direct
-        let pcm = adx_decode(raw)
-            .map_err(|e| anyhow::anyhow!("ADX decode: {e}"))?;
-        return Ok(encode_pcm16_wav(&pcm.samples, pcm.channels, pcm.sample_rate));
-    }
-
-    if raw.starts_with(b"AFS2") {
-        // AWB → extrait la première entrée HCA/ADX
-        return decode_awb_first_entry(raw, vfs_path);
-    }
-
-    if raw.starts_with(b"@UTF") {
-        // ACB → extrait le AWB embarqué, puis première entrée
-        let acb = acb_parse(raw)
-            .map_err(|e| anyhow::anyhow!("ACB parse: {e}"))?;
-        if !acb.embedded_awb.is_empty() {
-            return decode_awb_first_entry(&acb.embedded_awb, vfs_path);
-        }
-        // AWB externe : signalé par nom sans données embarquées — signaler à l'appelant
-        anyhow::bail!("ACB sans AWB");
-    }
-
-    anyhow::bail!("format audio non reconnu (magic: {:02x?})", &raw[..raw.len().min(4)])
+    nie_formats::cri_audio::decode_to_wav(raw).map_err(|e| anyhow::anyhow!("{vfs_path}: {e}"))
 }
 
-/// Extrait et décode la première entrée HCA/ADX d'un AWB AFS2.
-///
-/// La sous-clé AWB (`awb.subkey`, u16 LE à l'offset `0x0E` de l'en-tête AFS2)
-/// est propagée à `hca_decode_to_pcm16` pour le déchiffrement IEVR (`ciph_type=56`).
+/// Décode la première entrée HCA/ADX d'un AWB AFS2 (la plus volumineuse) en WAV.
 fn decode_awb_first_entry(data: &[u8], vfs_path: &str) -> anyhow::Result<Vec<u8>> {
     decode_awb_entry(data, vfs_path, None)
 }
 
-/// Décode **une** entrée d'un AWB en WAV. `which` = index d'entrée (`?cue=N`) ; par défaut
-/// (`None`), choisit l'entrée la **plus volumineuse** — pour une banque de voix, la première
-/// entrée est souvent un court grognement, alors que la plus grosse est une vraie réplique.
+/// Décode **une** entrée d'un AWB en WAV. `which` = index (`?cue=N`) ; `None` = la plus volumineuse.
 fn decode_awb_entry(data: &[u8], vfs_path: &str, which: Option<usize>) -> anyhow::Result<Vec<u8>> {
-    let awb = Awb::parse(data).map_err(|e| anyhow::anyhow!("AWB parse: {e}"))?;
-    if awb.entries.is_empty() {
-        anyhow::bail!("AWB {vfs_path} sans entrée");
-    }
-    let subkey = awb.subkey;
-
-    // Ordre d'essai : l'index demandé en premier, sinon par taille décroissante.
-    let mut order: Vec<usize> = (0..awb.entries.len()).collect();
-    match which {
-        Some(i) if i < awb.entries.len() => {
-            order.retain(|&k| k != i);
-            order.insert(0, i);
-        }
-        Some(i) => anyhow::bail!("cue {i} hors limites ({} entrées)", awb.entries.len()),
-        None => order.sort_by_key(|&k| {
-            core::cmp::Reverse(awb.entry_bytes(data, &awb.entries[k]).len())
-        }),
-    }
-
-    for k in order {
-        let entry = &awb.entries[k];
-        let entry_data = awb.entry_bytes(data, entry);
-        if entry_data.is_empty() {
-            continue;
-        }
-        if is_hca(entry_data) {
-            let (samples, channels, sample_rate) = hca_decode_to_pcm16(entry_data, subkey)
-                .map_err(|e| anyhow::anyhow!("HCA decode entrée cue={}: {e}", entry.cue_id))?;
-            return Ok(encode_pcm16_wav(&samples, channels, sample_rate));
-        }
-        if is_adx(entry_data) {
-            let pcm = adx_decode(entry_data)
-                .map_err(|e| anyhow::anyhow!("ADX decode entrée cue={}: {e}", entry.cue_id))?;
-            return Ok(encode_pcm16_wav(&pcm.samples, pcm.channels, pcm.sample_rate));
-        }
-        // Si une cue précise a été demandée et n'est pas décodable, on n'essaie pas les autres.
-        if which.is_some() {
-            anyhow::bail!("cue {k} non décodable (ni HCA ni ADX)");
-        }
-    }
-
-    anyhow::bail!("AWB {vfs_path} : aucune entrée HCA/ADX valide trouvée")
+    nie_formats::cri_audio::decode_awb_entry(data, which)
+        .map_err(|e| anyhow::anyhow!("AWB {vfs_path}: {e}"))
 }
 
 /// Réencapsule un flux H.264 Annex-B brut en MP4 fragmenté (lisible directement
@@ -2434,7 +2295,7 @@ mod tests {
         assert_eq!(awb.subkey, 0xC62A, "sous-clé AWB inattendue");
 
         let (samples, channels, sample_rate) =
-            hca_decode_to_pcm16(entry_data, awb.subkey)
+            nie_formats::cri_audio::hca_decode_to_pcm16(entry_data, awb.subkey)
                 .expect("décodage HCA IEVR échoué — clé ou format incorrect");
 
         assert_eq!(sample_rate, 48_000, "sample_rate attendu : 48000 Hz");
@@ -2517,7 +2378,8 @@ mod tests {
             else {
                 continue;
             };
-            let Ok((samples, channels, sample_rate)) = hca_decode_to_pcm16(entry_data, awb.subkey)
+            let Ok((samples, channels, sample_rate)) =
+                nie_formats::cri_audio::hca_decode_to_pcm16(entry_data, awb.subkey)
             else {
                 continue;
             };
