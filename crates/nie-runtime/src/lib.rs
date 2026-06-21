@@ -18,71 +18,10 @@ pub mod render;
 
 use nie_core::BALL_GRAVITY;
 
-/// Vecteur 2D (plan du terrain, en mètres ; origine au centre).
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
-pub struct V2 {
-    pub x: f32,
-    pub y: f32,
-}
-
-impl V2 {
-    #[must_use]
-    pub const fn new(x: f32, y: f32) -> Self {
-        Self { x, y }
-    }
-    /// Norme euclidienne.
-    #[must_use]
-    pub fn len(self) -> f32 {
-        self.x.hypot(self.y)
-    }
-    /// Vecteur unitaire (ou zéro si longueur nulle).
-    #[must_use]
-    pub fn norm(self) -> Self {
-        let l = self.len();
-        if l > 1e-6 { self * (1.0 / l) } else { Self::default() }
-    }
-}
-
-impl core::ops::Add for V2 {
-    type Output = Self;
-    fn add(self, o: Self) -> Self {
-        Self::new(self.x + o.x, self.y + o.y)
-    }
-}
-
-impl core::ops::Sub for V2 {
-    type Output = Self;
-    fn sub(self, o: Self) -> Self {
-        Self::new(self.x - o.x, self.y - o.y)
-    }
-}
-
-impl core::ops::Mul<f32> for V2 {
-    type Output = Self;
-    fn mul(self, s: f32) -> Self {
-        Self::new(self.x * s, self.y * s)
-    }
-}
-
-/// Vecteur 3D (plan terrain + hauteur `z`).
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
-pub struct V3 {
-    pub x: f32,
-    pub y: f32,
-    pub z: f32,
-}
-
-impl V3 {
-    #[must_use]
-    pub const fn new(x: f32, y: f32, z: f32) -> Self {
-        Self { x, y, z }
-    }
-    /// Projection sur le plan du terrain.
-    #[must_use]
-    pub const fn ground(self) -> V2 {
-        V2::new(self.x, self.y)
-    }
-}
+// Vecteurs : SOURCE UNIQUE `nie_geom` (dédup Phase 2). Alias V2/V3 pour préserver le code local.
+// Convention nie-runtime : `z` = hauteur (vit dans le code ; le type est axis-agnostique).
+// ⚠ Ne pas convertir vers/depuis `nie_core::Vec3` (y=hauteur) — cf. `docs/DEDUP-PLAN.md` landmine #4.
+use nie_geom::{Vec2 as V2, Vec3 as V3};
 
 // ── Dimensions du terrain (mètres, origine au centre) ───────────────────────────
 /// Demi-longueur (but à but) : terrain 105 m.
