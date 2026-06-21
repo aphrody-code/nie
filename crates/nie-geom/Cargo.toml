@@ -1,0 +1,21 @@
+[package]
+name = "nie-geom"
+description = "Types géométriques POD partagés (Vec2/Vec3) + math scalaire — source unique du workspace (dédup Phase 2). no_std + alloc-free ; les méthodes à sqrt sont derrière la feature `std`."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = ["std"]
+# Active les méthodes nécessitant `f32::sqrt`/`hypot` (length/normalize/len/norm).
+# Off → crate `#![no_std]` strict (PODs + arithmétique seule), pour consommation no_std (nie-data).
+std = []
+serde = ["dep:serde"]
+
+[dependencies]
+serde = { workspace = true, optional = true }
