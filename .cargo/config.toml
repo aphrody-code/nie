@@ -16,6 +16,15 @@ rustflags = [
   "-C", "target-cpu=native",
 ]
 
+# Cible Windows (cross-compile mingw, pour le packaging distribuable) : linker mingw-w64,
+# PAS de target-cpu=native (binaires portables, pas réservés à ce VPS). Sert à `scripts/package.sh`.
+[target.x86_64-pc-windows-gnu]
+linker = "x86_64-w64-mingw32-gcc"
+rustflags = [
+  "-C", "symbol-mangling-version=v0",
+  "-C", "link-arg=-fstack-protector",
+]
+
 # Cible wasm : features WASM standardisées (phase 4) + SIMD128 (2-4x sur le vectoriel).
 [target.wasm32-unknown-unknown]
 rustflags = [
