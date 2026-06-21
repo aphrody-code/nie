@@ -88,12 +88,14 @@ nie-engine           = exclu des members → référence RE lecture seule  [FAIT
 *Garde : déménager les golden `typed` avec les arms ; **comparer `bcdec_rs`↔`image_dds` sur une vraie texture BC7
 avant** de retirer le décodeur de `nie-app::character.rs:18` ; la comparaison GPU↔CPU de nie-game reste verte.*
 
-### Phase 2 — Brique géométrie + raster — **AMORCÉ** (sous-lot render3d FAIT `44aae64` ; nie-geom + raster2d à faire) (effort M, soin no_std)
+### Phase 2 — Brique géométrie + raster — **géométrie FAIT** (render3d `44aae64` + nie-geom `af4c5ce`/`582368f`) ; `raster2d` byte-risqué reste (effort M)
 - **FAIT (`44aae64`)** : sous-lot intra-crate render3d — helpers `V3/sub/cross/dot/normv` (dupliqués verbatim render.rs↔scene.rs) extraits dans `vecmath`.
-- **BLOQUÉ (audit requis)** : la crate `nie-geom` + migration `Vec3`/`Vec2` est suspendue sur la **landmine #4** (conventions
-  d'axe opposées `nie-core::Vec3` y=hauteur vs `nie-runtime::V3` z=hauteur ; `Vec2` UV `{u,v}` vs terrain `{x,y}`). Ce n'est PAS
-  un re-export mécanique : exige un audit du système de coordonnées + revalidation physique avant toute fusion. `raster2d`
-  (blend unique) reste à faire (touche le compositeur menu byte-exact → gate pixel requis).
+- **FAIT (`af4c5ce` + `582368f`)** : crate feuille **`nie-geom`** (no_std-optionnel, serde optionnel, 0 dep) = source unique
+  de `Vec2`/`Vec3`. `nie-core::Vec3` et `nie-runtime::V3`/`V2` migrés (verbatim → byte-neutre). **Landmine #4 résolue par
+  conception** : le type est **axis-agnostique** (la convention y/z=hauteur vit dans le CODE de chaque crate, inchangé) + garde-fou
+  documenté au type ET aux deux imports (« ne jamais convertir entre les deux »). Gate : nie-core 186 tests + nie-runtime 6 tests
+  (golden physique/déterminisme préservés) + `build --workspace` RC=0. `nie-render3d` garde son `[f32;3]` (idiome distinct) ; `g4mg::Vec2 {u,v}` reste (stabilité JSON).
+- **Reste** : `nie-formats::raster2d` (blend `over` unique) — **byte-risqué** (change les pixels du compositeur menu) → gate pixel SSIM requis.
 - **Crate feuille `nie-geom`** (`#![no_std]` + alloc, 0 dep, **pas glam** ; sqrt/normalize derrière feature
   `std`/`libm`) : PODs `Vec2/Vec3/Vec4/Mat4`. Migrer `nie-core/src/lib.rs:169`, `nie-runtime/src/lib.rs:23,69`,
   `nie-render3d` (`scene.rs:9`+`render.rs:15`), `nie-formats/src/g4mg.rs:39,51`. **`g4sk::mat_mul` reste local** (landmine 2).
