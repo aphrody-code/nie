@@ -140,14 +140,14 @@ pub fn render_state<'a>(state: &GameState, f: &'a Font, bg: Option<&[u8]>) -> Sc
             s.rect(0, 0, W as i32, 70, [20, 60, 130, 255]);
             s.text(40, 16, "MAIN MENU", [220, 235, 255, 255]);
             for (i, item) in MENU.iter().enumerate() {
-                let y = 200 + i as i32 * 90;
+                let y = 100 + i as i32 * 72;
                 let hot = i == *sel;
                 let bg_c = if hot { [60, 130, 220, 235] } else { [16, 22, 44, 210] };
-                s.rect(70, y, 620, y + 70, bg_c);
+                s.rect(70, y, 620, y + 56, bg_c);
                 if hot {
-                    s.rect(70, y, 76, y + 70, [120, 220, 255, 255]);
+                    s.rect(70, y, 76, y + 56, [120, 220, 255, 255]);
                 }
-                s.text(110, y + 16, item, [240, 245, 252, 255]);
+                s.text(110, y + 14, item, [240, 245, 252, 255]);
             }
         }
         GameState::Match { home, away } => {
@@ -175,6 +175,30 @@ pub fn render_state<'a>(state: &GameState, f: &'a Font, bg: Option<&[u8]>) -> Sc
             s.text(bx0 + 36, by0 - 32, speaker, [200, 235, 255, 255]);
             s.text_wrapped(bx0 + 40, by0 + 28, bx1 - bx0 - 80, 46, line, [240, 244, 250, 255]);
         }
+    }
+    s
+}
+
+/// Rendu générique d'un menu-liste (titre + items surlignables), adapté au nombre d'items.
+/// Sert au menu principal (9 onglets réels) et au sélecteur de mode (5 modes réels). RGBA8 `W*H*4`.
+#[must_use]
+pub fn render_list<'a>(title: &str, items: &[&str], sel: usize, f: &'a Font) -> Screen<'a> {
+    let mut s = Screen::new(f);
+    s.gradient([30, 40, 80], [14, 18, 34]);
+    s.rect(0, 0, W as i32, 70, [20, 60, 130, 255]);
+    s.text(40, 16, title, [220, 235, 255, 255]);
+    let n = (items.len().max(1)) as i32;
+    let gap = ((H as i32 - 110) / n).clamp(40, 80);
+    let bh = gap - 10;
+    for (i, item) in items.iter().enumerate() {
+        let y = 100 + i as i32 * gap;
+        let hot = i == sel;
+        let bg_c = if hot { [60, 130, 220, 235] } else { [16, 22, 44, 210] };
+        s.rect(70, y, W as i32 - 70, y + bh, bg_c);
+        if hot {
+            s.rect(70, y, 76, y + bh, [120, 220, 255, 255]);
+        }
+        s.text(110, y + bh / 2 - 12, item, [240, 245, 252, 255]);
     }
     s
 }
