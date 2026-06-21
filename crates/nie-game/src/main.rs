@@ -45,7 +45,7 @@ use tracing::{error, info, warn};
 use wgpu::util::DeviceExt;
 
 use nie_formats::vfs::Vfs;
-use nie_formats::{cfgbin, font, g4pkm, g4tx, menu, objbin};
+use nie_formats::{cfgbin, font, g4pkm, g4tx, g4tx_decode, menu, objbin};
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
 
@@ -276,97 +276,11 @@ fn main() -> Result<()> {
 }
 
 // ── Décodage DDS → RGBA8 ─────────────────────────────────────────────────────
-// mirrors nie-wasm nw_decode_texture_rgba; hoist to nie-formats::g4tx later
-
-/// Table de correspondance DXGI format → `image_dds::ImageFormat`.
-fn dxgi_to_image_format(dxgi: u32) -> Option<image_dds::ImageFormat> {
-    use image_dds::ImageFormat as F;
-    match dxgi {
-        71 => Some(F::BC1RgbaUnorm),
-        72 => Some(F::BC1RgbaUnormSrgb),
-        73 => Some(F::BC2RgbaUnorm),
-        74 => Some(F::BC2RgbaUnormSrgb),
-        77 => Some(F::BC3RgbaUnorm),
-        78 => Some(F::BC3RgbaUnormSrgb),
-        79 | 80 => Some(F::BC4RUnorm),
-        83 | 84 => Some(F::BC5RgUnorm),
-        95 => Some(F::BC6hRgbUfloat),
-        96 => Some(F::BC6hRgbSfloat),
-        98 => Some(F::BC7RgbaUnorm),
-        99 => Some(F::BC7RgbaUnormSrgb),
-        _ => None,
-    }
-}
-
-/// Décode un `G4txTexture` (DDS DX10 embarqué) en `(largeur, hauteur, rgba8)`.
-fn decode_texture_rgba(g4tx_data: &[u8], tex: &g4tx::G4txTexture) -> Option<(u32, u32, Vec<u8>)> {
-    if !tex.is_dds {
-        return None;
-    }
-    let offset = tex.data_offset;
-    const DX10_DXGI_OFFSET: usize = 128; // magic(4)+DDS_HEADER(124)
-    const PIXEL_OFFSET: usize = 148; // + DX10_EXT(20)
-    if offset + PIXEL_OFFSET > g4tx_data.len() {
-        return None;
-    }
-    let dds = &g4tx_data[offset..];
-    if u32::from_le_bytes(dds[..4].try_into().ok()?) != 0x2053_4444 {
-        return None;
-    }
-    let w = tex.width as u32;
-    let h = tex.height as u32;
-    if w == 0 || h == 0 {
-        return None;
-    }
-    // DDS LEGACY (pas d'extension DX10) : le fourCC du pixelformat (offset 0x54) ≠ "DX10".
-    // Cas non-compressé 32 bits (DDPF_RGB) — ex. atlas de police BGRA8. Décodage direct + swizzle.
-    if &dds[0x54..0x58] != b"DX10" {
-        return decode_legacy_uncompressed(dds, w, h);
-    }
-    let dxgi = u32::from_le_bytes(
-        dds[DX10_DXGI_OFFSET..DX10_DXGI_OFFSET + 4]
-            .try_into()
-            .ok()?,
-    );
-    let fmt = dxgi_to_image_format(dxgi)?;
-    let surface = image_dds::Surface {
-        width: w,
-        height: h,
-        depth: 1,
-        layers: 1,
-        mipmaps: 1,
-        image_format: fmt,
-        data: &dds[PIXEL_OFFSET..],
-    };
-    let rgba = surface.decode_rgba8().ok()?;
-    Some((w, h, rgba.data))
-}
-
-/// Décode un DDS **LEGACY non-compressé 32 bits** (DDPF_RGB) en RGBA8. Lit les masks du
-/// `DDS_PIXELFORMAT` pour l'ordre des canaux : `rmask==0x00FF0000` ⇒ rouge en 3ᵉ octet ⇒ ordre
-/// mémoire **BGRA8** (cas des atlas de police IEVR `font_def/font.g4tx`) → swizzle vers RGBA8 ;
-/// sinon RGBA8 direct. Pas d'extension DX10 → données pixel à l'offset 128.
-fn decode_legacy_uncompressed(dds: &[u8], w: u32, h: u32) -> Option<(u32, u32, Vec<u8>)> {
-    const LEGACY_PIXEL_OFFSET: usize = 128; // magic(4) + DDS_HEADER(124), sans ext DX10
-    let pf_flags = u32::from_le_bytes(dds.get(0x50..0x54)?.try_into().ok()?);
-    let bitcount = u32::from_le_bytes(dds.get(0x58..0x5C)?.try_into().ok()?);
-    let rmask = u32::from_le_bytes(dds.get(0x5C..0x60)?.try_into().ok()?);
-    if pf_flags & 0x40 == 0 || bitcount != 32 {
-        return None; // pas DDPF_RGB 32 bits — format legacy non géré ici
-    }
-    let need = (w as usize).checked_mul(h as usize)?.checked_mul(4)?;
-    let px = dds.get(LEGACY_PIXEL_OFFSET..LEGACY_PIXEL_OFFSET + need)?;
-    let bgra = rmask == 0x00FF_0000;
-    let mut rgba = Vec::with_capacity(need);
-    for p in px.chunks_exact(4) {
-        if bgra {
-            rgba.extend_from_slice(&[p[2], p[1], p[0], p[3]]);
-        } else {
-            rgba.extend_from_slice(p);
-        }
-    }
-    Some((w, h, rgba))
-}
+// Le décodeur G4TX/DDS → RGBA8 est centralisé dans `nie_formats::g4tx_decode`
+// (feature `textures`, source unique du workspace — Phase 1b dédup). On l'appelle via
+// `g4tx_decode::decode_texture_rgba`. La variante partagée (model-serve) est un superset :
+// elle gère DX10 + FourCC legacy + non compressé (BGRA8/RGBA8), donc couvre le cas atlas
+// de police (legacy 32 bpp) que gérait l'ancienne copie locale `decode_legacy_uncompressed`.
 
 // ── Source d'assets ──────────────────────────────────────────────────────────
 
@@ -644,7 +558,7 @@ fn decoder_g4tx_bytes(donnees: &[u8], chemin: &str) -> Result<(String, u32, u32,
         tex.name, tex.id, tex.width, tex.height
     );
 
-    let (w, h, rgba) = decode_texture_rgba(donnees, tex)
+    let (w, h, rgba) = g4tx_decode::decode_texture_rgba(donnees, tex)
         .ok_or_else(|| anyhow::anyhow!("échec décodage DDS dans {chemin}"))?;
 
     Ok((chemin.to_string(), w, h, rgba))
@@ -769,7 +683,7 @@ fn cmd_g4tx_region(
     let rect = (sub.x, sub.y, sub.width, sub.height);
     let (rx, ry) = (sub.x, sub.y);
 
-    let (fw, fh, full) = decode_texture_rgba(&bytes, tex).ok_or_else(|| {
+    let (fw, fh, full) = g4tx_decode::decode_texture_rgba(&bytes, tex).ok_or_else(|| {
         anyhow::anyhow!("échec décodage de la texture '{}' de {resolved}", tex.name)
     })?;
     let tex_name = tex.name.clone();
@@ -805,7 +719,7 @@ fn cmd_render_text(game_dir: &Path, text: &str, capture: Option<&Path>) -> Resul
     let parsed = g4tx::parse(&atlas_bytes).with_context(|| format!("parsing G4TX police : {atlas_path}"))?;
     let tex = g4tx::select_main_texture(&parsed, "font_def")
         .ok_or_else(|| anyhow::anyhow!("texture principale de l'atlas police introuvable dans {atlas_path}"))?;
-    let (aw, ah, atlas) = decode_texture_rgba(&atlas_bytes, tex)
+    let (aw, ah, atlas) = g4tx_decode::decode_texture_rgba(&atlas_bytes, tex)
         .ok_or_else(|| anyhow::anyhow!("échec décodage de l'atlas police '{}'", tex.name))?;
 
     // 2. Métriques de glyphes : font.cfg.bin (T2B) → FontMetrics.
@@ -855,7 +769,7 @@ fn load_menu_font(game_dir: &Path) -> Option<(Vec<u8>, u32, font::FontMetrics)> 
     let (_, ab) = obtenir_g4tx_bytes(game_dir, ATLAS).ok()?;
     let parsed = g4tx::parse(&ab).ok()?;
     let tex = g4tx::select_main_texture(&parsed, "font_def")?;
-    let (aw, _ah, atlas) = decode_texture_rgba(&ab, tex)?;
+    let (aw, _ah, atlas) = g4tx_decode::decode_texture_rgba(&ab, tex)?;
     let (_, mb) = obtenir_g4tx_bytes(game_dir, METRICS).ok()?;
     let cfg = cfgbin::parse_t2b(&mb).ok()?;
     Some((atlas, aw, font::parse_metrics(&cfg)))
@@ -1052,7 +966,7 @@ fn cmd_compose_layout(game_dir: &Path, json_in: &Path, png_out: &Path) -> Result
             });
             let (bytes, parsed) = entry.as_ref()?;
             let (tex, sub) = parsed.region(region)?;
-            let (fw, fh, full) = decode_texture_rgba(bytes, tex)?;
+            let (fw, fh, full) = g4tx_decode::decode_texture_rgba(bytes, tex)?;
             crop_rgba(&full, fw, fh, (sub.x, sub.y, sub.width, sub.height))
         })();
         // Résolution de région par HASH (D1.b) : si l'objet porte un `spriteRegionHash` (= CRC32 du
@@ -1083,7 +997,7 @@ fn cmd_compose_layout(game_dir: &Path, json_in: &Path, png_out: &Path) -> Result
             for t in &parsed.textures {
                 for s in &t.sub_textures {
                     if cfgbin::crc32(s.name.as_bytes()) == srh {
-                        let (fw, fh, full) = decode_texture_rgba(bytes, t)?;
+                        let (fw, fh, full) = g4tx_decode::decode_texture_rgba(bytes, t)?;
                         return crop_rgba(&full, fw, fh, (s.x, s.y, s.width, s.height));
                     }
                 }
@@ -1101,7 +1015,7 @@ fn cmd_compose_layout(game_dir: &Path, json_in: &Path, png_out: &Path) -> Result
             });
             let (bytes, parsed) = entry.as_ref()?;
             let tex = g4tx::select_main_texture(parsed, stem)?;
-            decode_texture_rgba(bytes, tex)
+            g4tx_decode::decode_texture_rgba(bytes, tex)
         };
         let via_hash = region_src.is_none() && region_hash_src.is_some();
         let (is_region, (cw, chh, crop)) = match region_src.or(region_hash_src) {
@@ -2094,7 +2008,7 @@ fn process_objbin_layer(
             return None;
         }
     };
-    let (w, h, rgba) = match decode_texture_rgba(&g4tx_bytes, tex) {
+    let (w, h, rgba) = match g4tx_decode::decode_texture_rgba(&g4tx_bytes, tex) {
         Some(r) => r,
         None => {
             warn!("skip {obj_basename} : échec décodage DDS ({g4tx_vfs})");
@@ -3130,7 +3044,7 @@ fn paint_main_menu_icon_row(game_dir: &Path, canvas: &mut [u8], (cw, ch): (u32, 
         };
         let full = decoded
             .entry(tex.id)
-            .or_insert_with(|| decode_texture_rgba(&bytes, tex));
+            .or_insert_with(|| g4tx_decode::decode_texture_rgba(&bytes, tex));
         let Some((fw, fh, full)) = full.as_ref() else {
             continue;
         };
