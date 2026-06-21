@@ -27,10 +27,7 @@ scraper = "0.22"
 # encodage
 base64 = "0.22"
 percent-encoding = "2"
-
-# concurrence / rate-limiting
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs", "sync", "time", "io-util"] }
-tokio-util = { version = "0.7", features = ["io"] }
+# Crate 100 % SYNCHRONE (reqwest::blocking + std::thread::sleep) — pas de runtime async.
 
 [[bin]]
 name = "nie-zukan"

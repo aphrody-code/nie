@@ -4,6 +4,9 @@
 [workspace]
 resolver = "3"
 members = ["crates/*"]
+# nie-engine = portage RE du moteur Level-5 (~15k LOC, 434 // EXTERN:) consommé par AUCUNE crate vivante.
+# Exclu du build/test workspace, conservé comme RÉFÉRENCE de portage en lecture seule (cf. docs/PLAN.md).
+exclude = ["crates/nie-engine"]
 
 [workspace.package]
 edition = "2024"
@@ -47,8 +50,6 @@ goblin = "0.10"
 iced-x86 = "1.21"
 # triage PE / disasm / strings / entropy réutilisés depuis aphrody (mêmes versions → cargo unifie)
 aphrody-re = { path = "../aphrody/crates/aphrody-re" }
-# call-graph pour la propagation de labels
-petgraph = "0.6"
 
 # décodage audio CRI (HCA, ACB, AWB) — licence MIT
 cridecoder = { version = "0.2.3", default-features = false }

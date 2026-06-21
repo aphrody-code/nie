@@ -25,7 +25,6 @@ nie-formats = { path = "../nie-formats", features = ["serde"] }
 # Parseurs typés des familles game-data (formation, skill, item, mission…) :
 # alimentent la route `/typed` qui décode un cfg.bin en structures de jeu nommées.
 nie-data = { path = "../nie-data", features = ["serde"] }
-nie-wiki = { path = "../nie-wiki" }
 cridecoder.workspace = true
 anyhow.workspace = true
 thiserror.workspace = true

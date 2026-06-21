@@ -12,12 +12,10 @@ workspace = true
 
 [dependencies]
 nie-index.workspace = true
-serde.workspace = true
-serde_json.workspace = true
 thiserror.workspace = true
 anyhow.workspace = true
 tracing.workspace = true
-petgraph.workspace = true
+# NB : pas de petgraph — PropagationGraph est implémenté à la main (propagate.rs), la frontière BFS vit dans nie-queue/redis.
 hashbrown.workspace = true
 goblin.workspace = true
 iced-x86.workspace = true
