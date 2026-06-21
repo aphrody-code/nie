@@ -140,8 +140,12 @@ pour ramener chaque famille de code à une **source de vérité unique** sans ca
   no_std gardent leur copie) + **décodeur audio HCA/ADX/AWB/ACB unique** `nie_formats::cri_audio::decode_to_wav` (feature
   `audio-decode`) — model-serve `/audio` et wasm `audio_to_wav` délèguent, `cridecoder` retiré de leurs deps directes.
   Byte-validé : tests real-audio (HCA IEVR réel, subkey 0xC62A, 48 kHz). **→ Phase 1 (tuer les bugs de divergence) COMPLÈTE.**
-- **INCOMPLET — Phases 2→5** : 2 crate `nie-geom` + `raster2d` ; 3 `nie-formats` vraiment no_std (enabler) ; 4 unification
-  des moteurs de match (= `docs/UNIFICATION.md`, risque byte-exact max) ; 5 fronts sur `nie-app`. Chacune gatée + committée.
+- **AMORCÉ — Phase 5 (`f80f7ed`)** : FSM interactive du jeu **relocalisée** de nie-wasm vers le cœur `nie_app::flow::Screen`
+  (move verbatim, comportement identique, gate wasm32+clippy vert) ; reste le merge dans `GameState` + rename (re-baseline golden requis).
+- **AMORCÉ — Phase 2 (`44aae64`)** : sous-lot render3d (`vecmath`) ; **`nie-geom` BLOQUÉ** sur un landmine découvert — `nie-core::Vec3`
+  (y=hauteur) et `nie-runtime::V3` (z=hauteur) ont des **axes verticaux opposés** : fusion = corruption physique silencieuse (cf. `docs/DEDUP-PLAN.md` landmine #4).
+- **NON_FAIT — Phases 3, 4** : 3 `nie-formats` vraiment no_std (enabler) ; 4 unification des moteurs de match (= `docs/UNIFICATION.md`,
+  **risque byte-exact max** : créer `match_live`, rebrancher `World`, re-baseliner les golden). Exigent disque libéré + suites golden (VPS à 97 %).
 
 ## Roadmap priorisée (vers le jeu jouable)
 
