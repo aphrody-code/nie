@@ -140,8 +140,10 @@ pour ramener chaque famille de code à une **source de vérité unique** sans ca
   no_std gardent leur copie) + **décodeur audio HCA/ADX/AWB/ACB unique** `nie_formats::cri_audio::decode_to_wav` (feature
   `audio-decode`) — model-serve `/audio` et wasm `audio_to_wav` délèguent, `cridecoder` retiré de leurs deps directes.
   Byte-validé : tests real-audio (HCA IEVR réel, subkey 0xC62A, 48 kHz). **→ Phase 1 (tuer les bugs de divergence) COMPLÈTE.**
-- **AMORCÉ — Phase 5 (`f80f7ed`)** : FSM interactive du jeu **relocalisée** de nie-wasm vers le cœur `nie_app::flow::Screen`
-  (move verbatim, comportement identique, gate wasm32+clippy vert) ; reste le merge dans `GameState` + rename (re-baseline golden requis).
+- **Phase 5 — FAIT** (`f80f7ed` relocate + `aa7d61a` rename) : FSM interactive **relocalisée** nie-wasm → `nie_app::flow::Screen` (move
+  verbatim) ; rename `render::Screen`→`Frame` (collision résolue, golden nie-play byte-neutre). **Constat** : le « merge GameState » n'est PAS
+  un dédup — `GameState` (DTO de rendu) et `Screen` (FSM) sont complémentaires (Screen délègue déjà son rendu à GameState) ; fusionner = pire.
+  nie-game ne duplique pas MENU/MODES (vérifié). Il y a déjà UNE FSM.
 - **Phase 2 — géométrie FAIT** (`44aae64` render3d + `af4c5ce`/`582368f` nie-geom) : crate feuille `nie-geom` (Vec2/Vec3 POD, no_std-optionnel)
   = source unique ; `nie-core::Vec3` + `nie-runtime::V3/V2` migrés byte-neutre (186 + 6 tests verts). **Landmine #4 résolue par conception**
   (type axis-agnostique, conventions dans le code, garde-fou aux imports). Reste : `raster2d` (blend menu, byte-risqué → gate pixel).

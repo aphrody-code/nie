@@ -140,14 +140,18 @@ avant** de retirer le décodeur de `nie-app::character.rs:18` ; la comparaison G
 - **Fusionner `match_state.rs` → `match_fsm.rs`** (une enum `MatchState`, une `final_score`). `match_sim` reste mode « résultat rapide ».
 - *Garde : enrober sans réécrire ; **re-baseliner** les golden de déterminisme du World (`nie-runtime/src/lib.rs:517`, figés sur l'ancienne approximation).*
 
-### Phase 5 — Fronts sur `nie-app` — **AMORCÉ** : relocalisation FSM FAIT `f80f7ed` ; merge GameState + rename restent (effort M)
+### Phase 5 — Fronts sur `nie-app` — **FAIT** (relocate `f80f7ed` + rename `aa7d61a`) ; « merge » = faux problème (constat)
 - **FAIT (`f80f7ed`)** : la FSM interactive (Title→Menu→ModeSelect→Match[moteur nie-runtime]→Story/Info + input/update/score/render)
   est sortie de `nie-wasm` (où elle était `cfg(wasm32)`-prisonnière) vers le cœur `nie_app::flow::Screen` (move **verbatim**,
   comportement identique) ; `WasmGame` ne fait plus que déléguer + mapper clavier→commande. nie-app gagne `nie-runtime` (lib, wasm-OK).
-- **Reste** : fusionner `flow::Screen` DANS `GameState` (réconcilier `Match{home,away}` scripté de nie-play vs `Match{world}` live —
-  **casse le golden nie-play** si mal tranché → re-baseline requis) ; `nie-game` dép nie-app (MENU/MODES) ; rename `render::Screen`→`Frame`.
-- **`nie-game` dépend de `nie-app`** au moins pour `MENU`/`MODES` (aujourd'hui CLI Lua autonome de 3992 LOC, 0 dép nie-app).
-- Renommer `nie-app::render::Screen`→`Frame` (`render.rs:54`, collision de nom avec la FSM) ; corriger la doc de `nie-app/src/lib.rs:5` qui ment sur ses consommateurs.
+- **FAIT (`aa7d61a`)** : rename `nie-app::render::Screen`→`Frame` (collision de nom avec la FSM résolue) ; doc lib.rs corrigée. Byte-neutre (golden nie-play 3 verts).
+- **CONSTAT (pas un reste) — « merge GameState » NON souhaitable** : investigation → `GameState` (DTO de rendu, « quoi dessiner ») et
+  `flow::Screen` (FSM interactive, input/update) sont **complémentaires, pas dupliqués** — `Screen` délègue DÉJÀ son rendu à `GameState`
+  (`render_state(&GameState::Title)`). Il y a déjà **UNE** FSM (Screen) ; la relocation ÉTAIT le dédup. Fusionner conflaterait état-de-rendu
+  et navigation = **pire** (même leçon que landmines Vec3/match_state : le « merge évident » est faux). `Match{home,away}` scripté vs `Match{world}`
+  live = deux usages distincts légitimes, pas une duplication.
+- **Caduc (vérifié)** : `nie-game` ne duplique PAS `MENU`/`MODES` — il a son propre `MAIN_MENU_ICON_TABS: [&str; 8]` (codes d'icônes,
+  usage distinct des 9 libellés FR). La dép nie-app serait gratuite → pas de dédup ici. **→ Phase 5 COMPLÈTE.**
 
 ### Ordre & rationale
 Phase 0 (gratuit, **fait**) → Phase 1 (corrige des bugs **utilisateur**, fort ROI) → Phase 2 (briques partagées) →
