@@ -11,7 +11,7 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
-thiserror.workspace = true
+# (thiserror retiré, Phase 3 : FormatError/AssembleError implémentent core::error::Error à la main → no_std-ready)
 serde = { workspace = true, optional = true }
 serde_json.workspace = true
 aes.workspace = true
