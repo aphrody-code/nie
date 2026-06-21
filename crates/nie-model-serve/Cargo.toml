@@ -35,8 +35,6 @@ rusqlite.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 clap.workspace = true
-# Encodage RGBA → PNG pour le compositeur de menu (`menu.rs`).
-png = "0.18"
 
 [dev-dependencies]
 # Example `probe_g4tx_dds` réfère l'enum `ImageFormat` en direct (le décodage applicatif
