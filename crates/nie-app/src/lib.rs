@@ -1,9 +1,11 @@
 //! **nie-app** — le CŒUR du jeu *Inazuma Eleven: Victory Road* réimplémenté (niers).
 //!
-//! Possède la **machine à états** du jeu ([`GameState`]) et le **rendu abstrait** (trait
-//! [`Renderer`]), extraits du binaire `nie-play` pour être réutilisables. Deux front-ends s'y
-//! branchent : `nie-play` (headless/golden, Renderer CPU → PNG/MP4) et `nie-game` (interactif,
-//! Renderer wgpu → 60 fps). C'est la fondation de l'unification (cf. `docs/UNIFICATION.md`, Phase 0).
+//! Possède le **DTO de rendu** ([`GameState`] — « quoi dessiner ») + le rendu abstrait (trait
+//! [`Renderer`]) ET la **FSM interactive** ([`flow::Screen`] — la navigation : input/update/score).
+//! Les deux sont **complémentaires** (DTO de rendu vs machine à états), pas dupliqués : `Screen`
+//! délègue son rendu à `GameState` via `render_state`. Consommateurs réels : `nie-play`
+//! (headless/golden, Renderer CPU → PNG/MP4) et `nie-wasm` (web interactif, délègue à `flow::Screen`).
+//! `nie-game` (wgpu natif 60 fps) suivra. Fondation de l'unification (cf. `docs/UNIFICATION.md`, Phase 0).
 //!
 //! La logique (match `nie-core`), les données (`nie-data`), les menus (`nie-lua`) se branchent ici
 //! au fil des phases ; pour l'instant le cœur tient la FSM + l'orchestration du rendu.
@@ -15,7 +17,7 @@ pub mod render;
 pub mod roster;
 pub mod story;
 
-pub use render::{Font, Screen, H, W};
+pub use render::{Font, Frame, H, W};
 /// Renderer CPU natif (charge les assets disque) — absent en wasm (le web utilise [`render::render_state`]).
 #[cfg(not(target_arch = "wasm32"))]
 pub use render::CpuRenderer;
