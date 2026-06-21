@@ -107,8 +107,13 @@ avant** de retirer le décodeur de `nie-app::character.rs:18` ; la comparaison G
 ### Phase 3 — `nie-formats` vraiment no_std — **AMORCÉ** : thiserror retiré FAIT `daf98fd` ; `#![no_std]` strict reste (effort L, *enabler*)
 - **FAIT (`daf98fd`)** : `thiserror` retiré de nie-formats — `FormatError`/`AssembleError` implémentent `core::error::Error` +
   `Display` à la main (no_std-ready, messages préservés). Gate `cargo build --workspace` RC=0 (tous consommateurs).
-- **Reste (gros lot, L)** : `#![no_std]` strict exige de gater l'I/O `std` des parseurs — **`std::io::Cursor` dans 13 fichiers**
-  (vfs/assemble/g4pkm/font/cpk/objbin/mevbin/menu/lip…) → réécriture byte-reader no_std + gating `std` de vfs/assemble. `aes` à vérifier en no_std.
+- **Reste (gros lot, L — RECETTE PRÉCISE issue d'une tentative 2026-06-21, revertée pour ne pas casser l'arbre)** : ajouter
+  `#![cfg_attr(not(feature = "std"), no_std)]` + `[features] std=[] ; default=["std"]` (build par défaut INCHANGÉ, vérifié vert) ;
+  `textures`/`audio-decode`/`real-fixtures` impliquent `std` ; gater `pub mod assemble;`/`pub mod vfs;` derrière `#[cfg(feature="std")]`.
+  PUIS le vrai lot : `#[macro_use] extern crate alloc;` **à la racine** (lib.rs, PAS par-module — E0468) pour `vec!`/`format!`, et
+  dans chaque module du cœur qui les utilise bare : `use alloc::{vec::Vec, string::{String, ToString}, borrow::ToOwned};`. La tentative
+  a mesuré ~35 erreurs no_std concentrées sur **objbin/menu/cpk/cri_audio/g4mg** (`vec!`/`Vec`/`to_string`/`to_owned`) — le reste du cœur
+  (g4md/g4mg/g4sk/g4pk/level5/crilayla/dxbc/col/navm/g4tx) est déjà no_std-clean. `aes` à vérifier en no_std. Aucun risque byte (I/O seulement).
 - **Débloque** (après le strict) : `nie-data` consomme enfin le **vrai parseur binaire**
   `nie_formats::cfgbin::CfgEntry/RdbnList` au lieu du JSON inagle → effondre la représentation cfg.bin parallèle
   (`nie-data/src/cfgbin.rs` `Node/Var/walk_named` devient un adaptateur transitoire tant qu'azalee ingère du JSON). **Débloque** : `nie-data` consomme enfin le **vrai parseur binaire**
