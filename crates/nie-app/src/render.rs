@@ -2,14 +2,18 @@
 //! `LatinAtlas`), [`render_state`] (un état → un cadre) et [`CpuRenderer`] (impl [`Renderer`] :
 //! police + toiles de fond 3D pré-rendues). Front-end headless/golden ; le temps-réel passe par wgpu.
 
+#[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
 
 use anyhow::{Context, Result};
 use nie_formats::font::{self, LatinAtlas};
 use nie_formats::{cfgbin, g4tx};
 
+#[cfg(not(target_arch = "wasm32"))]
 use crate::character;
-use crate::{GameState, Renderer, MENU};
+#[cfg(not(target_arch = "wasm32"))]
+use crate::Renderer;
+use crate::{GameState, MENU};
 
 /// Largeur du canevas de rendu (px).
 pub const W: usize = 1280;
@@ -24,12 +28,12 @@ pub struct Font {
 }
 
 impl Font {
-    /// Charge la police depuis `font.cfg.bin` (métriques) + `font.g4tx` (atlas).
-    pub fn load(cfg_path: &Path, g4tx_path: &Path) -> Result<Self> {
-        let cfg = cfgbin::parse_t2b(&std::fs::read(cfg_path)?).map_err(|e| anyhow::anyhow!("cfg: {e:?}"))?;
+    /// Construit la police depuis les OCTETS de `font.cfg.bin` (métriques) + `font.g4tx` (atlas).
+    /// Cœur wasm-safe (aucune I/O) : l'appelant fournit les octets (fichier natif ou fetch web).
+    pub fn from_bytes(cfg_bytes: &[u8], g4tx_bytes: &[u8]) -> Result<Self> {
+        let cfg = cfgbin::parse_t2b(cfg_bytes).map_err(|e| anyhow::anyhow!("cfg: {e:?}"))?;
         let metrics = font::parse_metrics(&cfg);
-        let g4tx_bytes = std::fs::read(g4tx_path)?;
-        let tx = g4tx::parse(&g4tx_bytes).map_err(|e| anyhow::anyhow!("g4tx: {e:?}"))?;
+        let tx = g4tx::parse(g4tx_bytes).map_err(|e| anyhow::anyhow!("g4tx: {e:?}"))?;
         let t = tx.textures.first().context("pas de texture police")?;
         let dds = &g4tx_bytes[t.data_offset..];
         let off = if dds.len() >= 88 && &dds[84..88] == b"DX10" { 148 } else { 128 };
@@ -37,6 +41,12 @@ impl Font {
         let (aw, ah) = (t.width as usize, t.height as usize);
         let la = LatinAtlas::from_atlas(&atlas, aw, ah, 946, metrics.dims.cell_height);
         Ok(Self { atlas, la, aw })
+    }
+
+    /// Charge la police depuis le disque (natif) — délègue à [`Font::from_bytes`].
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn load(cfg_path: &Path, g4tx_path: &Path) -> Result<Self> {
+        Self::from_bytes(&std::fs::read(cfg_path)?, &std::fs::read(g4tx_path)?)
     }
 }
 
@@ -169,7 +179,8 @@ pub fn render_state<'a>(state: &GameState, f: &'a Font, bg: Option<&[u8]>) -> Sc
     s
 }
 
-/// Chemins des assets d'un personnage 3D (toile de fond menu/histoire).
+/// Chemins des assets d'un personnage 3D (toile de fond menu/histoire). Natif (chemins disque).
+#[cfg(not(target_arch = "wasm32"))]
 pub struct CharAssets<'a> {
     pub md: &'a Path,
     pub mg: &'a Path,
@@ -178,12 +189,15 @@ pub struct CharAssets<'a> {
 }
 
 /// Renderer CPU : police + toiles de fond 3D pré-rendues (perso, scène match), réutilisées par état.
+/// Natif (charge les assets depuis le disque) ; le rendu web passe par [`render_state`] + [`Font::from_bytes`].
+#[cfg(not(target_arch = "wasm32"))]
 pub struct CpuRenderer {
     font: Font,
     char_bg: Option<Vec<u8>>,
     match_bg: Option<Vec<u8>>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl CpuRenderer {
     /// Construit le renderer : charge la police et, si `chr` fourni, pré-rend le perso 3D + la scène
     /// de match (réutilisés comme toiles de fond).
@@ -208,6 +222,7 @@ impl CpuRenderer {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Renderer for CpuRenderer {
     fn render(&self, state: &GameState) -> Vec<u8> {
         let bg = match state {
