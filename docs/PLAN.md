@@ -142,8 +142,9 @@ pour ramener chaque famille de code à une **source de vérité unique** sans ca
   Byte-validé : tests real-audio (HCA IEVR réel, subkey 0xC62A, 48 kHz). **→ Phase 1 (tuer les bugs de divergence) COMPLÈTE.**
 - **AMORCÉ — Phase 5 (`f80f7ed`)** : FSM interactive du jeu **relocalisée** de nie-wasm vers le cœur `nie_app::flow::Screen`
   (move verbatim, comportement identique, gate wasm32+clippy vert) ; reste le merge dans `GameState` + rename (re-baseline golden requis).
-- **AMORCÉ — Phase 2 (`44aae64`)** : sous-lot render3d (`vecmath`) ; **`nie-geom` BLOQUÉ** sur un landmine découvert — `nie-core::Vec3`
-  (y=hauteur) et `nie-runtime::V3` (z=hauteur) ont des **axes verticaux opposés** : fusion = corruption physique silencieuse (cf. `docs/DEDUP-PLAN.md` landmine #4).
+- **Phase 2 — géométrie FAIT** (`44aae64` render3d + `af4c5ce`/`582368f` nie-geom) : crate feuille `nie-geom` (Vec2/Vec3 POD, no_std-optionnel)
+  = source unique ; `nie-core::Vec3` + `nie-runtime::V3/V2` migrés byte-neutre (186 + 6 tests verts). **Landmine #4 résolue par conception**
+  (type axis-agnostique, conventions dans le code, garde-fou aux imports). Reste : `raster2d` (blend menu, byte-risqué → gate pixel).
 - **NON_FAIT — Phases 3, 4** : 3 `nie-formats` vraiment no_std (enabler) ; 4 unification des moteurs de match (= `docs/UNIFICATION.md`,
   **risque byte-exact max** : créer `match_live`, rebrancher `World`, re-baseliner les golden). Exigent disque libéré + suites golden (VPS à 97 %).
 
