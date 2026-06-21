@@ -10,3 +10,4 @@
 pub mod glb;
 pub mod render;
 pub mod scene;
+mod vecmath;
