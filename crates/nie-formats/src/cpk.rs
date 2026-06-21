@@ -70,6 +70,9 @@
 
 extern crate alloc;
 use alloc::{string::String, vec::Vec};
+// ToOwned du prélude std absent en no_std (dédup Phase 3 ; no-op en std via cfg).
+#[cfg(not(feature = "std"))]
+use alloc::borrow::ToOwned;
 
 use crate::FormatError;
 

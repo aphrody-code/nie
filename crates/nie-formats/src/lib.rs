@@ -31,37 +31,69 @@
 //! ([`cpk::VIOLA_FIXED_KEY`]) est la clé Viola des `cfg.bin`, PAS celle des packs.
 #![forbid(unsafe_code)]
 #![allow(clippy::pedantic)]
+// `#![no_std]` strict hors feature `std` (dédup Phase 3). Cœur de parseurs = alloc-only ;
+// assemble/vfs (I/O fichiers) + cri_audio (maths flottantes ADX f64::cos/sqrt) + textures/audio-decode
+// = std. `default = ["std"]` → build par défaut INCHANGÉ ; `--no-default-features` = cœur no_std (nie-data).
+#![cfg_attr(not(feature = "std"), no_std)]
 
+/// Assemblage GLB d'un personnage (feature `std` : I/O fichiers + `HashMap`).
+#[cfg(feature = "std")]
 pub mod assemble;
 pub mod cfgbin;
+#[cfg(feature = "std")]
 pub mod font;
+#[cfg(feature = "std")]
 pub mod objbin;
 pub mod cpk;
 pub mod crilayla;
+/// Parseurs/décodeurs audio Criware (feature `std` : ADX décode via `f64::cos`/`sqrt`).
+#[cfg(feature = "std")]
 pub mod cri_audio;
+#[cfg(feature = "std")]
 pub mod g4md;
+#[cfg(feature = "std")]
 pub mod g4mg;
+#[cfg(feature = "std")]
 pub mod g4pk;
+#[cfg(feature = "std")]
 pub mod g4pkm;
+#[cfg(feature = "std")]
 pub mod g4pkm_motion;
+#[cfg(feature = "std")]
 pub mod g4sk;
+#[cfg(feature = "std")]
 pub mod menu;
+#[cfg(feature = "std")]
 pub mod mevbin;
+#[cfg(feature = "std")]
 pub mod level5;
+#[cfg(feature = "std")]
 pub mod navm;
+#[cfg(feature = "std")]
 pub mod g4cm;
+#[cfg(feature = "std")]
 pub mod g4mt;
+#[cfg(feature = "std")]
 pub mod g4ma;
+#[cfg(feature = "std")]
 pub mod g4vs;
+#[cfg(feature = "std")]
 pub mod g4la;
+#[cfg(feature = "std")]
 pub mod col;
+#[cfg(feature = "std")]
 pub mod dxbc;
+#[cfg(feature = "std")]
 pub mod g4tx;
 /// Décodeur G4TX/DDS → RGBA8/PNG (source unique du workspace, feature `textures`).
 #[cfg(feature = "textures")]
 pub mod g4tx_decode;
+#[cfg(feature = "std")]
 pub mod lip;
+#[cfg(feature = "std")]
 pub mod nxtch;
+/// VFS multi-CPK (feature `std` : lit `cpk_list.cfg.bin` + CPK via `std::fs`).
+#[cfg(feature = "std")]
 pub mod vfs;
 
 #[derive(Debug)]
