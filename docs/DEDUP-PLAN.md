@@ -119,9 +119,12 @@ vérifier que `aes` compile en no_std. **Débloque** : `nie-data` consomme enfin
 - **Fusionner `match_state.rs` → `match_fsm.rs`** (une enum `MatchState`, une `final_score`). `match_sim` reste mode « résultat rapide ».
 - *Garde : enrober sans réécrire ; **re-baseliner** les golden de déterminisme du World (`nie-runtime/src/lib.rs:517`, figés sur l'ancienne approximation).*
 
-### Phase 5 — Fronts sur `nie-app` — **NON_FAIT** (effort M)
-- Remonter la **FSM interactive prisonnière de `nie-wasm`** (`Screen` + `input`/`update`, `nie-wasm/src/lib.rs:1304`) dans
-  `nie-app::GameState` (`lib.rs:26` — ajouter `ModeSelect`/`Info`) ; `nie-wasm` ne garde que clavier→`Cmd`.
+### Phase 5 — Fronts sur `nie-app` — **AMORCÉ** : relocalisation FSM FAIT `f80f7ed` ; merge GameState + rename restent (effort M)
+- **FAIT (`f80f7ed`)** : la FSM interactive (Title→Menu→ModeSelect→Match[moteur nie-runtime]→Story/Info + input/update/score/render)
+  est sortie de `nie-wasm` (où elle était `cfg(wasm32)`-prisonnière) vers le cœur `nie_app::flow::Screen` (move **verbatim**,
+  comportement identique) ; `WasmGame` ne fait plus que déléguer + mapper clavier→commande. nie-app gagne `nie-runtime` (lib, wasm-OK).
+- **Reste** : fusionner `flow::Screen` DANS `GameState` (réconcilier `Match{home,away}` scripté de nie-play vs `Match{world}` live —
+  **casse le golden nie-play** si mal tranché → re-baseline requis) ; `nie-game` dép nie-app (MENU/MODES) ; rename `render::Screen`→`Frame`.
 - **`nie-game` dépend de `nie-app`** au moins pour `MENU`/`MODES` (aujourd'hui CLI Lua autonome de 3992 LOC, 0 dép nie-app).
 - Renommer `nie-app::render::Screen`→`Frame` (`render.rs:54`, collision de nom avec la FSM) ; corriger la doc de `nie-app/src/lib.rs:5` qui ment sur ses consommateurs.
 
