@@ -133,9 +133,12 @@ pour ramener chaque famille de code à une **source de vérité unique** sans ca
   (feature `textures`, off par défaut → no_std/wasm préservés) ; supprime 4 copies divergentes (nie-game/wasm/ffi/model-serve).
   wasm/ffi/game (DX10-seul) héritent du FourCC/legacy + anti-dummy → corrige « textures invisibles en wasm ». Gate `clippy
   --all-targets` vert sur les 5 crates (cf. [[build-gate-disque-vps]] : `build --all-targets` sature le disque du VPS).
-- **INCOMPLET — Phases 1c→5** : 1c compositeur menu f64→f32 ; 1d CRC32 source unique + module HCA partagé ; 2 crate
-  `nie-geom` + `raster2d` ; 3 `nie-formats` vraiment no_std (enabler) ; 4 unification des moteurs de match (=
-  `docs/UNIFICATION.md`, risque byte-exact max) ; 5 fronts sur `nie-app`. Chacune gatée (clippy --all-targets + tests ciblés) + committée.
+- **FAIT — Phase 1c (`63bf17c`)** : compositeur de menu **unique** — model-serve passe de sa copie **f64** à la
+  référence pixel-perfect **f32** de `nie-formats::menu` (route `/menu-render` alignée sur le rendu validé de nie-game) ;
+  supprime `blit_sprite`+`sample_bilinear` f64 de model-serve. clippy --all-targets vert.
+- **INCOMPLET — Phases 1d→5** : 1d CRC32 source unique + module HCA partagé ; 2 crate `nie-geom` + `raster2d` ; 3
+  `nie-formats` vraiment no_std (enabler) ; 4 unification des moteurs de match (= `docs/UNIFICATION.md`, risque byte-exact
+  max) ; 5 fronts sur `nie-app`. Chacune gatée (clippy --all-targets + tests ciblés) + committée.
 
 ## Roadmap priorisée (vers le jeu jouable)
 
