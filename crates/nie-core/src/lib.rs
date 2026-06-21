@@ -73,6 +73,7 @@ pub mod ball;
 pub mod command_effect;
 pub mod crand;
 pub mod ecs;
+pub mod event_check;
 pub mod exp;
 pub mod growth;
 pub mod keeper;
