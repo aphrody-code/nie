@@ -1299,26 +1299,50 @@ pub fn parse_save_json(bytes: &[u8], filename: &str) -> Result<String, String> {
 // Jeu jouable en navigateur (nie-app : FSM GameState + rendu CPU framebuffer)
 // ---------------------------------------------------------------------------
 
-/// Le JEU niers jouable dans le navigateur : pilote la machine à états [`nie_app::GameState`]
-/// (Title → MainMenu → Match → Story → …) et rend chaque écran en framebuffer RGBA8 `W*H*4` que JS
-/// peint sur un `<canvas>` (`ctx.putImageData`). Cœur 100 % Rust ; les octets de police sont fournis
-/// par JS (fetch des assets) via [`WasmGame::new`].
+/// Écran courant du JEU (machine à états interactive). Le match embarque le vrai moteur `nie-runtime`.
+#[cfg(target_arch = "wasm32")]
+enum Screen {
+    Title,
+    /// Menu principal : les 9 onglets réels (`nie_app::MENU`).
+    Menu { sel: usize },
+    /// Sélecteur de mode de jeu : les 5 modes réels (`nie_app::MODES`), atteint via « Adversaires ».
+    ModeSelect { sel: usize },
+    Match { world: nie_runtime::World },
+    Story { idx: usize },
+    /// Écran d'un mode/onglet pas encore jouable (titre = libellé réel) — données réelles à venir.
+    Info { title: String },
+}
+
+/// Quelques répliques du mode histoire (placeholder localisé — les vrais dialogues SQLite suivront).
+#[cfg(target_arch = "wasm32")]
+const STORY: &[(&str, &str)] = &[
+    ("Endou Mamoru", "Can anyone bring down Raimon's unshakable fortress?!"),
+    ("Gouenji Shuuya", "Let's settle this on the pitch."),
+    ("Kidou Yuuto", "A perfect strategy demands a perfect execution."),
+];
+
+/// Le JEU niers complet, jouable au clavier dans le navigateur — 100 % Rust → wasm.
+///
+/// Machine à états INTERACTIVE (écran-titre → menu principal → **vrai match** [moteur nie-runtime :
+/// physique, 22 joueurs, ballon, buts] → mode histoire), pilotée par les touches, rendue en framebuffer
+/// RGBA8 `W*H*4` unifié que JS peint plein écran. Pas un playthrough scripté : le joueur navigue et joue.
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub struct WasmGame {
     font: nie_app::Font,
-    flow: Vec<(nie_app::GameState, u32)>,
+    screen: Screen,
 }
 
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 impl WasmGame {
     /// Construit le jeu depuis les octets de la police (`font.cfg.bin` + `font.g4tx`, fetchés par JS).
+    /// Démarre sur l'écran-titre.
     #[wasm_bindgen(constructor)]
     pub fn new(font_cfg: &[u8], font_g4tx: &[u8]) -> Result<WasmGame, JsValue> {
         let font = nie_app::Font::from_bytes(font_cfg, font_g4tx)
             .map_err(|e| JsValue::from_str(&format!("font: {e}")))?;
-        Ok(WasmGame { font, flow: nie_app::demo_flow(0, 1) })
+        Ok(WasmGame { font, screen: Screen::Title })
     }
 
     /// Largeur du framebuffer (px).
@@ -1333,31 +1357,125 @@ impl WasmGame {
         nie_app::H
     }
 
-    /// Nombre total de frames du playthrough scripté (boucle Title→Menu→Match→Story→…).
-    #[wasm_bindgen(getter)]
-    pub fn total_frames(&self) -> u32 {
-        self.flow.iter().map(|(_, d)| *d).sum()
-    }
+    /// Commande de menu IEVR RÉELLE (cf. `MENU_CMD_INFO` des cfg.bin + `input_ctrl`) :
+    /// `CMD_FCS_MTX_{UP,DOWN,LEFT,RIGHT}` (navigation), `CMD_ENTER`/`CMD_SUB_ENTER` (valider),
+    /// `CMD_BACK`/`CMD_CANCEL` (retour). Le mapping **clavier / souris / manette** → ces commandes
+    /// se fait côté front (couche d'input). Le moteur ne connaît que les commandes du jeu.
+    pub fn input(&mut self, cmd: &str) {
+        let nav: i32 = match cmd {
+            "CMD_FCS_MTX_UP" | "CMD_FCS_MTX_LEFT" | "CMD_FCS_BACK" => -1,
+            "CMD_FCS_MTX_DOWN" | "CMD_FCS_MTX_RIGHT" | "CMD_FCS_NEXT" => 1,
+            _ => 0,
+        };
+        let enter = matches!(cmd, "CMD_ENTER" | "CMD_SUB_ENTER");
+        let back = matches!(cmd, "CMD_BACK" | "CMD_CANCEL");
+        let wrap = |sel: usize, n: usize| -> usize { ((sel as i32 + nav).rem_euclid(n as i32)) as usize };
 
-    /// Rend la frame `frame_idx` du playthrough (modulo la durée totale) en RGBA8 `W*H*4`.
-    pub fn render_frame(&self, frame_idx: u32) -> Vec<u8> {
-        let total = self.total_frames().max(1);
-        let mut f = frame_idx % total;
-        let mut state = &self.flow[0].0;
-        for (s, d) in &self.flow {
-            if f < *d {
-                state = s;
-                break;
+        match &mut self.screen {
+            Screen::Title => {
+                if enter {
+                    self.screen = Screen::Menu { sel: 0 };
+                }
             }
-            f -= *d;
+            Screen::Menu { sel } => {
+                if nav != 0 {
+                    *sel = wrap(*sel, nie_app::MENU.len());
+                } else if enter {
+                    let cur = *sel;
+                    // Onglet 5 = « Adversaires » → sélection de mode ; autres → écran à venir.
+                    if cur == 5 {
+                        self.screen = Screen::ModeSelect { sel: 0 };
+                    } else {
+                        self.screen = Screen::Info { title: nie_app::MENU[cur].into() };
+                    }
+                } else if back {
+                    self.screen = Screen::Title;
+                }
+            }
+            Screen::ModeSelect { sel } => {
+                if nav != 0 {
+                    *sel = wrap(*sel, nie_app::MODES.len());
+                } else if enter {
+                    // 0 = Mode Histoire → dialogues ; 1-4 → vrai match (moteur nie-runtime).
+                    if *sel == 0 {
+                        self.screen = Screen::Story { idx: 0 };
+                    } else {
+                        self.screen = Screen::Match { world: nie_runtime::World::kickoff() };
+                    }
+                } else if back {
+                    self.screen = Screen::Menu { sel: 5 };
+                }
+            }
+            Screen::Match { .. } => {
+                if back {
+                    self.screen = Screen::ModeSelect { sel: 0 };
+                }
+            }
+            Screen::Story { idx } => {
+                if enter {
+                    *idx += 1;
+                    if *idx >= STORY.len() {
+                        self.screen = Screen::ModeSelect { sel: 0 };
+                    }
+                } else if back {
+                    self.screen = Screen::ModeSelect { sel: 0 };
+                }
+            }
+            Screen::Info { .. } => {
+                if enter || back {
+                    self.screen = Screen::Menu { sel: 0 };
+                }
+            }
         }
-        nie_app::render::render_state(state, &self.font, None).buf
     }
 
-    /// Rend le menu principal avec l'option `sel` surlignée (navigation interactive web). RGBA8 `W*H*4`.
-    pub fn render_menu(&self, sel: usize) -> Vec<u8> {
-        let state = nie_app::GameState::MainMenu { sel };
-        nie_app::render::render_state(&state, &self.font, None).buf
+    /// Avance le temps de `dt` secondes : la physique du match tourne quand un match est en cours.
+    pub fn update(&mut self, dt: f32) {
+        if let Screen::Match { world } = &mut self.screen {
+            world.step(dt);
+        }
+    }
+
+    /// Score du match en cours `[domicile, extérieur]` (zéros hors match).
+    pub fn score(&self) -> Vec<u32> {
+        match &self.screen {
+            Screen::Match { world } => vec![world.score[0], world.score[1]],
+            _ => vec![0, 0],
+        }
+    }
+
+    /// `true` si un match est en cours (pour l'overlay de score côté UI).
+    #[wasm_bindgen(getter)]
+    pub fn in_match(&self) -> bool {
+        matches!(self.screen, Screen::Match { .. })
+    }
+
+    /// Rend l'écran courant en framebuffer RGBA8 `W*H*4`.
+    pub fn render(&self) -> Vec<u8> {
+        match &self.screen {
+            Screen::Title => nie_app::render::render_state(&nie_app::GameState::Title, &self.font, None).buf,
+            Screen::Menu { sel } => {
+                nie_app::render::render_list("MENU PRINCIPAL", &nie_app::MENU, *sel, &self.font).buf
+            }
+            Screen::ModeSelect { sel } => {
+                nie_app::render::render_list("MODE DE JEU", &nie_app::MODES, *sel, &self.font).buf
+            }
+            Screen::Story { idx } => {
+                let (sp, ln) = STORY[(*idx).min(STORY.len() - 1)];
+                let st = nie_app::GameState::Story { speaker: sp.into(), line: ln.into() };
+                nie_app::render::render_state(&st, &self.font, None).buf
+            }
+            Screen::Match { world } => {
+                nie_runtime::render::render(world, nie_app::W as u32, nie_app::H as u32).px
+            }
+            Screen::Info { title } => {
+                let st = nie_app::GameState::Story {
+                    speaker: title.clone(),
+                    line: "Mode en cours d'intégration — données réelles disponibles (Échap : retour).".into(),
+                };
+                nie_app::render::render_state(&st, &self.font, None).buf
+            }
+        }
     }
 }
 
