@@ -82,7 +82,8 @@ nie-engine           = exclu des members → référence RE lecture seule  [FAIT
 *Garde : déménager les golden `typed` avec les arms ; **comparer `bcdec_rs`↔`image_dds` sur une vraie texture BC7
 avant** de retirer le décodeur de `nie-app::character.rs:18` ; la comparaison GPU↔CPU de nie-game reste verte.*
 
-### Phase 2 — Brique géométrie + raster — **NON_FAIT** (effort M, soin no_std)
+### Phase 2 — Brique géométrie + raster — **AMORCÉ** (sous-lot render3d FAIT `44aae64` ; nie-geom + raster2d à faire) (effort M, soin no_std)
+- **FAIT (`44aae64`)** : sous-lot intra-crate render3d — helpers `V3/sub/cross/dot/normv` (dupliqués verbatim render.rs↔scene.rs) extraits dans `vecmath`. Reste : crate feuille `nie-geom` (PODs partagés cross-crate, landmine g4sk) + `nie-formats::raster2d` (blend unique).
 - **Crate feuille `nie-geom`** (`#![no_std]` + alloc, 0 dep, **pas glam** ; sqrt/normalize derrière feature
   `std`/`libm`) : PODs `Vec2/Vec3/Vec4/Mat4`. Migrer `nie-core/src/lib.rs:169`, `nie-runtime/src/lib.rs:23,69`,
   `nie-render3d` (`scene.rs:9`+`render.rs:15`), `nie-formats/src/g4mg.rs:39,51`. **`g4sk::mat_mul` reste local** (landmine 2).
