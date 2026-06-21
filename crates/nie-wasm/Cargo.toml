@@ -26,6 +26,9 @@ nie-save = { workspace = true, features = ["serde"] }
 # nie-app : le JEU jouable (FSM GameState + rendu CPU framebuffer). Cœur wasm-safe
 # (l'I/O assets est gatée hors wasm) → expose `WasmGame` pour le canvas navigateur.
 nie-app = { path = "../nie-app" }
+# nie-runtime : le MOTEUR de match (World : physique ballon, 22 joueurs, possession, buts) + rendu
+# top-down → expose `WasmMatch` (le vrai match tourne dans le navigateur). nie-render3d (3D CPU) suit.
+nie-runtime = { path = "../nie-runtime" }
 serde_json.workspace = true
 # Décodage textures G4TX (DDS BC1/BC3/BC5/BC7 → RGBA) + ré-encodage PNG, in-browser.
 # `image_dds` default-features=false = décodeur pur Rust (compatible wasm32).

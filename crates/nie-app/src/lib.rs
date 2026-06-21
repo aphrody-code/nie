@@ -34,8 +34,24 @@ pub enum GameState {
     Story { speaker: String, line: String },
 }
 
-/// Options du menu principal (placeholder ; remplacé à terme par les vrais layouts Lua, Phase 3).
-pub const MENU: [&str; 4] = ["MATCH", "STORY MODE", "MY TEAM", "KIZUNA TOWN"];
+/// Les 9 onglets RÉELS du menu principal d'IEVR, prouvés byte-exact dans `main_menu_1.02.92.00.lua.bin`
+/// (types {10,20,30,70,40,80,60,50,90} → obj_hash CRC32 + text_id). Libellés = vrais textes FR
+/// (`data/common/text/fr/menu_text.cfg.bin.json`, résolus par hash). Source vérifiée, pas inventé.
+pub const MENU: [&str; 9] = [
+    "Composition d'équipe",       // team_dock_menu
+    "Objets",                     // item_menu
+    "Marque-pages d'informations", // info_bookmark_menu
+    "Inacord",                    // inacode_menu
+    "Fichier de données",         // datafile_menu
+    "Adversaires",                // opponent_team_menu (→ sélection de mode/match)
+    "Aide",                       // help_menu
+    "Options",                    // setting_menu
+    "Sauvegarder",                // rpg_save_menu
+];
+
+/// Les 5 MODES DE JEU racine d'IEVR (libellés FR réels, hash menu_text). Atteints via « Adversaires ».
+/// Source : menu_text + cfg `*_mode_top_menu_setting.cfg.bin` / `bb_stadium_top_menu_setting.cfg.bin`.
+pub const MODES: [&str; 5] = ["Mode Histoire", "Mode Chronique", "Mode Compétition", "Victory Road", "Stade BB"];
 
 /// Abstraction de rendu : un front-end fournit un `Renderer` qui transforme un état en frame RGBA
 /// (1280×720, 4 octets/px). CPU (`CpuRenderer`) aujourd'hui, wgpu demain (nie-game, Phase 4).
