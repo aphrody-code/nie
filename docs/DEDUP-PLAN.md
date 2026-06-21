@@ -120,7 +120,10 @@ avant** de retirer le décodeur de `nie-app::character.rs:18` ; la comparaison G
 > sont des **STRUCTS reversées SANS boucle d'update portée** — seules 3 physiques de ballon ont leur `update` byte-exact (via uemu).
 > Donc `match_live` ne peut PAS *orchestrer* une logique byte-exacte qui n'est pas encore reversée : créer un squelette qui
 > *prétend* unifier le moteur serait un **faux-FAIT**. Cette phase est gatée sur la RE des boucles d'update (oracle uemu / differential-testing,
-> multi-session). La part **purement dédup et sûre** ici = fusionner `match_state.rs` → `match_fsm.rs` (FSM dupliquée) ; le reste est du RE, pas de la dédup.
+> multi-session). La part « purement dédup » = fusionner `match_state.rs` → `match_fsm.rs`, MAIS investigation 2026-06-21 :
+> `match_state` est **orphelin** (0 consommateur) et son `MatchPhase` a les **mêmes 11 états** que `match_fsm::MatchState` avec
+> des **noms divergents + un piège** (`MatchPhase::ResultUi`=index **8** vs `MatchState::ResultUi`=index **2**). Fusion mécanique →
+> mauvais état mappé en silence (cf. landmine Vec3) ; valeur ≈ nulle (orphelin), risque réel → audit état-par-état requis, pas un re-export.
 - Créer **`nie-core::match_live`** (boucle tick) orchestrant les modules byte-exact **aujourd'hui orphelins** :
   `ball::BallMover` (`ball.rs:341,477`), `keeper` (`keeper.rs:151`), `soccer_ctrl`, `tactics`, `action`,
   `play_cmd_manager` + `match_fsm::final_score`.
