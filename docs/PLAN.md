@@ -118,6 +118,25 @@ en Rust ; iecode/inagle ne sont pas des dépendances permanentes, ce sont des v�
 - **Reste D1.c** : émuler la **boucle driver** post-`OnInit` (Setup* créent les objets) + getters renvoyant les vraies données + join `crc32(objbin.name)` dans `build_sprite_list` → la SSIM montera. ~~D1.d (texte/police)~~ **FAIT (Latin)** → D1.e (3D in-menu) → D1.f cible SSIM ≥ 0,99 ; + bump wgpu **22→29**. Détail : `docs/DESIGN.md` §11/§13.
 - **Cap** : c'est désormais la **pointe active** ; le pont wasm/azalee (§4) redevient un **compagnon secondaire**.
 
+### 6. Dédup & unification du workspace — `docs/DEDUP-PLAN.md`
+
+Cartographie multi-agents (2026-06-21, preuves `file:line`) des duplications réelles du workspace + plan phasé
+pour ramener chaque famille de code à une **source de vérité unique** sans casser le byte-exact. Plan complet :
+`docs/DEDUP-PLAN.md` (3 strates de risque, bugs de divergence réels, 3 fusions interdites).
+- **FAIT — Phase 0 (`a9b0c27`)** : `nie-engine` exclu des membres compilés (orphelin, cf. §3quinquies) ; 7 deps
+  déclarées-mais-inutilisées retirées (`nie-model-serve→nie-wiki`, `nie-wiki→nie-core`, `nie-re→serde/serde_json/petgraph`,
+  `nie-zukan→tokio/tokio-util`). Build + clippy verts.
+- **FAIT — Phase 1a (`a70008e`)** : dispatch `cfg.bin` typé **unifié dans `nie-data::typed`** (37→93 familles ; rapatrie
+  les 56 arms copiés dans `nie-model-serve`). Corrige un bug réel : 56 familles décodées en structuré côté serveur mais
+  « generic » dans le navigateur — désormais identiques (wasm32 release + golden `typed_decode_cable_les_familles_golden` verts).
+- **FAIT — Phase 1b (`ed9340b` + fix dev-deps)** : décodeur texture G4TX/DDS **unique** dans `nie-formats::g4tx_decode`
+  (feature `textures`, off par défaut → no_std/wasm préservés) ; supprime 4 copies divergentes (nie-game/wasm/ffi/model-serve).
+  wasm/ffi/game (DX10-seul) héritent du FourCC/legacy + anti-dummy → corrige « textures invisibles en wasm ». Gate `clippy
+  --all-targets` vert sur les 5 crates (cf. [[build-gate-disque-vps]] : `build --all-targets` sature le disque du VPS).
+- **INCOMPLET — Phases 1c→5** : 1c compositeur menu f64→f32 ; 1d CRC32 source unique + module HCA partagé ; 2 crate
+  `nie-geom` + `raster2d` ; 3 `nie-formats` vraiment no_std (enabler) ; 4 unification des moteurs de match (=
+  `docs/UNIFICATION.md`, risque byte-exact max) ; 5 fronts sur `nie-app`. Chacune gatée (clippy --all-targets + tests ciblés) + committée.
+
 ## Roadmap priorisée (vers le jeu jouable)
 
 > **Trajectoire complète et mesurable vers 100 % pixel-perfect : `docs/ROADMAP-100.md`** (décomposition en 5 couvertures C1–C5, jalons à *gates* vérifiables, vagues d'exécution, tableau de bord honnête). La section ci-dessous reste le court terme opérationnel.
