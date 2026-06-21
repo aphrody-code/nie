@@ -136,9 +136,12 @@ pour ramener chaque famille de code à une **source de vérité unique** sans ca
 - **FAIT — Phase 1c (`63bf17c`)** : compositeur de menu **unique** — model-serve passe de sa copie **f64** à la
   référence pixel-perfect **f32** de `nie-formats::menu` (route `/menu-render` alignée sur le rendu validé de nie-game) ;
   supprime `blit_sprite`+`sample_bilinear` f64 de model-serve. clippy --all-targets vert.
-- **INCOMPLET — Phases 1d→5** : 1d CRC32 source unique + module HCA partagé ; 2 crate `nie-geom` + `raster2d` ; 3
-  `nie-formats` vraiment no_std (enabler) ; 4 unification des moteurs de match (= `docs/UNIFICATION.md`, risque byte-exact
-  max) ; 5 fronts sur `nie-app`. Chacune gatée (clippy --all-targets + tests ciblés) + committée.
+- **FAIT — Phase 1d** : **CRC32 source unique** (`nie-save` délègue à `nie_formats::cfgbin::crc32` ; nie-ffi déjà ;
+  no_std gardent leur copie) + **décodeur audio HCA/ADX/AWB/ACB unique** `nie_formats::cri_audio::decode_to_wav` (feature
+  `audio-decode`) — model-serve `/audio` et wasm `audio_to_wav` délèguent, `cridecoder` retiré de leurs deps directes.
+  Byte-validé : tests real-audio (HCA IEVR réel, subkey 0xC62A, 48 kHz). **→ Phase 1 (tuer les bugs de divergence) COMPLÈTE.**
+- **INCOMPLET — Phases 2→5** : 2 crate `nie-geom` + `raster2d` ; 3 `nie-formats` vraiment no_std (enabler) ; 4 unification
+  des moteurs de match (= `docs/UNIFICATION.md`, risque byte-exact max) ; 5 fronts sur `nie-app`. Chacune gatée + committée.
 
 ## Roadmap priorisée (vers le jeu jouable)
 
