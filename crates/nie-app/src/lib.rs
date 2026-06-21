@@ -9,6 +9,7 @@
 //! au fil des phases ; pour l'instant le cœur tient la FSM + l'orchestration du rendu.
 
 pub mod character;
+pub mod flow;
 pub mod render;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod roster;
