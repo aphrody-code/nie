@@ -113,7 +113,11 @@ avant** de retirer le décodeur de `nie-app::character.rs:18` ; la comparaison G
   PUIS le vrai lot : `#[macro_use] extern crate alloc;` **à la racine** (lib.rs, PAS par-module — E0468) pour `vec!`/`format!`, et
   dans chaque module du cœur qui les utilise bare : `use alloc::{vec::Vec, string::{String, ToString}, borrow::ToOwned};`. La tentative
   a mesuré ~35 erreurs no_std concentrées sur **objbin/menu/cpk/cri_audio/g4mg** (`vec!`/`Vec`/`to_string`/`to_owned`) — le reste du cœur
-  (g4md/g4mg/g4sk/g4pk/level5/crilayla/dxbc/col/navm/g4tx) est déjà no_std-clean. `aes` à vérifier en no_std. Aucun risque byte (I/O seulement).
+  (g4md/g4mg/g4sk/g4pk/level5/crilayla/dxbc/col/navm/g4tx) est déjà no_std-clean. Imports alloc **à variance par-module** (menu manque `Vec`,
+  d'autres l'ont déjà → un préambule uniforme donne des E0252 doublons) : tailler par module. **2e blocage découvert (2 tentatives, revertées,
+  build std toujours vert)** : `cri_audio::adx_decode` fait des **maths flottantes** (`f64::cos`/`sqrt` pour le filtre ADPCM) → en no_std il faut
+  `libm` (ou gater cri_audio entier derrière `std` — acceptable car nie-data n'a pas besoin d'audio). Vérifier aussi g4sk/g4mt/g4mg (matrices/normales sqrt).
+  `aes` à vérifier en no_std. Aucun risque byte (I/O + maths inchangées, juste via libm). Effort réel : L (multi-session).
 - **Débloque** (après le strict) : `nie-data` consomme enfin le **vrai parseur binaire**
   `nie_formats::cfgbin::CfgEntry/RdbnList` au lieu du JSON inagle → effondre la représentation cfg.bin parallèle
   (`nie-data/src/cfgbin.rs` `Node/Var/walk_named` devient un adaptateur transitoire tant qu'azalee ingère du JSON). **Débloque** : `nie-data` consomme enfin le **vrai parseur binaire**
