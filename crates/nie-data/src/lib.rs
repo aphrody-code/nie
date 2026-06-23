@@ -113,6 +113,7 @@ pub mod soccer_performance;
 pub mod special_tactics;
 pub mod stadium;
 pub mod super_tactics;
+pub mod system_unlock;
 pub mod team;
 pub mod team_build_config;
 pub mod telop_waza;

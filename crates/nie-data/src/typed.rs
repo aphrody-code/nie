@@ -68,6 +68,10 @@ pub fn decode_by_key(key: &str, root: &Value) -> Option<(&'static str, Value)> {
         "enjoy_mode_team_config" => {
             t!("enjoy_mode_team", crate::enjoy_mode_team::parse_enjoy_mode_team_config(root))
         }
+        "system_unlock_window_config" => t!(
+            "system_unlock_window",
+            crate::system_unlock::parse_system_unlock_window_config(root)
+        ),
         "tutorial_banner_config" => t!("banner", crate::banner::parse_banner_config(root)),
         "boost_player_group_config" => {
             t!("boost_grp", crate::boost_grp::parse_boost_grp_config(root))
