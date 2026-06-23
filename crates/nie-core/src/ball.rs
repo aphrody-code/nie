@@ -487,6 +487,32 @@ impl TargetFollowMove {
     }
 }
 
+/// Indice du point le plus proche de `target` parmi `points` (argmin de la distance²).
+///
+/// Port BYTE-FIDÈLE de la boucle initiale de `game::BallMoveGoalnet::vmethod_3` (`0x1413385C0`) :
+/// recherche du point de filet de but le plus proche du ballon. **Validé byte-exact** contre
+/// l'émulation Unicorn (`scripts/validate_goalnet.py`, 4 cas).
+///
+/// Détails de fidélité f32 (ordre des ops SSE du binaire) : `d2 = (dx·dx + dy·dy) + (dz·dz + 0)`
+/// (insertps zéro-w + mulps + 2×haddps) ; min initial `FLT_MAX`, mise à jour **stricte** (`d2 < min`,
+/// comiss/jae) ⇒ en cas d'égalité, le **premier** indice gagne. `None` si `points` est vide.
+#[must_use]
+pub fn nearest_point_index(points: &[Vec3], target: Vec3) -> Option<usize> {
+    let mut best: Option<(usize, f32)> = None;
+    for (i, p) in points.iter().enumerate() {
+        let dx = p.x - target.x;
+        let dy = p.y - target.y;
+        let dz = p.z - target.z;
+        // Ordre haddps du binaire : (dx²+dy²) + (dz²+0).
+        let d2 = (dx * dx + dy * dy) + (dz * dz + 0.0);
+        // Mise à jour si d2 < min courant (strict ⇒ first-win) ; le 1er point passe toujours (None).
+        if best.is_none_or(|(_, m)| d2 < m) {
+            best = Some((i, d2));
+        }
+    }
+    best.map(|(i, _)| i)
+}
+
 /// Contrôleur de mouvement actif du ballon, modélisant la polymorphie `IBallMoveController` du C++
 /// (la vftable du contrôleur actif). Dispatche vers les physiques **byte-fidèles** reversées + validées.
 ///
@@ -543,6 +569,21 @@ mod tests {
         ball.update(0.5);
         assert_eq!(ball.prev_position, p0);
         assert_eq!(ball.position, expected); // dispatch == physique validée vs binaire
+    }
+
+    #[test]
+    fn nearest_point_index_byte_exact_vs_binaire() {
+        // Cas validés vs uemu (scripts/validate_goalnet.py).
+        let v = |x: f32, y: f32, z: f32| Vec3 { x, y, z };
+        let pts = [v(5.0, 0.0, 0.0), v(1.0, 1.0, 1.0), v(-3.0, 2.0, 4.0)];
+        assert_eq!(nearest_point_index(&pts, v(0.0, 0.0, 0.0)), Some(1));
+        let pts2 = [v(2.0, 0.0, 0.0), v(0.0, 2.0, 0.0), v(0.0, 0.0, 1.5)];
+        assert_eq!(nearest_point_index(&pts2, v(0.1, 0.1, 0.1)), Some(2));
+        // Égalité → premier indice (first-win, comparaison stricte du binaire).
+        let pts3 = [v(1.0, 1.0, 1.0), v(1.0, 1.0, 1.0)];
+        assert_eq!(nearest_point_index(&pts3, v(0.0, 0.0, 0.0)), Some(0));
+        // Vide → None.
+        assert_eq!(nearest_point_index(&[], v(0.0, 0.0, 0.0)), None);
     }
 
     #[test]
