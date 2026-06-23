@@ -392,11 +392,20 @@ impl ParabolaMove {
     }
 }
 
-/// Mouvement par interpolation adoucie (quartic ease-out) entre `origin` et `target`.
+/// Mouvement par interpolation adoucie (quartic ease-out) entre `origin` et `target`,
+/// **avec clamp de bord en y et snap à la complétion**.
 ///
 /// Port BYTE-FIDÈLE de `game::BallMoveLerp::vmethod_3` (`0x141339ba0`, SSE + FMA3), reversé de l'asm
-/// et **validé byte-exact** contre l'émulation Unicorn (`scripts/validate_lerp.py`, FMA3 émulée).
+/// et **validé byte-exact** contre l'émulation Unicorn — en **single-step** (`scripts/validate_lerp.py`)
+/// **ET en trajectoire multi-frames** (`scripts/validate_trajectory.py`, 16 frames, état réinjecté).
 /// La FMA `vfmadd231ps` correspond à `f32::mul_add` (rounding unique).
+///
+/// # Correction 2026-06-23 (faux-FAIT révélé par la validation multi-frames)
+///
+/// Le port single-step initial **manquait** le clamp de bord en y + le snap à la complétion :
+/// le test single-step (`duration = 2`, `t = 0.5`) n'atteignait jamais `t ≥ duration` ni
+/// `lerped.y < bound`, donc ces branches restaient non exercées. La trajectoire multi-frames les a
+/// révélées (la composante y plongeait à `bound_y` dès la complétion dans le binaire, pas dans le port).
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LerpMove {
@@ -406,13 +415,21 @@ pub struct LerpMove {
     pub t: f32,
     /// Durée totale, offset `0xa4`.
     pub duration: f32,
+    /// Plancher/snap de la composante y : offset `0x94` (si flag `0x9c == 0`) ou `0x98` du binaire.
+    /// `y_out = (complété || lerped.y < bound_y) ? bound_y : lerped.y` (reversé + validé 2026-06-23).
+    pub bound_y: f32,
 }
 
 impl LerpMove {
-    /// Avance d'un pas `dt` depuis `origin` (position courante). Renvoie la nouvelle position.
+    /// Avance d'un pas `dt` depuis `origin` (origine FIXE du lerp). Renvoie la nouvelle position.
     ///
     /// Formule reversée (f32, ordre du binaire) : `t += dt` ; `s = t/duration` ;
-    /// `ease = min(1 − (s−1)⁴, 1) puis max(_, 0)` ; `pos = origin + ease·(target − origin)` (via FMA).
+    /// `ease = min(1 − (s−1)⁴, 1) puis max(_, 0)` ; `lerped = origin + ease·(target − origin)` (FMA) ;
+    /// `complété = (t ≥ duration) || (ease ≥ 1)` ; `y = (complété || lerped.y < bound_y) ? bound_y :
+    /// lerped.y` ; `x,z = lerped`.
+    ///
+    /// (Le chemin `dt ≤ 0` du binaire renvoie `[r8+0x10]` — un buffer non modélisé ici ; `dt > 0`
+    /// dans la boucle de match.)
     #[must_use]
     #[allow(clippy::manual_clamp)] // ordre minss(1.0) PUIS maxss(0.0) du binaire (≠ clamp : sémantique NaN/ordre).
     pub fn step(&mut self, origin: Vec3, dt: f32) -> Vec3 {
@@ -421,12 +438,16 @@ impl LerpMove {
         let e2 = (s - 1.0) * (s - 1.0);
         let e4 = e2 * e2;
         let ease = (1.0_f32 - e4).min(1.0).max(0.0);
-        // pos[i] = ease·(target−origin) + origin  (vfmadd231ps = f32::mul_add).
-        Vec3 {
+        // `setae` du binaire : t ≥ duration, OU ease ≥ 1 (les deux `or`és dans r8b).
+        let complete = self.t >= self.duration || ease >= 1.0;
+        // lerped[i] = ease·(target−origin) + origin  (vfmadd231ps = f32::mul_add).
+        let lerped = Vec3 {
             x: (self.target.x - origin.x).mul_add(ease, origin.x),
             y: (self.target.y - origin.y).mul_add(ease, origin.y),
             z: (self.target.z - origin.z).mul_add(ease, origin.z),
-        }
+        };
+        let y = if complete || lerped.y < self.bound_y { self.bound_y } else { lerped.y };
+        Vec3 { x: lerped.x, y, z: lerped.z }
     }
 }
 
@@ -544,7 +565,9 @@ mod tests {
     #[test]
     fn lerp_step_byte_exact_vs_binaire() {
         // Mêmes entrées que scripts/validate_lerp.py (validé byte-exact vs binaire, FMA3 émulée).
-        let mut m = LerpMove { target: Vec3 { x: 10.0, y: 20.0, z: 30.0 }, t: 0.0, duration: 2.0 };
+        // bound_y=0 + non complété → y=lerped.y (le clamp/snap est un no-op dans ce régime).
+        let mut m =
+            LerpMove { target: Vec3 { x: 10.0, y: 20.0, z: 30.0 }, t: 0.0, duration: 2.0, bound_y: 0.0 };
         let pos = m.step(Vec3 { x: 1.0, y: 2.0, z: 3.0 }, 0.5);
         assert_eq!(pos.x.to_bits(), f32::from_bits(0x40e4_e000).to_bits()); // 7.15234375
         assert_eq!(pos.y.to_bits(), 14.304_687_5_f32.to_bits());
@@ -570,6 +593,90 @@ mod tests {
         assert_eq!(m.t.to_bits(), 0.5_f32.to_bits());
         assert!(!fini);
     }
+    /// Trajectoires **multi-frames** validées byte-exact contre le binaire réel
+    /// (`scripts/validate_trajectory.py` : émulation du vrai `vmethod_3` répété, état réinjecté).
+    /// Prouve que le ballon piloté par [`BallMover`] vole EXACTEMENT comme nie.exe sur tout l'arc
+    /// (pas juste une frame) — valide le câblage runtime, pas une formule isolée.
+    #[test]
+    fn trajectory_multiframe_byte_exact_vs_binaire() {
+        let cmp = |got: Vec3, exp: [u32; 3]| {
+            assert_eq!(got.x.to_bits(), exp[0]);
+            assert_eq!(got.y.to_bits(), exp[1]);
+            assert_eq!(got.z.to_bits(), exp[2]);
+        };
+
+        // ── Parabola : p0 réinjecté ; accel=(0,-9.8,0), vel=(4,5,6), t_max=100 ; dt=0.5 ──────
+        const PARABOLA: [[u32; 3]; 24] = [
+            [0x4040_0000, 0x4051_999A, 0x40C0_0000], [0x40A0_0000, 0x4006_6666, 0x4110_0000],
+            [0x40E0_0000, 0xBFC3_3335, 0x4140_0000], [0x4110_0000, 0xC0F3_3334, 0x4170_0000],
+            [0x4130_0000, 0xC181_0000, 0x4190_0000], [0x4150_0000, 0xC1D8_CCCD, 0x41A8_0000],
+            [0x4170_0000, 0xC222_1999, 0x41C0_0000], [0x4188_0000, 0xC261_9998, 0x41D8_0000],
+            [0x4198_0000, 0xC295_7332, 0x41F0_0000], [0x41A8_0000, 0xC2BE_FFFF, 0x4204_0000],
+            [0x41B8_0000, 0xC2ED_7332, 0x4210_0000], [0x41C8_0000, 0xC310_6666, 0x421C_0000],
+            [0x41D8_0000, 0xC32C_8667, 0x4228_0000], [0x41E8_0000, 0xC34B_199B, 0x4234_0000],
+            [0x41F8_0000, 0xC36C_2002, 0x4240_0000], [0x4204_0000, 0xC387_CCCE, 0x424C_0000],
+            [0x420C_0000, 0xC39A_C335, 0x4258_0000], [0x4214_0000, 0xC3AE_F335, 0x4264_0000],
+            [0x421C_0000, 0xC3C4_5CCF, 0x4270_0000], [0x4224_0000, 0xC3DB_0003, 0x427C_0000],
+            [0x422C_0000, 0xC3F2_DCD0, 0x4284_0000], [0x4234_0000, 0xC405_F99B, 0x428A_0000],
+            [0x423C_0000, 0xC413_219B, 0x4290_0000], [0x4244_0000, 0xC420_E668, 0x4296_0000],
+        ];
+        let mut mover = BallMover::Parabola(ParabolaMove {
+            accel: Vec3 { x: 0.0, y: -9.8, z: 0.0 },
+            velocity: Vec3 { x: 4.0, y: 5.0, z: 6.0 },
+            t: 0.0,
+            t_max: 100.0,
+        });
+        let mut pos = Vec3 { x: 1.0, y: 2.0, z: 3.0 };
+        for exp in PARABOLA {
+            pos = mover.step(pos, 0.5);
+            cmp(pos, exp);
+        }
+
+        // ── Lerp : origine FIXE (1,2,3), target=(10,20,30), dur=5, bound_y=0 ; dt=0.5 ────────
+        // Dès la complétion (frame 9, t≥dur), y plonge à bound_y=0 — le comportement réel.
+        const LERP: [[u32; 3]; 16] = [
+            [0x4083_0B11, 0x4103_0B11, 0x4144_9099], [0x40CA_0902, 0x414A_0902, 0x4197_86C2],
+            [0x40FA_D9E9, 0x417A_D9E9, 0x41BC_236F], [0x410D_566D, 0x418D_566D, 0x41D4_01A4],
+            [0x4117_0000, 0x4197_0000, 0x41E2_8000], [0x411C_5048, 0x419C_5048, 0x41EA_786C],
+            [0x411E_D567, 0x419E_D567, 0x41EE_401B], [0x411F_C504, 0x419F_C504, 0x41EF_A786],
+            [0x411F_FC50, 0x419F_FC50, 0x41EF_FA78], [0x4120_0000, 0x0000_0000, 0x41F0_0000],
+            [0x411F_FC50, 0x0000_0000, 0x41EF_FA78], [0x411F_C504, 0x0000_0000, 0x41EF_A786],
+            [0x411E_D567, 0x0000_0000, 0x41EE_401B], [0x411C_5048, 0x0000_0000, 0x41EA_786C],
+            [0x4117_0000, 0x0000_0000, 0x41E2_8000], [0x410D_566D, 0x0000_0000, 0x41D4_01A4],
+        ];
+        let origin = Vec3 { x: 1.0, y: 2.0, z: 3.0 };
+        let mut mover = BallMover::Lerp(
+            LerpMove { target: Vec3 { x: 10.0, y: 20.0, z: 30.0 }, t: 0.0, duration: 5.0, bound_y: 0.0 },
+            origin,
+        );
+        for exp in LERP {
+            cmp(mover.step(origin, 0.5), exp);
+        }
+
+        // ── TargetFollow : p0 réinjecté ; target=(5,8,5), dur=4, bound_y=0 ; dt=0.5 ──────────
+        const TARGET_FOLLOW: [[u32; 3]; 16] = [
+            [0x3F20_0000, 0x3F80_0000, 0x3F20_0000], [0x3FDC_0000, 0x4030_0000, 0x3FDC_0000],
+            [0x403C_C000, 0x4097_0000, 0x403C_C000], [0x407E_6000, 0x40CB_8000, 0x407E_6000],
+            [0x4093_B200, 0x40EC_5000, 0x4093_B200], [0x409C_EC80, 0x40FB_1400, 0x409C_EC80],
+            [0x409F_9D90, 0x40FF_6280, 0x409F_9D90], [0x40A0_0000, 0x4100_0000, 0x40A0_0000],
+            [0x40A0_0000, 0x4100_0000, 0x40A0_0000], [0x40A0_0000, 0x4100_0000, 0x40A0_0000],
+            [0x40A0_0000, 0x4100_0000, 0x40A0_0000], [0x40A0_0000, 0x4100_0000, 0x40A0_0000],
+            [0x40A0_0000, 0x4100_0000, 0x40A0_0000], [0x40A0_0000, 0x4100_0000, 0x40A0_0000],
+            [0x40A0_0000, 0x4100_0000, 0x40A0_0000], [0x40A0_0000, 0x4100_0000, 0x40A0_0000],
+        ];
+        let mut mover = BallMover::TargetFollow(TargetFollowMove {
+            target: Vec3 { x: 5.0, y: 8.0, z: 5.0 },
+            bound_y: 0.0,
+            t: 0.0,
+            duration: 4.0,
+        });
+        let mut pos = Vec3 { x: 0.0, y: 0.0, z: 0.0 };
+        for exp in TARGET_FOLLOW {
+            pos = mover.step(pos, 0.5);
+            cmp(pos, exp);
+        }
+    }
+
     use crate::{BALL_GRAVITY, BALL_SCALE_DEFAULT, DISTANCE_UNINIT, INVALID_PLAYER_IDX};
 
     #[test]
