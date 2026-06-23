@@ -217,6 +217,10 @@ pub fn decode_by_key(key: &str, root: &Value) -> Option<(&'static str, Value)> {
         // Setup de phases de match (~182 fichiers `*_phase_set` : fbtl_cro/fbtl_qs) — DATA_ITEM
         // (ints + conditions décodées). Dispatch par SUFFIXE.
         k if k.ends_with("_phase_set") => t!("phase_set", crate::phase_set::parse_phase_set(root)),
+        // Portraits de dialogue par chapitre (~34 fichiers `event_bustup_talk_data_config_c<NN>`).
+        k if k.starts_with("event_bustup_talk_data_config") => {
+            t!("event_bustup", crate::event_bustup::parse_event_bustup_talk(root))
+        }
         _ => None,
     }
 }
