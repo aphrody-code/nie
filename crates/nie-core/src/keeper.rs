@@ -238,6 +238,17 @@ impl KeeperSaveComponent {
     pub fn attempts_save(&self, ball: crate::Vec3, keeper: crate::Vec3, scale: f32) -> bool {
         is_within_save_reach(ball, keeper, self.reach_sq(scale))
     }
+
+    /// Résolution d'un tir contre le gardien : indice de la **première frame** où le ballon entre
+    /// dans la portée d'arrêt (le gardien évalue [`Self::attempts_save`] **chaque frame**, fidèle au
+    /// binaire qui exécute le composant keeper par-frame). `trajectory` = positions du ballon échantillonnées
+    /// frame à frame (issues d'un contrôleur ball-move byte-exact). Renvoie `Some(frame)` (arrêt) ou
+    /// `None` (le tir passe). Orchestration niers (boucle par-frame) ; **décision géométrique byte-exact**.
+    #[must_use]
+    pub fn intercept_frame(&self, trajectory: &[crate::Vec3], keeper: crate::Vec3, scale: f32) -> Option<usize> {
+        let reach = self.reach_sq(scale);
+        trajectory.iter().position(|&ball| is_within_save_reach(ball, keeper, reach))
+    }
 }
 
 /// Décision d'arrêt géométrique **réelle** du gardien, portée du C décompilé `FUN_1413dcfe0`
@@ -322,6 +333,23 @@ mod tests {
         let kp = crate::Vec3 { x: 0.0, y: 0.0, z: 0.0 };
         assert!(k.attempts_save(crate::Vec3 { x: 0.7, y: 9.0, z: 0.0 }, kp, 1.0));
         assert!(!k.attempts_save(crate::Vec3 { x: 0.9, y: 0.0, z: 0.0 }, kp, 1.0));
+    }
+
+    #[test]
+    fn keeper_intercept_frame() {
+        // reach_sq = 0.8 (min(1,5,0.8)·1). Trajectoire approchant le gardien à l'origine.
+        let k = KeeperSaveComponent::new();
+        let kp = crate::Vec3 { x: 0.0, y: 0.0, z: 0.0 };
+        let traj = [
+            crate::Vec3 { x: 3.0, y: 1.0, z: 0.0 }, // 9 > 0.8
+            crate::Vec3 { x: 1.0, y: 1.0, z: 0.0 }, // 1 > 0.8
+            crate::Vec3 { x: 0.5, y: 1.0, z: 0.0 }, // 0.25 < 0.8 → arrêt frame 2
+            crate::Vec3 { x: 0.0, y: 1.0, z: 0.0 },
+        ];
+        assert_eq!(k.intercept_frame(&traj, kp, 1.0), Some(2));
+        // tir qui passe à côté (toujours hors portée).
+        let miss = [crate::Vec3 { x: 5.0, y: 1.0, z: 0.0 }, crate::Vec3 { x: 5.0, y: 1.0, z: 2.0 }];
+        assert_eq!(k.intercept_frame(&miss, kp, 1.0), None);
     }
 
     #[test]
