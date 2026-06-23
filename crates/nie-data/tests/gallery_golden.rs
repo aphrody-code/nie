@@ -310,3 +310,37 @@ fn real_file_flg_no_gap_48_absent() {
         "flgNo=48 est un gap dans le dump réel (non assigné)"
     );
 }
+
+// ─── Condition d'ouverture décodée (wiring cond → gallery, 2026-06-23) ───────────
+// Chaîne end-to-end sur le vrai dump : entrée gallery → openCond (blob) → UnlockCondition.
+const GALLERY_PATH: &str =
+    "/home/ubuntu/niers/data/common/gamedata/gallery/gallery_config_1.03.71.00.cfg.bin.json";
+
+#[test]
+fn open_cond_decode_story_episodes_reels() {
+    use nie_data::gallery::parse_gallery_config;
+    use nie_data::unlock_condition::UnlockType;
+    if !std::path::Path::new(GALLERY_PATH).exists() {
+        return;
+    }
+    let txt = std::fs::read_to_string(GALLERY_PATH).unwrap();
+    let root: serde_json::Value = serde_json::from_str(&txt).unwrap();
+    let cfg = parse_gallery_config(&root);
+    assert_eq!(cfg.entries.len(), 360);
+
+    // [0] : story, seuil 20010 = épisode 1 (vérité terrain).
+    let c0 = cfg.entries[0].decode_open_cond();
+    assert_eq!(c0.kind, UnlockType::Story);
+    assert_eq!(c0.story_threshold, Some(20010));
+    assert_eq!(c0.story_episode, Some(1));
+    // [1] : story, seuil 30010 = épisode 2.
+    let c1 = cfg.entries[1].decode_open_cond();
+    assert_eq!(c1.story_threshold, Some(30010));
+    assert_eq!(c1.story_episode, Some(2));
+    // [5] : story, seuil 40010 = épisode 3.
+    assert_eq!(cfg.entries[5].decode_open_cond().story_threshold, Some(40010));
+
+    // Toutes les entrées décodent sans panique en une condition non-triviale story/event.
+    let non_trivial = cfg.entries.iter().filter(|e| e.decode_open_cond().kind != UnlockType::Always).count();
+    assert!(non_trivial > 300, "la plupart des entrées ont une vraie condition (eu {non_trivial})");
+}
