@@ -72,6 +72,10 @@ pub fn decode_by_key(key: &str, root: &Value) -> Option<(&'static str, Value)> {
             "system_unlock_window",
             crate::system_unlock::parse_system_unlock_window_config(root)
         ),
+        "happen_event_npc_common" => t!(
+            "happen_event_npc",
+            crate::happen_event_npc::parse_happen_event_npc_common(root)
+        ),
         "tutorial_banner_config" => t!("banner", crate::banner::parse_banner_config(root)),
         "boost_player_group_config" => {
             t!("boost_grp", crate::boost_grp::parse_boost_grp_config(root))
