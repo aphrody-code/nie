@@ -706,7 +706,7 @@ impl RateMove {
             self.position = self.target;
         }
         self.rate = rate;
-        self.position = rate * dt + self.position;
+        self.position += rate * dt; // binaire : rate·dt + pos ; ≡ ici (addition f32 commutative)
         self.target < self.position || self.target <= 0.0
     }
 }
