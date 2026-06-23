@@ -165,10 +165,31 @@ pub fn field_i64(v: &Value, key: &str) -> Option<i64> {
     v.get(key).and_then(Value::as_i64)
 }
 
+/// Helper : lit un champ flottant d'un objet `values[]`.
+///
+/// `serde_json::Value::as_f64` accepte les nombres JSON entiers **et** décimaux, donc ce
+/// helper convient aux poids stockés en `float` (ex. `m_spiritDropDataList[].weight = 20.75`).
+#[must_use]
+pub fn field_f64(v: &Value, key: &str) -> Option<f64> {
+    v.get(key).and_then(Value::as_f64)
+}
+
 /// Helper : lit un champ booléen d'un objet `values[]`.
 #[must_use]
 pub fn field_bool(v: &Value, key: &str) -> Option<bool> {
     v.get(key).and_then(Value::as_bool)
+}
+
+/// Helper : lit un champ tableau `[offset, count]` d'un objet `values[]` (idiome `data`/`tableInfo`).
+///
+/// `None` si le champ n'est pas un tableau (port du `if (!Array.isArray) continue` d'inagle).
+/// Les éléments manquants valent `0`.
+#[must_use]
+pub fn field_pair(v: &Value, key: &str) -> Option<[i64; 2]> {
+    let arr = v.get(key)?.as_array()?;
+    let offset = arr.first().and_then(Value::as_i64).unwrap_or(0);
+    let count = arr.get(1).and_then(Value::as_i64).unwrap_or(0);
+    Some([offset, count])
 }
 
 /// Helper : lit un champ hash (hex string `"0x..."` ou entier) d'un objet `values[]`.
