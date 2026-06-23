@@ -37,6 +37,7 @@ pub mod activity;
 pub mod add_content_equip;
 pub mod add_model;
 pub mod ai;
+pub mod ai_type;
 pub mod aphrody;
 pub mod aura;
 pub mod banner;
