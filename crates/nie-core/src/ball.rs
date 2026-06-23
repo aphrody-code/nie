@@ -613,6 +613,59 @@ impl BezierMove {
     }
 }
 
+/// Contrôleur **Rate** (`game::BallMoveRate`, step au slot 4 `0x1413390D0`, décompilé Ghidra puis
+/// porté). Avance un **paramètre scalaire** le long d'un chemin à un *taux* recalculé pour atteindre
+/// la cible dans le temps/distance restant, puis évalue la position 3D via une cinématique de
+/// projectile (`FUN_1413428b0`).
+///
+/// # Fidélité
+///
+/// La **progression scalaire** (recalcul du taux + avance) est portée byte-exact et **validée vs
+/// binaire** (uemu, `scripts/validate_rate_progress.py`, [`RateMove::advance`]). La position 3D
+/// (path-eval `FUN_1413428b0`) est une cinématique `base + dir·t + ½·accel·t² + gravité·t` dont la
+/// **constante de gravité (`DAT_142157570`) est runtime-init** (zéro en statique) : la formule est
+/// portable mais sa validation byte-exact complète exige la valeur runtime (pattern ECS-init) — non
+/// incluse ici (INCOMPLET assumé). La vélocité finale = `(pos3d − entrée)·(1/(rate·dt))` puis
+/// normalize (primitive validée).
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct RateMove {
+    /// Taux courant (`+0x1a0`).
+    pub rate: f32,
+    /// Position scalaire le long du chemin (`+0x174`).
+    pub position: f32,
+    /// Cible paramétrique (`+0x170`).
+    pub target: f32,
+}
+
+impl RateMove {
+    /// Recalcule le taux et avance la position scalaire — **byte-exact vs binaire** (validé uemu).
+    ///
+    /// `remaining` = valeur du sous-objet d'entrée (`sub[0x10]`) ; si `decrement`, on en retranche la
+    /// position courante. Le taux vise à couvrir `target − position` sur le restant. Met à jour
+    /// [`Self::rate`]/[`Self::position`]. Renvoie `overshoot` (`target < nouvelle_pos` ou `target ≤ 0`) :
+    /// quand vrai, le binaire bascule sur la physique [`BallMoveNormal`].
+    ///
+    /// Suppose la condition d'entrée du recalcul (`input[0x80]==1 && sub[0x15]≠0`) ; sinon la
+    /// progression se réduit à `position += rate·dt` avec le taux existant.
+    #[must_use]
+    pub fn advance(&mut self, remaining: f32, dt: f32, decrement: bool) -> bool {
+        let mut rate = 1.0;
+        let r = if decrement { remaining - self.position } else { remaining };
+        if r > 0.0 {
+            let cand = (self.target - self.position) / r;
+            if cand > 0.0 {
+                rate = cand;
+            }
+        } else {
+            self.position = self.target;
+        }
+        self.rate = rate;
+        self.position = rate * dt + self.position;
+        self.target < self.position || self.target <= 0.0
+    }
+}
+
 /// Contrôleur de mouvement actif du ballon, modélisant la polymorphie `IBallMoveController` du C++
 /// (la vftable du contrôleur actif). Dispatche vers les physiques **byte-fidèles** reversées + validées.
 ///
@@ -735,6 +788,25 @@ mod tests {
         let mut b2 = BezierMove { p3: Vec3 { x: 7.0, y: 8.0, z: 9.0 }, total: 0.0, ..Default::default() };
         let pos2 = b2.step(Vec3::zero(), 0.0);
         assert_eq!(pos2, Vec3 { x: 7.0, y: 8.0, z: 9.0 });
+    }
+
+    #[test]
+    fn rate_advance_byte_exact_vs_binaire() {
+        // Cas validés byte-exact vs uemu (scripts/validate_rate_progress.py).
+        let mut r = RateMove { rate: 0.0, position: 0.0, target: 10.0 };
+        let overshoot = r.advance(5.0, 0.5, false); // cand=(10-0)/5=2 ; pos=2*0.5+0=1
+        assert_eq!(r.rate.to_bits(), 2.0_f32.to_bits());
+        assert_eq!(r.position.to_bits(), 1.0_f32.to_bits());
+        assert!(!overshoot); // 10 > 1
+        // decrement : rem effectif = 5 - pos.
+        let mut r2 = RateMove { rate: 0.0, position: 0.0, target: 10.0 };
+        let _ = r2.advance(5.0, 0.5, true); // r=5-0=5 → cand=2 ; pos=1
+        assert_eq!(r2.position.to_bits(), 1.0_f32.to_bits());
+        // rem ≤ 0 → pos = target, puis pos += 1.0·dt.
+        let mut r3 = RateMove { rate: 0.0, position: 5.0, target: 5.0 };
+        let _ = r3.advance(2.0, 0.1, false); // r=2>0 ; cand=(5-5)/2=0 → rate reste 1 ; pos=1*0.1+5=5.1
+        assert_eq!(r3.rate.to_bits(), 1.0_f32.to_bits());
+        assert_eq!(r3.position.to_bits(), 5.1_f32.to_bits());
     }
 
     #[test]
