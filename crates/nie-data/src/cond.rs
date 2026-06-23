@@ -25,8 +25,17 @@
 //! contre les fixtures inagle **ET** corpus-wide (`cond_corpus_golden` décode les 17 788 blobs sans
 //! erreur : 3158 story, 14 191 event-flag, 430 composite, 30 000 feuilles event). Ce module-ci sert
 //! d'**inspecteur de cadrage léger** (version/opcode/bornes) ; pour la sémantique, utiliser
-//! `unlock_condition`. **RESTE INCOMPLET** : la forme liste v1 (34 blobs) + l'ancrage ultime
-//! contre l'évaluateur binaire `game::ValidConditionManager` (inagle est la référence acceptée).
+//! `unlock_condition`. **RESTE INCOMPLET** : le **groupement** de la forme liste v1 (31 blobs
+//! uniques) + l'ancrage ultime contre l'évaluateur binaire `game::ValidConditionManager` (inagle
+//! est la référence acceptée).
+//!
+//! ### Investigation v1 (2026-06-23, sans tricher)
+//!
+//! Les **valeurs** des feuilles v1 décodent correctement (`unlock_condition` scanne les tokens
+//! `0x35/0x34/0x32` à plat depuis l'octet 6, comme v0 — vérifié : les v1 commencent aussi leurs
+//! clauses à l'offset 6). Seul le **groupement** (liste de sous-conditions) est aplati. L'hypothèse
+//! « v1 = `[version][suite de [len:1][sous-expr]]` » a été **réfutée contre les 31 blobs v1 réels**
+//! (0/31 pavent exactement). Le découpage exact exige l'évaluateur binaire → **non deviné**.
 
 use alloc::vec::Vec;
 
