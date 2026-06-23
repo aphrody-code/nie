@@ -171,6 +171,22 @@ impl Vec3 {
         }
     }
 
+    /// Évaluation d'une courbe de Bézier **quadratique** (3 points de contrôle) par de Casteljau,
+    /// **byte-fidèle au jeu** (`game::BallMoveBezier`, `FUN_1413359b0`, validée byte-exact via uemu —
+    /// `scripts/validate_bezier.py`). `B(t) = lerp(lerp(p1,p2,t), lerp(p2,p3,t), t)` où chaque lerp
+    /// est un **FMA fusionné** `(b − a)·t + a` via [`f32::mul_add`] (= `vfmadd231ps`, arrondi unique).
+    /// Le `mul_add` est indispensable à la fidélité bit-à-bit (≠ `(b−a)*t + a` en deux arrondis).
+    #[cfg(feature = "std")]
+    #[must_use]
+    pub fn bezier_quadratic(p1: Self, p2: Self, p3: Self, t: f32) -> Self {
+        let lerp = |a: Self, b: Self| Self {
+            x: (b.x - a.x).mul_add(t, a.x),
+            y: (b.y - a.y).mul_add(t, a.y),
+            z: (b.z - a.z).mul_add(t, a.z),
+        };
+        lerp(lerp(p1, p2), lerp(p2, p3))
+    }
+
     /// Lerp entre `self` et `other` avec poids `t` ∈ [0, 1].
     #[must_use]
     pub fn lerp(self, other: Self, t: f32) -> Self {
@@ -259,5 +275,26 @@ mod tests {
         // dt ≤ 0 → simple delta.
         let v3 = Vec3::new(3.0, 3.0, 3.0).displacement_rate(Vec3::zero(), 0.0);
         assert_eq!(v3, Vec3::new(3.0, 3.0, 3.0));
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn bezier_quadratic_byte_exact_vs_binaire() {
+        // Cas validés byte-exact vs uemu (scripts/validate_bezier.py).
+        let b = Vec3::bezier_quadratic(
+            Vec3::new(0.0, 0.0, 0.0),
+            Vec3::new(10.0, 10.0, 0.0),
+            Vec3::new(20.0, 0.0, 0.0),
+            0.5,
+        );
+        assert_eq!(b.x.to_bits(), 10.0_f32.to_bits());
+        assert_eq!(b.y.to_bits(), 5.0_f32.to_bits());
+        assert_eq!(b.z.to_bits(), 0.0_f32.to_bits());
+        // Points de contrôle alignés, t=0.25 → (2,0,0).
+        let l = Vec3::bezier_quadratic(Vec3::zero(), Vec3::new(4.0, 0.0, 0.0), Vec3::new(8.0, 0.0, 0.0), 0.25);
+        assert_eq!(l.x.to_bits(), 2.0_f32.to_bits());
+        // Points égaux → ce point.
+        let e = Vec3::bezier_quadratic(Vec3::new(1.0, 2.0, 3.0), Vec3::new(1.0, 2.0, 3.0), Vec3::new(1.0, 2.0, 3.0), 0.5);
+        assert_eq!(e, Vec3::new(1.0, 2.0, 3.0));
     }
 }
