@@ -30,6 +30,7 @@ SUITE = [
     ("validate_rate_progress.py", "Progression scalaire BallMoveRate (recalcul taux + avance) — fonction complète émulée"),
     ("validate_normal_vel.py", "Intégration de vitesse BallMoveNormal (s=(dt·accel+v)·factor ; dir=signe·dir) — fonction complète émulée"),
     ("validate_path_eval.py", "Path-eval cinématique BallMoveRate (projectile XZ+Y) — gravité runtime résolue (.bss init)"),
+    ("validate_getcomponent.py", "Modélisation ECS GetComponent (marche de liste) — débloque les fonctions composant-dépendantes"),
 ]
 
 ok = 0
