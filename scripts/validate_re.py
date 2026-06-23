@@ -33,6 +33,7 @@ SUITE = [
     ("validate_getcomponent.py", "Modélisation ECS GetComponent (marche de liste) — débloque les fonctions composant-dépendantes"),
     ("validate_keeper_reach.py", "Portée d'arrêt keeper = min(dive·scale) — vpermilps/blendvps émulés"),
     ("validate_reflect.py", "Réflexion de collision BallMoveNormal v-2(v·n)n — injection XMM"),
+    ("validate_menu_setting.py", "Décodeur valeurs typées objet-menu CMenuStateMachine (FUN_141290fc0, +0x590..0x5ba)"),
 ]
 
 ok = 0

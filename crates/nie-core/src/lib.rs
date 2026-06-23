@@ -80,6 +80,7 @@ pub mod keeper;
 pub mod match_fsm;
 pub mod match_sim;
 pub mod match_state;
+pub mod menu_setting;
 pub mod play_cmd_manager;
 pub mod scene;
 pub mod skill;
