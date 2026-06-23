@@ -220,6 +220,35 @@ impl KeeperSaveComponent {
     }
 }
 
+/// Décision d'arrêt géométrique **réelle** du gardien, portée du C décompilé `FUN_1413dcfe0`
+/// (calc d'arrêt, slot 10 de la vftable). **À distinguer de l'heuristique [`KeeperSaveComponent::can_reach`]**
+/// (3D euclidienne `≤`, une reconstruction non validée) : le binaire teste la **distance horizontale²
+/// (plan XZ uniquement)** STRICTEMENT inférieure au rayon de portée².
+///
+/// Ordre f32 du binaire : `dz² + dx²` (la composante Y est ignorée). `reach_sq` (portée²) dérive des
+/// paramètres de plongeon × constantes monde **runtime** (`DAT_142060e00·DAT_142060e10`) → fourni par
+/// le contexte (non statiquement résoluble, pattern ECS-init).
+#[must_use]
+pub fn is_within_save_reach(ball: crate::Vec3, keeper: crate::Vec3, reach_sq: f32) -> bool {
+    let dx = ball.x - keeper.x;
+    let dz = ball.z - keeper.z;
+    (dz * dz + dx * dx) < reach_sq
+}
+
+/// Hauteurs de zone d'arrêt du gardien (`FUN_1413dcfe0`, écrites à `+0xb0`/`+0xb4`/`+0xb8`) : pour
+/// trois hauteurs de tir, `max(0, hauteur_tir − y_gardien)` (clamp `≤ 0 → 0`). Pur, byte-fidèle.
+#[must_use]
+pub fn save_zone_heights(shot_heights: [f32; 3], keeper_y: f32) -> [f32; 3] {
+    shot_heights.map(|h| {
+        let v = h - keeper_y;
+        if v <= 0.0 {
+            0.0
+        } else {
+            v
+        }
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -234,6 +263,26 @@ mod tests {
         // 0x3F800000 = 1.0f — confirmé par soccer_keeper_save.c
         assert_eq!(k.save_radius.to_bits(), 0x3F80_0000);
         assert_eq!(k.save_radius, KEEPER_SAVE_RADIUS_DEFAULT);
+    }
+
+    #[test]
+    fn save_reach_xz_strict_vs_decompile() {
+        // FUN_1413dcfe0 : distance horizontale² (XZ, Y ignoré) STRICTEMENT < portée².
+        let ball = crate::Vec3 { x: 3.0, y: 99.0, z: 4.0 }; // Y volontairement grand → ignoré
+        let keeper = crate::Vec3 { x: 0.0, y: 0.0, z: 0.0 };
+        // dz²+dx² = 16+9 = 25.
+        assert!(is_within_save_reach(ball, keeper, 26.0)); // 25 < 26
+        assert!(!is_within_save_reach(ball, keeper, 25.0)); // strict : 25 < 25 faux
+        assert!(!is_within_save_reach(ball, keeper, 24.0));
+    }
+
+    #[test]
+    fn save_zone_heights_clamp() {
+        // FUN_1413dcfe0 : max(0, hauteur_tir − y_gardien) pour 3 hauteurs.
+        let z = save_zone_heights([10.0, 3.0, 0.0], 5.0);
+        assert_eq!(z[0].to_bits(), 5.0_f32.to_bits()); // 10-5=5
+        assert_eq!(z[1].to_bits(), 0.0_f32.to_bits()); // 3-5=-2 → 0
+        assert_eq!(z[2].to_bits(), 0.0_f32.to_bits()); // 0-5=-5 → 0
     }
 
     #[test]
