@@ -513,6 +513,30 @@ pub fn nearest_point_index(points: &[Vec3], target: Vec3) -> Option<usize> {
     best.map(|(i, _)| i)
 }
 
+/// Position cinématique du contrôleur **Rate** (path-eval `game::BallMoveRate`, `FUN_1413428b0`,
+/// décompilé Ghidra puis porté). Projectile : `out = base + horiz·dir̂_xz + vert·Ŷ`, où
+/// `horiz = (accel_h·½·t + |dir_xz|)·t` (avance horizontale, normalisée sur le plan XZ),
+/// `vert = (accel_v·½·t + dir.y)·t` (déplacement vertical : `v₀·t + ½·a·t²`).
+///
+/// **Byte-exact, validé vs binaire** (uemu, `scripts/validate_path_eval.py`) APRÈS résolution de la
+/// gravité runtime : `DAT_142157570 = (0,1,0,0)` (axe Y) — un const `.bss` copié à l'init depuis
+/// `.rdata` (`movaps` à `0x140027528`), retrouvé via xref Ghidra. Méthode « modéliser le runtime » :
+/// trouver l'init du const `.bss` → lire la source → valider. La gravité (axe Y) est ici intégrée
+/// (le terme vertical va en Y). `accel = (horizontal, vertical)`.
+#[must_use]
+pub fn rate_path_eval(base: Vec3, dir: Vec3, accel: (f32, f32), t: f32) -> Vec3 {
+    let lxz = (dir.x * dir.x + dir.z * dir.z).sqrt();
+    let (hx, hz) = if lxz > 0.0 {
+        let inv = 1.0 / lxz; // réciproque-produit (normalisation XZ) — ordre f32 du binaire
+        (inv * dir.x, inv * dir.z)
+    } else {
+        (0.0, 0.0)
+    };
+    let horiz = (accel.0 * 0.5 * t + lxz) * t;
+    let vert = (accel.1 * 0.5 * t + dir.y) * t;
+    Vec3 { x: base.x + horiz * hx, y: base.y + vert, z: base.z + horiz * hz }
+}
+
 /// Intégration de vitesse du contrôleur **Normal** (`game::BallMoveNormal`, `FUN_14133ae10`, lignes
 /// 144-163, décompilé Ghidra puis porté). Met à jour la vitesse scalaire + la direction du ballon
 /// libre avant la collision : `s = (dt·accel + prev_speed)·factor` ; `new_speed = |s|` ; si `|s| > 0`,
@@ -845,6 +869,19 @@ mod tests {
         let (d3, s3) = normal_integrate_velocity(Vec3 { x: 1.0, y: 0.0, z: 0.0 }, 1.0, 0.0, 0.1, 0.0);
         assert_eq!(s3.to_bits(), 0.0_f32.to_bits());
         assert_eq!(d3.x.to_bits(), 1.0_f32.to_bits());
+    }
+
+    #[test]
+    fn rate_path_eval_byte_exact_vs_binaire() {
+        // Cas validés byte-exact vs uemu (scripts/validate_path_eval.py, gravité runtime résolue Y).
+        // dir horizontal +x, sans accel, t=2 → avance de 2 sur x.
+        let p = rate_path_eval(Vec3 { x: 0.0, y: 0.0, z: 0.0 }, Vec3 { x: 1.0, y: 0.0, z: 0.0 }, (0.0, 0.0), 2.0);
+        assert_eq!(p.x.to_bits(), 2.0_f32.to_bits());
+        assert_eq!(p.y.to_bits(), 0.0_f32.to_bits());
+        // dir vertical v0=3, accel_v=-10, t=1 → y = 3·1 + ½·(-10)·1 = -2 (projectile).
+        let p2 = rate_path_eval(Vec3::zero(), Vec3 { x: 0.0, y: 3.0, z: 0.0 }, (0.0, -10.0), 1.0);
+        assert_eq!(p2.y.to_bits(), (-2.0_f32).to_bits());
+        assert_eq!(p2.x.to_bits(), 0.0_f32.to_bits()); // |dir_xz|=0 → pas d'horizontal
     }
 
     #[test]
