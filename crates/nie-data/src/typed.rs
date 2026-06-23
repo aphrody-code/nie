@@ -214,6 +214,9 @@ pub fn decode_by_key(key: &str, root: &Value) -> Option<(&'static str, Value)> {
         // — DATA_COUNT/DATA_ITEM avec condition décodée. Dispatch par SUFFIXE. (Les fichiers d'autre
         // forme renvoient un TriggerConfig vide, sans danger.)
         k if k.ends_with("_trigger") => t!("trigger", crate::trigger::parse_trigger(root)),
+        // Setup de phases de match (~182 fichiers `*_phase_set` : fbtl_cro/fbtl_qs) — DATA_ITEM
+        // (ints + conditions décodées). Dispatch par SUFFIXE.
+        k if k.ends_with("_phase_set") => t!("phase_set", crate::phase_set::parse_phase_set(root)),
         _ => None,
     }
 }
