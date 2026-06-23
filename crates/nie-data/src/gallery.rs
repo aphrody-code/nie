@@ -81,6 +81,16 @@ impl GalleryInfo {
             open_cond: field_str(v, "openCond").unwrap_or("").into(),
         })
     }
+
+    /// Décode la condition d'ouverture `open_cond` (blob base64) en [`UnlockCondition`] structurée
+    /// via [`crate::unlock_condition`] (réf inagle, validée corpus-wide — cf. [`crate::cond`]).
+    ///
+    /// Pour les illustrations débloquées par la progression de l'histoire, donne le seuil et le
+    /// numéro d'épisode (ex. la 1re entrée du dump réel → story `20010` = épisode 1).
+    #[must_use]
+    pub fn decode_open_cond(&self) -> crate::unlock_condition::UnlockCondition {
+        crate::unlock_condition::decode_unlock_condition(&self.open_cond)
+    }
 }
 
 // ─── GalleryConfig ────────────────────────────────────────────────────────────
