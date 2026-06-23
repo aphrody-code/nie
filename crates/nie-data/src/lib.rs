@@ -69,6 +69,7 @@ pub mod event_subtitle;
 pub mod exp;
 pub mod extend_story;
 pub mod fast_travel;
+pub mod flag_config;
 pub mod formation;
 pub mod friendmap;
 pub mod gallery;
