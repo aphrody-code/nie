@@ -64,6 +64,7 @@ pub mod ctrl_chara;
 pub mod dictionary;
 pub mod dungeon;
 pub mod emblems;
+pub mod enjoy_mode_team;
 pub mod event_subtitle;
 pub mod exp;
 pub mod extend_story;
