@@ -563,6 +563,56 @@ impl DribbleMove {
     }
 }
 
+/// Contrôleur **Bezier** (`game::BallMoveBezier`, step au slot 4 `0x1413359B0`, décompilé Ghidra
+/// puis porté). Le ballon suit une courbe de Bézier **quadratique** (3 points de contrôle) puis
+/// stocke direction/vitesse — utilisé pour les trajectoires courbes (tirs à effet, passes courbées).
+///
+/// # Fidélité (byte-exact par composition)
+///
+/// Décompilé `FUN_1413359b0` : `B(t)` par de Casteljau FMA = [`Vec3::bezier_quadratic`] (validée
+/// byte-exact via uemu) ; puis `vel = (B(t) − prev)·(1/dt)`, `dir = vel/|vel|`, `speed = |vel|` =
+/// [`Vec3::displacement_rate`] + [`Vec3::normalize_game`] (validées byte-exact). `t = param/total`.
+/// (`total ≤ 0` → le point est l'extrémité `p3`.) Les points de contrôle + l'avance de `param` sont
+/// gérés par le contexte (le binaire avance `param` via `FUN_1413356e0` et lit la vftable pour la
+/// tangente/collision, hors math de trajectoire).
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct BezierMove {
+    /// 1er point de contrôle de la Bézier quadratique (`+0x214`).
+    pub p1: Vec3,
+    /// 2e point de contrôle (`+0x216`).
+    pub p2: Vec3,
+    /// 3e point de contrôle / extrémité (`+0x218`).
+    pub p3: Vec3,
+    /// Avancement courant le long de la courbe (`+0x21c`).
+    pub param: f32,
+    /// Longueur totale paramétrique (`+0x21a`).
+    pub total: f32,
+    /// Direction normalisée du déplacement (écrite à `+0x40`).
+    pub direction: Vec3,
+    /// Norme `|v|` de la vitesse (écrite à `+0x50`).
+    pub speed: f32,
+}
+
+impl BezierMove {
+    /// Avance le ballon le long de la courbe et renvoie la nouvelle position.
+    /// `prev` = position précédente, `dt` = pas de temps. Met à jour direction/speed.
+    #[must_use]
+    pub fn step(&mut self, prev: Vec3, dt: f32) -> Vec3 {
+        // t = param/total ; total ≤ 0 → extrémité p3 (le binaire prend P3 directement).
+        let pos = if self.total > 0.0 {
+            Vec3::bezier_quadratic(self.p1, self.p2, self.p3, self.param / self.total)
+        } else {
+            self.p3
+        };
+        let vel = pos.displacement_rate(prev, dt);
+        let (dir, speed) = vel.normalize_game();
+        self.direction = dir;
+        self.speed = speed;
+        pos
+    }
+}
+
 /// Contrôleur de mouvement actif du ballon, modélisant la polymorphie `IBallMoveController` du C++
 /// (la vftable du contrôleur actif). Dispatche vers les physiques **byte-fidèles** reversées + validées.
 ///
@@ -662,6 +712,29 @@ mod tests {
         let mut d2 = DribbleMove::default();
         let _ = d2.step(Vec3 { x: 1.0, y: 1.0, z: 1.0 }, Vec3::zero(), 0.0, Vec3 { x: 1.0, y: 0.0, z: 1.0 }, 0.0);
         assert_eq!(d2.speed.to_bits(), 1.0_f32.to_bits()); // |delta|=|(0,1,0)|=1
+    }
+
+    #[test]
+    fn bezier_step_byte_exact_par_composition() {
+        // Point Bezier validé byte-exact vs uemu (scripts/validate_bezier.py) ; vitesse/dir = primitives validées.
+        let mut b = BezierMove {
+            p1: Vec3 { x: 0.0, y: 0.0, z: 0.0 },
+            p2: Vec3 { x: 10.0, y: 10.0, z: 0.0 },
+            p3: Vec3 { x: 20.0, y: 0.0, z: 0.0 },
+            param: 1.0,
+            total: 2.0, // t = 0.5
+            ..Default::default()
+        };
+        // B(0.5) = (10, 5, 0) ; prev=(10,5,0) → delta=0 → speed=0, dir=0.
+        let pos = b.step(Vec3 { x: 10.0, y: 5.0, z: 0.0 }, 0.5);
+        assert_eq!(pos.x.to_bits(), 10.0_f32.to_bits());
+        assert_eq!(pos.y.to_bits(), 5.0_f32.to_bits());
+        assert_eq!(pos.z.to_bits(), 0.0_f32.to_bits());
+        assert_eq!(b.speed.to_bits(), 0.0_f32.to_bits());
+        // total ≤ 0 → extrémité p3.
+        let mut b2 = BezierMove { p3: Vec3 { x: 7.0, y: 8.0, z: 9.0 }, total: 0.0, ..Default::default() };
+        let pos2 = b2.step(Vec3::zero(), 0.0);
+        assert_eq!(pos2, Vec3 { x: 7.0, y: 8.0, z: 9.0 });
     }
 
     #[test]
