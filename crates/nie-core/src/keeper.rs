@@ -218,6 +218,26 @@ impl KeeperSaveComponent {
         let dist_sq = dx * dx + dy * dy + dz * dz;
         dist_sq <= self.max_dive_distance * self.max_dive_distance
     }
+
+    /// Portée² d'arrêt **réelle** depuis les champs que le binaire lit (`FUN_1413dcfe0` : 3 floats à
+    /// `+0x170`/`+0x174`/`+0x178` = `save_radius`/`max_dive_distance`/`save_probability`, utilisés comme
+    /// dimensions de plongeon) × `scale`. Délègue à [`keeper_reach_sq`] (byte-exact). `scale` = consts
+    /// monde runtime, fourni par le contexte.
+    #[must_use]
+    pub fn reach_sq(&self, scale: f32) -> f32 {
+        keeper_reach_sq(
+            crate::Vec3 { x: self.save_radius, y: self.max_dive_distance, z: self.save_probability },
+            scale,
+        )
+    }
+
+    /// `true` si le gardien atteint le ballon : distance horizontale² (XZ) `<` portée². Combine
+    /// [`Self::reach_sq`] et [`is_within_save_reach`] (toutes deux byte-exact vs binaire) — la vraie
+    /// décision d'arrêt géométrique (≠ heuristique [`Self::can_reach`]).
+    #[must_use]
+    pub fn attempts_save(&self, ball: crate::Vec3, keeper: crate::Vec3, scale: f32) -> bool {
+        is_within_save_reach(ball, keeper, self.reach_sq(scale))
+    }
 }
 
 /// Décision d'arrêt géométrique **réelle** du gardien, portée du C décompilé `FUN_1413dcfe0`
@@ -291,6 +311,17 @@ mod tests {
         assert!(is_within_save_reach(ball, keeper, 26.0)); // 25 < 26
         assert!(!is_within_save_reach(ball, keeper, 25.0)); // strict : 25 < 25 faux
         assert!(!is_within_save_reach(ball, keeper, 24.0));
+    }
+
+    #[test]
+    fn keeper_attempts_save_integration() {
+        // reach_sq = min(save_radius=1, max_dive=5, save_proba=0.8)·scale = 0.8·scale.
+        let k = KeeperSaveComponent::new();
+        assert_eq!(k.reach_sq(1.0).to_bits(), 0.8_f32.to_bits());
+        // ballon à dist² horizontale 0.49 (dx=0.7) < 0.8 → arrêt ; à 0.81 (dx=0.9) → non.
+        let kp = crate::Vec3 { x: 0.0, y: 0.0, z: 0.0 };
+        assert!(k.attempts_save(crate::Vec3 { x: 0.7, y: 9.0, z: 0.0 }, kp, 1.0));
+        assert!(!k.attempts_save(crate::Vec3 { x: 0.9, y: 0.0, z: 0.0 }, kp, 1.0));
     }
 
     #[test]
