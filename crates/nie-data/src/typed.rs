@@ -72,6 +72,9 @@ pub fn decode_by_key(key: &str, root: &Value) -> Option<(&'static str, Value)> {
         "soccer_chara_placement" => {
             t!("soccer_placement", crate::soccer_placement::parse_soccer_placement_config(root))
         }
+        "soccer_rank_config" => {
+            t!("soccer_rank", crate::soccer_rank::parse_soccer_rank_config(root))
+        }
         "soccer_drop_config" => {
             t!("soccer_drop", crate::soccer_drop::parse_soccer_drop_config(root))
         }
