@@ -134,6 +134,28 @@ impl Vec3 {
         Self { x: self.x / len, y: self.y / len, z: self.z / len }
     }
 
+    /// Normalisation **byte-fidèle au jeu** (`game::BallMoveRate::vmethod_3`, plage `0x141339484`,
+    /// validée byte-exact via l'oracle uemu — `scripts/validate_normalize.py`). Renvoie `(dir, len)`.
+    ///
+    /// Diffère de [`Vec3::normalize`] (générique) sur deux points **byte-significatifs** mesurés
+    /// dans le binaire :
+    /// - réciproque-puis-produit : `dir = v · (1/len)` (un `divss` puis `mulps`), **pas** `v / len`
+    ///   (trois `div`) — l'arrondi f32 diffère ;
+    /// - garde `len > 0` (`comiss`/`jbe`), **pas** `len < EPSILON`.
+    ///
+    /// `len` = `sqrt(length_sq)` (= ordre `(x²+y²)+(z²+0)` du binaire, le `+0` étant un no-op).
+    #[cfg(feature = "std")]
+    #[must_use]
+    pub fn normalize_game(self) -> (Self, f32) {
+        let len = self.length();
+        if len > 0.0 {
+            let inv = 1.0 / len; // réciproque unique (divss), puis produit (mulps) — fidèle au binaire
+            (Self { x: self.x * inv, y: self.y * inv, z: self.z * inv }, len)
+        } else {
+            (Self::zero(), len)
+        }
+    }
+
     /// Lerp entre `self` et `other` avec poids `t` ∈ [0, 1].
     #[must_use]
     pub fn lerp(self, other: Self, t: f32) -> Self {
@@ -186,5 +208,26 @@ mod tests {
     #[test]
     fn ground_projects_xy() {
         assert_eq!(Vec3::new(1.0, 2.0, 3.0).ground(), Vec2::new(1.0, 2.0));
+    }
+
+    #[cfg(feature = "std")]
+    #[test]
+    fn normalize_game_byte_exact_vs_binaire() {
+        // Cas validés byte-exact vs uemu (scripts/validate_normalize.py).
+        let (d, l) = Vec3::new(3.0, 4.0, 0.0).normalize_game();
+        assert_eq!(l.to_bits(), 5.0_f32.to_bits());
+        assert_eq!(d.x.to_bits(), 0.6_f32.to_bits());
+        assert_eq!(d.y.to_bits(), 0.8_f32.to_bits());
+        assert_eq!(d.z.to_bits(), 0.0_f32.to_bits());
+        // (1,2,2) : len 3 ; dir via réciproque-produit = v·(1/3).
+        let (d2, l2) = Vec3::new(1.0, 2.0, 2.0).normalize_game();
+        assert_eq!(l2.to_bits(), 3.0_f32.to_bits());
+        let inv = 1.0_f32 / 3.0;
+        assert_eq!(d2.x.to_bits(), (1.0_f32 * inv).to_bits());
+        assert_eq!(d2.y.to_bits(), (2.0_f32 * inv).to_bits());
+        // Vecteur nul → zéro (garde len > 0).
+        let (dz, lz) = Vec3::zero().normalize_game();
+        assert_eq!(dz, Vec3::zero());
+        assert_eq!(lz.to_bits(), 0.0_f32.to_bits());
     }
 }
