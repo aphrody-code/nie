@@ -746,6 +746,21 @@ impl BallMover {
             BallMover::Bezier(m) => m.step(current, dt), // prev = position courante
         }
     }
+
+    /// Échantillonne la trajectoire du ballon sur `frames` pas de `dt` depuis `start`, en bouclant la
+    /// physique **byte-fidèle** [`Self::step`] (état muté frame à frame). Renvoie les positions
+    /// successives — pour la résolution de tir (cf. `keeper::KeeperSaveComponent::intercept_frame`),
+    /// le rendu de trajectoire, etc. Compose les contrôleurs validés en une trajectoire utilisable.
+    #[must_use]
+    pub fn trajectory(&mut self, start: Vec3, dt: f32, frames: usize) -> Vec<Vec3> {
+        let mut pos = start;
+        let mut out = Vec::with_capacity(frames);
+        for _ in 0..frames {
+            pos = self.step(pos, dt);
+            out.push(pos);
+        }
+        out
+    }
 }
 
 #[cfg(test)]
@@ -885,6 +900,27 @@ mod tests {
         let p2 = rate_path_eval(Vec3::zero(), Vec3 { x: 0.0, y: 3.0, z: 0.0 }, (0.0, -10.0), 1.0);
         assert_eq!(p2.y.to_bits(), (-2.0_f32).to_bits());
         assert_eq!(p2.x.to_bits(), 0.0_f32.to_bits()); // |dir_xz|=0 → pas d'horizontal
+    }
+
+    #[test]
+    fn ball_mover_trajectory_loops_validated_physics() {
+        // La trajectoire = N pas de la physique byte-fidèle ; chaque point == step individuel.
+        let mv = ParabolaMove {
+            accel: Vec3 { x: 0.0, y: -9.8, z: 0.0 },
+            velocity: Vec3 { x: 4.0, y: 5.0, z: 0.0 },
+            t: 0.0,
+            t_max: 10.0,
+        };
+        let start = Vec3 { x: 0.0, y: 0.0, z: 0.0 };
+        let traj = BallMover::Parabola(mv).trajectory(start, 0.1, 3);
+        assert_eq!(traj.len(), 3);
+        // Reproduire pas à pas pour confirmer l'équivalence.
+        let mut m2 = BallMover::Parabola(mv);
+        let mut p = start;
+        for expected in &traj {
+            p = m2.step(p, 0.1);
+            assert_eq!(p, *expected);
+        }
     }
 
     #[test]
