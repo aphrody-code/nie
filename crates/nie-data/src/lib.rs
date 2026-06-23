@@ -60,6 +60,7 @@ pub mod change_aura_skill_config;
 pub mod chat_emote;
 pub mod chronicle_top;
 pub mod command;
+pub mod cond;
 pub mod craft;
 pub mod ctrl_chara;
 pub mod dictionary;
