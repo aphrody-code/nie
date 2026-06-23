@@ -121,6 +121,7 @@ pub mod team;
 pub mod team_build_config;
 pub mod telop_waza;
 pub mod text;
+pub mod trial_take_over;
 pub mod trick;
 pub mod trophy;
 pub mod typed;
