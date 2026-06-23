@@ -200,6 +200,12 @@ pub fn decode_by_key(key: &str, root: &Value) -> Option<(&'static str, Value)> {
         "rpg_battle_add_status_config" => t!("rpg_battle_add_status", crate::rpg_battle::parse_add_status_config(root)),
         "shop_config" => t!("shop", crate::shop::parse_shop_config(root)),
         "skill_technic_config" => t!("skill_technic", crate::skill_technic::parse_skill_technic_config(root)),
+        // Sous-titres du mode Histoire : ~1321 fichiers `Subtitle_ev<NN>_<bloc>` (clé par-événement,
+        // un même format `EV_SUBTITLE_DATA`). Dispatch par PRÉFIXE → tout le dialogue d'histoire
+        // (lignes timecodées) devient décodable typé (route /typed + nie-wasm).
+        k if k.starts_with("Subtitle_ev") => {
+            t!("event_subtitle", crate::event_subtitle::parse_subtitle_file(root))
+        }
         _ => None,
     }
 }
