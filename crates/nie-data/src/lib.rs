@@ -118,6 +118,7 @@ pub mod soccer;
 pub mod soccer_chara_unique_rarity;
 pub mod soccer_drop;
 pub mod soccer_fixed_reward;
+pub mod soccer_map_env;
 pub mod soccer_opponent;
 pub mod soccer_performance;
 pub mod soccer_placement;
