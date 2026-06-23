@@ -163,6 +163,16 @@ class Emu:
                 s = read_op(u, ins, ops[1])
                 for i in range(4 if m == "sqrtps" else 1):
                     d[i] = f32(math.sqrt(s[i])) if s[i] >= 0 else float("nan")
+            elif m == "vpermilps" and len(ops) == 3 and ops[2].type == _x86.X86_OP_IMM:
+                # permutation par lane via imm8 (2 bits/lane) : d[i] = src[(imm >> 2i) & 3]
+                s = read_op(u, ins, ops[1])
+                imm = ops[2].imm
+                d = [s[(imm >> (2 * i)) & 3] for i in range(4)]
+            elif m == "blendvps":
+                # SSE4.1 : d[i] = (sign bit de xmm0[i]) ? src[i] : d[i]  (xmm0 = masque implicite)
+                s = read_op(u, ins, ops[1])
+                mask = struct.unpack("<4I", u.reg_read(xmm["xmm0"]).to_bytes(16, "little"))
+                d = [s[i] if (mask[i] & 0x8000_0000) else d[i] for i in range(4)]
             else:
                 return False
             u.reg_write(dreg, int.from_bytes(struct.pack("<4f", *d), "little"))

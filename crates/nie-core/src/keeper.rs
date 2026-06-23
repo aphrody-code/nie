@@ -235,6 +235,23 @@ pub fn is_within_save_reach(ball: crate::Vec3, keeper: crate::Vec3, reach_sq: f3
     (dz * dz + dx * dx) < reach_sq
 }
 
+/// Portée² d'arrêt du gardien (`FUN_1413dcfe0`, byte-exact via uemu — `scripts/validate_keeper_reach.py`) :
+/// **minimum** sur les composantes de `dive · scale` (mulps puis `cmpps`+`blendvps`). `dive` = paramètres
+/// de plongeon (champs propres du composant, `+0x170`..) ; `scale` = produit de consts monde **runtime**
+/// (`DAT_142060e00·DAT_142060e10`) → fourni par le contexte. Combiner avec [`is_within_save_reach`].
+#[must_use]
+pub fn keeper_reach_sq(dive: crate::Vec3, scale: f32) -> f32 {
+    let (px, py, pz) = (dive.x * scale, dive.y * scale, dive.z * scale);
+    let mut m = px; // min des 3 produits (ordre cmpps/blendvps : ties → 2e opérande)
+    if py < m {
+        m = py;
+    }
+    if pz < m {
+        m = pz;
+    }
+    m
+}
+
 /// Hauteurs de zone d'arrêt du gardien (`FUN_1413dcfe0`, écrites à `+0xb0`/`+0xb4`/`+0xb8`) : pour
 /// trois hauteurs de tir, `max(0, hauteur_tir − y_gardien)` (clamp `≤ 0 → 0`). Pur, byte-fidèle.
 #[must_use]
@@ -274,6 +291,14 @@ mod tests {
         assert!(is_within_save_reach(ball, keeper, 26.0)); // 25 < 26
         assert!(!is_within_save_reach(ball, keeper, 25.0)); // strict : 25 < 25 faux
         assert!(!is_within_save_reach(ball, keeper, 24.0));
+    }
+
+    #[test]
+    fn keeper_reach_sq_min_vs_decompile() {
+        // FUN_1413dcfe0 : min des produits (dive·scale). Validé byte-exact vs uemu (validate_keeper_reach.py).
+        let d = crate::Vec3 { x: 3.0, y: 5.0, z: 4.0 };
+        assert_eq!(keeper_reach_sq(d, 1.0).to_bits(), 3.0_f32.to_bits()); // min(3,5,4)
+        assert_eq!(keeper_reach_sq(crate::Vec3 { x: 8.0, y: 2.0, z: 3.0 }, 1.5).to_bits(), 3.0_f32.to_bits()); // min(12,3,4.5)=3
     }
 
     #[test]
