@@ -62,6 +62,9 @@ pub fn decode_by_key(key: &str, root: &Value) -> Option<(&'static str, Value)> {
         "chara_param" => t!("chara_param", crate::chara_param::parse_all_chara_params(root)),
         "chara_exp_table_config" => t!("exp", crate::exp::parse_exp_table(root)),
         "soccer_game_config" => t!("soccer_game", crate::soccer::parse_soccer_game_config(root)),
+        "soccer_drop_config" => {
+            t!("soccer_drop", crate::soccer_drop::parse_soccer_drop_config(root))
+        }
         "tutorial_banner_config" => t!("banner", crate::banner::parse_banner_config(root)),
         "boost_player_group_config" => {
             t!("boost_grp", crate::boost_grp::parse_boost_grp_config(root))
