@@ -23,6 +23,8 @@ SUITE = [
     ("validate_targetfollow.py", "BallMoveTargetFollow — suivi cible (SSE3/4 haddps/insertps/sqrtps + FMA mem)"),
     ("validate_trajectory.py", "Trajectoires MULTI-FRAMES (parabola/lerp/targetfollow, état réinjecté) — révèle le clamp+snap de Lerp"),
     ("validate_goalnet.py", "BallMoveGoalnet nearest-point — argmin dist² (insertps/mulps/haddps, first-win)"),
+    ("validate_uemu_xmm.py", "Extension uemu injection/lecture XMM0-15 (fragments réels)"),
+    ("validate_normalize.py", "Normalisation vectorielle BallMoveRate (réciproque-produit, len>0) — via injection XMM"),
 ]
 
 ok = 0
