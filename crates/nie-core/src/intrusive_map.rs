@@ -81,6 +81,150 @@ impl IntrusiveMapLinear<'_> {
     }
 }
 
+// ── Mode TRIÉ (`header[+0x20] != 0`) : recherche binaire (FUN_1402b4160) ───────
+
+/// Vue en lecture d'une map intrusive en **mode trié** (`header[+0x20] != 0`).
+///
+/// Le tableau d'index `sorted` (`u16`, `count` entrées) à `buf + sorted_off` ordonne les entrées
+/// par clé croissante : `key(i) = entries[sorted[i]].key` (clé `u32` à `buf + 8 + sorted[i]*0x10`).
+/// Le lookup est une **recherche binaire** sur ces positions triées.
+#[derive(Debug, Clone, Copy)]
+pub struct IntrusiveMapSorted<'a> {
+    /// Buffer de données (champ `+0x08` du binaire).
+    pub buf: &'a [u8],
+    /// Nombre d'entrées triées (`header[+0x14]`).
+    pub count: u16,
+    /// Offset du tableau d'index trié dans `buf` (`header[+0x20]`).
+    pub sorted_off: u32,
+}
+
+impl IntrusiveMapSorted<'_> {
+    /// Clé `u32` à la **position triée** `i` : `entries[sorted[i]].key`. `None` si hors limites.
+    #[inline]
+    fn key_at(&self, i: u16) -> Option<u32> {
+        let so = self.sorted_off as usize + i as usize * 2;
+        let entry_idx = read_u16(self.buf, so)? as usize;
+        read_i32(self.buf, 8 + entry_idx * 0x10).map(|k| k as u32)
+    }
+
+    /// Index d'entrée (`sorted[i]`) à la position triée `i`. `None` si hors limites.
+    #[inline]
+    fn entry_index_at(&self, i: u16) -> Option<u16> {
+        read_u16(self.buf, self.sorted_off as usize + i as usize * 2)
+    }
+
+    /// Cœur byte-exact de `FUN_1402b4160` : recherche binaire de `target` (comparaisons **u32 non
+    /// signées**). Renvoie `(pos, out)` : `pos` = valeur de retour (`0xffff` = absent) ; `out` =
+    /// `Some(insertion)` uniquement quand le binaire écrit le param de sortie (chemins « absent »),
+    /// `None` sinon. `with_out` = `param_3 != null` (change la valeur de retour sur doublons : sans
+    /// out → position **leftmost-equal** ; avec out → première position trouvée).
+    fn search(&self, target: u32, with_out: bool) -> (u16, Option<u16>) {
+        let n = self.count;
+        if n == 0 {
+            return (0xffff, None);
+        }
+        let key = |i: u16| self.key_at(i);
+        let mut u6: u16 = 0;
+        if key(0).is_some_and(|k| k < target) {
+            let last = n - 1;
+            let klast = key(last);
+            if klast.is_some_and(|k| k <= target) {
+                if klast.is_some_and(|k| k < target) {
+                    return (0xffff, if with_out { Some(last) } else { None }); // target > tout
+                }
+                // key(n-1) == target
+                if with_out {
+                    return (last, None);
+                }
+                if n >= 2 && key(n - 2) == Some(target) {
+                    let mut u5 = last;
+                    loop {
+                        let u3 = u5 - 1;
+                        u5 = u3;
+                        if key(u3.wrapping_sub(1)) != Some(target) {
+                            break;
+                        }
+                    }
+                    return (u5, None);
+                }
+                return (last, None);
+            }
+            // key(n-1) > target : recherche binaire dans l'intérieur [1, n-2].
+            if n > 2 {
+                let mut lo: u16 = 1;
+                let mut hi: u16 = n - 2;
+                if hi != 0 {
+                    loop {
+                        let mid = ((hi - lo) >> 1) + lo;
+                        u6 = mid;
+                        let km = key(mid);
+                        if km == Some(target) {
+                            if with_out {
+                                return (mid, None);
+                            }
+                            if mid >= 1 && key(mid - 1) == Some(target) {
+                                let mut u5 = mid;
+                                loop {
+                                    let u3 = u5 - 1;
+                                    u5 = u3;
+                                    if key(u5.wrapping_sub(1)) != Some(target) {
+                                        break;
+                                    }
+                                }
+                                return (u5, None);
+                            }
+                            return (mid, None);
+                        }
+                        if km.is_some_and(|k| target < k) {
+                            if mid == 0 {
+                                break;
+                            }
+                            hi = mid - 1;
+                        } else {
+                            lo = mid + 1;
+                        }
+                        if lo > hi {
+                            break;
+                        }
+                    }
+                }
+            }
+            return (0xffff, if with_out { Some(u6) } else { None });
+        } else if key(0).is_some_and(|k| k <= target) {
+            return (0, None); // key(0) == target
+        }
+        (0xffff, if with_out { Some(0) } else { None }) // key(0) > target
+    }
+
+    /// Position **triée** (leftmost-equal) de `target`, ou `None` si absent (chemin `param_3==null`
+    /// de `FUN_1402b4160`, celui qu'utilise le find de map `FUN_1402e2a10`).
+    #[must_use]
+    pub fn find_position(&self, target: u32) -> Option<u16> {
+        match self.search(target, false).0 {
+            0xffff => None,
+            pos => Some(pos),
+        }
+    }
+
+    /// Index d'**entrée** (`sorted[pos]`) de `target`, ou `None` si absent — complète le find de
+    /// map en mode trié (position triée → index d'entrée).
+    #[must_use]
+    pub fn find_entry(&self, target: u32) -> Option<u16> {
+        self.find_position(target).and_then(|pos| self.entry_index_at(pos))
+    }
+
+    /// Borne inférieure (chemin `param_3 != null`) : `Ok(position)` si `target` présent, sinon
+    /// `Err(position d'insertion)`.
+    pub fn lower_bound(&self, target: u32) -> Result<u16, u16> {
+        let (pos, out) = self.search(target, true);
+        if pos == 0xffff {
+            Err(out.unwrap_or(0))
+        } else {
+            Ok(pos)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -136,5 +280,76 @@ mod tests {
         let m = IntrusiveMapLinear { buf: &buf, head: 0, nodes_off: 0x200, cap: 0x100 };
         assert_eq!(m.find(42), Some(0));
         assert_eq!(m.find(0), None);
+    }
+
+    // ── Mode trié (FUN_1402b4160) ────────────────────────────────────────────
+
+    /// Construit un buffer trié à permutation identité : `sorted[i]=i`, `entries[i].key=keys[i]`
+    /// (donc `key(i)=keys[i]` croissant). Tableau d'index trié à `sorted_off`.
+    fn build_sorted(keys: &[u32], sorted_off: usize) -> Vec<u8> {
+        let mut buf = vec![0u8; 0x1000];
+        for (i, &k) in keys.iter().enumerate() {
+            buf[8 + i * 0x10..8 + i * 0x10 + 4].copy_from_slice(&k.to_le_bytes());
+            let so = sorted_off + i * 2;
+            buf[so..so + 2].copy_from_slice(&(i as u16).to_le_bytes());
+        }
+        buf
+    }
+
+    fn sorted<'a>(buf: &'a [u8], count: u16) -> IntrusiveMapSorted<'a> {
+        IntrusiveMapSorted { buf, count, sorted_off: 0x400 }
+    }
+
+    /// Cas golden capturés du fuzz byte-exact (16 608 cas vs oracle uemu) : `(keys, target) →
+    /// (find_position, lower_bound)`. Couvre bords, absences et doublons (leftmost ≠ mid).
+    #[test]
+    fn sorted_matches_uemu_fuzz_golden() {
+        // (keys, target, find_position, lower_bound)
+        type Case = (&'static [u32], u32, Option<u16>, Result<u16, u16>);
+        let cases: &[Case] = &[
+            (&[5], 5, Some(0), Ok(0)),
+            (&[5], 3, None, Err(0)),
+            (&[5], 9, None, Err(0)),
+            (&[2, 4, 6, 8], 6, Some(2), Ok(2)),
+            (&[2, 4, 6, 8], 5, None, Err(2)),
+            (&[2, 4, 6, 8], 1, None, Err(0)),
+            (&[2, 4, 6, 8], 9, None, Err(3)),
+            (&[2, 4, 6, 8], 2, Some(0), Ok(0)),
+            (&[2, 4, 6, 8], 8, Some(3), Ok(3)),
+            (&[1, 1, 1, 3], 1, Some(0), Ok(0)),
+            (&[1, 3, 3, 3, 5], 3, Some(1), Ok(2)), // leftmost=1, mid=2
+            (&[0, 0, 2, 2, 2, 4], 2, Some(2), Ok(2)),
+            (&[1, 2, 2, 2, 2, 9], 2, Some(1), Ok(2)),
+            (&[0, 5, 5, 5, 5, 5, 9], 5, Some(1), Ok(3)),
+            (&[3, 3, 7], 3, Some(0), Ok(0)),
+            (&[3, 7, 7], 7, Some(1), Ok(2)),
+        ];
+        for &(keys, tg, fp, lb) in cases {
+            let buf = build_sorted(keys, 0x400);
+            let m = sorted(&buf, keys.len() as u16);
+            assert_eq!(m.find_position(tg), fp, "find_position({keys:?}, {tg})");
+            assert_eq!(m.lower_bound(tg), lb, "lower_bound({keys:?}, {tg})");
+        }
+    }
+
+    /// `find_entry` mappe la position triée vers l'index d'entrée via une permutation NON identité.
+    #[test]
+    fn sorted_find_entry_respects_permutation() {
+        // entries (par index) : [0]=key 9, [1]=key 2, [2]=key 5. Tri croissant → ordre 1,2,0.
+        let mut buf = vec![0u8; 0x1000];
+        let keys_by_entry = [9u32, 2, 5];
+        for (i, &k) in keys_by_entry.iter().enumerate() {
+            buf[8 + i * 0x10..8 + i * 0x10 + 4].copy_from_slice(&k.to_le_bytes());
+        }
+        let perm = [1u16, 2, 0]; // sorted[i] = entry index, clés croissantes 2,5,9
+        for (i, &p) in perm.iter().enumerate() {
+            let so = 0x400 + i * 2;
+            buf[so..so + 2].copy_from_slice(&p.to_le_bytes());
+        }
+        let m = IntrusiveMapSorted { buf: &buf, count: 3, sorted_off: 0x400 };
+        assert_eq!(m.find_entry(2), Some(1), "clé 2 → entrée 1");
+        assert_eq!(m.find_entry(5), Some(2), "clé 5 → entrée 2");
+        assert_eq!(m.find_entry(9), Some(0), "clé 9 → entrée 0");
+        assert_eq!(m.find_entry(4), None, "absent");
     }
 }
