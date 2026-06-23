@@ -204,3 +204,43 @@ fn composition_spans_multiple_objbin_prefixes() {
     let bg = ms.layer_by_name("mainmenu90_00_background").expect("layer fond");
     assert_eq!(bg.layer_id, ms.layer_by_id(bg.layer_id).unwrap().layer_id);
 }
+
+/// Golden EXHAUSTIF data-gated : itère TOUS les `*_setting.cfg.bin.json` réels (440 = 304
+/// `*_menu_setting` + fenêtres/sélecteurs) et prouve l'invariant byte-exact `layer_id ==
+/// CRC32(name)` sur CHAQUE layer de CHAQUE écran (pas seulement `main_menu`). Vérifie aussi la
+/// **nav-hash d'écran** = `CRC32(stem du fichier)` sur deux ancres connues. Skip silencieux si le
+/// dump n'est pas présent (cf. mémoire golden gated).
+#[test]
+fn all_menu_settings_layer_hashes_consistent() {
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../data/common/gamedata/menu/cfg");
+    if !dir.is_dir() {
+        eprintln!("skip all_menu_settings : dump menu absent ({})", dir.display());
+        return;
+    }
+    let mut screens = 0usize;
+    let mut layers = 0usize;
+    let mut anchors = std::collections::HashMap::new();
+    for entry in std::fs::read_dir(&dir).expect("read_dir menu/cfg") {
+        let path = entry.expect("entry").path();
+        let Some(fname) = path.file_name().and_then(|s| s.to_str()) else { continue };
+        let Some(stem) = fname.strip_suffix("_setting.cfg.bin.json") else { continue };
+        let txt = std::fs::read_to_string(&path).expect("read json");
+        let root: Value = serde_json::from_str(&txt).expect("json valide");
+        let ms = parse(&root);
+        assert!(
+            ms.layer_hashes_consistent(),
+            "{stem} : un layer_id ≠ CRC32(name) — interprétation positionnelle cassée",
+        );
+        screens += 1;
+        layers += ms.layers.len();
+        // Nav-hash d'écran = CRC32(stem) (ce que le manager/Lua utilise pour ouvrir l'écran).
+        anchors.insert(stem.to_string(), crc32(stem.as_bytes()));
+    }
+    assert!(screens >= 200, "trop peu d'écrans extraits : {screens}");
+    assert!(layers >= 2000, "trop peu de layers : {layers}");
+    // Ancres byte-exact (recoupées sur le dico CRC32 du jeu).
+    assert_eq!(anchors.get("main_menu"), Some(&0x9DB6_08F1), "nav-hash main_menu");
+    assert_eq!(anchors.get("soccer_top_menu"), Some(&0x305E_72CF), "nav-hash soccer_top_menu");
+    eprintln!("OK {screens} écrans / {layers} layers — tous layer_id == CRC32(name)");
+}

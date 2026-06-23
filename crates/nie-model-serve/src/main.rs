@@ -61,13 +61,13 @@ use nie_formats::assemble::{
     assemble_armed, assemble_character_model, assemble_generic_model, assemble_keshin,
     g4md_to_g4mg_path, load_manifest, resolve_crc_to_g4md_path,
 };
-use nie_formats::g4tx::parse as parse_g4tx;
-use nie_formats::g4tx_decode;
 use nie_formats::cfgbin;
-use nie_formats::vfs::Vfs;
-use nie_formats::cri_audio::{VideoCodec, usm_demux};
 #[cfg(test)]
 use nie_formats::cri_audio::{Awb, is_hca};
+use nie_formats::cri_audio::{VideoCodec, usm_demux};
+use nie_formats::g4tx::parse as parse_g4tx;
+use nie_formats::g4tx_decode;
+use nie_formats::vfs::Vfs;
 
 mod menu;
 
@@ -82,7 +82,10 @@ struct Cli {
     game_dir: PathBuf,
 
     /// Répertoire des GLB pré-convertis (dx11/model/).
-    #[arg(long, default_value = "/home/ubuntu/.local/share/Steam/iecode/inazuma/data/dx11/model")]
+    #[arg(
+        long,
+        default_value = "/home/ubuntu/.local/share/Steam/iecode/inazuma/data/dx11/model"
+    )]
     glb_dir: PathBuf,
 
     /// Miroir SQLite (inagle_*). Résolution automatique si absent.
@@ -90,21 +93,33 @@ struct Cli {
     db: Option<PathBuf>,
 
     /// Manifeste CRC32→chemin G4MD (var/model-crc-manifest.ndjson).
-    #[arg(long, default_value = "/home/ubuntu/niers/var/model-crc-manifest.ndjson")]
+    #[arg(
+        long,
+        default_value = "/home/ubuntu/niers/var/model-crc-manifest.ndjson"
+    )]
     crc_manifest: PathBuf,
 
     /// Manifeste uniforme CRC32→G4MD+G4TX (var/uniform-model-map.ndjson, généré depuis chara_parts).
-    #[arg(long, default_value = "/home/ubuntu/niers/var/uniform-model-map.ndjson")]
+    #[arg(
+        long,
+        default_value = "/home/ubuntu/niers/var/uniform-model-map.ndjson"
+    )]
     uniform_map: PathBuf,
 
     /// Index global `[chemin, cpk]` (NDJSON, .gz accepté) des fichiers de TOUS les CPK,
     /// y compris ceux hors `cpk_list.cfg.bin` (films, sound_asset…). Alimente l'index
     /// supplémentaire du VFS pour les rendre lisibles. Vide/absent = ignoré.
-    #[arg(long, default_value = "/home/ubuntu/rg/apps/azalee/data/cpk-index.ndjson.gz")]
+    #[arg(
+        long,
+        default_value = "/home/ubuntu/rg/apps/azalee/data/cpk-index.ndjson.gz"
+    )]
     cpk_file_index: PathBuf,
 
     /// Manifeste body_type_idx (var/body-type-manifest.ndjson, optionnel — fallback type_idx=0).
-    #[arg(long, default_value = "/home/ubuntu/niers/var/body-type-manifest.ndjson")]
+    #[arg(
+        long,
+        default_value = "/home/ubuntu/niers/var/body-type-manifest.ndjson"
+    )]
     body_manifest: PathBuf,
 
     /// Répertoire de cache GLB assemblés.
@@ -114,6 +129,13 @@ struct Cli {
     /// Répertoire des layouts de menu (`<screen>.json`) pour le rendu serveur `/menu-render/`.
     #[arg(long, default_value = "/home/ubuntu/rg/apps/azalee/app/menu/_layouts")]
     layout_dir: PathBuf,
+
+    /// Répertoire des `*_menu_setting.cfg.bin.json` (un par écran) pour l'arbre `/menu-tree.json`.
+    #[arg(
+        long,
+        default_value = "/home/ubuntu/niers/data/common/gamedata/menu/cfg"
+    )]
+    menu_cfg_dir: PathBuf,
 
     /// Port d'écoute (localhost uniquement).
     #[arg(long, default_value_t = 8790)]
@@ -156,6 +178,8 @@ struct State {
     db_path: Option<PathBuf>,
     /// Répertoire des layouts de menu (`<screen>.json`).
     layout_dir: PathBuf,
+    /// Répertoire des `*_menu_setting.cfg.bin.json` (arbre d'écrans `/menu-tree.json`).
+    menu_cfg_dir: PathBuf,
 }
 
 impl State {
@@ -175,7 +199,10 @@ impl State {
     /// Charge le manifeste uniforme CRC→G4MD+G4TX depuis le fichier NDJSON.
     fn load_uniform_map(path: &Path) -> HashMap<u32, UniformMapEntry> {
         if !path.exists() {
-            warn!("manifeste uniforme absent : {} (uniforme non disponible)", path.display());
+            warn!(
+                "manifeste uniforme absent : {} (uniforme non disponible)",
+                path.display()
+            );
             return HashMap::new();
         }
         let Ok(content) = fs::read_to_string(path) else {
@@ -185,11 +212,21 @@ impl State {
         let mut map = HashMap::new();
         for line in content.lines() {
             let line = line.trim();
-            if line.is_empty() { continue; }
-            let Ok(v): std::result::Result<Value, _> = serde_json::from_str(line) else { continue };
-            let Some(crc) = v["crc"].as_u64().map(|c| c as u32) else { continue };
-            let Some(g4md) = v["g4md"].as_str().map(str::to_string) else { continue };
-            let Some(g4tx) = v["g4tx"].as_str().map(str::to_string) else { continue };
+            if line.is_empty() {
+                continue;
+            }
+            let Ok(v): std::result::Result<Value, _> = serde_json::from_str(line) else {
+                continue;
+            };
+            let Some(crc) = v["crc"].as_u64().map(|c| c as u32) else {
+                continue;
+            };
+            let Some(g4md) = v["g4md"].as_str().map(str::to_string) else {
+                continue;
+            };
+            let Some(g4tx) = v["g4tx"].as_str().map(str::to_string) else {
+                continue;
+            };
             map.insert(crc, UniformMapEntry { g4md, g4tx });
         }
         info!("uniform-model-map : {} entrées", map.len());
@@ -200,7 +237,10 @@ impl State {
     /// Format : `{"code":"c01000010","body_type_idx":0}` (une ligne par code).
     fn load_body_map(path: &Path) -> HashMap<String, u8> {
         if !path.exists() {
-            debug!("manifeste body_type absent : {} (fallback type_idx=0)", path.display());
+            debug!(
+                "manifeste body_type absent : {} (fallback type_idx=0)",
+                path.display()
+            );
             return HashMap::new();
         }
         let Ok(content) = fs::read_to_string(path) else {
@@ -216,8 +256,12 @@ impl State {
             let Ok(v): std::result::Result<Value, _> = serde_json::from_str(line) else {
                 continue;
             };
-            let Some(code) = v["code"].as_str() else { continue };
-            let Some(idx) = v["body_type_idx"].as_u64() else { continue };
+            let Some(code) = v["code"].as_str() else {
+                continue;
+            };
+            let Some(idx) = v["body_type_idx"].as_u64() else {
+                continue;
+            };
             map.insert(code.to_string(), idx as u8);
         }
         info!("body-type-manifest : {} entrées", map.len());
@@ -268,14 +312,12 @@ fn resolve_uniform_crc(db_path: &Path, internal_code: &str) -> Option<u32> {
                 let series: String = row.get(0).unwrap_or_default();
                 let data_raw: String = row.get(1).unwrap_or_default();
                 // Extrait le premier team ID depuis data.teams[0].id
-                let team_id = serde_json::from_str::<Value>(&data_raw)
-                    .ok()
-                    .and_then(|v| {
-                        v["teams"]
-                            .as_array()
-                            .and_then(|arr| arr.first())
-                            .and_then(|t| t["id"].as_str().map(str::to_string))
-                    });
+                let team_id = serde_json::from_str::<Value>(&data_raw).ok().and_then(|v| {
+                    v["teams"]
+                        .as_array()
+                        .and_then(|arr| arr.first())
+                        .and_then(|t| t["id"].as_str().map(str::to_string))
+                });
                 Ok((series, team_id))
             },
         )
@@ -295,11 +337,7 @@ fn resolve_uniform_crc(db_path: &Path, internal_code: &str) -> Option<u32> {
         .and_then(|data_raw| {
             serde_json::from_str::<Value>(&data_raw)
                 .ok()
-                .and_then(|v| {
-                    v["kits"][season.as_str()]
-                        .as_str()
-                        .map(str::to_string)
-                })
+                .and_then(|v| v["kits"][season.as_str()].as_str().map(str::to_string))
         })?;
 
     // 3. Récupère le CRC fielder depuis inagle_uniforms (name_id = kit_id).
@@ -327,7 +365,9 @@ fn resolve_uniform_crc(db_path: &Path, internal_code: &str) -> Option<u32> {
         })?;
 
     // Parse le CRC hex "0xXXXXXXXX"
-    let hex = fielder_crc_str.strip_prefix("0x").unwrap_or(&fielder_crc_str);
+    let hex = fielder_crc_str
+        .strip_prefix("0x")
+        .unwrap_or(&fielder_crc_str);
     u32::from_str_radix(hex, 16).ok()
 }
 
@@ -336,11 +376,56 @@ fn resolve_uniform_crc(db_path: &Path, internal_code: &str) -> Option<u32> {
 // source unique du workspace — Phase 1b dédup). Ici, on n'expose que les helpers spécifiques
 // au serveur (résolution VFS, fallback de noms), qui appellent ce module partagé.
 
+/// Construit l'entrée JSON d'un écran de menu depuis son `*_menu_setting.cfg.bin.json` (dump
+/// T2B). `stem` = nom logique de l'écran (sans `_setting.cfg.bin.json`) ; la **nav-hash** de
+/// l'écran (ce que le manager `0x14109D190` / le Lua utilisent pour l'ouvrir) = `CRC32(stem)`.
+/// Chaque layer porte `hash == CRC32(name)` (invariant byte-exact, cf. `nie_data::menu_setting`).
+/// `None` si le fichier est illisible.
+fn menu_screen_entry(path: &Path, stem: &str) -> Option<serde_json::Value> {
+    use serde_json::json;
+    let txt = fs::read_to_string(path).ok()?;
+    let root: serde_json::Value = serde_json::from_str(&txt).ok()?;
+    let ms = nie_data::menu_setting::parse(&root);
+    let nav = nie_data::unlock_condition::crc32_str(stem);
+    let layers: Vec<serde_json::Value> = ms
+        .layers
+        .iter()
+        .map(|l| {
+            json!({
+                "hash": l.layer_id.0,
+                "hashHex": format!("{:#010X}", l.layer_id.0),
+                "name": l.name,
+                "objbin": l.objbin_path,
+            })
+        })
+        .collect();
+    let commands: Vec<serde_json::Value> = ms
+        .commands
+        .iter()
+        .map(|c| json!({ "layerHash": c.layer_id.0, "commandHash": c.command_hash.0, "name": c.name }))
+        .collect();
+    let resources: Vec<serde_json::Value> = ms
+        .resources
+        .iter()
+        .map(|r| json!({ "path": r.logical_path, "kind": r.kind }))
+        .collect();
+    Some(json!({
+        "screen": stem,
+        "crc32": nav,
+        "crc32Hex": format!("{nav:#010X}"),
+        "layerCount": ms.layers.len(),
+        "consistent": ms.layer_hashes_consistent(),
+        "layers": layers,
+        "resources": resources,
+        "commands": commands,
+    }))
+}
+
 /// Décode un `cfg.bin`/`objbin`/`fxbin`/`mevbin` RDBN en JSON exploitable :
 /// `{ format, lists: [ { name, type, count, rows: [ { champ: valeur } ] } ] }`.
 /// Les noms de listes/types/champs sont résolus depuis la table de chaînes (lisible).
 fn cfgbin_to_json(data: &[u8]) -> Option<serde_json::Value> {
-    use serde_json::{json, Map, Value};
+    use serde_json::{Map, Value, json};
     if !cfgbin::is_rdbn(data) {
         // Format T2B (cfg.bin Level-5 classique, le cas réel sur IEVR) : arbre
         // hiérarchique {name, variables, children} — sérialisé directement.
@@ -385,7 +470,7 @@ fn hex_upper(bytes: &[u8]) -> String {
 /// consommable par les parseurs typés de `nie-data` (cf. `nie_data::typed::decode_by_key`).
 fn rdbn_value_to_json(v: &cfgbin::RdbnValue) -> serde_json::Value {
     use cfgbin::RdbnValue as R;
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
     match v {
         R::Bool(b) => json!(b),
         R::Byte(n) => json!(n),
@@ -408,7 +493,7 @@ fn rdbn_value_to_json(v: &cfgbin::RdbnValue) -> serde_json::Value {
 /// "values": [ { champ: valeur } ] } ] }`. `None` si le fichier n'est pas du RDBN à
 /// listes (T2B/`entries` non couvert ici).
 fn cfgbin_to_iecode_root(data: &[u8]) -> Option<serde_json::Value> {
-    use serde_json::{json, Map, Value};
+    use serde_json::{Map, Value, json};
     if !cfgbin::is_rdbn(data) {
         return None;
     }
@@ -442,7 +527,7 @@ fn cfgbin_to_iecode_root(data: &[u8]) -> Option<serde_json::Value> {
 /// matchent un préfixe **avec underscore final** (`"MISSION_CONFIG_INFO_"`).
 /// `value` est toujours une chaîne (les parseurs la re-parsent ; `type` indicatif).
 fn t2b_siblings_to_iecode(siblings: &[cfgbin::CfgEntry]) -> Vec<serde_json::Value> {
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
     use std::collections::HashMap;
     let mut counts: HashMap<&str, usize> = HashMap::new();
     siblings
@@ -520,7 +605,12 @@ fn fr_accents_to_ascii(s: &str) -> String {
         .collect()
 }
 
-fn compose_story_png(font_cfg: &[u8], font_g4tx: &[u8], speaker: &str, text: &str) -> Option<Vec<u8>> {
+fn compose_story_png(
+    font_cfg: &[u8],
+    font_g4tx: &[u8],
+    speaker: &str,
+    text: &str,
+) -> Option<Vec<u8>> {
     use nie_formats::{cfgbin, font, g4tx};
     const W: usize = 1280;
     const H: usize = 720;
@@ -534,7 +624,11 @@ fn compose_story_png(font_cfg: &[u8], font_g4tx: &[u8], speaker: &str, text: &st
     let tx = g4tx::parse(font_g4tx).ok()?;
     let t = tx.textures.first()?;
     let dds = font_g4tx.get(t.data_offset..)?;
-    let px_off = if dds.len() >= 88 && &dds[84..88] == b"DX10" { 148 } else { 128 };
+    let px_off = if dds.len() >= 88 && &dds[84..88] == b"DX10" {
+        148
+    } else {
+        128
+    };
     let atlas = dds.get(px_off..)?;
     let (aw, ah) = (t.width as usize, t.height as usize);
     let cell_h = metrics.dims.cell_height;
@@ -544,8 +638,11 @@ fn compose_story_png(font_cfg: &[u8], font_g4tx: &[u8], speaker: &str, text: &st
     let mut buf = vec![0u8; W * H * 4];
     for y in 0..H {
         let tt = y as f32 / H as f32;
-        let (r, g, b) =
-            ((18.0 + 30.0 * tt) as u8, (24.0 + 36.0 * tt) as u8, (44.0 + 60.0 * (1.0 - tt)) as u8);
+        let (r, g, b) = (
+            (18.0 + 30.0 * tt) as u8,
+            (24.0 + 36.0 * tt) as u8,
+            (44.0 + 60.0 * (1.0 - tt)) as u8,
+        );
         for x in 0..W {
             let o = (y * W + x) * 4;
             buf[o..o + 4].copy_from_slice(&[r, g, b, 255]);
@@ -572,8 +669,11 @@ fn compose_story_png(font_cfg: &[u8], font_g4tx: &[u8], speaker: &str, text: &st
     for para in text.split('\n').flat_map(|p| p.split("\\n")) {
         let mut cur = String::new();
         for word in para.split_whitespace() {
-            let trial =
-                if cur.is_empty() { word.to_string() } else { format!("{cur} {word}") };
+            let trial = if cur.is_empty() {
+                word.to_string()
+            } else {
+                format!("{cur} {word}")
+            };
             if la.measure(&trial) <= max_w {
                 cur = trial;
             } else {
@@ -594,13 +694,52 @@ fn compose_story_png(font_cfg: &[u8], font_g4tx: &[u8], speaker: &str, text: &st
     fill(&mut buf, bx0, by0, bx1, by1, [10, 14, 28, 220]);
     fill(&mut buf, bx0, by0, bx1, by0 + 3, [90, 200, 255, 255]);
     let name_w = (la.measure(speaker) as i32 + 40).min(440);
-    fill(&mut buf, bx0 + 20, by0 - 40, bx0 + 20 + name_w, by0 + 2, [30, 60, 110, 235]);
-    fill(&mut buf, bx0 + 20, by0 - 40, bx0 + 20 + name_w, by0 - 37, [120, 220, 255, 255]);
-    la.blit_line(atlas, aw, &mut buf, W, bx0 + 38, by0 - 32, speaker, [200, 235, 255, 255]);
+    fill(
+        &mut buf,
+        bx0 + 20,
+        by0 - 40,
+        bx0 + 20 + name_w,
+        by0 + 2,
+        [30, 60, 110, 235],
+    );
+    fill(
+        &mut buf,
+        bx0 + 20,
+        by0 - 40,
+        bx0 + 20 + name_w,
+        by0 - 37,
+        [120, 220, 255, 255],
+    );
+    la.blit_line(
+        atlas,
+        aw,
+        &mut buf,
+        W,
+        bx0 + 38,
+        by0 - 32,
+        speaker,
+        [200, 235, 255, 255],
+    );
     for (i, line) in lines.iter().enumerate() {
-        la.blit_line(atlas, aw, &mut buf, W, bx0 + 40, by0 + 22 + i as i32 * line_h, line, [240, 244, 250, 255]);
+        la.blit_line(
+            atlas,
+            aw,
+            &mut buf,
+            W,
+            bx0 + 40,
+            by0 + 22 + i as i32 * line_h,
+            line,
+            [240, 244, 250, 255],
+        );
     }
-    fill(&mut buf, bx1 - 36, by1 - 24, bx1 - 20, by1 - 8, [120, 220, 255, 255]);
+    fill(
+        &mut buf,
+        bx1 - 36,
+        by1 - 24,
+        bx1 - 20,
+        by1 - 8,
+        [120, 220, 255, 255],
+    );
 
     g4tx_decode::encode_rgba_to_png(&buf, W, H)
 }
@@ -635,7 +774,6 @@ fn series_dir_from_code_upper(code: &str) -> Option<&'static str> {
     }
 }
 
-
 /// Tente de charger et décoder la texture de face d'un personnage en PNG.
 /// Retourne `None` si le G4TX est absent ou le décodage échoue.
 fn load_face_texture_png(state: &State, code: &str) -> Option<Vec<u8>> {
@@ -653,7 +791,6 @@ fn load_face_texture_png(state: &State, code: &str) -> Option<Vec<u8>> {
     }
     png
 }
-
 
 /// Tente de charger et décoder la texture d'uniforme depuis un chemin VFS G4TX.
 /// Retourne `None` si le G4TX est absent ou le décodage échoue.
@@ -769,7 +906,11 @@ fn assemble_chara(state: &State, code: &str) -> Result<GlbBytes> {
 
     // Corps de base → texture d'uniforme (au lieu du placeholder de peau 32×32).
     if let Some(png_bytes) = uniform_png.clone() {
-        info!("texture corps (uniforme) embarquée : {} ({} B PNG)", code, png_bytes.len());
+        info!(
+            "texture corps (uniforme) embarquée : {} ({} B PNG)",
+            code,
+            png_bytes.len()
+        );
         model.embedded_textures.push(EmbeddedTexture {
             component: MeshComponent::Body,
             name: format!("{code}_body"),
@@ -781,7 +922,11 @@ fn assemble_chara(state: &State, code: &str) -> Result<GlbBytes> {
 
     // Visage : atlas de visage (inchangé).
     if let Some(png_bytes) = load_face_texture_png(state, code) {
-        info!("texture face embarquée : {} ({} B PNG)", code, png_bytes.len());
+        info!(
+            "texture face embarquée : {} ({} B PNG)",
+            code,
+            png_bytes.len()
+        );
         model.embedded_textures.push(EmbeddedTexture {
             component: MeshComponent::Face,
             name: format!("{code}_face"),
@@ -793,7 +938,11 @@ fn assemble_chara(state: &State, code: &str) -> Result<GlbBytes> {
 
     // Uniforme : même texture que le corps.
     if let Some(png_bytes) = uniform_png {
-        info!("texture uniforme embarquée : {} ({} B PNG)", code, png_bytes.len());
+        info!(
+            "texture uniforme embarquée : {} ({} B PNG)",
+            code,
+            png_bytes.len()
+        );
         model.embedded_textures.push(EmbeddedTexture {
             component: MeshComponent::Uniform,
             name: format!("{code}_uniform"),
@@ -826,12 +975,18 @@ fn load_uniform_from_vfs(state: &State, crc: u32) -> Result<UniformData> {
         let g4tx_path = entry.g4tx.clone();
 
         let vfs = state.vfs.lock().unwrap();
-        let g4md = vfs.read(g4md_path.as_str())
+        let g4md = vfs
+            .read(g4md_path.as_str())
             .with_context(|| format!("lecture G4MD uniforme {g4md_path}"))?;
-        let g4mg = vfs.read(&g4mg_path)
+        let g4mg = vfs
+            .read(&g4mg_path)
             .with_context(|| format!("lecture G4MG uniforme {g4mg_path}"))?;
 
-        return Ok(UniformData { g4md, g4mg, g4tx_path: Some(g4tx_path) });
+        return Ok(UniformData {
+            g4md,
+            g4mg,
+            g4tx_path: Some(g4tx_path),
+        });
     }
 
     // Priorité 2 : manifeste CRC (fallback pour VR — espace CRC différent).
@@ -840,12 +995,18 @@ fn load_uniform_from_vfs(state: &State, crc: u32) -> Result<UniformData> {
     let g4mg_path = g4md_to_g4mg_path(g4md_path);
 
     let vfs = state.vfs.lock().unwrap();
-    let g4md = vfs.read(g4md_path)
+    let g4md = vfs
+        .read(g4md_path)
         .with_context(|| format!("lecture G4MD {g4md_path}"))?;
-    let g4mg = vfs.read(&g4mg_path)
+    let g4mg = vfs
+        .read(&g4mg_path)
         .with_context(|| format!("lecture G4MG {g4mg_path}"))?;
 
-    Ok(UniformData { g4md, g4mg, g4tx_path: None })
+    Ok(UniformData {
+        g4md,
+        g4mg,
+        g4tx_path: None,
+    })
 }
 
 /// Assemble un keshin (code `kXXXXXX`).
@@ -855,18 +1016,24 @@ fn assemble_keshin_code(state: &State, code: &str) -> Result<GlbBytes> {
 
     let (g4md, g4mg) = {
         let vfs = state.vfs.lock().unwrap();
-        let g4md = vfs.read(&g4md_path)
+        let g4md = vfs
+            .read(&g4md_path)
             .with_context(|| format!("G4MD keshin {g4md_path}"))?;
-        let g4mg = vfs.read(&g4mg_path)
+        let g4mg = vfs
+            .read(&g4mg_path)
             .with_context(|| format!("G4MG keshin {g4mg_path}"))?;
         (g4md, g4mg)
     };
 
-    let mut model = assemble_keshin(code, g4md, g4mg)
-        .with_context(|| format!("assemblage keshin {code}"))?;
+    let mut model =
+        assemble_keshin(code, g4md, g4mg).with_context(|| format!("assemblage keshin {code}"))?;
 
     if let Some(png_bytes) = load_keshin_texture_png(state, code) {
-        info!("texture keshin embarquée : {} ({} B PNG)", code, png_bytes.len());
+        info!(
+            "texture keshin embarquée : {} ({} B PNG)",
+            code,
+            png_bytes.len()
+        );
         model.embedded_textures.push(EmbeddedTexture {
             component: MeshComponent::Keshin,
             name: format!("{code}_keshin"),
@@ -886,18 +1053,24 @@ fn assemble_armed_code(state: &State, code: &str) -> Result<GlbBytes> {
 
     let (g4md, g4mg) = {
         let vfs = state.vfs.lock().unwrap();
-        let g4md = vfs.read(&g4md_path)
+        let g4md = vfs
+            .read(&g4md_path)
             .with_context(|| format!("G4MD armd {g4md_path}"))?;
-        let g4mg = vfs.read(&g4mg_path)
+        let g4mg = vfs
+            .read(&g4mg_path)
             .with_context(|| format!("G4MG armd {g4mg_path}"))?;
         (g4md, g4mg)
     };
 
-    let mut model = assemble_armed(code, g4md, g4mg)
-        .with_context(|| format!("assemblage armure {code}"))?;
+    let mut model =
+        assemble_armed(code, g4md, g4mg).with_context(|| format!("assemblage armure {code}"))?;
 
     if let Some(png_bytes) = load_armed_texture_png(state, code) {
-        info!("texture armure embarquée : {} ({} B PNG)", code, png_bytes.len());
+        info!(
+            "texture armure embarquée : {} ({} B PNG)",
+            code,
+            png_bytes.len()
+        );
         model.embedded_textures.push(EmbeddedTexture {
             component: MeshComponent::Armed,
             name: format!("{code}_armed"),
@@ -997,7 +1170,9 @@ fn assemble_map(state: &State, rel: &str) -> Result<GlbBytes> {
 
     let (g4md, g4mg) = {
         let vfs = state.vfs.lock().unwrap();
-        let g4mg = vfs.read(&g4mg_path).with_context(|| format!("G4MG {g4mg_path}"))?;
+        let g4mg = vfs
+            .read(&g4mg_path)
+            .with_context(|| format!("G4MG {g4mg_path}"))?;
         let g4md = match vfs.read(&g4md_path) {
             Ok(b) => b,
             Err(_) => {
@@ -1050,17 +1225,25 @@ fn assemble_map(state: &State, rel: &str) -> Result<GlbBytes> {
     let group = base.trim_end_matches(|c: char| c.is_ascii_digit());
     let stage_g4tx = {
         let vfs = state.vfs.lock().unwrap();
-        vfs.read(&format!("data/dx11/map/{stage_dir}/{group}.g4tx")).ok()
+        vfs.read(&format!("data/dx11/map/{stage_dir}/{group}.g4tx"))
+            .ok()
     };
     if let Some(bytes) = &stage_g4tx
         && let Ok(g4tx) = parse_g4tx(bytes)
     {
         // Base color `.1` d'une texture : nom sans le suffixe `.N`.
         let tex_base = |t: &nie_formats::g4tx::G4txTexture| -> String {
-            t.name.rsplit_once('.').map_or(t.name.clone(), |(b, _)| b.to_string())
+            t.name
+                .rsplit_once('.')
+                .map_or(t.name.clone(), |(b, _)| b.to_string())
         };
         let mut seen = std::collections::HashSet::new();
-        for core in model.primitives.iter().map(|p| p.material_name.clone()).collect::<Vec<_>>() {
+        for core in model
+            .primitives
+            .iter()
+            .map(|p| p.material_name.clone())
+            .collect::<Vec<_>>()
+        {
             if core.is_empty() || !seen.insert(core.clone()) {
                 continue;
             }
@@ -1072,8 +1255,10 @@ fn assemble_map(state: &State, rel: &str) -> Result<GlbBytes> {
                 .filter(|t| t.is_dds && t.name.ends_with(".1"))
                 .find(|t| core.starts_with(&tex_base(t)));
             if let Some(tex) = pick
-                && let Some(png_bytes) = g4tx_decode::decode_texture_rgba(bytes, tex)
-                .and_then(|(w, h, rgba)| g4tx_decode::encode_rgba_to_png(&rgba, w as usize, h as usize))
+                && let Some(png_bytes) =
+                    g4tx_decode::decode_texture_rgba(bytes, tex).and_then(|(w, h, rgba)| {
+                        g4tx_decode::encode_rgba_to_png(&rgba, w as usize, h as usize)
+                    })
             {
                 model.embedded_textures.push(EmbeddedTexture {
                     component: MeshComponent::Generic,
@@ -1091,8 +1276,10 @@ fn assemble_map(state: &State, rel: &str) -> Result<GlbBytes> {
             .iter()
             .filter(|t| t.is_dds && t.name.ends_with(".1"))
             .find(|t| t.name.contains("ground") || t.name.contains("grass"))
-            && let Some(png_bytes) = g4tx_decode::decode_texture_rgba(bytes, tex)
-                .and_then(|(w, h, rgba)| g4tx_decode::encode_rgba_to_png(&rgba, w as usize, h as usize))
+            && let Some(png_bytes) =
+                g4tx_decode::decode_texture_rgba(bytes, tex).and_then(|(w, h, rgba)| {
+                    g4tx_decode::encode_rgba_to_png(&rgba, w as usize, h as usize)
+                })
         {
             model.embedded_textures.push(EmbeddedTexture {
                 component: MeshComponent::Generic,
@@ -1107,7 +1294,9 @@ fn assemble_map(state: &State, rel: &str) -> Result<GlbBytes> {
 
 /// Cache disque pour un modèle de map (`map_<rel-sécurisé>.glb`).
 fn get_or_build_map_glb(state: &State, rel: &str) -> Result<GlbBytes> {
-    let cache_path = state.cache_dir.join(format!("map_{}.glb", rel.replace('/', "_")));
+    let cache_path = state
+        .cache_dir
+        .join(format!("map_{}.glb", rel.replace('/', "_")));
     if cache_path.exists() {
         debug!("cache hit : map {rel}");
         return fs::read(&cache_path)
@@ -1299,7 +1488,10 @@ fn enumerate_servable_codes(vfs: &Vfs) -> Vec<WarmJob> {
         // Armures : common/chr/_armd/<dir>/<code>.g4md (dossier ≠ code → pas de paire stricte).
         if path.contains("/_armd/")
             && path.ends_with(".g4md")
-            && let Some(code) = path.rsplit('/').next().and_then(|f| f.strip_suffix(".g4md"))
+            && let Some(code) = path
+                .rsplit('/')
+                .next()
+                .and_then(|f| f.strip_suffix(".g4md"))
             && code.starts_with("ka")
         {
             full.insert(code.to_string());
@@ -1330,7 +1522,12 @@ fn free_bytes(path: &Path) -> Option<u64> {
         .arg(path)
         .output()
         .ok()?;
-    String::from_utf8_lossy(&out.stdout).lines().nth(1)?.trim().parse::<u64>().ok()
+    String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .nth(1)?
+        .trim()
+        .parse::<u64>()
+        .ok()
 }
 
 /// Seuil d'arrêt du préchargement : on stoppe si l'espace libre passe sous 3 Gio.
@@ -1354,51 +1551,58 @@ fn spawn_preload(state: Arc<State>, workers: usize) {
         let stop = Arc::new(AtomicBool::new(false));
         let mut handles = Vec::new();
         for _ in 0..workers.max(1) {
-            let (jobs, next, done, stop, state) =
-                (jobs.clone(), next.clone(), done.clone(), stop.clone(), state.clone());
-            handles.push(thread::spawn(move || loop {
-                if stop.load(Relaxed) {
-                    break;
-                }
-                let i = next.fetch_add(1, Relaxed);
-                if i >= jobs.len() {
-                    break;
-                }
-                let res = match &jobs[i] {
-                    WarmJob::Full(code) => get_or_build_glb(&state, code).map(|_| ()),
-                    WarmJob::Chr(sub, code) => get_or_build_chr_glb(&state, sub, code).map(|_| ()),
-                };
-                if let Err(e) = res {
-                    debug!("préchargement : entrée {i} non assemblable : {e}");
-                }
-                let n = done.fetch_add(1, Relaxed) + 1;
-                if n.is_multiple_of(200) {
-                    if free_bytes(&state.cache_dir).is_some_and(|f| f < PRELOAD_MIN_FREE_BYTES) {
-                        warn!("préchargement : espace disque < 3 Gio — arrêt à {n}/{total}");
-                        stop.store(true, Relaxed);
+            let (jobs, next, done, stop, state) = (
+                jobs.clone(),
+                next.clone(),
+                done.clone(),
+                stop.clone(),
+                state.clone(),
+            );
+            handles.push(thread::spawn(move || {
+                loop {
+                    if stop.load(Relaxed) {
                         break;
                     }
-                    info!("préchargement : {n}/{total} modèles traités");
+                    let i = next.fetch_add(1, Relaxed);
+                    if i >= jobs.len() {
+                        break;
+                    }
+                    let res = match &jobs[i] {
+                        WarmJob::Full(code) => get_or_build_glb(&state, code).map(|_| ()),
+                        WarmJob::Chr(sub, code) => {
+                            get_or_build_chr_glb(&state, sub, code).map(|_| ())
+                        }
+                    };
+                    if let Err(e) = res {
+                        debug!("préchargement : entrée {i} non assemblable : {e}");
+                    }
+                    let n = done.fetch_add(1, Relaxed) + 1;
+                    if n.is_multiple_of(200) {
+                        if free_bytes(&state.cache_dir).is_some_and(|f| f < PRELOAD_MIN_FREE_BYTES)
+                        {
+                            warn!("préchargement : espace disque < 3 Gio — arrêt à {n}/{total}");
+                            stop.store(true, Relaxed);
+                            break;
+                        }
+                        info!("préchargement : {n}/{total} modèles traités");
+                    }
                 }
             }));
         }
         for h in handles {
             let _ = h.join();
         }
-        info!("préchargement terminé : {}/{total} modèles dans le cache", done.load(Relaxed));
+        info!(
+            "préchargement terminé : {}/{total} modèles dans le cache",
+            done.load(Relaxed)
+        );
     });
 }
 
 // ── Serveur HTTP minimal ──────────────────────────────────────────────────────
 
 /// Réponse HTTP.
-fn respond(
-    stream: &mut TcpStream,
-    status: u16,
-    reason: &str,
-    content_type: &str,
-    body: &[u8],
-) {
+fn respond(stream: &mut TcpStream, status: u16, reason: &str, content_type: &str, body: &[u8]) {
     let headers = format!(
         "HTTP/1.1 {status} {reason}\r\n\
          Content-Type: {content_type}\r\n\
@@ -1416,7 +1620,13 @@ fn respond(
 }
 
 fn respond_text(stream: &mut TcpStream, status: u16, reason: &str, body: &str) {
-    respond(stream, status, reason, "text/plain; charset=utf-8", body.as_bytes());
+    respond(
+        stream,
+        status,
+        reason,
+        "text/plain; charset=utf-8",
+        body.as_bytes(),
+    );
 }
 
 /// Parse `Range: bytes=START-END` (END optionnel) → `(start, end_inclus)` borné à `total`.
@@ -1435,7 +1645,11 @@ fn parse_range(header: &str, total: usize) -> Option<(usize, usize)> {
         (total.saturating_sub(n), last)
     } else {
         let start: usize = a.trim().parse().ok()?;
-        let end = if b.is_empty() { last } else { b.trim().parse::<usize>().ok()?.min(last) };
+        let end = if b.is_empty() {
+            last
+        } else {
+            b.trim().parse::<usize>().ok()?.min(last)
+        };
         (start, end)
     };
     if start > end || start > last {
@@ -1524,7 +1738,11 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         if line == "\r\n" || line == "\n" {
             break;
         }
-        if let Some(v) = line.trim_end().strip_prefix("Range:").or_else(|| line.trim_end().strip_prefix("range:")) {
+        if let Some(v) = line
+            .trim_end()
+            .strip_prefix("Range:")
+            .or_else(|| line.trim_end().strip_prefix("range:"))
+        {
             range_header = Some(v.trim().to_string());
         }
     }
@@ -1555,7 +1773,12 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             format!("data/{g4tx_rel}")
         };
         if vfs_path.contains("..") || !vfs_path.ends_with(".g4tx") {
-            respond_text(&mut stream, 400, "Bad Request", "chemin invalide (.g4tx/.png attendu)");
+            respond_text(
+                &mut stream,
+                400,
+                "Bad Request",
+                "chemin invalide (.g4tx/.png attendu)",
+            );
             return;
         }
         let g4tx = {
@@ -1588,7 +1811,13 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         match bytes.as_deref().and_then(cfgbin_to_json) {
             Some(json) => {
                 let body = serde_json::to_vec(&json).unwrap_or_default();
-                respond(&mut stream, 200, "OK", "application/json; charset=utf-8", &body);
+                respond(
+                    &mut stream,
+                    200,
+                    "OK",
+                    "application/json; charset=utf-8",
+                    &body,
+                );
             }
             None => respond_text(&mut stream, 404, "Not Found", "cfg.bin absent ou non-RDBN"),
         }
@@ -1623,9 +1852,20 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                     }
                 };
                 let body = serde_json::to_vec(&out).unwrap_or_default();
-                respond(&mut stream, 200, "OK", "application/json; charset=utf-8", &body);
+                respond(
+                    &mut stream,
+                    200,
+                    "OK",
+                    "application/json; charset=utf-8",
+                    &body,
+                );
             }
-            None => respond_text(&mut stream, 404, "Not Found", "cfg.bin absent ou non-RDBN a listes"),
+            None => respond_text(
+                &mut stream,
+                404,
+                "Not Found",
+                "cfg.bin absent ou non-RDBN a listes",
+            ),
         }
         return;
     }
@@ -1634,8 +1874,11 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
     // (`{duration_s, frames:[{time_s, viseme, channel, param}]}`) à jouer en synchro voix.
     if let Some(rest) = path.strip_prefix("/lip/") {
         let rel = rest.strip_suffix(".json").unwrap_or(rest);
-        let vfs_path =
-            if rel.starts_with("data/") { rel.to_string() } else { format!("data/{rel}") };
+        let vfs_path = if rel.starts_with("data/") {
+            rel.to_string()
+        } else {
+            format!("data/{rel}")
+        };
         if vfs_path.contains("..") {
             respond_text(&mut stream, 400, "Bad Request", "chemin invalide");
             return;
@@ -1647,10 +1890,21 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         match bytes.as_deref().map(nie_formats::lip::parse) {
             Some(Ok(lip)) => {
                 let body = serde_json::to_vec(&lip).unwrap_or_default();
-                respond(&mut stream, 200, "OK", "application/json; charset=utf-8", &body);
+                respond(
+                    &mut stream,
+                    200,
+                    "OK",
+                    "application/json; charset=utf-8",
+                    &body,
+                );
             }
             Some(Err(e)) => {
-                respond_text(&mut stream, 422, "Unprocessable Entity", &format!("p3lip invalide : {e}"));
+                respond_text(
+                    &mut stream,
+                    422,
+                    "Unprocessable Entity",
+                    &format!("p3lip invalide : {e}"),
+                );
             }
             None => respond_text(&mut stream, 404, "Not Found", "fichier absent du VFS"),
         }
@@ -1692,7 +1946,9 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         let screen = rest.strip_suffix(".png").unwrap_or(rest);
         if screen.is_empty()
             || screen.len() > 64
-            || !screen.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+            || !screen
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
         {
             respond_text(&mut stream, 400, "Bad Request", "écran invalide");
             return;
@@ -1706,7 +1962,12 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             Ok(l) => l,
             Err(e) => {
                 warn!("layout {screen} invalide : {e}");
-                respond_text(&mut stream, 500, "Internal Server Error", "layout illisible");
+                respond_text(
+                    &mut stream,
+                    500,
+                    "Internal Server Error",
+                    "layout illisible",
+                );
                 return;
             }
         };
@@ -1729,14 +1990,89 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         return;
     }
 
+    // `/menu-tree.json` — arbre de TOUS les écrans de menu (440 `*_setting`, dont 304 `*_menu_setting`
+    // + fenêtres/sélecteurs) ; `/menu-tree/<screen>.json` — un écran. Chaque écran : nav-hash
+    // `CRC32(stem)` + ses layers `{hash=CRC32(name), name, objbin}`, ressources et commandes (port
+    // `nie_data::menu_setting`). Source unique navigable du hub (débloque navigation + labels + rendu
+    // par écran). Données byte-exact : `consistent: true` ⇔ chaque `hash == CRC32(name)`.
+    if let Some(rest) = path.strip_prefix("/menu-tree")
+        && (rest.is_empty() || rest == ".json" || rest.starts_with('/'))
+    {
+        let sel = rest
+            .strip_prefix('/')
+            .unwrap_or(rest)
+            .strip_suffix(".json")
+            .unwrap_or("")
+            .trim();
+        let dir = &state.menu_cfg_dir;
+        if sel.is_empty() {
+            let mut paths: Vec<PathBuf> = match fs::read_dir(dir) {
+                Ok(rd) => rd.flatten().map(|e| e.path()).collect(),
+                Err(_) => Vec::new(),
+            };
+            paths.sort();
+            let mut screens: Vec<serde_json::Value> = Vec::new();
+            for p in &paths {
+                let Some(fname) = p.file_name().and_then(|s| s.to_str()) else {
+                    continue;
+                };
+                let Some(stem) = fname.strip_suffix("_setting.cfg.bin.json") else {
+                    continue;
+                };
+                if let Some(v) = menu_screen_entry(p, stem) {
+                    screens.push(v);
+                }
+            }
+            if screens.is_empty() {
+                respond_text(
+                    &mut stream,
+                    404,
+                    "Not Found",
+                    "aucun menu_setting (dump absent ?)",
+                );
+                return;
+            }
+            let body = serde_json::json!({ "count": screens.len(), "screens": screens });
+            let bytes = serde_json::to_vec(&body).unwrap_or_default();
+            respond(&mut stream, 200, "OK", "application/json", &bytes);
+            return;
+        }
+        if sel.len() > 64
+            || !sel
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+        {
+            respond_text(&mut stream, 400, "Bad Request", "écran invalide");
+            return;
+        }
+        let p = dir.join(format!("{sel}_setting.cfg.bin.json"));
+        match menu_screen_entry(&p, sel) {
+            Some(v) => {
+                let bytes = serde_json::to_vec(&v).unwrap_or_default();
+                respond(&mut stream, 200, "OK", "application/json", &bytes);
+            }
+            None => respond_text(&mut stream, 404, "Not Found", "écran introuvable"),
+        }
+        return;
+    }
+
     // `/story-scene[/<n>].png` — scène de dialogue du MODE HISTOIRE : un vrai dialogue
     // (`inagle_event_subtitles`) rendu dans la VRAIE police + boîte + onglet locuteur. `<n>` =
     // offset de ligne déterministe (défaut 0). Sert le mode histoire à azalee, sans dump.
     if let Some(rest) = path.strip_prefix("/story-scene") {
-        let sel = rest.trim_start_matches('/').strip_suffix(".png").unwrap_or("").trim();
+        let sel = rest
+            .trim_start_matches('/')
+            .strip_suffix(".png")
+            .unwrap_or("")
+            .trim();
         let offset: i64 = sel.parse().unwrap_or(0).max(0);
         let Some(db) = state.db_path.clone() else {
-            respond_text(&mut stream, 503, "Service Unavailable", "miroir SQLite absent");
+            respond_text(
+                &mut stream,
+                503,
+                "Service Unavailable",
+                "miroir SQLite absent",
+            );
             return;
         };
         let dialogue = Connection::open_with_flags(&db, OpenFlags::SQLITE_OPEN_READ_ONLY)
@@ -1763,7 +2099,12 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                 .ok()
             });
         let Some((speaker, text)) = dialogue else {
-            respond_text(&mut stream, 404, "Not Found", "dialogue introuvable (table inagle absente ?)");
+            respond_text(
+                &mut stream,
+                404,
+                "Not Found",
+                "dialogue introuvable (table inagle absente ?)",
+            );
             return;
         };
         let (cfg, g4tx) = {
@@ -1774,12 +2115,22 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             )
         };
         let (Some(cfg), Some(g4tx)) = (cfg, g4tx) else {
-            respond_text(&mut stream, 500, "Internal Server Error", "police absente du VFS");
+            respond_text(
+                &mut stream,
+                500,
+                "Internal Server Error",
+                "police absente du VFS",
+            );
             return;
         };
         match compose_story_png(&cfg, &g4tx, &speaker, &text) {
             Some(png) => respond(&mut stream, 200, "OK", "image/png", &png),
-            None => respond_text(&mut stream, 500, "Internal Server Error", "composition échouée"),
+            None => respond_text(
+                &mut stream,
+                500,
+                "Internal Server Error",
+                "composition échouée",
+            ),
         }
         return;
     }
@@ -1793,10 +2144,17 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         let sub = parts.next().unwrap_or("");
         let code = parts.next().unwrap_or("");
         let valid = |s: &str| {
-            !s.is_empty() && s.len() <= 32 && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+            !s.is_empty()
+                && s.len() <= 32
+                && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
         };
         if !valid(sub) || !valid(code) {
-            respond_text(&mut stream, 400, "Bad Request", "sous-domaine/code invalide");
+            respond_text(
+                &mut stream,
+                400,
+                "Bad Request",
+                "sous-domaine/code invalide",
+            );
             return;
         }
         match get_or_build_chr_glb(&state, sub, code) {
@@ -1821,7 +2179,9 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         let valid = !rel.is_empty()
             && rel.len() <= 96
             && rel.split('/').all(|s| {
-                !s.is_empty() && s.len() <= 32 && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+                !s.is_empty()
+                    && s.len() <= 32
+                    && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
             });
         if !valid {
             respond_text(&mut stream, 400, "Bad Request", "chemin map invalide");
@@ -1831,7 +2191,12 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             Ok(glb) => respond(&mut stream, 200, "OK", "model/gltf-binary", &glb),
             Err(e) => {
                 debug!("assemblage map {rel} échoué : {e}");
-                respond_text(&mut stream, 404, "Not Found", &format!("map {rel} non disponible : {e}"));
+                respond_text(
+                    &mut stream,
+                    404,
+                    "Not Found",
+                    &format!("map {rel} non disponible : {e}"),
+                );
             }
         }
         return;
@@ -1843,7 +2208,9 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         // Validation minimale : alphanumérique + _-
         if code.is_empty()
             || code.len() > 32
-            || !code.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+            || !code
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
         {
             respond_text(&mut stream, 400, "Bad Request", "code invalide");
             return;
@@ -1851,17 +2218,16 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
 
         match get_or_build_glb(&state, code) {
             Ok(glb) => {
-                respond(
-                    &mut stream,
-                    200,
-                    "OK",
-                    "model/gltf-binary",
-                    &glb,
-                );
+                respond(&mut stream, 200, "OK", "model/gltf-binary", &glb);
             }
             Err(e) => {
                 warn!("assemblage {code} échoué : {e}");
-                respond_text(&mut stream, 404, "Not Found", &format!("modèle {code} non disponible : {e}"));
+                respond_text(
+                    &mut stream,
+                    404,
+                    "Not Found",
+                    &format!("modèle {code} non disponible : {e}"),
+                );
             }
         }
         return;
@@ -1904,7 +2270,8 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                             return Err(e);
                         };
                         let vfs_guard = state.vfs.lock().unwrap();
-                        let awb_bytes = vfs_guard.read(&awb_path)
+                        let awb_bytes = vfs_guard
+                            .read(&awb_path)
                             .map_err(|_| anyhow::anyhow!("AWB externe {awb_path} absent du VFS"))?;
                         drop(vfs_guard);
                         decode_awb_first_entry(&awb_bytes, &awb_path)
@@ -1916,8 +2283,12 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                     Ok(wav) => respond_ranged(&mut stream, "audio/wav", &wav, range_header),
                     Err(e) => {
                         warn!("décodage audio {vfs_path} échoué : {e}");
-                        respond_text(&mut stream, 500, "Internal Server Error",
-                            &format!("décodage audio échoué : {e}"));
+                        respond_text(
+                            &mut stream,
+                            500,
+                            "Internal Server Error",
+                            &format!("décodage audio échoué : {e}"),
+                        );
                     }
                 }
             }
@@ -1951,13 +2322,16 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                 match usm_demux(&raw) {
                     Err(e) => {
                         warn!("démux USM {vfs_path} échoué : {e}");
-                        respond_text(&mut stream, 500, "Internal Server Error",
-                            &format!("démux USM échoué : {e}"));
+                        respond_text(
+                            &mut stream,
+                            500,
+                            "Internal Server Error",
+                            &format!("démux USM échoué : {e}"),
+                        );
                     }
                     Ok(result) => {
                         if result.video_data.is_empty() {
-                            respond_text(&mut stream, 404, "Not Found",
-                                "USM sans piste vidéo");
+                            respond_text(&mut stream, 404, "Not Found", "USM sans piste vidéo");
                             return;
                         }
                         let (ct, body) = match result.video_codec {
@@ -1967,11 +2341,15 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                                 Some(mp4) => ("video/mp4", mp4),
                                 None => ("video/h264", result.video_data),
                             },
-                            VideoCodec::Vp9  => ("video/webm", result.video_data),
+                            VideoCodec::Vp9 => ("video/webm", result.video_data),
                             VideoCodec::Unknown => ("application/octet-stream", result.video_data),
                         };
-                        info!("USM {} démuxé : {} frames, {}B",
-                            vfs_path, result.frame_count, body.len());
+                        info!(
+                            "USM {} démuxé : {} frames, {}B",
+                            vfs_path,
+                            result.frame_count,
+                            body.len()
+                        );
                         respond_ranged(&mut stream, ct, &body, range_header);
                     }
                 }
@@ -2122,7 +2500,10 @@ fn main() -> Result<()> {
             info!("index VFS supplémentaire : +{added} fichiers (CPK hors cpk_list)");
         }
         Ok(_) => {}
-        Err(e) => warn!("index VFS supplémentaire ignoré ({}): {e}", cli.cpk_file_index.display()),
+        Err(e) => warn!(
+            "index VFS supplémentaire ignoré ({}): {e}",
+            cli.cpk_file_index.display()
+        ),
     }
 
     // Charge les manifestes.
@@ -2145,12 +2526,12 @@ fn main() -> Result<()> {
         cache_dir: cli.cache_dir.clone(),
         db_path,
         layout_dir: cli.layout_dir.clone(),
+        menu_cfg_dir: cli.menu_cfg_dir.clone(),
     });
 
     // Bind du serveur TCP.
     let addr = format!("127.0.0.1:{}", cli.port);
-    let listener = TcpListener::bind(&addr)
-        .with_context(|| format!("bind {addr}"))?;
+    let listener = TcpListener::bind(&addr).with_context(|| format!("bind {addr}"))?;
     info!("nie-model-serve en écoute sur http://{addr}");
 
     // Préchargement optionnel : warm exhaustif du cache GLB en arrière-plan.
@@ -2194,27 +2575,107 @@ mod tests {
     fn typed_decode_cable_les_familles_golden() {
         const G: &str = "/home/ubuntu/niers/data/common/gamedata";
         let cases: [(&str, &str, String); 20] = [
-            ("uniform_config", "uniform", format!("{G}/character/uniform_config_1.03.52.00.cfg.bin.json")),
-            ("players_universe_config", "players_universe", format!("{G}/players_universe/players_universe_config_1.03.59.00.cfg.bin.json")),
-            ("players_universe_event_config", "players_universe_event", format!("{G}/players_universe/players_universe_event_config.cfg.bin.json")),
-            ("nfc_lottery_config", "nfc_lottery", format!("{G}/nfc/nfc_lottery_config.cfg.bin.json")),
-            ("search_word_config", "search_word", format!("{G}/search_word/search_word_config.cfg.bin.json")),
-            ("passive_skill_config", "passive", format!("{G}/skill/passive_skill_config_0.08.86.cfg.bin.json")),
-            ("soccer_ai_cmd_config", "soccer_ai_cmd", format!("{G}/ai/soccer_ai_cmd_config_0.05.91.cfg.bin.json")),
-            ("soccer_user_ai_config", "soccer_user_ai", format!("{G}/ai/soccer_user_ai_config_1.01.50.cfg.bin.json")),
-            ("strategy_ai_config", "strategy_ai", format!("{G}/ai/strategy_ai_config_1.01.50.cfg.bin.json")),
-            ("tactics_ai_config", "tactics_ai", format!("{G}/ai/tactics_ai_config_0.06.44.cfg.bin.json")),
-            ("adaptive_trigger_def", "adaptive_trigger", format!("{G}/input/adaptive_trigger_def_0.00.00.cfg.bin.json")),
-            ("haptic_feedback_def", "haptic_feedback", format!("{G}/input/haptic_feedback_def_0.00.00.cfg.bin.json")),
-            ("vibration_def", "vibration", format!("{G}/input/vibration_def_0.00.09.cfg.bin.json")),
+            (
+                "uniform_config",
+                "uniform",
+                format!("{G}/character/uniform_config_1.03.52.00.cfg.bin.json"),
+            ),
+            (
+                "players_universe_config",
+                "players_universe",
+                format!("{G}/players_universe/players_universe_config_1.03.59.00.cfg.bin.json"),
+            ),
+            (
+                "players_universe_event_config",
+                "players_universe_event",
+                format!("{G}/players_universe/players_universe_event_config.cfg.bin.json"),
+            ),
+            (
+                "nfc_lottery_config",
+                "nfc_lottery",
+                format!("{G}/nfc/nfc_lottery_config.cfg.bin.json"),
+            ),
+            (
+                "search_word_config",
+                "search_word",
+                format!("{G}/search_word/search_word_config.cfg.bin.json"),
+            ),
+            (
+                "passive_skill_config",
+                "passive",
+                format!("{G}/skill/passive_skill_config_0.08.86.cfg.bin.json"),
+            ),
+            (
+                "soccer_ai_cmd_config",
+                "soccer_ai_cmd",
+                format!("{G}/ai/soccer_ai_cmd_config_0.05.91.cfg.bin.json"),
+            ),
+            (
+                "soccer_user_ai_config",
+                "soccer_user_ai",
+                format!("{G}/ai/soccer_user_ai_config_1.01.50.cfg.bin.json"),
+            ),
+            (
+                "strategy_ai_config",
+                "strategy_ai",
+                format!("{G}/ai/strategy_ai_config_1.01.50.cfg.bin.json"),
+            ),
+            (
+                "tactics_ai_config",
+                "tactics_ai",
+                format!("{G}/ai/tactics_ai_config_0.06.44.cfg.bin.json"),
+            ),
+            (
+                "adaptive_trigger_def",
+                "adaptive_trigger",
+                format!("{G}/input/adaptive_trigger_def_0.00.00.cfg.bin.json"),
+            ),
+            (
+                "haptic_feedback_def",
+                "haptic_feedback",
+                format!("{G}/input/haptic_feedback_def_0.00.00.cfg.bin.json"),
+            ),
+            (
+                "vibration_def",
+                "vibration",
+                format!("{G}/input/vibration_def_0.00.09.cfg.bin.json"),
+            ),
             // Échantillon de la 3e vague (workflow d'analyse 31 familles).
-            ("basara_chara_config", "basara_chara", format!("{G}/character/basara_chara_config_0.00.00.00.cfg.bin.json")),
-            ("belong_team_config", "belong_team", format!("{G}/character/belong_team_config_0.00.00.cfg.bin.json")),
-            ("capsule_config", "capsule", format!("{G}/capsule/capsule_config_0.00.00.cfg.bin.json")),
-            ("chara_base", "chara_base", format!("{G}/character/chara_base_1.03.98.00.cfg.bin.json")),
-            ("shop_config", "shop", format!("{G}/shop/shop_config_3.00.22.cfg.bin.json")),
-            ("quest_config", "quest", format!("{G}/quest/quest_config_1.04.11.00.cfg.bin.json")),
-            ("real_skill_config", "real_skill", format!("{G}/skill/real_skill_config_1.03.74.00.cfg.bin.json")),
+            (
+                "basara_chara_config",
+                "basara_chara",
+                format!("{G}/character/basara_chara_config_0.00.00.00.cfg.bin.json"),
+            ),
+            (
+                "belong_team_config",
+                "belong_team",
+                format!("{G}/character/belong_team_config_0.00.00.cfg.bin.json"),
+            ),
+            (
+                "capsule_config",
+                "capsule",
+                format!("{G}/capsule/capsule_config_0.00.00.cfg.bin.json"),
+            ),
+            (
+                "chara_base",
+                "chara_base",
+                format!("{G}/character/chara_base_1.03.98.00.cfg.bin.json"),
+            ),
+            (
+                "shop_config",
+                "shop",
+                format!("{G}/shop/shop_config_3.00.22.cfg.bin.json"),
+            ),
+            (
+                "quest_config",
+                "quest",
+                format!("{G}/quest/quest_config_1.04.11.00.cfg.bin.json"),
+            ),
+            (
+                "real_skill_config",
+                "real_skill",
+                format!("{G}/skill/real_skill_config_1.03.74.00.cfg.bin.json"),
+            ),
         ];
         for (key, label, path) in &cases {
             let (key, label): (&str, &str) = (key, label);
@@ -2224,9 +2685,8 @@ mod tests {
             }
             let txt = std::fs::read_to_string(path).expect("lire json");
             let root: serde_json::Value = serde_json::from_str(&txt).expect("json valide");
-            let (got_label, value) =
-                nie_data::typed::decode_by_key(key, &root)
-                    .unwrap_or_else(|| panic!("{key} : decode_by_key → Some"));
+            let (got_label, value) = nie_data::typed::decode_by_key(key, &root)
+                .unwrap_or_else(|| panic!("{key} : decode_by_key → Some"));
             assert_eq!(got_label, label, "{key} : label de famille");
             let non_empty = match &value {
                 serde_json::Value::Array(a) => !a.is_empty(),
@@ -2241,23 +2701,38 @@ mod tests {
     fn preload_code_of_dir_pair() {
         // Personnage : dossier == stem du fichier → code extrait.
         assert_eq!(
-            code_of_dir_pair("data/dx11/chr/_face/01_IE1/c01000010/c01000010.g4tx", "/_face/", ".g4tx")
-                .as_deref(),
+            code_of_dir_pair(
+                "data/dx11/chr/_face/01_IE1/c01000010/c01000010.g4tx",
+                "/_face/",
+                ".g4tx"
+            )
+            .as_deref(),
             Some("c01000010")
         );
         // Keshin.
         assert_eq!(
-            code_of_dir_pair("data/common/chr/_keshin/k000010/k000010.g4md", "/_keshin/", ".g4md")
-                .as_deref(),
+            code_of_dir_pair(
+                "data/common/chr/_keshin/k000010/k000010.g4md",
+                "/_keshin/",
+                ".g4md"
+            )
+            .as_deref(),
             Some("k000010")
         );
         // Dossier ≠ fichier (texture de partie, pas un modèle) → rejeté.
         assert_eq!(
-            code_of_dir_pair("data/dx11/chr/_face/01_IE1/c01000010/base_normal_00.g4tx", "/_face/", ".g4tx"),
+            code_of_dir_pair(
+                "data/dx11/chr/_face/01_IE1/c01000010/base_normal_00.g4tx",
+                "/_face/",
+                ".g4tx"
+            ),
             None
         );
         // Marqueur absent → rejeté.
-        assert_eq!(code_of_dir_pair("data/x/y/z.g4tx", "/_face/", ".g4tx"), None);
+        assert_eq!(
+            code_of_dir_pair("data/x/y/z.g4tx", "/_face/", ".g4tx"),
+            None
+        );
     }
 
     /// Valide le déchiffrement HCA réel depuis le premier AWB IEVR.
@@ -2276,9 +2751,8 @@ mod tests {
         const AWB_PATH: &str =
             "/home/ubuntu/niers/data/cross-apk/work/laneE-audio/staging/c00001001.awb";
 
-        let data = std::fs::read(AWB_PATH).expect(
-            "fichier AWB absent — lancer avec `--features real-audio` sur le VPS IEVR",
-        );
+        let data = std::fs::read(AWB_PATH)
+            .expect("fichier AWB absent — lancer avec `--features real-audio` sur le VPS IEVR");
 
         let awb = Awb::parse(&data).expect("AWB parse échoué");
         assert!(!awb.entries.is_empty(), "AWB sans entrée");
@@ -2300,7 +2774,10 @@ mod tests {
 
         assert_eq!(sample_rate, 48_000, "sample_rate attendu : 48000 Hz");
         assert_eq!(channels, 1, "canal attendu : mono (1)");
-        assert!(!samples.is_empty(), "aucun sample décodé — encoder_delay absorbe tout ?");
+        assert!(
+            !samples.is_empty(),
+            "aucun sample décodé — encoder_delay absorbe tout ?"
+        );
 
         // Signal non silencieux : avec la bonne clé, les samples doivent être non nuls.
         // Sans la clé (keycode=0), le déchiffrement est l'identité → bruit bas/nul.
@@ -2356,7 +2833,11 @@ mod tests {
             })
             .collect();
         awb_paths.sort_unstable();
-        assert!(awb_paths.len() >= 3, "moins de 3 AWB dans le VFS ({})", awb_paths.len());
+        assert!(
+            awb_paths.len() >= 3,
+            "moins de 3 AWB dans le VFS ({})",
+            awb_paths.len()
+        );
 
         const TARGET: usize = 3;
         let mut ok: Vec<(String, u32, u32, usize)> = Vec::new(); // (path, sr, ch, samples)
@@ -2393,7 +2874,10 @@ mod tests {
                 (8_000..=48_000).contains(&sample_rate),
                 "{path} : sample_rate {sample_rate} hors plage plausible"
             );
-            assert!((1..=2).contains(&channels), "{path} : channels {channels} inattendu");
+            assert!(
+                (1..=2).contains(&channels),
+                "{path} : channels {channels} inattendu"
+            );
             ok.push((path.clone(), sample_rate, channels, samples.len()));
         }
 
