@@ -76,6 +76,7 @@ pub mod flag_config;
 pub mod formation;
 pub mod friendmap;
 pub mod gallery;
+pub mod game_quest;
 pub mod growth;
 pub mod happen_event_npc;
 pub mod hash;
