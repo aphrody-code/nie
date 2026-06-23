@@ -513,6 +513,27 @@ pub fn nearest_point_index(points: &[Vec3], target: Vec3) -> Option<usize> {
     best.map(|(i, _)| i)
 }
 
+/// Intégration de vitesse du contrôleur **Normal** (`game::BallMoveNormal`, `FUN_14133ae10`, lignes
+/// 144-163, décompilé Ghidra puis porté). Met à jour la vitesse scalaire + la direction du ballon
+/// libre avant la collision : `s = (dt·accel + prev_speed)·factor` ; `new_speed = |s|` ; si `|s| > 0`,
+/// `new_dir = ((1/|s|)·s)·dir` (= signe(s)·dir, en **réciproque-produit** fidèle au binaire), sinon
+/// `dir` inchangé. Renvoie `(new_dir, new_speed)`.
+///
+/// **Byte-exact, validé vs binaire** (uemu, `scripts/validate_normal_vel.py`). `accel`/`factor`
+/// proviennent des champs de traînée du contrôleur + du contexte d'entrée. (La collision mesh/mur du
+/// Normal — `GetComponent`, réflexion — est runtime-couplée et hors de cette pièce de math pure.)
+#[must_use]
+pub fn normal_integrate_velocity(dir: Vec3, prev_speed: f32, accel: f32, dt: f32, factor: f32) -> (Vec3, f32) {
+    let s = (dt * accel + prev_speed) * factor;
+    let spd = s.abs();
+    if spd > 0.0 {
+        let k = (1.0 / spd) * s; // réciproque-produit (= ±1) — ordre f32 du binaire
+        (Vec3 { x: k * dir.x, y: k * dir.y, z: k * dir.z }, spd)
+    } else {
+        (dir, spd)
+    }
+}
+
 /// Contrôleur **Dribble** (`game::BallMoveDribble`, step au slot 4 `0x14133A8F0`, décompilé Ghidra
 /// puis porté). Le ballon suit le joueur qui dribble : la position cible = `sway + position_joueur`
 /// avec le rayon du ballon ajouté en Y ; puis le contrôleur stocke direction et vitesse du
@@ -807,6 +828,23 @@ mod tests {
         let _ = r3.advance(2.0, 0.1, false); // r=2>0 ; cand=(5-5)/2=0 → rate reste 1 ; pos=1*0.1+5=5.1
         assert_eq!(r3.rate.to_bits(), 1.0_f32.to_bits());
         assert_eq!(r3.position.to_bits(), 5.1_f32.to_bits());
+    }
+
+    #[test]
+    fn normal_integrate_velocity_byte_exact_vs_binaire() {
+        // Cas validés byte-exact vs uemu (scripts/validate_normal_vel.py).
+        let (d, s) = normal_integrate_velocity(Vec3 { x: 0.6, y: 0.8, z: 0.0 }, 2.0, 1.0, 0.5, 1.0);
+        assert_eq!(s.to_bits(), 2.5_f32.to_bits()); // (0.5+2)·1
+        assert_eq!(d.x.to_bits(), 0.6_f32.to_bits()); // signe + → dir inchangé
+        assert_eq!(d.y.to_bits(), 0.8_f32.to_bits());
+        // s négatif → direction inversée.
+        let (d2, s2) = normal_integrate_velocity(Vec3 { x: 0.0, y: 1.0, z: 0.0 }, 0.5, -3.0, 0.25, 2.0);
+        assert_eq!(s2.to_bits(), 0.5_f32.to_bits()); // |((-0.75+0.5)·2)| = 0.5
+        assert_eq!(d2.y.to_bits(), (-1.0_f32).to_bits()); // signe - → -dir
+        // |s| = 0 → dir inchangé.
+        let (d3, s3) = normal_integrate_velocity(Vec3 { x: 1.0, y: 0.0, z: 0.0 }, 1.0, 0.0, 0.1, 0.0);
+        assert_eq!(s3.to_bits(), 0.0_f32.to_bits());
+        assert_eq!(d3.x.to_bits(), 1.0_f32.to_bits());
     }
 
     #[test]
