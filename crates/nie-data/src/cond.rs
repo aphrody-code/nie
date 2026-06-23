@@ -3,27 +3,30 @@
 //! Le même blob base64 « condition » apparaît **partout** dans les données du jeu : `openCond`
 //! (gallery), `cond` (happen_event_npc, triggers `DATA_ITEM`), `condition` (trial_take_over),
 //! `runCond` (soccer_drop), `aocCondition` (add_content_equip)… C'est le **système d'expressions
-//! de condition** générique (déblocages, déclencheurs). Sa sémantique d'évaluation est portée par
-//! `game::ValidConditionManager` (VM de conditions) — **non encore reversée** (arc multi-session).
+//! de condition** générique (déblocages, déclencheurs).
 //!
-//! ## Ce qui est VALIDÉ ici (sans tricher : contre le corpus réel entier)
+//! ## Couche **cadrage** (ce module) — VALIDÉ contre le corpus réel entier
 //!
-//! Le **cadrage externe** du blob, prouvé sur **17 806 blobs réels** extraits de
-//! `data/common/gamedata/**` (la donnée du jeu = vérité terrain du format) :
+//! Le **cadrage externe** du blob, prouvé sur **17 788 blobs réels** extraits de
+//! `data/common/gamedata/**` (la donnée du jeu = vérité terrain du format,
+//! `tests/cond_corpus_golden.rs`) :
 //!
 //! - `b[0..4]` = **version** (u32 big-endian), toujours `0` ou `1` ;
-//! - **version 0** (17 772/17 772, 99,8 %) : `b[4]` = **longueur** du reste (= `len − 5`),
+//! - **version 0** (17 754/17 754, 99,8 %) : `b[4]` = **longueur** du reste (= `len − 5`),
 //!   `b[5]` = **opcode** de l'expression, `b[6..]` = charge utile ;
 //! - **version 1** (34 blobs, 0,2 %) : **forme liste** (concaténation de sous-expressions) — le
 //!   cadrage interne n'est pas encore reversé (`framing_valid_v0` renvoie `false`).
 //!
-//! ## Ce qui RESTE (INCOMPLET — exige l'évaluateur binaire, pas de devinette)
+//! ## Couche **sémantique** — voir [`crate::unlock_condition`] (clauses DÉCODÉES)
 //!
-//! La **sémantique des clauses** (le CRC32 de flag, les opérateurs de comparaison, AND/OR, la
-//! forme liste v1) n'est **pas** décodée : la reverser exige l'évaluateur `ValidConditionManager`
-//! (la valider = differential-testing via uemu avec un état de flags). Observation non assérée :
-//! les opcodes v0 observés suivent `5, 11, 17, 23, 29, 35, 41, 47` (pas de 6) — cohérent avec
-//! « 6·n − 1 clauses » mais **non prouvé** sans l'évaluateur → laissé brut.
+//! La sémantique des clauses **est décodée** par [`crate::unlock_condition::decode_unlock_condition`]
+//! (port 1:1 d'inagle `unlock-condition.ts`) : tokens `0x35`/`0x34`/`0x32`, namespaces story
+//! (`0xB91936DA`, seuil = épisode) vs event-flag (CRC32), opcodes single/AND/trivial. **Validé**
+//! contre les fixtures inagle **ET** corpus-wide (`cond_corpus_golden` décode les 17 788 blobs sans
+//! erreur : 3158 story, 14 191 event-flag, 430 composite, 30 000 feuilles event). Ce module-ci sert
+//! d'**inspecteur de cadrage léger** (version/opcode/bornes) ; pour la sémantique, utiliser
+//! `unlock_condition`. **RESTE INCOMPLET** : la forme liste v1 (34 blobs) + l'ancrage ultime
+//! contre l'évaluateur binaire `game::ValidConditionManager` (inagle est la référence acceptée).
 
 use alloc::vec::Vec;
 
