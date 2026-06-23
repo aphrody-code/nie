@@ -254,6 +254,9 @@ pub fn decode_by_key(key: &str, root: &Value) -> Option<(&'static str, Value)> {
         k if k.starts_with("event_bustup_talk_data_config") => {
             t!("event_bustup", crate::event_bustup::parse_event_bustup_talk(root))
         }
+        "event_map_tag_config" => {
+            t!("event_map_tag", crate::event_map_tag::parse_event_map_tag_config(root))
+        }
         _ => None,
     }
 }
