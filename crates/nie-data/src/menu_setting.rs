@@ -206,4 +206,15 @@ impl MenuSetting {
             .find(|g| g.flags.first() == Some(&1))
             .map(|g| g.layer_id)
     }
+
+    /// Vrai si **chaque** layer satisfait l'invariant `layer_id == CRC32(name)` — la propriété
+    /// byte-exact qui prouve l'interprétation positionnelle des champs (`var[0]` = CRC32 de
+    /// `var[1]`). Vérifié à 100 % sur les 304 écrans réels (cf. `tests/menu_setting_golden.rs`).
+    /// Vide → `true` (vacuité).
+    #[must_use]
+    pub fn layer_hashes_consistent(&self) -> bool {
+        self.layers
+            .iter()
+            .all(|l| l.layer_id == HashId(crate::unlock_condition::crc32_str(&l.name)))
+    }
 }
