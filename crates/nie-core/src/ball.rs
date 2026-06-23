@@ -513,6 +513,56 @@ pub fn nearest_point_index(points: &[Vec3], target: Vec3) -> Option<usize> {
     best.map(|(i, _)| i)
 }
 
+/// Contrôleur **Dribble** (`game::BallMoveDribble`, step au slot 4 `0x14133A8F0`, décompilé Ghidra
+/// puis porté). Le ballon suit le joueur qui dribble : la position cible = `sway + position_joueur`
+/// avec le rayon du ballon ajouté en Y ; puis le contrôleur stocke direction et vitesse du
+/// déplacement.
+///
+/// # Fidélité (byte-exact par composition)
+///
+/// Décompilé `FUN_14133a8f0` : `newpos = sway + player + (0, radius, 0)` (additions f32),
+/// `vel = (newpos − prev)·(1/dt)` puis `dir = vel/|vel|`, `speed = |vel|`. Les deux dernières
+/// étapes sont **exactement** [`Vec3::displacement_rate`] et [`Vec3::normalize_game`], validées
+/// byte-exact contre le binaire (uemu). La const par défaut `DAT_142141330 = (0,0,0,0)` (vérifiée)
+/// rend le cas `|vel| ≤ 0 → dir nul` identique à `normalize_game`.
+///
+/// Les entrées (`player`, `sway`, `radius`) sont fournies par le contexte ECS/monde (le binaire les
+/// lit via le composant joueur `FUN_141533030` et le singleton monde `DAT_141c27230`).
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct DribbleMove {
+    /// Direction normalisée du déplacement (écrite à `+0x40` dans le C++).
+    pub direction: Vec3,
+    /// Norme `|v|` de la vitesse de déplacement (écrite à `+0x50`).
+    pub speed: f32,
+}
+
+impl DribbleMove {
+    /// Avance le ballon en suivant le joueur dribbleur et renvoie la nouvelle position.
+    ///
+    /// - `player` : position du joueur qui dribble.
+    /// - `sway` : offset horizontal de balancement (calculé par le monde ; `Vec3::zero()` si absent).
+    /// - `ball_radius` : rayon du ballon, ajouté en Y.
+    /// - `prev` : position précédente du ballon. `dt` : pas de temps.
+    ///
+    /// Met à jour [`Self::direction`]/[`Self::speed`] et renvoie la position cible.
+    #[must_use]
+    pub fn step(&mut self, player: Vec3, sway: Vec3, ball_radius: f32, prev: Vec3, dt: f32) -> Vec3 {
+        // newpos = sway + player + (0, radius, 0) — ordre f32 du décompilé : (sway.y+player.y)+radius.
+        let newpos = Vec3 {
+            x: sway.x + player.x,
+            y: (sway.y + player.y) + ball_radius,
+            z: sway.z + player.z,
+        };
+        // vel = (newpos − prev)·(1/dt) ; dir/speed = normalize(vel) — primitives validées byte-exact.
+        let vel = newpos.displacement_rate(prev, dt);
+        let (dir, speed) = vel.normalize_game();
+        self.direction = dir;
+        self.speed = speed;
+        newpos
+    }
+}
+
 /// Contrôleur de mouvement actif du ballon, modélisant la polymorphie `IBallMoveController` du C++
 /// (la vftable du contrôleur actif). Dispatche vers les physiques **byte-fidèles** reversées + validées.
 ///
@@ -584,6 +634,34 @@ mod tests {
         assert_eq!(nearest_point_index(&pts3, v(0.0, 0.0, 0.0)), Some(0));
         // Vide → None.
         assert_eq!(nearest_point_index(&[], v(0.0, 0.0, 0.0)), None);
+    }
+
+    #[test]
+    fn dribble_step_byte_exact_par_composition() {
+        // Port de FUN_14133a8f0 : newpos = sway+player+(0,r,0) (adds f32) ; puis vel=(newpos−prev)·
+        // (1/dt) et dir/speed = normalize(vel) — primitives validées byte-exact vs binaire (nie-geom).
+        // Cas concret : player=(10,5,0), sway=0, r=0.5, prev=(10,4,0), dt=0.5.
+        let mut d = DribbleMove::default();
+        let pos = d.step(
+            Vec3 { x: 10.0, y: 5.0, z: 0.0 }, // joueur
+            Vec3::zero(),                      // sway
+            0.5,                               // rayon
+            Vec3 { x: 10.0, y: 4.0, z: 0.0 }, // prev
+            0.5,                               // dt
+        );
+        // newpos = (10, (0+5)+0.5, 0) = (10, 5.5, 0)
+        assert_eq!(pos.x.to_bits(), 10.0_f32.to_bits());
+        assert_eq!(pos.y.to_bits(), 5.5_f32.to_bits());
+        assert_eq!(pos.z.to_bits(), 0.0_f32.to_bits());
+        // delta=(0,1.5,0) ; vel=delta·2=(0,3,0) ; |vel|=3 ; dir=(0,1,0).
+        assert_eq!(d.speed.to_bits(), 3.0_f32.to_bits());
+        assert_eq!(d.direction.x.to_bits(), 0.0_f32.to_bits());
+        assert_eq!(d.direction.y.to_bits(), 1.0_f32.to_bits());
+        assert_eq!(d.direction.z.to_bits(), 0.0_f32.to_bits());
+        // dt ≤ 0 → vel = delta brut (pas de division).
+        let mut d2 = DribbleMove::default();
+        let _ = d2.step(Vec3 { x: 1.0, y: 1.0, z: 1.0 }, Vec3::zero(), 0.0, Vec3 { x: 1.0, y: 0.0, z: 1.0 }, 0.0);
+        assert_eq!(d2.speed.to_bits(), 1.0_f32.to_bits()); // |delta|=|(0,1,0)|=1
     }
 
     #[test]
