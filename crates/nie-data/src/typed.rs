@@ -84,6 +84,7 @@ pub fn decode_by_key(key: &str, root: &Value) -> Option<(&'static str, Value)> {
         "trial_take_over_config" => {
             t!("trial_take_over", crate::trial_take_over::parse_trial_take_over_config(root))
         }
+        "ai_type_config" => t!("ai_type", crate::ai_type::parse_ai_type_config(root)),
         "tutorial_banner_config" => t!("banner", crate::banner::parse_banner_config(root)),
         "boost_player_group_config" => {
             t!("boost_grp", crate::boost_grp::parse_boost_grp_config(root))
