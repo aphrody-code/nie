@@ -47,6 +47,13 @@ impl TrialTakeOverInfo {
             condition: field_str(v, "condition").unwrap_or("").into(),
         })
     }
+
+    /// Décode la `condition` (blob base64) en [`UnlockCondition`] structurée via
+    /// [`crate::unlock_condition`] (réf inagle, validée corpus-wide). Chaîne vide ⇒ `Always`.
+    #[must_use]
+    pub fn decode_condition(&self) -> crate::unlock_condition::UnlockCondition {
+        crate::unlock_condition::decode_unlock_condition(&self.condition)
+    }
 }
 
 /// Entrée `m_trialPartTakeOverInfoList` — un report partiel (id + flag).
