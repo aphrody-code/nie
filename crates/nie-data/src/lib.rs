@@ -116,6 +116,7 @@ pub mod skill_view;
 pub mod soccer;
 pub mod soccer_chara_unique_rarity;
 pub mod soccer_drop;
+pub mod soccer_opponent;
 pub mod soccer_performance;
 pub mod soccer_suggest;
 pub mod special_tactics;
