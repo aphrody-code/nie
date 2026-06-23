@@ -63,6 +63,9 @@ pub fn decode_by_key(key: &str, root: &Value) -> Option<(&'static str, Value)> {
         "chara_exp_table_config" => t!("exp", crate::exp::parse_exp_table(root)),
         "soccer_game_config" => t!("soccer_game", crate::soccer::parse_soccer_game_config(root)),
         "game_quest_config" => t!("game_quest", crate::game_quest::parse_game_quest_config(root)),
+        "soccer_opponent_info" => {
+            t!("soccer_opponent", crate::soccer_opponent::parse_soccer_opponent_config(root))
+        }
         "soccer_drop_config" => {
             t!("soccer_drop", crate::soccer_drop::parse_soccer_drop_config(root))
         }
