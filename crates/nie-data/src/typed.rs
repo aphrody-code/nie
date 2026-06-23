@@ -210,6 +210,10 @@ pub fn decode_by_key(key: &str, root: &Value) -> Option<(&'static str, Value)> {
         // format T2B (MENU_LAYER_INFO/CMD/RES…). Dispatch par SUFFIXE → toutes les structures d'écran
         // décodables typé (support du driver de menu + explorateur azalee).
         k if k.ends_with("_menu_setting") => t!("menu_setting", crate::menu_setting::parse(root)),
+        // Déclencheurs de scripting (~287 fichiers `*_trigger` : qsb/qsa quêtes, fbtl_cro matchs, c21…)
+        // — DATA_COUNT/DATA_ITEM avec condition décodée. Dispatch par SUFFIXE. (Les fichiers d'autre
+        // forme renvoient un TriggerConfig vide, sans danger.)
+        k if k.ends_with("_trigger") => t!("trigger", crate::trigger::parse_trigger(root)),
         _ => None,
     }
 }
