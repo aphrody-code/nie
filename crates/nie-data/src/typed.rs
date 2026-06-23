@@ -79,6 +79,9 @@ pub fn decode_by_key(key: &str, root: &Value) -> Option<(&'static str, Value)> {
             "soccer_player_record",
             crate::soccer_player_record::parse_soccer_player_record_config(root)
         ),
+        "soccer_game_map_enviroment_config" => {
+            t!("soccer_map_env", crate::soccer_map_env::parse_soccer_map_env_config(root))
+        }
         "soccer_drop_config" => {
             t!("soccer_drop", crate::soccer_drop::parse_soccer_drop_config(root))
         }
