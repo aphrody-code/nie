@@ -76,6 +76,7 @@ pub mod ecs;
 pub mod event_check;
 pub mod exp;
 pub mod growth;
+pub mod intrusive_map;
 pub mod keeper;
 pub mod match_fsm;
 pub mod match_sim;
