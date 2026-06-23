@@ -95,6 +95,7 @@ pub mod party;
 pub mod passive;
 pub mod passives;
 pub mod phase;
+pub mod phase_set;
 pub mod photo_mode;
 pub mod players_universe;
 pub mod playstyle;
