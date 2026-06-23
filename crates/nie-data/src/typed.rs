@@ -68,6 +68,19 @@ pub fn decode_by_key(key: &str, root: &Value) -> Option<(&'static str, Value)> {
         "soccer_suggest_config" => {
             t!("soccer_suggest", crate::soccer_suggest::parse_soccer_suggest_config(root))
         }
+        // Parseurs soccer existants + golden-testés mais qui n'étaient PAS routés → azalee.
+        "soccer_focus_battle_effect_config" => {
+            t!("soccer_focus_battle", crate::soccer::parse_focus_battle_effect_config(root))
+        }
+        "soccer_technic_config" => {
+            t!("soccer_technic", crate::soccer::parse_technic_config(root))
+        }
+        "soccer_basic_effect_config" => {
+            t!("soccer_basic_effect", crate::soccer::parse_basic_effect_config(root))
+        }
+        "soccer_game_additional_config" => {
+            t!("soccer_game_additional", crate::soccer::parse_soccer_game_additional_config(root))
+        }
         "enjoy_mode_team_config" => {
             t!("enjoy_mode_team", crate::enjoy_mode_team::parse_enjoy_mode_team_config(root))
         }
