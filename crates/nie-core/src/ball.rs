@@ -729,6 +729,8 @@ pub enum BallMover {
     Lerp(LerpMove, Vec3),
     /// Suivi de cible avec easing borné — [`TargetFollowMove`].
     TargetFollow(TargetFollowMove),
+    /// Trajectoire courbe (Bézier quadratique) — [`BezierMove`] (couvre Bezier/MultiBezier/RealSkillShoot).
+    Bezier(BezierMove),
 }
 
 impl BallMover {
@@ -741,6 +743,7 @@ impl BallMover {
             BallMover::Parabola(m) => m.step(current, dt).0,
             BallMover::Lerp(m, origin) => m.step(*origin, dt),
             BallMover::TargetFollow(m) => m.step(current, dt),
+            BallMover::Bezier(m) => m.step(current, dt), // prev = position courante
         }
     }
 }
