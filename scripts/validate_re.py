@@ -34,6 +34,7 @@ SUITE = [
     ("validate_keeper_reach.py", "Portée d'arrêt keeper = min(dive·scale) — vpermilps/blendvps émulés"),
     ("validate_reflect.py", "Réflexion de collision BallMoveNormal v-2(v·n)n — injection XMM"),
     ("validate_menu_setting.py", "Décodeur valeurs typées objet-menu CMenuStateMachine (FUN_141290fc0, +0x590..0x5ba)"),
+    ("validate_intrusive_map.py", "Find map intrusive de menu mode linéaire (FUN_1402e2a10) — primitive list-view"),
 ]
 
 ok = 0
