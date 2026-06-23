@@ -132,4 +132,34 @@ fn cadrage_version0_prouve_sur_corpus_reel() {
     assert_eq!(v0_bad, 0, "{v0_bad} blobs version-0 violent le cadrage (sur {v0})");
     assert!(v0 > 1000, "majorité de blobs version-0 (eu {v0})");
     eprintln!("cond corpus: {} blobs | v0={v0} (cadrage OK) | v1(liste)={versions_other}", blobs.len());
+
+    // ── Décodage SÉMANTIQUE complet sur tout le corpus (unlock_condition, port d'inagle) ──────
+    // Prouve que le décodeur de clauses (tokens 0x35/0x34/0x32, namespaces story/event-flag,
+    // opcodes single/AND/trivial) tient sur les 17 k+ blobs RÉELS, pas seulement les fixtures.
+    use nie_data::unlock_condition::{decode_unlock_condition_bytes, story_threshold_to_episode, UnlockType};
+    let (mut always, mut story, mut eventflag, mut composite) = (0u32, 0u32, 0u32, 0u32);
+    let mut story_on_grid = 0u32;
+    let mut total_events = 0u32;
+    for b in &blobs {
+        let c = decode_unlock_condition_bytes(b, String::new());
+        match c.kind {
+            UnlockType::Always => always += 1,
+            UnlockType::Story => story += 1,
+            UnlockType::EventFlag => eventflag += 1,
+            UnlockType::Composite => composite += 1,
+        }
+        if let Some(th) = c.story_threshold
+            && story_threshold_to_episode(th).is_some()
+        {
+            story_on_grid += 1;
+        }
+        total_events += u32::try_from(c.required_events.len()).unwrap_or(0);
+    }
+    // Le décodeur trouve de VRAIES conditions (pas tout trivial) : story + event-flags présents.
+    assert!(story + composite > 100, "seuils de progression story décodés (eu {})", story + composite);
+    assert!(eventflag + composite > 100, "event-flags décodés (eu {})", eventflag + composite);
+    assert!(total_events > 1000, "feuilles event-flag décodées (eu {total_events})");
+    eprintln!(
+        "unlock_condition corpus: always={always} story={story} eventFlag={eventflag} composite={composite} | story alignés grille={story_on_grid} | feuilles event={total_events}"
+    );
 }
