@@ -156,6 +156,21 @@ impl Vec3 {
         }
     }
 
+    /// Vitesse **byte-fidèle au jeu** depuis la position précédente (`game::BallMoveDribble::vmethod_3`,
+    /// plage `0x14133AA69`, validée byte-exact via uemu — `scripts/validate_dribble_vel.py`) :
+    /// `delta = self − prev` ; si `dt > 0`, `delta · (1/dt)` (réciproque `divss` PUIS produit `mulps`,
+    /// pas `delta / dt`) ; sinon `delta`. No_std (pas de `sqrt`).
+    #[must_use]
+    pub fn displacement_rate(self, prev: Self, dt: f32) -> Self {
+        let delta = Self { x: self.x - prev.x, y: self.y - prev.y, z: self.z - prev.z };
+        if dt > 0.0 {
+            let inv = 1.0 / dt;
+            Self { x: delta.x * inv, y: delta.y * inv, z: delta.z * inv }
+        } else {
+            delta
+        }
+    }
+
     /// Lerp entre `self` et `other` avec poids `t` ∈ [0, 1].
     #[must_use]
     pub fn lerp(self, other: Self, t: f32) -> Self {
@@ -229,5 +244,20 @@ mod tests {
         let (dz, lz) = Vec3::zero().normalize_game();
         assert_eq!(dz, Vec3::zero());
         assert_eq!(lz.to_bits(), 0.0_f32.to_bits());
+    }
+
+    #[test]
+    fn displacement_rate_byte_exact_vs_binaire() {
+        // Cas validés byte-exact vs uemu (scripts/validate_dribble_vel.py).
+        let v = Vec3::new(5.0, 8.0, 3.0).displacement_rate(Vec3::new(1.0, 2.0, 3.0), 0.5);
+        assert_eq!(v.x.to_bits(), 8.0_f32.to_bits()); // (5-1)·2
+        assert_eq!(v.y.to_bits(), 12.0_f32.to_bits()); // (8-2)·2
+        assert_eq!(v.z.to_bits(), 0.0_f32.to_bits());
+        let v2 = Vec3::new(10.0, 0.0, -4.0).displacement_rate(Vec3::new(2.0, 1.0, 0.0), 0.25);
+        assert_eq!(v2.x.to_bits(), 32.0_f32.to_bits()); // (10-2)·4
+        assert_eq!(v2.z.to_bits(), (-16.0_f32).to_bits());
+        // dt ≤ 0 → simple delta.
+        let v3 = Vec3::new(3.0, 3.0, 3.0).displacement_rate(Vec3::zero(), 0.0);
+        assert_eq!(v3, Vec3::new(3.0, 3.0, 3.0));
     }
 }
