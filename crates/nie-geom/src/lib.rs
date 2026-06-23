@@ -187,6 +187,18 @@ impl Vec3 {
         lerp(lerp(p1, p2), lerp(p2, p3))
     }
 
+    /// Réflexion **byte-fidèle au jeu** d'un vecteur sur une surface de normale `n` (collision de
+    /// `game::BallMoveNormal`, `FUN_14133ae10` `0x14133B829`, validée byte-exact via uemu —
+    /// `scripts/validate_reflect.py`) : `self − 2·(self·n)·n`. Produit scalaire en ordre `haddps`
+    /// `(x·nx + y·ny) + (z·nz + 0)`, doublé via `addss`, diffusé, multiplié par `n`, soustrait.
+    /// `n` est supposé unitaire (la normale de collision).
+    #[must_use]
+    pub fn reflect(self, n: Self) -> Self {
+        let dot = (self.x * n.x + self.y * n.y) + (self.z * n.z + 0.0);
+        let two_dot = dot + dot;
+        Self { x: self.x - two_dot * n.x, y: self.y - two_dot * n.y, z: self.z - two_dot * n.z }
+    }
+
     /// Lerp entre `self` et `other` avec poids `t` ∈ [0, 1].
     #[must_use]
     pub fn lerp(self, other: Self, t: f32) -> Self {
@@ -275,6 +287,18 @@ mod tests {
         // dt ≤ 0 → simple delta.
         let v3 = Vec3::new(3.0, 3.0, 3.0).displacement_rate(Vec3::zero(), 0.0);
         assert_eq!(v3, Vec3::new(3.0, 3.0, 3.0));
+    }
+
+    #[test]
+    fn reflect_byte_exact_vs_binaire() {
+        // Validé byte-exact vs uemu (scripts/validate_reflect.py).
+        let r = Vec3::new(1.0, 2.0, 3.0).reflect(Vec3::new(0.0, 1.0, 0.0)); // dot=2, refl y inversé
+        assert_eq!(r.x.to_bits(), 1.0_f32.to_bits());
+        assert_eq!(r.y.to_bits(), (-2.0_f32).to_bits()); // 2 - 2*2*1 = -2
+        assert_eq!(r.z.to_bits(), 3.0_f32.to_bits());
+        let r2 = Vec3::new(3.0, 4.0, 0.0).reflect(Vec3::new(1.0, 0.0, 0.0)); // dot=3
+        assert_eq!(r2.x.to_bits(), (-3.0_f32).to_bits()); // 3 - 6 = -3
+        assert_eq!(r2.y.to_bits(), 4.0_f32.to_bits());
     }
 
     #[cfg(feature = "std")]
