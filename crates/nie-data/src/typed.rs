@@ -76,6 +76,7 @@ pub fn decode_by_key(key: &str, root: &Value) -> Option<(&'static str, Value)> {
             "happen_event_npc",
             crate::happen_event_npc::parse_happen_event_npc_common(root)
         ),
+        "flag_config" => t!("flag_config", crate::flag_config::parse_flag_config(root)),
         "tutorial_banner_config" => t!("banner", crate::banner::parse_banner_config(root)),
         "boost_player_group_config" => {
             t!("boost_grp", crate::boost_grp::parse_boost_grp_config(root))
