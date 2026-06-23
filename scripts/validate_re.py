@@ -27,6 +27,7 @@ SUITE = [
     ("validate_normalize.py", "Normalisation vectorielle BallMoveRate (réciproque-produit, len>0) — via injection XMM"),
     ("validate_dribble_vel.py", "Vitesse BallMoveDribble (pos-prev)·(1/dt) — via injection XMM"),
     ("validate_bezier.py", "Point Bezier quadratique BallMoveBezier (de Casteljau FMA) — fonction complète émulée"),
+    ("validate_rate_progress.py", "Progression scalaire BallMoveRate (recalcul taux + avance) — fonction complète émulée"),
 ]
 
 ok = 0
