@@ -173,10 +173,16 @@ class Emu:
         self.uc = uc
         self.SCRATCH = SCRATCH
 
-    def call(self, vaddr, rcx=0, rdx=0, r8=0, r9=0, rax=0, xmm=(0.0, 0.0, 0.0, 0.0), mem=None, read=None, stop=None, stub_calls=False):
+    def call(self, vaddr, rcx=0, rdx=0, r8=0, r9=0, rax=0, xmm=(0.0, 0.0, 0.0, 0.0), mem=None, read=None, stop=None, stub_calls=False, xmm_in=None, read_xmm=None):
+        """Émule de `vaddr` à `stop` (ou fin .pdata). `xmm`=xmm0-3 (tuple de scalaires, legacy) ;
+        `xmm_in`={idx: (x,y,z,w)} injecte n'importe quel XMM0-15 (pour émuler de la math SSE inlinée) ;
+        `read_xmm`=[idx,…] lit ces XMM à l'arrêt → out["xmm"][idx] = (x,y,z,w). Permet de valider
+        byte-exact une séquence SSE en plein milieu d'une fonction (entrées en registres)."""
+        import unicorn.x86_const as _xc
         uc = self.uc
         self._stub = stub_calls
         self._heap = STUB_HEAP
+        xmm_regs = {i: getattr(_xc, f"UC_X86_REG_XMM{i}") for i in range(16)}
         if mem:
             for addr, data in mem.items():
                 uc.mem_write(addr, data)
@@ -195,14 +201,18 @@ class Emu:
         for i, f in enumerate(xmm):
             data = struct.pack("<f", f) + b"\x00" * 12
             uc.reg_write((UC_X86_REG_XMM0, UC_X86_REG_XMM1, UC_X86_REG_XMM2, UC_X86_REG_XMM3)[i], int.from_bytes(data, "little"))
+        for idx, vec in (xmm_in or {}).items():
+            uc.reg_write(xmm_regs[idx], int.from_bytes(struct.pack("<4f", *vec), "little"))
         err = None
         try:
             uc.emu_start(vaddr, stop or SENTINEL, count=500_000)
         except UcError as e:
             err = str(e)  # ret bancal (émulation mi-fonction) : on capture quand même la mémoire.
-        out = {"rax": uc.reg_read(UC_X86_REG_RAX), "error": err, "mem": {}}
+        out = {"rax": uc.reg_read(UC_X86_REG_RAX), "error": err, "mem": {}, "xmm": {}}
         for addr, n in (read or {}).items():
             out["mem"][addr] = uc.mem_read(addr, n)
+        for idx in read_xmm or []:
+            out["xmm"][idx] = struct.unpack("<4f", uc.reg_read(xmm_regs[idx]).to_bytes(16, "little"))
         return out
 
 
