@@ -66,6 +66,9 @@ pub fn decode_by_key(key: &str, root: &Value) -> Option<(&'static str, Value)> {
         "soccer_opponent_info" => {
             t!("soccer_opponent", crate::soccer_opponent::parse_soccer_opponent_config(root))
         }
+        "soccer_fixed_reward_spirit_config" => {
+            t!("soccer_fixed_reward", crate::soccer_fixed_reward::parse_soccer_fixed_reward_config(root))
+        }
         "soccer_drop_config" => {
             t!("soccer_drop", crate::soccer_drop::parse_soccer_drop_config(root))
         }
