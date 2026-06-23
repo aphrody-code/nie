@@ -75,6 +75,10 @@ pub fn decode_by_key(key: &str, root: &Value) -> Option<(&'static str, Value)> {
         "soccer_rank_config" => {
             t!("soccer_rank", crate::soccer_rank::parse_soccer_rank_config(root))
         }
+        "soccer_player_record_config" => t!(
+            "soccer_player_record",
+            crate::soccer_player_record::parse_soccer_player_record_config(root)
+        ),
         "soccer_drop_config" => {
             t!("soccer_drop", crate::soccer_drop::parse_soccer_drop_config(root))
         }
