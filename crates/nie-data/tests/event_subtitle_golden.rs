@@ -101,3 +101,47 @@ fn dialogue_raw_text_preserved_and_join() {
     );
     assert_eq!(find_event_text(&lines, HashId(0xDEAD_BEEF)), None);
 }
+
+// ─── Fichiers Subtitle_ev réels + dispatch typé par préfixe (2026-06-23) ─────────
+// ~1321 fichiers `Subtitle_ev<NN>_<bloc>` du mode Histoire deviennent décodables typé
+// via le dispatch par préfixe `Subtitle_ev` (clé par-événement → parse_subtitle_file).
+const SUB_PATH: &str =
+    "/home/ubuntu/niers/data/common/gamedata/event/subtitle/pt/Subtitle_ev01_04800.cfg.bin.json";
+
+fn load_sub() -> Option<Value> {
+    if !std::path::Path::new(SUB_PATH).exists() {
+        return None;
+    }
+    let c = std::fs::read_to_string(SUB_PATH).unwrap_or_else(|e| panic!("lecture {SUB_PATH}: {e}"));
+    Some(serde_json::from_str(&c).unwrap_or_else(|e| panic!("JSON {SUB_PATH}: {e}")))
+}
+
+#[test]
+fn real_subtitle_file_six_lignes_byte_exact() {
+    let Some(root) = load_sub() else { return };
+    let rows = parse_subtitle_file(&root);
+    assert_eq!(rows.len(), 6, "Subtitle_ev01_04800 = 6 lignes timecodées");
+    // Hashes byte-exact (clés de jointure vers le texte localisé).
+    let hashes: [u32; 6] =
+        [0x8BAF_B21B, 0xA082_E1D8, 0xB999_D099, 0xF6D8_465E, 0xEFC3_771F, 0xC4EE_24DC];
+    for (i, h) in hashes.iter().enumerate() {
+        assert_eq!(rows[i].text_hash, HashId(*h), "hash ligne {i}");
+    }
+    // Timings de la 1re et dernière ligne (vérité terrain).
+    assert_eq!(rows[0].show_start, "24.583334".parse::<f64>().unwrap());
+    assert_eq!(rows[0].show_end, "29.083334".parse::<f64>().unwrap());
+    assert_eq!(rows[5].show_start, "50.75".parse::<f64>().unwrap());
+}
+
+#[cfg(feature = "serde")]
+#[test]
+fn dispatch_typed_par_prefixe_atteint_azalee() {
+    use nie_data::typed::{decode_by_key, family_key};
+    let Some(root) = load_sub() else { return };
+    // family_key strippe le suffixe `_04800` (vu comme une version) → clé par-événement.
+    let key = family_key("Subtitle_ev01_04800.cfg.bin");
+    assert!(key.starts_with("Subtitle_ev"), "clé = {key}");
+    let (label, jsonv) = decode_by_key(&key, &root).expect("dispatch par préfixe câblé");
+    assert_eq!(label, "event_subtitle");
+    assert_eq!(jsonv.as_array().map(Vec::len), Some(6));
+}
