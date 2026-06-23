@@ -35,6 +35,22 @@ en Rust ; iecode/inagle ne sont pas des dépendances permanentes, ce sont des v�
 - **Correction honnête** : l'« extraction CPK FAIT » (`c91faeb`) était un **faux FAIT** — jamais validée end-to-end ; cassait sur les vrais CPK (cause = @UTF + CRILAYLA ci-dessus).
 
 ### 2. Données — `nie-data` (modèles no_std du jeu, port inagle)
+
+> **MAJ 2026-06-23 (session « goal », 30 commits) — pilier données substantiellement complété.**
+> Tournant : **système de conditions** décodé (`cond` cadrage + `unlock_condition` sémantique) +
+> **validé corpus-wide** (17 788 blobs réels) + résolution event-flag→event_id (CRC32). Cela a
+> débloqué en **cascade** 5 familles « opaques » → dispatch par motif dans `typed::decode_by_key` :
+> `Subtitle_ev*` (1321 dialogue Histoire), `*_menu_setting` (304 écrans), `*_trigger` (287 scripting),
+> `*_phase_set` (182 phases match), `event_bustup*` (34 portraits). **Couverture gamedata routée
+> ~61 %→84 %.** + familles gameplay portées+golden : soccer_drop/suggest/opponent/fixed_reward/
+> placement/rank/player_record/map_env, game_quest (948 défis), enjoy_mode_team, happen_event_npc,
+> flag_config, talk_select, trial_take_over, ai_type, event_map_tag + 4 parseurs soccer non-routés
+> câblés. **Reframe** : les familles non-typées atteignent déjà azalee en générique (`/cfg`) ; le
+> typage ajoute structs+validation, pas l'accès → le typage **à valeur** est fait, le reste (~375
+> petites tables) = polish. **La frontière de « entièrement » est désormais la LOGIQUE MOTEUR**
+> (physique de match ECS init-runtime, driver de menu, simulation) = multi-session. Gate tenu
+> partout (golden vrais fichiers, clippy --all-targets 0, wasm32, consumer chain model-serve vérifiée).
+
 - **État mesuré (2026-06-13)** : **34 familles golden byte-exact** + **8 en portage (lot B2)** ; les jalons datés ci-dessous (31/58, 847 tests) restent l'**historique**. Comptage de tests à reconcilier (marqueurs `#[test]` mesurés ~990 vs 962 vs 847 — cf. `docs/INVENTAIRE.md` § discordances).
 - **FAIT (2026-06-23) : système de conditions DÉCODÉ + validé sur tout le corpus** — le blob base64 « condition » est le format le plus répandu du jeu (déblocages/déclencheurs : `openCond`/`cond`/`condition`/`runCond`/`aocCondition` + `DATA_ITEM` triggers). **Deux couches, validées contre le corpus réel ENTIER** (17 788 blobs extraits de gamedata, golden `cond_corpus_golden`) : (1) **cadrage** (`nie-data/src/cond.rs`) — en-tête `b[0:4]`=version big-endian (0/1), v0 (**17 754/17 754**) `b[4]`=longueur, `b[5]`=opcode, `b[6..]`=charge ; (2) **sémantique** (`nie-data/src/unlock_condition.rs`, port 1:1 d'inagle `unlock-condition.ts`, **déjà présent**) — tokens `0x35`/`0x34`/`0x32`, namespaces story (`0xB91936DA`, seuil=épisode) vs event-flag (CRC32), opcodes single/AND/trivial. Le décodeur sémantique tient sur les **17 788 blobs réels** (3158 story, 14 191 event-flag, 430 composite, 30 000 feuilles event, 733 seuils alignés grille) — extension massive de couverture (des fixtures inagle au corpus entier). **RESTE (sans tricher)** : forme liste v1 (34/17 788) + l'ancrage ultime contre l'évaluateur binaire `ValidConditionManager` (inagle = réf acceptée). Câbler `decode_unlock_condition` dans les familles à champ `cond` (gallery/happen_event/trial/triggers) → azalee = travail de wiring restant. Gate : 6+ unit + corpus golden (17 754 cadrage + décodage sémantique complet), clippy 0, wasm32 OK.
 - **FAIT (2026-06-23) : ~304 écrans de menu décodables→azalee (dispatch par suffixe)** — `typed::decode_by_key` route les fichiers `<écran>_menu_setting` (clé par-écran) vers `menu_setting::parse` via `k.ends_with("_menu_setting")`. Toutes les **structures d'écran de menu** (MENU_LAYER_INFO/CMD/RES/GROUP) décodables typé → support du **driver de menu (priorité #1)** + explorateur azalee. Golden byte-exact sur `info_bookmark_menu_setting` (16 layers/9 cmd/1 res/16 groups, layer[0].id=0x074C8B3F) + test dispatch. Gate : 2 golden, clippy 0.
