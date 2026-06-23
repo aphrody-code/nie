@@ -65,6 +65,9 @@ pub fn decode_by_key(key: &str, root: &Value) -> Option<(&'static str, Value)> {
         "soccer_drop_config" => {
             t!("soccer_drop", crate::soccer_drop::parse_soccer_drop_config(root))
         }
+        "soccer_suggest_config" => {
+            t!("soccer_suggest", crate::soccer_suggest::parse_soccer_suggest_config(root))
+        }
         "enjoy_mode_team_config" => {
             t!("enjoy_mode_team", crate::enjoy_mode_team::parse_enjoy_mode_team_config(root))
         }
