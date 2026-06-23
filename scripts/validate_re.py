@@ -25,6 +25,7 @@ SUITE = [
     ("validate_goalnet.py", "BallMoveGoalnet nearest-point — argmin dist² (insertps/mulps/haddps, first-win)"),
     ("validate_uemu_xmm.py", "Extension uemu injection/lecture XMM0-15 (fragments réels)"),
     ("validate_normalize.py", "Normalisation vectorielle BallMoveRate (réciproque-produit, len>0) — via injection XMM"),
+    ("validate_dribble_vel.py", "Vitesse BallMoveDribble (pos-prev)·(1/dt) — via injection XMM"),
 ]
 
 ok = 0
