@@ -22,6 +22,7 @@ SUITE = [
     ("validate_lerp.py", "BallMoveLerp — interpolation adoucie (SSE + FMA3 émulée)"),
     ("validate_targetfollow.py", "BallMoveTargetFollow — suivi cible (SSE3/4 haddps/insertps/sqrtps + FMA mem)"),
     ("validate_trajectory.py", "Trajectoires MULTI-FRAMES (parabola/lerp/targetfollow, état réinjecté) — révèle le clamp+snap de Lerp"),
+    ("validate_goalnet.py", "BallMoveGoalnet nearest-point — argmin dist² (insertps/mulps/haddps, first-win)"),
 ]
 
 ok = 0
