@@ -48,3 +48,16 @@ fn dispatch_typed_atteint_azalee() {
     assert_eq!(json["take_over"].as_array().map(Vec::len), Some(5));
     assert_eq!(json["part_take_over"].as_array().map(Vec::len), Some(9));
 }
+
+#[test]
+fn condition_decode_reel() {
+    use nie_data::unlock_condition::UnlockType;
+    let Some(root) = load() else { return };
+    let cfg = parse_trial_take_over_config(&root);
+    // [0] : condition vide ⇒ Always.
+    assert_eq!(cfg.take_over[0].decode_condition().kind, UnlockType::Always);
+    // [4] : condition event-flag (non vide), au moins une feuille requise.
+    let c4 = cfg.take_over[4].decode_condition();
+    assert_eq!(c4.kind, UnlockType::EventFlag);
+    assert!(!c4.required_events.is_empty(), "feuille event-flag décodée");
+}

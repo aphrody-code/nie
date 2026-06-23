@@ -140,6 +140,13 @@ impl EventCommonInfo {
             y_times_text_id: field_hash(v, "y_times_text_id"),
         }
     }
+
+    /// Décode la condition de déclenchement `cond` (blob base64) en [`UnlockCondition`] structurée
+    /// via [`crate::unlock_condition`] (réf inagle, validée corpus-wide — cf. [`crate::cond`]).
+    #[must_use]
+    pub fn decode_cond(&self) -> crate::unlock_condition::UnlockCondition {
+        crate::unlock_condition::decode_unlock_condition(&self.cond)
+    }
 }
 
 /// Contenu complet d'un `happen_event_npc_common.cfg.bin` (les 4 listes du système d'événements NPC).

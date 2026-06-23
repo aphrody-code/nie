@@ -107,3 +107,19 @@ fn dispatch_typed_atteint_azalee() {
     assert_eq!(json["common_info"].as_array().map(Vec::len), Some(15));
     assert_eq!(json["aimed_info"].as_array().map(Vec::len), Some(14));
 }
+
+#[test]
+fn cond_decode_reel() {
+    use nie_data::unlock_condition::UnlockType;
+    let Some(root) = load() else { return };
+    let cfg = parse_happen_event_npc_common(&root);
+    // [0] : condition story (namespace 0xB91936DA), seuil 10040 (1 feuille, opcode 0x05).
+    let c0 = cfg.common_info[0].decode_cond();
+    assert_eq!(c0.kind, UnlockType::Story);
+    assert_eq!(c0.story_threshold, Some(10040));
+    // [14] : opcode 0x17, 4 feuilles = 2 story (b91936da) + 2 event-flag → Composite (story + events).
+    let c14 = cfg.common_info[14].decode_cond();
+    assert_eq!(c14.kind, UnlockType::Composite);
+    assert!(c14.story_threshold.is_some(), "seuil story présent (2 feuilles story)");
+    assert!(!c14.required_events.is_empty(), "feuilles event-flag présentes");
+}
