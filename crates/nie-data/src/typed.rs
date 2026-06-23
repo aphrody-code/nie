@@ -206,6 +206,10 @@ pub fn decode_by_key(key: &str, root: &Value) -> Option<(&'static str, Value)> {
         k if k.starts_with("Subtitle_ev") => {
             t!("event_subtitle", crate::event_subtitle::parse_subtitle_file(root))
         }
+        // Définitions d'écrans de menu : ~304 fichiers `<écran>_menu_setting` (un par écran), même
+        // format T2B (MENU_LAYER_INFO/CMD/RES…). Dispatch par SUFFIXE → toutes les structures d'écran
+        // décodables typé (support du driver de menu + explorateur azalee).
+        k if k.ends_with("_menu_setting") => t!("menu_setting", crate::menu_setting::parse(root)),
         _ => None,
     }
 }
