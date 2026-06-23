@@ -82,6 +82,7 @@ pub mod match_sim;
 pub mod match_state;
 pub mod play_cmd_manager;
 pub mod scene;
+pub mod shot;
 pub mod skill;
 pub mod soccer_ctrl;
 pub mod stats;
