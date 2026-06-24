@@ -59,6 +59,44 @@ impl TypedValueList<'_> {
     /// la valeur est hors limites (jamais en usage valide : `0 <= index` et index `<` nombre
     /// d'entrées). L'index est avancé dès que le tag est lu, comme le binaire.
     pub fn read_next_int(&mut self) -> Option<i32> {
+        let (tag, i) = self.tag_and_advance()?;
+        Some(match tag {
+            1 | 2 => {
+                let raw = self.word_at(i)?;
+                if tag == 1 {
+                    raw as i32 // i32 brut
+                } else {
+                    cvttss2si(f32::from_bits(raw)) // float → int x86 (troncature/indefinite)
+                }
+            }
+            _ => 0, // tag 0/3 : ne lit même pas `data`
+        })
+    }
+
+    /// Lit la valeur à l'index courant **en float** et **avance** l'index — port byte-exact de
+    /// `FUN_140051fc0` (~331 callers), le sibling float de [`Self::read_next_int`]. Ghidra avait
+    /// typé cette fonction `void` (retour `xmm0` perdu).
+    ///
+    /// Tag 1 → `(f32)i32` (`cvtsi2ss`, arrondi au plus proche pair = `as f32` de Rust) ; tag 2 → le
+    /// f32 brut (passthrough) ; tag 0/3 → `0.0`. `None` si hors limites (jamais en usage valide).
+    pub fn read_next_float(&mut self) -> Option<f32> {
+        let (tag, i) = self.tag_and_advance()?;
+        Some(match tag {
+            1 | 2 => {
+                let raw = self.word_at(i)?;
+                if tag == 1 {
+                    raw as i32 as f32 // cvtsi2ss : i32 → f32, arrondi au plus proche
+                } else {
+                    f32::from_bits(raw) // f32 brut
+                }
+            }
+            _ => 0.0, // tag 0/3 : ne lit même pas `data`
+        })
+    }
+
+    /// Lit le **tag 2 bits** de l'index courant puis avance l'index. Renvoie `(tag, index_lu)` ou
+    /// `None` (tag hors limites). Le binaire avance après la lecture du tag, avant tout branch.
+    fn tag_and_advance(&mut self) -> Option<(u8, i32)> {
         let i = self.index;
         let corr = (i >> 31) & 3; // 0 si i >= 0, 3 si i < 0 (correction de division signée)
         let ic = i.wrapping_add(corr);
@@ -66,20 +104,16 @@ impl TypedValueList<'_> {
         let slot = (ic & 3) - corr;
         let shift = ((slot * 2) & 0x1f) as u32;
         let tag = (self.tags.get(byteoff)? >> shift) & 3;
-        self.index = i.wrapping_add(1); // le binaire avance avant le branch sur le tag
-        Some(match tag {
-            1 | 2 => {
-                let off = (i as usize).checked_mul(4)?;
-                let w = self.data.get(off..off + 4)?;
-                let raw = u32::from_le_bytes([w[0], w[1], w[2], w[3]]);
-                if tag == 1 {
-                    raw as i32
-                } else {
-                    cvttss2si(f32::from_bits(raw))
-                }
-            }
-            _ => 0, // tag 0/3 : ne lit même pas `data`
-        })
+        self.index = i.wrapping_add(1);
+        Some((tag, i))
+    }
+
+    /// Mot de 4 octets de `data` à l'index `i` (`data[i*4..]`). `None` si hors limites.
+    #[inline]
+    fn word_at(&self, i: i32) -> Option<u32> {
+        let off = (i as usize).checked_mul(4)?;
+        let w = self.data.get(off..off + 4)?;
+        Some(u32::from_le_bytes([w[0], w[1], w[2], w[3]]))
     }
 }
 
@@ -133,6 +167,27 @@ mod tests {
         assert_eq!(r.read_next_int(), Some(0), "tag 0 → 0");
         assert_eq!(r.read_next_int(), Some(i32::MIN), "cvttss2si(2^31)=indefinite");
         assert_eq!(r.index, 4);
+    }
+
+    /// read_next_float : tag 1 → (f32)i32 ; tag 2 → f32 brut ; tag 0/3 → 0.0 ; avance l'index.
+    #[test]
+    fn read_next_float_tags_and_advance() {
+        let entries = [
+            (1u8, 42i32.to_le_bytes()),         // int 42 → 42.0
+            (2u8, 1.5f32.to_bits().to_le_bytes()), // float 1.5 → 1.5
+            (0u8, 99i32.to_le_bytes()),         // tag 0 → 0.0
+            (1u8, (-7i32).to_le_bytes()),       // int -7 → -7.0
+            (1u8, 16_777_219i32.to_le_bytes()), // > 2^24 → arrondi cvtsi2ss
+        ];
+        let (tags, data) = build(&entries);
+        let mut r = TypedValueList { tags: &tags, data: &data, index: 0 };
+        assert_eq!(r.read_next_float(), Some(42.0));
+        assert_eq!(r.index, 1);
+        assert_eq!(r.read_next_float(), Some(1.5));
+        assert_eq!(r.read_next_float(), Some(0.0), "tag 0 → 0.0");
+        assert_eq!(r.read_next_float(), Some(-7.0));
+        assert_eq!(r.read_next_float(), Some(16_777_219i32 as f32), "cvtsi2ss arrondi RNE");
+        assert_eq!(r.index, 5);
     }
 
     /// Lecture à un index de départ non nul.
