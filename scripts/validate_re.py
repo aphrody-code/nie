@@ -43,6 +43,7 @@ SUITE = [
     ("validate_intrusive_map_e.py", "4e instanciation du conteneur (FUN_1404523c0, entrées 0x28, clé @+0) — template à 4 strides, fuzz 2 modes"),
     ("validate_path_stem.py", "File-stem de chemin d'asset (FUN_140452820) — basename sans dernière ext, strrchr SSE, fuzz"),
     ("validate_typed_value_reader.py", "Lecteur read-next-int de valeur typée (FUN_140051f40, 1696 callers) — tags 2-bit + cvttss2si exact, fuzz"),
+    ("validate_affine_compose.py", "Composition de matrices affines 3×4 (FUN_14007f8f0) — FMA fusée, transform pipeline, fuzz"),
 ]
 
 ok = 0
