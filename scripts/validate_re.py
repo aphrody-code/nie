@@ -44,6 +44,7 @@ SUITE = [
     ("validate_path_stem.py", "File-stem de chemin d'asset (FUN_140452820) — basename sans dernière ext, strrchr SSE, fuzz"),
     ("validate_typed_value_reader.py", "Lecteur read-next-int de valeur typée (FUN_140051f40, 1696 callers) — tags 2-bit + cvttss2si exact, fuzz"),
     ("validate_affine_compose.py", "Composition de matrices affines 3×4 (FUN_14007f8f0) — FMA fusée, transform pipeline, fuzz"),
+    ("validate_keyed_record_lookup.py", "Lookup record 0xb0 par clé 40-bit (FUN_1404af530) — linéaire/binaire + early-exit param_2==0, fuzz"),
 ]
 
 ok = 0
