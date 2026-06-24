@@ -36,6 +36,7 @@ SUITE = [
     ("validate_menu_setting.py", "Décodeur valeurs typées objet-menu CMenuStateMachine (FUN_141290fc0, +0x590..0x5ba)"),
     ("validate_intrusive_map.py", "Find map intrusive de menu mode linéaire (FUN_1402e2a10) — primitive list-view"),
     ("validate_intrusive_map_sorted.py", "Recherche binaire mode trié de la map de menu (FUN_1402b4160) — fuzz seedé"),
+    ("validate_intrusive_map_next.py", "Itérateur next-equal du conteneur trié (FUN_140541de0) — énum. de run multimap, fuzz"),
 ]
 
 ok = 0
