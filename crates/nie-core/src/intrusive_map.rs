@@ -26,12 +26,15 @@
 //!
 //! ## Deux instanciations réelles, un seul algorithme (généralisé par `entry_stride`)
 //!
-//! Le moteur réutilise ce conteneur avec des tailles d'entrée différentes. Deux fonctions du binaire
-//! sont **byte-exact** contre ce port, identiques à la **largeur d'entrée** près :
-//! - `FUN_1402e2a10` / `FUN_1402b4160` — entrées **0x10 o** (premier portage) ;
-//! - `FUN_14050b0b0` — entrées **0xc o** (même header, mêmes nœuds 6 o, même recherche binaire).
+//! Le moteur réutilise ce conteneur comme un *template* avec des tailles/dispositions d'entrée
+//! différentes. **Trois** fonctions du binaire sont **byte-exact** contre ce port, à la disposition
+//! d'entrée près :
+//! - `FUN_1402e2a10` / `FUN_1402b4160` — entrées **0x10 o**, clé @ entrée+**8** (premier portage) ;
+//! - `FUN_14050b0b0` — entrées **0xc o**, clé @ entrée+**8** ;
+//! - `FUN_1401f5ab0` — entrées **0x18 o**, clé @ entrée+**0**.
 //!
-//! D'où le champ `entry_stride` : la clé `i32` d'une entrée d'index `i` est à `buf + 8 + i*stride`.
+//! Header, nœuds (6 o, `next` u16 @+2) et tableau trié (u16) sont **identiques** dans les trois.
+//! D'où deux paramètres : la clé `i32` d'une entrée d'index `i` est à `buf + key_base + i*entry_stride`.
 
 extern crate alloc;
 
@@ -46,9 +49,10 @@ pub struct IntrusiveMapLinear<'a> {
     pub nodes_off: u32,
     /// Capacité/sentinelle (`header[+0x24]`) : `head ≥ cap` ou `next ≥ cap` termine la chaîne.
     pub cap: u16,
-    /// Largeur d'une entrée en octets (clé `i32` @+0) : `0x10` (`FUN_1402e2a10`) ou `0xc`
-    /// (`FUN_14050b0b0`). Voir le module-doc.
+    /// Largeur d'une entrée en octets : `0x10` / `0xc` / `0x18` selon l'instanciation. Module-doc.
     pub entry_stride: u32,
+    /// Offset de la clé `i32` dans l'entrée : `8` (familles 0xc/0x10) ou `0` (famille 0x18). Module-doc.
+    pub key_base: u32,
 }
 
 #[inline]
@@ -75,8 +79,9 @@ impl IntrusiveMapLinear<'_> {
         }
         let mut idx = self.head;
         loop {
-            // Entrée `idx` : clé i32 à `base + 8 + idx*stride`.
-            let ekey = read_i32(self.buf, 8 + idx as usize * self.entry_stride as usize)?;
+            // Entrée `idx` : clé i32 à `base + key_base + idx*stride`.
+            let ekey =
+                read_i32(self.buf, self.key_base as usize + idx as usize * self.entry_stride as usize)?;
             if ekey == key {
                 return Some(idx);
             }
@@ -105,9 +110,10 @@ pub struct IntrusiveMapSorted<'a> {
     pub count: u16,
     /// Offset du tableau d'index trié dans `buf` (`header[+0x20]`).
     pub sorted_off: u32,
-    /// Largeur d'une entrée en octets (clé `i32` @+0) : `0x10` (`FUN_1402b4160`) ou `0xc`
-    /// (`FUN_14050b0b0`). Voir le module-doc.
+    /// Largeur d'une entrée en octets : `0x10` / `0xc` / `0x18` selon l'instanciation. Module-doc.
     pub entry_stride: u32,
+    /// Offset de la clé `i32` dans l'entrée : `8` (familles 0xc/0x10) ou `0` (famille 0x18). Module-doc.
+    pub key_base: u32,
 }
 
 impl IntrusiveMapSorted<'_> {
@@ -116,7 +122,8 @@ impl IntrusiveMapSorted<'_> {
     fn key_at(&self, i: u16) -> Option<u32> {
         let so = self.sorted_off as usize + i as usize * 2;
         let entry_idx = read_u16(self.buf, so)? as usize;
-        read_i32(self.buf, 8 + entry_idx * self.entry_stride as usize).map(|k| k as u32)
+        read_i32(self.buf, self.key_base as usize + entry_idx * self.entry_stride as usize)
+            .map(|k| k as u32)
     }
 
     /// Index d'entrée (`sorted[i]`) à la position triée `i`. `None` si hors limites.
@@ -294,7 +301,7 @@ mod tests {
     #[test]
     fn matches_uemu_oracle_chain() {
         let buf = build(&[100, 200, 300], &[1, 2, 0xFFFF], 0x200, 0x10);
-        let m = IntrusiveMapLinear { buf: &buf, head: 0, nodes_off: 0x200, cap: 0x100, entry_stride: 0x10 };
+        let m = IntrusiveMapLinear { buf: &buf, head: 0, nodes_off: 0x200, cap: 0x100, entry_stride: 0x10, key_base: 8 };
         assert_eq!(m.find(100), Some(0), "node0");
         assert_eq!(m.find(200), Some(1), "node1");
         assert_eq!(m.find(300), Some(2), "node2");
@@ -305,7 +312,7 @@ mod tests {
     #[test]
     fn head_mid_chain() {
         let buf = build(&[100, 200, 300], &[1, 2, 0xFFFF], 0x200, 0x10);
-        let m = IntrusiveMapLinear { buf: &buf, head: 1, nodes_off: 0x200, cap: 0x100, entry_stride: 0x10 };
+        let m = IntrusiveMapLinear { buf: &buf, head: 1, nodes_off: 0x200, cap: 0x100, entry_stride: 0x10, key_base: 8 };
         assert_eq!(m.find(100), None, "100 hors de la sous-chaîne depuis la tête 1");
         assert_eq!(m.find(200), Some(1));
         assert_eq!(m.find(300), Some(2));
@@ -315,7 +322,7 @@ mod tests {
     #[test]
     fn head_at_or_past_cap_is_empty() {
         let buf = build(&[100], &[0xFFFF], 0x200, 0x10);
-        let m = IntrusiveMapLinear { buf: &buf, head: 0x100, nodes_off: 0x200, cap: 0x100, entry_stride: 0x10 };
+        let m = IntrusiveMapLinear { buf: &buf, head: 0x100, nodes_off: 0x200, cap: 0x100, entry_stride: 0x10, key_base: 8 };
         assert_eq!(m.find(100), None);
     }
 
@@ -323,7 +330,7 @@ mod tests {
     #[test]
     fn single_element() {
         let buf = build(&[42], &[0x100], 0x200, 0x10);
-        let m = IntrusiveMapLinear { buf: &buf, head: 0, nodes_off: 0x200, cap: 0x100, entry_stride: 0x10 };
+        let m = IntrusiveMapLinear { buf: &buf, head: 0, nodes_off: 0x200, cap: 0x100, entry_stride: 0x10, key_base: 8 };
         assert_eq!(m.find(42), Some(0));
         assert_eq!(m.find(0), None);
     }
@@ -343,7 +350,7 @@ mod tests {
     }
 
     fn sorted<'a>(buf: &'a [u8], count: u16) -> IntrusiveMapSorted<'a> {
-        IntrusiveMapSorted { buf, count, sorted_off: 0x400, entry_stride: 0x10 }
+        IntrusiveMapSorted { buf, count, sorted_off: 0x400, entry_stride: 0x10, key_base: 8 }
     }
 
     /// Cas golden capturés du fuzz byte-exact (16 608 cas vs oracle uemu) : `(keys, target) →
@@ -392,7 +399,7 @@ mod tests {
             let so = 0x400 + i * 2;
             buf[so..so + 2].copy_from_slice(&p.to_le_bytes());
         }
-        let m = IntrusiveMapSorted { buf: &buf, count: 3, sorted_off: 0x400, entry_stride: 0x10 };
+        let m = IntrusiveMapSorted { buf: &buf, count: 3, sorted_off: 0x400, entry_stride: 0x10, key_base: 8 };
         assert_eq!(m.find_entry(2), Some(1), "clé 2 → entrée 1");
         assert_eq!(m.find_entry(5), Some(2), "clé 5 → entrée 2");
         assert_eq!(m.find_entry(9), Some(0), "clé 9 → entrée 0");
@@ -419,7 +426,7 @@ mod tests {
     #[test]
     fn next_equal_matches_uemu_oracle() {
         let buf = build_perm(&[5, 5, 9, 2], &[3, 0, 1, 2]);
-        let m = IntrusiveMapSorted { buf: &buf, count: 4, sorted_off: 0x400, entry_stride: 0x10 };
+        let m = IntrusiveMapSorted { buf: &buf, count: 4, sorted_off: 0x400, entry_stride: 0x10, key_base: 8 };
         assert_eq!(m.next_equal(0, 0x100), None, "pos0 clé 2 ≠ clé 5 suivante");
         assert_eq!(m.next_equal(1, 0x100), Some(1), "pos1 clé 5 = pos2 clé 5 → entrée sorted[2]=1");
         assert_eq!(m.next_equal(2, 0x100), None, "pos2 clé 5 ≠ clé 9 suivante");
@@ -470,7 +477,7 @@ mod tests {
     fn stride_0xc_second_instantiation() {
         // Linéaire (builder généralisé, stride 0xc) — mêmes index qu'en 0x10.
         let buf = build(&[100, 200, 300], &[1, 2, 0xFFFF], 0x200, 0xc);
-        let m = IntrusiveMapLinear { buf: &buf, head: 0, nodes_off: 0x200, cap: 0x100, entry_stride: 0xc };
+        let m = IntrusiveMapLinear { buf: &buf, head: 0, nodes_off: 0x200, cap: 0x100, entry_stride: 0xc, key_base: 8 };
         assert_eq!(m.find(100), Some(0));
         assert_eq!(m.find(200), Some(1));
         assert_eq!(m.find(300), Some(2));
@@ -484,7 +491,7 @@ mod tests {
             let so = 0x400 + i * 2;
             sbuf[so..so + 2].copy_from_slice(&(i as u16).to_le_bytes());
         }
-        let s = IntrusiveMapSorted { buf: &sbuf, count: 5, sorted_off: 0x400, entry_stride: 0xc };
+        let s = IntrusiveMapSorted { buf: &sbuf, count: 5, sorted_off: 0x400, entry_stride: 0xc, key_base: 8 };
         assert_eq!(s.find_position(3), Some(1), "leftmost-equal, stride 0xc");
         assert_eq!(s.find_entry(3), Some(1));
         assert_eq!(s.lower_bound(3), Ok(2), "with_out → 1re position trouvée (mid)");
@@ -493,6 +500,54 @@ mod tests {
         // next-equal énumère le run de doublons en stride 0xc.
         assert_eq!(s.next_equal(1, 0x100), Some(2));
         assert_eq!(s.next_equal(2, 0x100), Some(3));
+        assert_eq!(s.next_equal(3, 0x100), None);
+    }
+
+    /// TROISIÈME instanciation réelle, `FUN_1401f5ab0` : entrées **0x18 o** ET clé **@ entrée+0**
+    /// (`key_base = 0`, pas `8`). Le MÊME code retrouve les mêmes index. Preuve byte-exact vs ce
+    /// binaire : `scripts/validate_intrusive_map_d.py` (fuzz des deux modes).
+    #[test]
+    fn stride_0x18_keybase0_third_instantiation() {
+        // Linéaire : clé i32 @ entrée+0, stride 0x18 ; nœuds 6 o @0x200.
+        let mut buf = vec![0u8; 0x400];
+        for (i, &k) in [100i32, 200, 300].iter().enumerate() {
+            buf[i * 0x18..i * 0x18 + 4].copy_from_slice(&k.to_le_bytes());
+        }
+        for (i, &nx) in [1u16, 2, 0xFFFF].iter().enumerate() {
+            buf[0x200 + i * 6 + 2..0x200 + i * 6 + 4].copy_from_slice(&nx.to_le_bytes());
+        }
+        let m = IntrusiveMapLinear {
+            buf: &buf,
+            head: 0,
+            nodes_off: 0x200,
+            cap: 0x100,
+            entry_stride: 0x18,
+            key_base: 0,
+        };
+        assert_eq!(m.find(100), Some(0));
+        assert_eq!(m.find(300), Some(2));
+        assert_eq!(m.find(999), None);
+
+        // Trié : clé @ entrée+0, stride 0x18, permutation identité, doublons.
+        let keys: [u32; 5] = [1, 3, 3, 3, 5];
+        let mut sbuf = vec![0u8; 0x1000];
+        for (i, &k) in keys.iter().enumerate() {
+            sbuf[i * 0x18..i * 0x18 + 4].copy_from_slice(&k.to_le_bytes());
+            let so = 0x400 + i * 2;
+            sbuf[so..so + 2].copy_from_slice(&(i as u16).to_le_bytes());
+        }
+        let s = IntrusiveMapSorted {
+            buf: &sbuf,
+            count: 5,
+            sorted_off: 0x400,
+            entry_stride: 0x18,
+            key_base: 0,
+        };
+        assert_eq!(s.find_position(3), Some(1), "leftmost-equal, stride 0x18 key_base 0");
+        assert_eq!(s.find_entry(3), Some(1));
+        assert_eq!(s.lower_bound(3), Ok(2));
+        assert_eq!(s.find_position(4), None);
+        assert_eq!(s.next_equal(1, 0x100), Some(2));
         assert_eq!(s.next_equal(3, 0x100), None);
     }
 }
