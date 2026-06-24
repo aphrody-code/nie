@@ -48,6 +48,8 @@ pub mod cpk;
 pub mod crilayla;
 /// Primitives 2D RGBA8 pures (crop/scale nearest) — source unique, no_std (le blend reste landmine #5).
 pub mod raster2d;
+/// Utilitaires de noms de chemins d'assets (file-stem byte-exact `FUN_140452820`), no_std.
+pub mod pathname;
 /// Parseurs/décodeurs audio Criware (feature `std` : ADX décode via `f64::cos`/`sqrt`).
 #[cfg(feature = "std")]
 pub mod cri_audio;
