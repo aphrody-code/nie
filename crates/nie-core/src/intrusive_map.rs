@@ -223,6 +223,40 @@ impl IntrusiveMapSorted<'_> {
             Ok(pos)
         }
     }
+
+    /// Itérateur « entrée suivante de **même clé** » — port byte-exact de `FUN_140541de0`.
+    ///
+    /// Étant donné la **position triée** `pos` d'une entrée, renvoie l'**index d'entrée**
+    /// (`sorted[pos+1]`) de l'entrée à la position triée suivante **si** sa clé est égale à celle
+    /// de `pos` (parcours d'un run de doublons → énumération multimap, ex. lignes d'une liste de
+    /// menu partageant la même catégorie). Renvoie `None` quand :
+    /// - `pos` est la dernière position (`pos >= count - 1`, comparaison **signée** comme le binaire :
+    ///   `count == 0` ⇒ `count-1 == -1` ⇒ toujours `None`) ;
+    /// - l'index d'entrée suivant atteint la sentinelle (`sorted[pos+1] >= cap`) ;
+    /// - la clé suivante diffère (fin du run).
+    ///
+    /// `cap` = `header[+0x24]` (sentinelle de capacité). Dans le binaire, le nœud courant est passé
+    /// par pointeur et sa position triée est lue en `node[+4]` ; ici on prend directement la
+    /// position (équivalent pour une map bien formée — domaine réel : `node[+4]` = permutation
+    /// inverse). Pour énumérer tout le run, ré-appeler avec `pos + 1` tant que `Some`.
+    #[must_use]
+    pub fn next_equal(&self, pos: u16, cap: u16) -> Option<u16> {
+        // `(int)(uint)pos < (int)(count - 1)` : comparaison signée (count u16 promu int).
+        if (i32::from(pos)) >= i32::from(self.count) - 1 {
+            return None;
+        }
+        let next_entry = self.entry_index_at(pos + 1)?; // sorted[pos+1]
+        if next_entry >= cap {
+            return None;
+        }
+        // Le binaire compare `key[sorted[pos+1]] == key[entrée courante]` ; pour une map bien formée
+        // l'entrée courante = `sorted[pos]`, donc `key(pos+1) == key(pos)`.
+        if self.key_at(pos + 1)? == self.key_at(pos)? {
+            Some(next_entry)
+        } else {
+            None
+        }
+    }
 }
 
 #[cfg(test)]
@@ -351,5 +385,66 @@ mod tests {
         assert_eq!(m.find_entry(5), Some(2), "clé 5 → entrée 2");
         assert_eq!(m.find_entry(9), Some(0), "clé 9 → entrée 0");
         assert_eq!(m.find_entry(4), None, "absent");
+    }
+
+    // ── next-equal : itérateur de run de doublons (FUN_140541de0) ─────────────
+
+    /// Construit un buffer trié à permutation explicite : `sorted_arr[i]` = index d'entrée à la
+    /// position triée `i` ; `keys_by_entry[e]` = clé de l'entrée `e`.
+    fn build_perm(keys_by_entry: &[u32], sorted_arr: &[u16]) -> Vec<u8> {
+        let mut buf = vec![0u8; 0x1000];
+        for (e, &k) in keys_by_entry.iter().enumerate() {
+            buf[8 + e * 0x10..8 + e * 0x10 + 4].copy_from_slice(&k.to_le_bytes());
+        }
+        for (i, &ent) in sorted_arr.iter().enumerate() {
+            let so = 0x400 + i * 2;
+            buf[so..so + 2].copy_from_slice(&ent.to_le_bytes());
+        }
+        buf
+    }
+
+    /// Reproduit l'oracle uemu (clés par entrée `[5,5,9,2]`, tri `[3,0,1,2]` → clés triées `2,5,5,9`).
+    #[test]
+    fn next_equal_matches_uemu_oracle() {
+        let buf = build_perm(&[5, 5, 9, 2], &[3, 0, 1, 2]);
+        let m = IntrusiveMapSorted { buf: &buf, count: 4, sorted_off: 0x400 };
+        assert_eq!(m.next_equal(0, 0x100), None, "pos0 clé 2 ≠ clé 5 suivante");
+        assert_eq!(m.next_equal(1, 0x100), Some(1), "pos1 clé 5 = pos2 clé 5 → entrée sorted[2]=1");
+        assert_eq!(m.next_equal(2, 0x100), None, "pos2 clé 5 ≠ clé 9 suivante");
+        assert_eq!(m.next_equal(3, 0x100), None, "pos3 = dernière position");
+    }
+
+    /// Énumération d'un run de doublons par ré-appels successifs (`pos += 1` tant que `Some`).
+    #[test]
+    fn next_equal_enumerates_run() {
+        let buf = build_sorted(&[1, 3, 3, 3, 5], 0x400); // identité : sorted[i]=i
+        let m = sorted(&buf, 5);
+        assert_eq!(m.find_position(3), Some(1), "leftmost de la clé 3");
+        assert_eq!(m.next_equal(1, 0x100), Some(2));
+        assert_eq!(m.next_equal(2, 0x100), Some(3));
+        assert_eq!(m.next_equal(3, 0x100), None, "pos4 clé 5 ≠ 3 → fin du run");
+        assert_eq!(m.next_equal(0, 0x100), None, "pos0 clé 1 ≠ clé 3");
+    }
+
+    /// Sentinelle de capacité : `sorted[pos+1] >= cap` termine (avant même la comparaison de clé).
+    #[test]
+    fn next_equal_stops_on_cap_sentinel() {
+        let buf = build_sorted(&[5, 5, 5, 5], 0x400); // toutes égales, sorted[i]=i
+        let m = sorted(&buf, 4);
+        // cap=2 : sorted[1]=1 < 2 OK, mais sorted[2]=2 >= 2 → coupe malgré clés égales.
+        assert_eq!(m.next_equal(0, 2), Some(1), "entrée suivante 1 < cap");
+        assert_eq!(m.next_equal(1, 2), None, "entrée suivante 2 >= cap → sentinelle");
+        // cap normal : run complet.
+        assert_eq!(m.next_equal(1, 0x100), Some(2));
+    }
+
+    /// Map vide / singleton : `pos >= count-1` (signé) → toujours `None`.
+    #[test]
+    fn next_equal_empty_and_singleton() {
+        let buf = build_sorted(&[7], 0x400);
+        let m = sorted(&buf, 1);
+        assert_eq!(m.next_equal(0, 0x100), None, "singleton : pos0 = dernière");
+        let m0 = sorted(&buf, 0);
+        assert_eq!(m0.next_equal(0, 0x100), None, "count=0 : count-1=-1, pos0>=-1 → None");
     }
 }
