@@ -40,6 +40,7 @@ SUITE = [
     ("validate_intrusive_map_c.py", "2e instanciation du conteneur (FUN_14050b0b0, entrées 0xc) — généralisation entry_stride, fuzz 2 modes"),
     ("validate_intrusive_map_d.py", "3e instanciation du conteneur (FUN_1401f5ab0, entrées 0x18, clé @+0) — généralisation key_base, fuzz 2 modes"),
     ("validate_intrusive_map_pop.py", "pop_front liste active du conteneur (FUN_140453570) — côté ÉCRITURE, mutation byte-exact, fuzz"),
+    ("validate_intrusive_map_e.py", "4e instanciation du conteneur (FUN_1404523c0, entrées 0x28, clé @+0) — template à 4 strides, fuzz 2 modes"),
 ]
 
 ok = 0
