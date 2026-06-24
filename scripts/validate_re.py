@@ -47,6 +47,7 @@ SUITE = [
     ("validate_keyed_record_lookup.py", "Lookup record 0xb0 par clé 40-bit (FUN_1404af530) — linéaire/binaire + early-exit param_2==0, fuzz"),
     ("validate_aspect_viewport.py", "Viewport letterbox/pillarbox au ratio (FUN_14045ff50) — rendu, division entière exacte, fuzz"),
     ("validate_typed_value_reader_float.py", "Lecteur read-next-FLOAT de valeur typée (FUN_140051fc0, 331 callers) — sibling float, cvtsi2ss, fuzz"),
+    ("validate_handle_table.py", "Find-first-active via table de handles validés (FUN_1411da770) — génération anti-stale, fuzz"),
 ]
 
 ok = 0

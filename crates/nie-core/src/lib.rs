@@ -78,6 +78,7 @@ pub mod ecs;
 pub mod event_check;
 pub mod exp;
 pub mod growth;
+pub mod handle_table;
 pub mod intrusive_map;
 pub mod keeper;
 pub mod keyed_record_table;
