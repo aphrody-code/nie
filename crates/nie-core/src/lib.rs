@@ -69,6 +69,7 @@ pub(crate) mod serde_byte_array {
 
 pub mod action;
 pub mod aura;
+pub mod affine;
 pub mod ball;
 pub mod command_effect;
 pub mod crand;
