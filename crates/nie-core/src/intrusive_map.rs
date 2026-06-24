@@ -278,6 +278,61 @@ impl IntrusiveMapSorted<'_> {
     }
 }
 
+// ── Côté ÉCRITURE : liste active doublement chaînée (pop_front, FUN_140453570) ──
+
+/// Vue mutable sur la **liste active doublement chaînée** du conteneur, portée sur les MÊMES nœuds
+/// 6 o que les find : `prev: u16 @+0`, `next: u16 @+2`. L'en-tête du binaire stocke ce curseur en
+/// `+0x16` (tête), `+0x18` (queue), `+0x1a` (compteur). C'est le côté **écriture** (les `find`
+/// `IntrusiveMap{Linear,Sorted}` étant le côté lecture).
+#[derive(Debug, Clone, Copy)]
+pub struct IntrusiveListCursor {
+    /// Index du nœud de tête (`header[+0x16]`) ; `>= cap` (p.ex. `0xffff`) = liste vide.
+    pub head: u16,
+    /// Index du nœud de queue (`header[+0x18]`).
+    pub tail: u16,
+    /// Nombre d'éléments (`header[+0x1a]`).
+    pub count: u16,
+    /// Offset du tableau de nœuds dans `buf` (`header[+0x1c]`).
+    pub nodes_off: u32,
+    /// Capacité/sentinelle (`header[+0x24]`).
+    pub cap: u16,
+}
+
+impl IntrusiveListCursor {
+    /// Détache et renvoie l'index du nœud de **tête** — port byte-exact de `FUN_140453570`.
+    ///
+    /// Avance la tête vers `head.next`, met `new_head.prev = 0xffff`, décrémente `count`. Si la tête
+    /// est aussi la queue (dernier élément), vide la liste (`head = tail = 0xffff`). Renvoie `None`
+    /// (le binaire renvoie 0, sans aucune mutation) si la tête `>= cap` (liste vide). Mute `self`
+    /// ainsi que le champ `prev` du nouveau nœud de tête dans `buf`.
+    ///
+    /// Garde-fou : si `head.next >= cap` sur une liste non vide (entrée malformée), renvoie `None`
+    /// au lieu de reproduire le déréférencement de pointeur nul du binaire (UB).
+    pub fn pop_front(&mut self, buf: &mut [u8]) -> Option<u16> {
+        if self.head >= self.cap {
+            return None;
+        }
+        let popped = self.head;
+        if self.tail == self.head {
+            self.head = 0xffff;
+            self.tail = 0xffff;
+            self.count = self.count.wrapping_sub(1);
+            return Some(popped);
+        }
+        // `next` du nœud courant (champ +2).
+        let next = read_u16(buf, self.nodes_off as usize + popped as usize * 6 + 2)?;
+        if next >= self.cap {
+            return None; // garde-fou anti-UB (cf. doc)
+        }
+        // `new_head.prev` (champ +0) = sentinelle.
+        let p = self.nodes_off as usize + next as usize * 6;
+        buf.get_mut(p..p + 2)?.copy_from_slice(&0xffff_u16.to_le_bytes());
+        self.head = next;
+        self.count = self.count.wrapping_sub(1);
+        Some(popped)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -549,5 +604,65 @@ mod tests {
         assert_eq!(s.find_position(4), None);
         assert_eq!(s.next_equal(1, 0x100), Some(2));
         assert_eq!(s.next_equal(3, 0x100), None);
+    }
+
+    // ── pop_front : côté écriture (FUN_140453570) ─────────────────────────────
+
+    /// Buffer de nœuds 6 o (prev@+0, next@+2) doublement chaîné selon `order` (tête→queue).
+    fn build_dll(order: &[u16], n_nodes: usize, nodes_off: usize) -> Vec<u8> {
+        let mut buf = vec![0u8; 0x400];
+        for i in 0..n_nodes {
+            let p = nodes_off + i * 6;
+            buf[p..p + 2].copy_from_slice(&0xffff_u16.to_le_bytes());
+            buf[p + 2..p + 4].copy_from_slice(&0xffff_u16.to_le_bytes());
+        }
+        for (i, &nd) in order.iter().enumerate() {
+            let prev = if i > 0 { order[i - 1] } else { 0xffff };
+            let next = if i + 1 < order.len() { order[i + 1] } else { 0xffff };
+            let p = nodes_off + nd as usize * 6;
+            buf[p..p + 2].copy_from_slice(&prev.to_le_bytes());
+            buf[p + 2..p + 4].copy_from_slice(&next.to_le_bytes());
+        }
+        buf
+    }
+
+    fn node_prev(buf: &[u8], nodes_off: usize, idx: u16) -> u16 {
+        let p = nodes_off + idx as usize * 6;
+        u16::from_le_bytes([buf[p], buf[p + 1]])
+    }
+
+    /// pop_front successifs jusqu'à vider, ordre non identité (reproduit l'oracle uemu).
+    #[test]
+    fn pop_front_multi_then_empty() {
+        let order = [3u16, 1, 2]; // tête=3 → 1 → queue=2
+        let mut buf = build_dll(&order, 8, 0x200);
+        let mut c = IntrusiveListCursor { head: 3, tail: 2, count: 3, nodes_off: 0x200, cap: 0x100 };
+        assert_eq!(c.pop_front(&mut buf), Some(3), "pop tête 3");
+        assert_eq!((c.head, c.tail, c.count), (1, 2, 2));
+        assert_eq!(node_prev(&buf, 0x200, 1), 0xffff, "nouvelle tête 1 : prev = sentinelle");
+        assert_eq!(c.pop_front(&mut buf), Some(1), "pop tête 1");
+        assert_eq!((c.head, c.tail, c.count), (2, 2, 1));
+        assert_eq!(c.pop_front(&mut buf), Some(2), "pop dernier (tête == queue)");
+        assert_eq!((c.head, c.tail, c.count), (0xffff, 0xffff, 0));
+        assert_eq!(c.pop_front(&mut buf), None, "liste vide");
+    }
+
+    /// Élément unique : tête == queue dès le premier pop.
+    #[test]
+    fn pop_front_single_element() {
+        let mut buf = build_dll(&[5], 8, 0x200);
+        let mut c = IntrusiveListCursor { head: 5, tail: 5, count: 1, nodes_off: 0x200, cap: 0x100 };
+        assert_eq!(c.pop_front(&mut buf), Some(5));
+        assert_eq!((c.head, c.tail, c.count), (0xffff, 0xffff, 0));
+    }
+
+    /// Liste vide (tête sentinelle) : no-op, renvoie `None`.
+    #[test]
+    fn pop_front_empty_is_noop() {
+        let mut buf = build_dll(&[], 8, 0x200);
+        let mut c =
+            IntrusiveListCursor { head: 0xffff, tail: 0xffff, count: 0, nodes_off: 0x200, cap: 0x100 };
+        assert_eq!(c.pop_front(&mut buf), None);
+        assert_eq!((c.head, c.tail, c.count), (0xffff, 0xffff, 0));
     }
 }
