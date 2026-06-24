@@ -37,6 +37,7 @@ SUITE = [
     ("validate_intrusive_map.py", "Find map intrusive de menu mode linéaire (FUN_1402e2a10) — primitive list-view"),
     ("validate_intrusive_map_sorted.py", "Recherche binaire mode trié de la map de menu (FUN_1402b4160) — fuzz seedé"),
     ("validate_intrusive_map_next.py", "Itérateur next-equal du conteneur trié (FUN_140541de0) — énum. de run multimap, fuzz"),
+    ("validate_intrusive_map_c.py", "2e instanciation du conteneur (FUN_14050b0b0, entrées 0xc) — généralisation entry_stride, fuzz 2 modes"),
 ]
 
 ok = 0
