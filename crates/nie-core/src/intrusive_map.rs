@@ -606,6 +606,30 @@ mod tests {
         assert_eq!(s.next_equal(3, 0x100), None);
     }
 
+    /// QUATRIÈME instanciation réelle, `FUN_1404523c0` : entrées **0x28 o**, clé **@ entrée+0**.
+    /// Même code, mêmes index. Preuve byte-exact : `scripts/validate_intrusive_map_e.py`.
+    #[test]
+    fn stride_0x28_keybase0_fourth_instantiation() {
+        let keys: [u32; 5] = [1, 3, 3, 3, 5];
+        let mut sbuf = vec![0u8; 0x1000];
+        for (i, &k) in keys.iter().enumerate() {
+            sbuf[i * 0x28..i * 0x28 + 4].copy_from_slice(&k.to_le_bytes());
+            let so = 0x400 + i * 2;
+            sbuf[so..so + 2].copy_from_slice(&(i as u16).to_le_bytes());
+        }
+        let s = IntrusiveMapSorted {
+            buf: &sbuf,
+            count: 5,
+            sorted_off: 0x400,
+            entry_stride: 0x28,
+            key_base: 0,
+        };
+        assert_eq!(s.find_position(3), Some(1), "leftmost-equal, stride 0x28");
+        assert_eq!(s.find_entry(5), Some(4));
+        assert_eq!(s.find_position(2), None);
+        assert_eq!(s.next_equal(1, 0x100), Some(2));
+    }
+
     // ── pop_front : côté écriture (FUN_140453570) ─────────────────────────────
 
     /// Buffer de nœuds 6 o (prev@+0, next@+2) doublement chaîné selon `order` (tête→queue).
