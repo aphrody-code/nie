@@ -35,13 +35,16 @@ fn resolve(dds: &[u8]) -> Option<(ImageFormat, usize)> {
 }
 
 fn main() {
-    let arg = std::env::args().nth(1).unwrap_or_else(|| {
-        "data/dx11/chr/_face/20_EDIT/_base/base_normal_00.g4tx".to_string()
-    });
+    let arg = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| "data/dx11/chr/_face/20_EDIT/_base/base_normal_00.g4tx".to_string());
     let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| "/home/aphrody/niers".into());
     let mut vfs = Vfs::new();
-    vfs.init(Path::new(&dir).join("data").as_path()).expect("vfs init");
-    let bytes = vfs.read(&arg).unwrap_or_else(|_| panic!("{arg} absent du VFS"));
+    vfs.init(Path::new(&dir).join("data").as_path())
+        .expect("vfs init");
+    let bytes = vfs
+        .read(&arg)
+        .unwrap_or_else(|_| panic!("{arg} absent du VFS"));
     println!("fichier = {arg} ({} o)", bytes.len());
 
     let g4tx = parse_g4tx(&bytes).expect("parse g4tx");
@@ -104,11 +107,13 @@ fn main() {
             "  magic={magic:#010x} dwFlags={dw_flags:#010x} ddspf.flags={pf_flags:#010x} \
              fourCC={:?} ({}) bitcount={rgb_bitcount}",
             String::from_utf8_lossy(fourcc),
-            if is_dx10 { "DX10 ext" } else { "legacy/uncompressed" }
+            if is_dx10 {
+                "DX10 ext"
+            } else {
+                "legacy/uncompressed"
+            }
         );
-        println!(
-            "  masks R={r_mask:#010x} G={g_mask:#010x} B={b_mask:#010x} A={a_mask:#010x}"
-        );
+        println!("  masks R={r_mask:#010x} G={g_mask:#010x} B={b_mask:#010x} A={a_mask:#010x}");
         if is_dx10 {
             let dxgi = u32::from_le_bytes(s[128..132].try_into().unwrap());
             println!("  DX10.dxgiFormat = {dxgi}");
