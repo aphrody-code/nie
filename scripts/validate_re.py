@@ -56,6 +56,10 @@ SUITE = [
     ("validate_strcmp.py", "strcmp MSVC SIMD (FUN_14168b570) — comparaison C non signée -1/0/1, fuzz 668 cas"),
     ("validate_strncmp.py", "strncmp MSVC (FUN_14168b330) — comparaison C bornée non signée, fuzz 908 cas"),
     ("validate_strlen.py", "strlen MSVC SWAR (FUN_14168b5f0) — longueur chaîne C, fuzz 1028 cas"),
+    ("validate_entry_offset.py", "Adresse d'élément table 14×29×3 (FUN_140d3b8f0) — sibling de category_lookup, fuzz 24800 cas"),
+    ("validate_effect_obj_ctor.py", "Ctor lives::CEffectObjComponent (FUN_140071d70) — struct 0xD0 + compteur, fuzz 600 cas"),
+    ("validate_typed_list_iter.py", "Deref+avance itérateur liste typée 2-bit (FUN_140052040) — sentinelles/bases/NULL, fuzz 800 cas"),
+    ("validate_imm_batcher.py", "Assembleur primitives mode immédiat (FUN_14075c030) — transform+émission 5 modes, fuzz 800 cas"),
 ]
 
 ok = 0
