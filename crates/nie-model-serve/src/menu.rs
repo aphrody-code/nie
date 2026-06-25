@@ -26,7 +26,7 @@
 //! v1 = sprites uniquement (les objets `text` sont ignorés ; rendu texte = phase 2 avec
 //! l'atlas de police).
 
-use nie_formats::menu::{compose, CompositeSprite, ScreenTransform};
+use nie_formats::menu::{CompositeSprite, ScreenTransform, compose};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
