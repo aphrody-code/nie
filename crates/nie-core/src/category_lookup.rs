@@ -99,6 +99,46 @@ pub fn find_id_category(table: &[u8], target: i32, force_sentinel: bool, mode_sp
     }
 }
 
+/// Pas (en octets) d'un « canal » dans une rangée (dimension intermédiaire 0..2).
+pub const CHANNEL_STRIDE: usize = 0x2B8;
+/// Nombre de canaux par rangée.
+pub const N_CHANNELS: u8 = 3;
+
+/// Offset (octets, relatif au début de la table `*(param_1 + 0x1758)`) de l'élément
+/// `(row, channel, entry)` — port byte-exact de `FUN_140d3b8f0`, sibling « adresse » de
+/// [`find_id_category`] sur la même table 3D.
+///
+/// Indexation : `offset = (entry + 8)*0x10 + channel*0x2B8 + row*0x82C`, soit
+/// `ENTRY_OFF0 + entry*ENTRY_STRIDE + channel*CHANNEL_STRIDE + row*ROW_STRIDE`.
+/// Les index hors borne sont repliés exactement comme le binaire :
+/// - `entry >= 0x1D` → `0` ;
+/// - `channel >= 3` → `0` ;
+/// - `row >= 14` → `0` si `mode_special` (octet de mode global `== 2`), sinon `2`.
+///
+/// Le binaire renvoie `base + offset` (adresse) ; ce port renvoie l'**offset** invariant
+/// (indépendant de l'adresse runtime `base`).
+#[must_use]
+pub fn entry_offset(row: u8, channel: u8, entry: u32, mode_special: bool) -> usize {
+    let uv_row = if row < N_ROWS {
+        row as usize
+    } else if mode_special {
+        0
+    } else {
+        2
+    };
+    let uv_entry = if entry < N_ENTRIES as u32 {
+        entry as usize
+    } else {
+        0
+    };
+    let uv_channel = if channel < N_CHANNELS {
+        channel as usize
+    } else {
+        0
+    };
+    (uv_entry + 8) * ENTRY_STRIDE + uv_channel * CHANNEL_STRIDE + uv_row * ROW_STRIDE
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -159,5 +199,22 @@ mod tests {
         let t = make_table();
         // la table est remplie de -1 -> -1 matche dès la rangée 0
         assert_eq!(find_id_category(&t, -1, false, false), 0x00);
+    }
+
+    /// Offsets capturés du modèle validé byte-exact (FUN_140d3b8f0, oracle uemu).
+    #[test]
+    fn golden_entry_offset() {
+        assert_eq!(entry_offset(0, 0, 0, false), 0x80);
+        assert_eq!(entry_offset(1, 0, 0, false), 0x8ac);
+        assert_eq!(entry_offset(0, 1, 0, false), 0x338);
+        assert_eq!(entry_offset(0, 0, 5, false), 0xd0);
+        assert_eq!(entry_offset(13, 2, 28, false), 0x71ec);
+        // row>=14 : repli 2 (mode normal) / 0 (mode_special)
+        assert_eq!(entry_offset(14, 0, 0, false), 0x10d8);
+        assert_eq!(entry_offset(14, 0, 0, true), 0x80);
+        // channel>=3 → 0 ; entry>=0x1d → 0
+        assert_eq!(entry_offset(0, 3, 0, false), 0x80);
+        assert_eq!(entry_offset(0, 0, 29, false), 0x80);
+        assert_eq!(entry_offset(14, 2, 30, false), 0x1648);
     }
 }
