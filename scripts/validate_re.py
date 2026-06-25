@@ -48,6 +48,14 @@ SUITE = [
     ("validate_aspect_viewport.py", "Viewport letterbox/pillarbox au ratio (FUN_14045ff50) — rendu, division entière exacte, fuzz"),
     ("validate_typed_value_reader_float.py", "Lecteur read-next-FLOAT de valeur typée (FUN_140051fc0, 331 callers) — sibling float, cvtsi2ss, fuzz"),
     ("validate_handle_table.py", "Find-first-active via table de handles validés (FUN_1411da770) — génération anti-stale, fuzz"),
+    ("validate_quat_mul.py", "Produit de quaternions Hamilton (FUN_14007faf0) — SSE scalaire sans FMA, fuzz 1096 cas"),
+    ("validate_mat4_mul.py", "Multiplication matrices 4×4 row-major (FUN_140090fa0) — mulps+3×vfmadd231ps, fuzz 604 cas"),
+    ("validate_byte_keyed_table.py", "Lookup table records 8o par clé 1 octet (FUN_140d8f2b0) — scan linéaire first-win, fuzz 608 cas"),
+    ("validate_fixed_slot_append.py", "Append élément 0xB8 à tableau capacité fixe (FUN_140506730) — côté ÉCRITURE, fuzz 600 cas"),
+    ("validate_category_lookup.py", "Catégorie d'un id dans table 14×29 (FUN_140d3bac0) — 4 branches found/fallback/sentinelle, fuzz 600 cas"),
+    ("validate_strcmp.py", "strcmp MSVC SIMD (FUN_14168b570) — comparaison C non signée -1/0/1, fuzz 668 cas"),
+    ("validate_strncmp.py", "strncmp MSVC (FUN_14168b330) — comparaison C bornée non signée, fuzz 908 cas"),
+    ("validate_strlen.py", "strlen MSVC SWAR (FUN_14168b5f0) — longueur chaîne C, fuzz 1028 cas"),
 ]
 
 ok = 0
