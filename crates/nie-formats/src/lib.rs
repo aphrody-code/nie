@@ -50,6 +50,12 @@ pub mod crilayla;
 pub mod raster2d;
 /// Utilitaires de noms de chemins d'assets (file-stem byte-exact `FUN_140452820`), no_std.
 pub mod pathname;
+/// `strcmp` byte-exact (`FUN_14168b570`, MSVC SIMD) — comparaison C non signée, no_std.
+pub mod strcmp;
+/// `strncmp` byte-exact (`FUN_14168b330`, MSVC) — comparaison C bornée non signée, no_std.
+pub mod strncmp;
+/// `strlen` byte-exact (`FUN_14168b5f0`, MSVC SWAR) — longueur de chaîne C, no_std.
+pub mod strlen;
 /// Parseurs/décodeurs audio Criware (feature `std` : ADX décode via `f64::cos`/`sqrt`).
 #[cfg(feature = "std")]
 pub mod cri_audio;
