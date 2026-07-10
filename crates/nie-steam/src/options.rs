@@ -117,6 +117,14 @@ pub struct SteamDownloadOptions {
     /// Nombre de chunks téléchargés en parallèle. Défaut : 16.
     pub max_downloads: usize,
 
+    /// Vérifie chaque fichier existant (taille + SHA) contre le manifest et
+    /// **saute** ceux déjà à jour, au lieu de tout retélécharger.
+    ///
+    /// Essentiel pour une MAJ *en place* d'une install existante : sans lui,
+    /// steamroom réécrit l'intégralité du depot (aucun skip, aucun delta en
+    /// mode atomique). Défaut : `true`.
+    pub verify: bool,
+
     /// Chemin du fichier JSON de cache des jetons (refresh token + guard data) par compte.
     ///
     /// `None` → pas de persistance (2FA redemandé à chaque run).
@@ -155,6 +163,7 @@ impl SteamDownloadOptions {
             all_platforms: false,
             depot_ids: vec![],
             max_downloads: 16,
+            verify: true,
             token_store_path: Some(crate::token_store::default_path()),
             guard_provider: None,
         }
