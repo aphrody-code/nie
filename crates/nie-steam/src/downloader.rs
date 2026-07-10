@@ -185,7 +185,7 @@ impl SteamDepotDownloader {
                 .depot_key(plan.depot_key.clone())
                 .install_dir(opts.install_dir.clone())
                 .max_downloads(opts.max_downloads)
-                .verify(false)
+                .verify(opts.verify)
                 .event_sender(event_tx)
                 .build()
                 .map_err(|e| anyhow::anyhow!("DepotJob build : {e}"))?;
