@@ -1,14 +1,24 @@
 import { useEffect, useState } from "react";
+import { useTheme } from "next-themes";
 import { open } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
 import { api, type VfsStats } from "@/lib/api";
 import { vfsIndexDb, type VfsIndexMeta } from "@/lib/vfsIndexDb";
-import { getSettings, setSettings, useSettings } from "@/lib/settings";
+import { getSettings, setSettings, useSettings, type Locale } from "@/lib/settings";
+import { useT, LOCALE_LABELS } from "@/lib/i18n";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Slider } from "@/components/ui/slider";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 function Field({
   label,
@@ -41,6 +51,8 @@ function Field({
 
 export function SettingsView() {
   const settings = useSettings();
+  const t = useT();
+  const { theme, setTheme } = useTheme();
   const [autoGameDir, setAutoGameDir] = useState("");
   const [gameDirOk, setGameDirOk] = useState<boolean | null>(null);
   const [stats, setStats] = useState<VfsStats | null>(null);
@@ -88,6 +100,86 @@ export function SettingsView() {
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-4 p-4">
+      <Card className="elevation-1">
+        <CardHeader>
+          <CardTitle>{t("settings.appearance")}</CardTitle>
+          <CardDescription>Langue, thème, taille de police et zoom de l'interface.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>{t("settings.language")}</Label>
+              <Select value={settings.locale} onValueChange={(v) => setSettings({ locale: v as Locale })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(LOCALE_LABELS) as Locale[]).map((l) => (
+                    <SelectItem key={l} value={l}>
+                      {LOCALE_LABELS[l]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>{t("settings.theme")}</Label>
+              <Select value={theme ?? "dark"} onValueChange={(v) => v && setTheme(v)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="light">{t("settings.theme.light")}</SelectItem>
+                  <SelectItem value="dark">{t("settings.theme.dark")}</SelectItem>
+                  <SelectItem value="system">{t("settings.theme.system")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>{t("settings.font_scale")}</Label>
+              <span className="type-label-small text-on-surface-variant">
+                {Math.round(settings.fontScale * 100)}%
+              </span>
+            </div>
+            <Slider
+              value={[settings.fontScale]}
+              min={0.8}
+              max={1.4}
+              step={0.05}
+              onValueChange={(v) => setSettings({ fontScale: Array.isArray(v) ? v[0] : v })}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>{t("settings.ui_zoom")}</Label>
+              <span className="type-label-small text-on-surface-variant">
+                {Math.round(settings.uiZoom * 100)}%
+              </span>
+            </div>
+            <Slider
+              value={[settings.uiZoom]}
+              min={0.7}
+              max={1.5}
+              step={0.05}
+              onValueChange={(v) => setSettings({ uiZoom: Array.isArray(v) ? v[0] : v })}
+            />
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSettings({ fontScale: 1, uiZoom: 1 })}
+          >
+            {t("settings.reset")}
+          </Button>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Répertoire du jeu</CardTitle>

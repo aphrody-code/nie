@@ -1,15 +1,33 @@
-// Paramètres persistés (localStorage — pas de plugin-store nécessaire pour 4 chaînes).
+// Paramètres persistés (localStorage — pas de plugin-store nécessaire pour ces quelques valeurs).
 import { useSyncExternalStore } from "react";
+
+export type Locale = "fr" | "en" | "ja";
 
 export interface Settings {
   gameDir: string;
   wikiDb: string;
   blenderExe: string;
   azaleeUrl: string;
+  /** Langue de l'interface. */
+  locale: Locale;
+  /** Échelle de la taille de police de base (agit sur `html { font-size }`, tout le reste est en rem). */
+  fontScale: number;
+  /** Zoom global de l'interface (CSS `zoom`, WebView2/Chromium). */
+  uiZoom: number;
 }
 
+// Le thème clair/sombre/système est géré par next-themes (sa propre clé localStorage
+// "theme") — pas dupliqué ici pour éviter deux sources de vérité qui divergent.
 const KEY = "nie-explorer:settings";
-const DEFAULTS: Settings = { gameDir: "", wikiDb: "", blenderExe: "", azaleeUrl: "" };
+const DEFAULTS: Settings = {
+  gameDir: "",
+  wikiDb: "",
+  blenderExe: "",
+  azaleeUrl: "",
+  locale: "fr",
+  fontScale: 1,
+  uiZoom: 1,
+};
 
 function load(): Settings {
   try {
