@@ -5,7 +5,11 @@
 //! - Parser TS de référence : `packages/inagle/src/parsers/chara-base.ts`
 //!   (`parseBaseNode`, `parseAllCharaBase`) — **port 1:1**.
 //! - Données : `data/common/gamedata/character/chara_base_1.*.cfg.bin` (VFS IEVR), format
-//!   **T2B** (`entries`). Noeuds `CHARA_BASE_INFO_<i>` (et `CHARA_BASE_BATTLE_<i>`).
+//!   **T2B** (`entries`). Noeuds `CHARA_BASE_INFO_<i>` (et `CHARA_BASE_BATTLE_<i>`) dans un dump
+//!   JSON inagle (le dumper JS suffixe chaque enfant par son index) ; sur le T2B binaire LU EN
+//!   DIRECT (`nie_explore::bridge::t2b_to_json`, pont vérifié sur un fichier réel), les enfants
+//!   n'ont PAS ce suffixe (`CHARA_BASE_INFO`/`CHARA_BASE_BATTLE` bruts, répétés) — les deux
+//!   formes sont acceptées par le filtre interne `is_chara_base_node`.
 //!
 //! ## Disposition des variables (positions découvertes par inagle)
 //!
@@ -50,11 +54,19 @@ pub struct CharaBase {
     pub belong_team_id: Option<HashId>,
 }
 
-/// Vrai si le nom de noeud correspond à `CHARA_BASE_(INFO|BATTLE)_<digits>`
-/// (réplique de la regex `^CHARA_BASE_(INFO|BATTLE)_\d+$` d'inagle).
+/// Vrai si le nom de noeud correspond à `CHARA_BASE_(INFO|BATTLE)_<digits>` (regex `^CHARA_BASE_
+/// (INFO|BATTLE)_\d+$` d'inagle — forme du dump JSON historique, où le sérialiseur JS suffixe
+/// chaque enfant d'un même nom par son index) **ou** au nom brut `CHARA_BASE_(INFO|BATTLE)` SANS
+/// suffixe — la forme réelle des enfants dans le T2B binaire (vérifié octet sur `chara_base_
+/// 1.03.98.00.cfg.bin` réel : 14448 enfants `CHARA_BASE_INFO` / 5898 `CHARA_BASE_BATTLE`, aucun
+/// suffixe `_<i>` — le suffixe est un artefact du dumper JS, pas du format T2B). Les deux formes
+/// sont acceptées pour rester correct que la source soit un dump JSON inagle ou le T2B en direct.
 fn is_chara_base_node(name: &str) -> bool {
-    for prefix in ["CHARA_BASE_INFO_", "CHARA_BASE_BATTLE_"] {
-        if let Some(rest) = name.strip_prefix(prefix) {
+    for base in ["CHARA_BASE_INFO", "CHARA_BASE_BATTLE"] {
+        if name == base {
+            return true;
+        }
+        if let Some(rest) = name.strip_prefix(base).and_then(|r| r.strip_prefix('_')) {
             return !rest.is_empty() && rest.bytes().all(|b| b.is_ascii_digit());
         }
     }

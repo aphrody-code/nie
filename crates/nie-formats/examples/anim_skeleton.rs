@@ -64,19 +64,27 @@ fn main() {
 
     let pk = g4pk::parse(&pk_bytes).unwrap();
     let f = pk.files.iter().find(|f| f.name.ends_with(".g4mt")).unwrap();
-    let anim = g4mt::parse_animation(&pk_bytes[f.offset..f.offset + f.size]).unwrap();
-    let rot: Vec<&g4mt::AnimChannel> = anim.channels.iter().filter(|c| c.is_rotation()).collect();
-    println!("os={n} anim: {} frames, {} canaux rot, {} tracks", anim.frame_count, rot.len(), anim.bone_indices.len());
+    let g4mt_bytes = &pk_bytes[f.offset..f.offset + f.size];
+    let motion = g4mt::Motion::parse(g4mt_bytes).unwrap();
+    let clip = &motion.clips[0];
 
-    // Mapping : canal de rotation i → os anim.bone_indices[i] (confiance moyenne).
-    // bone -> Some(index de canal rotation).
-    let mut bone_chan: Vec<Option<usize>> = vec![None; n];
-    for (ci, &bidx) in anim.bone_indices.iter().enumerate() {
-        let b = bidx as usize;
-        if b < n && ci < rot.len() {
-            bone_chan[b] = Some(ci);
+    // Mapping correct : cible → hash CRC32 du nom d'os, résolu contre le G4SK réel (remplace
+    // l'ancienne heuristique « canal i → os i »/BASE, invalidée par le format structurel réel).
+    let bone_names: Vec<&str> = bones.bones.iter().map(|b| b.name.as_str()).collect();
+    let resolved = g4mt::resolve_targets(&motion.target_hashes, &bone_names);
+    let mut bone_target: Vec<Option<u16>> = vec![None; n];
+    for t in motion.target_indices(clip) {
+        if let Some(Some(b)) = resolved.get(t as usize) {
+            bone_target[*b] = Some(t);
         }
     }
+    println!(
+        "os={n} clip=\"{}\" frames={} cibles_résolues={}/{}",
+        clip.name,
+        clip.frame_count(),
+        resolved.iter().filter(|r| r.is_some()).count(),
+        motion.target_hashes.len()
+    );
 
     // Bornes (depuis la pose de repos monde) pour cadrer la projection.
     let rest_world = g4sk::rest_world_matrices(&poses, &parents);
@@ -97,17 +105,16 @@ fn main() {
         (sx, sy)
     };
 
-    for frame in 0..anim.frame_count as usize {
-        // FK animée : local = TRS de repos avec rotation remplacée par le quaternion du canal.
+    for frame in 0..clip.frame_count() as usize {
+        // FK animée : local = TRS de repos avec rotation remplacée par le quaternion échantillonné
+        // (interpolation SLERP entre clés voisines — le format est keyframe, pas dense par frame).
         let mut world: Vec<[[f32; 4]; 4]> = Vec::with_capacity(n);
         for i in 0..n {
             let mut trs = poses[i].local;
-            if let Some(ci) = bone_chan[i] {
-                let s = &rot[ci].samples;
-                let q = s[frame.min(s.len() - 1)];
-                // normalise (sécurité) puis remplace la rotation.
-                let nrm = (q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3]).sqrt().max(1e-6);
-                trs.quat = [q[0] / nrm, q[1] / nrm, q[2] / nrm, q[3] / nrm];
+            if let Some(t) = bone_target[i]
+                && let Some(q) = motion.sample_rotation(g4mt_bytes, clip, t, frame as f32)
+            {
+                trs.quat = q;
             }
             let local = g4sk::local_matrix(&trs);
             let par = parents[i];
@@ -125,7 +132,7 @@ fn main() {
             let par = parents[i];
             if par >= 0 && (par as usize) < n {
                 let pp = proj(xform(&world[par as usize], [0.0, 0.0, 0.0]));
-                let lit = bone_chan[i].is_some();
+                let lit = bone_target[i].is_some();
                 line(&mut buf, pp, pj, if lit { [90, 200, 255] } else { [70, 70, 90] });
             }
             // articulation.

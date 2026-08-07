@@ -1,0 +1,76 @@
+# Package Cargo autonome, volontairement HORS du workspace racine (`members = ["crates/*"]`) :
+# une table [workspace] vide l'indique explicitement à Cargo (sinon il remonte l'arborescence
+# et réclame d'être ajouté aux membres). Les crates niers sont réutilisées via chemins relatifs
+# (cf. [dependencies] ci-dessous), pas via l'espace de travail.
+[workspace]
+
+[package]
+name = "nie-explorer"
+description = "Explorateur/éditeur du VFS (CPK) d'Inazuma Eleven: Victory Road — UI native Windows (Fluent/Mica)"
+version = "0.1.0"
+authors = ["niers"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "nie_explorer_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-window-state = "2"
+tauri-plugin-clipboard-manager = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-sql = { version = "2", features = ["sqlite"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+base64 = "0.22"
+# Client HTTP synchrone minimal — résolveur distant azalee (GraphQL/REST), désactivé tant que
+# l'URL n'est pas renseignée côté UI (Paramètres). Pas de runtime async requis (appel bloquant
+# dans un `tauri::command`, exécuté hors thread UI par Tauri).
+ureq = { version = "2", default-features = false, features = ["tls", "json"] }
+
+# Forward-ouverture "Ouvrir avec" Explorer → instance déjà lancée (argv[1] = chemin du fichier).
+[target.'cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))'.dependencies]
+tauri-plugin-single-instance = "2"
+
+# Crates niers réutilisées telles quelles (mêmes décodeurs que `niers vfs`, cf. CLAUDE.md
+# anti-doublon) — chemins relatifs depuis apps/nie-explorer/src-tauri/, hors du workspace
+# racine (members = ["crates/*"]), donc pinnées ici plutôt que via [workspace.dependencies].
+# PAS de nie-wiki ici : son `rusqlite` (libsqlite3-sys 0.35) entre en conflit de lien natif
+# (`links = "sqlite3"`) avec le `sqlx-sqlite` de tauri-plugin-sql (libsqlite3-sys 0.28) — Cargo
+# interdit deux copies. Le miroir wiki est donc interrogé côté frontend via tauri-plugin-sql
+# (mêmes requêtes SQL que `nie-wiki::query`, copiées dans `src/lib/wikiDb.ts` — un seul moteur
+# SQLite dans TOUT le binaire, le choix "production ready" demandé plutôt que deux crates SQLite.
+nie-formats = { path = "../../../crates/nie-formats", features = ["serde", "textures", "audio-decode"] }
+nie-explore = { path = "../../../crates/nie-explore" }
+# Saves IEVR (Lives, CRC32-keyed XOR) : décrypt/inspection/ré-encryptage → onglet Sauvegardes.
+nie-save = { path = "../../../crates/nie-save", features = ["serde"] }
+# Modèles de données de jeu (skills/auras/chara_param/items…) — chargée pour un futur navigateur
+# de données 100 % hors-ligne (sans miroir wiki), pas encore câblée dans une commande.
+nie-data = { path = "../../../crates/nie-data", features = ["serde", "std"] }
+# Logique de jeu reversée (ballon/IA/état de match) — chargée pour de futurs outils de mod
+# gameplay, pas encore câblée dans une commande.
+nie-core = { path = "../../../crates/nie-core" }
+# RE en direct (lecture mémoire ReadProcessMemory native Windows) — chargée mais SANS commande
+# exposée : EAC est présent sur cette installation, on n'attache pas au process au runtime
+# de l'app de modding par défaut (cf. `docs/`).
+nie-trace = { path = "../../../crates/nie-trace" }
+# Frontière BFS (redis) — chargée pour un futur outil RE intégré, pas encore câblée.
+nie-queue = { path = "../../../crates/nie-queue" }
+# PAS de nie-re/nie-index/nie-seed/nie-zukan/nie-model-serve : tous dépendent (directement ou
+# via nie-index) de `rusqlite`, même conflit de lien natif `sqlite3` que nie-wiki ci-dessus.
+
+# Matériau de fond natif Windows 11 (Mica) — habillage "UI Windows native" du user.
+[target.'cfg(target_os = "windows")'.dependencies]
+window-vibrancy = "0.5"

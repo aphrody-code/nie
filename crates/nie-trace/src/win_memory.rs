@@ -7,18 +7,20 @@
 use std::ffi::c_void;
 
 use windows_sys::Win32::Foundation::{CloseHandle, GetLastError, HANDLE, INVALID_HANDLE_VALUE};
-use windows_sys::Win32::System::Diagnostics::Debug::ReadProcessMemory;
+use windows_sys::Win32::System::Diagnostics::Debug::{
+    FlushInstructionCache, ReadProcessMemory, WriteProcessMemory,
+};
 use windows_sys::Win32::System::Diagnostics::ToolHelp::{
     CreateToolhelp32Snapshot, MODULEENTRY32W, Module32FirstW, Module32NextW, PROCESSENTRY32W,
     Process32FirstW, Process32NextW, TH32CS_SNAPMODULE, TH32CS_SNAPMODULE32, TH32CS_SNAPPROCESS,
 };
 use windows_sys::Win32::System::Memory::{
     MEM_COMMIT, MEMORY_BASIC_INFORMATION, PAGE_EXECUTE, PAGE_EXECUTE_READ, PAGE_EXECUTE_READWRITE,
-    PAGE_EXECUTE_WRITECOPY, PAGE_GUARD, PAGE_NOACCESS, PAGE_READONLY, PAGE_READWRITE,
-    PAGE_WRITECOPY, VirtualQueryEx,
+    PAGE_EXECUTE_WRITECOPY, PAGE_GUARD, PAGE_NOACCESS, PAGE_PROTECTION_FLAGS, PAGE_READONLY,
+    PAGE_READWRITE, PAGE_WRITECOPY, VirtualProtectEx, VirtualQueryEx,
 };
 use windows_sys::Win32::System::Threading::{
-    OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ,
+    OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_OPERATION, PROCESS_VM_READ, PROCESS_VM_WRITE,
 };
 
 use crate::{MapEntry, MemError};
@@ -86,6 +88,88 @@ pub fn read(pid: i32, addr: u64, dest: &mut [u8]) -> Result<usize, MemError> {
         });
     }
     Ok(read_n)
+}
+
+/// Ouvre la cible en lecture **et écriture** mémoire
+/// (`PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_VM_OPERATION | PROCESS_QUERY_INFORMATION`).
+fn open_rw(pid: i32) -> Option<Handle> {
+    // SAFETY: appel FFI pur ; renvoie un handle (null en échec).
+    let h = unsafe {
+        OpenProcess(
+            PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_VM_OPERATION | PROCESS_QUERY_INFORMATION,
+            0,
+            pid as u32,
+        )
+    };
+    if h.is_null() { None } else { Some(Handle(h)) }
+}
+
+/// Écrit `src` à `addr` du process `pid`. Bascule temporairement la page en
+/// `PAGE_EXECUTE_READWRITE` (`VirtualProtectEx`) pour autoriser l'écriture sur du code/lecture-seule,
+/// puis **restaure** la protection d'origine et vide le cache d'instructions. RE / patch live d'un
+/// jeu possédé — peut déstabiliser la cible, à n'utiliser qu'en connaissance de cause.
+pub fn write(pid: i32, addr: u64, src: &[u8]) -> Result<usize, MemError> {
+    if src.is_empty() {
+        return Ok(0);
+    }
+    let Some(h) = open_rw(pid) else {
+        // SAFETY: appel FFI pur.
+        let code = unsafe { GetLastError() };
+        return Err(MemError::Win { op: "OpenProcess", pid, addr, len: src.len(), code, hint: last_error_hint(code) });
+    };
+
+    // Déverrouille **page par page** en mémorisant la protection d'origine de CHAQUE page :
+    // `VirtualProtectEx` n'écrit dans `lpflOldProtect` que la protection de la *première* page d'une
+    // plage multi-pages, donc restaurer cette valeur unique sur tout l'intervalle corromprait la
+    // protection des pages suivantes hétérogènes. On protège donc une page à la fois.
+    const PAGE: u64 = 0x1000;
+    let end = addr.saturating_add(src.len() as u64).saturating_sub(1);
+    let first_page = addr & !(PAGE - 1);
+    let last_page = end & !(PAGE - 1);
+    let mut saved: Vec<(u64, PAGE_PROTECTION_FLAGS)> = Vec::new();
+    let mut page = first_page;
+    loop {
+        let mut old: PAGE_PROTECTION_FLAGS = 0;
+        // SAFETY: `h.0` valide (PROCESS_VM_OPERATION) ; `old` inscriptible ; une seule page (protection
+        // uniforme à la granularité page), donc `old` reçoit bien sa protection d'origine.
+        let ok = unsafe {
+            VirtualProtectEx(h.0, page as *const c_void, PAGE as usize, PAGE_EXECUTE_READWRITE, &mut old)
+        };
+        if ok != 0 {
+            saved.push((page, old));
+        }
+        if page >= last_page {
+            break;
+        }
+        page += PAGE;
+    }
+
+    let mut written: usize = 0;
+    // SAFETY: `h.0` valide (PROCESS_VM_WRITE) ; `src` lisible sur `src.len()` octets ;
+    // WriteProcessMemory écrit au plus `src.len()` octets et renseigne `written`.
+    let ok = unsafe {
+        WriteProcessMemory(h.0, addr as *mut c_void, src.as_ptr().cast::<c_void>(), src.len(), &mut written)
+    };
+    let write_err = if ok == 0 {
+        // SAFETY: appel FFI pur — capturé AVANT la restauration de protection (qui écraserait l'erreur).
+        Some(unsafe { GetLastError() })
+    } else {
+        None
+    };
+
+    // Restaure chaque page à SA protection d'origine (best-effort), puis vide le cache d'instructions.
+    for (p, old) in saved {
+        let mut tmp: PAGE_PROTECTION_FLAGS = 0;
+        // SAFETY: `h.0` valide ; restaure exactement la page déverrouillée à sa valeur d'origine.
+        unsafe { VirtualProtectEx(h.0, p as *const c_void, PAGE as usize, old, &mut tmp) };
+    }
+    // SAFETY: `h.0` valide ; flush best-effort de la plage écrite (au cas où c'était du code).
+    unsafe { FlushInstructionCache(h.0, addr as *const c_void, src.len()) };
+
+    if let Some(code) = write_err {
+        return Err(MemError::Win { op: "WriteProcessMemory", pid, addr, len: src.len(), code, hint: last_error_hint(code) });
+    }
+    Ok(written)
 }
 
 /// Convertit un nom large NUL-terminé (`[u16]`) en `String`.

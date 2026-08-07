@@ -1,42 +1,54 @@
-//! Validation du décodage d'animation G4MT contre un vrai fichier (extrait d'un g4pk).
-//! Usage : `cargo run -p nie-formats --example validate_g4mt -- <fichier.g4pk>`
+//! Validation croisée du décodage structurel G4MT (`g4mt::Motion`) contre un vrai fichier —
+//! optionnellement contre l'implémentation Python indépendante `tools/niers` (valeurs
+//! attendues passées en argument, cf. `docs game-data` pour la méthode).
+//! Usage : `cargo run -p nie-formats --example validate_g4mt -- <fichier.g4mt> <squelette.g4sk>`
 
-use nie_formats::{g4mt, g4pk};
+use nie_formats::{g4mt, g4sk};
 
 fn main() {
-    let path = std::env::args().nth(1).expect("usage: validate_g4mt <fichier.g4pk>");
-    let data = std::fs::read(&path).expect("lire");
-    // Extrait le premier sous-fichier .g4mt de l'archive g4pk.
-    let pk = g4pk::parse(&data).expect("parse g4pk");
-    let f = pk.files.iter().find(|f| f.name.ends_with(".g4mt")).expect("pas de g4mt");
-    let g4mt_data = &data[f.offset..f.offset + f.size];
+    let args: Vec<String> = std::env::args().collect();
+    let g4mt_path = args.get(1).expect("usage: validate_g4mt <fichier.g4mt> <squelette.g4sk>");
+    let sk_path = args.get(2).expect("usage: validate_g4mt <fichier.g4mt> <squelette.g4sk>");
+    let data = std::fs::read(g4mt_path).expect("lire g4mt");
+    let sk_bytes = std::fs::read(sk_path).expect("lire g4sk");
 
-    let anim = g4mt::parse_animation(g4mt_data).expect("parse_animation");
-    println!("clip={:?} frames={} tracks={} canaux={}", anim.clip_name, anim.frame_count, anim.bone_indices.len(), anim.channels.len());
+    let motion = g4mt::Motion::parse(&data).expect("Motion::parse");
+    println!("clips={} cibles={}", motion.clips.len(), motion.target_hashes.len());
 
-    let rot: Vec<_> = anim.channels.iter().filter(|c| c.is_rotation()).collect();
-    let sca: Vec<_> = anim.channels.iter().filter(|c| !c.is_rotation()).collect();
-    println!("canaux rotation (4-vec stride8)={} scalaires={}", rot.len(), sca.len());
+    let header = g4sk::parse_header(&sk_bytes).expect("g4sk header");
+    let bones = g4sk::parse_hierarchy(&sk_bytes, &header);
+    let bone_names: Vec<&str> = bones.bones.iter().map(|b| b.name.as_str()).collect();
+    let resolved = g4mt::resolve_targets(&motion.target_hashes, &bone_names);
+    let n_resolved = resolved.iter().filter(|r| r.is_some()).count();
+    println!("cibles résolues contre le G4SK : {n_resolved}/{}", motion.target_hashes.len());
 
-    // Validation : les samples de rotation doivent être des quaternions UNITAIRES (|q|≈1).
-    let mut unit = 0usize;
-    let mut nonunit = 0usize;
-    let mut worst = 0.0f32;
-    for c in &rot {
-        for s in &c.samples {
-            let n = (s[0] * s[0] + s[1] * s[1] + s[2] * s[2] + s[3] * s[3]).sqrt();
-            if (n - 1.0).abs() < 0.01 {
-                unit += 1;
-            } else {
-                nonunit += 1;
-                worst = worst.max((n - 1.0).abs());
+    let mut total_samples = 0usize;
+    let mut worst_non_unit = 0.0f32;
+    for (ci, clip) in motion.clips.iter().enumerate() {
+        let targets = motion.target_indices(clip);
+        let mut ok = 0usize;
+        for &t in &targets {
+            for frame in [0.0, (clip.frame_count() as f32 - 1.0) * 0.5, (clip.frame_count() as f32 - 1.0)] {
+                if let Some(q) = motion.sample_rotation(&data, clip, t, frame) {
+                    let n = (q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3]).sqrt();
+                    worst_non_unit = worst_non_unit.max((n - 1.0).abs());
+                    ok += 1;
+                }
             }
         }
+        total_samples += ok;
+        if ci < 3 || clip.frame_count() > 300 {
+            println!(
+                "clip[{ci:3}] \"{}\" frames={:4} cibles={:3} échantillons_rotation_ok={ok}",
+                clip.name,
+                clip.frame_count(),
+                targets.len()
+            );
+        }
     }
-    println!("samples rotation : unitaires={unit} non-unitaires={nonunit} (1 canal 0902 non-unitaire attendu)");
-    println!("nb samples/canal : {}", rot.first().map_or(0, |c| c.samples.len()));
+    println!("total échantillons rotation décodés = {total_samples}, pire écart |q|-1 = {worst_non_unit:.6}");
 
-    let ok = anim.frame_count == 60 && rot.len() >= 15 && unit > nonunit * 10;
+    let ok = n_resolved > motion.target_hashes.len() / 2 && total_samples > 0 && worst_non_unit < 0.01;
     println!("{}", if ok { "VALIDÉ ✓" } else { "ÉCHEC ✗" });
     if !ok {
         std::process::exit(1);
