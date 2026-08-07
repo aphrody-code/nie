@@ -16,16 +16,21 @@ use crate::{MapEntry, MemError};
 
 // ─── process_vm_readv / writev ──────────────────────────────────────────────────────
 
-fn err_from_errno(pid: i32, addr: u64, len: usize, is_write: bool) -> MemError {
-    let errno = std::io::Error::last_os_error().raw_os_error().unwrap_or(0);
-    let op = if is_write { "process_vm_writev" } else { "process_vm_readv" };
-    let hint = match errno {
+/// Libellé humain d'un errno de `process_vm_{read,write}v` (pur, testable).
+#[must_use]
+fn errno_hint(errno: i32) -> &'static str {
+    match errno {
         1 => " (EPERM — ptrace_scope refuse : pas ancêtre et pas CAP_SYS_PTRACE)",
         3 => " (ESRCH — pid inexistant)",
         14 => " (EFAULT — adresse/plage non mappée côté cible)",
         _ => "",
-    };
-    MemError::Syscall { op, pid, addr, len, errno, hint }
+    }
+}
+
+fn err_from_errno(pid: i32, addr: u64, len: usize, is_write: bool) -> MemError {
+    let errno = std::io::Error::last_os_error().raw_os_error().unwrap_or(0);
+    let op = if is_write { "process_vm_writev" } else { "process_vm_readv" };
+    MemError::Syscall { op, pid, addr, len, errno, hint: errno_hint(errno) }
 }
 
 /// Lit jusqu'à `dest.len()` octets à `addr` du process `pid`. Ne stoppe pas la cible.
@@ -172,10 +177,9 @@ pub fn is_ancestor_of(pid: i32, ancestor_pid: i32) -> bool {
     false
 }
 
-fn read_ppid(pid: i32) -> i32 {
-    let Ok(status) = fs::read_to_string(format!("/proc/{pid}/status")) else {
-        return -1;
-    };
+/// Extrait le PPid d'un contenu `/proc/<pid>/status` (pur, testable). `-1` si absent/illisible.
+#[must_use]
+fn parse_ppid(status: &str) -> i32 {
     for line in status.lines() {
         if let Some(rest) = line.strip_prefix("PPid:") {
             return rest.trim().parse::<i32>().unwrap_or(-1);
@@ -184,17 +188,29 @@ fn read_ppid(pid: i32) -> i32 {
     -1
 }
 
+fn read_ppid(pid: i32) -> i32 {
+    match fs::read_to_string(format!("/proc/{pid}/status")) {
+        Ok(status) => parse_ppid(&status),
+        Err(_) => -1,
+    }
+}
+
+/// Décision pure (testable) : un `ptrace_scope` donné permet-il l'accès, sachant si l'appelant est
+/// ancêtre de la cible ? `scope<=0` = oui ; `scope==1` = ssi ancêtre ; `>=2` = non (sans `CAP_SYS_PTRACE`).
+#[must_use]
+fn permitted_for_scope(scope: i32, is_ancestor: bool) -> bool {
+    match scope {
+        s if s <= 0 => true,
+        1 => is_ancestor,
+        _ => false,
+    }
+}
+
 /// `process_vm_readv` est-il *probablement* permis sur `pid` depuis le process courant ?
 #[must_use]
 pub fn likely_permitted(pid: i32) -> bool {
     let scope = read_ptrace_scope();
-    if scope <= 0 {
-        return true;
-    }
-    if scope == 1 {
-        return is_ancestor_of(pid, std::process::id() as i32);
-    }
-    false
+    permitted_for_scope(scope, is_ancestor_of(pid, std::process::id() as i32))
 }
 
 /// API commune : PID du premier process dont `/proc/<pid>/comm` vaut `name`.
@@ -260,5 +276,93 @@ mod tests {
     fn read_rejects_bad_pid() {
         let mut buf = [0u8; 16];
         assert!(read(-1, 0x1000, &mut buf).is_err());
+    }
+
+    #[test]
+    fn errno_hint_all_arms() {
+        assert!(errno_hint(1).contains("EPERM"));
+        assert!(errno_hint(3).contains("ESRCH"));
+        assert!(errno_hint(14).contains("EFAULT"));
+        assert_eq!(errno_hint(0), "");
+        assert_eq!(errno_hint(42), "");
+    }
+
+    #[test]
+    fn permitted_for_scope_all_arms() {
+        assert!(permitted_for_scope(0, false)); // scope désactivé → toujours permis
+        assert!(permitted_for_scope(-1, false));
+        assert!(permitted_for_scope(1, true)); // scope restreint → ssi ancêtre
+        assert!(!permitted_for_scope(1, false));
+        assert!(!permitted_for_scope(2, true)); // admin only
+        assert!(!permitted_for_scope(3, true));
+    }
+
+    #[test]
+    fn empty_slices_are_noops() {
+        assert_eq!(read(123, 0x1000, &mut []).unwrap(), 0);
+        assert_eq!(write(123, 0x1000, &[]).unwrap(), 0);
+    }
+
+    #[test]
+    fn write_rejects_bad_pid() {
+        assert!(write(-1, 0x1000, &[1, 2, 3]).is_err());
+    }
+
+    #[test]
+    fn read_errnos_esrch_and_efault() {
+        // ESRCH : pid quasi-certainement inexistant.
+        let mut buf = [0u8; 8];
+        let esrch = read(0x3FFF_FFFF, 0x1000, &mut buf);
+        assert!(matches!(esrch, Err(MemError::Syscall { errno: 3, .. })));
+        // EFAULT : adresse non mappée dans NOTRE propre process (page nulle).
+        let efault = read(std::process::id() as i32, 0x1, &mut buf);
+        assert!(matches!(efault, Err(MemError::Syscall { errno: 14, .. })));
+    }
+
+    #[test]
+    fn self_introspection_via_proc() {
+        let me = std::process::id() as i32;
+        // /proc/self/maps non vide.
+        assert!(!enumerate_regions(me).is_empty());
+        // notre propre comm est retrouvable.
+        let comm = fs::read_to_string(format!("/proc/{me}/comm")).unwrap().trim().to_owned();
+        assert_eq!(find_pid_by_name(&comm), Some(me));
+        // base + étendue du binaire de test (son chemin /proc/self/maps contient le nom du comm).
+        let base = find_module_base(me, &comm).expect("binaire de test mappé");
+        let (b, end) = module_range(me, &comm).unwrap();
+        assert_eq!(b, base);
+        assert!(end >= base);
+        assert!(!find_module_regions(me, &comm).is_empty());
+        // ppid réel → is_ancestor_of vrai ; pid bidon → faux.
+        let ppid = read_ppid(me);
+        assert!(ppid > 0);
+        assert!(is_ancestor_of(me, ppid));
+        assert!(!is_ancestor_of(me, 0x3FFF_FFFF));
+        // likely_permitted ne panique pas (résultat dépend du scope système).
+        let _ = likely_permitted(me);
+    }
+
+    #[test]
+    fn read_ppid_rejects_bad_pid() {
+        assert_eq!(read_ppid(0x3FFF_FFFF), -1);
+    }
+
+    #[test]
+    fn parse_ppid_variants() {
+        assert_eq!(parse_ppid("Name:\tx\nPPid:\t42\nUid:\t0"), 42);
+        assert_eq!(parse_ppid("Name:\tx\nUid:\t0"), -1); // pas de ligne PPid
+        assert_eq!(parse_ppid("PPid:\tnotnum"), -1); // PPid illisible
+        assert_eq!(parse_ppid(""), -1);
+    }
+
+    #[test]
+    fn is_ancestor_of_short_circuits_on_missing_status() {
+        // pid bidon : read_ppid(cur) == -1 dès la 1re itération → false (branche ppid<=0).
+        assert!(!is_ancestor_of(0x3FFF_FFFF, 1));
+    }
+
+    #[test]
+    fn find_pid_by_name_absent() {
+        assert_eq!(find_pid_by_name("zzz-process-inexistant-zzz"), None);
     }
 }

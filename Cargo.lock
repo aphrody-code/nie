@@ -2503,6 +2503,7 @@ dependencies = [
  "hex",
  "image",
  "image_dds",
+ "nie-explore",
  "nie-formats",
  "nie-index",
  "nie-queue",
@@ -2536,6 +2537,16 @@ name = "nie-data"
 version = "0.1.0"
 dependencies = [
  "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "nie-explore"
+version = "0.1.0"
+dependencies = [
+ "nie-data",
+ "nie-formats",
+ "nie-lua",
  "serde_json",
 ]
 

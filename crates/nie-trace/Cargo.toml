@@ -16,6 +16,12 @@ workspace = true
 name = "nie-mem"
 path = "src/bin/nie-mem.rs"
 
+[[bin]]
+# Éditeur mémoire live — lit/écrit le vrai nie.exe via le catalogue dérivé du dump (resolve/get/set/
+# watch/scan/patch). Même cross-compile WSL→Windows que nie-mem ; compile aussi sous Linux (Wine).
+name = "nie-edit"
+path = "src/bin/nie-edit.rs"
+
 [dependencies]
 thiserror.workspace = true
 

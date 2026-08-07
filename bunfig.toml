@@ -13,7 +13,13 @@ preload = ["./packages/nie-plugin/src/register.ts"]
 linker = "isolated"       # pnpm-style strict node_modules
 
 [install.scopes]
-# Aucun registry privé pour l'instant.
+# @rose-griffon/* (types/db/ui, écosystème azalee) — registre privé GitHub Packages,
+# restreint (publishConfig.access="restricted"). Token via $GH_PACKAGES_TOKEN (.env.local,
+# gitignoré — jamais commité). N'installer QUE ce qui est sûr pour une app desktop distribuée :
+# @rose-griffon/types (schémas/types purs) oui ; @rose-griffon/db (client Supabase, expose des
+# clés service-role côté serveur) et @rose-griffon/ui (dépend de db) volontairement écartés
+# ici, cf. commentaire dans apps/nie-explorer.
+"@rose-griffon" = { token = "$GH_PACKAGES_TOKEN", url = "https://npm.pkg.github.com/" }
 
 [test]
 preload = ["./packages/nie-plugin/src/register.ts"]
