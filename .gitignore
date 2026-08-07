@@ -7,6 +7,11 @@ node_modules/
 *.tsbuildinfo
 .bun/
 
+# Secrets (jamais commités) — ex. token registry privé @rose-griffon (npm.pkg.github.com)
+.env
+.env.local
+.env.*.local
+
 # Index RE généré (volumineux, reproductible depuis le binaire)
 /var
 *.sqlite
@@ -55,3 +60,20 @@ refs/
 .python-version
 __pycache__/
 *.pyc
+
+# Third-party save editor (98MB .NET single-file, embeds © Level-5 card art) — never commit
+# (le flux ADS ":Zone.Identifier" est réécrit par git avec un ":" pleine-chasse sur Windows,
+# d'où le glob plutôt qu'un nom littéral)
+InazumaElevenVRSaveEditor.exe*
+
+# Le dépôt est enraciné dans le dossier d'install Steam du jeu (fallback NIE_GAME_DIR) :
+# chaque mise à jour Steam/EAC/EOS y dépose ses binaires/launchers — jamais du code niers, jamais à committer.
+EACLauncher.exe
+EasyAntiCheat/
+EpicOnlineServices/
+GameBootstrapper.exe
+GameBootstrapper.ini
+GameBootstrapper*.log
+*.vdf
+*.dll
+uninstall/

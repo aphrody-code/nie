@@ -6,7 +6,12 @@
 //! - Parser TS de référence : `packages/inagle/src/parsers/chara-text.ts`
 //!   (`parseNounNode`, `parseNounsFromConfig`, `parseRomaNode`, `buildRomanizedMap`) — **port 1:1**.
 //! - Données : `data/common/text/<locale>/chara_text.cfg.bin` (VFS IEVR), format **T2B**
-//!   (`entries`). Noeuds `NOUN_INFO_<i>` (le noeud `NOUN_INFO_BEGIN_0` est exclu).
+//!   (`entries`). Noeuds `NOUN_INFO_<i>` dans un dump JSON inagle (le dumper JS suffixe chaque
+//!   enfant par son index ; le noeud `NOUN_INFO_BEGIN` est exclu). Sur le T2B binaire LU EN
+//!   DIRECT (`nie_explore::bridge::t2b_to_json`, vérifié sur `chara_text.cfg.bin` réel — racine
+//!   `NOUN_INFO_BEGIN` + 21081 enfants), les enfants sont nommés `NOUN_INFO` SANS suffixe : les
+//!   deux formes sont acceptées (préfixe de parcours élargi à `"NOUN_INFO"`, filtre interne
+//!   `is_noun_node` acceptant le nom brut en plus du `_<digits>`).
 //!
 //! ## `NOUN_INFO` (noms localisés)
 //!
@@ -53,9 +58,11 @@ pub struct ParsedRomanizedName {
     pub last_name: String,
 }
 
-/// Vrai si le noeud est un `NOUN_INFO_*` à parser (hors `*BEGIN*`).
+/// Vrai si le noeud est un `NOUN_INFO`/`NOUN_INFO_<i>` à parser (hors `*BEGIN*`) — le nom brut
+/// SANS suffixe est la forme réelle des enfants dans le T2B binaire (cf. commentaire d'en-tête) ;
+/// le suffixe `_<i>` est un artefact du dumper JSON inagle, accepté pour compatibilité.
 fn is_noun_node(name: &str) -> bool {
-    name.starts_with("NOUN_INFO_") && !name.contains("BEGIN")
+    (name == "NOUN_INFO" || name.starts_with("NOUN_INFO_")) && !name.contains("BEGIN")
 }
 
 /// Parse un noeud `NOUN_INFO` en [`ParsedNoun`] (port de `parseNounNode`).
@@ -98,7 +105,7 @@ pub fn parse_noun_node(node: &Node<'_>) -> Option<ParsedNoun> {
 #[must_use]
 pub fn parse_all_nouns(root: &Value) -> Vec<ParsedNoun> {
     let mut out = Vec::new();
-    walk_named(root, "NOUN_INFO_", |node| {
+    walk_named(root, "NOUN_INFO", |node| {
         if is_noun_node(node.name())
             && let Some(n) = parse_noun_node(&node)
         {
@@ -150,7 +157,7 @@ pub fn parse_roma_node(node: &Node<'_>) -> Option<ParsedRomanizedName> {
 #[must_use]
 pub fn parse_all_roma(root: &Value) -> Vec<ParsedRomanizedName> {
     let mut out = Vec::new();
-    walk_named(root, "NOUN_INFO_", |node| {
+    walk_named(root, "NOUN_INFO", |node| {
         if is_noun_node(node.name())
             && let Some(r) = parse_roma_node(&node)
         {
