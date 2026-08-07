@@ -10,9 +10,16 @@ import { ModsView } from "@/components/ModsView";
 import { SaveView } from "@/components/SaveView";
 import { SettingsView } from "@/components/SettingsView";
 import { DetailPane } from "@/components/DetailPane";
+import { CommandPalette } from "@/components/CommandPalette";
+import { Icon } from "@/components/ui/Icon";
 import { api } from "@/lib/api";
+import { useT } from "@/lib/i18n";
+import { useApplyAppearance } from "@/lib/appearance";
+import { recordVisit } from "@/lib/places";
 
 export default function App() {
+  const t = useT();
+  useApplyAppearance();
   const [tab, setTab] = useState("explorer");
   const [explorer, setExplorer] = useState<ExplorerState>({ prefix: "data", selected: null });
   const [externalPath, setExternalPath] = useState<string | null>(null);
@@ -39,27 +46,51 @@ export default function App() {
         <div
           data-tauri-drag-region
           onDoubleClick={() => getCurrentWindow().toggleMaximize()}
-          className="flex h-11 shrink-0 items-center gap-3 border-b bg-background/40 px-3 backdrop-blur"
+          className="flex h-12 shrink-0 items-center gap-4 border-b border-outline-variant/40 bg-surface-container/70 px-3 backdrop-blur"
         >
+          <span
+            className="select-none pl-1 text-lg text-primary"
+            style={{ fontFamily: "BradBunR, var(--font-sans)" }}
+            data-tauri-drag-region
+          >
+            {t("app.title")}
+          </span>
           <Tabs value={tab} onValueChange={setTab}>
-            <TabsList>
-              <TabsTrigger value="explorer">Explorateur</TabsTrigger>
-              <TabsTrigger value="search">Recherche</TabsTrigger>
-              <TabsTrigger value="mods">Mods</TabsTrigger>
-              <TabsTrigger value="save">Sauvegardes</TabsTrigger>
-              <TabsTrigger value="settings">Paramètres</TabsTrigger>
+            <TabsList className="bg-surface-container-high">
+              <TabsTrigger value="explorer" className="type-label-large state-layer">
+                {t("tab.explorer")}
+              </TabsTrigger>
+              <TabsTrigger value="search" className="type-label-large state-layer">
+                {t("tab.search")}
+              </TabsTrigger>
+              <TabsTrigger value="mods" className="type-label-large state-layer">
+                {t("tab.mods")}
+              </TabsTrigger>
+              <TabsTrigger value="save" className="type-label-large state-layer">
+                {t("tab.save")}
+              </TabsTrigger>
+              <TabsTrigger value="settings" className="type-label-large state-layer">
+                {t("tab.settings")}
+              </TabsTrigger>
             </TabsList>
           </Tabs>
           <div className="flex-1" data-tauri-drag-region />
+          <span className="mr-1 flex items-center gap-1 rounded-full bg-surface-container-high px-2.5 py-1 type-label-small text-on-surface-variant">
+            <Icon name="search" size={12} />
+            Ctrl+K
+          </span>
         </div>
 
-        <main className="min-h-0 flex-1">
+        <main className="min-h-0 flex-1 bg-background">
           {externalPath ? (
             <div className="flex h-full flex-col">
-              <div className="flex items-center justify-between border-b px-4 py-2 text-sm">
-                <span>Fichier ouvert depuis l'explorateur Windows</span>
-                <button className="text-xs text-muted-foreground hover:underline" onClick={() => setExternalPath(null)}>
-                  ✕ fermer
+              <div className="flex items-center justify-between border-b border-outline-variant/40 bg-secondary-container/40 px-4 py-2 type-body-small text-on-secondary-container">
+                <span>{t("external.opened")}</span>
+                <button
+                  className="type-label-medium text-on-secondary-container/80 hover:text-on-secondary-container hover:underline"
+                  onClick={() => setExternalPath(null)}
+                >
+                  {t("external.close")}
                 </button>
               </div>
               <div className="min-h-0 flex-1">
@@ -97,6 +128,17 @@ export default function App() {
           )}
         </main>
       </div>
+      <CommandPalette
+        onGoto={(prefix) => {
+          recordVisit(prefix);
+          setExplorer({ prefix, selected: null });
+          setTab("explorer");
+        }}
+        onSearch={(q) => {
+          setExplorer((s) => ({ ...s, query: q }));
+          setTab("explorer");
+        }}
+      />
       <Toaster position="bottom-right" />
     </TooltipProvider>
   );
