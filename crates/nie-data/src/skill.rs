@@ -357,13 +357,19 @@ pub struct SkillTextMaps {
 /// Reproduit exactement `parseSkillText` (mapper.ts l.66-105) : pour chaque enfant
 /// `NOUN_INFO_*`, hash = var[0] (>>> 0), nom = var[5] sinon var[2] ; pour `TEXT_INFO_*`,
 /// hash = var[0], desc = var[2]. On ignore les hash nuls et les chaînes vides.
+///
+/// Le filtre enfant accepte le nom brut SANS suffixe (`NOUN_INFO`/`TEXT_INFO`) **en plus** du
+/// `_<i>` historique : sur le T2B binaire lu en direct (`nie_explore::bridge::t2b_to_json`), les
+/// enfants n'ont pas ce suffixe — ajouté par le dumper JSON inagle, pas par le format T2B (même
+/// constat que `chara_base`/`chara_text`, cf. leurs commentaires d'en-tête).
 #[must_use]
 pub fn parse_skill_text(root: &Value) -> SkillTextMaps {
     let mut maps = SkillTextMaps::default();
 
     walk_named(root, "NOUN_INFO_BEGIN", |entry| {
         for child in entry.children() {
-            if !child.name().starts_with("NOUN_INFO_") {
+            let name = child.name();
+            if name != "NOUN_INFO" && !name.starts_with("NOUN_INFO_") {
                 continue;
             }
             let hash = child.hash(0);
@@ -379,7 +385,8 @@ pub fn parse_skill_text(root: &Value) -> SkillTextMaps {
 
     walk_named(root, "TEXT_INFO_BEGIN", |entry| {
         for child in entry.children() {
-            if !child.name().starts_with("TEXT_INFO_") {
+            let name = child.name();
+            if name != "TEXT_INFO" && !name.starts_with("TEXT_INFO_") {
                 continue;
             }
             let hash = child.hash(0);

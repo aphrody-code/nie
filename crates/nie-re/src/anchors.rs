@@ -365,6 +365,13 @@ fn classify_game_class(lower_name: &str) -> Option<&'static str> {
         || lower_name.starts_with("gdsmission")
         || lower_name.starts_with("activity")
         || lower_name.starts_with("ai")
+        // Census live (dump nie.exe) — système de commandes / état de match (frontière C3) :
+        || lower_name.starts_with("play_dynamic")
+        || lower_name.starts_with("play_static")
+        || lower_name.starts_with("ccallback")
+        || lower_name.starts_with("execpassive")
+        || lower_name.starts_with("execsoccer")
+        || lower_name.starts_with("funcpoint")
     {
         return Some("gameplay");
     }
@@ -390,6 +397,8 @@ fn classify_game_class(lower_name: &str) -> Option<&'static str> {
         || lower_name.starts_with("csky")
         || lower_name.starts_with("cref")
         || lower_name.starts_with("areacollect")
+        || lower_name.starts_with("game_map") // census live : GAME_MAP_AREA_INFO
+        || lower_name.starts_with("tbox") // census live : TBoxInfo (coffre)
     {
         return Some("level");
     }
@@ -402,7 +411,9 @@ fn classify_game_class(lower_name: &str) -> Option<&'static str> {
         return Some("audio");
     }
     // Animation / effets
-    if lower_name.starts_with("gdseffect") || lower_name.starts_with("lineeffect") {
+    if lower_name.starts_with("gdseffect") || lower_name.starts_with("lineeffect")
+        || lower_name.starts_with("motmng") // census live : MotMngBase (gestionnaire de motion)
+    {
         return Some("animation");
     }
     None
@@ -410,17 +421,33 @@ fn classify_game_class(lower_name: &str) -> Option<&'static str> {
 
 /// Classifie une classe du namespace `lives::` d'après le préfixe de son nom.
 fn classify_lives_class(lower_name: &str) -> Option<&'static str> {
-    if lower_name.starts_with("cmenu") { return Some("menu"); }
+    // Préfixes ground-truth issus du census d'objets vivants (dump live de nie.exe,
+    // cf. docs/game-data/dump-exploitation.md) : seuls les noms à sémantique claire
+    // sont ancrés ; les bases génériques (CObject, CListData*, CInternalFile,
+    // CRefelencLinkObj) restent non classifiées (anti-faux).
+    if lower_name.starts_with("cmenu") || lower_name.starts_with("crefmodelmenu") { return Some("menu"); }
     if lower_name.starts_with("ccri") || lower_name.starts_with("ccrimana") { return Some("audio"); }
     if lower_name.starts_with("clua") { return Some("script"); }
     if lower_name.starts_with("ccamera") || lower_name.starts_with("cfont")
+        || lower_name.starts_with("csystemfont")
         || lower_name.starts_with("cdraw") || lower_name.starts_with("clight")
         || lower_name.starts_with("ccompute") || lower_name.starts_with("cindex")
+        || lower_name.starts_with("cuniform") || lower_name.starts_with("cvertex")
+        || lower_name.starts_with("crender") || lower_name.starts_with("crestexture")
+        || lower_name.starts_with("cresmesh") || lower_name.starts_with("gmdcobjmodel")
         || lower_name.starts_with("ccustomrenderstate") || lower_name.starts_with("ccustomshader")
     {
         return Some("render");
     }
-    if lower_name.starts_with("ceffect") || lower_name.starts_with("cdynamic") { return Some("animation"); }
+    if lower_name.starts_with("ceffect") || lower_name.starts_with("cdynamic")
+        || lower_name.starts_with("cresanime") || lower_name.starts_with("cresrefanime")
+        || lower_name.starts_with("cresmotevent") || lower_name.starts_with("cresblendshape")
+        || lower_name.starts_with("cresparticle") || lower_name.starts_with("creseffect")
+        || lower_name.starts_with("cresskeleton") || lower_name.starts_with("gmdcanim")
+        || lower_name.starts_with("gmdcshareobjanim")
+    {
+        return Some("animation");
+    }
     if lower_name.starts_with("clives") && lower_name.contains("px") { return Some("physics"); }
     if lower_name.starts_with("cjob") { return Some("physics"); } // job manager = threading physx
     None
@@ -678,5 +705,35 @@ mod tests {
     #[test]
     fn classify_rtti_std_is_none() {
         assert_eq!(classify_rtti("std", "vector"), None);
+    }
+
+    #[test]
+    fn classify_rtti_lives_census() {
+        // Noms ground-truth du census d'objets vivants (dump live de nie.exe).
+        assert_eq!(classify_rtti("lives", "CUniformBlock"), Some("render"));
+        assert_eq!(classify_rtti("lives", "CVertexBuffer"), Some("render"));
+        assert_eq!(classify_rtti("lives", "CRenderBuffer"), Some("render"));
+        assert_eq!(classify_rtti("lives", "CSystemFont"), Some("render"));
+        assert_eq!(classify_rtti("lives", "CResTexture"), Some("render"));
+        assert_eq!(classify_rtti("lives", "CResAnime"), Some("animation"));
+        assert_eq!(classify_rtti("lives", "CResSkeleton"), Some("animation"));
+        assert_eq!(classify_rtti("lives", "gmdCAnimation"), Some("animation"));
+        assert_eq!(classify_rtti("lives", "CRefModelMenuText"), Some("menu"));
+        // Bases génériques laissées non classifiées (anti-faux).
+        assert_eq!(classify_rtti("lives", "CObject"), None);
+        assert_eq!(classify_rtti("lives", "CObjectLink"), None);
+        assert_eq!(classify_rtti("lives", "CListDataBase"), None);
+    }
+
+    #[test]
+    fn classify_rtti_game_census() {
+        // Système de commandes / état de match (frontière C3) + carte/coffre.
+        assert_eq!(classify_rtti("game", "PLAY_DYNAMIC_INFO"), Some("gameplay"));
+        assert_eq!(classify_rtti("game", "PLAY_STATIC_INFO"), Some("gameplay"));
+        assert_eq!(classify_rtti("game", "CCallbackPlayCommand"), Some("gameplay"));
+        assert_eq!(classify_rtti("game", "CCallbackJudgeCommand"), Some("gameplay"));
+        assert_eq!(classify_rtti("game", "ExecPassiveSkillEffectInfo"), Some("gameplay"));
+        assert_eq!(classify_rtti("game", "GAME_MAP_AREA_INFO"), Some("level"));
+        assert_eq!(classify_rtti("game", "TBoxInfo"), Some("level"));
     }
 }
