@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { save } from "@tauri-apps/plugin-dialog";
 import { modsDb, type ModFileRow, type ModRow } from "@/lib/modsDb";
 import { deleteModWorkspace, exportMod, removeStagedFile, stageReplacement } from "@/lib/modWorkspace";
+import { api } from "@/lib/api";
 import { useSettings } from "@/lib/settings";
 import { humanSize } from "@/lib/bytes";
 import { Button } from "@/components/ui/button";
@@ -103,6 +105,25 @@ export function ModsView({ onOpenFile }: { onOpenFile: (path: string) => void })
     }
   }
 
+  /** Exporte le mod en `.cpk` autonome (§1.2 roadmap) — non chiffré/non compressé, cf. doc Rust
+   * `nie_formats::cpk_encode`. Distinct de `doExport` (fichiers loose préservant l'arborescence
+   * VFS) : produit une VRAIE archive rechargeable par `open_raw_cpk`/`RawCpkView`. */
+  async function doExportCpk() {
+    if (!selected || files.length === 0) return;
+    const dest = await save({ defaultPath: `${current?.name ?? "mod"}.cpk`, filters: [{ name: "CPK", extensions: ["cpk"] }] });
+    if (!dest) return;
+    setBusy(true);
+    try {
+      const cpkFiles = files.map((f) => ({ vfs_path: f.vfs_path, staged_appdata_rel: f.staged_file }));
+      const n = await api.exportModAsCpk(cpkFiles, dest);
+      toast.success(`${humanSize(n)} écrits → ${dest}`);
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const current = mods.find((m) => m.id === selected) ?? null;
 
   return (
@@ -132,31 +153,31 @@ export function ModsView({ onOpenFile }: { onOpenFile: (path: string) => void })
           </DialogContent>
         </Dialog>
 
-        <ScrollArea className="min-h-0 flex-1 rounded-md border">
-          <div className="divide-y">
+        <ScrollArea className="min-h-0 flex-1 rounded-xl bg-surface-container-low elevation-1">
+          <div className="divide-y divide-outline-variant/30">
             {mods.map((m) => (
               <button
                 key={m.id}
                 onClick={() => setSelected(m.id)}
-                className={`flex w-full items-start justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-accent ${
-                  selected === m.id ? "bg-accent" : ""
+                className={`state-layer flex w-full items-start justify-between gap-2 px-3 py-2 text-left type-body-medium ${
+                  selected === m.id ? "bg-secondary-container text-on-secondary-container" : "text-on-surface"
                 }`}
               >
                 <span className="min-w-0">
-                  <span className="block truncate font-medium">{m.name}</span>
-                  <span className="text-xs text-muted-foreground">{m.file_count} fichier(s)</span>
+                  <span className="block truncate type-title-small">{m.name}</span>
+                  <span className="type-label-small text-on-surface-variant">{m.file_count} fichier(s)</span>
                 </span>
                 <Switch checked={!!m.enabled} onCheckedChange={() => toggle(m)} onClick={(e) => e.stopPropagation()} />
               </button>
             ))}
-            {mods.length === 0 && <p className="p-3 text-sm text-muted-foreground">Aucun mod pour l'instant.</p>}
+            {mods.length === 0 && <p className="p-3 type-body-medium text-on-surface-variant">Aucun mod pour l'instant.</p>}
           </div>
         </ScrollArea>
       </div>
 
       <div className="min-h-0">
         {!current ? (
-          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+          <div className="flex h-full items-center justify-center type-body-medium text-on-surface-variant">
             Sélectionnez ou créez un mod.
           </div>
         ) : (
@@ -171,7 +192,7 @@ export function ModsView({ onOpenFile }: { onOpenFile: (path: string) => void })
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                {current.description && <p className="text-sm text-muted-foreground">{current.description}</p>}
+                {current.description && <p className="type-body-medium text-on-surface-variant">{current.description}</p>}
                 <div className="flex gap-2">
                   <Input
                     placeholder="Chemin VFS à remplacer (ex. data/dx11/chr/.../c01000100.g4tx)"
@@ -182,21 +203,25 @@ export function ModsView({ onOpenFile }: { onOpenFile: (path: string) => void })
                     Choisir le remplacement…
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="type-body-small text-on-surface-variant">
                   Astuce : dans l'Explorateur, ouvrez le fichier visé puis « Extraire vers… » pour obtenir une base à
                   éditer avant de la sélectionner ici.
                 </p>
               </CardContent>
             </Card>
 
-            <ScrollArea className="min-h-0 flex-1 rounded-md border">
-              <div className="divide-y">
+            <ScrollArea className="min-h-0 flex-1 rounded-xl bg-surface-container-low elevation-1">
+              <div className="divide-y divide-outline-variant/30">
                 {files.map((f) => (
-                  <div key={f.id} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
-                    <button className="min-w-0 truncate text-left hover:underline" onClick={() => onOpenFile(f.vfs_path)} title={f.vfs_path}>
+                  <div key={f.id} className="flex items-center justify-between gap-2 px-3 py-2 type-body-medium">
+                    <button
+                      className="state-layer min-w-0 truncate rounded px-1 text-left text-on-surface hover:underline"
+                      onClick={() => onOpenFile(f.vfs_path)}
+                      title={f.vfs_path}
+                    >
                       {f.vfs_path}
                     </button>
-                    <span className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
+                    <span className="flex shrink-0 items-center gap-2 type-label-small text-on-surface-variant">
                       {f.staged_size != null && humanSize(f.staged_size)}
                       <Button size="sm" variant="ghost" onClick={() => unstage(f)}>
                         ✕
@@ -204,20 +229,25 @@ export function ModsView({ onOpenFile }: { onOpenFile: (path: string) => void })
                     </span>
                   </div>
                 ))}
-                {files.length === 0 && <p className="p-3 text-sm text-muted-foreground">Aucun fichier remplacé.</p>}
+                {files.length === 0 && <p className="p-3 type-body-medium text-on-surface-variant">Aucun fichier remplacé.</p>}
               </div>
             </ScrollArea>
 
             <Alert>
               <AlertTitle>Export</AlertTitle>
               <AlertDescription>
-                Aucun encodeur CPK n'existe dans <code>nie-formats</code> : l'export copie toujours des fichiers
-                externes, jamais une modification en place des packs du jeu.
+                L'export « fichiers loose » et « override loose » n'écrivent jamais dans un pack du jeu en
+                place. L'export en <code>.cpk</code> autonome (§1.2) produit une VRAIE archive — mais non
+                chiffrée/non compressée, vérifiée par relecture (<code>CpkReader</code>), pas par un chargement
+                réel dans <code>nie.exe</code> : voir <code>nie_formats::cpk_encode</code>.
               </AlertDescription>
             </Alert>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button variant="outline" onClick={() => doExport(false)} disabled={busy || files.length === 0}>
                 Exporter vers un dossier…
+              </Button>
+              <Button variant="outline" onClick={doExportCpk} disabled={busy || files.length === 0}>
+                📦 Exporter en .cpk…
               </Button>
               <Button variant="outline" onClick={() => doExport(true)} disabled={busy || files.length === 0}>
                 ⚠️ Exporter dans le dossier du jeu (overlay loose-file, non confirmé)
