@@ -12,6 +12,8 @@
     "core:menu:allow-set-as-window-menu",
     "opener:default",
     "dialog:default",
+    "updater:default",
+    "process:allow-restart",
     "clipboard-manager:allow-write-text",
     "clipboard-manager:allow-read-text",
     "sql:default",
