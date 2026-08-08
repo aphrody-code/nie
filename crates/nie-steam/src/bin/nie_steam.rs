@@ -59,6 +59,11 @@ struct Cli {
     #[arg(long, default_value_t = 16)]
     max_downloads: usize,
 
+    /// Désactive la vérification par fichier (taille + SHA) : retélécharge tout.
+    /// Par défaut, les fichiers déjà à jour sont sautés (MAJ en place).
+    #[arg(long)]
+    no_verify: bool,
+
     /// Chemin du token store JSON.
     #[arg(long, env = "NIE_STEAM_TOKEN_STORE")]
     token_store: Option<PathBuf>,
@@ -124,6 +129,7 @@ async fn main() -> Result<()> {
             all_platforms: cli.all_platforms,
             depot_ids: cli.depot_ids.clone(),
             max_downloads: cli.max_downloads,
+            verify: !cli.no_verify,
             token_store_path: Some(token_store_path.clone()),
             guard_provider: None,
         }
