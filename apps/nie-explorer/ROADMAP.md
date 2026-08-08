@@ -349,6 +349,50 @@ quelle).
 
 ---
 
+### 2.9 Pont Blender ↔ niers — importer un `.blend`, construire une scène ✅ (2026-08-08)
+
+Demande utilisatrice : « tu dois faire un pont entre blender et niers, pouvoir importer ce type
+de fichier dans niers et pouvoir construire une scène blender via niers, par exemple fait moi une
+scène avec byron love qui fait savoir supreme ». Complète §2.4/§2.5 (Blender→niers) dans l'autre
+sens (niers→Blender), 3 commandes :
+
+- **`blender_preview_png_b64`** : ouvre N'IMPORTE QUEL `.blend` local en headless, cadre une
+  caméra sur les meshes/armatures (bounds → position calculée), rend un still EEVEE et renvoie le
+  PNG en base64 — « importer ce type de fichier dans niers » : aperçu instantané sans lancer l'UI
+  Blender, même patron que les autres `*_preview_png_b64` du fichier.
+- **`blender_build_skill_scene(internal_code, skill_query)`** : construit une VRAIE scène —
+  modèle du personnage (découvert par sous-chaîne sur le VFS réel, `chr/_face`) + modèle de cut-in
+  de la technique (`SkillInfo::cutin_assets()`, résolue par [`game_data::find_skill`], nouveau,
+  factorisé depuis `list_skills`). Sauvegarde un `.blend` réel + aperçu PNG. `warnings[]` explicite
+  si personnage/technique sans assets 3D locaux plutôt qu'un échec silencieux ou une scène vide.
+- **`blender_open_scene`** : ouvre un `.blend` dans le vrai Blender GUI (process séparé).
+
+**Recette validée par un test réel headless AVANT d'écrire le code Rust** (`blender --background
+--python`, même méthodologie que §2.4) sur Byron Love Aphrody (`c01001900`, cf. `nie-data::
+aphrody`) + `whs00340`/« Savoir suprême »/God Knows (`ev60_00340`, une de ses 7 techniques
+réelles) — **import réussi** : personnage 3 objets (`c01001900_20`/`eye_10`/`mouth_10`, 3/3
+matériaux, 8/8 hashes) + cut-in 2 objets (`skeleton_root` ARMATURE + `wing_10` MESH, cohérent avec
+l'élément Vent de la technique — effet d'ailes).
+
+**Deux pièges réels découverts (documentés en commentaire de section dans `lib.rs`, pas juste ici)** :
+1. Le segment de chemin série du VFS est **sensible à la casse** et PAS toujours celui que renvoie
+   `nie_formats::assemble::series_dir_from_code` (`"01_ie1"`, utilisé pour les URLs CDN qui
+   normalisent la casse côté serveur) — le VFS réel de ce personnage stocke `01_IE1` (majuscules).
+   **Ne jamais reconstruire un chemin VFS depuis ce helper pour une lecture directe** : toujours
+   découvrir le chemin réel par sous-chaîne sur `vfs.iter()` (même patron que `vfs_related`).
+2. Le cut-in de `whs00340` n'a **pas** de `.g4md` dans le VFS (seulement `.g4mg`+`.g4pkm`+
+   `.objbin`) — `MODEL_EXTENSIONS = {".g4md", ".g4pkm"}` côté addon : `import_scene.level5_g4`
+   accepte aussi `.g4pkm` comme point d'entrée, confirmé par le test réel plutôt que deviné.
+
+UI : carte « Pont Blender ↔ niers » (Paramètres) — import `.blend` (sélecteur de fichier + aperçu)
+et construction de scène (2 champs perso/technique, résolution perso via GraphQL azalee comme
+`SearchView`, résolution technique 100 % locale/serveur). `cargo check`+`clippy --lib --tests` (0
+warning), `tsc --noEmit` (0 erreur) ; `cargo test --lib` cassé dans CET environnement de dev
+(`STATUS_ENTRYPOINT_NOT_FOUND`, DLL manquante hors bundle Tauri complet — pré-existant, sans
+rapport avec ce diff, vérifié en reproduisant sur les tests déjà présents avant ce changement).
+
+---
+
 ## 3. Save manager (Steam userdata) ✅
 `steam::userdata_save_candidates`/`pick_best_save` (nouveau, dans `steam.rs`) : énumère
 `<bibliothèque Steam>/userdata/<steamid>/2799860/remote/*-USERDATALIVE` sur TOUTES les
