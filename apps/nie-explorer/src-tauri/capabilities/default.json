@@ -5,6 +5,11 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
+    "core:menu:default",
+    "core:menu:allow-new",
+    "core:menu:allow-append",
+    "core:menu:allow-popup",
+    "core:menu:allow-set-as-window-menu",
     "opener:default",
     "dialog:default",
     "clipboard-manager:allow-write-text",

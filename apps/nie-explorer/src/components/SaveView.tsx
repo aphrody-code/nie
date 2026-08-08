@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
 import { api, type RemoteRosterEntry, type SaveBlobInfo, type SaveSummary } from "@/lib/api";
@@ -26,10 +26,11 @@ export function SaveView() {
   const [busy, setBusy] = useState(false);
   const [roster, setRoster] = useState<RemoteRosterEntry[] | null>(null);
   const [rosterLoading, setRosterLoading] = useState(false);
+  const [openedPath, setOpenedPath] = useState<string | null>(null);
+  const [openedAuto, setOpenedAuto] = useState(false);
+  const [autoDetecting, setAutoDetecting] = useState(true);
 
-  async function pickAndOpen() {
-    const path = await open({ title: "Fichier de sauvegarde Lives" });
-    if (typeof path !== "string") return;
+  async function openPath(path: string, auto: boolean) {
     setBusy(true);
     setError(null);
     try {
@@ -38,12 +39,38 @@ export function SaveView() {
       setBlobs(await api.saveListBlobs());
       setBlobHex(null);
       setRoster(null);
+      setOpenedPath(path);
+      setOpenedAuto(auto);
     } catch (e) {
       setError(String(e));
     } finally {
       setBusy(false);
     }
   }
+
+  async function pickAndOpen() {
+    const path = await open({ title: "Fichier de sauvegarde Lives" });
+    if (typeof path !== "string") return;
+    await openPath(path, false);
+  }
+
+  // Auto-sélection au montage (§3 roadmap « heuristique plus complète/récente, auto-sélection
+  // dans SaveView au lieu d'un open() systématique ») — repli silencieux sur le sélecteur manuel
+  // si Steam/le jeu/toute sauvegarde valide est absent de ce poste (pas d'erreur affichée : c'est
+  // l'état normal sur une machine de dev sans le jeu installé via Steam).
+  useEffect(() => {
+    api
+      .defaultSavePath()
+      .then((path) => {
+        if (path) {
+          toast.success(`Sauvegarde détectée automatiquement : ${path.split(/[/\\]/).pop()}`);
+          return openPath(path, true);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setAutoDetecting(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function viewBlob(index: number) {
     try {
@@ -91,10 +118,18 @@ export function SaveView() {
         </AlertDescription>
       </Alert>
 
-      <Button onClick={pickAndOpen} disabled={busy} className="self-start">
-        Ouvrir une sauvegarde…
-      </Button>
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      <div className="flex items-center gap-2 self-start">
+        <Button onClick={pickAndOpen} disabled={busy}>
+          {summary ? "Ouvrir une autre sauvegarde…" : "Ouvrir une sauvegarde…"}
+        </Button>
+        {autoDetecting && <span className="type-body-small text-on-surface-variant">Détection Steam Cloud…</span>}
+        {!autoDetecting && openedPath && (
+          <span className="truncate type-body-small text-on-surface-variant" title={openedPath}>
+            📂 {openedPath.split(/[/\\]/).pop()} {openedAuto && "(détecté automatiquement)"}
+          </span>
+        )}
+      </div>
+      {error && <p className="type-body-medium text-error">{error}</p>}
 
       {summary && (
         <>
@@ -102,28 +137,28 @@ export function SaveView() {
             <CardHeader>
               <CardTitle>{summary.slot_name}</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
+            <CardContent className="grid grid-cols-2 gap-2 type-body-medium sm:grid-cols-3">
               <div>
-                <div className="text-xs text-muted-foreground">Joueur</div>
-                <div>{summary.player_name || "?"}</div>
+                <div className="type-label-small text-on-surface-variant">Joueur</div>
+                <div className="text-on-surface">{summary.player_name || "?"}</div>
               </div>
               <div>
-                <div className="text-xs text-muted-foreground">Niveau</div>
-                <div>{summary.level_str || "?"}</div>
+                <div className="type-label-small text-on-surface-variant">Niveau</div>
+                <div className="text-on-surface">{summary.level_str || "?"}</div>
               </div>
               <div>
-                <div className="text-xs text-muted-foreground">Temps de jeu</div>
-                <div>{formatPlaytime(summary.playtime_secs)}</div>
+                <div className="type-label-small text-on-surface-variant">Temps de jeu</div>
+                <div className="text-on-surface">{formatPlaytime(summary.playtime_secs)}</div>
               </div>
               <div>
-                <div className="text-xs text-muted-foreground">Slots</div>
-                <div>
+                <div className="type-label-small text-on-surface-variant">Slots</div>
+                <div className="text-on-surface">
                   {summary.used_slots ?? "?"} / {summary.max_slots ?? "?"}
                 </div>
               </div>
               <div>
-                <div className="text-xs text-muted-foreground">Roster</div>
-                <div className="flex items-center gap-2">
+                <div className="type-label-small text-on-surface-variant">Roster</div>
+                <div className="flex items-center gap-2 text-on-surface">
                   {Array.isArray(summary.roster?.owned) ? summary.roster.owned.length : "?"} personnage(s)
                   <Button size="sm" variant="link" className="h-auto p-0" onClick={resolveRoster} disabled={rosterLoading}>
                     {rosterLoading ? "résolution…" : "résoudre les noms (azalee)"}
@@ -131,8 +166,8 @@ export function SaveView() {
                 </div>
               </div>
               <div>
-                <div className="text-xs text-muted-foreground">ID unique</div>
-                <div className="truncate font-mono text-xs">{summary.unique_id || "?"}</div>
+                <div className="type-label-small text-on-surface-variant">ID unique</div>
+                <div className="truncate font-mono type-body-small text-on-surface">{summary.unique_id || "?"}</div>
               </div>
             </CardContent>
           </Card>
@@ -143,11 +178,11 @@ export function SaveView() {
                 <CardTitle>Roster résolu (bonus — azalee, wiki distant)</CardTitle>
               </CardHeader>
               <CardContent>
-                <ScrollArea className="h-56 rounded-md border">
-                  <div className="divide-y">
+                <ScrollArea className="h-56 rounded-xl border border-outline-variant/40 bg-surface-container-low">
+                  <div className="divide-y divide-outline-variant/30">
                     {roster.map((r) => (
-                      <div key={r.id} className="flex items-center justify-between px-3 py-1.5 text-sm">
-                        <span>{r.name ?? <span className="text-muted-foreground">{r.id} (inconnu)</span>}</span>
+                      <div key={r.id} className="state-layer flex items-center justify-between px-3 py-1.5 type-body-medium">
+                        <span className="text-on-surface">{r.name ?? <span className="text-on-surface-variant">{r.id} (inconnu)</span>}</span>
                         <span className="flex gap-1">
                           {r.element && <Badge variant="outline">{r.element}</Badge>}
                           {r.position && <Badge variant="outline">{r.position}</Badge>}
@@ -178,8 +213,8 @@ export function SaveView() {
                 ))}
               </div>
               {blobHex && (
-                <ScrollArea className="h-56 rounded-md border bg-muted/20">
-                  <pre className="p-2 font-mono text-[11px] leading-relaxed">{blobHex}</pre>
+                <ScrollArea className="h-56 rounded-xl border border-outline-variant/40 bg-surface-container-low">
+                  <pre className="p-2 font-mono text-[11px] leading-relaxed text-on-surface">{blobHex}</pre>
                 </ScrollArea>
               )}
             </CardContent>
