@@ -114,6 +114,11 @@ export const api = {
 
   openInBlender: (path: string, blenderExe?: string, gameDir?: string) =>
     unwrap<string>(commands.openInBlender(path, blenderExe || null, gd(gameDir))),
+  // Installation PERSISTANTE de l'extension (dossier d'addons Blender réel + raw_data_root lié
+  // au vrai <jeu>/data, survit à un Blender relancé sans passer par nie-explorer) — distinct de
+  // openInBlender (bootstrap sys.path transitoire, un seul process).
+  installNiersBlenderAddon: (blenderExe?: string, gameDir?: string) =>
+    unwrap<string>(commands.installNiersBlenderAddon(blenderExe || null, gd(gameDir))),
 
   // Résolveur distant azalee — contrat RÉEL confirmé (`https://azalee.rosegriffon.fr`,
   // GraphQL `graphql-yoga` sans auth + REST `/api/cpk`/`/api/save/resolve-roster`), pas une
@@ -138,9 +143,12 @@ export const api = {
 
   videoPreviewB64: (path: string, gameDir?: string) => unwrap<string>(commands.vfsVideoPreviewB64(path, gd(gameDir))),
   audioPreviewB64: (path: string, gameDir?: string) => unwrap<string>(commands.vfsAudioPreviewB64(path, gd(gameDir))),
-  // Parité RawCpkView (hors VFS) : même décodage audio/vidéo, depuis une entrée du CPK brut ouvert.
+  // Parité RawCpkView (hors VFS) : même décodage audio/vidéo/3D, depuis une entrée du CPK brut ouvert.
   rawCpkAudioPreviewB64: (index: number) => unwrap<string>(commands.rawCpkAudioPreviewB64(index)),
   rawCpkVideoPreviewB64: (index: number) => unwrap<string>(commands.rawCpkVideoPreviewB64(index)),
+  // Aperçu 3D d'une entrée .g4md du CPK ouvert — frères g4mg/g4tx résolus DANS ce CPK (pas le VFS),
+  // cf. `assemble_glb_from_cpk_entries` côté Rust. Roadmap §6, gap fermé 2026-08-08.
+  rawCpkGlbPreviewPngB64: (index: number) => unwrap<string>(commands.rawCpkGlbPreviewPngB64(index)),
   glbPreviewPngB64: (path: string, gameDir?: string) => unwrap<string>(commands.vfsGlbPreviewPngB64(path, gd(gameDir))),
   // Turntable MP4 (§2.3, caméra orbitale via la barre de défilement vidéo) — cf. api ci-dessus.
   glbPreviewTurntableMp4B64: (path: string, gameDir?: string) => unwrap<string>(commands.vfsGlbPreviewTurntableMp4B64(path, gd(gameDir))),

@@ -35,15 +35,17 @@ export function RawCpkView() {
   const [busy, setBusy] = useState(false);
   const [extractingAll, setExtractingAll] = useState(false);
 
-  // Parité d'outils avec DetailPane (roadmap §6) — audio/vidéo SEULS : un `.hca`/`.adx`/`.usm` est
-  // autonome (pas de fichier frère référencé), contrairement à l'aperçu 3D (GLB, qui a besoin des
-  // frères g4md/g4mg résolus par CHEMIN VFS) et à Blender (même dépendance VFS via `open_in_blender`)
-  // — ceux-ci restent hors de portée pour un CPK ouvert hors VFS sans reconstruire un résolveur de
-  // frères scopé au seul CPK courant (chantier distinct, non fait ici).
+  // Parité d'outils avec DetailPane (roadmap §6) : audio/vidéo/3D câblés — un `.hca`/`.adx`/`.usm`
+  // est autonome (pas de fichier frère référencé), et l'aperçu 3D (GLB) résout désormais ses frères
+  // g4mg/g4tx DANS le CPK ouvert (`assemble_glb_from_cpk_entries` côté Rust, PAS le VFS — le gap
+  // « résolveur de frères scopé au seul CPK courant » est fermé, 2026-08-08). Blender reste hors de
+  // portée : `open_in_blender` dépend du VFS pour l'addon `tools/niers` + `NIE_GAME_DIR`.
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioLoading, setAudioLoading] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [videoLoading, setVideoLoading] = useState(false);
+  const [glbPngUrl, setGlbPngUrl] = useState<string | null>(null);
+  const [glbLoading, setGlbLoading] = useState(false);
 
   async function openCpk() {
     // Ouvre directement dans `<jeu>/data/packs` — c'est là que vivent RÉELLEMENT les `.cpk` du
@@ -77,6 +79,7 @@ export function RawCpkView() {
     setRawBytes(null);
     setAudioUrl(null);
     setVideoUrl(null);
+    setGlbPngUrl(null);
     try {
       setLines(await api.rawCpkDescribe(entry.index));
     } catch (e) {
@@ -107,6 +110,19 @@ export function RawCpkView() {
       toast.error(String(e));
     } finally {
       setVideoLoading(false);
+    }
+  }
+
+  async function loadGlb() {
+    if (!selected) return;
+    setGlbLoading(true);
+    try {
+      const b64 = await api.rawCpkGlbPreviewPngB64(selected.index);
+      setGlbPngUrl(`data:image/png;base64,${b64}`);
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setGlbLoading(false);
     }
   }
 
@@ -259,6 +275,11 @@ export function RawCpkView() {
                   {videoLoading ? "Remuxage ffmpeg…" : "▶️ Aperçu vidéo"}
                 </Button>
               )}
+              {entryExt(selected) === "g4md" && !glbPngUrl && (
+                <Button size="sm" variant="outline" onClick={loadGlb} disabled={glbLoading}>
+                  {glbLoading ? "Assemblage + rendu…" : "🔄 Aperçu 3D"}
+                </Button>
+              )}
             </div>
             {audioUrl && (
               // eslint-disable-next-line jsx-a11y/media-has-caption
@@ -267,6 +288,13 @@ export function RawCpkView() {
             {videoUrl && (
               // eslint-disable-next-line jsx-a11y/media-has-caption
               <video src={videoUrl} controls className="max-h-72 w-full rounded-xl border border-outline-variant/40 bg-black" />
+            )}
+            {glbPngUrl && (
+              <img
+                src={glbPngUrl}
+                alt={`Aperçu 3D de ${selected.path}`}
+                className="max-h-72 w-full rounded-xl border border-outline-variant/40 bg-surface-container object-contain"
+              />
             )}
             <ScrollArea className="min-h-0 flex-1 rounded-xl border border-outline-variant/40 bg-surface-container-low">
               <pre className="whitespace-pre-wrap p-3 font-mono text-xs leading-relaxed text-on-surface">

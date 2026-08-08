@@ -128,6 +128,96 @@ en Rust ; iecode/inagle ne sont pas des dépendances permanentes, ce sont des v�
 ### 3septies. Données Steam — `better-auth-steam` (côté rg, alimenté par la RE nie.exe)
 - Constantes Steam extraites de nie.exe (app 2799860, 27 interfaces Steamworks, 52 succès `ACHIEVEMENT_%04u`, EncryptedAppTicket/Cloud/DLC) + manifeste 230 succès→noms. Cf. mémoire `project-steam-integration` (le plugin vit dans rg, pas niers).
 
+### 3octies. App desktop — `nie-explorer` (Tauri) + `nie-explore` (moteur d'aperçu partagé)
+- **FAIT (2026-08-08, inventaire vérifié contre le code)** : GUI complète React 19 + Tauri v2 —
+  **57 commandes Rust IPC**, bindings TS générés par `tauri-specta` (aucun `invoke<T>` maintenu à
+  la main, aucune dérive commande Rust ↔ appel TS possible). Couvre : explorateur VFS (arbre des
+  254 202 fichiers), éditeur (Monaco 100 % offline, T2B **et** RDBN éditables + réencodables via
+  `encode_cfgbin_config`), aperçus (texture G4TX/DDS→PNG, audio→WAV, vidéo USM→MP4, modèle 3D
+  GLB→PNG fixe + turntable MP4), gestion de mods (workspace + export **.cpk réel rechargeable**),
+  save manager Steam Cloud (déchiffrement+édition réelle via `nie-save`, sélection auto du
+  meilleur slot validé), onglet RE (`niers.sqlite` — labels/classes RTTI/xrefs, édition inline),
+  onglet Game Data (techniques/objets/Avatar-Keshin/succès/quêtes + calculateur de stats
+  `nie_core::growth`), recherche perso/technique (GraphQL azalee distant + miroir SQLite local,
+  repli substring), palette de commandes (Ctrl+K). Détail exhaustif par section
+  (FAIT/partiel/bloqué, preuves de vérification réelles contre le jeu) : `apps/nie-explorer/
+  ROADMAP.md` — ce fichier-ci ne duplique pas ce niveau de détail, juste le constat d'ensemble.
+- `nie-explore` (`crates/nie-explore`) = moteur d'aperçu **partagé** entre `nie-cli`
+  (`niers vfs cat`/`stat`) et le backend Tauri : un seul dispatch-décodeur par format (T2B/RDBN/
+  G4TX/G4MD/G4SK/G4MT/G4PK/CPK/Lua bytecode `nie-lua`/audio Criware/DXBC/PXCL/NAVM/…), deux
+  façades (texte CLI / JSON IPC) — évite que les deux dérivent, cf. anti-doublon `CLAUDE.md`.
+- **Verrous documentés, pas des oublis** — mêmes limites que le reste du projet : capture de
+  dump live + scan AOB (conflit de lien natif `rusqlite`/`sqlx-sqlite`, cf. §5) + attache
+  `nie-trace` à un process protégé EAC — refus fermes, jamais câblés sans confirmation explicite.
+- **FAIT (2026-08-08) : audit d'exhaustivité des 26 crates `crates/*` contre le `Cargo.toml`
+  de `nie-explorer`** — 11 chargées en dépendance directe (`nie-formats`/`nie-explore`/
+  `nie-save`/`nie-data`/`nie-core`/`nie-trace`/`nie-queue`/`nie-geom`/`nie-app`/`nie-render3d`/
+  `nie-runtime`/`nie-steam` — 4 nouvelles : `nie-geom`/`nie-app`/`nie-render3d`/`nie-runtime`/
+  `nie-steam`, `cargo check`+`clippy --lib --tests` verts). Les 14 restantes sont exclues pour
+  une contrainte Cargo **dure**, jamais un oubli, chacune documentée en commentaire dans le
+  `Cargo.toml` : conflit de lien natif `rusqlite`/`sqlx-sqlite` (`nie-wiki`/`nie-re`/`nie-index`/
+  `nie-seed`/`nie-zukan`/`nie-model-serve`), pas de cible `lib` (`nie-game`/`nie-headless`/
+  `nie-play`/`nie-cli`), `cdylib` sans `rlib` donc rien à lier (`nie-ffi`), cible wasm32 déjà
+  couverte en direct par les crates ci-dessus (`nie-wasm`), portage RE non validé exclu du
+  workspace lui-même (`nie-engine`), déjà tirée transitivement via `nie-explore` (`nie-lua`).
+  `IECODE.Core`/`IECODE.CLI` (référence C# .NET 10, `IECODE.sln` racine) reste hors de cet
+  inventaire par nature — un projet .NET ne se « package » pas comme dépendance Cargo ; son rôle
+  (cross-vérification manuelle de portage, cf. `apps/nie-explorer/ROADMAP.md` §1.1/§1.2) est
+  documenté au même endroit plutôt que d'être simulé par une fausse dépendance.
+- **FAIT (2026-08-08) : exploitation réelle des crates nouvellement chargées — `nie-render3d`
+  câblé EN PROCESS, corrige un bug de packaging.** L'aperçu 3D (`vfs_glb_preview_png_b64`/
+  `vfs_glb_preview_turntable_mp4_b64`) shellait vers un `nie-render3d.exe` compilé séparément,
+  absent de TOUT build distribué (`scripts/package.sh` ne le packages pas, `tauri.conf.json` n'a
+  pas de `bundle.resources` pour lui) — cassé hors poste de dev, silencieusement. Les deux
+  commandes appellent maintenant `nie_render3d::{glb::parse, render::render}` directement (le
+  rasterizer est du pur-Rust `#![forbid(unsafe_code)]` sans état global), seul `ffmpeg` reste en
+  sous-processus pour le mux MP4. **Ferme aussi le gap RawCpkView §6** (« résolveur de frères
+  scopé au seul CPK courant ») : `assemble_glb_from_cpk_entries` + commande
+  `raw_cpk_glb_preview_png_b64` donnent l'aperçu 3D à un `.cpk` ouvert hors VFS. **2 golden réels**
+  (`cargo test -p nie-explorer --lib --features real-fixtures`) sur `c01000010` (visage IE1,
+  chemin VFS ET pack brut `data/packs/eaabb0359e96871a72ea9f86c5d3d10d.cpk`), vérifiés par rendu
+  effectif (>1000 pixels de mesh, signature PNG) — pas juste compilation. Détail :
+  `apps/nie-explorer/ROADMAP.md` §2.3/§6.
+- **FAIT (2026-08-08) : intégration Blender corrigée + liaison persistante ajoutée** (demande
+  utilisatrice « Ouvrir avec Blender ouvre un fichier vide » + « lier au max Blender et niers »).
+  Root cause identifiée en lisant `tools/niers/g4_port_addon.py` : le bootstrap appelait
+  `level5_g4_port.load_original_model` (opérateur du wizard d'export, peuple des réglages, ne
+  crée aucun maillage) au lieu du vrai importeur `import_scene.level5_g4`. Corrigé + différé via
+  `bpy.app.timers` (même mécanisme que l'addon lui-même) + erreurs écrites en fichier log au lieu
+  d'être avalées. **Validé par 2 tests `blender.exe` réels** (background ET GUI complète, timer
+  inclus) : 3 objets importés (`c01000010_20`/`eye_10`/`mouth_10`) contre 0 avant. Trouvé en
+  chemin : le submodule `tools/niers` (`.gitmodules`) avait été supprimé de l'index par erreur
+  (commit « license officiel ») — restauré au commit exact pinné (`7ac55b7`), **puis vendorisé**
+  (fichiers réguliers, plus de submodule Git — demande utilisatrice explicite ; licence amont
+  absente, republication confirmée autorisée par le propriétaire du projet, cf. `tools/niers/
+  NIERS_VENDORING_NOTE.md`). `ensure_niers_blender_addon` (clone Git à la volée) reste comme filet
+  de sécurité pour un `game_dir` qui n'est PAS un checkout de ce repo (build distribué pointé sur
+  une simple install Steam). Nouveau : commande `install_niers_blender_addon` + bouton
+  Paramètres — installe l'extension pour de vrai (dossier d'addons utilisateur, pas juste le
+  bootstrap transitoire) et lie sa préférence `raw_data_root` au vrai `<jeu>/data`, persisté
+  (`save_userpref`) — vérifié par un Blender relancé à froid qui retrouve l'addon actif + la
+  préférence, sans repasser par nie-explorer. **Nouveau (même session) : `tools/niers/niers_
+  bridge.py`** — panneau Blender natif (View3D > Sidebar > Level-5) qui cherche des fichiers dans
+  le VFS (`niers vfs find --json`, flag ajouté à `nie-cli` pour l'occasion — référencé par son
+  propre doc-comment Rust depuis une session antérieure, jamais concrétisé côté Python jusqu'ici)
+  et importe le résultat sélectionné directement dans Blender sans jamais passer par
+  nie-explorer. Vérifié par des tests `blender.exe` GUI réels (pas `--background`, requis pour un
+  opérateur modal) : 12 résultats de recherche, 3 objets importés. **Recherche web ciblée** (« best
+  API/feature pour une extension Blender ») → 2 patterns appliqués et vérifiés : opérateurs
+  `subprocess.Popen`+timer modal NON bloquants (`_NiersProcessOperator`, remplace un `subprocess.
+  run()` synchrone qui gelait l'UI, pattern documenté harlepengren.com) + filtre `UIList` natif
+  (`UI_UL_list.filter_items_by_name`, boîte de recherche icône loupe, filtre côté client sans
+  relancer `niers.exe`). Écarté après recherche : migration `blender_manifest.toml` (portée
+  disproportionnée pour tout l'addon amont vendorisé) et hooks Python Asset Browser (API non
+  stabilisée par Blender, juillet 2026). **Même session : renommé « niers — G4 Blender Tools »**
+  (sidebar unifiée sous l'onglet « niers ») **+ recherche perso/technique par nom localisé
+  FR/EN/JA**, deux sources combinées jamais bloquantes (miroir SQLite local — SQL copié mot pour
+  mot de `nie_wiki::query`/`wikiDb.ts` — et GraphQL azalee, mêmes requêtes que `remote_search_
+  chara`/`remote_search_waza` côté `nie-explorer`), avec bascule 1-clic « nom → fichiers VFS réels
+  → import Blender ». Vérifié en un seul test GUI bout-en-bout : recherche « Mark » → 59 résultats
+  combinés (39 local + 20 azalee), résolution → 12 fichiers réels, import → 3 objets créés. Détail :
+  `apps/nie-explorer/ROADMAP.md` §2.4/§2.5/§2.6.
+
 ### 4. Runtime + portabilité — `nie-headless`, `nie-wasm`
 - **FAIT** : runner CLI headless ; surface wasm-bindgen (detect/crilayla/@UTF + g4tx→PNG, audio CRI→WAV, cfg.bin typé) sur `wasm32-unknown-unknown`.
 - **Cap révisé (2026-06-13)** : le **chemin central est la GUI native** (`nie-game`/D1, §5bis) ; le wasm (`nie-wasm` → azalee) reste un **compagnon secondaire**, pas la cible de rendu primaire.

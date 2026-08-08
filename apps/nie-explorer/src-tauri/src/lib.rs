@@ -1100,22 +1100,74 @@ fn resolve_blender_exe(blender_exe: Option<String>) -> Result<PathBuf, String> {
         .ok_or_else(|| "blender.exe introuvable (candidats standards absents) — renseignez le chemin dans Paramètres".to_string())
 }
 
+/// Dépôt source amont de l'addon Blender `tools/niers` (Level-5 G4 Blender Tools, licence de
+/// republication confirmée auprès de l'auteur — cf. `tools/niers/README.md` en-tête). `tools/
+/// niers` est **vendorisé** dans niers depuis 2026-08-08 (fichiers réguliers versionnés, PAS un
+/// submodule Git) : une utilisatrice qui clone `niers` l'a directement, sans étape `git submodule
+/// update --init`. Cette constante ne sert donc plus qu'au filet de sécurité ci-dessous.
+const NIERS_BLENDER_ADDON_GIT_URL: &str = "https://github.com/The-RealBobi/G4_Blender.git";
+
+/// Garantit que `<root>/tools/niers/__init__.py` existe. Dans niers lui-même c'est TOUJOURS vrai
+/// (vendorisé, cf. constante ci-dessus) ; ce filet de sécurité clone l'addon à la volée pour le
+/// cas où `root` (le dossier du JEU, résolu par [`resolve_root`]) n'est PAS un checkout de ce
+/// repo — un build distribué de `nie-explorer` pointé sur une simple install Steam n'a que le
+/// jeu, pas `tools/`. Renvoie le dossier PARENT de l'addon (`<root>/tools`), pas l'addon
+/// lui-même — c'est ce dont [`open_in_blender`]/[`install_niers_blender_addon`] ont besoin pour
+/// `sys.path.insert`/zipper le dossier `niers`.
+fn ensure_niers_blender_addon(root: &std::path::Path) -> Result<PathBuf, String> {
+    let tools_dir = root.join("tools");
+    let addon_dir = tools_dir.join("niers");
+    if addon_dir.join("__init__.py").is_file() {
+        return Ok(tools_dir);
+    }
+    std::fs::create_dir_all(&tools_dir).map_err(|e| format!("création de {} : {e}", tools_dir.display()))?;
+    // Dossier présent mais incomplet (clone précédent interrompu) : repart de zéro plutôt que de
+    // laisser `git clone` échouer sur un dossier non-vide non-git.
+    if addon_dir.is_dir() {
+        std::fs::remove_dir_all(&addon_dir).map_err(|e| format!("nettoyage de {} : {e}", addon_dir.display()))?;
+    }
+    let status = std::process::Command::new("git")
+        .args(["clone", "--depth", "1", NIERS_BLENDER_ADDON_GIT_URL])
+        .arg(&addon_dir)
+        .stdin(std::process::Stdio::null())
+        .status()
+        .map_err(|e| format!("échec de lancement de git (introuvable sur le PATH ?) : {e}"))?;
+    if !status.success() {
+        return Err(format!("échec du clonage de l'extension Blender niers ({status}) — {NIERS_BLENDER_ADDON_GIT_URL}"));
+    }
+    if !addon_dir.join("__init__.py").is_file() {
+        return Err(format!("extension clonée mais `__init__.py` introuvable sous {}", addon_dir.display()));
+    }
+    Ok(tools_dir)
+}
+
 /// Extrait `path` (+ ses fichiers frères de même basename dans le même dossier VFS : g4mg/g4sk/
 /// g4tx/g4mt) vers un dossier temporaire, lance Blender avec un script d'amorçage qui active
 /// l'addon `tools/niers` (`bpy.utils` via `sys.path`, sans dépendre du dossier d'addons
-/// utilisateur Blender) puis pré-charge le modèle via son opérateur natif
-/// `level5_g4_port.load_original_model` (le même que « File > Import » appellerait).
-/// Pose `NIE_GAME_DIR` dans l'environnement du process Blender : le panneau de recherche
-/// niers→Blender (`niers_bridge.py`) l'utilise pour retrouver `niers.exe` et le VFS sans deviner.
+/// utilisateur Blender — cloné à la volée via [`ensure_niers_blender_addon`] si absent) puis
+/// importe RÉELLEMENT le modèle via l'opérateur `import_scene.level5_g4` (« File > Import >
+/// Level-5 G4 Model »). Pose `NIE_GAME_DIR` dans l'environnement du process Blender : le panneau
+/// de recherche niers→Blender (`niers_bridge.py`) l'utilise pour retrouver `niers.exe` et le VFS
+/// sans deviner.
+///
+/// **Bug corrigé (2026-08-08, « Blender ouvre un fichier vide »)** : le script d'amorçage
+/// appelait `level5_g4_port.load_original_model` — ce n'est PAS un import de scène, c'est
+/// l'opérateur « choisir le template original » du **wizard d'export/portage** (`g4_port_addon.
+/// py`, panneau « 1. Original model template » : il peuple les *réglages* internes de l'addon
+/// pour un futur export, ne crée AUCUN objet maillage). Confirmé par lecture du code source de
+/// l'addon (`tools/niers/g4_port_addon.py` `LEVEL5_G4PORT_OT_load_original_model.execute` appelle
+/// `apply_original_model_to_settings`, pas un import). Le VRAI importeur (« File > Import >
+/// Level-5 G4 Model », README de l'addon) est `import_scene.level5_g4` — **validé par un test
+/// réel `blender --background --python`** sur le vrai `c01000010.g4md` : 3 objets créés
+/// (`c01000010_20`/`eye_10`/`mouth_10`), contre 0 avant. `skip_character_setup=True` +
+/// `import_character_parts=False` : évite le wizard interactif de pièces de personnage
+/// (`INVOKE_DEFAULT` modal) pour un import direct et prévisible du seul fichier cliqué.
 #[tauri::command]
 #[specta::specta]
 fn open_in_blender(path: String, blender_exe: Option<String>, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<String, String> {
     let blender = resolve_blender_exe(blender_exe)?;
     let root = resolve_root(game_dir.as_deref());
-    let addon_parent = root.join("tools");
-    if !addon_parent.join("niers").join("__init__.py").is_file() {
-        return Err(format!("addon introuvable : {}", addon_parent.join("niers").display()));
-    }
+    let addon_parent = ensure_niers_blender_addon(&root)?;
 
     let built = with_vfs(Some(root.display().to_string()), &state, |vfs| {
         let data = vfs.read(&path).map_err(|e| e.to_string())?;
@@ -1158,6 +1210,7 @@ fn open_in_blender(path: String, blender_exe: Option<String>, game_dir: Option<S
     })?;
     let (export_dir, main_path, sibling_count) = built;
 
+    let error_log = export_dir.join("_nie_explorer_import_error.log");
     let script_path = export_dir.join("_bootstrap.py");
     let script = format!(
         r#"import sys, traceback
@@ -1169,14 +1222,42 @@ try:
 except Exception:
     traceback.print_exc()
 
-try:
-    import bpy
-    bpy.ops.level5_g4_port.load_original_model('EXEC_DEFAULT', filepath={main_path:?})
-    print("[nie-explorer] modèle pré-chargé :", {main_path:?})
-except Exception:
-    traceback.print_exc()
+import bpy
+
+ERROR_LOG = {error_log:?}
+
+def _nie_explorer_import():
+    try:
+        bpy.ops.import_scene.level5_g4(
+            'EXEC_DEFAULT',
+            filepath={main_path:?},
+            skip_character_setup=True,
+            import_character_parts=False,
+            create_report_text=False,
+        )
+        print("[nie-explorer] modèle importé :", {main_path:?})
+    except Exception:
+        tb = traceback.format_exc()
+        print(tb)
+        try:
+            with open(ERROR_LOG, "w", encoding="utf-8") as f:
+                f.write(tb)
+        except Exception:
+            pass
+        try:
+            bpy.context.workspace.status_text_set("[nie-explorer] ECHEC import (voir " + ERROR_LOG + ")")
+        except Exception:
+            pass
+
+# Differe via bpy.app.timers (meme mecanisme que l'addon lui-meme pour ses propres operateurs
+# differes, cf. g4_animation_addon.defer_blender_call) : au tout premier instant ou --python
+# s'execute au demarrage GUI, la fenetre/le contexte 3D ne sont pas garantis prets pour un
+# operateur qui touche context.window_manager/context.workspace (import_scene.level5_g4 en a
+# besoin pour sa barre de progression) -- un appel synchrone immediat peut echouer en silence.
+bpy.app.timers.register(_nie_explorer_import, first_interval=0.3)
 "#,
         addon_parent = addon_parent.display().to_string(),
+        error_log = error_log.display().to_string(),
         main_path = main_path.display().to_string(),
     );
     std::fs::write(&script_path, script).map_err(|e| e.to_string())?;
@@ -1185,13 +1266,140 @@ except Exception:
         .arg("--python")
         .arg(&script_path)
         .env("NIE_GAME_DIR", root.display().to_string())
+        // Lu par `inferred_raw_data_root`/`candidate_data_roots` de l'addon SI le chemin importé
+        // n'est déjà sous un dossier `data/common/...` (ce qui EST le cas ici, cf. préservation du
+        // chemin VFS ci-dessus — la résolution par chemin suffit pour ce fichier précis) ; posé
+        // quand même en filet pour toute résolution qui remonterait plus haut (skelette partagé
+        // hors de l'arborescence exportée, cf. `LEVEL5_G4_RAW_ROOT` dans `tools/niers/__init__.py`).
+        .env("LEVEL5_G4_RAW_ROOT", root.join("data").display().to_string())
         .spawn()
         .map_err(|e| format!("échec du lancement de Blender ({}) : {e}", blender.display()))?;
 
-    Ok(format!("Blender lancé — {} exporté(s) vers {}", sibling_count, export_dir.display()))
+    Ok(format!("Blender lancé — {} exporté(s) vers {} (import différé, log d'erreur : {})", sibling_count, export_dir.display(), error_log.display()))
 }
 
-// ─── Aperçu 3D (G4MD+G4MG → GLB embarqué → `nie-render3d`, rendu natif pur-Rust) ───────
+// ─── Installation PERSISTANTE de l'extension Blender niers (« lier au max Blender et niers ») ─
+//
+// [`open_in_blender`] ci-dessus est un lien TRANSITOIRE : addon activé via `sys.path` pour la
+// durée d'un seul process Blender lancé PAR nie-explorer, jamais installé dans le vrai dossier
+// d'addons utilisateur. Cette section installe l'extension **pour de vrai** (comme Preferences >
+// Add-ons > Install from Disk le ferait) ET configure sa préférence `raw_data_root` sur le VRAI
+// dossier `data/` du jeu — un Blender lancé ensuite INDÉPENDAMMENT de nie-explorer (double-clic
+// sur l'icône, pas de bootstrap) a alors l'addon actif ET connaît déjà le dépôt de données niers,
+// sans que l'utilisatrice n'ouvre jamais Préférences > Add-ons.
+
+/// Zippe `addon_dir` (`tools/niers`) en préservant son nom de dossier comme racine de l'archive
+/// (`niers/__init__.py`, pas `__init__.py` à plat) — requis par `bpy.ops.preferences.addon_install`
+/// pour une extension multi-fichiers (cf. README de l'addon : « package the directory as ZIP
+/// while keeping its folder name and `__init__.py` at the add-on root »). Exclut `.git`.
+fn zip_addon_dir(addon_dir: &std::path::Path) -> Result<PathBuf, String> {
+    let addon_name = addon_dir.file_name().and_then(|n| n.to_str()).ok_or("nom de dossier d'addon invalide")?.to_string();
+    let dest_dir = std::env::temp_dir().join("nie-explorer").join("blender-addon");
+    std::fs::create_dir_all(&dest_dir).map_err(|e| e.to_string())?;
+    let zip_path = dest_dir.join("niers-addon.zip");
+    let file = std::fs::File::create(&zip_path).map_err(|e| format!("création de {} : {e}", zip_path.display()))?;
+    let mut writer = zip::ZipWriter::new(file);
+    let options = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+
+    fn walk(
+        dir: &std::path::Path,
+        base: &std::path::Path,
+        addon_name: &str,
+        writer: &mut zip::ZipWriter<std::fs::File>,
+        options: zip::write::SimpleFileOptions,
+    ) -> Result<(), String> {
+        let entries = std::fs::read_dir(dir).map_err(|e| format!("lecture de {} : {e}", dir.display()))?;
+        for entry in entries {
+            let entry = entry.map_err(|e| e.to_string())?;
+            let path = entry.path();
+            if entry.file_name() == ".git" {
+                continue;
+            }
+            if path.is_dir() {
+                walk(&path, base, addon_name, writer, options)?;
+            } else {
+                let rel = path.strip_prefix(base).map_err(|e| e.to_string())?.to_string_lossy().replace('\\', "/");
+                writer.start_file(format!("{addon_name}/{rel}"), options).map_err(|e| e.to_string())?;
+                let bytes = std::fs::read(&path).map_err(|e| format!("lecture de {} : {e}", path.display()))?;
+                std::io::Write::write_all(writer, &bytes).map_err(|e| e.to_string())?;
+            }
+        }
+        Ok(())
+    }
+    walk(addon_dir, addon_dir, &addon_name, &mut writer, options)?;
+    writer.finish().map_err(|e| e.to_string())?;
+    Ok(zip_path)
+}
+
+/// Installe/met à jour l'extension Blender **niers** dans le vrai dossier d'addons de
+/// l'utilisatrice (`bpy.ops.preferences.addon_install` + `addon_enable`, PAS le bootstrap
+/// `sys.path` transitoire de [`open_in_blender`]) et configure sa préférence `raw_data_root` sur
+/// le vrai `<jeu>/data` (résolu par `inferred_raw_data_root`/`candidate_data_roots` de l'addon
+/// pour la recherche de squelette partagé/pièces de personnage — cf. `tools/niers/g4_animation_
+/// addon.py`) — persisté via `bpy.ops.wm.save_userpref()`, donc actif au prochain lancement de
+/// Blender INDÉPENDAMMENT de nie-explorer. Bloquant (`--background`, `.output()` synchrone) : pas
+/// de fenêtre à garder ouverte contrairement à [`open_in_blender`], donc pas de fuite de process.
+#[tauri::command]
+#[specta::specta]
+fn install_niers_blender_addon(blender_exe: Option<String>, game_dir: Option<String>) -> Result<String, String> {
+    let root = resolve_root(game_dir.as_deref());
+    let addon_parent = ensure_niers_blender_addon(&root)?;
+    let addon_dir = addon_parent.join("niers");
+    let blender = resolve_blender_exe(blender_exe)?;
+    let zip_path = zip_addon_dir(&addon_dir)?;
+
+    let data_root = root.join("data");
+    let script_path = zip_path.with_file_name("_install.py");
+    let script = format!(
+        r#"import traceback
+import bpy
+
+OK_MARKER = "NIE_EXPLORER_ADDON_INSTALL_OK"
+
+try:
+    bpy.ops.preferences.addon_install(filepath={zip_path:?}, overwrite=True)
+    bpy.ops.preferences.addon_enable(module="niers")
+    prefs = bpy.context.preferences.addons["niers"].preferences
+    prefs.raw_data_root = {data_root:?}
+    bpy.ops.wm.save_userpref()
+    print(OK_MARKER)
+except Exception:
+    traceback.print_exc()
+    print("NIE_EXPLORER_ADDON_INSTALL_FAILED")
+"#,
+        zip_path = zip_path.display().to_string(),
+        data_root = data_root.display().to_string(),
+    );
+    std::fs::write(&script_path, &script).map_err(|e| e.to_string())?;
+
+    let output = std::process::Command::new(&blender)
+        .args(["--background", "--python"])
+        .arg(&script_path)
+        .stdin(std::process::Stdio::null())
+        .output()
+        .map_err(|e| format!("échec de lancement de Blender ({}) : {e}", blender.display()))?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    if stdout.contains("NIE_EXPLORER_ADDON_INSTALL_OK") {
+        Ok(format!(
+            "Extension niers installée + activée (Préférences Blender persistées). Dossier de données lié : {}",
+            data_root.display()
+        ))
+    } else {
+        // Sortie complète (stdout+stderr) tronquée : le traceback Python utile est dedans, jamais
+        // avalé — contrairement au `Blender a échoué (status)` générique qu'on aurait sinon.
+        let mut detail = format!("{stdout}\n{stderr}");
+        const CAP: usize = 4000;
+        if detail.len() > CAP {
+            detail.truncate(CAP);
+            detail.push_str("\n… (tronqué)");
+        }
+        Err(format!("échec de l'installation de l'extension Blender niers :\n{detail}"))
+    }
+}
+
+// ─── Aperçu 3D (G4MD+G4MG → GLB embarqué → `nie-render3d`, rendu natif pur-Rust EN PROCESS) ──
 //
 // PAS de `bpy` (Blender-comme-module-Python, `pip install bpy`, existe officiellement —
 // developer.blender.org/docs/handbook/building_blender/python_module — et PyPI publie bien un
@@ -1205,20 +1413,18 @@ except Exception:
 // `nie-render3d` : rasterizer CPU pur-Rust déjà du workspace (`crates/nie-render3d`), qui charge
 // le GLB assemblé par `nie_formats::assemble::assemble_generic_model` (même pipeline que le CDN
 // `nie-model-serve`).
+//
+// **Appelé EN PROCESS depuis 2026-08-08**, plus via un binaire externe. Avant cette date,
+// [`vfs_glb_preview_png_b64`]/[`vfs_glb_preview_turntable_mp4_b64`] shellaient vers
+// `target/{debug,release}/nie-render3d.exe` (résolu par un `resolve_render3d_exe` aujourd'hui
+// supprimé) — introuvable dans tout build DISTRIBUÉ de nie-explorer (`scripts/package.sh` ne
+// packages QUE nie-game/nie-headless/nie-play/nie-runtime, jamais nie-render3d ; `tauri.conf.
+// json` n'a pas de `bundle.resources`/`externalBin` pour lui) : l'aperçu 3D échouait
+// silencieusement hors poste de dev. `nie-render3d::{glb::parse, render::render}` est du
+// `#![forbid(unsafe_code)]` pur-Rust sans état global — l'appeler en lib direct est aussi sûr
+// que n'importe quel autre décodeur `nie-formats` déjà appelé en process, élimine la dépendance
+// au binaire ET le double aller-retour disque (écrire le GLB, relire chaque PNG).
 
-/// Résout `nie-render3d.exe` : `<racine>/target/{debug,release}/nie-render3d.exe`.
-fn resolve_render3d_exe(root: &std::path::Path) -> Result<PathBuf, String> {
-    for profile in ["debug", "release"] {
-        let p = root.join("target").join(profile).join("nie-render3d.exe");
-        if p.is_file() {
-            return Ok(p);
-        }
-    }
-    Err("nie-render3d.exe introuvable — construisez-le : `cargo build -p nie-render3d --release`".to_string())
-}
-
-/// Assemble un G4MD+G4MG (+ G4TX frère si présent) en GLB autonome (textures embarquées) et le
-/// rend via `nie-render3d` (rasterizer CPU pur-Rust, orbit-camera) → PNG (base64).
 /// Assemble le GLB (G4MD+G4MG+G4TX frère, cf. commentaire de section) pour `path` — cœur partagé
 /// entre [`vfs_glb_preview_png_b64`] (vue fixe) et [`vfs_glb_preview_turntable_mp4_b64`] (rotation
 /// §2.3 roadmap), pour ne pas dupliquer la résolution de frères/assemblage.
@@ -1249,73 +1455,143 @@ fn assemble_glb_for_preview(vfs: &nie_formats::vfs::Vfs, path: &str) -> Result<(
     Ok((stem.to_string(), model.to_glb_embedded()))
 }
 
+/// Même logique que [`assemble_glb_for_preview`] (résolution de frères g4mg/g4tx + assemblage
+/// GLB), mais scopée aux entrées d'un CPK brut ouvert ([`RawCpkState`]) plutôt qu'au VFS complet
+/// — ferme le gap documenté `apps/nie-explorer/ROADMAP.md` §6 (« parité RawCpkView/DetailPane »,
+/// aperçu 3D listé « hors de portée pour un CPK ouvert hors VFS » faute d'un « résolveur de
+/// frères scopé au seul CPK courant »). Correspondance par (dossier, basename) au lieu d'un
+/// chemin VFS complet : un CPK brut ouvert hors VFS n'a pas de préfixe `data/...` fiable, mais
+/// `CpkEntry` porte déjà `directory`/`filename` séparément — pas besoin de reconstruire un chemin.
+fn assemble_glb_from_cpk_entries(data: &[u8], reader: &CpkReader, entry: &CpkEntry) -> Result<(String, Vec<u8>), String> {
+    use nie_formats::assemble::{assemble_generic_model, EmbeddedTexture, GenericModelInput, MeshComponent};
+
+    let stem = entry.filename.rsplit_once('.').map(|(s, _)| s).unwrap_or(&entry.filename).to_string();
+    let sibling = |ext: &str| -> Option<Vec<u8>> {
+        let target = format!("{stem}.{ext}");
+        reader
+            .entries
+            .iter()
+            .find(|e| e.directory == entry.directory && e.filename.eq_ignore_ascii_case(&target))
+            .and_then(|e| reader.extract(data, e).ok())
+    };
+
+    let g4md = sibling("g4md").ok_or("G4MD introuvable dans ce CPK (même dossier, même nom de base)")?;
+    let g4mg = sibling("g4mg").ok_or("G4MG introuvable dans ce CPK (frère requis pour la géométrie)")?;
+
+    let mut model = assemble_generic_model(GenericModelInput { code: stem.clone(), g4md, g4mg, component: MeshComponent::Generic })
+        .map_err(|e| format!("assemblage GLB : {e}"))?;
+
+    let png = sibling("g4tx").and_then(|g4tx| nie_formats::g4tx_decode::decode_best_to_png(&g4tx));
+    if let Some(png) = png {
+        model.embedded_textures.push(EmbeddedTexture { component: MeshComponent::Generic, name: format!("{stem}_tex"), png_bytes: png });
+    }
+
+    Ok((stem, model.to_glb_embedded()))
+}
+
+/// Aperçu 3D fixe pour une entrée du CPK brut ouvert (hors VFS) — équivalent de
+/// [`vfs_glb_preview_png_b64`], résolution de frères via [`assemble_glb_from_cpk_entries`].
+#[tauri::command]
+#[specta::specta]
+fn raw_cpk_glb_preview_png_b64(index: u32, state: tauri::State<RawCpkState>) -> Result<String, String> {
+    let guard = state.0.lock().unwrap();
+    let (_, data, reader) = guard.as_ref().ok_or("aucun CPK ouvert")?;
+    let entry = reader.entries.get(index as usize).ok_or("index d'entrée invalide")?;
+    let (_stem, glb) = assemble_glb_from_cpk_entries(data, reader, entry)?;
+    let model = nie_render3d::glb::parse(&glb).map_err(|e| format!("parse GLB : {e}"))?;
+    let rgba = nie_render3d::render::render(&model, 0.6, RENDER3D_SIZE, RENDER3D_SIZE);
+    let png = encode_png_rgba(&rgba, RENDER3D_SIZE, RENDER3D_SIZE)?;
+    Ok(base64::engine::general_purpose::STANDARD.encode(&png))
+}
+
+/// Encode un buffer RGBA8 (sortie de `nie_render3d::render::render`) en PNG — même réglages que
+/// le CLI `nie-render3d` (`png` crate, `ColorType::Rgba`/`BitDepth::Eight`) ; dupliqué ici plutôt
+/// qu'exposé depuis `nie-render3d` car ce dernier n'a pas de `[lib]` pour l'encodage (seuls
+/// `glb`/`render`/`scene` sont publics, l'encodage PNG vit dans son `main.rs` binaire).
+fn encode_png_rgba(rgba: &[u8], w: u32, h: u32) -> Result<Vec<u8>, String> {
+    let mut out = Vec::new();
+    {
+        let mut enc = png::Encoder::new(std::io::Cursor::new(&mut out), w, h);
+        enc.set_color(png::ColorType::Rgba);
+        enc.set_depth(png::BitDepth::Eight);
+        let mut writer = enc.write_header().map_err(|e| e.to_string())?;
+        writer.write_image_data(rgba).map_err(|e| e.to_string())?;
+    }
+    Ok(out)
+}
+
+const RENDER3D_SIZE: u32 = 512;
+
 #[tauri::command]
 #[specta::specta]
 fn vfs_glb_preview_png_b64(path: String, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<String, String> {
     let root = resolve_root(game_dir.as_deref());
-    let render3d = resolve_render3d_exe(&root)?;
-    let (stem, glb) = with_vfs(Some(root.display().to_string()), &state, |vfs| assemble_glb_for_preview(vfs, &path))?;
-    let dir = std::env::temp_dir().join("nie-explorer").join("render3d");
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    let glb_path = dir.join(format!("{stem}.glb"));
-    let png_path = dir.join(format!("{stem}.png"));
-    std::fs::write(&glb_path, &glb).map_err(|e| e.to_string())?;
-
-    let status = std::process::Command::new(&render3d)
-        .arg("--glb")
-        .arg(&glb_path)
-        .arg("--out")
-        .arg(&png_path)
-        .args(["--frames", "1", "--width", "512", "--height", "512"])
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()
-        .map_err(|e| format!("échec de lancement de nie-render3d : {e}"))?;
-    if !status.success() {
-        return Err(format!("nie-render3d a échoué ({status})"));
-    }
-
-    let png = std::fs::read(&png_path).map_err(|e| e.to_string())?;
+    let (_stem, glb) = with_vfs(Some(root.display().to_string()), &state, |vfs| assemble_glb_for_preview(vfs, &path))?;
+    let model = nie_render3d::glb::parse(&glb).map_err(|e| format!("parse GLB : {e}"))?;
+    // angle=0.6 rad : même cadrage par défaut que le CLI `nie-render3d --frames 1` (main.rs).
+    let rgba = nie_render3d::render::render(&model, 0.6, RENDER3D_SIZE, RENDER3D_SIZE);
+    let png = encode_png_rgba(&rgba, RENDER3D_SIZE, RENDER3D_SIZE)?;
     Ok(base64::engine::general_purpose::STANDARD.encode(&png))
 }
 
 /// Aperçu 3D **interactif** (§2.3 roadmap, « caméra orbitale ») : au lieu d'une image fixe,
-/// rend un **turntable** (N images à angles régulièrement espacés sur 360°, `nie-render3d
-/// --frames N`) remuxé en MP4 par `nie-render3d` lui-même (`ffmpeg` déjà requis pour l'aperçu
-/// vidéo USM, cf. [`vfs_video_preview_b64`]) — le frontend l'affiche dans un `<video controls>`,
-/// dont la barre de défilement native EST la caméra orbitale (glisser = tourner autour du
-/// modèle). Alternative délibérément choisie à l'embarquement d'une fenêtre wgpu native dans
-/// WebView2 (fenêtrage Win32 imbriqué fragile, hors de portée raisonnable ici) — même moteur de
-/// rendu (`nie-render3d`, déjà utilisé par [`vfs_glb_preview_png_b64`]), juste plus d'images.
+/// rend un **turntable** (36 images à angles régulièrement espacés sur 360°, EN PROCESS via
+/// `nie_render3d::render::render`) remuxé en MP4 par `ffmpeg` en sous-processus (seul `ffmpeg`
+/// reste externe — même outil déjà requis pour l'aperçu vidéo USM, cf. [`vfs_video_preview_b64`],
+/// le mux H.264 n'a pas d'équivalent pur-Rust raisonnable dans ce budget) — le frontend l'affiche
+/// dans un `<video controls>`, dont la barre de défilement native EST la caméra orbitale (glisser
+/// = tourner autour du modèle). Alternative délibérément choisie à l'embarquement d'une fenêtre
+/// wgpu native dans WebView2 (fenêtrage Win32 imbriqué fragile, hors de portée raisonnable ici) —
+/// même moteur de rendu (`nie-render3d`) que [`vfs_glb_preview_png_b64`], juste plus d'images.
 #[tauri::command]
 #[specta::specta]
 fn vfs_glb_preview_turntable_mp4_b64(path: String, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<String, String> {
-    let root = resolve_root(game_dir.as_deref());
-    let render3d = resolve_render3d_exe(&root)?;
-    let (stem, glb) = with_vfs(Some(root.display().to_string()), &state, |vfs| assemble_glb_for_preview(vfs, &path))?;
-    let dir = std::env::temp_dir().join("nie-explorer").join("render3d");
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    let glb_path = dir.join(format!("{stem}.glb"));
-    let mp4_path = dir.join(format!("{stem}_turntable.mp4"));
-    std::fs::write(&glb_path, &glb).map_err(|e| e.to_string())?;
+    const FRAMES: u32 = 36;
+    const FPS: u32 = 12;
 
-    let status = std::process::Command::new(&render3d)
-        .arg("--glb")
-        .arg(&glb_path)
-        .arg("--out")
+    let root = resolve_root(game_dir.as_deref());
+    let (stem, glb) = with_vfs(Some(root.display().to_string()), &state, |vfs| assemble_glb_for_preview(vfs, &path))?;
+    let model = nie_render3d::glb::parse(&glb).map_err(|e| format!("parse GLB : {e}"))?;
+
+    // Dossier unique par appel (stem+horodatage) : évite qu'un second aperçu concurrent sur le
+    // même modèle n'écrase les frames PNG en cours de lecture par `ffmpeg` (le binaire externe
+    // précédent réutilisait un dossier fixe par stem, sans ce risque car un seul writer à la fois).
+    let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0);
+    let dir = std::env::temp_dir().join("nie-explorer").join("render3d").join(format!("{stem}-{stamp}"));
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    for i in 0..FRAMES {
+        let angle = std::f32::consts::TAU * (i as f32) / (FRAMES as f32);
+        let rgba = nie_render3d::render::render(&model, angle, RENDER3D_SIZE, RENDER3D_SIZE);
+        let png = encode_png_rgba(&rgba, RENDER3D_SIZE, RENDER3D_SIZE)?;
+        std::fs::write(dir.join(format!("f_{i:04}.png")), png).map_err(|e| e.to_string())?;
+    }
+
+    let mp4_path = dir.join("turntable.mp4");
+    let status = std::process::Command::new("ffmpeg")
+        .args(["-y", "-loglevel", "error", "-framerate", &FPS.to_string(), "-i"])
+        .arg(dir.join("f_%04d.png"))
+        .args(["-c:v", "libx264", "-pix_fmt", "yuv420p"])
         .arg(&mp4_path)
-        .args(["--frames", "36", "--fps", "12", "--width", "512", "--height", "512"])
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .status()
-        .map_err(|e| format!("échec de lancement de nie-render3d : {e}"))?;
+        .map_err(|e| format!("échec de lancement de ffmpeg (introuvable sur le PATH ?) : {e}"));
+    let status = match status {
+        Ok(s) => s,
+        Err(e) => {
+            let _ = std::fs::remove_dir_all(&dir);
+            return Err(e);
+        }
+    };
     if !status.success() {
-        return Err(format!("nie-render3d a échoué ({status}) — ffmpeg (requis pour le turntable) est-il sur le PATH ?"));
+        let _ = std::fs::remove_dir_all(&dir);
+        return Err(format!("ffmpeg a échoué ({status})"));
     }
 
-    let mp4 = std::fs::read(&mp4_path).map_err(|e| e.to_string())?;
+    let mp4 = std::fs::read(&mp4_path).map_err(|e| e.to_string());
+    let _ = std::fs::remove_dir_all(&dir);
+    let mp4 = mp4?;
     const CAP: usize = 60 * 1024 * 1024;
     if mp4.len() > CAP {
         return Err(format!("turntable MP4 trop volumineux pour l'aperçu ({} octets > {CAP})", mp4.len()));
@@ -1366,8 +1642,9 @@ fn audio_wav_b64_from_bytes(data: Vec<u8>) -> Result<String, String> {
 
 /// Même décodage audio que [`vfs_audio_preview_b64`], mais depuis une entrée du CPK brut ouvert
 /// (hors VFS) — un seul fichier autonome (HCA/ADX ne référence jamais de fichier frère), donc pas
-/// de dépendance à l'indexation VFS contrairement à l'aperçu 3D (GLB, qui a besoin des frères
-/// g4md/g4mg résolus par chemin VFS et reste donc VFS-only).
+/// de dépendance à l'indexation VFS. (L'aperçu 3D, qui a besoin des frères g4md/g4mg, a sa PROPRE
+/// résolution scopée au CPK courant plutôt que le VFS — cf. [`raw_cpk_glb_preview_png_b64`]/
+/// [`assemble_glb_from_cpk_entries`], plus VFS-only depuis 2026-08-08.)
 #[tauri::command]
 #[specta::specta]
 fn raw_cpk_audio_preview_b64(index: u32, state: tauri::State<RawCpkState>) -> Result<String, String> {
@@ -1624,6 +1901,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         describe_disk_file,
         read_disk_file_b64,
         open_in_blender,
+        install_niers_blender_addon,
         remote_search_chara,
         remote_search_waza,
         remote_cpk_search,
@@ -1637,6 +1915,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         vfs_glb_preview_png_b64,
         vfs_glb_preview_turntable_mp4_b64,
         vfs_audio_preview_b64,
+        raw_cpk_glb_preview_png_b64,
     ])
 }
 
@@ -1734,4 +2013,98 @@ pub fn run() {
         .invoke_handler(specta.invoke_handler())
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+/// Golden réel sur le vrai jeu (`data/`, 57 Go, gitignored) : vérifie END-TO-END le nouveau
+/// rendu 3D EN PROCESS (2026-08-08, cf. commentaire au-dessus de `assemble_glb_for_preview`) —
+/// pas seulement « ça compile » après la suppression de `resolve_render3d_exe`/du subprocess.
+/// `cargo test -p nie-explorer --lib --features real-fixtures`.
+#[cfg(all(test, feature = "real-fixtures"))]
+mod real_fixtures_tests {
+    use super::{
+        assemble_glb_for_preview, assemble_glb_from_cpk_entries, encode_png_rgba, ensure_niers_blender_addon, CpkReader, Vfs,
+        RENDER3D_SIZE,
+    };
+
+    /// `tools/niers` (vendorisé dans niers depuis 2026-08-08, cf. `docs/PLAN.md`) doit être
+    /// détecté PRÉSENT sans déclencher de `git clone` (rapide, déterministe — pas de dépendance
+    /// réseau dans ce test). Le chemin réseau (`git clone` si absent, filet de sécurité pour un
+    /// `game_dir` qui n'est pas un checkout de ce repo) est vérifié manuellement contre le vrai
+    /// dépôt GitHub, pas ici (pas d'accès réseau garanti en CI).
+    #[test]
+    fn ensure_niers_blender_addon_detecte_le_vendoring_deja_present() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
+        let tools_dir = ensure_niers_blender_addon(&root).expect("tools/niers doit déjà être présent (vendorisé)");
+        assert!(tools_dir.join("niers").join("__init__.py").is_file());
+        // La VRAIE ligne attendue de l'addon (pas un fichier vide/corrompu) : le bl_info du plugin.
+        let init = std::fs::read_to_string(tools_dir.join("niers").join("__init__.py")).unwrap();
+        assert!(init.contains("Level-5 G4 Blender Tools"), "contenu inattendu — mauvais addon ?");
+    }
+
+    #[test]
+    fn glb_preview_png_en_process_sur_un_vrai_modele() {
+        let data_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../data");
+        assert!(data_dir.is_dir(), "data/ introuvable ({}) — test réservé au poste avec le vrai jeu", data_dir.display());
+        let mut vfs = Vfs::new();
+        vfs.init(&data_dir).expect("init VFS depuis le vrai data/");
+
+        // `c01000010` = visage IE1 d'Endou (même fixture que `nie_formats::assemble::tests`,
+        // casse réelle du VFS vérifiée via `niers vfs find c01000010` : `01_IE1`, pas `01_ie1`).
+        let path = "data/common/chr/_face/01_IE1/c01000010/c01000010.g4md";
+        let (stem, glb) = assemble_glb_for_preview(&vfs, path).expect("assemblage GLB réel");
+        assert_eq!(stem, "c01000010");
+        assert!(glb.len() > 1000, "GLB assemblé suspicieusement petit ({} octets)", glb.len());
+
+        let model = nie_render3d::glb::parse(&glb).expect("parse du GLB assemblé");
+        let rgba = nie_render3d::render::render(&model, 0.6, RENDER3D_SIZE, RENDER3D_SIZE);
+        assert_eq!(rgba.len(), (RENDER3D_SIZE * RENDER3D_SIZE * 4) as usize);
+        // Pas une image vide/uniforme : `render::render` peint un dégradé de fond SOMBRE
+        // (canaux ≤ ~24+26/28+30/40+34, cf. `crates/nie-render3d/src/render.rs::render`) — un
+        // pixel de mesh (argile ~150-206 ou texture éclairée) dépasse largement ce plafond sur
+        // ses 3 canaux. Même heuristique que le test unitaire `render_produit_des_pixels_de_mesh`
+        // de `nie-render3d` lui-même — preuve qu'un vrai mesh a été rasterisé, pas un fond vide.
+        let mesh_pixels = rgba.chunks_exact(4).filter(|p| p[0] > 80 && p[1] > 80 && p[2] > 80).count();
+        assert!(mesh_pixels > 1000, "rendu quasi vide ({mesh_pixels} pixels de mesh) — mesh non rasterisé ?");
+
+        let png = encode_png_rgba(&rgba, RENDER3D_SIZE, RENDER3D_SIZE).expect("encodage PNG");
+        assert!(png.starts_with(b"\x89PNG\r\n\x1a\n"), "signature PNG absente");
+        assert!(png.len() > 5000, "PNG suspicieusement petit ({} octets) pour un vrai rendu 512x512", png.len());
+
+        // Écrit le PNG en dur pour inspection visuelle (pas un fichier de test committé — juste
+        // une preuve tangible que le rendu produit bien une image reconnaissable).
+        let out = std::env::temp_dir().join("nie-explorer-test-glb-preview.png");
+        std::fs::write(&out, &png).expect("écriture du PNG de contrôle");
+        println!("PNG de contrôle écrit : {}", out.display());
+    }
+
+    /// Même vérification que ci-dessus, mais pour le chemin **CPK brut hors VFS**
+    /// ([`assemble_glb_from_cpk_entries`]/`raw_cpk_glb_preview_png_b64`, gap §6 roadmap fermé
+    /// 2026-08-08) : ouvre un vrai `.cpk` de `data/packs/` directement (pas via le VFS monté),
+    /// résout les frères g4mg/g4tx par (dossier, basename) parmi les entrées du CPK, assemble et
+    /// rend. Le même modèle (`c01000010`) que le test VFS ci-dessus, pour comparaison directe.
+    #[test]
+    fn raw_cpk_glb_preview_en_process_sur_un_vrai_pack() {
+        let pack = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../data/packs/eaabb0359e96871a72ea9f86c5d3d10d.cpk");
+        assert!(pack.is_file(), "pack introuvable ({}) — test réservé au poste avec le vrai jeu", pack.display());
+        let data = std::fs::read(&pack).expect("lecture du CPK réel");
+        let reader = CpkReader::new(&data, "eaabb0359e96871a72ea9f86c5d3d10d.cpk").expect("parsing du CPK réel");
+
+        let entry = reader
+            .entries
+            .iter()
+            .find(|e| e.filename.eq_ignore_ascii_case("c01000010.g4md"))
+            .expect("c01000010.g4md doit être dans ce pack (même fixture que le test VFS ci-dessus)");
+
+        let (stem, glb) = assemble_glb_from_cpk_entries(&data, &reader, entry).expect("assemblage GLB depuis le CPK brut");
+        assert_eq!(stem, "c01000010");
+
+        let model = nie_render3d::glb::parse(&glb).expect("parse du GLB assemblé (CPK brut)");
+        let rgba = nie_render3d::render::render(&model, 0.6, RENDER3D_SIZE, RENDER3D_SIZE);
+        let mesh_pixels = rgba.chunks_exact(4).filter(|p| p[0] > 80 && p[1] > 80 && p[2] > 80).count();
+        assert!(mesh_pixels > 1000, "rendu CPK-brut quasi vide ({mesh_pixels} pixels de mesh)");
+
+        let png = encode_png_rgba(&rgba, RENDER3D_SIZE, RENDER3D_SIZE).expect("encodage PNG");
+        assert!(png.starts_with(b"\x89PNG\r\n\x1a\n"), "signature PNG absente");
+    }
 }

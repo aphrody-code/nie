@@ -23,6 +23,13 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
+[features]
+# Gate le test golden `glb_preview_png_en_process_sur_un_vrai_modele` (lib.rs) sur le vrai
+# `data/` du jeu (57 Go, © Level-5, gitignored, absent du clone public) — même convention que
+# `real-fixtures` (nie-formats), `real-saves` (nie-save), `real-audio` (nie-model-serve).
+# Lancer : cargo test -p nie-explorer --lib --features real-fixtures
+real-fixtures = []
+
 [dependencies]
 # Feature `specta` : implémente `specta::Type` (marqueur "argument à ignorer côté JS") pour les
 # types injectés par Tauri (`State`, `AppHandle`…) — c'est ce qui permet à `tauri-specta` de
@@ -59,11 +66,11 @@ tauri-plugin-single-instance = "2"
 # Crates niers réutilisées telles quelles (mêmes décodeurs que `niers vfs`, cf. CLAUDE.md
 # anti-doublon) — chemins relatifs depuis apps/nie-explorer/src-tauri/, hors du workspace
 # racine (members = ["crates/*"]), donc pinnées ici plutôt que via [workspace.dependencies].
-# PAS de nie-wiki ici : son `rusqlite` (libsqlite3-sys 0.35) entre en conflit de lien natif
-# (`links = "sqlite3"`) avec le `sqlx-sqlite` de tauri-plugin-sql (libsqlite3-sys 0.28) — Cargo
-# interdit deux copies. Le miroir wiki est donc interrogé côté frontend via tauri-plugin-sql
-# (mêmes requêtes SQL que `nie-wiki::query`, copiées dans `src/lib/wikiDb.ts` — un seul moteur
-# SQLite dans TOUT le binaire, le choix "production ready" demandé plutôt que deux crates SQLite.
+#
+# Inventaire COMPLET des 26 crates `crates/*` face à ce binaire (audit 2026-08-08, cf. `docs/
+# PLAN.md` §3octies) : ce qui suit est la liste de TOUT ce qui est chargeable en dépendance
+# Cargo directe (a un `src/lib.rs`, aucun conflit de lien natif). Les crates absentes de ce
+# fichier le sont pour une raison Cargo dure, listée à la fin — jamais un oubli.
 nie-formats = { path = "../../../crates/nie-formats", features = ["serde", "textures", "audio-decode"] }
 nie-explore = { path = "../../../crates/nie-explore" }
 # Saves IEVR (Lives, CRC32-keyed XOR) : décrypt/inspection/ré-encryptage → onglet Sauvegardes.
@@ -80,8 +87,74 @@ nie-core = { path = "../../../crates/nie-core" }
 nie-trace = { path = "../../../crates/nie-trace" }
 # Frontière BFS (redis) — chargée pour un futur outil RE intégré, pas encore câblée.
 nie-queue = { path = "../../../crates/nie-queue" }
-# PAS de nie-re/nie-index/nie-seed/nie-zukan/nie-model-serve : tous dépendent (directement ou
-# via nie-index) de `rusqlite`, même conflit de lien natif `sqlite3` que nie-wiki ci-dessus.
+# Types géométriques POD partagés (Vec2/Vec3) — déjà tiré transitivement via nie-core/
+# nie-formats (dédup Phase 2), déclaré ici en direct pour un accès sans détour depuis les
+# futures commandes de mod gameplay (placement/formation).
+nie-geom = { path = "../../../crates/nie-geom" }
+# Cœur du jeu (GameState + trait Renderer) : PAS de wgpu/winit ici (nie-game, le hôte GPU, est
+# un binaire séparé qui consomme nie-app — aucun conflit avec le WebView2 de Tauri). Chargée
+# pour un futur onglet « prévisualiser un match/dialogue » rendu en framebuffer CPU, embarqué
+# sans dépendre d'un process externe.
+nie-app = { path = "../../../crates/nie-app" }
+# Rendu 3D CPU (rastérisation z-buffer, PAS de GPU) — appelée EN PROCESS par `vfs_glb_preview_
+# png_b64`/`vfs_glb_preview_turntable_mp4_b64` (cf. commentaire de section dans lib.rs) : avant
+# 2026-08-08 ces deux commandes shellaient vers un binaire compilé séparément
+# (`target/{debug,release}/nie-render3d.exe`), introuvable dans TOUT build distribué de
+# nie-explorer (`scripts/package.sh` ne packages QUE nie-game/nie-headless/nie-play/nie-runtime,
+# `tauri.conf.json` n'a pas de `bundle.resources`/`externalBin` pour nie-render3d.exe) — l'aperçu
+# 3D était donc silencieusement cassé hors poste de dev. Le rasterizer étant du pur-Rust
+# `no_std`-friendly (`glb::parse`+`render::render`), l'appeler en lib direct élimine la
+# dépendance au binaire ET le double aller-retour disque (écrire le GLB, relire le PNG).
+nie-render3d = { path = "../../../crates/nie-render3d" }
+# Encodage PNG des frames rendues par nie-render3d (même crate/version que `nie-render3d`/
+# `nie-game`/`nie-play` — pas de nouvelle dépendance pour le workspace, juste ajoutée ici aussi).
+png = "0.18"
+# Zip de `tools/niers` pour `bpy.ops.preferences.addon_install` (exige un vrai .zip, pas un
+# dossier) — même version que `nie-steam` (décompression de manifestes CDN), pas de nouvelle
+# version introduite dans le workspace.
+zip = "2"
+# Moteur de match top-down (World : physique ballon, 22 joueurs, buts) — chargée pour un futur
+# onglet « simuler un match » embarqué (aujourd'hui : `nie-runtime`/`nie-match3d` en CLI headless
+# séparée uniquement).
+nie-runtime = { path = "../../../crates/nie-runtime" }
+# Téléchargement/dump natif de depots Steam (port du `Steam/` C# d'iecode sur `steamroom`) —
+# chargée pour un futur onglet « vérifier/récupérer le dépôt IEVR », pas encore câblée dans une
+# commande. Dépendance `tokio` (runtime async) : compatible avec l'exécuteur bloquant des
+# commandes `tauri::command` existantes (appelée depuis un thread dédié, jamais le thread UI).
+nie-steam = { path = "../../../crates/nie-steam" }
+#
+# Exclusions Cargo dures — PAS des oublis, chacune vérifiée (`cargo metadata`/lecture directe
+# du Cargo.toml de chaque crate, 2026-08-08) :
+# - `nie-wiki`/`nie-re`/`nie-index`/`nie-seed`/`nie-zukan`/`nie-model-serve` : dépendent
+#   (directement ou via nie-index) de `rusqlite` (libsqlite3-sys 0.35, `links = "sqlite3"`) →
+#   conflit de lien natif avec le `sqlx-sqlite` de tauri-plugin-sql (libsqlite3-sys 0.28), Cargo
+#   interdit deux copies d'une lib `links`. Le miroir wiki est donc interrogé côté frontend via
+#   tauri-plugin-sql (mêmes requêtes SQL que `nie-wiki::query`, copiées dans `src/lib/wikiDb.ts`)
+#   — un seul moteur SQLite dans TOUT le binaire.
+# - `nie-game`/`nie-headless`/`nie-play`/`nie-cli` : PAS de `src/lib.rs`, uniquement des `[[bin]]`
+#   → aucun cible `lib` à lier, Cargo refuse ces crates comme `[dependencies]` quelle que soit
+#   leur envie d'être réutilisées (contrainte dure, pas un choix). `nie-game` shippe en plus
+#   wgpu/winit (2ᵉ contexte GPU natif dans un process WebView2) — même sans le blocage `[lib]`,
+#   pas souhaitable à embarquer.
+# - `nie-ffi` : `[lib] crate-type = ["cdylib"]` **sans** `"rlib"` → ne produit aucun artefact
+#   linkable par un autre crate Rust (c'est une frontière FFI pour Bun/JS, pas une lib Rust
+#   consommable) ; de toute façon redondante (n'expose rien que nie-formats/nie-core n'exposent
+#   déjà en direct).
+# - `nie-wasm` : `wasm-bindgen` compile nativement mais la sortie n'a de sens que sur
+#   `wasm32-unknown-unknown` (glue JS) ; ses crates utiles (`nie-app`/`nie-runtime`/`nie-core`/
+#   `nie-data`/`nie-save`/`nie-formats`) sont désormais TOUTES chargées ci-dessus en direct —
+#   dépendre de `nie-wasm` en plus serait un doublon, pas un gain.
+# - `nie-engine` : exclue du workspace Cargo lui-même (`exclude` racine) — portage RE non
+#   validé, conservé en lecture seule comme carte de référence uniquement (cf. `docs/PLAN.md`
+#   §3quinquies/§6 dédup Phase 0). Ne JAMAIS en dépendre tant qu'il n'est pas re-validé byte-exact.
+# - `nie-lua` (VM Lua 5.2 réelle) : pas de dépendance directe nécessaire — déjà tirée
+#   transitivement via `nie-explore` (`describe_content` l'appelle pour le bytecode `.lua.bin`).
+#
+# `IECODE.Core`/`IECODE.CLI` (C# .NET 10, `IECODE.sln` racine, `src/IECODE.Core*`) : référence
+# de portage externe (cf. `docs/PLAN.md` intro « le moyen ≠ la fin »), PAS une crate Cargo — un
+# projet .NET ne se « package » pas comme dépendance Rust. Utilisée en cross-vérification
+# manuelle lors du portage d'encodeurs (`cpk_encode`/`g4tx_encode`, cf. `apps/nie-explorer/
+# ROADMAP.md` §1.1/§1.2 et le commit `8eccadc`), jamais exécutée ni embarquée par ce binaire.
 
 # Matériau de fond natif Windows 11 (Mica) — habillage "UI Windows native" du user.
 # `winreg` : lecture registre `HKLM\...\Valve\Steam` pour la VRAIE détection du dossier de jeu
