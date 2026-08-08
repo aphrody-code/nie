@@ -14,6 +14,7 @@
 //! auras, boutiques, quêtes…) suivent EXACTEMENT le même patron (`list_values`/`walk_named` +
 //! bridge), à étendre au besoin.
 
+use nie_data::skill::{SkillInfo, SkillTextMaps};
 use nie_formats::cfgbin::{CfgEntry, Value as CfgValue};
 use nie_formats::vfs::Vfs;
 use serde::Serialize;
@@ -48,10 +49,10 @@ fn base_name(path: &str) -> &str {
     path.rsplit('/').next().unwrap_or(path)
 }
 
-/// Liste toutes les techniques du jeu (`m_skillInfoList` de `skill_config`), noms/descriptions
-/// FR joints depuis `skill_text.cfg.bin` si trouvé (sinon `name`/`description` restent `None` —
-/// jamais une chaîne devinée).
-pub fn list_skills(vfs: &Vfs) -> Result<Vec<SkillDto>, String> {
+/// Parse `skill_config` (+ `skill_text` FR si présent) → `SkillInfo` bruts + textes joints.
+/// Factorisé depuis [`list_skills`] pour être réutilisé par [`find_skill`] (résolution par nom/ID
+/// pour le pont Blender, cf. `blender_build_skill_scene` dans `lib.rs`) sans reparser deux fois.
+fn parse_skills(vfs: &Vfs) -> Result<(Vec<SkillInfo>, SkillTextMaps), String> {
     let config_path = find_path(vfs, |p| {
         p.contains("/skill/") && base_name(p).starts_with("skill_config") && base_name(p).ends_with(".cfg.bin")
     })
@@ -72,6 +73,36 @@ pub fn list_skills(vfs: &Vfs) -> Result<Vec<SkillDto>, String> {
         }
         None => nie_data::skill::SkillTextMaps::default(),
     };
+    Ok((skills, maps))
+}
+
+/// Trouve UNE technique par requête libre : `skill_id_str` exact (ex. `whs00340`) en priorité,
+/// sinon sous-chaîne insensible à la casse dans `skill_id_str` OU le nom FR résolu (ex. « Savoir
+/// suprême »). `None` si aucune ne correspond — jamais un premier résultat approximatif imposé en
+/// silence. Utilisé par `blender_build_skill_scene` (`lib.rs`) pour résoudre une requête utilisateur
+/// libre (« Savoir Suprême ») en `SkillInfo` (→ `cutin_assets()` pour les chemins VFS du cut-in).
+pub fn find_skill(vfs: &Vfs, query: &str) -> Result<Option<SkillInfo>, String> {
+    let (skills, maps) = parse_skills(vfs)?;
+    let q = query.trim().to_lowercase();
+    if q.is_empty() {
+        return Ok(None);
+    }
+    if let Some(exact) = skills.iter().find(|s| s.skill_id_str.eq_ignore_ascii_case(&q)) {
+        return Ok(Some(exact.clone()));
+    }
+    Ok(skills
+        .into_iter()
+        .find(|s| {
+            s.skill_id_str.to_lowercase().contains(&q)
+                || nie_data::skill::join_skill_text(s, &maps).name.is_some_and(|n| n.to_lowercase().contains(&q))
+        }))
+}
+
+/// Liste toutes les techniques du jeu (`m_skillInfoList` de `skill_config`), noms/descriptions
+/// FR joints depuis `skill_text.cfg.bin` si trouvé (sinon `name`/`description` restent `None` —
+/// jamais une chaîne devinée).
+pub fn list_skills(vfs: &Vfs) -> Result<Vec<SkillDto>, String> {
+    let (skills, maps) = parse_skills(vfs)?;
 
     Ok(skills
         .iter()

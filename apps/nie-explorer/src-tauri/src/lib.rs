@@ -1121,6 +1121,18 @@ fn trash_delete_reel() {
     assert!(!f.exists(), "le fichier doit avoir disparu de son emplacement d'origine");
 }
 
+/// Régénère `src/lib/bindings.ts` sans lancer toute l'app (pas de fenêtre) — même export que
+/// `run()`, exécuté ici en `#[ignore]` pour un rafraîchissement ponctuel (ex. après ajout de
+/// commandes) sans dépendre de `bun run tauri dev`.
+#[cfg(test)]
+#[test]
+#[ignore = "écrit sur disque (../src/lib/bindings.ts) — lancer explicitement avec --ignored"]
+fn regen_bindings_ts() {
+    specta_builder()
+        .export(specta_typescript::Typescript::default(), "../src/lib/bindings.ts")
+        .expect("échec de l'export des bindings TypeScript (tauri-specta)");
+}
+
 /// Remplace la texture d'un `.g4tx` **mono-texture, sans région d'atlas** (§2.2 roadmap,
 /// « Éditeur d'image (textures) ») par un PNG choisi — lit `vfs_path`, valide qu'il s'agit bien
 /// du cas simple pris en charge (cf. doc `nie_formats::g4tx_encode`, rejette explicitement les
@@ -1526,6 +1538,369 @@ except Exception:
         }
         Err(format!("échec de l'installation de l'extension Blender niers :\n{detail}"))
     }
+}
+
+// ─── Pont Blender ↔ niers : importer un .blend existant, construire une scène technique ──────
+//
+// Demande utilisatrice (2026-08-08) : « tu dois faire un pont entre blender et niers, pouvoir
+// importer ce type de fichier dans niers et pouvoir construire une scène blender via niers,
+// par exemple fait moi une scène avec byron love qui fait savoir suprême ». Deux commandes :
+// [`blender_preview_png_b64`] (importer/prévisualiser N'IMPORTE QUEL `.blend` local dans
+// nie-explorer) et [`blender_build_skill_scene`] (construire un `.blend` réel : modèle de
+// personnage + modèle de cut-in de technique, tous deux de VRAIS assets VFS, jamais fabriqués).
+//
+// **Recette validée par un test réel headless AVANT d'écrire ce code** (même méthodologie que
+// [`open_in_blender`] ci-dessus, `blender --background --python`, sur les VRAIS fichiers extraits
+// du VFS pour Byron Love Aphrody `c01001900` + la technique `whs00340`/« Savoir suprême »/
+// `ev60_00340`) :
+// - Le chemin VFS du dossier série (`chr/_face/<sub>/<code>/`) n'est PAS toujours en minuscules
+//   comme le renvoie `nie_formats::assemble::series_dir_from_code` (`"01_ie1"`, utilisé pour les
+//   URLs CDN qui normalisent la casse) — le VFS réel stocke `01_IE1` (majuscules) pour ce
+//   personnage, et `vfs.read()`/`vfs.iter()` sont sensibles à la casse. **Ne JAMAIS reconstruire
+//   un chemin depuis `series_dir_from_code()` pour une lecture VFS directe** : toujours découvrir
+//   le chemin réel par sous-chaîne sur `vfs.iter()` (même patron que [`vfs_related`]), qui donne
+//   la casse exacte telle qu'indexée.
+// - Le cut-in de `whs00340` (`ev60_00340`) n'a PAS de `.g4md` dans le VFS (seulement `.g4mg` +
+//   `.g4pkm` + `.objbin`) — `MODEL_EXTENSIONS = {".g4md", ".g4pkm"}` côté addon (`g4_port_addon.
+//   py`) : `import_scene.level5_g4` accepte aussi `.g4pkm` comme point d'entrée. Toujours essayer
+//   `.g4md` d'abord (fidélité totale), replier sur `.g4pkm` si absent — jamais l'inverse deviné.
+// - Résultat réel (2 objets importés) : `skeleton_root` (ARMATURE) + `wing_10` (MESH, texture
+//   `wing_10M` manquante côté matériau — non bloquant, géométrie présente) — cohérent avec
+//   l'élément Vent de la technique (effet d'ailes). Personnage : 3 objets (`c01001900_20`/
+//   `eye_10`/`mouth_10`), 3/3 matériaux, 8/8 hashes — import fidèle confirmé.
+
+/// Résultat de [`blender_build_skill_scene`] : chemin du `.blend` produit + aperçu rendu +
+/// avertissements NON bloquants (ex. personnage introuvable dans le VFS local → scène cut-in
+/// seul, jamais un échec silencieux ni un personnage substitué en douce).
+#[derive(Serialize, specta::Type)]
+struct BlenderSceneResultDto {
+    blend_path: String,
+    preview_png_b64: Option<String>,
+    skill_name: String,
+    event_id_name: String,
+    warnings: Vec<String>,
+}
+
+/// Sous-chaîne insensible à la casse ? (les codes internes/`event_id_name` sont ASCII, une
+/// comparaison octet suffit — pas de dépendance `unicode-case` pour ce besoin ponctuel).
+fn contains_ci(haystack: &str, needle: &str) -> bool {
+    haystack.to_lowercase().contains(&needle.to_lowercase())
+}
+
+/// Tous les chemins VFS dont le nom de fichier (pas le chemin entier, pour éviter les faux
+/// positifs de dossier parent) contient `needle` — casse EXACTE telle qu'indexée (cf. note de
+/// section ci-dessus : jamais reconstruite depuis un template).
+fn vfs_find_by_basename(vfs: &Vfs, needle: &str) -> Vec<String> {
+    let mut hits: Vec<String> = vfs
+        .iter()
+        .map(|(p, _)| p.to_string())
+        .filter(|p| contains_ci(p.rsplit('/').next().unwrap_or(p), needle))
+        .collect();
+    hits.sort();
+    hits
+}
+
+/// Copie `src_path` (chemin VFS réel) vers `export_dir/<même chemin>`, en créant les dossiers
+/// parents — préserve la structure `data/common/...`/`data/dx11/...` exigée par l'addon (même
+/// contrainte documentée sur [`open_in_blender`] : `apply_original_model_to_settings` déduit le
+/// code personnage/série du chemin, une extraction à plat casse cette résolution).
+fn stage_vfs_file(vfs: &Vfs, src_path: &str, export_dir: &std::path::Path) -> Result<PathBuf, String> {
+    let bytes = vfs.read(src_path).map_err(|e| format!("lecture {src_path} : {e}"))?;
+    let dest = export_dir.join(src_path);
+    if let Some(parent) = dest.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&dest, &bytes).map_err(|e| e.to_string())?;
+    Ok(dest)
+}
+
+/// Script Python partagé : supprime le `Cube` par défaut, cadre une caméra sur tous les meshes
+/// restants (bounds → position/orientation, même recette que le test réel de validation), rend un
+/// still EEVEE à `{output_png}`. Utilisé par [`blender_preview_png_b64`] ET
+/// [`blender_build_skill_scene`] — une seule recette de cadrage/rendu, jamais dupliquée.
+fn camera_frame_and_render_py(output_png: &std::path::Path) -> String {
+    format!(
+        r#"
+import bpy, mathutils
+
+if "Cube" in bpy.data.objects:
+    bpy.data.objects.remove(bpy.data.objects["Cube"], do_unlink=True)
+
+meshes = [o for o in bpy.data.objects if o.type in ("MESH", "ARMATURE")]
+if meshes:
+    coords = []
+    for o in meshes:
+        bbox = getattr(o, "bound_box", None)
+        if bbox:
+            coords.extend(o.matrix_world @ mathutils.Vector(c) for c in bbox)
+        else:
+            coords.append(o.matrix_world.translation)
+    if coords:
+        xs = [c.x for c in coords]; ys = [c.y for c in coords]; zs = [c.z for c in coords]
+        center = mathutils.Vector(((min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2, (min(zs) + max(zs)) / 2))
+        radius = max(max(xs) - min(xs), max(ys) - min(ys), max(zs) - min(zs), 0.5) * 1.8
+        cam = bpy.data.objects.get("Camera")
+        if cam is None:
+            cam = bpy.data.objects.new("Camera", bpy.data.cameras.new("Camera"))
+            bpy.context.scene.collection.objects.link(cam)
+        cam.location = center + mathutils.Vector((radius, -radius, radius * 0.6))
+        cam.rotation_euler = (center - cam.location).to_track_quat("-Z", "Y").to_euler()
+        bpy.context.scene.camera = cam
+        sun = bpy.data.objects.get("Light")
+        if sun:
+            sun.location = center + mathutils.Vector((radius, -radius, radius * 1.5))
+
+scene = bpy.context.scene
+scene.render.engine = "BLENDER_EEVEE"
+scene.render.resolution_x = 960
+scene.render.resolution_y = 720
+scene.render.filepath = {output_png:?}
+try:
+    bpy.ops.render.render(write_still=True)
+    print("NIE_EXPLORER_RENDER_OK")
+except Exception:
+    import traceback; traceback.print_exc()
+    print("NIE_EXPLORER_RENDER_FAILED")
+"#,
+        output_png = output_png.display().to_string(),
+    )
+}
+
+/// Lit `png_path` et le rend en base64 si présent (n'échoue jamais la commande appelante pour un
+/// rendu manqué — l'aperçu est un bonus, pas la valeur produite).
+fn read_png_b64_if_exists(png_path: &std::path::Path) -> Option<String> {
+    std::fs::read(png_path).ok().map(|b| base64::engine::general_purpose::STANDARD.encode(&b))
+}
+
+/// Ouvre N'IMPORTE QUEL `.blend` local (pas forcément un asset VFS niers — le fichier que
+/// l'utilisatrice pointe, ex. une scène déjà construite) en headless, cadre une caméra sur son
+/// contenu et rend un aperçu PNG base64 — c'est le côté « importer ce type de fichier dans
+/// niers » du pont : nie-explorer peut prévisualiser un `.blend` sans lancer l'UI Blender.
+#[tauri::command]
+#[specta::specta]
+fn blender_preview_png_b64(path: String, blender_exe: Option<String>) -> Result<String, String> {
+    let blender = resolve_blender_exe(blender_exe)?;
+    let blend_path = PathBuf::from(&path);
+    if !blend_path.is_file() {
+        return Err(format!(".blend introuvable : {}", blend_path.display()));
+    }
+    let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0);
+    let work_dir = std::env::temp_dir().join("nie-explorer").join("blender-preview").join(stamp.to_string());
+    std::fs::create_dir_all(&work_dir).map_err(|e| e.to_string())?;
+    let png_path = work_dir.join("preview.png");
+    let script_path = work_dir.join("_preview.py");
+    std::fs::write(&script_path, camera_frame_and_render_py(&png_path)).map_err(|e| e.to_string())?;
+
+    let output = std::process::Command::new(&blender)
+        .arg("--background")
+        .arg(&blend_path)
+        .args(["--python"])
+        .arg(&script_path)
+        .stdin(std::process::Stdio::null())
+        .output()
+        .map_err(|e| format!("échec de lancement de Blender ({}) : {e}", blender.display()))?;
+
+    read_png_b64_if_exists(&png_path).ok_or_else(|| {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        format!("rendu de l'aperçu échoué :\n{stdout}\n{stderr}")
+    })
+}
+
+/// Ouvre un `.blend` dans le VRAI Blender GUI (process séparé, non bloquant) — bouton « Ouvrir
+/// dans Blender » après [`blender_preview_png_b64`]/[`blender_build_skill_scene`].
+#[tauri::command]
+#[specta::specta]
+fn blender_open_scene(path: String, blender_exe: Option<String>) -> Result<(), String> {
+    let blender = resolve_blender_exe(blender_exe)?;
+    let blend_path = PathBuf::from(&path);
+    if !blend_path.is_file() {
+        return Err(format!(".blend introuvable : {}", blend_path.display()));
+    }
+    std::process::Command::new(&blender)
+        .arg(&blend_path)
+        .spawn()
+        .map_err(|e| format!("échec de lancement de Blender ({}) : {e}", blender.display()))?;
+    Ok(())
+}
+
+/// Construit une VRAIE scène Blender : modèle du personnage (`internal_code`, résolu par
+/// sous-chaîne sur le VFS réel — jamais un chemin template) + modèle de cut-in de la technique
+/// (résolue par [`game_data::find_skill`] sur `skill_query`, chemins via `SkillInfo::
+/// cutin_assets()`). Sauvegarde un `.blend` réel + rend un aperçu PNG. Aucun octet fabriqué : si
+/// le personnage ou la technique n'a pas d'assets 3D dans le VFS local, la commande le dit
+/// (`warnings`) plutôt que de construire une scène vide en silence ou d'échouer sans explication.
+#[tauri::command]
+#[specta::specta]
+fn blender_build_skill_scene(
+    internal_code: String,
+    skill_query: String,
+    blender_exe: Option<String>,
+    game_dir: Option<String>,
+    state: tauri::State<VfsState>,
+) -> Result<BlenderSceneResultDto, String> {
+    let blender = resolve_blender_exe(blender_exe)?;
+    let root = resolve_root(game_dir.as_deref());
+    let addon_parent = ensure_niers_blender_addon(&root)?;
+
+    let staged = with_vfs(Some(root.display().to_string()), &state, |vfs| {
+        let skill = game_data::find_skill(vfs, &skill_query)?
+            .ok_or_else(|| format!("aucune technique ne correspond à « {skill_query} »"))?;
+        let cutin = skill
+            .cutin_assets()
+            .ok_or_else(|| format!("« {skill_query} » ({}) n'a pas de cut-in 3D (pas d'event lié)", skill.skill_id_str))?;
+
+        let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0);
+        let export_dir = std::env::temp_dir().join("nie-explorer").join("blender-scenes").join(stamp.to_string());
+        std::fs::create_dir_all(&export_dir).map_err(|e| e.to_string())?;
+
+        let mut warnings = Vec::new();
+
+        // Personnage : découverte par sous-chaîne (casse réelle, cf. note de section) sous
+        // chr/_face — g4md + g4mg (siblings), texture g4tx en bonus (matériau, pas bloquant).
+        let chara_hits = vfs_find_by_basename(vfs, &internal_code)
+            .into_iter()
+            .filter(|p| p.contains("chr/_face") || p.contains("chr\\_face"))
+            .collect::<Vec<_>>();
+        let chara_md = chara_hits.iter().find(|p| p.ends_with(".g4md")).cloned();
+        let mut chara_entry: Option<PathBuf> = None;
+        if let Some(md) = &chara_md {
+            for hit in &chara_hits {
+                stage_vfs_file(vfs, hit, &export_dir)?;
+            }
+            chara_entry = Some(export_dir.join(md));
+        } else if chara_hits.is_empty() {
+            warnings.push(format!(
+                "personnage « {internal_code} » : aucun asset 3D trouvé dans le VFS local (scène = cut-in seul)"
+            ));
+        } else {
+            warnings.push(format!("personnage « {internal_code} » : g4md absent (seulement {} fichier(s) trouvés)", chara_hits.len()));
+        }
+
+        // Cut-in technique : g4md si présent, sinon repli .g4pkm (cf. note de section — vérifié
+        // réel sur whs00340, pas deviné). g4mg/objbin/g4tx copiés en frères systématiquement.
+        let ev = &cutin.event_id_name;
+        let cutin_hits = vfs_find_by_basename(vfs, ev);
+        let cutin_entry_name = cutin_hits
+            .iter()
+            .find(|p| p.ends_with(".g4md"))
+            .or_else(|| cutin_hits.iter().find(|p| p.ends_with(".g4pkm")))
+            .cloned();
+        let mut cutin_entry: Option<PathBuf> = None;
+        if let Some(entry) = &cutin_entry_name {
+            for hit in &cutin_hits {
+                stage_vfs_file(vfs, hit, &export_dir)?;
+            }
+            cutin_entry = Some(export_dir.join(entry));
+        } else {
+            warnings.push(format!("technique « {ev} » : aucun modèle de cut-in (.g4md/.g4pkm) trouvé dans le VFS local"));
+        }
+
+        if chara_entry.is_none() && cutin_entry.is_none() {
+            return Err(format!(
+                "aucun asset 3D trouvé ni pour le personnage « {internal_code} » ni pour la technique « {skill_query} » — scène impossible à construire"
+            ));
+        }
+
+        Ok((skill.skill_id_str.clone(), cutin.event_id_name.clone(), export_dir, chara_entry, cutin_entry, warnings))
+    })?;
+    let (skill_name, event_id_name, export_dir, chara_entry, cutin_entry, warnings) = staged;
+
+    let blend_dir = std::env::temp_dir().join("nie-explorer").join("blender-scenes-out");
+    std::fs::create_dir_all(&blend_dir).map_err(|e| e.to_string())?;
+    let out_blend = blend_dir.join(format!("{internal_code}_{skill_name}.blend"));
+    let out_png = export_dir.join("preview.png");
+    let error_log = export_dir.join("_nie_explorer_scene_error.log");
+
+    let script = format!(
+        r#"import sys, traceback
+sys.path.insert(0, {addon_parent:?})
+try:
+    import niers as g4b
+    g4b.register()
+except Exception:
+    traceback.print_exc()
+
+import bpy
+
+ERROR_LOG = {error_log:?}
+errors = []
+
+def try_import(filepath):
+    if filepath is None:
+        return
+    try:
+        bpy.ops.import_scene.level5_g4(
+            'EXEC_DEFAULT',
+            filepath=filepath,
+            skip_character_setup=True,
+            import_character_parts=False,
+            create_report_text=False,
+        )
+        print("NIE_EXPLORER_IMPORT_OK", filepath)
+    except Exception:
+        tb = traceback.format_exc()
+        print(tb)
+        errors.append(tb)
+
+try_import({chara_entry:?})
+try_import({cutin_entry:?})
+
+if errors:
+    try:
+        with open(ERROR_LOG, "w", encoding="utf-8") as f:
+            f.write("\n---\n".join(errors))
+    except Exception:
+        pass
+
+{render_script}
+
+bpy.ops.wm.save_as_mainfile(filepath={out_blend:?})
+print("NIE_EXPLORER_SCENE_SAVED", {out_blend:?})
+"#,
+        addon_parent = addon_parent.display().to_string(),
+        error_log = error_log.display().to_string(),
+        chara_entry = chara_entry.as_ref().map(|p| p.display().to_string()),
+        cutin_entry = cutin_entry.as_ref().map(|p| p.display().to_string()),
+        render_script = camera_frame_and_render_py(&out_png),
+        out_blend = out_blend.display().to_string(),
+    );
+    let script_path = export_dir.join("_build_scene.py");
+    std::fs::write(&script_path, &script).map_err(|e| e.to_string())?;
+
+    let output = std::process::Command::new(&blender)
+        .args(["--background", "--python"])
+        .arg(&script_path)
+        .stdin(std::process::Stdio::null())
+        .output()
+        .map_err(|e| format!("échec de lancement de Blender ({}) : {e}", blender.display()))?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    if !stdout.contains("NIE_EXPLORER_SCENE_SAVED") {
+        let mut detail = format!("{stdout}\n{stderr}");
+        const CAP: usize = 4000;
+        if detail.len() > CAP {
+            detail.truncate(CAP);
+            detail.push_str("\n… (tronqué)");
+        }
+        return Err(format!("échec de construction de la scène Blender :\n{detail}"));
+    }
+
+    let mut warnings = warnings;
+    if let Ok(log) = std::fs::read_to_string(&error_log) {
+        if !log.trim().is_empty() {
+            warnings.push(format!("import partiel — détail :\n{log}"));
+        }
+    }
+
+    Ok(BlenderSceneResultDto {
+        blend_path: out_blend.display().to_string(),
+        preview_png_b64: read_png_b64_if_exists(&out_png),
+        skill_name,
+        event_id_name,
+        warnings,
+    })
 }
 
 // ─── Aperçu 3D (G4MD+G4MG → GLB embarqué → `nie-render3d`, rendu natif pur-Rust EN PROCESS) ──
@@ -2031,6 +2406,9 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         read_disk_file_b64,
         open_in_blender,
         install_niers_blender_addon,
+        blender_preview_png_b64,
+        blender_open_scene,
+        blender_build_skill_scene,
         remote_search_chara,
         remote_search_waza,
         remote_cpk_search,

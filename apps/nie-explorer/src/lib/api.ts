@@ -14,6 +14,7 @@
 import {
   commands,
   type AuraDto,
+  type BlenderSceneResultDto,
   type CharaPickerDto,
   type CpkExportFileDto,
   type EntryDto,
@@ -33,6 +34,7 @@ import {
 export type VfsEntry = EntryDto;
 export type FolderRole = FolderRoleDto;
 export type LsResult = LsDto;
+export type BlenderSceneResult = BlenderSceneResultDto;
 export type VfsStats = StatsDto;
 export type SaveBlobInfo = SaveBlobDto;
 export type RawCpkEntry = RawCpkEntryDto;
@@ -119,6 +121,15 @@ export const api = {
   // openInBlender (bootstrap sys.path transitoire, un seul process).
   installNiersBlenderAddon: (blenderExe?: string, gameDir?: string) =>
     unwrap<string>(commands.installNiersBlenderAddon(blenderExe || null, gd(gameDir))),
+
+  // Pont Blender ↔ niers : importer un .blend existant dans nie-explorer (aperçu headless) et
+  // construire une VRAIE scène (personnage + cut-in de technique, assets VFS réels uniquement).
+  blenderPreviewPngB64: (path: string, blenderExe?: string) =>
+    unwrap<string>(commands.blenderPreviewPngB64(path, blenderExe || null)),
+  blenderOpenScene: (path: string, blenderExe?: string) =>
+    unwrap<null>(commands.blenderOpenScene(path, blenderExe || null)),
+  blenderBuildSkillScene: (internalCode: string, skillQuery: string, blenderExe?: string, gameDir?: string) =>
+    unwrap<BlenderSceneResultDto>(commands.blenderBuildSkillScene(internalCode, skillQuery, blenderExe || null, gd(gameDir))),
 
   // Presse-papiers FICHIERS natif Windows (CF_HDROP réel — ce que Ctrl+C/Ctrl+V dans
   // l'Explorateur Windows lisent/écrivent), inspiré de cosmic-files (`clipboard.rs`, recherche
