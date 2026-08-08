@@ -326,6 +326,11 @@ export const commands = {
 	vfsAudioPreviewB64: (path: string, gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("vfs_audio_preview_b64", { path, gameDir })),
 	/** Même décodage audio (HCA/ADX→WAV), depuis une entrée du CPK brut ouvert (hors VFS) — parité `RawCpkView`. */
 	rawCpkAudioPreviewB64: (index: number) => typedError<string, string>(__TAURI_INVOKE("raw_cpk_audio_preview_b64", { index })),
+	/** Aperçu 3D fixe (G4MD+G4MG+G4TX frères résolus DANS le CPK ouvert), depuis une entrée du CPK brut ouvert (hors VFS) — parité `RawCpkView` (roadmap §6, fermé 2026-08-08). */
+	rawCpkGlbPreviewPngB64: (index: number) => typedError<string, string>(__TAURI_INVOKE("raw_cpk_glb_preview_png_b64", { index })),
+	/** Installe/active l'extension Blender `niers` pour de vrai (dossier d'addons utilisateur, pas le bootstrap transitoire d'`openInBlender`) et lie `raw_data_root` au vrai `<jeu>/data`, persisté (`save_userpref`). */
+	installNiersBlenderAddon: (blenderExe: string | null, gameDir: string | null) =>
+		typedError<string, string>(__TAURI_INVOKE("install_niers_blender_addon", { blenderExe, gameDir })),
 };
 
 /* Types */

@@ -60,6 +60,19 @@ export function SettingsView() {
   const [indexMeta, setIndexMeta] = useState<VfsIndexMeta | null>(null);
   const [reindexing, setReindexing] = useState(false);
   const [reindexProgress, setReindexProgress] = useState<{ done: number; total: number } | null>(null);
+  const [installingBlenderAddon, setInstallingBlenderAddon] = useState(false);
+
+  async function installBlenderAddon() {
+    setInstallingBlenderAddon(true);
+    try {
+      const msg = await api.installNiersBlenderAddon(settings.blenderExe, settings.gameDir);
+      toast.success(msg);
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setInstallingBlenderAddon(false);
+    }
+  }
 
   function refreshIndexMeta() {
     vfsIndexDb.meta().then(setIndexMeta).catch(() => setIndexMeta(null));
@@ -232,9 +245,13 @@ export function SettingsView() {
       <Card>
         <CardHeader>
           <CardTitle>Blender (tools/niers)</CardTitle>
-          <CardDescription>Pour « Ouvrir dans Blender » sur les modèles G4MD/G4MG/G4SK/G4MT.</CardDescription>
+          <CardDescription>
+            Pour « Ouvrir dans Blender » sur les modèles G4MD/G4MG/G4SK/G4MT. L'extension
+            (<code>tools/niers</code>) est incluse dans ce dépôt ; clonée automatiquement si absente
+            en dernier recours (installation distribuée pointée sur un simple jeu Steam).
+          </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
           <Field
             label="blender.exe"
             hint="Vide = auto-détection (Blender Foundation\Blender 5.2\4.2\4.1\4.0)."
@@ -246,6 +263,18 @@ export function SettingsView() {
               if (typeof f === "string") setSettings({ blenderExe: f });
             }}
           />
+          <div className="space-y-1.5">
+            <Button size="sm" variant="outline" onClick={installBlenderAddon} disabled={installingBlenderAddon}>
+              {installingBlenderAddon ? "Installation…" : "🧩 Installer l'extension Blender niers"}
+            </Button>
+            <p className="type-body-small text-on-surface-variant">
+              Installe/active <strong>vraiment</strong> l'extension dans le dossier d'addons de Blender
+              (Préférences → Add-ons) — persiste au-delà d'un seul lancement, et lie sa préférence
+              « Raw Data Root » au vrai dossier <code>data/</code> du jeu : un Blender ouvert
+              indépendamment de nie-explorer retrouve alors squelettes partagés et pièces de personnage
+              sans configuration manuelle.
+            </p>
+          </div>
         </CardContent>
       </Card>
 

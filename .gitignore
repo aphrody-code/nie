@@ -116,3 +116,5 @@ __pycache__/
 !docs/**/*.md
 !docs/**/*.txt
 !packages/*/README.md
+!apps/nie-explorer/ROADMAP.md
+!tools/niers/NIERS_VENDORING_NOTE.md
