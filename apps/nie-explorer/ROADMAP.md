@@ -263,6 +263,38 @@ posée automatiquement → **12 fichiers VFS réels** ; sélection du `.g4md` + 
 créés**, identique aux résultats §2.4/§2.5. Chaîne complète nom→fichiers→import validée en un
 seul test, pas 3 tests isolés.
 
+### 2.7 Vue grille + vignettes (comparaison UI azalee `/cpk`) 🟡 (2026-08-08)
+
+Demande utilisatrice : « compare l'UI de nie-explorer et azalee cpk explorer et fusionne le
+meilleur des deux ». Lecture complète des deux (`ExplorerView.tsx`/`DetailPane.tsx` ici,
+`rg/apps/azalee/app/cpk/{CpkExplorer,CpkFolderView,CpkTree,CpkModelThumb}.tsx` côté azalee,
+2657 lignes) — les deux ne sont PAS interchangeables (azalee = catalogue web LECTURE SEULE d'un
+index Redis/SQLite pré-calculé, 250 800 fichiers, sans accès au jeu local ; nie-explorer = éditeur
+desktop avec mutation réelle — mods, Monaco, encodeurs, Blender), donc pas une « fusion » littérale
+mais un portage ciblé des patterns UX supérieurs et réellement applicables :
+
+- **Porté : vue grille + vignettes** (`FileThumbnail`, `viewMode` liste/grille, bouton à côté du
+  tri) — la différenciation la plus marquante d'azalee (`CpkModelThumb`, grille façon Google
+  Drive) que nie-explorer n'avait pas (liste seule). Vignettes réelles pour les `.g4tx`
+  (`api.texturePngB64`, décodage déjà instantané) via `IntersectionObserver` (lazy, seulement ce
+  qui devient visible) + cache module-level (survit à un aller-retour de dossier). Vignettes 3D
+  (`.g4md`) volontairement HORS PORTÉE (assemblage GLB + rendu = coûteux même en process depuis
+  §2.3, pas adapté à une grille de centaines d'entrées sans file d'attente dédiée — pas un faux
+  raccourci, juste un icône générique pour l'instant).
+- **Identifiés, PAS portés ce cycle** (notés pour un futur incrément, pas oubliés) :
+  navigation par onglets multiples (`CpkExplorer` ouvre plusieurs dossiers en parallèle, façon
+  navigateur) ; recherche avec anti-race explicite (`searchSeq` — la recherche VFS actuelle
+  n'a pas de garde anti-réponse-périmée, risque mineur de flash sur frappe rapide) ; barre
+  flottante Material 3 de multi-sélection (le menu contextuel natif existant couvre déjà l'essentiel
+  des mêmes actions) ; viewers structurés spécialisés (`CpkFormationViewer`/`CpkTypedTable`/
+  `CpkJsonTree` — DetailPane a déjà Monaco pour le JSON, moins spécialisé mais fonctionnel).
+- Handlers de clic (`handleDirClick`/`handleFileClick`/`handleFileContextMenu`) extraits en
+  fonctions partagées liste/grille au passage — même sémantique Ctrl/Shift-clic dans les deux vues,
+  zéro duplication de la logique de sélection multiple.
+
+Vérifié : `tsc --noEmit` + `vite build` propres. Pas encore re-packagé dans un nouvel installeur
+(la release v0.1.0 publiée juste avant ce point ne l'inclut pas) — code source à jour uniquement.
+
 ---
 
 ## 3. Save manager (Steam userdata) ✅

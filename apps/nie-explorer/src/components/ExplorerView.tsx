@@ -48,6 +48,84 @@ function detectCpkBoundary(prefix: string): { cpkVfsPrefix: string; inner: strin
   return { cpkVfsPrefix: segs.slice(0, idx + 1).join("/"), inner: segs.slice(idx + 1).join("/") };
 }
 
+/** Extensions dont on peut extraire une VRAIE vignette (texture décodée) — comparé en minuscules. */
+const THUMBNAIL_EXTS = new Set(["g4tx"]);
+
+/** Cache partagé entre remounts/re-render (survit à un changement de dossier, évite de
+ * redécoder deux fois la même texture en revenant sur un dossier déjà visité) — cf. demande
+ * utilisatrice « compare l'UI de nie-explorer et azalee cpk explorer et fusionne le meilleur des
+ * deux » : la vue grille + vignettes est la différenciation la plus marquante d'azalee `/cpk`
+ * (`CpkModelThumb`/vue grille M3) que nie-explorer n'avait pas — portée ici pour les `.g4tx`
+ * (décodage déjà instantané, `vfs_texture_png_b64`) ; les vignettes 3D (`.g4md`, plus coûteuses —
+ * assemblage GLB + rendu, cf. §2.3 ROADMAP) restent volontairement HORS PORTÉE de cette vignette
+ * de dossier (ouvrir le fichier reste le chemin pour un aperçu 3D — pas de faux raccourci).
+ */
+const thumbnailCache = new Map<string, string | null>();
+
+/** Vignette lazy (IntersectionObserver — ne décode que ce qui devient visible, pas tout le
+ * dossier d'un coup) pour la vue grille. `null` en cache = décodage tenté et échoué (pas de
+ * texture réelle dans ce `.g4tx`, ex. dummy) — on ne réessaie pas indéfiniment. */
+function FileThumbnail({ path, ext, gameDir }: { path: string; ext: string; gameDir?: string }) {
+  const [src, setSrc] = useState<string | null>(thumbnailCache.get(path) ?? null);
+  const [visible, setVisible] = useState(thumbnailCache.has(path));
+  const ref = useState(() => ({ current: null as HTMLDivElement | null }))[0];
+
+  useEffect(() => {
+    if (visible || !ref.current || !THUMBNAIL_EXTS.has(ext)) return;
+    const el = ref.current;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((en) => en.isIntersecting)) {
+          setVisible(true);
+          obs.disconnect();
+        }
+      },
+      { rootMargin: "200px" },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ext, visible]);
+
+  useEffect(() => {
+    if (!visible || thumbnailCache.has(path) || !THUMBNAIL_EXTS.has(ext)) return;
+    let cancelled = false;
+    api
+      .texturePngB64(path, gameDir)
+      .then((b64) => {
+        if (cancelled) return;
+        const url = `data:image/png;base64,${b64}`;
+        thumbnailCache.set(path, url);
+        setSrc(url);
+      })
+      .catch(() => {
+        if (!cancelled) thumbnailCache.set(path, null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, path, ext, gameDir]);
+
+  if (!THUMBNAIL_EXTS.has(ext)) {
+    return <Icon name="description" size={28} className="text-on-surface-variant" />;
+  }
+  return (
+    <div
+      ref={(el) => {
+        ref.current = el;
+      }}
+      className="flex h-full w-full items-center justify-center overflow-hidden rounded-lg bg-surface-container-highest"
+    >
+      {src ? (
+        // biome-ignore lint: aperçu local, pas d'optimisation next/image (app Tauri, pas Next)
+        <img src={src} alt="" className="h-full w-full object-contain" />
+      ) : (
+        <Icon name="image" size={24} className="text-on-surface-variant/50" />
+      )}
+    </div>
+  );
+}
+
 /** Barre latérale « emplacements » — épingles fixes (cosmic-files) + récents par fréquence (yazi). */
 function PlacesSidebar({ current, onGoto }: { current: string; onGoto: (prefix: string) => void }) {
   const t = useT();
@@ -152,6 +230,11 @@ export function ExplorerView({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("name");
+  // Vue liste (défaut, dense — navigation clavier/multi-sélection) ou grille (vignettes, façon
+  // azalee `/cpk` — cf. demande utilisatrice de fusion des deux UI). Choix par dossier NON
+  // persisté (état local volontaire, comme `sortKey`) : la vue grille est un outil ponctuel
+  // « je regarde un dossier de textures/persos », pas une préférence globale à retenir partout.
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const pins = usePinnedPlaces();
   // Multi-sélection RÉELLE (Ctrl/Shift-clic, comme l'explorateur Windows) — cf. demande
   // utilisatrice « editer doit vraiment copier coller et tout select les fichiers dossiers pas
@@ -268,6 +351,79 @@ export function ExplorerView({
   );
 
   const segments = state.prefix ? state.prefix.split("/") : [];
+
+  /** Clic sur un dossier — extrait pour être partagé entre la vue liste et la vue grille (même
+   * sémantique Ctrl/Shift-clic dans les deux, cf. `viewMode`). */
+  function handleDirClick(path: string, e: React.MouseEvent) {
+    if (e.ctrlKey || e.metaKey) {
+      setMultiSelected((prev) => {
+        const next = new Set(prev);
+        if (next.has(path)) next.delete(path);
+        else next.add(path);
+        return next;
+      });
+      setFolderAnchor(path);
+    } else if (e.shiftKey && folderAnchor) {
+      const idxA = dirPaths.indexOf(folderAnchor);
+      const idxB = dirPaths.indexOf(path);
+      if (idxA !== -1 && idxB !== -1) {
+        const [lo, hi] = idxA < idxB ? [idxA, idxB] : [idxB, idxA];
+        setMultiSelected(new Set(dirPaths.slice(lo, hi + 1)));
+      } else {
+        setMultiSelected(new Set([path]));
+      }
+      setFolderAnchor(path);
+    } else {
+      goto(path);
+    }
+  }
+
+  /** Clic sur un fichier — extrait pour être partagé entre la vue liste et la vue grille. */
+  function handleFileClick(f: Row, e: React.MouseEvent) {
+    if (e.ctrlKey || e.metaKey) {
+      setMultiSelected((prev) => {
+        const next = new Set(prev);
+        if (next.has(f.path)) next.delete(f.path);
+        else next.add(f.path);
+        return next;
+      });
+      onStateChange({ ...state, selected: f.path });
+    } else if (e.shiftKey && state.selected) {
+      const idxA = sortedFiles.findIndex((x) => x.path === state.selected);
+      const idxB = sortedFiles.findIndex((x) => x.path === f.path);
+      if (idxA !== -1 && idxB !== -1) {
+        const [lo, hi] = idxA < idxB ? [idxA, idxB] : [idxB, idxA];
+        setMultiSelected(new Set(sortedFiles.slice(lo, hi + 1).map((x) => x.path)));
+      }
+      onStateChange({ ...state, selected: f.path });
+    } else {
+      setMultiSelected(new Set());
+      onStateChange({ ...state, selected: f.path });
+    }
+  }
+
+  /** Menu contextuel d'un fichier — même dispatch VFS/CPK-brut que la vue liste. */
+  function handleFileContextMenu(f: Row, e: React.MouseEvent) {
+    e.preventDefault();
+    if (f.entryIndex !== undefined) {
+      showRawCpkFileContextMenu({
+        path: f.path,
+        name: f.name,
+        size: f.size,
+        entryIndex: f.entryIndex,
+        onOpen: () => onStateChange({ ...state, selected: f.path }),
+      });
+    } else {
+      showVfsFileContextMenu({
+        path: f.path,
+        name: f.name,
+        size: f.size,
+        gameDir: settings.gameDir,
+        blenderExe: settings.blenderExe,
+        onOpen: () => onStateChange({ ...state, selected: f.path }),
+      });
+    }
+  }
 
   function goto(prefix: string) {
     recordVisit(prefix);
@@ -435,6 +591,15 @@ export function ExplorerView({
           >
             <Icon name={sortKey === "name" ? "sort_by_alpha" : "table_rows"} size={16} />
           </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            title={viewMode === "list" ? "Vue grille (vignettes)" : "Vue liste"}
+            className="state-layer rounded-full text-on-surface-variant"
+            onClick={() => setViewMode((v) => (v === "list" ? "grid" : "list"))}
+          >
+            <Icon name={viewMode === "list" ? "grid_view" : "view_list"} size={16} />
+          </Button>
         </div>
 
         <div className="flex gap-2">
@@ -467,11 +632,31 @@ export function ExplorerView({
           tabIndex={0}
           onKeyDown={onListKeyDown}
         >
-          <div className="divide-y divide-outline-variant/30 py-1">
+          <div className={viewMode === "grid" ? "grid grid-cols-[repeat(auto-fill,minmax(96px,1fr))] gap-2 p-2" : "divide-y divide-outline-variant/30 py-1"}>
             {!searching &&
               sortedDirs.map((d) => {
                 const path = state.prefix ? `${state.prefix}/${d}` : d;
                 const isMultiSelected = multiSelected.has(path);
+                if (viewMode === "grid") {
+                  return (
+                    <button
+                      key={d}
+                      className={`state-layer flex flex-col items-center gap-1 rounded-xl p-2 text-center ${
+                        isMultiSelected ? "bg-primary-container/40" : ""
+                      }`}
+                      onDoubleClick={() => goto(path)}
+                      onClick={(e) => handleDirClick(path, e)}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        showVfsFolderContextMenu({ path, onOpen: () => goto(path) });
+                      }}
+                      title={d}
+                    >
+                      <Icon name="folder" size={40} className="shrink-0 text-primary" />
+                      <span className="w-full truncate type-label-small text-on-surface">{d}</span>
+                    </button>
+                  );
+                }
                 return (
                   <button
                     key={d}
@@ -479,32 +664,7 @@ export function ExplorerView({
                       isMultiSelected ? "bg-primary-container/40 text-on-surface" : "text-on-surface"
                     }`}
                     onDoubleClick={() => goto(path)}
-                    onClick={(e) => {
-                      if (e.ctrlKey || e.metaKey) {
-                        setMultiSelected((prev) => {
-                          const next = new Set(prev);
-                          if (next.has(path)) next.delete(path);
-                          else next.add(path);
-                          return next;
-                        });
-                        setFolderAnchor(path);
-                      } else if (e.shiftKey && folderAnchor) {
-                        // Sélection par plage (comme les fichiers ci-dessous), ancrée sur le dernier
-                        // dossier Ctrl/Shift-cliqué de CETTE liste (`folderAnchor`) — si l'ancre ne
-                        // s'y trouve plus (ex. après navigation), on retombe sur une sélection simple.
-                        const idxA = dirPaths.indexOf(folderAnchor);
-                        const idxB = dirPaths.indexOf(path);
-                        if (idxA !== -1 && idxB !== -1) {
-                          const [lo, hi] = idxA < idxB ? [idxA, idxB] : [idxB, idxA];
-                          setMultiSelected(new Set(dirPaths.slice(lo, hi + 1)));
-                        } else {
-                          setMultiSelected(new Set([path]));
-                        }
-                        setFolderAnchor(path);
-                      } else {
-                        goto(path);
-                      }
-                    }}
+                    onClick={(e) => handleDirClick(path, e)}
                     onContextMenu={(e) => {
                       e.preventDefault();
                       showVfsFolderContextMenu({ path, onOpen: () => goto(path) });
@@ -515,7 +675,35 @@ export function ExplorerView({
                   </button>
                 );
               })}
-            {sortedFiles.map((f) => {
+            {viewMode === "grid" &&
+              sortedFiles.map((f) => {
+                const ext = f.name.includes(".") ? f.name.split(".").pop()!.toLowerCase() : "";
+                const isMultiSelected = multiSelected.has(f.path);
+                return (
+                  <button
+                    key={f.path}
+                    className={`state-layer flex flex-col items-center gap-1 rounded-xl p-2 text-center ${
+                      state.selected === f.path
+                        ? "bg-secondary-container"
+                        : isMultiSelected
+                          ? "bg-primary-container/40"
+                          : ""
+                    }`}
+                    onClick={(e) => handleFileClick(f, e)}
+                    onContextMenu={(e) => handleFileContextMenu(f, e)}
+                    title={f.path}
+                  >
+                    <div className="h-16 w-16 shrink-0">
+                      <FileThumbnail path={f.path} ext={ext} gameDir={settings.gameDir} />
+                    </div>
+                    <span className="w-full truncate type-label-small text-on-surface">
+                      {resolved.get(codeOf(f.name))?.name ?? f.name}
+                    </span>
+                  </button>
+                );
+              })}
+            {viewMode === "list" &&
+              sortedFiles.map((f) => {
               const name = resolved.get(codeOf(f.name));
               const isMultiSelected = multiSelected.has(f.path);
               return (
@@ -528,49 +716,8 @@ export function ExplorerView({
                         ? "bg-primary-container/40 text-on-surface"
                         : "text-on-surface"
                   }`}
-                  onClick={(e) => {
-                    if (e.ctrlKey || e.metaKey) {
-                      setMultiSelected((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(f.path)) next.delete(f.path);
-                        else next.add(f.path);
-                        return next;
-                      });
-                      onStateChange({ ...state, selected: f.path });
-                    } else if (e.shiftKey && state.selected) {
-                      const idxA = sortedFiles.findIndex((x) => x.path === state.selected);
-                      const idxB = sortedFiles.findIndex((x) => x.path === f.path);
-                      if (idxA !== -1 && idxB !== -1) {
-                        const [lo, hi] = idxA < idxB ? [idxA, idxB] : [idxB, idxA];
-                        setMultiSelected(new Set(sortedFiles.slice(lo, hi + 1).map((x) => x.path)));
-                      }
-                      onStateChange({ ...state, selected: f.path });
-                    } else {
-                      setMultiSelected(new Set());
-                      onStateChange({ ...state, selected: f.path });
-                    }
-                  }}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    if (f.entryIndex !== undefined) {
-                      showRawCpkFileContextMenu({
-                        path: f.path,
-                        name: f.name,
-                        size: f.size,
-                        entryIndex: f.entryIndex,
-                        onOpen: () => onStateChange({ ...state, selected: f.path }),
-                      });
-                    } else {
-                      showVfsFileContextMenu({
-                        path: f.path,
-                        name: f.name,
-                        size: f.size,
-                        gameDir: settings.gameDir,
-                        blenderExe: settings.blenderExe,
-                        onOpen: () => onStateChange({ ...state, selected: f.path }),
-                      });
-                    }
-                  }}
+                  onClick={(e) => handleFileClick(f, e)}
+                  onContextMenu={(e) => handleFileContextMenu(f, e)}
                   title={f.path}
                 >
                   <span className="flex min-w-0 items-center gap-2">
