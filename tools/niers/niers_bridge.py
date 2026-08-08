@@ -3,9 +3,18 @@
 # localisés FR/EN/JA) et azalee (GraphQL + REST distants, https://azalee.rosegriffon.fr).
 #
 # Ajouté 2026-08-08 (demande utilisatrice « lier au max Blender et niers »). Référencé depuis
-# AVANT d'exister côté Rust : `nie-cli`/src/main.rs documente déjà `-j/--json` de `niers vfs
-# find`/`chara`/`waza` comme étant « pour consommation programmatique (ex. niers_bridge.py de
-# l'addon Blender tools/niers) » — ce fichier concrétise cette intention.
+# AVANT d'exister dans CE checkout côté Rust : `nie-cli`/src/main.rs documentait déjà `-j/--json`
+# de `niers vfs find`/`chara`/`waza` comme étant « pour consommation programmatique (ex.
+# niers_bridge.py de l'addon Blender tools/niers) ». **Correction honnête** : une PREMIÈRE version
+# de ce fichier a réellement existé (contenu local non committé du submodule `tools/niers`
+# supprimé par erreur, cf. `NIERS_VENDORING_NOTE.md`) — récupérable dans l'archive déjà publiée
+# `niers-1.0.22.zip` (release GitHub v0.1.0). Cette version déléguait TOUT à `niers vfs chara`/
+# `waza --json` (subprocess, zéro logique de recherche en Python — anti-doublon strict), mais
+# appelait le même opérateur bogué que `open_in_blender` (`level5_g4_port.load_original_model`,
+# ne crée aucun maillage — cf. commentaire plus bas). Ce fichier-ci est une réécriture plus large
+# (ajout du miroir SQLite + GraphQL azalee EN DIRECT, demande explicite « connecte-le à l'API
+# REST et GraphQL d'azalee et au miroir SQLite » — `niers vfs chara`/`waza` ne parle pas encore
+# à azalee), avec le bon opérateur d'import et des opérateurs non bloquants.
 # Étendu le même jour (demande utilisatrice « connecte-le à l'API REST et GraphQL d'azalee et au
 # miroir SQLite ») — recherche personnage/technique par NOM LOCALISÉ (FR/EN/JA), deux sources
 # combinées et JAMAIS bloquantes l'une sur l'autre : le miroir local (si présent, hors-ligne,

@@ -199,7 +199,9 @@ en Rust ; iecode/inagle ne sont pas des dépendances permanentes, ce sont des v�
   préférence, sans repasser par nie-explorer. **Nouveau (même session) : `tools/niers/niers_
   bridge.py`** — panneau Blender natif (View3D > Sidebar > Level-5) qui cherche des fichiers dans
   le VFS (`niers vfs find --json`, flag ajouté à `nie-cli` pour l'occasion — référencé par son
-  propre doc-comment Rust depuis une session antérieure, jamais concrétisé côté Python jusqu'ici)
+  propre doc-comment Rust depuis une session antérieure ; une première version avait réellement
+  existé puis été perdue avec le submodule supprimé par erreur, cf. `apps/nie-explorer/
+  ROADMAP.md` §2.6, récupérée après coup dans l'archive déjà publiée)
   et importe le résultat sélectionné directement dans Blender sans jamais passer par
   nie-explorer. Vérifié par des tests `blender.exe` GUI réels (pas `--background`, requis pour un
   opérateur modal) : 12 résultats de recherche, 3 objets importés. **Recherche web ciblée** (« best
@@ -207,9 +209,11 @@ en Rust ; iecode/inagle ne sont pas des dépendances permanentes, ce sont des v�
   `subprocess.Popen`+timer modal NON bloquants (`_NiersProcessOperator`, remplace un `subprocess.
   run()` synchrone qui gelait l'UI, pattern documenté harlepengren.com) + filtre `UIList` natif
   (`UI_UL_list.filter_items_by_name`, boîte de recherche icône loupe, filtre côté client sans
-  relancer `niers.exe`). Écarté après recherche : migration `blender_manifest.toml` (portée
-  disproportionnée pour tout l'addon amont vendorisé) et hooks Python Asset Browser (API non
-  stabilisée par Blender, juillet 2026). **Même session : renommé « niers — G4 Blender Tools »**
+  relancer `niers.exe`). `blender_manifest.toml` d'abord jugé « écarté » puis **restauré après
+  coup** (existait déjà dans une session antérieure, perdu avec le submodule supprimé par erreur,
+  récupéré dans l'archive de release v0.1.0 déjà publiée — `version="1.1.0"`, permission `network`
+  ajoutée pour azalee). Hooks Python Asset Browser écartés (API non stabilisée par Blender,
+  juillet 2026). **Même session : renommé « niers — G4 Blender Tools »**
   (sidebar unifiée sous l'onglet « niers ») **+ recherche perso/technique par nom localisé
   FR/EN/JA**, deux sources combinées jamais bloquantes (miroir SQLite local — SQL copié mot pour
   mot de `nie_wiki::query`/`wikiDb.ts` — et GraphQL azalee, mêmes requêtes que `remote_search_
