@@ -1,0 +1,621 @@
+import { useEffect, useMemo, useState } from "react";
+import { save, confirm } from "@tauri-apps/plugin-dialog";
+import { writeText } from "@tauri-apps/plugin-clipboard-manager";
+import { toast } from "sonner";
+import { useTheme } from "next-themes";
+import Editor from "@monaco-editor/react";
+import { api } from "@/lib/api";
+import { useSettings } from "@/lib/settings";
+import { b64ToBytes, bytesToB64, hexLines, humanSize } from "@/lib/bytes";
+import { modsDb, type ModRow } from "@/lib/modsDb";
+import { stageReplacement, stageTextureReplacement } from "@/lib/modWorkspace";
+import { codeOf } from "@/lib/vfsIndexDb";
+import { useResolvedName } from "@/lib/nameResolve";
+import { installMonacoOffline } from "@/lib/monacoSetup";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+installMonacoOffline();
+
+const BLENDER_EXTS = new Set(["g4md", "g4mg", "g4sk", "g4mt"]);
+
+// `raw_cpk` : entrée d'un fichier `.cpk` ouvert hors VFS (cf. `ExplorerView` — navigation
+// fusionnée dans `data/packs/*.cpk`, cf. demande utilisatrice « il faut fusionner le vfs viewer
+// et raw packs cpk viewer »). Référencée par INDEX (pas par chemin, cf. `RawCpkEntryDto`).
+export type DetailTarget =
+  | { kind: "vfs"; path: string }
+  | { kind: "disk"; path: string }
+  | { kind: "raw_cpk"; path: string; entryIndex: number };
+
+export function DetailPane({ target }: { target: DetailTarget | null }) {
+  const settings = useSettings();
+  const { resolvedTheme } = useTheme();
+  const [lines, setLines] = useState<string[]>([]);
+  const [pngUrl, setPngUrl] = useState<string | null>(null);
+  const [rawBytes, setRawBytes] = useState<Uint8Array | null>(null);
+  const [editText, setEditText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [mods, setMods] = useState<ModRow[]>([]);
+  const [modChoice, setModChoice] = useState("");
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [videoError, setVideoError] = useState<string | null>(null);
+  const [videoLoading, setVideoLoading] = useState(false);
+  const [glbUrl, setGlbUrl] = useState<string | null>(null);
+  const [glbTurntableUrl, setGlbTurntableUrl] = useState<string | null>(null);
+  const [glbError, setGlbError] = useState<string | null>(null);
+  const [glbLoading, setGlbLoading] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioError, setAudioError] = useState<string | null>(null);
+  const [audioLoading, setAudioLoading] = useState(false);
+  // "loose" = fichier physiquement sur disque (PAS empaqueté dans un CPK, `cpk === ""`) →
+  // seul cas où une écriture EN PLACE est possible (`api.writeB64`) ; sinon toujours un export.
+  const [isLoose, setIsLoose] = useState(false);
+  // Décodeur générique `.cfg.bin` (RDBN/T2B → JSON "inagle") — couvre ~50 000 fichiers de
+  // config du jeu, pas seulement les techniques (`GameDataView`), cf. `vfs_decode_cfgbin`.
+  // ÉDITABLE + ré-encodable pour le T2B (`encode_t2b`, vérifié par round-trip réel sur des
+  // centaines de vrais fichiers) — le RDBN reste lecture seule, aucun encodeur vérifié.
+  const [configJson, setConfigJson] = useState<string | null>(null);
+  const [configFormat, setConfigFormat] = useState<"t2b" | "rdbn" | null>(null);
+  const [configLoading, setConfigLoading] = useState(false);
+  const [configSaving, setConfigSaving] = useState(false);
+  const [configError, setConfigError] = useState<string | null>(null);
+
+  const ext = useMemo(() => (target ? target.path.split(".").pop()?.toLowerCase() ?? "" : ""), [target]);
+  const name = useMemo(() => (target ? target.path.split(/[\\/]/).pop() ?? target.path : ""), [target]);
+  const isCfgBin = useMemo(() => (target ? target.path.toLowerCase().endsWith(".cfg.bin") : false), [target]);
+  // Nom réel (perso/technique/objet) lié à ce fichier — cf. demande utilisatrice « affiche le
+  // nom... lié à un fichier au lieu de juste l'id ».
+  const resolvedName = useResolvedName(settings.wikiDb, target ? codeOf(name) : null);
+
+  useEffect(() => {
+    setLines([]);
+    setPngUrl(null);
+    setRawBytes(null);
+    setEditText("");
+    setError(null);
+    setVideoUrl(null);
+    setVideoError(null);
+    setGlbUrl(null);
+    setGlbTurntableUrl(null);
+    setGlbError(null);
+    setAudioUrl(null);
+    setAudioError(null);
+    setIsLoose(false);
+    setConfigJson(null);
+    setConfigFormat(null);
+    setConfigError(null);
+    if (!target) return;
+
+    const describe =
+      target.kind === "vfs"
+        ? api.describe(target.path, settings.gameDir)
+        : target.kind === "raw_cpk"
+          ? api.rawCpkDescribe(target.entryIndex)
+          : api.describeDiskFile(target.path);
+    describe.then(setLines).catch((e) => setError(String(e)));
+
+    if (target.kind === "vfs") {
+      api
+        .entryMeta(target.path, settings.gameDir)
+        .then((meta) => setIsLoose(meta?.cpk === ""))
+        .catch(() => setIsLoose(false));
+    }
+
+    if (ext === "g4tx" && target.kind === "vfs") {
+      api
+        .texturePngB64(target.path, settings.gameDir)
+        .then((b64) => setPngUrl(`data:image/png;base64,${b64}`))
+        .catch(() => {});
+    }
+  }, [target, ext, settings.gameDir]);
+
+  useEffect(() => {
+    modsDb.listMods().then(setMods).catch(() => {});
+    if (target) modsDb.addRecent(target.path, target.kind === "vfs" ? "vfs" : "disk").catch(() => {});
+  }, [target]);
+
+  async function stageIntoMod() {
+    // Le staging de mod (`stageReplacement`) cible un chemin VFS/disque réel, pas l'index d'une
+    // entrée de `.cpk` brut ouvert hors VFS — non applicable ici (le bouton est déjà masqué pour
+    // `raw_cpk`, cf. rendu ci-dessous ; ce garde est une seconde ligne de défense).
+    if (!target || !modChoice || target.kind === "raw_cpk") return;
+    setBusy(true);
+    try {
+      const ok = await stageReplacement(modChoice, target, settings.gameDir);
+      if (ok) toast.success("Ajouté au mod");
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Remplace la texture d'un `.g4tx` VFS par un PNG (§2.2 roadmap) — encodage DDS/G4TX côté
+   * Rust, cf. `stageTextureReplacement`. Distinct de `stageIntoMod` (copie brute générique) :
+   * ici le contenu est RÉENCODÉ, pas simplement copié tel quel. */
+  async function stageTexture() {
+    if (!target || !modChoice || target.kind !== "vfs") return;
+    setBusy(true);
+    try {
+      const ok = await stageTextureReplacement(modChoice, target.path, settings.gameDir);
+      if (ok) toast.success("Texture réencodée et ajoutée au mod");
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function loadRaw() {
+    if (!target) return;
+    setBusy(true);
+    try {
+      const b64 =
+        target.kind === "vfs"
+          ? await api.readB64(target.path, settings.gameDir)
+          : target.kind === "raw_cpk"
+            ? await api.rawCpkReadB64(target.entryIndex)
+            : await api.readDiskFileB64(target.path);
+      const bytes = b64ToBytes(b64);
+      setRawBytes(bytes);
+      setEditText(Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join(" "));
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function extract() {
+    if (!target) return;
+    const dest = await save({ defaultPath: name });
+    if (!dest) return;
+    setBusy(true);
+    try {
+      const written =
+        target.kind === "vfs"
+          ? await api.extractTo(target.path, dest, settings.gameDir)
+          : target.kind === "raw_cpk"
+            ? await api.rawCpkExtractTo(target.entryIndex, dest)
+            : await api.saveBytesB64(dest, bytesToB64(await api.readDiskFileB64(target.path).then(b64ToBytes)));
+      toast.success(`${humanSize(written)} écrits → ${dest}`);
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveEdited() {
+    const hex = editText.replace(/[^0-9a-fA-F]/g, "");
+    if (hex.length % 2 !== 0) {
+      toast.error("Hex invalide (nombre impair de chiffres)");
+      return;
+    }
+    const bytes = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+    const dest = await save({ defaultPath: name });
+    if (!dest) return;
+    setBusy(true);
+    try {
+      const written = await api.saveBytesB64(dest, bytesToB64(bytes));
+      toast.success(`Copie modifiée écrite (${humanSize(written)}) → ${dest}`);
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Écrit la copie éditée EN PLACE (écrase le fichier loose réel sous le dossier du jeu) —
+   * seul cas possible : `target.kind === "vfs" && isLoose` (vérifié aussi côté Rust, qui refuse
+   * toute entrée empaquetée dans un CPK faute d'encodeur). Confirmation explicite avant
+   * d'écrire dans le dossier du jeu, même motif que l'export de mod « overlay loose-file »
+   * (EAC présent sur cette installation, comportement réel non confirmé par RE). */
+  async function saveInPlace() {
+    if (!target || target.kind !== "vfs" || !isLoose) return;
+    const hex = editText.replace(/[^0-9a-fA-F]/g, "");
+    if (hex.length % 2 !== 0) {
+      toast.error("Hex invalide (nombre impair de chiffres)");
+      return;
+    }
+    const ok = await confirm(
+      `Ceci écrase directement « ${target.path} » dans le dossier du jeu.\n\n` +
+        "⚠️ Easy Anti-Cheat est présent sur cette installation — une modification du dossier du jeu peut être détectée. Continuer ?",
+      { title: "Écrire en place", kind: "warning" },
+    );
+    if (!ok) return;
+    const bytes = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+    setBusy(true);
+    try {
+      const written = await api.writeB64(target.path, bytesToB64(bytes), settings.gameDir);
+      toast.success(`Écrit en place (${humanSize(written)}) → ${target.path}`);
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function copyPath() {
+    if (!target) return;
+    await writeText(target.path);
+    toast.success("Chemin copié");
+  }
+
+  /** Décodeur GÉNÉRIQUE `.cfg.bin` (RDBN/T2B → JSON) — couvre ~50 000 fichiers de config du
+   * jeu (personnages, objets, techniques, auras, boutiques, quêtes…), vérifié réel sur un large
+   * échantillon (cf. `game_data.rs`). ÉDITABLE dans les deux formats — `saveConfig` ré-encode via
+   * `encode_cfgbin_config` (dispatch T2B/RDBN automatique côté Rust), les deux vérifiés par
+   * round-trip réel sur le vrai jeu. */
+  async function loadConfig() {
+    if (!target || target.kind !== "vfs") return;
+    setConfigLoading(true);
+    setConfigError(null);
+    try {
+      const json = await api.vfsDecodeCfgbin(target.path, settings.gameDir);
+      setConfigJson(JSON.stringify(json, null, 2));
+      setConfigFormat(json && typeof json === "object" && "lists" in json ? "rdbn" : "t2b");
+    } catch (e) {
+      setConfigError(String(e));
+    } finally {
+      setConfigLoading(false);
+    }
+  }
+
+  /** Ré-encode `configJson` (édité) en T2B et l'écrit — en place si `isLoose`, sinon en
+   * override loose (comportement réel du jeu NON CONFIRMÉ, même avertissement que
+   * `saveInPlace`) après confirmation explicite. */
+  async function saveConfig() {
+    if (!target || target.kind !== "vfs" || !configJson) return;
+    setConfigSaving(true);
+    try {
+      const b64 = await api.encodeCfgbinConfig(target.path, configJson, settings.gameDir);
+      if (isLoose) {
+        const written = await api.writeB64(target.path, b64, settings.gameDir);
+        toast.success(`Config écrite en place (${humanSize(written)}) → ${target.path}`);
+      } else {
+        const ok = await confirm(
+          `Ceci écrase directement « ${target.path} » dans le dossier du jeu (override loose d'un fichier normalement empaqueté).\n\n` +
+            "⚠️ Comportement réel de nie.exe NON CONFIRMÉ par rétro-ingénierie (le jeu peut ignorer ce fichier) — Easy Anti-Cheat est présent sur cette installation. Continuer ?",
+          { title: "Écrire en override loose", kind: "warning" },
+        );
+        if (!ok) return;
+        const written = await api.writeLooseOverrideB64(target.path, b64, settings.gameDir);
+        toast.success(`Override loose écrit (${humanSize(written)}) → ${target.path}`);
+      }
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setConfigSaving(false);
+    }
+  }
+
+  async function saveConfigAs() {
+    if (!target || !configJson) return;
+    const dest = await save({ defaultPath: name });
+    if (!dest) return;
+    setConfigSaving(true);
+    try {
+      const b64 = await api.encodeCfgbinConfig(target.path, configJson, settings.gameDir);
+      const written = await api.saveBytesB64(dest, b64);
+      toast.success(`${humanSize(written)} écrits → ${dest}`);
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setConfigSaving(false);
+    }
+  }
+
+  async function loadGlb() {
+    if (!target || target.kind !== "vfs") return;
+    setGlbLoading(true);
+    setGlbError(null);
+    try {
+      const b64 = await api.glbPreviewPngB64(target.path, settings.gameDir);
+      setGlbUrl(`data:image/png;base64,${b64}`);
+    } catch (e) {
+      setGlbError(String(e));
+    } finally {
+      setGlbLoading(false);
+    }
+  }
+
+  /** Aperçu 3D INTERACTIF (§2.3 roadmap) — turntable MP4 (36 images/360°) au lieu d'une image
+   * fixe : la barre de défilement du `<video controls>` EST la caméra orbitale. */
+  async function loadGlbTurntable() {
+    if (!target || target.kind !== "vfs") return;
+    setGlbLoading(true);
+    setGlbError(null);
+    try {
+      const b64 = await api.glbPreviewTurntableMp4B64(target.path, settings.gameDir);
+      setGlbTurntableUrl(`data:video/mp4;base64,${b64}`);
+    } catch (e) {
+      setGlbError(String(e));
+    } finally {
+      setGlbLoading(false);
+    }
+  }
+
+  async function loadAudio() {
+    if (!target || target.kind !== "vfs") return;
+    setAudioLoading(true);
+    setAudioError(null);
+    try {
+      const b64 = await api.audioPreviewB64(target.path, settings.gameDir);
+      setAudioUrl(`data:audio/wav;base64,${b64}`);
+    } catch (e) {
+      setAudioError(String(e));
+    } finally {
+      setAudioLoading(false);
+    }
+  }
+
+  async function loadVideo() {
+    if (!target || target.kind !== "vfs") return;
+    setVideoLoading(true);
+    setVideoError(null);
+    try {
+      const b64 = await api.videoPreviewB64(target.path, settings.gameDir);
+      setVideoUrl(`data:video/mp4;base64,${b64}`);
+    } catch (e) {
+      setVideoError(String(e));
+    } finally {
+      setVideoLoading(false);
+    }
+  }
+
+  async function openBlender() {
+    if (!target || target.kind !== "vfs") return;
+    setBusy(true);
+    try {
+      const msg = await api.openInBlender(target.path, settings.blenderExe, settings.gameDir);
+      toast.success(msg);
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!target) {
+    return (
+      <div className="flex h-full items-center justify-center type-body-medium text-on-surface-variant">
+        Sélectionnez un fichier pour l'aperçu.
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-full flex-col gap-3 p-4">
+      <div>
+        <div className="flex items-center gap-2">
+          <h3 className="truncate type-title-small text-on-surface" title={target.path}>
+            {resolvedName?.name ?? name}
+          </h3>
+          {resolvedName && (
+            <Badge variant="secondary" className="capitalize">
+              {resolvedName.kind === "chara" ? "personnage" : resolvedName.kind === "skill" ? "technique" : "objet"}
+            </Badge>
+          )}
+          {target.kind === "disk" && <Badge variant="secondary">fichier externe</Badge>}
+          {target.kind === "raw_cpk" && <Badge variant="secondary">CPK brut</Badge>}
+          {isLoose && (
+            <Badge variant="outline" title="Physiquement sur disque (pas dans un CPK) — modifiable en place">
+              loose · modifiable en place
+            </Badge>
+          )}
+        </div>
+        {resolvedName && <p className="truncate type-body-small text-on-surface-variant">{resolvedName.extra ?? name}</p>}
+        <p className="truncate type-body-small text-on-surface-variant" title={target.path}>
+          {target.path}
+        </p>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" variant="outline" onClick={extract} disabled={busy}>
+          Extraire vers…
+        </Button>
+        <Button size="sm" variant="outline" onClick={copyPath}>
+          Copier le chemin
+        </Button>
+        {target.kind === "vfs" && BLENDER_EXTS.has(ext) && (
+          <Button size="sm" variant="outline" onClick={openBlender} disabled={busy}>
+            🧊 Ouvrir dans Blender
+          </Button>
+        )}
+        {target.kind === "vfs" && (ext === "g4md" || ext === "g4mg") && !glbUrl && (
+          <Button size="sm" variant="outline" onClick={loadGlb} disabled={glbLoading}>
+            {glbLoading ? "Rendu nie-render3d…" : "🧊 Aperçu 3D (natif)"}
+          </Button>
+        )}
+        {target.kind === "vfs" && (ext === "g4md" || ext === "g4mg") && !glbTurntableUrl && (
+          <Button size="sm" variant="outline" onClick={loadGlbTurntable} disabled={glbLoading} title="Turntable 360° — la barre de défilement vidéo fait office de caméra orbitale">
+            {glbLoading ? "Rendu turntable…" : "🔄 Aperçu 3D interactif"}
+          </Button>
+        )}
+        {target.kind === "vfs" && ext === "usm" && !videoUrl && (
+          <Button size="sm" variant="outline" onClick={loadVideo} disabled={videoLoading}>
+            {videoLoading ? "Remuxage ffmpeg…" : "▶️ Aperçu vidéo"}
+          </Button>
+        )}
+        {target.kind === "vfs" && ["acb", "awb", "hca", "adx"].includes(ext) && !audioUrl && (
+          <Button size="sm" variant="outline" onClick={loadAudio} disabled={audioLoading}>
+            {audioLoading ? "Décodage HCA/ADX…" : "🔊 Aperçu audio"}
+          </Button>
+        )}
+        {target.kind === "vfs" && isCfgBin && !configJson && (
+          <Button size="sm" variant="outline" onClick={loadConfig} disabled={configLoading}>
+            {configLoading ? "Décodage…" : "🗂️ Décoder (config)"}
+          </Button>
+        )}
+      </div>
+
+      {configError && <p className="type-body-small text-error">{configError}</p>}
+      {configJson && (
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center justify-between gap-2">
+            <p className="type-label-small text-on-surface-variant">
+              {configFormat === "t2b"
+                ? "Décodé (T2B → JSON) — éditable, ré-encodable (encode_t2b, vérifié par round-trip réel)."
+                : "Décodé (RDBN → JSON) — éditable (valeurs uniquement, pas de champs ajoutés/retirés), ré-encodable (encode_rdbn, vérifié par round-trip réel)."}
+            </p>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={async () => {
+                await writeText(configJson);
+                toast.success("JSON copié");
+              }}
+            >
+              Copier
+            </Button>
+          </div>
+          <div className="h-96 overflow-hidden rounded-xl border border-outline-variant/40 bg-surface-container-low">
+            <Editor
+              height="100%"
+              language="json"
+              theme={resolvedTheme === "light" ? "light" : "vs-dark"}
+              value={configJson}
+              onChange={(v) => setConfigJson(v ?? "")}
+              options={{ minimap: { enabled: false }, fontSize: 12, automaticLayout: true, scrollBeyondLastLine: false }}
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" onClick={saveConfigAs} disabled={configSaving}>
+              Enregistrer sous…
+            </Button>
+            {target.kind === "vfs" && (
+              <Button size="sm" variant={isLoose ? "default" : "destructive"} onClick={saveConfig} disabled={configSaving}>
+                {isLoose ? "Enregistrer en place" : "⚠️ Enregistrer en override loose"}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {glbError && <p className="type-body-small text-error">{glbError}</p>}
+      {glbUrl && (
+        <div className="max-h-96 overflow-auto rounded-xl border border-outline-variant/40 bg-surface-container-low p-2 elevation-1">
+          <img src={glbUrl} alt={`Rendu 3D de ${name}`} className="max-w-full" />
+        </div>
+      )}
+      {glbTurntableUrl && (
+        <div className="overflow-hidden rounded-xl border border-outline-variant/40 bg-black elevation-1">
+          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+          <video src={glbTurntableUrl} controls loop className="max-h-96 w-full" />
+          <p className="p-1 text-center type-label-small text-on-surface-variant">
+            Glissez la barre de défilement pour tourner autour du modèle (turntable pré-rendu, 36 vues).
+          </p>
+        </div>
+      )}
+
+      {audioError && <p className="type-body-small text-error">{audioError}</p>}
+      {audioUrl && (
+        // eslint-disable-next-line jsx-a11y/media-has-caption
+        <audio src={audioUrl} controls className="w-full" />
+      )}
+
+      {videoError && <p className="type-body-small text-error">{videoError}</p>}
+      {videoUrl && (
+        // eslint-disable-next-line jsx-a11y/media-has-caption
+        <video src={videoUrl} controls className="max-h-72 w-full rounded-xl border border-outline-variant/40 bg-black" />
+      )}
+
+      {mods.length > 0 && target.kind !== "raw_cpk" && (
+        <div className="flex items-center gap-2">
+          <select
+            className="h-8 rounded-lg border border-outline-variant/40 bg-surface-container px-2 type-body-medium text-on-surface"
+            value={modChoice}
+            onChange={(e) => setModChoice(e.target.value)}
+          >
+            <option value="">Ajouter à un mod…</option>
+            {mods.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
+            ))}
+          </select>
+          <Button size="sm" variant="outline" onClick={stageIntoMod} disabled={!modChoice || busy}>
+            Choisir le remplacement…
+          </Button>
+          {ext === "g4tx" && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={stageTexture}
+              disabled={!modChoice || busy}
+              title="Décode le PNG choisi et le réencode en DDS/G4TX — pris en charge uniquement pour les textures mono-image sans atlas (ex. les icônes/UI simples, pas les atlas multi-région)"
+            >
+              🖼️ Remplacer par un PNG…
+            </Button>
+          )}
+        </div>
+      )}
+
+      <Separator />
+
+      {error && <p className="type-body-small text-error">{error}</p>}
+
+      {pngUrl && (
+        <div className="max-h-64 overflow-auto rounded-xl border border-outline-variant/40 bg-surface-container-low p-2 elevation-1">
+          <img src={pngUrl} alt={name} className="max-w-full" />
+        </div>
+      )}
+
+      <ScrollArea className="min-h-0 flex-1 rounded-xl border border-outline-variant/40 bg-surface-container-low elevation-1">
+        <pre className="whitespace-pre-wrap p-3 font-mono text-xs leading-relaxed text-on-surface">{lines.join("\n") || "…"}</pre>
+      </ScrollArea>
+
+      <Tabs defaultValue="hex" className="shrink-0">
+        <div className="flex items-center justify-between">
+          <TabsList>
+            <TabsTrigger value="hex" className="type-label-large state-layer" onClick={loadRaw}>
+              Hex (lecture)
+            </TabsTrigger>
+            <TabsTrigger value="edit" className="type-label-large state-layer" onClick={loadRaw}>
+              Éditer (copie)
+            </TabsTrigger>
+          </TabsList>
+          {busy && <span className="type-label-small text-on-surface-variant">chargement…</span>}
+        </div>
+        <TabsContent value="hex">
+          <ScrollArea className="h-40 rounded-xl border border-outline-variant/40 bg-surface-container-low">
+            <pre className="p-2 font-mono text-[11px] leading-relaxed text-on-surface">
+              {rawBytes ? hexLines(rawBytes).join("\n") : "(cliquez pour charger)"}
+            </pre>
+          </ScrollArea>
+        </TabsContent>
+        <TabsContent value="edit" className="space-y-2">
+          <textarea
+            className="h-40 w-full resize-none rounded-xl border border-outline-variant/40 bg-surface-container p-2 font-mono text-[11px] leading-relaxed text-on-surface outline-none"
+            spellCheck={false}
+            value={editText}
+            onChange={(e) => setEditText(e.target.value)}
+            placeholder="(cliquez sur l'onglet pour charger les octets)"
+          />
+          <p className="type-body-small text-on-surface-variant">
+            {isLoose
+              ? "Fichier « loose » (physiquement sur disque, pas dans un CPK) : peut être écrasé EN PLACE."
+              : "Empaqueté dans un CPK — aucun encodeur CPK dans nie-formats, « Enregistrer » exporte toujours un fichier externe."}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={saveEdited} disabled={!editText}>
+              Enregistrer la copie modifiée sous…
+            </Button>
+            {target.kind === "vfs" && isLoose && (
+              <Button size="sm" variant="destructive" onClick={saveInPlace} disabled={!editText || busy}>
+                ⚠️ Enregistrer EN PLACE
+              </Button>
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}

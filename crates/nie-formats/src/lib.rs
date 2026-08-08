@@ -45,6 +45,8 @@ pub mod font;
 #[cfg(feature = "std")]
 pub mod objbin;
 pub mod cpk;
+/// Encodeur CPK/@UTF (contrepartie écriture de [`cpk`]) — même gating (aucun, `alloc`-only).
+pub mod cpk_encode;
 pub mod crilayla;
 /// Primitives 2D RGBA8 pures (crop/scale nearest) — source unique, no_std (le blend reste landmine #5).
 pub mod raster2d;
@@ -98,6 +100,10 @@ pub mod g4tx;
 /// Décodeur G4TX/DDS → RGBA8/PNG (source unique du workspace, feature `textures`).
 #[cfg(feature = "textures")]
 pub mod g4tx_decode;
+/// Encodeur G4TX/DDS (RGBA8 → BGRA8 non compressé → conteneur G4TX mono-texture) — contrepartie
+/// écriture de [`g4tx_decode`], même gating (ses tests round-trip en dépendent).
+#[cfg(feature = "textures")]
+pub mod g4tx_encode;
 #[cfg(feature = "std")]
 pub mod lip;
 #[cfg(feature = "std")]

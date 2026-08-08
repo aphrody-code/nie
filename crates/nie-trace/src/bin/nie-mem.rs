@@ -267,3 +267,269 @@ fn hexs(b: &[u8; 5]) -> String {
 fn hexs_join(b: &[u8]) -> String {
     b.iter().map(|x| format!("{x:02X}")).collect::<Vec<_>>().join("-")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Motif distinctif en `.rodata` du binaire de test : `scan` doit le retrouver dans une plage
+    /// mappée du process (chemin = binaire de test → contient le `comm`). `#[used]` + une lecture
+    /// runtime (`black_box`) garantissent sa rétention par l'éditeur de liens.
+    #[used]
+    static MARKER: [u8; 16] =
+        [0x4E, 0x49, 0x45, 0x4D, 0x45, 0x4D, 0x5A, 0x5A, 0xC0, 0xFF, 0xEE, 0xBA, 0xDD, 0xF0, 0x0D, 0x55];
+
+    /// Construit un `Vec<String>` à partir de `&str` et appelle `run`.
+    fn r(args: &[&str]) -> Result<(), String> {
+        let owned: Vec<String> = args.iter().copied().map(String::from).collect();
+        run(&owned)
+    }
+
+    /// Chemin temporaire unique au process (nettoyé par chaque test).
+    fn tmp_path(name: &str) -> std::path::PathBuf {
+        std::env::temp_dir().join(format!("niemem-test-{}-{name}", std::process::id()))
+    }
+
+    // ── Helpers purs (toutes plateformes) ────────────────────────────────────
+
+    #[test]
+    fn marker_is_retained() {
+        assert_eq!(std::hint::black_box(&MARKER).len(), 16);
+    }
+
+    #[test]
+    fn parse_positionals_flags_and_booleans() {
+        let raw: Vec<String> =
+            ["pos1", "--all", "--pid", "42", "-m", "modx", "--solo", "--a", "--b"].iter().copied().map(String::from).collect();
+        let (pos, flags) = parse(&raw);
+        assert_eq!(pos, vec!["pos1".to_owned()]);
+        assert!(flags.contains_key("all") && flags["all"].is_none()); // booléen connu
+        assert_eq!(flags["pid"].as_deref(), Some("42")); // flag à valeur
+        assert_eq!(flags["module"].as_deref(), Some("modx")); // alias -m → module
+        assert!(flags["solo"].is_none()); // suivi d'un flag → booléen
+        assert!(flags["a"].is_none()); // suivi d'un flag → booléen
+        assert!(flags["b"].is_none()); // dernier argument → booléen
+    }
+
+    #[test]
+    fn normalize_all_aliases() {
+        assert_eq!(normalize("p"), "pid");
+        assert_eq!(normalize("m"), "module");
+        assert_eq!(normalize("n"), "len");
+        assert_eq!(normalize("o"), "out");
+        assert_eq!(normalize("l"), "limit");
+        assert_eq!(normalize("xyz"), "xyz"); // bras par défaut
+    }
+
+    #[test]
+    fn parse_hex_variants() {
+        assert_eq!(parse_hex("0x1F").unwrap(), 0x1F);
+        assert_eq!(parse_hex("0XfF").unwrap(), 0xFF); // préfixe majuscule
+        assert_eq!(parse_hex(" ff ").unwrap(), 0xFF); // sans préfixe + trim
+        assert!(parse_hex("zz").is_err());
+    }
+
+    #[test]
+    fn parse_pattern_all_branches() {
+        assert!(parse_pattern("wstr:Hi").is_ok());
+        assert!(parse_pattern("wstr:").is_err()); // wstr vide
+        assert!(parse_pattern("str:Hi").is_ok());
+        assert!(parse_pattern("str:").is_err()); // str vide
+        let (bytes, label) = parse_pattern("41 42-43").unwrap(); // hex + séparateurs filtrés
+        assert_eq!(bytes, vec![0x41, 0x42, 0x43]);
+        assert!(label.contains("41"));
+        assert!(parse_pattern("abc").is_err()); // longueur impaire
+        assert!(parse_pattern("").is_err()); // vide
+        assert!(parse_pattern("zz").is_err()); // octet hex invalide
+    }
+
+    #[test]
+    fn hexdump_and_hexs_helpers() {
+        // 20 octets → 2e ligne partielle (couvre le padding) ; octets imprimables et non imprimables.
+        let sample: [u8; 20] = [
+            0x00, 0x41, 0x7e, 0x7f, 0x20, 0x1f, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4a,
+            0x4b, 0x4c, 0x4d, 0x4e, 0x4f,
+        ];
+        hexdump(&sample, 0x1_4000_0000);
+        assert_eq!(hexs(&nie_trace::EAC_PATCH_NOP), "9090909090");
+        assert_eq!(hexs_join(&[0xDE, 0xAD]), "DE-AD");
+    }
+
+    // ── Commandes via run() : chemins indépendants de la plateforme ──────────
+
+    #[test]
+    fn run_help_empty_unknown() {
+        r(&["help"]).unwrap();
+        r(&["-h"]).unwrap();
+        r(&["--help"]).unwrap();
+        r(&[]).unwrap(); // aucun argument → USAGE
+        assert!(r(&["commande-bidon"]).is_err()); // commande inconnue
+    }
+
+    #[test]
+    fn run_find_pid_absent_is_err() {
+        assert!(r(&["find-pid"]).is_err()); // défaut "nie.exe", jamais lancé ici
+        assert!(r(&["find-pid", "zzz-process-inexistant"]).is_err());
+    }
+
+    #[test]
+    fn run_patch_eac_paths() {
+        let dir = tmp_path("eac");
+        let _ = std::fs::create_dir_all(&dir);
+        let src = dir.join("nie.exe");
+        let dst = dir.join("nie_eacpatched.exe");
+        let off = nie_trace::EAC_PATCH_OFFSET as usize;
+        let mut data = vec![0u8; off + 0x1000];
+        data[off..off + 5].copy_from_slice(&nie_trace::EAC_PATCH_ORIG);
+        std::fs::write(&src, &data).unwrap();
+
+        r(&["patch-eac", src.to_str().unwrap(), dst.to_str().unwrap()]).unwrap(); // succès
+        assert!(r(&["patch-eac"]).is_err()); // src manquant
+        assert!(r(&["patch-eac", src.to_str().unwrap()]).is_err()); // dst manquant
+
+        // erreur de patch : src trop petit → read_exact échoue à l'offset EAC.
+        let small = dir.join("small.exe");
+        std::fs::write(&small, b"tiny").unwrap();
+        let small_dst = dir.join("small_out.exe");
+        assert!(r(&["patch-eac", small.to_str().unwrap(), small_dst.to_str().unwrap()]).is_err());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn main_entrypoint_runs() {
+        // Exerce `main` : lit les arguments ambiants du binaire de test et dispatch vers `run`.
+        let _ = main();
+    }
+
+    // ── Commandes via run() pilotées contre le propre process (Linux) ────────
+
+    #[cfg(target_os = "linux")]
+    fn me_pid() -> String {
+        (std::process::id() as i32).to_string()
+    }
+
+    #[cfg(target_os = "linux")]
+    fn comm_name() -> String {
+        std::fs::read_to_string("/proc/self/comm").unwrap().trim().to_owned()
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn run_maps_self() {
+        let pid = me_pid();
+        let comm = comm_name();
+        r(&["maps", "--pid", &pid, "--module", &comm]).unwrap(); // plages non vides → corps de boucle
+        r(&["maps", "--pid", &pid, "--all"]).unwrap(); // --all → suffixe vide
+        assert!(r(&["maps"]).is_err()); // pas de --pid → nie.exe introuvable
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn run_base_self() {
+        let pid = me_pid();
+        let comm = comm_name();
+        r(&["base", "--pid", &pid, "--module", &comm]).unwrap(); // base trouvée
+        assert!(r(&["base", "--pid", &pid, "--module", "zzz-no-such-module"]).is_err());
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn run_read_self() {
+        let pid = me_pid();
+        let comm = comm_name();
+        let buf: Vec<u8> = (0..32u8).map(|i| if i % 3 == 0 { 0 } else { 0x40 + i }).collect();
+        let addr = format!("0x{:x}", buf.as_ptr() as u64);
+
+        r(&["read", &addr, "--pid", &pid, "--len", "24"]).unwrap(); // hexdump (out None)
+        let out = tmp_path("read.bin");
+        let outs = out.to_string_lossy().into_owned();
+        r(&["read", &addr, "--pid", &pid, "--len", "16", "--out", &outs]).unwrap(); // out Some
+        assert!(out.exists());
+        let _ = std::fs::remove_file(&out);
+
+        assert!(r(&["read", "--pid", &pid]).is_err()); // adresse manquante
+        assert!(r(&["read", "zz", "--pid", &pid]).is_err()); // hex invalide
+        let modrva = format!("{comm}+0x0");
+        r(&["read", &modrva, "--pid", &pid, "--len", "8"]).unwrap(); // module+RVA
+        assert!(r(&["read", "zzz-no-such-module+0x10", "--pid", &pid]).is_err()); // module introuvable
+        assert!(r(&["read", "0x1", "--pid", &pid, "--len", "8"]).is_err()); // page nulle → EFAULT
+        assert_eq!(buf.len(), 32); // garde `buf` vivant jusqu'ici
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn run_dump_self() {
+        let pid = me_pid();
+        let comm = comm_name();
+        let dir = tmp_path("dump");
+        let ds = dir.to_string_lossy().into_owned();
+        // Limité à --module (binaire de test, quelques Mo), JAMAIS --all.
+        r(&["dump", "--pid", &pid, "--module", &comm, "--out", &ds]).unwrap();
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn run_scan_self() {
+        let pid = me_pid();
+        let comm = comm_name();
+        std::hint::black_box(&MARKER);
+        let pat: String = MARKER.iter().map(|b| format!("{b:02x}")).collect::<Vec<_>>().join(" ");
+
+        // --module : base connue → rva Some ; limite 1 → branche « limité ».
+        r(&["scan", &pat, "--pid", &pid, "--module", &comm, "--limit", "1"]).unwrap();
+        // --all : base "nie.exe" introuvable → rva None (au moins MARKER est trouvé).
+        r(&["scan", &pat, "--pid", &pid, "--all", "--limit", "1"]).unwrap();
+        // wstr / str : module défaut "nie.exe" → plages vides → 0 hit (branche non « limité »).
+        r(&["scan", "wstr:Title", "--pid", &pid]).unwrap();
+        r(&["scan", "str:Hello", "--pid", &pid]).unwrap();
+        assert!(r(&["scan", "--pid", &pid]).is_err()); // motif manquant
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn run_find_pid_self() {
+        let comm = comm_name();
+        r(&["find-pid", &comm]).unwrap(); // notre propre comm → Some
+    }
+
+    /// Couvre les sous-régions d'erreur (`?` propagé, fermeture `--out` par défaut) de chaque
+    /// commande, sans `nie.exe` lancé.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn run_error_subregions() {
+        let comm = comm_name();
+        let pid = me_pid();
+
+        // resolve_pid échoue (pas de --pid → nie.exe introuvable) dans base/read/dump/scan.
+        assert!(r(&["base", "--module", &comm]).is_err());
+        assert!(r(&["read", "0x1000", "--module", &comm]).is_err());
+        assert!(r(&["dump", "--module", &comm]).is_err());
+        assert!(r(&["scan", "str:x", "--module", &comm]).is_err());
+
+        // parse_pattern échoue (octet hex invalide) après resolve_pid OK.
+        assert!(r(&["scan", "zz", "--pid", &pid]).is_err());
+
+        // parse_hex échoue dans la branche module+RVA de resolve_addr.
+        let bad_rva = format!("{comm}+0xZZ");
+        assert!(r(&["read", &bad_rva, "--pid", &pid]).is_err());
+
+        // std::fs::write échoue (dossier inexistant) sur read --out.
+        let buf = [0u8; 8];
+        let addr = format!("0x{:x}", buf.as_ptr() as u64);
+        assert!(r(&["read", &addr, "--pid", &pid, "--out", "/no_such_dir_xyz/out.bin"]).is_err());
+        assert_eq!(buf.len(), 8);
+
+        // dump_regions échoue : --out pointe sur un FICHIER (create_dir_all impossible).
+        let as_file = tmp_path("not_a_dir");
+        std::fs::write(&as_file, b"x").unwrap();
+        let afs = as_file.to_string_lossy().into_owned();
+        assert!(r(&["dump", "--pid", &pid, "--module", &comm, "--out", &afs]).is_err());
+        let _ = std::fs::remove_file(&as_file);
+
+        // dump sans --out : couvre la fermeture par défaut "./memdump" (plages vides).
+        r(&["dump", "--pid", &pid, "--module", "zzz-no-such-module"]).unwrap();
+        let _ = std::fs::remove_dir_all("./memdump");
+    }
+}

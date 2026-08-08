@@ -39,16 +39,21 @@ fn main() {
 
     let pk = g4pk::parse(&pk_bytes).unwrap();
     let f = pk.files.iter().find(|f| f.name.ends_with(".g4mt")).unwrap();
-    let anim = g4mt::parse_animation(&pk_bytes[f.offset..f.offset + f.size]).unwrap();
-    let rot: Vec<&g4mt::AnimChannel> = anim.channels.iter().filter(|c| c.is_rotation()).collect();
-    // canal de rotation i → os i (ordre du squelette).
-    let mut bone_chan: Vec<Option<usize>> = vec![None; nb];
-    for (i, slot) in bone_chan.iter_mut().enumerate().take(rot.len() + 1).skip(1) {
-        if i - 1 < rot.len() {
-            *slot = Some(i - 1);
+    let g4mt_bytes = &pk_bytes[f.offset..f.offset + f.size];
+    let motion = g4mt::Motion::parse(g4mt_bytes).unwrap();
+    let clip = &motion.clips[0];
+
+    // Mapping correct : cible → hash CRC32 du nom d'os, résolu contre le G4SK réel (remplace
+    // l'ancienne hypothèse « canal i → os i »).
+    let bone_names: Vec<&str> = bones.bones.iter().map(|b| b.name.as_str()).collect();
+    let resolved = g4mt::resolve_targets(&motion.target_hashes, &bone_names);
+    let mut bone_target: Vec<Option<u16>> = vec![None; nb];
+    for t in motion.target_indices(clip) {
+        if let Some(Some(b)) = resolved.get(t as usize) {
+            bone_target[*b] = Some(t);
         }
     }
-    println!("verts={nverts} os={nb} frames={} canaux_rot={}", anim.frame_count, rot.len());
+    println!("verts={nverts} os={nb} clip=\"{}\" frames={}", clip.name, clip.frame_count());
 
     // Cadre depuis la bind-pose du mesh.
     let (mut lo, mut hi) = ([f32::MAX; 3], [f32::MIN; 3]);
@@ -66,18 +71,16 @@ fn main() {
     };
 
     // "frame" -1 = bind pose (référence), 0..N = animé.
-    for frame in -1..anim.frame_count as i32 {
+    for frame in -1..clip.frame_count() as i32 {
         // Matrices monde par os.
         let mut world: Vec<[[f32; 4]; 4]> = Vec::with_capacity(nb);
         for i in 0..nb {
             let mut trs = poses[i].local;
             if frame >= 0
-                && let Some(ci) = bone_chan[i]
+                && let Some(t) = bone_target[i]
+                && let Some(q) = motion.sample_rotation(g4mt_bytes, clip, t, frame as f32)
             {
-                let s = &rot[ci].samples;
-                let q = s[(frame as usize).min(s.len() - 1)];
-                let n = (q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3]).sqrt().max(1e-6);
-                trs.quat = [q[0] / n, q[1] / n, q[2] / n, q[3] / n];
+                trs.quat = q;
             }
             let local = g4sk::local_matrix(&trs);
             let par = parents[i];

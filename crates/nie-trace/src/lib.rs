@@ -32,10 +32,14 @@ use std::path::Path;
 
 use thiserror::Error;
 
+pub mod aob;
+pub mod catalog;
 #[cfg(target_os = "linux")]
 pub mod wine_memory;
 #[cfg(windows)]
 pub mod win_memory;
+
+pub use aob::Pattern;
 
 // Extras spécifiques au backend Wine/Linux (avertissement ptrace côté CLI).
 #[cfg(target_os = "linux")]
@@ -99,6 +103,23 @@ pub fn read(pid: i32, addr: u64, dest: &mut [u8]) -> Result<usize, MemError> {
     {
         let _ = (pid, addr);
         if dest.is_empty() { Ok(0) } else { Err(MemError::Unsupported) }
+    }
+}
+
+/// Écrit `src` à l'adresse virtuelle `addr` du process `pid`. Renvoie le nombre d'octets écrits.
+///
+/// RE / patch live d'un jeu **possédé** tournant en local : modifier la mémoire d'un process actif
+/// peut le déstabiliser ou le faire planter. Le backend Windows déverrouille puis restaure la
+/// protection de page ; le backend Wine exige une page déjà inscriptible.
+pub fn write(pid: i32, addr: u64, src: &[u8]) -> Result<usize, MemError> {
+    #[cfg(target_os = "linux")]
+    return wine_memory::write(pid, addr, src);
+    #[cfg(windows)]
+    return win_memory::write(pid, addr, src);
+    #[cfg(not(any(target_os = "linux", windows)))]
+    {
+        let _ = (pid, addr);
+        if src.is_empty() { Ok(0) } else { Err(MemError::Unsupported) }
     }
 }
 
@@ -194,6 +215,91 @@ pub fn read_u32(pid: i32, addr: u64) -> Result<u32, MemError> {
 pub fn read_u64(pid: i32, addr: u64) -> Result<u64, MemError> {
     let b = read_exact(pid, addr, 8)?;
     Ok(u64::from_le_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]]))
+}
+
+/// Lit un `u8`.
+pub fn read_u8(pid: i32, addr: u64) -> Result<u8, MemError> {
+    Ok(read_exact(pid, addr, 1)?[0])
+}
+
+/// Lit un `u16` little-endian.
+pub fn read_u16(pid: i32, addr: u64) -> Result<u16, MemError> {
+    let b = read_exact(pid, addr, 2)?;
+    Ok(u16::from_le_bytes([b[0], b[1]]))
+}
+
+/// Lit un `i32` little-endian (entier signé — niveaux, rangs, deltas).
+pub fn read_i32(pid: i32, addr: u64) -> Result<i32, MemError> {
+    let b = read_exact(pid, addr, 4)?;
+    Ok(i32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+}
+
+/// Lit un `f32` little-endian (jauges, cooldowns, temps de match).
+pub fn read_f32(pid: i32, addr: u64) -> Result<f32, MemError> {
+    let b = read_exact(pid, addr, 4)?;
+    Ok(f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+}
+
+/// Écrit exactement `src.len()` octets ou échoue (écriture partielle = échec).
+pub fn write_exact(pid: i32, addr: u64, src: &[u8]) -> Result<(), MemError> {
+    let put = write(pid, addr, src)?;
+    if put != src.len() {
+        return Err(MemError::Partial { op: "write", pid, addr, requested: src.len(), got: put });
+    }
+    Ok(())
+}
+
+/// Écrit un `u8`.
+pub fn write_u8(pid: i32, addr: u64, v: u8) -> Result<(), MemError> {
+    write_exact(pid, addr, &[v])
+}
+
+/// Écrit un `u16` little-endian.
+pub fn write_u16(pid: i32, addr: u64, v: u16) -> Result<(), MemError> {
+    write_exact(pid, addr, &v.to_le_bytes())
+}
+
+/// Écrit un `u32` little-endian.
+pub fn write_u32(pid: i32, addr: u64, v: u32) -> Result<(), MemError> {
+    write_exact(pid, addr, &v.to_le_bytes())
+}
+
+/// Écrit un `i32` little-endian.
+pub fn write_i32(pid: i32, addr: u64, v: i32) -> Result<(), MemError> {
+    write_exact(pid, addr, &v.to_le_bytes())
+}
+
+/// Écrit un `u64` little-endian.
+pub fn write_u64(pid: i32, addr: u64, v: u64) -> Result<(), MemError> {
+    write_exact(pid, addr, &v.to_le_bytes())
+}
+
+/// Écrit un `f32` little-endian.
+pub fn write_f32(pid: i32, addr: u64, v: f32) -> Result<(), MemError> {
+    write_exact(pid, addr, &v.to_le_bytes())
+}
+
+/// Résout une **chaîne de pointeurs** façon Cheat-Engine depuis `base` : pour chaque offset, on
+/// ajoute l'offset à l'adresse courante puis on **déréférence** (lecture d'un `u64`) — sauf le
+/// dernier, qui n'est qu'ajouté. Renvoie l'adresse finale (où lit/écrit la valeur).
+///
+/// Ex. `[singleton+0x69A0]+0x5C` (rang du dump) = `resolve_chain(pid, singleton, &[0x69A0, 0x5C])`.
+/// `offsets` vide renvoie `base`.
+pub fn resolve_chain(pid: i32, base: u64, offsets: &[i64]) -> Result<u64, MemError> {
+    let mut addr = base;
+    for (i, &off) in offsets.iter().enumerate() {
+        addr = add_offset(addr, off);
+        if i + 1 < offsets.len() {
+            addr = read_u64(pid, addr)?;
+        }
+    }
+    Ok(addr)
+}
+
+/// `addr + off` avec `off` signé, saturé dans `u64`.
+#[must_use]
+fn add_offset(addr: u64, off: i64) -> u64 {
+    if off >= 0 { addr.wrapping_add(off as u64) } else { addr.wrapping_sub(off.unsigned_abs()) }
 }
 
 // ─── EAC patch (port de scripts/patch-eac.sh) ──────────────────────────────────────
@@ -322,6 +428,45 @@ pub fn scan_regions(pid: i32, regions: &[MapEntry], base: Option<u64>, needle: &
     hits
 }
 
+/// Cherche un [`Pattern`] **à masque** (wildcards) dans les plages lisibles, jusqu'à `limit` hits.
+/// `base` sert au calcul de la RVA. Pendant des signatures reversées (`44 8B ?? 10`) — voir
+/// [`crate::catalog`].
+///
+/// Chaque plage est lue et scannée **indépendamment** (comme [`scan_regions`]) : un motif qui
+/// *chevauche la couture* entre deux plages contiguës (`m.end == m_suivante.start`) ne serait pas
+/// trouvé. Sans conséquence ici — une signature de code AOB vit entièrement dans une section
+/// exécutable (une seule plage).
+#[must_use]
+pub fn scan_regions_masked(
+    pid: i32,
+    regions: &[MapEntry],
+    base: Option<u64>,
+    pattern: &Pattern,
+    limit: usize,
+) -> Vec<ScanHit> {
+    let mut hits = Vec::new();
+    if pattern.is_empty() {
+        return hits;
+    }
+    for m in regions {
+        if hits.len() >= limit || !m.is_readable() || m.size() == 0 {
+            continue;
+        }
+        let mut buf = vec![0u8; m.size() as usize];
+        let got = match read(pid, m.start, &mut buf) {
+            Ok(n) if n > 0 => n,
+            _ => continue,
+        };
+        let remaining = limit - hits.len();
+        for idx in pattern.find_all(&buf[..got], remaining) {
+            let at = m.start + idx as u64;
+            let rva = base.filter(|&b| at >= b).map(|b| at - b);
+            hits.push(ScanHit { addr: at, perms: m.perms.clone(), rva });
+        }
+    }
+    hits
+}
+
 /// Première occurrence de `needle` dans `hay` (recherche naïve).
 fn find_subslice(hay: &[u8], needle: &[u8]) -> Option<usize> {
     if needle.is_empty() || needle.len() > hay.len() {
@@ -378,6 +523,14 @@ mod tests {
         assert!(matches!(patch_eac(&bad_src, &bad_dst), Err(EacPatchError::Mismatch { .. })));
 
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn add_offset_signed() {
+        assert_eq!(add_offset(0x1000, 0x58), 0x1058);
+        assert_eq!(add_offset(0x1000, -8), 0x0FF8);
+        // résolution d'une chaîne vide = base.
+        assert_eq!(resolve_chain(-1, 0xDEAD_0000, &[]).unwrap(), 0xDEAD_0000);
     }
 
     #[test]
