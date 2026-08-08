@@ -11,11 +11,15 @@
 //! - `anchors` : ancrage des fonctions par leurs références de chaînes (table de règles
 //!   `motif→sous-système` appliquée avant la propagation).
 //! - `loop_db` : câblage DB → `PropagationGraph` → écriture des résultats.
+//! - `dump` : recherche de motifs (AOB, wildcards) dans un minidump live de `nie.exe`,
+//!   avec traduction `module + RVA` (oracle de lecture/validation runtime ; complète le
+//!   scanner *process live* de `nie-trace` pour le cas dump `.dmp` hors-ligne).
 #![forbid(unsafe_code)]
 #![allow(clippy::pedantic)]
 
 pub mod anchors;
 pub mod disasm;
+pub mod dump;
 pub mod indexer;
 pub mod loop_db;
 pub mod pdata;

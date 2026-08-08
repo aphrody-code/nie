@@ -119,13 +119,108 @@ en Rust ; iecode/inagle ne sont pas des dépendances permanentes, ce sont des v�
 - **FAIT (2026-06-06)** : fusion **corps + face + uniforme TEXTURÉS** en un GLB. Matching reversé : face = GLB de l'internalCode, corps = mesh PARTAGÉ `base_*` (par type_idx, 99 % couverts), uniforme = team→kit→`ModelIdCrc = crc32_std(code)` (manifeste `var/uniform-model-map.ndjson`, **3550** entrées). **Textures g4tx→PNG (BC1-7) embarquées** dans le GLB (face + uniforme). Keshin (`k*`) / armures (`ka*`) aussi assemblés. Reste : codes hors `c/k/ka` (uniforme isolé `n*` non assemblable seul) ; câblage du skinning en glTF skin+animation dans le GLB servable (cf. pilier Animation).
 
 ### 3sexies-ter. Animation / skinning — `nie-formats` (g4sk/g4mt/g4mg) + `nie-render3d`
-- **FAIT (2026-06-20) : chaîne d'animation 3D END-TO-END** — perso skinné animé depuis les vrais assets CPK. Décodeurs validés byte-exact : **g4sk** poses (inverse-bind + TRS) · **g4mt** animation (quaternions int16) · **g4mg `extract_skin`** poids de skinning (8 influences = WEIGHTS 8×u16 + INDICES 8×u8, validé `880/880` & `344/344` poids=1.0). Skinning (`skin = world_animé · inverse_bind`, blend 8 influences) + rendu **texturé** (texture BC7 décodée via `bcdec_rs`) → `example anim_char` rend un **humanoïde 3D au vrai uniforme qui s'anime** (`anim_skeleton`/`anim_mesh`/`anim_char`). Mapping canal→os = `rot[k]→os 4+k` (saute les os non-squelettiques). **Validé visuellement** sur le clip walk. **INCOMPLET** : robustesse multi-clips (les clips longs/idle ont un layout value-region par-clip non fini, caractérisé) ; clips multi-layers (un mouvement complet combine plusieurs g4mt) ; câblage en route model-serve (glTF skin+anim → azalee).
+- **FAIT (2026-06-20) : chaîne d'animation 3D END-TO-END** — perso skinné animé depuis les vrais assets CPK. Décodeurs validés byte-exact : **g4sk** poses (inverse-bind + TRS) · **g4mt** animation · **g4mg `extract_skin`** poids de skinning (8 influences = WEIGHTS 8×u16 + INDICES 8×u8, validé `880/880` & `344/344` poids=1.0). Skinning (`skin = world_animé · inverse_bind`, blend 8 influences) + rendu **texturé** (texture BC7 décodée via `bcdec_rs`) → `example anim_char` rend un **humanoïde 3D au vrai uniforme qui s'anime** (`anim_skeleton`/`anim_mesh`/`anim_char`).
+- **FAIT (2026-08-06) : g4mt réécrit en parseur STRUCTUREL — lève l'INCOMPLET multi-clips/clips longs.** L'ancien décodeur scannait des offsets fixes (0x144/0xA4/0xD00) calés sur un unique fichier « walk » 60 frames ; il ne pouvait pas décoder un fichier réel typique (`c000101_p250.g4mt` = **37 clips dans un seul fichier**, dont un à **383 frames**). Reversé via une implémentation Python indépendante tierce (`tools/G4_Blender` submodule, `g4mt_probe.py`/`g4mt_motion.py`, licence absente → jamais vendorisé) : en-tête étendu (0x20-0x36) donne `clip_count`/`target_count`/`section_units[6]`/`offset_shift` → **tous les offsets de section sont CALCULÉS** (`(header_words + units<<shift)*4`), plus scannés. Nouveau `g4mt::Motion` : table de clips, cibles = **hash CRC32 du nom d'os** (`crate::cfgbin::crc32`, même algo) résolues contre un G4SK réel (`resolve_targets`, remplace l'ancienne heuristique `rot[k]→os 4+k`/`BASE` — **156/156 et 156/157 cibles résolues** sur deux fichiers réels vs. une correspondance devinée), canaux typés à 7 codecs (raw i8/i16/f32, quantifié u8/u16, quantifié signé i8/i16) échantillonnés par **interpolation keyframe réelle** (SLERP rotation / LERP scale-translation / STEP, pas d'hypothèse « 1 sample = 1 frame »). **Validé croisé byte-exact (précision f32) contre la référence Python indépendante** sur 4 échantillons d'un clip long (383 frames) ; 11 397 échantillons de rotation décodés sur les 37 clips réels, 0 quaternion non-unitaire ; clip « 走り » (course) confirmé réellement animé (delta inter-frame jusqu'à 0,096) vs. clip pose quasi-statique (delta <0,001) — sémantique cohérente. `anim_skeleton`/`anim_mesh`/`anim_char` portés sur la nouvelle API (mapping cible→os correct, plus plausible-mais-faux). 3 tests (synthétique + golden réel gated `real-fixtures`), clippy 0. **Reste** : clips additifs (`flags&1`, non gérés) ; clips multi-layers ; câblage en route model-serve (glTF skin+anim → azalee).
 
 ### 3sexies-bis. Serving live — `nie-model-serve` (HTTP, assemblage GLB à la volée)
 - **FAIT (2026-06-06)** : `crates/nie-model-serve` (binaire) sert `GET /model-full/<code>.glb` = assemblage **live** (corps+visage+uniforme texturés) depuis les CPK, sans dump. Déployé : `nie-model-serve.service` (systemd VPS, :8790), proxifié par nginx `cdn.rosegriffon.fr/model-full/`. Args : `--game-dir`, `--glb-dir`, `--crc-manifest var/model-crc-manifest.ndjson`, `--body-manifest var/body-type-manifest.ndjson`, `--cache-dir var/model-cache`. Vérifié live : `c11250030`/`k000010`/`c05021090` → 200, ~175-436 Ko, textures embarquées. ⚠ Binaire dans `/home/ubuntu/aphrody/target/linux-gnu/release/` (target-dir partagé avec aphrody — un `cargo clean` d'aphrody supprime le binaire ; le service survit sur l'inode mais **rebuild avant restart**). Consommé par azalee (page `/cpk` + fiches perso, cache-bust `?v=3`).
 
 ### 3septies. Données Steam — `better-auth-steam` (côté rg, alimenté par la RE nie.exe)
 - Constantes Steam extraites de nie.exe (app 2799860, 27 interfaces Steamworks, 52 succès `ACHIEVEMENT_%04u`, EncryptedAppTicket/Cloud/DLC) + manifeste 230 succès→noms. Cf. mémoire `project-steam-integration` (le plugin vit dans rg, pas niers).
+
+### 3octies. App desktop — `nie-explorer` (Tauri) + `nie-explore` (moteur d'aperçu partagé)
+- **FAIT (2026-08-08, inventaire vérifié contre le code)** : GUI complète React 19 + Tauri v2 —
+  **57 commandes Rust IPC**, bindings TS générés par `tauri-specta` (aucun `invoke<T>` maintenu à
+  la main, aucune dérive commande Rust ↔ appel TS possible). Couvre : explorateur VFS (arbre des
+  254 202 fichiers), éditeur (Monaco 100 % offline, T2B **et** RDBN éditables + réencodables via
+  `encode_cfgbin_config`), aperçus (texture G4TX/DDS→PNG, audio→WAV, vidéo USM→MP4, modèle 3D
+  GLB→PNG fixe + turntable MP4), gestion de mods (workspace + export **.cpk réel rechargeable**),
+  save manager Steam Cloud (déchiffrement+édition réelle via `nie-save`, sélection auto du
+  meilleur slot validé), onglet RE (`niers.sqlite` — labels/classes RTTI/xrefs, édition inline),
+  onglet Game Data (techniques/objets/Avatar-Keshin/succès/quêtes + calculateur de stats
+  `nie_core::growth`), recherche perso/technique (GraphQL azalee distant + miroir SQLite local,
+  repli substring), palette de commandes (Ctrl+K). Détail exhaustif par section
+  (FAIT/partiel/bloqué, preuves de vérification réelles contre le jeu) : `apps/nie-explorer/
+  ROADMAP.md` — ce fichier-ci ne duplique pas ce niveau de détail, juste le constat d'ensemble.
+- `nie-explore` (`crates/nie-explore`) = moteur d'aperçu **partagé** entre `nie-cli`
+  (`niers vfs cat`/`stat`) et le backend Tauri : un seul dispatch-décodeur par format (T2B/RDBN/
+  G4TX/G4MD/G4SK/G4MT/G4PK/CPK/Lua bytecode `nie-lua`/audio Criware/DXBC/PXCL/NAVM/…), deux
+  façades (texte CLI / JSON IPC) — évite que les deux dérivent, cf. anti-doublon `CLAUDE.md`.
+- **Verrous documentés, pas des oublis** — mêmes limites que le reste du projet : capture de
+  dump live + scan AOB (conflit de lien natif `rusqlite`/`sqlx-sqlite`, cf. §5) + attache
+  `nie-trace` à un process protégé EAC — refus fermes, jamais câblés sans confirmation explicite.
+- **FAIT (2026-08-08) : audit d'exhaustivité des 26 crates `crates/*` contre le `Cargo.toml`
+  de `nie-explorer`** — 11 chargées en dépendance directe (`nie-formats`/`nie-explore`/
+  `nie-save`/`nie-data`/`nie-core`/`nie-trace`/`nie-queue`/`nie-geom`/`nie-app`/`nie-render3d`/
+  `nie-runtime`/`nie-steam` — 4 nouvelles : `nie-geom`/`nie-app`/`nie-render3d`/`nie-runtime`/
+  `nie-steam`, `cargo check`+`clippy --lib --tests` verts). Les 14 restantes sont exclues pour
+  une contrainte Cargo **dure**, jamais un oubli, chacune documentée en commentaire dans le
+  `Cargo.toml` : conflit de lien natif `rusqlite`/`sqlx-sqlite` (`nie-wiki`/`nie-re`/`nie-index`/
+  `nie-seed`/`nie-zukan`/`nie-model-serve`), pas de cible `lib` (`nie-game`/`nie-headless`/
+  `nie-play`/`nie-cli`), `cdylib` sans `rlib` donc rien à lier (`nie-ffi`), cible wasm32 déjà
+  couverte en direct par les crates ci-dessus (`nie-wasm`), portage RE non validé exclu du
+  workspace lui-même (`nie-engine`), déjà tirée transitivement via `nie-explore` (`nie-lua`).
+  `IECODE.Core`/`IECODE.CLI` (référence C# .NET 10, `IECODE.sln` racine) reste hors de cet
+  inventaire par nature — un projet .NET ne se « package » pas comme dépendance Cargo ; son rôle
+  (cross-vérification manuelle de portage, cf. `apps/nie-explorer/ROADMAP.md` §1.1/§1.2) est
+  documenté au même endroit plutôt que d'être simulé par une fausse dépendance.
+- **FAIT (2026-08-08) : exploitation réelle des crates nouvellement chargées — `nie-render3d`
+  câblé EN PROCESS, corrige un bug de packaging.** L'aperçu 3D (`vfs_glb_preview_png_b64`/
+  `vfs_glb_preview_turntable_mp4_b64`) shellait vers un `nie-render3d.exe` compilé séparément,
+  absent de TOUT build distribué (`scripts/package.sh` ne le packages pas, `tauri.conf.json` n'a
+  pas de `bundle.resources` pour lui) — cassé hors poste de dev, silencieusement. Les deux
+  commandes appellent maintenant `nie_render3d::{glb::parse, render::render}` directement (le
+  rasterizer est du pur-Rust `#![forbid(unsafe_code)]` sans état global), seul `ffmpeg` reste en
+  sous-processus pour le mux MP4. **Ferme aussi le gap RawCpkView §6** (« résolveur de frères
+  scopé au seul CPK courant ») : `assemble_glb_from_cpk_entries` + commande
+  `raw_cpk_glb_preview_png_b64` donnent l'aperçu 3D à un `.cpk` ouvert hors VFS. **2 golden réels**
+  (`cargo test -p nie-explorer --lib --features real-fixtures`) sur `c01000010` (visage IE1,
+  chemin VFS ET pack brut `data/packs/eaabb0359e96871a72ea9f86c5d3d10d.cpk`), vérifiés par rendu
+  effectif (>1000 pixels de mesh, signature PNG) — pas juste compilation. Détail :
+  `apps/nie-explorer/ROADMAP.md` §2.3/§6.
+- **FAIT (2026-08-08) : intégration Blender corrigée + liaison persistante ajoutée** (demande
+  utilisatrice « Ouvrir avec Blender ouvre un fichier vide » + « lier au max Blender et niers »).
+  Root cause identifiée en lisant `tools/niers/g4_port_addon.py` : le bootstrap appelait
+  `level5_g4_port.load_original_model` (opérateur du wizard d'export, peuple des réglages, ne
+  crée aucun maillage) au lieu du vrai importeur `import_scene.level5_g4`. Corrigé + différé via
+  `bpy.app.timers` (même mécanisme que l'addon lui-même) + erreurs écrites en fichier log au lieu
+  d'être avalées. **Validé par 2 tests `blender.exe` réels** (background ET GUI complète, timer
+  inclus) : 3 objets importés (`c01000010_20`/`eye_10`/`mouth_10`) contre 0 avant. Trouvé en
+  chemin : le submodule `tools/niers` (`.gitmodules`) avait été supprimé de l'index par erreur
+  (commit « license officiel ») — restauré au commit exact pinné (`7ac55b7`), **puis vendorisé**
+  (fichiers réguliers, plus de submodule Git — demande utilisatrice explicite ; licence amont
+  absente, republication confirmée autorisée par le propriétaire du projet, cf. `tools/niers/
+  NIERS_VENDORING_NOTE.md`). `ensure_niers_blender_addon` (clone Git à la volée) reste comme filet
+  de sécurité pour un `game_dir` qui n'est PAS un checkout de ce repo (build distribué pointé sur
+  une simple install Steam). Nouveau : commande `install_niers_blender_addon` + bouton
+  Paramètres — installe l'extension pour de vrai (dossier d'addons utilisateur, pas juste le
+  bootstrap transitoire) et lie sa préférence `raw_data_root` au vrai `<jeu>/data`, persisté
+  (`save_userpref`) — vérifié par un Blender relancé à froid qui retrouve l'addon actif + la
+  préférence, sans repasser par nie-explorer. **Nouveau (même session) : `tools/niers/niers_
+  bridge.py`** — panneau Blender natif (View3D > Sidebar > Level-5) qui cherche des fichiers dans
+  le VFS (`niers vfs find --json`, flag ajouté à `nie-cli` pour l'occasion — référencé par son
+  propre doc-comment Rust depuis une session antérieure ; une première version avait réellement
+  existé puis été perdue avec le submodule supprimé par erreur, cf. `apps/nie-explorer/
+  ROADMAP.md` §2.6, récupérée après coup dans l'archive déjà publiée)
+  et importe le résultat sélectionné directement dans Blender sans jamais passer par
+  nie-explorer. Vérifié par des tests `blender.exe` GUI réels (pas `--background`, requis pour un
+  opérateur modal) : 12 résultats de recherche, 3 objets importés. **Recherche web ciblée** (« best
+  API/feature pour une extension Blender ») → 2 patterns appliqués et vérifiés : opérateurs
+  `subprocess.Popen`+timer modal NON bloquants (`_NiersProcessOperator`, remplace un `subprocess.
+  run()` synchrone qui gelait l'UI, pattern documenté harlepengren.com) + filtre `UIList` natif
+  (`UI_UL_list.filter_items_by_name`, boîte de recherche icône loupe, filtre côté client sans
+  relancer `niers.exe`). `blender_manifest.toml` d'abord jugé « écarté » puis **restauré après
+  coup** (existait déjà dans une session antérieure, perdu avec le submodule supprimé par erreur,
+  récupéré dans l'archive de release v0.1.0 déjà publiée — `version="1.1.0"`, permission `network`
+  ajoutée pour azalee). Hooks Python Asset Browser écartés (API non stabilisée par Blender,
+  juillet 2026). **Même session : renommé « niers — G4 Blender Tools »**
+  (sidebar unifiée sous l'onglet « niers ») **+ recherche perso/technique par nom localisé
+  FR/EN/JA**, deux sources combinées jamais bloquantes (miroir SQLite local — SQL copié mot pour
+  mot de `nie_wiki::query`/`wikiDb.ts` — et GraphQL azalee, mêmes requêtes que `remote_search_
+  chara`/`remote_search_waza` côté `nie-explorer`), avec bascule 1-clic « nom → fichiers VFS réels
+  → import Blender ». Vérifié en un seul test GUI bout-en-bout : recherche « Mark » → 59 résultats
+  combinés (39 local + 20 azalee), résolution → 12 fichiers réels, import → 3 objets créés. Détail :
+  `apps/nie-explorer/ROADMAP.md` §2.4/§2.5/§2.6.
 
 ### 4. Runtime + portabilité — `nie-headless`, `nie-wasm`
 - **FAIT** : runner CLI headless ; surface wasm-bindgen (detect/crilayla/@UTF + g4tx→PNG, audio CRI→WAV, cfg.bin typé) sur `wasm32-unknown-unknown`.
@@ -140,6 +235,7 @@ en Rust ; iecode/inagle ne sont pas des dépendances permanentes, ce sont des v�
 ### 5. Échafaudage RE — `nie-re`, `nie-index`, `nie-seed`, `nie-queue`
 - **FAIT** : pipeline `seed → rtti → rebuild(.pdata → vtable → disasm → propagate)`. **93,36 %** (49 280/52 783) **classifié** (label de sous-système ML, **pas un nom** ; 81,8 % des labels à confiance < 0,1, ≈1 707 à ancre forte ≥0,75) + **6 429 fonctions (12,18 %) nommées structurellement** (`Namespace::Classe::vmethod_N` via RTTI+vtable, `name_source='vtable-struct'` — **pas** des symboles PDB originaux). **Lever 2026-06-10** : arêtes indirectes (LEA rip-relatif + ancrage vtable→RTTI) 92,45 → 93,36 % (+484 fn, mesuré A/B). Sur `.pdata` (50 674 racines + 2 109 feuilles vtable) + graphe d'appels réel (169 828 arêtes). Table `coverage` dans `var/niers.sqlite`. Heartbeat de fond (`var/re-heartbeat.log`).
 - **Découverte clé** : l'index Ghidra est **désaligné** (3,7 % des `FUN_` sont de vrais débuts) ; `.pdata` est la vérité terrain. Toujours s'y adosser.
+- **FAIT (2026-06-25) : dump mémoire LIVE de `nie.exe` exploité — census RTTI runtime + ancrage census-grounded + outil `nie-re::dump`.** Capture *full-memory* du process Steam en cours (`MiniDumpWriteDump`, token élevé + SeDebugPrivilege ; 2.97 Go ; **hors-match**), exploitée **pure-Rust** via `crates/nie-re/src/dump.rs` (lecture VA/typée, régions+protections `MemoryInfoList`, **résolution RTTI MSVC**, **census de vtables**, scan AOB wildcards ; exemples `dump_scan`/`dump_census`, 6 tests, clippy 0). Apports : (1) **census d'objets vivants nommés** — 1592 vtables, 60 classes : rendu `lives::CUniformBlock`×91k / `CVertexBuffer` / `CRes*`, DB `game::CGDD{NormalSpirit,HumanChara,InventorySkill}`, et le **système de commandes de la frontière C3** `game::CCallback{Play,Judge}Command` / `ExecPassiveSkillEffectInfo` (adresses de vtable statiques confirmées → ancres concrètes pour `FUN_1412C0970`, cf. §3) ; (2) **dérive de build confirmée** : les RVA vtable du build live ≠ `var/niers.sqlite` (delta **non constant**) → l'ancrage par adresse glisse, **les noms RTTI restent stables** ; (3) **22 signatures AOB** d'un trainer tiers → RVA statiques validées (Tension `0x140E9014D`…), table movesets runtime (record 0x34, sentinelle `0xFB997A80`), ~192k chemins d'assets chargés (valident la couverture `nie-formats`, seul `.usm` non décodé). **Quick-win porté** : `anchors.rs::classify_{lives,game}_class` étendu avec les noms **ground-truth** du census (`cuniform`/`cvertex`/`cres*`/`gmd*`→render/animation ; `play_*`/`ccallback`/`execpassive`→gameplay/C3 ; `game_map`/`tbox`→level), **bases génériques laissées non classifiées** (CObject/CListData/CInternalFile — anti-faux) ; 22 tests classify verts, clippy 0. Le dump **est** la « capture live » que les ports runtime-couplés réclamaient (§3, globals dynamiques) : oracle de lecture pour les globals init'd-au-démarrage (à valider contre la source `.rdata` quand elle existe, comme la gravité path-eval). Détail : `docs/game-data/dump-exploitation.md`. ⚠ `.dmp` hors repo (© Level-5). Mémoire : [[dump-exploitation]].
 
 ### 5bis. Host GUI natif — `nie-game` (pilier D1/C4, **chemin central vers le jeu jouable**)
 - **FAIT (2026-06-13, squelette de pipeline)** : `crates/nie-game` (1 180 LOC) — host **wgpu 22 + winit 0.30 + pollster 0.3**. Modes `--capture` (rendu hors-écran → PNG, `Rgba8Unorm`/`Nearest`/sans sRGB, readback aligné 256 o **bit-exact**) et `--window` (`ApplicationHandler`). Rend une **vraie texture `.g4tx`** décodée RGBA8 (VFS ou scan CPK direct). Capture vérifiée end-to-end sur un vrai asset du jeu (`soccer00_01.g4tx`, 352×148).

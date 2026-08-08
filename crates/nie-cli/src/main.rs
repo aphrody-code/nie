@@ -178,6 +178,13 @@ enum Cmd {
         #[command(subcommand)]
         op: MemOp,
     },
+    /// Explorateur du VFS (CPK) : liste/cherche/prévisualise/extrait les ~254 800 fichiers du
+    /// jeu, avec décodage structuré par format (G4MT/G4SK/G4MD/G4TX/…) et recherche de
+    /// personnage/technique par nom, ID ou code interne via le miroir wiki.
+    Vfs {
+        #[command(subcommand)]
+        op: VfsOp,
+    },
 }
 
 /// Sous-commandes de `niers mem` (RE runtime via nie-trace).
@@ -243,6 +250,130 @@ enum MemOp {
         /// Sortie patchée (ex. nie_eacpatched.exe).
         #[arg(long)]
         dst: PathBuf,
+    },
+}
+
+/// Sous-commandes de `niers vfs` (explorateur CPK / VFS).
+///
+/// `--game-dir` est optionnel partout : par défaut, résolu via
+/// [`nie_formats::vfs::resolve_game_dir`] (`NIE_GAME_DIR`, sinon le répertoire courant s'il
+/// contient déjà `data/cpk_list.cfg.bin` — cas du dépôt fusionné avec l'install du jeu).
+#[derive(Subcommand)]
+enum VfsOp {
+    /// Vue « dossier » : sous-dossiers et fichiers directement sous `prefix` (racine si omis).
+    Ls {
+        prefix: Option<String>,
+        #[arg(long)]
+        game_dir: Option<PathBuf>,
+    },
+    /// Cherche par sous-chaîne dans les chemins internes (remplace l'exemple `vfs_grep`).
+    Find {
+        /// Sous-chaîne cherchée (insensible à la casse).
+        query: String,
+        /// Filtre par extension (ex. `g4tx`, sans le point).
+        #[arg(long)]
+        ext: Option<String>,
+        #[arg(long, short = 'n', default_value_t = 100)]
+        limit: usize,
+        /// Sortie JSON (tableau compact sur une ligne) — pour consommation programmatique
+        /// (ex. `niers_bridge.py` de l'addon Blender `tools/niers`, recherche de fichiers sans
+        /// dépendre du miroir wiki contrairement à `chara`/`waza`).
+        #[arg(long, short = 'j')]
+        json: bool,
+        #[arg(long)]
+        game_dir: Option<PathBuf>,
+    },
+    /// Infos sur une entrée précise : taille, CPK conteneur, format détecté (magic).
+    Stat {
+        path: String,
+        #[arg(long)]
+        game_dir: Option<PathBuf>,
+    },
+    /// Aperçu du contenu : décodage structuré selon le format détecté (fallback hexdump).
+    Cat {
+        path: String,
+        /// Force le hexdump même si un décodeur structuré reconnaît le format.
+        #[arg(long)]
+        hex: bool,
+        /// Nombre d'octets affichés en hexdump (défaut 256).
+        #[arg(long, default_value_t = 256)]
+        len: usize,
+        /// Décode la meilleure texture du fichier (.g4tx) et écrit un PNG ici.
+        #[arg(long)]
+        png_out: Option<PathBuf>,
+        /// Décode l'audio brut (ADX) et écrit un WAV ici.
+        #[arg(long)]
+        wav_out: Option<PathBuf>,
+        #[arg(long)]
+        game_dir: Option<PathBuf>,
+    },
+    /// Extrait un fichier — ou tous les fichiers sous un préfixe — vers le disque.
+    Extract {
+        /// Chemin exact, ou préfixe de dossier VFS.
+        path: String,
+        #[arg(long, short = 'o')]
+        out: PathBuf,
+        #[arg(long)]
+        game_dir: Option<PathBuf>,
+    },
+    /// Histogramme des extensions du VFS complet (remplace l'exemple `vfs_hist`).
+    Stats {
+        #[arg(long, default_value_t = 50)]
+        top: usize,
+        #[arg(long)]
+        game_dir: Option<PathBuf>,
+    },
+    /// Cherche un personnage par nom (FR/EN/JA), ID ou code interne (miroir wiki `nie-wiki`),
+    /// puis liste ses fichiers dans le VFS (modèles, textures, animations…).
+    Chara {
+        /// Nom/ID/code interne — laisser vide avec `--element`/`--position` pour lister la
+        /// catégorie entière (substitué en `""`, qui matche `LIKE '%%'` côté SQL).
+        #[arg(default_value = "")]
+        query: String,
+        /// N'affiche que les résultats wiki, sans lister les fichiers VFS associés.
+        #[arg(long)]
+        no_paths: bool,
+        /// Filtre par élément (ex. `Feu`, `Vent`, `Forêt`, `Montagne`, `Néant`), insensible à la casse.
+        #[arg(long)]
+        element: Option<String>,
+        /// Filtre par poste (ex. `GK`, `DF`, `MF`, `FW`), insensible à la casse.
+        #[arg(long)]
+        position: Option<String>,
+        /// Sortie JSON (tableau compact sur une ligne) — pour consommation programmatique
+        /// (ex. `niers_bridge.py` de l'addon Blender `tools/niers`).
+        #[arg(long, short = 'j')]
+        json: bool,
+        #[arg(long, short = 'n', default_value_t = 50)]
+        limit: usize,
+        #[arg(long, env = "NIE_WIKI_DB")]
+        db: Option<PathBuf>,
+        #[arg(long)]
+        game_dir: Option<PathBuf>,
+    },
+    /// Cherche une technique/waza par nom (FR/EN/JA), ID ou code interne (miroir wiki
+    /// `nie-wiki`), puis liste ses fichiers dans le VFS (cut-ins, sons, vidéos…).
+    Waza {
+        /// Nom/ID/code interne — laisser vide avec `--category`/`--element` pour lister la
+        /// catégorie entière.
+        #[arg(default_value = "")]
+        query: String,
+        #[arg(long)]
+        no_paths: bool,
+        /// Filtre par catégorie, sous-chaîne insensible à la casse (ex. `Tir` matche `Tir/Shoot`,
+        /// libellés réels bilingues : `Dribble`, `Défense/Block`, `Arrêt/Keep`).
+        #[arg(long)]
+        category: Option<String>,
+        /// Filtre par élément, insensible à la casse.
+        #[arg(long)]
+        element: Option<String>,
+        #[arg(long, short = 'j')]
+        json: bool,
+        #[arg(long, short = 'n', default_value_t = 50)]
+        limit: usize,
+        #[arg(long, env = "NIE_WIKI_DB")]
+        db: Option<PathBuf>,
+        #[arg(long)]
+        game_dir: Option<PathBuf>,
     },
 }
 
@@ -817,6 +948,7 @@ fn main() -> anyhow::Result<()> {
         Cmd::MenuPredecode { game_dir, layouts_dir, redis_url, all } => {
             menu_predecode_cmd(&game_dir, &layouts_dir, &redis_url, all)
         }
+        Cmd::Vfs { op } => vfs_cmd(op),
     }
 }
 
@@ -1655,4 +1787,440 @@ fn count_json_files(layouts_dir: &std::path::Path) -> usize {
                 .count()
         })
         .unwrap_or(0)
+}
+
+// ─── niers vfs — explorateur CPK (VFS) ─────────────────────────────────────────────
+
+fn vfs_cmd(op: VfsOp) -> anyhow::Result<()> {
+    match op {
+        VfsOp::Ls { prefix, game_dir } => vfs_ls(prefix.as_deref().unwrap_or(""), game_dir),
+        VfsOp::Stat { path, game_dir } => vfs_stat(&path, game_dir),
+        VfsOp::Cat { path, hex, len, png_out, wav_out, game_dir } => {
+            vfs_cat(&path, hex, len, png_out.as_deref(), wav_out.as_deref(), game_dir)
+        }
+        VfsOp::Extract { path, out, game_dir } => vfs_extract(&path, &out, game_dir),
+        VfsOp::Stats { top, game_dir } => vfs_stats(top, game_dir),
+        VfsOp::Find { query, ext, limit, json, game_dir } => vfs_find(&query, ext.as_deref(), limit, json, game_dir),
+        VfsOp::Chara { query, no_paths, element, position, json, limit, db, game_dir } => {
+            let opts = SearchOpts { show_paths: !no_paths, json, limit, db: db.as_deref(), game_dir };
+            vfs_search_chara(&query, element.as_deref(), position.as_deref(), opts)
+        }
+        VfsOp::Waza { query, no_paths, category, element, json, limit, db, game_dir } => {
+            let opts = SearchOpts { show_paths: !no_paths, json, limit, db: db.as_deref(), game_dir };
+            vfs_search_waza(&query, category.as_deref(), element.as_deref(), opts)
+        }
+    }
+}
+
+/// Ouvre le VFS depuis `game_dir` (ou [`nie_formats::vfs::resolve_game_dir`] si absent).
+fn open_vfs(game_dir: Option<PathBuf>) -> anyhow::Result<nie_formats::vfs::Vfs> {
+    let root = game_dir.unwrap_or_else(nie_formats::vfs::resolve_game_dir);
+    let data_dir = root.join("data");
+    let mut vfs = nie_formats::vfs::Vfs::new();
+    vfs.init(&data_dir).with_context(|| format!("init VFS depuis {}", data_dir.display()))?;
+    Ok(vfs)
+}
+
+fn vfs_ls(prefix: &str, game_dir: Option<PathBuf>) -> anyhow::Result<()> {
+    let vfs = open_vfs(game_dir)?;
+    let prefix = prefix.trim_matches('/');
+
+    if let Some(role) = nie_explore::folder_roles::describe_folder(prefix) {
+        println!("  rôle : {}", role.role);
+        println!("  statut : {}\n", role.status);
+    }
+
+    let mut dirs: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    let mut files: Vec<(&str, &nie_formats::vfs::VfsEntry)> = Vec::new();
+
+    for (path, entry) in vfs.iter() {
+        let rest = if prefix.is_empty() {
+            path
+        } else if path == prefix {
+            continue;
+        } else if let Some(r) = path.strip_prefix(prefix).and_then(|r| r.strip_prefix('/')) {
+            r
+        } else {
+            continue;
+        };
+        match rest.split_once('/') {
+            Some((seg, _)) => {
+                dirs.insert(seg.to_string());
+            }
+            None => files.push((path, entry)),
+        }
+    }
+
+    for d in &dirs {
+        println!("  {d}/");
+    }
+    files.sort_by_key(|(p, _)| *p);
+    for (path, entry) in &files {
+        let name = path.rsplit('/').next().unwrap_or(path);
+        let cpk = if entry.cpk_filename.is_empty() { "<loose>" } else { entry.cpk_filename.as_str() };
+        println!("  {:>10}  {name}  [{cpk}]", entry.file_size);
+    }
+    println!("\n  {} sous-dossier(s), {} fichier(s)", dirs.len(), files.len());
+    Ok(())
+}
+
+/// Une entrée de `niers vfs find --json` — même convention compacte-sur-une-ligne que
+/// [`SearchJsonEntry`] (`chara`/`waza`), mais SANS dépendance au miroir wiki : `find` marche sur
+/// n'importe quelle install du jeu (VFS seul), c'est la recherche « fichiers » générique que
+/// `niers_bridge.py` (addon Blender `tools/niers`) utilise pour son panneau de recherche.
+#[derive(serde::Serialize)]
+struct FindJsonEntry<'a> {
+    path: &'a str,
+    size: u32,
+    cpk: &'a str,
+}
+
+fn vfs_find(query: &str, ext: Option<&str>, limit: usize, json: bool, game_dir: Option<PathBuf>) -> anyhow::Result<()> {
+    let vfs = open_vfs(game_dir)?;
+    let q = query.to_lowercase();
+    let ext_dot = ext.map(|e| format!(".{}", e.trim_start_matches('.').to_lowercase()));
+
+    let mut hits: Vec<(&str, &nie_formats::vfs::VfsEntry)> = vfs
+        .iter()
+        .filter(|(p, _)| p.to_lowercase().contains(&q))
+        .filter(|(p, _)| ext_dot.as_deref().is_none_or(|e| p.to_lowercase().ends_with(e)))
+        .collect();
+    hits.sort_by_key(|(p, _)| *p);
+
+    let total = hits.len();
+    if json {
+        let entries: Vec<FindJsonEntry> = hits
+            .iter()
+            .take(limit)
+            .map(|(path, entry)| FindJsonEntry {
+                path,
+                size: entry.file_size,
+                cpk: if entry.cpk_filename.is_empty() { "<loose>" } else { entry.cpk_filename.as_str() },
+            })
+            .collect();
+        println!("{}", serde_json::to_string(&entries)?);
+        return Ok(());
+    }
+
+    for (path, entry) in hits.iter().take(limit) {
+        let cpk = if entry.cpk_filename.is_empty() { "<loose>" } else { entry.cpk_filename.as_str() };
+        println!("  {:>10}  {path}  [{cpk}]", entry.file_size);
+    }
+    let capped = if total > limit { format!(" (limité à {limit})") } else { String::new() };
+    println!("\n  {total} résultat(s){capped}");
+    Ok(())
+}
+
+fn vfs_stat(path: &str, game_dir: Option<PathBuf>) -> anyhow::Result<()> {
+    let vfs = open_vfs(game_dir)?;
+    let entry = vfs.find(path).ok_or_else(|| anyhow::anyhow!("« {path} » absent du VFS"))?;
+    println!("  chemin      {path}");
+    println!("  taille      {} octets", entry.file_size);
+    println!(
+        "  cpk         {}",
+        if entry.cpk_filename.is_empty() { "<loose>" } else { &entry.cpk_filename }
+    );
+    match vfs.read(path) {
+        Ok(data) => {
+            let label = nie_explore::describe_content(path, &data)
+                .and_then(|lines| lines.into_iter().next())
+                .unwrap_or_else(|| "format      brut / non reconnu".to_string());
+            println!("  {label}");
+            println!("  magic       {}", nie_explore::hex_prefix(&data, 16));
+        }
+        Err(e) => println!("  lecture     ECHEC ({e})"),
+    }
+    Ok(())
+}
+
+fn vfs_cat(
+    path: &str,
+    hex: bool,
+    len: usize,
+    png_out: Option<&std::path::Path>,
+    wav_out: Option<&std::path::Path>,
+    game_dir: Option<PathBuf>,
+) -> anyhow::Result<()> {
+    let vfs = open_vfs(game_dir)?;
+    let data = vfs.read(path).with_context(|| format!("lecture « {path} »"))?;
+    println!("  {path}  ({} octets)", data.len());
+
+    if let Some(out) = png_out {
+        match nie_formats::g4tx_decode::decode_best_to_png(&data) {
+            Some(png) => {
+                std::fs::write(out, &png)?;
+                println!("  PNG écrit → {}", out.display());
+            }
+            None => println!("  échec décodage PNG (pas une texture reconnue)"),
+        }
+    }
+    if let Some(out) = wav_out {
+        let wav = if nie_formats::cri_audio::is_adx(&data) {
+            nie_formats::cri_audio::adx_decode(&data)
+                .ok()
+                .map(|p| nie_formats::cri_audio::encode_pcm16_wav(&p.samples, p.channels, p.sample_rate))
+        } else {
+            None
+        };
+        match wav {
+            Some(w) => {
+                std::fs::write(out, &w)?;
+                println!("  WAV écrit → {}", out.display());
+            }
+            None => println!("  échec décodage audio (ADX brut attendu — HCA/AWB non supportés ici)"),
+        }
+    }
+
+    if !hex
+        && let Some(lines) = nie_explore::describe_content(path, &data)
+    {
+        for l in lines {
+            println!("  {l}");
+        }
+        return Ok(());
+    }
+    let n = data.len().min(len);
+    mem_hexdump(&data[..n], 0);
+    if data.len() > n {
+        println!("  … {} octet(s) de plus (--len pour en voir davantage)", data.len() - n);
+    }
+    Ok(())
+}
+
+fn vfs_extract(path: &str, out: &std::path::Path, game_dir: Option<PathBuf>) -> anyhow::Result<()> {
+    let vfs = open_vfs(game_dir)?;
+
+    if vfs.find(path).is_some() {
+        let data = vfs.read(path)?;
+        if let Some(parent) = out.parent() {
+            std::fs::create_dir_all(parent).ok();
+        }
+        std::fs::write(out, &data)?;
+        println!("  1 fichier extrait ({} octets) → {}", data.len(), out.display());
+        return Ok(());
+    }
+
+    // Pas de correspondance exacte : traiter `path` comme un préfixe de dossier.
+    let prefix = path.trim_end_matches('/');
+    let sub_prefix = format!("{prefix}/");
+    let matches: Vec<String> = vfs
+        .iter()
+        .filter(|(p, _)| *p == prefix || p.starts_with(&sub_prefix))
+        .map(|(p, _)| p.to_string())
+        .collect();
+    anyhow::ensure!(!matches.is_empty(), "« {path} » absent du VFS (ni fichier exact, ni préfixe)");
+
+    let mut ok = 0usize;
+    let mut failed = 0usize;
+    for p in &matches {
+        match vfs.read(p) {
+            Ok(data) => {
+                let rel = p.strip_prefix(prefix).unwrap_or(p).trim_start_matches('/');
+                let dest = out.join(rel);
+                if let Some(parent) = dest.parent() {
+                    std::fs::create_dir_all(parent).ok();
+                }
+                match std::fs::write(&dest, &data) {
+                    Ok(()) => ok += 1,
+                    Err(_) => failed += 1,
+                }
+            }
+            Err(_) => failed += 1,
+        }
+    }
+    println!("  {ok} fichier(s) extrait(s) sous {} ({failed} échec(s))", out.display());
+    Ok(())
+}
+
+fn vfs_stats(top: usize, game_dir: Option<PathBuf>) -> anyhow::Result<()> {
+    let vfs = open_vfs(game_dir)?;
+    let mut counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    for (path, _) in vfs.iter() {
+        let base = path.rsplit('/').next().unwrap_or(path);
+        let ext = base.rsplit_once('.').map(|(_, e)| e.to_lowercase()).unwrap_or_else(|| "<none>".to_string());
+        *counts.entry(ext).or_default() += 1;
+    }
+    let mut v: Vec<_> = counts.into_iter().collect();
+    v.sort_by_key(|(_, c)| std::cmp::Reverse(*c));
+
+    println!(
+        "  total = {} fichiers, {} CPK, {} entrées extra, {} loose",
+        vfs.asset_count(),
+        vfs.cpk_count(),
+        vfs.extra_count(),
+        vfs.loose_count()
+    );
+    for (ext, c) in v.iter().take(top) {
+        println!("  {c:>8}  .{ext}");
+    }
+    Ok(())
+}
+
+/// Vrai si `have` (optionnel) contient `want`, insensible à la casse — `want=None` = pas de
+/// filtre. Sous-chaîne plutôt qu'égalité stricte : les catégories réelles du miroir sont
+/// bilingues (ex. `"Tir/Shoot"`, `"Défense/Block"`) — `--category Tir` doit matcher.
+fn matches_filter(have: Option<&str>, want: Option<&str>) -> bool {
+    match want {
+        None => true,
+        Some(w) => have.is_some_and(|h| h.to_lowercase().contains(&w.to_lowercase())),
+    }
+}
+
+/// Entrée JSON d'un résultat de recherche chara/waza (`--json`) — consommée par
+/// `tools/niers/niers_bridge.py` (panneau de recherche Blender) ou tout autre script.
+#[derive(serde::Serialize)]
+struct SearchJsonEntry {
+    id: String,
+    internal_code: Option<String>,
+    name_fr: Option<String>,
+    name_en: Option<String>,
+    name_ja: Option<String>,
+    /// Élément (chara/waza) ou poste (chara uniquement, réutilise ce champ).
+    element: Option<String>,
+    /// Poste (chara) ou catégorie (waza).
+    category_or_position: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    is_hyper: Option<bool>,
+    related_paths: Vec<String>,
+}
+
+/// Options communes à `vfs_search_chara`/`vfs_search_waza` (regroupées pour l'arité — clippy
+/// `too_many_arguments`), indépendantes des filtres de catégorie propres à chaque famille.
+struct SearchOpts<'a> {
+    show_paths: bool,
+    json: bool,
+    limit: usize,
+    db: Option<&'a std::path::Path>,
+    game_dir: Option<PathBuf>,
+}
+
+/// Cherche un personnage dans le miroir wiki (nom FR/EN/JA, ID ou code interne), avec filtres
+/// optionnels par élément/poste (catégorie), puis liste ses fichiers dans le VFS (le code
+/// interne, ex. `c01000100`, apparaît dans les chemins modèle/texture/anim du personnage).
+fn vfs_search_chara(query: &str, element: Option<&str>, position: Option<&str>, opts: SearchOpts<'_>) -> anyhow::Result<()> {
+    use nie_wiki::{mirror, query as wiki_query};
+    let SearchOpts { show_paths, json, limit, db, game_dir } = opts;
+
+    let conn = mirror::open(db)?;
+    let mut matches = wiki_query::search_characters(&conn, query)?;
+    matches.retain(|m| matches_filter(m.element.as_deref(), element) && matches_filter(m.position.as_deref(), position));
+
+    if matches.is_empty() {
+        if json {
+            println!("[]");
+        } else {
+            println!("Aucun personnage trouvé pour « {query} » (miroir wiki, filtres compris).");
+        }
+        return Ok(());
+    }
+
+    let vfs = if show_paths || json { Some(open_vfs(game_dir)?) } else { None };
+
+    if json {
+        let entries: Vec<SearchJsonEntry> = matches
+            .iter()
+            .map(|m| SearchJsonEntry {
+                id: m.id.clone(),
+                internal_code: m.internal_code.clone(),
+                name_fr: m.name_fr.clone(),
+                name_en: m.name_en.clone(),
+                name_ja: m.name_ja.clone(),
+                element: m.element.clone(),
+                category_or_position: m.position.clone(),
+                is_hyper: None,
+                related_paths: match (&vfs, m.internal_code.as_deref()) {
+                    (Some(vfs), Some(code)) => vfs.iter().filter(|(p, _)| p.contains(code)).map(|(p, _)| p.to_string()).collect(),
+                    _ => Vec::new(),
+                },
+            })
+            .collect();
+        println!("{}", serde_json::to_string(&entries)?);
+        return Ok(());
+    }
+
+    for m in &matches {
+        println!(
+            "{} / {} (ID {} | code {})",
+            m.name_fr.as_deref().unwrap_or("?"),
+            m.name_en.as_deref().unwrap_or("?"),
+            m.id,
+            m.internal_code.as_deref().unwrap_or("?"),
+        );
+        if let (Some(vfs), Some(code)) = (&vfs, m.internal_code.as_deref()) {
+            vfs_print_related(vfs, code, limit);
+        }
+    }
+    Ok(())
+}
+
+/// Cherche une technique/waza dans le miroir wiki (nom FR/EN/JA, ID ou code interne), avec
+/// filtres optionnels par catégorie/élément, puis liste ses fichiers dans le VFS (le code
+/// interne, ex. `whs00010`, apparaît dans les chemins de cut-in/telop/vidéo de la technique).
+fn vfs_search_waza(query: &str, category: Option<&str>, element: Option<&str>, opts: SearchOpts<'_>) -> anyhow::Result<()> {
+    use nie_wiki::{mirror, query as wiki_query};
+    let SearchOpts { show_paths, json, limit, db, game_dir } = opts;
+
+    let conn = mirror::open(db)?;
+    let mut matches = wiki_query::search_skills(&conn, query)?;
+    matches.retain(|m| matches_filter(m.category.as_deref(), category) && matches_filter(m.element.as_deref(), element));
+
+    if matches.is_empty() {
+        if json {
+            println!("[]");
+        } else {
+            println!("Aucune technique trouvée pour « {query} » (miroir wiki, filtres compris).");
+        }
+        return Ok(());
+    }
+
+    let vfs = if show_paths || json { Some(open_vfs(game_dir)?) } else { None };
+
+    if json {
+        let entries: Vec<SearchJsonEntry> = matches
+            .iter()
+            .map(|m| SearchJsonEntry {
+                id: m.id.clone(),
+                internal_code: m.internal_code.clone(),
+                name_fr: m.name_fr.clone(),
+                name_en: m.name_en.clone(),
+                name_ja: m.name_ja.clone(),
+                element: m.element.clone(),
+                category_or_position: m.category.clone(),
+                is_hyper: Some(m.is_hyper),
+                related_paths: match (&vfs, m.internal_code.as_deref()) {
+                    (Some(vfs), Some(code)) => vfs.iter().filter(|(p, _)| p.contains(code)).map(|(p, _)| p.to_string()).collect(),
+                    _ => Vec::new(),
+                },
+            })
+            .collect();
+        println!("{}", serde_json::to_string(&entries)?);
+        return Ok(());
+    }
+
+    for m in &matches {
+        println!(
+            "{} / {} (ID {} | code {}){}",
+            m.name_fr.as_deref().unwrap_or("?"),
+            m.name_en.as_deref().unwrap_or("?"),
+            m.id,
+            m.internal_code.as_deref().unwrap_or("?"),
+            if m.is_hyper { "  [hyper]" } else { "" },
+        );
+        if let (Some(vfs), Some(code)) = (&vfs, m.internal_code.as_deref()) {
+            vfs_print_related(vfs, code, limit);
+        }
+    }
+    Ok(())
+}
+
+/// Liste les chemins VFS contenant `needle` (code interne d'un chara/waza), bornés à `limit`.
+fn vfs_print_related(vfs: &nie_formats::vfs::Vfs, needle: &str, limit: usize) {
+    let mut hits: Vec<&str> = vfs.iter().filter(|(p, _)| p.contains(needle)).map(|(p, _)| p).collect();
+    hits.sort_unstable();
+    let total = hits.len();
+    for p in hits.iter().take(limit) {
+        println!("    {p}");
+    }
+    let capped = if total > limit { format!(" (limité à {limit})") } else { String::new() };
+    println!("    → {total} fichier(s) VFS contenant « {needle} »{capped}\n");
 }

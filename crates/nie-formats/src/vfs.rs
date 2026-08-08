@@ -447,6 +447,22 @@ impl Vfs {
     }
 }
 
+/// Résout le répertoire racine du jeu (celui qui contient `data/cpk_list.cfg.bin`), dans l'ordre :
+/// `NIE_GAME_DIR` si posée ; sinon le répertoire courant s'il contient déjà `data/cpk_list.cfg.bin`
+/// (poste où le dépôt niers est fusionné avec le dossier d'install du jeu — plus besoin de poser la
+/// variable) ; sinon le repli historique `/home/aphrody/niers` (dev WSL séparé).
+#[must_use]
+pub fn resolve_game_dir() -> PathBuf {
+    if let Ok(dir) = std::env::var("NIE_GAME_DIR") {
+        return PathBuf::from(dir);
+    }
+    let cwd = std::env::current_dir().unwrap_or_default();
+    if cwd.join("data/cpk_list.cfg.bin").is_file() {
+        return cwd;
+    }
+    PathBuf::from("/home/aphrody/niers")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
