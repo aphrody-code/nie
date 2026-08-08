@@ -26,8 +26,10 @@ function db(): Promise<Database> {
   return (dbPromise ??= Database.load("sqlite:mods.db"));
 }
 
-/** `code` = basename sans extension (`c01000100.g4md` → `c01000100`, sans le point final si `.cfg.bin`). */
-function codeOf(name: string): string {
+/** `code` = basename sans extension (`c01000100.g4md` → `c01000100`, sans le point final si `.cfg.bin`).
+ * Exporté : réutilisé par `nameResolve.ts` pour résoudre le nom (perso/technique/objet) lié à
+ * un fichier — même définition de « code » des deux côtés, pas de logique dupliquée. */
+export function codeOf(name: string): string {
   const i = name.indexOf(".");
   return i === -1 ? name : name.slice(0, i);
 }

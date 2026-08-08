@@ -38,7 +38,7 @@ function Field({
   return (
     <div className="space-y-1.5">
       <Label>{label}</Label>
-      <p className="text-xs text-muted-foreground">{hint}</p>
+      <p className="type-body-small text-on-surface-variant">{hint}</p>
       <div className="flex gap-2">
         <Input value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
         <Button variant="outline" onClick={onBrowse}>
@@ -190,7 +190,7 @@ export function SettingsView() {
         <CardContent className="space-y-3">
           <Field
             label="Chemin"
-            hint="Vide = auto-détection (NIE_GAME_DIR, sinon dossier fusionné avec le jeu)."
+            hint="Vide = auto-détection (NIE_GAME_DIR, dossier courant, puis VRAIE détection Steam — registre + bibliothèques + appmanifest_2799860.acf)."
             value={settings.gameDir}
             placeholder={autoGameDir}
             onChange={(v) => setSettings({ gameDir: v })}
@@ -217,7 +217,7 @@ export function SettingsView() {
         <CardContent>
           <Field
             label="Base SQLite"
-            hint="Vide = résolution automatique (NIE_WIKI_DB / SQLITE_DB_PATH)."
+            hint="Vide = résolution automatique (NIE_WIKI_DB / SQLITE_DB_PATH, sinon le supabase-*.sqlite le plus récent sous <jeu>/var/wiki-mirror) — utilisée pour afficher les noms réels (perso/technique/objet) dans l'Explorateur."
             value={settings.wikiDb}
             placeholder="(auto-détecté)"
             onChange={(v) => setSettings({ wikiDb: v })}
@@ -283,12 +283,12 @@ export function SettingsView() {
         </CardHeader>
         <CardContent className="space-y-3">
           {indexMeta ? (
-            <div className="flex flex-wrap gap-2 text-sm">
+            <div className="flex flex-wrap gap-2 type-body-medium">
               <Badge variant="secondary">{indexMeta.total.toLocaleString("fr-FR")} fichiers indexés</Badge>
               <Badge variant="outline">{new Date(indexMeta.reindexed_at).toLocaleString("fr-FR")}</Badge>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">Pas encore construit — repli sur la recherche en mémoire.</p>
+            <p className="type-body-medium text-on-surface-variant">Pas encore construit — repli sur la recherche en mémoire.</p>
           )}
           <Button size="sm" onClick={reindex} disabled={reindexing}>
             {reindexing
@@ -305,21 +305,21 @@ export function SettingsView() {
           <CardTitle>Statistiques VFS</CardTitle>
         </CardHeader>
         <CardContent>
-          {statsError && <p className="text-sm text-destructive">{statsError}</p>}
+          {statsError && <p className="type-body-medium text-error">{statsError}</p>}
           {stats && (
             <div className="space-y-3">
-              <div className="flex flex-wrap gap-2 text-sm">
+              <div className="flex flex-wrap gap-2 type-body-medium">
                 <Badge variant="secondary">{stats.total.toLocaleString("fr-FR")} fichiers</Badge>
                 <Badge variant="secondary">{stats.cpk_count} CPK</Badge>
                 <Badge variant="secondary">{stats.extra_count} extra</Badge>
                 <Badge variant="secondary">{stats.loose_count} loose</Badge>
               </div>
-              <table className="w-full text-xs">
+              <table className="w-full type-body-small">
                 <tbody>
                   {stats.top_ext.slice(0, 15).map(([e, c]) => (
-                    <tr key={e} className="border-t">
-                      <td className="py-1 pr-2 font-mono">.{e}</td>
-                      <td className="py-1 text-right text-muted-foreground">{c.toLocaleString("fr-FR")}</td>
+                    <tr key={e} className="border-t border-outline-variant/30">
+                      <td className="py-1 pr-2 font-mono text-on-surface">.{e}</td>
+                      <td className="py-1 text-right text-on-surface-variant">{c.toLocaleString("fr-FR")}</td>
                     </tr>
                   ))}
                 </tbody>
