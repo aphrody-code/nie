@@ -41,7 +41,7 @@ logs/
 !.vscode/extensions.json
 
 # AI instructions files — gardés en local seulement, jamais commit/push
-CLAUDE.md
+
 **/CLAUDE.md
 GEMINI.md
 **/GEMINI.md
@@ -112,6 +112,7 @@ __pycache__/
 !CHANGELOG.md
 !SECURITY.md
 !LICENSE
+!CLAUDE.md
 !docs/**/*.md
 !docs/**/*.txt
 !packages/*/README.md
