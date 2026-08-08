@@ -1,9 +1,0 @@
-{
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "paths": {
-      "nie": ["../../packages/nie/src/index.ts"]
-    }
-  },
-  "include": ["src"]
-}
