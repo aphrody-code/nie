@@ -58,7 +58,70 @@ function connect(dbPath: string): Promise<Database> {
   return p;
 }
 
+/** Nom résolu depuis un `code` (basename sans extension, cf. `vfsIndexDb.codeOf`) — utilisé par
+ * l'Explorateur/le détail de fichier pour afficher « Mark Evans » plutôt que « c01000100 ». */
+export interface ResolvedName {
+  kind: "chara" | "skill" | "item";
+  name: string;
+  /** Élément/poste (perso) ou catégorie (technique/objet), pour contexte, si connu. */
+  extra: string | null;
+}
+
+/** Découpe `arr` en tranches d'au plus `size` éléments (paramètres SQLite bornés ~999). */
+function chunk<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
 export const wikiDb = {
+  /**
+   * Résout un lot de `code`s (basenames VFS sans extension) vers leur personnage/technique/objet
+   * en UNE poignée de requêtes `IN (...)` — plutôt qu'une requête par fichier affiché (un dossier
+   * de personnages peut lister des milliers d'entrées), sur le même principe que l'index
+   * `vfs_files` : précision + un seul aller-retour au lieu de N.
+   */
+  async resolveManyByCode(dbPath: string, codes: string[]): Promise<Map<string, ResolvedName>> {
+    const unique = [...new Set(codes)].filter(Boolean);
+    if (unique.length === 0) return new Map();
+    const db = await connect(dbPath);
+    const out = new Map<string, ResolvedName>();
+
+    for (const batch of chunk(unique, 400)) {
+      const placeholders = batch.map((_, i) => `$${i + 1}`).join(",");
+
+      const chars = await db.select<{ internal_code: string; name_fr: string | null; name_en: string | null; element: string | null; position: string | null }[]>(
+        `SELECT internal_code, name_fr, name_en, element, position FROM inagle_characters WHERE internal_code IN (${placeholders})`,
+        batch,
+      );
+      for (const c of chars) {
+        if (out.has(c.internal_code)) continue;
+        const extra = [c.element, c.position].filter(Boolean).join(" · ");
+        out.set(c.internal_code, { kind: "chara", name: c.name_fr ?? c.name_en ?? c.internal_code, extra: extra || null });
+      }
+
+      const skills = await db.select<{ internal_code: string; name_fr: string | null; name_en: string | null; category: string | null }[]>(
+        `SELECT internal_code, name_fr, name_en, category FROM inagle_skills WHERE internal_code IN (${placeholders})`,
+        batch,
+      );
+      for (const s of skills) {
+        if (out.has(s.internal_code)) continue;
+        out.set(s.internal_code, { kind: "skill", name: s.name_fr ?? s.name_en ?? s.internal_code, extra: s.category });
+      }
+
+      const items = await db.select<{ internal_code: string; name_fr: string | null; name_en: string | null; category: string | null }[]>(
+        `SELECT internal_code, name_fr, name_en, category FROM inagle_items WHERE internal_code IN (${placeholders})`,
+        batch,
+      );
+      for (const it of items) {
+        if (out.has(it.internal_code)) continue;
+        out.set(it.internal_code, { kind: "item", name: it.name_fr ?? it.name_en ?? it.internal_code, extra: it.category });
+      }
+    }
+
+    return out;
+  },
+
   async searchChara(dbPath: string, query: string): Promise<CharaRow[]> {
     const db = await connect(dbPath);
     const q = sanitizeFilter(query);
