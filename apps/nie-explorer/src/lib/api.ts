@@ -120,6 +120,15 @@ export const api = {
   installNiersBlenderAddon: (blenderExe?: string, gameDir?: string) =>
     unwrap<string>(commands.installNiersBlenderAddon(blenderExe || null, gd(gameDir))),
 
+  // Presse-papiers FICHIERS natif Windows (CF_HDROP réel — ce que Ctrl+C/Ctrl+V dans
+  // l'Explorateur Windows lisent/écrivent), inspiré de cosmic-files (`clipboard.rs`, recherche
+  // 2026-08-08 « inspire-toi de cosmic-files pour... les interactions OS/filesystem »). Distinct
+  // du presse-papiers TEXTE (`@tauri-apps/plugin-clipboard-manager`, `writeText`/`readText`,
+  // toujours utilisé en repli pour un simple chemin copié en texte).
+  clipboardWriteFileList: (paths: string[]) => unwrap<null>(commands.clipboardWriteFileList(paths)),
+  clipboardReadFileList: () => commands.clipboardReadFileList(),
+  trashAppdataFiles: (appdataRelPaths: string[]) => unwrap<null>(commands.trashAppdataFiles(appdataRelPaths)),
+
   // Résolveur distant azalee — contrat RÉEL confirmé (`https://azalee.rosegriffon.fr`,
   // GraphQL `graphql-yoga` sans auth + REST `/api/cpk`/`/api/save/resolve-roster`), pas une
   // convention devinée. `baseUrl` vide → azalee.rosegriffon.fr (défaut côté Rust). Les 3 renvoient
