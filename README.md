@@ -2,9 +2,8 @@
 
 ![version](https://img.shields.io/badge/version-0.4.0-blue)
 ![rust](https://img.shields.io/badge/rust-nightly--2026--05--17-orange)
-![license](https://img.shields.io/badge/license-RG--L5--VR--2026--001-lightgrey)
 
-**Réécriture pixel-perfect d'*Inazuma Eleven: Victory Road* (moteur Level-5 « Lives ») en Rust pur** —
+**Réécriture pixel-perfect d'*Inazuma Eleven: Victory Road* (moteur « Lives ») en Rust pur** —
 headless, WebAssembly et GUI native, sans le binaire Windows ni le moteur propriétaire.
 
 🎮 **Jouable en navigateur** (100 % Rust → wasm, clavier/souris/manette) : **https://azalee.rosegriffon.fr/jeu**
@@ -16,7 +15,7 @@ headless, WebAssembly et GUI native, sans le binaire Windows ni le moteur propri
 
 Un moteur de jeu **et** un IDE tout-en-un : reverse-engineering de `nie.exe`, réimplémentation
 headless/wasm/native, outils de modding (textures, modèles, saves, lecture mémoire live). Créé par
-Rose Griffon en accord avec LEVEL-5 Inc.
+Rose Griffon.
 
 État détaillé et à jour : [`docs/PLAN.md`](docs/PLAN.md) (plan maître) ·
 [`docs/ROADMAP-100.md`](docs/ROADMAP-100.md) (trajectoire pixel-perfect) ·
@@ -50,14 +49,14 @@ packages/  # nie, nie-catalog, nie-plugin, nie-util (Bun)
 docs/      # plan maître, roadmap 100 %, architecture, design, inventaires
 scripts/   # outillage RE (Ghidra/Python/uv), packaging, exports
 var/       # base de connaissance RE (niers.sqlite), artefacts régénérables (gitignored)
-data/      # copie locale des assets du jeu (© Level-5, gitignored)
+data/      # copie locale des assets du jeu (gitignored)
 ```
 
 ### Crates (`crates/*`)
 
 | Crate | Rôle |
 |---|---|
-| `nie-formats` | Parsers Level-5/Criware (CPK/@UTF/CRILAYLA, g4tx/g4md/g4mg/g4sk/g4mt/g4pk, cfg.bin RDBN/T2B, audio ADX/HCA/ACB/AWB/USM, DXBC, PXCL, NAVM…), `no_std`-friendly. |
+| `nie-formats` | Parsers Criware/propriétaires (CPK/@UTF/CRILAYLA, g4tx/g4md/g4mg/g4sk/g4mt/g4pk, cfg.bin RDBN/T2B, audio ADX/HCA/ACB/AWB/USM, DXBC, PXCL, NAVM…), `no_std`-friendly. |
 | `nie-data` | Modèles `no_std` des données de jeu (chara_param, skill, item, aura, passive, growth, exp, quêtes, conditions…). |
 | `nie-core` | Logique de jeu reversée en Rust pur (FSM de match, ballon, IA tactique, gardien, stats, skills, auras). |
 | `nie-geom` | Types géométriques POD partagés (Vec2/Vec3) + math scalaire. |
@@ -72,7 +71,7 @@ data/      # copie locale des assets du jeu (© Level-5, gitignored)
 | `nie-wasm` | Bindings `wasm-bindgen` : formats, stats/FSM, lookup skill/aura/item, exposés au navigateur. |
 
 **Outils dérivés** : `nie-explore` (moteur d'aperçu VFS partagé CLI/desktop), `nie-model-serve`
-(serveur HTTP live d'assemblage GLB), `nie-zukan` (ingesteur encyclopédie officielle Level-5),
+(serveur HTTP live d'assemblage GLB), `nie-zukan` (ingesteur encyclopédie officielle du jeu),
 `nie-wiki` (exploration game-data), `nie-steam` (acquisition Steam native), `nie-trace` (RE en
 direct, lecture mémoire), `nie-ffi` (frontière C-ABI pour Bun).
 
@@ -115,12 +114,11 @@ bun run tauri dev        # depuis apps/nie-explorer — lance l'app desktop
 
 ## Données du jeu
 
-`data/` contient les vraies copies locales (© Level-5, gitignored, jamais committées). Variable
+`data/` contient les vraies copies locales (gitignored, jamais committées). Variable
 d'environnement `NIE_GAME_DIR` pour pointer vers une install Steam. Détail : [`CLAUDE.md`](CLAUDE.md).
 
-## Licence
+## Mises à jour
 
-Projet réalisé dans le cadre de l'**Accord Commercial Officiel d'Exploitation N° RG-L5-VR-2026-001**
-du 8 août 2026 entre Rose Griffon (Level 5 France) et LEVEL-5 Inc. — droits exclusifs de
-reverse-engineering, développement de mods, portage et outils associés explicitement concédés.
-Cf. [`LICENSE`](LICENSE) et [`public/ACCORD_COMMERCIAL_RG-L5-VR-2026-001.pdf`](public/ACCORD_COMMERCIAL_RG-L5-VR-2026-001.pdf).
+L'app desktop embarque `tauri-plugin-updater` (binaires signés minisign). Endpoints
+(`apps/nie-explorer/src-tauri/tauri.conf.json`) : `azalee.rosegriffon.fr/tools/niers/latest.json`
+(proxy dynamique des releases GitHub) puis, en repli, `releases/latest/download/latest.json`.
