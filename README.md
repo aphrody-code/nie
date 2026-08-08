@@ -3,14 +3,7 @@
 **Réécriture intégrale d'*Inazuma Eleven: Victory Road* (IEVR, moteur Level-5 « Lives ») en Rust pur —
 jouable en headless + WebAssembly, sans le binaire Windows ni le moteur propriétaire.**
 
-niers n'est pas un outil d'analyse : c'est une **réimplémentation du jeu**. Le reverse-engineering de `nie.exe`
-(boucle autonome RE ° auto-ML ° sqlite ° redis, **92,45 %** des fonctions réelles *classifiées* — un label de sous-système ML, pas un nom) est **le moyen** —
-il résout la logique du binaire pour la **porter** en crates Rust. Les références de portage sont `iecode` (C#)
-et `inagle` (TS) + le réel, validés byte-à-byte ; la cible est que niers fasse **tout** lui-même en Rust.
-
-Plan maître : **`docs/PLAN.md`**. Architecture & boucle RE : `docs/ARCHITECTURE.md`. Avancement :
-`docs/jeu-jouable-avancement.md`, `docs/assets-wasm-avancement.md`.
-
+Ce repo contient aussi des outils servant au dev de mods , d'edition de textures , modeles , de lecture memoire , de conversttion de fichier c'est un veritable moteur de jeu et IDE tout en un créé par Rose Griffon en accord avec LEVEL 5 (`LICENSE`)
 ## Crates
 
 Le jeu (la fin) :
