@@ -60,8 +60,13 @@ tauri-specta = { version = "2.0.0-rc.25", features = ["derive", "typescript"] }
 specta-typescript = "0.0.12"
 
 # Forward-ouverture "Ouvrir avec" Explorer → instance déjà lancée (argv[1] = chemin du fichier).
+# Updater : vérifie/télécharge/installe les nouvelles versions (desktop uniquement — pas de cible
+# mobile dans ce projet). `tauri-plugin-process` fournit `relaunch()` après installation (requis
+# côté JS par `@tauri-apps/plugin-updater`, cf. doc officielle du plugin updater).
 [target.'cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))'.dependencies]
 tauri-plugin-single-instance = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
 
 # Crates niers réutilisées telles quelles (mêmes décodeurs que `niers vfs`, cf. CLAUDE.md
 # anti-doublon) — chemins relatifs depuis apps/nie-explorer/src-tauri/, hors du workspace

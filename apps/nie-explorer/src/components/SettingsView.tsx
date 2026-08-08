@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import { open } from "@tauri-apps/plugin-dialog";
+import { check as checkUpdate, type Update } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
 import { toast } from "sonner";
 import { api, type VfsStats } from "@/lib/api";
 import { vfsIndexDb, type VfsIndexMeta } from "@/lib/vfsIndexDb";
@@ -61,6 +63,39 @@ export function SettingsView() {
   const [reindexing, setReindexing] = useState(false);
   const [reindexProgress, setReindexProgress] = useState<{ done: number; total: number } | null>(null);
   const [installingBlenderAddon, setInstallingBlenderAddon] = useState(false);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [pendingUpdate, setPendingUpdate] = useState<Update | null>(null);
+  const [installingUpdate, setInstallingUpdate] = useState(false);
+
+  async function checkForUpdate() {
+    setCheckingUpdate(true);
+    try {
+      const update = await checkUpdate();
+      if (update?.available) {
+        setPendingUpdate(update);
+        toast.success(`Mise à jour ${update.version} disponible`);
+      } else {
+        setPendingUpdate(null);
+        toast.success("niers est à jour");
+      }
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setCheckingUpdate(false);
+    }
+  }
+
+  async function installUpdate() {
+    if (!pendingUpdate) return;
+    setInstallingUpdate(true);
+    try {
+      await pendingUpdate.downloadAndInstall();
+      await relaunch();
+    } catch (e) {
+      toast.error(String(e));
+      setInstallingUpdate(false);
+    }
+  }
 
   async function installBlenderAddon() {
     setInstallingBlenderAddon(true);
@@ -297,6 +332,37 @@ export function SettingsView() {
               onChange={(e) => setSettings({ azaleeUrl: e.target.value })}
             />
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Mises à jour</CardTitle>
+          <CardDescription>
+            Vérifie/télécharge/installe les nouvelles versions de niers. Endpoints (dans l'ordre) :{" "}
+            <code>azalee.rosegriffon.fr/tools/niers</code> (page dédiée niers) puis, en repli, la
+            dernière release GitHub (<code>latest.json</code>). Binaires signés (minisign), version
+            actuelle : <Badge variant="secondary">v0.4.0</Badge>.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Button size="sm" onClick={checkForUpdate} disabled={checkingUpdate || installingUpdate}>
+            {checkingUpdate ? "Vérification…" : "Vérifier les mises à jour"}
+          </Button>
+          {pendingUpdate && (
+            <div className="space-y-1.5">
+              <p className="type-body-medium text-on-surface">
+                Version <strong>{pendingUpdate.version}</strong> disponible
+                {pendingUpdate.date ? ` (${pendingUpdate.date})` : ""}.
+              </p>
+              {pendingUpdate.body && (
+                <p className="type-body-small text-on-surface-variant whitespace-pre-wrap">{pendingUpdate.body}</p>
+              )}
+              <Button size="sm" variant="outline" onClick={installUpdate} disabled={installingUpdate}>
+                {installingUpdate ? "Installation…" : "Télécharger et installer"}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
