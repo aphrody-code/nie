@@ -9,7 +9,10 @@ const fr: Dict = {
   "app.title": "niers",
   "tab.explorer": "Explorateur",
   "tab.search": "Recherche",
+  "tab.data": "Données",
   "tab.mods": "Mods",
+  "tab.cpk": "CPK brut",
+  "tab.re": "RE",
   "tab.save": "Sauvegardes",
   "tab.settings": "Paramètres",
 
@@ -44,7 +47,10 @@ const en: Dict = {
   "app.title": "niers",
   "tab.explorer": "Explorer",
   "tab.search": "Search",
+  "tab.data": "Game data",
   "tab.mods": "Mods",
+  "tab.cpk": "Raw CPK",
+  "tab.re": "RE",
   "tab.save": "Saves",
   "tab.settings": "Settings",
 
@@ -79,7 +85,10 @@ const ja: Dict = {
   "app.title": "niers",
   "tab.explorer": "エクスプローラー",
   "tab.search": "検索",
+  "tab.data": "ゲームデータ",
   "tab.mods": "MOD",
+  "tab.cpk": "CPK直接展開",
+  "tab.re": "RE",
   "tab.save": "セーブデータ",
   "tab.settings": "設定",
 
