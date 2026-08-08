@@ -1,6 +1,6 @@
 {
   "name": "@niers/util",
-  "version": "0.1.0",
+  "version": "0.4.0",
   "private": true,
   "description": "Utilitaires partagés basés sur les APIs natives de Bun : compression, largeur textuelle, formatage, semver, readConfig.",
   "type": "module",
