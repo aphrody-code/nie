@@ -1,0 +1,58 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+    <!-- Assembly Info -->
+    <AssemblyName>iecode</AssemblyName>
+    <RootNamespace>IECODE.CLI</RootNamespace>
+    <Version>2.0.0</Version>
+    <Authors>IECODE Team</Authors>
+    <Description>CLI for IECODE - Inazuma Eleven Victory Road reverse engineering toolkit</Description>
+    <Copyright>MIT License</Copyright>
+
+    <!-- Development: No AOT for faster iteration and full reflection -->
+    <!-- Set to true for release builds: dotnet publish -p:PublishAot=true -->
+    <PublishAot>false</PublishAot>
+    <SelfContained>false</SelfContained>
+    
+    <!-- Keep analyzers for code quality but don't enforce AOT restrictions -->
+    <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>false</EnableAotAnalyzer>
+    
+    <!-- Allow reflection for dynamic features -->
+    <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
+  </PropertyGroup>
+
+  <!-- AOT Release Configuration — RID fourni à la publication (cross-platform) :
+       dotnet publish -c Release -p:PublishAot=true -r <linux-x64|win-x64|osx-arm64|…>
+       Ne PAS figer le RID ici, sinon le projet est cloué à Windows. -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release' AND '$(PublishAot)' == 'true'">
+    <OptimizationPreference>Speed</OptimizationPreference>
+    <IlcOptimizationPreference>Speed</IlcOptimizationPreference>
+    <StripSymbols>true</StripSymbols>
+    <TrimMode>link</TrimMode>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <SelfContained>true</SelfContained>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../IECODE.Core/IECODE.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
+  </ItemGroup>
+
+  <!-- Note: steam_api64.dll and EOSSDK-Win64-Shipping.dll are optional runtime dependencies
+       They should be placed in the output directory only if memory injection features are used -->
+
+</Project>
