@@ -1,6 +1,6 @@
 {
   "name": "@niers/nie-decode",
-  "version": "0.1.0",
+  "version": "0.4.0",
   "description": "CLI — décode un fichier, un dossier ou tous les scripts Lua vers .png/.json",
   "private": true,
   "type": "module",

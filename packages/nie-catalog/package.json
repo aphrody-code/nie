@@ -1,6 +1,6 @@
 {
   "name": "@niers/catalog",
-  "version": "0.1.0",
+  "version": "0.4.0",
   "description": "Catalogue SQLite du VFS IEVR — index des 250k assets via bun:sqlite, requêtes byExt/search/stats",
   "type": "module",
   "main": "src/index.ts",

@@ -1,6 +1,6 @@
 {
   "name": "niers",
-  "version": "0.0.0",
+  "version": "0.4.0",
   "description": "Bun monorepo — FFI bindings (packages/nie) + plugin + apps, racine workspace niers",
   "type": "module",
   "workspaces": {

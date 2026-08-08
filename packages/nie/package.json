@@ -1,6 +1,6 @@
 {
   "name": "nie",
-  "version": "0.1.0",
+  "version": "0.4.0",
   "description": "Bun FFI bindings for libnie_ffi — CRC32, MT19937, detect/decode/g4tx/vfs",
   "type": "module",
   "main": "src/index.ts",
