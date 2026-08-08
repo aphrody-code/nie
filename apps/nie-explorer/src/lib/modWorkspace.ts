@@ -1,8 +1,12 @@
 // Espace de travail des mods sur disque — `tauri-plugin-fs`, TOUJOURS scopé à
 // `BaseDirectory.AppData` (`mods/<modId>/…`, jamais le dossier du jeu, cf. capabilities
-// `fs:scope` dans `tauri.conf.json`/`capabilities/default.json`). L'export vers un dossier
-// choisi par l'utilisatrice passe par la portée temporaire accordée par le sélecteur natif
-// (`@tauri-apps/plugin-dialog`) — pattern standard Tauri v2, aucune portée fs large requise.
+// `fs:scope` dans `tauri.conf.json`/`capabilities/default.json`). `copyFile` du plugin `fs` reste
+// utilisé pour `exportMod` (copie DEPUIS AppData, dans la portée déclarée, VERS une destination
+// choisie par dialogue). Pour la direction INVERSE — copier VERS AppData depuis une source
+// arbitraire (dialogue natif OU presse-papiers, cf. `stageReplacementFromPath`) — on passe par la
+// commande Rust `copy_disk_file_to_appdata` (`std::fs` direct, hors du plugin `fs` JS) : `copyFile`
+// n'accepte comme source que la portée déclarée ou un chemin temporairement accordé par
+// `@tauri-apps/plugin-dialog`, ce qui ne couvre PAS un chemin venu du presse-papiers (Ctrl+V).
 import { BaseDirectory, copyFile, exists, mkdir, remove, stat, writeFile } from "@tauri-apps/plugin-fs";
 import { open, confirm } from "@tauri-apps/plugin-dialog";
 import { modsDb } from "./modsDb";
@@ -28,12 +32,21 @@ function modDir(modId: string): string {
 export async function stageReplacement(modId: string, target: StageTarget, gameDir?: string): Promise<boolean> {
   const picked = await open({ title: "Fichier de remplacement" });
   if (typeof picked !== "string") return false;
+  return stageReplacementFromPath(modId, target, picked, gameDir);
+}
 
+/**
+ * Comme [`stageReplacement`], mais avec un chemin source déjà connu (pas de sélecteur natif) —
+ * utilisé par le VRAI « Coller » (Ctrl+V, `editBus.paste()`) : le chemin vient du presse-papiers
+ * plutôt que d'un dialogue de fichier, cf. demande utilisatrice « editer doit vraiment copier
+ * coller ». Factorisé pour ne pas dupliquer la logique de staging.
+ */
+export async function stageReplacementFromPath(modId: string, target: StageTarget, picked: string, gameDir?: string): Promise<boolean> {
   await mkdir(modDir(modId), { baseDir: BaseDirectory.AppData, recursive: true });
 
   const safe = sanitize(target.path);
   const stagedRel = `${modDir(modId)}/${safe}`;
-  await copyFile(picked, stagedRel, { toPathBaseDir: BaseDirectory.AppData });
+  await api.copyDiskFileToAppdata(picked, stagedRel);
 
   let originalRel: string | null = null;
   try {
@@ -47,6 +60,38 @@ export async function stageReplacement(modId: string, target: StageTarget, gameD
 
   const info = await stat(stagedRel, { baseDir: BaseDirectory.AppData });
   await modsDb.addFile(modId, target.path, stagedRel, originalRel, info.size);
+  return true;
+}
+
+/**
+ * Remplace la texture d'un `.g4tx` VFS **mono-texture, sans région d'atlas** (§2.2 roadmap) par
+ * un PNG choisi via un sélecteur natif — même schéma de staging que [`stageReplacementFromPath`]
+ * (sauvegarde de l'original + entrée `modsDb`), mais la copie brute est remplacée par
+ * `stage_texture_replacement` (Rust : décode PNG → encode DDS/G4TX → écrit directement dans
+ * l'espace de travail du mod) au lieu d'une simple copie d'octets.
+ */
+export async function stageTextureReplacement(modId: string, vfsPath: string, gameDir?: string): Promise<boolean> {
+  const picked = await open({ title: "Texture de remplacement (PNG)", filters: [{ name: "PNG", extensions: ["png"] }] });
+  if (typeof picked !== "string") return false;
+
+  await mkdir(modDir(modId), { baseDir: BaseDirectory.AppData, recursive: true });
+
+  const safe = sanitize(vfsPath);
+  const stagedRel = `${modDir(modId)}/${safe}`;
+  await api.stageTextureReplacement(vfsPath, picked, stagedRel, gameDir);
+
+  let originalRel: string | null = null;
+  try {
+    const b64 = await api.readB64(vfsPath, gameDir);
+    originalRel = `${modDir(modId)}/${safe}.original`;
+    await writeFile(originalRel, b64ToBytes(b64), { baseDir: BaseDirectory.AppData });
+  } catch {
+    // Fichier trop volumineux pour l'aperçu : pas de sauvegarde de l'original (même repli que
+    // stageReplacementFromPath).
+  }
+
+  const info = await stat(stagedRel, { baseDir: BaseDirectory.AppData });
+  await modsDb.addFile(modId, vfsPath, stagedRel, originalRel, info.size);
   return true;
 }
 
