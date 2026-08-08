@@ -24,7 +24,11 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+# Feature `specta` : implémente `specta::Type` (marqueur "argument à ignorer côté JS") pour les
+# types injectés par Tauri (`State`, `AppHandle`…) — c'est ce qui permet à `tauri-specta` de
+# générer des bindings TS sans que `state: tauri::State<VfsState>` apparaisse dans la signature
+# exportée (vérifié dans le Cargo.toml de `tauri-specta` : `tauri = { features = ["specta"] }`).
+tauri = { version = "2", features = ["specta"] }
 tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-window-state = "2"
@@ -39,6 +43,14 @@ base64 = "0.22"
 # l'URL n'est pas renseignée côté UI (Paramètres). Pas de runtime async requis (appel bloquant
 # dans un `tauri::command`, exécuté hors thread UI par Tauri).
 ureq = { version = "2", default-features = false, features = ["tls", "json"] }
+
+# Génère les bindings TypeScript de `src/lib/api.ts` depuis les VRAIES signatures Rust des
+# commandes (`#[specta::specta]`) — remplace le miroir manuel `invoke<T>("cmd", {...})` qui
+# pouvait diverger silencieusement de `lib.rs` à chaque commande ajoutée/modifiée sans que rien
+# ne le signale côté compilation.
+specta = { version = "2.0.0-rc.25", features = ["serde_json"] }
+tauri-specta = { version = "2.0.0-rc.25", features = ["derive", "typescript"] }
+specta-typescript = "0.0.12"
 
 # Forward-ouverture "Ouvrir avec" Explorer → instance déjà lancée (argv[1] = chemin du fichier).
 [target.'cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))'.dependencies]
@@ -72,5 +84,8 @@ nie-queue = { path = "../../../crates/nie-queue" }
 # via nie-index) de `rusqlite`, même conflit de lien natif `sqlite3` que nie-wiki ci-dessus.
 
 # Matériau de fond natif Windows 11 (Mica) — habillage "UI Windows native" du user.
+# `winreg` : lecture registre `HKLM\...\Valve\Steam` pour la VRAIE détection du dossier de jeu
+# (remplace l'ancien repli codé en dur `/home/aphrody/niers`, cf. `src/steam.rs`).
 [target.'cfg(target_os = "windows")'.dependencies]
 window-vibrancy = "0.5"
+winreg = "0.52"

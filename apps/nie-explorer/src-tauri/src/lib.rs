@@ -7,10 +7,14 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use base64::Engine as _;
+use nie_formats::cpk::{CpkEntry, CpkReader};
 use nie_formats::vfs::Vfs;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 use tauri_plugin_sql::{Migration, MigrationKind};
+
+mod game_data;
+mod steam;
 
 /// Migrations SQLite du workspace de mods (`tauri-plugin-sql`, base `mods.db` dans
 /// `BaseDirectory::AppData` — jamais dans le dossier du jeu). Un mod = un ensemble de fichiers
@@ -92,19 +96,68 @@ fn first_path_arg<I: IntoIterator<Item = String>>(args: I) -> Option<String> {
     args.into_iter().skip(1).find(|a| !a.starts_with('-') && std::path::Path::new(a).is_file())
 }
 
-/// Ouvre le VFS depuis `game_dir` (ou [`nie_formats::vfs::resolve_game_dir`] si `None`/vide).
-fn open_vfs(game_dir: Option<String>) -> Result<Vfs, String> {
-    let root = match game_dir.filter(|s| !s.trim().is_empty()) {
+/// Résout la racine du jeu à utiliser : `game_dir` explicite (réglage utilisatrice) sinon
+/// [`resolve_game_dir_native`]. Pure — ne construit pas de VFS (cf. [`with_vfs`]).
+fn resolve_root(game_dir: Option<&str>) -> PathBuf {
+    match game_dir.filter(|s| !s.trim().is_empty()) {
         Some(dir) => PathBuf::from(dir),
-        None => nie_formats::vfs::resolve_game_dir(),
-    };
-    let data_dir = root.join("data");
-    let mut vfs = Vfs::new();
-    vfs.init(&data_dir).map_err(|e| format!("init VFS depuis {} : {e}", data_dir.display()))?;
-    Ok(vfs)
+        None => resolve_game_dir_native(),
+    }
 }
 
-#[derive(Serialize)]
+/// Résolution du dossier de jeu par défaut, dans l'ordre :
+/// 1. `NIE_GAME_DIR` (env, dev/CI).
+/// 2. Répertoire courant, s'il contient déjà `data/cpk_list.cfg.bin`.
+/// 3. VRAIE détection Steam ([`steam::detect_game_dir`] — registre + `libraryfolders.vdf` +
+///    `appmanifest_2799860.acf`), pas un chemin deviné.
+/// 4. Repli : répertoire courant tel quel (même invalide) — plus honnête qu'un faux chemin
+///    plausible : l'UI (`check_game_dir`) affichera clairement « introuvable » plutôt que de
+///    pointer silencieusement vers un dossier qui n'existe sur aucune machine utilisatrice.
+fn resolve_game_dir_native() -> PathBuf {
+    if let Ok(dir) = std::env::var("NIE_GAME_DIR") {
+        if !dir.trim().is_empty() {
+            return PathBuf::from(dir);
+        }
+    }
+    let cwd = std::env::current_dir().unwrap_or_default();
+    if cwd.join("data").join("cpk_list.cfg.bin").is_file() {
+        return cwd;
+    }
+    if let Some(dir) = steam::detect_game_dir() {
+        return dir;
+    }
+    cwd
+}
+
+/// VFS mis en cache dans l'état géré Tauri — construit UNE SEULE FOIS par racine résolue, puis
+/// réutilisé par toutes les commandes. Avant ce cache, `open_vfs()` reconstruisait un `Vfs`
+/// (déchiffrement + réindexation des ~255 800 entrées) à CHAQUE appel IPC, y compris un simple
+/// clic de navigation dans l'Explorateur — cause réelle de la latence signalée. Précédé d'un
+/// appel explicite [`preload_vfs`] au démarrage de l'appli pour amortir le premier coût avant
+/// toute interaction utilisatrice.
+struct VfsState(Mutex<Option<(PathBuf, Vfs)>>);
+
+/// Exécute `f` sur le VFS mis en cache pour `game_dir` (le (re)construit d'abord si la racine
+/// résolue diffère de celle en cache, ou si aucun VFS n'a encore été chargé).
+fn with_vfs<T>(game_dir: Option<String>, state: &VfsState, f: impl FnOnce(&Vfs) -> Result<T, String>) -> Result<T, String> {
+    let root = resolve_root(game_dir.as_deref());
+    let mut guard = state.0.lock().map_err(|_| "verrou VFS empoisonné".to_string())?;
+    let needs_rebuild = guard.as_ref().is_none_or(|(cached_root, _)| cached_root != &root);
+    if needs_rebuild {
+        let data_dir = root.join("data");
+        let mut vfs = Vfs::new();
+        vfs.init(&data_dir).map_err(|e| format!("init VFS depuis {} : {e}", data_dir.display()))?;
+        *guard = Some((root.clone(), vfs));
+    }
+    let (_, vfs) = guard.as_ref().expect("vient d'être rempli ci-dessus");
+    f(vfs)
+}
+
+// `specta::Type` (en plus de `Serialize`) sur tous les DTOs qui traversent l'IPC : c'est ce qui
+// permet à `tauri-specta` de régénérer `src/lib/bindings.ts` à partir des VRAIES signatures Rust
+// (cf. `run()` → `specta_builder()`), au lieu du miroir manuel que `src/lib/api.ts` maintenait
+// jusqu'ici (désynchronisable en silence à chaque commande ajoutée/modifiée).
+#[derive(Serialize, specta::Type)]
 struct EntryDto {
     path: String,
     name: String,
@@ -112,7 +165,7 @@ struct EntryDto {
     cpk: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, specta::Type)]
 struct LsDto {
     dirs: Vec<String>,
     files: Vec<EntryDto>,
@@ -121,172 +174,287 @@ struct LsDto {
     role: Option<FolderRoleDto>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, specta::Type)]
 struct FolderRoleDto {
     role: String,
     status: String,
 }
 
-#[derive(Serialize)]
+// `u32` (pas `usize`) : `specta-typescript` refuse d'exporter les entiers 64 bits (`usize`
+// compris) par défaut — risque réel de perte de précision côté JS (`Number.MAX_SAFE_INTEGER`
+// < 2⁶⁴). `u32` (≤ 4 294 967 295) couvre très largement des compteurs de fichiers (~255 800
+// entrées VFS au total) sans avoir besoin de désactiver ce garde-fou.
+#[derive(Serialize, specta::Type)]
 struct StatsDto {
-    total: usize,
-    cpk_count: usize,
-    extra_count: usize,
-    loose_count: usize,
-    top_ext: Vec<(String, usize)>,
+    total: u32,
+    cpk_count: u32,
+    extra_count: u32,
+    loose_count: u32,
+    top_ext: Vec<(String, u32)>,
 }
 
-/// Racine de jeu par défaut (résolue comme `niers vfs`, sans argument explicite).
+/// Racine de jeu par défaut — VRAIE détection (registre Steam + bibliothèques +
+/// `appmanifest_2799860.acf`, cf. [`resolve_game_dir_native`]), pas un chemin deviné.
 #[tauri::command]
+#[specta::specta]
 fn default_game_dir() -> String {
-    nie_formats::vfs::resolve_game_dir().display().to_string()
+    resolve_game_dir_native().display().to_string()
 }
 
 /// Vérifie qu'un répertoire de jeu est valide (contient `data/cpk_list.cfg.bin`).
 #[tauri::command]
+#[specta::specta]
 fn check_game_dir(game_dir: String) -> bool {
     PathBuf::from(game_dir).join("data").join("cpk_list.cfg.bin").is_file()
 }
 
+/// Force le (re)chargement du VFS en cache — appelé une fois au démarrage du frontend pour
+/// amortir le coût d'indexation AVANT la première navigation (cf. demande utilisatrice
+/// « précharge le VFS au chargement pour éviter la latence ensuite »). Renvoie les mêmes
+/// statistiques que [`vfs_stats`] pour un toast de confirmation côté UI.
 #[tauri::command]
-fn vfs_ls(prefix: String, game_dir: Option<String>) -> Result<LsDto, String> {
-    let vfs = open_vfs(game_dir)?;
-    let prefix = prefix.trim_matches('/');
+#[specta::specta]
+fn preload_vfs(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<StatsDto, String> {
+    vfs_stats(game_dir, state)
+}
 
-    let mut dirs: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
-    let mut files: Vec<EntryDto> = Vec::new();
+#[tauri::command]
+#[specta::specta]
+fn vfs_ls(prefix: String, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<LsDto, String> {
+    with_vfs(game_dir, &state, |vfs| {
+        let prefix = prefix.trim_matches('/');
 
-    for (path, entry) in vfs.iter() {
-        let rest = if prefix.is_empty() {
-            path
-        } else if path == prefix {
-            continue;
-        } else if let Some(r) = path.strip_prefix(prefix).and_then(|r| r.strip_prefix('/')) {
-            r
-        } else {
-            continue;
-        };
-        match rest.split_once('/') {
-            Some((seg, _)) => {
-                dirs.insert(seg.to_string());
+        let mut dirs: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+        let mut files: Vec<EntryDto> = Vec::new();
+
+        for (path, entry) in vfs.iter() {
+            let rest = if prefix.is_empty() {
+                path
+            } else if path == prefix {
+                continue;
+            } else if let Some(r) = path.strip_prefix(prefix).and_then(|r| r.strip_prefix('/')) {
+                r
+            } else {
+                continue;
+            };
+            match rest.split_once('/') {
+                Some((seg, _)) => {
+                    dirs.insert(seg.to_string());
+                }
+                None => files.push(EntryDto {
+                    path: path.to_string(),
+                    name: rest.to_string(),
+                    size: entry.file_size,
+                    cpk: entry.cpk_filename.clone(),
+                }),
             }
-            None => files.push(EntryDto {
+        }
+        files.sort_by(|a, b| a.name.cmp(&b.name));
+        let role = nie_explore::folder_roles::describe_folder(prefix)
+            .map(|r| FolderRoleDto { role: r.role.to_string(), status: r.status.to_string() });
+        Ok(LsDto { dirs: dirs.into_iter().collect(), files, role })
+    })
+}
+
+#[tauri::command]
+#[specta::specta]
+fn vfs_find(
+    query: String,
+    ext: Option<String>,
+    limit: u32,
+    game_dir: Option<String>,
+    state: tauri::State<VfsState>,
+) -> Result<Vec<EntryDto>, String> {
+    with_vfs(game_dir, &state, |vfs| {
+        let q = query.to_lowercase();
+        let ext_dot = ext.filter(|e| !e.is_empty()).map(|e| format!(".{}", e.trim_start_matches('.').to_lowercase()));
+
+        let mut hits: Vec<EntryDto> = vfs
+            .iter()
+            .filter(|(p, _)| p.to_lowercase().contains(&q))
+            .filter(|(p, _)| ext_dot.as_deref().is_none_or(|e| p.to_lowercase().ends_with(e)))
+            .map(|(path, entry)| EntryDto {
                 path: path.to_string(),
-                name: rest.to_string(),
+                name: path.rsplit('/').next().unwrap_or(path).to_string(),
                 size: entry.file_size,
                 cpk: entry.cpk_filename.clone(),
-            }),
+            })
+            .collect();
+        hits.sort_by(|a, b| a.path.cmp(&b.path));
+        hits.truncate(limit.max(1) as usize);
+        Ok(hits)
+    })
+}
+
+#[tauri::command]
+#[specta::specta]
+fn vfs_stats(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<StatsDto, String> {
+    with_vfs(game_dir, &state, |vfs| {
+        let mut counts: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
+        for (path, _) in vfs.iter() {
+            let base = path.rsplit('/').next().unwrap_or(path);
+            let ext = base.rsplit_once('.').map(|(_, e)| e.to_lowercase()).unwrap_or_else(|| "<none>".to_string());
+            *counts.entry(ext).or_default() += 1;
         }
-    }
-    files.sort_by(|a, b| a.name.cmp(&b.name));
-    let role = nie_explore::folder_roles::describe_folder(prefix)
-        .map(|r| FolderRoleDto { role: r.role.to_string(), status: r.status.to_string() });
-    Ok(LsDto { dirs: dirs.into_iter().collect(), files, role })
-}
-
-#[tauri::command]
-fn vfs_find(query: String, ext: Option<String>, limit: usize, game_dir: Option<String>) -> Result<Vec<EntryDto>, String> {
-    let vfs = open_vfs(game_dir)?;
-    let q = query.to_lowercase();
-    let ext_dot = ext.filter(|e| !e.is_empty()).map(|e| format!(".{}", e.trim_start_matches('.').to_lowercase()));
-
-    let mut hits: Vec<EntryDto> = vfs
-        .iter()
-        .filter(|(p, _)| p.to_lowercase().contains(&q))
-        .filter(|(p, _)| ext_dot.as_deref().is_none_or(|e| p.to_lowercase().ends_with(e)))
-        .map(|(path, entry)| EntryDto {
-            path: path.to_string(),
-            name: path.rsplit('/').next().unwrap_or(path).to_string(),
-            size: entry.file_size,
-            cpk: entry.cpk_filename.clone(),
+        let mut top_ext: Vec<(String, u32)> = counts.into_iter().collect();
+        top_ext.sort_by_key(|(_, c)| std::cmp::Reverse(*c));
+        top_ext.truncate(30);
+        Ok(StatsDto {
+            total: vfs.asset_count() as u32,
+            cpk_count: vfs.cpk_count() as u32,
+            extra_count: vfs.extra_count() as u32,
+            loose_count: vfs.loose_count() as u32,
+            top_ext,
         })
-        .collect();
-    hits.sort_by(|a, b| a.path.cmp(&b.path));
-    hits.truncate(limit.max(1));
-    Ok(hits)
+    })
 }
 
+/// Métadonnées d'une seule entrée VFS (`None` si le chemin n'existe pas) — sert notamment à
+/// savoir si un fichier est "loose" (`cpk` vide) donc éditable EN PLACE via [`vfs_write_b64`],
+/// sans devoir refaire transiter tout l'index (`vfs_ls`/`vfs_all_entries`) pour un seul chemin.
 #[tauri::command]
-fn vfs_stats(game_dir: Option<String>) -> Result<StatsDto, String> {
-    let vfs = open_vfs(game_dir)?;
-    let mut counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
-    for (path, _) in vfs.iter() {
-        let base = path.rsplit('/').next().unwrap_or(path);
-        let ext = base.rsplit_once('.').map(|(_, e)| e.to_lowercase()).unwrap_or_else(|| "<none>".to_string());
-        *counts.entry(ext).or_default() += 1;
-    }
-    let mut top_ext: Vec<(String, usize)> = counts.into_iter().collect();
-    top_ext.sort_by_key(|(_, c)| std::cmp::Reverse(*c));
-    top_ext.truncate(30);
-    Ok(StatsDto {
-        total: vfs.asset_count(),
-        cpk_count: vfs.cpk_count(),
-        extra_count: vfs.extra_count(),
-        loose_count: vfs.loose_count(),
-        top_ext,
+#[specta::specta]
+fn vfs_entry_meta(path: String, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<Option<EntryDto>, String> {
+    with_vfs(game_dir, &state, |vfs| {
+        Ok(vfs.find(&path).map(|e| EntryDto {
+            path: path.clone(),
+            name: path.rsplit('/').next().unwrap_or(&path).to_string(),
+            size: e.file_size,
+            cpk: e.cpk_filename.clone(),
+        }))
     })
 }
 
 /// Aperçu structuré d'une entrée : résumé par format ([`nie_explore::describe_content`]) +
 /// les 64 premiers octets en hex (pour un magic visible même sans décodeur dédié).
 #[tauri::command]
-fn vfs_describe(path: String, game_dir: Option<String>) -> Result<Vec<String>, String> {
-    let vfs = open_vfs(game_dir)?;
-    let data = vfs.read(&path).map_err(|e| e.to_string())?;
-    let mut lines = nie_explore::describe_content(&path, &data).unwrap_or_default();
-    if lines.is_empty() {
-        lines.push("format      brut / non reconnu".to_string());
-    }
-    lines.push(format!("magic       {}", nie_explore::hex_prefix(&data, 16)));
-    lines.push(format!("taille      {} octets", data.len()));
-    Ok(lines)
+#[specta::specta]
+fn vfs_describe(path: String, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<Vec<String>, String> {
+    with_vfs(game_dir, &state, |vfs| {
+        let data = vfs.read(&path).map_err(|e| e.to_string())?;
+        let mut lines = nie_explore::describe_content(&path, &data).unwrap_or_default();
+        if lines.is_empty() {
+            lines.push("format      brut / non reconnu".to_string());
+        }
+        lines.push(format!("magic       {}", nie_explore::hex_prefix(&data, 16)));
+        lines.push(format!("taille      {} octets", data.len()));
+        Ok(lines)
+    })
 }
 
 /// Contenu brut, borné à `max_bytes` (défaut 2 MiB) pour rester raisonnable sur l'IPC JSON —
 /// utiliser `vfs_extract_to` pour les gros fichiers (écriture disque directe côté Rust).
 #[tauri::command]
-fn vfs_read_b64(path: String, game_dir: Option<String>, max_bytes: Option<usize>) -> Result<String, String> {
-    let vfs = open_vfs(game_dir)?;
-    let data = vfs.read(&path).map_err(|e| e.to_string())?;
-    let cap = max_bytes.unwrap_or(2 * 1024 * 1024);
-    if data.len() > cap {
-        return Err(format!("fichier trop volumineux pour l'aperçu ({} octets > {cap})", data.len()));
-    }
-    Ok(base64::engine::general_purpose::STANDARD.encode(&data))
+#[specta::specta]
+fn vfs_read_b64(path: String, game_dir: Option<String>, max_bytes: Option<u32>, state: tauri::State<VfsState>) -> Result<String, String> {
+    with_vfs(game_dir, &state, |vfs| {
+        let data = vfs.read(&path).map_err(|e| e.to_string())?;
+        let cap = max_bytes.map(|b| b as usize).unwrap_or(2 * 1024 * 1024);
+        if data.len() > cap {
+            return Err(format!("fichier trop volumineux pour l'aperçu ({} octets > {cap})", data.len()));
+        }
+        Ok(base64::engine::general_purpose::STANDARD.encode(&data))
+    })
 }
 
 /// Décode la meilleure texture d'un `.g4tx` en PNG (base64), pour un `<img>` côté UI.
 #[tauri::command]
-fn vfs_texture_png_b64(path: String, game_dir: Option<String>) -> Result<String, String> {
-    let vfs = open_vfs(game_dir)?;
-    let data = vfs.read(&path).map_err(|e| e.to_string())?;
-    let png = nie_formats::g4tx_decode::decode_best_to_png(&data).ok_or("décodage PNG impossible (texture non reconnue)")?;
-    Ok(base64::engine::general_purpose::STANDARD.encode(&png))
+#[specta::specta]
+fn vfs_texture_png_b64(path: String, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<String, String> {
+    with_vfs(game_dir, &state, |vfs| {
+        let data = vfs.read(&path).map_err(|e| e.to_string())?;
+        let png = nie_formats::g4tx_decode::decode_best_to_png(&data).ok_or("décodage PNG impossible (texture non reconnue)")?;
+        Ok(base64::engine::general_purpose::STANDARD.encode(&png))
+    })
 }
 
 /// Extrait un fichier VFS directement vers `dest` (écriture Rust→disque, pas de round-trip JS).
 #[tauri::command]
-fn vfs_extract_to(path: String, dest: String, game_dir: Option<String>) -> Result<u64, String> {
-    let vfs = open_vfs(game_dir)?;
-    let data = vfs.read(&path).map_err(|e| e.to_string())?;
-    if let Some(parent) = std::path::Path::new(&dest).parent() {
-        std::fs::create_dir_all(parent).ok();
+#[specta::specta]
+// `u32` (pas `u64`) pour toutes les tailles en octets retournées ci-dessous : même contrainte
+// `specta-typescript` que `StatsDto` (pas d'entier 64 bits exporté), et même convention déjà en
+// place pour `EntryDto.size`/`VfsEntry.file_size` — aucun asset individuel du jeu n'approche 4 Gio.
+fn vfs_extract_to(path: String, dest: String, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<u32, String> {
+    with_vfs(game_dir, &state, |vfs| {
+        let data = vfs.read(&path).map_err(|e| e.to_string())?;
+        if let Some(parent) = std::path::Path::new(&dest).parent() {
+            std::fs::create_dir_all(parent).ok();
+        }
+        std::fs::write(&dest, &data).map_err(|e| e.to_string())?;
+        Ok(data.len() as u32)
+    })
+}
+
+/// Écrit `data_b64` EN PLACE sur un fichier VFS "loose" (physiquement présent sur disque sous
+/// `<jeu>/<chemin>`, PAS empaqueté dans un CPK — `entry.cpk` vide côté `EntryDto`/`VfsEntry`,
+/// cf. `Vfs::read` § « CPK vide → fichier loose ») — contrairement à [`vfs_extract_to`]/
+/// [`save_bytes_b64`] qui exportent toujours vers une destination choisie par l'utilisatrice.
+/// Refuse explicitement les entrées empaquetées dans un CPK : `nie-formats` n'a pas d'encodeur
+/// CPK, y écrire corromprait l'archive — même contrainte que partout ailleurs dans ce fichier,
+/// vérifiée ICI plutôt que suppposée (le VFS sait exactement quelles entrées sont loose).
+#[tauri::command]
+#[specta::specta]
+fn vfs_write_b64(path: String, data_b64: String, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<u32, String> {
+    let root = resolve_root(game_dir.as_deref());
+    with_vfs(Some(root.display().to_string()), &state, |vfs| {
+        let entry = vfs.find(&path).ok_or_else(|| format!("fichier VFS introuvable : {path}"))?;
+        if !entry.cpk_filename.is_empty() {
+            return Err(format!(
+                "« {path} » est empaqueté dans {} — nie-formats n'a pas d'encodeur CPK, écriture \
+                 en place impossible. Utilisez « Enregistrer sous… » pour exporter une copie externe.",
+                entry.cpk_filename
+            ));
+        }
+        let data = base64::engine::general_purpose::STANDARD.decode(data_b64.as_bytes()).map_err(|e| e.to_string())?;
+        // Chemin interne VFS (`data/common/...`) déjà relatif à la racine du jeu (pas au dossier
+        // `data/` lui-même) — même formule que `Vfs::read` pour une entrée loose enregistrée dans
+        // `cpk_list.cfg.bin` (`game_data_dir.join(strip_prefix("data/"))`, avec
+        // `game_data_dir = <racine>/data`, ce qui revient exactement à `<racine>.join(path)`).
+        write_loose_bytes(&root, &path, &data)
+    })
+}
+
+/// Écrit `data_b64` comme fichier "loose" AU MÊME CHEMIN qu'une entrée normalement empaquetée
+/// dans un CPK — contournement de l'absence d'encodeur CPK, PAS une écriture confirmée : le
+/// comportement réel de `nie.exe` face à un fichier loose à la place d'un CPK-packed n'est **pas
+/// confirmé par rétro-ingénierie** (même incertitude déjà documentée pour l'export de mod
+/// « overlay loose-file » dans `modWorkspace.ts`/`exportMod`). Le jeu peut tout simplement
+/// ignorer ce fichier et continuer à lire le CPK. Confirmation explicite déjà exigée côté UI
+/// avant l'appel (EAC présent sur cette installation).
+#[tauri::command]
+#[specta::specta]
+fn vfs_write_loose_override_b64(path: String, data_b64: String, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<u32, String> {
+    let root = resolve_root(game_dir.as_deref());
+    with_vfs(Some(root.display().to_string()), &state, |vfs| {
+        vfs.find(&path).ok_or_else(|| format!("fichier VFS introuvable : {path}"))?;
+        let data = base64::engine::general_purpose::STANDARD.decode(data_b64.as_bytes()).map_err(|e| e.to_string())?;
+        write_loose_bytes(&root, &path, &data)
+    })
+}
+
+/// Écrit `data` à `<root>/<path>` (même formule de chemin que [`vfs_write_b64`]) — factorisé
+/// entre l'écriture "loose" normale et l'override loose d'une entrée normalement CPK-packed.
+fn write_loose_bytes(root: &std::path::Path, path: &str, data: &[u8]) -> Result<u32, String> {
+    let disk_path = root.join(path);
+    if let Some(parent) = disk_path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    std::fs::write(&dest, &data).map_err(|e| e.to_string())?;
-    Ok(data.len() as u64)
+    std::fs::write(&disk_path, data).map_err(|e| e.to_string())?;
+    Ok(data.len() as u32)
 }
 
 /// Écrit des octets édités (base64, depuis l'éditeur hex de l'UI) vers `dest` — n'écrit
 /// JAMAIS dans un CPK : `nie-formats` n'a pas d'encodeur CPK, donc « éditer » un asset du
 /// jeu produit toujours une copie externe, jamais une modification en place des packs.
 #[tauri::command]
-fn save_bytes_b64(dest: String, data_b64: String) -> Result<u64, String> {
+#[specta::specta]
+fn save_bytes_b64(dest: String, data_b64: String) -> Result<u32, String> {
     let data = base64::engine::general_purpose::STANDARD.decode(data_b64.as_bytes()).map_err(|e| e.to_string())?;
     if let Some(parent) = std::path::Path::new(&dest).parent() {
         std::fs::create_dir_all(parent).ok();
     }
     std::fs::write(&dest, &data).map_err(|e| e.to_string())?;
-    Ok(data.len() as u64)
+    Ok(data.len() as u32)
 }
 
 // ─── Sauvegardes (Lives, `nie-save`) ────────────────────────────────────────────────
@@ -295,26 +463,38 @@ fn save_bytes_b64(dest: String, data_b64: String) -> Result<u64, String> {
 /// `Some((conteneur, chemin d'origine))` après [`save_open`].
 struct SaveState(Mutex<Option<(nie_save::LivesContainer, PathBuf)>>);
 
-#[derive(Serialize)]
+#[derive(Serialize, specta::Type)]
 struct SaveBlobDto {
     filename: String,
     subtype: String,
-    size: usize,
+    size: u32,
 }
 
 /// Déchiffre + parse un fichier de sauvegarde Lives (ex. `002AB8F4-USERDATALIVE`) et renvoie
 /// son résumé (`nie_save::SaveSummary`, sérialisé tel quel — joueur, niveau, temps de jeu,
 /// roster…). Le conteneur déchiffré reste en mémoire pour [`save_list_blobs`]/[`save_export`].
+/// Auto-détecte LA meilleure sauvegarde Steam Cloud (`userdata/<steamid>/2799860/remote/*-
+/// USERDATALIVE`, cf. `steam::pick_best_save`) — `None` si Steam/le jeu/toute sauvegarde valide
+/// est absent de ce poste (jamais un chemin deviné). Le frontend (`SaveView`) l'appelle au
+/// montage et n'ouvre le sélecteur manuel qu'en repli, au lieu d'un `open()` systématique.
 #[tauri::command]
-fn save_open(path: String, state: tauri::State<SaveState>) -> Result<serde_json::Value, String> {
+#[specta::specta]
+fn default_save_path() -> Option<String> {
+    steam::pick_best_save(|p| nie_save::io::read_save(p).is_ok()).map(|p| p.display().to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+fn save_open(path: String, state: tauri::State<SaveState>) -> Result<RawJson, String> {
     let container = nie_save::io::read_save(std::path::Path::new(&path)).map_err(|e| e.to_string())?;
     let summary = nie_save::summarize(&container);
     let json = serde_json::to_value(&summary).map_err(|e| e.to_string())?;
     *state.0.lock().unwrap() = Some((container, PathBuf::from(path)));
-    Ok(json)
+    Ok(RawJson(json))
 }
 
 #[tauri::command]
+#[specta::specta]
 fn save_list_blobs(state: tauri::State<SaveState>) -> Result<Vec<SaveBlobDto>, String> {
     let guard = state.0.lock().unwrap();
     let (container, _) = guard.as_ref().ok_or("aucune sauvegarde ouverte")?;
@@ -325,28 +505,30 @@ fn save_list_blobs(state: tauri::State<SaveState>) -> Result<Vec<SaveBlobDto>, S
         .map(|(e, b)| SaveBlobDto {
             filename: e.filename.clone(),
             subtype: format!("{:?}", b.header.subtype),
-            size: b.body.len(),
+            size: b.body.len() as u32,
         })
         .collect())
 }
 
 #[tauri::command]
-fn save_blob_hex_b64(index: usize, state: tauri::State<SaveState>) -> Result<String, String> {
+#[specta::specta]
+fn save_blob_hex_b64(index: u32, state: tauri::State<SaveState>) -> Result<String, String> {
     let guard = state.0.lock().unwrap();
     let (container, _) = guard.as_ref().ok_or("aucune sauvegarde ouverte")?;
-    let blob = container.blobs.get(index).ok_or("index de blob invalide")?;
+    let blob = container.blobs.get(index as usize).ok_or("index de blob invalide")?;
     Ok(base64::engine::general_purpose::STANDARD.encode(&blob.body))
 }
 
 /// Ré-encode le conteneur actuellement ouvert (round-trip octet-identique si rien n'a été
 /// modifié) et l'écrit à `dest` — jamais l'original en place (choisi par l'utilisatrice).
 #[tauri::command]
-fn save_export(dest: String, state: tauri::State<SaveState>) -> Result<u64, String> {
+#[specta::specta]
+fn save_export(dest: String, state: tauri::State<SaveState>) -> Result<u32, String> {
     let guard = state.0.lock().unwrap();
     let (container, _) = guard.as_ref().ok_or("aucune sauvegarde ouverte")?;
     let bytes = container.encrypt().map_err(|e| e.to_string())?;
     std::fs::write(&dest, &bytes).map_err(|e| e.to_string())?;
-    Ok(bytes.len() as u64)
+    Ok(bytes.len() as u32)
 }
 
 // La recherche chara/waza (miroir wiki) est faite CÔTÉ FRONTEND via tauri-plugin-sql
@@ -354,44 +536,371 @@ fn save_export(dest: String, state: tauri::State<SaveState>) -> Result<u64, Stri
 // `search_skills`) — pas de commande Rust ici : `nie-wiki` (rusqlite) est volontairement HORS
 // de ce binaire (conflit de lien natif `sqlite3` avec `sqlx-sqlite`, cf. Cargo.toml).
 
+/// Résout le miroir SQLite (`supabase-*.sqlite`) par défaut — même ordre de résolution que
+/// [`nie_wiki::mirror::resolve`] (`NIE_WIKI_DB`/`SQLITE_DB_PATH`, fichier le plus récent), mais
+/// avec un répertoire de backups RÉEL pour cette appli desktop (`<racine du jeu>/var/wiki-mirror`,
+/// où vit effectivement `supabase-2026-06-05T00-08-26.sqlite` sur ce poste) plutôt que le chemin
+/// de dev WSL codé en dur `/home/ubuntu/niers/data/backups` (inexistant hors de la machine de
+/// développement). Renvoie `None` si rien n'est trouvé — jamais un chemin deviné : le champ
+/// « Base SQLite » des Paramètres reste alors vide, à renseigner manuellement.
+#[tauri::command]
+#[specta::specta]
+fn default_wiki_db(game_dir: Option<String>) -> Option<String> {
+    for var in ["NIE_WIKI_DB", "SQLITE_DB_PATH"] {
+        if let Ok(v) = std::env::var(var) {
+            if PathBuf::from(&v).is_file() {
+                return Some(v);
+            }
+        }
+    }
+    let root = resolve_root(game_dir.as_deref());
+    let backups_dir = root.join("var").join("wiki-mirror");
+    latest_sqlite_in(&backups_dir).map(|p| p.display().to_string())
+}
+
+/// Résout `var/niers.sqlite` (base RE — fonctions/classes RTTI/xrefs labellisées par `nie-re`,
+/// cf. `src/lib/reDb.ts`) sous la racine du jeu. Commande Rust plutôt qu'un `exists()` JS
+/// (`@tauri-apps/plugin-fs`) : la portée `fs:scope` de l'app ne couvre que `$APPDATA`, un
+/// `std::fs` Rust n'a pas cette restriction — même raison que [`default_wiki_db`] au-dessus.
+#[tauri::command]
+#[specta::specta]
+fn default_re_db(game_dir: Option<String>) -> Option<String> {
+    let root = resolve_root(game_dir.as_deref());
+    let path = root.join("var").join("niers.sqlite");
+    path.is_file().then(|| path.display().to_string())
+}
+
+/// Fichier `supabase-*.sqlite` non-vide le plus récent (tri lexicographique DESC — les noms
+/// portent un horodatage ISO 8601, donc l'ordre lexicographique = l'ordre chronologique) —
+/// même algorithme que `nie_wiki::mirror::latest_sqlite_in`.
+fn latest_sqlite_in(dir: &std::path::Path) -> Option<PathBuf> {
+    let mut entries: Vec<PathBuf> = std::fs::read_dir(dir)
+        .ok()?
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| {
+            p.extension().is_some_and(|ext| ext == "sqlite")
+                && p.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.starts_with("supabase-"))
+                && p.metadata().is_ok_and(|m| m.len() > 0)
+        })
+        .collect();
+    entries.sort();
+    entries.into_iter().next_back()
+}
+
 /// Scanne la totalité du VFS (~255 800 entrées) — utilisé par `vfsIndexDb.reindex` (frontend)
 /// pour matérialiser un index SQL persistant (`vfs_files`, table gérée par `tauri-plugin-sql`)
 /// permettant une résolution EXACTE par code interne (segment de chemin), plus précise que le
 /// `.contains()` substring en mémoire de [`vfs_related`] (qui peut matcher un code interne
 /// apparaissant par hasard ailleurs dans un chemin non lié).
 #[tauri::command]
-fn vfs_all_entries(game_dir: Option<String>) -> Result<Vec<EntryDto>, String> {
-    let vfs = open_vfs(game_dir)?;
-    Ok(vfs
-        .iter()
-        .map(|(path, entry)| EntryDto {
-            path: path.to_string(),
-            name: path.rsplit('/').next().unwrap_or(path).to_string(),
-            size: entry.file_size,
-            cpk: entry.cpk_filename.clone(),
-        })
-        .collect())
+#[specta::specta]
+fn vfs_all_entries(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<Vec<EntryDto>, String> {
+    with_vfs(game_dir, &state, |vfs| {
+        Ok(vfs
+            .iter()
+            .map(|(path, entry)| EntryDto {
+                path: path.to_string(),
+                name: path.rsplit('/').next().unwrap_or(path).to_string(),
+                size: entry.file_size,
+                cpk: entry.cpk_filename.clone(),
+            })
+            .collect())
+    })
 }
 
 /// Chemins VFS dont le nom (sans extension) est CONTENU dans `needle`, insensible à la casse —
 /// substring en mémoire, fallback historique tant que l'index SQL ([`vfs_all_entries`] +
 /// `vfsIndexDb`) n'a pas été construit côté frontend.
 #[tauri::command]
-fn vfs_related(needle: String, limit: usize, game_dir: Option<String>) -> Result<Vec<EntryDto>, String> {
-    let vfs = open_vfs(game_dir)?;
-    let mut hits: Vec<EntryDto> = vfs
-        .iter()
-        .filter(|(p, _)| p.contains(&needle))
-        .map(|(path, entry)| EntryDto {
-            path: path.to_string(),
-            name: path.rsplit('/').next().unwrap_or(path).to_string(),
-            size: entry.file_size,
-            cpk: entry.cpk_filename.clone(),
-        })
-        .collect();
-    hits.sort_by(|a, b| a.path.cmp(&b.path));
-    hits.truncate(limit.max(1));
-    Ok(hits)
+#[specta::specta]
+fn vfs_related(needle: String, limit: u32, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<Vec<EntryDto>, String> {
+    with_vfs(game_dir, &state, |vfs| {
+        let mut hits: Vec<EntryDto> = vfs
+            .iter()
+            .filter(|(p, _)| p.contains(&needle))
+            .map(|(path, entry)| EntryDto {
+                path: path.to_string(),
+                name: path.rsplit('/').next().unwrap_or(path).to_string(),
+                size: entry.file_size,
+                cpk: entry.cpk_filename.clone(),
+            })
+            .collect();
+        hits.sort_by(|a, b| a.path.cmp(&b.path));
+        hits.truncate(limit.max(1) as usize);
+        Ok(hits)
+    })
+}
+
+// ─── Données de jeu statiques (nie-data — techniques, extensible) ─────────────────────
+
+/// Liste toutes les techniques du jeu (`nie_data::skill`, cf. `game_data.rs`) — première
+/// donnée de jeu STATIQUE câblée depuis `nie-data` (dépendance déclarée mais jamais utilisée
+/// avant), via le pont déjà existant `nie_explore::bridge` (même moteur que `niers vfs cat`).
+#[tauri::command]
+#[specta::specta]
+fn game_data_skills(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<Vec<game_data::SkillDto>, String> {
+    with_vfs(game_dir, &state, game_data::list_skills)
+}
+
+/// Objets (armes/consommables/costumes/…, `nie_data::item`) — même patron que [`game_data_skills`].
+#[tauri::command]
+#[specta::specta]
+fn game_data_items(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<Vec<game_data::ItemDto>, String> {
+    with_vfs(game_dir, &state, game_data::list_items)
+}
+
+/// Avatar/Keshin (`nie_data::aura`) — même patron que [`game_data_skills`].
+#[tauri::command]
+#[specta::specta]
+fn game_data_auras(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<Vec<game_data::AuraDto>, String> {
+    with_vfs(game_dir, &state, game_data::list_auras)
+}
+
+/// Succès (`nie_data::trophy`) — même patron que [`game_data_skills`].
+#[tauri::command]
+#[specta::specta]
+fn game_data_trophies(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<Vec<game_data::TrophyDto>, String> {
+    with_vfs(game_dir, &state, game_data::list_trophies)
+}
+
+/// Quêtes (`nie_data::quest`) — même patron que [`game_data_skills`].
+#[tauri::command]
+#[specta::specta]
+fn game_data_quests(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<Vec<game_data::QuestDto>, String> {
+    with_vfs(game_dir, &state, game_data::list_quests)
+}
+
+/// Personnages sélectionnables pour le calculateur de stats (`nie_data::chara_param` joint à
+/// `chara_base`/`chara_text`) — même patron que [`game_data_skills`].
+#[tauri::command]
+#[specta::specta]
+fn game_data_chara_picker(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<Vec<game_data::CharaPickerDto>, String> {
+    with_vfs(game_dir, &state, game_data::list_chara_picker)
+}
+
+/// Calcule les stats d'un personnage (§4.2 roadmap) — `nie_core::growth::calculate_stats` sur
+/// les tables de croissance IEVR embarquées, cf. `game_data::calculate_character_stats`.
+/// `rarity_code` : 0=N, 2=R, 3=SR, 4=SSR, 5=UR, 6=LR, 7=Legend, 20=BASARA.
+#[tauri::command]
+#[specta::specta]
+fn game_data_calculate_stats(
+    chara_param_id: String,
+    level: u8,
+    rarity_code: u8,
+    game_dir: Option<String>,
+    state: tauri::State<VfsState>,
+) -> Result<game_data::StatBlockDto, String> {
+    with_vfs(game_dir, &state, |vfs| game_data::calculate_character_stats(vfs, &chara_param_id, level, rarity_code))
+}
+
+/// Décode N'IMPORTE QUEL `.cfg.bin` du VFS (RDBN *ou* T2B, détecté automatiquement via
+/// [`nie_formats::cfgbin::is_rdbn`]) vers la forme JSON "inagle" — couvre TOUS les fichiers de
+/// configuration du jeu (personnages, objets, techniques, auras, boutiques, quêtes, trophées,
+/// tactiques, capsules, costumes… plusieurs centaines de fichiers dans `data/common/gamedata/`
+/// et `data/common/text/`), pas seulement les quelques modules `nie-data` câblés individuellement
+/// avec un DTO typé (`game_data.rs`) — cf. demande utilisatrice « niers doit couvrir tout
+/// nie.exe ». Générique : aucun parseur par format à écrire, juste le pont déjà
+/// vérifié [`nie_explore::bridge`] (même moteur que `niers vfs cat`).
+#[tauri::command]
+#[specta::specta]
+fn vfs_decode_cfgbin(path: String, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<RawJson, String> {
+    with_vfs(game_dir, &state, |vfs| game_data::decode_cfgbin(vfs, &path).map(RawJson))
+}
+
+/// Ré-encode du JSON édité (forme "inagle" `{"entries":[...]}` T2B **ou** `{"lists":[...]}`
+/// RDBN, dispatch automatique symétrique à [`vfs_decode_cfgbin`]) vers un `.cfg.bin` binaire
+/// VALIDE.
+///
+/// - T2B : `nie_formats::cfgbin::encode_t2b`, reconstruction libre à partir du JSON seul.
+/// - RDBN : `nie_formats::cfgbin::encode_rdbn` + `nie_explore::bridge::json_to_rdbn_lists`, qui a
+///   besoin de l'ORIGINAL déjà décodé comme gabarit — c'est un *patch* de valeurs, pas une
+///   reconstruction libre : le JSON seul perd l'information de type par colonne (ex. Short/
+///   ActType ou Rates/Position sont indiscernables une fois sérialisés). D'où `path` en plus de
+///   `json` ici : on relit et reparse le fichier original depuis le VFS pour fournir ce gabarit.
+///
+/// Les deux encodeurs sont vérifiés par round-trip réel sur des centaines/milliers de vrais
+/// fichiers du jeu (`cfgbin.rs` : `encode_t2b_round_trip_sur_le_vrai_jeu`,
+/// `encode_rdbn_round_trip_sur_le_vrai_jeu` ; `bridge.rs` : `json_bridge_round_trip_sur_le_vrai_jeu`,
+/// `json_bridge_rdbn_round_trip_sur_le_vrai_jeu`), pas devinés.
+///
+/// Renvoie les octets en base64 : compose avec [`vfs_write_b64`]/
+/// [`vfs_write_loose_override_b64`]/[`save_bytes_b64`] côté frontend pour l'écriture réelle —
+/// pas de nouvelle commande d'écriture, réutilisation de celles qui existent déjà.
+#[tauri::command]
+#[specta::specta]
+fn encode_cfgbin_config(path: String, json: String, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<String, String> {
+    let value: serde_json::Value = serde_json::from_str(&json).map_err(|e| format!("JSON invalide : {e}"))?;
+    let bytes = if value.get("lists").is_some() {
+        with_vfs(game_dir, &state, |vfs| {
+            let raw = vfs.read(&path).map_err(|e| e.to_string())?;
+            let rdbn = nie_formats::cfgbin::parse(&raw).map_err(|e| format!("parse RDBN {path} : {e}"))?;
+            let original = nie_formats::cfgbin::read_values(&rdbn, &raw);
+            let lists = nie_explore::bridge::json_to_rdbn_lists(&original, &value)?;
+            nie_formats::cfgbin::encode_rdbn(&lists)
+        })?
+    } else {
+        let entries = nie_explore::bridge::json_to_t2b_entries(&value)?;
+        nie_formats::cfgbin::encode_t2b(&entries)
+    };
+    Ok(base64::engine::general_purpose::STANDARD.encode(&bytes))
+}
+
+// ─── CPK brut hors VFS (« ouvrir un .cpk physiquement présent sur disque ») ────────────
+//
+// Le VFS (`Vfs`/`VfsState` ci-dessus) ne connaît QUE les CPK référencés par `cpk_list.cfg.bin`
+// du jeu monté. Cette section permet d'ouvrir N'IMPORTE QUEL fichier `.cpk` du disque (mod
+// téléchargé, sauvegarde d'un pack, DLC séparé…) directement, sans passer par l'index du jeu —
+// même lecteur `nie_formats::cpk::CpkReader` que `Vfs`, juste sans l'indirection cpk_list/VFS.
+
+/// CPK brut actuellement ouvert (octets bruts + lecteur d'entrées) — `Some` après
+/// [`open_raw_cpk`], consommé par [`raw_cpk_extract_to`]/[`raw_cpk_read_b64`]/
+/// [`raw_cpk_describe`] via l'INDEX de l'entrée (pas son chemin : `nie-formats` n'exclut pas les
+/// doublons de nom entre dossiers différents d'un même CPK, l'index est donc la seule clé fiable).
+struct RawCpkState(Mutex<Option<(PathBuf, Vec<u8>, CpkReader)>>);
+
+#[derive(Serialize, specta::Type)]
+struct RawCpkEntryDto {
+    /// Index dans `CpkReader::entries` — clé stable pour les commandes suivantes (PAS le chemin :
+    /// deux entrées de dossiers différents peuvent partager un nom de fichier).
+    index: u32,
+    path: String,
+    size: u32,
+    is_compressed: bool,
+}
+
+fn raw_cpk_entry_dto(index: usize, e: &CpkEntry) -> RawCpkEntryDto {
+    let path = if e.directory.is_empty() { e.filename.clone() } else { format!("{}/{}", e.directory, e.filename) };
+    RawCpkEntryDto { index: index as u32, path, size: e.extract_size as u32, is_compressed: e.is_compressed }
+}
+
+#[derive(Serialize, specta::Type)]
+struct PackFileDto {
+    /// Chemin absolu réel sur disque (PAS un chemin interne VFS) — passé tel quel à
+    /// [`open_raw_cpk`] pour l'ouvrir.
+    path: String,
+    name: String,
+    size: u32,
+}
+
+/// Liste les VRAIS fichiers `.cpk` physiquement présents sous `<racine>/data/packs/` — le VFS
+/// n'expose JAMAIS ces conteneurs comme des entrées navigables (`vfs_ls`/`vfs_all_entries` ne
+/// listent que les chemins internes du jeu, ex. `data/common/...`, jamais `data/packs/*.cpk`
+/// eux-mêmes), donc naviguer vers `data/packs` dans l'Explorateur y paraissait vide/« non
+/// préchargé » alors que les fichiers sont bien là — cette commande comble ce trou en lisant le
+/// vrai dossier, pour un pont direct vers [`open_raw_cpk`]/l'onglet CPK brut.
+#[tauri::command]
+#[specta::specta]
+fn list_packs_dir(game_dir: Option<String>) -> Result<Vec<PackFileDto>, String> {
+    let root = resolve_root(game_dir.as_deref());
+    let packs = root.join("data").join("packs");
+    let dir_iter = std::fs::read_dir(&packs).map_err(|e| format!("lecture de {} : {e}", packs.display()))?;
+    let mut out = Vec::new();
+    for entry in dir_iter.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()).map(|e| e.eq_ignore_ascii_case("cpk")).unwrap_or(false) {
+            let size = entry.metadata().map(|m| m.len()).unwrap_or(0) as u32;
+            let name = path.file_name().and_then(|n| n.to_str()).unwrap_or_default().to_string();
+            out.push(PackFileDto { path: path.display().to_string(), name, size });
+        }
+    }
+    out.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(out)
+}
+
+/// Ouvre un fichier `.cpk` quelconque du disque (chemin absolu choisi par l'utilisatrice) et
+/// renvoie la liste de ses entrées — met à jour [`RawCpkState`] pour les commandes suivantes.
+#[tauri::command]
+#[specta::specta]
+fn open_raw_cpk(path: String, state: tauri::State<RawCpkState>) -> Result<Vec<RawCpkEntryDto>, String> {
+    let data = std::fs::read(&path).map_err(|e| format!("lecture de {path} : {e}"))?;
+    let filename = std::path::Path::new(&path).file_name().and_then(|n| n.to_str()).unwrap_or(&path).to_string();
+    let reader = CpkReader::new(&data, &filename).map_err(|e| format!("parsing CPK {path} : {e}"))?;
+    let dtos: Vec<RawCpkEntryDto> = reader.entries.iter().enumerate().map(|(i, e)| raw_cpk_entry_dto(i, e)).collect();
+    *state.0.lock().unwrap() = Some((PathBuf::from(path), data, reader));
+    Ok(dtos)
+}
+
+/// Aperçu structuré d'une entrée du CPK brut ouvert (même moteur que [`vfs_describe`]) — extrait
+/// et décompresse d'abord via [`CpkReader::extract`].
+#[tauri::command]
+#[specta::specta]
+fn raw_cpk_describe(index: u32, state: tauri::State<RawCpkState>) -> Result<Vec<String>, String> {
+    let guard = state.0.lock().unwrap();
+    let (_, data, reader) = guard.as_ref().ok_or("aucun CPK ouvert")?;
+    let entry = reader.entries.get(index as usize).ok_or("index d'entrée invalide")?;
+    let extracted = reader.extract(data, entry).map_err(|e| e.to_string())?;
+    let path = if entry.directory.is_empty() { entry.filename.clone() } else { format!("{}/{}", entry.directory, entry.filename) };
+    let mut lines = nie_explore::describe_content(&path, &extracted).unwrap_or_default();
+    if lines.is_empty() {
+        lines.push("format      brut / non reconnu".to_string());
+    }
+    lines.push(format!("magic       {}", nie_explore::hex_prefix(&extracted, 16)));
+    lines.push(format!("taille      {} octets", extracted.len()));
+    Ok(lines)
+}
+
+/// Contenu brut d'une entrée du CPK ouvert, borné (même plafond par défaut que [`vfs_read_b64`]).
+#[tauri::command]
+#[specta::specta]
+fn raw_cpk_read_b64(index: u32, max_bytes: Option<u32>, state: tauri::State<RawCpkState>) -> Result<String, String> {
+    let guard = state.0.lock().unwrap();
+    let (_, data, reader) = guard.as_ref().ok_or("aucun CPK ouvert")?;
+    let entry = reader.entries.get(index as usize).ok_or("index d'entrée invalide")?;
+    let extracted = reader.extract(data, entry).map_err(|e| e.to_string())?;
+    let cap = max_bytes.map(|b| b as usize).unwrap_or(2 * 1024 * 1024);
+    if extracted.len() > cap {
+        return Err(format!("fichier trop volumineux pour l'aperçu ({} octets > {cap})", extracted.len()));
+    }
+    Ok(base64::engine::general_purpose::STANDARD.encode(&extracted))
+}
+
+/// Extrait une entrée du CPK ouvert vers `dest` (écriture Rust→disque directe).
+#[tauri::command]
+#[specta::specta]
+fn raw_cpk_extract_to(index: u32, dest: String, state: tauri::State<RawCpkState>) -> Result<u32, String> {
+    let guard = state.0.lock().unwrap();
+    let (_, data, reader) = guard.as_ref().ok_or("aucun CPK ouvert")?;
+    let entry = reader.entries.get(index as usize).ok_or("index d'entrée invalide")?;
+    let extracted = reader.extract(data, entry).map_err(|e| e.to_string())?;
+    if let Some(parent) = std::path::Path::new(&dest).parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&dest, &extracted).map_err(|e| e.to_string())?;
+    Ok(extracted.len() as u32)
+}
+
+/// Extrait TOUTES les entrées du CPK ouvert vers `dest_dir`, en préservant l'arborescence
+/// `directory/filename` d'origine (mécanique identique à [`raw_cpk_extract_to`], en boucle sur
+/// `RawCpkState.entries`) — évite d'extraire un CPK entier une entrée à la fois depuis l'UI.
+/// Renvoie `(n_ok, n_err)` : les échecs individuels (entrée corrompue/compression non supportée)
+/// n'interrompent pas le reste de l'extraction, pour ne pas perdre tout le travail sur 1 entrée.
+#[tauri::command]
+#[specta::specta]
+fn raw_cpk_extract_all(dest_dir: String, state: tauri::State<RawCpkState>) -> Result<(u32, u32), String> {
+    let guard = state.0.lock().unwrap();
+    let (_, data, reader) = guard.as_ref().ok_or("aucun CPK ouvert")?;
+    let (mut n_ok, mut n_err) = (0u32, 0u32);
+    for entry in &reader.entries {
+        let rel = if entry.directory.is_empty() {
+            entry.filename.clone()
+        } else {
+            format!("{}/{}", entry.directory, entry.filename)
+        };
+        let dest = std::path::Path::new(&dest_dir).join(&rel);
+        let ok = (|| -> Result<(), String> {
+            let extracted = reader.extract(data, entry).map_err(|e| e.to_string())?;
+            if let Some(parent) = dest.parent() {
+                std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+            }
+            std::fs::write(&dest, &extracted).map_err(|e| e.to_string())
+        })();
+        match ok {
+            Ok(()) => n_ok += 1,
+            Err(_) => n_err += 1, // entrée corrompue/compression non supportée : on continue le reste
+        }
+    }
+    Ok((n_ok, n_err))
 }
 
 // ─── Fichier ouvert depuis l'explorateur Windows (« Ouvrir avec ») ─────────────────
@@ -400,6 +909,7 @@ fn vfs_related(needle: String, limit: usize, game_dir: Option<String>) -> Result
 /// frontend l'appelle une seule fois au démarrage pour savoir s'il doit ouvrir un fichier
 /// « externe » (hors VFS, ex. un `.g4tx` déjà extrait sur disque) plutôt que la racine du VFS.
 #[tauri::command]
+#[specta::specta]
 fn take_pending_open(state: tauri::State<PendingOpen>) -> Option<String> {
     state.0.lock().unwrap().take()
 }
@@ -407,6 +917,7 @@ fn take_pending_open(state: tauri::State<PendingOpen>) -> Option<String> {
 /// Aperçu structuré d'un fichier QUELCONQUE du disque (pas du VFS) — utilisé par « Ouvrir
 /// avec nie-explorer » sur un fichier déjà extrait/exporté.
 #[tauri::command]
+#[specta::specta]
 fn describe_disk_file(path: String) -> Result<Vec<String>, String> {
     let data = std::fs::read(&path).map_err(|e| e.to_string())?;
     let mut lines = nie_explore::describe_content(&path, &data).unwrap_or_default();
@@ -419,13 +930,152 @@ fn describe_disk_file(path: String) -> Result<Vec<String>, String> {
 }
 
 #[tauri::command]
-fn read_disk_file_b64(path: String, max_bytes: Option<usize>) -> Result<String, String> {
+#[specta::specta]
+fn read_disk_file_b64(path: String, max_bytes: Option<u32>) -> Result<String, String> {
     let data = std::fs::read(&path).map_err(|e| e.to_string())?;
-    let cap = max_bytes.unwrap_or(2 * 1024 * 1024);
+    let cap = max_bytes.map(|b| b as usize).unwrap_or(2 * 1024 * 1024);
     if data.len() > cap {
         return Err(format!("fichier trop volumineux pour l'aperçu ({} octets > {cap})", data.len()));
     }
     Ok(base64::engine::general_purpose::STANDARD.encode(&data))
+}
+
+/// Resynchronise le chrome natif Windows 11 (Mica, barre de titre/légende) sur le thème
+/// clair/sombre choisi côté frontend (`next-themes`, `resolvedTheme`) — corrige le fait que le
+/// chrome natif restait figé en sombre (`Some(true)` posé une seule fois au lancement, cf. `run()`)
+/// même si l'utilisatrice bascule en clair dans Paramètres. No-op silencieux hors Windows 11
+/// (même best-effort que l'appel initial dans `run()`).
+#[tauri::command]
+#[specta::specta]
+fn set_titlebar_theme(dark: bool, window: tauri::WebviewWindow) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        window_vibrancy::apply_mica(&window, Some(dark)).map_err(|e| e.to_string())?;
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = (dark, window);
+    }
+    Ok(())
+}
+
+/// `true` si `path` désigne un FICHIER (pas un dossier) existant sur disque — hors de toute
+/// portée `fs:scope` JS (même famille que [`describe_disk_file`], `std::fs` direct). Utilisé pour
+/// valider un chemin venu du presse-papiers (Ctrl+V, cf. [`copy_disk_file_to_appdata`]) : le
+/// plugin `fs` JS `exists()` est scopé à `$APPDATA/**` et renverrait faux/erreur sur un chemin
+/// disque quelconque, alors que c'est justement le cas normal ici.
+#[tauri::command]
+#[specta::specta]
+fn disk_file_exists(path: String) -> bool {
+    std::fs::metadata(&path).is_ok_and(|m| m.is_file())
+}
+
+/// Copie un fichier disque ARBITRAIRE (hors de toute portée `fs:scope` JS — même famille que
+/// [`read_disk_file_b64`]/[`describe_disk_file`], `std::fs` direct) vers un chemin relatif sous
+/// `AppData` (espace de travail des mods, `mods/<modId>/…`, `crates`/… JS `modWorkspace.ts`).
+/// Utilisé par le VRAI Ctrl+V (`editBus.paste()` → `stageReplacementFromPath`) : la source vient
+/// du presse-papiers, pas d'un sélecteur natif — elle n'a donc PAS la portée temporaire que
+/// Tauri accorde aux chemins choisis via `@tauri-apps/plugin-dialog`, et le plugin `fs` JS
+/// (portée = `$APPDATA/**` seulement, cf. `capabilities/default.json`) refuserait de la lire.
+/// `dest_appdata_rel` DOIT rester sous `AppData` (jamais le dossier du jeu) — construit côté
+/// frontend depuis `modDir(modId)`, jamais depuis une entrée utilisatrice libre.
+#[tauri::command]
+#[specta::specta]
+fn copy_disk_file_to_appdata(app: tauri::AppHandle, src: String, dest_appdata_rel: String) -> Result<u64, String> {
+    use tauri::Manager;
+    let base = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let dest = base.join(&dest_appdata_rel);
+    if let Some(parent) = dest.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let n = std::fs::copy(&src, &dest).map_err(|e| e.to_string())?;
+    Ok(n)
+}
+
+/// Remplace la texture d'un `.g4tx` **mono-texture, sans région d'atlas** (§2.2 roadmap,
+/// « Éditeur d'image (textures) ») par un PNG choisi — lit `vfs_path`, valide qu'il s'agit bien
+/// du cas simple pris en charge (cf. doc `nie_formats::g4tx_encode`, rejette explicitement les
+/// atlas multi-région comme `gaiji_game.g4tx` où « remplacer » n'aurait pas de sens univoque),
+/// décode le PNG source (chemin disque arbitraire, hors portée `fs:scope` JS — même famille que
+/// [`copy_disk_file_to_appdata`]) et écrit le `.g4tx` réencodé directement dans l'espace de
+/// travail du mod (`AppData/mods/<modId>/…`, jamais le dossier du jeu). Conserve `name`/`id` de
+/// la texture d'origine (dimensions reprises du PNG, peuvent différer de l'original).
+#[tauri::command]
+#[specta::specta]
+fn stage_texture_replacement(
+    app: tauri::AppHandle,
+    vfs_path: String,
+    png_src_path: String,
+    dest_appdata_rel: String,
+    game_dir: Option<String>,
+    state: tauri::State<VfsState>,
+) -> Result<u64, String> {
+    use tauri::Manager;
+
+    let g4tx_bytes = with_vfs(game_dir, &state, |vfs| {
+        let data = vfs.read(&vfs_path).map_err(|e| e.to_string())?;
+        let parsed = nie_formats::g4tx::parse(&data).map_err(|e| e.to_string())?;
+        if parsed.header.texture_count != 1 || parsed.header.sub_texture_count != 0 {
+            return Err(
+                "remplacement pris en charge uniquement pour les .g4tx mono-texture sans région d'atlas \
+                 (les atlas multi-région comme gaiji_game.g4tx partagent une texture entre plusieurs \
+                 régions — « remplacer » n'aurait pas de sens univoque)."
+                    .to_string(),
+            );
+        }
+        let tex = &parsed.textures[0];
+        let png_bytes = std::fs::read(&png_src_path).map_err(|e| format!("lecture PNG '{png_src_path}' : {e}"))?;
+        let (w, h, rgba) = nie_formats::g4tx_encode::decode_png_to_rgba8(&png_bytes)?;
+        let dds = nie_formats::g4tx_encode::encode_dds_bgra8(w, h, &rgba)?;
+        Ok(nie_formats::g4tx_encode::encode_g4tx_single_texture(&tex.name, tex.id, w as i16, h as i16, &dds))
+    })?;
+
+    let base = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let dest = base.join(&dest_appdata_rel);
+    if let Some(parent) = dest.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&dest, &g4tx_bytes).map_err(|e| e.to_string())?;
+    Ok(g4tx_bytes.len() as u64)
+}
+
+/// Une entrée à empaqueter dans un `.cpk` exporté (§1.2 roadmap) — `vfs_path` sert à dériver
+/// `directory`/`filename` (même convention que [`nie_formats::cpk::CpkEntry`] en lecture),
+/// `staged_appdata_rel` est le chemin RELATIF sous `AppData` du fichier de remplacement déjà
+/// mis en scène dans le mod (`ModFileRow.staged_file` côté frontend).
+#[derive(Deserialize, specta::Type)]
+struct CpkExportFileDto {
+    vfs_path: String,
+    staged_appdata_rel: String,
+}
+
+/// Exporte les fichiers d'un mod en un `.cpk` **autonome, non chiffré, non compressé** (§1.2
+/// roadmap) — cf. `nie_formats::cpk_encode` pour la portée exacte et ses limites documentées
+/// (vérifié par round-trip contre `CpkReader` déjà validé sur le vrai jeu, PAS par chargement
+/// réel dans `nie.exe`). Lit chaque fichier mis en scène depuis `AppData` (`std::fs` direct, hors
+/// portée `fs:scope` JS — même famille que [`copy_disk_file_to_appdata`]), jamais depuis le
+/// dossier du jeu.
+#[tauri::command]
+#[specta::specta]
+fn export_mod_as_cpk(app: tauri::AppHandle, files: Vec<CpkExportFileDto>, dest: String) -> Result<u64, String> {
+    use tauri::Manager;
+
+    let base = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let mut entries = Vec::with_capacity(files.len());
+    for f in &files {
+        let staged_path = base.join(&f.staged_appdata_rel);
+        let data = std::fs::read(&staged_path).map_err(|e| format!("lecture '{}' : {e}", staged_path.display()))?;
+        let base_name = f.vfs_path.rsplit('/').next().unwrap_or(&f.vfs_path);
+        let directory = f.vfs_path.strip_suffix(base_name).unwrap_or("").trim_end_matches('/').to_string();
+        entries.push(nie_formats::cpk_encode::CpkWriteEntry { filename: base_name.to_string(), directory, data });
+    }
+
+    let bytes = nie_formats::cpk_encode::encode_cpk(&entries)?;
+    if let Some(parent) = std::path::Path::new(&dest).parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&dest, &bytes).map_err(|e| e.to_string())?;
+    Ok(bytes.len() as u64)
 }
 
 // ─── Pont Blender (tools/niers) ─────────────────────────────────────────────────────
@@ -458,54 +1108,55 @@ fn resolve_blender_exe(blender_exe: Option<String>) -> Result<PathBuf, String> {
 /// Pose `NIE_GAME_DIR` dans l'environnement du process Blender : le panneau de recherche
 /// niers→Blender (`niers_bridge.py`) l'utilise pour retrouver `niers.exe` et le VFS sans deviner.
 #[tauri::command]
-fn open_in_blender(path: String, blender_exe: Option<String>, game_dir: Option<String>) -> Result<String, String> {
+#[specta::specta]
+fn open_in_blender(path: String, blender_exe: Option<String>, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<String, String> {
     let blender = resolve_blender_exe(blender_exe)?;
-    let root = match game_dir.filter(|s| !s.trim().is_empty()) {
-        Some(dir) => PathBuf::from(dir),
-        None => nie_formats::vfs::resolve_game_dir(),
-    };
+    let root = resolve_root(game_dir.as_deref());
     let addon_parent = root.join("tools");
     if !addon_parent.join("niers").join("__init__.py").is_file() {
         return Err(format!("addon introuvable : {}", addon_parent.join("niers").display()));
     }
 
-    let vfs = open_vfs(Some(root.display().to_string()))?;
-    let data = vfs.read(&path).map_err(|e| e.to_string())?;
+    let built = with_vfs(Some(root.display().to_string()), &state, |vfs| {
+        let data = vfs.read(&path).map_err(|e| e.to_string())?;
 
-    let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0);
-    let export_dir = std::env::temp_dir().join("nie-explorer").join("blender").join(stamp.to_string());
-    std::fs::create_dir_all(&export_dir).map_err(|e| e.to_string())?;
+        let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0);
+        let export_dir = std::env::temp_dir().join("nie-explorer").join("blender").join(stamp.to_string());
+        std::fs::create_dir_all(&export_dir).map_err(|e| e.to_string())?;
 
-    let base = path.rsplit('/').next().unwrap_or(&path);
-    let stem = base.rsplit_once('.').map(|(s, _)| s).unwrap_or(base);
-    let dir_prefix = path.strip_suffix(base).unwrap_or("");
+        let base = path.rsplit('/').next().unwrap_or(&path);
+        let stem = base.rsplit_once('.').map(|(s, _)| s).unwrap_or(base);
+        let dir_prefix = path.strip_suffix(base).unwrap_or("");
 
-    // Fichiers frères de même basename (g4mg/g4sk/g4tx/g4mt) : nécessaires au rendu complet
-    // (le G4MD seul n'a ni géométrie ni squelette).
-    //
-    // IMPORTANT (trouvé par test réel headless `blender --background`, pas deviné) :
-    // `apply_original_model_to_settings` (appelé par `load_original_model`) EXIGE que le
-    // chemin du modèle soit sous un `data/common`/`data/dx11` — c'est de là qu'il déduit
-    // code personnage/série/textures. Une extraction à plat (`export_dir/<stem>.<ext>`) échoue
-    // avec « must be inside a data/common or data/dx11 filesystem tree ». On préserve donc le
-    // chemin VFS relatif complet (`candidate`) sous `export_dir`, pas juste le basename.
-    let sibling_exts = ["g4md", "g4mg", "g4sk", "g4mt", "g4tx"];
-    let mut extracted_main: Option<PathBuf> = None;
-    for ext in sibling_exts {
-        let candidate = format!("{dir_prefix}{stem}.{ext}");
-        let bytes = if candidate == path { Some(data.clone()) } else { vfs.read(&candidate).ok() };
-        if let Some(bytes) = bytes {
-            let dest = export_dir.join(&candidate);
-            if let Some(parent) = dest.parent() {
-                std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-            }
-            std::fs::write(&dest, &bytes).map_err(|e| e.to_string())?;
-            if candidate == path || ext == "g4md" {
-                extracted_main = Some(dest);
+        // Fichiers frères de même basename (g4mg/g4sk/g4tx/g4mt) : nécessaires au rendu complet
+        // (le G4MD seul n'a ni géométrie ni squelette).
+        //
+        // IMPORTANT (trouvé par test réel headless `blender --background`, pas deviné) :
+        // `apply_original_model_to_settings` (appelé par `load_original_model`) EXIGE que le
+        // chemin du modèle soit sous un `data/common`/`data/dx11` — c'est de là qu'il déduit
+        // code personnage/série/textures. Une extraction à plat (`export_dir/<stem>.<ext>`) échoue
+        // avec « must be inside a data/common or data/dx11 filesystem tree ». On préserve donc le
+        // chemin VFS relatif complet (`candidate`) sous `export_dir`, pas juste le basename.
+        let sibling_exts = ["g4md", "g4mg", "g4sk", "g4mt", "g4tx"];
+        let mut extracted_main: Option<PathBuf> = None;
+        for ext in sibling_exts {
+            let candidate = format!("{dir_prefix}{stem}.{ext}");
+            let bytes = if candidate == path { Some(data.clone()) } else { vfs.read(&candidate).ok() };
+            if let Some(bytes) = bytes {
+                let dest = export_dir.join(&candidate);
+                if let Some(parent) = dest.parent() {
+                    std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+                }
+                std::fs::write(&dest, &bytes).map_err(|e| e.to_string())?;
+                if candidate == path || ext == "g4md" {
+                    extracted_main = Some(dest);
+                }
             }
         }
-    }
-    let main_path = extracted_main.unwrap_or(export_dir.join(&path));
+        let main_path = extracted_main.unwrap_or(export_dir.join(&path));
+        Ok((export_dir, main_path, sibling_exts.len()))
+    })?;
+    let (export_dir, main_path, sibling_count) = built;
 
     let script_path = export_dir.join("_bootstrap.py");
     let script = format!(
@@ -537,7 +1188,7 @@ except Exception:
         .spawn()
         .map_err(|e| format!("échec du lancement de Blender ({}) : {e}", blender.display()))?;
 
-    Ok(format!("Blender lancé — {} exporté(s) vers {}", sibling_exts.len(), export_dir.display()))
+    Ok(format!("Blender lancé — {} exporté(s) vers {}", sibling_count, export_dir.display()))
 }
 
 // ─── Aperçu 3D (G4MD+G4MG → GLB embarqué → `nie-render3d`, rendu natif pur-Rust) ───────
@@ -568,19 +1219,15 @@ fn resolve_render3d_exe(root: &std::path::Path) -> Result<PathBuf, String> {
 
 /// Assemble un G4MD+G4MG (+ G4TX frère si présent) en GLB autonome (textures embarquées) et le
 /// rend via `nie-render3d` (rasterizer CPU pur-Rust, orbit-camera) → PNG (base64).
-#[tauri::command]
-fn vfs_glb_preview_png_b64(path: String, game_dir: Option<String>) -> Result<String, String> {
+/// Assemble le GLB (G4MD+G4MG+G4TX frère, cf. commentaire de section) pour `path` — cœur partagé
+/// entre [`vfs_glb_preview_png_b64`] (vue fixe) et [`vfs_glb_preview_turntable_mp4_b64`] (rotation
+/// §2.3 roadmap), pour ne pas dupliquer la résolution de frères/assemblage.
+fn assemble_glb_for_preview(vfs: &nie_formats::vfs::Vfs, path: &str) -> Result<(String, Vec<u8>), String> {
     use nie_formats::assemble::{assemble_generic_model, EmbeddedTexture, GenericModelInput, MeshComponent};
 
-    let root = match game_dir.clone().filter(|s| !s.trim().is_empty()) {
-        Some(dir) => PathBuf::from(dir),
-        None => nie_formats::vfs::resolve_game_dir(),
-    };
-    let render3d = resolve_render3d_exe(&root)?;
-    let vfs = open_vfs(Some(root.display().to_string()))?;
-    let data = vfs.read(&path).map_err(|e| e.to_string())?;
+    let data = vfs.read(path).map_err(|e| e.to_string())?;
 
-    let base = path.rsplit('/').next().unwrap_or(&path);
+    let base = path.rsplit('/').next().unwrap_or(path);
     let stem = base.rsplit_once('.').map(|(s, _)| s).unwrap_or(base);
     let dir_prefix = path.strip_suffix(base).unwrap_or("");
     let sibling = |ext: &str| -> Option<Vec<u8>> {
@@ -599,7 +1246,15 @@ fn vfs_glb_preview_png_b64(path: String, game_dir: Option<String>) -> Result<Str
         model.embedded_textures.push(EmbeddedTexture { component: MeshComponent::Generic, name: format!("{stem}_tex"), png_bytes: png });
     }
 
-    let glb = model.to_glb_embedded();
+    Ok((stem.to_string(), model.to_glb_embedded()))
+}
+
+#[tauri::command]
+#[specta::specta]
+fn vfs_glb_preview_png_b64(path: String, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<String, String> {
+    let root = resolve_root(game_dir.as_deref());
+    let render3d = resolve_render3d_exe(&root)?;
+    let (stem, glb) = with_vfs(Some(root.display().to_string()), &state, |vfs| assemble_glb_for_preview(vfs, &path))?;
     let dir = std::env::temp_dir().join("nie-explorer").join("render3d");
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let glb_path = dir.join(format!("{stem}.glb"));
@@ -625,6 +1280,49 @@ fn vfs_glb_preview_png_b64(path: String, game_dir: Option<String>) -> Result<Str
     Ok(base64::engine::general_purpose::STANDARD.encode(&png))
 }
 
+/// Aperçu 3D **interactif** (§2.3 roadmap, « caméra orbitale ») : au lieu d'une image fixe,
+/// rend un **turntable** (N images à angles régulièrement espacés sur 360°, `nie-render3d
+/// --frames N`) remuxé en MP4 par `nie-render3d` lui-même (`ffmpeg` déjà requis pour l'aperçu
+/// vidéo USM, cf. [`vfs_video_preview_b64`]) — le frontend l'affiche dans un `<video controls>`,
+/// dont la barre de défilement native EST la caméra orbitale (glisser = tourner autour du
+/// modèle). Alternative délibérément choisie à l'embarquement d'une fenêtre wgpu native dans
+/// WebView2 (fenêtrage Win32 imbriqué fragile, hors de portée raisonnable ici) — même moteur de
+/// rendu (`nie-render3d`, déjà utilisé par [`vfs_glb_preview_png_b64`]), juste plus d'images.
+#[tauri::command]
+#[specta::specta]
+fn vfs_glb_preview_turntable_mp4_b64(path: String, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<String, String> {
+    let root = resolve_root(game_dir.as_deref());
+    let render3d = resolve_render3d_exe(&root)?;
+    let (stem, glb) = with_vfs(Some(root.display().to_string()), &state, |vfs| assemble_glb_for_preview(vfs, &path))?;
+    let dir = std::env::temp_dir().join("nie-explorer").join("render3d");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let glb_path = dir.join(format!("{stem}.glb"));
+    let mp4_path = dir.join(format!("{stem}_turntable.mp4"));
+    std::fs::write(&glb_path, &glb).map_err(|e| e.to_string())?;
+
+    let status = std::process::Command::new(&render3d)
+        .arg("--glb")
+        .arg(&glb_path)
+        .arg("--out")
+        .arg(&mp4_path)
+        .args(["--frames", "36", "--fps", "12", "--width", "512", "--height", "512"])
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map_err(|e| format!("échec de lancement de nie-render3d : {e}"))?;
+    if !status.success() {
+        return Err(format!("nie-render3d a échoué ({status}) — ffmpeg (requis pour le turntable) est-il sur le PATH ?"));
+    }
+
+    let mp4 = std::fs::read(&mp4_path).map_err(|e| e.to_string())?;
+    const CAP: usize = 60 * 1024 * 1024;
+    if mp4.len() > CAP {
+        return Err(format!("turntable MP4 trop volumineux pour l'aperçu ({} octets > {CAP})", mp4.len()));
+    }
+    Ok(base64::engine::general_purpose::STANDARD.encode(&mp4))
+}
+
 // ─── Aperçu audio (ADX/HCA/AWB/ACB → WAV, natif Rust — clé IEVR déjà reversée) ─────────
 
 /// Décode n'importe quel format audio Criware du VFS (`.acb`/`.awb`/`.hca`/`.adx`, dispatch par
@@ -641,10 +1339,17 @@ fn vfs_glb_preview_png_b64(path: String, game_dir: Option<String>) -> Result<Str
 /// filet de sécurité — reconfirmé : le même fichier décode sans erreur sur un thread à 16 Mio,
 /// y compris en debug non optimisé.
 #[tauri::command]
-fn vfs_audio_preview_b64(path: String, game_dir: Option<String>) -> Result<String, String> {
-    let vfs = open_vfs(game_dir)?;
-    let data = vfs.read(&path).map_err(|e| e.to_string())?;
+#[specta::specta]
+fn vfs_audio_preview_b64(path: String, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<String, String> {
+    let data = with_vfs(game_dir, &state, |vfs| vfs.read(&path).map_err(|e| e.to_string()))?;
+    audio_wav_b64_from_bytes(data)
+}
 
+/// Cœur du décodage audio CRI (HCA/ADX) → WAV b64, indépendant de la SOURCE des octets (VFS monté
+/// OU entrée d'un CPK brut hors VFS, cf. [`raw_cpk_audio_preview_b64`]) — factorisé pour la parité
+/// d'outils `RawCpkView`/`DetailPane` (roadmap §6, « pas de Blender/aperçu 3D/audio/vidéo pour les
+/// entrées d'un CPK ouvert hors VFS »).
+fn audio_wav_b64_from_bytes(data: Vec<u8>) -> Result<String, String> {
     let wav = std::thread::Builder::new()
         .stack_size(16 * 1024 * 1024)
         .spawn(move || nie_formats::cri_audio::decode_to_wav(&data))
@@ -659,6 +1364,22 @@ fn vfs_audio_preview_b64(path: String, game_dir: Option<String>) -> Result<Strin
     Ok(base64::engine::general_purpose::STANDARD.encode(&wav))
 }
 
+/// Même décodage audio que [`vfs_audio_preview_b64`], mais depuis une entrée du CPK brut ouvert
+/// (hors VFS) — un seul fichier autonome (HCA/ADX ne référence jamais de fichier frère), donc pas
+/// de dépendance à l'indexation VFS contrairement à l'aperçu 3D (GLB, qui a besoin des frères
+/// g4md/g4mg résolus par chemin VFS et reste donc VFS-only).
+#[tauri::command]
+#[specta::specta]
+fn raw_cpk_audio_preview_b64(index: u32, state: tauri::State<RawCpkState>) -> Result<String, String> {
+    let data = {
+        let guard = state.0.lock().unwrap();
+        let (_, data, reader) = guard.as_ref().ok_or("aucun CPK ouvert")?;
+        let entry = reader.entries.get(index as usize).ok_or("index d'entrée invalide")?;
+        reader.extract(data, entry).map_err(|e| e.to_string())?
+    };
+    audio_wav_b64_from_bytes(data)
+}
+
 // ─── Aperçu vidéo (USM/Sofdec2 → MP4, via `ffmpeg` en sous-processus) ──────────────────
 //
 // Pas de binding `libvlc` : ce système n'a pas VLC/libvlc installé (vérifié — seul `ffmpeg`
@@ -671,9 +1392,16 @@ fn vfs_audio_preview_b64(path: String, game_dir: Option<String>) -> Result<Strin
 /// Remuxe le flux vidéo H.264 d'un `.usm` en MP4 lisible par un `<video>` HTML (base64, borné).
 /// VP9 brut n'est pas remuxable simplement (pas de conteneur) : renvoie une erreur claire.
 #[tauri::command]
-fn vfs_video_preview_b64(path: String, game_dir: Option<String>) -> Result<String, String> {
-    let vfs = open_vfs(game_dir)?;
-    let data = vfs.read(&path).map_err(|e| e.to_string())?;
+#[specta::specta]
+fn vfs_video_preview_b64(path: String, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<String, String> {
+    let data = with_vfs(game_dir, &state, |vfs| vfs.read(&path).map_err(|e| e.to_string()))?;
+    video_mp4_b64_from_bytes(data)
+}
+
+/// Cœur du remuxage vidéo USM→MP4, indépendant de la SOURCE des octets (VFS monté OU entrée d'un
+/// CPK brut hors VFS, cf. [`raw_cpk_video_preview_b64`]) — même factorisation que
+/// [`audio_wav_b64_from_bytes`], même raison (parité d'outils `RawCpkView`, roadmap §6).
+fn video_mp4_b64_from_bytes(data: Vec<u8>) -> Result<String, String> {
     let usm = nie_formats::cri_audio::usm_demux(&data).map_err(|e| e.to_string())?;
     if usm.video_codec != nie_formats::cri_audio::VideoCodec::H264 {
         return Err(format!("codec {:?} non pris en charge pour l'aperçu (H.264 uniquement) — utilisez Extraire", usm.video_codec));
@@ -681,12 +1409,13 @@ fn vfs_video_preview_b64(path: String, game_dir: Option<String>) -> Result<Strin
     if usm.video_data.is_empty() {
         return Err("aucun flux vidéo dans ce fichier".to_string());
     }
+    let video_data = usm.video_data;
 
     let dir = std::env::temp_dir().join("nie-explorer").join("video-preview");
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let raw = dir.join("in.h264");
     let out = dir.join("out.mp4");
-    std::fs::write(&raw, &usm.video_data).map_err(|e| e.to_string())?;
+    std::fs::write(&raw, &video_data).map_err(|e| e.to_string())?;
 
     let status = std::process::Command::new("ffmpeg")
         .args(["-y", "-f", "h264", "-i"])
@@ -708,6 +1437,45 @@ fn vfs_video_preview_b64(path: String, game_dir: Option<String>) -> Result<Strin
         return Err(format!("MP4 remuxé trop volumineux pour l'aperçu ({} octets > {CAP})", mp4.len()));
     }
     Ok(base64::engine::general_purpose::STANDARD.encode(&mp4))
+}
+
+/// Même remuxage vidéo que [`vfs_video_preview_b64`], mais depuis une entrée du CPK brut ouvert
+/// (hors VFS) — un `.usm` est autonome (pas de fichier frère référencé), donc pas de dépendance à
+/// l'indexation VFS.
+#[tauri::command]
+#[specta::specta]
+fn raw_cpk_video_preview_b64(index: u32, state: tauri::State<RawCpkState>) -> Result<String, String> {
+    let data = {
+        let guard = state.0.lock().unwrap();
+        let (_, data, reader) = guard.as_ref().ok_or("aucun CPK ouvert")?;
+        let entry = reader.entries.get(index as usize).ok_or("index d'entrée invalide")?;
+        reader.extract(data, entry).map_err(|e| e.to_string())?
+    };
+    video_mp4_b64_from_bytes(data)
+}
+
+/// JSON libre renvoyé tel quel sur l'IPC (réponses azalee : GraphQL/REST, forme non fixe côté
+/// serveur — le frontend les type déjà en `any`/interfaces locales, cf. `src/lib/api.ts`).
+///
+/// `serde_json::Value` EST récursif (`Object`/`Array` se contiennent eux-mêmes, cf.
+/// `impl Type for SerdeValue` dans `specta`) : l'exporter TS dessus fait un vrai
+/// `STATUS_STACK_OVERFLOW` — vérifié en réel, y compris sur un thread à pile 64 Mio dédiée (cf.
+/// `run()`), donc PAS un simple manque de pile, une récursion qui ne se referme jamais côté
+/// réflexion de types. Ce wrapper s'exporte comme `unknown` côté TS (`specta_typescript::define`,
+/// un type opaque non récursif) sans changer un seul octet envoyé sur l'IPC : `Serialize`
+/// délègue tel quel à `serde_json::Value`.
+struct RawJson(serde_json::Value);
+
+impl serde::Serialize for RawJson {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        self.0.serialize(s)
+    }
+}
+
+impl specta::Type for RawJson {
+    fn definition(_: &mut specta::Types) -> specta::datatype::DataType {
+        specta::datatype::DataType::Reference(specta_typescript::define("unknown"))
+    }
 }
 
 // ─── Résolveur distant azalee (GraphQL + REST) ──────────────────────────────────────
@@ -747,45 +1515,51 @@ fn graphql_query(base_url: &str, query: &str, variables: serde_json::Value) -> R
 /// Recherche de personnages via le GraphQL azalee (`characters(q, limit)`), en bonus du miroir
 /// local `nie-wiki` — utile quand aucun `supabase-*.sqlite` local n'est configuré.
 #[tauri::command]
-fn remote_search_chara(base_url: String, query: String) -> Result<serde_json::Value, String> {
+#[specta::specta]
+fn remote_search_chara(base_url: String, query: String) -> Result<RawJson, String> {
     graphql_query(
         &base_url,
         "query($q: String) { characters(q: $q, limit: 20) { id internalCode name { fr en ja } \
          variants { charaParamId position element rarity image } } }",
         serde_json::json!({ "q": query }),
     )
+    .map(RawJson)
 }
 
 /// Recherche de techniques via le GraphQL azalee (`skills(q, limit)`).
 #[tauri::command]
-fn remote_search_waza(base_url: String, query: String) -> Result<serde_json::Value, String> {
+#[specta::specta]
+fn remote_search_waza(base_url: String, query: String) -> Result<RawJson, String> {
     graphql_query(
         &base_url,
         "query($q: String) { skills(q: $q, limit: 20) { id name { fr en ja } category element power tension image } }",
         serde_json::json!({ "q": query }),
     )
+    .map(RawJson)
 }
 
 /// Recherche plein-texte dans l'index CPK distant (250 800 fichiers, azalee) — utile en
 /// complément du VFS local (comparaison, ou navigation sans avoir le jeu monté).
 #[tauri::command]
-fn remote_cpk_search(base_url: String, query: String) -> Result<serde_json::Value, String> {
+#[specta::specta]
+fn remote_cpk_search(base_url: String, query: String) -> Result<RawJson, String> {
     let url = format!("{}/api/cpk?q={}", azalee_base(&base_url), urlencode(&query));
     let resp = ureq::get(&url).call().map_err(|e| format!("requête distante échouée ({url}) : {e}"))?;
-    resp.into_json::<serde_json::Value>().map_err(|e| format!("réponse non-JSON : {e}"))
+    resp.into_json::<serde_json::Value>().map(RawJson).map_err(|e| format!("réponse non-JSON : {e}"))
 }
 
 /// Résout les IDs de roster d'une sauvegarde (hash `0x........`) en noms réels via le miroir
 /// serveur azalee — AUCUN octet de save ne transite, seulement les IDs déjà extraits en local
 /// par `nie-save`. Anti-hallucination côté serveur : un ID absent revient `name: null`.
 #[tauri::command]
-fn remote_resolve_roster(base_url: String, ids: Vec<String>) -> Result<serde_json::Value, String> {
+#[specta::specta]
+fn remote_resolve_roster(base_url: String, ids: Vec<String>) -> Result<RawJson, String> {
     let url = format!("{}/api/save/resolve-roster", azalee_base(&base_url));
     let resp = ureq::post(&url)
         .set("Content-Type", "application/json")
         .send_json(serde_json::json!({ "ids": ids }))
         .map_err(|e| format!("requête distante échouée ({url}) : {e}"))?;
-    resp.into_json::<serde_json::Value>().map_err(|e| format!("réponse non-JSON : {e}"))
+    resp.into_json::<serde_json::Value>().map(RawJson).map_err(|e| format!("réponse non-JSON : {e}"))
 }
 
 fn urlencode(s: &str) -> String {
@@ -799,8 +1573,101 @@ fn urlencode(s: &str) -> String {
     out
 }
 
+/// Collecte toutes les commandes IPC pour `tauri-specta` — une SEULE liste, source de vérité à
+/// la fois pour l'enregistrement runtime (`invoke_handler`) et pour l'export des bindings
+/// TypeScript (`src/lib/bindings.ts`), là où il fallait avant maintenir `tauri::generate_handler!`
+/// ICI et le miroir `invoke<T>("cmd", {...})` de `api.ts` À LA MAIN, sans qu'un oubli ne soit
+/// jamais signalé par le compilateur.
+fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
+    tauri_specta::Builder::<tauri::Wry>::new().commands(tauri_specta::collect_commands![
+        default_game_dir,
+        check_game_dir,
+        default_wiki_db,
+        default_re_db,
+        preload_vfs,
+        vfs_ls,
+        vfs_find,
+        vfs_stats,
+        vfs_entry_meta,
+        vfs_describe,
+        vfs_read_b64,
+        vfs_texture_png_b64,
+        vfs_extract_to,
+        vfs_write_b64,
+        vfs_write_loose_override_b64,
+        save_bytes_b64,
+        vfs_related,
+        vfs_all_entries,
+        game_data_skills,
+        game_data_items,
+        game_data_auras,
+        game_data_trophies,
+        game_data_quests,
+        game_data_chara_picker,
+        game_data_calculate_stats,
+        vfs_decode_cfgbin,
+        encode_cfgbin_config,
+        list_packs_dir,
+        open_raw_cpk,
+        raw_cpk_describe,
+        raw_cpk_read_b64,
+        raw_cpk_extract_to,
+        raw_cpk_extract_all,
+        raw_cpk_audio_preview_b64,
+        raw_cpk_video_preview_b64,
+        copy_disk_file_to_appdata,
+        disk_file_exists,
+        stage_texture_replacement,
+        export_mod_as_cpk,
+        set_titlebar_theme,
+        take_pending_open,
+        describe_disk_file,
+        read_disk_file_b64,
+        open_in_blender,
+        remote_search_chara,
+        remote_search_waza,
+        remote_cpk_search,
+        remote_resolve_roster,
+        default_save_path,
+        save_open,
+        save_list_blobs,
+        save_blob_hex_b64,
+        save_export,
+        vfs_video_preview_b64,
+        vfs_glb_preview_png_b64,
+        vfs_glb_preview_turntable_mp4_b64,
+        vfs_audio_preview_b64,
+    ])
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Régénère `src/lib/bindings.ts` à CHAQUE lancement en dev — jamais en release (pas de
+    // dépendance à `specta-typescript`/écriture disque dans le binaire distribué). Le frontend
+    // importe ce fichier généré directement (cf. `src/lib/api.ts`), donc toute commande
+    // ajoutée/modifiée ici se reflète côté TS au prochain `cargo tauri dev`, sans étape manuelle.
+    //
+    // Lancé sur un THREAD DÉDIÉ à pile large (64 Mio) : trouvé par test réel (pas supposé) — la
+    // réflexion de types de `specta` sur ~29 commandes (dont plusieurs `serde_json::Value`,
+    // récursif : `Object`/`Array` se référencent eux-mêmes) fait un vrai `STATUS_STACK_OVERFLOW`
+    // sur la pile principale par défaut (thread `main`, crash silencieux avant même la création
+    // de la fenêtre). Même remède que [`vfs_audio_preview_b64`] pour `cridecoder` : une pile
+    // dédiée plus large suffit largement, ce n'est pas une récursion infinie (le process ne
+    // boucle pas indéfiniment, il complète normalement une fois la pile élargie).
+    #[cfg(debug_assertions)]
+    std::thread::Builder::new()
+        .stack_size(64 * 1024 * 1024)
+        .spawn(|| {
+            specta_builder()
+                .export(specta_typescript::Typescript::default(), "../src/lib/bindings.ts")
+                .expect("échec de l'export des bindings TypeScript (tauri-specta)");
+        })
+        .expect("échec de lancement du thread d'export specta")
+        .join()
+        .expect("le thread d'export specta a paniqué");
+
+    let specta = specta_builder();
+
     tauri::Builder::default()
         // DOIT être le premier plugin enregistré (contrat tauri-plugin-single-instance) :
         // relance = focus la fenêtre existante + transmet argv (« Ouvrir avec » Explorer).
@@ -825,48 +1692,46 @@ pub fn run() {
         )
         .manage(PendingOpen(Mutex::new(first_path_arg(std::env::args()))))
         .manage(SaveState(Mutex::new(None)))
+        .manage(VfsState(Mutex::new(None)))
+        .manage(RawCpkState(Mutex::new(None)))
         .setup(|app| {
             // Habillage natif Windows 11 (Mica) — cf. demande utilisateur « ui windows native ».
             // Best-effort : une build hors Win11/serveur peut échouer l'appel, sans bloquer le
             // lancement (fenêtre reste opaque « surface » standard dans ce cas).
+            //
+            // `Some(true)` FORCE le mode sombre du chrome natif (texte/boutons de légende de la
+            // vraie barre de titre) — `None` (essayé d'abord, cf. capture d'écran réelle) suit le
+            // thème CLAIR du système au lieu du thème sombre par défaut de l'appli
+            // (`defaultTheme="dark"`, `main.tsx`), ce qui donnait une barre de titre native
+            // blanche au-dessus d'un contenu sombre. Valeur initiale sombre (cohérente avec le
+            // défaut de l'appli) ; resynchronisée en direct au changement clair/sombre
+            // (Paramètres) par [`set_titlebar_theme`], appelée depuis `App.tsx` sur
+            // `resolvedTheme` (next-themes).
             #[cfg(target_os = "windows")]
             {
                 use tauri::Manager;
                 if let Some(window) = app.get_webview_window("main") {
-                    let _ = window_vibrancy::apply_mica(&window, None);
+                    let _ = window_vibrancy::apply_mica(&window, Some(true));
                 }
+            }
+
+            // Précharge le VFS sur un thread dédié pendant que la fenêtre s'affiche — le premier
+            // clic de navigation du frontend (qui appelle aussi `preload_vfs` explicitement au
+            // montage, cf. `App.tsx`) retrouve alors un cache déjà chaud dans la plupart des cas,
+            // au lieu d'attendre l'indexation complète (~255 800 entrées) en plein milieu d'un
+            // clic. Best-effort : une erreur ici (jeu non détecté) est silencieuse, l'appel
+            // explicite du frontend au montage remontera la vraie erreur à l'UI.
+            {
+                use tauri::Manager;
+                let handle = app.handle().clone();
+                std::thread::spawn(move || {
+                    let state = handle.state::<VfsState>();
+                    let _ = with_vfs(None, &state, |_vfs| Ok(()));
+                });
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![
-            default_game_dir,
-            check_game_dir,
-            vfs_ls,
-            vfs_find,
-            vfs_stats,
-            vfs_describe,
-            vfs_read_b64,
-            vfs_texture_png_b64,
-            vfs_extract_to,
-            save_bytes_b64,
-            vfs_related,
-            vfs_all_entries,
-            take_pending_open,
-            describe_disk_file,
-            read_disk_file_b64,
-            open_in_blender,
-            remote_search_chara,
-            remote_search_waza,
-            remote_cpk_search,
-            remote_resolve_roster,
-            save_open,
-            save_list_blobs,
-            save_blob_hex_b64,
-            save_export,
-            vfs_video_preview_b64,
-            vfs_glb_preview_png_b64,
-            vfs_audio_preview_b64,
-        ])
+        .invoke_handler(specta.invoke_handler())
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

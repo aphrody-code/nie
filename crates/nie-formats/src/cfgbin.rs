@@ -343,7 +343,7 @@ pub enum RdbnValue {
 }
 
 /// Une ligne d'une liste RDBN : association ordonnée (nom de champ → valeur décodée).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct RdbnRow {
     /// Champs de la ligne, dans l'ordre de la table de types (nom résolu, valeur).
@@ -351,7 +351,7 @@ pub struct RdbnRow {
 }
 
 /// Une liste RDBN décodée (équivalent de `RdbnList` C#).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct RdbnList {
     /// Nom de la liste (résolu depuis `root.name_hash`, sinon `Unknown_0x…`).
@@ -868,6 +868,565 @@ pub fn parse_t2b(data: &[u8]) -> Result<CfgBinFile, FormatError> {
     })
 }
 
+/// Encode un arbre `CfgEntry` en fichier T2B binaire — inverse de [`parse_t2b`]. Écrit suite à
+/// la demande utilisatrice « niers doit pouvoir éditer, pas juste explorer » : `nie-formats`
+/// n'avait jusqu'ici AUCUN encodeur (RDBN ni T2B), seulement des décodeurs.
+///
+/// Ne vise PAS un round-trip octet-identique à un fichier T2B d'origine quelconque
+/// (l'agencement exact des tables produit par l'outil Level-5 — dédoublonnage, ordre — n'est pas
+/// reversé) : vise un fichier VALIDE, relu à l'IDENTIQUE par [`parse_t2b`] (même arbre
+/// `entries`/`variables`/`children`) — vérifié réellement par
+/// [`tests::encode_t2b_round_trip_sur_le_vrai_jeu`] (décode de vrais fichiers du jeu → encode →
+/// redécode → compare structurellement à l'original), pas supposé.
+///
+/// Convention de marqueur de fin : [`parse_t2b`] reconnaît toute entrée à variables vides dont
+/// le nom contient `"_END"` comme fin de bloc (`is_end` dans `parse_sub`) ; ce marqueur
+/// synthétique n'est JAMAIS exposé dans l'arbre décodé (consommé par `break`), donc son nom
+/// d'origine exact est perdu à la lecture — on émet toujours `"_END"` littéral en écriture, qui
+/// satisfait `ends_with("_END")` sans avoir besoin de le connaître.
+#[must_use]
+pub fn encode_t2b(entries: &[CfgEntry]) -> Vec<u8> {
+    enum FlatItem<'a> {
+        Entry(&'a CfgEntry),
+        End,
+    }
+    // MÊME critère que `parse_t2b` (`is_begin` dans `parse_sub`) : un conteneur se reconnaît au
+    // NOM (suffixe `_BEG`/`_BEGIN`, motif `_BEG_`, préfixe `PTREE`), PAS au fait que `children`
+    // soit non vide. Bug réel trouvé par le round-trip sur le vrai jeu (`encode_t2b_round_trip_
+    // sur_le_vrai_jeu`) : un conteneur au sous-arbre VIDE (fermé immédiatement dans le fichier
+    // d'origine) a quand même `entry.children = parse_sub(iter)` côté décodeur — juste vide.
+    // Se baser sur `!children.is_empty()` omettait le marqueur de fin pour ces conteneurs vides,
+    // et le ré-décodage avalait alors tous les frères suivants comme si c'était leur contenu.
+    fn is_begin_name(name: &str) -> bool {
+        name.ends_with("_BEG") || name.ends_with("_BEGIN") || name.contains("_BEG_") || name.starts_with("PTREE")
+    }
+    fn flatten<'a>(entries: &'a [CfgEntry], out: &mut Vec<FlatItem<'a>>) {
+        for e in entries {
+            out.push(FlatItem::Entry(e));
+            if is_begin_name(&e.name) {
+                flatten(&e.children, out);
+                out.push(FlatItem::End);
+            }
+        }
+    }
+    let mut flat: Vec<FlatItem> = Vec::new();
+    flatten(entries, &mut flat);
+
+    // Table de chaînes de VALEURS (`Value::String`), dédupliquée par valeur — offset = position
+    // en octets depuis le début du blob, MÊME convention que `parse_t2b`
+    // (`strings.insert(pos as i32, ...)`, `pos` cumulé sur `s.len() + 1` NUL compris).
+    let mut string_blob: Vec<u8> = Vec::new();
+    let mut string_offsets: BTreeMap<String, i32> = BTreeMap::new();
+    let mut intern_value_string = |s: &str| -> i32 {
+        if let Some(&off) = string_offsets.get(s) {
+            return off;
+        }
+        let off = string_blob.len() as i32;
+        string_blob.extend_from_slice(s.as_bytes());
+        string_blob.push(0);
+        string_offsets.insert(s.to_string(), off);
+        off
+    };
+
+    // Table de clés (noms de champs) — CRC32(nom) → nom, dédupliquée, avec son propre blob.
+    let mut key_blob: Vec<u8> = Vec::new();
+    let mut key_entries: Vec<(u32, i32)> = Vec::new(); // (crc, str_start dans key_blob)
+    let mut seen_keys: BTreeMap<u32, ()> = BTreeMap::new();
+    let mut intern_key = |name: &str| -> u32 {
+        let crc = crc32(name.as_bytes());
+        if seen_keys.insert(crc, ()).is_none() {
+            let str_start = key_blob.len() as i32;
+            key_blob.extend_from_slice(name.as_bytes());
+            key_blob.push(0);
+            key_entries.push((crc, str_start));
+        }
+        crc
+    };
+
+    // 1. Corps des entrées aplaties (même layout que lu par `parse_t2b` : crc(4) + param_count(1)
+    //    + bitmap de types 2 bits/param, padé à 4 octets + valeurs 4 octets chacune).
+    let mut body: Vec<u8> = Vec::new();
+    for item in &flat {
+        let (name, variables): (&str, &[Value]) = match item {
+            FlatItem::Entry(e) => (e.name.as_str(), &e.variables),
+            FlatItem::End => ("_END", &[]),
+        };
+        let crc = intern_key(name);
+        body.extend_from_slice(&crc.to_le_bytes());
+        body.push(variables.len() as u8);
+
+        let type_bytes = variables.len().div_ceil(4);
+        let mut type_buf: Vec<u8> = alloc::vec![0u8; type_bytes];
+        for (i, v) in variables.iter().enumerate() {
+            let ty: u8 = match v {
+                Value::String(_) => 0,
+                Value::Int(_) => 1,
+                Value::Float(_) => 2,
+            };
+            type_buf[i / 4] |= ty << (2 * (i % 4));
+        }
+        body.extend_from_slice(&type_buf);
+
+        let total_header = 5 + type_bytes;
+        if !total_header.is_multiple_of(4) {
+            let pad = 4 - (total_header % 4);
+            body.resize(body.len() + pad, 0);
+        }
+
+        for v in variables {
+            match v {
+                Value::String(s) => {
+                    let off = if s.is_empty() { -1 } else { intern_value_string(s) };
+                    body.extend_from_slice(&off.to_le_bytes());
+                }
+                Value::Int(n) => body.extend_from_slice(&n.to_le_bytes()),
+                Value::Float(f) => body.extend_from_slice(&f.to_le_bytes()),
+            }
+        }
+    }
+
+    // 2. Assemble : header(16) + body + string_blob + padding(→16) + table de clés.
+    let string_table_off = 16 + body.len();
+    let string_table_len = string_blob.len();
+    let string_table_count = string_offsets.len();
+
+    let mut out: Vec<u8> = Vec::new();
+    out.extend_from_slice(&(flat.len() as i32).to_le_bytes());
+    out.extend_from_slice(&(string_table_off as i32).to_le_bytes());
+    out.extend_from_slice(&(string_table_len as i32).to_le_bytes());
+    out.extend_from_slice(&(string_table_count as i32).to_le_bytes());
+    out.extend_from_slice(&body);
+    out.extend_from_slice(&string_blob);
+
+    let string_table_end = out.len();
+    let key_table_offset = string_table_end.div_ceil(16) * 16;
+    out.resize(key_table_offset, 0);
+
+    // Sous-en-tête de la table de clés : key_length/key_count/key_str_off/key_str_len — mêmes
+    // 4 champs relus par `parse_t2b` à `key_table_offset..+16`.
+    let key_header_len = 16 + key_entries.len() * 8;
+    let key_length = key_header_len + key_blob.len();
+    out.extend_from_slice(&(key_length as i32).to_le_bytes());
+    out.extend_from_slice(&(key_entries.len() as i32).to_le_bytes());
+    out.extend_from_slice(&(key_header_len as i32).to_le_bytes());
+    out.extend_from_slice(&(key_blob.len() as i32).to_le_bytes());
+    for (crc, str_start) in &key_entries {
+        out.extend_from_slice(&crc.to_le_bytes());
+        out.extend_from_slice(&str_start.to_le_bytes());
+    }
+    out.extend_from_slice(&key_blob);
+
+    out
+}
+
+// ---------------------------------------------------------------------------
+// Encodage RDBN
+// ---------------------------------------------------------------------------
+
+/// (type sur le wire, taille en octets) d'une valeur RDBN — miroir exact, en sens inverse, de
+/// [`read_field_value`] / [`RdbnFieldType`].
+fn rdbn_value_wire(v: &RdbnValue) -> Result<(i16, i32), String> {
+    Ok(match v {
+        RdbnValue::Bool(_) => (3, 1),
+        RdbnValue::Byte(_) => (4, 1),
+        RdbnValue::Short(_) => (5, 2),
+        RdbnValue::Int(_) => (6, 4),
+        RdbnValue::ActType(_) => (9, 2),
+        RdbnValue::Flag(_) => (10, 4),
+        RdbnValue::Float(_) => (13, 4),
+        RdbnValue::Hash(_) => (15, 4),
+        RdbnValue::Rates(_) => (18, 16),
+        RdbnValue::Position(_) => (19, 16),
+        RdbnValue::Condition(_) => (20, 4),
+        RdbnValue::ShortTuple(_) => (21, 4),
+        // Le type d'origine (0=AbilityData/1=EnhanceData/2=StatusRate/inconnu) n'est PAS conservé
+        // par `RdbnValue::Blob` (layout interne non modélisé, cf. doc de l'enum). On écrit `0` —
+        // choix arbitraire mais TRANSPARENT en lecture : `read_field_value` traite 0/1/2/tout type
+        // inconnu de façon strictement identique (fallback octets bruts), donc peu importe lequel
+        // des quatre on écrit, `read_values` redécode la MÊME valeur `RdbnValue::Blob`.
+        RdbnValue::Blob(b) => (0, b.len() as i32),
+        RdbnValue::Invalid => {
+            return Err(
+                "valeur RdbnValue::Invalid (lecture d'origine hors limites) : ré-encodage impossible sans deviner"
+                    .to_string(),
+            )
+        }
+    })
+}
+
+/// Layout d'un champ dans l'enregistrement d'une liste RDBN.
+struct RdbnFieldLayout {
+    offset: i32,
+    size: i32,
+    wire_type: i16,
+}
+
+/// Layout complet d'une liste RDBN : taille d'un enregistrement (stride) + layout par champ.
+/// Les NOMS et l'ORDRE des champs sont dérivés de la PREMIÈRE ligne — RDBN n'a qu'un seul type de
+/// ligne par liste (taille fixe), donc les lignes suivantes doivent partager exactement ce schéma
+/// (vérifié par [`encode_rdbn`], pas supposé). Le TYPE de chaque colonne, lui, est déterminé sur
+/// TOUTES les lignes via [`rdbn_column_wire_type`] — cf. sa doc pour le pourquoi (ambiguïté
+/// Condition/Hash).
+struct RdbnTypeLayout {
+    record_size: i32,
+    fields: Vec<RdbnFieldLayout>,
+}
+
+/// Type "sur le wire" effectif d'une colonne (champ, par index) d'une liste RDBN.
+///
+/// Ne se fie PAS à la seule première ligne : un champ de type `Condition` (20) — cf.
+/// `read_condition_value` — se décode en `RdbnValue::Condition(String)` quand son offset résout
+/// une chaîne, mais en `RdbnValue::Hash(u32)` (valeur brute) sinon. Les DEUX décodages viennent du
+/// MÊME `field_type` d'origine (20, 4 octets) : si la première ligne d'une colonne tombe sur un
+/// cas non résolu (`Hash`), ce n'est PAS un champ `Hash` (15) — c'est un champ `Condition` dont
+/// CETTE valeur particulière ne résout pas. On scanne donc toutes les lignes : dès qu'UNE seule
+/// contient une vraie `Condition(String)`, toute la colonne est `Condition` (20, 4 octets) — les
+/// autres lignes à `Hash` sur cette même colonne s'y encodent alors comme valeur brute (cf.
+/// [`rdbn_encode_value`], qui ne dépend jamais du type de colonne, seulement de la variante).
+fn rdbn_column_wire_type(list: &RdbnList, field_index: usize) -> Result<(i16, i32), String> {
+    let mut fallback: Option<(i16, i32)> = None;
+    for row in &list.rows {
+        let Some((_, v)) = row.fields.get(field_index) else { continue };
+        if matches!(v, RdbnValue::Condition(_)) {
+            return Ok((20, 4));
+        }
+        if fallback.is_none() {
+            fallback = Some(
+                rdbn_value_wire(v)
+                    .map_err(|e| alloc::format!("liste {:?} : champ {field_index} : {e}", list.name))?,
+            );
+        }
+    }
+    fallback.ok_or_else(|| alloc::format!("liste {:?} : champ {field_index} sans aucune ligne", list.name))
+}
+
+fn rdbn_compute_layout(list: &RdbnList) -> Result<RdbnTypeLayout, String> {
+    let Some(reference) = list.rows.first() else {
+        return Ok(RdbnTypeLayout { record_size: 0, fields: Vec::new() });
+    };
+    let mut offset = 0i32;
+    let mut fields = Vec::with_capacity(reference.fields.len());
+    for i in 0..reference.fields.len() {
+        let (wire_type, size) = rdbn_column_wire_type(list, i)?;
+        fields.push(RdbnFieldLayout { offset, size, wire_type });
+        offset += size;
+    }
+    if offset % 4 != 0 {
+        offset += 4 - (offset % 4);
+    }
+    Ok(RdbnTypeLayout { record_size: offset, fields })
+}
+
+/// Encode la valeur d'un champ RDBN dans `out` (taille exacte = `layout.size`), en sens inverse de
+/// [`read_field_value`].
+fn rdbn_encode_value(v: &RdbnValue, out: &mut [u8], cond_pool: &BTreeMap<String, i32>) -> Result<(), String> {
+    match v {
+        RdbnValue::Bool(b) => out[0] = u8::from(*b),
+        RdbnValue::Byte(b) => out[0] = *b,
+        RdbnValue::Short(s) => out.copy_from_slice(&s.to_le_bytes()),
+        RdbnValue::Int(i) => out.copy_from_slice(&i.to_le_bytes()),
+        RdbnValue::ActType(s) => out.copy_from_slice(&s.to_le_bytes()),
+        RdbnValue::Flag(i) => out.copy_from_slice(&i.to_le_bytes()),
+        RdbnValue::Float(f) => out.copy_from_slice(&f.to_le_bytes()),
+        RdbnValue::Hash(h) => out.copy_from_slice(&h.to_le_bytes()),
+        RdbnValue::Rates(r) | RdbnValue::Position(r) => {
+            for (i, f) in r.iter().enumerate() {
+                out[i * 4..i * 4 + 4].copy_from_slice(&f.to_le_bytes());
+            }
+        }
+        RdbnValue::Condition(s) => {
+            // Toujours une chaîne résolue avec succès à la lecture (cf. `read_condition_value` :
+            // le cas non résoluble produit `RdbnValue::Hash`, jamais `Condition`) — le pool DOIT
+            // la contenir, sinon c'est un bug interne de `encode_rdbn`, pas une donnée invalide.
+            let off = *cond_pool
+                .get(s)
+                .ok_or_else(|| alloc::format!("chaîne Condition {s:?} absente du pool interne (bug interne)"))?;
+            out.copy_from_slice(&(off as u32).to_le_bytes());
+        }
+        RdbnValue::ShortTuple([a, b]) => {
+            out[0..2].copy_from_slice(&a.to_le_bytes());
+            out[2..4].copy_from_slice(&b.to_le_bytes());
+        }
+        RdbnValue::Blob(b) => out[..b.len()].copy_from_slice(b),
+        RdbnValue::Invalid => unreachable!("filtré par rdbn_value_wire avant l'appel"),
+    }
+    Ok(())
+}
+
+/// Encode des listes RDBN décodées ([`read_values`]) en fichier `.cfg.bin` RDBN binaire —
+/// inverse de [`read_values`]/[`parse`].
+///
+/// Port du writer C++ `iecode::level5::cfgbin_write_rdbn` (dépôt privé `aphrody-code/iecode`,
+/// `cli/src/formats/level5/cfgbin.cpp:1143-1422`) — le seul encodeur RDBN connu à ce jour : absent
+/// du C# `IECODE.Core` d'origine (`apps/iecode` local, lecture seule), absent jusqu'ici de
+/// `nie-formats`. Layout d'en-tête et de tables croisé octet à octet contre [`parse`] (déjà
+/// vérifié contre le vrai jeu) : mêmes offsets `0x24/0x28/0x2C/0x30/0x32/0x34/0x36/0x38`, mêmes
+/// entrées de [`ENTRY_SIZE`] octets — confirmé avant portage, pas supposé.
+///
+/// Corrige un bug réel du writer C++ source : celui-ci n'écrit jamais le `name_hash` (offset
+/// `+0x00`) des entrées de la table de TYPES (reste à 0 dans le fichier produit), ce qui perdrait
+/// `type_name` au redécodage. Ici `list.type_name` est interné dans le pool de chaînes comme
+/// n'importe quel autre nom et son hash est bien écrit.
+///
+/// Champs `+0x04` (unk_hash, table types), `+0x06` (type_category, table champs), `+0x10`
+/// (value_count, table champs) et `+0x02` (unk1, table racines) : laissés à `0`. Aucun n'est lu
+/// par [`parse`]/[`read_values`]/[`read_field_value`] — aucune preuve de leur usage réel, donc pas
+/// de valeur devinée.
+///
+/// # Contrainte de forme
+///
+/// Une liste RDBN a UN SEUL type de ligne à taille fixe (pas un type par ligne) : toutes les
+/// [`RdbnRow`] d'une même liste DOIVENT partager exactement le schéma de la première ligne (mêmes
+/// noms de champs, dans le même ordre, mêmes variantes [`RdbnValue`]). C'est une contrainte réelle
+/// du format, pas un choix — une divergence retourne une erreur explicite plutôt que de fabriquer
+/// un fichier corrompu en silence.
+///
+/// # Erreurs
+///
+/// - Une ligne dont le schéma diverge de la première ligne de sa liste (nombre de champs, noms,
+///   ou type de valeur différents).
+/// - Une valeur [`RdbnValue::Invalid`] (ne peut être ré-encodée sans deviner — le fichier
+///   d'origine avait un offset hors limites à cet endroit).
+///
+/// Vérifié par [`tests::encode_rdbn_round_trip_sur_le_vrai_jeu`] : décode de vrais fichiers RDBN
+/// du jeu (`parse` + `read_values`) → `encode_rdbn` → redécode → comparaison structurelle complète
+/// à l'original (noms de listes/types/champs ET valeurs), pas seulement auto-cohérence.
+pub fn encode_rdbn(lists: &[RdbnList]) -> Result<Vec<u8>, String> {
+    // `lists` vide est un cas RÉEL et valide (pas une erreur d'usage) : constaté sur le vrai jeu
+    // (`data/common/gamedata/soccer/soccer_common_text.cfg.bin`, 0 liste) — round-trip trouvé par
+    // `encode_rdbn_round_trip_sur_le_vrai_jeu`. Toutes les boucles ci-dessous itèrent naturellement
+    // 0 fois et produisent un fichier RDBN valide (header seul, tout à 0/vide), qui reredécode en
+    // `lists: []` — pas de cas particulier à coder.
+
+    // ── 1. Pool de chaînes "nommées" (résolues par hash CRC32 à la lecture) : noms de listes,
+    //    noms de types (FIX — cf. doc), noms de champs. Dédupliqué par CRC32, même convention que
+    //    `encode_t2b::intern_key`.
+    let mut name_order: Vec<(u32, String)> = Vec::new();
+    let mut name_seen: BTreeMap<u32, ()> = BTreeMap::new();
+    let mut intern_name = |name: &str| -> u32 {
+        let hash = crc32(name.as_bytes());
+        if name_seen.insert(hash, ()).is_none() {
+            name_order.push((hash, name.to_string()));
+        }
+        hash
+    };
+
+    let list_name_hashes: Vec<u32> = lists.iter().map(|l| intern_name(&l.name)).collect();
+    let type_name_hashes: Vec<u32> = lists.iter().map(|l| intern_name(&l.type_name)).collect();
+
+    // ── 2. Layouts + table de champs globale (un type par liste, pas de déduplication — même
+    //    simplification que le writer C++ source, suffisante pour un round-trip valide).
+    struct RdbnTypeInfo {
+        field_start: i16,
+        field_count: i16,
+    }
+    struct RdbnFieldInfo {
+        hash: u32,
+        wire_type: i16,
+        size: i32,
+        offset: i32,
+    }
+
+    let mut types_info: Vec<RdbnTypeInfo> = Vec::with_capacity(lists.len());
+    let mut all_fields: Vec<RdbnFieldInfo> = Vec::new();
+    let mut layouts: Vec<RdbnTypeLayout> = Vec::with_capacity(lists.len());
+
+    for list in lists {
+        let layout = rdbn_compute_layout(list)?;
+        let field_start = all_fields.len() as i16;
+        let mut field_count = 0i16;
+        if let Some(reference) = list.rows.first() {
+            for (i, (name, _)) in reference.fields.iter().enumerate() {
+                let hash = intern_name(name);
+                let fl = &layout.fields[i];
+                all_fields.push(RdbnFieldInfo { hash, wire_type: fl.wire_type, size: fl.size, offset: fl.offset });
+            }
+            field_count = reference.fields.len() as i16;
+        }
+        types_info.push(RdbnTypeInfo { field_start, field_count });
+        layouts.push(layout);
+    }
+
+    // ── 3. Chaînes de type Condition : pool séparé, dédupliqué par CONTENU (référencées par
+    //    offset direct dans le blob, pas par hash — cf. `read_condition_value`), dans l'ordre de
+    //    première apparition sur TOUTES les lignes (pas seulement la ligne de référence).
+    let mut cond_order: Vec<String> = Vec::new();
+    let mut cond_seen: BTreeMap<String, ()> = BTreeMap::new();
+    for list in lists {
+        for row in &list.rows {
+            for (_, v) in &row.fields {
+                if let RdbnValue::Condition(s) = v
+                    && cond_seen.insert(s.clone(), ()).is_none()
+                {
+                    cond_order.push(s.clone());
+                }
+            }
+        }
+    }
+
+    // ── 4. Assembler la string table : noms (résolubles par hash) puis chaînes Condition
+    //    (résolubles par offset direct), dans un seul blob contigu — même convention que
+    //    `read_condition_value` (`string_abs + valeur`).
+    let mut str_blob: Vec<u8> = Vec::new();
+    let mut str_hashes: Vec<u32> = Vec::with_capacity(name_order.len());
+    let mut str_offsets: Vec<i32> = Vec::with_capacity(name_order.len());
+    for (hash, name) in &name_order {
+        str_hashes.push(*hash);
+        str_offsets.push(str_blob.len() as i32);
+        str_blob.extend_from_slice(name.as_bytes());
+        str_blob.push(0);
+    }
+    let name_strings_size = str_blob.len() as i32;
+
+    let mut cond_pool: BTreeMap<String, i32> = BTreeMap::new();
+    let mut cond_pos = name_strings_size;
+    for s in &cond_order {
+        cond_pool.insert(s.clone(), cond_pos);
+        str_blob.extend_from_slice(s.as_bytes());
+        str_blob.push(0);
+        cond_pos += s.len() as i32 + 1;
+    }
+
+    // ── 5. Encoder les valeurs (une fois le pool Condition finalisé, ses offsets sont stables).
+    let mut values_blob: Vec<u8> = Vec::new();
+    let mut root_val_offsets: Vec<i32> = Vec::with_capacity(lists.len());
+    let mut root_val_sizes: Vec<i32> = Vec::with_capacity(lists.len());
+    let mut root_val_counts: Vec<i32> = Vec::with_capacity(lists.len());
+
+    for (li, list) in lists.iter().enumerate() {
+        let layout = &layouts[li];
+        root_val_offsets.push(values_blob.len() as i32);
+        root_val_sizes.push(layout.record_size);
+        root_val_counts.push(list.rows.len() as i32);
+
+        let Some(reference) = list.rows.first() else { continue };
+        for (ri, row) in list.rows.iter().enumerate() {
+            if row.fields.len() != reference.fields.len() {
+                return Err(alloc::format!(
+                    "liste {:?} : ligne {ri} a {} champ(s), {} attendu(s) (schéma de la 1re ligne)",
+                    list.name,
+                    row.fields.len(),
+                    reference.fields.len()
+                ));
+            }
+            let start = values_blob.len();
+            values_blob.resize(start + layout.record_size as usize, 0);
+            for (fi, (name, value)) in row.fields.iter().enumerate() {
+                let (ref_name, _) = &reference.fields[fi];
+                if name != ref_name {
+                    return Err(alloc::format!(
+                        "liste {:?} : ligne {ri} champ {fi} nommé {name:?}, attendu {ref_name:?} (schéma hétérogène)",
+                        list.name
+                    ));
+                }
+                let fl = &layout.fields[fi];
+                // Compatible avec le type de COLONNE (`fl.wire_type`, déterminé sur toutes les
+                // lignes par `rdbn_column_wire_type`), pas avec le type de la ligne de référence
+                // seule — cf. sa doc : une colonne `Condition` (20) admet légitimement des lignes
+                // `Condition(String)` ET `Hash(u32)` (valeur non résolue), qui ne sont PAS des
+                // types de champ différents dans le fichier d'origine.
+                let compatible = match value {
+                    RdbnValue::Condition(_) => fl.wire_type == 20,
+                    RdbnValue::Hash(_) => fl.wire_type == 20 || fl.wire_type == 15,
+                    other => rdbn_value_wire(other)?.0 == fl.wire_type,
+                };
+                if !compatible {
+                    return Err(alloc::format!(
+                        "liste {:?} : ligne {ri} champ {name:?} de type incompatible avec la colonne (schéma hétérogène)",
+                        list.name
+                    ));
+                }
+                let field_start = start + fl.offset as usize;
+                let out = &mut values_blob[field_start..field_start + fl.size as usize];
+                rdbn_encode_value(value, out, &cond_pool)?;
+            }
+        }
+    }
+
+    // ── 6. Calculer les offsets des sections (mêmes conventions que [`parse`] : tout relatif à
+    //    `data_offset`, sections type/field/root/hash/offsets stockées en "mots" ×4, valeurs et
+    //    chaînes en octets bruts).
+    const HEADER_SIZE: i32 = 0x50;
+    let data_offset = HEADER_SIZE;
+
+    let type_pos = 0i32;
+    let type_size = types_info.len() as i32 * ENTRY_SIZE as i32;
+    let field_pos = type_pos + type_size;
+    let field_size = all_fields.len() as i32 * ENTRY_SIZE as i32;
+    let root_pos = field_pos + field_size;
+    let root_size = lists.len() as i32 * ENTRY_SIZE as i32;
+    let hash_pos = root_pos + root_size;
+    let hash_size = str_hashes.len() as i32 * 4;
+    let offs_pos = hash_pos + hash_size;
+    let offs_size = str_offsets.len() as i32 * 4;
+    let value_pos = offs_pos + offs_size;
+    let value_size = values_blob.len() as i32;
+    let string_pos = value_pos + value_size;
+    let string_size = str_blob.len() as i32;
+    let total_data = string_pos + string_size;
+    let total_file = data_offset + total_data;
+
+    // ── 7. Assembler le fichier.
+    let mut out = alloc::vec![0u8; total_file as usize];
+    out[0..4].copy_from_slice(b"RDBN");
+    out[0x04..0x06].copy_from_slice(&(HEADER_SIZE as u16).to_le_bytes());
+    out[0x06..0x0A].copy_from_slice(&100i32.to_le_bytes()); // version = 100 (0x64)
+    out[0x0A..0x0C].copy_from_slice(&((data_offset / 4) as u16).to_le_bytes());
+    out[0x0C..0x10].copy_from_slice(&(total_data as u32).to_le_bytes());
+    out[0x24..0x26].copy_from_slice(&((type_pos / 4) as u16).to_le_bytes());
+    out[0x26..0x28].copy_from_slice(&(types_info.len() as u16).to_le_bytes());
+    out[0x28..0x2A].copy_from_slice(&((field_pos / 4) as u16).to_le_bytes());
+    out[0x2A..0x2C].copy_from_slice(&(all_fields.len() as u16).to_le_bytes());
+    out[0x2C..0x2E].copy_from_slice(&((root_pos / 4) as u16).to_le_bytes());
+    out[0x2E..0x30].copy_from_slice(&(lists.len() as u16).to_le_bytes());
+    out[0x30..0x32].copy_from_slice(&((hash_pos / 4) as u16).to_le_bytes());
+    out[0x32..0x34].copy_from_slice(&((offs_pos / 4) as u16).to_le_bytes());
+    out[0x34..0x36].copy_from_slice(&(str_hashes.len() as u16).to_le_bytes());
+    out[0x36..0x38].copy_from_slice(&((value_pos / 4) as u16).to_le_bytes());
+    out[0x38..0x3C].copy_from_slice(&string_pos.to_le_bytes());
+
+    for (i, t) in types_info.iter().enumerate() {
+        let base = (data_offset + type_pos) as usize + i * ENTRY_SIZE;
+        out[base..base + 4].copy_from_slice(&type_name_hashes[i].to_le_bytes());
+        out[base + 8..base + 10].copy_from_slice(&t.field_start.to_le_bytes());
+        out[base + 10..base + 12].copy_from_slice(&t.field_count.to_le_bytes());
+    }
+
+    for (i, f) in all_fields.iter().enumerate() {
+        let base = (data_offset + field_pos) as usize + i * ENTRY_SIZE;
+        out[base..base + 4].copy_from_slice(&f.hash.to_le_bytes());
+        out[base + 4..base + 6].copy_from_slice(&f.wire_type.to_le_bytes());
+        out[base + 8..base + 12].copy_from_slice(&f.size.to_le_bytes());
+        out[base + 12..base + 16].copy_from_slice(&f.offset.to_le_bytes());
+    }
+
+    for i in 0..lists.len() {
+        let base = (data_offset + root_pos) as usize + i * ENTRY_SIZE;
+        out[base..base + 2].copy_from_slice(&(i as i16).to_le_bytes());
+        out[base + 4..base + 8].copy_from_slice(&root_val_offsets[i].to_le_bytes());
+        out[base + 8..base + 12].copy_from_slice(&root_val_sizes[i].to_le_bytes());
+        out[base + 12..base + 16].copy_from_slice(&root_val_counts[i].to_le_bytes());
+        out[base + 16..base + 20].copy_from_slice(&list_name_hashes[i].to_le_bytes());
+    }
+
+    for (i, h) in str_hashes.iter().enumerate() {
+        let base = (data_offset + hash_pos) as usize + i * 4;
+        out[base..base + 4].copy_from_slice(&h.to_le_bytes());
+    }
+    for (i, o) in str_offsets.iter().enumerate() {
+        let base = (data_offset + offs_pos) as usize + i * 4;
+        out[base..base + 4].copy_from_slice(&o.to_le_bytes());
+    }
+
+    let vbase = (data_offset + value_pos) as usize;
+    out[vbase..vbase + values_blob.len()].copy_from_slice(&values_blob);
+    let sbase = (data_offset + string_pos) as usize;
+    out[sbase..sbase + str_blob.len()].copy_from_slice(&str_blob);
+
+    let _ = (field_size, root_size, offs_size, value_size, string_size);
+    Ok(out)
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -1249,5 +1808,141 @@ mod tests {
         ];
         let r = parse_t2b(&data);
         assert!(r.is_err(), "données chiffrées doivent échouer proprement, got {r:?}");
+    }
+
+    // -------------------------------------------------------------------
+    // encode_t2b : round-trip sur de VRAIS fichiers du jeu (pas de fixture synthétique) —
+    // seule preuve valable qu'un encodeur écrit sans avoir jamais existé n'est pas deviné.
+    // -------------------------------------------------------------------
+
+    /// Décode un vrai `.cfg.bin` T2B du jeu → réencode via [`encode_t2b`] → redécode avec
+    /// [`parse_t2b`] (le décodeur déjà vérifié) → compare l'arbre obtenu à l'original. Ne vise
+    /// PAS un round-trip octet-identique du FICHIER (l'agencement exact de l'outil Level-5
+    /// d'origine n'est pas reversé), mais un arbre `entries`/`variables`/`children` STRICTEMENT
+    /// identique — la seule chose qui compte pour qu'un fichier réencodé reste lisible par le
+    /// jeu avec le même contenu.
+    #[test]
+    fn encode_t2b_round_trip_sur_le_vrai_jeu() {
+        let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
+            "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road".to_string()
+        });
+        let data_dir = std::path::Path::new(&dir).join("data");
+        if !data_dir.join("cpk_list.cfg.bin").exists() {
+            eprintln!("skip encode_t2b_round_trip_sur_le_vrai_jeu : jeu absent");
+            return;
+        }
+        let mut vfs = crate::vfs::Vfs::new();
+        vfs.init(&data_dir).expect("vfs init");
+
+        let candidates: Vec<String> = vfs
+            .iter()
+            .map(|(p, _)| p.to_string())
+            .filter(|p| (p.contains("/gamedata/") || p.contains("/text/")) && p.ends_with(".cfg.bin"))
+            .collect();
+        assert!(candidates.len() > 100, "attendu > 100 candidats, obtenu {}", candidates.len());
+
+        let step = (candidates.len() / 500).max(1);
+        let mut n_t2b = 0usize;
+        let mut n_ok = 0usize;
+        let mut failed: Vec<(String, String)> = Vec::new();
+        for path in candidates.iter().step_by(step) {
+            let Ok(bytes) = vfs.read(path) else { continue };
+            if is_rdbn(&bytes) {
+                continue; // ce test cible T2B uniquement — RDBN a son propre encodeur à écrire.
+            }
+            let Ok(original) = parse_t2b(&bytes) else { continue }; // fichier non-T2B/illisible, hors périmètre
+            n_t2b += 1;
+
+            let reencoded = encode_t2b(&original.entries);
+            match parse_t2b(&reencoded) {
+                Ok(roundtripped) => {
+                    if roundtripped.entries == original.entries {
+                        n_ok += 1;
+                    } else {
+                        failed.push((path.clone(), "arbre différent après round-trip".to_string()));
+                    }
+                }
+                Err(e) => failed.push((path.clone(), alloc::format!("redécodage échoué : {e}"))),
+            }
+        }
+
+        eprintln!("encode_t2b round-trip : {n_ok}/{n_t2b} identiques (sur {} candidats, pas={step})", candidates.len());
+        for (p, e) in failed.iter().take(10) {
+            eprintln!("  échec {p} : {e}");
+        }
+        assert!(n_t2b > 5, "attendu au moins quelques fichiers T2B réels dans l'échantillon, obtenu {n_t2b}");
+        assert_eq!(n_ok, n_t2b, "{} échec(s) de round-trip sur {n_t2b} fichiers T2B réels", failed.len());
+    }
+
+    // -------------------------------------------------------------------
+    // encode_rdbn : round-trip sur de VRAIS fichiers RDBN du jeu — même exigence de preuve que
+    // encode_t2b_round_trip_sur_le_vrai_jeu (un encodeur porté depuis une source externe non
+    // vérifiée par le vrai jeu ne compte pas comme fait tant qu'il n'est pas confronté au vrai
+    // lecteur `parse`/`read_values`).
+    // -------------------------------------------------------------------
+
+    /// Décode un vrai `.cfg.bin` RDBN du jeu (`parse` + `read_values`) → réencode via
+    /// [`encode_rdbn`] → redécode avec le MÊME lecteur → compare les `RdbnList` obtenues à
+    /// l'original (noms de listes/types/champs ET valeurs). Ne vise pas un round-trip
+    /// octet-identique du fichier (agencement de l'outil Level-5 d'origine non reversé, table de
+    /// types non dédupliquée), mais un contenu logique STRICTEMENT identique.
+    #[test]
+    fn encode_rdbn_round_trip_sur_le_vrai_jeu() {
+        let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
+            "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road".to_string()
+        });
+        let data_dir = std::path::Path::new(&dir).join("data");
+        if !data_dir.join("cpk_list.cfg.bin").exists() {
+            eprintln!("skip encode_rdbn_round_trip_sur_le_vrai_jeu : jeu absent");
+            return;
+        }
+        let mut vfs = crate::vfs::Vfs::new();
+        vfs.init(&data_dir).expect("vfs init");
+
+        let candidates: Vec<String> = vfs
+            .iter()
+            .map(|(p, _)| p.to_string())
+            .filter(|p| (p.contains("/gamedata/") || p.contains("/text/")) && p.ends_with(".cfg.bin"))
+            .collect();
+        assert!(candidates.len() > 100, "attendu > 100 candidats, obtenu {}", candidates.len());
+
+        // Pas plus fin que le test T2B : le RDBN est nettement plus rare parmi les `.cfg.bin`
+        // (constaté : 3 RDBN pour ~500 échantillons au pas `/500`) — `/5000` échantillonne assez
+        // pour dépasser le seuil `n_rdbn > 5` ci-dessous, sans scanner les 50k+ candidats.
+        let step = (candidates.len() / 5000).max(1);
+        let mut n_rdbn = 0usize;
+        let mut n_ok = 0usize;
+        let mut failed: Vec<(String, String)> = Vec::new();
+        for path in candidates.iter().step_by(step) {
+            let Ok(bytes) = vfs.read(path) else { continue };
+            if !is_rdbn(&bytes) {
+                continue; // ce test cible RDBN uniquement.
+            }
+            let Ok(rdbn) = parse(&bytes) else { continue }; // fichier illisible, hors périmètre
+            n_rdbn += 1;
+            let original = read_values(&rdbn, &bytes);
+
+            match encode_rdbn(&original) {
+                Ok(reencoded) => match parse(&reencoded) {
+                    Ok(rdbn2) => {
+                        let roundtripped = read_values(&rdbn2, &reencoded);
+                        if roundtripped == original {
+                            n_ok += 1;
+                        } else {
+                            failed.push((path.clone(), "listes différentes après round-trip".to_string()));
+                        }
+                    }
+                    Err(e) => failed.push((path.clone(), alloc::format!("redécodage échoué : {e}"))),
+                },
+                Err(e) => failed.push((path.clone(), alloc::format!("encode_rdbn échoué : {e}"))),
+            }
+        }
+
+        eprintln!("encode_rdbn round-trip : {n_ok}/{n_rdbn} identiques (sur {} candidats, pas={step})", candidates.len());
+        for (p, e) in failed.iter().take(10) {
+            eprintln!("  échec {p} : {e}");
+        }
+        assert!(n_rdbn > 5, "attendu au moins quelques fichiers RDBN réels dans l'échantillon, obtenu {n_rdbn}");
+        assert_eq!(n_ok, n_rdbn, "{} échec(s) de round-trip sur {n_rdbn} fichiers RDBN réels", failed.len());
     }
 }

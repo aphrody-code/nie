@@ -183,15 +183,18 @@ export function SearchView({ onOpenFile }: { onOpenFile: (path: string) => void 
         </Alert>
       ))}
 
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="flex flex-col gap-2">
+      <ScrollArea className="min-h-0 flex-1 rounded-xl bg-surface-container-low elevation-1">
+        <div className="flex flex-col gap-2 p-2">
           {results.map((r, i) => {
             const code = r.internal_code ?? "";
             return (
-              <div key={`${r.source}-${r.id}-${i}`} className="rounded-md border p-3">
+              <div
+                key={`${r.source}-${r.id}-${i}`}
+                className="rounded-xl border border-outline-variant/40 bg-surface-container p-3"
+              >
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium">{r.name_fr ?? r.name_en ?? r.name_ja ?? "?"}</span>
-                  {r.name_en && <span className="text-sm text-muted-foreground">{r.name_en}</span>}
+                  <span className="type-title-small text-on-surface">{r.name_fr ?? r.name_en ?? r.name_ja ?? "?"}</span>
+                  {r.name_en && <span className="type-body-small text-on-surface-variant">{r.name_en}</span>}
                   <Badge variant={r.source === "azalee" ? "default" : "secondary"}>
                     {r.source === "azalee" ? "distant · azalee" : "local"}
                   </Badge>
@@ -200,7 +203,7 @@ export function SearchView({ onOpenFile }: { onOpenFile: (path: string) => void 
                   {r.position && <Badge variant="outline">{r.position}</Badge>}
                   {r.category && <Badge variant="outline">{r.category}</Badge>}
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">
+                <p className="mt-1 type-body-small text-on-surface-variant">
                   ID {r.id} {code && <>· code {code}</>}
                 </p>
                 {code && (
@@ -209,12 +212,15 @@ export function SearchView({ onOpenFile }: { onOpenFile: (path: string) => void 
                       Fichiers VFS liés
                     </Button>
                     {related[code] && (
-                      <ul className="mt-2 max-h-40 space-y-0.5 overflow-auto rounded border bg-muted/20 p-1 font-mono text-[11px]">
-                        {related[code].length === 0 && <li className="text-muted-foreground">aucun fichier trouvé</li>}
+                      <ul className="mt-2 max-h-40 space-y-0.5 overflow-auto rounded-lg border border-outline-variant/40 bg-surface-container-low p-1 font-mono text-[11px]">
+                        {related[code].length === 0 && <li className="text-on-surface-variant">aucun fichier trouvé</li>}
                         {related[code].map((f) => (
                           <li key={f.path}>
-                            <button className="w-full truncate text-left hover:underline" onClick={() => onOpenFile(f.path)}>
-                              {f.path} <span className="text-muted-foreground">({humanSize(f.size)})</span>
+                            <button
+                              className="state-layer w-full truncate rounded px-1 text-left text-on-surface hover:underline"
+                              onClick={() => onOpenFile(f.path)}
+                            >
+                              {f.path} <span className="text-on-surface-variant">({humanSize(f.size)})</span>
                             </button>
                           </li>
                         ))}
@@ -226,7 +232,7 @@ export function SearchView({ onOpenFile }: { onOpenFile: (path: string) => void 
             );
           })}
           {!loading && results.length === 0 && notices.length === 0 && (
-            <p className="p-3 text-sm text-muted-foreground">Aucun résultat pour l'instant.</p>
+            <p className="p-3 type-body-medium text-on-surface-variant">Aucun résultat pour l'instant.</p>
           )}
         </div>
       </ScrollArea>
