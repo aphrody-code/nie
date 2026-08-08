@@ -25,7 +25,17 @@ import pefile
 from iced_x86 import Decoder, FlowControl, Formatter, FormatterSyntax, Mnemonic, OpKind, Register
 
 ROOT = Path(__file__).resolve().parent.parent
-EXE = Path.home() / ".local/share/Steam/iecode/inazuma/nie_eacpatched.exe"
+# Chemin VPS historique (Linux). Sur un autre poste (ex. Windows, install Steam locale), ce chemin
+# n'existe pas : on retombe sur `<repo>/nie.exe` (installation Steam locale du jeu, à côté du repo
+# niers) puis, en dernier recours, sur un `NIE_EXE` explicite — pas de chemin en dur unique qui casse
+# selon la machine.
+_VPS_EXE = Path.home() / ".local/share/Steam/iecode/inazuma/nie_eacpatched.exe"
+import os as _os
+EXE = (
+    Path(_os.environ["NIE_EXE"]) if _os.environ.get("NIE_EXE")
+    else _VPS_EXE if _VPS_EXE.exists()
+    else ROOT / "nie.exe"
+)
 HANDLERS = ROOT / "data/re/funclua-cmdid-handlers.json"
 MENU_HOST = ROOT / "crates/nie-lua/src/menu_host.rs"
 LUA = ROOT / "data/lua_scripts/decompiled"

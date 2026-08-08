@@ -414,6 +414,40 @@ const ARG_GUARDED_RETURN1: &[u32] = &[
     // 4ᵉ lot (triage top-90, freq 8-12 — traîne, mêmes critères CF `RETURN_1_SAFE`) :
     0x346C_6F21, 0x3DEA_5990, 0x8DC6_915F, 0x10E5_D8F7, 0xA62A_42F6, 0xCE98_7192,
     0x8330_11BA, 0x6E33_C050, 0xC423_2044, 0x5E61_58CE, 0xED9F_084F, 0x46CC_4A4E,
+    // 5ᵉ lot (triage EXHAUSTIF, `TOP_N=544` = tous les cmdId distincts du corpus Lua décompilé
+    // local `data/lua_scripts/decompiled` — plus une fréquence-top partielle : la QUEUE COMPLÈTE
+    // de fréquence 1 à 8, 157 cmdId, mêmes critères CF `RETURN_1_SAFE` que les lots précédents
+    // (0 dupli vérifié contre `REVERSED_RETURN1`/`ARG_GUARDED_RETURN1`/tous les `const CMD_*`,
+    // scripté). Générée depuis CE binaire (`nie.exe`, poste local — build distinct du VPS,
+    // cf. note de dérive sur `extract_funclua_table.py` : cmdId stables, VAs handler non
+    // reproduites ici pour la même raison qu'ailleurs) :
+    0x704D_3F44, 0x9C38_0A20, 0xA3F8_CBC2, 0x27CE_10D5, 0x1A1E_8481, 0xB560_76D5,
+    0x43B4_15CB, 0x0402_8181, 0xDC38_D0CE, 0x87C6_526A, 0x9067_1259, 0x47BE_CF41,
+    0x7D2E_F53D, 0x2985_85E8, 0x9231_3999, 0xAEBA_2FCC, 0x2B24_A5F2, 0xE279_A319,
+    0x0779_7481, 0xD2AE_5D71, 0x26E2_984E, 0xB22E_7075, 0x6397_69A0, 0xE203_F5CB,
+    0x21D8_254D, 0x7865_D899, 0x491A_9686, 0x11D3_F2B0, 0x3B42_7E07, 0x6000_F8CC,
+    0xC491_114F, 0xF2C9_3CBF, 0x4744_8D22, 0x3C13_B1A9, 0xBC8A_A17C, 0xD1AD_E9EC,
+    0x86BF_FC00, 0xD3C8_2DF1, 0x151B_2A75, 0x325F_AD2D, 0xD7F9_7333, 0xE47C_F232,
+    0xCCEF_905F, 0x3ACD_9BDD, 0x4D46_2061, 0x683C_63BE, 0x1113_7C0A, 0x7423_16EA,
+    0x5E4A_F876, 0xC226_E0F5, 0xBC66_644D, 0x67EF_F3D5, 0x7452_1FA8, 0xF34C_605A,
+    0x53EE_5D32, 0x6FFF_EF0D, 0x74C1_60DC, 0x9513_85F7, 0x29AA_03D0, 0x94F2_6D33,
+    0xB5D2_AB40, 0x201A_52F4, 0xC62B_C0D5, 0x174D_AA6F, 0x46EC_3D1F, 0xE128_306E,
+    0xAD65_4670, 0x15E0_78F6, 0x619B_6CED, 0x0DC6_BA89, 0xD5F9_5DB4, 0xEB49_D3AF,
+    0xEB5F_D66B, 0x27C6_E1BF, 0xCA24_5B91, 0x17F9_CB58, 0xB6B5_858A, 0x722D_7998,
+    0x20C2_BA1E, 0xFAEF_37F2, 0x967B_7AF6, 0xF6F2_2985, 0xDF24_7C88, 0x6127_005B,
+    0xEAF4_C7BB, 0x0781_09CF, 0x2717_6B13, 0x9449_FE94, 0x99A4_EE6E, 0x0B43_2863,
+    0x53C1_ED53, 0x0435_994B, 0xFCD9_A689, 0x5ADD_E5A1, 0x4D34_5E45, 0x0BD4_BBAB,
+    0xD481_4C29, 0xEBC9_20E9, 0x9720_E23E, 0x1894_3A27, 0xD084_539E, 0x7B78_E1F8,
+    0x68F4_3836, 0x2950_2913, 0x959E_3B57, 0xDC41_A109, 0x28D9_F70C, 0xE3E1_EFC9,
+    0x22AD_7E4E, 0x2BED_3772, 0x74B5_7B1B, 0x692A_0860, 0x7F24_53AD, 0x7AC2_7410,
+    0x372D_7405, 0xE601_A78E, 0xA755_D37A, 0x66A3_B0F0, 0x4C7B_AB54, 0x4814_6670,
+    0xE696_EC94, 0x5E09_B029, 0xE505_E9BE, 0x8942_2FF6, 0x0908_4D9D, 0xB712_39A7,
+    0xFC69_B83A, 0x236C_57DA, 0x132B_557E, 0xE0CB_B108, 0x3F8F_C487, 0xA935_727C,
+    0xBF65_B63A, 0x65F3_7D62, 0xD7BB_C76D, 0xBAA1_E3BA, 0xDE11_A9E0, 0xF4DF_6713,
+    0xEF67_FDD0, 0xA712_8BFD, 0xDB26_3BED, 0xA400_D7B7, 0x8365_AC99, 0xAA28_9F8C,
+    0xCBEA_CB36, 0xF994_7B44, 0x106C_DBDE, 0x853E_9EBB, 0xD834_8143, 0x094D_A7EF,
+    0x3B76_DD51, 0x6568_3DB5, 0x83BD_04A7, 0xD824_9AD1, 0xE2B2_8B6F, 0xE283_312E,
+    0xF318_85AE,
 ];
 
 /// Nom lisible d'un `cmdId` `funcLuaMenuCommand` reversé, ou `None` si non encore identifié.
@@ -1397,7 +1431,7 @@ mod dispatch_tests {
             let ret: f64 = menu_cmd(&lua).call::<f64>((f64::from(cid), 1.0)).unwrap();
             assert_eq!(ret, 1.0, "cmdId 0x{cid:08X} : handler renvoie AL=1");
         }
-        assert_eq!(ARG_GUARDED_RETURN1.len(), 38);
+        assert_eq!(ARG_GUARDED_RETURN1.len(), 195);
     }
 
     /// `RegisterItemListCount` (cmdId `0x16C1C4C0`) — handler `0x140CD8E30` REVERSÉ : enregistre
