@@ -1,0 +1,49 @@
+{
+	"$schema": "https://turborepo.dev/schema.json",
+	"globalDependencies": [
+		"bunfig.toml",
+		".oxlintrc.json",
+		".oxfmtrc.json",
+		"packages/config/tsconfig-base.json",
+		"packages/config/tsconfig-bun.json"
+	],
+	"globalPassThroughEnv": ["PATH", "HOME", "TERM", "CI", "GITHUB_ACTIONS", "DOTNET_ROLL_FORWARD"],
+	"ui": "stream",
+	"cacheDir": ".turbo/cache",
+	"tasks": {
+		"build": {
+			"dependsOn": ["^build"],
+			"inputs": ["$TURBO_DEFAULT$", "!**/*.test.ts", "!**/*.md"],
+			"outputs": ["dist/**", "bin/**", "obj/**"]
+		},
+		"dev": {
+			"cache": false,
+			"persistent": true,
+			"dependsOn": ["^build"]
+		},
+		"lint": {
+			"inputs": ["$TURBO_DEFAULT$", ".oxlintrc.json", "!**/*.md"],
+			"outputLogs": "hash-only",
+			"outputs": []
+		},
+		"lint:fix": {
+			"cache": false,
+			"outputs": []
+		},
+		"type-check": {
+			"dependsOn": ["^build"],
+			"inputs": ["$TURBO_DEFAULT$", "tsconfig.json", "!**/*.md"],
+			"outputLogs": "errors-only",
+			"outputs": []
+		},
+		"test": {
+			"dependsOn": ["build"],
+			"outputLogs": "new-only",
+			"outputs": ["coverage/**"]
+		},
+		"clean": {
+			"cache": false,
+			"outputs": []
+		}
+	}
+}

@@ -57,26 +57,17 @@ skills-lock.json
 .env.*.local
 .secrets/
 
-# Index RE généré (volumineux, reproductible depuis le binaire — cf. GitHub Release pour la
-# distribution packagée de niers.sqlite, pas de commit Git direct)
+
 /var
-*.sqlite
-*.sqlite-wal
-*.sqlite-shm
-*.rzdb
+
 
 # Artefacts RE bruts (ne JAMAIS committer le binaire du jeu ni ses dumps)
 nie.exe
-*.pdb
-/dumps
-/re/
-re/refs/
 
-# Le dossier racine EST l'installation Steam du jeu (niers travaille dessus in-place) — tout ce
-# qui vient de Steam/EAC/Epic/le launcher du jeu, jamais committé (© Level-5 / Valve / Epic /
-# Easy Anti-Cheat, pas nôtre à redistribuer).
+
+
+
 /EACLauncher.exe
-/EOSSDK-Win64-Shipping.dll
 /EasyAntiCheat/
 /EpicOnlineServices/
 /GameBootstrapper.exe
@@ -89,8 +80,7 @@ re/refs/
 /steam_input_for_*.vdf
 /install_script_*.vdf
 /uninstall/
-# Outil tiers (pas notre code, pas à nous de le redistribuer).
-/InazumaElevenVRSaveEditor.exe
+
 
 # Fragments réels du jeu pour tests golden (copyright Level-5) — local uniquement.
 # Présents sur disque pour `cargo test -p nie-formats --features real-fixtures` ;
