@@ -168,12 +168,20 @@ affiche les résultats dans une liste (chemin, taille, CPK conteneur), et import
 résultat sélectionné dans la scène si c'est un modèle (`.g4md`/`.g4pkm`) via le VRAI importeur
 `import_scene.level5_g4` — même correctif que §2.4.
 
-Le `-j/--json` de `niers vfs find` **référençait déjà ce fichier avant qu'il n'existe** (doc-comment
-Rust de `nie-cli` : « pour consommation programmatique (ex. `niers_bridge.py` de l'addon Blender
-`tools/niers`) ») — l'intention datait d'une session antérieure, jamais concrétisée côté Python
-(confirmé par lecture de l'historique complet du dépôt amont : aucun `niers_bridge.py` n'y a
-jamais existé). `--json` ajouté à `niers vfs find` (absent avant, seuls `chara`/`waza` l'avaient) —
-`FindJsonEntry {path, size, cpk}`, même convention compacte que `SearchJsonEntry`.
+Le `-j/--json` de `niers vfs find` **référençait déjà ce fichier avant qu'il n'existe DANS CE
+CHECKOUT** (doc-comment Rust de `nie-cli` : « pour consommation programmatique (ex.
+`niers_bridge.py` de l'addon Blender `tools/niers`) »). **Correction honnête (trouvé après coup en
+inspectant l'archive déjà publiée `niers-1.0.22.zip`, release GitHub v0.1.0)** : une PREMIÈRE
+version de `niers_bridge.py` avait réellement existé — contenu local non committé du submodule
+`tools/niers` supprimé par erreur (§2.4 ci-dessus, jamais dans l'historique du dépôt AMONT
+`The-RealBobi/G4_Blender`, ce qui reste exact — mais bien réel en local, un temps). Elle déléguait
+TOUT à `niers vfs chara`/`waza --json` (déjà existant, zéro logique de recherche en Python — plus
+strictement anti-doublon que la réécriture ci-dessous) mais appelait le même opérateur bogué que
+§2.4 (`level5_g4_port.load_original_model`). Cette réécriture ajoute le miroir SQLite + GraphQL
+azalee EN DIRECT (demande explicite, `niers vfs chara`/`waza` ne parle pas encore à azalee) avec
+le bon opérateur d'import. `--json` de `niers vfs find` lui-même est neuf (absent avant, seuls
+`chara`/`waza` l'avaient) — `FindJsonEntry {path, size, cpk}`, même convention compacte que
+`SearchJsonEntry`.
 
 `resolve_niers_exe` (nouvelle fonction) résout `niers.exe` dans l'ordre : préférence explicite
 (nouveau champ `niers_cli_path` de `G4ImporterPreferences`, exposé dans Préférences avec un
@@ -196,12 +204,18 @@ extension Blender ») → 2 patterns appliqués, pas juste lus** :
   récupérés côté client, sans relancer `niers.exe` (ex. restreindre à `.g4tx` parmi une recherche
   plus large). Sans ce `filter_items`, le filtre par défaut de `UIList` chercherait une propriété
   `name` que `NiersBridgeResult` n'a pas (elle a `path`) — jamais de correspondance.
-- **Écarté après recherche, pas retenu** : migration vers `blender_manifest.toml` (Extensions
-  Platform 4.2+, permissions `files` déclarées) — changement de format de **tout** l'addon amont
-  (risque/portée disproportionnés pour ce cycle, l'addon vendorisé reste `bl_info` legacy,
-  toujours supporté) ; hooks Python de l'Asset Browser — API non stabilisée par l'équipe Blender
-  au moment de la recherche (« aucun plan concret pour ces hooks », blog développeurs Blender,
-  juillet 2026), rien d'utilisable aujourd'hui.
+- **Corrigé après coup** : `blender_manifest.toml` avait d'abord été jugé « écarté » (portée
+  disproportionnée) faute de savoir qu'un manifeste **existait déjà** — validé via `blender
+  --command extension validate/build` dans une session antérieure, perdu avec le submodule
+  supprimé par erreur, mais récupérable dans l'archive déjà publiée (`niers-1.0.22.zip`, release
+  v0.1.0). **Restauré** (`tools/niers/blender_manifest.toml`, `version="1.1.0"`, permission
+  `network` ajoutée pour azalee, `permissions.files` étendue au miroir SQLite) — coexiste avec le
+  `bl_info` legacy (les deux formats peuvent cohabiter, Blender préfère le manifeste dès qu'il est
+  présent). `paths_exclude_pattern` (PAS `paths_exclude_glob`, piège déjà documenté dans le
+  fichier — vérifié empiriquement dans la session d'origine) exclut `img/`/`tests/`/`__pycache__`.
+- **Écarté après recherche, pas retenu** : hooks Python de l'Asset Browser — API non stabilisée
+  par l'équipe Blender au moment de la recherche (« aucun plan concret pour ces hooks », blog
+  développeurs Blender, juillet 2026), rien d'utilisable aujourd'hui.
 
 **Vérifié par des tests réels `blender.exe` GUI complète** (pas `--background` : un opérateur
 modal a besoin d'une fenêtre pour `event_timer_add`/`modal_handler_add`, absente en background) —

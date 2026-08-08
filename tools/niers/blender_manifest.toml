@@ -1,0 +1,78 @@
+# Manifeste d'extension Blender (plateforme Extensions, Blender ≥4.2) pour `niers`
+# (dossier `tools/niers`, ex-`tools/G4_Blender`, renommé pour l'intégration niers — cf.
+# `niers_bridge.py` : recherche fichiers/chara/waza (VFS + miroir SQLite + azalee), import
+# direct). Le DÉCODAGE G4 sous-jacent (parsers G4MD/G4MG/G4SK/G4MT/G4PKM) reste le travail
+# amont de Bobi (github.com/The-RealBobi/G4_Blender) — attribution en `copyright` ci-dessous.
+#
+# Restauré 2026-08-08 : ce fichier existait dans une session antérieure (validé via `blender
+# --command extension validate/build`, cf. `niers-1.0.22.zip` de la release GitHub v0.1.0) mais
+# n'était tracké QUE dans le contenu local (non committé) d'un submodule Git depuis supprimé par
+# erreur — perdu avec lui, récupéré ici en le ré-extrayant de l'archive de release déjà publiée
+# plutôt que réécrit de mémoire (`paths_exclude_pattern`, pas `paths_exclude_glob` : vérifié
+# empiriquement dans la session d'origine, cf. commentaire `[build]` plus bas).
+#
+# Modernisation locale d'un addon tiers non licencié en amont (`license` GitHub = null, aucun
+# fichier LICENSE) — republication + modification confirmées autorisées par le propriétaire du
+# projet niers (cf. `NIERS_VENDORING_NOTE.md`). `license` ci-dessous (GPL-3.0-or-later) reflète
+# la convention de facto de l'écosystème addons Blender pour tout code important `bpy` (Blender
+# lui-même est GPL) — PAS une affirmation sur l'intention réelle de l'auteur amont (Bobi).
+#
+# Schéma de référence : https://docs.blender.org/manual/en/latest/advanced/extensions/getting_started.html
+# et https://developer.blender.org/docs/features/extensions/api_listing/v1/ (vérifiés 2026-08).
+
+schema_version = "1.0.0"
+
+id = "niers"
+version = "1.1.0"
+name = "niers"
+tagline = "Assets Level-5 G4 (Inazuma Eleven VR) + recherche VFS/azalee"
+maintainer = "niers — décodage G4 amont par Bobi (github.com/The-RealBobi/G4_Blender)"
+type = "add-on"
+website = "https://github.com/rose-griffon/niers"
+
+tags = [
+	"Import-Export",
+	"Animation",
+	"Rigging",
+]
+
+# Extensions n'existe qu'à partir de 4.2 ; le code lui-même visait 4.0 en legacy add-on
+# (ancien bl_info, conservé en parallèle — un addon peut avoir les deux formats, cf. `__init__.py`).
+blender_version_min = "4.2.0"
+
+license = [
+	"SPDX:GPL-3.0-or-later",
+]
+copyright = [
+	"2026 Bobi",
+]
+
+# Aucune roue tierce : dépendances = bibliothèque standard Python (dont `sqlite3`/`urllib`,
+# ajoutées 2026-08-08 pour `niers_bridge.py`) + bpy/mathutils (fournis par Blender). Vérifié par
+# grep sur tous les fichiers de l'addon.
+# wheels = []
+
+[permissions]
+files = "Lit/ecrit les G4MD/G4MG/G4SK/G4PKM + le miroir wiki SQLite"
+network = "Recherche personnage/technique via l'API azalee.rosegriffon.fr"
+
+[build]
+# Exclut les artefacts de développement du paquet d'extension (tests, cache Python, images de
+# documentation) — n'affecte pas l'usage actuel (import direct via sys.path, hors installeur).
+# Clé et syntaxe (gitignore-like) vérifiées empiriquement via
+# `blender --command extension build` (`paths_exclude_glob` — nom initialement deviné — est
+# silencieusement ignoré par Blender, RIEN n'est exclu ; la vraie clé est
+# `paths_exclude_pattern`, confirmée par un build réel où tests/img/__pycache__ disparaissent).
+paths_exclude_pattern = [
+	"__pycache__/",
+	"tests/",
+	"img/",
+	"*.pyc",
+	# Déclarer `paths_exclude_pattern` REMPLACE le défaut Blender (qui inclut déjà ces 3) plutôt
+	# que de l'étendre — vérifié empiriquement (`.git`/`.gitattributes`/`.gitignore` du
+	# sous-module se sont retrouvés dans le .zip tant qu'ils n'étaient pas listés ici).
+	".git",
+	".gitattributes",
+	".gitignore",
+	"NIERS_VENDORING_NOTE.md",
+]
