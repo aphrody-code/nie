@@ -337,6 +337,17 @@ export const commands = {
 	/** Installe/active l'extension Blender `niers` pour de vrai (dossier d'addons utilisateur, pas le bootstrap transitoire d'`openInBlender`) et lie `raw_data_root` au vrai `<jeu>/data`, persisté (`save_userpref`). */
 	installNiersBlenderAddon: (blenderExe: string | null, gameDir: string | null) =>
 		typedError<string, string>(__TAURI_INVOKE("install_niers_blender_addon", { blenderExe, gameDir })),
+	/**  Ouvre N'IMPORTE QUEL `.blend` local en headless, cadre une caméra et rend un aperçu PNG base64. */
+	blenderPreviewPngB64: (path: string, blenderExe: string | null) =>
+		typedError<string, string>(__TAURI_INVOKE("blender_preview_png_b64", { path, blenderExe })),
+	/**  Ouvre un `.blend` dans le vrai Blender GUI (process séparé, non bloquant). */
+	blenderOpenScene: (path: string, blenderExe: string | null) =>
+		typedError<null, string>(__TAURI_INVOKE("blender_open_scene", { path, blenderExe })),
+	/**  Construit une scène Blender réelle : personnage (`internalCode`) + cut-in de technique (`skillQuery`). */
+	blenderBuildSkillScene: (internalCode: string, skillQuery: string, blenderExe: string | null, gameDir: string | null) =>
+		typedError<BlenderSceneResultDto, string>(
+			__TAURI_INVOKE("blender_build_skill_scene", { internalCode, skillQuery, blenderExe, gameDir })
+		),
 };
 
 /* Types */
@@ -500,6 +511,14 @@ export type StatsDto = {
 	extra_count: number,
 	loose_count: number,
 	top_ext: ([string, number])[],
+};
+
+export type BlenderSceneResultDto = {
+	blend_path: string,
+	preview_png_b64: string | null,
+	skill_name: string,
+	event_id_name: string,
+	warnings: string[],
 };
 
 /* Tauri Specta runtime */

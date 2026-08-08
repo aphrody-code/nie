@@ -4,7 +4,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { check as checkUpdate, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { toast } from "sonner";
-import { api, type VfsStats } from "@/lib/api";
+import { api, type BlenderSceneResult, type VfsStats } from "@/lib/api";
 import { vfsIndexDb, type VfsIndexMeta } from "@/lib/vfsIndexDb";
 import { getSettings, setSettings, useSettings, type Locale } from "@/lib/settings";
 import { useT, LOCALE_LABELS } from "@/lib/i18n";
@@ -63,6 +63,12 @@ export function SettingsView() {
   const [reindexing, setReindexing] = useState(false);
   const [reindexProgress, setReindexProgress] = useState<{ done: number; total: number } | null>(null);
   const [installingBlenderAddon, setInstallingBlenderAddon] = useState(false);
+  const [blenderImportBusy, setBlenderImportBusy] = useState(false);
+  const [blenderImportPreview, setBlenderImportPreview] = useState<{ path: string; pngB64: string } | null>(null);
+  const [sceneChara, setSceneChara] = useState("");
+  const [sceneSkill, setSceneSkill] = useState("");
+  const [sceneBusy, setSceneBusy] = useState(false);
+  const [sceneResult, setSceneResult] = useState<BlenderSceneResult | null>(null);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [pendingUpdate, setPendingUpdate] = useState<Update | null>(null);
   const [installingUpdate, setInstallingUpdate] = useState(false);
@@ -106,6 +112,49 @@ export function SettingsView() {
       toast.error(String(e));
     } finally {
       setInstallingBlenderAddon(false);
+    }
+  }
+
+  async function importBlendFile() {
+    const f = await open({ filters: [{ name: "Blender", extensions: ["blend"] }] });
+    if (typeof f !== "string") return;
+    setBlenderImportBusy(true);
+    setBlenderImportPreview(null);
+    try {
+      const pngB64 = await api.blenderPreviewPngB64(f, settings.blenderExe);
+      setBlenderImportPreview({ path: f, pngB64 });
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setBlenderImportBusy(false);
+    }
+  }
+
+  async function buildSkillScene() {
+    if (!sceneChara.trim() || !sceneSkill.trim()) {
+      toast.error("Personnage et technique requis");
+      return;
+    }
+    setSceneBusy(true);
+    setSceneResult(null);
+    try {
+      // Résolution du nom libre → code interne via le GraphQL azalee (même source que
+      // SearchView) — la technique, elle, est résolue SERVEUR (game_data::find_skill, local,
+      // pas de round-trip réseau requis) directement par blenderBuildSkillScene.
+      const r = await api.remoteSearchChara(settings.azaleeUrl, sceneChara.trim());
+      const code = r.characters?.[0]?.internalCode;
+      if (!code) {
+        toast.error(`Aucun personnage trouvé pour « ${sceneChara} »`);
+        return;
+      }
+      const result = await api.blenderBuildSkillScene(code, sceneSkill.trim(), settings.blenderExe, settings.gameDir);
+      setSceneResult(result);
+      for (const w of result.warnings) toast.warning(w);
+      toast.success(`Scène construite : ${result.blend_path}`);
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setSceneBusy(false);
     }
   }
 
@@ -309,6 +358,91 @@ export function SettingsView() {
               indépendamment de nie-explorer retrouve alors squelettes partagés et pièces de personnage
               sans configuration manuelle.
             </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Pont Blender ↔ niers</CardTitle>
+          <CardDescription>
+            Importer un <code>.blend</code> existant (aperçu instantané, sans ouvrir Blender) ou construire
+            une VRAIE scène — personnage + cut-in de technique, uniquement des assets réels du VFS local
+            (jamais de géométrie fabriquée ; si un asset manque, c'est signalé, pas masqué).
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="space-y-1.5">
+            <Label>Importer un .blend</Label>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={importBlendFile} disabled={blenderImportBusy}>
+                {blenderImportBusy ? "Rendu…" : "📂 Choisir un .blend"}
+              </Button>
+              {blenderImportPreview && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => api.blenderOpenScene(blenderImportPreview.path, settings.blenderExe)}
+                >
+                  Ouvrir dans Blender
+                </Button>
+              )}
+            </div>
+            {blenderImportPreview && (
+              <img
+                src={`data:image/png;base64,${blenderImportPreview.pngB64}`}
+                alt={blenderImportPreview.path}
+                className="max-w-full rounded-lg border border-outline-variant/40"
+              />
+            )}
+          </div>
+
+          <div className="space-y-1.5 border-t border-outline-variant/30 pt-4">
+            <Label>Construire une scène (personnage + technique)</Label>
+            <div className="flex flex-wrap gap-2">
+              <Input
+                value={sceneChara}
+                placeholder="Personnage (ex. Byron Love)"
+                onChange={(e) => setSceneChara(e.target.value)}
+                className="max-w-56"
+              />
+              <Input
+                value={sceneSkill}
+                placeholder="Technique (ex. Savoir suprême)"
+                onChange={(e) => setSceneSkill(e.target.value)}
+                className="max-w-56"
+              />
+              <Button size="sm" onClick={buildSkillScene} disabled={sceneBusy}>
+                {sceneBusy ? "Construction…" : "🎬 Construire la scène"}
+              </Button>
+            </div>
+            {sceneResult && (
+              <div className="space-y-1.5">
+                <p className="type-body-medium text-on-surface">
+                  <strong>{sceneResult.skill_name}</strong> ({sceneResult.event_id_name}) →{" "}
+                  <code className="type-body-small">{sceneResult.blend_path}</code>
+                </p>
+                {sceneResult.warnings.map((w, i) => (
+                  <p key={i} className="type-body-small text-tertiary whitespace-pre-wrap">
+                    ⚠ {w}
+                  </p>
+                ))}
+                {sceneResult.preview_png_b64 && (
+                  <img
+                    src={`data:image/png;base64,${sceneResult.preview_png_b64}`}
+                    alt={sceneResult.skill_name}
+                    className="max-w-full rounded-lg border border-outline-variant/40"
+                  />
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => api.blenderOpenScene(sceneResult.blend_path, settings.blenderExe)}
+                >
+                  Ouvrir dans Blender
+                </Button>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
