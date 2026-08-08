@@ -442,7 +442,12 @@ export function ExplorerView({
     toast.success(`${all.length.toLocaleString("fr-FR")} élément(s) sélectionné(s)`);
   }
 
-  /** Ctrl+C — copie les chemins de la sélection (multi ou simple) dans le presse-papiers. */
+  /** Ctrl+C — copie les chemins de la sélection (multi ou simple) dans le presse-papiers, en
+   * TEXTE — délibérément PAS `api.clipboardWriteFileList` (CF_HDROP réel, cf. `doPaste`) : un
+   * chemin VFS (`data/common/chr/...`) est VIRTUEL, à l'intérieur d'un CPK — aucun fichier
+   * n'existe à cet emplacement sur le vrai disque, donc le poser en CF_HDROP tromperait
+   * l'Explorateur Windows (il tenterait d'ouvrir un chemin qui n'existe nulle part) plutôt que de
+   * l'aider. Le texte reste la représentation correcte ici. */
   function doCopySelection() {
     const paths = multiSelected.size > 0 ? [...multiSelected] : state.selected ? [state.selected] : [];
     if (paths.length === 0) {
@@ -456,23 +461,30 @@ export function ExplorerView({
    * pas un simple message : le VFS est en lecture seule (aucun encodeur CPK), donc "coller" veut
    * dire "proposer le fichier du presse-papiers comme remplacement" — le même mécanisme que
    * « Ajouter à un mod… », juste sans repasser par le sélecteur natif puisqu'on a déjà un chemin.
-   * Le presse-papiers Tauri ne porte que du TEXTE (pas de CF_HDROP de fichiers Windows) : on
-   * n'accepte donc que le cas où il contient un chemin de fichier réel existant sur disque — ex.
-   * un chemin copié depuis l'Explorateur Windows, ou depuis notre propre Ctrl+C (`doCopySelection`,
-   * qui écrit déjà des chemins en texte). Cible = le fichier VFS actuellement sélectionné ; mod =
-   * le plus récent (`listMods()` trie déjà par priorité/date), créé à la volée s'il n'y en a aucun.
+   *
+   * Deux sources, la VRAIE (CF_HDROP) tentée en premier (recherche 2026-08-08 « lis vraiment le
+   * code de cosmic… les interactions os et le filesystem ») : un Ctrl+C dans l'Explorateur
+   * Windows écrit CF_HDROP (liste de fichiers native), PAS forcément de texte lisible — l'ancien
+   * `readText()` seul pouvait donc rater un copier-coller pourtant parfaitement légitime depuis
+   * l'Explorateur. `api.clipboardReadFileList()` (CF_HDROP réel, `clipboard-win`) est tenté
+   * d'abord ; repli sur l'ancien texte-si-chemin-réel pour les autres sources (un chemin copié
+   * comme texte depuis ailleurs, notre propre `doCopySelection` qui écrit des chemins VFS en
+   * texte — PAS des fichiers réels, cf. son commentaire).
    */
   async function doPaste() {
     if (!state.selected) {
       toast.error("Sélectionnez d'abord un fichier VFS à remplacer");
       return;
     }
-    const clip = (await readText().catch(() => null))?.trim();
-    if (!clip || clip.includes("\n") || !(await api.diskFileExists(clip).catch(() => false))) {
-      toast.message("Rien à coller.", {
-        description: "Le presse-papiers doit contenir le chemin d'UN fichier existant sur disque (copié depuis l'Explorateur Windows, par ex.).",
-      });
-      return;
+    let clip = (await api.clipboardReadFileList().catch(() => null))?.[0]?.trim();
+    if (!clip || !(await api.diskFileExists(clip).catch(() => false))) {
+      clip = (await readText().catch(() => null))?.trim();
+      if (!clip || clip.includes("\n") || !(await api.diskFileExists(clip).catch(() => false))) {
+        toast.message("Rien à coller.", {
+          description: "Le presse-papiers doit contenir un fichier réel (copié depuis l'Explorateur Windows) ou le chemin d'UN fichier existant sur disque.",
+        });
+        return;
+      }
     }
     try {
       const mods = await modsDb.listMods();

@@ -295,6 +295,58 @@ mais un portage ciblé des patterns UX supérieurs et réellement applicables :
 Vérifié : `tsc --noEmit` + `vite build` propres. Pas encore re-packagé dans un nouvel installeur
 (la release v0.1.0 publiée juste avant ce point ne l'inclut pas) — code source à jour uniquement.
 
+### 2.8 Interactions OS/filesystem — inspiré de la lecture réelle de cosmic-files ✅ (2026-08-08)
+
+Demande utilisatrice : « analyse le code de cosmic-files et inspire-toi-en pour compléter le
+menu, la sidebar et les interactions OS/filesystem » — dépôt cloné et **lu en détail** (`menu.rs`
+853 lignes en entier, `key_bind.rs`/`context_action.rs` en entier, `clipboard.rs` en entier,
+sections `update_nav_model`/`nav_bar`/`nav_context_menu` d'`app.rs`, `trash.rs` en entier), pas
+survolé — 3 gaps réels de nie-explorer identifiés par comparaison directe et fermés :
+
+- **Presse-papiers FICHIERS natif Windows (CF_HDROP)** — cosmic-files pose SIMULTANÉMENT
+  `text/plain`/`text/uri-list`/`x-special/gnome-copied-files` sur X11/Wayland (`clipboard.rs`,
+  `ClipboardCopy`/`ClipboardPaste`) ; l'équivalent Windows exact est CF_HDROP, un SEUL format
+  natif (ce que l'Explorateur Windows lit/écrit pour Ctrl+C/Ctrl+V). Nouvelle dépendance
+  `clipboard-win` + commandes `clipboard_write_file_list`/`clipboard_read_file_list`. **Corrige un
+  bug réel** : `doPaste` (Ctrl+V) ne lisait QUE du texte (`readText()`) — un Ctrl+C dans
+  l'Explorateur Windows écrit CF_HDROP, PAS forcément de texte lisible, donc un copier-coller
+  pourtant légitime depuis l'Explorateur pouvait rater. `clipboardReadFileList()` tenté en premier
+  désormais, repli sur le texte. `doCopySelection` (Ctrl+C sur une sélection VFS) reste
+  délibérément TEXTE — un chemin VFS est virtuel (dans un CPK), poser du CF_HDROP dessus
+  tromperait l'Explorateur (chemin qui n'existe nulle part sur le vrai disque). **Vérifié par un
+  test réel** (`clipboard_file_list_roundtrip_reel`, `#[ignore]`, écrit puis relit le VRAI
+  presse-papiers Windows de ce poste) — vert.
+- **VRAIE Corbeille Windows pour les fichiers de mod** — `trash.rs` de cosmic-files enveloppe le
+  crate `trash` (`IFileOperation`/`SHFileOperationW` sous Windows) pour que « supprimer » soit
+  RATTRAPABLE. `removeStagedFile`/`deleteModWorkspace` (nie-explorer) faisaient un `remove()`
+  PERMANENT (`@tauri-apps/plugin-fs`) sur du VRAI travail utilisatrice (remplacements de
+  texture/modèle édités, parfois de vraies heures de travail) — un clic accidentel sur
+  « Retirer »/« Supprimer le mod » était irrattrapable. Même crate `trash` ajouté + commande
+  `trash_appdata_files`, câblée dans `modWorkspace.ts` (`trashOrRemove`, repli sur suppression
+  permanente SEULEMENT si la Corbeille échoue — jamais un échec silencieux qui laisse un fichier
+  fantôme). **Vérifié par DEUX sources indépendantes** : test Rust (`trash_delete_reel`,
+  `#[ignore]`, le fichier disparaît de son emplacement d'origine) ET `Shell.Application` COM
+  PowerShell (`$shell.Namespace(10).Items()`, l'API que l'Explorateur lui-même utilise pour
+  afficher la Corbeille) confirmant le fichier réellement présent sous `$Recycle.Bin\<SID>\$R*` —
+  `trash::os_limited::list()` s'est avéré peu fiable en relecture immédiate dans le même process
+  (faux négatif malgré un vrai succès, donc PAS gardé comme assertion automatisée, cf. commentaire
+  du test).
+- **« Ouvrir avec l'application par défaut »** — `tauri-plugin-opener` était déjà une dépendance
+  déclarée (`Cargo.toml`) et enregistré dans `run()`, mais **jamais utilisé côté frontend** avant
+  ce point (équivalent de `Action::OpenWith`/`mime_app.rs` amont). Nouveau helper
+  `openWithDefaultApp` (`contextMenu.ts`) : extrait le fichier VFS/CPK vers un cache temporaire
+  nommé (réutilisé d'un clic à l'autre, pas un nom aléatoire) puis `openPath` (Windows résout
+  l'association par défaut). Ajouté aux menus contextuels fichier VFS **et** CPK brut.
+
+Vérifié : `tsc --noEmit` + `vite build` + `cargo clippy --lib --tests` (0 warning) propres.
+Sidebar (`PlacesSidebar`) et menu déjà couverts par les demandes précédentes (§ places
+épinglées/récentes façon cosmic-files/yazi, Ctrl+D) — pas de gap supplémentaire identifié là après
+comparaison directe à `nav_context_menu`/`update_nav_model` (le menu contextuel PAR ENTRÉE de la
+sidebar — clic droit sur une place épinglée pour la retirer, l'ouvrir dans un nouvel onglet, etc.
+— reste un écart réel non fermé ce cycle, noté pour un futur incrément : nie-explorer n'a pas de
+notion d'onglets multiples, cf. §2.7, donc une partie de ce menu ne serait pas transposable telle
+quelle).
+
 ---
 
 ## 3. Save manager (Steam userdata) ✅
