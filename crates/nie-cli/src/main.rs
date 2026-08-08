@@ -275,6 +275,11 @@ enum VfsOp {
         ext: Option<String>,
         #[arg(long, short = 'n', default_value_t = 100)]
         limit: usize,
+        /// Sortie JSON (tableau compact sur une ligne) — pour consommation programmatique
+        /// (ex. `niers_bridge.py` de l'addon Blender `tools/niers`, recherche de fichiers sans
+        /// dépendre du miroir wiki contrairement à `chara`/`waza`).
+        #[arg(long, short = 'j')]
+        json: bool,
         #[arg(long)]
         game_dir: Option<PathBuf>,
     },
@@ -1789,13 +1794,13 @@ fn count_json_files(layouts_dir: &std::path::Path) -> usize {
 fn vfs_cmd(op: VfsOp) -> anyhow::Result<()> {
     match op {
         VfsOp::Ls { prefix, game_dir } => vfs_ls(prefix.as_deref().unwrap_or(""), game_dir),
-        VfsOp::Find { query, ext, limit, game_dir } => vfs_find(&query, ext.as_deref(), limit, game_dir),
         VfsOp::Stat { path, game_dir } => vfs_stat(&path, game_dir),
         VfsOp::Cat { path, hex, len, png_out, wav_out, game_dir } => {
             vfs_cat(&path, hex, len, png_out.as_deref(), wav_out.as_deref(), game_dir)
         }
         VfsOp::Extract { path, out, game_dir } => vfs_extract(&path, &out, game_dir),
         VfsOp::Stats { top, game_dir } => vfs_stats(top, game_dir),
+        VfsOp::Find { query, ext, limit, json, game_dir } => vfs_find(&query, ext.as_deref(), limit, json, game_dir),
         VfsOp::Chara { query, no_paths, element, position, json, limit, db, game_dir } => {
             let opts = SearchOpts { show_paths: !no_paths, json, limit, db: db.as_deref(), game_dir };
             vfs_search_chara(&query, element.as_deref(), position.as_deref(), opts)
@@ -1859,7 +1864,18 @@ fn vfs_ls(prefix: &str, game_dir: Option<PathBuf>) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn vfs_find(query: &str, ext: Option<&str>, limit: usize, game_dir: Option<PathBuf>) -> anyhow::Result<()> {
+/// Une entrée de `niers vfs find --json` — même convention compacte-sur-une-ligne que
+/// [`SearchJsonEntry`] (`chara`/`waza`), mais SANS dépendance au miroir wiki : `find` marche sur
+/// n'importe quelle install du jeu (VFS seul), c'est la recherche « fichiers » générique que
+/// `niers_bridge.py` (addon Blender `tools/niers`) utilise pour son panneau de recherche.
+#[derive(serde::Serialize)]
+struct FindJsonEntry<'a> {
+    path: &'a str,
+    size: u32,
+    cpk: &'a str,
+}
+
+fn vfs_find(query: &str, ext: Option<&str>, limit: usize, json: bool, game_dir: Option<PathBuf>) -> anyhow::Result<()> {
     let vfs = open_vfs(game_dir)?;
     let q = query.to_lowercase();
     let ext_dot = ext.map(|e| format!(".{}", e.trim_start_matches('.').to_lowercase()));
@@ -1872,6 +1888,20 @@ fn vfs_find(query: &str, ext: Option<&str>, limit: usize, game_dir: Option<PathB
     hits.sort_by_key(|(p, _)| *p);
 
     let total = hits.len();
+    if json {
+        let entries: Vec<FindJsonEntry> = hits
+            .iter()
+            .take(limit)
+            .map(|(path, entry)| FindJsonEntry {
+                path,
+                size: entry.file_size,
+                cpk: if entry.cpk_filename.is_empty() { "<loose>" } else { entry.cpk_filename.as_str() },
+            })
+            .collect();
+        println!("{}", serde_json::to_string(&entries)?);
+        return Ok(());
+    }
+
     for (path, entry) in hits.iter().take(limit) {
         let cpk = if entry.cpk_filename.is_empty() { "<loose>" } else { entry.cpk_filename.as_str() };
         println!("  {:>10}  {path}  [{cpk}]", entry.file_size);
