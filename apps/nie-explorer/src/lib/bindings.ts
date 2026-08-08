@@ -328,6 +328,12 @@ export const commands = {
 	rawCpkAudioPreviewB64: (index: number) => typedError<string, string>(__TAURI_INVOKE("raw_cpk_audio_preview_b64", { index })),
 	/** Aperçu 3D fixe (G4MD+G4MG+G4TX frères résolus DANS le CPK ouvert), depuis une entrée du CPK brut ouvert (hors VFS) — parité `RawCpkView` (roadmap §6, fermé 2026-08-08). */
 	rawCpkGlbPreviewPngB64: (index: number) => typedError<string, string>(__TAURI_INVOKE("raw_cpk_glb_preview_png_b64", { index })),
+	/** Pose une VRAIE liste de fichiers sur le presse-papiers Windows (CF_HDROP) — collable comme fichiers dans l'Explorateur, pas juste du texte. Inspiré de cosmic-files (`clipboard.rs`). */
+	clipboardWriteFileList: (paths: string[]) => typedError<null, string>(__TAURI_INVOKE("clipboard_write_file_list", { paths })),
+	/** Lit une VRAIE liste de fichiers depuis le presse-papiers Windows (CF_HDROP), `null` si absent (juste du texte, ou vide). */
+	clipboardReadFileList: () => __TAURI_INVOKE<string[] | null>("clipboard_read_file_list"),
+	/** Envoie des fichiers de l'espace de travail des mods (chemins relatifs à AppData) à la VRAIE Corbeille Windows — pas une suppression permanente. Inspiré de cosmic-files (`trash.rs`). */
+	trashAppdataFiles: (appdataRelPaths: string[]) => typedError<null, string>(__TAURI_INVOKE("trash_appdata_files", { appdataRelPaths })),
 	/** Installe/active l'extension Blender `niers` pour de vrai (dossier d'addons utilisateur, pas le bootstrap transitoire d'`openInBlender`) et lie `raw_data_root` au vrai `<jeu>/data`, persisté (`save_userpref`). */
 	installNiersBlenderAddon: (blenderExe: string | null, gameDir: string | null) =>
 		typedError<string, string>(__TAURI_INVOKE("install_niers_blender_addon", { blenderExe, gameDir })),

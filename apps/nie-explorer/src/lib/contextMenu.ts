@@ -8,8 +8,10 @@
 // « web slop » qui ne répond pas : chaque action ET l'appel `popup()` lui-même sont donc
 // protégés par un `try/catch` qui remonte l'erreur en toast plutôt que de l'avaler.
 import { Menu, PredefinedMenuItem } from "@tauri-apps/api/menu";
+import { tempDir, join } from "@tauri-apps/api/path";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
+import { openPath } from "@tauri-apps/plugin-opener";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { humanSize } from "@/lib/bytes";
@@ -22,6 +24,27 @@ async function popupOrReport(menu: Menu): Promise<void> {
     await menu.popup();
   } catch (e) {
     toast.error(`Menu contextuel indisponible : ${e}`);
+  }
+}
+
+/**
+ * « Ouvrir avec l'application par défaut » — un fichier VFS/CPK n'est PAS un fichier réel (à
+ * l'intérieur d'un CPK) : on l'extrait d'abord vers un cache temporaire (même dossier RÉUTILISÉ
+ * par nom, pas un `Math.random()` à chaque clic — un second « Ouvrir avec » sur le même fichier
+ * retombe sur la même copie déjà extraite), puis on demande à Windows de l'ouvrir avec son
+ * association par défaut (`tauri-plugin-opener`, déjà déclaré dans `Cargo.toml`/enregistré dans
+ * `run()` mais jamais utilisé côté frontend avant — recherche 2026-08-08 « lis vraiment le code
+ * de cosmic… les interactions os et le filesystem », `Action::OpenWith`/`mime_app.rs` amont).
+ * `extract` écrit RÉELLEMENT le fichier à `dest` (même contrat que `api.extractTo`/
+ * `api.rawCpkExtractTo`, qui créent déjà le dossier parent côté Rust).
+ */
+async function openWithDefaultApp(name: string, extract: (dest: string) => Promise<number>): Promise<void> {
+  try {
+    const dest = await join(await tempDir(), "nie-explorer-open-with", name);
+    await extract(dest);
+    await openPath(dest);
+  } catch (e) {
+    toast.error(`Impossible d'ouvrir : ${e}`);
   }
 }
 
@@ -65,6 +88,10 @@ export async function showVfsFileContextMenu(opts: FileContextMenuOptions): Prom
             toast.error(String(e));
           }
         },
+      },
+      {
+        text: "Ouvrir avec l'application par défaut…",
+        action: () => openWithDefaultApp(opts.name, (dest) => api.extractTo(opts.path, dest, opts.gameDir)),
       },
       await PredefinedMenuItem.new({ item: "Separator" }),
       {
@@ -143,6 +170,10 @@ export async function showRawCpkFileContextMenu(opts: RawCpkFileContextMenuOptio
             toast.error(String(e));
           }
         },
+      },
+      {
+        text: "Ouvrir avec l'application par défaut…",
+        action: () => openWithDefaultApp(opts.name, (dest) => api.rawCpkExtractTo(opts.entryIndex, dest)),
       },
       await PredefinedMenuItem.new({ item: "Separator" }),
       { text: "Copier le chemin", action: async () => { await writeText(opts.path); toast.success("Chemin copié"); } },

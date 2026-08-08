@@ -95,17 +95,46 @@ export async function stageTextureReplacement(modId: string, vfsPath: string, ga
   return true;
 }
 
+/** Envoie des fichiers de l'espace de travail à la VRAIE Corbeille Windows (`api.trashAppdataFiles`,
+ * `trash` crate — même mécanisme que cosmic-files `trash.rs`, recherche 2026-08-08 « lis vraiment
+ * le code de cosmic… les interactions os et le filesystem ») plutôt qu'un `remove()` permanent
+ * (`@tauri-apps/plugin-fs`) : un clic accidentel sur « Retirer »/« Supprimer le mod » était
+ * jusqu'ici irrattrapable, alors que ce sont parfois de VRAIES heures de remplacement de texture/
+ * modèle. Repli sur `remove()` permanent SEULEMENT si la Corbeille échoue (ex. hors Windows) —
+ * jamais un échec silencieux qui laisserait le fichier orphelin sur disque.
+ */
+async function trashOrRemove(paths: string[]): Promise<void> {
+  const existing: string[] = [];
+  for (const p of paths) {
+    if (await exists(p, { baseDir: BaseDirectory.AppData }).catch(() => false)) existing.push(p);
+  }
+  if (existing.length === 0) return;
+  try {
+    await api.trashAppdataFiles(existing);
+  } catch {
+    // Repli : suppression permanente (ex. hors Windows, `trash_appdata_files` non implémenté) —
+    // mieux vaut supprimer sans rattrapage que laisser un fichier fantôme référencé nulle part.
+    for (const p of existing) {
+      await remove(p, { baseDir: BaseDirectory.AppData }).catch(() => {});
+    }
+  }
+}
+
 export async function removeStagedFile(fileId: number, stagedFile: string, originalFile: string | null): Promise<void> {
   await modsDb.removeFile(fileId);
-  await remove(stagedFile, { baseDir: BaseDirectory.AppData }).catch(() => {});
-  if (originalFile) await remove(originalFile, { baseDir: BaseDirectory.AppData }).catch(() => {});
+  await trashOrRemove(originalFile ? [stagedFile, originalFile] : [stagedFile]);
 }
 
 export async function deleteModWorkspace(modId: string, files: { staged_file: string; original_file: string | null }[]): Promise<void> {
+  const paths: string[] = [];
   for (const f of files) {
-    await remove(f.staged_file, { baseDir: BaseDirectory.AppData }).catch(() => {});
-    if (f.original_file) await remove(f.original_file, { baseDir: BaseDirectory.AppData }).catch(() => {});
+    paths.push(f.staged_file);
+    if (f.original_file) paths.push(f.original_file);
   }
+  await trashOrRemove(paths);
+  // Le dossier du mod lui-même (`mods/<modId>/`) reste un `remove()` récursif direct : une fois
+  // ses fichiers passés par la Corbeille ci-dessus, il ne reste qu'un dossier VIDE à nettoyer
+  // (pas de contenu utilisatrice à protéger — la Corbeille n'a de sens que pour des fichiers).
   await remove(modDir(modId), { baseDir: BaseDirectory.AppData, recursive: true }).catch(() => {});
   await modsDb.deleteMod(modId);
 }

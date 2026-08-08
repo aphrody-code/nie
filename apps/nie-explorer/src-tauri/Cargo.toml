@@ -113,6 +113,12 @@ png = "0.18"
 # dossier) — même version que `nie-steam` (décompression de manifestes CDN), pas de nouvelle
 # version introduite dans le workspace.
 zip = "2"
+# Corbeille Windows RÉELLE (`IFileOperation`/`SHFileOperationW` sous le capot) — même crate que
+# cosmic-files (`trash.rs` amont, lu en détail 2026-08-08 « lis vraiment le code de cosmic ») :
+# `removeStagedFile`/`deleteModWorkspace` (mods) faisaient un `remove()` PERMANENT
+# (`@tauri-apps/plugin-fs`, `std::fs::remove_file` sous le capot) sur du vrai travail
+# utilisatrice (fichiers de mod édités) — aucun rattrapage possible en cas de clic accidentel.
+trash = "5"
 # Moteur de match top-down (World : physique ballon, 22 joueurs, buts) — chargée pour un futur
 # onglet « simuler un match » embarqué (aujourd'hui : `nie-runtime`/`nie-match3d` en CLI headless
 # séparée uniquement).
@@ -162,3 +168,15 @@ nie-steam = { path = "../../../crates/nie-steam" }
 [target.'cfg(target_os = "windows")'.dependencies]
 window-vibrancy = "0.5"
 winreg = "0.52"
+# Presse-papiers FICHIERS natif Windows (CF_HDROP réel — ce que Ctrl+C dans l'Explorateur écrit,
+# ce que Ctrl+V dans l'Explorateur/toute autre appli sait lire). Recherche 2026-08-08 (« inspire-
+# toi de cosmic-files pour... les interactions OS/filesystem ») : l'ancien presse-papiers de
+# nie-explorer (`@tauri-apps/plugin-clipboard-manager`, `writeText`/`readText`) ne portait QUE du
+# texte — coller un chemin copié depuis l'Explorateur marchait par accident (le presse-papiers
+# CONTIENT aussi `text/plain` en pratique), mais Ctrl+C depuis nie-explorer n'écrivait JAMAIS un
+# CF_HDROP réel : impossible de coller un fichier "copié" ici dans l'Explorateur Windows.
+# `clipboard-win` : wrapper sûr autour de `OpenClipboard`/`SetClipboardData`/`GetClipboardData`
+# CF_HDROP (liste de chemins, format natif Windows — l'équivalent exact de `text/uri-list`/
+# `x-special/gnome-copied-files` que cosmic-files pose sur le presse-papiers X11/Wayland, cf.
+# `crates/clipboard.rs` du dépôt amont, ClipboardCopy/ClipboardPaste).
+clipboard-win = { version = "5", features = ["std"] }

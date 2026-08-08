@@ -959,6 +959,85 @@ fn set_titlebar_theme(dark: bool, window: tauri::WebviewWindow) -> Result<(), St
     Ok(())
 }
 
+// ─── Presse-papiers FICHIERS natif (CF_HDROP) — inspiré de cosmic-files `clipboard.rs` ────────
+//
+// Recherche 2026-08-08 (« inspire-toi de cosmic-files pour... les interactions OS/filesystem ») :
+// cosmic-files pose SIMULTANÉMENT `text/plain` (chemins), `text/uri-list` (URIs `file://`) et
+// `x-special/gnome-copied-files` (le MIME copier/coller-fichiers de GNOME/Nautilus, préfixé
+// `copy\n`/`cut\n`) sur le presse-papiers X11/Wayland — trois représentations du MÊME contenu,
+// pour qu'un Ctrl+V dans N'IMPORTE QUELLE appli (pas seulement une autre instance de cosmic-files)
+// comprenne « ce sont des fichiers ». L'équivalent Windows EXACT de ce triplet est un SEUL format
+// natif : CF_HDROP (la structure `DROPFILES`, ce que l'Explorateur Windows lit/écrit pour
+// Ctrl+C/Ctrl+V et le drag&drop) — `clipboard-win` l'expose via `formats::FileList`.
+
+/// Pose une VRAIE liste de fichiers sur le presse-papiers Windows (CF_HDROP) — ce que
+/// l'Explorateur Windows (ou n'importe quelle appli) sait coller comme de VRAIS fichiers, pas du
+/// texte. Remplace l'ancien Ctrl+C de `ExplorerView` (`writeText` du plugin Tauri, chemins en
+/// texte brut séparés par `\n` — lisible par notre propre `Ctrl+V` interne par accident, mais
+/// PAS par l'Explorateur). `paths` doivent exister sur disque (CF_HDROP silencieux sinon, pas
+/// d'erreur Windows explicite) — vérifié côté appelant.
+#[tauri::command]
+#[specta::specta]
+fn clipboard_write_file_list(paths: Vec<String>) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        use clipboard_win::{formats, Clipboard, Setter};
+        let _clip = Clipboard::new_attempts(10).map_err(|e| format!("ouverture du presse-papiers Windows : {e}"))?;
+        formats::FileList.write_clipboard(&paths).map_err(|e| format!("presse-papiers Windows (CF_HDROP) : {e}"))
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = paths;
+        Err("presse-papiers fichiers natif non implémenté hors Windows".to_string())
+    }
+}
+
+/// Lit une VRAIE liste de fichiers depuis le presse-papiers Windows (CF_HDROP) — `None` si le
+/// presse-papiers ne contient pas ce format (ex. juste du texte, ou vide). Permet un VRAI Ctrl+V
+/// depuis l'Explorateur Windows (copier un fichier dans l'Explorateur, Ctrl+V ici) SANS dépendre
+/// du fait que l'Explorateur pose accessoirement `CF_UNICODETEXT` (il ne le fait pas toujours,
+/// contrairement à ce qu'un simple `readText()` supposait implicitement).
+#[tauri::command]
+#[specta::specta]
+fn clipboard_read_file_list() -> Option<Vec<String>> {
+    #[cfg(target_os = "windows")]
+    {
+        use clipboard_win::{formats, Clipboard, Getter};
+        let _clip = Clipboard::new_attempts(10).ok()?;
+        let mut out = Vec::new();
+        formats::FileList.read_clipboard(&mut out).ok()?;
+        if out.is_empty() { None } else { Some(out) }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        None
+    }
+}
+
+/// Vérifie le VRAI presse-papiers Windows (pas de mock/simulation) : écrit une liste de fichiers
+/// réels via CF_HDROP, la relit, compare. `#[ignore]` par défaut — un test qui écrase le vrai
+/// presse-papiers de la session (utilisatrice ou CI) à chaque `cargo test` serait hostile ;
+/// lancer explicitement via `cargo test -p nie-explorer --lib -- --ignored
+/// clipboard_file_list_roundtrip_reel`. Gagné en confiance réelle (2026-08-08, recherche
+/// « inspire-toi de cosmic-files pour les interactions OS/filesystem ») : validé une fois contre
+/// le presse-papiers Windows réel de ce poste de dev avant d'être marqué `#[ignore]`.
+#[cfg(all(test, target_os = "windows"))]
+#[test]
+#[ignore = "écrase le presse-papiers Windows réel — lancer explicitement avec --ignored"]
+fn clipboard_file_list_roundtrip_reel() {
+    let dir = std::env::temp_dir().join("nie-explorer-clipboard-test");
+    std::fs::create_dir_all(&dir).unwrap();
+    let a = dir.join("a.txt");
+    let b = dir.join("b.txt");
+    std::fs::write(&a, b"a").unwrap();
+    std::fs::write(&b, b"b").unwrap();
+    let paths = vec![a.display().to_string(), b.display().to_string()];
+
+    clipboard_write_file_list(paths.clone()).expect("écriture CF_HDROP");
+    let read_back = clipboard_read_file_list().expect("le presse-papiers doit contenir les fichiers qu'on vient d'y poser");
+    assert_eq!(read_back, paths);
+}
+
 /// `true` si `path` désigne un FICHIER (pas un dossier) existant sur disque — hors de toute
 /// portée `fs:scope` JS (même famille que [`describe_disk_file`], `std::fs` direct). Utilisé pour
 /// valider un chemin venu du presse-papiers (Ctrl+V, cf. [`copy_disk_file_to_appdata`]) : le
@@ -990,6 +1069,56 @@ fn copy_disk_file_to_appdata(app: tauri::AppHandle, src: String, dest_appdata_re
     }
     let n = std::fs::copy(&src, &dest).map_err(|e| e.to_string())?;
     Ok(n)
+}
+
+/// Envoie un ou plusieurs fichiers de l'espace de travail des mods (`AppData/mods/<modId>/…`) à
+/// la VRAIE Corbeille Windows (`trash` crate, `IFileOperation`/`SHFileOperationW`) — au lieu d'un
+/// `std::fs::remove_file` permanent. Recherche 2026-08-08 (« lis vraiment le code de cosmic » —
+/// `trash.rs` de cosmic-files enveloppe le même crate) : `removeStagedFile`/`deleteModWorkspace`
+/// utilisaient `remove()` du plugin `fs` JS (suppression permanente) sur du VRAI travail
+/// utilisatrice (fichiers de mod édités, parfois de vraies heures de remplacement de texture/
+/// modèle) — un clic accidentel sur « Retirer » était irrattrapable. Chemins relatifs à
+/// `AppData` (même convention que [`copy_disk_file_to_appdata`]) ; un chemin absent est ignoré
+/// (pas une erreur — `deleteModWorkspace` appelle ceci pour des paires staged/original dont
+/// l'une des deux peut légitimement ne pas exister, ex. fichier trop gros pour avoir une
+/// sauvegarde `.original`, cf. `stageReplacementFromPath`).
+#[tauri::command]
+#[specta::specta]
+fn trash_appdata_files(app: tauri::AppHandle, appdata_rel_paths: Vec<String>) -> Result<(), String> {
+    use tauri::Manager;
+    let base = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let existing: Vec<PathBuf> = appdata_rel_paths.iter().map(|rel| base.join(rel)).filter(|p| p.exists()).collect();
+    if existing.is_empty() {
+        return Ok(());
+    }
+    trash::delete_all(&existing).map_err(|e| format!("envoi à la Corbeille : {e}"))
+}
+
+/// Vérifie la VRAIE Corbeille Windows (pas un mock) : envoie un fichier réel via `trash::
+/// delete_all` (le même appel qu'utilise [`trash_appdata_files`] — testé directement plutôt que
+/// via la commande Tauri, qui a besoin d'un `AppHandle` réel non constructible hors app).
+/// `#[ignore]` : mute la VRAIE Corbeille Windows de la session — lancer explicitement avec
+/// `--ignored`. **Validé 2026-08-08** avant d'être marqué `#[ignore]`, par DEUX vérifications
+/// indépendantes : (1) ce test (le fichier disparaît de son emplacement d'origine) ; (2) `Shell.
+/// Application` COM (`$shell.Namespace(10).Items()`, l'API que l'Explorateur Windows lui-même
+/// utilise pour afficher la Corbeille) confirme le fichier réellement présent sous
+/// `$Recycle.Bin\<SID>\$R*.txt` — `trash::os_limited::list()` s'est avéré peu fiable en
+/// relecture IMMÉDIATE dans le même process (le fichier existe bel et bien dans la Corbeille,
+/// vérifié par (2), mais `list()` ne le voyait pas systématiquement juste après l'écriture) donc
+/// PAS gardé comme assertion automatisée — un faux négatif aurait fait perdre confiance dans une
+/// fonctionnalité qui marche réellement.
+#[cfg(test)]
+#[test]
+#[ignore = "envoie un vrai fichier dans la Corbeille Windows — lancer explicitement avec --ignored"]
+fn trash_delete_reel() {
+    let dir = std::env::temp_dir().join("nie-explorer-trash-test");
+    std::fs::create_dir_all(&dir).unwrap();
+    let f = dir.join(format!("trash-test-{}.txt", std::process::id()));
+    std::fs::write(&f, b"jetable").unwrap();
+    assert!(f.exists());
+
+    trash::delete_all([&f]).expect("envoi à la Corbeille");
+    assert!(!f.exists(), "le fichier doit avoir disparu de son emplacement d'origine");
 }
 
 /// Remplace la texture d'un `.g4tx` **mono-texture, sans région d'atlas** (§2.2 roadmap,
@@ -1916,6 +2045,9 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         vfs_glb_preview_turntable_mp4_b64,
         vfs_audio_preview_b64,
         raw_cpk_glb_preview_png_b64,
+        clipboard_write_file_list,
+        clipboard_read_file_list,
+        trash_appdata_files,
     ])
 }
 
