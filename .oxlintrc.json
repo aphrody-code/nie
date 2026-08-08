@@ -1,0 +1,35 @@
+{
+	"plugins": ["typescript", "import", "unicorn", "promise", "node"],
+	"categories": {
+		"correctness": "warn",
+		"suspicious": "warn",
+		"perf": "warn",
+		"style": "warn"
+	},
+	"env": { "node": true, "es2024": true },
+	"globals": { "Bun": "readonly" },
+	"rules": {
+		"eqeqeq": ["warn", "smart"],
+		"no-console": ["warn", { "allow": ["warn", "error", "info"] }],
+		"no-debugger": "error",
+		"no-var": "error",
+		"prefer-const": "warn",
+		"no-eval": "error",
+		"no-implied-eval": "error",
+		"typescript/no-non-null-assertion": "off",
+		"typescript/no-explicit-any": "off",
+		"typescript/consistent-type-imports": "warn"
+	},
+	"ignorePatterns": [
+		"**/node_modules/**",
+		"**/dist/**",
+		"**/build/**",
+		"**/bin/**",
+		"**/obj/**",
+		"**/.turbo/**",
+		"vendor/**",
+		"packages/core/types/**",
+		"**/*.generated.ts",
+		"**/*.d.ts"
+	]
+}

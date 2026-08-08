@@ -1,0 +1,410 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ── Polices auto-hébergées (identité visuelle azalee, offline-safe) ───── */
+
+@font-face {
+    font-family: "Google Sans Flex";
+    src: url("/fonts/GoogleSansFlex-Variable.woff2") format("woff2");
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "BradBunR";
+    src: url("/fonts/DEFAULT_BradBunR.woff2") format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Super Cartoon";
+    src: url("/fonts/Super Cartoon.woff2") format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: optional;
+}
+
+/* ── Palette Material Design 3 — même seed (#F89C5A) qu'azalee ─────────
+ * niers reprend l'identité visuelle exacte du wiki azalee : mêmes tokens
+ * de couleur MD3, même échelle typographique, mêmes élévations. Copié
+ * depuis apps/azalee/app/globals.css (source de vérité du design system). */
+
+:root {
+    --md-sys-color-primary: #f2a93b;
+    --md-sys-color-on-primary: #2a1519;
+    --md-sys-color-primary-container: #ffe08b;
+    --md-sys-color-on-primary-container: #2a1519;
+
+    --md-sys-color-secondary: #a92335;
+    --md-sys-color-on-secondary: #ffffff;
+    --md-sys-color-secondary-container: #ffdad6;
+    --md-sys-color-on-secondary-container: #410006;
+
+    --md-sys-color-tertiary: #2f4f4f;
+    --md-sys-color-on-tertiary: #ffffff;
+    --md-sys-color-tertiary-container: #b1ecec;
+    --md-sys-color-on-tertiary-container: #002020;
+
+    --md-sys-color-error: #ba1a1a;
+    --md-sys-color-on-error: #ffffff;
+    --md-sys-color-error-container: #ffdad6;
+    --md-sys-color-on-error-container: #93000a;
+
+    --md-sys-color-background: #fff8f5;
+    --md-sys-color-on-background: #221a15;
+
+    --md-sys-color-surface: #fff8f5;
+    --md-sys-color-on-surface: #221a15;
+    --md-sys-color-surface-variant: #f4ded3;
+    --md-sys-color-on-surface-variant: #52443c;
+
+    --md-sys-color-outline: #84746a;
+    --md-sys-color-outline-variant: #d7c3b7;
+
+    --md-sys-color-scrim: #000000;
+    --md-sys-color-inverse-surface: #382e29;
+    --md-sys-color-inverse-on-surface: #feede5;
+    --md-sys-color-inverse-primary: #ffb786;
+
+    --md-sys-color-surface-dim: #e7d7ce;
+    --md-sys-color-surface-bright: #fff8f5;
+    --md-sys-color-surface-container-lowest: #ffffff;
+    --md-sys-color-surface-container-low: #fff1ea;
+    --md-sys-color-surface-container: #fcebe2;
+    --md-sys-color-surface-container-high: #f6e5dc;
+    --md-sys-color-surface-container-highest: #f0dfd7;
+
+    /* Bordure sous la barre d'outils accolée à la vraie barre de titre native Windows —
+     * TOUJOURS sombre, quel que soit le thème clair/sombre (demande explicite utilisateur),
+     * pour marquer clairement la limite entre le chrome de fenêtre et le contenu de l'appli. */
+    --nie-chrome-border: rgba(0, 0, 0, 0.55);
+
+    --shadow-level-1: 0px 1px 3px 1px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.3);
+    --shadow-level-2: 0px 2px 6px 2px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.3);
+    --shadow-level-3: 0px 4px 8px 3px rgba(0, 0, 0, 0.15), 0px 1px 3px 0px rgba(0, 0, 0, 0.3);
+    --shadow-level-4: 0px 6px 10px 4px rgba(0, 0, 0, 0.15), 0px 2px 3px 0px rgba(0, 0, 0, 0.3);
+    --shadow-level-5: 0px 8px 12px 6px rgba(0, 0, 0, 0.15), 0px 4px 4px 0px rgba(0, 0, 0, 0.3);
+
+    /* Compat shadcn (mêmes surfaces MD3, aucun HSL séparé à maintenir) */
+    --background: var(--md-sys-color-background);
+    --foreground: var(--md-sys-color-on-background);
+    --card: var(--md-sys-color-surface-container);
+    --card-foreground: var(--md-sys-color-on-surface);
+    --popover: var(--md-sys-color-surface-container-high);
+    --popover-foreground: var(--md-sys-color-on-surface);
+    --primary: var(--md-sys-color-primary);
+    --primary-foreground: var(--md-sys-color-on-primary);
+    --secondary: var(--md-sys-color-secondary);
+    --secondary-foreground: var(--md-sys-color-on-secondary);
+    --muted: var(--md-sys-color-surface-variant);
+    --muted-foreground: var(--md-sys-color-on-surface-variant);
+    --accent: var(--md-sys-color-secondary-container);
+    --accent-foreground: var(--md-sys-color-on-secondary-container);
+    --destructive: var(--md-sys-color-error);
+    --destructive-foreground: var(--md-sys-color-on-error);
+    --border: var(--md-sys-color-outline-variant);
+    --input: var(--md-sys-color-outline-variant);
+    --ring: var(--md-sys-color-primary);
+    --chart-1: var(--md-sys-color-primary);
+    --chart-2: var(--md-sys-color-secondary);
+    --chart-3: var(--md-sys-color-tertiary);
+    --chart-4: var(--md-sys-color-error);
+    --chart-5: var(--md-sys-color-outline);
+    --radius: 1.5rem;
+    --sidebar: var(--md-sys-color-surface-container-low);
+    --sidebar-foreground: var(--md-sys-color-on-surface);
+    --sidebar-primary: var(--md-sys-color-primary);
+    --sidebar-primary-foreground: var(--md-sys-color-on-primary);
+    --sidebar-accent: var(--md-sys-color-secondary-container);
+    --sidebar-accent-foreground: var(--md-sys-color-on-secondary-container);
+    --sidebar-border: var(--md-sys-color-outline-variant);
+    --sidebar-ring: var(--md-sys-color-primary);
+}
+
+.dark {
+    --md-sys-color-primary: #ffc66c;
+    --md-sys-color-on-primary: #412d00;
+    --md-sys-color-primary-container: #5d4200;
+    --md-sys-color-on-primary-container: #ffe0aa;
+
+    --md-sys-color-secondary: #ffb2be;
+    --md-sys-color-on-secondary: #5e1123;
+    --md-sys-color-secondary-container: #7c2939;
+    --md-sys-color-on-secondary-container: #ffd9df;
+
+    --md-sys-color-tertiary: #edc26e;
+    --md-sys-color-on-tertiary: #422d00;
+    --md-sys-color-tertiary-container: #5e4200;
+    --md-sys-color-on-tertiary-container: #ffdea6;
+
+    --md-sys-color-error: #ffb4ab;
+    --md-sys-color-on-error: #690005;
+    --md-sys-color-error-container: #93000a;
+    --md-sys-color-on-error-container: #ffdad6;
+
+    --md-sys-color-background: #1a120d;
+    --md-sys-color-on-background: #ede0db;
+
+    --md-sys-color-surface: #1a120d;
+    --md-sys-color-on-surface: #ede0db;
+    --md-sys-color-surface-variant: #52443c;
+    --md-sys-color-on-surface-variant: #d7c3b7;
+
+    --md-sys-color-outline: #9f8d83;
+    --md-sys-color-outline-variant: #52443c;
+
+    --md-sys-color-scrim: #000000;
+    --md-sys-color-inverse-surface: #ede0db;
+    --md-sys-color-inverse-on-surface: #1a120d;
+    --md-sys-color-inverse-primary: #8b5023;
+
+    --md-sys-color-surface-dim: #1a120d;
+    --md-sys-color-surface-bright: #413732;
+    --md-sys-color-surface-container-lowest: #140d09;
+    --md-sys-color-surface-container-low: #221a15;
+    --md-sys-color-surface-container: color-mix(in oklch, #271e19 97%, var(--md-sys-color-primary));
+    --md-sys-color-surface-container-high: color-mix(
+        in oklch,
+        #322823 92%,
+        var(--md-sys-color-primary)
+    );
+    --md-sys-color-surface-container-highest: color-mix(
+        in oklch,
+        #3d332d 89%,
+        var(--md-sys-color-primary)
+    );
+
+    --background: var(--md-sys-color-background);
+    --foreground: var(--md-sys-color-on-background);
+    --card: var(--md-sys-color-surface-container);
+    --card-foreground: var(--md-sys-color-on-surface);
+    --popover: var(--md-sys-color-surface-container-high);
+    --popover-foreground: var(--md-sys-color-on-surface);
+    --primary: var(--md-sys-color-primary);
+    --primary-foreground: var(--md-sys-color-on-primary);
+    --secondary: var(--md-sys-color-secondary);
+    --secondary-foreground: var(--md-sys-color-on-secondary);
+    --muted: var(--md-sys-color-surface-variant);
+    --muted-foreground: var(--md-sys-color-on-surface-variant);
+    --accent: var(--md-sys-color-secondary-container);
+    --accent-foreground: var(--md-sys-color-on-secondary-container);
+    --destructive: var(--md-sys-color-error);
+    --destructive-foreground: var(--md-sys-color-on-error);
+    --border: var(--md-sys-color-outline-variant);
+    --input: var(--md-sys-color-outline-variant);
+    --ring: var(--md-sys-color-primary);
+    --chart-1: var(--md-sys-color-primary);
+    --chart-2: var(--md-sys-color-secondary);
+    --chart-3: var(--md-sys-color-tertiary);
+    --chart-4: var(--md-sys-color-error);
+    --chart-5: var(--md-sys-color-outline);
+    --sidebar: var(--md-sys-color-surface-container-low);
+    --sidebar-foreground: var(--md-sys-color-on-surface);
+    --sidebar-primary: var(--md-sys-color-primary);
+    --sidebar-primary-foreground: var(--md-sys-color-on-primary);
+    --sidebar-accent: var(--md-sys-color-secondary-container);
+    --sidebar-accent-foreground: var(--md-sys-color-on-secondary-container);
+    --sidebar-border: var(--md-sys-color-outline-variant);
+    --sidebar-ring: var(--md-sys-color-primary);
+}
+
+@theme inline {
+    --font-heading: "BradBunR", var(--font-sans);
+    --font-sans: "Google Sans Flex", sans-serif;
+    --font-cartoon: "Super Cartoon", system-ui;
+
+    /* Tokens MD3 bruts (bg-primary-container, text-on-surface-variant, …) */
+    --color-primary-container: var(--md-sys-color-primary-container);
+    --color-on-primary-container: var(--md-sys-color-on-primary-container);
+    --color-on-primary: var(--md-sys-color-on-primary);
+    --color-secondary-container: var(--md-sys-color-secondary-container);
+    --color-on-secondary-container: var(--md-sys-color-on-secondary-container);
+    --color-on-secondary: var(--md-sys-color-on-secondary);
+    --color-tertiary: var(--md-sys-color-tertiary);
+    --color-on-tertiary: var(--md-sys-color-on-tertiary);
+    --color-tertiary-container: var(--md-sys-color-tertiary-container);
+    --color-on-tertiary-container: var(--md-sys-color-on-tertiary-container);
+    --color-on-background: var(--md-sys-color-on-background);
+    --color-surface: var(--md-sys-color-surface);
+    --color-on-surface: var(--md-sys-color-on-surface);
+    --color-surface-variant: var(--md-sys-color-surface-variant);
+    --color-on-surface-variant: var(--md-sys-color-on-surface-variant);
+    --color-outline: var(--md-sys-color-outline);
+    --color-outline-variant: var(--md-sys-color-outline-variant);
+    --color-surface-container-lowest: var(--md-sys-color-surface-container-lowest);
+    --color-surface-container-low: var(--md-sys-color-surface-container-low);
+    --color-surface-container: var(--md-sys-color-surface-container);
+    --color-surface-container-high: var(--md-sys-color-surface-container-high);
+    --color-surface-container-highest: var(--md-sys-color-surface-container-highest);
+    --color-surface-dim: var(--md-sys-color-surface-dim);
+    --color-surface-bright: var(--md-sys-color-surface-bright);
+    --color-scrim: var(--md-sys-color-scrim);
+    --color-error: var(--md-sys-color-error);
+    --color-on-error: var(--md-sys-color-on-error);
+    --color-error-container: var(--md-sys-color-error-container);
+    --color-on-error-container: var(--md-sys-color-on-error-container);
+    --color-chrome-border: var(--nie-chrome-border);
+
+    /* Compat shadcn */
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+@layer base {
+    * {
+        @apply border-border outline-ring/50;
+    }
+    body {
+        @apply bg-background text-foreground;
+    }
+    html {
+        @apply font-sans;
+    }
+}
+
+/* ── Échelle typographique MD3 (identique à azalee) ─────────────────── */
+@layer utilities {
+    .type-title-large {
+        @apply text-[22px] leading-[28px] tracking-[0px] font-normal;
+        font-optical-sizing: auto;
+        font-variation-settings: "opsz" 28, "wght" 400;
+    }
+    .type-title-medium {
+        @apply text-[16px] leading-[24px] tracking-[0.15px] font-medium;
+        font-optical-sizing: auto;
+        font-variation-settings: "opsz" 24, "wght" 500;
+    }
+    .type-title-small {
+        @apply text-[14px] leading-[20px] tracking-[0.1px] font-medium;
+        font-optical-sizing: auto;
+        font-variation-settings: "opsz" 20, "wght" 500;
+    }
+    .type-body-large {
+        @apply text-[16px] leading-[24px] tracking-[0.5px] font-normal;
+        font-optical-sizing: auto;
+        font-variation-settings: "opsz" 24, "wght" 400;
+    }
+    .type-body-medium {
+        @apply text-[14px] leading-[20px] tracking-[0.25px] font-normal;
+        font-optical-sizing: auto;
+        font-variation-settings: "opsz" 20, "wght" 400;
+    }
+    .type-body-small {
+        @apply text-[12px] leading-[16px] tracking-[0.4px] font-normal;
+        font-optical-sizing: auto;
+        font-variation-settings: "opsz" 16, "wght" 400;
+    }
+    .type-label-large {
+        @apply text-[14px] leading-[20px] tracking-[0.1px] font-medium;
+        font-optical-sizing: auto;
+        font-variation-settings: "opsz" 20, "wght" 500;
+    }
+    .type-label-medium {
+        @apply text-[12px] leading-[16px] tracking-[0.5px] font-medium;
+        font-optical-sizing: auto;
+        font-variation-settings: "opsz" 16, "wght" 500;
+    }
+    .type-label-small {
+        @apply text-[11px] leading-[16px] tracking-[0.5px] font-medium;
+        font-optical-sizing: auto;
+        font-variation-settings: "opsz" 16, "wght" 500;
+    }
+
+    /* MD3 Elevation */
+    .elevation-0 {
+        box-shadow: none;
+    }
+    .elevation-1 {
+        box-shadow: var(--shadow-level-1);
+    }
+    .elevation-2 {
+        box-shadow: var(--shadow-level-2);
+    }
+    .elevation-3 {
+        box-shadow: var(--shadow-level-3);
+    }
+    .elevation-4 {
+        box-shadow: var(--shadow-level-4);
+    }
+    .elevation-5 {
+        box-shadow: var(--shadow-level-5);
+    }
+
+    /* MD3 State Layer (survol/focus/appui tonal) */
+    .state-layer {
+        @apply relative overflow-hidden;
+    }
+    .state-layer::before {
+        content: "";
+        @apply absolute inset-0 pointer-events-none transition-opacity duration-200;
+        background-color: currentColor;
+        opacity: 0;
+    }
+    .state-layer:hover::before {
+        opacity: 0.08;
+    }
+    .state-layer:focus-visible::before,
+    .state-layer:active::before {
+        opacity: 0.12;
+    }
+    .state-layer:disabled::before {
+        opacity: 0;
+    }
+
+    .motion-standard {
+        transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+    }
+    .motion-emphasized-decelerate {
+        transition-timing-function: cubic-bezier(0.05, 0.7, 0.1, 1);
+    }
+
+    .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+    .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+    }
+}

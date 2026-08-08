@@ -1,0 +1,25 @@
+{
+	"printWidth": 100,
+	"tabWidth": 2,
+	"useTabs": true,
+	"semi": true,
+	"singleQuote": false,
+	"trailingComma": "es5",
+	"arrowParens": "always",
+	"bracketSpacing": true,
+	"endOfLine": "lf",
+	"ignorePatterns": [
+		"**/dist/**",
+		"**/.turbo/**",
+		"**/node_modules/**",
+		"**/bin/**",
+		"**/obj/**",
+		"vendor/**",
+		"src/**",
+		".agents/**",
+		"packages/core/types/**",
+		"**/*.generated.ts",
+		"**/*.d.ts",
+		"**/*.code-workspace"
+	]
+}

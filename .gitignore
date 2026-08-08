@@ -1,46 +1,95 @@
+# .NET build artifacts
+bin/
+obj/
+*.user
+
+# IECODE extracted data (gros, non versionné)
+data/
+dump/
+out/
+
+# Rust build
 /target
 **/*.rs.bk
 Cargo.lock.bak
 
-# Bun monorepo
+# Node / Bun / Turbo
 node_modules/
+.turbo/
+dist/
+build/
 *.tsbuildinfo
 .bun/
 
-# Index RE généré (volumineux, reproductible depuis le binaire)
-/var
-*.sqlite
-*.sqlite-wal
-*.sqlite-shm
-*.rzdb
+# Test coverage
+coverage/
+*.lcov
 
-# Artefacts RE bruts (ne jamais committer le binaire du jeu)
+# Caches lint/format
+.oxlintcache
+.cache/
+
+# Logs
+*.log
+logs/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# AI instructions files — gardés en local seulement, jamais commit/push
+
+**/CLAUDE.md
+GEMINI.md
+**/GEMINI.md
+AGENTS.md
+skills-lock.json
+.claude/
+.agents/
+!.agents/skills/bun/SKILL.md
+
+# Secrets (jamais commités) — ex. token registry privé @rose-griffon (npm.pkg.github.com)
+.env
+.env.local
+.env.*.local
+.secrets/
+
+
+/var
+
+
+# Artefacts RE bruts (ne JAMAIS committer le binaire du jeu ni ses dumps)
 nie.exe
-*.pdb
-/dumps
+
+
+
+
+/EACLauncher.exe
+/EasyAntiCheat/
+/EpicOnlineServices/
+/GameBootstrapper.exe
+/GameBootstrapper.ini
+/libHttpClient.Win32.dll
+/libcurl.dll
+/sdkencryptedappticket64.dll
+/steam_api64.dll
+/steam_action_manifest.vdf
+/steam_input_for_*.vdf
+/install_script_*.vdf
+/uninstall/
+
 
 # Fragments réels du jeu pour tests golden (copyright Level-5) — local uniquement.
 # Présents sur disque pour `cargo test -p nie-formats --features real-fixtures` ;
 # jamais distribués (le clone public compile/teste sans, feature off par défaut).
 crates/nie-formats/tests/fixtures/
 
-# Data de jeu consolidée (2,4 Go, symlink depuis ~/data) — JAMAIS committer
-/data
-/data/
-
-# Fichiers IA locaux (convention rg/aphrody)
-.claude/
-.agents/
-CLAUDE.md
-AGENTS.md
-GEMINI.md
-skills-lock.json
-
 # wasm build
 /pkg
 crates/*/pkg/
-/dist
-refs/
 
 # Captures de référence du jeu (copyright Level-5) — SSIM gates ; NE PAS publier
 /start.png
@@ -55,3 +104,17 @@ refs/
 .python-version
 __pycache__/
 *.pyc
+
+# Markdown — only allow root README/CHANGELOG/SECURITY/LICENSE + docs/**
+*.md
+*.txt
+!README.md
+!CHANGELOG.md
+!SECURITY.md
+!LICENSE
+!CLAUDE.md
+!docs/**/*.md
+!docs/**/*.txt
+!packages/*/README.md
+!apps/nie-explorer/ROADMAP.md
+!tools/niers/NIERS_VENDORING_NOTE.md
