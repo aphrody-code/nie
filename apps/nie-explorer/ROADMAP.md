@@ -482,3 +482,33 @@ Paramètres → Réindexer) sinon repli substring en mémoire (`api.related` →
 `CommandPalette.tsx` — Ctrl/Cmd+K ouvre un saut instantané vers un emplacement épinglé ou
 récent (`lib/places.ts`, frecency à la `zoxide`/yazi) ou une recherche libre relayée à
 `SearchView`, sans quitter le clavier.
+
+---
+
+## 8. Job system durable (inspiré spacedrive) 🔲 NON_FAIT — objectif ouvert 2026-08-08
+
+Demande utilisateur : « new goal, base-toi sur https://github.com/spacedriveapp/spacedrive ».
+Reconnaissance faite (stack très proche : Rust core + Tauri v2 + React + Specta typegen — déjà
+la stack de `nie-explorer`) — le concept le plus transposable et le plus utile ici est leur
+**« Actions transactionnelles »** : chaque opération fichier devient un *job* durable qui survit
+à une interruption (fermeture de l'app, crash), avec état persisté et reprise, plutôt qu'un
+`useState` de progression perdu au moindre refresh.
+
+**Candidats existants qui bénéficieraient d'un job unifié** (aujourd'hui : progression bespoke,
+non persistée, perdue si l'app ferme pendant l'opération) :
+- `vfsIndexDb.reindex` (`SettingsView.tsx` → `src/lib/vfsIndexDb.ts`, ~255 800 fichiers, plusieurs
+  minutes) — callback de progression en mémoire seulement.
+- `install_niers_blender_addon` (zip + install Blender headless, `src-tauri/src/lib.rs`) —
+  bloquant, aucune progression intermédiaire exposée.
+- Export de mods (`.cpk` réel) et conversions de textures par lot — mêmes symptômes.
+
+**Périmètre PAS repris de spacedrive** (hors sujet niers, VFS jeu en lecture seule) : VDFS
+multi-device, sync P2P sans leader (Iroh), indexation multi-source (emails/cloud), Spacebot IA.
+
+**Prochaine étape concrète** (à lancer) : table `jobs` sqlite (via `tauri-plugin-sql`, même
+moteur que le miroir wiki — pas de nouvelle dépendance `rusqlite`, cf. contrainte §RE/mods) —
+`id, kind, status, progress, total, error, created_at, updated_at` — + un store Rust
+(`JobRegistry` géré par `tauri::State`) émettant des events `job-progress`/`job-done` au lieu de
+`Result` bloquant, et une UI de suivi (liste de jobs en cours/récents, reprise au relancement de
+l'app via lecture de la table au démarrage). Premier candidat de portage : `reindex` (le plus
+long, le plus souvent interrompu par erreur).
