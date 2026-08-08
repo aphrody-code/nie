@@ -122,3 +122,12 @@ d'environnement `NIE_GAME_DIR` pour pointer vers une install Steam. Détail : [`
 L'app desktop embarque `tauri-plugin-updater` (binaires signés minisign). Endpoints
 (`apps/nie-explorer/src-tauri/tauri.conf.json`) : `azalee.rosegriffon.fr/tools/niers/latest.json`
 (proxy dynamique des releases GitHub) puis, en repli, `releases/latest/download/latest.json`.
+
+Publier une nouvelle version (bump + build signé + tag + GitHub Release, en une commande) :
+
+```
+TAURI_SIGNING_PRIVATE_KEY_PATH=~/.tauri/niers.key ./scripts/release-desktop.sh 0.5.0
+```
+
+La page de download et l'endpoint updater se mettent à jour tout seuls (azalee lit la dernière
+release GitHub en direct, cache 1h) — aucun redéploiement azalee requis pour une release standard.
