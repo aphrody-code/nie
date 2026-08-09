@@ -6,9 +6,10 @@
 // raison qu'eux (rusqlite de `nie-re`/`nie-index` entre en conflit de lien natif avec le
 // `sqlx-sqlite` du plugin dans CE binaire, cf. `src-tauri/Cargo.toml`).
 //
-// AUCUNE lecture mémoire live, AUCUNE attache process : uniquement cette base déjà calculée à
-// partir d'un dump/désassemblage hors ligne. Cf. décision utilisatrice sur `nie-trace` (pas
-// d'attache live/patch EAC câblée dans l'app).
+// Ce module reste HORS LIGNE (base déjà calculée) — la lecture mémoire live du process en cours
+// est câblée séparément (`api.reTrace*`, cf. `src-tauri/src/re_trace.rs` + onglet « Live » de
+// `ReToolsView`), décision utilisatrice tranchée (lecture seule, jamais de patch EAC/écriture
+// sur un process vivant).
 import Database from "@tauri-apps/plugin-sql";
 import { api } from "@/lib/api";
 

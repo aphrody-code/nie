@@ -1,14 +1,15 @@
 // Outils RE (reverse engineering) — cf. demande utilisatrice « niers est un outil de mod ET de
-// re, garde ça en tête ». Base `var/niers.sqlite` (statique, HORS LIGNE, 248 Mo — ~113 000
-// fonctions labellisées + ~3 150 classes RTTI + ~507 000 xrefs, produites par `nie-re` en
-// analysant un dump mémoire déjà capturé et le binaire désassemblé). AUCUNE lecture mémoire
-// live, AUCUNE attache au process `nie.exe` — cf. `src/lib/reDb.ts` pour le détail de cette
-// distinction (nie-trace en lecture seule décliné, patch_eac refusé).
+// re, garde ça en tête ». Deux sources : la base `var/niers.sqlite` (statique, HORS LIGNE, 248 Mo
+// — ~113 000 fonctions labellisées + ~3 150 classes RTTI + ~507 000 xrefs, produites par `nie-re`
+// en analysant un dump mémoire déjà capturé et le binaire désassemblé) et l'onglet **Live**
+// (`nie-trace`, lecture SEULE de la mémoire vivante de `nie.exe`/`nie_eacpatched.exe` — décision
+// utilisatrice tranchée, cf. `ROADMAP.md` §4.3/§5 et `src-tauri/src/re_trace.rs`).
 import { useEffect, useState } from "react";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { toast } from "sonner";
 import { useSettings } from "@/lib/settings";
 import { reDb, defaultReDbPath, toStaticHex, type FunctionRow, type RttiClassRow, type XrefRow } from "@/lib/reDb";
+import { api, type ReTraceDumpStats, type ReTraceProcess, type ReTraceRegion } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +17,162 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-type SubTab = "functions" | "classes";
+type SubTab = "functions" | "classes" | "live";
+
+/** Onglet « Live » — lecture directe de la mémoire du process en cours (lecture seule, jamais
+ * d'écriture). Détection du process → liste des plages du module principal → lecture ponctuelle
+ * d'octets à une adresse, ou dump complet des plages lisibles vers `AppData/re-dumps/`. */
+function ReLiveView() {
+  const [proc, setProc] = useState<ReTraceProcess | null | undefined>(undefined);
+  const [checking, setChecking] = useState(false);
+  const [regions, setRegions] = useState<ReTraceRegion[]>([]);
+  const [regionsError, setRegionsError] = useState<string | null>(null);
+  const [addr, setAddr] = useState("");
+  const [len, setLen] = useState("64");
+  const [readResult, setReadResult] = useState<string | null>(null);
+  const [readError, setReadError] = useState<string | null>(null);
+  const [dumping, setDumping] = useState(false);
+  const [dumpResult, setDumpResult] = useState<ReTraceDumpStats | null>(null);
+
+  async function refresh() {
+    setChecking(true);
+    setRegions([]);
+    setRegionsError(null);
+    setDumpResult(null);
+    try {
+      const p = await api.reTraceFindProcess();
+      setProc(p);
+    } catch (e) {
+      toast.error(String(e));
+      setProc(null);
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  useEffect(() => {
+    void refresh();
+  }, []);
+
+  async function loadRegions() {
+    if (!proc) return;
+    try {
+      setRegions(await api.reTraceModuleRegions(proc.pid));
+      setRegionsError(null);
+    } catch (e) {
+      setRegionsError(String(e));
+    }
+  }
+
+  async function readBytes() {
+    if (!proc || !addr.trim()) return;
+    setReadError(null);
+    setReadResult(null);
+    try {
+      const b64 = await api.reTraceReadBytesB64(proc.pid, addr.trim(), Number(len) || 64);
+      const bin = atob(b64);
+      let hex = "";
+      for (let i = 0; i < bin.length; i++) hex += bin.charCodeAt(i).toString(16).padStart(2, "0") + (i % 16 === 15 ? "\n" : " ");
+      setReadResult(hex.trim());
+    } catch (e) {
+      setReadError(String(e));
+    }
+  }
+
+  async function dumpModule() {
+    if (!proc) return;
+    setDumping(true);
+    try {
+      setDumpResult(await api.reTraceDumpModule(proc.pid));
+      toast.success("Dump terminé");
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setDumping(false);
+    }
+  }
+
+  return (
+    <div className="flex h-full flex-col gap-3 overflow-auto p-3">
+      <Alert>
+        <AlertTitle>Lecture seule</AlertTitle>
+        <AlertDescription>
+          Cet onglet lit la mémoire vivante du process — aucune écriture. RE single-player offline d'un jeu possédé (accord RG-L5-VR-2026-001).
+        </AlertDescription>
+      </Alert>
+
+      <div className="flex items-center gap-2">
+        <Button size="sm" variant="outline" onClick={() => void refresh()} disabled={checking}>
+          {checking ? "Recherche…" : "Rafraîchir"}
+        </Button>
+        {proc === undefined ? (
+          <span className="type-body-small text-on-surface-variant">…</span>
+        ) : proc === null ? (
+          <span className="type-body-small text-on-surface-variant">Process introuvable — le jeu n'est pas lancé.</span>
+        ) : (
+          <span className="type-body-small text-on-surface">
+            <Badge variant="outline">{proc.process_name}</Badge> pid {proc.pid}
+            {proc.module_base && <span className="text-on-surface-variant"> · base {proc.module_base}</span>}
+          </span>
+        )}
+      </div>
+
+      {proc && (
+        <>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => void loadRegions()}>
+              Lister les plages du module
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => void dumpModule()} disabled={dumping}>
+              {dumping ? "Dump…" : "Dumper les plages lisibles"}
+            </Button>
+          </div>
+          {regionsError && <p className="type-body-small text-error">{regionsError}</p>}
+          {dumpResult && (
+            <p className="type-body-small text-on-surface-variant">
+              {dumpResult.regions} plage(s), {dumpResult.bytes.toLocaleString("fr-FR")} o → {dumpResult.out_dir}
+            </p>
+          )}
+          {regions.length > 0 && (
+            <ScrollArea className="max-h-40 rounded-xl bg-surface-container-low elevation-1">
+              <div className="divide-y divide-outline-variant/30">
+                {regions.map((r, i) => (
+                  <button
+                    key={i}
+                    className="state-layer flex w-full items-center gap-2 px-3 py-1 text-left font-mono type-label-small text-on-surface"
+                    onClick={() => setAddr(r.start)}
+                    title="Utiliser comme adresse de lecture"
+                  >
+                    <span>
+                      {r.start} – {r.end}
+                    </span>
+                    <span className="text-on-surface-variant">
+                      {r.perms} · {r.size.toLocaleString("fr-FR")} o
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </ScrollArea>
+          )}
+
+          <div className="flex items-center gap-2">
+            <Input placeholder="adresse 0x…" value={addr} onChange={(e) => setAddr(e.target.value)} className="w-48 font-mono" />
+            <Input placeholder="octets" value={len} onChange={(e) => setLen(e.target.value)} className="w-24" />
+            <Button size="sm" variant="outline" onClick={() => void readBytes()}>
+              Lire
+            </Button>
+          </div>
+          {readError && <p className="type-body-small text-error">{readError}</p>}
+          {readResult && (
+            <ScrollArea className="max-h-60 rounded-xl border border-outline-variant/40 bg-surface-container p-3">
+              <pre className="whitespace-pre-wrap font-mono type-label-small text-on-surface">{readResult}</pre>
+            </ScrollArea>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 
 function XrefList({ title, rows, side }: { title: string; rows: XrefRow[]; side: "from_addr" | "to_addr" }) {
   return (
@@ -113,6 +269,27 @@ export function ReToolsView() {
     toast.success("Adresse copiée");
   }
 
+  const tabsHeader = (
+    <Tabs value={subTab} onValueChange={(v) => setSubTab(v as SubTab)}>
+      <TabsList>
+        <TabsTrigger value="functions">Fonctions</TabsTrigger>
+        <TabsTrigger value="classes">Classes RTTI</TabsTrigger>
+        <TabsTrigger value="live">Live</TabsTrigger>
+      </TabsList>
+    </Tabs>
+  );
+
+  if (subTab === "live") {
+    return (
+      <div className="flex h-full flex-col gap-2 p-3">
+        {tabsHeader}
+        <div className="min-h-0 flex-1">
+          <ReLiveView />
+        </div>
+      </div>
+    );
+  }
+
   if (dbError) {
     return (
       <div className="p-4">
@@ -128,12 +305,7 @@ export function ReToolsView() {
     <div className="grid h-full grid-cols-[minmax(320px,1fr)_1fr] gap-3 p-3">
       <div className="flex min-h-0 flex-col gap-2">
         <div className="flex items-center gap-2">
-          <Tabs value={subTab} onValueChange={(v) => setSubTab(v as SubTab)}>
-            <TabsList>
-              <TabsTrigger value="functions">Fonctions</TabsTrigger>
-              <TabsTrigger value="classes">Classes RTTI</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          {tabsHeader}
           <Input
             placeholder={subTab === "functions" ? "Nom, sous-système, rôle, ou adresse 0x…" : "Nom de classe, namespace…"}
             value={query}

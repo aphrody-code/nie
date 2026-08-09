@@ -348,6 +348,14 @@ export const commands = {
 		typedError<BlenderSceneResultDto, string>(
 			__TAURI_INVOKE("blender_build_skill_scene", { internalCode, skillQuery, blenderExe, gameDir })
 		),
+	/**  Cherche le process `nie.exe`/`nie_eacpatched.exe` en cours d'exécution. `None` si le jeu n'est pas lancé — jamais d'attache silencieuse ni de retry en boucle. */
+	reTraceFindProcess: () => __TAURI_INVOKE<ReTraceProcessDto | null>("re_trace_find_process"),
+	/**  Liste les plages mémoire du module principal (`nie`/`nie_eacpatched`) du process `pid` — jamais tout l'espace d'adressage (autres DLL, tas non pertinent) : `module_regions(.., false)` filtre déjà sur le module. */
+	reTraceModuleRegions: (pid: number) => typedError<ReTraceRegionDto[], string>(__TAURI_INVOKE("re_trace_module_regions", { pid })),
+	/**  Lit `len` octets à `addr` (hex `0x…` ou décimal) dans `pid`, encodés base64 — jamais plus de 1 Mio par appel (évite un `Vec` géant sur une fausse manip côté UI). */
+	reTraceReadBytesB64: (pid: number, addr: string, len: number) => typedError<string, string>(__TAURI_INVOKE("re_trace_read_bytes_b64", { pid, addr, len })),
+	/**  Dumpe les plages lisibles du module principal vers `AppData/re-dumps/<pid>-<horodatage>/` — jamais dans le dossier du jeu. */
+	reTraceDumpModule: (pid: number) => typedError<ReTraceDumpStatsDto, string>(__TAURI_INVOKE("re_trace_dump_module", { pid })),
 };
 
 /* Types */
@@ -519,6 +527,26 @@ export type BlenderSceneResultDto = {
 	skill_name: string,
 	event_id_name: string,
 	warnings: string[],
+};
+
+export type ReTraceProcessDto = {
+	pid: number,
+	process_name: string,
+	module_base: string | null,
+};
+
+export type ReTraceRegionDto = {
+	start: string,
+	end: string,
+	size: number,
+	perms: string,
+	path: string,
+};
+
+export type ReTraceDumpStatsDto = {
+	regions: number,
+	bytes: number,
+	out_dir: string,
 };
 
 /* Tauri Specta runtime */
