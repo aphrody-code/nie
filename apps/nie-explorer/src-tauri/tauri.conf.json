@@ -19,7 +19,8 @@
         "minWidth": 900,
         "minHeight": 560,
         "transparent": true,
-        "decorations": true
+        "decorations": false,
+        "shadow": true
       }
     ],
     "security": {
