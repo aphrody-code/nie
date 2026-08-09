@@ -14,7 +14,10 @@ use tauri::Emitter;
 use tauri_plugin_sql::{Migration, MigrationKind};
 
 mod game_data;
+mod re_trace;
 mod steam;
+
+use re_trace::{re_trace_dump_module, re_trace_find_process, re_trace_module_regions, re_trace_read_bytes_b64};
 
 /// Migrations SQLite du workspace de mods (`tauri-plugin-sql`, base `mods.db` dans
 /// `BaseDirectory::AppData` — jamais dans le dossier du jeu). Un mod = un ensemble de fichiers
@@ -2426,6 +2429,10 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         clipboard_write_file_list,
         clipboard_read_file_list,
         trash_appdata_files,
+        re_trace_find_process,
+        re_trace_module_regions,
+        re_trace_read_bytes_b64,
+        re_trace_dump_module,
     ])
 }
 
