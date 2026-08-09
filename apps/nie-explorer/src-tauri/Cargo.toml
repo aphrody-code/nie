@@ -133,6 +133,14 @@ nie-runtime = { path = "../../../crates/nie-runtime" }
 # commande. Dépendance `tokio` (runtime async) : compatible avec l'exécuteur bloquant des
 # commandes `tauri::command` existantes (appelée depuis un thread dédié, jamais le thread UI).
 nie-steam = { path = "../../../crates/nie-steam" }
+# Orchestration de job annulable/pausable avec progression (architecture inspirée sd-task-system,
+# implémentation originale) — remplace le scan VFS synchrone opaque de `vfs_all_entries` par un
+# job chunké annulable, avec progression relayée par événement Tauri (`vfs-index-progress`,
+# cf. `vfs_index_scan_start`/`vfsIndexDb.reindex`).
+nie-tasks = { path = "../../../crates/nie-tasks" }
+async-trait = "0.1"
+uuid = { version = "1", features = ["v4"] }
+tokio = { version = "1", features = ["rt"] }
 #
 # Exclusions Cargo dures — PAS des oublis, chacune vérifiée (`cargo metadata`/lecture directe
 # du Cargo.toml de chaque crate, 2026-08-08) :

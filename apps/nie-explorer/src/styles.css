@@ -304,6 +304,91 @@
     }
 }
 
+/* ── Palette d'accent « Spacedrive » — portage de var/spaceui/packages/tokens (spacedrive) ─────
+ * Tokens hsl(235,…) de `theme.css`/`themes/{dark,light}.css` réinjectés dans les rôles MD3 déjà
+ * en place (le reste de l'UI — shadcn, `@theme inline`, typographie — n'a RIEN à savoir du choix
+ * de palette : tout continue de lire `--md-sys-color-*`/`--background`/etc.). Sélectionnable dans
+ * Paramètres (`accentTheme`, cf. lib/settings.ts + lib/appearance.ts qui posent
+ * `[data-accent="spacedrive"]` sur `<html>`), orthogonal au clair/sombre de `next-themes`
+ * (`.dark`) — d'où les DEUX blocs ci-dessous, combinés par le sélecteur composé. */
+:root[data-accent="spacedrive"] {
+    --md-sys-color-primary: hsl(208, 100%, 47%);
+    --md-sys-color-on-primary: hsl(0, 0%, 100%);
+    --md-sys-color-primary-container: hsl(208, 100%, 90%);
+    --md-sys-color-on-primary-container: hsl(208, 100%, 20%);
+    --md-sys-color-secondary: hsl(208, 100%, 57%);
+    --md-sys-color-on-secondary: hsl(0, 0%, 100%);
+    --md-sys-color-secondary-container: hsl(208, 60%, 88%);
+    --md-sys-color-on-secondary-container: hsl(208, 100%, 20%);
+    --md-sys-color-tertiary: hsl(235, 10%, 40%);
+    --md-sys-color-on-tertiary: hsl(0, 0%, 100%);
+    --md-sys-color-tertiary-container: hsl(235, 10%, 88%);
+    --md-sys-color-on-tertiary-container: hsl(235, 15%, 20%);
+    --md-sys-color-background: hsl(235, 5%, 100%);
+    --md-sys-color-on-background: hsl(235, 5%, 25%);
+    --md-sys-color-surface: hsl(235, 5%, 100%);
+    --md-sys-color-on-surface: hsl(235, 5%, 25%);
+    --md-sys-color-surface-variant: hsl(235, 5%, 98%);
+    --md-sys-color-on-surface-variant: hsl(235, 5%, 40%);
+    --md-sys-color-outline: hsl(235, 5%, 60%);
+    --md-sys-color-outline-variant: hsl(235, 5%, 90%);
+    --md-sys-color-surface-container-lowest: hsl(0, 0%, 100%);
+    --md-sys-color-surface-container-low: hsl(235, 5%, 98%);
+    --md-sys-color-surface-container: hsl(235, 5%, 96%);
+    --md-sys-color-surface-container-high: hsl(235, 5%, 93%);
+    --md-sys-color-surface-container-highest: hsl(235, 5%, 87%);
+    --md-sys-color-error: hsl(0, 84%, 60%);
+    --md-sys-color-on-error: hsl(0, 0%, 100%);
+    --radius: 0.625rem;
+    --font-sans: "Inter", "Google Sans Flex", system-ui, sans-serif;
+}
+
+:root[data-accent="spacedrive"].dark {
+    --md-sys-color-primary: hsl(208, 100%, 57%);
+    --md-sys-color-on-primary: hsl(0, 0%, 100%);
+    --md-sys-color-primary-container: hsl(208, 100%, 20%);
+    --md-sys-color-on-primary-container: hsl(208, 100%, 90%);
+    --md-sys-color-secondary: hsl(208, 100%, 64%);
+    --md-sys-color-on-secondary: hsl(235, 15%, 10%);
+    --md-sys-color-secondary-container: hsl(208, 60%, 25%);
+    --md-sys-color-on-secondary-container: hsl(208, 100%, 92%);
+    --md-sys-color-tertiary: hsl(235, 15%, 70%);
+    --md-sys-color-on-tertiary: hsl(235, 15%, 10%);
+    --md-sys-color-tertiary-container: hsl(235, 15%, 24%);
+    --md-sys-color-on-tertiary-container: hsl(235, 15%, 92%);
+    --md-sys-color-background: hsl(235, 15%, 13%);
+    --md-sys-color-on-background: hsl(235, 35%, 92%);
+    --md-sys-color-surface: hsl(235, 15%, 13%);
+    --md-sys-color-on-surface: hsl(235, 35%, 92%);
+    --md-sys-color-surface-variant: hsl(235, 15%, 18%);
+    --md-sys-color-on-surface-variant: hsl(235, 10%, 70%);
+    --md-sys-color-outline: hsl(235, 10%, 55%);
+    --md-sys-color-outline-variant: hsl(235, 15%, 23%);
+    --md-sys-color-surface-container-lowest: hsl(235, 16%, 11%);
+    --md-sys-color-surface-container-low: hsl(235, 15%, 15%);
+    --md-sys-color-surface-container: hsl(235, 15%, 18%);
+    --md-sys-color-surface-container-high: hsl(235, 15%, 22%);
+    --md-sys-color-surface-container-highest: hsl(235, 15%, 30%);
+    --md-sys-color-error: hsl(0, 84%, 60%);
+    --md-sys-color-on-error: hsl(235, 15%, 10%);
+    --radius: 0.625rem;
+    --font-sans: "Inter", "Google Sans Flex", system-ui, sans-serif;
+}
+
+/* Piste indéterminée de `<Progress>` (cf. components/ui/progress.tsx) — même esprit que
+ * `.indeterminate-progress-bar` de `spaceui/primitives/ProgressBar.tsx`, réécrit en keyframes
+ * Tailwind-compatible (`animate-[…]`) plutôt qu'une classe globale séparée. */
+@layer utilities {
+    @keyframes progress-indeterminate {
+        0% {
+            transform: translateX(-100%);
+        }
+        100% {
+            transform: translateX(300%);
+        }
+    }
+}
+
 /* ── Échelle typographique MD3 (identique à azalee) ─────────────────── */
 @layer utilities {
     .type-title-large {

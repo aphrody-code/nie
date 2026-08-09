@@ -536,7 +536,50 @@ récent (`lib/places.ts`, frecency à la `zoxide`/yazi) ou une recherche libre r
 
 ---
 
-## 8. Job system durable (inspiré spacedrive) 🔲 NON_FAIT — objectif ouvert 2026-08-08
+## 8. Job system durable (inspiré spacedrive) 🟡 EN COURS (2026-08-09 — premier portage livré)
+
+Demande utilisateur (2026-08-09) : « clone spaceui + spacedrive dans `var/` (gitignoré), explore/
+analyse/porte les libs utilisées dans niers, porte l'UI/le style/le design et une partie du
+backend ». Dépôts clonés dans `var/spaceui` et `var/spacedrive` (gitignorés, `/var` déjà dans
+`.gitignore` racine) — non committés, sources de référence pour le portage.
+
+**Livré** :
+- **`crates/nie-tasks`** (nouveau crate workspace) : orchestration de job annulable/pausable avec
+  progression — `Task`/`Interrupter`/`TaskSystem`/`TaskHandle`, architecture inspirée de
+  `sd-task-system` (`var/spacedrive/crates/task-system`) mais **implémentation originale**
+  (dispatch par `tokio::spawn`, pas de pool de workers à vol de tâches — inutile à l'échelle de
+  nie-explorer). Testé (3 tests), `cargo clippy --lib --tests` 0 warning.
+- Premier portage réel : `vfsIndexDb.reindex` (`SettingsView.tsx`). Nouvelles commandes
+  `vfs_index_scan_start`/`_cancel`/`_take` (`src-tauri/src/lib.rs`) dispatchent un `VfsScanTask`
+  chunké (8000 entrées/lot) sur `nie-tasks`, avec progression relayée par l'événement Tauri
+  `vfs-index-progress` et annulation réelle exposée par un bouton « Annuler » (barre `Progress`,
+  portée de `spaceui/primitives/ProgressBar.tsx` sur `@base-ui/react/progress`).
+- **Non repris de ce plan initial** (`table jobs sqlite` + reprise au redémarrage) — le scan reste
+  en mémoire process (`VfsScanState`), perdu si l'app ferme en cours de route. La collecte des
+  ~255 800 entrées elle-même reste synchrone (même coût qu'avant) : ce que `nie-tasks` apporte ici
+  est l'émission incrémentale + l'annulation, pas une accélération du scan. Persistance sqlite
+  (`id, kind, status, progress, total, error, created_at, updated_at`) toujours l'étape suivante
+  si un job vraiment long (export `.cpk` massif, conversion de lot) en a besoin.
+
+**UI/style/design portés** (même demande) :
+- Palette d'accent « Spacedrive » sélectionnable dans Paramètres (`accentTheme`, `lib/settings.ts`)
+  — tokens hsl(235,…) de `var/spaceui/packages/tokens/src/css/{theme,themes/dark,themes/light}.css`
+  réinjectés dans les rôles `--md-sys-color-*` existants via `[data-accent="spacedrive"]`
+  (`styles.css`) — orthogonal au clair/sombre `next-themes`, n'affecte rien tant qu'il n'est pas
+  choisi (défaut inchangé : palette MD3 « azalee »).
+- Nouveaux primitifs `components/ui/` portés de `spaceui/packages/primitives` sur les briques
+  `@base-ui/react` déjà en place (pas de nouvelle dépendance Radix) : `progress.tsx`, `popover.tsx`,
+  `toggle-group.tsx`, `shortcut.tsx`, `collapsible.tsx`, `rename-input.tsx` (logique d'édition en
+  ligne portée de `spaceui/packages/explorer/RenameInput.tsx`, double-clic/Entrée/Échap/blur comme
+  le Finder macOS).
+- UX câblée : bouton « Options d'affichage » (Popover + ToggleGroup Liste/Grille + slider de
+  taille de vignettes) dans `ExplorerView`, barre de statut (compteur + taille de sélection),
+  sections Épinglés/Récents repliables (`Collapsible`) dans la barre latérale, rappel de raccourcis
+  (`Shortcut`) dans la palette de commandes, renommage de mod en ligne (`ModsView`, `modsDb.rename`
+  déjà existant côté DB mais jamais câblé côté UI avant ce passage).
+- **Non repris** : le menu contextuel HTML de spacedrive/`ContextMenu.tsx` — nie-explorer utilise
+  déjà un VRAI menu popup Win32 natif (`@tauri-apps/api/menu`, `lib/contextMenu.ts`), supérieur en
+  UX desktop à un `<div>` web ; le remplacer aurait été une régression, pas un portage.
 
 Demande utilisateur : « new goal, base-toi sur https://github.com/spacedriveapp/spacedrive ».
 Reconnaissance faite (stack très proche : Rust core + Tauri v2 + React + Specta typegen — déjà

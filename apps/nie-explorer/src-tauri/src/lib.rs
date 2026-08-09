@@ -4,7 +4,7 @@
 //! IPC (JSON) au-dessus de ces crates + une recherche chara/waza via le miroir `nie-wiki`.
 
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use base64::Engine as _;
 use nie_formats::cpk::{CpkEntry, CpkReader};
@@ -160,7 +160,7 @@ fn with_vfs<T>(game_dir: Option<String>, state: &VfsState, f: impl FnOnce(&Vfs) 
 // permet à `tauri-specta` de régénérer `src/lib/bindings.ts` à partir des VRAIES signatures Rust
 // (cf. `run()` → `specta_builder()`), au lieu du miroir manuel que `src/lib/api.ts` maintenait
 // jusqu'ici (désynchronisable en silence à chaque commande ajoutée/modifiée).
-#[derive(Serialize, specta::Type)]
+#[derive(Serialize, Deserialize, specta::Type)]
 struct EntryDto {
     path: String,
     name: String,
@@ -610,6 +610,141 @@ fn vfs_all_entries(game_dir: Option<String>, state: tauri::State<VfsState>) -> R
             })
             .collect())
     })
+}
+
+// ─── Scan VFS annulable/pausable avec progression (nie-tasks) ─────────────────────────
+//
+// Remplace, pour l'usage `vfsIndexDb.reindex` (bouton « Réindexer » de Paramètres), l'appel
+// opaque [`vfs_all_entries`] par un job [`nie_tasks::Task`] chunké : la collecte en mémoire
+// elle-même reste synchrone (déjà rapide, cf. commentaire de [`vfs_all_entries`]) mais son
+// ÉMISSION est désormais incrémentale et annulable — ce que ne permettait aucun `#[tauri::command]`
+// à réponse unique. `vfs_all_entries` reste en place (compat, autres appelants potentiels).
+
+/// État géré du système de jobs — un seul `TaskSystem` pour toute l'appli (pas seulement le scan
+/// VFS : tout futur job long de nie-explorer peut s'y greffer). `results` retient la sortie JSON
+/// des jobs terminés jusqu'à ce que le frontend la récupère via [`vfs_index_scan_take`].
+struct VfsScanState {
+    system: nie_tasks::TaskSystem<String>,
+    results: Arc<Mutex<std::collections::HashMap<nie_tasks::TaskId, serde_json::Value>>>,
+}
+
+/// Job : ré-émet en lots de [`Self::CHUNK`] entrées déjà collectées (voir [`vfs_index_scan_start`]),
+/// avec un point de contrôle annulation/pause à chaque lot — `ctx.progress.report` renseigne la
+/// barre de progression du frontend (`vfs-index-progress`, relayé par le lecteur de `run()`).
+struct VfsScanTask {
+    id: nie_tasks::TaskId,
+    entries: Vec<EntryDto>,
+}
+
+impl VfsScanTask {
+    const CHUNK: usize = 8_000;
+}
+
+#[async_trait::async_trait]
+impl nie_tasks::Task<String> for VfsScanTask {
+    fn id(&self) -> nie_tasks::TaskId {
+        self.id
+    }
+
+    async fn run(&mut self, ctx: &nie_tasks::TaskContext) -> Result<nie_tasks::ExecStatus, String> {
+        let total = self.entries.len() as u64;
+        let mut done = 0u64;
+        for chunk in self.entries.chunks(Self::CHUNK) {
+            ctx.interrupter.check().await.map_err(|_| "scan VFS annulé".to_string())?;
+            done += chunk.len() as u64;
+            ctx.progress.report(done, total, None);
+            // Cède la main au runtime tokio entre deux lots — sans quoi la boucle (rapide,
+            // purement mémoire) tournerait d'une traite et la progression n'aurait aucun sens
+            // observable côté frontend (tous les événements arriveraient d'un coup à la fin).
+            tokio::task::yield_now().await;
+        }
+        let value = serde_json::to_value(&self.entries).map_err(|e| e.to_string())?;
+        Ok(nie_tasks::ExecStatus::Done(value))
+    }
+}
+
+/// Avancement relayé au frontend (événement `vfs-index-progress`) — miroir JSON de
+/// [`nie_tasks::TaskProgress`], en `u32` (pas `usize`/`u64`, cf. convention `specta-typescript`
+/// documentée sur [`EntryDto`]) et avec l'identifiant de job en `String` (UUID).
+#[derive(Serialize, specta::Type, Clone)]
+struct VfsIndexProgressDto {
+    task_id: String,
+    done: u32,
+    total: u32,
+}
+
+fn parse_task_id(task_id: &str) -> Result<nie_tasks::TaskId, String> {
+    uuid::Uuid::parse_str(task_id).map(nie_tasks::TaskId).map_err(|e| format!("task_id invalide : {e}"))
+}
+
+/// Démarre le scan complet du VFS en tâche de fond et renvoie immédiatement son `TaskId` (UUID) —
+/// la collecte des ~255 800 entrées reste synchrone (même coût que [`vfs_all_entries`]) mais leur
+/// émission par lots est annulable ([`vfs_index_scan_cancel`]) et suivie en direct par
+/// l'événement `vfs-index-progress`. Le résultat final se récupère par [`vfs_index_scan_take`]
+/// une fois l'événement `vfs-index-done` reçu.
+#[tauri::command]
+#[specta::specta]
+fn vfs_index_scan_start(
+    game_dir: Option<String>,
+    app: tauri::AppHandle,
+    state: tauri::State<VfsState>,
+    scan: tauri::State<VfsScanState>,
+) -> Result<String, String> {
+    let entries = with_vfs(game_dir, &state, |vfs| {
+        Ok(vfs
+            .iter()
+            .map(|(path, entry)| EntryDto {
+                path: path.to_string(),
+                name: path.rsplit('/').next().unwrap_or(path).to_string(),
+                size: entry.file_size,
+                cpk: entry.cpk_filename.clone(),
+            })
+            .collect::<Vec<_>>())
+    })?;
+
+    let id = nie_tasks::TaskId::new();
+    let handle = scan.system.dispatch(VfsScanTask { id, entries });
+    let results = Arc::clone(&scan.results);
+
+    tauri::async_runtime::spawn(async move {
+        match handle.wait().await {
+            nie_tasks::TaskStatus::Done(value) => {
+                results.lock().expect("verrou résultats de scan empoisonné").insert(id, value);
+                let _ = app.emit("vfs-index-done", id.to_string());
+            }
+            nie_tasks::TaskStatus::Canceled => {
+                let _ = app.emit("vfs-index-canceled", id.to_string());
+            }
+            nie_tasks::TaskStatus::Error(e) => {
+                let _ = app.emit("vfs-index-error", format!("{id}: {e}"));
+            }
+        }
+    });
+
+    Ok(id.to_string())
+}
+
+/// Annule un scan en cours ([`vfs_index_scan_start`]) — no-op silencieux s'il est déjà terminé.
+#[tauri::command]
+#[specta::specta]
+fn vfs_index_scan_cancel(task_id: String, scan: tauri::State<VfsScanState>) -> Result<(), String> {
+    scan.system.cancel(parse_task_id(&task_id)?);
+    Ok(())
+}
+
+/// Récupère et consomme (retire du registre) le résultat d'un scan terminé (`vfs-index-done`
+/// reçu) — erreur explicite si appelé trop tôt ou avec un `task_id` déjà consommé/inconnu.
+#[tauri::command]
+#[specta::specta]
+fn vfs_index_scan_take(task_id: String, scan: tauri::State<VfsScanState>) -> Result<Vec<EntryDto>, String> {
+    let id = parse_task_id(&task_id)?;
+    let value = scan
+        .results
+        .lock()
+        .expect("verrou résultats de scan empoisonné")
+        .remove(&id)
+        .ok_or_else(|| "résultat de scan introuvable (pas encore prêt, ou déjà consommé)".to_string())?;
+    serde_json::from_value(value).map_err(|e| e.to_string())
 }
 
 /// Chemins VFS dont le nom (sans extension) est CONTENU dans `needle`, insensible à la casse —
@@ -2382,6 +2517,9 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         save_bytes_b64,
         vfs_related,
         vfs_all_entries,
+        vfs_index_scan_start,
+        vfs_index_scan_cancel,
+        vfs_index_scan_take,
         game_data_skills,
         game_data_items,
         game_data_auras,
@@ -2464,6 +2602,10 @@ pub fn run() {
 
     let specta = specta_builder();
 
+    // Système de jobs (nie-tasks) — un seul par appli, cf. `VfsScanState`. Le lecteur de
+    // progression est branché plus bas dans `.setup()` (a besoin de `app.handle()` pour émettre).
+    let (task_system, mut task_progress_rx) = nie_tasks::TaskSystem::<String>::new();
+
     tauri::Builder::default()
         // DOIT être le premier plugin enregistré (contrat tauri-plugin-single-instance) :
         // relance = focus la fenêtre existante + transmet argv (« Ouvrir avec » Explorer).
@@ -2496,7 +2638,22 @@ pub fn run() {
         .manage(SaveState(Mutex::new(None)))
         .manage(VfsState(Mutex::new(None)))
         .manage(RawCpkState(Mutex::new(None)))
-        .setup(|app| {
+        .manage(VfsScanState { system: task_system, results: Arc::new(Mutex::new(std::collections::HashMap::new())) })
+        .setup(move |app| {
+            // Relaie chaque `TaskProgress` (nie-tasks) en événement Tauri `vfs-index-progress` —
+            // générique à TOUT job dispatché sur `task_system`, pas seulement le scan VFS
+            // (cf. `VfsIndexProgressDto` : nom du champ neutre `task_id`, pas `vfs_scan_id`).
+            {
+                let app_handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    while let Some(p) = task_progress_rx.recv().await {
+                        let _ = app_handle.emit(
+                            "vfs-index-progress",
+                            VfsIndexProgressDto { task_id: p.id.to_string(), done: p.done as u32, total: p.total as u32 },
+                        );
+                    }
+                });
+            }
             // Habillage natif Windows 11 (Mica) — cf. demande utilisateur « ui windows native ».
             // Best-effort : une build hors Win11/serveur peut échouer l'appel, sans bloquer le
             // lancement (fenêtre reste opaque « surface » standard dans ce cas).

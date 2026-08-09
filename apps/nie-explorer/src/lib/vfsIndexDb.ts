@@ -5,6 +5,7 @@
 // une colonne indexée et interrogée par ÉGALITÉ ou par suffixe de variante exact
 // (`code = ? OR code LIKE ?||'_%'`), pas par sous-chaîne libre.
 import Database from "@tauri-apps/plugin-sql";
+import { listen } from "@tauri-apps/api/event";
 import { api, type VfsEntry } from "./api";
 
 export interface VfsFileRow {
@@ -52,12 +53,42 @@ export const vfsIndexDb = {
   },
 
   /**
-   * Scanne tout le VFS (`vfs_all_entries`) et matérialise `vfs_files` par lots — appelé
-   * explicitement (bouton « Réindexer »), jamais au démarrage (255 800 lignes, quelques
-   * secondes). `onProgress` reçoit `(inséré, total)` après chaque lot.
+   * Scanne tout le VFS et matérialise `vfs_files` par lots — appelé explicitement (bouton
+   * « Réindexer »), jamais au démarrage (255 800 lignes, quelques secondes). `onProgress` reçoit
+   * `(fait, total)` deux fois : d'abord pour le SCAN côté Rust (job `nie-tasks` annulable,
+   * cf. `vfs_index_scan_start`/`onTaskId` — permet un bouton « Annuler » réel côté UI), puis pour
+   * l'INSERTION SQL par lots ci-dessous (deux phases distinctes, mais même callback : l'UI
+   * n'affiche qu'une seule barre de progression, peu importe la phase en cours).
    */
-  async reindex(gameDir: string | undefined, onProgress?: (done: number, total: number) => void): Promise<VfsIndexMeta> {
-    const entries: VfsEntry[] = await api.allEntries(gameDir);
+  async reindex(
+    gameDir: string | undefined,
+    onProgress?: (done: number, total: number) => void,
+    onTaskId?: (taskId: string) => void,
+  ): Promise<VfsIndexMeta> {
+    const taskId = await api.indexScanStart(gameDir);
+    onTaskId?.(taskId);
+    const entries: VfsEntry[] = await new Promise((resolve, reject) => {
+      const unlisten: Array<() => void> = [];
+      const cleanup = () => unlisten.forEach((u) => u());
+      listen<{ task_id: string; done: number; total: number }>("vfs-index-progress", (e) => {
+        if (e.payload.task_id === taskId) onProgress?.(e.payload.done, e.payload.total);
+      }).then((u) => unlisten.push(u));
+      listen<string>("vfs-index-done", (e) => {
+        if (e.payload !== taskId) return;
+        cleanup();
+        api.indexScanTake(taskId).then(resolve).catch(reject);
+      }).then((u) => unlisten.push(u));
+      listen<string>("vfs-index-canceled", (e) => {
+        if (e.payload !== taskId) return;
+        cleanup();
+        reject(new Error("Réindexation annulée"));
+      }).then((u) => unlisten.push(u));
+      listen<string>("vfs-index-error", (e) => {
+        if (!e.payload.startsWith(taskId)) return;
+        cleanup();
+        reject(new Error(e.payload));
+      }).then((u) => unlisten.push(u));
+    });
     const d = await db();
 
     await d.execute("DELETE FROM vfs_files");
@@ -82,6 +113,11 @@ export const vfsIndexDb = {
       [meta.total, meta.reindexed_at],
     );
     return meta;
+  },
+
+  /** Annule un scan en cours (bouton « Annuler » pendant `reindex`) — cf. `onTaskId`. */
+  cancelReindex(taskId: string): Promise<void> {
+    return api.indexScanCancel(taskId).then(() => {});
   },
 
   /** Résolution PRÉCISE : `code` exact, ou `code` suivi d'un suffixe de variante (`_...`). */

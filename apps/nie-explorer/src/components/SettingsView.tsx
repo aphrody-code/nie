@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
+import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -62,6 +63,9 @@ export function SettingsView() {
   const [indexMeta, setIndexMeta] = useState<VfsIndexMeta | null>(null);
   const [reindexing, setReindexing] = useState(false);
   const [reindexProgress, setReindexProgress] = useState<{ done: number; total: number } | null>(null);
+  // Job `nie-tasks` en cours (cf. `vfsIndexDb.reindex`) — permet un VRAI bouton Annuler
+  // (`vfsIndexDb.cancelReindex`), pas seulement un indicateur de chargement.
+  const [reindexTaskId, setReindexTaskId] = useState<string | null>(null);
   const [installingBlenderAddon, setInstallingBlenderAddon] = useState(false);
   const [blenderImportBusy, setBlenderImportBusy] = useState(false);
   const [blenderImportPreview, setBlenderImportPreview] = useState<{ path: string; pngB64: string } | null>(null);
@@ -171,7 +175,11 @@ export function SettingsView() {
     setReindexing(true);
     setReindexProgress(null);
     try {
-      const meta = await vfsIndexDb.reindex(settings.gameDir, (done, total) => setReindexProgress({ done, total }));
+      const meta = await vfsIndexDb.reindex(
+        settings.gameDir,
+        (done, total) => setReindexProgress({ done, total }),
+        setReindexTaskId,
+      );
       setIndexMeta(meta);
       toast.success(`Index VFS reconstruit : ${meta.total.toLocaleString("fr-FR")} fichiers`);
     } catch (e) {
@@ -179,7 +187,12 @@ export function SettingsView() {
     } finally {
       setReindexing(false);
       setReindexProgress(null);
+      setReindexTaskId(null);
     }
+  }
+
+  async function cancelReindex() {
+    if (reindexTaskId) await vfsIndexDb.cancelReindex(reindexTaskId);
   }
 
   useEffect(() => {
@@ -230,6 +243,20 @@ export function SettingsView() {
                   <SelectItem value="light">{t("settings.theme.light")}</SelectItem>
                   <SelectItem value="dark">{t("settings.theme.dark")}</SelectItem>
                   <SelectItem value="system">{t("settings.theme.system")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Palette</Label>
+              <Select value={settings.accentTheme} onValueChange={(v) => v && setSettings({ accentTheme: v as "azalee" | "spacedrive" })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="azalee">Azalee (MD3, défaut)</SelectItem>
+                  {/* Portage des tokens `var/spaceui/packages/tokens` (spacedrive) — cf. styles.css. */}
+                  <SelectItem value="spacedrive">Spacedrive</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -519,13 +546,25 @@ export function SettingsView() {
           ) : (
             <p className="type-body-medium text-on-surface-variant">Pas encore construit — repli sur la recherche en mémoire.</p>
           )}
-          <Button size="sm" onClick={reindex} disabled={reindexing}>
-            {reindexing
-              ? reindexProgress
-                ? `Réindexation… ${reindexProgress.done.toLocaleString("fr-FR")}/${reindexProgress.total.toLocaleString("fr-FR")}`
-                : "Scan du VFS…"
-              : "Réindexer"}
-          </Button>
+          {reindexing && (
+            // `Progress` porté de `spaceui/primitives/ProgressBar.tsx` (spacedrive) sur
+            // `@base-ui/react/progress`, cf. components/ui/progress.tsx.
+            <Progress value={reindexProgress ? Math.round((reindexProgress.done / Math.max(reindexProgress.total, 1)) * 100) : null} />
+          )}
+          <div className="flex gap-2">
+            <Button size="sm" onClick={reindex} disabled={reindexing}>
+              {reindexing
+                ? reindexProgress
+                  ? `Réindexation… ${reindexProgress.done.toLocaleString("fr-FR")}/${reindexProgress.total.toLocaleString("fr-FR")}`
+                  : "Scan du VFS…"
+                : "Réindexer"}
+            </Button>
+            {reindexing && reindexTaskId && (
+              <Button size="sm" variant="outline" onClick={cancelReindex}>
+                Annuler
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
 

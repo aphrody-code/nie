@@ -16,8 +16,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Icon } from "@/components/ui/Icon";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Slider } from "@/components/ui/slider";
 import { useT } from "@/lib/i18n";
 import { DetailPane, type DetailTarget } from "@/components/DetailPane";
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 export interface ExplorerState {
   prefix: string;
@@ -155,45 +159,57 @@ function PlacesSidebar({ current, onGoto }: { current: string; onGoto: (prefix: 
         </div>
 
         {pins.length > 0 && (
-          <div>
-            <p className="px-2 pb-1 type-label-small text-on-surface-variant">★</p>
-            <div className="flex flex-col">
-              {pins.map((prefix) => (
-                <button
-                  key={prefix}
-                  className={`state-layer flex items-center gap-2 rounded-lg px-2 py-1.5 text-left type-body-small ${
-                    current === prefix ? "bg-secondary-container text-on-secondary-container" : "text-on-surface"
-                  }`}
-                  onClick={() => onGoto(prefix)}
-                  title={prefix}
-                >
-                  <Icon name="stars" size={15} className="shrink-0 text-primary" />
-                  <span className="truncate">{prefix.split("/").pop()}</span>
-                </button>
-              ))}
-            </div>
-          </div>
+          // Section repliable — `Collapsible` porté de `spaceui/primitives/Collapsible.tsx`
+          // (spacedrive), cf. components/ui/collapsible.tsx.
+          <Collapsible defaultOpen>
+            <CollapsibleTrigger>
+              <span className="type-label-small text-on-surface-variant">★ Épinglés</span>
+              <Icon name="expand_more" size={14} className="text-on-surface-variant transition-transform group-data-[panel-open]:rotate-180" />
+            </CollapsibleTrigger>
+            <CollapsiblePanel>
+              <div className="flex flex-col pt-1">
+                {pins.map((prefix) => (
+                  <button
+                    key={prefix}
+                    className={`state-layer flex items-center gap-2 rounded-lg px-2 py-1.5 text-left type-body-small ${
+                      current === prefix ? "bg-secondary-container text-on-secondary-container" : "text-on-surface"
+                    }`}
+                    onClick={() => onGoto(prefix)}
+                    title={prefix}
+                  >
+                    <Icon name="stars" size={15} className="shrink-0 text-primary" />
+                    <span className="truncate">{prefix.split("/").pop()}</span>
+                  </button>
+                ))}
+              </div>
+            </CollapsiblePanel>
+          </Collapsible>
         )}
 
         {recents.length > 0 && (
-          <div>
-            <p className="px-2 pb-1 type-label-small text-on-surface-variant">{t("explorer.recents")}</p>
-            <div className="flex flex-col">
-              {recents.map((r) => (
-                <button
-                  key={r.prefix}
-                  className={`state-layer flex items-center gap-2 rounded-lg px-2 py-1.5 text-left type-body-small ${
-                    current === r.prefix ? "bg-secondary-container text-on-secondary-container" : "text-on-surface"
-                  }`}
-                  onClick={() => onGoto(r.prefix)}
-                  title={r.prefix}
-                >
-                  <Icon name="schedule" size={15} className="shrink-0 text-on-surface-variant" />
-                  <span className="truncate">{r.prefix.split("/").pop()}</span>
-                </button>
-              ))}
-            </div>
-          </div>
+          <Collapsible defaultOpen>
+            <CollapsibleTrigger>
+              <span className="type-label-small text-on-surface-variant">{t("explorer.recents")}</span>
+              <Icon name="expand_more" size={14} className="text-on-surface-variant transition-transform group-data-[panel-open]:rotate-180" />
+            </CollapsibleTrigger>
+            <CollapsiblePanel>
+              <div className="flex flex-col pt-1">
+                {recents.map((r) => (
+                  <button
+                    key={r.prefix}
+                    className={`state-layer flex items-center gap-2 rounded-lg px-2 py-1.5 text-left type-body-small ${
+                      current === r.prefix ? "bg-secondary-container text-on-secondary-container" : "text-on-surface"
+                    }`}
+                    onClick={() => onGoto(r.prefix)}
+                    title={r.prefix}
+                  >
+                    <Icon name="schedule" size={15} className="shrink-0 text-on-surface-variant" />
+                    <span className="truncate">{r.prefix.split("/").pop()}</span>
+                  </button>
+                ))}
+              </div>
+            </CollapsiblePanel>
+          </Collapsible>
         )}
       </div>
     </ScrollArea>
@@ -235,6 +251,10 @@ export function ExplorerView({
   // persisté (état local volontaire, comme `sortKey`) : la vue grille est un outil ponctuel
   // « je regarde un dossier de textures/persos », pas une préférence globale à retenir partout.
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  // Taille des vignettes en vue grille (px, réglable via le popover « Options d'affichage » —
+  // pattern porté de spacedrive : un « View Options » à côté du sélecteur liste/grille, pas un
+  // réglage caché dans les Paramètres généraux).
+  const [gridSize, setGridSize] = useState(96);
   const pins = usePinnedPlaces();
   // Multi-sélection RÉELLE (Ctrl/Shift-clic, comme l'explorateur Windows) — cf. demande
   // utilisatrice « editer doit vraiment copier coller et tout select les fichiers dossiers pas
@@ -339,6 +359,13 @@ export function ExplorerView({
   // Nom réel (perso/technique/objet) lié à chaque fichier, résolu par lot via le miroir wiki
   // local — cf. demande utilisatrice « affiche le nom... lié à un fichier au lieu de juste l'id ».
   const fileCodes = useMemo(() => sortedFiles.map((f) => codeOf(f.name)), [sortedFiles]);
+
+  // Taille totale de la sélection courante (fichiers uniquement — un dossier VFS n'a pas de
+  // taille propre) — affichée dans la barre de statut, cf. rendu plus bas.
+  const selectedTotalSize = useMemo(
+    () => sortedFiles.reduce((sum, f) => (multiSelected.has(f.path) ? sum + f.size : sum), 0),
+    [sortedFiles, multiSelected],
+  );
   const resolved = useResolvedNames(settings.wikiDb, fileCodes);
 
   // Liste plate dossiers+fichiers pour la navigation clavier (haut/bas/entrée/retour, à la yazi).
@@ -603,15 +630,42 @@ export function ExplorerView({
           >
             <Icon name={sortKey === "name" ? "sort_by_alpha" : "table_rows"} size={16} />
           </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            title={viewMode === "list" ? "Vue grille (vignettes)" : "Vue liste"}
-            className="state-layer rounded-full text-on-surface-variant"
-            onClick={() => setViewMode((v) => (v === "list" ? "grid" : "list"))}
-          >
-            <Icon name={viewMode === "list" ? "grid_view" : "view_list"} size={16} />
-          </Button>
+          <Popover>
+            <PopoverTrigger
+              render={
+                <Button size="icon" variant="ghost" title="Options d'affichage" className="state-layer rounded-full text-on-surface-variant">
+                  <Icon name="tune" size={16} />
+                </Button>
+              }
+            />
+            <PopoverContent className="w-56">
+              <p className="px-1 pb-1 type-label-small text-on-surface-variant">Affichage</p>
+              {/* Vue Liste/Grille — ToggleGroup porté de `spaceui/primitives/ToggleGroup.tsx`
+               * (spacedrive), cf. components/ui/toggle-group.tsx. */}
+              <ToggleGroup value={[viewMode]} onValueChange={(v) => v[0] && setViewMode(v[0] as "list" | "grid")} className="w-full">
+                <ToggleGroupItem value="list" className="flex-1 justify-center">
+                  <Icon name="view_list" size={14} />
+                  Liste
+                </ToggleGroupItem>
+                <ToggleGroupItem value="grid" className="flex-1 justify-center">
+                  <Icon name="grid_view" size={14} />
+                  Grille
+                </ToggleGroupItem>
+              </ToggleGroup>
+              {viewMode === "grid" && (
+                <div className="px-1 pt-2">
+                  <p className="pb-1 type-label-small text-on-surface-variant">Taille des vignettes</p>
+                  <Slider
+                    value={[gridSize]}
+                    onValueChange={(v) => setGridSize((Array.isArray(v) ? v[0] : v) ?? gridSize)}
+                    min={72}
+                    max={192}
+                    step={8}
+                  />
+                </div>
+              )}
+            </PopoverContent>
+          </Popover>
         </div>
 
         <div className="flex gap-2">
@@ -644,7 +698,10 @@ export function ExplorerView({
           tabIndex={0}
           onKeyDown={onListKeyDown}
         >
-          <div className={viewMode === "grid" ? "grid grid-cols-[repeat(auto-fill,minmax(96px,1fr))] gap-2 p-2" : "divide-y divide-outline-variant/30 py-1"}>
+          <div
+            className={viewMode === "grid" ? "grid gap-2 p-2" : "divide-y divide-outline-variant/30 py-1"}
+            style={viewMode === "grid" ? { gridTemplateColumns: `repeat(auto-fill,minmax(${gridSize}px,1fr))` } : undefined}
+          >
             {!searching &&
               sortedDirs.map((d) => {
                 const path = state.prefix ? `${state.prefix}/${d}` : d;
@@ -753,13 +810,23 @@ export function ExplorerView({
             )}
           </div>
         </ScrollArea>
-        <p className="type-label-small text-on-surface-variant">
-          {loading
-            ? t("explorer.loading")
-            : searching
-              ? t("explorer.results", { n: files.length })
-              : t("explorer.count", { dirs: dirs.length, files: files.length })}
-        </p>
+        {/* Barre de statut — pattern porté de l'Explorer spacedrive (compteur à gauche, résumé de
+         * la sélection courante à droite dès qu'elle est non vide). */}
+        <div className="flex items-center justify-between gap-2 type-label-small text-on-surface-variant">
+          <span>
+            {loading
+              ? t("explorer.loading")
+              : searching
+                ? t("explorer.results", { n: files.length })
+                : t("explorer.count", { dirs: dirs.length, files: files.length })}
+          </span>
+          {multiSelected.size > 0 && (
+            <span>
+              {multiSelected.size.toLocaleString("fr-FR")} sélectionné(s)
+              {selectedTotalSize > 0 && ` · ${humanSize(selectedTotalSize)}`}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="min-h-0 overflow-hidden rounded-xl bg-surface-container-low elevation-1">

@@ -3,6 +3,12 @@ import { useSyncExternalStore } from "react";
 
 export type Locale = "fr" | "en" | "ja";
 
+/** Palette d'accent — `azalee` (défaut, MD3 seed #F89C5A, identité historique niers/azalee) ou
+ * `spacedrive` (portage des tokens `var/spaceui/packages/tokens`, cf. demande utilisatrice de
+ * porter le style/design de spacedrive). Orthogonal au clair/sombre de `next-themes` : les deux
+ * se combinent (`[data-accent="spacedrive"].dark`, cf. styles.css). */
+export type AccentTheme = "azalee" | "spacedrive";
+
 export interface Settings {
   gameDir: string;
   wikiDb: string;
@@ -14,6 +20,8 @@ export interface Settings {
   fontScale: number;
   /** Zoom global de l'interface (CSS `zoom`, WebView2/Chromium). */
   uiZoom: number;
+  /** Palette d'accent — cf. [`AccentTheme`]. */
+  accentTheme: AccentTheme;
 }
 
 // Le thème clair/sombre/système est géré par next-themes (sa propre clé localStorage
@@ -27,6 +35,7 @@ const DEFAULTS: Settings = {
   locale: "fr",
   fontScale: 1,
   uiZoom: 1,
+  accentTheme: "azalee",
 };
 
 function load(): Settings {
