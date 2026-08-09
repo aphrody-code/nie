@@ -19,6 +19,7 @@ import { SettingsView } from "@/components/SettingsView";
 import { DetailPane } from "@/components/DetailPane";
 import { CommandPalette } from "@/components/CommandPalette";
 import { Icon } from "@/components/ui/Icon";
+import { WindowControls } from "@/components/ui/window-controls";
 import { api } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { useApplyAppearance } from "@/lib/appearance";
@@ -182,12 +183,17 @@ export default function App() {
   return (
     <TooltipProvider>
       <div className="flex h-screen w-screen flex-col bg-background/60 text-foreground">
-        {/* Barre d'outils SOUS la vraie barre de titre native Windows 11 (decorations: true +
-            Mica, cf. `src-tauri/src/lib.rs` `setup()`) — ce n'est PAS un faux titlebar : plus de
-            `data-tauri-drag-region`/double-clic-pour-maximiser ici, la fenêtre native gère déjà
-            le déplacement/agrandissement/Snap Layouts. Bordure TOUJOURS sombre pour marquer la
-            limite avec le chrome natif au-dessus. */}
-        <div className="flex h-12 shrink-0 items-center gap-4 border-b border-chrome-border bg-surface-container/70 px-3 backdrop-blur">
+        {/* Fenêtre SANS bordure (`decorations: false`, cf. `tauri.conf.json`) — chrome custom
+            porté du frameless look de spacedrive/spaceui (barre unique intégrant navigation +
+            contrôles de fenêtre, cf. `var/spacedrive/docs/public/SDGridView.webp`). Toute la
+            zone vide de la barre est une VRAIE zone de déplacement (`data-tauri-drag-region`,
+            double-clic = agrandir/restaurer, natif Tauri) — les éléments interactifs (onglets,
+            recherche, contrôles de fenêtre) l'excluent implicitement en étant des `<button>`
+            cliqués normalement. Bordure TOUJOURS sombre pour marquer la limite avec le fond. */}
+        <div
+          data-tauri-drag-region
+          className="flex h-12 shrink-0 items-center gap-4 border-b border-chrome-border bg-surface-container/70 px-3 backdrop-blur"
+        >
           {/* Icône aphrody à la place du wordmark texte (demande utilisateur) — `alt`/`title`
               gardent le nom accessible au survol/pour les lecteurs d'écran. */}
           <img
@@ -229,10 +235,19 @@ export default function App() {
             </TabsList>
           </Tabs>
           <div className="flex-1" />
-          <span className="mr-1 flex items-center gap-1 rounded-full bg-surface-container-high px-2.5 py-1 type-label-small text-on-surface-variant">
-            <Icon name="search" size={12} />
-            Ctrl+K
-          </span>
+          {/* Pill de recherche centrée cliquable — même langage visuel que la barre « Search… »
+              de spacedrive (capture ci-dessus), ouvre la VRAIE palette de commandes (même
+              raccourci que Ctrl+K, déclenché via un `KeyboardEvent` synthétique — pas de nouvel
+              état partagé pour un simple bouton). */}
+          <button
+            className="state-layer mr-1 flex items-center gap-1.5 rounded-full bg-surface-container-high px-3 py-1.5 type-label-small text-on-surface-variant hover:text-on-surface"
+            onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }))}
+          >
+            <Icon name="search" size={13} />
+            <span>Rechercher…</span>
+            <kbd className="ml-1 rounded border border-outline-variant/60 px-1 text-[10px] opacity-70">Ctrl+K</kbd>
+          </button>
+          <WindowControls />
         </div>
 
         <main className="min-h-0 flex-1 bg-background">
