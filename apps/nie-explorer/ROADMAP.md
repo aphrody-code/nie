@@ -581,6 +581,25 @@ backend ». Dépôts clonés dans `var/spaceui` et `var/spacedrive` (gitignorés
   déjà un VRAI menu popup Win32 natif (`@tauri-apps/api/menu`, `lib/contextMenu.ts`), supérieur en
   UX desktop à un `<div>` web ; le remplacer aurait été une régression, pas un portage.
 
+**Fenêtre sans bordure (2026-08-09, 2ᵉ passage — demande explicite « le frameless windows de
+spaceui »)** : référence visuelle EXACTE prise sur les vraies captures d'écran déjà présentes dans
+le clone (`var/spacedrive/docs/public/SDGridView.webp`/`SDColumnView.webp` — fenêtre sans chrome
+natif, traffic lights macOS intégrées à une seule barre outils+titre, coins arrondis). Constat :
+`tauri.conf.json` de spacedrive garde `decorations: true` partout (le look « sans bordure » n'est
+qu'un effet `hiddenTitle` macOS — Windows y montre un VRAI chrome natif classique) ; niers va plus
+loin et porte un frameless RÉEL, y compris sur Windows (dans l'esprit Discord/VS Code/Spotify, pas
+une imitation macOS hors de propos sur cette plateforme) :
+- `tauri.conf.json` : `decorations: false`, `shadow: true` (ombre OS conservée malgré l'absence de
+  chrome natif).
+- `src-tauri/src/lib.rs` : `apply_rounded_corners` (`DWMWA_WINDOW_CORNER_PREFERENCE`, appel DWM
+  brut comme `apply_dark_titlebar` de spacedrive) — sans lui, Windows 11 ne coins-arrondit QUE les
+  fenêtres à légende native ; une `WS_POPUP` custom resterait à coins vifs.
+- `App.tsx` : la barre outils devient elle-même la zone de titre (`data-tauri-drag-region`,
+  double-clic = agrandir/restaurer natif Tauri) — pill de recherche centrée cliquable (ouvre la
+  palette de commandes), `WindowControls` (réduire/agrandir/fermer, `components/ui/window-
+  controls.tsx`) alignés à droite (convention Windows, pas des traffic lights macOS greffées hors
+  contexte).
+
 Demande utilisateur : « new goal, base-toi sur https://github.com/spacedriveapp/spacedrive ».
 Reconnaissance faite (stack très proche : Rust core + Tauri v2 + React + Specta typegen — déjà
 la stack de `nie-explorer`) — le concept le plus transposable et le plus utile ici est leur

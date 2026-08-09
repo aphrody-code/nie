@@ -1085,6 +1085,37 @@ fn read_disk_file_b64(path: String, max_bytes: Option<u32>) -> Result<String, St
 /// (même best-effort que l'appel initial dans `run()`).
 #[tauri::command]
 #[specta::specta]
+/// Force l'arrondi des coins Windows 11 (`DWMWA_WINDOW_CORNER_PREFERENCE` = `DWMWCP_ROUND`) sur
+/// une fenêtre SANS bordure (`decorations: false`) — DWM n'arrondit par défaut que les fenêtres à
+/// légende native (`WS_CAPTION`) ; une `WS_POPUP` custom resterait à coins vifs sans cet appel.
+/// Même mécanique que `apply_dark_titlebar` de spacedrive (`windows.rs`, `DwmSetWindowAttribute`
+/// brut — pas de crate tierce, l'attribut est trop récent pour `window_vibrancy`). Best-effort :
+/// silencieux hors Windows 11 (build serveur/VM ancienne), la fenêtre reste alors à coins vifs.
+#[cfg(target_os = "windows")]
+fn apply_rounded_corners(window: &tauri::WebviewWindow) {
+    #[allow(non_snake_case)]
+    const DWMWA_WINDOW_CORNER_PREFERENCE: u32 = 33;
+    #[allow(non_snake_case)]
+    const DWMWCP_ROUND: i32 = 2;
+
+    unsafe extern "system" {
+        fn DwmSetWindowAttribute(hwnd: isize, attr: u32, value: *const std::ffi::c_void, size: u32) -> i32;
+    }
+
+    let Ok(hwnd) = window.hwnd() else { return };
+    let preference = DWMWCP_ROUND;
+    unsafe {
+        let _ = DwmSetWindowAttribute(
+            hwnd.0 as isize,
+            DWMWA_WINDOW_CORNER_PREFERENCE,
+            std::ptr::addr_of!(preference).cast(),
+            std::mem::size_of::<i32>() as u32,
+        );
+    }
+}
+
+#[tauri::command]
+#[specta::specta]
 fn set_titlebar_theme(dark: bool, window: tauri::WebviewWindow) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
@@ -2671,6 +2702,13 @@ pub fn run() {
                 use tauri::Manager;
                 if let Some(window) = app.get_webview_window("main") {
                     let _ = window_vibrancy::apply_mica(&window, Some(true));
+                    // Fenêtre SANS bordure (`decorations: false`, cf. `tauri.conf.json` — chrome
+                    // custom porté du frameless look de spacedrive/spaceui, cf. `TitleBar.tsx`) :
+                    // sans cet appel, Windows 11 ne coins-arrondit QUE les fenêtres avec légende
+                    // native (`WS_CAPTION`) — une fenêtre `WS_POPUP` reste carrée par défaut, ce
+                    // qui casserait immédiatement l'esthétique visée (coins vifs façon Win95 sur
+                    // un fond par ailleurs Mica/vibrant).
+                    apply_rounded_corners(&window);
                 }
             }
 
