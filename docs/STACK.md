@@ -24,9 +24,9 @@
 | **Partitionnement spatial / IA** (C3) | **aucune dépendance** (port maison `tactics.rs`/`soccer_ctrl.rs`) | n/a | Requêtes balle/joueurs (N≤23) + déplacement IA = scan linéaire à stride fixe | **rstar/kdtree/spade/flat_spatial/acacia** (k-NN réordonne les ex-æquo vs scan linéaire) ; **bvh/ncollide** (tirent nalgebra ≠ glam) ; **pathfinding** (ordre A*/Dijkstra ≠ moteur) ; **navmesh** (pas de navmesh sur un terrain de foot) | N≤23 → zéro besoin perf ; toute structure spatiale réordonne les ex-æquo → divergence octet | cœur IA = port du décompilé, gated derrière la RE du moteur de match (cf. `match-engine-c3-boundary`) |
 | **Réseau / online** (futur) | **codec porté** + transport `tokio` current-thread (alt. `std::net`/`mio`) | tokio **1** (déjà workspace via nie-zukan/nie-steam) ; quinn = **différé** | Online IEVR : friendmap, vsroute, chat_emote, inacode, nfc, post | **quinn/QUIC** (non prouvé par RE — cf. rejet H.264) ; **tokio `rt-multi-thread`** (ordonnanceur réordonne → casse le golden) | L'identité octet vit dans le **codec de paquets porté** ; le socket n'est qu'une frontière IO (comme cpal/winit) | futur ; `tokio` feature `rt` current_thread |
 
-## Comparaison au catalogue communautaire Rust (`docs/game.md`) — 2026-06-16
+## Comparaison au catalogue communautaire Rust — 2026-06-16
 
-Confrontation de la stack niers au catalogue *Game Development in Rust* (`docs/game.md`), pilier par pilier (8 agents, doctrine byte/pixel) :
+Confrontation de la stack niers au catalogue *Game Development in Rust* (liste communautaire du serveur Discord homonyme), pilier par pilier (8 agents, doctrine byte/pixel) :
 
 - **Validés sans réserve** (= déjà les standards communautaires) : **GPU/fenêtrage** wgpu+winit+pollster+bytemuck ; **math** glam (`scalar-math`) ; **audio** cpal+rtrb ; **cœur de jeu** structures custom (aucun ECS) ; **sérialisation** serde/serde_json.
 - **Lacune comblée** : **Police/Texte** (aucune ligne auparavant) → port maison **FAIT** (`font.rs` : métriques `font.cfg.bin` T2B + blitter atlas DDS) ; rejet des rasteriseurs TTF car le texte IEVR est un **atlas bitmap pré-cuit** (`font_def/font.g4tx`).
