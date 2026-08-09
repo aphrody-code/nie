@@ -24,6 +24,9 @@ import {
   type PackFileDto,
   type QuestDto,
   type RawCpkEntryDto,
+  type ReTraceDumpStatsDto,
+  type ReTraceProcessDto,
+  type ReTraceRegionDto,
   type SaveBlobDto,
   type SkillDto,
   type StatBlockDto,
@@ -47,6 +50,9 @@ export type Quest = QuestDto;
 export type CharaPicker = CharaPickerDto;
 export type StatBlock = StatBlockDto;
 export type CpkExportFile = CpkExportFileDto;
+export type ReTraceProcess = ReTraceProcessDto;
+export type ReTraceRegion = ReTraceRegionDto;
+export type ReTraceDumpStats = ReTraceDumpStatsDto;
 
 const gd = (gameDir?: string): string | null => (gameDir && gameDir.trim() ? gameDir : null);
 
@@ -215,6 +221,14 @@ export const api = {
   saveListBlobs: () => unwrap<SaveBlobInfo[]>(commands.saveListBlobs()),
   saveBlobHexB64: (index: number) => unwrap<string>(commands.saveBlobHexB64(index)),
   saveExport: (dest: string) => unwrap<number>(commands.saveExport(dest)),
+
+  // RE en direct (`nie-trace`) — lecture SEULE de la mémoire vivante de `nie.exe`/
+  // `nie_eacpatched.exe`, décision utilisatrice tranchée (cf. ROADMAP.md §4.3/§5, accord
+  // RG-L5-VR-2026-001). Jamais d'écriture mémoire dans un process tiers depuis l'app.
+  reTraceFindProcess: () => commands.reTraceFindProcess(),
+  reTraceModuleRegions: (pid: number) => unwrap<ReTraceRegion[]>(commands.reTraceModuleRegions(pid)),
+  reTraceReadBytesB64: (pid: number, addr: string, len: number) => unwrap<string>(commands.reTraceReadBytesB64(pid, addr, len)),
+  reTraceDumpModule: (pid: number) => unwrap<ReTraceDumpStats>(commands.reTraceDumpModule(pid)),
 };
 
 // ─── Types du GraphQL/REST azalee (contrat réel, cf. commentaire Rust `remote_search_*`) ──

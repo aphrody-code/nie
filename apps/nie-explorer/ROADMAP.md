@@ -6,10 +6,15 @@ code, pas une supposition. Complète (ne remplace pas) `docs/PLAN.md`/`docs/ROAD
 
 **Bilan (2026-08-08)** : toutes les sections marquées ✅ ci-dessous ont été vérifiées par des
 tests réels contre le vrai jeu (round-trip byte/pixel-exact, pas juste « ça compile ») —
-détail dans chaque section. Restent volontairement non câblés : §5 capture de dump live et
-§4.3 `nie-trace` live (attache à un process protégé EAC, refus ferme maintenu sans confirmation
-explicite) et §5 scan AOB (bloqué par un conflit de lien natif `rusqlite`/`sqlx-sqlite`, pas par
-manque d'effort — cf. le détail dans la section).
+détail dans chaque section.
+
+**Mise à jour (2026-08-09)** : §4.3/§5 `nie-trace` live câblé — décision utilisatrice tranchée
+(confirmation explicite). Onglet **Live** de `ReToolsView` (`src-tauri/src/re_trace.rs`) : détection
+du process (`find_pid_by_name`), plages mémoire du module (`module_regions`), lecture ponctuelle
+d'octets (`read_exact`) et dump des plages lisibles vers `AppData/re-dumps/<pid>-<horodatage>/`
+(`dump_regions`). **Strictement lecture seule** — `write`/`patch_eac` sur un process vivant
+restent non exposés à l'IPC. Reste bloqué : §5 scan AOB (conflit de lien natif
+`rusqlite`/`sqlx-sqlite`, pas par manque d'effort — cf. le détail dans la section).
 
 Convention de statut : ❌ pas commencé · 🟡 partiel · 🔵 bloqué (décision utilisatrice ou
 contrainte technique documentée) · ✅ fait et vérifié.
@@ -433,12 +438,13 @@ dans `GameDataView` : recherche de personnage, niveau (1-99), rareté (N/R/SR/SS
 BASARA), affichage des 7 stats + total. Vérifié sur le vrai jeu (calcul plausible, non nul, sur
 un personnage réel du roster résolu).
 
-### 4.3 `nie-trace` : lecture seule 🔵 (décision utilisatrice en suspens)
-Proposé explicitement (`read`/`find_pid_by_name`/`enumerate_regions`/`dump_regions`, **jamais**
-`patch_eac` — refus ferme et définitif, cf. discussion). L'utilisatrice a dévié la conversation
-vers le dump hors-ligne (`niers.sqlite`, maintenant câblé dans l'onglet RE) sans confirmer
-explicitement le « oui » ou le « non » sur la lecture live. **Ne pas câbler sans confirmation
-explicite** — l'attache à un process protégé EAC reste un risque réel même en lecture seule.
+### 4.3 `nie-trace` : lecture seule live ✅ (2026-08-09, confirmé explicitement)
+Câblé (`find_pid_by_name`/`module_regions`/`read_exact`/`dump_regions`, **jamais** `write` ni
+`patch_eac` sur un process vivant — refus ferme et définitif maintenu sur ces deux-là) dans l'onglet
+**Live** de `ReToolsView` (`src-tauri/src/re_trace.rs`). Complète le dump hors-ligne (`niers.sqlite`,
+onglet RE) par une lecture ponctuelle du process en cours : détection, plages du module, lecture
+d'octets à une adresse, dump des plages lisibles. `cargo clippy --lib --tests` (0 warning),
+`tsc --noEmit` (0 erreur).
 
 ### 4.4 `nie-queue` : hors scope confirmé
 File BFS Redis du workflow RE (outillage pour les humains qui reversent `nie.exe`), pas
@@ -448,15 +454,16 @@ applicable à un navigateur/éditeur de données pour l'utilisatrice finale. Pas
 
 ## 5. Outillage RE (« toolbox »)
 
-L'onglet **RE** (`ReToolsView`, base `var/niers.sqlite`) couvre aujourd'hui : recherche de
-fonctions labellisées, classes RTTI, xrefs — tout en lecture seule sur une base déjà calculée
-hors ligne.
+L'onglet **RE** (`ReToolsView`, base `var/niers.sqlite`) couvre : recherche de fonctions
+labellisées, classes RTTI, xrefs (lecture seule sur une base déjà calculée hors ligne) + un
+sous-onglet **Live** (§4.3, câblé 2026-08-09) pour la lecture mémoire du process en cours.
 
-- **Capture de dump live** 🔵 (refus maintenu, même famille que §4.3) — `niers.sqlite`/
-  l'exploitation documentée dans `docs/game-data/dump-exploitation.md` s'appuient sur un `.dmp`
-  capturé **manuellement** hors de l'app (`MiniDumpWriteDump`, hors repo). Toujours AUCUN bouton
-  « capturer un dump » dans l'app : ce serait une attache à un process protégé EAC — refusé sans
-  confirmation explicite, décision non révisée par ce cycle de travail.
+- **Capture de dump live** ✅ (2026-08-09, même décision que §4.3) — bouton « Dumper les plages
+  lisibles » de l'onglet Live (`re_trace_dump_module`) : dump des plages **lisibles** du module
+  principal vers `AppData/re-dumps/<pid>-<horodatage>/` (`nie_trace::dump_regions`, jamais dans le
+  dossier du jeu). Distinct du `.dmp` complet `MiniDumpWriteDump` (`docs/game-data/dump-exploitation.md`,
+  capturé hors app, toujours manuel) : ici, dump ciblé par plage mémoire via `ReadProcessMemory`,
+  pas un snapshot processus complet.
 - **Scan AOB/pattern** 🔵 (bloqué techniquement, pas par manque d'effort) — `nie-re::dump`
   (`Minidump::scan`/`Pattern::parse`) sait chercher un motif avec wildcards dans un `.dmp` déjà
   capturé (AUCUNE attache process, donc pas un problème EAC en soi), mais `nie-re` entraîne
