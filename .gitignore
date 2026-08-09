@@ -70,8 +70,23 @@ nie.exe
 /EACLauncher.exe
 /EasyAntiCheat/
 /EpicOnlineServices/
+/EOSSDK-Win64-Shipping.dll
 /GameBootstrapper.exe
 /GameBootstrapper.ini
+
+# Outil tiers (save editor, ~98 Mio) posé dans le dossier du jeu — jamais un artefact niers.
+/InazumaElevenVRSaveEditor.exe
+
+# Artefacts NTFS (marqueur "téléchargé depuis Internet") qu'un `git add .` peut capturer par erreur.
+*:Zone.Identifier
+*Zone.Identifier
+
+# Binaire EAC vendorisé en resource par IECODE.Core (2 Mio, même raison que /EACLauncher.exe
+# ci-dessus : jamais committer un binaire EAC, même embarqué dans un sous-projet).
+src/IECODE.Core/Resources/EACLauncher.zip
+
+# Fichiers .bak divers (backups manuels laissés sur disque, ex. NuGet.config.bak)
+*.bak
 /libHttpClient.Win32.dll
 /libcurl.dll
 /sdkencryptedappticket64.dll
