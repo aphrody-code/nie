@@ -104,6 +104,10 @@ export const api = {
     unwrap<VfsEntry[]>(commands.vfsRelated(needle, limit, gd(gameDir))),
   // Scan complet du VFS (~255 800 entrées) — pour `vfsIndexDb.reindex`, pas d'usage direct UI.
   allEntries: (gameDir?: string) => unwrap<VfsEntry[]>(commands.vfsAllEntries(gd(gameDir))),
+  // Variante annulable/avec progression du scan complet (nie-tasks) — cf. `vfsIndexDb.reindex`.
+  indexScanStart: (gameDir?: string) => unwrap<string>(commands.vfsIndexScanStart(gd(gameDir))),
+  indexScanCancel: (taskId: string) => unwrap<null>(commands.vfsIndexScanCancel(taskId)),
+  indexScanTake: (taskId: string) => unwrap<VfsEntry[]>(commands.vfsIndexScanTake(taskId)),
 
   takePendingOpen: () => commands.takePendingOpen(),
   // Resynchronise le chrome natif (Mica) sur le thème clair/sombre choisi — cf. `App.tsx`.

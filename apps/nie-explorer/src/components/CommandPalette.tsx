@@ -10,6 +10,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Icon } from "@/components/ui/Icon";
+import { Shortcut } from "@/components/ui/shortcut";
 import { PINNED_PLACES, useRecentPlaces } from "@/lib/places";
 import { useT } from "@/lib/i18n";
 
@@ -81,6 +82,16 @@ export function CommandPalette({
           </CommandGroup>
         )}
       </CommandList>
+      {/* Pied de palette avec rappel de raccourcis — `Shortcut` porté de
+       * `spaceui/primitives/Shortcut.tsx` (spacedrive), cf. components/ui/shortcut.tsx. */}
+      <div className="flex items-center justify-end gap-3 border-t border-outline-variant/30 px-3 py-1.5 type-label-small text-on-surface-variant">
+        <span className="flex items-center gap-1">
+          <Shortcut chars="↵" /> ouvrir
+        </span>
+        <span className="flex items-center gap-1">
+          <Shortcut chars="Échap" /> fermer
+        </span>
+      </div>
     </CommandDialog>
   );
 }
