@@ -104,6 +104,21 @@ export const commands = {
 	 */
 	vfsAllEntries: (gameDir: string | null) => typedError<EntryDto[], string>(__TAURI_INVOKE("vfs_all_entries", { gameDir })),
 	/**
+	 *  Démarre le scan complet du VFS en tâche de fond et renvoie immédiatement son `TaskId` (UUID) —
+	 *  la collecte des ~255 800 entrées reste synchrone (même coût que [`vfs_all_entries`]) mais leur
+	 *  émission par lots est annulable ([`vfs_index_scan_cancel`]) et suivie en direct par
+	 *  l'événement `vfs-index-progress`. Le résultat final se récupère par [`vfs_index_scan_take`]
+	 *  une fois l'événement `vfs-index-done` reçu.
+	 */
+	vfsIndexScanStart: (gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("vfs_index_scan_start", { gameDir })),
+	/**  Annule un scan en cours ([`vfs_index_scan_start`]) — no-op silencieux s'il est déjà terminé. */
+	vfsIndexScanCancel: (taskId: string) => typedError<null, string>(__TAURI_INVOKE("vfs_index_scan_cancel", { taskId })),
+	/**
+	 *  Récupère et consomme (retire du registre) le résultat d'un scan terminé (`vfs-index-done`
+	 *  reçu) — erreur explicite si appelé trop tôt ou avec un `task_id` déjà consommé/inconnu.
+	 */
+	vfsIndexScanTake: (taskId: string) => typedError<EntryDto[], string>(__TAURI_INVOKE("vfs_index_scan_take", { taskId })),
+	/**
 	 *  Liste toutes les techniques du jeu (`nie_data::skill`, cf. `game_data.rs`) — première
 	 *  donnée de jeu STATIQUE câblée depuis `nie-data` (dépendance déclarée mais jamais utilisée
 	 *  avant), via le pont déjà existant `nie_explore::bridge` (même moteur que `niers vfs cat`).

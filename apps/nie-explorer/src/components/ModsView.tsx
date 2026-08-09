@@ -15,6 +15,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { RenameInput } from "@/components/ui/rename-input";
 
 export function ModsView({ onOpenFile }: { onOpenFile: (path: string) => void }) {
   const settings = useSettings();
@@ -26,6 +27,8 @@ export function ModsView({ onOpenFile }: { onOpenFile: (path: string) => void })
   const [newDesc, setNewDesc] = useState("");
   const [vfsPathToStage, setVfsPathToStage] = useState("");
   const [busy, setBusy] = useState(false);
+  /** Mod dont le nom est en cours d'édition en ligne (double-clic) — `null` = aucun. */
+  const [renaming, setRenaming] = useState<string | null>(null);
 
   async function refresh() {
     setMods(await modsDb.listMods());
@@ -53,6 +56,14 @@ export function ModsView({ onOpenFile }: { onOpenFile: (path: string) => void })
   async function toggle(mod: ModRow) {
     await modsDb.setEnabled(mod.id, !mod.enabled);
     await refresh();
+  }
+
+  /** Renomme un mod en ligne (double-clic sur son nom) — cf. `RenameInput`, comportement porté de
+   * `packages/explorer/RenameInput.tsx` (spacedrive). Conserve la description existante. */
+  async function renameMod(mod: ModRow, newName: string) {
+    await modsDb.rename(mod.id, newName, mod.description);
+    await refresh();
+    toast.success(`Mod renommé « ${newName} »`);
   }
 
   async function del(mod: ModRow) {
@@ -164,7 +175,27 @@ export function ModsView({ onOpenFile }: { onOpenFile: (path: string) => void })
                 }`}
               >
                 <span className="min-w-0">
-                  <span className="block truncate type-title-small">{m.name}</span>
+                  {renaming === m.id ? (
+                    <RenameInput
+                      name={m.name}
+                      onSave={async (n) => {
+                        await renameMod(m, n);
+                        setRenaming(null);
+                      }}
+                      onCancel={() => setRenaming(null)}
+                    />
+                  ) : (
+                    <span
+                      className="block truncate type-title-small"
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        setRenaming(m.id);
+                      }}
+                      title="Double-clic pour renommer"
+                    >
+                      {m.name}
+                    </span>
+                  )}
                   <span className="type-label-small text-on-surface-variant">{m.file_count} fichier(s)</span>
                 </span>
                 <Switch checked={!!m.enabled} onCheckedChange={() => toggle(m)} onClick={(e) => e.stopPropagation()} />
@@ -185,7 +216,20 @@ export function ModsView({ onOpenFile }: { onOpenFile: (path: string) => void })
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
-                  <span>{current.name}</span>
+                  {renaming === current.id ? (
+                    <RenameInput
+                      name={current.name}
+                      onSave={async (n) => {
+                        await renameMod(current, n);
+                        setRenaming(null);
+                      }}
+                      onCancel={() => setRenaming(null)}
+                    />
+                  ) : (
+                    <span onDoubleClick={() => setRenaming(current.id)} title="Double-clic pour renommer">
+                      {current.name}
+                    </span>
+                  )}
                   <Button size="sm" variant="destructive" onClick={() => del(current)} disabled={busy}>
                     Supprimer le mod
                   </Button>

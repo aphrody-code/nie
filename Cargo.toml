@@ -45,6 +45,12 @@ clap = { version = "4", features = ["derive", "color", "env"] }
 tracing = "0.1"
 tracing-subscriber = { version = "=0.3.22", features = ["env-filter"] }
 
+# orchestration de jobs asynchrones (nie-tasks — architecture inspirée de sd-task-system,
+# implémentation originale) : runtime tokio déjà tiré transitivement par tauri (nie-explorer)
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync", "macros", "time"] }
+async-trait = "0.1"
+uuid = { version = "1", features = ["v4", "serde"] }
+
 # RE pur-Rust (stack aphrody : goblin PE/ELF + iced-x86 désassembleur)
 goblin = "0.10"
 iced-x86 = "1.21"
