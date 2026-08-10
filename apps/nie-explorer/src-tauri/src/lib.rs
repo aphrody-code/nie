@@ -2284,6 +2284,38 @@ fn encode_png_rgba(rgba: &[u8], w: u32, h: u32) -> Result<Vec<u8>, String> {
 
 const RENDER3D_SIZE: u32 = 512;
 
+/// Renvoie le **GLB assemblé lui-même** (base64), pas un rendu de celui-ci.
+///
+/// Toutes les commandes d'aperçu 3D existantes rastérisent côté Rust et renvoient une image
+/// (`vfs_glb_preview_png_b64`) ou une vidéo pré-rendue (`..._turntable_mp4_b64`) : la caméra est
+/// donc figée par le backend, et « interactif » se limitait à faire défiler des images déjà
+/// calculées. En renvoyant le GLB brut, le frontend peut le charger dans un VRAI moteur temps
+/// réel (WebGL) : caméra libre, éclairage, sélection de maillage — le viewport d'un éditeur, pas
+/// une planche-contact.
+///
+/// Le GLB est auto-suffisant : `to_glb_embedded` embarque géométrie ET textures (le `.g4tx` frère
+/// décodé en PNG, cf. [`assemble_glb_for_preview`]), donc aucun aller-retour supplémentaire pour
+/// les ressources.
+#[tauri::command]
+#[specta::specta]
+fn vfs_glb_bytes_b64(path: String, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<String, String> {
+    let root = resolve_root(game_dir.as_deref());
+    let (_stem, glb) = with_vfs(Some(root.display().to_string()), &state, |vfs| assemble_glb_for_preview(vfs, &path))?;
+    Ok(base64::engine::general_purpose::STANDARD.encode(&glb))
+}
+
+/// Même chose que [`vfs_glb_bytes_b64`] pour une entrée d'un `.cpk` ouvert hors VFS — résolution
+/// de frères scopée au CPK courant, cf. [`assemble_glb_from_cpk_entries`].
+#[tauri::command]
+#[specta::specta]
+fn raw_cpk_glb_bytes_b64(index: u32, state: tauri::State<RawCpkState>) -> Result<String, String> {
+    let guard = state.0.lock().unwrap();
+    let (_, data, reader) = guard.as_ref().ok_or("aucun CPK ouvert")?;
+    let entry = reader.entries.get(index as usize).ok_or("index d'entrée invalide")?;
+    let (_stem, glb) = assemble_glb_from_cpk_entries(data, reader, entry)?;
+    Ok(base64::engine::general_purpose::STANDARD.encode(&glb))
+}
+
 #[tauri::command]
 #[specta::specta]
 fn vfs_glb_preview_png_b64(path: String, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<String, String> {
@@ -2684,6 +2716,8 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         save_blob_hex_b64,
         save_export,
         vfs_video_preview_b64,
+        vfs_glb_bytes_b64,
+        raw_cpk_glb_bytes_b64,
         vfs_glb_preview_png_b64,
         vfs_glb_preview_turntable_mp4_b64,
         vfs_audio_preview_b64,
