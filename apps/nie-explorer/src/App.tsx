@@ -1,11 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTheme } from "next-themes";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { Menu, Submenu, PredefinedMenuItem } from "@tauri-apps/api/menu";
-import { open } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { ExplorerView, type ExplorerState } from "@/components/ExplorerView";
@@ -18,15 +16,22 @@ import { SaveView } from "@/components/SaveView";
 import { SettingsView } from "@/components/SettingsView";
 import { DetailPane } from "@/components/DetailPane";
 import { CommandPalette } from "@/components/CommandPalette";
-import { Icon } from "@/components/ui/Icon";
-import { WindowControls } from "@/components/ui/window-controls";
+import { Sidebar, type SidebarSection } from "@/components/Sidebar";
+import { TopBar } from "@/components/TopBar";
+import { WindowResizeHandles } from "@/components/ui/window-resize-handles";
+import { useAppMenuShortcuts, type AppMenuActions } from "@/components/AppMenu";
 import { api } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { useApplyAppearance } from "@/lib/appearance";
-import { recordVisit } from "@/lib/places";
+import { PINNED_PLACES, recordVisit, usePinnedPlaces, useRecentPlaces } from "@/lib/places";
+import { showPlaceContextMenu } from "@/lib/contextMenu";
 import { getSettings, setSettings } from "@/lib/settings";
 import { modsDb } from "@/lib/modsDb";
-import { copySelectionActive, selectAllActive, pasteActive } from "@/lib/editBus";
+import { jobsDb } from "@/lib/jobsDb";
+
+/** Largeur de la barre latérale — même valeur que `ShellLayout.tsx` de spacedrive (220 px, dont
+ * 8 px de marge flottante de chaque côté), lue par `TopBar` pour se décaler d'autant. */
+const SIDEBAR_WIDTH = 200;
 
 export default function App() {
   const t = useT();
@@ -35,11 +40,121 @@ export default function App() {
   const [explorer, setExplorer] = useState<ExplorerState>({ prefix: "data", selected: null });
   const [externalPath, setExternalPath] = useState<string | null>(null);
 
+  const pins = usePinnedPlaces();
+  const recents = useRecentPlaces();
+
+  /** Navigue vers un emplacement VFS depuis la barre latérale (bascule aussi sur l'Explorateur —
+   * cliquer un dossier depuis n'importe quelle vue doit l'ouvrir, comme dans spacedrive). */
+  function gotoPlace(prefix: string) {
+    recordVisit(prefix);
+    setExternalPath(null);
+    setExplorer({ prefix, selected: null });
+    setTab("explorer");
+  }
+
+  // Groupes de la barre latérale — équivalent des `SpaceGroup` de spacedrive (items regroupés par
+  // nature, titres de groupe en petites capitales). Les emplacements y sont intégrés comme
+  // `LocationsGroup`/`TagsGroup` de l'amont, au lieu d'une seconde barre latérale interne à
+  // l'Explorateur (doublon supprimé).
+  const sections: SidebarSection[] = useMemo(() => {
+    const inExplorer = tab === "explorer" && !externalPath;
+    return [
+      {
+        label: null,
+        items: [
+          { id: "explorer", label: t("tab.explorer"), icon: "folder_open" },
+          { id: "search", label: t("tab.search"), icon: "search" },
+        ],
+      },
+      {
+        label: "Données",
+        items: [
+          { id: "data", label: t("tab.data"), icon: "database" },
+          { id: "cpk", label: t("tab.cpk"), icon: "deployed_code" },
+          { id: "save", label: t("tab.save"), icon: "save" },
+        ],
+      },
+      {
+        label: "Outils",
+        items: [
+          { id: "mods", label: t("tab.mods"), icon: "extension" },
+          { id: "re", label: t("tab.re"), icon: "memory" },
+        ],
+      },
+      {
+        label: t("explorer.places"),
+        items: PINNED_PLACES.map((p) => ({
+          id: `place:${p.prefix}`,
+          label: p.label,
+          icon: p.icon,
+          title: p.prefix || "/",
+          active: inExplorer && explorer.prefix === p.prefix,
+          onClick: () => gotoPlace(p.prefix),
+          onContextMenu: (e: React.MouseEvent) => {
+            e.preventDefault();
+            showPlaceContextMenu({ prefix: p.prefix, kind: "builtin", onOpen: () => gotoPlace(p.prefix) });
+          },
+        })),
+      },
+      ...(pins.length > 0
+        ? [
+            {
+              label: "★ Épinglés",
+              items: pins.map((prefix) => ({
+                id: `pin:${prefix}`,
+                label: prefix.split("/").pop() || prefix,
+                icon: "stars",
+                iconClassName: "text-accent",
+                title: prefix,
+                active: inExplorer && explorer.prefix === prefix,
+                onClick: () => gotoPlace(prefix),
+                onContextMenu: (e: React.MouseEvent) => {
+                  e.preventDefault();
+                  showPlaceContextMenu({ prefix, kind: "pinned", onOpen: () => gotoPlace(prefix) });
+                },
+              })),
+            },
+          ]
+        : []),
+      ...(recents.length > 0
+        ? [
+            {
+              label: t("explorer.recents"),
+              items: recents.map((r) => ({
+                id: `recent:${r.prefix}`,
+                label: r.prefix.split("/").pop() || r.prefix,
+                icon: "schedule",
+                title: r.prefix,
+                active: inExplorer && explorer.prefix === r.prefix,
+                onClick: () => gotoPlace(r.prefix),
+                onContextMenu: (e: React.MouseEvent) => {
+                  e.preventDefault();
+                  showPlaceContextMenu({ prefix: r.prefix, kind: "recent", onOpen: () => gotoPlace(r.prefix) });
+                },
+              })),
+            },
+          ]
+        : []),
+    ];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t, tab, externalPath, explorer.prefix, pins, recents]);
+
+  /** Titre affiché dans la barre supérieure — chemin courant dans l'Explorateur (comme
+   * l'explorateur Windows), nom de la vue partout ailleurs. */
+  const topBarTitle = useMemo(() => {
+    if (externalPath) return externalPath;
+    if (tab === "explorer") return explorer.selected ?? explorer.prefix ?? "data";
+    if (tab === "settings") return t("tab.settings");
+    for (const s of sections) {
+      const found = s.items.find((i) => i.id === tab);
+      if (found) return found.label;
+    }
+    return t("app.title");
+  }, [externalPath, tab, explorer.selected, explorer.prefix, sections, t]);
+
   // Resynchronise le chrome natif Windows 11 (Mica, barre de titre/légende) sur le thème
-  // clair/sombre RÉSOLU (`resolvedTheme` tient compte de "system", pas juste `theme`) — corrige
-  // le fait que le chrome natif restait figé en sombre (posé une seule fois au lancement côté
-  // Rust) même si l'utilisatrice bascule en clair dans Paramètres. Best-effort silencieux (no-op
-  // hors Windows 11 côté backend).
+  // clair/sombre RÉSOLU (`resolvedTheme` tient compte de "system", pas juste `theme`).
+  // Best-effort silencieux (no-op hors Windows 11 côté backend).
   const { resolvedTheme } = useTheme();
   useEffect(() => {
     if (resolvedTheme) api.setTitlebarTheme(resolvedTheme === "dark").catch(() => {});
@@ -58,15 +173,22 @@ export default function App() {
   // Amorçage au chargement de l'appli — tout ce qui coûte cher au premier usage doit être fait
   // ICI, une fois, plutôt qu'au hasard du premier clic utilisatrice :
   //  1. `mods.db` (tauri-plugin-sql) : `Database.load` applique les migrations et CRÉE le
-  //     fichier s'il est absent (premier lancement) — déclenché explicitement plutôt que laissé
-  //     au hasard du premier onglet visité (Mods/Recherche/Réindexation).
-  //  2. Miroir wiki (`supabase-*.sqlite`) : auto-détecté (`var/wiki-mirror/` à côté du jeu, ou
-  //     `NIE_WIKI_DB`/`SQLITE_DB_PATH`) et rempli dans les réglages s'il n'a jamais été choisi
-  //     manuellement — sans ça, le champ restait vide sur toute machine hors dev WSL.
+  //     fichier s'il est absent (premier lancement).
+  //  2. Miroir wiki (`supabase-*.sqlite`) : auto-détecté et rempli dans les réglages s'il n'a
+  //     jamais été choisi manuellement.
   //  3. VFS : précollecté côté Rust (~255 800 entrées) pour que la première navigation dans
-  //     l'Explorateur retrouve un cache déjà chaud (cf. `preload_vfs` + cache dans `VfsState`).
+  //     l'Explorateur retrouve un cache déjà chaud.
   useEffect(() => {
     modsDb.listMods().catch(() => {});
+    // Journal des opérations (§8 roadmap) : tout job resté « en cours » appartient à une session
+    // précédente — aucun process ne le poursuit, il est donc marqué « interrompu ». Sans ça, le
+    // gestionnaire afficherait éternellement une opération fantôme.
+    jobsDb
+      .reconcileOnStartup()
+      .then((n) => {
+        if (n > 0) toast.warning(`${n} opération(s) interrompue(s) lors de la session précédente`);
+      })
+      .catch(() => {});
     const settings = getSettings();
     if (!settings.wikiDb.trim()) {
       api
@@ -80,232 +202,132 @@ export default function App() {
       .catch((e) => toast.error(`Échec du chargement du VFS : ${e}`));
   }, []);
 
-  // Barre de menu native — File/Édition/Affichage comme VS Code (demande utilisateur « la top
-  // bar native fichier, editer, etc comme vs code, ouvrir un fichier ouvrir un dossier »). API
-  // Tauri v2 NATIVE (`@tauri-apps/api/menu`, déjà utilisée pour le menu contextuel clic droit,
-  // cf. `src/lib/contextMenu.ts`) — `setAsWindowMenu()` l'attache comme VRAIE barre de menu
-  // Windows sous la barre de titre, pas une imitation HTML.
+  // Barre de menu Fichier/Édition/Affichage : rendue DANS la barre supérieure custom, plus
+  // attachée à la fenêtre. `menu.setAsWindowMenu()` (ce qui était fait ici) demande à Windows de
+  // dessiner une barre de menu NATIVE, ce qui suppose une frame native — la fenêtre retrouvait
+  // donc sa bordure, sa légende et ses boutons système malgré `decorations: false`. Les menus
+  // déroulés restent de vrais popups Win32 (`Menu.popup()`), cf. `components/AppMenu.tsx`.
+  const menuActions: AppMenuActions = useMemo(
+    () => ({
+      onOpenExternalPath: setExternalPath,
+      onSelectTab: (id) => {
+        setExternalPath(null);
+        setTab(id);
+      },
+      tabLabels: {
+        explorer: t("tab.explorer"),
+        search: t("tab.search"),
+        data: t("tab.data"),
+        mods: t("tab.mods"),
+        cpk: t("tab.cpk"),
+        re: t("tab.re"),
+        save: t("tab.save"),
+        settings: t("tab.settings"),
+      },
+    }),
+    [t],
+  );
+  useAppMenuShortcuts(menuActions);
+
+  // Titre de fenêtre = même valeur que la barre supérieure (chemin courant comme l'explorateur
+  // Windows, jamais un nom de produit).
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const fileMenu = await Submenu.new({
-        text: "Fichier",
-        items: [
-          {
-            text: "Ouvrir un fichier…",
-            action: async () => {
-              const picked = await open({ title: "Ouvrir un fichier" });
-              if (typeof picked === "string") setExternalPath(picked);
-            },
-          },
-          {
-            text: "Ouvrir le dossier du jeu…",
-            action: async () => {
-              const picked = await open({ title: "Dossier du jeu", directory: true });
-              if (typeof picked === "string") {
-                setSettings({ gameDir: picked });
-                toast.success(`Dossier du jeu : ${picked}`);
-              }
-            },
-          },
-          {
-            text: "Ouvrir un CPK…",
-            action: () => setTab("cpk"),
-          },
-          await PredefinedMenuItem.new({ item: "Separator" }),
-          await PredefinedMenuItem.new({ text: "Quitter", item: "Quit" }),
-        ],
-      });
-
-      // « Copier »/« Tout sélectionner »/« Coller » ne sont PAS les `PredefinedMenuItem` Copy/
-      // SelectAll/Paste de l'OS — ces commandes texte natives n'agissent que sur un champ de
-      // saisie FOCUSÉ, jamais sur la liste de fichiers HTML custom de l'Explorateur (c'est pour
-      // ça qu'elles ne faisaient rien). Ici, de VRAIS `MenuItem` délèguent à la vue active via
-      // `editBus` (cf. `src/lib/editBus.ts`) — mêmes actions que Ctrl+A/Ctrl+C dans l'Explorateur.
-      const editMenu = await Submenu.new({
-        text: "Édition",
-        items: [
-          { text: "Copier le chemin", accelerator: "CmdOrCtrl+C", action: () => copySelectionActive() },
-          { text: "Tout sélectionner", accelerator: "CmdOrCtrl+A", action: () => selectAllActive() },
-          await PredefinedMenuItem.new({ item: "Separator" }),
-          { text: "Coller…", accelerator: "CmdOrCtrl+V", action: () => pasteActive() },
-        ],
-      });
-
-      // Accélérateurs RÉELS (`accelerator`), pas juste du texte d'indice — fonctionnent au
-      // clavier globalement, pas seulement au clic sur le menu (Ctrl+=/Ctrl+-/Ctrl+0 pour le
-      // zoom = même convention que Chrome/VS Code).
-      const viewMenu = await Submenu.new({
-        text: "Affichage",
-        items: [
-          { text: t("tab.explorer"), accelerator: "CmdOrCtrl+1", action: () => setTab("explorer") },
-          { text: t("tab.search"), accelerator: "CmdOrCtrl+2", action: () => setTab("search") },
-          { text: t("tab.data"), accelerator: "CmdOrCtrl+3", action: () => setTab("data") },
-          { text: t("tab.mods"), accelerator: "CmdOrCtrl+4", action: () => setTab("mods") },
-          { text: t("tab.cpk"), accelerator: "CmdOrCtrl+5", action: () => setTab("cpk") },
-          { text: t("tab.re"), accelerator: "CmdOrCtrl+6", action: () => setTab("re") },
-          { text: t("tab.save"), accelerator: "CmdOrCtrl+7", action: () => setTab("save") },
-          { text: t("tab.settings"), accelerator: "CmdOrCtrl+8", action: () => setTab("settings") },
-          await PredefinedMenuItem.new({ item: "Separator" }),
-          {
-            text: "Zoom avant",
-            accelerator: "CmdOrCtrl+Equal",
-            action: () => setSettings({ uiZoom: Math.min(1.5, getSettings().uiZoom + 0.1) }),
-          },
-          {
-            text: "Zoom arrière",
-            accelerator: "CmdOrCtrl+Minus",
-            action: () => setSettings({ uiZoom: Math.max(0.7, getSettings().uiZoom - 0.1) }),
-          },
-          { text: "Réinitialiser le zoom", accelerator: "CmdOrCtrl+0", action: () => setSettings({ uiZoom: 1 }) },
-        ],
-      });
-
-      const menu = await Menu.new({ items: [fileMenu, editMenu, viewMenu] });
-      if (!cancelled) await menu.setAsWindowMenu();
-    })().catch((e) => {
-      // Remonté en toast (PAS avalé silencieusement) : un échec silencieux ici ressemblerait
-      // justement à une barre de menu « pas vraiment branchée à l'OS ».
-      toast.error(`Barre de menu native indisponible : ${e}`);
-    });
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Titre de fenêtre = chemin courant (comme l'explorateur Windows), jamais un nom de produit.
-  useEffect(() => {
-    const title = externalPath ?? (explorer.selected ?? explorer.prefix) ?? "data";
-    getCurrentWindow().setTitle(title).catch(() => {});
-  }, [externalPath, explorer.selected, explorer.prefix]);
+    getCurrentWindow().setTitle(topBarTitle).catch(() => {});
+  }, [topBarTitle]);
 
   return (
     <TooltipProvider>
-      <div className="flex h-screen w-screen flex-col bg-background/60 text-foreground">
-        {/* Fenêtre SANS bordure (`decorations: false`, cf. `tauri.conf.json`) — chrome custom
-            porté du frameless look de spacedrive/spaceui (barre unique intégrant navigation +
-            contrôles de fenêtre, cf. `var/spacedrive/docs/public/SDGridView.webp`). Toute la
-            zone vide de la barre est une VRAIE zone de déplacement (`data-tauri-drag-region`,
-            double-clic = agrandir/restaurer, natif Tauri) — les éléments interactifs (onglets,
-            recherche, contrôles de fenêtre) l'excluent implicitement en étant des `<button>`
-            cliqués normalement. Bordure TOUJOURS sombre pour marquer la limite avec le fond. */}
-        <div
-          data-tauri-drag-region
-          className="flex h-12 shrink-0 items-center gap-4 border-b border-chrome-border bg-surface-container/70 px-3 backdrop-blur"
-        >
-          {/* Icône aphrody à la place du wordmark texte (demande utilisateur) — `alt`/`title`
-              gardent le nom accessible au survol/pour les lecteurs d'écran. */}
-          <img
-            src="/brand/aphrody-icon.png"
-            alt={t("app.title")}
-            title={t("app.title")}
-            className="size-8 shrink-0 select-none rounded-lg"
-            draggable={false}
-          />
-          <Tabs value={tab} onValueChange={setTab}>
-            <TabsList className="bg-surface-container-high">
-              {/* Material Symbols au lieu du texte (demande utilisateur) — `title`/`aria-label`
-                  conservent l'intitulé complet au survol/pour les lecteurs d'écran, même motif
-                  que les boutons icône déjà présents dans l'Explorateur. */}
-              <TabsTrigger value="explorer" className="state-layer" title={t("tab.explorer")} aria-label={t("tab.explorer")}>
-                <Icon name="folder_open" size={18} />
-              </TabsTrigger>
-              <TabsTrigger value="search" className="state-layer" title={t("tab.search")} aria-label={t("tab.search")}>
-                <Icon name="search" size={18} />
-              </TabsTrigger>
-              <TabsTrigger value="data" className="state-layer" title={t("tab.data")} aria-label={t("tab.data")}>
-                <Icon name="database" size={18} />
-              </TabsTrigger>
-              <TabsTrigger value="mods" className="state-layer" title={t("tab.mods")} aria-label={t("tab.mods")}>
-                <Icon name="extension" size={18} />
-              </TabsTrigger>
-              <TabsTrigger value="cpk" className="state-layer" title={t("tab.cpk")} aria-label={t("tab.cpk")}>
-                <Icon name="deployed_code" size={18} />
-              </TabsTrigger>
-              <TabsTrigger value="re" className="state-layer" title={t("tab.re")} aria-label={t("tab.re")}>
-                <Icon name="memory" size={18} />
-              </TabsTrigger>
-              <TabsTrigger value="save" className="state-layer" title={t("tab.save")} aria-label={t("tab.save")}>
-                <Icon name="save" size={18} />
-              </TabsTrigger>
-              <TabsTrigger value="settings" className="state-layer" title={t("tab.settings")} aria-label={t("tab.settings")}>
-                <Icon name="settings" size={18} />
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-          <div className="flex-1" />
-          {/* Pill de recherche centrée cliquable — même langage visuel que la barre « Search… »
-              de spacedrive (capture ci-dessus), ouvre la VRAIE palette de commandes (même
-              raccourci que Ctrl+K, déclenché via un `KeyboardEvent` synthétique — pas de nouvel
-              état partagé pour un simple bouton). */}
-          <button
-            className="state-layer mr-1 flex items-center gap-1.5 rounded-full bg-surface-container-high px-3 py-1.5 type-label-small text-on-surface-variant hover:text-on-surface"
-            onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }))}
-          >
-            <Icon name="search" size={13} />
-            <span>Rechercher…</span>
-            <kbd className="ml-1 rounded border border-outline-variant/60 px-1 text-[10px] opacity-70">Ctrl+K</kbd>
-          </button>
-          <WindowControls />
-        </div>
+      {/* Shell — portage de `ShellLayout.tsx` (spacedrive) : fond `bg-app`, coins arrondis
+          `radius-window` (10 px, cf. `apply_rounded_corners` côté Rust pour que Windows arrondisse
+          AUSSI la fenêtre elle-même), `select-none` global, barre supérieure en absolu au-dessus
+          d'un contenu décalé de `pt-12`. */}
+      <div className="relative flex h-screen w-screen select-none flex-col overflow-hidden rounded-window bg-app text-ink">
+        <TopBar
+          sidebarWidth={SIDEBAR_WIDTH}
+          title={topBarTitle}
+          onOpenPalette={() =>
+            window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }))
+          }
+        />
 
-        <main className="min-h-0 flex-1 bg-background">
-          {externalPath ? (
-            <div className="flex h-full flex-col">
-              <div className="flex items-center justify-between border-b border-outline-variant/40 bg-secondary-container/40 px-4 py-2 type-body-small text-on-secondary-container">
-                <span>{t("external.opened")}</span>
-                <button
-                  className="type-label-medium text-on-secondary-container/80 hover:text-on-secondary-container hover:underline"
-                  onClick={() => setExternalPath(null)}
-                >
-                  {t("external.close")}
-                </button>
+        <div className="flex flex-1 overflow-hidden">
+          <Sidebar
+            sections={sections}
+            current={tab}
+            onSelect={(id) => {
+              setExternalPath(null);
+              setTab(id);
+            }}
+            onOpenSettings={() => {
+              setExternalPath(null);
+              setTab("settings");
+            }}
+          />
+
+          <div className="relative z-[38] flex flex-1 flex-col overflow-hidden pt-12">
+            {externalPath ? (
+              <div className="flex h-full flex-col">
+                <div className="flex items-center justify-between border-b border-app-line bg-app-box px-4 py-2 text-xs text-ink-dull">
+                  <span>{t("external.opened")}</span>
+                  <button
+                    type="button"
+                    className="text-xs font-medium text-accent hover:underline"
+                    onClick={() => setExternalPath(null)}
+                  >
+                    {t("external.close")}
+                  </button>
+                </div>
+                <div className="min-h-0 flex-1">
+                  <DetailPane target={{ kind: "disk", path: externalPath }} />
+                </div>
               </div>
-              <div className="min-h-0 flex-1">
-                <DetailPane target={{ kind: "disk", path: externalPath }} />
-              </div>
-            </div>
-          ) : (
-            <Tabs value={tab} className="h-full">
-              <TabsContent value="explorer" className="h-full">
-                <ExplorerView state={explorer} onStateChange={setExplorer} />
-              </TabsContent>
-              <TabsContent value="search" className="h-full">
-                <SearchView
+            ) : (
+              <Tabs value={tab} className="h-full min-h-0">
+                <TabsContent value="explorer" className="h-full min-h-0">
+                  <ExplorerView state={explorer} onStateChange={setExplorer} />
+                </TabsContent>
+                <TabsContent value="search" className="h-full min-h-0">
+                  <SearchView
+                    onOpenFile={(path) => {
+                      setExplorer((s) => ({ ...s, selected: path }));
+                      setTab("explorer");
+                    }}
+                  />
+                </TabsContent>
+                <TabsContent value="data" className="h-full min-h-0">
+                  <GameDataView
                   onOpenFile={(path) => {
                     setExplorer((s) => ({ ...s, selected: path }));
                     setTab("explorer");
                   }}
                 />
-              </TabsContent>
-              <TabsContent value="data" className="h-full">
-                <GameDataView />
-              </TabsContent>
-              <TabsContent value="mods" className="h-full">
-                <ModsView
-                  onOpenFile={(path) => {
-                    setExplorer((s) => ({ ...s, selected: path }));
-                    setTab("explorer");
-                  }}
-                />
-              </TabsContent>
-              <TabsContent value="cpk" className="h-full">
-                <RawCpkView />
-              </TabsContent>
-              <TabsContent value="re" className="h-full">
-                <ReToolsView />
-              </TabsContent>
-              <TabsContent value="save" className="h-full overflow-auto">
-                <SaveView />
-              </TabsContent>
-              <TabsContent value="settings" className="h-full overflow-auto">
-                <SettingsView />
-              </TabsContent>
-            </Tabs>
-          )}
-        </main>
+                </TabsContent>
+                <TabsContent value="mods" className="h-full min-h-0">
+                  <ModsView
+                    onOpenFile={(path) => {
+                      setExplorer((s) => ({ ...s, selected: path }));
+                      setTab("explorer");
+                    }}
+                  />
+                </TabsContent>
+                <TabsContent value="cpk" className="h-full min-h-0">
+                  <RawCpkView />
+                </TabsContent>
+                <TabsContent value="re" className="h-full min-h-0">
+                  <ReToolsView />
+                </TabsContent>
+                <TabsContent value="save" className="h-full min-h-0 overflow-auto">
+                  <SaveView />
+                </TabsContent>
+                <TabsContent value="settings" className="h-full min-h-0 overflow-auto">
+                  <SettingsView />
+                </TabsContent>
+              </Tabs>
+            )}
+          </div>
+        </div>
       </div>
+      <WindowResizeHandles />
       <CommandPalette
         onGoto={(prefix) => {
           recordVisit(prefix);

@@ -183,14 +183,14 @@ export function SearchView({ onOpenFile }: { onOpenFile: (path: string) => void 
         </Alert>
       ))}
 
-      <ScrollArea className="min-h-0 flex-1 rounded-xl bg-surface-container-low elevation-1">
+      <ScrollArea className="min-h-0 flex-1 rounded-2xl border border-app-line bg-app-dark-box">
         <div className="flex flex-col gap-2 p-2">
           {results.map((r, i) => {
             const code = r.internal_code ?? "";
             return (
               <div
                 key={`${r.source}-${r.id}-${i}`}
-                className="rounded-xl border border-outline-variant/40 bg-surface-container p-3"
+                className="rounded-lg border border-app-line bg-app-box p-3"
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="type-title-small text-on-surface">{r.name_fr ?? r.name_en ?? r.name_ja ?? "?"}</span>
@@ -212,7 +212,7 @@ export function SearchView({ onOpenFile }: { onOpenFile: (path: string) => void 
                       Fichiers VFS liés
                     </Button>
                     {related[code] && (
-                      <ul className="mt-2 max-h-40 space-y-0.5 overflow-auto rounded-lg border border-outline-variant/40 bg-surface-container-low p-1 font-mono text-[11px]">
+                      <ul className="mt-2 max-h-40 space-y-0.5 overflow-auto rounded-lg border border-app-line bg-surface-container-low p-1 font-mono text-[11px]">
                         {related[code].length === 0 && <li className="text-on-surface-variant">aucun fichier trouvé</li>}
                         {related[code].map((f) => (
                           <li key={f.path}>

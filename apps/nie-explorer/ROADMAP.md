@@ -8,6 +8,79 @@ code, pas une supposition. Complète (ne remplace pas) `docs/PLAN.md`/`docs/ROAD
 tests réels contre le vrai jeu (round-trip byte/pixel-exact, pas juste « ça compile ») —
 détail dans chaque section.
 
+**Mise à jour (2026-08-10) — l'app ne démarrait plus, et pourquoi.** Le portage `nie-trace` live
+(§4.3, 2026-08-09) avait introduit des DTO à champs `u64`/`i64`. `specta` **refuse** d'exporter les
+types « BigInt » vers TypeScript (perte de précision silencieuse) et ce refus est **fatal** : le
+thread d'export des bindings (lancé à chaque `cargo tauri dev`, cf. `run()`) paniquait avant même
+la création de la fenêtre. `nie-explorer` ne se lançait donc plus du tout en dev — d'où « l'UI est
+cassée ». Tous les champs concernés (`ReTraceRegionDto::size`, `ReTraceDumpStatsDto::bytes`,
+`TrophyDto::category`, `QuestDto::{phase,quest_type}`, `ItemDto::price`, et les retours de
+`copy_disk_file_to_appdata`/`export_mod_as_cpk`/`stage_texture_replacement`) sont passés en `f64` :
+toutes ces valeurs sont bornées très en dessous de 2⁵³, donc la conversion est **sans perte**,
+contrairement à un `as u32` qui tronquerait. Le round-trip est vérifié par un lancement réel
+(`bun run tauri dev` va jusqu'à `Running target\debug\nie-explorer.exe`, plus aucune panique).
+
+Corrigés dans la foulée, tous vérifiés sur le code (pas supposés) :
+- **Frameless réel.** `menu.setAsWindowMenu()` demandait à Windows une barre de menu native, ce qui
+  suppose une frame native : bordure, légende et boutons système revenaient malgré
+  `decorations: false`. Idem `window_vibrancy::apply_mica`, qui étend la frame DWM dans la zone
+  client. Les deux sont supprimés. La barre Fichier/Édition/Affichage est désormais rendue dans la
+  barre supérieure custom (`components/AppMenu.tsx`) et déroule de **vrais popups Win32**
+  (`Menu.popup()`), avec les accélérateurs réenregistrés en écoute clavier
+  (`useAppMenuShortcuts`). `set_titlebar_theme` ne fait plus que `DWMWA_USE_IMMERSIVE_DARK_MODE`.
+- **Boutons réduire/agrandir/fermer inopérants.** `capabilities/default.json` n'accordait aucune
+  permission `core:window:*` : chaque clic était refusé silencieusement, y compris
+  `start-dragging` (donc la zone de titre custom elle-même). Le fichier accorde maintenant toutes
+  les permissions `allow-*`/`default` du schéma (demande utilisatrice explicite) et une portée
+  `fs` couvrant tout le disque.
+- **Fenêtre non redimensionnable.** Sans cadre natif, plus de zone de saisie sur les bords :
+  8 poignées invisibles (`components/ui/window-resize-handles.tsx`) appellent
+  `startResizeDragging`, donc le redimensionnement reste fait par Windows.
+- **La palette de commandes plantait l'app.** `CommandDialog` ne plaçait pas ses enfants dans
+  `<Command>` ; `CommandInput`/`CommandList`/`CommandItem` (cmdk) lisent un contexte fourni par ce
+  composant racine et levaient à la première ouverture.
+- **Boutons imbriqués dans `ModsView`.** La rangée d'un mod était un `<button>` contenant un
+  `Switch` (autre `<button>`) et, en renommage, un `<input>` : HTML invalide, le navigateur
+  restructure le DOM et le contrôle intérieur ne reçoit plus ses clics. Passée en
+  `<div role="button">`, plus un bouton ✏️ explicite pour renommer.
+- **« Ajouter à un mod… » invisible.** `showVfsFileContextMenu` sait afficher l'entrée depuis
+  toujours, mais `ExplorerView` ne lui passait jamais `onStageIntoMod`.
+- **Menu contextuel de barre latérale** (écart §2.8 explicitement laissé ouvert) :
+  `showPlaceContextMenu` — ouvrir/épingler/désépingler/retirer des récents/copier le chemin, plus
+  `forgetRecent`/`clearRecents` côté `lib/places.ts` (un récent ne pouvait pas être retiré).
+- **Recherche sans garde anti-race** (§2.7, écart relevé et non fermé) : jeton de séquence dans
+  l'effet de chargement d'`ExplorerView`, toute réponse périmée est jetée.
+- **Doublons UI** : deux barres latérales concurrentes (onglets globaux + `PlacesSidebar` interne)
+  fusionnées en une seule, comme `SpacesSidebar` amont ; `<select>` HTML brut de `DetailPane`
+  remplacé par le `Select` du design system ; double navigation `onClick`+`onDoubleClick` sur les
+  dossiers.
+
+**Nouveau (2026-08-10) — éditeur de propriétés (`components/PropertyEditor.tsx`).** Demande
+utilisatrice : « il manque un éditeur de propriété qui link lua, cfgbin, code source, adresse
+mémoire sur chaque objet du moteur ». Une entité du jeu n'existe pas dans UN fichier : elle est
+éclatée entre modèle, textures, sons, lignes de `.cfg.bin` et code machine de `nie.exe`. Le
+panneau prend un **code interne** (`c01000010`, `whs00340`, …) et rassemble :
+- **Fichiers** — tous les fichiers VFS du même code, groupés par nature (modèle/texture/audio/
+  vidéo/config/script), cliquables vers l'éditeur adéquat. Index SQL exact (`vfs_files.code`) si
+  la réindexation a été faite, repli `vfs_related` sinon.
+- **Données** — les `.cfg.bin` liés, décodés en JSON dans Monaco et **réécrits** par les encodeurs
+  déjà vérifiés (`encode_cfgbin_config`, T2B **et** RDBN), avec la même confirmation EAC que
+  `DetailPane` — pas une seconde implémentation d'édition.
+- **Moteur** — fonctions labellisées et classes RTTI de `niers.sqlite` (`nie-re`) dont le nom
+  mentionne le code, avec leur **adresse statique** (`0x140…`, copiable pour r2/Ghidra ou l'onglet
+  Live de lecture mémoire).
+
+Branché aux deux endroits demandés : panneau droit de l'**Explorateur** (onglets Aperçu /
+Propriétés — sélectionner la texture d'un joueur ouvre la fiche du joueur) et page **Données**
+(cliquer une technique/un objet/un Avatar ouvre sa fiche). Les entrées identifiées par un simple
+hash sans asset (boutiques, passifs, quêtes) ne sont volontairement pas cliquables — pas de fausse
+affordance.
+
+**§4.1 — 4 modules `nie-data` de plus (2026-08-10)** : `shop` (boutiques, inventaire résolu en
+noms d'objets), `stadium` (stades), `passive` (capacités passives, portée et type de boost
+classifiés), `special_tactics` (tactiques spéciales, élément/puissance/effets). Neuf jeux de
+données câblés au total dans `GameDataView`, même patron `load_t2b` + parseur typé.
+
 **Mise à jour (2026-08-09)** : §4.3/§5 `nie-trace` live câblé — décision utilisatrice tranchée
 (confirmation explicite). Onglet **Live** de `ReToolsView` (`src-tauri/src/re_trace.rs`) : détection
 du process (`find_pid_by_name`), plages mémoire du module (`module_regions`), lecture ponctuelle

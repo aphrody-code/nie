@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { RenameInput } from "@/components/ui/rename-input";
+import { Icon } from "@/components/ui/Icon";
 
 export function ModsView({ onOpenFile }: { onOpenFile: (path: string) => void }) {
   const settings = useSettings();
@@ -164,17 +165,30 @@ export function ModsView({ onOpenFile }: { onOpenFile: (path: string) => void })
           </DialogContent>
         </Dialog>
 
-        <ScrollArea className="min-h-0 flex-1 rounded-xl bg-surface-container-low elevation-1">
-          <div className="divide-y divide-outline-variant/30">
+        <ScrollArea className="min-h-0 flex-1 rounded-2xl border border-app-line bg-app-dark-box">
+          <div className="divide-y divide-app-line">
+            {/* Rangée = `<div role="button">`, PAS un `<button>` : elle contient un `Switch`
+             * (lui-même un `<button>`) et, en renommage, un `<input>`. Un bouton imbriqué dans un
+             * bouton est du HTML invalide — le navigateur restructure le DOM et le contrôle
+             * intérieur cesse de recevoir ses clics/son focus (l'interrupteur d'activation et le
+             * champ de renommage étaient inutilisables). */}
             {mods.map((m) => (
-              <button
+              <div
                 key={m.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => setSelected(m.id)}
-                className={`state-layer flex w-full items-start justify-between gap-2 px-3 py-2 text-left type-body-medium ${
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setSelected(m.id);
+                  }
+                }}
+                className={`state-layer flex w-full cursor-pointer items-start justify-between gap-2 px-3 py-2 text-left type-body-medium ${
                   selected === m.id ? "bg-secondary-container text-on-secondary-container" : "text-on-surface"
                 }`}
               >
-                <span className="min-w-0">
+                <span className="min-w-0 flex-1">
                   {renaming === m.id ? (
                     <RenameInput
                       name={m.name}
@@ -198,8 +212,28 @@ export function ModsView({ onOpenFile }: { onOpenFile: (path: string) => void })
                   )}
                   <span className="type-label-small text-on-surface-variant">{m.file_count} fichier(s)</span>
                 </span>
-                <Switch checked={!!m.enabled} onCheckedChange={() => toggle(m)} onClick={(e) => e.stopPropagation()} />
-              </button>
+                <span className="flex shrink-0 items-center gap-1">
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    title="Renommer"
+                    aria-label="Renommer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setRenaming(m.id);
+                    }}
+                  >
+                    <Icon name="edit" size={14} />
+                  </Button>
+                  <Switch
+                    checked={!!m.enabled}
+                    onCheckedChange={() => toggle(m)}
+                    onClick={(e) => e.stopPropagation()}
+                    title={m.enabled ? "Désactiver le mod" : "Activer le mod"}
+                    aria-label={m.enabled ? "Désactiver le mod" : "Activer le mod"}
+                  />
+                </span>
+              </div>
             ))}
             {mods.length === 0 && <p className="p-3 type-body-medium text-on-surface-variant">Aucun mod pour l'instant.</p>}
           </div>
@@ -254,8 +288,8 @@ export function ModsView({ onOpenFile }: { onOpenFile: (path: string) => void })
               </CardContent>
             </Card>
 
-            <ScrollArea className="min-h-0 flex-1 rounded-xl bg-surface-container-low elevation-1">
-              <div className="divide-y divide-outline-variant/30">
+            <ScrollArea className="min-h-0 flex-1 rounded-2xl border border-app-line bg-app-dark-box">
+              <div className="divide-y divide-app-line">
                 {files.map((f) => (
                   <div key={f.id} className="flex items-center justify-between gap-2 px-3 py-2 type-body-medium">
                     <button
@@ -267,8 +301,14 @@ export function ModsView({ onOpenFile }: { onOpenFile: (path: string) => void })
                     </button>
                     <span className="flex shrink-0 items-center gap-2 type-label-small text-on-surface-variant">
                       {f.staged_size != null && humanSize(f.staged_size)}
-                      <Button size="sm" variant="ghost" onClick={() => unstage(f)}>
-                        ✕
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        onClick={() => unstage(f)}
+                        title="Retirer du mod (le fichier part à la Corbeille)"
+                        aria-label="Retirer du mod"
+                      >
+                        <Icon name="close" size={14} />
                       </Button>
                     </span>
                   </div>

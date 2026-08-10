@@ -213,8 +213,8 @@ export function RawCpkView() {
           </p>
         )}
 
-        <ScrollArea className="min-h-0 flex-1 rounded-xl bg-surface-container-low elevation-1">
-          <div className="divide-y divide-outline-variant/30 py-1">
+        <ScrollArea className="min-h-0 flex-1 rounded-2xl border border-app-line bg-app-dark-box">
+          <div className="divide-y divide-app-line py-1">
             {filtered.map((e) => (
               <button
                 key={e.index}
@@ -243,7 +243,7 @@ export function RawCpkView() {
         </ScrollArea>
       </div>
 
-      <div className="min-h-0 overflow-hidden rounded-xl bg-surface-container-low elevation-1">
+      <div className="min-h-0 overflow-hidden rounded-2xl border border-app-line bg-app-dark-box">
         {!selected ? (
           <div className="flex h-full items-center justify-center type-body-medium text-on-surface-variant">
             Sélectionnez une entrée pour l'aperçu.
@@ -287,22 +287,22 @@ export function RawCpkView() {
             )}
             {videoUrl && (
               // eslint-disable-next-line jsx-a11y/media-has-caption
-              <video src={videoUrl} controls className="max-h-72 w-full rounded-xl border border-outline-variant/40 bg-black" />
+              <video src={videoUrl} controls className="max-h-72 w-full rounded-xl border border-app-line bg-black" />
             )}
             {glbPngUrl && (
               <img
                 src={glbPngUrl}
                 alt={`Aperçu 3D de ${selected.path}`}
-                className="max-h-72 w-full rounded-xl border border-outline-variant/40 bg-surface-container object-contain"
+                className="max-h-72 w-full rounded-lg border border-app-line bg-app-box object-contain"
               />
             )}
-            <ScrollArea className="min-h-0 flex-1 rounded-xl border border-outline-variant/40 bg-surface-container-low">
+            <ScrollArea className="min-h-0 flex-1 rounded-lg border border-app-line bg-app-dark-box">
               <pre className="whitespace-pre-wrap p-3 font-mono text-xs leading-relaxed text-on-surface">
                 {lines.join("\n") || "…"}
               </pre>
             </ScrollArea>
             {rawBytes && (
-              <ScrollArea className="h-40 rounded-xl border border-outline-variant/40 bg-surface-container-low">
+              <ScrollArea className="h-40 rounded-lg border border-app-line bg-app-dark-box">
                 <pre className="p-2 font-mono text-[11px] leading-relaxed text-on-surface">{hexLines(rawBytes).join("\n")}</pre>
               </ScrollArea>
             )}

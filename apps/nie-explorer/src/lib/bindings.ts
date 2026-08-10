@@ -124,23 +124,36 @@ export const commands = {
 	 *  avant), via le pont déjà existant `nie_explore::bridge` (même moteur que `niers vfs cat`).
 	 */
 	gameDataSkills: (gameDir: string | null) => typedError<SkillDto[], string>(__TAURI_INVOKE("game_data_skills", { gameDir })),
-	/** Objets (armes/consommables/costumes/…, `nie_data::item`) — même patron que `gameDataSkills`. */
+	/**  Objets (armes/consommables/costumes/…, `nie_data::item`) — même patron que [`game_data_skills`]. */
 	gameDataItems: (gameDir: string | null) => typedError<ItemDto[], string>(__TAURI_INVOKE("game_data_items", { gameDir })),
-	/** Avatar/Keshin (`nie_data::aura`) — même patron que `gameDataSkills`. */
+	/**  Avatar/Keshin (`nie_data::aura`) — même patron que [`game_data_skills`]. */
 	gameDataAuras: (gameDir: string | null) => typedError<AuraDto[], string>(__TAURI_INVOKE("game_data_auras", { gameDir })),
-	/** Succès (`nie_data::trophy`) — même patron que `gameDataSkills`. */
+	/**  Succès (`nie_data::trophy`) — même patron que [`game_data_skills`]. */
 	gameDataTrophies: (gameDir: string | null) => typedError<TrophyDto[], string>(__TAURI_INVOKE("game_data_trophies", { gameDir })),
-	/** Quêtes (`nie_data::quest`) — même patron que `gameDataSkills`. */
+	/**  Quêtes (`nie_data::quest`) — même patron que [`game_data_skills`]. */
 	gameDataQuests: (gameDir: string | null) => typedError<QuestDto[], string>(__TAURI_INVOKE("game_data_quests", { gameDir })),
-	/** Personnages sélectionnables pour le calculateur de stats — même patron que `gameDataSkills`. */
+	/**  Boutiques (`nie_data::shop`) — même patron que [`game_data_skills`] (§4.1 roadmap). */
+	gameDataShops: (gameDir: string | null) => typedError<ShopDto[], string>(__TAURI_INVOKE("game_data_shops", { gameDir })),
+	/**  Stades (`nie_data::stadium`) — même patron que [`game_data_skills`] (§4.1 roadmap). */
+	gameDataStadiums: (gameDir: string | null) => typedError<StadiumDto[], string>(__TAURI_INVOKE("game_data_stadiums", { gameDir })),
+	/**  Capacités passives (`nie_data::passive`) — même patron que [`game_data_skills`] (§4.1 roadmap). */
+	gameDataPassives: (gameDir: string | null) => typedError<PassiveDto[], string>(__TAURI_INVOKE("game_data_passives", { gameDir })),
+	/**
+	 *  Tactiques spéciales (`nie_data::special_tactics`) — même patron que [`game_data_skills`]
+	 *  (§4.1 roadmap).
+	 */
+	gameDataSpecialTactics: (gameDir: string | null) => typedError<SpecialTacticsDto[], string>(__TAURI_INVOKE("game_data_special_tactics", { gameDir })),
+	/**
+	 *  Personnages sélectionnables pour le calculateur de stats (`nie_data::chara_param` joint à
+	 *  `chara_base`/`chara_text`) — même patron que [`game_data_skills`].
+	 */
 	gameDataCharaPicker: (gameDir: string | null) => typedError<CharaPickerDto[], string>(__TAURI_INVOKE("game_data_chara_picker", { gameDir })),
 	/**
 	 *  Calcule les stats d'un personnage (§4.2 roadmap) — `nie_core::growth::calculate_stats` sur
-	 *  les tables de croissance IEVR embarquées. `rarityCode` : 0=N, 2=R, 3=SR, 4=SSR, 5=UR, 6=LR,
-	 *  7=Legend, 20=BASARA.
+	 *  les tables de croissance IEVR embarquées, cf. `game_data::calculate_character_stats`.
+	 *  `rarity_code` : 0=N, 2=R, 3=SR, 4=SSR, 5=UR, 6=LR, 7=Legend, 20=BASARA.
 	 */
-	gameDataCalculateStats: (charaParamId: string, level: number, rarityCode: number, gameDir: string | null) =>
-		typedError<StatBlockDto, string>(__TAURI_INVOKE("game_data_calculate_stats", { charaParamId, level, rarityCode, gameDir })),
+	gameDataCalculateStats: (charaParamId: string, level: number, rarityCode: number, gameDir: string | null) => typedError<StatBlockDto, string>(__TAURI_INVOKE("game_data_calculate_stats", { charaParamId, level, rarityCode, gameDir })),
 	/**
 	 *  Décode N'IMPORTE QUEL `.cfg.bin` du VFS (RDBN *ou* T2B, détecté automatiquement via
 	 *  [`nie_formats::cfgbin::is_rdbn`]) vers la forme JSON "inagle" — couvre TOUS les fichiers de
@@ -154,21 +167,21 @@ export const commands = {
 	vfsDecodeCfgbin: (path: string, gameDir: string | null) => typedError<unknown, string>(__TAURI_INVOKE("vfs_decode_cfgbin", { path, gameDir })),
 	/**
 	 *  Ré-encode du JSON édité (forme "inagle" `{"entries":[...]}` T2B **ou** `{"lists":[...]}`
-	 *  RDBN, dispatch automatique symétrique à [`vfsDecodeCfgbin`]) vers un `.cfg.bin` binaire
+	 *  RDBN, dispatch automatique symétrique à [`vfs_decode_cfgbin`]) vers un `.cfg.bin` binaire
 	 *  VALIDE.
-	 *
+	 * 
 	 *  - T2B : `nie_formats::cfgbin::encode_t2b`, reconstruction libre à partir du JSON seul.
 	 *  - RDBN : `nie_formats::cfgbin::encode_rdbn` + `nie_explore::bridge::json_to_rdbn_lists`, qui a
 	 *    besoin de l'ORIGINAL déjà décodé comme gabarit — c'est un *patch* de valeurs, pas une
 	 *    reconstruction libre : le JSON seul perd l'information de type par colonne (ex. Short/
 	 *    ActType ou Rates/Position sont indiscernables une fois sérialisés). D'où `path` en plus de
 	 *    `json` ici : on relit et reparse le fichier original depuis le VFS pour fournir ce gabarit.
-	 *
+	 * 
 	 *  Les deux encodeurs sont vérifiés par round-trip réel sur des centaines/milliers de vrais
 	 *  fichiers du jeu (`cfgbin.rs` : `encode_t2b_round_trip_sur_le_vrai_jeu`,
 	 *  `encode_rdbn_round_trip_sur_le_vrai_jeu` ; `bridge.rs` : `json_bridge_round_trip_sur_le_vrai_jeu`,
 	 *  `json_bridge_rdbn_round_trip_sur_le_vrai_jeu`), pas devinés.
-	 *
+	 * 
 	 *  Renvoie les octets en base64 : compose avec [`vfs_write_b64`]/
 	 *  [`vfs_write_loose_override_b64`]/[`save_bytes_b64`] côté frontend pour l'écriture réelle —
 	 *  pas de nouvelle commande d'écriture, réutilisation de celles qui existent déjà.
@@ -199,12 +212,81 @@ export const commands = {
 	rawCpkExtractTo: (index: number, dest: string) => typedError<number, string>(__TAURI_INVOKE("raw_cpk_extract_to", { index, dest })),
 	/**
 	 *  Extrait TOUTES les entrées du CPK ouvert vers `dest_dir`, en préservant l'arborescence
-	 *  `directory/filename` d'origine (mécanique identique à [`rawCpkExtractTo`], en boucle sur
+	 *  `directory/filename` d'origine (mécanique identique à [`raw_cpk_extract_to`], en boucle sur
 	 *  `RawCpkState.entries`) — évite d'extraire un CPK entier une entrée à la fois depuis l'UI.
 	 *  Renvoie `(n_ok, n_err)` : les échecs individuels (entrée corrompue/compression non supportée)
 	 *  n'interrompent pas le reste de l'extraction, pour ne pas perdre tout le travail sur 1 entrée.
 	 */
 	rawCpkExtractAll: (destDir: string) => typedError<[number, number], string>(__TAURI_INVOKE("raw_cpk_extract_all", { destDir })),
+	/**
+	 *  Même décodage audio que [`vfs_audio_preview_b64`], mais depuis une entrée du CPK brut ouvert
+	 *  (hors VFS) — un seul fichier autonome (HCA/ADX ne référence jamais de fichier frère), donc pas
+	 *  de dépendance à l'indexation VFS. (L'aperçu 3D, qui a besoin des frères g4md/g4mg, a sa PROPRE
+	 *  résolution scopée au CPK courant plutôt que le VFS — cf. [`raw_cpk_glb_preview_png_b64`]/
+	 *  [`assemble_glb_from_cpk_entries`], plus VFS-only depuis 2026-08-08.)
+	 */
+	rawCpkAudioPreviewB64: (index: number) => typedError<string, string>(__TAURI_INVOKE("raw_cpk_audio_preview_b64", { index })),
+	/**
+	 *  Même remuxage vidéo que [`vfs_video_preview_b64`], mais depuis une entrée du CPK brut ouvert
+	 *  (hors VFS) — un `.usm` est autonome (pas de fichier frère référencé), donc pas de dépendance à
+	 *  l'indexation VFS.
+	 */
+	rawCpkVideoPreviewB64: (index: number) => typedError<string, string>(__TAURI_INVOKE("raw_cpk_video_preview_b64", { index })),
+	/**
+	 *  Copie un fichier disque ARBITRAIRE (hors de toute portée `fs:scope` JS — même famille que
+	 *  [`read_disk_file_b64`]/[`describe_disk_file`], `std::fs` direct) vers un chemin relatif sous
+	 *  `AppData` (espace de travail des mods, `mods/<modId>/…`, `crates`/… JS `modWorkspace.ts`).
+	 *  Utilisé par le VRAI Ctrl+V (`editBus.paste()` → `stageReplacementFromPath`) : la source vient
+	 *  du presse-papiers, pas d'un sélecteur natif — elle n'a donc PAS la portée temporaire que
+	 *  Tauri accorde aux chemins choisis via `@tauri-apps/plugin-dialog`, et le plugin `fs` JS
+	 *  (portée = `$APPDATA/**` seulement, cf. `capabilities/default.json`) refuserait de la lire.
+	 *  `dest_appdata_rel` DOIT rester sous `AppData` (jamais le dossier du jeu) — construit côté
+	 *  frontend depuis `modDir(modId)`, jamais depuis une entrée utilisatrice libre.
+	 *  Renvoie le nombre d'octets copiés en `f64` et **pas** `u64` : `specta` refuse d'exporter les
+	 *  types « BigInt » vers TypeScript, et le refus est FATAL (panique de l'export au démarrage en
+	 *  debug — l'app ne se lançait plus du tout). Une taille de fichier reste très en dessous des 2⁵³
+	 *  entiers exactement représentables en `f64`, la conversion est donc sans perte.
+	 */
+	copyDiskFileToAppdata: (src: string, destAppdataRel: string) => typedError<number | null, string>(__TAURI_INVOKE("copy_disk_file_to_appdata", { src, destAppdataRel })),
+	/**
+	 *  `true` si `path` désigne un FICHIER (pas un dossier) existant sur disque — hors de toute
+	 *  portée `fs:scope` JS (même famille que [`describe_disk_file`], `std::fs` direct). Utilisé pour
+	 *  valider un chemin venu du presse-papiers (Ctrl+V, cf. [`copy_disk_file_to_appdata`]) : le
+	 *  plugin `fs` JS `exists()` est scopé à `$APPDATA/**` et renverrait faux/erreur sur un chemin
+	 *  disque quelconque, alors que c'est justement le cas normal ici.
+	 */
+	diskFileExists: (path: string) => __TAURI_INVOKE<boolean>("disk_file_exists", { path }),
+	/**
+	 *  Remplace la texture d'un `.g4tx` **mono-texture, sans région d'atlas** (§2.2 roadmap,
+	 *  « Éditeur d'image (textures) ») par un PNG choisi — lit `vfs_path`, valide qu'il s'agit bien
+	 *  du cas simple pris en charge (cf. doc `nie_formats::g4tx_encode`, rejette explicitement les
+	 *  atlas multi-région comme `gaiji_game.g4tx` où « remplacer » n'aurait pas de sens univoque),
+	 *  décode le PNG source (chemin disque arbitraire, hors portée `fs:scope` JS — même famille que
+	 *  [`copy_disk_file_to_appdata`]) et écrit le `.g4tx` réencodé directement dans l'espace de
+	 *  travail du mod (`AppData/mods/<modId>/…`, jamais le dossier du jeu). Conserve `name`/`id` de
+	 *  la texture d'origine (dimensions reprises du PNG, peuvent différer de l'original).
+	 */
+	stageTextureReplacement: (vfsPath: string, pngSrcPath: string, destAppdataRel: string, gameDir: string | null) => typedError<number | null, string>(__TAURI_INVOKE("stage_texture_replacement", { vfsPath, pngSrcPath, destAppdataRel, gameDir })),
+	/**
+	 *  Exporte les fichiers d'un mod en un `.cpk` **autonome, non chiffré, non compressé** (§1.2
+	 *  roadmap) — cf. `nie_formats::cpk_encode` pour la portée exacte et ses limites documentées
+	 *  (vérifié par round-trip contre `CpkReader` déjà validé sur le vrai jeu, PAS par chargement
+	 *  réel dans `nie.exe`). Lit chaque fichier mis en scène depuis `AppData` (`std::fs` direct, hors
+	 *  portée `fs:scope` JS — même famille que [`copy_disk_file_to_appdata`]), jamais depuis le
+	 *  dossier du jeu.
+	 */
+	exportModAsCpk: (files: CpkExportFileDto[], dest: string) => typedError<number | null, string>(__TAURI_INVOKE("export_mod_as_cpk", { files, dest })),
+	/**
+	 *  Aligne le thème du chrome de fenêtre sur le clair/sombre de l'appli.
+	 * 
+	 *  La fenêtre est SANS décorations (`decorations: false`) : il n'y a plus de barre de titre native
+	 *  à teinter, et l'ancienne implémentation (`window_vibrancy::apply_mica`) faisait bien pire que
+	 *  rien — Mica étend la frame DWM dans la zone client, ce qui redonne à Windows une frame à
+	 *  dessiner (bordure + légende + boutons système par-dessus le chrome custom). Ce qui reste utile
+	 *  et sans effet de bord, c'est `DWMWA_USE_IMMERSIVE_DARK_MODE` : il pilote la couleur de l'ombre
+	 *  portée et des menus système associés à la fenêtre.
+	 */
+	setTitlebarTheme: (dark: boolean) => typedError<null, string>(__TAURI_INVOKE("set_titlebar_theme", { dark })),
 	/**
 	 *  Rend une fois le chemin passé en argument au lancement (`argv[1]`), puis se vide — le
 	 *  frontend l'appelle une seule fois au démarrage pour savoir s'il doit ouvrir un fichier
@@ -212,61 +294,67 @@ export const commands = {
 	 */
 	takePendingOpen: () => __TAURI_INVOKE<string | null>("take_pending_open"),
 	/**
-	 *  Resynchronise le chrome natif Windows 11 (Mica, barre de titre/légende) sur le thème
-	 *  clair/sombre choisi côté frontend (`next-themes`, `resolvedTheme`) — corrige le fait que le
-	 *  chrome natif restait figé en sombre même si l'utilisatrice bascule en clair dans Paramètres.
-	 *  No-op silencieux hors Windows 11.
-	 */
-	setTitlebarTheme: (dark: boolean) => typedError<null, string>(__TAURI_INVOKE("set_titlebar_theme", { dark })),
-	/**
 	 *  Aperçu structuré d'un fichier QUELCONQUE du disque (pas du VFS) — utilisé par « Ouvrir
 	 *  avec nie-explorer » sur un fichier déjà extrait/exporté.
 	 */
 	describeDiskFile: (path: string) => typedError<string[], string>(__TAURI_INVOKE("describe_disk_file", { path })),
 	readDiskFileB64: (path: string, maxBytes: number | null) => typedError<string, string>(__TAURI_INVOKE("read_disk_file_b64", { path, maxBytes })),
 	/**
-	 *  `true` si `path` désigne un FICHIER (pas un dossier) existant sur disque — hors de toute
-	 *  portée `fs:scope` JS (même famille que [`describeDiskFile`], `std::fs` direct). Utilisé pour
-	 *  valider un chemin venu du presse-papiers (Ctrl+V, cf. [`copyDiskFileToAppdata`]) : le
-	 *  plugin `fs` JS `exists()` est scopé à `$APPDATA/**` et renverrait faux/erreur sur un chemin
-	 *  disque quelconque, alors que c'est justement le cas normal ici.
-	 */
-	diskFileExists: (path: string) => __TAURI_INVOKE<boolean>("disk_file_exists", { path }),
-	/**
-	 *  Copie un fichier disque ARBITRAIRE (hors de toute portée `fs:scope` JS — même famille que
-	 *  [`readDiskFileB64`]/[`describeDiskFile`], `std::fs` direct) vers un chemin relatif sous
-	 *  `AppData` (espace de travail des mods, `mods/<modId>/…`, JS `modWorkspace.ts`). Utilisé par
-	 *  le VRAI Ctrl+V (`editBus.paste()` → `stageReplacementFromPath`) : la source vient du
-	 *  presse-papiers, pas d'un sélecteur natif — elle n'a donc PAS la portée temporaire que Tauri
-	 *  accorde aux chemins choisis via `@tauri-apps/plugin-dialog`, et le plugin `fs` JS (portée =
-	 *  `$APPDATA/**` seulement) refuserait de la lire. `dest_appdata_rel` DOIT rester sous
-	 *  `AppData` (jamais le dossier du jeu).
-	 */
-	copyDiskFileToAppdata: (src: string, destAppdataRel: string) => typedError<number, string>(__TAURI_INVOKE("copy_disk_file_to_appdata", { src, destAppdataRel })),
-	/**
-	 *  Remplace la texture d'un `.g4tx` **mono-texture, sans région d'atlas** (§2.2 roadmap) par
-	 *  un PNG choisi — décode le PNG, l'encode en DDS BGRA8 + conteneur G4TX, écrit directement
-	 *  dans l'espace de travail du mod. Rejette explicitement les atlas multi-région.
-	 */
-	stageTextureReplacement: (vfsPath: string, pngSrcPath: string, destAppdataRel: string, gameDir: string | null) =>
-		typedError<number, string>(__TAURI_INVOKE("stage_texture_replacement", { vfsPath, pngSrcPath, destAppdataRel, gameDir })),
-	/**
-	 *  Exporte les fichiers d'un mod en un `.cpk` **autonome, non chiffré, non compressé**
-	 *  (§1.2 roadmap) — cf. `nie_formats::cpk_encode` pour la portée exacte et ses limites
-	 *  documentées (vérifié par round-trip contre `CpkReader`, PAS par chargement réel dans
-	 *  `nie.exe`).
-	 */
-	exportModAsCpk: (files: CpkExportFileDto[], dest: string) => typedError<number, string>(__TAURI_INVOKE("export_mod_as_cpk", { files, dest })),
-	/**
 	 *  Extrait `path` (+ ses fichiers frères de même basename dans le même dossier VFS : g4mg/g4sk/
 	 *  g4tx/g4mt) vers un dossier temporaire, lance Blender avec un script d'amorçage qui active
 	 *  l'addon `tools/niers` (`bpy.utils` via `sys.path`, sans dépendre du dossier d'addons
-	 *  utilisateur Blender) puis pré-charge le modèle via son opérateur natif
-	 *  `level5_g4_port.load_original_model` (le même que « File > Import » appellerait).
-	 *  Pose `NIE_GAME_DIR` dans l'environnement du process Blender : le panneau de recherche
-	 *  niers→Blender (`niers_bridge.py`) l'utilise pour retrouver `niers.exe` et le VFS sans deviner.
+	 *  utilisateur Blender — cloné à la volée via [`ensure_niers_blender_addon`] si absent) puis
+	 *  importe RÉELLEMENT le modèle via l'opérateur `import_scene.level5_g4` (« File > Import >
+	 *  Level-5 G4 Model »). Pose `NIE_GAME_DIR` dans l'environnement du process Blender : le panneau
+	 *  de recherche niers→Blender (`niers_bridge.py`) l'utilise pour retrouver `niers.exe` et le VFS
+	 *  sans deviner.
+	 * 
+	 *  **Bug corrigé (2026-08-08, « Blender ouvre un fichier vide »)** : le script d'amorçage
+	 *  appelait `level5_g4_port.load_original_model` — ce n'est PAS un import de scène, c'est
+	 *  l'opérateur « choisir le template original » du **wizard d'export/portage** (`g4_port_addon.
+	 *  py`, panneau « 1. Original model template » : il peuple les *réglages* internes de l'addon
+	 *  pour un futur export, ne crée AUCUN objet maillage). Confirmé par lecture du code source de
+	 *  l'addon (`tools/niers/g4_port_addon.py` `LEVEL5_G4PORT_OT_load_original_model.execute` appelle
+	 *  `apply_original_model_to_settings`, pas un import). Le VRAI importeur (« File > Import >
+	 *  Level-5 G4 Model », README de l'addon) est `import_scene.level5_g4` — **validé par un test
+	 *  réel `blender --background --python`** sur le vrai `c01000010.g4md` : 3 objets créés
+	 *  (`c01000010_20`/`eye_10`/`mouth_10`), contre 0 avant. `skip_character_setup=True` +
+	 *  `import_character_parts=False` : évite le wizard interactif de pièces de personnage
+	 *  (`INVOKE_DEFAULT` modal) pour un import direct et prévisible du seul fichier cliqué.
 	 */
 	openInBlender: (path: string, blenderExe: string | null, gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("open_in_blender", { path, blenderExe, gameDir })),
+	/**
+	 *  Installe/met à jour l'extension Blender **niers** dans le vrai dossier d'addons de
+	 *  l'utilisatrice (`bpy.ops.preferences.addon_install` + `addon_enable`, PAS le bootstrap
+	 *  `sys.path` transitoire de [`open_in_blender`]) et configure sa préférence `raw_data_root` sur
+	 *  le vrai `<jeu>/data` (résolu par `inferred_raw_data_root`/`candidate_data_roots` de l'addon
+	 *  pour la recherche de squelette partagé/pièces de personnage — cf. `tools/niers/g4_animation_
+	 *  addon.py`) — persisté via `bpy.ops.wm.save_userpref()`, donc actif au prochain lancement de
+	 *  Blender INDÉPENDAMMENT de nie-explorer. Bloquant (`--background`, `.output()` synchrone) : pas
+	 *  de fenêtre à garder ouverte contrairement à [`open_in_blender`], donc pas de fuite de process.
+	 */
+	installNiersBlenderAddon: (blenderExe: string | null, gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("install_niers_blender_addon", { blenderExe, gameDir })),
+	/**
+	 *  Ouvre N'IMPORTE QUEL `.blend` local (pas forcément un asset VFS niers — le fichier que
+	 *  l'utilisatrice pointe, ex. une scène déjà construite) en headless, cadre une caméra sur son
+	 *  contenu et rend un aperçu PNG base64 — c'est le côté « importer ce type de fichier dans
+	 *  niers » du pont : nie-explorer peut prévisualiser un `.blend` sans lancer l'UI Blender.
+	 */
+	blenderPreviewPngB64: (path: string, blenderExe: string | null) => typedError<string, string>(__TAURI_INVOKE("blender_preview_png_b64", { path, blenderExe })),
+	/**
+	 *  Ouvre un `.blend` dans le VRAI Blender GUI (process séparé, non bloquant) — bouton « Ouvrir
+	 *  dans Blender » après [`blender_preview_png_b64`]/[`blender_build_skill_scene`].
+	 */
+	blenderOpenScene: (path: string, blenderExe: string | null) => typedError<null, string>(__TAURI_INVOKE("blender_open_scene", { path, blenderExe })),
+	/**
+	 *  Construit une VRAIE scène Blender : modèle du personnage (`internal_code`, résolu par
+	 *  sous-chaîne sur le VFS réel — jamais un chemin template) + modèle de cut-in de la technique
+	 *  (résolue par [`game_data::find_skill`] sur `skill_query`, chemins via `SkillInfo::
+	 *  cutin_assets()`). Sauvegarde un `.blend` réel + rend un aperçu PNG. Aucun octet fabriqué : si
+	 *  le personnage ou la technique n'a pas d'assets 3D dans le VFS local, la commande le dit
+	 *  (`warnings`) plutôt que de construire une scène vide en silence ou d'échouer sans explication.
+	 */
+	blenderBuildSkillScene: (internalCode: string, skillQuery: string, blenderExe: string | null, gameDir: string | null) => typedError<BlenderSceneResultDto, string>(__TAURI_INVOKE("blender_build_skill_scene", { internalCode, skillQuery, blenderExe, gameDir })),
 	/**
 	 *  Recherche de personnages via le GraphQL azalee (`characters(q, limit)`), en bonus du miroir
 	 *  local `nie-wiki` — utile quand aucun `supabase-*.sqlite` local n'est configuré.
@@ -289,11 +377,10 @@ export const commands = {
 	 *  Déchiffre + parse un fichier de sauvegarde Lives (ex. `002AB8F4-USERDATALIVE`) et renvoie
 	 *  son résumé (`nie_save::SaveSummary`, sérialisé tel quel — joueur, niveau, temps de jeu,
 	 *  roster…). Le conteneur déchiffré reste en mémoire pour [`save_list_blobs`]/[`save_export`].
-	 */
-	/**
 	 *  Auto-détecte LA meilleure sauvegarde Steam Cloud (`userdata/<steamid>/2799860/remote/*-
-	 *  USERDATALIVE`, cf. `steam::pick_best_save`) — `null` si Steam/le jeu/toute sauvegarde
-	 *  valide est absent de ce poste (jamais un chemin deviné).
+	 *  USERDATALIVE`, cf. `steam::pick_best_save`) — `None` si Steam/le jeu/toute sauvegarde valide
+	 *  est absent de ce poste (jamais un chemin deviné). Le frontend (`SaveView`) l'appelle au
+	 *  montage et n'ouvre le sélecteur manuel qu'en repli, au lieu d'un `open()` systématique.
 	 */
 	defaultSavePath: () => __TAURI_INVOKE<string | null>("default_save_path"),
 	saveOpen: (path: string) => typedError<unknown, string>(__TAURI_INVOKE("save_open", { path })),
@@ -309,20 +396,19 @@ export const commands = {
 	 *  VP9 brut n'est pas remuxable simplement (pas de conteneur) : renvoie une erreur claire.
 	 */
 	vfsVideoPreviewB64: (path: string, gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("vfs_video_preview_b64", { path, gameDir })),
-	/** Même remuxage vidéo, depuis une entrée du CPK brut ouvert (hors VFS) — parité `RawCpkView`. */
-	rawCpkVideoPreviewB64: (index: number) => typedError<string, string>(__TAURI_INVOKE("raw_cpk_video_preview_b64", { index })),
-	/**
-	 *  Assemble un G4MD+G4MG (+ G4TX frère si présent) en GLB autonome (textures embarquées) et le
-	 *  rend via `nie-render3d` (rasterizer CPU pur-Rust, orbit-camera) → PNG (base64).
-	 */
 	vfsGlbPreviewPngB64: (path: string, gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("vfs_glb_preview_png_b64", { path, gameDir })),
 	/**
-	 *  Aperçu 3D **interactif** (§2.3 roadmap, « caméra orbitale ») : un turntable (36 images sur
-	 *  360°) remuxé en MP4 par `nie-render3d`, affiché dans un `<video controls>` — la barre de
-	 *  défilement native EST la caméra orbitale (glisser = tourner autour du modèle).
+	 *  Aperçu 3D **interactif** (§2.3 roadmap, « caméra orbitale ») : au lieu d'une image fixe,
+	 *  rend un **turntable** (36 images à angles régulièrement espacés sur 360°, EN PROCESS via
+	 *  `nie_render3d::render::render`) remuxé en MP4 par `ffmpeg` en sous-processus (seul `ffmpeg`
+	 *  reste externe — même outil déjà requis pour l'aperçu vidéo USM, cf. [`vfs_video_preview_b64`],
+	 *  le mux H.264 n'a pas d'équivalent pur-Rust raisonnable dans ce budget) — le frontend l'affiche
+	 *  dans un `<video controls>`, dont la barre de défilement native EST la caméra orbitale (glisser
+	 *  = tourner autour du modèle). Alternative délibérément choisie à l'embarquement d'une fenêtre
+	 *  wgpu native dans WebView2 (fenêtrage Win32 imbriqué fragile, hors de portée raisonnable ici) —
+	 *  même moteur de rendu (`nie-render3d`) que [`vfs_glb_preview_png_b64`], juste plus d'images.
 	 */
-	vfsGlbPreviewTurntableMp4B64: (path: string, gameDir: string | null) =>
-		typedError<string, string>(__TAURI_INVOKE("vfs_glb_preview_turntable_mp4_b64", { path, gameDir })),
+	vfsGlbPreviewTurntableMp4B64: (path: string, gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("vfs_glb_preview_turntable_mp4_b64", { path, gameDir })),
 	/**
 	 *  Décode n'importe quel format audio Criware du VFS (`.acb`/`.awb`/`.hca`/`.adx`, dispatch par
 	 *  magic) en WAV PCM16, base64 — `nie_formats::cri_audio::decode_to_wav` (feature `audio-decode`,
@@ -339,41 +425,124 @@ export const commands = {
 	 *  y compris en debug non optimisé.
 	 */
 	vfsAudioPreviewB64: (path: string, gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("vfs_audio_preview_b64", { path, gameDir })),
-	/** Même décodage audio (HCA/ADX→WAV), depuis une entrée du CPK brut ouvert (hors VFS) — parité `RawCpkView`. */
-	rawCpkAudioPreviewB64: (index: number) => typedError<string, string>(__TAURI_INVOKE("raw_cpk_audio_preview_b64", { index })),
-	/** Aperçu 3D fixe (G4MD+G4MG+G4TX frères résolus DANS le CPK ouvert), depuis une entrée du CPK brut ouvert (hors VFS) — parité `RawCpkView` (roadmap §6, fermé 2026-08-08). */
+	/**
+	 *  Aperçu 3D fixe pour une entrée du CPK brut ouvert (hors VFS) — équivalent de
+	 *  [`vfs_glb_preview_png_b64`], résolution de frères via [`assemble_glb_from_cpk_entries`].
+	 */
 	rawCpkGlbPreviewPngB64: (index: number) => typedError<string, string>(__TAURI_INVOKE("raw_cpk_glb_preview_png_b64", { index })),
-	/** Pose une VRAIE liste de fichiers sur le presse-papiers Windows (CF_HDROP) — collable comme fichiers dans l'Explorateur, pas juste du texte. Inspiré de cosmic-files (`clipboard.rs`). */
+	/**
+	 *  Pose une VRAIE liste de fichiers sur le presse-papiers Windows (CF_HDROP) — ce que
+	 *  l'Explorateur Windows (ou n'importe quelle appli) sait coller comme de VRAIS fichiers, pas du
+	 *  texte. Remplace l'ancien Ctrl+C de `ExplorerView` (`writeText` du plugin Tauri, chemins en
+	 *  texte brut séparés par `\n` — lisible par notre propre `Ctrl+V` interne par accident, mais
+	 *  PAS par l'Explorateur). `paths` doivent exister sur disque (CF_HDROP silencieux sinon, pas
+	 *  d'erreur Windows explicite) — vérifié côté appelant.
+	 */
 	clipboardWriteFileList: (paths: string[]) => typedError<null, string>(__TAURI_INVOKE("clipboard_write_file_list", { paths })),
-	/** Lit une VRAIE liste de fichiers depuis le presse-papiers Windows (CF_HDROP), `null` si absent (juste du texte, ou vide). */
+	/**
+	 *  Lit une VRAIE liste de fichiers depuis le presse-papiers Windows (CF_HDROP) — `None` si le
+	 *  presse-papiers ne contient pas ce format (ex. juste du texte, ou vide). Permet un VRAI Ctrl+V
+	 *  depuis l'Explorateur Windows (copier un fichier dans l'Explorateur, Ctrl+V ici) SANS dépendre
+	 *  du fait que l'Explorateur pose accessoirement `CF_UNICODETEXT` (il ne le fait pas toujours,
+	 *  contrairement à ce qu'un simple `readText()` supposait implicitement).
+	 */
 	clipboardReadFileList: () => __TAURI_INVOKE<string[] | null>("clipboard_read_file_list"),
-	/** Envoie des fichiers de l'espace de travail des mods (chemins relatifs à AppData) à la VRAIE Corbeille Windows — pas une suppression permanente. Inspiré de cosmic-files (`trash.rs`). */
+	/**
+	 *  Envoie un ou plusieurs fichiers de l'espace de travail des mods (`AppData/mods/<modId>/…`) à
+	 *  la VRAIE Corbeille Windows (`trash` crate, `IFileOperation`/`SHFileOperationW`) — au lieu d'un
+	 *  `std::fs::remove_file` permanent. Recherche 2026-08-08 (« lis vraiment le code de cosmic » —
+	 *  `trash.rs` de cosmic-files enveloppe le même crate) : `removeStagedFile`/`deleteModWorkspace`
+	 *  utilisaient `remove()` du plugin `fs` JS (suppression permanente) sur du VRAI travail
+	 *  utilisatrice (fichiers de mod édités, parfois de vraies heures de remplacement de texture/
+	 *  modèle) — un clic accidentel sur « Retirer » était irrattrapable. Chemins relatifs à
+	 *  `AppData` (même convention que [`copy_disk_file_to_appdata`]) ; un chemin absent est ignoré
+	 *  (pas une erreur — `deleteModWorkspace` appelle ceci pour des paires staged/original dont
+	 *  l'une des deux peut légitimement ne pas exister, ex. fichier trop gros pour avoir une
+	 *  sauvegarde `.original`, cf. `stageReplacementFromPath`).
+	 */
 	trashAppdataFiles: (appdataRelPaths: string[]) => typedError<null, string>(__TAURI_INVOKE("trash_appdata_files", { appdataRelPaths })),
-	/** Installe/active l'extension Blender `niers` pour de vrai (dossier d'addons utilisateur, pas le bootstrap transitoire d'`openInBlender`) et lie `raw_data_root` au vrai `<jeu>/data`, persisté (`save_userpref`). */
-	installNiersBlenderAddon: (blenderExe: string | null, gameDir: string | null) =>
-		typedError<string, string>(__TAURI_INVOKE("install_niers_blender_addon", { blenderExe, gameDir })),
-	/**  Ouvre N'IMPORTE QUEL `.blend` local en headless, cadre une caméra et rend un aperçu PNG base64. */
-	blenderPreviewPngB64: (path: string, blenderExe: string | null) =>
-		typedError<string, string>(__TAURI_INVOKE("blender_preview_png_b64", { path, blenderExe })),
-	/**  Ouvre un `.blend` dans le vrai Blender GUI (process séparé, non bloquant). */
-	blenderOpenScene: (path: string, blenderExe: string | null) =>
-		typedError<null, string>(__TAURI_INVOKE("blender_open_scene", { path, blenderExe })),
-	/**  Construit une scène Blender réelle : personnage (`internalCode`) + cut-in de technique (`skillQuery`). */
-	blenderBuildSkillScene: (internalCode: string, skillQuery: string, blenderExe: string | null, gameDir: string | null) =>
-		typedError<BlenderSceneResultDto, string>(
-			__TAURI_INVOKE("blender_build_skill_scene", { internalCode, skillQuery, blenderExe, gameDir })
-		),
-	/**  Cherche le process `nie.exe`/`nie_eacpatched.exe` en cours d'exécution. `None` si le jeu n'est pas lancé — jamais d'attache silencieuse ni de retry en boucle. */
-	reTraceFindProcess: () => __TAURI_INVOKE<ReTraceProcessDto | null>("re_trace_find_process"),
-	/**  Liste les plages mémoire du module principal (`nie`/`nie_eacpatched`) du process `pid` — jamais tout l'espace d'adressage (autres DLL, tas non pertinent) : `module_regions(.., false)` filtre déjà sur le module. */
+	/**
+	 *  Cherche le process `nie.exe`/`nie_eacpatched.exe` en cours d'exécution. `None` si le jeu n'est
+	 *  pas lancé — jamais d'attache silencieuse ni de retry en boucle.
+	 */
+	reTraceFindProcess: () => __TAURI_INVOKE<{
+	pid: number,
+	process_name: string,
+	/**
+	 *  Base du module principal en hexadécimal (`0x…`), `None` si non résolue (process trouvé
+	 *  mais `find_module_base` échoue — permissions insuffisantes p. ex.).
+	 */
+	module_base: string | null,
+} | null>("re_trace_find_process"),
+	/**
+	 *  Liste les plages mémoire du **module principal** (`nie`/`nie_eacpatched`) du process `pid` —
+	 *  jamais tout l'espace d'adressage (autres DLL, tas non pertinent) : `module_regions(.., false)`
+	 *  filtre déjà sur le module.
+	 */
 	reTraceModuleRegions: (pid: number) => typedError<ReTraceRegionDto[], string>(__TAURI_INVOKE("re_trace_module_regions", { pid })),
-	/**  Lit `len` octets à `addr` (hex `0x…` ou décimal) dans `pid`, encodés base64 — jamais plus de 1 Mio par appel (évite un `Vec` géant sur une fausse manip côté UI). */
+	/**
+	 *  Lit `len` octets à `addr` (hex `0x…` ou décimal) dans `pid`, encodés base64 — jamais plus de
+	 *  1 Mio par appel (évite un `Vec` géant sur une fausse manip côté UI).
+	 */
 	reTraceReadBytesB64: (pid: number, addr: string, len: number) => typedError<string, string>(__TAURI_INVOKE("re_trace_read_bytes_b64", { pid, addr, len })),
-	/**  Dumpe les plages lisibles du module principal vers `AppData/re-dumps/<pid>-<horodatage>/` — jamais dans le dossier du jeu. */
+	/**
+	 *  Dumpe les plages lisibles du module principal vers `AppData/re-dumps/<pid>-<horodatage>/` —
+	 *  jamais dans le dossier du jeu. Réutilise [`nie_trace::dump_regions`] tel quel (lecture seule,
+	 *  une plage volatile/refusée est simplement sautée).
+	 */
 	reTraceDumpModule: (pid: number) => typedError<ReTraceDumpStatsDto, string>(__TAURI_INVOKE("re_trace_dump_module", { pid })),
 };
 
 /* Types */
+/**
+ *  Avatar/Keshin (aura) — port applati de `nie_data::aura::AuraCmd` + son texte joint
+ *  (`skill_text.cfg.bin`, même table que les techniques). Le contenu signature d'IEVR.
+ */
+export type AuraDto = {
+	aura_id: string,
+	asset_code: string,
+	name: string,
+	description: string | null,
+	element: string,
+	sub_type: string,
+};
+
+/**
+ *  Résultat de [`blender_build_skill_scene`] : chemin du `.blend` produit + aperçu rendu +
+ *  avertissements NON bloquants (ex. personnage introuvable dans le VFS local → scène cut-in
+ *  seul, jamais un échec silencieux ni un personnage substitué en douce).
+ */
+export type BlenderSceneResultDto = {
+	blend_path: string,
+	preview_png_b64: string | null,
+	skill_name: string,
+	event_id_name: string,
+	warnings: string[],
+};
+
+/**
+ *  Personnage sélectionnable pour le calculateur de stats (§4.2 roadmap) — `nie_data::chara_param
+ *  ::CharaParam` joint à `chara_base`/`chara_text` pour un nom affichable. N'inclut que les
+ *  entrées à nom résolu (roster réel, même convention que les autres `list_*`).
+ */
+export type CharaPickerDto = {
+	chara_param_id: string,
+	name: string,
+	main_position: string,
+	sub_position: string,
+};
+
+/**
+ *  Une entrée à empaqueter dans un `.cpk` exporté (§1.2 roadmap) — `vfs_path` sert à dériver
+ *  `directory`/`filename` (même convention que [`nie_formats::cpk::CpkEntry`] en lecture),
+ *  `staged_appdata_rel` est le chemin RELATIF sous `AppData` du fichier de remplacement déjà
+ *  mis en scène dans le mod (`ModFileRow.staged_file` côté frontend).
+ */
+export type CpkExportFileDto = {
+	vfs_path: string,
+	staged_appdata_rel: string,
+};
+
 export type EntryDto = {
 	path: string,
 	name: string,
@@ -386,6 +555,25 @@ export type FolderRoleDto = {
 	status: string,
 };
 
+/**
+ *  Objet (arme/consommable/costume/…) — port applati de `nie_data::item::ItemInfo` + son texte
+ *  joint (`item_text.cfg.bin`, mêmes noms ET descriptions), pour l'IPC/l'export TS. N'inclut que
+ *  les objets à nom résolu (comme `nie-game/examples/export_items.rs`, roster réel).
+ */
+export type ItemDto = {
+	item_id: string,
+	category: string,
+	name: string,
+	description: string | null,
+	/**
+	 *  `f64` et pas `i64` : `specta` refuse d’exporter les types « BigInt » vers TypeScript
+	 *  (perte de précision silencieuse) — refus FATAL qui faisait paniquer l’export au démarrage.
+	 *  Un prix du jeu tient très en dessous des 2⁵³ entiers exacts d’un `f64`.
+	 */
+	price: number | null,
+	internal_code: string | null,
+};
+
 export type LsDto = {
 	dirs: string[],
 	files: EntryDto[],
@@ -396,16 +584,6 @@ export type LsDto = {
 	role: FolderRoleDto | null,
 };
 
-/**
- *  Une entrée à empaqueter dans un `.cpk` exporté (§1.2 roadmap) — `vfs_path` sert à dériver
- *  `directory`/`filename`, `staged_appdata_rel` est le chemin RELATIF sous `AppData` du fichier
- *  de remplacement déjà mis en scène dans le mod.
- */
-export type CpkExportFileDto = {
-	vfs_path: string,
-	staged_appdata_rel: string,
-};
-
 export type PackFileDto = {
 	/**
 	 *  Chemin absolu réel sur disque (PAS un chemin interne VFS) — passé tel quel à
@@ -414,6 +592,34 @@ export type PackFileDto = {
 	path: string,
 	name: string,
 	size: number,
+};
+
+/**
+ *  Capacité passive (`passive_skill_config`) — nom/description joints depuis `skill_text`
+ *  (même table que les techniques), portée et type de boost classifiés par `nie_data::passive`.
+ */
+export type PassiveDto = {
+	passive_id: string,
+	name: string | null,
+	description: string | null,
+	rarity: number | null,
+	scope: string,
+	boost_type: string,
+	effect_params: (number | null)[],
+};
+
+/**
+ *  Quête — port applati de `nie_data::quest::ParsedQuest` + son titre joint
+ *  (`quest_title_text.cfg.bin`). N'inclut que les quêtes à titre résolu (roster réel).
+ */
+export type QuestDto = {
+	quest_id: string,
+	/**  `f64`, cf. [`TrophyDto::category`] — même contrainte `specta`. */
+	phase: number | null,
+	/**  `f64`, cf. [`TrophyDto::category`] — même contrainte `specta`. */
+	quest_type: number | null,
+	title: string,
+	image: string | null,
 };
 
 export type RawCpkEntryDto = {
@@ -427,10 +633,63 @@ export type RawCpkEntryDto = {
 	is_compressed: boolean,
 };
 
+export type ReTraceDumpStatsDto = {
+	regions: number,
+	/**
+	 *  Octets écrits. `f64` pour la même raison que [`ReTraceRegionDto::size`] — total borné par
+	 *  la taille du module dumpé, donc exactement représentable.
+	 */
+	bytes: number | null,
+	/**
+	 *  Dossier de sortie réel (sous `BaseDirectory::AppData`, jamais dans le dossier du jeu —
+	 *  même convention que le workspace de mods, cf. `lib.rs`).
+	 */
+	out_dir: string,
+};
+
+export type ReTraceProcessDto = {
+	pid: number,
+	process_name: string,
+	/**
+	 *  Base du module principal en hexadécimal (`0x…`), `None` si non résolue (process trouvé
+	 *  mais `find_module_base` échoue — permissions insuffisantes p. ex.).
+	 */
+	module_base: string | null,
+};
+
+export type ReTraceRegionDto = {
+	start: string,
+	end: string,
+	/**
+	 *  Taille de la plage en octets. `f64` et **pas** `u64` : `specta` refuse d'exporter les types
+	 *  « BigInt » (`u64`/`usize`/`i64`/…) vers TypeScript pour éviter une perte de précision
+	 *  silencieuse — et le refus est FATAL (l'export panique au démarrage en debug, ce qui
+	 *  empêchait l'app de se lancer du tout). Une plage d'un module Windows x64 est bornée par
+	 *  l'espace d'adressage utilisateur (2⁴⁷), très en dessous des 2⁵³ entiers exactement
+	 *  représentables en `f64` : la conversion est donc SANS perte ici, contrairement à un
+	 *  `as u32` qui tronquerait pour de vrai.
+	 */
+	size: number | null,
+	perms: string,
+	path: string,
+};
+
 export type SaveBlobDto = {
 	filename: string,
 	subtype: string,
 	size: number,
+};
+
+/**
+ *  Boutique du jeu (`shop_config`) — nom localisé joint depuis `shop_text`, plus l'inventaire
+ *  (identifiants d'objets, résolus en noms quand `item_text` les connaît).
+ */
+export type ShopDto = {
+	shop_id: string,
+	name: string | null,
+	item_count: number,
+	/**  Noms des objets en vente, quand ils sont résolus (sinon leur hash hexadécimal). */
+	items: string[],
 };
 
 /**
@@ -452,71 +711,34 @@ export type SkillDto = {
 };
 
 /**
- *  Objet (arme/consommable/costume/…) — port applati de `nie_data::item::ItemInfo` + son texte
- *  joint (`item_text.cfg.bin`, mêmes noms ET descriptions), pour l'IPC/l'export TS. N'inclut que
- *  les objets à nom résolu (comme `nie-game/examples/export_items.rs`, roster réel).
+ *  Tactique spéciale (`special_tactics_config`) — nom/description localisés, élément, puissance,
+ *  et nombre d'effets rattachés (résolus par les tranches `REF_EFFECT` de `nie_data`).
  */
-export type ItemDto = {
-	item_id: string,
-	category: string,
-	name: string,
-	description: string | null,
-	price: number | null,
-	internal_code: string | null,
-};
-
-/**
- *  Avatar/Keshin (aura) — port applati de `nie_data::aura::AuraCmd` + son texte joint
- *  (`skill_text.cfg.bin`, même table que les techniques). Le contenu signature d'IEVR.
- */
-export type AuraDto = {
-	aura_id: string,
-	asset_code: string,
-	name: string,
+export type SpecialTacticsDto = {
+	tactics_id: string,
+	internal_code: string,
+	name: string | null,
 	description: string | null,
 	element: string,
-	sub_type: string,
+	power: number | null,
+	recast_time: number | null,
+	effect_count: number,
+	partner_count: number,
 };
 
 /**
- *  Succès (trophy) — port applati de `nie_data::trophy::TrophyInfo` + son texte joint
- *  (`trophy_text.cfg.bin`) + condition de déblocage décodée (`decode_unlock`).
+ *  Stade/terrain (`soccer_option_field_info` du `stadium_config`) — chemin d'image et condition
+ *  de déblocage tels que parsés par `nie_data::stadium`.
  */
-export type TrophyDto = {
-	trophy_id: string,
-	code: string,
-	category: number,
+export type StadiumDto = {
+	field_id: string,
 	name: string,
-	description: string | null,
-	unlock_kind: string,
-	story_episode: number | null,
+	image_path: string,
+	index: number | null,
+	locked: boolean,
 };
 
-/**
- *  Quête — port applati de `nie_data::quest::ParsedQuest` + son titre joint
- *  (`quest_title_text.cfg.bin`). N'inclut que les quêtes à titre résolu (roster réel).
- */
-export type QuestDto = {
-	quest_id: string,
-	phase: number,
-	quest_type: number,
-	title: string,
-	image: string | null,
-};
-
-/**
- *  Personnage sélectionnable pour le calculateur de stats (§4.2 roadmap) — `nie_data::chara_param
- *  ::CharaParam` joint à `chara_base`/`chara_text` pour un nom affichable. N'inclut que les
- *  entrées à nom résolu (roster réel, même convention que les autres `list_*`).
- */
-export type CharaPickerDto = {
-	chara_param_id: string,
-	name: string,
-	main_position: string,
-	sub_position: string,
-};
-
-/** Bloc de 7 stats calculées (`nie_core::stats::StatBlock`), pour l'IPC/l'export TS. */
+/**  Bloc de 7 stats calculées (`nie_core::stats::StatBlock`), pour l'IPC/l'export TS. */
 export type StatBlockDto = {
 	kc: number,
 	cr: number,
@@ -536,32 +758,23 @@ export type StatsDto = {
 	top_ext: ([string, number])[],
 };
 
-export type BlenderSceneResultDto = {
-	blend_path: string,
-	preview_png_b64: string | null,
-	skill_name: string,
-	event_id_name: string,
-	warnings: string[],
-};
-
-export type ReTraceProcessDto = {
-	pid: number,
-	process_name: string,
-	module_base: string | null,
-};
-
-export type ReTraceRegionDto = {
-	start: string,
-	end: string,
-	size: number,
-	perms: string,
-	path: string,
-};
-
-export type ReTraceDumpStatsDto = {
-	regions: number,
-	bytes: number,
-	out_dir: string,
+/**
+ *  Succès (trophy) — port applati de `nie_data::trophy::TrophyInfo` + son texte joint
+ *  (`trophy_text.cfg.bin`) + condition de déblocage décodée (`decode_unlock`).
+ */
+export type TrophyDto = {
+	trophy_id: string,
+	code: string,
+	/**
+	 *  `f64` et pas `i64` : `specta` refuse d’exporter les types « BigInt » vers TypeScript
+	 *  (perte de précision silencieuse) et le refus fait paniquer l’export au démarrage. Les
+	 *  catégories du jeu sont de petits entiers, exactement représentables en `f64`.
+	 */
+	category: number | null,
+	name: string,
+	description: string | null,
+	unlock_kind: string,
+	story_episode: number | null,
 };
 
 /* Tauri Specta runtime */

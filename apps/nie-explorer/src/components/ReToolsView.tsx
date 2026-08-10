@@ -130,12 +130,12 @@ function ReLiveView() {
           {regionsError && <p className="type-body-small text-error">{regionsError}</p>}
           {dumpResult && (
             <p className="type-body-small text-on-surface-variant">
-              {dumpResult.regions} plage(s), {dumpResult.bytes.toLocaleString("fr-FR")} o → {dumpResult.out_dir}
+              {dumpResult.regions} plage(s), {(dumpResult.bytes ?? 0).toLocaleString("fr-FR")} o → {dumpResult.out_dir}
             </p>
           )}
           {regions.length > 0 && (
-            <ScrollArea className="max-h-40 rounded-xl bg-surface-container-low elevation-1">
-              <div className="divide-y divide-outline-variant/30">
+            <ScrollArea className="max-h-40 rounded-2xl border border-app-line bg-app-dark-box">
+              <div className="divide-y divide-app-line">
                 {regions.map((r, i) => (
                   <button
                     key={i}
@@ -147,7 +147,7 @@ function ReLiveView() {
                       {r.start} – {r.end}
                     </span>
                     <span className="text-on-surface-variant">
-                      {r.perms} · {r.size.toLocaleString("fr-FR")} o
+                      {r.perms} · {(r.size ?? 0).toLocaleString("fr-FR")} o
                     </span>
                   </button>
                 ))}
@@ -164,7 +164,7 @@ function ReLiveView() {
           </div>
           {readError && <p className="type-body-small text-error">{readError}</p>}
           {readResult && (
-            <ScrollArea className="max-h-60 rounded-xl border border-outline-variant/40 bg-surface-container p-3">
+            <ScrollArea className="max-h-60 rounded-lg border border-app-line bg-app-box p-3">
               <pre className="whitespace-pre-wrap font-mono type-label-small text-on-surface">{readResult}</pre>
             </ScrollArea>
           )}
@@ -318,8 +318,8 @@ export function ReToolsView() {
         </p>
         {error && <p className="type-body-small text-error">{error}</p>}
 
-        <ScrollArea className="min-h-0 flex-1 rounded-xl bg-surface-container-low elevation-1">
-          <div className="divide-y divide-outline-variant/30">
+        <ScrollArea className="min-h-0 flex-1 rounded-2xl border border-app-line bg-app-dark-box">
+          <div className="divide-y divide-app-line">
             {subTab === "functions"
               ? functions.map((f) => (
                   <button
@@ -395,7 +395,7 @@ export function ReToolsView() {
         </ScrollArea>
       </div>
 
-      <div className="min-h-0 overflow-hidden rounded-xl bg-surface-container-low elevation-1">
+      <div className="min-h-0 overflow-hidden rounded-2xl border border-app-line bg-app-dark-box">
         {!selectedFn ? (
           <div className="flex h-full items-center justify-center type-body-medium text-on-surface-variant">
             Sélectionnez une fonction pour voir ses xrefs.
@@ -447,7 +447,7 @@ export function ReToolsView() {
                 taille {selectedFn.size} octets · confiance {(selectedFn.confidence * 100).toFixed(0)}% · pagerank {selectedFn.pagerank.toFixed(4)}
               </p>
             </div>
-            <ScrollArea className="min-h-0 flex-1 rounded-xl border border-outline-variant/40 bg-surface-container p-3">
+            <ScrollArea className="min-h-0 flex-1 rounded-lg border border-app-line bg-app-box p-3">
               <div className="flex flex-col gap-4">
                 {xrefs ? (
                   <>

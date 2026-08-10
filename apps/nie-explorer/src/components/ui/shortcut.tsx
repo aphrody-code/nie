@@ -16,7 +16,7 @@ function Shortcut({ className, chars, ...props }: ShortcutProps) {
     <kbd
       data-slot="shortcut"
       className={cn(
-        "inline-flex items-center justify-center rounded-md border border-b-2 border-outline-variant/60 px-1.5 py-0.5",
+        "inline-flex items-center justify-center rounded-md border border-b-2 border-app-line px-1.5 py-0.5",
         "type-label-small font-medium text-on-surface-variant",
         className
       )}
