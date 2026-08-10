@@ -459,10 +459,46 @@ export function LuaView() {
 
           {pane === "source" && (
             <div className="flex h-full min-h-0 flex-col gap-1">
-              <p className="text-tiny text-ink-faint">
-                Le jeu ne distribue que du bytecode : cet éditeur sert à écrire ou coller du Lua
-                pour l'exécuter dans la VM du jeu — activez « Exécuter la source éditée ».
-              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="flex-1 text-tiny text-ink-faint">
+                  Le jeu ne distribue que du bytecode : cet éditeur sert à écrire ou coller du Lua
+                  pour l'exécuter dans la VM du jeu — activez « Exécuter la source éditée ».
+                </p>
+                {/* Le binder `Live.*` (session persistante) lit la mémoire de nie.exe EN COURS
+                 * d'exécution, en lecture seule. Ce modèle amorce un exemple prêt à lancer. */}
+                <Button
+                  size="xs"
+                  variant="outline"
+                  title="Insère un exemple qui lit la mémoire du jeu en cours (Live.*)"
+                  onClick={() => {
+                    setUseSource(true);
+                    setPersistent(true);
+                    setSource(
+                      [
+                        "-- Lecture du process nie.exe VIVANT (lecture seule, via nie-trace).",
+                        "-- Nécessite le jeu lancé + la session persistante active.",
+                        "local p = Live.FindProcess()",
+                        "if not p then",
+                        "  Debug.LogWarning('nie.exe n\\'est pas lancé')",
+                        "  return",
+                        "end",
+                        "Debug.Log('pid = ' .. p.pid .. ', base = ' .. tostring(p.base))",
+                        "",
+                        "-- Exemple : lire 16 octets à la base du module et les afficher en hexa.",
+                        "local base = tonumber(p.base)",
+                        "local bytes = Live.Read(base, 16)",
+                        "if bytes then",
+                        "  local hex = {}",
+                        "  for i = 1, #bytes do hex[i] = string.format('%02X', string.byte(bytes, i)) end",
+                        "  Debug.Log(table.concat(hex, ' '))",
+                        "end",
+                      ].join("\n"),
+                    );
+                  }}
+                >
+                  Exemple Live (lecture process)
+                </Button>
+              </div>
               <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-app-line">
                 <Editor
                   height="100%"

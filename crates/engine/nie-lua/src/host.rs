@@ -293,6 +293,137 @@ where
     }
 }
 
+/// Plafond d'une lecture mémoire live, en octets — évite qu'un `Live.Read(addr, 1e9)` alloue un
+/// tampon géant sur une faute de frappe. Même valeur que la borne côté `re_trace`.
+const LIVE_READ_MAX: usize = 1024 * 1024;
+
+/// Interprète une adresse passée depuis Lua : nombre entier, nombre flottant, ou chaîne (`"0x…"`
+/// ou décimale). Les adresses utilisateur x64 (< 2⁴⁷) sont exactes en `f64`, donc un nombre Lua
+/// (double) suffit à les représenter sans perte.
+fn parse_live_addr(v: &Value) -> Option<u64> {
+    match v {
+        Value::Integer(i) => Some(*i as u64),
+        Value::Number(n) => Some(*n as u64),
+        Value::String(s) => {
+            let t = s.to_str().ok()?;
+            let t = t.trim();
+            let (digits, radix) = t
+                .strip_prefix("0x")
+                .or_else(|| t.strip_prefix("0X"))
+                .map_or((t, 10), |d| (d, 16));
+            u64::from_str_radix(digits, radix).ok()
+        }
+        _ => None,
+    }
+}
+
+/// Table `Live` — **lecture** de la mémoire du process du jeu en cours d'exécution.
+///
+/// Sans équivalent chez Overload (qui possède le process qu'il exécute). Ici, l'intérêt est
+/// d'inspecter le jeu VIVANT depuis un script Lua : suivre un pointeur, lire une structure, voir
+/// une valeur réelle à l'instant T — au lieu d'un dump figé ou d'un binaire Rust à recompiler pour
+/// chaque expérience.
+///
+/// **Strictement en lecture.** Ce binder n'expose que `FindProcess`/`Read`/`ReadU32`/`ReadU64` ;
+/// il n'écrit jamais dans le process. Les fermetures qui l'alimentent (`find_process`, `read`)
+/// s'appuient sur `nie-trace`, dont la surface est elle-même lecture seule. Aucun octet n'est écrit
+/// dans `nie.exe` par ce chemin.
+pub struct LiveBinder<F, R>
+where
+    F: Fn() -> Option<(i64, Option<u64>)> + 'static,
+    R: Fn(u64, usize) -> Option<Vec<u8>> + 'static,
+{
+    /// Renvoie `(pid, base_du_module)` si le jeu tourne, `None` sinon.
+    pub find_process: Rc<F>,
+    /// Lit `len` octets à `addr`. `None` si la lecture échoue (adresse non mappée, process absent,
+    /// permission refusée — EAC actif, p. ex.).
+    pub read: Rc<R>,
+}
+
+impl<F, R> HostBinder for LiveBinder<F, R>
+where
+    F: Fn() -> Option<(i64, Option<u64>)> + 'static,
+    R: Fn(u64, usize) -> Option<Vec<u8>> + 'static,
+{
+    fn name(&self) -> &'static str {
+        "Live"
+    }
+
+    fn provides(&self) -> Vec<String> {
+        vec!["Live".to_string()]
+    }
+
+    fn bind(&self, lua: &Lua) -> mlua::Result<()> {
+        let table = lua.create_table()?;
+
+        let find = Rc::clone(&self.find_process);
+        table.set(
+            "FindProcess",
+            lua.create_function(move |lua, ()| match find() {
+                Some((pid, base)) => {
+                    let t = lua.create_table()?;
+                    t.set("pid", pid)?;
+                    // Base en chaîne hexadécimale : cohérent avec la façon dont une adresse
+                    // s'écrit, et ré-utilisable tel quel dans `Live.Read`.
+                    if let Some(b) = base {
+                        t.set("base", format!("0x{b:x}"))?;
+                    }
+                    Ok(Value::Table(t))
+                }
+                None => Ok(Value::Nil),
+            })?,
+        )?;
+
+        let read = Rc::clone(&self.read);
+        table.set(
+            "Read",
+            lua.create_function(move |lua, (addr, len): (Value, i64)| {
+                let addr = parse_live_addr(&addr)
+                    .ok_or_else(|| mlua::Error::RuntimeError("Live.Read : adresse invalide".into()))?;
+                if len <= 0 || len as usize > LIVE_READ_MAX {
+                    return Err(mlua::Error::RuntimeError(format!(
+                        "Live.Read : longueur hors bornes (1..={LIVE_READ_MAX})"
+                    )));
+                }
+                // Octets bruts en chaîne Lua : à décoder avec `string.byte`/`string.unpack`. Une
+                // conversion texte corromprait des octets non-UTF-8, qui sont la règle en mémoire.
+                match read(addr, len as usize) {
+                    Some(bytes) => Ok(Value::String(lua.create_string(&bytes)?)),
+                    None => Ok(Value::Nil),
+                }
+            })?,
+        )?;
+
+        // Deux raccourcis de lecture d'entier petit-boutiste — le geste de base du suivi de
+        // pointeur, qu'il serait pénible de réécrire en `string.byte` à chaque fois.
+        let read_u32 = Rc::clone(&self.read);
+        table.set(
+            "ReadU32",
+            lua.create_function(move |_, addr: Value| {
+                let addr = parse_live_addr(&addr)
+                    .ok_or_else(|| mlua::Error::RuntimeError("Live.ReadU32 : adresse invalide".into()))?;
+                Ok(read_u32(addr, 4).and_then(|b| b.try_into().ok()).map(|a: [u8; 4]| u32::from_le_bytes(a) as i64))
+            })?,
+        )?;
+
+        let read_u64 = Rc::clone(&self.read);
+        table.set(
+            "ReadU64",
+            lua.create_function(move |_, addr: Value| {
+                let addr = parse_live_addr(&addr)
+                    .ok_or_else(|| mlua::Error::RuntimeError("Live.ReadU64 : adresse invalide".into()))?;
+                // Renvoyé en nombre Lua (double) : une adresse (< 2⁴⁷) reste exacte ; une valeur
+                // 64 bits pleine au-delà de 2⁵³ perdrait ses bits de poids faible — pour ces
+                // cas-là, lire les 8 octets bruts avec `Live.Read`.
+                Ok(read_u64(addr, 8).and_then(|b| b.try_into().ok()).map(|a: [u8; 8]| u64::from_le_bytes(a) as f64))
+            })?,
+        )?;
+
+        lua.globals().set("Live", table)?;
+        Ok(())
+    }
+}
+
 /// Compose plusieurs [`HostBinder`] et retient ce qui a été installé.
 ///
 /// Équivalent du `LuaBinder::CallBinders` d'Overload, plus la traçabilité : [`Self::installed_names`]
@@ -427,6 +558,43 @@ mod tests {
         // Les octets bruts doivent traverser sans conversion lossy.
         let byte: i64 = lua.load("return string.byte(Vfs.Read('data/a.bin'), 1)").eval().expect("lecture");
         assert_eq!(byte, 1);
+    }
+
+    #[test]
+    fn live_lit_la_memoire_sans_jamais_ecrire() {
+        // Faux process : base 0x140000000, et un u32 petit-boutiste 0x12345678 à 0x1000.
+        let lua = crate::new_vm();
+        let binder = LiveBinder {
+            find_process: Rc::new(|| Some((4242, Some(0x1_4000_0000)))),
+            read: Rc::new(|addr: u64, len: usize| {
+                (addr == 0x1000 && len <= 4).then(|| vec![0x78, 0x56, 0x34, 0x12][..len].to_vec())
+            }),
+        };
+        binder.bind(&lua).expect("bind");
+
+        // FindProcess expose pid + base.
+        let pid: i64 = lua.load("return Live.FindProcess().pid").eval().expect("pid");
+        assert_eq!(pid, 4242);
+        let base: String = lua.load("return Live.FindProcess().base").eval().expect("base");
+        assert_eq!(base, "0x140000000");
+
+        // Read renvoie les octets bruts, décodables via string.byte.
+        let first: i64 = lua.load("return string.byte(Live.Read(0x1000, 4), 1)").eval().expect("read");
+        assert_eq!(first, 0x78);
+
+        // ReadU32 recompose l'entier petit-boutiste.
+        let value: i64 = lua.load("return Live.ReadU32(0x1000)").eval().expect("readu32");
+        assert_eq!(value, 0x1234_5678);
+
+        // Une adresse non mappée donne nil, pas une erreur — un script peut sonder sans planter.
+        assert_eq!(lua.load("return Live.ReadU32(0x9999)").eval::<Value>().unwrap(), Value::Nil);
+
+        // `Live` n'expose AUCUNE écriture : le contrat lecture seule est vérifiable.
+        let has_write: bool = lua
+            .load("return Live.Write ~= nil or Live.Poke ~= nil or Live.Set ~= nil")
+            .eval()
+            .expect("inspection");
+        assert!(!has_write, "Live ne doit exposer que de la lecture");
     }
 
     #[test]
