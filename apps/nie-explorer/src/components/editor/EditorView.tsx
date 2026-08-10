@@ -20,6 +20,7 @@
 // `nie.exe` qui le manipulent. Sélectionner un modèle dans le navigateur de contenu ouvre donc à
 // la fois sa géométrie dans le viewport et sa fiche complète à droite.
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import { ContentBrowser } from "@/components/editor/ContentBrowser";
 import { Viewport3D, type SceneNode, type ViewportStats } from "@/components/editor/Viewport3D";
@@ -125,6 +126,22 @@ export function EditorView({
             title="Mode fil de fer"
             aria-label="Mode fil de fer"
             onClick={() => setWireframe((v) => !v)}
+          />
+          {/* Éditeur de scène NATIF (nie-editor) : éditeur Fyrox complet — graphe de scène,
+           * inspecteur réflexif, gizmos de transformation, undo/redo — en rendu OpenGL, dans sa
+           * propre fenêtre. Le viewport ci-dessous reste l'aperçu intégré ; celui-ci est
+           * l'atelier. */}
+          <CircleButton
+            icon="wand"
+            size="sm"
+            title="Ouvrir dans l'éditeur de scène natif (Fyrox)"
+            aria-label="Ouvrir dans l'éditeur de scène natif"
+            onClick={() =>
+              api
+                .openInSceneEditor(state.selected, settings.gameDir)
+                .then((m) => toast.success(m))
+                .catch((e) => toast.error(String(e)))
+            }
           />
           <CircleButton
             icon="open_in_new"

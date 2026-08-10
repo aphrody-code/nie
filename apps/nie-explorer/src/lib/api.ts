@@ -190,6 +190,9 @@ export const api = {
   // Viewport 3D temps réel (mode Éditeur) : le GLB assemblé LUI-MÊME, pas un rendu de celui-ci
   // — la caméra vit côté frontend (three.js), plus côté Rust.
   glbBytesB64: (path: string, gameDir?: string) => unwrap<string>(commands.vfsGlbBytesB64(path, gd(gameDir))),
+  // Éditeur de scène 3D NATIF (nie-editor : éditeur Fyrox embarqué, rendu OpenGL) — process séparé,
+  // il a sa propre boucle d'événements et sa propre fenêtre GPU.
+  openInSceneEditor: (path: string | null, gameDir?: string) => unwrap<string>(commands.openInSceneEditor(path, gd(gameDir))),
   rawCpkGlbBytesB64: (index: number) => unwrap<string>(commands.rawCpkGlbBytesB64(index)),
   glbPreviewPngB64: (path: string, gameDir?: string) => unwrap<string>(commands.vfsGlbPreviewPngB64(path, gd(gameDir))),
   // Turntable MP4 (§2.3, caméra orbitale via la barre de défilement vidéo) — cf. api ci-dessus.
