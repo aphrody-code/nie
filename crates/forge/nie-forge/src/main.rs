@@ -362,7 +362,7 @@ fn cmd_lift(paths: &Paths, max_len: usize, out: &str) -> anyhow::Result<()> {
     let mut bytes = 0usize;
     // Cause de blocage → (unités, octets) : la liste de courses du prochain lot
     // d'instructions à ajouter à `nie-asm`, triée par gain réel.
-    let mut blockers: std::collections::HashMap<String, (usize, usize)> =
+    let mut blockers: std::collections::HashMap<String, (usize, usize, String)> =
         std::collections::HashMap::new();
     for u in &store.cover.units {
         if !matches!(u.kind, UnitKind::Function | UnitKind::CodeResidue) {
@@ -378,10 +378,15 @@ fn cmd_lift(paths: &Paths, max_len: usize, out: &str) -> anyhow::Result<()> {
         if let Some(insns) = lift_body(body, va) {
             src.bodies.insert(va, insns);
             bytes += u.len;
-        } else if let Some(reason) = nie_forge::lift::blocking_reason(body, va) {
-            let e = blockers.entry(reason).or_insert((0usize, 0usize));
+        } else if let Some(b) = nie_forge::lift::blocking_detail(body, va) {
+            let e = blockers
+                .entry(b.cause)
+                .or_insert((0usize, 0usize, String::new()));
             e.0 += 1;
             e.1 += u.len;
+            if e.2.is_empty() {
+                e.2 = b.sample;
+            }
         }
     }
 
@@ -412,9 +417,9 @@ fn cmd_lift(paths: &Paths, max_len: usize, out: &str) -> anyhow::Result<()> {
         },
     );
     let mut top: Vec<_> = blockers.into_iter().collect();
-    top.sort_by_key(|(_, (_, bytes))| std::cmp::Reverse(*bytes));
-    for (reason, (n, b)) in top.into_iter().take(15) {
-        println!("blocker cause={reason} units={n} bytes={b}");
+    top.sort_by_key(|(_, (_, bytes, _))| std::cmp::Reverse(*bytes));
+    for (reason, (n, b, sample)) in top.into_iter().take(15) {
+        println!("blocker cause={reason} units={n} bytes={b} sample=\"{sample}\"");
     }
     Ok(())
 }
