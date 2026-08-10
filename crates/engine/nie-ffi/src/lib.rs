@@ -33,6 +33,8 @@
 //! | `nie_vfs_read_out`         | Idem, via `*mut NieBytes`                                        |
 //! | `nie_vfs_list_json`        | JSON `[{path,cpk,size}]` ; plafonné à 50 000 entrées             |
 //! | `nie_vfs_list_json_out`    | Idem, via `*mut NieBytes`                                        |
+//! | `nie_vfs_count`            | Nombre total d'entrées indexées (sans plafond)                   |
+//! | `nie_vfs_list_range_json_out` | Tranche `[offset, offset+limit)` de l'index, via `*mut NieBytes` |
 //! | `nie_vfs_free`             | Libère le handle VFS                                             |
 //!
 //! # Fonctions exportées — rendu de texte (police du jeu)
@@ -768,6 +770,76 @@ pub unsafe extern "C" fn nie_vfs_list_json_out(vfs: *mut c_void, out: *mut NieBy
     }
     // SAFETY: délègue à nie_vfs_list_json.
     let result = unsafe { nie_vfs_list_json(vfs) };
+    // SAFETY: out est non-null et aligné.
+    unsafe { out.write(result) };
+}
+
+/// Nombre total d'entrées indexées dans le VFS — sans plafond, contrairement à
+/// [`nie_vfs_list_json`].
+///
+/// C'est la borne à utiliser pour paginer avec [`nie_vfs_list_range_json_out`].
+///
+/// # Safety
+///
+/// - `vfs` doit être un handle valide retourné par [`nie_vfs_open`], non encore libéré.
+/// - null → retourne 0.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_vfs_count(vfs: *mut c_void) -> u64 {
+    if vfs.is_null() {
+        return 0;
+    }
+    // SAFETY: vfs provient de nie_vfs_open.
+    let vfs_ref = unsafe { &*(vfs.cast::<nie_formats::vfs::Vfs>()) };
+    vfs_ref.iter().count() as u64
+}
+
+/// Tranche `[offset, offset + limit)` de l'index VFS, en JSON `[{path, cpk, size}]`.
+///
+/// Complète [`nie_vfs_list_json`], dont le plafond de 50 000 entrées tronque **en silence**
+/// un VFS qui en compte ~255 000 : paginer avec cette fonction permet d'énumérer la totalité
+/// de l'index sans jamais matérialiser plus d'une page en mémoire. L'ordre d'itération est
+/// celui de [`nie_formats::vfs::Vfs::iter`] : stable pour un même handle, non trié.
+///
+/// `limit == 0` renvoie un tableau vide ; un `offset` au-delà de la fin aussi.
+///
+/// # Safety
+///
+/// - `vfs` doit être un handle valide retourné par [`nie_vfs_open`], non encore libéré.
+/// - `out` non-null et aligné 8 octets.
+/// - null → écrit un `NieBytes` vide.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_vfs_list_range_json_out(
+    vfs: *mut c_void,
+    offset: u64,
+    limit: u64,
+    out: *mut NieBytes,
+) {
+    if out.is_null() {
+        return;
+    }
+    if vfs.is_null() {
+        // SAFETY: out est non-null et aligné.
+        unsafe { out.write(NieBytes::empty()) };
+        return;
+    }
+    // SAFETY: vfs provient de nie_vfs_open.
+    let vfs_ref = unsafe { &*(vfs.cast::<nie_formats::vfs::Vfs>()) };
+    let entries: Vec<_> = vfs_ref
+        .iter()
+        .skip(usize::try_from(offset).unwrap_or(usize::MAX))
+        .take(usize::try_from(limit).unwrap_or(usize::MAX))
+        .map(|(path, e)| {
+            serde_json::json!({
+                "path": path,
+                "cpk":  e.cpk_filename,
+                "size": e.file_size,
+            })
+        })
+        .collect();
+    let result = match serde_json::to_vec(&entries) {
+        Ok(v) => NieBytes::from_vec(v),
+        Err(_) => NieBytes::empty(),
+    };
     // SAFETY: out est non-null et aligné.
     unsafe { out.write(result) };
 }

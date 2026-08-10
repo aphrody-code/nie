@@ -34,10 +34,20 @@ sur le VPS Linux **et** sur l'installation Steam Windows.
 
 | Source | Détail | Env |
 |--------|--------|-----|
-| Index VFS | Redis db **3**, HASH `iev:file:index` (chemin→.cpk), chargé une fois au démarrage via un seul `HGETALL`. **Si Redis est injoignable**, repli automatique sur la CLI `niers` (`vfs find "" -j`), qui reconstruit l'index depuis les CPK (~5,5 s pour 255 308 fichiers) et le met en cache dans `.cache/vfs-index.json`. | `NIERS_REDIS` (défaut `redis://127.0.0.1:6379`), `NIERS_CLI`, `NIE_GAME_DIR` |
+| Index VFS | Les **CPK eux-mêmes**, montés en process par le paquet `nie` (bindings Bun FFI de `libnie_ffi` → `nie-formats::vfs`) : 255 308 fichiers indexés en ~1 s, contenu lisible directement. Repli sur Redis (HASH `iev:file:index`, db 3) pour un hôte qui a l'index mais pas les packs — l'index Redis ne donne que les chemins. | `NIE_GAME_DIR` (défaut : racine déduite), `NIERS_REDIS` |
 | KB RE | SQLite `var/niers.sqlite`, ouvert en **lecture seule** + `safeIntegers`. | `NIERS_SQLITE` (défaut `<repo>/var/niers.sqlite`) |
-| Décodeur d'assets | Service HTTP `nie-model-serve`. Sans lui, `asset_get` renvoie une erreur propre ; les autres outils fonctionnent. | `MODEL_SERVE_URL` (défaut `http://127.0.0.1:8790`) |
+| Décodeur d'assets | `raw`, `cfg` et `tex` sont décodés **en process** par `nie` (mêmes crates que l'explorateur, champ `source: "ffi"` dans la réponse). `audio` et `model`, que le FFI n'expose pas, passent par le service HTTP `nie-model-serve` (`source: "model-serve"`). | `MODEL_SERVE_URL` (défaut `http://127.0.0.1:8790`) |
 | Code du repo | Racine `niers` (refs/ data/ var/ .git/ target/ node_modules/ interdits). | `NIERS_REPO` (défaut : racine déduite) |
+
+### Une seule implémentation, deux façades
+
+`nie-explorer` (UI Tauri) lie les crates `nie-formats`, `nie-data`, `nie-core`… en Rust ;
+`nie-mcp` atteint les mêmes crates depuis Bun via `packages/nie` (FFI). Le VFS listé, les
+textures décodées et les `cfg.bin` parsés sont donc produits par **le même code** des deux
+côtés — pas deux implémentations à tenir synchronisées.
+
+**Prérequis** : `libnie_ffi` doit être construite (`bun run build:ffi` à la racine, ou
+`cargo build -p nie-ffi`).
 
 ## Lancer
 
