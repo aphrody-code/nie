@@ -1,0 +1,206 @@
+#!/usr/bin/env bun
+/**
+ * Serveur MCP `niers-game` — expose Inazuma Eleven: Victory Road (projet RE niers)
+ * à un client MCP via stdio :
+ *   - VFS des 250 800 fichiers CPK (Redis db3)
+ *   - assets décodés (nie-model-serve : textures, cfg.bin, audio, modèles 3D)
+ *   - base de connaissance reverse-engineering (SQLite var/niers.sqlite)
+ *   - code/docs du repo niers
+ *
+ * Transport : stdio (stdout réservé au JSON-RPC ; tous les logs vont sur stderr).
+ * Lancement : `bun run src/index.ts`.
+ */
+
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { z } from "zod";
+
+import { config } from "./config.ts";
+import { VfsIndex } from "./vfs.ts";
+import { KnowledgeBase } from "./kb.ts";
+import { getAsset } from "./assets.ts";
+import { repoRead } from "./repo.ts";
+import { ToolError } from "./security.ts";
+
+type ToolResult = { content: { type: "text"; text: string }[]; isError?: boolean };
+
+function jsonResult(obj: unknown): ToolResult {
+  return { content: [{ type: "text", text: JSON.stringify(obj, null, 2) }] };
+}
+
+function errResult(message: string): ToolResult {
+  return { content: [{ type: "text", text: message }], isError: true };
+}
+
+/** Enveloppe un handler : convertit le retour en contenu MCP et n'explose jamais. */
+async function safe(fn: () => Promise<unknown> | unknown): Promise<ToolResult> {
+  try {
+    return jsonResult(await fn());
+  } catch (e) {
+    if (e instanceof ToolError) return errResult(`erreur : ${e.message}`);
+    return errResult(`erreur interne : ${(e as Error).message ?? String(e)}`);
+  }
+}
+
+async function main(): Promise<void> {
+  // --- Chargement des sources (échecs non fatals : tools concernés renvoient une erreur propre) ---
+  let vfs: VfsIndex | null = null;
+  try {
+    vfs = await VfsIndex.load();
+    console.error(`[niers-game] index VFS chargé : ${vfs.size} fichiers (Redis db${config.redisDb})`);
+  } catch (e) {
+    console.error(`[niers-game] Redis indisponible (${(e as Error).message}) — repli CLI locale`);
+    try {
+      vfs = await VfsIndex.loadFromCli();
+      console.error(`[niers-game] index VFS chargé : ${vfs.size} fichiers (CLI ${config.nierCli})`);
+    } catch (e2) {
+      console.error(`[niers-game] AVERTISSEMENT index VFS indisponible : ${(e2 as Error).message}`);
+    }
+  }
+
+  let kb: KnowledgeBase | null = null;
+  try {
+    kb = new KnowledgeBase();
+    console.error(`[niers-game] KB SQLite ouverte : ${config.sqlitePath}`);
+  } catch (e) {
+    console.error(`[niers-game] AVERTISSEMENT KB indisponible : ${(e as Error).message}`);
+  }
+
+  const requireVfs = (): VfsIndex => {
+    if (!vfs) throw new ToolError("index VFS indisponible (ni Redis, ni CLI `niers` au démarrage)");
+    return vfs;
+  };
+  const requireKb = (): KnowledgeBase => {
+    if (!kb) throw new ToolError(`KB indisponible (${config.sqlitePath})`);
+    return kb;
+  };
+
+  const server = new McpServer({ name: "niers-game", version: "0.1.0" });
+
+  // ---------------------------------------------------------------- VFS ----
+  server.registerTool(
+    "vfs_list",
+    {
+      title: "Lister un dossier VFS",
+      description:
+        "Liste les sous-dossiers et fichiers immédiats sous un préfixe de chemin VFS (navigation arborescente des 250 800 fichiers CPK). prefix vide = racine. Renvoie directories[] + files[] (avec leur .cpk).",
+      inputSchema: {
+        prefix: z.string().optional().describe("préfixe de chemin, ex. 'data/dx11/chr' (vide = racine)"),
+        limit: z.number().int().positive().max(5000).default(200).describe("nb max d'entrées renvoyées"),
+      },
+    },
+    ({ prefix, limit }) => safe(() => requireVfs().list(prefix ?? "", limit)),
+  );
+
+  server.registerTool(
+    "vfs_search",
+    {
+      title: "Rechercher dans le VFS",
+      description:
+        "Recherche sur les 250 800 chemins VFS. Sous-chaîne insensible à la casse, ou glob si la requête contient * ? [ ] { }. Renvoie les chemins matchés et leur .cpk.",
+      inputSchema: {
+        query: z.string().min(1).describe("sous-chaîne (ex. 'c01000010') ou glob (ex. 'data/dx11/chr/**/*.g4md')"),
+        limit: z.number().int().positive().max(2000).default(100).describe("nb max de résultats"),
+      },
+    },
+    ({ query, limit }) => safe(() => requireVfs().search(query, limit)),
+  );
+
+  server.registerTool(
+    "vfs_stat",
+    {
+      title: "Métadonnées d'un chemin VFS",
+      description:
+        "Pour un fichier : le .cpk conteneur, l'extension, et le mode de décodage applicable (tex/cfg/audio). Pour un préfixe : indique que c'est un dossier et son nombre d'enfants.",
+      inputSchema: {
+        path: z.string().min(1).describe("chemin VFS complet ou préfixe de dossier"),
+      },
+    },
+    ({ path }) => safe(() => requireVfs().stat(path)),
+  );
+
+  // -------------------------------------------------------------- Assets ----
+  server.registerTool(
+    "asset_get",
+    {
+      title: "Décoder/récupérer un asset",
+      description:
+        "Récupère un asset via nie-model-serve. decode=cfg -> JSON texte (cfg.bin/objbin/fxbin/mevbin). decode=tex -> PNG (texture g4tx ; passer le chemin AVEC .g4tx, la route gère la conversion). decode=audio -> WAV (hca/adx/acb). decode=model -> .glb (path = code perso ex. 'c01000010'). decode=raw -> octets bruts. Pour le binaire : renvoie taille + content-type + URL model-serve à ouvrir, et le contenu inline (base64/texte) seulement s'il tient sous maxBytes.",
+      inputSchema: {
+        path: z.string().min(1).describe("chemin VFS (ou code perso si decode=model)"),
+        decode: z.enum(["raw", "tex", "cfg", "audio", "model"]).default("raw").describe("mode de décodage"),
+        maxBytes: z
+          .number()
+          .int()
+          .positive()
+          .optional()
+          .describe("seuil d'inlining (défaut 262144 ≈ 256 Ko ; au-delà, URL seule)"),
+      },
+    },
+    ({ path, decode, maxBytes }) => safe(() => getAsset({ path, decode, maxBytes })),
+  );
+
+  // ------------------------------------------------------------------ RE ----
+  server.registerTool(
+    "re_query",
+    {
+      title: "Requête SQL (SELECT) sur la KB RE",
+      description:
+        "Exécute une requête SELECT (ou WITH ... SELECT) en lecture seule sur var/niers.sqlite. Toute mutation/DDL est refusée. Tables : function, coverage, rtti_class, xref, str, pdata_func, hash_name, symbol. Les colonnes d'adresse (vaddr, from_addr, to_addr…) sont renvoyées en hexadécimal.",
+      inputSchema: {
+        sql: z.string().min(1).describe("requête SELECT unique"),
+        limit: z.number().int().positive().max(1000).default(50).describe("nb max de lignes"),
+      },
+    },
+    ({ sql, limit }) => safe(() => requireKb().query(sql, limit)),
+  );
+
+  server.registerTool(
+    "re_function",
+    {
+      title: "Détail d'une fonction reversée",
+      description:
+        "Cherche une fonction par nom (LIKE) ou par vaddr (hex 0x… ou décimal). Renvoie ses métadonnées (subsystem, role, pagerank, n_calls…) et un échantillon d'xrefs entrants/sortants du meilleur match.",
+      inputSchema: {
+        name: z.string().optional().describe("nom ou fragment de nom (ex. 'CSceneSoccer')"),
+        vaddr: z.string().optional().describe("adresse virtuelle, hex '0x140333a90' ou décimal"),
+      },
+    },
+    ({ name, vaddr }) => safe(() => requireKb().findFunction({ name, vaddr })),
+  );
+
+  server.registerTool(
+    "re_coverage",
+    {
+      title: "Couverture du reverse-engineering",
+      description:
+        "Dernière ligne de la table coverage (total_funcs / named / classified / pct) pour le binaire RE canonique (.pdata), plus les comptes réels par binaire de la table function.",
+      inputSchema: {},
+    },
+    () => safe(() => requireKb().coverage()),
+  );
+
+  // ---------------------------------------------------------------- Repo ----
+  server.registerTool(
+    "repo_read",
+    {
+      title: "Lire un fichier du repo niers",
+      description:
+        "Lit un fichier source/docs du repo niers (crates Rust, docs/, scripts/, package…). Anti-traversal strict ; refs/ data/ var/ .git/ target/ node_modules/ sont interdits. Chemin relatif à la racine du repo ou absolu sous celle-ci.",
+      inputSchema: {
+        path: z.string().min(1).describe("ex. 'crates/nie-formats/src/lib.rs' ou 'docs/PLAN.md'"),
+        maxBytes: z.number().int().positive().optional().describe("octets max lus (défaut 262144)"),
+      },
+    },
+    ({ path, maxBytes }) => safe(() => repoRead({ path, maxBytes })),
+  );
+
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  console.error("[niers-game] serveur MCP prêt (stdio) — 8 outils exposés");
+}
+
+main().catch((e) => {
+  console.error(`[niers-game] échec fatal : ${(e as Error).stack ?? e}`);
+  process.exit(1);
+});
