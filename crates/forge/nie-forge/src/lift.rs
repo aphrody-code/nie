@@ -104,9 +104,24 @@ fn rm_size(i: &iced_x86::Instruction, op: u32) -> Option<Size> {
 }
 
 /// Immédiat 32 bits d'une instruction, motif de bits conservé.
+///
+/// **Piège** : `immediate32to64()` ne vaut que pour un opérande réellement
+/// classé `Immediate32to64`. Sur une forme courte (`Immediate8to64`), il rend la
+/// valeur brute non étendue — `and rdx, -0x10` devenait `and rdx, 0xf0`, donc un
+/// immédiat qui ne tient plus sur 8 bits, donc une forme longue erronée. Ce seul
+/// accesseur mal choisi tenait 9 Mo de `.text` hors du dialecte.
+/// `immediate(op)` applique l'extension de signe propre à chaque classe.
 fn imm32_of(i: &iced_x86::Instruction) -> Option<i32> {
-    let v = i.immediate32to64();
-    i32::try_from(v).ok().or_else(|| u32::try_from(v).ok().map(|x| x as i32))
+    imm32_at(i, 1)
+}
+
+/// Idem, pour un opérande donné : `imul r13, rcx, 1Ch` porte son immédiat en
+/// **troisième** position, pas en deuxième.
+fn imm32_at(i: &iced_x86::Instruction, op: u32) -> Option<i32> {
+    let v = i.try_immediate(op).ok()? as i64;
+    i32::try_from(v)
+        .ok()
+        .or_else(|| u32::try_from(v).ok().map(|x| x as i32))
 }
 
 /// Groupe ALU correspondant au mnémonique.
@@ -488,7 +503,7 @@ fn insn_of(i: &iced_x86::Instruction) -> Option<Insn> {
         }
         Mnemonic::Imul if i.op_count() == 3 => {
             let (r, sz) = reg_of(i.op_register(0))?;
-            Some(Insn::ImulI(sz, r, rm_of(i, 1)?, imm32_of(i)?))
+            Some(Insn::ImulI(sz, r, rm_of(i, 1)?, imm32_at(i, 2)?))
         }
         Mnemonic::Movsx => {
             let (r, dsz) = reg_of(i.op_register(0))?;
@@ -636,7 +651,7 @@ pub fn blocking_detail(bytes: &[u8], va: u64) -> Option<Blockage> {
             None => {
                 return Some(Blockage {
                     cause: format!("{:?}", i.mnemonic()).to_lowercase(),
-                    sample: show(&i),
+                    sample: format!("{} @ {:#x}", show(&i), i.ip()),
                 });
             }
         }
@@ -661,7 +676,13 @@ pub fn blocking_detail(bytes: &[u8], va: u64) -> Option<Blockage> {
         if bytes.get(off..off + i.len()) != Some(&mine[..]) {
             return Some(Blockage {
                 cause: "encodage".into(),
-                sample: show(&i),
+                sample: format!(
+                    "{} @ {:#x} | orig={:02x?} nie-asm={:02x?}",
+                    show(&i),
+                    i.ip(),
+                    &bytes[off..off + i.len()],
+                    &mine[..]
+                ),
             });
         }
         off += i.len();
