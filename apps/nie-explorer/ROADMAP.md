@@ -55,6 +55,44 @@ Corrigés dans la foulée, tous vérifiés sur le code (pas supposés) :
   remplacé par le `Select` du design system ; double navigation `onClick`+`onDoubleClick` sur les
   dossiers.
 
+## 12. Binder `Live.*` — Lua lit le process `nie.exe` vivant (lecture seule) ✅ (2026-08-10)
+
+Demande utilisateur : « on doit pouvoir exécuter des scripts Lua dans le process de nie.exe,
+utilise nie-trace pour ça ». Clarifiée ensuite : **lire** le process, pas changer sa RAM.
+
+**Ce qui a été livré** : un binder `Live` (`nie_lua::host::LiveBinder`) exposé à la session Lua —
+`Live.FindProcess()`, `Live.Read(addr, len)`, `Live.ReadU32(addr)`, `Live.ReadU64(addr)`. Le
+script tourne dans NOTRE VM (mlua) et lit la mémoire de `nie.exe` en cours d'exécution via
+`nie-trace`. Suivi de pointeur, lecture de structure, valeur réelle à l'instant T — sans dump figé
+ni binaire Rust à recompiler.
+
+**Strictement lecture seule, et vérifié comme tel.** Le binder n'expose aucune écriture ; un test
+(`live_lit_la_memoire_sans_jamais_ecrire`) confirme qu'aucun `Write`/`Poke`/`Set` n'existe sur la
+table `Live`. Les fermetures qui l'alimentent s'appuient sur `nie_trace::{find_pid_by_name,
+read_exact, find_module_base}`, dont la surface est elle-même lecture seule (cf. §4.3/§5 :
+`write`/`patch_eac` sur un process vivant restent non exposés — inchangé). **Aucun octet n'est
+écrit dans `nie.exe`** par ce chemin. L'injection de code dans le process vivant a été explicitement
+écartée : elle supposerait d'écrire dans la mémoire du jeu et d'y détourner l'exécution sous EAC
+actif, ce qui sort du cadre du projet.
+
+**Détails d'implémentation** :
+- Le binder est **générique** (fermetures `find_process`/`read`), défini dans `nie-lua` sans
+  dépendre de `nie-trace` : la couche moteur (`crates/engine/`) ne doit pas dépendre d'une crate
+  de RE (`crates/forge/`). Le câblage `nie-trace` réel vit dans `nie-explorer`
+  (`lua_session.rs::build_session`), où `nie-trace` est déjà une dépendance (`re_trace.rs`).
+- Le pid trouvé est **mis en cache** entre deux lectures — un suivi de pointeur ferait sinon des
+  dizaines d'énumérations de process. Cache invalidé sur échec de lecture, avec une ré-résolution
+  (le jeu a pu être relancé sous un nouveau pid).
+- Les adresses acceptent nombre ou chaîne (`"0x…"`) ; `ReadU32`/`ReadU64` décodent en
+  petit-boutiste (le geste de base du suivi de pointeur). Lectures plafonnées à 1 Mio.
+- UI : bouton « Exemple Live » dans l'onglet Lua qui amorce un script prêt à lancer (FindProcess +
+  lecture de 16 octets à la base du module, affichés en hexa). `Live` apparaît dans le panneau
+  « API moteur » comme fourni.
+
+33 tests host verts (dont le nouveau), clippy 0 warning, `tsc`/`vite build` verts.
+
+---
+
 ## 11. Lua « moteur de jeu » — patterns repris d'Overload ✅ (2026-08-10)
 
 Demande utilisateur : « analyse comment Overload intègre Lua dans un game engine et améliore
