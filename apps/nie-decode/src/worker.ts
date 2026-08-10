@@ -13,6 +13,7 @@
  */
 
 import { decode, decodeToPng } from "nie";
+import { zstdCompress } from "@niers/util";
 
 // Typage minimal de DedicatedWorkerGlobalScope pour ce fichier.
 // "lib" du tsconfig n'inclut pas WebWorker ; on déclare ce qu'on utilise.
@@ -106,7 +107,7 @@ async function processTask(task: DecodeTask): Promise<WorkerReply> {
       }
       const jsonBytes = new TextEncoder().encode(JSON.stringify(obj, null, 2));
       if (compress) {
-        outBytes = Bun.zstdCompressSync(jsonBytes);
+        outBytes = zstdCompress(jsonBytes);
         actualDest = destPath + ".zst";
       } else {
         outBytes = jsonBytes;
