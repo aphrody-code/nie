@@ -424,8 +424,16 @@ impl Insn {
             Self::RetImm(n) => format!("ret {n:#x}"),
             Self::Int3 => "int3".to_string(),
             Self::Nop(n) => format!("nop {n}"),
-            Self::Push(r) => format!("push {}", reg_name(r, Size::Q)),
-            Self::Pop(r) => format!("pop {}", reg_name(r, Size::Q)),
+            Self::Push(r, x) => format!(
+                "push{} {}",
+                if x { ".r" } else { "" },
+                reg_name(r, Size::Q)
+            ),
+            Self::Pop(r, x) => format!(
+                "pop{} {}",
+                if x { ".r" } else { "" },
+                reg_name(r, Size::Q)
+            ),
             Self::MovRegImm8(r, i) => format!("mov {}, {i:#x}", reg_name(r, Size::B)),
             Self::MovRegImm32(r, i) => format!("mov {}, {i:#x}", reg_name(r, Size::D)),
             Self::MovRegImm64(r, i) => format!("movabs {}, {i:#x}", reg_name(r, Size::Q)),
@@ -562,6 +570,14 @@ impl Insn {
             ),
             Self::NoOperand(o) => noop_name(o).to_string(),
             Self::SetccRm(c, rm) => format!("set{} {}", cond_name(c), rm_text(rm, Size::B)),
+            Self::Shift1(op, s, rm) => {
+                let n = match op {
+                    ShiftOp::Shl => "shl",
+                    ShiftOp::Shr => "shr",
+                    ShiftOp::Sar => "sar",
+                };
+                format!("{n} {}, 1", rm_text(rm, s))
+            }
             Self::ShiftCl(op, s, rm) => {
                 let n = match op {
                     ShiftOp::Shl => "shl",
@@ -597,6 +613,8 @@ pub fn parse_insn(line: &str) -> Result<Insn, ParseError> {
         .strip_suffix(".s")
         .map_or((mnem_raw, false), |m| (m, true));
     let (mnem, wide) = mnem.strip_suffix(".w").map_or((mnem, false), |m| (m, true));
+    //   `.r` = préfixe REX nul explicite (`40 53` au lieu de `53`)
+    let (mnem, rexp) = mnem.strip_suffix(".r").map_or((mnem, false), |m| (m, true));
 
     let two = || -> Result<(String, String), ParseError> {
         let (a, b) = args.split_once(',').ok_or_else(err)?;
@@ -731,8 +749,8 @@ pub fn parse_insn(line: &str) -> Result<Insn, ParseError> {
         "nop" => Ok(Insn::Nop(
             u8::try_from(parse_int(args).ok_or_else(err)?).map_err(|_| err())?,
         )),
-        "push" => Ok(Insn::Push(reg_of(args).ok_or_else(err)?.0)),
-        "pop" => Ok(Insn::Pop(reg_of(args).ok_or_else(err)?.0)),
+        "push" => Ok(Insn::Push(reg_of(args).ok_or_else(err)?.0, rexp)),
+        "pop" => Ok(Insn::Pop(reg_of(args).ok_or_else(err)?.0, rexp)),
         "call" => Ok(Insn::Call(parse_u64(args).ok_or_else(err)?)),
         "jmp" => match reg_of(args) {
             Some((r, Size::Q)) => Ok(Insn::JmpReg(r)),
@@ -782,6 +800,9 @@ pub fn parse_insn(line: &str) -> Result<Insn, ParseError> {
             let sz = sz.ok_or_else(err)?;
             if s.trim() == "cl" {
                 return Ok(Insn::ShiftCl(op, sz, rm));
+            }
+            if s.trim() == "1" {
+                return Ok(Insn::Shift1(op, sz, rm));
             }
             let imm = u8::try_from(parse_int(&s).ok_or_else(err)?).map_err(|_| err())?;
             match rm {
@@ -907,7 +928,7 @@ mod tests {
             // Nouvelles formes : prologue, appel, saut, rip-relatif.
             vec![
                 Insn::Store(Size::Q, Mem::base_disp(Reg::Rsp, 8), Reg::Rbx),
-                Insn::Push(Reg::Rdi),
+                Insn::Push(Reg::Rdi, false),
                 Insn::AluRI(Alu::Sub, Size::Q, Reg::Rsp, 0x20, false),
                 Insn::MovRR(Size::Q, Reg::Rbx, Reg::Rcx),
                 Insn::Call(0x1_4012_3456),
@@ -915,7 +936,7 @@ mod tests {
                 Insn::Jcc(Cond::E, 0x1_4000_1050, true),
                 Insn::Lea(Reg::Rcx, Mem::rip(0x1_401f_2340)),
                 Insn::AluRI(Alu::Add, Size::Q, Reg::Rsp, 0x20, false),
-                Insn::Pop(Reg::Rdi),
+                Insn::Pop(Reg::Rdi, false),
                 Insn::Ret,
             ],
             vec![

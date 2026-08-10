@@ -399,13 +399,18 @@ fn insn_of(i: &iced_x86::Instruction) -> Option<Insn> {
         Mnemonic::Int3 => Some(Insn::Int3),
         Mnemonic::Nop => Some(Insn::Nop(u8::try_from(i.len()).ok()?)),
         Mnemonic::Push => match i.op_kind(0) {
-            OpKind::Register => Some(Insn::Push(reg_of(i.op_register(0))?.0)),
+            // Un `push r64` fait 1 octet ; 2 signifie qu'un REX nul est présent.
+            OpKind::Register => Some(Insn::Push(
+                reg_of(i.op_register(0))?.0,
+                i.len() == 2 && i.op_register(0).number() < 8,
+            )),
             OpKind::Memory => Some(Insn::Un(UnOp::PushRm, Size::D, Rm::M(mem_of(i)?))),
             _ => None,
         },
-        Mnemonic::Pop if i.op_kind(0) == OpKind::Register => {
-            Some(Insn::Pop(reg_of(i.op_register(0))?.0))
-        }
+        Mnemonic::Pop if i.op_kind(0) == OpKind::Register => Some(Insn::Pop(
+            reg_of(i.op_register(0))?.0,
+            i.len() == 2 && i.op_register(0).number() < 8,
+        )),
         Mnemonic::Call if i.op_kind(0) == OpKind::NearBranch64 => {
             Some(Insn::Call(i.near_branch_target()))
         }
@@ -421,15 +426,23 @@ fn insn_of(i: &iced_x86::Instruction) -> Option<Insn> {
             (sa == sb).then_some(Insn::TestRR(sa, a, b))
         }
         Mnemonic::Shl | Mnemonic::Shr | Mnemonic::Sar
-            if i.op_kind(0) == OpKind::Register && i.op_kind(1) == OpKind::Immediate8 =>
+            if i.op_kind(1) == OpKind::Immediate8 =>
         {
-            let (r, sz) = reg_of(i.op_register(0))?;
             let op = match i.mnemonic() {
                 Mnemonic::Shl => ShiftOp::Shl,
                 Mnemonic::Shr => ShiftOp::Shr,
                 _ => ShiftOp::Sar,
             };
-            Some(Insn::Shift(op, sz, r, i.immediate8()))
+            let sz = rm_size(i, 0)?;
+            let rm = rm_of(i, 0)?;
+            // `shr rcx, 1` a sa forme dédiée `D1 /5`, plus courte que `C1 /5 01`.
+            // iced la rend avec un immédiat 1 : c'est la LONGUEUR qui départage.
+            let one = i.immediate8() == 1 && i.len() <= 3;
+            match (one, rm) {
+                (true, _) => Some(Insn::Shift1(op, sz, rm)),
+                (false, Rm::R(r)) => Some(Insn::Shift(op, sz, r, i.immediate8())),
+                (false, Rm::M(_)) => None,
+            }
         }
         Mnemonic::Cwde => Some(Insn::NoOperand(NoOp::Cwde)),
         Mnemonic::Cdqe => Some(Insn::NoOperand(NoOp::Cdqe)),
@@ -675,7 +688,9 @@ pub fn blocking_detail(bytes: &[u8], va: u64) -> Option<Blockage> {
         let mine = nie_asm::encode_at(core::slice::from_ref(insn), va + off as u64);
         if bytes.get(off..off + i.len()) != Some(&mine[..]) {
             return Some(Blockage {
-                cause: "encodage".into(),
+                // Ventiler par mnémonique : « encodage » global ne dit pas quelle
+                // forme diverge, alors que c'est exactement la cible du prochain lot.
+                cause: format!("encodage:{:?}", i.mnemonic()).to_lowercase(),
                 sample: format!(
                     "{} @ {:#x} | orig={:02x?} nie-asm={:02x?}",
                     show(&i),
@@ -700,9 +715,10 @@ mod tests {
     #[test]
     fn diagnostique_les_causes_de_blocage() {
         // Encodage LLVM de `mov rax, rcx` : traduit, mais ré-encodé différemment.
+        // La cause est ventilee par mnemonique : `encodage:<insn>`.
         assert_eq!(
             blocking_reason(&[0x48, 0x89, 0xC8, 0xC3], 0x140_0000).as_deref(),
-            Some("encodage")
+            Some("encodage:mov")
         );
         // `movss xmm0, [rcx] ; ret` : desormais DANS le dialecte.
         assert_eq!(blocking_reason(&[0xF3, 0x0F, 0x10, 0x01, 0xC3], 0x140_0000), None);
