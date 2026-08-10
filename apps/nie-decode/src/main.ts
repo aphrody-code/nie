@@ -25,14 +25,18 @@
  *     chaque worker appelle libnie_ffi.so et transfère (zero-copy) les octets
  *     décodés vers le thread principal via postMessage.
  *   - Intégrité : Bun.CryptoHasher("sha256") sur chaque sortie → manifest.json.
- *   - Compression : Bun.zstdCompressSync sur les JSON si --compress.
+ *   - Compression : `zstdCompress` (@niers/util, wrapper Bun.zstdCompressSync) sur les JSON si --compress.
  *   - Manifest : construit octet par octet avec Bun.ArrayBufferSink.
  *   - Build : Bun.which("cargo") + Bun.$ pour reconstruire libnie_ffi.so.
  *   - Timing : Bun.nanoseconds pour le débit en Mo/s.
  */
 
 import { decode, decodeToPng } from "nie";
-import type { DecodeTask, DecodeResult, WorkerReply } from "./worker.ts";
+// `zstdCompress` (wrapper 1:1 de `Bun.zstdCompressSync`, cf. `@niers/util`) — même appel que le
+// worker (`worker.ts`), centralisé ici plutôt que dupliqué dans les deux chemins séquentiel/
+// parallèle (seul point à changer si les options de compression zstd doivent un jour évoluer).
+import { zstdCompress } from "@niers/util";
+import type { DecodeTask, WorkerReply } from "./worker.ts";
 import { mkdirSync } from "node:fs";
 import { join, basename, extname, dirname } from "node:path";
 
@@ -106,7 +110,7 @@ function globPattern(): string {
 /**
  * Décode srcPath → destPath en mode séquentiel (thread principal).
  * Calcule le sha256 de la sortie via Bun.CryptoHasher.
- * Si compress=true et sortie JSON, compresse en .json.zst via Bun.zstdCompressSync.
+ * Si compress=true et sortie JSON, compresse en .json.zst via `zstdCompress` (@niers/util).
  */
 async function decodeOneSeq(
   srcPath: string,
@@ -142,7 +146,7 @@ async function decodeOneSeq(
       }
       const jsonBytes = new TextEncoder().encode(JSON.stringify(obj, null, 2));
       if (compress) {
-        outBytes = Bun.zstdCompressSync(jsonBytes);
+        outBytes = zstdCompress(jsonBytes);
         actualDest = destPath + ".zst";
       } else {
         outBytes = jsonBytes;

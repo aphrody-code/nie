@@ -11,7 +11,7 @@
  *   NIE_GAME_DIR=/home/aphrody/niers bun test packages/nie-catalog/
  */
 
-import { describe, test, expect, beforeEach } from "bun:test";
+import { describe, test, expect } from "bun:test";
 import { existsSync } from "node:fs";
 import { CatalogDb, indexVfs, type AssetRow, type ExtStat } from "./catalog.ts";
 

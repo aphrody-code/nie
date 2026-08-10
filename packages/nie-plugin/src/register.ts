@@ -23,8 +23,7 @@
  *   ../../.. = racine workspace niers/
  */
 
-import { ptr } from "bun:ffi";
-import { callOut, decode, decodeToPng } from "nie";
+import { decode, decodeToPng } from "nie";
 
 // ─── chemins des données RE ─────────────────────────────────────────────────
 

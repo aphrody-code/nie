@@ -12,7 +12,8 @@
     "typecheck": "bunx tsc --noEmit"
   },
   "dependencies": {
-    "nie": "workspace:*"
+    "nie": "workspace:*",
+    "@niers/util": "workspace:*"
   },
   "devDependencies": {
     "typescript": "catalog:",
