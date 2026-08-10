@@ -68,6 +68,9 @@ const lib = dlopen(SO_PATH, {
   nie_vfs_open:         { args: [FFIType.cstring],          returns: FFIType.ptr  },
   nie_vfs_read_out:     { args: [FFIType.ptr, FFIType.cstring, FFIType.ptr], returns: FFIType.void },
   nie_vfs_list_json_out:{ args: [FFIType.ptr, FFIType.ptr], returns: FFIType.void },
+  nie_vfs_count:        { args: [FFIType.ptr],              returns: FFIType.u64  },
+  nie_vfs_list_range_json_out:
+                        { args: [FFIType.ptr, FFIType.u64, FFIType.u64, FFIType.ptr], returns: FFIType.void },
   nie_vfs_free:         { args: [FFIType.ptr],              returns: FFIType.void },
   nie_font_open:        { args: [FFIType.ptr],              returns: FFIType.ptr  },
   nie_font_render_text_out: {
@@ -329,7 +332,7 @@ export class VfsHandle {
     });
   }
 
-  /** Liste des entrées VFS (plafonnée à 50 000). */
+  /** Liste des entrées VFS (plafonnée à 50 000). Préférer {@link listAll} ou {@link listRange}. */
   list(): VfsEntry[] {
     const h = this.#guard();
     const json = callOut((outPtr) => {
@@ -337,6 +340,43 @@ export class VfsHandle {
     });
     if (json === null) return [];
     return JSON.parse(_dec.decode(json)) as VfsEntry[];
+  }
+
+  /** Nombre total d'entrées indexées — sans le plafond de {@link list}. */
+  count(): number {
+    return Number(symbols.nie_vfs_count(this.#guard()));
+  }
+
+  /**
+   * Tranche `[offset, offset + limit)` de l'index VFS.
+   *
+   * L'ordre est stable pour un même handle mais non trié : il vient de l'itération de la
+   * table d'index Rust.
+   */
+  listRange(offset: number, limit: number): VfsEntry[] {
+    const h = this.#guard();
+    const json = callOut((outPtr) => {
+      symbols.nie_vfs_list_range_json_out(h, BigInt(offset), BigInt(limit), outPtr);
+    });
+    if (json === null) return [];
+    return JSON.parse(_dec.decode(json)) as VfsEntry[];
+  }
+
+  /**
+   * Index VFS complet, paginé par tranches de `pageSize`.
+   *
+   * Contrairement à {@link list}, rien n'est tronqué : sur le VFS IEVR (~255 000 fichiers)
+   * cette méthode les renvoie tous.
+   */
+  listAll(pageSize = 50_000): VfsEntry[] {
+    const total = this.count();
+    const out: VfsEntry[] = [];
+    for (let offset = 0; offset < total; offset += pageSize) {
+      const page = this.listRange(offset, pageSize);
+      if (page.length === 0) break;
+      out.push(...page);
+    }
+    return out;
   }
 
   /**

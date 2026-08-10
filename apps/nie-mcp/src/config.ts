@@ -19,9 +19,6 @@ const defaultRepoRoot = resolve(import.meta.dir, "..", "..", "..");
 
 const repoRoot = resolve(env("NIERS_REPO", defaultRepoRoot));
 
-/** Nom de l'exécutable CLI selon la plateforme. */
-const cliName = process.platform === "win32" ? "niers.exe" : "niers";
-
 export const config = {
   /** URL Redis. La base 3 (index VFS CPK) est sélectionnée explicitement au chargement. */
   redisUrl: env("NIERS_REDIS", "redis://127.0.0.1:6379"),
@@ -40,16 +37,13 @@ export const config = {
   repoRoot,
 
   /**
-   * CLI `niers` — repli local quand Redis est injoignable : `vfs find "" -j`
-   * dump l'index complet directement depuis les CPK.
+   * Dossier `data/` du jeu — celui qui contient `cpk_list.cfg.bin`, tel que l'attend
+   * `nie_vfs_open` (pas la racine du jeu : cf. CLAUDE.md).
+   *
+   * Sur l'install Steam Windows, le VFS complet est la racine du repo, donc `<repo>/data`
+   * convient sans configuration.
    */
-  nierCli: env("NIERS_CLI", join(repoRoot, "target", "debug", cliName)),
-
-  /** Racine du VFS passée au CLI (`--game-dir`). Vide = auto-détection par le CLI. */
-  gameDir: env("NIE_GAME_DIR", ""),
-
-  /** Cache disque de l'index VFS reconstruit par le CLI (évite un dump par démarrage). */
-  vfsCachePath: join(repoRoot, "apps", "nie-mcp", ".cache", "vfs-index.json"),
+  gameDataDir: join(env("NIE_GAME_DIR", repoRoot), "data"),
 
   /** Binaire RE canonique = vue `.pdata` (cf. CLAUDE.md). C'est celui dont parle `coverage`. */
   primaryBinaryId: 2,
