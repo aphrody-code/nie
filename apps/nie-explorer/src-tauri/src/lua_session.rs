@@ -103,7 +103,7 @@ impl LuaSessionHandle {
             // thread d'export specta.
             .stack_size(16 * 1024 * 1024)
             .spawn(move || {
-                let mut session = match nie_lua::session::LuaSession::standard(with_menu_host) {
+                let mut session = match build_session(with_menu_host) {
                     Ok(s) => s,
                     Err(e) => {
                         // Sans VM, le thread ne peut rien faire d'utile : on répond une erreur à
@@ -124,6 +124,67 @@ impl LuaSessionHandle {
         Self { tx: Mutex::new(Some(tx)) }
     }
 
+}
+
+/// Noms de process du jeu, dans l'ordre d'essai — binaire patché EAC (lancé directement) d'abord,
+/// repli sur le nom d'origine (via `EACLauncher.exe`). Même liste que `re_trace`.
+const GAME_PROCESS_NAMES: [&str; 2] = ["nie_eacpatched.exe", "nie.exe"];
+
+/// Construit la session avec le registre standard (`Debug`/`Math`) **plus** le binder `Live`,
+/// adossé à `nie-trace` en **lecture seule** : un script Lua peut lire la mémoire de `nie.exe` en
+/// cours d'exécution (`Live.Read`/`ReadU32`/`ReadU64`/`FindProcess`), jamais y écrire.
+///
+/// Construit ICI (dans le thread de session), pas dans `nie-lua` : la couche moteur ne doit pas
+/// dépendre de `nie-trace` (crate de RE, dossier `forge/`). Les fermetures capturent des `Rc`, ce
+/// qui est correct puisqu'elles ne quittent jamais ce thread.
+fn build_session(with_menu_host: bool) -> Result<nie_lua::session::LuaSession, nie_lua::LuaError> {
+    use std::cell::{Cell, RefCell};
+    use std::rc::Rc;
+
+    use nie_lua::host::{HostRegistry, LiveBinder, LogSink};
+
+    let logs: LogSink = Rc::new(RefCell::new(Vec::new()));
+
+    // `FindProcess` : ré-énumère à chaque appel — le jeu peut démarrer après la session.
+    let find_process = Rc::new(|| {
+        for name in GAME_PROCESS_NAMES {
+            if let Some(pid) = nie_trace::find_pid_by_name(name) {
+                let base = nie_trace::find_module_base(pid, "nie");
+                return Some((i64::from(pid), base));
+            }
+        }
+        None
+    });
+
+    // `read` : mémorise le dernier pid trouvé pour ne pas ré-énumérer les process à CHAQUE lecture
+    // (un suivi de pointeur en fait des dizaines). Sur échec, le cache est invalidé et on
+    // ré-résout une fois — le jeu a pu être relancé avec un nouveau pid.
+    let pid_cache: Rc<Cell<Option<i32>>> = Rc::new(Cell::new(None));
+    let read = Rc::new(move |addr: u64, len: usize| {
+        if let Some(pid) = pid_cache.get() {
+            if let Ok(bytes) = nie_trace::read_exact(pid, addr, len) {
+                return Some(bytes);
+            }
+            pid_cache.set(None); // pid périmé (process fermé/relancé)
+        }
+        for name in GAME_PROCESS_NAMES {
+            if let Some(pid) = nie_trace::find_pid_by_name(name) {
+                pid_cache.set(Some(pid));
+                if let Ok(bytes) = nie_trace::read_exact(pid, addr, len) {
+                    return Some(bytes);
+                }
+            }
+        }
+        None
+    });
+
+    let registry = HostRegistry::standard(Rc::clone(&logs))
+        .with(Box::new(LiveBinder { find_process, read }));
+
+    nie_lua::session::LuaSession::new(registry, logs, with_menu_host)
+}
+
+impl LuaSessionHandle {
     fn send<T>(&self, make: impl FnOnce(Sender<T>) -> Request) -> Result<T, String> {
         let (reply_tx, reply_rx) = channel::<T>();
         {
