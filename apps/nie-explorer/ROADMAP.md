@@ -55,6 +55,60 @@ Corrigés dans la foulée, tous vérifiés sur le code (pas supposés) :
   remplacé par le `Select` du design system ; double navigation `onClick`+`onDoubleClick` sur les
   dossiers.
 
+## 9. Mode Éditeur — nie-explorer en logiciel type Unreal Engine 🟡 EN COURS (2026-08-10)
+
+Nouveau but utilisateur : « transformer nie-explorer en logiciel type Unreal Engine ». Premier
+palier livré — la disposition canonique d'un éditeur de moteur, chaque zone servie par ce que
+niers sait déjà faire :
+
+```
+┌──────────────────── barre d'outils (grille, fil de fer, stats de scène) ────────────────────┐
+│  viewport 3D temps réel (WebGL)                        │  Hiérarchie (outliner)             │
+│  caméra orbitale libre, sélection au clic (raycast)    │  Détails (PropertyEditor)          │
+├─────────────────────────────────────────────────────────────────────────────────────────────┤
+│  navigateur de contenu — VFS, vignettes, filtres par type d'asset                            │
+└─────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Le changement de fond : la caméra passe du backend au frontend.** Toutes les commandes d'aperçu
+3D existantes rastérisent côté Rust et renvoient une **image** (`vfs_glb_preview_png_b64`) ou une
+**vidéo turntable pré-rendue de 36 images** (`..._turntable_mp4_b64`) — « interactif » se limitait
+à faire défiler des images déjà calculées, avec une caméra décidée par le serveur. Nouvelle
+commande **`vfs_glb_bytes_b64`** (+ `raw_cpk_glb_bytes_b64`) : elle renvoie le **GLB assemblé
+lui-même**, auto-suffisant (géométrie + textures embarquées via `to_glb_embedded`, cf.
+`assemble_glb_for_preview` — aucun aller-retour supplémentaire). Le frontend le charge dans un
+vrai moteur temps réel (`three` en dépendance npm, bundlé par Vite — **aucun CDN**, l'app reste
+intégralement hors ligne comme Monaco).
+
+Livré (`src/components/editor/`) :
+- **`Viewport3D.tsx`** — renderer WebGL, `OrbitControls`, éclairage trois sources (les modèles du
+  jeu n'embarquent pas de lumières), grille, cadrage automatique sur la boîte englobante (un
+  modèle de 2 unités et un de 200 s'afficheraient sinon l'un microscopique, l'autre hors champ),
+  mode fil de fer, **sélection au clic par lancer de rayon**, statistiques de scène (meshes,
+  triangles, vertices, matériaux). `dispose()` explicite du modèle précédent — sans lui, chaque
+  changement d'asset fuit géométrie et textures en mémoire GPU.
+- **`ContentBrowser.tsx`** — bandeau bas : fil d'Ariane, filtres par famille d'asset
+  (Modèles/Textures/Audio/Configs), grille de vignettes réelles pour les textures
+  (`api.texturePngB64` + `IntersectionObserver` + cache), menus contextuels natifs identiques à
+  l'Explorateur. Même VFS, pas une seconde base d'assets.
+- **`EditorView.tsx`** — assemblage, avec panneau **Détails** = `PropertyEditor` : sélectionner un
+  modèle ouvre à la fois sa géométrie dans le viewport ET sa fiche complète (fichiers liés,
+  `.cfg.bin` éditables, fonctions/adresses de `nie.exe`).
+- **`ui/split-pane.tsx`** — panneaux redimensionnables deux axes, panneau de tête OU de queue,
+  taille persistée (`localStorage`). Écrit ici plutôt que porté de
+  `spaceui/primitives/Resizable.tsx` : celui-ci dépend de `react-resizable-layout` (absent) et ne
+  gère qu'un panneau de tête sur un seul axe, alors que l'inspecteur de droite se redimensionne
+  par son bord gauche.
+
+**Pas encore fait** (prochains paliers d'un « vrai » éditeur) : pas de gizmos de transformation
+(déplacer/tourner/redimensionner), pas de sauvegarde de la scène éditée vers le jeu, pas de
+lecture d'animations (`g4la`/`g4pkm_motion` sont décodés par `nie-formats` mais pas encore
+exposés au viewport), pas de multi-assets dans une même scène, pas d'onglets de documents
+multiples. Le viewport est aujourd'hui un **visualiseur temps réel + inspecteur**, pas encore un
+éditeur de scène qui écrit.
+
+---
+
 **Nouveau (2026-08-10) — éditeur de propriétés (`components/PropertyEditor.tsx`).** Demande
 utilisatrice : « il manque un éditeur de propriété qui link lua, cfgbin, code source, adresse
 mémoire sur chaque objet du moteur ». Une entité du jeu n'existe pas dans UN fichier : elle est
