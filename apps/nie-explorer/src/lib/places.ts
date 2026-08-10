@@ -64,6 +64,22 @@ export function recordVisit(prefix: string): void {
   persist();
 }
 
+/** Retire UN emplacement de l'historique (clic droit → « Retirer des récents »). Sans ça, une
+ * entrée récente ne pouvait que sortir d'elle-même en tombant hors du top 12 — l'utilisatrice
+ * n'avait aucun moyen d'effacer une visite ponctuelle. */
+export function forgetRecent(prefix: string): void {
+  const before = recents.length;
+  recents = recents.filter((r) => r.prefix !== prefix);
+  if (recents.length !== before) persist();
+}
+
+/** Vide tout l'historique des emplacements récents. */
+export function clearRecents(): void {
+  if (recents.length === 0) return;
+  recents = [];
+  persist();
+}
+
 function subscribe(cb: () => void): () => void {
   listeners.add(cb);
   return () => listeners.delete(cb);

@@ -1,10 +1,17 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "shadcn/tailwind.css";
 
+/* `dark` est le thème PAR DÉFAUT (comme spacedrive : `tokens/src/css/theme.css` EST la palette
+ * sombre, `themes/light.css` n'est qu'un override) — la variante Tailwind `dark:` reste posée par
+ * next-themes (`attribute="class"`), donc les composants shadcn qui l'utilisent continuent de
+ * fonctionner tels quels. */
 @custom-variant dark (&:is(.dark *));
 
-/* ── Polices auto-hébergées (identité visuelle azalee, offline-safe) ───── */
+/* ── Polices auto-hébergées (offline-safe) ───────────────────────────────
+ * spacedrive utilise Inter/JetBrains Mono (`--font-sans`/`--font-mono` de `tokens/theme.css`).
+ * Ni l'une ni l'autre n'est redistribuée dans ce dépôt : la pile ci-dessous les nomme d'abord
+ * (si l'utilisatrice les a installées, le rendu est celui de spacedrive au pixel près) puis
+ * retombe sur les .woff2 déjà embarqués ici — jamais sur un CDN. */
 
 @font-face {
     font-family: "Google Sans Flex";
@@ -30,228 +37,443 @@
     font-display: optional;
 }
 
-/* ── Palette Material Design 3 — même seed (#F89C5A) qu'azalee ─────────
- * niers reprend l'identité visuelle exacte du wiki azalee : mêmes tokens
- * de couleur MD3, même échelle typographique, mêmes élévations. Copié
- * depuis apps/azalee/app/globals.css (source de vérité du design system). */
+/* ── Design tokens — PORTAGE LITTÉRAL de var/spaceui/packages/tokens/src/css/theme.css ──────
+ * Valeurs recopiées telles quelles (hue 235, accent hsl(208,100%,57%)) : c'est LA source de
+ * vérité du look spacedrive. Ne pas « ajuster au goût » — toute divergence ici se voit sur
+ * chaque écran. Seules additions : la pile de polices (cf. ci-dessus) et `--color-chrome-border`
+ * (frameless Windows, absent de spacedrive qui garde `decorations: true`). */
+@theme {
+    /* Accent */
+    --color-accent: hsl(208, 100%, 57%);
+    --color-accent-faint: hsl(208, 100%, 64%);
+    --color-accent-deep: hsl(208, 100%, 47%);
 
-:root {
-    --md-sys-color-primary: #f2a93b;
-    --md-sys-color-on-primary: #2a1519;
-    --md-sys-color-primary-container: #ffe08b;
-    --md-sys-color-on-primary-container: #2a1519;
+    /* Text */
+    --color-ink: hsl(235, 35%, 92%);
+    --color-ink-dull: hsl(235, 10%, 70%);
+    --color-ink-faint: hsl(235, 10%, 55%);
 
-    --md-sys-color-secondary: #a92335;
-    --md-sys-color-on-secondary: #ffffff;
-    --md-sys-color-secondary-container: #ffdad6;
-    --md-sys-color-on-secondary-container: #410006;
+    /* App surfaces */
+    --color-app: hsl(235, 15%, 13%);
+    --color-app-box: hsl(235, 15%, 18%);
+    --color-app-dark-box: hsl(235, 15%, 15%);
+    --color-app-darker-box: hsl(235, 16%, 11%);
+    --color-app-light-box: hsl(235, 15%, 34%);
+    --color-app-overlay: hsl(235, 15%, 17%);
+    --color-app-input: hsl(235, 15%, 20%);
+    --color-app-focus: hsl(235, 15%, 10%);
+    --color-app-line: hsl(235, 15%, 23%);
+    --color-app-divider: hsl(235, 15%, 5%);
+    --color-app-button: hsl(235, 15%, 17%);
+    --color-app-selected: hsl(235, 15%, 24%);
+    --color-app-selected-item: hsl(235, 15%, 18%);
+    --color-app-hover: hsl(235, 15%, 19%);
+    --color-app-active: hsl(235, 15%, 30%);
+    --color-app-shade: hsl(235, 15%, 0%);
+    --color-app-frame: hsl(235, 15%, 25%);
+    --color-app-slider: hsl(235, 15%, 20%);
+    --color-app-explorer-scrollbar: hsl(235, 20%, 25%);
 
-    --md-sys-color-tertiary: #2f4f4f;
-    --md-sys-color-on-tertiary: #ffffff;
-    --md-sys-color-tertiary-container: #b1ecec;
-    --md-sys-color-on-tertiary-container: #002020;
+    /* Sidebar */
+    --color-sidebar: hsl(235, 15%, 7%);
+    --color-sidebar-box: hsl(235, 15%, 16%);
+    --color-sidebar-line: hsl(235, 15%, 23%);
+    --color-sidebar-ink: hsl(235, 15%, 92%);
+    --color-sidebar-ink-dull: hsl(235, 10%, 70%);
+    --color-sidebar-ink-faint: hsl(235, 10%, 55%);
+    --color-sidebar-divider: hsl(235, 15%, 17%);
+    --color-sidebar-button: hsl(235, 15%, 18%);
+    --color-sidebar-selected: hsl(235, 15%, 24%);
+    --color-sidebar-shade: hsl(235, 15%, 23%);
 
-    --md-sys-color-error: #ba1a1a;
-    --md-sys-color-on-error: #ffffff;
-    --md-sys-color-error-container: #ffdad6;
-    --md-sys-color-on-error-container: #93000a;
+    /* Menu */
+    --color-menu: hsl(235, 15%, 10%);
+    --color-menu-line: hsl(235, 15%, 14%);
+    --color-menu-ink: hsl(235, 25%, 92%);
+    --color-menu-faint: hsl(235, 5%, 80%);
+    --color-menu-hover: hsl(235, 15%, 30%);
+    --color-menu-selected: hsl(235, 5%, 30%);
+    --color-menu-shade: hsl(235, 5%, 0%);
 
-    --md-sys-color-background: #fff8f5;
-    --md-sys-color-on-background: #221a15;
+    /* Status */
+    --color-status-success: hsl(142, 76%, 36%);
+    --color-status-warning: hsl(38, 92%, 50%);
+    --color-status-error: hsl(0, 84%, 60%);
+    --color-status-info: hsl(208, 100%, 57%);
 
-    --md-sys-color-surface: #fff8f5;
-    --md-sys-color-on-surface: #221a15;
-    --md-sys-color-surface-variant: #f4ded3;
-    --md-sys-color-on-surface-variant: #52443c;
+    /* Bordure sous le chrome custom (fenêtre frameless Windows — pas d'équivalent spacedrive,
+     * qui garde une barre de titre native). */
+    --color-chrome-border: hsl(235, 15%, 23%);
 
-    --md-sys-color-outline: #84746a;
-    --md-sys-color-outline-variant: #d7c3b7;
+    /* Border radius */
+    --radius-window: 10px;
+    --radius-lg: 8px;
+    --radius-md: 6px;
 
-    --md-sys-color-scrim: #000000;
-    --md-sys-color-inverse-surface: #382e29;
-    --md-sys-color-inverse-on-surface: #feede5;
-    --md-sys-color-inverse-primary: #ffb786;
+    /* Font families */
+    --font-sans: "Inter", "Google Sans Flex", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", "Menlo", "Monaco", monospace;
+    --font-heading: "BradBunR", "Inter", system-ui, sans-serif;
+    --font-cartoon: "Super Cartoon", system-ui;
 
-    --md-sys-color-surface-dim: #e7d7ce;
-    --md-sys-color-surface-bright: #fff8f5;
-    --md-sys-color-surface-container-lowest: #ffffff;
-    --md-sys-color-surface-container-low: #fff1ea;
-    --md-sys-color-surface-container: #fcebe2;
-    --md-sys-color-surface-container-high: #f6e5dc;
-    --md-sys-color-surface-container-highest: #f0dfd7;
-
-    /* Bordure sous la barre d'outils accolée à la vraie barre de titre native Windows —
-     * TOUJOURS sombre, quel que soit le thème clair/sombre (demande explicite utilisateur),
-     * pour marquer clairement la limite entre le chrome de fenêtre et le contenu de l'appli. */
-    --nie-chrome-border: rgba(0, 0, 0, 0.55);
-
-    --shadow-level-1: 0px 1px 3px 1px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.3);
-    --shadow-level-2: 0px 2px 6px 2px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.3);
-    --shadow-level-3: 0px 4px 8px 3px rgba(0, 0, 0, 0.15), 0px 1px 3px 0px rgba(0, 0, 0, 0.3);
-    --shadow-level-4: 0px 6px 10px 4px rgba(0, 0, 0, 0.15), 0px 2px 3px 0px rgba(0, 0, 0, 0.3);
-    --shadow-level-5: 0px 8px 12px 6px rgba(0, 0, 0, 0.15), 0px 4px 4px 0px rgba(0, 0, 0, 0.3);
-
-    /* Compat shadcn (mêmes surfaces MD3, aucun HSL séparé à maintenir) */
-    --background: var(--md-sys-color-background);
-    --foreground: var(--md-sys-color-on-background);
-    --card: var(--md-sys-color-surface-container);
-    --card-foreground: var(--md-sys-color-on-surface);
-    --popover: var(--md-sys-color-surface-container-high);
-    --popover-foreground: var(--md-sys-color-on-surface);
-    --primary: var(--md-sys-color-primary);
-    --primary-foreground: var(--md-sys-color-on-primary);
-    --secondary: var(--md-sys-color-secondary);
-    --secondary-foreground: var(--md-sys-color-on-secondary);
-    --muted: var(--md-sys-color-surface-variant);
-    --muted-foreground: var(--md-sys-color-on-surface-variant);
-    --accent: var(--md-sys-color-secondary-container);
-    --accent-foreground: var(--md-sys-color-on-secondary-container);
-    --destructive: var(--md-sys-color-error);
-    --destructive-foreground: var(--md-sys-color-on-error);
-    --border: var(--md-sys-color-outline-variant);
-    --input: var(--md-sys-color-outline-variant);
-    --ring: var(--md-sys-color-primary);
-    --chart-1: var(--md-sys-color-primary);
-    --chart-2: var(--md-sys-color-secondary);
-    --chart-3: var(--md-sys-color-tertiary);
-    --chart-4: var(--md-sys-color-error);
-    --chart-5: var(--md-sys-color-outline);
-    --radius: 1.5rem;
-    --sidebar: var(--md-sys-color-surface-container-low);
-    --sidebar-foreground: var(--md-sys-color-on-surface);
-    --sidebar-primary: var(--md-sys-color-primary);
-    --sidebar-primary-foreground: var(--md-sys-color-on-primary);
-    --sidebar-accent: var(--md-sys-color-secondary-container);
-    --sidebar-accent-foreground: var(--md-sys-color-on-secondary-container);
-    --sidebar-border: var(--md-sys-color-outline-variant);
-    --sidebar-ring: var(--md-sys-color-primary);
+    /* Échelle typographique resserrée de spacedrive (override des défauts Tailwind) */
+    --text-tiny: 0.7rem;
+    --text-xs: 0.75rem;
+    --text-sm: 0.8rem;
+    --text-base: 1rem;
+    --text-lg: 1.125rem;
+    --text-xl: 1.25rem;
+    --text-2xl: 1.5rem;
+    --text-3xl: 1.875rem;
+    --text-4xl: 2.25rem;
+    --text-5xl: 3rem;
+    --text-6xl: 4rem;
+    --text-7xl: 5rem;
 }
 
-.dark {
-    --md-sys-color-primary: #ffc66c;
-    --md-sys-color-on-primary: #412d00;
-    --md-sys-color-primary-container: #5d4200;
-    --md-sys-color-on-primary-container: #ffe0aa;
+/* Thème clair — portage littéral de `tokens/src/css/themes/light.css`. next-themes pose
+ * `class="light"` sur `<html>` quand le thème résolu est clair. */
+.light {
+    --color-accent: hsl(208, 100%, 57%);
+    --color-accent-faint: hsl(208, 100%, 67%);
+    --color-accent-deep: hsl(208, 100%, 47%);
+    --color-ink: hsl(235, 5%, 25%);
+    --color-ink-dull: hsl(235, 5%, 40%);
+    --color-ink-faint: hsl(235, 5%, 60%);
+    --color-sidebar: hsl(235, 5%, 96%);
+    --color-sidebar-box: hsl(235, 5%, 100%);
+    --color-sidebar-line: hsl(235, 10%, 85%);
+    --color-sidebar-ink: hsl(235, 5%, 25%);
+    --color-sidebar-ink-dull: hsl(235, 5%, 35%);
+    --color-sidebar-ink-faint: hsl(235, 5%, 45%);
+    --color-sidebar-divider: hsl(235, 15%, 93%);
+    --color-sidebar-button: hsl(235, 15%, 100%);
+    --color-sidebar-selected: hsl(235, 10%, 80%);
+    --color-sidebar-shade: hsl(235, 15%, 100%);
+    --color-app: hsl(235, 5%, 100%);
+    --color-app-box: hsl(235, 5%, 98%);
+    --color-app-dark-box: hsl(235, 5%, 97%);
+    --color-app-darker-box: hsl(235, 5%, 95%);
+    --color-app-light-box: hsl(235, 5%, 100%);
+    --color-app-overlay: hsl(235, 5%, 100%);
+    --color-app-input: hsl(235, 5%, 100%);
+    --color-app-focus: hsl(235, 5%, 98%);
+    --color-app-line: hsl(235, 5%, 90%);
+    --color-app-button: hsl(235, 5%, 100%);
+    --color-app-divider: hsl(235, 5%, 80%);
+    --color-app-selected: hsl(235, 5%, 93%);
+    --color-app-selected-item: hsl(235, 5%, 96%);
+    --color-app-hover: hsl(235, 5%, 97%);
+    --color-app-active: hsl(235, 5%, 87%);
+    --color-app-shade: hsl(235, 15%, 50%);
+    --color-app-frame: hsl(0, 0%, 100%);
+    --color-app-slider: hsl(235, 5%, 95%);
+    --color-app-explorer-scrollbar: hsl(235, 5%, 75%);
+    --color-menu: hsl(235, 5%, 98%);
+    --color-menu-line: hsl(235, 5%, 95%);
+    --color-menu-ink: hsl(235, 5%, 20%);
+    --color-menu-faint: hsl(235, 5%, 80%);
+    --color-menu-hover: hsl(235, 15%, 20%);
+    --color-menu-selected: hsl(235, 5%, 30%);
+    --color-menu-shade: hsl(235, 5%, 0%);
+    --color-chrome-border: hsl(235, 5%, 85%);
+}
 
-    --md-sys-color-secondary: #ffb2be;
-    --md-sys-color-on-secondary: #5e1123;
-    --md-sys-color-secondary-container: #7c2939;
-    --md-sys-color-on-secondary-container: #ffd9df;
+/* Variantes sombres supplémentaires — portage littéral de `tokens/src/css/themes/*.css`.
+ * Posées sur `<html>` par `lib/appearance.ts` (`accentTheme`), orthogonales au clair/sombre. */
+.midnight-theme {
+    --color-ink: hsl(240, 20%, 88%);
+    --color-ink-dull: hsl(240, 8%, 65%);
+    --color-ink-faint: hsl(240, 8%, 50%);
+    --color-sidebar: hsl(240, 30%, 4%);
+    --color-sidebar-box: hsl(240, 25%, 8%);
+    --color-sidebar-line: hsl(240, 20%, 15%);
+    --color-sidebar-ink: hsl(240, 20%, 88%);
+    --color-sidebar-ink-dull: hsl(240, 8%, 65%);
+    --color-sidebar-ink-faint: hsl(240, 8%, 50%);
+    --color-sidebar-divider: hsl(240, 25%, 9%);
+    --color-sidebar-button: hsl(240, 25%, 10%);
+    --color-sidebar-selected: hsl(240, 25%, 16%);
+    --color-sidebar-shade: hsl(240, 20%, 15%);
+    --color-app: hsl(240, 25%, 8%);
+    --color-app-box: hsl(240, 20%, 12%);
+    --color-app-dark-box: hsl(240, 25%, 9%);
+    --color-app-darker-box: hsl(240, 28%, 6%);
+    --color-app-light-box: hsl(240, 20%, 24%);
+    --color-app-overlay: hsl(240, 25%, 11%);
+    --color-app-input: hsl(240, 20%, 14%);
+    --color-app-focus: hsl(240, 25%, 6%);
+    --color-app-line: hsl(240, 20%, 16%);
+    --color-app-divider: hsl(240, 25%, 3%);
+    --color-app-button: hsl(240, 20%, 16%);
+    --color-app-hover: hsl(240, 20%, 18%);
+    --color-app-selected: hsl(240, 20%, 20%);
+    --color-app-selected-item: hsl(240, 20%, 12%);
+    --color-app-active: hsl(240, 20%, 22%);
+    --color-app-shade: hsl(240, 25%, 0%);
+    --color-app-frame: hsl(240, 20%, 18%);
+    --color-app-slider: hsl(240, 20%, 14%);
+    --color-app-explorer-scrollbar: hsl(240, 25%, 20%);
+    --color-menu: hsl(240, 25%, 6%);
+    --color-menu-line: hsl(240, 20%, 10%);
+    --color-menu-ink: hsl(240, 20%, 88%);
+    --color-menu-faint: hsl(240, 5%, 75%);
+    --color-menu-hover: hsl(240, 20%, 22%);
+    --color-menu-selected: hsl(240, 10%, 22%);
+    --color-menu-shade: hsl(240, 10%, 0%);
+    --color-chrome-border: hsl(240, 20%, 16%);
+}
 
-    --md-sys-color-tertiary: #edc26e;
-    --md-sys-color-on-tertiary: #422d00;
-    --md-sys-color-tertiary-container: #5e4200;
-    --md-sys-color-on-tertiary-container: #ffdea6;
+.noir-theme {
+    --color-ink: hsl(0, 0%, 90%);
+    --color-ink-dull: hsl(0, 0%, 70%);
+    --color-ink-faint: hsl(0, 0%, 50%);
+    --color-sidebar: hsl(0, 0%, 0%);
+    --color-sidebar-box: hsl(0, 0%, 4%);
+    --color-sidebar-line: hsl(0, 0%, 12%);
+    --color-sidebar-ink: hsl(0, 0%, 90%);
+    --color-sidebar-ink-dull: hsl(0, 0%, 70%);
+    --color-sidebar-ink-faint: hsl(0, 0%, 50%);
+    --color-sidebar-divider: hsl(0, 0%, 5%);
+    --color-sidebar-button: hsl(0, 0%, 6%);
+    --color-sidebar-selected: hsl(0, 0%, 12%);
+    --color-sidebar-shade: hsl(0, 0%, 0%);
+    --color-app: hsl(0, 0%, 3%);
+    --color-app-box: hsl(0, 0%, 8%);
+    --color-app-dark-box: hsl(0, 0%, 5%);
+    --color-app-darker-box: hsl(0, 0%, 2%);
+    --color-app-light-box: hsl(0, 0%, 18%);
+    --color-app-overlay: hsl(0, 0%, 7%);
+    --color-app-input: hsl(0, 0%, 10%);
+    --color-app-focus: hsl(0, 0%, 2%);
+    --color-app-line: hsl(0, 0%, 14%);
+    --color-app-divider: hsl(0, 0%, 0%);
+    --color-app-button: hsl(0, 0%, 12%);
+    --color-app-hover: hsl(0, 0%, 14%);
+    --color-app-selected: hsl(0, 0%, 16%);
+    --color-app-selected-item: hsl(0, 0%, 8%);
+    --color-app-active: hsl(0, 0%, 18%);
+    --color-app-shade: hsl(0, 0%, 0%);
+    --color-app-frame: hsl(0, 0%, 14%);
+    --color-app-slider: hsl(0, 0%, 10%);
+    --color-app-explorer-scrollbar: hsl(0, 0%, 18%);
+    --color-menu: hsl(0, 0%, 2%);
+    --color-menu-line: hsl(0, 0%, 8%);
+    --color-menu-ink: hsl(0, 0%, 90%);
+    --color-menu-faint: hsl(0, 0%, 70%);
+    --color-menu-hover: hsl(0, 0%, 16%);
+    --color-menu-selected: hsl(0, 0%, 18%);
+    --color-menu-shade: hsl(0, 0%, 0%);
+    --color-chrome-border: hsl(0, 0%, 14%);
+}
 
-    --md-sys-color-error: #ffb4ab;
-    --md-sys-color-on-error: #690005;
-    --md-sys-color-error-container: #93000a;
-    --md-sys-color-on-error-container: #ffdad6;
+.slate-theme {
+    --color-ink: hsl(220, 10%, 88%);
+    --color-ink-dull: hsl(220, 5%, 65%);
+    --color-ink-faint: hsl(220, 5%, 50%);
+    --color-sidebar: hsl(220, 10%, 6%);
+    --color-sidebar-box: hsl(220, 8%, 10%);
+    --color-sidebar-line: hsl(220, 8%, 16%);
+    --color-sidebar-ink: hsl(220, 10%, 88%);
+    --color-sidebar-ink-dull: hsl(220, 5%, 65%);
+    --color-sidebar-ink-faint: hsl(220, 5%, 50%);
+    --color-sidebar-divider: hsl(220, 10%, 8%);
+    --color-sidebar-button: hsl(220, 8%, 11%);
+    --color-sidebar-selected: hsl(220, 10%, 18%);
+    --color-sidebar-shade: hsl(220, 10%, 0%);
+    --color-app: hsl(220, 8%, 9%);
+    --color-app-box: hsl(220, 8%, 13%);
+    --color-app-dark-box: hsl(220, 10%, 10%);
+    --color-app-darker-box: hsl(220, 10%, 7%);
+    --color-app-light-box: hsl(220, 8%, 22%);
+    --color-app-overlay: hsl(220, 8%, 12%);
+    --color-app-input: hsl(220, 8%, 15%);
+    --color-app-focus: hsl(220, 10%, 7%);
+    --color-app-line: hsl(220, 8%, 18%);
+    --color-app-divider: hsl(220, 10%, 4%);
+    --color-app-button: hsl(220, 8%, 17%);
+    --color-app-hover: hsl(220, 8%, 19%);
+    --color-app-selected: hsl(220, 8%, 21%);
+    --color-app-selected-item: hsl(220, 8%, 13%);
+    --color-app-active: hsl(220, 8%, 23%);
+    --color-app-shade: hsl(220, 10%, 0%);
+    --color-app-frame: hsl(220, 8%, 19%);
+    --color-app-slider: hsl(220, 8%, 15%);
+    --color-app-explorer-scrollbar: hsl(220, 8%, 22%);
+    --color-menu: hsl(220, 10%, 7%);
+    --color-menu-line: hsl(220, 8%, 12%);
+    --color-menu-ink: hsl(220, 10%, 88%);
+    --color-menu-faint: hsl(220, 5%, 70%);
+    --color-menu-hover: hsl(220, 8%, 20%);
+    --color-menu-selected: hsl(220, 8%, 22%);
+    --color-menu-shade: hsl(220, 10%, 0%);
+    --color-chrome-border: hsl(220, 8%, 18%);
+}
 
-    --md-sys-color-background: #1a120d;
-    --md-sys-color-on-background: #ede0db;
+.nord-theme {
+    --color-ink: hsl(220, 15%, 90%);
+    --color-ink-dull: hsl(220, 12%, 70%);
+    --color-ink-faint: hsl(220, 10%, 55%);
+    --color-sidebar: hsl(220, 20%, 9%);
+    --color-sidebar-box: hsl(220, 18%, 13%);
+    --color-sidebar-line: hsl(220, 15%, 20%);
+    --color-sidebar-ink: hsl(220, 15%, 90%);
+    --color-sidebar-ink-dull: hsl(220, 12%, 70%);
+    --color-sidebar-ink-faint: hsl(220, 10%, 55%);
+    --color-sidebar-divider: hsl(220, 20%, 11%);
+    --color-sidebar-button: hsl(220, 18%, 14%);
+    --color-sidebar-selected: hsl(220, 18%, 22%);
+    --color-sidebar-shade: hsl(220, 20%, 5%);
+    --color-app: hsl(220, 18%, 12%);
+    --color-app-box: hsl(220, 16%, 16%);
+    --color-app-dark-box: hsl(220, 18%, 13%);
+    --color-app-darker-box: hsl(220, 20%, 10%);
+    --color-app-light-box: hsl(220, 15%, 26%);
+    --color-app-overlay: hsl(220, 16%, 15%);
+    --color-app-input: hsl(220, 16%, 18%);
+    --color-app-focus: hsl(220, 20%, 10%);
+    --color-app-line: hsl(220, 15%, 22%);
+    --color-app-divider: hsl(220, 20%, 8%);
+    --color-app-button: hsl(220, 15%, 21%);
+    --color-app-hover: hsl(220, 15%, 23%);
+    --color-app-selected: hsl(220, 15%, 25%);
+    --color-app-selected-item: hsl(220, 16%, 16%);
+    --color-app-active: hsl(220, 15%, 27%);
+    --color-app-shade: hsl(220, 20%, 5%);
+    --color-app-frame: hsl(220, 15%, 23%);
+    --color-app-slider: hsl(220, 16%, 18%);
+    --color-app-explorer-scrollbar: hsl(220, 15%, 26%);
+    --color-menu: hsl(220, 20%, 10%);
+    --color-menu-line: hsl(220, 16%, 15%);
+    --color-menu-ink: hsl(220, 15%, 90%);
+    --color-menu-faint: hsl(220, 10%, 70%);
+    --color-menu-hover: hsl(220, 15%, 24%);
+    --color-menu-selected: hsl(220, 15%, 26%);
+    --color-menu-shade: hsl(220, 20%, 5%);
+    --color-chrome-border: hsl(220, 15%, 22%);
+}
 
-    --md-sys-color-surface: #1a120d;
-    --md-sys-color-on-surface: #ede0db;
-    --md-sys-color-surface-variant: #52443c;
-    --md-sys-color-on-surface-variant: #d7c3b7;
+.mocha-theme {
+    --color-ink: hsl(25, 15%, 88%);
+    --color-ink-dull: hsl(25, 10%, 65%);
+    --color-ink-faint: hsl(25, 8%, 50%);
+    --color-sidebar: hsl(25, 20%, 7%);
+    --color-sidebar-box: hsl(25, 18%, 11%);
+    --color-sidebar-line: hsl(25, 15%, 18%);
+    --color-sidebar-ink: hsl(25, 15%, 88%);
+    --color-sidebar-ink-dull: hsl(25, 10%, 65%);
+    --color-sidebar-ink-faint: hsl(25, 8%, 50%);
+    --color-sidebar-divider: hsl(25, 20%, 9%);
+    --color-sidebar-button: hsl(25, 18%, 12%);
+    --color-sidebar-selected: hsl(25, 18%, 20%);
+    --color-sidebar-shade: hsl(25, 20%, 3%);
+    --color-app: hsl(25, 18%, 10%);
+    --color-app-box: hsl(25, 16%, 14%);
+    --color-app-dark-box: hsl(25, 18%, 11%);
+    --color-app-darker-box: hsl(25, 20%, 8%);
+    --color-app-light-box: hsl(25, 15%, 24%);
+    --color-app-overlay: hsl(25, 16%, 13%);
+    --color-app-input: hsl(25, 16%, 16%);
+    --color-app-focus: hsl(25, 20%, 8%);
+    --color-app-line: hsl(25, 15%, 20%);
+    --color-app-divider: hsl(25, 20%, 6%);
+    --color-app-button: hsl(25, 15%, 19%);
+    --color-app-hover: hsl(25, 15%, 21%);
+    --color-app-selected: hsl(25, 15%, 23%);
+    --color-app-selected-item: hsl(25, 16%, 14%);
+    --color-app-active: hsl(25, 15%, 25%);
+    --color-app-shade: hsl(25, 20%, 3%);
+    --color-app-frame: hsl(25, 15%, 21%);
+    --color-app-slider: hsl(25, 16%, 16%);
+    --color-app-explorer-scrollbar: hsl(25, 15%, 24%);
+    --color-menu: hsl(25, 20%, 8%);
+    --color-menu-line: hsl(25, 16%, 13%);
+    --color-menu-ink: hsl(25, 15%, 88%);
+    --color-menu-faint: hsl(25, 10%, 70%);
+    --color-menu-hover: hsl(25, 15%, 22%);
+    --color-menu-selected: hsl(25, 15%, 24%);
+    --color-menu-shade: hsl(25, 20%, 3%);
+    --color-chrome-border: hsl(25, 15%, 20%);
+}
 
-    --md-sys-color-outline: #9f8d83;
-    --md-sys-color-outline-variant: #52443c;
-
-    --md-sys-color-scrim: #000000;
-    --md-sys-color-inverse-surface: #ede0db;
-    --md-sys-color-inverse-on-surface: #1a120d;
-    --md-sys-color-inverse-primary: #8b5023;
-
-    --md-sys-color-surface-dim: #1a120d;
-    --md-sys-color-surface-bright: #413732;
-    --md-sys-color-surface-container-lowest: #140d09;
-    --md-sys-color-surface-container-low: #221a15;
-    --md-sys-color-surface-container: color-mix(in oklch, #271e19 97%, var(--md-sys-color-primary));
-    --md-sys-color-surface-container-high: color-mix(
-        in oklch,
-        #322823 92%,
-        var(--md-sys-color-primary)
-    );
-    --md-sys-color-surface-container-highest: color-mix(
-        in oklch,
-        #3d332d 89%,
-        var(--md-sys-color-primary)
-    );
-
-    --background: var(--md-sys-color-background);
-    --foreground: var(--md-sys-color-on-background);
-    --card: var(--md-sys-color-surface-container);
-    --card-foreground: var(--md-sys-color-on-surface);
-    --popover: var(--md-sys-color-surface-container-high);
-    --popover-foreground: var(--md-sys-color-on-surface);
-    --primary: var(--md-sys-color-primary);
-    --primary-foreground: var(--md-sys-color-on-primary);
-    --secondary: var(--md-sys-color-secondary);
-    --secondary-foreground: var(--md-sys-color-on-secondary);
-    --muted: var(--md-sys-color-surface-variant);
-    --muted-foreground: var(--md-sys-color-on-surface-variant);
-    --accent: var(--md-sys-color-secondary-container);
-    --accent-foreground: var(--md-sys-color-on-secondary-container);
-    --destructive: var(--md-sys-color-error);
-    --destructive-foreground: var(--md-sys-color-on-error);
-    --border: var(--md-sys-color-outline-variant);
-    --input: var(--md-sys-color-outline-variant);
-    --ring: var(--md-sys-color-primary);
-    --chart-1: var(--md-sys-color-primary);
-    --chart-2: var(--md-sys-color-secondary);
-    --chart-3: var(--md-sys-color-tertiary);
-    --chart-4: var(--md-sys-color-error);
-    --chart-5: var(--md-sys-color-outline);
-    --sidebar: var(--md-sys-color-surface-container-low);
-    --sidebar-foreground: var(--md-sys-color-on-surface);
-    --sidebar-primary: var(--md-sys-color-primary);
-    --sidebar-primary-foreground: var(--md-sys-color-on-primary);
-    --sidebar-accent: var(--md-sys-color-secondary-container);
-    --sidebar-accent-foreground: var(--md-sys-color-on-secondary-container);
-    --sidebar-border: var(--md-sys-color-outline-variant);
-    --sidebar-ring: var(--md-sys-color-primary);
+/* ── Pont vers les primitives shadcn/base-ui déjà en place ────────────────────────────────
+ * Les ~40 composants de `components/ui/` (et tout le code applicatif écrit avant ce portage)
+ * lisent des rôles shadcn (`--background`, `--muted`, …) et des rôles MD3 hérités
+ * (`bg-surface-container`, `text-on-surface-variant`, …). Plutôt que de réécrire 7 000 lignes de
+ * JSX, ces rôles sont REDIRIGÉS une fois pour toutes vers les tokens spacedrive ci-dessus : tout
+ * l'écran suit la palette exacte de spaceui, quel que soit le vocabulaire utilisé à l'appel.
+ * Une seule exception délibérée : `accent` (shadcn = « survol de menu », spacedrive = LE bleu
+ * d'accent) — non redirigé, l'unique usage (`ui/select.tsx`) a été réécrit en `app-hover`. */
+:root {
+    --background: var(--color-app);
+    --foreground: var(--color-ink);
+    --card: var(--color-app-box);
+    --card-foreground: var(--color-ink);
+    --popover: var(--color-app-overlay);
+    --popover-foreground: var(--color-ink);
+    --primary: var(--color-accent);
+    --primary-foreground: hsl(0, 0%, 100%);
+    --secondary: var(--color-app-selected);
+    --secondary-foreground: var(--color-ink);
+    --muted: var(--color-app-box);
+    --muted-foreground: var(--color-ink-dull);
+    --destructive: var(--color-status-error);
+    --destructive-foreground: hsl(0, 0%, 100%);
+    --border: var(--color-app-line);
+    --input: var(--color-app-input);
+    --ring: var(--color-accent);
+    --chart-1: var(--color-accent);
+    --chart-2: var(--color-accent-faint);
+    --chart-3: var(--color-status-success);
+    --chart-4: var(--color-status-warning);
+    --chart-5: var(--color-status-error);
+    --radius: 0.5rem;
+    --sidebar: var(--color-sidebar);
+    --sidebar-foreground: var(--color-sidebar-ink);
+    --sidebar-primary: var(--color-accent);
+    --sidebar-primary-foreground: hsl(0, 0%, 100%);
+    --sidebar-accent: var(--color-sidebar-selected);
+    --sidebar-accent-foreground: var(--color-sidebar-ink);
+    --sidebar-border: var(--color-sidebar-line);
+    --sidebar-ring: var(--color-accent);
 }
 
 @theme inline {
-    --font-heading: "BradBunR", var(--font-sans);
-    --font-sans: "Google Sans Flex", sans-serif;
-    --font-cartoon: "Super Cartoon", system-ui;
+    /* Rôles MD3 hérités → surfaces spacedrive (`bg-surface-container`, `text-on-surface`, …). */
+    --color-primary: var(--primary);
+    --color-on-primary: var(--primary-foreground);
+    --color-primary-container: var(--color-app-selected);
+    --color-on-primary-container: var(--color-ink);
+    --color-secondary: var(--secondary);
+    --color-on-secondary: var(--secondary-foreground);
+    --color-secondary-container: var(--color-accent);
+    --color-on-secondary-container: hsl(0, 0%, 100%);
+    --color-tertiary: var(--color-ink-dull);
+    --color-on-tertiary: var(--color-app);
+    --color-tertiary-container: var(--color-app-box);
+    --color-on-tertiary-container: var(--color-ink-dull);
+    --color-background: var(--background);
+    --color-on-background: var(--foreground);
+    --color-surface: var(--color-app);
+    --color-on-surface: var(--color-ink);
+    --color-surface-variant: var(--color-app-box);
+    --color-on-surface-variant: var(--color-ink-dull);
+    --color-outline: var(--color-ink-faint);
+    --color-outline-variant: var(--color-app-line);
+    --color-surface-container-lowest: var(--color-app-darker-box);
+    --color-surface-container-low: var(--color-app-dark-box);
+    --color-surface-container: var(--color-app-box);
+    --color-surface-container-high: var(--color-app-overlay);
+    --color-surface-container-highest: var(--color-app-selected);
+    --color-surface-dim: var(--color-app-darker-box);
+    --color-surface-bright: var(--color-app-light-box);
+    --color-scrim: var(--color-app-shade);
+    --color-error: var(--color-status-error);
+    --color-on-error: hsl(0, 0%, 100%);
+    --color-error-container: var(--color-app-box);
+    --color-on-error-container: var(--color-status-error);
 
-    /* Tokens MD3 bruts (bg-primary-container, text-on-surface-variant, …) */
-    --color-primary-container: var(--md-sys-color-primary-container);
-    --color-on-primary-container: var(--md-sys-color-on-primary-container);
-    --color-on-primary: var(--md-sys-color-on-primary);
-    --color-secondary-container: var(--md-sys-color-secondary-container);
-    --color-on-secondary-container: var(--md-sys-color-on-secondary-container);
-    --color-on-secondary: var(--md-sys-color-on-secondary);
-    --color-tertiary: var(--md-sys-color-tertiary);
-    --color-on-tertiary: var(--md-sys-color-on-tertiary);
-    --color-tertiary-container: var(--md-sys-color-tertiary-container);
-    --color-on-tertiary-container: var(--md-sys-color-on-tertiary-container);
-    --color-on-background: var(--md-sys-color-on-background);
-    --color-surface: var(--md-sys-color-surface);
-    --color-on-surface: var(--md-sys-color-on-surface);
-    --color-surface-variant: var(--md-sys-color-surface-variant);
-    --color-on-surface-variant: var(--md-sys-color-on-surface-variant);
-    --color-outline: var(--md-sys-color-outline);
-    --color-outline-variant: var(--md-sys-color-outline-variant);
-    --color-surface-container-lowest: var(--md-sys-color-surface-container-lowest);
-    --color-surface-container-low: var(--md-sys-color-surface-container-low);
-    --color-surface-container: var(--md-sys-color-surface-container);
-    --color-surface-container-high: var(--md-sys-color-surface-container-high);
-    --color-surface-container-highest: var(--md-sys-color-surface-container-highest);
-    --color-surface-dim: var(--md-sys-color-surface-dim);
-    --color-surface-bright: var(--md-sys-color-surface-bright);
-    --color-scrim: var(--md-sys-color-scrim);
-    --color-error: var(--md-sys-color-error);
-    --color-on-error: var(--md-sys-color-on-error);
-    --color-error-container: var(--md-sys-color-error-container);
-    --color-on-error-container: var(--md-sys-color-on-error-container);
-    --color-chrome-border: var(--nie-chrome-border);
-
-    /* Compat shadcn */
+    /* Rôles shadcn */
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -259,7 +481,6 @@
     --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
     --color-sidebar-primary: var(--sidebar-primary);
     --color-sidebar-foreground: var(--sidebar-foreground);
-    --color-sidebar: var(--sidebar);
     --color-chart-5: var(--chart-5);
     --color-chart-4: var(--chart-4);
     --color-chart-3: var(--chart-3);
@@ -269,116 +490,94 @@
     --color-input: var(--input);
     --color-border: var(--border);
     --color-destructive: var(--destructive);
-    --color-accent-foreground: var(--accent-foreground);
-    --color-accent: var(--accent);
+    --color-destructive-foreground: var(--destructive-foreground);
     --color-muted-foreground: var(--muted-foreground);
     --color-muted: var(--muted);
     --color-secondary-foreground: var(--secondary-foreground);
-    --color-secondary: var(--secondary);
     --color-primary-foreground: var(--primary-foreground);
-    --color-primary: var(--primary);
     --color-popover-foreground: var(--popover-foreground);
     --color-popover: var(--popover);
     --color-card-foreground: var(--card-foreground);
     --color-card: var(--card);
     --color-foreground: var(--foreground);
-    --color-background: var(--background);
-    --radius-sm: calc(var(--radius) * 0.6);
-    --radius-md: calc(var(--radius) * 0.8);
-    --radius-lg: var(--radius);
-    --radius-xl: calc(var(--radius) * 1.4);
-    --radius-2xl: calc(var(--radius) * 1.8);
-    --radius-3xl: calc(var(--radius) * 2.2);
-    --radius-4xl: calc(var(--radius) * 2.6);
+    --radius-sm: calc(var(--radius) - 2px);
+    --radius-xl: 12px;
+    --radius-2xl: 16px;
+    --radius-3xl: 20px;
+    --radius-4xl: 24px;
 }
 
 @layer base {
     * {
         @apply border-border outline-ring/50;
     }
-    body {
-        @apply bg-background text-foreground;
-    }
     html {
         @apply font-sans;
+        /* Pas de rebond/overscroll : c'est une fenêtre d'application, pas une page web
+         * (`interface/src/styles.css` de spacedrive). */
+        overscroll-behavior: none;
+        overflow: hidden;
+    }
+    body {
+        @apply bg-app text-ink;
+        margin: 0;
+        overscroll-behavior: none;
+        overflow: hidden;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+    /* Barres de défilement masquées partout (spacedrive fait pareil globalement) — le contenu
+     * reste défilable, seul le rail disparaît. */
+    *::-webkit-scrollbar {
+        display: none;
+    }
+    * {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
     }
 }
 
-/* ── Palette d'accent « Spacedrive » — portage de var/spaceui/packages/tokens (spacedrive) ─────
- * Tokens hsl(235,…) de `theme.css`/`themes/{dark,light}.css` réinjectés dans les rôles MD3 déjà
- * en place (le reste de l'UI — shadcn, `@theme inline`, typographie — n'a RIEN à savoir du choix
- * de palette : tout continue de lire `--md-sys-color-*`/`--background`/etc.). Sélectionnable dans
- * Paramètres (`accentTheme`, cf. lib/settings.ts + lib/appearance.ts qui posent
- * `[data-accent="spacedrive"]` sur `<html>`), orthogonal au clair/sombre de `next-themes`
- * (`.dark`) — d'où les DEUX blocs ci-dessous, combinés par le sélecteur composé. */
-:root[data-accent="spacedrive"] {
-    --md-sys-color-primary: hsl(208, 100%, 47%);
-    --md-sys-color-on-primary: hsl(0, 0%, 100%);
-    --md-sys-color-primary-container: hsl(208, 100%, 90%);
-    --md-sys-color-on-primary-container: hsl(208, 100%, 20%);
-    --md-sys-color-secondary: hsl(208, 100%, 57%);
-    --md-sys-color-on-secondary: hsl(0, 0%, 100%);
-    --md-sys-color-secondary-container: hsl(208, 60%, 88%);
-    --md-sys-color-on-secondary-container: hsl(208, 100%, 20%);
-    --md-sys-color-tertiary: hsl(235, 10%, 40%);
-    --md-sys-color-on-tertiary: hsl(0, 0%, 100%);
-    --md-sys-color-tertiary-container: hsl(235, 10%, 88%);
-    --md-sys-color-on-tertiary-container: hsl(235, 15%, 20%);
-    --md-sys-color-background: hsl(235, 5%, 100%);
-    --md-sys-color-on-background: hsl(235, 5%, 25%);
-    --md-sys-color-surface: hsl(235, 5%, 100%);
-    --md-sys-color-on-surface: hsl(235, 5%, 25%);
-    --md-sys-color-surface-variant: hsl(235, 5%, 98%);
-    --md-sys-color-on-surface-variant: hsl(235, 5%, 40%);
-    --md-sys-color-outline: hsl(235, 5%, 60%);
-    --md-sys-color-outline-variant: hsl(235, 5%, 90%);
-    --md-sys-color-surface-container-lowest: hsl(0, 0%, 100%);
-    --md-sys-color-surface-container-low: hsl(235, 5%, 98%);
-    --md-sys-color-surface-container: hsl(235, 5%, 96%);
-    --md-sys-color-surface-container-high: hsl(235, 5%, 93%);
-    --md-sys-color-surface-container-highest: hsl(235, 5%, 87%);
-    --md-sys-color-error: hsl(0, 84%, 60%);
-    --md-sys-color-on-error: hsl(0, 0%, 100%);
-    --radius: 0.625rem;
-    --font-sans: "Inter", "Google Sans Flex", system-ui, sans-serif;
+/* ── Utilitaires portés de var/spacedrive/apps/tauri/src/index.css ───────────────────────── */
+@utility top-bar-blur {
+    @apply border-app-line/50;
+    backdrop-filter: saturate(120%) blur(18px);
 }
 
-:root[data-accent="spacedrive"].dark {
-    --md-sys-color-primary: hsl(208, 100%, 57%);
-    --md-sys-color-on-primary: hsl(0, 0%, 100%);
-    --md-sys-color-primary-container: hsl(208, 100%, 20%);
-    --md-sys-color-on-primary-container: hsl(208, 100%, 90%);
-    --md-sys-color-secondary: hsl(208, 100%, 64%);
-    --md-sys-color-on-secondary: hsl(235, 15%, 10%);
-    --md-sys-color-secondary-container: hsl(208, 60%, 25%);
-    --md-sys-color-on-secondary-container: hsl(208, 100%, 92%);
-    --md-sys-color-tertiary: hsl(235, 15%, 70%);
-    --md-sys-color-on-tertiary: hsl(235, 15%, 10%);
-    --md-sys-color-tertiary-container: hsl(235, 15%, 24%);
-    --md-sys-color-on-tertiary-container: hsl(235, 15%, 92%);
-    --md-sys-color-background: hsl(235, 15%, 13%);
-    --md-sys-color-on-background: hsl(235, 35%, 92%);
-    --md-sys-color-surface: hsl(235, 15%, 13%);
-    --md-sys-color-on-surface: hsl(235, 35%, 92%);
-    --md-sys-color-surface-variant: hsl(235, 15%, 18%);
-    --md-sys-color-on-surface-variant: hsl(235, 10%, 70%);
-    --md-sys-color-outline: hsl(235, 10%, 55%);
-    --md-sys-color-outline-variant: hsl(235, 15%, 23%);
-    --md-sys-color-surface-container-lowest: hsl(235, 16%, 11%);
-    --md-sys-color-surface-container-low: hsl(235, 15%, 15%);
-    --md-sys-color-surface-container: hsl(235, 15%, 18%);
-    --md-sys-color-surface-container-high: hsl(235, 15%, 22%);
-    --md-sys-color-surface-container-highest: hsl(235, 15%, 30%);
-    --md-sys-color-error: hsl(0, 84%, 60%);
-    --md-sys-color-on-error: hsl(235, 15%, 10%);
-    --radius: 0.625rem;
-    --font-sans: "Inter", "Google Sans Flex", system-ui, sans-serif;
+@utility frame {
+    &::before {
+        content: "";
+        pointer-events: none;
+        user-select: none;
+        position: absolute;
+        inset: 0px;
+        border-radius: inherit;
+        padding: 1px;
+        background: var(--color-app-frame);
+        mask:
+            linear-gradient(black, black) content-box content-box,
+            linear-gradient(black, black);
+        mask-composite: xor;
+        -webkit-mask-composite: xor;
+        z-index: 9999;
+    }
 }
 
-/* Piste indéterminée de `<Progress>` (cf. components/ui/progress.tsx) — même esprit que
- * `.indeterminate-progress-bar` de `spaceui/primitives/ProgressBar.tsx`, réécrit en keyframes
- * Tailwind-compatible (`animate-[…]`) plutôt qu'une classe globale séparée. */
+@utility no-scrollbar {
+    &::-webkit-scrollbar {
+        display: none;
+    }
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+@utility mask-fade-out {
+    mask-image: linear-gradient(to bottom, black calc(100% - 40px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 40px), transparent 100%);
+}
+
 @layer utilities {
+    /* Piste indéterminée de `<Progress>` (cf. components/ui/progress.tsx) — même esprit que
+     * `.indeterminate-progress-bar` de `spaceui/primitives/ProgressBar.tsx`. */
     @keyframes progress-indeterminate {
         0% {
             transform: translateX(-100%);
@@ -387,83 +586,68 @@
             transform: translateX(300%);
         }
     }
-}
 
-/* ── Échelle typographique MD3 (identique à azalee) ─────────────────── */
-@layer utilities {
+    /* Échelle typographique — recalibrée sur la densité spacedrive (`text-sm` = 0.8rem, poids
+     * 500/600, pas de tracking MD3 élargi). Les noms `type-*` sont conservés : ils sont utilisés
+     * dans ~7 000 lignes de JSX et n'ont plus rien de « MD3 » que le nom. */
     .type-title-large {
-        @apply text-[22px] leading-[28px] tracking-[0px] font-normal;
-        font-optical-sizing: auto;
-        font-variation-settings: "opsz" 28, "wght" 400;
+        @apply text-xl font-semibold;
     }
     .type-title-medium {
-        @apply text-[16px] leading-[24px] tracking-[0.15px] font-medium;
-        font-optical-sizing: auto;
-        font-variation-settings: "opsz" 24, "wght" 500;
+        @apply text-base font-semibold;
     }
     .type-title-small {
-        @apply text-[14px] leading-[20px] tracking-[0.1px] font-medium;
-        font-optical-sizing: auto;
-        font-variation-settings: "opsz" 20, "wght" 500;
+        @apply text-sm font-semibold;
     }
     .type-body-large {
-        @apply text-[16px] leading-[24px] tracking-[0.5px] font-normal;
-        font-optical-sizing: auto;
-        font-variation-settings: "opsz" 24, "wght" 400;
+        @apply text-base font-normal;
     }
     .type-body-medium {
-        @apply text-[14px] leading-[20px] tracking-[0.25px] font-normal;
-        font-optical-sizing: auto;
-        font-variation-settings: "opsz" 20, "wght" 400;
+        @apply text-sm font-normal;
     }
     .type-body-small {
-        @apply text-[12px] leading-[16px] tracking-[0.4px] font-normal;
-        font-optical-sizing: auto;
-        font-variation-settings: "opsz" 16, "wght" 400;
+        @apply text-xs font-normal;
     }
     .type-label-large {
-        @apply text-[14px] leading-[20px] tracking-[0.1px] font-medium;
-        font-optical-sizing: auto;
-        font-variation-settings: "opsz" 20, "wght" 500;
+        @apply text-sm font-medium;
     }
     .type-label-medium {
-        @apply text-[12px] leading-[16px] tracking-[0.5px] font-medium;
-        font-optical-sizing: auto;
-        font-variation-settings: "opsz" 16, "wght" 500;
+        @apply text-xs font-medium;
     }
     .type-label-small {
-        @apply text-[11px] leading-[16px] tracking-[0.5px] font-medium;
-        font-optical-sizing: auto;
-        font-variation-settings: "opsz" 16, "wght" 500;
+        @apply text-tiny font-medium;
     }
 
-    /* MD3 Elevation */
+    /* Élévations — spacedrive n'empile pas d'ombres MD3 : la profondeur vient des surfaces
+     * (`app` / `app-box` / `app-overlay`) et d'un liseré `app-line`. Ces classes restent
+     * définies (utilisées dans le JSX existant) mais rendent le look spacedrive. */
     .elevation-0 {
         box-shadow: none;
     }
     .elevation-1 {
-        box-shadow: var(--shadow-level-1);
+        box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.18);
     }
     .elevation-2 {
-        box-shadow: var(--shadow-level-2);
+        box-shadow: 0 2px 6px -1px rgb(0 0 0 / 0.22);
     }
     .elevation-3 {
-        box-shadow: var(--shadow-level-3);
+        box-shadow: 0 6px 16px -4px rgb(0 0 0 / 0.28);
     }
     .elevation-4 {
-        box-shadow: var(--shadow-level-4);
+        box-shadow: 0 10px 24px -6px rgb(0 0 0 / 0.32);
     }
     .elevation-5 {
-        box-shadow: var(--shadow-level-5);
+        box-shadow: 0 16px 40px -10px rgb(0 0 0 / 0.38);
     }
 
-    /* MD3 State Layer (survol/focus/appui tonal) */
+    /* Couche d'état survol/appui. `::before` est `pointer-events-none` : il ne doit JAMAIS
+     * intercepter un clic destiné au bouton qui le porte. */
     .state-layer {
         @apply relative overflow-hidden;
     }
     .state-layer::before {
         content: "";
-        @apply absolute inset-0 pointer-events-none transition-opacity duration-200;
+        @apply pointer-events-none absolute inset-0 transition-opacity duration-100;
         background-color: currentColor;
         opacity: 0;
     }

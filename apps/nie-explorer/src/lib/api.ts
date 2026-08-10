@@ -27,7 +27,11 @@ import {
   type ReTraceDumpStatsDto,
   type ReTraceProcessDto,
   type ReTraceRegionDto,
+  type PassiveDto,
   type SaveBlobDto,
+  type ShopDto,
+  type SpecialTacticsDto,
+  type StadiumDto,
   type SkillDto,
   type StatBlockDto,
   type StatsDto,
@@ -47,6 +51,10 @@ export type Item = ItemDto;
 export type Aura = AuraDto;
 export type Trophy = TrophyDto;
 export type Quest = QuestDto;
+export type Shop = ShopDto;
+export type Stadium = StadiumDto;
+export type Passive = PassiveDto;
+export type SpecialTactics = SpecialTacticsDto;
 export type CharaPicker = CharaPickerDto;
 export type StatBlock = StatBlockDto;
 export type CpkExportFile = CpkExportFileDto;
@@ -205,6 +213,11 @@ export const api = {
   gameDataAuras: (gameDir?: string) => unwrap<Aura[]>(commands.gameDataAuras(gd(gameDir))),
   gameDataTrophies: (gameDir?: string) => unwrap<Trophy[]>(commands.gameDataTrophies(gd(gameDir))),
   gameDataQuests: (gameDir?: string) => unwrap<Quest[]>(commands.gameDataQuests(gd(gameDir))),
+  // §4.1 roadmap — modules `nie-data` supplémentaires câblés (boutiques, stades, passifs, tactiques).
+  gameDataShops: (gameDir?: string) => unwrap<Shop[]>(commands.gameDataShops(gd(gameDir))),
+  gameDataStadiums: (gameDir?: string) => unwrap<Stadium[]>(commands.gameDataStadiums(gd(gameDir))),
+  gameDataPassives: (gameDir?: string) => unwrap<Passive[]>(commands.gameDataPassives(gd(gameDir))),
+  gameDataSpecialTactics: (gameDir?: string) => unwrap<SpecialTactics[]>(commands.gameDataSpecialTactics(gd(gameDir))),
   gameDataCharaPicker: (gameDir?: string) => unwrap<CharaPicker[]>(commands.gameDataCharaPicker(gd(gameDir))),
   // Calculateur de stats (§4.2) — rarityCode : 0=N, 2=R, 3=SR, 4=SSR, 5=UR, 6=LR, 7=Legend, 20=BASARA.
   gameDataCalculateStats: (charaParamId: string, level: number, rarityCode: number, gameDir?: string) =>

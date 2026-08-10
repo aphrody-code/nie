@@ -183,7 +183,10 @@ pub struct ItemDto {
     pub category: String,
     pub name: String,
     pub description: Option<String>,
-    pub price: Option<i64>,
+    /// `f64` et pas `i64` : `specta` refuse d’exporter les types « BigInt » vers TypeScript
+    /// (perte de précision silencieuse) — refus FATAL qui faisait paniquer l’export au démarrage.
+    /// Un prix du jeu tient très en dessous des 2⁵³ entiers exacts d’un `f64`.
+    pub price: Option<f64>,
     pub internal_code: Option<String>,
 }
 
@@ -203,7 +206,7 @@ pub fn list_items(vfs: &Vfs) -> Result<Vec<ItemDto>, String> {
                 category: format!("{:?}", it.category),
                 name: name.to_string(),
                 description: nie_data::item::resolve_description(it, &text).map(str::to_string),
-                price: it.price,
+                price: it.price.map(|p| p as f64),
                 internal_code: it.internal_code.clone(),
             })
         })
@@ -251,7 +254,10 @@ pub fn list_auras(vfs: &Vfs) -> Result<Vec<AuraDto>, String> {
 pub struct TrophyDto {
     pub trophy_id: String,
     pub code: String,
-    pub category: i64,
+    /// `f64` et pas `i64` : `specta` refuse d’exporter les types « BigInt » vers TypeScript
+    /// (perte de précision silencieuse) et le refus fait paniquer l’export au démarrage. Les
+    /// catégories du jeu sont de petits entiers, exactement représentables en `f64`.
+    pub category: f64,
     pub name: String,
     pub description: Option<String>,
     pub unlock_kind: String,
@@ -276,7 +282,7 @@ pub fn list_trophies(vfs: &Vfs) -> Result<Vec<TrophyDto>, String> {
             Some(TrophyDto {
                 trophy_id: t.trophy_id.to_hex(),
                 code: t.code.clone(),
-                category: t.category,
+                category: t.category as f64,
                 name: name.to_string(),
                 description: nie_data::trophy::resolve_description(t, &text).map(str::to_string),
                 unlock_kind: match cond.kind {
@@ -297,8 +303,10 @@ pub fn list_trophies(vfs: &Vfs) -> Result<Vec<TrophyDto>, String> {
 #[derive(Serialize, specta::Type)]
 pub struct QuestDto {
     pub quest_id: String,
-    pub phase: i64,
-    pub quest_type: i64,
+    /// `f64`, cf. [`TrophyDto::category`] — même contrainte `specta`.
+    pub phase: f64,
+    /// `f64`, cf. [`TrophyDto::category`] — même contrainte `specta`.
+    pub quest_type: f64,
     pub title: String,
     pub image: Option<String>,
 }
@@ -316,8 +324,8 @@ pub fn list_quests(vfs: &Vfs) -> Result<Vec<QuestDto>, String> {
             let title = nie_data::quest::resolve_title(q, &titles)?;
             Some(QuestDto {
                 quest_id: q.quest_id.to_hex(),
-                phase: q.phase,
-                quest_type: q.quest_type,
+                phase: q.phase as f64,
+                quest_type: q.quest_type as f64,
                 title: title.to_string(),
                 image: q.image.clone(),
             })
@@ -434,6 +442,195 @@ pub fn decode_cfgbin(vfs: &Vfs, path: &str) -> Result<Value, String> {
         let cfg = nie_formats::cfgbin::parse_t2b(&bytes).map_err(|e| format!("parse T2B {path} : {e}"))?;
         Ok(nie_explore::bridge::t2b_to_json(&cfg))
     }
+}
+
+// ─── Modules nie-data supplémentaires (§4.1 ROADMAP) ─────────────────────────────────────────
+//
+// Même patron que `list_items`/`list_auras` : `load_t2b` (bridge déjà testé) → parseur typé de
+// `nie-data` → DTO applati. Aucun décodage nouveau, aucune logique dupliquée. Les entiers passent
+// en `f64` (`specta` refuse les BigInt vers TypeScript, cf. [`ItemDto::price`]).
+
+/// Boutique du jeu (`shop_config`) — nom localisé joint depuis `shop_text`, plus l'inventaire
+/// (identifiants d'objets, résolus en noms quand `item_text` les connaît).
+#[derive(Serialize, specta::Type)]
+pub struct ShopDto {
+    pub shop_id: String,
+    pub name: Option<String>,
+    pub item_count: u32,
+    /// Noms des objets en vente, quand ils sont résolus (sinon leur hash hexadécimal).
+    pub items: Vec<String>,
+}
+
+/// Liste les boutiques (`shop_config`), noms FR joints depuis `shop_text`, inventaire résolu
+/// contre `item_config`+`item_text` — sans quoi la vue n'afficherait que des hachages.
+pub fn list_shops(vfs: &Vfs) -> Result<Vec<ShopDto>, String> {
+    let config = load_t2b(
+        vfs,
+        |p| p.contains("/gamedata/") && base_name(p).starts_with("shop_config") && base_name(p).ends_with(".cfg.bin"),
+        "shop_config",
+    )?;
+    let shops = nie_data::shop::parse_shop_config(&config);
+
+    // Textes de boutique : absents de certaines versions — l'absence ne doit pas faire échouer la
+    // liste entière (le nom devient simplement `None`).
+    let shop_text = load_t2b(vfs, |p| p.contains("/fr/") && base_name(p).starts_with("shop_text"), "shop_text fr")
+        .map(|j| nie_data::text::parse_text_file(&j))
+        .unwrap_or_default();
+
+    // Index nom d'objet par identifiant, pour rendre l'inventaire lisible.
+    let item_names: HashMap<String, String> = list_items(vfs)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|i| (i.item_id, i.name))
+        .collect();
+
+    Ok(shops
+        .iter()
+        .map(|s| ShopDto {
+            shop_id: s.shop_id.to_hex(),
+            name: nie_data::shop::resolve_name(s, &shop_text).map(str::to_string),
+            item_count: s.item_count() as u32,
+            items: s
+                .items
+                .iter()
+                .map(|id| {
+                    let hex = id.to_hex();
+                    item_names.get(&hex).cloned().unwrap_or(hex)
+                })
+                .collect(),
+        })
+        .collect())
+}
+
+/// Stade/terrain (`soccer_option_field_info` du `stadium_config`) — chemin d'image et condition
+/// de déblocage tels que parsés par `nie_data::stadium`.
+#[derive(Serialize, specta::Type)]
+pub struct StadiumDto {
+    pub field_id: String,
+    pub name: String,
+    pub image_path: String,
+    pub index: f64,
+    pub locked: bool,
+}
+
+/// Liste les stades (`stadium_config`).
+pub fn list_stadiums(vfs: &Vfs) -> Result<Vec<StadiumDto>, String> {
+    let config = load_t2b(
+        vfs,
+        |p| p.contains("/gamedata/") && base_name(p).starts_with("stadium_config") && base_name(p).ends_with(".cfg.bin"),
+        "stadium_config",
+    )?;
+    Ok(nie_data::stadium::parse_stadium_config(&config)
+        .iter()
+        .map(|s| StadiumDto {
+            field_id: s.field_id_hex(),
+            name: s.name.clone(),
+            image_path: s.image_path.clone(),
+            index: s.index as f64,
+            // Une condition non vide = déblocable, donc verrouillé au départ (l'entrée 0 est la
+            // seule sans condition dans le dump réel).
+            locked: !s.condition.is_empty(),
+        })
+        .collect())
+}
+
+/// Capacité passive (`passive_skill_config`) — nom/description joints depuis `skill_text`
+/// (même table que les techniques), portée et type de boost classifiés par `nie_data::passive`.
+#[derive(Serialize, specta::Type)]
+pub struct PassiveDto {
+    pub passive_id: String,
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub rarity: f64,
+    pub scope: String,
+    pub boost_type: String,
+    pub effect_params: Vec<f64>,
+}
+
+/// Liste les capacités passives (`passive_skill_config`).
+pub fn list_passives(vfs: &Vfs) -> Result<Vec<PassiveDto>, String> {
+    let config = load_t2b(
+        vfs,
+        |p| {
+            p.contains("/gamedata/")
+                && base_name(p).starts_with("passive_skill_config")
+                && base_name(p).ends_with(".cfg.bin")
+        },
+        "passive_skill_config",
+    )?;
+    let passives = nie_data::passive::parse_passives(&config);
+    let text = load_t2b(vfs, |p| p.contains("/fr/") && base_name(p).starts_with("skill_text"), "skill_text fr")
+        .map(|j| nie_data::text::parse_text_file(&j))
+        .unwrap_or_default();
+
+    Ok(passives
+        .iter()
+        .map(|p| PassiveDto {
+            passive_id: p.passive_id.to_hex(),
+            name: nie_data::text::find_text(&text, p.name_id).map(str::to_string),
+            description: nie_data::text::find_text(&text, p.desc_id).map(str::to_string),
+            rarity: p.rarity as f64,
+            scope: format!("{:?}", p.scope),
+            boost_type: format!("{:?}", p.boost_type),
+            effect_params: p.effect_params.clone().unwrap_or_default(),
+        })
+        .collect())
+}
+
+/// Tactique spéciale (`special_tactics_config`) — nom/description localisés, élément, puissance,
+/// et nombre d'effets rattachés (résolus par les tranches `REF_EFFECT` de `nie_data`).
+#[derive(Serialize, specta::Type)]
+pub struct SpecialTacticsDto {
+    pub tactics_id: String,
+    pub internal_code: String,
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub element: String,
+    pub power: f64,
+    pub recast_time: f64,
+    pub effect_count: u32,
+    pub partner_count: u32,
+}
+
+/// Liste les tactiques spéciales (`special_tactics_config`).
+pub fn list_special_tactics(vfs: &Vfs) -> Result<Vec<SpecialTacticsDto>, String> {
+    let config = load_t2b(
+        vfs,
+        |p| {
+            p.contains("/gamedata/")
+                && base_name(p).starts_with("special_tactics_config")
+                && base_name(p).ends_with(".cfg.bin")
+        },
+        "special_tactics_config",
+    )?;
+    let cfg = nie_data::special_tactics::parse_special_tactics(&config);
+    // Le libellé d'une tactique vit dans `tactics_text` quand il existe, sinon dans `skill_text`
+    // (les deux tables partagent le même schéma `TEXT_INFO`).
+    let mut text = load_t2b(vfs, |p| p.contains("/fr/") && base_name(p).starts_with("tactics_text"), "tactics_text fr")
+        .map(|j| nie_data::text::parse_text_file(&j))
+        .unwrap_or_default();
+    if text.is_empty() {
+        text = load_t2b(vfs, |p| p.contains("/fr/") && base_name(p).starts_with("skill_text"), "skill_text fr")
+            .map(|j| nie_data::text::parse_text_file(&j))
+            .unwrap_or_default();
+    }
+
+    Ok(cfg
+        .infos
+        .iter()
+        .enumerate()
+        .map(|(i, t)| SpecialTacticsDto {
+            tactics_id: t.tactics_id.to_hex(),
+            internal_code: t.internal_code.clone(),
+            name: nie_data::text::find_text(&text, t.name_text_id).map(str::to_string),
+            description: nie_data::text::find_text(&text, t.desc_text_id).map(str::to_string),
+            element: t.element_name().to_string(),
+            power: t.power as f64,
+            recast_time: t.recast_time as f64,
+            effect_count: cfg.effects_of(i).len() as u32,
+            partner_count: t.partner_ids.len() as u32,
+        })
+        .collect())
 }
 
 #[cfg(test)]

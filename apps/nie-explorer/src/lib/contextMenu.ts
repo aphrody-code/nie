@@ -15,7 +15,7 @@ import { openPath } from "@tauri-apps/plugin-opener";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { humanSize } from "@/lib/bytes";
-import { isPinned, togglePin } from "@/lib/places";
+import { clearRecents, forgetRecent, isPinned, togglePin } from "@/lib/places";
 
 const BLENDER_EXTS = new Set(["g4md", "g4mg", "g4sk", "g4mt"]);
 
@@ -204,6 +204,55 @@ export async function showVfsFolderContextMenu(opts: FolderContextMenuOptions): 
       await PredefinedMenuItem.new({ item: "Separator" }),
       { text: pinned ? "★ Désépingler" : "☆ Épingler à la barre latérale", action: () => togglePin(opts.path) },
       { text: "Copier le chemin", action: async () => { await writeText(opts.path); toast.success("Chemin copié"); } },
+    ],
+  });
+  await popupOrReport(menu);
+}
+
+export interface PlaceContextMenuOptions {
+  /** Préfixe VFS de l'emplacement. */
+  prefix: string;
+  /** Nature de l'entrée — conditionne les actions proposées. */
+  kind: "builtin" | "pinned" | "recent";
+  onOpen?: () => void;
+}
+
+/**
+ * Menu contextuel d'une ENTRÉE de la barre latérale — équivalent de `nav_context_menu` de
+ * cosmic-files, noté comme écart non fermé dans la roadmap (§2.8) : jusqu'ici, un clic droit sur
+ * une place épinglée ou récente ne faisait rien du tout, il fallait retrouver le dossier pour le
+ * désépingler (et un récent ne pouvait pas être retiré du tout, cf. `forgetRecent`).
+ *
+ * Les entrées curées (`PINNED_PLACES`) ne proposent ni désépinglage ni oubli : elles ne sont pas
+ * des préférences utilisatrice, elles font partie de l'app.
+ */
+export async function showPlaceContextMenu(opts: PlaceContextMenuOptions): Promise<void> {
+  const pinned = isPinned(opts.prefix);
+  const menu = await Menu.new({
+    items: [
+      { text: "Ouvrir", action: () => opts.onOpen?.() },
+      await PredefinedMenuItem.new({ item: "Separator" }),
+      ...(opts.kind !== "builtin"
+        ? [
+            {
+              text: pinned ? "★ Désépingler" : "☆ Épingler à la barre latérale",
+              action: () => togglePin(opts.prefix),
+            },
+          ]
+        : []),
+      ...(opts.kind === "recent"
+        ? [
+            { text: "Retirer des récents", action: () => forgetRecent(opts.prefix) },
+            { text: "Vider les récents", action: () => clearRecents() },
+          ]
+        : []),
+      {
+        text: "Copier le chemin",
+        action: async () => {
+          await writeText(opts.prefix);
+          toast.success("Chemin copié");
+        },
+      },
     ],
   });
   await popupOrReport(menu);

@@ -23,8 +23,8 @@ function PopoverContent({
         <PopoverPrimitive.Popup
           data-slot="popover-content"
           className={cn(
-            "flex flex-col gap-2 rounded-2xl border border-outline-variant/40 bg-surface-container-high p-3",
-            "text-on-surface elevation-3 outline-none",
+            "flex flex-col gap-2 rounded-lg border border-app-line bg-app-overlay p-3",
+            "text-ink shadow-lg shadow-black/40 outline-none",
             "origin-[var(--transform-origin)] transition-[transform,opacity] data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-95 data-ending-style:opacity-0",
             className
           )}

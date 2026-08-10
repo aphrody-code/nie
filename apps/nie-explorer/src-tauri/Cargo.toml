@@ -175,11 +175,8 @@ tokio = { version = "1", features = ["rt"] }
 # manuelle lors du portage d'encodeurs (`cpk_encode`/`g4tx_encode`, cf. `apps/nie-explorer/
 # ROADMAP.md` §1.1/§1.2 et le commit `8eccadc`), jamais exécutée ni embarquée par ce binaire.
 
-# Matériau de fond natif Windows 11 (Mica) — habillage "UI Windows native" du user.
-# `winreg` : lecture registre `HKLM\...\Valve\Steam` pour la VRAIE détection du dossier de jeu
-# (remplace l'ancien repli codé en dur `/home/aphrody/niers`, cf. `src/steam.rs`).
+# `winreg` : lecture registre `HKLM\...\Valve\Steam` pour la VRAIE détection du dossier de jeu.
 [target.'cfg(target_os = "windows")'.dependencies]
-window-vibrancy = "0.5"
 winreg = "0.52"
 # Presse-papiers FICHIERS natif Windows (CF_HDROP réel — ce que Ctrl+C dans l'Explorateur écrit,
 # ce que Ctrl+V dans l'Explorateur/toute autre appli sait lire). Recherche 2026-08-08 (« inspire-

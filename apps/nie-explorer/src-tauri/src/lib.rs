@@ -86,6 +86,37 @@ fn mods_migrations() -> Vec<Migration> {
                 );
             "#,
         },
+        Migration {
+            // Journal DURABLE des jobs (§8 ROADMAP — « prochaine étape concrète »). Jusqu'ici la
+            // progression d'une opération longue (réindexation du VFS, export `.cpk`) ne vivait
+            // que dans un `useState` : fermer l'app ou changer d'onglet la perdait sans laisser
+            // la moindre trace, et un job interrompu en cours de route était indiscernable d'un
+            // job jamais lancé. Cette table est la trace ; le moteur d'exécution reste
+            // `nie-tasks` côté Rust (cf. `vfs_index_scan_start`), elle ne le remplace pas.
+            //
+            // `status` ∈ running | done | error | canceled | interrupted — « interrupted » est
+            // posé AU DÉMARRAGE sur tout job resté « running » d'une session précédente (cf.
+            // `jobsDb.reconcileOnStartup`) : sans process pour le poursuivre, il ne peut pas
+            // rester « en cours ».
+            version: 3,
+            description: "jobs (journal durable des opérations longues)",
+            kind: MigrationKind::Up,
+            sql: r#"
+                CREATE TABLE jobs (
+                    id         TEXT PRIMARY KEY,
+                    kind       TEXT NOT NULL,
+                    label      TEXT NOT NULL DEFAULT '',
+                    status     TEXT NOT NULL DEFAULT 'running',
+                    progress   INTEGER NOT NULL DEFAULT 0,
+                    total      INTEGER NOT NULL DEFAULT 0,
+                    error      TEXT,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+                );
+                CREATE INDEX idx_jobs_status ON jobs(status);
+                CREATE INDEX idx_jobs_created ON jobs(created_at DESC);
+            "#,
+        },
     ]
 }
 
@@ -809,6 +840,38 @@ fn game_data_quests(game_dir: Option<String>, state: tauri::State<VfsState>) -> 
     with_vfs(game_dir, &state, game_data::list_quests)
 }
 
+/// Boutiques (`nie_data::shop`) — même patron que [`game_data_skills`] (§4.1 roadmap).
+#[tauri::command]
+#[specta::specta]
+fn game_data_shops(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<Vec<game_data::ShopDto>, String> {
+    with_vfs(game_dir, &state, game_data::list_shops)
+}
+
+/// Stades (`nie_data::stadium`) — même patron que [`game_data_skills`] (§4.1 roadmap).
+#[tauri::command]
+#[specta::specta]
+fn game_data_stadiums(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<Vec<game_data::StadiumDto>, String> {
+    with_vfs(game_dir, &state, game_data::list_stadiums)
+}
+
+/// Capacités passives (`nie_data::passive`) — même patron que [`game_data_skills`] (§4.1 roadmap).
+#[tauri::command]
+#[specta::specta]
+fn game_data_passives(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<Vec<game_data::PassiveDto>, String> {
+    with_vfs(game_dir, &state, game_data::list_passives)
+}
+
+/// Tactiques spéciales (`nie_data::special_tactics`) — même patron que [`game_data_skills`]
+/// (§4.1 roadmap).
+#[tauri::command]
+#[specta::specta]
+fn game_data_special_tactics(
+    game_dir: Option<String>,
+    state: tauri::State<VfsState>,
+) -> Result<Vec<game_data::SpecialTacticsDto>, String> {
+    with_vfs(game_dir, &state, game_data::list_special_tactics)
+}
+
 /// Personnages sélectionnables pour le calculateur de stats (`nie_data::chara_param` joint à
 /// `chara_base`/`chara_text`) — même patron que [`game_data_skills`].
 #[tauri::command]
@@ -1098,28 +1161,48 @@ fn apply_rounded_corners(window: &tauri::WebviewWindow) {
     #[allow(non_snake_case)]
     const DWMWCP_ROUND: i32 = 2;
 
+    dwm_set_i32_attribute(window, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND);
+}
+
+/// Pose un attribut DWM de type `i32`/`BOOL` sur la fenêtre. `DwmSetWindowAttribute` est déclaré
+/// à la main (pas de crate `windows` dans les dépendances) — même approche que `windows.rs` de
+/// spacedrive. Best-effort : un attribut non reconnu (build Windows plus ancienne) renvoie une
+/// erreur qu'on ignore, la fenêtre garde simplement son apparence par défaut.
+#[cfg(target_os = "windows")]
+fn dwm_set_i32_attribute(window: &tauri::WebviewWindow, attr: u32, value: i32) {
     unsafe extern "system" {
         fn DwmSetWindowAttribute(hwnd: isize, attr: u32, value: *const std::ffi::c_void, size: u32) -> i32;
     }
 
     let Ok(hwnd) = window.hwnd() else { return };
-    let preference = DWMWCP_ROUND;
+    // SAFETY : `hwnd` désigne la fenêtre vivante détenue par Tauri, et le couple pointeur/taille
+    // décrit exactement le `i32` attendu par ces attributs DWM.
     unsafe {
         let _ = DwmSetWindowAttribute(
             hwnd.0 as isize,
-            DWMWA_WINDOW_CORNER_PREFERENCE,
-            std::ptr::addr_of!(preference).cast(),
+            attr,
+            std::ptr::addr_of!(value).cast(),
             std::mem::size_of::<i32>() as u32,
         );
     }
 }
 
+/// Aligne le thème du chrome de fenêtre sur le clair/sombre de l'appli.
+///
+/// La fenêtre est SANS décorations (`decorations: false`) : il n'y a plus de barre de titre native
+/// à teinter, et l'ancienne implémentation (`window_vibrancy::apply_mica`) faisait bien pire que
+/// rien — Mica étend la frame DWM dans la zone client, ce qui redonne à Windows une frame à
+/// dessiner (bordure + légende + boutons système par-dessus le chrome custom). Ce qui reste utile
+/// et sans effet de bord, c'est `DWMWA_USE_IMMERSIVE_DARK_MODE` : il pilote la couleur de l'ombre
+/// portée et des menus système associés à la fenêtre.
 #[tauri::command]
 #[specta::specta]
 fn set_titlebar_theme(dark: bool, window: tauri::WebviewWindow) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        window_vibrancy::apply_mica(&window, Some(dark)).map_err(|e| e.to_string())?;
+        #[allow(non_snake_case)]
+        const DWMWA_USE_IMMERSIVE_DARK_MODE: u32 = 20;
+        dwm_set_i32_attribute(&window, DWMWA_USE_IMMERSIVE_DARK_MODE, i32::from(dark));
     }
     #[cfg(not(target_os = "windows"))]
     {
@@ -1229,7 +1312,11 @@ fn disk_file_exists(path: String) -> bool {
 /// frontend depuis `modDir(modId)`, jamais depuis une entrée utilisatrice libre.
 #[tauri::command]
 #[specta::specta]
-fn copy_disk_file_to_appdata(app: tauri::AppHandle, src: String, dest_appdata_rel: String) -> Result<u64, String> {
+/// Renvoie le nombre d'octets copiés en `f64` et **pas** `u64` : `specta` refuse d'exporter les
+/// types « BigInt » vers TypeScript, et le refus est FATAL (panique de l'export au démarrage en
+/// debug — l'app ne se lançait plus du tout). Une taille de fichier reste très en dessous des 2⁵³
+/// entiers exactement représentables en `f64`, la conversion est donc sans perte.
+fn copy_disk_file_to_appdata(app: tauri::AppHandle, src: String, dest_appdata_rel: String) -> Result<f64, String> {
     use tauri::Manager;
     let base = app.path().app_data_dir().map_err(|e| e.to_string())?;
     let dest = base.join(&dest_appdata_rel);
@@ -1237,7 +1324,7 @@ fn copy_disk_file_to_appdata(app: tauri::AppHandle, src: String, dest_appdata_re
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
     let n = std::fs::copy(&src, &dest).map_err(|e| e.to_string())?;
-    Ok(n)
+    Ok(n as f64)
 }
 
 /// Envoie un ou plusieurs fichiers de l'espace de travail des mods (`AppData/mods/<modId>/…`) à
@@ -1319,7 +1406,8 @@ fn stage_texture_replacement(
     dest_appdata_rel: String,
     game_dir: Option<String>,
     state: tauri::State<VfsState>,
-) -> Result<u64, String> {
+) -> Result<f64, String> {
+    // `f64` et pas `u64` : cf. [`copy_disk_file_to_appdata`] (contrainte `specta`/TypeScript).
     use tauri::Manager;
 
     let g4tx_bytes = with_vfs(game_dir, &state, |vfs| {
@@ -1346,7 +1434,7 @@ fn stage_texture_replacement(
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
     std::fs::write(&dest, &g4tx_bytes).map_err(|e| e.to_string())?;
-    Ok(g4tx_bytes.len() as u64)
+    Ok(g4tx_bytes.len() as f64)
 }
 
 /// Une entrée à empaqueter dans un `.cpk` exporté (§1.2 roadmap) — `vfs_path` sert à dériver
@@ -1367,7 +1455,8 @@ struct CpkExportFileDto {
 /// dossier du jeu.
 #[tauri::command]
 #[specta::specta]
-fn export_mod_as_cpk(app: tauri::AppHandle, files: Vec<CpkExportFileDto>, dest: String) -> Result<u64, String> {
+fn export_mod_as_cpk(app: tauri::AppHandle, files: Vec<CpkExportFileDto>, dest: String) -> Result<f64, String> {
+    // `f64` et pas `u64` : cf. [`copy_disk_file_to_appdata`] (contrainte `specta`/TypeScript).
     use tauri::Manager;
 
     let base = app.path().app_data_dir().map_err(|e| e.to_string())?;
@@ -1385,7 +1474,7 @@ fn export_mod_as_cpk(app: tauri::AppHandle, files: Vec<CpkExportFileDto>, dest: 
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
     std::fs::write(&dest, &bytes).map_err(|e| e.to_string())?;
-    Ok(bytes.len() as u64)
+    Ok(bytes.len() as f64)
 }
 
 // ─── Pont Blender (tools/niers) ─────────────────────────────────────────────────────
@@ -2556,6 +2645,10 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         game_data_auras,
         game_data_trophies,
         game_data_quests,
+        game_data_shops,
+        game_data_stadiums,
+        game_data_passives,
+        game_data_special_tactics,
         game_data_chara_picker,
         game_data_calculate_stats,
         vfs_decode_cfgbin,
@@ -2701,13 +2794,17 @@ pub fn run() {
             {
                 use tauri::Manager;
                 if let Some(window) = app.get_webview_window("main") {
-                    let _ = window_vibrancy::apply_mica(&window, Some(true));
-                    // Fenêtre SANS bordure (`decorations: false`, cf. `tauri.conf.json` — chrome
-                    // custom porté du frameless look de spacedrive/spaceui, cf. `TitleBar.tsx`) :
-                    // sans cet appel, Windows 11 ne coins-arrondit QUE les fenêtres avec légende
-                    // native (`WS_CAPTION`) — une fenêtre `WS_POPUP` reste carrée par défaut, ce
-                    // qui casserait immédiatement l'esthétique visée (coins vifs façon Win95 sur
-                    // un fond par ailleurs Mica/vibrant).
+                    // `window_vibrancy::apply_mica` N'EST PLUS APPELÉ ICI. Mica s'obtient en
+                    // étendant la frame DWM dans la zone client (`DwmExtendFrameIntoClientArea`) ;
+                    // sur une fenêtre `decorations: false`, cela REDONNE à Windows une frame à
+                    // dessiner — bordure, légende et boutons système réapparaissent par-dessus le
+                    // chrome custom, ce qui annulait tout le frameless (symptôme rapporté :
+                    // « il y a toujours la bordure Win32 et les boutons close »). Le fond est
+                    // peint par l'app (`body { background: var(--color-app) }`, tokens spaceui).
+                    //
+                    // L'arrondi, lui, reste nécessaire : Windows 11 n'arrondit d'office que les
+                    // fenêtres à légende native (`WS_CAPTION`) — une `WS_POPUP` custom resterait
+                    // à coins vifs sans cet appel DWM explicite.
                     apply_rounded_corners(&window);
                 }
             }

@@ -3,11 +3,21 @@ import { useSyncExternalStore } from "react";
 
 export type Locale = "fr" | "en" | "ja";
 
-/** Palette d'accent — `azalee` (défaut, MD3 seed #F89C5A, identité historique niers/azalee) ou
- * `spacedrive` (portage des tokens `var/spaceui/packages/tokens`, cf. demande utilisatrice de
- * porter le style/design de spacedrive). Orthogonal au clair/sombre de `next-themes` : les deux
- * se combinent (`[data-accent="spacedrive"].dark`, cf. styles.css). */
-export type AccentTheme = "azalee" | "spacedrive";
+/** Variante de palette sombre — mêmes noms et mêmes valeurs que les thèmes de
+ * `var/spaceui/packages/tokens/src/css/themes/*.css`. `spacedrive` = la palette de base
+ * (`theme.css`, hue 235) ; les autres sont ses variantes officielles. Ignorée en thème clair
+ * (`.light` de spaceui est la seule palette claire fournie), cf. `lib/appearance.ts`. */
+export type AccentTheme = "spacedrive" | "midnight" | "noir" | "slate" | "nord" | "mocha";
+
+/** Ordre d'affichage dans Paramètres (libellés côté UI). */
+export const ACCENT_THEMES: readonly AccentTheme[] = [
+  "spacedrive",
+  "midnight",
+  "noir",
+  "slate",
+  "nord",
+  "mocha",
+];
 
 export interface Settings {
   gameDir: string;
@@ -20,7 +30,7 @@ export interface Settings {
   fontScale: number;
   /** Zoom global de l'interface (CSS `zoom`, WebView2/Chromium). */
   uiZoom: number;
-  /** Palette d'accent — cf. [`AccentTheme`]. */
+  /** Variante de palette sombre — cf. [`AccentTheme`]. */
   accentTheme: AccentTheme;
 }
 
@@ -35,13 +45,18 @@ const DEFAULTS: Settings = {
   locale: "fr",
   fontScale: 1,
   uiZoom: 1,
-  accentTheme: "azalee",
+  accentTheme: "spacedrive",
 };
 
 function load(): Settings {
   try {
     const raw = localStorage.getItem(KEY);
-    return raw ? { ...DEFAULTS, ...JSON.parse(raw) } : DEFAULTS;
+    const merged: Settings = raw ? { ...DEFAULTS, ...JSON.parse(raw) } : DEFAULTS;
+    // Migration : `accentTheme: "azalee"` (ancienne palette MD3, retirée avec le portage complet
+    // des tokens spaceui) n'existe plus — sans ce garde, une valeur persistée pointerait vers une
+    // classe CSS inexistante et l'app resterait sur la palette de base sans jamais s'en expliquer.
+    if (!ACCENT_THEMES.includes(merged.accentTheme)) merged.accentTheme = DEFAULTS.accentTheme;
+    return merged;
   } catch {
     return DEFAULTS;
   }
