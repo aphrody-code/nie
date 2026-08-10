@@ -27,14 +27,18 @@ import { humanSize } from "@/lib/bytes";
 import { useSettings } from "@/lib/settings";
 import { cn } from "@/lib/utils";
 
-type Pane = "disasm" | "source" | "console" | "values";
+type Pane = "disasm" | "source" | "console" | "values" | "api";
 
 const PANE_LABELS: Record<Pane, string> = {
   disasm: "Désassemblage",
   source: "Source",
   console: "Console",
   values: "Valeurs",
+  api: "API moteur",
 };
+
+/** Points d'entrée diffusables — mêmes noms que le cycle de vie d'Overload (`nie_lua::session`). */
+const LIFECYCLE = ["OnAwake", "OnStart", "OnEnable", "OnUpdate", "OnDisable", "OnDestroy"] as const;
 
 /** Ligne de console : ce qui a été tapé, puis ce que la VM a répondu. */
 interface ConsoleLine {
@@ -72,6 +76,17 @@ export function LuaView() {
   const [consoleLines, setConsoleLines] = useState<ConsoleLine[]>([]);
   const [consoleInput, setConsoleInput] = useState("");
   const consoleEndRef = useRef<HTMLDivElement | null>(null);
+
+  /** Session PERSISTANTE (thread Rust dédié) : l'état survit d'une évaluation à l'autre — c'est ce
+   * qui distingue une vraie console d'un simple « exécuter et jeter ». Décochée, chaque évaluation
+   * repart d'une VM neuve, ce qui reste le bon mode pour analyser un script sans le contaminer. */
+  const [persistent, setPersistent] = useState(true);
+  const [attached, setAttached] = useState<{ name: string; callbacks: string[] }[]>([]);
+  const [apiReport, setApiReport] = useState<{
+    missing: string[];
+    provided: string[];
+    coverage_percent: number;
+  } | null>(null);
 
   // Catalogue des scripts du VFS.
   useEffect(() => {
@@ -146,18 +161,28 @@ export function LuaView() {
   }
 
   async function refreshGlobals() {
-    if (!payload.path && !payload.source) return;
     setBusy(true);
     try {
-      const g = await api.luaGlobals(
-        payload.path,
-        payload.source,
-        withMenuHost,
-        overrides,
-        includeStdlib,
-        settings.gameDir,
-      );
-      setGlobals(g);
+      if (persistent) {
+        // Session vivante : les valeurs forcées sont posées SUR l'état courant, pas rejouées
+        // depuis zéro — c'est ce qui permet d'ajuster une variable puis de rediffuser `OnUpdate`.
+        for (const [name, expr] of overrides) {
+          if (name.trim() && expr.trim()) await api.luaSessionSetGlobal(name.trim(), expr.trim());
+        }
+        setGlobals(await api.luaSessionGlobals(includeStdlib));
+      } else {
+        if (!payload.path && !payload.source) return;
+        setGlobals(
+          await api.luaGlobals(
+            payload.path,
+            payload.source,
+            withMenuHost,
+            overrides,
+            includeStdlib,
+            settings.gameDir,
+          ),
+        );
+      }
     } catch (e) {
       setError(String(e));
     } finally {
@@ -170,10 +195,106 @@ export function LuaView() {
     if (!expr) return;
     setConsoleInput("");
     try {
-      const out = await api.luaEval(payload.path, payload.source, expr, withMenuHost, settings.gameDir);
+      // En mode persistant l'expression s'évalue dans l'état COURANT (`x = 1` puis `x` répond 1) ;
+      // sinon chaque évaluation repart d'une VM neuve après réexécution du script.
+      const out = persistent
+        ? await api.luaSessionEval(expr)
+        : await api.luaEval(payload.path, payload.source, expr, withMenuHost, settings.gameDir);
       setConsoleLines((prev) => [...prev, { input: expr, output: out }]);
+      if (persistent) await drainSession();
     } catch (e) {
       setConsoleLines((prev) => [...prev, { input: expr, output: String(e) }]);
+    }
+  }
+
+  /** Récupère la sortie accumulée par la session (print + `Debug.*`) et l'ajoute à la console. */
+  async function drainSession() {
+    try {
+      const d = await api.luaSessionDrain();
+      const lines: ConsoleLine[] = [
+        ...d.stdout.map((s) => ({ input: "", output: s })),
+        ...d.logs.map((l) => ({ input: "", output: `[${l.level}] ${l.message}` })),
+      ];
+      if (lines.length > 0) setConsoleLines((prev) => [...prev, ...lines]);
+    } catch {
+      // Une session indisponible ne doit pas casser la console : le mode non persistant reste utilisable.
+    }
+  }
+
+  /** Exécute dans la SESSION vivante (état conservé). */
+  async function runInSession() {
+    if (!payload.path && !payload.source) {
+      toast.error("Sélectionnez un script ou écrivez une source");
+      return;
+    }
+    setBusy(true);
+    try {
+      const returned = await api.luaSessionExec(payload.path, payload.source, settings.gameDir);
+      if (returned.length > 0) {
+        setConsoleLines((prev) => [...prev, { input: "", output: `→ ${returned.join("\t")}` }]);
+      }
+      await drainSession();
+      toast.success("Exécuté dans la session");
+      setPane("console");
+    } catch (e) {
+      setConsoleLines((prev) => [...prev, { input: "", output: String(e) }]);
+      setPane("console");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Attache le script comme comportement — il doit renvoyer une table (contrat d'Overload). */
+  async function attachBehaviour() {
+    if (!payload.path && !payload.source) return;
+    setBusy(true);
+    try {
+      const callbacks = await api.luaSessionAttach(payload.path, payload.source, settings.gameDir);
+      const name = payload.path ?? "source éditée";
+      setAttached((prev) => [...prev, { name, callbacks }]);
+      toast.success(
+        callbacks.length > 0
+          ? `Attaché — callbacks : ${callbacks.join(", ")}`
+          : "Attaché, mais ce script ne définit aucun callback de cycle de vie",
+      );
+      await drainSession();
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Diffuse un callback à tous les comportements attachés. */
+  async function broadcast(callback: string) {
+    try {
+      const n = await api.luaSessionBroadcast(callback);
+      setConsoleLines((prev) => [
+        ...prev,
+        { input: `broadcast ${callback}`, output: `${n} comportement(s) ont défini ce callback` },
+      ]);
+      await drainSession();
+    } catch (e) {
+      toast.error(String(e));
+    }
+  }
+
+  /** Recrée la VM et ré-attache les comportements — le `RefreshAll` d'Overload. */
+  async function reloadSession() {
+    try {
+      await api.luaSessionReload();
+      setConsoleLines((prev) => [...prev, { input: "", output: "— session rechargée (VM neuve)" }]);
+      toast.success("Session rechargée");
+    } catch (e) {
+      toast.error(String(e));
+    }
+  }
+
+  async function refreshApiReport() {
+    try {
+      setApiReport(await api.luaSessionApiReport());
+    } catch (e) {
+      toast.error(String(e));
     }
   }
 
@@ -251,10 +372,42 @@ export function LuaView() {
             Hôte de menu
           </label>
 
-          <Button size="xs" onClick={run} disabled={busy}>
+          <label
+            className="flex shrink-0 items-center gap-1.5 text-tiny text-ink-dull"
+            title="La VM reste vivante entre les appels : la console devient un vrai REPL. Décoché, chaque exécution repart d'une VM neuve (mode analyse)."
+          >
+            <Switch checked={persistent} onCheckedChange={setPersistent} />
+            Session persistante
+          </label>
+
+          <Button size="xs" onClick={persistent ? runInSession : run} disabled={busy}>
             ▶ Exécuter
           </Button>
+          {persistent && (
+            <>
+              <Button size="xs" variant="outline" onClick={attachBehaviour} disabled={busy}>
+                Attacher
+              </Button>
+              <Button size="xs" variant="outline" onClick={reloadSession} disabled={busy}>
+                Recharger
+              </Button>
+            </>
+          )}
         </div>
+
+        {/* Cycle de vie — visible dès qu'un comportement est attaché. */}
+        {persistent && attached.length > 0 && (
+          <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-app-line px-2 py-1">
+            <span className="text-tiny text-ink-faint">
+              {attached.length} comportement(s) :
+            </span>
+            {LIFECYCLE.map((cb) => (
+              <Button key={cb} size="xs" variant="ghost" onClick={() => void broadcast(cb)}>
+                {cb}
+              </Button>
+            ))}
+          </div>
+        )}
 
         {/* En-tête du chunk */}
         {info && !useSource && (
@@ -379,11 +532,60 @@ export function LuaView() {
             </div>
           )}
 
+          {pane === "api" && (
+            <div className="flex h-full min-h-0 flex-col gap-2">
+              <div className="flex shrink-0 items-center gap-2">
+                <Button size="xs" onClick={refreshApiReport}>
+                  Rafraîchir le rapport
+                </Button>
+                {apiReport && (
+                  <span className="text-tiny text-ink-dull">
+                    couverture {apiReport.coverage_percent} % — {apiReport.provided.length} fournis,{" "}
+                    {apiReport.missing.length} manquants
+                  </span>
+                )}
+              </div>
+              <p className="shrink-0 text-tiny text-ink-faint">
+                Ce que les scripts exécutés dans la session ont réclamé au moteur, face à ce que
+                l'hôte fournit. C'est la liste de travail du portage : chaque nom manquant est une
+                fonction de <code>nie.exe</code> à reverser puis à exposer comme binder.
+              </p>
+              <ScrollArea className="min-h-0 flex-1 rounded-lg border border-app-line bg-app-dark-box">
+                <div className="grid grid-cols-2 gap-2 p-2">
+                  <div>
+                    <p className="pb-1 text-tiny font-semibold uppercase text-status-warning">
+                      Réclamé et absent
+                    </p>
+                    <div className="flex flex-col gap-0.5 font-mono text-tiny text-ink-dull">
+                      {apiReport?.missing.map((m) => <span key={m}>{m}</span>)}
+                      {apiReport?.missing.length === 0 && (
+                        <span className="text-ink-faint">rien — tout ce qui a été appelé existe</span>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="pb-1 text-tiny font-semibold uppercase text-status-success">
+                      Fourni par l'hôte
+                    </p>
+                    <div className="flex flex-col gap-0.5 font-mono text-tiny text-ink-dull">
+                      {apiReport?.provided.map((p) => <span key={p}>{p}</span>)}
+                    </div>
+                  </div>
+                </div>
+                {!apiReport && (
+                  <p className="p-3 text-tiny text-ink-faint">
+                    Exécutez un script en session persistante, puis rafraîchissez.
+                  </p>
+                )}
+              </ScrollArea>
+            </div>
+          )}
+
           {pane === "values" && (
             <div className="flex h-full min-h-0 flex-col gap-2">
               <div className="flex shrink-0 flex-wrap items-center gap-2">
                 <Button size="xs" onClick={refreshGlobals} disabled={busy}>
-                  Exécuter et inspecter
+                  {persistent ? "Appliquer et inspecter" : "Exécuter et inspecter"}
                 </Button>
                 <label className="flex items-center gap-1.5 text-tiny text-ink-dull">
                   <Switch checked={includeStdlib} onCheckedChange={setIncludeStdlib} />
