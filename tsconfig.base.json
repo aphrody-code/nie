@@ -12,6 +12,13 @@
     "exactOptionalPropertyTypes": true,
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+
+    // Écrit à côté du tsconfig de chaque paquet : sans ça, `tsc` le pose dans le dossier courant
+    // et chaque `bunx tsc --noEmit` réanalyse tout depuis zéro.
+    "tsBuildInfoFile": ".tsbuildinfo",
 
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
