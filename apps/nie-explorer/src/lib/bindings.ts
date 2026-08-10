@@ -397,6 +397,16 @@ export const commands = {
 	 */
 	vfsVideoPreviewB64: (path: string, gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("vfs_video_preview_b64", { path, gameDir })),
 	/**
+	 *  Ouvre l'asset dans **nie-editor**, l'éditeur de scène 3D natif (éditeur Fyrox embarqué, rendu
+	 *  OpenGL — cf. `crates/nie-editor`).
+	 * 
+	 *  Process séparé et non bloquant : l'éditeur a sa propre boucle d'événements winit et sa propre
+	 *  fenêtre GPU, deux choses qui ne peuvent pas cohabiter avec la boucle Tauri de cette
+	 *  application. Le binaire est cherché à côté de l'exécutable courant (build distribué), puis dans
+	 *  les cibles de développement du workspace.
+	 */
+	openInSceneEditor: (path: string | null, gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("open_in_scene_editor", { path, gameDir })),
+	/**
 	 *  Renvoie le **GLB assemblé lui-même** (base64), pas un rendu de celui-ci.
 	 * 
 	 *  Toutes les commandes d'aperçu 3D existantes rastérisent côté Rust et renvoient une image
