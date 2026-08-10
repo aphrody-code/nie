@@ -1,0 +1,11 @@
+CompileFlags:
+  CompilationDatabase: build/debug
+  Add:
+    - -std=c++20
+    - -IC:/Users/yohan/rg/iecode/cli/build/debug/vcpkg_installed/x64-windows/include
+    - -IC:/Users/yohan/rg/iecode/cli/include
+    - -IC:/Users/yohan/rg/iecode/cli/third_party/stb
+    - -IC:/Users/yohan/rg/iecode/cli/third_party/bcdec
+    - -DNOMINMAX
+    - -DUNICODE
+    - -D_WIN32_WINNT=0x0A00

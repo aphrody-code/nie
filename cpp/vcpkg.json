@@ -1,0 +1,32 @@
+{
+  "name": "iecode",
+  "version": "1.1.0",
+  "description": "IEVR Modding & RE Toolkit (C++)",
+  "builtin-baseline": "2b65c20fc66eda893aa15a15a453c3cf09500b19",
+  "dependencies": [
+    { "name": "cli11", "platform": "!wasm32" },
+    "nlohmann-json",
+    "fmt",
+    "spdlog",
+    { "name": "gtest", "platform": "!wasm32" },
+    { "name": "capstone", "platform": "!wasm32" },
+    { "name": "tree-sitter", "platform": "!wasm32" },
+    { "name": "directxtex", "platform": "!wasm32" },
+    { "name": "tinygltf", "platform": "!wasm32" },
+    "glm",
+    { "name": "assimp", "platform": "!wasm32" },
+    { "name": "sdl2", "platform": "!wasm32" },
+    { "name": "lua", "platform": "!wasm32" },
+    { "name": "sol2", "platform": "!wasm32" },
+    { "name": "bgfx", "platform": "!wasm32" },
+    { "name": "bullet3", "platform": "!wasm32" },
+    { "name": "libwebp", "platform": "!wasm32" },
+    { "name": "nanobind", "platform": "!wasm32" },
+    "zstd",
+    {
+      "name": "cpp-httplib",
+      "features": ["openssl"],
+      "platform": "!wasm32"
+    }
+  ]
+}

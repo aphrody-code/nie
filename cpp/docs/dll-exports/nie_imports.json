@@ -1,0 +1,24 @@
+{
+  "imported_dlls": [
+    "D3DCOMPILER_47.dll",
+    "EOSSDK-Win64-Shipping.dll",
+    "GDI32.dll",
+    "IMM32.dll",
+    "KERNEL32.dll",
+    "OLEAUT32.dll",
+    "SHELL32.dll",
+    "SHLWAPI.dll",
+    "USER32.dll",
+    "WINMM.dll",
+    "WS2_32.dll",
+    "api-ms-win-shcore-scaling-l1-1-1.dll",
+    "d3d11.dll",
+    "dbghelp.dll",
+    "dxgi.dll",
+    "libcurl.dll",
+    "ole32.dll",
+    "sdkencryptedappticket64.dll",
+    "steam_api64.dll"
+  ],
+  "raw_length": 28236
+}

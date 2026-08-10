@@ -1,0 +1,677 @@
+{
+  "dll_name": "libcurl.dll",
+  "dll_path": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\INAZUMA ELEVEN Victory Road\\libcurl.dll",
+  "file_size": 543744,
+  "export_count": 93,
+  "exports": [
+    {
+      "ordinal": 1,
+      "rva": "00013920",
+      "name": "curl_easy_cleanup",
+      "hint": 0
+    },
+    {
+      "ordinal": 2,
+      "rva": "00013950",
+      "name": "curl_easy_duphandle",
+      "hint": 1
+    },
+    {
+      "ordinal": 3,
+      "rva": "00014930",
+      "name": "curl_easy_escape",
+      "hint": 2
+    },
+    {
+      "ordinal": 4,
+      "rva": "00013D10",
+      "name": "curl_easy_getinfo",
+      "hint": 3
+    },
+    {
+      "ordinal": 5,
+      "rva": "0001DB50",
+      "name": "curl_easy_header",
+      "hint": 4
+    },
+    {
+      "ordinal": 6,
+      "rva": "00013D40",
+      "name": "curl_easy_init",
+      "hint": 5
+    },
+    {
+      "ordinal": 7,
+      "rva": "0001DD30",
+      "name": "curl_easy_nextheader",
+      "hint": 6
+    },
+    {
+      "ordinal": 8,
+      "rva": "000146C0",
+      "name": "curl_easy_option_by_id",
+      "hint": 7
+    },
+    {
+      "ordinal": 9,
+      "rva": "000146F0",
+      "name": "curl_easy_option_by_name",
+      "hint": 8
+    },
+    {
+      "ordinal": 10,
+      "rva": "00014750",
+      "name": "curl_easy_option_next",
+      "hint": 9
+    },
+    {
+      "ordinal": 11,
+      "rva": "00013DB0",
+      "name": "curl_easy_pause",
+      "hint": 10
+    },
+    {
+      "ordinal": 12,
+      "rva": "00013F30",
+      "name": "curl_easy_perform",
+      "hint": 11
+    },
+    {
+      "ordinal": 13,
+      "rva": "000140C0",
+      "name": "curl_easy_recv",
+      "hint": 12
+    },
+    {
+      "ordinal": 14,
+      "rva": "000141B0",
+      "name": "curl_easy_reset",
+      "hint": 13
+    },
+    {
+      "ordinal": 15,
+      "rva": "00014240",
+      "name": "curl_easy_send",
+      "hint": 14
+    },
+    {
+      "ordinal": 16,
+      "rva": "00040090",
+      "name": "curl_easy_setopt",
+      "hint": 15
+    },
+    {
+      "ordinal": 17,
+      "rva": "00047340",
+      "name": "curl_easy_strerror",
+      "hint": 16
+    },
+    {
+      "ordinal": 18,
+      "rva": "00014A70",
+      "name": "curl_easy_unescape",
+      "hint": 17
+    },
+    {
+      "ordinal": 19,
+      "rva": "00014340",
+      "name": "curl_easy_upkeep",
+      "hint": 18
+    },
+    {
+      "ordinal": 20,
+      "rva": "00014BA0",
+      "name": "curl_escape",
+      "hint": 19
+    },
+    {
+      "ordinal": 21,
+      "rva": "00016260",
+      "name": "curl_formadd",
+      "hint": 20
+    },
+    {
+      "ordinal": 22,
+      "rva": "00016290",
+      "name": "curl_formfree",
+      "hint": 21
+    },
+    {
+      "ordinal": 23,
+      "rva": "00016300",
+      "name": "curl_formget",
+      "hint": 22
+    },
+    {
+      "ordinal": 24,
+      "rva": "00002340",
+      "name": "curl_free",
+      "hint": 23
+    },
+    {
+      "ordinal": 25,
+      "rva": "00037340",
+      "name": "curl_getdate",
+      "hint": 24
+    },
+    {
+      "ordinal": 26,
+      "rva": "0001C430",
+      "name": "curl_getenv",
+      "hint": 25
+    },
+    {
+      "ordinal": 27,
+      "rva": "000143E0",
+      "name": "curl_global_cleanup",
+      "hint": 26
+    },
+    {
+      "ordinal": 28,
+      "rva": "00014440",
+      "name": "curl_global_init",
+      "hint": 27
+    },
+    {
+      "ordinal": 29,
+      "rva": "00014480",
+      "name": "curl_global_init_mem",
+      "hint": 28
+    },
+    {
+      "ordinal": 30,
+      "rva": "00014570",
+      "name": "curl_global_sslset",
+      "hint": 29
+    },
+    {
+      "ordinal": 31,
+      "rva": "000145D0",
+      "name": "curl_global_trace",
+      "hint": 30
+    },
+    {
+      "ordinal": 32,
+      "rva": "0002FF20",
+      "name": "curl_maprintf",
+      "hint": 31
+    },
+    {
+      "ordinal": 33,
+      "rva": "0002FF50",
+      "name": "curl_mfprintf",
+      "hint": 32
+    },
+    {
+      "ordinal": 34,
+      "rva": "0002E7D0",
+      "name": "curl_mime_addpart",
+      "hint": 33
+    },
+    {
+      "ordinal": 35,
+      "rva": "0002E890",
+      "name": "curl_mime_data",
+      "hint": 34
+    },
+    {
+      "ordinal": 36,
+      "rva": "0002E950",
+      "name": "curl_mime_data_cb",
+      "hint": 35
+    },
+    {
+      "ordinal": 37,
+      "rva": "0002E9C0",
+      "name": "curl_mime_encoder",
+      "hint": 36
+    },
+    {
+      "ordinal": 38,
+      "rva": "0002EA60",
+      "name": "curl_mime_filedata",
+      "hint": 37
+    },
+    {
+      "ordinal": 39,
+      "rva": "0002EC30",
+      "name": "curl_mime_filename",
+      "hint": 38
+    },
+    {
+      "ordinal": 40,
+      "rva": "0002ECA0",
+      "name": "curl_mime_free",
+      "hint": 39
+    },
+    {
+      "ordinal": 41,
+      "rva": "0002ED00",
+      "name": "curl_mime_headers",
+      "hint": 40
+    },
+    {
+      "ordinal": 42,
+      "rva": "0002ED80",
+      "name": "curl_mime_init",
+      "hint": 41
+    },
+    {
+      "ordinal": 43,
+      "rva": "0002EE10",
+      "name": "curl_mime_name",
+      "hint": 42
+    },
+    {
+      "ordinal": 44,
+      "rva": "0002EE80",
+      "name": "curl_mime_subparts",
+      "hint": 43
+    },
+    {
+      "ordinal": 45,
+      "rva": "0002EF30",
+      "name": "curl_mime_type",
+      "hint": 44
+    },
+    {
+      "ordinal": 46,
+      "rva": "0002FF80",
+      "name": "curl_mprintf",
+      "hint": 45
+    },
+    {
+      "ordinal": 47,
+      "rva": "0002FFD0",
+      "name": "curl_msnprintf",
+      "hint": 46
+    },
+    {
+      "ordinal": 48,
+      "rva": "00030040",
+      "name": "curl_msprintf",
+      "hint": 47
+    },
+    {
+      "ordinal": 49,
+      "rva": "00032FC0",
+      "name": "curl_multi_add_handle",
+      "hint": 48
+    },
+    {
+      "ordinal": 50,
+      "rva": "00033200",
+      "name": "curl_multi_assign",
+      "hint": 49
+    },
+    {
+      "ordinal": 51,
+      "rva": "00033250",
+      "name": "curl_multi_cleanup",
+      "hint": 50
+    },
+    {
+      "ordinal": 52,
+      "rva": "00033390",
+      "name": "curl_multi_fdset",
+      "hint": 51
+    },
+    {
+      "ordinal": 53,
+      "rva": "00033510",
+      "name": "curl_multi_get_handles",
+      "hint": 52
+    },
+    {
+      "ordinal": 54,
+      "rva": "00033570",
+      "name": "curl_multi_info_read",
+      "hint": 53
+    },
+    {
+      "ordinal": 55,
+      "rva": "00033600",
+      "name": "curl_multi_init",
+      "hint": 54
+    },
+    {
+      "ordinal": 56,
+      "rva": "00033750",
+      "name": "curl_multi_perform",
+      "hint": 55
+    },
+    {
+      "ordinal": 57,
+      "rva": "00033870",
+      "name": "curl_multi_poll",
+      "hint": 56
+    },
+    {
+      "ordinal": 58,
+      "rva": "000338A0",
+      "name": "curl_multi_remove_handle",
+      "hint": 57
+    },
+    {
+      "ordinal": 59,
+      "rva": "00033AD0",
+      "name": "curl_multi_setopt",
+      "hint": 58
+    },
+    {
+      "ordinal": 60,
+      "rva": "00033C40",
+      "name": "curl_multi_socket",
+      "hint": 59
+    },
+    {
+      "ordinal": 61,
+      "rva": "00033C90",
+      "name": "curl_multi_socket_action",
+      "hint": 60
+    },
+    {
+      "ordinal": 62,
+      "rva": "00033CE0",
+      "name": "curl_multi_socket_all",
+      "hint": 61
+    },
+    {
+      "ordinal": 63,
+      "rva": "000477C0",
+      "name": "curl_multi_strerror",
+      "hint": 62
+    },
+    {
+      "ordinal": 64,
+      "rva": "00033D60",
+      "name": "curl_multi_timeout",
+      "hint": 63
+    },
+    {
+      "ordinal": 65,
+      "rva": "00033D90",
+      "name": "curl_multi_wait",
+      "hint": 64
+    },
+    {
+      "ordinal": 66,
+      "rva": "00033DC0",
+      "name": "curl_multi_wakeup",
+      "hint": 65
+    },
+    {
+      "ordinal": 67,
+      "rva": "00030080",
+      "name": "curl_mvaprintf",
+      "hint": 66
+    },
+    {
+      "ordinal": 68,
+      "rva": "00030120",
+      "name": "curl_mvfprintf",
+      "hint": 67
+    },
+    {
+      "ordinal": 69,
+      "rva": "00030140",
+      "name": "curl_mvprintf",
+      "hint": 68
+    },
+    {
+      "ordinal": 70,
+      "rva": "00030180",
+      "name": "curl_mvsnprintf",
+      "hint": 69
+    },
+    {
+      "ordinal": 71,
+      "rva": "000301E0",
+      "name": "curl_mvsprintf",
+      "hint": 70
+    },
+    {
+      "ordinal": 72,
+      "rva": "00002550",
+      "name": "curl_pushheader_byname",
+      "hint": 71
+    },
+    {
+      "ordinal": 73,
+      "rva": "00002550",
+      "name": "curl_pushheader_bynum",
+      "hint": 72
+    },
+    {
+      "ordinal": 74,
+      "rva": "00040460",
+      "name": "curl_share_cleanup",
+      "hint": 73
+    },
+    {
+      "ordinal": 75,
+      "rva": "000405A0",
+      "name": "curl_share_init",
+      "hint": 74
+    },
+    {
+      "ordinal": 76,
+      "rva": "000405F0",
+      "name": "curl_share_setopt",
+      "hint": 75
+    },
+    {
+      "ordinal": 77,
+      "rva": "000478A0",
+      "name": "curl_share_strerror",
+      "hint": 76
+    },
+    {
+      "ordinal": 78,
+      "rva": "000409E0",
+      "name": "curl_slist_append",
+      "hint": 77
+    },
+    {
+      "ordinal": 79,
+      "rva": "00040A80",
+      "name": "curl_slist_free_all",
+      "hint": 78
+    },
+    {
+      "ordinal": 80,
+      "rva": "000467E0",
+      "name": "curl_strequal",
+      "hint": 79
+    },
+    {
+      "ordinal": 81,
+      "rva": "00046850",
+      "name": "curl_strnequal",
+      "hint": 80
+    },
+    {
+      "ordinal": 82,
+      "rva": "00014BB0",
+      "name": "curl_unescape",
+      "hint": 81
+    },
+    {
+      "ordinal": 83,
+      "rva": "0001C080",
+      "name": "curl_url",
+      "hint": 82
+    },
+    {
+      "ordinal": 84,
+      "rva": "00052DB0",
+      "name": "curl_url_cleanup",
+      "hint": 83
+    },
+    {
+      "ordinal": 85,
+      "rva": "00052DE0",
+      "name": "curl_url_dup",
+      "hint": 84
+    },
+    {
+      "ordinal": 86,
+      "rva": "00052F40",
+      "name": "curl_url_get",
+      "hint": 85
+    },
+    {
+      "ordinal": 87,
+      "rva": "000536D0",
+      "name": "curl_url_set",
+      "hint": 86
+    },
+    {
+      "ordinal": 88,
+      "rva": "00047910",
+      "name": "curl_url_strerror",
+      "hint": 87
+    },
+    {
+      "ordinal": 89,
+      "rva": "00055420",
+      "name": "curl_version",
+      "hint": 88
+    },
+    {
+      "ordinal": 90,
+      "rva": "00055530",
+      "name": "curl_version_info",
+      "hint": 89
+    },
+    {
+      "ordinal": 91,
+      "rva": "00002550",
+      "name": "curl_ws_meta",
+      "hint": 90
+    },
+    {
+      "ordinal": 92,
+      "rva": "000558C0",
+      "name": "curl_ws_recv",
+      "hint": 91
+    },
+    {
+      "ordinal": 93,
+      "rva": "000558C0",
+      "name": "curl_ws_send",
+      "hint": 92
+    }
+  ],
+  "categories": {
+    "Easy": [
+      "curl_easy_cleanup",
+      "curl_easy_duphandle",
+      "curl_easy_escape",
+      "curl_easy_getinfo",
+      "curl_easy_header",
+      "curl_easy_init",
+      "curl_easy_nextheader",
+      "curl_easy_option_by_id",
+      "curl_easy_option_by_name",
+      "curl_easy_option_next",
+      "curl_easy_pause",
+      "curl_easy_perform",
+      "curl_easy_recv",
+      "curl_easy_reset",
+      "curl_easy_send",
+      "curl_easy_setopt",
+      "curl_easy_strerror",
+      "curl_easy_unescape",
+      "curl_easy_upkeep"
+    ],
+    "Global": [
+      "curl_escape",
+      "curl_formadd",
+      "curl_formfree",
+      "curl_formget",
+      "curl_free",
+      "curl_getdate",
+      "curl_getenv",
+      "curl_global_cleanup",
+      "curl_global_init",
+      "curl_global_init_mem",
+      "curl_global_sslset",
+      "curl_global_trace",
+      "curl_maprintf",
+      "curl_mfprintf",
+      "curl_mprintf",
+      "curl_msnprintf",
+      "curl_msprintf",
+      "curl_mvaprintf",
+      "curl_mvfprintf",
+      "curl_mvprintf",
+      "curl_mvsnprintf",
+      "curl_mvsprintf",
+      "curl_pushheader_byname",
+      "curl_pushheader_bynum",
+      "curl_strequal",
+      "curl_strnequal",
+      "curl_unescape",
+      "curl_version",
+      "curl_version_info"
+    ],
+    "MIME": [
+      "curl_mime_addpart",
+      "curl_mime_data",
+      "curl_mime_data_cb",
+      "curl_mime_encoder",
+      "curl_mime_filedata",
+      "curl_mime_filename",
+      "curl_mime_free",
+      "curl_mime_headers",
+      "curl_mime_init",
+      "curl_mime_name",
+      "curl_mime_subparts",
+      "curl_mime_type"
+    ],
+    "Multi": [
+      "curl_multi_add_handle",
+      "curl_multi_assign",
+      "curl_multi_cleanup",
+      "curl_multi_fdset",
+      "curl_multi_get_handles",
+      "curl_multi_info_read",
+      "curl_multi_init",
+      "curl_multi_perform",
+      "curl_multi_poll",
+      "curl_multi_remove_handle",
+      "curl_multi_setopt",
+      "curl_multi_socket",
+      "curl_multi_socket_action",
+      "curl_multi_socket_all",
+      "curl_multi_strerror",
+      "curl_multi_timeout",
+      "curl_multi_wait",
+      "curl_multi_wakeup"
+    ],
+    "Share": [
+      "curl_share_cleanup",
+      "curl_share_init",
+      "curl_share_setopt",
+      "curl_share_strerror"
+    ],
+    "SList": [
+      "curl_slist_append",
+      "curl_slist_free_all"
+    ],
+    "URL": [
+      "curl_url",
+      "curl_url_cleanup",
+      "curl_url_dup",
+      "curl_url_get",
+      "curl_url_set",
+      "curl_url_strerror"
+    ],
+    "WebSocket": [
+      "curl_ws_meta",
+      "curl_ws_recv",
+      "curl_ws_send"
+    ]
+  }
+}

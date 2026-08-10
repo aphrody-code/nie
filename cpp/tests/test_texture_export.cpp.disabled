@@ -1,0 +1,61 @@
+#include <gtest/gtest.h>
+#include "iecode/converters/texture_export.h"
+#include "iecode/formats/level5/g4tx.h"
+
+using namespace iecode::converters;
+using namespace iecode::level5;
+
+TEST(TextureExport, FormatNames) {
+    EXPECT_STREQ(format_name(G4txFormat::BC1), "BC1 (DXT1)");
+    EXPECT_STREQ(format_name(G4txFormat::BC7), "BC7");
+    EXPECT_STREQ(format_name(G4txFormat::RGBA8), "RGBA8");
+    EXPECT_STREQ(format_name(G4txFormat::Unknown), "Unknown");
+}
+
+TEST(TextureExport, DecodeEmptyTexture) {
+    G4txTexture tex;
+    auto rgba = decode_to_rgba8(tex);
+    EXPECT_TRUE(rgba.empty());
+}
+
+TEST(TextureExport, DecodeRGBA8Direct) {
+    // 2x2 RGBA8 texture (16 bytes)
+    G4txTexture tex;
+    tex.width = 2;
+    tex.height = 2;
+    tex.format = G4txFormat::RGBA8;
+    tex.data = {
+        0xFF, 0x00, 0x00, 0xFF,  // Red
+        0x00, 0xFF, 0x00, 0xFF,  // Green
+        0x00, 0x00, 0xFF, 0xFF,  // Blue
+        0xFF, 0xFF, 0xFF, 0xFF   // White
+    };
+
+    auto rgba = decode_to_rgba8(tex);
+    ASSERT_EQ(rgba.size(), 16u);
+    // First pixel: red
+    EXPECT_EQ(rgba[0], 0xFF);
+    EXPECT_EQ(rgba[1], 0x00);
+    EXPECT_EQ(rgba[2], 0x00);
+    EXPECT_EQ(rgba[3], 0xFF);
+}
+
+TEST(TextureExport, DecodeRGBA8TruncatedFails) {
+    G4txTexture tex;
+    tex.width = 4;
+    tex.height = 4;
+    tex.format = G4txFormat::RGBA8;
+    tex.data = {0xFF, 0x00}; // Way too small
+    auto rgba = decode_to_rgba8(tex);
+    EXPECT_TRUE(rgba.empty());
+}
+
+TEST(TextureExport, ExportPngEmptyFails) {
+    G4txTexture tex;
+    EXPECT_FALSE(export_png(tex, "/tmp/iecode_test_empty.png"));
+}
+
+TEST(TextureExport, ExportDdsEmptyFails) {
+    G4txTexture tex;
+    EXPECT_FALSE(export_dds(tex, "/tmp/iecode_test_empty.dds"));
+}
