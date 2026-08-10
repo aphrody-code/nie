@@ -27,6 +27,9 @@ import {
   type ReTraceDumpStatsDto,
   type ReTraceProcessDto,
   type ReTraceRegionDto,
+  type LuaChunkInfoDto,
+  type LuaExecResultDto,
+  type LuaGlobalDto,
   type PassiveDto,
   type SaveBlobDto,
   type ShopDto,
@@ -51,6 +54,9 @@ export type Item = ItemDto;
 export type Aura = AuraDto;
 export type Trophy = TrophyDto;
 export type Quest = QuestDto;
+export type LuaChunkInfo = LuaChunkInfoDto;
+export type LuaExecResult = LuaExecResultDto;
+export type LuaGlobal = LuaGlobalDto;
 export type Shop = ShopDto;
 export type Stadium = StadiumDto;
 export type Passive = PassiveDto;
@@ -189,6 +195,36 @@ export const api = {
   rawCpkGlbPreviewPngB64: (index: number) => unwrap<string>(commands.rawCpkGlbPreviewPngB64(index)),
   // Viewport 3D temps réel (mode Éditeur) : le GLB assemblé LUI-MÊME, pas un rendu de celui-ci
   // — la caméra vit côté frontend (three.js), plus côté Rust.
+  // ── Atelier Lua (cf. `components/LuaView.tsx`) ────────────────────────────────────────────
+  // Les scripts tournent dans la VRAIE VM du jeu (mlua/PUC-Rio 5.2.4, crate `nie-lua`). Chaque
+  // commande prend SOIT un chemin VFS, SOIT une source éditée — jamais de fichier temporaire.
+  luaListScripts: (gameDir?: string) => unwrap<VfsEntry[]>(commands.luaListScripts(gd(gameDir))),
+  luaChunkInfo: (path: string | null, source: string | null, gameDir?: string) =>
+    unwrap<LuaChunkInfo>(commands.luaChunkInfo(path, source, gd(gameDir))),
+  luaDisassemble: (path: string | null, source: string | null, gameDir?: string) =>
+    unwrap<string>(commands.luaDisassemble(path, source, gd(gameDir))),
+  luaExecute: (
+    path: string | null,
+    source: string | null,
+    withMenuHost: boolean,
+    instructionLimit: number | null,
+    gameDir?: string,
+  ) => unwrap<LuaExecResult>(commands.luaExecute(path, source, withMenuHost, instructionLimit, gd(gameDir))),
+  luaGlobals: (
+    path: string | null,
+    source: string | null,
+    withMenuHost: boolean,
+    overrides: [string, string][],
+    includeStdlib: boolean,
+    gameDir?: string,
+  ) => unwrap<LuaGlobal[]>(commands.luaGlobals(path, source, withMenuHost, overrides, includeStdlib, gd(gameDir))),
+  luaEval: (
+    path: string | null,
+    source: string | null,
+    expression: string,
+    withMenuHost: boolean,
+    gameDir?: string,
+  ) => unwrap<string>(commands.luaEval(path, source, expression, withMenuHost, gd(gameDir))),
   glbBytesB64: (path: string, gameDir?: string) => unwrap<string>(commands.vfsGlbBytesB64(path, gd(gameDir))),
   // Éditeur de scène 3D NATIF (nie-editor : éditeur Fyrox embarqué, rendu OpenGL) — process séparé,
   // il a sa propre boucle d'événements et sa propre fenêtre GPU.

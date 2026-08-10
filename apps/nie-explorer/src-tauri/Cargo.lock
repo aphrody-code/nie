@@ -3309,6 +3309,7 @@ dependencies = [
  "nie-explore",
  "nie-formats",
  "nie-geom",
+ "nie-lua",
  "nie-queue",
  "nie-render3d",
  "nie-runtime",

@@ -13,6 +13,7 @@ import { SearchView } from "@/components/SearchView";
 import { ModsView } from "@/components/ModsView";
 import { RawCpkView } from "@/components/RawCpkView";
 import { ReToolsView } from "@/components/ReToolsView";
+import { LuaView } from "@/components/LuaView";
 import { SaveView } from "@/components/SaveView";
 import { SettingsView } from "@/components/SettingsView";
 import { DetailPane } from "@/components/DetailPane";
@@ -83,6 +84,7 @@ export default function App() {
         items: [
           { id: "mods", label: t("tab.mods"), icon: "extension" },
           { id: "re", label: t("tab.re"), icon: "memory" },
+          { id: "lua", label: "Lua", icon: "edit_note" },
         ],
       },
       {
@@ -226,6 +228,7 @@ export default function App() {
         mods: t("tab.mods"),
         cpk: t("tab.cpk"),
         re: t("tab.re"),
+        lua: "Lua",
         save: t("tab.save"),
         settings: t("tab.settings"),
       },
@@ -327,6 +330,9 @@ export default function App() {
                 </TabsContent>
                 <TabsContent value="cpk" className="h-full min-h-0">
                   <RawCpkView />
+                </TabsContent>
+                <TabsContent value="lua" className="h-full min-h-0">
+                  <LuaView />
                 </TabsContent>
                 <TabsContent value="re" className="h-full min-h-0">
                   <ReToolsView />
