@@ -10,9 +10,19 @@ dépôt au lieu de la mémoire du modèle.
 |---|---|
 | MCP `niers-game` | 14 outils : VFS (255 308 fichiers), assets décodés, base de connaissance RE, lecture du dépôt, pilotage de `nie-explorer`, lancement du jeu |
 | Skill `ievr-terminologie` | Empêche d'inventer un format, un code, un symbole ou un chemin — dit où vérifier chaque nature de terme |
-| Skill `niers-monorepo` | Où vit quoi entre les 31 crates Cargo et les workspaces Bun ; commandes de build et de test ; règles avant commit |
+| Skill `niers-architecture` | Les 31 crates une par une, les 8 paquets Bun, le C++ `cpp/` et le C# IECODE — et comment les quatre arbres se répondent |
+| Skill `niers-monorepo` | Conventions, emplacements, commandes de build et de test, règles avant commit |
 | Skill `formats-level5` | Les formats Level-5 et Criware, par famille, avec magic réel, module Rust et pièges |
 | Skill `jouer-ievr` | Lancer, simuler, rendre et observer le jeu — et ce qui n'est **pas** possible |
+| Agent `vfs-scout` | Localise des assets dans les 255 308 entrées sans déverser les chemins |
+| Agent `forge-analyst` | Diagnostique un plateau de la forge : blocages ventilés, octets divergents, cible chiffrée |
+| Agent `re-lookup` | Interroge la KB de reverse-engineering (52 783 fonctions, lecture seule) |
+| Agent `port-scout` | Dit si une logique est déjà portée, et dans lequel des quatre arbres |
+| Agent `build-doctor` | Vérifie les deux arbres et sépare les régressions des pièges d'environnement connus |
+
+Les agents existent pour les tâches qui, sinon, remplissent la conversation de sorties
+intermédiaires : parcourir 255 000 chemins, ventiler des blocages, requêter une base de 52 783
+fonctions. Ils rendent une conclusion, pas un journal.
 
 ## Installation
 
