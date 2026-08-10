@@ -13,7 +13,7 @@
 //! - `[rip 0x140abc000]` est un opérande relatif au pointeur d'instruction, écrit
 //!   par sa cible absolue.
 
-use crate::{Alu, Cond, Insn, Mem, Reg, Rm, ShiftOp, Size, UnOp};
+use crate::{Alu, BitOp, Cond, CvtOp, Insn, Mem, NoOp, Reg, Rm, ShiftOp, Size, SseOp, UnOp, Xmm, XmmRm};
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
@@ -241,7 +241,142 @@ fn split_sized_mem(s: &str) -> Option<(Size, Mem)> {
 }
 
 
-const UNOPS: [(&str, UnOp); 7] = [
+
+/// Table des mnemoniques SSE supportes.
+const SSES: [(&str, SseOp); 65] = [
+    ("movaps", SseOp::Movaps),
+    ("movapd", SseOp::Movapd),
+    ("movups", SseOp::Movups),
+    ("movupd", SseOp::Movupd),
+    ("movss", SseOp::Movss),
+    ("movsd", SseOp::Movsd),
+    ("movdqa", SseOp::Movdqa),
+    ("movdqu", SseOp::Movdqu),
+    ("xorps", SseOp::Xorps),
+    ("xorpd", SseOp::Xorpd),
+    ("andps", SseOp::Andps),
+    ("andpd", SseOp::Andpd),
+    ("andnps", SseOp::Andnps),
+    ("orps", SseOp::Orps),
+    ("addps", SseOp::Addps),
+    ("addss", SseOp::Addss),
+    ("addsd", SseOp::Addsd),
+    ("subps", SseOp::Subps),
+    ("subss", SseOp::Subss),
+    ("subsd", SseOp::Subsd),
+    ("mulps", SseOp::Mulps),
+    ("mulss", SseOp::Mulss),
+    ("mulsd", SseOp::Mulsd),
+    ("divps", SseOp::Divps),
+    ("divss", SseOp::Divss),
+    ("divsd", SseOp::Divsd),
+    ("minps", SseOp::Minps),
+    ("minss", SseOp::Minss),
+    ("maxps", SseOp::Maxps),
+    ("maxss", SseOp::Maxss),
+    ("sqrtps", SseOp::Sqrtps),
+    ("sqrtss", SseOp::Sqrtss),
+    ("comiss", SseOp::Comiss),
+    ("comisd", SseOp::Comisd),
+    ("ucomiss", SseOp::Ucomiss),
+    ("ucomisd", SseOp::Ucomisd),
+    ("unpcklps", SseOp::Unpcklps),
+    ("unpckhps", SseOp::Unpckhps),
+    ("cvtss2sd", SseOp::Cvtss2sd),
+    ("cvtsd2ss", SseOp::Cvtsd2ss),
+    ("rcpss", SseOp::Rcpss),
+    ("rsqrtss", SseOp::Rsqrtss),
+    ("shufps", SseOp::Shufps),
+    ("shufpd", SseOp::Shufpd),
+    ("pshufd", SseOp::Pshufd),
+    ("movlhps", SseOp::Movlhps),
+    ("movhlps", SseOp::Movhlps),
+    ("movlps", SseOp::Movlps),
+    ("movhps", SseOp::Movhps),
+    ("insertps", SseOp::Insertps),
+    ("blendps", SseOp::Blendps),
+    ("cvtdq2ps", SseOp::Cvtdq2ps),
+    ("cvtps2dq", SseOp::Cvtps2dq),
+    ("cvttps2dq", SseOp::Cvttps2dq),
+    ("cvtps2pd", SseOp::Cvtps2pd),
+    ("cvtpd2ps", SseOp::Cvtpd2ps),
+    ("cvtdq2pd", SseOp::Cvtdq2pd),
+    ("haddps", SseOp::Haddps),
+    ("hsubps", SseOp::Hsubps),
+    ("cmpps", SseOp::Cmpps),
+    ("cmpss", SseOp::Cmpss),
+    ("pxor", SseOp::Pxor),
+    ("por", SseOp::Por),
+    ("pand", SseOp::Pand),
+    ("unpcklpd", SseOp::Unpcklpd),
+];
+
+fn sse_name(o: SseOp) -> &'static str {
+    SSES.iter().find(|(_, x)| *x == o).map_or("movaps", |(n, _)| *n)
+}
+
+fn xmm_text(x: Xmm) -> String {
+    format!("xmm{}", x.0)
+}
+
+fn xmm_of(s: &str) -> Option<Xmm> {
+    let n = s.trim().strip_prefix("xmm")?.parse::<u8>().ok()?;
+    (n < 16).then_some(Xmm(n))
+}
+
+fn xmmrm_text(rm: XmmRm) -> String {
+    match rm {
+        XmmRm::X(x) => xmm_text(x),
+        XmmRm::M(m) => mem_text(m),
+    }
+}
+
+fn parse_xmmrm(s: &str) -> Option<XmmRm> {
+    if s.trim_start().starts_with('[') {
+        return Some(XmmRm::M(parse_mem(s)?));
+    }
+    Some(XmmRm::X(xmm_of(s)?))
+}
+
+
+const CVTS: [(&str, CvtOp); 6] = [
+    ("cvtsi2ss", CvtOp::Cvtsi2ss),
+    ("cvtsi2sd", CvtOp::Cvtsi2sd),
+    ("cvttss2si", CvtOp::Cvttss2si),
+    ("cvttsd2si", CvtOp::Cvttsd2si),
+    ("cvtss2si", CvtOp::Cvtss2si),
+    ("cvtsd2si", CvtOp::Cvtsd2si),
+];
+
+fn cvt_name(o: CvtOp) -> &'static str {
+    CVTS.iter().find(|(_, x)| *x == o).map_or("cvtsi2ss", |(n, _)| *n)
+}
+
+
+const NOOPS: [(&str, NoOp); 5] = [
+    ("cwde", NoOp::Cwde),
+    ("cdqe", NoOp::Cdqe),
+    ("cdq", NoOp::Cdq),
+    ("cqo", NoOp::Cqo),
+    ("leave", NoOp::Leave),
+];
+
+const BITOPS: [(&str, BitOp); 4] = [
+    ("bt", BitOp::Bt),
+    ("bts", BitOp::Bts),
+    ("btr", BitOp::Btr),
+    ("btc", BitOp::Btc),
+];
+
+fn noop_name(o: NoOp) -> &'static str {
+    NOOPS.iter().find(|(_, x)| *x == o).map_or("cdq", |(n, _)| *n)
+}
+
+fn bitop_name(o: BitOp) -> &'static str {
+    BITOPS.iter().find(|(_, x)| *x == o).map_or("bt", |(n, _)| *n)
+}
+
+const UNOPS: [(&str, UnOp); 11] = [
     ("inc", UnOp::Inc),
     ("dec", UnOp::Dec),
     ("calli", UnOp::CallInd),
@@ -249,6 +384,10 @@ const UNOPS: [(&str, UnOp); 7] = [
     ("pushm", UnOp::PushRm),
     ("not", UnOp::Not),
     ("neg", UnOp::Neg),
+    ("mul", UnOp::Mul),
+    ("imul1", UnOp::Imul1),
+    ("div", UnOp::Div),
+    ("idiv", UnOp::Idiv),
 ];
 
 fn unop_name(o: UnOp) -> &'static str {
@@ -315,10 +454,13 @@ impl Insn {
                 mem_text(m),
                 reg_name(r, s)
             ),
-            Self::AluRI(op, s, r, i) => {
-                // Motif de bits : `0xffffffff` se relit, `-0x1` aussi (parse_int).
-                format!("{} {}, {:#x}", ALUS[op.digit() as usize].0, reg_name(r, s), i as u32)
-            }
+            Self::AluRI(op, s, r, i, w) => format!(
+                "{}{} {}, {:#x}",
+                ALUS[op.digit() as usize].0,
+                if w { ".w" } else { "" },
+                reg_name(r, s),
+                i as u32
+            ),
             Self::TestRR(s, a, b) => format!("test {}, {}", reg_name(a, s), reg_name(b, s)),
             Self::Shift(op, s, r, i) => {
                 let n = match op {
@@ -350,9 +492,10 @@ impl Insn {
                 cond_name(c),
                 if short { ".s" } else { "" }
             ),
-            Self::AluI(op, s, rm, i) => format!(
-                "{} {}, {:#x}",
+            Self::AluI(op, s, rm, i, w) => format!(
+                "{}{} {}, {:#x}",
                 ALUS[op.digit() as usize].0,
+                if w { ".w" } else { "" },
                 rm_text(rm, s),
                 i as u32
             ),
@@ -371,6 +514,68 @@ impl Insn {
                 format!("movsx {}, {}", reg_name(r, dst), rm_text(rm, src))
             }
             Self::LeaD(r, m) => format!("lea {}, {}", reg_name(r, Size::D), mem_text(m)),
+            Self::Sse(op, d, s) => {
+                format!("{} {}, {}", sse_name(op), xmm_text(d), xmmrm_text(s))
+            }
+            Self::SseStore(op, m, s) => {
+                format!("{} {}, {}", sse_name(op), mem_text(m), xmm_text(s))
+            }
+            Self::Cmov(c, s, r, rm) => {
+                format!("cmov{} {}, {}", cond_name(c), reg_name(r, s), rm_text(rm, s))
+            }
+            Self::SseI(op, d, s, i) => format!(
+                "{} {}, {}, {i:#x}",
+                sse_name(op),
+                xmm_text(d),
+                xmmrm_text(s)
+            ),
+            Self::CvtToXmm(op, d, s, sz) => {
+                format!("{} {}, {}", cvt_name(op), xmm_text(d), rm_text(s, sz))
+            }
+            Self::CvtToReg(op, d, s, sz) => {
+                format!("{} {}, {}", cvt_name(op), reg_name(d, sz), xmmrm_text(s))
+            }
+            Self::MovdToXmm(d, s, sz) => format!(
+                "{} {}, {}",
+                if sz == Size::Q { "movq" } else { "movd" },
+                xmm_text(d),
+                rm_text(s, sz)
+            ),
+            Self::MovdToRm(d, s, sz) => format!(
+                "{} {}, {}",
+                if sz == Size::Q { "movq" } else { "movd" },
+                rm_text(d, sz),
+                xmm_text(s)
+            ),
+            Self::MovsxdRm(d, s) => {
+                format!("movsxd {}, {}", reg_name(d, Size::Q), rm_text(s, Size::D))
+            }
+            Self::MovzxRm(src, dst, r, rm) => format!(
+                "movzx {}, {}",
+                reg_name(r, dst),
+                rm_text(rm, src)
+            ),
+            Self::MovsxRm(src, dst, r, rm) => format!(
+                "movsx {}, {}",
+                reg_name(r, dst),
+                rm_text(rm, src)
+            ),
+            Self::NoOperand(o) => noop_name(o).to_string(),
+            Self::SetccRm(c, rm) => format!("set{} {}", cond_name(c), rm_text(rm, Size::B)),
+            Self::ShiftCl(op, s, rm) => {
+                let n = match op {
+                    ShiftOp::Shl => "shl",
+                    ShiftOp::Shr => "shr",
+                    ShiftOp::Sar => "sar",
+                };
+                format!("{n} {}, cl", rm_text(rm, s))
+            }
+            Self::BitRm(op, s, rm, r) => {
+                format!("{} {}, {}", bitop_name(op), rm_text(rm, s), reg_name(r, s))
+            }
+            Self::BitImm(op, s, rm, i) => {
+                format!("{} {}, {i:#x}", bitop_name(op), rm_text(rm, s))
+            }
         }
     }
 }
@@ -385,9 +590,13 @@ pub fn parse_insn(line: &str) -> Result<Insn, ParseError> {
     let (mnem_raw, args) = line.split_once(' ').unwrap_or((line, ""));
     let args = args.trim();
     let err = || ParseError(format!("instruction non supportée : `{line}`"));
+    // Deux suffixes distincts, a ne pas confondre :
+    //   `.s` = branchement en forme courte (rel8)
+    //   `.w` = immediat en forme longue (81 /n id la ou 83 /n ib suffirait)
     let (mnem, short) = mnem_raw
         .strip_suffix(".s")
         .map_or((mnem_raw, false), |m| (m, true));
+    let (mnem, wide) = mnem.strip_suffix(".w").map_or((mnem, false), |m| (m, true));
 
     let two = || -> Result<(String, String), ParseError> {
         let (a, b) = args.split_once(',').ok_or_else(err)?;
@@ -403,13 +612,84 @@ pub fn parse_insn(line: &str) -> Result<Insn, ParseError> {
     if let Some(rest) = mnem.strip_prefix("set")
         && let Some((_, c)) = CONDS.iter().find(|(n, _)| *n == rest)
     {
-        return Ok(Insn::Setcc(*c, reg_of(args).ok_or_else(err)?.0));
+        return Ok(Insn::SetccRm(*c, parse_rm(args).ok_or_else(err)?.0));
+    }
+    if let Some((_, o)) = NOOPS.iter().find(|(n, _)| *n == mnem) {
+        return Ok(Insn::NoOperand(*o));
+    }
+    if let Some((_, o)) = BITOPS.iter().find(|(n, _)| *n == mnem) {
+        let (d, s) = two()?;
+        let (rm, sz) = parse_rm(&d).ok_or_else(err)?;
+        let sz = sz.ok_or_else(err)?;
+        if let Some((r, _)) = reg_of(&s) {
+            return Ok(Insn::BitRm(*o, sz, rm, r));
+        }
+        return Ok(Insn::BitImm(
+            *o,
+            sz,
+            rm,
+            u8::try_from(parse_int(&s).ok_or_else(err)?).map_err(|_| err())?,
+        ));
+    }
+    if mnem == "movd" || mnem == "movq" {
+        let sz = if mnem == "movq" { Size::Q } else { Size::D };
+        let (d, s) = two()?;
+        if let Some(x) = xmm_of(&d) {
+            return Ok(Insn::MovdToXmm(x, parse_rm(&s).ok_or_else(err)?.0, sz));
+        }
+        return Ok(Insn::MovdToRm(
+            parse_rm(&d).ok_or_else(err)?.0,
+            xmm_of(&s).ok_or_else(err)?,
+            sz,
+        ));
+    }
+    if let Some(rest) = mnem.strip_prefix("cmov")
+        && let Some((_, c)) = CONDS.iter().find(|(n, _)| *n == rest)
+    {
+        let (d, s) = two()?;
+        let (r, sz) = reg_of(&d).ok_or_else(err)?;
+        let (rm, _) = parse_rm(&s).ok_or_else(err)?;
+        return Ok(Insn::Cmov(*c, sz, r, rm));
+    }
+    if let Some((_, op)) = CVTS.iter().find(|(n, _)| *n == mnem) {
+        let (d, s) = two()?;
+        if let Some(x) = xmm_of(&d) {
+            let (rm, sz) = parse_rm(&s).ok_or_else(err)?;
+            return Ok(Insn::CvtToXmm(*op, x, rm, sz.ok_or_else(err)?));
+        }
+        let (r, sz) = reg_of(&d).ok_or_else(err)?;
+        return Ok(Insn::CvtToReg(*op, r, parse_xmmrm(&s).ok_or_else(err)?, sz));
+    }
+    if let Some((_, op)) = SSES.iter().find(|(n, _)| *n == mnem) {
+        let parts: Vec<&str> = args.split(',').map(str::trim).collect();
+        if parts.len() == 3 {
+            return Ok(Insn::SseI(
+                *op,
+                xmm_of(parts[0]).ok_or_else(err)?,
+                parse_xmmrm(parts[1]).ok_or_else(err)?,
+                u8::try_from(parse_int(parts[2]).ok_or_else(err)?).map_err(|_| err())?,
+            ));
+        }
+        let (d, s) = two()?;
+        // Destination memoire => forme « memoire <- registre ».
+        if d.trim_start().starts_with('[') {
+            return Ok(Insn::SseStore(
+                *op,
+                parse_mem(&d).ok_or_else(err)?,
+                xmm_of(&s).ok_or_else(err)?,
+            ));
+        }
+        return Ok(Insn::Sse(
+            *op,
+            xmm_of(&d).ok_or_else(err)?,
+            parse_xmmrm(&s).ok_or_else(err)?,
+        ));
     }
     if let Some((_, op)) = UNOPS.iter().find(|(n, _)| *n == mnem) {
         let (rm, sz) = parse_rm(args).ok_or_else(err)?;
         return Ok(Insn::Un(*op, sz.ok_or_else(err)?, rm));
     }
-    // Groupe ALU générique.
+    // Groupe ALU générique. Le suffixe `.w` force la forme longue de l'immédiat.
     if let Some((_, op)) = ALUS.iter().find(|(n, _)| *n == mnem) {
         let (d, s) = two()?;
         if let Some((sz, m)) = split_sized_mem(&d) {
@@ -421,7 +701,7 @@ pub fn parse_insn(line: &str) -> Result<Insn, ParseError> {
                 return Ok(Insn::AluMR(*op, sz, m, r));
             }
             let v = parse_int(&s).ok_or_else(err)?;
-            return Ok(Insn::AluI(*op, sz, Rm::M(m), as_imm32(v).ok_or_else(err)?));
+            return Ok(Insn::AluI(*op, sz, Rm::M(m), as_imm32(v).ok_or_else(err)?, wide));
         }
         if d.starts_with('[') {
             let m = parse_mem(&d).ok_or_else(err)?;
@@ -439,7 +719,7 @@ pub fn parse_insn(line: &str) -> Result<Insn, ParseError> {
             return Ok(Insn::AluRR(*op, sz, r, b));
         }
         let v = parse_int(&s).ok_or_else(err)?;
-        return Ok(Insn::AluRI(*op, sz, r, as_imm32(v).ok_or_else(err)?));
+        return Ok(Insn::AluRI(*op, sz, r, as_imm32(v).ok_or_else(err)?, wide));
     }
 
     match mnem {
@@ -491,41 +771,40 @@ pub fn parse_insn(line: &str) -> Result<Insn, ParseError> {
                 )),
             }
         }
-        "movsx" => {
-            let (d, s) = two()?;
-            let (r, dsz) = reg_of(&d).ok_or_else(err)?;
-            let (rm, ssz) = parse_rm(&s).ok_or_else(err)?;
-            Ok(Insn::Movsx(ssz.ok_or_else(err)?, dsz, r, rm))
-        }
         "shl" | "shr" | "sar" => {
             let (d, s) = two()?;
-            let (r, sz) = reg_of(&d).ok_or_else(err)?;
             let op = match mnem {
                 "shl" => ShiftOp::Shl,
                 "shr" => ShiftOp::Shr,
                 _ => ShiftOp::Sar,
             };
-            Ok(Insn::Shift(
-                op,
-                sz,
-                r,
-                u8::try_from(parse_int(&s).ok_or_else(err)?).map_err(|_| err())?,
-            ))
-        }
-        "movzx" => {
-            let (d, s) = two()?;
-            let (dst, _) = reg_of(&d).ok_or_else(err)?;
-            if let Some((sz, m)) = split_sized_mem(&s) {
-                return Ok(Insn::MovzxM(sz, dst, m));
+            let (rm, sz) = parse_rm(&d).ok_or_else(err)?;
+            let sz = sz.ok_or_else(err)?;
+            if s.trim() == "cl" {
+                return Ok(Insn::ShiftCl(op, sz, rm));
             }
-            let (src, sz) = reg_of(&s).ok_or_else(err)?;
-            Ok(Insn::MovzxR(sz, dst, src))
+            let imm = u8::try_from(parse_int(&s).ok_or_else(err)?).map_err(|_| err())?;
+            match rm {
+                Rm::R(r) => Ok(Insn::Shift(op, sz, r, imm)),
+                Rm::M(_) => Err(err()),
+            }
+        }
+        "movzx" | "movsx" => {
+            let (d, s) = two()?;
+            let (dst, dsz) = reg_of(&d).ok_or_else(err)?;
+            let (rm, ssz) = parse_rm(&s).ok_or_else(err)?;
+            let ssz = ssz.ok_or_else(err)?;
+            Ok(if mnem == "movzx" {
+                Insn::MovzxRm(ssz, dsz, dst, rm)
+            } else {
+                Insn::MovsxRm(ssz, dsz, dst, rm)
+            })
         }
         "movsxd" => {
             let (d, s) = two()?;
-            Ok(Insn::Movsxd(
+            Ok(Insn::MovsxdRm(
                 reg_of(&d).ok_or_else(err)?.0,
-                reg_of(&s).ok_or_else(err)?.0,
+                parse_rm(&s).ok_or_else(err)?.0,
             ))
         }
         "movabs" => {
@@ -629,13 +908,13 @@ mod tests {
             vec![
                 Insn::Store(Size::Q, Mem::base_disp(Reg::Rsp, 8), Reg::Rbx),
                 Insn::Push(Reg::Rdi),
-                Insn::AluRI(Alu::Sub, Size::Q, Reg::Rsp, 0x20),
+                Insn::AluRI(Alu::Sub, Size::Q, Reg::Rsp, 0x20, false),
                 Insn::MovRR(Size::Q, Reg::Rbx, Reg::Rcx),
                 Insn::Call(0x1_4012_3456),
                 Insn::TestRR(Size::Q, Reg::Rax, Reg::Rax),
                 Insn::Jcc(Cond::E, 0x1_4000_1050, true),
                 Insn::Lea(Reg::Rcx, Mem::rip(0x1_401f_2340)),
-                Insn::AluRI(Alu::Add, Size::Q, Reg::Rsp, 0x20),
+                Insn::AluRI(Alu::Add, Size::Q, Reg::Rsp, 0x20, false),
                 Insn::Pop(Reg::Rdi),
                 Insn::Ret,
             ],
@@ -684,7 +963,7 @@ mod tests {
             "jne.s 0x140001050"
         );
         assert_eq!(
-            to_line(&[Insn::AluRI(Alu::Sub, Size::Q, Reg::Rsp, 0x20)]),
+            to_line(&[Insn::AluRI(Alu::Sub, Size::Q, Reg::Rsp, 0x20, false)]),
             "sub rsp, 0x20"
         );
         assert_eq!(
