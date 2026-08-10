@@ -3,6 +3,39 @@
   "target_sha256": "b1fa04ea365868e5c8933aca393366f82d0d446187e2187f2737dc4fa2acd40c",
   "entries": [
     {
+      "va": "0x14004d750",
+      "rust": null,
+      "status": "bytes",
+      "proof": {
+        "kind": "msvc",
+        "reference": "cpp/decomp/functions\\thunks.c"
+      },
+      "object": "var/forge/cc/thunks.obj",
+      "symbol": "nie_true_14004d750"
+    },
+    {
+      "va": "0x14004d770",
+      "rust": null,
+      "status": "bytes",
+      "proof": {
+        "kind": "msvc",
+        "reference": "cpp/decomp/functions\\thunks.c"
+      },
+      "object": "var/forge/cc/thunks.obj",
+      "symbol": "nie_zero_14004d770"
+    },
+    {
+      "va": "0x14004e9e0",
+      "rust": null,
+      "status": "bytes",
+      "proof": {
+        "kind": "msvc",
+        "reference": "cpp/decomp/functions\\thunks.c"
+      },
+      "object": "var/forge/cc/thunks.obj",
+      "symbol": "nie_load_f32_14004e9e0"
+    },
+    {
       "va": "0x140051f40",
       "rust": null,
       "status": "semantic",
@@ -31,6 +64,17 @@
         "reference": "scripts/validate_typed_list_iter.py"
       },
       "note": "Deref+avance itérateur liste typée 2-bit (FUN_140052040) — sentinelles/bases/NULL, fuzz 800 cas"
+    },
+    {
+      "va": "0x140057350",
+      "rust": null,
+      "status": "bytes",
+      "proof": {
+        "kind": "msvc",
+        "reference": "cpp/decomp/functions\\thunks.c"
+      },
+      "object": "var/forge/cc/thunks.obj",
+      "symbol": "nie_identity_140057350"
     },
     {
       "va": "0x140071d70",
@@ -83,6 +127,17 @@
       "note": "3e instanciation du conteneur (FUN_1401f5ab0, entrées 0x18, clé @+0) — généralisation key_base, fuzz 2 modes"
     },
     {
+      "va": "0x140287b00",
+      "rust": null,
+      "status": "bytes",
+      "proof": {
+        "kind": "msvc",
+        "reference": "cpp/decomp/functions\\thunks.c"
+      },
+      "object": "var/forge/cc/thunks.obj",
+      "symbol": "nie_set_ptr_140287b00"
+    },
+    {
       "va": "0x1402b4160",
       "rust": null,
       "status": "semantic",
@@ -131,6 +186,17 @@
         "reference": "scripts/validate_intrusive_map_pop.py"
       },
       "note": "pop_front liste active du conteneur (FUN_140453570) — côté ÉCRITURE, mutation byte-exact, fuzz"
+    },
+    {
+      "va": "0x140453d60",
+      "rust": null,
+      "status": "bytes",
+      "proof": {
+        "kind": "msvc",
+        "reference": "cpp/decomp/functions\\thunks.c"
+      },
+      "object": "var/forge/cc/thunks.obj",
+      "symbol": "nie_zero_f32_140453d60"
     },
     {
       "va": "0x14045ff50",
@@ -221,6 +287,17 @@
         "reference": "scripts/validate_byte_keyed_table.py"
       },
       "note": "Lookup table records 8o par clé 1 octet (FUN_140d8f2b0) — scan linéaire first-win, fuzz 608 cas"
+    },
+    {
+      "va": "0x1411194b0",
+      "rust": null,
+      "status": "bytes",
+      "proof": {
+        "kind": "msvc",
+        "reference": "cpp/decomp/functions\\thunks.c"
+      },
+      "object": "var/forge/cc/thunks.obj",
+      "symbol": "nie_type_id_1411194b0"
     },
     {
       "va": "0x1411da770",

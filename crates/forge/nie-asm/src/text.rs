@@ -1,14 +1,19 @@
 //! Forme **textuelle** des instructions : la source assembleur du dépôt.
 //!
 //! Ce module donne aux corps régénérés une représentation lisible et
-//! diff-able — `mov eax, 0xefec8a0d ; ret` — plutôt qu'un tas d'octets. C'est
-//! elle qui est commitée dans `forge/asm/*.s` : le binaire se reconstruit **à
-//! partir de cette source**, jamais à partir du fichier d'origine.
+//! diff-able — `push rbx ; sub rsp, 0x20 ; call 0x140123456` — plutôt qu'un tas
+//! d'octets. Le couple [`Insn::to_text`] / [`parse_insn`] est un aller-retour
+//! strict : tout ce qui s'écrit se relit, et les tests le vérifient sur des corps
+//! réels.
 //!
-//! Le couple [`Insn::to_text`] / [`parse_insn`] est un aller-retour strict :
-//! tout ce qui s'écrit se relit, et le test de propriété le vérifie.
+//! Conventions propres au dialecte :
+//! - les cibles de branchement sont des **adresses absolues** (`call 0x140123456`) ;
+//! - le suffixe `.s` marque la forme courte (`jmp.s`, `jne.s`) — MSVC choisit
+//!   l'une ou l'autre, et la source doit conserver ce choix pour rester exacte ;
+//! - `[rip 0x140abc000]` est un opérande relatif au pointeur d'instruction, écrit
+//!   par sa cible absolue.
 
-use crate::{Insn, Mem, Reg};
+use crate::{Alu, Cond, Insn, Mem, Reg, Rm, ShiftOp, Size, UnOp};
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
@@ -31,11 +36,14 @@ const R32: [&str; 16] = [
     "eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi", "r8d", "r9d", "r10d", "r11d", "r12d",
     "r13d", "r14d", "r15d",
 ];
-const R8: [&str; 16] = [
+const R16: [&str; 16] = [
+    "ax", "cx", "dx", "bx", "sp", "bp", "si", "di", "r8w", "r9w", "r10w", "r11w", "r12w", "r13w",
+    "r14w", "r15w",
+];
+const R8N: [&str; 16] = [
     "al", "cl", "dl", "bl", "spl", "bpl", "sil", "dil", "r8b", "r9b", "r10b", "r11b", "r12b",
     "r13b", "r14b", "r15b",
 ];
-
 const REGS: [Reg; 16] = [
     Reg::Rax,
     Reg::Rcx,
@@ -54,29 +62,73 @@ const REGS: [Reg; 16] = [
     Reg::R14,
     Reg::R15,
 ];
+const ALUS: [(&str, Alu); 8] = [
+    ("add", Alu::Add),
+    ("or", Alu::Or),
+    ("adc", Alu::Adc),
+    ("sbb", Alu::Sbb),
+    ("and", Alu::And),
+    ("sub", Alu::Sub),
+    ("xor", Alu::Xor),
+    ("cmp", Alu::Cmp),
+];
+const CONDS: [(&str, Cond); 16] = [
+    ("o", Cond::O),
+    ("no", Cond::No),
+    ("b", Cond::B),
+    ("ae", Cond::Ae),
+    ("e", Cond::E),
+    ("ne", Cond::Ne),
+    ("be", Cond::Be),
+    ("a", Cond::A),
+    ("s", Cond::S),
+    ("ns", Cond::Ns),
+    ("p", Cond::P),
+    ("np", Cond::Np),
+    ("l", Cond::L),
+    ("ge", Cond::Ge),
+    ("le", Cond::Le),
+    ("g", Cond::G),
+];
+const SIZES: [(&str, Size); 4] = [
+    ("byte", Size::B),
+    ("word", Size::W),
+    ("dword", Size::D),
+    ("qword", Size::Q),
+];
 
-fn reg_name(r: Reg, size: u8) -> &'static str {
+fn reg_name(r: Reg, size: Size) -> &'static str {
     let i = r.num() as usize;
     match size {
-        1 => R8[i],
-        4 => R32[i],
-        _ => R64[i],
+        Size::B => R8N[i],
+        Size::W => R16[i],
+        Size::D => R32[i],
+        Size::Q => R64[i],
     }
 }
 
-/// Résout un nom de registre en `(registre, taille en octets)`.
-fn reg_of(name: &str) -> Option<(Reg, u8)> {
+fn size_name(s: Size) -> &'static str {
+    SIZES[s as usize].0
+}
+
+/// Résout un nom de registre en `(registre, taille)`.
+fn reg_of(name: &str) -> Option<(Reg, Size)> {
     let n = name.trim();
-    if let Some(i) = R64.iter().position(|x| *x == n) {
-        return Some((REGS[i], 8));
-    }
-    if let Some(i) = R32.iter().position(|x| *x == n) {
-        return Some((REGS[i], 4));
-    }
-    if let Some(i) = R8.iter().position(|x| *x == n) {
-        return Some((REGS[i], 1));
+    for (tbl, sz) in [
+        (&R64, Size::Q),
+        (&R32, Size::D),
+        (&R16, Size::W),
+        (&R8N, Size::B),
+    ] {
+        if let Some(i) = tbl.iter().position(|x| *x == n) {
+            return Some((REGS[i], sz));
+        }
     }
     None
+}
+
+fn cond_name(c: Cond) -> &'static str {
+    CONDS[c.code() as usize].0
 }
 
 fn fmt_disp(d: i32) -> String {
@@ -90,15 +142,18 @@ fn fmt_disp(d: i32) -> String {
 }
 
 fn mem_text(m: Mem) -> String {
+    if let Some(t) = m.rip {
+        return format!("[rip {t:#x}]");
+    }
     let mut s = String::from("[");
     if let Some(b) = m.base {
-        s.push_str(reg_name(b, 8));
+        s.push_str(reg_name(b, Size::Q));
     }
     if let Some((i, sc)) = m.index {
         if m.base.is_some() {
             s.push('+');
         }
-        s.push_str(reg_name(i, 8));
+        s.push_str(reg_name(i, Size::Q));
         s.push_str(&format!("*{sc}"));
     }
     s.push_str(&fmt_disp(m.disp));
@@ -117,14 +172,34 @@ fn parse_int(s: &str) -> Option<i64> {
     Some(if neg { -v } else { v })
 }
 
+fn parse_u64(s: &str) -> Option<u64> {
+    let t = s.trim();
+    t.strip_prefix("0x")
+        .or_else(|| t.strip_prefix("0X"))
+        .and_then(|h| u64::from_str_radix(h, 16).ok())
+        .or_else(|| t.parse::<u64>().ok())
+}
+
+/// Immédiat 32 bits : accepte les deux lectures (`-1` et `0xffffffff`) et rend
+/// le motif de bits. MSVC écrit les deux selon le contexte ; la source doit
+/// pouvoir relire ce qu'elle a écrit.
+fn as_imm32(v: i64) -> Option<i32> {
+    if let Ok(x) = i32::try_from(v) {
+        return Some(x);
+    }
+    u32::try_from(v).ok().map(|x| x as i32)
+}
+
 fn parse_mem(s: &str) -> Option<Mem> {
     let inner = s.trim().strip_prefix('[')?.strip_suffix(']')?;
+    if let Some(rest) = inner.trim().strip_prefix("rip") {
+        return Some(Mem::rip(parse_u64(rest.trim())?));
+    }
     let mut m = Mem::default();
     let mut rest = inner;
-    // Premier terme : base ou index.
     let mut first = true;
     while !rest.is_empty() {
-        let (sign, term_start) = if first {
+        let (sign, start) = if first {
             (1i32, 0usize)
         } else {
             match rest.as_bytes()[0] {
@@ -133,17 +208,14 @@ fn parse_mem(s: &str) -> Option<Mem> {
                 _ => return None,
             }
         };
-        let body = &rest[term_start..];
-        let stop = body
-            .find(['+', '-'])
-            .unwrap_or(body.len());
+        let body = &rest[start..];
+        let stop = body.find(['+', '-']).unwrap_or(body.len());
         let term = &body[..stop];
         rest = &body[stop..];
         first = false;
 
         if let Some((r, scale)) = term.split_once('*') {
-            let (reg, _) = reg_of(r)?;
-            m.index = Some((reg, scale.trim().parse::<u8>().ok()?));
+            m.index = Some((reg_of(r)?.0, scale.trim().parse::<u8>().ok()?));
         } else if let Some((reg, _)) = reg_of(term) {
             if m.base.is_none() {
                 m.base = Some(reg);
@@ -151,137 +223,353 @@ fn parse_mem(s: &str) -> Option<Mem> {
                 m.index = Some((reg, 1));
             }
         } else {
-            let v = parse_int(term)?;
-            m.disp = i32::try_from(v * i64::from(sign)).ok()?;
+            m.disp = i32::try_from(parse_int(term)? * i64::from(sign)).ok()?;
         }
     }
     Some(m)
 }
 
+/// Une taille explicite préfixant un opérande mémoire (`dword [rcx]`).
+fn split_sized_mem(s: &str) -> Option<(Size, Mem)> {
+    let t = s.trim();
+    for (name, sz) in SIZES {
+        if let Some(rest) = t.strip_prefix(name) {
+            return Some((sz, parse_mem(rest)?));
+        }
+    }
+    None
+}
+
+
+const UNOPS: [(&str, UnOp); 7] = [
+    ("inc", UnOp::Inc),
+    ("dec", UnOp::Dec),
+    ("calli", UnOp::CallInd),
+    ("jmpi", UnOp::JmpInd),
+    ("pushm", UnOp::PushRm),
+    ("not", UnOp::Not),
+    ("neg", UnOp::Neg),
+];
+
+fn unop_name(o: UnOp) -> &'static str {
+    UNOPS.iter().find(|(_, x)| *x == o).map_or("inc", |(n, _)| *n)
+}
+
+/// Rend un operande `r/m` : registre nu, ou memoire prefixee de sa taille.
+fn rm_text(rm: Rm, size: Size) -> String {
+    match rm {
+        Rm::R(r) => reg_name(r, size).to_string(),
+        Rm::M(m) => format!("{} {}", size_name(size), mem_text(m)),
+    }
+}
+
+/// Analyse un operande `r/m`, en rendant la taille quand elle est explicite.
+fn parse_rm(s: &str) -> Option<(Rm, Option<Size>)> {
+    if let Some((sz, m)) = split_sized_mem(s) {
+        return Some((Rm::M(m), Some(sz)));
+    }
+    if s.trim_start().starts_with('[') {
+        return Some((Rm::M(parse_mem(s)?), None));
+    }
+    let (r, sz) = reg_of(s)?;
+    Some((Rm::R(r), Some(sz)))
+}
+
 impl Insn {
-    /// Rend l'instruction en syntaxe Intel canonique.
+    /// Rend l'instruction en syntaxe Intel canonique du dialecte.
     #[must_use]
+    #[allow(clippy::too_many_lines)]
     pub fn to_text(self) -> String {
         match self {
             Self::Ret => "ret".to_string(),
             Self::RetImm(n) => format!("ret {n:#x}"),
-            Self::MovRegImm8(r, i) => format!("mov {}, {i:#x}", reg_name(r, 1)),
-            Self::MovRegImm32(r, i) => format!("mov {}, {i:#x}", reg_name(r, 4)),
-            Self::XorReg32(a, b) => format!("xor {}, {}", reg_name(a, 4), reg_name(b, 4)),
-            Self::XorReg8(a, b) => format!("xor {}, {}", reg_name(a, 1), reg_name(b, 1)),
-            Self::MovReg64(a, b) => format!("mov {}, {}", reg_name(a, 8), reg_name(b, 8)),
-            Self::MovReg32(a, b) => format!("mov {}, {}", reg_name(a, 4), reg_name(b, 4)),
-            Self::OrReg64(a, b) => format!("or {}, {}", reg_name(a, 8), reg_name(b, 8)),
-            Self::Store64(m, r) => format!("mov {}, {}", mem_text(m), reg_name(r, 8)),
-            Self::Store32(m, r) => format!("mov {}, {}", mem_text(m), reg_name(r, 4)),
-            Self::Load64(r, m) => format!("mov {}, {}", reg_name(r, 8), mem_text(m)),
-            Self::Load32(r, m) => format!("mov {}, {}", reg_name(r, 4), mem_text(m)),
-            Self::Lea64(r, m) => format!("lea {}, {}", reg_name(r, 8), mem_text(m)),
-            Self::IncMem32(m) => format!("inc dword {}", mem_text(m)),
-            Self::AndRegImm8(r, i) => format!("and {}, {i}", reg_name(r, 8)),
-            Self::ShlRegImm8(r, i) => format!("shl {}, {i:#x}", reg_name(r, 8)),
-            Self::JmpReg(r) => format!("jmp {}", reg_name(r, 8)),
+            Self::Int3 => "int3".to_string(),
             Self::Nop(n) => format!("nop {n}"),
+            Self::Push(r) => format!("push {}", reg_name(r, Size::Q)),
+            Self::Pop(r) => format!("pop {}", reg_name(r, Size::Q)),
+            Self::MovRegImm8(r, i) => format!("mov {}, {i:#x}", reg_name(r, Size::B)),
+            Self::MovRegImm32(r, i) => format!("mov {}, {i:#x}", reg_name(r, Size::D)),
+            Self::MovRegImm64(r, i) => format!("movabs {}, {i:#x}", reg_name(r, Size::Q)),
+            Self::MovRR(s, a, b) => format!("mov {}, {}", reg_name(a, s), reg_name(b, s)),
+            Self::Load(s, r, m) => format!("mov {}, {}", reg_name(r, s), mem_text(m)),
+            Self::Store(s, m, r) => format!("mov {}, {}", mem_text(m), reg_name(r, s)),
+            Self::StoreImm32(s, m, i) => {
+                format!("mov {} {}, {:#x}", size_name(s), mem_text(m), i as u32)
+            }
+            Self::Lea(r, m) => format!("lea {}, {}", reg_name(r, Size::Q), mem_text(m)),
+            Self::AluRR(op, s, a, b) => format!(
+                "{} {}, {}",
+                ALUS[op.digit() as usize].0,
+                reg_name(a, s),
+                reg_name(b, s)
+            ),
+            Self::AluRM(op, s, r, m) => format!(
+                "{} {}, {}",
+                ALUS[op.digit() as usize].0,
+                reg_name(r, s),
+                mem_text(m)
+            ),
+            Self::AluMR(op, s, m, r) => format!(
+                "{} {}, {}",
+                ALUS[op.digit() as usize].0,
+                mem_text(m),
+                reg_name(r, s)
+            ),
+            Self::AluRI(op, s, r, i) => {
+                // Motif de bits : `0xffffffff` se relit, `-0x1` aussi (parse_int).
+                format!("{} {}, {:#x}", ALUS[op.digit() as usize].0, reg_name(r, s), i as u32)
+            }
+            Self::TestRR(s, a, b) => format!("test {}, {}", reg_name(a, s), reg_name(b, s)),
+            Self::Shift(op, s, r, i) => {
+                let n = match op {
+                    ShiftOp::Shl => "shl",
+                    ShiftOp::Shr => "shr",
+                    ShiftOp::Sar => "sar",
+                };
+                format!("{n} {}, {i:#x}", reg_name(r, s))
+            }
+            Self::MovzxR(src, d, s) => {
+                format!("movzx {}, {}", reg_name(d, Size::D), reg_name(s, src))
+            }
+            Self::MovzxM(src, d, m) => format!(
+                "movzx {}, {} {}",
+                reg_name(d, Size::D),
+                size_name(src),
+                mem_text(m)
+            ),
+            Self::Movsxd(d, s) => {
+                format!("movsxd {}, {}", reg_name(d, Size::Q), reg_name(s, Size::D))
+            }
+            Self::Setcc(c, r) => format!("set{} {}", cond_name(c), reg_name(r, Size::B)),
+            Self::IncMem32(m) => format!("inc {} {}", size_name(Size::D), mem_text(m)),
+            Self::JmpReg(r) => format!("jmp {}", reg_name(r, Size::Q)),
+            Self::Call(t) => format!("call {t:#x}"),
+            Self::Jmp(t, short) => format!("jmp{} {t:#x}", if short { ".s" } else { "" }),
+            Self::Jcc(c, t, short) => format!(
+                "j{}{} {t:#x}",
+                cond_name(c),
+                if short { ".s" } else { "" }
+            ),
+            Self::AluI(op, s, rm, i) => format!(
+                "{} {}, {:#x}",
+                ALUS[op.digit() as usize].0,
+                rm_text(rm, s),
+                i as u32
+            ),
+            Self::MovI(s, rm, i) => format!("mov {}, {:#x}", rm_text(rm, s), i as u32),
+            Self::Test(s, rm, r) => format!("test {}, {}", rm_text(rm, s), reg_name(r, s)),
+            Self::TestI(s, rm, i) => format!("test {}, {:#x}", rm_text(rm, s), i as u32),
+            Self::Un(op, s, rm) => format!("{} {}", unop_name(op), rm_text(rm, s)),
+            Self::Imul(s, r, rm) => format!("imul {}, {}", reg_name(r, s), rm_text(rm, s)),
+            Self::ImulI(s, r, rm, i) => format!(
+                "imul {}, {}, {:#x}",
+                reg_name(r, s),
+                rm_text(rm, s),
+                i as u32
+            ),
+            Self::Movsx(src, dst, r, rm) => {
+                format!("movsx {}, {}", reg_name(r, dst), rm_text(rm, src))
+            }
+            Self::LeaD(r, m) => format!("lea {}, {}", reg_name(r, Size::D), mem_text(m)),
         }
     }
 }
 
-/// Analyse une instruction en syntaxe Intel canonique.
+/// Analyse une instruction du dialecte.
 ///
 /// # Erreurs
 /// Retourne une erreur si la ligne n'appartient pas au dialecte supporté.
+#[allow(clippy::too_many_lines)]
 pub fn parse_insn(line: &str) -> Result<Insn, ParseError> {
     let line = line.trim();
-    let (mnem, args) = line.split_once(' ').unwrap_or((line, ""));
+    let (mnem_raw, args) = line.split_once(' ').unwrap_or((line, ""));
     let args = args.trim();
     let err = || ParseError(format!("instruction non supportée : `{line}`"));
+    let (mnem, short) = mnem_raw
+        .strip_suffix(".s")
+        .map_or((mnem_raw, false), |m| (m, true));
 
-    let split2 = || -> Result<(String, String), ParseError> {
+    let two = || -> Result<(String, String), ParseError> {
         let (a, b) = args.split_once(',').ok_or_else(err)?;
         Ok((a.trim().to_string(), b.trim().to_string()))
     };
+
+    // Sauts conditionnels : `je`, `jne.s`, …
+    if let Some(rest) = mnem.strip_prefix('j')
+        && let Some((_, c)) = CONDS.iter().find(|(n, _)| *n == rest)
+    {
+        return Ok(Insn::Jcc(*c, parse_u64(args).ok_or_else(err)?, short));
+    }
+    if let Some(rest) = mnem.strip_prefix("set")
+        && let Some((_, c)) = CONDS.iter().find(|(n, _)| *n == rest)
+    {
+        return Ok(Insn::Setcc(*c, reg_of(args).ok_or_else(err)?.0));
+    }
+    if let Some((_, op)) = UNOPS.iter().find(|(n, _)| *n == mnem) {
+        let (rm, sz) = parse_rm(args).ok_or_else(err)?;
+        return Ok(Insn::Un(*op, sz.ok_or_else(err)?, rm));
+    }
+    // Groupe ALU générique.
+    if let Some((_, op)) = ALUS.iter().find(|(n, _)| *n == mnem) {
+        let (d, s) = two()?;
+        if let Some((sz, m)) = split_sized_mem(&d) {
+            // `<alu> dword [rcx], 0x5` — memoire avec taille explicite.
+            if let Some((r, rsz)) = reg_of(&s) {
+                if rsz != sz {
+                    return Err(err());
+                }
+                return Ok(Insn::AluMR(*op, sz, m, r));
+            }
+            let v = parse_int(&s).ok_or_else(err)?;
+            return Ok(Insn::AluI(*op, sz, Rm::M(m), as_imm32(v).ok_or_else(err)?));
+        }
+        if d.starts_with('[') {
+            let m = parse_mem(&d).ok_or_else(err)?;
+            let (r, sz) = reg_of(&s).ok_or_else(err)?;
+            return Ok(Insn::AluMR(*op, sz, m, r));
+        }
+        let (r, sz) = reg_of(&d).ok_or_else(err)?;
+        if s.starts_with('[') {
+            return Ok(Insn::AluRM(*op, sz, r, parse_mem(&s).ok_or_else(err)?));
+        }
+        if let Some((b, sz2)) = reg_of(&s) {
+            if sz != sz2 {
+                return Err(err());
+            }
+            return Ok(Insn::AluRR(*op, sz, r, b));
+        }
+        let v = parse_int(&s).ok_or_else(err)?;
+        return Ok(Insn::AluRI(*op, sz, r, as_imm32(v).ok_or_else(err)?));
+    }
 
     match mnem {
         "ret" if args.is_empty() => Ok(Insn::Ret),
         "ret" => Ok(Insn::RetImm(
             u16::try_from(parse_int(args).ok_or_else(err)?).map_err(|_| err())?,
         )),
-        "jmp" => Ok(Insn::JmpReg(reg_of(args).ok_or_else(err)?.0)),
+        "int3" => Ok(Insn::Int3),
         "nop" => Ok(Insn::Nop(
             u8::try_from(parse_int(args).ok_or_else(err)?).map_err(|_| err())?,
         )),
-        "inc" => {
-            let m = args.strip_prefix("dword").ok_or_else(err)?;
-            Ok(Insn::IncMem32(parse_mem(m).ok_or_else(err)?))
-        }
-        "and" => {
-            let (d, s) = split2()?;
-            let (r, _) = reg_of(&d).ok_or_else(err)?;
-            Ok(Insn::AndRegImm8(
-                r,
-                i8::try_from(parse_int(&s).ok_or_else(err)?).map_err(|_| err())?,
+        "push" => Ok(Insn::Push(reg_of(args).ok_or_else(err)?.0)),
+        "pop" => Ok(Insn::Pop(reg_of(args).ok_or_else(err)?.0)),
+        "call" => Ok(Insn::Call(parse_u64(args).ok_or_else(err)?)),
+        "jmp" => match reg_of(args) {
+            Some((r, Size::Q)) => Ok(Insn::JmpReg(r)),
+            _ => Ok(Insn::Jmp(parse_u64(args).ok_or_else(err)?, short)),
+        },
+        "test" => {
+            let (d, s) = two()?;
+            let (rm, dsz) = parse_rm(&d).ok_or_else(err)?;
+            if let Some((r, rsz)) = reg_of(&s) {
+                if let (Rm::R(a), Some(sz)) = (rm, dsz) {
+                    if sz != rsz {
+                        return Err(err());
+                    }
+                    return Ok(Insn::TestRR(sz, a, r));
+                }
+                return Ok(Insn::Test(rsz, rm, r));
+            }
+            let v = parse_int(&s).ok_or_else(err)?;
+            Ok(Insn::TestI(
+                dsz.ok_or_else(err)?,
+                rm,
+                as_imm32(v).ok_or_else(err)?,
             ))
         }
-        "shl" => {
-            let (d, s) = split2()?;
-            let (r, _) = reg_of(&d).ok_or_else(err)?;
-            Ok(Insn::ShlRegImm8(
+        "imul" => {
+            let parts: Vec<&str> = args.split(',').map(str::trim).collect();
+            let (r, sz) = reg_of(parts.first().ok_or_else(err)?).ok_or_else(err)?;
+            let (rm, _) = parse_rm(parts.get(1).ok_or_else(err)?).ok_or_else(err)?;
+            match parts.get(2) {
+                None => Ok(Insn::Imul(sz, r, rm)),
+                Some(v) => Ok(Insn::ImulI(
+                    sz,
+                    r,
+                    rm,
+                    as_imm32(parse_int(v).ok_or_else(err)?).ok_or_else(err)?,
+                )),
+            }
+        }
+        "movsx" => {
+            let (d, s) = two()?;
+            let (r, dsz) = reg_of(&d).ok_or_else(err)?;
+            let (rm, ssz) = parse_rm(&s).ok_or_else(err)?;
+            Ok(Insn::Movsx(ssz.ok_or_else(err)?, dsz, r, rm))
+        }
+        "shl" | "shr" | "sar" => {
+            let (d, s) = two()?;
+            let (r, sz) = reg_of(&d).ok_or_else(err)?;
+            let op = match mnem {
+                "shl" => ShiftOp::Shl,
+                "shr" => ShiftOp::Shr,
+                _ => ShiftOp::Sar,
+            };
+            Ok(Insn::Shift(
+                op,
+                sz,
                 r,
                 u8::try_from(parse_int(&s).ok_or_else(err)?).map_err(|_| err())?,
             ))
         }
-        "or" => {
-            let (d, s) = split2()?;
-            let (a, _) = reg_of(&d).ok_or_else(err)?;
-            let (b, _) = reg_of(&s).ok_or_else(err)?;
-            Ok(Insn::OrReg64(a, b))
-        }
-        "xor" => {
-            let (d, s) = split2()?;
-            let (a, sz) = reg_of(&d).ok_or_else(err)?;
-            let (b, _) = reg_of(&s).ok_or_else(err)?;
-            match sz {
-                1 => Ok(Insn::XorReg8(a, b)),
-                4 => Ok(Insn::XorReg32(a, b)),
-                _ => Err(err()),
+        "movzx" => {
+            let (d, s) = two()?;
+            let (dst, _) = reg_of(&d).ok_or_else(err)?;
+            if let Some((sz, m)) = split_sized_mem(&s) {
+                return Ok(Insn::MovzxM(sz, dst, m));
             }
+            let (src, sz) = reg_of(&s).ok_or_else(err)?;
+            Ok(Insn::MovzxR(sz, dst, src))
+        }
+        "movsxd" => {
+            let (d, s) = two()?;
+            Ok(Insn::Movsxd(
+                reg_of(&d).ok_or_else(err)?.0,
+                reg_of(&s).ok_or_else(err)?.0,
+            ))
+        }
+        "movabs" => {
+            let (d, s) = two()?;
+            Ok(Insn::MovRegImm64(
+                reg_of(&d).ok_or_else(err)?.0,
+                parse_u64(&s).ok_or_else(err)?,
+            ))
         }
         "lea" => {
-            let (d, s) = split2()?;
-            let (r, _) = reg_of(&d).ok_or_else(err)?;
-            Ok(Insn::Lea64(r, parse_mem(&s).ok_or_else(err)?))
+            let (d, s) = two()?;
+            let (r, sz) = reg_of(&d).ok_or_else(err)?;
+            let m = parse_mem(&s).ok_or_else(err)?;
+            Ok(if sz == Size::D {
+                Insn::LeaD(r, m)
+            } else {
+                Insn::Lea(r, m)
+            })
         }
         "mov" => {
-            let (d, s) = split2()?;
+            let (d, s) = two()?;
+            if let Some((sz, m)) = split_sized_mem(&d) {
+                let v = parse_int(&s).ok_or_else(err)?;
+                return Ok(Insn::MovI(sz, Rm::M(m), as_imm32(v).ok_or_else(err)?));
+            }
             if d.starts_with('[') {
                 let m = parse_mem(&d).ok_or_else(err)?;
                 let (r, sz) = reg_of(&s).ok_or_else(err)?;
-                return match sz {
-                    4 => Ok(Insn::Store32(m, r)),
-                    8 => Ok(Insn::Store64(m, r)),
-                    _ => Err(err()),
-                };
+                return Ok(Insn::Store(sz, m, r));
             }
             let (r, sz) = reg_of(&d).ok_or_else(err)?;
             if s.starts_with('[') {
-                let m = parse_mem(&s).ok_or_else(err)?;
-                return match sz {
-                    4 => Ok(Insn::Load32(r, m)),
-                    8 => Ok(Insn::Load64(r, m)),
-                    _ => Err(err()),
-                };
+                return Ok(Insn::Load(sz, r, parse_mem(&s).ok_or_else(err)?));
             }
             if let Some((b, sz2)) = reg_of(&s) {
-                return match (sz, sz2) {
-                    (4, 4) => Ok(Insn::MovReg32(r, b)),
-                    (8, 8) => Ok(Insn::MovReg64(r, b)),
-                    _ => Err(err()),
-                };
+                if sz != sz2 {
+                    return Err(err());
+                }
+                return Ok(Insn::MovRR(sz, r, b));
             }
             let v = parse_int(&s).ok_or_else(err)?;
             match sz {
-                1 => Ok(Insn::MovRegImm8(r, u8::try_from(v).map_err(|_| err())?)),
-                4 => Ok(Insn::MovRegImm32(r, u32::try_from(v).map_err(|_| err())?)),
+                Size::B => Ok(Insn::MovRegImm8(r, u8::try_from(v).map_err(|_| err())?)),
+                Size::D => Ok(Insn::MovRegImm32(r, as_imm32(v).ok_or_else(err)? as u32)),
                 _ => Err(err()),
             }
         }
@@ -314,7 +602,7 @@ pub fn parse_line(line: &str) -> Result<Vec<Insn>, ParseError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::encode;
+    use crate::encode_at;
     use alloc::vec;
 
     #[test]
@@ -323,33 +611,57 @@ mod tests {
             vec![Insn::Ret],
             vec![Insn::RetImm(0)],
             vec![Insn::MovRegImm8(Reg::Rax, 1), Insn::Ret],
-            vec![Insn::XorReg32(Reg::Rax, Reg::Rax), Insn::Ret],
-            vec![Insn::XorReg8(Reg::Rax, Reg::Rax), Insn::Ret],
-            vec![Insn::MovReg64(Reg::Rax, Reg::Rcx), Insn::Ret],
+            vec![Insn::AluRR(Alu::Xor, Size::D, Reg::Rax, Reg::Rax), Insn::Ret],
+            vec![Insn::MovRR(Size::Q, Reg::Rax, Reg::Rcx), Insn::Ret],
             vec![
-                Insn::Store64(Mem::base(Reg::Rcx), Reg::Rdx),
-                Insn::MovReg64(Reg::Rax, Reg::Rcx),
-                Insn::Store64(Mem::base_disp(Reg::Rcx, 8), Reg::R8),
+                Insn::Store(Size::Q, Mem::base(Reg::Rcx), Reg::Rdx),
+                Insn::MovRR(Size::Q, Reg::Rax, Reg::Rcx),
+                Insn::Store(Size::Q, Mem::base_disp(Reg::Rcx, 8), Reg::R8),
                 Insn::Ret,
             ],
-            vec![Insn::Lea64(Reg::Rax, Mem::base_disp(Reg::Rcx, 8)), Insn::Ret],
+            vec![Insn::Lea(Reg::Rax, Mem::base_disp(Reg::Rcx, 8)), Insn::Ret],
             vec![Insn::MovRegImm32(Reg::Rax, 0xefec_8a0d), Insn::Ret],
-            vec![Insn::Load64(Reg::Rax, Mem::base_disp(Reg::Rsp, 0x28))],
+            vec![Insn::Load(Size::Q, Reg::Rax, Mem::base_disp(Reg::Rsp, 0x28))],
             vec![Insn::IncMem32(Mem::base(Reg::Rcx))],
-            vec![
-                Insn::AndRegImm8(Reg::Rax, -1),
-                Insn::ShlRegImm8(Reg::Rdx, 0x20),
-                Insn::OrReg64(Reg::Rax, Reg::Rdx),
-                Insn::Ret,
-            ],
             vec![Insn::JmpReg(Reg::Rax)],
             vec![Insn::Nop(10)],
+            // Nouvelles formes : prologue, appel, saut, rip-relatif.
+            vec![
+                Insn::Store(Size::Q, Mem::base_disp(Reg::Rsp, 8), Reg::Rbx),
+                Insn::Push(Reg::Rdi),
+                Insn::AluRI(Alu::Sub, Size::Q, Reg::Rsp, 0x20),
+                Insn::MovRR(Size::Q, Reg::Rbx, Reg::Rcx),
+                Insn::Call(0x1_4012_3456),
+                Insn::TestRR(Size::Q, Reg::Rax, Reg::Rax),
+                Insn::Jcc(Cond::E, 0x1_4000_1050, true),
+                Insn::Lea(Reg::Rcx, Mem::rip(0x1_401f_2340)),
+                Insn::AluRI(Alu::Add, Size::Q, Reg::Rsp, 0x20),
+                Insn::Pop(Reg::Rdi),
+                Insn::Ret,
+            ],
+            vec![
+                Insn::MovzxR(Size::B, Reg::Rax, Reg::Rcx),
+                Insn::Setcc(Cond::Ne, Reg::Rax),
+                Insn::Movsxd(Reg::Rdx, Reg::Rax),
+                Insn::Shift(ShiftOp::Shr, Size::Q, Reg::Rax, 3),
+                Insn::MovRegImm64(Reg::R11, 0x1234_5678_9abc_def0),
+                Insn::StoreImm32(Size::D, Mem::rip(0x1_4020_0000), 7),
+                Insn::MovzxM(Size::W, Reg::Rax, Mem::base(Reg::Rdx)),
+                Insn::Jmp(0x1_4000_9000, false),
+            ],
         ];
         for c in cases {
             let text = to_line(&c);
             let back = parse_line(&text).unwrap_or_else(|e| panic!("`{text}` : {e}"));
-            assert_eq!(back, c, "aller-retour de `{text}`");
-            assert_eq!(encode(&back), encode(&c));
+            // Le contrat est l'egalite des OCTETS, pas des variantes : plusieurs
+            // formes internes rendent le meme texte et le meme encodage
+            // (`IncMem32` et `Un(Inc, …)`, `StoreImm32` et `MovI`). C'est ce que
+            // la forge exige, et c'est ce qu'on verifie.
+            assert_eq!(
+                encode_at(&back, 0x1_4000_1000),
+                encode_at(&c, 0x1_4000_1000),
+                "aller-retour de `{text}`"
+            );
         }
     }
 
@@ -360,16 +672,30 @@ mod tests {
             "mov eax, 0xefec8a0d ; ret"
         );
         assert_eq!(
-            to_line(&[Insn::Store64(Mem::base_disp(Reg::Rcx, 8), Reg::R8)]),
+            to_line(&[Insn::Store(Size::Q, Mem::base_disp(Reg::Rcx, 8), Reg::R8)]),
             "mov [rcx+0x8], r8"
         );
         assert_eq!(
-            to_line(&[Insn::Load64(
+            to_line(&[Insn::Lea(Reg::Rax, Mem::rip(0x1_401f_2340))]),
+            "lea rax, [rip 0x1401f2340]"
+        );
+        assert_eq!(
+            to_line(&[Insn::Jcc(Cond::Ne, 0x1_4000_1050, true)]),
+            "jne.s 0x140001050"
+        );
+        assert_eq!(
+            to_line(&[Insn::AluRI(Alu::Sub, Size::Q, Reg::Rsp, 0x20)]),
+            "sub rsp, 0x20"
+        );
+        assert_eq!(
+            to_line(&[Insn::Load(
+                Size::Q,
                 Reg::Rax,
                 Mem {
                     base: Some(Reg::Rdx),
                     index: Some((Reg::Rcx, 4)),
-                    disp: -16
+                    disp: -16,
+                    rip: None
                 }
             )]),
             "mov rax, [rdx+rcx*4-0x10]"
@@ -379,6 +705,7 @@ mod tests {
     #[test]
     fn instruction_hors_dialecte_est_rejetee() {
         assert!(parse_insn("vfmadd231ps xmm0, xmm1, xmm2").is_err());
-        assert!(parse_insn("mov rax, [rip+0x10]").is_err());
+        assert!(parse_insn("mov rax, ecx").is_err(), "tailles incohérentes");
+        assert!(parse_insn("wibble rax").is_err());
     }
 }
