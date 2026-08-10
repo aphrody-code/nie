@@ -522,6 +522,25 @@ fn insn_of(i: &iced_x86::Instruction) -> Option<Insn> {
             let (r, dsz) = reg_of(i.op_register(0))?;
             Some(Insn::MovsxRm(rm_size(i, 1)?, dsz, r, rm_of(i, 1)?))
         }
+        // `mov al, [adresse absolue]` : ni base ni index, l'adresse est en clair.
+        Mnemonic::Mov
+            if i.memory_base() == Register::None
+                && i.memory_index() == Register::None
+                && !i.is_ip_rel_memory_operand()
+                // `mov rax, gs:[58h]` n'est PAS un moffs : le préfixe de segment
+                // change l'adresse effective et doit être reproduit.
+                && i.segment_prefix() == Register::None
+                && (i.op_kind(0) == OpKind::Memory || i.op_kind(1) == OpKind::Memory) =>
+        {
+            let store = i.op_kind(0) == OpKind::Memory;
+            let acc = if store { i.op_register(1) } else { i.op_register(0) };
+            (acc.full_register() == Register::RAX).then_some(())?;
+            Some(Insn::MovMoffs(
+                reg_of(acc)?.1,
+                i.memory_displacement64(),
+                store,
+            ))
+        }
         Mnemonic::Mov => match (i.op_kind(0), i.op_kind(1)) {
             (OpKind::Memory, OpKind::Register) => {
                 let (r, sz) = reg_of(i.op_register(1))?;

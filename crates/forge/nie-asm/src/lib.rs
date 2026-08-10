@@ -596,6 +596,11 @@ pub enum Insn {
     Sse(SseOp, Xmm, XmmRm),
     /// SSE, direction « mémoire ← registre » (`movaps [rcx], xmm0`)
     SseStore(SseOp, Mem, Xmm),
+    /// `mov al/eax/rax, [adresse absolue 64 bits]` et sa réciproque (`A0`..`A3`).
+    ///
+    /// Forme réservée à l'accumulateur, qui porte son adresse en clair sur 8
+    /// octets plutôt qu'en déplacement rip-relatif.
+    MovMoffs(Size, u64, bool),
     /// `cmovcc r, r/m` (`0F 40+cc /r`)
     Cmov(Cond, Size, Reg, Rm),
     /// SSE à immédiat : `shufps xmm0, xmm1, 0x4e` (`0F C6 /r ib`)
@@ -1124,6 +1129,17 @@ fn encode_one(i: Insn, at: u64, out: &mut Vec<u8>) {
             rm_form(out, dst_size, &[0x0F, opcode], r.lo(), r.hi(), rm, at, &[]);
         }
         Insn::LeaD(r, m) => mem_form(out, Size::D, 0x8D, r, m, at, 0),
+        Insn::MovMoffs(size, addr, store) => {
+            opsize(out, size);
+            rex(out, size.rex_w(), 0, 0, 0);
+            out.push(match (size == Size::B, store) {
+                (true, false) => 0xA0,
+                (false, false) => 0xA1,
+                (true, true) => 0xA2,
+                (false, true) => 0xA3,
+            });
+            out.extend_from_slice(&addr.to_le_bytes());
+        }
         Insn::Sse(op, dst, src) => {
             let (prefix, opcode, _) = op.encoding();
             sse_form_full(out, prefix, opcode, dst, src, at, None, op.three_byte());
