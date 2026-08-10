@@ -1,27 +1,28 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
 import { toast } from "sonner";
 import { api, type FolderRole, type RawCpkEntry } from "@/lib/api";
 import { useSettings } from "@/lib/settings";
 import { humanSize } from "@/lib/bytes";
-import { PINNED_PLACES, recordVisit, togglePin, useRecentPlaces, usePinnedPlaces } from "@/lib/places";
+import { recordVisit, togglePin, usePinnedPlaces } from "@/lib/places";
 import { codeOf } from "@/lib/vfsIndexDb";
 import { useResolvedNames } from "@/lib/nameResolve";
 import { showVfsFileContextMenu, showVfsFolderContextMenu, showRawCpkFileContextMenu } from "@/lib/contextMenu";
 import { registerFileOps } from "@/lib/editBus";
 import { modsDb } from "@/lib/modsDb";
-import { stageReplacementFromPath } from "@/lib/modWorkspace";
+import { stageReplacement, stageReplacementFromPath } from "@/lib/modWorkspace";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Icon } from "@/components/ui/Icon";
+import { CircleButton } from "@/components/ui/circle-button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Slider } from "@/components/ui/slider";
 import { useT } from "@/lib/i18n";
 import { DetailPane, type DetailTarget } from "@/components/DetailPane";
-import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { PropertyEditor } from "@/components/PropertyEditor";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export interface ExplorerState {
   prefix: string;
@@ -130,91 +131,11 @@ function FileThumbnail({ path, ext, gameDir }: { path: string; ext: string; game
   );
 }
 
-/** Barre latérale « emplacements » — épingles fixes (cosmic-files) + récents par fréquence (yazi). */
-function PlacesSidebar({ current, onGoto }: { current: string; onGoto: (prefix: string) => void }) {
-  const t = useT();
-  const recents = useRecentPlaces();
-  const pins = usePinnedPlaces();
-
-  return (
-    <ScrollArea className="min-h-0 rounded-xl bg-surface-container-low elevation-1">
-      <div className="flex flex-col gap-3 p-2">
-        <div>
-          <p className="px-2 pb-1 type-label-small text-on-surface-variant">{t("explorer.places")}</p>
-          <div className="flex flex-col">
-            {PINNED_PLACES.map((p) => (
-              <button
-                key={p.prefix}
-                className={`state-layer flex items-center gap-2 rounded-lg px-2 py-1.5 text-left type-body-small ${
-                  current === p.prefix ? "bg-secondary-container text-on-secondary-container" : "text-on-surface"
-                }`}
-                onClick={() => onGoto(p.prefix)}
-                title={p.prefix || "/"}
-              >
-                <Icon name={p.icon} size={15} className="shrink-0 text-on-surface-variant" />
-                <span className="truncate">{p.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {pins.length > 0 && (
-          // Section repliable — `Collapsible` porté de `spaceui/primitives/Collapsible.tsx`
-          // (spacedrive), cf. components/ui/collapsible.tsx.
-          <Collapsible defaultOpen>
-            <CollapsibleTrigger>
-              <span className="type-label-small text-on-surface-variant">★ Épinglés</span>
-              <Icon name="expand_more" size={14} className="text-on-surface-variant transition-transform group-data-[panel-open]:rotate-180" />
-            </CollapsibleTrigger>
-            <CollapsiblePanel>
-              <div className="flex flex-col pt-1">
-                {pins.map((prefix) => (
-                  <button
-                    key={prefix}
-                    className={`state-layer flex items-center gap-2 rounded-lg px-2 py-1.5 text-left type-body-small ${
-                      current === prefix ? "bg-secondary-container text-on-secondary-container" : "text-on-surface"
-                    }`}
-                    onClick={() => onGoto(prefix)}
-                    title={prefix}
-                  >
-                    <Icon name="stars" size={15} className="shrink-0 text-primary" />
-                    <span className="truncate">{prefix.split("/").pop()}</span>
-                  </button>
-                ))}
-              </div>
-            </CollapsiblePanel>
-          </Collapsible>
-        )}
-
-        {recents.length > 0 && (
-          <Collapsible defaultOpen>
-            <CollapsibleTrigger>
-              <span className="type-label-small text-on-surface-variant">{t("explorer.recents")}</span>
-              <Icon name="expand_more" size={14} className="text-on-surface-variant transition-transform group-data-[panel-open]:rotate-180" />
-            </CollapsibleTrigger>
-            <CollapsiblePanel>
-              <div className="flex flex-col pt-1">
-                {recents.map((r) => (
-                  <button
-                    key={r.prefix}
-                    className={`state-layer flex items-center gap-2 rounded-lg px-2 py-1.5 text-left type-body-small ${
-                      current === r.prefix ? "bg-secondary-container text-on-secondary-container" : "text-on-surface"
-                    }`}
-                    onClick={() => onGoto(r.prefix)}
-                    title={r.prefix}
-                  >
-                    <Icon name="schedule" size={15} className="shrink-0 text-on-surface-variant" />
-                    <span className="truncate">{r.prefix.split("/").pop()}</span>
-                  </button>
-                ))}
-              </div>
-            </CollapsiblePanel>
-          </Collapsible>
-        )}
-      </div>
-    </ScrollArea>
-  );
-}
+// La barre latérale « emplacements » (épingles curées + épinglés utilisatrice + récents) vivait
+// ICI, en plus de la rangée d'onglets globale : deux navigations concurrentes à l'écran. Elle est
+// désormais servie par la barre latérale UNIQUE de l'app (`components/Sidebar.tsx`, alimentée par
+// `App.tsx`), exactement comme `SpacesSidebar` de spacedrive qui porte à la fois les vues et les
+// emplacements. `lib/places.ts` est inchangé — seul l'endroit du rendu a bougé.
 
 export function ExplorerView({
   state,
@@ -268,6 +189,12 @@ export function ExplorerView({
   // "sélectionner" pour l'aperçu — piggy-backer sur `state.selected` ferait croire à `DetailPane`
   // qu'un dossier est un fichier VFS ciblé (échec d'aperçu silencieux mais trompeur).
   const [folderAnchor, setFolderAnchor] = useState<string | null>(null);
+  /** Onglet de l'inspecteur de droite — aperçu du fichier, ou éditeur de propriétés de l'entité. */
+  const [inspectorTab, setInspectorTab] = useState<"preview" | "properties">("preview");
+  /** Jeton de la dernière requête de listage/recherche lancée — cf. `fresh()` dans l'effet de
+   * chargement (anti-race, §2.7 roadmap). `useRef` et pas `useState` : le changer ne doit PAS
+   * provoquer de rendu, et sa valeur doit être lisible immédiatement dans le même tour. */
+  const requestSeq = useRef(0);
 
   // Recherche VFS globale non disponible À L'INTÉRIEUR d'un `.cpk` ouvert (portée volontairement
   // limitée pour cette fusion — la recherche continue de fonctionner normalement partout ailleurs).
@@ -276,6 +203,13 @@ export function ExplorerView({
   useEffect(() => {
     setLoading(true);
     setError(null);
+    // Garde anti-réponse-périmée (§2.7 roadmap : « recherche avec anti-race explicite », relevé
+    // comme écart réel non fermé). Sans elle, une frappe rapide peut faire arriver la réponse de
+    // "c010" APRÈS celle de "c0100" et réafficher la liste précédente : le champ affiche une
+    // requête, la liste en montre une autre. Chaque exécution incrémente le jeton ; toute réponse
+    // dont le jeton n'est plus le courant est jetée.
+    const seq = ++requestSeq.current;
+    const fresh = () => seq === requestSeq.current;
 
     if (cpkBoundary) {
       // Vue fusionnée : à l'intérieur d'un `.cpk`, on liste ses VRAIES entrées (pas le VFS) —
@@ -305,12 +239,13 @@ export function ExplorerView({
             dirSet.add(rest.slice(0, slash));
           }
         }
+        if (!fresh()) return;
         setDirs([...dirSet].sort((a, b) => a.localeCompare(b)));
         setFiles(fileRows);
         setRole(null);
       })()
-        .catch((e) => setError(String(e)))
-        .finally(() => setLoading(false));
+        .catch((e) => fresh() && setError(String(e)))
+        .finally(() => fresh() && setLoading(false));
       return;
     }
 
@@ -322,27 +257,30 @@ export function ExplorerView({
       api
         .listPacksDir(settings.gameDir)
         .then((packs) => {
+          if (!fresh()) return;
           setDirs(packs.map((p) => p.name));
           setFiles([]);
           setRole(null);
         })
-        .catch((e) => setError(String(e)))
-        .finally(() => setLoading(false));
+        .catch((e) => fresh() && setError(String(e)))
+        .finally(() => fresh() && setLoading(false));
       return;
     }
 
     const req = searching
       ? api.find(query.trim(), ext.trim() || undefined, 500, settings.gameDir).then((hits) => {
+          if (!fresh()) return;
           setDirs([]);
           setFiles(hits);
           setRole(null);
         })
       : api.ls(state.prefix, settings.gameDir).then((r) => {
+          if (!fresh()) return;
           setDirs(r.dirs);
           setFiles(r.files);
           setRole(r.role);
         });
-    req.catch((e) => setError(String(e))).finally(() => setLoading(false));
+    req.catch((e) => fresh() && setError(String(e))).finally(() => fresh() && setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.prefix, query, ext, settings.gameDir, cpkBoundary, openedCpkPrefix]);
 
@@ -429,6 +367,22 @@ export function ExplorerView({
     }
   }
 
+  /** « Ajouter à un mod… » du menu contextuel. `showVfsFileContextMenu` sait afficher cette entrée
+   * depuis toujours (`onStageIntoMod`), mais l'Explorateur ne la lui passait JAMAIS : le menu
+   * contextuel n'a donc jamais montré l'action, alors que c'est le geste principal de l'app. Le
+   * mod est créé à la volée s'il n'en existe aucun (même règle que Ctrl+V, cf. `doPaste`). */
+  async function stageIntoMod(path: string) {
+    try {
+      const mods = await modsDb.listMods();
+      const modId = mods[0]?.id ?? (await modsDb.createMod("Mon mod", "Créé depuis le menu contextuel"));
+      const modName = mods[0]?.name ?? "Mon mod";
+      const ok = await stageReplacement(modId, { kind: "vfs", path }, settings.gameDir);
+      if (ok) toast.success(`Ajouté au mod « ${modName} »`, { description: path });
+    } catch (e) {
+      toast.error(String(e));
+    }
+  }
+
   /** Menu contextuel d'un fichier — même dispatch VFS/CPK-brut que la vue liste. */
   function handleFileContextMenu(f: Row, e: React.MouseEvent) {
     e.preventDefault();
@@ -448,6 +402,7 @@ export function ExplorerView({
         gameDir: settings.gameDir,
         blenderExe: settings.blenderExe,
         onOpen: () => onStateChange({ ...state, selected: f.path }),
+        onStageIntoMod: () => void stageIntoMod(f.path),
       });
     }
   }
@@ -567,6 +522,9 @@ export function ExplorerView({
   // Résout le type de cible depuis la ligne réellement sélectionnée : `entryIndex` présent =
   // entrée d'un `.cpk` brut (vue fusionnée), sinon un chemin VFS normal.
   const selectedRow = sortedFiles.find((f) => f.path === state.selected) ?? null;
+  /** Code interne de l'entité à laquelle appartient le fichier sélectionné (`c01000010.g4tx` →
+   * `c01000010`) — clé de l'éditeur de propriétés. Vide pour un dossier ou un nom sans code. */
+  const selectedCode = state.selected ? codeOf(state.selected.split("/").pop() ?? "") : "";
   const target: DetailTarget | null = !state.selected
     ? null
     : selectedRow?.entryIndex !== undefined
@@ -574,68 +532,67 @@ export function ExplorerView({
       : { kind: "vfs", path: state.selected };
 
   return (
-    <div className="grid h-full grid-cols-[180px_minmax(300px,1fr)_1.4fr] gap-3 p-3">
-      <PlacesSidebar current={state.prefix} onGoto={goto} />
-
-      <div className="flex min-h-0 flex-col gap-2">
-        <div className="flex items-center gap-1 rounded-full bg-surface-container-high px-1 py-1">
-          <Button
-            size="icon"
-            variant="ghost"
+    // Deux colonnes : contenu + inspecteur FLOTTANT de 280 px à droite (largeur et marge de
+    // `ShellLayout.tsx` chez spacedrive — `w-[280px] min-w-[280px] … p-2`).
+    <div className="flex h-full min-h-0">
+      <div className="flex min-h-0 flex-1 flex-col gap-2 p-2">
+        {/* Barre d'outils — mise en forme de la `TopBar` de l'explorer spacedrive : boutons ronds
+         * (`CircleButton`) sur fond transparent et fil d'Ariane en texte, plutôt qu'une pilule
+         * pleine largeur. */}
+        <div className="flex items-center gap-1.5">
+          <CircleButton
+            icon="home"
+            size="sm"
             title={t("explorer.root")}
-            className="state-layer rounded-full text-on-surface-variant"
+            aria-label={t("explorer.root")}
             onClick={() => goto("")}
-          >
-            <Icon name="home" size={16} />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
+          />
+          <CircleButton
+            icon="arrow_back"
+            size="sm"
             title={t("explorer.parent")}
-            className="state-layer rounded-full text-on-surface-variant"
+            aria-label={t("explorer.parent")}
             disabled={segments.length === 0}
             onClick={() => goto(segments.slice(0, -1).join("/"))}
-          >
-            <Icon name="arrow_back" size={16} />
-          </Button>
-          <nav className="flex min-w-0 flex-wrap items-center gap-0.5 type-body-small pr-2">
+          />
+          <nav className="flex min-w-0 flex-1 flex-wrap items-center gap-0.5 text-xs">
             {segments.map((seg, i) => (
               <span key={i} className="flex items-center gap-0.5">
                 <button
-                  className="state-layer rounded-md px-1.5 py-0.5 text-on-surface-variant hover:text-on-surface"
+                  type="button"
+                  className="rounded-md px-1.5 py-0.5 text-ink-dull transition-colors hover:bg-app-hover hover:text-ink"
                   onClick={() => goto(segments.slice(0, i + 1).join("/"))}
                 >
                   {seg}
                 </button>
-                <span className="text-outline">/</span>
+                <span className="text-ink-faint">/</span>
               </span>
             ))}
           </nav>
-          <div className="flex-1" />
-          <Button
-            size="icon"
-            variant="ghost"
+          <CircleButton
+            icon="stars"
+            size="sm"
+            variant={pins.includes(state.prefix) ? "accent" : "default"}
             title="Épingler à la barre latérale (Ctrl+D)"
-            className={`state-layer rounded-full ${pins.includes(state.prefix) ? "text-primary" : "text-on-surface-variant"}`}
+            aria-label="Épingler à la barre latérale"
             onClick={() => togglePin(state.prefix)}
-          >
-            <Icon name="stars" size={16} />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
+          />
+          <CircleButton
+            icon={sortKey === "name" ? "sort_by_alpha" : "table_rows"}
+            size="sm"
             title={sortKey === "name" ? t("explorer.sort_size") : t("explorer.sort_name")}
-            className="state-layer rounded-full text-on-surface-variant"
+            aria-label={sortKey === "name" ? t("explorer.sort_size") : t("explorer.sort_name")}
             onClick={() => setSortKey((k) => (k === "name" ? "size" : "name"))}
-          >
-            <Icon name={sortKey === "name" ? "sort_by_alpha" : "table_rows"} size={16} />
-          </Button>
+          />
           <Popover>
             <PopoverTrigger
               render={
-                <Button size="icon" variant="ghost" title="Options d'affichage" className="state-layer rounded-full text-on-surface-variant">
-                  <Icon name="tune" size={16} />
-                </Button>
+                <CircleButton
+                  icon="tune"
+                  size="sm"
+                  title="Options d'affichage"
+                  aria-label="Options d'affichage"
+                />
               }
             />
             <PopoverContent className="w-56">
@@ -685,21 +642,21 @@ export function ExplorerView({
         {error && <p className="type-body-small text-error">{error}</p>}
 
         {!searching && role && (
-          <div className="rounded-xl bg-tertiary-container p-3 text-on-tertiary-container elevation-1">
-            <p className="type-body-small leading-relaxed">{role.role}</p>
-            <Badge variant="outline" className="mt-1.5 border-on-tertiary-container/30 text-on-tertiary-container">
+          <div className="rounded-lg border border-app-line bg-app-box p-3 text-ink-dull">
+            <p className="text-xs leading-relaxed">{role.role}</p>
+            <Badge variant="outline" className="mt-1.5">
               {role.status}
             </Badge>
           </div>
         )}
 
         <ScrollArea
-          className="min-h-0 flex-1 rounded-xl bg-surface-container-low elevation-1"
+          className="min-h-0 flex-1 rounded-2xl border border-app-line bg-app-dark-box"
           tabIndex={0}
           onKeyDown={onListKeyDown}
         >
           <div
-            className={viewMode === "grid" ? "grid gap-2 p-2" : "divide-y divide-outline-variant/30 py-1"}
+            className={viewMode === "grid" ? "grid gap-2 p-2" : "divide-y divide-app-line py-1"}
             style={viewMode === "grid" ? { gridTemplateColumns: `repeat(auto-fill,minmax(${gridSize}px,1fr))` } : undefined}
           >
             {!searching &&
@@ -713,7 +670,6 @@ export function ExplorerView({
                       className={`state-layer flex flex-col items-center gap-1 rounded-xl p-2 text-center ${
                         isMultiSelected ? "bg-primary-container/40" : ""
                       }`}
-                      onDoubleClick={() => goto(path)}
                       onClick={(e) => handleDirClick(path, e)}
                       onContextMenu={(e) => {
                         e.preventDefault();
@@ -732,7 +688,6 @@ export function ExplorerView({
                     className={`state-layer flex w-full items-center gap-2 px-3 py-2 text-left type-body-medium ${
                       isMultiSelected ? "bg-primary-container/40 text-on-surface" : "text-on-surface"
                     }`}
-                    onDoubleClick={() => goto(path)}
                     onClick={(e) => handleDirClick(path, e)}
                     onContextMenu={(e) => {
                       e.preventDefault();
@@ -829,8 +784,32 @@ export function ExplorerView({
         </div>
       </div>
 
-      <div className="min-h-0 overflow-hidden rounded-xl bg-surface-container-low elevation-1">
-        <DetailPane target={target} />
+      {/* Inspecteur : aperçu du fichier, ET éditeur de propriétés de l'ENTITÉ à laquelle il
+       * appartient (modèle/texture/config du même code interne, données éditables, fonctions et
+       * adresses de `nie.exe` qui le manipulent). Sélectionner la texture d'un joueur ouvre donc
+       * la fiche du joueur, pas seulement un aperçu d'image. */}
+      <div className="flex h-full w-[320px] min-w-[320px] flex-col gap-2 p-2 pl-0">
+        <Tabs value={inspectorTab} onValueChange={(v) => v && setInspectorTab(v as "preview" | "properties")}>
+          <TabsList variant="line">
+            <TabsTrigger value="preview" className="text-xs">
+              Aperçu
+            </TabsTrigger>
+            <TabsTrigger value="properties" className="text-xs" disabled={!selectedCode}>
+              Propriétés
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-app-line bg-app-box/60">
+          {inspectorTab === "properties" && selectedCode ? (
+            <PropertyEditor
+              code={selectedCode}
+              className="h-full p-3"
+              onOpenFile={(p) => onStateChange({ ...state, selected: p })}
+            />
+          ) : (
+            <DetailPane target={target} />
+          )}
+        </div>
       </div>
     </div>
   );

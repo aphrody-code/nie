@@ -178,8 +178,8 @@ export function SaveView() {
                 <CardTitle>Roster résolu (bonus — azalee, wiki distant)</CardTitle>
               </CardHeader>
               <CardContent>
-                <ScrollArea className="h-56 rounded-xl border border-outline-variant/40 bg-surface-container-low">
-                  <div className="divide-y divide-outline-variant/30">
+                <ScrollArea className="h-56 rounded-lg border border-app-line bg-app-dark-box">
+                  <div className="divide-y divide-app-line">
                     {roster.map((r) => (
                       <div key={r.id} className="state-layer flex items-center justify-between px-3 py-1.5 type-body-medium">
                         <span className="text-on-surface">{r.name ?? <span className="text-on-surface-variant">{r.id} (inconnu)</span>}</span>
@@ -213,7 +213,7 @@ export function SaveView() {
                 ))}
               </div>
               {blobHex && (
-                <ScrollArea className="h-56 rounded-xl border border-outline-variant/40 bg-surface-container-low">
+                <ScrollArea className="h-56 rounded-lg border border-app-line bg-app-dark-box">
                   <pre className="p-2 font-mono text-[11px] leading-relaxed text-on-surface">{blobHex}</pre>
                 </ScrollArea>
               )}

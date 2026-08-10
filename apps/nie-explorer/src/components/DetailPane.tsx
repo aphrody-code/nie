@@ -17,6 +17,13 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 installMonacoOffline();
 
@@ -127,6 +134,25 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
     try {
       const ok = await stageReplacement(modChoice, target, settings.gameDir);
       if (ok) toast.success("Ajouté au mod");
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Crée un mod à la volée puis enchaîne directement sur le choix du fichier de remplacement —
+   * sans ça, le panneau était un cul-de-sac tant qu'aucun mod n'existait (il fallait deviner
+   * qu'il fallait passer par l'onglet Mods d'abord). */
+  async function createModAndStage() {
+    if (!target || target.kind === "raw_cpk") return;
+    setBusy(true);
+    try {
+      const id = await modsDb.createMod("Mon mod", "Créé depuis l'aperçu de fichier");
+      setMods(await modsDb.listMods());
+      setModChoice(id);
+      const ok = await stageReplacement(id, target, settings.gameDir);
+      if (ok) toast.success("Mod créé et fichier ajouté");
     } catch (e) {
       toast.error(String(e));
     } finally {
@@ -476,7 +502,7 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
               Copier
             </Button>
           </div>
-          <div className="h-96 overflow-hidden rounded-xl border border-outline-variant/40 bg-surface-container-low">
+          <div className="h-96 overflow-hidden rounded-lg border border-app-line bg-app-dark-box">
             <Editor
               height="100%"
               language="json"
@@ -501,12 +527,12 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
 
       {glbError && <p className="type-body-small text-error">{glbError}</p>}
       {glbUrl && (
-        <div className="max-h-96 overflow-auto rounded-xl border border-outline-variant/40 bg-surface-container-low p-2 elevation-1">
+        <div className="max-h-96 overflow-auto rounded-lg border border-app-line bg-app-dark-box p-2">
           <img src={glbUrl} alt={`Rendu 3D de ${name}`} className="max-w-full" />
         </div>
       )}
       {glbTurntableUrl && (
-        <div className="overflow-hidden rounded-xl border border-outline-variant/40 bg-black elevation-1">
+        <div className="overflow-hidden rounded-lg border border-app-line bg-black">
           {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
           <video src={glbTurntableUrl} controls loop className="max-h-96 w-full" />
           <p className="p-1 text-center type-label-small text-on-surface-variant">
@@ -524,25 +550,35 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
       {videoError && <p className="type-body-small text-error">{videoError}</p>}
       {videoUrl && (
         // eslint-disable-next-line jsx-a11y/media-has-caption
-        <video src={videoUrl} controls className="max-h-72 w-full rounded-xl border border-outline-variant/40 bg-black" />
+        <video src={videoUrl} controls className="max-h-72 w-full rounded-xl border border-app-line bg-black" />
       )}
 
-      {mods.length > 0 && target.kind !== "raw_cpk" && (
-        <div className="flex items-center gap-2">
-          <select
-            className="h-8 rounded-lg border border-outline-variant/40 bg-surface-container px-2 type-body-medium text-on-surface"
-            value={modChoice}
-            onChange={(e) => setModChoice(e.target.value)}
-          >
-            <option value="">Ajouter à un mod…</option>
-            {mods.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </select>
+      {target.kind !== "raw_cpk" && (
+        <div className="flex flex-wrap items-center gap-2">
+          {/* `Select` du design system (base-ui) — l'ancien `<select>` HTML brut était le seul
+           * contrôle de l'app à ne pas suivre la palette ni le clavier des autres listes. */}
+          <Select value={modChoice} onValueChange={(v) => setModChoice(v ?? "")}>
+            <SelectTrigger size="sm" className="w-52">
+              <SelectValue placeholder="Choisir un mod…" />
+            </SelectTrigger>
+            <SelectContent>
+              {mods.map((m) => (
+                <SelectItem key={m.id} value={m.id}>
+                  {m.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {/* Sans mod existant, l'ancien panneau ne montrait RIEN ici : impossible d'ajouter un
+           * fichier à un mod tant qu'on n'était pas passé par l'onglet Mods. Le mod est créé à la
+           * volée, comme le fait déjà Ctrl+V (`ExplorerView.doPaste`). */}
+          {mods.length === 0 && (
+            <Button size="sm" variant="outline" onClick={createModAndStage} disabled={busy}>
+              Créer un mod et y ajouter ce fichier…
+            </Button>
+          )}
           <Button size="sm" variant="outline" onClick={stageIntoMod} disabled={!modChoice || busy}>
-            Choisir le remplacement…
+            Remplacer par un fichier…
           </Button>
           {ext === "g4tx" && (
             <Button
@@ -563,12 +599,12 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
       {error && <p className="type-body-small text-error">{error}</p>}
 
       {pngUrl && (
-        <div className="max-h-64 overflow-auto rounded-xl border border-outline-variant/40 bg-surface-container-low p-2 elevation-1">
+        <div className="max-h-64 overflow-auto rounded-lg border border-app-line bg-app-dark-box p-2">
           <img src={pngUrl} alt={name} className="max-w-full" />
         </div>
       )}
 
-      <ScrollArea className="min-h-0 flex-1 rounded-xl border border-outline-variant/40 bg-surface-container-low elevation-1">
+      <ScrollArea className="min-h-0 flex-1 rounded-lg border border-app-line bg-app-dark-box">
         <pre className="whitespace-pre-wrap p-3 font-mono text-xs leading-relaxed text-on-surface">{lines.join("\n") || "…"}</pre>
       </ScrollArea>
 
@@ -585,7 +621,7 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
           {busy && <span className="type-label-small text-on-surface-variant">chargement…</span>}
         </div>
         <TabsContent value="hex">
-          <ScrollArea className="h-40 rounded-xl border border-outline-variant/40 bg-surface-container-low">
+          <ScrollArea className="h-40 rounded-lg border border-app-line bg-app-dark-box">
             <pre className="p-2 font-mono text-[11px] leading-relaxed text-on-surface">
               {rawBytes ? hexLines(rawBytes).join("\n") : "(cliquez pour charger)"}
             </pre>
@@ -593,7 +629,7 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
         </TabsContent>
         <TabsContent value="edit" className="space-y-2">
           <textarea
-            className="h-40 w-full resize-none rounded-xl border border-outline-variant/40 bg-surface-container p-2 font-mono text-[11px] leading-relaxed text-on-surface outline-none"
+            className="h-40 w-full resize-none rounded-lg border border-app-line bg-app-box p-2 font-mono text-[11px] leading-relaxed text-on-surface outline-none"
             spellCheck={false}
             value={editText}
             onChange={(e) => setEditText(e.target.value)}

@@ -6,7 +6,15 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import { toast } from "sonner";
 import { api, type BlenderSceneResult, type VfsStats } from "@/lib/api";
 import { vfsIndexDb, type VfsIndexMeta } from "@/lib/vfsIndexDb";
-import { getSettings, setSettings, useSettings, type Locale } from "@/lib/settings";
+import { jobsDb } from "@/lib/jobsDb";
+import {
+  ACCENT_THEMES,
+  getSettings,
+  setSettings,
+  useSettings,
+  type AccentTheme,
+  type Locale,
+} from "@/lib/settings";
 import { useT, LOCALE_LABELS } from "@/lib/i18n";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +30,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+/** Libellés des variantes de palette — mêmes noms que les fichiers de
+ * `var/spaceui/packages/tokens/src/css/themes/`. */
+const ACCENT_THEME_LABELS: Record<AccentTheme, string> = {
+  spacedrive: "Spacedrive (défaut)",
+  midnight: "Midnight",
+  noir: "Noir",
+  slate: "Slate",
+  nord: "Nord",
+  mocha: "Mocha",
+};
 
 function Field({
   label,
@@ -55,7 +74,7 @@ function Field({
 export function SettingsView() {
   const settings = useSettings();
   const t = useT();
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, resolvedTheme } = useTheme();
   const [autoGameDir, setAutoGameDir] = useState("");
   const [gameDirOk, setGameDirOk] = useState<boolean | null>(null);
   const [stats, setStats] = useState<VfsStats | null>(null);
@@ -174,16 +193,36 @@ export function SettingsView() {
   async function reindex() {
     setReindexing(true);
     setReindexProgress(null);
+    // Journal DURABLE (§8 roadmap) : la progression ne vit plus seulement dans ce `useState` —
+    // elle est écrite dans la table `jobs`, donc consultable depuis le gestionnaire d'opérations
+    // (pied de barre latérale) même après avoir quitté cet écran, et un job coupé net réapparaît
+    // en « interrompu » au prochain démarrage au lieu de disparaître sans laisser de trace.
+    const jobId = await jobsDb.create("vfs-reindex", "Réindexation du VFS");
+    // Écritures SQL limitées à ~1/s : le callback est appelé des centaines de fois (un lot de
+    // 8 000 entrées côté scan, puis 400 côté insertion) — persister CHAQUE tick ferait plus de
+    // travail disque que l'indexation elle-même.
+    let lastWrite = 0;
     try {
       const meta = await vfsIndexDb.reindex(
         settings.gameDir,
-        (done, total) => setReindexProgress({ done, total }),
+        (done, total) => {
+          setReindexProgress({ done, total });
+          const now = Date.now();
+          if (now - lastWrite > 1000) {
+            lastWrite = now;
+            void jobsDb.progress(jobId, done, total);
+          }
+        },
         setReindexTaskId,
       );
       setIndexMeta(meta);
+      await jobsDb.progress(jobId, meta.total, meta.total);
+      await jobsDb.finish(jobId, "done");
       toast.success(`Index VFS reconstruit : ${meta.total.toLocaleString("fr-FR")} fichiers`);
     } catch (e) {
-      toast.error(String(e));
+      const msg = String(e);
+      await jobsDb.finish(jobId, msg.includes("annul") ? "canceled" : "error", msg);
+      toast.error(msg);
     } finally {
       setReindexing(false);
       setReindexProgress(null);
@@ -210,7 +249,7 @@ export function SettingsView() {
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-4 p-4">
-      <Card className="elevation-1">
+      <Card>
         <CardHeader>
           <CardTitle>{t("settings.appearance")}</CardTitle>
           <CardDescription>Langue, thème, taille de police et zoom de l'interface.</CardDescription>
@@ -249,16 +288,29 @@ export function SettingsView() {
 
             <div className="space-y-1.5">
               <Label>Palette</Label>
-              <Select value={settings.accentTheme} onValueChange={(v) => v && setSettings({ accentTheme: v as "azalee" | "spacedrive" })}>
+              {/* Variantes de `var/spaceui/packages/tokens/src/css/themes/*.css`, portées telles
+               * quelles (cf. styles.css). Toutes sombres : sans effet en thème clair, où spaceui
+               * ne fournit qu'une seule palette (`themes/light.css`). */}
+              <Select
+                value={settings.accentTheme}
+                onValueChange={(v) => v && setSettings({ accentTheme: v as AccentTheme })}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="azalee">Azalee (MD3, défaut)</SelectItem>
-                  {/* Portage des tokens `var/spaceui/packages/tokens` (spacedrive) — cf. styles.css. */}
-                  <SelectItem value="spacedrive">Spacedrive</SelectItem>
+                  {ACCENT_THEMES.map((a) => (
+                    <SelectItem key={a} value={a}>
+                      {ACCENT_THEME_LABELS[a]}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+              {resolvedTheme === "light" && (
+                <p className="type-body-small text-on-surface-variant">
+                  Sans effet en thème clair — spaceui ne fournit qu'une palette claire.
+                </p>
+              )}
             </div>
           </div>
 
@@ -419,12 +471,12 @@ export function SettingsView() {
               <img
                 src={`data:image/png;base64,${blenderImportPreview.pngB64}`}
                 alt={blenderImportPreview.path}
-                className="max-w-full rounded-lg border border-outline-variant/40"
+                className="max-w-full rounded-lg border border-app-line"
               />
             )}
           </div>
 
-          <div className="space-y-1.5 border-t border-outline-variant/30 pt-4">
+          <div className="space-y-1.5 border-t border-app-line pt-4">
             <Label>Construire une scène (personnage + technique)</Label>
             <div className="flex flex-wrap gap-2">
               <Input
@@ -458,7 +510,7 @@ export function SettingsView() {
                   <img
                     src={`data:image/png;base64,${sceneResult.preview_png_b64}`}
                     alt={sceneResult.skill_name}
-                    className="max-w-full rounded-lg border border-outline-variant/40"
+                    className="max-w-full rounded-lg border border-app-line"
                   />
                 )}
                 <Button
@@ -585,7 +637,7 @@ export function SettingsView() {
               <table className="w-full type-body-small">
                 <tbody>
                   {stats.top_ext.slice(0, 15).map(([e, c]) => (
-                    <tr key={e} className="border-t border-outline-variant/30">
+                    <tr key={e} className="border-t border-app-line">
                       <td className="py-1 pr-2 font-mono text-on-surface">.{e}</td>
                       <td className="py-1 text-right text-on-surface-variant">{c.toLocaleString("fr-FR")}</td>
                     </tr>

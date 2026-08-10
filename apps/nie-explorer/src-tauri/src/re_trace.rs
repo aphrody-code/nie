@@ -44,7 +44,14 @@ pub fn re_trace_find_process() -> Option<ReTraceProcessDto> {
 pub struct ReTraceRegionDto {
     start: String,
     end: String,
-    size: u64,
+    /// Taille de la plage en octets. `f64` et **pas** `u64` : `specta` refuse d'exporter les types
+    /// « BigInt » (`u64`/`usize`/`i64`/…) vers TypeScript pour éviter une perte de précision
+    /// silencieuse — et le refus est FATAL (l'export panique au démarrage en debug, ce qui
+    /// empêchait l'app de se lancer du tout). Une plage d'un module Windows x64 est bornée par
+    /// l'espace d'adressage utilisateur (2⁴⁷), très en dessous des 2⁵³ entiers exactement
+    /// représentables en `f64` : la conversion est donc SANS perte ici, contrairement à un
+    /// `as u32` qui tronquerait pour de vrai.
+    size: f64,
     perms: String,
     path: String,
 }
@@ -53,7 +60,7 @@ fn to_region_dto(m: &nie_trace::MapEntry) -> ReTraceRegionDto {
     ReTraceRegionDto {
         start: format!("0x{:x}", m.start),
         end: format!("0x{:x}", m.end),
-        size: m.size(),
+        size: m.size() as f64,
         perms: m.perms.clone(),
         path: m.path.clone(),
     }
@@ -95,7 +102,9 @@ fn parse_addr(s: &str) -> Result<u64, String> {
 #[derive(Serialize, specta::Type)]
 pub struct ReTraceDumpStatsDto {
     regions: u32,
-    bytes: u64,
+    /// Octets écrits. `f64` pour la même raison que [`ReTraceRegionDto::size`] — total borné par
+    /// la taille du module dumpé, donc exactement représentable.
+    bytes: f64,
     /// Dossier de sortie réel (sous `BaseDirectory::AppData`, jamais dans le dossier du jeu —
     /// même convention que le workspace de mods, cf. `lib.rs`).
     out_dir: String,
@@ -121,7 +130,7 @@ pub fn re_trace_dump_module(pid: i32, app: tauri::AppHandle) -> Result<ReTraceDu
     let stats = nie_trace::dump_regions(pid, &regions, &out_dir).map_err(|e| e.to_string())?;
     Ok(ReTraceDumpStatsDto {
         regions: stats.regions as u32,
-        bytes: stats.bytes,
+        bytes: stats.bytes as f64,
         out_dir: out_dir.display().to_string(),
     })
 }

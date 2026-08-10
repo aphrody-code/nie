@@ -45,12 +45,13 @@ function CommandDialog({
   showCloseButton?: boolean
   children: React.ReactNode
 }) {
+  // Les enfants DOIVENT être enveloppés dans `<Command>` : `CommandInput`/`CommandList`/
+  // `CommandItem` sont des `cmdk` qui lisent un contexte React fourni par le composant racine
+  // `Command`. Sans lui, `cmdk` lève à la première ouverture de la palette — c'était le crash de
+  // l'app au clic sur « Rechercher… ». Le `DialogHeader` accessible (titre/description lus par les
+  // lecteurs d'écran) va DANS le contenu du dialogue, pas à côté.
   return (
     <Dialog {...props}>
-      <DialogHeader className="sr-only">
-        <DialogTitle>{title}</DialogTitle>
-        <DialogDescription>{description}</DialogDescription>
-      </DialogHeader>
       <DialogContent
         className={cn(
           "top-1/3 translate-y-0 overflow-hidden rounded-xl! p-0",
@@ -58,7 +59,11 @@ function CommandDialog({
         )}
         showCloseButton={showCloseButton}
       >
-        {children}
+        <DialogHeader className="sr-only">
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+        <Command>{children}</Command>
       </DialogContent>
     </Dialog>
   )
