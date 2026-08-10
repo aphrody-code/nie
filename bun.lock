@@ -26,6 +26,7 @@
       "dependencies": {
         "@base-ui/react": "^1.7.0",
         "@monaco-editor/react": "^4.7.0",
+        "@niers/bridge": "workspace:*",
         "@tailwindcss/vite": "^4.3.3",
         "@tauri-apps/api": "^2",
         "@tauri-apps/plugin-clipboard-manager": "^2.3.2",
@@ -68,6 +69,7 @@
       },
       "dependencies": {
         "@modelcontextprotocol/sdk": "catalog:mcp",
+        "@niers/bridge": "workspace:*",
         "nie": "workspace:*",
         "zod": "catalog:mcp",
       },
@@ -78,6 +80,14 @@
     },
     "packages/nie": {
       "name": "nie",
+      "version": "0.4.0",
+      "devDependencies": {
+        "@types/bun": "catalog:",
+        "typescript": "catalog:",
+      },
+    },
+    "packages/nie-bridge": {
+      "name": "@niers/bridge",
       "version": "0.4.0",
       "devDependencies": {
         "@types/bun": "catalog:",
@@ -280,6 +290,8 @@
     "@monaco-editor/react": ["@monaco-editor/react@4.7.0", "", { "dependencies": { "@monaco-editor/loader": "^1.5.0" }, "peerDependencies": { "monaco-editor": ">= 0.25.0 < 1", "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0", "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-cyzXQCtO47ydzxpQtCGSQGOC8Gk3ZUeBXFAxD+CWXYFo5OqZyZUonFl0DwUlTyAfRHntBfw2p3w4s9R6oe1eCA=="],
 
     "@napi-rs/lzma-linux-x64-gnu": ["@napi-rs/lzma-linux-x64-gnu@1.5.1", "", { "os": "linux", "cpu": "x64" }, "sha512-oTXEIha4SsuXdTA4Iyskj0kpdx2yVXdhd75c2v3xGrHFfVMsbhTPZU/nMPL4sWKo4pBHm3aucLaqGlF696dTyQ=="],
+
+    "@niers/bridge": ["@niers/bridge@workspace:packages/nie-bridge"],
 
     "@niers/catalog": ["@niers/catalog@workspace:packages/nie-catalog"],
 

@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import { open } from "@tauri-apps/plugin-dialog";
 import { check as checkUpdate, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { toast } from "sonner";
-import { api, type BlenderSceneResult, type VfsStats } from "@/lib/api";
+import { api, type BlenderSceneResult, type McpStatus, type McpTarget, type VfsStats } from "@/lib/api";
 import { vfsIndexDb, type VfsIndexMeta } from "@/lib/vfsIndexDb";
 import { jobsDb } from "@/lib/jobsDb";
 import {
@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
 import {
   Select,
@@ -649,9 +650,116 @@ export function SettingsView() {
         </CardContent>
       </Card>
 
+      <McpCard />
+
       <Button variant="ghost" size="sm" className="self-start" onClick={() => setSettings(getSettings())}>
         Rafraîchir
       </Button>
     </div>
+  );
+}
+
+/**
+ * Serveur MCP `niers-game` — l'explorateur le déclare aux clients MCP, et le laisse en retour
+ * piloter cette fenêtre.
+ *
+ * Les deux moitiés du couple sont réunies ici : l'installation (écriture fusionnée dans la
+ * config du client, côté Rust) et l'interrupteur du pont de contrôle (`@niers/bridge`).
+ */
+function McpCard() {
+  const settings = useSettings();
+  const [target, setTarget] = useState<McpTarget>("claude-code");
+  const [status, setStatus] = useState<McpStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const refresh = useCallback((t: McpTarget) => {
+    api
+      .mcpStatus(t)
+      .then(setStatus)
+      .catch((e) => {
+        setStatus(null);
+        toast.error(`État MCP indisponible : ${e}`);
+      });
+  }, []);
+
+  useEffect(() => refresh(target), [refresh, target]);
+
+  async function install() {
+    setBusy(true);
+    try {
+      const r = await api.mcpInstall(target, settings.gameDir);
+      toast.success(
+        r.replaced
+          ? `Serveur MCP mis à jour dans ${r.config_path}`
+          : `Serveur MCP ajouté à ${r.config_path}`,
+      );
+      refresh(target);
+    } catch (e) {
+      toast.error(`Installation impossible : ${e}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Serveur MCP</CardTitle>
+        <CardDescription>
+          Expose le jeu (VFS, assets décodés, base de connaissance RE) à un assistant compatible MCP, et
+          laisse celui-ci piloter cette fenêtre. Serveur et explorateur partagent les mêmes crates Rust.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <Label>Client à configurer</Label>
+          <div className="flex gap-2">
+            {(["claude-code", "claude-desktop"] as const).map((v) => (
+              <Button
+                key={v}
+                size="sm"
+                variant={target === v ? "default" : "outline"}
+                onClick={() => setTarget(v)}
+              >
+                {v === "claude-code" ? "Claude Code (projet)" : "Claude Desktop"}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        {status && (
+          <div className="space-y-1 text-xs text-on-surface-variant">
+            <div className="flex items-center gap-2">
+              <Badge variant={status.installed ? "default" : "outline"}>
+                {status.installed ? "installé" : "non installé"}
+              </Badge>
+              {!status.entrypoint_exists && <Badge variant="destructive">point d'entrée introuvable</Badge>}
+            </div>
+            <p className="font-mono break-all">{status.config_path}</p>
+            {status.current_command && <p className="font-mono break-all">{status.current_command}</p>}
+            {!status.entrypoint_exists && <p className="font-mono break-all">attendu : {status.entrypoint}</p>}
+          </div>
+        )}
+
+        <Button size="sm" disabled={busy || status?.entrypoint_exists === false} onClick={install}>
+          {status?.installed ? "Réinstaller" : "Installer"}
+        </Button>
+
+        <div className="flex items-center justify-between border-t border-app-line pt-4">
+          <div className="space-y-0.5">
+            <Label htmlFor="bridge-enabled">Pilotage à distance</Label>
+            <p className="text-xs text-on-surface-variant">
+              Autorise le serveur MCP à naviguer et ouvrir des fichiers dans cette fenêtre. Prend effet au
+              prochain démarrage de l'application.
+            </p>
+          </div>
+          <Switch
+            id="bridge-enabled"
+            checked={settings.bridgeEnabled}
+            onCheckedChange={(v) => setSettings({ bridgeEnabled: v })}
+          />
+        </div>
+      </CardContent>
+    </Card>
   );
 }

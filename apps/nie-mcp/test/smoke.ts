@@ -72,7 +72,8 @@ async function main(): Promise<void> {
   // Liste des outils exposés.
   const tools = await client.listTools();
   const names = tools.tools.map((t) => t.name).sort();
-  check("listTools", names.length === 8, `${names.length} outils : ${names.join(", ")}`);
+  // 8 outils de données + 5 de pilotage de l'explorateur + le lancement du jeu.
+  check("listTools", names.length === 14, `${names.length} outils : ${names.join(", ")}`);
 
   // (1) re_coverage : pct plausible (~93 %), total 52783.
   {
@@ -147,8 +148,10 @@ async function main(): Promise<void> {
     );
   }
 
-  // (4b) asset_get tex -> PNG. On passe le chemin AVEC .g4tx : la convention /tex
-  // doit produire une URL '…/x.png' (jamais '…/x.g4tx.png').
+  // (4b) asset_get tex -> PNG. Deux voies possibles selon l'hôte, toutes deux valides :
+  //  - `ffi`         : décodage en process par `nie` (CPK montés), l'URL est un `nie://…g4tx` ;
+  //  - `model-serve` : service HTTP, et là la convention /tex impose '…/x.png' — jamais
+  //                    '…/x.g4tx.png'. C'est ce piège-là que le test doit continuer de garder.
   {
     const texPath = "data/dx11/menu/200_icon/10_icon_chr/uniform/u040607_20_04_l.g4tx";
     const { data } = await callJson<{
@@ -156,14 +159,16 @@ async function main(): Promise<void> {
       content_type: string | null;
       url: string;
       base64?: string;
+      source?: string;
     }>(client, "asset_get", { path: texPath, decode: "tex" });
+    const urlOk =
+      data.source === "ffi"
+        ? data.url.endsWith("/u040607_20_04_l.g4tx")
+        : data.url.endsWith("/u040607_20_04_l.png") && !data.url.includes(".g4tx.png");
     check(
       "asset_get tex (PNG)",
-      data.http_status === 200 &&
-        (data.content_type ?? "").includes("png") &&
-        data.url.endsWith("/u040607_20_04_l.png") &&
-        !data.url.includes(".g4tx.png"),
-      `http=${data.http_status} ct=${data.content_type} b64=${data.base64 ? data.base64.length + "c" : "—"} url=${data.url}`,
+      data.http_status === 200 && (data.content_type ?? "").includes("png") && urlOk && (data.base64?.length ?? 0) > 0,
+      `source=${data.source} http=${data.http_status} ct=${data.content_type} b64=${data.base64 ? data.base64.length + "c" : "—"} url=${data.url}`,
     );
   }
 

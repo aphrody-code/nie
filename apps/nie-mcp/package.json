@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "catalog:mcp",
+    "@niers/bridge": "workspace:*",
     "nie": "workspace:*",
     "zod": "catalog:mcp"
   },

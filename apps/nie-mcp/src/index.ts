@@ -15,7 +15,9 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
+import { EXPLORER_TABS } from "@niers/bridge";
 import { config } from "./config.ts";
+import { Control, launchGame } from "./control.ts";
 import { VfsIndex } from "./vfs.ts";
 import { KnowledgeBase } from "./kb.ts";
 import { getAsset } from "./assets.ts";
@@ -197,9 +199,91 @@ async function main(): Promise<void> {
     ({ path, maxBytes }) => safe(() => repoRead({ path, maxBytes })),
   );
 
+  // ------------------------------------------------------------- Contrôle ----
+  // Pilotage de nie-explorer via `@niers/bridge` : le protocole est le même module des deux
+  // côtés, donc une commande ajoutée ici doit être gérée par le client, ou ça ne compile pas.
+  const control = new Control((m) => console.error(`[niers-game] ${m}`));
+  control.start();
+
+  server.registerTool(
+    "explorer_status",
+    {
+      title: "État du pont vers nie-explorer",
+      description:
+        "Indique si le pont de contrôle écoute, si nie-explorer y est connecté, et depuis quand. À appeler avant les autres outils `explorer_*` pour savoir s'ils aboutiront.",
+      inputSchema: {},
+    },
+    () => safe(() => control.status()),
+  );
+
+  server.registerTool(
+    "explorer_navigate",
+    {
+      title: "Naviguer dans nie-explorer",
+      description:
+        "Ouvre l'explorateur sur un dossier VFS et bascule sur l'onglet Explorateur. Renvoie l'état de l'interface après la navigation.",
+      inputSchema: {
+        prefix: z.string().describe("dossier VFS, ex. 'data/common/chr' (vide = racine)"),
+        select: z.string().optional().describe("chemin complet d'une entrée à sélectionner dans ce dossier"),
+      },
+    },
+    ({ prefix, select }) => safe(() => control.send({ cmd: "navigate", prefix, select })),
+  );
+
+  server.registerTool(
+    "explorer_open",
+    {
+      title: "Ouvrir un fichier dans nie-explorer",
+      description:
+        "Ouvre un fichier du VFS dans le panneau de détail de l'explorateur (aperçu décodé selon son format).",
+      inputSchema: {
+        path: z.string().min(1).describe("chemin VFS complet du fichier"),
+      },
+    },
+    ({ path }) => safe(() => control.send({ cmd: "open", path })),
+  );
+
+  server.registerTool(
+    "explorer_tab",
+    {
+      title: "Changer d'onglet dans nie-explorer",
+      description: `Bascule l'explorateur sur un onglet. Valeurs : ${EXPLORER_TABS.join(", ")}.`,
+      inputSchema: {
+        tab: z.enum(EXPLORER_TABS).describe("onglet cible"),
+      },
+    },
+    ({ tab }) => safe(() => control.send({ cmd: "tab", tab })),
+  );
+
+  server.registerTool(
+    "explorer_toast",
+    {
+      title: "Notifier dans nie-explorer",
+      description: "Affiche une notification dans l'interface de l'explorateur.",
+      inputSchema: {
+        message: z.string().min(1).describe("texte affiché"),
+        kind: z.enum(["info", "success", "error"]).default("info").describe("style de la notification"),
+      },
+    },
+    ({ message, kind }) => safe(() => control.send({ cmd: "toast", message, kind })),
+  );
+
+  server.registerTool(
+    "game_launch",
+    {
+      title: "Lancer le jeu",
+      description:
+        "Démarre `nie.exe` (racine du repo) en process détaché et renvoie son PID. N'attend pas la fin du jeu.",
+      inputSchema: {
+        args: z.array(z.string()).default([]).describe("arguments passés à l'exécutable"),
+      },
+    },
+    ({ args }) => safe(() => launchGame(args)),
+  );
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("[niers-game] serveur MCP prêt (stdio) — 8 outils exposés");
+  console.error("[niers-game] serveur MCP prêt (stdio) — 14 outils exposés");
 }
 
 main().catch((e) => {
