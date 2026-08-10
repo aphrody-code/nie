@@ -467,7 +467,17 @@ fn cmd_build(paths: &Paths, out: &Path) -> anyhow::Result<()> {
             from_rust_bytes += u.len;
             return headers.get(hdr_range.clone()).map(<[u8]>::to_vec);
         }
-        // 2. Corps présent dans la source assembleur : réassemblé par nie-asm.
+        // 2. `.pdata` : table de RUNTIME_FUNCTION ré-émise depuis ses entrées.
+        if u.kind == UnitKind::SectionData
+            && u.section.as_deref() == Some(".pdata")
+            && let Some(bytes) = nie_pe::pdata::emit(&img)
+            && bytes.len() == u.len
+        {
+            from_rust_units += 1;
+            from_rust_bytes += u.len;
+            return Some(bytes);
+        }
+        // 3. Corps présent dans la source assembleur : réassemblé par nie-asm.
         if u.kind.is_code()
             && let Some(va) = u.va
             && let Some(bytes) = asm.emit(va)
