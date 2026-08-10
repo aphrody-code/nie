@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 use tauri_plugin_sql::{Migration, MigrationKind};
 
+mod lua_session;
 mod lua_tools;
 mod game_data;
 mod re_trace;
@@ -2173,7 +2174,7 @@ print("NIE_EXPLORER_SCENE_SAVED", {out_blend:?})
 // candidat à l'embarquement headless sans réécrire l'addon. L'intégration Blender de ce fichier
 // ([`open_in_blender`]) lance donc le vrai Blender GUI en process séparé — choix délibéré, pas
 // une lacune d'API. Pour un aperçu INSTANTANÉ sans lancer d'application externe, on utilise
-// `nie-render3d` : rasterizer CPU pur-Rust déjà du workspace (`crates/nie-render3d`), qui charge
+// `nie-render3d` : rasterizer CPU pur-Rust déjà du workspace (`crates/engine/nie-render3d`), qui charge
 // le GLB assemblé par `nie_formats::assemble::assemble_generic_model` (même pipeline que le CDN
 // `nie-model-serve`).
 //
@@ -2284,7 +2285,7 @@ fn encode_png_rgba(rgba: &[u8], w: u32, h: u32) -> Result<Vec<u8>, String> {
 }
 
 /// Ouvre l'asset dans **nie-editor**, l'éditeur de scène 3D natif (éditeur Fyrox embarqué, rendu
-/// OpenGL — cf. `crates/nie-editor`).
+/// OpenGL — cf. `crates/tools/nie-editor`).
 ///
 /// Process séparé et non bloquant : l'éditeur a sa propre boucle d'événements winit et sa propre
 /// fenêtre GPU, deux choses qui ne peuvent pas cohabiter avec la boucle Tauri de cette
@@ -2428,6 +2429,108 @@ fn lua_eval(
     let name = path.clone().unwrap_or_else(|| "éditeur".to_string());
     let data = lua_source_bytes(source, path, game_dir, &state)?;
     lua_tools::eval(&data, &name, &expression, with_menu_host)
+}
+
+// ── Session Lua persistante (cf. `lua_session.rs`) ───────────────────────────────────────────
+//
+// Distincte des commandes `lua_execute`/`lua_eval` ci-dessus, qui repartent d'une VM neuve à
+// chaque appel : celles-là servent à ANALYSER un script (deux analyses ne se contaminent pas),
+// celles-ci à TRAVAILLER avec (l'état survit, la console est un vrai REPL).
+
+/// Exécute un chunk dans la session vivante.
+#[tauri::command]
+#[specta::specta]
+fn lua_session_exec(
+    path: Option<String>,
+    source: Option<String>,
+    game_dir: Option<String>,
+    vfs: tauri::State<VfsState>,
+    session: tauri::State<lua_session::LuaSessionHandle>,
+) -> Result<Vec<String>, String> {
+    let name = path.clone().unwrap_or_else(|| "éditeur".to_string());
+    let data = lua_source_bytes(source, path, game_dir, &vfs)?;
+    session.exec(name, data)
+}
+
+/// Attache un script comme comportement (il doit renvoyer une table) et renvoie ses callbacks.
+#[tauri::command]
+#[specta::specta]
+fn lua_session_attach(
+    path: Option<String>,
+    source: Option<String>,
+    game_dir: Option<String>,
+    vfs: tauri::State<VfsState>,
+    session: tauri::State<lua_session::LuaSessionHandle>,
+) -> Result<Vec<String>, String> {
+    let name = path.clone().unwrap_or_else(|| "éditeur".to_string());
+    let data = lua_source_bytes(source, path, game_dir, &vfs)?;
+    session.attach(name, data)
+}
+
+/// Diffuse un callback de cycle de vie à tous les comportements attachés.
+#[tauri::command]
+#[specta::specta]
+fn lua_session_broadcast(
+    callback: String,
+    session: tauri::State<lua_session::LuaSessionHandle>,
+) -> Result<u32, String> {
+    session.broadcast(callback)
+}
+
+/// Évalue une expression dans l'état COURANT de la session.
+#[tauri::command]
+#[specta::specta]
+fn lua_session_eval(
+    expression: String,
+    session: tauri::State<lua_session::LuaSessionHandle>,
+) -> Result<String, String> {
+    session.eval(expression)
+}
+
+/// Pose une valeur globale dans la session vivante.
+#[tauri::command]
+#[specta::specta]
+fn lua_session_set_global(
+    name: String,
+    expression: String,
+    session: tauri::State<lua_session::LuaSessionHandle>,
+) -> Result<(), String> {
+    session.set_global(name, expression)
+}
+
+/// Globals de la session.
+#[tauri::command]
+#[specta::specta]
+fn lua_session_globals(
+    include_stdlib: bool,
+    session: tauri::State<lua_session::LuaSessionHandle>,
+) -> Result<Vec<lua_session::LuaSessionGlobalDto>, String> {
+    session.globals(include_stdlib)
+}
+
+/// Recrée la VM et ré-attache les comportements — le `RefreshAll` d'Overload.
+#[tauri::command]
+#[specta::specta]
+fn lua_session_reload(session: tauri::State<lua_session::LuaSessionHandle>) -> Result<(), String> {
+    session.reload()
+}
+
+/// Récupère et vide la sortie accumulée (print + `Debug.*`).
+#[tauri::command]
+#[specta::specta]
+fn lua_session_drain(
+    session: tauri::State<lua_session::LuaSessionHandle>,
+) -> Result<lua_session::LuaDrainDto, String> {
+    session.drain()
+}
+
+/// Confronte l'API réclamée par les scripts à celle que l'hôte fournit.
+#[tauri::command]
+#[specta::specta]
+fn lua_session_api_report(
+    session: tauri::State<lua_session::LuaSessionHandle>,
+) -> Result<lua_session::LuaApiReportDto, String> {
+    session.api_report()
 }
 
 /// Liste les scripts Lua du VFS (`.lua.bin`/`.lua`), triés — le catalogue de l'atelier.
@@ -2897,6 +3000,15 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         lua_globals,
         lua_eval,
         lua_list_scripts,
+        lua_session_exec,
+        lua_session_attach,
+        lua_session_broadcast,
+        lua_session_eval,
+        lua_session_set_global,
+        lua_session_globals,
+        lua_session_reload,
+        lua_session_drain,
+        lua_session_api_report,
         vfs_glb_bytes_b64,
         raw_cpk_glb_bytes_b64,
         vfs_glb_preview_png_b64,
@@ -2977,6 +3089,10 @@ pub fn run() {
         .manage(SaveState(Mutex::new(None)))
         .manage(VfsState(Mutex::new(None)))
         .manage(RawCpkState(Mutex::new(None)))
+        // Session Lua PERSISTANTE (thread dédié, cf. `lua_session.rs`) — équivalent du
+        // `ScriptInterpreter` d'Overload : la VM vit tant que l'app vit, l'état survit d'une
+        // évaluation à l'autre, le rechargement est explicite.
+        .manage(lua_session::LuaSessionHandle::start(true))
         .manage(VfsScanState { system: task_system, results: Arc::new(Mutex::new(std::collections::HashMap::new())) })
         .setup(move |app| {
             // Relaie chaque `TaskProgress` (nie-tasks) en événement Tauri `vfs-index-progress` —
@@ -3089,7 +3205,7 @@ mod real_fixtures_tests {
         let rgba = nie_render3d::render::render(&model, 0.6, RENDER3D_SIZE, RENDER3D_SIZE);
         assert_eq!(rgba.len(), (RENDER3D_SIZE * RENDER3D_SIZE * 4) as usize);
         // Pas une image vide/uniforme : `render::render` peint un dégradé de fond SOMBRE
-        // (canaux ≤ ~24+26/28+30/40+34, cf. `crates/nie-render3d/src/render.rs::render`) — un
+        // (canaux ≤ ~24+26/28+30/40+34, cf. `crates/engine/nie-render3d/src/render.rs::render`) — un
         // pixel de mesh (argile ~150-206 ou texture éclairée) dépasse largement ce plafond sur
         // ses 3 canaux. Même heuristique que le test unitaire `render_produit_des_pixels_de_mesh`
         // de `nie-render3d` lui-même — preuve qu'un vrai mesh a été rasterisé, pas un fond vide.

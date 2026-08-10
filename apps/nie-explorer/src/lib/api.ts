@@ -30,6 +30,9 @@ import {
   type LuaChunkInfoDto,
   type LuaExecResultDto,
   type LuaGlobalDto,
+  type LuaSessionGlobalDto,
+  type LuaDrainDto,
+  type LuaApiReportDto,
   type PassiveDto,
   type SaveBlobDto,
   type ShopDto,
@@ -55,6 +58,9 @@ export type Aura = AuraDto;
 export type Trophy = TrophyDto;
 export type Quest = QuestDto;
 export type LuaChunkInfo = LuaChunkInfoDto;
+export type LuaSessionGlobal = LuaSessionGlobalDto;
+export type LuaDrain = LuaDrainDto;
+export type LuaApiReport = LuaApiReportDto;
 export type LuaExecResult = LuaExecResultDto;
 export type LuaGlobal = LuaGlobalDto;
 export type Shop = ShopDto;
@@ -198,6 +204,22 @@ export const api = {
   // ── Atelier Lua (cf. `components/LuaView.tsx`) ────────────────────────────────────────────
   // Les scripts tournent dans la VRAIE VM du jeu (mlua/PUC-Rio 5.2.4, crate `nie-lua`). Chaque
   // commande prend SOIT un chemin VFS, SOIT une source éditée — jamais de fichier temporaire.
+  // ── Session Lua PERSISTANTE (thread dédié côté Rust) ──────────────────────────────────────
+  // Distincte des commandes ci-dessus qui repartent d'une VM neuve : ici l'état survit d'un
+  // appel à l'autre — la console est un vrai REPL, et le rechargement est explicite.
+  luaSessionExec: (path: string | null, source: string | null, gameDir?: string) =>
+    unwrap<string[]>(commands.luaSessionExec(path, source, gd(gameDir))),
+  luaSessionAttach: (path: string | null, source: string | null, gameDir?: string) =>
+    unwrap<string[]>(commands.luaSessionAttach(path, source, gd(gameDir))),
+  luaSessionBroadcast: (callback: string) => unwrap<number>(commands.luaSessionBroadcast(callback)),
+  luaSessionEval: (expression: string) => unwrap<string>(commands.luaSessionEval(expression)),
+  luaSessionSetGlobal: (name: string, expression: string) =>
+    unwrap<null>(commands.luaSessionSetGlobal(name, expression)),
+  luaSessionGlobals: (includeStdlib: boolean) =>
+    unwrap<LuaSessionGlobal[]>(commands.luaSessionGlobals(includeStdlib)),
+  luaSessionReload: () => unwrap<null>(commands.luaSessionReload()),
+  luaSessionDrain: () => unwrap<LuaDrain>(commands.luaSessionDrain()),
+  luaSessionApiReport: () => unwrap<LuaApiReport>(commands.luaSessionApiReport()),
   luaListScripts: (gameDir?: string) => unwrap<VfsEntry[]>(commands.luaListScripts(gd(gameDir))),
   luaChunkInfo: (path: string | null, source: string | null, gameDir?: string) =>
     unwrap<LuaChunkInfo>(commands.luaChunkInfo(path, source, gd(gameDir))),

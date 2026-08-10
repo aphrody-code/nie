@@ -424,6 +424,24 @@ export const commands = {
 	luaEval: (path: string | null, source: string | null, expression: string, withMenuHost: boolean, gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("lua_eval", { path, source, expression, withMenuHost, gameDir })),
 	/**  Liste les scripts Lua du VFS (`.lua.bin`/`.lua`), triés — le catalogue de l'atelier. */
 	luaListScripts: (gameDir: string | null) => typedError<EntryDto[], string>(__TAURI_INVOKE("lua_list_scripts", { gameDir })),
+	/**  Exécute un chunk dans la session vivante. */
+	luaSessionExec: (path: string | null, source: string | null, gameDir: string | null) => typedError<string[], string>(__TAURI_INVOKE("lua_session_exec", { path, source, gameDir })),
+	/**  Attache un script comme comportement (il doit renvoyer une table) et renvoie ses callbacks. */
+	luaSessionAttach: (path: string | null, source: string | null, gameDir: string | null) => typedError<string[], string>(__TAURI_INVOKE("lua_session_attach", { path, source, gameDir })),
+	/**  Diffuse un callback de cycle de vie à tous les comportements attachés. */
+	luaSessionBroadcast: (callback: string) => typedError<number, string>(__TAURI_INVOKE("lua_session_broadcast", { callback })),
+	/**  Évalue une expression dans l'état COURANT de la session. */
+	luaSessionEval: (expression: string) => typedError<string, string>(__TAURI_INVOKE("lua_session_eval", { expression })),
+	/**  Pose une valeur globale dans la session vivante. */
+	luaSessionSetGlobal: (name: string, expression: string) => typedError<null, string>(__TAURI_INVOKE("lua_session_set_global", { name, expression })),
+	/**  Globals de la session. */
+	luaSessionGlobals: (includeStdlib: boolean) => typedError<LuaSessionGlobalDto[], string>(__TAURI_INVOKE("lua_session_globals", { includeStdlib })),
+	/**  Recrée la VM et ré-attache les comportements — le `RefreshAll` d'Overload. */
+	luaSessionReload: () => typedError<null, string>(__TAURI_INVOKE("lua_session_reload")),
+	/**  Récupère et vide la sortie accumulée (print + `Debug.*`). */
+	luaSessionDrain: () => typedError<LuaDrainDto, string>(__TAURI_INVOKE("lua_session_drain")),
+	/**  Confronte l'API réclamée par les scripts à celle que l'hôte fournit. */
+	luaSessionApiReport: () => typedError<LuaApiReportDto, string>(__TAURI_INVOKE("lua_session_api_report")),
 	/**
 	 *  Renvoie le **GLB assemblé lui-même** (base64), pas un rendu de celui-ci.
 	 * 
@@ -632,6 +650,16 @@ export type LsDto = {
 	role: FolderRoleDto | null,
 };
 
+/**  Ce que les scripts réclament face à ce que l'hôte fournit. */
+export type LuaApiReportDto = {
+	/**  Globals réclamés mais absents — la liste de travail du portage moteur. */
+	missing: string[],
+	/**  Globals fournis par les binders. */
+	provided: string[],
+	/**  Part couverte, en pourcentage. */
+	coverage_percent: number,
+};
+
 /**  En-tête + statistiques d'un chunk décodé. */
 export type LuaChunkInfoDto = {
 	/**  Version Lua encodée dans l'en-tête (`82` = `0x52` = Lua 5.2). */
@@ -666,6 +694,14 @@ export type LuaChunkInfoDto = {
 	strings: string[],
 };
 
+/**  Sortie accumulée depuis la dernière collecte. */
+export type LuaDrainDto = {
+	/**  Lignes de `print`. */
+	stdout: string[],
+	/**  Messages `Debug.*`, préfixés de leur niveau. */
+	logs: LuaLogDto[],
+};
+
 /**  Résultat d'exécution renvoyé au frontend. */
 export type LuaExecResultDto = {
 	/**  Lignes imprimées par `print`. */
@@ -692,6 +728,26 @@ export type LuaGlobalDto = {
 	/**  Rendu texte de la valeur. */
 	value: string,
 	/**  Nombre d'entrées si c'est une table. */
+	len: number | null,
+};
+
+/**  Une ligne de journal. */
+export type LuaLogDto = {
+	/**  `info`, `warn` ou `error`. */
+	level: string,
+	/**  Texte du message. */
+	message: string,
+};
+
+/**  Un global de la session. */
+export type LuaSessionGlobalDto = {
+	/**  Nom. */
+	name: string,
+	/**  Type Lua. */
+	type_name: string,
+	/**  Rendu texte. */
+	value: string,
+	/**  Nombre d'entrées si table. */
 	len: number | null,
 };
 

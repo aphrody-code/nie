@@ -55,6 +55,60 @@ Corrigés dans la foulée, tous vérifiés sur le code (pas supposés) :
   remplacé par le `Select` du design system ; double navigation `onClick`+`onDoubleClick` sur les
   dossiers.
 
+## 11. Lua « moteur de jeu » — patterns repris d'Overload ✅ (2026-08-10)
+
+Demande utilisateur : « analyse comment Overload intègre Lua dans un game engine et améliore
+nie-engine / nie-editor / nie-lua / nie-explorer ».
+
+**Analyse d'Overload** (`OvCore/Scripting`, C++ + sol3) :
+- `ScriptInterpreter` détient le `sol::state` ; `RefreshAll()` **détruit et recrée** le contexte
+  entier, avec ce constat en commentaire amont : *« unconsidering a script is impossible with Lua,
+  we have to reparse every behaviours »*.
+- `Behaviour` (composant ECS) charge `<nom>.lua`, **exige que le script renvoie une table**, et y
+  injecte `owner`.
+- Cycle de vie `OnAwake/OnStart/OnEnable/OnUpdate/OnFixedUpdate/OnDestroy…`, où **un callback
+  absent est silencieusement ignoré**.
+- Exposition **par binders séparés** (`LuaGlobalsBinder`, `LuaMathsBinder`, `LuaActorBinder`…)
+  agrégés par `LuaBinder::CallBinders`, chacun posant une table cohérente (`Debug`, `Inputs`,
+  `Math`, `Resources`, `Physics`).
+
+**Asymétrie assumée** : Overload *conçoit* l'API que ses scripts consommeront ; niers la
+*retro-conçoit* à partir de ~1 100 scripts déjà compilés. Les patterns valent, la finalité diffère
+— d'où l'ajout qui n'existe pas chez Overload : mesurer l'écart entre ce que les scripts réclament
+et ce que l'hôte fournit.
+
+**Livré dans `nie-lua`** :
+- **`host`** — trait `HostBinder` + `HostRegistry` composable, sur le modèle de `CallBinders`.
+  Binders `Debug` (journal par niveau, dans un tampon et non sur stdout), `Math` (générateur
+  **déterministe** : deux exécutions du même script donnent la même suite, sans quoi comparer deux
+  passages serait impossible) et `Vfs` (parcourir les ~255 000 assets depuis un script d'analyse,
+  au lieu d'un binaire Rust à recompiler). `installed_names()` trace ce que chacun pose.
+- **`session`** — `LuaSession` : VM **persistante**, `attach()` avec le contrat « le script renvoie
+  une table », `broadcast()` d'un callback (absent = ignoré, comme l'amont), `reload()` qui recrée
+  la VM et ré-attache — le `RefreshAll` d'Overload, pour la raison exacte qu'il documente.
+  `api_report()` confronte réclamé et fourni : **la liste de travail du portage moteur, produite
+  par l'exécution elle-même**.
+
+**Livré dans `nie-explorer`** :
+- **`lua_session.rs`** — la session vit sur un **thread dédié** avec un canal de requêtes :
+  `mlua::Lua` n'est ni `Send` ni `Sync`, et Tauri exige les deux de tout état géré. C'est
+  l'équivalent applicatif du `ScriptInterpreter` qui vit tant que l'app vit.
+- Onglet Lua enrichi : bascule **session persistante** (la console devient un vrai REPL — avant,
+  `x = 1` puis `x` répondait `nil`, et chaque évaluation repayait une exécution complète du
+  script), boutons **Attacher** / **Recharger**, barre de diffusion du cycle de vie, et panneau
+  **API moteur** listant côte à côte le réclamé-absent et le fourni.
+
+**Un bug de conception attrapé par les tests** : `LuaSession::new` créait son propre tampon de
+journal, distinct de celui confié au `DebugBinder` — `take_logs()` lisait un tampon que personne
+n'alimentait, la session paraissait muette. D'où `LuaSession::standard()`, qui construit les deux
+ensemble.
+
+**Non touché : `nie-engine`.** C'est le portage RE exclu du workspace Cargo (`exclude` racine),
+conservé en lecture seule comme carte de référence tant qu'il n'est pas re-validé byte-exact
+(cf. `docs/PLAN.md`). Y injecter du Lua contredirait cette règle.
+
+---
+
 ## 10. Atelier Lua — chaîne complète sur les scripts du moteur ✅ (2026-08-10)
 
 Demande utilisateur : « analyse nie-lua pour ajouter un éditeur lua, émulateur, interpréteur,
