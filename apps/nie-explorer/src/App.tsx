@@ -23,6 +23,7 @@ import { TopBar } from "@/components/TopBar";
 import { WindowResizeHandles } from "@/components/ui/window-resize-handles";
 import { useAppMenuShortcuts, type AppMenuActions } from "@/components/AppMenu";
 import { api } from "@/lib/api";
+import { useBridge } from "@/lib/bridge";
 import { useT } from "@/lib/i18n";
 import { useApplyAppearance } from "@/lib/appearance";
 import { PINNED_PLACES, recordVisit, usePinnedPlaces, useRecentPlaces } from "@/lib/places";
@@ -157,6 +158,31 @@ export default function App() {
     }
     return t("app.title");
   }, [externalPath, tab, explorer.selected, explorer.prefix, sections, t]);
+
+  // Pont de contrôle MCP : `nie-mcp` peut piloter cette fenêtre (naviguer, ouvrir un asset,
+  // changer d'onglet, notifier) — mêmes types de commandes des deux côtés, cf. `@niers/bridge`.
+  // Opportuniste : sans serveur en écoute, rien ne se passe et l'application reste intacte.
+  useBridge({
+    getState: () => ({ tab, prefix: explorer.prefix, selected: explorer.selected, externalPath }),
+    navigate: (prefix, select) => {
+      recordVisit(prefix);
+      setExternalPath(null);
+      setExplorer({ prefix, selected: select ?? null });
+      setTab("explorer");
+    },
+    open: (path) => {
+      const slash = path.lastIndexOf("/");
+      setExternalPath(null);
+      setExplorer({ prefix: slash > 0 ? path.slice(0, slash) : "data", selected: path });
+      setTab("explorer");
+    },
+    setTab: (id) => setTab(id),
+    toast: (message, kind) => {
+      if (kind === "success") toast.success(message);
+      else if (kind === "error") toast.error(message);
+      else toast(message);
+    },
+  });
 
   // Resynchronise le chrome natif Windows 11 (Mica, barre de titre/légende) sur le thème
   // clair/sombre RÉSOLU (`resolvedTheme` tient compte de "system", pas juste `theme`).

@@ -33,6 +33,9 @@ import {
   type LuaSessionGlobalDto,
   type LuaDrainDto,
   type LuaApiReportDto,
+  type McpInstallDto,
+  type McpStatusDto,
+  type McpTarget,
   type PassiveDto,
   type SaveBlobDto,
   type ShopDto,
@@ -58,6 +61,9 @@ export type Aura = AuraDto;
 export type Trophy = TrophyDto;
 export type Quest = QuestDto;
 export type LuaChunkInfo = LuaChunkInfoDto;
+export type McpStatus = McpStatusDto;
+export type McpInstall = McpInstallDto;
+export type { McpTarget };
 export type LuaSessionGlobal = LuaSessionGlobalDto;
 export type LuaDrain = LuaDrainDto;
 export type LuaApiReport = LuaApiReportDto;
@@ -311,6 +317,13 @@ export const api = {
   reTraceModuleRegions: (pid: number) => unwrap<ReTraceRegion[]>(commands.reTraceModuleRegions(pid)),
   reTraceReadBytesB64: (pid: number, addr: string, len: number) => unwrap<string>(commands.reTraceReadBytesB64(pid, addr, len)),
   reTraceDumpModule: (pid: number) => unwrap<ReTraceDumpStats>(commands.reTraceDumpModule(pid)),
+
+  // Serveur MCP `niers-game` : l'explorateur le déclare aux clients MCP (Claude Code /
+  // Claude Desktop) depuis les Paramètres. C'est l'autre moitié du couple — le serveur pilote
+  // en retour cette fenêtre par le pont `@niers/bridge` (cf. `lib/bridge.ts`).
+  mcpStatus: (target: McpTarget) => unwrap<McpStatus>(commands.mcpStatus(target)),
+  mcpInstall: (target: McpTarget, gameDir?: string) =>
+    unwrap<McpInstall>(commands.mcpInstall(target, gameDir?.trim() ? gameDir.trim() : null)),
 };
 
 // ─── Types du GraphQL/REST azalee (contrat réel, cf. commentaire Rust `remote_search_*`) ──

@@ -8,6 +8,7 @@
  */
 
 import { join, resolve } from "node:path";
+import { DEFAULT_BRIDGE_PORT } from "@niers/bridge";
 
 function env(name: string, fallback: string): string {
   const v = process.env[name];
@@ -44,6 +45,12 @@ export const config = {
    * convient sans configuration.
    */
   gameDataDir: join(env("NIE_GAME_DIR", repoRoot), "data"),
+
+  /** Port du pont de contrôle vers `nie-explorer` (cf. `@niers/bridge`). */
+  bridgePort: Number.parseInt(env("NIERS_BRIDGE_PORT", String(DEFAULT_BRIDGE_PORT)), 10) || DEFAULT_BRIDGE_PORT,
+
+  /** Exécutable du jeu, relatif à la racine du repo (cf. CLAUDE.md : `nie.exe` est à la racine). */
+  gameExe: env("NIERS_GAME_EXE", "nie.exe"),
 
   /** Binaire RE canonique = vue `.pdata` (cf. CLAUDE.md). C'est celui dont parle `coverage`. */
   primaryBinaryId: 2,

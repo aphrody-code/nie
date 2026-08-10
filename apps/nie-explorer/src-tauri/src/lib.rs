@@ -16,6 +16,7 @@ use tauri_plugin_sql::{Migration, MigrationKind};
 mod lua_session;
 mod lua_tools;
 mod game_data;
+mod mcp;
 mod re_trace;
 mod steam;
 
@@ -3022,7 +3023,31 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         re_trace_module_regions,
         re_trace_read_bytes_b64,
         re_trace_dump_module,
+        mcp::mcp_status,
+        mcp::mcp_install,
     ])
+}
+
+/// Réécrit `src/lib/bindings.ts` depuis les signatures Rust, sans lancer l'application.
+///
+/// Même export que celui fait au démarrage en dev, mais utilisable seul (`cargo run --bin
+/// export-bindings`) : quand on ajoute une commande, le frontend doit pouvoir la typer sans
+/// avoir à ouvrir une fenêtre Tauri, ni recopier sa signature à la main dans `api.ts`.
+///
+/// Le thread à pile large (64 Mio) est indispensable ici pour la même raison qu'en dev : la
+/// réflexion de types de `specta` déborde la pile par défaut sur ce jeu de commandes.
+#[cfg(debug_assertions)]
+pub fn export_bindings() -> Result<(), String> {
+    std::thread::Builder::new()
+        .stack_size(64 * 1024 * 1024)
+        .spawn(|| {
+            specta_builder()
+                .export(specta_typescript::Typescript::default(), "../src/lib/bindings.ts")
+                .map_err(|e| e.to_string())
+        })
+        .map_err(|e| format!("échec de lancement du thread d'export specta : {e}"))?
+        .join()
+        .map_err(|_| "le thread d'export specta a paniqué".to_string())?
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

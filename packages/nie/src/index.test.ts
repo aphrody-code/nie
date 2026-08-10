@@ -244,9 +244,14 @@ describe("version (Rust nie_version -> CString)", () => {
     expect(v.length).toBeGreaterThan(0);
   });
 
-  test("correspond au CARGO_PKG_VERSION ('0.1.0')", () => {
+  // La valeur vient du `CARGO_PKG_VERSION` de `nie-ffi`, qui hérite de `version.workspace`.
+  // On la compare au `package.json` de ce paquet plutôt qu'à une constante en dur : figer
+  // « 0.1.0 » ici a fait échouer ce test à chaque montée de version du workspace, sans que
+  // rien ne soit cassé pour autant.
+  test("correspond à la version du crate, alignée sur celle du paquet", async () => {
+    const pkg = (await Bun.file(new URL("../package.json", import.meta.url)).json()) as { version: string };
     const v = version();
-    expect(v).toBe("0.1.0");
     expect(v).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(v).toBe(pkg.version);
   });
 });
