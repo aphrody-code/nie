@@ -131,6 +131,25 @@ enum Cmd {
         #[arg(long)]
         id: Option<String>,
     },
+    /// Compile des sources C avec MSVC et exige les octets originaux.
+    ///
+    /// Chaque fonction annotée `@nie <va>` est compilée, extraite de l'objet COFF
+    /// et comparée byte-à-byte à l'unité correspondante. Le chemin principal du
+    /// projet : `nie.exe` est lié par MSVC 14.44, donc le binaire peut être
+    /// reproduit par le compilateur qui l'a produit, depuis du code source.
+    Cc {
+        #[command(flatten)]
+        paths: Paths,
+        /// Fichier `.c` ou répertoire à compiler (défaut : `cpp/decomp/functions`).
+        #[arg(long, default_value = "cpp/decomp/functions")]
+        src: PathBuf,
+        /// Chemin explicite de `cl.exe` (sinon `$NIE_CL`, puis vswhere).
+        #[arg(long)]
+        cl: Option<PathBuf>,
+        /// Inscrit les correspondances dans le registre.
+        #[arg(long)]
+        register: bool,
+    },
     /// Relève les corps régénérables du binaire vers la source assembleur du dépôt.
     ///
     /// Chaque corps relevé est ré-encodé et comparé aux octets d'origine : seuls
@@ -194,7 +213,143 @@ fn main() -> anyhow::Result<()> {
             max_len,
             out,
         } => cmd_lift(&paths, max_len, &out),
+        Cmd::Cc {
+            paths,
+            src,
+            cl,
+            register,
+        } => cmd_cc(&paths, &src, cl.as_deref(), register),
     }
+}
+
+fn cmd_cc(paths: &Paths, src: &Path, cl: Option<&Path>, register: bool) -> anyhow::Result<()> {
+    use nie_forge::cc;
+    use nie_forge::registry::{MatchStatus, Proof, RegistryEntry};
+
+    let exe = paths.exe_path()?;
+    let store = ForgeStore::load(&paths.forge)?;
+    let reference = ReferenceBinary::load_checked(&exe, &store.cover)?;
+    let compiler = cc::find_cl(cl)?;
+
+    let mut sources: Vec<PathBuf> = Vec::new();
+    if src.is_dir() {
+        for e in std::fs::read_dir(src)?.flatten() {
+            let p = e.path();
+            if p.extension().is_some_and(|x| x == "c") {
+                sources.push(p);
+            }
+        }
+        sources.sort();
+    } else if src.is_file() {
+        sources.push(src.to_path_buf());
+    } else {
+        bail!("source introuvable : {}", src.display());
+    }
+
+    let out_dir = paths.forge.join("cc");
+    let mut registry = paths.registry_or_default()?;
+    let mut matched = 0usize;
+    let mut matched_bytes = 0usize;
+    let mut rejected = 0usize;
+    let mut annotated = 0usize;
+
+    for s in &sources {
+        let text = std::fs::read_to_string(s)
+            .with_context(|| format!("lecture de {}", s.display()))?;
+        let anns = cc::parse_annotations(&text)?;
+        if anns.is_empty() {
+            continue;
+        }
+        annotated += anns.len();
+        let obj = cc::compile(&compiler, s, &out_dir, &cc::default_flags())?;
+        let coff = CoffObject::parse(std::fs::read(&obj)?)?;
+
+        for a in anns {
+            let Some(unit) = store.cover.find_va(a.va) else {
+                eprintln!("rejet {} @ {:#x} : aucune unité à cette adresse", a.symbol, a.va);
+                rejected += 1;
+                continue;
+            };
+            if unit.va != Some(a.va) {
+                eprintln!(
+                    "rejet {} @ {:#x} : l'unité {} commence à {:#x} (+{:#x} à l'intérieur)",
+                    a.symbol,
+                    a.va,
+                    unit.id,
+                    unit.va.unwrap_or_default(),
+                    a.va - unit.va.unwrap_or_default()
+                );
+                rejected += 1;
+                continue;
+            }
+            let original = &reference.bytes[unit.range()];
+            let code = match coff.symbol_code(&a.symbol) {
+                Ok(c) => c,
+                Err(e) => {
+                    eprintln!("rejet {} @ {:#x} : {e}", a.symbol, a.va);
+                    rejected += 1;
+                    continue;
+                }
+            };
+            let d = diff::compare_masked(original, &code.bytes, &code.reloc_mask, 4);
+            if d.is_identical() {
+                matched += 1;
+                matched_bytes += unit.len;
+                println!(
+                    "match sym={} va={:#x} len={} src={}",
+                    a.symbol,
+                    a.va,
+                    unit.len,
+                    s.display()
+                );
+                if register {
+                    registry.entries.retain(|e| {
+                        e.va_value().map(|v| v != a.va).unwrap_or(true)
+                    });
+                    registry.entries.push(RegistryEntry {
+                        va: format!("{:#x}", a.va),
+                        rust: None,
+                        status: MatchStatus::Bytes,
+                        proof: Some(Proof {
+                            kind: "msvc".into(),
+                            reference: s.display().to_string(),
+                        }),
+                        object: Some(obj.display().to_string().replace('\\', "/")),
+                        symbol: Some(a.symbol.clone()),
+                        note: None,
+                    });
+                }
+            } else {
+                rejected += 1;
+                eprintln!(
+                    "diff sym={} va={:#x} orig={} got={} differing={} ranges={:?}",
+                    a.symbol,
+                    a.va,
+                    original.len(),
+                    code.bytes.len(),
+                    d.bytes_differing,
+                    d.ranges
+                );
+            }
+        }
+    }
+
+    if register {
+        registry.target_sha256 = Some(store.cover.sha256.clone());
+        registry.save(&paths.registry)?;
+    }
+    println!(
+        "cc compiler={} version=\"{}\" sources={} annotated={} matched={} bytes={} rejected={} registered={}",
+        compiler.display(),
+        cc::cl_version(&compiler),
+        sources.len(),
+        annotated,
+        matched,
+        matched_bytes,
+        rejected,
+        register,
+    );
+    Ok(())
 }
 
 fn cmd_lift(paths: &Paths, max_len: usize, out: &str) -> anyhow::Result<()> {
@@ -289,7 +444,7 @@ fn cmd_build(paths: &Paths, out: &Path) -> anyhow::Result<()> {
     let store = ForgeStore::load(&paths.forge)?;
     let reference = ReferenceBinary::load_checked(&exe, &store.cover)?;
     let registry = paths.registry_or_default()?;
-    let by_unit = registry.by_unit()?;
+    let by_va = registry.by_va()?;
     let asm = AsmSource::load_dir(&paths.asm)?;
 
     let img = PeImage::parse(reference.bytes.clone())?;
@@ -327,7 +482,7 @@ fn cmd_build(paths: &Paths, out: &Path) -> anyhow::Result<()> {
         // 3. Fonction dont le codegen Rust coïncide : on émet le codegen, les champs
         //    relogés étant résolus depuis la disposition de référence (le calcul de
         //    disposition propre est un jalon ultérieur, jamais un faux « produit »).
-        if let Some(e) = by_unit.get(&u.id)
+        if let Some(e) = u.va.and_then(|va| by_va.get(&va))
             && e.status == MatchStatus::Bytes
             && let (Some(obj), Some(sym)) = (&e.object, &e.symbol)
         {

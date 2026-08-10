@@ -131,14 +131,19 @@ impl Registry {
         Ok(())
     }
 
-    /// Index `id d'unité → entrée`.
+    /// Index `adresse virtuelle → entrée`.
+    ///
+    /// Indexer par ADRESSE et non par identifiant d'unité : une fonction portée
+    /// peut tomber sur une unité `fn.…` (bornée par `.pdata`) comme sur un
+    /// résidu `res.…` (feuille sans information d'unwind). Synthétiser un
+    /// `fn.<va>` ferait silencieusement disparaître tout le second cas.
     ///
     /// # Erreurs
     /// Retourne une erreur si une adresse du registre est invalide.
-    pub fn by_unit(&self) -> anyhow::Result<BTreeMap<String, &RegistryEntry>> {
+    pub fn by_va(&self) -> anyhow::Result<BTreeMap<u64, &RegistryEntry>> {
         let mut m = BTreeMap::new();
         for e in &self.entries {
-            m.insert(e.unit_id()?, e);
+            m.insert(e.va_value()?, e);
         }
         Ok(m)
     }
@@ -219,6 +224,6 @@ mod tests {
         assert_eq!(back.entries.len(), 2);
         assert_eq!(back.entries[0].va, "0x141334600", "tri par adresse");
         assert_eq!(back.count(MatchStatus::Bytes), 1);
-        assert_eq!(back.by_unit().unwrap().len(), 2);
+        assert_eq!(back.by_va().unwrap().len(), 2);
     }
 }

@@ -37,6 +37,7 @@
 #![warn(missing_docs)]
 
 pub mod asmsrc;
+pub mod cc;
 pub mod lift;
 pub mod registry;
 pub mod report;

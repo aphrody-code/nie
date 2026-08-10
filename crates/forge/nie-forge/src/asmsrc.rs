@@ -107,7 +107,9 @@ impl AsmSource {
     /// Octets régénérés pour une adresse donnée.
     #[must_use]
     pub fn emit(&self, va: u64) -> Option<Vec<u8>> {
-        self.bodies.get(&va).map(|i| nie_asm::encode(i))
+        // Encodage conscient de l'adresse : branchements et opérandes `[rip …]`
+        // sont résolus depuis la position réelle du corps.
+        self.bodies.get(&va).map(|i| nie_asm::encode_at(i, va))
     }
 
     /// Nombre de corps.
