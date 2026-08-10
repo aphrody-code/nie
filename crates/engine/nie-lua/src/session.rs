@@ -1,0 +1,447 @@
+//! **Session Lua persistante** — VM qui vit entre les appels, comportements attachés, rechargement.
+//!
+//! ## Le problème que ça règle
+//!
+//! [`crate::runtime::execute`] crée une VM neuve à chaque appel. C'est la bonne propriété pour
+//! *analyser* un script (deux analyses ne se contaminent pas), mais la mauvaise pour *travailler
+//! avec* : une console où `x = 1` puis `x` répond `nil` n'est pas une console, et réexécuter tout
+//! le script à chaque expression évaluée est aussi lent qu'incorrect.
+//!
+//! [`LuaSession`] garde la VM vivante : l'état survit d'une évaluation à l'autre, et le
+//! rechargement est **explicite**.
+//!
+//! ## Ce qui vient d'Overload
+//!
+//! - **Rechargement par recréation du contexte.** `ScriptInterpreter::RefreshAll()` détruit puis
+//!   recrée le `sol::state` entier, avec ce constat en commentaire : *« unconsidering a script is
+//!   impossible with Lua, we have to reparse every behaviours »*. C'est exact — Lua n'a pas de
+//!   « désenregistrer » : une fonction globale posée par un script reste après modification du
+//!   fichier. [`LuaSession::reload`] fait donc la même chose : VM neuve, binders réinstallés,
+//!   comportements ré-attachés.
+//! - **Contrat d'attachement.** Chez Overload, un `Behaviour` charge `<nom>.lua`, **exige que le
+//!   script retourne une table**, et y injecte `owner`. On reprend ce contrat ([`Behaviour`]).
+//! - **Callback absent = ignoré silencieusement.** Overload appelle `OnStart`/`OnUpdate`/… et ne
+//!   se plaint pas si la fonction n'existe pas. Indispensable : aucun script ne définit tous les
+//!   points d'entrée.
+//!
+//! ## Ce qu'on ajoute
+//!
+//! Overload conçoit l'API que ses scripts consomment ; niers la retro-conçoit. La session tient
+//! donc le compte de ce que les scripts **réclament sans l'obtenir** ([`LuaSession::api_report`]) :
+//! c'est la liste de travail du portage moteur, produite par l'exécution elle-même.
+
+use std::cell::RefCell;
+use std::rc::Rc;
+
+use mlua::{Lua, MultiValue, Table, Value};
+
+use crate::host::{HostRegistry, LogEntry, LogSink};
+use crate::runtime::{GlobalEntry, install_host_stubs, install_print_capture, list_globals, value_to_string};
+use crate::{ChunkMode, LuaError, is_lua52_bytecode};
+
+/// Points d'entrée standard d'un comportement, dans l'ordre du cycle de vie d'Overload.
+///
+/// Les noms sont ceux d'Overload (`OnAwake`, `OnStart`, …) : c'est une convention d'outillage pour
+/// nos propres scripts, **pas** une prétention sur l'API de Level-5, dont les points d'entrée
+/// réels sont ceux du reverse (cf. [`crate::menu_host`]).
+pub const LIFECYCLE_CALLBACKS: [&str; 6] =
+    ["OnAwake", "OnStart", "OnEnable", "OnUpdate", "OnDisable", "OnDestroy"];
+
+/// Un script attaché, avec la table qu'il a renvoyée.
+///
+/// Contrat repris d'Overload : le chunk **doit renvoyer une table**, qui porte ses callbacks. Un
+/// script qui ne renvoie rien n'est pas un comportement — c'est un script d'initialisation, et le
+/// dire clairement évite de chercher pourquoi `OnUpdate` n'est jamais appelé.
+pub struct Behaviour {
+    /// Nom logique (chemin VFS ou étiquette d'éditeur).
+    pub name: String,
+    /// Table renvoyée par le script.
+    table: Table,
+}
+
+impl Behaviour {
+    /// Callbacks du cycle de vie effectivement définis par ce script.
+    #[must_use]
+    pub fn defined_callbacks(&self) -> Vec<&'static str> {
+        LIFECYCLE_CALLBACKS
+            .iter()
+            .copied()
+            .filter(|name| matches!(self.table.get::<Value>(*name), Ok(Value::Function(_))))
+            .collect()
+    }
+
+    /// Appelle un callback s'il existe. **Absent = succès silencieux**, comme chez Overload.
+    ///
+    /// # Errors
+    /// [`mlua::Error`] seulement si le callback existe ET échoue — une erreur réelle du script,
+    /// qu'il ne faut surtout pas confondre avec « le script ne définit pas ce point d'entrée ».
+    pub fn call(&self, callback: &str, args: MultiValue) -> mlua::Result<MultiValue> {
+        match self.table.get::<Value>(callback) {
+            Ok(Value::Function(f)) => f.call(args),
+            _ => Ok(MultiValue::new()),
+        }
+    }
+}
+
+/// Ce qu'un script demande au moteur, et ce qu'il obtient.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ApiReport {
+    /// Globals réclamés mais non définis — la liste de travail du portage.
+    pub missing: Vec<String>,
+    /// Globals fournis par les binders installés.
+    pub provided: Vec<String>,
+}
+
+impl ApiReport {
+    /// Part de la surface réclamée qui est couverte, en pourcentage (100 si rien n'est réclamé).
+    #[must_use]
+    pub fn coverage_percent(&self) -> u32 {
+        let total = self.missing.len() + self.provided.len();
+        if total == 0 {
+            return 100;
+        }
+        ((self.provided.len() * 100) / total) as u32
+    }
+}
+
+/// Une VM Lua persistante, ses binders et ses comportements attachés.
+pub struct LuaSession {
+    lua: Lua,
+    registry: HostRegistry,
+    logs: LogSink,
+    stdout: Rc<RefCell<Vec<String>>>,
+    behaviours: Vec<Behaviour>,
+    /// Sources attachées, conservées pour le rechargement — sans elles, `reload` ne pourrait pas
+    /// ré-attacher ce qui était en place.
+    attached_sources: Vec<(String, Vec<u8>)>,
+    with_menu_host: bool,
+}
+
+impl LuaSession {
+    /// Crée une session : VM neuve, binders installés, stubs de globals actifs.
+    ///
+    /// `logs` DOIT être le tampon confié aux binders de `registry` (typiquement à
+    /// [`crate::host::DebugBinder`]) : sans ça, [`Self::take_logs`] lirait un tampon que personne
+    /// n'alimente et la session paraîtrait muette. [`Self::standard`] évite ce piège en
+    /// construisant les deux ensemble.
+    ///
+    /// # Errors
+    /// [`LuaError`] si l'installation de l'hôte échoue.
+    pub fn new(registry: HostRegistry, logs: LogSink, with_menu_host: bool) -> Result<Self, LuaError> {
+        let stdout = Rc::new(RefCell::new(Vec::new()));
+        let lua = Self::build_vm(&registry, &stdout, with_menu_host)?;
+        Ok(Self {
+            lua,
+            registry,
+            logs,
+            stdout,
+            behaviours: Vec::new(),
+            attached_sources: Vec::new(),
+            with_menu_host,
+        })
+    }
+
+    /// Session prête à l'emploi : registre standard (`Debug` + `Math`) et tampon de journal
+    /// correctement relié.
+    ///
+    /// # Errors
+    /// [`LuaError`] si l'installation de l'hôte échoue.
+    pub fn standard(with_menu_host: bool) -> Result<Self, LuaError> {
+        let logs: LogSink = Rc::new(RefCell::new(Vec::new()));
+        let registry = HostRegistry::standard(Rc::clone(&logs));
+        Self::new(registry, logs, with_menu_host)
+    }
+
+    /// Reconstruit une VM complète. Le tampon de journal n'est pas repris ici : il est déjà
+    /// capturé par les closures des binders de `registry`, qui survivent au rechargement.
+    fn build_vm(
+        registry: &HostRegistry,
+        stdout: &Rc<RefCell<Vec<String>>>,
+        with_menu_host: bool,
+    ) -> Result<Lua, LuaError> {
+        let lua = crate::new_vm();
+        install_print_capture(&lua, Rc::clone(stdout))?;
+        registry.bind_all(&lua)?;
+        if with_menu_host {
+            crate::install_menu_host(&lua)?;
+        }
+        // Les stubs viennent EN DERNIER : la métatable de `_G` ne doit intercepter que ce qu'aucun
+        // binder n'a fourni, sinon tout serait déclaré « manquant ».
+        install_host_stubs(&lua)?;
+        Ok(lua)
+    }
+
+    /// Accès à la VM, pour les usages avancés (ex. installer un binder supplémentaire).
+    #[must_use]
+    pub fn lua(&self) -> &Lua {
+        &self.lua
+    }
+
+    /// Lignes de `print` accumulées depuis le dernier [`Self::take_output`].
+    #[must_use]
+    pub fn take_output(&self) -> Vec<String> {
+        std::mem::take(&mut self.stdout.borrow_mut())
+    }
+
+    /// Messages `Debug.*` accumulés depuis le dernier appel.
+    #[must_use]
+    pub fn take_logs(&self) -> Vec<LogEntry> {
+        std::mem::take(&mut self.logs.borrow_mut())
+    }
+
+    /// Exécute un chunk (source ou bytecode) dans la session, sans l'attacher.
+    ///
+    /// # Errors
+    /// [`LuaError`] si le chunk échoue — ici l'erreur EST propagée : contrairement à une analyse,
+    /// une exécution demandée explicitement doit dire qu'elle a raté.
+    pub fn exec(&self, name: &str, data: &[u8]) -> Result<Vec<String>, LuaError> {
+        let mode = if is_lua52_bytecode(data) { ChunkMode::Binary } else { ChunkMode::Text };
+        let values: MultiValue = self
+            .lua
+            .load(data)
+            .set_name(name.to_string())
+            .set_mode(mode)
+            .call(())?;
+        Ok(values.iter().map(value_to_string).collect())
+    }
+
+    /// Attache un script comme comportement.
+    ///
+    /// Contrat d'Overload : le chunk doit **renvoyer une table**. Un chunk qui renvoie autre chose
+    /// (ou rien) est refusé explicitement plutôt qu'attaché à vide — sinon ses callbacks ne
+    /// seraient jamais appelés et rien ne dirait pourquoi.
+    ///
+    /// # Errors
+    /// [`LuaError`] si le chunk échoue ou ne renvoie pas de table.
+    pub fn attach(&mut self, name: &str, data: &[u8]) -> Result<&Behaviour, LuaError> {
+        let mode = if is_lua52_bytecode(data) { ChunkMode::Binary } else { ChunkMode::Text };
+        let value: Value = self
+            .lua
+            .load(data)
+            .set_name(name.to_string())
+            .set_mode(mode)
+            .call(())?;
+
+        let Value::Table(table) = value else {
+            return Err(LuaError::Vm(mlua::Error::RuntimeError(format!(
+                "« {name} » n'est pas un comportement : un script attaché doit renvoyer une table \
+                 portant ses callbacks (OnStart, OnUpdate, …)"
+            ))));
+        };
+
+        self.behaviours.push(Behaviour { name: name.to_string(), table });
+        self.attached_sources.push((name.to_string(), data.to_vec()));
+        Ok(self.behaviours.last().expect("vient d'être poussé"))
+    }
+
+    /// Comportements attachés.
+    #[must_use]
+    pub fn behaviours(&self) -> &[Behaviour] {
+        &self.behaviours
+    }
+
+    /// Diffuse un callback à tous les comportements attachés.
+    ///
+    /// Renvoie le nombre de comportements qui définissaient réellement ce callback — utile pour
+    /// distinguer « diffusé à personne » de « diffusé et sans effet ».
+    ///
+    /// # Errors
+    /// [`LuaError`] à la première erreur *réelle* d'un callback (un callback absent n'en est pas
+    /// une).
+    pub fn broadcast(&self, callback: &str) -> Result<usize, LuaError> {
+        let mut called = 0;
+        for behaviour in &self.behaviours {
+            if behaviour.defined_callbacks().contains(&callback) {
+                behaviour.call(callback, MultiValue::new())?;
+                called += 1;
+            }
+        }
+        Ok(called)
+    }
+
+    /// Recrée la VM et ré-attache les comportements — le `RefreshAll` d'Overload.
+    ///
+    /// Une VM neuve est la seule façon correcte de recharger : Lua ne sait pas retirer une
+    /// définition. Recharger « par-dessus » laisserait les globals de l'ancienne version en place,
+    /// et une fonction supprimée du script continuerait d'exister.
+    ///
+    /// # Errors
+    /// [`LuaError`] si la reconstruction ou un ré-attachement échoue.
+    pub fn reload(&mut self) -> Result<(), LuaError> {
+        self.lua = Self::build_vm(&self.registry, &self.stdout, self.with_menu_host)?;
+        self.behaviours.clear();
+
+        let sources = std::mem::take(&mut self.attached_sources);
+        for (name, data) in sources {
+            self.attach(&name, &data)?;
+        }
+        Ok(())
+    }
+
+    /// Évalue une expression dans l'état COURANT de la session — la console.
+    ///
+    /// # Errors
+    /// Jamais : l'échec est rendu en texte, parce que voir le message est le résultat attendu.
+    pub fn eval(&self, expression: &str) -> Result<String, LuaError> {
+        crate::runtime::eval_expression(&self.lua, expression)
+    }
+
+    /// Globals de la session.
+    #[must_use]
+    pub fn globals(&self, include_stdlib: bool) -> Vec<GlobalEntry> {
+        list_globals(&self.lua, include_stdlib)
+    }
+
+    /// Pose une valeur globale — l'éditeur de valeurs, appliqué à une session vivante.
+    ///
+    /// L'expression est évaluée par la VM : `999`, `'texte'` ou `{a=1}` sont tous acceptés, sans
+    /// que l'appelant ait à typer quoi que ce soit.
+    ///
+    /// # Errors
+    /// [`LuaError`] si l'expression est invalide.
+    pub fn set_global(&self, name: &str, expression: &str) -> Result<(), LuaError> {
+        self.lua
+            .load(format!("{name} = {expression}"))
+            .set_name("=set_global")
+            .exec()?;
+        Ok(())
+    }
+
+    /// Confronte ce que les scripts ont réclamé à ce que les binders fournissent.
+    #[must_use]
+    pub fn api_report(&self) -> ApiReport {
+        let mut missing: Vec<String> = self
+            .lua
+            .globals()
+            .get::<Table>("_HOST_MISSING")
+            .map(|t| t.pairs::<String, Value>().filter_map(Result::ok).map(|(k, _)| k).collect())
+            .unwrap_or_default();
+        missing.sort_unstable();
+        missing.dedup();
+
+        ApiReport { missing, provided: self.registry.installed_names() }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn session() -> LuaSession {
+        LuaSession::standard(false).expect("session")
+    }
+
+    /// La propriété qui manquait : l'état survit d'une évaluation à l'autre.
+    #[test]
+    fn la_session_conserve_son_etat() {
+        let s = session();
+        s.eval("compteur = 1").expect("eval");
+        s.eval("compteur = compteur + 41").expect("eval");
+        assert_eq!(s.eval("compteur").unwrap(), "42");
+    }
+
+    #[test]
+    fn attache_un_comportement_et_diffuse_les_callbacks() {
+        let mut s = session();
+        s.attach(
+            "essai",
+            br#"
+            local M = { appels = 0 }
+            function M.OnStart() M.appels = M.appels + 1 end
+            function M.OnUpdate() M.appels = M.appels + 10 end
+            comportement = M
+            return M
+            "#,
+        )
+        .expect("attachement");
+
+        let b = &s.behaviours()[0];
+        let defined = b.defined_callbacks();
+        assert!(defined.contains(&"OnStart"), "callbacks : {defined:?}");
+        assert!(defined.contains(&"OnUpdate"), "callbacks : {defined:?}");
+        assert!(!defined.contains(&"OnDestroy"), "OnDestroy n'est pas défini : {defined:?}");
+
+        assert_eq!(s.broadcast("OnStart").unwrap(), 1);
+        assert_eq!(s.broadcast("OnUpdate").unwrap(), 1);
+        // Un callback qu'aucun script ne définit : diffusé à personne, sans erreur.
+        assert_eq!(s.broadcast("OnDestroy").unwrap(), 0);
+
+        assert_eq!(s.eval("comportement.appels").unwrap(), "11");
+    }
+
+    #[test]
+    fn refuse_un_script_qui_ne_renvoie_pas_de_table() {
+        let mut s = session();
+        let err = match s.attach("pas_un_comportement", b"local x = 1") {
+            Err(e) => e,
+            Ok(_) => panic!("un script sans table ne doit pas être attaché"),
+        };
+        assert!(
+            err.to_string().contains("doit renvoyer une table"),
+            "message peu clair : {err}"
+        );
+    }
+
+    /// Le rechargement doit VRAIMENT repartir de zéro : une définition retirée du script ne doit
+    /// pas survivre. C'est tout l'argument d'Overload pour recréer le contexte.
+    #[test]
+    fn le_rechargement_efface_letat_precedent() {
+        let mut s = session();
+        s.eval("resteApres = 'oui'").expect("eval");
+        assert_eq!(s.eval("resteApres").unwrap(), "oui");
+
+        s.reload().expect("rechargement");
+        // La VM est neuve : le global posé à la main a disparu. `nil` — et pas la valeur d'avant.
+        assert_eq!(s.eval("type(rawget(_G, 'resteApres'))").unwrap(), "nil");
+    }
+
+    #[test]
+    fn le_rechargement_reattache_les_comportements() {
+        let mut s = session();
+        s.attach("c", b"local M = {} function M.OnStart() end return M").expect("attachement");
+        assert_eq!(s.behaviours().len(), 1);
+
+        s.reload().expect("rechargement");
+        assert_eq!(s.behaviours().len(), 1, "le comportement doit être ré-attaché");
+        assert_eq!(s.broadcast("OnStart").unwrap(), 1);
+    }
+
+    #[test]
+    fn rapport_dapi_confronte_reclame_et_fourni() {
+        let s = session();
+        // `Debug` et `Math` sont fournis par les binders ; les deux autres non.
+        s.eval("Debug.Log('ok') MOTEUR_INCONNU() AUTRE_APPEL()").expect("eval");
+
+        let report = s.api_report();
+        assert!(report.provided.contains(&"Debug".to_string()));
+        assert!(report.missing.contains(&"MOTEUR_INCONNU".to_string()), "{report:?}");
+        assert!(report.missing.contains(&"AUTRE_APPEL".to_string()), "{report:?}");
+        assert!(
+            !report.missing.contains(&"Debug".to_string()),
+            "un global fourni par un binder ne doit jamais être compté manquant : {report:?}"
+        );
+    }
+
+    #[test]
+    fn edite_une_valeur_dans_la_session_vivante() {
+        let s = session();
+        s.eval("pv = 100").expect("eval");
+        s.set_global("pv", "250").expect("écriture");
+        assert_eq!(s.eval("pv").unwrap(), "250");
+
+        s.set_global("table_test", "{a = 1, b = 2}").expect("écriture");
+        assert_eq!(s.eval("table_test.b").unwrap(), "2");
+    }
+
+    #[test]
+    fn capture_la_sortie_et_les_journaux() {
+        let s = session();
+        s.exec("t", b"print('sortie') Debug.LogWarning('attention')").expect("exec");
+        assert_eq!(s.take_output(), vec!["sortie".to_string()]);
+        let logs = s.take_logs();
+        assert_eq!(logs.len(), 1);
+        assert_eq!(logs[0].message, "attention");
+        // Le tampon est vidé par la prise : deux appels ne doivent pas rejouer les mêmes lignes.
+        assert!(s.take_logs().is_empty());
+    }
+}
