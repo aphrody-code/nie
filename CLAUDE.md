@@ -31,10 +31,28 @@ réellement générée par le dépôt. Un portage qui n'y bouge rien n'a rien pr
 - `nie-core`, `nie-pe`, `nie-asm`, `nie-forge` : `#![warn(missing_docs)]` → documenter **chaque** item `pub`.
 - Avant tout commit : `cargo clippy -p <crate> --lib --tests` doit retourner **0 warning**.
 - Golden tests : `cargo test -p nie-data --test <fam>_golden`.
+- Le dépôt peut être réorganisé **pendant** une session (crates déplacés/créés par un travail
+  parallèle) : si un build échoue sur un crate étranger, vérifier `cargo metadata --no-deps`,
+  attendre, et ne jamais déplacer ni « réparer » le crate d'une autre session.
 
-## Forge (produire le binaire)
+## Forge (produire le binaire) — état 2026-08-10 : **51,86 % du fichier, 66,09 % du `.text`**
 
-- Boucle : `nie-forge split` → `lift` → `build` → `verify` → `report`.
+- Boucle : `just forge` = `split` → `lift` → `cc` → `build` → `verify` → `report`.
+- **Deux voies de production**, toutes deux vérifiées au byte près :
+  - **A — `nie-asm`** : encodeur x86-64 dialecte MSVC ; la source `forge/asm/*.s` est réassemblée.
+    Suffixes du dialecte : `.s` (branchement court), `.w` (immédiat en forme longue), `.r` (préfixe
+    REX nul explicite — MSVC en émet, ex. `40 53` pour `push rbx`).
+  - **B — `nie-forge cc`** : **MSVC 14.44 est installé** (`…\2022\BuildTools\…\14.44.35207\…\cl.exe`),
+    c'est le toolset qui a lié `nie.exe`. Sources C dans `cpp/decomp/functions/*.c`, annotées
+    `/* @nie 0x… */`, compilées `/O2 /GS- /Gy /Zl`. **Ne pas utiliser MSVC 14.51** (VS 18).
+    C'est la voie qui monte le plus haut : le C exprime la sémantique, MSVC choisit la forme.
+- **Tables structurées** : `.pdata` et `.reloc` sont **régénérées depuis leurs entrées**
+  (`nie_pe::image::tables::emit_for`), comme les en-têtes — pas recopiées.
+- `niers.sqlite` est branché (`--db`) : il **nomme** les corps produits dans `lifted.s`, et la forge
+  le **contredit** en retour (`cross-check pdata_roots_db=50674 forge=55351`).
+- **Devant un plateau, ne pas deviner** : enrichir le diagnostic (`blocking_detail` ventile par
+  mnémonique et affiche `orig=` vs `nie-asm=`), relancer `lift`, lire. C'est ce qui a fait passer
+  26,9 % → 47,6 % en une vague.
 - **L'identité prime** : `build` échoue si `sha256(dist/nie.exe)` diffère de la référence. Ne jamais
   « corriger » ce test — c'est lui le contrat.
 - Rien n'entre dans `forge/asm/*.s` qui ne se réencode pas exactement (`lift` vérifie).
@@ -52,6 +70,12 @@ réellement générée par le dépôt. Un portage qui n'y bouge rien n'a rien pr
   **gitignored** — assets © LEVEL-5. Ne jamais committer ni pousser (`start.png`, `menu.png` inclus).
 - Variable d’environnement : `NIE_GAME_DIR=/home/aphrody/niers` (254 202 assets).  
   Fallback Steam : `/mnt/c/…/INAZUMA ELEVEN Victory Road`.
+- Sur l’install Steam Windows, le VFS complet **est le cwd** : `resolve_game_dir()` le détecte via
+  `data/cpk_list.cfg.bin`, `NIE_GAME_DIR` est inutile.
+- `Vfs::init()` prend **`<racine>/data`**, pas la racine (sinon « impossible d’ouvrir cpk_list.cfg.bin »).
+- `niers vfs extract <chemin> -o <FICHIER>` : `-o` est un **fichier**, pas un dossier — sinon
+  « Accès refusé (os error 5) », qui n’a rien à voir avec les permissions.
+- Binaires déjà construits dans `target/debug/` (`niers.exe`, `nie-cam.exe`…) : explorer sans rebuild.
 
 ## Porter une famille nie-data
 
@@ -63,17 +87,30 @@ réellement générée par le dépôt. Un portage qui n'y bouge rien n'a rien pr
   `target/debug/examples/probe_rdbn <prefix>` (RDBN)  
   ou `probe_t2b <prefix>` (T2B)  
   avec `NIE_GAME_DIR` positionné.
+- Deux formats derrière `.cfg.bin` : **RDBN** à listes (`cfgbin::is_rdbn` → `parse` + `read_values`)
+  et **T2B** (`cfgbin::cfgbin_parse`, arbre `CfgEntry`). Tout `common/property/**` est T2B.
 
 ## Reverse de nie.exe (funcLua / menu)
 
 - Table cmdId → handler :  
   `uv run scripts/extract_funclua_table.py` → `data/re/funclua-cmdid-handlers.json` (régénérable, gitignored).
-- Désassembler un handler :  
-  `r2 -e bin.cache=true -c "s <handler>; af; pdf" data/nie.exe`  
-  (base image `0x140000000`).
+- Le binaire est `nie.exe` **à la racine** (pas `data/nie.exe`), base image `0x140000000`.
+- **`r2`/`objdump` ne sont pas installés** sur cette machine : désassembler via
+  `uv run --with capstone <script>` ou le crate `nie-re` (iced-x86). Bornes de fonction : `.pdata`.
 - Classification par `main_return` :  
   - `mov al, 1` → portable (return-1)  
   - **Interdit** de porter un retour conditionnel (`sete al` / `found ? 1 : 0`) comme constante. Source classique de doublons et d’erreurs.
+
+## Base de connaissance (`var/niers.sqlite`)
+
+- `Db::init` (nie-index) applique `schema.sql` **puis** `camera.sql` (`meta.schema_version = 2`).
+- Peupler la caméra : `nie-cam index [--samples]` ; état : `nie-cam stats`.
+
+## Pièges d’édition
+
+- Ne jamais écrire un fichier Rust via un heredoc Python : un `\0` littéral finit dans la source
+  (`file` la voit comme `data`). Utiliser Write/Edit.
+- Ne pas nommer un script du scratchpad comme un module stdlib (`dis.py` casse numpy et capstone).
 
 ## Références légales
 
