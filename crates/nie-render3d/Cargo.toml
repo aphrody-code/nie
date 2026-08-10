@@ -20,6 +20,16 @@ clap.workspace = true
 serde_json.workspace = true
 png = "0.18"
 bcdec_rs = "0.2.0"
+wgpu = { version = "=29.0.3", optional = true }
+pollster = { version = "0.4", optional = true }
+bytemuck = { version = "1", features = ["derive"], optional = true }
 
 [dev-dependencies]
 nie-formats = { path = "../nie-formats" }
+
+# Rendu GPU (wgpu) du viewport — optionnel : les consommateurs headless (golden CPU, CLI turntable)
+# ne doivent pas tirer wgpu/pollster. Version de wgpu ALIGNÉE sur `nie-game` (=29.0.3), l'autre hôte
+# GPU du workspace : deux versions majeures de wgpu dans un même binaire dupliqueraient le backend.
+[features]
+default = []
+gpu = ["dep:wgpu", "dep:pollster", "dep:bytemuck"]
