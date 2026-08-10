@@ -35,6 +35,50 @@ réellement générée par le dépôt. Un portage qui n'y bouge rien n'a rien pr
   parallèle) : si un build échoue sur un crate étranger, vérifier `cargo metadata --no-deps`,
   attendre, et ne jamais déplacer ni « réparer » le crate d'une autre session.
 
+## Workspace Bun (`packages/*`, `apps/*`)
+
+Un seul lockfile, à la racine. Bibliothèque → `packages/`, application avec un `bin` → `apps/`.
+
+| Paquet | Rôle |
+|--------|------|
+| `packages/nie` | Bindings FFI de `libnie_ffi` — la porte d'entrée TS vers les crates Rust |
+| `packages/nie-bridge` | Protocole de contrôle partagé `nie-mcp` ↔ `nie-explorer` |
+| `packages/nie-catalog` | Catalogue SQLite du VFS |
+| `packages/nie-plugin` | Plugin Bun d'import des formats — **préchargé par `bunfig.toml`** |
+| `packages/nie-util` | Utilitaires partagés |
+| `apps/nie-decode` | CLI de décodage parallèle |
+| `apps/nie-explorer` | Explorateur/éditeur Tauri (React + Rust, `src-tauri` hors workspace Cargo) |
+| `apps/nie-mcp` | Serveur MCP `niers-game` — VFS, assets, KB RE, pilotage de l'explorateur |
+
+```bash
+bun install                 # depuis la racine, jamais dans un sous-paquet
+bun run build:ffi           # cargo build -p nie-ffi — REQUIS avant tout autre `bun run`
+bun run typecheck           # 8 workspaces
+bun run test
+bun run lint
+```
+
+- Versions partagées par **catalogue** : `catalog:` (typescript, `@types/bun`) ou `catalog:mcp`
+  (SDK MCP, zod). Jamais une version en dur — c'est ce qui avait fait cohabiter trois TypeScript
+  et deux zod, rendant les schémas d'outils MCP inassignables.
+- `nie-mcp` et `nie-explorer` partagent la **même couche Rust** : l'explorateur lie `nie-formats`
+  en direct, le MCP l'atteint par `packages/nie` (FFI). Ne pas réimplémenter d'un côté ce que
+  l'autre fait déjà.
+- Régénérer les bindings Tauri sans ouvrir de fenêtre :
+  `cd apps/nie-explorer/src-tauri && cargo run --bin export-bindings`.
+
+## Pièges d'environnement (Windows)
+
+- **Un `dlopen` raté casse TOUT `bun`/`bunx` lancé depuis le dépôt**, même sans rapport avec le
+  jeu : `bunfig.toml` précharge `nie-plugin`, qui charge `libnie_ffi`. Construire la lib avant de
+  chercher ailleurs. Sur Windows rustc produit **`nie_ffi.dll`, sans préfixe `lib`**.
+- Un process Bun ayant chargé la DLL la **verrouille** : `cargo build -p nie-ffi` échoue alors sur
+  « Accès refusé (os error 5) ». Tuer le process, pas relancer le build.
+- `cargo test` dans `apps/nie-explorer/src-tauri` **ne démarre pas** (`STATUS_ENTRYPOINT_NOT_FOUND`,
+  avant tout test). Le prouver avec un filtre qui ne matche rien avant d'accuser son code ;
+  `cargo check` reste fiable.
+- `bun` ne résout pas les chemins MSYS (`/tmp/…`) : utiliser un chemin Windows.
+
 ## Forge (produire le binaire) — état 2026-08-10 : **51,86 % du fichier, 66,09 % du `.text`**
 
 - Boucle : `just forge` = `split` → `lift` → `cc` → `build` → `verify` → `report`.

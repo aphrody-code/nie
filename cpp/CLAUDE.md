@@ -1,11 +1,18 @@
-# CLAUDE.md — cli/
+# CLAUDE.md — cpp/
 
 Toolkit C++20 pour Inazuma Eleven: Victory Road — parsers, compression, engine, modding.
+
+Ce fichier décrit **`cpp/`**, la racine de l'arbre C++. Attention : `cpp/cli/` existe aussi comme
+sous-dossier (le front-end en ligne de commande) — les chemins ci-dessous partent de `cpp/`.
+
+`cpp/decomp/` est à part : c'est la **voie B de la forge** (`functions/*.c` annotés
+`/* @nie 0x… */`, compilés par MSVC 14.44 en `/O2 /GS- /Gy /Zl`), pas du toolkit. Voir le
+`CLAUDE.md` racine.
 
 ## Architecture
 
 ```
-cli/
+cpp/
 ├── include/iecode/     # Headers publics
 │   ├── ffi.h          # API FFI unifiée (C ABI)
 │   ├── compression/   # LZ10, LZ4, CRILAYLA, Huffman, RLE, ZLib
