@@ -1,0 +1,30 @@
+[package]
+name = "nie-editor"
+description = "Éditeur de scène 3D de niers — éditeur Fyrox embarqué (fyroxed_base), alimenté par les vrais assets IEVR du VFS CPK"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "nie-editor"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+# Éditeur de scène Fyrox EMBARQUÉ en bibliothèque (`fyroxed_base`), pas réécrit : on récupère
+# d'un coup le graphe de scène, l'inspecteur réflexif, les gizmos de transformation, l'undo/redo,
+# le world viewer et le navigateur d'assets — soit l'essentiel d'un éditeur type Unreal, déjà
+# éprouvé. Rendu OpenGL 3.3 NATIF (crate `fyrox-graphics-gl`) : aucun WebGL, aucun navigateur.
+fyrox = "1.0.1"
+fyroxed_base = "1.0.1"
+
+# Assets réels du jeu : montage du VFS CPK + assemblage du modèle (G4MD+G4MG+G4TX).
+nie-formats = { workspace = true, features = ["textures"] }
+nie-render3d = { path = "../nie-render3d" }
+
+anyhow.workspace = true
+clap.workspace = true

@@ -2282,6 +2282,56 @@ fn encode_png_rgba(rgba: &[u8], w: u32, h: u32) -> Result<Vec<u8>, String> {
     Ok(out)
 }
 
+/// Ouvre l'asset dans **nie-editor**, l'éditeur de scène 3D natif (éditeur Fyrox embarqué, rendu
+/// OpenGL — cf. `crates/nie-editor`).
+///
+/// Process séparé et non bloquant : l'éditeur a sa propre boucle d'événements winit et sa propre
+/// fenêtre GPU, deux choses qui ne peuvent pas cohabiter avec la boucle Tauri de cette
+/// application. Le binaire est cherché à côté de l'exécutable courant (build distribué), puis dans
+/// les cibles de développement du workspace.
+#[tauri::command]
+#[specta::specta]
+fn open_in_scene_editor(path: Option<String>, game_dir: Option<String>) -> Result<String, String> {
+    let root = resolve_root(game_dir.as_deref());
+    let exe_name = if cfg!(windows) { "nie-editor.exe" } else { "nie-editor" };
+
+    let mut candidates: Vec<PathBuf> = Vec::new();
+    // Pas de `let`-chain ici : ce crate est en édition 2021 (contrairement au workspace), qui ne
+    // les accepte pas.
+    if let Ok(current) = std::env::current_exe() {
+        if let Some(dir) = current.parent() {
+            candidates.push(dir.join(exe_name));
+        }
+    }
+    for profile in ["release", "debug"] {
+        candidates.push(root.join("target").join(profile).join(exe_name));
+    }
+
+    let editor = candidates
+        .iter()
+        .find(|p| p.is_file())
+        .ok_or_else(|| {
+            format!(
+                "nie-editor introuvable. Compilez-le avec « cargo build -p nie-editor --release » \
+                 (emplacements cherchés : {})",
+                candidates.iter().map(|p| p.display().to_string()).collect::<Vec<_>>().join(", ")
+            )
+        })?
+        .clone();
+
+    let mut cmd = std::process::Command::new(&editor);
+    cmd.arg("--game-dir").arg(&root);
+    if let Some(asset) = path.as_deref().filter(|p| !p.trim().is_empty()) {
+        cmd.arg("--asset").arg(asset);
+    }
+    cmd.spawn().map_err(|e| format!("lancement de {} : {e}", editor.display()))?;
+
+    Ok(match path {
+        Some(p) => format!("Éditeur de scène ouvert sur {p}"),
+        None => "Éditeur de scène ouvert".to_string(),
+    })
+}
+
 const RENDER3D_SIZE: u32 = 512;
 
 /// Renvoie le **GLB assemblé lui-même** (base64), pas un rendu de celui-ci.
@@ -2716,6 +2766,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         save_blob_hex_b64,
         save_export,
         vfs_video_preview_b64,
+        open_in_scene_editor,
         vfs_glb_bytes_b64,
         raw_cpk_glb_bytes_b64,
         vfs_glb_preview_png_b64,
