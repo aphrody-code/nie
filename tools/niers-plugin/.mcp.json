@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "niers-game": {
+      "type": "stdio",
+      "command": "bun",
+      "args": ["run", "${CLAUDE_PLUGIN_ROOT}/../../apps/nie-mcp/src/index.ts"],
+      "env": {
+        "NIERS_REPO": "${CLAUDE_PLUGIN_ROOT}/../..",
+        "NIERS_REDIS": "redis://127.0.0.1:6379",
+        "MODEL_SERVE_URL": "http://127.0.0.1:8790"
+      }
+    }
+  }
+}
