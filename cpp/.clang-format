@@ -1,0 +1,59 @@
+---
+# clang-format for iecode cli
+# Run: clang-format -i src/**/*.cpp include/**/*.h
+
+Language: Cpp
+BasedOnStyle: Google
+
+# Overrides
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 100
+AccessModifierOffset: -4
+
+# Braces
+BreakBeforeBraces: Attach
+AllowShortBlocksOnASingleLine: Empty
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+
+# Includes
+IncludeBlocks: Regroup
+IncludeCategories:
+  # Project headers
+  - Regex: '^"iecode/'
+    Priority: 1
+  # Third-party headers
+  - Regex: '^<(fmt|spdlog|nlohmann|CLI|capstone|tree_sitter|bgfx|assimp|glm|sol)'
+    Priority: 2
+  # System headers
+  - Regex: '^<'
+    Priority: 3
+
+# Alignment
+AlignAfterOpenBracket: Align
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignTrailingComments: true
+BinPackArguments: true
+BinPackParameters: true
+
+# Pointers / References
+DerivePointerAlignment: false
+PointerAlignment: Left
+
+# Namespaces
+NamespaceIndentation: None
+CompactNamespaces: false
+FixNamespaceComments: true
+
+# C++20
+Standard: c++20
+
+# Penalties
+PenaltyBreakComment: 300
+PenaltyBreakString: 1000
+PenaltyExcessCharacter: 1000000
+PenaltyReturnTypeOnItsOwnLine: 200

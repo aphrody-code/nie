@@ -1,0 +1,96 @@
+{
+  "dll_name": "sdkencryptedappticket64.dll",
+  "dll_path": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\INAZUMA ELEVEN Victory Road\\sdkencryptedappticket64.dll",
+  "file_size": 1025632,
+  "export_count": 12,
+  "exports": [
+    {
+      "ordinal": 1,
+      "rva": "00004450",
+      "name": "SteamEncryptedAppTicket_BDecryptTicket",
+      "hint": 0
+    },
+    {
+      "ordinal": 2,
+      "rva": "000044A0",
+      "name": "SteamEncryptedAppTicket_BGetAppDefinedValue",
+      "hint": 1
+    },
+    {
+      "ordinal": 3,
+      "rva": "00004580",
+      "name": "SteamEncryptedAppTicket_BIsLicenseBorrowed",
+      "hint": 2
+    },
+    {
+      "ordinal": 4,
+      "rva": "000045C0",
+      "name": "SteamEncryptedAppTicket_BIsLicenseTemporary",
+      "hint": 3
+    },
+    {
+      "ordinal": 5,
+      "rva": "00004600",
+      "name": "SteamEncryptedAppTicket_BIsTicketForApp",
+      "hint": 4
+    },
+    {
+      "ordinal": 6,
+      "rva": "00004640",
+      "name": "SteamEncryptedAppTicket_BIsTicketSigned",
+      "hint": 5
+    },
+    {
+      "ordinal": 7,
+      "rva": "00004710",
+      "name": "SteamEncryptedAppTicket_BUserIsVacBanned",
+      "hint": 6
+    },
+    {
+      "ordinal": 8,
+      "rva": "000047A0",
+      "name": "SteamEncryptedAppTicket_BUserOwnsAppInTicket",
+      "hint": 7
+    },
+    {
+      "ordinal": 9,
+      "rva": "000047E0",
+      "name": "SteamEncryptedAppTicket_GetTicketAppID",
+      "hint": 8
+    },
+    {
+      "ordinal": 10,
+      "rva": "00004820",
+      "name": "SteamEncryptedAppTicket_GetTicketIssueTime",
+      "hint": 9
+    },
+    {
+      "ordinal": 11,
+      "rva": "00004860",
+      "name": "SteamEncryptedAppTicket_GetTicketSteamID",
+      "hint": 10
+    },
+    {
+      "ordinal": 12,
+      "rva": "000048E0",
+      "name": "SteamEncryptedAppTicket_GetUserVariableData",
+      "hint": 11
+    }
+  ],
+  "categories": {
+    "EncryptedAppTicket": [
+      "SteamEncryptedAppTicket_BDecryptTicket",
+      "SteamEncryptedAppTicket_BGetAppDefinedValue",
+      "SteamEncryptedAppTicket_BIsLicenseBorrowed",
+      "SteamEncryptedAppTicket_BIsLicenseTemporary",
+      "SteamEncryptedAppTicket_BIsTicketForApp",
+      "SteamEncryptedAppTicket_BIsTicketSigned",
+      "SteamEncryptedAppTicket_BUserIsVacBanned",
+      "SteamEncryptedAppTicket_BUserOwnsAppInTicket",
+      "SteamEncryptedAppTicket_GetTicketAppID",
+      "SteamEncryptedAppTicket_GetTicketIssueTime",
+      "SteamEncryptedAppTicket_GetTicketSteamID",
+      "SteamEncryptedAppTicket_GetUserVariableData"
+    ]
+  }
+}

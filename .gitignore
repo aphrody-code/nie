@@ -144,3 +144,10 @@ __pycache__/
 /forge/asm/*.s
 # Le registre (forge/registry.json) ne contient que des adresses, des chemins de
 # symboles Rust et des preuves : il reste versionne.
+
+# --- cpp/ (toolkit C++ IECODE, cf. cpp/PROVENANCE.md) -------------------------
+# Sorties de compilation : la chaine CMake/vcpkg et le pont Rust FFI.
+/cpp/**/target/
+/cpp/build/
+/cpp/out/
+/cpp/vcpkg_installed/

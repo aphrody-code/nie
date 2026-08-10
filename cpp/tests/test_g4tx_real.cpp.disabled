@@ -1,0 +1,280 @@
+/// @file test_g4tx_real.cpp
+/// Tests du parser G4TX avec de vrais fichiers extraits du jeu.
+/// Golden data dans tests/data/ (fichiers de 200_icon/).
+
+#include <gtest/gtest.h>
+#include "iecode/converters/texture_export.h"
+#include "iecode/formats/level5/g4tx.h"
+
+#include <fmt/format.h>
+#include <filesystem>
+#include <fstream>
+#include <vector>
+
+#ifndef TEST_DATA_DIR
+#define TEST_DATA_DIR "tests/data"
+#endif
+
+namespace fs = std::filesystem;
+
+// ── Helpers ─────────────────────────────────────────────────────────
+
+static std::vector<uint8_t> read_file(const fs::path& path) {
+    std::ifstream f(path, std::ios::binary | std::ios::ate);
+    if (!f) return {};
+    const auto size = f.tellg();
+    f.seekg(0);
+    std::vector<uint8_t> data(static_cast<size_t>(size));
+    f.read(reinterpret_cast<char*>(data.data()), size);
+    return data;
+}
+
+static fs::path test_data_dir() {
+    // Chercher tests/data/ relatif au binaire de test ou au CWD
+    for (const auto& candidate : {
+        fs::path("tests/data"),
+        fs::path("../tests/data"),
+        fs::path("../../tests/data"),
+        fs::path(TEST_DATA_DIR),  // Defini par CMake si disponible
+    }) {
+        if (fs::exists(candidate)) return candidate;
+    }
+    return "tests/data";
+}
+
+// ── num_quest.g4tx (15 KB, 1 texture DDS+DX10, 10 sub-textures) ────
+
+class G4txRealTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        auto path = test_data_dir() / "num_quest.g4tx";
+        data_ = read_file(path);
+        has_data_ = !data_.empty();
+    }
+    std::vector<uint8_t> data_;
+    bool has_data_ = false;
+};
+
+TEST_F(G4txRealTest, ParseHeader) {
+    if (!has_data_) GTEST_SKIP() << "num_quest.g4tx absent";
+
+    auto result = iecode::level5::g4tx_parse(data_);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result->textures.size(), 1u);
+}
+
+TEST_F(G4txRealTest, TextureDimensions) {
+    if (!has_data_) GTEST_SKIP();
+    auto result = iecode::level5::g4tx_parse(data_);
+    ASSERT_TRUE(result.has_value());
+
+    const auto& tex = result->textures[0];
+    EXPECT_EQ(tex.width, 124);
+    EXPECT_EQ(tex.height, 116);
+    EXPECT_TRUE(tex.is_dds);
+}
+
+TEST_F(G4txRealTest, SubTextures) {
+    if (!has_data_) GTEST_SKIP();
+    auto result = iecode::level5::g4tx_parse(data_);
+    ASSERT_TRUE(result.has_value());
+
+    const auto& tex = result->textures[0];
+    EXPECT_EQ(tex.sub_textures.size(), 10u);
+
+    // Premier sub-texture : x=0, y=0, w=28, h=36
+    if (!tex.sub_textures.empty()) {
+        EXPECT_EQ(tex.sub_textures[0].x, 0);
+        EXPECT_EQ(tex.sub_textures[0].y, 0);
+        EXPECT_EQ(tex.sub_textures[0].width, 28);
+        EXPECT_EQ(tex.sub_textures[0].height, 36);
+    }
+}
+
+TEST_F(G4txRealTest, DecodeToRGBA8) {
+    if (!has_data_) GTEST_SKIP();
+    auto result = iecode::level5::g4tx_parse(data_);
+    ASSERT_TRUE(result.has_value());
+
+    const auto& tex = result->textures[0];
+    auto rgba = iecode::converters::decode_to_rgba8(tex);
+
+    // RGBA8 = width * height * 4
+    EXPECT_EQ(rgba.size(), static_cast<size_t>(tex.width) * tex.height * 4);
+    EXPECT_FALSE(rgba.empty());
+}
+
+TEST_F(G4txRealTest, ExportPng) {
+    if (!has_data_) GTEST_SKIP();
+    auto result = iecode::level5::g4tx_parse(data_);
+    ASSERT_TRUE(result.has_value());
+
+    auto tmp = fs::temp_directory_path() / "iecode_test_quest.png";
+    bool ok = iecode::converters::export_png(result->textures[0], tmp);
+    EXPECT_TRUE(ok);
+
+    // Verifier que le fichier existe et a une taille raisonnable
+    if (ok) {
+        EXPECT_TRUE(fs::exists(tmp));
+        EXPECT_GT(fs::file_size(tmp), 100u); // Un PNG non-vide fait > 100 octets
+        fs::remove(tmp);
+    }
+}
+
+TEST_F(G4txRealTest, RoundTripRebuild) {
+    if (!has_data_) GTEST_SKIP();
+    auto result = iecode::level5::g4tx_parse(data_);
+    ASSERT_TRUE(result.has_value());
+
+    // Rebuilder un G4TX et le re-parser
+    auto rebuilt = iecode::converters::build_g4tx(result->textures);
+    EXPECT_FALSE(rebuilt.empty());
+
+    if (!rebuilt.empty()) {
+        auto reparsed = iecode::level5::g4tx_parse(rebuilt);
+        ASSERT_TRUE(reparsed.has_value());
+        EXPECT_EQ(reparsed->textures.size(), result->textures.size());
+
+        if (!reparsed->textures.empty()) {
+            EXPECT_EQ(reparsed->textures[0].width, result->textures[0].width);
+            EXPECT_EQ(reparsed->textures[0].height, result->textures[0].height);
+            EXPECT_EQ(reparsed->textures[0].data.size(), result->textures[0].data.size());
+        }
+    }
+}
+
+// ── coach01_l.g4tx (65 KB, BC7 DDS+DX10, 256x256) ──────────────────
+
+class G4txCoachTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        auto path = test_data_dir() / "coach01_l.g4tx";
+        data_ = read_file(path);
+        has_data_ = !data_.empty();
+    }
+    std::vector<uint8_t> data_;
+    bool has_data_ = false;
+};
+
+TEST_F(G4txCoachTest, ParseBC7) {
+    if (!has_data_) GTEST_SKIP() << "coach01_l.g4tx absent";
+
+    auto result = iecode::level5::g4tx_parse(data_);
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->textures.size(), 1u);
+
+    const auto& tex = result->textures[0];
+    EXPECT_EQ(tex.width, 256);
+    EXPECT_EQ(tex.height, 256);
+    EXPECT_EQ(tex.format, iecode::level5::G4txFormat::BC7);
+    EXPECT_TRUE(tex.is_dds);
+}
+
+TEST_F(G4txCoachTest, DecodeBC7) {
+    if (!has_data_) GTEST_SKIP();
+    auto result = iecode::level5::g4tx_parse(data_);
+    ASSERT_TRUE(result.has_value());
+
+    auto rgba = iecode::converters::decode_to_rgba8(result->textures[0]);
+    // 256 * 256 * 4 = 262144
+    EXPECT_EQ(rgba.size(), 262144u);
+}
+
+TEST_F(G4txCoachTest, ExportPngBC7) {
+    if (!has_data_) GTEST_SKIP();
+    auto result = iecode::level5::g4tx_parse(data_);
+    ASSERT_TRUE(result.has_value());
+
+    auto tmp = fs::temp_directory_path() / "iecode_test_coach.png";
+    bool ok = iecode::converters::export_png(result->textures[0], tmp);
+    EXPECT_TRUE(ok);
+    if (ok) {
+        EXPECT_GT(fs::file_size(tmp), 1000u);
+        fs::remove(tmp);
+    }
+}
+
+// ── c01000010_l.g4tx (131 KB, 2 textures BC7, 256x256 chacune) ─────
+
+class G4txMultiTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        data_ = read_file(test_data_dir() / "c01000010_l.g4tx");
+        has_data_ = !data_.empty();
+    }
+    std::vector<uint8_t> data_;
+    bool has_data_ = false;
+};
+
+TEST_F(G4txMultiTest, ParseTwoTextures) {
+    if (!has_data_) GTEST_SKIP() << "c01000010_l.g4tx absent";
+    auto result = iecode::level5::g4tx_parse(data_);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result->textures.size(), 2u);
+    for (const auto& tex : result->textures) {
+        EXPECT_EQ(tex.width, 256);
+        EXPECT_EQ(tex.height, 256);
+        EXPECT_EQ(tex.format, iecode::level5::G4txFormat::BC7);
+    }
+}
+
+TEST_F(G4txMultiTest, DecodeBoth) {
+    if (!has_data_) GTEST_SKIP();
+    auto result = iecode::level5::g4tx_parse(data_);
+    ASSERT_TRUE(result.has_value());
+    for (const auto& tex : result->textures) {
+        auto rgba = iecode::converters::decode_to_rgba8(tex);
+        EXPECT_EQ(rgba.size(), 256u * 256u * 4u);
+    }
+}
+
+// ── em0001.g4tx (262 KB, BC7 512x512) ──────────────────────────────
+
+class G4txEmblemTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        data_ = read_file(test_data_dir() / "em0001.g4tx");
+        has_data_ = !data_.empty();
+    }
+    std::vector<uint8_t> data_;
+    bool has_data_ = false;
+};
+
+TEST_F(G4txEmblemTest, Parse512) {
+    if (!has_data_) GTEST_SKIP();
+    auto result = iecode::level5::g4tx_parse(data_);
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->textures.size(), 1u);
+    EXPECT_EQ(result->textures[0].width, 512);
+    EXPECT_EQ(result->textures[0].height, 512);
+}
+
+TEST_F(G4txEmblemTest, DecodeRGBA) {
+    if (!has_data_) GTEST_SKIP();
+    auto result = iecode::level5::g4tx_parse(data_);
+    ASSERT_TRUE(result.has_value());
+    auto rgba = iecode::converters::decode_to_rgba8(result->textures[0]);
+    EXPECT_EQ(rgba.size(), 512u * 512u * 4u);
+}
+
+// ── Batch : parser tous les fichiers test data ─────────────────────
+
+TEST(G4txBatch, ParseAllTestFiles) {
+    const auto dir = test_data_dir();
+    if (!fs::exists(dir)) GTEST_SKIP();
+    int ok = 0;
+    for (const auto& entry : fs::directory_iterator(dir)) {
+        if (entry.path().extension() != ".g4tx") continue;
+        auto data = read_file(entry.path());
+        auto result = iecode::level5::g4tx_parse(data);
+        EXPECT_TRUE(result.has_value()) << entry.path().filename().string();
+        if (result) {
+            for (const auto& tex : result->textures) {
+                auto rgba = iecode::converters::decode_to_rgba8(tex);
+                EXPECT_FALSE(rgba.empty()) << entry.path().filename().string();
+            }
+            ++ok;
+        }
+    }
+    EXPECT_GT(ok, 0);
+}

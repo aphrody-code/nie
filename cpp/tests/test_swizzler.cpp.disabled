@@ -1,0 +1,47 @@
+#include <gtest/gtest.h>
+#include "iecode/formats/level5/texture_swizzler.h"
+
+using namespace iecode::level5;
+
+TEST(Swizzler, EmptyInput) {
+    EXPECT_TRUE(unswizzle({}, 0, 0, 0).empty());
+}
+
+TEST(Swizzler, InvalidDimensions) {
+    const uint8_t data[] = {0xFF};
+    EXPECT_TRUE(unswizzle(data, -1, 4, 4).empty());
+    EXPECT_TRUE(unswizzle(data, 4, -1, 4).empty());
+    EXPECT_TRUE(unswizzle(data, 4, 4, 0).empty());
+}
+
+TEST(Swizzler, LinearDataUnchanged) {
+    // Pour block_height_log2=0 et des donnees deja lineaires,
+    // le resultat devrait etre identique si la taille correspond
+    // exactement a GOB_WIDTH * GOB_HEIGHT.
+    // 4 pixels wide x 4 pixels tall x 4 bpp = 64 bytes
+    // Avec bpp=4 (RGBA8), w=4, h=4 => non-compresse
+    // 4*4*4 = 64 bytes
+    std::vector<uint8_t> input(64);
+    for (size_t i = 0; i < input.size(); ++i) {
+        input[i] = static_cast<uint8_t>(i & 0xFF);
+    }
+
+    auto result = unswizzle(input, 4, 4, 4, 0);
+    ASSERT_EQ(result.size(), 64u);
+}
+
+TEST(Swizzler, OutputSizeCorrectBCn) {
+    // BC1 : 8 bytes per 4x4 block
+    // 8x8 texture = 2x2 blocks = 4 blocks * 8 bytes = 32 bytes
+    std::vector<uint8_t> input(256, 0); // Oversized input is OK
+    auto result = unswizzle(input, 8, 8, 8, 0);
+    EXPECT_EQ(result.size(), 32u); // 2*2 blocks * 8 bytes
+}
+
+TEST(Swizzler, OutputSizeCorrectBC7) {
+    // BC7 : 16 bytes per 4x4 block
+    // 16x16 texture = 4x4 blocks = 16 blocks * 16 bytes = 256 bytes
+    std::vector<uint8_t> input(1024, 0);
+    auto result = unswizzle(input, 16, 16, 16, 0);
+    EXPECT_EQ(result.size(), 256u);
+}
