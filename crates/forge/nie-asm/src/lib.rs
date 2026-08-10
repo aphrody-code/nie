@@ -964,7 +964,8 @@ fn encode_one(i: Insn, at: u64, out: &mut Vec<u8>) {
                 return;
             }
             opsize(out, size);
-            rex(out, size.rex_w(), 0, 0, r.hi());
+            // `cmp sil, 1Ah` = `40 80 FE 1A` : REX nul requis pour spl/bpl/sil/dil.
+            rex_forced(out, size.rex_w(), 0, 0, r.hi(), needs_rex8(size, r));
             if short {
                 out.push(if size == Size::B { 0x80 } else { 0x83 });
                 out.push(0xC0 | (op.digit() << 3) | r.lo());
