@@ -216,8 +216,8 @@ d'octets plutôt que par adresse), puis renseigner le champ `rust` de chaque ent
 |---|---|---|
 | **G0 — identité** | le fichier produit est byte-identique à l'original | ✅ tenu, testé sur le vrai binaire |
 | **G1 — recouvrement** | chaque octet appartient à une unité nommée, zéro trou | ✅ 219 427 unités, invariant testé |
-| **G2 — amorçage** | une part non nulle du binaire est produite par le dépôt | ✅ 23,5892 % |
-| **G3 — code** | 50 % du `.text` produit par le dépôt | en cours — **32,7167 %** |
+| **G2 — amorçage** | une part non nulle du binaire est produite par le dépôt | ✅ 44,9727 % |
+| **G3 — code** | 50 % du `.text` produit par le dépôt | ✅ **62,3765 %** |
 | **G4 — sections** | `.rdata`/`.data` produits depuis les structures, pas recopiés | non commencé (découpage encore d'un seul tenant) |
 | **G5 — disposition** | la forge calcule ses propres adresses (édition de liens réelle) | non commencé ; jusque-là les champs relogés viennent de la disposition de référence |
 | **G6 — total** | 100 % du fichier produit, `nie.exe` reconstructible sans référence | horizon |

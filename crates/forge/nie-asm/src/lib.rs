@@ -516,10 +516,14 @@ pub enum Insn {
     Int3,
     /// `nop` multi-octets de longueur `n` (1..=15), forme canonique.
     Nop(u8),
-    /// `push r64`
-    Push(Reg),
-    /// `pop r64`
-    Pop(Reg),
+    /// `push r64` ; le booléen force un préfixe REX nul (`40`).
+    ///
+    /// MSVC émet `40 53` là où `53` suffirait. Ce préfixe ne change pas la
+    /// sémantique mais fait partie des octets à reproduire — 4,1 Mo de `.text`
+    /// en dépendent.
+    Push(Reg, bool),
+    /// `pop r64` ; idem.
+    Pop(Reg, bool),
     /// `mov r8, imm8` (opcode `B0+rb`)
     MovRegImm8(Reg, u8),
     /// `mov r32, imm32` (opcode `B8+rd`)
@@ -616,6 +620,8 @@ pub enum Insn {
     SetccRm(Cond, Rm),
     /// `<shift> r/m, cl` (`D2`/`D3 /n`)
     ShiftCl(ShiftOp, Size, Rm),
+    /// `<shift> r/m, 1` (`D0`/`D1 /n`) — forme dédiée, plus courte que `C1 /n 01`
+    Shift1(ShiftOp, Size, Rm),
     /// `bt/bts/btr/btc r/m, r` (`0F A3/AB/B3/BB /r`)
     BitRm(BitOp, Size, Rm, Reg),
     /// `bt/bts/btr/btc r/m, imm8` (`0F BA /n ib`)
@@ -895,16 +901,16 @@ fn encode_one(i: Insn, at: u64, out: &mut Vec<u8>) {
         }
         Insn::Int3 => out.push(0xCC),
         Insn::Nop(n) => nop(out, n),
-        Insn::Push(r) => {
-            rex(out, false, 0, 0, r.hi());
+        Insn::Push(r, force) => {
+            rex_forced(out, false, 0, 0, r.hi(), force);
             out.push(0x50 + r.lo());
         }
-        Insn::Pop(r) => {
-            rex(out, false, 0, 0, r.hi());
+        Insn::Pop(r, force) => {
+            rex_forced(out, false, 0, 0, r.hi(), force);
             out.push(0x58 + r.lo());
         }
         Insn::MovRegImm8(r, imm) => {
-            rex(out, false, 0, 0, r.hi());
+            rex_forced(out, false, 0, 0, r.hi(), needs_rex8(Size::B, r));
             out.push(0xB0 + r.lo());
             out.push(imm);
         }
@@ -942,8 +948,14 @@ fn encode_one(i: Insn, at: u64, out: &mut Vec<u8>) {
         Insn::AluMR(op, size, m, src) => mem_form(out, size, alu_mr_op(op, size), src, m, at, 0),
         Insn::AluRI(op, size, r, imm, wide) => {
             let short = !wide && i8::try_from(imm).is_ok();
-            // Forme accumulateur : `and eax, imm32` s'encode `25 id` chez MSVC,
-            // pas `81 E0 id`.
+            // Forme accumulateur 8 bits : `cmp al, 0Ah` s'encode `3C 0A`,
+            // pas `80 F8 0A`.
+            if r == Reg::Rax && size == Size::B {
+                out.push(op.digit() * 8 + 4);
+                out.push(imm as u8);
+                return;
+            }
+            // Forme accumulateur large : `and eax, imm32` = `25 id`.
             if r == Reg::Rax && size != Size::B && !short {
                 opsize(out, size);
                 rex(out, size.rex_w(), 0, 0, 0);
@@ -1190,6 +1202,10 @@ fn encode_one(i: Insn, at: u64, out: &mut Vec<u8>) {
         Insn::SetccRm(c, rm) => {
             rm_form(out, Size::B, &[0x0F, 0x90 + c.code()], 0, 0, rm, at, &[]);
         }
+        Insn::Shift1(op, size, rm) => {
+            let opcode = if size == Size::B { 0xD0 } else { 0xD1 };
+            rm_form(out, size, &[opcode], op.digit(), 0, rm, at, &[]);
+        }
         Insn::ShiftCl(op, size, rm) => {
             let opcode = if size == Size::B { 0xD2 } else { 0xD3 };
             rm_form(out, size, &[opcode], op.digit(), 0, rm, at, &[]);
@@ -1205,11 +1221,11 @@ fn encode_one(i: Insn, at: u64, out: &mut Vec<u8>) {
         }
         Insn::MovzxRm(src_size, dst_size, r, rm) => {
             let opcode = if src_size == Size::B { 0xB6 } else { 0xB7 };
-            rm_form(out, dst_size, &[0x0F, opcode], r.lo(), r.hi(), rm, at, &[]);
+            movx_form(out, src_size, dst_size, opcode, r, rm, at);
         }
         Insn::MovsxRm(src_size, dst_size, r, rm) => {
             let opcode = if src_size == Size::B { 0xBE } else { 0xBF };
-            rm_form(out, dst_size, &[0x0F, opcode], r.lo(), r.hi(), rm, at, &[]);
+            movx_form(out, src_size, dst_size, opcode, r, rm, at);
         }
         Insn::CvtToReg(op, dst, src, size) => {
             let (prefix, opcode) = op.encoding();
@@ -1237,6 +1253,34 @@ fn encode_one(i: Insn, at: u64, out: &mut Vec<u8>) {
             // on retombe sur l'opcode de chargement, et la comparaison byte-à-byte
             // rejettera l'unité — jamais de silence.
             sse_form(out, prefix, store.unwrap_or(load), src, XmmRm::M(m), at);
+        }
+    }
+}
+
+/// `movzx`/`movsx` : la largeur REX vient de la **destination**, mais l'exigence
+/// d'un REX nul vient de la **source** (`movzx edx, dil` s'écrit `40 0F B6 D7`).
+fn movx_form(
+    out: &mut Vec<u8>,
+    src_size: Size,
+    dst_size: Size,
+    opcode: u8,
+    r: Reg,
+    rm: Rm,
+    at: u64,
+) {
+    let force = matches!(rm, Rm::R(x) if needs_rex8(src_size, x));
+    let base = out.len();
+    match rm {
+        Rm::R(x) => {
+            rex_forced(out, dst_size.rex_w(), r.hi(), 0, x.hi(), force);
+            out.extend_from_slice(&[0x0F, opcode]);
+            out.push(0xC0 | (r.lo() << 3) | x.lo());
+        }
+        Rm::M(m) => {
+            let (ix, b) = mem_rex(m);
+            rex(out, dst_size.rex_w(), r.hi(), ix, b);
+            out.extend_from_slice(&[0x0F, opcode]);
+            modrm_mem(out, r.lo(), m, at, base, 0);
         }
     }
 }
@@ -1426,7 +1470,7 @@ mod tests {
         assert_eq!(
             encode(&[
                 Insn::Store(Size::Q, Mem::base_disp(Reg::Rsp, 8), Reg::Rbx),
-                Insn::Push(Reg::Rdi),
+                Insn::Push(Reg::Rdi, false),
                 Insn::AluRI(Alu::Sub, Size::Q, Reg::Rsp, 0x20, false),
             ]),
             vec![0x48, 0x89, 0x5C, 0x24, 0x08, 0x57, 0x48, 0x83, 0xEC, 0x20]
@@ -1435,14 +1479,14 @@ mod tests {
         assert_eq!(
             encode(&[
                 Insn::AluRI(Alu::Add, Size::Q, Reg::Rsp, 0x20, false),
-                Insn::Pop(Reg::Rdi),
+                Insn::Pop(Reg::Rdi, false),
                 Insn::Ret
             ]),
             vec![0x48, 0x83, 0xC4, 0x20, 0x5F, 0xC3]
         );
         // Registres étendus : push r14 / pop r14 portent REX.B
-        assert_eq!(encode(&[Insn::Push(Reg::R14)]), vec![0x41, 0x56]);
-        assert_eq!(encode(&[Insn::Pop(Reg::R14)]), vec![0x41, 0x5E]);
+        assert_eq!(encode(&[Insn::Push(Reg::R14, false)]), vec![0x41, 0x56]);
+        assert_eq!(encode(&[Insn::Pop(Reg::R14, false)]), vec![0x41, 0x5E]);
         // sub rsp, 0x108 → immédiat 32 bits
         assert_eq!(
             encode(&[Insn::AluRI(Alu::Sub, Size::Q, Reg::Rsp, 0x108, false)]),
