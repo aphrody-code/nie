@@ -35,7 +35,7 @@ Couverture courante : **93,36 %** (49 280 / 52 783) — verite terrain `.pdata` 
 
 ## 3. Stores
 
-- **`var/niers.sqlite`** (~237 Mo) : KB RE. Tables clfor : `function` (52 783), `xref` (~189 k), `coverage` (snapshots), `rtti_class`, `func_str_ref`. Voir `crates/nie-index/src/schema.sql`.
+- **`var/niers.sqlite`** (~237 Mo) : KB RE. Tables clfor : `function` (52 783), `xref` (~189 k), `coverage` (snapshots), `rtti_class`, `func_str_ref`. Voir `crates/forge/nie-index/src/schema.sql`.
 - **Redis db0** : frontiere BFS (`nie-queue`) + wiki. **db3** : `iev:file:index` (~250 k fichiers CPK) + `iev:tex:*`.
   - Piege : `NIERS_REDIS` surcharge TOUTES les commandes → ne pas l'exporter pour `textures`/`menu-predecode` (db3).
 - **`var/*.ndjson`** : manifestes derives (cf. `var/README.md`).

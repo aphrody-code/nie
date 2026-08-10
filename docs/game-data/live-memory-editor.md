@@ -49,7 +49,7 @@ jamais une adresse supposée. Les ambiguïtés sont notées (ex. `free-buy-shop`
 `StructField` a toujours un localisateur).
 
 Catégories : `player` (3), `match` (8 : tension, rank, chrono, cooldowns, gels), `shop` (3),
-`spirit` (7), `passive` (4). Source de vérité : `crates/nie-trace/src/catalog.rs` (ne pas dupliquer
+`spirit` (7), `passive` (4). Source de vérité : `crates/forge/nie-trace/src/catalog.rs` (ne pas dupliquer
 les RVAs ici — `nie-edit list` / `nie-edit info <id>` les imprime).
 
 ## Flux de travail RE

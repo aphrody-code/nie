@@ -1,0 +1,29 @@
+[package]
+name = "nie-runtime"
+description = "Moteur de jeu niers : boucle intégrée monde + physique + rendu top-down → frames/MP4 (headless, déterministe)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "nie-runtime"
+path = "src/main.rs"
+
+[[bin]]
+name = "nie-match3d"
+path = "src/bin/match3d.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+nie-core.workspace = true
+nie-render3d.workspace = true
+# nie-geom : Vec2/Vec3 POD partagés (source unique, dédup Phase 2). Convention « z=hauteur »
+# de nie-runtime portée dans le CODE (le type reste axis-agnostique ; cf. landmine #4).
+nie-geom = { path = "../../engine/nie-geom" }
+clap.workspace = true
+anyhow.workspace = true
+png = "0.18"

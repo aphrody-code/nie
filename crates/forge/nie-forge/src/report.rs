@@ -1,0 +1,254 @@
+//! Mesure honnête de la conquête du binaire.
+//!
+//! Une seule question compte : **quelle part de `nie.exe` le workspace Rust
+//! produit-il réellement ?** Le rapport la décompose sans arrondi favorable :
+//!
+//! - `emitted` : octets **calculés** par du code Rust (en-têtes PE ré-émis).
+//! - `bytes` : fonctions dont le codegen rustc coïncide avec l'original.
+//! - `semantic` : fonctions dont le comportement est validé byte-exact par
+//!   l'oracle, mais dont le codegen ne coïncide pas — **elles ne comptent pas**
+//!   dans la part produite, elles sont suivies à part.
+//! - `verbatim` : tout le reste, recopié de la référence.
+
+use crate::asmsrc::AsmSource;
+use crate::registry::{MatchStatus, Registry};
+use nie_pe::{Cover, UnitKind};
+use serde::Serialize;
+
+/// Ligne de statistiques d'une catégorie d'unités.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+pub struct Bucket {
+    /// Nombre d'unités.
+    pub units: usize,
+    /// Masse d'octets.
+    pub bytes: usize,
+}
+
+impl Bucket {
+    fn add(&mut self, len: usize) {
+        self.units += 1;
+        self.bytes += len;
+    }
+}
+
+/// Rapport de couverture de la forge.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+pub struct Report {
+    /// Taille du binaire cible.
+    pub total_bytes: usize,
+    /// Nombre total d'unités.
+    pub total_units: usize,
+    /// Octets de code (`.text` et assimilés).
+    pub code_bytes: usize,
+    /// Fonctions délimitées par `.pdata`.
+    pub functions: usize,
+    /// Octets couverts par des fonctions `.pdata`.
+    pub function_bytes: usize,
+    /// Unités calculées structurellement par du code Rust (en-têtes PE).
+    pub emitted: Bucket,
+    /// Unités régénérées par `nie-asm` depuis la source assembleur du dépôt.
+    pub assembled: Bucket,
+    /// Fonctions dont le codegen coïncide.
+    pub matched_bytes: Bucket,
+    /// Fonctions validées sémantiquement (comptées à part).
+    pub matched_semantic: Bucket,
+    /// Portages en cours, non validés.
+    pub wip: Bucket,
+    /// Entrées du registre sans unité correspondante (adresse morte).
+    pub orphan_entries: usize,
+}
+
+impl Report {
+    /// Construit le rapport en croisant recouvrement, source assembleur et registre.
+    ///
+    /// # Erreurs
+    /// Retourne une erreur si une adresse du registre est invalide.
+    pub fn build(cover: &Cover, registry: &Registry, asm: &AsmSource) -> anyhow::Result<Self> {
+        let mut r = Self {
+            total_bytes: cover.total_len,
+            total_units: cover.units.len(),
+            functions: cover.count_by_kind(UnitKind::Function),
+            function_bytes: cover.bytes_by_kind(UnitKind::Function),
+            ..Default::default()
+        };
+        r.code_bytes = cover
+            .units
+            .iter()
+            .filter(|u| u.kind.is_code())
+            .map(|u| u.len)
+            .sum();
+
+        let by_unit = registry.by_unit()?;
+        for u in &cover.units {
+            if u.kind == UnitKind::PeHeaders {
+                r.emitted.add(u.len);
+            }
+            if u.kind.is_code()
+                && let Some(va) = u.va
+                && asm.emit(va).is_some_and(|b| b.len() == u.len)
+            {
+                r.assembled.add(u.len);
+            }
+            if let Some(e) = by_unit.get(&u.id) {
+                match e.status {
+                    MatchStatus::Bytes => r.matched_bytes.add(u.len),
+                    MatchStatus::Semantic => r.matched_semantic.add(u.len),
+                    MatchStatus::Wip => r.wip.add(u.len),
+                }
+            }
+        }
+        r.orphan_entries = by_unit
+            .keys()
+            .filter(|id| cover.find(id).is_none())
+            .count();
+        Ok(r)
+    }
+
+    /// Octets réellement produits par du code Rust.
+    ///
+    /// Trois sources cumulées, aucune n'étant une recopie : en-têtes calculés,
+    /// corps réassemblés depuis la source du dépôt, fonctions dont le codegen
+    /// rustc coïncide. Le `semantic` n'y figure **pas** — il n'produit pas
+    /// d'octets.
+    #[must_use]
+    pub fn produced_bytes(&self) -> usize {
+        self.emitted.bytes + self.assembled.bytes + self.matched_bytes.bytes
+    }
+
+    /// Part du fichier réellement produite par du code Rust, en pourcentage.
+    #[must_use]
+    pub fn produced_pct(&self) -> f64 {
+        if self.total_bytes == 0 {
+            return 0.0;
+        }
+        self.produced_bytes() as f64 * 100.0 / self.total_bytes as f64
+    }
+
+    /// Part du code (`.text`) produite par du code Rust, en pourcentage.
+    #[must_use]
+    pub fn code_pct(&self) -> f64 {
+        if self.code_bytes == 0 {
+            return 0.0;
+        }
+        (self.assembled.bytes + self.matched_bytes.bytes) as f64 * 100.0 / self.code_bytes as f64
+    }
+
+    /// Rendu terse `clé=valeur` (convention CLI du projet).
+    #[must_use]
+    pub fn terse(&self) -> String {
+        format!(
+            "total={} units={} code={} fns={} emitted={} asm_units={} asm_bytes={} matched_bytes={} semantic={} wip={} produced={:.6}% code_rust={:.6}%",
+            self.total_bytes,
+            self.total_units,
+            self.code_bytes,
+            self.functions,
+            self.emitted.bytes,
+            self.assembled.units,
+            self.assembled.bytes,
+            self.matched_bytes.bytes,
+            self.matched_semantic.units,
+            self.wip.units,
+            self.produced_pct(),
+            self.code_pct(),
+        )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::registry::RegistryEntry;
+    use nie_pe::Unit;
+
+    fn unit(id: &str, kind: UnitKind, off: usize, len: usize, va: Option<u64>) -> Unit {
+        Unit {
+            id: id.into(),
+            kind,
+            section: None,
+            file_off: off,
+            len,
+            va,
+            sha256: String::new(),
+        }
+    }
+
+    fn cover() -> Cover {
+        Cover {
+            total_len: 1000,
+            sha256: String::new(),
+            units: vec![
+                unit("hdr", UnitKind::PeHeaders, 0, 100, None),
+                unit("fn.140001000", UnitKind::Function, 100, 400, Some(0x1_4000_1000)),
+                unit("fn.140002000", UnitKind::Function, 500, 200, Some(0x1_4000_2000)),
+                unit("res..text.2bc", UnitKind::CodeResidue, 700, 100, None),
+                unit("data.rdata", UnitKind::SectionData, 800, 200, None),
+            ],
+        }
+    }
+
+    fn entry(va: &str, status: MatchStatus) -> RegistryEntry {
+        RegistryEntry {
+            va: va.into(),
+            rust: Some("x".into()),
+            status,
+            proof: None,
+            object: None,
+            symbol: None,
+            note: None,
+        }
+    }
+
+    #[test]
+    fn compte_separement_produit_et_semantique() {
+        let reg = Registry {
+            version: 1,
+            target_sha256: None,
+            entries: vec![
+                entry("0x140001000", MatchStatus::Bytes),
+                entry("0x140002000", MatchStatus::Semantic),
+            ],
+        };
+        let r = Report::build(&cover(), &reg, &AsmSource::default()).unwrap();
+        assert_eq!(r.functions, 2);
+        assert_eq!(r.code_bytes, 700);
+        assert_eq!(r.emitted.bytes, 100);
+        assert_eq!(r.matched_bytes.bytes, 400);
+        assert_eq!(r.matched_semantic.bytes, 200, "sémantique suivi à part");
+        assert_eq!(r.produced_bytes(), 500);
+        assert!((r.produced_pct() - 50.0).abs() < 1e-9);
+        assert!(
+            (r.code_pct() - 400.0 * 100.0 / 700.0).abs() < 1e-9,
+            "le sémantique ne gonfle pas la part de code produite"
+        );
+        assert_eq!(r.orphan_entries, 0);
+    }
+
+    #[test]
+    fn detecte_les_entrees_orphelines() {
+        let reg = Registry {
+            version: 1,
+            target_sha256: None,
+            entries: vec![entry("0x14dead00", MatchStatus::Bytes)],
+        };
+        let r = Report::build(&cover(), &reg, &AsmSource::default()).unwrap();
+        assert_eq!(r.orphan_entries, 1);
+        assert_eq!(r.matched_bytes.units, 0);
+    }
+
+    #[test]
+    fn compte_les_corps_reassembles_a_la_bonne_taille() {
+        // Corps de 3 octets (`mov al, 1 ; ret`) déclaré à l'adresse d'une unité
+        // qui en fait 400 : la taille ne colle pas, il ne doit PAS être compté.
+        let asm = AsmSource::parse(
+            "0x140001000: mov al, 0x1 ; ret\n0x140002000: mov al, 0x1 ; ret\n",
+            "essai",
+        )
+        .unwrap();
+        let mut c = cover();
+        c.units[2].len = 3; // fn.140002000 fait désormais exactement 3 octets
+        let r = Report::build(&c, &Registry::default(), &asm).unwrap();
+        assert_eq!(r.assembled.units, 1, "seule l'unité de taille compatible compte");
+        assert_eq!(r.assembled.bytes, 3);
+        assert_eq!(r.produced_bytes(), 103, "en-têtes (100) + corps assemblé (3)");
+    }
+}

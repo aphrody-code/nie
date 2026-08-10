@@ -133,3 +133,14 @@ __pycache__/
 !packages/*/README.md
 !apps/nie-explorer/ROADMAP.md
 !tools/niers/NIERS_VENDORING_NOTE.md
+
+# --- Forge -------------------------------------------------------------------
+# Recouvrement + magasin de travail : derives du binaire de reference (c) LEVEL-5.
+/var/forge/
+# Source assembleur relevee du binaire : c'est du materiau DERIVE de nie.exe
+# (sequences d'instructions exactes), donc soumis a la meme regle que les assets —
+# jamais commite, jamais pousse. Aucune perte : `just forge-lift` la regenere en
+# quelques secondes a partir du nie.exe que possede l'utilisateur.
+/forge/asm/*.s
+# Le registre (forge/registry.json) ne contient que des adresses, des chemins de
+# symboles Rust et des preuves : il reste versionne.

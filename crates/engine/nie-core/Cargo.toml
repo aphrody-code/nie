@@ -1,0 +1,37 @@
+[package]
+name = "nie-core"
+description = "Logique de jeu reversée en Rust pur (ballon, IA tactique, états de match, calcul gardien, stats joueur)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+thiserror.workspace = true
+serde = { workspace = true, optional = true }
+# serde_json est utilisé uniquement pour charger les tables de données réelles
+# embarquées (`growth`, `exp`, `skill`, `aura`). Compatible wasm32 (alloc).
+serde_json = { workspace = true, optional = true }
+# nie-data : types de données IEVR (formation, chara_param, growth…).
+# no_std+alloc — compatible std (features additives dans Cargo).
+nie-data.workspace = true
+# nie-geom : Vec2/Vec3 POD partagés (source unique, dédup Phase 2). La convention « y=hauteur »
+# d'IEVR est portée dans le CODE de nie-core (le type reste axis-agnostique).
+nie-geom = { path = "../../engine/nie-geom" }
+
+[features]
+# `data` active le chargement des tables réelles IEVR embarquées via include_str!.
+# Activée par défaut car c'est le cœur des modules growth/exp/skill/aura.
+# Le chargement utilise des structs `#[derive(serde::Deserialize)]` → `data`
+# tire `serde` (avec derive) ET `serde_json`.
+default = ["data"]
+serde = ["dep:serde", "nie-geom/serde"]
+data = ["dep:serde", "dep:serde_json", "nie-geom/serde"]
+
+[dev-dependencies]
+# Accès serde_json dans les tests d'intégration (chargement des vrais fichiers).
+serde_json = { workspace = true }

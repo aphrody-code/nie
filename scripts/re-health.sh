@@ -41,7 +41,7 @@ fi
 
 hdr "Dette de portage nie-engine (// EXTERN:)"
 total=0
-for f in crates/nie-engine/src/*.rs; do
+for f in crates/archive/nie-engine/src/*.rs; do
   c=$(grep -c '// EXTERN:' "$f" 2>/dev/null || true)
   c=${c:-0}
   total=$((total + c))

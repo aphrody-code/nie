@@ -38,12 +38,12 @@ done
 [[ -d "$GAME/steam_settings" ]] || { cp -rf "$BK/steam_settings" "$GAME/"; echo "restauré: steam_settings/"; }
 
 echo "== re-dérivation nie_eacpatched.exe =="
-if NIE_GAME_PATH="$GAME" bash "$REPO/crates/nie-trace/scripts/patch-eac.sh"; then
+if NIE_GAME_PATH="$GAME" bash "$REPO/crates/forge/nie-trace/scripts/patch-eac.sh"; then
   echo "→ patch EAC re-appliqué (signature 5 octets inchangée dans le nouveau build)."
 else
   echo "→ ÉCHEC patch EAC : la signature a bougé dans le nouveau build."
   echo "   Re-localiser le call de la modale fatale EOS/EAC et mettre à jour"
-  echo "   EAC_PATCH_OFFSET/ORIG dans crates/nie-trace/src/lib.rs puis patch-eac.sh."
+  echo "   EAC_PATCH_OFFSET/ORIG dans crates/forge/nie-trace/src/lib.rs puis patch-eac.sh."
 fi
 
 echo

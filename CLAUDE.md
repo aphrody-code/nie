@@ -14,16 +14,32 @@ Droits exclusifs de reverse-engineering, développement de mods, portage et outi
 - Style : technique, direct, orienté résultats. Zéro politesse inutile, zéro digression.
 - Communiquer exclusivement en **français**.
 
-Plan maître : `docs/PLAN.md` + `apps/nie-explorer/ROADMAP.md`.  
-Le reverse-engineering de `nie.exe` est le **moyen**. Le port Rust est la **fin**.
+Plan maître : `docs/PLAN.md` + `docs/FORGE.md` + `apps/nie-explorer/ROADMAP.md`.  
+Le reverse-engineering de `nie.exe` est le **moyen**. Le moteur Rust est la **fin**.  
+La **forge** (`docs/FORGE.md`) est le **juge** : elle produit `nie.exe` et mesure, à l'octet, la part
+réellement générée par le dépôt. Un portage qui n'y bouge rien n'a rien prouvé.
 
 ## Build / test (règles strictes)
 
-- Workspace Cargo, 19 crates dans `crates/*`.
+- Workspace Cargo, 31 crates rangées par rôle :
+  - `crates/forge/*` — production du binaire (`nie-pe`, `nie-asm`, `nie-forge`) + échafaudage RE
+    (`nie-re`, `nie-index`, `nie-seed`, `nie-queue`, `nie-trace`).
+  - `crates/engine/*` — le moteur (`nie-core`, `nie-formats`, `nie-data`, `nie-render3d`, …).
+  - `crates/tools/*` — outillage (`nie-cli`, `nie-wiki`, `nie-steam`, `nie-model-serve`, …).
+  - `crates/archive/*` — hors build, référence seule (`nie-engine`).
 - Lints workspace (`[workspace.lints]`) : `todo!`, `unimplemented!`, `dbg_macro` → **deny**.
-- `nie-core` et `nie-engine` : `#![warn(missing_docs)]` → documenter **chaque** item `pub`.
+- `nie-core`, `nie-pe`, `nie-asm`, `nie-forge` : `#![warn(missing_docs)]` → documenter **chaque** item `pub`.
 - Avant tout commit : `cargo clippy -p <crate> --lib --tests` doit retourner **0 warning**.
 - Golden tests : `cargo test -p nie-data --test <fam>_golden`.
+
+## Forge (produire le binaire)
+
+- Boucle : `nie-forge split` → `lift` → `build` → `verify` → `report`.
+- **L'identité prime** : `build` échoue si `sha256(dist/nie.exe)` diffère de la référence. Ne jamais
+  « corriger » ce test — c'est lui le contrat.
+- Rien n'entre dans `forge/asm/*.s` qui ne se réencode pas exactement (`lift` vérifie).
+- Ne jamais compter `semantic` comme des octets produits. Seuls `emitted`/`assembled`/`bytes` comptent.
+- `nie-forge candidates --no-reloc` et les lignes `blocker` de `lift` donnent la prochaine cible, chiffrée.
 
 ## Python
 
@@ -41,7 +57,7 @@ Le reverse-engineering de `nie.exe` est le **moyen**. Le port Rust est la **fin*
 
 - La quasi-totalité est déjà portée.
 - Avant d’en porter une nouvelle :  
-  `grep -rl "<MARKER_LIST>" crates/nie-data/src/`  
+  `grep -rl "<MARKER_LIST>" crates/engine/nie-data/src/`  
   (ne pas se fier au nom de fichier — modules nommés par concept).
 - Probe :  
   `target/debug/examples/probe_rdbn <prefix>` (RDBN)  

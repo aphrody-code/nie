@@ -26,13 +26,13 @@ Synthèse des verdicts par crate (recoupement adversarial contre la vérité ter
 
 **Caveats mineurs (non bloquants)** : `classify_sub_type` ne porte que la priorité-1 asset-code de `determineSubType` (tous les golden la touchent) ; `match_fsm::tick` utilise des labels d'états interprétatifs et modélise l'avancement nominal.
 
-Fichiers : `crates/nie-core/src/{growth,exp,skill,aura,match_fsm,command_effect,action}.rs` + `data/*.json`.
+Fichiers : `crates/engine/nie-core/src/{growth,exp,skill,aura,match_fsm,command_effect,action}.rs` + `data/*.json`.
 
 ---
 
 ## nie-data — 5/7 FAIT, 2/7 INCOMPLET (hallucinations avérées)
 
-**Build/tests réels** : `cargo check` OK ; `clippy -D warnings` clean ; 27 tests / 9 suites PASS ; wasm32 OK ; `no_std + alloc + forbid(unsafe_code)`. Seul `crates/nie-data/` touché.
+**Build/tests réels** : `cargo check` OK ; `clippy -D warnings` clean ; 27 tests / 9 suites PASS ; wasm32 OK ; `no_std + alloc + forbid(unsafe_code)`. Seul `crates/engine/nie-data/` touché.
 
 | Livrable | Statut | Vérité terrain |
 |---|---|---|
@@ -46,7 +46,7 @@ Fichiers : `crates/nie-core/src/{growth,exp,skill,aura,match_fsm,command_effect,
 
 **Hallucinations** : 2. (1) chara-param — pairing skill/niveau inversé, test anti-régression qui entérine la mauvaise valeur. (2) aura-cmd — conclusion « vérité terrain » fausse. Structures/offsets des 2 livrables corrects ; seules les valeurs golden et conclusions sont hallucinées.
 
-Fichiers : `crates/nie-data/src/`.
+Fichiers : `crates/engine/nie-data/src/`.
 
 ---
 
@@ -66,7 +66,7 @@ Fichiers : `crates/nie-data/src/`.
 
 **Hallucinations** : 1. nxtch — doc « vérifié contre struct C# » alors que les offsets ne correspondent pas (off-by-4). Note résumé inexacte sur g4pk/g4sk (« aucun fichier réel ») corrigée ci-dessus.
 
-Fichiers : `crates/nie-formats/src/`.
+Fichiers : `crates/engine/nie-formats/src/`.
 
 ---
 
