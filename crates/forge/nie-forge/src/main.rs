@@ -41,6 +41,9 @@ struct Paths {
     /// Répertoire de la source assembleur régénérable.
     #[arg(long, global = true, default_value = "forge/asm")]
     asm: PathBuf,
+    /// Base de connaissance RE : noms de fonctions et racines `.pdata`.
+    #[arg(long, global = true, default_value = "var/niers.sqlite")]
+    db: PathBuf,
 }
 
 impl Paths {
@@ -390,8 +393,22 @@ fn cmd_lift(paths: &Paths, max_len: usize, out: &str) -> anyhow::Result<()> {
         }
     }
 
+    // Noms issus de l'échafaudage RE : la source produite devient navigable.
+    let re = nie_forge::ReNames::load(&paths.db)?;
+    let named = src.bodies.keys().filter(|va| re.get(**va).is_some()).count();
+    let roots = store.cover.count_by_kind(UnitKind::Function);
+    if re.pdata_roots > 0 && re.pdata_roots != roots {
+        // Les deux décrivent le même objet : tout écart est un signal.
+        println!(
+            "cross-check pdata_roots_db={} pdata_roots_forge={} delta={}",
+            re.pdata_roots,
+            roots,
+            roots as i64 - re.pdata_roots as i64
+        );
+    }
+
     let path = paths.asm.join(out);
-    src.save(
+    src.save_annotated(
         &path,
         &format!(
             "nie.exe — corps de fonctions régénérables par nie-asm.\n\
@@ -403,13 +420,15 @@ fn cmd_lift(paths: &Paths, max_len: usize, out: &str) -> anyhow::Result<()> {
             src.len(),
             bytes
         ),
+        &re.names,
     )?;
     println!(
-        "lift out={} scanned={} lifted={} bytes={} ratio={:.4}",
+        "lift out={} scanned={} lifted={} bytes={} named={} ratio={:.4}",
         path.display(),
         scanned,
         src.len(),
         bytes,
+        named,
         if scanned == 0 {
             0.0
         } else {
@@ -467,10 +486,10 @@ fn cmd_build(paths: &Paths, out: &Path) -> anyhow::Result<()> {
             from_rust_bytes += u.len;
             return headers.get(hdr_range.clone()).map(<[u8]>::to_vec);
         }
-        // 2. `.pdata` : table de RUNTIME_FUNCTION ré-émise depuis ses entrées.
+        // 2. Sections-tables (`.pdata`, `.reloc`) : ré-émises depuis leurs entrées.
         if u.kind == UnitKind::SectionData
-            && u.section.as_deref() == Some(".pdata")
-            && let Some(bytes) = nie_pe::pdata::emit(&img)
+            && let Some(sec) = u.section.as_deref()
+            && let Some(bytes) = nie_pe::image::tables::emit_for(&img, sec)
             && bytes.len() == u.len
         {
             from_rust_units += 1;
@@ -598,7 +617,24 @@ fn cmd_report(paths: &Paths, json: bool) -> anyhow::Result<()> {
     let store = ForgeStore::load(&paths.forge)?;
     let registry = paths.registry_or_default()?;
     let asm = AsmSource::load_dir(&paths.asm)?;
-    let report = Report::build(&store.cover, &registry, &asm)?;
+    let mut report = Report::build(&store.cover, &registry, &asm)?;
+    // Même règle que `build` : les sections-tables ré-émises comptent comme
+    // produites. Sans cela le rapport sous-déclare et diverge de la construction.
+    if let Ok(exe) = paths.exe_path()
+        && let Ok(bytes) = std::fs::read(&exe)
+        && let Ok(img) = PeImage::parse(bytes)
+    {
+        for u in &store.cover.units {
+            if u.kind == UnitKind::SectionData
+                && let Some(sec) = u.section.as_deref()
+                && nie_pe::image::tables::emit_for(&img, sec)
+                    .is_some_and(|b| b.len() == u.len)
+            {
+                report.emitted.units += 1;
+                report.emitted.bytes += u.len;
+            }
+        }
+    }
     if json {
         println!("{}", serde_json::to_string_pretty(&report)?);
     } else {
