@@ -1,12 +1,24 @@
-# niers — reverse-engineering + réimplémentation Rust headless/wasm d'Inazuma Eleven: Victory Road.
-# Workspace racine. Conventions alignées sur l'écosystème aphrody (nightly-2026-05-17,
-# edition 2024, lints RFC 3389, RE pur-Rust goblin+iced-x86). Voir docs/ARCHITECTURE.md.
+# niers — moteur Rust d'Inazuma Eleven: Victory Road, et forge de son binaire.
+#
+# OBJECTIF : produire `nie.exe` **identique au byte près** depuis ce workspace.
+# Les crates sont donc rangées par rôle dans cette chaîne (cf. docs/FORGE.md) :
+#
+#   crates/forge/   la chaîne de production du binaire et le reverse qui l'alimente
+#                   (nie-pe modèle PE · nie-asm encodeur x86-64 · nie-forge CLI ·
+#                    nie-re/nie-index/nie-seed/nie-queue/nie-trace échafaudage RE)
+#   crates/engine/  le moteur qui fait tourner le jeu en Rust — la matière que la
+#                   forge doit finir par émettre (core, formats, data, render, …)
+#   crates/tools/   outillage périphérique (CLI, wiki, steam, serveurs, tâches)
+#   crates/archive/ portages conservés en référence, hors build
+#
+# Conventions alignées sur l'écosystème aphrody (nightly-2026-05-17, edition 2024,
+# lints RFC 3389, RE pur-Rust goblin+iced-x86). Voir docs/ARCHITECTURE.md.
 [workspace]
 resolver = "3"
-members = ["crates/*"]
+members = ["crates/forge/*", "crates/engine/*", "crates/tools/*"]
 # nie-engine = portage RE du moteur Level-5 (~15k LOC, 434 // EXTERN:) consommé par AUCUNE crate vivante.
-# Exclu du build/test workspace, conservé comme RÉFÉRENCE de portage en lecture seule (cf. docs/PLAN.md).
-exclude = ["crates/nie-engine"]
+# Hors build/test workspace, conservé comme RÉFÉRENCE de portage en lecture seule (cf. docs/PLAN.md).
+exclude = ["crates/archive/nie-engine"]
 
 [workspace.package]
 edition = "2024"
@@ -76,23 +88,27 @@ hashbrown = "0.14"
 libc = "0.2"
 
 # crates internes
-nie-index = { path = "crates/nie-index" }
-nie-trace = { path = "crates/nie-trace" }
-nie-re = { path = "crates/nie-re" }
-nie-queue = { path = "crates/nie-queue" }
-nie-seed = { path = "crates/nie-seed" }
-nie-formats = { path = "crates/nie-formats" }
-nie-explore = { path = "crates/nie-explore" }
-nie-headless = { path = "crates/nie-headless" }
-nie-save = { path = "crates/nie-save" }
-nie-wiki = { path = "crates/nie-wiki" }
-nie-core = { path = "crates/nie-core" }
-nie-data = { path = "crates/nie-data" }
-nie-engine = { path = "crates/nie-engine" }
-nie-model-serve = { path = "crates/nie-model-serve" }
-nie-zukan = { path = "crates/nie-zukan" }
-nie-lua = { path = "crates/nie-lua" }
-nie-render3d = { path = "crates/nie-render3d" }
+# forge : production du binaire
+nie-pe = { path = "crates/forge/nie-pe" }
+nie-asm = { path = "crates/forge/nie-asm" }
+nie-forge = { path = "crates/forge/nie-forge" }
+nie-index = { path = "crates/forge/nie-index" }
+nie-trace = { path = "crates/forge/nie-trace" }
+nie-re = { path = "crates/forge/nie-re" }
+nie-queue = { path = "crates/forge/nie-queue" }
+nie-seed = { path = "crates/forge/nie-seed" }
+nie-formats = { path = "crates/engine/nie-formats" }
+nie-explore = { path = "crates/engine/nie-explore" }
+nie-headless = { path = "crates/engine/nie-headless" }
+nie-save = { path = "crates/engine/nie-save" }
+nie-wiki = { path = "crates/tools/nie-wiki" }
+nie-core = { path = "crates/engine/nie-core" }
+nie-data = { path = "crates/engine/nie-data" }
+nie-engine = { path = "crates/archive/nie-engine" }
+nie-model-serve = { path = "crates/tools/nie-model-serve" }
+nie-zukan = { path = "crates/tools/nie-zukan" }
+nie-lua = { path = "crates/engine/nie-lua" }
+nie-render3d = { path = "crates/engine/nie-render3d" }
 
 # tests CLI (dev-dep commune)
 assert_cmd = "2"

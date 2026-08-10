@@ -3,7 +3,7 @@
 Date : 2026-06-10
 Suite directe de `docs/recherche-modele-match.md` (qui **localisait** les fonctions ; ce
 document les **décompile** via Ghidra headless et évalue leur portabilité vers
-`crates/nie-core/src/match_sim.rs`).
+`crates/engine/nie-core/src/match_sim.rs`).
 
 Méthode, outils, et pièges sont consignés ci-dessous **avant** les résultats, par discipline
 d'honnêteté du repo. Distinction maintenue partout : *décompilé* ≠ *compris* ≠ *portable*.

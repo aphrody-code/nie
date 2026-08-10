@@ -1,0 +1,43 @@
+[package]
+name = "nie-model-serve"
+description = "Serveur HTTP live d'assemblage GLB IEVR (corps+face+uniforme depuis CPK, cache disque)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "nie-model-serve"
+path = "src/main.rs"
+
+[features]
+# Active les tests de décodage audio sur les vrais fichiers AWB/HCA IEVR (non distribués).
+# Convention identique à `real-saves` (nie-save) et `real-fixtures` (nie-formats).
+# Lancer : cargo test -p nie-model-serve --features real-audio
+real-audio = []
+
+[lints]
+workspace = true
+
+[dependencies]
+# Features : `textures` = décodeur G4TX/DDS partagé (`nie_formats::g4tx_decode`) ;
+# `audio-decode` = décodeur audio HCA/ADX/AWB/ACB partagé (`cri_audio::decode_to_wav`).
+nie-formats = { path = "../../engine/nie-formats", features = ["serde", "textures", "audio-decode"] }
+# Parseurs typés des familles game-data (formation, skill, item, mission…) :
+# alimentent la route `/typed` qui décode un cfg.bin en structures de jeu nommées.
+nie-data = { path = "../../engine/nie-data", features = ["serde"] }
+# (cridecoder arrive via nie-formats feature `audio-decode` — plus de dép directe)
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+rusqlite.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+clap.workspace = true
+
+[dev-dependencies]
+# Example `probe_g4tx_dds` réfère l'enum `ImageFormat` en direct (le décodage applicatif
+# passe par nie_formats::g4tx_decode, mais cette cible de dev nomme l'enum).
+image_dds = { version = "0.7", default-features = false }

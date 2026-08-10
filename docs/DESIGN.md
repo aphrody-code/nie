@@ -303,7 +303,7 @@ Hypothèse « splash promo » → **REJETÉE**. Ces bannières sont des panneaux
   Après D1.c (fallback co-localisé) : **22 sprites de textures réelles** rendus (placement encore au centre,
   bloqué sur le driver C++/Lua D1.c). Le Groupe A (8 objbin runtime) reste à 0.
 - `nie-game --menu mainmenu` (préfixe large) → **117 objbin**, **22 sprites rendus** mais MAL placés (cf. `/tmp/niers-shots/mainmenu.png` : « TEAM DOCK », blob vert, « CH » = débris de sous-écrans). Ces 22 sprites proviennent EXCLUSIVEMENT des sous-écrans `mainmenu02/03/04/90/99`, pas de mainmenu01.
-- Cause du sur-pull : le filtre d'écran de `build_sprite_list` (`crates/nie-game/src/main.rs:1151-1168`) fait `basename.starts_with(screen)` ; avec `screen="mainmenu"` il avale tous les `mainmenu*` (02 formation-list, 04 formation, 90 listes partagées). **Bug** : pour cet écran le filtre devrait être `mainmenu01` + les partagés réellement actifs (`mainmenu90_*` background/header), pas tous les sous-écrans.
+- Cause du sur-pull : le filtre d'écran de `build_sprite_list` (`crates/engine/nie-game/src/main.rs:1151-1168`) fait `basename.starts_with(screen)` ; avec `screen="mainmenu"` il avale tous les `mainmenu*` (02 formation-list, 04 formation, 90 listes partagées). **Bug** : pour cet écran le filtre devrait être `mainmenu01` + les partagés réellement actifs (`mainmenu90_*` background/header), pas tous les sous-écrans.
 
 **Conclusion (RÉVISÉE D1.c) :** le gap mainmenu01 se scinde en deux. **Groupe B (23 objbin)** = textures
 co-localisées RÉSOLUES (22 sprites rendus) ; gap restant = **placement par motion** (D1.a), exactement
@@ -358,7 +358,7 @@ Classes (comme start-screen) : SPRITE-STATIQUE / SPRITE-RUNTIME (sprite réel ma
 1. **NON_FAIT — résolution des assets runtime** : 8 objbin du Groupe A n'ont aucun g4pkm/g4tx statique. Rendre mainmenu01 exige de reproduire la **construction runtime** (layout C++ + primitives + 3D + Lua), pas seulement le pipeline objbin→g4pkm→g4tx. C'est qualitativement plus dur que title02 (où 10/18 objbin ont leurs assets g4tx — les 8 autres sont des widgets texte sans g4tx — et le gap restant est surtout le placement par keyframes).
 2. **FAIT (textures) / NON_FAIT (placement) — Groupe B (D1.c)** : 23 objbin ont leur g4tx **co-localisé** avec le mesh (PAS via matériau G4MT ni Lua — hypothèse écartée, le g4md de menu n'a pas de `material_base_names`). Le fallback co-localisé de `build_sprite_list` les rend (22 sprites). **Reste** : (a) placement réel par le **driver C++/Lua** (D1.c — les widgets ont une bind pose hors-écran et les motions n'ont PAS de keyframes de position en fichier ; la position finale est calculée par le moteur, cf. §6) ; (b) raffinement `uv0` (fenêtrage des régions d'atlas).
 3. **NON_FAIT — modèles 3D** : avatar, équipe, fond — nécessitent le pipeline 3D (skinning/render), hors périmètre du compositeur 2D.
-4. **INCOMPLET — filtre d'écran** : `build_sprite_list` (`main.rs:1151-1168`) doit cibler `mainmenu01` + partagés actifs ; aujourd'hui il pollue le rendu avec 22 sprites de sous-écrans placés à leur bind pose (cf. caveat bind-pose `crates/nie-formats/src/menu.rs:11-15`, `g4pkm.rs:18`). Le fallback ancêtre hors-écran d'iecode (`G4pkmMotion.cs:84`, `MenuLayoutExporter.cs:126-138`) n'est pas porté.
+4. **INCOMPLET — filtre d'écran** : `build_sprite_list` (`main.rs:1151-1168`) doit cibler `mainmenu01` + partagés actifs ; aujourd'hui il pollue le rendu avec 22 sprites de sous-écrans placés à leur bind pose (cf. caveat bind-pose `crates/engine/nie-formats/src/menu.rs:11-15`, `g4pkm.rs:18`). Le fallback ancêtre hors-écran d'iecode (`G4pkmMotion.cs:84`, `MenuLayoutExporter.cs:126-138`) n'est pas porté.
 5. **FAIT — parsing** : objbin/g4pkm/g4tx parsent correctement les fichiers qui existent ; le blocage est l'absence d'assets statiques, pas un défaut de parseur.
 
 ## 6. Couche animation/motion — placement final des éléments animés
@@ -385,16 +385,16 @@ pas une lecture de motion. C'est `G4pkmMotion.GetMotionFinalPose` (`G4pkmMotion.
    jusqu'au premier ancêtre dans l'écran (en pratique `_pos_base01` à l'origine 0,0 = centre écran),
    en **conservant la scale du bone feuille hors-écran** (`:113-115`, `:131-138`).
 
-Le caveat niers correspond exactement à ce gap : `crates/nie-formats/src/menu.rs:12-15`
+Le caveat niers correspond exactement à ce gap : `crates/engine/nie-formats/src/menu.rs:12-15`
 (« Les éléments **animés** (glissement d'entrée) ont une bind pose hors-écran ; leur position finale
 dépend des keyframes runtime (absentes des fichiers) — non couverts ici. ») et
-`crates/nie-formats/src/g4pkm.rs:18` (« `title00_09` / `_pos_scl_base01` : tx=1873 ty=-39 → hors-écran
+`crates/engine/nie-formats/src/g4pkm.rs:18` (« `title00_09` / `_pos_scl_base01` : tx=1873 ty=-39 → hors-écran
 (bind = caché) »).
 
 ### Mapping `mot_open_hash` → placement (ce qu'il fait et ne fait PAS)
 
 `AnimationComponent.mot_open_hash` est **déjà parsé** côté niers
-(`crates/nie-formats/src/objbin.rs:120-128`, alimenté par `build_animation_component` `:693-717` depuis
+(`crates/engine/nie-formats/src/objbin.rs:120-128`, alimenté par `build_animation_component` `:693-717` depuis
 la propriété `m_nameMotOpen`). Mais il ne pilote **aucune** logique de position :
 
 - côté iecode, `MenuLayoutExporter.cs:133` calcule `hasOpenMotion = anim?.MotOpenHash != 0` puis le passe
@@ -416,7 +416,7 @@ bind-pose du squelette + la hiérarchie parent comptent.
 Les blocs d'animation sont des **sous-fichiers du container G4PK** (`.g4pkm`), pas des fichiers
 `.g4ma`/`.g4mt` séparés dans le VFS :
 
-- `crates/nie-formats/src/g4pkm.rs:22-23` : « Container G4PK … contenant plusieurs sous-fichiers :
+- `crates/engine/nie-formats/src/g4pkm.rs:22-23` : « Container G4PK … contenant plusieurs sous-fichiers :
   G4SK (squelette), G4MD (géométrie), G4MA (animation), G4MT (matériau) » ;
 - `G4pkmMotion.cs:200-211` (G4MA = bone animation, G4MT = material animation ; header 0x40 partagé) ;
 - niers sait déjà extraire n'importe quel sous-fichier par magic : `extract_sub_file`
@@ -432,7 +432,7 @@ Vérification VFS : le listing `/tmp/vfs_g4tx.txt` ne contient que des `.g4tx` (
 .g4pkm` = 0 hit ; seule une ligne d'en-tête de log INFO n'est pas un `.g4tx`) ; c'est cohérent —
 les motions ne sont pas des entrées VFS distinctes mais des blocs internes aux `.g4pkm` déjà résolus
 par `resolve_vfs_basename` + `vfs.read` puis `g4pkm::parse`
-(`crates/nie-game/src/main.rs:1198-1228`).
+(`crates/engine/nie-game/src/main.rs:1198-1228`).
 
 ### État de l'art côté niers
 
@@ -458,7 +458,7 @@ par `resolve_vfs_basename` + `vfs.read` puis `g4pkm::parse`
   à une mauvaise pose de base.
 
 **NON_FAIT**
-- Aucun module `g4pkm_motion`/`g4ma`/`g4mt` (`ls crates/nie-formats/src/` : pas de `g4ma.rs`/`g4mt.rs`;
+- Aucun module `g4pkm_motion`/`g4ma`/`g4mt` (`ls crates/engine/nie-formats/src/` : pas de `g4ma.rs`/`g4mt.rs`;
   `mevbin.rs` est sans rapport — c'est le *Motion Event Binary* des personnages, `mevbin.rs:1`).
 - Aucun port de `GetMotionFinalPose` / `FindPlacementBoneIndex` (recherche `GetMotionFinalPose|ancestor|
   fallback` dans `nie-formats/src/` = 0 hit hors `mevbin`).
@@ -466,7 +466,7 @@ par `resolve_vfs_basename` + `vfs.read` puis `g4pkm::parse`
 
 ### Travail de portage (précis)
 
-**1. Nouveau module `crates/nie-formats/src/g4pkm_motion.rs`** (port de `G4pkmMotion.cs:84-192`).
+**1. Nouveau module `crates/engine/nie-formats/src/g4pkm_motion.rs`** (port de `G4pkmMotion.cs:84-192`).
 Ce n'est **pas** un interpolateur de keyframes (la donnée n'existe pas) mais le fallback d'ancêtre.
 API proposée, alignée sur la struct iecode `G4pkmMotionPose` (`G4pkmMotion.cs:29-48`) :
 
@@ -558,7 +558,7 @@ n'est pas un seul système mais trois, à traiter séparément :
    Le préfixe `gtxt_` = *game text* pré-rendu. Le dossier **sans** sous-locale est la
    valeur par défaut (japonais) ; `de/en/es/fr/it/pt` et `zh_hans/zh_hant` sont des overrides.
    Le chemin logique dans l'objbin contient le marqueur `<LG>` substitué à l'exécution
-   (`crates/nie-formats/src/objbin.rs:30,76` ; test `:967`).
+   (`crates/engine/nie-formats/src/objbin.rs:30,76` ; test `:967`).
 
 2. **Texte composé à l'exécution depuis un atlas de glyphes** (police bitmap) : valeurs
    dynamiques impossibles à pré-rendre — compteurs « VICTOIRES 212 », « NIVEAU 99 », chaîne
@@ -574,7 +574,7 @@ Les mécanismes 2 et 3 reposent sur le **même moteur de glyphes** (police), auj
 
 ### 1. Chaîne de résolution `MenuTextSetting` : slot → hash → table localisée → chaîne
 
-`MenuTextSetting` est parsé par `crates/nie-formats/src/objbin.rs:131-149`
+`MenuTextSetting` est parsé par `crates/engine/nie-formats/src/objbin.rs:131-149`
 (`TextComponent` :131-140, `TextEntry` :142-149) ; construction en `objbin.rs:646-647` puis `:721-739`.
 Structure : `TextEntry { key: String, hashes: Vec<u32> }` où :
 - `key` = nom du **slot** (ex. `"_text_choice01_on"`) — chaîne littérale lue de `PROP_PARAM` ;
@@ -590,13 +590,13 @@ hash (CRC32)─┴─►  table localisée  common/text/<locale>/<table>.cfg.bin
                   (entrée hash == hashes[0])  ─►  chaîne UTF-8  ─►  rasteriser via police
 ```
 
-**Modèle de résolution déjà porté (FAIT) pour un AUTRE domaine** : `crates/nie-data/src/passives.rs`
+**Modèle de résolution déjà porté (FAIT) pour un AUTRE domaine** : `crates/engine/nie-data/src/passives.rs`
 (1022 lignes — fichier **distinct** de `passive.rs`, ce dernier (317 l.) étant le classifieur
 scope/boost : `detect_scope`/`detect_boost_type`/`parse_passives`) résout `effectId(hash) → texte`
 via `load_noun_texts` (`passives.rs:269-308`) sur `common/text/{fr,en,ja}/skill_text.cfg.bin.json`
 (en-tête `passives.rs:11`). Format générique `NOUN_INFO_N = [hash(Int), …, texte(String)]` :
 `vars[0]` = hash, `vars[5]` = texte. Variante `TEXT_INFO` (`passives.rs:320-353`, `vars[2]` = texte).
-Même schéma pour `chara_text.cfg.bin`, `event/*.cfg.bin` (cf. `crates/nie-data/src/bin/export_aphrody.rs:151-161`).
+Même schéma pour `chara_text.cfg.bin`, `event/*.cfg.bin` (cf. `crates/engine/nie-data/src/bin/export_aphrody.rs:151-161`).
 
 **Tables de texte du jeu (où) :** `data/common/text/<locale>/…` (CPK), une arbo par locale
 (`de en es fr it ja ko pt zh_hans zh_hant` selon le contexte ; menu = `<LG>` substitué).
@@ -620,7 +620,7 @@ libellé statique. **Donc** : libellés **statiques** → `menu_text` (résolveu
 libellés **runtime** (noms d'items : COMMENCER…) → posés par le driver de menu (D1.c), pas une table.
 Le verrou des libellés d'action n'est **pas** « quelle table », mais le **driver runtime**.
 
-État du dispatch runtime : `crates/nie-lua/src/menu_host.rs:352-363` (`CMD_SET_TEXT`, hash
+État du dispatch runtime : `crates/engine/nie-lua/src/menu_host.rs:352-363` (`CMD_SET_TEXT`, hash
 `0x4096E67E`, constante `:164`) **stocke** la chaîne/hash dans `obj.text` (champ `:60`, écriture
 `:363`) mais **ne la rend pas** (aucun consommateur en aval). Côté iecode la résolution est
 laissée à un callback non implémenté (`MenuLayoutExporter.cs:139-147` : `TextResolver`/`HashResolver`,
@@ -636,13 +636,13 @@ La police existe bel et bien :
 
 - **`font_def.g4tx`** — atlas principal, **DDS 4096×2048**, `texture_count=1`,
   `total_count=1`, **`sub_texture_count=0`** (aucune région d'atlas dans le g4tx lui-même),
-  ~44 Mo (`crates/nie-formats/src/g4tx.rs:7-8` ; `docs/jeu-jouable-avancement.md:60`).
+  ~44 Mo (`crates/engine/nie-formats/src/g4tx.rs:7-8` ; `docs/jeu-jouable-avancement.md:60`).
 - **`gaiji_game.g4tx`** — *gaiji* (外字 = caractères externes : pictos boutons, symboles
   spéciaux), **DDS**, `total_count=118`, **`sub_texture_count=117`** régions d'atlas
   **nommées** (`g4tx.rs:9-10`), ~736 Ko.
 
 Confirmation côté moteur décompilé : le chargeur `g4tx_load_cached`
-(`crates/nie-engine/src/g4.rs`) calcule pour chaque police DEUX chemins :
+(`crates/archive/nie-engine/src/g4.rs`) calcule pour chaque police DEUX chemins :
 `"%s.g4tx"` ET **`"%s.g4tg"`** (`g4.rs:656-662` `g4tx_build_request` — champ `path_g4tg` :661,
 snprintf `:789`), avec fixtures de test `gaiji_game` (`g4.rs:868`) / `font_def`
 (`g4.rs:858`, `:1066`). Le `.g4tg` est le **fichier compagnon de métriques de glyphes**
@@ -659,7 +659,7 @@ vectorielle (pas de TTF/OTF/FreeType embarqué : `find … -iname '*.ttf' -o '*.
 
 État formats : le **container G4TX est parsé (FAIT)** y compris les sous-régions d'atlas
 (`g4tx.rs:167-272`), et le déswizzle **NXTCH** Switch est porté mais **INCOMPLET** (bug offsets
-en-tête off-by-4, aucun fichier NXTCH réel pour valider — `crates/nie-formats/src/nxtch.rs`,
+en-tête off-by-4, aucun fichier NXTCH réel pour valider — `crates/engine/nie-formats/src/nxtch.rs`,
 `docs/jeu-jouable-avancement.md:64`). **Les `.g4tx` police observés sont DDS, pas NXTCH**,
 donc le décodage DDS existant suffit pour eux. **Le parseur `.g4tg` (métriques de glyphes)
 n'existe NI dans niers NI dans iecode** (`grep g4tg` iecode = 0) → format à reverser
@@ -701,7 +701,7 @@ vérifiés dans `/tmp/vfs_g4tx.txt` (ex. `title02_01/`, `gtxt_title02`, banners)
   **`data/common/font/font/font_def/font.cfg.bin`** — un **T2B** que `cfgbin::parse_t2b`
   décodait déjà. Le chemin `"%s.g4tg"` calculé par `g4.rs:789` pointe sur un fichier absent
   pour `font_def` (le moteur retombe sur le `.cfg.bin` / métriques internes).
-- **Porté** : `crates/nie-formats/src/font.rs` (`parse`) lit les entrées `INF`
+- **Porté** : `crates/engine/nie-formats/src/font.rs` (`parse`) lit les entrées `INF`
   (`[font, ascent, cell_height, descent, nGlyphs, atlasW, atlasH]`) et une `CHR` par glyphe
   (`[font, base, codepoint, atlasX, atlasY, width, bearingX, advance, page]`). **Piège
   identifié** : le point de code est la **colonne 2**, pas la 1 (col[1] = id de groupe partagé
@@ -826,7 +826,7 @@ Aussi incomplet : `SetSprite` stocke `tex_hash` brut sans résolution `texHash �
 
 #### NON_FAIT — branchement renderer + chargement des scripts
 
-- **`nie-game` ne dépend pas de `nie-lua`** : `crates/nie-game/Cargo.toml` (section `[dependencies]` `:17`) ne liste comme crate interne que `nie-formats` (`:18`) ; `grep nie-lua` sur tout le crate `nie-game` = vide. Le `MenuState` n'est donc **jamais construit ni consommé** par le rendu. `build_sprite_list` (`main.rs:1143`) compose le pur layout statique : itère objbin (`:1152`) → g4pkm → g4tx → `menu::assemble_object` (`:1278`, `nie-formats/src/menu.rs:141`) → tri par `draw_priority` (`:1283`). Aucune visibilité/sprite/texte n'est appliquée. C'est la cause directe du gap (bind-pose, widgets vides).
+- **`nie-game` ne dépend pas de `nie-lua`** : `crates/engine/nie-game/Cargo.toml` (section `[dependencies]` `:17`) ne liste comme crate interne que `nie-formats` (`:18`) ; `grep nie-lua` sur tout le crate `nie-game` = vide. Le `MenuState` n'est donc **jamais construit ni consommé** par le rendu. `build_sprite_list` (`main.rs:1143`) compose le pur layout statique : itère objbin (`:1152`) → g4pkm → g4tx → `menu::assemble_object` (`:1278`, `nie-formats/src/menu.rs:141`) → tri par `draw_priority` (`:1283`). Aucune visibilité/sprite/texte n'est appliquée. C'est la cause directe du gap (bind-pose, widgets vides).
 - **Mapping écran → script absent** : aucune logique ne relie `title02`/`mainmenu01` à leur `.lua.bin`. La convention de chemin VFS `data/common/script/lua/menu/*.lua.bin` est confirmée (`lib.rs:249,324,541`), mais **les basenames exacts** des scripts de ces deux écrans ne sont pas encore énumérés (index VFS `cpk_list.cfg.bin` chiffré AES — 12,9 Mo sur disque ; packs `.cpk` = 933 fichiers / 57 Go compressés CRILAYLA via `crilayla.rs` → noms non grep-ables sur disque ; les dossiers `data/dx11/menu/.../title02|mainmenu01` n'existent pas sur disque, ce sont des chemins virtuels VFS). À obtenir en énumérant le VFS monté (filtre `script/lua/menu/` + match `title`/`mainmenu`).
 - **Join `crc32(objbin.name) → objHash`** non implémenté (la brique `crc32` existe pourtant, `cfgbin.rs:625`).
 - **Rendu des widgets texte/nombre** non fait : les objets `title02` qui skippent « pas de g4tx_path » sont des widgets de texte/runtime ; leur contenu vient de `SetText`/`SetNumericDisplay`, pas d'une texture statique.
@@ -847,13 +847,13 @@ Aussi incomplet : `SetSprite` stocke `tex_hash` brut sans résolution `texHash �
 ## 9. Atlas / 3D in-menu / blend / GPU
 
 ### A. Region d'atlas (g4tx sub-textures)
-Parseur : FAIT. `G4txSubTexture {id,name,x,y,w,h}` (`crates/nie-formats/src/g4tx.rs:103-116`), champ `sub_textures` (`:137`), boucle `entry_id==i` (`:244-262`), golden gaiji 117 regions (`:401-405`).
-Compositeur : NON_FAIT. `build_sprite_list` prend la 1re texture DDS (`crates/nie-game/src/main.rs:1263`, `find(|t| t.is_dds)`), `decode_texture_rgba` decode le DDS ENTIER (`main.rs:204-240`), UV quad en dur (`main.rs:1404-1418`) ; `sub_textures` jamais consomme hors g4tx.rs (grep). Index region non resolu (candidat `CSetupMeshVisible.meshNameCrc` `objbin.rs:222-238`).
+Parseur : FAIT. `G4txSubTexture {id,name,x,y,w,h}` (`crates/engine/nie-formats/src/g4tx.rs:103-116`), champ `sub_textures` (`:137`), boucle `entry_id==i` (`:244-262`), golden gaiji 117 regions (`:401-405`).
+Compositeur : NON_FAIT. `build_sprite_list` prend la 1re texture DDS (`crates/engine/nie-game/src/main.rs:1263`, `find(|t| t.is_dds)`), `decode_texture_rgba` decode le DDS ENTIER (`main.rs:204-240`), UV quad en dur (`main.rs:1404-1418`) ; `sub_textures` jamais consomme hors g4tx.rs (grep). Index region non resolu (candidat `CSetupMeshVisible.meshNameCrc` `objbin.rs:222-238`).
 Travail : resoudre l'index, cropper `[x..x+w]x[y..y+h]`, remap UV (`build_sprite_quad` `main.rs:1387` / `menu.rs:234-235`).
 
 ### B. Modeles 3D dans le menu
 Skippes : `mainmenu04_03_chara_model` / `mainmenu01_08_chara_3d_shadow` = `pas de g4tx_path` (`/tmp/mainmenu.log:64,:97`), skip `main.rs:1233-1234` -> vignettes perso absentes.
-Assemblage 3D : FAIT hors menu. `assemble_character_model` -> GLB (`crates/nie-formats/src/assemble.rs:882-927`) ; mailles STATIQUES zero skinning (`:52-59`) ; non importe par nie-game.
+Assemblage 3D : FAIT hors menu. `assemble_character_model` -> GLB (`crates/engine/nie-formats/src/assemble.rs:882-927`) ; mailles STATIQUES zero skinning (`:52-59`) ; non importe par nie-game.
 Rendu 3D host : NON_FAIT. 2D pur, pas de depth/camera (`main.rs:1516`). Port D3D11 `render.rs:1-34` reference RE Windows-only (`:26-28`) non cable = INCOMPLET.
 Travail : router objbin `g4tx_path==None`+`g4pkm_path!=None` -> passe 3D offscreen (depth, camera `camera_name_hash`, pose g4pkm/g4sk, RT) -> sprite selon `draw_priority` ; `chara_3d_shadow` = passe ombre.
 
@@ -862,7 +862,7 @@ RenderComponent FAIT : `draw_priority`, `draw_type` (0=normal,1=additif `objbin.
 Consommation INCOMPLET : seul `draw_priority` utilise (`menu.rs:147-154`, tri `main.rs:1283`) ; draw_type+camera ignores -> glows neons en alpha-over normal.
 Pipeline wgpu FAIT (1 mode) : blend premult-alpha over One/OneMinusSrcAlpha (`main.rs:1491-1502`), premultiply/unpremultiply (1584/1601), Rgba8Unorm sans sRGB (1683,1691), sampler lineaire ClampToEdge (1567-1578), NDC 640/360 (1373-1375).
 --verify FAIT : CPU vs GPU pre-multiplie, seuil >=99% a +-4/255 (`main.rs:1815-1854`).
-Pixel-perfect : (1) blend par sprite NON_FAIT (2e pipeline additif One/One si draw_type==1, propager draw_type perdu apres tri 1283) ; (2) camera NON_FAIT ; (3) sRGB open question (`render.rs:145` = format DXGI sRGB ; host fenetre choisit explicitement un format non-sRGB `main.rs:1988-1993`, RT headless Rgba8Unorm `main.rs:1683`) ; (4) bump wgpu 22->29 NON_FAIT (`crates/nie-game/Cargo.toml:23`, `docs/STACK.md:13,24-28,33`).
+Pixel-perfect : (1) blend par sprite NON_FAIT (2e pipeline additif One/One si draw_type==1, propager draw_type perdu apres tri 1283) ; (2) camera NON_FAIT ; (3) sRGB open question (`render.rs:145` = format DXGI sRGB ; host fenetre choisit explicitement un format non-sRGB `main.rs:1988-1993`, RT headless Rgba8Unorm `main.rs:1683`) ; (4) bump wgpu 22->29 NON_FAIT (`crates/engine/nie-game/Cargo.toml:23`, `docs/STACK.md:13,24-28,33`).
 
 --- open_questions ---
 index de region d'atlas par objbin non resolu (candidat meshNameCrc)
@@ -890,28 +890,28 @@ définissent le même gate à deux étages :
 
 Choix de briques figés (`STACK.md:20`) : `dssim-core` **rejeté** (AGPL-3.0, incompatible MIT) ;
 `image-compare` retenu ; `cargo-nextest` en **process-per-test** pour isoler le device wgpu ; goldens
-à `crates/nie-game/tests/golden/<scene>.png` ; **mode bless `UPDATE_GOLDEN=1`**. Doctrine générale
+à `crates/engine/nie-game/tests/golden/<scene>.png` ; **mode bless `UPDATE_GOLDEN=1`**. Doctrine générale
 (`STACK.md:36`) : l'égalité octet est la preuve, SSIM/PSNR n'est qu'un filet de régression.
 
 **État réel du code (vérifié)** :
 - `image-compare`, `blake3`, `nextest.toml` : **absents** du repo (grep `Cargo.toml`, `.config` : 0
   occurrence). `sha2 = "0.10"` existe (`Cargo.toml:61`) mais n'est utilisé que pour hasher des
-  binaires (`crates/nie-cli/src/main.rs:12,1015`), **pas** des pixels.
+  binaires (`crates/tools/nie-cli/src/main.rs:12,1015`), **pas** des pixels.
 - L'alias `cargo xt = nextest run --workspace --all-features` existe (`.cargo/config.toml`) mais
   `cargo-nextest` **n'est pas installé** sur la machine.
-- Aucun répertoire `crates/nie-game/tests/` ni `golden/` (FAIT : inexistants).
-- `crates/nie-game/Cargo.toml` épingle encore **`wgpu = "22"`** : le bump D1 22→29 de `STACK.md:13`
+- Aucun répertoire `crates/engine/nie-game/tests/` ni `golden/` (FAIT : inexistants).
+- `crates/engine/nie-game/Cargo.toml` épingle encore **`wgpu = "22"`** : le bump D1 22→29 de `STACK.md:13`
   n'est **pas** fait.
 - En revanche le **dé-paddage 256 o est déjà implémenté** côté capture : `cmd_capture`
-  (`crates/nie-game/src/main.rs:908-948`) et le readback GPU de menu
-  (`crates/nie-game/src/main.rs:1762,1789-1800`) reconstruisent un buffer RGBA8 dé-paddé.
+  (`crates/engine/nie-game/src/main.rs:908-948`) et le readback GPU de menu
+  (`crates/engine/nie-game/src/main.rs:1762,1789-1800`) reconstruisent un buffer RGBA8 dé-paddé.
 
 → Le gate est **entièrement spécifié mais à 0 % câblé** ; le seul morceau présent est le dé-paddage
 du readback.
 
 ### `--verify` est de l'auto-cohérence, PAS une comparaison au jeu (FAIT)
 
-`nie-game --menu <SCREEN> --gpu --capture out.png --verify` (`crates/nie-game/src/main.rs:20-22,
+`nie-game --menu <SCREEN> --gpu --capture out.png --verify` (`crates/engine/nie-game/src/main.rs:20-22,
 100-104`) compare le rendu **GPU** au **compositeur CPU `menu::compose`** (`main.rs:1816-1830`), en
 espace pré-multiplié, via `comparer_cpu_gpu` (`main.rs:1623-1646`) : échec si < 99 % des pixels sont
 dans une tolérance de **4/255 par canal** (`main.rs:1846-1853`). Canvas de référence : 1280×720
@@ -928,12 +928,12 @@ La vérité = une frame du vrai `nie.exe`. Sans elle, **aucun SSIM n'est calcula
 pas de prétention pixel-perfect »). Options évaluées :
 
 - **(a) Screenshot WSLg/Windows du jeu lancé directement** — **FAISABLE et déjà fait**. Le jeu tourne
-  (nie.exe Steam, lancé directement et non via EACLauncher, cf. `crates/nie-trace/scripts/boot-nie-windows.sh`) ;
+  (nie.exe Steam, lancé directement et non via EACLauncher, cf. `crates/forge/nie-trace/scripts/boot-nie-windows.sh`) ;
   EAC ne bloque pas la capture d'écran (seulement `ReadProcessMemory`). C'est manifestement la source
   de `start.png`/`menu.png`.
 - **(b) Backbuffer via `nie-trace`** — **NON viable aujourd'hui**. `nie-trace` est un **lecteur de
   mémoire** (`OpenProcess`+`ReadProcessMemory`, sous-commandes find-pid/maps/base/read/dump/scan/patch-eac,
-  cf. `crates/nie-trace/Cargo.toml`, `src/win_memory.rs`), **pas** un grabber de framebuffer. Le
+  cf. `crates/forge/nie-trace/Cargo.toml`, `src/win_memory.rs`), **pas** un grabber de framebuffer. Le
   backbuffer D3D11 réside en VRAM, non pageable et non lisible par RPM ; il faudrait hooker `Present()`
   ou une staging texture — hors périmètre de la crate. Coût élevé, non implémenté.
 - **(c) Les `.png` fournis** — **meilleure référence disponible**. ATTENTION : la résolution réelle
@@ -955,7 +955,7 @@ ne matchera **jamais** un layout statique.
 
 ### Scaffolding de test (NON_FAIT — spécification)
 
-Résolution canonique : **1280×720** (`crates/nie-game/src/main.rs:1670-1671`, `CW=1280`/`CH=720`).
+Résolution canonique : **1280×720** (`crates/engine/nie-game/src/main.rs:1670-1671`, `CW=1280`/`CH=720`).
 Les références sont **2560×1440** = **exactement 2×**, et les deux sont en **16:9** (1,778) — donc
 **même aspect, aucun letterbox** (l'ancien 600×340 ≈ 1,765 du prompt n'est plus d'actualité).
 Politique de ré-échantillonnage à figer : soit downscale box ×½ de la réf vers 1280×720, soit rendre
@@ -968,7 +968,7 @@ Deux **baselines distinctes** à ne pas confondre :
   chose qui prouve l'identité au jeu).
 
 Spec proposée, alignée sur `STACK.md:20` :
-1. Déposer les références canoniques `crates/nie-game/tests/golden/{title02,mainmenu01}.png` (1280×720,
+1. Déposer les références canoniques `crates/engine/nie-game/tests/golden/{title02,mainmenu01}.png` (1280×720,
    downscalées 2× depuis les refs 2560×1440).
 2. Test `#[test]` par écran, **un test = un process** (nextest process-per-test) pour isoler le device
    wgpu ; lancé par `cargo xt`. Prérequis : installer `cargo-nextest`, ajouter `image-compare` (et
@@ -1048,7 +1048,7 @@ passe ombre. *Gate* : silhouette/pose AVATAR + VOTRE ÉQUIPE recoupées au jeu.
 **Vague D1.f — Blend par draw_type + GATE pixel (couche 6/G).** 2ᵉ pipeline blend **additif**
 (`One/One`) quand `draw_type==1` (propager `draw_type`, perdu après le tri `main.rs:1283`) — glows/néons
 verts. Puis câbler le **harnais à deux étages** : installer `cargo-nextest`, ajouter `image-compare` +
-`blake3` en `[dev-dependencies]` de `nie-game` ; goldens `crates/nie-game/tests/golden/{title02,
+`blake3` en `[dev-dependencies]` de `nie-game` ; goldens `crates/engine/nie-game/tests/golden/{title02,
 mainmenu01}.png` (réf jeu 2560×1440 downscalée ×½ en 1280×720) ; étage 1 = hash RGBA8 dé-paddé
 (régression interne) ; étage 2 = SSIM ≥ 0,99 vs réf jeu avec **masques ROI** sur les régions dynamiques
 (compteurs, version, bandeau saisonnier). *Gate* : SSIM ≥ 0,99 hors ROI sur les deux écrans =
@@ -1125,7 +1125,7 @@ de ce checkout iecode → à rapatrier ou re-reverser.
 
 ### 2026-06-14 (suite) — D1.f gate harness (FAIT) + blocage RE de D1.c
 
-- **D1.f — harnais de gate (FAIT)** : `crates/nie-game/tests/menu_render_gate.rs`. Deux étages :
+- **D1.f — harnais de gate (FAIT)** : `crates/engine/nie-game/tests/menu_render_gate.rs`. Deux étages :
   (1) **déterminisme** — 2 rendus de `title02` doivent être **octet-identiques** (*hard gate*, VERT
   depuis D1.b-det) ; (2) **SSIM** maison (fenêtres 8×8 luma, **0 dépendance** — `image-compare` absent
   du lock + doctrine no-hidden-dep) vs `start.png` (2560×1440 downscalé ×½ exact). **Baseline :

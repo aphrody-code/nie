@@ -11,7 +11,7 @@
 > D3D11 `nie-engine/render.rs`, §3.7 branche wasm/WebGPU azalee, et les items `[v30]` à l'arrivée de wgpu 30.
 
 > **Cible : `wgpu = "=29.0.3"`** (publiée 2026-05-02, cf. `docs/STACK.md:13`) · `winit = "0.30"` (0.30.13) · `pollster 0.3 → 0.4` · `bytemuck 1` (inchangé).
-> **Cap D1/C4** : le host GPU natif `crates/nie-game` est le chemin central vers le jeu jouable ; azalee (wasm/WebGPU) est un compagnon secondaire.
+> **Cap D1/C4** : le host GPU natif `crates/engine/nie-game` est le chemin central vers le jeu jouable ; azalee (wasm/WebGPU) est un compagnon secondaire.
 > **Doctrine pixel-perfect** (cf. `docs/STACK.md:13/24-33`) : la RÉFÉRENCE bit-identique est la capture **headless** sur `force_fallback_adapter` (lavapipe/llvmpipe), blit `Rgba8Unorm` / `Nearest` / **sans sRGB**, readback déterministe aligné 256 o. `nie-game` est `#![forbid(unsafe_code)]` (`main.rs:36`) — wgpu est safe, on garde cette garantie.
 
 ---
@@ -248,7 +248,7 @@ Patron canonique 29 à suivre : `/tmp/wgpu-ref/examples/features/src/render_to_t
 
 ### 3.7 Cible wasm / WebGPU (compagnon azalee) — chantier d'AJOUT
 
-> **État réel** : `crates/nie-wasm` ne dépend **ni de `wgpu`, ni de `winit`, ni de `web-sys`** — c'est un banc de décodeurs CPU (`image_dds` G4TX→RGBA8 `lib.rs:785-846`, GLB `906-932`) exposé via `wasm-bindgen`. Brancher `wgpu` côté wasm est un **ajout**, pas un retarget.
+> **État réel** : `crates/engine/nie-wasm` ne dépend **ni de `wgpu`, ni de `winit`, ni de `web-sys`** — c'est un banc de décodeurs CPU (`image_dds` G4TX→RGBA8 `lib.rs:785-846`, GLB `906-932`) exposé via `wasm-bindgen`. Brancher `wgpu` côté wasm est un **ajout**, pas un retarget.
 
 - Mêmes ruptures qu'au host (A, P, B, H, M…) **plus** : `request_adapter().await` / `request_device().await` (sur wasm, **jamais `pollster::block_on`** — `wasm-bindgen-futures` déjà présent `nie-wasm/Cargo.toml:36`). `request_adapter` reste `Result`.
 - **Surface canvas SAFE** : `instance.create_surface(SurfaceTarget::Canvas(html_canvas))` / `OffscreenCanvas(...)` est **sûr** (seul `create_surface_unsafe`/`SurfaceTargetUnsafe` est `unsafe`) → `#![forbid(unsafe_code)]` de `nie-wasm` (`lib.rs:80`) **tient**. Ajouter `web-sys` (absent du workspace) pour `HtmlCanvasElement`/`OffscreenCanvas`.
@@ -272,7 +272,7 @@ La liste actuelle voit B (request_adapter→Result), C (request_device 1-arg), F
 ## 4. Checklist globale ordonnée
 
 **Étape 0 — Cargo**
-1. `crates/nie-game/Cargo.toml:29-31` : `wgpu = "22"` → `"=29.0.3"` ; `pollster = "0.3"` → `"0.4"` ; garder `winit = "0.30"`, `bytemuck = { version = "1", features = ["derive"] }`.
+1. `crates/engine/nie-game/Cargo.toml:29-31` : `wgpu = "22"` → `"=29.0.3"` ; `pollster = "0.3"` → `"0.4"` ; garder `winit = "0.30"`, `bytemuck = { version = "1", features = ["derive"] }`.
 
 **Étape 1 — Init / device**
 2. (A) `main.rs:1328, 1478, 3070` : `..Default::default()` → `..wgpu::InstanceDescriptor::new_without_display_handle()` (les 3 `Instance::new`, qui restent **par valeur**).

@@ -1,0 +1,512 @@
+//! Découpage du fichier en **unités de forge** et réassemblage byte-exact.
+//!
+//! Invariant central : les unités forment un **recouvrement total** du fichier.
+//! Chaque octet appartient à exactement une unité, offsets contigus depuis `0`
+//! jusqu'à la taille du fichier — en-têtes, bourrage de section, trous entre
+//! sections et overlay compris. C'est ce qui rend la génération vérifiable :
+//! `assemble()` ne consulte jamais le fichier d'origine, il ne fait que
+//! concaténer des charges utiles dans l'ordre.
+//!
+//! Une unité porte sa **provenance** : soit elle est produite par du code Rust
+//! (en-têtes ré-émis, fonction portée dont le codegen coïncide), soit elle vient
+//! du binaire de référence. Le rapport de couverture de `nie-forge` mesure
+//! exactement ce ratio.
+
+use crate::image::PeImage;
+use crate::pdata::{self, CodeRange};
+use crate::{PeError, Result, sha256_hex};
+
+/// Nature d'une unité de forge.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
+pub enum UnitKind {
+    /// En-tête DOS + stub 16 bits (opaque, conservé verbatim).
+    DosStub,
+    /// Signature PE + en-tête COFF + en-tête optionnel + table des sections.
+    /// **Ré-émissible** depuis les structures (`PeImage::emit_headers`).
+    PeHeaders,
+    /// Bourrage du linker entre la table des sections et `SizeOfHeaders`.
+    HeaderPad,
+    /// Corps de fonction délimité par `.pdata` (entrée racine).
+    Function,
+    /// Fragment de code chaîné (`UNW_FLAG_CHAININFO`).
+    CodeFragment,
+    /// Octets d'une section de code non couverts par `.pdata` : fonctions
+    /// feuilles sans information d'unwind, tables de saut, données inline.
+    ///
+    /// Le bourrage `int3` qui les sépare est extrait dans [`UnitKind::Padding`],
+    /// si bien qu'un résidu correspond en pratique à **un** corps candidat.
+    CodeResidue,
+    /// Bourrage `int3` (`0xCC`) inséré par le linker entre deux corps de code.
+    Padding,
+    /// Contenu brut d'une section de données.
+    SectionData,
+    /// Trou entre deux régions de données de section.
+    Gap,
+    /// Octets au-delà de la dernière section (overlay, signature…).
+    Overlay,
+}
+
+impl UnitKind {
+    /// Libellé court stable (utilisé dans les identifiants et les rapports).
+    #[must_use]
+    pub fn tag(self) -> &'static str {
+        match self {
+            Self::DosStub => "dos",
+            Self::PeHeaders => "hdr",
+            Self::HeaderPad => "hdrpad",
+            Self::Function => "fn",
+            Self::CodeFragment => "frag",
+            Self::CodeResidue => "res",
+            Self::Padding => "pad",
+            Self::SectionData => "data",
+            Self::Gap => "gap",
+            Self::Overlay => "overlay",
+        }
+    }
+
+    /// Vrai si l'unité contient du code exécutable.
+    #[must_use]
+    pub fn is_code(self) -> bool {
+        matches!(self, Self::Function | Self::CodeFragment | Self::CodeResidue)
+    }
+}
+
+/// Une unité : une tranche du fichier, identifiée et empreintée.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Unit {
+    /// Identifiant stable, unique dans le recouvrement (ex. `fn.140001000`).
+    pub id: String,
+    /// Nature de l'unité.
+    pub kind: UnitKind,
+    /// Section propriétaire, si applicable.
+    pub section: Option<String>,
+    /// Offset dans le fichier.
+    pub file_off: usize,
+    /// Longueur en octets.
+    pub len: usize,
+    /// Adresse virtuelle absolue du premier octet, si l'unité est mappée.
+    pub va: Option<u64>,
+    /// Empreinte SHA-256 de la charge utile de référence.
+    pub sha256: String,
+}
+
+impl Unit {
+    /// Étendue fichier `[file_off, file_off+len)`.
+    #[must_use]
+    pub fn range(&self) -> core::ops::Range<usize> {
+        self.file_off..self.file_off + self.len
+    }
+}
+
+/// Octet de bourrage inséré par le linker MSVC entre deux corps de code.
+const INT3: u8 = 0xCC;
+
+/// Contexte d'une section pendant le découpage.
+struct SectionCtx<'a> {
+    /// Nom de la section.
+    name: &'a str,
+    /// Offset fichier du début de la section.
+    file_start: usize,
+    /// Adresse virtuelle du début de la section.
+    va: u64,
+}
+
+/// Subdivise une zone de code non couverte par `.pdata` en corps candidats et
+/// bourrage `int3`.
+///
+/// MSVC sépare les fonctions par des `int3` : isoler ces runs donne, dans les
+/// faits, une unité par **fonction feuille** — précisément la population que
+/// `.pdata` ne décrit pas et où se trouvent les petits gestionnaires portables.
+fn push_residue<F>(
+    units: &mut Vec<Unit>,
+    mk: &F,
+    file: &[u8],
+    sec: &SectionCtx<'_>,
+    from: usize,
+    to: usize,
+) where
+    F: Fn(UnitKind, Option<&str>, usize, usize, Option<u64>) -> Unit,
+{
+    let (section, sec_start, sec_va) = (sec.name, sec.file_start, sec.va);
+    let mut pos = from;
+    while pos < to {
+        let is_pad = file[pos] == INT3;
+        let mut end = pos;
+        while end < to && (file[end] == INT3) == is_pad {
+            end += 1;
+        }
+        let kind = if is_pad {
+            UnitKind::Padding
+        } else {
+            UnitKind::CodeResidue
+        };
+        let va = sec_va + (pos - sec_start) as u64;
+        units.push(mk(kind, Some(section), pos, end - pos, Some(va)));
+        pos = end;
+    }
+}
+
+/// Recouvrement total d'un fichier par des unités contiguës.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Cover {
+    /// Taille du fichier couvert.
+    pub total_len: usize,
+    /// Empreinte SHA-256 du fichier couvert.
+    pub sha256: String,
+    /// Unités, dans l'ordre des offsets.
+    pub units: Vec<Unit>,
+}
+
+impl Cover {
+    /// Découpe une image en unités.
+    ///
+    /// Les sections exécutables sont subdivisées par les bornes `.pdata` ; le
+    /// reste de leur contenu devient du résidu explicitement compté. Les sections
+    /// de données restent d'un seul tenant (subdivision fine = travail ultérieur,
+    /// jamais un trou silencieux).
+    ///
+    /// # Erreurs
+    /// Retourne une erreur si les régions de section se chevauchent dans le
+    /// fichier, ou si le recouvrement produit n'est pas total.
+    pub fn split(img: &PeImage) -> Result<Self> {
+        let file = &img.bytes;
+        let total_len = file.len();
+        let mut units: Vec<Unit> = Vec::new();
+
+        let mk = |kind: UnitKind,
+                  section: Option<&str>,
+                  off: usize,
+                  len: usize,
+                  va: Option<u64>|
+         -> Unit {
+            let id = match kind {
+                UnitKind::DosStub => "dos".to_string(),
+                UnitKind::PeHeaders => "hdr".to_string(),
+                UnitKind::HeaderPad => "hdrpad".to_string(),
+                UnitKind::Overlay => "overlay".to_string(),
+                UnitKind::Function | UnitKind::CodeFragment => {
+                    format!("{}.{:x}", kind.tag(), va.unwrap_or_default())
+                }
+                UnitKind::SectionData => {
+                    format!("data.{}", section.unwrap_or("?").trim_start_matches('.'))
+                }
+                _ => format!(
+                    "{}.{}.{off:x}",
+                    kind.tag(),
+                    section.unwrap_or("?").trim_start_matches('.')
+                ),
+            };
+            Unit {
+                id,
+                kind,
+                section: section.map(str::to_string),
+                file_off: off,
+                len,
+                va,
+                sha256: sha256_hex(&file[off..off + len]),
+            }
+        };
+
+        // --- région d'en-tête -------------------------------------------------
+        let table_end = img.headers_end() - img.header_padding.len();
+        units.push(mk(UnitKind::DosStub, None, 0, img.pe_offset, None));
+        units.push(mk(
+            UnitKind::PeHeaders,
+            None,
+            img.pe_offset,
+            table_end - img.pe_offset,
+            None,
+        ));
+        if !img.header_padding.is_empty() {
+            units.push(mk(
+                UnitKind::HeaderPad,
+                None,
+                table_end,
+                img.header_padding.len(),
+                None,
+            ));
+        }
+
+        // --- sections ---------------------------------------------------------
+        let (ranges, _stats) = pdata::scan(img);
+        let merged = pdata::merge(&ranges);
+
+        let mut secs: Vec<_> = img
+            .sections
+            .iter()
+            .filter(|s| s.size_raw > 0)
+            .cloned()
+            .collect();
+        secs.sort_by_key(|s| s.ptr_raw);
+
+        let mut cursor = img.headers_end();
+        for s in &secs {
+            let start = s.ptr_raw as usize;
+            let end = start + s.size_raw as usize;
+            if start < cursor {
+                return Err(PeError::Cover(format!(
+                    "section {} chevauche la région précédente ({start:#x} < {cursor:#x})",
+                    s.name_str()
+                )));
+            }
+            if end > total_len {
+                return Err(PeError::Cover(format!(
+                    "section {} déborde du fichier ({end:#x} > {total_len:#x})",
+                    s.name_str()
+                )));
+            }
+            if start > cursor {
+                units.push(mk(UnitKind::Gap, None, cursor, start - cursor, None));
+            }
+
+            let name = s.name_str();
+            let executable = s.characteristics & 0x2000_0020 != 0; // CNT_CODE | MEM_EXECUTE
+            let in_sec: Vec<&CodeRange> = if executable {
+                merged
+                    .iter()
+                    .filter(|r| s.contains_rva(r.begin) && !r.is_empty())
+                    .collect()
+            } else {
+                Vec::new()
+            };
+
+            if in_sec.is_empty() {
+                units.push(mk(
+                    UnitKind::SectionData,
+                    Some(&name),
+                    start,
+                    s.size_raw as usize,
+                    Some(img.opt.image_base + u64::from(s.virtual_address)),
+                ));
+            } else {
+                let ctx = SectionCtx {
+                    name: &name,
+                    file_start: start,
+                    va: img.opt.image_base + u64::from(s.virtual_address),
+                };
+                let mut pos = start;
+                for r in in_sec {
+                    let Some(f_begin) = img.rva_to_offset(r.begin) else {
+                        continue;
+                    };
+                    let f_end = (f_begin + r.len()).min(end);
+                    if f_begin < pos || f_end <= f_begin {
+                        continue; // chevauchement résiduel : déjà couvert
+                    }
+                    if f_begin > pos {
+                        push_residue(&mut units, &mk, file, &ctx, pos, f_begin);
+                    }
+                    let kind = if r.chained {
+                        UnitKind::CodeFragment
+                    } else {
+                        UnitKind::Function
+                    };
+                    units.push(mk(
+                        kind,
+                        Some(&name),
+                        f_begin,
+                        f_end - f_begin,
+                        Some(img.opt.image_base + u64::from(r.begin)),
+                    ));
+                    pos = f_end;
+                }
+                if pos < end {
+                    push_residue(&mut units, &mk, file, &ctx, pos, end);
+                }
+            }
+            cursor = end;
+        }
+
+        if cursor < total_len {
+            units.push(mk(UnitKind::Overlay, None, cursor, total_len - cursor, None));
+        }
+
+        let cover = Self {
+            total_len,
+            sha256: sha256_hex(file),
+            units,
+        };
+        cover.validate()?;
+        Ok(cover)
+    }
+
+    /// Vérifie que le recouvrement est total, contigu et sans doublon d'identifiant.
+    ///
+    /// # Erreurs
+    /// Retourne une erreur décrivant la première rupture d'invariant rencontrée.
+    pub fn validate(&self) -> Result<()> {
+        let mut pos = 0usize;
+        let mut seen = std::collections::HashSet::with_capacity(self.units.len());
+        for u in &self.units {
+            if u.file_off != pos {
+                return Err(PeError::Cover(format!(
+                    "trou/chevauchement à {pos:#x} : unité {} commence à {:#x}",
+                    u.id, u.file_off
+                )));
+            }
+            if u.len == 0 {
+                return Err(PeError::Cover(format!("unité vide : {}", u.id)));
+            }
+            if !seen.insert(u.id.clone()) {
+                return Err(PeError::Cover(format!("identifiant dupliqué : {}", u.id)));
+            }
+            pos += u.len;
+        }
+        if pos != self.total_len {
+            return Err(PeError::Cover(format!(
+                "recouvrement partiel : {pos:#x} octets couverts sur {:#x}",
+                self.total_len
+            )));
+        }
+        Ok(())
+    }
+
+    /// Réassemble le fichier en concaténant les charges utiles fournies.
+    ///
+    /// `fetch` doit rendre la charge utile de chaque unité ; sa longueur doit
+    /// correspondre exactement à `unit.len`. Le fichier d'origine n'est jamais lu.
+    ///
+    /// # Erreurs
+    /// Retourne une erreur si une charge utile manque ou n'a pas la bonne taille.
+    pub fn assemble<F>(&self, mut fetch: F) -> Result<Vec<u8>>
+    where
+        F: FnMut(&Unit) -> Option<Vec<u8>>,
+    {
+        let mut out = Vec::with_capacity(self.total_len);
+        for u in &self.units {
+            let payload = fetch(u).ok_or_else(|| {
+                PeError::Cover(format!("charge utile absente pour l'unité {}", u.id))
+            })?;
+            if payload.len() != u.len {
+                return Err(PeError::Cover(format!(
+                    "taille invalide pour {} : {} octets fournis, {} attendus",
+                    u.id,
+                    payload.len(),
+                    u.len
+                )));
+            }
+            out.extend_from_slice(&payload);
+        }
+        if out.len() != self.total_len {
+            return Err(PeError::Cover(format!(
+                "assemblage de {} octets, {} attendus",
+                out.len(),
+                self.total_len
+            )));
+        }
+        Ok(out)
+    }
+
+    /// Nombre d'unités par nature.
+    #[must_use]
+    pub fn count_by_kind(&self, kind: UnitKind) -> usize {
+        self.units.iter().filter(|u| u.kind == kind).count()
+    }
+
+    /// Masse d'octets par nature.
+    #[must_use]
+    pub fn bytes_by_kind(&self, kind: UnitKind) -> usize {
+        self.units
+            .iter()
+            .filter(|u| u.kind == kind)
+            .map(|u| u.len)
+            .sum()
+    }
+
+    /// Retrouve une unité par identifiant.
+    #[must_use]
+    pub fn find(&self, id: &str) -> Option<&Unit> {
+        self.units.iter().find(|u| u.id == id)
+    }
+
+    /// Retrouve l'unité contenant une adresse virtuelle.
+    #[must_use]
+    pub fn find_va(&self, va: u64) -> Option<&Unit> {
+        self.units
+            .iter()
+            .find(|u| u.va.is_some_and(|b| va >= b && va < b + u.len as u64))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::image::PeImage;
+
+    fn synth_image() -> PeImage {
+        // Réutilise le générateur de l'unité `image` via un PE minimal à 1 section.
+        let pe_off = 0x80usize;
+        let opt_size = 240usize;
+        let headers = 0x200usize;
+        let mut b = vec![0u8; headers + 0x400];
+        b[0..2].copy_from_slice(&0x5A4Du16.to_le_bytes());
+        b[0x3c..0x40].copy_from_slice(&u32::try_from(pe_off).unwrap().to_le_bytes());
+        b[pe_off..pe_off + 4].copy_from_slice(&0x0000_4550u32.to_le_bytes());
+        let c = pe_off + 4;
+        b[c..c + 2].copy_from_slice(&0x8664u16.to_le_bytes());
+        b[c + 2..c + 4].copy_from_slice(&1u16.to_le_bytes());
+        b[c + 16..c + 18].copy_from_slice(&u16::try_from(opt_size).unwrap().to_le_bytes());
+        let o = c + 20;
+        b[o..o + 2].copy_from_slice(&0x020Bu16.to_le_bytes());
+        b[o + 24..o + 32].copy_from_slice(&0x1_4000_0000u64.to_le_bytes());
+        b[o + 32..o + 36].copy_from_slice(&0x1000u32.to_le_bytes());
+        b[o + 36..o + 40].copy_from_slice(&0x200u32.to_le_bytes());
+        b[o + 60..o + 64].copy_from_slice(&u32::try_from(headers).unwrap().to_le_bytes());
+        b[o + 108..o + 112].copy_from_slice(&16u32.to_le_bytes());
+        let s = o + opt_size;
+        b[s..s + 5].copy_from_slice(b".text");
+        b[s + 8..s + 12].copy_from_slice(&0x400u32.to_le_bytes());
+        b[s + 12..s + 16].copy_from_slice(&0x1000u32.to_le_bytes());
+        b[s + 16..s + 20].copy_from_slice(&0x400u32.to_le_bytes());
+        b[s + 20..s + 24].copy_from_slice(&u32::try_from(headers).unwrap().to_le_bytes());
+        b[s + 36..s + 40].copy_from_slice(&0x6000_0020u32.to_le_bytes());
+        for (i, byte) in b[headers..headers + 0x400].iter_mut().enumerate() {
+            *byte = u8::try_from(i % 251).unwrap();
+        }
+        PeImage::parse(b).expect("parse")
+    }
+
+    #[test]
+    fn le_recouvrement_est_total_et_reassemble_a_l_identique() {
+        let img = synth_image();
+        let cover = Cover::split(&img).expect("split");
+        cover.validate().expect("recouvrement total");
+        assert_eq!(
+            cover.units.iter().map(|u| u.len).sum::<usize>(),
+            img.bytes.len()
+        );
+        let rebuilt = cover
+            .assemble(|u| Some(img.bytes[u.range()].to_vec()))
+            .expect("assemble");
+        assert_eq!(rebuilt, img.bytes);
+        assert_eq!(sha256_hex(&rebuilt), cover.sha256);
+    }
+
+    #[test]
+    fn assemblage_refuse_une_charge_de_mauvaise_taille() {
+        let img = synth_image();
+        let cover = Cover::split(&img).expect("split");
+        let err = cover
+            .assemble(|u| {
+                if u.kind == UnitKind::DosStub {
+                    Some(vec![0u8; u.len + 1])
+                } else {
+                    Some(img.bytes[u.range()].to_vec())
+                }
+            })
+            .unwrap_err();
+        assert!(matches!(err, PeError::Cover(m) if m.contains("taille invalide")));
+    }
+
+    #[test]
+    fn validate_detecte_un_trou() {
+        let img = synth_image();
+        let mut cover = Cover::split(&img).expect("split");
+        cover.units[0].len -= 1;
+        assert!(cover.validate().is_err());
+    }
+}

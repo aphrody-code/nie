@@ -31,6 +31,37 @@ build-all:
 build-wasm:
     cargo build -p nie-wasm --target wasm32-unknown-unknown --release
 
+# --- Forge : produire nie.exe -------------------------------------------------
+# L'identite prime : `forge-build` echoue si le fichier produit n'est pas byte-identique.
+# Reference = le nie.exe de l'utilisateur (hors depot, (c) LEVEL-5). Cf. docs/FORGE.md.
+
+forge_exe := env_var_or_default("NIE_EXE", "nie.exe")
+forge     := "target/release/nie-forge"
+
+# Compile la forge.
+forge-build-tool:
+    cargo build --release -p nie-forge
+
+# Decoupe le binaire de reference en unites (recouvrement total).
+forge-split: forge-build-tool
+    {{forge}} split --exe {{forge_exe}}
+
+# Releve les corps regenerables vers la source assembleur du depot.
+forge-lift: forge-build-tool
+    {{forge}} lift --exe {{forge_exe}}
+
+# Reconstruit dist/nie.exe depuis la source + le registre, et verifie l'identite.
+forge-build: forge-build-tool
+    {{forge}} build --exe {{forge_exe}}
+    {{forge}} verify --reference {{forge_exe}} --got dist/nie.exe
+
+# Part du binaire reellement produite par le depot.
+forge-report: forge-build-tool
+    {{forge}} report
+
+# Boucle complete.
+forge: forge-split forge-lift forge-build forge-report
+
 # --- Pipeline RE (idempotent : upserts DB) -----------------------------------
 
 # 1) Ingestion index Ghidra + RTTI + formats iecode + hash→nom inagle.

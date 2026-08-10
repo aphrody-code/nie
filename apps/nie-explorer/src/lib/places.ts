@@ -9,7 +9,7 @@ export interface Place {
   icon: string;
 }
 
-/** Racines curées, vérifiées contre le VFS réel (cf. `crates/nie-explore/src/folder_roles.rs`). */
+/** Racines curées, vérifiées contre le VFS réel (cf. `crates/engine/nie-explore/src/folder_roles.rs`). */
 export const PINNED_PLACES: Place[] = [
   { label: "Racine", prefix: "", icon: "hard_drive" },
   { label: "Personnages (visages)", prefix: "data/common/chr/_face", icon: "person" },
