@@ -1,0 +1,21 @@
+[package]
+name = "nie-pe"
+description = "Lecture/écriture byte-exacte du PE64 nie.exe + découpage du fichier en unités de forge"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+sha2.workspace = true
+serde = { workspace = true, optional = true }
+
+[features]
+default = ["serde"]
+serde = ["dep:serde"]
+
+[lints]
+workspace = true

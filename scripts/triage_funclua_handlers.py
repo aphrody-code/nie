@@ -37,7 +37,7 @@ EXE = (
     else ROOT / "nie.exe"
 )
 HANDLERS = ROOT / "data/re/funclua-cmdid-handlers.json"
-MENU_HOST = ROOT / "crates/nie-lua/src/menu_host.rs"
+MENU_HOST = ROOT / "crates/engine/nie-lua/src/menu_host.rs"
 LUA = ROOT / "data/lua_scripts/decompiled"
 TOP_N = int(sys.argv[1]) if len(sys.argv) > 1 else 24
 

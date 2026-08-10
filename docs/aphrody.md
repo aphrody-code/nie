@@ -285,7 +285,7 @@ ex. God Knows `…/fjsbt89vqiu.webm` (poster `…/e-xnwdtpju0.jpg`).
 
 ## 8. Module Rust `nie-data::aphrody`
 
-Le parseur dédié `crates/nie-data/src/aphrody.rs` agrège un **dossier** d'Aphrody en croisant les
+Le parseur dédié `crates/engine/nie-data/src/aphrody.rs` agrège un **dossier** d'Aphrody en croisant les
 parseurs existants :
 - `chara_param::parse_all_chara_params` → filtre les `CharaParam` dont `chara_base_id ∈
   {0x37D7ACFB, 0xFC57A11C, 0xCA01BFAB}` (les 8 variantes) ;

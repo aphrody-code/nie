@@ -191,7 +191,7 @@ contrainte technique documentée) · ✅ fait et vérifié.
 ### 1.1 Encodeur RDBN ✅
 `nie_formats::cfgbin::encode_rdbn` existe et est vérifié par round-trip réel sur le vrai jeu
 (230/231 sur scan quasi-complet ~50 123 candidats — le seul échec, un cas de liste vide légitime,
-a été corrigé ; 24/24 en sample régulier `crates/nie-formats/src/cfgbin.rs` test
+a été corrigé ; 24/24 en sample régulier `crates/engine/nie-formats/src/cfgbin.rs` test
 `encode_rdbn_round_trip_sur_le_vrai_jeu`) + pont JSON (`nie_explore::bridge::json_to_rdbn_lists`,
 25/25 réel, test `json_bridge_rdbn_round_trip_sur_le_vrai_jeu`). Porté depuis une réécriture C++20
 externe (`aphrody-code/iecode`, PAS le `IECODE.Core` C# d'origine — celui-ci ne contient que des
@@ -709,7 +709,7 @@ backend ». Dépôts clonés dans `var/spaceui` et `var/spacedrive` (gitignorés
 `.gitignore` racine) — non committés, sources de référence pour le portage.
 
 **Livré** :
-- **`crates/nie-tasks`** (nouveau crate workspace) : orchestration de job annulable/pausable avec
+- **`crates/tools/nie-tasks`** (nouveau crate workspace) : orchestration de job annulable/pausable avec
   progression — `Task`/`Interrupter`/`TaskSystem`/`TaskHandle`, architecture inspirée de
   `sd-task-system` (`var/spacedrive/crates/task-system`) mais **implémentation originale**
   (dispatch par `tokio::spawn`, pas de pool de workers à vol de tâches — inutile à l'échelle de

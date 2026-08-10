@@ -1,0 +1,32 @@
+[package]
+name = "nie-forge"
+description = "Forge de nie.exe — découpe, régénère et mesure le binaire produit depuis le workspace Rust"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "nie_forge"
+path = "src/lib.rs"
+
+[[bin]]
+name = "nie-forge"
+path = "src/main.rs"
+
+[dependencies]
+nie-pe = { path = "../../forge/nie-pe" }
+nie-asm = { path = "../../forge/nie-asm" }
+iced-x86.workspace = true
+anyhow.workspace = true
+clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

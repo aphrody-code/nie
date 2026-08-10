@@ -1,0 +1,276 @@
+{
+  "version": 1,
+  "target_sha256": "b1fa04ea365868e5c8933aca393366f82d0d446187e2187f2737dc4fa2acd40c",
+  "entries": [
+    {
+      "va": "0x140051f40",
+      "rust": null,
+      "status": "semantic",
+      "proof": {
+        "kind": "uemu",
+        "reference": "scripts/validate_typed_value_reader.py"
+      },
+      "note": "Lecteur read-next-int de valeur typée (FUN_140051f40, 1696 callers) — tags 2-bit + cvttss2si exact, fuzz"
+    },
+    {
+      "va": "0x140051fc0",
+      "rust": null,
+      "status": "semantic",
+      "proof": {
+        "kind": "uemu",
+        "reference": "scripts/validate_typed_value_reader_float.py"
+      },
+      "note": "Lecteur read-next-FLOAT de valeur typée (FUN_140051fc0, 331 callers) — sibling float, cvtsi2ss, fuzz"
+    },
+    {
+      "va": "0x140052040",
+      "rust": null,
+      "status": "semantic",
+      "proof": {
+        "kind": "uemu",
+        "reference": "scripts/validate_typed_list_iter.py"
+      },
+      "note": "Deref+avance itérateur liste typée 2-bit (FUN_140052040) — sentinelles/bases/NULL, fuzz 800 cas"
+    },
+    {
+      "va": "0x140071d70",
+      "rust": null,
+      "status": "semantic",
+      "proof": {
+        "kind": "uemu",
+        "reference": "scripts/validate_effect_obj_ctor.py"
+      },
+      "note": "Ctor lives::CEffectObjComponent (FUN_140071d70) — struct 0xD0 + compteur, fuzz 600 cas"
+    },
+    {
+      "va": "0x14007f8f0",
+      "rust": null,
+      "status": "semantic",
+      "proof": {
+        "kind": "uemu",
+        "reference": "scripts/validate_affine_compose.py"
+      },
+      "note": "Composition de matrices affines 3×4 (FUN_14007f8f0) — FMA fusée, transform pipeline, fuzz"
+    },
+    {
+      "va": "0x14007faf0",
+      "rust": null,
+      "status": "semantic",
+      "proof": {
+        "kind": "uemu",
+        "reference": "scripts/validate_quat_mul.py"
+      },
+      "note": "Produit de quaternions Hamilton (FUN_14007faf0) — SSE scalaire sans FMA, fuzz 1096 cas"
+    },
+    {
+      "va": "0x140090fa0",
+      "rust": null,
+      "status": "semantic",
+      "proof": {
+        "kind": "uemu",
+        "reference": "scripts/validate_mat4_mul.py"
+      },
+      "note": "Multiplication matrices 4×4 row-major (FUN_140090fa0) — mulps+3×vfmadd231ps, fuzz 604 cas"
+    },
+    {
+      "va": "0x1401f5ab0",
+      "rust": null,
+      "status": "semantic",
+      "proof": {
+        "kind": "uemu",
+        "reference": "scripts/validate_intrusive_map_d.py"
+      },
+      "note": "3e instanciation du conteneur (FUN_1401f5ab0, entrées 0x18, clé @+0) — généralisation key_base, fuzz 2 modes"
+    },
+    {
+      "va": "0x1402b4160",
+      "rust": null,
+      "status": "semantic",
+      "proof": {
+        "kind": "uemu",
+        "reference": "scripts/validate_intrusive_map_sorted.py"
+      },
+      "note": "Recherche binaire mode trié de la map de menu (FUN_1402b4160) — fuzz seedé"
+    },
+    {
+      "va": "0x1402e2a10",
+      "rust": null,
+      "status": "semantic",
+      "proof": {
+        "kind": "uemu",
+        "reference": "scripts/validate_intrusive_map.py"
+      },
+      "note": "Find map intrusive de menu mode linéaire (FUN_1402e2a10) — primitive list-view"
+    },
+    {
+      "va": "0x1404523c0",
+      "rust": null,
+      "status": "semantic",
+      "proof": {
+        "kind": "uemu",
+        "reference": "scripts/validate_intrusive_map_e.py"
+      },
+      "note": "4e instanciation du conteneur (FUN_1404523c0, entrées 0x28, clé @+0) — template à 4 strides, fuzz 2 modes"
+    },
+    {
+      "va": "0x140452820",
+      "rust": null,
+      "status": "semantic",
+      "proof": {
+        "kind": "uemu",
+        "reference": "scripts/validate_path_stem.py"
+      },
+      "note": "File-stem de chemin d'asset (FUN_140452820) — basename sans dernière ext, strrchr SSE, fuzz"
+    },
+    {
+      "va": "0x140453570",
+      "rust": null,
+      "status": "semantic",
+      "proof": {
+        "kind": "uemu",
+        "reference": "scripts/validate_intrusive_map_pop.py"
+      },
+      "note": "pop_front liste active du conteneur (FUN_140453570) — côté ÉCRITURE, mutation byte-exact, fuzz"
+    },
+    {
+      "va": "0x14045ff50",
+      "rust": null,
+      "status": "semantic",
+      "proof": {
+        "kind": "uemu",
+        "reference": "scripts/validate_aspect_viewport.py"
+      },
+      "note": "Viewport letterbox/pillarbox au ratio (FUN_14045ff50) — rendu, division entière exacte, fuzz"
+    },
+    {
+      "va": "0x1404af530",
+      "rust": null,
+      "status": "semantic",
+      "proof": {
+        "kind": "uemu",
+        "reference": "scripts/validate_keyed_record_lookup.py"
+      },
+      "note": "Lookup record 0xb0 par clé 40-bit (FUN_1404af530) — linéaire/binaire + early-exit param_2==0, fuzz"
+    },
+    {
+      "va": "0x140506730",
+      "rust": null,
+      "status": "semantic",
+      "proof": {
+        "kind": "uemu",
+        "reference": "scripts/validate_fixed_slot_append.py"
+      },
+      "note": "Append élément 0xB8 à tableau capacité fixe (FUN_140506730) — côté ÉCRITURE, fuzz 600 cas"
+    },
+    {
+      "va": "0x14050b0b0",
+      "rust": null,
+      "status": "semantic",
+      "proof": {
+        "kind": "uemu",
+        "reference": "scripts/validate_intrusive_map_c.py"
+      },
+      "note": "2e instanciation du conteneur (FUN_14050b0b0, entrées 0xc) — généralisation entry_stride, fuzz 2 modes"
+    },
+    {
+      "va": "0x140541de0",
+      "rust": null,
+      "status": "semantic",
+      "proof": {
+        "kind": "uemu",
+        "reference": "scripts/validate_intrusive_map_next.py"
+      },
+      "note": "Itérateur next-equal du conteneur trié (FUN_140541de0) — énum. de run multimap, fuzz"
+    },
+    {
+      "va": "0x14075c030",
+      "rust": null,
+      "status": "semantic",
+      "proof": {
+        "kind": "uemu",
+        "reference": "scripts/validate_imm_batcher.py"
+      },
+      "note": "Assembleur primitives mode immédiat (FUN_14075c030) — transform+émission 5 modes, fuzz 800 cas"
+    },
+    {
+      "va": "0x140d3b8f0",
+      "rust": null,
+      "status": "semantic",
+      "proof": {
+        "kind": "uemu",
+        "reference": "scripts/validate_entry_offset.py"
+      },
+      "note": "Adresse d'élément table 14×29×3 (FUN_140d3b8f0) — sibling de category_lookup, fuzz 24800 cas"
+    },
+    {
+      "va": "0x140d3bac0",
+      "rust": null,
+      "status": "semantic",
+      "proof": {
+        "kind": "uemu",
+        "reference": "scripts/validate_category_lookup.py"
+      },
+      "note": "Catégorie d'un id dans table 14×29 (FUN_140d3bac0) — 4 branches found/fallback/sentinelle, fuzz 600 cas"
+    },
+    {
+      "va": "0x140d8f2b0",
+      "rust": null,
+      "status": "semantic",
+      "proof": {
+        "kind": "uemu",
+        "reference": "scripts/validate_byte_keyed_table.py"
+      },
+      "note": "Lookup table records 8o par clé 1 octet (FUN_140d8f2b0) — scan linéaire first-win, fuzz 608 cas"
+    },
+    {
+      "va": "0x1411da770",
+      "rust": null,
+      "status": "semantic",
+      "proof": {
+        "kind": "uemu",
+        "reference": "scripts/validate_handle_table.py"
+      },
+      "note": "Find-first-active via table de handles validés (FUN_1411da770) — génération anti-stale, fuzz"
+    },
+    {
+      "va": "0x141290fc0",
+      "rust": null,
+      "status": "semantic",
+      "proof": {
+        "kind": "uemu",
+        "reference": "scripts/validate_menu_setting.py"
+      },
+      "note": "Décodeur valeurs typées objet-menu CMenuStateMachine (FUN_141290fc0, +0x590..0x5ba)"
+    },
+    {
+      "va": "0x14168b330",
+      "rust": null,
+      "status": "semantic",
+      "proof": {
+        "kind": "uemu",
+        "reference": "scripts/validate_strncmp.py"
+      },
+      "note": "strncmp MSVC (FUN_14168b330) — comparaison C bornée non signée, fuzz 908 cas"
+    },
+    {
+      "va": "0x14168b570",
+      "rust": null,
+      "status": "semantic",
+      "proof": {
+        "kind": "uemu",
+        "reference": "scripts/validate_strcmp.py"
+      },
+      "note": "strcmp MSVC SIMD (FUN_14168b570) — comparaison C non signée -1/0/1, fuzz 668 cas"
+    },
+    {
+      "va": "0x14168b5f0",
+      "rust": null,
+      "status": "semantic",
+      "proof": {
+        "kind": "uemu",
+        "reference": "scripts/validate_strlen.py"
+      },
+      "note": "strlen MSVC SWAR (FUN_14168b5f0) — longueur chaîne C, fuzz 1028 cas"
+    }
+  ]
+}

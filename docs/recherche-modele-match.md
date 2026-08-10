@@ -90,7 +90,7 @@ flags_mask = 0x1000000, timeout_frames = 20 (0x14), counter = 5.
 
 ### 1.6 LIMITES CRITIQUES de match_sim.rs
 
-`crates/nie-core/src/match_sim.rs` est entièrement NOMINAL. Aucune de ses hypothèses
+`crates/engine/nie-core/src/match_sim.rs` est entièrement NOMINAL. Aucune de ses hypothèses
 n'est étayée byte-à-byte :
 
 - Boucle minute-par-minute sur 90 minutes : nie.exe pilote la balle par PhysX en temps réel.

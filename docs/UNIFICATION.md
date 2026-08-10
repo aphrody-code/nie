@@ -84,8 +84,8 @@ fallback headless/golden.
 
 ## Fichiers clés
 
-`crates/nie-play/src/main.rs` (FSM à extraire, l.139/149/243/246) ·
-`crates/nie-core/src/match_sim.rs` (l.284/473) · `crates/nie-core/src/{ball,action,keeper,tactics,soccer_ctrl,play_cmd_manager}.rs`
-(orphelins) · `crates/nie-runtime/src/lib.rs` (physique à arbitrer) · `crates/nie-game/src/main.rs`
-(host wgpu l.799/2571) · `crates/nie-lua/src/menu_host.rs` (driver l.655/1261) ·
-`crates/nie-model-serve/src/menu.rs` (compositeur à partager) · `crates/nie-formats/src/{g4mt.rs:107,assemble.rs:54}`.
+`crates/engine/nie-play/src/main.rs` (FSM à extraire, l.139/149/243/246) ·
+`crates/engine/nie-core/src/match_sim.rs` (l.284/473) · `crates/engine/nie-core/src/{ball,action,keeper,tactics,soccer_ctrl,play_cmd_manager}.rs`
+(orphelins) · `crates/engine/nie-runtime/src/lib.rs` (physique à arbitrer) · `crates/engine/nie-game/src/main.rs`
+(host wgpu l.799/2571) · `crates/engine/nie-lua/src/menu_host.rs` (driver l.655/1261) ·
+`crates/tools/nie-model-serve/src/menu.rs` (compositeur à partager) · `crates/engine/nie-formats/src/{g4mt.rs:107,assemble.rs:54}`.

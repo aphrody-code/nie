@@ -15,7 +15,7 @@ set -euo pipefail
 # AZALEE surchargeable par env. Défaut = repo `rg` côte-à-côte du $HOME.
 ROOT="${NIE_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 AZALEE="${AZALEE_DIR:-$HOME/rg/apps/azalee}"
-PKG="$ROOT/crates/nie-wasm/pkg"
+PKG="$ROOT/crates/engine/nie-wasm/pkg"
 WASM="$ROOT/target/wasm32-unknown-unknown/release/nie_wasm.wasm"
 
 cd "$ROOT"

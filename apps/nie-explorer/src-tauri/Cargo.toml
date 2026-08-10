@@ -76,31 +76,31 @@ tauri-plugin-process = "2"
 # PLAN.md` §3octies) : ce qui suit est la liste de TOUT ce qui est chargeable en dépendance
 # Cargo directe (a un `src/lib.rs`, aucun conflit de lien natif). Les crates absentes de ce
 # fichier le sont pour une raison Cargo dure, listée à la fin — jamais un oubli.
-nie-formats = { path = "../../../crates/nie-formats", features = ["serde", "textures", "audio-decode"] }
-nie-explore = { path = "../../../crates/nie-explore" }
+nie-formats = { path = "../../../crates/engine/nie-formats", features = ["serde", "textures", "audio-decode"] }
+nie-explore = { path = "../../../crates/engine/nie-explore" }
 # Saves IEVR (Lives, CRC32-keyed XOR) : décrypt/inspection/ré-encryptage → onglet Sauvegardes.
-nie-save = { path = "../../../crates/nie-save", features = ["serde"] }
+nie-save = { path = "../../../crates/engine/nie-save", features = ["serde"] }
 # Modèles de données de jeu (skills/auras/chara_param/items…) — chargée pour un futur navigateur
 # de données 100 % hors-ligne (sans miroir wiki), pas encore câblée dans une commande.
-nie-data = { path = "../../../crates/nie-data", features = ["serde", "std"] }
+nie-data = { path = "../../../crates/engine/nie-data", features = ["serde", "std"] }
 # Logique de jeu reversée (ballon/IA/état de match) — chargée pour de futurs outils de mod
 # gameplay, pas encore câblée dans une commande.
-nie-core = { path = "../../../crates/nie-core" }
+nie-core = { path = "../../../crates/engine/nie-core" }
 # RE en direct (lecture mémoire ReadProcessMemory native Windows) — chargée mais SANS commande
 # exposée : EAC est présent sur cette installation, on n'attache pas au process au runtime
 # de l'app de modding par défaut (cf. `docs/`).
-nie-trace = { path = "../../../crates/nie-trace" }
+nie-trace = { path = "../../../crates/forge/nie-trace" }
 # Frontière BFS (redis) — chargée pour un futur outil RE intégré, pas encore câblée.
-nie-queue = { path = "../../../crates/nie-queue" }
+nie-queue = { path = "../../../crates/forge/nie-queue" }
 # Types géométriques POD partagés (Vec2/Vec3) — déjà tiré transitivement via nie-core/
 # nie-formats (dédup Phase 2), déclaré ici en direct pour un accès sans détour depuis les
 # futures commandes de mod gameplay (placement/formation).
-nie-geom = { path = "../../../crates/nie-geom" }
+nie-geom = { path = "../../../crates/engine/nie-geom" }
 # Cœur du jeu (GameState + trait Renderer) : PAS de wgpu/winit ici (nie-game, le hôte GPU, est
 # un binaire séparé qui consomme nie-app — aucun conflit avec le WebView2 de Tauri). Chargée
 # pour un futur onglet « prévisualiser un match/dialogue » rendu en framebuffer CPU, embarqué
 # sans dépendre d'un process externe.
-nie-app = { path = "../../../crates/nie-app" }
+nie-app = { path = "../../../crates/engine/nie-app" }
 # Rendu 3D CPU (rastérisation z-buffer, PAS de GPU) — appelée EN PROCESS par `vfs_glb_preview_
 # png_b64`/`vfs_glb_preview_turntable_mp4_b64` (cf. commentaire de section dans lib.rs) : avant
 # 2026-08-08 ces deux commandes shellaient vers un binaire compilé séparément
@@ -110,12 +110,12 @@ nie-app = { path = "../../../crates/nie-app" }
 # 3D était donc silencieusement cassé hors poste de dev. Le rasterizer étant du pur-Rust
 # `no_std`-friendly (`glb::parse`+`render::render`), l'appeler en lib direct élimine la
 # dépendance au binaire ET le double aller-retour disque (écrire le GLB, relire le PNG).
-nie-render3d = { path = "../../../crates/nie-render3d" }
+nie-render3d = { path = "../../../crates/engine/nie-render3d" }
 # VM Lua 5.2 RÉELLE du jeu (mlua/PUC-Rio 5.2.4 vendored) — dépendance désormais DIRECTE : l'onglet
 # Lua ne se contente plus de décrire un `.lua.bin`, il le décode (`bytecode`), l'exécute et en
 # inspecte les valeurs (`runtime`). Passer par `nie-explore` ne donnait accès qu'à
 # `describe_content`, qui ne fait qu'une reconnaissance de signature.
-nie-lua = { path = "../../../crates/nie-lua" }
+nie-lua = { path = "../../../crates/engine/nie-lua" }
 # Encodage PNG des frames rendues par nie-render3d (même crate/version que `nie-render3d`/
 # `nie-game`/`nie-play` — pas de nouvelle dépendance pour le workspace, juste ajoutée ici aussi).
 png = "0.18"
@@ -132,17 +132,17 @@ trash = "5"
 # Moteur de match top-down (World : physique ballon, 22 joueurs, buts) — chargée pour un futur
 # onglet « simuler un match » embarqué (aujourd'hui : `nie-runtime`/`nie-match3d` en CLI headless
 # séparée uniquement).
-nie-runtime = { path = "../../../crates/nie-runtime" }
+nie-runtime = { path = "../../../crates/engine/nie-runtime" }
 # Téléchargement/dump natif de depots Steam (port du `Steam/` C# d'iecode sur `steamroom`) —
 # chargée pour un futur onglet « vérifier/récupérer le dépôt IEVR », pas encore câblée dans une
 # commande. Dépendance `tokio` (runtime async) : compatible avec l'exécuteur bloquant des
 # commandes `tauri::command` existantes (appelée depuis un thread dédié, jamais le thread UI).
-nie-steam = { path = "../../../crates/nie-steam" }
+nie-steam = { path = "../../../crates/tools/nie-steam" }
 # Orchestration de job annulable/pausable avec progression (architecture inspirée sd-task-system,
 # implémentation originale) — remplace le scan VFS synchrone opaque de `vfs_all_entries` par un
 # job chunké annulable, avec progression relayée par événement Tauri (`vfs-index-progress`,
 # cf. `vfs_index_scan_start`/`vfsIndexDb.reindex`).
-nie-tasks = { path = "../../../crates/nie-tasks" }
+nie-tasks = { path = "../../../crates/tools/nie-tasks" }
 async-trait = "0.1"
 uuid = { version = "1", features = ["v4"] }
 tokio = { version = "1", features = ["rt"] }

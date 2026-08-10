@@ -1,0 +1,35 @@
+[package]
+name = "nie-render3d"
+description = "Renderer 3D du moteur niers : charge un GLB réel (assets CPK) et le rend en perspective (rastérisation CPU z-buffer + éclairage) → PNG/MP4 turntable, headless"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "nie-render3d"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+serde_json.workspace = true
+png = "0.18"
+bcdec_rs = "0.2.0"
+wgpu = { version = "=29.0.3", optional = true }
+pollster = { version = "0.4", optional = true }
+bytemuck = { version = "1", features = ["derive"], optional = true }
+
+[dev-dependencies]
+nie-formats = { path = "../../engine/nie-formats" }
+
+# Rendu GPU (wgpu) du viewport — optionnel : les consommateurs headless (golden CPU, CLI turntable)
+# ne doivent pas tirer wgpu/pollster. Version de wgpu ALIGNÉE sur `nie-game` (=29.0.3), l'autre hôte
+# GPU du workspace : deux versions majeures de wgpu dans un même binaire dupliqueraient le backend.
+[features]
+default = []
+gpu = ["dep:wgpu", "dep:pollster", "dep:bytemuck"]

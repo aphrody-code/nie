@@ -6,7 +6,7 @@
 
 ## C1 — Formats (lecture pure-Rust des conteneurs)
 
-**Source** : `crates/nie-formats/src/` (16 modules — +`objbin`, +`g4pkm` au 2026-06-14), `docs/cartographie-data.md` (2026-06-13).
+**Source** : `crates/engine/nie-formats/src/` (16 modules — +`objbin`, +`g4pkm` au 2026-06-14), `docs/cartographie-data.md` (2026-06-13).
 
 - **16/16 modules implémentés** ; **15/16 parsent du réel** (seul `nxtch.rs` sans fichier IEVR PC réel — variante Switch, 0/250 800).
 - **Trilogie menu — FAIT (2026-06-14)** : `objbin` (objet-menu = quoi : texture/z-order/composants), `g4pkm` (transform 2D = où : squelette G4SK → poses bind écran), `g4tx` (pixels) → un écran de menu est entièrement descriptible nativement. Portés d'iecode, **validés byte-exact via le VFS réel** (cpk_list déchiffré) : `win01_21` draw_priority 300, `option02_02` os nvidia X0/Y0/1920×1080, etc.
@@ -23,7 +23,7 @@
 
 ## C2 — Données (familles cfg.bin portées + recalcul au bit)
 
-**Source** : `crates/nie-data/src/` (**48 fichiers .rs**), `crates/nie-data/tests/*_golden.rs` (47 fichiers).
+**Source** : `crates/engine/nie-data/src/` (**48 fichiers .rs**), `crates/engine/nie-data/tests/*_golden.rs` (47 fichiers).
 
 - **34 familles golden byte-exact confirmées** (énumérées ROADMAP l.48 ; le doc dit « 31/58 » → discordance +3 non arbitrée, cf. gaps). Baseline + workflows séquentiels disque-légers : skill, item, growth, exp, passives, aura, chara_param, formation, command, ai, party, phase, soccer, rpg_battle, mission, dungeon, boost_grp, record, chronicle_top, friendmap, fast_travel, weather, light, dictionary, gallery, banner, search_word, scene_archive, music_app, photo_mode, update_notice, chat_emote, user_name_plate, input.
 - **+8 familles en portage (lot B2)** : chara_bank, skill_view, post (+5 sous-familles), craft, trophy, setting_menu, vsroute, help.
@@ -35,7 +35,7 @@
 
 ## C3 — Logique moteur (portage du décompilé)
 
-**Source** : `crates/nie-engine/src/` (12 fichiers, **15 070 LOC**), `crates/nie-core/src/` (16 fichiers + 2 tests, **6 102 LOC**). Les deux : `#![forbid(unsafe_code)]`.
+**Source** : `crates/archive/nie-engine/src/` (12 fichiers, **15 070 LOC**), `crates/engine/nie-core/src/` (16 fichiers + 2 tests, **6 102 LOC**). Les deux : `#![forbid(unsafe_code)]`.
 
 - **nie-engine** : **129 pub fn**, **271 tests**, **11 sous-systèmes publics** (app, render, menu, audio, animation, scripting, network, cpk, g4 + cfgbin utilitaire) **+ `physics` privé** (PhysX, 35 tests, non exposé `pub mod`). **434 `// EXTERN:` non résolues** (≈7,6/fn) = socle = îlot non connecté. Portage : **60 fonctions C décompilées** (commit 2026-06-05) ; ~55 distinctes.
 - **nie-core** : **103 pub fn**, **166 marqueurs `#[test]`** (mesuré 2026-06-13 : **152 lib** verts + 14 en `tests/`), **15 sous-systèmes logiques**, **0 `EXTERN`** (autonome). Portage : **14 primitives gameplay** (2026-06-04, depuis `soccer_match_state_machine.c`/`soccer_command_effect.c`/`soccer_action_ctrl.c`).
@@ -47,7 +47,7 @@
 
 ## C4 — Rendu (pixel-perfect) — LA POINTE ACTIVE
 
-**Source** : `crates/nie-game/src/main.rs` (**1 180 LOC**), `crates/nie-formats/src/assemble.rs` (2279 LOC), `crates/nie-model-serve`.
+**Source** : `crates/engine/nie-game/src/main.rs` (**1 180 LOC**), `crates/engine/nie-formats/src/assemble.rs` (2279 LOC), `crates/tools/nie-model-serve`.
 
 - **D0 FAIT partiel** : assemblage **GLB statique texturé** (corps + face + uniforme, g4tx→PNG BC1-7 embarqués), servi live par `nie-model-serve` (`/model-full/<code>.glb`, 6 routes, cache configurable). Manifeste uniforme 3550 entrées.
 - **Host natif `nie-game` (D1) EN PLACE** : wgpu **22** + winit 0.30 + pollster 0.3. Modes `--capture` (rendu hors-écran → PNG, `Rgba8Unorm`/`Nearest`/sans sRGB, readback aligné 256 o **déjà bit-exact**) et `--window` (surface + `ApplicationHandler`). **Rend une vraie texture `.g4tx`** décodée RGBA8 depuis les CPK (VFS ou scan direct). C'est le squelette du pipeline pixel-perfect.

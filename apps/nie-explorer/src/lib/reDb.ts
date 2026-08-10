@@ -1,7 +1,7 @@
 // Base RE `var/niers.sqlite` (248 Mo, statique, HORS LIGNE) — ~113 000 fonctions labellisées
 // (nom, sous-système, confiance, pagerank, call-graph) + ~3 150 classes RTTI (adresse de
 // vtable réelle) + ~507 000 xrefs, produites par `nie-re` (désassemblage/récupération RTTI/
-// propagation de labels sur le binaire `nie.exe`, cf. `crates/nie-re`). Interrogée EXACTEMENT
+// propagation de labels sur le binaire `nie.exe`, cf. `crates/forge/nie-re`). Interrogée EXACTEMENT
 // comme le miroir wiki (`wikiDb.ts`) : `tauri-plugin-sql` directement depuis le frontend — même
 // raison qu'eux (rusqlite de `nie-re`/`nie-index` entre en conflit de lien natif avec le
 // `sqlx-sqlite` du plugin dans CE binaire, cf. `src-tauri/Cargo.toml`).
