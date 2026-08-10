@@ -192,6 +192,9 @@ fn as_imm32(v: i64) -> Option<i32> {
 
 fn parse_mem(s: &str) -> Option<Mem> {
     let inner = s.trim().strip_prefix('[')?.strip_suffix(']')?;
+    if inner.trim().starts_with("abs") {
+        return None; // traité par `mov` : forme accumulateur A0..A3
+    }
     if let Some(rest) = inner.trim().strip_prefix("rip") {
         return Some(Mem::rip(parse_u64(rest.trim())?));
     }
@@ -525,6 +528,14 @@ impl Insn {
             Self::Sse(op, d, s) => {
                 format!("{} {}, {}", sse_name(op), xmm_text(d), xmmrm_text(s))
             }
+            Self::MovMoffs(s, a, store) => {
+                let acc = reg_name(Reg::Rax, s);
+                if store {
+                    format!("mov [abs {a:#x}], {acc}")
+                } else {
+                    format!("mov {acc}, [abs {a:#x}]")
+                }
+            }
             Self::SseStore(op, m, s) => {
                 format!("{} {}, {}", sse_name(op), mem_text(m), xmm_text(s))
             }
@@ -847,6 +858,18 @@ pub fn parse_insn(line: &str) -> Result<Insn, ParseError> {
         }
         "mov" => {
             let (d, s) = two()?;
+            // Forme accumulateur à adresse absolue (`A0`..`A3`).
+            let abs_of = |x: &str| -> Option<u64> {
+                parse_u64(x.trim().strip_prefix('[')?.strip_suffix(']')?.trim().strip_prefix("abs")?)
+            };
+            if let Some(a) = abs_of(&d) {
+                let (_, sz) = reg_of(&s).ok_or_else(err)?;
+                return Ok(Insn::MovMoffs(sz, a, true));
+            }
+            if let Some(a) = abs_of(&s) {
+                let (_, sz) = reg_of(&d).ok_or_else(err)?;
+                return Ok(Insn::MovMoffs(sz, a, false));
+            }
             if let Some((sz, m)) = split_sized_mem(&d) {
                 let v = parse_int(&s).ok_or_else(err)?;
                 return Ok(Insn::MovI(sz, Rm::M(m), as_imm32(v).ok_or_else(err)?));
