@@ -406,6 +406,24 @@ export const commands = {
 	 *  les cibles de développement du workspace.
 	 */
 	openInSceneEditor: (path: string | null, gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("open_in_scene_editor", { path, gameDir })),
+	/**  En-tête + statistiques d'un chunk Lua (`.lua.bin`). */
+	luaChunkInfo: (path: string | null, source: string | null, gameDir: string | null) => typedError<LuaChunkInfoDto, string>(__TAURI_INVOKE("lua_chunk_info", { path, source, gameDir })),
+	/**  Désassemble un chunk Lua en listing lisible. */
+	luaDisassemble: (path: string | null, source: string | null, gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("lua_disassemble", { path, source, gameDir })),
+	/**
+	 *  Exécute un script dans la VRAIE VM Lua 5.2 du jeu et renvoie sortie, erreur et appels moteur
+	 *  manquants.
+	 */
+	luaExecute: (path: string | null, source: string | null, withMenuHost: boolean, instructionLimit: number | null, gameDir: string | null) => typedError<LuaExecResultDto, string>(__TAURI_INVOKE("lua_execute", { path, source, withMenuHost, instructionLimit, gameDir })),
+	/**
+	 *  Exécute un script puis renvoie ses globals — l'éditeur de valeurs. `overrides` pose des valeurs
+	 *  AVANT l'exécution (rejouer « comme si » telle variable moteur valait autre chose).
+	 */
+	luaGlobals: (path: string | null, source: string | null, withMenuHost: boolean, overrides: ([string, string])[], includeStdlib: boolean, gameDir: string | null) => typedError<LuaGlobalDto[], string>(__TAURI_INVOKE("lua_globals", { path, source, withMenuHost, overrides, includeStdlib, gameDir })),
+	/**  Évalue une expression dans l'état laissé par le script — la console. */
+	luaEval: (path: string | null, source: string | null, expression: string, withMenuHost: boolean, gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("lua_eval", { path, source, expression, withMenuHost, gameDir })),
+	/**  Liste les scripts Lua du VFS (`.lua.bin`/`.lua`), triés — le catalogue de l'atelier. */
+	luaListScripts: (gameDir: string | null) => typedError<EntryDto[], string>(__TAURI_INVOKE("lua_list_scripts", { gameDir })),
 	/**
 	 *  Renvoie le **GLB assemblé lui-même** (base64), pas un rendu de celui-ci.
 	 * 
@@ -612,6 +630,69 @@ export type LsDto = {
 	 *  jamais un rôle deviné : la table ne couvre que ce qui est sourcé/vérifié.
 	 */
 	role: FolderRoleDto | null,
+};
+
+/**  En-tête + statistiques d'un chunk décodé. */
+export type LuaChunkInfoDto = {
+	/**  Version Lua encodée dans l'en-tête (`82` = `0x52` = Lua 5.2). */
+	version: number,
+	/**  `true` si petit-boutiste. */
+	little_endian: boolean,
+	/**  Taille d'un `size_t` C (4 sur une cible 32 bits, 8 sur 64) — décale tout le fichier. */
+	size_size_t: number,
+	/**  Nombre de paramètres de la fonction principale. */
+	num_params: number,
+	/**  Instructions de la fonction principale. */
+	instructions: number,
+	/**  Instructions au total, prototypes imbriqués compris. */
+	total_instructions: number,
+	/**  Nombre de prototypes imbriqués (récursif). */
+	total_protos: number,
+	/**  Constantes de la fonction principale. */
+	constants: number,
+	/**  Upvalues de la fonction principale. */
+	upvalues: number,
+	/**  Nom de source du bloc de débogage — vide si le chunk a été dépouillé. */
+	source: string,
+	/**
+	 *  `true` si les tables de débogage sont présentes (lignes/locales) : c'est ce qui rend le
+	 *  désassemblage lisible.
+	 */
+	has_debug_info: boolean,
+	/**
+	 *  Chaînes du pool de constantes de tout l'arbre — ce que le script manipule réellement
+	 *  (noms de menus, clés de texte, appels moteur).
+	 */
+	strings: string[],
+};
+
+/**  Résultat d'exécution renvoyé au frontend. */
+export type LuaExecResultDto = {
+	/**  Lignes imprimées par `print`. */
+	stdout: string[],
+	/**
+	 *  Message d'erreur du script, s'il a échoué (ce n'est PAS une erreur de commande : voir le
+	 *  message est le résultat attendu quand on mène un script au point).
+	 */
+	error: string | null,
+	/**  Valeurs retournées par le chunk. */
+	returned: string[],
+	/**  Globals hôtes appelés mais non définis — la surface d'API moteur que ce script réclame. */
+	missing_host_calls: string[],
+	/**  Durée d'exécution, en millisecondes. */
+	duration_ms: number,
+};
+
+/**  Une valeur globale exposée à l'éditeur de valeurs. */
+export type LuaGlobalDto = {
+	/**  Nom du global. */
+	name: string,
+	/**  Type Lua. */
+	type_name: string,
+	/**  Rendu texte de la valeur. */
+	value: string,
+	/**  Nombre d'entrées si c'est une table. */
+	len: number | null,
 };
 
 export type PackFileDto = {

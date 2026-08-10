@@ -4089,6 +4089,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "nie-asm"
+version = "0.4.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "nie-camera"
 version = "0.4.0"
 dependencies = [
@@ -4186,6 +4193,8 @@ version = "0.4.0"
 dependencies = [
  "anyhow",
  "clap",
+ "iced-x86",
+ "nie-asm",
  "nie-pe",
  "serde",
  "serde_json",

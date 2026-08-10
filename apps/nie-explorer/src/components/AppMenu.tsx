@@ -27,7 +27,7 @@ export interface AppMenuActions {
   tabLabels: Record<string, string>;
 }
 
-const VIEW_TABS = ["editor", "explorer", "search", "data", "mods", "cpk", "re", "save", "settings"] as const;
+const VIEW_TABS = ["editor", "explorer", "search", "data", "mods", "cpk", "re", "lua", "save", "settings"] as const;
 
 function zoomIn() {
   setSettings({ uiZoom: Math.min(1.5, getSettings().uiZoom + 0.1) });
