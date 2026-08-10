@@ -272,6 +272,14 @@ pub enum UnOp {
     Not,
     /// `neg` (`F7 /3`)
     Neg,
+    /// `mul r/m` (`F7 /4`)
+    Mul,
+    /// `imul r/m` — forme à un opérande (`F7 /5`)
+    Imul1,
+    /// `div r/m` (`F7 /6`)
+    Div,
+    /// `idiv r/m` (`F7 /7`)
+    Idiv,
 }
 
 impl UnOp {
@@ -283,15 +291,211 @@ impl UnOp {
             Self::Dec => 1,
             Self::CallInd | Self::Not => 2,
             Self::Neg => 3,
-            Self::JmpInd => 4,
-            Self::PushRm => 6,
+            Self::JmpInd | Self::Mul => 4,
+            Self::PushRm | Self::Div => 6,
+            Self::Imul1 => 5,
+            Self::Idiv => 7,
         }
     }
 
     /// Vrai si l'opération appartient au groupe `F7` (sinon `FF`).
     #[must_use]
     pub fn is_f7(self) -> bool {
-        matches!(self, Self::Not | Self::Neg)
+        matches!(self, Self::Not | Self::Neg | Self::Mul | Self::Imul1 | Self::Div | Self::Idiv)
+    }
+}
+
+/// Registre vectoriel 128 bits.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Xmm(pub u8);
+
+impl Xmm {
+    /// Bit haut (bit 3), porté par REX.
+    #[must_use]
+    pub fn hi(self) -> u8 {
+        self.0 >> 3
+    }
+
+    /// 3 bits bas, portés par ModRM.
+    #[must_use]
+    pub fn lo(self) -> u8 {
+        self.0 & 7
+    }
+}
+
+/// Opérande vectoriel « registre ou mémoire ».
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[allow(missing_docs)]
+pub enum XmmRm {
+    X(Xmm),
+    M(Mem),
+}
+
+/// Opération SSE à opérandes `xmm, xmm/m`.
+///
+/// Le jeu couvre ce qui bloque réellement le relevé de `nie.exe` : les
+/// mouvements vectoriels (`movaps`/`movups`/`movss`/`movsd`/`movdq*`), les
+/// logiques, l'arithmétique scalaire et paquetée, et les comparaisons.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[allow(missing_docs)]
+pub enum SseOp {
+    Movaps,
+    Movups,
+    Movss,
+    Movsd,
+    Movdqa,
+    Movdqu,
+    Movapd,
+    Movupd,
+    Xorps,
+    Xorpd,
+    Andps,
+    Andpd,
+    Andnps,
+    Orps,
+    Addps,
+    Addss,
+    Addsd,
+    Subps,
+    Subss,
+    Subsd,
+    Mulps,
+    Mulss,
+    Mulsd,
+    Divps,
+    Divss,
+    Divsd,
+    Minss,
+    Minps,
+    Maxss,
+    Maxps,
+    Sqrtss,
+    Sqrtps,
+    Comiss,
+    Comisd,
+    Ucomiss,
+    Ucomisd,
+    Unpcklps,
+    Unpckhps,
+    Cvtss2sd,
+    Cvtsd2ss,
+    Rcpss,
+    Rsqrtss,
+    Shufps,
+    Shufpd,
+    Pshufd,
+    Movlhps,
+    Movhlps,
+    Movlps,
+    Movhps,
+    Insertps,
+    Blendps,
+    Cvtdq2ps,
+    Cvtps2dq,
+    Cvttps2dq,
+    Cvtps2pd,
+    Cvtpd2ps,
+    Cvtdq2pd,
+    Haddps,
+    Hsubps,
+    Cmpps,
+    Cmpss,
+    Pxor,
+    Por,
+    Pand,
+    Unpcklpd,
+}
+
+/// Préfixe obligatoire d'une opération SSE.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SsePrefix {
+    None,
+    P66,
+    F2,
+    F3,
+}
+
+impl SseOp {
+    /// Vrai si l'opcode est de la famille `0F 3A xx` (trois octets).
+    fn three_byte(self) -> bool {
+        matches!(self, Self::Insertps | Self::Blendps)
+    }
+
+    /// `(préfixe, opcode « registre ← r/m », opcode de la forme « mémoire ← registre »)`.
+    fn encoding(self) -> (SsePrefix, u8, Option<u8>) {
+        use SsePrefix::{F2, F3, None as N, P66};
+        match self {
+            Self::Movaps => (N, 0x28, Some(0x29)),
+            Self::Movapd => (P66, 0x28, Some(0x29)),
+            Self::Movups => (N, 0x10, Some(0x11)),
+            Self::Movupd => (P66, 0x10, Some(0x11)),
+            Self::Movss => (F3, 0x10, Some(0x11)),
+            Self::Movsd => (F2, 0x10, Some(0x11)),
+            Self::Movdqa => (P66, 0x6F, Some(0x7F)),
+            Self::Movdqu => (F3, 0x6F, Some(0x7F)),
+            Self::Xorps => (N, 0x57, None),
+            Self::Xorpd => (P66, 0x57, None),
+            Self::Andps => (N, 0x54, None),
+            Self::Andpd => (P66, 0x54, None),
+            Self::Andnps => (N, 0x55, None),
+            Self::Orps => (N, 0x56, None),
+            Self::Addps => (N, 0x58, None),
+            Self::Addss => (F3, 0x58, None),
+            Self::Addsd => (F2, 0x58, None),
+            Self::Subps => (N, 0x5C, None),
+            Self::Subss => (F3, 0x5C, None),
+            Self::Subsd => (F2, 0x5C, None),
+            Self::Mulps => (N, 0x59, None),
+            Self::Mulss => (F3, 0x59, None),
+            Self::Mulsd => (F2, 0x59, None),
+            Self::Divps => (N, 0x5E, None),
+            Self::Divss => (F3, 0x5E, None),
+            Self::Divsd => (F2, 0x5E, None),
+            Self::Minps => (N, 0x5D, None),
+            Self::Minss => (F3, 0x5D, None),
+            Self::Maxps => (N, 0x5F, None),
+            Self::Maxss => (F3, 0x5F, None),
+            Self::Sqrtps => (N, 0x51, None),
+            Self::Sqrtss => (F3, 0x51, None),
+            Self::Comiss => (N, 0x2F, None),
+            Self::Comisd => (P66, 0x2F, None),
+            Self::Ucomiss => (N, 0x2E, None),
+            Self::Ucomisd => (P66, 0x2E, None),
+            Self::Unpcklps => (N, 0x14, None),
+            Self::Unpckhps => (N, 0x15, None),
+            Self::Cvtss2sd => (F3, 0x5A, None),
+            Self::Cvtsd2ss => (F2, 0x5A, None),
+            Self::Rcpss => (F3, 0x53, None),
+            Self::Rsqrtss => (F3, 0x52, None),
+            Self::Shufps => (N, 0xC6, None),
+            Self::Shufpd => (P66, 0xC6, None),
+            Self::Pshufd => (P66, 0x70, None),
+            Self::Movlhps => (N, 0x16, None),
+            Self::Movhlps => (N, 0x12, None),
+            Self::Movlps => (N, 0x12, Some(0x13)),
+            Self::Movhps => (N, 0x16, Some(0x17)),
+            // Opcodes a trois octets `0F 3A xx` : le second octet est porte par
+            // `three_byte()`, l'opcode final reste ici.
+            Self::Insertps => (P66, 0x21, None),
+            Self::Blendps => (P66, 0x0C, None),
+            Self::Cvtdq2ps => (N, 0x5B, None),
+            Self::Cvtps2dq => (P66, 0x5B, None),
+            Self::Cvttps2dq => (F3, 0x5B, None),
+            Self::Cvtps2pd => (N, 0x5A, None),
+            Self::Cvtpd2ps => (P66, 0x5A, None),
+            Self::Cvtdq2pd => (F3, 0xE6, None),
+            Self::Haddps => (F2, 0x7C, None),
+            Self::Hsubps => (F2, 0x7D, None),
+            Self::Cmpps => (N, 0xC2, None),
+            Self::Cmpss => (F3, 0xC2, None),
+            Self::Pxor => (P66, 0xEF, None),
+            Self::Por => (P66, 0xEB, None),
+            Self::Pand => (P66, 0xDB, None),
+            Self::Unpcklpd => (P66, 0x14, None),
+        }
     }
 }
 
@@ -338,8 +542,12 @@ pub enum Insn {
     AluRM(Alu, Size, Reg, Mem),
     /// `<alu> [mem], r` (`op*8+1`)
     AluMR(Alu, Size, Mem, Reg),
-    /// `<alu> r, imm` (`83 /n ib` si l'immédiat tient sur 8 bits signés, sinon `81 /n id`)
-    AluRI(Alu, Size, Reg, i32),
+    /// `<alu> r, imm` — le booléen force la forme **longue** (`81 /n id`).
+    ///
+    /// MSVC n'encode pas toujours au plus court : `and rdx, -0x10` s'écrit
+    /// tantôt `48 83 E2 F0`, tantôt `48 81 E2 F0 FF FF FF`. Le choix appartient
+    /// au binaire d'origine, pas à l'encodeur — la source le conserve donc.
+    AluRI(Alu, Size, Reg, i32, bool),
     /// `test r, r` (`85 /r`, `84 /r` en 8 bits)
     TestRR(Size, Reg, Reg),
     /// `<shift> r, imm8` (`C1 /n ib`)
@@ -362,8 +570,8 @@ pub enum Insn {
     Jmp(u64, bool),
     /// `jcc <cible absolue>` ; `short` choisit `7x rel8` plutôt que `0F 8x rel32`
     Jcc(Cond, u64, bool),
-    /// `<alu> r/m, imm` (`80/81/83 /n`) — couvre `cmp dword [rcx], 5`
-    AluI(Alu, Size, Rm, i32),
+    /// `<alu> r/m, imm` (`80/81/83 /n`) ; le booléen force la forme longue.
+    AluI(Alu, Size, Rm, i32, bool),
     /// `mov r/m, imm` (`C6 /0` en 8 bits, `C7 /0` sinon)
     MovI(Size, Rm, i32),
     /// `test r/m, r`
@@ -380,6 +588,115 @@ pub enum Insn {
     Movsx(Size, Size, Reg, Rm),
     /// `lea r32, [mem]` (sans REX.W)
     LeaD(Reg, Mem),
+    /// SSE, direction « registre ← xmm/mémoire » (`movss xmm0, [rcx]`)
+    Sse(SseOp, Xmm, XmmRm),
+    /// SSE, direction « mémoire ← registre » (`movaps [rcx], xmm0`)
+    SseStore(SseOp, Mem, Xmm),
+    /// `cmovcc r, r/m` (`0F 40+cc /r`)
+    Cmov(Cond, Size, Reg, Rm),
+    /// SSE à immédiat : `shufps xmm0, xmm1, 0x4e` (`0F C6 /r ib`)
+    SseI(SseOp, Xmm, XmmRm, u8),
+    /// Conversion `xmm ← r/m entier` (`cvtsi2ss`/`cvtsi2sd`)
+    CvtToXmm(CvtOp, Xmm, Rm, Size),
+    /// Conversion `r entier ← xmm/m` (`cvttss2si`, `cvtsd2si`…)
+    CvtToReg(CvtOp, Reg, XmmRm, Size),
+    /// `movd/movq xmm, r/m` (`66 0F 6E /r`, REX.W pour 64 bits)
+    MovdToXmm(Xmm, Rm, Size),
+    /// `movd/movq r/m, xmm` (`66 0F 7E /r`)
+    MovdToRm(Rm, Xmm, Size),
+    /// `movsxd r64, r/m32` (`63 /r`) — forme générale, mémoire comprise
+    MovsxdRm(Reg, Rm),
+    /// `movzx r, r/m8|16` — forme générale avec destination 32 ou 64 bits
+    MovzxRm(Size, Size, Reg, Rm),
+    /// `movsx r, r/m8|16` — idem
+    MovsxRm(Size, Size, Reg, Rm),
+    /// Instruction sans opérande (`cdqe`, `cdq`, `cqo`, `cwde`, `leave`)
+    NoOperand(NoOp),
+    /// `setcc r/m8` — forme générale, mémoire comprise
+    SetccRm(Cond, Rm),
+    /// `<shift> r/m, cl` (`D2`/`D3 /n`)
+    ShiftCl(ShiftOp, Size, Rm),
+    /// `bt/bts/btr/btc r/m, r` (`0F A3/AB/B3/BB /r`)
+    BitRm(BitOp, Size, Rm, Reg),
+    /// `bt/bts/btr/btc r/m, imm8` (`0F BA /n ib`)
+    BitImm(BitOp, Size, Rm, u8),
+}
+
+/// Instruction sans opérande.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[allow(missing_docs)]
+pub enum NoOp {
+    /// `cwde` (`98`)
+    Cwde,
+    /// `cdqe` (`48 98`)
+    Cdqe,
+    /// `cdq` (`99`)
+    Cdq,
+    /// `cqo` (`48 99`)
+    Cqo,
+    /// `leave` (`C9`)
+    Leave,
+}
+
+/// Opération sur bit (`bt` et dérivées).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[allow(missing_docs)]
+pub enum BitOp {
+    Bt,
+    Bts,
+    Btr,
+    Btc,
+}
+
+impl BitOp {
+    /// Opcode de la forme « r/m, registre ».
+    fn opcode(self) -> u8 {
+        match self {
+            Self::Bt => 0xA3,
+            Self::Bts => 0xAB,
+            Self::Btr => 0xB3,
+            Self::Btc => 0xBB,
+        }
+    }
+
+    /// Champ `/n` de la forme à immédiat (`0F BA`).
+    fn digit(self) -> u8 {
+        match self {
+            Self::Bt => 4,
+            Self::Bts => 5,
+            Self::Btr => 6,
+            Self::Btc => 7,
+        }
+    }
+}
+
+/// Conversion SSE ↔ entier / flottant.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[allow(missing_docs)]
+pub enum CvtOp {
+    Cvtsi2ss,
+    Cvtsi2sd,
+    Cvttss2si,
+    Cvttsd2si,
+    Cvtss2si,
+    Cvtsd2si,
+}
+
+impl CvtOp {
+    /// `(préfixe, opcode)`.
+    fn encoding(self) -> (u8, u8) {
+        match self {
+            Self::Cvtsi2ss => (0xF3, 0x2A),
+            Self::Cvtsi2sd => (0xF2, 0x2A),
+            Self::Cvttss2si => (0xF3, 0x2C),
+            Self::Cvttsd2si => (0xF2, 0x2C),
+            Self::Cvtss2si => (0xF3, 0x2D),
+            Self::Cvtsd2si => (0xF2, 0x2D),
+        }
+    }
 }
 
 /// Encode une suite d'instructions à l'adresse `0` (formes sans adresse).
@@ -404,10 +721,24 @@ pub fn encode_at(insns: &[Insn], va: u64) -> Vec<u8> {
 
 /// Préfixe REX si nécessaire (`w`, `r`, `x`, `b`).
 fn rex(out: &mut Vec<u8>, w: bool, r: u8, x: u8, b: u8) {
+    rex_forced(out, w, r, x, b, false);
+}
+
+/// Variante forçant l'émission d'un REX nul.
+///
+/// Indispensable en 8 bits : sans REX, les numéros 4..7 désignent `ah/ch/dh/bh` ;
+/// avec un REX même vide, ils désignent `spl/bpl/sil/dil`. MSVC émet donc un
+/// `40` apparemment inutile — l'omettre change l'instruction.
+fn rex_forced(out: &mut Vec<u8>, w: bool, r: u8, x: u8, b: u8, force: bool) {
     let v = 0x40 | (u8::from(w) << 3) | ((r & 1) << 2) | ((x & 1) << 1) | (b & 1);
-    if v != 0x40 {
+    if v != 0x40 || force {
         out.push(v);
     }
+}
+
+/// Vrai si le registre exige un REX en contexte 8 bits (`spl`/`bpl`/`sil`/`dil`).
+fn needs_rex8(size: Size, r: Reg) -> bool {
+    size == Size::B && (4..=7).contains(&r.num())
 }
 
 /// Préfixe de taille d'opérande 16 bits.
@@ -483,7 +814,7 @@ fn mem_form(out: &mut Vec<u8>, size: Size, opcode: u8, reg: Reg, m: Mem, at: u64
     let base = out.len();
     opsize(out, size);
     let (x, b) = mem_rex(m);
-    rex(out, size.rex_w(), reg.hi(), x, b);
+    rex_forced(out, size.rex_w(), reg.hi(), x, b, needs_rex8(size, reg));
     out.push(opcode);
     modrm_mem(out, reg.lo(), m, at, base, imm);
 }
@@ -491,7 +822,8 @@ fn mem_form(out: &mut Vec<u8>, size: Size, opcode: u8, reg: Reg, m: Mem, at: u64
 /// Instruction registre↔registre (`mod=11`).
 fn reg_form(out: &mut Vec<u8>, size: Size, opcode: u8, reg: Reg, rm: Reg) {
     opsize(out, size);
-    rex(out, size.rex_w(), reg.hi(), 0, rm.hi());
+    let force = needs_rex8(size, reg) || needs_rex8(size, rm);
+    rex_forced(out, size.rex_w(), reg.hi(), 0, rm.hi(), force);
     out.push(opcode);
     out.push(0xC0 | (reg.lo() << 3) | rm.lo());
 }
@@ -516,7 +848,7 @@ fn rm_form(
     opsize(out, size);
     match rm {
         Rm::R(r) => {
-            rex(out, size.rex_w(), reg_hi, 0, r.hi());
+            rex_forced(out, size.rex_w(), reg_hi, 0, r.hi(), needs_rex8(size, r));
             out.extend_from_slice(opcodes);
             out.push(0xC0 | ((reg & 7) << 3) | r.lo());
         }
@@ -608,13 +940,27 @@ fn encode_one(i: Insn, at: u64, out: &mut Vec<u8>) {
         Insn::AluRR(op, size, dst, src) => reg_form(out, size, alu_rm_op(op, size), dst, src),
         Insn::AluRM(op, size, dst, m) => mem_form(out, size, alu_rm_op(op, size), dst, m, at, 0),
         Insn::AluMR(op, size, m, src) => mem_form(out, size, alu_mr_op(op, size), src, m, at, 0),
-        Insn::AluRI(op, size, r, imm) => {
+        Insn::AluRI(op, size, r, imm, wide) => {
+            let short = !wide && i8::try_from(imm).is_ok();
+            // Forme accumulateur : `and eax, imm32` s'encode `25 id` chez MSVC,
+            // pas `81 E0 id`.
+            if r == Reg::Rax && size != Size::B && !short {
+                opsize(out, size);
+                rex(out, size.rex_w(), 0, 0, 0);
+                out.push(op.digit() * 8 + 5);
+                out.extend_from_slice(&imm.to_le_bytes());
+                return;
+            }
             opsize(out, size);
             rex(out, size.rex_w(), 0, 0, r.hi());
-            if let Ok(i8v) = i8::try_from(imm) {
+            if short {
                 out.push(if size == Size::B { 0x80 } else { 0x83 });
                 out.push(0xC0 | (op.digit() << 3) | r.lo());
-                out.push(i8v as u8);
+                out.push(imm as u8);
+            } else if size == Size::B {
+                out.push(0x80);
+                out.push(0xC0 | (op.digit() << 3) | r.lo());
+                out.push(imm as u8);
             } else {
                 out.push(0x81);
                 out.push(0xC0 | (op.digit() << 3) | r.lo());
@@ -690,8 +1036,21 @@ fn encode_one(i: Insn, at: u64, out: &mut Vec<u8>) {
                 out.extend_from_slice(&rel.to_le_bytes());
             }
         }
-        Insn::AluI(op, size, rm, v) => {
-            let (imm, short) = imm_bytes(size, v, false);
+        Insn::AluI(op, size, rm, v, wide) => {
+            let (imm, short) = imm_bytes(size, v, wide);
+            // Forme accumulateur : MSVC préfère `3D id` (cmp eax, imm32) à
+            // `81 F8 id`, un octet de moins. L'ignorer ferait échouer la
+            // comparaison sur une grande part du `.text`.
+            if !short
+                && let Rm::R(r) = rm
+                && r == Reg::Rax
+            {
+                opsize(out, size);
+                rex(out, size.rex_w(), 0, 0, 0);
+                out.push(op.digit() * 8 + if size == Size::B { 4 } else { 5 });
+                out.extend_from_slice(&imm);
+                return;
+            }
             let opcode = if size == Size::B {
                 0x80
             } else if short {
@@ -712,6 +1071,16 @@ fn encode_one(i: Insn, at: u64, out: &mut Vec<u8>) {
         }
         Insn::TestI(size, rm, v) => {
             let (imm, _) = imm_bytes(size, v, true);
+            // `test al, imm8` = A8, `test eax, imm32` = A9 : même idiome.
+            if let Rm::R(r) = rm
+                && r == Reg::Rax
+            {
+                opsize(out, size);
+                rex(out, size.rex_w(), 0, 0, 0);
+                out.push(if size == Size::B { 0xA8 } else { 0xA9 });
+                out.extend_from_slice(&imm);
+                return;
+            }
             let opcode = if size == Size::B { 0xF6 } else { 0xF7 };
             rm_form(out, size, &[opcode], 0, 0, rm, at, &imm);
         }
@@ -742,6 +1111,199 @@ fn encode_one(i: Insn, at: u64, out: &mut Vec<u8>) {
             rm_form(out, dst_size, &[0x0F, opcode], r.lo(), r.hi(), rm, at, &[]);
         }
         Insn::LeaD(r, m) => mem_form(out, Size::D, 0x8D, r, m, at, 0),
+        Insn::Sse(op, dst, src) => {
+            let (prefix, opcode, _) = op.encoding();
+            sse_form_full(out, prefix, opcode, dst, src, at, None, op.three_byte());
+        }
+        Insn::Cmov(c, size, r, rm) => {
+            rm_form(out, size, &[0x0F, 0x40 + c.code()], r.lo(), r.hi(), rm, at, &[]);
+        }
+        Insn::SseI(op, dst, src, imm) => {
+            let (prefix, opcode, _) = op.encoding();
+            sse_form_full(out, prefix, opcode, dst, src, at, Some(imm), op.three_byte());
+        }
+        Insn::CvtToXmm(op, dst, src, size) => {
+            let (prefix, opcode) = op.encoding();
+            let base = out.len();
+            out.push(prefix);
+            match src {
+                Rm::R(r) => {
+                    rex(out, size.rex_w(), dst.hi(), 0, r.hi());
+                    out.push(0x0F);
+                    out.push(opcode);
+                    out.push(0xC0 | (dst.lo() << 3) | r.lo());
+                }
+                Rm::M(m) => {
+                    let (x, b) = mem_rex(m);
+                    rex(out, size.rex_w(), dst.hi(), x, b);
+                    out.push(0x0F);
+                    out.push(opcode);
+                    modrm_mem(out, dst.lo(), m, at, base, 0);
+                }
+            }
+        }
+        Insn::MovdToXmm(dst, src, size) => {
+            let base = out.len();
+            out.push(0x66);
+            match src {
+                Rm::R(r) => {
+                    rex(out, size.rex_w(), dst.hi(), 0, r.hi());
+                    out.push(0x0F);
+                    out.push(0x6E);
+                    out.push(0xC0 | (dst.lo() << 3) | r.lo());
+                }
+                Rm::M(m) => {
+                    let (x, b) = mem_rex(m);
+                    rex(out, size.rex_w(), dst.hi(), x, b);
+                    out.push(0x0F);
+                    out.push(0x6E);
+                    modrm_mem(out, dst.lo(), m, at, base, 0);
+                }
+            }
+        }
+        Insn::MovdToRm(dst, src, size) => {
+            let base = out.len();
+            out.push(0x66);
+            match dst {
+                Rm::R(r) => {
+                    rex(out, size.rex_w(), src.hi(), 0, r.hi());
+                    out.push(0x0F);
+                    out.push(0x7E);
+                    out.push(0xC0 | (src.lo() << 3) | r.lo());
+                }
+                Rm::M(m) => {
+                    let (x, b) = mem_rex(m);
+                    rex(out, size.rex_w(), src.hi(), x, b);
+                    out.push(0x0F);
+                    out.push(0x7E);
+                    modrm_mem(out, src.lo(), m, at, base, 0);
+                }
+            }
+        }
+        Insn::NoOperand(op) => match op {
+            NoOp::Cwde => out.push(0x98),
+            NoOp::Cdqe => out.extend_from_slice(&[0x48, 0x98]),
+            NoOp::Cdq => out.push(0x99),
+            NoOp::Cqo => out.extend_from_slice(&[0x48, 0x99]),
+            NoOp::Leave => out.push(0xC9),
+        },
+        Insn::SetccRm(c, rm) => {
+            rm_form(out, Size::B, &[0x0F, 0x90 + c.code()], 0, 0, rm, at, &[]);
+        }
+        Insn::ShiftCl(op, size, rm) => {
+            let opcode = if size == Size::B { 0xD2 } else { 0xD3 };
+            rm_form(out, size, &[opcode], op.digit(), 0, rm, at, &[]);
+        }
+        Insn::BitRm(op, size, rm, r) => {
+            rm_form(out, size, &[0x0F, op.opcode()], r.lo(), r.hi(), rm, at, &[]);
+        }
+        Insn::BitImm(op, size, rm, imm) => {
+            rm_form(out, size, &[0x0F, 0xBA], op.digit(), 0, rm, at, &[imm]);
+        }
+        Insn::MovsxdRm(dst, src) => {
+            rm_form(out, Size::Q, &[0x63], dst.lo(), dst.hi(), src, at, &[]);
+        }
+        Insn::MovzxRm(src_size, dst_size, r, rm) => {
+            let opcode = if src_size == Size::B { 0xB6 } else { 0xB7 };
+            rm_form(out, dst_size, &[0x0F, opcode], r.lo(), r.hi(), rm, at, &[]);
+        }
+        Insn::MovsxRm(src_size, dst_size, r, rm) => {
+            let opcode = if src_size == Size::B { 0xBE } else { 0xBF };
+            rm_form(out, dst_size, &[0x0F, opcode], r.lo(), r.hi(), rm, at, &[]);
+        }
+        Insn::CvtToReg(op, dst, src, size) => {
+            let (prefix, opcode) = op.encoding();
+            let base = out.len();
+            out.push(prefix);
+            match src {
+                XmmRm::X(x) => {
+                    rex(out, size.rex_w(), dst.hi(), 0, x.hi());
+                    out.push(0x0F);
+                    out.push(opcode);
+                    out.push(0xC0 | (dst.lo() << 3) | x.lo());
+                }
+                XmmRm::M(m) => {
+                    let (xr, b) = mem_rex(m);
+                    rex(out, size.rex_w(), dst.hi(), xr, b);
+                    out.push(0x0F);
+                    out.push(opcode);
+                    modrm_mem(out, dst.lo(), m, at, base, 0);
+                }
+            }
+        }
+        Insn::SseStore(op, m, src) => {
+            let (prefix, load, store) = op.encoding();
+            // Sans forme « mémoire ← registre », l'opération n'est pas stockable :
+            // on retombe sur l'opcode de chargement, et la comparaison byte-à-byte
+            // rejettera l'unité — jamais de silence.
+            sse_form(out, prefix, store.unwrap_or(load), src, XmmRm::M(m), at);
+        }
+    }
+}
+
+/// Émet une instruction SSE `0F <opcode>` avec son préfixe obligatoire.
+///
+/// Ordre imposé par l'architecture : préfixe hérité (`66`/`F2`/`F3`), puis REX,
+/// puis `0F`, puis l'opcode. Inverser REX et le préfixe change l'instruction.
+fn sse_form(out: &mut Vec<u8>, prefix: SsePrefix, opcode: u8, reg: Xmm, rm: XmmRm, at: u64) {
+    sse_form_imm(out, prefix, opcode, reg, rm, at, None);
+}
+
+/// Variante avec immédiat 8 bits (`shufps`, `cmpss`…).
+fn sse_form_imm(
+    out: &mut Vec<u8>,
+    prefix: SsePrefix,
+    opcode: u8,
+    reg: Xmm,
+    rm: XmmRm,
+    at: u64,
+    imm: Option<u8>,
+) {
+    sse_form_full(out, prefix, opcode, reg, rm, at, imm, false);
+}
+
+/// Forme complète, avec le drapeau « opcode à trois octets `0F 3A xx` ».
+#[allow(clippy::too_many_arguments)] // encodage x86 : chaque champ est un champ du format
+fn sse_form_full(
+    out: &mut Vec<u8>,
+    prefix: SsePrefix,
+    opcode: u8,
+    reg: Xmm,
+    rm: XmmRm,
+    at: u64,
+    imm: Option<u8>,
+    three: bool,
+) {
+    let base = out.len();
+    match prefix {
+        SsePrefix::None => {}
+        SsePrefix::P66 => out.push(0x66),
+        SsePrefix::F2 => out.push(0xF2),
+        SsePrefix::F3 => out.push(0xF3),
+    }
+    match rm {
+        XmmRm::X(x) => {
+            rex(out, false, reg.hi(), 0, x.hi());
+            out.push(0x0F);
+            if three {
+                out.push(0x3A);
+            }
+            out.push(opcode);
+            out.push(0xC0 | (reg.lo() << 3) | x.lo());
+        }
+        XmmRm::M(m) => {
+            let (x, b) = mem_rex(m);
+            rex(out, false, reg.hi(), x, b);
+            out.push(0x0F);
+            if three {
+                out.push(0x3A);
+            }
+            out.push(opcode);
+            modrm_mem(out, reg.lo(), m, at, base, usize::from(imm.is_some()));
+        }
+    }
+    if let Some(v) = imm {
+        out.push(v);
     }
 }
 
@@ -844,7 +1406,7 @@ mod tests {
         // `and rax, -1 ; shl rdx, 0x20 ; or rax, rdx ; ret`
         assert_eq!(
             encode(&[
-                Insn::AluRI(Alu::And, Size::Q, Reg::Rax, -1),
+                Insn::AluRI(Alu::And, Size::Q, Reg::Rax, -1, false),
                 Insn::Shift(ShiftOp::Shl, Size::Q, Reg::Rdx, 0x20),
                 Insn::AluRR(Alu::Or, Size::Q, Reg::Rax, Reg::Rdx),
                 Insn::Ret
@@ -865,14 +1427,14 @@ mod tests {
             encode(&[
                 Insn::Store(Size::Q, Mem::base_disp(Reg::Rsp, 8), Reg::Rbx),
                 Insn::Push(Reg::Rdi),
-                Insn::AluRI(Alu::Sub, Size::Q, Reg::Rsp, 0x20),
+                Insn::AluRI(Alu::Sub, Size::Q, Reg::Rsp, 0x20, false),
             ]),
             vec![0x48, 0x89, 0x5C, 0x24, 0x08, 0x57, 0x48, 0x83, 0xEC, 0x20]
         );
         // Fermeture : add rsp,0x20 ; pop rdi ; ret
         assert_eq!(
             encode(&[
-                Insn::AluRI(Alu::Add, Size::Q, Reg::Rsp, 0x20),
+                Insn::AluRI(Alu::Add, Size::Q, Reg::Rsp, 0x20, false),
                 Insn::Pop(Reg::Rdi),
                 Insn::Ret
             ]),
@@ -883,7 +1445,7 @@ mod tests {
         assert_eq!(encode(&[Insn::Pop(Reg::R14)]), vec![0x41, 0x5E]);
         // sub rsp, 0x108 → immédiat 32 bits
         assert_eq!(
-            encode(&[Insn::AluRI(Alu::Sub, Size::Q, Reg::Rsp, 0x108)]),
+            encode(&[Insn::AluRI(Alu::Sub, Size::Q, Reg::Rsp, 0x108, false)]),
             vec![0x48, 0x81, 0xEC, 0x08, 0x01, 0x00, 0x00]
         );
     }
@@ -941,7 +1503,7 @@ mod tests {
             vec![0x84, 0xC0]
         );
         assert_eq!(
-            encode(&[Insn::AluRI(Alu::Cmp, Size::D, Reg::Rax, 5)]),
+            encode(&[Insn::AluRI(Alu::Cmp, Size::D, Reg::Rax, 5, false)]),
             vec![0x83, 0xF8, 0x05]
         );
         assert_eq!(

@@ -128,53 +128,65 @@ que la source). Chaque corps relevé est **réencodé et comparé** avant d'entr
 
 ## 5. État mesuré (2026-08-10)
 
-Chiffres sortis de l'outil, pas d'une estimation.
+Chiffres sortis de l'outil, pas d'une estimation. Le binaire produit est **byte-identique à chaque
+étape** — la progression est interne, jamais au prix de l'identité.
 
 ```
-split   : 219 427 unités · 55 351 fonctions .pdata · 46 870 fragments chaînés rattachés
-          24 453 814 o de code · 8 315 392 o de données · 0 trou · 0 overlay
-lift    : 111 124 corps examinés → 51 003 régénérables (2 053 055 o)
+split   : 219 427 unités · 55 351 fonctions .pdata · 0 trou · 0 overlay
+lift    : 111 124 corps examinés → 74 256 régénérables (8 000 480 o)
 cc      : 7 fonctions compilées par MSVC 14.44, 7 correspondances byte-exactes
-build   : dist/nie.exe · 33 918 464 o · sha256 identique ✅ · 51 006 unités produites
-report  : produced = 6,0548 % du fichier · code_rust = 8,3957 % du .text
+build   : dist/nie.exe · 33 918 464 o · sha256 identique ✅ · 74 257 unités produites
+report  : produced = 23,5892 % du fichier · code_rust = 32,7167 % du .text
 ```
 
-Décomposition de ce qui est **réellement produit** :
-
-| source | unités | octets | nature |
-|---|---:|---:|---|
-| en-têtes PE ré-émis | 1 | 624 | recalculés depuis les structures par `nie-pe` |
-| corps réassemblés | 51 003 | 2 053 055 | `nie-asm` depuis `forge/asm/lifted.s` |
-| codegen MSVC coïncidant | 2 | 9 | `cpp/decomp/functions/thunks.c`, corps SSE hors de portée de l'assembleur |
-| **total** | **51 006** | **2 053 688** | **6,0548 %** |
-
-Attribution **exclusive** : une unité fournie par deux voies n'est comptée qu'une fois, dans le même
-ordre que la construction (en-têtes → assembleur → codegen). Les 5 autres fonctions compilées par
-MSVC coïncident aussi, mais leurs octets sont déjà produits par la voie A : elles servent de témoin
-que les deux voies s'accordent, pas de gonflement du chiffre.
-
-### Progression de la session
-
-| étape | fichier | `.text` |
+| source | unités | octets |
 |---|---:|---:|
-| en-têtes seuls | 0,0018 % | 0 % |
-| + dialecte initial (17 formes) | 0,4249 % | 0,5868 % |
-| + prologues, branchements, `[rip …]` | 1,9700 % | 2,7299 % |
-| + `r/m`+immédiat, appels indirects, `imul`, `movsx`… | **6,0548 %** | **8,3957 %** |
+| en-têtes PE ré-émis (`nie-pe`) | 1 | 624 |
+| corps réassemblés (`nie-asm`) | 74 256 | 8 000 480 |
+| codegen MSVC coïncidant (`nie-forge cc`) | 2 | 9 |
+| **total** | **74 257** | **8 001 104** |
 
-### Ce qui bloque le relevé, par masse (la liste de courses)
+Attribution **exclusive** : une unité fournie par deux voies n'est comptée qu'une fois, dans l'ordre
+même de la construction (en-têtes → assembleur → codegen).
+
+### Progression, vague par vague
+
+| vague | ajout au dialecte | fichier | `.text` |
+|---|---|---:|---:|
+| 0 | en-têtes seuls | 0,0018 % | 0 % |
+| 1 | 17 formes de base | 0,4249 % | 0,5868 % |
+| 2 | prologues, branchements, `[rip …]` | 1,9700 % | 2,7299 % |
+| 3 | `r/m`+immédiat, indirects, `imul`, `movsx` | 6,0548 % | 8,3957 % |
+| 4 | SSE (`movaps`/`movss`/`xorps`/arith.) | 9,5494 % | 13,2429 % |
+| 5 | `cmovcc`, conversions, `shufps`, REX 8 bits | 12,8804 % | 17,8631 % |
+| 6 | `movd/movq`, `movsxd` mém., groupe `F7`, accumulateur | 15,2747 % | 21,1841 % |
+| 7 | immédiat étendu en signe, `bt*`, `cdqe`, décalage par `cl` | **23,5892 %** | **32,7167 %** |
+
+Deux enseignements de la vague 7, l'un et l'autre trouvés par l'outillage :
+
+- **`mov qword ptr [rsp+28h], 0` valait 6,6 Mo à lui seul.** iced classe cet immédiat en
+  `Immediate32to64` (étendu en signe), pas `Immediate32` ; l'oubli d'une variante d'énumération
+  tenait un quart du `.text` hors du dialecte. Le diagnostic ne l'a révélé qu'après avoir fait
+  afficher l'**instruction fautive désassemblée**, et non son seul mnémonique.
+- **Une régression a été attrapée par le gate, pas par relecture.** L'ajout du suffixe `.w` (forme
+  longue d'immédiat) a d'abord réutilisé par erreur le drapeau `.s` (branchement court) : le rendu
+  écrivait `and.w`, le parseur ne savait pas le relire, et la mesure est tombée de 23,40 % à
+  14,27 %. C'est la vérification d'**aller-retour textuel** du relevé — parse ∘ render ∘ encode —
+  qui a refusé les corps concernés plutôt que de les laisser passer.
+
+### Ce qui bloque encore, par masse
 
 ```
-movaps   6 670 corps  5 419 980 o      mov       8 441   4 100 881 o
-encodage 15 892 corps 2 139 862 o      xorps     4 879   1 826 997 o
-movss    4 670 corps  1 612 929 o      movups    2 401   1 094 574 o
-cmovne   2 265 corps    903 709 o
+encodage  28 317 corps  9 056 642 o   « and rdx,0FFFFFFFFFFFFFFF0h »
+mov        2 484 corps  3 035 548 o   « mov [2258EE105290F01h],al »  (adresse absolue moffs)
+cmpps        519 corps    866 730 o   « cmpeqps xmm1,[rbx+10h] »
+invalide   1 972 corps    457 208 o   (données inline prises pour du code)
+vpermilps    331 corps    449 128 o   (AVX)
 ```
 
-Lecture : le SSE domine désormais (`movaps`+`xorps`+`movss`+`movups` ≈ 10 Mo) — c'est le domaine de
-la **voie B**, où le C compilé fait le travail sans qu'on ait à encoder ces formes à la main.
-`encodage` (2,1 Mo) désigne les corps entièrement traduits mais dont MSVC a choisi une forme que
-l'encodeur canonique ne reproduit pas : ce sont des *findings* de RE, pas des échecs silencieux.
+`encodage` domine désormais : ce sont des corps **entièrement traduits** dont le ré-encodage diverge
+d'un octet — MSVC a choisi une forme que l'encodeur canonique ne reproduit pas encore. Chacun est un
+*finding* de RE exploitable, et aucun ne peut passer pour produit.
 
 ## 6. Un constat que l'outillage a produit immédiatement
 
@@ -204,8 +216,8 @@ d'octets plutôt que par adresse), puis renseigner le champ `rust` de chaque ent
 |---|---|---|
 | **G0 — identité** | le fichier produit est byte-identique à l'original | ✅ tenu, testé sur le vrai binaire |
 | **G1 — recouvrement** | chaque octet appartient à une unité nommée, zéro trou | ✅ 219 427 unités, invariant testé |
-| **G2 — amorçage** | une part non nulle du binaire est produite par le dépôt | ✅ 6,0548 % |
-| **G3 — code** | 50 % du `.text` produit par le dépôt | en cours — **8,3957 %**, piloté par les blocages ci-dessus |
+| **G2 — amorçage** | une part non nulle du binaire est produite par le dépôt | ✅ 23,5892 % |
+| **G3 — code** | 50 % du `.text` produit par le dépôt | en cours — **32,7167 %** |
 | **G4 — sections** | `.rdata`/`.data` produits depuis les structures, pas recopiés | non commencé (découpage encore d'un seul tenant) |
 | **G5 — disposition** | la forge calcule ses propres adresses (édition de liens réelle) | non commencé ; jusque-là les champs relogés viennent de la disposition de référence |
 | **G6 — total** | 100 % du fichier produit, `nie.exe` reconstructible sans référence | horizon |
