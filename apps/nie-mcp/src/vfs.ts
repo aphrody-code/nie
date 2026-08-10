@@ -1,13 +1,21 @@
 /**
- * Index VFS en mémoire des 250 800 fichiers CPK.
+ * Index VFS en mémoire des ~255 000 fichiers CPK.
  *
- * Chargé UNE fois au démarrage depuis Redis (HASH `iev:file:index`, db 3) :
- * champ = chemin logique, valeur = nom du .cpk conteneur. On construit en plus
- * un tableau de chemins trié pour une navigation arborescente et une recherche
- * rapides (binary search sur le préfixe).
+ * Source unique : le paquet `nie` (bindings Bun FFI de `libnie_ffi`), c'est-à-dire
+ * exactement les crates Rust — `nie-formats::vfs` — que `nie-explorer` lie côté Tauri.
+ * Le serveur MCP et l'explorateur voient donc rigoureusement le même VFS, décodé par
+ * le même code.
+ *
+ * `VfsHandle.listAll()` pagine l'index côté Rust : ~255 000 entrées en ~1 s, sans le
+ * plafond de 50 000 de l'ancienne `list()`. On construit en plus un tableau de chemins
+ * trié pour la navigation arborescente et la recherche (binary search sur le préfixe).
+ *
+ * Redis (`NIERS_REDIS`) reste accepté comme source alternative — c'est ainsi que le VPS
+ * sert l'index sans monter les CPK — mais n'est plus requis.
  */
 
 import { RedisClient } from "bun";
+import { vfsOpen, type VfsHandle } from "nie";
 import { config } from "./config.ts";
 import { ToolError } from "./security.ts";
 
@@ -69,10 +77,13 @@ export interface StatResult {
 export class VfsIndex {
   private readonly map: Map<string, string>;
   private readonly paths: string[];
+  /** Handle FFI ouvert, quand l'index vient des CPK — `null` si chargé depuis Redis. */
+  private readonly handle: VfsHandle | null;
 
-  private constructor(entries: Map<string, string>) {
+  private constructor(entries: Map<string, string>, handle: VfsHandle | null = null) {
     this.map = entries;
     this.paths = [...entries.keys()].sort();
+    this.handle = handle;
   }
 
   /** Charge l'index depuis Redis db 3 (un seul HGETALL), puis ferme la connexion. */
@@ -101,47 +112,48 @@ export class VfsIndex {
   }
 
   /**
-   * Repli local : reconstruit l'index depuis les CPK via la CLI `niers`
-   * (`vfs find "" -j`, la sous-chaîne vide matche tout). Utilisé quand Redis
-   * est injoignable — cas de l'installation Steam Windows, où le VFS complet
-   * est le cwd. Le résultat est mis en cache sur disque.
+   * Monte le VFS via `nie` (FFI → `nie-formats::vfs`) et matérialise son index.
+   *
+   * C'est la voie par défaut : elle n'exige aucun service (ni Redis, ni model-serve) et
+   * partage le code Rust de `nie-explorer`. Le handle reste ouvert pour servir
+   * {@link VfsIndex.read}.
    */
-  static async loadFromCli(): Promise<VfsIndex> {
-    const cache = Bun.file(config.vfsCachePath);
-    if (await cache.exists()) {
-      try {
-        const map = new Map(Object.entries((await cache.json()) as Record<string, string>));
-        if (map.size > 0) return new VfsIndex(map);
-      } catch {
-        // Cache illisible : on le régénère.
-      }
+  static loadFromFfi(): VfsIndex {
+    const handle = vfsOpen(config.gameDataDir);
+    if (handle === null) {
+      throw new Error(
+        `VFS non montable depuis ${config.gameDataDir} — le dossier doit contenir cpk_list.cfg.bin (cf. NIE_GAME_DIR)`,
+      );
     }
-
-    if (!(await Bun.file(config.nierCli).exists())) {
-      throw new Error(`CLI niers introuvable : ${config.nierCli} (construire avec \`cargo build -p nie-cli\`)`);
-    }
-
-    const args = ["vfs", "find", "", "-j", "-n", "1000000"];
-    if (config.gameDir) args.push("--game-dir", config.gameDir);
-    const proc = Bun.spawn([config.nierCli, ...args], { cwd: config.repoRoot, stdout: "pipe", stderr: "pipe" });
-    const [out, err, code] = await Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
-      proc.exited,
-    ]);
-    if (code !== 0) throw new Error(`\`niers vfs find\` a échoué (code ${code}) : ${err.trim().slice(0, 400)}`);
-
-    const rows = JSON.parse(out) as { path: string; cpk: string }[];
     const map = new Map<string, string>();
-    for (const r of rows) map.set(r.path, r.cpk);
-    if (map.size === 0) throw new Error("index VFS vide : la CLI n'a listé aucun fichier");
-
-    await Bun.write(config.vfsCachePath, JSON.stringify(Object.fromEntries(map)));
-    return new VfsIndex(map);
+    for (const e of handle.listAll()) map.set(e.path, e.cpk);
+    if (map.size === 0) {
+      handle.free();
+      throw new Error(`index VFS vide depuis ${config.gameDataDir}`);
+    }
+    return new VfsIndex(map, handle);
   }
 
   get size(): number {
     return this.paths.length;
+  }
+
+  /**
+   * Octets bruts d'un fichier du VFS, ou `null` si absent.
+   *
+   * Disponible seulement quand l'index vient du FFI ({@link VfsIndex.loadFromFfi}) :
+   * un index chargé depuis Redis ne connaît que les chemins, pas le contenu.
+   */
+  read(internalPath: string): Uint8Array | null {
+    if (this.handle === null) {
+      throw new ToolError("lecture directe indisponible : index chargé depuis Redis, pas depuis les CPK");
+    }
+    return this.handle.read(internalPath);
+  }
+
+  /** Vrai si les octets des fichiers sont lisibles localement (index monté via FFI). */
+  get canRead(): boolean {
+    return this.handle !== null;
   }
 
   cpkOf(path: string): string | undefined {

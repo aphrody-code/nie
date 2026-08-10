@@ -1,7 +1,13 @@
 /**
- * Client du service de décodage d'assets `nie-model-serve` (HTTP, port 8790).
+ * Récupération et décodage d'assets, par ordre de préférence :
  *
- * Conventions d'URL EXACTES (cf. CLAUDE.md / mémoire model-serve) :
+ * 1. **En process, via le paquet `nie`** (FFI → `nie-formats`) : `raw`, `cfg` et `tex` sont
+ *    lus dans les CPK et décodés par les mêmes crates Rust que `nie-explorer`. Aucun service
+ *    à lancer, aucune copie réseau.
+ * 2. **`nie-model-serve`** (HTTP, port 8790) pour ce que le FFI n'expose pas : `audio`
+ *    (HCA/ADX/ACB → WAV) et `model` (assemblage + texturage → GLB).
+ *
+ * Conventions d'URL EXACTES de model-serve (cf. CLAUDE.md) :
  *  - /raw/<chemin-vfs-avec-extension>        octets bruts
  *  - /tex/<chemin-SANS-.g4tx>.png            la route REMPLACE .png par .g4tx
  *  - /cfg/<chemin-vfs>.json                  cfg.bin/objbin/fxbin/mevbin -> JSON
@@ -9,9 +15,10 @@
  *  - /model-full/<code>.glb                  modèle perso assemblé+texturé
  */
 
+import { decode as decodeBytes, decodeToPng } from "nie";
 import { config } from "./config.ts";
 import { assertSafeVfsPath, encodeVfsPath, ToolError } from "./security.ts";
-import type { DecodeKind } from "./vfs.ts";
+import type { DecodeKind, VfsIndex } from "./vfs.ts";
 
 const DEFAULT_MAX_BYTES = 256 * 1024;
 
@@ -28,6 +35,8 @@ export interface AssetResult {
   /** Vrai si le contenu a été tronqué ou omis (trop gros) : ouvrir l'URL. */
   truncated: boolean;
   note?: string;
+  /** D'où vient le contenu : les CPK en process, ou le service HTTP. */
+  source?: "ffi" | "model-serve";
 }
 
 /** Construit l'URL model-serve pour un chemin VFS et un mode de décodage. */
@@ -94,11 +103,14 @@ const TEXTUAL_CT = /^(text\/|application\/(json|xml|javascript|x-ndjson))/;
  * Pour le binaire : résumé (taille, content-type) + URL exacte, et le contenu
  * inline seulement s'il tient sous `maxBytes` (sinon URL seule).
  */
-export async function getAsset(args: {
-  path: string;
-  decode?: DecodeKind | undefined;
-  maxBytes?: number | undefined;
-}): Promise<AssetResult> {
+export async function getAsset(
+  args: {
+    path: string;
+    decode?: DecodeKind | undefined;
+    maxBytes?: number | undefined;
+  },
+  vfs?: VfsIndex | null,
+): Promise<AssetResult> {
   const decode = args.decode ?? "raw";
   const maxBytes = clampBytes(args.maxBytes);
   const rawPath = args.path.trim();
@@ -107,6 +119,12 @@ export async function getAsset(args: {
   if (decode !== "model") assertSafeVfsPath(rawPath);
   else if (rawPath.includes("..") || rawPath.includes("\0")) {
     throw new ToolError("code modèle invalide");
+  }
+
+  // Voie locale : mêmes crates Rust que nie-explorer, sans service externe.
+  if (vfs?.canRead === true && (decode === "raw" || decode === "cfg" || decode === "tex")) {
+    const local = getAssetLocal(rawPath, decode, maxBytes, vfs);
+    if (local !== null) return local;
   }
 
   const url = buildAssetUrl(decode, rawPath);
@@ -129,6 +147,7 @@ export async function getAsset(args: {
     content_type: ct,
     content_length: Number.isFinite(contentLength) ? contentLength : null,
     truncated: false,
+    source: "model-serve",
   };
 
   if (!res.ok) {
@@ -174,6 +193,84 @@ export async function getAsset(args: {
     return { ...base, text: new TextDecoder().decode(bytes), truncated: false };
   }
   return { ...base, base64: Buffer.from(bytes).toString("base64"), truncated: false };
+}
+
+/**
+ * Sert `raw` / `cfg` / `tex` depuis les CPK, en process, via le paquet `nie`.
+ *
+ * Renvoie `null` quand la voie locale ne s'applique pas (fichier absent du VFS, format
+ * non décodable par `nie-formats`) : l'appelant retombe alors sur model-serve.
+ */
+function getAssetLocal(
+  path: string,
+  decode: "raw" | "cfg" | "tex",
+  maxBytes: number,
+  vfs: VfsIndex,
+): AssetResult | null {
+  // Pour une texture, l'appelant peut donner le chemin sans `.g4tx` (convention model-serve).
+  const vfsPath = decode === "tex" && !path.toLowerCase().endsWith(".g4tx") ? `${path}.g4tx` : path;
+
+  const bytes = vfs.read(vfsPath);
+  if (bytes === null) return null;
+
+  const base = {
+    path,
+    decode,
+    url: `nie://${vfsPath}`,
+    http_status: 200,
+    content_length: bytes.byteLength,
+    source: "ffi" as const,
+  };
+
+  if (decode === "cfg") {
+    const value = decodeBytes(bytes);
+    if (value === null) return null;
+    const json = JSON.stringify(value, null, 2);
+    const truncated = json.length > maxBytes;
+    return {
+      ...base,
+      content_type: "application/json",
+      text: truncated ? json.slice(0, maxBytes) : json,
+      truncated,
+      ...(truncated ? { note: `JSON tronqué à ${maxBytes} octets — relancer avec un maxBytes plus grand` } : {}),
+    };
+  }
+
+  if (decode === "tex") {
+    const png = decodeToPng(bytes);
+    if (png === null) return null;
+    if (png.byteLength > maxBytes) {
+      return {
+        ...base,
+        content_type: "image/png",
+        content_length: png.byteLength,
+        truncated: true,
+        note: `PNG ${png.byteLength} octets > maxBytes ${maxBytes}`,
+      };
+    }
+    return {
+      ...base,
+      content_type: "image/png",
+      content_length: png.byteLength,
+      base64: Buffer.from(png).toString("base64"),
+      truncated: false,
+    };
+  }
+
+  if (bytes.byteLength > maxBytes) {
+    return {
+      ...base,
+      content_type: "application/octet-stream",
+      truncated: true,
+      note: `contenu ${bytes.byteLength} octets > maxBytes ${maxBytes}`,
+    };
+  }
+  return {
+    ...base,
+    content_type: "application/octet-stream",
+    base64: Buffer.from(bytes).toString("base64"),
+    truncated: false,
+  };
 }
 
 function clampBytes(v: number | undefined): number {

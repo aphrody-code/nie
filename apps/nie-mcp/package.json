@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "catalog:mcp",
+    "nie": "workspace:*",
     "zod": "catalog:mcp"
   },
   "devDependencies": {

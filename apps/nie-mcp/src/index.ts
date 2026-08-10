@@ -44,15 +44,17 @@ async function safe(fn: () => Promise<unknown> | unknown): Promise<ToolResult> {
 
 async function main(): Promise<void> {
   // --- Chargement des sources (échecs non fatals : tools concernés renvoient une erreur propre) ---
+  // Voie par défaut : les CPK, via le paquet `nie` (mêmes crates Rust que nie-explorer).
+  // Redis ne sert plus que de repli, pour un hôte qui a l'index mais pas les packs.
   let vfs: VfsIndex | null = null;
   try {
-    vfs = await VfsIndex.load();
-    console.error(`[niers-game] index VFS chargé : ${vfs.size} fichiers (Redis db${config.redisDb})`);
+    vfs = VfsIndex.loadFromFfi();
+    console.error(`[niers-game] index VFS chargé : ${vfs.size} fichiers (CPK via nie/FFI, lecture directe)`);
   } catch (e) {
-    console.error(`[niers-game] Redis indisponible (${(e as Error).message}) — repli CLI locale`);
+    console.error(`[niers-game] CPK indisponibles (${(e as Error).message}) — repli Redis`);
     try {
-      vfs = await VfsIndex.loadFromCli();
-      console.error(`[niers-game] index VFS chargé : ${vfs.size} fichiers (CLI ${config.nierCli})`);
+      vfs = await VfsIndex.load();
+      console.error(`[niers-game] index VFS chargé : ${vfs.size} fichiers (Redis db${config.redisDb}, chemins seuls)`);
     } catch (e2) {
       console.error(`[niers-game] AVERTISSEMENT index VFS indisponible : ${(e2 as Error).message}`);
     }
@@ -67,7 +69,7 @@ async function main(): Promise<void> {
   }
 
   const requireVfs = (): VfsIndex => {
-    if (!vfs) throw new ToolError("index VFS indisponible (ni Redis, ni CLI `niers` au démarrage)");
+    if (!vfs) throw new ToolError("index VFS indisponible (ni CPK locaux, ni Redis au démarrage)");
     return vfs;
   };
   const requireKb = (): KnowledgeBase => {
@@ -137,7 +139,7 @@ async function main(): Promise<void> {
           .describe("seuil d'inlining (défaut 262144 ≈ 256 Ko ; au-delà, URL seule)"),
       },
     },
-    ({ path, decode, maxBytes }) => safe(() => getAsset({ path, decode, maxBytes })),
+    ({ path, decode, maxBytes }) => safe(() => getAsset({ path, decode, maxBytes }, vfs)),
   );
 
   // ------------------------------------------------------------------ RE ----
