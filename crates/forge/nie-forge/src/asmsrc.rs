@@ -87,6 +87,43 @@ impl AsmSource {
     /// # Erreurs
     /// Retourne une erreur d'écriture disque.
     pub fn save(&self, path: &Path, header: &str) -> anyhow::Result<()> {
+        self.save_annotated(path, header, &std::collections::BTreeMap::new())
+    }
+
+    /// Écrit la source en préfixant chaque corps du **nom** de la fonction qu'il
+    /// reproduit, quand la base de connaissance RE le connaît.
+    ///
+    /// # Erreurs
+    /// Retourne une erreur d'écriture disque.
+    pub fn save_annotated(
+        &self,
+        path: &Path,
+        header: &str,
+        names: &BTreeMap<u64, String>,
+    ) -> anyhow::Result<()> {
+        if let Some(d) = path.parent() {
+            std::fs::create_dir_all(d)?;
+        }
+        let mut out = String::new();
+        for l in header.lines() {
+            out.push_str("# ");
+            out.push_str(l);
+            out.push('\n');
+        }
+        out.push('\n');
+        for (va, insns) in &self.bodies {
+            // Nom issu de l'échafaudage RE : la source devient navigable.
+            if let Some(n) = names.get(va) {
+                out.push_str(&format!("# {n}\n"));
+            }
+            out.push_str(&format!("{va:#x}: {}\n", nie_asm::to_line(insns)));
+        }
+        std::fs::write(path, out).with_context(|| format!("écriture de {}", path.display()))?;
+        Ok(())
+    }
+
+    /// Écriture simple, sans annotation (implémentation historique).
+    fn save_plain(&self, path: &Path, header: &str) -> anyhow::Result<()> {
         if let Some(d) = path.parent() {
             std::fs::create_dir_all(d)?;
         }

@@ -39,12 +39,14 @@
 pub mod asmsrc;
 pub mod cc;
 pub mod lift;
+pub mod redb;
 pub mod registry;
 pub mod report;
 pub mod store;
 
 pub use asmsrc::AsmSource;
 pub use lift::lift_body;
+pub use redb::ReNames;
 pub use registry::{MatchStatus, Registry, RegistryEntry};
 pub use report::Report;
 pub use store::ForgeStore;

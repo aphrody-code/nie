@@ -24,6 +24,8 @@ anyhow.workspace = true
 clap.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+# Base de connaissance RE (var/niers.sqlite) : noms de fonctions et bornes .pdata.
+rusqlite.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

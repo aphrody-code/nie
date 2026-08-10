@@ -527,3 +527,87 @@ mod tests {
         ));
     }
 }
+
+/// Ré-émission des **tables structurées** du binaire.
+///
+/// Certaines sections ne sont pas des données opaques mais des tableaux dont le
+/// format est entièrement connu : `.pdata` (voir [`crate::pdata::emit`]) et
+/// `.reloc`. Les reconstruire depuis leurs entrées est de même nature que la
+/// ré-émission des en-têtes — la structure est comprise, pas recopiée en bloc.
+pub mod tables {
+    use super::PeImage;
+    use alloc_shim::Vec;
+    mod alloc_shim {
+        pub use std::vec::Vec;
+    }
+
+    /// Ré-émet la section `.reloc` depuis ses blocs de relocation.
+    ///
+    /// Chaque bloc : `page_rva: u32`, `block_size: u32`, puis
+    /// `(block_size - 8) / 2` entrées de 16 bits (`type:4 | offset:12`).
+    ///
+    /// Retourne `None` si la section est absente, si un bloc est incohérent, ou
+    /// si le bourrage de fin n'est pas nul — mieux vaut retomber sur la
+    /// référence que supposer.
+    #[must_use]
+    pub fn emit_reloc(img: &PeImage) -> Option<Vec<u8>> {
+        let sec = img.section(".reloc")?;
+        let dir = img.opt.directories.get(5).copied()?;
+        if dir.rva != sec.virtual_address {
+            return None;
+        }
+        let table = img.slice_rva(dir.rva, dir.size as usize)?;
+        let raw = sec.size_raw as usize;
+
+        let mut out = Vec::with_capacity(raw);
+        let mut pos = 0usize;
+        while pos + 8 <= table.len() {
+            let page = u32::from_le_bytes([
+                table[pos],
+                table[pos + 1],
+                table[pos + 2],
+                table[pos + 3],
+            ]);
+            let size = u32::from_le_bytes([
+                table[pos + 4],
+                table[pos + 5],
+                table[pos + 6],
+                table[pos + 7],
+            ]) as usize;
+            if size < 8 || pos + size > table.len() || size % 2 != 0 {
+                return None;
+            }
+            out.extend_from_slice(&page.to_le_bytes());
+            out.extend_from_slice(&(size as u32).to_le_bytes());
+            for e in table[pos + 8..pos + size].chunks_exact(2) {
+                let v = u16::from_le_bytes([e[0], e[1]]);
+                out.extend_from_slice(&v.to_le_bytes());
+            }
+            pos += size;
+        }
+        if pos != table.len() || out.len() > raw {
+            return None;
+        }
+        let tail = sec.ptr_raw as usize + out.len();
+        if img
+            .bytes
+            .get(tail..sec.ptr_raw as usize + raw)?
+            .iter()
+            .any(|b| *b != 0)
+        {
+            return None;
+        }
+        out.resize(raw, 0);
+        Some(out)
+    }
+
+    /// Charge utile régénérée d'une section de table, si elle en est une.
+    #[must_use]
+    pub fn emit_for(img: &PeImage, section: &str) -> Option<Vec<u8>> {
+        match section {
+            ".pdata" => crate::pdata::emit(img),
+            ".reloc" => emit_reloc(img),
+            _ => None,
+        }
+    }
+}
