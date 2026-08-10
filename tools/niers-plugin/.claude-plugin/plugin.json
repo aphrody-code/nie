@@ -1,0 +1,9 @@
+{
+  "name": "niers",
+  "version": "0.1.0",
+  "description": "Outillage Claude Code du projet niers : serveur MCP niers-game, ancrage terminologique IEVR, navigation du monorepo, formats de fichiers Level-5 et pilotage du jeu.",
+  "author": {
+    "name": "Rose Griffon",
+    "email": "yohanpierre15@gmail.com"
+  }
+}
