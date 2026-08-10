@@ -20,6 +20,12 @@
 //! Charger du bytecode Lua arbitraire exige `Lua::unsafe_new` (un bytecode malformé peut
 //! corrompre la VM) : cette crate est donc volontairement hors `forbid(unsafe_code)`.
 
+/// Mode de chargement d'un chunk, réexporté de `mlua` : les consommateurs (nie-explorer) n'ont
+/// pas à déclarer `mlua` en dépendance directe juste pour nommer `Binary`/`Text`.
+pub use mlua::ChunkMode;
+
+pub mod bytecode;
+pub mod runtime;
 pub mod menu_host;
 pub use menu_host::{
     drive_menu, enumerate_header_tabs, install_menu_host, run_menu, DriveReport, HeaderTab,

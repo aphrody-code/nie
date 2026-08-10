@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 use tauri_plugin_sql::{Migration, MigrationKind};
 
+mod lua_tools;
 mod game_data;
 mod re_trace;
 mod steam;
@@ -2332,6 +2333,129 @@ fn open_in_scene_editor(path: Option<String>, game_dir: Option<String>) -> Resul
     })
 }
 
+// ─── Atelier Lua (cf. `lua_tools.rs`) ────────────────────────────────────────────────────────
+//
+// Les scripts du jeu vivent dans le VFS (`.lua.bin`) ou sur disque. Chaque commande accepte donc
+// SOIT un chemin VFS, SOIT une source éditée dans l'interface : c'est ce qui permet d'ouvrir un
+// script du jeu, le modifier et le relancer sans jamais écrire de fichier temporaire.
+
+/// Lit un script : source fournie telle quelle, ou chemin VFS résolu contre le jeu monté.
+fn lua_source_bytes(
+    source: Option<String>,
+    path: Option<String>,
+    game_dir: Option<String>,
+    state: &tauri::State<VfsState>,
+) -> Result<Vec<u8>, String> {
+    if let Some(src) = source {
+        return Ok(src.into_bytes());
+    }
+    let path = path.ok_or("ni source ni chemin fourni")?;
+    with_vfs(game_dir, state, |vfs| vfs.read(&path).map_err(|e| e.to_string()))
+}
+
+/// En-tête + statistiques d'un chunk Lua (`.lua.bin`).
+#[tauri::command]
+#[specta::specta]
+fn lua_chunk_info(
+    path: Option<String>,
+    source: Option<String>,
+    game_dir: Option<String>,
+    state: tauri::State<VfsState>,
+) -> Result<lua_tools::LuaChunkInfoDto, String> {
+    let data = lua_source_bytes(source, path, game_dir, &state)?;
+    lua_tools::chunk_info(&data)
+}
+
+/// Désassemble un chunk Lua en listing lisible.
+#[tauri::command]
+#[specta::specta]
+fn lua_disassemble(
+    path: Option<String>,
+    source: Option<String>,
+    game_dir: Option<String>,
+    state: tauri::State<VfsState>,
+) -> Result<String, String> {
+    let data = lua_source_bytes(source, path, game_dir, &state)?;
+    lua_tools::disassemble(&data)
+}
+
+/// Exécute un script dans la VRAIE VM Lua 5.2 du jeu et renvoie sortie, erreur et appels moteur
+/// manquants.
+#[tauri::command]
+#[specta::specta]
+fn lua_execute(
+    path: Option<String>,
+    source: Option<String>,
+    with_menu_host: bool,
+    instruction_limit: Option<u32>,
+    game_dir: Option<String>,
+    state: tauri::State<VfsState>,
+) -> Result<lua_tools::LuaExecResultDto, String> {
+    let name = path.clone().unwrap_or_else(|| "éditeur".to_string());
+    let data = lua_source_bytes(source, path, game_dir, &state)?;
+    lua_tools::execute(&data, &name, with_menu_host, instruction_limit)
+}
+
+/// Exécute un script puis renvoie ses globals — l'éditeur de valeurs. `overrides` pose des valeurs
+/// AVANT l'exécution (rejouer « comme si » telle variable moteur valait autre chose).
+#[tauri::command]
+#[specta::specta]
+fn lua_globals(
+    path: Option<String>,
+    source: Option<String>,
+    with_menu_host: bool,
+    overrides: Vec<(String, String)>,
+    include_stdlib: bool,
+    game_dir: Option<String>,
+    state: tauri::State<VfsState>,
+) -> Result<Vec<lua_tools::LuaGlobalDto>, String> {
+    let name = path.clone().unwrap_or_else(|| "éditeur".to_string());
+    let data = lua_source_bytes(source, path, game_dir, &state)?;
+    lua_tools::globals_after_run(&data, &name, with_menu_host, &overrides, include_stdlib)
+}
+
+/// Évalue une expression dans l'état laissé par le script — la console.
+#[tauri::command]
+#[specta::specta]
+fn lua_eval(
+    path: Option<String>,
+    source: Option<String>,
+    expression: String,
+    with_menu_host: bool,
+    game_dir: Option<String>,
+    state: tauri::State<VfsState>,
+) -> Result<String, String> {
+    let name = path.clone().unwrap_or_else(|| "éditeur".to_string());
+    let data = lua_source_bytes(source, path, game_dir, &state)?;
+    lua_tools::eval(&data, &name, &expression, with_menu_host)
+}
+
+/// Liste les scripts Lua du VFS (`.lua.bin`/`.lua`), triés — le catalogue de l'atelier.
+#[tauri::command]
+#[specta::specta]
+fn lua_list_scripts(
+    game_dir: Option<String>,
+    state: tauri::State<VfsState>,
+) -> Result<Vec<EntryDto>, String> {
+    with_vfs(game_dir, &state, |vfs| {
+        let mut out: Vec<EntryDto> = vfs
+            .iter()
+            .filter(|(p, _)| {
+                let lower = p.to_ascii_lowercase();
+                lower.ends_with(".lua.bin") || lower.ends_with(".lua")
+            })
+            .map(|(p, e)| EntryDto {
+                path: p.to_string(),
+                name: p.rsplit('/').next().unwrap_or(p).to_string(),
+                size: e.file_size,
+                cpk: e.cpk_filename.clone(),
+            })
+            .collect();
+        out.sort_by(|a, b| a.path.cmp(&b.path));
+        Ok(out)
+    })
+}
+
 const RENDER3D_SIZE: u32 = 512;
 
 /// Renvoie le **GLB assemblé lui-même** (base64), pas un rendu de celui-ci.
@@ -2767,6 +2891,12 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         save_export,
         vfs_video_preview_b64,
         open_in_scene_editor,
+        lua_chunk_info,
+        lua_disassemble,
+        lua_execute,
+        lua_globals,
+        lua_eval,
+        lua_list_scripts,
         vfs_glb_bytes_b64,
         raw_cpk_glb_bytes_b64,
         vfs_glb_preview_png_b64,

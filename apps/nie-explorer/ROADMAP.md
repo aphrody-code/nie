@@ -55,6 +55,44 @@ Corrigés dans la foulée, tous vérifiés sur le code (pas supposés) :
   remplacé par le `Select` du design system ; double navigation `onClick`+`onDoubleClick` sur les
   dossiers.
 
+## 10. Atelier Lua — chaîne complète sur les scripts du moteur ✅ (2026-08-10)
+
+Demande utilisateur : « analyse nie-lua pour ajouter un éditeur lua, émulateur, interpréteur,
+éditeur de valeur et décodeur/décompilateur, le tout end-to-end et automatisé ».
+
+**Analyse préalable de `nie-lua`** (ce qui existait déjà) : VM Lua 5.2 **réelle** (mlua, PUC-Rio
+5.2.4 vendored — la VM exacte du moteur), `load_bytecode`, `install_include` (système de modules
+`INCLUDE` du moteur), `discover_host_calls` (surface d'API hôte par instrumentation de `_G`) et
+`menu_host` (1 917 lignes : `MenuState`, `run_menu`, `drive_menu`). Manquaient : tout ce qui
+permet de **lire** et **manipuler** un script plutôt que seulement l'exécuter.
+
+**Livré côté crate `nie-lua`** :
+- **`bytecode`** — décodeur du format PUC-Rio Lua 5.2 (`lundump.c`) : en-tête, prototypes
+  imbriqués, constantes, instructions, upvalues, tables de débogage (`lineinfo`, `locvars`), plus
+  un **désassembleur** annoté (opérandes RK résolues en valeur, lignes source rappelées). Les
+  tailles (`size_t`, `Instruction`, `lua_Number`) sont **lues dans l'en-tête**, pas supposées : le
+  jeu est 32 bits sur certaines cibles, et un `size_t` mal deviné décale tout le fichier.
+  **Vérifié sur les vrais scripts : 1143/1143 décodés, 985 971 instructions**, aucun échec.
+- **`runtime`** — exécution instrumentée : capture de `print` (sans quoi la sortie d'un script
+  lancé depuis une interface part dans un terminal que personne ne regarde), limite d'instructions
+  par hook VM (les scripts du jeu bouclent en attendant un moteur), stubs de globals qui relèvent
+  l'**API moteur réclamée** au lieu de planter au premier appel, inspection des globals et
+  évaluation d'expression (console). 6 tests, dont l'interruption d'une boucle infinie.
+
+**Portée honnête — désassembleur, pas décompilateur.** On produit un listing d'instructions
+annoté, pas du Lua source reconstruit. Reconstruire du source exige de réassembler le flot de
+contrôle depuis les sauts : c'est un travail distinct, et prétendre le contraire produirait du
+code faux d'aspect plausible. Les tables de débogage sont conservées — ce sont elles qui
+alimenteraient un décompilateur ultérieur.
+
+**Livré côté app** : onglet **Lua** (`components/LuaView.tsx`) — catalogue des ~1 100 scripts du
+VFS, désassemblage dans Monaco, éditeur de source Lua, console d'évaluation dans l'état laissé par
+le script, et éditeur de valeurs listant les globals avec **valeurs forcées** posées *avant*
+l'exécution (rejouer un script « comme si » une variable moteur valait autre chose). Chaque
+commande accepte soit un chemin VFS, soit une source éditée — jamais de fichier temporaire.
+
+---
+
 ## 9. Mode Éditeur — nie-explorer en logiciel type Unreal Engine 🟡 EN COURS (2026-08-10)
 
 Nouveau but utilisateur : « transformer nie-explorer en logiciel type Unreal Engine ». Premier

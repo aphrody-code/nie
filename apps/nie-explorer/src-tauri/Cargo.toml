@@ -111,6 +111,11 @@ nie-app = { path = "../../../crates/nie-app" }
 # `no_std`-friendly (`glb::parse`+`render::render`), l'appeler en lib direct élimine la
 # dépendance au binaire ET le double aller-retour disque (écrire le GLB, relire le PNG).
 nie-render3d = { path = "../../../crates/nie-render3d" }
+# VM Lua 5.2 RÉELLE du jeu (mlua/PUC-Rio 5.2.4 vendored) — dépendance désormais DIRECTE : l'onglet
+# Lua ne se contente plus de décrire un `.lua.bin`, il le décode (`bytecode`), l'exécute et en
+# inspecte les valeurs (`runtime`). Passer par `nie-explore` ne donnait accès qu'à
+# `describe_content`, qui ne fait qu'une reconnaissance de signature.
+nie-lua = { path = "../../../crates/nie-lua" }
 # Encodage PNG des frames rendues par nie-render3d (même crate/version que `nie-render3d`/
 # `nie-game`/`nie-play` — pas de nouvelle dépendance pour le workspace, juste ajoutée ici aussi).
 png = "0.18"
