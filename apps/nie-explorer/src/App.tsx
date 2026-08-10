@@ -7,6 +7,7 @@ import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { ExplorerView, type ExplorerState } from "@/components/ExplorerView";
+import { EditorView, type EditorViewState } from "@/components/editor/EditorView";
 import { GameDataView } from "@/components/GameDataView";
 import { SearchView } from "@/components/SearchView";
 import { ModsView } from "@/components/ModsView";
@@ -39,6 +40,8 @@ export default function App() {
   const [tab, setTab] = useState("explorer");
   const [explorer, setExplorer] = useState<ExplorerState>({ prefix: "data", selected: null });
   const [externalPath, setExternalPath] = useState<string | null>(null);
+  /** Mode Éditeur — dossier courant du navigateur de contenu + asset ouvert dans le viewport. */
+  const [editor, setEditor] = useState<EditorViewState>({ prefix: "data/common/chr", selected: null });
 
   const pins = usePinnedPlaces();
   const recents = useRecentPlaces();
@@ -62,6 +65,7 @@ export default function App() {
       {
         label: null,
         items: [
+          { id: "editor", label: "Éditeur", icon: "view_in_ar" },
           { id: "explorer", label: t("tab.explorer"), icon: "folder_open" },
           { id: "search", label: t("tab.search"), icon: "search" },
         ],
@@ -215,6 +219,7 @@ export default function App() {
         setTab(id);
       },
       tabLabels: {
+        editor: "Éditeur",
         explorer: t("tab.explorer"),
         search: t("tab.search"),
         data: t("tab.data"),
@@ -283,6 +288,16 @@ export default function App() {
               </div>
             ) : (
               <Tabs value={tab} className="h-full min-h-0">
+                <TabsContent value="editor" className="h-full min-h-0">
+                  <EditorView
+                    state={editor}
+                    onStateChange={setEditor}
+                    onOpenInExplorer={(path) => {
+                      setExplorer((s) => ({ ...s, selected: path }));
+                      setTab("explorer");
+                    }}
+                  />
+                </TabsContent>
                 <TabsContent value="explorer" className="h-full min-h-0">
                   <ExplorerView state={explorer} onStateChange={setExplorer} />
                 </TabsContent>

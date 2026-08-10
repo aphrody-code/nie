@@ -27,7 +27,7 @@ export interface AppMenuActions {
   tabLabels: Record<string, string>;
 }
 
-const VIEW_TABS = ["explorer", "search", "data", "mods", "cpk", "re", "save", "settings"] as const;
+const VIEW_TABS = ["editor", "explorer", "search", "data", "mods", "cpk", "re", "save", "settings"] as const;
 
 function zoomIn() {
   setSettings({ uiZoom: Math.min(1.5, getSettings().uiZoom + 0.1) });
@@ -114,7 +114,7 @@ export function useAppMenuShortcuts(a: AppMenuActions): void {
       const tag = (e.target as HTMLElement | null)?.tagName;
       const typing = tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement | null)?.isContentEditable;
 
-      if (e.key >= "1" && e.key <= "8") {
+      if (e.key >= "1" && e.key <= "9") {
         const tab = VIEW_TABS[Number(e.key) - 1];
         if (tab) {
           e.preventDefault();
