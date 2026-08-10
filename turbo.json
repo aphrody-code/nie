@@ -1,12 +1,6 @@
 {
 	"$schema": "https://turborepo.dev/schema.json",
-	"globalDependencies": [
-		"bunfig.toml",
-		".oxlintrc.json",
-		".oxfmtrc.json",
-		"packages/config/tsconfig-base.json",
-		"packages/config/tsconfig-bun.json"
-	],
+	"globalDependencies": ["bunfig.toml", "tsconfig.base.json", "package.json", ".oxlintrc.json", ".oxfmtrc.json"],
 	"globalPassThroughEnv": ["PATH", "HOME", "TERM", "CI", "GITHUB_ACTIONS", "DOTNET_ROLL_FORWARD"],
 	"ui": "stream",
 	"cacheDir": ".turbo/cache",
@@ -30,11 +24,11 @@
 			"cache": false,
 			"outputs": []
 		},
-		"type-check": {
+		"typecheck": {
 			"dependsOn": ["^build"],
-			"inputs": ["$TURBO_DEFAULT$", "tsconfig.json", "!**/*.md"],
+			"inputs": ["$TURBO_DEFAULT$", "tsconfig.json", "tsconfig.base.json", "!**/*.md"],
 			"outputLogs": "errors-only",
-			"outputs": []
+			"outputs": [".tsbuildinfo"]
 		},
 		"test": {
 			"dependsOn": ["build"],

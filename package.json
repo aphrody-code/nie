@@ -1,19 +1,29 @@
 {
   "name": "niers",
   "version": "0.4.0",
-  "description": "Bun monorepo — FFI bindings (packages/nie) + plugin + apps, racine workspace niers",
+  "description": "Bun monorepo — bibliothèques (packages/*) et applications (apps/*) du projet niers",
   "type": "module",
+  "private": true,
   "workspaces": {
     "packages": ["packages/*", "apps/*"],
     "catalog": {
-      "typescript": "^5.8.3",
-      "@types/bun": "latest"
+      "typescript": "5.9.3",
+      "@types/bun": "1.3.14"
+    },
+    "catalogs": {
+      "mcp": {
+        "@modelcontextprotocol/sdk": "1.30.0",
+        "zod": "3.25.76"
+      }
     }
   },
   "scripts": {
     "build:ffi": "cargo build -p nie-ffi",
-    "test": "bun test packages/nie apps/menu apps/nie-decode",
-    "typecheck": "bun run --filter '*' typecheck"
+    "build": "bun run --filter '*' build",
+    "test": "bun run --filter '*' test",
+    "typecheck": "bun run --filter '*' typecheck",
+    "lint": "bunx oxlint -c .oxlintrc.json -A style -A pedantic -A restriction packages apps",
+    "lint:fix": "bunx oxlint -c .oxlintrc.json -A style -A pedantic -A restriction --fix packages apps"
   },
   "engines": {
     "bun": ">=1.3.0"

@@ -1,0 +1,2 @@
+# node_modules/ est déjà ignoré à la racine ; ici seul le cache local du serveur.
+.cache/

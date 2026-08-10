@@ -28,15 +28,21 @@ import { existsSync } from "node:fs";
 // ─── résolution du .so ──────────────────────────────────────────────────────
 
 // import.meta.dir = packages/nie/src → ../../.. = niers/
-const _wsRoot    = `${import.meta.dir}/../../..`;
-const _soDebug   = `${_wsRoot}/target/debug/libnie_ffi.${suffix}`;
-const _soRelease = `${_wsRoot}/target/release/libnie_ffi.${suffix}`;
+const _wsRoot = `${import.meta.dir}/../../..`;
+
+// Le préfixe `lib` n'existe pas sur Windows : rustc y produit `nie_ffi.dll`.
+// On teste les deux formes pour chaque profil, debug d'abord.
+const _prefixes = process.platform === "win32" ? ["", "lib"] : ["lib", ""];
+const _candidates = ["debug", "release"].flatMap((profile) =>
+  _prefixes.map((prefix) => `${_wsRoot}/target/${profile}/${prefix}nie_ffi.${suffix}`),
+);
+
+const _soDebug = _candidates[0]!;
 
 function resolveSo(): string {
   const env = process.env["NIE_FFI_PATH"];
   if (env) return env;
-  if (existsSync(_soDebug))   return _soDebug;
-  if (existsSync(_soRelease)) return _soRelease;
+  for (const c of _candidates) if (existsSync(c)) return c;
   return _soDebug;
 }
 

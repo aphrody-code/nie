@@ -5,13 +5,11 @@
       "command": "bun",
       "args": [
         "run",
-        "/home/ubuntu/niers/tools/mcp-game/src/index.ts"
+        "apps/nie-mcp/src/index.ts"
       ],
       "env": {
         "NIERS_REDIS": "redis://127.0.0.1:6379",
-        "NIERS_SQLITE": "/home/ubuntu/niers/var/niers.sqlite",
-        "MODEL_SERVE_URL": "http://127.0.0.1:8790",
-        "NIERS_REPO": "/home/ubuntu/niers"
+        "MODEL_SERVE_URL": "http://127.0.0.1:8790"
       }
     }
   }
