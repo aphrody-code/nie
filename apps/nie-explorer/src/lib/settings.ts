@@ -32,6 +32,11 @@ export interface Settings {
   uiZoom: number;
   /** Variante de palette sombre — cf. [`AccentTheme`]. */
   accentTheme: AccentTheme;
+  /**
+   * Autorise le serveur MCP `nie-mcp` à piloter cette fenêtre (naviguer, ouvrir un asset,
+   * changer d'onglet) via le pont local `@niers/bridge`. Désactivé, aucun socket n'est ouvert.
+   */
+  bridgeEnabled: boolean;
 }
 
 // Le thème clair/sombre/système est géré par next-themes (sa propre clé localStorage
@@ -46,6 +51,7 @@ const DEFAULTS: Settings = {
   fontScale: 1,
   uiZoom: 1,
   accentTheme: "spacedrive",
+  bridgeEnabled: true,
 };
 
 function load(): Settings {

@@ -557,6 +557,10 @@ export const commands = {
 	 *  une plage volatile/refusée est simplement sautée).
 	 */
 	reTraceDumpModule: (pid: number) => typedError<ReTraceDumpStatsDto, string>(__TAURI_INVOKE("re_trace_dump_module", { pid })),
+	/**  Décrit l'état d'installation sans rien modifier. */
+	mcpStatus: (target: McpTarget) => typedError<McpStatusDto, string>(__TAURI_INVOKE("mcp_status", { target })),
+	/**  Déclare `niers-game` dans la configuration du client visé, en préservant le reste. */
+	mcpInstall: (target: McpTarget, gameDir: string | null) => typedError<McpInstallDto, string>(__TAURI_INVOKE("mcp_install", { target, gameDir })),
 };
 
 /* Types */
@@ -750,6 +754,39 @@ export type LuaSessionGlobalDto = {
 	/**  Nombre d'entrées si table. */
 	len: number | null,
 };
+
+/**  Résultat d'une écriture de configuration. */
+export type McpInstallDto = {
+	/**  Fichier écrit. */
+	config_path: string,
+	/**  Vrai si une entrée `niers-game` préexistante a été remplacée. */
+	replaced: boolean,
+	/**  Chemin de la sauvegarde `.bak`, si le fichier existait. */
+	backup_path: string | null,
+};
+
+/**  État de l'installation pour un client donné. */
+export type McpStatusDto = {
+	/**  Chemin du fichier de configuration visé. */
+	config_path: string,
+	/**  Vrai si ce fichier existe déjà. */
+	config_exists: boolean,
+	/**  Vrai si `niers-game` y est déjà déclaré. */
+	installed: boolean,
+	/**  Commande actuellement déclarée, si elle l'est. */
+	current_command: string | null,
+	/**  Vrai si le point d'entrée du serveur existe sur le disque. */
+	entrypoint_exists: boolean,
+	/**  Chemin absolu attendu du point d'entrée. */
+	entrypoint: string,
+};
+
+/**  Client MCP visé par l'installation. */
+export type McpTarget = 
+/**  `<repo>/.mcp.json` — serveur de projet, chemin relatif, versionné avec le dépôt. */
+"claude-code" | 
+/**  `%APPDATA%/Claude/claude_desktop_config.json` — chemins absolus obligatoires. */
+"claude-desktop";
 
 export type PackFileDto = {
 	/**
