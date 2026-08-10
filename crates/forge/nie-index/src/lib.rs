@@ -16,8 +16,15 @@ pub use rusqlite;
 /// Schéma SQL embarqué.
 pub const SCHEMA: &str = include_str!("schema.sql");
 
-/// Version du schéma (clé `meta.schema_version`).
-pub const SCHEMA_VERSION: &str = "1";
+/// Migration « caméra » embarquée : tables `cam_*` et vues associées.
+///
+/// Indexe la carte du reverse caméra, les fichiers de données, `soccer_camera_config`,
+/// les presets de contrôleur et les 1 215 animations `.g4cm` (jusqu'aux échantillons de
+/// keyframes). Peuplée par `nie-cam index` (crate `nie-camera`).
+pub const CAMERA_SCHEMA: &str = include_str!("camera.sql");
+
+/// Version du schéma (clé `meta.schema_version`). `2` = schéma de base + migration caméra.
+pub const SCHEMA_VERSION: &str = "2";
 
 #[derive(Debug, Error)]
 pub enum IndexError {
@@ -74,10 +81,20 @@ impl Db {
         Ok(db)
     }
 
-    /// Applique le schéma (idempotent) et enregistre la version.
+    /// Applique le schéma **et** les migrations (idempotent), puis enregistre la version.
     pub fn init(&self) -> Result<()> {
         self.conn.execute_batch(SCHEMA)?;
+        self.conn.execute_batch(CAMERA_SCHEMA)?;
         self.set_meta("schema_version", SCHEMA_VERSION)?;
+        Ok(())
+    }
+
+    /// Applique seulement la migration caméra (tables `cam_*` + vues).
+    ///
+    /// `init` l'applique déjà ; cette fonction sert à l'appliquer sur une base ouverte
+    /// autrement, ou à la rejouer après édition du fichier SQL.
+    pub fn init_camera(&self) -> Result<()> {
+        self.conn.execute_batch(CAMERA_SCHEMA)?;
         Ok(())
     }
 
@@ -383,7 +400,18 @@ mod tests {
     #[test]
     fn schema_applies_and_coverage_computes() {
         let mut db = Db::open_in_memory().unwrap();
-        assert_eq!(db.get_meta("schema_version").unwrap().as_deref(), Some("1"));
+        assert_eq!(db.get_meta("schema_version").unwrap().as_deref(), Some(SCHEMA_VERSION));
+        // La migration caméra est appliquée par `init` : ses tables et vues existent.
+        let cam_tables: i64 = db
+            .conn()
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table'
+                   AND substr(name, 1, 4) = 'cam_'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(cam_tables, 22, "migration caméra appliquée");
         let bin = db
             .upsert_binary("nie.exe", "abc123", "x86_64", 64, 0x1_4000_0000, 31_468_032, None, None)
             .unwrap();

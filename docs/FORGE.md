@@ -45,14 +45,46 @@ xor eax, eax     MSVC → 33 c0         LLVM → 31 c0
 ```
 
 C'était le plafond invisible du projet : aucune quantité de portage Rust idiomatique ne produit le
-binaire. La forge le contourne en **assemblant elle-même** — `crates/forge/nie-asm` est un encodeur
-x86-64 en dialecte MSVC, et le dépôt commite une **source assembleur** (`forge/asm/*.s`) que la
-construction réencode. Les octets sont produits par du code du dépôt, à partir d'une source lisible
-et modifiable.
+binaire. La forge en sort par **deux voies**, et les deux sont vérifiées au byte près.
 
-Cet encodeur est **falsifiable** : il applique des règles canoniques, il ne colle pas aux octets.
-Si MSVC a choisi une autre forme, le résultat diffère et l'unité est refusée — elle reste recopiée,
-et la cause est journalisée. Aucun faux positif n'est possible.
+### Voie A — assembler soi-même (`nie-asm`)
+
+`crates/forge/nie-asm` est un encodeur x86-64 en dialecte MSVC ; le dépôt commite une **source
+assembleur** (`forge/asm/*.s`) que la construction réencode. Les branchements et les opérandes
+`[rip …]` sont écrits en adresse absolue et résolus depuis la position réelle du corps — le travail
+normal d'un assembleur.
+
+Cet encodeur est **falsifiable** : il applique des règles canoniques, il ne colle pas aux octets. Si
+MSVC a choisi une autre forme, le résultat diffère et l'unité est refusée — elle reste recopiée, et
+la cause est journalisée. Aucun faux positif n'est possible.
+
+### Voie B — compiler avec le compilateur d'origine (`nie-forge cc`)
+
+**MSVC 14.44 est installé sur la machine de développement** (`cl.exe` 19.44.35228), c'est-à-dire le
+toolset qui a lié `nie.exe`. Le binaire peut donc être reproduit par **le compilateur qui l'a
+produit**, depuis du code source. Vérifié dès le premier essai, sans ajustement :
+
+```c
+unsigned int f(void) { return 0xefec8a0dU; }   /* cl /O2 /GS- /Gy /Zl */
+→ b8 0d 8a ec ef c3   = octets exacts de la fonction 0x1411194b0 du jeu
+```
+
+Les sources vivent dans `cpp/decomp/functions/*.c` — l'échafaudage rapatrié d'IECODE, dont le
+`CMakeLists.txt` compile déjà ces fichiers **en C** avec un pont vers l'API C++
+(cf. `cpp/PROVENANCE.md`). Chaque fonction porte l'adresse qu'elle prétend reproduire :
+
+```c
+/* @nie 0x14004e9e0 */
+float nie_load_f32_14004e9e0(const float *p) { return *p; }
+```
+
+`nie-forge cc` compile, extrait le symbole de l'objet COFF, compare byte-à-byte (champs relogés
+masqués) et n'enregistre que les correspondances exactes.
+
+**C'est la voie qui monte le plus haut.** L'assembleur reste muet sur le SSE, or `movaps`/`movss`/
+`xorps`/`movups` bloquent à eux seuls ~10 Mo de `.text` ; le C les produit naturellement — un
+`return *p;` sur un `float` donne `movss xmm0, [rcx] ; ret`. Écrire la sémantique et laisser MSVC
+choisir la forme évite d'avoir à réimplémenter un encodeur x86 complet.
 
 ---
 
@@ -61,10 +93,14 @@ et la cause est journalisée. Aucun faux positif n'est possible.
 ```
 crates/forge/
   nie-pe      modèle byte-exact du PE64 : parsing, ré-émission des en-têtes depuis les
-              structures, découpage en unités, réassemblage, COFF (objets rustc), diff, checksum
-  nie-asm     encodeur x86-64 dialecte MSVC + syntaxe textuelle (source ↔ octets)
-  nie-forge   CLI : split · lift · build · verify · report · match · candidates · unit
+              structures, découpage en unités, réassemblage, COFF (objets rustc/MSVC),
+              diff masqué par relocations, checksum
+  nie-asm     encodeur x86-64 dialecte MSVC + syntaxe textuelle (source ↔ octets),
+              encodage conscient de l'adresse (branchements, [rip …])
+  nie-forge   CLI : split · lift · cc · build · verify · report · match · candidates · unit
   nie-re · nie-index · nie-seed · nie-queue · nie-trace   échafaudage de reverse qui alimente la forge
+
+cpp/decomp/   sources C reproduites, compilées par MSVC 14.44 (voie B)
 ```
 
 Les autres familles servent la même fin :
@@ -74,9 +110,12 @@ Les autres familles servent la même fin :
 ## 4. La boucle
 
 ```bash
+just forge                      # la boucle complète, ci-dessous en détail
+
 nie-forge split                 # nie.exe → recouvrement total (var/forge/cover.json)
-nie-forge lift                  # octets → source assembleur commitée (forge/asm/lifted.s)
-nie-forge build                 # source + registre → dist/nie.exe, échoue si sha256 diffère
+nie-forge lift                  # octets → source assembleur (forge/asm/lifted.s) + causes de blocage
+nie-forge cc --register         # cpp/decomp/functions/*.c → MSVC → correspondances byte-exactes
+nie-forge build                 # sources + registre → dist/nie.exe, échoue si sha256 diffère
 nie-forge verify --reference nie.exe --got dist/nie.exe
 nie-forge report                # part réellement produite par le dépôt
 nie-forge candidates --no-reloc # corps identiques : quelle implémentation en débloque combien
@@ -94,9 +133,10 @@ Chiffres sortis de l'outil, pas d'une estimation.
 ```
 split   : 219 427 unités · 55 351 fonctions .pdata · 46 870 fragments chaînés rattachés
           24 453 814 o de code · 8 315 392 o de données · 0 trou · 0 overlay
-lift    : 111 124 corps examinés → 21 419 régénérables (143 483 o), source de 916 Ko
-build   : dist/nie.exe · 33 918 464 o · sha256 identique ✅ · 21 420 unités produites par le dépôt
-report  : produced = 0,4249 % du fichier · code_rust = 0,5868 % du .text
+lift    : 111 124 corps examinés → 51 003 régénérables (2 053 055 o)
+cc      : 7 fonctions compilées par MSVC 14.44, 7 correspondances byte-exactes
+build   : dist/nie.exe · 33 918 464 o · sha256 identique ✅ · 51 006 unités produites
+report  : produced = 6,0548 % du fichier · code_rust = 8,3957 % du .text
 ```
 
 Décomposition de ce qui est **réellement produit** :
@@ -104,26 +144,37 @@ Décomposition de ce qui est **réellement produit** :
 | source | unités | octets | nature |
 |---|---:|---:|---|
 | en-têtes PE ré-émis | 1 | 624 | recalculés depuis les structures par `nie-pe` |
-| corps réassemblés | 21 419 | 143 483 | `nie-asm` depuis `forge/asm/lifted.s` |
-| codegen rustc coïncidant | 0 | 0 | voie ouverte, aucune fonction encore conforme |
-| **total** | **21 420** | **144 107** | **0,4249 %** |
+| corps réassemblés | 51 003 | 2 053 055 | `nie-asm` depuis `forge/asm/lifted.s` |
+| codegen MSVC coïncidant | 2 | 9 | `cpp/decomp/functions/thunks.c`, corps SSE hors de portée de l'assembleur |
+| **total** | **51 006** | **2 053 688** | **6,0548 %** |
 
-Le reste (33 774 357 o) vient de la référence, et c'est dit tel quel.
+Attribution **exclusive** : une unité fournie par deux voies n'est comptée qu'une fois, dans le même
+ordre que la construction (en-têtes → assembleur → codegen). Les 5 autres fonctions compilées par
+MSVC coïncident aussi, mais leurs octets sont déjà produits par la voie A : elles servent de témoin
+que les deux voies s'accordent, pas de gonflement du chiffre.
+
+### Progression de la session
+
+| étape | fichier | `.text` |
+|---|---:|---:|
+| en-têtes seuls | 0,0018 % | 0 % |
+| + dialecte initial (17 formes) | 0,4249 % | 0,5868 % |
+| + prologues, branchements, `[rip …]` | 1,9700 % | 2,7299 % |
+| + `r/m`+immédiat, appels indirects, `imul`, `movsx`… | **6,0548 %** | **8,3957 %** |
 
 ### Ce qui bloque le relevé, par masse (la liste de courses)
 
 ```
-push    43 042 corps  20 131 787 o     sub    9 753   1 395 654 o
-mov      8 834 corps     702 251 o     test   4 634     588 784 o
-cmp      4 474 corps     330 936 o     lea    5 312     221 818 o
-movzx    3 037 corps     192 551 o     movss  1 110     180 250 o
+movaps   6 670 corps  5 419 980 o      mov       8 441   4 100 881 o
+encodage 15 892 corps 2 139 862 o      xorps     4 879   1 826 997 o
+movss    4 670 corps  1 612 929 o      movups    2 401   1 094 574 o
+cmovne   2 265 corps    903 709 o
 ```
 
-Lecture : `push` est la première instruction non supportée de 43 042 corps — les prologues. La
-progression est donc **pilotée par la donnée** : chaque instruction ajoutée à `nie-asm` a un gain
-chiffré d'avance, et le gain est revérifié à la construction suivante.
-
----
+Lecture : le SSE domine désormais (`movaps`+`xorps`+`movss`+`movups` ≈ 10 Mo) — c'est le domaine de
+la **voie B**, où le C compilé fait le travail sans qu'on ait à encoder ces formes à la main.
+`encodage` (2,1 Mo) désigne les corps entièrement traduits mais dont MSVC a choisi une forme que
+l'encodeur canonique ne reproduit pas : ce sont des *findings* de RE, pas des échecs silencieux.
 
 ## 6. Un constat que l'outillage a produit immédiatement
 
@@ -153,8 +204,8 @@ d'octets plutôt que par adresse), puis renseigner le champ `rust` de chaque ent
 |---|---|---|
 | **G0 — identité** | le fichier produit est byte-identique à l'original | ✅ tenu, testé sur le vrai binaire |
 | **G1 — recouvrement** | chaque octet appartient à une unité nommée, zéro trou | ✅ 219 427 unités, invariant testé |
-| **G2 — amorçage** | une part non nulle du binaire est produite par le dépôt | ✅ 0,4249 % |
-| **G3 — code** | 50 % du `.text` produit par le dépôt | en cours — piloté par les blocages ci-dessus |
+| **G2 — amorçage** | une part non nulle du binaire est produite par le dépôt | ✅ 6,0548 % |
+| **G3 — code** | 50 % du `.text` produit par le dépôt | en cours — **8,3957 %**, piloté par les blocages ci-dessus |
 | **G4 — sections** | `.rdata`/`.data` produits depuis les structures, pas recopiés | non commencé (découpage encore d'un seul tenant) |
 | **G5 — disposition** | la forge calcule ses propres adresses (édition de liens réelle) | non commencé ; jusque-là les champs relogés viennent de la disposition de référence |
 | **G6 — total** | 100 % du fichier produit, `nie.exe` reconstructible sans référence | horizon |

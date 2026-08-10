@@ -78,28 +78,37 @@ impl Report {
             .map(|u| u.len)
             .sum();
 
-        let by_unit = registry.by_unit()?;
+        let by_va = registry.by_va()?;
         for u in &cover.units {
+            // Ordre d'attribution IDENTIQUE à celui de `build` : en-têtes, puis
+            // source assembleur, puis codegen enregistré. Une unité fournie par
+            // deux voies ne doit être comptée qu'une fois — sinon la part
+            // « produite » se gonflerait toute seule.
+            let entry = u.va.and_then(|va| by_va.get(&va));
             if u.kind == UnitKind::PeHeaders {
                 r.emitted.add(u.len);
-            }
-            if u.kind.is_code()
+            } else if u.kind.is_code()
                 && let Some(va) = u.va
                 && asm.emit(va).is_some_and(|b| b.len() == u.len)
             {
                 r.assembled.add(u.len);
+            } else if entry.is_some_and(|e| e.status == MatchStatus::Bytes) {
+                r.matched_bytes.add(u.len);
             }
-            if let Some(e) = by_unit.get(&u.id) {
-                match e.status {
-                    MatchStatus::Bytes => r.matched_bytes.add(u.len),
-                    MatchStatus::Semantic => r.matched_semantic.add(u.len),
-                    MatchStatus::Wip => r.wip.add(u.len),
-                }
+
+            // Suivi séparé : ne produit aucun octet, ne se cumule pas au-dessus.
+            match entry.map(|e| e.status) {
+                Some(MatchStatus::Semantic) => r.matched_semantic.add(u.len),
+                Some(MatchStatus::Wip) => r.wip.add(u.len),
+                _ => {}
             }
         }
-        r.orphan_entries = by_unit
+        // Une entrée est orpheline si aucune unité ne COMMENCE à son adresse :
+        // c'est le signal que l'adresse vient d'un autre build ou tombe au
+        // milieu d'une fonction réelle.
+        r.orphan_entries = by_va
             .keys()
-            .filter(|id| cover.find(id).is_none())
+            .filter(|va| !cover.units.iter().any(|u| u.va == Some(**va)))
             .count();
         Ok(r)
     }
@@ -233,6 +242,24 @@ mod tests {
         let r = Report::build(&cover(), &reg, &AsmSource::default()).unwrap();
         assert_eq!(r.orphan_entries, 1);
         assert_eq!(r.matched_bytes.units, 0);
+    }
+
+    #[test]
+    fn une_unite_fournie_deux_fois_n_est_comptee_qu_une_fois() {
+        // Même unité couverte par la source assembleur ET par un codegen enregistré :
+        // `build` n'en écrit qu'une, le rapport ne doit pas en compter deux.
+        let asm = AsmSource::parse("0x140002000: mov al, 0x1 ; ret\n", "essai").unwrap();
+        let reg = Registry {
+            version: 1,
+            target_sha256: None,
+            entries: vec![entry("0x140002000", MatchStatus::Bytes)],
+        };
+        let mut c = cover();
+        c.units[2].len = 3;
+        let r = Report::build(&c, &reg, &asm).unwrap();
+        assert_eq!(r.assembled.bytes, 3);
+        assert_eq!(r.matched_bytes.bytes, 0, "pas de double comptage");
+        assert_eq!(r.produced_bytes(), 103);
     }
 
     #[test]

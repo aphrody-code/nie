@@ -59,8 +59,13 @@ forge-build: forge-build-tool
 forge-report: forge-build-tool
     {{forge}} report
 
-# Boucle complete.
-forge: forge-split forge-lift forge-build forge-report
+# Compile les sources C de cpp/decomp/functions avec MSVC et enregistre les
+# fonctions dont le codegen redonne EXACTEMENT les octets du jeu.
+forge-cc: forge-build-tool
+    {{forge}} cc --exe {{forge_exe}} --register
+
+# Boucle complete : decoupe -> releve asm -> compile C -> reconstruit -> mesure.
+forge: forge-split forge-lift forge-cc forge-build forge-report
 
 # --- Pipeline RE (idempotent : upserts DB) -----------------------------------
 
