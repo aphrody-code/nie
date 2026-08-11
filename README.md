@@ -51,7 +51,7 @@ crates/    # crates Rust (jeu + données + moteur + RE + outils) — dont la CLI
 src/       # arbre C++ iecode (jeu jouable, C décompilé, libs natives)
 csharp/    # IECODE.Core / IECODE.CLI / tests (.NET 10)
 apps/      # nie-explorer (app desktop Tauri), nie-mcp (serveur MCP)
-packages/  # nie (FFI Rust + C++), nie-bridge, nie-catalog, nie-plugin, nie-util (Bun)
+packages/  # nie (FFI Rust + C++), nie-bridge, nie-plugin (Bun)
 docs/      # plan maître, roadmap 100 %, architecture, design, inventaires
 scripts/   # outillage RE (Ghidra/Python/uv), packaging, exports
 var/       # base de connaissance RE (niers.sqlite), artefacts régénérables (gitignored)
@@ -90,7 +90,7 @@ fusionné), `nie-re` (moteur RE : RTTI, `.pdata`, désassemblage), `nie-queue` (
 | Nom | Rôle |
 |---|---|
 | `nie-explorer` | App desktop Tauri v2 + React 19 — explorateur VFS (254 202 fichiers), éditeur Monaco, aperçus texture/audio/vidéo/3D, gestion de mods, save manager, onglets RE et Game Data. Détail : [`apps/nie-explorer/ROADMAP.md`](apps/nie-explorer/ROADMAP.md). |
-| `nie` / `nie-catalog` / `nie-plugin` / `nie-util` | Bindings FFI (Rust `nie_ffi` + C++ `iecode_ffi`), catalogue SQLite du VFS, plugin d'import de formats, utilitaires Bun partagés. |
+| `nie` / `nie-bridge` / `nie-plugin` | Bindings FFI de `nie_ffi` (Rust — seul backend natif de Bun ; le pont C++ `iecode_ffi` n'est pas chargé côté TS), protocole de contrôle `nie-mcp` ↔ `nie-explorer`, plugin Bun d'import des formats. |
 
 Le décodage en lot n'est plus une app Bun : c'est `niers decode <fichier|dossier>` (Rust direct,
 parallélisé par rayon, même table de dispatch que la FFI).

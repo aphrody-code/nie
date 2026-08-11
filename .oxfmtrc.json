@@ -10,7 +10,6 @@
 	"endOfLine": "lf",
 	"ignorePatterns": [
 		"**/dist/**",
-		"**/.turbo/**",
 		"**/node_modules/**",
 		"**/bin/**",
 		"**/obj/**",

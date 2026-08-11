@@ -8,9 +8,8 @@ CompileFlags:
     - -Isrc/include
     - -Ithird_party/stb
     - -Ithird_party/bcdec
-    - -Ithird_party/xxhash
-    - -Ithird_party/concurrentqueue
     - -Ithird_party/mio
+    - -Ithird_party/tinygltf
     - -DNOMINMAX
     - -DUNICODE
     - -D_WIN32_WINNT=0x0A00
