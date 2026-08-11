@@ -122,25 +122,6 @@ impl AsmSource {
         Ok(())
     }
 
-    /// Écriture simple, sans annotation (implémentation historique).
-    fn save_plain(&self, path: &Path, header: &str) -> anyhow::Result<()> {
-        if let Some(d) = path.parent() {
-            std::fs::create_dir_all(d)?;
-        }
-        let mut out = String::new();
-        for l in header.lines() {
-            out.push_str("# ");
-            out.push_str(l);
-            out.push('\n');
-        }
-        out.push('\n');
-        for (va, insns) in &self.bodies {
-            out.push_str(&format!("{va:#x}: {}\n", nie_asm::to_line(insns)));
-        }
-        std::fs::write(path, out).with_context(|| format!("écriture de {}", path.display()))?;
-        Ok(())
-    }
-
     /// Octets régénérés pour une adresse donnée.
     #[must_use]
     pub fn emit(&self, va: u64) -> Option<Vec<u8>> {
