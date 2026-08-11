@@ -4,15 +4,21 @@
 // utilisable et utilisé dans l'app ») — indépendant du miroir wiki azalee (`SearchView`) : aucun
 // `supabase-*.sqlite` requis, aucune requête réseau, juste les fichiers `.cfg.bin` du jeu monté.
 //
-// Neuf jeux de données câblés (techniques, objets, Avatar/Keshin, succès, quêtes, boutiques,
-// stades, capacités passives, tactiques spéciales) : les autres modules `nie-data` suivent le même
-// patron côté Rust (`src-tauri/src/game_data.rs`), à étendre au besoin — même pont `load_t2b`
-// déjà vérifié réel (tests `list_*_sur_le_vrai_jeu`).
+// Seize jeux de données câblés (techniques, objets, Avatar/Keshin, succès, quêtes, boutiques,
+// stades, capacités passives, tactiques spéciales, écussons, galerie, feintes, activités, équipes,
+// formations, uniformes) : les autres modules `nie-data` suivent le même patron côté Rust
+// (`src-tauri/src/game_data.rs`), à étendre au besoin — mêmes ponts `load_t2b`/`load_rdbn` déjà
+// vérifiés réels (tests `list_*_sur_le_vrai_jeu`).
 import { useEffect, useMemo, useState } from "react";
 import {
   api,
+  type Activity,
   type Aura,
+  type BelongTeam,
   type CharaPicker,
+  type Emblem,
+  type Formation,
+  type Gallery,
   type Item,
   type Passive,
   type Quest,
@@ -21,7 +27,9 @@ import {
   type SpecialTactics,
   type Stadium,
   type StatBlock,
+  type Trick,
   type Trophy,
+  type Uniform,
 } from "@/lib/api";
 import { useSettings } from "@/lib/settings";
 import { Input } from "@/components/ui/input";
@@ -42,6 +50,13 @@ type Kind =
   | "stadiums"
   | "passives"
   | "tactics"
+  | "emblems"
+  | "gallery"
+  | "tricks"
+  | "activities"
+  | "teams"
+  | "formations"
+  | "uniforms"
   | "stats";
 
 const KIND_LABELS: Record<Kind, string> = {
@@ -54,6 +69,13 @@ const KIND_LABELS: Record<Kind, string> = {
   stadiums: "Stades",
   passives: "Passifs",
   tactics: "Tactiques",
+  emblems: "Écussons",
+  gallery: "Galerie",
+  tricks: "Feintes",
+  activities: "Activités",
+  teams: "Équipes",
+  formations: "Formations",
+  uniforms: "Uniformes",
   stats: "Calculateur de stats",
 };
 
@@ -268,6 +290,13 @@ export function GameDataView({ onOpenFile }: { onOpenFile?: (path: string) => vo
   const [stadiums, setStadiums] = useState<Stadium[]>([]);
   const [passives, setPassives] = useState<Passive[]>([]);
   const [tactics, setTactics] = useState<SpecialTactics[]>([]);
+  const [emblems, setEmblems] = useState<Emblem[]>([]);
+  const [gallery, setGallery] = useState<Gallery[]>([]);
+  const [tricks, setTricks] = useState<Trick[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [teams, setTeams] = useState<BelongTeam[]>([]);
+  const [formations, setFormations] = useState<Formation[]>([]);
+  const [uniforms, setUniforms] = useState<Uniform[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -290,6 +319,13 @@ export function GameDataView({ onOpenFile }: { onOpenFile?: (path: string) => vo
       stadiums: () => api.gameDataStadiums(settings.gameDir).then(setStadiums),
       passives: () => api.gameDataPassives(settings.gameDir).then(setPassives),
       tactics: () => api.gameDataSpecialTactics(settings.gameDir).then(setTactics),
+      emblems: () => api.gameDataEmblems(settings.gameDir).then(setEmblems),
+      gallery: () => api.gameDataGallery(settings.gameDir).then(setGallery),
+      tricks: () => api.gameDataTricks(settings.gameDir).then(setTricks),
+      activities: () => api.gameDataActivities(settings.gameDir).then(setActivities),
+      teams: () => api.gameDataBelongTeams(settings.gameDir).then(setTeams),
+      formations: () => api.gameDataFormations(settings.gameDir).then(setFormations),
+      uniforms: () => api.gameDataUniforms(settings.gameDir).then(setUniforms),
     };
     byKind[kind]()
       .catch((e) => setError(String(e)))
@@ -316,6 +352,13 @@ export function GameDataView({ onOpenFile }: { onOpenFile?: (path: string) => vo
     t.name ?? "",
     t.element,
   ]);
+  const filteredEmblems = useFiltered(emblems, query, (e) => [e.emblem_id, e.emblem_name, e.large_file_path]);
+  const filteredGallery = useFiltered(gallery, query, (g) => [g.gallery_id, g.img_path, g.thumb_path, g.unlock_kind]);
+  const filteredTricks = useFiltered(tricks, query, (t) => [t.trick_id_name, t.trick_name, t.category, t.event_id_name]);
+  const filteredActivities = useFiltered(activities, query, (a) => [a.id, a.name]);
+  const filteredTeams = useFiltered(teams, query, (t) => [t.team_id, t.name ?? "", ...t.seasons]);
+  const filteredFormations = useFiltered(formations, query, (f) => [f.form_id, f.noun_id]);
+  const filteredUniforms = useFiltered(uniforms, query, (u) => [u.name_id, u.fielder_model_id ?? ""]);
 
   const total =
     kind === "stats"
@@ -330,6 +373,13 @@ export function GameDataView({ onOpenFile }: { onOpenFile?: (path: string) => vo
           stadiums: stadiums.length,
           passives: passives.length,
           tactics: tactics.length,
+          emblems: emblems.length,
+          gallery: gallery.length,
+          tricks: tricks.length,
+          activities: activities.length,
+          teams: teams.length,
+          formations: formations.length,
+          uniforms: uniforms.length,
         }[kind];
   const filteredCount =
     kind === "stats"
@@ -344,6 +394,13 @@ export function GameDataView({ onOpenFile }: { onOpenFile?: (path: string) => vo
           stadiums: filteredStadiums.length,
           passives: filteredPassives.length,
           tactics: filteredTactics.length,
+          emblems: filteredEmblems.length,
+          gallery: filteredGallery.length,
+          tricks: filteredTricks.length,
+          activities: filteredActivities.length,
+          teams: filteredTeams.length,
+          formations: filteredFormations.length,
+          uniforms: filteredUniforms.length,
         }[kind];
 
   return (
@@ -477,6 +534,96 @@ export function GameDataView({ onOpenFile }: { onOpenFile?: (path: string) => vo
                 <span className="type-label-small text-on-surface-variant">puissance {t.power}</span>
                 {t.partner_count > 0 && (
                   <span className="type-label-small text-on-surface-variant">{t.partner_count} partenaire(s)</span>
+                )}
+              </Row>
+            ))}
+          {kind === "emblems" &&
+            filteredEmblems.map((e) => (
+              <Row key={e.emblem_id} code={e.is_template ? null : e.emblem_name} selected={selectedCode} onSelect={setSelectedCode}>
+                <span className="min-w-0 flex-1 truncate text-on-surface" title={e.large_file_path}>
+                  {e.emblem_name || e.emblem_id}
+                </span>
+                <span className="type-label-small text-on-surface-variant">{e.emblem_id}</span>
+                {/* Une entrée gabarit porte le jeton `<resourceID>` : ses chemins ne désignent
+                 * aucun fichier tant qu'un nom d'écusson concret n'y est pas substitué. */}
+                {e.is_template && <Badge variant="outline">gabarit</Badge>}
+              </Row>
+            ))}
+          {kind === "gallery" &&
+            filteredGallery.map((g) => (
+              <Row key={g.gallery_id} code={g.img_path || null} selected={selectedCode} onSelect={setSelectedCode}>
+                <span className="min-w-0 flex-1 truncate text-on-surface" title={g.thumb_path}>
+                  {g.img_path}
+                </span>
+                <Badge variant="outline">{g.unlock_kind}</Badge>
+                {g.story_episode != null && (
+                  <span className="type-label-small text-on-surface-variant">épisode {g.story_episode}</span>
+                )}
+                <span className="type-label-small text-on-surface-variant">flag {g.flg_no}</span>
+              </Row>
+            ))}
+          {kind === "tricks" &&
+            filteredTricks.map((t) => (
+              <Row key={t.trick_id} code={t.trick_id_name || null} selected={selectedCode} onSelect={setSelectedCode}>
+                <span className="min-w-0 flex-1 truncate text-on-surface">{t.trick_name || t.trick_id_name}</span>
+                <span className="type-label-small text-on-surface-variant">{t.trick_id_name}</span>
+                <Badge variant="outline">{t.category}</Badge>
+                {t.has_fail_event && <Badge variant="outline">échec scripté</Badge>}
+              </Row>
+            ))}
+          {kind === "activities" &&
+            filteredActivities.map((a) => (
+              <Row key={a.id} code={null} selected={selectedCode} onSelect={setSelectedCode}>
+                <span className="min-w-0 flex-1 truncate text-on-surface">{a.name}</span>
+                {a.is_root ? (
+                  <Badge>racine</Badge>
+                ) : (
+                  <span className="type-label-small text-on-surface-variant">parent {a.parent_id}</span>
+                )}
+                <span className="type-label-small text-on-surface-variant">type {a.kind}</span>
+                {/* Le blob `data` (base64) n'est pas décodé — sa sémantique n'est établie par
+                 * aucune source, seule sa taille est affichée. */}
+                <span className="type-label-small text-on-surface-variant">{a.data_len} o. base64</span>
+              </Row>
+            ))}
+          {kind === "teams" &&
+            filteredTeams.map((t) => (
+              <Row key={t.team_id} code={null} selected={selectedCode} onSelect={setSelectedCode}>
+                <span className="min-w-0 flex-1 truncate text-on-surface">{t.name ?? t.team_id}</span>
+                {t.seasons.map((s) => (
+                  <Badge key={s} variant="outline">
+                    {s}
+                  </Badge>
+                ))}
+              </Row>
+            ))}
+          {kind === "formations" &&
+            filteredFormations.map((f) => (
+              // Aucun nom résolvable : `formation_text.cfg.bin` n'existe pas dans cette version du
+              // jeu, `noun_id`/`desc_id` restent donc des hachages bruts (cf. `nie_data::formation`).
+              <Row key={f.form_id} code={null} selected={selectedCode} onSelect={setSelectedCode}>
+                <span className="min-w-0 flex-1 truncate text-on-surface">{f.form_id}</span>
+                <span className="type-label-small text-on-surface-variant" title="identifiant de libellé, non résolvable dans cette version du jeu">
+                  nom {f.noun_id}
+                </span>
+                <Badge variant="outline">{f.positions.join("-") || "aucun placement"}</Badge>
+                <span className="type-label-small text-on-surface-variant">
+                  att. {f.power_offense} / déf. {f.power_defense}
+                </span>
+              </Row>
+            ))}
+          {kind === "uniforms" &&
+            filteredUniforms.map((u) => (
+              // Clé composite : rien ne garantit l'unicité de `name_id` sur 627 lignes, la
+              // tranche de modèles la lève.
+              <Row key={`${u.name_id}-${u.model_start}`} code={null} selected={selectedCode} onSelect={setSelectedCode}>
+                <span className="min-w-0 flex-1 truncate text-on-surface">{u.name_id}</span>
+                {u.type_id != null && <Badge variant="outline">type {u.type_id}</Badge>}
+                <span className="type-label-small text-on-surface-variant">
+                  {u.resolved_count} / {u.model_count} modèle(s)
+                </span>
+                {u.fielder_model_id && (
+                  <span className="type-label-small text-on-surface-variant">joueur {u.fielder_model_id}</span>
                 )}
               </Row>
             ))}

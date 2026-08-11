@@ -6,10 +6,11 @@
 // utilisatrice tranchée, cf. `ROADMAP.md` §4.3/§5 et `src-tauri/src/re_trace.rs`).
 import { useEffect, useState } from "react";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
+import { open } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
 import { useSettings } from "@/lib/settings";
 import { reDb, defaultReDbPath, toStaticHex, type FunctionRow, type RttiClassRow, type XrefRow } from "@/lib/reDb";
-import { api, type ReTraceDumpStats, type ReTraceProcess, type ReTraceRegion } from "@/lib/api";
+import { api, type ReDumpHit, type ReDumpInfo, type ReTraceDumpStats, type ReTraceProcess, type ReTraceRegion } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +18,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-type SubTab = "functions" | "classes" | "live";
+type SubTab = "functions" | "classes" | "live" | "aob";
 
 /** Onglet « Live » — lecture directe de la mémoire du process en cours (lecture seule, jamais
  * d'écriture). Détection du process → liste des plages du module principal → lecture ponctuelle
@@ -174,6 +175,143 @@ function ReLiveView() {
   );
 }
 
+/** Onglet « Scan AOB » — recherche de motif dans un minidump `.dmp` DÉJÀ capturé (par l'onglet
+ * Live, ou par n'importe quel outil qui écrit un `MiniDumpWriteDump`). Rien n'est attaché au
+ * process du jeu ici : c'est un fichier lu en lecture seule. */
+function ReAobView() {
+  const [dmp, setDmp] = useState<string | null>(null);
+  const [info, setInfo] = useState<ReDumpInfo | null>(null);
+  const [motif, setMotif] = useState("");
+  const [limite, setLimite] = useState("200");
+  const [hits, setHits] = useState<ReDumpHit[] | null>(null);
+  const [tronque, setTronque] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function pickDmp() {
+    const path = await open({ title: "Minidump de nie.exe", filters: [{ name: "Minidump", extensions: ["dmp"] }] });
+    if (typeof path !== "string") return;
+    setHits(null);
+    setError(null);
+    setInfo(null);
+    setDmp(path);
+    try {
+      setInfo(await api.reDumpOpen(path));
+    } catch (e) {
+      setError(String(e));
+      setDmp(null);
+    }
+  }
+
+  async function scan() {
+    if (!dmp || !motif.trim()) return;
+    setScanning(true);
+    setError(null);
+    setHits(null);
+    try {
+      const r = await api.reDumpScan(dmp, motif.trim(), Number(limite) || 0);
+      setHits(r.hits);
+      setTronque(r.tronque);
+      if (r.hits.length === 0) toast.info("Aucun coup pour ce motif");
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setScanning(false);
+    }
+  }
+
+  async function copy(addr: string) {
+    await writeText(addr);
+    toast.success("Adresse copiée");
+  }
+
+  return (
+    <div className="flex h-full flex-col gap-3 overflow-auto p-3">
+      <Alert>
+        <AlertTitle>Fichier, pas process</AlertTitle>
+        <AlertDescription>
+          Le scan porte sur un minidump déjà capturé — aucune attache au jeu en cours, aucune écriture. Un scan relit tout le
+          volume capturé depuis le disque : comptez plusieurs secondes, jamais un résultat instantané.
+        </AlertDescription>
+      </Alert>
+
+      <div className="flex items-center gap-2">
+        <Button size="sm" variant="outline" onClick={() => void pickDmp()}>
+          Choisir un .dmp…
+        </Button>
+        {dmp && <span className="truncate font-mono type-label-small text-on-surface-variant">{dmp}</span>}
+      </div>
+
+      {info && (
+        <p className="type-body-small text-on-surface-variant">
+          {info.modules.length} module(s) · {info.ranges.toLocaleString("fr-FR")} plage(s) ·{" "}
+          {(info.mapped_bytes ?? 0).toLocaleString("fr-FR")} o capturés
+          {info.nie_base ? (
+            <>
+              {" · "}
+              <span className="font-mono">nie.exe @ {info.nie_base}</span>
+            </>
+          ) : (
+            " · nie.exe absent de cette capture"
+          )}
+        </p>
+      )}
+
+      <div className="flex items-center gap-2">
+        <Input
+          placeholder="motif AOB — ex. 44 8B ?? 10"
+          value={motif}
+          onChange={(e) => setMotif(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") void scan();
+          }}
+          className="flex-1 font-mono"
+          disabled={!dmp}
+        />
+        <Input placeholder="limite" value={limite} onChange={(e) => setLimite(e.target.value)} className="w-24" disabled={!dmp} />
+        <Button size="sm" variant="outline" onClick={() => void scan()} disabled={!dmp || !motif.trim() || scanning}>
+          {scanning ? "Scan…" : "Scanner"}
+        </Button>
+      </div>
+      <p className="type-label-small text-on-surface-variant">
+        `??`, `?` ou `*` = joker ; les autres jetons sont des octets hexadécimaux.
+      </p>
+
+      {error && <p className="type-body-small text-error">{error}</p>}
+
+      {hits && hits.length > 0 && (
+        <>
+          <p className="type-label-small text-on-surface-variant">
+            {hits.length.toLocaleString("fr-FR")} coup(s){tronque && " — limite atteinte, d'autres existent au-delà"}
+          </p>
+          <ScrollArea className="min-h-0 flex-1 rounded-2xl border border-app-line bg-app-dark-box">
+            <div className="divide-y divide-app-line">
+              {hits.map((h, i) => (
+                <div key={i} className="flex items-center gap-2 px-3 py-1 font-mono type-label-small text-on-surface">
+                  <button className="hover:underline" onClick={() => void copy(h.va)} title="Copier l'adresse live">
+                    {h.va}
+                  </button>
+                  {h.module && <Badge variant="outline">{h.module}</Badge>}
+                  {h.rva && <span className="text-on-surface-variant">+{h.rva}</span>}
+                  {h.statique && (
+                    <button
+                      className="ml-auto text-on-surface-variant hover:underline"
+                      onClick={() => void copy(h.statique as string)}
+                      title="Copier l'adresse statique (base image 0x140000000)"
+                    >
+                      statique {h.statique}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+        </>
+      )}
+    </div>
+  );
+}
+
 function XrefList({ title, rows, side }: { title: string; rows: XrefRow[]; side: "from_addr" | "to_addr" }) {
   return (
     <div>
@@ -275,17 +413,16 @@ export function ReToolsView() {
         <TabsTrigger value="functions">Fonctions</TabsTrigger>
         <TabsTrigger value="classes">Classes RTTI</TabsTrigger>
         <TabsTrigger value="live">Live</TabsTrigger>
+        <TabsTrigger value="aob">Scan AOB</TabsTrigger>
       </TabsList>
     </Tabs>
   );
 
-  if (subTab === "live") {
+  if (subTab === "live" || subTab === "aob") {
     return (
       <div className="flex h-full flex-col gap-2 p-3">
         {tabsHeader}
-        <div className="min-h-0 flex-1">
-          <ReLiveView />
-        </div>
+        <div className="min-h-0 flex-1">{subTab === "live" ? <ReLiveView /> : <ReAobView />}</div>
       </div>
     );
   }

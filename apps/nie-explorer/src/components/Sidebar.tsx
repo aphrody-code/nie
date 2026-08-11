@@ -37,6 +37,9 @@ export interface SidebarItem {
   onClick?: () => void;
   /** Menu contextuel natif (clic droit), cf. `lib/contextMenu.ts`. */
   onContextMenu?: (e: React.MouseEvent) => void;
+  /** Clic milieu — React ne le remonte PAS dans `onClick` : sans ce gestionnaire dédié, le geste
+   * « ouvrir dans un nouvel onglet » serait inatteignable à la souris. */
+  onAuxClick?: (e: React.MouseEvent) => void;
   /** Couleur de l'icône (classe Tailwind) — ex. épingles en `text-accent`. */
   iconClassName?: string;
 }
@@ -84,6 +87,7 @@ export function Sidebar({
                       type="button"
                       onClick={item.onClick ?? (() => onSelect(item.id))}
                       onContextMenu={item.onContextMenu}
+                      onAuxClick={item.onAuxClick}
                       title={item.title ?? item.label}
                       className={cn(
                         "flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-sm font-medium transition-colors",

@@ -14,12 +14,15 @@
 //! - `dump` : recherche de motifs (AOB, wildcards) dans un minidump live de `nie.exe`,
 //!   avec traduction `module + RVA` (oracle de lecture/validation runtime ; complète le
 //!   scanner *process live* de `nie-trace` pour le cas dump `.dmp` hors-ligne).
+//!   Réexport du crate `nie-dump` : le code vit à part pour rester consommable par
+//!   `nie-explorer`, que les dépendances de ce crate-ci (rusqlite via `nie-index`, dépôt
+//!   frère `aphrody`) interdisent de lier.
 #![forbid(unsafe_code)]
 #![allow(clippy::pedantic)]
 
 pub mod anchors;
 pub mod disasm;
-pub mod dump;
+pub use nie_dump as dump;
 pub mod indexer;
 pub mod loop_db;
 pub mod pdata;

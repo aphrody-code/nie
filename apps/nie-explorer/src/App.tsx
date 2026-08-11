@@ -6,7 +6,8 @@ import { toast } from "sonner";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
-import { ExplorerView, type ExplorerState } from "@/components/ExplorerView";
+import { ExplorerView } from "@/components/ExplorerView";
+import { ExplorerTabsBar } from "@/components/ExplorerTabsBar";
 import { EditorView, type EditorViewState } from "@/components/editor/EditorView";
 import { GameDataView } from "@/components/GameDataView";
 import { SearchView } from "@/components/SearchView";
@@ -14,6 +15,7 @@ import { ModsView } from "@/components/ModsView";
 import { RawCpkView } from "@/components/RawCpkView";
 import { ReToolsView } from "@/components/ReToolsView";
 import { LuaView } from "@/components/LuaView";
+import { ViolaView } from "@/components/ViolaView";
 import { SaveView } from "@/components/SaveView";
 import { SettingsView } from "@/components/SettingsView";
 import { DetailPane } from "@/components/DetailPane";
@@ -27,6 +29,7 @@ import { useBridge } from "@/lib/bridge";
 import { useT } from "@/lib/i18n";
 import { useApplyAppearance } from "@/lib/appearance";
 import { PINNED_PLACES, recordVisit, usePinnedPlaces, useRecentPlaces } from "@/lib/places";
+import { canGoBack, canGoForward, explorerTabs, useExplorerTabs } from "@/lib/explorerTabs";
 import { showPlaceContextMenu } from "@/lib/contextMenu";
 import { getSettings, setSettings } from "@/lib/settings";
 import { modsDb } from "@/lib/modsDb";
@@ -40,7 +43,12 @@ export default function App() {
   const t = useT();
   useApplyAppearance();
   const [tab, setTab] = useState("explorer");
-  const [explorer, setExplorer] = useState<ExplorerState>({ prefix: "data", selected: null });
+  // Onglets de l'Explorateur — état module-level persistant (`lib/explorerTabs.ts`), pas un
+  // `useState` local : la navigation, l'historique et les préférences d'affichage appartiennent à
+  // l'onglet et survivent au changement de vue comme au redémarrage de l'application.
+  const tabsState = useExplorerTabs();
+  const explorer = tabsState.tabs.find((x) => x.id === tabsState.activeId) ?? tabsState.tabs[0];
+  const activeTabId = explorer.id;
   const [externalPath, setExternalPath] = useState<string | null>(null);
   /** Mode Éditeur — dossier courant du navigateur de contenu + asset ouvert dans le viewport. */
   const [editor, setEditor] = useState<EditorViewState>({ prefix: "data/common/chr", selected: null });
@@ -53,7 +61,23 @@ export default function App() {
   function gotoPlace(prefix: string) {
     recordVisit(prefix);
     setExternalPath(null);
-    setExplorer({ prefix, selected: null });
+    explorerTabs.update(activeTabId, { prefix, selected: null });
+    setTab("explorer");
+  }
+
+  /** Ouvre un emplacement dans un NOUVEL onglet (clic milieu ou « Ouvrir dans un nouvel onglet »)
+   * — le contexte de travail courant reste intact, c'est tout l'intérêt du geste. */
+  function gotoPlaceInNewTab(prefix: string) {
+    recordVisit(prefix);
+    setExternalPath(null);
+    explorerTabs.open(prefix);
+    setTab("explorer");
+  }
+
+  /** Sélectionne un fichier dans l'onglet ACTIF depuis une autre vue (Recherche, Données, Mods,
+   * Éditeur) et bascule sur l'Explorateur. */
+  function revealInExplorer(path: string) {
+    explorerTabs.update(activeTabId, { selected: path });
     setTab("explorer");
   }
 
@@ -85,6 +109,7 @@ export default function App() {
         items: [
           { id: "mods", label: t("tab.mods"), icon: "extension" },
           { id: "re", label: t("tab.re"), icon: "memory" },
+          { id: "viola", label: "Viola", icon: "deployed_code" },
           { id: "lua", label: "Lua", icon: "edit_note" },
         ],
       },
@@ -97,9 +122,19 @@ export default function App() {
           title: p.prefix || "/",
           active: inExplorer && explorer.prefix === p.prefix,
           onClick: () => gotoPlace(p.prefix),
+          onAuxClick: (e: React.MouseEvent) => {
+            if (e.button !== 1) return;
+            e.preventDefault();
+            gotoPlaceInNewTab(p.prefix);
+          },
           onContextMenu: (e: React.MouseEvent) => {
             e.preventDefault();
-            showPlaceContextMenu({ prefix: p.prefix, kind: "builtin", onOpen: () => gotoPlace(p.prefix) });
+            showPlaceContextMenu({
+              prefix: p.prefix,
+              kind: "builtin",
+              onOpen: () => gotoPlace(p.prefix),
+              onOpenInNewTab: () => gotoPlaceInNewTab(p.prefix),
+            });
           },
         })),
       },
@@ -115,9 +150,19 @@ export default function App() {
                 title: prefix,
                 active: inExplorer && explorer.prefix === prefix,
                 onClick: () => gotoPlace(prefix),
+                onAuxClick: (e: React.MouseEvent) => {
+                  if (e.button !== 1) return;
+                  e.preventDefault();
+                  gotoPlaceInNewTab(prefix);
+                },
                 onContextMenu: (e: React.MouseEvent) => {
                   e.preventDefault();
-                  showPlaceContextMenu({ prefix, kind: "pinned", onOpen: () => gotoPlace(prefix) });
+                  showPlaceContextMenu({
+                    prefix,
+                    kind: "pinned",
+                    onOpen: () => gotoPlace(prefix),
+                    onOpenInNewTab: () => gotoPlaceInNewTab(prefix),
+                  });
                 },
               })),
             },
@@ -134,9 +179,19 @@ export default function App() {
                 title: r.prefix,
                 active: inExplorer && explorer.prefix === r.prefix,
                 onClick: () => gotoPlace(r.prefix),
+                onAuxClick: (e: React.MouseEvent) => {
+                  if (e.button !== 1) return;
+                  e.preventDefault();
+                  gotoPlaceInNewTab(r.prefix);
+                },
                 onContextMenu: (e: React.MouseEvent) => {
                   e.preventDefault();
-                  showPlaceContextMenu({ prefix: r.prefix, kind: "recent", onOpen: () => gotoPlace(r.prefix) });
+                  showPlaceContextMenu({
+                    prefix: r.prefix,
+                    kind: "recent",
+                    onOpen: () => gotoPlace(r.prefix),
+                    onOpenInNewTab: () => gotoPlaceInNewTab(r.prefix),
+                  });
                 },
               })),
             },
@@ -144,7 +199,7 @@ export default function App() {
         : []),
     ];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [t, tab, externalPath, explorer.prefix, pins, recents]);
+  }, [t, tab, externalPath, explorer.prefix, activeTabId, pins, recents]);
 
   /** Titre affiché dans la barre supérieure — chemin courant dans l'Explorateur (comme
    * l'explorateur Windows), nom de la vue partout ailleurs. */
@@ -162,18 +217,21 @@ export default function App() {
   // Pont de contrôle MCP : `nie-mcp` peut piloter cette fenêtre (naviguer, ouvrir un asset,
   // changer d'onglet, notifier) — mêmes types de commandes des deux côtés, cf. `@niers/bridge`.
   // Opportuniste : sans serveur en écoute, rien ne se passe et l'application reste intacte.
+  // Le protocole du pont ne connaît qu'UN couple `prefix`/`selected` : il décrit et pilote donc
+  // l'onglet ACTIF, jamais les autres. Étendre `@niers/bridge` aux onglets serait un changement de
+  // protocole des deux côtés, hors périmètre.
   useBridge({
     getState: () => ({ tab, prefix: explorer.prefix, selected: explorer.selected, externalPath }),
     navigate: (prefix, select) => {
       recordVisit(prefix);
       setExternalPath(null);
-      setExplorer({ prefix, selected: select ?? null });
+      explorerTabs.update(activeTabId, { prefix, selected: select ?? null });
       setTab("explorer");
     },
     open: (path) => {
       const slash = path.lastIndexOf("/");
       setExternalPath(null);
-      setExplorer({ prefix: slash > 0 ? path.slice(0, slash) : "data", selected: path });
+      explorerTabs.update(activeTabId, { prefix: slash > 0 ? path.slice(0, slash) : "data", selected: path });
       setTab("explorer");
     },
     setTab: (id) => setTab(id),
@@ -254,6 +312,7 @@ export default function App() {
         mods: t("tab.mods"),
         cpk: t("tab.cpk"),
         re: t("tab.re"),
+        viola: "Viola",
         lua: "Lua",
         save: t("tab.save"),
         settings: t("tab.settings"),
@@ -262,6 +321,34 @@ export default function App() {
     [t],
   );
   useAppMenuShortcuts(menuActions);
+
+  // Raccourcis d'onglets. Ctrl+1…9 sélectionnent déjà une VUE (`AppMenu`), Ctrl+D épingle et
+  // Ctrl+K ouvre la palette : restent les gestes de navigateur, Ctrl+T / Ctrl+W / Ctrl+Tab.
+  // Posés uniquement quand l'Explorateur est réellement à l'écran, sinon Ctrl+W fermerait un
+  // onglet invisible depuis une autre vue.
+  useEffect(() => {
+    if (tab !== "explorer" || externalPath) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (!e.ctrlKey && !e.metaKey) return;
+      if (e.key === "Tab") {
+        e.preventDefault();
+        explorerTabs.cycle(e.shiftKey ? -1 : 1);
+        return;
+      }
+      const el = e.target as HTMLElement | null;
+      if (el?.tagName === "INPUT" || el?.tagName === "TEXTAREA" || el?.isContentEditable) return;
+      const key = e.key.toLowerCase();
+      if (key === "t") {
+        e.preventDefault();
+        explorerTabs.open(explorer.prefix);
+      } else if (key === "w") {
+        e.preventDefault();
+        explorerTabs.close(activeTabId);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [tab, externalPath, activeTabId, explorer.prefix]);
 
   // Titre de fenêtre = même valeur que la barre supérieure (chemin courant comme l'explorateur
   // Windows, jamais un nom de produit).
@@ -321,41 +408,64 @@ export default function App() {
                   <EditorView
                     state={editor}
                     onStateChange={setEditor}
-                    onOpenInExplorer={(path) => {
-                      setExplorer((s) => ({ ...s, selected: path }));
-                      setTab("explorer");
-                    }}
+                    onOpenInExplorer={revealInExplorer}
                   />
                 </TabsContent>
-                <TabsContent value="explorer" className="h-full min-h-0">
-                  <ExplorerView state={explorer} onStateChange={setExplorer} />
+                {/* `keepMounted` : le panneau de `@base-ui/react` DÉMONTE son contenu quand il
+                    n'est pas actif (`keepMounted` vaut `false` par défaut). Sans lui, quitter
+                    l'Explorateur détruirait les N instances d'onglet — listings, caches `.cpk` et
+                    sélections repartiraient de zéro à chaque aller-retour entre vues. */}
+                <TabsContent value="explorer" className="h-full min-h-0" keepMounted>
+                  <div className="flex h-full min-h-0 flex-col">
+                    <ExplorerTabsBar
+                      tabs={tabsState.tabs}
+                      activeId={tabsState.activeId}
+                      onActivate={(id) => explorerTabs.activate(id)}
+                      onClose={(id) => explorerTabs.close(id)}
+                      onNew={() => explorerTabs.open(explorer.prefix)}
+                    />
+                    <div className="min-h-0 flex-1">
+                      {tabsState.tabs.map((tb) => (
+                        // `display:none` et NON l'attribut `hidden` : les classes `flex`/`h-full`
+                        // de Tailwind portées par le sous-arbre l'emportent sur le
+                        // `[hidden]{display:none}` du reset, et l'onglet inactif resterait visible.
+                        <div
+                          key={tb.id}
+                          className="h-full min-h-0"
+                          style={tb.id === tabsState.activeId ? undefined : { display: "none" }}
+                        >
+                          <ExplorerView
+                            state={tb}
+                            active={tb.id === tabsState.activeId}
+                            onStateChange={(patch) => explorerTabs.update(tb.id, patch)}
+                            onOpenInNewTab={(prefix) => {
+                              recordVisit(prefix);
+                              explorerTabs.open(prefix);
+                            }}
+                            onBack={() => explorerTabs.back(tb.id)}
+                            onForward={() => explorerTabs.forward(tb.id)}
+                            canGoBack={canGoBack(tb)}
+                            canGoForward={canGoForward(tb)}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </TabsContent>
                 <TabsContent value="search" className="h-full min-h-0">
-                  <SearchView
-                    onOpenFile={(path) => {
-                      setExplorer((s) => ({ ...s, selected: path }));
-                      setTab("explorer");
-                    }}
-                  />
+                  <SearchView onOpenFile={revealInExplorer} />
                 </TabsContent>
                 <TabsContent value="data" className="h-full min-h-0">
-                  <GameDataView
-                  onOpenFile={(path) => {
-                    setExplorer((s) => ({ ...s, selected: path }));
-                    setTab("explorer");
-                  }}
-                />
+                  <GameDataView onOpenFile={revealInExplorer} />
                 </TabsContent>
                 <TabsContent value="mods" className="h-full min-h-0">
-                  <ModsView
-                    onOpenFile={(path) => {
-                      setExplorer((s) => ({ ...s, selected: path }));
-                      setTab("explorer");
-                    }}
-                  />
+                  <ModsView onOpenFile={revealInExplorer} />
                 </TabsContent>
                 <TabsContent value="cpk" className="h-full min-h-0">
                   <RawCpkView />
+                </TabsContent>
+                <TabsContent value="viola" className="h-full min-h-0">
+                  <ViolaView />
                 </TabsContent>
                 <TabsContent value="lua" className="h-full min-h-0">
                   <LuaView />
@@ -378,11 +488,11 @@ export default function App() {
       <CommandPalette
         onGoto={(prefix) => {
           recordVisit(prefix);
-          setExplorer({ prefix, selected: null });
+          explorerTabs.update(activeTabId, { prefix, selected: null });
           setTab("explorer");
         }}
         onSearch={(q) => {
-          setExplorer((s) => ({ ...s, query: q }));
+          explorerTabs.update(activeTabId, { query: q });
           setTab("explorer");
         }}
       />

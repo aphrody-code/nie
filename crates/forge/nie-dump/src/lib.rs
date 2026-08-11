@@ -13,6 +13,13 @@
 //!
 //! `#![forbid(unsafe_code)]` au niveau crate : pas de `mmap`, lecture des régions à la
 //! demande via `seek`/`read_exact`.
+//!
+//! Crate séparée de `nie-re` (qui la réexporte sous `nie_re::dump`) parce qu'elle est la seule
+//! partie du moteur RE consommable par `nie-explorer` : elle n'a besoin ni de `rusqlite` (via
+//! `nie-index`) ni du dépôt frère `aphrody`, deux dépendances rédhibitoires côté Tauri.
+#![forbid(unsafe_code)]
+#![warn(missing_docs)]
+#![allow(clippy::pedantic)]
 
 use std::collections::HashMap;
 use std::fs::File;
@@ -557,6 +564,47 @@ impl Minidump {
                     }
                     i += 1;
                 }
+            }
+        }
+        Ok(out)
+    }
+
+    /// Comme [`Minidump::scan`], mais s'arrête dès `limite` coups — le scan relit des régions
+    /// de plusieurs centaines de Mo, borner la sortie borne aussi le travail restant.
+    ///
+    /// # Errors
+    /// Propage les erreurs de lecture du fichier dump.
+    pub fn scan_limited(&mut self, pattern: &Pattern, limite: usize) -> Result<Vec<Hit>> {
+        let mut out: Vec<Hit> = Vec::new();
+        let ranges = self.ranges.clone();
+        let mut buf = Vec::new();
+        let n = pattern.bytes.len();
+        let anchor = pattern.first_fixed();
+        let anchor_byte = pattern.bytes[anchor];
+        for r in &ranges {
+            if out.len() >= limite {
+                break;
+            }
+            let len = r.size as usize;
+            if len < n {
+                continue;
+            }
+            buf.clear();
+            buf.resize(len, 0);
+            self.file.seek(SeekFrom::Start(r.file_off))?;
+            self.file.read_exact(&mut buf)?;
+            let last = len - n;
+            let mut i = 0;
+            while i <= last {
+                if buf[i + anchor] == anchor_byte && pattern.matches_at(&buf, i) {
+                    let va = r.va + i as u64;
+                    let (module, rva) = self.classify(va);
+                    out.push(Hit { va, module, rva });
+                    if out.len() >= limite {
+                        break;
+                    }
+                }
+                i += 1;
             }
         }
         Ok(out)

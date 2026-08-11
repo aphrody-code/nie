@@ -8,6 +8,10 @@
 //! [`dump_regions`](nie_trace::dump_regions) — jamais [`nie_trace::write`] ni
 //! [`nie_trace::patch_eac`] sur un process vivant (`patch_eac` opère sur une COPIE fichier hors
 //! ligne, pas exposé ici). Aucune écriture mémoire dans un process tiers depuis cette app.
+//!
+//! Ce module porte aussi le volet **hors ligne** : `re_dump_*` scanne un minidump `.dmp` DÉJÀ
+//! capturé (via [`nie_dump`]) — un simple fichier lu en lecture seule, sans la moindre attache à
+//! un process vivant, donc hors du champ d'EAC.
 
 use base64::Engine as _;
 use serde::Serialize;
@@ -132,5 +136,124 @@ pub fn re_trace_dump_module(pid: i32, app: tauri::AppHandle) -> Result<ReTraceDu
         regions: stats.regions as u32,
         bytes: stats.bytes as f64,
         out_dir: out_dir.display().to_string(),
+    })
+}
+
+// ── Scan AOB hors ligne sur minidump `.dmp` (nie-dump) ─────────────────────────────────────────
+//
+// `nie_dump::Minidump` détient un `std::fs::File` et `scan` prend `&mut self` : plutôt que de
+// garder un handle dans un `State` (verrou partagé, fichier bloqué tant que l'app tourne), chaque
+// commande rouvre le dump. Le coût du `open` est le parsing des en-têtes (quelques Ko), négligeable
+// devant le scan lui-même.
+
+/// Nombre de coups renvoyés quand l'appelant ne borne pas (`limite = 0`).
+const DUMP_SCAN_LIMITE_DEFAUT: u32 = 200;
+/// Plafond dur : au-delà, la liste ne se lit plus et la sérialisation IPC coûte plus que le scan.
+const DUMP_SCAN_LIMITE_MAX: u32 = 5000;
+
+#[derive(Serialize, specta::Type)]
+pub struct ReDumpModuleDto {
+    name: String,
+    /// Base virtuelle du module au moment de la capture (ASLR), en hexadécimal `0x…`.
+    base: String,
+    /// Taille de l'image en mémoire, en octets.
+    size: f64,
+}
+
+#[derive(Serialize, specta::Type)]
+pub struct ReDumpInfoDto {
+    modules: Vec<ReDumpModuleDto>,
+    /// Nombre de plages mémoire capturées.
+    ranges: u32,
+    /// Total d'octets mémoire capturés — c'est ce volume que chaque scan relit depuis le disque.
+    mapped_bytes: f64,
+    /// Base virtuelle de `nie.exe` dans la capture, si le module y figure.
+    nie_base: Option<String>,
+}
+
+/// Ouvre un minidump `.dmp` et en renvoie l'inventaire (modules, plages, volume capturé).
+///
+/// Aucun scan : sert à valider le fichier et à afficher le volume avant d'en lancer un.
+#[tauri::command]
+#[specta::specta]
+pub fn re_dump_open(chemin_dmp: String) -> Result<ReDumpInfoDto, String> {
+    let dump = nie_dump::Minidump::open(&chemin_dmp).map_err(|e| format!("{chemin_dmp} : {e}"))?;
+    let nie_base = dump.module("nie.exe").map(|m| format!("0x{:x}", m.base));
+    Ok(ReDumpInfoDto {
+        modules: dump
+            .modules
+            .iter()
+            .map(|m| ReDumpModuleDto {
+                name: m.name.clone(),
+                base: format!("0x{:x}", m.base),
+                size: f64::from(m.size),
+            })
+            .collect(),
+        ranges: dump.range_count() as u32,
+        mapped_bytes: dump.mapped_bytes() as f64,
+        nie_base,
+    })
+}
+
+#[derive(Serialize, specta::Type)]
+pub struct ReDumpHitDto {
+    /// Adresse virtuelle live du coup, en hexadécimal `0x…`. **Chaîne et pas nombre** : specta
+    /// refuse d'exporter un `u64` vers TypeScript (perte de précision au-delà de 2⁵³) et le refus
+    /// est FATAL — l'export des bindings panique au démarrage de l'app. Contrairement aux tailles
+    /// (cf. [`ReTraceRegionDto::size`]), une adresse ne se dégrade pas en `f64` sans risque : la
+    /// base image statique `0x1_4000_0000` plus un RVA reste exact, mais une adresse de tas ASLR
+    /// x64 va jusqu'à 2⁴⁷ et l'hexa est de toute façon la forme qu'on copie dans un débogueur.
+    va: String,
+    /// Module contenant l'adresse, le cas échéant.
+    module: Option<String>,
+    /// Offset dans le module (RVA), hexadécimal `0x…`.
+    rva: Option<String>,
+    /// Adresse **statique** correspondante (`0x140000000 + rva`) si le coup est dans `nie.exe` —
+    /// c'est celle qui se cherche dans `var/niers.sqlite` et dans le désassemblage.
+    statique: Option<String>,
+}
+
+#[derive(Serialize, specta::Type)]
+pub struct ReDumpScanDto {
+    hits: Vec<ReDumpHitDto>,
+    /// `true` si le scan s'est arrêté sur la limite : d'autres coups existent au-delà.
+    tronque: bool,
+    /// Octets réellement parcourables dans ce dump (borne haute du travail du scan).
+    mapped_bytes: f64,
+}
+
+/// Scanne un motif AOB façon Cheat Engine (`"44 8B ?? 10"`, `??`/`?`/`*` = joker) dans un
+/// minidump déjà capturé.
+///
+/// Le scan relit les plages mémoire du dump depuis le disque — plusieurs centaines de Mo pour une
+/// capture complète : ce n'est **jamais** instantané, comptez plusieurs secondes. `limite` borne le
+/// nombre de coups renvoyés **et** le travail effectué (le scan s'arrête à la limite atteinte) ;
+/// `0` applique le défaut, et la valeur est plafonnée.
+///
+/// Lecture seule d'un fichier : aucune attache au process du jeu, aucune écriture mémoire.
+#[tauri::command]
+#[specta::specta]
+pub fn re_dump_scan(chemin_dmp: String, motif: String, limite: u32) -> Result<ReDumpScanDto, String> {
+    let pattern = nie_dump::Pattern::parse(&motif).map_err(|e| e.to_string())?;
+    let limite = match limite {
+        0 => DUMP_SCAN_LIMITE_DEFAUT,
+        n => n.min(DUMP_SCAN_LIMITE_MAX),
+    } as usize;
+    let mut dump = nie_dump::Minidump::open(&chemin_dmp).map_err(|e| format!("{chemin_dmp} : {e}"))?;
+    let mapped_bytes = dump.mapped_bytes() as f64;
+    let hits = dump.scan_limited(&pattern, limite).map_err(|e| e.to_string())?;
+    let tronque = hits.len() >= limite;
+    Ok(ReDumpScanDto {
+        hits: hits
+            .iter()
+            .map(|h| ReDumpHitDto {
+                va: format!("0x{:x}", h.va),
+                module: h.module.clone(),
+                rva: h.rva.map(|r| format!("0x{r:x}")),
+                statique: h.nie_static().map(|a| format!("0x{a:x}")),
+            })
+            .collect(),
+        tronque,
+        mapped_bytes,
     })
 }
