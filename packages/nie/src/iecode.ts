@@ -12,8 +12,7 @@
 ///   const cpp = await loadIecode()
 ///   if (cpp) console.log(cpp.version())
 ///
-/// Ce fichier est l'**unique** binding C++ du dépôt : il a absorbé `bindings/bun-ffi.ts`
-/// (34 symboles, sous-ensemble strict des 69 d'ici) lors de l'unification du 2026-08-11.
+/// Ce fichier est l'**unique** binding C++ du dépôt (69 symboles).
 
 import { dlopen, FFIType, suffix, ptr, toArrayBuffer, CString, type Pointer } from "bun:ffi"
 import { existsSync } from "node:fs"
@@ -611,9 +610,7 @@ export class IecodeLib {
    * Caller is responsible for freeing the handle via cfgbinFree().
    */
   cfgbinWrite(handle: number): Uint8Array | null {
-    // `ptrOut` est la FONCTION : la passer au lieu du pointeur `ptrP` faisait échouer
-    // l'appel FFI à l'exécution (bug jamais détecté — ce fichier n'était pas typechecké
-    // tant qu'il vivait hors du workspace Bun, dans src/ffi/).
+    // `ptrOut` est la FONCTION ; c'est `ptrP` qu'il faut passer au FFI.
     const [ptrArr, ptrP] = ptrOut()
     const size = lib.symbols.iecode_cfgbin_write(asPtr(handle), asPtr(ptrP)) as number
     if (size === 0) return null

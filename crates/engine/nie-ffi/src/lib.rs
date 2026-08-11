@@ -447,10 +447,8 @@ pub extern "C" fn nie_format_name(kind: u32) -> *const c_char {
 
 /// Dispatch interne : détecte le format et sérialise en JSON.
 ///
-/// La table de dispatch elle-même vit dans [`nie_formats::decode::to_json`] — elle était ici,
-/// c'est-à-dire dans une cdylib, donc inatteignable pour `niers` (la CLI Rust) qui ne pouvait
-/// pas décoder un fichier sans passer par la FFI. Une famille ajoutée là-bas profite
-/// maintenant à la FFI, à la CLI et au décodage en lot d'un seul coup.
+/// La table de dispatch vit dans [`nie_formats::decode::to_json`], partagée avec la CLI
+/// (`niers decode`) : une famille ajoutée là-bas profite aux deux d'un coup.
 fn decode_json_impl(data: &[u8]) -> NieBytes {
     match nie_formats::decode::to_json(data) {
         Some(v) => NieBytes::from_vec(v),
