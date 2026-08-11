@@ -37,6 +37,13 @@ audio-decode = ["std", "dep:cridecoder"]
 # Tests golden sur fragments RÉELS (copyright Level-5, gitignoré). Chargent via std::fs → implique `std`.
 real-fixtures = ["std"]
 
+# `model_glb_preview` appelle `g4tx_decode`, qui vit derrière la feature `textures`.
+# Sans cette déclaration, `cargo test -p nie-formats` (features par défaut) échoue à compiler
+# l'exemple — le workspace complet le masquait en unifiant les features.
+[[example]]
+name = "model_glb_preview"
+required-features = ["textures"]
+
 [dev-dependencies]
 # Encodage PNG pour les examples/tests (atlas, anim, scène de dialogue) — indépendant
 # de la feature `textures` (qui ne gate que le décodeur DDS de la lib).

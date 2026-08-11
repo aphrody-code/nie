@@ -1,0 +1,20 @@
+[package]
+name = "nie-bench"
+description = "Banc d'essai inter-langages : mesure les hot paths du dépôt en Rust, et produit les échantillons que les harnais C++/C#/TS rejouent"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "nie-bench"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+nie-formats.workspace = true
+anyhow.workspace = true
+clap.workspace = true

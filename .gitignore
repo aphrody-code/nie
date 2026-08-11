@@ -179,3 +179,10 @@ compile_commands.json
 # `*.lib` : sorties de link MSVC. Aucune bibliotheque n'est vendorisee dans le
 # depot (third_party/ ne contient que des sources), la regle est donc sure.
 *.lib
+
+# --- Banc d'essai -------------------------------------------------------------
+# Echantillons derives du jeu (blobs CRILAYLA extraits d'un CPK) et binaires du
+# harnais : regenerables par `nie-bench sample` et `bench/cpp/build.ps1`.
+/bench/data/
+/bench/cpp/*.exe
+/bench/cpp/*.obj

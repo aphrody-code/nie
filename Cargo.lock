@@ -4096,6 +4096,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "nie-bench"
+version = "0.4.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "nie-formats",
+]
+
+[[package]]
 name = "nie-camera"
 version = "0.4.0"
 dependencies = [
