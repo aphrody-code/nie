@@ -1,141 +1,136 @@
-# niers — architecture
+# Architecture
 
-Réimplémentation **Rust headless + wasm** d'*Inazuma Eleven: Victory Road* (IEVR, moteur Level-5 « Lives »), pilotée par une **boucle de reverse-engineering autonome** qui reverse `nie.exe` récursivement, indexée sur le savoir déjà fusionné de `iecode` (C# .NET 10) et `inagle` (TS).
+Quatre implémentations d'IEVR sous une racine. Ce document dit **qui fait quoi**, **par où les
+arbres se parlent**, et **ce qu'il ne faut jamais fusionner**.
 
-Objectif littéral : au lancement de `niers` (en Rust), avoir **100 % du jeu** disponible en headless et en wasm — sans le binaire Windows ni le moteur propriétaire.
+## Les quatre arbres
 
-## Cible binaire
+| Arbre | Racine | Volume | Build |
+|---|---|---|---|
+| Rust — moteur + forge | `crates/`, `forge/` | 582 f. / 174 386 l | `cargo` |
+| C++ — toolkit iecode | `src/` (+ `third_party/`, `cmake/`) | 595 f. / 88 622 l | `cmake` + vcpkg |
+| C# — IECODE | `csharp/` | 230 f. / 46 922 l | `dotnet` (`IECODE.sln`) |
+| TypeScript/Bun | `packages/`, `apps/` | 94 f. / 16 315 l | `bun` |
 
-`nie.exe` : PE32+ x86-64, 31 Mo, 9 sections, **non strippé**, base `0x140000000`, compilé 2026-04-15, PDB de build `G:\nie1v2\...\nie.pdb` (symboles absents du dump, mais RTTI MSVC présent). Variante `nie_eacpatched.exe` (EasyAntiCheat retiré) = cible RE privilégiée. Assets : 63 Go de CPK (déjà couverts par iecode/inagle).
+`just all-build` · `just all-test` · `just all-check` pilotent les quatre.
 
-## La boucle RE (RE ° auto-ML ° sqlite ° redis)
+## Doctrine — un rôle, un langage
 
-```
-        ┌─────────────────────────────────────────────────────────────┐
-        │                    nie-index (sqlite)                        │
-        │  binary · section · function · xref · str · rtti_class       │
-        │  rtti_base · symbol · format · format_field · hash_name      │
-        │  anchor · hypothesis · coverage · meta                       │
-        └───────▲───────────────────────────────────────────▲─────────┘
-                │ durable                                     │
-   ┌────────────┴───────────┐                    ┌────────────┴───────────┐
-   │  SEED (ground truth)   │                    │   PROPAGATE (auto-ML)  │
-   │  nie-seed              │                    │   nie-re::propagate    │
-   │  · formats iecode      │                    │   · label propagation  │
-   │  · hash→nom inagle     │   ancres           │     sur le call-graph  │
-   │  · RTTI lives::*       │ ─────────────────▶ │   · features + score   │
-   └────────────▲───────────┘                    └────────────┬───────────┘
-                │                                              │ frontière
-   ┌────────────┴───────────┐                    ┌────────────▼───────────┐
-   │  INDEX (RE brut)       │                    │   QUEUE (redis)        │
-   │  nie-re::indexer       │                    │   nie-queue            │
-   │  · rizin aaa (JSON)    │ ─── fonctions ────▶│   · frontière BFS      │
-   │  · sections/imports    │     non résolues   │   · dédup (SET)        │
-   │  · strings/xrefs       │                    │   · workers parallèles │
-   │  · RTTI recovery       │                    └────────────────────────┘
-   └────────────────────────┘
-```
+| Langage | Rôles |
+|---|---|
+| **C++** | C décompilé → jeu `nie` jouable ; libs sans équivalent (assimp, Bullet, driver kernel) |
+| **C#** | dump, pack, memory, conversion de texture |
+| **Rust** | la seule CLI, GUI, core lib, wasm, RE, byte-exact |
+| **Bun/TS** | MCP, serveur web, types, API, UI |
 
-1. **INDEX** (`nie-re::indexer`) — pilote `rizin` en sous-processus (`aaa`, sorties JSON `aflj`/`izzj`/`iij`/`axtj`), peuple `nie-index` : sections, fonctions, strings, xrefs, imports. RTTI MSVC récupéré (`nie-re::rtti`) → classes `lives::*` + hiérarchie (`rtti_base`).
-2. **SEED** (`nie-seed`) — importe le savoir **déjà fusionné** comme ancres de vérité :
-   - catalogue des formats Level-5 / Criware documentés par `csharp/IECODE.Core/Formats/**` : magics + layouts de champs d'en-tête (offset/taille/type), exportés par iecode (`iecode export-knowledge`, JSON `schema_version`) et ingérés par `nie-seed/src/format_catalog.rs` (tables `format` + `format_field`) ;
-   - tables `hash → nom` d'`inagle` (CRC32/FNV des IDs persos/skills/items — des milliers d'ancres) ;
-   - noms de classes RTTI ↔ structures connues.
-3. **QUEUE** (`nie-queue`, redis) — frontière récursive : les fonctions/structures non résolues sont poussées dans une file dédupliquée ; des workers les dépilent (parallélisme).
-4. **PROPAGATE** (`nie-re::propagate`, auto-ML) — propagation de labels sur le call-graph depuis les ancres : une fonction qui référence la string `"CHARA_PARAM_INFO"` ou xref une classe connue hérite d'un nom + score de confiance. Couche ML = features (taille, n_args, strings, voisins) + classifieur semi-supervisé (label propagation d'abord, modèle entraîné ensuite).
-5. **COVERAGE** — `% fonctions nommées / classifiées` vers 100 %. La boucle itère index→seed→rtti→propagate→queue jusqu'à stabilisation, puis attaque les zones non couvertes.
+Règles qui en découlent :
 
-## Du savoir au code Rust (headless + wasm)
+- La conversion de texture C++ est la moins bonne des trois : ne pas l'étendre. Elle ne subsiste
+  que pour l'export WebP, qui n'existe nulle part ailleurs.
+- Le driver mémoire reste C++ (`src/driver/iecode_memread`) : pilote kernel signé. Le client et
+  l'outillage de dump vont en C#.
+- `nie-formats::g4tx_decode` reste Rust : sans lui, wasm n'a pas d'images.
+- Porter une capacité se justifie par la doctrine ou par une contrainte technique (byte-exact,
+  wasm, dépendance native) — jamais par le goût du langage.
 
-`nie-formats` porte en Rust les formats Level-5 (depuis iecode C# / inagle TS, vérifiés byte-à-byte) : cfg.bin, CPK, G4MG/G4MD/g4tx/g4sk/g4pkm, Criware (HCA/ACB/AWB/ADX), etc. À mesure que la boucle RE résout la logique (sim de match, IA, progression), elle est portée en crates Rust pures :
+## La CLI unique
 
-```
-nie-formats   parsers binaires (no_std-friendly → wasm)
-nie-data      structures de données du jeu (port inagle)
-nie-core      logique de jeu reversée (sim soccer, skills, auras…)
-nie-engine    port décompilé de nie.exe (render/menu/audio/anim/script)
-nie-game      host GUI natif wgpu (rendu pixel-perfect, pilier D1) — CHEMIN CENTRAL
-nie-headless  runner headless natif (CLI)
-nie-wasm      bindings wasm-bindgen + cible web/Next.js (compagnon secondaire)
+```bash
+niers backends        # ce qui est construit, et où
+niers cpp <args...>   # → build/<preset>/src/cli/iecode[.exe]
+niers cs  <args...>   # → csharp/IECODE.CLI/bin/*/net10.0/iecode.dll
+niers decode <src>    # fichier ou arborescence → JSON / PNG (rayon)
 ```
 
-La **cible de rendu primaire est le natif** (`nie-game`/wgpu, pilier D1/C4 pixel-perfect) ; le wasm/web (`nie-wasm` → azalee) reste un **compagnon**.
+Les arguments passent tels quels (`--help` compris), le code de sortie du délégué est propagé.
+Surcharges : `NIE_IECODE_EXE`, `NIE_IECODE_DLL`. Code : `crates/tools/nie-cli/src/delegate.rs`.
 
-Contrainte wasm : `wasm32-unknown-unknown` std fournie par la toolchain `nightly-x86_64-unknown-linux-gnu` (la seule présente avec la std wasm). `nie-formats`/`nie-data`/`nie-core` restent `#![no_std]`-compatibles autant que possible (alloc only) pour la portabilité wasm.
+## Les crates Rust
 
-## Crates (état atteint)
+Rangées par rôle. `crates/archive/*` est **hors du workspace** (`exclude` dans `Cargo.toml`) :
+référence de portage en lecture seule, jamais compilée par `cargo build --workspace`.
 
-**17 crates** (mesuré `ls crates/*/`, 2026-06-13), compile natif (nightly-2026-05-17) + `wasm32-unknown-unknown`. Plan maître : `docs/PLAN.md`. Stack runtime : `docs/STACK.md`. Inventaire par pilier : `docs/INVENTAIRE.md`.
+### `crates/forge/*` — produire le binaire
 
-| Crate | Rôle | État |
+| Crate | Rôle |
+|---|---|
+| `nie-pe` | Lecture/écriture byte-exacte du PE64 + découpage du fichier en unités de forge |
+| `nie-asm` | Encodeur x86-64 dialecte MSVC — réassemble les corps depuis `forge/asm/*.s` |
+| `nie-forge` | Boucle `split`/`lift`/`cc`/`build`/`verify`/`report`, mesure la part produite |
+| `nie-re` | RTTI MSVC, indexation goblin/iced-x86, propagation de labels sur le call-graph |
+| `nie-index` | Base de connaissance SQLite (`var/niers.sqlite`) |
+| `nie-seed` | Import du savoir fusionné (index Ghidra, RTTI, formats iecode, hash→nom inagle) |
+| `nie-queue` | Frontière BFS dédupliquée (redis) |
+| `nie-trace` | RE en direct : lecture de la mémoire d'un `nie.exe` en cours d'exécution |
+
+### `crates/engine/*` — le moteur
+
+| Crate | Rôle |
+|---|---|
+| `nie-formats` | Parsers Level-5 (CPK, cfg.bin, G4*, CriLayla, Criware), `no_std`-friendly |
+| `nie-data` | Modèles de données du jeu (skills, auras, chara_param, items, growth) |
+| `nie-core` | Logique reversée (ballon, IA tactique, FSM de match, gardien, stats, CRand) |
+| `nie-geom` | Types géométriques POD partagés — source unique `Vec2`/`Vec3` |
+| `nie-lua` | VM Lua 5.2 réelle (mlua, PUC-Rio 5.2.4 vendored) + analyse statique tree-sitter |
+| `nie-camera` | Modèle et contrôleurs de caméra portés (`CCameraCtrl*`) |
+| `nie-app` | Machine à états d'écran (`GameState`) + rendu abstrait (trait `Renderer`) |
+| `nie-game` | Hôte GUI natif wgpu — rend les vrais assets |
+| `nie-render3d` | Renderer 3D : charge un GLB réel et le rend en perspective |
+| `nie-runtime` | Boucle intégrée monde + physique + rendu top-down → frames/MP4 |
+| `nie-play` / `nie-headless` | Fronts headless/golden, sans fenêtre |
+| `nie-save` | Déchiffrement, lecture et édition des saves (XOR clé CRC32) |
+| `nie-explore` | Aperçu/description des entrées VFS par format |
+| `nie-ffi` | Frontière C-ABI — **seul natif chargé côté TS** |
+| `nie-wasm` | Bindings WebAssembly du savoir vérifié |
+
+### `crates/tools/*` — outillage
+
+`nie-cli` (le binaire `niers`), `nie-wiki`, `nie-zukan`, `nie-steam`, `nie-model-serve`,
+`nie-editor`, `nie-bench`, `nie-tasks`.
+
+## Les ponts
+
+| Pont | Sens | Point d'entrée |
 |---|---|---|
-| `nie-game` | **host GUI natif wgpu (pilier D1/C4 pixel-perfect, chemin central)** — capture PNG headless + fenêtre, rend les vrais assets `.g4tx` | **FAIT (squelette, wgpu 22)** ; bump 29 + retarget `render.rs` à venir |
-| `nie-formats` | lecture pure-Rust Level-5/Criware (cfg.bin/RDBN, g4tx/g4md/g4mg/g4pk, @UTF, CRILAYLA, nxtch, HCA) | g4*/RDBN/@UTF/CRILAYLA/CPK **FAIT** ; **HCA décode** ✓ ; g4sk hiérarchie INCOMPLET ; **105 tests lib** |
-| `nie-data` | modèles `no_std` du jeu (port inagle) | **34 familles golden + 8 B2** ; chara-param/aura-cmd clos |
-| `nie-core` | logique de jeu reversée (FSM match, effets commande, action-ctrl, stats, CRand) | **FAIT — 152 tests lib, CRand MT19937 byte-exact, match jouable, 0 stub** |
-| `nie-engine` | port décompilé de `nie.exe` (render D3D11/PhysX/menu/audio/animation/scripting/network) | socle 15 070 LOC, 271 tests, **434 `// EXTERN:`** = îlot à connecter |
-| `nie-model-serve` | serving live GLB/tex/audio/vidéo/lip/typed depuis les CPK (HTTP :8790) | FAIT (8 routes, `cdn.rosegriffon.fr`) |
-| `nie-headless` | runner CLI headless sans moteur Windows (boucle de match jouable) | FAIT |
-| `nie-wasm` | surface wasm-bindgen (detect/crilayla/@UTF, g4tx→PNG, audio→WAV, cfg.bin typé) | FAIT (compagnon, pas le cap) |
-| `nie-save` | déchiffrement/lecture/édition des saves (XOR clé CRC32) | FAIT (12 tests) |
-| `nie-wiki` | CLI game-data (13 sous-commandes, miroir SQLite) | FAIT |
-| `nie-zukan` | ingesteur encyclopédie `zukan.inazuma.jp` (algo `?q=` reversé) | FAIT |
-| `nie-steam` | download natif des dépôts Steam (port C# iecode sur steamroom) | FAIT (33 tests ; E2E live en attente creds) |
-| `nie-index` | base de connaissance sqlite (schéma + ingest/query, table `coverage`) | FAIT |
-| `nie-seed` | ingest index Ghidra + RTTI/formats iecode/hash→nom inagle | FAIT |
-| `nie-re` | RTTI MSVC, refondation `.pdata`, **disasm iced-x86 (arêtes d'appel + LEA)**, ancrage vtable→RTTI, propagation auto-ML | FAIT (93,36 % classé, 6 429 nommées) |
-| `nie-queue` | frontière BFS redis | FAIT |
-| `nie-cli` | binaire `niers` (seed/rtti/rebuild/disasm/propagate/coverage/queue/textures) | FAIT |
+| `nie-forge cc` | Rust → C | `src/decomp/functions/*.c`, annotés `/* @nie 0x… */` |
+| `iecode export-knowledge` | C# → Rust | JSON → `crates/forge/nie-seed/src/format_catalog.rs` |
+| `packages/nie` | Rust → TS | `nie_ffi` via `bun:ffi` (préchargé par `bunfig.toml`) — **seul** natif chargé côté TS |
+| `src/ffi/rust/iecode-sys` | C++ → Rust | bindings bruts + wrappers RAII |
+| `src/ffi/bindings.cpp` | C++ → Python | module nanobind `iecode.pyd` |
+| `src/nie_rs/` | Rust → C++ | crate hors workspace appelée par le toolkit |
+| `scripts/sync-gamedata.ts` | TS → C# | `dotnet` puis `iecode.dll` |
+| `packages/nie-bridge` | TS ↔ TS | protocole `nie-mcp` ↔ `nie-explorer` |
 
-## Découverte majeure : l'index Ghidra est désaligné — `.pdata` est la vérité terrain
+Non ponté : C# ↔ natif (la couche `csharp/IECODE.Core/Native` est du SIMD .NET pur).
 
-Vérification byte-à-byte contre la table `.pdata` (unwind d'exception x64, générée par le compilateur — vérité incontestable) :
+## Fusions interdites
 
-- `.pdata` = **94 748 entrées** `RUNTIME_FUNCTION` = **44 074 fragments chaînés** (`UNW_FLAG_CHAININFO`) + **50 674 fonctions racines** réelles.
-- Des 59 991 adresses `FUN_<hex>` de `nie-index.json`, seules **2 243 (3,7 %)** coïncident avec un début de fonction réel ; **≥54,9 %** tombent *strictement à l'intérieur* d'un corps de fonction `.pdata` (preuve : ce ne sont pas des débuts), et l'ensemble est artificiellement aligné sur 16 octets à **99,2 %**.
-- Spot-checks décodés : les adresses Ghidra non alignées pointent sur des **épilogues / milieux d'instruction** (ex. `FUN_140100390` = `mov rsi,[rsp+0x40]; add rsp,…`).
-- Le champ `ce` (callees) n'est pas le graphe d'appels directs réels (vérifié : `FUN_140024b80` appelle réellement `0x14098c0a0/0x14004fc60/0x1400500e0`, son `ce` liste 5 fonctions toutes différentes).
+Quatre duplications sont **volontaires**. Les collapser corrompt le byte-exact en silence, avec
+des tests qui restent verts.
 
-**Conséquence honnête** : l'index Ghidra reste exploitable comme **graphe de métadonnées** (chaînes, namespaces, relations) — la propagation à 88 % est un *clustering en espace-graphe* cohérent — mais ses **adresses ne sont pas des débuts de fonction physiques**. Donc :
+1. **`crc32` vs `crc32_nie`** — deux fonctions distinctes. `crc32` (complément final : noms
+   `cfg.bin`, clés de fichier CPK, type-id ECS, CRC de save) ≠ `crc32_nie` (accumulateur brut
+   sans complément : model-id CPK, lookup g4tx). Les fusionner corrompt silencieusement l'un des
+   deux chemins.
+2. **`g4sk::mat_mul`** reste scalaire local, jamais glam/FMA : il est validé golden sur fixtures
+   réelles (skinning), un réordonnancement f32 casse le golden.
+3. **`StatBlock` de `nie-wiki`** (2 segments f64) diverge volontairement de celui de `nie-core`
+   (3 segments f32) : le miroir SQLite n'a pas le palier lv30.
+4. **Conventions d'axe vertical opposées** — `nie-core` traite `y` comme hauteur, `nie-runtime`
+   traite `z` comme hauteur. `nie-geom::Vec3` unifie le *type* mais **pas** la sémantique : chaque
+   crate garde sa convention dans son code. Ne jamais convertir implicitement d'un système vers
+   l'autre — la similarité de layout ne vaut pas équivalence sémantique. Idem `Vec2` :
+   `g4mg::{u,v}` (UV) ≠ `{x,y}` (terrain).
 
-1. Le « +774 » du levier `disasm` (commit `99b89c3`) est **en grande partie du bruit physique** : décoder depuis des points milieu-de-fonction produit des arêtes majoritairement fortuites (seules 0,3 % des arêtes `call` ont leurs deux extrémités sur un début réel). Le *code* de `disasm` est correct ; c'est son *entrée* (adresses Ghidra) qui est fausse. Il redeviendra valide alimenté par les débuts `.pdata`.
-2. La **vraie couverture** se mesurera sur les ~50 674 fonctions racines réelles, pas sur les 60 183 nœuds Ghidra désalignés.
+## Contraintes de structure
 
-**Refondation `.pdata` + vtables — FAIT** (`niers rebuild`). Pipeline complet sur des adresses **correctes** :
-
-1. **`pdata::rebuild_from_pdata`** : carte reconstruite sur les 50 674 racines réelles ; métadonnées Ghidra ré-ancrées **par inclusion** (nœud à l'adresse `a` → fonction racine contenant `a` : 17 403 chaînes, 340 100 constantes, 55 142 arêtes `ce` repliées, 1 575 classes RTTI).
-2. **`vtable::vtable_edges_into`** : pour chaque vtable localisée par RTTI (méthodes à `vtable_vaddr+8`), lecture des slots `.text` → **6 681 méthodes**, dont **2 109 fonctions feuilles** (sans unwind, absentes de `.pdata`) ajoutées comme nœuds, + **13 927 arêtes de cohésion de classe** (`kind='vtable'`) reliant les co-méthodes.
-3. **`disasm`** depuis les bons débuts → **169 828 arêtes d'appel directes réelles** (≈×25 vs les 6 721 du graphe désaligné — preuve que le décodage est physiquement correct). *(L'ancien chiffre « 125 029 » d'une passe disasm antérieure n'est plus reproductible depuis `var/niers.sqlite` ; la base en contient 169 828, dédupliquées, les deux extrémités étant de vrais débuts de fonction.)*
-4. **Propagation** sur le graphe `call`+`vtable`.
-
-**Couverture HONNÊTE : 49 280 / 52 783 = 93,36 %** des fonctions **classifiées** — label de sous-système propagé, **pas un nom**. Sur adresses correctes + graphe d'appels réel + cohésion de vtable. Le dénominateur s'est **agrandi** (50 674 → 52 783, +2 109 feuilles découvertes par vtable) et la couverture a monté (90,43 % → 92,45 % → **93,36 %**).
-
-**Lever « arêtes indirectes » — FAIT (2026-06-10), mesuré A/B.** (a) **LEA rip-relatif** (`lea reg,[rip+fn]` dont la cible est un début de fonction `.pdata`, gate strict `Mnemonic::Lea`) → 5 477 arêtes `kind='lea'` (poids propagation 0,4). (b) **Ancrage vtable→RTTI** : une méthode standalone d'une vtable de classe classifiable hérite du sous-système de sa classe (conf 0,7, saute les thunks partagés). Résultat honnête : **+484 fonctions** atteignables (92,45 → 93,36 %), dont seulement **+17 à confiance ≥ 0,3** (les ancres RTTI dures) — le reste est du label faible via LEA. La mesure double-seuil (brut + conf≥0,3) évite de gonfler le %.
-
-**Nommage structurel — AMORCÉ (2026-06-10).** `function.name` était NULL partout (0 nommée). Chaque méthode de vtable d'une classe RTTI reçoit un nom **structurel** `Namespace::Classe::vmethod_N` (`name_source='vtable-struct'`) → **6 429 fonctions (12,18 %) nommées**. Ce sont des noms de **position** (classe + slot), **pas** les symboles C++ originaux (`Update`/`Release`/…) — distincts d'un futur import PDB/Ghidra aligné (pilier E2). Prochain levier de couverture : pointeurs absolus 8 octets en `.rdata`/`.data` (~1 651 fn estimées).
-
-**Propagation pondérée — FAIT (levier de précision, pas de couverture).** Arêtes typées (appel direct 1.0, cohésion de vtable 0.5) + amortissement de degré anti-hub (`1/ln(deg+2)` : un utilitaire alloc/string appelé par des milliers de fonctions ne domine plus le label de ses voisins). **Couverture inchangée à 92,45 %** : la pondération change *quel* label gagne et la confiance, pas *quels* nœuds sont atteignables (la couverture est bornée par la connectivité du graphe, pas les poids). C'est une amélioration de **robustesse/justesse** des labels, utile pour le port, mais ce n'est pas un levier de couverture (estimation grok §3 « +4-5 pts » revue à la baisse, vérifiée empiriquement).
-
-**Prochains leviers de couverture** (les vrais) : (a) plus d'**ancres** (règles strings, RTTI étendu) ; (b) **découverte de feuilles** supplémentaires (cibles d'appel directes `.text` hors `.pdata`/vtable, à enregistrer comme nœuds) ; (c) le résidu (~4 000 fonctions) est largement **isolé** (ni string, ni RTTI, ni arête vers une fonction étiquetée) → rendements décroissants. **L'axe à plus forte valeur est désormais le « jeu jouable », porté par la GUI native `nie-game` (D1/C4) en tête de pont** : bump wgpu 29, gate pixel-diff (image-compare/SSIM + égalité octet sha2), retarget des transforms du compositor (`nie-engine/render.rs`), puis skinning g4sk (D2) et scène de match (D3). Socle déjà acquis : `nie-core` (sim + CRand byte-exact), `nie-data` (34 familles golden), `nie-formats` (assets + HCA). `nie-wasm`/azalee = compagnon. Détail : `docs/STACK.md`.
-
-## Couverture atteinte (sur l'index Ghidra — espace-graphe)
-
-Pipeline `niers seed → rtti → disasm → propagate` sur le vrai `nie.exe` :
-
-- **88,20 %** des 60 183 fonctions classifiées en sous-systèmes (menu, physics, chara, gameplay, audio, network, script, render, vfs, animation, level, input) via 3 112 ancres (strings + RTTI-namespace + const-magic) et label-spreading sur le call-graph **enrichi par désassemblage**.
-- RTTI : 1 234/1 234 classes attendues + 6 472 relations d'héritage.
-- **Levier désassemblage (`nie-re::disasm`)** : 86,92 % → **88,20 %** (+774 fonctions). Désassemble `.text` par `iced-x86` (5,81 M instructions, ~0,4 s), résout les `call`/`jmp` **directs** (rel32) et insère **6 721 arêtes d'appel réelles** absentes de l'export Ghidra (149 470 → 156 191).
-- **Découverte de RE clé** : le champ `ce` de `nie-index.json` n'est **pas** le graphe d'appels directs. Vérifié byte-à-byte : `FUN_140024b80` appelle réellement `0x14098c0a0/0x14004fc60/0x1400500e0` (instructions `call` décodées) alors que son `ce` Ghidra liste 5 fonctions **toutes différentes** (callees résolus par le décompilateur). Le désassemblage direct fournit donc un graphe **orthogonal et réel** qui connecte des îlots laissés isolés par `ce`.
-- **Plafond résiduel (honnête)** : le résidu (~11,8 %) est dominé par les fonctions appelées **uniquement indirectement** (vtables, tables de pointeurs de fonctions, dispatch). 308 368 cibles de branches directes ne tombent pas sur un début de fonction (sauts internes + thunks IAT, non retenus). Dépasser 88 % exige de résoudre l'**indirection** (références `lea reg,[fn]` et entrées de vtable en `.rdata`).
-
-## Reste vers 100 %
-
-1. **Arêtes indirectes** : références de pointeurs de fonctions (`lea reg,[fn]`, entrées de vtable `.rdata` reliées aux classes RTTI déjà localisées) → connecter les méthodes virtuelles à leur sous-système de classe. Levier le plus prometteur pour le résidu (haute précision via RTTI).
-2. **nie-core** : étendre la logique de jeu portée (sim de match complète, skills/auras, IA), valider contre inagle.
-3. **nie-data** : structures de données du jeu (port inagle) en Rust ; catalogue de formats iecode ingéré via `nie-seed::format_catalog`.
-4. ~~**Déchiffrement enveloppe CPK**~~ — **RÉSOLU** (2026-06-10) : pas de clé non publique ni d'enveloppe ; clé = CRC32(nom de fichier), déjà portée, 921/921 CPK déchiffrés. Restant audio : câblage de la clé HCA (`cridecoder` + clé IEVR récupérée du dump il2cpp).
-5. **nie-wasm** : étendre la surface (nie-core, nie-data) + intégration web.
-
-## Honnêteté
-
-Reverser 100 % d'un jeu AAA est un effort de longue haleine. Ce repo livre la **boucle réelle** (pas un stub) : index runnable sur le vrai `nie.exe`, seed depuis le vrai savoir iecode/inagle, désassemblage `iced-x86` du vrai binaire, propagation mesurée à 88,20 %, formats décodés et portés en wasm, logique de jeu amorcée, headless + navigateur fonctionnels. Chaque livrable est classé FAIT / INCOMPLET / NON_FAIT. Les écarts entre l'index Ghidra et le binaire réel sont vérifiés par décodage direct, jamais supposés.
+- `src/CMakeLists.txt` fait un `GLOB_RECURSE` sur tout `src/` pour `iecode_core` : les sous-arbres
+  à target propre (`cli`, `tests`, `ffi`, `decomp`, `driver`, `include`) en sont exclus par
+  `list(FILTER … EXCLUDE REGEX ".*/src/<nom>/.*")`. En ajouter un sans son filtre met plusieurs
+  `main()` dans la lib.
+- Bun ne charge **que** `nie_ffi` (Rust) : aucun `dlopen` de `iecode_ffi` côté TS. C'est délibéré —
+  `bunfig.toml` précharge `nie-plugin`, donc tout natif joint à cette chaîne ferait échouer
+  n'importe quelle commande `bun` du dépôt dès qu'il n'est pas construit, et la lib C++ exige
+  vcpkg. Le C++ s'atteint depuis Rust (`iecode-sys`) ou par la CLI (`niers cpp`).
+- vcpkg n'est pas installé par défaut : la chaîne C++ ne compile pas tant que `just cpp-bootstrap`
+  n'a pas tourné. `just all-check` exclut donc le C++.

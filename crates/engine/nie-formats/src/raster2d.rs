@@ -1,7 +1,7 @@
 //! **raster2d** — primitives 2D RGBA8 **pures** (rognage + redimensionnement nearest), source unique
 //! du workspace (dédup Phase 2). `no_std` (alloc) : entier seul, zéro flottant.
 //!
-//! ⚠ **Le compositing alpha (`blend over`) n'est PAS ici** — c'est la **landmine #5** (`docs/DEDUP-PLAN.md`) :
+//! ⚠ **Le compositing alpha (`blend over`) n'est PAS ici** — c'est la **landmine #5** (`docs/ARCHITECTURE.md`) :
 //! les blends du workspace divergent réellement (`nie-runtime` f32 tronqué vs `nie-game` entier arrondi
 //! `+127`) et peuvent diverger **par contexte** comme le jeu réel (menu validé vs terrain/sprites). Les
 //! unifier sans RE du compositeur du jeu serait un faux-FAIT. Seules les ops **byte-identiques** (crop/scale)

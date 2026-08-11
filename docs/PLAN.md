@@ -1,338 +1,128 @@
-# niers — plan maître
+# Plan maître
 
-## Objectif (la fin)
+## L'objectif
 
-**Un moteur de jeu complet en Rust, et une chaîne qui produit `nie.exe` identique à l'original au byte près.**
+**Un moteur de jeu complet en Rust, et une chaîne qui produit `nie.exe` identique à l'original au
+byte près.** Deux faces d'un même but, qui se valident l'une l'autre :
 
-Deux faces d'un même but, et elles se valident l'une l'autre :
+1. **Le moteur** — réécrire *Inazuma Eleven: Victory Road* en Rust pur, jouable en natif, headless
+   et WebAssembly, sans le binaire Windows ni le moteur propriétaire.
+2. **La forge** — `crates/forge/` **génère** le binaire depuis le dépôt et vérifie à chaque
+   construction qu'il est byte-identique. Elle mesure, à l'octet, la part que le workspace produit
+   réellement ; le reste est recopié de la référence, et dit comme tel.
 
-1. **Le moteur** — réécrire 100 % d'*Inazuma Eleven: Victory Road* (IEVR, `nie.exe`, moteur Level-5 « Lives »)
-   en Rust pur, jouable en natif, headless et WebAssembly, sans le binaire Windows ni le moteur propriétaire.
-   C'est une **réimplémentation complète du jeu** : formats lus nativement, données chargées, match simulé,
-   assets décodés.
-2. **La forge** — `crates/forge/` **génère** le binaire depuis le dépôt et vérifie à chaque construction que
-   le fichier produit est byte-identique. Elle mesure, à l'octet près, la part de `nie.exe` que le workspace
-   produit réellement — le reste étant recopié de la référence, et dit comme tel.
+La forge est le **juge** du moteur : tant qu'un octet n'est pas produit par du code du dépôt, ce
+qu'il contient n'est pas compris. Elle transforme « on a porté beaucoup de choses » en un nombre
+falsifiable. Document dédié : [`FORGE.md`](FORGE.md).
 
-La forge est le **juge** du moteur : tant qu'un octet n'est pas produit par du code du dépôt, ce qu'il
-contient n'est pas compris. Elle transforme « on a porté beaucoup de choses » en un nombre falsifiable.
+Le reverse-engineering est **l'échafaudage**, pas la fin : il sert à résoudre la logique de
+`nie.exe` pour la porter. Les vérités terrain de portage sont iecode (C#), inagle (TS) et le réel
+(`.pdata`, les dumps du VFS) — ce ne sont pas des dépendances permanentes.
 
-> **Document maître de ce volet : [`docs/FORGE.md`](FORGE.md)** — principe, paliers G0→G6, état mesuré
-> (identité byte-exacte tenue, 0,4249 % du fichier produit par le dépôt au 2026-08-10), et la liste de
-> courses chiffrée qui pilote la suite.
+## L'état, mesuré
 
-### Organisation du workspace (depuis 2026-08-10)
+| Couverture | Ce qu'elle mesure | État |
+|---|---|---|
+| **Forge** | part de `nie.exe` produite par le dépôt | **51,86 %** du fichier · **66,09 %** du `.text` |
+| **Formats** | fichiers du VFS dans un format parsé | **99,56 %** (254 187 / 255 308) |
+| **Données** | familles `cfg.bin` typées et recalculées au bit | 117 modules, **121 familles routées**, 127 fichiers golden |
+| **Logique** | fonctions de gameplay portées **et** validées byte-exact | **43** validations dans la suite oracle |
+| **RE** | fonctions classifiées / nommées | **93,36 %** classées (49 280 / 52 783) · 6 429 nommées |
+| **Rendu** | Δpixel contre capture de référence | gaté sur le driver de menu runtime |
 
-Les crates sont rangées par rôle dans cette chaîne — `crates/forge/` (production du binaire + reverse qui
-l'alimente), `crates/engine/` (le moteur), `crates/tools/` (outillage), `crates/archive/` (référence, hors
-build). Les chemins de ce document suivent cette structure.
+Ces chiffres se régénèrent : `nie-forge report`, `niers vfs stats`, `niers coverage`,
+`uv run scripts/validate_re.py`.
 
-## Le moyen ≠ la fin
+## Ce que « validé » veut dire
 
-Le **reverse-engineering** (boucle `nie-re`/`nie-index`/`nie-seed`/`nie-queue` : index Ghidra, désassemblage
-iced-x86, propagation de labels auto-ML, **93,36 %** des 52 783 fonctions classifiées + **6 429 nommées** structurellement) est **l'échafaudage**.
-Il sert à *résoudre* la logique de `nie.exe` pour la **porter** en Rust. Les références de portage sont
-[iecode](../../rg/iecode) (C# .NET 10) et `inagle` (TS) + le réel (`/home/ubuntu/niers/data`, `.pdata`) :
-chaque format/fonction porté est validé **byte-à-byte** contre eux. La cible est que niers fasse **tout** lui-même
-en Rust ; iecode/inagle ne sont pas des dépendances permanentes, ce sont des vérités terrain de portage.
+**Aucun FAIT sans validation bout-en-bout sur le réel.** Le dépôt a connu plusieurs faux FAIT —
+des fixtures synthétiques qui passaient pendant que les vrais fichiers cassaient. La règle qui en
+découle :
 
-## Les piliers (état réel, classé FAIT / INCOMPLET / NON_FAIT)
+- Un format est porté quand il parse **tout son corpus réel**, pas un échantillon.
+- Une donnée est portée quand elle est **recalculée au bit** contre le dump du jeu.
+- Une fonction est portée quand elle est **byte-exacte contre un oracle** — l'émulation Unicorn
+  d'une fonction isolée du vrai binaire (`scripts/uemu.py`), ou la forge elle-même.
+- Une pièce dont la validation est impossible se marque **INCOMPLET**, jamais FAIT.
 
-### 1. Formats — `nie-formats` (lecture pure-Rust de tous les conteneurs Level-5/Criware)
-- **FAIT** : RDBN (cfg.bin), g4tx (en-tête), g4md (en-tête/submesh), g4mg (géométrie), g4pk/g4ra (archive, validé sur 3 vrais .g4pk).
-- **FAIT (2026-06-05)** : `@UTF` (TOC des CPK) — modèle de stockage corrigé en **bits** (`HAS_NAME=0x10`, `HAS_DEFAULT=0x20`, `ROW_STORAGE=0x40`, priorité DEFAULT>ROW), ancré sur iecode `UtfTable.cs`. Avant : enum faux → 0 extrait sur vrais CPK.
-- **FAIT (2026-06-05)** : **décompression CRILAYLA** — bug off-by-one corrigé (décrément `write_pos` avant calcul de la source du backref LZ, conforme C#). Extraction g4tx **300/300, 0 échec** ; **validée croisée Rust↔C#** (mêmes width/height que le parseur iecode sur les fichiers communs : 308×180, 512×256, 32×32). Le verrou de l'extraction d'assets est levé.
-- **nxtch — N/A pour le PC (2026-06-10)** : format texture **Switch** ; **0/250 800** fichiers de l'IEVR PC sont NXTCH (textures = DDS dans g4tx, déjà décodées via `image_dds`). Code deswizzle gardé pour Switch, hors chemin critique PC.
-- **FAIT (2026-06-20) : g4sk poses de bind** — `g4sk::parse_poses` décode les sections inverse-bind (skinning) + pose locale TRS (FK) par os, **validé byte-exact** (`example validate_g4sk` sur le vrai `c000101_edit.g4sk` 173 os : `max|FK(TRS)−bind monde|=2.4e-7`, `max|A·inverse_bind−I|=1.2e-7`, parents `heuristic=false`). + helpers `local_matrix`/`mat_mul`/`rest_world_matrices`. La hiérarchie parente reste heuristique sur certains fichiers, mais les **matrices** sont byte-exactes.
-- **FAIT (2026-06-20) : g4mt animation squelettique** — `g4mt::parse_animation` décode les pistes d'anim du corps G4MT (canaux quaternions int16 quantifiés + scalaires, table des temps, value-base) ; classification rotation/non-rotation pilotée par données (0x0903 vs 0x0902). **Validé** (`example validate_g4mt`, walk.g4pk : 60 frames, quaternions unitaires). Clips longs (idle 400f) : layout value-region par-clip à finir (cf. mémoire).
-- **Déchiffrement CPK — RÉSOLU (rien à RE)** : recherche 2026-06-10 — il n'existe **aucune 2ᵉ enveloppe ni clé non publique**. Le seul chemin iecode est : magic `CPK ` → clair, sinon clé = CRC32(nom de fichier) puis XOR position-based — déjà porté (`cpk.rs` `key_from_filename`/`decrypt_block`). Vérifié : **921/921 CPK de `data/packs/` déchiffrent** en `CPK `+`@UTF`, 0 échec. La « clé fixe Viola `0x1717E18E` » n'est pas un secret : c'est `key_from_filename("cpk_list.cfg.bin")`.
-- **Durcissement `parse_t2b` — FAIT (2026-06-13, `7f3e09c`)** : le parseur cfg.bin débordait (`off + len`, `cfgbin.rs:693`) sur un en-tête chiffré → panic en debug, wrap silencieux en release. Découvert via `nie-game` sur le `cpk_list.cfg.bin` Steam. Corrigé : validation du signe + `checked_add` → `Corrupt` propre, byte-exact pour les fichiers valides (+3 tests de régression, **105 tests lib nie-formats**).
-- **`cpk_list.cfg.bin` déchiffré — FAIT (2026-06-14, `bdb45a6`)** : ni XOR (Viola/nom) ni compressé, mais **AES-256-CBC**. Clé/IV reversés statiquement de `nie.exe` (loader @ VA `0x14168D5E0`, désasm `nie-re`/iced-x86) : `KEY=decrypt_block(blob256,0,0x8A90ABA9)`, `IV=decrypt_block(blob128,0,0x4C801618)`, puis AES-256-CBC (`cpk::decrypt_cpk_list`, dép `aes`). **`Vfs::init()` monte les 254 202 fichiers logiques** (vérifié réel : footer T2B + 254 202 entrées). iecode N'A PAS ce déchiffrement (« Unknown encryption »). Premier déchiffrement de container **au-delà** d'iecode.
-- **Audio Criware — FAIT (vérifié 2026-06-10)** : ADX/AWB/ACB/USM = conteneurs réels portés. **HCA décode réellement** : clé IEVR `0x00D2997C0DC5EE72` (`SoundPlayManager.DecryptionKey`, dump il2cpp, absente de vgmstream) posée via `set_encryption_key` ; magic masqué `0xC8C3C1` reconnu ; sous-clé AFS2 (u16 LE @0x0E) propagée. Décodage via `cridecoder` (clHCA). Test sur vrai AWB `c00001001.awb` → 48 kHz mono, samples non nuls = déchiffrement effectif. L'ancien `cri_audio::hca_decode` (non conforme) est `#[deprecated]`.
-- **Formats résiduels (A4) — FAIT (2026-06-19) : C1 couverture par extension ~84 % → ~99,99 %.** Helper commun `level5.rs` (en-tête Level-5 + invariant `header_size+data_size==file_size`) + 4 parseurs Level-5 **byte-validés sur 100 % de leur corpus réel** : `navm`/G4NV (156/156), `g4cm`/G4CM caméra (1210/1210), `g4mt`/G4MT matériaux (62/63), `g4ma`/G4MA (35/35) ; **conteneur DXBC** (`dxbc.rs`, shaders vfxo/pfxo/cfxo/gfxo, 2448/2448) ; **PXCL** (`col.rs`, collision PhysX, 1143/1143) ; **fxbin/ptlb prouvés T2B** via `cfgbin`. Reste non couvert : ~20 fichiers obscurs (g4tx-glyph, r41*) + les **intérieurs opaques tiers** (bytecode SM5, PhysX-cooked — domaine SDK, hors RE Level-5, hors chemin gameplay/pixel). nie-formats **190 tests**, clippy 0. `g4sk` hiérarchie reste INCOMPLET (problème non résolu partout, y compris iecode).
-- **Correction honnête** : l'« extraction CPK FAIT » (`c91faeb`) était un **faux FAIT** — jamais validée end-to-end ; cassait sur les vrais CPK (cause = @UTF + CRILAYLA ci-dessus).
+L'oracle uemu est ce qui a levé le verrou « pas d'oracle → pas portable » : il exécute une
+fonction du binaire réel avec des entrées fixées et capture mémoire et registres, sans faire
+tourner le jeu. La validation **multi-frames** est requise pour toute physique à état : le
+single-step cache les branches non exercées — c'est ainsi qu'un clamp de bord absent du port de
+`BallMoveLerp` avait échappé aux tests.
 
-### 2. Données — `nie-data` (modèles no_std du jeu, port inagle)
+## Les piliers
 
-> **MAJ 2026-06-23 (session « goal », 30 commits) — pilier données substantiellement complété.**
-> Tournant : **système de conditions** décodé (`cond` cadrage + `unlock_condition` sémantique) +
-> **validé corpus-wide** (17 788 blobs réels) + résolution event-flag→event_id (CRC32). Cela a
-> débloqué en **cascade** 5 familles « opaques » → dispatch par motif dans `typed::decode_by_key` :
-> `Subtitle_ev*` (1321 dialogue Histoire), `*_menu_setting` (304 écrans), `*_trigger` (287 scripting),
-> `*_phase_set` (182 phases match), `event_bustup*` (34 portraits). **Couverture gamedata routée
-> ~61 %→84 %.** + familles gameplay portées+golden : soccer_drop/suggest/opponent/fixed_reward/
-> placement/rank/player_record/map_env, game_quest (948 défis), enjoy_mode_team, happen_event_npc,
-> flag_config, talk_select, trial_take_over, ai_type, event_map_tag + 4 parseurs soccer non-routés
-> câblés. **Reframe** : les familles non-typées atteignent déjà azalee en générique (`/cfg`) ; le
-> typage ajoute structs+validation, pas l'accès → le typage **à valeur** est fait, le reste (~375
-> petites tables) = polish. **La frontière de « entièrement » est désormais la LOGIQUE MOTEUR**
-> (physique de match ECS init-runtime, driver de menu, simulation) = multi-session. Gate tenu
-> partout (golden vrais fichiers, clippy --all-targets 0, wasm32, consumer chain model-serve vérifiée).
+### Formats — `nie-formats`
 
-- **État mesuré (2026-06-13)** : **34 familles golden byte-exact** + **8 en portage (lot B2)** ; les jalons datés ci-dessous (31/58, 847 tests) restent l'**historique**. Comptage de tests à reconcilier (marqueurs `#[test]` mesurés ~990 vs 962 vs 847 — cf. `docs/INVENTAIRE.md` § discordances).
-- **FAIT (2026-06-23) : système de conditions DÉCODÉ + validé sur tout le corpus** — le blob base64 « condition » est le format le plus répandu du jeu (déblocages/déclencheurs : `openCond`/`cond`/`condition`/`runCond`/`aocCondition` + `DATA_ITEM` triggers). **Deux couches, validées contre le corpus réel ENTIER** (17 788 blobs extraits de gamedata, golden `cond_corpus_golden`) : (1) **cadrage** (`nie-data/src/cond.rs`) — en-tête `b[0:4]`=version big-endian (0/1), v0 (**17 754/17 754**) `b[4]`=longueur, `b[5]`=opcode, `b[6..]`=charge ; (2) **sémantique** (`nie-data/src/unlock_condition.rs`, port 1:1 d'inagle `unlock-condition.ts`, **déjà présent**) — tokens `0x35`/`0x34`/`0x32`, namespaces story (`0xB91936DA`, seuil=épisode) vs event-flag (CRC32), opcodes single/AND/trivial. Le décodeur sémantique tient sur les **17 788 blobs réels** (3158 story, 14 191 event-flag, 430 composite, 30 000 feuilles event, 733 seuils alignés grille) — extension massive de couverture (des fixtures inagle au corpus entier). **RESTE (sans tricher)** : forme liste v1 (34/17 788) + l'ancrage ultime contre l'évaluateur binaire `ValidConditionManager` (inagle = réf acceptée). Câbler `decode_unlock_condition` dans les familles à champ `cond` (gallery/happen_event/trial/triggers) → azalee = travail de wiring restant. Gate : 6+ unit + corpus golden (17 754 cadrage + décodage sémantique complet), clippy 0, wasm32 OK.
-- **FAIT (2026-06-23) : ~304 écrans de menu décodables→azalee (dispatch par suffixe)** — `typed::decode_by_key` route les fichiers `<écran>_menu_setting` (clé par-écran) vers `menu_setting::parse` via `k.ends_with("_menu_setting")`. Toutes les **structures d'écran de menu** (MENU_LAYER_INFO/CMD/RES/GROUP) décodables typé → support du **driver de menu (priorité #1)** + explorateur azalee. Golden byte-exact sur `info_bookmark_menu_setting` (16 layers/9 cmd/1 res/16 groups, layer[0].id=0x074C8B3F) + test dispatch. Gate : 2 golden, clippy 0.
-- **FAIT (2026-06-23) : dialogue du mode Histoire décodable→azalee (dispatch par préfixe)** — `typed::decode_by_key` route désormais les **~1321 fichiers `Subtitle_ev<NN>_<bloc>`** (clé par-événement) vers `event_subtitle::parse_subtitle_file` via une garde de match `k.starts_with("Subtitle_ev")`. Tout le **dialogue timecodé du mode Histoire** (5467 lignes mesurées) devient décodable typé (route `/typed` + nie-wasm) sans un arm par event. Golden byte-exact sur le vrai `Subtitle_ev01_04800` (6 lignes, hashes + timings) + test dispatch. Gate : 5 golden, clippy 0. Systématique : audit `family_key` de **1287 familles gamedata** → 100 gérées + ce préfixe ; reste = surtout `*_menu_setting` (driver de menu) et configs mono-fichier.
-- **FAIT (2026-06-23) : `ai_type` — types/hobbies d'IA** (`nie-data/src/ai_type.rs`, **port direct**, pattern entrée+REF). `AI_HOBY` (4) + `AI_AI_INFO` (5, chacun suivi d'un nœud frère `AI_AI_INFO_REF_HOBY` = tranche `[offset,count]`) + accesseur `hobies_of`. Sémantique des ints non reversée → `params` bruts (anti-hallucination). Golden byte-exact (ai_id signés→u32, résolution REF) + dispatch `typed` → azalee. Gate : 2 unit + 4 golden, clippy 0.
-- **FAIT (2026-06-23) : `trial_take_over` — report de progression d'essai** (`nie-data/src/trial_take_over.rs`, **port direct**). 2 listes : `m_trialTakeOverInfoList` (5 : id/flagNo/itemId/condition) + `m_trialPartTakeOverInfoList` (9 : id/flagNo). Golden byte-exact + dispatch `typed` → azalee. Gate : 1 unit + 2 golden, clippy 0.
-- **FAIT (2026-06-23) : `talk_select` — menus de choix de dialogue** (`nie-data/src/talk_select.rs`, **port direct**). 9 `TALK_SELECT_CONFIG` (id/textId/type/cursorInit/cursorCancel/specifyTalkCharaId/additionalDispMenuNameCrc/afterDecisionParam). Golden byte-exact + dispatch `typed` (clé `talk_select_config.cfg`, nom de fichier inhabituel) → azalee. Gate : 2 unit + 2 golden, clippy 0.
-- **FAIT (2026-06-23) : `flag_config` — registre des types de flags de progression** (`nie-data/src/flag_config.rs`, **port direct**). 4 catégories (FLAG_INFO 15, TBOX/TBOX_REPOP/MAP_DOOR) de types de flags (état story/coffres/portes). Golden byte-exact + dispatch `typed` → azalee. Gate : 1 unit + 2 golden, clippy 0.
-- **FAIT (2026-06-23) : `happen_event_npc` — événements NPC du monde** (`nie-data/src/happen_event_npc.rs`, **famille non couverte, port direct**). Combats/rencontres overworld + récompenses « nice point » : 4 listes (`m_EventWeaponInfo`/`AnotherInfo` 24 ; `m_EventAimedInfo` 14 ; `m_EventCommonInfo` 15) avec **slices imbriquées** (event → aimed → weapon), parse infaillible (positions préservées) + accesseurs `aimed_of_event`/`weapons_of_aimed`. **Golden byte-exact** + résolution imbriquée vérifiée + dispatch `typed` → azalee. Gate : 3 unit + 6 golden, clippy 0.
-- **FAIT (2026-06-23) : `system_unlock_window` — gating de progression** (`nie-data/src/system_unlock.rs`, **famille non couverte, sans réf inagle → port direct du dump**). Les fenêtres « système débloqué » : `m_systemUnlockWindowInfoList` (98 : textId/tagTypeId/replaceId/gaijiIconCrc) + `m_systemUnlockWindowSetDataList` (26 : id + tranche `[offset,count]`) + accesseur `resolve_set`. **Golden byte-exact** sur le vrai dump + dispatch `typed` → azalee. Gate : 2 unit + 4 golden, clippy 0.
-- **FAIT (2026-06-23) : `enjoy_mode_team` — équipes du Mode Plaisir** (`nie-data/src/enjoy_mode_team.rs`, **famille non couverte**). Port 1:1 d'inagle `enjoy-mode-team-config.ts` (format `entries`/arbre) : 28 équipes prédéfinies × 7 champs (teamId/subId/colorCrc/type/formationCrc/texturePath/textureName) ; CRC signés→u32. **Golden byte-exact** sur le vrai dump `1.04.02.00` (team[0]/team[27]) + dispatch `typed::decode_by_key("enjoy_mode_team_config")` → azalee. Vars 7-11 hétérogènes/opaques **non inventées** (anti-hallucination). Gate : 5 unit + 5 golden, clippy 0.
-- **FAIT (2026-06-23) : `soccer_drop` — système de butin de match** (`nie-data/src/soccer_drop.rs`, **famille jusqu'ici non couverte**). Port des **12 listes** de `soccer/soccer_drop_config_*.cfg.bin` (tables item/esprit, raretés, loterie, exceptions) + accesseur `spirit_drop_rates()` = port **1:1 de `loadSpiritDropRates`** (inagle `drop-rates.ts`, jointure `m_spiritDropTableList.data[offset,count]` → owner de chaque ligne `m_spiritDropDataList`). **Golden byte-exact sur les 2 vrais dumps** (`5.00.27.00` : 6/10/94/26/54/22/568/34/15/2/113/1 entrées ; `1.03.20.00` : sans exceptions, 484 esprits) — poids esprit **flottants comparés au bit près** (`weight.to_bits()`, 20.75/4.25/5.0), typo Level-5 `rairtyId` préservée. Câblé `typed::decode_by_key("soccer_drop_config")` → **atteint azalee** (route `/typed`, nie-wasm) ; test end-to-end `dispatch_typed_atteint_azalee`. Helpers `cfgbin::field_f64`/`field_pair` ajoutés (source unique). Gate : 6 unit + 10 golden verts, clippy `--all-targets` 0 warning, wasm32 OK.
-- **FAIT (5/7)** : skill-info, item-info, growth-tables, exp-table, passive-skill (validés byte contre les vrais cfg.bin + recalcul `calculateStats` inagle au bit près).
-- **FAIT (2026-06-06) : base passives unifiée** — `nie-data/src/passives.rs` (+ `bin/export_passives.rs`, `tests/passives_golden.rs`). Lit `passive_skill_config_5.00.07.00.cfg.bin.json` (**1716 passives joueur**, texte résolu via `skill_text` NOUN_INFO fr/en/ja), `soccer_team_passive_config` (21 team passives), `team_passive_lot_table_config` (653 lots). Export → `apps/azalee/data/passives-full.json` (consommé par la page azalee `/passive`). Méta vérifiée : `player_count=1716`, `team_count=21`, `lot_count=653`, `unique_effect_count=128`.
-- **FAIT (2026-06-10) : `chara-param` + `aura-cmd` clos** — la logique (pairing **level-first**, résolution aura) était correcte ; restaient des doc-comments hallucinés + l'absence de golden sur vrai fichier. Corrigé : `chara_param` 0x240BEDF2 → learnLevel 0 (vrai dump) ; `aura` 0x0F8C620D → whs01780 (Feu/Tir), structure réelle 387 AURA_CMD_INFO + 1161 REF (la claim « 0/1549 » était hallucinée). **45/45 tests verts, golden sur vrais dumps.**
-- **FAIT (2026-06-12) : 10 familles supplémentaires via workflows séquentiels disque-légers → 31/58** — deux vagues de 5, portées **séquentiellement sur le main tree** (un seul `target/`, builds incrémentaux : tient sur un VPS à ~88 % plein là où les worktrees parallèles saturaient le disque) puis **vérifiées adversarialement** : `gallery` (m_GalleryInfoList, 360 entrées), `banner`, `search_word` (config + bookmark), `scene_archive` (6 flags + 112×18), `music_app` (nesting 3 niveaux, var[5] polymorphe), `photo_mode` (91 RANDOM_POSE), `update_notice`, `chat_emote` (3 versions), `user_name_plate`, `input` (adaptive_trigger/haptic/vibration DualSense). +219 tests (847 nie-data total). Anti-faux-FAIT tenu : agent music_app a corrigé 2 hypothèses fausses (variant unique, volume constant) au contact du vrai fichier ; commentaire stale « 95 » de photo_mode corrigé en « 91 » à l'intégration.
-- **FAIT (2026-06-10) : 10 familles supplémentaires via workflow → 21/58** — portées en parallèle (worktrees git isolés ; golden via chemin absolu vers le main tree) puis **vérifiées adversarialement** (valeurs golden recoupées au JSON brut, 0 mismatch) : `mission`, `dungeon` (gimmick récursif), `boost_grp`, `record`, `chronicle_top`, `friendmap`, `fast_travel`, `weather`, `light`, `dictionary` (zukan : 43 habitats + 280 obs). +279 tests (628 nie-data total). Caveats honnêtes (sémantique opaque sans source TS) en doc-comments ; typos Level-5 (« SPRIT », « acttion_list ») préservées byte.
-- **FAIT (2026-06-10) : 7 familles de match portées → 11/58** — `formation` (10 positions, 1073 placements, 115 formations ; positions terrain = 16 hex-chars = 2 f32 LE, ex. `"000000008FC2753F"` → (0.0, 0.9599) GK profond ; 21 tests), `command` (effets de commande soccer/rpg, format `entries`, 32 tests), `ai` (IA stratégie/tactique, 73 tests), `party` (contrôle/composition d'équipe, 39 tests), `phase` (phases scénarisées de match, 29 tests), `soccer` (config de match : focus-battle/technic/difficulties — sous-ensemble ciblé, 37 tests), `rpg_battle` (combat RPG, 8 parseurs, 74 tests). Tous **golden byte sur les vrais dumps** de `data/common/gamedata/`. Deux layouts cfg.bin coexistent (`lists` / `entries`). Piège serde connu : tableaux `[T;N]` N>32 cassent `Deserialize` → utiliser `Vec`. Ces familles nourrissent directement la boucle de match (cf. §3).
+38 modules, 237 tests. Tous les conteneurs binaires structurés du jeu parsent : CPK (clé
+CRC32(nom), 936/936), `cfg.bin` dans ses deux formes (T2B et RDBN), @UTF, CRILAYLA, la famille G4*
+(TX, MG, MD, SK, MT, MA, PK, PKM, CM, VS, LA), PXCL (collision), G4NV (navmesh), MEVBIN, OBJB,
+DXBC (shaders), et l'audio Criware (ADX/AWB/ACB/USM, HCA décodé avec la clé IEVR).
 
-### 3. Moteur / gameplay — `nie-core` (logique reversée portée du C décompilé)
-- **FAIT (7/7)** : stat-tables, exp-level, skill-model, aura-model, match-fsm, command-effect-slots, action-ctrl-ring.
-- **Mesure réelle** : 4999 LOC, 92 fn publiques, 56 struct/enum, **126 tests + 9 doctests verts, 0 stub**, `#![forbid(unsafe_code)]`. Porté de `soccer_match_state_machine.c`, `soccer_command_effect.c`, `soccer_action_ctrl.c` (formules score `min*10000+sec`, strides, sentinelles confirmés ligne-par-ligne). **Ce n'est pas un squelette.**
-- **FAIT (2026-06-10) : boucle de match JOUABLE** — `nie-core/src/match_sim.rs` (`simulate_match`) câble FSM + horloge + effets en un match déterministe kickoff→score→fin, exposé via `nie-headless match --home --away --seed`. **Confirmé byte** vs C : séquence FSM post-match (switch L79-316) + `final_score(90,0)=900000`. **Nominal** (honnêtement marqué) : durée 90 min, modèle de but probabiliste (le vrai moteur est physique), PRNG splitmix64, agrégat `TeamSetup`. **167 tests verts** (140 nie-core + 16 nie-headless + 11 doctests), déterministe. Premier vrai jalon « jouable ».
-- **FAIT (2026-06-10) : match piloté par les VRAIES données** — `TeamSetup::with_formation(&FormationConfig, &SoccerFormationInfo)` place les 11 joueurs aux positions **byte-exactes** du dump `formation_config` (GK `start_pos.y = bits 0x3F75C28F`), propagées dans `MatchResult.home/away_placements`. `TeamSetup::from_chara_params_and_levels` dérive les stats réelles de chaque joueur via les tables de croissance (lerp lv1↔lv30 puis lv99) — débloqué après résolution de la vérité terrain sur l'encodage de position : **`Position{GK=1,FW=2,MF=3,DF=4}`** (iecode `types.h:28`/`loader.cpp:178` ; le commentaire « 2=DF » de growth/stats était faux, corrigé). Prouvé byte : `CHARA_PARAM_INFO_1` (FW) lv1=[12,13,12,10,11,9,11], lv30/lv99 idem + test sur le vrai dump `chara_param_1.03.66.00`. **Réserve honnête** : `chara_rank` absent de `CharaParam` → défaut N (stats sous-estimées R→LR), agrégation = moyenne non pondérée.
-- **FAIT (2026-06-10) : 1er primitif moteur porté BYTE-EXACT — PRNG `lives::CRand`** — `crate::crand::CRand` = Mersenne Twister MT19937 32-bit, décompilé via Ghidra (`docs/recherche-modele-match-decompile.md` : constantes `0x6C078965`/`0x9908B0DF`, n=624/m=397, tempering canonique, bornage Lemire). **Validé bit-exact** contre le vecteur de référence MT19937 (graine 5489 → 3499211612, 581869302, 3890346734…). Remplace le Splitmix64 nominal dans `match_sim`. **Découverte structurante** : la vraie résolution tir/but n'est PAS une formule inline mais **event-driven (IDs hachés) + data-driven (cfg.bin)** ; le modèle de but de `match_sim` reste donc nominal, à reconstruire depuis le système d'événements (`FUN_1412C0970`). **152 tests lib nie-core** (dont 5 crand).
-- **Modèle de but — RECONNAISSANCE COMPLÈTE + VERROU D'ORACLE clarifié (2026-06-19)** : (1) port des constantes structurelles d'init de match `play_cmd_manager.rs` (scoring byte-exact, file `{8,0x16}`, **système d'événements 9 callbacks** dont on_goal/on_foul). (2) Sous-système du modèle de but **localisé end-to-end dans le binaire COURANT** (via `niers.sqlite` RTTI + lecture vtables) : `CSceneSoccer::update 0x1412C3BB0` (boucle per-frame, 20+9 appels) → `CSoccerEventCheckComponent` (détection, ctor `0x140336A30`/dtor `0x140379270`, registration type-ID mappée) → `SoccerScorerAggregate`/`SoccerCalcKeeperSaveComponent` → `BallMoveKind` (déjà porté). Cf. mémoire `c3-modele-but-anchors-binaire-courant`. (3) **VERROU STRUCTUREL** : le modèle de but **runtime** n'a **AUCUN oracle de validation** (pas de C avec vecteurs réf ; inagle = données seulement ; pas de captures) → reversable mais **PAS portable en FAIT validé** sans le jeu qui tourne. C'est **pourquoi `match_sim` reste nominal** (un port runtime non validé = faux-FAIT). Sortie = **differential-testing** (infra faisable ici : Wine 10 + GPU + exe EAC-patché, mais projet de tooling multi-session). C3-runtime plafonne donc à la reconnaissance (faite) + ports validables (FSM/ball-kinds/keeper-params/init — faits). Détail : `docs/ROADMAP-100.md` §Pilier C.
-- **VERROU D'ORACLE LEVÉ — émulation Unicorn par fonction (2026-06-20)** : le « pas d'oracle → pas portable validé » est **résolu sans faire tourner le jeu**. `scripts/uemu.py` émule UNE fonction isolée du vrai `nie_eacpatched.exe` (image PE en mémoire Unicorn x86-64, entrées fixées registres+structs, exécution jusqu'à `.pdata`-end/stop, capture mémoire+registres) → **ground-truth byte-exact**. Couvre SSE, **FMA3 émulée en logiciel** (hook invalid-insn, le TCG ne l'implémente pas) et **call-stubbing** (ctors/fonctions appelantes). Boucle prouvée : **reverse asm → valider byte-exact vs uemu → porter nie-core → test `.to_bits()`**. **Premiers résultats validés** : gravité monde réelle **-9.8f** (`0x14027ad90`) ; **`nie_core::ball::ParabolaMove`** (= `BallMoveSimpleParabora::vmethod_3` `0x141334600`, pos+=v·dt+½·a·dt²) ; **`LerpMove`** (= `BallMoveLerp::vmethod_3` `0x141339ba0`, ease-out quartic + FMA). Suite de régression `scripts/validate_re.py` (3/3 byte-exact). **Conséquence** : la physique/logique de match devient portable-FIDÈLE fonction par fonction (plus de plafond « nominal »), sans differential-testing runtime. Reste : variantes `BallMove{Normal,Rate,Bezier,Dribble,…}` (arcs plus gros : shuffles vectoriels/normalisation/branches/sous-objets — émulables via uemu) + keeper/action/tactics. Multi-mois mais désormais **mesurable et prouvé brique par brique**. Cf. mémoire [[python-re-toolbox]] / [[coverage-reelle-nie-exe]].
-- **VALIDATION DE TRAJECTOIRE MULTI-FRAMES + FAUX-FAIT LERP CORRIGÉ (2026-06-23)** : nouvel oracle `scripts/validate_trajectory.py` — émule le vrai `vmethod_3` **répété N frames**, état muté (vitesse/t) + position réinjectés frame à frame, comparé byte-exact à la formule reversée. Valide le **câblage runtime** (`BallMover::step` en boucle), pas une formule isolée. **A RÉVÉLÉ un faux-FAIT caché** : `BallMoveLerp::vmethod_3` a un **clamp de bord en y + snap à la complétion** (`y_out = (t≥duration ∨ ease≥1 ∨ lerped.y<bound) ? bound : lerped.y`, bound = `[0x94]`/`[0x98]` selon flag `[0x9c]`) — jamais exercé par le test single-step (`dur=2`, jamais complété) donc **absent du port** `LerpMove`. Modèle confirmé par 4 probes oracle ciblées, `LerpMove` **corrigé** (champ `bound_y` + complétion + clamp), trajectoires **parabola (24f) / lerp (16f, dont complétion) / targetfollow (16f) byte-exact**. Suite `validate_re.py` **5/5** ; test Rust `trajectory_multiframe_byte_exact_vs_binaire` (golden capturé du binaire). **Leçon « sans tricher »** : le single-step peut cacher des branches non exercées → la validation multi-frames est requise pour les physiques stateful.
-- **3 PHYSIQUES CÂBLÉES + ORACLE ÉTENDU (2026-06-21)** : oracle uemu enrichi — SSE3/4 (`haddps`/`insertps`/`sqrtps`) + FMA3 à opérande MÉMOIRE émulés (capstone detail, opérandes reg/mem rip-rel) → débloque les fonctions vectorielles. **3e physique** `TargetFollowMove` (`BallMoveTargetFollow::vmethod_3` `0x14133c080`, suivi cible + clamp y + ease) validée byte-exact (3 cas), suite `validate_re.py` **4/4**. **CÂBLAGE** : `nie_core::ball::BallMover` (enum modélisant la vftable `IBallMoveController`) + `BallComponent::update(dt)` dispatchent vers les 3 physiques validées → la physique prouvée PILOTE le ballon (fin des structs isolées). Reste : variantes à graphe-runtime (Normal/Rate/Bezier/Dribble/Goalnet — appels essentiels/sous-objets, émulables via setup-chain uemu) + keeper/action/tactics.
-- **PIPELINE DÉCOMPILE→PORTE + 8 PORTS BYTE-EXACT + VERROU RUNTIME CASSÉ (2026-06-23)** : analyse Ghidra complète de `nie_eacpatched.exe` (`var/ghidra-proj/niers_nie`) → décompilation **par-VA à la demande** (`scripts/ghidra_decompile_targets.sh` + `DecompileVAs.java`, `-process -noanalysis`). Découverte : le step par-contrôleur ball-move est au **slot 4 (vtable+0x20)**, pas vmethod_3 (+0x18 = base partagée). **8 ports byte-exact** ce soir, tous validés vs binaire (suite `validate_re.py` **13/13**) : `DribbleMove` (suit le joueur, complet) ; `BezierMove` (de Casteljau quadratique, complet — couvre Bezier/MultiBezier/RealSkillShoot qui partagent le step `0x1413359b0`) ; `RateMove::advance` (progression du taux) + `rate_path_eval` (cinématique 3D projectile) ; `normal_integrate_velocity` (intégration vitesse Normal) ; `nearest_point_index` (Goalnet) ; keeper `is_within_save_reach`/`save_zone_heights` (vraie géométrie d'arrêt — **corrige** le `can_reach` deviné, 3D≤ ≠ XZ²<strict) ; `MatchScene` (CSceneSoccer). Primitives partagées `Vec3::{normalize_game,displacement_rate,bezier_quadratic}` validées uemu (enabler XMM0-15 ajouté à uemu). **VERROU RUNTIME CASSÉ pour consts fixes** : un global `.bss` runtime-init (gravité path-eval `DAT_142157570`, zéro statique) est un const `.rdata` copié à l'init (`movaps 0x140027528`), retrouvé via xref Ghidra (`FindXrefs.java`) → `(0,1,0,0)` axe Y → path-eval validé byte-exact. **Frontière mesurée (honnête)** : consts FIXES résolubles ainsi ; mais état runtime DYNAMIQUE (scale keeper `DAT_142060e00` = 261 écritures) + données composants (collision mesh Normal, dive params via `GetComponent`, filet Goalnet) exigent capture live (`nie-trace`, jeu en marche) ou modélisation ECS. Aucune pièce déclarée FAIT sans validation byte-exact ; parties runtime-couplées marquées INCOMPLET, jamais faussées.
+`cpk_list.cfg.bin` est chiffré en **AES-256-CBC**, clé et IV reversés statiquement du binaire —
+un déchiffrement qu'iecode n'a pas.
 
-- **MENU/UI — WORKFLOW DE RECONNAISSANCE + 2 LIVRABLES VALIDÉS (2026-06-23)** : workflow fan-out (13 agents) cartographiant les 5 plans déjà portés (dispatch Lua, compositeur f32, /menu-render, driver nie-game, FSM nie-app) + 3 gaps réels (texte hors chemin serveur, navigation du vrai layout, getters de scène à 0). **Cible A1 — décodeur de valeurs typées objet-menu** (`nie_core::menu_setting`, port de `FUN_141290fc0`) : 9 champs typés (tag@+0/valeur@+4, stride 0x14 depuis +0x28) → 9 params runtime +0x590..+0x5ba ; **VALIDÉ byte-exact via oracle uemu** (arrêt 0x1412911bb, 3 vecteurs, tags 0/1/2/3 + tag-4 garde-nulle ; `validate_re.py` **17/17**). **Cible B2 — arbre d'écrans** : `MenuSetting::layer_hashes_consistent()` + golden exhaustif sur **440 `*_setting` réels** (304 `*_menu_setting` + fenêtres/sélecteurs) — **100 % des ~3300 layers** vérifient `layer_id==CRC32(name)`, nav-hash écran=`CRC32(stem)` (main_menu=0x9DB608F1, soccer_top_menu=0x305E72CF recoupés au dico jeu) ; **route prod `/menu-tree.json` + `/menu-tree/<screen>.json`** (live sur :8790, nourrit azalee). **B1 (rendu texte des layouts) BLOQUÉ** : les `localized`/`value` des `_layouts` azalee sont des **placeholders structurels** (« Btn »/« List »/« Guide »), le vrai texte est résolu au runtime par le driver Lua (SetText→text_id→menu_text) = gap navigation, différé. Correction d'un faux du rapport : « dernier layer = nom logique » est FAUX (last layer de main_menu = `cmn01_40_list_base_empty`).
-- **MENU/UI — CONTENEUR DE LIST-VIEW : SOUS-SYSTÈME COMPLET BYTE-EXACT (2026-06-24)** : `nie_core::intrusive_map` — le conteneur amont des écrans à liste (`CMenuListView` : shop/inventaire/roster/formation). **Découverte structurante : c'est un *template* C++** réutilisé à plusieurs dispositions d'entrée, prouvé par **6 fonctions réelles validées byte-exact contre l'oracle uemu** (`validate_re.py` **23/23**). **Côté LECTURE** (`IntrusiveMap{Linear,Sorted}`, paramétré par `entry_stride` + `key_base`) : find mode linéaire (`FUN_1402e2a10`) + mode trié = recherche binaire (`FUN_1402b4160`, comparaisons u32 NON signées) + itérateur next-equal d'un run de doublons/multimap (`FUN_140541de0`) ; le MÊME code valide **3 instanciations** — `0x10`/clé@+8 (`FUN_1402e2a10`), `0xc`/clé@+8 (`FUN_14050b0b0`), `0x18`/clé@+0 (`FUN_1401f5ab0`) — fuzz seedé ~5 200 cas chacun. **Côté ÉCRITURE** : `IntrusiveListCursor::pop_front` (`FUN_140453570`) sur la liste **doublement chaînée** des nœuds (prev@+0, next@+2, sortpos@+4 ; en-tête tête+0x16/queue+0x18/count+0x1a), mutation byte-exact (701 cas, mem-out). **Différé (anti-faux-FAIT)** : `erase` (`FUN_1404532b0`) et le wrapper map<K,V> (`FUN_140509570`) appellent des **callbacks vtable** (+0x20/+0x28) / lisent une struct externe → non isolables en uemu. Leçon de ciblage : `n_calls_in`/`pagerank` vides dans niers.sqlite ; le « pur leaf » par xref(call) est un FAUX-positif (les indirects vtable n'ont pas d'edge) → filtrer par décompilation.
-- **RE BYTE-EXACT — EXPANSION MULTI-DOMAINES (2026-06-24, suite `validate_re.py` 30/30)** : au-delà du conteneur de menu, minage systématique de **pure-leaves** (bornes `.pdata` réelles + désasm zéro-`call`, confirmé par décompile complète) → ports byte-exact dans 5 domaines supplémentaires, tous validés vs oracle uemu : (1) **valeurs typées runtime** — paire `nie_core::typed_value_reader::{read_next_int (FUN_140051f40, ~1696 callers), read_next_float (FUN_140051fc0, ~331 callers)}` (tags 2-bit packés, complète A1 `menu_setting`) ; (2) **chemins d'asset** — `nie_formats::pathname::file_stem` (FUN_140452820, ~171 callers, basename sans dernière ext) ; (3) **math de transform** — `nie_core::affine::compose_affine_3x4` (FUN_14007f8f0, FMA fusée) ; (4) **lookup keyé** — `nie_core::keyed_record_table` (FUN_1404af530, records 0xb0 par clé 40-bit, linéaire/binaire) ; (5) **rendu/viewport** — `nie_core::aspect_viewport` (FUN_14045ff50, letterbox/pillarbox). **Landmines réutilisables** : `cvttss2si` (≠ `as i32` qui sature → fct dédiée) ; `cvtsi2ss` = `as f32` RNE (sans piège) ; FMA fusée = `mul_add` (ordre d'accum exact) ; fonctions string SSE uemu-ables (flag CPU lu à 0 → pas de `pcmpistri`) ; retours `xmm0`/float que Ghidra masque (sonder `read_xmm`) ; faux-positifs `.pdata`-chunking. **Honnête** : couplés-vtable (`erase`/`clear`/`init`/insert, dispatchers) différés (capture runtime requise) ; primitives génériques restantes (twin binary-search FUN_1404bf840/e6030, cocktail-sort FUN_14047ae70) = valeur marginale faible.
-- **RE BYTE-EXACT — LOT FAN-OUT +8 (2026-06-25, suite `validate_re.py` 31→39/39)** : workflow fan-out (19 agents, décompiles Ghidra pré-générées lues par les agents) → **8 fonctions de plus** portées et validées vs oracle uemu, intégrées d'un bloc : (1) **math de transform** — `nie_core::quat::quat_mul` (FUN_14007faf0, produit de Hamilton, SSE scalaire **sans FMA**, 1096 cas) + `nie_core::mat4::mat4_mul` (FUN_140090fa0, 4×4 row-major, `mulps`+3×`vfmadd231ps`, 604 cas) ; (2) **conteneurs** — `nie_core::byte_keyed_table::lookup` (FUN_140d8f2b0, records 8 o par clé 1 octet, first-win, 608 cas) + `nie_core::fixed_slot::push` (FUN_140506730, append élément 0xB8 à tableau capacité fixe — **côté ÉCRITURE**, 600 cas) + `nie_core::category_lookup::find_id_category` (FUN_140d3bac0, catégorie d'un id dans table 14×29, 4 branches found/fallback/sentinelle, 600 cas) ; (3) **string libc MSVC** (no_std, famille `pathname`) — `nie_formats::strcmp::strcmp` (FUN_14168b570, SIMD non signé -1/0/1, 668 cas) + `nie_formats::strncmp::strncmp` (FUN_14168b330, borné, 908 cas) + `nie_formats::strlen::strlen` (FUN_14168b5f0, SWAR, 1028 cas). Gate : clippy `--all-targets` 0 warning (nie-core+nie-formats), 423 tests unitaires verts, wasm32 OK, suite uemu **39/39**. **Honnête** : 4 cibles du lot échouées sur quota agent (VAs 140052040/140071d70/14075c030/140d3b8f0, scripts en attente sous `var/wip-re/`) — à reprendre, non comptées.
-- **RE BYTE-EXACT — RATTRAPAGE DES 4 CIBLES QUOTA (2026-06-25, suite `validate_re.py` 39→43/43)** : les 4 cibles tombées sur quota au lot fan-out avaient en fait leur **validation byte-exact terminée** (oracle uemu vert) ; seul le port Rust manquait. Portés et intégrés : (1) `nie_core::category_lookup::entry_offset` (FUN_140d3b8f0, **sibling « adresse »** de `find_id_category` — même table 14×29×3, offset `(entry+8)*0x10 + channel*0x2B8 + row*0x82C`, 24800 cas) ; (2) `nie_core::effect_obj_ctor::construct` (FUN_140071d70, ctor `lives::CEffectObjComponent` 0xD0 — zero-fill + défauts typés 1.0f/10.0f/30.0f + vtable + compteur d'instances, **6 octets d'interstice préservés**, 600 cas) ; (3) `nie_core::typed_list_iter::{read_tag,resolve,advance}` (FUN_140052040, **deref+avance** de l'itérateur de liste typée 2-bit — complète `typed_value_reader` : tag signé, sentinelles, sélection de base, NULL, 800 cas) ; (4) `nie_core::imm_batcher::{transform_vertex,ImmediateBatcher}` (FUN_14075c030 + helper FUN_14075df00 — **assembleur de primitives mode immédiat** glVertex-like : transform 4×4 pairwise non-FMA + émission points/lignes/triangles sur 5 modes avec winding alterné, 800 cas). Gate : clippy `--all-targets` 0 warning, 248 tests nie-core, wasm32 OK, suite uemu **43/43**. **Landmines** : `u8 >> shift` panique si `shift >= 8` → x86 zéro-étend l'octet en registre 32 bits avant le décalage masqué `cl & 0x1f` (porter en `u32::from(byte) >> shift`) ; transform mat·vec de `FUN_14075df00` = arbre pairwise `mulss/addss`, **PAS de FMA** (≠ `mat4_mul`).
+Reste : la hiérarchie d'os `g4sk` garde un fallback heuristique sur certains fichiers (les
+matrices, elles, sont byte-exactes) ; 1 121 fichiers en formats non structurés (`.ptlb`, `.fxbin`,
+`.clobin`, `.g4tg`, blobs hash-nommés).
 
-### 4. Jeu jouable — web wasm + driver de menu runtime (LA SURFACE LIVRABLE, 2026-06-21)
+### Données — `nie-data`
 
-**Le jeu tourne EN NAVIGATEUR, 100 % Rust → WebAssembly, LIVE** : `https://azalee.rosegriffon.fr/jeu` (vérifié 200).
-- `nie-app` rendu wasm-compatible (`Font::from_bytes` + cfg-gate de l'I/O natif) ; **`nie-wasm::WasmGame`** = machine à états INTERACTIVE (Titre → menu principal → sélection de mode → **vrai match `nie-runtime`** / dialogues), rendue en framebuffer RGBA8 que JS peint **plein écran, sans chrome de démo**. Police servie **gzippée same-origin** (5,75 Mo vs 44 Mo bruts — l'atlas est un 4096×2048 RGBA8 non compressé ; corrige le « Failed to fetch » du fetch CDN 44 Mo).
-- **INPUT RÉEL mappé** : clavier (flèches/WASD/Entrée/Échap) + souris (clic/clic-droit) + **manette** (croix/stick/A/B, edge-detect) → **vraies commandes IEVR** (`CMD_ENTER`/`CMD_BACK`/`CMD_FCS_MTX_*`, cf. `input_ctrl` + `MENU_CMD_INFO`). `WasmGame::input(cmd)`.
-- **Structure de menu RÉELLE (vérifiée dans les données — anti-hallucination)** : les **9 onglets** du menu principal prouvés byte-exact dans `main_menu_1.02.92.00.lua.bin` (types {10,20,30,70,40,80,60,50,90} → obj_hash CRC32 + text_id) : Composition d'équipe / Objets / Marque-pages d'informations / Inacord / Fichier de données / Adversaires / Aide / Options / Sauvegarder ; + **5 modes** (Mode Histoire / Mode Chronique / Mode Compétition / Victory Road / Stade BB). Libellés = vrais textes **FR** (`data/common/text/fr/menu_text` résolus par hash ; les tables FR sont PLEINES — chara/item/skill/team/shop). Référence exhaustive : **`docs/game-data/`** (14 familles, générée via Bun/TS).
-- **Packaging Win/Linux** : `scripts/package.sh` → `dist/niers-*-{linux-x86_64.tar.gz, windows-x86_64.zip}` (cross mingw-w64, PE32+).
+117 modules, 1 431 tests, 127 fichiers golden. Le système de **conditions** est décodé et validé
+sur tout le corpus (17 788 blobs) : cadrage binaire plus sémantique story/event-flag. Le
+**résolveur de texte universel** débloque la résolution de tout texte localisé par hash, ce qui a
+permis les jointures nom/description sur personnages, objets, quêtes, auras, équipes, trophées.
 
-**VERROU CRITIQUE — le rendu FIDÈLE du menu (= `menu.png`) est gaté sur le DRIVER DE MENU RUNTIME, désormais précisément localisé.** Le visuel actuel est un placeholder (liste générique) car **le vrai menu n'est PAS dans les fichiers** : il est construit au runtime par le **menu-manager C++** du moteur, qui lit `*_menu_setting.cfg.bin` → crée chaque objet → pilote le lua via `funcLuaMenuCommand` → le lua appelle `SetSprite`/`SetText`/`SetIconSprite` (le menu-host `nie-lua`, commandes DÉJÀ mappées) → build visuel ; positions via g4pkm `motion_final_pose` (~0.62, fichier) ou le slide-in runtime **G4RA** (0.99). VÉRIFIÉ : rendu statique = **0 sprite** ; `nie-game --runtime` (nie-lua) n'exécute que ~1 commande / 0 sprite, car `drive_menu` appelle des callbacks **devinés** (`OnInit`/`OnSetupLayer`/`OnOpenLayer`) que le vrai lua ne build pas — le vrai protocole est la **boucle de build engine→lua** (`funcLuaMenuCommand`), non répliquée. **CHEMIN (le but : niers EST le runtime)** : reverser le menu-manager via l'**oracle uemu** + `data/re/funclua-cmdid-handlers.json` (3 471 handlers) → porter la boucle de build dans `nie-lua` → driver le vrai lua → `SetSprite` → composer (`nie-formats::menu::compose` + placement). Arc « D1.c », multi-étapes, mais **tout le visuel du menu ET le contenu des sous-menus (données FR réelles dispo) en dépendent** → c'est la PRIORITÉ #1. (Bug corrigé en passant : `GAME_DIR_DEFAUT` = chemin WSL mort → VFS dégradé.) Cf. mémoires [[moteur-de-jeu-nie-runtime]] / [[no-hallucination-verify-game-data]].
+La chaîne personnage est complète de bout en bout : `chara_base` → nom, biographie, équipe, série.
 
-**Priorité (ordre réel vers le jeu fidèle)** : (1) **driver de menu runtime** (débloque menu + sous-menus visuels) ; (2) physique de match byte-fidèle (continuer les ports validés-oracle → match fidèle) ; (3) dialogues mode Histoire (résoudre la source du texte — sous-titres hash + timing, texte ailleurs) ; (4) contenu réel des sous-menus (Équipe/Objets/Options/Boutique — données FR prêtes, à brancher une fois le driver rendant).
+Le typage n'est pas la condition de l'accès : les familles non typées sont déjà lisibles en
+générique. Ce qui reste est du polissage sur de petites tables.
 
-### 3bis. Acquisition Steam — `nie-steam` (download natif des dépôts, port du Steam C# d'iecode)
-- **FAIT (2026-06-05, `be3811f`)** : port complet de `IECODE.Core/Steam/Content/` sur **`steamroom`** + `steamroom-client` (MIT/Apache, = équivalent SteamKit2). Modules : `depot_resolver` (filtres OS/arch/langue, **fidélité C# vérifiée**), `token_store` (cache refresh-token round-trip), `options`, `session` (login refresh/credentials/2FA/anon, PICS, depot keys), `downloader` (orchestration `DepotJob`, proxy `depotfromapp`), + CLI `nie-steam`. **33 tests verts, clippy 0, 0 stub.** Le protocole (CM/auth/manifest/chunk/CDN) vient de steamroom, pas réimplémenté.
-- **E2E live** en attente de creds Steam (`session`/`downloader` font de vrais appels steamroom, non testables sans login + réseau).
-- **Hors scope** (pilier distinct « jeu en cours d'exécution ») : `SteamApi` (FFI `libsteam_api` → crate `steamworks`), `SteamEncryptedAppTicket` (EOS Windows-only).
+### Logique — `nie-core`
 
-### 3ter. Saves — `nie-save` (déchiffrement/lecture/édition native)
-- **FAIT (2026-06-05, `a08e6b7`)** : déchiffre/lit/édite les saves IEVR (Lives) en Rust pur. Algo = **XOR position-based, clé CRC32(nom de fichier)** (même que les packs CPK). Conteneur magic `0x9DCE66C3`/`0x2EC3031F`, répertoire stride 0x80, data @0x800, blocs internes magic `0xEEFF` (SYSTEM/AUTOSAVE/HEADERSAVE). Vérifié : entropie **8.0→0.01**, round-trip identique, **12 tests**. CLI `niers save read/decrypt/edit`.
+35 modules, 262 tests. Portés et validés byte-exact contre l'oracle : le PRNG `lives::CRand`
+(MT19937 avec bornage de Lemire), les physiques de ballon (parabole, lerp avec son clamp, suivi de
+cible, dribble, Bézier, taux, intégration normale, filet), la géométrie d'arrêt du gardien, le
+décodeur de valeurs typées d'objet-menu, le conteneur de list-view intrusif (template C++ prouvé
+sur trois instanciations), et un ensemble de primitives — composition affine, produit de
+quaternions, multiplication 4×4, tables à clé, viewport letterbox, `strcmp`/`strncmp`/`strlen`.
 
-### 3quater. CLI wiki — `nie-wiki` (exploration game-data, ex-azalee CLI)
-- **FAIT (`448bc9c`)** : migration du cœur game-data de l'azalee CLI TS → **13 sous-commandes `niers wiki`** (chara/skill/item/team/compare/search/db/random-team/team-builder/status/redis/audit/dialogue), lecture du miroir SQLite via `rusqlite` + calcul `nie-core`/`nie-data` + rendu. (push/sync/rag/translate restent TS.)
+**Limite assumée** : `match_sim` reste **nominal**. Le RE établit que la résolution tir/but n'est
+pas une formule inline mais un évaluateur data-driven ; `GOAL_RATE_BASE` n'a aucun fondement
+binaire et c'est écrit dans le code. Voir [`modele-de-match.md`](modele-de-match.md).
 
-### 3quinquies. Moteur décompilé — `nie-engine` (portage des fonctions C de nie.exe)
-- **FAIT (socle)** : portage de **~55 fonctions distinctes** (depuis les 60 fichiers `.c` décompilés Ghidra) → Rust, **11 modules / ~15k LOC** (render/animation/audio/physics-physx/menu/network/scripting/cfgbin/cpk/g4/app), `forbid(unsafe)`, workspace build vert, tests par module. **434 marqueurs `// EXTERN:`** (≈7,6 par fonction portée) = refs vers fonctions non encore portées : le socle est un îlot, pas une boucle moteur. Reste : étendre vers une boucle moteur réelle + résoudre les `// EXTERN:`.
-- **MAJ 2026-06-21 (dédup Phase 0) — décommissionné comme RUNTIME, conservé comme RÉFÉRENCE.** `nie-engine` est **exclu des membres compilés** du workspace (`exclude` dans `Cargo.toml`) : consommé par AUCUNE crate vivante, il **duplique le domaine** de crates déjà byte-exactes (`nie-formats` cpk/cfgbin/g4*/audio/animation · `nie-core` ball/constantes · `nie-lua` hôte menu · `nie-render3d`+`nie-game` rendu). Le code reste en lecture seule comme carte RE du flux d'orchestration C++ ; réintégration **sélective** des parties réellement uniques (`network.rs` EOS, `app.rs`) seulement si une feature le réclame, après re-validation byte-exacte. Ne jamais replier son code (std, non validé) dans les crates wasm-portable/byte-exact.
+### Rendu et menu
 
-### 3sexies. Assemblage 3D — `nie-formats/assemble.rs` (modèle complet joueur)
-- **FAIT (2026-06-06)** : fusion **corps + face + uniforme TEXTURÉS** en un GLB. Matching reversé : face = GLB de l'internalCode, corps = mesh PARTAGÉ `base_*` (par type_idx, 99 % couverts), uniforme = team→kit→`ModelIdCrc = crc32_std(code)` (manifeste `var/uniform-model-map.ndjson`, **3550** entrées). **Textures g4tx→PNG (BC1-7) embarquées** dans le GLB (face + uniforme). Keshin (`k*`) / armures (`ka*`) aussi assemblés. Reste : codes hors `c/k/ka` (uniforme isolé `n*` non assemblable seul) ; câblage du skinning en glTF skin+animation dans le GLB servable (cf. pilier Animation).
+Le rendu fidèle du menu est **gaté sur le driver de menu runtime**. Le vrai menu n'est pas dans
+les fichiers : il est construit à l'exécution par le menu-manager C++, qui lit les
+`*_menu_setting.cfg.bin`, crée les objets, et pilote le Lua via `funcLuaMenuCommand` — le script
+appelle alors `SetSprite`/`SetText`/`SetIconSprite`.
 
-### 3sexies-ter. Animation / skinning — `nie-formats` (g4sk/g4mt/g4mg) + `nie-render3d`
-- **FAIT (2026-06-20) : chaîne d'animation 3D END-TO-END** — perso skinné animé depuis les vrais assets CPK. Décodeurs validés byte-exact : **g4sk** poses (inverse-bind + TRS) · **g4mt** animation · **g4mg `extract_skin`** poids de skinning (8 influences = WEIGHTS 8×u16 + INDICES 8×u8, validé `880/880` & `344/344` poids=1.0). Skinning (`skin = world_animé · inverse_bind`, blend 8 influences) + rendu **texturé** (texture BC7 décodée via `bcdec_rs`) → `example anim_char` rend un **humanoïde 3D au vrai uniforme qui s'anime** (`anim_skeleton`/`anim_mesh`/`anim_char`).
-- **FAIT (2026-08-06) : g4mt réécrit en parseur STRUCTUREL — lève l'INCOMPLET multi-clips/clips longs.** L'ancien décodeur scannait des offsets fixes (0x144/0xA4/0xD00) calés sur un unique fichier « walk » 60 frames ; il ne pouvait pas décoder un fichier réel typique (`c000101_p250.g4mt` = **37 clips dans un seul fichier**, dont un à **383 frames**). Reversé via une implémentation Python indépendante tierce (`tools/G4_Blender` submodule, `g4mt_probe.py`/`g4mt_motion.py`, licence absente → jamais vendorisé) : en-tête étendu (0x20-0x36) donne `clip_count`/`target_count`/`section_units[6]`/`offset_shift` → **tous les offsets de section sont CALCULÉS** (`(header_words + units<<shift)*4`), plus scannés. Nouveau `g4mt::Motion` : table de clips, cibles = **hash CRC32 du nom d'os** (`crate::cfgbin::crc32`, même algo) résolues contre un G4SK réel (`resolve_targets`, remplace l'ancienne heuristique `rot[k]→os 4+k`/`BASE` — **156/156 et 156/157 cibles résolues** sur deux fichiers réels vs. une correspondance devinée), canaux typés à 7 codecs (raw i8/i16/f32, quantifié u8/u16, quantifié signé i8/i16) échantillonnés par **interpolation keyframe réelle** (SLERP rotation / LERP scale-translation / STEP, pas d'hypothèse « 1 sample = 1 frame »). **Validé croisé byte-exact (précision f32) contre la référence Python indépendante** sur 4 échantillons d'un clip long (383 frames) ; 11 397 échantillons de rotation décodés sur les 37 clips réels, 0 quaternion non-unitaire ; clip « 走り » (course) confirmé réellement animé (delta inter-frame jusqu'à 0,096) vs. clip pose quasi-statique (delta <0,001) — sémantique cohérente. `anim_skeleton`/`anim_mesh`/`anim_char` portés sur la nouvelle API (mapping cible→os correct, plus plausible-mais-faux). 3 tests (synthétique + golden réel gated `real-fixtures`), clippy 0. **Reste** : clips additifs (`flags&1`, non gérés) ; clips multi-layers ; câblage en route model-serve (glTF skin+anim → azalee).
+Ce qui existe déjà : le compositeur f32 de `nie-formats::menu`, l'hôte Lua `nie-lua` avec ses
+commandes mappées, l'arbre d'écrans validé (100 % des ~3 300 layers vérifient
+`layer_id == CRC32(name)`), et les données de texte FR complètes.
 
-### 3sexies-bis. Serving live — `nie-model-serve` (HTTP, assemblage GLB à la volée)
-- **FAIT (2026-06-06)** : `crates/tools/nie-model-serve` (binaire) sert `GET /model-full/<code>.glb` = assemblage **live** (corps+visage+uniforme texturés) depuis les CPK, sans dump. Déployé : `nie-model-serve.service` (systemd VPS, :8790), proxifié par nginx `cdn.rosegriffon.fr/model-full/`. Args : `--game-dir`, `--glb-dir`, `--crc-manifest var/model-crc-manifest.ndjson`, `--body-manifest var/body-type-manifest.ndjson`, `--cache-dir var/model-cache`. Vérifié live : `c11250030`/`k000010`/`c05021090` → 200, ~175-436 Ko, textures embarquées. ⚠ Binaire dans `/home/ubuntu/aphrody/target/linux-gnu/release/` (target-dir partagé avec aphrody — un `cargo clean` d'aphrody supprime le binaire ; le service survit sur l'inode mais **rebuild avant restart**). Consommé par azalee (page `/cpk` + fiches perso, cache-bust `?v=3`).
+Ce qui manque : la boucle de build moteur→Lua. Les callbacks actuels (`OnInit`, `OnSetupLayer`,
+`OnOpenLayer`) sont **devinés** et le vrai script ne construit rien avec — d'où 0 sprite au rendu.
+C'est la priorité, parce que tout le visuel du menu et le contenu des sous-menus en dépendent.
 
-### 3septies. Données Steam — `better-auth-steam` (côté rg, alimenté par la RE nie.exe)
-- Constantes Steam extraites de nie.exe (app 2799860, 27 interfaces Steamworks, 52 succès `ACHIEVEMENT_%04u`, EncryptedAppTicket/Cloud/DLC) + manifeste 230 succès→noms. Cf. mémoire `project-steam-integration` (le plugin vit dans rg, pas niers).
+### Autres crates
 
-### 3octies. App desktop — `nie-explorer` (Tauri) + `nie-explore` (moteur d'aperçu partagé)
-- **FAIT (2026-08-08, inventaire vérifié contre le code)** : GUI complète React 19 + Tauri v2 —
-  **57 commandes Rust IPC**, bindings TS générés par `tauri-specta` (aucun `invoke<T>` maintenu à
-  la main, aucune dérive commande Rust ↔ appel TS possible). Couvre : explorateur VFS (arbre des
-  254 202 fichiers), éditeur (Monaco 100 % offline, T2B **et** RDBN éditables + réencodables via
-  `encode_cfgbin_config`), aperçus (texture G4TX/DDS→PNG, audio→WAV, vidéo USM→MP4, modèle 3D
-  GLB→PNG fixe + turntable MP4), gestion de mods (workspace + export **.cpk réel rechargeable**),
-  save manager Steam Cloud (déchiffrement+édition réelle via `nie-save`, sélection auto du
-  meilleur slot validé), onglet RE (`niers.sqlite` — labels/classes RTTI/xrefs, édition inline),
-  onglet Game Data (techniques/objets/Avatar-Keshin/succès/quêtes + calculateur de stats
-  `nie_core::growth`), recherche perso/technique (GraphQL azalee distant + miroir SQLite local,
-  repli substring), palette de commandes (Ctrl+K). Détail exhaustif par section
-  (FAIT/partiel/bloqué, preuves de vérification réelles contre le jeu) : `apps/nie-explorer/
-  ROADMAP.md` — ce fichier-ci ne duplique pas ce niveau de détail, juste le constat d'ensemble.
-- `nie-explore` (`crates/engine/nie-explore`) = moteur d'aperçu **partagé** entre `nie-cli`
-  (`niers vfs cat`/`stat`) et le backend Tauri : un seul dispatch-décodeur par format (T2B/RDBN/
-  G4TX/G4MD/G4SK/G4MT/G4PK/CPK/Lua bytecode `nie-lua`/audio Criware/DXBC/PXCL/NAVM/…), deux
-  façades (texte CLI / JSON IPC) — évite que les deux dérivent, cf. anti-doublon `CLAUDE.md`.
-- **Verrous documentés, pas des oublis** — mêmes limites que le reste du projet : capture de
-  dump live + scan AOB (conflit de lien natif `rusqlite`/`sqlx-sqlite`, cf. §5) + attache
-  `nie-trace` à un process protégé EAC — refus fermes, jamais câblés sans confirmation explicite.
-- **FAIT (2026-08-08) : audit d'exhaustivité des 26 crates `crates/*` contre le `Cargo.toml`
-  de `nie-explorer`** — 11 chargées en dépendance directe (`nie-formats`/`nie-explore`/
-  `nie-save`/`nie-data`/`nie-core`/`nie-trace`/`nie-queue`/`nie-geom`/`nie-app`/`nie-render3d`/
-  `nie-runtime`/`nie-steam` — 4 nouvelles : `nie-geom`/`nie-app`/`nie-render3d`/`nie-runtime`/
-  `nie-steam`, `cargo check`+`clippy --lib --tests` verts). Les 14 restantes sont exclues pour
-  une contrainte Cargo **dure**, jamais un oubli, chacune documentée en commentaire dans le
-  `Cargo.toml` : conflit de lien natif `rusqlite`/`sqlx-sqlite` (`nie-wiki`/`nie-re`/`nie-index`/
-  `nie-seed`/`nie-zukan`/`nie-model-serve`), pas de cible `lib` (`nie-game`/`nie-headless`/
-  `nie-play`/`nie-cli`), `cdylib` sans `rlib` donc rien à lier (`nie-ffi`), cible wasm32 déjà
-  couverte en direct par les crates ci-dessus (`nie-wasm`), portage RE non validé exclu du
-  workspace lui-même (`nie-engine`), déjà tirée transitivement via `nie-explore` (`nie-lua`).
-  `IECODE.Core`/`IECODE.CLI` (référence C# .NET 10, `IECODE.sln` racine) reste hors de cet
-  inventaire par nature — un projet .NET ne se « package » pas comme dépendance Cargo ; son rôle
-  (cross-vérification manuelle de portage, cf. `apps/nie-explorer/ROADMAP.md` §1.1/§1.2) est
-  documenté au même endroit plutôt que d'être simulé par une fausse dépendance.
-- **FAIT (2026-08-08) : exploitation réelle des crates nouvellement chargées — `nie-render3d`
-  câblé EN PROCESS, corrige un bug de packaging.** L'aperçu 3D (`vfs_glb_preview_png_b64`/
-  `vfs_glb_preview_turntable_mp4_b64`) shellait vers un `nie-render3d.exe` compilé séparément,
-  absent de TOUT build distribué (`scripts/package.sh` ne le packages pas, `tauri.conf.json` n'a
-  pas de `bundle.resources` pour lui) — cassé hors poste de dev, silencieusement. Les deux
-  commandes appellent maintenant `nie_render3d::{glb::parse, render::render}` directement (le
-  rasterizer est du pur-Rust `#![forbid(unsafe_code)]` sans état global), seul `ffmpeg` reste en
-  sous-processus pour le mux MP4. **Ferme aussi le gap RawCpkView §6** (« résolveur de frères
-  scopé au seul CPK courant ») : `assemble_glb_from_cpk_entries` + commande
-  `raw_cpk_glb_preview_png_b64` donnent l'aperçu 3D à un `.cpk` ouvert hors VFS. **2 golden réels**
-  (`cargo test -p nie-explorer --lib --features real-fixtures`) sur `c01000010` (visage IE1,
-  chemin VFS ET pack brut `data/packs/eaabb0359e96871a72ea9f86c5d3d10d.cpk`), vérifiés par rendu
-  effectif (>1000 pixels de mesh, signature PNG) — pas juste compilation. Détail :
-  `apps/nie-explorer/ROADMAP.md` §2.3/§6.
-- **FAIT (2026-08-08) : intégration Blender corrigée + liaison persistante ajoutée** (demande
-  utilisatrice « Ouvrir avec Blender ouvre un fichier vide » + « lier au max Blender et niers »).
-  Root cause identifiée en lisant `tools/niers/g4_port_addon.py` : le bootstrap appelait
-  `level5_g4_port.load_original_model` (opérateur du wizard d'export, peuple des réglages, ne
-  crée aucun maillage) au lieu du vrai importeur `import_scene.level5_g4`. Corrigé + différé via
-  `bpy.app.timers` (même mécanisme que l'addon lui-même) + erreurs écrites en fichier log au lieu
-  d'être avalées. **Validé par 2 tests `blender.exe` réels** (background ET GUI complète, timer
-  inclus) : 3 objets importés (`c01000010_20`/`eye_10`/`mouth_10`) contre 0 avant. Trouvé en
-  chemin : le submodule `tools/niers` (`.gitmodules`) avait été supprimé de l'index par erreur
-  (commit « license officiel ») — restauré au commit exact pinné (`7ac55b7`), **puis vendorisé**
-  (fichiers réguliers, plus de submodule Git — demande utilisatrice explicite ; licence amont
-  absente, republication confirmée autorisée par le propriétaire du projet, cf. `tools/niers/
-  NIERS_VENDORING_NOTE.md`). `ensure_niers_blender_addon` (clone Git à la volée) reste comme filet
-  de sécurité pour un `game_dir` qui n'est PAS un checkout de ce repo (build distribué pointé sur
-  une simple install Steam). Nouveau : commande `install_niers_blender_addon` + bouton
-  Paramètres — installe l'extension pour de vrai (dossier d'addons utilisateur, pas juste le
-  bootstrap transitoire) et lie sa préférence `raw_data_root` au vrai `<jeu>/data`, persisté
-  (`save_userpref`) — vérifié par un Blender relancé à froid qui retrouve l'addon actif + la
-  préférence, sans repasser par nie-explorer. **Nouveau (même session) : `tools/niers/niers_
-  bridge.py`** — panneau Blender natif (View3D > Sidebar > Level-5) qui cherche des fichiers dans
-  le VFS (`niers vfs find --json`, flag ajouté à `nie-cli` pour l'occasion — référencé par son
-  propre doc-comment Rust depuis une session antérieure ; une première version avait réellement
-  existé puis été perdue avec le submodule supprimé par erreur, cf. `apps/nie-explorer/
-  ROADMAP.md` §2.6, récupérée après coup dans l'archive déjà publiée)
-  et importe le résultat sélectionné directement dans Blender sans jamais passer par
-  nie-explorer. Vérifié par des tests `blender.exe` GUI réels (pas `--background`, requis pour un
-  opérateur modal) : 12 résultats de recherche, 3 objets importés. **Recherche web ciblée** (« best
-  API/feature pour une extension Blender ») → 2 patterns appliqués et vérifiés : opérateurs
-  `subprocess.Popen`+timer modal NON bloquants (`_NiersProcessOperator`, remplace un `subprocess.
-  run()` synchrone qui gelait l'UI, pattern documenté harlepengren.com) + filtre `UIList` natif
-  (`UI_UL_list.filter_items_by_name`, boîte de recherche icône loupe, filtre côté client sans
-  relancer `niers.exe`). `blender_manifest.toml` d'abord jugé « écarté » puis **restauré après
-  coup** (existait déjà dans une session antérieure, perdu avec le submodule supprimé par erreur,
-  récupéré dans l'archive de release v0.1.0 déjà publiée — `version="1.1.0"`, permission `network`
-  ajoutée pour azalee). Hooks Python Asset Browser écartés (API non stabilisée par Blender,
-  juillet 2026). **Même session : renommé « niers — G4 Blender Tools »**
-  (sidebar unifiée sous l'onglet « niers ») **+ recherche perso/technique par nom localisé
-  FR/EN/JA**, deux sources combinées jamais bloquantes (miroir SQLite local — SQL copié mot pour
-  mot de `nie_wiki::query`/`wikiDb.ts` — et GraphQL azalee, mêmes requêtes que `remote_search_
-  chara`/`remote_search_waza` côté `nie-explorer`), avec bascule 1-clic « nom → fichiers VFS réels
-  → import Blender ». Vérifié en un seul test GUI bout-en-bout : recherche « Mark » → 59 résultats
-  combinés (39 local + 20 azalee), résolution → 12 fichiers réels, import → 3 objets créés. Détail :
-  `apps/nie-explorer/ROADMAP.md` §2.4/§2.5/§2.6.
+`nie-save` déchiffre, lit et édite les saves (XOR à clé CRC32). `nie-steam` porte l'acquisition
+Steam native. `nie-wiki` expose game-data depuis le miroir SQLite. `nie-camera` porte le modèle et
+les contrôleurs de caméra. `nie-lua` exécute les vrais scripts et les analyse statiquement.
 
-### 4. Runtime + portabilité — `nie-headless`, `nie-wasm`
-- **FAIT** : runner CLI headless ; surface wasm-bindgen (detect/crilayla/@UTF + g4tx→PNG, audio CRI→WAV, cfg.bin typé) sur `wasm32-unknown-unknown`.
-- **Cap révisé (2026-06-13)** : le **chemin central est la GUI native** (`nie-game`/D1, §5bis) ; le wasm (`nie-wasm` → azalee) reste un **compagnon secondaire**, pas la cible de rendu primaire.
+`crates/archive/nie-engine` est **hors du workspace** : 15 000 lignes portées des fichiers C
+décompilés, mais consommées par aucune crate vivante et redondantes avec les crates byte-exactes.
+Conservé en lecture seule comme carte du flux d'orchestration C++ ; ses 434 marqueurs `// EXTERN:`
+disent l'ampleur de ce qui n'y est pas connecté. Ne jamais replier son code dans les crates
+wasm-portables ou byte-exactes sans re-validation.
 
-### 4bis. Encyclopédie web — `nie-zukan` (ingesteur zukan.inazuma.jp)
-- **FAIT (2026-06-06)** : `crates/tools/nie-zukan` ingère l'encyclopédie officielle `zukan.inazuma.jp`. **Algo `?q=` reversé** (`forge.rs`) : `json → complément-à-1 octet par octet → base64url sans padding → percent-encode` (round-trip validé en live, ancre Endou `c01000010`). Client JA/EN (`client.rs`/`pull.rs`), modèles (`models.rs`), parser HTML (`parser.rs`), module `cross.rs`. Croisement vérité terrain : **99,98 % de match avec inagle** (les fiches zukan recoupent les `inagle_characters`). Sert à câbler les **courbes de stats** + données encyclopédiques manquantes côté azalee (RESTANT).
+## Priorités
 
-### 4ter. Index des fichiers CPK — export `iev:file:index` → azalee
-- **FAIT (2026-06-06)** : l'arbre complet des **250 800 fichiers** des CPK (common 193 540 / dx11 57 260) est indexé en Redis db3 `iev:file:index` (HASH `path → cpk`) et exporté en artefact tracké `apps/azalee/data/cpk-index.ndjson.gz` (~3,9 Mo, via `apps/azalee/scripts/build-cpk-index.ts`). Alimente le navigateur CPK d'azalee (`/cpk`, `/api/cpk`) — cf. `rg/docs/cpk-browser.md`. Couplé au serving live (g4tx→png :8788, GLB texturé :8790) = exploration totale des assets du jeu.
-
-### 5. Échafaudage RE — `nie-re`, `nie-index`, `nie-seed`, `nie-queue`
-- **FAIT** : pipeline `seed → rtti → rebuild(.pdata → vtable → disasm → propagate)`. **93,36 %** (49 280/52 783) **classifié** (label de sous-système ML, **pas un nom** ; 81,8 % des labels à confiance < 0,1, ≈1 707 à ancre forte ≥0,75) + **6 429 fonctions (12,18 %) nommées structurellement** (`Namespace::Classe::vmethod_N` via RTTI+vtable, `name_source='vtable-struct'` — **pas** des symboles PDB originaux). **Lever 2026-06-10** : arêtes indirectes (LEA rip-relatif + ancrage vtable→RTTI) 92,45 → 93,36 % (+484 fn, mesuré A/B). Sur `.pdata` (50 674 racines + 2 109 feuilles vtable) + graphe d'appels réel (169 828 arêtes). Table `coverage` dans `var/niers.sqlite`. Heartbeat de fond (`var/re-heartbeat.log`).
-- **Découverte clé** : l'index Ghidra est **désaligné** (3,7 % des `FUN_` sont de vrais débuts) ; `.pdata` est la vérité terrain. Toujours s'y adosser.
-- **FAIT (2026-06-25) : dump mémoire LIVE de `nie.exe` exploité — census RTTI runtime + ancrage census-grounded + outil `nie-re::dump`.** Capture *full-memory* du process Steam en cours (`MiniDumpWriteDump`, token élevé + SeDebugPrivilege ; 2.97 Go ; **hors-match**), exploitée **pure-Rust** via `crates/forge/nie-re/src/dump.rs` (lecture VA/typée, régions+protections `MemoryInfoList`, **résolution RTTI MSVC**, **census de vtables**, scan AOB wildcards ; exemples `dump_scan`/`dump_census`, 6 tests, clippy 0). Apports : (1) **census d'objets vivants nommés** — 1592 vtables, 60 classes : rendu `lives::CUniformBlock`×91k / `CVertexBuffer` / `CRes*`, DB `game::CGDD{NormalSpirit,HumanChara,InventorySkill}`, et le **système de commandes de la frontière C3** `game::CCallback{Play,Judge}Command` / `ExecPassiveSkillEffectInfo` (adresses de vtable statiques confirmées → ancres concrètes pour `FUN_1412C0970`, cf. §3) ; (2) **dérive de build confirmée** : les RVA vtable du build live ≠ `var/niers.sqlite` (delta **non constant**) → l'ancrage par adresse glisse, **les noms RTTI restent stables** ; (3) **22 signatures AOB** d'un trainer tiers → RVA statiques validées (Tension `0x140E9014D`…), table movesets runtime (record 0x34, sentinelle `0xFB997A80`), ~192k chemins d'assets chargés (valident la couverture `nie-formats`, seul `.usm` non décodé). **Quick-win porté** : `anchors.rs::classify_{lives,game}_class` étendu avec les noms **ground-truth** du census (`cuniform`/`cvertex`/`cres*`/`gmd*`→render/animation ; `play_*`/`ccallback`/`execpassive`→gameplay/C3 ; `game_map`/`tbox`→level), **bases génériques laissées non classifiées** (CObject/CListData/CInternalFile — anti-faux) ; 22 tests classify verts, clippy 0. Le dump **est** la « capture live » que les ports runtime-couplés réclamaient (§3, globals dynamiques) : oracle de lecture pour les globals init'd-au-démarrage (à valider contre la source `.rdata` quand elle existe, comme la gravité path-eval). Détail : `docs/game-data/dump-exploitation.md`. ⚠ `.dmp` hors repo (© Level-5). Mémoire : [[dump-exploitation]].
-
-### 5bis. Host GUI natif — `nie-game` (pilier D1/C4, **chemin central vers le jeu jouable**)
-- **FAIT (2026-06-13, squelette de pipeline)** : `crates/engine/nie-game` (1 180 LOC) — host **wgpu 22 + winit 0.30 + pollster 0.3**. Modes `--capture` (rendu hors-écran → PNG, `Rgba8Unorm`/`Nearest`/sans sRGB, readback aligné 256 o **bit-exact**) et `--window` (`ApplicationHandler`). Rend une **vraie texture `.g4tx`** décodée RGBA8 (VFS ou scan CPK direct). Capture vérifiée end-to-end sur un vrai asset du jeu (`soccer00_01.g4tx`, 352×148).
-- **FAIT (2026-06-14) : conception pixel-perfect des 2 écrans tête-de-pont → `docs/DESIGN.md`** — `start.png`=`title02`, `menu.png`=`mainmenu01` décomposés élément-par-élément (analyse multi-agents vérifiée adversarialement vs VFS/code/iecode). 6 couches runtime manquantes identifiées + sous-plan **D1.a–D1.f** (cf. `docs/ROADMAP-100.md` pilier D).
-- **FAIT (2026-06-14) : D1.a — placement ancêtre-fallback** : `nie-formats/src/g4pkm_motion.rs` (`motion_final_pose`, port iecode `G4pkmMotion.cs:84-192`) branché dans `menu.rs::place_on_canvas`. Découverte structurante : **les slide-in de menu n'ont pas de keyframes dans les fichiers** (G4MA/G4MT = anim de matériau seulement) → la position finale est une **heuristique d'ancêtre on-écran**, pas une lecture de motion. **Effet réel** : `--menu title02` passe du canvas quasi vide au logo IEVR rendu on-écran (45 Ko → 543 Ko PNG). 7 tests motion + 141 tests lib nie-formats, clippy 0.
-- **FAIT (2026-06-14) : D1.b — sélection de texture** (`g4tx::select_main_texture`, nom==basename sinon plus grande non-dummy) : ne pioche plus le **dummy 4×4** de tête. + `g4pkm::extract_g4md` exposé. **D1.b-det — DÉTERMINISME (critique)** : rendu rendu reproductible (était non déterministe : `Vfs`=HashMap → locale/ordre aléatoires) ; `resolve_vfs_basename` trié+locale-aware (`fr`), `obj_paths` trié. **3 runs octet-identiques** = prérequis du gate pixel. 144 tests nie-formats, clippy 0.
-- **FAIT (2026-06-14) : D1.f gate + D1.c amorcé.** Gate : `nie-game/tests/menu_render_gate.rs` (hard-gate déterminisme + SSIM maison, baseline title02 = **0.25**). D1.c : workflow RE a reversé le dispatch `funcLuaMenuCommand` de nie.exe (handler `0x140C91B30`, **table 1109 cmdId** extraite → `data/re/funclua-cmdids.json`), **12 cmdId** portés dans `nie-lua/menu_host.rs` (layouts d'args corrigés, `current_layer`) → `OnInit` de `title_menu_2` reconnaît **7/7** commandes (était 0/7). 5 tests dispatch.
-- **FAIT (2026-06-15) : GÉNÉRATION DE MENU AU RUNTIME — « comme nie »** (demande utilisateur, pour azalee). `nie-lua::drive_menu` exécute les VRAIS scripts Lua du jeu via le driver reversé (OnInit/OnSetupLayer/...) → `MenuState` → `nie-game --menu <screen> --runtime --export-layout`. **Title populé : 10 objets** (7 masqués par la logique DLC réelle), **mainmenu populé : 4 objets** (header/tabs/doc), déterministe, installés dans azalee (`/menu/50_title`, `/menu/100_mainmenu` → 200 en local). Couches reversées (unluac) : `GetObjectAttr` lit les comptes des slots AttachLocator objbin ; INCLUDE `LUA_MAIN_MENU_INC` → `MAIN_MENU`. Reste : reverser les cmdId résiduels (`0x214DA123` tab-icon, ~21 distincts) + tables inverses texte/cell pour 100% du contenu.
-- **FAIT (2026-06-20) : rendu de menu RÉEL par composition de setting** — `--menu <écran>` compose la vraie définition d'écran (`<screen>_setting.cfg.bin` → `MENU_LAYER_INFO`) au lieu de mélanger les objbins par préfixe ; résolution objbin **par préfixe** (le setting réfère `btl01_10`, le fichier est `btl01_10_battle_title.objbin`). **229/302 écrans (76 %) rendent leur vraie compo** (logo title, texte cuit « Mode commandement »/« ENTRAÎNEUR », icônes, boutons), 0 crash ; les 73 restants réfèrent des objbins absents du CPK local. Texte de menu = cuit dans les textures (pas besoin du font system).
-- **FAIT (2026-06-20) : D1.d — POLICE CRACKÉE (Latin)** — rendu de texte arbitraire dans la **vraie police du jeu**. Découverte : la rangée physique de l'atlas `font.g4tx` (y≈946) range les glyphes en **ordre de codepoint contigu depuis `!` (0x21)** → `example font_render` edge-scan l'alpha (109 spans = tout l'ASCII imprimable) et mappe span[k]→0x21+k. « INAZUMA ELEVEN Victory Road BUT 3-2 » rend **parfaitement lisible** (maj/min/chiffres/ponctuation). L'ancien rendu garblait car il mappait via col3 (métrique). → **dialogues + texte runtime Latin DÉBLOQUÉS** (CJK = autres rangées, même principe à étendre).
-- **Reste D1.c** : émuler la **boucle driver** post-`OnInit` (Setup* créent les objets) + getters renvoyant les vraies données + join `crc32(objbin.name)` dans `build_sprite_list` → la SSIM montera. ~~D1.d (texte/police)~~ **FAIT (Latin)** → D1.e (3D in-menu) → D1.f cible SSIM ≥ 0,99 ; + bump wgpu **22→29**. Détail : `docs/DESIGN.md` §11/§13.
-- **Cap** : c'est désormais la **pointe active** ; le pont wasm/azalee (§4) redevient un **compagnon secondaire**.
-
-### 6. Dédup & unification du workspace — `docs/DEDUP-PLAN.md`
-
-Cartographie multi-agents (2026-06-21, preuves `file:line`) des duplications réelles du workspace + plan phasé
-pour ramener chaque famille de code à une **source de vérité unique** sans casser le byte-exact. Plan complet :
-`docs/DEDUP-PLAN.md` (3 strates de risque, bugs de divergence réels, 3 fusions interdites).
-- **FAIT — Phase 0 (`a9b0c27`)** : `nie-engine` exclu des membres compilés (orphelin, cf. §3quinquies) ; 7 deps
-  déclarées-mais-inutilisées retirées (`nie-model-serve→nie-wiki`, `nie-wiki→nie-core`, `nie-re→serde/serde_json/petgraph`,
-  `nie-zukan→tokio/tokio-util`). Build + clippy verts.
-- **FAIT — Phase 1a (`a70008e`)** : dispatch `cfg.bin` typé **unifié dans `nie-data::typed`** (37→93 familles ; rapatrie
-  les 56 arms copiés dans `nie-model-serve`). Corrige un bug réel : 56 familles décodées en structuré côté serveur mais
-  « generic » dans le navigateur — désormais identiques (wasm32 release + golden `typed_decode_cable_les_familles_golden` verts).
-- **FAIT — Phase 1b (`ed9340b` + fix dev-deps)** : décodeur texture G4TX/DDS **unique** dans `nie-formats::g4tx_decode`
-  (feature `textures`, off par défaut → no_std/wasm préservés) ; supprime 4 copies divergentes (nie-game/wasm/ffi/model-serve).
-  wasm/ffi/game (DX10-seul) héritent du FourCC/legacy + anti-dummy → corrige « textures invisibles en wasm ». Gate `clippy
-  --all-targets` vert sur les 5 crates (cf. [[build-gate-disque-vps]] : `build --all-targets` sature le disque du VPS).
-- **FAIT — Phase 1c (`63bf17c`)** : compositeur de menu **unique** — model-serve passe de sa copie **f64** à la
-  référence pixel-perfect **f32** de `nie-formats::menu` (route `/menu-render` alignée sur le rendu validé de nie-game) ;
-  supprime `blit_sprite`+`sample_bilinear` f64 de model-serve. clippy --all-targets vert.
-- **FAIT — Phase 1d** : **CRC32 source unique** (`nie-save` délègue à `nie_formats::cfgbin::crc32` ; nie-ffi déjà ;
-  no_std gardent leur copie) + **décodeur audio HCA/ADX/AWB/ACB unique** `nie_formats::cri_audio::decode_to_wav` (feature
-  `audio-decode`) — model-serve `/audio` et wasm `audio_to_wav` délèguent, `cridecoder` retiré de leurs deps directes.
-  Byte-validé : tests real-audio (HCA IEVR réel, subkey 0xC62A, 48 kHz). **→ Phase 1 (tuer les bugs de divergence) COMPLÈTE.**
-- **Phase 5 — FAIT** (`f80f7ed` relocate + `aa7d61a` rename) : FSM interactive **relocalisée** nie-wasm → `nie_app::flow::Screen` (move
-  verbatim) ; rename `render::Screen`→`Frame` (collision résolue, golden nie-play byte-neutre). **Constat** : le « merge GameState » n'est PAS
-  un dédup — `GameState` (DTO de rendu) et `Screen` (FSM) sont complémentaires (Screen délègue déjà son rendu à GameState) ; fusionner = pire.
-  nie-game ne duplique pas MENU/MODES (vérifié). Il y a déjà UNE FSM.
-- **Phase 2 — FAIT** (`44aae64`/`af4c5ce`/`582368f` géométrie + `80ee0df` raster2d) : crate `nie-geom` (Vec2/Vec3 POD) = source unique,
-  nie-core/nie-runtime migrés byte-neutre (landmine #4 résolue par conception) ; module `nie-formats::raster2d` (crop/scale byte-identiques,
-  no_std) centralise la couche raster. **Seul le blend reste** = landmine #5 (formules divergentes par contexte → unifier sans RE = faux-FAIT).
-- **Phase 3 — FAIT** (`daf98fd` thiserror + `cdde444` `#![no_std]` strict) : nie-formats compile en `#![no_std]` strict via
-  `--no-default-features` (cœur DONNÉES cfgbin/crilayla/cpk, `alloc`-only) ; build par défaut std INCHANGÉ (tous consommateurs/wasm/tests).
-  **Byte-exact préservé SANS libm** : les parseurs à float (g4sk/g4mt/g4mg/g4pkm/menu) + I/O (assemble/vfs/cri_audio) gatés `std`. Débloque la
-  consommation du vrai parseur `cfgbin` par nie-data. Gate : std + workspace + 173+9 golden + wasm32 + clippy std ET no_std verts.
-- **NON_FAIT — Phase 4** : unification des moteurs de match (= `docs/UNIFICATION.md`, **risque byte-exact max** : créer `match_live`,
-  rebrancher `World`, re-baseliner les golden) — **bloquée amont** : boucles d'update C++ non reversées (pilier C3, RE multi-session).
-
-## Roadmap priorisée (vers le jeu jouable)
-
-> **Trajectoire complète et mesurable vers 100 % pixel-perfect : `docs/ROADMAP-100.md`** (décomposition en 5 couvertures C1–C5, jalons à *gates* vérifiables, vagues d'exécution, tableau de bord honnête). La section ci-dessous reste le court terme opérationnel.
-
-**P0 — débloquer l'extraction d'assets (pilier Formats)**
-1. ~~Finir la décompression **CRILAYLA**~~ → **FAIT** (300/300 g4tx extraits, validé croisé Rust↔C#).
-2. Recaler les offsets **nxtch** (off-by-4) + test à valeurs réelles → textures déswizzlées correctes (prochain).
-
-**P0 — corriger les données fausses (pilier Données)**
-3. `chara-param` : inverser le pairing vers « level-first » ; retirer le test qui entérine la mauvaise valeur.
-4. `aura-cmd` : corriger la conclusion (61/1548) + test sur le vrai whs01780.
-
-**P1 — assembler le jeu jouable (piliers Moteur + Runtime)**
-5. **Câblage runtime** : relier `nie-core` (FSM match + slots d'action + effets) à `nie-data` (stats/skills/auras corrigés) dans une **boucle de simulation de match jouable**.
-6. **Modèle d'équipe / formation** : exploiter `command-effect-slots` (TeamBuild, SpecialTactics) déjà mappés.
-7. **Validation bout-en-bout** : test golden d'un match complet (kickoff → score `min*10000+sec` → fin) recoupé au C décompilé.
-
-**P1 — pipeline d'assets visuels (pilier Formats → rendu)** — **largement FAIT**
-8. ~~Chaîner g4tx → g4md → g4mg pour produire des **meshes texturés**~~ → **FAIT** : `assemble.rs` produit des GLB corps+visage+uniforme texturés (g4tx→PNG BC1-7 embarqués), servis live par `nie-model-serve` (:8790, `cdn.rosegriffon.fr/model-full/`). Reste : g4sk (skinning/animations), nxtch deswizzle pour le résidu de textures non-BC, rendu GPU/webgpu de la boucle moteur.
-
-**P2 — étendre la couverture RE (échafaudage, rendements décroissants)**
-9. Arêtes **indirectes** (références `lea reg,[fn]`, slots de vtable `.rdata` reliés aux classes RTTI) — meilleur levier sur le résidu (~4 000 fns isolées).
-10. Audio Criware : finir le câblage de la clé HCA (`cridecoder` + `IEVR_HCA_KEY` + sous-clé AFS2). *(Déchiffrement enveloppe CPK : RÉSOLU, cf. pilier Formats — pas un verrou.)*
-
-## Méthode
-
-Portage incrémental. Chaque livrable est **classé FAIT / INCOMPLET / NON_FAIT** et **validé byte-à-byte** contre
-iecode (C#) / inagle (TS) / le réel — jamais supposé. Sortie CLI `niers` = terse (1 ligne `clé=val`), détails via
-`RUST_LOG`. Reverser puis réécrire 100 % d'un jeu AAA est un effort de longue haleine assumé : ce repo livre la
-**boucle réelle et le code porté réel** (pas des stubs), avec les écarts vérifiés par décodage direct.
-
-> Suivi détaillé par crate : `docs/jeu-jouable-avancement.md` (gameplay/données), `docs/assets-wasm-avancement.md`
-> (assets/wasm), `docs/ARCHITECTURE.md` (boucle RE + découvertes `.pdata`).
+1. **Le driver de menu runtime** — débloque le menu et tous les sous-menus visuels.
+2. **La forge** — continuer à monter la part produite ; la cible se choisit par le chiffre
+   (`nie-forge candidates --no-reloc`, les lignes `blocker` de `lift`), jamais à l'intuition.
+3. **La physique de match byte-fidèle** — poursuivre les ports validés par oracle.
+4. **Le dialogue du mode Histoire** — résoudre la source du texte au runtime.

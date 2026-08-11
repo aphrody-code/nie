@@ -1,6 +1,6 @@
-//! Catalogue du rôle de chaque dossier du VFS — PAS deviné : sourcé de `docs/cartographie-data.md`
+//! Catalogue du rôle de chaque dossier du VFS — PAS deviné : sourcé de `docs/FORMATS.md`
 //! (niveau 2, inventaire exhaustif des 250 800 fichiers réels, daté 2026-06-13) et de
-//! `docs/INVENTAIRE.md` (état C1 « formats lus »), plus des sous-dossiers vérifiés en DIRECT
+//! `docs/PLAN.md` (état C1 « formats lus »), plus des sous-dossiers vérifiés en DIRECT
 //! contre le VFS réel au fil de cette session (`niers vfs find`/`niers vfs chara`, 2026-08-07 —
 //! marqués « session »). Une entrée sans provenance vérifiable n'est pas ajoutée : `describe_folder`
 //! retourne `None` plutôt que d'inventer un rôle.
@@ -18,7 +18,7 @@ pub struct FolderRole {
 /// Table triée implicitement par spécificité croissante — [`describe_folder`] prend le préfixe
 /// le plus LONG qui matche, l'ordre de déclaration n'a pas besoin d'être trié.
 pub const FOLDER_ROLES: &[FolderRole] = &[
-    // ── Niveau 2 (cartographie-data.md, 2026-06-13, table « Dossiers de niveau 2 ») ──────────
+    // ── Niveau 2 (FORMATS.md, 2026-06-13, table « Dossiers de niveau 2 ») ──────────
     FolderRole {
         prefix: "data/common/event",
         role: "Scènes/cutscenes : texte, caméra (g4cm), motion (mevbin), effets (g4pk)",

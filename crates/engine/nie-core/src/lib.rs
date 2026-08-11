@@ -178,7 +178,7 @@ pub const TACTICS_DEFAULT_MODE: u64 = 2;
 
 /// `Vec3` flottant (x, y, z) — **source unique** `nie_geom::Vec3` (dédup Phase 2).
 /// Convention IEVR de nie-core : `y` = hauteur (portée dans le CODE ; le type est axis-agnostique).
-/// ⚠ Ne pas convertir vers/depuis `nie_runtime::V3` (z=hauteur) — cf. `docs/DEDUP-PLAN.md` landmine #4.
+/// ⚠ Ne pas convertir vers/depuis `nie_runtime::V3` (z=hauteur) — cf. `docs/ARCHITECTURE.md` landmine #4.
 pub use nie_geom::Vec3;
 
 #[cfg(test)]

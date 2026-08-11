@@ -7,7 +7,7 @@
 headless, WebAssembly et GUI native, sans le binaire Windows ni le moteur propriétaire.
 
 Le dépôt porte le nom de sa cible : `nie.exe`. Quatre implémentations y convergent (Rust, C++,
-C#, TypeScript) — voir [`docs/ARCHITECTURE-POLYGLOTTE.md`](docs/ARCHITECTURE-POLYGLOTTE.md).
+C#, TypeScript) — voir [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 La CLI, elle, reste `niers` : `nie` seul désignerait le binaire du jeu.
 
 🎮 **Jouable en navigateur** (100 % Rust → wasm, clavier/souris/manette) : **https://azalee.rosegriffon.fr/jeu**
@@ -21,8 +21,8 @@ Un moteur de jeu **et** un IDE tout-en-un : reverse-engineering de `nie.exe`, r�
 headless/wasm/native, outils de modding (textures, modèles, saves, lecture mémoire live). Créé par
 Rose Griffon.
 
-État détaillé et à jour : [`docs/PLAN.md`](docs/PLAN.md) (plan maître) ·
-[`docs/ROADMAP-100.md`](docs/ROADMAP-100.md) (trajectoire pixel-perfect) ·
+État détaillé et à jour : [`docs/PLAN.md`](docs/PLAN.md) (plan maître, chiffré) ·
+[`docs/FORGE.md`](docs/FORGE.md) (production du binaire) ·
 [`apps/nie-explorer/ROADMAP.md`](apps/nie-explorer/ROADMAP.md) (app desktop). Ce README indexe le
 monorepo — pour l'état réel du projet, se référer à ces fichiers.
 
@@ -30,8 +30,8 @@ monorepo — pour l'état réel du projet, se référer à ces fichiers.
 
 | Domaine | Techno |
 |---|---|
-| Langage cœur | Rust (`nightly-2026-05-17`, edition 2024), workspace Cargo — 26 crates (25 compilées) |
-| Rendu | `wgpu` 22 + `winit` (GUI native), `wasm-bindgen` (navigateur), rasterisation CPU (golden/headless) |
+| Langage cœur | Rust (`nightly-2026-05-17`, edition 2024), workspace Cargo — 34 crates (32 compilées) |
+| Rendu | `wgpu` 29 + `winit` (GUI native), `wasm-bindgen` (navigateur), rasterisation CPU (golden/headless) |
 | Scripting jeu | `mlua` (VM Lua 5.2 vendored) — exécute les vrais `.lua.bin` du jeu |
 | App desktop | Tauri v2 + React 19 (`nie-explorer`), IPC via `tauri-specta` |
 | Outillage TS | Bun (workspace `apps/` + `packages/`), pas de Node/npm |
@@ -43,7 +43,7 @@ monorepo — pour l'état réel du projet, se référer à ces fichiers.
 
 Deux workspaces coexistent dans ce même dépôt :
 
-- **Cargo** (racine `Cargo.toml`, `members = ["crates/*"]`) — le cœur Rust : jeu, formats, moteur RE, outillage.
+- **Cargo** (racine `Cargo.toml`, `members = ["crates/forge/*", "crates/engine/*", "crates/tools/*"]`) — le cœur Rust : jeu, formats, moteur RE, outillage.
 - **Bun** (racine `package.json`, `workspaces: ["packages/*", "apps/*"]`) — bindings FFI, plugins de formats, CLI et app desktop TypeScript.
 
 ```
@@ -51,8 +51,8 @@ crates/    # crates Rust (jeu + données + moteur + RE + outils) — dont la CLI
 src/       # arbre C++ iecode (jeu jouable, C décompilé, libs natives)
 csharp/    # IECODE.Core / IECODE.CLI / tests (.NET 10)
 apps/      # nie-explorer (app desktop Tauri), nie-mcp (serveur MCP)
-packages/  # nie (FFI Rust + C++), nie-bridge, nie-plugin (Bun)
-docs/      # plan maître, roadmap 100 %, architecture, design, inventaires
+packages/  # nie (FFI Rust), nie-bridge, nie-plugin (Bun)
+docs/      # plan maître, architecture, forge, RE, formats, design
 scripts/   # outillage RE (Ghidra/Python/uv), packaging, exports
 var/       # base de connaissance RE (niers.sqlite), artefacts régénérables (gitignored)
 data/      # copie locale des assets du jeu (gitignored)
@@ -89,7 +89,7 @@ fusionné), `nie-re` (moteur RE : RTTI, `.pdata`, désassemblage), `nie-queue` (
 
 | Nom | Rôle |
 |---|---|
-| `nie-explorer` | App desktop Tauri v2 + React 19 — explorateur VFS (254 202 fichiers), éditeur Monaco, aperçus texture/audio/vidéo/3D, gestion de mods, save manager, onglets RE et Game Data. Détail : [`apps/nie-explorer/ROADMAP.md`](apps/nie-explorer/ROADMAP.md). |
+| `nie-explorer` | App desktop Tauri v2 + React 19 — explorateur VFS (255 308 fichiers), éditeur Monaco, aperçus texture/audio/vidéo/3D, gestion de mods, save manager, onglets RE et Game Data. Détail : [`apps/nie-explorer/ROADMAP.md`](apps/nie-explorer/ROADMAP.md). |
 | `nie` / `nie-bridge` / `nie-plugin` | Bindings FFI de `nie_ffi` (Rust — seul backend natif de Bun ; le pont C++ `iecode_ffi` n'est pas chargé côté TS), protocole de contrôle `nie-mcp` ↔ `nie-explorer`, plugin Bun d'import des formats. |
 
 Le décodage en lot n'est plus une app Bun : c'est `niers decode <fichier|dossier>` (Rust direct,

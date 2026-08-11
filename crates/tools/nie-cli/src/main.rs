@@ -36,7 +36,7 @@ struct Cli {
 enum Cmd {
     /// Délègue au toolkit C++ `iecode` (~40 commandes non encore portées).
     ///
-    /// `niers` est la seule CLI utilisateur (cf. docs/ARCHITECTURE-POLYGLOTTE.md) : les
+    /// `niers` est la seule CLI utilisateur (cf. docs/ARCHITECTURE.md) : les
     /// commandes du C++ passent par ici tant qu'elles ne sont pas portées en Rust.
     ///
     /// `disable_help_flag` : `--help`/`-h` doivent atteindre le délégué, pas être avalés par

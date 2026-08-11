@@ -1,0 +1,216 @@
+# Reverse-engineering de `nie.exe`
+
+Le RE est **le moyen** (résoudre `nie.exe` pour porter la logique en Rust), pas la fin. Ce
+document décrit la cible, la boucle qui l'attaque, et ce qui en est établi.
+
+## La cible
+
+`nie.exe` est **à la racine du dépôt** (pas dans `data/`). Base image `0x140000000`.
+
+| Propriété | Valeur |
+|---|---|
+| Format | PE32+ x86-64, Windows GUI, 9 sections, **non strippé** |
+| Taille | 33 918 464 octets |
+| Éditeur / produit | LEVEL5 Inc. — *INAZUMA ELEVEN: Victory Road* (nom interne `nie1v2.exe`) |
+| Linker | MSVC 14.44 — le toolset à réutiliser pour la forge |
+| PDB de build | `G:\nie1v2\program\main\program\SteamRelease\x64\nie.pdb` (symboles absents du dump) |
+| RTTI | Présent — 1 234 classes (1 037 `game::`, 197 `lives::`) |
+| Exports | 2 seulement : `AmdPowerXpressRequestHighPerformance`, `NvOptimusEnablement` |
+| Imports | 465 fonctions |
+| Version de l'app | `6.00.23.00` (`common/system/app_config_*.cfg.bin`) |
+
+### Sections PE
+
+| Section | VSize | RawSize | Contenu |
+|---|---|---|---|
+| `.text` | 25 601 760 | 25 602 048 | Code exécutable |
+| `.rdata` | 4 399 310 | 4 399 616 | Read-only : chaînes, vtables, imports |
+| `.data` | 10 189 132 | 2 413 568 | Globales (BSS creux) |
+| `.pdata` | 1 226 652 | 1 226 752 | Unwind SEH x64 — **la vérité terrain des bornes de fonction** |
+| `.reloc` | 201 036 | 201 216 | Relocations |
+| `.rsrc` | 61 552 | 61 952 | Icône, manifeste, version |
+| `_RDATA` | 10 672 | 10 752 | Runtime data |
+| `.rodata` | 992 | 1 024 | Constantes |
+| `.fptable` | 256 | 512 | Table de pointeurs de fonctions |
+
+### Technologies
+
+| Composant | Détail |
+|---|---|
+| Moteur | Level-5 propriétaire, classes `gmdC*` — ni Unreal ni Unity |
+| Rendu | DirectX 11 (`d3d11.dll`, `dxgi.dll`, `D3DCOMPILER_47.dll`) |
+| Physique | NVIDIA PhysX (`PhysX3Gpu_x64.dll`) |
+| Audio / vidéo | CRI Middleware — CriFs, CriAtomEx (ADX/HCA), Sofdec2, CriMana (VP9) |
+| Scripting | Lua 5.2 (`LUA_PATH_5_2`, patterns `!\lua\?.lua`) |
+| Réseau | Steamworks (`steam_api64.dll`), libcurl, Winsock2 |
+| Anti-triche | EasyAntiCheat |
+
+Constantes utiles : App ID Steam `2799860` · clé XOR CRI `0x1717E18E` · footer `cfg.bin`
+`01 74 32 62 FE`.
+
+## Outillage
+
+**`r2` et `objdump` ne sont pas installés.** Désassembler passe par le crate `nie-re`
+(iced-x86) ou `uv run --with capstone <script>`. Les bornes de fonction viennent de `.pdata`.
+
+## La boucle
+
+```
+seed  →  rebuild (pdata → vtable → disasm → propagate)  →  coverage
+```
+
+| Étape | Recette | Ce qu'elle fait |
+|---|---|---|
+| Ingestion | `just re-seed` | Importe le savoir fusionné comme ancres : formats iecode, tables hash→nom inagle, classes RTTI |
+| Refonte | `just re-rebuild` | Reconstruit la carte sur `.pdata`, ré-ancre, désassemble, propage |
+| Couverture | `just re-coverage` | `cov <classifiées>/<total> (<pct>%) named=<n>` |
+| Tout | `just re-all` | Les trois, fail-fast |
+
+> L'ordre compte : `disasm` avant `rtti` produit un résultat incomplet **sans erreur**. Toujours
+> passer par `just re-rebuild`, qui orchestre les sous-étapes, plutôt que les CLI brutes.
+
+`niers seed`, `rtti`, `index`, `pdata`, `rebuild`, `disasm`, `propagate`, `coverage`, `queue`,
+`textures`, `uniform-map`, `menu-predecode`, `save`, `wiki`, `mem` (runtime, `nie-trace`).
+
+**Stores** : `var/niers.sqlite` (base de connaissance — tables `function`, `xref`, `coverage`,
+`rtti_class`, `func_str_ref` ; schéma dans `crates/forge/nie-index/src/schema.sql`) et redis db0
+(frontière BFS `nie-queue`) / db3 (index fichiers CPK et textures). Piège : `NIERS_REDIS`
+surcharge **toutes** les commandes — ne pas l'exporter pour `textures`/`menu-predecode`, qui
+visent db3.
+
+## L'index Ghidra est désaligné — `.pdata` est la vérité terrain
+
+C'est la découverte structurante de la boucle, et elle explique pourquoi deux couvertures
+coexistent dans la base.
+
+Vérification byte-à-byte contre `.pdata` (table d'unwind générée par le compilateur, donc
+incontestable) :
+
+- `.pdata` contient **94 748 entrées** `RUNTIME_FUNCTION` = 44 074 fragments chaînés
+  (`UNW_FLAG_CHAININFO`) + **50 674 fonctions racines** réelles.
+- Des 59 991 adresses `FUN_<hex>` de l'index Ghidra, **2 243 seulement (3,7 %)** coïncident avec
+  un début de fonction réel ; **≥54,9 %** tombent *strictement à l'intérieur* d'un corps, et
+  l'ensemble est artificiellement aligné sur 16 octets à 99,2 %.
+- Spot-checks décodés : les adresses non alignées pointent sur des épilogues ou des milieux
+  d'instruction.
+- Le champ `ce` (callees) de l'index n'est pas le graphe d'appels directs réels — vérifié : une
+  fonction dont le décodage montre trois `call` précis a un `ce` listant cinq fonctions toutes
+  différentes.
+
+**Conséquence** : l'index Ghidra reste exploitable comme graphe de métadonnées (chaînes,
+namespaces, relations), mais ses adresses ne sont pas des débuts de fonction physiques. La vraie
+couverture se mesure sur les racines `.pdata`.
+
+Le pipeline `rebuild` travaille donc sur des adresses correctes :
+
+1. **`pdata::rebuild_from_pdata`** — carte reconstruite sur les 50 674 racines ; métadonnées
+   Ghidra ré-ancrées **par inclusion** (17 403 chaînes, 340 100 constantes, 55 142 arêtes repliées,
+   1 575 classes RTTI).
+2. **`vtable::vtable_edges_into`** — lecture des slots `.text` de chaque vtable localisée par
+   RTTI : 6 681 méthodes, dont **2 109 fonctions feuilles** (sans unwind, donc absentes de
+   `.pdata`) ajoutées comme nœuds, plus 13 927 arêtes de cohésion de classe.
+3. **`disasm`** depuis les bons débuts — 169 828 arêtes d'appel directes réelles.
+4. **Propagation** pondérée sur le graphe `call` + `vtable`, avec amortissement de degré
+   (`1/ln(deg+2)`) pour qu'un utilitaire appelé par des milliers de fonctions ne domine pas le
+   label de ses voisins.
+
+### Les deux chiffres de la base, et lequel citer
+
+`var/niers.sqlite` indexe deux espaces sous deux `binary_id`. Ne pas les confondre :
+
+| Espace | Fonctions | Classées | Nommées | Statut |
+|---|---|---|---|---|
+| `#pdata` — racines réelles | 52 783 | 49 280 (**93,36 %**) | 6 429 | **La mesure à citer** |
+| Index Ghidra — nœuds désalignés | 60 183 | 53 083 (88,20 %) | 192 | Référentiel historique |
+
+Le dénominateur `.pdata` s'est *agrandi* (50 674 → 52 783) avec les feuilles découvertes par
+vtable, et la couverture a monté malgré cela.
+
+**Nommage** : chaque méthode de vtable d'une classe RTTI reçoit un nom **structurel**
+`Namespace::Classe::vmethod_N` (`name_source='vtable-struct'`). Ce sont des noms de *position*
+(classe + slot), pas les symboles C++ d'origine.
+
+**Plafond honnête** : le résidu est largement isolé — ni chaîne, ni RTTI, ni arête vers une
+fonction étiquetée. Les leviers restants sont l'ajout d'ancres et la découverte de feuilles
+supplémentaires ; les rendements sont décroissants.
+
+## Ce que le RE a établi sur le binaire
+
+### Namespaces
+
+**`lives::`** — moteur bas niveau : `CVector2`, `TVector3`, `TVector4`, `CVectorBase3/4`,
+`hash32`, `SCREEN_STRETCH`, `CCT_SHAPE_TYPE`, `CRand`/`CPseudoRand`/`IRand`.
+
+**`game::`** — gameplay IEVR : `CGameCameraParam`, `CModelIK`, `CCharaAlphaState`,
+`CCharaWaterEffectComponent`, `CCharaEditCustomMdlComp`, `CCustomAnimePlayer`, `CRopeComponent`,
+`CEffectLightData`, `WorldCharaCol`, `COL_PART_INFO`, `CHARA_EDGE_PARAM`.
+
+Liste complète : [`nie-rtti-classes.txt`](nie-rtti-classes.txt).
+
+### Classes moteur `gmdC*`
+
+ECS custom avec `gmdCObject` en base : `gmdCObjModel`, `gmdCObjModelComponent`,
+`gmdCObjModelIK`/`IkJob`, `gmdCObjModelLodInfo`, `gmdCObjBlendShapeManager`,
+`gmdCObjDecalComponent`, `gmdCLookAtComponent`, `gmdCAnimation`/`Async`/`RefAnim`,
+`gmdCObjPlayAnime`(`Manager`), `gmdCShareObjAnimeList`(`Manager`), `gmdCDrawObjModelPriority`.
+
+### Classes soccer
+
+`CSoccerCtrl`/`Base`, `CSoccerCtrlAI`(`StateMachine`), `CSoccerStateMachine`, `CSoccerCharaData`,
+`SoccerCharaCtrl` (+`InPlay`/`SetPlay`/`Zone`), `SoccerCharaTacticsAI`, `SoccerTacticsAI`,
+`SoccerPlayCmdManager`, `CharaPlayCmdManager`, `SoccerCommandEffect*`, `BallComponent`,
+`IBallMoveController` (+`BallMoveDribble`, `BallMoveRealSkillShootBezier`),
+`CRpgBattleShootTurnManager`, `DribbleTurnManager`, `GoalnetComponent`,
+`SoccerCalcKeeperSaveComponent`, `CSceneSoccer`(`Training`).
+
+Détail du modèle de match : [`modele-de-match.md`](modele-de-match.md).
+
+### Système GDS — 268 classes de configuration
+
+Toutes les configs sont des classes `GDS*Config` chargées depuis `cfg.bin` :
+
+| Domaine | Classes clés |
+|---|---|
+| Personnages | `GDSCharaBase`, `GDSCharaParam`, `GDSCharaModel`, `GDSCharaMotion`, `GDSCharaExpTableConfig` |
+| Skills | `GDSSkillConfig`, `GDSRealSkillConfig`, `GDSAuraSkillConfig`, `GDSOverrideSkillConfig` |
+| Passifs | `GDSPassiveSkillConfig`, `GDSPassiveSkillEffectConfig`, `GDSPassiveSkillRarityTableConfig` |
+| Soccer | `GDSSoccerGameConfig`, `GDSSoccerCameraConfig`, `GDSSoccerPhaseConfig`, `GDSSoccerRankConfig` |
+| Équipes | `GDSTeamConfig`, `GDSTeamBuildConfig`, `GDSBelongTeamConfig`, `GDSOpponentTeamConfig` |
+| Carte | `GDSMapConfig`, `GDSMapEnvDataConfig`, `GDSMapMinimapConfig`, `GDSMapDoorConfig` |
+| Événements | `GDSEventPlayConfig`, `GDSEventCmndConfig`, `GDSEventCameraPresetConfig` |
+| Combat RPG | `GDSRpgBattleCmdConfig`, `GDSRpgBattleAiConfig`, `GDSRpgBattleFormationConfig` |
+| Audio | `GDSBgmConfig`, `GDSSoccerGameBgmConfig`, `GDSMotionSoundConfig` |
+| UI | `GDSMenuCreateConfig`, `GDSMenuPresetConfig`, `GDSMenuIconManagerConfig` |
+
+### Priorités de rendu
+
+Le moteur nomme ses passes : `00_Zero`, `00_UI_Before`, `10_MapBefore`, `15_ProjEffect`,
+`20_CharaBefore`, `25_CharaAfter`, `30_MapAfter`, `40_Effect`, `50_Post`, `51_PostAfter`,
+`59_PreMenuEndDraw`, `60_UI`, `61_PostMenuEndDraw`.
+
+### Arborescence virtuelle des assets
+
+```
+#/                     racine virtuelle
+#/chr/_uniform/        uniformes
+#/effect/ , /locus/    effets visuels
+#/font/ , #/font/<LG>/ polices (gaiji par plateforme : nx, ps4, ps5, xbox, SteamDeck)
+#/map/ar/ao*/          areas outdoor (ao001–ao403)
+#/map/ar/gr*/          terrains (gr001–gr080)
+#/map/ar/pl*/          places (pl001–pl339)
+#/map/ar/tr*/          zones d'entraînement
+#/menu/220_img/        images de menu (opponent_img, meet_img/<LG>, stadium, savedata_img)
+```
+
+`<LG>` = langue, `%s` = segment dynamique, `_l` = variante large.
+
+## Qualité
+
+```
+just check        # fmt-check + clippy -D warnings + test
+just test-real    # goldens adossés aux vrais fragments du jeu
+just health       # couverture + intégrité KB + EXTERN + heartbeat
+```
+
+Invariants : **0 warning clippy** sur tout le workspace ; `todo!`/`unimplemented!`/`dbg!` en deny ;
+crates de jeu en `#![forbid(unsafe_code)]`.

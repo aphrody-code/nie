@@ -8,7 +8,7 @@
 //! ## Vérité terrain (anti-hallucination)
 //!
 //! Toutes les valeurs « identité » sont des constantes **vérifiées** contre les fichiers réels du
-//! jeu (voir `docs/aphrody.md`). Les parties data-driven (techniques, auras, variantes) sont lues
+//! jeu. Les parties data-driven (techniques, auras, variantes) sont lues
 //! au runtime depuis les dumps `cfg.bin.json` passés à [`build_aphrody_dossier`] — rien n'est codé
 //! en dur côté gameplay.
 //!
@@ -117,7 +117,7 @@ pub struct AphrodyStats {
 }
 
 impl AphrodyStats {
-    /// Stats golden de la primaire (`docs/aphrody.md` §2).
+    /// Stats golden de la primaire.
     #[must_use]
     pub const fn primary() -> Self {
         Self {
@@ -180,7 +180,7 @@ pub struct AphrodyIdentity {
 }
 
 impl AphrodyIdentity {
-    /// Identité golden (`docs/aphrody.md` §1).
+    /// Identité golden.
     #[must_use]
     pub const fn known() -> Self {
         Self {
@@ -205,7 +205,7 @@ impl AphrodyIdentity {
 
 /// Chemins VFS des assets d'un code (visage, icône, voix, modèle). Préfixés `data/`, directement
 /// servables par `nie-model-serve` (`/raw`, `/tex`, `/audio`, `/model-full`). Templates vérifiés
-/// live (HTTP 200) — cf. `docs/aphrody.md` §5.
+/// live (HTTP 200).
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct AphrodyAssets {
@@ -454,7 +454,7 @@ mod tests {
 
     #[test]
     fn stats_total_golden() {
-        // Somme Lv99 vérifiée = 1068 (docs/aphrody.md §2).
+        // Somme Lv99 vérifiée = 1068.
         assert_eq!(AphrodyStats::primary().lv99.total(), 1068);
     }
 

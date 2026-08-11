@@ -5,7 +5,7 @@
 //! Les deux sont **complémentaires** (DTO de rendu vs machine à états), pas dupliqués : `Screen`
 //! délègue son rendu à `GameState` via `render_state`. Consommateurs réels : `nie-play`
 //! (headless/golden, Renderer CPU → PNG/MP4) et `nie-wasm` (web interactif, délègue à `flow::Screen`).
-//! `nie-game` (wgpu natif 60 fps) suivra. Fondation de l'unification (cf. `docs/UNIFICATION.md`, Phase 0).
+//! `nie-game` (wgpu natif 60 fps) suivra. Fondation de l'unification (cf. `docs/PLAN.md`, Phase 0).
 //!
 //! La logique (match `nie-core`), les données (`nie-data`), les menus (`nie-lua`) se branchent ici
 //! au fil des phases ; pour l'instant le cœur tient la FSM + l'orchestration du rendu.

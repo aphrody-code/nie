@@ -143,7 +143,7 @@ check: fmt-check clippy test
 # Quatre chaines sous une racine : Rust (crates/), C++ (src/, tout l'arbre),
 # C# (csharp/, IECODE.sln), TypeScript/Bun (packages/ apps/). Aucune ne depend
 # d'une autre pour compiler ; les ponts sont documentes dans PROVENANCE.md et
-# docs/ARCHITECTURE-POLYGLOTTE.md.
+# docs/ARCHITECTURE.md.
 
 # `cmake` n'est pas dans le PATH sur la machine de dev Windows : il vit dans les
 # BuildTools 2022. Surchargeable : `just cmake_exe=/usr/bin/cmake cpp-build`.

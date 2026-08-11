@@ -1,7 +1,7 @@
 # Roadmap nie-explorer
 
 Suivi des demandes utilisatrice sur l'app desktop Tauri — chaque entrée cite l'état réel du
-code, pas une supposition. Complète (ne remplace pas) `docs/PLAN.md`/`docs/ROADMAP-100.md`
+code, pas une supposition. Complète (ne remplace pas) `docs/PLAN.md`
 (portage pixel-perfect `nie.exe`), scope ici = l'app `nie-explorer` uniquement.
 
 **Bilan (2026-08-08)** : toutes les sections marquées ✅ ci-dessous ont été vérifiées par des
@@ -366,7 +366,7 @@ l'aperçu 3D échouait silencieusement hors poste de dev, avec un message renvoy
 `cargo build -p nie-render3d --release` (inutilisable pour une utilisatrice finale). Le rasterizer
 étant du pur-Rust sans état global (`nie_render3d::{glb::parse, render::render}`), les deux
 commandes l'appellent maintenant **en process** (`nie-render3d` ajouté aux dépendances Cargo de
-`nie-explorer`, cf. `docs/PLAN.md` §3octies) — seul `ffmpeg` (déjà requis pour l'aperçu vidéo USM)
+`nie-explorer`, cf. `docs/PLAN.md`) — seul `ffmpeg` (déjà requis pour l'aperçu vidéo USM)
 reste un sous-processus, pour le mux MP4 du turntable. Élimine aussi le double aller-retour disque
 (écrire le GLB, relire chaque PNG). **Vérifié par un golden réel** (`cargo test -p nie-explorer
 --lib --features real-fixtures`, `glb_preview_png_en_process_sur_un_vrai_modele`) : assemble
