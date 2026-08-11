@@ -13,9 +13,8 @@ out/
 **/*.rs.bk
 Cargo.lock.bak
 
-# Node / Bun / Turbo
+# Node / Bun
 node_modules/
-.turbo/
 dist/
 build/
 *.tsbuildinfo
@@ -186,3 +185,5 @@ compile_commands.json
 /bench/data/
 /bench/cpp/*.exe
 /bench/cpp/*.obj
+# La sortie `dotnet build` du harnais C# (bench/cs/bin, ~170 Mo de DLL recopiees)
+# tombe deja sous les regles `bin/` / `obj/` en tete de fichier.

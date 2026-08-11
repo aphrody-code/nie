@@ -8,7 +8,7 @@
 ///
 /// Performance optimizations:
 ///   - mmap CPK via iecode::criware::CpkReader (zero-copy I/O)
-///   - MPMC lock-free work queue (moodycamel::ConcurrentQueue fallback → mutex)
+///   - File de travail MPMC (std::mutex + condition_variable)
 ///   - Per-worker WebP buffer reused (no per-file allocation)
 ///   - Streaming zstd via ZSTD_CCtx with multi-worker compression
 ///   - Atomic counters (no mutex for stats)

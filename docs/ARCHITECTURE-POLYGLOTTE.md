@@ -51,8 +51,7 @@ Surcharges : `NIE_IECODE_EXE`, `NIE_IECODE_DLL`. Code : `crates/tools/nie-cli/sr
 |---|---|---|
 | `nie-forge cc` | Rust → C | `src/decomp/functions/*.c`, annotés `/* @nie 0x… */` |
 | `iecode export-knowledge` | C# → Rust | JSON → `crates/forge/nie-seed/src/format_catalog.rs` |
-| `packages/nie` | Rust → TS | `nie_ffi` via `bun:ffi` (préchargé par `bunfig.toml`) |
-| `packages/nie/src/iecode.ts` | C++ → TS | `iecode_ffi`, chargé à la demande via `loadIecode()` |
+| `packages/nie` | Rust → TS | `nie_ffi` via `bun:ffi` (préchargé par `bunfig.toml`) — **seul** natif chargé côté TS |
 | `src/ffi/rust/iecode-sys` | C++ → Rust | bindings bruts + wrappers RAII |
 | `src/ffi/bindings.cpp` | C++ → Python | module nanobind `iecode.pyd` |
 | `src/nie_rs/` | Rust → C++ | crate hors workspace appelée par le toolkit |
@@ -67,8 +66,9 @@ Non ponté : C# ↔ natif (la couche `csharp/IECODE.Core/Native` est du SIMD .NE
   à target propre (`cli`, `tests`, `ffi`, `decomp`, `driver`, `include`) en sont exclus par
   `list(FILTER … EXCLUDE REGEX ".*/src/<nom>/.*")`. En ajouter un sans son filtre met plusieurs
   `main()` dans la lib.
-- `packages/nie/src/iecode.ts` ne doit **jamais** être importé statiquement depuis `index.ts` : son
-  `dlopen` s'exécute à l'import, et le préchargement `bunfig.toml` ferait échouer toute commande
-  `bun` du dépôt quand la lib C++ n'est pas construite.
+- Bun ne charge **que** `nie_ffi` (Rust) : aucun `dlopen` de `iecode_ffi` côté TS. C'est délibéré —
+  `bunfig.toml` précharge `nie-plugin`, donc tout natif joint à cette chaîne ferait échouer
+  n'importe quelle commande `bun` du dépôt dès qu'il n'est pas construit, et la lib C++ exige
+  vcpkg. Le C++ s'atteint depuis Rust (`iecode-sys`) ou par la CLI (`niers cpp`).
 - vcpkg n'est pas installé sur la machine de dev : la chaîne C++ ne compile pas tant que
   `just cpp-bootstrap` n'a pas tourné. `just all-check` exclut donc le C++.

@@ -50,9 +50,9 @@ KEY_PATH="${TAURI_SIGNING_PRIVATE_KEY_PATH:-$HOME/.tauri/niers.key}"
 echo "▸ [1/7] bump version → $VERSION (workspace Cargo + Bun)…"
 sed -i "s/^version = \"[0-9]*\.[0-9]*\.[0-9]*\"/version = \"$VERSION\"/" Cargo.toml
 sed -i "s/\"version\": \"[0-9]*\.[0-9]*\.[0-9]*\"/\"version\": \"$VERSION\"/" package.json
-for f in apps/nie-decode/package.json apps/nie-explorer/package.json \
-         packages/nie/package.json packages/nie-catalog/package.json \
-         packages/nie-plugin/package.json packages/nie-util/package.json; do
+for f in apps/nie-explorer/package.json apps/nie-mcp/package.json \
+         packages/nie/package.json packages/nie-bridge/package.json \
+         packages/nie-plugin/package.json; do
 	[ -f "$f" ] && sed -i "s/\"version\": \"[0-9]*\.[0-9]*\.[0-9]*\"/\"version\": \"$VERSION\"/" "$f"
 done
 sed -i "s/^version = \"[0-9]*\.[0-9]*\.[0-9]*\"/version = \"$VERSION\"/" apps/nie-explorer/src-tauri/Cargo.toml
@@ -94,9 +94,9 @@ done
 
 echo "▸ [6/7] commit + tag $TAG + push…"
 git add Cargo.toml Cargo.lock package.json bun.lock \
-        apps/nie-decode/package.json apps/nie-explorer/package.json apps/nie-explorer/src-tauri/Cargo.toml \
+        apps/nie-explorer/package.json apps/nie-mcp/package.json apps/nie-explorer/src-tauri/Cargo.toml \
         apps/nie-explorer/src-tauri/Cargo.lock apps/nie-explorer/src-tauri/tauri.conf.json \
-        packages/nie/package.json packages/nie-catalog/package.json packages/nie-plugin/package.json packages/nie-util/package.json
+        packages/nie/package.json packages/nie-bridge/package.json packages/nie-plugin/package.json
 git commit -m "chore(release): bump $VERSION"
 git tag -a "$TAG" -m "niers $TAG"
 git push origin main
