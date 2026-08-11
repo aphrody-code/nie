@@ -1,7 +1,7 @@
 /**
  * nie — **la** porte d'entrée TypeScript vers les bibliothèques natives du dépôt.
  *
- * Deux backends, un seul paquet depuis l'unification du 2026-08-11 :
+ * Deux backends, un seul paquet :
  * - **Rust** (`nie_ffi`) — ce module, chargé à l'import. Autorité byte-exact.
  * - **C++** (`iecode_ffi`) — `./iecode.ts`, chargé **à la demande** via `loadIecode()`
  *   (`./backend.ts`). Ne jamais l'importer statiquement : sa lib n'existe pas partout et

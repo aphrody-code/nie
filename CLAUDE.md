@@ -86,9 +86,6 @@ Carte complète : `docs/ARCHITECTURE-POLYGLOTTE.md`. En bref :
 ## Arbre C++ (toolkit IECODE) — tout sous **`src/`**
 
 Toolkit C++20 : parsers, compression, VFS, converters, modding, rendu, scripting.
-Remonté de `cpp/` à la racine le 2026-08-11, puis regroupé sous `src/` le même jour : **aucun
-chemin `cpp/…`, `cli/…`, `include/…`, `decomp/…`, `ffi/…`, `tests/…` de premier niveau n'est
-encore valide.**
 
 ```
 CMakeLists.txt      racine du projet CMake `iecode` (C/C++20, vcpkg, unity build, LTO, ccache)
@@ -123,8 +120,9 @@ csharp/             IECODE.Core / IECODE.CLI / IECODE.Core.Tests (.NET 10, `IECO
   `std::span<const uint8_t>` pour le parsing binaire, 4 espaces / 100 colonnes (clang-format Google).
 - Mémoire FFI : l'entrée est un pointeur de l'appelant ; la sortie est allouée par C++ et libérée
   par `iecode_free` ; les handles opaques ont leur `iecode_*_free` dédié.
-- **`.gitignore` : `*.txt` ignorait les 13 `CMakeLists.txt`** (toute la chaîne de build C++).
-  Ils sont ré-inclus explicitement — ne pas retirer ces lignes `!**/CMakeLists.txt`.
+- **`.gitignore`** : `*.txt` et `*.md` sont ignorés globalement ; les `CMakeLists.txt`, les README
+  et le plugin `tools/niers-plugin/**/*.md` sont ré-inclus explicitement. Ne pas retirer ces
+  lignes `!…` — sans elles, toute la chaîne de build C++ sort du dépôt.
 
 ## Pièges d'environnement (Windows)
 

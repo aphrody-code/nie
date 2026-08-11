@@ -1,10 +1,7 @@
-# Plan d'Implémentation par Phases (toolkit C++ — historique)
+# Phases du toolkit C++ (état de l'arbre)
 
-> **Document historique.** Ce plan a piloté la construction du toolkit C++ `iecode` avant que
-> les trois dépôts ne fusionnent. Le plan en vigueur est `docs/PLAN.md` ; la répartition des
-> rôles entre langages est `docs/ARCHITECTURE-POLYGLOTTE.md`. Plusieurs phases ci-dessous
-> décrivent des capacités que la doctrine confie désormais au Rust ou au C# — les lire comme
-> l'état d'un arbre, pas comme une feuille de route.
+> Décrit ce que couvre l'arbre C++, pas ce qu'il faut faire : le plan en vigueur est
+> `docs/PLAN.md`, la répartition des rôles `docs/ARCHITECTURE-POLYGLOTTE.md`.
 
 ## Vue d'ensemble
 

@@ -1,7 +1,6 @@
 # Documentation de niers
 
-Index unique des documents du dépôt unifié (Rust + C++ + C# + Bun). L'ancien index ne couvrait
-que l'arbre C++ et pointait vers des fichiers déplacés ou absents.
+Index des documents du dépôt (Rust + C++ + C# + Bun).
 
 ## Commencer ici
 
