@@ -1,0 +1,21 @@
+[package]
+name = "nie-viola"
+description = "Opérations de modding LEVEL-5 (dump, pack, merge, crypto Criware) en Rust — périmètre de l'outil Viola, ordonnancement et empreinte mémoire revus"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+# `nie-formats` porte les formats (CPK, cfg.bin, VFS) et reste no_std/wasm-compatible : c'est
+# précisément pourquoi l'orchestration parallèle (rayon) et le mappage mémoire (memmap2) vivent
+# ici et non là-bas — les y ajouter casserait `nie-wasm`.
+nie-formats.workspace = true
+rayon.workspace = true
+memmap2.workspace = true
+# Uniquement pour le manifeste de reprise du dump (une liste de noms de packs).
+serde_json.workspace = true

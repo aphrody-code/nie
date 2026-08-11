@@ -144,6 +144,35 @@ export const commands = {
 	 */
 	gameDataSpecialTactics: (gameDir: string | null) => typedError<SpecialTacticsDto[], string>(__TAURI_INVOKE("game_data_special_tactics", { gameDir })),
 	/**
+	 *  Écussons d'équipe (`nie_data::emblems`) — même patron que [`game_data_skills`], côté RDBN
+	 *  (`game_data::load_rdbn`, §4.1 roadmap).
+	 */
+	gameDataEmblems: (gameDir: string | null) => typedError<EmblemDto[], string>(__TAURI_INVOKE("game_data_emblems", { gameDir })),
+	/**  Illustrations de la galerie (`nie_data::gallery`) — même patron que [`game_data_emblems`]. */
+	gameDataGallery: (gameDir: string | null) => typedError<GalleryDto[], string>(__TAURI_INVOKE("game_data_gallery", { gameDir })),
+	/**  Feintes/dribbles (`nie_data::trick`) — même patron que [`game_data_emblems`]. */
+	gameDataTricks: (gameDir: string | null) => typedError<TrickDto[], string>(__TAURI_INVOKE("game_data_tricks", { gameDir })),
+	/**
+	 *  Arbre des activités/sous-tâches (`nie_data::activity`) — même patron que [`game_data_emblems`],
+	 *  mais côté T2B.
+	 */
+	gameDataActivities: (gameDir: string | null) => typedError<ActivityDto[], string>(__TAURI_INVOKE("game_data_activities", { gameDir })),
+	/**
+	 *  Équipes d'appartenance (`nie_data::belong_team`, noms joints depuis `team_text`) — même patron
+	 *  que [`game_data_emblems`].
+	 */
+	gameDataBelongTeams: (gameDir: string | null) => typedError<BelongTeamDto[], string>(__TAURI_INVOKE("game_data_belong_teams", { gameDir })),
+	/**
+	 *  Formations de terrain (`nie_data::formation`) — même patron que [`game_data_emblems`].
+	 *  Identifiants bruts : `formation_text.cfg.bin` n'existe pas dans cette version du jeu.
+	 */
+	gameDataFormations: (gameDir: string | null) => typedError<FormationDto[], string>(__TAURI_INVOKE("game_data_formations", { gameDir })),
+	/**
+	 *  Uniformes (`nie_data::uniform`, tranches de modèles résolues) — même patron que
+	 *  [`game_data_emblems`].
+	 */
+	gameDataUniforms: (gameDir: string | null) => typedError<UniformDto[], string>(__TAURI_INVOKE("game_data_uniforms", { gameDir })),
+	/**
 	 *  Personnages sélectionnables pour le calculateur de stats (`nie_data::chara_param` joint à
 	 *  `chara_base`/`chara_text`) — même patron que [`game_data_skills`].
 	 */
@@ -458,6 +487,16 @@ export const commands = {
 	 */
 	vfsGlbBytesB64: (path: string, gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("vfs_glb_bytes_b64", { path, gameDir })),
 	/**
+	 *  Liste les clips d'animation d'un asset : archives `.g4pk` de même radical → sous-fichier
+	 *  `.g4mt` → table de clips. **Lecture seule** — rien ici ne rejoue l'animation (cf. commentaire
+	 *  de section : le GLB d'aperçu n'a pas de skin).
+	 * 
+	 *  `path` est n'importe quel membre de la famille (`.g4md`, `.g4mg`, `.g4sk`, ou une `.g4pk`
+	 *  précise) : seul son radical compte. Coût réel : une archive de personnage pèse quelques Mo et
+	 *  il y en a des dizaines, la commande lit donc ~100 Mo — d'où l'appel asynchrone côté frontend.
+	 */
+	vfsMotionClips: (path: string, gameDir: string | null) => typedError<MotionClipsDto, string>(__TAURI_INVOKE("vfs_motion_clips", { path, gameDir })),
+	/**
 	 *  Même chose que [`vfs_glb_bytes_b64`] pour une entrée d'un `.cpk` ouvert hors VFS — résolution
 	 *  de frères scopée au CPK courant, cf. [`assemble_glb_from_cpk_entries`].
 	 */
@@ -557,13 +596,78 @@ export const commands = {
 	 *  une plage volatile/refusée est simplement sautée).
 	 */
 	reTraceDumpModule: (pid: number) => typedError<ReTraceDumpStatsDto, string>(__TAURI_INVOKE("re_trace_dump_module", { pid })),
+	/**
+	 *  Ouvre un minidump `.dmp` et en renvoie l'inventaire (modules, plages, volume capturé).
+	 * 
+	 *  Aucun scan : sert à valider le fichier et à afficher le volume avant d'en lancer un.
+	 */
+	reDumpOpen: (cheminDmp: string) => typedError<ReDumpInfoDto, string>(__TAURI_INVOKE("re_dump_open", { cheminDmp })),
+	/**
+	 *  Scanne un motif AOB façon Cheat Engine (`"44 8B ?? 10"`, `??`/`?`/`*` = joker) dans un
+	 *  minidump déjà capturé.
+	 * 
+	 *  Le scan relit les plages mémoire du dump depuis le disque — plusieurs centaines de Mo pour une
+	 *  capture complète : ce n'est **jamais** instantané, comptez plusieurs secondes. `limite` borne le
+	 *  nombre de coups renvoyés **et** le travail effectué (le scan s'arrête à la limite atteinte) ;
+	 *  `0` applique le défaut, et la valeur est plafonnée.
+	 * 
+	 *  Lecture seule d'un fichier : aucune attache au process du jeu, aucune écriture mémoire.
+	 */
+	reDumpScan: (cheminDmp: string, motif: string, limite: number) => typedError<ReDumpScanDto, string>(__TAURI_INVOKE("re_dump_scan", { cheminDmp, motif, limite })),
 	/**  Décrit l'état d'installation sans rien modifier. */
 	mcpStatus: (target: McpTarget) => typedError<McpStatusDto, string>(__TAURI_INVOKE("mcp_status", { target })),
 	/**  Déclare `niers-game` dans la configuration du client visé, en préservant le reste. */
 	mcpInstall: (target: McpTarget, gameDir: string | null) => typedError<McpInstallDto, string>(__TAURI_INVOKE("mcp_install", { target, gameDir })),
+	/**
+	 *  Démarre un *dump* en tâche de fond et rend immédiatement son identifiant.
+	 * 
+	 *  L'avancement arrive par l'événement `viola-dump-progress`, la fin par `viola-dump-done`.
+	 */
+	violaDumpStart: (gameDir: string | null, sortie: string, filtre: string | null, reprise: boolean, sauterIdentiques: boolean, threads: number | null) => typedError<string, string>(__TAURI_INVOKE("viola_dump_start", { gameDir, sortie, filtre, reprise, sauterIdentiques, threads })),
+	/**
+	 *  Interrompt une exécution. Sans effet si elle est déjà terminée — l'événement de fin reste la
+	 *  seule source de vérité.
+	 */
+	violaCancel: (runId: string) => typedError<null, string>(__TAURI_INVOKE("viola_cancel", { runId })),
+	/**
+	 *  **Pack** — réécrit `cpk_list.cfg.bin` pour que le jeu charge les fichiers du mod depuis le
+	 *  disque, et recopie ces fichiers dans la sortie.
+	 */
+	violaPack: (cpkList: string, modDir: string, sortie: string, plateforme: ViolaPlatform) => typedError<ViolaPackDto, string>(__TAURI_INVOKE("viola_pack", { cpkList, modDir, sortie, plateforme })),
+	/**
+	 *  **Merge** — fusionne plusieurs mods, `sources` étant en priorité **décroissante**.
+	 * 
+	 *  `semantique` active la fusion au champ des `.cfg.bin` : deux mods qui touchent des valeurs
+	 *  différentes du même fichier sont alors compatibles, ce qu'une fusion au fichier ne permet pas.
+	 *  Elle a besoin du jeu comme base de comparaison — sans lui, on retombe sur la fusion au fichier
+	 *  et chaque repli est rapporté.
+	 */
+	violaMerge: (gameDir: string | null, sources: string[], sortie: string, semantique: boolean) => typedError<ViolaMergeDto, string>(__TAURI_INVOKE("viola_merge", { gameDir, sources, sortie, semantique })),
+	/**
+	 *  **Chiffrer / déchiffrer Criware** — le XOR est involutif, la même commande sert aux deux sens.
+	 * 
+	 *  `cle` accepte l'hexadécimal (`1717E18E`) ; laissée vide, la clé est dérivée du nom du fichier
+	 *  (CRC32), ce qui est la règle des packs CPK.
+	 */
+	violaCrypto: (entree: string, sortie: string, cle: string | null) => typedError<number | null, string>(__TAURI_INVOKE("viola_crypto", { entree, sortie, cle })),
 };
 
 /* Types */
+/**  Activité/sous-tâche de l'arbre de progression (`activity_config`, format T2B). */
+export type ActivityDto = {
+	id: string,
+	name: string,
+	/**  `f64`, cf. [`TrophyDto::category`] — `1` = racine, `5` = sous-tâche (observé). */
+	kind: number | null,
+	parent_id: string,
+	is_root: boolean,
+	/**
+	 *  Taille du blob `data` (base64) en caractères. Le blob lui-même n'est PAS décodé (aucune
+	 *  source de référence sur sa sémantique) : l'exposer brut donnerait une colonne illisible.
+	 */
+	data_len: number | null,
+};
+
 /**
  *  Avatar/Keshin (aura) — port applati de `nie_data::aura::AuraCmd` + son texte joint
  *  (`skill_text.cfg.bin`, même table que les techniques). Le contenu signature d'IEVR.
@@ -575,6 +679,21 @@ export type AuraDto = {
 	description: string | null,
 	element: string,
 	sub_type: string,
+};
+
+/**
+ *  Équipe d'appartenance (`belong_team_config`) — nom FR joint depuis `team_text`, saisons
+ *  d'apparition, emblème/maillot Victory Road.
+ */
+export type BelongTeamDto = {
+	team_id: string,
+	name: string | null,
+	/**  `f64`, cf. [`TrophyDto::category`] — ordre de tri dans le classeur. */
+	binder_order: number | null,
+	/**  Saisons où l'équipe apparaît (`teamNumber_* > 0`), libellés de [`SEASONS`]. */
+	seasons: string[],
+	emblem_id_v: string,
+	kit_id_v: string,
 };
 
 /**
@@ -613,6 +732,22 @@ export type CpkExportFileDto = {
 	staged_appdata_rel: string,
 };
 
+/**  Écusson d'équipe (`emblem_resource_*`) — une entrée `EMBLEM_RESOURCE_INFO`. */
+export type EmblemDto = {
+	emblem_id: string,
+	emblem_name: string,
+	small_file_path: string,
+	small_tex_name: string,
+	large_file_path: string,
+	large_tex_name: string,
+	base_path: string,
+	/**
+	 *  Entrée gabarit : ses chemins portent le jeton `<resourceID>` à substituer par un
+	 *  `emblem_name` concret (cf. `nie_data::emblems::resolve_resource_id`).
+	 */
+	is_template: boolean,
+};
+
 export type EntryDto = {
 	path: string,
 	name: string,
@@ -623,6 +758,47 @@ export type EntryDto = {
 export type FolderRoleDto = {
 	role: string,
 	status: string,
+};
+
+/**
+ *  Formation de terrain (`formation_config`) — puissances offensive/défensive et tranche de
+ *  placements. Les libellés RESTENT des identifiants bruts : `formation_text.cfg.bin` n'existe
+ *  pas dans cette version du jeu (vérifié, cf. la note en fin de `nie_data::formation`), donc
+ *  `noun_id`/`desc_id` ne se résolvent nulle part — afficher un nom ici serait une invention.
+ */
+export type FormationDto = {
+	form_id: string,
+	noun_id: string,
+	desc_id: string,
+	/**  `f64`, cf. [`TrophyDto::category`] — index de départ dans la liste des placements. */
+	placement_offset: number | null,
+	/**  `f64`, cf. [`TrophyDto::category`]. */
+	placement_count: number | null,
+	/**  `f64`, cf. [`TrophyDto::category`]. */
+	power_offense: number | null,
+	/**  `f64`, cf. [`TrophyDto::category`]. */
+	power_defense: number | null,
+	/**
+	 *  Codes de position (`position_id`) des placements réellement rattachés, dans l'ordre du
+	 *  terrain — la seule lecture humaine possible d'une formation sans table de texte.
+	 */
+	positions: (number | null)[],
+};
+
+/**
+ *  Illustration de la galerie (`gallery_config`) — chemins d'image et condition d'ouverture
+ *  décodée (`open_cond`, blob base64, via `nie_data::unlock_condition`).
+ */
+export type GalleryDto = {
+	gallery_id: string,
+	img_path: string,
+	thumb_path: string,
+	/**  `f64`, cf. [`TrophyDto::category`] — même contrainte `specta`. */
+	need_token_num: number | null,
+	/**  `f64`, cf. [`TrophyDto::category`] — même contrainte `specta`. */
+	flg_no: number | null,
+	unlock_kind: string,
+	story_episode: number | null,
 };
 
 /**
@@ -788,6 +964,43 @@ export type McpTarget =
 /**  `%APPDATA%/Claude/claude_desktop_config.json` — chemins absolus obligatoires. */
 "claude-desktop";
 
+/**
+ *  Un clip déclaré par un conteneur G4MT.
+ * 
+ *  Tous les entiers sont des `f64` : `specta` refuse les entiers 64 bits (`u64`/`i64` panique à
+ *  la génération de bindings), et les champs concernés (u32 au plus) y tiennent exactement.
+ */
+export type MotionClipDto = {
+	/**  Archive `.g4pk` d'où provient le clip (chemin VFS complet). */
+	archive: string,
+	/**  Nom du sous-fichier `.g4mt` dans cette archive. */
+	motion_file: string,
+	name: string,
+	/**  CRC32 du nom de clip — l'identifiant par lequel le jeu le référence. */
+	crc32: number | null,
+	start_frame: number | null,
+	end_frame: number | null,
+	/**  Bornes incluses (`g4mt::Clip::frame_count`). */
+	frame_count: number | null,
+	fps: number | null,
+	/**  Clip additif (superposé à une pose de base), `g4mt::Clip::is_additive`. */
+	additive: boolean,
+	/**  Nombre d'os/cibles animés par le clip (`Motion::target_indices`, dédupliqué). */
+	target_count: number | null,
+};
+
+/**  Réponse de [`vfs_motion_clips`]. */
+export type MotionClipsDto = {
+	/**  Archives `.g4pk` réellement ouvertes, dans l'ordre d'inspection. */
+	archives: string[],
+	clips: MotionClipDto[],
+	/**
+	 *  Pourquoi la liste est vide ou incomplète. Une absence d'animation n'est pas une erreur :
+	 *  beaucoup d'assets n'en ont pas, et échouer ferait passer un fait pour une panne.
+	 */
+	notice: string | null,
+};
+
 export type PackFileDto = {
 	/**
 	 *  Chemin absolu réel sur disque (PAS un chemin interne VFS) — passé tel quel à
@@ -835,6 +1048,53 @@ export type RawCpkEntryDto = {
 	path: string,
 	size: number,
 	is_compressed: boolean,
+};
+
+export type ReDumpHitDto = {
+	/**
+	 *  Adresse virtuelle live du coup, en hexadécimal `0x…`. **Chaîne et pas nombre** : specta
+	 *  refuse d'exporter un `u64` vers TypeScript (perte de précision au-delà de 2⁵³) et le refus
+	 *  est FATAL — l'export des bindings panique au démarrage de l'app. Contrairement aux tailles
+	 *  (cf. [`ReTraceRegionDto::size`]), une adresse ne se dégrade pas en `f64` sans risque : la
+	 *  base image statique `0x1_4000_0000` plus un RVA reste exact, mais une adresse de tas ASLR
+	 *  x64 va jusqu'à 2⁴⁷ et l'hexa est de toute façon la forme qu'on copie dans un débogueur.
+	 */
+	va: string,
+	/**  Module contenant l'adresse, le cas échéant. */
+	module: string | null,
+	/**  Offset dans le module (RVA), hexadécimal `0x…`. */
+	rva: string | null,
+	/**
+	 *  Adresse **statique** correspondante (`0x140000000 + rva`) si le coup est dans `nie.exe` —
+	 *  c'est celle qui se cherche dans `var/niers.sqlite` et dans le désassemblage.
+	 */
+	statique: string | null,
+};
+
+export type ReDumpInfoDto = {
+	modules: ReDumpModuleDto[],
+	/**  Nombre de plages mémoire capturées. */
+	ranges: number,
+	/**  Total d'octets mémoire capturés — c'est ce volume que chaque scan relit depuis le disque. */
+	mapped_bytes: number | null,
+	/**  Base virtuelle de `nie.exe` dans la capture, si le module y figure. */
+	nie_base: string | null,
+};
+
+export type ReDumpModuleDto = {
+	name: string,
+	/**  Base virtuelle du module au moment de la capture (ASLR), en hexadécimal `0x…`. */
+	base: string,
+	/**  Taille de l'image en mémoire, en octets. */
+	size: number | null,
+};
+
+export type ReDumpScanDto = {
+	hits: ReDumpHitDto[],
+	/**  `true` si le scan s'est arrêté sur la limite : d'autres coups existent au-delà. */
+	tronque: boolean,
+	/**  Octets réellement parcourables dans ce dump (borne haute du travail du scan). */
+	mapped_bytes: number | null,
 };
 
 export type ReTraceDumpStatsDto = {
@@ -962,6 +1222,17 @@ export type StatsDto = {
 	top_ext: ([string, number])[],
 };
 
+/**  Feinte/dribble (`trick_config`) — nom interne, catégorie classifiée, événements déclenchés. */
+export type TrickDto = {
+	trick_id: string,
+	trick_id_name: string,
+	trick_name: string,
+	category: string,
+	event_id_name: string,
+	fail_event_id_name: string,
+	has_fail_event: boolean,
+};
+
 /**
  *  Succès (trophy) — port applati de `nie_data::trophy::TrophyInfo` + son texte joint
  *  (`trophy_text.cfg.bin`) + condition de déblocage décodée (`decode_unlock`).
@@ -980,6 +1251,77 @@ export type TrophyDto = {
 	unlock_kind: string,
 	story_episode: number | null,
 };
+
+/**
+ *  Uniforme (`uniform_config`) — une ligne `UNIFORM_INFO` jointe à sa tranche de modèles
+ *  (`UniformConfig::resolve_rows`). Comme les formations, l'entrée n'a pas de nom résoluble :
+ *  `name_id` est un CRC sans table de texte associée dans cette version du jeu.
+ */
+export type UniformDto = {
+	name_id: string,
+	/**  `f64`, cf. [`TrophyDto::category`] — index de départ dans `m_UniformModelInfoList`. */
+	model_start: number | null,
+	/**  `f64`, cf. [`TrophyDto::category`] — nombre de modèles annoncé par la donnée. */
+	model_count: number | null,
+	/**
+	 *  Nombre de modèles RÉELLEMENT résolus (la tranche est bornée à la taille de la liste :
+	 *  un écart avec `model_count` signale une tranche débordante dans la donnée du jeu).
+	 */
+	resolved_count: number | null,
+	/**  `typeId` du 1er modèle de la tranche, `None` si la tranche est vide. */
+	type_id: number | null,
+	/**  CRC du modèle de maillot joueur de champ du 1er modèle de la tranche. */
+	fielder_model_id: string | null,
+	/**  CRC du modèle de maillot gardien du 1er modèle de la tranche. */
+	keeper_model_id: string | null,
+};
+
+/**  Un chemin disputé par plusieurs mods lors d'un *merge*. */
+export type ViolaConflitDto = {
+	/**  Chemin relatif concerné. */
+	chemin: string,
+	/**  Rangs des mods qui le fournissent (0 = le plus prioritaire). */
+	rangs: (number | null)[],
+	/**  Valeurs fusionnées sans désaccord. */
+	champs_fusionnes: number | null,
+	/**  Valeurs que deux mods changent différemment, tranchées par la priorité. */
+	champs_en_desaccord: number | null,
+	/**  Pourquoi la fusion au champ n'a pas pu s'appliquer, le cas échéant. */
+	repli: string | null,
+};
+
+/**  Bilan d'un *merge*. */
+export type ViolaMergeDto = {
+	/**  Fichiers écrits tels quels. */
+	copies: number | null,
+	/**  Fichiers reconstruits par fusion au champ. */
+	fusionnes: number | null,
+	/**  Chemins fournis par plusieurs mods. */
+	conflits: ViolaConflitDto[],
+};
+
+/**  Bilan d'un *pack*. */
+export type ViolaPackDto = {
+	/**  Fichiers du mod qui remplacent une entrée existante. */
+	mis_a_jour: number | null,
+	/**  Fichiers ajoutés au `cpk_list`. */
+	ajoutes: number | null,
+	/**  Fichiers recopiés dans la sortie. */
+	copies: number | null,
+	/**  Nombre d'entrées après mise à jour. */
+	total: number | null,
+	/**  Enveloppe de chiffrement relue et réécrite (`Aes`, `Viola` ou `Clair`). */
+	enveloppe: string,
+	/**  Entrées déjà *loose* AVANT modification — un nombre élevé trahit un `cpk_list` déjà packé. */
+	loose_avant: number | null,
+};
+
+/**  Plateforme cible d'un *pack* ou d'un *merge*. */
+export type ViolaPlatform = 
+/**  Version PC (Steam). */
+"pc" | 
+/**  Version Nintendo Switch. */
+"switch";
 
 /* Tauri Specta runtime */
 async function typedError<T, E>(result: Promise<T>): Promise<{ status: "ok"; data: T } | { status: "error"; error: E }> {

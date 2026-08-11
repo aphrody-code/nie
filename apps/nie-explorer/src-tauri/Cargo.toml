@@ -92,6 +92,14 @@ nie-core = { path = "../../../crates/engine/nie-core" }
 nie-trace = { path = "../../../crates/forge/nie-trace" }
 # Frontière BFS (redis) — chargée pour un futur outil RE intégré, pas encore câblée.
 nie-queue = { path = "../../../crates/forge/nie-queue" }
+# Minidump `.dmp` HORS LIGNE : parsing + scan AOB (`re_dump_scan`, cf. `src/re_trace.rs`). Le
+# scan porte sur un fichier déjà capturé — aucune attache au process vivant. Extrait de `nie-re`
+# précisément pour être liable ici : sa seule dépendance est `thiserror` (ni rusqlite, ni le
+# dépôt frère `aphrody`), cf. l'exclusion de `nie-re` plus bas.
+nie-dump = { path = "../../../crates/forge/nie-dump" }
+# Opérations de modding (dump/pack/merge/crypto Criware) — appelées EN PROCESS. Aucune dépendance
+# sqlite, donc aucun conflit avec le `sqlx-sqlite` de `tauri-plugin-sql` (cf. bloc d'exclusions).
+nie-viola = { path = "../../../crates/engine/nie-viola" }
 # Types géométriques POD partagés (Vec2/Vec3) — déjà tiré transitivement via nie-core/
 # nie-formats (dédup Phase 2), déclaré ici en direct pour un accès sans détour depuis les
 # futures commandes de mod gameplay (placement/formation).
@@ -151,10 +159,16 @@ tokio = { version = "1", features = ["rt"] }
 # du Cargo.toml de chaque crate, 2026-08-08) :
 # - `nie-wiki`/`nie-re`/`nie-index`/`nie-seed`/`nie-zukan`/`nie-model-serve` : dépendent
 #   (directement ou via nie-index) de `rusqlite` (libsqlite3-sys 0.35, `links = "sqlite3"`) →
-#   conflit de lien natif avec le `sqlx-sqlite` de tauri-plugin-sql (libsqlite3-sys 0.28), Cargo
+#   conflit de lien natif avec le `sqlx-sqlite` de tauri-plugin-sql (libsqlite3-sys 0.30.1,
+#   vérifié par `cargo tree -i libsqlite3-sys` : une seule occurrence, via sqlx-sqlite), Cargo
 #   interdit deux copies d'une lib `links`. Le miroir wiki est donc interrogé côté frontend via
 #   tauri-plugin-sql (mêmes requêtes SQL que `nie-wiki::query`, copiées dans `src/lib/wikiDb.ts`)
-#   — un seul moteur SQLite dans TOUT le binaire.
+#   — un seul moteur SQLite dans TOUT le binaire. `nie-re` traîne EN PLUS `aphrody-re`, dont le
+#   `path` sort de ce dépôt (`../aphrody/crates/aphrody-re`) : un clone de niers seul ne
+#   résoudrait même pas le manifeste. C'est pourquoi le scan AOB de minidump ne passe PAS par une
+#   feature Cargo de `nie-re` (une dépendance optionnelle non activée entre quand même dans la
+#   résolution du graphe) mais par `nie-dump`, crate extraite qui ne dépend que de `thiserror` —
+#   `cargo tree -e no-dev` depuis ici ne contient ni `rusqlite` ni `aphrody-re`.
 # - `nie-game`/`nie-headless`/`nie-play`/`nie-cli` : PAS de `src/lib.rs`, uniquement des `[[bin]]`
 #   → aucun cible `lib` à lier, Cargo refuse ces crates comme `[dependencies]` quelle que soit
 #   leur envie d'être réutilisées (contrainte dure, pas un choix). `nie-game` shippe en plus

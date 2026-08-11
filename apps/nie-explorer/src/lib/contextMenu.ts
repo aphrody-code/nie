@@ -194,6 +194,8 @@ export async function showRawCpkFileContextMenu(opts: RawCpkFileContextMenuOptio
 export interface FolderContextMenuOptions {
   path: string;
   onOpen?: () => void;
+  /** Ouvre le dossier dans un NOUVEL onglet de l'Explorateur (équivalent du clic milieu). */
+  onOpenInNewTab?: () => void;
 }
 
 export async function showVfsFolderContextMenu(opts: FolderContextMenuOptions): Promise<void> {
@@ -201,6 +203,9 @@ export async function showVfsFolderContextMenu(opts: FolderContextMenuOptions): 
   const menu = await Menu.new({
     items: [
       { text: "Ouvrir", action: () => opts.onOpen?.() },
+      ...(opts.onOpenInNewTab
+        ? [{ text: "Ouvrir dans un nouvel onglet", action: () => opts.onOpenInNewTab?.() }]
+        : []),
       await PredefinedMenuItem.new({ item: "Separator" }),
       { text: pinned ? "★ Désépingler" : "☆ Épingler à la barre latérale", action: () => togglePin(opts.path) },
       { text: "Copier le chemin", action: async () => { await writeText(opts.path); toast.success("Chemin copié"); } },
@@ -215,6 +220,8 @@ export interface PlaceContextMenuOptions {
   /** Nature de l'entrée — conditionne les actions proposées. */
   kind: "builtin" | "pinned" | "recent";
   onOpen?: () => void;
+  /** Ouvre l'emplacement dans un NOUVEL onglet de l'Explorateur (équivalent du clic milieu). */
+  onOpenInNewTab?: () => void;
 }
 
 /**
@@ -231,6 +238,9 @@ export async function showPlaceContextMenu(opts: PlaceContextMenuOptions): Promi
   const menu = await Menu.new({
     items: [
       { text: "Ouvrir", action: () => opts.onOpen?.() },
+      ...(opts.onOpenInNewTab
+        ? [{ text: "Ouvrir dans un nouvel onglet", action: () => opts.onOpenInNewTab?.() }]
+        : []),
       await PredefinedMenuItem.new({ item: "Separator" }),
       ...(opts.kind !== "builtin"
         ? [

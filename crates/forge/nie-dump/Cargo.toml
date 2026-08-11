@@ -1,0 +1,17 @@
+[package]
+name = "nie-dump"
+description = "Lecture et scan AOB d'un minidump Windows de nie.exe — zéro dépendance hors thiserror"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+# Volontairement réduit à `thiserror` : ce crate est consommé par `nie-explorer` (Tauri), qui ne
+# peut lier NI `rusqlite` (conflit `links = "sqlite3"` avec le sqlx-sqlite de tauri-plugin-sql)
+# NI le dépôt frère `aphrody` — deux dépendances que traîne `nie-re`, d'où l'extraction ici.
+[dependencies]
+thiserror.workspace = true

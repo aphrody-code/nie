@@ -415,6 +415,16 @@ impl Vfs {
         reader.extract(cpk_bytes, cpk_entry)
     }
 
+    /// Répertoire `data/` du jeu sur lequel ce VFS est monté (celui passé à [`Vfs::init`]).
+    ///
+    /// Exposé pour les consommateurs qui doivent atteindre les packs eux-mêmes plutôt que passer
+    /// par [`Vfs::read`] — c'est le cas de l'extraction massive (`nie-viola`), qui ouvre chaque
+    /// pack une seule fois au lieu d'une résolution par fichier.
+    #[must_use]
+    pub fn game_data_dir(&self) -> &Path {
+        &self.game_data_dir
+    }
+
     /// Nombre de fichiers indexés.
     #[must_use]
     pub fn asset_count(&self) -> usize {

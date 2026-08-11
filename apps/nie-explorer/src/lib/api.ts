@@ -13,17 +13,25 @@
 //    vers `string | null` (forme exacte attendue par les bindings générés).
 import {
   commands,
+  type ActivityDto,
   type AuraDto,
+  type BelongTeamDto,
   type BlenderSceneResultDto,
   type CharaPickerDto,
   type CpkExportFileDto,
+  type EmblemDto,
   type EntryDto,
   type FolderRoleDto,
+  type FormationDto,
+  type GalleryDto,
   type ItemDto,
   type LsDto,
   type PackFileDto,
   type QuestDto,
   type RawCpkEntryDto,
+  type ReDumpHitDto,
+  type ReDumpInfoDto,
+  type ReDumpScanDto,
   type ReTraceDumpStatsDto,
   type ReTraceProcessDto,
   type ReTraceRegionDto,
@@ -36,6 +44,8 @@ import {
   type McpInstallDto,
   type McpStatusDto,
   type McpTarget,
+  type MotionClipDto,
+  type MotionClipsDto,
   type PassiveDto,
   type SaveBlobDto,
   type ShopDto,
@@ -44,7 +54,12 @@ import {
   type SkillDto,
   type StatBlockDto,
   type StatsDto,
+  type TrickDto,
   type TrophyDto,
+  type UniformDto,
+  type ViolaMergeDto,
+  type ViolaPackDto,
+  type ViolaPlatform,
 } from "@/lib/bindings";
 
 export type VfsEntry = EntryDto;
@@ -73,12 +88,24 @@ export type Shop = ShopDto;
 export type Stadium = StadiumDto;
 export type Passive = PassiveDto;
 export type SpecialTactics = SpecialTacticsDto;
+export type Emblem = EmblemDto;
+export type Gallery = GalleryDto;
+export type Trick = TrickDto;
+export type Activity = ActivityDto;
+export type BelongTeam = BelongTeamDto;
+export type Formation = FormationDto;
+export type Uniform = UniformDto;
 export type CharaPicker = CharaPickerDto;
 export type StatBlock = StatBlockDto;
 export type CpkExportFile = CpkExportFileDto;
 export type ReTraceProcess = ReTraceProcessDto;
 export type ReTraceRegion = ReTraceRegionDto;
 export type ReTraceDumpStats = ReTraceDumpStatsDto;
+export type ReDumpInfo = ReDumpInfoDto;
+export type ReDumpHit = ReDumpHitDto;
+export type ReDumpScan = ReDumpScanDto;
+export type MotionClip = MotionClipDto;
+export type MotionClips = MotionClipsDto;
 
 const gd = (gameDir?: string): string | null => (gameDir && gameDir.trim() ? gameDir : null);
 
@@ -254,6 +281,9 @@ export const api = {
     gameDir?: string,
   ) => unwrap<string>(commands.luaEval(path, source, expression, withMenuHost, gd(gameDir))),
   glbBytesB64: (path: string, gameDir?: string) => unwrap<string>(commands.vfsGlbBytesB64(path, gd(gameDir))),
+  // Clips d'animation DÉCLARÉS par les .g4mt des archives .g4pk de même radical. Liste seule : le
+  // GLB de `glbBytesB64` n'embarque ni skin ni animation, rien ne peut être rejoué.
+  motionClips: (path: string, gameDir?: string) => unwrap<MotionClips>(commands.vfsMotionClips(path, gd(gameDir))),
   // Éditeur de scène 3D NATIF (nie-editor : éditeur Fyrox embarqué, rendu OpenGL) — process séparé,
   // il a sa propre boucle d'événements et sa propre fenêtre GPU.
   openInSceneEditor: (path: string | null, gameDir?: string) => unwrap<string>(commands.openInSceneEditor(path, gd(gameDir))),
@@ -289,6 +319,17 @@ export const api = {
   gameDataStadiums: (gameDir?: string) => unwrap<Stadium[]>(commands.gameDataStadiums(gd(gameDir))),
   gameDataPassives: (gameDir?: string) => unwrap<Passive[]>(commands.gameDataPassives(gd(gameDir))),
   gameDataSpecialTactics: (gameDir?: string) => unwrap<SpecialTactics[]>(commands.gameDataSpecialTactics(gd(gameDir))),
+  // §4.1 roadmap, second lot — familles RDBN à noms autoportés (aucune jointure texte devinée) :
+  // écussons, galerie, feintes, activités (T2B), équipes (jointure `team_text` déjà validée par
+  // `nie-game/examples/export_teams.rs`), formations et uniformes (identifiants bruts, leur table
+  // de texte n'existe pas dans cette version du jeu).
+  gameDataEmblems: (gameDir?: string) => unwrap<Emblem[]>(commands.gameDataEmblems(gd(gameDir))),
+  gameDataGallery: (gameDir?: string) => unwrap<Gallery[]>(commands.gameDataGallery(gd(gameDir))),
+  gameDataTricks: (gameDir?: string) => unwrap<Trick[]>(commands.gameDataTricks(gd(gameDir))),
+  gameDataActivities: (gameDir?: string) => unwrap<Activity[]>(commands.gameDataActivities(gd(gameDir))),
+  gameDataBelongTeams: (gameDir?: string) => unwrap<BelongTeam[]>(commands.gameDataBelongTeams(gd(gameDir))),
+  gameDataFormations: (gameDir?: string) => unwrap<Formation[]>(commands.gameDataFormations(gd(gameDir))),
+  gameDataUniforms: (gameDir?: string) => unwrap<Uniform[]>(commands.gameDataUniforms(gd(gameDir))),
   gameDataCharaPicker: (gameDir?: string) => unwrap<CharaPicker[]>(commands.gameDataCharaPicker(gd(gameDir))),
   // Calculateur de stats (§4.2) — rarityCode : 0=N, 2=R, 3=SR, 4=SSR, 5=UR, 6=LR, 7=Legend, 20=BASARA.
   gameDataCalculateStats: (charaParamId: string, level: number, rarityCode: number, gameDir?: string) =>
@@ -318,12 +359,44 @@ export const api = {
   reTraceReadBytesB64: (pid: number, addr: string, len: number) => unwrap<string>(commands.reTraceReadBytesB64(pid, addr, len)),
   reTraceDumpModule: (pid: number) => unwrap<ReTraceDumpStats>(commands.reTraceDumpModule(pid)),
 
+  // Scan AOB HORS LIGNE (`nie-dump`) : un minidump `.dmp` déjà capturé, lu en lecture seule —
+  // aucune attache au process du jeu. `reDumpScan` relit les plages du dump depuis le disque
+  // (centaines de Mo) : compter plusieurs secondes, et borner par `limite` (0 = défaut côté Rust).
+  reDumpOpen: (cheminDmp: string) => unwrap<ReDumpInfo>(commands.reDumpOpen(cheminDmp)),
+  reDumpScan: (cheminDmp: string, motif: string, limite = 0) => unwrap<ReDumpScan>(commands.reDumpScan(cheminDmp, motif, limite)),
+
   // Serveur MCP `niers-game` : l'explorateur le déclare aux clients MCP (Claude Code /
   // Claude Desktop) depuis les Paramètres. C'est l'autre moitié du couple — le serveur pilote
   // en retour cette fenêtre par le pont `@niers/bridge` (cf. `lib/bridge.ts`).
   mcpStatus: (target: McpTarget) => unwrap<McpStatus>(commands.mcpStatus(target)),
   mcpInstall: (target: McpTarget, gameDir?: string) =>
     unwrap<McpInstall>(commands.mcpInstall(target, gameDir?.trim() ? gameDir.trim() : null)),
+
+  // ── Viola : dump / pack / merge / crypto Criware (crate `nie-viola`, EN PROCESS) ───────────
+  // Le dump rend un identifiant d'exécution ; son avancement arrive par les événements
+  // `viola-dump-progress` / `viola-dump-done`, pas par la résolution de cette promesse.
+  violaDumpStart: (
+    sortie: string,
+    opts: { filtre?: string; reprise?: boolean; sauterIdentiques?: boolean; threads?: number },
+    gameDir?: string,
+  ) =>
+    unwrap<string>(
+      commands.violaDumpStart(
+        gd(gameDir),
+        sortie,
+        opts.filtre?.trim() ? opts.filtre.trim() : null,
+        opts.reprise ?? true,
+        opts.sauterIdentiques ?? true,
+        opts.threads ?? null,
+      ),
+    ),
+  violaCancel: (runId: string) => unwrap<null>(commands.violaCancel(runId)),
+  violaPack: (cpkList: string, modDir: string, sortie: string, plateforme: ViolaPlatform) =>
+    unwrap<ViolaPackDto>(commands.violaPack(cpkList, modDir, sortie, plateforme)),
+  violaMerge: (sources: string[], sortie: string, semantique: boolean, gameDir?: string) =>
+    unwrap<ViolaMergeDto>(commands.violaMerge(gd(gameDir), sources, sortie, semantique)),
+  violaCrypto: (entree: string, sortie: string, cle?: string) =>
+    unwrap<number | null>(commands.violaCrypto(entree, sortie, cle?.trim() ? cle.trim() : null)),
 };
 
 // ─── Types du GraphQL/REST azalee (contrat réel, cf. commentaire Rust `remote_search_*`) ──

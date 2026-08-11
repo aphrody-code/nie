@@ -6,6 +6,10 @@
 // viewport » plutôt que « inspecter un fichier ». Les vignettes de textures réutilisent
 // `api.texturePngB64` (décodage déjà instantané) avec un cache module-level, exactement comme la
 // vue grille de l'Explorateur.
+//
+// Un asset « ouvrable » n'est pas un asset de la famille modèle : c'est un .g4md dont le .g4mg
+// frère existe (cf. `openableStems`). Ctrl/cmd+clic sur un asset ouvrable l'AJOUTE à la scène
+// courante au lieu de la remplacer.
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Icon } from "@/components/ui/Icon";
@@ -34,6 +38,10 @@ const AUDIO_EXTS = new Set(["acb", "awb", "hca", "adx"]);
 
 function extOf(name: string): string {
   return name.includes(".") ? name.split(".").pop()!.toLowerCase() : "";
+}
+
+function stemOf(name: string): string {
+  return name.includes(".") ? name.slice(0, name.lastIndexOf(".")) : name;
 }
 
 function matchesFilter(name: string, filter: AssetFilter): boolean {
@@ -113,7 +121,8 @@ export interface ContentBrowserProps {
   prefix: string;
   onNavigate: (prefix: string) => void;
   selected: string | null;
-  onSelect: (path: string) => void;
+  /** `additive` (ctrl/cmd+clic sur un asset ouvrable) : ajouter à la scène au lieu de la remplacer. */
+  onSelect: (path: string, additive: boolean) => void;
   className?: string;
 }
 
@@ -147,6 +156,25 @@ export function ContentBrowser({ prefix, onNavigate, selected, onSelect, classNa
     const q = query.trim().toLowerCase();
     return files.filter((f) => matchesFilter(f.name, filter) && (!q || f.name.toLowerCase().includes(q)));
   }, [files, filter, query]);
+
+  // `assemble_glb_for_preview` exige le G4MD **et** le G4MG de même nom dans le même dossier : un
+  // dossier `chr` qui n'a que des .g4sk/.g4pk (cas de `data/common/chr/c000101`) ne produit qu'un
+  // « G4MD introuvable ». On ne présente donc comme ouvrable que le .g4md dont le frère existe —
+  // le .g4mg reste visible, mais comme composant, pas comme point d'entrée.
+  const openableStems = useMemo(() => {
+    const byStem = new Map<string, Set<string>>();
+    for (const f of files) {
+      const ext = extOf(f.name);
+      if (ext !== "g4md" && ext !== "g4mg") continue;
+      const stem = stemOf(f.name);
+      let exts = byStem.get(stem);
+      if (!exts) byStem.set(stem, (exts = new Set()));
+      exts.add(ext);
+    }
+    const ok = new Set<string>();
+    for (const [stem, exts] of byStem) if (exts.has("g4md") && exts.has("g4mg")) ok.add(stem);
+    return ok;
+  }, [files]);
 
   return (
     <div className={cn("flex min-h-0 flex-col bg-app-dark-box", className)}>
@@ -233,34 +261,48 @@ export function ContentBrowser({ prefix, onNavigate, selected, onSelect, classNa
         )}
 
         <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(88px,1fr))" }}>
-          {shown.map((f) => (
-            <button
-              key={f.path}
-              type="button"
-              className={cn(
-                "flex flex-col gap-1 rounded-md border p-1.5 text-left transition-colors",
-                selected === f.path
-                  ? "border-accent bg-accent/15"
-                  : "border-transparent hover:border-app-line hover:bg-app-hover",
-              )}
-              onClick={() => onSelect(f.path)}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                showVfsFileContextMenu({
-                  path: f.path,
-                  name: f.name,
-                  size: f.size,
-                  gameDir: settings.gameDir,
-                  blenderExe: settings.blenderExe,
-                  onOpen: () => onSelect(f.path),
-                });
-              }}
-              title={`${f.path}\n${humanSize(f.size)}`}
-            >
-              <Thumb path={f.path} name={f.name} gameDir={settings.gameDir} />
-              <span className="w-full truncate text-tiny text-ink-dull">{f.name}</span>
-            </button>
-          ))}
+          {shown.map((f) => {
+            const ext = extOf(f.name);
+            const openable = ext === "g4md" && openableStems.has(stemOf(f.name));
+            const dead = MODEL_EXTS.has(ext) && !openable;
+            const hint = openable
+              ? "ouvrable dans le viewport — ctrl/cmd+clic : ajouter à la scène"
+              : dead
+                ? "non assemblable seul : le viewport a besoin du couple .g4md + .g4mg de même nom"
+                : null;
+            return (
+              <button
+                key={f.path}
+                type="button"
+                className={cn(
+                  "relative flex flex-col gap-1 rounded-md border p-1.5 text-left transition-colors",
+                  selected === f.path
+                    ? "border-accent bg-accent/15"
+                    : "border-transparent hover:border-app-line hover:bg-app-hover",
+                  dead && "opacity-60",
+                )}
+                onClick={(e) => onSelect(f.path, openable && (e.ctrlKey || e.metaKey))}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  showVfsFileContextMenu({
+                    path: f.path,
+                    name: f.name,
+                    size: f.size,
+                    gameDir: settings.gameDir,
+                    blenderExe: settings.blenderExe,
+                    onOpen: () => onSelect(f.path, false),
+                  });
+                }}
+                title={`${f.path}\n${humanSize(f.size)}${hint ? `\n${hint}` : ""}`}
+              >
+                <Thumb path={f.path} name={f.name} gameDir={settings.gameDir} />
+                {openable && (
+                  <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-accent" aria-hidden="true" />
+                )}
+                <span className="w-full truncate text-tiny text-ink-dull">{f.name}</span>
+              </button>
+            );
+          })}
         </div>
 
         {!loading && shown.length === 0 && dirs.length === 0 && (

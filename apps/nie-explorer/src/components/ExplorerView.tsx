@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
+import { confirm } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
 import { api, type FolderRole, type RawCpkEntry } from "@/lib/api";
 import { useSettings } from "@/lib/settings";
@@ -9,6 +10,7 @@ import { codeOf } from "@/lib/vfsIndexDb";
 import { useResolvedNames } from "@/lib/nameResolve";
 import { showVfsFileContextMenu, showVfsFolderContextMenu, showRawCpkFileContextMenu } from "@/lib/contextMenu";
 import { registerFileOps } from "@/lib/editBus";
+import type { ExplorerTab, ExplorerTabPatch } from "@/lib/explorerTabs";
 import { modsDb } from "@/lib/modsDb";
 import { stageReplacement, stageReplacementFromPath } from "@/lib/modWorkspace";
 import { Input } from "@/components/ui/input";
@@ -22,14 +24,8 @@ import { Slider } from "@/components/ui/slider";
 import { useT } from "@/lib/i18n";
 import { DetailPane, type DetailTarget } from "@/components/DetailPane";
 import { PropertyEditor } from "@/components/PropertyEditor";
+import { SelectionBar } from "@/components/SelectionBar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-export interface ExplorerState {
-  prefix: string;
-  selected: string | null;
-  /** Amorce la recherche (ex. palette de commandes Ctrl+K) — consommée une fois au montage. */
-  query?: string;
-}
 
 type SortKey = "name" | "size";
 
@@ -52,6 +48,21 @@ function detectCpkBoundary(prefix: string): { cpkVfsPrefix: string; inner: strin
   if (idx === -1) return null;
   return { cpkVfsPrefix: segs.slice(0, idx + 1).join("/"), inner: segs.slice(idx + 1).join("/") };
 }
+
+/**
+ * `.cpk` actuellement ouvert CÔTÉ BACKEND. Volontairement module-level, donc PARTAGÉ par toutes
+ * les instances d'`ExplorerView` : le backend ne garde qu'un seul lecteur `.cpk` à la fois
+ * (`RawCpkState` dans `src-tauri/src/lib.rs`, écrasé par chaque `open_raw_cpk`) et toutes les
+ * commandes `raw_cpk_*` ne prennent qu'un INDEX d'entrée, sans dire de quel fichier. Avec un
+ * témoin par onglet, deux onglets descendus dans deux `.cpk` différents extrairaient chacun
+ * l'entrée n° i du `.cpk` de l'autre.
+ *
+ * Limite assumée, non contournable côté UI : la table des matières reste mise en cache par onglet
+ * (affichage), mais la POIGNÉE backend est unique — un onglet redevenu actif dans un autre `.cpk`
+ * doit donc réémettre `open_raw_cpk` avant toute extraction. Une vraie correction demanderait un
+ * lecteur `.cpk` par handle côté Rust, hors périmètre ici.
+ */
+let openedCpkPrefix: string | null = null;
 
 /** Extensions dont on peut extraire une VRAIE vignette (texture décodée) — comparé en minuscules. */
 const THUMBNAIL_EXTS = new Set(["g4tx"]);
@@ -140,9 +151,25 @@ function FileThumbnail({ path, ext, gameDir }: { path: string; ext: string; game
 export function ExplorerView({
   state,
   onStateChange,
+  active,
+  onOpenInNewTab,
+  onBack,
+  onForward,
+  canGoBack = false,
+  canGoForward = false,
 }: {
-  state: ExplorerState;
-  onStateChange: (s: ExplorerState) => void;
+  state: ExplorerTab;
+  /** Applique un PATCH à l'onglet — `id`/historique restent la propriété du store. */
+  onStateChange: (patch: ExplorerTabPatch) => void;
+  /** Vrai pour l'unique instance visible. Plusieurs `ExplorerView` sont montées en permanence
+   * (une par onglet) : tout ce qui est GLOBAL au process — `editBus`, raccourcis `window` — doit
+   * rester derrière cette garde, sinon N instances s'enregistrent et se marchent dessus. */
+  active: boolean;
+  onOpenInNewTab?: (prefix: string) => void;
+  onBack?: () => void;
+  onForward?: () => void;
+  canGoBack?: boolean;
+  canGoForward?: boolean;
 }) {
   const settings = useSettings();
   const t = useT();
@@ -153,29 +180,32 @@ export function ExplorerView({
   // fichier à chaque sous-dossier visité À L'INTÉRIEUR du même `.cpk` (`open_raw_cpk` relit le
   // fichier entier + reparse la table des matières à chaque appel côté Rust).
   const [cpkEntries, setCpkEntries] = useState<RawCpkEntry[]>([]);
-  const [openedCpkPrefix, setOpenedCpkPrefix] = useState<string | null>(null);
+  /** `.cpk` dont CET onglet détient la table des matières en cache — distinct du témoin backend
+   * `openedCpkPrefix` (module-level), qui ne dit que ce que le lecteur Rust a ouvert en DERNIER. */
+  const cpkCachedPrefix = useRef<string | null>(null);
   const cpkBoundary = useMemo(() => detectCpkBoundary(state.prefix), [state.prefix]);
   const [query, setQuery] = useState(state.query ?? "");
 
-  // Requête poussée depuis l'extérieur (palette de commandes Ctrl+K) — l'onglet Explorateur
-  // reste monté en permanence (Tabs ne démonte pas son contenu), donc un simple état initial
-  // ne suffit pas : il faut resynchroniser à chaque nouvelle valeur de `state.query`.
+  // Requête poussée depuis l'extérieur (palette de commandes Ctrl+K) — l'instance de cet onglet
+  // reste montée en permanence (`keepMounted` sur le panneau + `display:none` sur les onglets
+  // inactifs), donc un simple état initial ne suffit pas : il faut resynchroniser à chaque
+  // nouvelle valeur de `state.query`.
   useEffect(() => {
     if (state.query !== undefined) setQuery(state.query);
   }, [state.query]);
-  const [ext, setExt] = useState("");
+  const [ext, setExt] = useState(state.ext ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sortKey, setSortKey] = useState<SortKey>("name");
+  const [sortKey, setSortKey] = useState<SortKey>(state.sortKey ?? "name");
   // Vue liste (défaut, dense — navigation clavier/multi-sélection) ou grille (vignettes, façon
-  // azalee `/cpk` — cf. demande utilisatrice de fusion des deux UI). Choix par dossier NON
-  // persisté (état local volontaire, comme `sortKey`) : la vue grille est un outil ponctuel
-  // « je regarde un dossier de textures/persos », pas une préférence globale à retenir partout.
-  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  // azalee `/cpk` — cf. demande utilisatrice de fusion des deux UI). Le choix appartient à
+  // l'ONGLET (remonté au store, donc restauré au prochain lancement), pas à l'application : la
+  // vue grille sert un contexte précis (« ce dossier-là est un dossier de textures »).
+  const [viewMode, setViewMode] = useState<"list" | "grid">(state.viewMode ?? "list");
   // Taille des vignettes en vue grille (px, réglable via le popover « Options d'affichage » —
   // pattern porté de spacedrive : un « View Options » à côté du sélecteur liste/grille, pas un
   // réglage caché dans les Paramètres généraux).
-  const [gridSize, setGridSize] = useState(96);
+  const [gridSize, setGridSize] = useState(state.gridSize ?? 96);
   const pins = usePinnedPlaces();
   // Multi-sélection RÉELLE (Ctrl/Shift-clic, comme l'explorateur Windows) — cf. demande
   // utilisatrice « editer doit vraiment copier coller et tout select les fichiers dossiers pas
@@ -216,12 +246,15 @@ export function ExplorerView({
       // cf. demande utilisatrice « il faut fusionner le vfs viewer et raw packs cpk viewer ».
       (async () => {
         let entries = cpkEntries;
-        if (openedCpkPrefix !== cpkBoundary.cpkVfsPrefix) {
+        if (cpkCachedPrefix.current !== cpkBoundary.cpkVfsPrefix) {
+          // Revendiqué AVANT le premier `await` : l'effet de resynchronisation ci-dessous tourne
+          // dans le même commit et ne doit pas rouvrir le même fichier une seconde fois.
+          cpkCachedPrefix.current = cpkBoundary.cpkVfsPrefix;
+          openedCpkPrefix = cpkBoundary.cpkVfsPrefix;
           const gameDir = settings.gameDir || (await api.defaultGameDir());
           const absPath = `${gameDir.replace(/[\\/]+$/, "")}/${cpkBoundary.cpkVfsPrefix}`;
           entries = await api.rawCpkOpen(absPath);
           setCpkEntries(entries);
-          setOpenedCpkPrefix(cpkBoundary.cpkVfsPrefix);
         }
         const inner = cpkBoundary.inner;
         const dirSet = new Set<string>();
@@ -244,7 +277,13 @@ export function ExplorerView({
         setFiles(fileRows);
         setRole(null);
       })()
-        .catch((e) => fresh() && setError(String(e)))
+        .catch((e) => {
+          // L'ouverture a échoué : la revendication faite plus haut serait un mensonge (ni cache
+          // local, ni lecteur backend valide) — on la relâche pour qu'un nouvel essai reparte.
+          cpkCachedPrefix.current = null;
+          if (openedCpkPrefix === cpkBoundary.cpkVfsPrefix) openedCpkPrefix = null;
+          if (fresh()) setError(String(e));
+        })
         .finally(() => fresh() && setLoading(false));
       return;
     }
@@ -282,7 +321,25 @@ export function ExplorerView({
         });
     req.catch((e) => fresh() && setError(String(e))).finally(() => fresh() && setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.prefix, query, ext, settings.gameDir, cpkBoundary, openedCpkPrefix]);
+  }, [state.prefix, query, ext, settings.gameDir, cpkBoundary]);
+
+  // Resynchronisation du lecteur `.cpk` backend quand CET onglet (re)devient actif : le témoin
+  // `openedCpkPrefix` est partagé, un autre onglet a pu ouvrir un autre `.cpk` entre-temps et les
+  // extractions par index viseraient alors le mauvais fichier. Séparé de l'effet de listage :
+  // redevenir actif ne doit PAS relister tout le dossier.
+  useEffect(() => {
+    if (!active || !cpkBoundary) return;
+    const wanted = cpkBoundary.cpkVfsPrefix;
+    if (openedCpkPrefix === wanted) return;
+    openedCpkPrefix = wanted; // revendiqué avant l'await, cf. effet de listage
+    (async () => {
+      const gameDir = settings.gameDir || (await api.defaultGameDir());
+      await api.rawCpkOpen(`${gameDir.replace(/[\\/]+$/, "")}/${wanted}`);
+    })().catch((e) => {
+      if (openedCpkPrefix === wanted) openedCpkPrefix = null;
+      setError(String(e));
+    });
+  }, [active, cpkBoundary, settings.gameDir]);
 
   const sortedDirs = useMemo(() => [...dirs].sort((a, b) => a.localeCompare(b)), [dirs]);
   // Chemins pleins des dossiers, dans l'ordre affiché — sert à la fois à Ctrl+A (`doSelectAll`)
@@ -343,6 +400,25 @@ export function ExplorerView({
     }
   }
 
+  /** Clic MILIEU sur un dossier = « ouvrir dans un nouvel onglet », convention de navigateur.
+   * Ctrl+clic est déjà pris (multi-sélection), et React ne remonte pas le bouton du milieu dans
+   * `onClick` : sans `onAuxClick`, ce geste n'existerait tout simplement pas. */
+  function handleDirAuxClick(path: string, e: React.MouseEvent) {
+    if (e.button !== 1 || !onOpenInNewTab) return;
+    e.preventDefault();
+    onOpenInNewTab(path);
+  }
+
+  /** Menu contextuel d'un dossier — partagé par la vue liste et la vue grille. */
+  function showFolderMenu(path: string, e: React.MouseEvent) {
+    e.preventDefault();
+    showVfsFolderContextMenu({
+      path,
+      onOpen: () => goto(path),
+      ...(onOpenInNewTab ? { onOpenInNewTab: () => onOpenInNewTab(path) } : {}),
+    });
+  }
+
   /** Clic sur un fichier — extrait pour être partagé entre la vue liste et la vue grille. */
   function handleFileClick(f: Row, e: React.MouseEvent) {
     if (e.ctrlKey || e.metaKey) {
@@ -352,7 +428,7 @@ export function ExplorerView({
         else next.add(f.path);
         return next;
       });
-      onStateChange({ ...state, selected: f.path });
+      onStateChange({ selected: f.path });
     } else if (e.shiftKey && state.selected) {
       const idxA = sortedFiles.findIndex((x) => x.path === state.selected);
       const idxB = sortedFiles.findIndex((x) => x.path === f.path);
@@ -360,10 +436,10 @@ export function ExplorerView({
         const [lo, hi] = idxA < idxB ? [idxA, idxB] : [idxB, idxA];
         setMultiSelected(new Set(sortedFiles.slice(lo, hi + 1).map((x) => x.path)));
       }
-      onStateChange({ ...state, selected: f.path });
+      onStateChange({ selected: f.path });
     } else {
       setMultiSelected(new Set());
-      onStateChange({ ...state, selected: f.path });
+      onStateChange({ selected: f.path });
     }
   }
 
@@ -383,6 +459,40 @@ export function ExplorerView({
     }
   }
 
+  /** « Ajouter à un mod… » en LOT, depuis la barre de multi-sélection. Les dossiers cochés sont
+   * ignorés : le VFS n'a pas de remplacement récursif, seul un fichier se substitue à un fichier.
+   *
+   * `stageReplacement` demande le fichier de remplacement par un sélecteur NATIF, un par cible :
+   * enchaîner N dialogues sans prévenir serait une embuscade, d'où la confirmation préalable et
+   * l'arrêt net au premier dialogue annulé. */
+  async function stageSelectionIntoMod() {
+    const paths = [...multiSelected].filter((p) => sortedFiles.some((f) => f.path === p));
+    if (paths.length === 0) {
+      toast.error("Aucun fichier dans la sélection — un dossier ne se remplace pas");
+      return;
+    }
+    if (paths.length > 1) {
+      const go = await confirm(
+        `Un sélecteur de fichier s'ouvrira pour chacun des ${paths.length} fichiers sélectionnés. Annuler l'un d'eux arrête l'opération.`,
+        { title: "Ajouter la sélection à un mod", kind: "warning" },
+      );
+      if (!go) return;
+    }
+    try {
+      const mods = await modsDb.listMods();
+      const modId = mods[0]?.id ?? (await modsDb.createMod("Mon mod", "Créé depuis la barre de sélection"));
+      const modName = mods[0]?.name ?? "Mon mod";
+      let staged = 0;
+      for (const path of paths) {
+        if (!(await stageReplacement(modId, { kind: "vfs", path }, settings.gameDir))) break;
+        staged += 1;
+      }
+      if (staged > 0) toast.success(`${staged} fichier(s) ajouté(s) au mod « ${modName} »`);
+    } catch (e) {
+      toast.error(String(e));
+    }
+  }
+
   /** Menu contextuel d'un fichier — même dispatch VFS/CPK-brut que la vue liste. */
   function handleFileContextMenu(f: Row, e: React.MouseEvent) {
     e.preventDefault();
@@ -392,7 +502,7 @@ export function ExplorerView({
         name: f.name,
         size: f.size,
         entryIndex: f.entryIndex,
-        onOpen: () => onStateChange({ ...state, selected: f.path }),
+        onOpen: () => onStateChange({ selected: f.path }),
       });
     } else {
       showVfsFileContextMenu({
@@ -401,7 +511,7 @@ export function ExplorerView({
         size: f.size,
         gameDir: settings.gameDir,
         blenderExe: settings.blenderExe,
-        onOpen: () => onStateChange({ ...state, selected: f.path }),
+        onOpen: () => onStateChange({ selected: f.path }),
         onStageIntoMod: () => void stageIntoMod(f.path),
       });
     }
@@ -479,15 +589,23 @@ export function ExplorerView({
     }
   }
 
+  // `editBus` est un SINGLETON : une seule vue au monde y détient les opérations Édition. Toutes
+  // les instances d'onglet sont montées en même temps — sans la garde `active`, chacune
+  // s'enregistrerait (la dernière montée gagnerait, pas celle qu'on regarde) et le nettoyage d'un
+  // onglet fermé effacerait l'enregistrement d'un onglet bien vivant.
   useEffect(() => {
+    if (!active) return;
     registerFileOps({ selectAll: doSelectAll, copySelection: doCopySelection, paste: doPaste });
     return () => registerFileOps(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [multiSelected, state.selected, sortedDirs, sortedFiles, state.prefix, searching]);
+  }, [active, multiSelected, state.selected, sortedDirs, sortedFiles, state.prefix, searching]);
 
   // Ctrl+D « Add to sidebar » — raccourci réel de cosmic-files (confirmé sur capture du menu
   // File), adapté ici pour épingler le dossier COURANT (pas une sélection multi-fichiers).
+  // Écouteur `window`, donc global : posé UNIQUEMENT par l'onglet actif, sinon N onglets
+  // basculeraient l'épingle N fois (soit un aller-retour, soit rien du tout selon la parité).
   useEffect(() => {
+    if (!active) return;
     function onKeyDown(e: KeyboardEvent) {
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
@@ -498,7 +616,7 @@ export function ExplorerView({
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [state.prefix]);
+  }, [active, state.prefix]);
 
   // Ctrl+A/Ctrl+C : gérés par l'accélérateur RÉEL du menu natif « Édition » (`App.tsx`, via
   // `editBus`), pas ici — un accélérateur de menu natif est global (fonctionne même si la liste
@@ -510,7 +628,7 @@ export function ExplorerView({
       e.preventDefault();
       const next = e.key === "ArrowDown" ? Math.min(idx + 1, flatEntries.length - 1) : Math.max(idx - 1, 0);
       const entry = flatEntries[Math.max(next, 0)];
-      if (entry.kind === "file") onStateChange({ ...state, selected: entry.path });
+      if (entry.kind === "file") onStateChange({ selected: entry.path });
     } else if (e.key === "Enter" && idx >= 0) {
       const entry = flatEntries[idx];
       if (entry.kind === "dir") goto(entry.path);
@@ -535,11 +653,32 @@ export function ExplorerView({
     // Deux colonnes : contenu + inspecteur FLOTTANT de 280 px à droite (largeur et marge de
     // `ShellLayout.tsx` chez spacedrive — `w-[280px] min-w-[280px] … p-2`).
     <div className="flex h-full min-h-0">
-      <div className="flex min-h-0 flex-1 flex-col gap-2 p-2">
+      {/* `relative` : ancre de la barre flottante de sélection (`SelectionBar`, en `absolute`). */}
+      <div className="relative flex min-h-0 flex-1 flex-col gap-2 p-2">
         {/* Barre d'outils — mise en forme de la `TopBar` de l'explorer spacedrive : boutons ronds
          * (`CircleButton`) sur fond transparent et fil d'Ariane en texte, plutôt qu'une pilule
          * pleine largeur. */}
         <div className="flex items-center gap-1.5">
+          {/* Arrière/Avant parcourent l'HISTORIQUE de cet onglet (là où l'on est déjà passé) ;
+            * « remonter » suit la HIÉRARCHIE (le dossier parent). Deux gestes différents : après
+            * un saut depuis la barre latérale, « arrière » revient au dossier précédent alors que
+            * « remonter » descend d'un cran dans l'arborescence du nouvel emplacement. */}
+          <CircleButton
+            icon="arrow_back"
+            size="sm"
+            title="Précédent"
+            aria-label="Précédent"
+            disabled={!canGoBack}
+            onClick={() => onBack?.()}
+          />
+          <CircleButton
+            icon="arrow_forward"
+            size="sm"
+            title="Suivant"
+            aria-label="Suivant"
+            disabled={!canGoForward}
+            onClick={() => onForward?.()}
+          />
           <CircleButton
             icon="home"
             size="sm"
@@ -548,7 +687,7 @@ export function ExplorerView({
             onClick={() => goto("")}
           />
           <CircleButton
-            icon="arrow_back"
+            icon="expand_less"
             size="sm"
             title={t("explorer.parent")}
             aria-label={t("explorer.parent")}
@@ -582,7 +721,11 @@ export function ExplorerView({
             size="sm"
             title={sortKey === "name" ? t("explorer.sort_size") : t("explorer.sort_name")}
             aria-label={sortKey === "name" ? t("explorer.sort_size") : t("explorer.sort_name")}
-            onClick={() => setSortKey((k) => (k === "name" ? "size" : "name"))}
+            onClick={() => {
+              const next = sortKey === "name" ? "size" : "name";
+              setSortKey(next);
+              onStateChange({ sortKey: next });
+            }}
           />
           <Popover>
             <PopoverTrigger
@@ -599,7 +742,16 @@ export function ExplorerView({
               <p className="px-1 pb-1 type-label-small text-on-surface-variant">Affichage</p>
               {/* Vue Liste/Grille — ToggleGroup porté de `spaceui/primitives/ToggleGroup.tsx`
                * (spacedrive), cf. components/ui/toggle-group.tsx. */}
-              <ToggleGroup value={[viewMode]} onValueChange={(v) => v[0] && setViewMode(v[0] as "list" | "grid")} className="w-full">
+              <ToggleGroup
+                value={[viewMode]}
+                onValueChange={(v) => {
+                  const next = v[0] as "list" | "grid" | undefined;
+                  if (!next) return;
+                  setViewMode(next);
+                  onStateChange({ viewMode: next });
+                }}
+                className="w-full"
+              >
                 <ToggleGroupItem value="list" className="flex-1 justify-center">
                   <Icon name="view_list" size={14} />
                   Liste
@@ -614,7 +766,11 @@ export function ExplorerView({
                   <p className="pb-1 type-label-small text-on-surface-variant">Taille des vignettes</p>
                   <Slider
                     value={[gridSize]}
-                    onValueChange={(v) => setGridSize((Array.isArray(v) ? v[0] : v) ?? gridSize)}
+                    onValueChange={(v) => {
+                      const next = (Array.isArray(v) ? v[0] : v) ?? gridSize;
+                      setGridSize(next);
+                      onStateChange({ gridSize: next });
+                    }}
                     min={72}
                     max={192}
                     step={8}
@@ -629,13 +785,19 @@ export function ExplorerView({
           <Input
             placeholder={t("explorer.search_placeholder")}
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              onStateChange({ query: e.target.value });
+            }}
           />
           <Input
             placeholder={t("explorer.ext_placeholder")}
             className="w-20"
             value={ext}
-            onChange={(e) => setExt(e.target.value)}
+            onChange={(e) => {
+              setExt(e.target.value);
+              onStateChange({ ext: e.target.value });
+            }}
           />
         </div>
 
@@ -671,10 +833,8 @@ export function ExplorerView({
                         isMultiSelected ? "bg-primary-container/40" : ""
                       }`}
                       onClick={(e) => handleDirClick(path, e)}
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        showVfsFolderContextMenu({ path, onOpen: () => goto(path) });
-                      }}
+                      onAuxClick={(e) => handleDirAuxClick(path, e)}
+                      onContextMenu={(e) => showFolderMenu(path, e)}
                       title={d}
                     >
                       <Icon name="folder" size={40} className="shrink-0 text-primary" />
@@ -689,10 +849,8 @@ export function ExplorerView({
                       isMultiSelected ? "bg-primary-container/40 text-on-surface" : "text-on-surface"
                     }`}
                     onClick={(e) => handleDirClick(path, e)}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      showVfsFolderContextMenu({ path, onOpen: () => goto(path) });
-                    }}
+                    onAuxClick={(e) => handleDirAuxClick(path, e)}
+                    onContextMenu={(e) => showFolderMenu(path, e)}
                   >
                     <Icon name="folder" size={16} className="shrink-0 text-primary" />
                     <span className="truncate">{d}</span>
@@ -782,6 +940,17 @@ export function ExplorerView({
             </span>
           )}
         </div>
+
+        <SelectionBar
+          count={multiSelected.size}
+          totalSize={selectedTotalSize}
+          onClear={() => {
+            setMultiSelected(new Set());
+            setFolderAnchor(null);
+          }}
+          onCopyPaths={doCopySelection}
+          onStageIntoMod={() => void stageSelectionIntoMod()}
+        />
       </div>
 
       {/* Inspecteur : aperçu du fichier, ET éditeur de propriétés de l'ENTITÉ à laquelle il
@@ -804,7 +973,7 @@ export function ExplorerView({
             <PropertyEditor
               code={selectedCode}
               className="h-full p-3"
-              onOpenFile={(p) => onStateChange({ ...state, selected: p })}
+              onOpenFile={(p) => onStateChange({ selected: p })}
             />
           ) : (
             <DetailPane target={target} />

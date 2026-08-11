@@ -345,6 +345,47 @@ pub fn decrypt_cpk_list(data: &[u8]) -> Result<Vec<u8>, FormatError> {
     Ok(out)
 }
 
+/// Rechiffre un `cpk_list.cfg.bin` clair en AES-256-CBC — inverse exact de
+/// [`decrypt_cpk_list`], même clé et même IV ([`cpk_list_key_iv`]).
+///
+/// Nécessaire au *pack* de mod ([`crate::viola::pack_mod`]) : mettre à jour les tailles des
+/// fichiers remplacés suppose de réécrire le fichier dans l'enveloppe où on l'a trouvé.
+///
+/// **Complément par des zéros jusqu'au multiple de 16.** L'AES-CBC impose des blocs pleins et
+/// le fichier d'origine est déjà aligné, mais un `cfg.bin` réencodé ne l'est pas forcément. Le
+/// remplissage est nul plutôt que PKCS#7 parce que [`decrypt_cpk_list`] ne retire aucun
+/// remplissage : ajouter des octets PKCS#7 les laisserait dans le clair et décalerait la lecture.
+/// Un lecteur T2B s'arrête au nombre d'entrées déclaré, donc des zéros en queue sont inertes —
+/// **vérifié sur le décodeur du dépôt, pas contre `nie.exe`**.
+#[must_use]
+pub fn encrypt_cpk_list(data: &[u8]) -> Vec<u8> {
+    use aes::Aes256;
+    use aes::cipher::generic_array::GenericArray;
+    use aes::cipher::{BlockEncrypt, KeyInit};
+
+    let (key, iv) = cpk_list_key_iv();
+    let cipher = Aes256::new(GenericArray::from_slice(&key));
+
+    let mut clair = data.to_vec();
+    while !clair.len().is_multiple_of(16) {
+        clair.push(0);
+    }
+
+    let mut out = Vec::with_capacity(clair.len());
+    let mut prev = iv;
+    for chunk in clair.chunks_exact(16) {
+        let mut bloc = [0u8; 16];
+        for j in 0..16 {
+            bloc[j] = chunk[j] ^ prev[j]; // CBC : XOR avec le bloc chiffré précédent
+        }
+        let mut bloc = GenericArray::clone_from_slice(&bloc);
+        cipher.encrypt_block(&mut bloc);
+        prev.copy_from_slice(&bloc);
+        out.extend_from_slice(&bloc);
+    }
+    out
+}
+
 /// Déchiffre en place tout un CPK chiffré, clé dérivée de `filename`.
 ///
 /// Le `buffer` doit contenir l'intégralité du fichier à partir de l'offset 0. Après l'appel,

@@ -27,7 +27,21 @@ export interface AppMenuActions {
   tabLabels: Record<string, string>;
 }
 
-const VIEW_TABS = ["editor", "explorer", "search", "data", "mods", "cpk", "re", "lua", "save", "settings"] as const;
+// Au-delà de neuf entrées, l'accélérateur Ctrl+N n'existe plus (cf. `viewMenu`) : les vues
+// suivantes restent accessibles par la barre latérale et le menu, sans raccourci.
+const VIEW_TABS = [
+  "editor",
+  "explorer",
+  "search",
+  "data",
+  "mods",
+  "cpk",
+  "re",
+  "viola",
+  "lua",
+  "save",
+  "settings",
+] as const;
 
 function zoomIn() {
   setSettings({ uiZoom: Math.min(1.5, getSettings().uiZoom + 0.1) });
@@ -84,7 +98,9 @@ async function viewMenu(a: AppMenuActions): Promise<Menu> {
   return Menu.new({
     items: [
       ...VIEW_TABS.map((tab, i) => ({
-        text: `${a.tabLabels[tab] ?? tab}\tCtrl+${i + 1}`,
+        // Annoncer « Ctrl+10 » serait un mensonge : le raccourci n'est posé que pour les neuf
+        // premières vues (`useAppMenuShortcuts` ne lit qu'un seul chiffre).
+        text: i < 9 ? `${a.tabLabels[tab] ?? tab}\tCtrl+${i + 1}` : (a.tabLabels[tab] ?? tab),
         action: () => a.onSelectTab(tab),
       })),
       await PredefinedMenuItem.new({ item: "Separator" }),
