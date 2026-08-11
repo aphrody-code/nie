@@ -111,6 +111,9 @@ pub mod nxtch;
 /// VFS multi-CPK (feature `std` : lit `cpk_list.cfg.bin` + CPK via `std::fs`).
 #[cfg(feature = "std")]
 pub mod vfs;
+/// Dispatch « octets → JSON », partagé par la FFI, la CLI et le décodage en lot.
+#[cfg(all(feature = "std", feature = "serde"))]
+pub mod decode;
 
 #[derive(Debug)]
 pub enum FormatError {

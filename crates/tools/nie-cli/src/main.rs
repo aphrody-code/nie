@@ -2,6 +2,7 @@
 #![forbid(unsafe_code)]
 #![allow(clippy::pedantic)]
 
+mod decode_cmd;
 mod delegate;
 mod menu_predecode;
 
@@ -54,6 +55,20 @@ enum Cmd {
     },
     /// Dit quels back-ends de la CLI unique sont construits, et où.
     Backends,
+    /// Décode un fichier ou une arborescence vers JSON (données) / PNG (textures).
+    ///
+    /// Même table de dispatch que la FFI (`nie_formats::decode`) : ce que le décodage sait
+    /// faire ici, `packages/nie` et l'explorateur le savent aussi.
+    Decode {
+        /// Fichier ou répertoire source.
+        src: PathBuf,
+        /// Sortie : fichier, ou répertoire si `src` en est un (défaut : à côté de la source).
+        #[arg(short, long)]
+        out: Option<PathBuf>,
+        /// N'affiche rien en cas de succès.
+        #[arg(short, long)]
+        quiet: bool,
+    },
     /// Importe le savoir fusionné (index Ghidra nie-index.json) dans la base de connaissance.
     Seed {
         /// Base sqlite cible.
@@ -957,6 +972,14 @@ fn main() -> anyhow::Result<()> {
         Cmd::Backends => {
             delegate::status();
             Ok(())
+        }
+        Cmd::Decode { src, out, quiet } => {
+            if src.is_dir() {
+                let out = out.unwrap_or_else(|| src.join("_decoded"));
+                decode_cmd::dir(&src, &out, quiet)
+            } else {
+                decode_cmd::file(&src, out.as_deref(), quiet)
+            }
         }
         Cmd::Seed { db, json, exe } => seed(&db, &json, exe.as_deref()),
         Cmd::Coverage { db } => coverage(&db),
