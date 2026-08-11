@@ -1,5 +1,13 @@
 /**
- * nie — Bun FFI bindings complets pour libnie_ffi (workspace niers).
+ * nie — **la** porte d'entrée TypeScript vers les bibliothèques natives du dépôt.
+ *
+ * Deux backends, un seul paquet depuis l'unification du 2026-08-11 :
+ * - **Rust** (`nie_ffi`) — ce module, chargé à l'import. Autorité byte-exact.
+ * - **C++** (`iecode_ffi`) — `./iecode.ts`, chargé **à la demande** via `loadIecode()`
+ *   (`./backend.ts`). Ne jamais l'importer statiquement : sa lib n'existe pas partout et
+ *   `bunfig.toml` préchargerait l'échec dans toute commande `bun` du dépôt.
+ *
+ * Règle de routage et partage des rôles : `docs/ARCHITECTURE-POLYGLOTTE.md`.
  *
  * Symboles exposés (low-level et haut niveau) :
  *   crc32, CRand, version, callOut, cstr,
@@ -470,3 +478,15 @@ export function vfsOpen(gameDataDir: string): VfsHandle | null {
   if (handle === null) return null;
   return new VfsHandle(handle);
 }
+
+// ─── backend C++ (chargement paresseux) ──────────────────────────────────────
+
+export {
+  loadIecode,
+  capabilities,
+  g4txToWebp,
+  decompressLevel5,
+  type IecodeModule,
+  type Capabilities,
+  type BackendChoice,
+} from "./backend.ts";
