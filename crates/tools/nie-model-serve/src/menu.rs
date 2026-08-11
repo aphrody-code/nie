@@ -17,7 +17,7 @@
 //! Le **compositing 2D** (blit affine inverse + échantillonnage bilinéaire + blend « over »)
 //! n'est plus implémenté ici : il est délégué au compositeur **f32 unique** du workspace
 //! [`nie_formats::menu::compose`] (la référence pixel-perfect validée par la comparaison
-//! GPU↔CPU de `nie-game`, cf. `DEDUP-PLAN.md` Phase 1c). Ce module ne fait plus que (1)
+//! GPU↔CPU de `nie-game`, cf. `ARCHITECTURE.md` Phase 1c). Ce module ne fait plus que (1)
 //! désérialiser le layout JSON, (2) trier par `drawPriority`, (3) mapper chaque objet vers un
 //! [`CompositeSprite`]. **Changement de comportement attendu** : la prod `/menu-render` passe
 //! de l'ancien compositeur f64 local au compositeur f32 de référence (au près-arrondi

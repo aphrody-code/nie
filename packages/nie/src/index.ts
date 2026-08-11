@@ -4,7 +4,7 @@
  * Un seul backend : **Rust** (`nie_ffi`), autorité byte-exact. Le pont C++ (`iecode_ffi`)
  * a été retiré avec la couche FFI du toolkit — le C++ ne sert plus que le jeu jouable.
  *
- * Partage des rôles : `docs/ARCHITECTURE-POLYGLOTTE.md`.
+ * Partage des rôles : `docs/ARCHITECTURE.md`.
  *
  * Symboles exposés (low-level et haut niveau) :
  *   crc32, CRand, version, callOut, cstr,

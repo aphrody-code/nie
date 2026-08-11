@@ -6,7 +6,7 @@ namespace IECODE.Core.Runtime;
 /// Profil de la machine hôte — défauts d'exécution auto-ajustés à la réalité du VPS
 /// plutôt qu'au seul nombre de cœurs.
 ///
-/// Contexte (cf. <c>docs/vps.md</c>) : le VPS est <b>partagé</b> (des workloads voisins
+/// Contexte : le VPS de production data est <b>partagé</b> (des workloads voisins
 /// occupent déjà plusieurs cœurs) et <b>mono-disque</b>. Réclamer aveuglément
 /// <see cref="Environment.ProcessorCount"/> threads pour le download/dump sur-souscrit
 /// CPU et I/O, dégradant iecode <i>et</i> les voisins. On dimensionne donc le

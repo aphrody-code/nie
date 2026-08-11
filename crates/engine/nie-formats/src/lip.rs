@@ -1,7 +1,7 @@
 //! Parser **p3lip** — pistes de synchronisation labiale (lip-sync) des voix IEVR.
 //!
 //! Les `.p3lip` vivent sous `data/common/sound/<lang>/<event>_<n>.p3lip` (20 357 fichiers,
-//! le plus gros format encore non exploité du VFS — cf. `docs/cartographie-data.md`). Chaque
+//! le plus gros format encore non exploité du VFS — cf. `docs/FORMATS.md`). Chaque
 //! fichier décrit, pour une réplique vocale, la séquence de **visèmes** (formes de bouche)
 //! horodatée, à jouer en synchro avec l'`.acb`/`.awb` correspondant.
 //!

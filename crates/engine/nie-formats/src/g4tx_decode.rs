@@ -1,6 +1,6 @@
 //! Décodage des textures **G4TX / DDS → RGBA8 / PNG** — *source unique* du workspace.
 //!
-//! Phase 1b de `docs/DEDUP-PLAN.md` : ce module enrobe la variante **la plus complète**
+//! Phase 1b de `docs/ARCHITECTURE.md` : ce module enrobe la variante **la plus complète**
 //! (celle de `nie-model-serve`) et remplace les 4 copies divergentes (model-serve, wasm, ffi,
 //! game). On **enrobe sans réécrire** la logique de décodage validée en prod sur le CDN.
 //!

@@ -1,54 +1,77 @@
-# niers — STACK technique (briques runtime du jeu jouable)
+# Stack runtime
 
-> Objectif non négociable : **rejouer 100 % d'*Inazuma Eleven: Victory Road* (`nie.exe`, moteur Level-5 « Lives ») en Rust, au byte et au pixel près** (cf. `docs/ROADMAP-100.md`).
-> **Nouveau cap (2026-06-13)** : la **GUI native `crate nie-game` (host wgpu, pilier D1/C4)** devient le **chemin central** vers le jeu jouable ; le pont **azalee** (pilier B′) redevient un **compagnon web secondaire** (livré, mais plus le cap).
-> Règle de sélection : **chaque brique sert l'identité au jeu réel (déterminisme, fidélité byte/pixel), pas la commodité.** Une dépendance qui injecte son propre mixeur/resampler/raster/ordre d'itération est écartée dès qu'elle empêche de matcher l'octet.
->
-> Versions confirmées via l'API crates.io le **2026-06-13**. Licences compatibles MIT (workspace MIT). Workspace `edition = "2024"`, `rust-version = "1.97"`, pin `nightly-2026-05-17`.
+Les briques du moteur, et la règle qui décide de leur admission.
 
-## Tableau de synthèse par sous-système
+> **Règle de sélection** : chaque brique sert l'identité au jeu réel (déterminisme, fidélité
+> byte/pixel), pas la commodité. Une dépendance qui injecte son propre mixeur, resampler, raster
+> ou ordre d'itération est écartée dès qu'elle empêche de matcher l'octet.
 
-| Sous-système | Brique | Version | Rôle | Alternatives rejetées | Fidélité pixel-perfect | Intégration |
-|---|---|---|---|---|---|---|
-| **GPU / fenêtrage** (D1) | `wgpu` + `winit` + `pollster` + `bytemuck` | wgpu **29.0.3** (2026-05-02) · winit **0.30.13** (2026-03-02) · pollster **0.4.0** · bytemuck **1.25.0** | Backend GPU unifié Vulkan/WSLg · D3D12 · Metal · GL · WebGPU ; event-loop `ApplicationHandler` ; `block_on` en capture headless ; cast POD vertex/uniform | SDL2/SDL3 (dép C, mauvais fit wasm) ; glutin+glow / GL brut (pas d'abstraction unifiée, readback non portable) ; ash / D3D11 conservé (non cross-platform, zéro wasm, surface unsafe — incompatible `forbid(unsafe_code)`) ; softbuffer (pas de pipeline GPU) ; winit 0.31-beta (churn API) | Readback déterministe `texture→buffer` (alignement 256 o `COPY_BYTES_PER_ROW_ALIGNMENT`, déjà fait dans `cmd_capture`) ; raster non bit-identique entre vendeurs → **épingler `force_fallback_adapter` (lavapipe/llvmpipe)** pour la référence ; blit `Rgba8Unorm`/`Nearest`/sans sRGB déjà bit-exact | **Host** : `crates/engine/nie-game` sur **wgpu 29.0.3** + winit 0.30 + pollster 0.4 (capture PNG + fenêtre). **Bump 22→29 FAIT** (2026-06-16, byte-identique vérifié). Reste : retarget du port D3D11 `nie-engine/src/render.rs` |
-| **VM Lua** (C3) | `mlua` | **=0.11.6** (2026-01-27), features `lua52`+`vendored`+`macros` (= PUC-Rio Lua **5.2.4**) | Exécuter les **vrais scripts** du jeu, pas le simulateur de dispatch actuel | luau (fork 5.1 typé, sémantique divergente) ; luajit (JIT, edge-cases num) ; rlua/hlua (abandonnés) ; lua52 système non-vendored (build non maîtrisé) ; interpréteur Lua pur-Rust (pas byte-exact) ; mlua 0.12.0-rc (non stable) | Seule garantie = **même VM que le jeu** (PUC 5.2.4 vendored) : ordre d'itération de tables, coercions `lua_Number`, `bit32`, GC, `tostring/tonumber` identiques. luau/luajit casseraient le déterminisme des scripts gameplay | Crate dédiée **`nie-lua`** (mlua expose `unsafe_new` → hors `forbid(unsafe_code)` de `nie-engine`) ; mapper la table `0x955` (`funcLuaCommand`/`funcLuaMenuCommand`/`funcLuaMenuNetworkCommand`) en closures `create_function`+`globals().set` ; `set_memory_limit(0x100000)`. Spec RE : `nie-engine/src/scripting.rs` (déjà : `bit32`, `require/_LOADED` 5.2) |
-| **Sortie audio** (runtime) | `cpal` (+ ring-buffer SPSC `rtrb`) | cpal **=0.18.1** (2026-06-07) | Couche de **sortie device pure** (ALSA/WASAPI/CoreAudio/AAudio/WebAudio) ; le **mixeur CRI Atom Ex reste maison** | rodio 0.22 (surcouche cpal, impose mixeur+resampler num-rational) ; kira 0.12 (mixeur/tracks internes ≠ CRI) ; FFI WASAPI/ALSA par plateforme (cpal abstrait déjà + cible WebAudio) | « Pixel-perfect » audio = **PCM bit-identique à CRI Atom Ex**. cpal est volontairement « dumb » : aucun resampler/dither/pan caché → ce que le mixeur CRI écrit sort tel quel. Choisir `SupportedStreamConfig` (f32/i16, sample-rate, jusqu'à 5.1) pour maîtriser la conversion finale | Modèle déjà en place : `nie-engine/src/audio.rs` (`CriAtomEx` : VoicePool/BusMixer `max_buses*0x108+8`, `server_frequency`, 6 canaux 5.1). PCM d'entrée = `cridecoder 0.2.3` (HCA/ADX/AWB décodés, clé IEVR `0x00D2997C0DC5EE72`). Server-thread tické en lockstep avec le compte de frames du callback |
-| **Lecture vidéo** (USM/Sofdec2) | `media-codec-vpx` (binding **libvpx**) | media-codec-vpx **0.8.0** (2026-04-02) ; alt. vpx-rs 0.2.1 ; oracle ffmpeg-next 8.1.0 | Décodeur **VP9** = le **même moteur que le jeu** (libvpx « WebM VP9 v1.8.1 » via criVvp9 1.3.8) | **H.264/openh264/ffmpeg-VP9** : RE prouve **aucun chemin H.264** dans nie.exe (rejet net) ; décodeurs VP9 pur-Rust (oxideav/OxiMedia, incomplets) ; vpx-sys/libvpx-native-sys/env-libvpx-sys (abandonnés) ; vp9-parser (ne décode pas) | Reconstruction VP9 **normative** → YUV420 8-bit bit-identique pour tout décodeur conforme. Seule variable pixel = la conversion **YUV→RGB de CRI Mana** : répliquer la matrice/échelle d'après `color_space`+`color_range` (BT601/BT709, full/limited) lus dans l'en-tête VP9 | **CORRIGER l'existant** : `nie-formats/src/cri_audio.rs` étiquette H264 par défaut (faux) ; `docs/cartographie-data.md` dit « H.264→MP4 » (faux). PRÉREQUIS : déchiffrement Level-5 des USM (chiffrés, pas de CRID en clair) AVANT `usm_demux`. Pipeline : USM→@SFV (VP9 brut/superframes)→libvpx→YUV→RGBA, branché `nie-engine/render.rs` + `nie-model-serve /video` |
-| **Math transform** (D1/D2) | `glam` | **0.33.1** (2026-06-06), feature `bytemuck` (+ `scalar-math` sur le chemin golden) | Vecteurs/matrices/quaternions : transform, caméra, skinning | nalgebra (génériques lourds, compile lente) ; cgmath (non maintenu) ; ultraviolet (adoption faible) ; mint (interop seul) ; vek/euclid (niche) | Conventions à **figer pour matcher D3D11/HLSL** : column-major (= layout glam ET `Transform3x4 [f32;12]` de `animation.rs`), **left-handed + NDC [0,1]** → `perspective_lh`/`look_at_lh`/`orthographic_lh` (jamais `*_gl`). **Activer `scalar-math` sur le chemin de validation** (SIMD/FMA réordonne et casse l'égalité bit). **Ne PAS** remplacer le lerp 12-floats (`FUN_140585c60`) par `Quat::slerp` | `[workspace.dependencies] glam = { version = "0.33", features = ["bytemuck"] }`. `Transform3x4([f32;12])` reste le format **canonique** de transport (G4SK 48 o, pose buffers) ; convertir vers `Mat4`/`Affine3A` **seulement** pour le calcul. Attention `Affine3A`/`Vec3A` alignés 16 o → pas de `bytemuck::cast` direct vers `[f32;12]` |
-| **Skinning / anim** (D2) | **port maison** `animation.rs` + `gltf`/`gltf-json` (interchange seul) | gltf **1.4.1** / gltf-json **1.4.1** (2024-05-10) ; port maison = code du repo | Cœur runtime (pose, blend osseux, root motion) = **porter** le décompilé ; gltf-json = (dé)sérialisation GLB hors chemin de fidélité | ozz-animation-rs 0.11 (algo ozz, .ozz, déterministe ≠ identique) ; glam pour le blend (ordre SIMD ≠ f32 décompilé) ; gltf comme runtime d'anim (samplers ≠ blend Lives) ; bevy_animation (ECS étranger) ; GLB serde_json artisanal (fragile) | Blend = **f32 scalaire calqué ligne-à-ligne sur Ghidra** (`dst*w + src*(1-w)`, masque bone bitfield, `root_motion_mask`) → reproductible/golden-validable. GLB n'est PAS sur le chemin pixel (représentation intermédiaire niers, pas un artefact de nie.exe) | Étendre `nie-engine/src/animation.rs` (`gmdCAnimation`) : alimenter `pose_buffers` depuis bind-pose g4sk + hiérarchie (déjà parsée `g4sk.rs`), décoder keyframes G4MT. Décoder JOINTS/WEIGHTS dans `g4md.rs`. Export GLB skinné via gltf-json derrière une feature `std` (`nie-formats` = no_std+alloc) |
-| **Boucle de jeu** (C3) | **structures custom** (aucun ECS) ; fallback outillage `hecs` 0.11.0 | pas de dépendance (std/core+alloc) | Frame-logic cœur = structs/enums miroir + `step`/`tick` déterministes single-thread | bevy_ecs 0.18 (exécuteur parallèle non déterministe, std lourd) ; Bevy complet (impose sa boucle/rendu) ; hecs/legion/specs/shipyard pour le cœur (réorg. data, ordre non garanti 1:1) ; flecs-ecs (dép C, hostile wasm) | Repro identique exige layout 1:1 sur les structs C++ (offsets `0x700/0x702`, stride `0x570`) + ordre d'update figé identique au tick. Un ECS éclate ces structs et casse la correspondance champ-par-champ vs Ghidra | S'aligne sur l'existant **sans nouvelle dépendance** : `nie-core` (`match_fsm::tick`, `soccer_ctrl::PhaseTriple`, `crand::CRand`). Formaliser `fn step(&mut self, input, rng) -> SceneOutcome` à pas fixe ; host `nie-game` fournit fenêtre/temps/entrées ; `nie-headless` rejoue la même `step` sans rendu (golden) |
-| **Gate pixel-diff** (D1) | `image-compare` + PSNR maison + `sha2`/`blake3` + `cargo-nextest` | image-compare **0.5.0** (2025-08-18) · nextest **0.9.137** (2026-05-26) · image 0.25.10 + png 0.18 (déjà présents) | Gate D1 : **égalité exacte d'abord** (memcmp/hash), puis tolérance SSIM≥0,99 / PSNR vs captures du vrai jeu | dssim-core 3.4.0 (**AGPL-3.0** incompatible MIT) ; ssimulacra2 (surdimensionné, stale — gardé pour gate perceptuel D3 optionnel) ; insta (égalité octet stricte sans tolérance SSIM) ; ssim 0.1.0 (jouet) | L'**égalité octet** (hash du RGBA8 deswizzle/unpad) est la **vraie preuve d'identité** ; SSIM/PSNR ne sont que le filet de régression. image-compare exige dimensions identiques → **retirer le padding 256 o/ligne** avant comparaison. `to_color_map()` → diff-map PNG pour localiser l'écart | `image-compare = "0.5"` en [dev-dependencies] de `nie-game` (ou crate `nie-pixeltest`). Goldens `crates/engine/nie-game/tests/golden/<scene>.png`. Test `#[test]` auto-découvert par `cargo xt` (nextest, process-per-test pour isoler le device wgpu). Mode bless `UPDATE_GOLDEN=1` |
-| **Police / Texte** (D1.c) | **port maison** : atlas `g4tx` + métriques `font.cfg.bin` (T2B) + blitter glyphes — **aucune dépendance** | code repo (`nie-formats/src/font.rs`) | Texte composé des menus (Ver 6.0.2, 212, 99…) rendu depuis un **atlas de glyphes bitmap pré-cuit** | **fontdue / swash** (rasteriseurs TTF : réinjectent hinting/AA, et aucun TTF à rastériser) ; **ttf-parser** (0 `.ttf`/`.otf` livré) ; **rustybuzz** (pas de shaping OpenType — layout = avance par glyphe) | Pixels des glyphes **pré-cuits** dans `font_def/font.g4tx` (DDS 4096×2048 BGRA8, AA bakée) → tout rasteriseur tiers diverge ; blit pur-Rust depuis l'atlas = bit-exact | **FAIT (2026-06-16)** : `nie-formats/src/font.rs` parse `font_def/font.cfg.bin` (T2B, entrées `INF`/`CHR` → `GlyphMetric{codepoint=col2, x,y,width,bearing_x,advance,page}`) + `glyph_blitter`/`draw_text` (blit alpha src-over depuis l'atlas DDS). **Le `.g4tg` n'était PAS le bloquant** : aucun `.g4tg` de police n'existe au VFS (les seuls sont des textures d'effets) — les métriques vivaient dans le `.cfg.bin`. Exposé via FFI (`nie_font_render_text`) + Bun (`FontHandle.renderText`). **Reste** : kerning (`KERN` non interprété), branchement compositeur (`menu.rs`), `gaiji_game.g4tx` (pictos boutons) |
-| **Physique de match** (C3) | **port maison** : intégrateur par-frame — **aucun moteur tiers** | code repo (`nie-core/ball.rs`) | Ballon + joueurs (gravité, rebonds, contrôleurs de mouvement) | **rapier2d/3d** (solveur TGS + broadphase/islands/substepping → réinjecte ordre FP + scheduler ; « enhanced determinism » = repro de rapier, pas identité nie.exe) ; **parry/ncollide** (narrowphase ≠ boucle max-5-collisions) ; **salva** (fluides, hors-sujet) | gravité `2.0`/frame² (`0x40000000`), `max_collisions_per_frame=5` (`0x148a`), 10 `BallMoveKind` (Normal/TargetFollow/Bezier/…) extraits des vftables → un solveur tiers casse l'octet | `nie-core/ball.rs` (`BallComponent`, `BallMoveKind`), `step` par frame déterministe |
-| **Sérialisation / interchange** | `serde` (derive) + `serde_json` | serde **1** · serde_json **1** | (Dé)sérialisation JSON **hors chemin de fidélité** : golden, pont niers↔azalee, surface wasm, lecture du `cfg.bin.json` d'inagle (oracle de portage) | **bincode/borsh/speedy** (imposent leur propre layout binaire → ne matchent pas le format save/`cfg.bin` du jeu) ; **redb/fjall** (KV mono-process : ne remplacent ni redis de `nie-queue` ni le SQL de `nie-wiki`) | `serde` **toujours feature-gated** (`#[cfg_attr(feature="serde", …)]`), **jamais** sur le chemin de l'octet | `cfgbin.rs` lit `cfg.bin.json` via `serde_json::Value` en `no_std+alloc` |
-| **Partitionnement spatial / IA** (C3) | **aucune dépendance** (port maison `tactics.rs`/`soccer_ctrl.rs`) | n/a | Requêtes balle/joueurs (N≤23) + déplacement IA = scan linéaire à stride fixe | **rstar/kdtree/spade/flat_spatial/acacia** (k-NN réordonne les ex-æquo vs scan linéaire) ; **bvh/ncollide** (tirent nalgebra ≠ glam) ; **pathfinding** (ordre A*/Dijkstra ≠ moteur) ; **navmesh** (pas de navmesh sur un terrain de foot) | N≤23 → zéro besoin perf ; toute structure spatiale réordonne les ex-æquo → divergence octet | cœur IA = port du décompilé, gated derrière la RE du moteur de match (cf. `match-engine-c3-boundary`) |
-| **Réseau / online** (futur) | **codec porté** + transport `tokio` current-thread (alt. `std::net`/`mio`) | tokio **1** (déjà workspace via nie-zukan/nie-steam) ; quinn = **différé** | Online IEVR : friendmap, vsroute, chat_emote, inacode, nfc, post | **quinn/QUIC** (non prouvé par RE — cf. rejet H.264) ; **tokio `rt-multi-thread`** (ordonnanceur réordonne → casse le golden) | L'identité octet vit dans le **codec de paquets porté** ; le socket n'est qu'une frontière IO (comme cpal/winit) | futur ; `tokio` feature `rt` current_thread |
+Workspace `edition = "2024"`, toolchain épinglée `nightly-2026-05-17`. La toolchain n'affecte pas
+les sorties du moteur (IEEE-754 déterministe, pas de fast-math) : un bump ne perturbe aucun golden
+byte/pixel, il change seulement le hash du binaire.
 
-## Comparaison au catalogue communautaire Rust — 2026-06-16
+## Ce qui est dans l'arbre
 
-Confrontation de la stack niers au catalogue *Game Development in Rust* (liste communautaire du serveur Discord homonyme), pilier par pilier (8 agents, doctrine byte/pixel) :
+Versions lues dans `Cargo.lock`, pas déclarées d'intention.
 
-- **Validés sans réserve** (= déjà les standards communautaires) : **GPU/fenêtrage** wgpu+winit+pollster+bytemuck ; **math** glam (`scalar-math`) ; **audio** cpal+rtrb ; **cœur de jeu** structures custom (aucun ECS) ; **sérialisation** serde/serde_json.
-- **Lacune comblée** : **Police/Texte** (aucune ligne auparavant) → port maison **FAIT** (`font.rs` : métriques `font.cfg.bin` T2B + blitter atlas DDS) ; rejet des rasteriseurs TTF car le texte IEVR est un **atlas bitmap pré-cuit** (`font_def/font.g4tx`).
-- **Rejets doctrinaux explicités** (nouveaux/durcis) : surcouches **rend3/rafx** + tessélateur **lyon** (menus = 100 % sprite/atlas, aucun tracé vectoriel runtime) ; moteurs **rapier/parry/salva** ; structures spatiales **rstar/kdtree/bvh/pathfinding/navmesh** ; **sdl2/glfw** (dép C, hostiles wasm).
-- **Raffinements** : la **référence byte du rendu** = le compositeur **CPU pur-Rust** (`nie-game`), le GPU wgpu étant validé contre lui via `--verify` (≥99 % px, tol 4/255 ; `force_fallback_adapter`=lavapipe épinglé). État réel du tree : **wgpu 29.0.3** (bump 22→29 **FAIT 2026-06-16** — 16 ruptures A–P appliquées, 5 items `[v30]` écartés ; rendu **byte-identique** vérifié : SSIM gate inchangée 0.2511/0.4059/0.4180/0.0038 + capture PNG 788149 o identique + `title02_render_is_deterministic` vert ; `#![forbid(unsafe_code)]` conservé). **Preuve byte audio** = hash du buffer de mix `CriAtomEx`, pas la sortie device (cpal/rtrb pas encore dans `Cargo.toml`).
-- **Différé** : **réseau/online** (tokio current-thread + codec porté ; quinn écarté faute de preuve RE).
+| Sous-système | Brique | Version | Pourquoi celle-là |
+|---|---|---|---|
+| GPU / fenêtrage | `wgpu` + `winit` + `pollster` + `bytemuck` | 29.0.3 · 0.30.13 · 0.4.0 · 1.25 | Backend unifié Vulkan/D3D12/Metal/GL/WebGPU ; readback déterministe `texture→buffer` (alignement 256 o) ; `#![forbid(unsafe_code)]` tenable |
+| VM Lua | `mlua` (`lua52` + `vendored`) | 0.11.6 | PUC-Rio **5.2.4**, la VM du jeu : mêmes ordre d'itération de tables, coercions `lua_Number`, `bit32`, GC |
+| Analyse Lua statique | `tree-sitter` + `tree-sitter-lua` | 0.26 · 0.5 | Lit les scripts décompilés sans les exécuter (la grammaire n'expose qu'un `LanguageFn`) |
+| Audio | `cridecoder` + `audio-decode` | — | HCA/ADX/AWB décodés ; le mixeur CRI Atom Ex reste maison |
+| Textures | `image_dds` + `bcdec_rs` + `png` | — | BCn/DDS → RGBA8 ; source unique `nie_formats::g4tx_decode` |
+| Éditeur de scène | `fyrox` + `fyroxed_base` | — | `nie-editor` seul — hors chemin de fidélité |
+| Sérialisation | `serde` + `serde_json` | 1 | Toujours feature-gated, **jamais** sur le chemin de l'octet |
+| Base de connaissance | `rusqlite` (bundled) | 0.37 | `var/niers.sqlite` |
+| Désassemblage | `iced-x86` + `goblin` | — | `nie-re`, `nie-asm` — pas de dépendance externe à r2/objdump |
 
-## Détails d'intégration (chemins critiques)
+Physique de match, boucle de jeu, skinning, IA, police et compositeur 2D n'ont **aucune
+dépendance** : ce sont des ports du décompilé (`nie-core`, `nie-formats::menu`, `nie-formats::font`).
 
-### GPU / fenêtrage — bump wgpu 22→29 ✅ FAIT (2026-06-16)
-Le host `crates/engine/nie-game` est **désormais sur wgpu 29.0.3 + winit 0.30 + pollster 0.4** (bump 22→29 exécuté, byte-identique vérifié — cf. `docs/wgpu-29-migration.md` §bandeau). Détail des points chauds traités (référence historique) :
-- `request_adapter` retourne désormais `Result<Adapter, RequestAdapterError>` (était `Option`) → remplacer les `.ok_or_else(...)` de `demander_adaptateur_hors_ecran` (l.598-616) par `?` ;
-- `request_device` ne prend plus qu'1 argument (le trace path passe dans `DeviceDescriptor`) → `creer_device` (l.619-630), supprimer le `None` ;
-- `device.poll` prend `wgpu::PollType` (ex-`Maintain::Wait`, l.876) ;
-- `entry_point` est `Option<&str>` → `Some("vs_main")`/`Some("fs_main")` dans `creer_pipeline` (l.677/683) ;
-- `Instance::new` prend `InstanceDescriptor` par valeur avec nouveaux champs (`backend_options`, `flags`) — l.791/938 ;
-- bump `pollster 0.3→0.4`, garder `winit = "0.30"`.
+## Ce qui est écarté, et pourquoi
 
-Retarget du D3D11 : `nie-engine/src/render.rs` (2236 LOC, `FUN_14045ab10` init device, `FUN_14045c780` swapchain, `FUN_140459110/210` formats DXGI) → mapper `DxgiFormat`→`wgpu::TextureFormat`, swapchain→`wgpu::Surface`+`SurfaceConfiguration`, quad plein écran → pipeline déjà écrit dans `nie-game`. wgpu étant safe, on conserve `#![forbid(unsafe_code)]`.
+Ces rejets sont doctrinaux : ils tiennent tant que l'objectif byte/pixel tient.
 
-### Pourquoi « pur transport » plutôt que « moteur tiers »
-Pour audio (cpal), vidéo (libvpx), boucle (custom), skinning (port maison) et math (glam scalaire), le motif est identique : **toute couche qui réinjecte son propre DSP/raster/scheduler/ordre d'itération empêche de matcher l'octet**. La fidélité impose de transporter exactement ce que le portage du décompilé produit. C'est la même doctrine que la gate à deux étages (égalité exacte d'abord, tolérance ensuite).
+| Écarté | Raison |
+|---|---|
+| **rapier / parry / salva** | Solveur TGS + broadphase/islands/substepping réinjectent un ordre flottant et un ordonnanceur. « Enhanced determinism » = reproductibilité de rapier, pas identité de `nie.exe`. Le jeu a `gravité 2.0/frame²`, `max_collisions_per_frame=5`, 10 `BallMoveKind` extraits des vftables |
+| **bevy_ecs / hecs / legion / specs** (pour le cœur) | Le byte-exact exige des structs 1:1 avec le layout C++ (offsets `0x700`, strides `0x570`) ; un ECS éclate ces structs et casse la correspondance champ-par-champ |
+| **rstar / kdtree / bvh / pathfinding / navmesh** | N≤23 joueurs : zéro besoin de perf, et toute structure spatiale réordonne les ex-æquo d'un scan linéaire |
+| **fontdue / swash / ttf-parser / rustybuzz** | Aucun `.ttf` livré : le texte est un **atlas bitmap pré-cuit** (`font_def/font.g4tx`, AA bakée). Tout rasteriseur diverge |
+| **rend3 / rafx / lyon** | Les menus sont 100 % sprite/atlas : aucun tracé vectoriel au runtime |
+| **rust-skia** | Raster propre (AA, sous-pixel, gamma) ≠ raster D3D11 du jeu. Le rendu de référence doit être bit-identique, pas ressemblant |
+| **rodio / kira** | Surcouches qui imposent leur mixeur et leur resampler, là où l'identité audio est le PCM du mixeur CRI |
+| **openh264 / ffmpeg pour la vidéo** | Le RE prouve qu'aucun chemin H.264 n'existe dans `nie.exe` — c'est VP9 (libvpx via criVvp9) |
+| **dssim-core** | AGPL-3.0, incompatible avec la licence MIT du workspace |
+| **sdl2 / glfw** | Dépendance C, hostile à wasm |
+| **tokio `rt-multi-thread`** sur le chemin de jeu | L'ordonnanceur réordonne et casse le golden. `rt` current-thread seulement |
+| **bincode / borsh / speedy** | Imposent leur propre layout binaire : ne matchent ni le format save ni `cfg.bin` |
 
-### Toolchain
-Le pin `nightly-2026-05-17` (rustc 1.97.0-nightly) satisfait déjà toutes les MSRV (edition 2024 ≥1.85, wgpu 29 MSRV 1.87, winit 0.30.13 MSRV 1.70, mlua 0.11.6, cpal 0.18.1 MSRV 1.85). La toolchain **n'affecte pas les sorties du moteur** (IEEE-754 déterministe, pas de fast-math) — un bump ne perturbe aucun golden byte/pixel, il change seulement le hash du binaire. Recommandation de bump : voir le champ dédié.
+## Règles de la boucle moteur
+
+- **Timestep fixe.** La logique tourne au tick réel du moteur Lives, les frames longues sont
+  bornées, le rendu part d'un état interpolé. C'est la condition du reproductible. Jamais de
+  logique pilotée par un delta-time variable.
+- **Pipeline de frame** : entrées → update simulation → préparer les données de rendu → présenter.
+  Le rendu **lit** l'état et ne contient aucune règle de jeu.
+- **Rendu, entrées et physique sont des adaptateurs** autour de la donnée gameplay. La physique
+  portée est une boîte noire déterministe avec des points de synchronisation explicites.
+- **Tout aléa passe par `lives::CRand`** (MT19937 byte-exact), jamais l'horloge.
+- **Validation** : les systèmes se testent comme des fonctions pures sur la donnée ; `nie-headless`
+  rejoue la même `step()` sans rendu — c'est la gate de déterminisme. Le rendu se valide par
+  égalité d'octets d'abord (hash du RGBA8 dépaddé), tolérance SSIM/PSNR ensuite, jamais l'inverse.
+
+## Règles Lua (`nie-lua`)
+
+- Les fonctions hôtes passent par `lua.create_function` + `globals().set`. Ne jamais toucher la
+  pile Lua C : mlua protège chaque longjmp via `lua_pcall`.
+- **Erreurs, pas panics** : retourner `Err(mlua::Error…)`, réserver le panic aux invariants
+  impossibles.
+- Charger un `.lua.bin` exige `Lua::unsafe_new` (un bytecode malformé corrompt la VM). Le bytecode
+  du jeu est de confiance, l'usage est isolé dans `nie-lua`, hors `forbid(unsafe_code)`. Vérifier
+  la signature `1b 4c 75 61 52` avant.
+- **Piège de cycle** : placer un handle Lua dans un `UserData` ou une closure crée un cycle de
+  références qui empêche de détruire la VM. Passer par des IDs, pas des handles stockés.
+- VM mono-thread : garder mlua `!Send` (pas la feature `send`) et partager par `Rc<RefCell<…>>`.
+  Réutiliser une seule `Lua` — la création est coûteuse.

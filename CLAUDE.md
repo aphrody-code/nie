@@ -66,7 +66,7 @@ bun run lint
 
 ## Doctrine polyglotte — un rôle, un langage
 
-Carte complète : `docs/ARCHITECTURE-POLYGLOTTE.md`. En bref :
+Carte complète : `docs/ARCHITECTURE.md`. En bref :
 
 | Langage | Rôles |
 |---|---|

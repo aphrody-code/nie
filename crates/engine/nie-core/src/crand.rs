@@ -2,7 +2,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! La décompilation Ghidra ciblée (`docs/recherche-modele-match-decompile.md`) a établi que
+//! La décompilation Ghidra ciblée (`docs/modele-de-match.md`) a établi que
 //! `lives::CRand` est un **Mersenne Twister MT19937 32-bit canonique** :
 //!
 //! - graine via `init_genrand` : `mt[i] = 1_812_433_253 * (mt[i-1] ^ (mt[i-1] >> 30)) + i`
@@ -92,7 +92,7 @@ impl CRand {
     }
 
     /// Tirage borné — port **byte-exact** de `lives::CRand::vmethod_4(n)` (nie.exe), méthode de
-    /// Lemire **avec rejet** (cf. `recherche-modele-match-decompile.md` §2.4).
+    /// Lemire **avec rejet** (cf. `modele-de-match.md` §2.4).
     ///
     /// - `bound == 0` → renvoie le **brut** `genrand()` (et non `0`), comme le moteur ;
     /// - sinon : `m = (u64)r * bound` ; si les 32 bits bas `< bound`, re-tire tant que

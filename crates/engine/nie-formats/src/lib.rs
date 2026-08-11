@@ -19,7 +19,7 @@
 //! Ce crate utilise `alloc` (via `extern crate alloc`). `FormatError`/`AssembleError`
 //! implémentent `core::error::Error` **à la main** (plus de dépendance `thiserror`, Phase 3 dédup) →
 //! types d'erreur `no_std`-ready. NB : le `#![no_std]` strict reste à faire (l'I/O des parseurs
-//! utilise encore `std::io::Cursor` ; gating à venir, cf. `docs/DEDUP-PLAN.md` Phase 3).
+//! utilise encore `std::io::Cursor` ; gating à venir, cf. `docs/ARCHITECTURE.md` Phase 3).
 //!
 //! ## Chiffrement CPK IEVR (déchiffré, vérifié au réel)
 //!
