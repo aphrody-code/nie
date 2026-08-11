@@ -37,6 +37,8 @@
 //! - [3] `presetId` = "0x0FBB2C35", `presetName` = "プリセット【チビ02】", `presetData` = [13, 2]
 //! - [4] `presetId` = "0x921B7D7F", `presetName` = "プリセット【発動者0人テスト】", `presetData` = [15, 2]
 
+mod common;
+
 extern crate std;
 
 use nie_data::hash::HashId;
@@ -209,17 +211,19 @@ fn from_value_emplacement_vide() {
 // ─── Tests sur fichiers réels (skip silencieux si absents) ───────────────────────
 
 const REAL_028: &str =
-    "/home/ubuntu/niers/data/common/gamedata/skill_view/skill_view_preset_config_0.00.28.cfg.bin.json";
+    "skill_view/skill_view_preset_config_0.00.28.cfg.bin.json";
 const REAL_BASE: &str =
-    "/home/ubuntu/niers/data/common/gamedata/skill_view/skill_view_preset_config.cfg.bin.json";
+    "skill_view/skill_view_preset_config.cfg.bin.json";
 
 fn load_json(path: &str) -> Option<serde_json::Value> {
-    if !std::path::Path::new(path).exists() {
+    let path = common::chemin(path)?;
+    if !path.is_file() {
+        eprintln!("skip : {} absent du corpus", path.display());
         return None;
     }
-    let content = std::fs::read_to_string(path)
-        .unwrap_or_else(|e| panic!("Impossible de lire {path}: {e}"));
-    Some(serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide {path}: {e}")))
+    let content = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", path.display()));
+    Some(serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide {}: {e}", path.display())))
 }
 
 // — version 0.00.28 (golden principal) —

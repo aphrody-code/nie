@@ -153,13 +153,17 @@ const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 impl GpuRenderer {
     /// Crée le contexte GPU hors-écran.
     ///
-    /// L'adaptateur est demandé **sans préférence de puissance et sans surface**, avec repli sur un
-    /// adaptateur logiciel : un poste sans GPU exploitable (machine virtuelle, session distante,
-    /// pilote absent) doit dégrader, pas échouer.
+    /// L'adaptateur est demandé **sans surface**, en visant le GPU le plus puissant, avec repli
+    /// sur un adaptateur logiciel : un poste sans GPU exploitable (machine virtuelle, session
+    /// distante, pilote absent) doit dégrader, pas échouer.
+    ///
+    /// `HighPerformance` est ce qui désigne la carte discrète sur un portable à double GPU ;
+    /// sans elle, le rendu part sur l'iGPU sans que rien ne le signale. Sur un serveur sans
+    /// matériel, la préférence est sans effet et le repli logiciel s'applique.
     pub fn new() -> Result<Self> {
         let instance = wgpu::Instance::default();
         let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
-            power_preference: wgpu::PowerPreference::None,
+            power_preference: wgpu::PowerPreference::HighPerformance,
             compatible_surface: None,
             force_fallback_adapter: false,
         }))

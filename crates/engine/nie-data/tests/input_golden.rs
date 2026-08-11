@@ -6,6 +6,8 @@
 //!
 //! Toutes les valeurs ci-dessous ont été extraites octet-pour-octet des JSON réels.
 
+mod common;
+
 use nie_data::hash::HashId;
 use nie_data::input::{
     parse_adaptive_trigger_def, parse_haptic_feedback_def, parse_vibration_def, AdaptiveTriggerDef,
@@ -13,18 +15,20 @@ use nie_data::input::{
 };
 
 const ADAPTIVE_PATH: &str =
-    "/home/ubuntu/niers/data/common/gamedata/input/adaptive_trigger_def_0.00.00.cfg.bin.json";
+    "input/adaptive_trigger_def_0.00.00.cfg.bin.json";
 const HAPTIC_PATH: &str =
-    "/home/ubuntu/niers/data/common/gamedata/input/haptic_feedback_def_0.00.00.cfg.bin.json";
+    "input/haptic_feedback_def_0.00.00.cfg.bin.json";
 const VIBRATION_PATH: &str =
-    "/home/ubuntu/niers/data/common/gamedata/input/vibration_def_0.00.09.cfg.bin.json";
+    "input/vibration_def_0.00.09.cfg.bin.json";
 
 fn load(path: &str) -> Option<serde_json::Value> {
-    if !std::path::Path::new(path).exists() {
+    let path = common::chemin(path)?;
+    if !path.is_file() {
+        eprintln!("skip : {} absent du corpus", path.display());
         return None;
     }
     let content =
-        std::fs::read_to_string(path).unwrap_or_else(|e| panic!("Impossible de lire {path}: {e}"));
+        std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", path.display()));
     Some(serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide: {e}")))
 }
 

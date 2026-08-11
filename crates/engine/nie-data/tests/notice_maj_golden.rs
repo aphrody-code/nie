@@ -8,7 +8,7 @@
 //! seulement exécuté. Renommer le fichier suffit ; ne pas le renommer en arrière.
 //!
 //! Valeurs réelles tirées de :
-//! `/home/ubuntu/niers/data/common/gamedata/update_notice/update_notice_config_0.00.00.cfg.bin.json`
+//! `update_notice/update_notice_config_0.00.00.cfg.bin.json`
 //!
 //! ## Vérifications champ par champ (fichier → valeur confirmée)
 //!
@@ -24,6 +24,8 @@
 //! - `[3]` = updateId 0x1414FE34, globalBitFlagId 0xE21CF8FC, data [19, 7]
 //!
 //! Les 4 tranches partitionnent exactement les 26 entrées : 0+8=8, 8+6=14, 14+5=19, 19+7=26.
+
+mod common;
 
 use nie_data::hash::HashId;
 use nie_data::update_notice::{
@@ -125,14 +127,16 @@ fn fixture_listes_manquantes_renvoient_vide() {
 
 // ─── Test sur le vrai fichier (skip si absent du VPS) ────────────────────────
 
-const REAL_PATH: &str = "/home/ubuntu/niers/data/common/gamedata/update_notice/update_notice_config_0.00.00.cfg.bin.json";
+const REAL_PATH: &str = "update_notice/update_notice_config_0.00.00.cfg.bin.json";
 
 fn load_real() -> Option<UpdateNoticeConfig> {
-    if !std::path::Path::new(REAL_PATH).exists() {
+    let chemin_abs = common::chemin(REAL_PATH)?;
+    if !chemin_abs.is_file() {
+        eprintln!("skip : {} absent du corpus", chemin_abs.display());
         return None;
     }
-    let content = std::fs::read_to_string(REAL_PATH)
-        .unwrap_or_else(|e| panic!("Impossible de lire {REAL_PATH}: {e}"));
+    let content = std::fs::read_to_string(&chemin_abs)
+        .unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", chemin_abs.display()));
     let root: serde_json::Value =
         serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide: {e}"));
     Some(parse_update_notice_config(&root))

@@ -1242,7 +1242,7 @@ mod tests {
     fn integration_roster_ancres_et_unicite() {
         use std::collections::HashSet;
 
-        let save_path = "/home/ubuntu/niers/data/saves/002AB8F4-USERDATALIVE";
+        let save_path = "data/saves/002AB8F4-USERDATALIVE";
         if !std::path::Path::new(save_path).exists() {
             eprintln!("SKIP: save absente");
             return;

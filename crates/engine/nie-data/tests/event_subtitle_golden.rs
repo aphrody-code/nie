@@ -8,6 +8,8 @@
 //! end `6.9166665`, washa.label `"ev09_05000_010_010"`, dialogue fr brut commençant par
 //! « Les champions en titre sont tombés !\n<MNT:NAGUMOHARA>… » (tags **conservés**).
 
+mod common;
+
 use nie_data::event_subtitle::{
     find_event_text, parse_event_text, parse_subtitle_file, parse_washa_map,
 };
@@ -106,14 +108,16 @@ fn dialogue_raw_text_preserved_and_join() {
 // ~1321 fichiers `Subtitle_ev<NN>_<bloc>` du mode Histoire deviennent décodables typé
 // via le dispatch par préfixe `Subtitle_ev` (clé par-événement → parse_subtitle_file).
 const SUB_PATH: &str =
-    "/home/ubuntu/niers/data/common/gamedata/event/subtitle/pt/Subtitle_ev01_04800.cfg.bin.json";
+    "event/subtitle/pt/Subtitle_ev01_04800.cfg.bin.json";
 
 fn load_sub() -> Option<Value> {
-    if !std::path::Path::new(SUB_PATH).exists() {
+    let chemin_abs = common::chemin(SUB_PATH)?;
+    if !chemin_abs.is_file() {
+        eprintln!("skip : {} absent du corpus", chemin_abs.display());
         return None;
     }
-    let c = std::fs::read_to_string(SUB_PATH).unwrap_or_else(|e| panic!("lecture {SUB_PATH}: {e}"));
-    Some(serde_json::from_str(&c).unwrap_or_else(|e| panic!("JSON {SUB_PATH}: {e}")))
+    let c = std::fs::read_to_string(&chemin_abs).unwrap_or_else(|e| panic!("lecture {}: {e}", chemin_abs.display()));
+    Some(serde_json::from_str(&c).unwrap_or_else(|e| panic!("JSON {}: {e}", chemin_abs.display())))
 }
 
 #[test]

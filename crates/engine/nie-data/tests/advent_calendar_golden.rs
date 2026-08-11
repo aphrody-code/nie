@@ -1,21 +1,25 @@
 #![allow(clippy::pedantic)]
 //! Tests golden `post::advent_calendar` — valeurs réelles tirées de :
-//! `/home/ubuntu/niers/data/common/gamedata/post/advent_calendar_config_2.00.17.00.cfg.bin.json`
+//! `post/advent_calendar_config_2.00.17.00.cfg.bin.json`
 //!
 //! Layout `lists` : 5 listes (calendrier, news, items/récompenses de connexion).
+
+mod common;
 
 use nie_data::hash::HashId;
 use nie_data::post::{parse_advent_calendar_config, AdventCalendarConfig};
 
 const REAL_PATH: &str =
-    "/home/ubuntu/niers/data/common/gamedata/post/advent_calendar_config_2.00.17.00.cfg.bin.json";
+    "post/advent_calendar_config_2.00.17.00.cfg.bin.json";
 
 fn load_real() -> Option<AdventCalendarConfig> {
-    if !std::path::Path::new(REAL_PATH).exists() {
+    let chemin_abs = common::chemin(REAL_PATH)?;
+    if !chemin_abs.is_file() {
+        eprintln!("skip : {} absent du corpus", chemin_abs.display());
         return None;
     }
-    let content = std::fs::read_to_string(REAL_PATH)
-        .unwrap_or_else(|e| panic!("Impossible de lire {REAL_PATH}: {e}"));
+    let content = std::fs::read_to_string(&chemin_abs)
+        .unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", chemin_abs.display()));
     let root: serde_json::Value =
         serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide: {e}"));
     Some(parse_advent_calendar_config(&root))

@@ -77,65 +77,49 @@ mod menu;
 #[derive(Parser)]
 #[command(name = "nie-model-serve", version, about)]
 struct Cli {
-    /// Répertoire racine du jeu (contient `data/cpk_list.cfg.bin`).
-    #[arg(long, default_value = "/home/ubuntu/.local/share/Steam/iecode/inazuma")]
-    game_dir: PathBuf,
+    /// Répertoire racine du jeu (contient `data/cpk_list.cfg.bin`). Résolu automatiquement
+    /// s'il est absent (`NIE_GAME_DIR`, sinon le répertoire courant ou un ancêtre).
+    #[arg(long)]
+    game_dir: Option<PathBuf>,
 
-    /// Répertoire des GLB pré-convertis (dx11/model/).
-    #[arg(
-        long,
-        default_value = "/home/ubuntu/.local/share/Steam/iecode/inazuma/data/dx11/model"
-    )]
-    glb_dir: PathBuf,
+    /// Répertoire des GLB pré-convertis. Défaut : `<game-dir>/data/dx11/model`.
+    #[arg(long)]
+    glb_dir: Option<PathBuf>,
 
     /// Miroir SQLite (inagle_*). Résolution automatique si absent.
     #[arg(long)]
     db: Option<PathBuf>,
 
     /// Manifeste CRC32→chemin G4MD (var/model-crc-manifest.ndjson).
-    #[arg(
-        long,
-        default_value = "/home/ubuntu/niers/var/model-crc-manifest.ndjson"
-    )]
-    crc_manifest: PathBuf,
+    #[arg(long)]
+    crc_manifest: Option<PathBuf>,
 
     /// Manifeste uniforme CRC32→G4MD+G4TX (var/uniform-model-map.ndjson, généré depuis chara_parts).
-    #[arg(
-        long,
-        default_value = "/home/ubuntu/niers/var/uniform-model-map.ndjson"
-    )]
-    uniform_map: PathBuf,
+    #[arg(long)]
+    uniform_map: Option<PathBuf>,
 
     /// Index global `[chemin, cpk]` (NDJSON, .gz accepté) des fichiers de TOUS les CPK,
     /// y compris ceux hors `cpk_list.cfg.bin` (films, sound_asset…). Alimente l'index
     /// supplémentaire du VFS pour les rendre lisibles. Vide/absent = ignoré.
-    #[arg(
-        long,
-        default_value = "/home/ubuntu/rg/apps/azalee/data/cpk-index.ndjson.gz"
-    )]
-    cpk_file_index: PathBuf,
+    #[arg(long)]
+    cpk_file_index: Option<PathBuf>,
 
     /// Manifeste body_type_idx (var/body-type-manifest.ndjson, optionnel — fallback type_idx=0).
-    #[arg(
-        long,
-        default_value = "/home/ubuntu/niers/var/body-type-manifest.ndjson"
-    )]
-    body_manifest: PathBuf,
+    #[arg(long)]
+    body_manifest: Option<PathBuf>,
 
     /// Répertoire de cache GLB assemblés.
-    #[arg(long, default_value = "/home/ubuntu/niers/var/model-cache")]
-    cache_dir: PathBuf,
+    #[arg(long)]
+    cache_dir: Option<PathBuf>,
 
     /// Répertoire des layouts de menu (`<screen>.json`) pour le rendu serveur `/menu-render/`.
-    #[arg(long, default_value = "/home/ubuntu/rg/apps/azalee/app/menu/_layouts")]
-    layout_dir: PathBuf,
+    /// Vit dans le dépôt azalee : aucun défaut ne peut être juste, la route est inactive sans lui.
+    #[arg(long)]
+    layout_dir: Option<PathBuf>,
 
     /// Répertoire des `*_menu_setting.cfg.bin.json` (un par écran) pour l'arbre `/menu-tree.json`.
-    #[arg(
-        long,
-        default_value = "/home/ubuntu/niers/data/common/gamedata/menu/cfg"
-    )]
-    menu_cfg_dir: PathBuf,
+    #[arg(long)]
+    menu_cfg_dir: Option<PathBuf>,
 
     /// Port d'écoute (localhost uniquement).
     #[arg(long, default_value_t = 8790)]
@@ -2383,7 +2367,7 @@ fn resolve_db(db_override: Option<&Path>) -> Option<PathBuf> {
     }
 
     // Répertoire de backups niers.
-    let backups = PathBuf::from("/home/ubuntu/niers/data/backups");
+    let backups = nie_formats::vfs::resolve_game_dir().join("data/backups");
     if backups.is_dir() {
         let mut candidates: Vec<PathBuf> = fs::read_dir(&backups)
             .into_iter()
@@ -2405,7 +2389,9 @@ fn resolve_db(db_override: Option<&Path>) -> Option<PathBuf> {
     }
 
     // Fallback : miroir azalee.
-    let azalee_backups = PathBuf::from("/home/ubuntu/rg/apps/azalee/data/backups");
+    let Ok(azalee_backups) = std::env::var("AZALEE_BACKUPS").map(PathBuf::from) else {
+        return None;
+    };
     if azalee_backups.is_dir() {
         let mut candidates: Vec<PathBuf> = fs::read_dir(&azalee_backups)
             .into_iter()
@@ -2481,20 +2467,40 @@ fn main() -> Result<()> {
 
     let cli = Cli::parse();
 
+    // Tous les chemins dérivent de la racine du jeu, résolue à l'exécution : le même binaire
+    // sert un serveur Linux et un poste Windows sans qu'aucun chemin de machine ne soit compilé
+    // dedans. `var/` vit à côté du jeu, comme le reste des artefacts régénérables.
+    let racine = cli.game_dir.clone().unwrap_or_else(nie_formats::vfs::resolve_game_dir);
+    info!("racine du jeu : {}", racine.display());
+    let var = racine.join("var");
+    let glb_dir = cli.glb_dir.clone().unwrap_or_else(|| racine.join("data/dx11/model"));
+    let cache_dir = cli.cache_dir.clone().unwrap_or_else(|| var.join("model-cache"));
+    let crc_manifest = cli.crc_manifest.clone().unwrap_or_else(|| var.join("model-crc-manifest.ndjson"));
+    let uniform_map_path = cli.uniform_map.clone().unwrap_or_else(|| var.join("uniform-model-map.ndjson"));
+    let body_manifest = cli.body_manifest.clone().unwrap_or_else(|| var.join("body-type-manifest.ndjson"));
+    let menu_cfg_dir = cli
+        .menu_cfg_dir
+        .clone()
+        .unwrap_or_else(|| racine.join("data/common/gamedata/menu/cfg"));
+    // Ces deux-là appartiennent au dépôt azalee : sans argument explicite, les routes qui en
+    // dépendent restent inactives plutôt que de pointer un chemin inventé.
+    let layout_dir = cli.layout_dir.clone().unwrap_or_default();
+    let cpk_file_index = cli.cpk_file_index.clone().unwrap_or_default();
+
     // Prépare le répertoire de cache.
-    fs::create_dir_all(&cli.cache_dir)
-        .with_context(|| format!("création cache_dir {}", cli.cache_dir.display()))?;
+    fs::create_dir_all(&cache_dir)
+        .with_context(|| format!("création cache_dir {}", cache_dir.display()))?;
 
     // Initialise le VFS.
     let mut vfs = Vfs::new();
-    let game_data = cli.game_dir.join("data");
+    let game_data = racine.join("data");
     vfs.init(&game_data)
         .with_context(|| format!("init VFS depuis {}", game_data.display()))?;
     info!("VFS initialisé ({} fichiers indexés)", vfs.asset_count());
 
     // Index supplémentaire : rend lisibles les fichiers des CPK hors cpk_list.cfg.bin
     // (films .usm, sound_asset .acb…) via l'index global [chemin, cpk].
-    match load_cpk_file_index(&cli.cpk_file_index) {
+    match load_cpk_file_index(&cpk_file_index) {
         Ok(entries) if !entries.is_empty() => {
             let added = vfs.add_extra_index(entries);
             info!("index VFS supplémentaire : +{added} fichiers (CPK hors cpk_list)");
@@ -2502,14 +2508,14 @@ fn main() -> Result<()> {
         Ok(_) => {}
         Err(e) => warn!(
             "index VFS supplémentaire ignoré ({}): {e}",
-            cli.cpk_file_index.display()
+            cpk_file_index.display()
         ),
     }
 
     // Charge les manifestes.
-    let crc_manifest = State::load_crc_manifest(&cli.crc_manifest)?;
-    let uniform_map = State::load_uniform_map(&cli.uniform_map);
-    let body_map = State::load_body_map(&cli.body_manifest);
+    let crc_manifest = State::load_crc_manifest(&crc_manifest)?;
+    let uniform_map = State::load_uniform_map(&uniform_map_path);
+    let body_map = State::load_body_map(&body_manifest);
 
     // Résout le miroir SQLite.
     let db_path = resolve_db(cli.db.as_deref());
@@ -2519,14 +2525,14 @@ fn main() -> Result<()> {
 
     let state = Arc::new(State {
         vfs: std::sync::Mutex::new(vfs),
-        glb_dir: cli.glb_dir.clone(),
+        glb_dir: glb_dir.clone(),
         crc_manifest,
         uniform_map,
         body_map,
-        cache_dir: cli.cache_dir.clone(),
+        cache_dir: cache_dir.clone(),
         db_path,
-        layout_dir: cli.layout_dir.clone(),
-        menu_cfg_dir: cli.menu_cfg_dir.clone(),
+        layout_dir: layout_dir.clone(),
+        menu_cfg_dir: menu_cfg_dir.clone(),
     });
 
     // Bind du serveur TCP.
@@ -2573,108 +2579,110 @@ mod tests {
     /// absent). Couvre les 2 vagues (uniform/players_universe/nfc + search_word/passive/ai/input).
     #[test]
     fn typed_decode_cable_les_familles_golden() {
-        const G: &str = "/home/ubuntu/niers/data/common/gamedata";
+        let g = nie_formats::vfs::resolve_game_dir().join("data/common/gamedata");
+        let g = g.to_string_lossy().to_string();
+        let g: &str = &g;
         let cases: [(&str, &str, String); 20] = [
             (
                 "uniform_config",
                 "uniform",
-                format!("{G}/character/uniform_config_1.03.52.00.cfg.bin.json"),
+                format!("{g}/character/uniform_config_1.03.52.00.cfg.bin.json"),
             ),
             (
                 "players_universe_config",
                 "players_universe",
-                format!("{G}/players_universe/players_universe_config_1.03.59.00.cfg.bin.json"),
+                format!("{g}/players_universe/players_universe_config_1.03.59.00.cfg.bin.json"),
             ),
             (
                 "players_universe_event_config",
                 "players_universe_event",
-                format!("{G}/players_universe/players_universe_event_config.cfg.bin.json"),
+                format!("{g}/players_universe/players_universe_event_config.cfg.bin.json"),
             ),
             (
                 "nfc_lottery_config",
                 "nfc_lottery",
-                format!("{G}/nfc/nfc_lottery_config.cfg.bin.json"),
+                format!("{g}/nfc/nfc_lottery_config.cfg.bin.json"),
             ),
             (
                 "search_word_config",
                 "search_word",
-                format!("{G}/search_word/search_word_config.cfg.bin.json"),
+                format!("{g}/search_word/search_word_config.cfg.bin.json"),
             ),
             (
                 "passive_skill_config",
                 "passive",
-                format!("{G}/skill/passive_skill_config_0.08.86.cfg.bin.json"),
+                format!("{g}/skill/passive_skill_config_0.08.86.cfg.bin.json"),
             ),
             (
                 "soccer_ai_cmd_config",
                 "soccer_ai_cmd",
-                format!("{G}/ai/soccer_ai_cmd_config_0.05.91.cfg.bin.json"),
+                format!("{g}/ai/soccer_ai_cmd_config_0.05.91.cfg.bin.json"),
             ),
             (
                 "soccer_user_ai_config",
                 "soccer_user_ai",
-                format!("{G}/ai/soccer_user_ai_config_1.01.50.cfg.bin.json"),
+                format!("{g}/ai/soccer_user_ai_config_1.01.50.cfg.bin.json"),
             ),
             (
                 "strategy_ai_config",
                 "strategy_ai",
-                format!("{G}/ai/strategy_ai_config_1.01.50.cfg.bin.json"),
+                format!("{g}/ai/strategy_ai_config_1.01.50.cfg.bin.json"),
             ),
             (
                 "tactics_ai_config",
                 "tactics_ai",
-                format!("{G}/ai/tactics_ai_config_0.06.44.cfg.bin.json"),
+                format!("{g}/ai/tactics_ai_config_0.06.44.cfg.bin.json"),
             ),
             (
                 "adaptive_trigger_def",
                 "adaptive_trigger",
-                format!("{G}/input/adaptive_trigger_def_0.00.00.cfg.bin.json"),
+                format!("{g}/input/adaptive_trigger_def_0.00.00.cfg.bin.json"),
             ),
             (
                 "haptic_feedback_def",
                 "haptic_feedback",
-                format!("{G}/input/haptic_feedback_def_0.00.00.cfg.bin.json"),
+                format!("{g}/input/haptic_feedback_def_0.00.00.cfg.bin.json"),
             ),
             (
                 "vibration_def",
                 "vibration",
-                format!("{G}/input/vibration_def_0.00.09.cfg.bin.json"),
+                format!("{g}/input/vibration_def_0.00.09.cfg.bin.json"),
             ),
             // Échantillon de la 3e vague (workflow d'analyse 31 familles).
             (
                 "basara_chara_config",
                 "basara_chara",
-                format!("{G}/character/basara_chara_config_0.00.00.00.cfg.bin.json"),
+                format!("{g}/character/basara_chara_config_0.00.00.00.cfg.bin.json"),
             ),
             (
                 "belong_team_config",
                 "belong_team",
-                format!("{G}/character/belong_team_config_0.00.00.cfg.bin.json"),
+                format!("{g}/character/belong_team_config_0.00.00.cfg.bin.json"),
             ),
             (
                 "capsule_config",
                 "capsule",
-                format!("{G}/capsule/capsule_config_0.00.00.cfg.bin.json"),
+                format!("{g}/capsule/capsule_config_0.00.00.cfg.bin.json"),
             ),
             (
                 "chara_base",
                 "chara_base",
-                format!("{G}/character/chara_base_1.03.98.00.cfg.bin.json"),
+                format!("{g}/character/chara_base_1.03.98.00.cfg.bin.json"),
             ),
             (
                 "shop_config",
                 "shop",
-                format!("{G}/shop/shop_config_3.00.22.cfg.bin.json"),
+                format!("{g}/shop/shop_config_3.00.22.cfg.bin.json"),
             ),
             (
                 "quest_config",
                 "quest",
-                format!("{G}/quest/quest_config_1.04.11.00.cfg.bin.json"),
+                format!("{g}/quest/quest_config_1.04.11.00.cfg.bin.json"),
             ),
             (
                 "real_skill_config",
                 "real_skill",
-                format!("{G}/skill/real_skill_config_1.03.74.00.cfg.bin.json"),
+                format!("{g}/skill/real_skill_config_1.03.74.00.cfg.bin.json"),
             ),
         ];
         for (key, label, path) in &cases {
@@ -2749,7 +2757,7 @@ mod tests {
     #[test]
     fn hca_ievr_dechiffrement_cle_correcte() {
         const AWB_PATH: &str =
-            "/home/ubuntu/niers/data/cross-apk/work/laneE-audio/staging/c00001001.awb";
+            concat!("data/cross-apk/work/laneE-audio/staging/c00001001.awb");
 
         let data = std::fs::read(AWB_PATH)
             .expect("fichier AWB absent — lancer avec `--features real-audio` sur le VPS IEVR");

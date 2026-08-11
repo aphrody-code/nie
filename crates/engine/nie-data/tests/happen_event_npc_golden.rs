@@ -7,18 +7,22 @@
 //! Port direct depuis la structure du dump (pas de référence inagle) ; valeurs assérées copiées
 //! octet pour octet, y compris la résolution de tranches imbriquées event → aimed → weapon.
 
+mod common;
+
 use nie_data::happen_event_npc::parse_happen_event_npc_common;
 use nie_data::hash::HashId;
 
 const PATH: &str =
-    "/home/ubuntu/niers/data/common/gamedata/system/happen_event_npc_common.cfg.bin.json";
+    "system/happen_event_npc_common.cfg.bin.json";
 
 fn load() -> Option<serde_json::Value> {
-    if !std::path::Path::new(PATH).exists() {
+    let chemin_abs = common::chemin(PATH)?;
+    if !chemin_abs.is_file() {
+        eprintln!("skip : {} absent du corpus", chemin_abs.display());
         return None;
     }
-    let content = std::fs::read_to_string(PATH).unwrap_or_else(|e| panic!("lecture {PATH}: {e}"));
-    Some(serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON {PATH}: {e}")))
+    let content = std::fs::read_to_string(&chemin_abs).unwrap_or_else(|e| panic!("lecture {}: {e}", chemin_abs.display()));
+    Some(serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON {}: {e}", chemin_abs.display())))
 }
 
 #[test]

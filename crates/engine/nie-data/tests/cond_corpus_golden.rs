@@ -4,9 +4,11 @@
 //! TOUS les blobs version-0 réels satisfont `declared_len == payload.len()+1`, le cadrage est
 //! prouvé (pas deviné). Sémantique des clauses = hors scope (exige l'évaluateur, cf. `cond.rs`).
 
+mod common;
+
 use nie_data::cond::CondBlob;
 
-const ROOT: &str = "/home/ubuntu/niers/data/common/gamedata";
+
 
 /// Décode base64 (alphabet standard, padding optionnel) → octets. `None` si invalide.
 fn b64(s: &str) -> Option<Vec<u8>> {
@@ -97,11 +99,15 @@ fn walk_files(dir: &std::path::Path, files: &mut Vec<std::path::PathBuf>, cap: u
 
 #[test]
 fn cadrage_version0_prouve_sur_corpus_reel() {
-    if !std::path::Path::new(ROOT).exists() {
+    let Some(root) = common::racine() else {
+        eprintln!("skip : corpus gamedata introuvable — poser NIE_GAMEDATA_JSON ou NIE_GAME_DIR");
+        return;
+    };
+    if !root.exists() {
         return;
     }
     let mut files = Vec::new();
-    walk_files(std::path::Path::new(ROOT), &mut files, 3000);
+    walk_files(root, &mut files, 3000);
     let mut blobs = Vec::new();
     for f in &files {
         if let Ok(txt) = std::fs::read_to_string(f)

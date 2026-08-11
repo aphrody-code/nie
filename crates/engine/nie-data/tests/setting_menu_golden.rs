@@ -1,6 +1,6 @@
 #![allow(clippy::pedantic)]
 //! Tests golden `setting_menu` — valeurs réelles tirées de :
-//! `/home/ubuntu/niers/data/common/gamedata/setting_menu/setting_list_config_3.00.18.cfg.bin.json`
+//! `setting_menu/setting_list_config_3.00.18.cfg.bin.json`
 //!
 //! Format `entries` (noeuds nommés, variables positionnelles). 11 listes racines.
 //!
@@ -32,6 +32,8 @@
 //! ### PAD_GROUPKEY_LIST_INFO_0 / _1
 //! _0 : clé=0xD3D99E8B, ref=[0,2] → keys=[12, 15]
 //! _1 : clé=0x4AD0CF31, ref=[2,4] → keys=[10, 11, 8, 9]
+
+mod common;
 
 use nie_data::hash::HashId;
 use nie_data::setting_menu::{parse_setting_list_config, SettingListConfig};
@@ -168,14 +170,16 @@ fn fixture_liste_vide() {
 // ─── Test sur le vrai fichier (skip si absent du VPS) ─────────────────────────
 
 const REAL_PATH: &str =
-    "/home/ubuntu/niers/data/common/gamedata/setting_menu/setting_list_config_3.00.18.cfg.bin.json";
+    "setting_menu/setting_list_config_3.00.18.cfg.bin.json";
 
 fn load_real() -> Option<SettingListConfig> {
-    if !std::path::Path::new(REAL_PATH).exists() {
+    let chemin_abs = common::chemin(REAL_PATH)?;
+    if !chemin_abs.is_file() {
+        eprintln!("skip : {} absent du corpus", chemin_abs.display());
         return None;
     }
-    let content = std::fs::read_to_string(REAL_PATH)
-        .unwrap_or_else(|e| panic!("Impossible de lire {REAL_PATH}: {e}"));
+    let content = std::fs::read_to_string(&chemin_abs)
+        .unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", chemin_abs.display()));
     let root: Value =
         serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide: {e}"));
     Some(parse_setting_list_config(&root))

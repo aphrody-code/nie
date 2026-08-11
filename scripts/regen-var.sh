@@ -5,7 +5,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/.." || exit 1
 
-GAME_DIR="${NIERS_GAME_DIR:-/home/ubuntu/.local/share/Steam/iecode/inazuma}"
+# Racine du jeu : NIE_GAME_DIR (convention du reste du dépôt), NIERS_GAME_DIR (historique),
+# sinon la racine du dépôt — sur une installation Steam, les deux coïncident.
+GAME_DIR="${NIE_GAME_DIR:-${NIERS_GAME_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}}"
 EXE="$GAME_DIR/nie_eacpatched.exe"
 DB="var/niers.sqlite"
 BIN="target/release/niers"

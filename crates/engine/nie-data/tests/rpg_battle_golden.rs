@@ -12,6 +12,8 @@
 //! | `rpg_battle_cmd_set_config_1.01.31.00.cfg.bin.json` | l.17 CMD_DATA[0], l.11313 CMD_SET_INFO[0], l.11320-11328 REF[0] |
 //! | `rpg_battle_add_status_config_0.00.00.cfg.bin.json` | l.22 TYPE_INFO[0], l.354 ADD_STATUS_INFO[0], l.372 PARAM[0], l.598-604 ATTR paire[0] |
 
+mod common;
+
 extern crate std;
 
 use nie_data::hash::HashId;
@@ -724,33 +726,35 @@ fn add_status_attr_paire_1() {
 // ─── Utilitaire pour tests réels ──────────────────────────────────────────────
 
 fn load_json(path: &str) -> Option<serde_json::Value> {
-    if !std::path::Path::new(path).exists() {
+    let path = common::chemin(path)?;
+    if !path.is_file() {
+        eprintln!("skip : {} absent du corpus", path.display());
         return None;
     }
-    let content = std::fs::read_to_string(path)
-        .unwrap_or_else(|e| panic!("Impossible de lire {path}: {e}"));
+    let content = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", path.display()));
     Some(
         serde_json::from_str(&content)
-            .unwrap_or_else(|e| panic!("JSON invalide {path}: {e}")),
+            .unwrap_or_else(|e| panic!("JSON invalide {}: {e}", path.display())),
     )
 }
 
 const REAL_RULE: &str =
-    "/home/ubuntu/niers/data/common/gamedata/rpg_battle/rpg_battle_rule_config_1.02.84.00.cfg.bin.json";
+    "rpg_battle/rpg_battle_rule_config_1.02.84.00.cfg.bin.json";
 const REAL_STATUS_PAT: &str =
-    "/home/ubuntu/niers/data/common/gamedata/rpg_battle/rpg_battle_status_pattern_config_1.03.17.00.cfg.bin.json";
+    "rpg_battle/rpg_battle_status_pattern_config_1.03.17.00.cfg.bin.json";
 const REAL_SWAP_MOTION: &str =
-    "/home/ubuntu/niers/data/common/gamedata/rpg_battle/rpg_battle_chara_swap_motion_config_1.04.06.00.cfg.bin.json";
+    "rpg_battle/rpg_battle_chara_swap_motion_config_1.04.06.00.cfg.bin.json";
 const REAL_PARTY: &str =
-    "/home/ubuntu/niers/data/common/gamedata/rpg_battle/rpg_battle_party_config_0.00.00.cfg.bin.json";
+    "rpg_battle/rpg_battle_party_config_0.00.00.cfg.bin.json";
 const REAL_CMD_EVENT: &str =
-    "/home/ubuntu/niers/data/common/gamedata/rpg_battle/rpg_battle_cmd_event_config_0.00.00.cfg.bin.json";
+    "rpg_battle/rpg_battle_cmd_event_config_0.00.00.cfg.bin.json";
 const REAL_CMD_OBJ: &str =
-    "/home/ubuntu/niers/data/common/gamedata/rpg_battle/rpg_battle_cmd_obj_config_0.00.00.cfg.bin.json";
+    "rpg_battle/rpg_battle_cmd_obj_config_0.00.00.cfg.bin.json";
 const REAL_CMD_SET: &str =
-    "/home/ubuntu/niers/data/common/gamedata/rpg_battle/rpg_battle_cmd_set_config_1.01.31.00.cfg.bin.json";
+    "rpg_battle/rpg_battle_cmd_set_config_1.01.31.00.cfg.bin.json";
 const REAL_ADD_STATUS: &str =
-    "/home/ubuntu/niers/data/common/gamedata/rpg_battle/rpg_battle_add_status_config_0.00.00.cfg.bin.json";
+    "rpg_battle/rpg_battle_add_status_config_0.00.00.cfg.bin.json";
 
 // ─── Tests réels : rpg_battle_rule_config ─────────────────────────────────────
 

@@ -11,16 +11,16 @@ use nie_index::Db;
 use nie_seed::{formats, inagle, rtti_classes};
 
 /// Chemin de la base niers.sqlite déjà initialisée (binary_id = 1).
-const NIERS_SQLITE: &str = "/home/ubuntu/niers/var/niers.sqlite";
+const NIERS_SQLITE: &str = "var/niers.sqlite";
 const BINARY_ID: i64 = 1;
 
 /// Chemin du fichier RTTI.
 const RTTI_PATH: &str =
-    "/home/ubuntu/niers/refs/iecode-re/research/nie-rtti-classes.txt";
+    "refs/iecode-re/research/nie-rtti-classes.txt";
 
 /// Répertoire des backups SQLite inagle.
 const INAGLE_DIR: &str =
-    "/home/ubuntu/rg/apps/azalee/data/backups";
+    "refs/azalee-backups";
 
 /// Ingestion complète via `ingest_all` sur la vraie DB.
 #[test]
@@ -28,7 +28,7 @@ const INAGLE_DIR: &str =
 fn ingest_all_reel() {
     let mut db = Db::open(NIERS_SQLITE).expect("ouverture niers.sqlite");
 
-    let refs_root = Path::new("/home/ubuntu/niers/refs");
+    let refs_root = Path::new("refs");
     let inagle_dir = Path::new(INAGLE_DIR);
 
     // Catalogue iecode optionnel : présent si `iecode export-knowledge` a été lancé.

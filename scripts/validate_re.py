@@ -3,7 +3,7 @@
 
 Exécute toutes les fonctions reversées + validées contre l'émulation Unicorn du binaire. Garde-fou
 contre toute dérive (de uemu, du binaire monté, ou d'un port). Lancer :
-    .venv/bin/python scripts/validate_re.py
+    uv run scripts/validate_re.py
 
 Chaque entrée prouve qu'une logique reversée correspond BYTE-EXACT au binaire (règle no-faux-FAIT).
 À étendre à chaque nouvelle fonction validée (BallMove*, keeper, action…).
@@ -13,7 +13,10 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).parent
-PY = HERE.parent / ".venv" / "bin" / "python"
+# L'interpréteur courant lance les sous-scripts : `sys.executable` est celui que `uv run` a
+# choisi, sur toutes les plateformes. Un chemin `.venv/bin/python` en dur n'existe pas sous
+# Windows, où le venv place l'exécutable dans `.venv/Scripts/`.
+PY = sys.executable
 
 # (script, description) — chaque script sort 0 si la validation byte-exact passe.
 SUITE = [
@@ -64,7 +67,7 @@ SUITE = [
 
 ok = 0
 for script, desc in SUITE:
-    r = subprocess.run([str(PY), str(HERE / script)], capture_output=True, text=True)
+    r = subprocess.run([PY, str(HERE / script)], capture_output=True, text=True)
     passed = r.returncode == 0
     print(f"  [{'✓' if passed else '✗'}] {script:24} — {desc}")
     if not passed:

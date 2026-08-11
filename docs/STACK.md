@@ -29,6 +29,32 @@ Versions lues dans `Cargo.lock`, pas déclarées d'intention.
 Physique de match, boucle de jeu, skinning, IA, police et compositeur 2D n'ont **aucune
 dépendance** : ce sont des ports du décompilé (`nie-core`, `nie-formats::menu`, `nie-formats::font`).
 
+## Deux environnements, un binaire
+
+niers tourne sur un serveur Linux sans GPU (indexation RE, forge, services HTTP) et sur un poste
+Windows avec GPU (rendu, capture, jeu). Rien n'est compilé pour l'un au détriment de l'autre :
+
+| | Serveur Linux | Poste Windows |
+|---|---|---|
+| Backend | Vulkan — lavapipe quand il n'y a pas de matériel | **D3D12** d'abord, Vulkan en repli |
+| Adaptateur | l'unique, logiciel | `HighPerformance` → la carte discrète |
+| Rendu de référence | le rasteriseur logiciel | `NIE_WGPU_FORCE_FALLBACK=1` pour le reproduire |
+
+Le choix se fait dans `nie-game/src/gpu_select.rs`. Les backends sont essayés **un à un, dans
+l'ordre** : passer un masque combiné à `Instance::new` laisse wgpu trancher, et son ordre n'est
+pas celui qu'on veut. `NIE_WGPU_BACKEND` (`dx12`, `vulkan`, `metal`, `gl`, `all`) surcharge.
+
+Le pipeline est vérifié byte-identique sur les trois chemins — D3D12 matériel, Vulkan matériel et
+rendu logiciel produisent le **même SHA256** de capture. C'est ce qui permet de tenir une gate
+pixel sur un serveur sans GPU et de la reproduire sur un poste équipé.
+
+**Aucun chemin de machine n'est compilé dans un binaire.** La racine du jeu se résout à
+l'exécution (`nie_formats::vfs::resolve_game_dir` : `NIE_GAME_DIR`, sinon le répertoire courant ou
+un ancêtre portant `data/cpk_list.cfg.bin`, sinon le répertoire de l'exécutable) — sur une
+installation Steam, la racine du jeu **est** le répertoire courant. Les artefacts régénérables
+vivent sous `<racine>/var/`. Les goldens adossés au corpus de dumps passent par
+`NIE_GAMEDATA_JSON` et **annoncent leur saut** quand le corpus est absent.
+
 ## Ce qui est écarté, et pourquoi
 
 Ces rejets sont doctrinaux : ils tiennent tant que l'objectif byte/pixel tient.

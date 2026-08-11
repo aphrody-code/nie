@@ -1,8 +1,8 @@
 #![allow(clippy::pedantic)]
 #![allow(clippy::doc_lazy_continuation)]
 //! Tests golden `weather` — valeurs réelles tirées de :
-//! - `/home/ubuntu/niers/data/common/gamedata/weather/weather_convert_0.00.00.cfg.bin.json`
-//! - `/home/ubuntu/niers/data/common/gamedata/weather/weather_schedule_0.00.00.cfg.bin.json`
+//! - `weather/weather_convert_0.00.00.cfg.bin.json`
+//! - `weather/weather_schedule_0.00.00.cfg.bin.json`
 //!
 //! ## Vérifications champ par champ
 //!
@@ -37,6 +37,8 @@
 //! - `region_type` = 1, var[0]
 //! - `schedule_ids[0]` = HashId(0xB45F5437), var[1]
 //! - `schedule_ids[1]` = HashId(0xB7528AAD), var[2]
+
+mod common;
 
 use nie_data::hash::HashId;
 use nie_data::weather::{
@@ -339,27 +341,31 @@ fn find_schedule_absent() {
 // ─── Tests sur les vrais fichiers (skip silencieux si absents du VPS) ─────────
 
 const REAL_CONVERT_PATH: &str =
-    "/home/ubuntu/niers/data/common/gamedata/weather/weather_convert_0.00.00.cfg.bin.json";
+    "weather/weather_convert_0.00.00.cfg.bin.json";
 const REAL_SCHEDULE_PATH: &str =
-    "/home/ubuntu/niers/data/common/gamedata/weather/weather_schedule_0.00.00.cfg.bin.json";
+    "weather/weather_schedule_0.00.00.cfg.bin.json";
 
 fn load_real_convert() -> Option<Vec<nie_data::weather::WeatherConvert>> {
-    if !std::path::Path::new(REAL_CONVERT_PATH).exists() {
+    let chemin_abs = common::chemin(REAL_CONVERT_PATH)?;
+    if !chemin_abs.is_file() {
+        eprintln!("skip : {} absent du corpus", chemin_abs.display());
         return None;
     }
-    let content = std::fs::read_to_string(REAL_CONVERT_PATH)
-        .unwrap_or_else(|e| panic!("Impossible de lire {REAL_CONVERT_PATH}: {e}"));
+    let content = std::fs::read_to_string(&chemin_abs)
+        .unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", chemin_abs.display()));
     let root: serde_json::Value =
         serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide: {e}"));
     Some(parse_weather_convert(&root))
 }
 
 fn load_real_schedule() -> Option<WeatherScheduleConfig> {
-    if !std::path::Path::new(REAL_SCHEDULE_PATH).exists() {
+    let chemin_abs = common::chemin(REAL_SCHEDULE_PATH)?;
+    if !chemin_abs.is_file() {
+        eprintln!("skip : {} absent du corpus", chemin_abs.display());
         return None;
     }
-    let content = std::fs::read_to_string(REAL_SCHEDULE_PATH)
-        .unwrap_or_else(|e| panic!("Impossible de lire {REAL_SCHEDULE_PATH}: {e}"));
+    let content = std::fs::read_to_string(&chemin_abs)
+        .unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", chemin_abs.display()));
     let root: serde_json::Value =
         serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide: {e}"));
     Some(parse_weather_schedule(&root))

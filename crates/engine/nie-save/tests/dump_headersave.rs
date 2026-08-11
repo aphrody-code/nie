@@ -3,8 +3,8 @@ use nie_save::{parse, BlobSubtype};
 #[test]
 fn dump_headersave_body() {
     for (path, name) in &[
-        ("/home/ubuntu/niers/data/saves/002AB8F4-USERDATALIVE", "002AB8F4-USERDATALIVE"),
-        ("/home/ubuntu/niers/data/saves/002AB8F4-SYSTEMLIVE", "002AB8F4-SYSTEMLIVE"),
+        ("data/saves/002AB8F4-USERDATALIVE", "002AB8F4-USERDATALIVE"),
+        ("data/saves/002AB8F4-SYSTEMLIVE", "002AB8F4-SYSTEMLIVE"),
     ] {
         if !std::path::Path::new(path).exists() {
             continue;

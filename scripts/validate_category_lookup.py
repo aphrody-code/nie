@@ -20,8 +20,9 @@ et on le fuzze (P -> +0x69a0 -> Q -> +0x2ca97f -> octet) comme une ENTRÉE.
 """
 import struct
 import sys
+from pathlib import Path
 
-sys.path.insert(0, "/home/ubuntu/niers/scripts")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from uemu import Emu
 
 VADDR = 0x140D3BAC0

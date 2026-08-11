@@ -12,7 +12,7 @@ classifies the return-value logic — the one thing the Lua driver branches on:
   OTHER             : needs manual reversing
 
 Uses the recovered data/re/funclua-cmdid-handlers.json (cmdId->handler VA for THIS build). Run after
-scripts/extract_funclua_table.py. Requires the RE venv: `.venv/bin/python scripts/triage_funclua_handlers.py`
+scripts/extract_funclua_table.py. Requires the RE venv: `uv run scripts/triage_funclua_handlers.py`
 (iced-x86, pefile).
 """
 import json

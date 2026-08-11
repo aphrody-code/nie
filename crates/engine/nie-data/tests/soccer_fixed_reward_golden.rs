@@ -1,13 +1,19 @@
 #![allow(clippy::pedantic)]
 //! Golden `soccer_fixed_reward` — récompenses d'esprits de match, sur le vrai dump.
+mod common;
+
 use nie_data::hash::HashId;
 use nie_data::soccer_fixed_reward::parse_soccer_fixed_reward_config;
 
-const PATH: &str = "/home/ubuntu/niers/data/common/gamedata/soccer/soccer_fixed_reward_spirit_config_1.02.11.00.cfg.bin.json";
+const PATH: &str = "soccer/soccer_fixed_reward_spirit_config_1.02.11.00.cfg.bin.json";
 
 fn load() -> Option<serde_json::Value> {
-    if !std::path::Path::new(PATH).exists() { return None; }
-    Some(serde_json::from_str(&std::fs::read_to_string(PATH).unwrap()).unwrap())
+    let chemin_abs = common::chemin(PATH)?;
+    if !chemin_abs.is_file() {
+        eprintln!("skip : {} absent du corpus", chemin_abs.display());
+        return None;
+    }
+    Some(serde_json::from_str(&std::fs::read_to_string(&chemin_abs).unwrap()).unwrap())
 }
 
 #[test]

@@ -1,6 +1,6 @@
 #![allow(clippy::pedantic)]
 //! Tests golden `record` — valeurs réelles tirées de :
-//! `/home/ubuntu/niers/data/common/gamedata/record/record_config.cfg.bin.json`
+//! `record/record_config.cfg.bin.json`
 //!
 //! ## Vérifications champ par champ (ligne JSON → assertion)
 //!
@@ -28,6 +28,8 @@
 //! ### Décompte global
 //! - 31 entrées `RECORD_INFO_*` au total (RECORD_INFO_0 à RECORD_INFO_30)
 //! - 9 entrées ont un extra_data non-nul (var\[8\] de type String)
+
+mod common;
 
 use nie_data::hash::HashId;
 use nie_data::record::{parse_record_config, RecordConfig, RecordInfo};
@@ -210,14 +212,16 @@ fn record_id_nul_ignore() {
 // ─── Tests sur le vrai fichier (skip si absent du VPS) ───────────────────────
 
 const REAL_PATH: &str =
-    "/home/ubuntu/niers/data/common/gamedata/record/record_config.cfg.bin.json";
+    "record/record_config.cfg.bin.json";
 
 fn load_real() -> Option<RecordConfig> {
-    if !std::path::Path::new(REAL_PATH).exists() {
+    let chemin_abs = common::chemin(REAL_PATH)?;
+    if !chemin_abs.is_file() {
+        eprintln!("skip : {} absent du corpus", chemin_abs.display());
         return None;
     }
-    let content = std::fs::read_to_string(REAL_PATH)
-        .unwrap_or_else(|e| panic!("Impossible de lire {REAL_PATH}: {e}"));
+    let content = std::fs::read_to_string(&chemin_abs)
+        .unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", chemin_abs.display()));
     let root: serde_json::Value =
         serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide: {e}"));
     Some(parse_record_config(&root))

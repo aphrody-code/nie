@@ -30,6 +30,8 @@
 //! ### m_CharaUniformExInfoList[0]
 //! - `charaId` = `0x99A1C150`, `uniformInfo` = `[0, 10]`
 
+mod common;
+
 use nie_data::hash::HashId;
 use nie_data::uniform::{parse_uniform_config, UniformConfig};
 use serde_json::json;
@@ -353,14 +355,16 @@ fn fixture_liste_manquante_renvoie_vide() {
 // ─── Test sur le vrai fichier (skip si absent — dump gitignore) ──────────────────
 
 const REAL_PATH: &str =
-    "/home/ubuntu/niers/data/common/gamedata/character/uniform_config_1.03.52.00.cfg.bin.json";
+    "character/uniform_config_1.03.52.00.cfg.bin.json";
 
 fn load_real() -> Option<UniformConfig> {
-    if !std::path::Path::new(REAL_PATH).exists() {
+    let chemin_abs = common::chemin(REAL_PATH)?;
+    if !chemin_abs.is_file() {
+        eprintln!("skip : {} absent du corpus", chemin_abs.display());
         return None;
     }
-    let content = std::fs::read_to_string(REAL_PATH)
-        .unwrap_or_else(|e| panic!("Impossible de lire {REAL_PATH}: {e}"));
+    let content = std::fs::read_to_string(&chemin_abs)
+        .unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", chemin_abs.display()));
     let root: serde_json::Value =
         serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide: {e}"));
     Some(parse_uniform_config(&root))

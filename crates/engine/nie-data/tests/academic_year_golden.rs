@@ -2,19 +2,23 @@
 //! Tests golden `academic_year` — `data/common/gamedata/character/academic_year_config.cfg.bin.json`.
 //! 3 années scolaires (type 1/2/3).
 
+mod common;
+
 extern crate std;
 
 use nie_data::academic_year::parse_academic_year_config;
 use nie_data::hash::HashId;
 use serde_json::json;
 
-const REAL: &str = "/home/ubuntu/niers/data/common/gamedata/character/academic_year_config.cfg.bin.json";
+const REAL: &str = "character/academic_year_config.cfg.bin.json";
 
 fn load_json(path: &str) -> Option<serde_json::Value> {
-    if !std::path::Path::new(path).exists() {
+    let path = common::chemin(path)?;
+    if !path.is_file() {
+        eprintln!("skip : {} absent du corpus", path.display());
         return None;
     }
-    Some(serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap())
+    Some(serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap())
 }
 
 fn fixture() -> serde_json::Value {
