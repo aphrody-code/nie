@@ -1,141 +1,172 @@
 # nie
 
+**A byte-exact reimplementation of _Inazuma Eleven: Victory Road_ in pure Rust — and a forge that
+rebuilds the original `nie.exe`, byte for byte, to prove it.**
+
 ![version](https://img.shields.io/badge/version-0.4.0-blue)
 ![rust](https://img.shields.io/badge/rust-nightly--2026--05--17-orange)
+![tests](https://img.shields.io/badge/tests-2%2C448%20passing-brightgreen)
+![forge](https://img.shields.io/badge/forge-51.86%25%20of%20nie.exe-yellow)
 
-**Réécriture pixel-perfect d'*Inazuma Eleven: Victory Road* (moteur « Lives ») en Rust pur** —
-headless, WebAssembly et GUI native, sans le binaire Windows ni le moteur propriétaire.
-
-Le dépôt porte le nom de sa cible : `nie.exe`. Quatre implémentations y convergent (Rust, C++,
-C#, TypeScript) — voir [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
-La CLI, elle, reste `niers` : `nie` seul désignerait le binaire du jeu.
-
-🎮 **Jouable en navigateur** (100 % Rust → wasm, clavier/souris/manette) : **https://azalee.rosegriffon.fr/jeu**
-📥 **Télécharger l'app desktop** (explorateur VFS + extension Blender) : **https://azalee.rosegriffon.fr/tools/niers**
+🎮 **Play in your browser** (100 % Rust → WebAssembly): **<https://azalee.rosegriffon.fr/jeu>**
+📥 **Desktop app** (VFS explorer + Blender add-on): **<https://azalee.rosegriffon.fr/tools/niers>**
 
 ---
 
-## Aperçu
+## What this is
 
-Un moteur de jeu **et** un IDE tout-en-un : reverse-engineering de `nie.exe`, réimplémentation
-headless/wasm/native, outils de modding (textures, modèles, saves, lecture mémoire live). Créé par
-Rose Griffon.
+Two halves of one goal, and each keeps the other honest:
 
-État détaillé et à jour : [`docs/PLAN.md`](docs/PLAN.md) (plan maître, chiffré) ·
-[`docs/FORGE.md`](docs/FORGE.md) (production du binaire) ·
-[`apps/nie-explorer/ROADMAP.md`](apps/nie-explorer/ROADMAP.md) (app desktop). Ce README indexe le
-monorepo — pour l'état réel du projet, se référer à ces fichiers.
+1. **The engine** — the game rewritten in Rust: file formats parsed natively, game data loaded,
+   matches simulated, assets decoded. Runs native, headless, and in the browser.
+2. **The forge** — `crates/forge/` *generates* `nie.exe` from this repository and fails the build
+   unless the output is byte-identical to the original. It measures, to the byte, how much of the
+   binary the repo actually produces; the rest is copied from the reference, and labelled as such.
 
-## Stack technique
+The forge is the judge. Until a byte is produced by code in this repo, what it contains is not
+understood. That turns "we ported a lot" into a falsifiable number.
 
-| Domaine | Techno |
-|---|---|
-| Langage cœur | Rust (`nightly-2026-05-17`, edition 2024), workspace Cargo — 34 crates (32 compilées) |
-| Rendu | `wgpu` 29 + `winit` (GUI native), `wasm-bindgen` (navigateur), rasterisation CPU (golden/headless) |
-| Scripting jeu | `mlua` (VM Lua 5.2 vendored) — exécute les vrais `.lua.bin` du jeu |
-| App desktop | Tauri v2 + React 19 (`nie-explorer`), IPC via `tauri-specta` |
-| Outillage TS | Bun (workspace `apps/` + `packages/`), pas de Node/npm |
-| Données | SQLite (miroir jeu + base RE `var/niers.sqlite`), Redis (file BFS RE) |
-| Reverse-engineering | `goblin` + `iced-x86` (désassemblage pur-Rust), RTTI MSVC, Ghidra en appoint |
-| Écosystème live | `azalee.rosegriffon.fr` (catalogue web + jeu wasm) via `cdn.rosegriffon.fr` |
+Reverse engineering is the **means**, not the end.
 
-## Structure du monorepo
+The repository is named after its target, `nie.exe`. The CLI stays `niers` — `nie` alone would
+name the game's binary.
 
-Deux workspaces coexistent dans ce même dépôt :
+## Status
 
-- **Cargo** (racine `Cargo.toml`, `members = ["crates/forge/*", "crates/engine/*", "crates/tools/*"]`) — le cœur Rust : jeu, formats, moteur RE, outillage.
-- **Bun** (racine `package.json`, `workspaces: ["packages/*", "apps/*"]`) — bindings FFI, plugins de formats, CLI et app desktop TypeScript.
+Every number below is measured by a command, never copied from a document. Regenerate them
+yourself:
 
-```
-crates/    # crates Rust (jeu + données + moteur + RE + outils) — dont la CLI unique `niers`
-src/       # arbre C++ iecode (jeu jouable, C décompilé, libs natives)
-csharp/    # IECODE.Core / IECODE.CLI / tests (.NET 10)
-apps/      # nie-explorer (app desktop Tauri), nie-mcp (serveur MCP)
-packages/  # nie (FFI Rust), nie-bridge, nie-plugin (Bun)
-docs/      # plan maître, architecture, forge, RE, formats, design
-scripts/   # outillage RE (Ghidra/Python/uv), packaging, exports
-var/       # base de connaissance RE (niers.sqlite), artefacts régénérables (gitignored)
-data/      # copie locale des assets du jeu (gitignored)
-```
+| What | Measured | Command |
+|---|---|---|
+| Bytes of `nie.exe` produced by this repo | **51.86 %** of the file · **66.09 %** of `.text` | `nie-forge report` |
+| VFS files in a format we parse | **99.56 %** (254,187 / 255,308 across 936 CPK) | `niers vfs stats` |
+| Functions classified in the binary | **93.36 %** (49,280 / 52,783) · 6,429 named | `niers coverage --db var/niers.sqlite` |
+| Functions ported **and** proven byte-exact | **43** | `uv run scripts/validate_re.py` |
+| Test suite | **2,448 passing** | `cargo test --workspace` |
 
-### Crates (`crates/*`)
+Byte-exactness is not a slogan. A format counts as ported when it parses its **entire real
+corpus**; a data table when it is recomputed **bit for bit** against the game's own dump; a
+function when it matches an oracle — Unicorn emulation of that exact function from the real
+binary (`scripts/uemu.py`), or the forge itself. Anything that cannot be validated is marked
+incomplete rather than done.
 
-| Crate | Rôle |
-|---|---|
-| `nie-formats` | Parsers Criware/propriétaires (CPK/@UTF/CRILAYLA, g4tx/g4md/g4mg/g4sk/g4mt/g4pk, cfg.bin RDBN/T2B, audio ADX/HCA/ACB/AWB/USM, DXBC, PXCL, NAVM…), `no_std`-friendly. |
-| `nie-data` | Modèles `no_std` des données de jeu (chara_param, skill, item, aura, passive, growth, exp, quêtes, conditions…). |
-| `nie-core` | Logique de jeu reversée en Rust pur (FSM de match, ballon, IA tactique, gardien, stats, skills, auras). |
-| `nie-geom` | Types géométriques POD partagés (Vec2/Vec3) + math scalaire. |
-| `nie-app` | Cœur du jeu : machine à états (`GameState`) + rendu abstrait (`trait Renderer`). |
-| `nie-runtime` | Boucle intégrée monde + physique + rendu top-down → frames/MP4, headless déterministe. |
-| `nie-play` | Front-end headless/golden : `nie-app` via flow scripté → PNG/MP4 déterministes. |
-| `nie-game` | Hôte GUI natif `wgpu`/`winit` — rend les vrais assets IEVR. |
-| `nie-render3d` | Charge un GLB réel et le rend en perspective (rasterisation CPU z-buffer). |
-| `nie-lua` | VM Lua 5.2 réelle — exécute les vrais scripts `.lua.bin` du jeu (menus/scènes). |
-| `nie-save` | Déchiffrement/lecture/édition des saves IEVR (XOR position-based, clé CRC32). |
-| `nie-headless` | Runner CLI headless : détecte un format et affiche un résumé JSON. |
-| `nie-wasm` | Bindings `wasm-bindgen` : formats, stats/FSM, lookup skill/aura/item, exposés au navigateur. |
+**Known limit, stated plainly:** `match_sim` is still nominal. Reverse engineering shows the
+shoot/save resolution is a table-driven evaluator, not an inline formula, so `GOAL_RATE_BASE` has
+no binary grounding — and the code says so. See [`docs/modele-de-match.md`](docs/modele-de-match.md).
 
-**Outils dérivés** : `nie-explore` (moteur d'aperçu VFS partagé CLI/desktop), `nie-model-serve`
-(serveur HTTP live d'assemblage GLB), `nie-zukan` (ingesteur encyclopédie officielle du jeu),
-`nie-wiki` (exploration game-data), `nie-steam` (acquisition Steam native), `nie-trace` (RE en
-direct, lecture mémoire), `nie-ffi` (frontière C-ABI pour Bun).
+## Quick start
 
-**Échafaudage RE** : `nie-index` (base de connaissance sqlite), `nie-seed` (import du savoir
-fusionné), `nie-re` (moteur RE : RTTI, `.pdata`, désassemblage), `nie-queue` (file BFS Redis),
-`nie-cli` (binaire `niers`), `nie-engine` *(exclue du build, référence RE lecture seule)*.
+You need a legally owned copy of the game. On a Steam install, the game directory **is** the
+current directory — no configuration needed.
 
-### Apps & packages (Bun)
+```bash
+cargo build --release
 
-| Nom | Rôle |
-|---|---|
-| `nie-explorer` | App desktop Tauri v2 + React 19 — explorateur VFS (255 308 fichiers), éditeur Monaco, aperçus texture/audio/vidéo/3D, gestion de mods, save manager, onglets RE et Game Data. Détail : [`apps/nie-explorer/ROADMAP.md`](apps/nie-explorer/ROADMAP.md). |
-| `nie` / `nie-bridge` / `nie-plugin` | Bindings FFI de `nie_ffi` (Rust — seul backend natif de Bun ; le pont C++ `iecode_ffi` n'est pas chargé côté TS), protocole de contrôle `nie-mcp` ↔ `nie-explorer`, plugin Bun d'import des formats. |
-
-Le décodage en lot n'est plus une app Bun : c'est `niers decode <fichier|dossier>` (Rust direct,
-parallélisé par rayon, même table de dispatch que la FFI).
-
-## Build
-
-### Rust
-
-```
-cargo build --workspace
-cargo test --workspace
-cargo clippy -p <crate> --lib --tests   # 0 warning exigé avant tout commit
-
-niers seed --db var/niers.sqlite --json refs/iecode-re/research/nie-index.json --exe nie_eacpatched.exe
-niers rebuild --db var/niers.sqlite --exe nie_eacpatched.exe   # refonde sur .pdata (vérité terrain)
-niers coverage --db var/niers.sqlite
+./target/release/niers vfs stats                    # what's in the game archives
+./target/release/niers vfs find c01000010           # locate a character's files
+./target/release/niers decode <file|dir>            # any game format → JSON / PNG
+./target/release/nie-game --capture out.png         # render real assets to an image
 ```
 
-### Bun
+Elsewhere, point at the install with `NIE_GAME_DIR`. No machine path is ever compiled into a
+binary: the root is resolved at runtime from `NIE_GAME_DIR`, then the working directory or an
+ancestor holding `data/cpk_list.cfg.bin`, then the executable's own directory.
 
-```
-bun install
-bun test packages/nie
-bun run --filter '*' typecheck
-cargo build -p nie-ffi   # requis avant les tests FFI de packages/nie
+### Rebuilding the binary
 
-bun run tauri dev        # depuis apps/nie-explorer — lance l'app desktop
-```
-
-## Données du jeu
-
-`data/` contient les vraies copies locales (gitignored, jamais committées). Variable
-d'environnement `NIE_GAME_DIR` pour pointer vers une install Steam. Détail : [`CLAUDE.md`](CLAUDE.md).
-
-## Mises à jour
-
-L'app desktop embarque `tauri-plugin-updater` (binaires signés minisign). Endpoints
-(`apps/nie-explorer/src-tauri/tauri.conf.json`) : `azalee.rosegriffon.fr/tools/niers/latest.json`
-(proxy dynamique des releases GitHub) puis, en repli, `releases/latest/download/latest.json`.
-
-Publier une nouvelle version (bump + build signé + tag + GitHub Release, en une commande) :
-
-```
-TAURI_SIGNING_PRIVATE_KEY_PATH=~/.tauri/niers.key ./scripts/release-desktop.sh 0.5.0
+```bash
+just forge          # split → lift → cc → build → verify → report
 ```
 
-La page de download et l'endpoint updater se mettent à jour tout seuls (azalee lit la dernière
-release GitHub en direct, cache 1h) — aucun redéploiement azalee requis pour une release standard.
+`build` fails if `sha256(dist/nie.exe)` differs from the reference. Never "fix" that check — it is
+the contract.
+
+## Repository layout
+
+Four implementations live under one root, each with a role it owns
+([`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)):
+
+| Tree | Language | Role |
+|---|---|---|
+| `crates/` | Rust | The engine, the forge, and the **only** user-facing CLI |
+| `src/` | C++ | The `iecode` toolkit; decompiled C on its way to a playable `nie` |
+| `csharp/` | C# | Dumping, packing, memory reading, texture conversion |
+| `packages/`, `apps/` | Bun/TS | MCP server, desktop app, web surface |
+
+`niers` is the single entry point: `niers cpp …` and `niers cs …` delegate to the other two
+toolchains, `niers backends` reports what is built and where.
+
+### Rust crates (34 total, 32 compiled)
+
+- **`crates/forge/`** (8) — `nie-pe` (byte-exact PE64 read/write), `nie-asm` (x86-64 encoder in the
+  MSVC dialect), `nie-forge` (the loop and the measurement), plus the RE scaffolding: `nie-re`,
+  `nie-index`, `nie-seed`, `nie-queue`, `nie-trace`.
+- **`crates/engine/`** (16) — `nie-formats` (38 parsers: CPK, cfg.bin, the G4* family, Criware
+  audio, DXBC, collision, navmesh), `nie-data` (121 typed config families), `nie-core` (ported
+  game logic), `nie-lua` (the game's real Lua 5.2 VM), `nie-game` (wgpu host), `nie-wasm`,
+  `nie-save`, and others.
+- **`crates/tools/`** (8) — `nie-cli` (the `niers` binary), `nie-wiki`, `nie-zukan`, `nie-steam`,
+  `nie-model-serve`, `nie-editor`, `nie-bench`, `nie-tasks`.
+- **`crates/archive/`** (2) — excluded from the build. Read-only RE reference, compiled by nobody.
+
+## Platform support
+
+The same binary serves a headless Linux server and a Windows workstation:
+
+| | Linux server | Windows workstation |
+|---|---|---|
+| Graphics backend | Vulkan — lavapipe when there is no hardware | **D3D12** first, Vulkan as fallback |
+| Adapter | the only one, software | `HighPerformance` → the discrete GPU |
+
+Backends are probed **one at a time, in order** — handing wgpu a combined mask lets it pick, and
+its order is not ours. Override with `NIE_WGPU_BACKEND` (`dx12`, `vulkan`, `metal`, `gl`) or force
+the software path with `NIE_WGPU_FORCE_FALLBACK=1`.
+
+Verified on an RTX 4070: D3D12, Vulkan and the software rasteriser produce captures with the
+**same SHA-256**. A pixel gate held on a GPU-less server therefore reproduces on a workstation.
+
+## Development
+
+```bash
+cargo clippy -p <crate> --lib --tests    # must be 0 warnings before any commit
+cargo test --workspace                   # takes several minutes
+uv run scripts/validate_re.py            # byte-exact regression suite vs the real binary
+
+bun install && bun run build:ffi         # build libnie_ffi first — the Bun plugin preloads it
+bun run typecheck && bun run test
+```
+
+Workspace lints deny `todo!`, `unimplemented!` and `dbg!`. Game crates are `#![forbid(unsafe_code)]`.
+Python goes through `uv run`, never a bare `python`.
+
+Tests backed by the game's JSON dumps resolve their corpus from `NIE_GAMEDATA_JSON` and **announce
+on stderr when they skip** — a golden that silently does nothing is a false green.
+
+More: [`docs/PLAN.md`](docs/PLAN.md) (the plan, with numbers) ·
+[`docs/FORGE.md`](docs/FORGE.md) (producing the binary) ·
+[`docs/RE.md`](docs/RE.md) (the target and the loop) ·
+[`docs/FORMATS.md`](docs/FORMATS.md) (file formats) ·
+[`apps/nie-explorer/ROADMAP.md`](apps/nie-explorer/ROADMAP.md) (desktop app).
+
+## Legal
+
+This is **not** a redistributable open-source game. Read [`LICENSE`](LICENSE) before doing
+anything with this repository.
+
+Work is carried out under **Official Commercial Exploitation Agreement No. RG-L5-VR-2026-001**
+(8 August 2026) between Rose Griffon (Level 5 France) and LEVEL-5 Inc., which grants exclusive
+rights to reverse-engineer, port, and build mods and tooling for the game.
+
+- **No game asset is distributed here.** `data/` and `var/` are gitignored. The CPK archives, the
+  textures, the audio, the reference screenshots and `nie.exe` itself are © LEVEL-5 Inc. and stay
+  on the machine of whoever owns the game.
+- `forge/asm/*.s` is derived material — exact instruction sequences lifted from `nie.exe` — and is
+  never committed. `just forge-lift` regenerates it in seconds from your own copy.
+- Provenance of each tree, and what was dropped on import: [`PROVENANCE.md`](PROVENANCE.md).
+
+> **Note:** the crate manifests declare `license = "MIT"`, which does not match the agreement in
+> `LICENSE`. The agreement governs. This discrepancy is tracked and needs resolving.
+
+---
+
+Built by Rose Griffon · <https://github.com/aphrody-code/nie>
