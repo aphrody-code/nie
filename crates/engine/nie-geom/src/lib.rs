@@ -3,7 +3,7 @@
 //! `Vec2`/`Vec3` sont des conteneurs `[f32]` **axis-agnostiques** : le système de coordonnées
 //! (quel axe est « vertical ») vit dans le CODE de chaque consommateur, PAS dans le type.
 //!
-//! ⚠ **Landmine #4** (cf. `docs/DEDUP-PLAN.md`) : `nie-core` traite `y` comme hauteur, `nie-runtime`
+//! ⚠ **Landmine #4** (cf. `docs/ARCHITECTURE.md`) : `nie-core` traite `y` comme hauteur, `nie-runtime`
 //! traite `z` comme hauteur. Le type unifié ne change RIEN à cela (chaque crate garde sa convention
 //! dans son code). Mais **ne jamais convertir implicitement** un `Vec3` d'un système vers l'autre :
 //! la similarité de layout ne vaut pas équivalence sémantique.

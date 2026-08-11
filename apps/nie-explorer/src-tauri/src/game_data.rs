@@ -683,7 +683,7 @@ mod tests {
     }
 
     /// Cf. `nie-game/examples/export_items.rs` (référence déjà validée end-to-end,
-    /// `docs/ROADMAP-100.md` B′3 : « 1767 noms / 324 descriptions fr »).
+    /// `docs/PLAN.md` B′3 : « 1767 noms / 324 descriptions fr »).
     #[test]
     fn list_items_sur_le_vrai_jeu() {
         let Some(vfs) = real_vfs_or_skip("list_items_sur_le_vrai_jeu") else { return };
@@ -693,7 +693,7 @@ mod tests {
     }
 
     /// Cf. `nie-game/examples/export_auras.rs` (référence déjà validée end-to-end,
-    /// `docs/ROADMAP-100.md` C2 : « 443/443 auras résolues »).
+    /// `docs/PLAN.md` C2 : « 443/443 auras résolues »).
     #[test]
     fn list_auras_sur_le_vrai_jeu() {
         let Some(vfs) = real_vfs_or_skip("list_auras_sur_le_vrai_jeu") else { return };
@@ -703,7 +703,7 @@ mod tests {
     }
 
     /// Cf. `nie-game/examples/export_trophies.rs` (référence déjà validée end-to-end,
-    /// `docs/ROADMAP-100.md` C2 : « 231/231 noms résolus »).
+    /// `docs/PLAN.md` C2 : « 231/231 noms résolus »).
     #[test]
     fn list_trophies_sur_le_vrai_jeu() {
         let Some(vfs) = real_vfs_or_skip("list_trophies_sur_le_vrai_jeu") else { return };
@@ -713,7 +713,7 @@ mod tests {
     }
 
     /// Cf. `nie-game/examples/export_quests.rs` (référence déjà validée end-to-end,
-    /// `docs/ROADMAP-100.md` C2 : « 182/182 titres fr »).
+    /// `docs/PLAN.md` C2 : « 182/182 titres fr »).
     #[test]
     fn list_quests_sur_le_vrai_jeu() {
         let Some(vfs) = real_vfs_or_skip("list_quests_sur_le_vrai_jeu") else { return };
@@ -723,7 +723,7 @@ mod tests {
     }
 
     /// Cf. `nie-game/examples/export_characters.rs` (référence déjà validée end-to-end,
-    /// `docs/ROADMAP-100.md` C2 : « 6470/7223 prénoms résolus »). Puis calcule les stats du
+    /// `docs/PLAN.md` C2 : « 6470/7223 prénoms résolus »). Puis calcule les stats du
     /// premier personnage de la liste à Lv50/rang N — vérifie juste que le calcul ABOUTIT à des
     /// valeurs plausibles (pas un golden byte-exact : ça dépend du perso pris en tête de liste,
     /// non déterministe entre versions du jeu — `calculate_stats` lui-même EST déjà golden-testé

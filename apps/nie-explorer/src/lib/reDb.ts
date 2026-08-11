@@ -127,7 +127,7 @@ export const reDb = {
    * `niers.sqlite` via `tauri-plugin-sql` (même mécanisme de lecture que `searchFunctions`, la
    * base n'est PAS ouverte en lecture seule). `name_source` passe à `'user-edit'` : distingue un
    * nom entré manuellement dans l'app des sources RE existantes (`'vtable-struct'`/`'ghidra'`/
-   * `'pdb'`, cf. `docs/ROADMAP-100.md` E2) — même discipline de provenance que le reste du projet
+   * `'pdb'`, cf. `docs/PLAN.md` E2) — même discipline de provenance que le reste du projet
    * (jamais un nom sans savoir d'où il vient).
    */
   async renameFunction(path: string, id: number, name: string): Promise<void> {

@@ -20,7 +20,7 @@ use nie_core::BALL_GRAVITY;
 
 // Vecteurs : SOURCE UNIQUE `nie_geom` (dédup Phase 2). Alias V2/V3 pour préserver le code local.
 // Convention nie-runtime : `z` = hauteur (vit dans le code ; le type est axis-agnostique).
-// ⚠ Ne pas convertir vers/depuis `nie_core::Vec3` (y=hauteur) — cf. `docs/DEDUP-PLAN.md` landmine #4.
+// ⚠ Ne pas convertir vers/depuis `nie_core::Vec3` (y=hauteur) — cf. `docs/ARCHITECTURE.md` landmine #4.
 use nie_geom::{Vec2 as V2, Vec3 as V3};
 
 // ── Dimensions du terrain (mètres, origine au centre) ───────────────────────────

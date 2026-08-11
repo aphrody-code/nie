@@ -126,43 +126,34 @@ que la source). Chaque corps relevé est **réencodé et comparé** avant d'entr
 
 ---
 
-## 5. État mesuré (2026-08-10)
+## 5. État mesuré
 
 Chiffres sortis de l'outil, pas d'une estimation. Le binaire produit est **byte-identique à chaque
-étape** — la progression est interne, jamais au prix de l'identité.
+étape** — la progression est interne, jamais au prix de l'identité. Régénérer : `nie-forge report`.
 
 ```
 split   : 219 427 unités · 55 351 fonctions .pdata · 0 trou · 0 overlay
-lift    : 111 124 corps examinés → 74 256 régénérables (8 000 480 o)
-cc      : 7 fonctions compilées par MSVC 14.44, 7 correspondances byte-exactes
-build   : dist/nie.exe · 33 918 464 o · sha256 identique ✅ · 74 257 unités produites
-report  : produced = 23,5892 % du fichier · code_rust = 32,7167 % du .text
+build   : dist/nie.exe · 33 918 464 o · sha256 identique ✅
+report  : produced = 51,8607 % du fichier · code_rust = 66,0910 % du .text
 ```
 
 | source | unités | octets |
 |---|---:|---:|
-| en-têtes PE ré-émis (`nie-pe`) | 1 | 624 |
-| corps réassemblés (`nie-asm`) | 74 256 | 8 000 480 |
-| codegen MSVC coïncidant (`nie-forge cc`) | 2 | 9 |
-| **total** | **74 257** | **8 001 104** |
+| en-têtes PE ré-émis (`nie-pe`) | — | 1 428 592 |
+| corps réassemblés (`nie-asm`) | 97 947 | 16 161 764 |
 
-Attribution **exclusive** : une unité fournie par deux voies n'est comptée qu'une fois, dans l'ordre
-même de la construction (en-têtes → assembleur → codegen).
+Attribution **exclusive** : une unité fournie par deux voies n'est comptée qu'une fois, dans
+l'ordre même de la construction (en-têtes → assembleur → codegen). `semantic` n'est jamais compté
+comme produit : seuls `emitted`, `assembled` et `bytes` valent.
 
-### Progression, vague par vague
+### Ce que chaque élargissement du dialecte a rapporté
 
-| vague | ajout au dialecte | fichier | `.text` |
-|---|---|---:|---:|
-| 0 | en-têtes seuls | 0,0018 % | 0 % |
-| 1 | 17 formes de base | 0,4249 % | 0,5868 % |
-| 2 | prologues, branchements, `[rip …]` | 1,9700 % | 2,7299 % |
-| 3 | `r/m`+immédiat, indirects, `imul`, `movsx` | 6,0548 % | 8,3957 % |
-| 4 | SSE (`movaps`/`movss`/`xorps`/arith.) | 9,5494 % | 13,2429 % |
-| 5 | `cmovcc`, conversions, `shufps`, REX 8 bits | 12,8804 % | 17,8631 % |
-| 6 | `movd/movq`, `movsxd` mém., groupe `F7`, accumulateur | 15,2747 % | 21,1841 % |
-| 7 | immédiat étendu en signe, `bt*`, `cdqe`, décalage par `cl` | **23,5892 %** | **32,7167 %** |
+La courbe est franchement non linéaire : quelques familles d'instructions portent l'essentiel de
+la masse. Des formes de base au dialecte actuel, la part du `.text` est passée de 0,59 % à plus de
+66 %, par vagues successives — prologues et branchements, `[rip …]`, `r/m`+immédiat, SSE,
+`cmovcc` et conversions, `movd`/`movq`, immédiats étendus en signe.
 
-Deux enseignements de la vague 7, l'un et l'autre trouvés par l'outillage :
+Deux enseignements, l'un et l'autre trouvés par l'outillage :
 
 - **`mov qword ptr [rsp+28h], 0` valait 6,6 Mo à lui seul.** iced classe cet immédiat en
   `Immediate32to64` (étendu en signe), pas `Immediate32` ; l'oubli d'une variante d'énumération
@@ -176,33 +167,45 @@ Deux enseignements de la vague 7, l'un et l'autre trouvés par l'outillage :
 
 ### Ce qui bloque encore, par masse
 
+Régénérer la liste : `nie-forge lift`, lignes `blocker`, triées par masse.
+
 ```
-encodage  28 317 corps  9 056 642 o   « and rdx,0FFFFFFFFFFFFFFF0h »
-mov        2 484 corps  3 035 548 o   « mov [2258EE105290F01h],al »  (adresse absolue moffs)
-cmpps        519 corps    866 730 o   « cmpeqps xmm1,[rbx+10h] »
-invalide   1 972 corps    457 208 o   (données inline prises pour du code)
-vpermilps    331 corps    449 128 o   (AVX)
+mov          2 443 corps  3 008 522 o   « mov rax,gs:[58h] »  (segment, adresse absolue moffs)
+cmpps          519 corps    866 730 o   « cmpeqps xmm1,[rbx+10h] »
+invalide     1 988 corps    467 038 o   (données inline prises pour du code)
+vpermilps      331 corps    449 128 o   (AVX)
+prefetchnta    159 corps    248 224 o
+psrldq         239 corps    193 722 o
+encodage:jmp 2 082 corps    142 000 o   orig=[48, ff, e0] · nie-asm=[ff, e0]
+encodage:dec   372 corps    155 672 o   préfixe `lock` non ré-émis
 ```
 
-`encodage` domine désormais : ce sont des corps **entièrement traduits** dont le ré-encodage diverge
-d'un octet — MSVC a choisi une forme que l'encodeur canonique ne reproduit pas encore. Chacun est un
-*finding* de RE exploitable, et aucun ne peut passer pour produit.
+Les causes `encodage:*` sont les plus instructives : ce sont des corps **entièrement traduits**
+dont le ré-encodage diverge de quelques octets — un `jmp rax` que MSVC préfixe d'un REX nul, un
+`lock` perdu. Le diagnostic affiche `orig=` contre `nie-asm=` précisément pour ça. Chacune est un
+*finding* exploitable, et aucune ne peut passer pour produite.
 
 ## 6. Un constat que l'outillage a produit immédiatement
 
-Le registre `forge/registry.json` reprend les **27 adresses** validées byte-exact par l'oracle uemu
-(`scripts/validate_re.py`, suite 43/43). Croisées avec la table `.pdata` du binaire livré :
+Le registre `forge/registry.json` distingue deux statuts, et cette distinction est le cœur de
+l'honnêteté de la mesure :
+
+| statut | preuve | entrées | compté comme produit ? |
+|---|---|---:|---|
+| `bytes` | `msvc` — MSVC 14.44 a recraché les octets originaux | 7 | **oui** |
+| `semantic` | `uemu` — la logique est validée byte-exact contre l'oracle | 27 | **non** |
+
+Les 27 adresses validées par l'oracle uemu, croisées avec la table `.pdata` du binaire livré :
 
 > **27 sur 27 ne sont pas des débuts de fonction de `nie.exe`.**
 > Elles tombent *à l'intérieur* de fonctions réelles, avec des décalages non constants
 > (`0x2e2a10` est à +0x70 dans la fonction `0x2e29a0`, `0x7faf0` à +0x670, `0x90fa0` à +0x30…).
 
-Cause : la chaîne de reverse travaille sur `nie_eacpatched.exe` (cf. `justfile`, variable `exe`), un
-**autre build** — la même dérive que celle déjà constatée sur les vtables du dump mémoire
-(`docs/PLAN.md` §5). Les validations sémantiques restent valides *pour ce binaire-là* ; elles ne
-peuvent pas encore compter pour le binaire livré tant qu'elles ne sont pas ré-ancrées.
+Cause : la chaîne de reverse travaille sur `nie_eacpatched.exe` (cf. `justfile`, variable `exe`),
+un **autre build**. Les validations sémantiques restent vraies *pour ce binaire-là* ; elles ne
+peuvent pas compter pour le binaire livré tant qu'elles ne sont pas ré-ancrées.
 
-Le rapport les compte donc en `orphan_entries = 27`, et **jamais** dans les octets produits. C'est
+Le rapport les compte donc en `orphan_entries`, et **jamais** dans les octets produits. C'est
 précisément le rôle de la forge : rendre ce genre d'écart impossible à ignorer.
 
 **Travail à faire** : ré-ancrer chaque adresse sur une racine `.pdata` de `nie.exe` (par signature
@@ -216,8 +219,8 @@ d'octets plutôt que par adresse), puis renseigner le champ `rust` de chaque ent
 |---|---|---|
 | **G0 — identité** | le fichier produit est byte-identique à l'original | ✅ tenu, testé sur le vrai binaire |
 | **G1 — recouvrement** | chaque octet appartient à une unité nommée, zéro trou | ✅ 219 427 unités, invariant testé |
-| **G2 — amorçage** | une part non nulle du binaire est produite par le dépôt | ✅ 44,9727 % |
-| **G3 — code** | 50 % du `.text` produit par le dépôt | ✅ **62,3765 %** |
+| **G2 — amorçage** | une part non nulle du binaire est produite par le dépôt | ✅ **51,8607 %** du fichier |
+| **G3 — code** | 50 % du `.text` produit par le dépôt | ✅ **66,0910 %** |
 | **G4 — sections** | `.rdata`/`.data` produits depuis les structures, pas recopiés | non commencé (découpage encore d'un seul tenant) |
 | **G5 — disposition** | la forge calcule ses propres adresses (édition de liens réelle) | non commencé ; jusque-là les champs relogés viennent de la disposition de référence |
 | **G6 — total** | 100 % du fichier produit, `nie.exe` reconstructible sans référence | horizon |

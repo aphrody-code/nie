@@ -2676,7 +2676,7 @@ fn vfs_glb_preview_turntable_mp4_b64(path: String, game_dir: Option<String>, sta
 /// Décode n'importe quel format audio Criware du VFS (`.acb`/`.awb`/`.hca`/`.adx`, dispatch par
 /// magic) en WAV PCM16, base64 — `nie_formats::cri_audio::decode_to_wav` (feature `audio-decode`,
 /// `cridecoder` + `IEVR_HCA_KEY` reversé de `nie.exe`, vérifié byte-exact sur `c00001001.awb`
-/// (48 kHz mono, non silencieux) — cf. `docs/INVENTAIRE.md` § C1).
+/// (48 kHz mono, non silencieux) — cf. `docs/PLAN.md` § C1).
 ///
 /// Décodage lancé sur un THREAD DÉDIÉ à pile de 16 Mio : trouvé par test réel (pas supposé) —
 /// `cridecoder` fait un vrai `STATUS_STACK_OVERFLOW` sur la pile debug par défaut (~1 Mio

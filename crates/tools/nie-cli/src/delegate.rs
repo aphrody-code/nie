@@ -1,6 +1,6 @@
 //! Délégation aux CLI des autres arbres du dépôt.
 //!
-//! Doctrine (`docs/ARCHITECTURE-POLYGLOTTE.md`) : **`niers` est la seule CLI utilisateur**.
+//! Doctrine (`docs/ARCHITECTURE.md`) : **`niers` est la seule CLI utilisateur**.
 //! Le toolkit C++ (`iecode`, ~40 commandes) et l'outillage .NET (`IECODE.CLI`, ~37 commandes)
 //! gardent des fonctions que le Rust n'a pas encore ; les supprimer d'un trait perdrait des
 //! dizaines de features. `niers` les expose donc **sous son propre nom** en attendant que

@@ -33,7 +33,7 @@ use nie_data::formation::{FormationConfig, SoccerFormationInfo, SoccerFormPlacem
 // on l'utilise ici à la place de l'ancien Splitmix64 nominal.
 // NB : le MODÈLE de but qui consomme ce RNG reste nominal (la vraie résolution
 // est event-driven + data-driven, pas une formule inline — cf.
-// docs/recherche-modele-match-decompile.md). Seul le RNG est désormais réel.
+// docs/modele-de-match.md). Seul le RNG est désormais réel.
 // ============================================================================
 
 use crate::crand::CRand;

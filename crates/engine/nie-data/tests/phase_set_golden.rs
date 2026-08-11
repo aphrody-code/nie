@@ -1,7 +1,6 @@
 #![allow(clippy::pedantic)]
 //! Golden `phase_set` — setup de phases de match (~182 fichiers `*_phase_set`), sur de vrais dumps.
 use nie_data::phase_set::parse_phase_set;
-use nie_data::unlock_condition::UnlockType;
 
 fn load(rel: &str) -> Option<serde_json::Value> {
     let p = std::format!("/home/ubuntu/niers/data/common/gamedata/{rel}");

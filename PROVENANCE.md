@@ -22,7 +22,7 @@ erreur en amont, régénérables, au-delà de la limite de longueur de chemin Wi
   `/O2 /GS- /Gy /Zl`) — cf. `docs/FORGE.md`.
 - **`src/nie_rs/`** — pont Rust interne au toolkit (`stubs.rs`, `animation_play_anime.rs`,
   `animation_bone_blend.rs`, `vfs_path_resolver.rs`, `crilayla_decompress.rs`). Recoupement à faire
-  avec `crates/engine/` (cf. `docs/PORTAGES.md`).
+  avec `crates/engine/` (cf. `docs/ARCHITECTURE.md`).
 
 Le C décompilé lui-même n'est pas dans ce dépôt : `research/ghidra-export/decompiled/` du dépôt
 iecode (60 fichiers, 597 Ko), non rapatrié.

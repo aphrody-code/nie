@@ -4,32 +4,26 @@
 > (écran START « COMMENCER ») et `menu.png` (menu principal) — d'*Inazuma Eleven: Victory Road*
 > (`nie.exe`, moteur Level-5 « Lives ») réimplémenté en Rust.
 >
-> Cap : `docs/ROADMAP-100.md` (pilier **C4 Rendu**, la pointe active). Stack : `docs/STACK.md`.
-> Boucle RE : `docs/ARCHITECTURE.md`. Plan court : `docs/PLAN.md`.
-> Mémoire de mapping : `menu-rendering-data-trilogy`, `start-menu-screen-mapping`.
+> Cap et état : `docs/PLAN.md` (pilier Rendu). Stack : `docs/STACK.md`.
+> Boucle RE : `docs/RE.md`.
 > Règle d'or : **aucun « FAIT » sans validation end-to-end sur le réel** (byte-exact vs
-> iecode/inagle, pixel-exact vs capture du vrai jeu).
->
-> Méthode : ce document est issu d'une analyse multi-agents (7 sous-systèmes) **vérifiée
-> adversarialement** contre le code, le VFS live (254 202 fichiers) et la référence de portage
-> iecode (`/home/aphrody/rg/iecode`). Chaque affirmation factuelle cite un `file:line` réel.
+> iecode/inagle, pixel-exact vs capture du vrai jeu). Chaque affirmation factuelle cite un
+> `file:line` réel.
 
-## 0. TL;DR
+## 0. Le problème en bref
 
-> ⏱ **Note de fraîcheur (2026-06-16).** Les couches 1 (placement) et 2 (texture non-dummy) sont
-> maintenant FAITES — title02 rend 18/18 sprites on-écran (SSIM 0.2511), main_menu via-setting 0.4180.
-> Les constats « quasi vide / 10/18 » ci-dessous sont le snapshot HISTORIQUE de départ ; voir la table
-> d'état rafraîchie plus bas pour le vrai front (texte/police, driver D1.c, 3D).
+Les couches de placement (ancêtre-fallback) et de sélection de texture non-dummy sont **faites** :
+`title02` rend ses 18 sprites on-écran. Ce qui reste sépare « écran cartographié » de « écran rendu
+identique » : le texte et la police, le driver de menu runtime, et la 3D in-menu.
 
 Les deux écrans sont **données-présentes** dans le VFS et niers sait *composer* en CPU/GPU — le
-rendu de départ était **quasi vide** parce qu'il manquait les couches **runtime** que le moteur applique
-par-dessus les fichiers statiques. Constats clés vérifiés (snapshot initial) :
+rendu était **quasi vide** au départ parce qu'il manquait les couches **runtime** que le moteur
+applique par-dessus les fichiers statiques :
 
-- `title02` (start.png) : **10/18 objbin** rendus, mais placés à leur **bind pose** (souvent
-  hors-écran) ; et le compositeur **pioche la 1ʳᵉ texture DDS de l'atlas — souvent un dummy 4×4** →
-  sprites invisibles. Les seuls objets visibles à l'écran sont 2 widgets DLC (23/24) qui **ne
-  devraient pas** apparaître. Résultat : `/tmp/niers-shots/title02.png` ≈ vide.
-- `mainmenu01` (menu.png) : **22/31 objbin** rendus depuis D1.c (textures co-localisées du Groupe B ;
+- `title02` (start.png) : les objbin étaient placés à leur **bind pose** (souvent hors-écran), et le
+  compositeur **piochait la 1ʳᵉ texture DDS de l'atlas — souvent un dummy 4×4** → sprites
+  invisibles. Les deux couches correctives sont portées.
+- `mainmenu01` (menu.png) : **22/31 objbin** rendus (textures co-localisées du Groupe B ;
   placement encore au centre, bloqué sur le DRIVER C++/Lua D1.c — cf. §5/§6). Les 8 panneaux du Groupe A (AVATAR / VICTOIRES /
   VOTRE ÉQUIPE) n'ont **ni g4pkm ni g4tx statiques** : ce sont des **compositions runtime** (primitives + modèles
   3D + texte Lua). Qualitativement plus dur que title02.
@@ -636,7 +630,7 @@ La police existe bel et bien :
 
 - **`font_def.g4tx`** — atlas principal, **DDS 4096×2048**, `texture_count=1`,
   `total_count=1`, **`sub_texture_count=0`** (aucune région d'atlas dans le g4tx lui-même),
-  ~44 Mo (`crates/engine/nie-formats/src/g4tx.rs:7-8` ; `docs/jeu-jouable-avancement.md:60`).
+  ~44 Mo (`crates/engine/nie-formats/src/g4tx.rs:7-8`).
 - **`gaiji_game.g4tx`** — *gaiji* (外字 = caractères externes : pictos boutons, symboles
   spéciaux), **DDS**, `total_count=118`, **`sub_texture_count=117`** régions d'atlas
   **nommées** (`g4tx.rs:9-10`), ~736 Ko.
@@ -659,8 +653,8 @@ vectorielle (pas de TTF/OTF/FreeType embarqué : `find … -iname '*.ttf' -o '*.
 
 État formats : le **container G4TX est parsé (FAIT)** y compris les sous-régions d'atlas
 (`g4tx.rs:167-272`), et le déswizzle **NXTCH** Switch est porté mais **INCOMPLET** (bug offsets
-en-tête off-by-4, aucun fichier NXTCH réel pour valider — `crates/engine/nie-formats/src/nxtch.rs`,
-`docs/jeu-jouable-avancement.md:64`). **Les `.g4tx` police observés sont DDS, pas NXTCH**,
+en-tête off-by-4, aucun fichier NXTCH réel pour valider —
+`crates/engine/nie-formats/src/nxtch.rs`). **Les `.g4tx` police observés sont DDS, pas NXTCH**,
 donc le décodage DDS existant suffit pour eux. **Le parseur `.g4tg` (métriques de glyphes)
 n'existe NI dans niers NI dans iecode** (`grep g4tg` iecode = 0) → format à reverser
 (NON_FAIT).
@@ -878,7 +872,7 @@ réellement (la capture de référence du jeu) pour transformer le gate en *preu
 
 ### Le gate conçu (FAIT sur le papier, NON_FAIT en code)
 
-`docs/STACK.md:20` (ligne « Gate pixel-diff » du tableau) et `docs/ROADMAP-100.md:114` (pilier D1)
+`docs/STACK.md:20` (ligne « Gate pixel-diff » du tableau) et `docs/PLAN.md` (pilier Rendu)
 définissent le même gate à deux étages :
 
 1. **Égalité octet d'abord** — hash (`sha2`/`blake3`) du **RGBA8 dé-paddé**. C'est désigné comme « la
@@ -924,7 +918,7 @@ donc l'**équivalence du pipeline CPU↔GPU** — un filet de régression intern
 ### Capture de référence : la vérité manquante (partiellement résolue)
 
 La vérité = une frame du vrai `nie.exe`. Sans elle, **aucun SSIM n'est calculable**
-(`ROADMAP-100.md:164` : « nécessite une capture de référence du vrai jeu — aucune mesure SSIM encore,
+(`docs/PLAN.md` : « nécessite une capture de référence du vrai jeu — aucune mesure SSIM encore,
 pas de prétention pixel-perfect »). Options évaluées :
 
 - **(a) Screenshot WSLg/Windows du jeu lancé directement** — **FAISABLE et déjà fait**. Le jeu tourne
@@ -984,7 +978,7 @@ Spec proposée, alignée sur `STACK.md:20` :
 - **L'égalité octet vs un screenshot du jeu est IMPOSSIBLE** pour l'écran composé : (1) mismatch de
   résolution + resampling, (2) **rasterizer différent** (GPU réel du jeu vs wgpu/lavapipe niers : AA,
   filtrage, arrondis ≠ bit-à-bit), (3) contenu dynamique. L'étage octet reste la preuve pour les
-  **formats/données** (`ROADMAP-100.md:39`) et pour le **déterminisme interne** de niers, **pas** face
+  **formats/données** (cf. `docs/PLAN.md`) et pour le **déterminisme interne** de niers, **pas** face
   au screenshot. La phrase « égalité octet = vraie preuve d'identité » (`STACK.md:20`) ne vaut donc
   que contre un golden produit par niers, pas contre la réf jeu.
 - **Le SSIM est le gate réaliste vs le jeu, mais inatteignable aujourd'hui** car le rendu est
@@ -993,7 +987,7 @@ Spec proposée, alignée sur `STACK.md:20` :
   absent du VFS ») et widgets texte ignorés (« pas de g4tx_path ») (`/tmp/mainmenu.log`). SSIM actuel
   ≈ 0.
 - **Aucun harnais golden n'est câblé** (ni test, ni dép, ni nextest installé).
-- `ROADMAP-100.md:18` classe le pilier **C4 Rendu « non démarré »** (Δpixel vs capture non mesuré).
+- `docs/PLAN.md` classe le pilier **Rendu** comme gaté sur le driver de menu (Δpixel non mesuré).
 
 → **État du gate aujourd'hui : filet de régression interne (CPU==GPU via `--verify` + déterminisme),
 PAS une preuve d'identité au jeu.** La preuve pixel-perfect reste **NON_FAIT** ; son déblocage exige,
@@ -1002,7 +996,7 @@ geler une frame de référence déterministe (état de sauvegarde contrôlé) à
 
 ## 11. Plan d'exécution (vagues gatées)
 
-> S'insère dans `docs/ROADMAP-100.md` pilier D. Chaque vague = livrable réel + **gate vérifiable**.
+> S'insère dans le pilier Rendu de `docs/PLAN.md`. Chaque vague = livrable réel + **gate vérifiable**.
 > Ordre choisi pour maximiser le signal visible : les deux premières vagues (placement + sélection de
 > texture) débloquent à elles seules la majorité des sprites **statiques** de `title02`.
 
@@ -1078,201 +1072,3 @@ trajectoire la plus courte vers une première preuve SSIM.
 - `mainmenu01` dépend de sous-systèmes lourds (Lua + 3D + primitives + police) : son gate arrive
   **après** celui de `title02`. Ne pas confondre « écran cartographié » et « écran rendu identique ».
 
-## 13. Journal d'implémentation (vagues livrées)
-
-> Suivi réel, daté, des incréments effectivement codés + vérifiés (build + tests + clippy + rendu).
-> Distinct du plan §11 (intention) : ici = ce qui est FAIT, avec les découvertes qui ont révisé le plan.
-
-### 2026-06-14 — D1.a, D1.b, déterminisme (FAIT)
-
-- **D1.a — placement ancêtre-fallback** : `nie-formats/src/g4pkm_motion.rs` (`motion_final_pose` +
-  `find_placement_bone_index`, port iecode `G4pkmMotion.cs:84-192`), branché dans
-  `menu.rs::place_on_canvas`. Effet : `--menu title02` place les sprites **on-écran** (le logo IEVR
-  apparaît, au lieu d'un canvas vide). 7 tests motion.
-- **D1.b — sélection de texture** : `g4tx::select_main_texture` (nom == basename, sinon plus grande
-  non-dummy) remplace `find(|t| t.is_dds)` qui prenait le **dummy 4×4** de tête. 3 tests. + helper
-  `g4pkm::extract_g4md` exposé (pour la résolution future par matériau).
-- **D1.b-det — DÉTERMINISME (critique)** : découverte que le rendu était **non déterministe** (3 runs
-  identiques → 3 PNG différents). Cause : `Vfs.index` = `HashMap` → `resolve_vfs_basename` (`.find`)
-  et la collecte des objbin piochaient un ordre/locale aléatoire à chaque run. Corrigé :
-  `resolve_vfs_basename` collecte+trie+priorise la locale (port de l'ordre iecode locale → non-localisé
-  → common → en, `MENU_LOCALE="fr"`) ; `obj_paths` trié avant le tri stable par `draw_priority`.
-  **Vérifié : 3 runs → octet-identiques.** C'est le **prérequis absolu** du gate pixel-perfect (D1.f) —
-  sans lui, l'égalité octet est impossible.
-- **D1.b-bis — fond via g4tx co-localisé : TENTÉ puis ABANDONNÉ.** Le g4md de `title02_00` n'a **aucun**
-  `material_base_names` (`[]`) ; `select_main_texture("title02_00")` prend un panneau blanc, pas le champ
-  `bg_title02_02` ; et le placement n'est pas plein écran → régression (panneau blanc qui masque le logo).
-  Le fond exige la vraie texture de matériau + un placement plein écran dédié → reporté au driver (D1.c).
-
-### Découverte qui révise D1.c (le driver de menu, pas `OnOpenLayer`)
-
-Probe `nie-lua/examples/probe_menu_script.rs` (RE tool, conservé) : exécuter `OnOpenLayer(layerId)` de
-`title_menu_2_6.00.11.00.lua.bin` (start) et `main_menu_1.02.92.00.lua.bin` (menu) **ne peuple RIEN**
-(0 layer, 0 objet, 0 commande). Le menu n'est PAS construit par `OnOpenLayer` seul : les scripts
-définissent un **driver riche** que le moteur C++ pilote — pour `title_menu_2` :
-`OnInit`, `OnSetupLayer`, `Step`, `SetupItemButton`, `GetItemButtonNum`, `IsEnableMenuItemButton`,
-`GetTextureNameItemButton`, `GetTextItemName`, `GetVictoryCountNum`, `SetupFlavorBallonLayer`,
-`SetupDlcBuyBtn_Coroutine`, `IsDLCButtonLayer`, `ChangeEnableLocatorForDlcBannerLocator`…
-
-**Conséquence (révision du plan)** : D1.c n'est pas « appeler `OnOpenLayer` » mais **émuler la boucle
-de construction du moteur** : appeler `OnInit`, énumérer les items via `GetItemButtonNum`, pour chaque
-item `SetupItemButton`/`IsEnableMenuItemButton`/`GetTextureNameItemButton`/`GetTextItemName`, lire les
-compteurs (`GetVictoryCountNum` → 212), gérer le gating DLC/save — puis appliquer les
-`funcLuaMenuCommand` émis sur le `MenuState`. La séquence exacte d'appels est celle du moteur (à RE
-depuis `nie.exe` / iecode `LuaRuntime`). C'est un **sous-projet** (driver de menu data-driven), pas un
-patch. Les tables `funclua-cmdids.json` / `hash-dictionary.json` (mapping cmdId→nom) sont **absentes**
-de ce checkout iecode → à rapatrier ou re-reverser.
-
-### 2026-06-14 (suite) — D1.f gate harness (FAIT) + blocage RE de D1.c
-
-- **D1.f — harnais de gate (FAIT)** : `crates/engine/nie-game/tests/menu_render_gate.rs`. Deux étages :
-  (1) **déterminisme** — 2 rendus de `title02` doivent être **octet-identiques** (*hard gate*, VERT
-  depuis D1.b-det) ; (2) **SSIM** maison (fenêtres 8×8 luma, **0 dépendance** — `image-compare` absent
-  du lock + doctrine no-hidden-dep) vs `start.png` (2560×1440 downscalé ×½ exact). **Baseline :
-  SSIM title02 = 0.2511** ; plancher non-régression 0.20. C'est la métrique de progression objective ;
-  chaque vague D1.x doit la faire monter (cible ≥ 0.99 hors ROI).
-- **Blocage confirmé de D1.c (driver de menu)** : `OnInit()` est bien le point d'entrée du driver
-  (émet 7 cmdId) mais notre dispatch ne connaît que 3 cmdId (visible/sprite/text) → `OnInit` ne peuple
-  ni layer ni objet exploitable. Le mapping `cmdId → opération` (`funclua-cmdids.json`) est **absent**
-  du checkout iecode (vérifié : `find /` → rien) et **`cmdId ≠ crc32(nom anglais)`** (vérifié : crc32
-  "SetObjectVisible" = 0x31E46BC4 ≠ 0x2A64B198). → D1.c exige de **reverser le handler
-  `funcLuaMenuCommand` de `nie.exe`** (switch sur cmdId) via `nie-re`/disasm ou `nie-trace`. cmdIds à
-  mapper : `0x14016F35 0x45E9070A 0x4612788B 0x509FBBC2 0x5CE7F1AE 0x69C9F55C 0x95802985 0xA4B1D1BC
-  0xB641D667`. Outil de découverte conservé : `nie-lua/examples/probe_menu_script.rs`.
-
-### Prochaine étape (déblocage)
-
-Reverser le dispatch `funcLuaMenuCommand` de `nie.exe` (pilier E/RE) → étendre
-`nie-lua::menu_host::dispatch_menu_command` (3 → ~28 cmdId) → émuler le driver (`OnInit` + boucle
-d'items) → brancher `MenuState` dans `build_sprite_list` (gating + sprite + texte) → la SSIM monte.
-En parallèle, hors RE : D1.d voie rapide (substitution `<LG>` déjà faite ; reste `.g4tg` police) et
-D1.e (3D in-menu via `assemble.rs`).
-
-### 2026-06-14 (suite 2) — D1.c amorcé : table cmdId reversée + dispatch porté (FAIT partiel)
-
-**Déblocage RE majeur (workflow `funclua-cmdid-re`)** : le dispatch `funcLuaMenuCommand` de nie.exe est
-un handler `0x140C91B30` → dispatcher `0x140C8CC00` sur une **table de 1109 descripteurs**
-`{u64 handler, u32 cmdId, u32 pad}` (VA `0x141BDFD90`, file offset `0x1BDE390`). **Table complète
-extraite** (validée : 1109 entrées, tous handlers en .text, les cmdId connus présents) →
-`data/re/funclua-cmdids.json` (artefact RE que iecode avait perdu). **12 cmdId reversés** (désasm des
-sous-handlers, validés contre les 3 connus) : SetObjectVisible/SetSprite/SetText/SetColor/SetLayerActive/
-SetPartVisible (setters) + GetNodeFloat/GetObjectAttr/GetSpriteCellIndex/GetGlobalStateA/B/GetObjectActive
-(getters).
-
-**Découverte d'arg layout** (vérifiée sur les vrais appels de `title_menu_2`) : il n'y a **PAS de layerId
-universel en position 1**. Ex. `SetLayerActive(layerId, active)` mais `SetObjectVisible(objId, index,
-visible, [layerId])` — le 2ᵉ arg est l'objId pour les commandes d'objet. L'ancien `menu_host` (modèle
-iecode `cmdId, layerId, …`) **mislabelait** les args.
-
-**Porté (`nie-lua/src/menu_host.rs`)** : dispatch table-driven avec les 12 cmdId + layouts corrigés,
-`current_layer` suivi (mis par `SetLayerActive(_, true)`), getters renvoyant un défaut sûr, helper
-`command_name()`. **Effet vérifié** : `OnInit()` de `title_menu_2` passe de `known=0 unknown=7` à
-**`known=7 unknown=0`** (tous les cmdId émis reconnus). 5 tests dispatch + clippy 0.
-
-**Reste D1.c (couche suivante)** : émuler la **boucle driver** du moteur (après `OnInit`, le moteur
-appelle `SetupItemButton`/`GetItemButtonNum`/… par item pour créer les objets) → `MenuState` peuplé →
-join `crc32(objbin.name)` → appliquer visible/sprite/texte dans `build_sprite_list`. Les getters
-devront renvoyer de vraies valeurs (depuis les données de jeu) pour que le flot du driver soit correct.
-La séquence exacte de la boucle reste à RE (ou à découvrir empiriquement via le probe).
-
-### 2026-06-15 — Driver de menu reversé (spec complète) + blocage irréductible identifié
-
-**RE haute-confiance (workflow `menu-driver-sequence-re`)** : le moteur pilote les menus via le manager
-`0x14109D190` + des dispatchers séparés. Séquence CONFIRMÉE au désasm :
-1. Le manager énumère les layers depuis l'objet **SCENE** = `[manager+0x130]` : tableau `@[SCENE+0x88]`,
-   nombre `@[SCENE+0x90]`, **stride 0x18**, entrée `{+0x00 name:char*, +0x08 layerId:u32, +0x10 valid:u8}`.
-2. Par layer : charge `common/script/lua/menu/<name>.lua.bin` (sprintf fmt `0x141854160`), enregistre
-   **4 natives funcLua** via vmethod `[layer+0x30]` (`0x140C8CB40/0x140C91C50/0x140C91A60/0x140BCFED0`),
-   pose le global Lua **`__menuObjPtr`** = pointeur manager.
-3. `pcall OnInit()` **sans argument** (si fonction).
-4. (state-machine, après init) dispatchers : `OnSetupLayer(layerId)` `0x14109C1A0` → résout le layer
-   par layerId (`0x14109AEB0`→`0x14051B5D0`) → `HasCallback`+`pcall("OnSetupLayer", layerId)` via le core
-   `0x14109B620`. **C'est OnSetupLayer qui crée les objets** (le script y appelle ses
-   `SetupItemButton`/`GetItemButtonNum` internes). Puis `OnOpenLayer` `0x14109C2F0`, `OnEnter`
-   `0x14109C6F0`, `Step` `0x14109AA60`/`0x14109F000` par frame.
-
-**Pseudocode de port (nie-lua)** — entrée = `Vec<{name, id, valid}>` reconstruite depuis la SCENE :
-charger chaque `.lua.bin` (1 env/layer) → `set_global("__menuObjPtr")` → `OnInit()` (0 arg) →
-`OnSetupLayer(id)` par layer → `OnOpenLayer(id)` → Step. (Détail complet : workflow `w5k8y8mtu`.)
-
-**BLOCAGE IRRÉDUCTIBLE (vérifié)** : exécuter la séquence confirmée (`OnInit()`+`OnSetupLayer(id)`,
-tout id) sur `title_menu_2` crée **0 objet** — parce que `GetItemButtonNum` (fn du script) lit le
-**nombre d'items depuis l'état C++ de la scène** via les natives funcLua + `__menuObjPtr`, état que
-niers ne fournit pas. **Le menu est une fonction des DONNÉES DE JEU** (scène + sauvegarde/progression :
-les « 212 victoires », « niveau 99 » de menu.png viennent d'un save précis). Le rendu pixel-perfect
-exige donc, EN PLUS de la séquence (faite à 90 %) :
-- (a) un **parseur de SCÈNE** produisant la liste `{name, layerId, valid}` + le rattachement
-  objbin↔layer (format scène à localiser/parser) ;
-- (b) l'**implémentation des natives funcLua** qui renvoient au script les comptes/données dérivés de
-  la scène+objbin (pour `GetItemButtonNum`, `SetupItemButton`…) — la table cmdId 1109 est faite, mais
-  ces handlers doivent LIRE l'état niers (pas juste muter `MenuState`) ;
-- (c) une **couche données de jeu** (save/progression) pour les valeurs dynamiques.
-
-**Conclusion honnête** : le pixel-perfect des menus est un **sous-système data-driven complet**
-(scène + natives + save), désormais entièrement spécifié (adresses nie.exe + séquence). La FONDATION
-est construite et vérifiée (placement, texture, déterminisme, gate, dispatch cmdId 1109). C'est un
-effort multi-session assumé (cf. la doctrine d'honnêteté du repo). Prochain incrément concret :
-localiser+parser le format de SCÈNE (liste de layers) — c'est le prérequis du driver-loop réel.
-
-### 2026-06-15 — Génération de menu AU RUNTIME (câblée) — « comme nie »
-
-Demande utilisateur : générer le menu **au runtime comme nie.exe** (exécuter les vrais scripts Lua via
-le driver reversé), pas un export statique. **FAIT (chemin câblé)** : `nie-lua::drive_menu()` (séquence
-manager `0x14109D190` : exec top-level → `__menuObjPtr` → `OnInit()` → `OnSetupLayer/OnOpenLayer/OnEnter`
-par layerId → `Step()`) + `nie-game --menu <screen> --runtime --export-layout <json>`
-(`cmd_export_layout_runtime` : VFS → layout statique → drive scripts réels → merge `MenuState` →
-join `crc32(name)` → JSON). nie-game dépend désormais de `nie-lua`. Build 0, clippy 0, tests verts,
-déterministe.
-
-**Résultat réel** : `--menu title --runtime` exécute `title_menu_2_6.00.11.00.lua.bin` → `OnInit` OK,
-1 layer, **9 appels `funcLuaMenuCommand` connus**. Mais **0 objet muté** : `GetItemButtonNum` (fonction
-DU script) lit le nb d'items depuis l'état **scène/save C++** que niers ne fournit pas → `OnSetupLayer`
-crée 0 item. `main_menu` indexe un global de scène nil (`MAIN_MENU`).
-
-**Le chemin runtime est donc en place** (on exécute la vraie logique du jeu) ; reste la **couche données
-runtime** : (a) globals de scène (`MAIN_MENU`…), (b) source du compte d'items (`GetItemButtonNum`),
-(c) table inverse hash-cellule→nom pour `SetSprite`, (d) cmdId résiduel `0x65E825B1` (main_menu). C'est
-le prochain palier vers 100 % « comme nie.exe ».
-
-### 2026-06-15 (suite) — Title menu POPULÉ au runtime (réel)
-
-`nie-game --menu title --runtime` génère désormais le menu title avec du **vrai contenu** :
-**10 objets matchés** (sur 15 mutés), **7 masqués par la logique conditionnelle DLC réelle** du script,
-3 sprites, 3 textes, 218 commandes `funcLuaMenuCommand` connues. Déterministe (2 runs octet-identiques).
-
-**Couche données reversée (unluac)** : `GetItemButtonNum(isMain)` → `SetupItemButtonNum()` →
-`funcLuaMenuCommand(0x4612788B = GetObjectAttr, layer)`. Les comptes viennent des quads `AttachLocator`
-de `title02_02_item_atc_locator_2.objbin` (`[a, b, layerHash, slotIndex]`) : layer `0x861F...`→8,
-`0xE6EC6AA3`-famille→3/11. Porté : `MenuState.object_attr` (map scène) + `GetObjectAttr` la lit ;
-`collect_item_counts()` (nie-game) dérive les comptes des slots objbin ; `drive_menu` seede `object_attr`
-et drive `OnSetupLayer` avec les vrais layerId (crc32 des noms d'objets de l'écran).
-
-**Reste** : (a) sous-clé `(objId, slotIndex)` pour séparer les 8/3 boutons individuels ; (b) `SetText`/
-`SetSprite` émettent des hash bruts → tables inverses texte-dict + cell-name à reverser ; (c) `main_menu`
-indexe un global de scène `MAIN_MENU` nil → fournir les globals de scène (prochain palier mainmenu).
-
-### 2026-06-15 (suite) — Onglets mainmenu + sous-items de liste (runtime)
-
-`MenuObjectState.sub_items: Vec<MenuListItem>` + dispatch des commandes de liste reversées
-(`SetListItemValues` 0x1AF61E89 / `SetListItemValuesMulti` 0x83B4F0AC / `SetItemParam` 0x513C6C70).
-`enumerate_header_tabs` appelle la vraie logique du script (`GetSortOfTabs` → 9 onglets {10,20,30,70,40,
-80,60,50,90}, `GetMenuObjectNameFromTabType`, `GetTabTextIdCRC`, mode non-chronicle forcé) → les **9
-onglets réels** injectés comme objets virtuels dans le layout. **mainmenu matched 5 → 14** (5 statiques +
-9 onglets), **déterministe** (2 runs octet-identiques). title inchangé (~13). **34 cmdId reversés** au
-total (sur les 1109). Reste : icônes d'onglet (`SetupHeaderTabIcon`, layer 200360024 mode normal),
-couche scène/save pour le contenu dynamique restant.
-
-### 2026-06-15 (suite) — Fond title02 : blit-bind-pose REJETÉ au gate (re-confirmation empirique)
-
-Gap #1 de §4 (fond `title02_00`) re-testé directement **au gate, contre le vrai jeu**. Hypothèse :
-lever le skip « pas de g4tx_path » des objets sans `Texture` objbin et résoudre leur conteneur
-co-localisé `<screen>_<NN>.g4tx` + `select_main_texture`. **Mesuré** : `--menu title02` passe de 10 à
-**18 sprites** (déterminisme préservé) mais **SSIM inchangée = 0.2511** et rendu **visuellement pire**
-(panneaux blancs/gris mal placés). Cause confirmée : (a) `g4md.material_base_names` est **vide sur les
-18 objets title02** (les meshes de menu ne portent pas de matériau nommé — piste matériau = cul-de-sac,
-vérifié via `examples/probe_bg_material`) ; (b) la texture nommée comme le conteneur (`title02_00`
-2660×1200) est un **ATLAS** (sous-régions `bg_title02`/`bg_title02_par` empaquetées), pas une image
-plein écran → la blitter à la **bind pose** ne reconstruit pas le champ. **Conclusion** (conforme à §6
-point 6) : le fond exige une **compose par mesh** (UV g4md/g4mg → atlas) + un **placement plein écran**
-piloté par le driver (D1.c/D1.e). Changement **reverté** (anti-faux-FAIT : pas de sprite faux sans gain
-métrique). Le gate reste l'arbitre : baseline title02 = **0.2511**, déterministe.
