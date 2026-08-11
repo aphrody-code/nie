@@ -4,6 +4,23 @@ Mesures des hot paths du dépôt dans les implémentations qui coexistent. Objec
 le chiffre, pas par préférence. Harnais : `crates/tools/nie-bench` (Rust), `bench/cpp`,
 `bench/cs`.
 
+## Conditions de mesure
+
+**Machine au repos, sinon rien.** Les mesures prises pendant une compilation concurrente
+(vcpkg) donnaient 692 Mio/s là où la machine libre en donne 820 : −16 % de biais, plus que la
+plupart des écarts qu'on cherche à mesurer. `bench/run-all.ps1` ne le détecte pas — c'est à
+l'opérateur de lancer la campagne au calme.
+
+## Chaînes de build à préparer
+
+| Chaîne | Commande | Notes |
+|---|---|---|
+| Rust | `cargo build --release --workspace` | 18 binaires |
+| C++ (banc seul) | `pwsh bench/cpp/build.ps1` | MSVC seul, pas de vcpkg |
+| C++ (toolkit complet) | `just cpp-bootstrap` puis `just cpp-build` | vcpkg compile ~30 ports (openssl, assimp, bgfx, bullet3 : comptez l'heure) |
+| C# JIT | `dotnet build bench/cs/Bench.csproj -c Release` | |
+| C# NativeAOT | `dotnet publish … -r win-x64 -p:PublishAot=true` | exige `vswhere.exe` **dans le PATH** et un environnement `vcvars64` chargé, sinon ILC compose une ligne de commande de linker invalide (MSB3073, code 123) |
+
 ## Protocole
 
 Identique dans les trois harnais : mêmes données (`xorshift64*`, graine `0x2545F4914F6CDD1D`,
@@ -32,6 +49,14 @@ bench/cs/bin/Release/net10.0/nie-bench-cs.exe crilayla bench/data/sample.crilayl
 
 ¹ `Crc32.cs` est en table simple octet-par-octet, pas en slicing — c'est l'algorithme qui est
 mesuré, pas le langage. ² L'encodage PNG C++ passe par DirectXTex, qui exige vcpkg (absent).
+
+### NativeAOT n'accélère pas le calcul
+
+`iecode.exe` publié en NativeAOT : 31,7 Mo, autonome, démarre sans runtime .NET installé. Sur les
+deux noyaux mesurés, il est **au niveau du JIT ou en dessous** (CRILAYLA : AOT 588 Mio/s contre
+JIT 692 sur machine chargée, soit −15 %). Attendu : le JIT à compilation étagée profile le code
+réel et ré-optimise, ce que l'AOT ne peut pas faire. L'AOT reste le bon choix pour le **démarrage**
+(pas de JIT à l'amorce) et la **distribution** (un seul fichier), pas pour le débit.
 
 ### Ce que les mesures disent vraiment
 
