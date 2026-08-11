@@ -67,6 +67,23 @@ bun run lint
 - Régénérer les bindings Tauri sans ouvrir de fenêtre :
   `cd apps/nie-explorer/src-tauri && cargo run --bin export-bindings`.
 
+## Doctrine polyglotte — un rôle, un langage
+
+Carte complète : `docs/ARCHITECTURE-POLYGLOTTE.md`. En bref :
+
+| Langage | Rôles |
+|---|---|
+| **C++** (`src/`) | C décompilé → jeu `nie` jouable ; libs qui n'existent qu'en C++ (assimp, Bullet, driver kernel) |
+| **C#** (`csharp/`) | dump, pack, memory, conversion de texture |
+| **Rust** (`crates/`) | **la seule CLI**, GUI, core lib, wasm, RE, byte-exact |
+| **Bun/TS** (`packages/`, `apps/`) | MCP, serveur web, types, API, UI |
+
+- La conversion de texture C++ est **la moins bonne des trois** : ne pas l'étendre.
+- **`niers` est la seule CLI utilisateur.** Les autres sont derrière la façade :
+  `niers cpp <args>` (toolkit C++), `niers cs <args>` (outillage .NET), `niers backends`
+  (ce qui est construit et où). Une commande nouvelle s'écrit en Rust, jamais dans les deux
+  autres CLI — cf. `crates/tools/nie-cli/src/delegate.rs`.
+
 ## Arbre C++ (toolkit IECODE) — tout sous **`src/`**
 
 Toolkit C++20 : parsers, compression, VFS, converters, modding, rendu, scripting.
