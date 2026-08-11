@@ -57,7 +57,7 @@ contrainte technique (byte-exact, wasm, dépendance native), jamais par le goût
 | C++ `src/decomp` | ✅ C décompilé → jeu jouable | — | garder, c'est le cœur du rôle C++ |
 | C++ `src/converters/texture_*` | — | conversion de texture (la moins bonne des trois) | retirer du chemin par défaut ; ne survit que pour l'export WebP, à porter en Rust ou C# |
 | C++ `src/render` (bgfx) | — | rendu hors jeu | ne garder que ce qui sert le jeu jouable ; la GUI est Rust |
-| C++ `src/cli` (40 commandes) | — | CLI en C++ | → façade `niers`, puis absorption |
+| C++ `src/cli` (40 commandes) | — | CLI en C++ | **façade en place** (`niers cpp …`), absorption commande par commande |
 | C++ `src/vfs`, `src/archive`, `src/compression`, `src/crypto`, `src/formats` | — | core lib en C++ | doublon de `nie-formats` : geler, ne plus étendre |
 | C++ `src/gamedata`, `src/db`, `src/services`, `src/modding` | — | données/outils en C++ | candidats au portage C# (dump/pack) |
 | C++ `src/engine`, `src/game`, `src/scripting` | — | moteur en C++ | déjà `OFF` par défaut dans CMake ; référence de portage |
@@ -104,11 +104,26 @@ contrainte technique (byte-exact, wasm, dépendance native), jamais par le goût
 `iecode_ffi` ou `nie_ffi`), et `src/nie_rs/` ↔ `crates/engine/` (recoupement à faire : les deux
 couvrent crilayla, vfs, animation).
 
+## La CLI unique
+
+```bash
+niers backends        # cpp=absent|present, cs=…, rust=… — et le chemin de chaque binaire
+niers cpp <args...>   # délègue au toolkit C++ `iecode`   (build/<preset>/src/cli/iecode.exe)
+niers cs  <args...>   # délègue à `IECODE.CLI` .NET       (csharp/IECODE.CLI/bin/*/net10.0/iecode.dll)
+```
+
+Les arguments passent **tels quels** (y compris `--help`, que clap ne capte pas sur ces deux
+sous-commandes) et le code de sortie du délégué est propagé sans traduction. Surcharges :
+`NIE_IECODE_EXE`, `NIE_IECODE_DLL`. Implémentation : `crates/tools/nie-cli/src/delegate.rs`.
+
+C'est le mécanisme qui rend « CLI uniquement en Rust » **atteignable sans perte** : l'utilisateur
+n'a plus qu'un binaire à connaître, et chaque commande portée en Rust retire une délégation.
+
 ## Ce qu'il ne faut pas faire
 
-1. **Ne pas fusionner les CLI.** `iecode` (C++, 40 commandes), `IECODE.CLI` (C#, 37 commandes) et
-   `niers` (Rust) se recouvrent à ~60 %, mais chacune est le point d'entrée naturel de son arbre.
-   Le point d'unification est `apps/nie-mcp`, qui les expose toutes trois à un agent.
+1. **Ne pas étendre les CLI C++ et C#.** Elles sont derrière la façade `niers` et se vident au
+   fil des portages ; toute commande nouvelle va en Rust. `apps/nie-mcp` expose la même surface
+   aux agents.
 2. **Ne pas « optimiser » le Rust byte-exact en appelant le C++.** Un décodeur plus rapide qui
    change l'ordre des opérations f32 casse les golden — cf. les landmines de `docs/DEDUP-PLAN.md`.
 3. **Ne pas réimplémenter côté explorateur ce que la FFI expose déjà.** `nie-explorer` lie

@@ -2,6 +2,7 @@
 #![forbid(unsafe_code)]
 #![allow(clippy::pedantic)]
 
+mod delegate;
 mod menu_predecode;
 
 use std::io::Write;
@@ -31,6 +32,28 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Cmd {
+    /// Délègue au toolkit C++ `iecode` (~40 commandes non encore portées).
+    ///
+    /// `niers` est la seule CLI utilisateur (cf. docs/ARCHITECTURE-POLYGLOTTE.md) : les
+    /// commandes du C++ passent par ici tant qu'elles ne sont pas portées en Rust.
+    ///
+    /// `disable_help_flag` : `--help`/`-h` doivent atteindre le délégué, pas être avalés par
+    /// clap — sinon `niers cpp --help` n'affiche jamais l'aide des 40 commandes déléguées.
+    #[command(name = "cpp", disable_help_flag = true)]
+    Cpp {
+        /// Arguments transmis tels quels à `iecode`.
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+    /// Délègue à l'outillage .NET `IECODE.CLI` (~37 commandes : dump, pack, cdn, pipeline…).
+    #[command(name = "cs", disable_help_flag = true)]
+    Cs {
+        /// Arguments transmis tels quels à `iecode.dll`.
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+    /// Dit quels back-ends de la CLI unique sont construits, et où.
+    Backends,
     /// Importe le savoir fusionné (index Ghidra nie-index.json) dans la base de connaissance.
     Seed {
         /// Base sqlite cible.
@@ -929,6 +952,12 @@ fn main() -> anyhow::Result<()> {
         .init();
     let cli = Cli::parse();
     match cli.cmd {
+        Cmd::Cpp { args } => delegate::cpp(&args),
+        Cmd::Cs { args } => delegate::cs(&args),
+        Cmd::Backends => {
+            delegate::status();
+            Ok(())
+        }
         Cmd::Seed { db, json, exe } => seed(&db, &json, exe.as_deref()),
         Cmd::Coverage { db } => coverage(&db),
         Cmd::Queue { op, redis, tag } => queue(op, &redis, &tag),
