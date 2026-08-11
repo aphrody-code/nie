@@ -59,7 +59,7 @@ forge-build: forge-build-tool
 forge-report: forge-build-tool
     {{forge}} report
 
-# Compile les sources C de cpp/decomp/functions avec MSVC et enregistre les
+# Compile les sources C de src/decomp/functions avec MSVC et enregistre les
 # fonctions dont le codegen redonne EXACTEMENT les octets du jeu.
 forge-cc: forge-build-tool
     {{forge}} cc --exe {{forge_exe}} --register
@@ -138,3 +138,97 @@ test-real:
 # Gate qualite complet (= job CI).
 check: fmt-check clippy test
     @echo "check=OK"
+
+# --- Monorepo polyglotte ------------------------------------------------------
+# Quatre chaines sous une racine : Rust (crates/), C++ (src/, tout l'arbre),
+# C# (csharp/, IECODE.sln), TypeScript/Bun (packages/ apps/). Aucune ne depend
+# d'une autre pour compiler ; les ponts sont documentes dans PROVENANCE.md et
+# docs/ARCHITECTURE-POLYGLOTTE.md.
+
+# `cmake` n'est pas dans le PATH sur la machine de dev Windows : il vit dans les
+# BuildTools 2022. Surchargeable : `just cmake_exe=/usr/bin/cmake cpp-build`.
+vs_cmake  := "C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe"
+cmake_exe := env_var_or_default("CMAKE", if path_exists(vs_cmake) == "true" { vs_cmake } else { "cmake" })
+# Sous Windows on vise le generateur « Visual Studio 17 2022 » (preset `msvc`) :
+# les presets Ninja supposent ninja dans le PATH, ce que l'install BuildTools
+# seule ne fournit pas. Ailleurs, presets Ninja habituels.
+cmake_preset       := env_var_or_default("IECODE_PRESET", if os_family() == "windows" { "msvc" } else { "debug" })
+cmake_build_preset := env_var_or_default("IECODE_BUILD_PRESET", if os_family() == "windows" { "msvc-debug" } else { "debug" })
+vcpkg_root         := env_var_or_default("VCPKG_ROOT", "")
+dotnet_cfg         := env_var_or_default("DOTNET_CONFIG", "Debug")
+
+# --- C++ (toolkit iecode) -----------------------------------------------------
+# Requiert vcpkg (VCPKG_ROOT) : ~15 find_package obligatoires (CLI11, fmt, spdlog,
+# bgfx, assimp, directxtex, capstone, sol2, …). Sans lui, `configure` echoue au
+# premier find_package — c'est l'environnement, pas le depot.
+
+# Installe vcpkg dans var/vcpkg (hors arbre source, deja gitignore) et l'amorce.
+# A lancer UNE fois ; les ~15 ports de vcpkg.json (bgfx, assimp, capstone,
+# directxtex, sol2, httplib, …) se compilent ensuite au premier configure —
+# comptez une bonne heure. NE PAS cloner dans third_party/ : ce dossier contient
+# des sources vendorisees du depot, un clone rate y ferait des degats.
+cpp-bootstrap:
+    @if [ -n "{{vcpkg_root}}" ]; then echo "VCPKG_ROOT deja defini: {{vcpkg_root}}"; exit 0; fi; \
+     mkdir -p var; \
+     [ -d var/vcpkg ] || git clone --depth 1 https://github.com/microsoft/vcpkg var/vcpkg; \
+     ( cd var/vcpkg && ( ./bootstrap-vcpkg.sh -disableMetrics || ./bootstrap-vcpkg.bat -disableMetrics ) ); \
+     echo "Exporte VCPKG_ROOT=$PWD/var/vcpkg puis relance just cpp-configure"
+
+# Configure la chaine CMake (preset `msvc` sous Windows, `debug` ailleurs).
+cpp-configure:
+    @if [ -z "{{vcpkg_root}}" ]; then echo "VCPKG_ROOT absent — lance just cpp-bootstrap (cf. PROVENANCE.md)" >&2; exit 1; fi
+    "{{cmake_exe}}" --preset {{cmake_preset}}
+
+# Compile le toolkit C++ (binaire `iecode`, libs, ffi).
+cpp-build: cpp-configure
+    "{{cmake_exe}}" --build --preset {{cmake_build_preset}}
+
+# Suite GTest (828+ cas).
+cpp-test: cpp-build
+    ctest --preset {{cmake_build_preset}} --output-on-failure
+
+# --- C# (IECODE.Core / IECODE.CLI) -------------------------------------------
+
+cs-build:
+    dotnet build IECODE.sln -c {{dotnet_cfg}} --nologo
+
+cs-test:
+    dotnet test IECODE.sln -c {{dotnet_cfg}} --nologo
+
+# --- TypeScript / Bun ---------------------------------------------------------
+# `build:ffi` d'abord : bunfig.toml precharge nie-plugin, qui charge nie_ffi.dll.
+# Sans la lib, TOUTE commande bun du depot echoue (cf. CLAUDE.md).
+
+ts-install:
+    bun install
+
+ts-check: ts-install
+    bun run build:ffi
+    bun run typecheck
+    bun run lint
+
+ts-test: ts-install
+    bun run build:ffi
+    bun run test
+
+# --- Agregats des quatre chaines ---------------------------------------------
+# `-` : la recette continue si la chaine echoue (typiquement C++ sans vcpkg sur
+# une machine de dev). Le detail de chaque echec reste lisible dans la sortie.
+
+all-build:
+    cargo build --workspace
+    -just cs-build
+    -just cpp-build
+    -just ts-install
+
+all-test:
+    cargo test --workspace
+    -just cs-test
+    -just cpp-test
+    -just ts-test
+
+all-check: fmt-check clippy
+    cargo test --workspace
+    -just cs-test
+    -just ts-check
+    @echo "all-check=OK (C++ hors gate : requiert vcpkg)"

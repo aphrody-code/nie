@@ -11,7 +11,7 @@
   4. sc create + sc start
 
 .PARAMETER SysPath
-  Chemin vers iecode_memread.sys. Defaut : cli/driver/iecode_memread/build/iecode_memread.sys
+  Chemin vers iecode_memread.sys. Defaut : src/driver/iecode_memread/build/iecode_memread.sys
 
 .EXAMPLE
   .\install_driver.ps1
@@ -20,7 +20,7 @@
 
 [CmdletBinding()]
 param(
-    [string]$SysPath = (Join-Path $PSScriptRoot "..\driver\iecode_memread\build\iecode_memread.sys"),
+    [string]$SysPath = (Join-Path $PSScriptRoot "..\src\driver\iecode_memread\build\iecode_memread.sys"),
     [string]$ServiceName = 'iecode_memread'
 )
 

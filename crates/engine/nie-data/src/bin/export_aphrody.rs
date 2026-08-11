@@ -27,9 +27,21 @@ fn main() {
         .unwrap_or_else(|| "/home/ubuntu/rg/apps/azalee/data/aphrody-dossier.json".to_string());
     let data_root = PathBuf::from(&data_root);
 
-    let chara = read_json(&find_cfg(&data_root, "common/gamedata/character", "chara_param_"));
-    let skill = read_json(&find_cfg(&data_root, "common/gamedata/skill", "skill_config_"));
-    let aura = read_json(&find_cfg(&data_root, "common/gamedata/skill", "aura_skill_config_"));
+    let chara = read_json(&find_cfg(
+        &data_root,
+        "common/gamedata/character",
+        "chara_param_",
+    ));
+    let skill = read_json(&find_cfg(
+        &data_root,
+        "common/gamedata/skill",
+        "skill_config_",
+    ));
+    let aura = read_json(&find_cfg(
+        &data_root,
+        "common/gamedata/skill",
+        "aura_skill_config_",
+    ));
 
     let dossier = build_aphrody_dossier(&chara, &skill, &aura);
     let mut json = serde_json::to_value(&dossier).expect("sérialisation dossier");
@@ -46,7 +58,10 @@ fn main() {
         map.insert("references".into(), aphrody_references());
     }
 
-    let variants = json.get("variants").and_then(Value::as_array).map_or(0, Vec::len);
+    let variants = json
+        .get("variants")
+        .and_then(Value::as_array)
+        .map_or(0, Vec::len);
     let bytes = serde_json::to_vec_pretty(&json).expect("to_vec_pretty");
     if let Some(parent) = Path::new(&out_path).parent() {
         fs::create_dir_all(parent).expect("création dossier de sortie");
@@ -54,17 +69,31 @@ fn main() {
     fs::write(&out_path, &bytes).expect("écriture JSON");
     eprintln!(
         "[export_aphrody] OK — {variants} variantes, {} dialogues / {n_lines} répliques, {}o → {out_path}",
-        json.get("dialogues").and_then(Value::as_array).map_or(0, Vec::len),
+        json.get("dialogues")
+            .and_then(Value::as_array)
+            .map_or(0, Vec::len),
         bytes.len()
     );
-    println!("variants={variants} dialogues={n_lines} size={} out={out_path}", bytes.len());
+    println!(
+        "variants={variants} dialogues={n_lines} size={} out={out_path}",
+        bytes.len()
+    );
 }
 
 /// Events de l'histoire où Aphrody apparaît (découverts par `grep アフロディ|亜風炉`
 /// dans `data/common/text/ja/event/`). Scènes complètes, présentes en ja/fr/en.
 const APHRODY_EVENTS: [&str; 11] = [
-    "ev15_00600", "ev15_00650", "ev15_01000", "ev15_01600", "ev22_15202", "ev22_18234",
-    "ev22_18236", "ev23_05000", "ev23_05250", "ev24_11000", "ev27_07210",
+    "ev15_00600",
+    "ev15_00650",
+    "ev15_01000",
+    "ev15_01600",
+    "ev22_15202",
+    "ev22_18234",
+    "ev22_18236",
+    "ev23_05000",
+    "ev23_05250",
+    "ev24_11000",
+    "ev27_07210",
 ];
 
 /// Nettoie un texte de dialogue : furigana `[漢字/かな]`→`漢字`, `\n`→espace, trim.
@@ -75,21 +104,20 @@ fn clean_text(s: &str) -> String {
     while let Some((i, c)) = chars.next() {
         if c == '[' {
             // Cherche `/` puis `]` ; garde la partie kanji (avant `/`).
-            if let Some(slash) = s[i + 1..].find('/') {
-                if let Some(close) = s[i + 1..].find(']') {
-                    if slash < close {
-                        out.push_str(&s[i + 1..i + 1 + slash]);
-                        // Avance jusqu'après `]`.
-                        let target = i + 1 + close;
-                        while let Some(&(j, _)) = chars.peek() {
-                            if j > target {
-                                break;
-                            }
-                            chars.next();
-                        }
-                        continue;
+            if let Some(slash) = s[i + 1..].find('/')
+                && let Some(close) = s[i + 1..].find(']')
+                && slash < close
+            {
+                out.push_str(&s[i + 1..i + 1 + slash]);
+                // Avance jusqu'après `]`.
+                let target = i + 1 + close;
+                while let Some(&(j, _)) = chars.peek() {
+                    if j > target {
+                        break;
                     }
+                    chars.next();
                 }
+                continue;
             }
             out.push(c);
         } else if c == '\\' && bytes.get(i + 1) == Some(&b'n') {
@@ -145,7 +173,7 @@ fn event_lines(path: &Path) -> Vec<(String, String)> {
 
 /// Construit les dialogues trilingues (alignés par text-id) des events d'Aphrody.
 fn extract_dialogues(data_root: &Path) -> Vec<Value> {
-    use serde_json::{json, Map};
+    use serde_json::{Map, json};
     let mut out = Vec::new();
     for ev in APHRODY_EVENTS {
         let ja = event_lines(&data_root.join(format!("common/text/ja/event/{ev}.cfg.bin.json")));
@@ -247,12 +275,16 @@ fn find_cfg(data_root: &Path, subdir: &str, prefix: &str) -> PathBuf {
             }
         }
     }
-    assert!(!candidates.is_empty(), "[export_aphrody] introuvable : {subdir}/{prefix}*.cfg.bin.json");
+    assert!(
+        !candidates.is_empty(),
+        "[export_aphrody] introuvable : {subdir}/{prefix}*.cfg.bin.json"
+    );
     candidates.sort_unstable_by(|a, b| b.cmp(a));
     candidates.remove(0)
 }
 
 fn read_json(path: &Path) -> Value {
-    let raw = fs::read_to_string(path).unwrap_or_else(|e| panic!("[export_aphrody] lecture {path:?}: {e}"));
+    let raw = fs::read_to_string(path)
+        .unwrap_or_else(|e| panic!("[export_aphrody] lecture {path:?}: {e}"));
     serde_json::from_str(&raw).unwrap_or_else(|e| panic!("[export_aphrody] parse {path:?}: {e}"))
 }

@@ -8,7 +8,7 @@
       "status": "bytes",
       "proof": {
         "kind": "msvc",
-        "reference": "cpp/decomp/functions\\thunks.c"
+        "reference": "src/decomp/functions\\thunks.c"
       },
       "object": "var/forge/cc/thunks.obj",
       "symbol": "nie_true_14004d750"
@@ -19,7 +19,7 @@
       "status": "bytes",
       "proof": {
         "kind": "msvc",
-        "reference": "cpp/decomp/functions\\thunks.c"
+        "reference": "src/decomp/functions\\thunks.c"
       },
       "object": "var/forge/cc/thunks.obj",
       "symbol": "nie_zero_14004d770"
@@ -30,7 +30,7 @@
       "status": "bytes",
       "proof": {
         "kind": "msvc",
-        "reference": "cpp/decomp/functions\\thunks.c"
+        "reference": "src/decomp/functions\\thunks.c"
       },
       "object": "var/forge/cc/thunks.obj",
       "symbol": "nie_load_f32_14004e9e0"
@@ -71,7 +71,7 @@
       "status": "bytes",
       "proof": {
         "kind": "msvc",
-        "reference": "cpp/decomp/functions\\thunks.c"
+        "reference": "src/decomp/functions\\thunks.c"
       },
       "object": "var/forge/cc/thunks.obj",
       "symbol": "nie_identity_140057350"
@@ -132,7 +132,7 @@
       "status": "bytes",
       "proof": {
         "kind": "msvc",
-        "reference": "cpp/decomp/functions\\thunks.c"
+        "reference": "src/decomp/functions\\thunks.c"
       },
       "object": "var/forge/cc/thunks.obj",
       "symbol": "nie_set_ptr_140287b00"
@@ -193,7 +193,7 @@
       "status": "bytes",
       "proof": {
         "kind": "msvc",
-        "reference": "cpp/decomp/functions\\thunks.c"
+        "reference": "src/decomp/functions\\thunks.c"
       },
       "object": "var/forge/cc/thunks.obj",
       "symbol": "nie_zero_f32_140453d60"
@@ -294,7 +294,7 @@
       "status": "bytes",
       "proof": {
         "kind": "msvc",
-        "reference": "cpp/decomp/functions\\thunks.c"
+        "reference": "src/decomp/functions\\thunks.c"
       },
       "object": "var/forge/cc/thunks.obj",
       "symbol": "nie_type_id_1411194b0"

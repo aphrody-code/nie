@@ -180,7 +180,9 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 .DS_Store
-/tests
+# `/tests` venait du .gitignore amont (G4_Blender) : cote niers, tests/ contient
+# 751 lignes de tests unittest ECRITS ICI (contrat de l'addon de portage, palette
+# d'uniformes, inference du data root). Ils sont versionnes.
 /exports
 /docs
 /tools

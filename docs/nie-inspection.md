@@ -310,7 +310,7 @@ Patterns d'asset : `<LG>` = langue (localisation), `%s` = dynamique, `_l` = vers
 - Ghidra ne supporte que 2 langages de sortie : `C_LANGUAGE` et `JAVA_LANGUAGE`
 - **Pas de mode C++ natif** — meme pour un binaire C++ comme nie.exe, la sortie est du pseudo-C
 - `this` → `param_1`, appels virtuels → dereferences de pointeurs, pas de namespaces/RAII
-- Strategie : garder le pseudo-C brut dans `decomp/functions/*.c`, convertir manuellement via `bridge.cpp`
+- Strategie : garder le pseudo-C brut dans `src/decomp/functions/*.c`, convertir manuellement via `bridge.cpp`
 - Les 1 234 classes RTTI sont la cle pour mapper `FUN_XXXXXXXXX` → `Class::Method`
 
 ### 2026-04-05 — Analyse complete GhydraMCP + nie.c (auto)

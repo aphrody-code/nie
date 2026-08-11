@@ -39,7 +39,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::time::Instant;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::Parser;
 use memmap2::Mmap;
 use rayon::prelude::*;
@@ -88,6 +88,12 @@ fn game_dir() -> PathBuf {
 }
 
 /// Espace disque libre (octets) pour le système de fichiers contenant `p`, via `statvfs(3)`.
+///
+/// Unix seulement : `statvfs` et `OsStrExt::as_bytes` n'existent pas sous Windows, où
+/// l'exemple ne compilait donc pas du tout (`cargo clippy --workspace --all-targets`
+/// échouait sur la machine de dev). La variante Windows renonce à la mesure — le seul
+/// appelant s'en sert pour un avertissement d'espace disque, pas pour décider.
+#[cfg(unix)]
 fn avail_bytes(p: &Path) -> Option<u64> {
     use std::ffi::CString;
     use std::os::unix::ffi::OsStrExt;
@@ -107,6 +113,12 @@ fn avail_bytes(p: &Path) -> Option<u64> {
             None
         }
     }
+}
+
+/// Espace disque libre : non mesuré hors Unix (cf. la variante `#[cfg(unix)]`).
+#[cfg(not(unix))]
+fn avail_bytes(_p: &Path) -> Option<u64> {
+    None
 }
 
 /// Convertit un chemin interne VFS en `PathBuf` relatif sûr (rejette `..`, racine absolue,
@@ -263,10 +275,16 @@ fn main() -> Result<()> {
     eprintln!(
         "✓ terminé en {secs:.1}s — écrits {w}, ignorés {sk}, manquants {mi}, erreurs {er} ; {:.2} Gio ({:.0} Mio/s)",
         by as f64 / 1e9,
-        if secs > 0.0 { by as f64 / 1e6 / secs } else { 0.0 }
+        if secs > 0.0 {
+            by as f64 / 1e6 / secs
+        } else {
+            0.0
+        }
     );
     if abort.load(Ordering::Relaxed) {
-        bail!("interrompu par le garde-fou disque (relancer libérera l'espace ou réduire la marge)");
+        bail!(
+            "interrompu par le garde-fou disque (relancer libérera l'espace ou réduire la marge)"
+        );
     }
     Ok(())
 }
@@ -288,14 +306,19 @@ fn process_cpk(
     // d'extraction → on compte ces fichiers comme « manquants » avec un seul avertissement.
     if cpk.is_empty() || !packs_dir.join(cpk).is_file() {
         stats.missing.fetch_add(wanted.len(), Ordering::Relaxed);
-        eprintln!("⚠ CPK absent/sans nom — {} fichier(s) ignoré(s) : {cpk:?}", wanted.len());
+        eprintln!(
+            "⚠ CPK absent/sans nom — {} fichier(s) ignoré(s) : {cpk:?}",
+            wanted.len()
+        );
         return Ok(());
     }
 
     let cpk_path = packs_dir.join(cpk);
-    let file = File::open(&cpk_path).with_context(|| format!("ouverture {}", cpk_path.display()))?;
+    let file =
+        File::open(&cpk_path).with_context(|| format!("ouverture {}", cpk_path.display()))?;
     // SAFETY : mmap read-only d'un fichier ouvert ; pas de mutation, pas d'aliasing &mut.
-    let mmap = unsafe { Mmap::map(&file) }.with_context(|| format!("mmap {}", cpk_path.display()))?;
+    let mmap =
+        unsafe { Mmap::map(&file) }.with_context(|| format!("mmap {}", cpk_path.display()))?;
 
     let reader = CpkReader::new(&mmap, cpk).with_context(|| format!("parse CPK {cpk}"))?;
 
@@ -337,10 +360,11 @@ fn process_cpk(
         let want_len = expected_len(entry);
         if !force
             && let Ok(meta) = fs::metadata(&out_path)
-                && meta.len() == want_len {
-                    stats.skipped.fetch_add(1, Ordering::Relaxed);
-                    continue;
-                }
+            && meta.len() == want_len
+        {
+            stats.skipped.fetch_add(1, Ordering::Relaxed);
+            continue;
+        }
 
         let data = match reader.extract(&mmap, entry) {
             Ok(d) => d,
@@ -352,8 +376,7 @@ fn process_cpk(
         };
 
         if let Some(parent) = out_path.parent() {
-            fs::create_dir_all(parent)
-                .with_context(|| format!("mkdir {}", parent.display()))?;
+            fs::create_dir_all(parent).with_context(|| format!("mkdir {}", parent.display()))?;
         }
         // Écriture atomique : .tmp puis rename (jamais de partiel qui passe le skip).
         let tmp = out_path.with_extension("nie-dump-tmp");
@@ -364,8 +387,7 @@ fn process_cpk(
                 .with_context(|| format!("écriture {}", tmp.display()))?;
             bw.flush().ok();
         }
-        fs::rename(&tmp, &out_path)
-            .with_context(|| format!("rename → {}", out_path.display()))?;
+        fs::rename(&tmp, &out_path).with_context(|| format!("rename → {}", out_path.display()))?;
 
         stats.written.fetch_add(1, Ordering::Relaxed);
         stats.bytes.fetch_add(data.len() as u64, Ordering::Relaxed);
@@ -378,12 +400,16 @@ fn process_cpk(
         }
         if n.is_multiple_of(2048)
             && let Some(free) = avail_bytes(out_dir)
-                && free < reserve {
-                    abort.store(true, Ordering::Relaxed);
-                    eprintln!("⚠ garde-fou disque : {:.1} Gio libres < marge {:.1} Gio — arrêt.",
-                        free as f64 / 1e9, reserve as f64 / 1e9);
-                    return Ok(());
-                }
+            && free < reserve
+        {
+            abort.store(true, Ordering::Relaxed);
+            eprintln!(
+                "⚠ garde-fou disque : {:.1} Gio libres < marge {:.1} Gio — arrêt.",
+                free as f64 / 1e9,
+                reserve as f64 / 1e9
+            );
+            return Ok(());
+        }
     }
     Ok(())
 }

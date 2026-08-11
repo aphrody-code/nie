@@ -46,6 +46,6 @@ cmake --preset wasm
 cmake --build --preset wasm --parallel
 
 step "=== Build complete ==="
-Write-Host "    Output: $Root\build\wasm\cli\iecode.js"
-Write-Host "            $Root\build\wasm\cli\iecode.wasm"
+Write-Host "    Output: $Root\build\wasm\src\cli\iecode.js"
+Write-Host "            $Root\build\wasm\src\cli\iecode.wasm"
 Write-Host "    Test:   open $Root\build\wasm\index.html"

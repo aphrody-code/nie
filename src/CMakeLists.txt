@@ -10,6 +10,17 @@ file(GLOB_RECURSE CORE_SOURCES CONFIGURE_DEPENDS
 # Exclure les sources compilees dans leurs propres targets
 list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/engine/.*")
 list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/game/.*")
+# Depuis le regroupement de l'arbre C++ sous src/ (2026-08-11), le GLOB_RECURSE
+# ci-dessus voit AUSSI les sous-arbres qui ont leur propre target : cli/ (a un
+# `main()`), tests/ (GTest), ffi/ (shared lib), decomp/ (voie B de la forge),
+# driver/ (hors build principal). Sans ces filtres, iecode_core embarquerait
+# plusieurs `main()` et toute la suite de tests.
+list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/src/cli/.*")
+list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/src/tests/.*")
+list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/src/ffi/.*")
+list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/src/decomp/.*")
+list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/src/driver/.*")
+list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/src/include/.*")
 # iecode_export_app_optimized.cpp est un EXECUTABLE standalone (cf. CMakeLists.app_export.txt)
 # qui possede son propre `int main()` — il ne doit pas etre dans la lib iecode_core.
 list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/iecode_export_app[a-z_]*\\.cpp$")
@@ -67,7 +78,7 @@ set_source_files_properties(
 )
 
 target_include_directories(iecode_core PUBLIC
-    ${PROJECT_SOURCE_DIR}/include
+    ${PROJECT_SOURCE_DIR}/src/include
 )
 
 target_link_libraries(iecode_core PUBLIC

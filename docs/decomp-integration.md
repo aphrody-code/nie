@@ -24,7 +24,7 @@ Outils : `LIEF`, `pefile`, `angr`, `capstone`
 ### 2. Décompilation Intermédiaire
 Outils : `Ghidra` piloté par `pyghidra`
 - Ghidra est utilisé *uniquement* comme moteur de translation x86 -> pseudo-C (Intermediate Representation).
-- L'export de Ghidra (`decomp/functions/*.c`) est traité comme un jeu de données (dataset), **pas** comme du code source à compiler.
+- L'export de Ghidra (`src/decomp/functions/*.c`) est traité comme un jeu de données (dataset), **pas** comme du code source à compiler.
 
 ### 3. Translation Pseudo-C vers Rust (Le Distillateur)
 Outils : `tree-sitter-c`, `transformers` (LLMs / CodeBERT), `networkx`
@@ -41,10 +41,10 @@ Lancer le pipeline Ghidra en mode headless pour générer la matière première 
 ```powershell
 ./scripts/import_nie.ps1 -NiePath "C:\...\nie.exe"
 ```
-Les fichiers atterrissent dans `decomp/functions/`. Ils ne sont plus compilés par CMake.
+Les fichiers atterrissent dans `src/decomp/functions/`. Ils ne sont plus compilés par CMake.
 
 ### Étape 2 : Lancement de l'Agent de Transpilation
-L'agent d'Intelligence Artificielle parcourt le dossier `decomp/functions/`, identifie les classes (grâce au RTTI), et génère les équivalents Rust dans `src/Winclean.MlCore/nie_rs/`.
+L'agent d'Intelligence Artificielle parcourt le dossier `src/decomp/functions/`, identifie les classes (grâce au RTTI), et génère les équivalents Rust dans `src/Winclean.MlCore/nie_rs/`.
 ```powershell
 cd src/Winclean.MlCore
 uv run python -m winclean_ml.agents.transpiler_agent

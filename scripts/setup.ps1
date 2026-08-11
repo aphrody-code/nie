@@ -117,6 +117,6 @@ try {
 # ── Resume ───────────────────────────────────────────────────────────────────
 $Elapsed = [int]((Get-Date) - $StartTime).TotalSeconds
 Write-Host "`n=== Setup termine en ${Elapsed}s ===" -ForegroundColor Green
-Write-Host "    Binaire : $(Join-Path $Root 'build\debug\cli\iecode.exe')" -ForegroundColor Cyan
+Write-Host "    Binaire : $(Join-Path $Root 'build\debug\src\cli\iecode.exe')" -ForegroundColor Cyan
 Write-Host "    Suivant : .\scripts\build.ps1          # build debug rapide" -ForegroundColor DarkCyan
 Write-Host "              .\scripts\build-release.ps1  # build release LTO" -ForegroundColor DarkCyan

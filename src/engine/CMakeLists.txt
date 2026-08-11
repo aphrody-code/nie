@@ -9,7 +9,7 @@ if(ENGINE_SOURCES)
 endif()
 
 target_include_directories(iecode_engine PUBLIC
-    ${PROJECT_SOURCE_DIR}/include
+    ${PROJECT_SOURCE_DIR}/src/include
 )
 
 target_link_libraries(iecode_engine PUBLIC

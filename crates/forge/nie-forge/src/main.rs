@@ -143,8 +143,8 @@ enum Cmd {
     Cc {
         #[command(flatten)]
         paths: Paths,
-        /// Fichier `.c` ou répertoire à compiler (défaut : `cpp/decomp/functions`).
-        #[arg(long, default_value = "cpp/decomp/functions")]
+        /// Fichier `.c` ou répertoire à compiler (défaut : `src/decomp/functions`).
+        #[arg(long, default_value = "src/decomp/functions")]
         src: PathBuf,
         /// Chemin explicite de `cl.exe` (sinon `$NIE_CL`, puis vswhere).
         #[arg(long)]
@@ -257,8 +257,8 @@ fn cmd_cc(paths: &Paths, src: &Path, cl: Option<&Path>, register: bool) -> anyho
     let mut annotated = 0usize;
 
     for s in &sources {
-        let text = std::fs::read_to_string(s)
-            .with_context(|| format!("lecture de {}", s.display()))?;
+        let text =
+            std::fs::read_to_string(s).with_context(|| format!("lecture de {}", s.display()))?;
         let anns = cc::parse_annotations(&text)?;
         if anns.is_empty() {
             continue;
@@ -269,7 +269,10 @@ fn cmd_cc(paths: &Paths, src: &Path, cl: Option<&Path>, register: bool) -> anyho
 
         for a in anns {
             let Some(unit) = store.cover.find_va(a.va) else {
-                eprintln!("rejet {} @ {:#x} : aucune unité à cette adresse", a.symbol, a.va);
+                eprintln!(
+                    "rejet {} @ {:#x} : aucune unité à cette adresse",
+                    a.symbol, a.va
+                );
                 rejected += 1;
                 continue;
             };
@@ -306,9 +309,9 @@ fn cmd_cc(paths: &Paths, src: &Path, cl: Option<&Path>, register: bool) -> anyho
                     s.display()
                 );
                 if register {
-                    registry.entries.retain(|e| {
-                        e.va_value().map(|v| v != a.va).unwrap_or(true)
-                    });
+                    registry
+                        .entries
+                        .retain(|e| e.va_value().map(|v| v != a.va).unwrap_or(true));
                     registry.entries.push(RegistryEntry {
                         va: format!("{:#x}", a.va),
                         rust: None,
@@ -395,7 +398,11 @@ fn cmd_lift(paths: &Paths, max_len: usize, out: &str) -> anyhow::Result<()> {
 
     // Noms issus de l'échafaudage RE : la source produite devient navigable.
     let re = nie_forge::ReNames::load(&paths.db)?;
-    let named = src.bodies.keys().filter(|va| re.get(**va).is_some()).count();
+    let named = src
+        .bodies
+        .keys()
+        .filter(|va| re.get(**va).is_some())
+        .count();
     let roots = store.cover.count_by_kind(UnitKind::Function);
     if re.pdata_roots > 0 && re.pdata_roots != roots {
         // Les deux décrivent le même objet : tout écart est un signal.
@@ -627,8 +634,7 @@ fn cmd_report(paths: &Paths, json: bool) -> anyhow::Result<()> {
         for u in &store.cover.units {
             if u.kind == UnitKind::SectionData
                 && let Some(sec) = u.section.as_deref()
-                && nie_pe::image::tables::emit_for(&img, sec)
-                    .is_some_and(|b| b.len() == u.len)
+                && nie_pe::image::tables::emit_for(&img, sec).is_some_and(|b| b.len() == u.len)
             {
                 report.emitted.units += 1;
                 report.emitted.bytes += u.len;
