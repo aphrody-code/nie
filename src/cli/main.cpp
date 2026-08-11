@@ -86,7 +86,6 @@ int main(int argc, char* argv[]) {
     iecode::cli::register_prepare_menu_command(app);
     iecode::cli::register_push_command(app);
     iecode::cli::register_nie_command(app);
-    iecode::cli::register_lua_command(app);
     iecode::cli::register_dump_playstyle_command(app);
     iecode::cli::register_mod_command(app);
     iecode::cli::register_audio_command(app);

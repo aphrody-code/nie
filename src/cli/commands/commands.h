@@ -94,8 +94,6 @@ void register_push_command(CLI::App& app);
 /// Enregistre la commande 'nie' (indexation/recherche nie.c decompilation Ghidra).
 void register_nie_command(CLI::App& app);
 
-/// Enregistre la commande 'lua' (analyse statique scripts Lua via tree-sitter).
-void register_lua_command(CLI::App& app);
 
 /// Enregistre la commande 'dump-playstyle' (export systeme PlayStyle en JSON).
 void register_dump_playstyle_command(CLI::App& app);
