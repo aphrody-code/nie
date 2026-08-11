@@ -112,6 +112,17 @@ C'est la priorité, parce que tout le visuel du menu et le contenu des sous-menu
 `nie-save` déchiffre, lit et édite les saves (XOR à clé CRC32). `nie-steam` porte l'acquisition
 Steam native. `nie-wiki` expose game-data depuis le miroir SQLite. `nie-camera` porte le modèle et
 les contrôleurs de caméra. `nie-lua` exécute les vrais scripts et les analyse statiquement.
+`nie-viola` porte les opérations de modding LEVEL-5 — dump, pack, merge, chiffrement Criware —
+dont la fusion **au champ** des `.cfg.bin`, que les outils amont ne peuvent pas faire faute de
+comprendre les formats.
+
+### L'application — `apps/nie-explorer`
+
+Explorateur du VFS, éditeur de données, atelier de modding et boîte à outils de reverse, en Tauri.
+Elle ne réimplémente rien : elle appelle les mêmes crates que `niers`, en process. C'est aussi le
+banc d'essai le plus exigeant du portage — un format mal parsé s'y voit immédiatement.
+
+État, limites assumées et écarts restants : [`apps/nie-explorer/ROADMAP.md`](../apps/nie-explorer/ROADMAP.md).
 
 `crates/archive/nie-engine` est **hors du workspace** : 15 000 lignes portées des fichiers C
 décompilés, mais consommées par aucune crate vivante et redondantes avec les crates byte-exactes.
