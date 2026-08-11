@@ -183,19 +183,36 @@ pub fn decompress(input: &[u8]) -> Result<Vec<u8>, FormatError> {
             // sera décrémentée en premier), équivalent à `writePtr + 1` du C#.
             // Donc la source correcte est `(write_pos - 1) + offset`, soit `write_pos - 1`
             // APRÈS décrément de `write_pos`.
-            for _ in 0..length {
-                if write_pos <= RAW_HEADER_SIZE {
-                    return Err(FormatError::Corrupt("CRILAYLA : backref dépasse le début de la sortie"));
-                }
-                write_pos -= 1;
-                let src = write_pos
-                    .checked_add(offset)
-                    .ok_or(FormatError::Corrupt("CRILAYLA : overflow backref src"))?;
-                if src >= total_size {
-                    return Err(FormatError::Corrupt("CRILAYLA : backref source hors limites"));
-                }
-                output[write_pos] = output[src];
+            //
+            // Les bornes se vérifient **une fois pour le bloc** et non à chaque octet : la
+            // version par octet payait trois tests (fin de sortie, débordement d'addition,
+            // source hors limites) pour un seul octet copié.
+            if length > write_pos - RAW_HEADER_SIZE {
+                return Err(FormatError::Corrupt(
+                    "CRILAYLA : backref dépasse le début de la sortie",
+                ));
             }
+            let dst_start = write_pos - length;
+            let src_end = write_pos
+                .checked_add(offset)
+                .ok_or(FormatError::Corrupt("CRILAYLA : overflow backref src"))?;
+            if src_end > total_size {
+                return Err(FormatError::Corrupt("CRILAYLA : backref source hors limites"));
+            }
+
+            if offset >= length {
+                // Source et destination disjointes : aucun octet lu n'est réécrit pendant la
+                // copie, `copy_within` (memmove) est donc équivalent à la boucle — et bien
+                // plus rapide sur les longues copies.
+                output.copy_within(src_end - length..src_end, dst_start);
+            } else {
+                // Recouvrement : la copie est *périodique* (l'octet lu vient d'être écrit),
+                // ce qu'un memmove ne reproduit pas. L'ordre décroissant est la sémantique.
+                for i in (dst_start..write_pos).rev() {
+                    output[i] = output[i + offset];
+                }
+            }
+            write_pos = dst_start;
         }
     }
 
