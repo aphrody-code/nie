@@ -408,10 +408,10 @@ export function SettingsView() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Blender (tools/niers)</CardTitle>
+          <CardTitle>Blender (plugins/niers-blender)</CardTitle>
           <CardDescription>
             Pour « Ouvrir dans Blender » sur les modèles G4MD/G4MG/G4SK/G4MT. L'extension
-            (<code>tools/niers</code>) est incluse dans ce dépôt ; clonée automatiquement si absente
+            (<code>plugins/niers-blender</code>) est incluse dans ce dépôt ; clonée automatiquement si absente
             en dernier recours (installation distribuée pointée sur un simple jeu Steam).
           </CardDescription>
         </CardHeader>

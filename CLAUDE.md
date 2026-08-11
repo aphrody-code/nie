@@ -21,12 +21,12 @@ réellement générée par le dépôt. Un portage qui n'y bouge rien n'a rien pr
 
 ## Build / test (règles strictes)
 
-- Workspace Cargo, 31 crates rangées par rôle :
+- Workspace Cargo, 34 crates (32 compilées) rangées par rôle :
   - `crates/forge/*` — production du binaire (`nie-pe`, `nie-asm`, `nie-forge`) + échafaudage RE
     (`nie-re`, `nie-index`, `nie-seed`, `nie-queue`, `nie-trace`).
   - `crates/engine/*` — le moteur (`nie-core`, `nie-formats`, `nie-data`, `nie-render3d`, …).
   - `crates/tools/*` — outillage (`nie-cli`, `nie-wiki`, `nie-steam`, `nie-model-serve`, …).
-  - `crates/archive/*` — hors build, référence seule (`nie-engine`).
+  - `crates/archive/*` — hors build, référence seule (`nie-engine`, `nie-rs`).
 - Lints workspace (`[workspace.lints]`) : `todo!`, `unimplemented!`, `dbg_macro` → **deny**.
 - `nie-core`, `nie-pe`, `nie-asm`, `nie-forge` : `#![warn(missing_docs)]` → documenter **chaque** item `pub`.
 - Avant tout commit : `cargo clippy -p <crate> --lib --tests` doit retourner **0 warning**.
@@ -56,8 +56,8 @@ bun run lint
 ```
 
 - Versions partagées par **catalogue** : `catalog:` (typescript, `@types/bun`) ou `catalog:mcp`
-  (SDK MCP, zod). Jamais une version en dur — c'est ce qui avait fait cohabiter trois TypeScript
-  et deux zod, rendant les schémas d'outils MCP inassignables.
+  (SDK MCP, zod). Jamais une version en dur : une version en dur fait cohabiter plusieurs
+  TypeScript et plusieurs zod, ce qui rend les schémas d'outils MCP inassignables.
 - `nie-mcp` et `nie-explorer` partagent la **même couche Rust** : l'explorateur lie `nie-formats`
   en direct, le MCP l'atteint par `packages/nie` (FFI). Ne pas réimplémenter d'un côté ce que
   l'autre fait déjà.
@@ -70,7 +70,7 @@ Carte complète : `docs/ARCHITECTURE.md`. En bref :
 
 | Langage | Rôles |
 |---|---|
-| **C++** (`src/`) | C décompilé → jeu `nie` jouable ; libs qui n'existent qu'en C++ (assimp, Bullet, driver kernel) |
+| **C++** (`src/`) | C décompilé → jeu `nie` jouable ; libs qui n'existent qu'en C++ (assimp, Bullet) |
 | **C#** (`csharp/`) | dump, pack, memory, conversion de texture |
 | **Rust** (`crates/`) | **la seule CLI**, GUI, core lib, wasm, RE, byte-exact |
 | **Bun/TS** (`packages/`, `apps/`) | MCP, serveur web, types, API, UI |
@@ -83,28 +83,26 @@ Carte complète : `docs/ARCHITECTURE.md`. En bref :
 
 ## Arbre C++ (toolkit IECODE) — tout sous **`src/`**
 
-Toolkit C++20 : parsers, compression, VFS, converters, modding, rendu, scripting.
+Toolkit C++20 : parsers, compression, VFS, converters, modding, rendu.
 
 ```
 CMakeLists.txt      racine du projet CMake `iecode` (C/C++20, vcpkg, unity build, LTO, ccache)
 src/                implémentations de iecode_core — archive compression converters crypto db
-                    engine formats game gamedata io memory modding render scripting services
-                    steam vfs viola wasm (+ src/nie_rs/ : crate Rust hors workspace, pont interne)
-src/include/iecode/ headers publics (ffi.h = API C ABI unique, compression/, crypto/, level5/,
-                    criware/, vfs/, modding/)
-src/cli/commands/   ~40 sous-commandes du binaire `iecode`
+                    formats gamedata io modding render services vfs viola
+                    (engine/ et game/ ont leur propre target : iecode_engine, iecode_game)
+src/include/iecode/ headers publics (compression/, crypto/, level5/, criware/, vfs/, modding/,
+                    export.h, types.h)
+src/cli/commands/   39 sous-commandes du binaire `iecode`
 src/decomp/         **voie B de la forge** (`functions/*.c` annotés `/* @nie 0x… */`, MSVC 14.44
                     `/O2 /GS- /Gy /Zl`) — ce n'est PAS du toolkit, cf. section Forge
-src/ffi/            ffi.cpp + bindings.cpp (C ABI) · src/ffi/rust/iecode-sys (crate de liaison)
-src/driver/         iecode_memread (lecture mémoire du process) + son client
-src/tests/          GTest (828+ cas)
+src/tests/          GTest (474 cas)
 third_party/        sources vendorisées header-only (stb, mio, bcdec, tinygltf)
 cmake/              CompilerWarnings.cmake, SIMDDetect.cmake, overlay-ports vcpkg
 csharp/             IECODE.Core / IECODE.CLI / IECODE.Core.Tests (.NET 10, `IECODE.sln` racine)
 ```
 
 - **`src/CMakeLists.txt` fait un `GLOB_RECURSE`** sur tout `src/` pour `iecode_core` : les
-  sous-arbres à target propre (`cli`, `tests`, `ffi`, `decomp`, `driver`, `include`) en sont
+  sous-arbres à target propre (`engine`, `game`, `cli`, `tests`, `decomp`, `include`) en sont
   exclus par `list(FILTER … EXCLUDE REGEX ".*/src/<nom>/.*")`. Ajouter un sous-arbre à target
   propre sans son filtre ⇒ plusieurs `main()` dans la lib.
 - Build : `just cpp-build` (ou `cmake --preset msvc && cmake --build --preset msvc-debug`).
@@ -112,14 +110,13 @@ csharp/             IECODE.Core / IECODE.CLI / IECODE.Core.Tests (.NET 10, `IECO
   `…/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe`.
   **vcpkg n'est pas installé** (`VCPKG_ROOT` vide) → `cmake` configure échouera sur le premier
   `find_package`. Ne pas conclure à une régression du dépôt : c'est l'environnement.
-- WASM : `emcmake cmake -B build/wasm -S . -DIECODE_WASM=ON` (cf. `CMakeLists.wasm.txt`).
 - Conventions : C++20 `CXX_EXTENSIONS OFF`, `CamelCase` classes / `lower_case` fonctions /
   `UPPER_CASE` constantes, pas d'exceptions en hot path (`std::optional` / codes retour),
   `std::span<const uint8_t>` pour le parsing binaire, 4 espaces / 100 colonnes (clang-format Google).
-- Mémoire FFI : l'entrée est un pointeur de l'appelant ; la sortie est allouée par C++ et libérée
-  par `iecode_free` ; les handles opaques ont leur `iecode_*_free` dédié.
+- Le C++ s'atteint par `niers cpp` (sous-processus), jamais en process : il n'expose aucune FFI.
+  Le wasm du dépôt est `nie-wasm` (Rust) ; le toolkit n'a pas de cible WebAssembly.
 - **`.gitignore`** : `*.txt` et `*.md` sont ignorés globalement ; les `CMakeLists.txt`, les README
-  et le plugin `tools/niers-plugin/**/*.md` sont ré-inclus explicitement. Ne pas retirer ces
+  et le plugin `plugins/niers-plugin/**/*.md` sont ré-inclus explicitement. Ne pas retirer ces
   lignes `!…` — sans elles, toute la chaîne de build C++ sort du dépôt.
 
 ## Pièges d'environnement (Windows)
@@ -159,8 +156,9 @@ csharp/             IECODE.Core / IECODE.CLI / IECODE.Core.Tests (.NET 10, `IECO
 - `niers.sqlite` est branché (`--db`) : il **nomme** les corps produits dans `lifted.s`, et la forge
   le **contredit** en retour (`cross-check pdata_roots_db=50674 forge=55351`).
 - **Devant un plateau, ne pas deviner** : enrichir le diagnostic (`blocking_detail` ventile par
-  mnémonique et affiche `orig=` vs `nie-asm=`), relancer `lift`, lire. C'est ce qui a fait passer
-  26,9 % → 47,6 % en une vague.
+  mnémonique et affiche `orig=` vs `nie-asm=`), relancer `lift`, lire. Une seule vague de
+  diagnostic vaut mieux que plusieurs vagues de code écrit à l'aveugle — c'est le levier qui
+  déplace la mesure de dizaines de points.
 - **L'identité prime** : `build` échoue si `sha256(dist/nie.exe)` diffère de la référence. Ne jamais
   « corriger » ce test — c'est lui le contrat.
 - Rien n'entre dans `forge/asm/*.s` qui ne se réencode pas exactement (`lift` vérifie).

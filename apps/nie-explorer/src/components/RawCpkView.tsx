@@ -1,6 +1,6 @@
 // Exploration d'un CPK RÉEL, PHYSIQUEMENT présent sur disque, hors du VFS du jeu monté — cf.
 // demande utilisatrice « puisse explorer aussi les cpk réels hors du vfs présent physiquement en
-// les ouvrant ». Même lecteur `nie_formats::cpk::CpkReader` que le VFS (`crates/nie-formats/src/
+// les ouvrant ». Même lecteur `nie_formats::cpk::CpkReader` que le VFS (`crates/engine/nie-formats/src/
 // cpk.rs`), juste sans passer par l'indirection `cpk_list.cfg.bin`/`Vfs` : un mod téléchargé, un
 // DLC séparé ou une copie de sauvegarde d'un pack peuvent être ouverts directement.
 import { useState } from "react";
@@ -39,7 +39,7 @@ export function RawCpkView() {
   // est autonome (pas de fichier frère référencé), et l'aperçu 3D (GLB) résout désormais ses frères
   // g4mg/g4tx DANS le CPK ouvert (`assemble_glb_from_cpk_entries` côté Rust, PAS le VFS — le gap
   // « résolveur de frères scopé au seul CPK courant » est fermé, 2026-08-08). Blender reste hors de
-  // portée : `open_in_blender` dépend du VFS pour l'addon `tools/niers` + `NIE_GAME_DIR`.
+  // portée : `open_in_blender` dépend du VFS pour l'addon `plugins/niers-blender` + `NIE_GAME_DIR`.
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioLoading, setAudioLoading] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);

@@ -1,13 +1,13 @@
 ---
 name: niers-monorepo
-description: Navigation et conventions du dépôt niers — où vit quoi entre les 31 crates Cargo (forge, engine, tools, archive) et les workspaces Bun (packages/*, apps/*), quelle commande de build ou de test lancer, comment ajouter un crate ou un paquet, et quelles règles s'appliquent avant de committer. À charger avant de créer un fichier, choisir un emplacement, lancer un build ou un test, ou committer dans ce dépôt.
+description: Navigation et conventions du dépôt niers — où vit quoi entre les 34 crates Cargo (forge, engine, tools, archive) et les workspaces Bun (packages/*, apps/*), quelle commande de build ou de test lancer, comment ajouter un crate ou un paquet, et quelles règles s'appliquent avant de committer. À charger avant de créer un fichier, choisir un emplacement, lancer un build ou un test, ou committer dans ce dépôt.
 ---
 
 # Monorepo niers — où vit quoi
 
 Deux arbres cohabitent, avec des règles distinctes.
 
-## Cargo — 31 crates rangées par rôle
+## Cargo — 34 crates rangées par rôle
 
 | Dossier | Rôle | Exemples |
 |---|---|---|

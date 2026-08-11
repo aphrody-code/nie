@@ -1,5 +1,5 @@
 //! Validation croisée du décodage structurel G4MT (`g4mt::Motion`) contre un vrai fichier —
-//! optionnellement contre l'implémentation Python indépendante `tools/niers` (valeurs
+//! optionnellement contre l'implémentation Python indépendante `plugins/niers-blender` (valeurs
 //! attendues passées en argument, cf. `docs game-data` pour la méthode).
 //! Usage : `cargo run -p nie-formats --example validate_g4mt -- <fichier.g4mt> <squelette.g4sk>`
 

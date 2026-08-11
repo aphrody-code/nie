@@ -119,7 +119,7 @@ nie-lua = { path = "../../../crates/engine/nie-lua" }
 # Encodage PNG des frames rendues par nie-render3d (même crate/version que `nie-render3d`/
 # `nie-game`/`nie-play` — pas de nouvelle dépendance pour le workspace, juste ajoutée ici aussi).
 png = "0.18"
-# Zip de `tools/niers` pour `bpy.ops.preferences.addon_install` (exige un vrai .zip, pas un
+# Zip de `plugins/niers-blender` pour `bpy.ops.preferences.addon_install` (exige un vrai .zip, pas un
 # dossier) — même version que `nie-steam` (décompression de manifestes CDN), pas de nouvelle
 # version introduite dans le workspace.
 zip = "2"
