@@ -43,9 +43,7 @@ fn main() {
         .expect("usage: probe_t2b <prefix> [max_depth] [max_children]");
     let max_depth = std::env::args().nth(2).and_then(|s| s.parse().ok()).unwrap_or(3);
     let max_children = std::env::args().nth(3).and_then(|s| s.parse().ok()).unwrap_or(5);
-    let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
-        "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road".into()
-    });
+    let dir = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
     let mut vfs = Vfs::new();
     vfs.init(Path::new(&dir).join("data").as_path()).expect("vfs init");
     let path = vfs

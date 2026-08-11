@@ -9,7 +9,7 @@
 //! # Usage
 //! ```text
 //! cargo run --bin export_skills --features serde,std -- \
-//!     --data /home/ubuntu/niers/data --out /home/ubuntu/rg/apps/azalee/data/skills-cutin.json
+//!     --data $NIE_GAME_DIR/data --out export/skills-cutin.json
 //! ```
 
 use std::fs;
@@ -18,15 +18,23 @@ use std::path::{Path, PathBuf};
 use nie_data::skill::parse_skill_config;
 use serde_json::{json, Value};
 
+/// Racine des données décodées, sans chemin de poste en dur : `NIE_GAME_DIR/data` si la
+/// variable est posée, sinon `./data` (le dépôt est fusionné avec l'installation du jeu).
+fn default_data_root() -> String {
+    std::env::var("NIE_GAME_DIR")
+        .map(|d| format!("{d}/data"))
+        .unwrap_or_else(|_| "data".to_string())
+}
+
 fn main() {
     let data_root = std::env::args()
         .skip_while(|a| a != "--data")
         .nth(1)
-        .unwrap_or_else(|| "/home/ubuntu/niers/data".to_string());
+        .unwrap_or_else(default_data_root);
     let out_path = std::env::args()
         .skip_while(|a| a != "--out")
         .nth(1)
-        .unwrap_or_else(|| "/home/ubuntu/rg/apps/azalee/data/skills-cutin.json".to_string());
+        .unwrap_or_else(|| format!("{data_root}/../export/skills-cutin.json"));
 
     let data_root = PathBuf::from(&data_root);
     let cfg_path = find_cfg(&data_root, "common/gamedata/skill", "skill_config_");

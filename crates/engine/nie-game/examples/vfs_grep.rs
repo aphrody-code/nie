@@ -9,7 +9,7 @@ fn main() {
         eprintln!("usage: vfs_grep <substr> [<substr>…]");
         return;
     }
-    let game = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| "/home/aphrody/niers".into());
+    let game = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
     let data = PathBuf::from(&game).join("data");
     let mut vfs = Vfs::new();
     vfs.init(&data).expect("vfs init");

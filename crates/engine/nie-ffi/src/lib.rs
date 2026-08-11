@@ -1126,7 +1126,7 @@ mod tests {
     #[test]
     fn font_render_text_a_real() {
         use std::ffi::CString;
-        let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| "/home/aphrody/niers".into());
+        let dir = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data = std::path::Path::new(&dir).join("data");
         if !data.join("cpk_list.cfg.bin").exists() {
             eprintln!("skip font_render_text_a_real : jeu absent");

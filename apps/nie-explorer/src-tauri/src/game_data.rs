@@ -643,9 +643,7 @@ mod tests {
     /// element=1 (Vent), category=1 (Tir) »).
     #[test]
     fn list_skills_sur_le_vrai_jeu() {
-        let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
-            "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road".to_string()
-        });
+        let dir = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data_dir = std::path::Path::new(&dir).join("data");
         if !data_dir.join("cpk_list.cfg.bin").exists() {
             eprintln!("skip list_skills_sur_le_vrai_jeu : jeu absent");
@@ -673,9 +671,7 @@ mod tests {
     /// factorisé pour les 4 tests `list_*_sur_le_vrai_jeu` ci-dessous, même convention que
     /// `list_skills_sur_le_vrai_jeu`.
     fn real_vfs_or_skip(test_name: &str) -> Option<Vfs> {
-        let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
-            "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road".to_string()
-        });
+        let dir = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data_dir = std::path::Path::new(&dir).join("data");
         if !data_dir.join("cpk_list.cfg.bin").exists() {
             eprintln!("skip {test_name} : jeu absent");
@@ -749,9 +745,7 @@ mod tests {
     /// (« niers doit couvrir tout nie.exe »), RDBN et T2B mélangés, sans aucun crash/erreur.
     #[test]
     fn decode_cfgbin_sur_un_echantillon_large() {
-        let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
-            "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road".to_string()
-        });
+        let dir = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data_dir = std::path::Path::new(&dir).join("data");
         if !data_dir.join("cpk_list.cfg.bin").exists() {
             eprintln!("skip decode_cfgbin_sur_un_echantillon_large : jeu absent");

@@ -371,10 +371,7 @@ mod tests {
     /// 1920×1080) → l'objet positionné est centré et remplit le canvas.
     #[test]
     fn real_option02_02_fullscreen_object() {
-        let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
-            "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road"
-                .to_string()
-        });
+        let dir = crate::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data = std::path::Path::new(&dir).join("data");
         if !data.join("cpk_list.cfg.bin").exists() {
             eprintln!("skip real_option02_02_fullscreen_object : jeu absent");

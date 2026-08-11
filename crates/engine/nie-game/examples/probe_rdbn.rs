@@ -22,9 +22,7 @@ fn show(v: &RdbnValue) -> String {
 
 fn main() {
     let prefix = std::env::args().nth(1).expect("usage: probe_rdbn <filename_prefix>");
-    let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
-        "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road".into()
-    });
+    let dir = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
     let mut vfs = Vfs::new();
     vfs.init(Path::new(&dir).join("data").as_path()).expect("vfs init");
     let path = vfs

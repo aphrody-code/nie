@@ -1444,10 +1444,7 @@ mod tests {
     /// → cfgbin_parse → l'entrée racine contient des milliers de fichiers CPK.
     #[test]
     fn cpk_list_decrypts_real_file() {
-        let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
-            "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road"
-                .to_string()
-        });
+        let dir = crate::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let path = std::path::Path::new(&dir).join("data").join("cpk_list.cfg.bin");
         let Ok(enc) = std::fs::read(&path) else {
             eprintln!("skip cpk_list_decrypts_real_file : {} absent", path.display());

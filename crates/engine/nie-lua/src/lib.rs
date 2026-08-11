@@ -269,10 +269,7 @@ mod tests {
     /// exécuter la logique réelle du jeu. Gated sur l'install Steam.
     #[test]
     fn loads_real_game_lua_bytecode() {
-        let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
-            "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road"
-                .to_string()
-        });
+        let dir = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data_dir = std::path::Path::new(&dir).join("data");
         if !data_dir.join("cpk_list.cfg.bin").exists() {
             eprintln!("skip loads_real_game_lua_bytecode : jeu absent");
@@ -313,10 +310,7 @@ mod tests {
     /// (fonctions du moteur C++ que les scripts appellent) à implémenter pour les faire tourner.
     #[test]
     fn discover_host_api_of_real_menus() {
-        let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
-            "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road"
-                .to_string()
-        });
+        let dir = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data_dir = std::path::Path::new(&dir).join("data");
         if !data_dir.join("cpk_list.cfg.bin").exists() {
             eprintln!("skip discover_host_api_of_real_menus : jeu absent");
@@ -373,10 +367,7 @@ mod tests {
         use std::rc::Rc;
         use crate::menu_host::{install_menu_host, run_menu};
 
-        let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
-            "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road"
-                .to_string()
-        });
+        let dir = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data_dir = std::path::Path::new(&dir).join("data");
         if !data_dir.join("cpk_list.cfg.bin").exists() {
             eprintln!("skip run_menu_with_menu_host : jeu absent");
@@ -592,10 +583,7 @@ mod tests {
     fn run_menu_with_real_include() {
         use std::cell::RefCell;
         use std::rc::Rc;
-        let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
-            "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road"
-                .to_string()
-        });
+        let dir = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data_dir = std::path::Path::new(&dir).join("data");
         if !data_dir.join("cpk_list.cfg.bin").exists() {
             eprintln!("skip run_menu_with_real_include : jeu absent");

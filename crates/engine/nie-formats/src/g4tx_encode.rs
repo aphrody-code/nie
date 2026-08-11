@@ -308,9 +308,7 @@ mod real_game_tests {
     /// absent de ce poste, ou si aucun `.g4tx` mono-texture réel n'est trouvé dans l'échantillon.
     #[test]
     fn encode_g4tx_round_trip_sur_un_vrai_fichier() {
-        let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
-            "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road".to_string()
-        });
+        let dir = crate::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data_dir = Path::new(&dir).join("data");
         if !data_dir.join("cpk_list.cfg.bin").exists() {
             eprintln!("skip encode_g4tx_round_trip_sur_un_vrai_fichier : jeu absent");
