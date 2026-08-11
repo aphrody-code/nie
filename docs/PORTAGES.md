@@ -27,11 +27,11 @@ le décodage mais **l'exposition** — les commandes de `iecode` n'ont pas de so
 
 ### Commandes à câbler dans `niers`
 
-`archive` `audio` `convert` `format` `g4cm` `g4md` `g4mg` `g4pk` `g4ra` `g4sk` `g4tx` `lua` `merge`
+`archive` `audio` `convert` `g4cm` `g4md` `g4mg` `g4pk` `g4ra` `g4sk` `g4tx` `lua` `merge`
 `mevbin` `mod` `p3lip` `pack` `passive` `pipeline` `prepare_menu` `render` `scene` `usm` `utf` `vfx`
 `bin` `config` `dump_gamedata` `dump_playstyle` `info` `benchmark` `serve` `search`
 
-Déjà côté Rust : `extract` `dump` `vfs` `push` `crypto` `nie` `decode`. En attendant : `niers cpp <cmd>`.
+Déjà côté Rust : `extract` `dump` `vfs` `push` `crypto` `nie` `decode` `format`. En attendant : `niers cpp <cmd>`.
 
 ## Rust → C++ (jeu jouable)
 

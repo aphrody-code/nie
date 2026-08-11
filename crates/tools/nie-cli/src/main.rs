@@ -55,6 +55,11 @@ enum Cmd {
     },
     /// Dit quels back-ends de la CLI unique sont construits, et où.
     Backends,
+    /// Dit le format d'un fichier ou d'une arborescence, sans rien écrire.
+    Format {
+        /// Fichier ou répertoire à inspecter.
+        src: PathBuf,
+    },
     /// Décode un fichier ou une arborescence vers JSON (données) / PNG (textures).
     ///
     /// Même table de dispatch que la FFI (`nie_formats::decode`) : ce que le décodage sait
@@ -973,6 +978,7 @@ fn main() -> anyhow::Result<()> {
             delegate::status();
             Ok(())
         }
+        Cmd::Format { src } => decode_cmd::format(&src),
         Cmd::Decode { src, out, quiet } => {
             if src.is_dir() {
                 let out = out.unwrap_or_else(|| src.join("_decoded"));
