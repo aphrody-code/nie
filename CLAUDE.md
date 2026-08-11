@@ -46,7 +46,6 @@ Un seul lockfile, à la racine. Bibliothèque → `packages/`, application avec 
 | `packages/nie-catalog` | Catalogue SQLite du VFS |
 | `packages/nie-plugin` | Plugin Bun d'import des formats — **préchargé par `bunfig.toml`** |
 | `packages/nie-util` | Utilitaires partagés |
-| `apps/nie-decode` | CLI de décodage parallèle |
 | `apps/nie-explorer` | Explorateur/éditeur Tauri (React + Rust, `src-tauri` hors workspace Cargo) |
 | `apps/nie-mcp` | Serveur MCP `niers-game` — VFS, assets, KB RE, pilotage de l'explorateur |
 

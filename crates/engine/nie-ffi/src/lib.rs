@@ -447,70 +447,12 @@ pub extern "C" fn nie_format_name(kind: u32) -> *const c_char {
 
 /// Dispatch interne : détecte le format et sérialise en JSON.
 ///
-/// Ordre de dispatch :
-/// 1. `lip\0` → `nie_formats::lip::parse` → `LipSync`
-/// 2. `G4TX`  → `nie_formats::g4tx::parse` → `G4tx`
-/// 3. `G4MD`  → `nie_formats::g4md::parse` → `G4md`
-/// 4. `G4PK`  → `nie_formats::g4pkm::parse` (layout 2D menu) ; si echec → `g4pk::parse`
-/// 5. `RDBN`  → `nie_formats::cfgbin::parse` → `RdbnData`
-/// 6. `CPK `  → `nie_formats::cpk::parse_cpk` → `CpkHeader`
-/// 7. Unknown → tenter `objbin::parse` (T2B/OBJB) → si echec `cfgbin::parse_t2b` →
-///    si echec `mevbin::parse` (motion events T2B)
-///
-/// Retourne `NieBytes::empty()` pour tout format non supporté ou erreur de parse.
+/// La table de dispatch elle-même vit dans [`nie_formats::decode::to_json`] — elle était ici,
+/// c'est-à-dire dans une cdylib, donc inatteignable pour `niers` (la CLI Rust) qui ne pouvait
+/// pas décoder un fichier sans passer par la FFI. Une famille ajoutée là-bas profite
+/// maintenant à la FFI, à la CLI et au décodage en lot d'un seul coup.
 fn decode_json_impl(data: &[u8]) -> NieBytes {
-    let fmt = if data.len() >= 4 && data[..4] == *b"lip\0" {
-        FORMAT_LIP
-    } else {
-        fileformat_to_u32(nie_formats::detect(data))
-    };
-
-    let result: Option<Vec<u8>> = match fmt {
-        15 /* LIP */ => {
-            nie_formats::lip::parse(data).ok()
-                .and_then(|v| serde_json::to_vec(&v).ok())
-        }
-        11 /* G4TX */ => {
-            nie_formats::g4tx::parse(data).ok()
-                .and_then(|v| serde_json::to_vec(&v).ok())
-        }
-        10 /* G4MD */ => {
-            nie_formats::g4md::parse(data).ok()
-                .and_then(|v| serde_json::to_vec(&v).ok())
-        }
-        13 /* G4PK / G4PKM */ => {
-            // Tenter le layout 2D menu (G4SKM encapsulé) d'abord.
-            nie_formats::g4pkm::parse(data).ok()
-                .and_then(|v| serde_json::to_vec(&v).ok())
-                .or_else(|| {
-                    nie_formats::g4pk::parse(data).ok()
-                        .and_then(|v| serde_json::to_vec(&v).ok())
-                })
-        }
-        8 /* RDBN / CfgBin */ => {
-            nie_formats::cfgbin::parse(data).ok()
-                .and_then(|v| serde_json::to_vec(&v).ok())
-        }
-        1 /* CPK */ => {
-            nie_formats::cpk::parse_cpk(data).ok()
-                .and_then(|v| serde_json::to_vec(&v).ok())
-        }
-        0 /* Unknown — tenter T2B (objbin, mevbin partagent le même header T2B) */ => {
-            nie_formats::objbin::parse(data).ok()
-                .and_then(|v| serde_json::to_vec(&v).ok())
-                .or_else(|| {
-                    nie_formats::cfgbin::parse_t2b(data).ok()
-                        .and_then(|v| serde_json::to_vec(&v).ok())
-                })
-                .or_else(|| {
-                    nie_formats::mevbin::parse(data).ok()
-                        .and_then(|v| serde_json::to_vec(&v).ok())
-                })
-        }
-        _ => None,
-    };
-
-    match result {
+    match nie_formats::decode::to_json(data) {
         Some(v) => NieBytes::from_vec(v),
         None => NieBytes::empty(),
     }

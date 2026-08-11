@@ -67,7 +67,7 @@ contrainte technique (byte-exact, wasm, dépendance native), jamais par le goût
 | Rust `crates/engine`, `crates/forge`, `crates/tools/nie-cli` | ✅ core, wasm, RE, CLI | — | garder |
 | Rust `crates/tools/nie-model-serve` | — | serveur web en Rust | → Bun (rôle « web server ») |
 | Bun `apps/nie-mcp`, `apps/nie-explorer` (UI) | ✅ | — | garder |
-| Bun `apps/nie-decode` | — | CLI en TS | → sous-commande `niers decode` |
+| Bun `apps/nie-decode` | — | CLI en TS | **fait** : supprimée, remplacée par `niers decode` (rayon au lieu des Bun Workers) |
 
 ## Les ponts (ce qui existe réellement)
 
@@ -86,7 +86,7 @@ contrainte technique (byte-exact, wasm, dépendance native), jamais par le goût
    (C# → Rust)                       │                   │
                                      ▼                   ▼
                             packages/nie  ────────►  apps/nie-mcp, apps/nie-explorer,
-                            (bun:ffi, TS)            apps/nie-decode
+                            (bun:ffi, TS)            (niers decode = Rust direct)
 ```
 
 | Pont | Sens | Point d'entrée |

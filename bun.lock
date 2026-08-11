@@ -5,21 +5,6 @@
     "": {
       "name": "niers",
     },
-    "apps/nie-decode": {
-      "name": "@niers/nie-decode",
-      "version": "0.4.0",
-      "bin": {
-        "nie-decode": "src/main.ts",
-      },
-      "dependencies": {
-        "@niers/util": "workspace:*",
-        "nie": "workspace:*",
-      },
-      "devDependencies": {
-        "@types/bun": "catalog:",
-        "typescript": "catalog:",
-      },
-    },
     "apps/nie-explorer": {
       "name": "nie-explorer",
       "version": "0.4.0",
@@ -294,8 +279,6 @@
     "@niers/bridge": ["@niers/bridge@workspace:packages/nie-bridge"],
 
     "@niers/catalog": ["@niers/catalog@workspace:packages/nie-catalog"],
-
-    "@niers/nie-decode": ["@niers/nie-decode@workspace:apps/nie-decode"],
 
     "@niers/nie-mcp": ["@niers/nie-mcp@workspace:apps/nie-mcp"],
 
