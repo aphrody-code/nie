@@ -43,15 +43,21 @@ $harnais = @(
     @{ Nom = 'csharp';    Exe = 'bench\cs\bin\Release\net10.0\nie-bench-cs.exe'
        Crc = @('crc32', $Mib)
        Cri = @('crilayla', $sample, $Iters) }
-    @{ Nom = 'csharp-aot'; Exe = 'bench\cs\bin\Release\net10.0\win-x64\publish\nie-bench-cs.exe'
+    # `dotnet publish -r win-x64` insère un niveau de plateforme (`bin\x64\`) que le build
+    # sans RID n'a pas — d'où deux chemins différents pour le même projet.
+    @{ Nom = 'csharp-aot'; Exe = 'bench\cs\bin\x64\Release\net10.0\win-x64\publish\nie-bench-cs.exe'
        Crc = @('crc32', $Mib)
        Cri = @('crilayla', $sample, $Iters) }
 )
 
 function Invoke-Harnais {
-    param($Exe, $Args)
+    # `$Args` est une variable AUTOMATIQUE de PowerShell (les arguments non liés de l'appel) :
+    # la nommer en paramètre ne lève pas d'erreur, mais `@Args` continue de désigner
+    # l'automatique — les arguments du harnais n'arrivaient jamais, et chaque binaire
+    # s'exécutait avec sa commande par défaut.
+    param($Exe, $Arguments)
     if (-not (Test-Path $Exe)) { return $null }
-    $sortie = & $Exe @Args 2>&1 | Out-String
+    $sortie = & $Exe @Arguments 2>&1 | Out-String
     if ($LASTEXITCODE -ne 0) { return $null }
     # Les harnais impriment `mib_s=1234.5` ; la virgule décimale dépend de la culture.
     if ($sortie -match 'mib_s=([\d.,]+)') {
