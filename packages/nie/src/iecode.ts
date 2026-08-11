@@ -1,17 +1,52 @@
 /// @file iecode.ts
-/// Bindings TypeScript pour bun:ffi -- charge libiecode.dll/.so/.dylib
+/// Backend **C++** de `nie` : bindings bun:ffi de `iecode_ffi` (target CMake `iecode_ffi`,
+/// `OUTPUT_NAME "iecode"` → `iecode.dll` / `libiecode.so` / `libiecode.dylib`).
+///
+/// **Ne jamais importer ce module statiquement depuis `index.ts`** : le `dlopen` ci-dessous
+/// s'exécute à l'import, et `bunfig.toml` précharge `nie-plugin` → tout `bun` du dépôt
+/// mourrait quand la lib C++ n'est pas construite (cf. CLAUDE.md, « pièges d'environnement »).
+/// Passer par `loadIecode()` (`./backend.ts`), qui l'importe dynamiquement et rend `null`
+/// en cas d'absence.
 ///
 /// Usage :
-///   import { iecode } from "./iecode"
-///   console.log(iecode.version())
-///   const info = iecode.detectFormat(myBuffer)
+///   const cpp = await loadIecode()
+///   if (cpp) console.log(cpp.version())
+///
+/// Ce fichier est l'**unique** binding C++ du dépôt : il a absorbé `bindings/bun-ffi.ts`
+/// (34 symboles, sous-ensemble strict des 69 d'ici) lors de l'unification du 2026-08-11.
 
-import { dlopen, FFIType, suffix, ptr, toArrayBuffer, CString, read } from "bun:ffi"
+import { dlopen, FFIType, suffix, ptr, toArrayBuffer, CString, type Pointer } from "bun:ffi"
+import { existsSync } from "node:fs"
 import { resolve } from "node:path"
 
 // ── Chargement de la shared library ────────────────────────────────
 
-const LIB_PATH = resolve(import.meta.dir, `libiecode.${suffix}`)
+// packages/nie/src → ../../.. = racine du dépôt.
+const _root = resolve(import.meta.dir, "../../..")
+// CMake dépose la lib dans build/<preset>/src/ffi/ ; le préfixe `lib` n'existe pas sous
+// Windows, et le générateur Visual Studio ajoute un niveau de configuration.
+const _presets = ["msvc", "debug", "release", "relwithdebinfo"]
+const _dirs = _presets.flatMap((p) => [
+  `${_root}/build/${p}/src/ffi`,
+  `${_root}/build/${p}/src/ffi/Debug`,
+  `${_root}/build/${p}/src/ffi/Release`,
+])
+const _names = process.platform === "win32" ? ["iecode", "libiecode"] : ["libiecode", "iecode"]
+
+/** Chemins candidats de la bibliothèque C++, dans l'ordre d'essai (diagnostic). */
+export const IECODE_LIB_CANDIDATES: readonly string[] = _dirs.flatMap((d) =>
+  _names.map((n) => `${d}/${n}.${suffix}`),
+)
+
+function resolveLib(): string {
+  const env = process.env["IECODE_LIB_PATH"]
+  if (env) return env
+  for (const c of IECODE_LIB_CANDIDATES) if (existsSync(c)) return c
+  return IECODE_LIB_CANDIDATES[0]!
+}
+
+/** Chemin résolu de la bibliothèque C++ (diagnostic). */
+export const LIB_PATH = resolveLib()
 
 const lib = dlopen(LIB_PATH, {
   // Lifecycle
@@ -204,13 +239,23 @@ function ptrOut(): [BigUint64Array, number] {
 }
 
 /**
+ * Adresse numérique → `Pointer` de bun:ffi.
+ *
+ * Les handles opaques d'`iecode_ffi` circulent en `number` dans cette couche ; `bun:ffi` les
+ * type `Pointer` (marque nominale). Le cast est la conversion, pas un contournement.
+ */
+function asPtr(p: number): Pointer {
+  return p as unknown as Pointer
+}
+
+/**
  * Reads a C string returned by iecode, frees it, and returns a JS string.
  * Returns null if the pointer is null/0.
  */
 function readAndFreeString(p: number | null): string | null {
   if (!p) return null
-  const str = new CString(p).toString()
-  lib.symbols.iecode_free(p)
+  const str = new CString(asPtr(p)).toString()
+  lib.symbols.iecode_free(asPtr(p))
   return str
 }
 
@@ -234,9 +279,9 @@ function readAndFreeJson<T = unknown>(p: number | null): T | null {
  */
 function copyAndFreeBuffer(p: number | null, size: number): Uint8Array | null {
   if (!p || size === 0) return null
-  const ab = toArrayBuffer(p, 0, size)
+  const ab = toArrayBuffer(asPtr(p), 0, size)
   const result = new Uint8Array(ab.slice(0))
-  lib.symbols.iecode_free(p)
+  lib.symbols.iecode_free(asPtr(p))
   return result
 }
 
@@ -253,13 +298,13 @@ export class G4txHandle {
   /** Number of textures in the G4TX. */
   get count(): number {
     if (!this.handle) return 0
-    return lib.symbols.iecode_g4tx_count(this.handle) as number
+    return lib.symbols.iecode_g4tx_count(asPtr(this.handle)) as number
   }
 
   /** Returns texture info as a parsed object. */
   info(index: number): G4txTextureInfo | null {
     if (!this.handle) return null
-    const str = lib.symbols.iecode_g4tx_info(this.handle, index) as string | null
+    const str = lib.symbols.iecode_g4tx_info(asPtr(this.handle), index) as unknown as string | null
     if (!str) return null
     try {
       return JSON.parse(str) as G4txTextureInfo
@@ -271,13 +316,13 @@ export class G4txHandle {
   /** Exports texture to PNG. Returns true on success. */
   exportPng(index: number, outputPath: string): boolean {
     if (!this.handle) return false
-    return Boolean(lib.symbols.iecode_g4tx_export_png(this.handle, index, Buffer.from(outputPath + "\0")))
+    return Boolean(lib.symbols.iecode_g4tx_export_png(asPtr(this.handle), index, Buffer.from(outputPath + "\0")))
   }
 
   /** Exports texture to WebP. Returns true on success. */
   exportWebp(index: number, outputPath: string, quality = 90): boolean {
     if (!this.handle) return false
-    return Boolean(lib.symbols.iecode_g4tx_export_webp(this.handle, index, Buffer.from(outputPath + "\0"), quality))
+    return Boolean(lib.symbols.iecode_g4tx_export_webp(asPtr(this.handle), index, Buffer.from(outputPath + "\0"), quality))
   }
 
   /** Decodes texture to RGBA8 buffer. Returns {data, width, height} or null. */
@@ -285,10 +330,10 @@ export class G4txHandle {
     if (!this.handle) return null
     const [arr, wPtr] = u32Out(0)
     const hPtr = _u32Ptr + 4  // slot 1
-    const p = lib.symbols.iecode_g4tx_decode_rgba(this.handle, index, wPtr, hPtr) as number | null
+    const p = lib.symbols.iecode_g4tx_decode_rgba(asPtr(this.handle), index, wPtr, hPtr) as unknown as number | null
     if (!p) return null
-    const width = arr[0]
-    const height = _u32Out[1]
+    const width = arr[0]!
+    const height = _u32Out[1]!
     const data = copyAndFreeBuffer(p, width * height * 4)
     if (!data) return null
     return { data, width, height }
@@ -297,7 +342,7 @@ export class G4txHandle {
   /** Frees the underlying native handle. */
   close(): void {
     if (this.handle) {
-      lib.symbols.iecode_g4tx_free(this.handle)
+      lib.symbols.iecode_g4tx_free(asPtr(this.handle))
       this.handle = null
     }
   }
@@ -318,27 +363,27 @@ export class CpkHandle {
   /** Number of files in the CPK. */
   get count(): number {
     if (!this.handle) return 0
-    return lib.symbols.iecode_cpk_count(this.handle) as number
+    return lib.symbols.iecode_cpk_count(asPtr(this.handle)) as number
   }
 
   /** Returns the filename at the given index. */
   filename(index: number): string {
     if (!this.handle) return ""
-    return (lib.symbols.iecode_cpk_filename(this.handle, index) as string) ?? ""
+    return (lib.symbols.iecode_cpk_filename(asPtr(this.handle), index) as unknown as unknown as string) ?? ""
   }
 
   /** Extracts a file by index. Returns the raw buffer or null. */
   extract(index: number): Uint8Array | null {
     if (!this.handle) return null
     const [sArr, sPtr] = u32Out()
-    const p = lib.symbols.iecode_cpk_extract(this.handle, index, sPtr) as number | null
+    const p = lib.symbols.iecode_cpk_extract(asPtr(this.handle), index, sPtr) as unknown as number | null
     if (!p) return null
-    return copyAndFreeBuffer(p, sArr[0])
+    return copyAndFreeBuffer(p, sArr[0]!)
   }
 
   close(): void {
     if (this.handle) {
-      lib.symbols.iecode_cpk_free(this.handle)
+      lib.symbols.iecode_cpk_free(asPtr(this.handle))
       this.handle = null
     }
   }
@@ -359,27 +404,27 @@ export class G4pkHandle {
   /** Number of entries in the G4PK. */
   get count(): number {
     if (!this.handle) return 0
-    return lib.symbols.iecode_g4pk_count(this.handle) as number
+    return lib.symbols.iecode_g4pk_count(asPtr(this.handle)) as number
   }
 
   /** Returns the entry name at the given index. */
   entryName(index: number): string {
     if (!this.handle) return ""
-    return (lib.symbols.iecode_g4pk_entry_name(this.handle, index) as string) ?? ""
+    return (lib.symbols.iecode_g4pk_entry_name(asPtr(this.handle), index) as unknown as unknown as string) ?? ""
   }
 
   /** Extracts data by index. Returns the raw buffer or null. */
   extract(index: number): Uint8Array | null {
     if (!this.handle) return null
     const [sArr, sPtr] = u32Out()
-    const p = lib.symbols.iecode_g4pk_extract(this.handle, index, sPtr) as number | null
+    const p = lib.symbols.iecode_g4pk_extract(asPtr(this.handle), index, sPtr) as unknown as number | null
     if (!p) return null
-    return copyAndFreeBuffer(p, sArr[0])
+    return copyAndFreeBuffer(p, sArr[0]!)
   }
 
   close(): void {
     if (this.handle) {
-      lib.symbols.iecode_g4pk_free(this.handle)
+      lib.symbols.iecode_g4pk_free(asPtr(this.handle))
       this.handle = null
     }
   }
@@ -400,13 +445,13 @@ export class AwbHandle {
   /** Number of entries in the AWB. */
   get count(): number {
     if (!this.handle) return 0
-    return lib.symbols.iecode_awb_count(this.handle) as number
+    return lib.symbols.iecode_awb_count(asPtr(this.handle)) as number
   }
 
   /** Returns entry info as parsed JSON. */
   entryInfo(index: number): { cue_id: number, offset: number, size: number } | null {
     if (!this.handle) return null
-    const str = lib.symbols.iecode_awb_entry_info(this.handle, index) as string | null
+    const str = lib.symbols.iecode_awb_entry_info(asPtr(this.handle), index) as unknown as string | null
     if (!str) return null
     try {
       return JSON.parse(str)
@@ -418,12 +463,12 @@ export class AwbHandle {
   /** Extracts all tracks to a directory. Returns the number of files extracted. */
   extractAll(outputDir: string): number {
     if (!this.handle) return 0
-    return lib.symbols.iecode_awb_extract_all(this.handle, Buffer.from(outputDir + "\0")) as number
+    return lib.symbols.iecode_awb_extract_all(asPtr(this.handle), Buffer.from(outputDir + "\0")) as number
   }
 
   close(): void {
     if (this.handle) {
-      lib.symbols.iecode_awb_free(this.handle)
+      lib.symbols.iecode_awb_free(asPtr(this.handle))
       this.handle = null
     }
   }
@@ -444,25 +489,25 @@ export class GameDbHandle {
   /** Number of characters. */
   get charaCount(): number {
     if (!this.handle) return 0
-    return lib.symbols.iecode_gamedb_chara_count(this.handle) as number
+    return lib.symbols.iecode_gamedb_chara_count(asPtr(this.handle)) as number
   }
 
   /** Number of skills. */
   get skillCount(): number {
     if (!this.handle) return 0
-    return lib.symbols.iecode_gamedb_skill_count(this.handle) as number
+    return lib.symbols.iecode_gamedb_skill_count(asPtr(this.handle)) as number
   }
 
   /** Number of teams. */
   get teamCount(): number {
     if (!this.handle) return 0
-    return lib.symbols.iecode_gamedb_team_count(this.handle) as number
+    return lib.symbols.iecode_gamedb_team_count(asPtr(this.handle)) as number
   }
 
   /** Full database as JSON. Cached on the native side. */
   toJson(): unknown {
     if (!this.handle) return null
-    const str = lib.symbols.iecode_gamedb_json(this.handle) as string | null
+    const str = lib.symbols.iecode_gamedb_json(asPtr(this.handle)) as unknown as string | null
     if (!str) return null
     try {
       return JSON.parse(str)
@@ -474,7 +519,7 @@ export class GameDbHandle {
   /** Character data by index as JSON. */
   charaJson(index: number): unknown {
     if (!this.handle) return null
-    const str = lib.symbols.iecode_gamedb_chara_json(this.handle, index) as string | null
+    const str = lib.symbols.iecode_gamedb_chara_json(asPtr(this.handle), index) as unknown as string | null
     if (!str) return null
     try {
       return JSON.parse(str)
@@ -486,7 +531,7 @@ export class GameDbHandle {
   /** Skill data by index as JSON. */
   skillJson(index: number): unknown {
     if (!this.handle) return null
-    const str = lib.symbols.iecode_gamedb_skill_json(this.handle, index) as string | null
+    const str = lib.symbols.iecode_gamedb_skill_json(asPtr(this.handle), index) as unknown as string | null
     if (!str) return null
     try {
       return JSON.parse(str)
@@ -498,18 +543,18 @@ export class GameDbHandle {
   /** Find character index by charaParamId. Returns -1 if not found. */
   findChara(charaParamId: string): number {
     if (!this.handle) return -1
-    return lib.symbols.iecode_gamedb_find_chara(this.handle, Buffer.from(charaParamId + "\0")) as number
+    return lib.symbols.iecode_gamedb_find_chara(asPtr(this.handle), Buffer.from(charaParamId + "\0")) as number
   }
 
   /** Find skill index by skillId. Returns -1 if not found. */
   findSkill(skillId: string): number {
     if (!this.handle) return -1
-    return lib.symbols.iecode_gamedb_find_skill(this.handle, Buffer.from(skillId + "\0")) as number
+    return lib.symbols.iecode_gamedb_find_skill(asPtr(this.handle), Buffer.from(skillId + "\0")) as number
   }
 
   close(): void {
     if (this.handle) {
-      lib.symbols.iecode_gamedb_free(this.handle)
+      lib.symbols.iecode_gamedb_free(asPtr(this.handle))
       this.handle = null
     }
   }
@@ -530,14 +575,14 @@ export class IecodeLib {
 
   /** Returns the iecode library version string. */
   version(): string {
-    return lib.symbols.iecode_version() as string
+    return lib.symbols.iecode_version() as unknown as string
   }
 
   // ── cfg.bin ──────────────────────────────────────────────────────
 
   /** Parses a cfg.bin buffer and returns an opaque handle for further operations. */
   cfgbinParseRaw(data: Uint8Array): number | null {
-    const handle = lib.symbols.iecode_cfgbin_parse(ptr(data), data.length) as number | null
+    const handle = lib.symbols.iecode_cfgbin_parse(ptr(data), data.length) as unknown as number | null
     return handle || null
   }
 
@@ -549,14 +594,14 @@ export class IecodeLib {
     const handle = this.cfgbinParseRaw(data)
     if (!handle) return null
     try {
-      const format = (lib.symbols.iecode_result_format(handle) as string) ?? "unknown"
-      const jsonStr = lib.symbols.iecode_result_json(handle) as string | null
+      const format = (lib.symbols.iecode_result_format(asPtr(handle)) as unknown as unknown as string) ?? "unknown"
+      const jsonStr = lib.symbols.iecode_result_json(asPtr(handle)) as unknown as string | null
       if (!jsonStr) return null
       return { format, data: JSON.parse(jsonStr) }
     } catch {
       return null
     } finally {
-      lib.symbols.iecode_result_free(handle)
+      lib.symbols.iecode_result_free(asPtr(handle))
     }
   }
 
@@ -566,8 +611,11 @@ export class IecodeLib {
    * Caller is responsible for freeing the handle via cfgbinFree().
    */
   cfgbinWrite(handle: number): Uint8Array | null {
-    const [ptrArr, ptrOut] = ptrOut()
-    const size = lib.symbols.iecode_cfgbin_write(handle, ptrOut) as number
+    // `ptrOut` est la FONCTION : la passer au lieu du pointeur `ptrP` faisait échouer
+    // l'appel FFI à l'exécution (bug jamais détecté — ce fichier n'était pas typechecké
+    // tant qu'il vivait hors du workspace Bun, dans src/ffi/).
+    const [ptrArr, ptrP] = ptrOut()
+    const size = lib.symbols.iecode_cfgbin_write(asPtr(handle), asPtr(ptrP)) as number
     if (size === 0) return null
     const bufPtr = Number(ptrArr[0])
     return copyAndFreeBuffer(bufPtr, size)
@@ -575,7 +623,7 @@ export class IecodeLib {
 
   /** Frees a cfg.bin result handle obtained via cfgbinParseRaw(). */
   cfgbinFree(handle: number): void {
-    lib.symbols.iecode_result_free(handle)
+    lib.symbols.iecode_result_free(asPtr(handle))
   }
 
   // ── G4TX ─────────────────────────────────────────────────────────
@@ -585,7 +633,7 @@ export class IecodeLib {
    * The handle must be closed when done (call .close() or use `using`).
    */
   g4txParse(data: Uint8Array): G4txHandle | null {
-    const handle = lib.symbols.iecode_g4tx_parse(ptr(data), data.length) as number | null
+    const handle = lib.symbols.iecode_g4tx_parse(ptr(data), data.length) as unknown as number | null
     if (!handle) return null
     return new G4txHandle(handle)
   }
@@ -594,24 +642,24 @@ export class IecodeLib {
 
   /** Decompresses LZ10 data. Returns null on failure. */
   lz10Decompress(data: Uint8Array): Uint8Array | null {
-    const [ptrArr, ptrOut] = ptrOut()
-    const size = lib.symbols.iecode_lz10_decompress(ptr(data), data.length, ptrOut) as number
+    const [ptrArr, ptrP] = ptrOut()
+    const size = lib.symbols.iecode_lz10_decompress(ptr(data), data.length, ptrP) as number
     if (size === 0) return null
     return copyAndFreeBuffer(Number(ptrArr[0]), size)
   }
 
   /** Decompresses CRILAYLA data. Returns null on failure. */
   crilaylaDecompress(data: Uint8Array): Uint8Array | null {
-    const [ptrArr, ptrOut] = ptrOut()
-    const size = lib.symbols.iecode_crilayla_decompress(ptr(data), data.length, ptrOut) as number
+    const [ptrArr, ptrP] = ptrOut()
+    const size = lib.symbols.iecode_crilayla_decompress(ptr(data), data.length, ptrP) as number
     if (size === 0) return null
     return copyAndFreeBuffer(Number(ptrArr[0]), size)
   }
 
   /** Decompresses an LZ4 block. Requires the known decompressed size. */
   lz4Decompress(data: Uint8Array, decompressedSize: number): Uint8Array | null {
-    const [ptrArr, ptrOut] = ptrOut()
-    const size = lib.symbols.iecode_lz4_decompress(ptr(data), data.length, decompressedSize, ptrOut) as number
+    const [ptrArr, ptrP] = ptrOut()
+    const size = lib.symbols.iecode_lz4_decompress(ptr(data), data.length, decompressedSize, ptrP) as number
     if (size === 0) return null
     return copyAndFreeBuffer(Number(ptrArr[0]), size)
   }
@@ -622,8 +670,8 @@ export class IecodeLib {
    * it reads the method byte from the header and dispatches accordingly.
    */
   decompress(data: Uint8Array): Uint8Array | null {
-    const [ptrArr, ptrOut] = ptrOut()
-    const size = lib.symbols.iecode_level5_decompress(ptr(data), data.length, ptrOut) as number
+    const [ptrArr, ptrP] = ptrOut()
+    const size = lib.symbols.iecode_level5_decompress(ptr(data), data.length, ptrP) as number
     if (size === 0) return null
     return copyAndFreeBuffer(Number(ptrArr[0]), size)
   }
@@ -648,40 +696,40 @@ export class IecodeLib {
 
   /** Decompresses InazumaLZSS data. */
   inazumaLzssDecompress(data: Uint8Array): Uint8Array | null {
-    const [ptrArr, ptrOut] = ptrOut()
-    const size = lib.symbols.iecode_inazuma_lzss_decompress(ptr(data), data.length, ptrOut) as number
+    const [ptrArr, ptrP] = ptrOut()
+    const size = lib.symbols.iecode_inazuma_lzss_decompress(ptr(data), data.length, ptrP) as number
     if (size === 0) return null
     return copyAndFreeBuffer(Number(ptrArr[0]), size)
   }
 
   /** Decompresses Huffman 4-bit data (Level-5 method #2). */
   huffman4Decompress(data: Uint8Array): Uint8Array | null {
-    const [ptrArr, ptrOut] = ptrOut()
-    const size = lib.symbols.iecode_huffman4_decompress(ptr(data), data.length, ptrOut) as number
+    const [ptrArr, ptrP] = ptrOut()
+    const size = lib.symbols.iecode_huffman4_decompress(ptr(data), data.length, ptrP) as number
     if (size === 0) return null
     return copyAndFreeBuffer(Number(ptrArr[0]), size)
   }
 
   /** Decompresses Huffman 8-bit data (Level-5 method #3). */
   huffman8Decompress(data: Uint8Array): Uint8Array | null {
-    const [ptrArr, ptrOut] = ptrOut()
-    const size = lib.symbols.iecode_huffman8_decompress(ptr(data), data.length, ptrOut) as number
+    const [ptrArr, ptrP] = ptrOut()
+    const size = lib.symbols.iecode_huffman8_decompress(ptr(data), data.length, ptrP) as number
     if (size === 0) return null
     return copyAndFreeBuffer(Number(ptrArr[0]), size)
   }
 
   /** Decompresses RLE data (Level-5 method #4). */
   rleDecompress(data: Uint8Array): Uint8Array | null {
-    const [ptrArr, ptrOut] = ptrOut()
-    const size = lib.symbols.iecode_rle_decompress(ptr(data), data.length, ptrOut) as number
+    const [ptrArr, ptrP] = ptrOut()
+    const size = lib.symbols.iecode_rle_decompress(ptr(data), data.length, ptrP) as number
     if (size === 0) return null
     return copyAndFreeBuffer(Number(ptrArr[0]), size)
   }
 
   /** Decompresses ZLib/deflate data (Level-5 method #5). */
   zlibDecompress(data: Uint8Array): Uint8Array | null {
-    const [ptrArr, ptrOut] = ptrOut()
-    const size = lib.symbols.iecode_zlib_decompress(ptr(data), data.length, ptrOut) as number
+    const [ptrArr, ptrP] = ptrOut()
+    const size = lib.symbols.iecode_zlib_decompress(ptr(data), data.length, ptrP) as number
     if (size === 0) return null
     return copyAndFreeBuffer(Number(ptrArr[0]), size)
   }
@@ -713,7 +761,7 @@ export class IecodeLib {
    * Returns a CpkHandle that must be closed when done.
    */
   cpkOpen(data: Uint8Array): CpkHandle | null {
-    const handle = lib.symbols.iecode_cpk_open(ptr(data), data.length) as number | null
+    const handle = lib.symbols.iecode_cpk_open(ptr(data), data.length) as unknown as number | null
     if (!handle) return null
     return new CpkHandle(handle)
   }
@@ -725,7 +773,7 @@ export class IecodeLib {
    * Returns a G4pkHandle that must be closed when done.
    */
   g4pkOpen(data: Uint8Array): G4pkHandle | null {
-    const handle = lib.symbols.iecode_g4pk_open(ptr(data), data.length) as number | null
+    const handle = lib.symbols.iecode_g4pk_open(ptr(data), data.length) as unknown as number | null
     if (!handle) return null
     return new G4pkHandle(handle)
   }
@@ -738,7 +786,7 @@ export class IecodeLib {
    * or "Unknown" if the format is not recognized.
    */
   detectFormat(data: Uint8Array): string {
-    const p = lib.symbols.iecode_detect_format(ptr(data), data.length) as number | null
+    const p = lib.symbols.iecode_detect_format(ptr(data), data.length) as unknown as number | null
     return readAndFreeString(p) ?? "Unknown"
   }
 
@@ -751,7 +799,7 @@ export class IecodeLib {
 
   /** Returns DDS header info as a parsed object, or null if invalid. */
   ddsInfo(data: Uint8Array): DdsInfo | null {
-    const p = lib.symbols.iecode_dds_info(ptr(data), data.length) as number | null
+    const p = lib.symbols.iecode_dds_info(ptr(data), data.length) as unknown as number | null
     return readAndFreeJson<DdsInfo>(p)
   }
 
@@ -759,7 +807,7 @@ export class IecodeLib {
 
   /** Returns FNT (font) metadata as a parsed JSON object, or null if invalid. */
   fntInfo(data: Uint8Array): unknown {
-    const p = lib.symbols.iecode_fnt_info(ptr(data), data.length) as number | null
+    const p = lib.symbols.iecode_fnt_info(ptr(data), data.length) as unknown as number | null
     return readAndFreeJson(p)
   }
 
@@ -772,7 +820,7 @@ export class IecodeLib {
 
   /** Returns ANMx animation info as a parsed JSON object, or null if invalid. */
   anmInfo(data: Uint8Array): unknown {
-    const p = lib.symbols.iecode_anm_info(ptr(data), data.length) as number | null
+    const p = lib.symbols.iecode_anm_info(ptr(data), data.length) as unknown as number | null
     return readAndFreeJson(p)
   }
 
@@ -783,7 +831,7 @@ export class IecodeLib {
    * Returns an array of EventTextEntry objects, or null on failure.
    */
   eventTextExtract(data: Uint8Array): EventTextEntry[] | null {
-    const p = lib.symbols.iecode_event_text_extract(ptr(data), data.length) as number | null
+    const p = lib.symbols.iecode_event_text_extract(ptr(data), data.length) as unknown as number | null
     return readAndFreeJson<EventTextEntry[]>(p)
   }
 
@@ -794,7 +842,7 @@ export class IecodeLib {
    * Returns an AwbHandle that must be closed when done.
    */
   awbOpen(data: Uint8Array): AwbHandle | null {
-    const handle = lib.symbols.iecode_awb_open(ptr(data), data.length) as number | null
+    const handle = lib.symbols.iecode_awb_open(ptr(data), data.length) as unknown as number | null
     if (!handle) return null
     return new AwbHandle(handle)
   }
@@ -803,23 +851,23 @@ export class IecodeLib {
 
   /** Returns ACB metadata as a parsed JSON object, or null if invalid. */
   acbInfo(data: Uint8Array): unknown {
-    const p = lib.symbols.iecode_acb_info(ptr(data), data.length) as number | null
+    const p = lib.symbols.iecode_acb_info(ptr(data), data.length) as unknown as number | null
     return readAndFreeJson(p)
   }
 
   /** Extracts the embedded AWB from an ACB. Returns the raw buffer or null. */
   acbExtractAwb(data: Uint8Array): Uint8Array | null {
     const [sArr, sPtr] = u32Out()
-    const p = lib.symbols.iecode_acb_extract_awb(ptr(data), data.length, sPtr) as number | null
+    const p = lib.symbols.iecode_acb_extract_awb(ptr(data), data.length, sPtr) as unknown as number | null
     if (!p) return null
-    return copyAndFreeBuffer(p, sArr[0])
+    return copyAndFreeBuffer(p, sArr[0]!)
   }
 
   // ── USM ──────────────────────────────────────────────────────────
 
   /** Returns USM (video) metadata as a parsed JSON object, or null if invalid. */
   usmInfo(data: Uint8Array): unknown {
-    const p = lib.symbols.iecode_usm_info(ptr(data), data.length) as number | null
+    const p = lib.symbols.iecode_usm_info(ptr(data), data.length) as unknown as number | null
     return readAndFreeJson(p)
   }
 
@@ -835,7 +883,7 @@ export class IecodeLib {
 
   /** Parses a G4MD (model metadata) buffer and returns the info as JSON, or null. */
   g4mdParse(data: Uint8Array): unknown {
-    const p = lib.symbols.iecode_g4md_parse(ptr(data), data.length) as number | null
+    const p = lib.symbols.iecode_g4md_parse(ptr(data), data.length) as unknown as number | null
     return readAndFreeJson(p)
   }
 
@@ -843,7 +891,7 @@ export class IecodeLib {
 
   /** Lists sub-files in a G4CM (character model) container. Returns a JSON array. */
   g4cmList(data: Uint8Array): unknown[] | null {
-    const p = lib.symbols.iecode_g4cm_list(ptr(data), data.length) as number | null
+    const p = lib.symbols.iecode_g4cm_list(ptr(data), data.length) as unknown as number | null
     return readAndFreeJson<unknown[]>(p)
   }
 
@@ -863,7 +911,7 @@ export class IecodeLib {
     const handle = lib.symbols.iecode_gamedb_load(
       Buffer.from(dataRoot + "\0"),
       loadText ? 1 : 0,
-    ) as number | null
+    ) as unknown as number | null
     if (!handle) return null
     return new GameDbHandle(handle)
   }
@@ -910,12 +958,16 @@ export class IecodeLib {
     const size = lib.symbols.iecode_level5_decompress(ptr(data), data.length, ptrP) as number
     if (size === 0) return null
     const nativePtr = Number(ptrArr[0])
-    return { buffer: toArrayBuffer(nativePtr, 0, size), ptr: nativePtr, size }
+    return {
+      buffer: toArrayBuffer(nativePtr as unknown as Pointer, 0, size),
+      ptr: nativePtr,
+      size,
+    }
   }
 
   /** Frees a native pointer obtained via zero-copy methods. */
   freeNative(p: number): void {
-    lib.symbols.iecode_free(p)
+    lib.symbols.iecode_free(p as unknown as Pointer)
   }
 }
 
