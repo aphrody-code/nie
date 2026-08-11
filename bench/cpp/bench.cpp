@@ -51,9 +51,10 @@ double seconds_since(Clock::time_point t) {
 }
 
 // ── CRC32 slicing-by-8, local au banc ────────────────────────────────────────
-// Le toolkit (`src/crypto/crc32.cpp`) est en slicing-by-4. Pour que la comparaison porte
-// sur le langage et non sur la fenêtre choisie, on mesure aussi le C++ avec l'algorithme
-// exact du Rust. Sans ça, l'écart mesuré dirait « C++ vs Rust » en pensant « by-4 vs by-8 ».
+// Le toolkit (`src/crypto/crc32.cpp`) est passé en slicing-by-8 après cette mesure. On
+// garde une implémentation locale identique pour distinguer ce que coûtent les FLAGS de
+// compilation (le toolkit est en unity build /O2, ce harnais en /O2 /arch:AVX2) de ce que
+// coûte l'algorithme.
 
 constexpr uint32_t kPoly = 0xEDB88320u;
 
@@ -122,7 +123,7 @@ int bench_crc32(size_t mib, bool slice8) {
     (void)sink;
     const double s = median(times);
     std::printf("lang=cpp bench=crc32 algo=%s mib=%zu median_ms=%.3f mib_s=%.1f checksum=0x%08x\n",
-                slice8 ? "slice8" : "slice4", mib, s * 1000.0, static_cast<double>(mib) / s, last);
+                slice8 ? "bench-slice8" : "toolkit", mib, s * 1000.0, static_cast<double>(mib) / s, last);
     return 0;
 }
 
@@ -168,7 +169,7 @@ int bench_crilayla(const char* path, int iters) {
 
 int main(int argc, char** argv) {
     const std::string cmd = argc > 1 ? argv[1] : "crc32";
-    if (cmd == "crc32" || cmd == "crc32-slice8") {
+    if (cmd == "crc32" || cmd == "crc32-slice8") {  // `crc32` = le chemin du toolkit
         const size_t mib = argc > 2 ? std::stoul(argv[2]) : 64;
         return bench_crc32(mib, cmd == "crc32-slice8");
     }
