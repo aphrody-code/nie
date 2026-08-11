@@ -12,6 +12,8 @@ workspace = true
 
 [dependencies]
 nie-index.workspace = true
+# Réexporté tel quel sous `nie_re::dump` (cf. lib.rs).
+nie-dump.workspace = true
 thiserror.workspace = true
 anyhow.workspace = true
 tracing.workspace = true

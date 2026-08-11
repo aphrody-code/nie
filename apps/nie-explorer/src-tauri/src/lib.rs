@@ -19,8 +19,12 @@ mod game_data;
 mod mcp;
 mod re_trace;
 mod steam;
+mod viola;
 
-use re_trace::{re_trace_dump_module, re_trace_find_process, re_trace_module_regions, re_trace_read_bytes_b64};
+use re_trace::{
+    re_dump_open, re_dump_scan, re_trace_dump_module, re_trace_find_process, re_trace_module_regions,
+    re_trace_read_bytes_b64,
+};
 
 /// Migrations SQLite du workspace de mods (`tauri-plugin-sql`, base `mods.db` dans
 /// `BaseDirectory::AppData` — jamais dans le dossier du jeu). Un mod = un ensemble de fichiers
@@ -873,6 +877,60 @@ fn game_data_special_tactics(
     state: tauri::State<VfsState>,
 ) -> Result<Vec<game_data::SpecialTacticsDto>, String> {
     with_vfs(game_dir, &state, game_data::list_special_tactics)
+}
+
+/// Écussons d'équipe (`nie_data::emblems`) — même patron que [`game_data_skills`], côté RDBN
+/// (`game_data::load_rdbn`, §4.1 roadmap).
+#[tauri::command]
+#[specta::specta]
+fn game_data_emblems(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<Vec<game_data::EmblemDto>, String> {
+    with_vfs(game_dir, &state, game_data::list_emblems)
+}
+
+/// Illustrations de la galerie (`nie_data::gallery`) — même patron que [`game_data_emblems`].
+#[tauri::command]
+#[specta::specta]
+fn game_data_gallery(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<Vec<game_data::GalleryDto>, String> {
+    with_vfs(game_dir, &state, game_data::list_gallery)
+}
+
+/// Feintes/dribbles (`nie_data::trick`) — même patron que [`game_data_emblems`].
+#[tauri::command]
+#[specta::specta]
+fn game_data_tricks(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<Vec<game_data::TrickDto>, String> {
+    with_vfs(game_dir, &state, game_data::list_tricks)
+}
+
+/// Arbre des activités/sous-tâches (`nie_data::activity`) — même patron que [`game_data_emblems`],
+/// mais côté T2B.
+#[tauri::command]
+#[specta::specta]
+fn game_data_activities(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<Vec<game_data::ActivityDto>, String> {
+    with_vfs(game_dir, &state, game_data::list_activities)
+}
+
+/// Équipes d'appartenance (`nie_data::belong_team`, noms joints depuis `team_text`) — même patron
+/// que [`game_data_emblems`].
+#[tauri::command]
+#[specta::specta]
+fn game_data_belong_teams(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<Vec<game_data::BelongTeamDto>, String> {
+    with_vfs(game_dir, &state, game_data::list_belong_teams)
+}
+
+/// Formations de terrain (`nie_data::formation`) — même patron que [`game_data_emblems`].
+/// Identifiants bruts : `formation_text.cfg.bin` n'existe pas dans cette version du jeu.
+#[tauri::command]
+#[specta::specta]
+fn game_data_formations(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<Vec<game_data::FormationDto>, String> {
+    with_vfs(game_dir, &state, game_data::list_formations)
+}
+
+/// Uniformes (`nie_data::uniform`, tranches de modèles résolues) — même patron que
+/// [`game_data_emblems`].
+#[tauri::command]
+#[specta::specta]
+fn game_data_uniforms(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<Vec<game_data::UniformDto>, String> {
+    with_vfs(game_dir, &state, game_data::list_uniforms)
 }
 
 /// Personnages sélectionnables pour le calculateur de stats (`nie_data::chara_param` joint à
@@ -2206,6 +2264,47 @@ print("NIE_EXPLORER_SCENE_SAVED", {out_blend:?})
 // que n'importe quel autre décodeur `nie-formats` déjà appelé en process, élimine la dépendance
 // au binaire ET le double aller-retour disque (écrire le GLB, relire chaque PNG).
 
+/// Découpe un chemin VFS en `(préfixe de dossier, nom de fichier, radical)` — le radical est le
+/// nom sans sa dernière extension, c'est lui qui nomme toute la famille d'un asset
+/// (`c000101.g4mg`, `c000101.g4sk`, `c000101_p010.g4pk`…).
+fn split_vfs_path(path: &str) -> (&str, &str, &str) {
+    let base = path.rsplit('/').next().unwrap_or(path);
+    let stem = base.rsplit_once('.').map(|(s, _)| s).unwrap_or(base);
+    let dir_prefix = path.strip_suffix(base).unwrap_or("");
+    (dir_prefix, base, stem)
+}
+
+/// Noms de fichiers présents **directement** sous `dir_prefix`, triés. Sert à rendre un « frère
+/// introuvable » diagnosticable : un dossier de personnage ne contient pas toujours le `.g4md`
+/// attendu (`data/common/chr/c000101` n'a que `.g4mg`/`.g4sk`/`.g4pk`), et le dire vaut mieux que
+/// de renvoyer un échec nu.
+fn vfs_dir_filenames(vfs: &Vfs, dir_prefix: &str) -> Vec<String> {
+    let mut names: Vec<String> = vfs
+        .iter()
+        .filter_map(|(p, _)| p.strip_prefix(dir_prefix))
+        .filter(|rest| !rest.is_empty() && !rest.contains('/'))
+        .map(str::to_string)
+        .collect();
+    names.sort();
+    names.dedup();
+    names
+}
+
+/// Rend `names` lisible dans un message d'erreur, tronqué : un dossier de personnage dépasse la
+/// cinquantaine d'entrées, les recracher toutes noierait le diagnostic.
+fn summarize_names(names: &[String]) -> String {
+    const SHOWN: usize = 12;
+    if names.is_empty() {
+        return "aucun fichier indexé".to_string();
+    }
+    let head = names.iter().take(SHOWN).cloned().collect::<Vec<_>>().join(", ");
+    if names.len() > SHOWN {
+        format!("{head}, … (+{} autres)", names.len() - SHOWN)
+    } else {
+        head
+    }
+}
+
 /// Assemble le GLB (G4MD+G4MG+G4TX frère, cf. commentaire de section) pour `path` — cœur partagé
 /// entre [`vfs_glb_preview_png_b64`] (vue fixe) et [`vfs_glb_preview_turntable_mp4_b64`] (rotation
 /// §2.3 roadmap), pour ne pas dupliquer la résolution de frères/assemblage.
@@ -2214,16 +2313,25 @@ fn assemble_glb_for_preview(vfs: &nie_formats::vfs::Vfs, path: &str) -> Result<(
 
     let data = vfs.read(path).map_err(|e| e.to_string())?;
 
-    let base = path.rsplit('/').next().unwrap_or(path);
-    let stem = base.rsplit_once('.').map(|(s, _)| s).unwrap_or(base);
-    let dir_prefix = path.strip_suffix(base).unwrap_or("");
+    let (dir_prefix, _base, stem) = split_vfs_path(path);
     let sibling = |ext: &str| -> Option<Vec<u8>> {
         let candidate = format!("{dir_prefix}{stem}.{ext}");
         if candidate == path { Some(data.clone()) } else { vfs.read(&candidate).ok() }
     };
 
-    let g4md = sibling("g4md").ok_or("G4MD introuvable (fichier ou frère de même nom)")?;
-    let g4mg = sibling("g4mg").ok_or("G4MG introuvable (frère de même nom requis pour la géométrie)")?;
+    // Le frère manquant est le cas RÉEL le plus fréquent (cf. `data/common/chr/c000101`, qui n'a
+    // ni `.g4md` ni `.g4mg` : sa géométrie vit ailleurs) : on nomme le chemin cherché ET le
+    // voisinage réel, sinon l'utilisateur ne peut ni corriger sa sélection ni conclure.
+    let missing = |ext: &str| -> String {
+        format!(
+            "{} introuvable : cherché « {dir_prefix}{stem}.{ext} » ; présent dans {} : {}",
+            ext.to_uppercase(),
+            if dir_prefix.is_empty() { "la racine du VFS" } else { dir_prefix },
+            summarize_names(&vfs_dir_filenames(vfs, dir_prefix)),
+        )
+    };
+    let g4md = sibling("g4md").ok_or_else(|| missing("g4md"))?;
+    let g4mg = sibling("g4mg").ok_or_else(|| missing("g4mg"))?;
 
     let mut model = assemble_generic_model(GenericModelInput { code: stem.to_string(), g4md, g4mg, component: MeshComponent::Generic })
         .map_err(|e| format!("assemblage GLB : {e}"))?;
@@ -2596,6 +2704,162 @@ fn vfs_glb_bytes_b64(path: String, game_dir: Option<String>, state: tauri::State
     let root = resolve_root(game_dir.as_deref());
     let (_stem, glb) = with_vfs(Some(root.display().to_string()), &state, |vfs| assemble_glb_for_preview(vfs, &path))?;
     Ok(base64::engine::general_purpose::STANDARD.encode(&glb))
+}
+
+// ─── Clips d'animation (G4MT dans les G4PK frères) — LISTE SEULE ────────────────────────────
+//
+// Le GLB renvoyé par [`vfs_glb_bytes_b64`] ne porte AUCUNE animation : `nie_formats::assemble`
+// n'émet ni `skins`, ni `animations`, ni attribut `JOINTS_0`. Les rejouer dans le viewport
+// supposerait d'écrire l'export skinné (skin glTF + échantillonnage des canaux G4MT), chantier
+// Rust à part entière. Ce que le dépôt sait déjà faire, en revanche, c'est LIRE la table de
+// clips : `g4mt::Motion::parse` donne nom, bornes de frames, fps, bit additif et cibles.
+//
+// PIÈGE : le `.g4mt` n'est presque jamais un frère direct du modèle. Il vit DANS une archive
+// `.g4pk` (`data/common/chr/c000101` : 27 archives `c000101_p0XX.g4pk`, une par pose/animation,
+// chacune contenant un unique `c000101_p0XX.g4mt`). La résolution passe donc par
+// `g4pk::parse` puis par l'entrée dont le nom finit en `.g4mt`, exactement comme
+// `nie-formats/examples/anim_mesh.rs`.
+
+/// Un clip déclaré par un conteneur G4MT.
+///
+/// Tous les entiers sont des `f64` : `specta` refuse les entiers 64 bits (`u64`/`i64` panique à
+/// la génération de bindings), et les champs concernés (u32 au plus) y tiennent exactement.
+#[derive(Serialize, specta::Type)]
+struct MotionClipDto {
+    /// Archive `.g4pk` d'où provient le clip (chemin VFS complet).
+    archive: String,
+    /// Nom du sous-fichier `.g4mt` dans cette archive.
+    motion_file: String,
+    name: String,
+    /// CRC32 du nom de clip — l'identifiant par lequel le jeu le référence.
+    crc32: f64,
+    start_frame: f64,
+    end_frame: f64,
+    /// Bornes incluses (`g4mt::Clip::frame_count`).
+    frame_count: f64,
+    fps: f64,
+    /// Clip additif (superposé à une pose de base), `g4mt::Clip::is_additive`.
+    additive: bool,
+    /// Nombre d'os/cibles animés par le clip (`Motion::target_indices`, dédupliqué).
+    target_count: f64,
+}
+
+/// Réponse de [`vfs_motion_clips`].
+#[derive(Serialize, specta::Type)]
+struct MotionClipsDto {
+    /// Archives `.g4pk` réellement ouvertes, dans l'ordre d'inspection.
+    archives: Vec<String>,
+    clips: Vec<MotionClipDto>,
+    /// Pourquoi la liste est vide ou incomplète. Une absence d'animation n'est pas une erreur :
+    /// beaucoup d'assets n'en ont pas, et échouer ferait passer un fait pour une panne.
+    notice: Option<String>,
+}
+
+/// Liste les clips d'animation d'un asset : archives `.g4pk` de même radical → sous-fichier
+/// `.g4mt` → table de clips. **Lecture seule** — rien ici ne rejoue l'animation (cf. commentaire
+/// de section : le GLB d'aperçu n'a pas de skin).
+///
+/// `path` est n'importe quel membre de la famille (`.g4md`, `.g4mg`, `.g4sk`, ou une `.g4pk`
+/// précise) : seul son radical compte. Coût réel : une archive de personnage pèse quelques Mo et
+/// il y en a des dizaines, la commande lit donc ~100 Mo — d'où l'appel asynchrone côté frontend.
+#[tauri::command]
+#[specta::specta]
+fn vfs_motion_clips(path: String, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<MotionClipsDto, String> {
+    let root = resolve_root(game_dir.as_deref());
+    with_vfs(Some(root.display().to_string()), &state, |vfs| {
+        let (dir_prefix, base, stem) = split_vfs_path(&path);
+
+        // Une `.g4pk` désignée nommément ne se fait pas remplacer par ses sœurs : l'utilisateur a
+        // demandé CETTE animation.
+        let archives: Vec<String> = if base.to_ascii_lowercase().ends_with(".g4pk") {
+            vec![path.clone()]
+        } else {
+            let mut hits: Vec<String> = vfs
+                .iter()
+                .filter_map(|(p, _)| p.strip_prefix(dir_prefix).map(|rest| (p, rest)))
+                .filter(|(_, rest)| !rest.contains('/'))
+                .filter(|(_, rest)| {
+                    let lower = rest.to_ascii_lowercase();
+                    let Some(name) = lower.strip_suffix(".g4pk") else { return false };
+                    let stem_lower = stem.to_ascii_lowercase();
+                    // `_` obligatoire après le radical : sans lui, `c0001` happerait `c000101`.
+                    name == stem_lower || name.strip_prefix(&stem_lower).is_some_and(|s| s.starts_with('_'))
+                })
+                .map(|(p, _)| p.to_string())
+                .collect();
+            hits.sort();
+            hits
+        };
+
+        if archives.is_empty() {
+            return Ok(MotionClipsDto {
+                archives,
+                clips: Vec::new(),
+                notice: Some(format!(
+                    "aucune archive « {stem}*.g4pk » dans {} — présent : {}",
+                    if dir_prefix.is_empty() { "la racine du VFS" } else { dir_prefix },
+                    summarize_names(&vfs_dir_filenames(vfs, dir_prefix)),
+                )),
+            });
+        }
+
+        let mut clips = Vec::new();
+        let mut skipped: Vec<String> = Vec::new();
+        for archive in &archives {
+            let data = match vfs.read(archive) {
+                Ok(d) => d,
+                Err(e) => {
+                    skipped.push(format!("{archive} (lecture : {e})"));
+                    continue;
+                }
+            };
+            let pk = match nie_formats::g4pk::parse(&data) {
+                Ok(pk) => pk,
+                Err(e) => {
+                    skipped.push(format!("{archive} (G4PK : {e})"));
+                    continue;
+                }
+            };
+            let mut found_motion = false;
+            for file in pk.files.iter().filter(|f| f.name.to_ascii_lowercase().ends_with(".g4mt")) {
+                found_motion = true;
+                let Some(bytes) = data.get(file.offset..file.offset + file.size) else {
+                    skipped.push(format!("{archive}/{} (bornes hors archive)", file.name));
+                    continue;
+                };
+                let Some(motion) = nie_formats::g4mt::Motion::parse(bytes) else {
+                    skipped.push(format!("{archive}/{} (G4MT illisible)", file.name));
+                    continue;
+                };
+                for clip in &motion.clips {
+                    clips.push(MotionClipDto {
+                        archive: archive.clone(),
+                        motion_file: file.name.clone(),
+                        name: clip.name.clone(),
+                        crc32: f64::from(clip.crc32),
+                        start_frame: f64::from(clip.start_frame),
+                        end_frame: f64::from(clip.end_frame),
+                        frame_count: f64::from(clip.frame_count()),
+                        fps: f64::from(clip.fps),
+                        additive: clip.is_additive(),
+                        target_count: motion.target_indices(clip).len() as f64,
+                    });
+                }
+            }
+            if !found_motion {
+                skipped.push(format!("{archive} (aucun sous-fichier .g4mt)"));
+            }
+        }
+
+        let notice = if skipped.is_empty() {
+            None
+        } else if clips.is_empty() {
+            Some(format!("aucun clip lisible — {}", skipped.join(" ; ")))
+        } else {
+            Some(format!("{} archive(s) écartée(s) : {}", skipped.len(), skipped.join(" ; ")))
+        };
+        Ok(MotionClipsDto { archives, clips, notice })
+    })
 }
 
 /// Même chose que [`vfs_glb_bytes_b64`] pour une entrée d'un `.cpk` ouvert hors VFS — résolution
@@ -2975,6 +3239,13 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         game_data_stadiums,
         game_data_passives,
         game_data_special_tactics,
+        game_data_emblems,
+        game_data_gallery,
+        game_data_tricks,
+        game_data_activities,
+        game_data_belong_teams,
+        game_data_formations,
+        game_data_uniforms,
         game_data_chara_picker,
         game_data_calculate_stats,
         vfs_decode_cfgbin,
@@ -3027,6 +3298,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         lua_session_drain,
         lua_session_api_report,
         vfs_glb_bytes_b64,
+        vfs_motion_clips,
         raw_cpk_glb_bytes_b64,
         vfs_glb_preview_png_b64,
         vfs_glb_preview_turntable_mp4_b64,
@@ -3039,8 +3311,15 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         re_trace_module_regions,
         re_trace_read_bytes_b64,
         re_trace_dump_module,
+        re_dump_open,
+        re_dump_scan,
         mcp::mcp_status,
         mcp::mcp_install,
+        viola::viola_dump_start,
+        viola::viola_cancel,
+        viola::viola_pack,
+        viola::viola_merge,
+        viola::viola_crypto,
     ])
 }
 
@@ -3134,6 +3413,7 @@ pub fn run() {
         // `ScriptInterpreter` d'Overload : la VM vit tant que l'app vit, l'état survit d'une
         // évaluation à l'autre, le rechargement est explicite.
         .manage(lua_session::LuaSessionHandle::start(true))
+        .manage(viola::ViolaState::default())
         .manage(VfsScanState { system: task_system, results: Arc::new(Mutex::new(std::collections::HashMap::new())) })
         .setup(move |app| {
             // Relaie chaque `TaskProgress` (nie-tasks) en événement Tauri `vfs-index-progress` —

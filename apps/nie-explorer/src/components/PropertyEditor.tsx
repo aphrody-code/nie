@@ -23,12 +23,11 @@
 // `reDb`, `api.vfsDecodeCfgbin`/`encodeCfgbinConfig`). Ce composant est le point de jonction qui
 // manquait.
 import { useEffect, useMemo, useState } from "react";
-import Editor from "@monaco-editor/react";
-import { useTheme } from "next-themes";
 import { confirm } from "@tauri-apps/plugin-dialog";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { toast } from "sonner";
 
+import { CfgbinViewer } from "@/components/CfgbinViewer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/Icon";
@@ -110,7 +109,6 @@ interface RelatedFile {
 /** Onglet « Données » : décode un `.cfg.bin` lié, laisse l'éditer, le réécrit par le même chemin
  * vérifié que `DetailPane` (`encode_cfgbin_config` → T2B ou RDBN selon la forme du JSON). */
 function ConfigEditor({ path, gameDir }: { path: string; gameDir?: string }) {
-  const { resolvedTheme } = useTheme();
   const [json, setJson] = useState<string | null>(null);
   const [format, setFormat] = useState<"t2b" | "rdbn" | null>(null);
   const [loading, setLoading] = useState(true);
@@ -177,16 +175,9 @@ function ConfigEditor({ path, gameDir }: { path: string; gameDir?: string }) {
           </Button>
         </div>
       </div>
-      <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-app-line">
-        <Editor
-          height="100%"
-          language="json"
-          theme={resolvedTheme === "light" ? "light" : "vs-dark"}
-          value={json}
-          onChange={(v) => setJson(v ?? "")}
-          options={{ minimap: { enabled: false }, fontSize: 12, automaticLayout: true, scrollBeyondLastLine: false }}
-        />
-      </div>
+      {/* Même visionneuse que `DetailPane` : sans ça, les deux points d'édition d'un `.cfg.bin`
+       * divergeraient dès la première évolution de l'un des deux. */}
+      <CfgbinViewer value={json} onChange={setJson} format={format ?? "t2b"} className="min-h-0 flex-1" />
     </div>
   );
 }

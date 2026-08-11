@@ -5,7 +5,7 @@
 #
 #   crates/forge/   la chaîne de production du binaire et le reverse qui l'alimente
 #                   (nie-pe modèle PE · nie-asm encodeur x86-64 · nie-forge CLI ·
-#                    nie-re/nie-index/nie-seed/nie-queue/nie-trace échafaudage RE)
+#                    nie-re/nie-dump/nie-index/nie-seed/nie-queue/nie-trace échafaudage RE)
 #   crates/engine/  le moteur qui fait tourner le jeu en Rust — la matière que la
 #                   forge doit finir par émettre (core, formats, data, render, …)
 #   crates/tools/   outillage périphérique (CLI, wiki, steam, serveurs, tâches)
@@ -95,6 +95,9 @@ nie-forge = { path = "crates/forge/nie-forge" }
 nie-index = { path = "crates/forge/nie-index" }
 nie-trace = { path = "crates/forge/nie-trace" }
 nie-re = { path = "crates/forge/nie-re" }
+# Minidump (.dmp) : parsing + scan AOB. Extrait de nie-re pour n'avoir AUCUNE dépendance
+# (hors thiserror) — c'est ce qui le rend liable par nie-explorer, contrairement à nie-re.
+nie-dump = { path = "crates/forge/nie-dump" }
 nie-queue = { path = "crates/forge/nie-queue" }
 nie-seed = { path = "crates/forge/nie-seed" }
 nie-formats = { path = "crates/engine/nie-formats" }

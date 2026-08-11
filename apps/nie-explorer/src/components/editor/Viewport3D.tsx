@@ -9,16 +9,37 @@
 //
 // three.js est importé depuis le paquet npm (bundlé par Vite) — aucun CDN, l'app reste
 // intégralement hors ligne comme le reste de niers (même contrainte que `monacoSetup.ts`).
+//
+// Les transformations faites au gizmo sont LOCALES À LA SESSION : elles ne sont écrites nulle
+// part et disparaissent au rechargement. Aucun encodeur géométrique n'existe côté Rust — `g4mg.rs`,
+// `g4md.rs` et `g4sk.rs` n'exposent que du décodage — donc aucune affordance d'enregistrement n'est
+// proposée ici : un bouton « sauvegarder » mentirait sur ce que le dépôt sait faire.
+//
+// La scène porte PLUSIEURS assets simultanément (`assets`), chacun indexé par son chemin VFS :
+// c'est ce qui distingue un éditeur d'une visionneuse, et ce qui impose de libérer le GPU asset par
+// asset plutôt qu'en bloc.
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
 
 import { b64ToBytes } from "@/lib/bytes";
 
+/** Un asset chargé dans la scène. Plusieurs coexistent — cf. en-tête. */
+export interface ViewportAsset {
+  /** Chemin VFS : clé stable de l'asset dans la scène et préfixe des identifiants de noeuds. */
+  key: string;
+  /** GLB en base64 (`api.glbBytesB64`). */
+  glbB64: string;
+}
+
 /** Un noeud de la scène chargée, à plat — alimente l'outliner. */
 export interface SceneNode {
-  id: number;
+  /** `<clé d'asset>#<index>` : deux assets portent volontiers les mêmes noms de noeuds. */
+  id: string;
+  /** Asset porteur, pour grouper la hiérarchie. */
+  assetKey: string;
   name: string;
   type: string;
   depth: number;
@@ -33,22 +54,98 @@ export interface ViewportStats {
   materials: number;
 }
 
+/** Mode du gizmo. `none` : aucun gizmo, seule la sélection au clic reste active. */
+export type GizmoMode = "none" | "translate" | "rotate" | "scale";
+
+/** Transformation locale d'un noeud — rotation en radians, ordre d'Euler XYZ. */
+export interface NodeTransform {
+  position: [number, number, number];
+  rotation: [number, number, number];
+  scale: [number, number, number];
+}
+
 export interface Viewport3DProps {
-  /** GLB en base64 (`api.glbBytesB64`) — `null` = viewport vide. */
-  glbB64: string | null;
+  /** Assets composant la scène, dans l'ordre d'affichage. Vide = viewport vide. */
+  assets: ViewportAsset[];
   /** Identifiant du noeud à mettre en surbrillance (depuis l'outliner). */
-  selectedId: number | null;
-  onSelect?: (id: number | null) => void;
+  selectedId: string | null;
+  onSelect?: (id: string | null) => void;
   onSceneLoaded?: (nodes: SceneNode[], stats: ViewportStats) => void;
+  /** Émis à chaque manipulation du gizmo, et une fois à la sélection (état initial). */
+  onTransform?: (id: string, trs: NodeTransform) => void;
+  gizmoMode?: GizmoMode;
+  /** Message affiché en surimpression quand la scène est vide (asset non assemblable, erreur…). */
+  notice?: string | null;
   wireframe?: boolean;
   showGrid?: boolean;
   className?: string;
 }
 
-/** Cadre la caméra sur la boîte englobante de l'objet — sans ça, un modèle de 2 unités et un
- * modèle de 200 unités s'affichent l'un microscopique, l'autre hors champ. */
-function frameObject(object: THREE.Object3D, camera: THREE.PerspectiveCamera, controls: OrbitControls) {
-  const box = new THREE.Box3().setFromObject(object);
+/** État three.js persistant du viewport — hors React, cf. `gl` plus bas. */
+interface GlState {
+  renderer: THREE.WebGLRenderer;
+  scene: THREE.Scene;
+  camera: THREE.PerspectiveCamera;
+  controls: OrbitControls;
+  gizmo: TransformControls;
+  gizmoHelper: ReturnType<TransformControls["getHelper"]>;
+  /** Noeud attaché au gizmo — `TransformControls.object` vaut la caméra tant qu'on n'a pas attaché. */
+  gizmoTarget: THREE.Object3D | null;
+  grid: THREE.GridHelper;
+  /** Racine de chaque asset, par chemin VFS. */
+  assets: Map<string, THREE.Group>;
+  byId: Map<string, THREE.Object3D>;
+  selectionBox: THREE.BoxHelper | null;
+  raf: number;
+}
+
+function readTransform(o: THREE.Object3D): NodeTransform {
+  return {
+    position: [o.position.x, o.position.y, o.position.z],
+    rotation: [o.rotation.x, o.rotation.y, o.rotation.z],
+    scale: [o.scale.x, o.scale.y, o.scale.z],
+  };
+}
+
+/** `Material.dispose()` ne libère PAS les textures qu'il référence (three ≥ r152) : sans ce
+ * parcours, chaque asset retiré de la scène laisse ses images en mémoire GPU. */
+function disposeMaterial(material: THREE.Material) {
+  for (const value of Object.values(material as unknown as Record<string, unknown>)) {
+    if (value && (value as THREE.Texture).isTexture) (value as THREE.Texture).dispose();
+  }
+  material.dispose();
+}
+
+/** Retire un asset de la scène et libère sa mémoire GPU. Par asset : la scène en porte plusieurs,
+ * un `dispose()` global libérerait les modèles restés à l'écran. */
+function disposeAsset(state: GlState, key: string) {
+  const group = state.assets.get(key);
+  if (!group) return;
+  if (state.gizmoTarget && group.getObjectById(state.gizmoTarget.id)) {
+    state.gizmo.detach();
+    state.gizmoTarget = null;
+  }
+  state.scene.remove(group);
+  group.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (mesh.geometry) mesh.geometry.dispose();
+    const mat = mesh.material;
+    if (Array.isArray(mat)) mat.forEach(disposeMaterial);
+    else if (mat) disposeMaterial(mat as THREE.Material);
+  });
+  state.assets.delete(key);
+}
+
+/** Cadre la caméra sur la boîte englobante de TOUS les assets — sans ça, un modèle de 2 unités et
+ * un modèle de 200 unités s'affichent l'un microscopique, l'autre hors champ, et l'ajout d'un
+ * second asset laisserait la caméra collée au premier. */
+function frameObjects(
+  objects: Iterable<THREE.Object3D>,
+  camera: THREE.PerspectiveCamera,
+  controls: OrbitControls,
+) {
+  const box = new THREE.Box3();
+  for (const o of objects) box.union(new THREE.Box3().setFromObject(o));
   if (box.isEmpty()) return;
   const size = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());
@@ -64,10 +161,13 @@ function frameObject(object: THREE.Object3D, camera: THREE.PerspectiveCamera, co
 }
 
 export function Viewport3D({
-  glbB64,
+  assets,
   selectedId,
   onSelect,
   onSceneLoaded,
+  onTransform,
+  gizmoMode = "none",
+  notice = null,
   wireframe = false,
   showGrid = true,
   className,
@@ -79,16 +179,22 @@ export function Viewport3D({
   // Objets three.js persistants entre rendus React — dans une ref, jamais dans un état : les
   // toucher ne doit provoquer aucun re-rendu, et la boucle d'animation doit survivre aux
   // changements de props.
-  const gl = useRef<{
-    renderer: THREE.WebGLRenderer;
-    scene: THREE.Scene;
-    camera: THREE.PerspectiveCamera;
-    controls: OrbitControls;
-    grid: THREE.GridHelper;
-    root: THREE.Group | null;
-    byId: Map<number, THREE.Object3D>;
-    raf: number;
-  } | null>(null);
+  const gl = useRef<GlState | null>(null);
+
+  // Les écouteurs three.js sont posés une seule fois, au montage : ils doivent lire les props du
+  // rendu COURANT, pas celles capturées à ce moment-là.
+  const assetsRef = useRef(assets);
+  assetsRef.current = assets;
+  const onTransformRef = useRef(onTransform);
+  onTransformRef.current = onTransform;
+  const onSceneLoadedRef = useRef(onSceneLoaded);
+  onSceneLoadedRef.current = onSceneLoaded;
+  const wireframeRef = useRef(wireframe);
+  wireframeRef.current = wireframe;
+
+  // Signature de la scène : l'identité du tableau `assets` change à chaque rendu du parent, pas son
+  // contenu. Le GLB d'une clé donnée ne change jamais — les clés suffisent donc à décider.
+  const assetsKey = JSON.stringify(assets.map((a) => a.key));
 
   // Montage : renderer, scène, caméra, éclairage, boucle. Une seule fois — le contexte WebGL est
   // coûteux à recréer et le perdre à chaque changement de fichier ferait clignoter le viewport.
@@ -127,8 +233,42 @@ export function Viewport3D({
     (grid.material as THREE.Material).opacity = 0.35;
     scene.add(grid);
 
-    const state = { renderer, scene, camera, controls, grid, root: null as THREE.Group | null, byId: new Map(), raf: 0 };
+    // Gizmo de transformation. En three 0.185 `TransformControls` n'est PLUS un `Object3D` (il
+    // dérive de `Controls`) : `scene.add(gizmo)` lève — c'est `getHelper()` qui porte la
+    // représentation visuelle.
+    const gizmo = new TransformControls(camera, renderer.domElement);
+    const gizmoHelper = gizmo.getHelper();
+    scene.add(gizmoHelper);
+    gizmo.detach();
+
+    const state: GlState = {
+      renderer,
+      scene,
+      camera,
+      controls,
+      gizmo,
+      gizmoHelper,
+      gizmoTarget: null,
+      grid,
+      assets: new Map(),
+      byId: new Map(),
+      selectionBox: null,
+      raf: 0,
+    };
     gl.current = state;
+
+    // Sans ça, OrbitControls tourne la caméra en même temps qu'on tire sur une poignée du gizmo :
+    // les deux contrôleurs écoutent le même canvas.
+    gizmo.addEventListener("dragging-changed", (e) => {
+      controls.enabled = !(e.value as boolean);
+    });
+    // Un `BoxHelper` est figé à sa construction : sans `update()` le cadre de sélection reste sur
+    // l'ancienne position pendant toute la manipulation.
+    gizmo.addEventListener("objectChange", () => {
+      state.selectionBox?.update();
+      const target = state.gizmoTarget;
+      if (target) onTransformRef.current?.(target.userData.nieId as string, readTransform(target));
+    });
 
     const resize = () => {
       const w = host.clientWidth || 1;
@@ -151,6 +291,11 @@ export function Viewport3D({
     return () => {
       cancelAnimationFrame(state.raf);
       observer.disconnect();
+      for (const key of [...state.assets.keys()]) disposeAsset(state, key);
+      gizmo.detach();
+      scene.remove(gizmoHelper);
+      gizmoHelper.dispose();
+      gizmo.dispose();
       controls.dispose();
       renderer.dispose();
       host.removeChild(renderer.domElement);
@@ -158,115 +303,132 @@ export function Viewport3D({
     };
   }, []);
 
-  // Chargement du modèle courant.
+  // Synchronise la scène avec `assets` : retire ce qui a disparu, charge ce qui est nouveau, laisse
+  // en place ce qui n'a pas bougé — recharger tout à chaque ajout ferait clignoter la scène et
+  // perdrait les transformations de session.
   useEffect(() => {
     const state = gl.current;
     if (!state) return;
 
-    // Libère le modèle précédent : sans `dispose()` explicite, chaque changement de fichier fuit
-    // sa géométrie et ses textures dans la mémoire GPU (three.js ne les libère pas tout seul).
-    if (state.root) {
-      state.scene.remove(state.root);
-      state.root.traverse((o) => {
-        const mesh = o as THREE.Mesh;
-        if (mesh.geometry) mesh.geometry.dispose();
-        const mat = mesh.material;
-        if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
-        else if (mat) (mat as THREE.Material).dispose();
-      });
-      state.root = null;
-      state.byId.clear();
-    }
+    const wanted = new Set(assetsRef.current.map((a) => a.key));
+    for (const key of [...state.assets.keys()]) if (!wanted.has(key)) disposeAsset(state, key);
 
-    setError(null);
-    if (!glbB64) {
-      onSceneLoaded?.([], { meshes: 0, triangles: 0, vertices: 0, materials: 0 });
+    const missing = assetsRef.current.filter((a) => !state.assets.has(a.key));
+    if (missing.length === 0) {
+      rebuildOutline(false);
       return;
     }
 
+    setError(null);
     setLoading(true);
-    const bytes = b64ToBytes(glbB64);
-    // `slice()` : `parse` veut un ArrayBuffer, et celui d'un Uint8Array issu du décodage peut être
-    // plus grand que la vue (offset non nul).
-    const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
-
     let cancelled = false;
-    new GLTFLoader().parse(
-      buffer,
-      "",
-      (gltf) => {
-        if (cancelled || !gl.current) return;
-        const root = new THREE.Group();
-        root.add(gltf.scene);
-        gl.current.scene.add(root);
-        gl.current.root = root;
+    let pending = missing.length;
+    const settle = () => {
+      if (--pending > 0) return;
+      setLoading(false);
+      rebuildOutline(true);
+    };
 
-        // Aplatit la hiérarchie pour l'outliner et indexe les objets par identifiant stable.
-        const nodes: SceneNode[] = [];
-        const stats: ViewportStats = { meshes: 0, triangles: 0, vertices: 0, materials: 0 };
-        const materials = new Set<string>();
-        let nextId = 1;
-
-        const walk = (obj: THREE.Object3D, depth: number) => {
-          const id = nextId++;
-          obj.userData.nieId = id;
-          gl.current!.byId.set(id, obj);
-
-          let triangles = 0;
-          const mesh = obj as THREE.Mesh;
-          if (mesh.isMesh && mesh.geometry) {
-            const geom = mesh.geometry;
-            const count = geom.index ? geom.index.count : geom.getAttribute("position")?.count ?? 0;
-            triangles = Math.floor(count / 3);
-            stats.meshes += 1;
-            stats.triangles += triangles;
-            stats.vertices += geom.getAttribute("position")?.count ?? 0;
-            const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-            mats.forEach((m) => m && materials.add(m.uuid));
-          }
-
-          nodes.push({
-            id,
-            name: obj.name || (mesh.isMesh ? "Mesh" : obj.type),
-            type: obj.type,
-            depth,
-            triangles,
-          });
-          obj.children.forEach((c) => walk(c, depth + 1));
-        };
-        gltf.scene.children.forEach((c) => walk(c, 0));
-        stats.materials = materials.size;
-
-        frameObject(root, gl.current.camera, gl.current.controls);
-        setLoading(false);
-        onSceneLoaded?.(nodes, stats);
-      },
-      (e) => {
-        if (cancelled) return;
-        setLoading(false);
-        setError(`Chargement du modèle : ${e instanceof Error ? e.message : String(e)}`);
-      },
-    );
+    for (const asset of missing) {
+      const bytes = b64ToBytes(asset.glbB64);
+      // `slice()` : `parse` veut un ArrayBuffer, et celui d'un Uint8Array issu du décodage peut être
+      // plus grand que la vue (offset non nul).
+      const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+      new GLTFLoader().parse(
+        buffer,
+        "",
+        (gltf) => {
+          if (cancelled || !gl.current) return;
+          gltf.scene.userData.nieAsset = asset.key;
+          gl.current.scene.add(gltf.scene);
+          gl.current.assets.set(asset.key, gltf.scene);
+          settle();
+        },
+        (e) => {
+          if (cancelled) return;
+          setError(`Chargement du modèle : ${e instanceof Error ? e.message : String(e)}`);
+          settle();
+        },
+      );
+    }
 
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [glbB64]);
+  }, [assetsKey]);
 
-  // Wireframe / grille — appliqués sans recharger le modèle.
+  // Aplatit la hiérarchie de TOUS les assets pour l'outliner, indexe les objets par identifiant
+  // stable et recalcule les statistiques.
+  function rebuildOutline(refit: boolean) {
+    const state = gl.current;
+    if (!state) return;
+
+    const nodes: SceneNode[] = [];
+    const stats: ViewportStats = { meshes: 0, triangles: 0, vertices: 0, materials: 0 };
+    const materials = new Set<string>();
+    state.byId.clear();
+
+    for (const asset of assetsRef.current) {
+      const group = state.assets.get(asset.key);
+      if (!group) continue;
+      let nextId = 1;
+
+      const walk = (obj: THREE.Object3D, depth: number) => {
+        const id = `${asset.key}#${nextId++}`;
+        obj.userData.nieId = id;
+        state.byId.set(id, obj);
+
+        let triangles = 0;
+        const mesh = obj as THREE.Mesh;
+        if (mesh.isMesh && mesh.geometry) {
+          const geom = mesh.geometry;
+          const count = geom.index ? geom.index.count : geom.getAttribute("position")?.count ?? 0;
+          triangles = Math.floor(count / 3);
+          stats.meshes += 1;
+          stats.triangles += triangles;
+          stats.vertices += geom.getAttribute("position")?.count ?? 0;
+          const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+          mats.forEach((m) => {
+            if (!m) return;
+            materials.add(m.uuid);
+            if ("wireframe" in m) (m as THREE.MeshStandardMaterial).wireframe = wireframeRef.current;
+          });
+        }
+
+        nodes.push({
+          id,
+          assetKey: asset.key,
+          name: obj.name || (mesh.isMesh ? "Mesh" : obj.type),
+          type: obj.type,
+          depth,
+          triangles,
+        });
+        obj.children.forEach((c) => walk(c, depth + 1));
+      };
+      group.children.forEach((c) => walk(c, 0));
+    }
+    stats.materials = materials.size;
+
+    if (refit) frameObjects(state.assets.values(), state.camera, state.controls);
+    onSceneLoadedRef.current?.(nodes, stats);
+  }
+
+  // Wireframe / grille — appliqués sans recharger les modèles.
   useEffect(() => {
     const state = gl.current;
-    if (!state?.root) return;
-    state.root.traverse((o) => {
-      const mesh = o as THREE.Mesh;
-      if (!mesh.isMesh) return;
-      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-      mats.forEach((m) => {
-        if (m && "wireframe" in m) (m as THREE.MeshStandardMaterial).wireframe = wireframe;
+    if (!state) return;
+    for (const group of state.assets.values()) {
+      group.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        mats.forEach((m) => {
+          if (m && "wireframe" in m) (m as THREE.MeshStandardMaterial).wireframe = wireframe;
+        });
       });
-    });
-  }, [wireframe, glbB64]);
+    }
+  }, [wireframe, assetsKey]);
 
   useEffect(() => {
     if (gl.current) gl.current.grid.visible = showGrid;
@@ -276,20 +438,44 @@ export function Viewport3D({
   useEffect(() => {
     const state = gl.current;
     if (!state) return;
-    const previous = state.scene.getObjectByName("__nie_selection__");
-    if (previous) state.scene.remove(previous);
+    if (state.selectionBox) {
+      state.scene.remove(state.selectionBox);
+      state.selectionBox.geometry.dispose();
+      disposeMaterial(state.selectionBox.material as THREE.Material);
+      state.selectionBox = null;
+    }
     if (selectedId == null) return;
     const target = state.byId.get(selectedId);
     if (!target) return;
     const helper = new THREE.BoxHelper(target, 0x3b82f6);
     helper.name = "__nie_selection__";
     state.scene.add(helper);
-  }, [selectedId]);
+    state.selectionBox = helper;
+    // L'inspecteur montre la transformation dès la sélection, sans attendre une manipulation.
+    onTransformRef.current?.(selectedId, readTransform(target));
+  }, [selectedId, assetsKey]);
+
+  // Gizmo : attaché au noeud sélectionné, détaché en mode `none` ou sans sélection.
+  useEffect(() => {
+    const state = gl.current;
+    if (!state) return;
+    const target = selectedId == null ? null : state.byId.get(selectedId) ?? null;
+    state.gizmoTarget = target;
+    if (!target || gizmoMode === "none") {
+      state.gizmo.detach();
+      return;
+    }
+    state.gizmo.setMode(gizmoMode);
+    state.gizmo.attach(target);
+  }, [gizmoMode, selectedId, assetsKey]);
 
   // Clic dans le viewport → sélection par lancer de rayon, comme tout éditeur 3D.
   function onPointerDown(e: React.PointerEvent) {
     const state = gl.current;
-    if (!state || !state.root) return;
+    if (!state || state.assets.size === 0) return;
+    // Le gizmo est prioritaire sur la sélection : sans cette garde, saisir une poignée lance un
+    // raycast qui rate le maillage et déselectionne l'objet qu'on est en train de déplacer.
+    if (state.gizmo.dragging || state.gizmo.axis !== null) return;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const ndc = new THREE.Vector2(
       ((e.clientX - rect.left) / rect.width) * 2 - 1,
@@ -297,8 +483,8 @@ export function Viewport3D({
     );
     const ray = new THREE.Raycaster();
     ray.setFromCamera(ndc, state.camera);
-    const hit = ray.intersectObject(state.root, true)[0];
-    onSelect?.(hit ? (hit.object.userData.nieId as number) ?? null : null);
+    const hit = ray.intersectObjects([...state.assets.values()], true)[0];
+    onSelect?.(hit ? (hit.object.userData.nieId as string) ?? null : null);
   }
 
   return (
@@ -314,9 +500,18 @@ export function Viewport3D({
           {error}
         </div>
       )}
-      {!glbB64 && !loading && !error && (
+      {/* Un asset non assemblable ne doit pas se solder par un viewport muet : on dit lequel et
+       * pourquoi, plutôt que de laisser l'échec dans un coin de la barre d'outils. */}
+      {notice && assets.length === 0 && !loading && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
+          <p className="max-w-md rounded-md border border-app-line bg-app-box/90 px-3 py-2 text-center text-tiny leading-relaxed text-ink-dull">
+            {notice}
+          </p>
+        </div>
+      )}
+      {assets.length === 0 && !loading && !error && !notice && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-xs text-ink-faint">
-          Sélectionnez un modèle (.g4md / .g4mg) dans le navigateur de contenu.
+          Sélectionnez un modèle assemblable (.g4md) dans le navigateur de contenu.
         </div>
       )}
     </div>

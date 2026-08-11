@@ -2,8 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { save, confirm } from "@tauri-apps/plugin-dialog";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { toast } from "sonner";
-import { useTheme } from "next-themes";
-import Editor from "@monaco-editor/react";
 import { api } from "@/lib/api";
 import { useSettings } from "@/lib/settings";
 import { b64ToBytes, bytesToB64, hexLines, humanSize } from "@/lib/bytes";
@@ -11,7 +9,7 @@ import { modsDb, type ModRow } from "@/lib/modsDb";
 import { stageReplacement, stageTextureReplacement } from "@/lib/modWorkspace";
 import { codeOf } from "@/lib/vfsIndexDb";
 import { useResolvedName } from "@/lib/nameResolve";
-import { installMonacoOffline } from "@/lib/monacoSetup";
+import { CfgbinViewer } from "@/components/CfgbinViewer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -25,8 +23,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-installMonacoOffline();
-
 const BLENDER_EXTS = new Set(["g4md", "g4mg", "g4sk", "g4mt"]);
 
 // `raw_cpk` : entrée d'un fichier `.cpk` ouvert hors VFS (cf. `ExplorerView` — navigation
@@ -39,7 +35,6 @@ export type DetailTarget =
 
 export function DetailPane({ target }: { target: DetailTarget | null }) {
   const settings = useSettings();
-  const { resolvedTheme } = useTheme();
   const [lines, setLines] = useState<string[]>([]);
   const [pngUrl, setPngUrl] = useState<string | null>(null);
   const [rawBytes, setRawBytes] = useState<Uint8Array | null>(null);
@@ -502,16 +497,15 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
               Copier
             </Button>
           </div>
-          <div className="h-96 overflow-hidden rounded-lg border border-app-line bg-app-dark-box">
-            <Editor
-              height="100%"
-              language="json"
-              theme={resolvedTheme === "light" ? "light" : "vs-dark"}
-              value={configJson}
-              onChange={(v) => setConfigJson(v ?? "")}
-              options={{ minimap: { enabled: false }, fontSize: 12, automaticLayout: true, scrollBeyondLastLine: false }}
-            />
-          </div>
+          {/* Même chaîne JSON que l'éditeur texte, projetée en table/arbre — cf. `CfgbinViewer`.
+           * L'édition RDBN suppose `target.kind === "vfs"` (`encode_cfgbin_config` relit
+           * l'original comme gabarit), garanti par `loadConfig` et redit ici. */}
+          <CfgbinViewer
+            value={configJson}
+            onChange={setConfigJson}
+            format={configFormat ?? "t2b"}
+            readOnly={target.kind !== "vfs"}
+          />
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" onClick={saveConfigAs} disabled={configSaving}>
               Enregistrer sous…
