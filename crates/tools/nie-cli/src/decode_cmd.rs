@@ -1,12 +1,7 @@
-//! `niers decode` — décodage d'un fichier ou d'une arborescence vers JSON / PNG.
-//!
-//! Doctrine (`docs/ARCHITECTURE-POLYGLOTTE.md`) : la CLI est un rôle Rust. Cette commande
-//! remplace deux chemins qui faisaient la même chose ailleurs :
-//! - `apps/nie-decode` (Bun) — décodage en lot via la FFI, avec ses propres workers ;
-//! - `iecode convert` / `iecode format` (C++), atteignables via `niers cpp`.
+//! `niers decode` (fichier ou arborescence → JSON / PNG) et `niers format` (détection seule).
 //!
 //! Le dispatch de format n'est pas réimplémenté ici : il vient de
-//! [`nie_formats::decode::to_json`], partagé avec la FFI. Le parallélisme vient de rayon.
+//! [`nie_formats::decode`], partagé avec la FFI. Le parallélisme vient de rayon.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -140,6 +135,39 @@ pub fn dir(src: &Path, out: &Path, quiet: bool) -> anyhow::Result<()> {
             ok.load(Ordering::Relaxed),
             skipped.load(Ordering::Relaxed),
             files.len()
+        );
+    }
+    Ok(())
+}
+
+/// Rapporte le format d'un fichier ou de chaque fichier d'une arborescence, sans rien écrire.
+///
+/// Deux colonnes distinctes : `detect` = ce que dit le magic, `decode` = le parseur qui réussit
+/// réellement. Elles divergent sur les conteneurs T2B, que la détection range tous en `inconnu`.
+///
+/// # Erreurs
+/// Si la source est illisible ou si un répertoire ne contient aucun fichier décodable.
+pub fn format(src: &Path) -> anyhow::Result<()> {
+    let files = if src.is_dir() {
+        let f = collect(src);
+        if f.is_empty() {
+            bail!("aucun fichier décodable sous {}", src.display());
+        }
+        f
+    } else {
+        vec![src.to_path_buf()]
+    };
+
+    for p in &files {
+        let data = fs::read(p).with_context(|| format!("lecture de {}", p.display()))?;
+        let detect = nie_formats::decode::format_name(&data);
+        let decode = nie_formats::decode::decode(&data).map_or("-", |d| d.format);
+        println!(
+            "path={} detect={} decode={} bytes={}",
+            p.display(),
+            detect,
+            decode,
+            data.len()
         );
     }
     Ok(())
