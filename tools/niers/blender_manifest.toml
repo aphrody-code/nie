@@ -28,7 +28,7 @@ name = "niers"
 tagline = "Assets Level-5 G4 (Inazuma Eleven VR) + recherche VFS/azalee"
 maintainer = "niers — décodage G4 amont par Bobi (github.com/The-RealBobi/G4_Blender)"
 type = "add-on"
-website = "https://github.com/rose-griffon/niers"
+website = "https://github.com/aphrody-code/nie"
 
 tags = [
 	"Import-Export",

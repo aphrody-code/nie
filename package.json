@@ -1,7 +1,7 @@
 {
-  "name": "niers",
+  "name": "nie-monorepo",
   "version": "0.4.0",
-  "description": "Bun monorepo — bibliothèques (packages/*) et applications (apps/*) du projet niers",
+  "description": "Monorepo Bun du dépôt nie — bibliothèques (packages/*) et applications (apps/*). Nommé `nie-monorepo` et non `nie` : ce dernier est le paquet FFI (packages/nie).",
   "type": "module",
   "private": true,
   "workspaces": {
