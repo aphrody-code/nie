@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Harnais C# du banc d'essai. Référence IECODE.Core pour mesurer les implémentations
+       réellement utilisées par le dépôt, pas des réécritures de circonstance. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Optimize>true</Optimize>
+    <AssemblyName>nie-bench-cs</AssemblyName>
+    <RootNamespace>Nie.Bench</RootNamespace>
+    <!-- Tiered PGO : le JIT atteint son régime après la chauffe, comme en production. -->
+    <TieredPGO>true</TieredPGO>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\csharp\IECODE.Core\IECODE.Core.csproj" />
+  </ItemGroup>
+
+</Project>
