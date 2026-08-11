@@ -6,7 +6,7 @@
 //!
 //! Port 1:1 d'inagle `packages/inagle/src/parsers/inacode-config.ts` (switch `list.name`),
 //! étendu aux 10 listes réelles. Vérité terrain extraite via
-//! `crates/engine/nie-game/examples/extract_inacode.rs` (jetable, supprimé après extraction).
+//! un exemple jetable, non versionné.
 //! La fixture embarque un échantillon représentatif (2-3 entrées par liste, salons complets).
 
 use nie_data::hash::HashId;

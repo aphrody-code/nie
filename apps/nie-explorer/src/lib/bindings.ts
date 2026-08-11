@@ -302,7 +302,7 @@ export const commands = {
 	/**
 	 *  Extrait `path` (+ ses fichiers frères de même basename dans le même dossier VFS : g4mg/g4sk/
 	 *  g4tx/g4mt) vers un dossier temporaire, lance Blender avec un script d'amorçage qui active
-	 *  l'addon `tools/niers` (`bpy.utils` via `sys.path`, sans dépendre du dossier d'addons
+	 *  l'addon `plugins/niers-blender` (`bpy.utils` via `sys.path`, sans dépendre du dossier d'addons
 	 *  utilisateur Blender — cloné à la volée via [`ensure_niers_blender_addon`] si absent) puis
 	 *  importe RÉELLEMENT le modèle via l'opérateur `import_scene.level5_g4` (« File > Import >
 	 *  Level-5 G4 Model »). Pose `NIE_GAME_DIR` dans l'environnement du process Blender : le panneau
@@ -314,7 +314,7 @@ export const commands = {
 	 *  l'opérateur « choisir le template original » du **wizard d'export/portage** (`g4_port_addon.
 	 *  py`, panneau « 1. Original model template » : il peuple les *réglages* internes de l'addon
 	 *  pour un futur export, ne crée AUCUN objet maillage). Confirmé par lecture du code source de
-	 *  l'addon (`tools/niers/g4_port_addon.py` `LEVEL5_G4PORT_OT_load_original_model.execute` appelle
+	 *  l'addon (`plugins/niers-blender/g4_port_addon.py` `LEVEL5_G4PORT_OT_load_original_model.execute` appelle
 	 *  `apply_original_model_to_settings`, pas un import). Le VRAI importeur (« File > Import >
 	 *  Level-5 G4 Model », README de l'addon) est `import_scene.level5_g4` — **validé par un test
 	 *  réel `blender --background --python`** sur le vrai `c01000010.g4md` : 3 objets créés
@@ -328,7 +328,7 @@ export const commands = {
 	 *  l'utilisatrice (`bpy.ops.preferences.addon_install` + `addon_enable`, PAS le bootstrap
 	 *  `sys.path` transitoire de [`open_in_blender`]) et configure sa préférence `raw_data_root` sur
 	 *  le vrai `<jeu>/data` (résolu par `inferred_raw_data_root`/`candidate_data_roots` de l'addon
-	 *  pour la recherche de squelette partagé/pièces de personnage — cf. `tools/niers/g4_animation_
+	 *  pour la recherche de squelette partagé/pièces de personnage — cf. `plugins/niers-blender/g4_animation_
 	 *  addon.py`) — persisté via `bpy.ops.wm.save_userpref()`, donc actif au prochain lancement de
 	 *  Blender INDÉPENDAMMENT de nie-explorer. Bloquant (`--background`, `.output()` synchrone) : pas
 	 *  de fenêtre à garder ouverte contrairement à [`open_in_blender`], donc pas de fuite de process.

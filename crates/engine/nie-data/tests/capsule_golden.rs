@@ -4,7 +4,7 @@
 //! décodé T2B par `nie-formats` (`cfgbin::cfgbin_parse`).
 //!
 //! Port 1:1 d'inagle `packages/inagle/src/parsers/capsule-config.ts` (`parseEntries` l.68-136).
-//! Vérité terrain : valeurs extraites via `crates/engine/nie-game/examples/extract_capsule.rs` (jetable).
+//! Vérité terrain : valeurs extraites du vrai dump par un exemple jetable, non versionné.
 //! La fixture reproduit la forme iecode/T2B **frère** (en-tête `*_INFO` suivi de son
 //! `*_DATA_LIST_BEG`) que produit `cfgbin_to_t2b_iecode_root`, et qui est appariée par le parseur.
 

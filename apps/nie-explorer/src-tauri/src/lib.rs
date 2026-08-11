@@ -1480,7 +1480,7 @@ fn export_mod_as_cpk(app: tauri::AppHandle, files: Vec<CpkExportFileDto>, dest: 
     Ok(bytes.len() as f64)
 }
 
-// ─── Pont Blender (tools/niers) ─────────────────────────────────────────────────────
+// ─── Pont Blender (plugins/niers-blender) ─────────────────────────────────────────────────────
 
 /// Candidats d'installation Blender à essayer si aucun chemin explicite n'est fourni.
 const BLENDER_CANDIDATES: &[&str] = &[
@@ -1502,27 +1502,31 @@ fn resolve_blender_exe(blender_exe: Option<String>) -> Result<PathBuf, String> {
         .ok_or_else(|| "blender.exe introuvable (candidats standards absents) — renseignez le chemin dans Paramètres".to_string())
 }
 
-/// Dépôt source amont de l'addon Blender `tools/niers` (Level-5 G4 Blender Tools, licence de
-/// republication confirmée auprès de l'auteur — cf. `tools/niers/README.md` en-tête). `tools/
-/// niers` est **vendorisé** dans niers depuis 2026-08-08 (fichiers réguliers versionnés, PAS un
-/// submodule Git) : une utilisatrice qui clone `niers` l'a directement, sans étape `git submodule
-/// update --init`. Cette constante ne sert donc plus qu'au filet de sécurité ci-dessous.
+/// Dépôt source amont de l'addon Blender (Level-5 G4 Blender Tools, licence de republication
+/// confirmée auprès de l'auteur — cf. `plugins/niers-blender/README.md` en-tête).
+/// `plugins/niers-blender` est **vendorisé** dans niers (fichiers réguliers versionnés, PAS un
+/// submodule Git) : une utilisatrice qui clone `niers` l'a directement, sans étape
+/// `git submodule update --init`. Cette constante ne sert donc qu'au filet de sécurité ci-dessous.
 const NIERS_BLENDER_ADDON_GIT_URL: &str = "https://github.com/The-RealBobi/G4_Blender.git";
 
-/// Garantit que `<root>/tools/niers/__init__.py` existe. Dans niers lui-même c'est TOUJOURS vrai
-/// (vendorisé, cf. constante ci-dessus) ; ce filet de sécurité clone l'addon à la volée pour le
-/// cas où `root` (le dossier du JEU, résolu par [`resolve_root`]) n'est PAS un checkout de ce
-/// repo — un build distribué de `nie-explorer` pointé sur une simple install Steam n'a que le
-/// jeu, pas `tools/`. Renvoie le dossier PARENT de l'addon (`<root>/tools`), pas l'addon
-/// lui-même — c'est ce dont [`open_in_blender`]/[`install_niers_blender_addon`] ont besoin pour
-/// `sys.path.insert`/zipper le dossier `niers`.
+/// Nom du **module Python** de l'addon, indépendant du nom du dossier source. Blender l'active par
+/// ce nom (`addon_enable(module=…)`, `import niers`), et un identifiant Python ne peut pas porter
+/// de tiret : le dossier `plugins/niers-blender` est donc chargé par chemin explicite, et zippé
+/// sous cette racine-là.
+const NIERS_BLENDER_MODULE: &str = "niers";
+
+/// Garantit que `<root>/plugins/niers-blender/__init__.py` existe et renvoie le dossier de l'addon
+/// lui-même. Dans niers c'est TOUJOURS vrai (vendorisé, cf. constante ci-dessus) ; ce filet de
+/// sécurité clone l'addon à la volée pour le cas où `root` (le dossier du JEU, résolu par
+/// [`resolve_root`]) n'est PAS un checkout de ce dépôt — un build distribué de `nie-explorer`
+/// pointé sur une simple install Steam n'a que le jeu.
 fn ensure_niers_blender_addon(root: &std::path::Path) -> Result<PathBuf, String> {
-    let tools_dir = root.join("tools");
-    let addon_dir = tools_dir.join("niers");
+    let plugins_dir = root.join("plugins");
+    let addon_dir = plugins_dir.join("niers-blender");
     if addon_dir.join("__init__.py").is_file() {
-        return Ok(tools_dir);
+        return Ok(addon_dir);
     }
-    std::fs::create_dir_all(&tools_dir).map_err(|e| format!("création de {} : {e}", tools_dir.display()))?;
+    std::fs::create_dir_all(&plugins_dir).map_err(|e| format!("création de {} : {e}", plugins_dir.display()))?;
     // Dossier présent mais incomplet (clone précédent interrompu) : repart de zéro plutôt que de
     // laisser `git clone` échouer sur un dossier non-vide non-git.
     if addon_dir.is_dir() {
@@ -1540,12 +1544,12 @@ fn ensure_niers_blender_addon(root: &std::path::Path) -> Result<PathBuf, String>
     if !addon_dir.join("__init__.py").is_file() {
         return Err(format!("extension clonée mais `__init__.py` introuvable sous {}", addon_dir.display()));
     }
-    Ok(tools_dir)
+    Ok(addon_dir)
 }
 
 /// Extrait `path` (+ ses fichiers frères de même basename dans le même dossier VFS : g4mg/g4sk/
 /// g4tx/g4mt) vers un dossier temporaire, lance Blender avec un script d'amorçage qui active
-/// l'addon `tools/niers` (`bpy.utils` via `sys.path`, sans dépendre du dossier d'addons
+/// l'addon `plugins/niers-blender` (`bpy.utils` via `sys.path`, sans dépendre du dossier d'addons
 /// utilisateur Blender — cloné à la volée via [`ensure_niers_blender_addon`] si absent) puis
 /// importe RÉELLEMENT le modèle via l'opérateur `import_scene.level5_g4` (« File > Import >
 /// Level-5 G4 Model »). Pose `NIE_GAME_DIR` dans l'environnement du process Blender : le panneau
@@ -1557,7 +1561,7 @@ fn ensure_niers_blender_addon(root: &std::path::Path) -> Result<PathBuf, String>
 /// l'opérateur « choisir le template original » du **wizard d'export/portage** (`g4_port_addon.
 /// py`, panneau « 1. Original model template » : il peuple les *réglages* internes de l'addon
 /// pour un futur export, ne crée AUCUN objet maillage). Confirmé par lecture du code source de
-/// l'addon (`tools/niers/g4_port_addon.py` `LEVEL5_G4PORT_OT_load_original_model.execute` appelle
+/// l'addon (`plugins/niers-blender/g4_port_addon.py` `LEVEL5_G4PORT_OT_load_original_model.execute` appelle
 /// `apply_original_model_to_settings`, pas un import). Le VRAI importeur (« File > Import >
 /// Level-5 G4 Model », README de l'addon) est `import_scene.level5_g4` — **validé par un test
 /// réel `blender --background --python`** sur le vrai `c01000010.g4md` : 3 objets créés
@@ -1569,7 +1573,7 @@ fn ensure_niers_blender_addon(root: &std::path::Path) -> Result<PathBuf, String>
 fn open_in_blender(path: String, blender_exe: Option<String>, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<String, String> {
     let blender = resolve_blender_exe(blender_exe)?;
     let root = resolve_root(game_dir.as_deref());
-    let addon_parent = ensure_niers_blender_addon(&root)?;
+    let addon_dir = ensure_niers_blender_addon(&root)?;
 
     let built = with_vfs(Some(root.display().to_string()), &state, |vfs| {
         let data = vfs.read(&path).map_err(|e| e.to_string())?;
@@ -1615,10 +1619,14 @@ fn open_in_blender(path: String, blender_exe: Option<String>, game_dir: Option<S
     let error_log = export_dir.join("_nie_explorer_import_error.log");
     let script_path = export_dir.join("_bootstrap.py");
     let script = format!(
-        r#"import sys, traceback
-sys.path.insert(0, {addon_parent:?})
+        r#"import importlib.util, sys, traceback
+# Le dossier source porte un tiret (`niers-blender`) : il n'est pas importable par son nom.
+# On charge son `__init__.py` par chemin explicite, sous le nom de module attendu par Blender.
 try:
-    import niers as g4b
+    _spec = importlib.util.spec_from_file_location({module_name:?}, {addon_init:?})
+    g4b = importlib.util.module_from_spec(_spec)
+    sys.modules[{module_name:?}] = g4b
+    _spec.loader.exec_module(g4b)
     g4b.register()
     print("[nie-explorer] addon niers activé")
 except Exception:
@@ -1658,7 +1666,8 @@ def _nie_explorer_import():
 # besoin pour sa barre de progression) -- un appel synchrone immediat peut echouer en silence.
 bpy.app.timers.register(_nie_explorer_import, first_interval=0.3)
 "#,
-        addon_parent = addon_parent.display().to_string(),
+        module_name = NIERS_BLENDER_MODULE,
+        addon_init = addon_dir.join("__init__.py").display().to_string(),
         error_log = error_log.display().to_string(),
         main_path = main_path.display().to_string(),
     );
@@ -1672,7 +1681,7 @@ bpy.app.timers.register(_nie_explorer_import, first_interval=0.3)
         // n'est déjà sous un dossier `data/common/...` (ce qui EST le cas ici, cf. préservation du
         // chemin VFS ci-dessus — la résolution par chemin suffit pour ce fichier précis) ; posé
         // quand même en filet pour toute résolution qui remonterait plus haut (skelette partagé
-        // hors de l'arborescence exportée, cf. `LEVEL5_G4_RAW_ROOT` dans `tools/niers/__init__.py`).
+        // hors de l'arborescence exportée, cf. `LEVEL5_G4_RAW_ROOT` dans `plugins/niers-blender/__init__.py`).
         .env("LEVEL5_G4_RAW_ROOT", root.join("data").display().to_string())
         .spawn()
         .map_err(|e| format!("échec du lancement de Blender ({}) : {e}", blender.display()))?;
@@ -1690,12 +1699,16 @@ bpy.app.timers.register(_nie_explorer_import, first_interval=0.3)
 // sur l'icône, pas de bootstrap) a alors l'addon actif ET connaît déjà le dépôt de données niers,
 // sans que l'utilisatrice n'ouvre jamais Préférences > Add-ons.
 
-/// Zippe `addon_dir` (`tools/niers`) en préservant son nom de dossier comme racine de l'archive
+/// Zippe `addon_dir` (`plugins/niers-blender`) sous la racine [`NIERS_BLENDER_MODULE`]
 /// (`niers/__init__.py`, pas `__init__.py` à plat) — requis par `bpy.ops.preferences.addon_install`
 /// pour une extension multi-fichiers (cf. README de l'addon : « package the directory as ZIP
-/// while keeping its folder name and `__init__.py` at the add-on root »). Exclut `.git`.
+/// while keeping its folder name and `__init__.py` at the add-on root »).
+///
+/// La racine est le **nom de module**, pas le nom du dossier source : Blender dérive le nom du
+/// module Python de l'entrée racine de l'archive, et `niers-blender` n'est pas un identifiant
+/// Python valide. Exclut `.git`.
 fn zip_addon_dir(addon_dir: &std::path::Path) -> Result<PathBuf, String> {
-    let addon_name = addon_dir.file_name().and_then(|n| n.to_str()).ok_or("nom de dossier d'addon invalide")?.to_string();
+    let addon_name = NIERS_BLENDER_MODULE.to_string();
     let dest_dir = std::env::temp_dir().join("nie-explorer").join("blender-addon");
     std::fs::create_dir_all(&dest_dir).map_err(|e| e.to_string())?;
     let zip_path = dest_dir.join("niers-addon.zip");
@@ -1737,7 +1750,7 @@ fn zip_addon_dir(addon_dir: &std::path::Path) -> Result<PathBuf, String> {
 /// l'utilisatrice (`bpy.ops.preferences.addon_install` + `addon_enable`, PAS le bootstrap
 /// `sys.path` transitoire de [`open_in_blender`]) et configure sa préférence `raw_data_root` sur
 /// le vrai `<jeu>/data` (résolu par `inferred_raw_data_root`/`candidate_data_roots` de l'addon
-/// pour la recherche de squelette partagé/pièces de personnage — cf. `tools/niers/g4_animation_
+/// pour la recherche de squelette partagé/pièces de personnage — cf. `plugins/niers-blender/g4_animation_
 /// addon.py`) — persisté via `bpy.ops.wm.save_userpref()`, donc actif au prochain lancement de
 /// Blender INDÉPENDAMMENT de nie-explorer. Bloquant (`--background`, `.output()` synchrone) : pas
 /// de fenêtre à garder ouverte contrairement à [`open_in_blender`], donc pas de fuite de process.
@@ -1745,8 +1758,7 @@ fn zip_addon_dir(addon_dir: &std::path::Path) -> Result<PathBuf, String> {
 #[specta::specta]
 fn install_niers_blender_addon(blender_exe: Option<String>, game_dir: Option<String>) -> Result<String, String> {
     let root = resolve_root(game_dir.as_deref());
-    let addon_parent = ensure_niers_blender_addon(&root)?;
-    let addon_dir = addon_parent.join("niers");
+    let addon_dir = ensure_niers_blender_addon(&root)?;
     let blender = resolve_blender_exe(blender_exe)?;
     let zip_path = zip_addon_dir(&addon_dir)?;
 
@@ -2002,7 +2014,7 @@ fn blender_build_skill_scene(
 ) -> Result<BlenderSceneResultDto, String> {
     let blender = resolve_blender_exe(blender_exe)?;
     let root = resolve_root(game_dir.as_deref());
-    let addon_parent = ensure_niers_blender_addon(&root)?;
+    let addon_dir = ensure_niers_blender_addon(&root)?;
 
     let staged = with_vfs(Some(root.display().to_string()), &state, |vfs| {
         let skill = game_data::find_skill(vfs, &skill_query)?
@@ -2074,10 +2086,13 @@ fn blender_build_skill_scene(
     let error_log = export_dir.join("_nie_explorer_scene_error.log");
 
     let script = format!(
-        r#"import sys, traceback
-sys.path.insert(0, {addon_parent:?})
+        r#"import importlib.util, sys, traceback
+# Cf. `open_in_blender` : dossier à tiret → chargement par chemin, pas par nom de module.
 try:
-    import niers as g4b
+    _spec = importlib.util.spec_from_file_location({module_name:?}, {addon_init:?})
+    g4b = importlib.util.module_from_spec(_spec)
+    sys.modules[{module_name:?}] = g4b
+    _spec.loader.exec_module(g4b)
     g4b.register()
 except Exception:
     traceback.print_exc()
@@ -2119,7 +2134,8 @@ if errors:
 bpy.ops.wm.save_as_mainfile(filepath={out_blend:?})
 print("NIE_EXPLORER_SCENE_SAVED", {out_blend:?})
 "#,
-        addon_parent = addon_parent.display().to_string(),
+        module_name = NIERS_BLENDER_MODULE,
+        addon_init = addon_dir.join("__init__.py").display().to_string(),
         error_log = error_log.display().to_string(),
         chara_entry = chara_entry.as_ref().map(|p| p.display().to_string()),
         cutin_entry = cutin_entry.as_ref().map(|p| p.display().to_string()),
@@ -2170,7 +2186,7 @@ print("NIE_EXPLORER_SCENE_SAVED", {out_blend:?})
 // developer.blender.org/docs/handbook/building_blender/python_module — et PyPI publie bien un
 // build 5.2.0/Python 3.13 correspondant à la version installée) : vérifié après coup que ce
 // module embarquable n'a PAS de window manager (`bpy.context.window`/`context.workspace`
-// absents, opérateurs GUI en échec) — or `tools/niers` s'appuie dessus (barre de progression
+// absents, opérateurs GUI en échec) — or `plugins/niers-blender` s'appuie dessus (barre de progression
 // `context.window_manager.progress_update`, panneau N, préférences d'addon), donc PAS un bon
 // candidat à l'embarquement headless sans réécrire l'addon. L'intégration Blender de ce fichier
 // ([`open_in_blender`]) lance donc le vrai Blender GUI en process séparé — choix délibéré, pas
@@ -3197,18 +3213,19 @@ mod real_fixtures_tests {
         RENDER3D_SIZE,
     };
 
-    /// `tools/niers` (vendorisé dans niers depuis 2026-08-08, cf. `docs/PLAN.md`) doit être
-    /// détecté PRÉSENT sans déclencher de `git clone` (rapide, déterministe — pas de dépendance
-    /// réseau dans ce test). Le chemin réseau (`git clone` si absent, filet de sécurité pour un
-    /// `game_dir` qui n'est pas un checkout de ce repo) est vérifié manuellement contre le vrai
-    /// dépôt GitHub, pas ici (pas d'accès réseau garanti en CI).
+    /// `plugins/niers-blender` est vendorisé dans niers : il doit être détecté PRÉSENT sans
+    /// déclencher de `git clone` (rapide, déterministe — pas de dépendance réseau dans ce test).
+    /// Le chemin réseau (`git clone` si absent, filet de sécurité pour un `game_dir` qui n'est pas
+    /// un checkout de ce dépôt) se vérifie manuellement contre le vrai dépôt GitHub, pas ici
+    /// (pas d'accès réseau garanti en CI).
     #[test]
     fn ensure_niers_blender_addon_detecte_le_vendoring_deja_present() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
-        let tools_dir = ensure_niers_blender_addon(&root).expect("tools/niers doit déjà être présent (vendorisé)");
-        assert!(tools_dir.join("niers").join("__init__.py").is_file());
+        let addon_dir = ensure_niers_blender_addon(&root).expect("plugins/niers-blender doit déjà être présent (vendorisé)");
+        assert!(addon_dir.ends_with("niers-blender"), "chemin inattendu : {}", addon_dir.display());
+        assert!(addon_dir.join("__init__.py").is_file());
         // La VRAIE ligne attendue de l'addon (pas un fichier vide/corrompu) : le bl_info du plugin.
-        let init = std::fs::read_to_string(tools_dir.join("niers").join("__init__.py")).unwrap();
+        let init = std::fs::read_to_string(addon_dir.join("__init__.py")).unwrap();
         assert!(init.contains("Level-5 G4 Blender Tools"), "contenu inattendu — mauvais addon ?");
     }
 

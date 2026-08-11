@@ -1,4 +1,4 @@
-# Note de provenance — `tools/niers`
+# Note de provenance — `plugins/niers-blender`
 
 Ce dossier vendorise **Level-5 G4 Blender Tools** (auteur : Bobi, dépôt amont
 [`The-RealBobi/G4_Blender`](https://github.com/The-RealBobi/G4_Blender), commit `7ac55b7`) comme

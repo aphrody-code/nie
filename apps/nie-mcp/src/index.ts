@@ -192,7 +192,7 @@ async function main(): Promise<void> {
       description:
         "Lit un fichier source/docs du repo niers (crates Rust, docs/, scripts/, package…). Anti-traversal strict ; refs/ data/ var/ .git/ target/ node_modules/ sont interdits. Chemin relatif à la racine du repo ou absolu sous celle-ci.",
       inputSchema: {
-        path: z.string().min(1).describe("ex. 'crates/nie-formats/src/lib.rs' ou 'docs/PLAN.md'"),
+        path: z.string().min(1).describe("ex. 'crates/engine/nie-formats/src/lib.rs' ou 'docs/PLAN.md'"),
         maxBytes: z.number().int().positive().optional().describe("octets max lus (défaut 262144)"),
       },
     },

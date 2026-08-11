@@ -134,11 +134,11 @@ __pycache__/
 !docs/**/*.txt
 !packages/*/README.md
 !apps/nie-explorer/ROADMAP.md
-!tools/niers/NIERS_VENDORING_NOTE.md
+!plugins/niers-blender/NIERS_VENDORING_NOTE.md
 # Le plugin Claude Code `niers` est un LIVRABLE du depot : ses agents et ses
 # skills SONT du markdown. Sans cette ligne, `*.md` n'en commitait que le README
 # (les 5 sous-agents et les 5 skills restaient hors du depot).
-!tools/niers-plugin/**/*.md
+!plugins/niers-plugin/**/*.md
 
 # ATTENTION : `*.txt` ci-dessus ignorait AUSSI tous les CMakeLists.txt — c'est-a-dire
 # l'integralite de la chaine de build C++ (13 fichiers : racine, src/, cli/, tests/,

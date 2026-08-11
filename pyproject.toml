@@ -1,7 +1,7 @@
 [project]
 name = "niers-tools"
 version = "0.1.0"
-description = "Outillage Python RE (nie.exe : désassemblage/PE/émulation) + décodeurs G4 (submodule tools/G4_Blender)"
+description = "Outillage Python RE (nie.exe : désassemblage/PE/émulation) + décodeurs G4 (décodeurs G4 : plugins/niers-blender)"
 requires-python = ">=3.10"
 dependencies = [
     "capstone>=5",

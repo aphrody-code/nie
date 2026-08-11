@@ -10,7 +10,7 @@ dépôt au lieu de la mémoire du modèle.
 |---|---|
 | MCP `niers-game` | 14 outils : VFS (255 308 fichiers), assets décodés, base de connaissance RE, lecture du dépôt, pilotage de `nie-explorer`, lancement du jeu |
 | Skill `ievr-terminologie` | Empêche d'inventer un format, un code, un symbole ou un chemin — dit où vérifier chaque nature de terme |
-| Skill `niers-architecture` | Les 31 crates une par une, les 8 paquets Bun, le C++ `cpp/` et le C# IECODE — et comment les quatre arbres se répondent |
+| Skill `niers-architecture` | Les 34 crates une par une, les 5 paquets Bun, le C++ `src/` et le C# IECODE — et comment les quatre arbres se répondent |
 | Skill `niers-monorepo` | Conventions, emplacements, commandes de build et de test, règles avant commit |
 | Skill `formats-level5` | Les formats Level-5 et Criware, par famille, avec magic réel, module Rust et pièges |
 | Skill `jouer-ievr` | Lancer, simuler, rendre et observer le jeu — et ce qui n'est **pas** possible |
@@ -27,7 +27,7 @@ fonctions. Ils rendent une conclusion, pas un journal.
 ## Installation
 
 ```bash
-claude --plugin-dir tools/niers-plugin        # essai local
+claude --plugin-dir plugins/niers-plugin        # essai local
 ```
 
 Le serveur MCP est déclaré dans `.mcp.json` et résolu par `${CLAUDE_PLUGIN_ROOT}` : il pointe

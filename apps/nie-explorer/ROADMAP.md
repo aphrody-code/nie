@@ -373,10 +373,10 @@ reste un sous-processus, pour le mux MP4 du turntable. Élimine aussi le double 
 `c01000010.g4md` depuis le vrai `data/`, rend, vérifie >1000 pixels de mesh (pas un fond vide) et
 une signature PNG valide — pas juste « ça compile ».
 
-### 2.4 Intégration Blender (`tools/niers`) ✅ (2026-08-08 — bug corrigé + lien persistant ajouté)
+### 2.4 Intégration Blender (`plugins/niers-blender`) ✅ (2026-08-08 — bug corrigé + lien persistant ajouté)
 
 **Bug corrigé — « Ouvrir dans Blender » ouvrait Blender VIDE.** Cause racine identifiée en lisant
-le code source de l'addon (`tools/niers/g4_port_addon.py`) : le script d'amorçage appelait
+le code source de l'addon (`plugins/niers-blender/g4_port_addon.py`) : le script d'amorçage appelait
 `level5_g4_port.load_original_model`, qui n'est **pas** un import de scène mais l'opérateur
 « choisir le template original » du **wizard d'export/portage** (panneau « 1. Original model
 template ») — il peuple des réglages internes pour un futur export, ne crée **aucun objet
@@ -391,16 +391,16 @@ démarrage GUI) importe réellement **3 objets** (`c01000010_20`/`eye_10`/`mouth
 (`_nie_explorer_import_error.log`, plus jamais avalées silencieusement) + bannière dans la barre
 de statut Blender.
 
-**Sous-jacent trouvé en même temps** : le submodule Git `tools/niers` (`.gitmodules` pointait
+**Sous-jacent trouvé en même temps** : le submodule Git `plugins/niers-blender` (`.gitmodules` pointait
 dessus, `https://github.com/The-RealBobi/G4_Blender.git`) avait été supprimé de l'index par erreur
 lors d'un commit de nettoyage (« license officiel », gitlink retiré sans que `.gitmodules` le
 soit) — le dossier n'existait plus du tout sur disque. Restauré au commit exact précédemment
 pinné (`7ac55b7`), **puis vendorisé** (2026-08-08, demande utilisatrice « ça ne doit pas être un
-submodule ou repo, ça doit être une partie claire de niers ») : `tools/niers` est désormais 24
+submodule ou repo, ça doit être une partie claire de niers ») : `plugins/niers-blender` est désormais 24
 fichiers réguliers versionnés dans l'historique de `niers` (plus de `.gitmodules`/gitlink), un
 clone de `niers` l'a directement, sans étape `git submodule update --init`. Licence amont absente
 (`license: null` côté API GitHub) — republication confirmée autorisée par le propriétaire du
-projet (cf. `tools/niers/NIERS_VENDORING_NOTE.md`). `ensure_niers_blender_addon` (clone Git à la
+projet (cf. `plugins/niers-blender/NIERS_VENDORING_NOTE.md`). `ensure_niers_blender_addon` (clone Git à la
 volée) reste comme filet de sécurité pour le seul cas où `game_dir` n'est PAS un checkout de ce
 repo (build distribué de `nie-explorer` pointé sur une simple install Steam).
 
@@ -418,12 +418,12 @@ alors l'addon actif ET connaît déjà le dépôt de données niers. **Vérifié
 `NIE_EXPLORER_ADDON_INSTALL_OK`), ET un Blender relancé à froid ensuite confirme
 `hasattr(bpy.ops.import_scene, "level5_g4") == True` + `raw_data_root` toujours correct après
 rechargement des préférences — la persistance est réelle, pas supposée. `zip_addon_dir` (crate
-`zip`, nouvelle dépendance) zippe `tools/niers` en préservant le nom de dossier comme racine de
+`zip`, nouvelle dépendance) zippe `plugins/niers-blender` en préservant le nom de dossier comme racine de
 l'archive (exigé par `addon_install` pour une extension multi-fichiers), exclut `.git`.
 
 ### 2.5 Panneau `niers_bridge` — recherche + import de fichiers DEPUIS Blender ✅ (2026-08-08)
 
-Nouveau fichier `tools/niers/niers_bridge.py` (View3D > Sidebar > Level-5 > « niers — Recherche de
+Nouveau fichier `plugins/niers-blender/niers_bridge.py` (View3D > Sidebar > Level-5 > « niers — Recherche de
 fichiers ») : cherche dans le VFS du jeu par sous-chaîne (`niers vfs find --json`, **aucune**
 dépendance au miroir wiki contrairement à `chara`/`waza` — marche sur n'importe quelle install),
 affiche les résultats dans une liste (chemin, taille, CPK conteneur), et importe directement le
@@ -432,10 +432,10 @@ résultat sélectionné dans la scène si c'est un modèle (`.g4md`/`.g4pkm`) vi
 
 Le `-j/--json` de `niers vfs find` **référençait déjà ce fichier avant qu'il n'existe DANS CE
 CHECKOUT** (doc-comment Rust de `nie-cli` : « pour consommation programmatique (ex.
-`niers_bridge.py` de l'addon Blender `tools/niers`) »). **Correction honnête (trouvé après coup en
+`niers_bridge.py` de l'addon Blender `plugins/niers-blender`) »). **Correction honnête (trouvé après coup en
 inspectant l'archive déjà publiée `niers-1.0.22.zip`, release GitHub v0.1.0)** : une PREMIÈRE
 version de `niers_bridge.py` avait réellement existé — contenu local non committé du submodule
-`tools/niers` supprimé par erreur (§2.4 ci-dessus, jamais dans l'historique du dépôt AMONT
+`plugins/niers-blender` supprimé par erreur (§2.4 ci-dessus, jamais dans l'historique du dépôt AMONT
 `The-RealBobi/G4_Blender`, ce qui reste exact — mais bien réel en local, un temps). Elle déléguait
 TOUT à `niers vfs chara`/`waza --json` (déjà existant, zéro logique de recherche en Python — plus
 strictement anti-doublon que la réécriture ci-dessous) mais appelait le même opérateur bogué que
@@ -470,7 +470,7 @@ extension Blender ») → 2 patterns appliqués, pas juste lus** :
   disproportionnée) faute de savoir qu'un manifeste **existait déjà** — validé via `blender
   --command extension validate/build` dans une session antérieure, perdu avec le submodule
   supprimé par erreur, mais récupérable dans l'archive déjà publiée (`niers-1.0.22.zip`, release
-  v0.1.0). **Restauré** (`tools/niers/blender_manifest.toml`, `version="1.1.0"`, permission
+  v0.1.0). **Restauré** (`plugins/niers-blender/blender_manifest.toml`, `version="1.1.0"`, permission
   `network` ajoutée pour azalee, `permissions.files` étendue au miroir SQLite) — coexiste avec le
   `bl_info` legacy (les deux formats peuvent cohabiter, Blender préfère le manifeste dès qu'il est
   présent). `paths_exclude_pattern` (PAS `paths_exclude_glob`, piège déjà documenté dans le
@@ -496,7 +496,7 @@ même résultat correct que le bouton `nie-explorer`, en autonome depuis Blender
 « **niers — G4 Blender Tools** » (auteur original Bobi préservé, mention niers ajoutée) ; les 2
 onglets de sidebar (`G4 Port` + `niers_bridge`), auparavant séparés sous « Level-5 »/pas d'onglet,
 sont unifiés sous un seul onglet **« niers »**. Le module Python (`ADDON_ID`/nom de dossier)
-reste `niers` — déjà correct, référencé partout côté Rust (`tools/niers/__init__.py`).
+reste `niers` — déjà correct, référencé partout côté Rust (`plugins/niers-blender/__init__.py`).
 
 **Connexion azalee (GraphQL + REST) + miroir SQLite** (demande utilisatrice « connecte-le à l'API
 REST et GraphQL d'azalee et au miroir SQLite ») : `niers_bridge.py` a un second onglet « 👤
@@ -762,7 +762,7 @@ sous-onglet **Live** (§4.3, câblé 2026-08-09) pour la lecture mémoire du pro
   entrées `.g4md`). Vérifié par un golden réel (`raw_cpk_glb_preview_en_process_sur_un_vrai_pack`,
   ouvre `data/packs/eaabb0359e96871a72ea9f86c5d3d10d.cpk` en direct, hors VFS, même modèle
   `c01000010` que le test VFS §2.3). Blender reste VFS-only (`open_in_blender` dépend de l'addon
-  `tools/niers` + `NIE_GAME_DIR`, pas juste de frères de fichiers) — non câblé pour un CPK ouvert
+  `plugins/niers-blender` + `NIE_GAME_DIR`, pas juste de frères de fichiers) — non câblé pour un CPK ouvert
   hors VFS.
 - **Barre de titre native** ✅ — `set_titlebar_theme(dark)` (nouvelle commande Tauri,
   `window_vibrancy::apply_mica`) appelée depuis `App.tsx` sur `resolvedTheme` (next-themes,

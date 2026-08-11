@@ -1,6 +1,6 @@
 ---
 name: niers-architecture
-description: Carte complète du projet niers et de l'écosystème IEVR — les 31 crates Rust une par une, les 8 paquets Bun, le portage C++ (cpp/), l'implémentation d'origine C# IECODE (src/), et comment ces quatre arbres se répondent. À charger pour savoir quelle crate ou quel paquet fait quoi, où chercher une fonctionnalité, quelle implémentation fait référence, ou avant de créer un nouveau composant.
+description: Carte complète du projet niers et de l'écosystème IEVR — les 34 crates Rust une par une, les 5 paquets Bun, le toolkit C++ (src/), l'implémentation d'origine C# IECODE (csharp/), et comment ces quatre arbres se répondent. À charger pour savoir quelle crate ou quel paquet fait quoi, où chercher une fonctionnalité, quelle implémentation fait référence, ou avant de créer un nouveau composant.
 ---
 
 # Architecture du projet niers
@@ -14,10 +14,10 @@ Rust citent leur source : `//! Port Rust de IECODE.Core/Formats/Level5/G4mdParse
 > Avant d'écrire un parseur ou de porter une famille, lancer l'agent **port-scout** : la
 > quasi-totalité est déjà faite quelque part.
 
-## Rust — 31 crates dans le workspace
+## Rust — 34 crates (32 compilées)
 
 Membres : `crates/forge/*`, `crates/engine/*`, `crates/tools/*`.
-`crates/archive/nie-engine` est **exclu** du build (référence en lecture seule).
+`crates/archive/*` (`nie-engine`, `nie-rs`) est **exclu** du build : référence RE en lecture seule.
 
 ### `crates/forge/` — produire le binaire (8)
 
@@ -53,7 +53,7 @@ Membres : `crates/forge/*`, `crates/engine/*`, `crates/tools/*`.
 | `nie-ffi` | Frontière C-ABI : expose la logique à Bun et aux autres langages |
 | `nie-wasm` | Bindings WebAssembly du savoir vérifié |
 
-### `crates/tools/` — outillage (7)
+### `crates/tools/` — outillage (8)
 
 | Crate | Rôle |
 |---|---|
@@ -64,8 +64,9 @@ Membres : `crates/forge/*`, `crates/engine/*`, `crates/tools/*`.
 | `nie-model-serve` | Serveur HTTP d'assemblage GLB (corps + face + uniforme) |
 | `nie-tasks` | Jobs asynchrones annulables avec progression |
 | `nie-editor` | Éditeur de scène 3D (Fyrox embarqué) |
+| `nie-bench` | Banc d'essai inter-langages des hot paths |
 
-## Bun — 8 paquets
+## Bun — 5 paquets
 
 | Paquet | Nom npm | Rôle |
 |---|---|---|
@@ -77,29 +78,30 @@ Membres : `crates/forge/*`, `crates/engine/*`, `crates/tools/*`.
 
 Détail des conventions, des catalogues de versions et des pièges : skill `niers-monorepo`.
 
-## C++ — `cpp/`
+## C++ — `src/`
 
-Portage antérieur au Rust, toujours vivant. 241 fichiers dans `src/`, 261 en-têtes.
+Portage antérieur au Rust, toujours vivant. 343 fichiers dans `src/`, 253 en-têtes.
 
-Sous-systèmes : `formats`, `converters`, `compression`, `crypto`, `vfs`, `archive`, `io`,
-`memory`, `db`, `engine`, `game`, `gamedata`, `render`, `scripting`, `services`, `steam`,
-`modding`, `viola`, `wasm`, `nie_rs`.
+Sous-systèmes : `archive`, `compression`, `converters`, `crypto`, `db`, `formats`, `gamedata`,
+`io`, `modding`, `render`, `services`, `vfs`, `viola` — plus `engine/` et `game/`, qui ont leur
+propre target (`iecode_engine`, `iecode_game`).
 
 `src/decomp/` est **la voie B de la forge** : `functions/*.c` annotés `/* @nie 0x… */`, compilés
 par MSVC 14.44 en `/O2 /GS- /Gy /Zl`, dont les octets doivent coïncider avec ceux du jeu.
 
-`src/nie_rs/` contient du Rust généré par transpilation — beaucoup de fichiers y sont des
-**emplacements réservés** déclarés `mod` dans `lib.rs`. Leur présence ne prouve aucun portage.
+`crates/archive/nie-rs/` contient du Rust généré par transpilation — beaucoup
+de fichiers y sont des **emplacements réservés** déclarés `mod` dans `lib.rs`. Leur présence ne
+prouve aucun portage, et le crate n'est compilé par personne.
 
-## C# — `src/` (IECODE)
+## C# — `csharp/` (IECODE)
 
 **L'implémentation d'origine**, et la référence que citent les ports.
 
 | Projet | Taille |
 |---|---|
-| `csharp/IECODE.Core/` | 178 fichiers, 36 713 lignes |
-| `csharp/IECODE.CLI/` | 45 fichiers, 7 973 lignes |
-| `csharp/IECODE.Core.Tests/` | 28 fichiers, 3 935 lignes |
+| `csharp/IECODE.Core/` | 169 fichiers, 35 154 lignes |
+| `csharp/IECODE.CLI/` | 39 fichiers, 7 901 lignes |
+| `csharp/IECODE.Core.Tests/` | 22 fichiers, 3 867 lignes |
 
 Chemins utiles : `IECODE.Core/Formats/Level5/` (G4*, NXTCH, MEVBIN),
 `IECODE.Core/Formats/Menu/` (OBJBIN, G4PKM). Solution `IECODE.sln` à la racine.
