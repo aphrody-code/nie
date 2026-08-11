@@ -50,7 +50,7 @@ construites (Rust release, C++ Release, C# JIT et NativeAOT).
 
 | Noyau | Rust | C++ | C# JIT | C# AOT |
 |---|---|---|---|---|
-| **CRC32** (slicing-by-8, 64 Mio) | 2 312 Mio/s | **3 243 Mio/s** | 606¹ | 600¹ |
+| **CRC32** (slicing-by-8, 64 Mio) | 2 312 Mio/s | **2 943 Mio/s**³ | 606¹ | 600¹ |
 | **CRILAYLA** (blob réel 14,6 Kio → 28,9 Kio) | 626 Mio/s | 553 Mio/s | **817 Mio/s** | 711 Mio/s |
 | **G4TX → PNG** (2640×1200, BC7) | **659 ms** | n/a² | 7 169 ms | — |
 | **Qualité G4TX → PNG** | référence | n/a² | **identique** (100 % des pixels, PSNR ∞) | — |
@@ -58,6 +58,9 @@ construites (Rust release, C++ Release, C# JIT et NativeAOT).
 ¹ `Crc32.cs` est en table simple octet-par-octet, pas en slicing — c'est l'algorithme qui est
 mesuré, pas le langage. ² L'encodage PNG C++ passe par DirectXTex ; le chemin existe mais
 n'a pas de commande équivalente à `niers decode` pour être chronométré de bout en bout.
+³ Chiffre du **toolkit** (`src/crypto/crc32.cpp`), passé de slicing-by-4 à by-8 : 1 783 →
+2 943 Mio/s, +65 %, checksum inchangé, 490 tests GTest verts. Le harnais atteint 3 165 avec
+la même boucle : les 7 % d'écart sont les flags (`/arch:AVX2` contre l'unity build `/O2`).
 
 **Gagnant par noyau** : C++ sur le hachage table-driven (×1,40 sur Rust), C# sur la
 décompression LZ (×1,31 sur Rust, ×1,48 sur C++), Rust sur le pipeline complet (×10,9 sur C#).
@@ -101,5 +104,5 @@ vectorisation contre-productive sur une chaîne de dépendances. Ne pas l'active
      garde l'octet courant en registre, le Rust le relit du tampon à chaque groupe) et au
      déroulage des trois premiers octets de copie. La copie longue, elle, est déjà réglée ;
    - `Crc32.cs` : slicing-by-8 (×4 attendu) si l'outillage C# reste sur ce chemin ;
-   - `src/crypto/crc32.cpp` : passer de by-4 à by-8 (+70 % mesuré) tant que le C++ l'utilise ;
+   - ~~`src/crypto/crc32.cpp` en by-8~~ — **fait**, +65 % ;
    - encodage PNG Rust : viser la taille du C# sans en payer le temps (niveau de compression).
