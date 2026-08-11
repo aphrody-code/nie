@@ -26,7 +26,7 @@ bench/cs/bin/Release/net10.0/nie-bench-cs.exe crilayla bench/data/sample.crilayl
 | Noyau | Rust | C++ | C# | Écart |
 |---|---|---|---|---|
 | **CRC32** (slicing-by-8, 64 Mio) | 2 400 Mio/s | **3 070 Mio/s** | 600 Mio/s¹ | C++ ×1,28 sur Rust |
-| **CRILAYLA** (blob réel 14,6 Kio → 28,9 Kio) | 528 Mio/s | 546 Mio/s | **795 Mio/s** | C# ×1,45 sur C++ |
+| **CRILAYLA** (blob réel 14,6 Kio → 28,9 Kio) | 581 Mio/s | 553 Mio/s | **820 Mio/s** | C# ×1,41 sur Rust |
 | **G4TX → PNG** (2640×1200, BC7) | **659 ms** | n/a² | 7 169 ms | Rust ×10,9 sur C# |
 | **Qualité G4TX → PNG** | référence | n/a² | **identique** | 100 % des pixels, PSNR ∞ |
 
@@ -60,7 +60,9 @@ vectorisation contre-productive sur une chaîne de dépendances. Ne pas l'active
 2. **On porte des algorithmes, pas des langages.** Chaque écart mesuré est d'abord un écart
    d'implémentation ; le porter coûte quelques dizaines de lignes contre des milliers.
 3. **Chantiers ouverts, chiffrés** :
-   - CRILAYLA Rust : porter l'approche du C# (+50 % attendu sur l'extraction, hot path du VFS) ;
+   - CRILAYLA Rust : reste ×1,41 derrière le C#, dont l'écart tient au lecteur de bits (le C#
+     garde l'octet courant en registre, le Rust le relit du tampon à chaque groupe) et au
+     déroulage des trois premiers octets de copie. La copie longue, elle, est déjà réglée ;
    - `Crc32.cs` : slicing-by-8 (×4 attendu) si l'outillage C# reste sur ce chemin ;
    - `src/crypto/crc32.cpp` : passer de by-4 à by-8 (+70 % mesuré) tant que le C++ l'utilise ;
    - encodage PNG Rust : viser la taille du C# sans en payer le temps (niveau de compression).
