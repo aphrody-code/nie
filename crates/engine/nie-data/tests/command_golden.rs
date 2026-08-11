@@ -50,6 +50,8 @@
 //! - var\[0\] = -1963241620 → cmd_action_id = 0x8AFB4F6C
 //! - var\[1\] = -500396671 → func_hash = 0xE22C8D81
 
+mod common;
+
 extern crate std;
 
 use nie_data::command::{
@@ -369,23 +371,25 @@ fn chara_cmd_common_list_beg_ignore() {
 // ─── Tests sur fichiers réels (skip silencieux si absents) ────────────────────
 
 const REAL_SOCCER_ACTION: &str =
-    "/home/ubuntu/niers/data/common/gamedata/command/soccer_cmd_action_0.07.70.cfg.bin.json";
+    "command/soccer_cmd_action_0.07.70.cfg.bin.json";
 const REAL_SOCCER_EVENT: &str =
-    "/home/ubuntu/niers/data/common/gamedata/command/soccer_cmd_event_0.07.70.cfg.bin.json";
+    "command/soccer_cmd_event_0.07.70.cfg.bin.json";
 const REAL_RPG_ACTION: &str =
-    "/home/ubuntu/niers/data/common/gamedata/command/rpg_cmd_action_1.03.53.00.cfg.bin.json";
+    "command/rpg_cmd_action_1.03.53.00.cfg.bin.json";
 const REAL_RPG_EVENT: &str =
-    "/home/ubuntu/niers/data/common/gamedata/command/rpg_cmd_event_1.02.75.00.cfg.bin.json";
+    "command/rpg_cmd_event_1.02.75.00.cfg.bin.json";
 const REAL_COMMON: &str =
-    "/home/ubuntu/niers/data/common/gamedata/command/chara_cmd_event_common_0.00.00.cfg.bin.json";
+    "command/chara_cmd_event_common_0.00.00.cfg.bin.json";
 
 fn load_json(path: &str) -> Option<serde_json::Value> {
-    if !std::path::Path::new(path).exists() {
+    let path = common::chemin(path)?;
+    if !path.is_file() {
+        eprintln!("skip : {} absent du corpus", path.display());
         return None;
     }
-    let content = std::fs::read_to_string(path)
-        .unwrap_or_else(|e| panic!("Impossible de lire {path}: {e}"));
-    Some(serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide {path}: {e}")))
+    let content = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", path.display()));
+    Some(serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide {}: {e}", path.display())))
 }
 
 // — soccer_cmd_action —

@@ -1,21 +1,25 @@
 #![allow(clippy::pedantic)]
 //! Tests golden `post::delivery` — valeurs réelles tirées de :
-//! `/home/ubuntu/niers/data/common/gamedata/post/delivery_config_1.03.63.00.cfg.bin.json`
+//! `post/delivery_config_1.03.63.00.cfg.bin.json`
 //!
 //! Layout `lists` : 4 listes (contenus, livraisons, codes, données de mot de passe).
+
+mod common;
 
 use nie_data::hash::HashId;
 use nie_data::post::{parse_delivery_config, DeliveryConfig};
 
 const REAL_PATH: &str =
-    "/home/ubuntu/niers/data/common/gamedata/post/delivery_config_1.03.63.00.cfg.bin.json";
+    "post/delivery_config_1.03.63.00.cfg.bin.json";
 
 fn load_real() -> Option<DeliveryConfig> {
-    if !std::path::Path::new(REAL_PATH).exists() {
+    let chemin_abs = common::chemin(REAL_PATH)?;
+    if !chemin_abs.is_file() {
+        eprintln!("skip : {} absent du corpus", chemin_abs.display());
         return None;
     }
-    let content = std::fs::read_to_string(REAL_PATH)
-        .unwrap_or_else(|e| panic!("Impossible de lire {REAL_PATH}: {e}"));
+    let content = std::fs::read_to_string(&chemin_abs)
+        .unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", chemin_abs.display()));
     let root: serde_json::Value =
         serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide: {e}"));
     Some(parse_delivery_config(&root))

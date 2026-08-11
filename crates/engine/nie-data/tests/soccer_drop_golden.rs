@@ -9,19 +9,23 @@
 //! la jointure de taux d'esprit ; le reste des 12 listes est nouveau (famille jusqu'ici non
 //! couverte par nie-data). Chaque valeur assérée est copiée octet pour octet du dump réel.
 
+mod common;
+
 use nie_data::hash::HashId;
 use nie_data::soccer_drop::{ItemDropData, parse_soccer_drop_config};
 
-const BASE: &str = "/home/ubuntu/niers/data/common/gamedata/soccer";
+const BASE: &str = "soccer";
 
 fn load_json(filename: &str) -> Option<serde_json::Value> {
     let path = std::format!("{BASE}/{filename}");
-    if !std::path::Path::new(&path).exists() {
+    let path = common::chemin(&path)?;
+    if !path.is_file() {
+        eprintln!("skip : {} absent du corpus", path.display());
         return None;
     }
     let content = std::fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("Impossible de lire {path}: {e}"));
-    Some(serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide {path}: {e}")))
+        .unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", path.display()));
+    Some(serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide {}: {e}", path.display())))
 }
 
 const V5: &str = "soccer_drop_config_5.00.27.00.cfg.bin.json";

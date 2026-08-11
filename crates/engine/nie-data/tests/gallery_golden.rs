@@ -1,6 +1,6 @@
 #![allow(clippy::pedantic)]
 //! Tests golden `gallery` — valeurs réelles tirées de :
-//! `/home/ubuntu/niers/data/common/gamedata/gallery/gallery_config_1.03.71.00.cfg.bin.json`
+//! `gallery/gallery_config_1.03.71.00.cfg.bin.json`
 //!
 //! ## Vérifications champ par champ (fichier → valeur confirmée)
 //!
@@ -34,6 +34,8 @@
 //! - `imgPath`      = `"img_other_promotion_0180"`
 //! - `flgNo`        = 355
 //! - `openCond`     = `"\x01GALLERY_INFO"` (marqueur interne, pas de base64)
+
+mod common;
 
 use nie_data::gallery::{parse_gallery_config, GalleryConfig, GalleryInfo};
 use nie_data::hash::HashId;
@@ -189,14 +191,16 @@ fn fixture_liste_manquante_renvoie_vide() {
 // ─── Test sur le vrai fichier (skip si absent du VPS) ────────────────────────
 
 const REAL_PATH: &str =
-    "/home/ubuntu/niers/data/common/gamedata/gallery/gallery_config_1.03.71.00.cfg.bin.json";
+    "gallery/gallery_config_1.03.71.00.cfg.bin.json";
 
 fn load_real() -> Option<GalleryConfig> {
-    if !std::path::Path::new(REAL_PATH).exists() {
+    let chemin_abs = common::chemin(REAL_PATH)?;
+    if !chemin_abs.is_file() {
+        eprintln!("skip : {} absent du corpus", chemin_abs.display());
         return None;
     }
-    let content = std::fs::read_to_string(REAL_PATH)
-        .unwrap_or_else(|e| panic!("Impossible de lire {REAL_PATH}: {e}"));
+    let content = std::fs::read_to_string(&chemin_abs)
+        .unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", chemin_abs.display()));
     let root: serde_json::Value =
         serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide: {e}"));
     Some(parse_gallery_config(&root))
@@ -314,7 +318,7 @@ fn real_file_flg_no_gap_48_absent() {
 // ─── Condition d'ouverture décodée (wiring cond → gallery, 2026-06-23) ───────────
 // Chaîne end-to-end sur le vrai dump : entrée gallery → openCond (blob) → UnlockCondition.
 const GALLERY_PATH: &str =
-    "/home/ubuntu/niers/data/common/gamedata/gallery/gallery_config_1.03.71.00.cfg.bin.json";
+    "gallery/gallery_config_1.03.71.00.cfg.bin.json";
 
 #[test]
 fn open_cond_decode_story_episodes_reels() {

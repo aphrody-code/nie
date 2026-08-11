@@ -3,17 +3,21 @@
 //! (skip silencieux si absents). Les items `DATA_ITEM` ont une condition `var[3]` décodée via le
 //! système cond/unlock_condition. Dispatch typé par SUFFIXE `_trigger`.
 
+mod common;
+
 use nie_data::hash::HashId;
 use nie_data::trigger::parse_trigger;
 use nie_data::unlock_condition::UnlockType;
 
 fn load(rel: &str) -> Option<serde_json::Value> {
-    let p = std::format!("/home/ubuntu/niers/data/common/gamedata/{rel}");
-    if !std::path::Path::new(&p).exists() {
+    let p = rel.to_string();
+    let p = common::chemin(&p)?;
+    if !p.is_file() {
+        eprintln!("skip : {} absent du corpus", p.display());
         return None;
     }
-    let c = std::fs::read_to_string(&p).unwrap_or_else(|e| panic!("lecture {p}: {e}"));
-    Some(serde_json::from_str(&c).unwrap_or_else(|e| panic!("JSON {p}: {e}")))
+    let c = std::fs::read_to_string(&p).unwrap_or_else(|e| panic!("lecture {}: {e}", p.display()));
+    Some(serde_json::from_str(&c).unwrap_or_else(|e| panic!("JSON {}: {e}", p.display())))
 }
 
 #[test]

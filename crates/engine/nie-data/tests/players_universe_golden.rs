@@ -9,6 +9,8 @@
 //! 10 listes (config) + 1 liste (event). Les valeurs ci-dessous sont les **vraies** lignes
 //! du dump (premières/dernières entrées), embarquées en fixture.
 
+mod common;
+
 use nie_data::hash::HashId;
 use nie_data::players_universe::{
     parse_players_universe_config, parse_players_universe_event_config, PlayersUniverseConfig,
@@ -328,7 +330,7 @@ fn event_effets_resultat() {
 // ════════════════════════════════════════════════════════════════════════════════
 
 const REAL_PATH: &str =
-    "/home/ubuntu/niers/data/common/gamedata/players_universe/players_universe_config_1.03.59.00.cfg.bin.json";
+    "players_universe/players_universe_config_1.03.59.00.cfg.bin.json";
 
 #[test]
 fn comptes_listes_vrai_dump() {

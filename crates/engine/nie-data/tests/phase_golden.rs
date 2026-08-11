@@ -53,6 +53,8 @@
 //!   (185538439 & 0xFFFF_FFFF = 0x0B0F1787)
 //! - PHASE_TITLE_CFG_REF_TEX_INFO_0.var\[0\] = "0" → `tex_index` = 0
 
+mod common;
+
 extern crate std;
 
 use nie_data::hash::HashId;
@@ -76,12 +78,14 @@ const TITLE_HASH_C01: HashId = HashId(0x0B0F_1787);
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 fn load_json(path: &str) -> Option<serde_json::Value> {
-    if !std::path::Path::new(path).exists() {
+    let path = common::chemin(path)?;
+    if !path.is_file() {
+        eprintln!("skip : {} absent du corpus", path.display());
         return None;
     }
-    let content = std::fs::read_to_string(path)
-        .unwrap_or_else(|e| panic!("Impossible de lire {path}: {e}"));
-    Some(serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide {path}: {e}")))
+    let content = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", path.display()));
+    Some(serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide {}: {e}", path.display())))
 }
 
 // ─── Fixtures inline ─────────────────────────────────────────────────────────
@@ -414,17 +418,17 @@ fn fixture_title_config_find_chapter() {
 // ─── Chemins des fichiers réels ───────────────────────────────────────────────
 
 const REAL_C21: &str =
-    "/home/ubuntu/niers/data/common/gamedata/phase/phase_set_c21_0.00.00.cfg.bin.json";
+    "phase/phase_set_c21_0.00.00.cfg.bin.json";
 const REAL_C91: &str =
-    "/home/ubuntu/niers/data/common/gamedata/phase/phase_set_c91_0.00.00.cfg.bin.json";
+    "phase/phase_set_c91_0.00.00.cfg.bin.json";
 const REAL_C97: &str =
-    "/home/ubuntu/niers/data/common/gamedata/phase/phase_set_c97_0.00.00.cfg.bin.json";
+    "phase/phase_set_c97_0.00.00.cfg.bin.json";
 const REAL_C01: &str =
-    "/home/ubuntu/niers/data/common/gamedata/phase/phase_set_c01_0.00.00.cfg.bin.json";
+    "phase/phase_set_c01_0.00.00.cfg.bin.json";
 const REAL_LAYOUT_C01: &str =
-    "/home/ubuntu/niers/data/common/gamedata/phase/phase_set_layout_c01_0.00.00.cfg.bin.json";
+    "phase/phase_set_layout_c01_0.00.00.cfg.bin.json";
 const REAL_TITLE_CFG: &str =
-    "/home/ubuntu/niers/data/common/gamedata/phase/phase_title_config_0.08.56.cfg.bin.json";
+    "phase/phase_title_config_0.08.56.cfg.bin.json";
 
 // ─── Tests sur fichiers réels (skip silencieux si absents) ────────────────────
 

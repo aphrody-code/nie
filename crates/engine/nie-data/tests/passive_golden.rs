@@ -1,10 +1,12 @@
 #![allow(clippy::pedantic)]
 //! Tests golden `passive` — noeud réel `PASSIVE_SKILL_INFO_0` tiré de :
-//! `/home/ubuntu/niers/data/common/gamedata/skill/passive_skill_config_0.08.86.cfg.bin.json`.
+//! `skill/passive_skill_config_0.08.86.cfg.bin.json`.
 //!
 //! PASSIVE_SKILL_INFO_0 (6 vars Int) : `[975948532, 1105141741, 0, 0, 6, 0]`
 //! → passiveId=0x3A2BCAF4, effectId=0x41DF1FED, nameId=0x00000000, descId=0x00000000, rarity=6.
 //! PASSIVE_SKILL_EFFECT : Variables[0]=hash (effectId), suivantes=params (Int/Float).
+
+mod common;
 
 use nie_data::hash::HashId;
 use nie_data::passive::{

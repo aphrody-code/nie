@@ -1,6 +1,6 @@
 #![allow(clippy::pedantic)]
 //! Tests golden `light` — valeurs tirées de :
-//! `/home/ubuntu/niers/data/common/gamedata/light/light_overwrite_config_1.03.21.00.cfg.bin.json`
+//! `light/light_overwrite_config_1.03.21.00.cfg.bin.json`
 //!
 //! Vérifications champ par champ (lignes JSON de référence) :
 //! - PARAM_0 (l.7-26)  : var[0]=Int("7531368"), var[1]=Int("400")
@@ -13,6 +13,8 @@
 //! - REF_PARAM_1 (l.351-362): var[0]=Int("9"), var[1]=Int("9")
 //! - INFO_2 (l.363-372) : var[0]=Int("-614281272")
 //! - REF_PARAM_2 (l.373-392): var[0]=Int("18"), var[1]=Int("2")
+
+mod common;
 
 extern crate std;
 
@@ -209,15 +211,17 @@ fn fixture_find_info() {
 
 // ─── Tests sur fichier réel (skip silencieux si absent) ───────────────────────
 
-const REAL_LIGHT: &str = "/home/ubuntu/niers/data/common/gamedata/light/light_overwrite_config_1.03.21.00.cfg.bin.json";
+const REAL_LIGHT: &str = "light/light_overwrite_config_1.03.21.00.cfg.bin.json";
 
 fn load_json(path: &str) -> Option<serde_json::Value> {
-    if !std::path::Path::new(path).exists() {
+    let path = common::chemin(path)?;
+    if !path.is_file() {
+        eprintln!("skip : {} absent du corpus", path.display());
         return None;
     }
-    let s = std::fs::read_to_string(path)
-        .unwrap_or_else(|e| panic!("Impossible de lire {path}: {e}"));
-    Some(serde_json::from_str(&s).unwrap_or_else(|e| panic!("JSON invalide {path}: {e}")))
+    let s = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", path.display()));
+    Some(serde_json::from_str(&s).unwrap_or_else(|e| panic!("JSON invalide {}: {e}", path.display())))
 }
 
 #[test]

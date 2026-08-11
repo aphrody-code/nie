@@ -1,7 +1,7 @@
 //! Diagnostic des transforms G4PKM pour plusieurs objets de 100_mainmenu.
 
 fn main() -> anyhow::Result<()> {
-    let game_data = std::path::PathBuf::from("/home/ubuntu/.local/share/Steam/iecode/inazuma/data");
+    let game_data = nie_formats::vfs::resolve_game_dir().join("data");
 
     let mut vfs = nie_formats::vfs::Vfs::new();
     vfs.init(&game_data)?;

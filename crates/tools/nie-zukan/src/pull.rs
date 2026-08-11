@@ -34,8 +34,8 @@ pub struct PullConfig {
 impl Default for PullConfig {
     fn default() -> Self {
         Self {
-            cache_root: PathBuf::from("/home/ubuntu/niers/var/zukan"),
-            output_root: PathBuf::from("/home/ubuntu/niers/var/zukan"),
+            cache_root: PathBuf::from("var/zukan"),
+            output_root: PathBuf::from("var/zukan"),
             langs: Lang::all().to_vec(),
             chara_param_limit: 0,
         }

@@ -1,6 +1,6 @@
 #![allow(clippy::pedantic)]
 //! Tests golden `scene_archive` — valeurs réelles tirées de :
-//! `/home/ubuntu/niers/data/common/gamedata/scene_archive/scene_archive_config_4.00.18.00.cfg.bin.json`
+//! `scene_archive/scene_archive_config_4.00.18.00.cfg.bin.json`
 //!
 //! ## Vérifications champ par champ (fichier → valeur confirmée)
 //!
@@ -41,6 +41,8 @@
 //! - `category`    = `2`
 //! - `event_id_text` = `"ev20_00090"`
 //! - `thumbnail_texture_name` = `"0x02416996"` → `HashId(0x02416996)`
+
+mod common;
 
 use nie_data::hash::HashId;
 use nie_data::scene_archive::{parse_scene_archive_config, SceneArchiveConfig, SceneArchiveData};
@@ -326,14 +328,16 @@ fn fixture_listes_absentes_renvoient_vide() {
 // ─── Tests sur le vrai fichier (skip silencieux si absent du VPS) ─────────────
 
 const REAL_PATH: &str =
-    "/home/ubuntu/niers/data/common/gamedata/scene_archive/scene_archive_config_4.00.18.00.cfg.bin.json";
+    "scene_archive/scene_archive_config_4.00.18.00.cfg.bin.json";
 
 fn load_real() -> Option<SceneArchiveConfig> {
-    if !std::path::Path::new(REAL_PATH).exists() {
+    let chemin_abs = common::chemin(REAL_PATH)?;
+    if !chemin_abs.is_file() {
+        eprintln!("skip : {} absent du corpus", chemin_abs.display());
         return None;
     }
-    let content = std::fs::read_to_string(REAL_PATH)
-        .unwrap_or_else(|e| panic!("Impossible de lire {REAL_PATH}: {e}"));
+    let content = std::fs::read_to_string(&chemin_abs)
+        .unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", chemin_abs.display()));
     let root: serde_json::Value =
         serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide: {e}"));
     Some(parse_scene_archive_config(&root))

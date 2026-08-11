@@ -1,13 +1,15 @@
 #![allow(clippy::pedantic)]
 //! Golden `add_model` — `data/common/gamedata/character/add_model_config.cfg.bin.json`.
 
+mod common;
+
 extern crate std;
 
 use nie_data::add_model::parse_add_model_config;
 use nie_data::hash::HashId;
 use serde_json::json;
 
-const REAL: &str = "/home/ubuntu/niers/data/common/gamedata/character/add_model_config.cfg.bin.json";
+const REAL: &str = "character/add_model_config.cfg.bin.json";
 
 fn load(path: &str) -> Option<serde_json::Value> {
     std::path::Path::new(path)

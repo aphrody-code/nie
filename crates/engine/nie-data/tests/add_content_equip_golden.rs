@@ -1,6 +1,8 @@
 #![allow(clippy::pedantic)]
 //! Golden `add_content_equip` — `data/common/gamedata/system/add_content_equip_config.cfg.bin.json`.
 
+mod common;
+
 extern crate std;
 
 use nie_data::add_content_equip::parse_add_content_equip_config;
@@ -8,7 +10,7 @@ use nie_data::hash::HashId;
 use serde_json::json;
 
 const REAL: &str =
-    "/home/ubuntu/niers/data/common/gamedata/system/add_content_equip_config.cfg.bin.json";
+    "system/add_content_equip_config.cfg.bin.json";
 
 fn load(path: &str) -> Option<serde_json::Value> {
     std::path::Path::new(path)

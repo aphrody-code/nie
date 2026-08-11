@@ -1,6 +1,6 @@
 #![allow(clippy::pedantic)]
 //! Tests golden `boost_grp` — valeurs réelles tirées de :
-//! `/home/ubuntu/niers/data/common/gamedata/boost_grp/boost_player_group_config_0.00.00.cfg.bin.json`
+//! `boost_grp/boost_player_group_config_0.00.00.cfg.bin.json`
 //!
 //! ## Vérifications champ par champ
 //!
@@ -36,6 +36,8 @@
 //!   (JSON lignes 250–263, `BOOST_PLAYER_GRP_INFO_REF_CONFIG_0.variables[0].value = "0"`)
 //! - var\[1\] = 5 → config_count = 5
 //!   (JSON ligne 258, `variables[1].value = "5"`)
+
+mod common;
 
 extern crate std;
 
@@ -323,15 +325,17 @@ fn list_beg_ignore() {
 
 // ─── Tests sur fichier réel (skip silencieux si absent) ───────────────────────
 
-const REAL_FILE: &str = "/home/ubuntu/niers/data/common/gamedata/boost_grp/boost_player_group_config_0.00.00.cfg.bin.json";
+const REAL_FILE: &str = "boost_grp/boost_player_group_config_0.00.00.cfg.bin.json";
 
 fn load_json(path: &str) -> Option<serde_json::Value> {
-    if !std::path::Path::new(path).exists() {
+    let path = common::chemin(path)?;
+    if !path.is_file() {
+        eprintln!("skip : {} absent du corpus", path.display());
         return None;
     }
-    let content = std::fs::read_to_string(path)
-        .unwrap_or_else(|e| panic!("Impossible de lire {path}: {e}"));
-    Some(serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide {path}: {e}")))
+    let content = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", path.display()));
+    Some(serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide {}: {e}", path.display())))
 }
 
 #[test]

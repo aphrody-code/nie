@@ -1,23 +1,27 @@
 #![allow(clippy::pedantic)]
 //! Tests golden `post::delivery_list` — valeurs réelles tirées de :
-//! `/home/ubuntu/niers/data/common/gamedata/post/delivery_list_config.cfg.bin.json`
+//! `post/delivery_list_config.cfg.bin.json`
 //!
 //! Layout `entries` : `DELIVERY_INFO_LIST_BEG_0` → 20 `DELIVERY_INFO_N` (10 vars chacun),
 //! chacun portant un sous-arbre `DELIVERY_INFO_DATA_LIST_BEG_N` → `DELIVERY_INFO_DATA_M`
 //! (3 vars). 74 contenus au total.
 
+mod common;
+
 use nie_data::hash::HashId;
 use nie_data::post::{parse_delivery_list_config, DeliveryListInfo};
 
 const REAL_PATH: &str =
-    "/home/ubuntu/niers/data/common/gamedata/post/delivery_list_config.cfg.bin.json";
+    "post/delivery_list_config.cfg.bin.json";
 
 fn load_real() -> Option<Vec<DeliveryListInfo>> {
-    if !std::path::Path::new(REAL_PATH).exists() {
+    let chemin_abs = common::chemin(REAL_PATH)?;
+    if !chemin_abs.is_file() {
+        eprintln!("skip : {} absent du corpus", chemin_abs.display());
         return None;
     }
-    let content = std::fs::read_to_string(REAL_PATH)
-        .unwrap_or_else(|e| panic!("Impossible de lire {REAL_PATH}: {e}"));
+    let content = std::fs::read_to_string(&chemin_abs)
+        .unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", chemin_abs.display()));
     let root: serde_json::Value =
         serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide: {e}"));
     Some(parse_delivery_list_config(&root))

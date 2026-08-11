@@ -44,6 +44,8 @@ use clap::Parser;
 use tracing::{error, info, warn};
 use wgpu::util::DeviceExt;
 
+mod gpu_select;
+
 use nie_formats::vfs::Vfs;
 use nie_formats::{cfgbin, font, g4pkm, g4tx, g4tx_decode, menu, objbin};
 // Primitives 2D pures centralisées dans nie-formats::raster2d (dédup Phase 2 ; le blend reste local, landmine #5).
@@ -51,9 +53,11 @@ use nie_formats::raster2d::{crop_rgba, scale_nearest};
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
 
-// Racine du jeu sur CE VPS (contient `data/cpk_list.cfg.bin` via symlinks vers le dépôt Steam).
-// (L'ancien défaut était un chemin WSL Windows mort → VFS « corrompu » → driver lua dégradé.)
-const GAME_DIR_DEFAUT: &str = "/home/ubuntu/niers";
+// Aucun défaut de racine de jeu n'est codé ici : `nie_formats::vfs::resolve_game_dir` la résout à
+// l'exécution (`NIE_GAME_DIR`, puis le répertoire courant et ses ancêtres portant
+// `data/cpk_list.cfg.bin`, puis le répertoire de l'exécutable). Un chemin de poste en dur rend le
+// binaire inutilisable partout ailleurs — et sur une installation Steam, la racine du jeu EST le
+// répertoire courant.
 
 /// Hôte GUI natif wgpu — pilier D1/C4 pixel-perfect pour niers.
 ///
@@ -62,9 +66,10 @@ const GAME_DIR_DEFAUT: &str = "/home/ubuntu/niers";
 #[derive(Parser, Debug)]
 #[command(name = "nie-game", version, about, long_about = None)]
 struct Cli {
-    /// Répertoire racine du jeu (contient `data/cpk_list.cfg.bin`).
-    #[arg(long, default_value = GAME_DIR_DEFAUT)]
-    game_dir: PathBuf,
+    /// Répertoire racine du jeu (contient `data/cpk_list.cfg.bin`). Résolu automatiquement s'il
+    /// est absent : `NIE_GAME_DIR`, sinon le répertoire courant ou l'un de ses ancêtres.
+    #[arg(long)]
+    game_dir: Option<PathBuf>,
 
     /// Chemin interne VFS de la texture `.g4tx` à rendre.
     /// Si absent, sélection automatique de la plus grande texture DDS parmi les
@@ -174,6 +179,13 @@ fn main() -> Result<()> {
         .init();
 
     let cli = Cli::parse();
+    // La racine du jeu vaut celle passée en argument, sinon celle que le contexte désigne. Elle
+    // est résolue une fois ici plutôt qu'à chaque site d'appel.
+    let game_dir = cli
+        .game_dir
+        .clone()
+        .unwrap_or_else(nie_formats::vfs::resolve_game_dir);
+    info!("racine du jeu : {}", game_dir.display());
 
     // Mode --menu : rendu d'un écran de menu complet → PNG (requiert --capture,
     // exclusif avec --window/--list). Traité avant la validation générique des modes.
@@ -186,9 +198,9 @@ fn main() -> Result<()> {
             let name = cli.screen_name.as_deref().unwrap_or(screen);
             // --runtime : génère le layout en exécutant les vrais scripts Lua (comme nie.exe).
             if cli.runtime {
-                return cmd_export_layout_runtime(&cli.game_dir, screen, name, out, cli.from_setting);
+                return cmd_export_layout_runtime(&game_dir, screen, name, out, cli.from_setting);
             }
-            return cmd_export_layout(&cli.game_dir, screen, name, out, cli.from_setting);
+            return cmd_export_layout(&game_dir, screen, name, out, cli.from_setting);
         }
         if cli.runtime {
             bail!("--runtime requiert --export-layout <JSON>");
@@ -196,19 +208,19 @@ fn main() -> Result<()> {
         // --menu --window : fenêtre PERSISTANTE affichant l'écran de menu composé
         // (reste ouverte jusqu'à fermeture). C'est le mode « voir le jeu » à l'écran.
         if cli.window {
-            return cmd_menu_window(&cli.game_dir, screen);
+            return cmd_menu_window(&game_dir, screen);
         }
         let png_out = cli
             .capture
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("--menu requiert --capture <PNG> (ou --window)"))?;
         if cli.gpu {
-            return cmd_menu_gpu(&cli.game_dir, screen, png_out, cli.verify);
+            return cmd_menu_gpu(&game_dir, screen, png_out, cli.verify);
         }
         if cli.verify {
             bail!("--verify requiert --gpu");
         }
-        return cmd_menu(&cli.game_dir, screen, png_out, cli.from_setting);
+        return cmd_menu(&game_dir, screen, png_out, cli.from_setting);
     }
 
     if cli.gpu || cli.verify {
@@ -217,22 +229,22 @@ fn main() -> Result<()> {
 
     // Diagnostic régions d'atlas (render-from-runtime) : indépendant des modes capture/window/list.
     if cli.g4tx_regions {
-        return cmd_g4tx_regions(&cli.game_dir, cli.g4tx.as_deref());
+        return cmd_g4tx_regions(&game_dir, cli.g4tx.as_deref());
     }
 
     // Render-from-runtime : rogne une région nommée → pixels réels (PNG si --capture).
     if let Some(ref region) = cli.g4tx_region {
-        return cmd_g4tx_region(&cli.game_dir, cli.g4tx.as_deref(), region, cli.capture.as_deref());
+        return cmd_g4tx_region(&game_dir, cli.g4tx.as_deref(), region, cli.capture.as_deref());
     }
 
     // Diagnostic C4/D1.d : rend du texte depuis l'atlas de police bitmap réel.
     if let Some(ref text) = cli.render_text {
-        return cmd_render_text(&cli.game_dir, text, cli.capture.as_deref());
+        return cmd_render_text(&game_dir, text, cli.capture.as_deref());
     }
 
     // Construit l'index region->g4tx depuis les atlas d'icônes de menu.
     if let Some(ref out) = cli.build_region_index {
-        return cmd_build_region_index(&cli.game_dir, out);
+        return cmd_build_region_index(&game_dir, out);
     }
 
     // Render-from-runtime final : compose un layout JSON en PNG.
@@ -241,7 +253,7 @@ fn main() -> Result<()> {
             .capture
             .as_deref()
             .ok_or_else(|| anyhow::anyhow!("--compose-layout requiert --capture <PNG>"))?;
-        return cmd_compose_layout(&cli.game_dir, json_in, png);
+        return cmd_compose_layout(&game_dir, json_in, png);
     }
 
     let n_modes = [cli.capture.is_some(), cli.window, cli.list.is_some()]
@@ -256,10 +268,10 @@ fn main() -> Result<()> {
     }
 
     if let Some(n) = cli.list {
-        return cmd_list(&cli.game_dir, n);
+        return cmd_list(&game_dir, n);
     }
 
-    let (vfs_path, width, height, rgba) = charger_texture(&cli.game_dir, cli.g4tx.as_deref())?;
+    let (vfs_path, width, height, rgba) = charger_texture(&game_dir, cli.g4tx.as_deref())?;
 
     info!(
         "texture chargée : {vfs_path}  {width}x{height}  {} octets RGBA8",
@@ -1205,25 +1217,32 @@ fn cmd_list(game_dir: &Path, n: usize) -> Result<()> {
 
 // ── Infrastructure wgpu partagée ─────────────────────────────────────────────
 
-/// Demande un adaptateur wgpu hors-écran (logiciel accepté).
+/// Demande un adaptateur wgpu hors-écran : matériel d'abord, logiciel en repli.
+///
+/// Le matériel est demandé en `HighPerformance` — sur un portable à double GPU, c'est ce qui
+/// désigne la carte discrète plutôt que l'iGPU. Sur un serveur sans GPU, la première tentative
+/// échoue et le rendu logiciel prend le relais ; c'est le chemin normal, pas une dégradation.
 fn demander_adaptateur_hors_ecran(instance: &wgpu::Instance) -> Result<wgpu::Adapter> {
-    // Tentative 1 : matériel
-    let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
-        power_preference: wgpu::PowerPreference::None,
-        compatible_surface: None,
-        force_fallback_adapter: false,
-    }));
-    if let Ok(a) = adapter {
-        return Ok(a);
+    if !gpu_select::fallback_impose() {
+        let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
+            power_preference: gpu_select::preference_puissance(),
+            compatible_surface: None,
+            force_fallback_adapter: false,
+        }));
+        if let Ok(a) = adapter {
+            info!("adaptateur retenu : {}", gpu_select::decrire(&a));
+            return Ok(a);
+        }
+        warn!("pas d'adaptateur matériel, tentative du rendu logiciel...");
     }
-    // Tentative 2 : rendu logiciel
-    warn!("pas d'adaptateur matériel, tentative du rendu logiciel...");
-    pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
+    let a = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
         power_preference: wgpu::PowerPreference::None,
         compatible_surface: None,
         force_fallback_adapter: true,
     }))
-    .context("aucun adaptateur wgpu (ni GPU ni logiciel)")
+    .context("aucun adaptateur wgpu (ni GPU ni logiciel)")?;
+    info!("adaptateur retenu : {}", gpu_select::decrire(&a));
+    Ok(a)
 }
 
 /// Crée un `(Device, Queue)` depuis un adaptateur.
@@ -1404,10 +1423,7 @@ fn creer_bind_group(
 fn cmd_capture(rgba: &[u8], width: u32, height: u32, png_out: &Path) -> Result<()> {
     info!("mode capture hors-écran → {}", png_out.display());
 
-    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-        backends: wgpu::Backends::all(),
-        ..wgpu::InstanceDescriptor::new_without_display_handle()
-    });
+    let instance = gpu_select::instance();
 
     let adapter = demander_adaptateur_hors_ecran(&instance)?;
     info!("adaptateur : {:?}", adapter.get_info());
@@ -1553,13 +1569,10 @@ fn cmd_window(rgba: &[u8], width: u32, height: u32, max_frames: u32) -> Result<(
         width, height, max_frames
     );
 
-    // Forcer Vulkan (lavapipe sous WSLg) : le backend GLES/Zink échoue à initialiser
-    // une surface Wayland sous WSLg (DRI2/ZINK → SIGSEGV). Le chemin hors-écran (Vulkan)
-    // marche déjà ; on impose donc Vulkan pour la fenêtre aussi.
-    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-        backends: wgpu::Backends::VULKAN,
-        ..wgpu::InstanceDescriptor::new_without_display_handle()
-    });
+    // Même sélection de backend que le chemin hors-écran : D3D12 sur Windows (natif, pilotes
+    // NVIDIA/AMD de première classe), Vulkan sur Linux — où GLES/Zink échoue à initialiser une
+    // surface Wayland sous WSLg (DRI2/ZINK → SIGSEGV).
+    let instance = gpu_select::instance();
 
     let event_loop = EventLoop::new().context("création EventLoop winit")?;
     event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
@@ -3413,10 +3426,7 @@ fn cmd_menu_gpu(game_dir: &Path, screen: &str, png_out: &Path, verify: bool) -> 
     info!("sprites chargés : {n_sprites}");
 
     // ── 2. Infrastructure wgpu ────────────────────────────────────────────────
-    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-        backends: wgpu::Backends::all(),
-        ..wgpu::InstanceDescriptor::new_without_display_handle()
-    });
+    let instance = gpu_select::instance();
     let adapter = demander_adaptateur_hors_ecran(&instance)?;
     info!("adaptateur GPU menu : {:?}", adapter.get_info());
     let (device, queue) = creer_device(&adapter)?;
@@ -3731,13 +3741,13 @@ impl AppFenetre {
 
         let adapter =
             pollster::block_on(self.instance.request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::default(),
+                power_preference: gpu_select::preference_puissance(),
                 compatible_surface: Some(&surface),
                 force_fallback_adapter: false,
             }))
             .context("aucun adaptateur wgpu compatible avec la surface")?;
 
-        info!("adaptateur fenêtré : {:?}", adapter.get_info());
+        info!("adaptateur fenêtré : {}", gpu_select::decrire(&adapter));
 
         let (device, queue) = creer_device(&adapter)?;
 

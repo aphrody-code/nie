@@ -35,6 +35,8 @@
 //! - var\[1\] = 580647011 → group_ref = group_id de GROUP_3
 //! - enfants: [] (pas de sous-groupe)
 
+mod common;
+
 extern crate std;
 
 use nie_data::dungeon::{
@@ -357,15 +359,17 @@ fn fixture_find_system_info() {
 // ─── Tests sur fichier réel (skip silencieux si absent) ───────────────────────
 
 const REAL_GIMMICK_NUM: &str =
-    "/home/ubuntu/niers/data/common/gamedata/dungeon/gimmick_system_num_config.cfg.bin.json";
+    "dungeon/gimmick_system_num_config.cfg.bin.json";
 
 fn load_json(path: &str) -> Option<serde_json::Value> {
-    if !std::path::Path::new(path).exists() {
+    let path = common::chemin(path)?;
+    if !path.is_file() {
+        eprintln!("skip : {} absent du corpus", path.display());
         return None;
     }
-    let content = std::fs::read_to_string(path)
-        .unwrap_or_else(|e| panic!("Impossible de lire {path}: {e}"));
-    Some(serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide {path}: {e}")))
+    let content = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", path.display()));
+    Some(serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide {}: {e}", path.display())))
 }
 
 #[test]

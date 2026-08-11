@@ -13,7 +13,7 @@ import sys
 import pefile
 from iced_x86 import Decoder, Formatter, FormatterSyntax
 
-EXE = "/home/ubuntu/.local/share/Steam/iecode/inazuma/nie_eacpatched.exe"
+from uemu import EXE  # même résolution de binaire que l'oracle d'émulation
 _pe = pefile.PE(EXE, fast_load=True)
 IMAGE_BASE = _pe.OPTIONAL_HEADER.ImageBase  # 0x140000000 attendu
 

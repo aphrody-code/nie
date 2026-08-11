@@ -1,23 +1,33 @@
-# Conventions build aphrody.
+# Conventions de build de niers.
+#
+# Le dépôt sert deux environnements : un serveur Linux sans GPU (indexation RE, forge, services
+# HTTP) et un poste Windows avec GPU (rendu, capture, jeu). Aucune section ci-dessous ne suppose
+# une machine particulière — ce qui dépend du matériel local se passe par variable
+# d'environnement, jamais par un réglage versionné.
+
 [build]
-# v0 mangling = symboles démanglés lisibles dans les stacktraces / outils RE.
-# (Fallback pour les cibles sans override ci-dessous.)
+# v0 mangling = symboles démanglés lisibles dans les stacktraces et les outils de RE.
 rustflags = ["-C", "symbol-mangling-version=v0"]
 
-# Cible native (build + RE sur ce VPS uniquement) :
-# - mold : linker ~5-10x plus rapide que GNU ld (les rustflags d'une cible REMPLACENT
-#   ceux de [build] → on ré-inclut symbol-mangling=v0).
-# - target-cpu=native : Haswell/AVX2+BMI+FMA → désassemblage iced-x86 / hashing / sqlite
-#   nettement plus rapides à l'exécution (niers ne tourne que sur ce VPS).
+# ── Linux natif ───────────────────────────────────────────────────────────────
+# Pas de `-fuse-ld=mold` ici : mold est un gain de confort sur une machine qui l'a installé, mais
+# un réglage versionné casse le build partout où il manque. L'activer localement :
+#   RUSTFLAGS="-C link-arg=-fuse-ld=mold" cargo build
+#
+# Pas de `target-cpu=native` non plus. Le code de la forge et du moteur doit produire les mêmes
+# octets d'une machine à l'autre : `native` laisse LLVM émettre de l'AVX-512 ou du FMA selon le
+# processeur qui compile, ce qui change l'ordre des opérations flottantes et casse les goldens
+# byte-exacts. `x86-64-v2` est le plancher retenu pour les binaires distribués (cf. package.sh).
 [target.x86_64-unknown-linux-gnu]
-rustflags = [
-  "-C", "symbol-mangling-version=v0",
-  "-C", "link-arg=-fuse-ld=mold",
-  "-C", "target-cpu=native",
-]
+rustflags = ["-C", "symbol-mangling-version=v0"]
 
-# Cible Windows (cross-compile mingw, pour le packaging distribuable) : linker mingw-w64,
-# PAS de target-cpu=native (binaires portables, pas réservés à ce VPS). Sert à `scripts/package.sh`.
+# ── Windows natif (MSVC) ──────────────────────────────────────────────────────
+# La cible de travail sur poste : c'est elle qui exerce D3D12 et les pilotes NVIDIA.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "symbol-mangling-version=v0"]
+
+# ── Windows cross-compilé depuis Linux (mingw) ────────────────────────────────
+# Sert au packaging distribuable produit depuis le serveur (`scripts/package.sh`).
 [target.x86_64-pc-windows-gnu]
 linker = "x86_64-w64-mingw32-gcc"
 rustflags = [
@@ -25,7 +35,8 @@ rustflags = [
   "-C", "link-arg=-fstack-protector",
 ]
 
-# Cible wasm : features WASM standardisées (phase 4) + SIMD128 (2-4x sur le vectoriel).
+# ── WebAssembly ───────────────────────────────────────────────────────────────
+# Features standardisées (phase 4) + SIMD128 (2 à 4× sur le vectoriel).
 [target.wasm32-unknown-unknown]
 rustflags = [
   "-C", "symbol-mangling-version=v0",

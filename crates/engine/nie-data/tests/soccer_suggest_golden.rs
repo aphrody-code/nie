@@ -1,14 +1,20 @@
 #![allow(clippy::pedantic)]
 //! Golden `soccer_suggest` — système de suggestions de match, sur le vrai dump.
+mod common;
+
 use nie_data::hash::HashId;
 use nie_data::soccer_suggest::parse_soccer_suggest_config;
 
 const PATH: &str =
-    "/home/ubuntu/niers/data/common/gamedata/soccer/soccer_suggest_config_0.01.92.cfg.bin.json";
+    "soccer/soccer_suggest_config_0.01.92.cfg.bin.json";
 
 fn load() -> Option<serde_json::Value> {
-    if !std::path::Path::new(PATH).exists() { return None; }
-    Some(serde_json::from_str(&std::fs::read_to_string(PATH).unwrap()).unwrap())
+    let chemin_abs = common::chemin(PATH)?;
+    if !chemin_abs.is_file() {
+        eprintln!("skip : {} absent du corpus", chemin_abs.display());
+        return None;
+    }
+    Some(serde_json::from_str(&std::fs::read_to_string(&chemin_abs).unwrap()).unwrap())
 }
 
 #[test]

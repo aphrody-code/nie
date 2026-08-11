@@ -61,6 +61,8 @@
 //! - var\[1\] = `"fbtl_st_0101"` → `id_str` = `"fbtl_st_0101"`
 //! - `difficulty_index` = 0
 
+mod common;
+
 extern crate std;
 
 use nie_data::hash::HashId;
@@ -516,16 +518,18 @@ fn game_config_plus_find_game() {
 
 // ─── Tests sur les vrais fichiers (skip silencieux si absents du VPS) ─────────
 
-const BASE: &str = "/home/ubuntu/niers/data/common/gamedata/soccer";
+const BASE: &str = "soccer";
 
 fn load_json(filename: &str) -> Option<serde_json::Value> {
     let path = std::format!("{BASE}/{filename}");
-    if !std::path::Path::new(&path).exists() {
+    let path = common::chemin(&path)?;
+    if !path.is_file() {
+        eprintln!("skip : {} absent du corpus", path.display());
         return None;
     }
     let content = std::fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("Impossible de lire {path}: {e}"));
-    Some(serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide {path}: {e}")))
+        .unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", path.display()));
+    Some(serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide {}: {e}", path.display())))
 }
 
 #[test]

@@ -1,6 +1,6 @@
 #![allow(clippy::pedantic)]
 //! Tests golden `chat_emote` — valeurs réelles tirées des dumps :
-//! `/home/ubuntu/niers/data/common/gamedata/chat_emote/`
+//! `chat_emote/`
 //!   - `chat_emote_config_{0.00.00,1.02.03.00,1.03.17.00}.cfg.bin.json`
 //!   - `chat_emote_def_set_config_{0.00.00,1.02.03.00,1.03.17.00}.cfg.bin.json`
 //!
@@ -15,6 +15,8 @@
 //! ## Valeurs confirmées (def_set)
 //! - 1.03.17.00 : 4 entrées, champ `type` (0..3), chat_id_array[0]=0x6AE23243
 //! - 0.00.00 : 3 entrées, champ `page_idx` (1..3), chat_id_array[0]=0x6AE23243
+
+mod common;
 
 use nie_data::chat_emote::{
     parse_chat_emote_config, parse_chat_emote_def_set_config, ChatEmoteConfig,
@@ -123,7 +125,7 @@ fn fixture_liste_manquante_vide() {
 
 // ─── Tests sur les vrais fichiers (skip si absents du VPS) ──────────────────────
 
-const DIR: &str = "/home/ubuntu/niers/data/common/gamedata/chat_emote/";
+const DIR: &str = "chat_emote/";
 
 fn load_config(version: &str) -> Option<ChatEmoteConfig> {
     let path = alloc_path(version, "chat_emote_config");
@@ -140,10 +142,12 @@ fn alloc_path(version: &str, stem: &str) -> String {
 }
 
 fn load(path: &str) -> Option<serde_json::Value> {
-    if !std::path::Path::new(path).exists() {
+    let path = common::chemin(path)?;
+    if !path.is_file() {
+        eprintln!("skip : {} absent du corpus", path.display());
         return None;
     }
-    let content = std::fs::read_to_string(path).unwrap();
+    let content = std::fs::read_to_string(&path).unwrap();
     Some(serde_json::from_str(&content).unwrap())
 }
 

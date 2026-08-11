@@ -1,6 +1,6 @@
 #![allow(clippy::pedantic)]
 //! Tests golden `chara_bank` — valeurs réelles tirées de :
-//! `/home/ubuntu/niers/data/common/gamedata/chara_bank/soccer_club_room_config.cfg.bin.json`
+//! `chara_bank/soccer_club_room_config.cfg.bin.json`
 //!
 //! ## Vérifications champ par champ (fichier → valeur confirmée)
 //!
@@ -30,6 +30,8 @@
 //! - `is_remove_club_disabled`      = true
 //! - `is_chara_bank_move_disabled`  = false
 //! - `is_team_dock_change_disabled` = false
+
+mod common;
 
 use nie_data::chara_bank::{
     parse_soccer_club_room_config, CharaRestrictionInfo, SoccerClubRoomConfig,
@@ -141,14 +143,16 @@ fn fixture_liste_manquante_renvoie_vide() {
 // ─── Test sur le vrai fichier (skip si absent du VPS) ────────────────────────
 
 const REAL_PATH: &str =
-    "/home/ubuntu/niers/data/common/gamedata/chara_bank/soccer_club_room_config.cfg.bin.json";
+    "chara_bank/soccer_club_room_config.cfg.bin.json";
 
 fn load_real() -> Option<SoccerClubRoomConfig> {
-    if !std::path::Path::new(REAL_PATH).exists() {
+    let chemin_abs = common::chemin(REAL_PATH)?;
+    if !chemin_abs.is_file() {
+        eprintln!("skip : {} absent du corpus", chemin_abs.display());
         return None;
     }
-    let content = std::fs::read_to_string(REAL_PATH)
-        .unwrap_or_else(|e| panic!("Impossible de lire {REAL_PATH}: {e}"));
+    let content = std::fs::read_to_string(&chemin_abs)
+        .unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", chemin_abs.display()));
     let root: serde_json::Value =
         serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide: {e}"));
     Some(parse_soccer_club_room_config(&root))

@@ -9,6 +9,8 @@
 //! Disposition niers (`cfgbin_to_t2b_iecode_root`) : l'item-list `SHOP_INFO_ITEM_LIST_BEG_x`
 //! est un *frère* du shop `SHOP_INFO_x`, ses items lui étant rattachés séquentiellement.
 
+mod common;
+
 use nie_data::hash::HashId;
 use nie_data::shop::{parse_shop_config, ShopInfo};
 use serde_json::{json, Value};
@@ -155,12 +157,12 @@ fn shop2_dedup_set_87_items() {
 fn validation_byte_a_byte_vrai_fichier() {
     // Validation contre le vrai dump si présent (fichier hors VCS). Source :
     // data/common/gamedata/shop/shop_config_3.00.22.cfg.bin.json (forme iecode T2B).
-    let path = "/home/ubuntu/niers/data/common/gamedata/shop/shop_config_3.00.22.cfg.bin.json";
+    let path = "shop/shop_config_3.00.22.cfg.bin.json";
     if !std::path::Path::new(path).exists() {
         return;
     }
     let content =
-        std::fs::read_to_string(path).unwrap_or_else(|e| panic!("Impossible de lire {path}: {e}"));
+        std::fs::read_to_string(path).unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", path));
     let root: Value =
         serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide: {e}"));
     let shops = parse_shop_config(&root);

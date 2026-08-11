@@ -41,6 +41,8 @@
 //! ### __SORT_INDEX (permutation d'affichage, 245 indices)
 //! - premiers 8 : [11, 234, 1, 243, 111, 159, 132, 173]
 
+mod common;
+
 extern crate std;
 
 use nie_data::hash::HashId;
@@ -293,15 +295,17 @@ fn fixture_find_info() {
 // ─── Tests sur fichier réel (skip silencieux si absent) ───────────────────────────
 
 const REAL_HELP: &str =
-    "/home/ubuntu/niers/data/common/gamedata/help/help_list_config_1.04.08.00.cfg.bin.json";
+    "help/help_list_config_1.04.08.00.cfg.bin.json";
 
 fn load_json(path: &str) -> Option<serde_json::Value> {
-    if !std::path::Path::new(path).exists() {
+    let path = common::chemin(path)?;
+    if !path.is_file() {
+        eprintln!("skip : {} absent du corpus", path.display());
         return None;
     }
     let content =
-        std::fs::read_to_string(path).unwrap_or_else(|e| panic!("Impossible de lire {path}: {e}"));
-    Some(serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide {path}: {e}")))
+        std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", path.display()));
+    Some(serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide {}: {e}", path.display())))
 }
 
 #[test]

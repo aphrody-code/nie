@@ -1,10 +1,12 @@
 #![allow(clippy::pedantic)]
 //! Tests golden `chara_param` — noeud réel `CHARA_PARAM_INFO_1` tiré de :
-//! `/home/ubuntu/niers/data/common/gamedata/character/chara_param_1.03.66.00.cfg.bin.json`.
+//! `character/chara_param_1.03.66.00.cfg.bin.json`.
 //!
 //! Extraction des techniques **LEVEL-FIRST @10**, port 1:1 d'inagle
 //! `packages/inagle/src/parsers/chara-param.ts` (l.102-118) : `(niveau@10, hash@11)…`,
 //! validée niveau ∈ [0,99], slots invalides sautés. Vérité terrain = la sortie d'inagle.
+
+mod common;
 
 use nie_data::chara_param::{
     element_id_to_names, parse_all_chara_params, position_id_to_code, CharaParam,
@@ -97,12 +99,12 @@ fn chara_param_240bedf2_niveau_zero_vrai_fichier() {
     // Source inagle : chara-param.ts commit 07ee6ce l.93-118 (level-first @10, hash@11).
     // Vérité terrain DB prod : 0x240BEDF2 → learnLevel 0 (index 10 = 0 dans CHARA_PARAM_INFO_1).
     let path =
-        "/home/ubuntu/niers/data/common/gamedata/character/chara_param_1.03.66.00.cfg.bin.json";
+        "character/chara_param_1.03.66.00.cfg.bin.json";
     if !std::path::Path::new(path).exists() {
         return;
     }
     let content = std::fs::read_to_string(path)
-        .unwrap_or_else(|e| panic!("Impossible de lire {path}: {e}"));
+        .unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", path));
     let root: serde_json::Value =
         serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide: {e}"));
     let params = parse_all_chara_params(&root);

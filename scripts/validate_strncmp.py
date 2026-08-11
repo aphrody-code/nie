@@ -9,7 +9,7 @@ strncmp standard renvoyant -1/0/1. Fuzz LCG déterministe couvrant :
   - count=0, égalité totale, différence (avant/après null), null commun ;
   - tous les alignements de str1 (chemin SSE word-at-a-time vs octet-par-octet) ;
   - page-offset de str2 proche de 0xff8 (bascule fast/slow path).
-Lance depuis scripts/ :  cd /home/ubuntu/niers/scripts && ../.venv/bin/python validate_strncmp.py
+Lance depuis scripts/ :  uv run scripts/validate_strncmp.py
 """
 import sys
 from uemu import Emu, SCRATCH

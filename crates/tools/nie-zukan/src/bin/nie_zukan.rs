@@ -13,7 +13,7 @@
 //! nie-zukan pull --lang ja --all
 //!
 //! # Croisement avec inagle (après pull)
-//! nie-zukan cross --mirror /home/ubuntu/rg/apps/azalee/data/backups/mirror.sqlite
+//! nie-zukan cross --mirror <azalee>/data/backups/mirror.sqlite
 //!
 //! # Tests de forge (round-trip + ancre Endou)
 //! nie-zukan forge-test
@@ -36,9 +36,9 @@ use std::path::PathBuf;
 struct Cli {
     #[command(subcommand)]
     cmd: Cmd,
-    /// Répertoire racine du cache et de la sortie
-    #[arg(long, default_value = "/home/ubuntu/niers/var/zukan")]
-    root: PathBuf,
+    /// Répertoire racine du cache et de la sortie. Défaut : `<racine du jeu>/var/zukan`.
+    #[arg(long)]
+    root: Option<PathBuf>,
 }
 
 #[derive(Subcommand)]
@@ -57,11 +57,8 @@ enum Cmd {
     },
     /// Croise les données zukan avec le miroir inagle
     Cross {
-        /// Chemin vers le miroir SQLite inagle
-        #[arg(
-            long,
-            default_value = "/home/ubuntu/rg/apps/azalee/data/backups/mirror.sqlite"
-        )]
+        /// Chemin vers le miroir SQLite inagle — vit dans le dépôt azalee, donc requis.
+        #[arg(long)]
         mirror: PathBuf,
         /// Langue source des données zukan (défaut: ja)
         #[arg(long, default_value = "ja")]
@@ -83,6 +80,9 @@ fn main() -> Result<()> {
         .init();
 
     let cli = Cli::parse();
+    // Défaut relatif au répertoire courant : `var/` est le magasin d'artefacts
+    // régénérables du dépôt, et il vit à côté du jeu sur toutes les plateformes.
+    let root = cli.root.clone().unwrap_or_else(|| PathBuf::from("var/zukan"));
 
     match cli.cmd {
         Cmd::ForgeTest => {
@@ -92,8 +92,8 @@ fn main() -> Result<()> {
             let langs = parse_langs(lang);
             let limit = if all { 0 } else { sample };
             let config = PullConfig {
-                cache_root: cli.root.clone(),
-                output_root: cli.root.clone(),
+                cache_root: root.clone(),
+                output_root: root.clone(),
                 langs,
                 chara_param_limit: limit,
             };
@@ -109,8 +109,7 @@ fn main() -> Result<()> {
         }
         Cmd::Cross { mirror, lang } => {
             let lang_enum = parse_lang(&lang);
-            let ndjson_path = cli
-                .root
+            let ndjson_path = root
                 .join(lang_enum.code())
                 .join("chara_param.ndjson");
             let charas = load_zukan_charas_from_ndjson(&ndjson_path)?;
@@ -146,18 +145,17 @@ fn main() -> Result<()> {
                 );
             }
             // Sauvegarder le résultat en JSON
-            let out = cli.root.join("cross_result.json");
+            let out = root.join("cross_result.json");
             std::fs::write(&out, serde_json::to_string_pretty(&result)?)?;
             println!("cross_result={}", out.display());
         }
         Cmd::Status => {
             for lang in Lang::all() {
-                let param_path = cli
-                    .root
+                let param_path = root
                     .join(lang.code())
                     .join("chara_param.ndjson");
-                let skills_path = cli.root.join(lang.code()).join("skills.ndjson");
-                let items_path = cli.root.join(lang.code()).join("items.ndjson");
+                let skills_path = root.join(lang.code()).join("skills.ndjson");
+                let items_path = root.join(lang.code()).join("items.ndjson");
                 let param_lines = count_lines(&param_path);
                 let skill_lines = count_lines(&skills_path);
                 let item_lines = count_lines(&items_path);

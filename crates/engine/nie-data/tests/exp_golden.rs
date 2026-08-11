@@ -1,10 +1,12 @@
 #![allow(clippy::pedantic)]
 //! Tests golden `exp` — listes réelles tirées de :
-//! `/home/ubuntu/niers/data/common/gamedata/character/chara_exp_table_config_0.00.00.00.cfg.bin.json`.
+//! `character/chara_exp_table_config_0.00.00.00.cfg.bin.json`.
 //!
 //! m_charaExpTableList = 100 entrées (level 1→100), m_expRarityRateList = 9 entrées.
 //! level 1 → needExp 124, level 2 → 130, level 3 → 146 ; cumul lvl5=565, lvl10=1973.
 //! rarityRates : 0-3 → ×1, 4-8 → ×3.
+
+mod common;
 
 use nie_data::exp::{parse_exp_table, CharaExpEntry, ExpRarityRate};
 use serde_json::json;

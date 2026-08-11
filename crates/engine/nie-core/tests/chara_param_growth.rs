@@ -181,7 +181,7 @@ mod tests {
     // Test optionnel sur le vrai fichier (skip si absent du VPS)
     // -----------------------------------------------------------------------
 
-    const REAL_PATH: &str = "/home/ubuntu/niers/data/common/gamedata/character/chara_param_1.03.66.00.cfg.bin.json";
+    const REAL_PATH: &str = "data/common/gamedata/character/chara_param_1.03.66.00.cfg.bin.json";
 
     /// Charge le vrai dump chara_param ; retourne `None` si absent (skip silencieux).
     fn load_real_chara_params() -> Option<Vec<nie_data::chara_param::CharaParam>> {

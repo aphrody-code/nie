@@ -44,6 +44,8 @@
 //! - rule_hash = 1457222339 → 0x56DB72C3
 //! - condition_data = "AAAAADALNb7FPqIACgEoAAYCNHBLgeIyAAAAAXg1TO8TnAAKASgABgI0MH+9OTIAAAABeY8="
 
+mod common;
+
 extern crate std;
 
 use nie_data::hash::HashId;
@@ -404,21 +406,23 @@ fn guest_limit_entry_1() {
 // ─── Tests sur fichiers réels (skip silencieux si absents) ────────────────────
 
 const REAL_CTRL_CHARA: &str =
-    "/home/ubuntu/niers/data/common/gamedata/party/ctrl_chara_config_1.04.17.00.cfg.bin.json";
+    "party/ctrl_chara_config_1.04.17.00.cfg.bin.json";
 const REAL_DEPARTURE: &str =
-    "/home/ubuntu/niers/data/common/gamedata/party/party_departure_0.00.00.cfg.bin.json";
+    "party/party_departure_0.00.00.cfg.bin.json";
 const REAL_SPECIFY: &str =
-    "/home/ubuntu/niers/data/common/gamedata/party/supecify_party0.00.00.cfg.bin.json";
+    "party/supecify_party0.00.00.cfg.bin.json";
 const REAL_GUEST_LIMIT: &str =
-    "/home/ubuntu/niers/data/common/gamedata/party/guest_limit_config.cfg.bin.json";
+    "party/guest_limit_config.cfg.bin.json";
 
 fn load_json(path: &str) -> Option<serde_json::Value> {
-    if !std::path::Path::new(path).exists() {
+    let path = common::chemin(path)?;
+    if !path.is_file() {
+        eprintln!("skip : {} absent du corpus", path.display());
         return None;
     }
-    let content = std::fs::read_to_string(path)
-        .unwrap_or_else(|e| panic!("Impossible de lire {path}: {e}"));
-    Some(serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide {path}: {e}")))
+    let content = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", path.display()));
+    Some(serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide {}: {e}", path.display())))
 }
 
 // — ctrl_chara_config —
