@@ -222,49 +222,6 @@ if(MSVC)
     )
 endif()
 
-# tree-sitter-lua grammar (FetchContent — analyse statique scripts Lua decompiles)
-FetchContent_Declare(
-    tree_sitter_lua
-    GIT_REPOSITORY https://github.com/MunifTanjim/tree-sitter-lua.git
-    GIT_TAG        v0.0.19
-    GIT_SHALLOW    TRUE
-)
-FetchContent_Populate(tree_sitter_lua)
-
-add_library(tree_sitter_lua_parser STATIC
-    ${tree_sitter_lua_SOURCE_DIR}/src/parser.c
-)
-# tree-sitter-lua possede un scanner.c pour les litteraux
-if(EXISTS ${tree_sitter_lua_SOURCE_DIR}/src/scanner.c)
-    target_sources(tree_sitter_lua_parser PRIVATE
-        ${tree_sitter_lua_SOURCE_DIR}/src/scanner.c
-    )
-endif()
-target_include_directories(tree_sitter_lua_parser PUBLIC
-    ${tree_sitter_lua_SOURCE_DIR}/src
-)
-if(unofficial-tree-sitter_FOUND)
-    target_link_libraries(tree_sitter_lua_parser PUBLIC unofficial::tree-sitter::tree-sitter)
-else()
-    target_link_libraries(tree_sitter_lua_parser PUBLIC tree-sitter)
-    target_include_directories(tree_sitter_lua_parser PUBLIC
-        ${tree_sitter_SOURCE_DIR}/lib/include
-    )
-endif()
-set_target_properties(tree_sitter_lua_parser PROPERTIES
-    CXX_CLANG_TIDY ""
-    UNITY_BUILD OFF
-    INTERPROCEDURAL_OPTIMIZATION OFF
-)
-if(MSVC)
-    target_compile_options(tree_sitter_lua_parser PRIVATE
-        $<$<CONFIG:Debug>:/Od>
-    )
-endif()
-if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
-    target_compile_options(tree_sitter_lua_parser PRIVATE -w)
-endif()
-
 # ── Rizin (system install — not in vcpkg, use pkg-config) ─────────
 find_package(PkgConfig QUIET)
 if(PkgConfig_FOUND)
