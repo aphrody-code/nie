@@ -562,19 +562,15 @@ pub mod tables {
         let mut out = Vec::with_capacity(raw);
         let mut pos = 0usize;
         while pos + 8 <= table.len() {
-            let page = u32::from_le_bytes([
-                table[pos],
-                table[pos + 1],
-                table[pos + 2],
-                table[pos + 3],
-            ]);
+            let page =
+                u32::from_le_bytes([table[pos], table[pos + 1], table[pos + 2], table[pos + 3]]);
             let size = u32::from_le_bytes([
                 table[pos + 4],
                 table[pos + 5],
                 table[pos + 6],
                 table[pos + 7],
             ]) as usize;
-            if size < 8 || pos + size > table.len() || size % 2 != 0 {
+            if size < 8 || pos + size > table.len() || !size.is_multiple_of(2) {
                 return None;
             }
             out.extend_from_slice(&page.to_le_bytes());

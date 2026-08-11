@@ -29,7 +29,7 @@ if (-not $Version) {
     Write-Warn "Version auto-detectee : $Version"
 }
 
-$BinDir  = Join-Path $Root 'build\release\cli'
+$BinDir  = Join-Path $Root 'build\release\src\cli'
 $Tag     = "v$Version"
 $PkgName = "iecode-$Version-windows-x64"
 $PkgDir  = Join-Path $Root $OutputDir $PkgName

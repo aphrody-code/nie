@@ -124,6 +124,53 @@ pub fn merge(ranges: &[CodeRange]) -> Vec<CodeRange> {
     out
 }
 
+/// Ré-émet la section `.pdata` **depuis ses entrées parsées**.
+///
+/// `.pdata` est un tableau de `RUNTIME_FUNCTION` (trois `u32` : début, fin,
+/// unwind), suivi du bourrage d'alignement de section. Le régénérer depuis les
+/// triplets lus est de la même nature que la ré-émission des en-têtes : la
+/// structure est comprise et reconstruite, pas recopiée en bloc.
+///
+/// Retourne `None` si l'image n'a pas de section `.pdata` exploitable, ou si le
+/// bourrage de fin n'est pas nul (auquel cas il faudrait le modéliser aussi
+/// plutôt que de le supposer).
+#[must_use]
+pub fn emit(img: &PeImage) -> Option<Vec<u8>> {
+    let sec = img.section(".pdata")?;
+    let dir = img.opt.directories.get(3).copied()?;
+    if dir.rva != sec.virtual_address {
+        return None;
+    }
+    let table = img.slice_rva(dir.rva, dir.size as usize)?;
+    let raw = sec.size_raw as usize;
+
+    let mut out = Vec::with_capacity(raw);
+    for e in table.chunks_exact(12) {
+        let begin = u32::from_le_bytes([e[0], e[1], e[2], e[3]]);
+        let end = u32::from_le_bytes([e[4], e[5], e[6], e[7]]);
+        let unwind = u32::from_le_bytes([e[8], e[9], e[10], e[11]]);
+        out.extend_from_slice(&begin.to_le_bytes());
+        out.extend_from_slice(&end.to_le_bytes());
+        out.extend_from_slice(&unwind.to_le_bytes());
+    }
+    if out.len() > raw {
+        return None;
+    }
+    // Le reste de la section est le bourrage d'alignement du linker : il doit
+    // être nul, sinon il porte de l'information qu'on ne saurait régénérer.
+    let start = sec.ptr_raw as usize + out.len();
+    if img
+        .bytes
+        .get(start..sec.ptr_raw as usize + raw)?
+        .iter()
+        .any(|b| *b != 0)
+    {
+        return None;
+    }
+    out.resize(raw, 0);
+    Some(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -169,46 +216,4 @@ mod tests {
         assert!(r.is_empty());
         assert_eq!(r.len(), 0);
     }
-}
-
-/// Ré-émet la section `.pdata` **depuis ses entrées parsées**.
-///
-/// `.pdata` est un tableau de `RUNTIME_FUNCTION` (trois `u32` : début, fin,
-/// unwind), suivi du bourrage d'alignement de section. Le régénérer depuis les
-/// triplets lus est de la même nature que la ré-émission des en-têtes : la
-/// structure est comprise et reconstruite, pas recopiée en bloc.
-///
-/// Retourne `None` si l'image n'a pas de section `.pdata` exploitable, ou si le
-/// bourrage de fin n'est pas nul (auquel cas il faudrait le modéliser aussi
-/// plutôt que de le supposer).
-#[must_use]
-pub fn emit(img: &PeImage) -> Option<Vec<u8>> {
-    let sec = img.section(".pdata")?;
-    let dir = img.opt.directories.get(3).copied()?;
-    if dir.rva != sec.virtual_address {
-        return None;
-    }
-    let table = img.slice_rva(dir.rva, dir.size as usize)?;
-    let raw = sec.size_raw as usize;
-
-    let mut out = Vec::with_capacity(raw);
-    for e in table.chunks_exact(12) {
-        let begin = u32::from_le_bytes([e[0], e[1], e[2], e[3]]);
-        let end = u32::from_le_bytes([e[4], e[5], e[6], e[7]]);
-        let unwind = u32::from_le_bytes([e[8], e[9], e[10], e[11]]);
-        out.extend_from_slice(&begin.to_le_bytes());
-        out.extend_from_slice(&end.to_le_bytes());
-        out.extend_from_slice(&unwind.to_le_bytes());
-    }
-    if out.len() > raw {
-        return None;
-    }
-    // Le reste de la section est le bourrage d'alignement du linker : il doit
-    // être nul, sinon il porte de l'information qu'on ne saurait régénérer.
-    let start = sec.ptr_raw as usize + out.len();
-    if img.bytes.get(start..sec.ptr_raw as usize + raw)?.iter().any(|b| *b != 0) {
-        return None;
-    }
-    out.resize(raw, 0);
-    Some(out)
 }

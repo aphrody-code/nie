@@ -10,7 +10,7 @@ foreach ($line in $envBlock) {
     }
 }
 
-Set-Location C:\Users\yohan\rg\iecode\cli
+Set-Location $PSScriptRoot
 
 Write-Host "=== CONFIGURE ==="
 cmake --preset debug --fresh
@@ -21,7 +21,7 @@ cmake --build --preset debug -- -j8
 if ($LASTEXITCODE -ne 0) { Write-Error "BUILD FAILED"; exit 1 }
 
 Write-Host "=== BUILD SUCCESS ==="
-$exe = "C:\Users\yohan\rg\iecode\cli\build\debug\cli\iecode.exe"
+$exe = Join-Path $PSScriptRoot 'build\debug\src\cli\iecode.exe'
 if (Test-Path $exe) {
     $size = (Get-Item $exe).Length
     Write-Host "iecode.exe: $([math]::Round($size/1MB, 1)) MB"

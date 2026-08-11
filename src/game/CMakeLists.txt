@@ -9,7 +9,7 @@ if(GAME_SOURCES)
 endif()
 
 target_include_directories(iecode_game PUBLIC
-    ${PROJECT_SOURCE_DIR}/include
+    ${PROJECT_SOURCE_DIR}/src/include
 )
 
 target_link_libraries(iecode_game PUBLIC

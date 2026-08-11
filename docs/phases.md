@@ -31,19 +31,19 @@ IECODE-CPP est un **outil de modding et reverse engineering complet** pour nie.e
 | `vcpkg.json` | — | Manifest dépendances |
 | `cmake/CompilerWarnings.cmake` | — | Flags compilation |
 | `cmake/SIMDDetect.cmake` | — | Détection AVX2/SSE2 |
-| `include/iecode/types.h` | — | Types fondamentaux, endian helpers |
-| `include/iecode/compression/lz10.h` | `Compression/Lz10Decoder.cs` | Header LZ10 |
+| `src/include/iecode/types.h` | — | Types fondamentaux, endian helpers |
+| `src/include/iecode/compression/lz10.h` | `Compression/Lz10Decoder.cs` | Header LZ10 |
 | `src/compression/lz10.cpp` | `Compression/Lz10Decoder.cs` | Implémentation LZ10 |
-| `include/iecode/compression/lz4_block.h` | `Compression/Lz4Decoder.cs` | Header LZ4 |
+| `src/include/iecode/compression/lz4_block.h` | `Compression/Lz4Decoder.cs` | Header LZ4 |
 | `src/compression/lz4_block.cpp` | `Compression/Lz4Decoder.cs` | Implémentation LZ4 |
-| `include/iecode/crypto/crc32.h` | `Crypto/Crc32.cs` | Header CRC32 |
+| `src/include/iecode/crypto/crc32.h` | `Crypto/Crc32.cs` | Header CRC32 |
 | `src/crypto/crc32.cpp` | `Crypto/Crc32.cs` | Implémentation CRC32 |
-| `include/iecode/io/binary_utils.h` | `IO/BinaryUtils.cs` | Header utils |
+| `src/include/iecode/io/binary_utils.h` | `IO/BinaryUtils.cs` | Header utils |
 | `src/io/binary_utils.cpp` | `IO/BinaryUtils.cs` | Implémentation utils |
-| `decomp/include/decomp/compat.h` | — | Typedefs Ghidra/IDA |
-| `decomp/include/decomp/nie_types.h` | — | Structs du jeu |
-| `decomp/include/decomp/bridge.h` | — | Déclarations bridge |
-| `decomp/src/bridge.cpp` | — | Bridge stub |
+| `src/decomp/include/src/decomp/compat.h` | — | Typedefs Ghidra/IDA |
+| `src/decomp/include/src/decomp/nie_types.h` | — | Structs du jeu |
+| `src/decomp/include/src/decomp/bridge.h` | — | Déclarations bridge |
+| `src/decomp/src/bridge.cpp` | — | Bridge stub |
 | `tests/test_crc32.cpp` | — | Tests CRC32 |
 | `tests/test_lz10.cpp` | — | Tests LZ10 |
 | `tests/test_lz4.cpp` | — | Tests LZ4 |
@@ -94,11 +94,11 @@ ctest --test-dir build --output-on-failure
 
 | Fichier C++ | Source C# | Description |
 |-------------|-----------|-------------|
-| `include/iecode/crypto/cri_crypto.h` | `Native/NativeCrypto.cs` | Header crypto CRI |
+| `src/include/iecode/crypto/cri_crypto.h` | `Native/NativeCrypto.cs` | Header crypto CRI |
 | `src/crypto/cri_crypto.cpp` | `Native/NativeCrypto.cs` | XOR CRI + SIMD |
-| `include/iecode/crypto/xorshift.h` | `Crypto/Level5/XorShift.cs` | Header XORShift |
+| `src/include/iecode/crypto/xorshift.h` | `Crypto/Level5/XorShift.cs` | Header XORShift |
 | `src/crypto/xorshift.cpp` | `Crypto/Level5/XorShift.cs` | Implémentation XORShift |
-| `include/iecode/compression/crilayla.h` | `CriFs/Compression/CriLayla.cs` | Header CRILAYLA |
+| `src/include/iecode/compression/crilayla.h` | `CriFs/Compression/CriLayla.cs` | Header CRILAYLA |
 | `src/compression/crilayla.cpp` | `CriFs/Compression/CriLayla.cs` | Décompression CRILAYLA |
 | `tests/test_cri_crypto.cpp` | — | Tests crypto CRI |
 | `tests/test_xorshift.cpp` | — | Tests XORShift |
@@ -139,13 +139,13 @@ Déchiffrer un fichier CPK connu et comparer le hash avec le résultat C#.
 
 | Fichier C++ | Source C# | Description |
 |-------------|-----------|-------------|
-| `include/iecode/formats/format_detector.h` | `Formats/FormatDetector.cs` | Détection magic |
+| `src/include/iecode/formats/format_detector.h` | `Formats/FormatDetector.cs` | Détection magic |
 | `src/formats/format_detector.cpp` | `Formats/FormatDetector.cs` | |
-| `include/iecode/formats/criware/utf_parser.h` | `Formats/Criware/UtfParser.cs` | Parser @UTF |
+| `src/include/iecode/formats/criware/utf_parser.h` | `Formats/Criware/UtfParser.cs` | Parser @UTF |
 | `src/formats/criware/utf_parser.cpp` | `Formats/Criware/UtfParser.cs` | |
-| `include/iecode/formats/criware/cpk_reader.h` | `CriFs/CpkReader.cs` + TOC | Reader CPK |
+| `src/include/iecode/formats/criware/cpk_reader.h` | `CriFs/CpkReader.cs` + TOC | Reader CPK |
 | `src/formats/criware/cpk_reader.cpp` | `CriFs/CpkReader.cs` + TOC | |
-| `include/iecode/formats/criware/usm_demuxer.h` | `Formats/Criware/UsmDemuxer.cs` | Demux USM |
+| `src/include/iecode/formats/criware/usm_demuxer.h` | `Formats/Criware/UsmDemuxer.cs` | Demux USM |
 | `src/formats/criware/usm_demuxer.cpp` | `Formats/Criware/UsmDemuxer.cs` | |
 
 ### Dépendances internes
@@ -237,7 +237,7 @@ Pipeline d'extraction parallèle :
 
 Pipeline :
 
-1. **Exporter** depuis Ghidra via `ExportDecompiled.java` → `decomp/functions/*.c`
+1. **Exporter** depuis Ghidra via `ExportDecompiled.java` → `src/decomp/functions/*.c`
 2. **Identifier** les fonctions pertinentes via RTTI (1 234 classes dans `nie-rtti-classes.txt`)
 3. **Mapper** les `FUN_XXXXXXXXX` aux classes `game::` / `lives::` connues
 4. **Bridge** : écrire des wrappers C++ typés dans `bridge.cpp` avec `extern "C"`

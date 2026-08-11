@@ -1,11 +1,16 @@
 CompileFlags:
-  CompilationDatabase: build/debug
+  CompilationDatabase: build/msvc
   Add:
     - -std=c++20
-    - -IC:/Users/yohan/rg/iecode/cli/build/debug/vcpkg_installed/x64-windows/include
-    - -IC:/Users/yohan/rg/iecode/cli/include
-    - -IC:/Users/yohan/rg/iecode/cli/third_party/stb
-    - -IC:/Users/yohan/rg/iecode/cli/third_party/bcdec
+    # Chemins relatifs a la racine du depot : l'arbre C++ vit sous src/ depuis
+    # le regroupement du 2026-08-11 (les anciens chemins absolus C:/Users/... du
+    # depot iecode d'origine ne resolvaient plus rien ici).
+    - -Isrc/include
+    - -Ithird_party/stb
+    - -Ithird_party/bcdec
+    - -Ithird_party/xxhash
+    - -Ithird_party/concurrentqueue
+    - -Ithird_party/mio
     - -DNOMINMAX
     - -DUNICODE
     - -D_WIN32_WINNT=0x0A00

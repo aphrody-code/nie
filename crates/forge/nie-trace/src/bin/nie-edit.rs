@@ -557,7 +557,12 @@ fn parse(args: &[String]) -> (Vec<String>, Flags) {
     (pos, flags)
 }
 
-#[cfg(test)]
+// Les tests s'auto-ciblent : ils lisent la mémoire du process de test et le nomment via
+// `/proc/self/comm`. C'est du Linux pur — sous Windows ils échouaient tous les cinq sur
+// « chemin d'accès introuvable » avant même de tester quoi que ce soit. Le code testé
+// (parseurs d'adresses, dispatch get/set/scan) reste compilé partout ; seul le harnais,
+// qui suppose /proc, est gaté.
+#[cfg(all(test, target_os = "linux"))]
 mod tests {
     use super::*;
 

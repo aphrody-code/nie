@@ -8,7 +8,7 @@
 [CmdletBinding()]
 param(
     [string]$ServiceName = 'iecode_memread',
-    [string]$SysPath     = (Join-Path $PSScriptRoot "..\driver\iecode_memread\build\iecode_memread.sys"),
+    [string]$SysPath     = (Join-Path $PSScriptRoot "..\src\driver\iecode_memread\build\iecode_memread.sys"),
     [switch]$DeleteFile
 )
 

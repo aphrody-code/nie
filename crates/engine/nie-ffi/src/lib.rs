@@ -249,7 +249,7 @@ pub unsafe extern "C" fn nie_crand_free(handle: *mut CRand) {
 // Méta
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Retourne la version du crate en C-string `'static` ASCII (`"0.1.0\0"`).
+/// Retourne la version du crate en C-string `'static` ASCII (`CARGO_PKG_VERSION` + `\0`).
 ///
 /// La chaîne est statique : l'appelant **ne doit pas** la libérer.
 /// Bun la décode directement en string JS via `FFIType.cstring`.
@@ -1173,7 +1173,9 @@ mod tests {
         let ptr = nie_version();
         // SAFETY: nie_version retourne une C-string 'static null-terminée ASCII.
         let s = unsafe { CStr::from_ptr(ptr) }.to_str().unwrap();
-        assert_eq!(s, "0.1.0");
+        // La version vient du workspace (`version.workspace = true`) : la comparer à une
+        // constante en dur faisait échouer le test à chaque bump (0.1.0 → 0.4.0).
+        assert_eq!(s, env!("CARGO_PKG_VERSION"));
     }
 
     // ── Police : rendu de texte (gated sur le vrai jeu) ────────────────────────

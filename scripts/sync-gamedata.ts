@@ -26,12 +26,12 @@ const TOKEN_STORE =
 	process.env.STEAM_TOKEN_STORE ?? join(HOME, ".local/share/iecode/steam-tokens.json");
 const PRESET = process.env.DUMP_PRESET ?? "inagle-azalee";
 const OUT = process.env.DUMP_OUT ?? join(HOME, "iecode-dump");
-const CLI = join(import.meta.dir, "../src/IECODE.CLI/bin/Release/net10.0/iecode.dll");
+const CLI = join(import.meta.dir, "../csharp/IECODE.CLI/bin/Release/net10.0/iecode.dll");
 
 // 1. Construire le CLI iecode si nécessaire (il porte download + dump).
 if (!existsSync(CLI)) {
 	console.info("▸ build CLI iecode (Release)…");
-	await $`dotnet build ${join(import.meta.dir, "../src/IECODE.CLI/IECODE.CLI.csproj")} -c Release`.quiet();
+	await $`dotnet build ${join(import.meta.dir, "../csharp/IECODE.CLI/IECODE.CLI.csproj")} -c Release`.quiet();
 }
 
 // 2. Télécharger/valider le jeu nativement (sauf SKIP_DOWNLOAD).

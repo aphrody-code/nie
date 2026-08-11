@@ -27,7 +27,7 @@ Définis dans `.secrets/steam.env` (gitignoré) — cohérents entre download / 
 
 ## Adaptation automatique : `HostProfile`
 
-`src/IECODE.Core/Runtime/HostProfile.cs` centralise les défauts au lieu de hardcoder
+`csharp/IECODE.Core/Runtime/HostProfile.cs` centralise les défauts au lieu de hardcoder
 `Environment.ProcessorCount` partout. Deux propriétés, toutes deux surchargeables par env :
 
 ### `HostProfile.Parallelism` — degré de parallélisme par défaut

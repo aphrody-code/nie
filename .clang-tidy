@@ -76,6 +76,6 @@ CheckOptions:
     value: CamelCase
 
 # Exclude vendored / generated code
-HeaderFilterRegex: 'include/iecode/.*|src/.*|cli/.*'
+HeaderFilterRegex: 'src/.*'
 
 FormatStyle: file
