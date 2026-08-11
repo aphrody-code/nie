@@ -34,4 +34,4 @@ pas de journal, pas d'historique daté — l'état vient des outils, l'histoire 
 ## Ailleurs dans le dépôt
 
 `../CLAUDE.md` (règles de travail) · `../apps/nie-explorer/ROADMAP.md` (app desktop) ·
-`../tools/niers-plugin/` (plugin et skills).
+`../plugins/niers-plugin/` (plugin et skills).

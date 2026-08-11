@@ -1,10 +1,13 @@
 # Renommé 2026-08-08 (vendorisation dans `niers`, cf. `NIERS_VENDORING_NOTE.md`) : le module
-# Python reste `niers` (nom de dossier = ADDON_ID, référencé partout côté Rust — `tools/niers/
+# Python reste `niers` (nom de dossier = ADDON_ID, référencé partout côté Rust — `plugins/niers-blender/
 # __init__.py`) ; seul l'affichage change ici. Auteur original du code G4 préservé.
 bl_info = {
     "name": "niers — G4 Blender Tools",
     "author": "Bobi (Level-5 G4 Blender Tools) · niers (Rose Griffon)",
-    "version": (1, 0, 22),
+    # Doit rester aligné sur `version` de `blender_manifest.toml` : le legacy `bl_info` (Blender
+    # < 4.2) et le manifeste d'extension décrivent le MÊME addon, et le zip de release est nommé
+    # d'après le manifeste.
+    "version": (1, 1, 0),
     "blender": (4, 0, 0),
     "location": "File > Import/Export > G4MD / G4PKM · View3D > Sidebar > niers",
     "description": "Import/export G4 (Level-5) + recherche/import de fichiers via niers.exe (VFS, miroir wiki, azalee)",
@@ -93,7 +96,7 @@ else:
 # utilisatrice « lier au max Blender et niers », cf. docs/PLAN.md du repo niers). Le `-j/--json`
 # de `niers vfs find` référence CE fichier depuis avant qu'il n'existe (cf. crate `nie-cli`,
 # doc-comment "pour consommation programmatique (ex. niers_bridge.py de l'addon Blender
-# tools/niers)") — l'intention existait côté Rust, ce module la concrétise côté Blender.
+# plugins/niers-blender)") — l'intention existait côté Rust, ce module la concrétise côté Blender.
 if __package__:
     from . import niers_bridge
 else:

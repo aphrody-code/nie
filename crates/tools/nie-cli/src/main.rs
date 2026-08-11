@@ -344,7 +344,7 @@ enum VfsOp {
         #[arg(long, short = 'n', default_value_t = 100)]
         limit: usize,
         /// Sortie JSON (tableau compact sur une ligne) — pour consommation programmatique
-        /// (ex. `niers_bridge.py` de l'addon Blender `tools/niers`, recherche de fichiers sans
+        /// (ex. `niers_bridge.py` de l'addon Blender `plugins/niers-blender`, recherche de fichiers sans
         /// dépendre du miroir wiki contrairement à `chara`/`waza`).
         #[arg(long, short = 'j')]
         json: bool,
@@ -408,7 +408,7 @@ enum VfsOp {
         #[arg(long)]
         position: Option<String>,
         /// Sortie JSON (tableau compact sur une ligne) — pour consommation programmatique
-        /// (ex. `niers_bridge.py` de l'addon Blender `tools/niers`).
+        /// (ex. `niers_bridge.py` de l'addon Blender `plugins/niers-blender`).
         #[arg(long, short = 'j')]
         json: bool,
         #[arg(long, short = 'n', default_value_t = 50)]
@@ -1953,7 +1953,7 @@ fn vfs_ls(prefix: &str, game_dir: Option<PathBuf>) -> anyhow::Result<()> {
 /// Une entrée de `niers vfs find --json` — même convention compacte-sur-une-ligne que
 /// [`SearchJsonEntry`] (`chara`/`waza`), mais SANS dépendance au miroir wiki : `find` marche sur
 /// n'importe quelle install du jeu (VFS seul), c'est la recherche « fichiers » générique que
-/// `niers_bridge.py` (addon Blender `tools/niers`) utilise pour son panneau de recherche.
+/// `niers_bridge.py` (addon Blender `plugins/niers-blender`) utilise pour son panneau de recherche.
 #[derive(serde::Serialize)]
 struct FindJsonEntry<'a> {
     path: &'a str,
@@ -2153,7 +2153,7 @@ fn matches_filter(have: Option<&str>, want: Option<&str>) -> bool {
 }
 
 /// Entrée JSON d'un résultat de recherche chara/waza (`--json`) — consommée par
-/// `tools/niers/niers_bridge.py` (panneau de recherche Blender) ou tout autre script.
+/// `plugins/niers-blender/niers_bridge.py` (panneau de recherche Blender) ou tout autre script.
 #[derive(serde::Serialize)]
 struct SearchJsonEntry {
     id: String,

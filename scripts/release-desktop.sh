@@ -67,11 +67,11 @@ echo "▸ [3/7] sanity check (cargo check workspace + src-tauri)…"
 cargo check --workspace
 (cd apps/nie-explorer/src-tauri && cargo check)
 
-echo "▸ [4/7] zip extension Blender (tools/niers, hors __pycache__)…"
-BLENDER_VERSION="$(grep -m1 '^version' tools/niers/blender_manifest.toml | sed -E 's/.*"([0-9.]+)".*/\1/')"
+echo "▸ [4/7] zip extension Blender (plugins/niers-blender, hors __pycache__)…"
+BLENDER_VERSION="$(grep -m1 '^version' plugins/niers-blender/blender_manifest.toml | sed -E 's/.*"([0-9.]+)".*/\1/')"
 ZIP_STAGE="$(mktemp -d)"
-mkdir -p "$ZIP_STAGE/niers"
-cp -r tools/niers/. "$ZIP_STAGE/niers/"
+mkdir -p "$ZIP_STAGE/niers"   # racine = nom de MODULE Python (le dossier source a un tiret)
+cp -r plugins/niers-blender/. "$ZIP_STAGE/niers/"
 find "$ZIP_STAGE" -iname "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
 BLENDER_ZIP="$ROOT/apps/nie-explorer/src-tauri/target/release/bundle/niers-$BLENDER_VERSION.zip"
 (cd "$ZIP_STAGE" && zip -qr "$BLENDER_ZIP" niers)

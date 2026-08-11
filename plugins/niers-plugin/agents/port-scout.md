@@ -27,9 +27,9 @@ réécrive. Quatre implémentations coexistent, et la plus ancienne est souvent 
 
 | Arbre | Où | Nature |
 |---|---|---|
-| **Rust** | `crates/engine/*`, `crates/forge/*`, `crates/tools/*` (31 crates) | La cible : le moteur vivant |
-| **C++** | `src/` (241 fichiers), `include/` (261) | Portage antérieur, souvent la source des ports Rust |
-| **C#** | `csharp/IECODE.Core/` (178 fichiers, 36 713 lignes), `csharp/IECODE.CLI/` | **L'implémentation d'origine** — les modules Rust la citent en en-tête |
+| **Rust** | `crates/engine/*`, `crates/forge/*`, `crates/tools/*` (34 crates) | La cible : le moteur vivant |
+| **C++** | `src/` (343 fichiers), `src/include/` (253) | Portage antérieur, souvent la source des ports Rust |
+| **C#** | `csharp/IECODE.Core/` (169 fichiers, 35 154 lignes), `csharp/IECODE.CLI/` | **L'implémentation d'origine** — les modules Rust la citent en en-tête |
 | **TypeScript** | `packages/*`, `apps/*` | Surface Bun : FFI, plugin, catalogue, MCP, explorateur |
 | *(référence)* | `crates/archive/nie-engine` | Hors build, lecture seule |
 

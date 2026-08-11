@@ -2,39 +2,27 @@
 # niers : `niers.exe` (CLI Rust, VFS local), le miroir wiki SQLite (`supabase-*.sqlite`, noms
 # localisés FR/EN/JA) et azalee (GraphQL + REST distants, https://azalee.rosegriffon.fr).
 #
-# Ajouté 2026-08-08 (demande utilisatrice « lier au max Blender et niers »). Référencé depuis
-# AVANT d'exister dans CE checkout côté Rust : `nie-cli`/src/main.rs documentait déjà `-j/--json`
-# de `niers vfs find`/`chara`/`waza` comme étant « pour consommation programmatique (ex.
-# niers_bridge.py de l'addon Blender tools/niers) ». **Correction honnête** : une PREMIÈRE version
-# de ce fichier a réellement existé (contenu local non committé du submodule `tools/niers`
-# supprimé par erreur, cf. `NIERS_VENDORING_NOTE.md`) — récupérable dans l'archive déjà publiée
-# `niers-1.0.22.zip` (release GitHub v0.1.0). Cette version déléguait TOUT à `niers vfs chara`/
-# `waza --json` (subprocess, zéro logique de recherche en Python — anti-doublon strict), mais
-# appelait le même opérateur bogué que `open_in_blender` (`level5_g4_port.load_original_model`,
-# ne crée aucun maillage — cf. commentaire plus bas). Ce fichier-ci est une réécriture plus large
-# (ajout du miroir SQLite + GraphQL azalee EN DIRECT, demande explicite « connecte-le à l'API
-# REST et GraphQL d'azalee et au miroir SQLite » — `niers vfs chara`/`waza` ne parle pas encore
-# à azalee), avec le bon opérateur d'import et des opérateurs non bloquants.
-# Étendu le même jour (demande utilisatrice « connecte-le à l'API REST et GraphQL d'azalee et au
-# miroir SQLite ») — recherche personnage/technique par NOM LOCALISÉ (FR/EN/JA), deux sources
-# combinées et JAMAIS bloquantes l'une sur l'autre : le miroir local (si présent, hors-ligne,
-# `sqlite3` stdlib — mêmes requêtes SQL EXACTES que `nie_wiki::query::{search_characters,
-# search_skills}` / `apps/nie-explorer/src/lib/wikiDb.ts`) et le GraphQL azalee (toujours tenté,
-# mêmes requêtes que `apps/nie-explorer/src-tauri/src/lib.rs::{remote_search_chara,
-# remote_search_waza}` — un échec réseau devient une notice, jamais un blocage). Un résultat
-# perso/technique se résout en un clic vers ses VRAIS fichiers VFS (`niers vfs find <code>`),
-# eux-mêmes importables directement — noms FR/EN/JA → fichiers réels → import Blender, en 3 clics.
+# Recherche personnage/technique par NOM LOCALISÉ (FR/EN/JA), depuis deux sources combinées et
+# JAMAIS bloquantes l'une sur l'autre : le miroir local (si présent, hors-ligne, `sqlite3` stdlib
+# — mêmes requêtes SQL EXACTES que `nie_wiki::query::{search_characters, search_skills}` et
+# `apps/nie-explorer/src/lib/wikiDb.ts`) et le GraphQL azalee (toujours tenté, mêmes requêtes que
+# `apps/nie-explorer/src-tauri/src/lib.rs::{remote_search_chara, remote_search_waza}` — un échec
+# réseau devient une notice, jamais un blocage). Un résultat perso/technique se résout en un clic
+# vers ses VRAIS fichiers VFS (`niers vfs find <code>`), eux-mêmes importables directement : noms
+# FR/EN/JA → fichiers réels → import Blender, en trois clics.
+#
+# Côté Rust, `crates/tools/nie-cli/src/main.rs` documente `-j/--json` de `niers vfs
+# find`/`chara`/`waza` comme étant destiné à ce pont.
 #
 # Panneau « niers — Recherche » (View3D > Sidebar > niers) : deux onglets, Fichiers (recherche VFS
 # substring, `niers vfs find --json`) et Personnage/Technique (noms localisés, miroir local +
-# azalee). Import réel via l'opérateur `import_scene.level5_g4` (bug historique documenté dans
-# `open_in_blender` côté `nie-explorer` : NE PAS appeler `level5_g4_port.load_original_model`, qui
-# ne crée aucun maillage — c'est l'opérateur du wizard d'export).
+# azalee). Import réel via l'opérateur `import_scene.level5_g4`. **NE PAS appeler**
+# `level5_g4_port.load_original_model` (l'opérateur du wizard d'export) : il ne crée aucun
+# maillage — même piège que dans `open_in_blender` côté `nie-explorer`.
 #
 # TOUS les opérateurs réseau/disque/subprocess sont NON BLOQUANTS (timer modal + soit
 # `subprocess.Popen` soit `threading.Thread`, jamais un appel synchrone dans `execute()`) — pattern
-# documenté « Keeping Blender Responsive: Non-Blocking Renders with bpy.app.timers »
-# (harlepengren.com, recherche web 2026-08-08).
+# documenté par Blender pour garder l'UI réactive (`bpy.app.timers`).
 
 import json
 import os
