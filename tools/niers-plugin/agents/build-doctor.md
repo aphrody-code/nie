@@ -28,7 +28,7 @@ d'environnement connus**.
 ```bash
 # Bun — depuis la racine
 bun install
-bun run typecheck            # 8 workspaces
+bun run typecheck            # 5 workspaces
 bun run test
 bun run lint
 

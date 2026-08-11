@@ -28,9 +28,7 @@ exclusions sans relire le commentaire.
 |---|---|
 | `packages/nie` | Bindings Bun FFI de `libnie_ffi` — la porte d'entrée TS vers les crates Rust |
 | `packages/nie-bridge` | Protocole de contrôle partagé entre le serveur MCP et l'explorateur |
-| `packages/nie-catalog` | Catalogue SQLite du VFS |
 | `packages/nie-plugin` | Plugin Bun d'import des formats de jeu (préchargé par `bunfig.toml`) |
-| `packages/nie-util` | Utilitaires partagés (compression, formatage…) |
 | `apps/nie-explorer` | Explorateur/éditeur Tauri |
 | `apps/nie-mcp` | Serveur MCP `niers-game` |
 

@@ -79,30 +79,8 @@
         "typescript": "catalog:",
       },
     },
-    "packages/nie-catalog": {
-      "name": "@niers/catalog",
-      "version": "0.4.0",
-      "dependencies": {
-        "nie": "workspace:*",
-      },
-      "devDependencies": {
-        "@types/bun": "catalog:",
-        "typescript": "catalog:",
-      },
-    },
     "packages/nie-plugin": {
       "name": "nie-plugin",
-      "version": "0.4.0",
-      "dependencies": {
-        "nie": "workspace:*",
-      },
-      "devDependencies": {
-        "@types/bun": "catalog:",
-        "typescript": "catalog:",
-      },
-    },
-    "packages/nie-util": {
-      "name": "@niers/util",
       "version": "0.4.0",
       "dependencies": {
         "nie": "workspace:*",
@@ -278,11 +256,7 @@
 
     "@niers/bridge": ["@niers/bridge@workspace:packages/nie-bridge"],
 
-    "@niers/catalog": ["@niers/catalog@workspace:packages/nie-catalog"],
-
     "@niers/nie-mcp": ["@niers/nie-mcp@workspace:apps/nie-mcp"],
-
-    "@niers/util": ["@niers/util@workspace:packages/nie-util"],
 
     "@nodelib/fs.scandir": ["@nodelib/fs.scandir@2.1.5", "", { "dependencies": { "@nodelib/fs.stat": "2.0.5", "run-parallel": "^1.1.9" } }, "sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g=="],
 

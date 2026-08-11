@@ -43,16 +43,14 @@ Un seul lockfile, à la racine. Bibliothèque → `packages/`, application avec 
 |--------|------|
 | `packages/nie` | Bindings FFI de `libnie_ffi` — la porte d'entrée TS vers les crates Rust |
 | `packages/nie-bridge` | Protocole de contrôle partagé `nie-mcp` ↔ `nie-explorer` |
-| `packages/nie-catalog` | Catalogue SQLite du VFS |
 | `packages/nie-plugin` | Plugin Bun d'import des formats — **préchargé par `bunfig.toml`** |
-| `packages/nie-util` | Utilitaires partagés |
 | `apps/nie-explorer` | Explorateur/éditeur Tauri (React + Rust, `src-tauri` hors workspace Cargo) |
 | `apps/nie-mcp` | Serveur MCP `niers-game` — VFS, assets, KB RE, pilotage de l'explorateur |
 
 ```bash
 bun install                 # depuis la racine, jamais dans un sous-paquet
 bun run build:ffi           # cargo build -p nie-ffi — REQUIS avant tout autre `bun run`
-bun run typecheck           # 8 workspaces
+bun run typecheck           # 5 workspaces
 bun run test
 bun run lint
 ```
@@ -100,7 +98,7 @@ src/decomp/         **voie B de la forge** (`functions/*.c` annotés `/* @nie 0x
 src/ffi/            ffi.cpp + bindings.cpp (C ABI) · src/ffi/rust/iecode-sys (crate de liaison)
 src/driver/         iecode_memread (lecture mémoire du process) + son client
 src/tests/          GTest (828+ cas)
-third_party/        sources vendorisées header-only (stb, xxhash, concurrentqueue, bcdec)
+third_party/        sources vendorisées header-only (stb, mio, bcdec, tinygltf)
 cmake/              CompilerWarnings.cmake, SIMDDetect.cmake, overlay-ports vcpkg
 csharp/             IECODE.Core / IECODE.CLI / IECODE.Core.Tests (.NET 10, `IECODE.sln` racine)
 ```
