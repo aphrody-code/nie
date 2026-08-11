@@ -56,6 +56,14 @@ enum Cmd {
     },
     /// Dit quels back-ends de la CLI unique sont construits, et où.
     Backends,
+    /// Opérations de modding LEVEL-5 — le périmètre de l'outil Viola, en Rust natif.
+    ///
+    /// Reprend ce que `niers cs dump` / `niers cpp pack` déléguaient : chaque sous-commande ici
+    /// retire une délégation, et l'écart avec les toolkits externes se mesure.
+    Viola {
+        #[command(subcommand)]
+        op: ViolaOp,
+    },
     /// Dit le format d'un fichier ou d'une arborescence, sans rien écrire.
     Format {
         /// Fichier ou répertoire à inspecter.
