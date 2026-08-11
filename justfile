@@ -172,6 +172,11 @@ cpp-bootstrap:
      mkdir -p var; \
      [ -d var/vcpkg ] || git clone --depth 1 https://github.com/microsoft/vcpkg var/vcpkg; \
      ( cd var/vcpkg && ( ./bootstrap-vcpkg.sh -disableMetrics || ./bootstrap-vcpkg.bat -disableMetrics ) ); \
+     baseline=$(grep -o '"builtin-baseline": *"[0-9a-f]*"' vcpkg.json | grep -o '[0-9a-f]\{40\}'); \
+     if [ -n "$baseline" ]; then \
+       echo "fetch du baseline $baseline (le clone --depth 1 ne le contient pas)"; \
+       git -C var/vcpkg fetch --depth 1 origin "$baseline"; \
+     fi; \
      echo "Exporte VCPKG_ROOT=$PWD/var/vcpkg puis relance just cpp-configure"
 
 # Configure la chaine CMake (preset `msvc` sous Windows, `debug` ailleurs).
