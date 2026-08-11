@@ -1,5 +1,12 @@
 # Guide de Portage C# → C++
 
+> **Statut depuis l'unification (2026-08-11)** : ce guide décrit le portage qui a produit
+> l'arbre C++ à partir du C#. Il reste utile comme table de correspondance des types et des
+> patterns, mais **il ne dit plus où le code doit aller** : c'est
+> `docs/ARCHITECTURE-POLYGLOTTE.md` qui fixe la doctrine, et `docs/PORTAGES.md` qui tient le
+> registre des déplacements en cours — lesquels vont majoritairement **vers Rust**, et vers C++
+> seulement pour le jeu jouable.
+
 ## Mapping des types fondamentaux
 
 | C# | C++ | Notes |
