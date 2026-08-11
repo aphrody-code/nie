@@ -62,7 +62,6 @@ target_link_libraries(iecode_core PUBLIC
     nlohmann_json::nlohmann_json
     # capstone::capstone
     tree_sitter_c_parser
-    tree_sitter_lua_parser
     iecode_third_party
 )
 
