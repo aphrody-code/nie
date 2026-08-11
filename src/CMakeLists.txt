@@ -17,7 +17,6 @@ list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/game/.*")
 # plusieurs `main()` et toute la suite de tests.
 list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/src/cli/.*")
 list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/src/tests/.*")
-list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/src/ffi/.*")
 list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/src/decomp/.*")
 list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/src/driver/.*")
 list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/src/include/.*")
@@ -25,22 +24,6 @@ list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/src/include/.*")
 # qui possede son propre `int main()` — il ne doit pas etre dans la lib iecode_core.
 list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/iecode_export_app[a-z_]*\\.cpp$")
 
-if(EMSCRIPTEN)
-    # Re-include soccer physics for WASM FFI shim
-    list(APPEND CORE_SOURCES
-        ${CMAKE_CURRENT_SOURCE_DIR}/game/soccer/ball_component.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/game/soccer/soccer_player_component.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/game/soccer/csoccer_ctrl.cpp
-    )
-    list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/modding/gamebanana\\.cpp$")
-    list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/modding/update_checker\\.cpp$")
-    list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/modding/mod_packager\\.cpp$")
-    list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/compression/zlib_.*\\.cpp$")
-    list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/archive/tar_zstd\\.cpp$")
-    list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/converters/texture_.*\\.cpp$")
-    list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/converters/model_.*\\.cpp$")
-    list(FILTER CORE_SOURCES EXCLUDE REGEX ".*/render/.*\\.cpp$")
-endif()
 
 target_sources(iecode_core PRIVATE ${CORE_SOURCES})
 
@@ -92,30 +75,21 @@ target_link_libraries(iecode_core PUBLIC
 )
 
 # tinygltf — GLB export
-if(NOT EMSCRIPTEN)
 target_link_libraries(iecode_core PUBLIC tinygltf::tinygltf)
 target_compile_definitions(iecode_core PUBLIC IECODE_HAS_TINYGLTF=1)
-endif()
 
 # DirectXTex — BCn texture decode/encode
-if(NOT EMSCRIPTEN)
 target_link_libraries(iecode_core PUBLIC Microsoft::DirectXTex)
 target_compile_definitions(iecode_core PUBLIC IECODE_HAS_DIRECTXTEX=1)
-endif()
 
 # WebP — WebP export
-if(NOT EMSCRIPTEN)
 target_link_libraries(iecode_core PUBLIC WebP::webp)
 target_compile_definitions(iecode_core PUBLIC IECODE_HAS_WEBP=1)
-endif()
 
 # zlib — decompression Level-5 methode #5
-if(NOT EMSCRIPTEN)
 target_link_libraries(iecode_core PUBLIC ZLIB::ZLIB)
-endif()
 
 # zstd — compression export pipeline (iecode_export_app_optimized.cpp)
-if(NOT EMSCRIPTEN)
 find_package(zstd CONFIG REQUIRED)
 if(TARGET zstd::libzstd_shared)
     target_link_libraries(iecode_core PUBLIC zstd::libzstd_shared)
@@ -124,20 +98,16 @@ elseif(TARGET zstd::libzstd_static)
 else()
     target_link_libraries(iecode_core PUBLIC zstd::libzstd)
 endif()
-endif()
 
 # cpp-httplib + OpenSSL — client HTTPS pour GameBanana API et update checker
-if(NOT EMSCRIPTEN)
 find_package(OpenSSL REQUIRED)
 target_link_libraries(iecode_core PUBLIC httplib::httplib OpenSSL::SSL OpenSSL::Crypto)
 target_compile_definitions(iecode_core PUBLIC CPPHTTPLIB_OPENSSL_SUPPORT)
-endif()
 
 # Render / scripting deps
 target_link_libraries(iecode_core PUBLIC glm::glm)
 target_compile_definitions(iecode_core PUBLIC IECODE_HAS_GLM=1)
 
-if(NOT EMSCRIPTEN)
 target_link_libraries(iecode_core PUBLIC
     assimp::assimp
     bgfx::bgfx
@@ -148,7 +118,6 @@ target_compile_definitions(iecode_core PUBLIC
     IECODE_HAS_BGFX=1
     IECODE_HAS_SOL2=1
 )
-endif()
 
 # libpqxx (optional — PostgreSQL / Supabase push)
 if(libpqxx_FOUND)

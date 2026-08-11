@@ -9,7 +9,7 @@ set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# ── PIC (requis pour la shared library iecode_ffi / bun:ffi) ───────
+# ── PIC ────────────────────────────────────────────────────────────
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # ── Build options ──────────────────────────────────────────────────
@@ -25,7 +25,7 @@ option(IECODE_BUILD_GAME      "Build iecode_game   (game:: layer)  — depends o
 
 # ── ccache (build accelerator) ─────────────────────────────────────
 find_program(CCACHE_PROGRAM ccache)
-if(CCACHE_PROGRAM AND NOT EMSCRIPTEN)
+if(CCACHE_PROGRAM)
     message(STATUS "ccache found: ${CCACHE_PROGRAM}")
     set(CMAKE_CXX_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
     set(CMAKE_C_COMPILER_LAUNCHER   "${CCACHE_PROGRAM}")
@@ -109,6 +109,11 @@ endif()
 
 # ── MSVC multi-config fixes ────────────────────────────────────────
 if(MSVC)
+    # /bigobj : le format objet COFF plafonne à 65 279 sections. Un batch de 16 fichiers
+    # en unity build (cf. IECODE_UNITY_BUILD) dépasse ce plafond sur iecode_cli — erreur
+    # C1128. C'est le correctif documenté par Microsoft ; il n'a pas d'autre effet que
+    # d'élargir la table des sections.
+    add_compile_options(/bigobj)
     # Linker optimisations (Release only via generator expression)
     add_link_options(
         $<$<NOT:$<CONFIG:Debug>>:/OPT:REF>
@@ -121,71 +126,41 @@ if(MSVC)
 endif()
 
 # ── vcpkg packages (core — always required) ───────────────────────
-if(NOT EMSCRIPTEN)
-    find_package(CLI11          CONFIG REQUIRED)
-endif()
+find_package(CLI11          CONFIG REQUIRED)
 find_package(nlohmann_json  CONFIG REQUIRED)
 find_package(fmt            CONFIG REQUIRED)
 find_package(spdlog         CONFIG REQUIRED)
-if(NOT EMSCRIPTEN)
-    find_package(GTest          CONFIG REQUIRED)
-endif()
+find_package(GTest          CONFIG REQUIRED)
 
-# ── vcpkg packages (converters) ───────────────────────────────────
-if(NOT EMSCRIPTEN)
-# tinygltf is header-only and ships no cmake config — create an INTERFACE target
-find_path(TINYGLTF_INCLUDE_DIR "tiny_gltf.h")
-if(TINYGLTF_INCLUDE_DIR)
-    add_library(tinygltf::tinygltf INTERFACE IMPORTED)
-    target_include_directories(tinygltf::tinygltf INTERFACE "${TINYGLTF_INCLUDE_DIR}")
-    set(tinygltf_FOUND TRUE)
-    message(STATUS "tinygltf found: ${TINYGLTF_INCLUDE_DIR}")
-else()
-    message(FATAL_ERROR "tinygltf not found — install via vcpkg (vcpkg install tinygltf)")
-endif()
-endif()
-if(NOT EMSCRIPTEN)
-    find_package(directxtex  CONFIG REQUIRED)
-endif()
+# ── tinygltf (vendorisé) ──────────────────────────────────────────
+# Header-only, dans third_party/tinygltf (cf. son CMakeLists) : plus de find_package, donc
+# plus d'installation vcpkg qui échoue sur un SHA512 périmé.
+add_library(tinygltf::tinygltf INTERFACE IMPORTED)
+target_include_directories(tinygltf::tinygltf
+    INTERFACE "${CMAKE_SOURCE_DIR}/third_party/tinygltf")
+set(tinygltf_FOUND TRUE)
+find_package(directxtex  CONFIG REQUIRED)
 find_package(glm         CONFIG REQUIRED)
-if(NOT EMSCRIPTEN)
-    find_package(assimp      CONFIG REQUIRED)
-endif()
+find_package(assimp      CONFIG REQUIRED)
 
 # ── vcpkg packages (render / scripting) ───────────────────────────
-if(NOT EMSCRIPTEN)
-    find_package(bgfx  CONFIG REQUIRED)
-endif()
+find_package(bgfx  CONFIG REQUIRED)
 # Bullet3 — backend physique (remplace PhysX 3.4 de nie.exe)
-if(NOT EMSCRIPTEN)
-    find_package(Bullet CONFIG REQUIRED)
-endif()
-if(NOT EMSCRIPTEN)
-    find_package(sol2  CONFIG REQUIRED)
-endif()
-if(NOT EMSCRIPTEN)
-    find_package(unofficial-lua CONFIG REQUIRED)
-endif()
+find_package(Bullet CONFIG REQUIRED)
+find_package(sol2  CONFIG REQUIRED)
+find_package(unofficial-lua CONFIG REQUIRED)
 
 # ── Image encoding ─────────────────────────────────────────────────
-if(NOT EMSCRIPTEN)
-    find_package(WebP CONFIG REQUIRED)
-endif()
+find_package(WebP CONFIG REQUIRED)
 
 # ── HTTP server (cpp-httplib) ─────────────────────────────────────
-if(NOT EMSCRIPTEN)
-    find_package(httplib CONFIG REQUIRED)
-endif()
+find_package(httplib CONFIG REQUIRED)
 
 # ── Compression (zlib — transitive dep, toujours disponible) ──────
-if(NOT EMSCRIPTEN)
-    find_package(ZLIB REQUIRED)
-endif()
+find_package(ZLIB REQUIRED)
 
 # ── Database (optional — Supabase push) ───────────────────────────
-if(NOT EMSCRIPTEN)
-    find_package(libpqxx CONFIG QUIET)
-endif()
+find_package(libpqxx CONFIG QUIET)
 if(libpqxx_FOUND)
     message(STATUS "libpqxx found — Supabase push enabled")
 else()
@@ -193,9 +168,7 @@ else()
 endif()
 
 # ── RE / analysis libs (vcpkg) ─────────────────────────────────────
-if(NOT EMSCRIPTEN)
-    find_package(capstone    CONFIG REQUIRED)
-endif()
+find_package(capstone    CONFIG REQUIRED)
 find_package(unofficial-tree-sitter CONFIG QUIET)
 
 # tree-sitter-c grammar (FetchContent — not in vcpkg)
@@ -322,11 +295,8 @@ endif()
 # driver/, tests/ et include/ y ont ete regroupes). src/CMakeLists.txt exclut
 # ces sous-arbres de son GLOB : chacun a sa propre target ci-dessous.
 add_subdirectory(src/decomp)
-if(NOT EMSCRIPTEN)
     add_subdirectory(src/cli)
     add_subdirectory(src/tests)
-endif()
-add_subdirectory(src/ffi)
 
 # ── Summary ────────────────────────────────────────────────────────
 message(STATUS "")
