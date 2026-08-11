@@ -43,9 +43,11 @@ Deux workspaces coexistent dans ce même dépôt :
 - **Bun** (racine `package.json`, `workspaces: ["packages/*", "apps/*"]`) — bindings FFI, plugins de formats, CLI et app desktop TypeScript.
 
 ```
-crates/    # 26 crates Rust (jeu + données + moteur + RE + outils)
-apps/      # nie-decode (CLI TS), nie-explorer (app desktop Tauri)
-packages/  # nie, nie-catalog, nie-plugin, nie-util (Bun)
+crates/    # crates Rust (jeu + données + moteur + RE + outils) — dont la CLI unique `niers`
+src/       # arbre C++ iecode (jeu jouable, C décompilé, libs natives)
+csharp/    # IECODE.Core / IECODE.CLI / tests (.NET 10)
+apps/      # nie-explorer (app desktop Tauri), nie-mcp (serveur MCP)
+packages/  # nie (FFI Rust + C++), nie-bridge, nie-catalog, nie-plugin, nie-util (Bun)
 docs/      # plan maître, roadmap 100 %, architecture, design, inventaires
 scripts/   # outillage RE (Ghidra/Python/uv), packaging, exports
 var/       # base de connaissance RE (niers.sqlite), artefacts régénérables (gitignored)
@@ -84,8 +86,10 @@ fusionné), `nie-re` (moteur RE : RTTI, `.pdata`, désassemblage), `nie-queue` (
 | Nom | Rôle |
 |---|---|
 | `nie-explorer` | App desktop Tauri v2 + React 19 — explorateur VFS (254 202 fichiers), éditeur Monaco, aperçus texture/audio/vidéo/3D, gestion de mods, save manager, onglets RE et Game Data. Détail : [`apps/nie-explorer/ROADMAP.md`](apps/nie-explorer/ROADMAP.md). |
-| `nie-decode` | CLI TS : décode un fichier, un dossier ou tous les scripts Lua vers `.png`/`.json`. |
-| `nie` / `nie-catalog` / `nie-plugin` / `nie-util` | Bindings FFI, catalogue SQLite du VFS, plugin d'import de formats, utilitaires Bun partagés. |
+| `nie` / `nie-catalog` / `nie-plugin` / `nie-util` | Bindings FFI (Rust `nie_ffi` + C++ `iecode_ffi`), catalogue SQLite du VFS, plugin d'import de formats, utilitaires Bun partagés. |
+
+Le décodage en lot n'est plus une app Bun : c'est `niers decode <fichier|dossier>` (Rust direct,
+parallélisé par rayon, même table de dispatch que la FFI).
 
 ## Build
 
@@ -105,7 +109,7 @@ niers coverage --db var/niers.sqlite
 
 ```
 bun install
-bun test packages/nie apps/nie-decode
+bun test packages/nie
 bun run --filter '*' typecheck
 cargo build -p nie-ffi   # requis avant les tests FFI de packages/nie
 

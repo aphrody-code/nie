@@ -74,7 +74,6 @@ Membres : `crates/forge/*`, `crates/engine/*`, `crates/tools/*`.
 | `packages/nie-catalog` | `@niers/catalog` | Catalogue SQLite du VFS |
 | `packages/nie-plugin` | `nie-plugin` | Plugin Bun d'import des formats (préchargé) |
 | `packages/nie-util` | `@niers/util` | Utilitaires partagés |
-| `apps/nie-decode` | `@niers/nie-decode` | CLI de décodage parallèle |
 | `apps/nie-explorer` | `nie-explorer` | Explorateur/éditeur Tauri (React + Rust) |
 | `apps/nie-mcp` | `@niers/nie-mcp` | Serveur MCP `niers-game` |
 

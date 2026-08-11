@@ -31,7 +31,6 @@ exclusions sans relire le commentaire.
 | `packages/nie-catalog` | Catalogue SQLite du VFS |
 | `packages/nie-plugin` | Plugin Bun d'import des formats de jeu (préchargé par `bunfig.toml`) |
 | `packages/nie-util` | Utilitaires partagés (compression, formatage…) |
-| `apps/nie-decode` | CLI de décodage |
 | `apps/nie-explorer` | Explorateur/éditeur Tauri |
 | `apps/nie-mcp` | Serveur MCP `niers-game` |
 
