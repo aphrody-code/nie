@@ -6,10 +6,15 @@ le chiffre, pas par préférence. Harnais : `crates/tools/nie-bench` (Rust), `be
 
 ## Conditions de mesure
 
-**Machine au repos, sinon rien.** Les mesures prises pendant une compilation concurrente
-(vcpkg) donnaient 692 Mio/s là où la machine libre en donne 820 : −16 % de biais, plus que la
-plupart des écarts qu'on cherche à mesurer. `bench/run-all.ps1` ne le détecte pas — c'est à
-l'opérateur de lancer la campagne au calme.
+**Machine au repos, sinon rien.** Deux biais mesurés, tous deux supérieurs aux écarts qu'on
+cherche à observer :
+
+- une compilation concurrente (vcpkg) fait tomber le même binaire de 820 à 692 Mio/s (−16 %) ;
+- un **serveur de dev Vite oublié en arrière-plan** (`bun run dev` de `nie-explorer`,
+  17,5 h de CPU accumulées) faussait toutes les séries. Vérifier avant de mesurer :
+  `Get-Process bun, node, MSBuild, VBCSCompiler`, puis `dotnet build-server shutdown`.
+
+`bench/run-all.ps1` ne détecte pas la charge — c'est à l'opérateur de faire le vide.
 
 ## Chaînes de build à préparer
 
@@ -40,15 +45,22 @@ bench/cs/bin/Release/net10.0/nie-bench-cs.exe crilayla bench/data/sample.crilayl
 
 ## Résultats
 
-| Noyau | Rust | C++ | C# | Écart |
+Campagne du 2026-08-11, `bench/run-all.ps1`, **machine au repos** et les quatre chaînes
+construites (Rust release, C++ Release, C# JIT et NativeAOT).
+
+| Noyau | Rust | C++ | C# JIT | C# AOT |
 |---|---|---|---|---|
-| **CRC32** (slicing-by-8, 64 Mio) | 2 400 Mio/s | **3 070 Mio/s** | 600 Mio/s¹ | C++ ×1,28 sur Rust |
-| **CRILAYLA** (blob réel 14,6 Kio → 28,9 Kio) | 581 Mio/s | 553 Mio/s | **820 Mio/s** | C# ×1,41 sur Rust |
-| **G4TX → PNG** (2640×1200, BC7) | **659 ms** | n/a² | 7 169 ms | Rust ×10,9 sur C# |
-| **Qualité G4TX → PNG** | référence | n/a² | **identique** | 100 % des pixels, PSNR ∞ |
+| **CRC32** (slicing-by-8, 64 Mio) | 2 312 Mio/s | **3 243 Mio/s** | 606¹ | 600¹ |
+| **CRILAYLA** (blob réel 14,6 Kio → 28,9 Kio) | 626 Mio/s | 553 Mio/s | **817 Mio/s** | 711 Mio/s |
+| **G4TX → PNG** (2640×1200, BC7) | **659 ms** | n/a² | 7 169 ms | — |
+| **Qualité G4TX → PNG** | référence | n/a² | **identique** (100 % des pixels, PSNR ∞) | — |
 
 ¹ `Crc32.cs` est en table simple octet-par-octet, pas en slicing — c'est l'algorithme qui est
-mesuré, pas le langage. ² L'encodage PNG C++ passe par DirectXTex, qui exige vcpkg (absent).
+mesuré, pas le langage. ² L'encodage PNG C++ passe par DirectXTex ; le chemin existe mais
+n'a pas de commande équivalente à `niers decode` pour être chronométré de bout en bout.
+
+**Gagnant par noyau** : C++ sur le hachage table-driven (×1,40 sur Rust), C# sur la
+décompression LZ (×1,31 sur Rust, ×1,48 sur C++), Rust sur le pipeline complet (×10,9 sur C#).
 
 ### NativeAOT n'accélère pas le calcul
 
