@@ -1,25 +1,31 @@
 //! Bindings WebAssembly pour `nie-formats`.
 //!
-//! Expose au navigateur les parsers portables de `nie-formats` via `wasm-bindgen`.
-//! Compatible avec la toolchain `nightly-x86_64-unknown-linux-gnu` (seule à avoir
-//! la std `wasm32-unknown-unknown` sur ce VPS).
+//! Expose au navigateur les parsers portables de `nie-formats` via `wasm-bindgen`. La cible
+//! `wasm32-unknown-unknown` s'installe par `rustup target add wasm32-unknown-unknown` et n'a rien
+//! de spécifique à une plateforme.
 //!
 //! ## Génération des bindings JS
 //!
 //! La compilation vers wasm32 seule ne suffit pas à produire les glues JS.
-//! Deux outils sont nécessaires (à installer une fois) :
+//!
+//! **Le CLI `wasm-bindgen` doit avoir EXACTEMENT la version épinglée par le workspace**
+//! (`wasm-bindgen = { version = "=…" }` dans le `Cargo.toml` racine) : un écart, même de patch,
+//! fait rejeter les bindings générés. Ne pas recopier un numéro ici — il dériverait. Lire le pin,
+//! puis installer le CLI correspondant :
 //!
 //! ```sh
-//! # Option A — wasm-bindgen-cli (version EXACTEMENT =0.2.121)
-//! cargo install wasm-bindgen-cli --version 0.2.121
+//! # Option A — wasm-bindgen-cli, à la version du workspace
+//! cargo install wasm-bindgen-cli --version "$(grep -oE 'wasm-bindgen = \{ version = "=[0-9.]+"' Cargo.toml | grep -oE '[0-9.]+')"
 //! cargo build -p nie-wasm --target wasm32-unknown-unknown --release
 //! wasm-bindgen target/wasm32-unknown-unknown/release/nie_wasm.wasm \
 //!     --out-dir pkg/ --target bundler
 //!
-//! # Option B — wasm-pack (wraps les deux étapes ci-dessus)
+//! # Option B — wasm-pack (enchaîne les deux étapes)
 //! cargo install wasm-pack
 //! wasm-pack build crates/engine/nie-wasm --target bundler
 //! ```
+//!
+//! `scripts/build-wasm.sh` fait le contrôle d'alignement avant de construire.
 //!
 //! ## Surface exposée
 //!
@@ -1140,14 +1146,19 @@ pub fn parse_save_json(bytes: &[u8], filename: &str) -> Result<String, String> {
 }
 
 // ---------------------------------------------------------------------------
-// Jeu jouable en navigateur (nie-app : FSM GameState + rendu CPU framebuffer)
+// Machine à états d'écran en navigateur (nie-app : GameState + framebuffer CPU)
 // ---------------------------------------------------------------------------
 
-/// Le JEU niers complet, jouable au clavier dans le navigateur — 100 % Rust → wasm.
+/// Machine à états d'écran interactive, rendue en WebAssembly.
 ///
-/// Machine à états INTERACTIVE (écran-titre → menu principal → **vrai match** [moteur nie-runtime :
-/// physique, 22 joueurs, ballon, buts] → mode histoire), pilotée par les touches, rendue en framebuffer
-/// RGBA8 `W*H*4` unifié que JS peint plein écran. Pas un playthrough scripté : le joueur navigue et joue.
+/// Écran-titre → menu → match simulé (`nie-runtime` : physique, 22 joueurs, ballon, buts) → mode
+/// histoire, pilotée au clavier, rendue dans un framebuffer RGBA8 `W*H*4` que JS peint.
+///
+/// ⚠ **Ce n'est pas le jeu.** Le rendu est un placeholder 2D : il ne ressemble pas à l'UI d'IEVR,
+/// parce que le vrai menu n'est pas dans les fichiers — il est construit à l'exécution par le
+/// menu-manager C++ qui pilote Lua via `funcLuaMenuCommand`, boucle non encore portée. Et le
+/// modèle de but de `match_sim` reste nominal. Ne pas présenter cette surface comme un jeu
+/// jouable : ce qu'elle prouve, c'est que la logique portée tourne en wasm.
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub struct WasmGame {

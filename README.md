@@ -8,7 +8,6 @@ rebuilds the original `nie.exe`, byte for byte, to prove it.**
 ![tests](https://img.shields.io/badge/tests-2%2C448%20passing-brightgreen)
 ![forge](https://img.shields.io/badge/forge-51.86%25%20of%20nie.exe-yellow)
 
-🎮 **Play in your browser** (100 % Rust → WebAssembly): **<https://azalee.rosegriffon.fr/jeu>**
 📥 **Desktop app** (VFS explorer + Blender add-on): **<https://azalee.rosegriffon.fr/tools/niers>**
 
 ---
@@ -18,7 +17,8 @@ rebuilds the original `nie.exe`, byte for byte, to prove it.**
 Two halves of one goal, and each keeps the other honest:
 
 1. **The engine** — the game rewritten in Rust: file formats parsed natively, game data loaded,
-   matches simulated, assets decoded. Runs native, headless, and in the browser.
+   matches simulated, assets decoded. Runs native and headless; a WebAssembly surface exposes the
+   verified parts to the browser. It is **not a playable game yet** — see the limits below.
 2. **The forge** — `crates/forge/` *generates* `nie.exe` from this repository and fails the build
    unless the output is byte-identical to the original. It measures, to the byte, how much of the
    binary the repo actually produces; the rest is copied from the reference, and labelled as such.
@@ -50,9 +50,18 @@ function when it matches an oracle — Unicorn emulation of that exact function 
 binary (`scripts/uemu.py`), or the forge itself. Anything that cannot be validated is marked
 incomplete rather than done.
 
-**Known limit, stated plainly:** `match_sim` is still nominal. Reverse engineering shows the
-shoot/save resolution is a table-driven evaluator, not an inline formula, so `GOAL_RATE_BASE` has
-no binary grounding — and the code says so. See [`docs/modele-de-match.md`](docs/modele-de-match.md).
+### Known limits, stated plainly
+
+- **This does not play like the game.** What renders today is a placeholder 2D menu, not IEVR's
+  UI. The real menu is not in the files: it is built at runtime by the C++ menu manager, which
+  reads `*_menu_setting.cfg.bin`, creates each object, and drives Lua through `funcLuaMenuCommand`.
+  Until that build loop is ported, no screen looks like the original. It is priority #1.
+- **Match resolution is nominal.** Reverse engineering shows shoot/save is a table-driven
+  evaluator, not an inline formula, so `GOAL_RATE_BASE` in `match_sim` has no binary grounding —
+  and the code says so. See [`docs/modele-de-match.md`](docs/modele-de-match.md).
+
+What *is* solid: the file formats, the game data, the ported primitives, and the forge. Those are
+the numbers in the table above.
 
 ## Quick start
 
