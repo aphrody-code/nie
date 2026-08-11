@@ -35,7 +35,8 @@ nie-runtime = { path = "../../engine/nie-runtime" }
 serde_json.workspace = true
 # (cridecoder arrive via nie-formats feature `audio-decode` — plus de dép directe)
 
-# wasm-bindgen épinglé à la même version qu'aphrody (=0.2.121).
+# wasm-bindgen est épinglé à une version EXACTE dans le Cargo.toml racine : le CLI
+# `wasm-bindgen` doit porter la même, sinon les bindings générés sont rejetés.
 # Gate via cfg(target_arch = "wasm32") dans le code source.
 wasm-bindgen.workspace = true
 wasm-bindgen-futures.workspace = true
