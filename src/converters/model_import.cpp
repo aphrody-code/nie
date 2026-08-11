@@ -4,6 +4,10 @@
 #define TINYGLTF_NO_STB_IMAGE
 #define TINYGLTF_NO_INCLUDE_STB_IMAGE
 #define TINYGLTF_NO_INCLUDE_STB_IMAGE_WRITE
+// Même raison que dans model_export.cpp : vcpkg installe nlohmann sous `nlohmann/json.hpp`,
+// pas à la racine comme le suppose l'inclusion automatique de tiny_gltf.h.
+#define TINYGLTF_NO_INCLUDE_JSON
+#include <nlohmann/json.hpp>
 #include <tiny_gltf.h>
 #endif
 

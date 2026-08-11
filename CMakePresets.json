@@ -172,21 +172,6 @@
         "CMAKE_CXX_COMPILER": "clang++",
         "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON"
       }
-    },
-    {
-      "name": "wasm",
-      "displayName": "WebAssembly (Emscripten)",
-      "inherits": "vcpkg-base",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/wasm",
-      "cacheVariables": {
-        "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
-        "VCPKG_TARGET_TRIPLET": "wasm32-emscripten",
-        "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_CXX_FLAGS": "-fwasm-exceptions -fPIC",
-        "CMAKE_C_FLAGS": "-fPIC",
-        "IECODE_WASM": "ON"
-      }
     }
   ],
   "buildPresets": [
@@ -227,96 +212,156 @@
     {
       "name": "linux-clang-release",
       "configurePreset": "linux-clang-release"
-    },
-    {
-      "name": "wasm",
-      "configurePreset": "wasm"
     }
   ],
   "testPresets": [
     {
       "name": "debug",
       "configurePreset": "debug",
-      "output": { "outputOnFailure": true },
-      "execution": { "noTestsAction": "error", "stopOnFailure": true }
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": true
+      }
     },
     {
       "name": "release",
       "configurePreset": "release",
-      "output": { "outputOnFailure": true }
+      "output": {
+        "outputOnFailure": true
+      }
     },
     {
       "name": "linux-gcc",
       "configurePreset": "linux-gcc",
-      "output": { "outputOnFailure": true },
-      "execution": { "noTestsAction": "error", "stopOnFailure": true }
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": true
+      }
     },
     {
       "name": "linux-clang",
       "configurePreset": "linux-clang",
-      "output": { "outputOnFailure": true },
-      "execution": { "noTestsAction": "error", "stopOnFailure": true }
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": true
+      }
     }
   ],
   "workflowPresets": [
     {
       "name": "dev",
       "steps": [
-        { "type": "configure", "name": "debug" },
-        { "type": "build", "name": "debug" },
-        { "type": "test", "name": "debug" }
+        {
+          "type": "configure",
+          "name": "debug"
+        },
+        {
+          "type": "build",
+          "name": "debug"
+        },
+        {
+          "type": "test",
+          "name": "debug"
+        }
       ]
     },
     {
       "name": "ci",
       "steps": [
-        { "type": "configure", "name": "release" },
-        { "type": "build", "name": "release" },
-        { "type": "test", "name": "release" }
+        {
+          "type": "configure",
+          "name": "release"
+        },
+        {
+          "type": "build",
+          "name": "release"
+        },
+        {
+          "type": "test",
+          "name": "release"
+        }
       ]
     },
     {
       "name": "release-win",
       "steps": [
-        { "type": "configure", "name": "release-win" },
-        { "type": "build", "name": "release-win" }
+        {
+          "type": "configure",
+          "name": "release-win"
+        },
+        {
+          "type": "build",
+          "name": "release-win"
+        }
       ]
     },
     {
       "name": "linux-gcc",
       "steps": [
-        { "type": "configure", "name": "linux-gcc" },
-        { "type": "build", "name": "linux-gcc" },
-        { "type": "test", "name": "linux-gcc" }
+        {
+          "type": "configure",
+          "name": "linux-gcc"
+        },
+        {
+          "type": "build",
+          "name": "linux-gcc"
+        },
+        {
+          "type": "test",
+          "name": "linux-gcc"
+        }
       ]
     },
     {
       "name": "linux-gcc-release",
       "steps": [
-        { "type": "configure", "name": "linux-gcc-release" },
-        { "type": "build", "name": "linux-gcc-release" }
+        {
+          "type": "configure",
+          "name": "linux-gcc-release"
+        },
+        {
+          "type": "build",
+          "name": "linux-gcc-release"
+        }
       ]
     },
     {
       "name": "linux-clang",
       "steps": [
-        { "type": "configure", "name": "linux-clang" },
-        { "type": "build", "name": "linux-clang" },
-        { "type": "test", "name": "linux-clang" }
+        {
+          "type": "configure",
+          "name": "linux-clang"
+        },
+        {
+          "type": "build",
+          "name": "linux-clang"
+        },
+        {
+          "type": "test",
+          "name": "linux-clang"
+        }
       ]
     },
     {
       "name": "linux-clang-release",
       "steps": [
-        { "type": "configure", "name": "linux-clang-release" },
-        { "type": "build", "name": "linux-clang-release" }
-      ]
-    },
-    {
-      "name": "wasm",
-      "steps": [
-        { "type": "configure", "name": "wasm" },
-        { "type": "build", "name": "wasm" }
+        {
+          "type": "configure",
+          "name": "linux-clang-release"
+        },
+        {
+          "type": "build",
+          "name": "linux-clang-release"
+        }
       ]
     }
   ]
