@@ -16,31 +16,58 @@
 
 Une commande pour les quatre : `just all-build`, `just all-test`, `just all-check`.
 
-## Qui fait autorité
+## Doctrine de répartition (cible)
 
-Le chevauchement fonctionnel est réel et **assumé** : les quatre arbres savent lire les formats
-Level-5. Ce n'est pas de la duplication à supprimer, c'est **quatre points de vue** sur le même
-binaire, et chacun a une raison d'exister que les autres n'ont pas.
+Décidée le 2026-08-11 par le propriétaire du projet. **Un rôle, un langage** — c'est la règle qui
+tranche quand deux arbres savent faire la même chose.
 
-| Domaine | Autorité | Pourquoi elle, et pas une autre |
-|---|---|---|
-| **Byte-exactitude** (forge, golden, `.pdata`/`.reloc`, encodeur x86-64) | **Rust** (`crates/forge`) | Le contrat du projet : `sha256(dist/nie.exe)` == référence. Rien d'autre ne le mesure. |
-| **Logique de jeu reversée** (match, ball, keeper, tactics, save) | **Rust** (`crates/engine/nie-core`) | ~60 tests IEEE-754 golden ancrent l'ordre des opérations f32. |
-| **Décodage de texture BCn** (BC7, DX10, FourCC) | **C++** (`src/converters`, DirectXTex) | DirectXTex est la référence Microsoft ; le Rust en a un portage (`g4tx_decode`) pour wasm. |
-| **Import/export de modèles** (glTF, FBX, DAE) | **C++** (assimp, tinygltf) | Assimp couvre ~40 formats ; réécrire ça en Rust n'apporterait rien. |
-| **Rendu temps réel natif** | **C++** (bgfx) et **Rust** (wgpu, `nie-game`) | Deux cibles distinctes : bgfx pour l'outillage, wgpu pour le moteur portable/wasm. |
-| **Physique** | **C++** (Bullet) | Remplace PhysX 3.4 du jeu ; le Rust n'a que la physique de ballon reversée. |
-| **Scripting Lua du jeu** | **C++** (sol2) et **Rust** (`nie-lua`) | sol2 exécute ; `nie-lua` reverse le *dispatch* des menus (byte-exact). |
-| **Analyse binaire** (capstone, tree-sitter, rizin) | **C++** (`src/cli/commands/analyze`) | Écosystème natif complet ; le Rust utilise iced-x86 pour la forge seule. |
-| **Lecture mémoire d'un process vivant** | **C++** (`src/driver/iecode_memread`, driver kernel) | Nécessite un driver signé — hors de portée des trois autres. |
-| **Catalogue des formats** (magics, layouts de champs) | **C#** (`csharp/IECODE.Core/Formats`) | `iecode export-knowledge` en fait un JSON versionné que `nie-seed` **ingère** : c'est déjà la source amont du Rust. |
-| **Pipelines de données / CDN / EOS / Steam** | **C#** (`Pipeline`, `Cdn`, `EOS`, `Steam`) | Le .NET a les SDK et le typage rapide ; ce sont des outils, pas du moteur. |
-| **SIMD portable haut niveau** | **C#** (`csharp/IECODE.Core/Native`) | `System.Runtime.Intrinsics` (AVX2/SSE2/AES-NI) sans `unsafe` C++ ni `unsafe` Rust. |
-| **Orchestration, MCP, UI** | **TypeScript/Bun** (`apps/nie-mcp`, `apps/nie-explorer`) | Bun Workers, FFI sans glue, Tauri ; c'est la couche qui *pilote* les trois autres. |
+| Langage | Rôles qui lui reviennent |
+|---|---|
+| **C++** (`src/`) | portage du **C décompilé** vers le **jeu `nie` jouable**, et **uniquement** cela — plus les rares bibliothèques qui **n'existent qu'en C++** |
+| **C#** (`csharp/`) | **dump**, **pack**, **memory**, **conversion de texture** (et l'outillage de données qui les entoure) |
+| **Rust** (`crates/`) | **CLI** (la seule), **GUI**, **core lib**, **wasm**, **reverse-engineering**, **conversion de texture** byte-exacte |
+| **Bun/TS** (`packages/`, `apps/`) | **MCP**, **serveur web**, **types**, **API**, **UI** |
 
-**Règle** : porter une capacité d'un arbre à l'autre se justifie par une **contrainte** (byte-exact,
-wasm, absence de dépendance), pas par le goût du langage. Un troisième décodeur de texture qui
-n'est ni byte-exact ni wasm-portable est une dette, pas une feature.
+**La conversion de texture C++ est la moins bonne des trois** (constat du propriétaire, 2026-08-11) :
+Rust et C# la dominent. `src/converters/texture_*` n'est donc **pas** une autorité, c'est un
+héritage à retirer du chemin par défaut — il ne survit que tant qu'une fonction n'existe nulle part
+ailleurs (aujourd'hui : l'export WebP). Le C++ ne se justifie plus que par deux raisons :
+faire tourner le jeu, ou envelopper une bibliothèque sans équivalent (assimp, Bullet, le driver
+kernel). Une dépendance C++ qui a un équivalent Rust ou C# n'est pas une raison de rester en C++.
+
+Deux ajustements, parce que la doctrine littérale casserait des choses qui marchent :
+
+1. **Le driver mémoire reste en C++.** `src/driver/iecode_memread` est un pilote kernel Windows
+   (WDK, signature) : ni C# ni Rust ne peuvent l'assumer. C# prend le **client** et l'outillage de
+   dump mémoire ; le driver et son ABI restent C++. `crates/forge/nie-trace` reste Rust car il
+   sert la RE, qui est un rôle Rust.
+2. **« CLI uniquement en Rust » se fait par absorption, pas par suppression.** `iecode` (C++,
+   40 commandes) et `IECODE.CLI` (C#, 37 commandes) portent des fonctions que `niers` n'a pas :
+   les supprimer d'un trait perdrait ~60 features. Cible : `niers` est la **seule CLI utilisateur**
+   et délègue aux deux autres binaires tant que la fonction n'est pas portée ; chaque portage
+   retire une délégation. L'écart est chiffré ci-dessous et se réduit commande par commande.
+
+**Corollaire** : porter une capacité d'un arbre à l'autre se justifie par la doctrine ou par une
+contrainte technique (byte-exact, wasm, dépendance native), jamais par le goût du langage.
+
+## Écart à la doctrine (mesuré le 2026-08-11)
+
+| Arbre | Conforme | Hors doctrine | Décision |
+|---|---|---|---|
+| C++ `src/decomp` | ✅ C décompilé → jeu jouable | — | garder, c'est le cœur du rôle C++ |
+| C++ `src/converters/texture_*` | — | conversion de texture (la moins bonne des trois) | retirer du chemin par défaut ; ne survit que pour l'export WebP, à porter en Rust ou C# |
+| C++ `src/render` (bgfx) | — | rendu hors jeu | ne garder que ce qui sert le jeu jouable ; la GUI est Rust |
+| C++ `src/cli` (40 commandes) | — | CLI en C++ | → façade `niers`, puis absorption |
+| C++ `src/vfs`, `src/archive`, `src/compression`, `src/crypto`, `src/formats` | — | core lib en C++ | doublon de `nie-formats` : geler, ne plus étendre |
+| C++ `src/gamedata`, `src/db`, `src/services`, `src/modding` | — | données/outils en C++ | candidats au portage C# (dump/pack) |
+| C++ `src/engine`, `src/game`, `src/scripting` | — | moteur en C++ | déjà `OFF` par défaut dans CMake ; référence de portage |
+| C# `Dump`, `Pack`, `Mem` | ✅ | — | garder, **cible d'accueil** |
+| C# `Formats`, `Compression`, `Crypto`, `Converters` | — | core lib en C# | source du catalogue `export-knowledge` : garder en lecture, ne plus étendre |
+| C# `Cdn`, `EOS`, `Steam`, `Pipeline`, `Search` | — | services | à arbitrer : web ⇒ Bun, données ⇒ C# |
+| Rust `crates/engine`, `crates/forge`, `crates/tools/nie-cli` | ✅ core, wasm, RE, CLI | — | garder |
+| Rust `crates/tools/nie-model-serve` | — | serveur web en Rust | → Bun (rôle « web server ») |
+| Bun `apps/nie-mcp`, `apps/nie-explorer` (UI) | ✅ | — | garder |
+| Bun `apps/nie-decode` | — | CLI en TS | → sous-commande `niers decode` |
 
 ## Les ponts (ce qui existe réellement)
 

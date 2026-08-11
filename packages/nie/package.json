@@ -1,7 +1,7 @@
 {
   "name": "nie",
   "version": "0.4.0",
-  "description": "Bun FFI bindings for libnie_ffi — CRC32, MT19937, detect/decode/g4tx/vfs",
+  "description": "Bindings FFI des deux bibliothèques natives de niers — nie_ffi (Rust) et iecode_ffi (C++)",
   "type": "module",
   "main": "src/index.ts",
   "module": "src/index.ts",
@@ -10,6 +10,14 @@
     ".": {
       "import": "./src/index.ts",
       "types": "./src/index.ts"
+    },
+    "./iecode": {
+      "import": "./src/iecode.ts",
+      "types": "./src/iecode.ts"
+    },
+    "./backend": {
+      "import": "./src/backend.ts",
+      "types": "./src/backend.ts"
     }
   },
   "license": "MIT",
