@@ -1,14 +1,20 @@
 #![allow(clippy::pedantic)]
 //! Golden `event_bustup` — portraits de dialogue par chapitre, sur un vrai dump.
+mod common;
+
 use nie_data::event_bustup::parse_event_bustup_talk;
 use nie_data::hash::HashId;
 
 const PATH: &str =
-    "/home/ubuntu/niers/data/common/gamedata/event/event_bustup_talk_data_config_c23_3.00.06.cfg.bin.json";
+    "event/event_bustup_talk_data_config_c23_3.00.06.cfg.bin.json";
 
 fn load() -> Option<serde_json::Value> {
-    if !std::path::Path::new(PATH).exists() { return None; }
-    Some(serde_json::from_str(&std::fs::read_to_string(PATH).unwrap()).unwrap())
+    let chemin_abs = common::chemin(PATH)?;
+    if !chemin_abs.is_file() {
+        eprintln!("skip : {} absent du corpus", chemin_abs.display());
+        return None;
+    }
+    Some(serde_json::from_str(&std::fs::read_to_string(&chemin_abs).unwrap()).unwrap())
 }
 
 #[test]

@@ -13,7 +13,7 @@ Chemin validé = capacité suffisante (count < cap) → écriture directe (pas d
 Les helpers de croissance FUN_140721750/660/900 = std::vector emplace+realloc (append identique),
 hors périmètre de CETTE fonction.
 
-Lancer : cd /home/ubuntu/niers/scripts && ../.venv/bin/python validate_imm_batcher.py
+Lancer : uv run scripts/validate_imm_batcher.py
 """
 import struct
 import sys as _sys

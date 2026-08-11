@@ -13,6 +13,8 @@
 //! - Loterie 2 (lotteryId=2), TABLE_0 tableId=0x3319A8FD, 1 item (0xFC434F28, type=0, weight=100).
 //! - Loterie 3 (lotteryId=3), TABLE_0 tableId=0xCBA1009F, 5 items (somme des poids = 100).
 
+mod common;
+
 extern crate std;
 
 use nie_data::hash::HashId;
@@ -222,7 +224,7 @@ fn nfc_list_beg_ignore_si_pas_de_lottery() {
 
 // ─── Test sur fichier réel (skip silencieux si absent) ───────────────────────
 
-const REAL_FILE: &str = "/home/ubuntu/niers/data/common/gamedata/nfc/nfc_lottery_config.cfg.bin.json";
+const REAL_FILE: &str = "nfc/nfc_lottery_config.cfg.bin.json";
 
 #[test]
 fn nfc_real_file_structure() {

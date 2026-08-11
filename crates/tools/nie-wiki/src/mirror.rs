@@ -3,7 +3,7 @@
 //! Ordre de résolution (identique à l'azalee CLI TS) :
 //! 1. Flag `--db` (prioritaire, passé en argument)
 //! 2. Variable d'environnement `NIE_WIKI_DB` ou `SQLITE_DB_PATH`
-//! 3. Fichier `supabase-*.sqlite` le plus récent dans `/home/ubuntu/niers/data/backups`
+//! 3. Fichier `supabase-*.sqlite` le plus récent dans `data/backups`
 
 use std::path::{Path, PathBuf};
 
@@ -50,7 +50,7 @@ pub fn resolve(db_override: Option<&Path>) -> anyhow::Result<PathBuf> {
     }
 
     // 3. Répertoire de backups : fichier supabase-*.sqlite le plus récent (tri lexicographique)
-    let backups_dir = PathBuf::from("/home/ubuntu/niers/data/backups");
+    let backups_dir = PathBuf::from("data/backups");
     if backups_dir.is_dir()
         && let Some(latest) = latest_sqlite_in(&backups_dir) {
             return Ok(latest);
@@ -58,7 +58,7 @@ pub fn resolve(db_override: Option<&Path>) -> anyhow::Result<PathBuf> {
 
     bail!(
         "aucun miroir SQLite trouvé — utilisez --db, NIE_WIKI_DB ou placez un fichier \
-         supabase-*.sqlite dans /home/ubuntu/niers/data/backups"
+         supabase-*.sqlite dans data/backups"
     )
 }
 

@@ -5,20 +5,24 @@
 //! Format `entries` (variables positionnelles). On vérifie l'arbre observé :
 //! `StoryMode` (racine, kind 1) + `StoryMode_SubTask_01..04` (kind 5, parent = id de StoryMode).
 
+mod common;
+
 extern crate std;
 
 use nie_data::activity::parse_activity_config;
 use serde_json::json;
 
-const REAL: &str = "/home/ubuntu/niers/data/common/gamedata/system/activity_config.cfg.bin.json";
+const REAL: &str = "system/activity_config.cfg.bin.json";
 
 fn load_json(path: &str) -> Option<serde_json::Value> {
-    if !std::path::Path::new(path).exists() {
+    let path = common::chemin(path)?;
+    if !path.is_file() {
+        eprintln!("skip : {} absent du corpus", path.display());
         return None;
     }
     let content =
-        std::fs::read_to_string(path).unwrap_or_else(|e| panic!("Impossible de lire {path}: {e}"));
-    Some(serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide {path}: {e}")))
+        std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", path.display()));
+    Some(serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide {}: {e}", path.display())))
 }
 
 /// Fixture inline reproduisant la structure : 1 LIST_BEG (1 var, ignoré) + une racine + 1 sous-tâche.

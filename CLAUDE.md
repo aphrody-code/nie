@@ -174,10 +174,13 @@ csharp/             IECODE.Core / IECODE.CLI / IECODE.Core.Tests (.NET 10, `IECO
 
 - `data/` contient les vraies copies locales (dx11, packs ~57 Go, `cpk_list.cfg.bin`).  
   **gitignored** — assets © LEVEL-5. Ne jamais committer ni pousser (`start.png`, `menu.png` inclus).
-- Variable d’environnement : `NIE_GAME_DIR=/home/aphrody/niers` (254 202 assets).  
-  Fallback Steam : `/mnt/c/…/INAZUMA ELEVEN Victory Road`.
-- Sur l’install Steam Windows, le VFS complet **est le cwd** : `resolve_game_dir()` le détecte via
-  `data/cpk_list.cfg.bin`, `NIE_GAME_DIR` est inutile.
+- **Aucun chemin de machine n’est compilé dans un binaire.** La racine du jeu se résout à
+  l’exécution — `nie_formats::vfs::resolve_game_dir()` : `NIE_GAME_DIR`, sinon le répertoire
+  courant ou un ancêtre portant `data/cpk_list.cfg.bin`, sinon le répertoire de l’exécutable.
+  Sur l’install Steam Windows, le VFS complet **est le cwd** : `NIE_GAME_DIR` est inutile.
+- Les goldens adossés aux dumps `*.cfg.bin.json` passent par `NIE_GAMEDATA_JSON` (ou
+  `<NIE_GAME_DIR>/dump/gamedata`) et **annoncent leur saut** quand le corpus est absent — un
+  golden muet qui ne s’exécute pas est un faux vert.
 - `Vfs::init()` prend **`<racine>/data`**, pas la racine (sinon « impossible d’ouvrir cpk_list.cfg.bin »).
 - `niers vfs extract <chemin> -o <FICHIER>` : `-o` est un **fichier**, pas un dossier — sinon
   « Accès refusé (os error 5) », qui n’a rien à voir avec les permissions.

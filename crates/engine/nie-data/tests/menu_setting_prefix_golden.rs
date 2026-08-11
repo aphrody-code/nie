@@ -4,18 +4,22 @@
 //!
 //! - `data/common/gamedata/menu/cfg/info_bookmark_menu_setting.cfg.bin.json`
 
+mod common;
+
 use nie_data::hash::HashId;
 use nie_data::menu_setting::parse;
 
 const PATH: &str =
-    "/home/ubuntu/niers/data/common/gamedata/menu/cfg/info_bookmark_menu_setting.cfg.bin.json";
+    "menu/cfg/info_bookmark_menu_setting.cfg.bin.json";
 
 fn load() -> Option<serde_json::Value> {
-    if !std::path::Path::new(PATH).exists() {
+    let chemin_abs = common::chemin(PATH)?;
+    if !chemin_abs.is_file() {
+        eprintln!("skip : {} absent du corpus", chemin_abs.display());
         return None;
     }
-    let c = std::fs::read_to_string(PATH).unwrap_or_else(|e| panic!("lecture {PATH}: {e}"));
-    Some(serde_json::from_str(&c).unwrap_or_else(|e| panic!("JSON {PATH}: {e}")))
+    let c = std::fs::read_to_string(&chemin_abs).unwrap_or_else(|e| panic!("lecture {}: {e}", chemin_abs.display()));
+    Some(serde_json::from_str(&c).unwrap_or_else(|e| panic!("JSON {}: {e}", chemin_abs.display())))
 }
 
 #[test]

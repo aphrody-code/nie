@@ -7,17 +7,21 @@
 //! Port direct (pattern entrée+REF) ; valeurs assérées copiées octet pour octet, y compris la
 //! résolution du nœud frère REF_HOBY.
 
+mod common;
+
 use nie_data::ai_type::parse_ai_type_config;
 use nie_data::hash::HashId;
 
-const PATH: &str = "/home/ubuntu/niers/data/common/gamedata/system/ai_type_config.cfg.bin.json";
+const PATH: &str = "system/ai_type_config.cfg.bin.json";
 
 fn load() -> Option<serde_json::Value> {
-    if !std::path::Path::new(PATH).exists() {
+    let chemin_abs = common::chemin(PATH)?;
+    if !chemin_abs.is_file() {
+        eprintln!("skip : {} absent du corpus", chemin_abs.display());
         return None;
     }
-    let content = std::fs::read_to_string(PATH).unwrap_or_else(|e| panic!("lecture {PATH}: {e}"));
-    Some(serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON {PATH}: {e}")))
+    let content = std::fs::read_to_string(&chemin_abs).unwrap_or_else(|e| panic!("lecture {}: {e}", chemin_abs.display()));
+    Some(serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON {}: {e}", chemin_abs.display())))
 }
 
 #[test]

@@ -50,7 +50,33 @@ from unicorn.x86_const import (
     UC_X86_REG_XMM3,
 )
 
-EXE = "/home/ubuntu/.local/share/Steam/iecode/inazuma/nie_eacpatched.exe"
+def _resoudre_exe() -> str:
+    """Binaire cible de l'émulation.
+
+    Ordre : `NIE_EXE` explicite ; sinon `nie_eacpatched.exe` puis `nie.exe` à la racine du
+    dépôt (parent de `scripts/`) ; sinon sous `NIE_GAME_DIR`. Aucun chemin de poste en dur —
+    le même script sert le serveur d'indexation et le poste de jeu.
+    """
+    import os
+    from pathlib import Path
+
+    if v := os.environ.get("NIE_EXE"):
+        return v
+    racines = [Path(__file__).resolve().parent.parent]
+    if g := os.environ.get("NIE_GAME_DIR"):
+        racines.append(Path(g))
+    for racine in racines:
+        for nom in ("nie_eacpatched.exe", "nie.exe"):
+            p = racine / nom
+            if p.is_file():
+                return str(p)
+    raise SystemExit(
+        "binaire introuvable : poser NIE_EXE, ou placer nie.exe/nie_eacpatched.exe "
+        "à la racine du dépôt"
+    )
+
+
+EXE = _resoudre_exe()
 STACK = 0x7000_0000
 SCRATCH = 0x2000_0000
 STUB_HEAP = 0x5000_0000  # bump-alloc pour les `call` stubbés (chaque appel → ptr frais)

@@ -6,7 +6,7 @@
 use nie_save::{parse, BlobSubtype};
 use nie_save::body::headersave::parse_headersave;
 
-const SAVE_PATH: &str = "/home/ubuntu/niers/data/saves/002AB8F4-USERDATALIVE";
+const SAVE_PATH: &str = "data/saves/002AB8F4-USERDATALIVE";
 const SAVE_NAME: &str = "002AB8F4-USERDATALIVE";
 
 /// Ancres connues validées manuellement sur la save VPS.

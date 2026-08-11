@@ -1,6 +1,6 @@
 #![allow(clippy::pedantic)]
 //! Tests golden `user_name_plate` — valeurs réelles tirées de :
-//! `/home/ubuntu/niers/data/common/gamedata/user_name_plate/user_name_plate_config_1.03.50.00.cfg.bin.json`
+//! `user_name_plate/user_name_plate_config_1.03.50.00.cfg.bin.json`
 //!
 //! ## Vérifications champ par champ (fichier → valeur confirmée)
 //!
@@ -35,6 +35,8 @@
 //! - `nameFontStyle`        = `"0x72A1CF45"`
 //! - `flagIndex`            = 53
 //! - `enableCond`           = `"AAAAABgFNRftNPcACgEoAAYCNDmhP9IyAAAAAXg="`
+
+mod common;
 
 use nie_data::hash::HashId;
 use nie_data::user_name_plate::{
@@ -183,14 +185,16 @@ fn fixture_liste_manquante_renvoie_vide() {
 
 // ─── Test sur le vrai fichier (skip si absent du VPS) ────────────────────────
 
-const REAL_PATH: &str = "/home/ubuntu/niers/data/common/gamedata/user_name_plate/user_name_plate_config_1.03.50.00.cfg.bin.json";
+const REAL_PATH: &str = "user_name_plate/user_name_plate_config_1.03.50.00.cfg.bin.json";
 
 fn load_real() -> Option<UserNamePlateConfig> {
-    if !std::path::Path::new(REAL_PATH).exists() {
+    let chemin_abs = common::chemin(REAL_PATH)?;
+    if !chemin_abs.is_file() {
+        eprintln!("skip : {} absent du corpus", chemin_abs.display());
         return None;
     }
-    let content = std::fs::read_to_string(REAL_PATH)
-        .unwrap_or_else(|e| panic!("Impossible de lire {REAL_PATH}: {e}"));
+    let content = std::fs::read_to_string(&chemin_abs)
+        .unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", chemin_abs.display()));
     let root: serde_json::Value =
         serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide: {e}"));
     Some(parse_user_name_plate_config(&root))

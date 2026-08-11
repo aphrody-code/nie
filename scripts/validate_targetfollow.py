@@ -19,7 +19,7 @@ import pefile
 
 from uemu import SCRATCH, Emu
 
-pe = pefile.PE("/home/ubuntu/.local/share/Steam/iecode/inazuma/nie_eacpatched.exe", fast_load=True)
+pe = pefile.PE(EXE, fast_load=True)
 _base = pe.OPTIONAL_HEADER.ImageBase
 
 

@@ -55,6 +55,8 @@
 //! ### soccer_user_ai_config : m_coachInfo
 //! - `values[0]` = {id: "0x50317469", textId: "0x809D8D96", choise: [0, 3]}
 
+mod common;
+
 extern crate std;
 
 use nie_data::ai::{
@@ -787,25 +789,27 @@ fn soccer_user_ai_title_info_0() {
 // Tests sur fichiers réels (skip silencieux si absents)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const DIR: &str = "/home/ubuntu/niers/data/common/gamedata/ai";
+const DIR: &str = "ai";
 const REAL_SOCCER_CMD_V0: &str =
-    "/home/ubuntu/niers/data/common/gamedata/ai/soccer_ai_cmd_config_0.00.00.cfg.bin.json";
+    "ai/soccer_ai_cmd_config_0.00.00.cfg.bin.json";
 const REAL_SOCCER_CMD_V5: &str =
-    "/home/ubuntu/niers/data/common/gamedata/ai/soccer_ai_cmd_config_0.05.91.cfg.bin.json";
+    "ai/soccer_ai_cmd_config_0.05.91.cfg.bin.json";
 const REAL_SOCCER_USER: &str =
-    "/home/ubuntu/niers/data/common/gamedata/ai/soccer_user_ai_config_1.01.50.cfg.bin.json";
+    "ai/soccer_user_ai_config_1.01.50.cfg.bin.json";
 const REAL_STRATEGY: &str =
-    "/home/ubuntu/niers/data/common/gamedata/ai/strategy_ai_config_1.01.50.cfg.bin.json";
+    "ai/strategy_ai_config_1.01.50.cfg.bin.json";
 const REAL_TACTICS: &str =
-    "/home/ubuntu/niers/data/common/gamedata/ai/tactics_ai_config_0.06.44.cfg.bin.json";
+    "ai/tactics_ai_config_0.06.44.cfg.bin.json";
 
 fn load_json(path: &str) -> Option<serde_json::Value> {
-    if !std::path::Path::new(path).exists() {
+    let path = common::chemin(path)?;
+    if !path.is_file() {
+        eprintln!("skip : {} absent du corpus", path.display());
         return None;
     }
-    let content = std::fs::read_to_string(path)
-        .unwrap_or_else(|e| panic!("Impossible de lire {path}: {e}"));
-    Some(serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide {path}: {e}")))
+    let content = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", path.display()));
+    Some(serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide {}: {e}", path.display())))
 }
 
 // ─── soccer_ai_cmd_config v0.00.00 ────────────────────────────────────────────

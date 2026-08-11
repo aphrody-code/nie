@@ -44,6 +44,8 @@
 //! - var\[4\] = 244634036 → `entry_id = 0x0E94D1B4`
 //! - var\[7\] = 103 → `sort_index = 103`
 
+mod common;
+
 extern crate std;
 
 use nie_data::hash::HashId;
@@ -308,15 +310,17 @@ fn fixture_items_of_category() {
 // ─── Tests sur le fichier réel (skip silencieux si absent) ────────────────────
 
 const REAL_MUSIC_APP: &str =
-    "/home/ubuntu/niers/data/common/gamedata/music_app/music_app_config.cfg.bin.json";
+    "music_app/music_app_config.cfg.bin.json";
 
 fn load_json(path: &str) -> Option<serde_json::Value> {
-    if !std::path::Path::new(path).exists() {
+    let path = common::chemin(path)?;
+    if !path.is_file() {
+        eprintln!("skip : {} absent du corpus", path.display());
         return None;
     }
-    let content = std::fs::read_to_string(path)
-        .unwrap_or_else(|e| panic!("Impossible de lire {path}: {e}"));
-    Some(serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide {path}: {e}")))
+    let content = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", path.display()));
+    Some(serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide {}: {e}", path.display())))
 }
 
 #[test]

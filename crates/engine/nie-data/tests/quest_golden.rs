@@ -279,7 +279,7 @@ fn quest_validation_vrai_fichier_si_present() {
         return;
     }
     let content = std::fs::read_to_string(path)
-        .unwrap_or_else(|e| panic!("Impossible de lire {path}: {e}"));
+        .unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", path));
     let root: Value = serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide: {e}"));
     let quests = parse_quest_config(&root);
     assert_eq!(quests.len(), 182, "182 quêtes attendues dans le vrai dump");

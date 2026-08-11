@@ -1,11 +1,17 @@
 #![allow(clippy::pedantic)]
 //! Golden `soccer_player_record` — flags de record joueur, sur le vrai dump.
+mod common;
+
 use nie_data::hash::HashId;
 use nie_data::soccer_player_record::parse_soccer_player_record_config;
-const PATH: &str = "/home/ubuntu/niers/data/common/gamedata/soccer/soccer_player_record_config.cfg.bin.json";
+const PATH: &str = "soccer/soccer_player_record_config.cfg.bin.json";
 fn load() -> Option<serde_json::Value> {
-    if !std::path::Path::new(PATH).exists() { return None; }
-    Some(serde_json::from_str(&std::fs::read_to_string(PATH).unwrap()).unwrap())
+    let chemin_abs = common::chemin(PATH)?;
+    if !chemin_abs.is_file() {
+        eprintln!("skip : {} absent du corpus", chemin_abs.display());
+        return None;
+    }
+    Some(serde_json::from_str(&std::fs::read_to_string(&chemin_abs).unwrap()).unwrap())
 }
 #[test]
 fn records_byte_exact() {

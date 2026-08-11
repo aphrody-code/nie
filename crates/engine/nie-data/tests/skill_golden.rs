@@ -1,8 +1,10 @@
 #![allow(clippy::pedantic)]
 //! Tests golden `skill` — valeurs réelles tirées de :
-//! `/home/ubuntu/niers/data/common/gamedata/skill/skill_config_4.00.17.00.cfg.bin.json`
+//! `skill/skill_config_4.00.17.00.cfg.bin.json`
 //! (première valeur de `m_skillInfoList`, whs00010) et
 //! `/home/ubuntu/niers/data/common/text/fr/skill_text.cfg.bin.json` (nom/desc whs00010).
+
+mod common;
 
 use nie_data::hash::HashId;
 use nie_data::skill::{

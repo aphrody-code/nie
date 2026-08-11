@@ -1,6 +1,6 @@
 #![allow(clippy::pedantic)]
 //! Tests golden `chronicle_top` — valeurs réelles tirées de :
-//! `/home/ubuntu/niers/data/common/gamedata/chronicle_top/chronicle_top_caravan_config.cfg.bin.json`
+//! `chronicle_top/chronicle_top_caravan_config.cfg.bin.json`
 //!
 //! ## Vérifications champ par champ (fichier:champ → valeur confirmée)
 //!
@@ -38,6 +38,8 @@
 //! - `rotationMaxY` = 0.5  (JSON ligne 139 : `"rotationMaxY": 0.5`)
 //! - `rotationStrengthY` = 2.5  (JSON ligne 142 : `"rotationStrengthY": 2.5`)
 //! - `rotationMaxZ` = 5.0  (JSON ligne 143 : `"rotationMaxZ": 5`)
+
+mod common;
 
 use nie_data::chronicle_top::{parse_chronicle_top_caravan_config, ChronicleTopCaravanConfig};
 use serde_json::json;
@@ -244,14 +246,16 @@ fn liste_absente_renvoie_vide() {
 
 // ─── Tests sur le vrai fichier (skip si absent du VPS) ───────────────────────
 
-const REAL_PATH: &str = "/home/ubuntu/niers/data/common/gamedata/chronicle_top/chronicle_top_caravan_config.cfg.bin.json";
+const REAL_PATH: &str = "chronicle_top/chronicle_top_caravan_config.cfg.bin.json";
 
 fn load_real() -> Option<ChronicleTopCaravanConfig> {
-    if !std::path::Path::new(REAL_PATH).exists() {
+    let chemin_abs = common::chemin(REAL_PATH)?;
+    if !chemin_abs.is_file() {
+        eprintln!("skip : {} absent du corpus", chemin_abs.display());
         return None;
     }
-    let content = std::fs::read_to_string(REAL_PATH)
-        .unwrap_or_else(|e| panic!("Impossible de lire {REAL_PATH}: {e}"));
+    let content = std::fs::read_to_string(&chemin_abs)
+        .unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", chemin_abs.display()));
     let root: serde_json::Value =
         serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide: {e}"));
     Some(parse_chronicle_top_caravan_config(&root))

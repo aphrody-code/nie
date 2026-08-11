@@ -7,6 +7,8 @@
 //!
 //! Toutes les valeurs ci-dessous sont lues octet-pour-octet dans les dumps JSON réels.
 
+mod common;
+
 extern crate std;
 
 use nie_data::hash::HashId;
@@ -15,21 +17,23 @@ use nie_data::vsroute::{
 };
 
 const REAL_CONFIG_5: &str =
-    "/home/ubuntu/niers/data/common/gamedata/vsroute/chronicle_vs_route_config_5.00.30.cfg.bin.json";
+    "vsroute/chronicle_vs_route_config_5.00.30.cfg.bin.json";
 const REAL_CONFIG_2: &str =
-    "/home/ubuntu/niers/data/common/gamedata/vsroute/chronicle_vs_route_config_2.00.16.cfg.bin.json";
+    "vsroute/chronicle_vs_route_config_2.00.16.cfg.bin.json";
 const REAL_OPPONENT: &str =
-    "/home/ubuntu/niers/data/common/gamedata/vsroute/chronicle_vs_route_opponent_info_0.00.00.cfg.bin.json";
+    "vsroute/chronicle_vs_route_opponent_info_0.00.00.cfg.bin.json";
 const REAL_TRIGGER: &str =
-    "/home/ubuntu/niers/data/common/gamedata/vsroute/chronicle_vs_route_trigger_0.04.78.cfg.bin.json";
+    "vsroute/chronicle_vs_route_trigger_0.04.78.cfg.bin.json";
 
 fn load_json(path: &str) -> Option<serde_json::Value> {
-    if !std::path::Path::new(path).exists() {
+    let path = common::chemin(path)?;
+    if !path.is_file() {
+        eprintln!("skip : {} absent du corpus", path.display());
         return None;
     }
-    let content = std::fs::read_to_string(path)
-        .unwrap_or_else(|e| panic!("Impossible de lire {path}: {e}"));
-    Some(serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide {path}: {e}")))
+    let content = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", path.display()));
+    Some(serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide {}: {e}", path.display())))
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

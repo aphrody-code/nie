@@ -2,7 +2,7 @@
 //!
 //! ## Fichier de référence
 //!
-//! `/home/ubuntu/niers/data/common/gamedata/formation/formation_config_0.02.16.cfg.bin.json`
+//! `data/common/gamedata/formation/formation_config_0.02.16.cfg.bin.json`
 //!
 //! Ce fichier est gitignore (données Level-5, copyright) et présent uniquement sur le VPS.
 //! Tous les tests qui le lisent appliquent un **skip silencieux** si le fichier est absent,
@@ -24,7 +24,7 @@ use nie_core::stats::StatBlock;
 use nie_data::formation::{parse_formation_config, FormationConfig};
 
 const REAL_PATH: &str =
-    "/home/ubuntu/niers/data/common/gamedata/formation/formation_config_0.02.16.cfg.bin.json";
+    "data/common/gamedata/formation/formation_config_0.02.16.cfg.bin.json";
 
 /// Charge le vrai fichier de formation ; retourne `None` si absent (skip silencieux).
 fn load_real() -> Option<FormationConfig> {

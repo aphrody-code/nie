@@ -10,7 +10,7 @@ FUN_140052040 = "déréférence + avance" d'un itérateur de liste typée à 2 b
   un sentinelle (&DAT 0x1416F559D pour tag3 / 0x1416F559E pour tag0, quand valeur==0xFFFFFFFF),
   ou NULL.
 
-Lance depuis scripts/ :  cd scripts && ../.venv/bin/python validate_typed_list_iter.py
+Lance depuis scripts/ :  uv run scripts/validate_typed_list_iter.py
 """
 import struct
 import sys as _sys

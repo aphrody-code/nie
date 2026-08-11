@@ -1,6 +1,6 @@
 #![allow(clippy::pedantic)]
 //! Tests golden `aura` — noeud réel `AURA_CMD_INFO_0` tiré de :
-//! `/home/ubuntu/niers/data/common/gamedata/skill/aura_skill_config_1.04.09.00.cfg.bin.json`.
+//! `skill/aura_skill_config_1.04.09.00.cfg.bin.json`.
 //!
 //! Valeurs (19 vars) : `[2037965306, "wks00020", 493403631, -1653680409, 30, 60, 260858381,
 //! -1368456794, 3, 8, 0, 1, -1124324279, 0, 0, 0, 1, 0, 0]`.
@@ -11,6 +11,8 @@
 //! réels (19 vars) ; les 1161 AURA_CMD_INFO_REF (2 vars) sont filtrés (var_count < 4).
 //! La conclusion « 0/1549 → None » était hallucinée (bun-check bugué).
 //! Tests : carte vide → None ; inline whs01780 ; vrais dumps fichiers (skip si absent VPS).
+
+mod common;
 
 use nie_data::aura::{
     build_skill_map, determine_sub_type, parse_all_aura_cmds, resolve_aura_hissatsu, AuraCmd,
@@ -149,9 +151,9 @@ fn hissatsu_0f8c620d_resout_whs01780_vrai_fichier() {
     // Vérité terrain : AURA_CMD_INFO_0 var6 = 260858381 = 0x0F8C620D (aura_skill_config),
     // skill_id_str = "whs01780", power 100-640, element 3 (Feu), category 1 (Tir)
     // (skill_config_4.00.17.00). ~61/1548 auras résolvent réellement.
-    let aura_path = "/home/ubuntu/niers/data/common/gamedata/skill/aura_skill_config_1.04.09.00.cfg.bin.json";
+    let aura_path = "skill/aura_skill_config_1.04.09.00.cfg.bin.json";
     let skill_path =
-        "/home/ubuntu/niers/data/common/gamedata/skill/skill_config_4.00.17.00.cfg.bin.json";
+        "skill/skill_config_4.00.17.00.cfg.bin.json";
     if !std::path::Path::new(aura_path).exists()
         || !std::path::Path::new(skill_path).exists()
     {

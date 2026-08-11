@@ -1693,10 +1693,10 @@ mod tests {
     use super::*;
     use std::path::PathBuf;
 
-    const GLB_DIR: &str = "/home/ubuntu/.local/share/Steam/iecode/inazuma/data/dx11/model";
-
+    /// Dossier des GLB de référence, sous la racine de jeu résolue à l'exécution — aucun
+    /// chemin de poste en dur : `NIE_GAME_DIR`, sinon le répertoire courant ou un ancêtre.
     fn glb_dir() -> PathBuf {
-        PathBuf::from(GLB_DIR)
+        crate::vfs::resolve_game_dir().join("data/dx11/model")
     }
 
     fn glb_exists(name: &str) -> bool {
@@ -1798,7 +1798,7 @@ mod tests {
     #[test]
     fn assemblage_c01000010_corps_face_sans_uniforme() {
         if !glb_dir().exists() {
-            eprintln!("SKIP : répertoire GLB absent ({GLB_DIR})");
+            eprintln!("SKIP : répertoire GLB absent ({})", glb_dir().display());
             return;
         }
         if !glb_exists("c01000010") || !glb_exists("base_normal_00") {
@@ -2151,9 +2151,9 @@ mod tests {
     fn assemble_keshin_k000010_depuis_cpk() {
         use crate::vfs::Vfs;
 
-        let game_data = "/home/ubuntu/.local/share/Steam/iecode/inazuma/data";
+        let game_data = crate::vfs::resolve_game_dir().join("data");
         let mut vfs = Vfs::new();
-        if vfs.init(game_data).is_err() {
+        if vfs.init(&game_data).is_err() {
             eprintln!("SKIP : VFS non initialisable (game_data absent)");
             return;
         }
@@ -2195,9 +2195,9 @@ mod tests {
     fn assemble_armd_ka001901_depuis_cpk() {
         use crate::vfs::Vfs;
 
-        let game_data = "/home/ubuntu/.local/share/Steam/iecode/inazuma/data";
+        let game_data = crate::vfs::resolve_game_dir().join("data");
         let mut vfs = Vfs::new();
-        if vfs.init(game_data).is_err() {
+        if vfs.init(&game_data).is_err() {
             eprintln!("SKIP : VFS non initialisable");
             return;
         }
@@ -2247,13 +2247,14 @@ mod tests {
     fn assemble_uniforme_depuis_cpk_via_manifeste() {
         use crate::vfs::Vfs;
 
-        let game_data = "/home/ubuntu/.local/share/Steam/iecode/inazuma/data";
-        let manifest_path = "/home/ubuntu/niers/var/model-crc-manifest.ndjson";
+        let racine = crate::vfs::resolve_game_dir();
+        let game_data = racine.join("data");
+        let manifest_path = racine.join("var/model-crc-manifest.ndjson");
 
         // Charger le manifeste.
-        let manifest_str = match std::fs::read_to_string(manifest_path) {
+        let manifest_str = match std::fs::read_to_string(&manifest_path) {
             Ok(s) => s,
-            Err(_) => { eprintln!("SKIP : manifeste {manifest_path} absent"); return; }
+            Err(_) => { eprintln!("SKIP : manifeste {} absent", manifest_path.display()); return; }
         };
         let manifest = load_manifest(&manifest_str);
         assert!(!manifest.is_empty(), "manifeste non vide");

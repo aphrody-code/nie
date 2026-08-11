@@ -7,6 +7,8 @@
 //! (variables positionnelles) ; les positions de sémantique inconnue sont vérifiées
 //! par leur valeur brute observée, jamais inventée.
 
+mod common;
+
 extern crate std;
 
 use nie_data::craft::{parse_craft_obj_config, parse_craft_theme_config};
@@ -14,17 +16,19 @@ use nie_data::hash::HashId;
 use serde_json::json;
 
 const REAL_OBJ: &str =
-    "/home/ubuntu/niers/data/common/gamedata/craft/craft_obj_config_1.04.10.00.cfg.bin.json";
+    "craft/craft_obj_config_1.04.10.00.cfg.bin.json";
 const REAL_THEME: &str =
-    "/home/ubuntu/niers/data/common/gamedata/craft/craft_theme_config_0.00.00.cfg.bin.json";
+    "craft/craft_theme_config_0.00.00.cfg.bin.json";
 
 fn load_json(path: &str) -> Option<serde_json::Value> {
-    if !std::path::Path::new(path).exists() {
+    let path = common::chemin(path)?;
+    if !path.is_file() {
+        eprintln!("skip : {} absent du corpus", path.display());
         return None;
     }
     let content =
-        std::fs::read_to_string(path).unwrap_or_else(|e| panic!("Impossible de lire {path}: {e}"));
-    Some(serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide {path}: {e}")))
+        std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", path.display()));
+    Some(serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide {}: {e}", path.display())))
 }
 
 // ─── Fixture inline (craft_obj) ────────────────────────────────────────────────

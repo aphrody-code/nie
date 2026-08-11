@@ -1,6 +1,6 @@
 #![allow(clippy::pedantic)]
 //! Tests golden `fast_travel` — valeurs réelles tirées de :
-//! `/home/ubuntu/niers/data/common/gamedata/fast_travel/fast_travel_config_0.00.00.cfg.bin.json`
+//! `fast_travel/fast_travel_config_0.00.00.cfg.bin.json`
 //!
 //! ## Vérifications champ par champ (fichier:ligne → valeur confirmée)
 //!
@@ -41,6 +41,8 @@
 //! - `mapTextId`    = `"0xF15D1497"`  (JSON ligne 73)
 //! - `pos`          = `[0, 0, 0, 0]`  (JSON lignes 74-79) — position nulle
 //! - `charaRotateY` = `0`             (JSON ligne 80)
+
+mod common;
 
 use nie_data::fast_travel::{parse_fast_travel_config, FastTravelConfig};
 use nie_data::hash::HashId;
@@ -293,14 +295,16 @@ fn entree_id_nul_ignoree() {
 // ─── Tests sur le vrai fichier (skip silencieux si absent du VPS) ─────────────
 
 const REAL_PATH: &str =
-    "/home/ubuntu/niers/data/common/gamedata/fast_travel/fast_travel_config_0.00.00.cfg.bin.json";
+    "fast_travel/fast_travel_config_0.00.00.cfg.bin.json";
 
 fn load_real() -> Option<FastTravelConfig> {
-    if !std::path::Path::new(REAL_PATH).exists() {
+    let chemin_abs = common::chemin(REAL_PATH)?;
+    if !chemin_abs.is_file() {
+        eprintln!("skip : {} absent du corpus", chemin_abs.display());
         return None;
     }
-    let content = std::fs::read_to_string(REAL_PATH)
-        .unwrap_or_else(|e| panic!("Impossible de lire {REAL_PATH}: {e}"));
+    let content = std::fs::read_to_string(&chemin_abs)
+        .unwrap_or_else(|e| panic!("Impossible de lire {}: {e}", chemin_abs.display()));
     let root: serde_json::Value =
         serde_json::from_str(&content).unwrap_or_else(|e| panic!("JSON invalide: {e}"));
     Some(parse_fast_travel_config(&root))

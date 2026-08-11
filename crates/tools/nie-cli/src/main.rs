@@ -192,18 +192,20 @@ enum Cmd {
     /// Construit le manifeste CRC32->chemin pour tous les fichiers .g4md/.g4mg des CPK.
     /// Utilisé pour résoudre les ModelIdCrc des inagle_uniforms vers les chemins réels.
     UniformMap {
-        /// Répertoire racine de l'installation du jeu (contenant data/cpk_list.cfg.bin).
-        #[arg(long, default_value = "/home/ubuntu/.local/share/Steam/iecode/inazuma")]
-        game_dir: PathBuf,
+        /// Répertoire racine du jeu (contenant `data/cpk_list.cfg.bin`). Résolu
+        /// automatiquement s'il est absent (cf. `NIE_GAME_DIR`).
+        #[arg(long)]
+        game_dir: Option<PathBuf>,
         /// Chemin du manifeste NDJSON de sortie (crc32->path).
         #[arg(long, default_value = "var/model-crc-manifest.ndjson")]
         out: PathBuf,
     },
     /// Scanne les fichiers .g4tx dans les CPK du jeu et produit un manifeste NDJSON d'en-têtes.
     Textures {
-        /// Répertoire racine de l'installation du jeu (contenant data/cpk_list.cfg.bin).
-        #[arg(long, default_value = "/home/ubuntu/.local/share/Steam/iecode/inazuma")]
-        game_dir: PathBuf,
+        /// Répertoire racine du jeu (contenant `data/cpk_list.cfg.bin`). Résolu
+        /// automatiquement s'il est absent (cf. `NIE_GAME_DIR`).
+        #[arg(long)]
+        game_dir: Option<PathBuf>,
         /// Borne dure : nombre maximum de .g4tx à traiter (défaut 500).
         #[arg(long, default_value_t = 500)]
         limit: usize,
@@ -225,11 +227,13 @@ enum Cmd {
     ///
     /// Priorité : sprites des 32 layouts azalee (<layouts_dir>/*.json) ; le reste si --all.
     MenuPredecode {
-        /// Répertoire racine du jeu (contenant data/packs/).
-        #[arg(long, default_value = "/home/ubuntu/.local/share/Steam/iecode/inazuma")]
-        game_dir: PathBuf,
-        /// Répertoire des layouts azalee (*.json).
-        #[arg(long, default_value = "/home/ubuntu/rg/apps/azalee/app/menu/_layouts")]
+        /// Répertoire racine du jeu (contenant `data/packs/`). Résolu automatiquement s'il
+        /// est absent (cf. `NIE_GAME_DIR`).
+        #[arg(long)]
+        game_dir: Option<PathBuf>,
+        /// Répertoire des layouts azalee (`*.json`) — vit dans le dépôt azalee, pas ici :
+        /// aucun défaut ne peut être juste, le chemin est donc demandé.
+        #[arg(long)]
         layouts_dir: PathBuf,
         /// URL Redis db3 (iev:file:index).
         #[arg(long, default_value = "redis://127.0.0.1/3")]
@@ -990,6 +994,15 @@ fn wiki_cmd(op: WikiOp) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Racine du jeu : celle passée en argument, sinon celle que le contexte désigne.
+///
+/// Aucun chemin de poste n'est codé en dur — `resolve_game_dir` regarde `NIE_GAME_DIR`, puis le
+/// répertoire courant et ses ancêtres portant `data/cpk_list.cfg.bin`, puis le répertoire de
+/// l'exécutable. Sur une installation Steam, la racine du jeu est le répertoire courant.
+fn racine_jeu(arg: Option<PathBuf>) -> PathBuf {
+    arg.unwrap_or_else(nie_formats::vfs::resolve_game_dir)
+}
+
 fn main() -> anyhow::Result<()> {
     // CLI interne (consommé par l'agent) : sortie minimale. `RUST_LOG=info` réactive les traces.
     tracing_subscriber::fmt()
@@ -1026,13 +1039,13 @@ fn main() -> anyhow::Result<()> {
         Cmd::Rebuild { db, exe, rounds } => rebuild(&db, &exe, rounds),
         Cmd::Save { op } => save_cmd(op),
         Cmd::Wiki { op } => wiki_cmd(op),
-        Cmd::UniformMap { game_dir, out } => uniform_map(&game_dir, &out),
+        Cmd::UniformMap { game_dir, out } => uniform_map(&racine_jeu(game_dir), &out),
         Cmd::Textures { game_dir, limit, manifest, redis: use_redis, redis_url } => {
-            textures(&game_dir, limit, &manifest, use_redis, &redis_url)
+            textures(&racine_jeu(game_dir), limit, &manifest, use_redis, &redis_url)
         }
         Cmd::Mem { op } => mem_cmd(op),
         Cmd::MenuPredecode { game_dir, layouts_dir, redis_url, all } => {
-            menu_predecode_cmd(&game_dir, &layouts_dir, &redis_url, all)
+            menu_predecode_cmd(&racine_jeu(game_dir), &layouts_dir, &redis_url, all)
         }
         Cmd::Vfs { op } => vfs_cmd(op),
     }
@@ -1060,14 +1073,25 @@ fn mem_preflight(pid: i32) -> anyhow::Result<i32> {
     }
     let pid = if pid <= 0 {
         let p = nie_trace::find_pid_by_name("nie.exe")
-            .context("nie.exe introuvable — lance le jeu (boot-nie-direct.sh) ou précise --pid")?;
+            .context("nie.exe introuvable — lance le jeu, ou précise --pid")?;
         eprintln!("# nie.exe → pid {p}");
         p
     } else {
         pid
     };
+    // Vérification d'existence du process : `/proc/<pid>` n'existe que sous Linux. Ailleurs, on
+    // laisse `nie-trace` trancher — son backend Windows (`OpenProcess`/`VirtualQueryEx`) rend une
+    // erreur parlante si le pid est mort ou inaccessible.
+    #[cfg(target_os = "linux")]
     if !std::path::Path::new(&format!("/proc/{pid}")).exists() {
         anyhow::bail!("pid {pid} inexistant.");
+    }
+    #[cfg(windows)]
+    if nie_trace::enumerate_regions(pid).is_empty() {
+        anyhow::bail!(
+            "pid {pid} inaccessible : process inexistant, ou droits insuffisants \
+             (lancer le terminal en administrateur pour lire un jeu élevé)."
+        );
     }
     #[cfg(target_os = "linux")]
     if !nie_trace::likely_permitted(pid) {
@@ -1098,7 +1122,7 @@ fn mem_base(pid: i32, module: &str) -> anyhow::Result<()> {
     let pid = mem_preflight(pid)?;
     match nie_trace::find_module_base(pid, module) {
         Some(base) => println!("  {module} @ 0x{base:x} (pid {pid})"),
-        None => anyhow::bail!("Module « {module} » introuvable dans /proc/{pid}/maps"),
+        None => anyhow::bail!("Module « {module} » introuvable dans les plages du pid {pid}"),
     }
     Ok(())
 }

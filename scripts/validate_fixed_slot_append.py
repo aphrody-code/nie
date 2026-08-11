@@ -8,7 +8,7 @@ Struct param_1 :
 Élément = 0xb8 octets. Si base!=0 et count<cap : init élément[count] avec constantes + 4 params,
 puis count++. param_2=rdx (à +0xa8), param_3=r8 (à +0), param_4=r9 (à +0x38), param_5=stack (à +0x70).
 
-Lance depuis scripts/ : ../.venv/bin/python validate_fixed_slot_append.py
+Lance depuis scripts/ : uv run scripts/validate_fixed_slot_append.py
 """
 import struct
 import sys

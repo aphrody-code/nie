@@ -3,11 +3,17 @@
 //! dispatch typé (étaient parsés mais non routés). Data-gated.
 #![cfg(feature = "serde")]
 
+mod common;
+
 use nie_data::typed::{decode_by_key, family_key};
 
 fn load(name: &str) -> Option<serde_json::Value> {
-    let p = std::format!("/home/ubuntu/niers/data/common/gamedata/soccer/{name}");
-    if !std::path::Path::new(&p).exists() { return None; }
+    let p = std::format!("soccer/{name}");
+    let p = common::chemin(&p)?;
+    if !p.is_file() {
+        eprintln!("skip : {} absent du corpus", p.display());
+        return None;
+    }
     Some(serde_json::from_str(&std::fs::read_to_string(&p).unwrap()).unwrap())
 }
 

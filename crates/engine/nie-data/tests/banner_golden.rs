@@ -1,6 +1,6 @@
 #![allow(clippy::pedantic)]
 //! Tests golden `banner` — valeurs réelles tirées de :
-//! `/home/ubuntu/niers/data/common/gamedata/banner/tutorial_banner_config_0.00.00.cfg.bin.json`
+//! `banner/tutorial_banner_config_0.00.00.cfg.bin.json`
 //!
 //! ## Vérifications champ par champ
 //!
@@ -23,6 +23,8 @@
 //! - `iconTextureName` = `"0x210C6199"` → `HashId(0x210C6199)`
 //! - `count`           = `3`
 //! - `flagNum`         = `3`
+
+mod common;
 
 use nie_data::banner::parse_banner_config;
 use nie_data::hash::HashId;
@@ -224,7 +226,7 @@ fn banner_liste_absente_donne_vide() {
 
 // ─── Tests sur le vrai fichier (skip silencieux si absent) ───────────────────
 
-const CHEMIN_REEL: &str = "/home/ubuntu/niers/data/common/gamedata/banner/tutorial_banner_config_0.00.00.cfg.bin.json";
+const CHEMIN_REEL: &str = "banner/tutorial_banner_config_0.00.00.cfg.bin.json";
 
 /// Charge le dump réel si présent, sinon renvoie `None` (skip silencieux).
 fn charger_reel() -> Option<serde_json::Value> {
