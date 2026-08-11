@@ -2,7 +2,7 @@
 $ErrorActionPreference = 'Continue'
 
 $vcvars     = 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat'
-$projectDir = 'C:\Users\yohan\rg\iecode\cli'
+$projectDir = $PSScriptRoot
 $logFile    = Join-Path $projectDir '_build_debug.log'
 $ninjaExe   = 'C:\Users\yohan\AppData\Local\Microsoft\WinGet\Packages\Ninja-build.Ninja_Microsoft.Winget.Source_8wekyb3d8bbwe\ninja.exe'
 $vcpkgRoot  = 'C:\Users\yohan\vcpkg'

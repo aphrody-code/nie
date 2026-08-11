@@ -69,9 +69,9 @@ unsigned int f(void) { return 0xefec8a0dU; }   /* cl /O2 /GS- /Gy /Zl */
 → b8 0d 8a ec ef c3   = octets exacts de la fonction 0x1411194b0 du jeu
 ```
 
-Les sources vivent dans `cpp/decomp/functions/*.c` — l'échafaudage rapatrié d'IECODE, dont le
+Les sources vivent dans `src/decomp/functions/*.c` — l'échafaudage rapatrié d'IECODE, dont le
 `CMakeLists.txt` compile déjà ces fichiers **en C** avec un pont vers l'API C++
-(cf. `cpp/PROVENANCE.md`). Chaque fonction porte l'adresse qu'elle prétend reproduire :
+(cf. `PROVENANCE.md`). Chaque fonction porte l'adresse qu'elle prétend reproduire :
 
 ```c
 /* @nie 0x14004e9e0 */
@@ -100,7 +100,7 @@ crates/forge/
   nie-forge   CLI : split · lift · cc · build · verify · report · match · candidates · unit
   nie-re · nie-index · nie-seed · nie-queue · nie-trace   échafaudage de reverse qui alimente la forge
 
-cpp/decomp/   sources C reproduites, compilées par MSVC 14.44 (voie B)
+src/decomp/   sources C reproduites, compilées par MSVC 14.44 (voie B)
 ```
 
 Les autres familles servent la même fin :
@@ -114,7 +114,7 @@ just forge                      # la boucle complète, ci-dessous en détail
 
 nie-forge split                 # nie.exe → recouvrement total (var/forge/cover.json)
 nie-forge lift                  # octets → source assembleur (forge/asm/lifted.s) + causes de blocage
-nie-forge cc --register         # cpp/decomp/functions/*.c → MSVC → correspondances byte-exactes
+nie-forge cc --register         # src/decomp/functions/*.c → MSVC → correspondances byte-exactes
 nie-forge build                 # sources + registre → dist/nie.exe, échoue si sha256 diffère
 nie-forge verify --reference nie.exe --got dist/nie.exe
 nie-forge report                # part réellement produite par le dépôt

@@ -17,7 +17,7 @@ add_library(iecode_ffi SHARED
 )
 
 target_include_directories(iecode_ffi PRIVATE
-    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/src/include
 )
 
 target_link_libraries(iecode_ffi PRIVATE
@@ -54,7 +54,7 @@ if(nanobind_FOUND AND Python_FOUND)
     nanobind_add_module(iecode_py NB_STATIC bindings.cpp)
     target_link_libraries(iecode_py PRIVATE iecode_core)
     target_include_directories(iecode_py PRIVATE
-        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/src/include
     )
     set_target_properties(iecode_py PROPERTIES
         OUTPUT_NAME "iecode"

@@ -318,12 +318,15 @@ if(IECODE_BUILD_GAME)
     endif()
     add_subdirectory(src/game)
 endif()
-add_subdirectory(decomp)
+# Tout l'arbre C++ vit sous src/ depuis le 2026-08-11 (cli/, ffi/, decomp/,
+# driver/, tests/ et include/ y ont ete regroupes). src/CMakeLists.txt exclut
+# ces sous-arbres de son GLOB : chacun a sa propre target ci-dessous.
+add_subdirectory(src/decomp)
 if(NOT EMSCRIPTEN)
-    add_subdirectory(cli)
-    add_subdirectory(tests)
+    add_subdirectory(src/cli)
+    add_subdirectory(src/tests)
 endif()
-add_subdirectory(ffi)
+add_subdirectory(src/ffi)
 
 # ── Summary ────────────────────────────────────────────────────────
 message(STATUS "")

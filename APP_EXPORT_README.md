@@ -116,7 +116,7 @@ tar -xf app_icons.tar
 |------|---------|
 | `src/iecode_export_app.cpp` | Standalone binary (1400 LOC) |
 | `src/commands/cmd_export_app_icons.cpp` | CLI integration (full iecode toolkit) |
-| `include/iecode/commands/export_app_icons.h` | API header |
+| `src/include/iecode/commands/export_app_icons.h` | API header |
 | `CMakeLists.app_export.txt` | Build config |
 
 ## API Usage (C++)

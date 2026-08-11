@@ -67,29 +67,36 @@ bun run lint
 - Régénérer les bindings Tauri sans ouvrir de fenêtre :
   `cd apps/nie-explorer/src-tauri && cargo run --bin export-bindings`.
 
-## Arbre C++ (toolkit IECODE) — à la **racine**, plus dans `cpp/`
+## Arbre C++ (toolkit IECODE) — tout sous **`src/`**
 
 Toolkit C++20 : parsers, compression, VFS, converters, modding, rendu, scripting.
-L'arbre a été remonté à la racine le 2026-08-11 ; **aucun chemin `cpp/…` n'est plus valide**.
+Remonté de `cpp/` à la racine le 2026-08-11, puis regroupé sous `src/` le même jour : **aucun
+chemin `cpp/…`, `cli/…`, `include/…`, `decomp/…`, `ffi/…`, `tests/…` de premier niveau n'est
+encore valide.**
 
 ```
 CMakeLists.txt      racine du projet CMake `iecode` (C/C++20, vcpkg, unity build, LTO, ccache)
-include/iecode/     headers publics (ffi.h = API C ABI unique, compression/, crypto/, level5/,
+src/                implémentations de iecode_core — archive compression converters crypto db
+                    engine formats game gamedata io memory modding render scripting services
+                    steam vfs viola wasm (+ src/nie_rs/ : crate Rust hors workspace, pont interne)
+src/include/iecode/ headers publics (ffi.h = API C ABI unique, compression/, crypto/, level5/,
                     criware/, vfs/, modding/)
-src/                implémentations — archive compression converters crypto db engine formats
-                    game gamedata io memory modding render scripting services steam vfs viola wasm
-                    (+ src/nie_rs/ : crate Rust hors workspace, pont interne)
-cli/commands/       ~50 sous-commandes du binaire `iecode`
-decomp/             **voie B de la forge** (`functions/*.c` annotés `/* @nie 0x… */`, MSVC 14.44
+src/cli/commands/   ~40 sous-commandes du binaire `iecode`
+src/decomp/         **voie B de la forge** (`functions/*.c` annotés `/* @nie 0x… */`, MSVC 14.44
                     `/O2 /GS- /Gy /Zl`) — ce n'est PAS du toolkit, cf. section Forge
-ffi/                ffi.cpp + bindings.cpp (C ABI) · ffi/rust/iecode-sys (crate de liaison)
-driver/             iecode_memread (lecture mémoire du process) + son client
-tests/              GTest (828+ cas)
+src/ffi/            ffi.cpp + bindings.cpp (C ABI) · src/ffi/rust/iecode-sys (crate de liaison)
+src/driver/         iecode_memread (lecture mémoire du process) + son client
+src/tests/          GTest (828+ cas)
 third_party/        sources vendorisées header-only (stb, xxhash, concurrentqueue, bcdec)
 cmake/              CompilerWarnings.cmake, SIMDDetect.cmake, overlay-ports vcpkg
+csharp/             IECODE.Core / IECODE.CLI / IECODE.Core.Tests (.NET 10, `IECODE.sln` racine)
 ```
 
-- Build : `cmake --preset debug && cmake --build --preset debug` puis `ctest --preset debug`.
+- **`src/CMakeLists.txt` fait un `GLOB_RECURSE`** sur tout `src/` pour `iecode_core` : les
+  sous-arbres à target propre (`cli`, `tests`, `ffi`, `decomp`, `driver`, `include`) en sont
+  exclus par `list(FILTER … EXCLUDE REGEX ".*/src/<nom>/.*")`. Ajouter un sous-arbre à target
+  propre sans son filtre ⇒ plusieurs `main()` dans la lib.
+- Build : `just cpp-build` (ou `cmake --preset msvc && cmake --build --preset msvc-debug`).
   **`cmake` n'est pas dans le PATH de cette machine** : il vit dans
   `…/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe`.
   **vcpkg n'est pas installé** (`VCPKG_ROOT` vide) → `cmake` configure échouera sur le premier
@@ -114,6 +121,15 @@ cmake/              CompilerWarnings.cmake, SIMDDetect.cmake, overlay-ports vcpk
   avant tout test). Le prouver avec un filtre qui ne matche rien avant d'accuser son code ;
   `cargo check` reste fiable.
 - `bun` ne résout pas les chemins MSYS (`/tmp/…`) : utiliser un chemin Windows.
+- **Un test dont le nom contient `update`/`setup`/`install`/`patch` ne s'exécute pas** :
+  l'« installer detection » de Windows exige une élévation UAC pour ces exécutables, et
+  `cargo test` s'arrête sur « nécessite une élévation » (os error 740) *avant* le premier test.
+  Renommer le fichier de test (cf. `nie-data/tests/notice_maj_golden.rs`), pas le code.
+- `sed -i` sous Git Bash **interprète les `\c`, `\n`… du texte de remplacement** : un
+  remplacement contenant des backslashes Windows (`src\cli\iecode.exe`) injecte des caractères de
+  contrôle dans le fichier. Utiliser l'édition de fichier directe pour ces chaînes.
+- `cargo fmt --all` échoue ici (« nom de fichier ou extension trop long », os error 206) : la
+  ligne de commande dépasse la limite avec 31 crates. Formater par crate (`cargo fmt -p …`).
 
 ## Forge (produire le binaire) — état 2026-08-10 : **51,86 % du fichier, 66,09 % du `.text`**
 
@@ -123,7 +139,7 @@ cmake/              CompilerWarnings.cmake, SIMDDetect.cmake, overlay-ports vcpk
     Suffixes du dialecte : `.s` (branchement court), `.w` (immédiat en forme longue), `.r` (préfixe
     REX nul explicite — MSVC en émet, ex. `40 53` pour `push rbx`).
   - **B — `nie-forge cc`** : **MSVC 14.44 est installé** (`…\2022\BuildTools\…\14.44.35207\…\cl.exe`),
-    c'est le toolset qui a lié `nie.exe`. Sources C dans `cpp/decomp/functions/*.c`, annotées
+    c'est le toolset qui a lié `nie.exe`. Sources C dans `decomp/functions/*.c`, annotées
     `/* @nie 0x… */`, compilées `/O2 /GS- /Gy /Zl`. **Ne pas utiliser MSVC 14.51** (VS 18).
     C'est la voie qui monte le plus haut : le C exprime la sémantique, MSVC choisit la forme.
 - **Tables structurées** : `.pdata` et `.reloc` sont **régénérées depuis leurs entrées**

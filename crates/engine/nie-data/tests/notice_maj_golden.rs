@@ -1,5 +1,13 @@
 #![allow(clippy::pedantic)]
-//! Tests golden `update_notice` — valeurs réelles tirées de :
+//! Tests golden `update_notice`.
+//!
+//! **Le fichier ne s'appelle pas `update_notice_golden.rs`** : Windows applique une heuristique
+//! de compatibilité (« installer detection ») aux exécutables dont le nom contient `update`,
+//! `setup`, `install` ou `patch`, et exige alors une élévation UAC. `cargo test` échouait donc
+//! avec « L'opération demandée nécessite une élévation » (os error 740), sans que le test soit
+//! seulement exécuté. Renommer le fichier suffit ; ne pas le renommer en arrière.
+//!
+//! Valeurs réelles tirées de :
 //! `/home/ubuntu/niers/data/common/gamedata/update_notice/update_notice_config_0.00.00.cfg.bin.json`
 //!
 //! ## Vérifications champ par champ (fichier → valeur confirmée)

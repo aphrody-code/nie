@@ -174,7 +174,7 @@ tokio = { version = "1", features = ["rt"] }
 # - `nie-lua` (VM Lua 5.2 réelle) : pas de dépendance directe nécessaire — déjà tirée
 #   transitivement via `nie-explore` (`describe_content` l'appelle pour le bytecode `.lua.bin`).
 #
-# `IECODE.Core`/`IECODE.CLI` (C# .NET 10, `IECODE.sln` racine, `src/IECODE.Core*`) : référence
+# `IECODE.Core`/`IECODE.CLI` (C# .NET 10, `IECODE.sln` racine, `csharp/IECODE.Core*`) : référence
 # de portage externe (cf. `docs/PLAN.md` intro « le moyen ≠ la fin »), PAS une crate Cargo — un
 # projet .NET ne se « package » pas comme dépendance Rust. Utilisée en cross-vérification
 # manuelle lors du portage d'encodeurs (`cpk_encode`/`g4tx_encode`, cf. `apps/nie-explorer/

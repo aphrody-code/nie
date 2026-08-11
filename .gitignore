@@ -83,7 +83,7 @@ nie.exe
 
 # Binaire EAC vendorisé en resource par IECODE.Core (2 Mio, même raison que /EACLauncher.exe
 # ci-dessus : jamais committer un binaire EAC, même embarqué dans un sous-projet).
-src/IECODE.Core/Resources/EACLauncher.zip
+csharp/IECODE.Core/Resources/EACLauncher.zip
 
 # Fichiers .bak divers (backups manuels laissés sur disque, ex. NuGet.config.bak)
 *.bak
@@ -136,6 +136,10 @@ __pycache__/
 !packages/*/README.md
 !apps/nie-explorer/ROADMAP.md
 !tools/niers/NIERS_VENDORING_NOTE.md
+# Le plugin Claude Code `niers` est un LIVRABLE du depot : ses agents et ses
+# skills SONT du markdown. Sans cette ligne, `*.md` n'en commitait que le README
+# (les 5 sous-agents et les 5 skills restaient hors du depot).
+!tools/niers-plugin/**/*.md
 
 # ATTENTION : `*.txt` ci-dessus ignorait AUSSI tous les CMakeLists.txt — c'est-a-dire
 # l'integralite de la chaine de build C++ (13 fichiers : racine, src/, cli/, tests/,

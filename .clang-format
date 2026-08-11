@@ -1,6 +1,6 @@
 ---
 # clang-format for iecode cli
-# Run: clang-format -i src/**/*.cpp include/**/*.h
+# Run: clang-format -i src/**/*.cpp src/include/**/*.h
 
 Language: Cpp
 BasedOnStyle: Google

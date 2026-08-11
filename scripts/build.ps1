@@ -106,7 +106,7 @@ try {
 
 # ── Resume ───────────────────────────────────────────────────────────────────
 $Elapsed = [int]((Get-Date) - $StartTime).TotalSeconds
-$Bin     = Join-Path $BuildDir "cli\iecode.exe"
+$Bin     = Join-Path $BuildDir "src\cli\iecode.exe"
 
 Write-Host "`n=== Termine en ${Elapsed}s ===" -ForegroundColor Green
 if (Test-Path $Bin) {
