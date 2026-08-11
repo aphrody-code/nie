@@ -1,0 +1,44 @@
+# CMakeLists.txt for app icon export utility
+# Standalone compilation with zstd compression
+
+cmake_minimum_required(VERSION 3.20)
+project(iecode_export_app CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+# Optimization flags
+if(MSVC)
+    add_compile_options(/O2 /arch:AVX2 /W4)
+    add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
+else()
+    add_compile_options(-O3 -march=native -Wall -Wextra)
+endif()
+
+# Find zstd
+find_package(zstd REQUIRED)
+
+# Main executable
+add_executable(iecode_export_app src/iecode_export_app.cpp)
+target_link_libraries(iecode_export_app PRIVATE zstd::zstd)
+
+# Optional: Link with iecode_core if available for better G4TX parsing
+# find_package(iecode REQUIRED)
+# target_link_libraries(iecode_export_app PRIVATE iecode_core)
+
+# Installation
+install(TARGETS iecode_export_app DESTINATION bin)
+
+# Build instructions
+message(STATUS "=== Build Instructions ===")
+message(STATUS "mkdir -p build && cd build")
+message(STATUS "cmake .. -DCMAKE_BUILD_TYPE=Release")
+message(STATUS "cmake --build . --parallel")
+message(STATUS "")
+message(STATUS "=== Usage ===")
+message(STATUS "./iecode_export_app \\")
+message(STATUS "  --game 'C:/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road' \\")
+message(STATUS "  --output ./app_icons.tar.zst \\")
+message(STATUS "  --quality 85 \\")
+message(STATUS "  --threads 8")

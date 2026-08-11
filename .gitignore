@@ -100,11 +100,12 @@ src/IECODE.Core/Resources/EACLauncher.zip
 # Fragments réels du jeu pour tests golden (copyright Level-5) — local uniquement.
 # Présents sur disque pour `cargo test -p nie-formats --features real-fixtures` ;
 # jamais distribués (le clone public compile/teste sans, feature off par défaut).
-crates/nie-formats/tests/fixtures/
+# Chemin en `**` : les crates sont rangées par rôle (crates/engine/nie-formats/…).
+crates/**/tests/fixtures/
 
 # wasm build
 /pkg
-crates/*/pkg/
+crates/**/pkg/
 
 # Captures de référence du jeu (copyright Level-5) — SSIM gates ; NE PAS publier
 /start.png
@@ -128,11 +129,20 @@ __pycache__/
 !SECURITY.md
 !LICENSE
 !CLAUDE.md
+!PROVENANCE.md
+!APP_EXPORT_README.md
 !docs/**/*.md
 !docs/**/*.txt
 !packages/*/README.md
 !apps/nie-explorer/ROADMAP.md
 !tools/niers/NIERS_VENDORING_NOTE.md
+
+# ATTENTION : `*.txt` ci-dessus ignorait AUSSI tous les CMakeLists.txt — c'est-a-dire
+# l'integralite de la chaine de build C++ (13 fichiers : racine, src/, cli/, tests/,
+# ffi/, decomp/, driver/, third_party/). Ils sont re-inclus explicitement.
+!CMakeLists.txt
+!**/CMakeLists.txt
+!CMakeLists.*.txt
 
 # --- Forge -------------------------------------------------------------------
 # Recouvrement + magasin de travail : derives du binaire de reference (c) LEVEL-5.
@@ -145,9 +155,23 @@ __pycache__/
 # Le registre (forge/registry.json) ne contient que des adresses, des chemins de
 # symboles Rust et des preuves : il reste versionne.
 
-# --- cpp/ (toolkit C++ IECODE, cf. cpp/PROVENANCE.md) -------------------------
-# Sorties de compilation : la chaine CMake/vcpkg et le pont Rust FFI.
-/cpp/**/target/
-/cpp/build/
-/cpp/out/
-/cpp/vcpkg_installed/
+# --- C++ (toolkit IECODE, cf. PROVENANCE.md) ---------------------------------
+# L'arbre C++ vit desormais a la RACINE (src/ include/ cli/ decomp/ ffi/ driver/
+# tests/ third_party/ cmake/) : les chemins /cpp/** d'avant l'unification n'ont
+# plus de cible. Sorties de compilation CMake/vcpkg :
+/build/
+/out/
+/vcpkg_installed/
+**/vcpkg_installed/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CTestTestfile.cmake
+compile_commands.json
+*.obj
+*.pdb
+*.ilk
+*.exp
+# `*.lib` : sorties de link MSVC. Aucune bibliotheque n'est vendorisee dans le
+# depot (third_party/ ne contient que des sources), la regle est donc sure.
+*.lib
