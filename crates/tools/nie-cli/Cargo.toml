@@ -22,6 +22,7 @@ nie-re.workspace = true
 nie-trace.workspace = true
 nie-formats = { workspace = true, features = ["serde", "textures"] }
 nie-explore.workspace = true
+nie-lua.workspace = true
 nie-save.workspace = true
 nie-wiki.workspace = true
 clap.workspace = true

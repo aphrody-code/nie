@@ -4,6 +4,7 @@
 
 mod decode_cmd;
 mod delegate;
+mod lua_cmd;
 mod menu_predecode;
 
 use std::io::Write;
@@ -73,6 +74,30 @@ enum Cmd {
         /// N'affiche rien en cas de succès.
         #[arg(short, long)]
         quiet: bool,
+    },
+    /// Analyse statique d'une source Lua (fichier ou arborescence), sans l'exécuter.
+    ///
+    /// Cible les scripts décompilés (`data/lua_scripts/decompiled/`) : fonctions déclarées,
+    /// appels, chaînes, et erreurs de syntaxe laissées par le décompilateur. Le bytecode
+    /// `.lua.bin` ne se traite pas ici — il s'exécute (`nie_lua`), il ne se lit pas.
+    Lua {
+        /// Fichier `.lua` ou répertoire à parcourir récursivement.
+        src: PathBuf,
+        /// Détaille les fonctions déclarées.
+        #[arg(long)]
+        functions: bool,
+        /// Détaille les cibles d'appel, agrégées par fréquence décroissante.
+        #[arg(long)]
+        calls: bool,
+        /// Détaille les chaînes littérales retenues.
+        #[arg(long)]
+        strings: bool,
+        /// Détaille les chaînes passées à `CRC32`, avec leur hash.
+        #[arg(long)]
+        crc32: bool,
+        /// Lignes de détail maximales par rubrique et par fichier (0 = illimité).
+        #[arg(long, default_value_t = 20)]
+        limit: usize,
     },
     /// Importe le savoir fusionné (index Ghidra nie-index.json) dans la base de connaissance.
     Seed {
@@ -986,6 +1011,9 @@ fn main() -> anyhow::Result<()> {
             } else {
                 decode_cmd::file(&src, out.as_deref(), quiet)
             }
+        }
+        Cmd::Lua { src, functions, calls, strings, crc32, limit } => {
+            lua_cmd::run(&src, lua_cmd::Detail { functions, calls, strings, crc32, limit })
         }
         Cmd::Seed { db, json, exe } => seed(&db, &json, exe.as_deref()),
         Cmd::Coverage { db } => coverage(&db),
