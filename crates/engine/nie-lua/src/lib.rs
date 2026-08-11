@@ -5,6 +5,8 @@
 //! - Ce fichier (`lib.rs`) — VM, chargement bytecode, découverte API hôte.
 //! - [`menu_host`] — modèle [`menu_host::MenuState`], [`menu_host::install_menu_host`],
 //!   [`menu_host::run_menu`].
+//! - [`static_analysis`] — analyse statique des **sources** Lua (tree-sitter) : structure
+//!   d'un script décompilé sans l'exécuter.
 //!
 //! Le moteur Level-5 « Lives » pilote ses menus, scènes et événements par des scripts
 //! Lua 5.2 compilés en bytecode (`.lua.bin`, ~616 fichiers sous `data/common/script/lua/`).
@@ -28,6 +30,12 @@ pub mod bytecode;
 pub mod host;
 pub mod runtime;
 pub mod session;
+pub mod static_analysis;
+pub use static_analysis::{
+    analyze, analyze_dir, analyze_file, collect_lua_files, FunctionKind, LuaAnalysis, LuaAssignment,
+    LuaCall, LuaFunction, LuaSyntaxError, LuaTable, LuaTableField, StaticAnalysisError,
+    SyntaxErrorKind, ValueKind,
+};
 pub mod menu_host;
 pub use menu_host::{
     drive_menu, enumerate_header_tabs, install_menu_host, run_menu, DriveReport, HeaderTab,
