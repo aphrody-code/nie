@@ -1,9 +1,5 @@
-//! Décodage générique « octets → JSON » : **la** table de dispatch du dépôt.
-//!
-//! Elle vivait dans `nie-ffi` (une cdylib), donc inaccessible à la CLI Rust : `niers` ne pouvait
-//! pas décoder un fichier sans passer par la FFI, et l'application Bun `nie-decode` était le seul
-//! chemin de décodage en lot. En la remontant ici, les trois consommateurs partagent la même
-//! table — une famille ajoutée profite à tous d'un coup.
+//! Décodage générique « octets → JSON » : **la** table de dispatch du dépôt, partagée par la FFI
+//! (`nie-ffi`) et la CLI (`niers decode`). Une famille ajoutée ici profite aux deux.
 //!
 //! Ordre de dispatch (le premier qui parse gagne) :
 //! 1. `lip\0` — testé avant [`crate::detect`], qui ne le distingue pas ;
