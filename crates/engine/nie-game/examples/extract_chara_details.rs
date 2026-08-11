@@ -50,9 +50,7 @@ fn rdbn_to_iecode(data: &[u8]) -> Option<Value> {
 }
 
 fn main() {
-    let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
-        "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road".into()
-    });
+    let dir = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
     let mut vfs = Vfs::new();
     vfs.init(Path::new(&dir).join("data").as_path()).expect("vfs init");
     let path = vfs

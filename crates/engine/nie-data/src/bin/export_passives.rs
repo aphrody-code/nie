@@ -4,8 +4,8 @@
 //!
 //! ```text
 //! cargo run --bin export_passives --features serde -- \
-//!     --data /home/ubuntu/niers/data \
-//!     --out /home/ubuntu/rg/apps/azalee/data/passives-full.json
+//!     --data $NIE_GAME_DIR/data \
+//!     --out export/passives-full.json
 //! ```
 //!
 //! # Sources lues
@@ -26,18 +26,26 @@ use nie_data::passives::{
 };
 use serde_json::{json, Value};
 
+/// Racine des données décodées, sans chemin de poste en dur : `NIE_GAME_DIR/data` si la
+/// variable est posée, sinon `./data` (le dépôt est fusionné avec l'installation du jeu).
+fn default_data_root() -> String {
+    std::env::var("NIE_GAME_DIR")
+        .map(|d| format!("{d}/data"))
+        .unwrap_or_else(|_| "data".to_string())
+}
+
 fn main() {
     // Chemins par défaut (peuvent être surchargés par les args)
     let data_root = std::env::args()
         .skip_while(|a| a != "--data")
         .nth(1)
-        .unwrap_or_else(|| "/home/ubuntu/niers/data".to_string());
+        .unwrap_or_else(default_data_root);
 
     let out_path = std::env::args()
         .skip_while(|a| a != "--out")
         .nth(1)
         .unwrap_or_else(|| {
-            "/home/ubuntu/rg/apps/azalee/data/passives-full.json".to_string()
+            "export/passives-full.json".to_string()
         });
 
     let data_root = PathBuf::from(&data_root);

@@ -7,25 +7,40 @@
 //! # Usage
 //! ```text
 //! cargo run --bin export_aphrody --features serde,std -- \
-//!     --data /home/ubuntu/niers/data --out /home/ubuntu/rg/apps/azalee/data/aphrody-dossier.json
+//!     --data $NIE_GAME_DIR/data --out export/aphrody-dossier.json
 //! ```
 
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// Racine des données décodées, sans chemin de poste en dur : `NIE_GAME_DIR/data` si la
+/// variable est posée, sinon `./data` (le dépôt est fusionné avec l'installation du jeu).
+fn default_data_root() -> PathBuf {
+    std::env::var("NIE_GAME_DIR")
+        .map(|d| PathBuf::from(d).join("data"))
+        .unwrap_or_else(|_| PathBuf::from("data"))
+}
+
 use nie_data::aphrody::build_aphrody_dossier;
 use serde_json::Value;
 
 fn main() {
+    // `--data` sinon `NIE_GAME_DIR/data` sinon `./data` : aucun chemin de poste en dur.
     let data_root = std::env::args()
         .skip_while(|a| a != "--data")
         .nth(1)
-        .unwrap_or_else(|| "/home/ubuntu/niers/data".to_string());
+        .map(PathBuf::from)
+        .unwrap_or_else(default_data_root);
+    // `--out` sinon à côté des données, dans `export/`.
     let out_path = std::env::args()
         .skip_while(|a| a != "--out")
         .nth(1)
-        .unwrap_or_else(|| "/home/ubuntu/rg/apps/azalee/data/aphrody-dossier.json".to_string());
-    let data_root = PathBuf::from(&data_root);
+        .unwrap_or_else(|| {
+            data_root
+                .join("../export/aphrody-dossier.json")
+                .to_string_lossy()
+                .into_owned()
+        });
 
     let chara = read_json(&find_cfg(
         &data_root,

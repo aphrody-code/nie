@@ -1,4 +1,12 @@
 {
+  "$comment": [
+    "nanobind est volontairement ABSENT de cette liste. Il tire python3, qui tire libffi,",
+    "dont le configure autotools échoue sous MSVC (« C compiler cannot create executables »)",
+    "et fait tomber l'installation ENTIÈRE — les 30 autres ports avec. Le module Python",
+    "iecode_py qu'il alimente est déclaré optionnel dans src/ffi/CMakeLists.txt (target",
+    "silencieusement ignoré si nanobind manque) : le sacrifier débloque tout le reste.",
+    "Pour le réactiver : installer nanobind à la main et le rajouter ici."
+  ],
   "name": "iecode",
   "version": "1.1.0",
   "description": "IEVR Modding & RE Toolkit (C++)",
@@ -21,7 +29,6 @@
     { "name": "bgfx", "platform": "!wasm32" },
     { "name": "bullet3", "platform": "!wasm32" },
     { "name": "libwebp", "platform": "!wasm32" },
-    { "name": "nanobind", "platform": "!wasm32" },
     "zstd",
     {
       "name": "cpp-httplib",

@@ -8,8 +8,8 @@
 //!
 //! ```text
 //! cargo run --bin export_formations --features serde,std -- \
-//!     --data /home/ubuntu/niers/data \
-//!     --out /home/ubuntu/rg/apps/azalee/data/formations-full.json
+//!     --data $NIE_GAME_DIR/data \
+//!     --out export/formations-full.json
 //! ```
 //!
 //! # Source lue
@@ -59,15 +59,23 @@ fn is_valid(placements: &[SoccerFormPlacementInfo]) -> bool {
         && placements.iter().all(|p| (1..=10).contains(&p.position_id))
 }
 
+/// Racine des données décodées, sans chemin de poste en dur : `NIE_GAME_DIR/data` si la
+/// variable est posée, sinon `./data` (le dépôt est fusionné avec l'installation du jeu).
+fn default_data_root() -> String {
+    std::env::var("NIE_GAME_DIR")
+        .map(|d| format!("{d}/data"))
+        .unwrap_or_else(|_| "data".to_string())
+}
+
 fn main() {
     let data_root = std::env::args()
         .skip_while(|a| a != "--data")
         .nth(1)
-        .unwrap_or_else(|| "/home/ubuntu/niers/data".to_string());
+        .unwrap_or_else(default_data_root);
     let out_path = std::env::args()
         .skip_while(|a| a != "--out")
         .nth(1)
-        .unwrap_or_else(|| "/home/ubuntu/rg/apps/azalee/data/formations-full.json".to_string());
+        .unwrap_or_else(|| format!("{data_root}/../export/formations-full.json"));
 
     let data_root = PathBuf::from(&data_root);
     eprintln!("[export_formations] data={data_root:?}  out={out_path:?}");

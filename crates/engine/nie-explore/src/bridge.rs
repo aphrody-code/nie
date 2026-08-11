@@ -290,9 +290,7 @@ mod tests {
     /// fidèle, pas seulement `encode_t2b` isolément (déjà testé côté `nie-formats`).
     #[test]
     fn json_bridge_round_trip_sur_le_vrai_jeu() {
-        let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
-            "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road".to_string()
-        });
+        let dir = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data_dir = std::path::Path::new(&dir).join("data");
         if !data_dir.join("cpk_list.cfg.bin").exists() {
             eprintln!("skip json_bridge_round_trip_sur_le_vrai_jeu : jeu absent");
@@ -351,9 +349,7 @@ mod tests {
     fn json_bridge_rdbn_round_trip_sur_le_vrai_jeu() {
         use nie_formats::cfgbin::{encode_rdbn, parse, read_values};
 
-        let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
-            "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road".to_string()
-        });
+        let dir = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data_dir = std::path::Path::new(&dir).join("data");
         if !data_dir.join("cpk_list.cfg.bin").exists() {
             eprintln!("skip json_bridge_rdbn_round_trip_sur_le_vrai_jeu : jeu absent");
