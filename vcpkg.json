@@ -1,39 +1,35 @@
 {
   "$comment": [
-    "nanobind est volontairement ABSENT de cette liste. Il tire python3, qui tire libffi,",
-    "dont le configure autotools échoue sous MSVC (« C compiler cannot create executables »)",
-    "et fait tomber l'installation ENTIÈRE — les 30 autres ports avec. Le module Python",
-    "iecode_py qu'il alimente est déclaré optionnel dans src/ffi/CMakeLists.txt (target",
-    "silencieusement ignoré si nanobind manque) : le sacrifier débloque tout le reste.",
-    "Pour le réactiver : installer nanobind à la main et le rajouter ici."
+    "Deux ports ont été retirés de cette liste, chacun parce qu'il faisait tomber",
+    "l'installation ENTIÈRE — vcpkg abandonne tout dès qu'un port échoue :",
+    "  · nanobind → python3 → libffi, dont le configure autotools échoue sous MSVC",
+    "    (« C compiler cannot create executables »). Le module Python qu'il alimentait",
+    "    est supprimé ; Python passe par la FFI C (iecode_ffi) avec ctypes/cffi.",
+    "  · tinygltf, dont le SHA512 figé ne correspond plus à l'archive que GitHub",
+    "    régénère. Header-only : vendorisé dans third_party/tinygltf (MIT)."
   ],
   "name": "iecode",
   "version": "1.1.0",
   "description": "IEVR Modding & RE Toolkit (C++)",
   "builtin-baseline": "2b65c20fc66eda893aa15a15a453c3cf09500b19",
   "dependencies": [
-    { "name": "cli11", "platform": "!wasm32" },
+    "cli11",
     "nlohmann-json",
     "fmt",
     "spdlog",
-    { "name": "gtest", "platform": "!wasm32" },
-    { "name": "capstone", "platform": "!wasm32" },
-    { "name": "tree-sitter", "platform": "!wasm32" },
-    { "name": "directxtex", "platform": "!wasm32" },
-    { "name": "tinygltf", "platform": "!wasm32" },
+    "gtest",
+    "capstone",
+    "tree-sitter",
+    "directxtex",
     "glm",
-    { "name": "assimp", "platform": "!wasm32" },
-    { "name": "sdl2", "platform": "!wasm32" },
-    { "name": "lua", "platform": "!wasm32" },
-    { "name": "sol2", "platform": "!wasm32" },
-    { "name": "bgfx", "platform": "!wasm32" },
-    { "name": "bullet3", "platform": "!wasm32" },
-    { "name": "libwebp", "platform": "!wasm32" },
+    "assimp",
+    "sdl2",
+    "lua",
+    "sol2",
+    "bgfx",
+    "bullet3",
+    "libwebp",
     "zstd",
-    {
-      "name": "cpp-httplib",
-      "features": ["openssl"],
-      "platform": "!wasm32"
-    }
+    { "name": "cpp-httplib", "features": ["openssl"] }
   ]
 }

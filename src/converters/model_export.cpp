@@ -4,6 +4,11 @@
 #define TINYGLTF_NO_STB_IMAGE_WRITE
 #define TINYGLTF_NO_STB_IMAGE
 #define TINYGLTF_IMPLEMENTATION
+// tiny_gltf.h fait `#include "json.hpp"` : le single-header de nlohmann, tel que le
+// distribuait son dépôt. vcpkg l'installe sous `nlohmann/json.hpp`. On coupe l'inclusion
+// automatique et on fournit l'en-tête nous-mêmes — c'est le contrat de la macro.
+#define TINYGLTF_NO_INCLUDE_JSON
+#include <nlohmann/json.hpp>
 #include <tiny_gltf.h>
 #endif
 
