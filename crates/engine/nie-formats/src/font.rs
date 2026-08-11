@@ -665,8 +665,7 @@ mod tests {
     /// - Ligne relative 19 (atlas row 20), colonne relative 34 : alpha = 47.
     #[test]
     fn real_font_metrics_match() {
-        let dir = std::env::var("NIE_GAME_DIR")
-            .unwrap_or_else(|_| "/home/aphrody/niers".into());
+        let dir = crate::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data = std::path::Path::new(&dir).join("data");
         if !data.join("cpk_list.cfg.bin").exists() {
             eprintln!("skip real_font_metrics_match : jeu absent");
@@ -710,8 +709,7 @@ mod tests {
     /// - Canvas [19][34].alpha = 47  (atlas BGRA8 [row=20,col=1191], A=47)
     #[test]
     fn real_glyph_blitter_a() {
-        let dir = std::env::var("NIE_GAME_DIR")
-            .unwrap_or_else(|_| "/home/aphrody/niers".into());
+        let dir = crate::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data = std::path::Path::new(&dir).join("data");
         if !data.join("cpk_list.cfg.bin").exists() {
             eprintln!("skip real_glyph_blitter_A : jeu absent");

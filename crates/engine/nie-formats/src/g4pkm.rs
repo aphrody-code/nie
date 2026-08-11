@@ -635,10 +635,7 @@ mod tests {
         use crate::vfs::Vfs;
         use std::path::Path;
 
-        let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
-            "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road"
-                .to_string()
-        });
+        let dir = crate::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data_dir = Path::new(&dir).join("data");
 
         let mut vfs = Vfs::new();

@@ -447,20 +447,45 @@ impl Vfs {
     }
 }
 
-/// Résout le répertoire racine du jeu (celui qui contient `data/cpk_list.cfg.bin`), dans l'ordre :
-/// `NIE_GAME_DIR` si posée ; sinon le répertoire courant s'il contient déjà `data/cpk_list.cfg.bin`
-/// (poste où le dépôt niers est fusionné avec le dossier d'install du jeu — plus besoin de poser la
-/// variable) ; sinon le repli historique `/home/aphrody/niers` (dev WSL séparé).
+/// Nom du marqueur qui identifie la racine du jeu : l'index VFS chiffré.
+const MARQUEUR_RACINE: &str = "data/cpk_list.cfg.bin";
+
+/// Résout le répertoire racine du jeu — celui qui contient `data/cpk_list.cfg.bin`.
+///
+/// Ordre : `NIE_GAME_DIR` si posée ; sinon le répertoire courant **ou l'un de ses ancêtres**
+/// (le dépôt est fusionné avec le dossier d'installation, mais on peut travailler depuis un
+/// sous-répertoire) ; sinon le répertoire de l'exécutable et ses ancêtres (binaire lancé depuis
+/// `target/release/` avec un autre cwd).
+///
+/// Aucun chemin de poste de développement n'est codé ici : quand rien n'est trouvé, la fonction
+/// rend le répertoire courant, et c'est l'appelant qui échouera avec un message parlant sur
+/// `cpk_list.cfg.bin` introuvable.
 #[must_use]
 pub fn resolve_game_dir() -> PathBuf {
     if let Ok(dir) = std::env::var("NIE_GAME_DIR") {
         return PathBuf::from(dir);
     }
+    let candidat = |depart: PathBuf| -> Option<PathBuf> {
+        let mut p = Some(depart);
+        while let Some(d) = p {
+            if d.join(MARQUEUR_RACINE).is_file() {
+                return Some(d);
+            }
+            p = d.parent().map(PathBuf::from);
+        }
+        None
+    };
     let cwd = std::env::current_dir().unwrap_or_default();
-    if cwd.join("data/cpk_list.cfg.bin").is_file() {
-        return cwd;
+    if let Some(racine) = candidat(cwd.clone()) {
+        return racine;
     }
-    PathBuf::from("/home/aphrody/niers")
+    if let Ok(exe) = std::env::current_exe()
+        && let Some(dir) = exe.parent()
+        && let Some(racine) = candidat(dir.to_path_buf())
+    {
+        return racine;
+    }
+    cwd
 }
 
 #[cfg(test)]
@@ -473,10 +498,7 @@ mod tests {
     /// fichiers logiques sans panic ni repli.
     #[test]
     fn vfs_init_monte_le_vrai_jeu() {
-        let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
-            "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road"
-                .to_string()
-        });
+        let dir = crate::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data = std::path::Path::new(&dir).join("data");
         if !data.join("cpk_list.cfg.bin").exists() {
             eprintln!("skip vfs_init_monte_le_vrai_jeu : jeu absent");
@@ -500,10 +522,7 @@ mod tests {
     /// puis vérifie que les octets extraits sont non vides et cohérents.
     #[test]
     fn vfs_read_chaine_complete() {
-        let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
-            "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road"
-                .to_string()
-        });
+        let dir = crate::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data = std::path::Path::new(&dir).join("data");
         if !data.join("cpk_list.cfg.bin").exists() {
             eprintln!("skip vfs_read_chaine_complete : jeu absent");
@@ -554,10 +573,7 @@ mod tests {
     ///   rapporte le nombre exact découvert au lieu de 0.
     #[test]
     fn discover_extra_cpks_retourne_zero_sur_install_complete() {
-        let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
-            "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road"
-                .to_string()
-        });
+        let dir = crate::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data = std::path::Path::new(&dir).join("data");
         if !data.join("cpk_list.cfg.bin").exists() {
             eprintln!("skip discover_extra_cpks: jeu absent");
@@ -599,10 +615,7 @@ mod tests {
     /// avec « impossible d'ouvrir le CPK », et les fichiers étaient inaccessibles.
     #[test]
     fn read_loose_file_avec_cpk_vide() {
-        let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
-            "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road"
-                .to_string()
-        });
+        let dir = crate::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data_dir = std::path::Path::new(&dir).join("data");
         if !data_dir.join("cpk_list.cfg.bin").exists() {
             eprintln!("skip read_loose_file_avec_cpk_vide : jeu absent");

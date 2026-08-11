@@ -289,10 +289,7 @@ mod tests {
     /// et vérifie que detect() retourne FileFormat::G4nv (magic NAVM).
     #[test]
     fn g4nv_detect_golden_via_vfs() {
-        let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
-            "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road"
-                .to_string()
-        });
+        let dir = crate::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data = std::path::Path::new(&dir).join("data");
         if !data.join("cpk_list.cfg.bin").exists() {
             eprintln!("skip g4nv_detect_golden_via_vfs : NIE_GAME_DIR absent");

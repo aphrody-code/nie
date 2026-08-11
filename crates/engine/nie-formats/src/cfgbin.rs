@@ -1885,9 +1885,7 @@ mod tests {
     /// jeu avec le même contenu.
     #[test]
     fn encode_t2b_round_trip_sur_le_vrai_jeu() {
-        let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
-            "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road".to_string()
-        });
+        let dir = crate::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data_dir = std::path::Path::new(&dir).join("data");
         if !data_dir.join("cpk_list.cfg.bin").exists() {
             eprintln!("skip encode_t2b_round_trip_sur_le_vrai_jeu : jeu absent");
@@ -1950,9 +1948,7 @@ mod tests {
     /// types non dédupliquée), mais un contenu logique STRICTEMENT identique.
     #[test]
     fn encode_rdbn_round_trip_sur_le_vrai_jeu() {
-        let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
-            "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road".to_string()
-        });
+        let dir = crate::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data_dir = std::path::Path::new(&dir).join("data");
         if !data_dir.join("cpk_list.cfg.bin").exists() {
             eprintln!("skip encode_rdbn_round_trip_sur_le_vrai_jeu : jeu absent");

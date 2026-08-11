@@ -11,9 +11,7 @@
 use std::path::PathBuf;
 
 fn game_dir() -> Option<PathBuf> {
-    let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
-        "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road".into()
-    });
+    let dir = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
     let p = PathBuf::from(dir);
     p.join("data/cpk_list.cfg.bin").exists().then_some(p)
 }
