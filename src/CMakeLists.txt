@@ -44,14 +44,6 @@ set_source_files_properties(
     PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON
 )
 
-# steam_api.cpp et encrypted_ticket.cpp partagent des helpers identiques
-# (load_dll, free_dll, get_sym, load_fn) dans des namespaces anonymes
-# distincts — le Unity build les fusionne et provoque des redefinitions.
-set_source_files_properties(
-    ${CMAKE_CURRENT_SOURCE_DIR}/steam/encrypted_ticket.cpp
-    PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON
-)
-
 # gamebanana.cpp et update_checker.cpp incluent httplib.h (header lourd)
 # qui ne supporte pas l'inclusion multiple dans un meme TU Unity.
 set_source_files_properties(
