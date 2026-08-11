@@ -1,10 +1,14 @@
-# niers
+# nie
 
 ![version](https://img.shields.io/badge/version-0.4.0-blue)
 ![rust](https://img.shields.io/badge/rust-nightly--2026--05--17-orange)
 
 **Réécriture pixel-perfect d'*Inazuma Eleven: Victory Road* (moteur « Lives ») en Rust pur** —
 headless, WebAssembly et GUI native, sans le binaire Windows ni le moteur propriétaire.
+
+Le dépôt porte le nom de sa cible : `nie.exe`. Quatre implémentations y convergent (Rust, C++,
+C#, TypeScript) — voir [`docs/ARCHITECTURE-POLYGLOTTE.md`](docs/ARCHITECTURE-POLYGLOTTE.md).
+La CLI, elle, reste `niers` : `nie` seul désignerait le binaire du jeu.
 
 🎮 **Jouable en navigateur** (100 % Rust → wasm, clavier/souris/manette) : **https://azalee.rosegriffon.fr/jeu**
 📥 **Télécharger l'app desktop** (explorateur VFS + extension Blender) : **https://azalee.rosegriffon.fr/tools/niers**
