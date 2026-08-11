@@ -1,0 +1,28 @@
+[package]
+name = "nie-camera"
+description = "Caméra d'Inazuma Eleven: Victory Road — modèle, contrôleurs portés (CCameraCtrl*), codec G4CM (décode/encode byte-exact), configs cfg.bin, carte RE et pilotage live du process."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[[bin]]
+# Outil caméra : carte RE, extraction VFS, décodage/encodage G4CM, dump de configs, live.
+name = "nie-cam"
+path = "src/bin/nie-cam.rs"
+
+[dependencies]
+nie-formats = { path = "../../engine/nie-formats" }
+nie-data = { path = "../../engine/nie-data", features = ["std"] }
+nie-trace = { path = "../../forge/nie-trace" }
+nie-index = { path = "../../forge/nie-index" }
+sha2.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+serde = { workspace = true }
+serde_json.workspace = true
+clap.workspace = true

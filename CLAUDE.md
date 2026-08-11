@@ -67,6 +67,42 @@ bun run lint
 - Régénérer les bindings Tauri sans ouvrir de fenêtre :
   `cd apps/nie-explorer/src-tauri && cargo run --bin export-bindings`.
 
+## Arbre C++ (toolkit IECODE) — à la **racine**, plus dans `cpp/`
+
+Toolkit C++20 : parsers, compression, VFS, converters, modding, rendu, scripting.
+L'arbre a été remonté à la racine le 2026-08-11 ; **aucun chemin `cpp/…` n'est plus valide**.
+
+```
+CMakeLists.txt      racine du projet CMake `iecode` (C/C++20, vcpkg, unity build, LTO, ccache)
+include/iecode/     headers publics (ffi.h = API C ABI unique, compression/, crypto/, level5/,
+                    criware/, vfs/, modding/)
+src/                implémentations — archive compression converters crypto db engine formats
+                    game gamedata io memory modding render scripting services steam vfs viola wasm
+                    (+ src/nie_rs/ : crate Rust hors workspace, pont interne)
+cli/commands/       ~50 sous-commandes du binaire `iecode`
+decomp/             **voie B de la forge** (`functions/*.c` annotés `/* @nie 0x… */`, MSVC 14.44
+                    `/O2 /GS- /Gy /Zl`) — ce n'est PAS du toolkit, cf. section Forge
+ffi/                ffi.cpp + bindings.cpp (C ABI) · ffi/rust/iecode-sys (crate de liaison)
+driver/             iecode_memread (lecture mémoire du process) + son client
+tests/              GTest (828+ cas)
+third_party/        sources vendorisées header-only (stb, xxhash, concurrentqueue, bcdec)
+cmake/              CompilerWarnings.cmake, SIMDDetect.cmake, overlay-ports vcpkg
+```
+
+- Build : `cmake --preset debug && cmake --build --preset debug` puis `ctest --preset debug`.
+  **`cmake` n'est pas dans le PATH de cette machine** : il vit dans
+  `…/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe`.
+  **vcpkg n'est pas installé** (`VCPKG_ROOT` vide) → `cmake` configure échouera sur le premier
+  `find_package`. Ne pas conclure à une régression du dépôt : c'est l'environnement.
+- WASM : `emcmake cmake -B build/wasm -S . -DIECODE_WASM=ON` (cf. `CMakeLists.wasm.txt`).
+- Conventions : C++20 `CXX_EXTENSIONS OFF`, `CamelCase` classes / `lower_case` fonctions /
+  `UPPER_CASE` constantes, pas d'exceptions en hot path (`std::optional` / codes retour),
+  `std::span<const uint8_t>` pour le parsing binaire, 4 espaces / 100 colonnes (clang-format Google).
+- Mémoire FFI : l'entrée est un pointeur de l'appelant ; la sortie est allouée par C++ et libérée
+  par `iecode_free` ; les handles opaques ont leur `iecode_*_free` dédié.
+- **`.gitignore` : `*.txt` ignorait les 13 `CMakeLists.txt`** (toute la chaîne de build C++).
+  Ils sont ré-inclus explicitement — ne pas retirer ces lignes `!**/CMakeLists.txt`.
+
 ## Pièges d'environnement (Windows)
 
 - **Un `dlopen` raté casse TOUT `bun`/`bunx` lancé depuis le dépôt**, même sans rapport avec le

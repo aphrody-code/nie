@@ -4103,9 +4103,11 @@ dependencies = [
  "clap",
  "nie-data",
  "nie-formats",
+ "nie-index",
  "nie-trace",
  "serde",
  "serde_json",
+ "sha2",
  "thiserror 2.0.18",
 ]
 
@@ -4196,6 +4198,7 @@ dependencies = [
  "iced-x86",
  "nie-asm",
  "nie-pe",
+ "rusqlite",
  "serde",
  "serde_json",
  "tempfile",
