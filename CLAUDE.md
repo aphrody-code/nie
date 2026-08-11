@@ -108,8 +108,10 @@ csharp/             IECODE.Core / IECODE.CLI / IECODE.Core.Tests (.NET 10, `IECO
 - Build : `just cpp-build` (ou `cmake --preset msvc && cmake --build --preset msvc-debug`).
   **`cmake` n'est pas dans le PATH de cette machine** : il vit dans
   `…/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe`.
-  **vcpkg n'est pas installé** (`VCPKG_ROOT` vide) → `cmake` configure échouera sur le premier
-  `find_package`. Ne pas conclure à une régression du dépôt : c'est l'environnement.
+  **vcpkg est installé dans `var/vcpkg`** mais `VCPKG_ROOT` n'est pas exporté : le poser dans la
+  commande — `VCPKG_ROOT="$PWD/var/vcpkg" "<cmake>" -S . -B build/msvc`, puis
+  `"<cmake>" --build build/msvc --config Debug --target <cible>`. Les libs sont déjà dans
+  `build/msvc/vcpkg_installed` : un configure incrémental ne recompile aucun port.
 - Conventions : C++20 `CXX_EXTENSIONS OFF`, `CamelCase` classes / `lower_case` fonctions /
   `UPPER_CASE` constantes, pas d'exceptions en hot path (`std::optional` / codes retour),
   `std::span<const uint8_t>` pour le parsing binaire, 4 espaces / 100 colonnes (clang-format Google).
@@ -139,6 +141,12 @@ csharp/             IECODE.Core / IECODE.CLI / IECODE.Core.Tests (.NET 10, `IECO
   contrôle dans le fichier. Utiliser l'édition de fichier directe pour ces chaînes.
 - `cargo fmt --all` échoue ici (« nom de fichier ou extension trop long », os error 206) : la
   ligne de commande dépasse la limite avec 31 crates. Formater par crate (`cargo fmt -p …`).
+- `git ls-files 'dir/**/*.ext'` **rate les fichiers à la racine de `dir`** (0 au lieu de 22 sur
+  `csharp/IECODE.Core.Tests`). Utiliser `git ls-files dir | grep '\.ext$'`.
+- `xargs wc -l | tail -1` **sous-compte** : xargs découpe en plusieurs invocations, chacune avec
+  son `total`. Sommer par `awk '$2!="total"{s+=$1} END{print s}'` (15 549 vs 175 042 lignes).
+- `cargo test --workspace` dépasse les 600 s de timeout : le lancer en arrière-plan **avec
+  redirection** (`> /tmp/x.log 2>&1`) — une sortie filtrée par un pipe est perdue à la bascule.
 
 ## Forge (produire le binaire) — état 2026-08-10 : **51,86 % du fichier, 66,09 % du `.text`**
 
@@ -214,12 +222,21 @@ csharp/             IECODE.Core / IECODE.CLI / IECODE.Core.Tests (.NET 10, `IECO
 
 - `Db::init` (nie-index) applique `schema.sql` **puis** `camera.sql` (`meta.schema_version = 2`).
 - Peupler la caméra : `nie-cam index [--samples]` ; état : `nie-cam stats`.
+- `sqlite3` est dans le PATH (fourni par le SDK Android) : `sqlite3 var/niers.sqlite "…"`.
+- **Deux `binary_id` coexistent** : `1` = index Ghidra désaligné (60 183 nœuds, 88,20 %), `2` =
+  `#pdata`, la vérité terrain (52 783 racines, 93,36 %, 6 429 nommées). Citer le **2**.
+- Vérité terrain régénérable, jamais recopiée d'un document : `nie-forge report` (part produite),
+  `niers vfs stats` (histogramme du VFS), `niers coverage --db var/niers.sqlite`.
 
 ## Pièges d’édition
 
 - Ne jamais écrire un fichier Rust via un heredoc Python : un `\0` littéral finit dans la source
   (`file` la voit comme `data`). Utiliser Write/Edit.
 - Ne pas nommer un script du scratchpad comme un module stdlib (`dis.py` casse numpy et capstone).
+- Après `cargo clippy --fix`, **relancer `cargo check --workspace --tests`** : il lui arrive de
+  retirer un import qui sert (vu sur `phase_set_golden.rs`).
+- Un `sed` qui remappe un chemin (`tools/x` → `plugins/y`) touche aussi les **URLs** portant le
+  même segment (`azalee.rosegriffon.fr/tools/niers` — endpoint de l'updater Tauri). Relire après.
 
 ## Références légales
 
