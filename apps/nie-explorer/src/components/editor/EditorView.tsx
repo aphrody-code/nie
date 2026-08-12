@@ -33,6 +33,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { ContentBrowser } from "@/components/editor/ContentBrowser";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   Viewport3D,
   type GizmoMode,
@@ -556,21 +557,27 @@ export function EditorView({
             </div>
           }
         >
-          <Viewport3D
-            assets={assets}
-            selectedId={selectedNode}
-            onSelect={setSelectedNode}
-            onSceneLoaded={(n, s) => {
-              setNodes(n);
-              setStats(s);
-            }}
-            onTransform={(id, trs) => setTransforms((prev) => ({ ...prev, [id]: trs }))}
-            gizmoMode={gizmoMode}
-            notice={notice}
-            wireframe={wireframe}
-            showGrid={showGrid}
-            className="h-full w-full bg-app-darker-box"
-          />
+          {/* Le viewport est la zone la plus exposée de l'application : trois moteurs (WebGL,
+            * three.js, le GLB du jeu) dont aucun n'est sous notre contrôle. Sa barrière propre
+            * garde la panne DANS le viewport — hiérarchie, détails et navigateur de contenu
+            * continuent de servir. `resetKeys` : changer d'asset réarme tout seul. */}
+          <ErrorBoundary zone="Aperçu 3D" resetKeys={[scenePathsKey]}>
+            <Viewport3D
+              assets={assets}
+              selectedId={selectedNode}
+              onSelect={setSelectedNode}
+              onSceneLoaded={(n, s) => {
+                setNodes(n);
+                setStats(s);
+              }}
+              onTransform={(id, trs) => setTransforms((prev) => ({ ...prev, [id]: trs }))}
+              gizmoMode={gizmoMode}
+              notice={notice}
+              wireframe={wireframe}
+              showGrid={showGrid}
+              className="h-full w-full bg-app-darker-box"
+            />
+          </ErrorBoundary>
         </SplitPane>
       </SplitPane>
     </div>

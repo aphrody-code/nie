@@ -3,7 +3,7 @@ import { save, confirm } from "@tauri-apps/plugin-dialog";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { toast } from "sonner";
 import { formatDescription, translateEffect } from "@rosegriffon/azalee/text";
-import { api } from "@/lib/api";
+import { api, type ExportFormat } from "@/lib/api";
 import { useSettings, type Locale } from "@/lib/settings";
 import { b64ToBytes, bytesToB64, hexLines, humanSize } from "@/lib/bytes";
 import { modsDb, type ModRow } from "@/lib/modsDb";
@@ -103,6 +103,10 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
   /** Données typées, champs nommés — vides quand la famille n'est pas couverte. */
   const [configTypedJson, setConfigTypedJson] = useState<string>("");
   const [configFormat, setConfigFormat] = useState<"t2b" | "rdbn" | null>(null);
+  // Formats d'export proposés pour le fichier courant (cf. `src-tauri/src/export.rs`) : dérivés
+  // du nom côté Rust, donc rechargés à chaque sélection sans coût disque.
+  const [exportFormats, setExportFormats] = useState<ExportFormat[]>([]);
+  const [exportFormat, setExportFormat] = useState("");
   const [configLoading, setConfigLoading] = useState(false);
   const [configSaving, setConfigSaving] = useState(false);
   const [configError, setConfigError] = useState<string | null>(null);
@@ -155,6 +159,26 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
         .texturePngB64(target.path, settings.gameDir)
         .then((b64) => setPngUrl(`data:image/png;base64,${b64}`))
         .catch(() => {});
+    }
+
+    // Formats d'export du fichier courant. Le format proposé PAR DÉFAUT est la première
+    // conversion disponible (PNG pour une texture, GLB pour un modèle, WAV pour un son…) plutôt
+    // que le brut : l'utilisatrice qui ouvre ce menu veut convertir — « Extraire vers… », juste à
+    // côté, sert déjà le brut.
+    if (target.kind === "vfs") {
+      api
+        .exportFormats(target.path)
+        .then((fs) => {
+          setExportFormats(fs);
+          setExportFormat(fs.find((f) => !f.brut)?.id ?? fs[0]?.id ?? "");
+        })
+        .catch(() => {
+          setExportFormats([]);
+          setExportFormat("");
+        });
+    } else {
+      setExportFormats([]);
+      setExportFormat("");
     }
   }, [target, ext, settings.gameDir]);
 
@@ -246,6 +270,24 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
           : target.kind === "raw_cpk"
             ? await api.rawCpkExtractTo(target.entryIndex, dest)
             : await api.saveBytesB64(dest, bytesToB64(await api.readDiskFileB64(target.path).then(b64ToBytes)));
+      toast.success(`${humanSize(written)} écrits → ${dest}`);
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Export CONVERTI : décode le fichier vers le format choisi et l'écrit (cf.
+   * `src-tauri/src/export.rs`). Distinct de `extract`, qui écrit les octets du jeu tels quels —
+   * un `.g4tx` extrait reste un `.g4tx`, illisible hors du jeu. */
+  async function exportAs() {
+    if (!target || target.kind !== "vfs" || !exportFormat) return;
+    const dest = await save({ defaultPath: await api.exportDefaultName(target.path, exportFormat) });
+    if (!dest) return;
+    setBusy(true);
+    try {
+      const written = await api.exportAs(target.path, dest, exportFormat, settings.gameDir);
       toast.success(`${humanSize(written)} écrits → ${dest}`);
     } catch (e) {
       toast.error(String(e));
@@ -495,6 +537,36 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
         <Button size="sm" variant="outline" onClick={extract} disabled={busy}>
           Extraire vers…
         </Button>
+        {/* Export CONVERTI : « Extraire » écrit les octets du jeu tels quels (un `.g4tx` reste un
+          * `.g4tx`) ; ici on choisit le format de sortie. La liste ne contient que ce qui marche
+          * réellement pour ce fichier — elle est calculée côté Rust (`export.rs`), pas devinée
+          * ici. */}
+        {exportFormats.length > 1 && (
+          <div className="flex items-center gap-1">
+            <Select value={exportFormat} onValueChange={(v) => setExportFormat(v ?? "")}>
+              <SelectTrigger size="sm" className="w-44">
+                <SelectValue placeholder="Format…" />
+              </SelectTrigger>
+              <SelectContent>
+                {exportFormats.map((f) => (
+                  <SelectItem key={f.id} value={f.id}>
+                    {f.brut ? "Brut" : f.ext.toUpperCase()}
+                    {f.sans_perte ? "" : " (avec perte)"}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={exportAs}
+              disabled={busy || !exportFormat}
+              title={exportFormats.find((f) => f.id === exportFormat)?.label}
+            >
+              Exporter sous…
+            </Button>
+          </div>
+        )}
         <Button size="sm" variant="outline" onClick={copyPath}>
           Copier le chemin
         </Button>

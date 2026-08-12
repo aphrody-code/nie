@@ -9,7 +9,7 @@
 // protégés par un `try/catch` qui remonte l'erreur en toast plutôt que de l'avaler.
 import { Menu, PredefinedMenuItem } from "@tauri-apps/api/menu";
 import { tempDir, join } from "@tauri-apps/api/path";
-import { save } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { toast } from "sonner";
@@ -46,6 +46,97 @@ async function openWithDefaultApp(name: string, extract: (dest: string) => Promi
   } catch (e) {
     toast.error(`Impossible d'ouvrir : ${e}`);
   }
+}
+
+/**
+ * Sous-menu « Exporter au format » d'un fichier VFS — un élément par conversion RÉELLEMENT
+ * possible pour ce fichier (`api.exportFormats`, dérivé du nom côté Rust : aucun accès disque).
+ *
+ * L'entrée « Extraire vers… » qui existait déjà correspond au format `raw` ; elle reste en place
+ * (c'est le geste courant), et ce sous-menu n'énumère donc que les CONVERSIONS.
+ */
+async function exportSubmenuItems(path: string, gameDir?: string) {
+  let formats;
+  try {
+    formats = (await api.exportFormats(path)).filter((f) => !f.brut);
+  } catch {
+    return [];
+  }
+  if (formats.length === 0) return [];
+  return [
+    await PredefinedMenuItem.new({ item: "Separator" }),
+    {
+      text: "Exporter au format",
+      items: formats.map((f) => ({
+        text: `${f.ext.toUpperCase()} — ${f.label}`,
+        action: async () => {
+          const dest = await save({ defaultPath: await api.exportDefaultName(path, f.id) });
+          if (!dest) return;
+          try {
+            const written = await api.exportAs(path, dest, f.id, gameDir);
+            toast.success(`${humanSize(written)} écrits → ${dest}`);
+          } catch (e) {
+            toast.error(String(e));
+          }
+        },
+      })),
+    },
+  ];
+}
+
+/**
+ * Menu « Exporter au format » d'une SÉLECTION, suivi du choix du dossier de destination puis de
+ * l'export en lot (`api.exportMany`).
+ *
+ * Les formats proposés sont ceux applicables à **tous** les fichiers sélectionnés : proposer PNG
+ * pour un lot qui mélange textures et sons donnerait un résultat à moitié converti sans le dire.
+ * Le brut reste toujours proposé — c'est le seul qui vaut pour n'importe quel mélange.
+ *
+ * L'export ne s'arrête pas au premier échec : le bilan rapporte les fichiers non exportés avec
+ * leur raison.
+ */
+export async function showExportSelectionMenu(paths: string[], gameDir?: string): Promise<void> {
+  if (paths.length === 0) {
+    toast.error("Rien à exporter — sélectionnez d'abord des fichiers");
+    return;
+  }
+  let communs;
+  try {
+    const listes = await Promise.all(paths.map((p) => api.exportFormats(p)));
+    const [premier, ...reste] = listes;
+    communs = premier.filter((f) => reste.every((l) => l.some((g) => g.id === f.id)));
+  } catch (e) {
+    toast.error(String(e));
+    return;
+  }
+
+  const lancer = async (format: string) => {
+    const destDir = await open({ directory: true, title: "Dossier d'export" });
+    if (!destDir || typeof destDir !== "string") return;
+    try {
+      const bilan = await api.exportMany(paths, destDir, format, gameDir);
+      if (bilan.echecs.length === 0) {
+        toast.success(`${bilan.ecrits} fichier(s) exporté(s) (${humanSize(bilan.octets)}) → ${destDir}`);
+      } else {
+        toast.warning(`${bilan.ecrits} exporté(s), ${bilan.echecs.length} échec(s)`, {
+          description: bilan.echecs
+            .slice(0, 5)
+            .map(([p, raison]) => `${p.split("/").pop()} : ${raison}`)
+            .join("\n"),
+        });
+      }
+    } catch (e) {
+      toast.error(String(e));
+    }
+  };
+
+  const menu = await Menu.new({
+    items: communs.map((f) => ({
+      text: f.brut ? `Brut — ${f.label}` : `${f.ext.toUpperCase()} — ${f.label}`,
+      action: () => void lancer(f.id),
+    })),
+  });
+  await popupOrReport(menu);
 }
 
 export interface FileContextMenuOptions {
@@ -93,6 +184,7 @@ export async function showVfsFileContextMenu(opts: FileContextMenuOptions): Prom
         text: "Ouvrir avec l'application par défaut…",
         action: () => openWithDefaultApp(opts.name, (dest) => api.extractTo(opts.path, dest, opts.gameDir)),
       },
+      ...(await exportSubmenuItems(opts.path, opts.gameDir)),
       await PredefinedMenuItem.new({ item: "Separator" }),
       {
         text: "Copier le chemin",

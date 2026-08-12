@@ -19,6 +19,7 @@ import { api } from "@/lib/api";
 import { humanSize } from "@/lib/bytes";
 import { showVfsFileContextMenu, showVfsFolderContextMenu } from "@/lib/contextMenu";
 import { useSettings } from "@/lib/settings";
+import { useThumbnail } from "@/lib/thumbs";
 import { cn } from "@/lib/utils";
 
 /** Familles d'assets — le filtre qu'un éditeur propose (Unreal : Static Mesh / Texture / Audio…). */
@@ -31,6 +32,9 @@ const FILTER_LABELS: Record<AssetFilter, string> = {
   audio: "Audio",
   configs: "Configs",
 };
+
+/** Fichiers montés d'un coup dans la grille (cf. `limite`). */
+const PAGE = 300;
 
 const MODEL_EXTS = new Set(["g4md", "g4mg", "g4pkm", "g4sk", "g4mt", "g4ma"]);
 const TEXTURE_EXTS = new Set(["g4tx", "png", "dds"]);
@@ -63,48 +67,10 @@ function iconFor(name: string): string {
   return "description";
 }
 
-/** Cache de vignettes partagé entre remontages (même principe que la vue grille de l'Explorateur). */
-const thumbCache = new Map<string, string | null>();
-
+/** Vignette : cache borné, file de décodage et résolution réduite vivent dans `lib/thumbs`
+ * (source unique, partagée avec la vue grille de l'Explorateur). */
 function Thumb({ path, name, gameDir }: { path: string; name: string; gameDir?: string }) {
-  const [src, setSrc] = useState<string | null>(thumbCache.get(path) ?? null);
-  const [visible, setVisible] = useState(thumbCache.has(path));
-  const ref = useRef<HTMLDivElement | null>(null);
-  const isTexture = TEXTURE_EXTS.has(extOf(name));
-
-  useEffect(() => {
-    if (visible || !isTexture || !ref.current) return;
-    const obs = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          setVisible(true);
-          obs.disconnect();
-        }
-      },
-      { rootMargin: "150px" },
-    );
-    obs.observe(ref.current);
-    return () => obs.disconnect();
-  }, [visible, isTexture]);
-
-  useEffect(() => {
-    if (!visible || !isTexture || thumbCache.has(path)) return;
-    let cancelled = false;
-    api
-      .texturePngB64(path, gameDir)
-      .then((b64) => {
-        if (cancelled) return;
-        const url = `data:image/png;base64,${b64}`;
-        thumbCache.set(path, url);
-        setSrc(url);
-      })
-      .catch(() => {
-        if (!cancelled) thumbCache.set(path, null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [visible, isTexture, path, gameDir]);
+  const { ref, src } = useThumbnail(path, extOf(name), gameDir);
 
   return (
     <div ref={ref} className="flex h-14 w-full items-center justify-center overflow-hidden rounded bg-app-darker-box">
@@ -156,6 +122,14 @@ export function ContentBrowser({ prefix, onNavigate, selected, onSelect, classNa
     const q = query.trim().toLowerCase();
     return files.filter((f) => matchesFilter(f.name, filter) && (!q || f.name.toLowerCase().includes(q)));
   }, [files, filter, query]);
+
+  // Le VFS a des dossiers de plus de 12 000 fichiers (`.../10_icon_chr/uniform` : 12 560 `.g4tx`).
+  // Les monter tous d'un coup, c'est autant de noeuds DOM et d'observateurs d'intersection : la
+  // grille rame avant même d'avoir décodé la moindre vignette. On en monte une tranche, le reste
+  // à la demande — même remède que la liste de clips d'animation de l'éditeur.
+  const [limite, setLimite] = useState(PAGE);
+  useEffect(() => setLimite(PAGE), [prefix, filter, query]);
+  const affiches = shown.slice(0, limite);
 
   // `assemble_glb_for_preview` exige le G4MD **et** le G4MG de même nom dans le même dossier : un
   // dossier `chr` qui n'a que des .g4sk/.g4pk (cas de `data/common/chr/c000101`) ne produit qu'un
@@ -261,7 +235,7 @@ export function ContentBrowser({ prefix, onNavigate, selected, onSelect, classNa
         )}
 
         <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(88px,1fr))" }}>
-          {shown.map((f) => {
+          {affiches.map((f) => {
             const ext = extOf(f.name);
             const openable = ext === "g4md" && openableStems.has(stemOf(f.name));
             const dead = MODEL_EXTS.has(ext) && !openable;
@@ -304,6 +278,17 @@ export function ContentBrowser({ prefix, onNavigate, selected, onSelect, classNa
             );
           })}
         </div>
+
+        {shown.length > limite && (
+          <button
+            type="button"
+            className="mt-2 w-full rounded border border-app-line px-2 py-1 text-tiny text-ink-dull transition-colors hover:bg-app-hover hover:text-ink"
+            onClick={() => setLimite((n) => n + PAGE)}
+          >
+            Afficher {Math.min(PAGE, shown.length - limite)} fichiers de plus ({shown.length - limite}{" "}
+            restants)
+          </button>
+        )}
 
         {!loading && shown.length === 0 && dirs.length === 0 && (
           <p className="p-3 text-tiny text-ink-faint">Dossier vide (ou tout filtré).</p>

@@ -11,7 +11,7 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
-nie-formats = { workspace = true, features = ["serde", "textures"] }
+nie-formats = { workspace = true, features = ["serde", "textures", "images", "audio-decode"] }
 # Introspection best-effort des scripts `.lua.bin` (VM Lua 5.2 réelle, mlua vendored) —
 # stubs tous les globals hôtes et collecte ceux référencés, sans jamais exécuter la vraie
 # logique moteur (cf. `nie_lua::discover_host_calls`).

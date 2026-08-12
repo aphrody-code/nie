@@ -7,8 +7,14 @@ import { useSettings } from "@/lib/settings";
 import { humanSize } from "@/lib/bytes";
 import { recordVisit, togglePin, usePinnedPlaces } from "@/lib/places";
 import { codeOf } from "@/lib/vfsIndexDb";
+import { useThumbnail } from "@/lib/thumbs";
 import { useResolvedNames } from "@/lib/nameResolve";
-import { showVfsFileContextMenu, showVfsFolderContextMenu, showRawCpkFileContextMenu } from "@/lib/contextMenu";
+import {
+  showExportSelectionMenu,
+  showRawCpkFileContextMenu,
+  showVfsFileContextMenu,
+  showVfsFolderContextMenu,
+} from "@/lib/contextMenu";
 import { registerFileOps } from "@/lib/editBus";
 import { SplitPane } from "@/components/ui/split-pane";
 import type { ExplorerTab, ExplorerTabPatch } from "@/lib/explorerTabs";
@@ -65,72 +71,27 @@ function detectCpkBoundary(prefix: string): { cpkVfsPrefix: string; inner: strin
  */
 let openedCpkPrefix: string | null = null;
 
-/** Extensions dont on peut extraire une VRAIE vignette (texture décodée) — comparé en minuscules. */
-const THUMBNAIL_EXTS = new Set(["g4tx"]);
+/** Fichiers montés d'un coup dans la liste/grille (cf. `visibles`). */
+const PAGE_FICHIERS = 300;
 
-/** Cache partagé entre remounts/re-render (survit à un changement de dossier, évite de
- * redécoder deux fois la même texture en revenant sur un dossier déjà visité) — cf. demande
- * utilisatrice « compare l'UI de nie-explorer et azalee cpk explorer et fusionne le meilleur des
- * deux » : la vue grille + vignettes est la différenciation la plus marquante d'azalee `/cpk`
- * (`CpkModelThumb`/vue grille M3) que nie-explorer n'avait pas — portée ici pour les `.g4tx`
- * (décodage déjà instantané, `vfs_texture_png_b64`) ; les vignettes 3D (`.g4md`, plus coûteuses —
- * assemblage GLB + rendu, cf. §2.3 ROADMAP) restent volontairement HORS PORTÉE de cette vignette
- * de dossier (ouvrir le fichier reste le chemin pour un aperçu 3D — pas de faux raccourci).
- */
-const thumbnailCache = new Map<string, string | null>();
-
-/** Vignette lazy (IntersectionObserver — ne décode que ce qui devient visible, pas tout le
- * dossier d'un coup) pour la vue grille. `null` en cache = décodage tenté et échoué (pas de
- * texture réelle dans ce `.g4tx`, ex. dummy) — on ne réessaie pas indéfiniment. */
+/** Vignette lazy de la vue grille — cf. demande utilisatrice « compare l'UI de nie-explorer et
+ * azalee cpk explorer et fusionne le meilleur des deux » : la vue grille + vignettes est la
+ * différenciation la plus marquante d'azalee `/cpk` (`CpkModelThumb`), portée ici pour les
+ * `.g4tx`. Les vignettes 3D (`.g4md` : assemblage GLB + rendu) restent volontairement hors
+ * portée — ouvrir le fichier reste le chemin de l'aperçu 3D, pas de faux raccourci.
+ *
+ * Chargement différé, cache borné, file de décodage et **résolution réduite** vivent dans
+ * `lib/thumbs` : la grille de l'éditeur s'en sert à l'identique, et c'est là qu'est documenté
+ * pourquoi la pleine résolution saturait la mémoire du processus de rendu. */
 function FileThumbnail({ path, ext, gameDir }: { path: string; ext: string; gameDir?: string }) {
-  const [src, setSrc] = useState<string | null>(thumbnailCache.get(path) ?? null);
-  const [visible, setVisible] = useState(thumbnailCache.has(path));
-  const ref = useState(() => ({ current: null as HTMLDivElement | null }))[0];
+  const { ref, src, supporte } = useThumbnail(path, ext, gameDir);
 
-  useEffect(() => {
-    if (visible || !ref.current || !THUMBNAIL_EXTS.has(ext)) return;
-    const el = ref.current;
-    const obs = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((en) => en.isIntersecting)) {
-          setVisible(true);
-          obs.disconnect();
-        }
-      },
-      { rootMargin: "200px" },
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ext, visible]);
-
-  useEffect(() => {
-    if (!visible || thumbnailCache.has(path) || !THUMBNAIL_EXTS.has(ext)) return;
-    let cancelled = false;
-    api
-      .texturePngB64(path, gameDir)
-      .then((b64) => {
-        if (cancelled) return;
-        const url = `data:image/png;base64,${b64}`;
-        thumbnailCache.set(path, url);
-        setSrc(url);
-      })
-      .catch(() => {
-        if (!cancelled) thumbnailCache.set(path, null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [visible, path, ext, gameDir]);
-
-  if (!THUMBNAIL_EXTS.has(ext)) {
+  if (!supporte) {
     return <Icon name="description" size={28} className="text-on-surface-variant" />;
   }
   return (
     <div
-      ref={(el) => {
-        ref.current = el;
-      }}
+      ref={ref}
       className="flex h-full w-full items-center justify-center overflow-hidden rounded-lg bg-surface-container-highest"
     >
       {src ? (
@@ -352,6 +313,18 @@ export function ExplorerView({
     return arr;
   }, [files, sortKey]);
 
+  // Le VFS a des dossiers de plus de 12 000 fichiers (`.../10_icon_chr/uniform` : 12 560 `.g4tx`).
+  // Chaque entrée est un bouton riche — et, pour une texture, un observateur d'intersection : les
+  // monter tous d'un coup coûte cher avant même qu'une seule vignette ne soit décodée. On en monte
+  // une tranche, le reste à la demande.
+  //
+  // La SÉLECTION, elle, continue de porter sur `sortedFiles` en entier : Ctrl+A sélectionne tout
+  // le dossier, pas seulement ce qui est monté — un plafond d'affichage ne doit pas devenir un
+  // plafond d'action.
+  const [visibles, setVisibles] = useState(PAGE_FICHIERS);
+  useEffect(() => setVisibles(PAGE_FICHIERS), [state.prefix, files, sortKey]);
+  const affiches = useMemo(() => sortedFiles.slice(0, visibles), [sortedFiles, visibles]);
+
   // Nom réel (perso/technique/objet) lié à chaque fichier, résolu par lot via le miroir wiki
   // local — cf. demande utilisatrice « affiche le nom... lié à un fichier au lieu de juste l'id ».
   const fileCodes = useMemo(() => sortedFiles.map((f) => codeOf(f.name)), [sortedFiles]);
@@ -541,6 +514,18 @@ export function ExplorerView({
    * n'existe à cet emplacement sur le vrai disque, donc le poser en CF_HDROP tromperait
    * l'Explorateur Windows (il tenterait d'ouvrir un chemin qui n'existe nulle part) plutôt que de
    * l'aider. Le texte reste la représentation correcte ici. */
+  /** Export en lot de la sélection, au format choisi dans un menu natif (cf.
+   * `showExportSelectionMenu`). Seuls les FICHIERS sont concernés : un dossier VFS n'a pas
+   * d'octets à convertir. */
+  async function exportSelection() {
+    const paths = [...multiSelected].filter((p) => sortedFiles.some((f) => f.path === p));
+    if (paths.length === 0) {
+      toast.error("Aucun fichier dans la sélection — un dossier ne s'exporte pas");
+      return;
+    }
+    await showExportSelectionMenu(paths, settings.gameDir);
+  }
+
   function doCopySelection() {
     const paths = multiSelected.size > 0 ? [...multiSelected] : state.selected ? [state.selected] : [];
     if (paths.length === 0) {
@@ -900,7 +885,7 @@ export function ExplorerView({
                   );
                 })}
               {viewMode === "grid" &&
-                sortedFiles.map((f) => {
+                affiches.map((f) => {
                   const ext = f.name.includes(".") ? f.name.split(".").pop()!.toLowerCase() : "";
                   const isMultiSelected = multiSelected.has(f.path);
                   return (
@@ -927,7 +912,7 @@ export function ExplorerView({
                   );
                 })}
               {viewMode === "list" &&
-                sortedFiles.map((f) => {
+                affiches.map((f) => {
                 const name = resolved.get(codeOf(f.name));
                 const isMultiSelected = multiSelected.has(f.path);
                 return (
@@ -960,6 +945,16 @@ export function ExplorerView({
                   </button>
                 );
               })}
+              {sortedFiles.length > visibles && (
+                <button
+                  type="button"
+                  className="state-layer m-2 rounded-lg border border-outline-variant px-3 py-2 type-label-large text-on-surface-variant"
+                  onClick={() => setVisibles((n) => n + PAGE_FICHIERS)}
+                >
+                  Afficher {Math.min(PAGE_FICHIERS, sortedFiles.length - visibles).toLocaleString("fr-FR")} fichiers
+                  de plus ({(sortedFiles.length - visibles).toLocaleString("fr-FR")} restants)
+                </button>
+              )}
               {!loading && dirs.length === 0 && files.length === 0 && (
                 <p className="p-4 type-body-small text-on-surface-variant">{t("explorer.empty")}</p>
               )}
@@ -992,6 +987,7 @@ export function ExplorerView({
             }}
             onCopyPaths={doCopySelection}
             onStageIntoMod={() => void stageSelectionIntoMod()}
+            onExport={() => void exportSelection()}
           />
         </div>
     </SplitPane>

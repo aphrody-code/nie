@@ -10,6 +10,7 @@
 #![forbid(unsafe_code)]
 
 pub mod bridge;
+pub mod export;
 pub mod folder_roles;
 
 use nie_formats::{cfgbin, col, cri_audio, dxbc, g4cm, g4la, g4ma, g4md, g4mt, g4pk, g4sk, g4tx, g4vs, level5, navm, nxtch, objbin};
