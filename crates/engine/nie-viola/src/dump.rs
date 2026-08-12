@@ -44,13 +44,15 @@ use nie_formats::cpk::CpkReader;
 use nie_formats::vfs::Vfs;
 use rayon::prelude::*;
 
-use crate::glob_match;
+use crate::filtre::Filtre;
 
 /// Réglages d'un dump. Les valeurs par défaut sont celles qu'on veut dans une interface :
 /// reprise active, réécriture évitée, tous les cœurs.
 #[derive(Debug, Clone)]
 pub struct DumpOptions {
-    /// Ne garder que les chemins correspondant à ce motif (`*` seul reconnu, cf. [`glob_match`]).
+    /// Ne garder que les chemins retenus par ce filtre (cf. [`Filtre`] : listes, `**`, `!`).
+    ///
+    /// Un nom de preset se résout d'abord par [`crate::presets::resoudre`].
     pub filtre: Option<String>,
     /// Écrire (et relire) un manifeste de reprise dans le dossier de sortie.
     pub reprise: bool,
@@ -149,16 +151,18 @@ pub fn dump_all(
 ) -> Result<DumpReport, String> {
     std::fs::create_dir_all(sortie).map_err(|e| format!("{} : {e}", sortie.display()))?;
 
+    // Compilé une fois : l'ancien chemin réinterprétait le motif pour chacun des 255 308 chemins.
+    let filtre = options.filtre.as_deref().map_or_else(Filtre::default, Filtre::parse);
+
     // ── Regroupement par pack ────────────────────────────────────────────────────────────────
     // Le coût de chaque pack est connu ici même (tailles déjà indexées), ce qui permet de trier
     // avant de distribuer — c'est tout l'intérêt de passer par l'index plutôt que par `Vfs::read`.
     let mut par_cpk: HashMap<&str, (Vec<&str>, u64)> = HashMap::new();
     let mut loose: Vec<&str> = Vec::new();
     for (chemin, entree) in vfs.iter() {
-        if let Some(f) = options.filtre.as_deref()
-            && !glob_match(f, chemin) {
-                continue;
-            }
+        if !filtre.accepte(chemin) {
+            continue;
+        }
         if entree.cpk_filename.is_empty() {
             loose.push(chemin);
         } else {
