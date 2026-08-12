@@ -457,6 +457,84 @@ enum VfsOp {
     },
 }
 
+/// Les quatre opérations de modding LEVEL-5, servies par `nie_viola` **en process**.
+///
+/// Chaque sous-commande ici retire une délégation à `niers cs` / `niers cpp` : c'est la mesure
+/// de l'absorption (cf. `docs/ABSORPTION-IECODE.md`).
+#[derive(Subcommand)]
+enum ViolaOp {
+    /// Extrait le VFS complet vers un dossier — packs ordonnés par volume, mappés en mémoire,
+    /// reprise d'un dump interrompu.
+    Dump {
+        /// Dossier de sortie.
+        #[arg(long, short = 'o')]
+        out: PathBuf,
+        /// Filtre glob sur le chemin VFS (`*.g4tx`, `data/chr/*`). Seul `*` est reconnu.
+        #[arg(long)]
+        filtre: Option<String>,
+        /// Repart de zéro au lieu de reprendre le manifeste laissé par un dump précédent.
+        #[arg(long)]
+        sans_reprise: bool,
+        /// Réécrit les fichiers même quand la taille de destination coïncide déjà.
+        #[arg(long)]
+        tout_reecrire: bool,
+        /// Nombre de threads rayon (défaut : autant que de cœurs).
+        #[arg(long)]
+        threads: Option<usize>,
+        #[arg(long)]
+        game_dir: Option<PathBuf>,
+    },
+    /// Bascule les fichiers d'un mod hors des paquets : le jeu les charge alors depuis le disque.
+    Pack {
+        /// Dossier du mod (arborescence relative au VFS).
+        #[arg(long)]
+        mod_dir: PathBuf,
+        /// Dossier de sortie — reçoit les fichiers et le `cpk_list.cfg.bin` réécrit.
+        #[arg(long, short = 'o')]
+        out: PathBuf,
+        /// `cpk_list.cfg.bin` **vanilla**. Défaut : celui du jeu résolu.
+        #[arg(long)]
+        cpk_list: Option<PathBuf>,
+        /// Cible Switch (`romfs/data/…`) au lieu de PC (`data/…`).
+        #[arg(long)]
+        switch: bool,
+        #[arg(long)]
+        game_dir: Option<PathBuf>,
+    },
+    /// Fusionne plusieurs mods, en **priorité décroissante** — le premier dossier l'emporte.
+    ///
+    /// Par défaut la fusion est **au champ** sur les `.cfg.bin` : deux mods qui éditent des
+    /// champs différents d'un même fichier survivent tous les deux. C'est ce que les toolkits
+    /// amont ne savent pas faire, faute de comprendre les formats.
+    Merge {
+        /// Dossiers de mods, du plus prioritaire au moins prioritaire.
+        #[arg(required = true, num_args = 1..)]
+        sources: Vec<PathBuf>,
+        /// Dossier de sortie.
+        #[arg(long, short = 'o')]
+        out: PathBuf,
+        /// Fusion au fichier (comportement amont) : plus de fusion au champ.
+        #[arg(long)]
+        fichier: bool,
+        #[arg(long)]
+        game_dir: Option<PathBuf>,
+    },
+    /// (Dé)chiffre un fichier Criware. L'opération est **involutive** : un seul sens suffit.
+    Crypto {
+        /// Fichier source.
+        src: PathBuf,
+        /// Fichier destination.
+        #[arg(long, short = 'o')]
+        out: PathBuf,
+        /// Clé en hexadécimal (`1717E18E`). Défaut : la clé fixe Viola.
+        #[arg(long, conflicts_with = "du_nom")]
+        cle: Option<String>,
+        /// Dérive la clé du nom de fichier (CRC32), comme pour les paquets CPK.
+        #[arg(long)]
+        du_nom: bool,
+    },
+}
+
 #[derive(Subcommand)]
 enum SaveOp {
     /// Déchiffre et affiche un résumé terse d'un fichier de sauvegarde Lives.
@@ -1020,6 +1098,7 @@ fn main() -> anyhow::Result<()> {
     match cli.cmd {
         Cmd::Cpp { args } => delegate::cpp(&args),
         Cmd::Cs { args } => delegate::cs(&args),
+        Cmd::Viola { op } => viola_cmd(op),
         Cmd::Backends => {
             delegate::status();
             Ok(())
@@ -1908,6 +1987,93 @@ fn count_json_files(layouts_dir: &std::path::Path) -> usize {
 }
 
 // ─── niers vfs — explorateur CPK (VFS) ─────────────────────────────────────────────
+
+fn viola_cmd(op: ViolaOp) -> anyhow::Result<()> {
+    match op {
+        ViolaOp::Dump { out, filtre, sans_reprise, tout_reecrire, threads, game_dir } => {
+            let vfs = open_vfs(game_dir)?;
+            let options = nie_viola::DumpOptions {
+                filtre,
+                reprise: !sans_reprise,
+                sauter_identiques: !tout_reecrire,
+                threads,
+            };
+            let annuler = std::sync::atomic::AtomicBool::new(false);
+            // Le rapport d'avancement n'écrit qu'une ligne réécrite en place : appelé depuis
+            // plusieurs threads, il doit rester bon marché.
+            let progres = |p: nie_viola::DumpProgress| {
+                eprint!("\r  {} / {} fichiers — {:.1} Gio", p.faits, p.total, p.octets as f64 / 1.073_741_824e9);
+                let _ = std::io::stderr().flush();
+            };
+            let r = nie_viola::dump_all(&vfs, &out, &options, &annuler, &progres).map_err(anyhow::Error::msg)?;
+            eprintln!();
+            println!("extraits  {}", r.extraits);
+            println!("sautés    {}", r.sautes);
+            println!("échecs    {}", r.echecs);
+            println!("octets    {}", r.octets);
+            println!("packs repris {}", r.packs_repris);
+            if r.annule {
+                println!("annulé    oui");
+            }
+            Ok(())
+        }
+        ViolaOp::Pack { mod_dir, out, cpk_list, switch, game_dir } => {
+            let plateforme = if switch { nie_viola::Platform::Switch } else { nie_viola::Platform::Pc };
+            let cpk_list = cpk_list
+                .unwrap_or_else(|| racine_jeu(game_dir).join("data").join("cpk_list.cfg.bin"));
+            let r = nie_viola::pack_mod(&cpk_list, &mod_dir, &out, plateforme).map_err(anyhow::Error::msg)?;
+            println!("mis à jour {}", r.mis_a_jour);
+            println!("ajoutés    {}", r.ajoutes);
+            println!("copiés     {}", r.copies);
+            println!("entrées    {}", r.total);
+            println!("enveloppe  {:?}", r.crypto);
+            // Un `cpk_list` déjà packé empilerait les entrées d'un mod précédent : le dire.
+            if r.loose_avant > 64 {
+                eprintln!(
+                    "attention : {} entrées étaient déjà hors paquet — ce cpk_list semble déjà packé",
+                    r.loose_avant
+                );
+            }
+            Ok(())
+        }
+        ViolaOp::Merge { sources, out, fichier, game_dir } => {
+            // La fusion au champ a besoin du vanilla ; le VFS le fournit sans exiger un dump.
+            let vfs = if fichier { None } else { Some(open_vfs(game_dir)?) };
+            let rapport = match &vfs {
+                None => nie_viola::merge_dirs(&sources, &out, &nie_viola::MergeStrategy::Fichier),
+                Some(vfs) => {
+                    let resoudre = |rel: &str| vfs.read(rel).ok();
+                    nie_viola::merge_dirs(&sources, &out, &nie_viola::MergeStrategy::Semantique(&resoudre))
+                }
+            }
+            .map_err(anyhow::Error::msg)?;
+            println!("copiés    {}", rapport.copies);
+            println!("fusionnés {}", rapport.fusionnes);
+            println!("conflits  {}", rapport.conflits.len());
+            for c in &rapport.conflits {
+                let repli = c.repli.as_deref().unwrap_or("");
+                println!(
+                    "  {} — mods {:?}, {} champs fusionnés, {} en désaccord {repli}",
+                    c.chemin, c.rangs, c.champs_fusionnes, c.champs_en_desaccord
+                );
+            }
+            Ok(())
+        }
+        ViolaOp::Crypto { src, out, cle, du_nom } => {
+            let cle = match (cle, du_nom) {
+                (Some(hex), _) => nie_viola::CriwareKey::depuis_hex(&hex).map_err(anyhow::Error::msg)?,
+                (None, true) => nie_viola::CriwareKey::DuNom(
+                    src.file_name().unwrap_or_default().to_string_lossy().into_owned(),
+                ),
+                (None, false) => nie_viola::CriwareKey::Viola,
+            };
+            let octets = nie_viola::crypt_file(&src, &out, &cle).map_err(anyhow::Error::msg)?;
+            println!("clé    {:08X}", cle.valeur());
+            println!("octets {octets}");
+            Ok(())
+        }
+    }
+}
 
 fn vfs_cmd(op: VfsOp) -> anyhow::Result<()> {
     match op {

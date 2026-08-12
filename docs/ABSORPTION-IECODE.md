@@ -109,7 +109,9 @@ cargo), **aucun couplage Bun**.
 2. **Statuer sur `EACLauncher.zip`** : le sortir de l'assembly vers un artefact adressable.
 3. **Exposer sous `niers` ce que Rust sait déjà faire mais que la CLI cache** — c'est la doctrine
    « niers est la seule CLI », violée aujourd'hui :
-   - `niers viola dump|pack|merge|crypto` → `nie-viola` (écrit, validé, **non exposé**)
+   - ~~`niers viola dump|pack|merge|crypto`~~ → **fait** : les quatre sous-commandes appellent
+     `nie-viola` en process, vérifiées sur le jeu réel (dump filtré + reprise, aller-retour
+     crypto involutif, merge à deux mods, pack sur les 255 308 entrées en enveloppe AES).
    - `niers steam list|download|sync` → `nie-steam` (complet, **non exposé** ; il faut lancer un
      second binaire aujourd'hui)
    - `niers info --json` — peut agréger ce que le C# ne sait pas voir : sha256 du binaire, part

@@ -112,6 +112,7 @@ nie-model-serve = { path = "crates/tools/nie-model-serve" }
 nie-zukan = { path = "crates/tools/nie-zukan" }
 nie-lua = { path = "crates/engine/nie-lua" }
 nie-render3d = { path = "crates/engine/nie-render3d" }
+nie-viola = { path = "crates/engine/nie-viola" }
 
 # tests CLI (dev-dep commune)
 assert_cmd = "2"
