@@ -62,6 +62,18 @@ import {
   type ViolaPlatform,
 } from "@/lib/bindings";
 
+/** Résultat d'un décodage typé — voir `api.vfsDecodeCfgbinTyped`. */
+export type CfgbinTyped = {
+  /** Clé de famille dérivée du nom de fichier (`skill_config`…). */
+  cle: string;
+  /** Étiquette du parseur qui a répondu, `null` si aucun. */
+  famille: string | null;
+  /** Données typées sérialisées, vide si `famille` est `null`. */
+  json: string;
+  /** Forme générique du conteneur — toujours présente. */
+  brut: string;
+};
+
 export type VfsEntry = EntryDto;
 export type FolderRole = FolderRoleDto;
 export type LsResult = LsDto;
@@ -338,6 +350,15 @@ export const api = {
   // JSON "inagle" — couvre les ~50 000 fichiers de config du jeu (vérifié réel, cf.
   // `game_data.rs` test `decode_cfgbin_sur_un_echantillon_large`), pas seulement les techniques.
   vfsDecodeCfgbin: (path: string, gameDir?: string) => unwrap<unknown>(commands.vfsDecodeCfgbin(path, gd(gameDir))),
+  /**
+   * Décode un `.cfg.bin` **et** le passe au parseur typé de sa famille, quand elle en a un.
+   *
+   * `vfsDecodeCfgbin` rend des colonnes numérotées ; ici les champs portent leur nom
+   * (`consume_tp` plutôt que `var3`). `famille === null` signale qu'aucun des 112 parseurs de
+   * `nie-data` ne couvre ce fichier — l'appelant retombe alors sur `brut`, toujours fourni.
+   */
+  vfsDecodeCfgbinTyped: (path: string, gameDir?: string) =>
+    unwrap<CfgbinTyped>(commands.vfsDecodeCfgbinTyped(path, gd(gameDir))),
   // Ré-encode le JSON édité (forme "entries" T2B ou "lists" RDBN, dispatch auto) → bytes base64 —
   // à composer avec writeB64/writeLooseOverrideB64/saveBytesB64 côté appelant. `path` sert de
   // gabarit pour le patch RDBN (cf. doc Rust de `encode_cfgbin_config`), ignoré côté T2B.

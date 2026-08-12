@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { save, confirm } from "@tauri-apps/plugin-dialog";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { toast } from "sonner";
+import { formatDescription, translateEffect } from "@rosegriffon/azalee/text";
 import { api } from "@/lib/api";
 import { useSettings } from "@/lib/settings";
 import { b64ToBytes, bytesToB64, hexLines, humanSize } from "@/lib/bytes";
@@ -33,6 +34,33 @@ export type DetailTarget =
   | { kind: "disk"; path: string }
   | { kind: "raw_cpk"; path: string; entryIndex: number };
 
+/** Champs dont le contenu est du texte de jeu — ceux qui portent des balises et de la furigana. */
+const CHAMPS_TEXTE = new Set(["description", "desc", "text", "name", "label", "effect"]);
+
+/**
+ * Rend lisibles les textes du jeu contenus dans des données typées.
+ *
+ * Les `.cfg.bin` stockent le texte avec les balises du moteur (`<FST:…>`, `<FLC:…>`) et la
+ * furigana japonaise (`[守/まもる]`). `formatDescription` d'azalée les résout ; `translateEffect`
+ * traduit en plus les libellés d'effet du glossaire FR (74 entrées). Les valeurs d'origine ne
+ * sont pas perdues : la vue générique en dessous les montre telles quelles.
+ */
+function rendreLisible(valeur: unknown): unknown {
+  if (typeof valeur === "string") return formatDescription(valeur, "fr");
+  if (Array.isArray(valeur)) return valeur.map(rendreLisible);
+  if (valeur && typeof valeur === "object") {
+    return Object.fromEntries(
+      Object.entries(valeur as Record<string, unknown>).map(([k, v]) => [
+        k,
+        typeof v === "string" && CHAMPS_TEXTE.has(k.toLowerCase())
+          ? translateEffect(formatDescription(v, "fr"))
+          : rendreLisible(v),
+      ]),
+    );
+  }
+  return valeur;
+}
+
 export function DetailPane({ target }: { target: DetailTarget | null }) {
   const settings = useSettings();
   const [lines, setLines] = useState<string[]>([]);
@@ -61,6 +89,10 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
   // ÉDITABLE + ré-encodable pour le T2B (`encode_t2b`, vérifié par round-trip réel sur des
   // centaines de vrais fichiers) — le RDBN reste lecture seule, aucun encodeur vérifié.
   const [configJson, setConfigJson] = useState<string | null>(null);
+  /** Étiquette du parseur `nie-data` qui a répondu (`skill`, `formation`…), `null` si aucun. */
+  const [configFamille, setConfigFamille] = useState<string | null>(null);
+  /** Données typées, champs nommés — vides quand la famille n'est pas couverte. */
+  const [configTypedJson, setConfigTypedJson] = useState<string>("");
   const [configFormat, setConfigFormat] = useState<"t2b" | "rdbn" | null>(null);
   const [configLoading, setConfigLoading] = useState(false);
   const [configSaving, setConfigSaving] = useState(false);
@@ -88,6 +120,8 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
     setAudioError(null);
     setIsLoose(false);
     setConfigJson(null);
+    setConfigFamille(null);
+    setConfigTypedJson("");
     setConfigFormat(null);
     setConfigError(null);
     if (!target) return;
@@ -279,9 +313,17 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
     setConfigLoading(true);
     setConfigError(null);
     try {
-      const json = await api.vfsDecodeCfgbin(target.path, settings.gameDir);
-      setConfigJson(JSON.stringify(json, null, 2));
-      setConfigFormat(json && typeof json === "object" && "lists" in json ? "rdbn" : "t2b");
+      // Décodage typé : la forme générique reste rendue à côté, donc on ne perd rien quand
+      // aucune des 112 familles de `nie-data` ne couvre le fichier — ce qui est le cas de la
+      // majorité des `.cfg.bin` du jeu (map, event, effect).
+      const r = await api.vfsDecodeCfgbinTyped(target.path, settings.gameDir);
+      const brut: unknown = JSON.parse(r.brut);
+      setConfigJson(JSON.stringify(brut, null, 2));
+      setConfigFormat(brut && typeof brut === "object" && "lists" in brut ? "rdbn" : "t2b");
+      setConfigFamille(r.famille);
+      setConfigTypedJson(
+        r.famille ? JSON.stringify(rendreLisible(JSON.parse(r.json)), null, 2) : "",
+      );
     } catch (e) {
       setConfigError(String(e));
     } finally {
@@ -500,6 +542,22 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
           {/* Même chaîne JSON que l'éditeur texte, projetée en table/arbre — cf. `CfgbinViewer`.
            * L'édition RDBN suppose `target.kind === "vfs"` (`encode_cfgbin_config` relit
            * l'original comme gabarit), garanti par `loadConfig` et redit ici. */}
+          {/* Famille reconnue : les champs portent leur nom au lieu d'un numéro de colonne.
+            * La vue générique reste dessous — c'est elle qui est éditable et ré-encodable. */}
+          {configFamille ? (
+            <details className="rounded-lg border border-app-line bg-app-box/60" open>
+              <summary className="cursor-pointer px-3 py-2 text-xs text-ink-dull">
+                Données nommées — famille <span className="text-ink">{configFamille}</span>
+              </summary>
+              <pre className="max-h-72 overflow-auto px-3 pb-3 font-mono text-[11px] leading-relaxed">
+                {configTypedJson}
+              </pre>
+            </details>
+          ) : (
+            <p className="text-xs text-ink-faint">
+              Aucun parseur nommé pour cette famille — vue générique seule.
+            </p>
+          )}
           <CfgbinViewer
             value={configJson}
             onChange={setConfigJson}
