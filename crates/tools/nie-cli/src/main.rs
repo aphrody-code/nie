@@ -2105,6 +2105,26 @@ fn info_cmd(game_dir: Option<PathBuf>, json: bool) -> anyhow::Result<()> {
         Err(_) => (None, None),
     };
 
+    // La chaine de lancement du vrai jeu. `nie.exe` seul ne demarre pas : le binaire est lance
+    // par EAC, qui exige EOS, et le jeu appelle Steamworks. La forge sait produire `nie.exe` au
+    // byte pres — elle ne produit RIEN de ce qui suit, et ne le pourra pas : ce sont des
+    // composants tiers signes. Les inventorier evite de croire qu'un `nie.exe` identique suffit.
+    const CHAINE: [(&str, &str); 5] = [
+        ("nie.exe", "binaire du jeu — produit par la forge"),
+        ("EACLauncher.exe", "Easy Anti-Cheat — lance le jeu, tiers non reproductible"),
+        ("EasyAntiCheat/Settings.json", "configuration EAC"),
+        ("EOSSDK-Win64-Shipping.dll", "Epic Online Services — exige par EAC, tiers"),
+        ("steam_api64.dll", "Steamworks — tiers"),
+    ];
+    let chaine: Vec<(&str, &str, bool, u64)> = CHAINE
+        .iter()
+        .map(|(f, role)| {
+            let m = std::fs::metadata(racine.join(f)).ok();
+            (*f, *role, m.is_some(), m.map_or(0, |m| m.len()))
+        })
+        .collect();
+    let manquants = chaine.iter().filter(|(_, _, present, _)| !present).count();
+
     let cpk_list = racine.join("data/cpk_list.cfg.bin");
     let vfs = open_vfs(Some(racine.clone())).ok();
     let entrees = vfs.as_ref().map_or(0, |v| v.iter().count());
@@ -2128,6 +2148,10 @@ fn info_cmd(game_dir: Option<PathBuf>, json: bool) -> anyhow::Result<()> {
             "binaire": { "present": taille_exe.is_some(), "taille": taille_exe, "sha256": sha },
             "vfs": { "cpk_list": cpk_list.is_file(), "entrees": entrees, "paquets": paquets.len() },
             "dumps_gamedata": dumps.as_ref().map(|p| p.display().to_string()),
+            "chaine_de_lancement": chaine.iter().map(|(f, role, present, taille)| serde_json::json!({
+                "fichier": f, "role": role, "present": present, "taille": taille,
+            })).collect::<Vec<_>>(),
+            "lancable": manquants == 0,
         });
         println!("{}", serde_json::to_string_pretty(&v)?);
         return Ok(());
@@ -2146,6 +2170,20 @@ fn info_cmd(game_dir: Option<PathBuf>, json: bool) -> anyhow::Result<()> {
     match &dumps {
         Some(p) => println!("dumps       {}", p.display()),
         None => println!("dumps       absents — les goldens adosses au corpus ne s'executeront pas"),
+    }
+
+    println!("
+chaine de lancement");
+    for (f, role, present, taille) in &chaine {
+        let etat = if *present { format!("{taille:>10} o") } else { "   ABSENT".to_string() };
+        println!("  {etat}  {f:<28} {role}");
+    }
+    if manquants == 0 {
+        println!("
+lancable    oui — les 5 composants sont la");
+    } else {
+        println!("
+lancable    NON — {manquants} composant(s) manquant(s)");
     }
     Ok(())
 }
