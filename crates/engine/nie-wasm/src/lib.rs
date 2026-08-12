@@ -804,6 +804,31 @@ pub fn g4tx_info_json(bytes: &[u8]) -> Result<String, String> {
     serde_json::to_string(&g4tx).map_err(|e| e.to_string())
 }
 
+/// Feuille de sprites d'un atlas `.g4tx` : régions nommées avec leur rectangle, en JSON.
+///
+/// `g4tx_info_json` rend la structure brute du conteneur ; celle-ci rend ce qu'une interface
+/// attend — un manifeste `{nom, largeur, hauteur, sprites[{nom, classe, x, y, largeur, hauteur}]}`
+/// directement consommable pour positionner une icône, avec ou sans CSS.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn g4tx_sprite_sheet_json(bytes: &[u8]) -> Result<String, JsValue> {
+    sprite_sheet_json(bytes).map_err(|e| JsValue::from_str(&e))
+}
+
+/// Feuille de sprites d'un atlas `.g4tx` (version native).
+#[cfg(not(target_arch = "wasm32"))]
+pub fn g4tx_sprite_sheet_json(bytes: &[u8]) -> Result<String, String> {
+    sprite_sheet_json(bytes)
+}
+
+/// Corps commun aux deux cibles : parse l'atlas, en extrait les régions, sérialise.
+fn sprite_sheet_json(bytes: &[u8]) -> Result<String, String> {
+    let g4tx = nie_formats::g4tx::parse(bytes).map_err(|e| e.to_string())?;
+    let feuille = nie_formats::sprite_sheet::depuis_g4tx(&g4tx, 0)
+        .ok_or_else(|| "aucune texture dans ce G4TX".to_string())?;
+    Ok(feuille.vers_json())
+}
+
 /// Parse une archive `.g4pk` (en-tête + sous-fichiers) en JSON, in-browser.
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
@@ -1724,5 +1749,45 @@ mod tests {
         decrypt_block(&mut enc, 0, key);
         // Parser avec un nom différent → mauvaise clé → BadMagic.
         assert!(parse_save_json(&enc, "CAFEBABE-LIVE").is_err());
+    }
+}
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod tests_sprite_sheet {
+    /// Golden VFS : la feuille de sprites d'un atlas réel du jeu doit sortir de la FFI wasm avec
+    /// ses régions et leurs rectangles — c'est ce que l'explorateur et le web consomment.
+    #[test]
+    fn feuille_de_sprites_d_un_atlas_reel() {
+        use std::path::Path;
+
+        let dir = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
+        let data_dir = Path::new(&dir).join("data");
+        let mut vfs = nie_formats::vfs::Vfs::new();
+        if vfs.init(&data_dir).is_err() {
+            eprintln!("skip feuille_de_sprites : jeu absent à {}", data_dir.display());
+            return;
+        }
+        let Some(chemin) = vfs
+            .iter()
+            .map(|(p, _)| p.to_string())
+            .find(|p| p.ends_with("font/gaiji_game.g4tx"))
+        else {
+            eprintln!("skip feuille_de_sprites : gaiji_game.g4tx absent du VFS");
+            return;
+        };
+        let data = vfs.read(&chemin).expect("lecture de l'atlas");
+
+        let json = super::g4tx_sprite_sheet_json(&data).expect("feuille de sprites");
+        let v: serde_json::Value = serde_json::from_str(&json).expect("JSON valide");
+        let sprites = v["sprites"].as_array().expect("tableau de sprites");
+        eprintln!("{chemin} : {} régions", sprites.len());
+
+        assert!(sprites.len() > 100, "atlas d'icônes attendu, {} régions", sprites.len());
+        assert!(v["largeur"].as_i64().unwrap_or(0) > 0);
+        // Chaque région porte un rectangle exploitable : c'est ce que `g4tx_info_json` ne donne pas.
+        for s in sprites {
+            assert!(!s["nom"].as_str().unwrap_or("").is_empty());
+            assert!(s["largeur"].as_i64().unwrap_or(0) > 0, "region sans largeur : {s}");
+        }
     }
 }
