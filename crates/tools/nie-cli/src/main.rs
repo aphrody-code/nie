@@ -516,9 +516,13 @@ enum ViolaOp {
         /// Dossier de sortie.
         #[arg(long, short = 'o')]
         out: PathBuf,
-        /// Filtre glob sur le chemin VFS (`*.g4tx`, `data/chr/*`). Seul `*` est reconnu.
+        /// Filtre sur le chemin VFS. Listes séparées par des virgules, `**` traverse les `/`,
+        /// préfixe `!` pour exclure (`data/dx11/**,!**/movie/**`).
         #[arg(long)]
         filtre: Option<String>,
+        /// Preset nommé (`inagle`, `azalee`, `inagle-azalee`) — exclusif de `--filtre`.
+        #[arg(long)]
+        preset: Option<String>,
         /// Repart de zéro au lieu de reprendre le manifeste laissé par un dump précédent.
         #[arg(long)]
         sans_reprise: bool,
@@ -2477,7 +2481,19 @@ fn convert_sprites(
 
 fn viola_cmd(op: ViolaOp) -> anyhow::Result<()> {
     match op {
-        ViolaOp::Dump { out, filtre, sans_reprise, tout_reecrire, threads, game_dir } => {
+        ViolaOp::Dump { out, filtre, preset, sans_reprise, tout_reecrire, threads, game_dir } => {
+            // Un preset nomme se resout en specification de filtre ; un nom inconnu est une
+            // erreur, jamais un dump silencieux du jeu entier.
+            let filtre = match (filtre, preset) {
+                (Some(_), Some(_)) => anyhow::bail!("--filtre et --preset sont exclusifs"),
+                (f, None) => f,
+                (None, Some(p)) => Some(nie_viola::presets::resoudre(&p).ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "preset « {p} » inconnu — presets : {}",
+                        nie_viola::presets::NOMS.join(", ")
+                    )
+                })?),
+            };
             let vfs = open_vfs(game_dir)?;
             let options = nie_viola::DumpOptions {
                 filtre,
