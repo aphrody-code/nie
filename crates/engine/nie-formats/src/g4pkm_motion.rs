@@ -286,4 +286,54 @@ mod tests {
         assert!(contains_ic("anything", ""));
         assert!(!contains_ic("ab", "abc"));
     }
+
+    /// Golden VFS : le fallback d'ancêtre sur les **vrais** paquets menu.
+    ///
+    /// `G4pkmMotionTests.cs` faisait ces mesures depuis `/tmp/g4pkm-extract`, un dossier qui
+    /// n'existe pas ici : ses assertions ne s'exécutaient jamais sous Windows.
+    #[test]
+    fn golden_motion_sur_les_paquets_menu_reels() {
+        // `title00_09` : le bone de placement est hors écran (x=1873) ⇒ on remonte à un ancêtre.
+        if let Some((chemin, data)) =
+            crate::g4pk::tests_vfs::lire_par_suffixe("title00_09.g4pkm")
+        {
+            let layout = crate::g4pkm::parse(&data).expect("parse title00_09.g4pkm");
+            let mp = motion_final_pose(&layout, true);
+            std::eprintln!(
+                "{chemin} : bone={} fallback={} x={} y={}",
+                mp.bone_name, mp.used_ancestor_fallback, mp.pose.x, mp.pose.y
+            );
+            assert!(mp.used_ancestor_fallback, "title00_09 : placement hors écran ⇒ fallback");
+            assert!(!mp.pose.is_off_screen_1920(), "la pose finale doit être dans l'écran");
+            assert!((-960.0..=960.0).contains(&mp.pose.x), "x hors canvas : {}", mp.pose.x);
+            assert!((-540.0..=540.0).contains(&mp.pose.y), "y hors canvas : {}", mp.pose.y);
+            let (px, py) = mp.pose.to_css_1280x720();
+            assert!((0.0..=1280.0).contains(&px), "px hors [0,1280] : {px}");
+            assert!((0.0..=720.0).contains(&py), "py hors [0,720] : {py}");
+        }
+
+        // `title00_01` : son bone de placement est déjà dans l'écran ⇒ aucun fallback.
+        if let Some((chemin, data)) =
+            crate::g4pk::tests_vfs::lire_par_suffixe("title00_01.g4pkm")
+        {
+            let layout = crate::g4pkm::parse(&data).expect("parse title00_01.g4pkm");
+            let mp = motion_final_pose(&layout, false);
+            std::eprintln!("{chemin} : bone={} fallback={}", mp.bone_name, mp.used_ancestor_fallback);
+            assert!(!mp.used_ancestor_fallback, "title00_01 : placement en écran ⇒ pas de fallback");
+            assert!(
+                contains_ic(&mp.bone_name, "base") || contains_ic(&mp.bone_name, "pos_scl"),
+                "bone de placement inattendu : {}",
+                mp.bone_name
+            );
+        }
+
+        // `option01_02` : 66 bones — mesure de volume, elle attrape une régression de parsing.
+        if let Some((chemin, data)) =
+            crate::g4pk::tests_vfs::lire_par_suffixe("option01_02.g4pkm")
+        {
+            let layout = crate::g4pkm::parse(&data).expect("parse option01_02.g4pkm");
+            std::eprintln!("{chemin} : {} bones", layout.bone_count());
+            assert_eq!(layout.bone_count(), 66, "option01_02 : bone_count attendu 66");
+        }
+    }
 }

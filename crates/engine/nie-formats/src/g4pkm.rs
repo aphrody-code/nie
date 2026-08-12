@@ -677,7 +677,7 @@ mod tests {
             }
         }
 
-        // ── win00_04.g4pkm : 5 bones ──────────────────────────────────────────
+        // ── win00_04.g4pkm : 5 bones, curseur à (-40, 40) de 80×80 ────────────
         match find_vfs_path(&vfs, "win00_04.g4pkm") {
             None => eprintln!("skip win00_04.g4pkm : non trouvé dans le VFS"),
             Some(path) => {
@@ -685,10 +685,30 @@ mod tests {
                 let layout = parse(&data).expect("parse win00_04.g4pkm");
                 eprintln!("win00_04 : {} bones", layout.bone_count());
                 assert_eq!(layout.bone_count(), 5, "win00_04 : bone_count attendu 5");
+
+                let c = layout.world_pose("_cursor01").expect("win00_04 : _cursor01 absent");
+                eprintln!(
+                    "win00_04 _cursor01 : X={} Y={} ScaleX={} ScaleY={}",
+                    c.x, c.y, c.scale_x, c.scale_y
+                );
+                assert!((c.x - -40.0).abs() < 1.0,   "_cursor01 X≈-40, obtenu {}", c.x);
+                assert!((c.y - 40.0).abs() < 1.0,    "_cursor01 Y≈40, obtenu {}", c.y);
+                assert!((c.scale_x - 80.0).abs() < 1.0, "_cursor01 ScaleX≈80, obtenu {}", c.scale_x);
+                assert!((c.scale_y - 80.0).abs() < 1.0, "_cursor01 ScaleY≈80, obtenu {}", c.scale_y);
+                assert!(!c.is_off_screen_1920(), "_cursor01 est dans le canvas");
+
+                // Projection CSS : 640 − 40·(2/3) ≈ 613 ; 360 − 40·(2/3) ≈ 333.
+                let (px, py) = c.to_css_1280x720();
+                assert!((600.0..=625.0).contains(&px), "_cursor01 px hors [600,625] : {px}");
+                assert!((320.0..=345.0).contains(&py), "_cursor01 py hors [320,345] : {py}");
+
+                // Hiérarchie : racine `win00`, puis `win00_04_output` accroché dessus.
+                assert_eq!(layout.bones[0].parent_index, -1, "bone 0 = racine");
+                assert_eq!(layout.bones[1].parent_index, 0, "bone 1 accroché à la racine");
             }
         }
 
-        // ── title00_09.g4pkm : 20 bones ───────────────────────────────────────
+        // ── title00_09.g4pkm : 20 bones nommés, `_pos_scl_base01` hors écran ──
         match find_vfs_path(&vfs, "title00_09.g4pkm") {
             None => eprintln!("skip title00_09.g4pkm : non trouvé dans le VFS"),
             Some(path) => {
@@ -696,6 +716,52 @@ mod tests {
                 let layout = parse(&data).expect("parse title00_09.g4pkm");
                 eprintln!("title00_09 : {} bones", layout.bone_count());
                 assert_eq!(layout.bone_count(), 20, "title00_09 : bone_count attendu 20");
+
+                // Les 20 noms, dans l'ordre du fichier. `G4pkmLayoutTests.cs` n'en assérait que
+                // neuf ; la table de noms en contient vingt, et c'est elle la vérité terrain.
+                const NOMS: [&str; 20] = [
+                    "title00", "title00_09_output", "_pos_base01", "_pos_scl_base01",
+                    "_gtxt_ver01", "_gtxt_dot01", "_gtxt_dot02", "_gtxt_dot03",
+                    "_num_ver01", "_num_ver_dmy01", "_num_ver02", "_num_ver_dmy02",
+                    "_num_ver03", "_num_ver_dmy03", "_num_save01", "_num_save_dmy01",
+                    "_num_save02", "_num_save_dmy02", "_num_net01", "_num_net_dmy01",
+                ];
+                let obtenus: Vec<&str> = layout.bones.iter().map(|b| b.name.as_str()).collect();
+                assert_eq!(obtenus, NOMS, "title00_09 : table de noms");
+
+                // Aucun nom fabriqué : `Bone_<n>` est ce que produit le fallback heuristique de
+                // `g4sk`. Sa présence signifierait que la table de noms n'a pas été lue.
+                for b in &layout.bones {
+                    let fabrique = b.name.strip_prefix("Bone_")
+                        .is_some_and(|n| !n.is_empty() && n.bytes().all(|c| c.is_ascii_digit()));
+                    assert!(!fabrique, "nom fabriqué par l'heuristique : {}", b.name);
+                }
+
+                // Racine à l'origine.
+                let racine = &layout.bones[0];
+                assert_eq!(racine.parent_index, -1, "title00 est la racine");
+                assert!(racine.world_bind_pose.x.abs() < 1.0, "title00 X≈0");
+                assert!(racine.world_bind_pose.y.abs() < 1.0, "title00 Y≈0");
+
+                // `_pos_scl_base01` : hors écran à droite, mis à l'échelle 0.65 × 0.9.
+                let p = layout.world_pose("_pos_scl_base01").expect("_pos_scl_base01 absent");
+                eprintln!(
+                    "title00_09 _pos_scl_base01 : X={} Y={} ScaleX={} ScaleY={}",
+                    p.x, p.y, p.scale_x, p.scale_y
+                );
+                assert!((p.x - 1873.0).abs() < 1.0, "_pos_scl_base01 X≈1873, obtenu {}", p.x);
+                assert!((p.y - -39.0).abs() < 1.0,  "_pos_scl_base01 Y≈-39, obtenu {}", p.y);
+                assert!(p.is_off_screen_1920(), "_pos_scl_base01 est hors du canvas 1920×1080");
+                assert!((0.6..=0.7).contains(&p.scale_x),  "ScaleX≈0.65, obtenu {}", p.scale_x);
+                assert!((0.85..=0.95).contains(&p.scale_y), "ScaleY≈0.9, obtenu {}", p.scale_y);
+
+                // `_gtxt_ver01` hérite de ces échelles : 0.65×104 ≈ 67.6 et 0.9×32.4 ≈ 29.2.
+                let g = layout.world_pose("_gtxt_ver01").expect("_gtxt_ver01 absent");
+                assert!((50.0..=90.0).contains(&g.scale_x), "_gtxt_ver01 ScaleX {}", g.scale_x);
+                assert!((20.0..=45.0).contains(&g.scale_y), "_gtxt_ver01 ScaleY {}", g.scale_y);
+
+                // Un nom absent ne doit pas être inventé.
+                assert!(layout.world_pose("_does_not_exist_bone_xyz").is_none());
             }
         }
     }

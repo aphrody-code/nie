@@ -1903,6 +1903,77 @@ mod dispatch_tests {
         assert!(enumerate_header_tabs(&lua).is_empty());
     }
 
+    // ── Identifiants de scénario relevés dans les scripts réels ───────────────
+    //
+    // Ces valeurs venaient des tests C# (`LuaRuntimeTests.cs`, `GameLuaHostTests.cs`), qui ne
+    // s'exécutaient que sur une machine portant `re/lua/raw` + `unluac.jar` +
+    // `re/menu/hash-dictionary.json` — trois chemins absents du dépôt. Elles sont reportées ici
+    // pour survivre au retrait de `csharp/`.
+    //
+    // Deux natures **à ne pas confondre** :
+    //  - un layerId qui EST le CRC32 de son nom de layer (vérifiable sans aucun dictionnaire) ;
+    //  - une constante simplement OBSERVÉE dans le décompilé, dont le nom reste inconnu.
+
+    /// `general_win` — layerId de `qrcode_menu.lua.bin`.
+    const LAYER_GENERAL_WIN: u32 = 292_844_459;
+    /// layerId de `savedata_management_menu_save_and_upload.lua.bin`, passé à `OnChangeLayerGroup`.
+    const LAYER_SAVEDATA_GROUPE: u32 = 1_654_568_798;
+    /// layerId passé à `OnSetupLayer` de `battle_menu_multi.lua.bin`. **Observé**, pas un hash de
+    /// nom : `CRC32("battle_menu_multi") == 0xFEB5F0B8`, ce qui ne correspond pas.
+    const LAYER_BATTLE_MENU_MULTI: u32 = 2_492_438_505;
+    /// layerId passé à `OnOpenLayer` de `savedata_management_menu_save_and_upload.lua.bin`.
+    /// **Observé**, pas un hash de nom.
+    const LAYER_SAVEDATA_OUVERTURE: u32 = 536_044_352;
+
+    /// Le layerId d'un layer nommé est le hash Level-5 de son nom — reproductible **sans** le
+    /// `hash-dictionary.json` dont dépendaient les tests C#.
+    #[test]
+    fn les_layer_ids_nommes_sont_le_crc32_de_leur_nom() {
+        assert_eq!(
+            nie_formats::cfgbin::crc32(b"general_win"),
+            LAYER_GENERAL_WIN,
+            "general_win = 0x117473AB"
+        );
+        assert_eq!(nie_formats::cfgbin::crc32(b"general_win"), 0x1174_73AB);
+        assert_eq!(
+            nie_formats::cfgbin::crc32(b"savedata_management_menu_save_and_upload"),
+            LAYER_SAVEDATA_GROUPE,
+        );
+    }
+
+    /// Les deux autres layerIds sont des constantes observées : l'affirmer explicitement évite
+    /// qu'on les « explique » un jour par un hash de nom qui ne colle pas.
+    #[test]
+    fn les_layer_ids_observes_ne_sont_pas_des_hash_de_nom() {
+        assert_ne!(
+            nie_formats::cfgbin::crc32(b"battle_menu_multi"),
+            LAYER_BATTLE_MENU_MULTI,
+            "CRC32(\"battle_menu_multi\") vaut 0xFEB5F0B8 : le layerId observé a une autre origine"
+        );
+        assert_eq!(LAYER_BATTLE_MENU_MULTI, 0x948F_97E9);
+        assert_eq!(LAYER_SAVEDATA_OUVERTURE, 0x1FF3_6340);
+    }
+
+    /// Les deux cmdId émis par `savedata_management_menu_save_and_upload` : l'un est reversé et
+    /// nommé, l'autre pas encore.
+    #[test]
+    fn les_cmd_ids_du_scenario_savedata() {
+        // 711242136 = 0x2A64B198 — le seul des deux qui soit reversé.
+        assert_eq!(CMD_SET_OBJECT_VISIBLE, 711_242_136);
+        assert_eq!(command_name(711_242_136), Some("SetObjectVisible"));
+        // 532421851 = 0x1FBC1CDB — émis par OnChangeLayerGroup, handler NON reversé à ce jour.
+        // Le jour où il le sera, ce test doit être inversé : c'est la trace du travail restant.
+        assert_eq!(0x1FBC_1CDB_u32, 532_421_851);
+        assert_eq!(
+            command_name(532_421_851),
+            None,
+            "0x1FBC1CDB non reversé : inverser cette assertion une fois le handler identifié"
+        );
+        // `SetSprite`, cité par les mêmes tests C#, est lui reversé.
+        assert_eq!(CMD_SET_SPRITE, 3_781_155_141);
+        assert_eq!(command_name(0xE15F_D945), Some("SetSprite"));
+    }
+
     /// Un getter reversé renvoie le défaut (0.0) sans crash et est journalisé comme connu.
     #[test]
     fn getter_returns_default_and_is_known() {

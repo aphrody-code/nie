@@ -481,10 +481,20 @@ pub fn rest_world_matrices(poses: &[BonePose], parents: &[i16]) -> Vec<[[f32; 4]
 mod tests {
     use super::*;
 
-    /// G4SK réel extrait du jeu (`s28g001b.g4pk` → `s28g001b.g4sk`, 19 os).
-    /// Octets BRUTS du dump VPS — aucune fabrication.
-    #[cfg(feature = "real-fixtures")]
-    const REAL_G4SK: &[u8] = include_bytes!("../tests/fixtures/s28g001b.g4sk");
+    /// G4SK réel du jeu (`s28g001b.g4pk` → `s28g001b.g4sk`, 3 344 octets, 19 os), **tranché à
+    /// l'exécution** depuis l'archive du VFS.
+    ///
+    /// Ces tests s'adossaient auparavant à `include_bytes!("../tests/fixtures/s28g001b.g4sk")`
+    /// sous la feature `real-fixtures` : un fichier gitignoré et absent, donc des assertions qui
+    /// ne compilaient nulle part. L'archive, elle, est toujours là — et le G4PK donne offset et
+    /// taille du sous-fichier, sans rien écrire sur disque.
+    fn g4sk_reel() -> Option<Vec<u8>> {
+        let (chemin, archive) = crate::g4pk::tests_vfs::lire_par_suffixe("s28g001b.g4pk")?;
+        let pk = crate::g4pk::parse(&archive).expect("parse s28g001b.g4pk");
+        let f = pk.files.iter().find(|f| f.name.ends_with(".g4sk"))?;
+        std::eprintln!("{chemin} → {} ({} octets)", f.name, f.size);
+        Some(archive[f.offset..f.offset + f.size].to_vec())
+    }
 
     /// Construit un en-tête G4SK synthétique (header DÉTERMINISTE : ce qu'on garantit).
     fn build_header(bone_count: u16, file_size: u32) -> Vec<u8> {
@@ -525,30 +535,31 @@ mod tests {
     // Valeurs RÉELLES recoupées sur s28g001b.g4sk
     // ------------------------------------------------------------------
 
-    #[cfg(feature = "real-fixtures")]
     #[test]
     fn header_reel_s28g001b() {
-        let h = parse_header(REAL_G4SK).expect("header G4SK réel");
-        assert_eq!(&REAL_G4SK[..4], b"G4SK");
+        let Some(g4sk) = g4sk_reel() else { return };
+        let h = parse_header(&g4sk).expect("header G4SK réel");
+        assert_eq!(&g4sk[..4], b"G4SK");
+        assert_eq!(g4sk.len(), 3344, "taille du G4SK tranché");
         assert_eq!(h.header_size, 0x40);
         assert_eq!(h.type_id, 0x68);
         assert_eq!(h.bone_count, 19);
     }
 
-    #[cfg(feature = "real-fixtures")]
     #[test]
     fn slots_offsets_reels() {
+        let Some(g4sk) = g4sk_reel() else { return };
         // Adresses fichier recoupées : slot[4]=parents @0xB6C, slot[8]=noms @0xC1C.
-        assert_eq!(slot_offset(REAL_G4SK, SLOT_PARENTS), Some(0xB6C));
-        assert_eq!(slot_offset(REAL_G4SK, SLOT_NAMES), Some(0xC1C));
-        assert_eq!(slot_offset(REAL_G4SK, 0), Some(0x40)); // matrices bind-pose @0x40
+        assert_eq!(slot_offset(&g4sk, SLOT_PARENTS), Some(0xB6C));
+        assert_eq!(slot_offset(&g4sk, SLOT_NAMES), Some(0xC1C));
+        assert_eq!(slot_offset(&g4sk, 0), Some(0x40)); // matrices bind-pose @0x40
     }
 
-    #[cfg(feature = "real-fixtures")]
     #[test]
     fn hierarchie_reelle_resolue_non_heuristique() {
-        let h = parse_header(REAL_G4SK).unwrap();
-        let res = parse_hierarchy(REAL_G4SK, &h);
+        let Some(g4sk) = g4sk_reel() else { return };
+        let h = parse_header(&g4sk).unwrap();
+        let res = parse_hierarchy(&g4sk, &h);
 
         // C'est la résolution réelle, PAS l'heuristique.
         assert!(!res.heuristic, "la hiérarchie réelle doit être résolue (heuristic=false)");
@@ -571,11 +582,11 @@ mod tests {
         assert_eq!(got_names, expected_names);
     }
 
-    #[cfg(feature = "real-fixtures")]
     #[test]
     fn arbre_reel_acyclique_et_racines() {
-        let h = parse_header(REAL_G4SK).unwrap();
-        let res = parse_hierarchy(REAL_G4SK, &h);
+        let Some(g4sk) = g4sk_reel() else { return };
+        let h = parse_header(&g4sk).unwrap();
+        let res = parse_hierarchy(&g4sk, &h);
         let parents: Vec<i16> = res.bones.iter().map(|b| b.parent_index).collect();
         assert!(is_acyclic_forest(&parents), "l'arbre d'os réel doit être acyclique");
         // Deux racines réelles : os 0 (s28g001b_map) et os 15 (instance).
