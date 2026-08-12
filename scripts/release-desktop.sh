@@ -74,7 +74,20 @@ mkdir -p "$ZIP_STAGE/niers"   # racine = nom de MODULE Python (le dossier source
 cp -r plugins/niers-blender/. "$ZIP_STAGE/niers/"
 find "$ZIP_STAGE" -iname "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
 BLENDER_ZIP="$ROOT/apps/nie-explorer/src-tauri/target/release/bundle/niers-$BLENDER_VERSION.zip"
-(cd "$ZIP_STAGE" && zip -qr "$BLENDER_ZIP" niers)
+# `zip` n'existe pas sur une install Windows standard (ni Git Bash, ni MSYS ne le fournissent) :
+# repli sur Compress-Archive, présent partout où PowerShell l'est. Sans ce repli, la release
+# s'arrêtait ici alors que tout le reste était prêt.
+if command -v zip >/dev/null; then
+	(cd "$ZIP_STAGE" && zip -qr "$BLENDER_ZIP" niers)
+elif command -v powershell >/dev/null; then
+	# Compress-Archive refuse d'écraser sans -Force et veut des chemins Windows.
+	WIN_STAGE="$(cd "$ZIP_STAGE" && pwd -W 2>/dev/null || echo "$ZIP_STAGE")"
+	WIN_ZIP="$(cd "$(dirname "$BLENDER_ZIP")" && pwd -W 2>/dev/null || dirname "$BLENDER_ZIP")/$(basename "$BLENDER_ZIP")"
+	powershell -NoProfile -Command 		"Compress-Archive -Path '$WIN_STAGE/niers' -DestinationPath '$WIN_ZIP' -Force" >/dev/null
+else
+	echo "ERREUR: ni zip ni powershell disponibles pour empaqueter l'extension Blender." >&2
+	exit 1
+fi
 rm -rf "$ZIP_STAGE"
 echo "  → $BLENDER_ZIP (addon v$BLENDER_VERSION)"
 
