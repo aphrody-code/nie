@@ -1205,18 +1205,21 @@ fn real_file_tactics_func_noms_tous_non_vides() {
 /// Si ce test est vert, les autres real_file_* se sont bien exécutés (pas filtrés).
 #[test]
 fn real_files_existence() {
-    // Dumps absents sur cette machine (chemin VPS `/home/ubuntu/...`) → skip, comme les autres
-    // tests real_file_* (`load_json(...) else return`). Sur une machine AVEC les dumps, on valide
-    // qu'ils sont TOUS présents (détecte un dump partiel).
-    if !std::path::Path::new(DIR).exists() {
-        eprintln!("skip real_files_existence : dumps absents ({DIR})");
+    // Ce test doit résoudre le corpus comme les `real_file_*` qu'il garde — par `common::chemin`,
+    // et non par un chemin relatif au répertoire courant : sinon le gardien dort pendant que les
+    // gardés s'exécutent, et un dump partiel passe inaperçu.
+    let Some(dir) = common::chemin(DIR) else { return };
+    if !dir.exists() {
+        eprintln!("skip real_files_existence : dumps absents ({})", dir.display());
         return;
     }
     let paths = [REAL_SOCCER_CMD_V0, REAL_SOCCER_CMD_V5, REAL_SOCCER_USER, REAL_STRATEGY, REAL_TACTICS];
     for p in paths {
+        let chemin = common::chemin(p).expect("racine du corpus déjà résolue");
         assert!(
-            std::path::Path::new(p).exists(),
-            "Fichier réel manquant : {p}"
+            chemin.exists(),
+            "Fichier réel manquant : {}",
+            chemin.display()
         );
     }
 }
