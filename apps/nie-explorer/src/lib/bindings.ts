@@ -195,6 +195,20 @@ export const commands = {
 	 */
 	vfsDecodeCfgbin: (path: string, gameDir: string | null) => typedError<unknown, string>(__TAURI_INVOKE("vfs_decode_cfgbin", { path, gameDir })),
 	/**
+	 *  Décode un `.cfg.bin` **et** le passe au parseur typé de sa famille, si elle en a un.
+	 * 
+	 *  `vfs_decode_cfgbin` rend la forme générique du conteneur (`lists`/`entries`) : des colonnes
+	 *  numérotées, sans nom ni sens. Ici, la clé de famille est dérivée du nom de fichier
+	 *  (`nie_data::typed::family_key`) puis dispatchée vers l'un des **112 parseurs** de `nie-data`,
+	 *  qui rendent des structures nommées — c'est la différence entre « var3 = 1852 » et
+	 *  « `consume_tp` = 1852 ».
+	 * 
+	 *  `famille` est `None` quand aucun parseur ne correspond : l'appelant retombe alors sur la vue
+	 *  générique plutôt que de ne rien afficher. C'est le cas de la majorité des `.cfg.bin` du jeu
+	 *  (map, event, effect…), qui n'ont pas de sémantique portée.
+	 */
+	vfsDecodeCfgbinTyped: (path: string, gameDir: string | null) => typedError<CfgbinTyped, string>(__TAURI_INVOKE("vfs_decode_cfgbin_typed", { path, gameDir })),
+	/**
 	 *  Ré-encode du JSON édité (forme "inagle" `{"entries":[...]}` T2B **ou** `{"lists":[...]}`
 	 *  RDBN, dispatch automatique symétrique à [`vfs_decode_cfgbin`]) vers un `.cfg.bin` binaire
 	 *  VALIDE.
@@ -707,6 +721,21 @@ export type BlenderSceneResultDto = {
 	skill_name: string,
 	event_id_name: string,
 	warnings: string[],
+};
+
+/**
+ *  Résultat d'un décodage typé : la forme générique est toujours rendue, la forme nommée
+ *  seulement quand la famille est couverte.
+ */
+export type CfgbinTyped = {
+	/**  Clé de famille dérivée du nom de fichier (`skill_config`, `formation_config`…). */
+	cle: string,
+	/**  Étiquette du parseur qui a répondu (`skill`, `formation`…), `None` si aucun. */
+	famille: string | null,
+	/**  Données typées sérialisées, vide si `famille` est `None`. */
+	json: string,
+	/**  Forme générique du conteneur — toujours présente. */
+	brut: string,
 };
 
 /**
