@@ -1126,7 +1126,9 @@ fn main() -> anyhow::Result<()> {
         Cmd::Cs { args } => delegate::cs(&args),
         Cmd::Viola { op } => viola_cmd(op),
         Cmd::Backends => {
-            delegate::status();
+            // Le nombre de commandes vient de clap : il suit le binaire, pas une note qui derive.
+            let n = <Cli as clap::CommandFactory>::command().get_subcommands().count();
+            delegate::status(n);
             Ok(())
         }
         Cmd::Format { src } => decode_cmd::format(&src),
