@@ -1,6 +1,6 @@
 {
 	"name": "nie-monorepo",
-	"version": "0.4.0",
+	"version": "0.5.0",
 	"description": "Monorepo Bun du dépôt nie — bibliothèques (packages/*) et applications (apps/*). Nommé `nie-monorepo` et non `nie` : ce dernier est le paquet FFI (packages/nie).",
 	"type": "module",
 	"private": true,
