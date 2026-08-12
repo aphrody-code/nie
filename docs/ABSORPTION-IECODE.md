@@ -126,9 +126,12 @@ cargo), **aucun couplage Bun**.
      `nie-viola` en process, vérifiées sur le jeu réel (dump filtré + reprise, aller-retour
      crypto involutif, merge à deux mods, pack sur les 255 308 entrées en enveloppe AES).
    - `niers steam list|download|sync` → `nie-steam` (complet, **non exposé** ; il faut lancer un
-     second binaire aujourd'hui)
-   - `niers info --json` — peut agréger ce que le C# ne sait pas voir : sha256 du binaire, part
-     produite par la forge, couverture RE
+     second binaire aujourd'hui). Deux préalables : `nie-steam` est absent de
+     `[workspace.dependencies]`, et son API est `async` alors que `nie-cli` n'a pas `tokio`.
+   - ~~`niers info --json`~~ → **fait** : racine, taille et sha256 du binaire, `cpk_list`, volume
+     du VFS, et présence du corpus de dumps. Reste à y agréger la part produite par la forge
+     (`nie-forge report` n'écrit pas encore de fichier : il faudrait un `--out`) et la couverture
+     RE (`coverage()` doit d'abord rendre un struct plutôt qu'imprimer).
 4. **Porter les capacités sans substitut** (§ précédent), en commençant par `DumpPresets` et
    `DiskBudget` : ce sont les deux verrous de `scripts/sync-gamedata.ts`.
 5. **Réécrire `scripts/sync-gamedata.ts` sur `niers`** — supprime l'unique dépendance d'exécution
