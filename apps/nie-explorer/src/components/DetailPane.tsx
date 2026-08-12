@@ -4,7 +4,7 @@ import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { toast } from "sonner";
 import { formatDescription, translateEffect } from "@rosegriffon/azalee/text";
 import { api } from "@/lib/api";
-import { useSettings } from "@/lib/settings";
+import { useSettings, type Locale } from "@/lib/settings";
 import { b64ToBytes, bytesToB64, hexLines, humanSize } from "@/lib/bytes";
 import { modsDb, type ModRow } from "@/lib/modsDb";
 import { stageReplacement, stageTextureReplacement } from "@/lib/modWorkspace";
@@ -35,27 +35,36 @@ export type DetailTarget =
   | { kind: "raw_cpk"; path: string; entryIndex: number };
 
 /** Champs dont le contenu est du texte de jeu — ceux qui portent des balises et de la furigana. */
-const CHAMPS_TEXTE = new Set(["description", "desc", "text", "name", "label", "effect"]);
+const CHAMPS_TEXTE = new Set(["description", "desc", "text", "label", "effect", "name"]);
 
 /**
  * Rend lisibles les textes du jeu contenus dans des données typées.
  *
- * Les `.cfg.bin` stockent le texte avec les balises du moteur (`<FST:…>`, `<FLC:…>`) et la
- * furigana japonaise (`[守/まもる]`). `formatDescription` d'azalée les résout ; `translateEffect`
- * traduit en plus les libellés d'effet du glossaire FR (74 entrées). Les valeurs d'origine ne
- * sont pas perdues : la vue générique en dessous les montre telles quelles.
+ * Deux traitements distincts, dans cet ordre :
+ *
+ * 1. **Les balises du moteur** — `formatDescription` résout `<FST:…>`, `<FLC:…>`, `<FLA:…>`,
+ *    `<FUL:…>` et `<MNT:…>` vers le nom réel **dans la langue demandée**, et retire la furigana
+ *    `[守/まもる]` en gardant le kanji. C'est ce qui s'applique à *tout* texte du jeu.
+ * 2. **Le glossaire d'effets** — `translateEffect` ne traduit que les libellés courts et
+ *    normalisés (`AT +15%` → `ATT +15%`), et **uniquement vers le français** : le glossaire est
+ *    unilingue. En anglais ou en japonais on laisse donc la valeur d'origine, qui est déjà dans
+ *    la bonne langue, plutôt que de la franciser à contretemps.
+ *
+ * Les valeurs brutes ne sont jamais perdues : la vue générique en dessous les montre telles
+ * quelles, et c'est elle qui reste éditable.
  */
-function rendreLisible(valeur: unknown): unknown {
-  if (typeof valeur === "string") return formatDescription(valeur, "fr");
-  if (Array.isArray(valeur)) return valeur.map(rendreLisible);
+function rendreLisible(valeur: unknown, locale: Locale): unknown {
+  if (typeof valeur === "string") return formatDescription(valeur, locale);
+  if (Array.isArray(valeur)) return valeur.map((v) => rendreLisible(v, locale));
   if (valeur && typeof valeur === "object") {
     return Object.fromEntries(
-      Object.entries(valeur as Record<string, unknown>).map(([k, v]) => [
-        k,
-        typeof v === "string" && CHAMPS_TEXTE.has(k.toLowerCase())
-          ? translateEffect(formatDescription(v, "fr"))
-          : rendreLisible(v),
-      ]),
+      Object.entries(valeur as Record<string, unknown>).map(([k, v]) => {
+        if (typeof v !== "string" || !CHAMPS_TEXTE.has(k.toLowerCase())) {
+          return [k, rendreLisible(v, locale)];
+        }
+        const texte = formatDescription(v, locale);
+        return [k, locale === "fr" ? translateEffect(texte) : texte];
+      }),
     );
   }
   return valeur;
@@ -322,7 +331,9 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
       setConfigFormat(brut && typeof brut === "object" && "lists" in brut ? "rdbn" : "t2b");
       setConfigFamille(r.famille);
       setConfigTypedJson(
-        r.famille ? JSON.stringify(rendreLisible(JSON.parse(r.json)), null, 2) : "",
+        r.famille
+          ? JSON.stringify(rendreLisible(JSON.parse(r.json), settings.locale), null, 2)
+          : "",
       );
     } catch (e) {
       setConfigError(String(e));
