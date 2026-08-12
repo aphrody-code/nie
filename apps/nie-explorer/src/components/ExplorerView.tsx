@@ -664,8 +664,8 @@ export function ExplorerView({
       storageKey="explorer-inspector"
       className="h-full min-h-0"
       panel={
-        <div className="flex h-full min-h-0 min-w-0 flex-col">
-      {/* Inspecteur : aperçu du fichier, ET éditeur de propriétés de l'ENTITÉ à laquelle il
+        <>
+          {/* Inspecteur : aperçu du fichier, ET éditeur de propriétés de l'ENTITÉ à laquelle il
            * appartient (modèle/texture/config du même code interne, données éditables, fonctions et
            * adresses de `nie.exe` qui le manipulent). Sélectionner la texture d'un joueur ouvre donc
            * la fiche du joueur, pas seulement un aperçu d'image. */}
@@ -692,7 +692,7 @@ export function ExplorerView({
               )}
             </div>
           </div>
-        </div>
+        </>
       }
     >
       {/* `relative` : ancre de la barre flottante de sélection (`SelectionBar`, en `absolute`). */}
@@ -994,7 +994,6 @@ export function ExplorerView({
             onStageIntoMod={() => void stageSelectionIntoMod()}
           />
         </div>
-
     </SplitPane>
   );
 }
