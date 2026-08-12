@@ -104,6 +104,13 @@ pub mod g4tx_decode;
 /// écriture de [`g4tx_decode`], même gating (ses tests round-trip en dépendent).
 #[cfg(feature = "textures")]
 pub mod g4tx_encode;
+/// Encodage d'une image RGBA8 vers les formats d'échange (WebP sans perte, GIF, JPEG, BMP, TGA,
+/// TIFF, QOI) — feature `images`. Le PNG y garde son chemin `png` historique, byte-exact.
+#[cfg(feature = "images")]
+pub mod image_out;
+/// Atlas d'icônes `.g4tx` → feuille de sprites CSS / SVG / JSON, pour le web et l'explorateur.
+#[cfg(feature = "std")]
+pub mod sprite_sheet;
 #[cfg(feature = "std")]
 pub mod lip;
 #[cfg(feature = "std")]

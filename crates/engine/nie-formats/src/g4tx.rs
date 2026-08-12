@@ -6,8 +6,9 @@
 //!
 //! - `font_def.g4tx`  : `texture_count=1`, `total_count=1`, `sub_texture_count=0`,
 //!   texture nommée « font », payload **DDS** (4096×2048) — PAS de NXTCH.
-//! - `gaiji_game.g4tx`: `texture_count=1`, `total_count=118`, `sub_texture_count=117`,
-//!   texture nommée « gaiji_game », id=110, payload **DDS** — 117 régions d'atlas.
+//! - `gaiji_game.g4tx`: `texture_count=1`, `total_count=126`, `sub_texture_count=125`,
+//!   texture nommée « gaiji_game », payload **DDS** (908×856) — 125 régions d'atlas.
+//!   Ces comptes **suivent les mises à jour du jeu** : ne pas les figer dans un test, les relire.
 //!
 //! ## Réalité terrain : DDS, pas NXTCH
 //!
