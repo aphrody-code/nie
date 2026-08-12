@@ -23,6 +23,8 @@ nie-trace.workspace = true
 nie-formats = { workspace = true, features = ["serde", "textures", "audio-decode", "images"] }
 nie-explore.workspace = true
 nie-viola.workspace = true
+nie-steam.workspace = true
+tokio = { workspace = true }
 nie-lua.workspace = true
 nie-save.workspace = true
 nie-wiki.workspace = true

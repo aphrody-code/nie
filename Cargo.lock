@@ -4139,6 +4139,7 @@ dependencies = [
  "nie-re",
  "nie-save",
  "nie-seed",
+ "nie-steam",
  "nie-trace",
  "nie-viola",
  "nie-wiki",
@@ -4147,6 +4148,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "tokio",
  "tracing",
  "tracing-subscriber",
 ]
