@@ -45,20 +45,27 @@ depot_resolver, token_store, cfgbin, bytecode Lua, menu_host, g4mg/g4md, g4pkm_m
 
 ---
 
-## À sauver avant tout retrait — irréversible
+## À sauver avant tout retrait — irréversible : **fait**
 
-Vérifié absent de `crates/` par grep. À réimplanter en tests Rust **avant** de toucher à `csharp/`.
+Les quatre corpus sont portés en Rust, et ils **s'exécutent** sur le jeu réel — ce que les tests
+C# ne faisaient plus ici : leurs racines sont codées en dur hors dépôt (`/tmp/g4pkm-extract`,
+`/home/ubuntu/…`) et `re/lua/raw` est vide **y compris sur le VPS**. Leur vert était creux.
 
-1. **20 paires (nom, hash) réelles** — `Level5HashTests.cs`, extraites de
-   `cmd_tag_config_2.00.17.00.cfg.bin`, `soccer20_12_tactics_information.objbin`,
-   `menu_group_capture_config.cfg.bin`. Aucun hit sur `CB189152`/`B1D0C26E`/`E07BCBBC`.
-   Rust n'a que des vecteurs CRC32 génériques.
-2. **Identifiants de scénario Lua** — `2492438505`, `536044352`, `1654568798`, cmdIds `711242136`
-   et `532421851`, et le nom `general_win`. Seul `292844459` existe côté Rust.
-3. **Valeurs de fixtures G4PK** — `s28g001b.g4sk` = 3 344 octets, hash `0x940E596D` ; les 192
-   octets réels de `mainmenu90_02_2.g4mg` (indices `[0,1,2,0,2,3]` à `0x80`).
-4. **Mesures de layout G4PKM** — `_cursor01` (−40, 40, 80, 80), `_pos_scl_base01` (1873, −39),
-   échelles 0.65/0.9, hiérarchie parent, les 20 bones nommés de `title00_09`.
+1. **20 paires (nom, hash) réelles** — `crates/engine/nie-formats/tests/level5_hash.rs`, plus un
+   golden VFS qui retrouve les 20 noms dans les trois fichiers d'origine du jeu.
+2. **Identifiants de scénario Lua** — `nie-lua/src/menu_host.rs` + golden qui rejoue le vrai
+   script. Distinction établie : `general_win` (292844459) et
+   `savedata_management_menu_save_and_upload` (1654568798) **sont** le CRC32 de leur nom ;
+   `2492438505`, `536044352`, `711242136`, `532421851` sont des constantes observées —
+   `CRC32("battle_menu_multi")` vaut `0xFEB5F0B8`, pas `2492438505`.
+3. **Fixtures G4PK** — `s28g001b.g4sk` (3 344 o, `0x940E596D`) tranché du G4PK depuis le VFS :
+   quatre tests `real-fixtures` morts redeviennent vivants. Les 192 octets de
+   `mainmenu90_02_2.g4mg` sont vérifiés identiques au fichier du jeu.
+4. **Layout G4PKM** — `g4pkm.rs` : `_cursor01`, `_pos_scl_base01`, échelles, hiérarchie, et les
+   **20** noms d'os de `title00_09` (le C# n'en assertait que 9).
+
+Corrigé au passage : `nie-lua/src/lib.rs` écrivait `0x1176F7AB` pour `general_win`, la valeur est
+`0x117473AB`.
 
 **`Resources/EACLauncher.zip`** (~2 Mio) est embarqué dans l'assembly, **gitignoré**, non
 reconstructible depuis le dépôt, sans hôte Rust. Le sortir vers un artefact adressable est la
@@ -80,7 +87,12 @@ seule action qui rende `csharp/` retirable sans perte. Ce n'est **pas** le même
 - **`HostProfile`**, **`FxbinParser`** sémantique (techniques/passes), **`G4maParser::ParseMotionNames`**,
   **`CdnMediaTypes` + ETag**, **`G4pk::DetectSubFormat`/`ExtractFiles`**.
 - **Magics manquants de `nie_formats::detect`** : G4PKM, G4MT, G4MA, G4RA, ADX, `\x1bLua`, objb,
-  PXCL, **XFSA**, **XPCK** (ces deux-là : 0 hit dans tout `crates/`), plus le footer T2B.
+  **XFSA**, **XPCK** (ces deux-là : 0 hit dans tout `crates/`), plus le footer T2B.
+  Correction : **PXCL n'en fait pas partie**, `col::is_pxcl` (`col.rs:39`) existe déjà. Les
+  prédicats `is_g4mt`, `is_g4ma`, `is_g4ra`, `is_objb`, `is_lua52_bytecode` existent aussi — il ne
+  manque que leur branchement dans `detect`. Source de vérité pour la table complète :
+  `csharp/IECODE.Core/Formats/GameFileType.cs` (23 types, avec les subtilités `G4PK@`/`G4SK@`
+  cinquième octet `@`, `G4PKM` cinquième octet `M`).
 
 **Divergence numérique à trancher** — `AdxInfo/ComputeCoefficients` : `cri_audio.rs:214-217` rend
 `(7298, −3535)` à `highpass = 0` là où le C# calcule `(8192, −4096)`. L'un des deux est faux ;
@@ -105,7 +117,8 @@ cargo), **aucun couplage Bun**.
 
 ## Ordre de travail
 
-1. **Réimplanter les quatre vérités terrain** ci-dessus en tests Rust. Seul point irréversible.
+1. ~~**Réimplanter les quatre vérités terrain**~~ → **fait** (cf. section ci-dessus). Le seul point
+   irréversible est franchi : `csharp/` ne porte plus rien d'unique côté tests.
 2. **Statuer sur `EACLauncher.zip`** : le sortir de l'assembly vers un artefact adressable.
 3. **Exposer sous `niers` ce que Rust sait déjà faire mais que la CLI cache** — c'est la doctrine
    « niers est la seule CLI », violée aujourd'hui :
@@ -138,8 +151,18 @@ cargo), **aucun couplage Bun**.
 
 ## Mesurer l'avancement
 
-La doctrine est déjà écrite en tête de `delegate.rs` : « chaque portage retire une délégation,
-l'écart se mesure ». Ce qui manque est la mesure — ajouter à `niers backends` le **décompte des
-commandes encore déléguées** rend l'absorption chiffrable, comme la forge chiffre le binaire.
+La doctrine est écrite en tête de `delegate.rs` : « chaque portage retire une délégation, l'écart
+se mesure ». La mesure existe maintenant — `niers backends` la rend :
 
-État de départ : `niers` expose 24 variantes, `IECODE.CLI` en enregistre 38.
+```
+niers=24 commandes natives
+iecode-cli=27 commandes deleguees
+ecart=3
+```
+
+Le numérateur vient de clap (il suit le binaire, pas une note) ; le dénominateur est la constante
+`delegate::COMMANDES_IECODE_CLI`, ancrée par un test et accompagnée de sa méthode de comptage —
+sans quoi le chiffre dérive à la première relecture. Le décompte de 38 annoncé plus haut était
+faux : `IECODE.CLI` enregistre **27** commandes de premier niveau (`analyze cfg config convert
+cpklist crypto decode decrypt download dump encrypt extract help info list loose pack passive
+pipeline read restore-loose search steam-build sync test-g4sk types`).
