@@ -3,7 +3,6 @@
 mod common;
 
 use nie_data::phase_set::parse_phase_set;
-use nie_data::unlock_condition::UnlockType;
 
 fn load(rel: &str) -> Option<serde_json::Value> {
     let p = rel.to_string();
@@ -33,7 +32,11 @@ fn fbtl_cro_phase_set_conditions() {
 #[cfg(feature = "serde")]
 #[test]
 fn dispatch_typed_suffixe() {
+    // Importé ici et non en tête : ce test est le seul consommateur, et il est gaté par
+    // `serde`. En tête, l'import paraît inutilisé quand la feature est absente — clippy le
+    // signale, et le retirer casse le build `--features serde`.
     use nie_data::typed::{decode_by_key, family_key};
+    use nie_data::unlock_condition::UnlockType;
     let Some(root) = load("soccer/game/fbtl_cro08_030_010_phase_set_0.00.00.cfg.bin.json") else { return };
     let key = family_key("fbtl_cro08_030_010_phase_set_0.00.00.cfg.bin");
     assert!(key.ends_with("_phase_set"), "clé={key}");
