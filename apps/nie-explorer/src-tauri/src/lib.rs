@@ -15,6 +15,7 @@ use tauri_plugin_sql::{Migration, MigrationKind};
 
 mod lua_session;
 mod lua_tools;
+mod export;
 mod game_data;
 mod mcp;
 mod re_trace;
@@ -399,6 +400,9 @@ fn vfs_read_b64(path: String, game_dir: Option<String>, max_bytes: Option<u32>, 
 }
 
 /// Décode la meilleure texture d'un `.g4tx` en PNG (base64), pour un `<img>` côté UI.
+///
+/// **Pleine résolution** : réservé à l'APERÇU d'un fichier ouvert (un seul à l'écran). Pour une
+/// grille de vignettes, utiliser [`vfs_texture_thumb_png_b64`] — cf. la note qui l'accompagne.
 #[tauri::command]
 #[specta::specta]
 fn vfs_texture_png_b64(path: String, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<String, String> {
@@ -407,6 +411,69 @@ fn vfs_texture_png_b64(path: String, game_dir: Option<String>, state: tauri::Sta
         let png = nie_formats::g4tx_decode::decode_best_to_png(&data).ok_or("décodage PNG impossible (texture non reconnue)")?;
         Ok(base64::engine::general_purpose::STANDARD.encode(&png))
     })
+}
+
+/// Plus grand côté par défaut d'une vignette, en pixels. 128 : les grilles affichent au plus
+/// ~90 px de large, et le double couvre les écrans à 2 dpr sans jamais servir une image
+/// d'affiche pour un timbre-poste.
+const VIGNETTE_COTE_DEFAUT: u32 = 128;
+
+/// Borne haute acceptée pour `max_cote` — au-delà, l'appelant veut en réalité l'aperçu plein
+/// format ([`vfs_texture_png_b64`]), et une « vignette » de 4096 px ramènerait exactement le
+/// problème que cette commande existe pour supprimer.
+const VIGNETTE_COTE_MAX: u32 = 512;
+
+/// Décode un `.g4tx` en **vignette** PNG (base64), plus grand côté borné à `max_cote`
+/// (défaut 128, plafond 512).
+///
+/// Distincte de [`vfs_texture_png_b64`] parce que l'usage est distinct : une grille de dossier
+/// affiche des centaines d'images de moins de 90 px, et le VFS contient des dossiers de plus de
+/// 12 000 textures (`data/dx11/menu/200_icon/10_icon_chr/uniform`). Servir la pleine résolution
+/// à cette grille fait décoder 2048×2048 RGBA par entrée : mesuré sur cette machine, une seule
+/// page de vignettes fait passer le processus de rendu WebView2 de 453 à 704 Mio, et le défilement
+/// du dossier entier le tue. La réduction est faite ICI, avant l'IPC — la traverser en pleine
+/// résolution pour réduire côté client ne réglerait rien.
+#[tauri::command]
+#[specta::specta]
+fn vfs_texture_thumb_png_b64(
+    path: String,
+    max_cote: Option<u32>,
+    game_dir: Option<String>,
+    state: tauri::State<VfsState>,
+) -> Result<String, String> {
+    let cote = max_cote.unwrap_or(VIGNETTE_COTE_DEFAUT).clamp(8, VIGNETTE_COTE_MAX);
+    with_vfs(game_dir, &state, |vfs| {
+        let data = vfs.read(&path).map_err(|e| e.to_string())?;
+        // Isolé : un décodeur de texture qui déborde la pile ou panique sur un fichier atypique
+        // ne doit pas emporter la fenêtre entière — une grille en parcourt des milliers.
+        let png = isoler("décodage de vignette", move || {
+            nie_formats::image_out::g4tx_vignette(&data, cote, nie_formats::image_out::ImageOut::Png)
+        })??;
+        Ok(base64::engine::general_purpose::STANDARD.encode(&png))
+    })
+}
+
+/// Exécute `f` sur un thread dédié à pile large, et convertit une panique en `Err` au lieu de la
+/// laisser remonter.
+///
+/// Deux dangers distincts, tous deux constatés dans ce dépôt :
+/// * un **débordement de pile** natif (`STATUS_STACK_OVERFLOW`) tue le processus entier — il n'est
+///   pas rattrapable, seule une pile suffisante l'évite (cf. `audio_wav_from_bytes`, où
+///   `cridecoder` débordait la pile par défaut de Windows sur un `.awb` réel) ;
+/// * une **panique** dans une commande laisse la promesse côté JS pendante pour toujours :
+///   l'interface reste sur « chargement… » sans jamais rien dire.
+///
+/// Le coût est un `CreateThread` par appel (~100 µs), négligeable devant un décodage BC7.
+pub(crate) fn isoler<T: Send + 'static>(
+    quoi: &str,
+    f: impl FnOnce() -> T + Send + 'static,
+) -> Result<T, String> {
+    std::thread::Builder::new()
+        .stack_size(16 * 1024 * 1024)
+        .spawn(f)
+        .map_err(|e| format!("échec de lancement du thread ({quoi}) : {e}"))?
+        .join()
+        .map_err(|_| format!("{quoi} : le traitement a paniqué (thread dédié)"))
 }
 
 /// Extrait un fichier VFS directement vers `dest` (écriture Rust→disque, pas de round-trip JS).
@@ -423,6 +490,109 @@ fn vfs_extract_to(path: String, dest: String, game_dir: Option<String>, state: t
         }
         std::fs::write(&dest, &data).map_err(|e| e.to_string())?;
         Ok(data.len() as u32)
+    })
+}
+
+// ─── Export au format voulu (cf. `export.rs`) ──────────────────────────────────────────
+
+/// Formats d'export disponibles pour `path` — le brut en tête, puis les conversions réellement
+/// possibles pour cette famille de fichiers. Dérivé du nom seul : aucun accès au CPK, donc
+/// appelable à chaque changement de sélection.
+#[tauri::command]
+#[specta::specta]
+fn vfs_export_formats(path: String) -> Vec<export::ExportFormatDto> {
+    export::formats_pour(&path)
+}
+
+/// Nom de fichier proposé pour `path` exporté en `format` (`c01000010.g4tx` + `png` →
+/// `c01000010.png`) — l'interface le passe au sélecteur de fichier en nom par défaut.
+#[tauri::command]
+#[specta::specta]
+fn vfs_export_default_name(path: String, format: String) -> String {
+    export::nom_propose(&path, &format)
+}
+
+/// Convertit une entrée du VFS vers `format` et l'écrit dans `dest`. Rend la taille écrite.
+///
+/// `format` vient de [`vfs_export_formats`] ; `"raw"` écrit les octets du jeu inchangés, ce que
+/// faisait déjà `vfs_extract_to` (qui reste, appelé partout où aucun choix n'est offert).
+#[tauri::command]
+#[specta::specta]
+fn vfs_export_as(
+    path: String,
+    dest: String,
+    format: String,
+    game_dir: Option<String>,
+    state: tauri::State<VfsState>,
+) -> Result<u32, String> {
+    let root = resolve_root(game_dir.as_deref());
+    let bytes = with_vfs(Some(root.display().to_string()), &state, |vfs| {
+        let data = vfs.read(&path).map_err(|e| e.to_string())?;
+        export::produire(vfs, &path, data, &format)
+    })?;
+    if let Some(parent) = std::path::Path::new(&dest).parent() {
+        std::fs::create_dir_all(parent).ok();
+    }
+    std::fs::write(&dest, &bytes).map_err(|e| e.to_string())?;
+    Ok(bytes.len() as u32)
+}
+
+/// Résultat d'un export en lot : ce qui a été écrit, et ce qui a échoué **avec sa raison**.
+///
+/// Un lot ne s'arrête pas au premier échec : sur une sélection de 300 fichiers, une texture
+/// factice non décodable ne doit pas priver l'utilisatrice des 299 autres.
+#[derive(Serialize, specta::Type)]
+struct ExportBatchDto {
+    /// Nombre de fichiers écrits.
+    ecrits: u32,
+    /// Total des octets écrits.
+    octets: u32,
+    /// `(chemin, raison)` pour chaque fichier non exporté.
+    echecs: Vec<(String, String)>,
+}
+
+/// Exporte plusieurs entrées du VFS vers le dossier `dest_dir`, chacune nommée d'après
+/// [`vfs_export_default_name`]. Les fichiers dont la conversion échoue sont RAPPORTÉS, pas
+/// silencieusement omis.
+#[tauri::command]
+#[specta::specta]
+fn vfs_export_many(
+    paths: Vec<String>,
+    dest_dir: String,
+    format: String,
+    game_dir: Option<String>,
+    state: tauri::State<VfsState>,
+) -> Result<ExportBatchDto, String> {
+    let root = resolve_root(game_dir.as_deref());
+    std::fs::create_dir_all(&dest_dir).map_err(|e| e.to_string())?;
+    with_vfs(Some(root.display().to_string()), &state, |vfs| {
+        let mut out = ExportBatchDto { ecrits: 0, octets: 0, echecs: Vec::new() };
+        for path in &paths {
+            // Un format demandé pour un lot hétérogène ne vaut pas pour tout le monde (un `png`
+            // sur un `.awb`) : on retombe sur le brut plutôt que d'échouer sur chaque entrée.
+            let effectif = if export::formats_pour(path).iter().any(|f| f.id == format) {
+                format.as_str()
+            } else {
+                "raw"
+            };
+            let r = vfs
+                .read(path)
+                .map_err(|e| e.to_string())
+                .and_then(|data| export::produire(vfs, path, data, effectif))
+                .and_then(|bytes| {
+                    let dest = std::path::Path::new(&dest_dir).join(export::nom_propose(path, effectif));
+                    std::fs::write(&dest, &bytes).map_err(|e| e.to_string())?;
+                    Ok(bytes.len() as u32)
+                });
+            match r {
+                Ok(n) => {
+                    out.ecrits += 1;
+                    out.octets = out.octets.saturating_add(n);
+                }
+                Err(e) => out.echecs.push((path.clone(), e)),
+            }
+        }
+        Ok(out)
     })
 }
 
@@ -2354,7 +2524,7 @@ fn summarize_names(names: &[String]) -> String {
 /// Assemble le GLB (G4MD+G4MG+G4TX frère, cf. commentaire de section) pour `path` — cœur partagé
 /// entre [`vfs_glb_preview_png_b64`] (vue fixe) et [`vfs_glb_preview_turntable_mp4_b64`] (rotation
 /// §2.3 roadmap), pour ne pas dupliquer la résolution de frères/assemblage.
-fn assemble_glb_for_preview(vfs: &nie_formats::vfs::Vfs, path: &str) -> Result<(String, Vec<u8>), String> {
+pub(crate) fn assemble_glb_for_preview(vfs: &nie_formats::vfs::Vfs, path: &str) -> Result<(String, Vec<u8>), String> {
     use nie_formats::assemble::{assemble_generic_model, EmbeddedTexture, GenericModelInput, MeshComponent};
 
     let data = vfs.read(path).map_err(|e| e.to_string())?;
@@ -3024,18 +3194,25 @@ fn vfs_audio_preview_b64(path: String, game_dir: Option<String>, state: tauri::S
 /// d'outils `RawCpkView`/`DetailPane` (roadmap §6, « pas de Blender/aperçu 3D/audio/vidéo pour les
 /// entrées d'un CPK ouvert hors VFS »).
 fn audio_wav_b64_from_bytes(data: Vec<u8>) -> Result<String, String> {
-    let wav = std::thread::Builder::new()
-        .stack_size(16 * 1024 * 1024)
-        .spawn(move || nie_formats::cri_audio::decode_to_wav(&data))
-        .map_err(|e| format!("échec de lancement du thread de décodage : {e}"))?
-        .join()
-        .map_err(|_| "le décodage audio a paniqué (thread dédié)".to_string())??;
+    let wav = audio_wav_from_bytes(data)?;
 
     const CAP: usize = 40 * 1024 * 1024;
     if wav.len() > CAP {
         return Err(format!("WAV décodé trop volumineux pour l'aperçu ({} octets > {CAP})", wav.len()));
     }
     Ok(base64::engine::general_purpose::STANDARD.encode(&wav))
+}
+
+/// Décodage audio CRI → WAV, **sans** plafond de taille ni base64 : c'est la forme utile à
+/// l'EXPORT (écriture disque directe, cf. `export::produire`), là où [`audio_wav_b64_from_bytes`]
+/// sert l'aperçu (qui doit, lui, refuser ce qui ne tient pas raisonnablement dans une page).
+pub(crate) fn audio_wav_from_bytes(data: Vec<u8>) -> Result<Vec<u8>, String> {
+    std::thread::Builder::new()
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || nie_formats::cri_audio::decode_to_wav(&data))
+        .map_err(|e| format!("échec de lancement du thread de décodage : {e}"))?
+        .join()
+        .map_err(|_| "le décodage audio a paniqué (thread dédié)".to_string())?
 }
 
 /// Même décodage audio que [`vfs_audio_preview_b64`], mais depuis une entrée du CPK brut ouvert
@@ -3077,6 +3254,17 @@ fn vfs_video_preview_b64(path: String, game_dir: Option<String>, state: tauri::S
 /// CPK brut hors VFS, cf. [`raw_cpk_video_preview_b64`]) — même factorisation que
 /// [`audio_wav_b64_from_bytes`], même raison (parité d'outils `RawCpkView`, roadmap §6).
 fn video_mp4_b64_from_bytes(data: Vec<u8>) -> Result<String, String> {
+    let mp4 = video_mp4_from_bytes(data)?;
+    const CAP: usize = 40 * 1024 * 1024;
+    if mp4.len() > CAP {
+        return Err(format!("MP4 remuxé trop volumineux pour l'aperçu ({} octets > {CAP})", mp4.len()));
+    }
+    Ok(base64::engine::general_purpose::STANDARD.encode(&mp4))
+}
+
+/// Remuxage USM→MP4 **sans** plafond ni base64 — forme utile à l'export, même partage que
+/// [`audio_wav_from_bytes`].
+pub(crate) fn video_mp4_from_bytes(data: Vec<u8>) -> Result<Vec<u8>, String> {
     let usm = nie_formats::cri_audio::usm_demux(&data).map_err(|e| e.to_string())?;
     if usm.video_codec != nie_formats::cri_audio::VideoCodec::H264 {
         return Err(format!("codec {:?} non pris en charge pour l'aperçu (H.264 uniquement) — utilisez Extraire", usm.video_codec));
@@ -3106,12 +3294,7 @@ fn video_mp4_b64_from_bytes(data: Vec<u8>) -> Result<String, String> {
         return Err(format!("ffmpeg a échoué ({status})"));
     }
 
-    let mp4 = std::fs::read(&out).map_err(|e| e.to_string())?;
-    const CAP: usize = 40 * 1024 * 1024;
-    if mp4.len() > CAP {
-        return Err(format!("MP4 remuxé trop volumineux pour l'aperçu ({} octets > {CAP})", mp4.len()));
-    }
-    Ok(base64::engine::general_purpose::STANDARD.encode(&mp4))
+    std::fs::read(&out).map_err(|e| e.to_string())
 }
 
 /// Même remuxage vidéo que [`vfs_video_preview_b64`], mais depuis une entrée du CPK brut ouvert
@@ -3267,7 +3450,12 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         vfs_describe,
         vfs_read_b64,
         vfs_texture_png_b64,
+        vfs_texture_thumb_png_b64,
         vfs_extract_to,
+        vfs_export_formats,
+        vfs_export_default_name,
+        vfs_export_as,
+        vfs_export_many,
         vfs_write_b64,
         vfs_write_loose_override_b64,
         save_bytes_b64,

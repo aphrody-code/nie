@@ -59,10 +59,52 @@ export const commands = {
 	 *  utiliser `vfs_extract_to` pour les gros fichiers (écriture disque directe côté Rust).
 	 */
 	vfsReadB64: (path: string, gameDir: string | null, maxBytes: number | null) => typedError<string, string>(__TAURI_INVOKE("vfs_read_b64", { path, gameDir, maxBytes })),
-	/**  Décode la meilleure texture d'un `.g4tx` en PNG (base64), pour un `<img>` côté UI. */
+	/**
+	 *  Décode la meilleure texture d'un `.g4tx` en PNG (base64), pour un `<img>` côté UI.
+	 * 
+	 *  **Pleine résolution** : réservé à l'APERÇU d'un fichier ouvert (un seul à l'écran). Pour une
+	 *  grille de vignettes, utiliser [`vfs_texture_thumb_png_b64`] — cf. la note qui l'accompagne.
+	 */
 	vfsTexturePngB64: (path: string, gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("vfs_texture_png_b64", { path, gameDir })),
+	/**
+	 *  Décode un `.g4tx` en **vignette** PNG (base64), plus grand côté borné à `max_cote`
+	 *  (défaut 128, plafond 512).
+	 * 
+	 *  Distincte de [`vfs_texture_png_b64`] parce que l'usage est distinct : une grille de dossier
+	 *  affiche des centaines d'images de moins de 90 px, et le VFS contient des dossiers de plus de
+	 *  12 000 textures (`data/dx11/menu/200_icon/10_icon_chr/uniform`). Servir la pleine résolution
+	 *  à cette grille fait décoder 2048×2048 RGBA par entrée : mesuré sur cette machine, une seule
+	 *  page de vignettes fait passer le processus de rendu WebView2 de 453 à 704 Mio, et le défilement
+	 *  du dossier entier le tue. La réduction est faite ICI, avant l'IPC — la traverser en pleine
+	 *  résolution pour réduire côté client ne réglerait rien.
+	 */
+	vfsTextureThumbPngB64: (path: string, maxCote: number | null, gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("vfs_texture_thumb_png_b64", { path, maxCote, gameDir })),
 	/**  Extrait un fichier VFS directement vers `dest` (écriture Rust→disque, pas de round-trip JS). */
 	vfsExtractTo: (path: string, dest: string, gameDir: string | null) => typedError<number, string>(__TAURI_INVOKE("vfs_extract_to", { path, dest, gameDir })),
+	/**
+	 *  Formats d'export disponibles pour `path` — le brut en tête, puis les conversions réellement
+	 *  possibles pour cette famille de fichiers. Dérivé du nom seul : aucun accès au CPK, donc
+	 *  appelable à chaque changement de sélection.
+	 */
+	vfsExportFormats: (path: string) => __TAURI_INVOKE<ExportFormatDto[]>("vfs_export_formats", { path }),
+	/**
+	 *  Nom de fichier proposé pour `path` exporté en `format` (`c01000010.g4tx` + `png` →
+	 *  `c01000010.png`) — l'interface le passe au sélecteur de fichier en nom par défaut.
+	 */
+	vfsExportDefaultName: (path: string, format: string) => __TAURI_INVOKE<string>("vfs_export_default_name", { path, format }),
+	/**
+	 *  Convertit une entrée du VFS vers `format` et l'écrit dans `dest`. Rend la taille écrite.
+	 * 
+	 *  `format` vient de [`vfs_export_formats`] ; `"raw"` écrit les octets du jeu inchangés, ce que
+	 *  faisait déjà `vfs_extract_to` (qui reste, appelé partout où aucun choix n'est offert).
+	 */
+	vfsExportAs: (path: string, dest: string, format: string, gameDir: string | null) => typedError<number, string>(__TAURI_INVOKE("vfs_export_as", { path, dest, format, gameDir })),
+	/**
+	 *  Exporte plusieurs entrées du VFS vers le dossier `dest_dir`, chacune nommée d'après
+	 *  [`vfs_export_default_name`]. Les fichiers dont la conversion échoue sont RAPPORTÉS, pas
+	 *  silencieusement omis.
+	 */
+	vfsExportMany: (paths: string[], destDir: string, format: string, gameDir: string | null) => typedError<ExportBatchDto, string>(__TAURI_INVOKE("vfs_export_many", { paths, destDir, format, gameDir })),
 	/**
 	 *  Écrit `data_b64` EN PLACE sur un fichier VFS "loose" (physiquement présent sur disque sous
 	 *  `<jeu>/<chemin>`, PAS empaqueté dans un CPK — `entry.cpk` vide côté `EntryDto`/`VfsEntry`,
@@ -782,6 +824,38 @@ export type EntryDto = {
 	name: string,
 	size: number,
 	cpk: string,
+};
+
+/**
+ *  Résultat d'un export en lot : ce qui a été écrit, et ce qui a échoué **avec sa raison**.
+ * 
+ *  Un lot ne s'arrête pas au premier échec : sur une sélection de 300 fichiers, une texture
+ *  factice non décodable ne doit pas priver l'utilisatrice des 299 autres.
+ */
+export type ExportBatchDto = {
+	/**  Nombre de fichiers écrits. */
+	ecrits: number,
+	/**  Total des octets écrits. */
+	octets: number,
+	/**  `(chemin, raison)` pour chaque fichier non exporté. */
+	echecs: ([string, string])[],
+};
+
+/**  Un format d'export proposé pour un fichier donné. */
+export type ExportFormatDto = {
+	/**  Identifiant à repasser à `vfs_export_as` (`raw`, `png`, `glb`, `json`, `wav`, `mp4`…). */
+	id: string,
+	/**  Extension du fichier produit, sans le point — ce que l'interface propose comme nom par défaut. */
+	ext: string,
+	/**  Libellé affiché. */
+	label: string,
+	/**  Vrai pour « tel quel » : aucune conversion, donc aucune perte possible. */
+	brut: boolean,
+	/**
+	 *  Faux quand la conversion peut dégrader (JPEG, GIF) — l'interface le dit plutôt que
+	 *  l'utilisatrice ne le découvre après coup.
+	 */
+	sans_perte: boolean,
 };
 
 export type FolderRoleDto = {

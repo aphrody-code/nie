@@ -14,6 +14,7 @@ export function SelectionBar({
   onClear,
   onCopyPaths,
   onStageIntoMod,
+  onExport,
 }: {
   count: number;
   /** Somme des tailles des FICHIERS sélectionnés (un dossier VFS n'a pas de taille propre). */
@@ -21,6 +22,8 @@ export function SelectionBar({
   onClear: () => void;
   onCopyPaths: () => void;
   onStageIntoMod: () => void;
+  /** Export en lot vers un dossier, au format choisi (cf. `api.exportMany`). */
+  onExport?: () => void;
 }) {
   if (count === 0) return null;
 
@@ -33,6 +36,9 @@ export function SelectionBar({
         </span>
         <span className="mx-1 h-4 w-px bg-app-line" />
         <SelectionAction icon="content_copy" label="Copier les chemins" onClick={onCopyPaths} />
+        {onExport && (
+          <SelectionAction icon="download" label="Exporter au format…" onClick={onExport} />
+        )}
         <SelectionAction icon="extension" label="Ajouter à un mod…" onClick={onStageIntoMod} />
         <SelectionAction icon="close" label="Tout désélectionner" onClick={onClear} />
       </div>

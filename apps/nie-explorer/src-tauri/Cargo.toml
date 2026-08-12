@@ -93,7 +93,7 @@ tauri-plugin-process = "2"
 # PLAN.md` §3octies) : ce qui suit est la liste de TOUT ce qui est chargeable en dépendance
 # Cargo directe (a un `src/lib.rs`, aucun conflit de lien natif). Les crates absentes de ce
 # fichier le sont pour une raison Cargo dure, listée à la fin — jamais un oubli.
-nie-formats = { path = "../../../crates/engine/nie-formats", features = ["serde", "textures", "audio-decode"] }
+nie-formats = { path = "../../../crates/engine/nie-formats", features = ["serde", "textures", "images", "audio-decode"] }
 nie-explore = { path = "../../../crates/engine/nie-explore" }
 # Saves IEVR (Lives, CRC32-keyed XOR) : décrypt/inspection/ré-encryptage → onglet Sauvegardes.
 nie-save = { path = "../../../crates/engine/nie-save", features = ["serde"] }
