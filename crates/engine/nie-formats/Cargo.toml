@@ -19,6 +19,13 @@ aes.workspace = true
 # `default-features = false` = décodeur pur Rust, compatible no_std/wasm32.
 image_dds = { version = "0.7", default-features = false, optional = true }
 png = { version = "0.18", optional = true }
+# Encodeurs d'images de sortie (module `image_out`, feature `images`). Pur Rust, MIT/Apache :
+# WebP passe par `image-webp` (VP8L lossless), GIF par `gif`, JPEG par `jpeg-encoder`.
+# `default-features = false` retire rayon → pas de pool de threads imposé aux consommateurs.
+# Le PNG **ne passe pas par ici** : il garde la crate `png` (cf. `image_out.rs`).
+image = { version = "0.25", default-features = false, features = [
+    "webp", "gif", "jpeg", "bmp", "tga", "tiff", "qoi",
+], optional = true }
 # Décodage HCA chiffré (feature `audio-decode` uniquement, off par défaut).
 # `default-features = false` = pur Rust, compatible wasm32 (nie-wasm le prouve).
 cridecoder = { workspace = true, optional = true }
@@ -31,6 +38,9 @@ std = []
 serde = ["dep:serde"]
 # Décodeur G4TX/DDS → RGBA8/PNG unique (module `g4tx_decode`). Tire `image_dds` (std) → implique `std`.
 textures = ["std", "dep:image_dds", "dep:png"]
+# Encodage d'une image décodée vers les formats d'échange (WebP lossless, GIF, JPEG, BMP, TGA,
+# TIFF, QOI). Tire `image` (std) → implique `std`. Le PNG reste hors de cette feature.
+images = ["std", "dep:image", "dep:png"]
 # Décodeur audio Criware → WAV (HCA + ADX/AWB/ACB) — source unique (cri_audio::decode_to_wav).
 # Tire `cridecoder` (std::io) → implique `std`.
 audio-decode = ["std", "dep:cridecoder"]
