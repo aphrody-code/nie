@@ -83,6 +83,15 @@ enum Cmd {
         #[arg(short, long)]
         quiet: bool,
     },
+    /// Récupère le jeu depuis Steam — y compris EAC, EOS et Steamworks.
+    ///
+    /// La forge produit `nie.exe` ; elle ne produit aucun des composants tiers signés qui le
+    /// lancent. C'est Steam qui les fournit, donc `niers steam` est la seule voie vers une
+    /// installation réellement démarrable (cf. `niers info`, section « chaine de lancement »).
+    Steam {
+        #[command(subcommand)]
+        op: SteamOp,
+    },
     /// Dit ce qu'est cette installation du jeu : binaire, VFS, couverture.
     ///
     /// Superset de `iecode info` : ajoute le sha256 du binaire et le volume du VFS, que le C#
@@ -1118,6 +1127,152 @@ fn wiki_cmd(op: WikiOp) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Opérations Steam — mêmes noms et mêmes variables d'environnement que le binaire `nie-steam`,
+/// dont c'est la façade en process.
+#[derive(Subcommand, Debug)]
+enum SteamOp {
+    /// Inspecte les dépôts (tailles, fichiers) sans rien télécharger.
+    List {
+        /// App ID Steam (défaut : IEVR).
+        app_id: Option<u32>,
+        #[command(flatten)]
+        commun: SteamCommun,
+    },
+    /// Télécharge une app Steam vers le répertoire cible.
+    Download {
+        /// App ID Steam (défaut : IEVR).
+        app_id: Option<u32>,
+        /// Répertoire de destination.
+        #[arg(short = 'o', long, default_value = ".")]
+        out: PathBuf,
+        #[command(flatten)]
+        commun: SteamCommun,
+    },
+    /// Télécharge IEVR — raccourci de `download 2799860`.
+    Sync {
+        /// Répertoire de destination.
+        #[arg(short = 'o', long, default_value = ".")]
+        out: PathBuf,
+        #[command(flatten)]
+        commun: SteamCommun,
+    },
+}
+
+/// Options partagées par les trois opérations Steam.
+///
+/// Les noms de variables d'environnement sont ceux de `nie-steam` et de `scripts/sync-gamedata.ts`
+/// : les changer casserait les appelants existants.
+#[derive(clap::Args, Debug, Clone)]
+struct SteamCommun {
+    /// Compte Steam (vide = login anonyme).
+    #[arg(short = 'u', long, env = "STEAM_USER")]
+    username: Option<String>,
+    /// Mot de passe (ignoré si un refresh token est en cache).
+    #[arg(short = 'p', long, env = "STEAM_PASSWORD")]
+    password: Option<String>,
+    /// Branche Steam.
+    #[arg(short = 'b', long, default_value = "public")]
+    branch: String,
+    /// OS ciblé pour le filtrage des dépôts.
+    #[arg(long, default_value = "windows")]
+    os: String,
+    /// Architecture ciblée.
+    #[arg(long)]
+    arch: Option<String>,
+    /// Langue ciblée.
+    #[arg(long, default_value = "english")]
+    language: String,
+    /// Ne pas filtrer par OS/arch/langue.
+    #[arg(long)]
+    all_platforms: bool,
+    /// Dépôts explicites (répétable).
+    #[arg(long = "depot", value_name = "ID")]
+    depot_ids: Vec<u32>,
+    /// Chunks concurrents.
+    #[arg(long, default_value_t = 16)]
+    max_downloads: usize,
+    /// Retélécharge tout au lieu de sauter les fichiers déjà à jour.
+    #[arg(long)]
+    no_verify: bool,
+    /// Chemin du magasin de jetons.
+    #[arg(long, env = "NIE_STEAM_TOKEN_STORE")]
+    token_store: Option<PathBuf>,
+}
+
+/// Exécute une opération Steam.
+///
+/// L'API de `nie-steam` est asynchrone alors que la CLI ne l'est pas : on monte un runtime le
+/// temps de l'appel plutôt que de teinter tout `main` en `async` pour trois sous-commandes.
+fn steam_cmd(op: SteamOp) -> anyhow::Result<()> {
+    use nie_steam::options::SteamDownloadOptions;
+    use nie_steam::{IEVR_STEAM_APP_ID, downloader::SteamDepotDownloader};
+
+    let (app_id, out, c) = match &op {
+        SteamOp::List { app_id, commun } => (app_id.unwrap_or(IEVR_STEAM_APP_ID), PathBuf::from("."), commun),
+        SteamOp::Download { app_id, out, commun } => (app_id.unwrap_or(IEVR_STEAM_APP_ID), out.clone(), commun),
+        SteamOp::Sync { out, commun } => (IEVR_STEAM_APP_ID, out.clone(), commun),
+    };
+
+    let opts = SteamDownloadOptions {
+        app_id,
+        install_dir: out,
+        username: c.username.clone(),
+        password: c.password.clone(),
+        branch: c.branch.clone(),
+        beta_password: None,
+        os: c.os.clone(),
+        arch: c.arch.clone(),
+        language: c.language.clone(),
+        all_platforms: c.all_platforms,
+        depot_ids: c.depot_ids.clone(),
+        max_downloads: c.max_downloads,
+        verify: !c.no_verify,
+        token_store_path: Some(
+            c.token_store.clone().unwrap_or_else(nie_steam::token_store::default_path),
+        ),
+        guard_provider: None,
+    };
+
+    let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build()?;
+    let dl = SteamDepotDownloader::new();
+
+    rt.block_on(async {
+        if matches!(op, SteamOp::List { .. }) {
+            let infos = dl.list_depots(&opts).await?;
+            if infos.is_empty() {
+                println!("app_id={} depots=0", opts.app_id);
+            }
+            for info in &infos {
+                #[allow(clippy::cast_precision_loss)]
+                let mb = info.total_bytes as f64 / (1024.0 * 1024.0);
+                println!(
+                    "depot={} name={} manifest={} files={} size={mb:.1}MB",
+                    info.depot_id,
+                    info.name.as_deref().unwrap_or("(sans nom)"),
+                    info.manifest_id,
+                    info.file_count
+                );
+            }
+            return Ok(());
+        }
+
+        let r = dl.download_app(&opts, None).await;
+        if r.success {
+            println!(
+                "ok app_id={} depots={} files={} bytes={} duration={:.1}s",
+                r.app_id,
+                r.depots.len(),
+                r.file_count,
+                r.downloaded_bytes,
+                r.duration.as_secs_f64()
+            );
+            Ok(())
+        } else {
+            anyhow::bail!("{}", r.error.as_deref().unwrap_or("erreur inconnue"))
+        }
+    })
+}
+
 /// Racine du jeu : celle passée en argument, sinon celle que le contexte désigne.
 ///
 /// Aucun chemin de poste n'est codé en dur — `resolve_game_dir` regarde `NIE_GAME_DIR`, puis le
@@ -1168,6 +1323,7 @@ fn run() -> anyhow::Result<()> {
                 decode_cmd::file(&src, out.as_deref(), quiet)
             }
         }
+        Cmd::Steam { op } => steam_cmd(op),
         Cmd::Info { game_dir, json } => info_cmd(game_dir, json),
         Cmd::Convert { src, to, out, game_dir, reference, masque } => {
             convert_cmd(&src, &to, out.as_deref(), game_dir, reference.as_deref(), masque)
