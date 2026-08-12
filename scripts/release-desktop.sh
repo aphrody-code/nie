@@ -151,7 +151,7 @@ gh release create "$TAG" \
 	--notes "App desktop (Tauri v2) signée minisign + extension Blender v$BLENDER_VERSION. Détail : docs/PLAN.md, apps/nie-explorer/ROADMAP.md." \
 	"$MSI" "$MSI.sig" "$NSIS" "$NSIS.sig" "$BLENDER_ZIP"
 
-echo "✓ Release $TAG publiée : https://github.com/aphrody-code/niers/releases/tag/$TAG"
+echo "✓ Release $TAG publiée : https://github.com/aphrody-code/nie/releases/tag/$TAG"
 echo "  → azalee.rosegriffon.fr/tools/niers + /latest.json se mettront à jour tout seuls (≤1h, cache dynamique)."
 
 if [ "$SHIP_AZALEE" = "1" ]; then
