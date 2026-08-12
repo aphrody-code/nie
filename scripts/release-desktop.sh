@@ -110,7 +110,14 @@ git add Cargo.toml Cargo.lock package.json bun.lock \
         apps/nie-explorer/package.json apps/nie-mcp/package.json apps/nie-explorer/src-tauri/Cargo.toml \
         apps/nie-explorer/src-tauri/Cargo.lock apps/nie-explorer/src-tauri/tauri.conf.json \
         packages/nie/package.json packages/nie-bridge/package.json packages/nie-plugin/package.json
-git commit -m "chore(release): bump $VERSION"
+# Le bump peut avoir deja ete committe (relance apres un echec plus loin dans le pipeline) :
+# un `git commit` sans rien a committer sort en erreur et, avec `set -e`, tue la release juste
+# avant le tag. Le script doit etre rejouable, c'est sa raison d'etre.
+if [ -n "$(git status --porcelain)" ]; then
+	git commit -m "chore(release): bump $VERSION"
+else
+	echo "  (versions deja committees — rien a commiter)"
+fi
 git tag -a "$TAG" -m "niers $TAG"
 git push origin main
 git push origin "$TAG"
