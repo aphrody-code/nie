@@ -4138,6 +4138,7 @@ dependencies = [
  "nie-save",
  "nie-seed",
  "nie-trace",
+ "nie-viola",
  "nie-wiki",
  "rayon",
  "redis",
