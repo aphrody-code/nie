@@ -1,6 +1,12 @@
 # .NET build artifacts
 bin/
 obj/
+# `bin/` ci-dessus vise les dossiers de build .NET, mais la regle n'est pas ancree : elle avalait
+# aussi les `src/bin/` de Cargo, qui contiennent du CODE SOURCE. Deux binaires y ont ete perdus
+# (`nie-cam.rs`, `export-bindings.rs`) — ce dernier faisait echouer toute release, puisque le
+# script la reference sans que le fichier existe dans un clone frais.
+!**/src/bin/
+!**/src/bin/*.rs
 *.user
 
 # IECODE extracted data (gros, non versionné)
