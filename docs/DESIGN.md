@@ -557,8 +557,10 @@ n'est pas un seul système mais trois, à traiter séparément :
 2. **Texte composé à l'exécution depuis un atlas de glyphes** (police bitmap) : valeurs
    dynamiques impossibles à pré-rendre — compteurs « VICTOIRES 212 », « NIVEAU 99 », chaîne
    de version « ver 6.0.2 », noms de joueur/équipe. Positionnées sur des os nommés du squelette
-   g4pkm (`_gtxt_ver01`, `_gtxt_dot01`, `_header_gtxt_title02_01` — vérifiés côté iecode
-   `IECODE.Core.Tests/G4pkmLayoutTests.cs:264-265,321`, `MenuLayoutExporter.cs:236`).
+   g4pkm (`_gtxt_ver01`, `_gtxt_dot01`, `_header_gtxt_title02_01` — vérifiés sur le jeu réel par
+   le golden `crates/engine/nie-formats/src/g4pkm.rs`
+   (`golden_g4pkm_option02_02_win00_04_title00_09`), qui asserte les 20 noms d'os de
+   `title00_09` et l'échelle héritée de `_gtxt_ver01`).
 
 3. **Texte localisé résolu par hash** (`MenuTextSetting`) : libellés de widgets runtime
    (button-guide, listes, statut perso) dont le contenu est une **chaîne** issue d'une table

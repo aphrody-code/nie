@@ -627,4 +627,98 @@ mod tests {
         let base = material_base_name(&md, &geo[0]);
         assert_eq!(base.map(String::as_str), Some("mat_10"));
     }
+
+    // ── Quad de menu réel : `mainmenu90_02_2.g4mg` ────────────────────────────
+    //
+    // Les 192 premiers octets du fichier
+    // `data/common/menu/100_mainmenu/mainmenu90/mainmenu90_02_2/mainmenu90_02_2.g4mg` —
+    // 4 sommets de stride 32, puis 6 indices u16 à 0x80. Le test
+    // `le_littéral_menu_correspond_au_fichier_du_jeu` (plus bas) vérifie que ce littéral EST
+    // bien le début du fichier du jeu : sans lui ce ne serait qu'un dogme recopié.
+    //
+    // Les `.g4mg` de menu n'ont pas de `.g4md` sur disque (leur géométrie est pilotée par le
+    // paquet menu) : le compagnon est donc construit champ par champ ci-dessous, comme le
+    // faisait `G4mgGeometryTests.cs`.
+    #[rustfmt::skip]
+    const MENU_G4MG: [u8; 192] = [
+        0, 0, 128, 63,   0, 0, 0, 0,     0, 0, 0, 0,     0, 0, 0, 0,
+        255, 127, 255, 127, 255, 255, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0,     0, 0, 0, 0,     255, 127, 255, 127, 0, 0, 0, 0,
+        0, 0, 0, 0,     0, 0, 128, 191, 0, 0, 0, 0,     0, 0, 0, 0,
+        255, 127, 255, 127, 0, 0, 255, 255,  0, 0, 128, 63, 0, 0, 128, 191,
+        0, 0, 0, 0,     0, 0, 0, 0,     255, 127, 255, 127, 255, 255, 255, 255,
+        0, 0, 0, 0,     0, 0, 0, 0,     0, 0, 0, 0,     0, 0, 0, 0,
+        0, 0, 0, 0,     0, 0, 0, 0,     0, 0, 0, 0,     0, 0, 0, 0,
+        // 0x80 : indices u16 du quad — deux triangles [0,1,2] et [0,2,3].
+        0, 0, 1, 0,     2, 0, 0, 0,     2, 0, 3, 0,     0, 0, 0, 0,
+        0, 0, 0, 0,     0, 0, 0, 0,     0, 0, 0, 0,     0, 0, 0, 0,
+        0, 0, 0, 0,     0, 0, 0, 0,     0, 0, 0, 0,     0, 0, 0, 0,
+        0, 0, 0, 0,     0, 0, 0, 0,     0, 0, 0, 0,     0, 0, 0, 0,
+    ];
+
+    /// G4MD compagnon du quad de menu : 1 sous-maille, 4 sommets de stride 32, 6 indices,
+    /// bloc d'index à 0x80, position en `float3` à l'offset 0.
+    fn build_menu_g4md() -> g4md::G4md {
+        let submesh_info = 0x60usize;
+        let attr_table = submesh_info + SUBMESH_RECORD_SIZE_LOCAL + 8;
+        let str_region = attr_table + 4 * 8;
+
+        let mut md = alloc::vec![0u8; str_region];
+        md[0..4].copy_from_slice(&g4md::MAGIC_LE.to_le_bytes());
+        md[0x04..0x06].copy_from_slice(&(submesh_info as u16).to_le_bytes());
+        md[0x20..0x22].copy_from_slice(&1u16.to_le_bytes()); // submesh_count
+        md[0x22..0x24].copy_from_slice(&1u16.to_le_bytes()); // material_count
+        md[0x26] = 1; // vlayout_count : position seule
+        md[0x5C..0x60].copy_from_slice(&0x80u32.to_le_bytes()); // face_data_base
+
+        let r = submesh_info;
+        md[r..r + 4].copy_from_slice(&0u32.to_le_bytes()); // vertex_offset
+        md[r + 0x04..r + 0x08].copy_from_slice(&0u32.to_le_bytes()); // index_offset
+        md[r + 0x08..r + 0x0C].copy_from_slice(&4u32.to_le_bytes()); // vertex_count
+        md[r + 0x0C..r + 0x10].copy_from_slice(&6u32.to_le_bytes()); // index_count
+        md[r + 0x2E] = 32; // stride
+
+        md[attr_table] = 1; // vtype position
+        md[attr_table + 1..attr_table + 3].copy_from_slice(&0u16.to_le_bytes()); // offset
+        md[attr_table + 4..attr_table + 8].copy_from_slice(&3u32.to_le_bytes()); // float3
+        md.extend_from_slice(b"mat_menu\0");
+
+        g4md::parse(&md).expect("g4md compagnon du quad de menu")
+    }
+
+    #[test]
+    fn geometrie_du_quad_menu_reel() {
+        let md = build_menu_g4md();
+        assert_eq!(md.header.submesh_count, 1);
+        assert_eq!(md.header.face_data_base, 0x80);
+
+        let geo = extract_geometry(&MENU_G4MG, &md);
+        assert_eq!(geo.len(), 1, "une sous-maille");
+        let g = &geo[0];
+        assert_eq!(g.vertex_count, 4);
+        assert_eq!(g.stride, 32);
+        assert_eq!(g.indices, alloc::vec![0u32, 1, 2, 0, 2, 3], "quad = deux triangles");
+        assert!(!g.index32, "indices sur 16 bits");
+        assert_eq!(g.positions.len(), 4);
+        assert_eq!(g.positions[0].x, 1.0, "premier sommet en x = 1.0");
+    }
+
+    /// Le littéral ci-dessus doit être **le début du vrai fichier**. C'est ce test qui distingue
+    /// une vérité terrain d'une constante recopiée.
+    #[test]
+    fn le_litteral_menu_correspond_au_fichier_du_jeu() {
+        let Some((chemin, data)) =
+            crate::g4pk::tests_vfs::lire_par_suffixe("mainmenu90_02_2.g4mg")
+        else {
+            return;
+        };
+        assert!(data.len() >= 192, "{chemin} : moins de 192 octets");
+        assert_eq!(&data[..192], &MENU_G4MG[..], "{chemin} : les 192 premiers octets");
+
+        // Et la géométrie extraite du fichier réel est celle du quad.
+        let md = build_menu_g4md();
+        let geo = extract_geometry(&data, &md);
+        assert_eq!(geo[0].indices, alloc::vec![0u32, 1, 2, 0, 2, 3]);
+        std::eprintln!("{chemin} : quad de menu conforme (4 sommets, 6 indices)");
+    }
 }

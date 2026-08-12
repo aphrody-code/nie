@@ -60,10 +60,37 @@ impl HashId {
         }
     }
 
+    /// Parse une représentation **hexadécimale nue**, préfixe `0x`/`0X` optionnel et casse libre
+    /// (`"CB189152"`, `"0xcb189152"`). Refuse tout ce qui n'est pas hexadécimal et tout ce qui
+    /// dépasse 8 chiffres.
+    ///
+    /// Distinct de [`HashId::parse`], qui lit d'abord un décimal **signé** : `"1654568798"` y est
+    /// un entier, ici ce serait un hex invalide (`5`, `4`, `6`… sont hex, mais `"nope"` non).
+    /// Parité avec `Level5Hash.TryParseHex` de IECODE.
+    #[must_use]
+    pub fn parse_hex(s: &str) -> Option<Self> {
+        let t = s.trim();
+        let hex = t
+            .strip_prefix("0x")
+            .or_else(|| t.strip_prefix("0X"))
+            .unwrap_or(t);
+        if hex.is_empty() || hex.len() > 8 {
+            return None;
+        }
+        u32::from_str_radix(hex, 16).ok().map(HashId)
+    }
+
     /// Sérialise en `0xXXXXXXXX` (hex majuscule, 8 chiffres, padding zéro) — format `toHex` inagle.
     #[must_use]
     pub fn to_hex(self) -> String {
         alloc::format!("{self}")
+    }
+
+    /// Sérialise en `XXXXXXXX` **sans** préfixe `0x` — parité avec le `ToString("X8")` de
+    /// `Level5Hash.ToHex` de IECODE, qui est le format des tables de hash Level-5.
+    #[must_use]
+    pub fn to_hex_x8(self) -> String {
+        alloc::format!("{:08X}", self.0)
     }
 
     /// Valeur u32 brute.
@@ -123,5 +150,43 @@ mod tests {
         assert_eq!(HashId::parse("-357386801"), Some(HashId(0xEAB2_B5CF)));
         assert_eq!(HashId::parse("604761586"), Some(HashId(604_761_586)));
         assert_eq!(HashId::parse("nope"), None);
+    }
+
+    #[test]
+    fn parse_hex_accepte_le_prefixe_optionnel_et_la_casse() {
+        // Les trois formes du même hash de table Level-5 (CMD_TAG_PAD_LIST_BEG).
+        let attendu = Some(HashId(0xCB18_9152));
+        assert_eq!(HashId::parse_hex("0xCB189152"), attendu);
+        assert_eq!(HashId::parse_hex("CB189152"), attendu);
+        assert_eq!(
+            HashId::parse_hex("0xcb189152"),
+            attendu,
+            "préfixe insensible à la casse"
+        );
+        assert_eq!(HashId::parse_hex("  CB189152  "), attendu, "trim");
+    }
+
+    #[test]
+    fn parse_hex_refuse_le_non_hexadecimal() {
+        assert_eq!(HashId::parse_hex("ZZZZ"), None);
+        assert_eq!(HashId::parse_hex(""), None);
+        assert_eq!(HashId::parse_hex("0x"), None);
+        assert_eq!(
+            HashId::parse_hex("CB1891520"),
+            None,
+            "9 chiffres : hors u32"
+        );
+        // Contraste avec `parse`, qui lui accepte le décimal signé.
+        assert_eq!(HashId::parse_hex("-357386801"), None);
+        assert!(HashId::parse("-357386801").is_some());
+    }
+
+    #[test]
+    fn to_hex_x8_est_sans_prefixe() {
+        assert_eq!(HashId(0xCB18_9152).to_hex_x8(), "CB189152");
+        assert_eq!(HashId::ZERO.to_hex_x8(), "00000000");
+        assert_eq!(HashId(u32::MAX).to_hex_x8(), "FFFFFFFF");
+        // `to_hex` garde le préfixe : les deux formats coexistent sans se marcher dessus.
+        assert_eq!(HashId(0xCB18_9152).to_hex(), "0xCB189152");
     }
 }
