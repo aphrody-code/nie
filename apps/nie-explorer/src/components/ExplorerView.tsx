@@ -10,6 +10,7 @@ import { codeOf } from "@/lib/vfsIndexDb";
 import { useResolvedNames } from "@/lib/nameResolve";
 import { showVfsFileContextMenu, showVfsFolderContextMenu, showRawCpkFileContextMenu } from "@/lib/contextMenu";
 import { registerFileOps } from "@/lib/editBus";
+import { SplitPane } from "@/components/ui/split-pane";
 import type { ExplorerTab, ExplorerTabPatch } from "@/lib/explorerTabs";
 import { modsDb } from "@/lib/modsDb";
 import { stageReplacement, stageReplacementFromPath } from "@/lib/modWorkspace";
@@ -650,336 +651,350 @@ export function ExplorerView({
       : { kind: "vfs", path: state.selected };
 
   return (
-    // Deux colonnes : contenu + inspecteur FLOTTANT de 280 px à droite (largeur et marge de
-    // `ShellLayout.tsx` chez spacedrive — `w-[280px] min-w-[280px] … p-2`).
-    <div className="flex h-full min-h-0">
-      {/* `relative` : ancre de la barre flottante de sélection (`SelectionBar`, en `absolute`). */}
-      <div className="relative flex min-h-0 flex-1 flex-col gap-2 p-2">
-        {/* Barre d'outils — mise en forme de la `TopBar` de l'explorer spacedrive : boutons ronds
-         * (`CircleButton`) sur fond transparent et fil d'Ariane en texte, plutôt qu'une pilule
-         * pleine largeur. */}
-        <div className="flex items-center gap-1.5">
-          {/* Arrière/Avant parcourent l'HISTORIQUE de cet onglet (là où l'on est déjà passé) ;
-            * « remonter » suit la HIÉRARCHIE (le dossier parent). Deux gestes différents : après
-            * un saut depuis la barre latérale, « arrière » revient au dossier précédent alors que
-            * « remonter » descend d'un cran dans l'arborescence du nouvel emplacement. */}
-          <CircleButton
-            icon="arrow_back"
-            size="sm"
-            title="Précédent"
-            aria-label="Précédent"
-            disabled={!canGoBack}
-            onClick={() => onBack?.()}
-          />
-          <CircleButton
-            icon="arrow_forward"
-            size="sm"
-            title="Suivant"
-            aria-label="Suivant"
-            disabled={!canGoForward}
-            onClick={() => onForward?.()}
-          />
-          <CircleButton
-            icon="home"
-            size="sm"
-            title={t("explorer.root")}
-            aria-label={t("explorer.root")}
-            onClick={() => goto("")}
-          />
-          <CircleButton
-            icon="expand_less"
-            size="sm"
-            title={t("explorer.parent")}
-            aria-label={t("explorer.parent")}
-            disabled={segments.length === 0}
-            onClick={() => goto(segments.slice(0, -1).join("/"))}
-          />
-          <nav className="flex min-w-0 flex-1 flex-wrap items-center gap-0.5 text-xs">
-            {segments.map((seg, i) => (
-              <span key={i} className="flex items-center gap-0.5">
-                <button
-                  type="button"
-                  className="rounded-md px-1.5 py-0.5 text-ink-dull transition-colors hover:bg-app-hover hover:text-ink"
-                  onClick={() => goto(segments.slice(0, i + 1).join("/"))}
-                >
-                  {seg}
-                </button>
-                <span className="text-ink-faint">/</span>
-              </span>
-            ))}
-          </nav>
-          <CircleButton
-            icon="stars"
-            size="sm"
-            variant={pins.includes(state.prefix) ? "accent" : "default"}
-            title="Épingler à la barre latérale (Ctrl+D)"
-            aria-label="Épingler à la barre latérale"
-            onClick={() => togglePin(state.prefix)}
-          />
-          <CircleButton
-            icon={sortKey === "name" ? "sort_by_alpha" : "table_rows"}
-            size="sm"
-            title={sortKey === "name" ? t("explorer.sort_size") : t("explorer.sort_name")}
-            aria-label={sortKey === "name" ? t("explorer.sort_size") : t("explorer.sort_name")}
-            onClick={() => {
-              const next = sortKey === "name" ? "size" : "name";
-              setSortKey(next);
-              onStateChange({ sortKey: next });
-            }}
-          />
-          <Popover>
-            <PopoverTrigger
-              render={
-                <CircleButton
-                  icon="tune"
-                  size="sm"
-                  title="Options d'affichage"
-                  aria-label="Options d'affichage"
+    // Deux colonnes : contenu + inspecteur à droite, **redimensionnable**. Sa largeur était
+    // figée à 320 px — trop étroit pour un aperçu d'image large ou une table de config à dix
+    // colonnes, trop large quand on veut voir l'arborescence. `SplitPane` persiste le choix
+    // (`nie-explorer:split:explorer-inspector`), comme il le fait déjà dans l'Éditeur et Lua.
+    <SplitPane
+      axis="x"
+      side="end"
+      defaultSize={320}
+      min={240}
+      max={880}
+      storageKey="explorer-inspector"
+      className="h-full min-h-0"
+      panel={
+        <div className="flex h-full min-h-0 min-w-0 flex-col">
+      {/* Inspecteur : aperçu du fichier, ET éditeur de propriétés de l'ENTITÉ à laquelle il
+           * appartient (modèle/texture/config du même code interne, données éditables, fonctions et
+           * adresses de `nie.exe` qui le manipulent). Sélectionner la texture d'un joueur ouvre donc
+           * la fiche du joueur, pas seulement un aperçu d'image. */}
+          <div className="flex h-full min-w-0 flex-col gap-2 p-2 pl-0">
+            <Tabs value={inspectorTab} onValueChange={(v) => v && setInspectorTab(v as "preview" | "properties")}>
+              <TabsList variant="line">
+                <TabsTrigger value="preview" className="text-xs">
+                  Aperçu
+                </TabsTrigger>
+                <TabsTrigger value="properties" className="text-xs" disabled={!selectedCode}>
+                  Propriétés
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-app-line bg-app-box/60">
+              {inspectorTab === "properties" && selectedCode ? (
+                <PropertyEditor
+                  code={selectedCode}
+                  className="h-full p-3"
+                  onOpenFile={(p) => onStateChange({ selected: p })}
                 />
-              }
-            />
-            <PopoverContent className="w-56">
-              <p className="px-1 pb-1 type-label-small text-on-surface-variant">Affichage</p>
-              {/* Vue Liste/Grille — ToggleGroup porté de `spaceui/primitives/ToggleGroup.tsx`
-               * (spacedrive), cf. components/ui/toggle-group.tsx. */}
-              <ToggleGroup
-                value={[viewMode]}
-                onValueChange={(v) => {
-                  const next = v[0] as "list" | "grid" | undefined;
-                  if (!next) return;
-                  setViewMode(next);
-                  onStateChange({ viewMode: next });
-                }}
-                className="w-full"
-              >
-                <ToggleGroupItem value="list" className="flex-1 justify-center">
-                  <Icon name="view_list" size={14} />
-                  Liste
-                </ToggleGroupItem>
-                <ToggleGroupItem value="grid" className="flex-1 justify-center">
-                  <Icon name="grid_view" size={14} />
-                  Grille
-                </ToggleGroupItem>
-              </ToggleGroup>
-              {viewMode === "grid" && (
-                <div className="px-1 pt-2">
-                  <p className="pb-1 type-label-small text-on-surface-variant">Taille des vignettes</p>
-                  <Slider
-                    value={[gridSize]}
-                    onValueChange={(v) => {
-                      const next = (Array.isArray(v) ? v[0] : v) ?? gridSize;
-                      setGridSize(next);
-                      onStateChange({ gridSize: next });
-                    }}
-                    min={72}
-                    max={192}
-                    step={8}
-                  />
-                </div>
+              ) : (
+                <DetailPane target={target} />
               )}
-            </PopoverContent>
-          </Popover>
-        </div>
-
-        <div className="flex gap-2">
-          <Input
-            placeholder={t("explorer.search_placeholder")}
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              onStateChange({ query: e.target.value });
-            }}
-          />
-          <Input
-            placeholder={t("explorer.ext_placeholder")}
-            className="w-20"
-            value={ext}
-            onChange={(e) => {
-              setExt(e.target.value);
-              onStateChange({ ext: e.target.value });
-            }}
-          />
-        </div>
-
-        {error && <p className="type-body-small text-error">{error}</p>}
-
-        {!searching && role && (
-          <div className="rounded-lg border border-app-line bg-app-box p-3 text-ink-dull">
-            <p className="text-xs leading-relaxed">{role.role}</p>
-            <Badge variant="outline" className="mt-1.5">
-              {role.status}
-            </Badge>
+            </div>
           </div>
-        )}
+        </div>
+      }
+    >
+      {/* `relative` : ancre de la barre flottante de sélection (`SelectionBar`, en `absolute`). */}
+        <div className="relative flex min-h-0 flex-1 flex-col gap-2 p-2">
+          {/* Barre d'outils — mise en forme de la `TopBar` de l'explorer spacedrive : boutons ronds
+           * (`CircleButton`) sur fond transparent et fil d'Ariane en texte, plutôt qu'une pilule
+           * pleine largeur. */}
+          <div className="flex items-center gap-1.5">
+            {/* Arrière/Avant parcourent l'HISTORIQUE de cet onglet (là où l'on est déjà passé) ;
+              * « remonter » suit la HIÉRARCHIE (le dossier parent). Deux gestes différents : après
+              * un saut depuis la barre latérale, « arrière » revient au dossier précédent alors que
+              * « remonter » descend d'un cran dans l'arborescence du nouvel emplacement. */}
+            <CircleButton
+              icon="arrow_back"
+              size="sm"
+              title="Précédent"
+              aria-label="Précédent"
+              disabled={!canGoBack}
+              onClick={() => onBack?.()}
+            />
+            <CircleButton
+              icon="arrow_forward"
+              size="sm"
+              title="Suivant"
+              aria-label="Suivant"
+              disabled={!canGoForward}
+              onClick={() => onForward?.()}
+            />
+            <CircleButton
+              icon="home"
+              size="sm"
+              title={t("explorer.root")}
+              aria-label={t("explorer.root")}
+              onClick={() => goto("")}
+            />
+            <CircleButton
+              icon="expand_less"
+              size="sm"
+              title={t("explorer.parent")}
+              aria-label={t("explorer.parent")}
+              disabled={segments.length === 0}
+              onClick={() => goto(segments.slice(0, -1).join("/"))}
+            />
+            <nav className="flex min-w-0 flex-1 flex-wrap items-center gap-0.5 text-xs">
+              {segments.map((seg, i) => (
+                <span key={i} className="flex items-center gap-0.5">
+                  <button
+                    type="button"
+                    className="rounded-md px-1.5 py-0.5 text-ink-dull transition-colors hover:bg-app-hover hover:text-ink"
+                    onClick={() => goto(segments.slice(0, i + 1).join("/"))}
+                  >
+                    {seg}
+                  </button>
+                  <span className="text-ink-faint">/</span>
+                </span>
+              ))}
+            </nav>
+            <CircleButton
+              icon="stars"
+              size="sm"
+              variant={pins.includes(state.prefix) ? "accent" : "default"}
+              title="Épingler à la barre latérale (Ctrl+D)"
+              aria-label="Épingler à la barre latérale"
+              onClick={() => togglePin(state.prefix)}
+            />
+            <CircleButton
+              icon={sortKey === "name" ? "sort_by_alpha" : "table_rows"}
+              size="sm"
+              title={sortKey === "name" ? t("explorer.sort_size") : t("explorer.sort_name")}
+              aria-label={sortKey === "name" ? t("explorer.sort_size") : t("explorer.sort_name")}
+              onClick={() => {
+                const next = sortKey === "name" ? "size" : "name";
+                setSortKey(next);
+                onStateChange({ sortKey: next });
+              }}
+            />
+            <Popover>
+              <PopoverTrigger
+                render={
+                  <CircleButton
+                    icon="tune"
+                    size="sm"
+                    title="Options d'affichage"
+                    aria-label="Options d'affichage"
+                  />
+                }
+              />
+              <PopoverContent className="w-56">
+                <p className="px-1 pb-1 type-label-small text-on-surface-variant">Affichage</p>
+                {/* Vue Liste/Grille — ToggleGroup porté de `spaceui/primitives/ToggleGroup.tsx`
+                 * (spacedrive), cf. components/ui/toggle-group.tsx. */}
+                <ToggleGroup
+                  value={[viewMode]}
+                  onValueChange={(v) => {
+                    const next = v[0] as "list" | "grid" | undefined;
+                    if (!next) return;
+                    setViewMode(next);
+                    onStateChange({ viewMode: next });
+                  }}
+                  className="w-full"
+                >
+                  <ToggleGroupItem value="list" className="flex-1 justify-center">
+                    <Icon name="view_list" size={14} />
+                    Liste
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="grid" className="flex-1 justify-center">
+                    <Icon name="grid_view" size={14} />
+                    Grille
+                  </ToggleGroupItem>
+                </ToggleGroup>
+                {viewMode === "grid" && (
+                  <div className="px-1 pt-2">
+                    <p className="pb-1 type-label-small text-on-surface-variant">Taille des vignettes</p>
+                    <Slider
+                      value={[gridSize]}
+                      onValueChange={(v) => {
+                        const next = (Array.isArray(v) ? v[0] : v) ?? gridSize;
+                        setGridSize(next);
+                        onStateChange({ gridSize: next });
+                      }}
+                      min={72}
+                      max={192}
+                      step={8}
+                    />
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
+          </div>
 
-        <ScrollArea
-          className="min-h-0 flex-1 rounded-2xl border border-app-line bg-app-dark-box"
-          tabIndex={0}
-          onKeyDown={onListKeyDown}
-        >
-          <div
-            className={viewMode === "grid" ? "grid gap-2 p-2" : "divide-y divide-app-line py-1"}
-            style={viewMode === "grid" ? { gridTemplateColumns: `repeat(auto-fill,minmax(${gridSize}px,1fr))` } : undefined}
+          <div className="flex gap-2">
+            <Input
+              placeholder={t("explorer.search_placeholder")}
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                onStateChange({ query: e.target.value });
+              }}
+            />
+            <Input
+              placeholder={t("explorer.ext_placeholder")}
+              className="w-20"
+              value={ext}
+              onChange={(e) => {
+                setExt(e.target.value);
+                onStateChange({ ext: e.target.value });
+              }}
+            />
+          </div>
+
+          {error && <p className="type-body-small text-error">{error}</p>}
+
+          {!searching && role && (
+            <div className="rounded-lg border border-app-line bg-app-box p-3 text-ink-dull">
+              <p className="text-xs leading-relaxed">{role.role}</p>
+              <Badge variant="outline" className="mt-1.5">
+                {role.status}
+              </Badge>
+            </div>
+          )}
+
+          <ScrollArea
+            className="min-h-0 flex-1 rounded-2xl border border-app-line bg-app-dark-box"
+            tabIndex={0}
+            onKeyDown={onListKeyDown}
           >
-            {!searching &&
-              sortedDirs.map((d) => {
-                const path = state.prefix ? `${state.prefix}/${d}` : d;
-                const isMultiSelected = multiSelected.has(path);
-                if (viewMode === "grid") {
+            <div
+              className={viewMode === "grid" ? "grid gap-2 p-2" : "divide-y divide-app-line py-1"}
+              style={viewMode === "grid" ? { gridTemplateColumns: `repeat(auto-fill,minmax(${gridSize}px,1fr))` } : undefined}
+            >
+              {!searching &&
+                sortedDirs.map((d) => {
+                  const path = state.prefix ? `${state.prefix}/${d}` : d;
+                  const isMultiSelected = multiSelected.has(path);
+                  if (viewMode === "grid") {
+                    return (
+                      <button
+                        key={d}
+                        className={`state-layer flex flex-col items-center gap-1 rounded-xl p-2 text-center ${
+                          isMultiSelected ? "bg-primary-container/40" : ""
+                        }`}
+                        onClick={(e) => handleDirClick(path, e)}
+                        onAuxClick={(e) => handleDirAuxClick(path, e)}
+                        onContextMenu={(e) => showFolderMenu(path, e)}
+                        title={d}
+                      >
+                        <Icon name="folder" size={40} className="shrink-0 text-primary" />
+                        <span className="w-full truncate type-label-small text-on-surface">{d}</span>
+                      </button>
+                    );
+                  }
                   return (
                     <button
                       key={d}
-                      className={`state-layer flex flex-col items-center gap-1 rounded-xl p-2 text-center ${
-                        isMultiSelected ? "bg-primary-container/40" : ""
+                      className={`state-layer flex w-full items-center gap-2 px-3 py-2 text-left type-body-medium ${
+                        isMultiSelected ? "bg-primary-container/40 text-on-surface" : "text-on-surface"
                       }`}
                       onClick={(e) => handleDirClick(path, e)}
                       onAuxClick={(e) => handleDirAuxClick(path, e)}
                       onContextMenu={(e) => showFolderMenu(path, e)}
-                      title={d}
                     >
-                      <Icon name="folder" size={40} className="shrink-0 text-primary" />
-                      <span className="w-full truncate type-label-small text-on-surface">{d}</span>
+                      <Icon name="folder" size={16} className="shrink-0 text-primary" />
+                      <span className="truncate">{d}</span>
                     </button>
                   );
-                }
-                return (
-                  <button
-                    key={d}
-                    className={`state-layer flex w-full items-center gap-2 px-3 py-2 text-left type-body-medium ${
-                      isMultiSelected ? "bg-primary-container/40 text-on-surface" : "text-on-surface"
-                    }`}
-                    onClick={(e) => handleDirClick(path, e)}
-                    onAuxClick={(e) => handleDirAuxClick(path, e)}
-                    onContextMenu={(e) => showFolderMenu(path, e)}
-                  >
-                    <Icon name="folder" size={16} className="shrink-0 text-primary" />
-                    <span className="truncate">{d}</span>
-                  </button>
-                );
-              })}
-            {viewMode === "grid" &&
-              sortedFiles.map((f) => {
-                const ext = f.name.includes(".") ? f.name.split(".").pop()!.toLowerCase() : "";
+                })}
+              {viewMode === "grid" &&
+                sortedFiles.map((f) => {
+                  const ext = f.name.includes(".") ? f.name.split(".").pop()!.toLowerCase() : "";
+                  const isMultiSelected = multiSelected.has(f.path);
+                  return (
+                    <button
+                      key={f.path}
+                      className={`state-layer flex flex-col items-center gap-1 rounded-xl p-2 text-center ${
+                        state.selected === f.path
+                          ? "bg-secondary-container"
+                          : isMultiSelected
+                            ? "bg-primary-container/40"
+                            : ""
+                      }`}
+                      onClick={(e) => handleFileClick(f, e)}
+                      onContextMenu={(e) => handleFileContextMenu(f, e)}
+                      title={f.path}
+                    >
+                      <div className="h-16 w-16 shrink-0">
+                        <FileThumbnail path={f.path} ext={ext} gameDir={settings.gameDir} />
+                      </div>
+                      <span className="w-full truncate type-label-small text-on-surface">
+                        {resolved.get(codeOf(f.name))?.name ?? f.name}
+                      </span>
+                    </button>
+                  );
+                })}
+              {viewMode === "list" &&
+                sortedFiles.map((f) => {
+                const name = resolved.get(codeOf(f.name));
                 const isMultiSelected = multiSelected.has(f.path);
                 return (
                   <button
                     key={f.path}
-                    className={`state-layer flex flex-col items-center gap-1 rounded-xl p-2 text-center ${
+                    className={`state-layer flex w-full items-center justify-between gap-2 px-3 py-2 text-left type-body-medium ${
                       state.selected === f.path
-                        ? "bg-secondary-container"
+                        ? "bg-secondary-container text-on-secondary-container"
                         : isMultiSelected
-                          ? "bg-primary-container/40"
-                          : ""
+                          ? "bg-primary-container/40 text-on-surface"
+                          : "text-on-surface"
                     }`}
                     onClick={(e) => handleFileClick(f, e)}
                     onContextMenu={(e) => handleFileContextMenu(f, e)}
                     title={f.path}
                   >
-                    <div className="h-16 w-16 shrink-0">
-                      <FileThumbnail path={f.path} ext={ext} gameDir={settings.gameDir} />
-                    </div>
-                    <span className="w-full truncate type-label-small text-on-surface">
-                      {resolved.get(codeOf(f.name))?.name ?? f.name}
+                    <span className="flex min-w-0 items-center gap-2">
+                      <Icon name="description" size={16} className="shrink-0 text-on-surface-variant" />
+                      <span className="flex min-w-0 flex-col">
+                        <span className="truncate">{name?.name ?? (searching ? f.path : f.name)}</span>
+                        {name && (
+                          <span className="truncate type-label-small text-on-surface-variant">
+                            {searching ? f.path : f.name}
+                            {name.extra ? ` · ${name.extra}` : ""}
+                          </span>
+                        )}
+                      </span>
                     </span>
+                    <span className="shrink-0 type-label-small text-on-surface-variant">{humanSize(f.size)}</span>
                   </button>
                 );
               })}
-            {viewMode === "list" &&
-              sortedFiles.map((f) => {
-              const name = resolved.get(codeOf(f.name));
-              const isMultiSelected = multiSelected.has(f.path);
-              return (
-                <button
-                  key={f.path}
-                  className={`state-layer flex w-full items-center justify-between gap-2 px-3 py-2 text-left type-body-medium ${
-                    state.selected === f.path
-                      ? "bg-secondary-container text-on-secondary-container"
-                      : isMultiSelected
-                        ? "bg-primary-container/40 text-on-surface"
-                        : "text-on-surface"
-                  }`}
-                  onClick={(e) => handleFileClick(f, e)}
-                  onContextMenu={(e) => handleFileContextMenu(f, e)}
-                  title={f.path}
-                >
-                  <span className="flex min-w-0 items-center gap-2">
-                    <Icon name="description" size={16} className="shrink-0 text-on-surface-variant" />
-                    <span className="flex min-w-0 flex-col">
-                      <span className="truncate">{name?.name ?? (searching ? f.path : f.name)}</span>
-                      {name && (
-                        <span className="truncate type-label-small text-on-surface-variant">
-                          {searching ? f.path : f.name}
-                          {name.extra ? ` · ${name.extra}` : ""}
-                        </span>
-                      )}
-                    </span>
-                  </span>
-                  <span className="shrink-0 type-label-small text-on-surface-variant">{humanSize(f.size)}</span>
-                </button>
-              );
-            })}
-            {!loading && dirs.length === 0 && files.length === 0 && (
-              <p className="p-4 type-body-small text-on-surface-variant">{t("explorer.empty")}</p>
+              {!loading && dirs.length === 0 && files.length === 0 && (
+                <p className="p-4 type-body-small text-on-surface-variant">{t("explorer.empty")}</p>
+              )}
+            </div>
+          </ScrollArea>
+          {/* Barre de statut — pattern porté de l'Explorer spacedrive (compteur à gauche, résumé de
+           * la sélection courante à droite dès qu'elle est non vide). */}
+          <div className="flex items-center justify-between gap-2 type-label-small text-on-surface-variant">
+            <span>
+              {loading
+                ? t("explorer.loading")
+                : searching
+                  ? t("explorer.results", { n: files.length })
+                  : t("explorer.count", { dirs: dirs.length, files: files.length })}
+            </span>
+            {multiSelected.size > 0 && (
+              <span>
+                {multiSelected.size.toLocaleString("fr-FR")} sélectionné(s)
+                {selectedTotalSize > 0 && ` · ${humanSize(selectedTotalSize)}`}
+              </span>
             )}
           </div>
-        </ScrollArea>
-        {/* Barre de statut — pattern porté de l'Explorer spacedrive (compteur à gauche, résumé de
-         * la sélection courante à droite dès qu'elle est non vide). */}
-        <div className="flex items-center justify-between gap-2 type-label-small text-on-surface-variant">
-          <span>
-            {loading
-              ? t("explorer.loading")
-              : searching
-                ? t("explorer.results", { n: files.length })
-                : t("explorer.count", { dirs: dirs.length, files: files.length })}
-          </span>
-          {multiSelected.size > 0 && (
-            <span>
-              {multiSelected.size.toLocaleString("fr-FR")} sélectionné(s)
-              {selectedTotalSize > 0 && ` · ${humanSize(selectedTotalSize)}`}
-            </span>
-          )}
+
+          <SelectionBar
+            count={multiSelected.size}
+            totalSize={selectedTotalSize}
+            onClear={() => {
+              setMultiSelected(new Set());
+              setFolderAnchor(null);
+            }}
+            onCopyPaths={doCopySelection}
+            onStageIntoMod={() => void stageSelectionIntoMod()}
+          />
         </div>
 
-        <SelectionBar
-          count={multiSelected.size}
-          totalSize={selectedTotalSize}
-          onClear={() => {
-            setMultiSelected(new Set());
-            setFolderAnchor(null);
-          }}
-          onCopyPaths={doCopySelection}
-          onStageIntoMod={() => void stageSelectionIntoMod()}
-        />
-      </div>
-
-      {/* Inspecteur : aperçu du fichier, ET éditeur de propriétés de l'ENTITÉ à laquelle il
-       * appartient (modèle/texture/config du même code interne, données éditables, fonctions et
-       * adresses de `nie.exe` qui le manipulent). Sélectionner la texture d'un joueur ouvre donc
-       * la fiche du joueur, pas seulement un aperçu d'image. */}
-      <div className="flex h-full w-[320px] min-w-[320px] flex-col gap-2 p-2 pl-0">
-        <Tabs value={inspectorTab} onValueChange={(v) => v && setInspectorTab(v as "preview" | "properties")}>
-          <TabsList variant="line">
-            <TabsTrigger value="preview" className="text-xs">
-              Aperçu
-            </TabsTrigger>
-            <TabsTrigger value="properties" className="text-xs" disabled={!selectedCode}>
-              Propriétés
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-        <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-app-line bg-app-box/60">
-          {inspectorTab === "properties" && selectedCode ? (
-            <PropertyEditor
-              code={selectedCode}
-              className="h-full p-3"
-              onOpenFile={(p) => onStateChange({ selected: p })}
-            />
-          ) : (
-            <DetailPane target={target} />
-          )}
-        </div>
-      </div>
-    </div>
+    </SplitPane>
   );
 }
