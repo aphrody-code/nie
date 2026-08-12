@@ -72,6 +72,20 @@ reconstructible depuis le dépôt, sans hôte Rust. Le sortir vers un artefact a
 seule action qui rende `csharp/` retirable sans perte. Ce n'est **pas** le même sujet que
 `niers mem patch-eac`.
 
+**Un `nie.exe` byte-identique ne suffit pas à recréer le jeu.** Le binaire est lancé par Easy
+Anti-Cheat, qui exige EOS, et le jeu appelle Steamworks. La forge sait produire `nie.exe` ; elle ne
+produit **rien** des quatre autres maillons, et ne le pourra pas — ce sont des binaires tiers
+signés. Leur seule source est Steam, d'où `niers steam`. `niers info` les inventorie et rend un
+verdict `lancable` :
+
+| Composant | Origine |
+|---|---|
+| `nie.exe` (33 918 464 o) | **produit par la forge** |
+| `EACLauncher.exe` (3 975 920 o) | tiers, non reproductible |
+| `EasyAntiCheat/Settings.json` | tiers |
+| `EOSSDK-Win64-Shipping.dll` (19 035 600 o) | tiers, exigé par EAC |
+| `steam_api64.dll` (319 584 o) | tiers |
+
 ---
 
 ## Capacités réellement absentes en Rust
@@ -125,9 +139,11 @@ cargo), **aucun couplage Bun**.
    - ~~`niers viola dump|pack|merge|crypto`~~ → **fait** : les quatre sous-commandes appellent
      `nie-viola` en process, vérifiées sur le jeu réel (dump filtré + reprise, aller-retour
      crypto involutif, merge à deux mods, pack sur les 255 308 entrées en enveloppe AES).
-   - `niers steam list|download|sync` → `nie-steam` (complet, **non exposé** ; il faut lancer un
-     second binaire aujourd'hui). Deux préalables : `nie-steam` est absent de
-     `[workspace.dependencies]`, et son API est `async` alors que `nie-cli` n'a pas `tokio`.
+   - ~~`niers steam list|download|sync`~~ → **fait**. Les deux préalables sont levés :
+     `nie-steam` est déclaré dans `[workspace.dependencies]` (il était le seul crate à y manquer),
+     et son API `async` tourne sur un runtime monté le temps de l'appel. Mêmes options et mêmes
+     variables d'environnement que le binaire d'origine, pour que `scripts/sync-gamedata.ts`
+     puisse basculer sans changer de contrat.
    - ~~`niers info --json`~~ → **fait** : racine, taille et sha256 du binaire, `cpk_list`, volume
      du VFS, et présence du corpus de dumps. Reste à y agréger la part produite par la forge
      (`nie-forge report` n'écrit pas encore de fichier : il faudrait un `--out`) et la couverture
