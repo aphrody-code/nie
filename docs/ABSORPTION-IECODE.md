@@ -95,9 +95,12 @@ verdict `lancable` :
 - **`CfgBinTypesGenerator`** — génère `.d.ts` + `index/verify.json` depuis les `cfg.bin`. Seul pont
   automatique cfg.bin → TypeScript du dépôt. 0 hit sur `export interface` dans `crates/`.
 - **`DiskBudget`** — garde-fou d'espace disque (`--max-disk 30G`). Le seul analogue est un exemple
-  (`dump_packs.rs`) à réserve fixe, avec `statvfs` Unix-only donc inopérant ici.
-- **`DumpPresets`** — catalogue de presets nommés (`inagle-azalee`…). C'est une **donnée** à
-  porter, pas seulement du code. `nie-viola` n'a qu'un filtre glob libre.
+  (`dump_packs.rs`) à réserve fixe, avec `statvfs` Unix-only donc inopérant ici. Le portable est
+  `fs4` (MIT/Apache, `statvfs` Windows **et** Unix).
+- ~~**`DumpPresets`**~~ → **fait** : `nie_viola::presets` porte les trois catalogues et leurs 21
+  catégories, et `nie_viola::filtre::Filtre` la syntaxe complète (listes, `!`, `**`) avec la
+  sémantique de `GlobToRegex`. `niers viola dump --preset inagle` extrait 45 438 fichiers / 98 Mio
+  sur le jeu réel, 0 échec, zéro fichier des catégories exclues.
 - **`HostProfile`**, **`FxbinParser`** sémantique (techniques/passes), **`G4maParser::ParseMotionNames`**,
   **`CdnMediaTypes` + ETag**, **`G4pk::DetectSubFormat`/`ExtractFiles`**.
 - **Magics manquants de `nie_formats::detect`** : G4PKM, G4MT, G4MA, G4RA, ADX, `\x1bLua`, objb,
@@ -148,8 +151,8 @@ cargo), **aucun couplage Bun**.
      du VFS, et présence du corpus de dumps. Reste à y agréger la part produite par la forge
      (`nie-forge report` n'écrit pas encore de fichier : il faudrait un `--out`) et la couverture
      RE (`coverage()` doit d'abord rendre un struct plutôt qu'imprimer).
-4. **Porter les capacités sans substitut** (§ précédent), en commençant par `DumpPresets` et
-   `DiskBudget` : ce sont les deux verrous de `scripts/sync-gamedata.ts`.
+4. **Porter les capacités sans substitut** (§ précédent). `DumpPresets` est fait ; reste
+   `DiskBudget` — c'est le dernier verrou de `scripts/sync-gamedata.ts`.
 5. **Réécrire `scripts/sync-gamedata.ts` sur `niers`** — supprime l'unique dépendance d'exécution
    au .NET, et le `dotnet build` implicite au premier lancement.
 6. **Retirer `Cmd::Cs`**, `delegate::cs`, `iecode_dll`, `iecode_cli_candidates`, la ligne `cs=` de
