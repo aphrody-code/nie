@@ -7,6 +7,8 @@
 //! **Validation forte end-to-end** : pour chaque layer, `layer_id == CRC32(name)` — l'identifiant
 //! EST le CRC32 du nom (poly 0xEDB88320), ce qui prouve l'interprétation positionnelle des champs.
 
+mod common;
+
 use nie_data::menu_setting::{parse, MenuSetting};
 use serde_json::{json, Value};
 
@@ -212,8 +214,10 @@ fn composition_spans_multiple_objbin_prefixes() {
 /// dump n'est pas présent (cf. mémoire golden gated).
 #[test]
 fn all_menu_settings_layer_hashes_consistent() {
-    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../data/common/gamedata/menu/cfg");
+    // Résolution par `common::chemin`, pas par `CARGO_MANIFEST_DIR` : le crate étant sous
+    // `crates/engine/nie-data`, un `../../` ne remonte qu'à `crates/` et ce test ne trouvait
+    // jamais le corpus, quel que soit l'état de la machine.
+    let Some(dir) = common::chemin("menu/cfg") else { return };
     if !dir.is_dir() {
         eprintln!("skip all_menu_settings : dump menu absent ({})", dir.display());
         return;
