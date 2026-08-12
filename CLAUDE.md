@@ -62,7 +62,7 @@ bun run lint
   en direct, le MCP l'atteint par `packages/nie` (FFI). Ne pas réimplémenter d'un côté ce que
   l'autre fait déjà.
 - Régénérer les bindings Tauri sans ouvrir de fenêtre :
-  `cd apps/nie-explorer/src-tauri && cargo run --bin export-bindings`.
+  `cd apps/nie-explorer/src-tauri && cargo run --bin export-bindings --features dev-bindings`.
 
 ## Doctrine polyglotte — un rôle, un langage
 

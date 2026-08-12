@@ -57,7 +57,7 @@ cargo test -p nie-data --test <fam>_golden
 just forge                        # split → lift → cc → build → verify → report
 
 # Bindings Tauri, sans ouvrir de fenêtre
-cd apps/nie-explorer/src-tauri && cargo run --bin export-bindings
+cd apps/nie-explorer/src-tauri && cargo run --bin export-bindings --features dev-bindings
 ```
 
 Python : **toujours** `uv run`. Jamais `python` ni `python3`.

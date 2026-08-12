@@ -254,7 +254,7 @@ cd apps/nie-explorer && ./node_modules/.bin/tsc --noEmit -p tsconfig.json && ./n
 cd apps/nie-explorer/src-tauri && cargo check --lib && cargo clippy --lib --tests
 
 # Bindings TypeScript, après toute commande ajoutée — jamais édités à la main
-cd apps/nie-explorer/src-tauri && cargo run --bin export-bindings
+cd apps/nie-explorer/src-tauri && cargo run --bin export-bindings --features dev-bindings
 
 # Opérations de modding, sur le vrai jeu
 cargo run -p nie-viola --example valider_reel --release
