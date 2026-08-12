@@ -970,6 +970,52 @@ fn vfs_decode_cfgbin(path: String, game_dir: Option<String>, state: tauri::State
     with_vfs(game_dir, &state, |vfs| game_data::decode_cfgbin(vfs, &path).map(RawJson))
 }
 
+/// Décode un `.cfg.bin` **et** le passe au parseur typé de sa famille, si elle en a un.
+///
+/// `vfs_decode_cfgbin` rend la forme générique du conteneur (`lists`/`entries`) : des colonnes
+/// numérotées, sans nom ni sens. Ici, la clé de famille est dérivée du nom de fichier
+/// (`nie_data::typed::family_key`) puis dispatchée vers l'un des **112 parseurs** de `nie-data`,
+/// qui rendent des structures nommées — c'est la différence entre « var3 = 1852 » et
+/// « `consume_tp` = 1852 ».
+///
+/// `famille` est `None` quand aucun parseur ne correspond : l'appelant retombe alors sur la vue
+/// générique plutôt que de ne rien afficher. C'est le cas de la majorité des `.cfg.bin` du jeu
+/// (map, event, effect…), qui n'ont pas de sémantique portée.
+#[tauri::command]
+#[specta::specta]
+fn vfs_decode_cfgbin_typed(
+    path: String,
+    game_dir: Option<String>,
+    state: tauri::State<VfsState>,
+) -> Result<CfgbinTyped, String> {
+    let root = with_vfs(game_dir, &state, |vfs| game_data::decode_cfgbin(vfs, &path))?;
+    let brut = serde_json::to_string(&root).map_err(|e| e.to_string())?;
+    let cle = nie_data::typed::family_key(&path);
+    match nie_data::typed::decode_by_key(&cle, &root) {
+        Some((label, valeur)) => Ok(CfgbinTyped {
+            cle,
+            famille: Some(label.to_string()),
+            json: serde_json::to_string(&valeur).map_err(|e| e.to_string())?,
+            brut,
+        }),
+        None => Ok(CfgbinTyped { cle, famille: None, json: String::new(), brut }),
+    }
+}
+
+/// Résultat d'un décodage typé : la forme générique est toujours rendue, la forme nommée
+/// seulement quand la famille est couverte.
+#[derive(serde::Serialize, specta::Type)]
+struct CfgbinTyped {
+    /// Clé de famille dérivée du nom de fichier (`skill_config`, `formation_config`…).
+    cle: String,
+    /// Étiquette du parseur qui a répondu (`skill`, `formation`…), `None` si aucun.
+    famille: Option<String>,
+    /// Données typées sérialisées, vide si `famille` est `None`.
+    json: String,
+    /// Forme générique du conteneur — toujours présente.
+    brut: String,
+}
+
 /// Ré-encode du JSON édité (forme "inagle" `{"entries":[...]}` T2B **ou** `{"lists":[...]}`
 /// RDBN, dispatch automatique symétrique à [`vfs_decode_cfgbin`]) vers un `.cfg.bin` binaire
 /// VALIDE.
@@ -3249,6 +3295,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         game_data_chara_picker,
         game_data_calculate_stats,
         vfs_decode_cfgbin,
+        vfs_decode_cfgbin_typed,
         encode_cfgbin_config,
         list_packs_dir,
         open_raw_cpk,
