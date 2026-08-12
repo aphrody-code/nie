@@ -20,10 +20,27 @@ edition = "2021"
 name = "nie_explorer_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+# `export-bindings` est un OUTIL DE DEVELOPPEMENT, pas un livrable. Sans cette declaration il est
+# construit par defaut, et le bundler Tauri empaquete alors le mauvais binaire : la 0.5.0 a produit
+# un MSI de 446 Ko contenant `export-bindings.exe` (182 Ko) au lieu de l'application (34 Mo), avec
+# une signature minisign parfaitement valide. `required-features` le sort du build par defaut ;
+# il reste lancable par `cargo run --bin export-bindings --features dev-bindings`.
+[[bin]]
+name = "nie-explorer"
+path = "src/main.rs"
+
+[[bin]]
+name = "export-bindings"
+path = "src/bin/export-bindings.rs"
+required-features = ["dev-bindings"]
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
 [features]
+# Construit `export-bindings` (regeneration de `src/lib/bindings.ts`). Hors build par defaut :
+# voir la note au-dessus de [[bin]].
+dev-bindings = []
 # Gate le test golden `glb_preview_png_en_process_sur_un_vrai_modele` (lib.rs) sur le vrai
 # `data/` du jeu (57 Go, © Level-5, gitignored, absent du clone public) — même convention que
 # `real-fixtures` (nie-formats), `real-saves` (nie-save), `real-audio` (nie-model-serve).
