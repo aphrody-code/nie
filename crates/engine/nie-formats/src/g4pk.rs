@@ -371,4 +371,60 @@ mod tests {
         buf[..4].copy_from_slice(b"XXXX");
         assert!(matches!(parse(&buf), Err(FormatError::BadMagic { .. })));
     }
+
+    /// Golden VFS : `s28g001b.g4pk` contient un unique `s28g001b.g4sk` de 3 344 octets.
+    ///
+    /// Valeurs reprises de `G4pkParserTests.cs`, qui les lisait dans un dossier de fixtures
+    /// codé en dur hors dépôt (`/home/ubuntu/…/_g4pk_fixtures`) et sautait donc partout
+    /// ailleurs. Ici la source est le VFS du jeu : le test s'exécute pour de bon.
+    #[test]
+    fn golden_g4pk_s28g001b_un_seul_g4sk() {
+        let Some((chemin, data)) = super::tests_vfs::lire_par_suffixe("s28g001b.g4pk") else {
+            return;
+        };
+
+        let pk = parse(&data).expect("parse s28g001b.g4pk");
+        assert_eq!(pk.files.len(), 1, "{chemin} : un seul sous-fichier attendu");
+
+        let f = &pk.files[0];
+        assert_eq!(f.name, "s28g001b.g4sk");
+        assert_eq!(f.size, 3344, "taille du sous-fichier");
+        assert_eq!(f.hash, 0x940E_596D, "hash du sous-fichier");
+        // Le hash de la table EST le hash Level-5 du nom.
+        assert_eq!(f.hash, crc32(f.name.as_bytes()));
+        // Parité avec `DetectSubFormat` du C# : le sous-format se lit au magic de la tranche.
+        assert_eq!(&data[f.offset..f.offset + 4], b"G4SK");
+    }
+}
+
+/// Accès au VFS pour les goldens de ce crate — factorisé ici parce que `g4pk`, `g4sk` et `g4mg`
+/// en ont tous besoin, et qu'un golden qui saute doit le **dire**.
+#[cfg(test)]
+pub(crate) mod tests_vfs {
+    use std::string::String;
+    use std::vec::Vec;
+
+    /// Monte le VFS et renvoie `(chemin, contenu)` du premier fichier dont le chemin se termine
+    /// par `suffixe`. Annonce le saut sur stderr et renvoie `None` si le jeu ou le fichier
+    /// manque — jamais d'échec silencieux.
+    pub(crate) fn lire_par_suffixe(suffixe: &str) -> Option<(String, Vec<u8>)> {
+        use crate::vfs::Vfs;
+        use std::path::Path;
+
+        let dir = crate::vfs::resolve_game_dir().to_string_lossy().into_owned();
+        let data_dir = Path::new(&dir).join("data");
+
+        let mut vfs = Vfs::new();
+        if vfs.init(&data_dir).is_err() {
+            std::eprintln!("skip {suffixe} : jeu absent à {}", data_dir.display());
+            return None;
+        }
+        let chemin = vfs.iter().map(|(p, _)| p.to_string()).find(|p| p.ends_with(suffixe));
+        let Some(chemin) = chemin else {
+            std::eprintln!("skip {suffixe} : non trouvé dans le VFS");
+            return None;
+        };
+        let data = vfs.read(&chemin).ok()?;
+        Some((chemin, data))
+    }
 }

@@ -454,7 +454,7 @@ mod tests {
             };
 
             // Détermine un layerId plausible : on essaie 0 (iecode utilise general_win
-            // = 292844459 pour qrcode_menu ; sans le dico on essaie 0 puis 0x1176F7AB).
+            // = 292844459 = 0x117473AB pour qrcode_menu ; sans le dico on essaie 0 puis ce hash).
             // Les scripts qui définissent OnOpenLayer(layerId) utiliseront souvent le
             // layerId passé pour filtrer ; on tente 0 = « tous les layers ».
             let layer_id: u32 = 0;
@@ -583,6 +583,117 @@ mod tests {
         } else {
             eprintln!("SKIP assertion ciblée : loading_menu_trial_1.03.64.lua.bin introuvable");
         }
+    }
+
+    /// Golden du scénario `savedata_management_menu_save_and_upload` — les layerIds et cmdIds
+    /// que les tests C# (`LuaRuntimeTests.cs`) affirmaient, rejoués ici sur le **vrai** script du
+    /// jeu au lieu d'un décompilé produit par `unluac.jar`.
+    ///
+    /// Le C# dépendait de `re/lua/raw` + `unluac.jar`, absents du dépôt : ses assertions ne
+    /// s'exécutaient jamais ici. Celle-ci s'exécute.
+    #[test]
+    fn golden_scenario_savedata_emet_ses_cmd_ids() {
+        use crate::menu_host::{install_menu_host, run_menu};
+        use std::rc::Rc;
+
+        /// layerId passé à `OnOpenLayer` (constante observée dans le décompilé).
+        const LAYER_OUVERTURE: u32 = 536_044_352;
+        /// layerId passé à `OnChangeLayerGroup` — c'est `CRC32` du nom du script.
+        const LAYER_GROUPE: u32 = 1_654_568_798;
+        /// `SetObjectVisible`, reversé.
+        const CMD_SET_OBJECT_VISIBLE: u32 = 711_242_136;
+        /// Émis par `OnChangeLayerGroup`, handler non reversé à ce jour.
+        const CMD_NON_REVERSE: u32 = 532_421_851;
+
+        // Le layerId de groupe est vérifiable sans dictionnaire de hashes.
+        assert_eq!(
+            nie_formats::cfgbin::crc32(b"savedata_management_menu_save_and_upload"),
+            LAYER_GROUPE
+        );
+
+        let dir = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
+        let data_dir = std::path::Path::new(&dir).join("data");
+        let mut vfs = nie_formats::vfs::Vfs::new();
+        if vfs.init(&data_dir).is_err() {
+            eprintln!("skip golden_scenario_savedata : jeu absent à {}", data_dir.display());
+            return;
+        }
+
+        let Some(path) = vfs
+            .iter()
+            .map(|(p, _)| p.to_string())
+            .find(|p| p.ends_with("savedata_management_menu_save_and_upload.lua.bin"))
+        else {
+            eprintln!("skip golden_scenario_savedata : script absent du VFS");
+            return;
+        };
+        let bytes = vfs.read(&path).expect("lecture du script");
+
+        // Index basename → chemin, pour l'INCLUDE réel.
+        let mut by_base: std::collections::HashMap<String, String> =
+            std::collections::HashMap::new();
+        for (p, _) in vfs.iter() {
+            if let Some(b) = p.rsplit('/').next()
+                && b.ends_with(".lua.bin")
+            {
+                by_base.entry(b.to_ascii_lowercase()).or_insert_with(|| p.to_string());
+            }
+        }
+        let vfs = Rc::new(vfs);
+        let by_base = Rc::new(by_base);
+
+        let lua = new_vm();
+        {
+            let vfs = Rc::clone(&vfs);
+            let by_base = Rc::clone(&by_base);
+            install_include(&lua, move |name| {
+                let c = format!("{}.lua.bin", name.to_ascii_lowercase());
+                by_base.get(&c).and_then(|p| vfs.read(p).ok())
+            })
+            .expect("install_include");
+        }
+        let state = install_menu_host(&lua).expect("install_menu_host");
+
+        // OnSetupLayer + OnOpenLayer, puis OnChangeLayerGroup — la séquence des tests C#.
+        let _ = run_menu(&lua, &bytes, &path, LAYER_OUVERTURE);
+        if let Ok(mlua::Value::Function(f)) =
+            lua.globals().get::<mlua::Value>("OnChangeLayerGroup")
+        {
+            let _ = f.call::<mlua::MultiValue>(f64::from(LAYER_GROUPE));
+        }
+
+        let st = state.borrow();
+        // Tous les cmdId émis, reversés (par nom) comme inconnus (par id).
+        let emis: Vec<u32> = st.unknown_cmd_log.iter().map(|(c, _, _)| *c).collect();
+        eprintln!(
+            "{path}\n  connus={} inconnus={} layers={}",
+            st.known_cmd_log.len(),
+            emis.len(),
+            st.layers.len()
+        );
+        for (nom, lid) in st.known_cmd_log.iter().take(10) {
+            eprintln!("    connu   {nom} layer=0x{lid:08X}");
+        }
+        for (cid, lid, args) in st.unknown_cmd_log.iter().take(10) {
+            eprintln!("    inconnu 0x{cid:08X} layer=0x{lid:08X} args=[{args}]");
+        }
+
+        // Les deux commandes que le C# attendait de ce scénario sont bien émises — l'une nommée
+        // (reversée), l'autre par son id (pas encore reversée).
+        assert!(
+            st.known_cmd_log.iter().any(|(n, _)| n == "SetObjectVisible"),
+            "0x{CMD_SET_OBJECT_VISIBLE:08X} SetObjectVisible doit être émis par ce scénario"
+        );
+        assert!(
+            !emis.contains(&CMD_SET_OBJECT_VISIBLE),
+            "0x{CMD_SET_OBJECT_VISIBLE:08X} est reversé : il ne doit jamais tomber dans unknown_cmd_log"
+        );
+        // Le non-reversé, lui, tombe dans le log des inconnus : c'est la trace du travail restant.
+        // Le jour où son handler sera reversé, cette assertion doit basculer vers `known_cmd_log`.
+        assert!(
+            emis.contains(&CMD_NON_REVERSE),
+            "0x{CMD_NON_REVERSE:08X} doit être émis par OnChangeLayerGroup, émis : {emis:08X?}"
+        );
     }
 
     /// Bring-up moteur, couche 2 : avec un VRAI `INCLUDE` adossé au VFS, un script de menu
