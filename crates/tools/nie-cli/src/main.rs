@@ -83,6 +83,28 @@ enum Cmd {
         #[arg(short, long)]
         quiet: bool,
     },
+    /// Convertit un asset du jeu vers un format d'échange.
+    ///
+    /// `decode` rend la représentation canonique d'un fichier (JSON, ou PNG pour une texture) ;
+    /// `convert` choisit le format de sortie. La source peut être un fichier du disque **ou** un
+    /// chemin VFS — le VFS est interrogé quand le chemin n'existe pas sur le disque.
+    Convert {
+        /// Fichier du disque, ou chemin VFS (`data/dx11/.../x.g4tx`).
+        src: String,
+        /// Format de sortie : png, webp, gif, jpg, bmp, tga, tiff, qoi — ou, pour un atlas
+        /// d'icônes, css (feuille + image), svg (autonome) ou json (manifeste des régions).
+        #[arg(long, default_value = "png")]
+        to: String,
+        /// Fichier de sortie (défaut : la source avec l'extension du format).
+        #[arg(short, long)]
+        out: Option<PathBuf>,
+        /// Racine du jeu (défaut : résolution automatique).
+        #[arg(long)]
+        game_dir: Option<PathBuf>,
+        /// Compare l'octet produit à une référence (fichier local ou URL `https://`).
+        #[arg(long)]
+        reference: Option<String>,
+    },
     /// Analyse statique d'une source Lua (fichier ou arborescence), sans l'exécuter.
     ///
     /// Cible les scripts décompilés (`data/lua_scripts/decompiled/`) : fonctions déclarées,
@@ -1112,6 +1134,9 @@ fn main() -> anyhow::Result<()> {
                 decode_cmd::file(&src, out.as_deref(), quiet)
             }
         }
+        Cmd::Convert { src, to, out, game_dir, reference } => {
+            convert_cmd(&src, &to, out.as_deref(), game_dir, reference.as_deref())
+        }
         Cmd::Lua { src, functions, calls, strings, crc32, limit } => {
             lua_cmd::run(&src, lua_cmd::Detail { functions, calls, strings, crc32, limit })
         }
@@ -1988,6 +2013,167 @@ fn count_json_files(layouts_dir: &std::path::Path) -> usize {
 
 // ─── niers vfs — explorateur CPK (VFS) ─────────────────────────────────────────────
 
+// ---------------------------------------------------------------------------
+// niers convert — un asset du jeu vers un format d'échange
+// ---------------------------------------------------------------------------
+
+/// Lit la source : fichier du disque si présent, sinon entrée du VFS.
+fn lire_source(src: &str, game_dir: Option<PathBuf>) -> anyhow::Result<Vec<u8>> {
+    let p = std::path::Path::new(src);
+    if p.is_file() {
+        return std::fs::read(p).with_context(|| format!("lecture « {src} »"));
+    }
+    let vfs = open_vfs(game_dir)?;
+    vfs.read(src)
+        .with_context(|| format!("« {src} » introuvable, ni sur le disque ni dans le VFS"))
+}
+
+/// Charge une référence de comparaison : chemin local, ou URL `https://` récupérée par `curl`.
+///
+/// `curl` plutôt qu'un client HTTP en dépendance : la comparaison est un outil de mise au point,
+/// pas une fonction du moteur — elle ne justifie pas de faire entrer une pile TLS dans la CLI.
+fn lire_reference(reference: &str) -> anyhow::Result<Vec<u8>> {
+    if !reference.starts_with("http://") && !reference.starts_with("https://") {
+        return std::fs::read(reference)
+            .with_context(|| format!("lecture de la référence « {reference} »"));
+    }
+    let sortie = std::process::Command::new("curl")
+        .args(["-sSL", "--fail", "--max-time", "120", reference])
+        .output()
+        .with_context(|| format!("curl indisponible pour « {reference} »"))?;
+    if !sortie.status.success() {
+        anyhow::bail!(
+            "téléchargement de « {reference} » : {}",
+            String::from_utf8_lossy(&sortie.stderr).trim()
+        );
+    }
+    Ok(sortie.stdout)
+}
+
+fn convert_cmd(
+    src: &str,
+    to: &str,
+    out: Option<&std::path::Path>,
+    game_dir: Option<PathBuf>,
+    reference: Option<&str>,
+) -> anyhow::Result<()> {
+    use nie_formats::image_out::ImageOut;
+
+    // Sorties « feuille de sprites » : elles ne rendent pas une image mais la description des
+    // régions de l'atlas, sous la forme qu'attend le web.
+    if matches!(to, "css" | "svg" | "json") {
+        return convert_sprites(src, to, out, game_dir);
+    }
+
+    let format = ImageOut::depuis_extension(to).ok_or_else(|| {
+        let connus: Vec<&str> = ImageOut::TOUS.iter().map(|f| f.extension()).collect();
+        anyhow::anyhow!("format « {to} » inconnu — formats gérés : {}", connus.join(", "))
+    })?;
+
+    let data = lire_source(src, game_dir)?;
+    let produit = nie_formats::image_out::g4tx_vers(&data, format)
+        .map_err(|e| anyhow::anyhow!("conversion de « {src} » en {} : {e}", format.extension()))?;
+
+    let destination = out.map_or_else(
+        || {
+            let base = src.rsplit('/').next().unwrap_or(src);
+            let tronc = base.rsplit_once('.').map_or(base, |(t, _)| t);
+            PathBuf::from(format!("{tronc}.{}", format.extension()))
+        },
+        std::path::Path::to_path_buf,
+    );
+    std::fs::write(&destination, &produit)
+        .with_context(|| format!("écriture « {} »", destination.display()))?;
+
+    println!("source      {src} ({} octets)", data.len());
+    println!("format      {}{}", format.extension(), if format.sans_perte() { "" } else { " (avec perte)" });
+    println!("sortie      {} ({} octets)", destination.display(), produit.len());
+
+    if let Some(reference) = reference {
+        let attendu = lire_reference(reference)?;
+        let empreinte = |b: &[u8]| {
+            use sha2::{Digest, Sha256};
+            let mut h = Sha256::new();
+            h.update(b);
+            hex::encode(h.finalize())
+        };
+        let (a, b) = (empreinte(&produit), empreinte(&attendu));
+        println!("reference   {reference} ({} octets)", attendu.len());
+        println!("sha256      produit={a}");
+        println!("            attendu={b}");
+        if a == b {
+            println!("verdict     identique a l'octet");
+        } else {
+            println!("verdict     DIVERGENT");
+            anyhow::bail!("la sortie diffère de la référence");
+        }
+    }
+    Ok(())
+}
+
+/// Convertit un atlas `.g4tx` en feuille de sprites pour le web (`css`, `svg` ou `json`).
+///
+/// Le `.g4tx` décrit lui-même ses régions (nom + rectangle) : on les recopie, on ne les devine
+/// pas. `css` écrit **deux** fichiers (la feuille et l'atlas en WebP sans perte) ; `svg` et
+/// `json` en écrivent un seul, le SVG embarquant l'atlas pour rester autonome.
+fn convert_sprites(
+    src: &str,
+    to: &str,
+    out: Option<&std::path::Path>,
+    game_dir: Option<PathBuf>,
+) -> anyhow::Result<()> {
+    use nie_formats::image_out::ImageOut;
+    use nie_formats::sprite_sheet;
+
+    let data = lire_source(src, game_dir)?;
+    let atlas = nie_formats::g4tx::parse(&data)
+        .map_err(|e| anyhow::anyhow!("« {src} » n'est pas un G4TX lisible : {e}"))?;
+    let feuille = sprite_sheet::depuis_g4tx(&atlas, 0)
+        .ok_or_else(|| anyhow::anyhow!("« {src} » ne contient aucune texture"))?;
+
+    let base = src.rsplit('/').next().unwrap_or(src);
+    let tronc = base.rsplit_once('.').map_or(base, |(t, _)| t).to_string();
+    let destination = out.map_or_else(
+        || PathBuf::from(format!("{tronc}.{to}")),
+        std::path::Path::to_path_buf,
+    );
+
+    println!("source      {src} ({} octets)", data.len());
+    println!("atlas       {} — {}×{}", feuille.nom, feuille.largeur, feuille.hauteur);
+    println!("regions     {}", feuille.len());
+    if feuille.is_empty() {
+        println!("note        image simple (aucune région d'atlas déclarée)");
+    }
+
+    let contenu = match to {
+        "json" => feuille.vers_json(),
+        "css" => {
+            // L'atlas accompagne la feuille : WebP sans perte, le plus petit des formats exacts.
+            let image = nie_formats::image_out::g4tx_vers(&data, ImageOut::Webp)
+                .map_err(|e| anyhow::anyhow!("encodage de l'atlas : {e}"))?;
+            let image_path = destination.with_extension("webp");
+            std::fs::write(&image_path, &image)
+                .with_context(|| format!("écriture « {} »", image_path.display()))?;
+            let nom_image = image_path
+                .file_name()
+                .map_or_else(|| tronc.clone() + ".webp", |n| n.to_string_lossy().into_owned());
+            println!("atlas       {} ({} octets)", image_path.display(), image.len());
+            feuille.vers_css(&nom_image)
+        }
+        "svg" => {
+            let image = nie_formats::image_out::g4tx_vers(&data, ImageOut::Png)
+                .map_err(|e| anyhow::anyhow!("encodage de l'atlas : {e}"))?;
+            feuille.vers_svg(&sprite_sheet::data_uri(&image, "image/png"))
+        }
+        _ => unreachable!("format filtré par l'appelant"),
+    };
+
+    std::fs::write(&destination, contenu.as_bytes())
+        .with_context(|| format!("écriture « {} »", destination.display()))?;
+    println!("sortie      {} ({} octets)", destination.display(), contenu.len());
+    Ok(())
+}
+
 fn viola_cmd(op: ViolaOp) -> anyhow::Result<()> {
     match op {
         ViolaOp::Dump { out, filtre, sans_reprise, tout_reecrire, threads, game_dir } => {
@@ -2225,6 +2411,25 @@ fn vfs_cat(
     wav_out: Option<&std::path::Path>,
     game_dir: Option<PathBuf>,
 ) -> anyhow::Result<()> {
+    /// Chemin du `.awb` de streaming associé à un `.acb` (même dossier, même base).
+    fn alloc_awb(base: &str) -> String {
+        format!("{base}.awb")
+    }
+
+    /// Décode vers WAV **dans un thread à grande pile**.
+    ///
+    /// `cridecoder` alloue ses tables de synthèse HCA sur la pile : sur le thread principal
+    /// Windows (1 Mio en debug) il déborde avant de produire le moindre échantillon. Même
+    /// contournement que `apps/nie-explorer/src-tauri`.
+    fn decoder_wav(data: Vec<u8>) -> Option<Vec<u8>> {
+        std::thread::Builder::new()
+            .stack_size(16 * 1024 * 1024)
+            .spawn(move || nie_formats::cri_audio::decode_to_wav(&data).ok())
+            .ok()?
+            .join()
+            .ok()?
+    }
+
     let vfs = open_vfs(game_dir)?;
     let data = vfs.read(path).with_context(|| format!("lecture « {path} »"))?;
     println!("  {path}  ({} octets)", data.len());
@@ -2239,19 +2444,25 @@ fn vfs_cat(
         }
     }
     if let Some(out) = wav_out {
-        let wav = if nie_formats::cri_audio::is_adx(&data) {
-            nie_formats::cri_audio::adx_decode(&data)
-                .ok()
-                .map(|p| nie_formats::cri_audio::encode_pcm16_wav(&p.samples, p.channels, p.sample_rate))
-        } else {
-            None
-        };
+        // `decode_to_wav` dispatche par magic : ADX, HCA (clé IEVR), AWB/AFS2, ACB.
+        let mut wav = decoder_wav(data.clone());
+
+        // Un `.acb` ne porte souvent que la table de cues : le son vit dans le `.awb` voisin
+        // (streaming). C'est le cas de tous les `sound_asset/<lg>/*.acb` du jeu.
+        if wav.is_none() && let Some(base) = path.strip_suffix(".acb") {
+            let voisin = alloc_awb(base);
+            if let Ok(awb) = vfs.read(&voisin) {
+                println!("  ACB sans données : reprise sur {voisin} ({} octets)", awb.len());
+                wav = decoder_wav(awb);
+            }
+        }
+
         match wav {
             Some(w) => {
                 std::fs::write(out, &w)?;
-                println!("  WAV écrit → {}", out.display());
+                println!("  WAV écrit → {} ({} octets)", out.display(), w.len());
             }
-            None => println!("  échec décodage audio (ADX brut attendu — HCA/AWB non supportés ici)"),
+            None => println!("  échec décodage audio (ni ADX, ni HCA, ni AWB/ACB exploitable)"),
         }
     }
 

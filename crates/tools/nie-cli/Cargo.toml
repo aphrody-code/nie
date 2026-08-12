@@ -20,7 +20,7 @@ nie-seed.workspace = true
 nie-queue.workspace = true
 nie-re.workspace = true
 nie-trace.workspace = true
-nie-formats = { workspace = true, features = ["serde", "textures"] }
+nie-formats = { workspace = true, features = ["serde", "textures", "audio-decode", "images"] }
 nie-explore.workspace = true
 nie-viola.workspace = true
 nie-lua.workspace = true
