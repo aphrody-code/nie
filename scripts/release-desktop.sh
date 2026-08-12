@@ -105,6 +105,27 @@ for f in "$MSI" "$MSI.sig" "$NSIS" "$NSIS.sig"; do
 	[ -f "$f" ] || { echo "ERREUR: artefact attendu absent: $f" >&2; exit 1; }
 done
 
+# Un installeur peut exister, etre signe, et ne PAS contenir l'application. C'est arrive : le
+# bundler empaquetait `export-bindings.exe` (182 Ko) a la place du binaire (30 Mo), avec une
+# signature minisign parfaitement valide — rien dans la chaine updater ne l'aurait refuse.
+# Le seul controle qui l'attrape est la taille : l'app pese des dizaines de Mo, un paquet vide
+# quelques centaines de Ko.
+MIN_MSI_BYTES=5000000
+MIN_NSIS_BYTES=3000000
+msi_size=$(wc -c <"$MSI")
+nsis_size=$(wc -c <"$NSIS")
+[ "$msi_size" -ge "$MIN_MSI_BYTES" ] || {
+	echo "ERREUR: le MSI ne fait que $msi_size octets (minimum $MIN_MSI_BYTES)." >&2
+	echo "  L'application n'y est probablement pas — verifier qu'un seul binaire est construit" >&2
+	echo "  en release (cf. required-features de export-bindings dans src-tauri/Cargo.toml)." >&2
+	exit 1
+}
+[ "$nsis_size" -ge "$MIN_NSIS_BYTES" ] || {
+	echo "ERREUR: l'installeur NSIS ne fait que $nsis_size octets (minimum $MIN_NSIS_BYTES)." >&2
+	exit 1
+}
+echo "  taille verifiee : msi=$msi_size nsis=$nsis_size"
+
 echo "▸ [6/7] commit + tag $TAG + push…"
 git add Cargo.toml Cargo.lock package.json bun.lock \
         apps/nie-explorer/package.json apps/nie-mcp/package.json apps/nie-explorer/src-tauri/Cargo.toml \
@@ -113,10 +134,12 @@ git add Cargo.toml Cargo.lock package.json bun.lock \
 # Le bump peut avoir deja ete committe (relance apres un echec plus loin dans le pipeline) :
 # un `git commit` sans rien a committer sort en erreur et, avec `set -e`, tue la release juste
 # avant le tag. Le script doit etre rejouable, c'est sa raison d'etre.
-if [ -n "$(git status --porcelain)" ]; then
-	git commit -m "chore(release): bump $VERSION"
-else
+# Tester l'arbre entier ne suffit pas : d'autres fichiers peuvent etre modifies sans qu'AUCUN
+# des manifestes ci-dessus ne le soit (le bump ayant deja ete commite). C'est l'index qui compte.
+if git diff --cached --quiet; then
 	echo "  (versions deja committees — rien a commiter)"
+else
+	git commit -m "chore(release): bump $VERSION"
 fi
 git tag -a "$TAG" -m "niers $TAG"
 git push origin main
