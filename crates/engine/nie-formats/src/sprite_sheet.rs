@@ -55,6 +55,18 @@ pub struct SpriteSheet {
 /// Préfixe des classes CSS et des identifiants SVG générés.
 pub const PREFIXE: &str = "nie";
 
+/// Comment la feuille CSS pose l'atlas.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ModeCss {
+    /// `background-image` — restitue les pixels de l'atlas tels quels.
+    Image,
+    /// `mask-image` + `background-color: currentColor` — l'icône prend la couleur du texte.
+    ///
+    /// C'est ce qui permet à une icône du jeu de suivre le thème, comme une icône vectorielle.
+    /// Suppose un atlas aplati en masque (seul l'alpha compte).
+    Masque,
+}
+
 /// Assainit un nom de région pour en faire un identifiant CSS/SVG valide.
 ///
 /// Les noms du jeu (`gtxt_rarity01_05`) sont déjà propres, mais rien ne le garantit pour tout
@@ -120,12 +132,25 @@ impl SpriteSheet {
         self.sprites.is_empty()
     }
 
-    /// Génère la feuille CSS, `image_url` étant l'URL de l'atlas (chemin relatif ou `data:`).
+    /// Génère la feuille CSS en mode image, `image_url` étant l'URL de l'atlas (chemin relatif
+    /// ou `data:`).
     ///
     /// Le sélecteur de base porte l'image ; chaque classe de région ne porte que sa taille et sa
     /// position. Un élément s'écrit donc `<i class="nie-sprite nie-gtxt_rarity01_05"></i>`.
     #[must_use]
     pub fn vers_css(&self, image_url: &str) -> String {
+        self.vers_css_mode(image_url, ModeCss::Image)
+    }
+
+    /// Génère la feuille CSS dans le mode demandé.
+    ///
+    /// En mode [`ModeCss::Masque`], l'atlas sert de `mask-image` et la couleur vient de
+    /// `currentColor` : les icônes du jeu se comportent alors comme des icônes vectorielles —
+    /// elles suivent la couleur du texte, donc le thème, en clair comme en sombre. L'atlas doit
+    /// avoir été aplati en masque au préalable (alpha conservé, couleur ignorée).
+    #[must_use]
+    pub fn vers_css_mode(&self, image_url: &str, mode: ModeCss) -> String {
+        let url = echapper_url(image_url);
         let mut css = String::new();
         css.push_str(&format!(
             "/* {} — {} région(s), atlas {}×{}. Généré par niers. */\n",
@@ -134,16 +159,38 @@ impl SpriteSheet {
             self.largeur,
             self.hauteur
         ));
-        css.push_str(&format!(
-            ".{PREFIXE}-sprite {{\n  display: inline-block;\n  background-image: url(\"{}\");\n  \
-             background-repeat: no-repeat;\n  image-rendering: pixelated;\n}}\n\n",
-            echapper_url(image_url)
-        ));
+
+        // `background-size` / `mask-size` sur le sélecteur de base : sans lui, mettre l'atlas à
+        // l'échelle décale toutes les régions, et les positions ci-dessous deviennent fausses.
+        match mode {
+            ModeCss::Image => css.push_str(&format!(
+                ".{PREFIXE}-sprite {{\n  display: inline-block;\n  background-image: url(\"{url}\");\n  \
+                 background-repeat: no-repeat;\n  background-size: {}px {}px;\n  \
+                 image-rendering: pixelated;\n}}\n\n",
+                self.largeur, self.hauteur
+            )),
+            ModeCss::Masque => css.push_str(&format!(
+                ".{PREFIXE}-sprite {{\n  display: inline-block;\n  background-color: currentColor;\n  \
+                 -webkit-mask-image: url(\"{url}\");\n  mask-image: url(\"{url}\");\n  \
+                 -webkit-mask-repeat: no-repeat;\n  mask-repeat: no-repeat;\n  \
+                 -webkit-mask-size: {0}px {1}px;\n  mask-size: {0}px {1}px;\n}}\n\n",
+                self.largeur, self.hauteur
+            )),
+        }
+
         for s in &self.sprites {
-            css.push_str(&format!(
-                ".{PREFIXE}-{} {{ width: {}px; height: {}px; background-position: {}px {}px; }}\n",
-                s.classe, s.largeur, s.hauteur, -s.x, -s.y
-            ));
+            let (x, y) = (-s.x, -s.y);
+            match mode {
+                ModeCss::Image => css.push_str(&format!(
+                    ".{PREFIXE}-{} {{ width: {}px; height: {}px; background-position: {x}px {y}px; }}\n",
+                    s.classe, s.largeur, s.hauteur
+                )),
+                ModeCss::Masque => css.push_str(&format!(
+                    ".{PREFIXE}-{} {{ width: {}px; height: {}px; \
+                     -webkit-mask-position: {x}px {y}px; mask-position: {x}px {y}px; }}\n",
+                    s.classe, s.largeur, s.hauteur
+                )),
+            }
         }
         css
     }
@@ -315,6 +362,30 @@ mod tests {
             "{css}"
         );
         assert!(css.contains("image-rendering: pixelated"), "les icônes ne doivent pas être lissées");
+    }
+
+    /// Sans `background-size`, mettre l'atlas à l'échelle décale toutes les régions et les
+    /// positions calculées deviennent fausses. Le sélecteur de base doit donc le porter.
+    #[test]
+    fn le_css_fixe_la_taille_de_l_atlas() {
+        let css = atlas_exemple().vers_css("a.webp");
+        assert!(css.contains("background-size: 512px 256px;"), "{css}");
+    }
+
+    #[test]
+    fn le_mode_masque_teinte_par_currentcolor() {
+        let css = atlas_exemple().vers_css_mode("a.webp", ModeCss::Masque);
+        assert!(css.contains("background-color: currentColor;"), "{css}");
+        assert!(css.contains("mask-image: url(\"a.webp\")"));
+        assert!(css.contains("-webkit-mask-image: url(\"a.webp\")"), "préfixe WebKit requis");
+        assert!(css.contains("mask-size: 512px 256px;"));
+        assert!(
+            css.contains(".nie-gtxt_rarity01_05 { width: 96px; height: 32px; \
+                          -webkit-mask-position: -128px -64px; mask-position: -128px -64px; }"),
+            "{css}"
+        );
+        // En mode masque, aucune image de fond : la couleur seule remplit la silhouette.
+        assert!(!css.contains("background-image"), "le mode masque ne pose pas d'image de fond");
     }
 
     #[test]
