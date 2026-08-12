@@ -104,6 +104,10 @@ enum Cmd {
         /// Compare l'octet produit à une référence (fichier local ou URL `https://`).
         #[arg(long)]
         reference: Option<String>,
+        /// Pour `--to css` : pose l'atlas en masque teinté par `currentColor`, au lieu d'une
+        /// image de fond. Les icônes suivent alors la couleur du thème.
+        #[arg(long)]
+        masque: bool,
     },
     /// Analyse statique d'une source Lua (fichier ou arborescence), sans l'exécuter.
     ///
@@ -1134,8 +1138,8 @@ fn main() -> anyhow::Result<()> {
                 decode_cmd::file(&src, out.as_deref(), quiet)
             }
         }
-        Cmd::Convert { src, to, out, game_dir, reference } => {
-            convert_cmd(&src, &to, out.as_deref(), game_dir, reference.as_deref())
+        Cmd::Convert { src, to, out, game_dir, reference, masque } => {
+            convert_cmd(&src, &to, out.as_deref(), game_dir, reference.as_deref(), masque)
         }
         Cmd::Lua { src, functions, calls, strings, crc32, limit } => {
             lua_cmd::run(&src, lua_cmd::Detail { functions, calls, strings, crc32, limit })
@@ -2056,13 +2060,14 @@ fn convert_cmd(
     out: Option<&std::path::Path>,
     game_dir: Option<PathBuf>,
     reference: Option<&str>,
+    masque: bool,
 ) -> anyhow::Result<()> {
     use nie_formats::image_out::ImageOut;
 
     // Sorties « feuille de sprites » : elles ne rendent pas une image mais la description des
     // régions de l'atlas, sous la forme qu'attend le web.
     if matches!(to, "css" | "svg" | "json") {
-        return convert_sprites(src, to, out, game_dir);
+        return convert_sprites(src, to, out, game_dir, masque);
     }
 
     let format = ImageOut::depuis_extension(to).ok_or_else(|| {
@@ -2121,6 +2126,7 @@ fn convert_sprites(
     to: &str,
     out: Option<&std::path::Path>,
     game_dir: Option<PathBuf>,
+    masque: bool,
 ) -> anyhow::Result<()> {
     use nie_formats::image_out::ImageOut;
     use nie_formats::sprite_sheet;
@@ -2158,7 +2164,12 @@ fn convert_sprites(
                 .file_name()
                 .map_or_else(|| tronc.clone() + ".webp", |n| n.to_string_lossy().into_owned());
             println!("atlas       {} ({} octets)", image_path.display(), image.len());
-            feuille.vers_css(&nom_image)
+            let mode = if masque {
+                sprite_sheet::ModeCss::Masque
+            } else {
+                sprite_sheet::ModeCss::Image
+            };
+            feuille.vers_css_mode(&nom_image, mode)
         }
         "svg" => {
             let image = nie_formats::image_out::g4tx_vers(&data, ImageOut::Png)
