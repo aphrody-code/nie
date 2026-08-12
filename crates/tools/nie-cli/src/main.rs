@@ -83,6 +83,18 @@ enum Cmd {
         #[arg(short, long)]
         quiet: bool,
     },
+    /// Dit ce qu'est cette installation du jeu : binaire, VFS, couverture.
+    ///
+    /// Superset de `iecode info` : ajoute le sha256 du binaire et le volume du VFS, que le C#
+    /// ne sait pas voir.
+    Info {
+        /// Racine du jeu (défaut : résolution automatique).
+        #[arg(long)]
+        game_dir: Option<PathBuf>,
+        /// Sortie JSON plutôt que `clé  valeur`.
+        #[arg(long)]
+        json: bool,
+    },
     /// Convertit un asset du jeu vers un format d'échange.
     ///
     /// `decode` rend la représentation canonique d'un fichier (JSON, ou PNG pour une texture) ;
@@ -1115,7 +1127,23 @@ fn racine_jeu(arg: Option<PathBuf>) -> PathBuf {
     arg.unwrap_or_else(nie_formats::vfs::resolve_game_dir)
 }
 
+/// Pile du thread qui exécute la CLI.
+///
+/// Le profil debug n'inline rien : les frames de clap (25 sous-commandes) et du montage du VFS
+/// (255 308 entrées) dépassent le 1 Mio par défaut de Windows, et **toute** commande débordait,
+/// y compris `backends`. En release le problème n'existe pas — ce qui rendait la panne d'autant
+/// plus déroutante, puisque `target/debug/niers.exe` est le binaire qu'on explore au quotidien.
+const PILE_CLI: usize = 64 * 1024 * 1024;
+
 fn main() -> anyhow::Result<()> {
+    std::thread::Builder::new()
+        .stack_size(PILE_CLI)
+        .spawn(run)?
+        .join()
+        .map_err(|_| anyhow::anyhow!("la commande a paniqué"))?
+}
+
+fn run() -> anyhow::Result<()> {
     // CLI interne (consommé par l'agent) : sortie minimale. `RUST_LOG=info` réactive les traces.
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env().add_directive(tracing::Level::WARN.into()))
@@ -1140,6 +1168,7 @@ fn main() -> anyhow::Result<()> {
                 decode_cmd::file(&src, out.as_deref(), quiet)
             }
         }
+        Cmd::Info { game_dir, json } => info_cmd(game_dir, json),
         Cmd::Convert { src, to, out, game_dir, reference, masque } => {
             convert_cmd(&src, &to, out.as_deref(), game_dir, reference.as_deref(), masque)
         }
@@ -2054,6 +2083,71 @@ fn lire_reference(reference: &str) -> anyhow::Result<Vec<u8>> {
         );
     }
     Ok(sortie.stdout)
+}
+
+/// Décrit l'installation : binaire, VFS, corpus de dumps.
+///
+/// Le sha256 du binaire est ce qui permet de dire *quelle* version du jeu est en place — la
+/// forge s'y adosse, et aucune autre commande ne le rend.
+fn info_cmd(game_dir: Option<PathBuf>, json: bool) -> anyhow::Result<()> {
+
+    use sha2::{Digest, Sha256};
+
+    let racine = racine_jeu(game_dir);
+    let exe = racine.join("nie.exe");
+
+    let (taille_exe, sha) = match std::fs::read(&exe) {
+        Ok(octets) => {
+            let mut h = Sha256::new();
+            h.update(&octets);
+            (Some(octets.len() as u64), Some(hex::encode(h.finalize())))
+        }
+        Err(_) => (None, None),
+    };
+
+    let cpk_list = racine.join("data/cpk_list.cfg.bin");
+    let vfs = open_vfs(Some(racine.clone())).ok();
+    let entrees = vfs.as_ref().map_or(0, |v| v.iter().count());
+    let paquets: std::collections::BTreeSet<String> =
+        vfs.as_ref().map_or_else(Default::default, |v| {
+            v.iter()
+                .filter(|(_, e)| !e.cpk_filename.is_empty())
+                .map(|(_, e)| e.cpk_filename.clone())
+                .collect()
+        });
+    // Le corpus de dumps conditionne l'execution reelle des goldens : le dire ici evite de
+    // decouvrir trop tard qu'ils passent au vert sans rien lire.
+    let dumps = ["dump/gamedata", "data/common/gamedata"]
+        .iter()
+        .map(|r| racine.join(r))
+        .find(|p| p.is_dir());
+
+    if json {
+        let v = serde_json::json!({
+            "racine": racine.display().to_string(),
+            "binaire": { "present": taille_exe.is_some(), "taille": taille_exe, "sha256": sha },
+            "vfs": { "cpk_list": cpk_list.is_file(), "entrees": entrees, "paquets": paquets.len() },
+            "dumps_gamedata": dumps.as_ref().map(|p| p.display().to_string()),
+        });
+        println!("{}", serde_json::to_string_pretty(&v)?);
+        return Ok(());
+    }
+
+    println!("racine      {}", racine.display());
+    match (taille_exe, &sha) {
+        (Some(t), Some(s)) => {
+            println!("binaire     nie.exe ({t} octets)");
+            println!("sha256      {s}");
+        }
+        _ => println!("binaire     absent ({})", exe.display()),
+    }
+    println!("cpk_list    {}", if cpk_list.is_file() { "present" } else { "absent" });
+    println!("vfs         {entrees} entrees, {} paquets", paquets.len());
+    match &dumps {
+        Some(p) => println!("dumps       {}", p.display()),
+        None => println!("dumps       absents — les goldens adosses au corpus ne s'executeront pas"),
+    }
+    Ok(())
 }
 
 fn convert_cmd(
