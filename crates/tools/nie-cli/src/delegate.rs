@@ -124,7 +124,18 @@ pub fn cs(args: &[String]) -> anyhow::Result<()> {
 }
 
 /// Une ligne `clé=valeur` par back-end : présent ou non, et où.
-pub fn status() {
+/// Commandes de premier niveau enregistrées par `IECODE.CLI` (le binaire .NET délégué).
+///
+/// Comptées à la source : `grep -oE 'new Command\("[a-z][a-z0-9-]*"' csharp/IECODE.CLI/Program.cs`,
+/// noms dédoublonnés. C'est le dénominateur de l'absorption — sans méthode écrite, le chiffre
+/// dérive à la première relecture.
+pub const COMMANDES_IECODE_CLI: usize = 27;
+
+/// Affiche l'état des back-ends et l'écart d'absorption.
+///
+/// `niers_commandes` est le nombre de sous-commandes que `niers` expose ; l'appelant le tient de
+/// clap plutôt que d'une constante, pour qu'il suive le binaire au lieu d'une note.
+pub fn status(niers_commandes: usize) {
     let cpp = iecode_exe();
     let cs = iecode_dll();
     println!(
@@ -138,11 +149,23 @@ pub fn status() {
         cs.map_or_else(|| "-".to_string(), |p| p.display().to_string())
     );
     println!("rust=present path=<ce binaire>");
+    // La mesure de l'absorption : chaque portage retire une delegation, l'ecart se lit ici.
+    let ecart = COMMANDES_IECODE_CLI.saturating_sub(niers_commandes);
+    println!("niers={niers_commandes} commandes natives");
+    println!("iecode-cli={COMMANDES_IECODE_CLI} commandes deleguees");
+    println!("ecart={ecart}");
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Fige le denominateur de l'absorption. S'il bouge, c'est que `IECODE.CLI` a change : il faut
+    /// recompter a la source (cf. doc de la constante), pas ajuster le chiffre a vue.
+    #[test]
+    fn le_denominateur_de_l_absorption_est_ancre() {
+        assert_eq!(COMMANDES_IECODE_CLI, 27);
+    }
 
     #[test]
     fn les_candidats_couvrent_les_dispositions_cmake() {
