@@ -212,6 +212,119 @@ pub fn g4tx_vers(g4tx: &[u8], format: ImageOut) -> Result<Vec<u8>, String> {
     encoder_rgba(&rgba, w, h, format)
 }
 
+/// Réduit une image RGBA8 pour que son plus grand côté n'excède pas `max_cote`, par **moyenne de
+/// boîte** (chaque pixel de sortie est la moyenne des pixels source qu'il recouvre).
+///
+/// Rend l'image telle quelle si elle tient déjà dans la boîte : une vignette ne doit jamais
+/// agrandir, ni recompresser pour rien.
+///
+/// Le filtre est une moyenne, pas un échantillonnage au plus proche : sur les atlas d'icônes du
+/// jeu (traits d'un pixel sur fond transparent), le plus proche fait disparaître les traits alors
+/// que la moyenne les garde. La moyenne est pondérée par l'alpha prémultiplié — sans ça, les
+/// pixels transparents (dont le RGB est arbitraire dans une texture détourée) tirent la couleur
+/// des bords vers du noir, et la vignette d'une icône se retrouve cernée.
+///
+/// # Erreurs
+///
+/// Rend un message si `rgba` ne fait pas `largeur × hauteur × 4` octets, si une dimension est
+/// nulle, ou si `max_cote` est nul.
+pub fn reduire_rgba(
+    rgba: &[u8],
+    largeur: u32,
+    hauteur: u32,
+    max_cote: u32,
+) -> Result<(u32, u32, Vec<u8>), String> {
+    let attendu = (largeur as usize)
+        .checked_mul(hauteur as usize)
+        .and_then(|p| p.checked_mul(4))
+        .ok_or_else(|| "dimensions hors bornes".to_string())?;
+    if rgba.len() != attendu {
+        return Err(alloc::format!(
+            "tampon de {} octets pour {largeur}×{hauteur} RGBA (attendu {attendu})",
+            rgba.len()
+        ));
+    }
+    if largeur == 0 || hauteur == 0 {
+        return Err("image de dimension nulle".to_string());
+    }
+    if max_cote == 0 {
+        return Err("côté maximal nul".to_string());
+    }
+
+    let cote = largeur.max(hauteur);
+    if cote <= max_cote {
+        return Ok((largeur, hauteur, rgba.to_vec()));
+    }
+
+    // Dimensions cibles en conservant le rapport, au moins 1 pixel : une bande de 2048×8 réduite
+    // à 128 donnerait 0 en hauteur par simple division.
+    let nw = ((largeur as u64 * max_cote as u64) / cote as u64).max(1) as u32;
+    let nh = ((hauteur as u64 * max_cote as u64) / cote as u64).max(1) as u32;
+
+    let mut out = Vec::with_capacity((nw as usize) * (nh as usize) * 4);
+    for y in 0..nh {
+        // Bornes de la boîte source, en arithmétique entière : pas de flottant, donc le résultat
+        // ne dépend pas de la plateforme.
+        let y0 = ((y as u64 * hauteur as u64) / nh as u64) as usize;
+        let y1 = (((y as u64 + 1) * hauteur as u64) / nh as u64).max(y0 as u64 + 1) as usize;
+        for x in 0..nw {
+            let x0 = ((x as u64 * largeur as u64) / nw as u64) as usize;
+            let x1 = (((x as u64 + 1) * largeur as u64) / nw as u64).max(x0 as u64 + 1) as usize;
+
+            let (mut r, mut g, mut b, mut a) = (0u64, 0u64, 0u64, 0u64);
+            let mut n = 0u64;
+            for sy in y0..y1.min(hauteur as usize) {
+                let ligne = sy * largeur as usize;
+                for sx in x0..x1.min(largeur as usize) {
+                    let p = (ligne + sx) * 4;
+                    let alpha = u64::from(rgba[p + 3]);
+                    // Prémultiplication : la couleur d'un pixel transparent ne doit pas peser.
+                    r += u64::from(rgba[p]) * alpha;
+                    g += u64::from(rgba[p + 1]) * alpha;
+                    b += u64::from(rgba[p + 2]) * alpha;
+                    a += alpha;
+                    n += 1;
+                }
+            }
+            if n == 0 {
+                out.extend_from_slice(&[0, 0, 0, 0]);
+                continue;
+            }
+            // Démultiplication : `a` est la somme des alphas, donc diviser par elle rend la
+            // couleur moyenne *visible*. `a == 0` (boîte entièrement transparente) n'a pas de
+            // couleur moyenne — et diviser par elle serait une division par zéro.
+            match (r.checked_div(a), g.checked_div(a), b.checked_div(a)) {
+                (Some(r), Some(g), Some(b)) => {
+                    out.push(r as u8);
+                    out.push(g as u8);
+                    out.push(b as u8);
+                    out.push((a / n) as u8);
+                }
+                _ => out.extend_from_slice(&[0, 0, 0, 0]),
+            }
+        }
+    }
+    Ok((nw, nh, out))
+}
+
+/// Décode un `.g4tx` et l'encode en vignette : plus grand côté borné à `max_cote`, format libre.
+///
+/// C'est le chemin des grilles de fichiers (explorateur, navigateur de contenu de l'éditeur) :
+/// une texture de personnage décode en 2048×2048 RGBA (16 Mio en mémoire, plusieurs centaines de
+/// kio en PNG), or la vignette affichée fait moins de 100 pixels. Servir la pleine résolution à
+/// une grille de plusieurs milliers d'entrées sature la mémoire du client bien avant l'écran.
+///
+/// # Erreurs
+///
+/// Rend un message si le G4TX n'est pas décodable, si la réduction échoue ou si l'encodage échoue.
+#[cfg(feature = "textures")]
+pub fn g4tx_vignette(g4tx: &[u8], max_cote: u32, format: ImageOut) -> Result<Vec<u8>, String> {
+    let (w, h, rgba) = crate::g4tx_decode::decode_best_to_rgba(g4tx)
+        .ok_or_else(|| "G4TX non décodable".to_string())?;
+    let (vw, vh, petit) = reduire_rgba(&rgba, w, h, max_cote)?;
+    encoder_rgba(&petit, vw, vh, format)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -274,6 +387,62 @@ mod tests {
         let (w, h, rgba) = damier();
         assert!(encoder_rgba(&rgba, w + 1, h, ImageOut::Png).is_err());
         assert!(encoder_rgba(&rgba, 0, 0, ImageOut::Png).is_err());
+        assert!(reduire_rgba(&rgba, w + 1, h, 2).is_err());
+        assert!(reduire_rgba(&rgba, w, h, 0).is_err());
+    }
+
+    #[test]
+    fn une_image_deja_petite_traverse_la_reduction_intacte() {
+        let (w, h, rgba) = damier();
+        let (nw, nh, out) = reduire_rgba(&rgba, w, h, 64).unwrap();
+        assert_eq!((nw, nh), (w, h));
+        assert_eq!(out, rgba, "aucune vignette ne doit agrandir ni recompresser");
+    }
+
+    #[test]
+    fn la_reduction_borne_le_plus_grand_cote_et_garde_le_rapport() {
+        // Bande large : c'est le cas qui casse une division naïve (hauteur ramenée à 0).
+        let (w, h) = (400u32, 5u32);
+        let rgba = alloc::vec![200u8; (w * h * 4) as usize];
+        let (nw, nh, out) = reduire_rgba(&rgba, w, h, 100).unwrap();
+        assert_eq!(nw, 100);
+        assert!(nh >= 1, "une dimension ne doit jamais tomber à zéro");
+        assert_eq!(out.len(), (nw * nh * 4) as usize);
+    }
+
+    /// Une couleur uniforme doit traverser la moyenne sans dériver : c'est le test qui attrape
+    /// une erreur de pondération (somme non divisée, alpha compté deux fois…).
+    #[test]
+    fn une_image_uniforme_reste_de_la_meme_couleur() {
+        let (w, h) = (64u32, 64u32);
+        let mut rgba = Vec::new();
+        for _ in 0..(w * h) {
+            rgba.extend_from_slice(&[10, 120, 230, 255]);
+        }
+        let (_, _, out) = reduire_rgba(&rgba, w, h, 8).unwrap();
+        for px in out.chunks_exact(4) {
+            assert_eq!(px, [10, 120, 230, 255]);
+        }
+    }
+
+    /// Moitié opaque rouge, moitié transparente (RGB arbitraire) : la vignette doit rester rouge.
+    /// Sans prémultiplication par l'alpha, le noir des pixels transparents assombrirait le bord.
+    #[test]
+    fn les_pixels_transparents_ne_teintent_pas_la_vignette() {
+        let (w, h) = (16u32, 16u32);
+        let mut rgba = Vec::new();
+        for y in 0..h {
+            for _ in 0..w {
+                if y < h / 2 {
+                    rgba.extend_from_slice(&[255, 0, 0, 255]);
+                } else {
+                    rgba.extend_from_slice(&[0, 0, 0, 0]); // transparent, couleur arbitraire
+                }
+            }
+        }
+        let (_, _, out) = reduire_rgba(&rgba, w, h, 2).unwrap();
+        // Ligne du haut : rouge pur, pas un rouge assombri par les voisins transparents.
+        assert_eq!(&out[..4], &[255, 0, 0, 255]);
     }
 
     #[test]

@@ -202,7 +202,22 @@ export function Viewport3D({
     const host = hostRef.current;
     if (!host) return;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    // `new WebGLRenderer()` LÈVE quand aucun contexte WebGL n'est disponible — WebView2 sans
+    // accélération matérielle, pilote refusé, trop de contextes vivants. Une exception jetée dans
+    // un effet démonte tout l'arbre React : sans ce `try`, un poste sans WebGL n'obtient pas un
+    // viewport vide mais une FENÊTRE BLANCHE. On dit ce qui manque, et le reste de l'éditeur
+    // (outliner, navigateur de contenu, détails) continue de servir.
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    } catch (e) {
+      setError(
+        "WebGL indisponible sur ce poste : le viewport temps réel ne peut pas démarrer " +
+          `(${e instanceof Error ? e.message : String(e)}). Les aperçus rendus côté Rust ` +
+          "(bouton « Aperçu 3D » du panneau de détail) restent disponibles.",
+      );
+      return;
+    }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     host.appendChild(renderer.domElement);
@@ -281,15 +296,41 @@ export function Viewport3D({
     const observer = new ResizeObserver(resize);
     observer.observe(host);
 
+    // Perte de contexte GPU (pilote réinitialisé, veille, trop de contextes) : le navigateur
+    // l'annonce par un événement, et `render()` lèverait à la frame suivante. On arrête la boucle
+    // proprement et on le dit — sinon l'exception traverse le `requestAnimationFrame`, où plus
+    // aucune barrière React ne peut l'attraper, et la fenêtre blanchit.
+    const onContextLost = (e: Event) => {
+      e.preventDefault();
+      cancelAnimationFrame(state.raf);
+      state.raf = 0;
+      setError("Contexte WebGL perdu (pilote graphique réinitialisé). Rechargez l'asset pour reprendre.");
+    };
+    const onContextRestored = () => {
+      setError(null);
+      if (state.raf === 0) tick();
+    };
+    renderer.domElement.addEventListener("webglcontextlost", onContextLost);
+    renderer.domElement.addEventListener("webglcontextrestored", onContextRestored);
+
     const tick = () => {
       state.raf = requestAnimationFrame(tick);
       controls.update();
-      renderer.render(scene, camera);
+      try {
+        renderer.render(scene, camera);
+      } catch (e) {
+        // Une frame qui lève ne doit pas relancer indéfiniment une boucle qui lèvera encore.
+        cancelAnimationFrame(state.raf);
+        state.raf = 0;
+        setError(`Rendu interrompu : ${e instanceof Error ? e.message : String(e)}`);
+      }
     };
     tick();
 
     return () => {
       cancelAnimationFrame(state.raf);
+      renderer.domElement.removeEventListener("webglcontextlost", onContextLost);
+      renderer.domElement.removeEventListener("webglcontextrestored", onContextRestored);
       observer.disconnect();
       for (const key of [...state.assets.keys()]) disposeAsset(state, key);
       gizmo.detach();
@@ -330,26 +371,41 @@ export function Viewport3D({
     };
 
     for (const asset of missing) {
-      const bytes = b64ToBytes(asset.glbB64);
-      // `slice()` : `parse` veut un ArrayBuffer, et celui d'un Uint8Array issu du décodage peut être
-      // plus grand que la vue (offset non nul).
-      const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
-      new GLTFLoader().parse(
-        buffer,
-        "",
-        (gltf) => {
-          if (cancelled || !gl.current) return;
-          gltf.scene.userData.nieAsset = asset.key;
-          gl.current.scene.add(gltf.scene);
-          gl.current.assets.set(asset.key, gltf.scene);
-          settle();
-        },
-        (e) => {
-          if (cancelled) return;
-          setError(`Chargement du modèle : ${e instanceof Error ? e.message : String(e)}`);
-          settle();
-        },
-      );
+      // TOUT ce bloc est protégé : `GLTFLoader.parse` lève de façon SYNCHRONE sur un en-tête GLB
+      // invalide (avant d'appeler le rappel d'erreur), `atob` lève sur du base64 tronqué, et
+      // l'allocation du tampon lève quand la mémoire manque. Une exception ici traverse l'effet
+      // et démonte l'arbre React entier — c'est-à-dire une fenêtre blanche pour un seul modèle
+      // illisible. Le rappel d'erreur asynchrone ne suffit donc PAS.
+      try {
+        const bytes = b64ToBytes(asset.glbB64);
+        // `slice()` : `parse` veut un ArrayBuffer, et celui d'un Uint8Array issu du décodage peut être
+        // plus grand que la vue (offset non nul).
+        const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+        new GLTFLoader().parse(
+          buffer,
+          "",
+          (gltf) => {
+            if (cancelled || !gl.current) return;
+            try {
+              gltf.scene.userData.nieAsset = asset.key;
+              gl.current.scene.add(gltf.scene);
+              gl.current.assets.set(asset.key, gltf.scene);
+            } catch (e) {
+              setError(`Ajout du modèle à la scène : ${e instanceof Error ? e.message : String(e)}`);
+            }
+            settle();
+          },
+          (e) => {
+            if (cancelled) return;
+            setError(`Chargement du modèle : ${e instanceof Error ? e.message : String(e)}`);
+            settle();
+          },
+        );
+      } catch (e) {
+        if (cancelled) continue;
+        setError(`Modèle « ${asset.key.split("/").pop()} » illisible : ${e instanceof Error ? e.message : String(e)}`);
+        settle();
+      }
     }
 
     return () => {
@@ -361,6 +417,17 @@ export function Viewport3D({
   // Aplatit la hiérarchie de TOUS les assets pour l'outliner, indexe les objets par identifiant
   // stable et recalcule les statistiques.
   function rebuildOutline(refit: boolean) {
+    try {
+      rebuildOutlineInner(refit);
+    } catch (e) {
+      // Le parcours de scène touche des objets three.js et rappelle le parent : une exception ici
+      // partirait dans un effet, donc dans la barrière — et emporterait l'éditeur pour un
+      // outliner. La scène, elle, est déjà à l'écran et reste utilisable.
+      setError(`Analyse de la scène : ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
+  function rebuildOutlineInner(refit: boolean) {
     const state = gl.current;
     if (!state) return;
 

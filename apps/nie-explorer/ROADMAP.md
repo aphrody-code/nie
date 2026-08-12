@@ -29,9 +29,26 @@ contenu par défaut, et sans cela l'état d'un onglet serait perdu à chaque all
 autre vue. Une seule instance d'`ExplorerView` est « active » à la fois — l'enregistrement dans
 `editBus` (singleton) et l'écouteur Ctrl+D (global) sont derrière cette garde.
 
+**Export au format voulu.** « Extraire » écrit les octets du jeu tels quels ; l'export les
+convertit. La table des formats possibles pour un fichier donné vit dans `nie_explore::export`
+(partagée, testée sur le vrai VFS) : texture → png/webp/jpg/bmp/tga/tiff/qoi/gif, modèle → glb,
+audio CRI → wav, `.usm` → mp4, conteneurs T2B/RDBN → json, et le brut toujours proposé en tête.
+L'interface ne propose que ce qui marche pour ce fichier — la liste est dérivée du nom côté Rust,
+pas devinée côté client — et annonce les formats avec perte (JPEG, GIF) avant l'écriture, pas
+après. Trois chemins : le sélecteur de format du panneau de détail, le sous-menu « Exporter au
+format » du clic droit, et l'export en **lot** de la sélection (formats communs à tous les
+fichiers, bilan qui nomme les échecs au lieu de les taire).
+
+Les vignettes de texture sont **réduites côté Rust** (`vfs_texture_thumb_png_b64`, plus grand côté
+128 px), avec cache borné et file de décodage limitée (`src/lib/thumbs.ts`, source unique des deux
+grilles). Servir la pleine résolution — ce que faisaient les deux grilles — décode 2048×2048 RGBA
+par entrée : une seule page de vignettes faisait passer le processus de rendu WebView2 de 453 à
+704 Mio, et parcourir `data/dx11/menu/200_icon/10_icon_chr/uniform` (12 560 `.g4tx`) tuait la
+fenêtre. La grille du navigateur de contenu monte en outre par tranches de 300 entrées.
+
 Le reste : vues liste et grille avec vignettes réelles pour les textures (chargées à la
-visibilité, cache module-level), multi-sélection Ctrl/Maj sur fichiers **et** dossiers, barre
-flottante de sélection (compteur, taille cumulée, copier les chemins, ajouter à un mod),
+visibilité), multi-sélection Ctrl/Maj sur fichiers **et** dossiers, barre
+flottante de sélection (compteur, taille cumulée, copier les chemins, exporter, ajouter à un mod),
 emplacements épinglés et récents à la `zoxide` avec menu contextuel par entrée, menus contextuels
 Win32 natifs, presse-papiers fichiers natif (CF_HDROP), suppression vers la **corbeille** Windows
 pour les fichiers de mod, ouverture avec l'application par défaut, et fusion VFS + CPK bruts dans
@@ -83,6 +100,19 @@ ne porte ni `skins`, ni `animations`, ni `JOINTS_0`, donc rien n'est rejouable.
 **La transformation n'est écrite nulle part.** Aucun encodeur géométrique n'existe côté Rust
 (`g4md`, `g4mg`, `g4sk` n'ont aucune fonction d'écriture) : proposer un bouton de sauvegarde serait
 une promesse vide. L'éditeur natif Fyrox reste accessible par un bouton.
+
+**Une panne du viewport reste dans le viewport.** React démonte l'arbre entier quand une exception
+traverse un rendu ou un effet : sans barrière, un `WebGLRenderer` qui ne peut pas obtenir de
+contexte, un GLB refusé par `GLTFLoader.parse` (qui lève de façon *synchrone*, avant tout rappel
+d'erreur) ou une frame qui échoue vidait `#root` — une fenêtre blanche, indiscernable d'un crash du
+processus. `components/ErrorBoundary.tsx` en pose une à la racine et une autour du viewport (qui se
+réarme au changement d'asset) ; le viewport garde en plus l'absence de WebGL, la perte de contexte
+GPU (`webglcontextlost`) et l'échec de parse, chacun rendu comme un message nommé.
+
+Côté Rust, les décodages lourds passent par `isoler()` : thread dédié à pile de 16 Mio et panique
+convertie en erreur. Un débordement de pile natif tue le processus entier sans être rattrapable
+(constaté sur `cridecoder`), et une panique dans une commande laisse la promesse pendante côté
+client — l'interface reste alors sur « chargement… » sans jamais rien dire.
 
 ## Viola — modding
 

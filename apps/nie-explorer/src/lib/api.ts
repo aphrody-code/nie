@@ -21,6 +21,8 @@ import {
   type CpkExportFileDto,
   type EmblemDto,
   type EntryDto,
+  type ExportBatchDto,
+  type ExportFormatDto,
   type FolderRoleDto,
   type FormationDto,
   type GalleryDto,
@@ -75,6 +77,10 @@ export type CfgbinTyped = {
 };
 
 export type VfsEntry = EntryDto;
+/** Un format d'export proposé pour un fichier donné (cf. `api.exportFormats`). */
+export type ExportFormat = ExportFormatDto;
+/** Bilan d'un export en lot : écrits, octets, et les échecs AVEC leur raison. */
+export type ExportBatch = ExportBatchDto;
 export type FolderRole = FolderRoleDto;
 export type LsResult = LsDto;
 export type BlenderSceneResult = BlenderSceneResultDto;
@@ -156,7 +162,20 @@ export const api = {
   readB64: (path: string, gameDir?: string, maxBytes?: number) =>
     unwrap<string>(commands.vfsReadB64(path, gd(gameDir), maxBytes ?? null)),
   texturePngB64: (path: string, gameDir?: string) => unwrap<string>(commands.vfsTexturePngB64(path, gd(gameDir))),
+  // VIGNETTE (plus grand côté borné, défaut 128 px) — ce que doit appeler toute GRILLE de
+  // fichiers. `texturePngB64` décode la pleine résolution (2048² RGBA = 16 Mio par entrée) : sur
+  // un dossier de 12 560 textures, le processus de rendu WebView2 sature et la fenêtre meurt.
+  textureThumbB64: (path: string, maxCote?: number, gameDir?: string) =>
+    unwrap<string>(commands.vfsTextureThumbPngB64(path, maxCote ?? null, gd(gameDir))),
   extractTo: (path: string, dest: string, gameDir?: string) => unwrap<number>(commands.vfsExtractTo(path, dest, gd(gameDir))),
+  // ── Export au format voulu (cf. `src-tauri/src/export.rs`) ──
+  // `exportFormats` ne fait AUCUN accès disque (dérivé du nom) : appelable à chaque sélection.
+  exportFormats: (path: string) => commands.vfsExportFormats(path),
+  exportDefaultName: (path: string, format: string) => commands.vfsExportDefaultName(path, format),
+  exportAs: (path: string, dest: string, format: string, gameDir?: string) =>
+    unwrap<number>(commands.vfsExportAs(path, dest, format, gd(gameDir))),
+  exportMany: (paths: string[], destDir: string, format: string, gameDir?: string) =>
+    unwrap<ExportBatchDto>(commands.vfsExportMany(paths, destDir, format, gd(gameDir))),
   // Écriture EN PLACE (pas un export) — uniquement pour les entrées "loose" (`cpk: ""`, cf.
   // `VfsEntry.cpk`) : refusé côté Rust pour toute entrée empaquetée dans un CPK.
   writeB64: (path: string, dataB64: string, gameDir?: string) => unwrap<number>(commands.vfsWriteB64(path, dataB64, gd(gameDir))),
