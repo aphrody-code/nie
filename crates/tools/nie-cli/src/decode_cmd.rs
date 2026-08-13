@@ -19,10 +19,13 @@ const EXT_PNG: &[&str] = &["g4tx"];
 
 /// Décode un tampon : rend `(octets, extension de sortie)`.
 ///
-/// G4TX passe par le décodeur de textures (PNG) ; tout le reste par le dispatch JSON.
-fn decode_bytes(data: &[u8], as_png: bool) -> Option<(Vec<u8>, &'static str, &'static str)> {
+/// G4TX passe par le décodeur de textures (PNG) ; tout le reste par le dispatch JSON. `basename`
+/// (le nom du fichier source sans extension) départage les conteneurs multi-textures — sans lui,
+/// un `icon_item05.g4tx` rendrait une de ses 80 icônes au hasard.
+fn decode_bytes(data: &[u8], basename: &str, as_png: bool) -> Option<(Vec<u8>, &'static str, &'static str)> {
     if as_png {
-        return nie_formats::g4tx_decode::decode_best_to_png(data).map(|png| (png, "png", "g4tx"));
+        return nie_formats::g4tx_decode::decode_best_to_png(data, basename)
+            .map(|png| (png, "png", "g4tx"));
     }
     nie_formats::decode::decode(data).map(|d| (d.json, "json", d.format))
 }
@@ -38,7 +41,8 @@ pub fn file(src: &Path, out: Option<&Path>, quiet: bool) -> anyhow::Result<()> {
         .and_then(|e| e.to_str())
         .is_some_and(|e| EXT_PNG.contains(&e.to_ascii_lowercase().as_str()));
 
-    let Some((bytes, ext, format)) = decode_bytes(&data, as_png) else {
+    let basename = src.file_stem().and_then(|s| s.to_str()).unwrap_or_default();
+    let Some((bytes, ext, format)) = decode_bytes(&data, basename, as_png) else {
         bail!(
             "format non décodé : {} ({})",
             src.display(),
@@ -111,7 +115,8 @@ pub fn dir(src: &Path, out: &Path, quiet: bool) -> anyhow::Result<()> {
             .extension()
             .and_then(|e| e.to_str())
             .is_some_and(|e| EXT_PNG.contains(&e.to_ascii_lowercase().as_str()));
-        let Some((bytes, ext, _format)) = decode_bytes(&data, as_png) else {
+        let basename = p.file_stem().and_then(|s| s.to_str()).unwrap_or_default();
+        let Some((bytes, ext, _format)) = decode_bytes(&data, basename, as_png) else {
             skipped.fetch_add(1, Ordering::Relaxed);
             return;
         };
@@ -187,7 +192,7 @@ mod tests {
 
     #[test]
     fn un_tampon_de_bruit_n_est_pas_decode() {
-        assert!(decode_bytes(&[0xAB; 64], false).is_none());
+        assert!(decode_bytes(&[0xAB; 64], "bruit", false).is_none());
     }
 
     #[test]

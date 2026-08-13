@@ -772,8 +772,17 @@ pub fn cfgbin_typed_json(bytes: &[u8], filename: &str) -> Result<String, String>
 
 /// Décode la texture principale d'un `.g4tx` en PNG (via le décodeur partagé anti-dummy).
 fn g4tx_to_png_impl(bytes: &[u8]) -> Result<Vec<u8>, String> {
-    nie_formats::g4tx_decode::decode_best_to_png(bytes)
+    // Basename vide ASSUMÉ : l'ABI wasm ne reçoit que des octets, jamais le nom du fichier
+    // source. La sélection retombe donc sur « la plus grande texture non-dummy ». Pour viser
+    // une texture précise d'un conteneur multi-textures, passer par `g4tx_named_to_png`.
+    nie_formats::g4tx_decode::decode_best_to_png(bytes, "")
         .ok_or_else(|| "décodage G4TX → PNG échoué".to_string())
+}
+
+/// Décode une texture **nommée** d'un `.g4tx` en PNG (conteneur multi-textures ou atlas).
+fn g4tx_named_to_png_impl(bytes: &[u8], nom: &str) -> Result<Vec<u8>, String> {
+    nie_formats::g4tx_decode::decode_named_to_png(bytes, nom)
+        .ok_or_else(|| format!("texture « {nom} » absente ou non décodable"))
 }
 
 /// Décode un `.g4tx` (octets bruts) en PNG (octets), in-browser.
@@ -787,6 +796,19 @@ pub fn g4tx_to_png(bytes: &[u8]) -> Result<Vec<u8>, JsValue> {
 #[cfg(not(target_arch = "wasm32"))]
 pub fn g4tx_to_png(bytes: &[u8]) -> Result<Vec<u8>, String> {
     g4tx_to_png_impl(bytes)
+}
+
+/// Décode la texture nommée `nom` d'un `.g4tx` en PNG, in-browser.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn g4tx_named_to_png(bytes: &[u8], nom: &str) -> Result<Vec<u8>, JsValue> {
+    g4tx_named_to_png_impl(bytes, nom).map_err(|e| JsValue::from_str(&e))
+}
+
+/// Décode la texture nommée `nom` d'un `.g4tx` en PNG (version native).
+#[cfg(not(target_arch = "wasm32"))]
+pub fn g4tx_named_to_png(bytes: &[u8], nom: &str) -> Result<Vec<u8>, String> {
+    g4tx_named_to_png_impl(bytes, nom)
 }
 
 /// Métadonnées d'un `.g4tx` (textures : nom, dimensions, DDS) en JSON, in-browser.

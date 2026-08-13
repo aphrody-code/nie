@@ -185,20 +185,106 @@ pub fn decode_texture_rgba(g4tx_data: &[u8], tex: &G4txTexture) -> Option<(u32, 
 /// Décode la texture principale **réelle** d'un G4TX en RGBA8 `(w, h, data)`.
 ///
 /// Parse le conteneur puis sélectionne la texture via [`crate::g4tx::select_main_texture`]
-/// (anti-dummy) plutôt qu'un `max_by_key` ad hoc : sans nom de référence (`""`), la stratégie
-/// retombe directement sur la plus grande texture DDS **non dummy**.
+/// (anti-dummy) plutôt qu'un `max_by_key` ad hoc.
+///
+/// `basename` = nom du fichier `.g4tx` **sans dossier ni extension** (ex. `title02_07`,
+/// [`basename_of`] le calcule). C'est le nom que porte la texture utile dans les conteneurs
+/// mono-texture, et le seul moyen de ne pas rendre une texture arbitraire dans les conteneurs
+/// qui en portent plusieurs : un `""` désactive l'étape 1 de la sélection et fait retomber
+/// directement sur « la plus grande non-dummy » (ce que faisait cette fonction avant, à tort).
+/// Passer `""` reste licite quand l'appelant n'a QUE des octets (FFI, wasm) et aucun nom.
 #[must_use]
-pub fn decode_best_to_rgba(g4tx_data: &[u8]) -> Option<(u32, u32, Vec<u8>)> {
+pub fn decode_best_to_rgba(g4tx_data: &[u8], basename: &str) -> Option<(u32, u32, Vec<u8>)> {
     let parsed = g4tx::parse(g4tx_data).ok()?;
-    let tex = g4tx::select_main_texture(&parsed, "")?;
+    let tex = g4tx::select_main_texture(&parsed, basename)?;
     decode_texture_rgba(g4tx_data, tex)
 }
 
 /// Variante PNG de [`decode_best_to_rgba`] : décode la texture principale et la réencode en PNG.
 #[must_use]
-pub fn decode_best_to_png(g4tx_data: &[u8]) -> Option<Vec<u8>> {
-    let (w, h, rgba) = decode_best_to_rgba(g4tx_data)?;
+pub fn decode_best_to_png(g4tx_data: &[u8], basename: &str) -> Option<Vec<u8>> {
+    let (w, h, rgba) = decode_best_to_rgba(g4tx_data, basename)?;
     encode_rgba_to_png(&rgba, w as usize, h as usize)
+}
+
+/// Nom de base d'un chemin (VFS ou disque) : dossier et extension retirés.
+///
+/// `data/dx11/menu/200_icon/02_icon_item/icon_item05.g4tx` → `icon_item05`. C'est l'argument
+/// attendu par [`decode_best_to_rgba`] / [`decode_best_to_png`].
+#[must_use]
+pub fn basename_of(path: &str) -> &str {
+    let fichier = path.rsplit(['/', '\\']).next().unwrap_or(path);
+    fichier.rsplit_once('.').map_or(fichier, |(tronc, _)| tronc)
+}
+
+/// Décode une texture **nommée** d'un conteneur G4TX en RGBA8 `(w, h, data)`.
+///
+/// Deux dispositions coexistent dans les conteneurs IEVR, et elles ne se résolvent pas pareil :
+///
+/// 1. **multi-textures principales** (`sub_texture_count == 0`) — chaque nom a son **propre
+///    payload DDS complet**. C'est le cas des icônes d'objets : `icon_item05.g4tx` porte 80
+///    textures 256×256 BC7 nommées `eq_ac0100101`… Il faut donc **sélectionner** la texture,
+///    surtout pas rogner quoi que ce soit.
+/// 2. **atlas spatial** (`sub_texture_count > 0`) — un seul payload et une table de rectangles
+///    nommés ([`crate::g4tx::find_sub_texture`]). Là il faut décoder la texture porteuse **puis
+///    rogner** le rectangle.
+///
+/// La comparaison de nom est insensible à la casse, comme le reste du module. Rend `None` si
+/// aucun des deux chemins ne trouve `nom` (le conteneur ne contient pas cette texture).
+#[must_use]
+pub fn decode_named_to_rgba(g4tx_data: &[u8], nom: &str) -> Option<(u32, u32, Vec<u8>)> {
+    let parsed = g4tx::parse(g4tx_data).ok()?;
+
+    // 1. Texture principale portant ce nom → payload autonome, décodage direct.
+    if let Some(tex) = parsed
+        .textures
+        .iter()
+        .find(|t| t.is_dds && t.name.eq_ignore_ascii_case(nom))
+    {
+        return decode_texture_rgba(g4tx_data, tex);
+    }
+
+    // 2. Région d'atlas → décode la texture porteuse, puis rogne le rectangle.
+    let (tex, sub) = g4tx::find_sub_texture(&parsed, nom)?;
+    let (w, h, rgba) = decode_texture_rgba(g4tx_data, tex)?;
+    crop_rgba(&rgba, w, h, sub.x, sub.y, sub.width, sub.height)
+}
+
+/// Variante PNG de [`decode_named_to_rgba`].
+#[must_use]
+pub fn decode_named_to_png(g4tx_data: &[u8], nom: &str) -> Option<Vec<u8>> {
+    let (w, h, rgba) = decode_named_to_rgba(g4tx_data, nom)?;
+    encode_rgba_to_png(&rgba, w as usize, h as usize)
+}
+
+/// Rogne un rectangle dans un buffer RGBA8 `(w, h)`.
+///
+/// Les rectangles d'atlas viennent du fichier : ils sont signés (`i16`) et peuvent déborder la
+/// texture porteuse d'un ou deux pixels. Un rectangle hors champ ou vide rend `None` ; un
+/// rectangle qui déborde est **borné** à la texture plutôt que rejeté — sinon une icône parfaitement
+/// utilisable disparaîtrait pour un pixel de marge.
+#[must_use]
+fn crop_rgba(rgba: &[u8], w: u32, h: u32, x: i16, y: i16, cw: i16, ch: i16) -> Option<(u32, u32, Vec<u8>)> {
+    if x < 0 || y < 0 || cw <= 0 || ch <= 0 {
+        return None;
+    }
+    let (x, y) = (u32::try_from(x).ok()?, u32::try_from(y).ok()?);
+    if x >= w || y >= h {
+        return None;
+    }
+    let cw = u32::try_from(cw).ok()?.min(w - x);
+    let ch = u32::try_from(ch).ok()?.min(h - y);
+    if rgba.len() < (w as usize) * (h as usize) * 4 {
+        return None;
+    }
+
+    let mut out = Vec::with_capacity((cw as usize) * (ch as usize) * 4);
+    for ligne in 0..ch {
+        let debut = (((y + ligne) as usize) * (w as usize) + x as usize) * 4;
+        let fin = debut + (cw as usize) * 4;
+        out.extend_from_slice(rgba.get(debut..fin)?);
+    }
+    Some((cw, ch, out))
 }
 
 /// Encode un buffer RGBA8 brut en PNG (8 bits, RGBA).
@@ -279,5 +365,87 @@ mod tests {
     fn dds_fourcc_inconnu_rejete() {
         let h = dds_header(0x4, b"ZZZZ", &[], 256);
         assert!(dds_format_and_pixel_offset(&h).is_none());
+    }
+
+    #[test]
+    fn basename_retire_dossier_et_extension() {
+        assert_eq!(basename_of("data/dx11/menu/200_icon/02_icon_item/icon_item05.g4tx"), "icon_item05");
+        assert_eq!(basename_of("icon_item05.g4tx"), "icon_item05");
+        assert_eq!(basename_of("icon_item05"), "icon_item05");
+        assert_eq!(basename_of(""), "");
+    }
+
+    #[test]
+    fn crop_borne_et_rejette() {
+        // 4×2 RGBA, chaque pixel = son index répété.
+        let rgba: Vec<u8> = (0u8..8).flat_map(|i| [i, i, i, 255]).collect();
+        let (w, h, out) = crop_rgba(&rgba, 4, 2, 1, 1, 2, 1).expect("rect valide");
+        assert_eq!((w, h), (2, 1));
+        assert_eq!(out, vec![5, 5, 5, 255, 6, 6, 6, 255]);
+
+        // Débordement → borné à la texture, pas rejeté.
+        let (w, h, _) = crop_rgba(&rgba, 4, 2, 2, 0, 99, 99).expect("rect borné");
+        assert_eq!((w, h), (2, 2));
+
+        // Hors champ / vide → None.
+        assert!(crop_rgba(&rgba, 4, 2, 4, 0, 1, 1).is_none());
+        assert!(crop_rgba(&rgba, 4, 2, 0, 0, 0, 1).is_none());
+        assert!(crop_rgba(&rgba, 4, 2, -1, 0, 1, 1).is_none());
+    }
+
+    /// Sélection par NOM sur un vrai conteneur du jeu : `icon_item05.g4tx` porte 80 textures
+    /// principales 256×256 (une par objet, `sub_texture_count == 0`). Le décodeur « meilleure
+    /// texture » n'en rend qu'une, toujours la même — c'est précisément ce que la route
+    /// `/tex/<…>.g4tx/<nom>.png` doit dépasser.
+    ///
+    /// Le corpus (`data/`, © Level-5) est absent du clone public : le test ANNONCE son saut
+    /// plutôt que de passer en silence.
+    #[test]
+    fn selection_nommee_sur_vrai_conteneur_icon_item05() {
+        const CHEMIN: &str = "data/dx11/menu/200_icon/02_icon_item/icon_item05.g4tx";
+
+        let racine = crate::vfs::resolve_game_dir();
+        let mut vfs = crate::vfs::Vfs::new();
+        if vfs.init(racine.join("data")).is_err() {
+            eprintln!("SAUTÉ : VFS réel indisponible sous {} (corpus du jeu absent)", racine.display());
+            return;
+        }
+        let Ok(data) = vfs.read(CHEMIN) else {
+            eprintln!("SAUTÉ : {CHEMIN} absent du VFS monté");
+            return;
+        };
+
+        let parsed = crate::g4tx::parse(&data).expect("G4TX parsable");
+        let noms: Vec<String> = parsed
+            .textures
+            .iter()
+            .filter(|t| t.is_dds)
+            .map(|t| t.name.clone())
+            .collect();
+        assert!(noms.len() >= 2, "conteneur multi-textures attendu, vu {} texture(s)", noms.len());
+
+        // Deux noms DIFFÉRENTS doivent rendre deux images DIFFÉRENTES.
+        let a = decode_named_to_png(&data, &noms[0]).expect("1re texture nommée décodée");
+        let b = decode_named_to_png(&data, &noms[noms.len() - 1]).expect("dernière texture nommée décodée");
+        assert_ne!(a, b, "deux noms distincts rendent le même PNG — sélection par nom inopérante");
+
+        // La casse ne doit pas compter.
+        let a_maj = decode_named_to_png(&data, &noms[0].to_ascii_uppercase()).expect("nom en majuscules");
+        assert_eq!(a, a_maj, "la comparaison de nom doit être insensible à la casse");
+
+        // Un nom absent ne doit PAS retomber sur une texture arbitraire.
+        assert!(
+            decode_named_to_png(&data, "nom_qui_nexiste_pas_dans_ce_conteneur").is_none(),
+            "un nom inconnu doit rendre None, pas une texture au hasard"
+        );
+
+        // Le décodeur « meilleure texture » rend UNE des textures nommées : il ne peut donc pas
+        // servir à adresser les 79 autres.
+        let best = decode_best_to_png(&data, basename_of(CHEMIN)).expect("meilleure texture décodée");
+        let egal_a_une_nommee = noms
+            .iter()
+            .filter_map(|n| decode_named_to_png(&data, n))
+            .any(|png| png == best);
+        assert!(egal_a_une_nommee, "la meilleure texture doit être l'une des textures nommées");
     }
 }
