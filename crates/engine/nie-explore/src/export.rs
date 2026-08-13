@@ -192,7 +192,7 @@ pub fn produire(path: &str, data: Vec<u8>, format: &str) -> Result<Vec<u8>, Stri
         autre => {
             let img = nie_formats::image_out::ImageOut::depuis_extension(autre)
                 .ok_or_else(|| alloc::format!("format d'export inconnu : « {autre} »"))?;
-            nie_formats::image_out::g4tx_vers(&data, img)
+            nie_formats::image_out::g4tx_vers(&data, nie_formats::g4tx_decode::basename_of(path), img)
         }
     }
 }
@@ -350,9 +350,11 @@ mod tests {
         let (mut total_plein, mut total_vignette) = (0usize, 0usize);
         for path in &echantillon {
             let data = vfs.read(path).expect("lecture g4tx");
-            let plein = nie_formats::g4tx_decode::decode_best_to_png(&data).expect("PNG plein");
+            let base = nie_formats::g4tx_decode::basename_of(path);
+            let plein = nie_formats::g4tx_decode::decode_best_to_png(&data, base).expect("PNG plein");
             let vignette = nie_formats::image_out::g4tx_vignette(
                 &data,
+                base,
                 128,
                 nie_formats::image_out::ImageOut::Png,
             )

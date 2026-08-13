@@ -150,7 +150,7 @@ fn load_game_model(game_dir: &Path, asset: &str) -> Result<Model> {
     })
     .map_err(|e| anyhow::anyhow!("assemblage du modèle : {e}"))?;
 
-    if let Some(png) = sibling("g4tx").and_then(|g4tx| nie_formats::g4tx_decode::decode_best_to_png(&g4tx)) {
+    if let Some(png) = sibling("g4tx").and_then(|g4tx| nie_formats::g4tx_decode::decode_best_to_png(&g4tx, stem)) {
         assembled.embedded_textures.push(EmbeddedTexture {
             component: MeshComponent::Generic,
             name: format!("{stem}_tex"),

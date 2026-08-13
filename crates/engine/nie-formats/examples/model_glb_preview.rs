@@ -27,7 +27,7 @@ fn main() {
     })
     .expect("assemblage GLB");
 
-    if let Some(png) = nie_formats::g4tx_decode::decode_best_to_png(&g4tx) {
+    if let Some(png) = nie_formats::g4tx_decode::decode_best_to_png(&g4tx, nie_formats::g4tx_decode::basename_of(&a[3])) {
         model.embedded_textures.push(EmbeddedTexture {
             component: MeshComponent::Generic,
             name: format!("{stem}_tex"),
