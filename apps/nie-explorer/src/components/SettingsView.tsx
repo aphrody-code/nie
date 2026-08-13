@@ -418,7 +418,7 @@ export function SettingsView() {
         <CardContent className="space-y-3">
           <Field
             label="blender.exe"
-            hint="Vide = auto-détection (Blender Foundation\Blender 5.2\4.2\4.1\4.0)."
+            hint={String.raw`Vide = auto-détection (Blender Foundation\Blender 5.2\4.2\4.1\4.0).`}
             value={settings.blenderExe}
             placeholder={String.raw`C:\Program Files\Blender Foundation\Blender 5.2\blender.exe`}
             onChange={(v) => setSettings({ blenderExe: v })}

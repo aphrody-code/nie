@@ -65,8 +65,15 @@ if systemctl is-active --quiet nie-model-serve 2>/dev/null; then ok "nie-model-s
 hdr "Heartbeat RE"
 HB=var/re-heartbeat.log
 if [ -f "$HB" ]; then
-  last=$(tail -2 "$HB")
-  if echo "$last" | grep -q 'No such file'; then ko "heartbeat CASSE (binaire absent) — `just build` puis relancer le cron"; else ok "heartbeat: $(tail -1 "$HB")"; fi
+  # La DERNIERE ligne seule fait foi : sur `tail -2`, l'echec d'une passe reparee a la
+  # suivante restait affiche en KO indefiniment.
+  last=$(tail -1 "$HB")
+  # 'No such file' = ancien mode demon (binaire absent) ; 'ERREUR heartbeat' = garde-fou
+  # de scripts/re-heartbeat.sh (binaire, cible RE ou KB manquants).
+  if echo "$last" | grep -qE 'No such file|ERREUR heartbeat'; then ko "heartbeat CASSE — $last"; else ok "heartbeat: $last"; fi
+  # Fraicheur : le cron est horaire ; au-dela de 3 h sans ligne, il ne tourne plus.
+  age=$(( ( $(date +%s) - $(stat -c %Y "$HB") ) / 60 ))
+  [ "$age" -le 180 ] && ok "heartbeat frais ($age min)" || ko "heartbeat fige depuis $age min — verifier 'crontab -l'"
 else
   ko "$HB absent"
 fi
