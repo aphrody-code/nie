@@ -8,6 +8,9 @@
 //! - `GET /model-full/<code>.glb`  — personnage (ex. `c01000010`)
 //! - `GET /model-full/<code>.glb`  — keshin  (ex. `k000010`)
 //! - `GET /model-full/<code>.glb`  — armure  (ex. `ka001901`)
+//! - `GET /tex/<chemin>.png`       — texture principale d'un `.g4tx` du VFS
+//! - `GET /tex/<chemin>.g4tx/<nom>.png` — texture **nommée** de ce conteneur (ex.
+//!   `/tex/dx11/menu/200_icon/02_icon_item/icon_item05.g4tx/eq_ac0100101.png`)
 //! - `GET /health`                 — `200 OK`
 //!
 //! ## Résolution uniforme
@@ -769,7 +772,7 @@ fn load_face_texture_png(state: &State, code: &str) -> Option<Vec<u8>> {
         vfs.read(&vfs_path).ok()
     }?;
 
-    let png = g4tx_decode::decode_best_to_png(&g4tx_data);
+    let png = g4tx_decode::decode_best_to_png(&g4tx_data, g4tx_decode::basename_of(&vfs_path));
     if png.is_none() {
         warn!("décodage G4TX face {code} échoué");
     }
@@ -786,7 +789,7 @@ fn load_uniform_texture_png(state: &State, g4tx_vfs_path: &str) -> Option<Vec<u8
         vfs.read(g4tx_vfs_path).ok()
     }?;
 
-    let png = g4tx_decode::decode_best_to_png(&g4tx_data);
+    let png = g4tx_decode::decode_best_to_png(&g4tx_data, g4tx_decode::basename_of(g4tx_vfs_path));
     if png.is_none() {
         warn!("décodage G4TX uniforme {g4tx_vfs_path} échoué");
     }
@@ -803,7 +806,7 @@ fn load_keshin_texture_png(state: &State, code: &str) -> Option<Vec<u8>> {
         vfs.read(&path).ok()
     }?;
 
-    let png = g4tx_decode::decode_best_to_png(&g4tx_data);
+    let png = g4tx_decode::decode_best_to_png(&g4tx_data, code);
     if png.is_none() {
         warn!("décodage G4TX keshin {code} échoué");
     }
@@ -831,7 +834,10 @@ fn load_armed_texture_png(state: &State, code: &str) -> Option<Vec<u8>> {
         }
     }?;
 
-    let png = g4tx_decode::decode_best_to_png(&g4tx_data);
+    // Le conteneur d'armure s'appelle `<code>_10.g4tx` ou `<code>.g4tx` selon le repli
+    // emprunté : les deux noms sont tentés comme basename, le premier qui nomme une texture gagne.
+    let png = g4tx_decode::decode_best_to_png(&g4tx_data, &format!("{code}_10"))
+        .or_else(|| g4tx_decode::decode_best_to_png(&g4tx_data, code));
     if png.is_none() {
         warn!("décodage G4TX armure {code} échoué");
     }
@@ -1130,7 +1136,7 @@ fn assemble_chr_generic(state: &State, sub: &str, code: &str) -> Result<GlbBytes
         let vfs = state.vfs.lock().unwrap();
         vfs.read(&g4tx_path).ok()
     };
-    if let Some(png_bytes) = g4tx.as_deref().and_then(g4tx_decode::decode_best_to_png) {
+    if let Some(png_bytes) = g4tx.as_deref().and_then(|d| g4tx_decode::decode_best_to_png(d, code)) {
         model.embedded_textures.push(EmbeddedTexture {
             component: MeshComponent::Generic,
             name: format!("{code}_{sub}"),
@@ -1742,21 +1748,40 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         return;
     }
 
-    // `/tex/<vfs-path>.png` — décode N'IMPORTE QUEL G4TX du VFS en PNG. Les textures
-    // perso (face/uniforme/corps sous `dx11/chr/`) sont absentes du dump ET non servies
-    // par le décodeur menu live (:8788) ; seul ce service a le décodeur nie-formats. La
-    // source est `<path>.g4tx` (l'URL en `.png` est mappée dessus). Anti-traversal strict.
+    // `/tex/…` — décode N'IMPORTE QUEL G4TX du VFS en PNG. Les textures perso (face/uniforme/
+    // corps sous `dx11/chr/`) sont absentes du dump ET non servies par le décodeur menu live
+    // (:8788) ; seul ce service a le décodeur nie-formats. Deux formes, toutes deux servies
+    // telles quelles par nginx (`cdn.rosegriffon.fr/dx11/… -> /tex/dx11/…`) :
+    //
+    //   1:1     `/tex/<chemin>.png`                    → `data/<chemin>.g4tx`, texture principale
+    //   nommée  `/tex/<chemin>.g4tx/<nom>.png`         → texture `<nom>` DANS ce conteneur
+    //
+    // La forme nommée est la seule façon d'adresser un conteneur multi-textures : les icônes
+    // d'objets vivent à 80 par fichier (`icon_item05.g4tx` = 80 payloads DDS nommés
+    // `eq_ac0100101`…), et les atlas spatiaux portent des régions nommées à rogner. Elle passe
+    // par le PATH et non par une query (`?tex=`) : la query est strippée en amont du routage.
+    // La forme 1:1 est INCHANGÉE, si ce n'est qu'elle transmet enfin le basename au sélecteur.
+    // Anti-traversal strict sur le chemin comme sur le nom de texture.
     if let Some(rest) = path.strip_prefix("/tex/") {
-        let g4tx_rel = rest
-            .strip_suffix(".png")
-            .map(|s| format!("{s}.g4tx"))
-            .unwrap_or_else(|| rest.to_string());
-        let vfs_path = if g4tx_rel.starts_with("data/") {
-            g4tx_rel
-        } else {
-            format!("data/{g4tx_rel}")
+        // Découpe la forme nommée sur le premier `.g4tx/` : ce qui précède est le conteneur,
+        // ce qui suit est le nom de texture (`.png` optionnel, aucun `/` toléré).
+        let (rel, nom_texture) = match rest.split_once(".g4tx/") {
+            Some((conteneur, nom)) => {
+                let nom = nom.strip_suffix(".png").unwrap_or(nom);
+                (format!("{conteneur}.g4tx"), Some(nom.to_string()))
+            }
+            None => (
+                rest.strip_suffix(".png")
+                    .map_or_else(|| rest.to_string(), |s| format!("{s}.g4tx")),
+                None,
+            ),
         };
-        if vfs_path.contains("..") || !vfs_path.ends_with(".g4tx") {
+        let vfs_path = if rel.starts_with("data/") { rel } else { format!("data/{rel}") };
+
+        let nom_invalide = nom_texture
+            .as_deref()
+            .is_some_and(|n| n.is_empty() || n.contains('/') || n.contains(".."));
+        if vfs_path.contains("..") || !vfs_path.ends_with(".g4tx") || nom_invalide {
             respond_text(
                 &mut stream,
                 400,
@@ -1769,7 +1794,15 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             let vfs = state.vfs.lock().unwrap();
             vfs.read(&vfs_path).ok()
         };
-        match g4tx.as_deref().and_then(g4tx_decode::decode_best_to_png) {
+        let png = match nom_texture.as_deref() {
+            // Texture nommée : jamais de repli sur « la plus grande » — un nom qui n'existe pas
+            // doit donner 404, pas une image arbitraire qui passerait pour la bonne.
+            Some(nom) => g4tx.as_deref().and_then(|d| g4tx_decode::decode_named_to_png(d, nom)),
+            None => g4tx
+                .as_deref()
+                .and_then(|d| g4tx_decode::decode_best_to_png(d, g4tx_decode::basename_of(&vfs_path))),
+        };
+        match png {
             Some(png) => respond(&mut stream, 200, "OK", "image/png", &png),
             None => respond_text(&mut stream, 404, "Not Found", "texture absente/non décodée"),
         }
@@ -1965,7 +1998,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                 let vfs = state.vfs.lock().unwrap();
                 vfs.read(&vfs_path).ok()
             }?;
-            g4tx_decode::decode_best_to_rgba(&g4tx)
+            g4tx_decode::decode_best_to_rgba(&g4tx, g4tx_decode::basename_of(&vfs_path))
         });
         match png {
             Some(bytes) => respond(&mut stream, 200, "OK", "image/png", &bytes),

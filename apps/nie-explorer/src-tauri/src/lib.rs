@@ -408,7 +408,8 @@ fn vfs_read_b64(path: String, game_dir: Option<String>, max_bytes: Option<u32>, 
 fn vfs_texture_png_b64(path: String, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<String, String> {
     with_vfs(game_dir, &state, |vfs| {
         let data = vfs.read(&path).map_err(|e| e.to_string())?;
-        let png = nie_formats::g4tx_decode::decode_best_to_png(&data).ok_or("décodage PNG impossible (texture non reconnue)")?;
+        let base = nie_formats::g4tx_decode::basename_of(&path).to_string();
+        let png = nie_formats::g4tx_decode::decode_best_to_png(&data, &base).ok_or("décodage PNG impossible (texture non reconnue)")?;
         Ok(base64::engine::general_purpose::STANDARD.encode(&png))
     })
 }
@@ -447,7 +448,7 @@ fn vfs_texture_thumb_png_b64(
         // Isolé : un décodeur de texture qui déborde la pile ou panique sur un fichier atypique
         // ne doit pas emporter la fenêtre entière — une grille en parcourt des milliers.
         let png = isoler("décodage de vignette", move || {
-            nie_formats::image_out::g4tx_vignette(&data, cote, nie_formats::image_out::ImageOut::Png)
+            nie_formats::image_out::g4tx_vignette(&data, &base, cote, nie_formats::image_out::ImageOut::Png)
         })??;
         Ok(base64::engine::general_purpose::STANDARD.encode(&png))
     })
@@ -2552,7 +2553,7 @@ pub(crate) fn assemble_glb_for_preview(vfs: &nie_formats::vfs::Vfs, path: &str) 
     let mut model = assemble_generic_model(GenericModelInput { code: stem.to_string(), g4md, g4mg, component: MeshComponent::Generic })
         .map_err(|e| format!("assemblage GLB : {e}"))?;
 
-    let png = sibling("g4tx").and_then(|g4tx| nie_formats::g4tx_decode::decode_best_to_png(&g4tx));
+    let png = sibling("g4tx").and_then(|g4tx| nie_formats::g4tx_decode::decode_best_to_png(&g4tx, stem));
     if let Some(png) = png {
         model.embedded_textures.push(EmbeddedTexture { component: MeshComponent::Generic, name: format!("{stem}_tex"), png_bytes: png });
     }
@@ -2586,7 +2587,7 @@ fn assemble_glb_from_cpk_entries(data: &[u8], reader: &CpkReader, entry: &CpkEnt
     let mut model = assemble_generic_model(GenericModelInput { code: stem.clone(), g4md, g4mg, component: MeshComponent::Generic })
         .map_err(|e| format!("assemblage GLB : {e}"))?;
 
-    let png = sibling("g4tx").and_then(|g4tx| nie_formats::g4tx_decode::decode_best_to_png(&g4tx));
+    let png = sibling("g4tx").and_then(|g4tx| nie_formats::g4tx_decode::decode_best_to_png(&g4tx, &stem));
     if let Some(png) = png {
         model.embedded_textures.push(EmbeddedTexture { component: MeshComponent::Generic, name: format!("{stem}_tex"), png_bytes: png });
     }

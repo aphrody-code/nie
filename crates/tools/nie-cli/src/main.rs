@@ -2370,7 +2370,7 @@ fn convert_cmd(
     })?;
 
     let data = lire_source(src, game_dir)?;
-    let produit = nie_formats::image_out::g4tx_vers(&data, format)
+    let produit = nie_formats::image_out::g4tx_vers(&data, nie_formats::g4tx_decode::basename_of(src), format)
         .map_err(|e| anyhow::anyhow!("conversion de « {src} » en {} : {e}", format.extension()))?;
 
     let destination = out.map_or_else(
@@ -2449,7 +2449,7 @@ fn convert_sprites(
         "json" => feuille.vers_json(),
         "css" => {
             // L'atlas accompagne la feuille : WebP sans perte, le plus petit des formats exacts.
-            let image = nie_formats::image_out::g4tx_vers(&data, ImageOut::Webp)
+            let image = nie_formats::image_out::g4tx_vers(&data, &tronc, ImageOut::Webp)
                 .map_err(|e| anyhow::anyhow!("encodage de l'atlas : {e}"))?;
             let image_path = destination.with_extension("webp");
             std::fs::write(&image_path, &image)
@@ -2466,7 +2466,7 @@ fn convert_sprites(
             feuille.vers_css_mode(&nom_image, mode)
         }
         "svg" => {
-            let image = nie_formats::image_out::g4tx_vers(&data, ImageOut::Png)
+            let image = nie_formats::image_out::g4tx_vers(&data, &tronc, ImageOut::Png)
                 .map_err(|e| anyhow::anyhow!("encodage de l'atlas : {e}"))?;
             feuille.vers_svg(&sprite_sheet::data_uri(&image, "image/png"))
         }
@@ -2752,7 +2752,7 @@ fn vfs_cat(
     println!("  {path}  ({} octets)", data.len());
 
     if let Some(out) = png_out {
-        match nie_formats::g4tx_decode::decode_best_to_png(&data) {
+        match nie_formats::g4tx_decode::decode_best_to_png(&data, nie_formats::g4tx_decode::basename_of(path)) {
             Some(png) => {
                 std::fs::write(out, &png)?;
                 println!("  PNG écrit → {}", out.display());

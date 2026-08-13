@@ -556,7 +556,9 @@ pub unsafe extern "C" fn nie_g4tx_to_png_out(ptr: *const u8, len: usize, out: *m
 /// du workspace — Phase 1b dédup). Bonus vs l'ancienne copie locale (DX10 seul) : support
 /// FourCC legacy + non compressé + sélecteur anti-dummy [`g4tx::select_main_texture`].
 fn g4tx_to_png_impl(data: &[u8]) -> NieBytes {
-    match nie_formats::g4tx_decode::decode_best_to_png(data) {
+    // Basename vide ASSUMÉ : l'ABI C ne reçoit que des octets, jamais le nom du fichier source
+    // (cf. `decode_best_to_png`). La sélection retombe sur « la plus grande non-dummy ».
+    match nie_formats::g4tx_decode::decode_best_to_png(data, "") {
         Some(png) => NieBytes::from_vec(png),
         None => NieBytes::empty(),
     }

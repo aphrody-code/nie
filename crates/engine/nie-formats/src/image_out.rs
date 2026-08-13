@@ -202,12 +202,16 @@ fn aplatir_en_rgb(rgba: &[u8]) -> Vec<u8> {
 
 /// Décode un `.g4tx` puis l'encode vers `format` — le chemin complet d'une conversion de texture.
 ///
+/// `basename` = nom du fichier source sans dossier ni extension (cf.
+/// [`crate::g4tx_decode::basename_of`]) : il départage les conteneurs qui portent plusieurs
+/// textures. `""` reste licite quand l'appelant n'a que des octets.
+///
 /// # Erreurs
 ///
 /// Rend un message si le G4TX n'est pas décodable ou si l'encodage échoue.
 #[cfg(feature = "textures")]
-pub fn g4tx_vers(g4tx: &[u8], format: ImageOut) -> Result<Vec<u8>, String> {
-    let (w, h, rgba) = crate::g4tx_decode::decode_best_to_rgba(g4tx)
+pub fn g4tx_vers(g4tx: &[u8], basename: &str, format: ImageOut) -> Result<Vec<u8>, String> {
+    let (w, h, rgba) = crate::g4tx_decode::decode_best_to_rgba(g4tx, basename)
         .ok_or_else(|| "G4TX non décodable".to_string())?;
     encoder_rgba(&rgba, w, h, format)
 }
@@ -314,12 +318,14 @@ pub fn reduire_rgba(
 /// kio en PNG), or la vignette affichée fait moins de 100 pixels. Servir la pleine résolution à
 /// une grille de plusieurs milliers d'entrées sature la mémoire du client bien avant l'écran.
 ///
+/// `basename` : même rôle que dans [`g4tx_vers`] (départage les conteneurs multi-textures).
+///
 /// # Erreurs
 ///
 /// Rend un message si le G4TX n'est pas décodable, si la réduction échoue ou si l'encodage échoue.
 #[cfg(feature = "textures")]
-pub fn g4tx_vignette(g4tx: &[u8], max_cote: u32, format: ImageOut) -> Result<Vec<u8>, String> {
-    let (w, h, rgba) = crate::g4tx_decode::decode_best_to_rgba(g4tx)
+pub fn g4tx_vignette(g4tx: &[u8], basename: &str, max_cote: u32, format: ImageOut) -> Result<Vec<u8>, String> {
+    let (w, h, rgba) = crate::g4tx_decode::decode_best_to_rgba(g4tx, basename)
         .ok_or_else(|| "G4TX non décodable".to_string())?;
     let (vw, vh, petit) = reduire_rgba(&rgba, w, h, max_cote)?;
     encoder_rgba(&petit, vw, vh, format)
