@@ -1336,6 +1336,21 @@ fn decode_awb_entry(data: &[u8], vfs_path: &str, which: Option<usize>) -> anyhow
         .map_err(|e| anyhow::anyhow!("AWB {vfs_path}: {e}"))
 }
 
+/// Variante jumelle d'une vidéo : `data/dx11/movie/X` ↔ `data/common/movie/X`.
+///
+/// Le jeu livre chaque cinématique en double, sous deux racines. Ce ne sont pas des doublons :
+/// `dx11` est la variante PC, à débit nettement supérieur (16,1 Gio contre 3,7 Gio à l'échelle
+/// des 96 films, même définition 1920×1080). Mais l'une des deux peut manquer du disque ou ne
+/// pas être décodable, auquel cas l'autre sauve la lecture.
+fn variante_jumelle(vfs_path: &str) -> Option<String> {
+    if let Some(reste) = vfs_path.strip_prefix("data/dx11/movie/") {
+        return Some(format!("data/common/movie/{reste}"));
+    }
+    vfs_path
+        .strip_prefix("data/common/movie/")
+        .map(|reste| format!("data/dx11/movie/{reste}"))
+}
+
 /// Chemin du AWB frère d'un ACB : même chemin, extension `.awb`.
 fn awb_frere(vfs_path: &str) -> Option<String> {
     vfs_path
@@ -1997,6 +2012,10 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                             .ok()
                             .and_then(|data| nie_explore::describe_content(&p, &data));
                         let mut j = entree_json(&e);
+                        // Être dans l'index ne veut pas dire servable : `cpk_list.cfg.bin`
+                        // déclare des fichiers « loose » absents de cette installation.
+                        // Sans ce champ, `stat` annonçait des fichiers que `/raw` refuse.
+                        j["readable"] = serde_json::json!(vfs.is_readable(&p));
                         j["formats"] = serde_json::json!(
                             nie_explore::export::formats_pour(&p)
                                 .iter()
@@ -2029,6 +2048,67 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         drop(vfs);
         let bytes = serde_json::to_vec(&body).unwrap_or_default();
         respond(&mut stream, 200, "OK", "application/json", &bytes);
+        return;
+    }
+
+    // `/tex-info/<chemin>.g4tx` — CATALOGUE des textures d'un conteneur, en JSON.
+    //
+    // Un G4TX n'est pas une image : c'est un conteneur. `icon_item01.g4tx` porte 45 payloads DDS
+    // nommés, `icon_item05.g4tx` en porte 80. La forme nommée de `/tex` sait déjà en adresser
+    // une par son nom — mais rien ne permettait d'en obtenir la LISTE, donc une galerie ne
+    // pouvait montrer qu'une image par fichier et laissait le reste invisible.
+    //
+    // Même rôle que `/audio-info` pour les banques ACB : l'index qui rend le contenu atteignable.
+    if let Some(rest) = path.strip_prefix("/tex-info/") {
+        let rel = rest.strip_suffix(".g4tx").unwrap_or(rest);
+        let vfs_path = format!("data/{rel}.g4tx");
+        if vfs_path.contains("..") {
+            respond_text(&mut stream, 400, "Bad Request", "chemin invalide");
+            return;
+        }
+        let bytes = {
+            let vfs = state.vfs.lock().unwrap();
+            vfs.read(&vfs_path).ok()
+        };
+        let Some(raw) = bytes else {
+            respond_text(&mut stream, 404, "Not Found", "conteneur absent du VFS");
+            return;
+        };
+        match nie_formats::g4tx::parse(&raw) {
+            Err(e) => respond_text(
+                &mut stream,
+                500,
+                "Internal Server Error",
+                &format!("G4TX illisible : {e}"),
+            ),
+            Ok(g4tx) => {
+                let textures: Vec<serde_json::Value> = g4tx
+                    .textures
+                    .iter()
+                    .map(|t| {
+                        serde_json::json!({
+                            "id": t.id,
+                            "name": t.name,
+                            "width": t.width,
+                            "height": t.height,
+                            "dds": t.is_dds,
+                            "size": t.data_size,
+                            // Chemin RELATIF au CDN : le client préfixe son origine. C'est la
+                            // forme nommée de `/tex`, la seule qui adresse une texture précise.
+                            "path": format!("/tex/{rel}.g4tx/{}.png", t.name),
+                            "regions": t.sub_textures.len(),
+                        })
+                    })
+                    .collect();
+                let j = serde_json::json!({
+                    "path": vfs_path,
+                    "count": textures.len(),
+                    "textures": textures,
+                });
+                let body = serde_json::to_vec(&j).unwrap_or_default();
+                respond(&mut stream, 200, "OK", "application/json", &body);
+            }
+        }
         return;
     }
 
@@ -2687,49 +2767,88 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             respond_text(&mut stream, 400, "Bad Request", "chemin invalide");
             return;
         }
-        let bytes = {
-            let vfs = state.vfs.lock().unwrap();
-            vfs.read(&vfs_path).ok()
+        // Lit et démuxe ; en cas d'échec (absente du disque, ou octets qui ne sont pas du CRID),
+        // retente sur la variante jumelle avant d'abandonner. L'erreur rapportée reste celle du
+        // chemin DEMANDÉ : c'est celui que l'appelant connaît.
+        let lire_et_demuxer = |chemin: &str| -> Result<nie_formats::cri_audio::UsmResult, String> {
+            let raw = {
+                let vfs = state.vfs.lock().unwrap();
+                vfs.read(chemin).map_err(|_| "absent du VFS".to_string())?
+            };
+            usm_demux(&raw).map_err(|e| e.to_string())
         };
-        match bytes {
-            None => {
+
+        let demuxe = lire_et_demuxer(&vfs_path).or_else(|erreur_origine| {
+            match variante_jumelle(&vfs_path) {
+                None => Err(erreur_origine),
+                Some(jumelle) => match lire_et_demuxer(&jumelle) {
+                    Ok(r) => {
+                        info!("{vfs_path} illisible ({erreur_origine}) — servie depuis {jumelle}");
+                        Ok(r)
+                    }
+                    Err(_) => Err(erreur_origine),
+                },
+            }
+        });
+
+        match demuxe {
+            Err(e) if e == "absent du VFS" => {
                 respond_text(&mut stream, 404, "Not Found", "fichier vidéo absent du VFS");
             }
-            Some(raw) => {
-                match usm_demux(&raw) {
-                    Err(e) => {
-                        warn!("démux USM {vfs_path} échoué : {e}");
-                        respond_text(
-                            &mut stream,
-                            500,
-                            "Internal Server Error",
-                            &format!("démux USM échoué : {e}"),
-                        );
-                    }
-                    Ok(result) => {
-                        if result.video_data.is_empty() {
-                            respond_text(&mut stream, 404, "Not Found", "USM sans piste vidéo");
-                            return;
+            Err(e) => {
+                warn!("démux USM {vfs_path} échoué : {e}");
+                respond_text(
+                    &mut stream,
+                    500,
+                    "Internal Server Error",
+                    &format!("démux USM échoué : {e}"),
+                );
+            }
+            Ok(result) => {
+                // `?track=audio` — la piste sonore du film, en WAV. Le commentaire de cette
+                // route l'annonçait depuis toujours, mais rien ne l'implémentait : la query
+                // était strippée avant le routage, et `audio_tracks` n'était lu nulle part.
+                if param(query, "track").as_deref() == Some("audio") {
+                    let Some(piste) = result.audio_tracks.first() else {
+                        respond_text(&mut stream, 404, "Not Found", "USM sans piste audio");
+                        return;
+                    };
+                    match nie_formats::cri_audio::decode_to_wav(piste) {
+                        Ok(wav) => respond_ranged(&mut stream, "audio/wav", &wav, range_header),
+                        Err(e) => {
+                            warn!("décodage piste audio {vfs_path} échoué : {e}");
+                            respond_text(
+                                &mut stream,
+                                500,
+                                "Internal Server Error",
+                                &format!("décodage audio du film échoué : {e}"),
+                            );
                         }
-                        let (ct, body) = match result.video_codec {
-                            // H.264 brut -> remux MP4 fragmenté (lisible <video>) ;
-                            // repli sur le flux brut si ffmpeg indisponible.
-                            VideoCodec::H264 => match mux_h264_to_mp4(&result.video_data) {
-                                Some(mp4) => ("video/mp4", mp4),
-                                None => ("video/h264", result.video_data),
-                            },
-                            VideoCodec::Vp9 => ("video/webm", result.video_data),
-                            VideoCodec::Unknown => ("application/octet-stream", result.video_data),
-                        };
-                        info!(
-                            "USM {} démuxé : {} frames, {}B",
-                            vfs_path,
-                            result.frame_count,
-                            body.len()
-                        );
-                        respond_ranged(&mut stream, ct, &body, range_header);
                     }
+                    return;
                 }
+
+                if result.video_data.is_empty() {
+                    respond_text(&mut stream, 404, "Not Found", "USM sans piste vidéo");
+                    return;
+                }
+                let (ct, body) = match result.video_codec {
+                    // H.264 brut -> remux MP4 fragmenté (lisible <video>) ;
+                    // repli sur le flux brut si ffmpeg indisponible.
+                    VideoCodec::H264 => match mux_h264_to_mp4(&result.video_data) {
+                        Some(mp4) => ("video/mp4", mp4),
+                        None => ("video/h264", result.video_data),
+                    },
+                    VideoCodec::Vp9 => ("video/webm", result.video_data),
+                    VideoCodec::Unknown => ("application/octet-stream", result.video_data),
+                };
+                info!(
+                    "USM {} démuxé : {} frames, {}B",
+                    vfs_path,
+                    result.frame_count,
+                    body.len()
+                );
+                respond_ranged(&mut stream, ct, &body, range_header);
             }
         }
         return;
