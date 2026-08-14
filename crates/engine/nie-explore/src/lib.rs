@@ -9,6 +9,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod audio;
 pub mod bridge;
 pub mod export;
 pub mod folder_roles;
