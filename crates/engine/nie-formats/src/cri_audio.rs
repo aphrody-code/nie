@@ -388,6 +388,16 @@ impl Awb {
     ///
     /// Saute les octets nuls en début d'entrée pour trouver les données HCA/ADX réelles
     /// (les AWB IEVR ont un padding nul de quelques octets avant le magic HCA).
+    /// Rang de l'entrée portant le cue-id `id`, ou `None` si la banque ne le contient pas.
+    ///
+    /// Un ACB désigne ses formes d'onde par `StreamAwbId`/`MemoryAwbId`, qui sont des **cue-ids**
+    /// AFS2 et non des rangs. Ils coïncident sur la plupart des banques, mais pas toutes : les
+    /// confondre fait jouer la mauvaise piste sans jamais lever d'erreur.
+    #[must_use]
+    pub fn index_of_id(&self, id: u16) -> Option<usize> {
+        self.entries.iter().position(|e| e.cue_id == u32::from(id))
+    }
+
     pub fn entry_bytes<'d>(&self, data: &'d [u8], entry: &AwbEntry) -> &'d [u8] {
         let start = entry.offset as usize;
         let end = (entry.offset + entry.size) as usize;
@@ -501,6 +511,191 @@ pub fn acb_parse(data: &[u8]) -> Result<AcbInfo, FormatError> {
         embedded_awb,
         external_awb_name,
     })
+}
+
+/// En-tête AFS2 de l'AWB **externe**, tel que l'ACB l'embarque (`StreamAwbAfs2Header`).
+///
+/// C'est la table des cue-ids et des offsets de l'AWB, recopiée dans l'ACB. Elle permet de
+/// résoudre un `StreamAwbId` en rang d'entrée sans ouvrir l'AWB lui-même — le fichier qui,
+/// pour `waza_stream`, pèse 1,25 Gio pour un en-tête de 12 ko.
+///
+/// Les tailles d'entrée issues de cet en-tête seul sont tronquées (le tampon s'arrête avant les
+/// données) : ne s'en servir que pour l'ordre et les identifiants.
+pub fn acb_stream_awb_header(data: &[u8]) -> Option<Vec<u8>> {
+    use crate::cpk::{UtfValue, parse_utf};
+    let racine = parse_utf(data).ok()?;
+    let UtfValue::Bytes(sub) = racine.get(0, "StreamAwbAfs2Header")? else {
+        return None;
+    };
+    // Selon les versions d'ACB, la colonne porte soit l'AFS2 nu, soit une sous-table @UTF
+    // à colonne `Header`.
+    if sub.starts_with(b"AFS2") {
+        return Some(sub.clone());
+    }
+    let t = parse_utf(sub).ok()?;
+    match t.get(0, "Header")? {
+        UtfValue::Bytes(h) if h.starts_with(b"AFS2") => Some(h.clone()),
+        _ => None,
+    }
+}
+
+/// Un cue d'une banque ACB, résolu jusqu'à sa forme d'onde.
+///
+/// C'est l'unité qu'un lecteur peut jouer : un nom, une durée, un codec, et l'identifiant de
+/// l'entrée AWB qui porte les octets.
+#[derive(Debug, Clone)]
+pub struct AcbCue {
+    /// Nom du cue (`CueNameTable.CueName`), ex. `ev60_00010_me`. Vide si la banque n'en donne pas.
+    pub name: String,
+    /// Identifiant du cue (`CueTable.CueId`).
+    pub cue_id: u32,
+    /// Ligne du cue dans `CueTable` (`CueNameTable.CueIndex`).
+    pub cue_index: u16,
+    /// Durée annoncée par la banque, en millisecondes (`CueTable.Length`).
+    pub length_ms: u32,
+    /// `WaveformTable.EncodeType` : 2 = HCA, 0/3 = ADX selon les versions. `None` si non résolu.
+    pub encode_type: Option<u8>,
+    /// Nombre de canaux de la forme d'onde.
+    pub channels: Option<u8>,
+    /// Fréquence d'échantillonnage, en Hz.
+    pub sample_rate: Option<u32>,
+    /// Nombre d'échantillons — la durée exacte, quand `length_ms` est arrondi.
+    pub num_samples: Option<u32>,
+    /// La forme d'onde boucle.
+    pub looped: bool,
+    /// La forme d'onde est en streaming (dans l'AWB externe) plutôt qu'en mémoire.
+    pub streaming: bool,
+    /// Identifiant de l'entrée AWB qui porte les octets (`StreamAwbId` ou `MemoryAwbId`).
+    ///
+    /// C'est un **cue-id AFS2**, pas un rang : le résoudre en position passe par
+    /// [`Awb::index_of_id`].
+    pub awb_id: Option<u16>,
+}
+
+/// Catalogue les cues d'un ACB — **sans jamais ouvrir l'AWB**.
+///
+/// Un ACB porte tout ce qu'il faut pour décrire ses cues : noms, durées, codec, fréquence,
+/// canaux, et l'identifiant AWB de chaque forme d'onde. C'est décisif à l'échelle du jeu : les
+/// 5 403 banques d'IEVR pèsent 0,10 Gio d'ACB contre 7,49 Gio d'AWB (un seul AWB atteint
+/// 1,25 Gio). Cataloguer par les ACB est deux ordres de grandeur moins cher, et n'exige pas de
+/// tenir un fichier d'un gigaoctet en mémoire pour apprendre qu'il contient 1 495 pistes.
+///
+/// La chaîne de résolution, établie sur les banques réelles du jeu :
+/// ```text
+/// CueNameTable(CueName, CueIndex)
+///   └→ CueTable[CueIndex] : CueId, ReferenceType=3 (Synth), ReferenceIndex, Length(ms)
+///        └→ SynthTable[ReferenceIndex].ReferenceItems = u16 BE type(=1 Waveform) + u16 BE index
+///             └→ WaveformTable[index] : EncodeType, NumChannels, SamplingRate, NumSamples,
+///                                       LoopFlag, Streaming, StreamAwbId / MemoryAwbId
+/// ```
+/// Les cues sans nom (la `CueNameTable` peut être plus courte que la `CueTable`) sont tout de
+/// même rendus, avec un `name` vide : ils restent jouables par leur `awb_id`.
+pub fn acb_cues(data: &[u8]) -> Result<Vec<AcbCue>, FormatError> {
+    use crate::cpk::{UtfValue, parse_utf};
+
+    let racine = parse_utf(data)?;
+    if racine.rows.is_empty() {
+        return Err(FormatError::Corrupt("ACB : table @UTF vide"));
+    }
+
+    // Sous-table @UTF portée par une colonne `Bytes` de la ligne 0.
+    let sous_table = |nom: &str| match racine.get(0, nom) {
+        Some(UtfValue::Bytes(b)) if b.starts_with(b"@UTF") => parse_utf(b).ok(),
+        _ => None,
+    };
+
+    let Some(cue_table) = sous_table("CueTable") else {
+        return Ok(Vec::new());
+    };
+    let synth_table = sous_table("SynthTable");
+    let waveform_table = sous_table("WaveformTable");
+
+    // Nom par ligne de CueTable : la CueNameTable est indexée par `CueIndex`, PAS par `CueId`
+    // ni par son propre rang (constaté : `ev28_04262_me` porte CueIndex 1455).
+    let mut noms: alloc::vec::Vec<String> = alloc::vec![String::new(); cue_table.rows.len()];
+    if let Some(t) = sous_table("CueNameTable") {
+        for r in 0..t.rows.len() {
+            let (Some(UtfValue::String(nom)), Some(idx)) =
+                (t.get(r, "CueName"), t.get(r, "CueIndex").and_then(UtfValue::as_i64))
+            else {
+                continue;
+            };
+            if let Some(slot) = noms.get_mut(idx as usize) {
+                *slot = nom.clone();
+            }
+        }
+    }
+
+    let entier = |t: &crate::cpk::UtfTable, r: usize, c: &str| t.get(r, c).and_then(UtfValue::as_i64);
+
+    let mut cues = alloc::vec::Vec::with_capacity(cue_table.rows.len());
+    for r in 0..cue_table.rows.len() {
+        let cue_id = entier(&cue_table, r, "CueId").unwrap_or(-1);
+        let ref_type = entier(&cue_table, r, "ReferenceType").unwrap_or(0);
+        let ref_index = entier(&cue_table, r, "ReferenceIndex").unwrap_or(-1);
+        let length_ms = entier(&cue_table, r, "Length").unwrap_or(0);
+
+        // ReferenceType 3 = Synth. Les autres (séquence, bloc) référencent une structure de
+        // lecture, pas une forme d'onde unique : on ne devine pas leur piste.
+        let waveform = if ref_type == 3 && ref_index >= 0 {
+            synth_table
+                .as_ref()
+                .and_then(|st| match st.get(ref_index as usize, "ReferenceItems") {
+                    Some(UtfValue::Bytes(b)) if b.len() >= 4 => {
+                        let kind = u16::from_be_bytes([b[0], b[1]]);
+                        let idx = u16::from_be_bytes([b[2], b[3]]);
+                        (kind == 1).then_some(idx as usize)
+                    }
+                    _ => None,
+                })
+                .and_then(|w| {
+                    waveform_table
+                        .as_ref()
+                        .filter(|t| w < t.rows.len())
+                        .map(|t| (t, w))
+                })
+        } else {
+            None
+        };
+
+        let (encode_type, channels, sample_rate, num_samples, looped, streaming, awb_id) =
+            match waveform {
+                None => (None, None, None, None, false, false, None),
+                Some((t, w)) => {
+                    let streaming = entier(t, w, "Streaming").unwrap_or(0) != 0;
+                    // Une forme d'onde en streaming vit dans l'AWB externe (`StreamAwbId`) ;
+                    // sinon dans l'AWB embarqué (`MemoryAwbId`). 65535 = aucun.
+                    let id = entier(t, w, if streaming { "StreamAwbId" } else { "MemoryAwbId" })
+                        .filter(|&v| v != 65535)
+                        .map(|v| v as u16);
+                    (
+                        entier(t, w, "EncodeType").map(|v| v as u8),
+                        entier(t, w, "NumChannels").map(|v| v as u8),
+                        entier(t, w, "SamplingRate").map(|v| v as u32),
+                        entier(t, w, "NumSamples").map(|v| v as u32),
+                        entier(t, w, "LoopFlag").unwrap_or(0) != 0,
+                        streaming,
+                        id,
+                    )
+                }
+            };
+
+        cues.push(AcbCue {
+            name: noms.get(r).cloned().unwrap_or_default(),
+            cue_id: cue_id.max(0) as u32,
+            cue_index: r as u16,
+            length_ms: length_ms.max(0) as u32,
+            encode_type,
+            channels,
+            sample_rate,
+            num_samples,
+            looped,
+            streaming,
+            awb_id,
+        });
+    }
+
+    Ok(cues)
 }
 
 // ── USM (Sofdec2) ─────────────────────────────────────────────────────────────
