@@ -11,6 +11,8 @@ import { stageReplacement, stageTextureReplacement } from "@/lib/modWorkspace";
 import { codeOf } from "@/lib/vfsIndexDb";
 import { useResolvedName } from "@/lib/nameResolve";
 import { CfgbinViewer } from "@/components/CfgbinViewer";
+import { TextureSheet } from "@/components/TextureSheet";
+import { AudioBankPanel } from "@/components/AudioBankPanel";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -738,6 +740,13 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
           <img src={pngUrl} alt={name} className="max-w-full" />
         </div>
       )}
+
+      {/* Un `.g4tx` n'est pas UNE image : la planche montre toutes ses textures nommées, là où
+        * l'aperçu ci-dessus ne rend que celle que le nom de fichier désigne. */}
+      {target.kind === "vfs" && ext === "g4tx" && <TextureSheet path={target.path} />}
+
+      {/* Idem pour une banque : `audioPreviewB64` rend une piste, la banque en décrit jusqu'à 1 512. */}
+      {target.kind === "vfs" && (ext === "acb" || ext === "awb") && <AudioBankPanel path={target.path} />}
 
       <ScrollArea className="min-h-0 flex-1 rounded-lg border border-app-line bg-app-dark-box">
         <pre className="whitespace-pre-wrap p-3 font-mono text-xs leading-relaxed text-on-surface">{lines.join("\n") || "…"}</pre>

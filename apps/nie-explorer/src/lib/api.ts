@@ -14,20 +14,25 @@
 import {
   commands,
   type ActivityDto,
+  type AudioBankDto,
   type AuraDto,
   type BelongTeamDto,
   type BlenderSceneResultDto,
   type CharaPickerDto,
   type CpkExportFileDto,
+  type CueDto,
+  type DirDto,
   type EmblemDto,
   type EntryDto,
   type ExportBatchDto,
   type ExportFormatDto,
+  type FindPageDto,
   type FolderRoleDto,
   type FormationDto,
   type GalleryDto,
   type ItemDto,
   type LsDto,
+  type TextureDto,
   type PackFileDto,
   type QuestDto,
   type RawCpkEntryDto,
@@ -83,6 +88,16 @@ export type ExportFormat = ExportFormatDto;
 export type ExportBatch = ExportBatchDto;
 export type FolderRole = FolderRoleDto;
 export type LsResult = LsDto;
+/** Un sous-dossier direct, avec le nombre de fichiers qu'il porte (récursivement). */
+export type VfsDir = DirDto;
+/** Une page de recherche AVEC son dénominateur (`total`), cf. `api.findPaged`. */
+export type FindPage = FindPageDto;
+/** Une texture nommée d'un conteneur `.g4tx` (cf. `api.textureList`). */
+export type Texture = TextureDto;
+/** Une piste d'une banque audio (cf. `api.audioCues`). */
+export type AudioCue = CueDto;
+/** Catalogue d'une banque audio, avec la provenance de ses octets. */
+export type AudioBank = AudioBankDto;
 export type BlenderSceneResult = BlenderSceneResultDto;
 export type VfsStats = StatsDto;
 export type SaveBlobInfo = SaveBlobDto;
@@ -151,9 +166,17 @@ export const api = {
   // pour amortir l'indexation AVANT la première navigation (cf. `VfsState` côté Rust).
   preloadVfs: (gameDir?: string) => unwrap<VfsStats>(commands.preloadVfs(gd(gameDir))),
 
-  ls: (prefix: string, gameDir?: string) => unwrap<LsResult>(commands.vfsLs(prefix, gd(gameDir))),
+  // `limit`/`offset` facultatifs : sans eux, le dossier entier (comportement historique).
+  // `limit: 0` ne renvoie QUE la structure (sous-dossiers + `file_total`), sans aucun fichier.
+  ls: (prefix: string, gameDir?: string, limit?: number, offset?: number) =>
+    unwrap<LsResult>(commands.vfsLs(prefix, limit ?? null, offset ?? null, gd(gameDir))),
   find: (query: string, ext: string | undefined, limit: number, gameDir?: string) =>
     unwrap<VfsEntry[]>(commands.vfsFind(query, ext || null, limit, gd(gameDir))),
+  // Recherche paginée : rend AUSSI le nombre total de correspondances. `find` tronque à `limit`
+  // sans jamais dire ce qu'il laisse derrière — une page de 200 y est indiscernable d'un VFS qui
+  // n'en contient que 200.
+  findPaged: (query: string, ext: string | undefined, limit: number, offset: number, gameDir?: string) =>
+    unwrap<FindPage>(commands.vfsFindPaged(query, ext || null, limit, offset, gd(gameDir))),
   stats: (gameDir?: string) => unwrap<VfsStats>(commands.vfsStats(gd(gameDir))),
   // Métadonnées d'une seule entrée (dont `cpk`, pour savoir si elle est "loose" → éditable en
   // place, cf. `writeB64`) — `null` si le chemin n'existe pas dans le VFS.
@@ -167,6 +190,15 @@ export const api = {
   // un dossier de 12 560 textures, le processus de rendu WebView2 sature et la fenêtre meurt.
   textureThumbB64: (path: string, maxCote?: number, gameDir?: string) =>
     unwrap<string>(commands.vfsTextureThumbPngB64(path, maxCote ?? null, gd(gameDir))),
+  // ── Conteneurs G4TX MULTI-TEXTURES ────────────────────────────────────────────────────────
+  // Un `.g4tx` n'est pas une image : `icon_item05.g4tx` porte 80 payloads DDS nommés, et les
+  // atlas portent des régions nommées. `textureList` les catalogue sans en décoder aucune
+  // (parse d'en-tête) ; les deux suivantes adressent une texture PRÉCISE par son nom.
+  textureList: (path: string, gameDir?: string) => unwrap<Texture[]>(commands.vfsTextureList(path, gd(gameDir))),
+  textureNamedPngB64: (path: string, nom: string, gameDir?: string) =>
+    unwrap<string>(commands.vfsTextureNamedPngB64(path, nom, gd(gameDir))),
+  textureNamedThumbB64: (path: string, nom: string, maxCote?: number, gameDir?: string) =>
+    unwrap<string>(commands.vfsTextureNamedThumbPngB64(path, nom, maxCote ?? null, gd(gameDir))),
   extractTo: (path: string, dest: string, gameDir?: string) => unwrap<number>(commands.vfsExtractTo(path, dest, gd(gameDir))),
   // ── Export au format voulu (cf. `src-tauri/src/export.rs`) ──
   // `exportFormats` ne fait AUCUN accès disque (dérivé du nom) : appelable à chaque sélection.
@@ -257,6 +289,13 @@ export const api = {
 
   videoPreviewB64: (path: string, gameDir?: string) => unwrap<string>(commands.vfsVideoPreviewB64(path, gd(gameDir))),
   audioPreviewB64: (path: string, gameDir?: string) => unwrap<string>(commands.vfsAudioPreviewB64(path, gd(gameDir))),
+  // ── Banques audio MULTI-PISTES ────────────────────────────────────────────────────────────
+  // `audioPreviewB64` rend UNE piste par fichier (la plus volumineuse) ; une banque en décrit
+  // jusqu'à 1 512. `audioCues` les catalogue depuis l'ACB (sans ouvrir l'AWB, qui atteint
+  // 1,25 Gio), `audioCueWavB64` en décode une, désignée par son cue-id AFS2 — jamais par son rang.
+  audioCues: (path: string, gameDir?: string) => unwrap<AudioBank>(commands.vfsAudioCues(path, gd(gameDir))),
+  audioCueWavB64: (path: string, awbId: number, gameDir?: string) =>
+    unwrap<string>(commands.vfsAudioCueWavB64(path, awbId, gd(gameDir))),
   // Parité RawCpkView (hors VFS) : même décodage audio/vidéo/3D, depuis une entrée du CPK brut ouvert.
   rawCpkAudioPreviewB64: (index: number) => unwrap<string>(commands.rawCpkAudioPreviewB64(index)),
   rawCpkVideoPreviewB64: (index: number) => unwrap<string>(commands.rawCpkVideoPreviewB64(index)),
