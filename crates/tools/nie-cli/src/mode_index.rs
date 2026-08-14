@@ -218,6 +218,11 @@ pub struct ModeFacts {
     pub lua: BTreeSet<String>,
     /// Nombre d'éléments focusables cumulés.
     pub focus: usize,
+    /// Slots de texte des composants `MenuTextSetting` : `(objet, slot, hash)`.
+    ///
+    /// Le hash se résout dans `menu_text` ; beaucoup pointent des guides de boutons
+    /// (`<CMD_BACK|10>`), ce qui est une donnée en soi — c'est l'UI de l'écran.
+    pub text_slots: BTreeSet<(String, String, u32)>,
 }
 
 fn first_string(e: &CfgEntry) -> Option<&str> {
@@ -312,14 +317,27 @@ pub fn collect(vfs: &Vfs, def: &ModeDef) -> ModeFacts {
         }
         for c in &obj.components {
             facts.components.insert(component_type_name(c).to_string());
-            // Depuis le correctif de préservation typée, un composant non reconnu expose ses
-            // chaînes : c'est là que vivent les chemins de texture (`m_texPath`).
-            if let objbin::MenuComponent::Unknown(u) = c {
-                for s in u.strings() {
-                    if s.ends_with(".g4tx") {
-                        facts.g4tx.insert(s.to_string());
+            match c {
+                // Depuis le correctif de préservation typée, un composant non reconnu expose ses
+                // chaînes : c'est là que vivent les chemins de texture (`m_texPath`).
+                objbin::MenuComponent::Unknown(u) => {
+                    for s in u.strings() {
+                        if s.ends_with(".g4tx") {
+                            facts.g4tx.insert(s.to_string());
+                        }
                     }
                 }
+                // Le pont UI -> texte : chaque slot porte le CRC-32 de son libellé.
+                objbin::MenuComponent::Text(t) => {
+                    for e in &t.entries {
+                        for h in &e.hashes {
+                            if *h != 0 {
+                                facts.text_slots.insert((obj.name.clone(), e.key.clone(), *h));
+                            }
+                        }
+                    }
+                }
+                _ => {}
             }
         }
     }
@@ -378,14 +396,25 @@ pub fn ensure_schema(conn: &nie_index::rusqlite::Connection) -> Result<()> {
             path    TEXT NOT NULL,
             UNIQUE(mode_id, kind, path)
         );
-        CREATE INDEX IF NOT EXISTS idx_mode_asset ON mode_asset(mode_id, kind);",
+        CREATE INDEX IF NOT EXISTS idx_mode_asset ON mode_asset(mode_id, kind);
+        CREATE TABLE IF NOT EXISTS mode_text (
+            id      INTEGER PRIMARY KEY,
+            mode_id INTEGER NOT NULL REFERENCES mode(id) ON DELETE CASCADE,
+            obj     TEXT NOT NULL,
+            slot    TEXT NOT NULL,
+            hash    INTEGER NOT NULL,
+            locale  TEXT NOT NULL,
+            text    TEXT NOT NULL,
+            UNIQUE(mode_id, obj, slot, hash, locale)
+        );
+        CREATE INDEX IF NOT EXISTS idx_mode_text ON mode_text(mode_id, locale);",
     )
     .context("création des tables du catalogue de modes")?;
     Ok(())
 }
 
 /// Indexe tous les modes et écrit le catalogue. Renvoie (modes, écrans, assets).
-pub fn index(db: &nie_index::Db, vfs: &Vfs) -> Result<(usize, usize, usize)> {
+pub fn index(db: &nie_index::Db, vfs: &Vfs) -> Result<(usize, usize, usize, usize)> {
     let conn = db.conn();
     ensure_schema(conn)?;
     conn.execute_batch("BEGIN")?;
@@ -398,7 +427,7 @@ pub fn index(db: &nie_index::Db, vfs: &Vfs) -> Result<(usize, usize, usize)> {
         textes.iter().find(|(l, _)| *l == lg)?.1.get(&h).cloned()
     };
 
-    let (mut n_modes, mut n_screens, mut n_assets) = (0usize, 0usize, 0usize);
+    let (mut n_modes, mut n_screens, mut n_assets, mut n_texts) = (0usize, 0usize, 0usize, 0usize);
     for def in MODES {
         let f = collect(vfs, def);
         // Le libellé du jeu prime sur le nom de repli ; s'il manque, on garde le nôtre.
@@ -454,6 +483,22 @@ pub fn index(db: &nie_index::Db, vfs: &Vfs) -> Result<(usize, usize, usize)> {
                 n_assets += 1;
             }
         }
+        // Textes d'interface de l'écran, résolus dans chaque locale disponible. Un slot dont le
+        // hash n'est pas dans `menu_text` n'est PAS inséré : mieux vaut un trou visible qu'une
+        // ligne vide qui se ferait passer pour un libellé.
+        for (obj, slot, hash) in &f.text_slots {
+            for (lg, table) in &textes {
+                if let Some(t) = table.get(hash) {
+                    conn.execute(
+                        "INSERT OR IGNORE INTO mode_text(mode_id, obj, slot, hash, locale, text)
+                         VALUES(?1,?2,?3,?4,?5,?6)",
+                        nie_index::rusqlite::params![mode_id, obj, slot, i64::from(*hash), lg, t],
+                    )?;
+                    n_texts += 1;
+                }
+            }
+        }
+
         n_modes += 1;
         println!(
             "  {} {:<15} ecrans={:<3} calques={:<4} objbin={:<4} g4pkm={:<4} g4tx={:<4} lua={:<3} focus={}",
@@ -470,7 +515,7 @@ pub fn index(db: &nie_index::Db, vfs: &Vfs) -> Result<(usize, usize, usize)> {
     }
 
     conn.execute_batch("COMMIT")?;
-    Ok((n_modes, n_screens, n_assets))
+    Ok((n_modes, n_screens, n_assets, n_texts))
 }
 
 /// Exporte le catalogue en JSON (pour azalée).
@@ -521,7 +566,31 @@ pub fn export_json(db: &nie_index::Db) -> Result<serde_json::Value> {
                 .expect("tableau")
                 .push(serde_json::Value::String(path));
         }
+        // Textes d'interface, regroupés par locale.
+        let mut textes = serde_json::Map::new();
+        let mut t = conn.prepare(
+            "SELECT locale, obj, slot, text FROM mode_text WHERE mode_id=?1
+             ORDER BY locale, obj, slot",
+        )?;
+        for r in t.query_map([id], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?,
+                r.get::<_, String>(3)?,
+            ))
+        })? {
+            let (locale, obj, slot, texte) = r?;
+            textes
+                .entry(locale)
+                .or_insert_with(|| serde_json::Value::Array(Vec::new()))
+                .as_array_mut()
+                .expect("tableau")
+                .push(serde_json::json!({ "obj": obj, "slot": slot, "text": texte }));
+        }
+
         modes.push(serde_json::json!({
+            "texts": textes,
             "slug": slug,
             "label": label,
             "labelEn": en,

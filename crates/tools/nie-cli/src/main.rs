@@ -1564,8 +1564,8 @@ fn run() -> anyhow::Result<()> {
                 let vfs = open_vfs(game_dir)?;
                 let database = nie_index::Db::open(&db)
                     .with_context(|| format!("ouverture {}", db.display()))?;
-                let (m, s, a) = mode_index::index(&database, &vfs)?;
-                println!("mode index : {m} modes, {s} écrans, {a} assets");
+                let (m, s, a, t) = mode_index::index(&database, &vfs)?;
+                println!("mode index : {m} modes, {s} écrans, {a} assets, {t} textes");
                 Ok(())
             }
             ModeOp::Export { db, out } => {
