@@ -69,7 +69,10 @@ pub const MODES: &[ModeDef] = &[
         note: "Tournoi en trois phases (inscription, qualifications, classement final). \
                Les objbin sont sous soccer99_* et ce dossier ne contient AUCUNE texture ; \
                aucun de ses objets ne porte de slot de texte resolu. Le mode est present en \
-               MAQUETTE, plusieurs de ses ecrans portent le mot `fake`.",
+               MAQUETTE, plusieurs de ses ecrans portent le mot `fake`. Le binaire, lui, le \
+               connait : `nie.exe` porte BGMVolVictoryLoad / SEVolVictoryLoad / \
+               VoiceVolVictoryLoad — `VictoryLoad` est donc l'orthographe canonique cote code, \
+               `vroad` et `victory_lode` n'etant que des variantes cote assets.",
     },
     ModeDef {
         slug: "competition",
@@ -78,9 +81,11 @@ pub const MODES: &[ModeDef] = &[
         icon_region: None,
         text_hash: Some(0x6e14_cca7),
         official: true,
-        note: "Nomme par les reglages audio du jeu, mais AUCUN ecran ne porte ce nom dans le \
-               VFS : comme les modes en ligne (`lobby`, `ranked`, `bot_match`, tous absents), \
-               ses ecrans ne sont pas dans les fichiers installes.",
+        note: "Nomme par `menu_text`, mais AUCUN ecran ne porte ce nom dans le VFS, et le \
+               binaire n'a PAS de cle de reglage a son nom : `nie.exe` porte BGMVol/SEVol/\
+               VoiceVol pour Chronicle, KizunaStation, Story et VictoryLoad — pas pour lui. \
+               Comme les modes en ligne (`lobby`, `ranked`, `bot_match`, tous absents), son \
+               contenu n'est pas dans les fichiers installes.",
     },
     ModeDef {
         slug: "story",
