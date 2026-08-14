@@ -326,6 +326,36 @@ impl Vfs {
         self.index.get(internal_path)
     }
 
+    /// Dit si une entrée indexée est réellement servable, **sans lire son contenu**.
+    ///
+    /// Être dans l'index ne suffit pas : `cpk_list.cfg.bin` est l'index du JEU, et il déclare
+    /// des fichiers « loose » (colonne CPK vide) qui n'existent pas forcément sur une
+    /// installation donnée — constaté sur `common/movie/{IE_15th,L5logo}.usm`, annoncés par
+    /// l'index alors que `common/movie/` est vide sur le disque. Une façade qui se contente de
+    /// [`Vfs::find`] annonce donc des fichiers que [`Vfs::read`] refusera.
+    ///
+    /// Le test reste bon marché — présence du conteneur, jamais l'extraction — parce qu'il est
+    /// appelé par des façades qui décrivent des fichiers de plusieurs centaines de mégaoctets.
+    #[must_use]
+    pub fn is_readable(&self, internal_path: &str) -> bool {
+        if self.loose_files {
+            return self.game_data_dir.join(internal_path).is_file();
+        }
+        let Some(entry) = self.find(internal_path) else {
+            return self.index_extra.contains_key(internal_path);
+        };
+        if entry.cpk_filename.is_empty() {
+            // Loose déclaré par cpk_list : le chemin interne débute par `data/`, que
+            // `game_data_dir` porte déjà.
+            let rel = internal_path.strip_prefix("data/").unwrap_or(internal_path);
+            return self.game_data_dir.join(rel).is_file();
+        }
+        self.game_data_dir
+            .join("packs")
+            .join(&entry.cpk_filename)
+            .is_file()
+    }
+
     /// Lit un fichier complet du VFS.
     ///
     /// Résolution en quatre étapes :
