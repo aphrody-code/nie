@@ -67,7 +67,12 @@ skills-lock.json
 
 
 # Artefacts RE bruts (ne JAMAIS committer le binaire du jeu ni ses dumps)
+# `nie.exe` couvrait le binaire vanilla, mais pas la variante EAC-patchee, ni les liens
+# symboliques vers l'install Steam par lesquels on les atteint : les deux etaient donc a un
+# `git add -A` d'entrer. Le motif couvre desormais toute la famille.
 nie.exe
+nie_eacpatched.exe
+/nie*.exe
 
 
 
