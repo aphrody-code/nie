@@ -9,8 +9,8 @@
 //! `*_setting.cfg.bin` qui existent réellement dans le VFS ; l'agrégation, elle, est mécanique.
 //!
 //! Le cas `victory_road` montre pourquoi une liste curatée est nécessaire : ses assets vivent
-//! sous **trois** orthographes (`victory_load`, `victory_lode`, `fake_vroad`) qu'aucune règle de
-//! préfixe ne relierait automatiquement.
+//! sous **quatre** orthographes (`victory_road`, `victory_load`, `victory_lode`, `vroad`)
+//! qu'aucune règle de préfixe ne relierait automatiquement.
 //!
 //! ## Agrégation
 //!
@@ -62,17 +62,27 @@ pub const MODES: &[ModeDef] = &[
     ModeDef {
         slug: "victory-road",
         label: "Victory Road",
-        prefixes: &["victory_load", "victory_lode", "fake_vroad"],
+        prefixes: &[
+            "victory_road",
+            "victory_load",
+            "victory_lode",
+            "fake_vroad",
+            "vroad_",
+            "fade_menu_encount_victory_road",
+        ],
         icon_region: Some("mode_base04"),
         text_hash: Some(0x80cd_176b),
         official: true,
-        note: "Tournoi en trois phases (inscription, qualifications, classement final). \
-               Les objbin sont sous soccer99_* et ce dossier ne contient AUCUNE texture ; \
-               aucun de ses objets ne porte de slot de texte resolu. Le mode est present en \
-               MAQUETTE, plusieurs de ses ecrans portent le mot `fake`. Le binaire, lui, le \
-               connait : `nie.exe` porte BGMVolVictoryLoad / SEVolVictoryLoad / \
-               VoiceVolVictoryLoad — `VictoryLoad` est donc l'orthographe canonique cote code, \
-               `vroad` et `victory_lode` n'etant que des variantes cote assets.",
+        note: "Tournoi en ligne en trois phases (inscription, qualifications, classement final). \
+               Les ecrans `fake_vroad_*` sont des MAQUETTES posees sous soccer99_*, sans texture \
+               propre ; le mode lui-meme ne l'est pas : ses assets vivent sous \
+               `menu/75_vroad/` (vroad01..vroad50) et ses 28 ecrans couvrent entree, tournoi \
+               final, classement, recompenses, region, photo et notifications. \
+               `VictoryRoad` est l'orthographe canonique cote code — `nie.exe` porte \
+               BGMVolVictoryRoad / SEVolVictoryRoad / VoiceVolVictoryRoad et 152 symboles \
+               *VictoryRoad* (machines a etats, menus, erreurs reseau `sysmes_vroad_err_*`) ; \
+               `VictoryLoad` n'y figure PAS. `victory_load`, `victory_lode` et `vroad` ne sont \
+               que des variantes cote assets.",
     },
     ModeDef {
         slug: "competition",
@@ -83,7 +93,7 @@ pub const MODES: &[ModeDef] = &[
         official: true,
         note: "Nomme par `menu_text`, mais AUCUN ecran ne porte ce nom dans le VFS, et le \
                binaire n'a PAS de cle de reglage a son nom : `nie.exe` porte BGMVol/SEVol/\
-               VoiceVol pour Chronicle, KizunaStation, Story et VictoryLoad — pas pour lui. \
+               VoiceVol pour Chronicle, KizunaStation, Story et VictoryRoad — pas pour lui. \
                Comme les modes en ligne (`lobby`, `ranked`, `bot_match`, tous absents), son \
                contenu n'est pas dans les fichiers installes.",
     },
