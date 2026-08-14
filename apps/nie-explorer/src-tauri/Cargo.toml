@@ -7,7 +7,7 @@
 [package]
 name = "nie-explorer"
 description = "Explorateur/éditeur du VFS (CPK) d'Inazuma Eleven: Victory Road — UI native Windows (Fluent/Mica)"
-version = "0.5.0"
+version = "0.5.1"
 authors = ["niers"]
 edition = "2021"
 
