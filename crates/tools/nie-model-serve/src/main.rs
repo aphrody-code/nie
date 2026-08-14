@@ -1817,6 +1817,60 @@ fn entree_json(e: &nie_explore::listing::FileEntry) -> serde_json::Value {
     })
 }
 
+/// Réponse de TÉLÉCHARGEMENT : même corps qu'une réponse normale, plus le nom de fichier.
+///
+/// Sans `Content-Disposition`, le navigateur nomme le fichier d'après l'URL — donc
+/// `icon_item01.g4tx` pour un PNG, ou pire, le nom de la route. Le nom proposé vient de
+/// `nie_explore::export::nom_propose`, la même règle que celle de l'app desktop (`x.cfg.bin`
+/// donne `x.json`, pas `x.cfg.json`).
+fn respond_download(stream: &mut TcpStream, content_type: &str, nom: &str, body: &[u8]) {
+    // Le nom est contraint à l'ASCII sûr : il vient d'un chemin du VFS, mais un en-tête HTTP ne
+    // tolère ni guillemet ni saut de ligne.
+    let nom: String = nom
+        .chars()
+        .map(|c| if c.is_ascii_graphic() && c != '"' { c } else { '_' })
+        .collect();
+    let headers = format!(
+        "HTTP/1.1 200 OK\r\n\
+         Content-Type: {content_type}\r\n\
+         Content-Length: {}\r\n\
+         Content-Disposition: attachment; filename=\"{nom}\"\r\n\
+         Cache-Control: public, max-age=31536000, immutable\r\n\
+         Access-Control-Allow-Origin: *\r\n\
+         Cross-Origin-Resource-Policy: cross-origin\r\n\
+         X-Content-Type-Options: nosniff\r\n\
+         Connection: close\r\n\
+         \r\n",
+        body.len()
+    );
+    let _ = stream.write_all(headers.as_bytes());
+    let _ = stream.write_all(body);
+}
+
+/// Type MIME d'un format d'export.
+fn mime_du_format(format: &str, ext: &str) -> &'static str {
+    match format {
+        "png" => "image/png",
+        "webp" => "image/webp",
+        "gif" => "image/gif",
+        "jpg" => "image/jpeg",
+        "bmp" => "image/bmp",
+        "tga" => "image/x-tga",
+        "tiff" => "image/tiff",
+        "qoi" => "image/qoi",
+        "json" => "application/json",
+        "wav" => "audio/wav",
+        "mp4" => "video/mp4",
+        "glb" => "model/gltf-binary",
+        // `raw` garde le type de l'extension d'origine quand on le connaît.
+        _ => match ext {
+            "usm" => "video/mp4",
+            "acb" | "awb" | "hca" | "adx" => "audio/wav",
+            _ => "application/octet-stream",
+        },
+    }
+}
+
 /// Parse `Range: bytes=START-END` (END optionnel) → `(start, end_inclus)` borné à `total`.
 fn parse_range(header: &str, total: usize) -> Option<(usize, usize)> {
     let spec = header.trim().strip_prefix("bytes=")?;
@@ -2048,6 +2102,126 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         drop(vfs);
         let bytes = serde_json::to_vec(&body).unwrap_or_default();
         respond(&mut stream, 200, "OK", "application/json", &bytes);
+        return;
+    }
+
+    // `/export/<vfs-path>?format=<id>` — le fichier converti AU FORMAT VOULU, en téléchargement.
+    //
+    // Même table de formats et même règle de nommage que l'app desktop
+    // (`nie_explore::export::{formats_pour, nom_propose, produire}`) : une texture s'exporte en
+    // png/webp/gif/jpg/bmp/tga/tiff/qoi/json, un audio en wav, un film en mp4, un modèle en glb.
+    // Le web n'avait droit qu'au PNG, alors que le convertisseur en produit neuf.
+    //
+    // Les deux formats « à contexte » (cf. `necessite_contexte`) sont traités ici, comme le fait
+    // le backend Tauri : `glb` passe par l'assemblage de ce service, `mp4` par le démux + ffmpeg.
+    if let Some(rest) = path.strip_prefix("/export/") {
+        let vfs_path = if rest.starts_with("data/") {
+            rest.to_string()
+        } else {
+            format!("data/{rest}")
+        };
+        if vfs_path.contains("..") {
+            respond_text(&mut stream, 400, "Bad Request", "chemin invalide");
+            return;
+        }
+        let format = param(query, "format").unwrap_or_else(|| "raw".to_string());
+
+        // Un format hors table pour CE fichier est refusé tout de suite : mieux vaut le dire que
+        // laisser le convertisseur échouer sur un message obscur.
+        let table = nie_explore::export::formats_pour(&vfs_path);
+        if !table.iter().any(|f| f.id == format) {
+            respond_text(
+                &mut stream,
+                400,
+                "Bad Request",
+                &format!(
+                    "format « {format} » indisponible pour ce fichier (proposés : {})",
+                    table
+                        .iter()
+                        .map(|f| f.id.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ),
+            );
+            return;
+        }
+
+        let bytes = {
+            let vfs = state.vfs.lock().unwrap();
+            vfs.read(&vfs_path).ok()
+        };
+        let Some(data) = bytes else {
+            respond_text(&mut stream, 404, "Not Found", "fichier absent du VFS");
+            return;
+        };
+
+        let ext = vfs_path.rsplit('.').next().unwrap_or("").to_ascii_lowercase();
+        let produit: Result<Vec<u8>, String> = match format.as_str() {
+            "mp4" => nie_formats::cri_audio::usm_demux(&data)
+                .map_err(|e| e.to_string())
+                .and_then(|r| {
+                    mux_h264_to_mp4(&r.video_data).ok_or_else(|| "remux ffmpeg indisponible".into())
+                }),
+            "glb" => {
+                // Le code d'assemblage est le radical du fichier — même convention que
+                // `/model-full/<code>.glb`.
+                let code = vfs_path
+                    .rsplit('/')
+                    .next()
+                    .and_then(|n| n.split('.').next())
+                    .unwrap_or_default()
+                    .to_string();
+                get_or_build_glb(&state, &code).map_err(|e| e.to_string())
+            }
+            // `wav` demande le VFS autant que `glb` : une banque ACB porte souvent son AWB
+            // DEHORS, et `nie_explore::export::produire` ne voit que les octets du fichier
+            // demandé — il échoue alors sur « ACB sans AWB embarqué ». `?id=`/`?cue=` exportent
+            // un cue précis, comme sur `/audio`.
+            "wav" => {
+                let awb_id: Option<u16> = param(query, "id").and_then(|v| v.parse().ok());
+                let cue: Option<usize> = param(query, "cue").and_then(|v| v.parse().ok());
+                if awb_id.is_none() && cue.is_none() {
+                    decode_audio_to_wav(&data, &vfs_path)
+                        .or_else(|_| match resoudre_awb(&state, &vfs_path, &data) {
+                            Some((awb, _)) => decode_awb_first_entry(&awb, &vfs_path),
+                            None => Err(anyhow::anyhow!("aucune banque AWB résolue")),
+                        })
+                        .map_err(|e| e.to_string())
+                } else {
+                    match resoudre_awb(&state, &vfs_path, &data) {
+                        None => Err("aucune banque AWB résolue".to_string()),
+                        Some((awb, _)) => {
+                            let rang = match awb_id {
+                                None => cue,
+                                Some(id) => nie_formats::cri_audio::Awb::parse(&awb)
+                                    .ok()
+                                    .and_then(|a| a.index_of_id(id)),
+                            };
+                            decode_awb_entry(&awb, &vfs_path, rang).map_err(|e| e.to_string())
+                        }
+                    }
+                }
+            }
+            autre => nie_explore::export::produire(&vfs_path, data, autre),
+        };
+
+        match produit {
+            Ok(body) => respond_download(
+                &mut stream,
+                mime_du_format(&format, &ext),
+                &nie_explore::export::nom_propose(&vfs_path, &format),
+                &body,
+            ),
+            Err(e) => {
+                warn!("export {vfs_path} en {format} échoué : {e}");
+                respond_text(
+                    &mut stream,
+                    500,
+                    "Internal Server Error",
+                    &format!("conversion échouée : {e}"),
+                );
+            }
+        }
         return;
     }
 
