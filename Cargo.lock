@@ -4316,6 +4316,7 @@ dependencies = [
  "clap",
  "image_dds",
  "nie-data",
+ "nie-explore",
  "nie-formats",
  "rusqlite",
  "serde",
