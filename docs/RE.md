@@ -7,14 +7,26 @@ document décrit la cible, la boucle qui l'attaque, et ce qui en est établi.
 
 `nie.exe` est **à la racine du dépôt** (pas dans `data/`). Base image `0x140000000`.
 
+> **La racine porte deux liens symboliques vers l'installation Steam**, `nie.exe` et
+> `nie_eacpatched.exe` → `~/.local/share/Steam/iecode/inazuma/`. Le second est celui sur lequel
+> la base de connaissance est indexée : son sha256 commence par `4c2b91fbae6f`, exactement le
+> `binary.sha256` de `binary_id = 1`. **Les adresses de `var/niers.sqlite` sont donc valables
+> pour `nie_eacpatched.exe`, pas pour le vanilla** (`nie.exe`, sha `4c53ea758f72`), qui est un
+> autre fichier. Toute commande qui lit le binaire pour la base doit viser la variante patchée.
+>
+> Les deux pèsent **31 468 032 octets**, et l'installation est en `app_config_5.00.24.00`. Le
+> tableau ci-dessous annonçait 33 918 464 octets et l'app `6.00.23.00` — un autre build. La
+> ligne est corrigée ; en cas de doute, mesurer (`stat -L -c %s nie_eacpatched.exe`) plutôt que
+> se fier à la doc.
+
 | Propriété | Valeur |
 |---|---|
 | Format | PE32+ x86-64, Windows GUI, 9 sections, **non strippé** |
-| Taille | 33 918 464 octets |
+| Taille | 31 468 032 octets (`nie_eacpatched.exe`, sha `4c2b91fbae6f…`) |
 | Éditeur / produit | LEVEL5 Inc. — *INAZUMA ELEVEN: Victory Road* (nom interne `nie1v2.exe`) |
 | Linker | MSVC 14.44 — le toolset à réutiliser pour la forge |
 | PDB de build | `G:\nie1v2\program\main\program\SteamRelease\x64\nie.pdb` (symboles absents du dump) |
-| RTTI | Présent — 1 234 classes (1 037 `game::`, 197 `lives::`) |
+| RTTI | Présent — **3 336** symboles `.?AV…@@` dans le binaire installé ; 3 150 classes ingérées en base (1 575 par `binary_id`). L'ancien compte de 1 234 valait pour le build précédent |
 | Exports | 2 seulement : `AmdPowerXpressRequestHighPerformance`, `NvOptimusEnablement` |
 | Imports | 465 fonctions |
 | Version de l'app | `6.00.23.00` (`common/system/app_config_*.cfg.bin`) |
