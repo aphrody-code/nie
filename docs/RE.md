@@ -53,6 +53,28 @@ Constantes utiles : App ID Steam `2799860` · clé XOR CRI `0x1717E18E` · foote
 **`r2` et `objdump` ne sont pas installés.** Désassembler passe par le crate `nie-re`
 (iced-x86) ou `uv run --with capstone <script>`. Les bornes de fonction viennent de `.pdata`.
 
+### `refs/` — dépendance de build, hors dépôt
+
+`refs/iecode-re/` porte l'index Ghidra/iecode dérivé de `nie.exe` : 124 Mo, 1 628 fichiers.
+Dix-huit fichiers **suivis** y font référence (`nie-core` pour la physique, `nie-seed` pour
+les classes RTTI) et `just re-seed` lit `refs/iecode-re/research/nie-index.json`. Un clone
+frais ne peut donc pas rejouer la boucle RE sans lui.
+
+Il n'entre pas dans ce dépôt-ci — c'est un dérivé d'un binaire sous droits, son poids
+dépasse celui du reste du dépôt, et il porte déjà son propre `.git`. Il est explicitement
+ignoré (`.gitignore`, ligne `/refs/`) plutôt que laissé en `??`, où un `git add -A`
+distrait l'aurait fait entrer. Le récupérer sur un clone frais :
+
+```bash
+git clone https://github.com/aphrody-code/iecode.git refs/iecode-re
+```
+
+Les deux fichiers dont dépendent les recettes — `research/nie-index.json` et
+`research/nie-rtti-classes.txt` — y sont versionnés : le clone suffit, rien à reconstruire.
+
+Les recettes qui en dépendent échouent tôt avec un message explicite (`justfile`, `test -f`
+sur `{{seed_json}}`) plutôt que par une erreur de parsing à mi-chemin.
+
 ## La boucle
 
 ```
