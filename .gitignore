@@ -193,3 +193,14 @@ compile_commands.json
 /bench/cpp/*.obj
 # La sortie `dotnet build` du harnais C# (bench/cs/bin, ~170 Mo de DLL recopiees)
 # tombe deja sous les regles `bin/` / `obj/` en tete de fichier.
+
+# --- Residus de session a la racine du jeu ------------------------------------
+# L'install Steam EST le cwd (cf. CLAUDE.md, VFS) : tout ce qu'on extrait ou
+# capture pendant une session tombe ici, a cote des sources. Ces fichiers sont
+# des assets (c) LEVEL-5 ou des captures d'ecran, jamais du code du depot.
+/*.awb
+/*.acb
+/*.g4tx
+/*.exe.local
+/Capture*.png
+/*.glb
