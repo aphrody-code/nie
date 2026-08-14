@@ -83,6 +83,15 @@ memmap2 = "0.9"
 rayon = "1"
 hashbrown = "0.14"
 
+# Recherche de fichiers et de contenu — le moteur de ripgrep/fd, pris en bibliothèque.
+# `ignore` fournit le parcours parallèle qui respecte .gitignore ; `grep-*` la recherche
+# ligne à ligne. Les prendre plutôt que réécrire un walk maison : ce sont les mêmes
+# briques que les outils de référence, et elles sont d'un seul auteur (BurntSushi).
+ignore = "0.4"
+globset = "0.4"
+grep-searcher = "0.1"
+grep-regex = "0.1"
+
 # RE en direct (runtime) : lecture mémoire d'un nie.exe sous Wine via process_vm_readv(2).
 # FFI Linux-only, isolé dans le seul crate nie-trace (cf. son lib.rs).
 libc = "0.2"
