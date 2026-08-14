@@ -731,12 +731,21 @@ pub fn parse_utf(data: &[u8]) -> Result<UtfTable, FormatError> {
     }
 
     // --- Lignes ---
-    // Certains ACB (Criware) encodent rows_offset > table_size (valeur résiduelle).
-    // Dans ce cas la zone row réelle est juste après le schéma de colonnes : elle
-    // s'étend de (string_pool - row_stride*row_count) jusqu'à string_pool.
-    // On détecte ce cas par rows_offset >= data.len() et on fallback sur la position
-    // calculée depuis string_pool.
-    let effective_rows_offset = if row_count > 0 && rows_offset >= data.len() {
+    // Certains ACB (Criware) encodent un `rows_offset` résiduel qui ne désigne pas la zone
+    // des lignes. La zone réelle est alors juste après le schéma de colonnes : elle s'étend de
+    // (string_pool - row_stride*row_count) jusqu'à string_pool.
+    //
+    // La détection porte sur l'INVARIANT DE LAYOUT d'une table @UTF — schéma, puis lignes, puis
+    // pool de chaînes, puis pool de données — et non sur la taille du fichier : les lignes
+    // finissent au plus tard au début du pool de chaînes. Détecter par `rows_offset >= data.len()`
+    // ne marchait que par accident, quand l'offset résiduel dépassait le fichier ; sur une banque
+    // assez volumineuse (`bgm.acb` 231 ko, `waza_stream.acb` 372 ko) il tombe DEDANS, le repli ne
+    // se déclenchait pas et la ligne était lue dans du bruit — l'ACB entier devenait illisible.
+    //
+    // La condition est strictement plus générale que l'ancienne : `string_pool <= data.len()` est
+    // déjà vérifié plus haut, donc tout cas qui déclenchait l'ancien repli déclenche celui-ci.
+    let fin_lignes = rows_offset.saturating_add(row_stride.saturating_mul(row_count));
+    let effective_rows_offset = if row_count > 0 && fin_lignes > string_pool {
         string_pool.saturating_sub(row_stride * row_count)
     } else {
         rows_offset
