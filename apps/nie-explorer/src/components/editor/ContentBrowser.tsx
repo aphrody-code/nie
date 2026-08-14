@@ -15,7 +15,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { api } from "@/lib/api";
+import { api, type VfsDir } from "@/lib/api";
 import { humanSize } from "@/lib/bytes";
 import { showVfsFileContextMenu, showVfsFolderContextMenu } from "@/lib/contextMenu";
 import { useSettings } from "@/lib/settings";
@@ -94,7 +94,7 @@ export interface ContentBrowserProps {
 
 export function ContentBrowser({ prefix, onNavigate, selected, onSelect, className }: ContentBrowserProps) {
   const settings = useSettings();
-  const [dirs, setDirs] = useState<string[]>([]);
+  const [dirs, setDirs] = useState<VfsDir[]>([]);
   const [files, setFiles] = useState<{ path: string; name: string; size: number }[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -214,10 +214,10 @@ export function ContentBrowser({ prefix, onNavigate, selected, onSelect, classNa
         {dirs.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-1">
             {dirs.map((d) => {
-              const path = prefix ? `${prefix}/${d}` : d;
+              const path = prefix ? `${prefix}/${d.name}` : d.name;
               return (
                 <button
-                  key={d}
+                  key={d.name}
                   type="button"
                   className="flex items-center gap-1.5 rounded border border-app-line bg-app-box px-2 py-1 text-tiny text-ink-dull transition-colors hover:bg-app-hover hover:text-ink"
                   onClick={() => onNavigate(path)}
@@ -225,9 +225,11 @@ export function ContentBrowser({ prefix, onNavigate, selected, onSelect, classNa
                     e.preventDefault();
                     showVfsFolderContextMenu({ path, onOpen: () => onNavigate(path) });
                   }}
+                  title={d.count > 0 ? `${d.name} — ${d.count.toLocaleString()} fichiers` : d.name}
                 >
                   <Icon name="folder" size={13} className="text-accent" />
-                  {d}
+                  {d.name}
+                  {d.count > 0 && <span className="tabular-nums text-ink-faint">{d.count.toLocaleString()}</span>}
                 </button>
               );
             })}
