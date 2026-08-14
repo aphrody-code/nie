@@ -445,6 +445,10 @@ fn vfs_texture_thumb_png_b64(
     let cote = max_cote.unwrap_or(VIGNETTE_COTE_DEFAUT).clamp(8, VIGNETTE_COTE_MAX);
     with_vfs(game_dir, &state, |vfs| {
         let data = vfs.read(&path).map_err(|e| e.to_string())?;
+        // Le sélecteur de sous-texture d'un conteneur g4tx s'adresse par le basename du fichier
+        // (cf. `g4tx_decode::decode_best_to_rgba`) : sans lui, un conteneur multi-textures rendrait
+        // une région arbitraire au lieu de celle que le chemin demande.
+        let base = nie_formats::g4tx_decode::basename_of(&path).to_string();
         // Isolé : un décodeur de texture qui déborde la pile ou panique sur un fichier atypique
         // ne doit pas emporter la fenêtre entière — une grille en parcourt des milliers.
         let png = isoler("décodage de vignette", move || {
