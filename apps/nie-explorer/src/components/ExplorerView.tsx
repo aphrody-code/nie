@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
 import { confirm } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
-import { api, type FolderRole, type RawCpkEntry } from "@/lib/api";
+import { api, type FolderRole, type RawCpkEntry, type VfsDir } from "@/lib/api";
 import { useSettings } from "@/lib/settings";
 import { humanSize } from "@/lib/bytes";
 import { recordVisit, togglePin, usePinnedPlaces } from "@/lib/places";
@@ -74,6 +74,9 @@ let openedCpkPrefix: string | null = null;
 /** Fichiers montés d'un coup dans la liste/grille (cf. `visibles`). */
 const PAGE_FICHIERS = 300;
 
+/** Correspondances ramenées par page de recherche — le TOTAL est rendu à part (`FindPage.total`). */
+const PAGE_RECHERCHE = 500;
+
 /** Vignette lazy de la vue grille — cf. demande utilisatrice « compare l'UI de nie-explorer et
  * azalee cpk explorer et fusionne le meilleur des deux » : la vue grille + vignettes est la
  * différenciation la plus marquante d'azalee `/cpk` (`CpkModelThumb`), portée ici pour les
@@ -135,8 +138,13 @@ export function ExplorerView({
 }) {
   const settings = useSettings();
   const t = useT();
-  const [dirs, setDirs] = useState<string[]>([]);
+  // Un sous-dossier porte désormais SON COMPTE de fichiers (`vfs_ls` le rend gratuitement, du
+  // même balayage) : l'interface distingue un dossier de 12 560 textures d'un dossier vide sans
+  // avoir à y descendre.
+  const [dirs, setDirs] = useState<VfsDir[]>([]);
   const [files, setFiles] = useState<Row[]>([]);
+  /** Correspondances TOTALES de la recherche courante, avant troncature à `PAGE_RECHERCHE`. */
+  const [searchTotal, setSearchTotal] = useState(0);
   const [role, setRole] = useState<FolderRole | null>(null);
   // Cache du `.cpk` brut actuellement ouvert (vue fusionnée VFS/CPK) — évite de relire tout le
   // fichier à chaque sous-dossier visité À L'INTÉRIEUR du même `.cpk` (`open_raw_cpk` relit le
@@ -219,7 +227,9 @@ export function ExplorerView({
           setCpkEntries(entries);
         }
         const inner = cpkBoundary.inner;
-        const dirSet = new Set<string>();
+        // Compte par sous-dossier, comme le fait `vfs_ls` côté VFS : la table des matières du CPK
+        // est déjà parcourue en entier ici, le compte ne coûte rien de plus.
+        const dirCounts = new Map<string, number>();
         const fileRows: Row[] = [];
         for (const e of entries) {
           let rest: string;
@@ -231,11 +241,12 @@ export function ExplorerView({
           if (slash === -1) {
             fileRows.push({ path: `${state.prefix}/${rest}`, name: rest, size: e.size, entryIndex: e.index });
           } else {
-            dirSet.add(rest.slice(0, slash));
+            const seg = rest.slice(0, slash);
+            dirCounts.set(seg, (dirCounts.get(seg) ?? 0) + 1);
           }
         }
         if (!fresh()) return;
-        setDirs([...dirSet].sort((a, b) => a.localeCompare(b)));
+        setDirs([...dirCounts].map(([name, count]) => ({ name, count })).sort((a, b) => a.name.localeCompare(b.name)));
         setFiles(fileRows);
         setRole(null);
       })()
@@ -259,7 +270,10 @@ export function ExplorerView({
         .listPacksDir(settings.gameDir)
         .then((packs) => {
           if (!fresh()) return;
-          setDirs(packs.map((p) => p.name));
+          // `data/packs` est une vue de fichiers PHYSIQUES, pas un dossier du VFS : aucun compte
+          // d'entrées internes n'est connu ici sans ouvrir chaque `.cpk`. `0` = « non compté »,
+          // et l'affichage ne montre alors rien plutôt qu'un « 0 fichier » faux.
+          setDirs(packs.map((p) => ({ name: p.name, count: 0 })));
           setFiles([]);
           setRole(null);
         })
@@ -269,16 +283,20 @@ export function ExplorerView({
     }
 
     const req = searching
-      ? api.find(query.trim(), ext.trim() || undefined, 500, settings.gameDir).then((hits) => {
+      ? // Paginée : la page de 500 s'accompagne enfin de son dénominateur, sinon « 500 trouvés »
+        // et « 500 existants » s'écrivent pareil et l'utilisatrice ne sait pas qu'elle en rate.
+        api.findPaged(query.trim(), ext.trim() || undefined, PAGE_RECHERCHE, 0, settings.gameDir).then((page) => {
           if (!fresh()) return;
           setDirs([]);
-          setFiles(hits);
+          setFiles(page.files);
+          setSearchTotal(page.total);
           setRole(null);
         })
       : api.ls(state.prefix, settings.gameDir).then((r) => {
           if (!fresh()) return;
           setDirs(r.dirs);
           setFiles(r.files);
+          setSearchTotal(0);
           setRole(r.role);
         });
     req.catch((e) => fresh() && setError(String(e))).finally(() => fresh() && setLoading(false));
@@ -303,10 +321,13 @@ export function ExplorerView({
     });
   }, [active, cpkBoundary, settings.gameDir]);
 
-  const sortedDirs = useMemo(() => [...dirs].sort((a, b) => a.localeCompare(b)), [dirs]);
+  const sortedDirs = useMemo(() => [...dirs].sort((a, b) => a.name.localeCompare(b.name)), [dirs]);
   // Chemins pleins des dossiers, dans l'ordre affiché — sert à la fois à Ctrl+A (`doSelectAll`)
   // et à la sélection par plage Shift-clic sur les dossiers (même mécanique que `sortedFiles`).
-  const dirPaths = useMemo(() => (searching ? [] : sortedDirs.map((d) => (state.prefix ? `${state.prefix}/${d}` : d))), [searching, sortedDirs, state.prefix]);
+  const dirPaths = useMemo(
+    () => (searching ? [] : sortedDirs.map((d) => (state.prefix ? `${state.prefix}/${d.name}` : d.name))),
+    [searching, sortedDirs, state.prefix],
+  );
   const sortedFiles = useMemo(() => {
     const arr = [...files];
     arr.sort((a, b) => (sortKey === "size" ? b.size - a.size : a.name.localeCompare(b.name)));
@@ -340,7 +361,7 @@ export function ExplorerView({
   // Liste plate dossiers+fichiers pour la navigation clavier (haut/bas/entrée/retour, à la yazi).
   const flatEntries = useMemo(
     () => [
-      ...sortedDirs.map((d) => ({ kind: "dir" as const, path: state.prefix ? `${state.prefix}/${d}` : d })),
+      ...sortedDirs.map((d) => ({ kind: "dir" as const, path: state.prefix ? `${state.prefix}/${d.name}` : d.name })),
       ...sortedFiles.map((f) => ({ kind: "file" as const, path: f.path })),
     ],
     [sortedDirs, sortedFiles, state.prefix],
@@ -850,37 +871,44 @@ export function ExplorerView({
             >
               {!searching &&
                 sortedDirs.map((d) => {
-                  const path = state.prefix ? `${state.prefix}/${d}` : d;
+                  const path = state.prefix ? `${state.prefix}/${d.name}` : d.name;
                   const isMultiSelected = multiSelected.has(path);
+                  // `0` = compte inconnu (vue `data/packs`), pas « dossier vide » : on n'affiche
+                  // alors rien plutôt qu'un chiffre faux.
+                  const compte = d.count > 0 ? d.count.toLocaleString() : "";
+                  const infobulle = compte ? `${d.name} — ${compte} fichiers` : d.name;
                   if (viewMode === "grid") {
                     return (
                       <button
-                        key={d}
+                        key={d.name}
                         className={`state-layer flex flex-col items-center gap-1 rounded-xl p-2 text-center ${
                           isMultiSelected ? "bg-primary-container/40" : ""
                         }`}
                         onClick={(e) => handleDirClick(path, e)}
                         onAuxClick={(e) => handleDirAuxClick(path, e)}
                         onContextMenu={(e) => showFolderMenu(path, e)}
-                        title={d}
+                        title={infobulle}
                       >
                         <Icon name="folder" size={40} className="shrink-0 text-primary" />
-                        <span className="w-full truncate type-label-small text-on-surface">{d}</span>
+                        <span className="w-full truncate type-label-small text-on-surface">{d.name}</span>
+                        {compte && <span className="type-label-small text-on-surface-variant">{compte}</span>}
                       </button>
                     );
                   }
                   return (
                     <button
-                      key={d}
+                      key={d.name}
                       className={`state-layer flex w-full items-center gap-2 px-3 py-2 text-left type-body-medium ${
                         isMultiSelected ? "bg-primary-container/40 text-on-surface" : "text-on-surface"
                       }`}
                       onClick={(e) => handleDirClick(path, e)}
                       onAuxClick={(e) => handleDirAuxClick(path, e)}
                       onContextMenu={(e) => showFolderMenu(path, e)}
+                      title={infobulle}
                     >
                       <Icon name="folder" size={16} className="shrink-0 text-primary" />
-                      <span className="truncate">{d}</span>
+                      <span className="truncate">{d.name}</span>
+                      {compte && <span className="ml-auto shrink-0 tabular-nums type-label-small text-on-surface-variant">{compte}</span>}
                     </button>
                   );
                 })}
@@ -967,7 +995,11 @@ export function ExplorerView({
               {loading
                 ? t("explorer.loading")
                 : searching
-                  ? t("explorer.results", { n: files.length })
+                  ? // Le total n'est affiché QUE s'il dépasse la page : « 500 sur 12 480 » dit ce
+                    // qui manque, « 42 sur 42 » n'apprend rien.
+                    searchTotal > files.length
+                    ? `${t("explorer.results", { n: files.length })} · sur ${searchTotal.toLocaleString("fr-FR")}`
+                    : t("explorer.results", { n: files.length })
                   : t("explorer.count", { dirs: dirs.length, files: files.length })}
             </span>
             {multiSelected.size > 0 && (

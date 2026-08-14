@@ -35,8 +35,25 @@ export const commands = {
 	 *  statistiques que [`vfs_stats`] pour un toast de confirmation côté UI.
 	 */
 	preloadVfs: (gameDir: string | null) => typedError<StatsDto, string>(__TAURI_INVOKE("preload_vfs", { gameDir })),
-	vfsLs: (prefix: string, gameDir: string | null) => typedError<LsDto, string>(__TAURI_INVOKE("vfs_ls", { prefix, gameDir })),
+	/**
+	 *  Contenu direct d'un dossier du VFS, fichiers paginés et sous-dossiers comptés.
+	 * 
+	 *  `limit`/`offset` sont facultatifs : `None` = tout le dossier (comportement historique).
+	 *  `limit = 0` renvoie la structure et `file_total` SANS aucun fichier — ce que veut un arbre.
+	 * 
+	 *  Le calcul lui-même vit dans [`nie_explore::listing::ls_paged`], partagé avec `niers vfs ls` et
+	 *  le service HTTP `nie-model-serve` : le VFS étant un index plat, cette vue « dossier » est
+	 *  calculée, et elle divergeait auparavant entre les trois façades.
+	 */
+	vfsLs: (prefix: string, limit: number | null, offset: number | null, gameDir: string | null) => typedError<LsDto, string>(__TAURI_INVOKE("vfs_ls", { prefix, limit, offset, gameDir })),
 	vfsFind: (query: string, ext: string | null, limit: number, gameDir: string | null) => typedError<EntryDto[], string>(__TAURI_INVOKE("vfs_find", { query, ext, limit, gameDir })),
+	/**
+	 *  Recherche paginée : la tranche demandée **et** le nombre total de correspondances.
+	 * 
+	 *  [`vfs_find`] tronque à `limit` sans jamais dire combien il a laissé derrière lui — une
+	 *  interface ne peut alors ni paginer ni annoncer « 200 sur 12 480 ».
+	 */
+	vfsFindPaged: (query: string, ext: string | null, limit: number, offset: number, gameDir: string | null) => typedError<FindPageDto, string>(__TAURI_INVOKE("vfs_find_paged", { query, ext, limit, offset, gameDir })),
 	vfsStats: (gameDir: string | null) => typedError<StatsDto, string>(__TAURI_INVOKE("vfs_stats", { gameDir })),
 	/**
 	 *  Métadonnées d'une seule entrée VFS (`None` si le chemin n'existe pas) — sert notamment à
@@ -79,6 +96,30 @@ export const commands = {
 	 *  résolution pour réduire côté client ne réglerait rien.
 	 */
 	vfsTextureThumbPngB64: (path: string, maxCote: number | null, gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("vfs_texture_thumb_png_b64", { path, maxCote, gameDir })),
+	/**
+	 *  Catalogue les textures d'un conteneur `.g4tx` — **sans en décoder aucune**.
+	 * 
+	 *  Un conteneur IEVR n'est pas mono-texture : `icon_item05.g4tx` porte 80 payloads DDS 256×256
+	 *  nommés (`eq_ac0100101`…), et les atlas spatiaux portent des régions nommées. Jusqu'ici
+	 *  l'explorateur ne pouvait afficher qu'UNE image par fichier — celle que le basename désigne —
+	 *  et les 79 autres étaient invisibles depuis l'application. Ce catalogue est ce qui permet à
+	 *  l'interface de proposer un sélecteur, et il ne coûte qu'un parse d'en-tête.
+	 */
+	vfsTextureList: (path: string, gameDir: string | null) => typedError<TextureDto[], string>(__TAURI_INVOKE("vfs_texture_list", { path, gameDir })),
+	/**
+	 *  Décode la texture **nommée** `nom` d'un conteneur `.g4tx` en PNG (base64), pleine résolution.
+	 * 
+	 *  Forme nommée de [`vfs_texture_png_b64`], seule façon d'adresser une texture précise d'un
+	 *  conteneur multi-textures ou une région d'atlas (cf. [`vfs_texture_list`]).
+	 */
+	vfsTextureNamedPngB64: (path: string, nom: string, gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("vfs_texture_named_png_b64", { path, nom, gameDir })),
+	/**
+	 *  Vignette d'une texture nommée — ce qu'une GRILLE de sous-textures doit appeler.
+	 * 
+	 *  Même raison d'être que [`vfs_texture_thumb_png_b64`] : un conteneur d'icônes en porte 80, les
+	 *  décoder en pleine résolution pour les afficher à 90 px sature le processus de rendu.
+	 */
+	vfsTextureNamedThumbPngB64: (path: string, nom: string, maxCote: number | null, gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("vfs_texture_named_thumb_png_b64", { path, nom, maxCote, gameDir })),
 	/**  Extrait un fichier VFS directement vers `dest` (écriture Rust→disque, pas de round-trip JS). */
 	vfsExtractTo: (path: string, dest: string, gameDir: string | null) => typedError<number, string>(__TAURI_INVOKE("vfs_extract_to", { path, dest, gameDir })),
 	/**
@@ -587,6 +628,23 @@ export const commands = {
 	 */
 	vfsAudioPreviewB64: (path: string, gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("vfs_audio_preview_b64", { path, gameDir })),
 	/**
+	 *  Liste les pistes jouables d'un `.acb`/`.awb` du VFS — **sans en décoder aucune**.
+	 * 
+	 *  C'est ce qui manquait à l'explorateur : [`vfs_audio_preview_b64`] rend UNE piste par fichier
+	 *  (la plus volumineuse), alors qu'une banque en décrit jusqu'à 1 512. Le catalogue vient de
+	 *  l'ACB quand il y en a un — noms, durées, codec, fréquence — sans ouvrir l'AWB.
+	 */
+	vfsAudioCues: (path: string, gameDir: string | null) => typedError<AudioBankDto, string>(__TAURI_INVOKE("vfs_audio_cues", { path, gameDir })),
+	/**
+	 *  Décode UNE piste d'une banque, désignée par son **cue-id AFS2** (cf. [`vfs_audio_cues`]), en
+	 *  WAV PCM16 base64.
+	 * 
+	 *  Le cue-id n'est pas le rang de l'entrée dans l'AWB : ils coïncident souvent, jamais toujours,
+	 *  et les confondre fait jouer une autre piste sans lever d'erreur. Même thread à pile large que
+	 *  [`vfs_audio_preview_b64`], pour la même raison (`cridecoder` déborde la pile Windows par défaut).
+	 */
+	vfsAudioCueWavB64: (path: string, awbId: number, gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("vfs_audio_cue_wav_b64", { path, awbId, gameDir })),
+	/**
 	 *  Aperçu 3D fixe pour une entrée du CPK brut ouvert (hors VFS) — équivalent de
 	 *  [`vfs_glb_preview_png_b64`], résolution de frères via [`assemble_glb_from_cpk_entries`].
 	 */
@@ -724,6 +782,15 @@ export type ActivityDto = {
 	data_len: number | null,
 };
 
+/**  Catalogue des pistes d'une banque audio du VFS, avec la provenance de ses octets. */
+export type AudioBankDto = {
+	/**  `self` (le fichier EST l'AWB), `embedded`, ou le chemin VFS de l'AWB frère. */
+	source: string,
+	/**  Vrai si les octets sont réellement atteignables — sinon les pistes sont listées mais muettes. */
+	playable: boolean,
+	cues: CueDto[],
+};
+
 /**
  *  Avatar/Keshin (aura) — port applati de `nie_data::aura::AuraCmd` + son texte joint
  *  (`skill_text.cfg.bin`, même table que les techniques). Le contenu signature d'IEVR.
@@ -803,6 +870,35 @@ export type CpkExportFileDto = {
 	staged_appdata_rel: string,
 };
 
+/**  Une piste d'une banque audio, telle que l'interface la liste. */
+export type CueDto = {
+	/**  Nom donné par la banque (`ev74_00840_me`), vide si elle ne nomme pas la piste. */
+	name: string,
+	/**  Cue-id AFS2 — l'identifiant à repasser à [`vfs_audio_cue_wav_b64`]. `null` = non jouable. */
+	awb_id: number | null,
+	/**  Durée annoncée, en millisecondes (`0` si inconnue). */
+	length_ms: number,
+	/**  Codec en clair (`HCA`, `ADX`…), vide si non résolu. */
+	codec: string,
+	sample_rate: number | null,
+	channels: number | null,
+	/**  Taille des octets de la piste, `null` si la banque d'octets n'a pas été ouverte. */
+	size: number | null,
+	/**  Nom de fichier proposé au téléchargement — celui du CUE, jamais celui de la banque. */
+	filename: string,
+};
+
+/**
+ *  Un sous-dossier direct et le nombre de fichiers qu'il porte, tous niveaux confondus.
+ * 
+ *  Le compte vient du même balayage que le listing : il ne coûte rien de plus, et il évite à
+ *  l'interface de rappeler `vfs_ls` par dossier pour savoir lesquels sont vides.
+ */
+export type DirDto = {
+	name: string,
+	count: number,
+};
+
 /**  Écusson d'équipe (`emblem_resource_*`) — une entrée `EMBLEM_RESOURCE_INFO`. */
 export type EmblemDto = {
 	emblem_id: string,
@@ -841,21 +937,33 @@ export type ExportBatchDto = {
 	echecs: ([string, string])[],
 };
 
-/**  Un format d'export proposé pour un fichier donné. */
+/**
+ *  Un format d'export proposé pour un fichier donné (miroir IPC de
+ *  [`nie_explore::export::FormatExport`]).
+ */
 export type ExportFormatDto = {
 	/**  Identifiant à repasser à `vfs_export_as` (`raw`, `png`, `glb`, `json`, `wav`, `mp4`…). */
 	id: string,
-	/**  Extension du fichier produit, sans le point — ce que l'interface propose comme nom par défaut. */
+	/**  Extension du fichier produit, sans le point. */
 	ext: string,
 	/**  Libellé affiché. */
 	label: string,
 	/**  Vrai pour « tel quel » : aucune conversion, donc aucune perte possible. */
 	brut: boolean,
-	/**
-	 *  Faux quand la conversion peut dégrader (JPEG, GIF) — l'interface le dit plutôt que
-	 *  l'utilisatrice ne le découvre après coup.
-	 */
+	/**  Faux quand la conversion peut dégrader (JPEG, GIF). */
 	sans_perte: boolean,
+};
+
+/**
+ *  Une page de résultats de recherche, avec le nombre total de correspondances.
+ * 
+ *  `total` est le compte AVANT pagination : sans lui, une page de 2 000 résultats est
+ *  indiscernable d'un VFS qui n'en contient que 2 000.
+ */
+export type FindPageDto = {
+	files: EntryDto[],
+	total: number,
+	offset: number,
 };
 
 export type FolderRoleDto = {
@@ -924,8 +1032,12 @@ export type ItemDto = {
 };
 
 export type LsDto = {
-	dirs: string[],
+	dirs: DirDto[],
 	files: EntryDto[],
+	/**  Nombre TOTAL de fichiers directs, avant pagination — le dénominateur d'une vue paginée. */
+	file_total: number,
+	/**  Décalage effectivement appliqué aux `files`. */
+	file_offset: number,
 	/**
 	 *  Rôle du dossier courant (cf. `nie_explore::folder_roles`), `None` si non catalogué —
 	 *  jamais un rôle deviné : la table ne couvre que ce qui est sourcé/vérifié.
@@ -1323,6 +1435,22 @@ export type StatsDto = {
 	extra_count: number,
 	loose_count: number,
 	top_ext: ([string, number])[],
+};
+
+/**  Une texture nommée à l'intérieur d'un conteneur `.g4tx`. */
+export type TextureDto = {
+	/**  Identifiant interne de la texture dans le conteneur. */
+	id: number,
+	/**  Nom porté par le conteneur, ex. `eq_ac0100101` — c'est la clé d'adressage. */
+	name: string,
+	width: number,
+	height: number,
+	/**  Vrai si la texture porte son propre payload DDS (texture principale autonome). */
+	dds: boolean,
+	/**  Taille du payload en octets. */
+	size: number,
+	/**  Nombre de régions d'atlas définies SUR cette texture (0 = pas un atlas spatial). */
+	regions: number,
 };
 
 /**  Feinte/dribble (`trick_config`) — nom interne, catégorie classifiée, événements déclenchés. */

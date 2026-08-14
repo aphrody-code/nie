@@ -207,13 +207,44 @@ struct EntryDto {
     cpk: String,
 }
 
+/// Un sous-dossier direct et le nombre de fichiers qu'il porte, tous niveaux confondus.
+///
+/// Le compte vient du même balayage que le listing : il ne coûte rien de plus, et il évite à
+/// l'interface de rappeler `vfs_ls` par dossier pour savoir lesquels sont vides.
+#[derive(Serialize, specta::Type)]
+struct DirDto {
+    name: String,
+    count: u32,
+}
+
 #[derive(Serialize, specta::Type)]
 struct LsDto {
-    dirs: Vec<String>,
+    dirs: Vec<DirDto>,
     files: Vec<EntryDto>,
+    /// Nombre TOTAL de fichiers directs, avant pagination — le dénominateur d'une vue paginée.
+    file_total: u32,
+    /// Décalage effectivement appliqué aux `files`.
+    file_offset: u32,
     /// Rôle du dossier courant (cf. `nie_explore::folder_roles`), `None` si non catalogué —
     /// jamais un rôle deviné : la table ne couvre que ce qui est sourcé/vérifié.
     role: Option<FolderRoleDto>,
+}
+
+/// Une page de résultats de recherche, avec le nombre total de correspondances.
+///
+/// `total` est le compte AVANT pagination : sans lui, une page de 2 000 résultats est
+/// indiscernable d'un VFS qui n'en contient que 2 000.
+#[derive(Serialize, specta::Type)]
+struct FindPageDto {
+    files: Vec<EntryDto>,
+    total: u32,
+    offset: u32,
+}
+
+impl From<nie_explore::listing::FileEntry> for EntryDto {
+    fn from(f: nie_explore::listing::FileEntry) -> Self {
+        EntryDto { path: f.path, name: f.name, size: f.size, cpk: f.cpk }
+    }
 }
 
 #[derive(Serialize, specta::Type)]
@@ -260,41 +291,37 @@ fn preload_vfs(game_dir: Option<String>, state: tauri::State<VfsState>) -> Resul
     vfs_stats(game_dir, state)
 }
 
+/// Contenu direct d'un dossier du VFS, fichiers paginés et sous-dossiers comptés.
+///
+/// `limit`/`offset` sont facultatifs : `None` = tout le dossier (comportement historique).
+/// `limit = 0` renvoie la structure et `file_total` SANS aucun fichier — ce que veut un arbre.
+///
+/// Le calcul lui-même vit dans [`nie_explore::listing::ls_paged`], partagé avec `niers vfs ls` et
+/// le service HTTP `nie-model-serve` : le VFS étant un index plat, cette vue « dossier » est
+/// calculée, et elle divergeait auparavant entre les trois façades.
 #[tauri::command]
 #[specta::specta]
-fn vfs_ls(prefix: String, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<LsDto, String> {
+fn vfs_ls(
+    prefix: String,
+    limit: Option<u32>,
+    offset: Option<u32>,
+    game_dir: Option<String>,
+    state: tauri::State<VfsState>,
+) -> Result<LsDto, String> {
     with_vfs(game_dir, &state, |vfs| {
-        let prefix = prefix.trim_matches('/');
-
-        let mut dirs: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
-        let mut files: Vec<EntryDto> = Vec::new();
-
-        for (path, entry) in vfs.iter() {
-            let rest = if prefix.is_empty() {
-                path
-            } else if path == prefix {
-                continue;
-            } else if let Some(r) = path.strip_prefix(prefix).and_then(|r| r.strip_prefix('/')) {
-                r
-            } else {
-                continue;
-            };
-            match rest.split_once('/') {
-                Some((seg, _)) => {
-                    dirs.insert(seg.to_string());
-                }
-                None => files.push(EntryDto {
-                    path: path.to_string(),
-                    name: rest.to_string(),
-                    size: entry.file_size,
-                    cpk: entry.cpk_filename.clone(),
-                }),
-            }
-        }
-        files.sort_by(|a, b| a.name.cmp(&b.name));
-        let role = nie_explore::folder_roles::describe_folder(prefix)
-            .map(|r| FolderRoleDto { role: r.role.to_string(), status: r.status.to_string() });
-        Ok(LsDto { dirs: dirs.into_iter().collect(), files, role })
+        let l = limit.map_or(usize::MAX, |v| v as usize);
+        let listing = nie_explore::listing::ls_paged(vfs, &prefix, l, offset.unwrap_or(0) as usize);
+        Ok(LsDto {
+            dirs: listing
+                .dirs
+                .into_iter()
+                .map(|d| DirDto { name: d.name, count: d.count as u32 })
+                .collect(),
+            files: listing.files.into_iter().map(EntryDto::from).collect(),
+            file_total: listing.file_total as u32,
+            file_offset: listing.file_offset as u32,
+            role: listing.role.map(|r| FolderRoleDto { role: r.role, status: r.status }),
+        })
     })
 }
 
@@ -308,23 +335,40 @@ fn vfs_find(
     state: tauri::State<VfsState>,
 ) -> Result<Vec<EntryDto>, String> {
     with_vfs(game_dir, &state, |vfs| {
-        let q = query.to_lowercase();
-        let ext_dot = ext.filter(|e| !e.is_empty()).map(|e| format!(".{}", e.trim_start_matches('.').to_lowercase()));
+        let ext = ext.filter(|e| !e.is_empty());
+        let hits = nie_explore::listing::find(vfs, &query, ext.as_deref(), limit.max(1) as usize);
+        Ok(hits.into_iter().map(EntryDto::from).collect())
+    })
+}
 
-        let mut hits: Vec<EntryDto> = vfs
-            .iter()
-            .filter(|(p, _)| p.to_lowercase().contains(&q))
-            .filter(|(p, _)| ext_dot.as_deref().is_none_or(|e| p.to_lowercase().ends_with(e)))
-            .map(|(path, entry)| EntryDto {
-                path: path.to_string(),
-                name: path.rsplit('/').next().unwrap_or(path).to_string(),
-                size: entry.file_size,
-                cpk: entry.cpk_filename.clone(),
-            })
-            .collect();
-        hits.sort_by(|a, b| a.path.cmp(&b.path));
-        hits.truncate(limit.max(1) as usize);
-        Ok(hits)
+/// Recherche paginée : la tranche demandée **et** le nombre total de correspondances.
+///
+/// [`vfs_find`] tronque à `limit` sans jamais dire combien il a laissé derrière lui — une
+/// interface ne peut alors ni paginer ni annoncer « 200 sur 12 480 ».
+#[tauri::command]
+#[specta::specta]
+fn vfs_find_paged(
+    query: String,
+    ext: Option<String>,
+    limit: u32,
+    offset: u32,
+    game_dir: Option<String>,
+    state: tauri::State<VfsState>,
+) -> Result<FindPageDto, String> {
+    with_vfs(game_dir, &state, |vfs| {
+        let ext = ext.filter(|e| !e.is_empty());
+        let r = nie_explore::listing::find_paged(
+            vfs,
+            &query,
+            ext.as_deref(),
+            limit as usize,
+            offset as usize,
+        );
+        Ok(FindPageDto {
+            files: r.files.into_iter().map(EntryDto::from).collect(),
+            total: r.total as u32,
+            offset: r.offset as u32,
+        })
     })
 }
 
@@ -453,6 +497,97 @@ fn vfs_texture_thumb_png_b64(
         // ne doit pas emporter la fenêtre entière — une grille en parcourt des milliers.
         let png = isoler("décodage de vignette", move || {
             nie_formats::image_out::g4tx_vignette(&data, &base, cote, nie_formats::image_out::ImageOut::Png)
+        })??;
+        Ok(base64::engine::general_purpose::STANDARD.encode(&png))
+    })
+}
+
+/// Une texture nommée à l'intérieur d'un conteneur `.g4tx`.
+#[derive(Serialize, specta::Type)]
+struct TextureDto {
+    /// Identifiant interne de la texture dans le conteneur.
+    id: u32,
+    /// Nom porté par le conteneur, ex. `eq_ac0100101` — c'est la clé d'adressage.
+    name: String,
+    width: u32,
+    height: u32,
+    /// Vrai si la texture porte son propre payload DDS (texture principale autonome).
+    dds: bool,
+    /// Taille du payload en octets.
+    size: u32,
+    /// Nombre de régions d'atlas définies SUR cette texture (0 = pas un atlas spatial).
+    regions: u32,
+}
+
+/// Catalogue les textures d'un conteneur `.g4tx` — **sans en décoder aucune**.
+///
+/// Un conteneur IEVR n'est pas mono-texture : `icon_item05.g4tx` porte 80 payloads DDS 256×256
+/// nommés (`eq_ac0100101`…), et les atlas spatiaux portent des régions nommées. Jusqu'ici
+/// l'explorateur ne pouvait afficher qu'UNE image par fichier — celle que le basename désigne —
+/// et les 79 autres étaient invisibles depuis l'application. Ce catalogue est ce qui permet à
+/// l'interface de proposer un sélecteur, et il ne coûte qu'un parse d'en-tête.
+#[tauri::command]
+#[specta::specta]
+fn vfs_texture_list(path: String, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<Vec<TextureDto>, String> {
+    with_vfs(game_dir, &state, |vfs| {
+        let data = vfs.read(&path).map_err(|e| e.to_string())?;
+        let g4tx = nie_formats::g4tx::parse(&data).map_err(|e| format!("G4TX illisible : {e}"))?;
+        Ok(g4tx
+            .textures
+            .iter()
+            .map(|t| TextureDto {
+                id: u32::from(t.id),
+                name: t.name.clone(),
+                width: t.width.max(0) as u32,
+                height: t.height.max(0) as u32,
+                dds: t.is_dds,
+                size: t.data_size as u32,
+                regions: t.sub_textures.len() as u32,
+            })
+            .collect())
+    })
+}
+
+/// Décode la texture **nommée** `nom` d'un conteneur `.g4tx` en PNG (base64), pleine résolution.
+///
+/// Forme nommée de [`vfs_texture_png_b64`], seule façon d'adresser une texture précise d'un
+/// conteneur multi-textures ou une région d'atlas (cf. [`vfs_texture_list`]).
+#[tauri::command]
+#[specta::specta]
+fn vfs_texture_named_png_b64(
+    path: String,
+    nom: String,
+    game_dir: Option<String>,
+    state: tauri::State<VfsState>,
+) -> Result<String, String> {
+    with_vfs(game_dir, &state, |vfs| {
+        let data = vfs.read(&path).map_err(|e| e.to_string())?;
+        let png = isoler("décodage de texture nommée", move || {
+            nie_formats::g4tx_decode::decode_named_to_png(&data, &nom)
+        })?
+        .ok_or("texture absente du conteneur, ou payload non décodable")?;
+        Ok(base64::engine::general_purpose::STANDARD.encode(&png))
+    })
+}
+
+/// Vignette d'une texture nommée — ce qu'une GRILLE de sous-textures doit appeler.
+///
+/// Même raison d'être que [`vfs_texture_thumb_png_b64`] : un conteneur d'icônes en porte 80, les
+/// décoder en pleine résolution pour les afficher à 90 px sature le processus de rendu.
+#[tauri::command]
+#[specta::specta]
+fn vfs_texture_named_thumb_png_b64(
+    path: String,
+    nom: String,
+    max_cote: Option<u32>,
+    game_dir: Option<String>,
+    state: tauri::State<VfsState>,
+) -> Result<String, String> {
+    let cote = max_cote.unwrap_or(VIGNETTE_COTE_DEFAUT).clamp(8, VIGNETTE_COTE_MAX);
+    with_vfs(game_dir, &state, |vfs| {
+        let data = vfs.read(&path).map_err(|e| e.to_string())?;
+        let png = isoler("décodage de vignette nommée", move || {
+            nie_formats::image_out::g4tx_vignette_nommee(&data, &nom, cote, nie_formats::image_out::ImageOut::Png)
         })??;
         Ok(base64::engine::general_purpose::STANDARD.encode(&png))
     })
@@ -3194,6 +3329,129 @@ fn vfs_audio_preview_b64(path: String, game_dir: Option<String>, state: tauri::S
     audio_wav_b64_from_bytes(data)
 }
 
+/// Une piste d'une banque audio, telle que l'interface la liste.
+#[derive(Serialize, specta::Type)]
+struct CueDto {
+    /// Nom donné par la banque (`ev74_00840_me`), vide si elle ne nomme pas la piste.
+    name: String,
+    /// Cue-id AFS2 — l'identifiant à repasser à [`vfs_audio_cue_wav_b64`]. `null` = non jouable.
+    awb_id: Option<u16>,
+    /// Durée annoncée, en millisecondes (`0` si inconnue).
+    length_ms: u32,
+    /// Codec en clair (`HCA`, `ADX`…), vide si non résolu.
+    codec: String,
+    sample_rate: Option<u32>,
+    channels: Option<u8>,
+    /// Taille des octets de la piste, `null` si la banque d'octets n'a pas été ouverte.
+    size: Option<u32>,
+    /// Nom de fichier proposé au téléchargement — celui du CUE, jamais celui de la banque.
+    filename: String,
+}
+
+/// Catalogue des pistes d'une banque audio du VFS, avec la provenance de ses octets.
+#[derive(Serialize, specta::Type)]
+struct AudioBankDto {
+    /// `self` (le fichier EST l'AWB), `embedded`, ou le chemin VFS de l'AWB frère.
+    source: String,
+    /// Vrai si les octets sont réellement atteignables — sinon les pistes sont listées mais muettes.
+    playable: bool,
+    cues: Vec<CueDto>,
+}
+
+/// Au-delà de cette taille, l'AWB n'est PAS ouvert pour renseigner les tailles de piste.
+///
+/// Le catalogue vient de l'ACB, qui pèse deux ordres de grandeur de moins : lire un AWB de
+/// 1,25 Gio pour afficher une colonne « taille » ferait payer un gigaoctet de disque à chaque
+/// sélection dans l'explorateur. La lecture d'UNE piste, elle, reste possible : elle passe par
+/// [`vfs_audio_cue_wav_b64`], à la demande.
+const AWB_TAILLES_MAX: u32 = 64 * 1024 * 1024;
+
+/// Liste les pistes jouables d'un `.acb`/`.awb` du VFS — **sans en décoder aucune**.
+///
+/// C'est ce qui manquait à l'explorateur : [`vfs_audio_preview_b64`] rend UNE piste par fichier
+/// (la plus volumineuse), alors qu'une banque en décrit jusqu'à 1 512. Le catalogue vient de
+/// l'ACB quand il y en a un — noms, durées, codec, fréquence — sans ouvrir l'AWB.
+#[tauri::command]
+#[specta::specta]
+fn vfs_audio_cues(path: String, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<AudioBankDto, String> {
+    with_vfs(game_dir, &state, |vfs| {
+        let data = vfs.read(&path).map_err(|e| e.to_string())?;
+
+        // Un AFS2 autonome EST déjà sa propre banque : le relire depuis le VFS le dupliquerait
+        // en mémoire pour rien.
+        if data.starts_with(b"AFS2") {
+            let cues = nie_explore::audio::cues(&data, Some(&data));
+            return Ok(AudioBankDto {
+                source: "self".to_string(),
+                playable: true,
+                cues: cues.iter().map(|c| cue_dto(&path, c)).collect(),
+            });
+        }
+
+        // ACB : le catalogue d'abord (il se suffit), la banque d'octets seulement si elle est
+        // assez petite pour que les tailles vaillent leur lecture.
+        let resolu = nie_explore::audio::resoudre_awb(vfs, &path, &data);
+        let (source, playable, awb) = match &resolu {
+            None => ("aucune".to_string(), false, None),
+            Some((bytes, nie_explore::audio::SourceAwb::Autonome)) => ("self".to_string(), true, Some(bytes)),
+            Some((bytes, nie_explore::audio::SourceAwb::Embarquee)) => ("embedded".to_string(), true, Some(bytes)),
+            Some((bytes, nie_explore::audio::SourceAwb::Externe(p))) => (p.clone(), true, Some(bytes)),
+        };
+        let tailles = awb.filter(|b| b.len() <= AWB_TAILLES_MAX as usize).map(Vec::as_slice);
+        let cues = nie_explore::audio::cues(&data, tailles);
+        Ok(AudioBankDto { source, playable, cues: cues.iter().map(|c| cue_dto(&path, c)).collect() })
+    })
+}
+
+/// Miroir IPC d'un [`nie_explore::audio::Cue`], nom de fichier proposé compris.
+fn cue_dto(path: &str, c: &nie_explore::audio::Cue) -> CueDto {
+    CueDto {
+        name: c.name.clone(),
+        awb_id: c.awb_id,
+        length_ms: c.length_ms,
+        codec: c.codec.clone(),
+        sample_rate: c.sample_rate,
+        channels: c.channels,
+        size: c.size,
+        filename: nie_explore::audio::nom_de_fichier(path, c),
+    }
+}
+
+/// Décode UNE piste d'une banque, désignée par son **cue-id AFS2** (cf. [`vfs_audio_cues`]), en
+/// WAV PCM16 base64.
+///
+/// Le cue-id n'est pas le rang de l'entrée dans l'AWB : ils coïncident souvent, jamais toujours,
+/// et les confondre fait jouer une autre piste sans lever d'erreur. Même thread à pile large que
+/// [`vfs_audio_preview_b64`], pour la même raison (`cridecoder` déborde la pile Windows par défaut).
+#[tauri::command]
+#[specta::specta]
+fn vfs_audio_cue_wav_b64(
+    path: String,
+    awb_id: u16,
+    game_dir: Option<String>,
+    state: tauri::State<VfsState>,
+) -> Result<String, String> {
+    let awb = with_vfs(game_dir, &state, |vfs| {
+        let data = vfs.read(&path).map_err(|e| e.to_string())?;
+        nie_explore::audio::resoudre_awb(vfs, &path, &data)
+            .map(|(bytes, _)| bytes)
+            .ok_or_else(|| format!("{path} : aucune banque AWB atteignable"))
+    })?;
+
+    let wav = std::thread::Builder::new()
+        .stack_size(16 * 1024 * 1024)
+        .spawn(move || nie_explore::audio::decoder_cue(&awb, awb_id))
+        .map_err(|e| format!("échec de lancement du thread de décodage : {e}"))?
+        .join()
+        .map_err(|_| "le décodage audio a paniqué (thread dédié)".to_string())??;
+
+    const CAP: usize = 40 * 1024 * 1024;
+    if wav.len() > CAP {
+        return Err(format!("WAV décodé trop volumineux pour l'aperçu ({} octets > {CAP})", wav.len()));
+    }
+    Ok(base64::engine::general_purpose::STANDARD.encode(&wav))
+}
+
 /// Cœur du décodage audio CRI (HCA/ADX) → WAV b64, indépendant de la SOURCE des octets (VFS monté
 /// OU entrée d'un CPK brut hors VFS, cf. [`raw_cpk_audio_preview_b64`]) — factorisé pour la parité
 /// d'outils `RawCpkView`/`DetailPane` (roadmap §6, « pas de Blender/aperçu 3D/audio/vidéo pour les
@@ -3450,12 +3708,16 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         preload_vfs,
         vfs_ls,
         vfs_find,
+        vfs_find_paged,
         vfs_stats,
         vfs_entry_meta,
         vfs_describe,
         vfs_read_b64,
         vfs_texture_png_b64,
         vfs_texture_thumb_png_b64,
+        vfs_texture_list,
+        vfs_texture_named_png_b64,
+        vfs_texture_named_thumb_png_b64,
         vfs_extract_to,
         vfs_export_formats,
         vfs_export_default_name,
@@ -3543,6 +3805,8 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         vfs_glb_preview_png_b64,
         vfs_glb_preview_turntable_mp4_b64,
         vfs_audio_preview_b64,
+        vfs_audio_cues,
+        vfs_audio_cue_wav_b64,
         raw_cpk_glb_preview_png_b64,
         clipboard_write_file_list,
         clipboard_read_file_list,
