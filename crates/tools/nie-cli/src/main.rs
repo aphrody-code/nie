@@ -7,6 +7,7 @@ mod delegate;
 mod img_cmd;
 mod lua_cmd;
 mod menu_predecode;
+mod mode_index;
 mod search_cmd;
 mod seed_ui;
 
@@ -256,6 +257,11 @@ enum Cmd {
         #[command(subcommand)]
         op: ImgOp,
     },
+    /// Catalogue des modes de jeu : écrans, calques, objets, assets et scripts par mode.
+    Mode {
+        #[command(subcommand)]
+        op: ModeOp,
+    },
     /// Affiche la couverture (fonctions classifiées) du binaire indexé.
     Coverage {
         #[arg(long, default_value = "var/niers.sqlite")]
@@ -401,6 +407,26 @@ enum Cmd {
     Vfs {
         #[command(subcommand)]
         op: VfsOp,
+    },
+}
+
+/// Sous-commandes de `niers mode` (catalogue des modes de jeu).
+#[derive(Subcommand)]
+enum ModeOp {
+    /// (Re)construit le catalogue dans la base : un mode, ses écrans et ses assets.
+    Index {
+        #[arg(long, default_value = "var/niers.sqlite")]
+        db: PathBuf,
+        #[arg(long)]
+        game_dir: Option<PathBuf>,
+    },
+    /// Exporte le catalogue en JSON (destiné à azalée).
+    Export {
+        #[arg(long, default_value = "var/niers.sqlite")]
+        db: PathBuf,
+        /// Fichier de sortie ; `-` ou absent = stdout.
+        #[arg(long, short = 'o')]
+        out: Option<PathBuf>,
     },
 }
 
@@ -1533,6 +1559,36 @@ fn run() -> anyhow::Result<()> {
             files_with_matches,
         })
         .map(|_| ()),
+        Cmd::Mode { op } => match op {
+            ModeOp::Index { db, game_dir } => {
+                let vfs = open_vfs(game_dir)?;
+                let database = nie_index::Db::open(&db)
+                    .with_context(|| format!("ouverture {}", db.display()))?;
+                let (m, s, a) = mode_index::index(&database, &vfs)?;
+                println!("mode index : {m} modes, {s} écrans, {a} assets");
+                Ok(())
+            }
+            ModeOp::Export { db, out } => {
+                let database = nie_index::Db::open(&db)
+                    .with_context(|| format!("ouverture {}", db.display()))?;
+                let json = mode_index::export_json(&database)?;
+                let txt = serde_json::to_string_pretty(&json)?;
+                match out {
+                    Some(p) if p.as_os_str() != "-" => {
+                        if let Some(parent) = p.parent()
+                            && !parent.as_os_str().is_empty()
+                        {
+                            std::fs::create_dir_all(parent)?;
+                        }
+                        std::fs::write(&p, txt.as_bytes())
+                            .with_context(|| format!("écriture {}", p.display()))?;
+                        println!("mode export -> {} ({} octets)", p.display(), txt.len());
+                    }
+                    _ => println!("{txt}"),
+                }
+                Ok(())
+            }
+        },
         Cmd::Img { op } => img_cmd::run(&match op {
             ImgOp::Info { src } => img_cmd::Op::Info { src },
             ImgOp::Resize { src, out, width, height, filter, exact } => {
