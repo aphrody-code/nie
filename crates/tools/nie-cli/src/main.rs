@@ -4,8 +4,11 @@
 
 mod decode_cmd;
 mod delegate;
+mod img_cmd;
 mod lua_cmd;
 mod menu_predecode;
+mod search_cmd;
+mod seed_ui;
 
 use std::io::Write;
 use std::path::PathBuf;
@@ -166,6 +169,93 @@ enum Cmd {
         #[arg(long)]
         exe: Option<PathBuf>,
     },
+    /// Ingère dans `hash_name` les noms de l'UI lus depuis le VFS (écrans, calques, groupes,
+    /// commandes, objets et composants de menu ; textures avec `--textures`).
+    ///
+    /// Rend inversables les CRC-32 croisés dans les `cfg.bin`, les `objbin` et le binaire.
+    SeedUi {
+        /// Base sqlite cible.
+        #[arg(long, default_value = "var/niers.sqlite")]
+        db: PathBuf,
+        /// Racine du jeu (défaut : résolution à l'exécution, cf. `resolve_game_dir`).
+        #[arg(long)]
+        game_dir: Option<PathBuf>,
+        /// Scanne aussi les `.g4tx` du menu (noms de textures et de régions) — coûteux.
+        #[arg(long)]
+        textures: bool,
+    },
+    /// Cherche des fichiers par chemin sur le disque (moteur `ignore`, celui de ripgrep/fd).
+    ///
+    /// Complète `niers vfs find`, qui ne voit que l'intérieur des CPK.
+    Find {
+        /// Sous-chaîne cherchée dans le chemin (vide = tout lister).
+        #[arg(default_value = "")]
+        pattern: String,
+        /// Racine du parcours.
+        #[arg(long, short = 'C', default_value = ".")]
+        dir: PathBuf,
+        /// Motif glob, cumulable (`--glob '**/*.rs'`).
+        #[arg(long, short = 'g')]
+        glob: Vec<String>,
+        /// Extension, cumulable (`--ext rs --ext toml`).
+        #[arg(long, short = 'e')]
+        ext: Vec<String>,
+        /// `f` = fichiers seuls, `d` = répertoires seuls.
+        #[arg(long, short = 't')]
+        r#type: Option<String>,
+        /// Inclure les fichiers cachés.
+        #[arg(long, short = 'H')]
+        hidden: bool,
+        /// Ignorer les règles `.gitignore`.
+        #[arg(long, short = 'I')]
+        no_ignore: bool,
+        /// Profondeur maximale.
+        #[arg(long)]
+        depth: Option<usize>,
+        /// Nombre maximal de résultats (0 = illimité).
+        #[arg(long, short = 'n', default_value_t = 0)]
+        limit: usize,
+        /// Recherche sensible à la casse.
+        #[arg(long, short = 's')]
+        case_sensitive: bool,
+        /// N'afficher que le nombre de résultats.
+        #[arg(long, short = 'c')]
+        count: bool,
+    },
+    /// Cherche une expression régulière dans le contenu des fichiers (moteur de ripgrep).
+    Grep {
+        /// Expression régulière.
+        pattern: String,
+        /// Racine du parcours.
+        #[arg(long, short = 'C', default_value = ".")]
+        dir: PathBuf,
+        /// Motif glob restreignant les fichiers visités, cumulable.
+        #[arg(long, short = 'g')]
+        glob: Vec<String>,
+        /// Extension restreignant les fichiers visités, cumulable.
+        #[arg(long, short = 'e')]
+        ext: Vec<String>,
+        /// Insensible à la casse.
+        #[arg(long, short = 'i')]
+        ignore_case: bool,
+        /// Inclure les fichiers cachés.
+        #[arg(long, short = 'H')]
+        hidden: bool,
+        /// Ignorer les règles `.gitignore`.
+        #[arg(long, short = 'I')]
+        no_ignore: bool,
+        /// Nombre maximal de lignes affichées (0 = illimité).
+        #[arg(long, short = 'n', default_value_t = 0)]
+        limit: usize,
+        /// N'afficher que les chemins des fichiers qui contiennent une correspondance.
+        #[arg(long, short = 'l')]
+        files_with_matches: bool,
+    },
+    /// Édition d'image (info, redimensionnement, recadrage, conversion, superposition).
+    Img {
+        #[command(subcommand)]
+        op: ImgOp,
+    },
     /// Affiche la couverture (fonctions classifiées) du binaire indexé.
     Coverage {
         #[arg(long, default_value = "var/niers.sqlite")]
@@ -311,6 +401,62 @@ enum Cmd {
     Vfs {
         #[command(subcommand)]
         op: VfsOp,
+    },
+}
+
+/// Sous-commandes de `niers img` (édition d'image via la bibliothèque `image`).
+#[derive(Subcommand)]
+enum ImgOp {
+    /// Dimensions, format et espace colorimétrique, sans rien réécrire.
+    Info {
+        src: PathBuf,
+    },
+    /// Redimensionne. Une seule dimension donnée => l'autre suit le ratio.
+    Resize {
+        src: PathBuf,
+        #[arg(long, short = 'o')]
+        out: PathBuf,
+        #[arg(long, short = 'w')]
+        width: Option<u32>,
+        #[arg(long, short = 'H')]
+        height: Option<u32>,
+        /// nearest | triangle | catmullrom | gaussian | lanczos3
+        #[arg(long, default_value = "lanczos3")]
+        filter: String,
+        /// Force les dimensions exactes (déforme au lieu d'inscrire dans la boîte).
+        #[arg(long)]
+        exact: bool,
+    },
+    /// Recadre une région.
+    Crop {
+        src: PathBuf,
+        #[arg(long, short = 'o')]
+        out: PathBuf,
+        #[arg(long, default_value_t = 0)]
+        x: u32,
+        #[arg(long, default_value_t = 0)]
+        y: u32,
+        #[arg(long, short = 'w')]
+        w: u32,
+        #[arg(long, short = 'H')]
+        h: u32,
+    },
+    /// Réencode vers le format déduit de l'extension de sortie.
+    Convert {
+        src: PathBuf,
+        #[arg(long, short = 'o')]
+        out: PathBuf,
+    },
+    /// Superpose une image sur une autre (alpha respecté) — recompose un visuel en calques.
+    Composite {
+        base: PathBuf,
+        overlay: PathBuf,
+        #[arg(long, short = 'o')]
+        out: PathBuf,
+        #[arg(long, default_value_t = 0)]
+        x: i64,
+        #[arg(long, default_value_t = 0)]
+        y: i64,
     },
 }
 
@@ -1336,6 +1482,68 @@ fn run() -> anyhow::Result<()> {
             lua_cmd::run(&src, lua_cmd::Detail { functions, calls, strings, crc32, limit })
         }
         Cmd::Seed { db, json, exe } => seed(&db, &json, exe.as_deref()),
+        Cmd::SeedUi { db, game_dir, textures } => seed_ui_cmd(&db, game_dir, textures),
+        Cmd::Find {
+            pattern,
+            dir,
+            glob,
+            ext,
+            r#type,
+            hidden,
+            no_ignore,
+            depth,
+            limit,
+            case_sensitive,
+            count,
+        } => {
+            search_cmd::find(&search_cmd::FindArgs {
+                pattern,
+                dir,
+                globs: glob,
+                exts: ext,
+                kind: r#type,
+                hidden,
+                no_ignore,
+                depth,
+                limit,
+                case_sensitive,
+                count,
+            })
+            .map(|_| ())
+        }
+        Cmd::Grep {
+            pattern,
+            dir,
+            glob,
+            ext,
+            ignore_case,
+            hidden,
+            no_ignore,
+            limit,
+            files_with_matches,
+        } => search_cmd::grep(&search_cmd::GrepArgs {
+            pattern,
+            dir,
+            globs: glob,
+            exts: ext,
+            ignore_case,
+            hidden,
+            no_ignore,
+            limit,
+            files_with_matches,
+        })
+        .map(|_| ()),
+        Cmd::Img { op } => img_cmd::run(&match op {
+            ImgOp::Info { src } => img_cmd::Op::Info { src },
+            ImgOp::Resize { src, out, width, height, filter, exact } => {
+                img_cmd::Op::Resize { src, out, width, height, filter, exact }
+            }
+            ImgOp::Crop { src, out, x, y, w, h } => img_cmd::Op::Crop { src, out, x, y, w, h },
+            ImgOp::Convert { src, out } => img_cmd::Op::Convert { src, out },
+            ImgOp::Composite { base, overlay, out, x, y } => {
+                img_cmd::Op::Composite { base, overlay, out, x, y }
+            }
+        }),
         Cmd::Coverage { db } => coverage(&db),
         Cmd::Queue { op, redis, tag } => queue(op, &redis, &tag),
         Cmd::Propagate { db, rounds } => propagate(&db, rounds),
@@ -1575,6 +1783,35 @@ fn seed(db_path: &std::path::Path, json: &std::path::Path, exe: Option<&std::pat
         "seed fn={} call={} str={} const={} glob={} anchor={} cov={}/{} ({:.2}%)",
         stats.functions, stats.xrefs, stats.str_refs, stats.consts, stats.globals, stats.anchors,
         cov.classified, cov.total, cov.pct
+    );
+    Ok(())
+}
+
+fn seed_ui_cmd(
+    db_path: &std::path::Path,
+    game_dir: Option<PathBuf>,
+    textures: bool,
+) -> anyhow::Result<()> {
+    let vfs = open_vfs(game_dir)?;
+    let db = nie_index::Db::open(db_path)
+        .with_context(|| format!("ouverture {}", db_path.display()))?;
+    // `hash_name` peut ne pas exister encore sur une base fraîche.
+    db.init().context("application du schéma")?;
+
+    let stats = seed_ui::run(&db, &vfs, textures)?;
+    let par_kind = stats
+        .par_kind
+        .iter()
+        .map(|(k, n)| format!("{k}={n}"))
+        .collect::<Vec<_>>()
+        .join(" ");
+    println!(
+        "seed-ui écrans={} objbin={} g4tx={} — {par_kind}",
+        stats.screens, stats.objbins, stats.g4tx
+    );
+    println!(
+        "  lignes hash_name (source vfs-ui) = {} ; crc_mismatch={} ; sautés={}",
+        stats.inserted, stats.crc_mismatch, stats.skipped
     );
     Ok(())
 }
