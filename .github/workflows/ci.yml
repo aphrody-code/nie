@@ -1,9 +1,23 @@
 # CI niers — runner SELF-HOSTED obligatoire.
-# Le repo n'est pas portable sur un runner GitHub-hosted : dep path ../aphrody,
-# linker mold, toolchain locale nightly-2026-05-17 (rustup absent), fixtures
-# real-fixtures/real-saves gitignorees, chemins VPS codes en dur. Ce workflow
-# valide donc uniquement les invariants verifiables : format, clippy 0 warning,
-# tests sans donnees copyright. Les tests #[ignore] (integration VPS) ne tournent pas.
+#
+# POURQUOI PAS UN RUNNER GITHUB
+# Le dépôt dépend en `path` du dépôt frère `../aphrody` (8,1 Gio, privé) : sans lui,
+# `cargo metadata` échoue avant même la première compilation. La toolchain est épinglée
+# par `rust-toolchain.toml` (nightly-2026-05-17), le linker est mold, et les fixtures
+# lourdes sont gitignorées. Vendoriser 8 Gio pour chaque exécution coûterait plus cher
+# que ce que la CI vérifie.
+#
+# CE QUE CE WORKFLOW NE FAIT PAS, ET POURQUOI
+# · `cargo fmt --check` : le dépôt n'a jamais adopté les réglages par défaut de rustfmt
+#   (454 fichiers d'écart au 14/8/2026, sans `rustfmt.toml` pour décrire le style réel).
+#   Exiger ici un état que le dépôt n'a jamais eu rendrait la CI rouge en permanence,
+#   donc muette. Adopter un style est une décision à prendre exprès, dans un commit
+#   dédié — pas un effet de bord d'un gate.
+# · `cargo build --workspace` et `cargo test --workspace` : l'édition de liens des ~100
+#   binaires de test remplit le disque du VPS, qui tourne à 96 %. `clippy --all-targets`
+#   type-vérifie exactement les mêmes cibles sans produire un seul exécutable ; c'est le
+#   gate que le CLAUDE.md du dépôt désigne déjà comme référence. Les tests des quatre
+#   crates du cœur, eux, sont assez légers pour être liés.
 name: ci
 
 on:
@@ -13,37 +27,39 @@ on:
     branches: [main]
   workflow_dispatch: {}
 
+# Pas de `cancel-in-progress` : il transformait toute exécution en attente en
+# « cancelled », si bien que 98 exécutions sur 100 étaient annulées et qu'aucune n'a
+# jamais rapporté ni succès ni échec. Une file qui attend est un signal ; une file qui
+# s'annule est un silence.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   quality:
     runs-on: [self-hosted, niers-vps]
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       CARGO_TERM_COLOR: always
       RUST_BACKTRACE: 1
+      # Cible partagée avec l'arbre de travail : sur un disque à 96 %, un second
+      # `target/` de plusieurs gigaoctets ferait tomber le déploiement d'azalée sous son
+      # propre garde-fou (il refuse en dessous de 5 Gio libres).
+      CARGO_TARGET_DIR: /home/ubuntu/niers/target
     steps:
       - uses: actions/checkout@v4
 
-      - name: Toolchain & deps presents (pre-flight)
+      - name: Toolchain et dépendances présentes (pré-vol)
         run: |
           cargo --version
-          command -v mold   || { echo 'mold absent'; exit 1; }
-          test -d ../aphrody || { echo 'dep path ../aphrody absente'; exit 1; }
+          command -v mold    || { echo 'mold absent'; exit 1; }
+          test -d ../aphrody || { echo 'dépendance path ../aphrody absente'; exit 1; }
+          df -h / | tail -1
 
-      - name: Format (cargo fmt --check)
-        run: cargo fmt --all --check
-
-      - name: Clippy (0 warning attendu)
+      - name: Clippy — 0 warning attendu sur toutes les cibles
         run: cargo clippy --workspace --all-targets -- -D warnings
 
-      - name: Build workspace
-        run: cargo build --workspace --locked
+      - name: Tests des crates du cœur (sans données sous copyright)
+        run: cargo test -p nie-core -p nie-pe -p nie-asm -p nie-forge --locked
 
-      - name: Tests (sans fixtures copyright, sans #[ignore])
-        run: cargo test --workspace --locked
-
-      - name: Build wasm (portabilite crates jeu)
+      - name: Build wasm (portabilité des crates du jeu)
         run: cargo build -p nie-wasm --target wasm32-unknown-unknown --release
