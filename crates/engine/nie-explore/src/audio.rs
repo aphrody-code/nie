@@ -79,22 +79,58 @@ pub fn awb_frere(path: &str) -> Option<String> {
     Some(format!("{tronc}.awb"))
 }
 
-/// Trouve les octets AWB qui portent le son de `path`, et dit d'où ils viennent.
+/// Où vivent les octets d'une banque, et combien ils pèsent — **sans jamais lire un AWB externe**.
 ///
-/// `raw` = contenu de `path` déjà lu. Rend `None` quand aucune banque n'est atteignable (ni
-/// AFS2 direct, ni AWB embarqué, ni frère lisible dans le VFS).
+/// C'est ce que doit appeler un appelant qui LISTE. [`resoudre_awb`] charge la banque : sur un
+/// AWB externe de 1,25 Gio, cataloguer 1 512 pistes coûterait alors un gigaoctet de disque par
+/// sélection dans une interface, pour une colonne « taille ». Ici la taille de l'externe vient de
+/// l'index du VFS, qui la connaît déjà.
+///
+/// Rend aussi les octets quand ils sont DÉJÀ en main (banque autonome, AWB embarqué) : les
+/// relire serait un second coût pour rien.
+///
+/// `None` = aucune banque atteignable (ni AFS2 direct, ni embarqué, ni frère servable).
 #[must_use]
-pub fn resoudre_awb(vfs: &Vfs, path: &str, raw: &[u8]) -> Option<(Vec<u8>, SourceAwb)> {
+pub fn localiser_awb(vfs: &Vfs, path: &str, raw: &[u8]) -> Option<(SourceAwb, Option<Vec<u8>>, u64)> {
     if raw.starts_with(b"AFS2") {
-        return Some((raw.to_vec(), SourceAwb::Autonome));
+        return Some((SourceAwb::Autonome, None, raw.len() as u64));
     }
     let info = cri_audio::acb_parse(raw).ok()?;
     if !info.embedded_awb.is_empty() {
-        return Some((info.embedded_awb, SourceAwb::Embarquee));
+        let taille = info.embedded_awb.len() as u64;
+        return Some((SourceAwb::Embarquee, Some(info.embedded_awb), taille));
     }
     let frere = awb_frere(path)?;
-    let bytes = vfs.read(&frere).ok()?;
-    Some((bytes, SourceAwb::Externe(frere)))
+    // `is_readable` en plus de `find` : l'index vient du JEU et déclare des fichiers « loose »
+    // qui n'existent pas forcément sur une installation donnée. Annoncer une banque jouable que
+    // `read` refusera ensuite est pire que de n'en annoncer aucune.
+    let entry = vfs.find(&frere)?;
+    if !vfs.is_readable(&frere) {
+        return None;
+    }
+    Some((SourceAwb::Externe(frere), None, u64::from(entry.file_size)))
+}
+
+/// Trouve les octets AWB qui portent le son de `path`, et dit d'où ils viennent.
+///
+/// `raw` = contenu de `path` déjà lu. Charge réellement la banque — c'est la forme utile au
+/// DÉCODAGE. Pour cataloguer, préférer [`localiser_awb`], qui ne lit pas un AWB externe.
+///
+/// Rend `None` quand aucune banque n'est atteignable (ni AFS2 direct, ni AWB embarqué, ni frère
+/// lisible dans le VFS).
+#[must_use]
+pub fn resoudre_awb(vfs: &Vfs, path: &str, raw: &[u8]) -> Option<(Vec<u8>, SourceAwb)> {
+    match localiser_awb(vfs, path, raw)? {
+        (SourceAwb::Autonome, _, _) => Some((raw.to_vec(), SourceAwb::Autonome)),
+        (SourceAwb::Embarquee, Some(bytes), _) => Some((bytes, SourceAwb::Embarquee)),
+        // Un embarqué sans octets ne se produit pas (`localiser_awb` les rend toujours), mais le
+        // type l'autorise : ne rien inventer plutôt que déballer.
+        (SourceAwb::Embarquee, None, _) => None,
+        (SourceAwb::Externe(frere), _, _) => {
+            let bytes = vfs.read(&frere).ok()?;
+            Some((bytes, SourceAwb::Externe(frere)))
+        }
+    }
 }
 
 /// Catalogue les pistes d'une banque.
