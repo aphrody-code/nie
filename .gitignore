@@ -193,3 +193,13 @@ compile_commands.json
 /bench/cpp/*.obj
 # La sortie `dotnet build` du harnais C# (bench/cs/bin, ~170 Mo de DLL recopiees)
 # tombe deja sous les regles `bin/` / `obj/` en tete de fichier.
+
+# --- Dumps de reverse-engineering ---------------------------------------------
+# `refs/` porte l'index Ghidra/iecode derive de `nie.exe` (124 Mo, 1 628 fichiers,
+# dont un depot git imbrique `refs/iecode-re/.git`). Il est une DEPENDANCE DE BUILD
+# reelle — 18 fichiers suivis y font reference, et `just re-seed` lit
+# `refs/iecode-re/research/nie-index.json` — mais il n'a rien a faire dans git :
+# c'est un derive d'un binaire sous droits, et son poids depasse celui de tout le
+# reste du depot. Il etait jusqu'ici NI versionne NI ignore, donc a un `git add -A`
+# d'entrer par accident. Reconstitution : cf. docs/RE.md.
+/refs/
