@@ -27,6 +27,10 @@ nie-formats = { path = "../../engine/nie-formats", features = ["serde", "texture
 # Parseurs typés des familles game-data (formation, skill, item, mission…) :
 # alimentent la route `/typed` qui décode un cfg.bin en structures de jeu nommées.
 nie-data = { path = "../../engine/nie-data", features = ["serde"] }
+# Vue « dossier » du VFS, rôles de dossiers et table des formats d'export : la MÊME logique que
+# celle qu'utilise l'app desktop (`vfs_ls`), exposée ici en JSON pour que l'explorateur web
+# d'azalée lise le vrai VFS au lieu d'un index SQLite figé régénéré à la main.
+nie-explore = { path = "../../engine/nie-explore" }
 # (cridecoder arrive via nie-formats feature `audio-decode` — plus de dép directe)
 anyhow.workspace = true
 thiserror.workspace = true

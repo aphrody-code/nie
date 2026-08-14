@@ -1336,6 +1336,117 @@ fn decode_awb_entry(data: &[u8], vfs_path: &str, which: Option<usize>) -> anyhow
         .map_err(|e| anyhow::anyhow!("AWB {vfs_path}: {e}"))
 }
 
+/// Chemin du AWB frère d'un ACB : même chemin, extension `.awb`.
+fn awb_frere(vfs_path: &str) -> Option<String> {
+    vfs_path
+        .strip_suffix(".acb")
+        .map(|base| format!("{base}.awb"))
+}
+
+/// Résout les octets AWB d'un conteneur audio : embarqué dans l'ACB, ou fichier `.awb` frère.
+///
+/// Renvoie `(octets, provenance)` où la provenance est `"embedded"` ou `"external:<chemin>"`.
+/// Un `.awb` passé directement est sa propre source (`"self"`).
+fn resoudre_awb(state: &State, vfs_path: &str, raw: &[u8]) -> Option<(Vec<u8>, String)> {
+    if raw.starts_with(b"AFS2") {
+        return Some((raw.to_vec(), "self".to_string()));
+    }
+    let info = nie_formats::cri_audio::acb_parse(raw).ok()?;
+    if !info.embedded_awb.is_empty() {
+        return Some((info.embedded_awb, "embedded".to_string()));
+    }
+    // AWB externe : l'ACB ne porte que le hash du nom, mais dans IEVR le fichier frère
+    // porte systématiquement le même basename — c'est déjà l'hypothèse de la route `/audio`.
+    let frere = awb_frere(vfs_path)?;
+    let vfs = state.vfs.lock().unwrap();
+    let bytes = vfs.read(&frere).ok()?;
+    Some((bytes, format!("external:{frere}")))
+}
+
+/// Nom lisible d'un `EncodeType` de `WaveformTable`.
+fn codec_acb(encode_type: Option<u8>) -> &'static str {
+    match encode_type {
+        Some(2) => "hca",
+        Some(0 | 3) => "adx",
+        Some(_) => "autre",
+        None => "inconnu",
+    }
+}
+
+/// Index des cues d'un conteneur audio, en JSON — le catalogue que sert la galerie audio.
+///
+/// Un `.acb` est une **banque** : `waza_stream.acb` porte 1 512 cues, dont `/audio` ne décodait
+/// que la plus volumineuse — les 1 511 autres étaient inatteignables. Chaque cue listé ici se
+/// joue par `/audio/<chemin>?id=<awbId>`.
+///
+/// Le catalogue est bâti sur l'ACB SEUL, jamais sur l'AWB : les 5 403 banques du jeu pèsent
+/// 0,10 Gio d'ACB contre 7,49 Gio d'AWB, dont un fichier de 1,25 Gio. Lire l'AWB pour apprendre
+/// ce qu'il contient coûterait deux ordres de grandeur de plus et ne dirait pas mieux — l'ACB
+/// porte déjà les noms, les durées, le codec, la fréquence et les canaux.
+fn audio_info_json(vfs_path: &str, raw: &[u8]) -> serde_json::Value {
+    use nie_formats::cri_audio::{Awb, is_adx, is_hca};
+
+    // HCA/ADX nu : une seule piste, pas de banque.
+    if is_hca(raw) || is_adx(raw) {
+        let codec = if is_hca(raw) { "hca" } else { "adx" };
+        return serde_json::json!({
+            "path": vfs_path,
+            "container": codec,
+            "cueCount": 1,
+            "cues": [{ "index": 0, "name": null, "codec": codec, "awbId": 0 }],
+        });
+    }
+
+    let info = nie_formats::cri_audio::acb_parse(raw).ok();
+    let cues = nie_formats::cri_audio::acb_cues(raw).unwrap_or_default();
+
+    // Rang d'entrée AWB par cue-id, résolu depuis l'en-tête AFS2 recopié dans l'ACB — donc sans
+    // ouvrir l'AWB. Absent sur les banques à AWB embarqué : `awbIndex` sera alors `null` et le
+    // client jouera par `?id=`, que `/audio` sait résoudre lui-même.
+    let awb_entete = nie_formats::cri_audio::acb_stream_awb_header(raw)
+        .as_deref()
+        .and_then(|h| Awb::parse(h).ok());
+
+    let liste: Vec<serde_json::Value> = cues
+        .iter()
+        .map(|c| {
+            serde_json::json!({
+                "index": c.cue_index,
+                "cueId": c.cue_id,
+                "name": (!c.name.is_empty()).then(|| c.name.clone()),
+                "codec": codec_acb(c.encode_type),
+                "channels": c.channels,
+                "sampleRate": c.sample_rate,
+                "numSamples": c.num_samples,
+                // Durée en secondes : `numSamples/sampleRate` quand les deux sont connus,
+                // sinon le `Length` de la banque (millisecondes, arrondi).
+                "durationSec": match (c.num_samples, c.sample_rate) {
+                    (Some(n), Some(sr)) if sr > 0 => f64::from(n) / f64::from(sr),
+                    _ => f64::from(c.length_ms) / 1000.0,
+                },
+                "looped": c.looped,
+                "streaming": c.streaming,
+                "awbId": c.awb_id,
+                "awbIndex": c
+                    .awb_id
+                    .and_then(|id| awb_entete.as_ref().and_then(|a| a.index_of_id(id))),
+            })
+        })
+        .collect();
+
+    serde_json::json!({
+        "path": vfs_path,
+        "container": "acb",
+        "name": info.as_ref().map(|a| a.name.clone()),
+        "version": info.as_ref().map(|a| a.version),
+        "cueCount": liste.len(),
+        "awbEntryCount": awb_entete.as_ref().map(|a| a.entries.len()),
+        "embeddedAwb": info.as_ref().is_some_and(|a| !a.embedded_awb.is_empty()),
+        "externalAwb": awb_frere(vfs_path),
+        "cues": liste,
+    })
+}
+
 /// Réencapsule un flux H.264 Annex-B brut en MP4 fragmenté (lisible directement
 /// par un `<video>` navigateur) via ffmpeg en remux sans réencodage (`-c copy`).
 ///
@@ -1619,6 +1730,78 @@ fn respond_text(stream: &mut TcpStream, status: u16, reason: &str, body: &str) {
     );
 }
 
+// ── Query string (routes `/vfs/…`) ────────────────────────────────────────────
+
+/// Décode le percent-encoding d'une valeur de query : `%2F` → `/`, `+` → espace.
+///
+/// Les chemins internes du VFS contiennent des `/`, que le navigateur encode. Un octet `%XX`
+/// mal formé est laissé tel quel plutôt que perdu : mieux vaut un chemin qui ne matche pas
+/// qu'un chemin silencieusement mutilé. Le résultat est reconstruit octet par octet puis
+/// validé UTF-8 (un `%C3%A9` isolé ne doit pas produire deux caractères de remplacement).
+fn percent_decode(s: &str) -> String {
+    let src = s.as_bytes();
+    let mut out: Vec<u8> = Vec::with_capacity(src.len());
+    let mut i = 0;
+    while i < src.len() {
+        match src[i] {
+            b'+' => {
+                out.push(b' ');
+                i += 1;
+            }
+            b'%' if i + 2 < src.len() => {
+                let hex = std::str::from_utf8(&src[i + 1..i + 3]).ok();
+                match hex.and_then(|h| u8::from_str_radix(h, 16).ok()) {
+                    Some(b) => {
+                        out.push(b);
+                        i += 3;
+                    }
+                    None => {
+                        out.push(b'%');
+                        i += 1;
+                    }
+                }
+            }
+            b => {
+                out.push(b);
+                i += 1;
+            }
+        }
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+/// Valeur d'un paramètre de query, percent-décodée. `None` si la clé est absente.
+///
+/// Une clé présente mais vide (`?ext=`) renvoie `Some("")` : c'est au routeur de décider si
+/// « présent et vide » vaut « absent ».
+fn param(query: &str, key: &str) -> Option<String> {
+    query.split('&').find_map(|couple| {
+        let (k, v) = couple.split_once('=').unwrap_or((couple, ""));
+        (k == key).then(|| percent_decode(v))
+    })
+}
+
+/// Paramètre entier de query, `defaut` si absent ou illisible.
+fn param_usize(query: &str, key: &str, defaut: usize) -> usize {
+    param(query, key)
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(defaut)
+}
+
+/// Sérialise une entrée de listing.
+///
+/// Les noms de champs sont ceux que consomme déjà l'explorateur web (`CpkFile` d'azalée) :
+/// c'est ce qui permet de rebrancher le front sur ce pont sans toucher aux composants.
+fn entree_json(e: &nie_explore::listing::FileEntry) -> serde_json::Value {
+    serde_json::json!({
+        "name": e.name,
+        "ext": e.ext,
+        "path": e.path,
+        "size": e.size,
+        "cpk": e.cpk,
+    })
+}
+
 /// Parse `Range: bytes=START-END` (END optionnel) → `(start, end_inclus)` borné à `total`.
 fn parse_range(header: &str, total: usize) -> Option<(usize, usize)> {
     let spec = header.trim().strip_prefix("bytes=")?;
@@ -1740,11 +1923,112 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
 
     // Strippe la query string (`?v=3` cache-bust d'azalee) : le code modèle vit dans le
     // path seul. Sans ça, `strip_suffix(".glb")` échoue sur `c….glb?v=3` -> "code invalide".
+    // La query est capturée AVANT, pour les routes `/vfs/…` qui, elles, en vivent.
+    let query = path.split_once('?').map(|(_, q)| q).unwrap_or("");
     let path = path.split('?').next().unwrap_or(path);
 
     // Routing.
     if path == "/health" {
         respond_text(&mut stream, 200, "OK", "ok");
+        return;
+    }
+
+    // `/vfs/…` — pont de LISTING du VFS réel, en JSON.
+    //
+    // L'explorateur web d'azalée (`/cpk`) parcourait un index SQLite matérialisé depuis un
+    // NDJSON figé : une photo du VFS, à régénérer à la main, muette sur le rôle des dossiers et
+    // sur ce qu'un fichier sait produire. Ces trois routes servent la même vue que l'app desktop,
+    // depuis `nie_explore::listing` — une seule implémentation pour les deux explorateurs.
+    //
+    //   /vfs/ls?path=<dir>&limit=&offset=   vue dossier paginée + rôle catalogué
+    //   /vfs/find?q=<txt>&ext=&limit=       recherche par sous-chaîne
+    //   /vfs/stat?path=<fichier>            métadonnées + formats d'export + description
+    if let Some(route) = path.strip_prefix("/vfs/") {
+        let vfs = state.vfs.lock().unwrap();
+        let body = match route {
+            "ls" => {
+                let dir = param(query, "path").unwrap_or_default();
+                // Même plafond que `find` : `sound_asset/ja` porte 9 078 fichiers directs, que
+                // 5 000 tronquaient en silence.
+                let limit = param_usize(query, "limit", 1000).min(20_000);
+                let offset = param_usize(query, "offset", 0);
+                let l = nie_explore::listing::ls_paged(&vfs, &dir, limit, offset);
+                serde_json::json!({
+                    "dir": l.dir,
+                    "dirs": l.dirs.iter().map(|d| serde_json::json!({ "name": d.name, "count": d.count })).collect::<Vec<_>>(),
+                    "files": l.files.iter().map(entree_json).collect::<Vec<_>>(),
+                    "fileTotal": l.file_total,
+                    "fileOffset": l.file_offset,
+                    "role": l.role.map(|r| serde_json::json!({ "role": r.role, "status": r.status })),
+                })
+            }
+            "find" => {
+                let q = param(query, "q").unwrap_or_default();
+                let ext = param(query, "ext").filter(|e| !e.is_empty());
+                // Plafond haut : une galerie qui veut être complète énumère des dizaines de
+                // milliers d'entrées (24 000 g4tx, 5 400 banques audio). À ~120 o par entrée
+                // JSON, 20 000 tiennent en ~2,4 Mo — le client pagine s'il veut moins.
+                let limit = param_usize(query, "limit", 200).min(20_000);
+                let offset = param_usize(query, "offset", 0);
+                let r = nie_explore::listing::find_paged(&vfs, &q, ext.as_deref(), limit, offset);
+                serde_json::json!({
+                    "query": q,
+                    // `count` = la taille de CETTE page ; `total` = le corpus entier. Les deux,
+                    // parce que « 2 000 trouvés » et « 2 000 renvoyés » ne sont pas la même chose.
+                    "count": r.files.len(),
+                    "total": r.total,
+                    "offset": r.offset,
+                    "files": r.files.iter().map(entree_json).collect::<Vec<_>>(),
+                })
+            }
+            "stat" => {
+                let p = param(query, "path").unwrap_or_default();
+                match nie_explore::listing::stat(&vfs, &p) {
+                    None => {
+                        drop(vfs);
+                        respond_text(&mut stream, 404, "Not Found", "chemin absent du VFS");
+                        return;
+                    }
+                    Some(e) => {
+                        // La description lit réellement les octets : réservée à `stat`, jamais
+                        // au listing, qui parcourt des milliers d'entrées.
+                        let describe = vfs
+                            .read(&p)
+                            .ok()
+                            .and_then(|data| nie_explore::describe_content(&p, &data));
+                        let mut j = entree_json(&e);
+                        j["formats"] = serde_json::json!(
+                            nie_explore::export::formats_pour(&p)
+                                .iter()
+                                .map(|f| serde_json::json!({
+                                    "id": f.id,
+                                    "ext": f.ext,
+                                    "label": f.label,
+                                    "brut": f.brut,
+                                    "sansPerte": f.sans_perte,
+                                }))
+                                .collect::<Vec<_>>()
+                        );
+                        j["describe"] = serde_json::json!(describe);
+                        j
+                    }
+                }
+            }
+            "stats" => serde_json::json!({
+                "total": vfs.asset_count(),
+                "cpkCount": vfs.cpk_count(),
+                "extraCount": vfs.extra_count(),
+                "looseCount": vfs.loose_count(),
+            }),
+            _ => {
+                drop(vfs);
+                respond_text(&mut stream, 404, "Not Found", "route /vfs inconnue");
+                return;
+            }
+        };
+        drop(vfs);
+        let bytes = serde_json::to_vec(&body).unwrap_or_default();
+        respond(&mut stream, 200, "OK", "application/json", &bytes);
         return;
     }
 
@@ -2250,14 +2534,13 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         return;
     }
 
-    // `/audio/<vfs-path>` — décode HCA/ADX depuis le VFS en WAV PCM 16-bit.
-    // Sources possibles :
-    //   - `.hca` : décode directement.
-    //   - `.adx` : décode directement.
-    //   - `.acb` : extrait le AWB embarqué puis décode la première piste HCA/ADX.
-    //   - `.awb` : extrait et décode la première entrée HCA/ADX.
-    // Paramètre optionnel `?cue=N` pour sélectionner une entrée spécifique dans un AWB/ACB.
-    if let Some(rest) = path.strip_prefix("/audio/") {
+    // `/audio-info/<vfs-path>` — CATALOGUE des cues d'une banque audio, en JSON.
+    //
+    // Un `.acb` est une banque : `/audio` n'en décodait qu'UNE piste (la plus volumineuse), ce qui
+    // rendait les centaines d'autres inatteignables. Cette route les énumère (index, cue-id,
+    // taille, codec, nom quand la CueNameTable le donne) ; chacune se joue ensuite par
+    // `/audio/<chemin>?cue=<index>`. C'est le socle de la galerie audio.
+    if let Some(rest) = path.strip_prefix("/audio-info/") {
         let vfs_path = if rest.starts_with("data/") {
             rest.to_string()
         } else {
@@ -2272,12 +2555,89 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             vfs.read(&vfs_path).ok()
         };
         match bytes {
+            None => respond_text(&mut stream, 404, "Not Found", "fichier audio absent du VFS"),
+            Some(raw) => {
+                let j = audio_info_json(&vfs_path, &raw);
+                let body = serde_json::to_vec(&j).unwrap_or_default();
+                respond(&mut stream, 200, "OK", "application/json", &body);
+            }
+        }
+        return;
+    }
+
+    // `/audio/<vfs-path>` — décode HCA/ADX depuis le VFS en WAV PCM 16-bit.
+    // Sources possibles :
+    //   - `.hca` : décode directement.
+    //   - `.adx` : décode directement.
+    //   - `.acb` : extrait le AWB embarqué puis décode la première piste HCA/ADX.
+    //   - `.awb` : extrait et décode la première entrée HCA/ADX.
+    // `?cue=N` sélectionne l'entrée N de la banque (index de `/audio-info`), au lieu du défaut
+    // « la plus volumineuse ». Le paramètre était documenté mais MORT : la query string était
+    // strippée avant le routage, donc jamais lue.
+    if let Some(rest) = path.strip_prefix("/audio/") {
+        let vfs_path = if rest.starts_with("data/") {
+            rest.to_string()
+        } else {
+            format!("data/{rest}")
+        };
+        if vfs_path.contains("..") {
+            respond_text(&mut stream, 400, "Bad Request", "chemin invalide");
+            return;
+        }
+        // `?cue=N` = rang de l'entrée dans l'AWB. `?id=N` = cue-id AFS2, tel que `/audio-info`
+        // le publie (`awbId`) : c'est la forme stable, le rang dépendant de l'ordre du fichier.
+        let cue: Option<usize> = param(query, "cue").and_then(|v| v.parse().ok());
+        let awb_id: Option<u16> = param(query, "id").and_then(|v| v.parse().ok());
+        let bytes = {
+            let vfs = state.vfs.lock().unwrap();
+            vfs.read(&vfs_path).ok()
+        };
+        match bytes {
             None => {
                 respond_text(&mut stream, 404, "Not Found", "fichier audio absent du VFS");
             }
             Some(raw) => {
-                // Tente le décodage direct ; si l'ACB signale "sans AWB", cherche le .awb externe
-                let result = decode_audio_to_wav(&raw, &vfs_path).or_else(|e| {
+                // Avec `?cue=`/`?id=`, on passe obligatoirement par la banque : `decode_to_wav`
+                // ne sait choisir que le défaut. Sans eux, le comportement est INCHANGÉ.
+                let result = if cue.is_some() || awb_id.is_some() {
+                    match resoudre_awb(&state, &vfs_path, &raw) {
+                        None => Err(anyhow::anyhow!(
+                            "{vfs_path} : pas de banque AWB, `?cue=`/`?id=` sans objet"
+                        )),
+                        Some((awb_bytes, _)) => {
+                            let rang = match awb_id {
+                                None => cue,
+                                Some(id) => match nie_formats::cri_audio::Awb::parse(&awb_bytes) {
+                                    Ok(a) => match a.index_of_id(id) {
+                                        Some(i) => Some(i),
+                                        None => {
+                                            respond_text(
+                                                &mut stream,
+                                                404,
+                                                "Not Found",
+                                                &format!("cue-id {id} absent de la banque"),
+                                            );
+                                            return;
+                                        }
+                                    },
+                                    Err(e) => {
+                                        respond_text(
+                                            &mut stream,
+                                            500,
+                                            "Internal Server Error",
+                                            &format!("AWB illisible : {e}"),
+                                        );
+                                        return;
+                                    }
+                                },
+                            };
+                            decode_awb_entry(&awb_bytes, &vfs_path, rang)
+                        }
+                    }
+                } else {
+                    decode_audio_to_wav(&raw, &vfs_path)
+                };
+                let result = result.or_else(|e| {
                     let msg = e.to_string();
                     if msg.contains("ACB sans AWB") {
                         // AWB externe : même chemin, extension .awb
