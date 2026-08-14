@@ -4,8 +4,19 @@
 //! pour les `*_config` à listes, `{ "version": n, "lists": [{ "name", "typeName", "values": [...] }] }`.
 //!
 //! Un `Node` = `{ "name": String, "variables": [Var], "children": [Node] }`.
-//! Un `Var`  = `{ "type": "Int"|"String"|"Float"|..., "value": String }` — **value est toujours
-//! une chaîne** dans ces dumps (ex. `{"type":"Int","value":"128840881"}`).
+//!
+//! ## Deux formes de `Var` — les deux sont acceptées
+//!
+//! | forme | exemple | producteur |
+//! |-------|---------|------------|
+//! | **iecode** (« étiquetée ») | `{"type":"Int","value":"128840881"}` | dumps `*.cfg.bin.json` (inagle / C#) |
+//! | **native** (serde, tag externe) | `{"Int":128840881}` | [`nie_formats::cfgbin::Value`] via `niers decode` |
+//!
+//! La forme iecode porte **toujours la valeur en chaîne** ; la forme native porte un
+//! `serde_json::Number` (ou une chaîne pour `String`). Sans le support de la seconde, un JSON
+//! produit par la CLI du dépôt se lisait « toutes variables absentes » — les parseurs
+//! renvoyaient des listes **vides sans erreur**. Les deux formes sont donc reconnues ici, à
+//! l'unique endroit où les variables sont lues, ce qui vaut pour toute la famille `nie-data`.
 //!
 //! Source : `packages/inagle/src/core/config-parser.ts` (ConfigNode/ConfigVariable),
 //! `packages/inagle/src/characters/types.ts` (CfgBinEntry/CfgBinVariable). Échantillon réel :
@@ -17,13 +28,19 @@ use serde_json::Value;
 
 use crate::hash::HashId;
 
-/// Une variable CfgBin (`{type, value}`), `value` réinterprétée à la demande.
+/// Une variable CfgBin, `value` réinterprétée à la demande.
+///
+/// Couvre les deux formes documentées en tête de module : `value` porte la chaîne de la forme
+/// iecode (`""` quand la forme native n'en fournit pas), `num` porte le scalaire JSON de la
+/// forme native. Les accesseurs privilégient `num` quand il est présent.
 #[derive(Debug, Clone)]
 pub struct Var<'a> {
     /// Type déclaré (`"Int"`, `"String"`, `"Float"`, `"Hash"`, …).
     pub ty: &'a str,
-    /// Valeur brute (toujours une chaîne dans le dump JSON).
+    /// Valeur brute textuelle (forme iecode) ; `""` si la forme native porte un scalaire.
     pub value: &'a str,
+    /// Scalaire JSON de la forme native (`{"Int":13}`) ; `None` en forme iecode.
+    pub(crate) num: Option<&'a Value>,
 }
 
 impl<'a> Var<'a> {
@@ -31,6 +48,15 @@ impl<'a> Var<'a> {
     /// Tolère les flottants en tronquant (les `Float` arrivent en `"0.5"`).
     #[must_use]
     pub fn as_i64(&self) -> i64 {
+        // Forme native : le scalaire est déjà typé, aucun aller-retour par le texte.
+        if let Some(n) = self.num {
+            if let Some(v) = n.as_i64() {
+                return v;
+            }
+            if let Some(f) = n.as_f64() {
+                return f as i64;
+            }
+        }
         if let Ok(v) = self.value.trim().parse::<i64>() {
             return v;
         }
@@ -50,6 +76,9 @@ impl<'a> Var<'a> {
     /// Lit comme flottant (`parseFloat(value.replace(",","."))`).
     #[must_use]
     pub fn as_f64(&self) -> f64 {
+        if let Some(f) = self.num.and_then(Value::as_f64) {
+            return f;
+        }
         self.value.trim().replace(',', ".").parse::<f64>().unwrap_or(0.0)
     }
 }
@@ -83,13 +112,28 @@ impl<'a> Node<'a> {
     }
 
     /// Variable à l'index `i`, ou `None`.
+    ///
+    /// Reconnaît les deux formes de variable (cf. tête de module) : `{"type","value"}` (iecode)
+    /// et `{"<Type>": scalaire}` (native serde de `nie_formats`).
     #[must_use]
     pub fn var(&self, i: usize) -> Option<Var<'a>> {
         let arr = self.raw.get("variables")?.as_array()?;
         let v = arr.get(i)?;
-        let value = v.get("value")?.as_str()?;
-        let ty = v.get("type").and_then(Value::as_str).unwrap_or("");
-        Some(Var { ty, value })
+
+        // Forme iecode : la clé `value` est présente et porte une chaîne.
+        if let Some(value) = v.get("value").and_then(Value::as_str) {
+            let ty = v.get("type").and_then(Value::as_str).unwrap_or("");
+            return Some(Var { ty, value, num: None });
+        }
+
+        // Forme native : objet à clé unique, la clé EST le nom du type (`{"Int":13}`).
+        let obj = v.as_object()?;
+        let (ty, raw) = obj.iter().next().filter(|_| obj.len() == 1)?;
+        Some(Var {
+            ty: ty.as_str(),
+            value: raw.as_str().unwrap_or(""),
+            num: Some(raw),
+        })
     }
 
     /// Entier signé de la variable `i` (0 si absente).
