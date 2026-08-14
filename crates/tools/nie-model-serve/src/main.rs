@@ -1378,6 +1378,45 @@ fn resoudre_awb(state: &State, vfs_path: &str, raw: &[u8]) -> Option<(Vec<u8>, S
     Some((bytes, format!("external:{frere}")))
 }
 
+/// Nom du fichier téléchargé pour **un cue précis** d'une banque ACB.
+///
+/// Le nom proposé par défaut est celui de la BANQUE : cinq cues tirés de `waza_stream.acb`
+/// descendraient tous sous `waza_stream.wav`, chacun recouvrant le précédent. La banque nomme
+/// pourtant ses cues (`ev28_04262_me`) — c'est ce nom-là qui désigne le fichier.
+///
+/// À défaut d'un nom, on rend au moins un nom **distinct** : le radical de la banque suivi de
+/// l'identifiant. Le paramètre `cue` désigne un rang dans l'AWB, pas une ligne du catalogue :
+/// il ne se relie pas à un nom de façon fiable, et on ne le devine pas.
+fn nom_de_cue(acb: &[u8], vfs_path: &str, awb_id: Option<u16>, rang: Option<usize>) -> String {
+    let nomme = awb_id.and_then(|id| {
+        let cues = nie_formats::cri_audio::acb_cues(acb).ok()?;
+        let c = cues.into_iter().find(|c| c.awb_id == Some(id))?;
+        (!c.name.is_empty()).then_some(c.name)
+    });
+    let base = nomme.unwrap_or_else(|| {
+        let radical = vfs_path
+            .rsplit('/')
+            .next()
+            .and_then(|n| n.split('.').next())
+            .unwrap_or("audio");
+        let n = awb_id.map(u32::from).or(rang.map(|r| r as u32)).unwrap_or(0);
+        format!("{radical}_{n}")
+    });
+    // Un nom de cue vient du jeu, pas de l'utilisateur ; il est tout de même restreint à ce qui
+    // traverse sans dommage un en-tête HTTP et un système de fichiers.
+    let sain: String = base
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '_' || c == '-' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    format!("{sain}.wav")
+}
+
 /// Nom lisible d'un `EncodeType` de `WaveformTable`.
 fn codec_acb(encode_type: Option<u8>) -> &'static str {
     match encode_type {
@@ -2156,6 +2195,10 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         };
 
         let ext = vfs_path.rsplit('.').next().unwrap_or("").to_ascii_lowercase();
+        // Nom imposé au téléchargement quand le fichier produit ne désigne PAS le fichier
+        // source — un cue d'une banque, par exemple. `None` laisse la règle de nommage
+        // commune (`nom_propose`) s'appliquer.
+        let mut nom_force: Option<String> = None;
         let produit: Result<Vec<u8>, String> = match format.as_str() {
             "mp4" => nie_formats::cri_audio::usm_demux(&data)
                 .map_err(|e| e.to_string())
@@ -2188,6 +2231,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                         })
                         .map_err(|e| e.to_string())
                 } else {
+                    nom_force = Some(nom_de_cue(&data, &vfs_path, awb_id, cue));
                     match resoudre_awb(&state, &vfs_path, &data) {
                         None => Err("aucune banque AWB résolue".to_string()),
                         Some((awb, _)) => {
@@ -2209,7 +2253,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             Ok(body) => respond_download(
                 &mut stream,
                 mime_du_format(&format, &ext),
-                &nie_explore::export::nom_propose(&vfs_path, &format),
+                &nom_force.unwrap_or_else(|| nie_explore::export::nom_propose(&vfs_path, &format)),
                 &body,
             ),
             Err(e) => {
