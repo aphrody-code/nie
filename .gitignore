@@ -13,6 +13,9 @@ obj/
 data/
 dump/
 out/
+# Sortie par defaut des exportateurs de familles nie-data (`export_formations --out`) : du
+# contenu de jeu (c) LEVEL-5 reserialise en JSON, regenerable, jamais du code du depot.
+/export/
 
 # Rust build
 /target
