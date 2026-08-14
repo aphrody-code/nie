@@ -29,17 +29,32 @@ use nie_formats::objbin;
 pub struct ModeDef {
     /// Identifiant stable, utilisable en URL (`victory-road`).
     pub slug: &'static str,
-    /// Nom lisible (français).
+    /// Nom de repli, si le jeu ne fournit pas de libellé pour ce mode.
     pub label: &'static str,
     /// Préfixes de noms d'écran/script qui appartiennent à ce mode.
     pub prefixes: &'static [&'static str],
     /// Région de l'atlas `mode_base01_atl` qui porte l'icône, si identifiée.
     pub icon_region: Option<&'static str>,
+    /// Hash `menu_text` du libellé officiel — le nom que le JEU affiche, résolu à l'indexation
+    /// dans les trois locales plutôt que recopié ici.
+    pub text_hash: Option<u32>,
+    /// Vrai si le jeu énumère lui-même ce mode dans ses réglages audio (cf. [`MODES`]).
+    pub official: bool,
     /// Ce que les fichiers permettent d'affirmer sur l'état du mode.
     pub note: &'static str,
 }
 
-/// Les modes du menu principal, chacun adossé à des écrans réels du VFS.
+/// Les modes, chacun adossé à des écrans réels du VFS.
+///
+/// **Les cinq modes marqués `official` ne sont pas un choix éditorial** : le jeu les énumère
+/// lui-même dans `menu_text`, via trois familles de réglages concordantes — « BGM Volume (X) »,
+/// « Character Voice Volume (X) » et « Power List Display (X) ». Cette liste a corrigé la
+/// première version de ce fichier : `Competition Mode` y manquait, et le mode nommé
+/// « Kizuna Station » y était confondu avec le lieu « Bond Town » (FR « Ville Kizuna »), qui est
+/// un libellé distinct.
+///
+/// Les autres entrées sont des écrans utilitaires du menu principal — utiles à cataloguer, mais
+/// que le jeu ne compte pas parmi ses modes.
 ///
 /// `icon_region` n'est renseignée que pour les tuiles identifiées **visuellement** sur une
 /// capture du menu ; les autres restent `None` plutôt que devinées.
@@ -49,58 +64,88 @@ pub const MODES: &[ModeDef] = &[
         label: "Victory Road",
         prefixes: &["victory_load", "victory_lode", "fake_vroad"],
         icon_region: Some("mode_base04"),
+        text_hash: Some(0x80cd_176b),
+        official: true,
         note: "Tournoi en trois phases (inscription, qualifications, classement final). \
-               Les objbin sont sous soccer99_* et ce dossier ne contient AUCUNE texture : \
-               le mode est present en maquette, plusieurs ecrans portent le mot `fake`.",
+               Les objbin sont sous soccer99_* et ce dossier ne contient AUCUNE texture ; \
+               aucun de ses objets ne porte de slot de texte resolu. Le mode est present en \
+               MAQUETTE, plusieurs de ses ecrans portent le mot `fake`.",
     },
     ModeDef {
-        slug: "soccer",
-        label: "Match",
-        prefixes: &["soccer_top_menu", "soccer_game_mode"],
-        icon_region: Some("mode_base03"),
-        note: "Entree des matchs (crampons + ballon sur la tuile).",
-    },
-    ModeDef {
-        slug: "bb-stadium",
-        label: "BB Stadium",
-        prefixes: &["bb_stadium"],
-        icon_region: Some("mode_base10"),
-        note: "Tuile au logo `BB`.",
-    },
-    ModeDef {
-        slug: "chronicle",
-        label: "Chronique",
-        prefixes: &["chronicle_mode"],
-        icon_region: Some("mode_base07"),
-        note: "Ecrans chronicle_mode_top_menu et chronicle_mode_soccer_vs_menu ; \
-               images dediees sous 220_img/ev_chronicle_img (943 fichiers).",
+        slug: "competition",
+        label: "Mode Compétition",
+        prefixes: &[],
+        icon_region: None,
+        text_hash: Some(0x6e14_cca7),
+        official: true,
+        note: "Nomme par les reglages audio du jeu, mais AUCUN ecran ne porte ce nom dans le \
+               VFS : comme les modes en ligne (`lobby`, `ranked`, `bot_match`, tous absents), \
+               ses ecrans ne sont pas dans les fichiers installes.",
     },
     ModeDef {
         slug: "story",
         label: "Histoire",
         prefixes: &["story_mode"],
         icon_region: None,
+        text_hash: Some(0x76db_0fff),
+        official: true,
         note: "Ecran story_mode_top_menu.",
     },
     ModeDef {
-        slug: "kizuna-town",
-        label: "Ville Kizuna",
+        slug: "chronicle",
+        label: "Mode Chronique",
+        prefixes: &["chronicle_mode"],
+        icon_region: Some("mode_base07"),
+        text_hash: Some(0xce37_875a),
+        official: true,
+        note: "Ecrans chronicle_mode_top_menu et chronicle_mode_soccer_vs_menu ; \
+               images dediees sous 220_img/ev_chronicle_img (943 fichiers).",
+    },
+    ModeDef {
+        slug: "kizuna-station",
+        label: "Station Kizuna",
         prefixes: &["kizuna_town"],
         icon_region: None,
-        note: "Hub social : top, edition, deplacement (warp), placement de membres.",
+        text_hash: Some(0x126c_915e),
+        official: true,
+        note: "Le MODE s'appelle « Station Kizuna » ; le LIEU qu'il ouvre est « Ville Kizuna » \
+               (EN Bond Town), un libelle distinct. Ses ecrans portent le prefixe kizuna_town.",
+    },
+    ModeDef {
+        slug: "soccer",
+        label: "Match",
+        prefixes: &["soccer_top_menu", "soccer_game_mode"],
+        icon_region: Some("mode_base03"),
+        text_hash: Some(0x848d_75db),
+        official: false,
+        note: "Entree des matchs (crampons + ballon sur la tuile). Le jeu ne le compte pas \
+               parmi les modes de ses reglages audio.",
+    },
+    ModeDef {
+        slug: "bb-stadium",
+        label: "BB Stadium",
+        prefixes: &["bb_stadium"],
+        icon_region: Some("mode_base10"),
+        text_hash: None,
+        official: false,
+        note: "Tuile au logo `BB`.",
     },
     ModeDef {
         slug: "play-guide",
         label: "Guide de jeu",
         prefixes: &["play_guide"],
         icon_region: Some("mode_base05"),
+        text_hash: None,
+        official: false,
         note: "Tuile au livre marque d'un point d'exclamation.",
     },
     ModeDef {
         slug: "setting",
-        label: "Réglages",
+        label: "Paramètres",
         prefixes: &["setting_top_menu"],
         icon_region: Some("mode_base06"),
+        text_hash: Some(0x82c9_a2b3),
+        official: false,
         note: "Tuile a l'engrenage.",
     },
     ModeDef {
@@ -108,16 +153,51 @@ pub const MODES: &[ModeDef] = &[
         label: "Informations",
         prefixes: &["information_top_menu", "information_"],
         icon_region: Some("mode_base09"),
+        text_hash: Some(0x1796_88e8),
+        official: false,
         note: "Tuile au `i`.",
     },
     ModeDef {
         slug: "team-dock",
-        label: "Effectif",
+        label: "Équipe",
         prefixes: &["team_dock"],
         icon_region: None,
+        text_hash: Some(0x7aae_281e),
+        official: false,
         note: "Ecran commun de gestion d'equipe.",
     },
 ];
+
+/// Locales dont on résout le libellé officiel.
+const LOCALES: [&str; 3] = ["fr", "en", "ja"];
+
+/// Charge `menu_text` d'une locale : `hash` → libellé.
+///
+/// Le fichier porte `TEXT_INFO_BEGIN > TEXT_INFO [hash, 0, texte]`. Absence = locale non
+/// installee, ce qui n'est pas une erreur : le catalogue retombe sur le libellé de repli.
+fn charger_menu_text(vfs: &Vfs, locale: &str) -> BTreeMap<u32, String> {
+    let mut out = BTreeMap::new();
+    let path = format!("data/common/text/{locale}/menu_text.cfg.bin");
+    let Ok(bytes) = vfs.read(&path) else { return out };
+    let Ok(file) = cfgbin::parse_t2b(&bytes) else { return out };
+    walk(&file.entries, &mut |e: &CfgEntry| {
+        if !e.name.starts_with("TEXT_INFO") || e.name.contains("BEGIN") || e.name.contains("END") {
+            return;
+        }
+        let hash = e.variables.iter().find_map(|v| match v {
+            Value::Int(i) => Some(u32::from_ne_bytes(i.to_ne_bytes())),
+            _ => None,
+        });
+        let texte = e.variables.iter().rev().find_map(|v| match v {
+            Value::String(s) if !s.is_empty() => Some(s.clone()),
+            _ => None,
+        });
+        if let (Some(h), Some(t)) = (hash, texte) {
+            out.insert(h, t);
+        }
+    });
+    out
+}
 
 /// Ce qui a été trouvé pour un mode.
 #[derive(Default)]
@@ -273,6 +353,10 @@ pub fn ensure_schema(conn: &nie_index::rusqlite::Connection) -> Result<()> {
             id          INTEGER PRIMARY KEY,
             slug        TEXT NOT NULL UNIQUE,
             label       TEXT NOT NULL,
+            label_en    TEXT,
+            label_ja    TEXT,
+            text_hash   INTEGER,
+            official    INTEGER NOT NULL DEFAULT 0,
             icon_atlas  TEXT,
             icon_region TEXT,
             screens     INTEGER NOT NULL DEFAULT 0,
@@ -306,19 +390,36 @@ pub fn index(db: &nie_index::Db, vfs: &Vfs) -> Result<(usize, usize, usize)> {
     ensure_schema(conn)?;
     conn.execute_batch("BEGIN")?;
 
+    // Libellés officiels : le nom que le JEU affiche, dans les trois locales.
+    let textes: Vec<(&str, BTreeMap<u32, String>)> =
+        LOCALES.iter().map(|lg| (*lg, charger_menu_text(vfs, lg))).collect();
+    let libelle = |lg: &str, h: Option<u32>| -> Option<String> {
+        let h = h?;
+        textes.iter().find(|(l, _)| *l == lg)?.1.get(&h).cloned()
+    };
+
     let (mut n_modes, mut n_screens, mut n_assets) = (0usize, 0usize, 0usize);
     for def in MODES {
         let f = collect(vfs, def);
+        // Le libellé du jeu prime sur le nom de repli ; s'il manque, on garde le nôtre.
+        let label_fr = libelle("fr", def.text_hash).unwrap_or_else(|| def.label.to_string());
         conn.execute(
-            "INSERT INTO mode(slug, label, icon_atlas, icon_region, screens, layers, focus, note)
-             VALUES(?1,?2,?3,?4,?5,?6,?7,?8)
+            "INSERT INTO mode(slug, label, label_en, label_ja, text_hash, official,
+                              icon_atlas, icon_region, screens, layers, focus, note)
+             VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)
              ON CONFLICT(slug) DO UPDATE SET
-                label=excluded.label, icon_atlas=excluded.icon_atlas,
+                label=excluded.label, label_en=excluded.label_en, label_ja=excluded.label_ja,
+                text_hash=excluded.text_hash, official=excluded.official,
+                icon_atlas=excluded.icon_atlas,
                 icon_region=excluded.icon_region, screens=excluded.screens,
                 layers=excluded.layers, focus=excluded.focus, note=excluded.note",
             nie_index::rusqlite::params![
                 def.slug,
-                def.label,
+                label_fr,
+                libelle("en", def.text_hash),
+                libelle("ja", def.text_hash),
+                def.text_hash.map(i64::from),
+                i64::from(def.official),
                 def.icon_region.map(|_| "data/dx11/menu/100_mainmenu/mainmenu90/mainmenu90_01/mainmenu90_01.g4tx"),
                 def.icon_region,
                 f.screens.len() as i64,
@@ -355,7 +456,8 @@ pub fn index(db: &nie_index::Db, vfs: &Vfs) -> Result<(usize, usize, usize)> {
         }
         n_modes += 1;
         println!(
-            "  {:<14} ecrans={:<3} calques={:<4} objbin={:<4} g4pkm={:<4} g4tx={:<4} lua={:<3} focus={}",
+            "  {} {:<15} ecrans={:<3} calques={:<4} objbin={:<4} g4pkm={:<4} g4tx={:<4} lua={:<3} focus={}",
+            if def.official { "*" } else { " " },
             def.slug,
             f.screens.len(),
             f.layers.len(),
@@ -375,8 +477,9 @@ pub fn index(db: &nie_index::Db, vfs: &Vfs) -> Result<(usize, usize, usize)> {
 pub fn export_json(db: &nie_index::Db) -> Result<serde_json::Value> {
     let conn = db.conn();
     let mut stmt = conn.prepare(
-        "SELECT id, slug, label, icon_atlas, icon_region, screens, layers, focus, note
-         FROM mode ORDER BY slug",
+        "SELECT id, slug, label, icon_atlas, icon_region, screens, layers, focus, note,
+                label_en, label_ja, official
+         FROM mode ORDER BY official DESC, slug",
     )?;
     let rows = stmt.query_map([], |r| {
         Ok((
@@ -389,12 +492,15 @@ pub fn export_json(db: &nie_index::Db) -> Result<serde_json::Value> {
             r.get::<_, i64>(6)?,
             r.get::<_, i64>(7)?,
             r.get::<_, Option<String>>(8)?,
+            r.get::<_, Option<String>>(9)?,
+            r.get::<_, Option<String>>(10)?,
+            r.get::<_, i64>(11)?,
         ))
     })?;
 
     let mut modes = Vec::new();
     for row in rows {
-        let (id, slug, label, atlas, region, screens, layers, focus, note) = row?;
+        let (id, slug, label, atlas, region, screens, layers, focus, note, en, ja, official) = row?;
         let mut screens_v = Vec::new();
         let mut s = conn.prepare(
             "SELECT screen, cfg_path FROM mode_screen WHERE mode_id=?1 ORDER BY screen",
@@ -418,6 +524,9 @@ pub fn export_json(db: &nie_index::Db) -> Result<serde_json::Value> {
         modes.push(serde_json::json!({
             "slug": slug,
             "label": label,
+            "labelEn": en,
+            "labelJa": ja,
+            "official": official != 0,
             "icon": { "atlas": atlas, "region": region },
             "counts": { "screens": screens, "layers": layers, "focus": focus },
             "note": note,
