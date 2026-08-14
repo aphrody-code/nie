@@ -19,6 +19,8 @@
 		"@rosegriffon/inagle": "^2.0.2",
 		"@rosegriffon/types": "^0.2.1",
 		"@rosegriffon/ui": "^0.2.1",
+		"@spacedrive/primitives": "^0.2.3",
+		"@spacedrive/tokens": "^0.2.3",
 		"@tailwindcss/vite": "^4.3.3",
 		"@tauri-apps/api": "^2",
 		"@tauri-apps/plugin-clipboard-manager": "^2.3.2",
