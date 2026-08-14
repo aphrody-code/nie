@@ -252,15 +252,66 @@ pub struct MeshVisibleEntry {
     pub is_visible: bool,
 }
 
+/// Valeur d'un paramètre de `PROP_PARAM`, avec le type déclaré par l'entrée T2B.
+///
+/// Les type-bytes de l'entrée (2 bits par paramètre) portent déjà l'information ; la conserver
+/// évite de deviner à la lecture qu'un `-1082130432` est en fait `-1.0f`, et surtout de perdre
+/// les chaînes — un `m_texPath` est un **chemin de texture**, pas un scalaire.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+pub enum PropValue {
+    /// type-byte `0` — chaîne résolue depuis la string table (chaîne vide si l'offset est `-1`).
+    Str(String),
+    /// type-byte `1` ou `3` — entier signé, ou hash CRC-32 réinterprété par l'appelant.
+    Int(i32),
+    /// type-byte `2` — flottant (bits de l'`i32` réinterprétés).
+    Float(f32),
+}
+
 /// Composant générique pour les types RTTI non reconnus.
-/// Préserve le nom RTTI et les paramètres bruts de `PROP_PARAM`.
+///
+/// Ces composants portent l'essentiel de l'UI : **106 des 114 types** du corpus menu tombent
+/// ici (2844 occurrences sur 3179 objbin), dont `CMenuCaptionInfoProperty` (1311),
+/// `CMenuIconSwapComponent` (439) et `MenuAnchorComponent` (209). Leurs paramètres sont donc
+/// préservés **typés** : les réduire à des entiers jetait silencieusement toutes les chaînes,
+/// c.-à-d. les chemins d'asset que ces composants référencent.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct UnknownComponent {
     /// Nom RTTI du composant (ex. `"CMenuScrollMaskComponent"`).
     pub type_name: String,
-    /// Paramètres bruts : `(clé, valeurs_entières)`.
-    pub raw_params: Vec<(String, Vec<i32>)>,
+    /// Paramètres : `(clé, valeurs typées)`, la clé exclue des valeurs.
+    pub params: Vec<(String, Vec<PropValue>)>,
+}
+
+impl UnknownComponent {
+    /// Valeurs du paramètre `key`, ou `None` s'il est absent.
+    #[must_use]
+    pub fn get(&self, key: &str) -> Option<&[PropValue]> {
+        self.params.iter().find(|(k, _)| k == key).map(|(_, v)| v.as_slice())
+    }
+
+    /// Première valeur de `key` si c'est une chaîne **non vide** — le cas utile pour les
+    /// paramètres qui référencent un asset (`m_texPath`, chemins de modèle…).
+    #[must_use]
+    pub fn str_param(&self, key: &str) -> Option<&str> {
+        match self.get(key)?.first()? {
+            PropValue::Str(s) if !s.is_empty() => Some(s.as_str()),
+            _ => None,
+        }
+    }
+
+    /// Toutes les chaînes non vides portées par ce composant, quel que soit le paramètre.
+    /// C'est ce qui permet de rattacher un composant non typé à ses assets sans connaître sa
+    /// sémantique champ par champ.
+    pub fn strings(&self) -> impl Iterator<Item = &str> {
+        self.params.iter().flat_map(|(_, vals)| {
+            vals.iter().filter_map(|v| match v {
+                PropValue::Str(s) if !s.is_empty() => Some(s.as_str()),
+                _ => None,
+            })
+        })
+    }
 }
 
 // ── Structure interne : entrée brute T2B ─────────────────────────────────────
@@ -520,6 +571,27 @@ fn extract_int_values(e: &RawEntry) -> Vec<i32> {
     result
 }
 
+/// Extrait les valeurs d'une entrée `PROP_PARAM` **en préservant leur type**, clé exclue.
+///
+/// Diffère de [`extract_int_values`], qui écarte *toute* valeur de type String : le paramètre 0
+/// est bien la clé, mais les suivants peuvent être des chaînes (chemins d'asset), et celles-là
+/// n'ont aucune raison d'être perdues.
+fn extract_values(e: &RawEntry) -> Vec<PropValue> {
+    let mut result = Vec::new();
+    for (j, &ty) in e.param_types.iter().enumerate() {
+        // Paramètre 0 = la clé, déjà lue par l'appelant.
+        if j == 0 {
+            continue;
+        }
+        result.push(match ty {
+            0 => PropValue::Str(e.str_params[j].clone().unwrap_or_default()),
+            2 => PropValue::Float(f32::from_bits(e.int_params[j] as u32)),
+            _ => PropValue::Int(e.int_params[j]),
+        });
+    }
+    result
+}
+
 // ── Construction de l'objet ──────────────────────────────────────────────────
 
 fn build_object(entries: Vec<RawEntry>) -> Result<MenuObject, FormatError> {
@@ -587,6 +659,10 @@ fn build_object(entries: Vec<RawEntry>) -> Result<MenuObject, FormatError> {
             i += 1;
 
             let mut raw_props: Vec<(String, Vec<i32>)> = Vec::new();
+            // Collecte parallèle typée : les 8 builders spécialisés consomment `raw_props` tel
+            // quel (comportement inchangé, au bit près), seuls les composants non reconnus
+            // reçoivent la version typée — là où les chaînes étaient perdues.
+            let mut typed_props: Vec<(String, Vec<PropValue>)> = Vec::new();
             let mut nested_groups: Vec<Vec<(String, Vec<i32>)>> = Vec::new();
 
             while i < entries.len() && entries[i].crc != CRC_PROP_INFO_END {
@@ -597,6 +673,7 @@ fn build_object(entries: Vec<RawEntry>) -> Result<MenuObject, FormatError> {
                         .and_then(|s| s.as_deref())
                         .unwrap_or("")
                         .to_string();
+                    typed_props.push((key.clone(), extract_values(&entries[i])));
                     raw_props.push((key, extract_int_values(&entries[i])));
                     i += 1;
                 } else if entries[i].crc == CRC_PROP_PARAM_BGN {
@@ -629,7 +706,13 @@ fn build_object(entries: Vec<RawEntry>) -> Result<MenuObject, FormatError> {
                 i += 1; // saute PROP_INFO_END
             }
 
-            components.push(build_component(&comp_type, comp_mode, &raw_props, &nested_groups));
+            components.push(build_component(
+                &comp_type,
+                comp_mode,
+                &raw_props,
+                &typed_props,
+                &nested_groups,
+            ));
         } else {
             i += 1;
         }
@@ -650,6 +733,7 @@ fn build_component(
     type_name: &str,
     mode: i32,
     props: &[(String, Vec<i32>)],
+    typed: &[(String, Vec<PropValue>)],
     nested: &[Vec<(String, Vec<i32>)>],
 ) -> MenuComponent {
     match type_name {
@@ -677,7 +761,7 @@ fn build_component(
         "CSetupMeshVisible" => {
             MenuComponent::MeshVisible(build_mesh_visible_component(type_name, nested))
         }
-        _ => MenuComponent::Unknown(build_unknown_component(type_name, props)),
+        _ => MenuComponent::Unknown(build_unknown_component(type_name, typed)),
     }
 }
 
@@ -871,10 +955,13 @@ fn build_mesh_visible_component(
     }
 }
 
-fn build_unknown_component(type_name: &str, props: &[(String, Vec<i32>)]) -> UnknownComponent {
+fn build_unknown_component(
+    type_name: &str,
+    typed: &[(String, Vec<PropValue>)],
+) -> UnknownComponent {
     UnknownComponent {
         type_name: type_name.to_string(),
-        raw_params: props.to_vec(),
+        params: typed.to_vec(),
     }
 }
 
