@@ -331,6 +331,25 @@ pub fn g4tx_vignette(g4tx: &[u8], basename: &str, max_cote: u32, format: ImageOu
     encoder_rgba(&petit, vw, vh, format)
 }
 
+/// Vignette d'une texture **nommée** d'un conteneur G4TX (cf.
+/// [`crate::g4tx_decode::decode_named_to_rgba`]).
+///
+/// [`g4tx_vignette`] rend UNE image par fichier : la texture principale. Elle ne peut donc pas
+/// servir une grille des 80 icônes que porte `icon_item05.g4tx`, où chaque nom a son propre
+/// payload. `nom` désigne soit une texture principale, soit une région d'atlas — la sélection est
+/// la même que celle du décodage nommé, la réduction se fait ici avant l'IPC.
+pub fn g4tx_vignette_nommee(
+    g4tx: &[u8],
+    nom: &str,
+    max_cote: u32,
+    format: ImageOut,
+) -> Result<Vec<u8>, String> {
+    let (w, h, rgba) = crate::g4tx_decode::decode_named_to_rgba(g4tx, nom)
+        .ok_or_else(|| format!("texture `{nom}` absente du conteneur G4TX"))?;
+    let (vw, vh, petit) = reduire_rgba(&rgba, w, h, max_cote)?;
+    encoder_rgba(&petit, vw, vh, format)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
