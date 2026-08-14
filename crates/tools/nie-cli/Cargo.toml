@@ -42,4 +42,17 @@ rayon.workspace = true
 # pré-décodage sprites menu (g4tx -> DDS -> RGBA -> PNG)
 # default-features=false pour exclure `encode` (intel_tex_2 / C++ ISPC = linker error)
 image_dds = { version = "0.7", default-features = false, features = ["ddsfile", "image"] }
-image = { version = "0.25", default-features = false, features = ["png"] }
+image = { version = "0.25", default-features = false, features = [
+    "png",
+    "jpeg",
+    "webp",
+    "gif",
+    "bmp",
+    "tiff",
+] }
+
+# `niers find` / `niers grep` : recherche de fichiers et de contenu sur le disque.
+ignore.workspace = true
+globset.workspace = true
+grep-searcher.workspace = true
+grep-regex.workspace = true
