@@ -39,6 +39,10 @@ serde.workspace = true
 serde_json.workspace = true
 rayon.workspace = true
 
+# `niers strings` : géométrie du PE (sections, ImageBase) et décodage de .text.
+goblin.workspace = true
+iced-x86.workspace = true
+
 # pré-décodage sprites menu (g4tx -> DDS -> RGBA -> PNG)
 # default-features=false pour exclure `encode` (intel_tex_2 / C++ ISPC = linker error)
 image_dds = { version = "0.7", default-features = false, features = ["ddsfile", "image"] }

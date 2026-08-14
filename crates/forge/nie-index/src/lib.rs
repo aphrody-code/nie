@@ -26,6 +26,20 @@ pub const CAMERA_SCHEMA: &str = include_str!("camera.sql");
 /// Version du schéma (clé `meta.schema_version`). `2` = schéma de base + migration caméra.
 pub const SCHEMA_VERSION: &str = "2";
 
+/// Colonnes ajoutées après coup : `(table, colonne, type)`.
+///
+/// `CREATE TABLE IF NOT EXISTS` ne modifie pas une table déjà créée, et SQLite n'a pas
+/// d'`ALTER TABLE … ADD COLUMN IF NOT EXISTS` : ces colonnes sont donc déclarées dans
+/// `schema.sql` (bases neuves) **et** ajoutées ici une à une (bases existantes), après
+/// interrogation de `pragma_table_info`. Ajouter une colonne nullable est une opération de
+/// métadonnées en SQLite : le coût ne dépend pas du nombre de lignes.
+const ADDED_COLUMNS: &[(&str, &str, &str)] = &[
+    // Encodage lu dans l'image (`ascii`|`utf16`).
+    ("str", "kind", "TEXT"),
+    // Provenance : NULL = index Ghidra replié, `rdata-xref` = désassemblage réel.
+    ("func_str_ref", "source", "TEXT"),
+];
+
 #[derive(Debug, Error)]
 pub enum IndexError {
     #[error("sqlite: {0}")]
@@ -85,7 +99,24 @@ impl Db {
     pub fn init(&self) -> Result<()> {
         self.conn.execute_batch(SCHEMA)?;
         self.conn.execute_batch(CAMERA_SCHEMA)?;
+        self.migrate_columns()?;
         self.set_meta("schema_version", SCHEMA_VERSION)?;
+        Ok(())
+    }
+
+    /// Ajoute les colonnes de [`ADDED_COLUMNS`] absentes de la base (idempotent).
+    fn migrate_columns(&self) -> Result<()> {
+        for (table, column, ty) in ADDED_COLUMNS {
+            let present: i64 = self.conn.query_row(
+                "SELECT COUNT(*) FROM pragma_table_info(?1) WHERE name = ?2",
+                (table, column),
+                |r| r.get(0),
+            )?;
+            if present == 0 {
+                self.conn
+                    .execute_batch(&format!("ALTER TABLE {table} ADD COLUMN {column} {ty}"))?;
+            }
+        }
         Ok(())
     }
 
@@ -412,6 +443,19 @@ mod tests {
             )
             .unwrap();
         assert_eq!(cam_tables, 22, "migration caméra appliquée");
+        // Les colonnes ajoutées après coup sont présentes, et `init` est rejouable.
+        db.init().unwrap();
+        for (table, column, _) in ADDED_COLUMNS {
+            let n: i64 = db
+                .conn()
+                .query_row(
+                    "SELECT COUNT(*) FROM pragma_table_info(?1) WHERE name = ?2",
+                    (table, column),
+                    |r| r.get(0),
+                )
+                .unwrap();
+            assert_eq!(n, 1, "colonne {table}.{column} absente");
+        }
         let bin = db
             .upsert_binary("nie.exe", "abc123", "x86_64", 64, 0x1_4000_0000, 31_468_032, None, None)
             .unwrap();

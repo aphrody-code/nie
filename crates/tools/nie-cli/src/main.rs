@@ -10,6 +10,7 @@ mod menu_predecode;
 mod mode_index;
 mod search_cmd;
 mod seed_ui;
+mod strings_cmd;
 
 use std::io::Write;
 use std::path::PathBuf;
@@ -184,6 +185,38 @@ enum Cmd {
         /// Scanne aussi les `.g4tx` du menu (noms de textures et de régions) — coûteux.
         #[arg(long)]
         textures: bool,
+    },
+    /// Extrait les chaînes du binaire dans `str` et ancre les fonctions qui les référencent
+    /// (`func_str_ref`, `xref` kind=`str`).
+    ///
+    /// Les chaînes sont lues dans les sections de données (ASCII et UTF-16LE), les bornes de
+    /// fonction viennent de `.pdata`, et une référence n'est retenue que si sa cible coïncide
+    /// **exactement** avec le début d'une chaîne.
+    Strings {
+        /// Binaire à lire. Doit être celui qui est indexé (résolution par sha256).
+        #[arg(long)]
+        exe: PathBuf,
+        /// Base sqlite cible.
+        #[arg(long, default_value = "var/niers.sqlite")]
+        db: PathBuf,
+        /// Longueur minimale retenue, en caractères.
+        #[arg(long, default_value_t = 4)]
+        min_len: usize,
+        /// Section à balayer, cumulable (défaut : `.rdata`, `.data`, `.rodata`).
+        #[arg(long = "section")]
+        sections: Vec<String>,
+        /// Force l'identifiant de binaire au lieu de le résoudre par sha256.
+        #[arg(long)]
+        binary_id: Option<i64>,
+        /// N'écrit que `str` : pas de désassemblage, pas d'ancrage.
+        #[arg(long)]
+        no_xrefs: bool,
+        /// Calcule tout et n'écrit rien.
+        #[arg(long)]
+        dry_run: bool,
+        /// Affiche les `n` premières chaînes trouvées (vérification à l'œil).
+        #[arg(long, default_value_t = 0)]
+        sample: usize,
     },
     /// Cherche des fichiers par chemin sur le disque (moteur `ignore`, celui de ripgrep/fd).
     ///
@@ -1509,6 +1542,20 @@ fn run() -> anyhow::Result<()> {
         }
         Cmd::Seed { db, json, exe } => seed(&db, &json, exe.as_deref()),
         Cmd::SeedUi { db, game_dir, textures } => seed_ui_cmd(&db, game_dir, textures),
+        Cmd::Strings {
+            exe,
+            db,
+            min_len,
+            sections,
+            binary_id,
+            no_xrefs,
+            dry_run,
+            sample,
+        } => strings_cmd_run(
+            &db,
+            &exe,
+            &strings_cmd::Options { min_len, sections, binary_id, no_xrefs, dry_run, sample },
+        ),
         Cmd::Find {
             pattern,
             dir,
@@ -1869,6 +1916,53 @@ fn seed_ui_cmd(
         "  lignes hash_name (source vfs-ui) = {} ; crc_mismatch={} ; sautés={}",
         stats.inserted, stats.crc_mismatch, stats.skipped
     );
+    Ok(())
+}
+
+fn strings_cmd_run(
+    db_path: &std::path::Path,
+    exe: &std::path::Path,
+    opts: &strings_cmd::Options,
+) -> anyhow::Result<()> {
+    let db = nie_index::Db::open(db_path)
+        .with_context(|| format!("ouverture {}", db_path.display()))?;
+    // `str.kind` / `func_str_ref.source` peuvent manquer sur une base antérieure.
+    db.init().context("application du schéma")?;
+
+    let s = strings_cmd::run(&db, exe, opts)?;
+    let par_sec = s
+        .par_section
+        .iter()
+        .map(|(n, a, w)| format!("{n}={a}+{w}"))
+        .collect::<Vec<_>>()
+        .join(" ");
+    println!(
+        "strings binaire={} ({}) — ascii={} utf16={} (trop longues={}) | {par_sec}",
+        s.binary_id, s.binary_path, s.ascii, s.utf16, s.oversized
+    );
+    if s.dry_run {
+        println!("  DRY-RUN : aucune écriture");
+    } else {
+        println!("  str : {} lignes insérées", s.str_inserted);
+    }
+    if !opts.no_xrefs {
+        println!(
+            "  .text : {} racines .pdata ({} avec ligne function), {} corps décodés ({} tronqués), {} instructions",
+            s.roots, s.roots_mapped, s.funcs_scanned, s.bodies_truncated, s.insns
+        );
+        println!(
+            "  hits : lea exact={} + suffixe={} sur {} lea rip | imm64={} | rip non-lea sur chaîne (non ingéré) = {}",
+            s.lea_hits, s.lea_suffix, s.lea_rip, s.imm_hits, s.rip_other_hits
+        );
+        println!(
+            "  couples (fonction, chaîne) = {} sur {} fonctions ; suffixes matérialisés = {}",
+            s.pairs, s.funcs_with_str, s.suffixes
+        );
+        println!(
+            "  func_str_ref +{} (-{} remplacées) ; xref str +{}",
+            s.str_refs_inserted, s.str_refs_deleted, s.xrefs_inserted
+        );
+    }
     Ok(())
 }
 

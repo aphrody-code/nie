@@ -74,11 +74,14 @@ CREATE TABLE IF NOT EXISTS glob (
 );
 
 -- Strings référencées par une fonction (st de nie-index.json) = ancres de propagation.
+-- source : NULL = héritage de l'index Ghidra replié sur .pdata (rebuild_from_pdata),
+-- 'rdata-xref' = dérivé du désassemblage réel (`niers strings`). Ne jamais confondre les deux.
 CREATE TABLE IF NOT EXISTS func_str_ref (
     id          INTEGER PRIMARY KEY,
     binary_id   INTEGER NOT NULL REFERENCES binary(id) ON DELETE CASCADE,
     function_id INTEGER NOT NULL REFERENCES function(id) ON DELETE CASCADE,
-    value       TEXT NOT NULL
+    value       TEXT NOT NULL,
+    source      TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_func_str_ref_fn ON func_str_ref(function_id);
 CREATE INDEX IF NOT EXISTS idx_func_str_ref_val ON func_str_ref(value);
@@ -105,6 +108,7 @@ CREATE INDEX IF NOT EXISTS idx_xref_to ON xref(binary_id, to_addr);
 CREATE INDEX IF NOT EXISTS idx_xref_from ON xref(binary_id, from_addr);
 
 -- Strings (ancres de propagation : "CHARA_PARAM_INFO" → loader perso).
+-- kind : ascii|utf16 (encodage lu dans l'image) ; len est en octets, terminateur exclu.
 CREATE TABLE IF NOT EXISTS str (
     id        INTEGER PRIMARY KEY,
     binary_id INTEGER NOT NULL REFERENCES binary(id) ON DELETE CASCADE,
@@ -112,6 +116,7 @@ CREATE TABLE IF NOT EXISTS str (
     len       INTEGER NOT NULL,
     section   TEXT,
     value     TEXT NOT NULL,
+    kind      TEXT,
     UNIQUE(binary_id, vaddr)
 );
 CREATE INDEX IF NOT EXISTS idx_str_value ON str(value);
