@@ -55,14 +55,17 @@ fn banque(vfs: &Vfs, path: &str) {
         eprintln!("{path} : absent du VFS");
         return;
     };
-    let resolu = audio::resoudre_awb(vfs, path, &data);
-    let source = match &resolu {
-        None => "aucune".to_string(),
-        Some((_, s)) => format!("{s:?}"),
+    // Voie de LISTAGE : ne lit jamais un AWB externe, quelle que soit sa taille.
+    let localise = audio::localiser_awb(vfs, path, &data);
+    let (source, taille) = match &localise {
+        None => ("aucune".to_string(), 0),
+        Some((s, _, t)) => (format!("{s:?}"), *t),
     };
-    let awb = resolu.as_ref().map(|(b, _)| b.as_slice());
-    let cues = audio::cues(&data, awb);
-    println!("\n== {path} ==\nsource AWB : {source}\npistes     : {}", cues.len());
+    let cues = audio::cues(&data, localise.as_ref().and_then(|(_, b, _)| b.as_deref()));
+    println!(
+        "\n== {path} ==\nsource AWB : {source}\nbanque     : {taille} octets (NON lue si externe)\npistes     : {}",
+        cues.len()
+    );
     for c in cues.iter().take(5) {
         println!(
             "  {:<24} awb_id={:?} {} {}Hz {}ms → {}",
@@ -75,11 +78,13 @@ fn banque(vfs: &Vfs, path: &str) {
         );
     }
     // Décodage réel de la première piste adressable : le catalogue ne prouve rien sans lui.
+    // C'est ICI, et seulement ici, que la banque est réellement chargée (`resoudre_awb`).
     //
     // Sur un thread à pile de 16 Mio, comme les commandes de l'explorateur : `cridecoder` fait un
     // vrai `STATUS_STACK_OVERFLOW` sur la pile Windows par défaut en build debug — vérifié ici
     // même, le process entier meurt (fault SEH, non rattrapable).
-    if let (Some(bytes), Some(cue)) = (awb, cues.iter().find(|c| c.awb_id.is_some())) {
+    let charge = audio::resoudre_awb(vfs, path, &data);
+    if let (Some((bytes, _)), Some(cue)) = (&charge, cues.iter().find(|c| c.awb_id.is_some())) {
         let id = cue.awb_id.unwrap_or(0);
         let octets = bytes.to_vec();
         let rendu = std::thread::Builder::new()

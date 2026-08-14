@@ -3377,28 +3377,31 @@ fn vfs_audio_cues(path: String, game_dir: Option<String>, state: tauri::State<Vf
     with_vfs(game_dir, &state, |vfs| {
         let data = vfs.read(&path).map_err(|e| e.to_string())?;
 
-        // Un AFS2 autonome EST déjà sa propre banque : le relire depuis le VFS le dupliquerait
-        // en mémoire pour rien.
-        if data.starts_with(b"AFS2") {
-            let cues = nie_explore::audio::cues(&data, Some(&data));
-            return Ok(AudioBankDto {
-                source: "self".to_string(),
-                playable: true,
-                cues: cues.iter().map(|c| cue_dto(&path, c)).collect(),
-            });
-        }
-
-        // ACB : le catalogue d'abord (il se suffit), la banque d'octets seulement si elle est
-        // assez petite pour que les tailles vaillent leur lecture.
-        let resolu = nie_explore::audio::resoudre_awb(vfs, &path, &data);
-        let (source, playable, awb) = match &resolu {
-            None => ("aucune".to_string(), false, None),
-            Some((bytes, nie_explore::audio::SourceAwb::Autonome)) => ("self".to_string(), true, Some(bytes)),
-            Some((bytes, nie_explore::audio::SourceAwb::Embarquee)) => ("embedded".to_string(), true, Some(bytes)),
-            Some((bytes, nie_explore::audio::SourceAwb::Externe(p))) => (p.clone(), true, Some(bytes)),
+        // LOCALISER, pas résoudre : un AWB externe n'est pas lu pour être listé. Le catalogue
+        // vient de l'ACB, qui se suffit ; seule la colonne « taille » a besoin des octets, et
+        // elle ne vaut pas le gigaoctet que coûterait `waza_stream.awb` à chaque sélection.
+        let localise = nie_explore::audio::localiser_awb(vfs, &path, &data);
+        let (source, playable, deja_en_main, taille) = match localise {
+            None => ("aucune".to_string(), false, None, 0),
+            Some((nie_explore::audio::SourceAwb::Autonome, _, t)) => ("self".to_string(), true, None, t),
+            Some((nie_explore::audio::SourceAwb::Embarquee, bytes, t)) => ("embedded".to_string(), true, bytes, t),
+            Some((nie_explore::audio::SourceAwb::Externe(p), _, t)) => (p.clone(), true, None, t),
         };
-        let tailles = awb.filter(|b| b.len() <= AWB_TAILLES_MAX as usize).map(Vec::as_slice);
-        let cues = nie_explore::audio::cues(&data, tailles);
+
+        // Les octets à passer au catalogue, dans l'ordre de coût croissant :
+        //   1. le fichier lui-même s'il EST la banque (déjà lu) ;
+        //   2. l'AWB embarqué, extrait par le parse ACB (déjà en mémoire) ;
+        //   3. un externe, seulement s'il est assez petit — sinon aucune taille de piste.
+        let externe = (playable && deja_en_main.is_none() && !data.starts_with(b"AFS2") && taille <= u64::from(AWB_TAILLES_MAX))
+            .then(|| vfs.read(&source).ok())
+            .flatten();
+        let octets: Option<&[u8]> = if data.starts_with(b"AFS2") {
+            Some(&data)
+        } else {
+            deja_en_main.as_deref().or(externe.as_deref())
+        };
+
+        let cues = nie_explore::audio::cues(&data, octets);
         Ok(AudioBankDto { source, playable, cues: cues.iter().map(|c| cue_dto(&path, c)).collect() })
     })
 }
