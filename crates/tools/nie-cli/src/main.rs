@@ -88,6 +88,20 @@ enum Cmd {
         #[arg(short, long)]
         quiet: bool,
     },
+    /// Régénère, à côté de chaque `*.cfg.bin` d'une arborescence, le `*.cfg.bin.json` en forme
+    /// **iecode** (`{entries}`/`{lists}`) — celle que lisent les parseurs typés de `nie-data`
+    /// (golden tests, `export_*`), PAS celle de `niers decode` (structure brute, générique).
+    /// Idempotent : saute un `.json` déjà plus récent que son `.cfg.bin` sauf `--force`.
+    RefreshTypedJson {
+        /// Répertoire à parcourir (récursif).
+        dir: PathBuf,
+        /// Régénère même les `.json` déjà plus récents que leur `.cfg.bin`.
+        #[arg(long)]
+        force: bool,
+        /// N'affiche rien en cas de succès.
+        #[arg(short, long)]
+        quiet: bool,
+    },
     /// Récupère le jeu depuis Steam — y compris EAC, EOS et Steamworks.
     ///
     /// La forge produit `nie.exe` ; elle ne produit aucun des composants tiers signés qui le
@@ -1564,6 +1578,7 @@ fn run() -> anyhow::Result<()> {
                 decode_cmd::file(&src, out.as_deref(), quiet)
             }
         }
+        Cmd::RefreshTypedJson { dir, force, quiet } => decode_cmd::refresh_typed(&dir, force, quiet),
         Cmd::Steam { op } => steam_cmd(op),
         Cmd::Info { game_dir, json } => info_cmd(game_dir, json),
         Cmd::Convert { src, to, out, game_dir, reference, masque, toutes } => {
