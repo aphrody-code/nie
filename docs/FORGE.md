@@ -131,6 +131,14 @@ que la source). Chaque corps relevé est **réencodé et comparé** avant d'entr
 Chiffres sortis de l'outil, pas d'une estimation. Le binaire produit est **byte-identique à chaque
 étape** — la progression est interne, jamais au prix de l'identité. Régénérer : `nie-forge report`.
 
+> **Note 2026-08-15** : la cible ci-dessous (§1, `b1fa04ea3658…`, 33 918 464 o) est
+> **byte-identique** au binaire actuellement installé (`nie.exe`/`nie_eacpatched.exe`, `.pdata`
+> 1 226 652 o à l'octet près) — rien n'indique donc que les chiffres suivants aient bougé. Mais
+> `var/forge/` (état interne de `split`/`lift`) est absent sur ce VPS : `nie-forge report` échoue
+> et ces pourcentages ne sont **pas revérifiables ici en l'état**, seulement recopiés du dernier
+> run connu (2026-08-10). Restaurer `var/forge/` (archive froide) ou rejouer `just forge` avant de
+> les citer comme un résultat frais.
+
 ```
 split   : 219 427 unités · 55 351 fonctions .pdata · 0 trou · 0 overlay
 build   : dist/nie.exe · 33 918 464 o · sha256 identique ✅
