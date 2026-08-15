@@ -128,6 +128,60 @@ impl FontMetrics {
     }
 }
 
+/// Résout un `CHR.codepoint` brut vers son caractère réel.
+///
+/// Découverte en cataloguant les 8 fontes non-Latin (2026-08-15, `examples/font_catalog.rs`) :
+/// au-delà de l'ASCII, `codepoint` n'est **pas** toujours un point de code Unicode direct — c'est
+/// souvent la **séquence d'octets UTF-8 du caractère, empaquetée big-endian dans l'entier** (le
+/// jeu lit le texte source en UTF-8 et stocke l'entier tel quel, sans le décoder). Exemples
+/// mesurés sur `font_zh_hans`/`font_ja_endroll2`/`font_zh_hans2` : `0xC2A1` = octets `[C2,A1]` =
+/// `¡` (U+00A1) ; `0xE296A0` = octets `[E2,96,A0]` = `■` (U+25A0) ; `0xE38080` = octets
+/// `[E3,80,80]` = U+3000 (espace idéographique). Un point de code BMP stocké DIRECT (ex. `0x3042`
+/// 'あ') reste géré : ses octets ne forment pas une séquence UTF-8 valide (`0x00` n'est pas un
+/// octet de tête `0xC2..=0xF4`), donc l'essai d'empaquetage échoue et on retombe sur
+/// `char::from_u32` brut.
+#[must_use]
+pub fn decode_packed_codepoint(raw: u32) -> Option<char> {
+    if raw <= 0x7F {
+        return char::from_u32(raw);
+    }
+    // 4 octets empaquetés (tête 0xF0..=0xF4) : le plus large repéré tient sur 32 bits sans reste.
+    {
+        let b = [(raw >> 24) as u8, (raw >> 16) as u8, (raw >> 8) as u8, raw as u8];
+        if (0xF0..=0xF4).contains(&b[0])
+            && b[1..].iter().all(|&x| (0x80..=0xBF).contains(&x))
+            && let Ok(s) = core::str::from_utf8(&b)
+            && let Some(c) = s.chars().next()
+        {
+            return Some(c);
+        }
+    }
+    // 3 octets empaquetés (tête 0xE0..=0xEF).
+    if raw <= 0x00FF_FFFF {
+        let b = [(raw >> 16) as u8, (raw >> 8) as u8, raw as u8];
+        if (0xE0..=0xEF).contains(&b[0])
+            && b[1..].iter().all(|&x| (0x80..=0xBF).contains(&x))
+            && let Ok(s) = core::str::from_utf8(&b)
+            && let Some(c) = s.chars().next()
+        {
+            return Some(c);
+        }
+    }
+    // 2 octets empaquetés (tête 0xC2..=0xDF — 0xC0/0xC1 sont des surlongueurs UTF-8 invalides).
+    if raw <= 0x0000_FFFF {
+        let b = [(raw >> 8) as u8, raw as u8];
+        if (0xC2..=0xDF).contains(&b[0])
+            && (0x80..=0xBF).contains(&b[1])
+            && let Ok(s) = core::str::from_utf8(&b)
+            && let Some(c) = s.chars().next()
+        {
+            return Some(c);
+        }
+    }
+    // Aucun motif d'empaquetage reconnu : point de code Unicode direct (BMP, etc.).
+    char::from_u32(raw)
+}
+
 #[inline]
 fn as_i32(v: Option<&Value>) -> Option<i32> {
     match v {
@@ -511,6 +565,17 @@ impl LatinAtlas {
 mod tests {
     use super::*;
     use crate::cfgbin::CfgEntry;
+
+    /// `decode_packed_codepoint` : cas mesurés sur les vraies fontes (2026-08-15) — 2/3 octets
+    /// UTF-8 empaquetés, et non-régression sur l'ASCII et un BMP direct.
+    #[test]
+    fn decode_packed_codepoint_cas_reels() {
+        assert_eq!(decode_packed_codepoint(0x21), Some('!'), "ASCII direct");
+        assert_eq!(decode_packed_codepoint(0xC2A1), Some('¡'), "2 octets empaquetés, font_zh_hans");
+        assert_eq!(decode_packed_codepoint(0xE296A0), Some('■'), "3 octets empaquetés, font_ja_endroll2");
+        assert_eq!(decode_packed_codepoint(0xE38080), Some('\u{3000}'), "3 octets empaquetés, font_zh_hans2");
+        assert_eq!(decode_packed_codepoint(0x3042), Some('あ'), "BMP direct (octets non-UTF-8 valides ensemble)");
+    }
 
     /// Construit une entrée `CHR` à partir de ses 9 colonnes (col[2] = codepoint).
     fn chr(cols: [i32; 9]) -> CfgEntry {
