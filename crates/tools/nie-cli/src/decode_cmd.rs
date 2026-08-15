@@ -155,6 +155,89 @@ pub fn dir(src: &Path, out: &Path, quiet: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Liste récursivement les `*.cfg.bin` d'un répertoire (famille RDBN/T2B uniquement — les
+/// textures/lua n'ont pas de forme « iecode »).
+fn collect_cfg_bin(dir: &Path) -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    let Ok(rd) = fs::read_dir(dir) else {
+        return out;
+    };
+    for e in rd.flatten() {
+        let p = e.path();
+        if p.is_dir() {
+            out.extend(collect_cfg_bin(&p));
+        } else if p.to_string_lossy().ends_with(".cfg.bin") {
+            out.push(p);
+        }
+    }
+    out
+}
+
+/// Régénère, à côté de chaque `*.cfg.bin` sous `dir`, le `*.cfg.bin.json` en forme **iecode**
+/// (`nie_formats::cfgbin::to_iecode_json` — RDBN `{lists}` / T2B `{entries}`) : c'est la forme
+/// que lisent les parseurs typés de `nie-data` (golden tests, `export_*`), à distinguer du JSON
+/// structurel brut que rend `niers decode` sans `--typed`.
+///
+/// `force=false` saute un `.json` déjà plus récent que son `.cfg.bin` (même convention que
+/// `IECODE.Core/Dump/DataPathExporter.cs`, pour rester idempotent sur un corpus déjà à jour).
+///
+/// # Erreurs
+/// Si `dir` ne contient aucun `.cfg.bin`.
+pub fn refresh_typed(dir: &Path, force: bool, quiet: bool) -> anyhow::Result<()> {
+    let files = collect_cfg_bin(dir);
+    if files.is_empty() {
+        bail!("aucun .cfg.bin sous {}", dir.display());
+    }
+    let ok = AtomicUsize::new(0);
+    let skipped_fresh = AtomicUsize::new(0);
+    let skipped_unparsed = AtomicUsize::new(0);
+
+    files.par_iter().for_each(|p| {
+        let dest = {
+            let mut s = p.as_os_str().to_owned();
+            s.push(".json");
+            PathBuf::from(s)
+        };
+        if !force
+            && let (Ok(src_meta), Ok(dst_meta)) = (fs::metadata(p), fs::metadata(&dest))
+            && let (Ok(src_t), Ok(dst_t)) = (src_meta.modified(), dst_meta.modified())
+            && dst_t >= src_t
+        {
+            skipped_fresh.fetch_add(1, Ordering::Relaxed);
+            return;
+        }
+        let Ok(data) = fs::read(p) else {
+            skipped_unparsed.fetch_add(1, Ordering::Relaxed);
+            return;
+        };
+        let Some(json) = nie_formats::cfgbin::to_iecode_json(&data) else {
+            skipped_unparsed.fetch_add(1, Ordering::Relaxed);
+            return;
+        };
+        let Ok(bytes) = serde_json::to_vec(&json) else {
+            skipped_unparsed.fetch_add(1, Ordering::Relaxed);
+            return;
+        };
+        if fs::write(&dest, &bytes).is_ok() {
+            ok.fetch_add(1, Ordering::Relaxed);
+        } else {
+            skipped_unparsed.fetch_add(1, Ordering::Relaxed);
+        }
+    });
+
+    if !quiet {
+        println!(
+            "refresh-typed={} total={} ok={} skipped_fresh={} skipped_unparsed={}",
+            dir.display(),
+            files.len(),
+            ok.load(Ordering::Relaxed),
+            skipped_fresh.load(Ordering::Relaxed),
+            skipped_unparsed.load(Ordering::Relaxed)
+        );
+    }
+    Ok(())
+}
+
 /// Rapporte le format d'un fichier ou de chaque fichier d'une arborescence, sans rien écrire.
 ///
 /// Deux colonnes distinctes : `detect` = ce que dit le magic, `decode` = le parseur qui réussit
