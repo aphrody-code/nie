@@ -148,7 +148,19 @@ csharp/             IECODE.Core / IECODE.CLI / IECODE.Core.Tests (.NET 10, `IECO
 - `cargo test --workspace` dépasse les 600 s de timeout : le lancer en arrière-plan **avec
   redirection** (`> /tmp/x.log 2>&1`) — une sortie filtrée par un pipe est perdue à la bascule.
 
-## Forge (produire le binaire) — état 2026-08-10 : **51,86 % du fichier, 66,09 % du `.text`**
+## Forge (produire le binaire) — dernière mesure connue 2026-08-10 : 51,86 % du fichier, 66,09 % du `.text`
+
+> **Cible inchangée, mesure non rejouable ici.** `nie.exe`/`nie_eacpatched.exe` installés
+> aujourd'hui (2026-08-15) sont sha256 `b1fa04ea3658…`, 33 918 464 o — **identiques** au binaire
+> que la forge cible depuis au moins le 2026-08-10 (même taille, même sha, `.pdata` 1 226 652 o à
+> l'octet près). Rien ne prouve donc que 51,86 %/66,09 % aient bougé. Ce qui est vrai en revanche :
+> **`var/forge/` est absent sur ce VPS** (`nie-forge report` échoue : « recouvrement absent :
+> var/forge/cover.json ») — la mesure n'est pas rejouable ici sans relancer `just forge` en entier
+> (long) ou restaurer l'archive froide si elle y est partie. Ne pas confondre « non revérifiable
+> ici » avec « périmée » : entre le 2026-08-14 soir et le 2026-08-15, l'installation Steam locale
+> a transitoirement porté un AUTRE build (31 468 032 o, sha `4c2b91fbae6f…`, `app_config
+> 5.00.24.00`) — c'est CE build-là qui aurait invalidé toute mesure faite dessus, et la MAJ du
+> 2026-08-15 a restauré la cible d'origine. Cf. `docs/RE.md` pour le détail et la source.
 
 - Boucle : `just forge` = `split` → `lift` → `cc` → `build` → `verify` → `report`.
 - **Deux voies de production**, toutes deux vérifiées au byte près :
@@ -162,7 +174,11 @@ csharp/             IECODE.Core / IECODE.CLI / IECODE.Core.Tests (.NET 10, `IECO
 - **Tables structurées** : `.pdata` et `.reloc` sont **régénérées depuis leurs entrées**
   (`nie_pe::image::tables::emit_for`), comme les en-têtes — pas recopiées.
 - `niers.sqlite` est branché (`--db`) : il **nomme** les corps produits dans `lifted.s`, et la forge
-  le **contredit** en retour (`cross-check pdata_roots_db=50674 forge=55351`).
+  le **contredit** en retour (exemple d'illustration, désormais faux : `cross-check
+  pdata_roots_db=50674 forge=55351` — `niers.sqlite` compte déjà `roots=55351` côté DB depuis le
+  2026-08-15 (§ base de connaissance ci-dessous), donc un `lift` rejoué aujourd'hui ne trouverait
+  plus cet écart précis ; ne pas citer ces deux valeurs comme un cross-check actuel, juste comme
+  l'exemple de forme qu'un message de contradiction peut prendre).
 - **Devant un plateau, ne pas deviner** : enrichir le diagnostic (`blocking_detail` ventile par
   mnémonique et affiche `orig=` vs `nie-asm=`), relancer `lift`, lire. Une seule vague de
   diagnostic vaut mieux que plusieurs vagues de code écrit à l'aveugle — c'est le levier qui
@@ -236,8 +252,15 @@ csharp/             IECODE.Core / IECODE.CLI / IECODE.Core.Tests (.NET 10, `IECO
 - `Db::init` (nie-index) applique `schema.sql` **puis** `camera.sql` (`meta.schema_version = 2`).
 - Peupler la caméra : `nie-cam index [--samples]` ; état : `nie-cam stats`.
 - `sqlite3` est dans le PATH (fourni par le SDK Android) : `sqlite3 var/niers.sqlite "…"`.
-- **Deux `binary_id` coexistent** : `1` = index Ghidra désaligné (60 183 nœuds, 88,20 %), `2` =
-  `#pdata`, la vérité terrain (52 783 racines, 93,36 %, 6 429 nommées). Citer le **2**.
+- **Deux `binary_id` coexistent** : `1` = index Ghidra désaligné (60 183 nœuds, 88,20 %, figé —
+  projet Ghidra jamais rejoué), `2` = `#pdata`, la vérité terrain. Citer le **2**. État vérifié
+  2026-08-15 (revérifié à la main, `niers rebuild --db var/niers.sqlite --exe nie_eacpatched.exe`,
+  cible byte-identique à celle documentée depuis le 2026-08-10 — cf. §Forge) : **roots=55 351**,
+  **cov_brut=97 006/106 340 (91,22 %)**, **named=6 429/106 340 (6,05 %)**. Les chiffres antérieurs
+  (52 783 racines, 93,36 %, 12,18 %) datent du 2026-08-10 et restent d'une provenance moins sûre
+  que la mesure du 2026-08-15 (le VPS a transité par un AUTRE build entre le 2026-08-14 soir et le
+  2026-08-15, cf. §Forge/`docs/RE.md`) — préférer la mesure la plus récente en cas de doute, ne pas
+  supposer que 52 783 décrivait forcément ce même binaire.
 - Vérité terrain régénérable, jamais recopiée d'un document : `nie-forge report` (part produite),
   `niers vfs stats` (histogramme du VFS), `niers coverage --db var/niers.sqlite`.
 

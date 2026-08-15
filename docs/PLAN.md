@@ -23,15 +23,19 @@ Le reverse-engineering est **l'échafaudage**, pas la fin : il sert à résoudre
 
 | Couverture | Ce qu'elle mesure | État |
 |---|---|---|
-| **Forge** | part de `nie.exe` produite par le dépôt | **51,86 %** du fichier · **66,09 %** du `.text` |
-| **Formats** | fichiers du VFS dans un format parsé | **99,56 %** (254 187 / 255 308) |
+| **Forge** | part de `nie.exe` produite par le dépôt | **51,86 %** du fichier · **66,09 %** du `.text` — mesure du 2026-08-10, cible byte-identique au binaire installé au 2026-08-15 (même sha256, `.pdata` identique à l'octet), mais `var/forge/` absent sur ce VPS donc non rejouable ici pour confirmer que le pourcentage tient toujours |
+| **Formats** | fichiers du VFS dans un format parsé | **99,56 %** (254 187 / 255 308) — dénominateur revérifié 2026-08-15 (`entrees=255308` inchangé), numérateur non revérifié |
 | **Données** | familles `cfg.bin` typées et recalculées au bit | 117 modules, **121 familles routées**, 127 fichiers golden |
-| **Logique** | fonctions de gameplay portées **et** validées byte-exact | **43** validations dans la suite oracle |
-| **RE** | fonctions classifiées / nommées | **93,36 %** classées (49 280 / 52 783) · 6 429 nommées |
+| **Logique** | fonctions de gameplay portées **et** validées byte-exact | **43** validations dans la suite oracle — non rejouées le 2026-08-15 ; le binaire cible n'a pas changé (cf. Forge ci-dessus) donc rien n'indique qu'elles soient tombées, mais elles n'ont pas non plus été reconfirmées cette session |
+| **RE** | fonctions classifiées / nommées | Mesure du 2026-08-10 : 93,36 % (49 280 / 52 783) · 6 429 nommées (12,18 %). **Revérifié 2026-08-15** (`niers rebuild` sur le binaire actuellement installé, byte-identique à celui du 2026-08-10) : **91,22 %** classées (97 006 / 106 340) · 6 429 nommées (**6,05 %**, même compte brut sur un dénominateur qui a grossi — le VPS a transité par un AUTRE build entre le 2026-08-14 soir et le 2026-08-15, cf. `docs/RE.md`, ce qui a pu affecter l'indexation entre-temps) |
 | **Rendu** | Δpixel contre capture de référence | gaté sur le driver de menu runtime |
 
 Ces chiffres se régénèrent : `nie-forge report`, `niers vfs stats`, `niers coverage`,
-`uv run scripts/validate_re.py`.
+`uv run scripts/validate_re.py`. **Piège vécu le 2026-08-15** : une doc « corrigée » sur une
+installation Steam locale transitoirement sur un autre build (`docs/RE.md`, commit du
+2026-08-14) s'est révélée elle-même périmée dès que le build de référence est revenu — ne jamais
+« corriger » un chiffre de cible sans citer le sha256 mesuré, sinon la correction se périme au
+download suivant sans que rien ne le signale.
 
 ## Ce que « validé » veut dire
 
