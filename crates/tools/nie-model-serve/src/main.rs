@@ -2300,10 +2300,43 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                 &format!("G4TX illisible : {e}"),
             ),
             Ok(g4tx) => {
+                // `css=1` : plutôt que le catalogue JSON, rend directement la feuille CSS de la
+                // PREMIÈRE texture (celle qu'adresse `/tex/<rel>.png` en forme 1:1) — mêmes
+                // rectangles, recopiés du conteneur comme `nie_formats::sprite_sheet`
+                // (`niers convert --to css`), mais sans ré-encoder l'atlas : le CSS pointe sur
+                // la route `/tex/<rel>.png` déjà servie, pas d'image dupliquée à générer/cacher.
+                if param(query, "css").as_deref() == Some("1") {
+                    let Some(feuille) = nie_formats::sprite_sheet::depuis_g4tx(&g4tx, 0) else {
+                        respond_text(&mut stream, 404, "Not Found", "aucune région d'atlas");
+                        return;
+                    };
+                    let masque = param(query, "mode").as_deref() == Some("masque");
+                    let mode = if masque {
+                        nie_formats::sprite_sheet::ModeCss::Masque
+                    } else {
+                        nie_formats::sprite_sheet::ModeCss::Image
+                    };
+                    let css = feuille.vers_css_mode(&format!("/tex/{rel}.png"), mode);
+                    respond(&mut stream, 200, "OK", "text/css; charset=utf-8", css.as_bytes());
+                    return;
+                }
                 let textures: Vec<serde_json::Value> = g4tx
                     .textures
                     .iter()
                     .map(|t| {
+                        // Rectangles des régions (recopiés du conteneur, jamais recalculés) :
+                        // ce qui manquait pour construire un sprite-sheet CSS/SVG côté client
+                        // sans repasser par un export CLI hors-ligne (`niers convert --to css`).
+                        let regions: Vec<serde_json::Value> = t
+                            .sub_textures
+                            .iter()
+                            .map(|r| {
+                                serde_json::json!({
+                                    "name": r.name,
+                                    "x": r.x, "y": r.y, "width": r.width, "height": r.height,
+                                })
+                            })
+                            .collect();
                         serde_json::json!({
                             "id": t.id,
                             "name": t.name,
@@ -2315,6 +2348,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                             // forme nommée de `/tex`, la seule qui adresse une texture précise.
                             "path": format!("/tex/{rel}.g4tx/{}.png", t.name),
                             "regions": t.sub_textures.len(),
+                            "regionsDetail": regions,
                         })
                     })
                     .collect();
@@ -2322,6 +2356,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                     "path": vfs_path,
                     "count": textures.len(),
                     "textures": textures,
+                    "cssUrl": format!("/tex-info/{rel}.g4tx?css=1"),
                 });
                 let body = serde_json::to_vec(&j).unwrap_or_default();
                 respond(&mut stream, 200, "OK", "application/json", &body);

@@ -1490,6 +1490,136 @@ pub fn encode_rdbn(lists: &[RdbnList]) -> Result<Vec<u8>, String> {
 }
 
 // ---------------------------------------------------------------------------
+// Forme JSON « iecode » — celle que lisent les parseurs typés de `nie-data`
+// ---------------------------------------------------------------------------
+//
+// `decode()` (ci-dessus) sérialise les structures BRUTES (`RdbnData`/`CfgBinFile`) — utile
+// pour une vue structurelle générique (explorateur, FFI), mais **pas** ce que consomment les
+// parseurs `nie-data` : ceux-ci attendent la forme documentée dans
+// `csharp/IECODE.Core/Dump/DataPathExporter.cs` — RDBN -> `{ "lists": [{name,typeName,values}] }`,
+// T2B -> `{ "entries": [{name,variables,children}] }` avec les frères de même nom suffixés
+// `_0`, `_1`… (les parseurs matchent un préfixe à underscore final). Portée depuis la copie
+// privée de `nie-model-serve` (`cfgbin_to_typed_root` et consorts) pour que `niers decode
+// --typed` et toute autre régénération de corpus `.cfg.bin.json` produisent la MÊME forme,
+// au lieu de deux implémentations qui dérivent l'une de l'autre.
+
+/// Encode des octets bruts en hex MAJUSCULE sans séparateur (ex. `"000000008FC2753F"`),
+/// identique au dump iecode des champs `position`/`blob`.
+fn blob_hex_upper(bytes: &[u8]) -> String {
+    use core::fmt::Write;
+    let mut s = String::with_capacity(bytes.len() * 2);
+    for b in bytes {
+        let _ = write!(s, "{b:02X}");
+    }
+    s
+}
+
+/// Convertit une [`RdbnValue`] en JSON, encodage identique au dump iecode (`hash` ->
+/// `"0x........"`, `blob`/`position` -> hex MAJUSCULE) — directement consommable par les
+/// parseurs typés de `nie-data`.
+fn rdbn_value_to_iecode_json(v: &RdbnValue) -> serde_json::Value {
+    use serde_json::json;
+    match v {
+        RdbnValue::Bool(b) => json!(b),
+        RdbnValue::Byte(n) => json!(n),
+        RdbnValue::Short(n) | RdbnValue::ActType(n) => json!(n),
+        RdbnValue::Int(n) | RdbnValue::Flag(n) => json!(n),
+        RdbnValue::Float(f) => json!(f),
+        RdbnValue::Hash(h) => json!(alloc::format!("0x{h:08X}")),
+        RdbnValue::Rates(a) | RdbnValue::Position(a) => json!(a),
+        RdbnValue::Condition(s) => json!(s),
+        RdbnValue::ShortTuple(t) => json!(t),
+        RdbnValue::Blob(b) => json!(blob_hex_upper(b)),
+        _ => serde_json::Value::Null,
+    }
+}
+
+/// Décode un `cfg.bin` RDBN vers la forme canonique iecode `{ "lists": [{ "name", "typeName",
+/// "values": [{champ: valeur}] }] }`. `None` si `data` n'est pas du RDBN.
+#[must_use]
+pub fn rdbn_to_iecode_json(data: &[u8]) -> Option<serde_json::Value> {
+    use serde_json::{Map, Value as Json, json};
+    if !is_rdbn(data) {
+        return None;
+    }
+    let rdbn = parse(data).ok()?;
+    let lists = read_values(&rdbn, data);
+    let lists_json: Vec<Json> = lists
+        .iter()
+        .map(|l| {
+            let values: Vec<Json> = l
+                .rows
+                .iter()
+                .map(|row| {
+                    let mut m = Map::new();
+                    for (name, val) in &row.fields {
+                        m.insert(name.clone(), rdbn_value_to_iecode_json(val));
+                    }
+                    Json::Object(m)
+                })
+                .collect();
+            json!({ "name": l.name, "typeName": l.type_name, "values": values })
+        })
+        .collect();
+    Some(json!({ "lists": lists_json }))
+}
+
+/// Convertit une liste de frères T2B [`CfgEntry`] vers la forme iecode attendue par les
+/// parseurs `entries` de `nie-data`, en répliquant le suffixe d'index d'iecode : chaque nœud
+/// est renommé `<base>_<i>` où `i` est son rang d'occurrence parmi ses frères de même nom
+/// (`MISSION_CONFIG_INFO` -> `..._0`, `..._1`…). `value` est toujours une chaîne (les
+/// parseurs la re-parsent ; `type` indicatif).
+fn t2b_siblings_to_iecode_json(siblings: &[CfgEntry]) -> Vec<serde_json::Value> {
+    use serde_json::json;
+    let mut counts: BTreeMap<&str, usize> = BTreeMap::new();
+    siblings
+        .iter()
+        .map(|e| {
+            let idx = counts.entry(e.name.as_str()).or_insert(0);
+            let name = alloc::format!("{}_{}", e.name, *idx);
+            *idx += 1;
+            let variables: Vec<serde_json::Value> = e
+                .variables
+                .iter()
+                .map(|v| match v {
+                    Value::String(s) => json!({ "type": "String", "value": s }),
+                    Value::Int(n) => json!({ "type": "Int", "value": n.to_string() }),
+                    Value::Float(f) => json!({ "type": "Float", "value": f.to_string() }),
+                })
+                .collect();
+            let children = t2b_siblings_to_iecode_json(&e.children);
+            json!({ "name": name, "variables": variables, "children": children })
+        })
+        .collect()
+}
+
+/// Décode un `cfg.bin` T2B vers la forme iecode `{ "entries": [...] }` consommable par les
+/// parseurs `entries` de `nie-data`. `None` si `data` est du RDBN (utiliser
+/// [`rdbn_to_iecode_json`]) ou ne parse pas comme T2B.
+#[must_use]
+pub fn t2b_to_iecode_json(data: &[u8]) -> Option<serde_json::Value> {
+    use serde_json::json;
+    if is_rdbn(data) {
+        return None;
+    }
+    let cfg = cfgbin_parse(data).ok()?;
+    Some(json!({ "entries": t2b_siblings_to_iecode_json(&cfg.entries) }))
+}
+
+/// Décode un `cfg.bin` vers la forme iecode adaptée à son format (RDBN `lists` ou T2B
+/// `entries`) : aiguille vers [`rdbn_to_iecode_json`] ou [`t2b_to_iecode_json`]. C'est la
+/// forme que lisent tous les parseurs de `nie-data` (`list_values`/`Var`, cf. leur doc de
+/// module) — à distinguer de [`decode`] plus haut, qui rend la structure BRUTE.
+#[must_use]
+pub fn to_iecode_json(data: &[u8]) -> Option<serde_json::Value> {
+    if is_rdbn(data) {
+        rdbn_to_iecode_json(data)
+    } else {
+        t2b_to_iecode_json(data)
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
