@@ -331,7 +331,27 @@ impl SteamDepotDownloader {
                 }
             };
 
-            let (d, _) = event_task.await.unwrap_or((0, 0));
+            // `DepotJob::download` prend `&self` : le job SURVIT à l'appel et
+            // garde vivant le `event_tx` qu'il détient. Sans ce `drop`, le canal
+            // ne se ferme jamais, la boucle `recv()` de `event_task` ne se
+            // termine pas, et l'`await` ci-dessous bloque POUR TOUJOURS — process
+            // vivant, RSS effondré, zéro CPU, zéro socket, aucun message. Les
+            // deux gels du 2026-08-15 sont exactement cela : le téléchargement
+            // était en réalité TERMINÉ, seule la collecte d'événements pendait.
+            drop(job);
+
+            // Filet : même canal fermé, on ne rend pas l'attente inconditionnelle.
+            let (d, _) = match tokio::time::timeout(Duration::from_secs(30), event_task).await {
+                Ok(joined) => joined.unwrap_or((0, 0)),
+                Err(_) => {
+                    warn!(
+                        depot = plan.depot_id,
+                        "collecte des événements toujours ouverte après 30 s — \
+                         comptage partiel, téléchargement néanmoins terminé"
+                    );
+                    (0, 0)
+                }
+            };
             total_downloaded += d;
             total_files += stats.files_completed;
             completed_depots.push(plan.depot_id);
