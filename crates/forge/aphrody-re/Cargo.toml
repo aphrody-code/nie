@@ -1,0 +1,38 @@
+[package]
+name = "aphrody-re"
+publish = false
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+license.workspace = true
+description = "Primitives de reverse-engineering : triage PE/ELF/Mach-O (sections, entropie, empreintes), extraction de chaînes ASCII/UTF-16, désassemblage x86. Rust pur, sans binding C."
+
+[lib]
+crate-type = ["rlib"]
+
+[lints]
+workspace = true
+
+[dependencies]
+# Parseur binaire multi-format (Apache-2.0/MIT).
+goblin.workspace = true
+# SHA-256 : empreinte du binaire et intégrité par section.
+sha2.workspace = true
+# Encodage hexadécimal des empreintes dans le rapport JSON.
+hex.workspace = true
+# Sérialisation du TriageReport, consommé par `nie-re` puis la base.
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+# Erreurs structurées de l'API publique.
+thiserror.workspace = true
+# Désassembleur x86/x64 en Rust pur — le même que celui de `nie-re`.
+iced-x86.workspace = true
+# Vues typées sans copie sur les en-têtes ELF et DOS/PE (module `headers`).
+zerocopy.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+# Matchers riches : messages d'échec lisibles dans la suite de tests.
+googletest = "0.14"

@@ -63,11 +63,19 @@ tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync", "macros", 
 async-trait = "0.1"
 uuid = { version = "1", features = ["v4", "serde"] }
 
-# RE pur-Rust (stack aphrody : goblin PE/ELF + iced-x86 désassembleur)
+# RE pur-Rust : goblin PE/ELF + iced-x86 désassembleur
 goblin = "0.10"
 iced-x86 = "1.21"
-# triage PE / disasm / strings / entropy réutilisés depuis aphrody (mêmes versions → cargo unifie)
-aphrody-re = { path = "../aphrody/crates/aphrody-re" }
+# Vues typées sans copie sur les en-têtes ELF/PE (module `headers` d'aphrody-re).
+zerocopy = { version = "0.8", features = ["derive"] }
+# Triage PE / disasm / strings / entropy. Crate INTERNALISÉ le 2026-08-15 : il
+# vivait dans `../aphrody`, hors du dépôt, et une dépendance de chemin vers un
+# répertoire voisin faisait dépendre la compilation de niers d'un arbre qui n'est
+# ni versionné ici ni garanti présent. Seul le noyau de triage est repris
+# (`lib.rs` + `headers`) ; les modules forensics d'aphrody — adobe, asar,
+# electron, golang, google — et les modules sous drapeau — leveldb, magika,
+# yara — sont écartés : `nie-re` n'appelle que `triage()` et `Format`.
+aphrody-re = { path = "crates/forge/aphrody-re" }
 
 # décodage audio CRI (HCA, ACB, AWB) — licence MIT
 cridecoder = { version = "0.2.3", default-features = false }
