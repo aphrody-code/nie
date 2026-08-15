@@ -667,6 +667,13 @@ enum VfsOp {
         path: String,
         #[arg(long, short = 'o')]
         out: PathBuf,
+        /// Filtre par extension, comme `vfs find` (ex. `cfg.bin`, `lua`, sans le point).
+        ///
+        /// Sans lui, extraire un préfixe sort TOUT ce qu'il contient : `data/common`
+        /// pèse 4,66 Gio pour 71 101 cfg.bin seulement (206 Mio). Le filtre évite
+        /// de sortir 20 Gio d'assets pour récupérer les tables de jeu.
+        #[arg(long)]
+        ext: Option<String>,
         #[arg(long)]
         game_dir: Option<PathBuf>,
     },
@@ -1462,6 +1469,9 @@ fn steam_cmd(op: SteamOp) -> anyhow::Result<()> {
             c.token_store.clone().unwrap_or_else(nie_steam::token_store::default_path),
         ),
         guard_provider: None,
+        // Garde anti-blocage : un depot muet est interrompu au lieu de dormir
+        // indéfiniment (cf. nie_steam::options::SteamDownloadOptions::stall_timeout).
+        stall_timeout: Some(std::time::Duration::from_secs(300)),
     };
 
     let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build()?;
@@ -3107,7 +3117,9 @@ fn vfs_cmd(op: VfsOp) -> anyhow::Result<()> {
         VfsOp::Cat { path, hex, len, png_out, wav_out, game_dir } => {
             vfs_cat(&path, hex, len, png_out.as_deref(), wav_out.as_deref(), game_dir)
         }
-        VfsOp::Extract { path, out, game_dir } => vfs_extract(&path, &out, game_dir),
+        VfsOp::Extract { path, out, ext, game_dir } => {
+            vfs_extract(&path, &out, ext.as_deref(), game_dir)
+        }
         VfsOp::Stats { top, game_dir } => vfs_stats(top, game_dir),
         VfsOp::Find { query, ext, limit, json, game_dir } => vfs_find(&query, ext.as_deref(), limit, json, game_dir),
         VfsOp::Chara { query, no_paths, element, position, json, limit, db, game_dir } => {
@@ -3321,10 +3333,18 @@ fn vfs_cat(
     Ok(())
 }
 
-fn vfs_extract(path: &str, out: &std::path::Path, game_dir: Option<PathBuf>) -> anyhow::Result<()> {
+fn vfs_extract(
+    path: &str,
+    out: &std::path::Path,
+    ext: Option<&str>,
+    game_dir: Option<PathBuf>,
+) -> anyhow::Result<()> {
     let vfs = open_vfs(game_dir)?;
+    // Même sémantique que `vfs find` : suffixe `.<ext>` en minuscules, ce qui
+    // couvre les extensions composées (`cfg.bin`).
+    let ext_dot = ext.map(|e| format!(".{}", e.trim_start_matches('.').to_lowercase()));
 
-    if vfs.find(path).is_some() {
+    if ext_dot.is_none() && vfs.find(path).is_some() {
         let data = vfs.read(path)?;
         if let Some(parent) = out.parent() {
             std::fs::create_dir_all(parent).ok();
@@ -3340,9 +3360,14 @@ fn vfs_extract(path: &str, out: &std::path::Path, game_dir: Option<PathBuf>) -> 
     let matches: Vec<String> = vfs
         .iter()
         .filter(|(p, _)| *p == prefix || p.starts_with(&sub_prefix))
+        .filter(|(p, _)| ext_dot.as_deref().is_none_or(|e| p.to_lowercase().ends_with(e)))
         .map(|(p, _)| p.to_string())
         .collect();
-    anyhow::ensure!(!matches.is_empty(), "« {path} » absent du VFS (ni fichier exact, ni préfixe)");
+    anyhow::ensure!(
+        !matches.is_empty(),
+        "« {path} » absent du VFS (ni fichier exact, ni préfixe){}",
+        ext.map_or(String::new(), |e| format!(" — ou aucun fichier en .{e} dessous"))
+    );
 
     let mut ok = 0usize;
     let mut failed = 0usize;

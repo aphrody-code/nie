@@ -212,8 +212,21 @@ csharp/             IECODE.Core / IECODE.CLI / IECODE.Core.Tests (.NET 10, `IECO
 - Table cmdId → handler :  
   `uv run scripts/extract_funclua_table.py` → `data/re/funclua-cmdid-handlers.json` (régénérable, gitignored).
 - Le binaire est `nie.exe` **à la racine** (pas `data/nie.exe`), base image `0x140000000`.
-- **`r2`/`objdump` ne sont pas installés** sur cette machine : désassembler via
-  `uv run --with capstone <script>` ou le crate `nie-re` (iced-x86). Bornes de fonction : `.pdata`.
+- **Outillage RE installé** (vérifié 2026-08-15 — l'ancienne mention « `r2`/`objdump` absents »
+  était périmée) :
+  - Désassembleurs/CLI : `objdump` 2.46, `r2` 6.0.7, `rizin` 0.7.3, `gdb`, `wine`, `yara` 4.5.5,
+    `binwalk` 2.4.3, `upx` 4.2.4, `cabextract`.
+  - **Ghidra 12.0.4** (`/opt/ghidra_12.0.4_PUBLIC`, `analyzeHeadless` dans le PATH) avec
+    **BSim + VersionTracking** — c'est l'outil pour ré-apparier des fonctions entre deux builds.
+  - Python (`.venv`, 3.14) : `capstone`, `iced-x86`, `keystone`, `unicorn`, `pefile`, `lief`,
+    `r2pipe`, **`pyghidra`** (pilote Ghidra depuis Python), `angr`, `z3-solver`, `ROPGadget`,
+    `flare-capa` (règles `/opt/capa-rules`, signatures `/opt/capa-sigs` — à passer par
+    `-r`/`-s`, la roue PyPI n'embarque ni l'un ni l'autre).
+  - `GHIDRA_INSTALL_DIR` est posé dans `/etc/environment` + `~/.bashrc` (avant la garde
+    d'interactivité) : sans elle `pyghidra.start()` échoue.
+  - **Piège PyPI** : le paquet `capa` n'est PAS l'outil FLARE (il résout en `capa==0.1`).
+    Le bon paquet est **`flare-capa`** ; les deux fournissent le module `capa`.
+  - Bornes de fonction : `.pdata`.
 - Classification par `main_return` :  
   - `mov al, 1` → portable (return-1)  
   - **Interdit** de porter un retour conditionnel (`sete al` / `found ? 1 : 0`) comme constante. Source classique de doublons et d’erreurs.
