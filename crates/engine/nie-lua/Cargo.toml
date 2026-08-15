@@ -16,6 +16,10 @@ workspace = true
 mlua = { version = "0.11", features = ["lua52", "vendored"] }
 thiserror.workspace = true
 
+# Sérialisation des types de `bytecode` : un chunk décodé doit pouvoir sortir en
+# JSON (`niers decode` sur un `.lua.bin`), pas seulement en désassemblage texte.
+serde.workspace = true
+
 # Analyse statique des sources Lua décompilées : AST concret, sans exécuter le code.
 # `tree-sitter-lua` 0.5 n'expose que `LanguageFn` (via `tree-sitter-language`) et se
 # valide contre `tree-sitter` 0.26 — les deux versions doivent rester alignées, un
