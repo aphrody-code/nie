@@ -2260,6 +2260,29 @@ fn collect_layout_objects(vfs: &Vfs, screen: &str, from_setting: bool) -> (Vec<L
         v
     };
 
+    // ── Table des points d'attache de l'écran ────────────────────────────────────────────────
+    //
+    // Un objet porteur d'un `CMenuAttachLocator` ne se dessine pas : il déclare **où vont les
+    // autres** (cf. `menu::attach_slots`). Sans cette table, tout objet dont le squelette propre
+    // ne donne pas de pose retombe au centre du canvas — c'est ce qui empilait 27 des 42 objets
+    // de `victory_road_top_menu` en (640, 360). On la construit avant la boucle : un emplacement
+    // peut être déclaré par un objet qu'on n'a pas encore traité.
+    let mut attaches: std::collections::BTreeMap<u32, Vec<menu::AttachSlot>> =
+        std::collections::BTreeMap::new();
+    for obj_path in &obj_paths {
+        let Ok(obj_bytes) = vfs.read(obj_path) else { continue };
+        let Ok(obj) = objbin::parse(&obj_bytes) else { continue };
+        let Some(g4pkm_logical) = obj.g4pkm_path.as_deref() else { continue };
+        let Some(g4pkm_vfs) = resolve_vfs_basename(vfs, g4pkm_logical, MENU_LOCALE) else {
+            continue;
+        };
+        let Ok(bytes) = vfs.read(&g4pkm_vfs) else { continue };
+        let Ok(skel) = g4pkm::parse(&bytes) else { continue };
+        for slot in menu::attach_slots(&obj, &skel) {
+            attaches.entry(slot.target_hash).or_default().push(slot);
+        }
+    }
+
     let mut objects: Vec<LayoutObj> = Vec::new();
     let mut n_sprites = 0usize;
 
@@ -2346,6 +2369,40 @@ fn collect_layout_objects(vfs: &Vfs, screen: &str, from_setting: bool) -> (Vec<L
                 });
                 n_sprites += 1;
             }
+        }
+
+        // Position réelle par point d'attache, si un locator de cet écran en déclare une pour cet
+        // objet. Elle prime sur le placement issu du squelette propre : le locator dit **où**,
+        // le squelette de l'objet dit seulement **quelle taille** (l'échelle reste donc celle
+        // déjà calculée). Plusieurs emplacements = plusieurs instances du même objet (les items
+        // d'une liste), pas un doublon : on en émet une par emplacement.
+        let poses_attache: Vec<(f32, f32)> = attaches
+            .get(&nie_formats::cfgbin::crc32(obj.name.as_bytes()))
+            .map(|v| v.iter().map(nie_formats::menu::AttachSlot::to_css).collect())
+            .unwrap_or_default();
+        for (x, y) in &poses_attache {
+            let mut t = transform.clone();
+            t["x"] = json!(x);
+            t["y"] = json!(y);
+            objects.push(LayoutObj {
+                name: obj.name.clone(),
+                transform: t,
+                draw_priority,
+                draw_type,
+                camera,
+                sprite: sprite.clone(),
+                anim: anim.clone(),
+                visible: true,
+                text: if text_labels.is_empty() {
+                    Value::Null
+                } else {
+                    Value::Array(text_labels.clone())
+                },
+                runtime: Value::Null,
+            });
+        }
+        if !poses_attache.is_empty() {
+            continue;
         }
 
         objects.push(LayoutObj {
