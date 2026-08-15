@@ -134,6 +134,11 @@ enum Cmd {
         /// image de fond. Les icônes suivent alors la couleur du thème.
         #[arg(long)]
         masque: bool,
+        /// Écrit **toutes** les textures du `.g4tx`, pas seulement celle qui porte le nom du
+        /// fichier : un atlas en contient souvent plusieurs, et la sélection par nom laissait
+        /// les autres inaccessibles. `-o` désigne alors un répertoire.
+        #[arg(long)]
+        toutes: bool,
     },
     /// Analyse statique d'une source Lua (fichier ou arborescence), sans l'exécuter.
     ///
@@ -460,6 +465,23 @@ enum ModeOp {
         /// Fichier de sortie ; `-` ou absent = stdout.
         #[arg(long, short = 'o')]
         out: Option<PathBuf>,
+    },
+    /// Exporte le **contenu** des fichiers d'un mode : calques par écran, objets de menu
+    /// parsés, régions de chaque texture, et messages localisés du mode.
+    ///
+    /// `export` rend l'inventaire (quels fichiers) ; celui-ci rend ce qu'ils contiennent.
+    Contenu {
+        /// Identifiant du mode (`victory-road`, `chronicle`, …).
+        slug: String,
+        /// Fichier de sortie ; `-` ou absent = stdout.
+        #[arg(long, short = 'o')]
+        out: Option<PathBuf>,
+        #[arg(long)]
+        game_dir: Option<PathBuf>,
+        /// Binaire du jeu, d'où sont lues les clés de message du mode (défaut :
+        /// `<racine>/nie.exe`). Sans lui, la section « messages » reste vide.
+        #[arg(long)]
+        exe: Option<PathBuf>,
     },
 }
 
@@ -1534,8 +1556,12 @@ fn run() -> anyhow::Result<()> {
         }
         Cmd::Steam { op } => steam_cmd(op),
         Cmd::Info { game_dir, json } => info_cmd(game_dir, json),
-        Cmd::Convert { src, to, out, game_dir, reference, masque } => {
-            convert_cmd(&src, &to, out.as_deref(), game_dir, reference.as_deref(), masque)
+        Cmd::Convert { src, to, out, game_dir, reference, masque, toutes } => {
+            if toutes {
+                convert_toutes(&src, &to, out.as_deref(), game_dir)
+            } else {
+                convert_cmd(&src, &to, out.as_deref(), game_dir, reference.as_deref(), masque)
+            }
         }
         Cmd::Lua { src, functions, calls, strings, crc32, limit } => {
             lua_cmd::run(&src, lua_cmd::Detail { functions, calls, strings, crc32, limit })
@@ -1630,6 +1656,45 @@ fn run() -> anyhow::Result<()> {
                         std::fs::write(&p, txt.as_bytes())
                             .with_context(|| format!("écriture {}", p.display()))?;
                         println!("mode export -> {} ({} octets)", p.display(), txt.len());
+                    }
+                    _ => println!("{txt}"),
+                }
+                Ok(())
+            }
+            ModeOp::Contenu { slug, out, game_dir, exe } => {
+                let vfs = open_vfs(game_dir.clone())?;
+                let def = mode_index::MODES
+                    .iter()
+                    .find(|d| d.slug == slug)
+                    .ok_or_else(|| {
+                        let connus: Vec<&str> =
+                            mode_index::MODES.iter().map(|d| d.slug).collect();
+                        anyhow::anyhow!(
+                            "mode « {slug} » inconnu — modes : {}",
+                            connus.join(", ")
+                        )
+                    })?;
+                // Le binaire vit à la racine du jeu, pas sous `data/` : sans `--exe`, on le
+                // cherche là où `resolve_game_dir` a trouvé le VFS.
+                let exe = exe.or_else(|| {
+                    let racine = game_dir
+                        .clone()
+                        .unwrap_or_else(nie_formats::vfs::resolve_game_dir);
+                    let p = racine.join("nie.exe");
+                    p.exists().then_some(p)
+                });
+                let json = mode_index::contenu_json(&vfs, def, exe.as_deref())?;
+                let txt = serde_json::to_string_pretty(&json)?;
+                match out {
+                    Some(p) if p.as_os_str() != "-" => {
+                        if let Some(parent) = p.parent()
+                            && !parent.as_os_str().is_empty()
+                        {
+                            std::fs::create_dir_all(parent)?;
+                        }
+                        std::fs::write(&p, txt.as_bytes())
+                            .with_context(|| format!("écriture {}", p.display()))?;
+                        println!("mode contenu {slug} -> {} ({} octets)", p.display(), txt.len());
                     }
                     _ => println!("{txt}"),
                 }
@@ -2794,6 +2859,76 @@ fn convert_cmd(
             anyhow::bail!("la sortie diffère de la référence");
         }
     }
+    Ok(())
+}
+
+/// Écrit **toutes** les textures d'un `.g4tx`, une image par texture.
+///
+/// `convert` sans `--toutes` passe par `select_main_texture`, qui retient la texture portant le
+/// nom du fichier : sur un atlas qui en contient plusieurs — cas courant des menus, où le fichier
+/// `vroad01_01.g4tx` porte un masque 4×4 *et* l'atlas `top_season_base01_atl` en 100×40 — cela
+/// rendait tout le reste inatteignable depuis la CLI.
+///
+/// Les textures sans charge DDS décodable sont signalées et sautées : un atlas partiellement
+/// illisible rend quand même ce qu'il a.
+fn convert_toutes(
+    src: &str,
+    to: &str,
+    out: Option<&std::path::Path>,
+    game_dir: Option<PathBuf>,
+) -> anyhow::Result<()> {
+    use nie_formats::image_out::{self, ImageOut};
+
+    let format = ImageOut::depuis_extension(to).ok_or_else(|| {
+        let connus: Vec<&str> = ImageOut::TOUS.iter().map(|f| f.extension()).collect();
+        anyhow::anyhow!("format « {to} » inconnu — formats gérés : {}", connus.join(", "))
+    })?;
+
+    let data = lire_source(src, game_dir)?;
+    let atlas = nie_formats::g4tx::parse(&data)
+        .map_err(|e| anyhow::anyhow!("« {src} » n'est pas un G4TX lisible : {e}"))?;
+
+    let dossier = out.map_or_else(|| PathBuf::from("."), std::path::Path::to_path_buf);
+    std::fs::create_dir_all(&dossier)
+        .with_context(|| format!("création « {} »", dossier.display()))?;
+
+    let base = src.rsplit('/').next().unwrap_or(src);
+    let tronc = base.rsplit_once('.').map_or(base, |(t, _)| t);
+
+    println!("source      {src} ({} octets, {} texture(s))", data.len(), atlas.textures.len());
+    let mut ecrites = 0usize;
+    for tex in &atlas.textures {
+        let Some((w, h, rgba)) = nie_formats::g4tx_decode::decode_texture_rgba(&data, tex) else {
+            println!("  · {:<32} {}x{}  NON DÉCODABLE", tex.name, tex.width, tex.height);
+            continue;
+        };
+        let produit = match image_out::encoder_rgba(&rgba, w, h, format) {
+            Ok(p) => p,
+            Err(e) => {
+                println!("  · {:<32} {w}x{h}  ÉCHEC ENCODAGE : {e}", tex.name);
+                continue;
+            }
+        };
+        // Le nom de texture vient du fichier : il peut porter des séparateurs. On le réduit à ce
+        // qui fait un nom de fichier sûr plutôt que d'écrire hors du dossier demandé.
+        let nom: String = tex
+            .name
+            .chars()
+            .map(|c| if c.is_ascii_alphanumeric() || c == '_' || c == '-' { c } else { '_' })
+            .collect();
+        let cible = dossier.join(format!("{tronc}__{nom}.{}", format.extension()));
+        std::fs::write(&cible, &produit)
+            .with_context(|| format!("écriture « {} »", cible.display()))?;
+        println!(
+            "  · {:<32} {w}x{h}  {} régions  → {} ({} octets)",
+            tex.name,
+            tex.sub_textures.len(),
+            cible.display(),
+            produit.len()
+        );
+        ecrites += 1;
+    }
+    println!("écrites     {ecrites}/{}", atlas.textures.len());
     Ok(())
 }
 
