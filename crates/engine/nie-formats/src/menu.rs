@@ -278,6 +278,101 @@ fn blit_sprite(canvas: &mut [u8], cw: i64, ch: i64, s: &CompositeSprite) {
     }
 }
 
+// ── Points d'attache (`CMenuAttachLocator`) ──────────────────────────────────────────────────
+
+/// Un emplacement déclaré par un `CMenuAttachLocator` : « pose l'objet `target_hash` ici ».
+#[derive(Debug, Clone, PartialEq)]
+pub struct AttachSlot {
+    /// Nom de l'os d'attache dans le squelette du locator (ex. `_atc_recipe_title03`).
+    pub bone: String,
+    /// CRC-32 du nom de l'objet de menu à placer à cet emplacement.
+    pub target_hash: u32,
+    /// Rang de l'emplacement dans sa série (0, 1, 2… — les items d'une même liste).
+    pub index: u32,
+    /// Pose **locale** de l'os d'attache — qui est déjà absolue, cf. [`AttachSlot::to_css`].
+    pub pose: Transform2D,
+}
+
+impl AttachSlot {
+    /// Position de l'emplacement en pixels du canvas 1280×720 (origine haut-gauche).
+    ///
+    /// Deux écarts avec [`Transform2D::to_css_1280x720`], tous deux mesurés sur les squelettes
+    /// de menu réels, pas supposés :
+    ///
+    /// 1. **On lit `local_bind_pose`, pas `world_bind_pose`.** Dans ces squelettes, le local est
+    ///    déjà exprimé en absolu : `_pos_guide01` porte `local = monde = (1757, -658)`, et son
+    ///    enfant `_atc_guide01`, de local identique, ressort à `monde = (3514, -1316)` — soit
+    ///    exactement le double. La composition parentale rajoute donc un décalage déjà compris
+    ///    dans le local ; utiliser le monde envoie les widgets à deux fois leur distance, hors
+    ///    canvas.
+    /// 2. **L'origine est en haut-gauche et Y descend**, au lieu du repère centré de
+    ///    `to_css_1280x720`. Avec cette convention `_atc_guide01..03` (x constant 1757, y
+    ///    -658/-782/-906) tombent à x≈1171, y≈438/521/604 : trois guides de boutons empilés en
+    ///    bas à droite, ce qu'ils sont. Le repère centré les aurait envoyés à x≈1811, hors écran.
+    #[must_use]
+    pub fn to_css(&self) -> (f32, f32) {
+        (self.pose.x * (CANVAS_W / REF_W), -self.pose.y * (CANVAS_H / REF_H))
+    }
+}
+
+/// Emplacements déclarés par les `CMenuAttachLocator` d'un objet de menu.
+///
+/// ## Le mécanisme
+///
+/// Un objet porteur d'un `CMenuAttachLocator` ne se dessine pas lui-même : il **déclare où vont
+/// les autres**. Son composant porte une liste plate d'entiers, groupés par quatre :
+///
+/// | position | contenu | résolution mesurée sur le corpus (5 350 quadruplets, 917 locators) |
+/// |---|---|---|
+/// | 0 | CRC-32 d'un nom d'os (souvent la variante sans `_` du slot 1) | 20 % |
+/// | 1 | **CRC-32 du nom de l'os d'attache**, dans le squelette **du locator lui-même** | **92,07 %** |
+/// | 2 | **CRC-32 du nom de l'objet de menu à y placer** | **83,31 %** |
+/// | 3 | index séquentiel de l'emplacement (0, 1, 2…) | — |
+///
+/// Le slot 1 se lit dans le squelette **du porteur**, pas dans celui de l'objet cible : l'hypothèse
+/// inverse ne résout que 3,78 % des cas et sortait des poses toutes à l'origine. C'est ce qui rend
+/// la position réelle des widgets accessible — elle était déjà dans les fichiers, derrière cette
+/// indirection, là où le compositeur retombait sur le centre du canvas.
+///
+/// Un même `target_hash` revient une fois **par emplacement** (une fenêtre de recettes déclare dix
+/// `_atc_recipe_title01..10`) : ce sont des instances répétées du même objet, pas un doublon à
+/// dédupliquer.
+///
+/// ## Résolution locale
+///
+/// Les hashes se résolvent contre les noms d'os de `layout` — le squelette du locator — sans
+/// dictionnaire externe : on hache les noms qu'on a déjà. Un os absent est simplement ignoré
+/// (aucun emplacement produit) plutôt que rabattu sur une position par défaut, pour qu'un trou
+/// reste visible au lieu de se déguiser en placement.
+#[must_use]
+pub fn attach_slots(obj: &MenuObject, layout: &G4pkmLayout) -> Vec<AttachSlot> {
+    let mut par_hash: alloc::collections::BTreeMap<u32, (&str, Transform2D)> =
+        alloc::collections::BTreeMap::new();
+    for bone in &layout.bones {
+        // `local_bind_pose` : dans ces squelettes il est déjà absolu — cf. [`AttachSlot::to_css`],
+        // qui documente la mesure. Prendre le monde doublerait la distance.
+        par_hash
+            .entry(crate::cfgbin::crc32(bone.name.as_bytes()))
+            .or_insert((bone.name.as_str(), bone.local_bind_pose));
+    }
+
+    let mut out = Vec::new();
+    for c in &obj.components {
+        let MenuComponent::AttachLocator(a) = c else { continue };
+        for quad in a.null_layer_hashes.chunks_exact(4) {
+            if let Some((nom, pose)) = par_hash.get(&quad[1]) {
+                out.push(AttachSlot {
+                    bone: String::from(*nom),
+                    target_hash: quad[2],
+                    index: quad[3],
+                    pose: *pose,
+                });
+            }
+        }
+    }
+    out
+}
+
 /// Échantillon bilinéaire RGBA (0..1) avec clamp aux bords ; `u`,`v` en coords texel.
 fn sample_bilinear(rgba: &[u8], tw: u32, th: u32, u: f32, v: f32) -> (f32, f32, f32, f32) {
     let (x0, y0) = (u.floor(), v.floor());
@@ -365,6 +460,53 @@ mod tests {
         // base = premier scale>1 = le bone _gtxt → utilisé directement.
         let st = place_on_canvas(&layout, 776, 120);
         assert!((st.scale_x - 776.0 * (1280.0 / 1920.0) / 776.0).abs() < 1e-4);
+    }
+
+    /// Un `CMenuAttachLocator` rend un emplacement **par quadruplet**, résolu sur le squelette
+    /// du porteur : trois os `_atc_*` → trois positions distinctes, chacune portant l'objet cible
+    /// et son rang. Le slot 0 (ici volontairement différent) ne doit pas être confondu avec la
+    /// clé de résolution, qui est le slot 1.
+    #[test]
+    fn attach_slots_resolve_bones_of_the_locator_itself() {
+        use crate::objbin::AttachLocatorComponent;
+        let sk = layout(alloc::vec![
+            bone("_atc_item01", tf(1757.0, -658.0, 1.0, 1.0)),
+            bone("_atc_item02", tf(1757.0, -782.0, 1.0, 1.0)),
+            bone("_absent_du_locator", tf(9.0, 9.0, 1.0, 1.0)),
+        ]);
+        let cible = crate::cfgbin::crc32(b"vroad01_53_tournament_plate_small");
+        let obj = MenuObject {
+            name: String::from("vroad01_01_list_locator_attach"),
+            engine_type: String::from("gmdMenuObj"),
+            g4pkm_path: None,
+            g4tx_path: None,
+            components: alloc::vec![MenuComponent::AttachLocator(AttachLocatorComponent {
+                type_name: String::from("CMenuAttachLocator"),
+                null_layer_hashes: alloc::vec![
+                    0xDEAD_BEEF, crate::cfgbin::crc32(b"_atc_item01"), cible, 0,
+                    0xDEAD_BEEF, crate::cfgbin::crc32(b"_atc_item02"), cible, 1,
+                    // Os inconnu du squelette : aucun emplacement, surtout pas un repli.
+                    0xDEAD_BEEF, crate::cfgbin::crc32(b"_jamais_declare"), cible, 2,
+                ],
+            })],
+        };
+
+        let slots = attach_slots(&obj, &sk);
+        assert_eq!(slots.len(), 2, "l'os absent ne doit produire aucun emplacement");
+        assert_eq!(slots[0].bone, "_atc_item01");
+        assert_eq!(slots[0].target_hash, cible);
+        assert_eq!(slots[0].index, 0);
+        assert_eq!(slots[1].bone, "_atc_item02");
+        assert_eq!(slots[1].index, 1);
+
+        // Conversion écran : origine haut-gauche, Y descendant. Deux guides empilés à la même
+        // abscisse, dans le canvas — c'est ce que le repère centré rendait faux (x≈1811).
+        let (x0, y0) = slots[0].to_css();
+        let (x1, y1) = slots[1].to_css();
+        assert!((x0 - 1757.0 * 1280.0 / 1920.0).abs() < 0.5, "x0={x0}");
+        assert!((x0 - x1).abs() < f32::EPSILON, "même colonne");
+        assert!(x0 < CANVAS_W && y0 < CANVAS_H, "dans le canvas : ({x0}, {y0})");
+        assert!(y1 > y0, "index croissant = plus bas à l'écran");
     }
 
     /// Bout-en-bout sur le vrai jeu : `option02_02.g4pkm` (bone nvidia plein écran
