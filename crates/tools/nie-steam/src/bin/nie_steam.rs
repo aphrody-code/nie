@@ -68,6 +68,14 @@ struct Cli {
     #[arg(long, env = "NIE_STEAM_TOKEN_STORE")]
     token_store: Option<PathBuf>,
 
+    /// Secondes sans aucun événement avant de déclarer le depot bloqué (0 = désactivé).
+    ///
+    /// Doit rester supérieur au temps de vérification du plus gros fichier
+    /// (~90 s pour le CPK de 4,26 Gio d'IEVR), sinon la passe `verify` déclenche
+    /// un faux positif.
+    #[arg(long, default_value_t = 300)]
+    stall_timeout: u64,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -119,8 +127,16 @@ enum Commands {
 async fn main() -> Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
-            EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| EnvFilter::new("nie_steam=info,steamroom=info")),
+            // `steamroom_client` DOIT figurer explicitement : la directive
+            // `steamroom=info` porte sur le crate `steamroom` seul et ne couvre
+            // pas `steamroom_client`. Sans lui, les avertissements qui expliquent
+            // un blocage — « all CDN servers in cooldown, waiting », « CDN rate
+            // limited, backing off » — sont filtrés, et un téléchargement figé
+            // ressemble à un téléchargement lent. C'est ce qui a rendu le gel du
+            // 2026-08-15 muet pendant tout son déroulement.
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+                EnvFilter::new("nie_steam=info,steamroom=info,steamroom_client=info")
+            }),
         )
         .init();
 
@@ -147,6 +163,8 @@ async fn main() -> Result<()> {
             verify: !cli.no_verify,
             token_store_path: Some(token_store_path.clone()),
             guard_provider: None,
+            stall_timeout: (cli.stall_timeout > 0)
+                .then(|| std::time::Duration::from_secs(cli.stall_timeout)),
         }
     };
 
