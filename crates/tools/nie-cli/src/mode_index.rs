@@ -24,6 +24,7 @@ use anyhow::{Context, Result};
 use nie_formats::cfgbin::{self, CfgEntry, Value};
 use nie_formats::vfs::Vfs;
 use nie_formats::objbin;
+use serde_json::Value as Json;
 
 /// Définition éditoriale d'un mode.
 pub struct ModeDef {
@@ -42,6 +43,11 @@ pub struct ModeDef {
     pub official: bool,
     /// Ce que les fichiers permettent d'affirmer sur l'état du mode.
     pub note: &'static str,
+    /// Sous-chaîne qui identifie, dans les chaînes de `nie.exe`, les clés de message du mode
+    /// (`vroad_message_*`, `sysmes_vroad_err_*`…). Les tables de texte ne portent que leur
+    /// CRC-32 : sans ce motif, ces messages restent introuvables. `None` = mode dont les
+    /// messages ne sont pas nommés à part.
+    pub key_pattern: Option<&'static str>,
 }
 
 /// Les modes, chacun adossé à des écrans réels du VFS.
@@ -83,6 +89,7 @@ pub const MODES: &[ModeDef] = &[
                *VictoryRoad* (machines a etats, menus, erreurs reseau `sysmes_vroad_err_*`) ; \
                `VictoryLoad` n'y figure PAS. `victory_load`, `victory_lode` et `vroad` ne sont \
                que des variantes cote assets.",
+        key_pattern: Some("vroad"),
     },
     ModeDef {
         slug: "competition",
@@ -96,6 +103,7 @@ pub const MODES: &[ModeDef] = &[
                VoiceVol pour Chronicle, KizunaStation, Story et VictoryRoad — pas pour lui. \
                Comme les modes en ligne (`lobby`, `ranked`, `bot_match`, tous absents), son \
                contenu n'est pas dans les fichiers installes.",
+        key_pattern: None,
     },
     ModeDef {
         slug: "story",
@@ -105,6 +113,7 @@ pub const MODES: &[ModeDef] = &[
         text_hash: Some(0x76db_0fff),
         official: true,
         note: "Ecran story_mode_top_menu.",
+        key_pattern: Some("story_mode"),
     },
     ModeDef {
         slug: "chronicle",
@@ -115,6 +124,7 @@ pub const MODES: &[ModeDef] = &[
         official: true,
         note: "Ecrans chronicle_mode_top_menu et chronicle_mode_soccer_vs_menu ; \
                images dediees sous 220_img/ev_chronicle_img (943 fichiers).",
+        key_pattern: Some("chronicle"),
     },
     ModeDef {
         slug: "kizuna-station",
@@ -125,6 +135,7 @@ pub const MODES: &[ModeDef] = &[
         official: true,
         note: "Le MODE s'appelle « Station Kizuna » ; le LIEU qu'il ouvre est « Ville Kizuna » \
                (EN Bond Town), un libelle distinct. Ses ecrans portent le prefixe kizuna_town.",
+        key_pattern: Some("kizuna"),
     },
     ModeDef {
         slug: "soccer",
@@ -135,6 +146,7 @@ pub const MODES: &[ModeDef] = &[
         official: false,
         note: "Entree des matchs (crampons + ballon sur la tuile). Le jeu ne le compte pas \
                parmi les modes de ses reglages audio.",
+        key_pattern: None,
     },
     ModeDef {
         slug: "bb-stadium",
@@ -144,6 +156,7 @@ pub const MODES: &[ModeDef] = &[
         text_hash: None,
         official: false,
         note: "Tuile au logo `BB`.",
+        key_pattern: Some("bb_stadium"),
     },
     ModeDef {
         slug: "play-guide",
@@ -153,6 +166,7 @@ pub const MODES: &[ModeDef] = &[
         text_hash: None,
         official: false,
         note: "Tuile au livre marque d'un point d'exclamation.",
+        key_pattern: Some("play_guide"),
     },
     ModeDef {
         slug: "setting",
@@ -162,6 +176,7 @@ pub const MODES: &[ModeDef] = &[
         text_hash: Some(0x82c9_a2b3),
         official: false,
         note: "Tuile a l'engrenage.",
+        key_pattern: None,
     },
     ModeDef {
         slug: "information",
@@ -171,6 +186,7 @@ pub const MODES: &[ModeDef] = &[
         text_hash: Some(0x1796_88e8),
         official: false,
         note: "Tuile au `i`.",
+        key_pattern: None,
     },
     ModeDef {
         slug: "team-dock",
@@ -180,6 +196,7 @@ pub const MODES: &[ModeDef] = &[
         text_hash: Some(0x7aae_281e),
         official: false,
         note: "Ecran commun de gestion d'equipe.",
+        key_pattern: Some("team_dock"),
     },
 ];
 
@@ -358,6 +375,206 @@ pub fn collect(vfs: &Vfs, def: &ModeDef) -> ModeFacts {
     }
 
     facts
+}
+
+/// Le **contenu** des fichiers d'un mode, pas seulement leur inventaire.
+///
+/// `collect` compte et nomme ; ici on ouvre. Chaque écran rend ses calques et ses focusables,
+/// chaque `objbin` son objet parsé, chaque `g4tx` ses textures et leurs régions, et les clés de
+/// texte du mode — celles que porte `nie.exe`, pas celles des objets — sont résolues dans les
+/// tables localisées.
+///
+/// # Erreurs
+///
+/// Rend une erreur si le VFS ne s'ouvre pas. Un fichier illisible **individuellement** n'en est
+/// pas une : il est simplement absent du résultat, comme dans `collect`.
+pub fn contenu_json(vfs: &Vfs, def: &ModeDef, exe: Option<&std::path::Path>) -> Result<Json> {
+    let facts = collect(vfs, def);
+
+    // Écrans : on relit le cfg pour rendre ses calques dans l'ordre du fichier, ce que
+    // l'ensemble trié de `collect` perd.
+    let mut screens = Vec::new();
+    for (stem, path) in &facts.screens {
+        let Ok(bytes) = vfs.read(path) else { continue };
+        let Ok(file) = cfgbin::parse_t2b(&bytes) else { continue };
+        let (mut layers, mut focus) = (Vec::new(), 0usize);
+        walk(&file.entries, &mut |e: &CfgEntry| {
+            if e.name.contains("LIST_BEG") || e.name.contains("LIST_END") {
+                return;
+            }
+            if e.name.starts_with("MENU_LAYER_INFO")
+                && let Some(n) = first_string(e)
+            {
+                layers.push(n.to_string());
+            } else if e.name.starts_with("MENU_FOCUS_BASE_INFO") {
+                focus += 1;
+            }
+        });
+        screens.push(serde_json::json!({
+            "screen": stem, "cfg": path, "octets": bytes.len(),
+            "layers": layers, "focus": focus,
+        }));
+    }
+
+    // Objets de menu : l'objet parsé en entier (composants compris).
+    let mut objbins = Vec::new();
+    for path in &facts.objbins {
+        let Ok(bytes) = vfs.read(path) else { continue };
+        let Ok(obj) = objbin::parse(&bytes) else { continue };
+        objbins.push(serde_json::json!({
+            "path": path, "octets": bytes.len(), "objet": obj,
+        }));
+    }
+
+    // Textures : dimensions et régions, telles que le `.g4tx` les déclare.
+    let mut textures = Vec::new();
+    for path in &facts.g4tx {
+        // Le chemin catalogué porte `<LG>` pour la locale ; le VFS, lui, veut un chemin réel.
+        for candidat in chemins_locale(path) {
+            let Ok(bytes) = vfs.read(&candidat) else { continue };
+            let Ok(atlas) = nie_formats::g4tx::parse(&bytes) else { continue };
+            let tex: Vec<Json> = atlas
+                .textures
+                .iter()
+                .map(|t| {
+                    serde_json::json!({
+                        "id": t.id, "nom": t.name, "largeur": t.width, "hauteur": t.height,
+                        "dds": t.is_dds,
+                        "regions": t.sub_textures.iter().map(|s| serde_json::json!({
+                            "nom": s.name, "x": s.x, "y": s.y, "w": s.width, "h": s.height,
+                        })).collect::<Vec<_>>(),
+                    })
+                })
+                .collect();
+            textures.push(serde_json::json!({
+                "path": candidat, "catalogue": path, "octets": bytes.len(), "textures": tex,
+            }));
+            break;
+        }
+    }
+
+    let lua: Vec<Json> = facts
+        .lua
+        .iter()
+        .map(|p| {
+            let octets = vfs.read(p).map(|b| b.len()).unwrap_or(0);
+            serde_json::json!({ "path": p, "octets": octets })
+        })
+        .collect();
+
+    let messages = def
+        .key_pattern
+        .map_or_else(|| serde_json::json!({}), |motif| messages_du_mode(vfs, motif, exe));
+
+    Ok(serde_json::json!({
+        "slug": def.slug,
+        "label": def.label,
+        "screens": screens,
+        "objbins": objbins,
+        "textures": textures,
+        "lua": lua,
+        "messages": messages,
+    }))
+}
+
+/// Chemins réels possibles pour un chemin catalogué portant `<LG>`.
+///
+/// L'ordre porte une décision : `fr` d'abord — le wiki est francophone —, puis la variante sans
+/// dossier de locale, qui est celle des atlas non localisés.
+fn chemins_locale(path: &str) -> Vec<String> {
+    let prefixe = |p: &str| {
+        if p.starts_with("data/") { p.to_string() } else { format!("data/{p}") }
+    };
+    if !path.contains("<LG>") {
+        return vec![prefixe(path)];
+    }
+    let mut v: Vec<String> =
+        ["fr", "en", "ja"].iter().map(|l| prefixe(&path.replace("<LG>", l))).collect();
+    v.push(prefixe(&path.replace("<LG>/", "")));
+    v
+}
+
+/// Résout les clés de texte du mode que porte le binaire, dans chaque locale.
+///
+/// Les libellés d'écran passent par les slots des `objbin` ; les **messages** du mode, eux
+/// (erreurs réseau, confirmations), ne sont nommés que dans `nie.exe` — les tables ne portent
+/// que leur CRC-32. On lit donc les chaînes du binaire, on garde celles qui contiennent `motif`,
+/// et on les cherche dans toutes les tables de la locale.
+fn messages_du_mode(vfs: &Vfs, motif: &str, exe: Option<&std::path::Path>) -> Json {
+    let Some(exe) = exe else { return serde_json::json!({}) };
+    let Ok(bin) = std::fs::read(exe) else { return serde_json::json!({}) };
+
+    // Chaînes ASCII imprimables du binaire, filtrées sur le motif du mode.
+    let mut cles: BTreeSet<String> = BTreeSet::new();
+    let mut courante = Vec::new();
+    for &b in &bin {
+        if b.is_ascii_graphic() || b == b'_' {
+            courante.push(b);
+        } else {
+            if courante.len() >= 4
+                && let Ok(s) = core::str::from_utf8(&courante)
+                && s.contains(motif)
+                && !s.contains('/')
+                && !s.contains('.')
+            {
+                cles.insert(s.to_string());
+            }
+            courante.clear();
+        }
+    }
+
+    let mut out = serde_json::Map::new();
+    for locale in LOCALES {
+        let prefixe = format!("data/common/text/{locale}/");
+        let tables: Vec<String> = vfs
+            .iter()
+            .map(|(p, _)| p.to_string())
+            .filter(|p| {
+                p.starts_with(&prefixe)
+                    && p.ends_with(".cfg.bin")
+                    && p[prefixe.len()..].find('/').is_none()
+            })
+            .collect();
+        let mut par_cle = serde_json::Map::new();
+        for table in tables {
+            let Ok(bytes) = vfs.read(&table) else { continue };
+            let Ok(file) = cfgbin::parse_t2b(&bytes) else { continue };
+            let mut index: BTreeMap<u32, String> = BTreeMap::new();
+            walk(&file.entries, &mut |e: &CfgEntry| {
+                if !e.name.starts_with("TEXT_INFO")
+                    || e.name.contains("BEGIN")
+                    || e.name.contains("END")
+                {
+                    return;
+                }
+                let hash = e.variables.iter().find_map(|v| match v {
+                    Value::Int(i) => Some(u32::from_ne_bytes(i.to_ne_bytes())),
+                    _ => None,
+                });
+                let texte = e.variables.iter().rev().find_map(|v| match v {
+                    Value::String(s) if !s.is_empty() => Some(s.clone()),
+                    _ => None,
+                });
+                if let (Some(h), Some(t)) = (hash, texte) {
+                    index.insert(h, t);
+                }
+            });
+            if index.is_empty() {
+                continue;
+            }
+            let court = table.rsplit('/').next().unwrap_or(&table).to_string();
+            for cle in &cles {
+                if let Some(t) = index.get(&cfgbin::crc32(cle.as_bytes())) {
+                    par_cle.insert(
+                        cle.clone(),
+                        serde_json::json!({ "texte": t, "table": court }),
+                    );
+                }
+            }
+        }
+        out.insert(locale.to_string(), Json::Object(par_cle));
+    }
+    Json::Object(out)
 }
 
 fn component_type_name(c: &objbin::MenuComponent) -> &str {
