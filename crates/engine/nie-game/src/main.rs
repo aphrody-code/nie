@@ -2380,7 +2380,7 @@ fn collect_layout_objects(vfs: &Vfs, screen: &str, from_setting: bool) -> (Vec<L
             .get(&nie_formats::cfgbin::crc32(obj.name.as_bytes()))
             .map(|v| v.iter().map(nie_formats::menu::AttachSlot::to_css).collect())
             .unwrap_or_default();
-        for (x, y) in &poses_attache {
+        for (i, (x, y)) in poses_attache.iter().enumerate() {
             let mut t = transform.clone();
             t["x"] = json!(x);
             t["y"] = json!(y);
@@ -2393,10 +2393,14 @@ fn collect_layout_objects(vfs: &Vfs, screen: &str, from_setting: bool) -> (Vec<L
                 sprite: sprite.clone(),
                 anim: anim.clone(),
                 visible: true,
-                text: if text_labels.is_empty() {
-                    Value::Null
-                } else {
+                // Le libellé STATIQUE n'appartient qu'au premier emplacement. Les items d'une
+                // liste reçoivent chacun le leur au runtime (`SetText` par index) : recopier le
+                // même texte sur les N instances ne reproduit pas l'écran, il empile N fois la
+                // même chaîne — sur l'arbre du tournoi (175 emplacements) cela noyait le rendu.
+                text: if i == 0 && !text_labels.is_empty() {
                     Value::Array(text_labels.clone())
+                } else {
+                    Value::Null
                 },
                 runtime: Value::Null,
             });
