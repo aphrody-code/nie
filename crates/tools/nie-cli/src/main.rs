@@ -2273,16 +2273,22 @@ fn textures(
     let mut vfs = Vfs::new();
     vfs.init(&data_dir).context("init VFS depuis cpk_list.cfg.bin")?;
 
-    // Collecter tous les chemins .g4tx indexés
-    let all_g4tx: Vec<(String, String)> = {
-        // Accès à l'index interne via itération : on utilise find() sur les clés connues,
-        // mais l'API publique n'expose pas d'itérateur. On reconstruit la liste via
-        // la méthode asset_count() pour vérifier, puis on scanne via une méthode d'itération
-        // publique si disponible.
-        // Comme l'API Vfs n'expose pas d'itérateur direct, on charge le cfg.bin nous-mêmes
-        // pour collecter les chemins .g4tx.
-        collect_g4tx_paths(&data_dir)?
-    };
+    // Collecter tous les chemins .g4tx indexés, depuis l'index que le VFS vient
+    // de construire.
+    //
+    // Cette liste était auparavant reconstruite par `collect_g4tx_paths`, qui
+    // rouvrait `cpk_list.cfg.bin` pour son compte : déchiffrement Viola
+    // inconditionnel puis parse T2B. Le commentaire justifiait ce doublon par
+    // une API `Vfs` sans itérateur — or `vfs.iter()` existe et sert déjà à
+    // `vfs find` / `vfs stats`. Le build du 2026-07-24 a cassé ce second
+    // parseur (« T2B header: negative count/offset/length ») alors que
+    // `Vfs::init`, juste au-dessus, lisait le même fichier sans broncher.
+    let mut all_g4tx: Vec<(String, String)> = vfs
+        .iter()
+        .filter(|(p, _)| p.ends_with(".g4tx"))
+        .map(|(p, e)| (p.to_string(), e.cpk_filename.clone()))
+        .collect();
+    all_g4tx.sort();
 
     let total_found = all_g4tx.len();
     let to_process = all_g4tx.len().min(limit);
@@ -2533,53 +2539,6 @@ fn uniform_map(game_dir: &std::path::Path, out: &std::path::Path) -> anyhow::Res
     Ok(())
 }
 
-/// Charge le cpk_list.cfg.bin et extrait tous les chemins internes se terminant par `.g4tx`.
-/// Retourne (internal_path, cpk_filename).
-fn collect_g4tx_paths(data_dir: &std::path::Path) -> anyhow::Result<Vec<(String, String)>> {
-    use std::io::Read;
-
-    let cpk_list_path = data_dir.join("cpk_list.cfg.bin");
-    let mut file = std::fs::File::open(&cpk_list_path)
-        .with_context(|| format!("ouverture {}", cpk_list_path.display()))?;
-    let mut data = Vec::new();
-    file.read_to_end(&mut data).context("lecture cpk_list.cfg.bin")?;
-
-    // Déchiffrer avec la clé fixe Viola
-    nie_formats::cpk::decrypt_block(&mut data, 0, nie_formats::cpk::VIOLA_FIXED_KEY);
-
-    let cfg = nie_formats::cfgbin::cfgbin_parse(&data)
-        .map_err(|e| anyhow::anyhow!("parse cfg.bin: {e}"))?;
-
-    let mut result = Vec::new();
-    for root_entry in &cfg.entries {
-        for child in &root_entry.children {
-            if child.variables.len() < 5 {
-                continue;
-            }
-            let directory = match &child.variables[0] {
-                nie_formats::cfgbin::Value::String(s) => s.as_str(),
-                _ => continue,
-            };
-            let filename = match &child.variables[1] {
-                nie_formats::cfgbin::Value::String(s) => s.as_str(),
-                _ => continue,
-            };
-            let cpk_hash = match &child.variables[3] {
-                nie_formats::cfgbin::Value::String(s) => s.clone(),
-                _ => continue,
-            };
-
-            if !filename.ends_with(".g4tx") {
-                continue;
-            }
-
-            let internal_path = format!("{directory}{filename}");
-            result.push((internal_path, cpk_hash));
-        }
-    }
-
-    Ok(result)
-}
 
 // ---------------------------------------------------------------------------
 // MenuPredecode
