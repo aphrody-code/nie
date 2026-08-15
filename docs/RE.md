@@ -8,25 +8,29 @@ document décrit la cible, la boucle qui l'attaque, et ce qui en est établi.
 `nie.exe` est **à la racine du dépôt** (pas dans `data/`). Base image `0x140000000`.
 
 > **La racine porte deux liens symboliques vers l'installation Steam**, `nie.exe` et
-> `nie_eacpatched.exe` → `~/.local/share/Steam/iecode/inazuma/`. Le second est celui sur lequel
-> la base de connaissance est indexée : son sha256 commence par `4c2b91fbae6f`, exactement le
-> `binary.sha256` de `binary_id = 1`. **Les adresses de `var/niers.sqlite` sont donc valables
-> pour `nie_eacpatched.exe`, pas pour le vanilla** (`nie.exe`, sha `4c53ea758f72`), qui est un
-> autre fichier. Toute commande qui lit le binaire pour la base doit viser la variante patchée.
+> `nie_eacpatched.exe` → `~/.local/share/Steam/iecode/inazuma/`. **Vérifié 2026-08-15 : les deux
+> sont actuellement BYTE-IDENTIQUES** (même sha256 `b1fa04ea3658…`, `stat -L -c %s` = 33 918 464
+> pour les deux) — le patch EAC n'a rien à modifier sur ce build, ou n'a pas été réappliqué ;
+> à re-vérifier si un `steam-update-post.sh` réapplique le patch plus tard.
 >
-> Les deux pèsent **31 468 032 octets**, et l'installation est en `app_config_5.00.24.00`. Le
-> tableau ci-dessous annonçait 33 918 464 octets et l'app `6.00.23.00` — un autre build. La
-> ligne est corrigée ; en cas de doute, mesurer (`stat -L -c %s nie_eacpatched.exe`) plutôt que
-> se fier à la doc.
+> **Correction du 2026-08-14 (commit `22b1177`) elle-même périmée** : entre le 2026-08-14 soir et
+> le 2026-08-15, l'installation Steam locale portait transitoirement un AUTRE build
+> (31 468 032 octets, sha `4c2b91fbae6f…`, `app_config_5.00.24.00`) que ce commit avait pris pour
+> la nouvelle référence. La MAJ Steam du 2026-08-15 (cf. mémoire `maj-steam-ievr-etat`, bug du bit
+> répertoire 64≠2 corrigé) a ramené l'installation au build `6.00.23.00` / 33 918 464 octets / sha
+> `b1fa04ea3658…` — **exactement celui que ce tableau décrivait avant la « correction » du
+> 2026-08-14**, restaurée ci-dessous. Leçon : un « c'est corrigé » qui ne cite pas le sha256 se
+> périme au prochain download Steam sans que rien ne le signale — toujours mesurer
+> (`stat -L -c %s`, `sha256sum -L`) avant de croire la doc.
 
 | Propriété | Valeur |
 |---|---|
 | Format | PE32+ x86-64, Windows GUI, 9 sections, **non strippé** |
-| Taille | 31 468 032 octets (`nie_eacpatched.exe`, sha `4c2b91fbae6f…`) |
+| Taille | 33 918 464 octets, sha256 `b1fa04ea365868e5c8933aca393366f82d0d446187e2187f2737dc4fa2acd40c` (vérifié 2026-08-15, `nie.exe` et `nie_eacpatched.exe` identiques) |
 | Éditeur / produit | LEVEL5 Inc. — *INAZUMA ELEVEN: Victory Road* (nom interne `nie1v2.exe`) |
 | Linker | MSVC 14.44 — le toolset à réutiliser pour la forge |
 | PDB de build | `G:\nie1v2\program\main\program\SteamRelease\x64\nie.pdb` (symboles absents du dump) |
-| RTTI | Présent — **3 336** symboles `.?AV…@@` dans le binaire installé ; 3 150 classes ingérées en base (1 575 par `binary_id`). L'ancien compte de 1 234 valait pour le build précédent |
+| RTTI | 1 575 classes ingérées en base (`rtti_class`, les deux `binary_id`, revérifié 2026-08-15). Les comptes de 1 234 (ancien) et 3 336/3 150 (build transitoire du 2026-08-14) valaient pour d'autres builds — ne pas les citer |
 | Exports | 2 seulement : `AmdPowerXpressRequestHighPerformance`, `NvOptimusEnablement` |
 | Imports | 465 fonctions |
 | Version de l'app | `6.00.23.00` (`common/system/app_config_*.cfg.bin`) |
