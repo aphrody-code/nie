@@ -24,6 +24,7 @@ use anyhow::{Context, Result};
 use nie_formats::cfgbin::{self, CfgEntry, Value};
 use nie_formats::vfs::Vfs;
 use nie_formats::objbin;
+use nie_lua::bytecode;
 use serde_json::Value as Json;
 
 /// Définition éditoriale d'un mode.
@@ -377,6 +378,118 @@ pub fn collect(vfs: &Vfs, def: &ModeDef) -> ModeFacts {
     facts
 }
 
+/// Table `cmdId -> VA handler` de `data/re/funclua-cmdid-handlers.json`, ou vide si absente.
+///
+/// Remonte depuis le répertoire courant (même convention que `fichier_re` dans l'exemple
+/// `couverture_funclua`) : le fichier est gitignoré (© LEVEL-5, dump de reverse), donc absent
+/// tant qu'il n'a pas été régénéré sur la machine — son absence n'est pas une erreur, juste un
+/// enrichissement en moins.
+fn charger_handlers_funclua() -> BTreeMap<u32, u64> {
+    let mut out = BTreeMap::new();
+    let Ok(cwd) = std::env::current_dir() else { return out };
+    let mut courant: &std::path::Path = &cwd;
+    let chemin = loop {
+        let candidat = courant.join("data/re/funclua-cmdid-handlers.json");
+        if candidat.is_file() {
+            break candidat;
+        }
+        match courant.parent() {
+            Some(p) => courant = p,
+            None => return out,
+        }
+    };
+    let Ok(texte) = std::fs::read_to_string(&chemin) else { return out };
+    let Ok(brut) = serde_json::from_str::<BTreeMap<String, String>>(&texte) else { return out };
+    for (k, v) in brut {
+        let (Some(id), Some(va)) = (
+            k.strip_prefix("0x").and_then(|h| u32::from_str_radix(h, 16).ok()),
+            v.strip_prefix("0x").and_then(|h| u64::from_str_radix(h, 16).ok()),
+        ) else {
+            continue;
+        };
+        out.insert(id, va);
+    }
+    out
+}
+
+/// Analyse **byte-exacte** d'un script `.lua.bin` : désassemble le conteneur bytecode Lua 5.2
+/// réel ([`nie_lua::bytecode::parse`], PAS un décompilateur externe — cf. tête de ce module dans
+/// `nie-lua`) et en extrait ce qui intéresse une fiche de mode : nombre d'instructions/fonctions,
+/// modules `INCLUDE`d, et les commandes `funcLuaMenuCommand` que le script est **structurellement
+/// capable d'émettre** (un entier constant du pool qui correspond à un `cmdId` connu du dump de
+/// reverse — un faux positif exigerait une collision de hash 32 bits, négligeable sur ~3 700
+/// entrées).
+///
+/// Renvoie `{"erreur": ...}` si le fichier n'est pas un bytecode Lua 5.2 reconnu, plutôt qu'un
+/// objet vide qui se ferait passer pour « rien à signaler ».
+fn analyse_lua(bytes: &[u8], handlers: &BTreeMap<u32, u64>) -> Json {
+    let chunk = match bytecode::parse(bytes) {
+        Ok(c) => c,
+        Err(e) => return serde_json::json!({ "erreur": e.to_string() }),
+    };
+
+    // Parcourt le prototype principal ET tous les prototypes imbriqués : chacun a son propre
+    // pool de constantes en Lua 5.2 (pas un pool global partagé par chunk).
+    let mut includes = BTreeSet::new();
+    let mut cmd_ids = BTreeSet::new();
+    fn walk_proto(
+        p: &bytecode::Prototype,
+        includes: &mut BTreeSet<String>,
+        cmd_ids: &mut BTreeSet<u32>,
+        handlers: &BTreeMap<u32, u64>,
+    ) {
+        for c in &p.constants {
+            match c {
+                bytecode::Constant::String(s) => {
+                    // Les modules partagés du moteur portent tous ce préfixe (`LUA_MENU_DEF`,
+                    // `LUA_LISTVIEW_INC`…) : c'est la même convention que lit `INCLUDE()` côté VM
+                    // (`nie_lua::lib::install_include`), pas une supposition locale.
+                    if let Ok(txt) = core::str::from_utf8(s)
+                        && txt.starts_with("LUA_")
+                    {
+                        includes.insert(txt.to_string());
+                    }
+                }
+                // Les cmdId arrivent en f64 côté Lua (cf. doc `menu_host.rs`) ; on ne retient que
+                // les entiers exacts dans l'espace u32 ET présents dans le dump de handlers —
+                // sinon un flottant de jeu ordinaire (score, ratio…) pourrait coïncider.
+                bytecode::Constant::Number(n)
+                    if *n >= 0.0 && n.fract() == 0.0 && *n <= f64::from(u32::MAX) =>
+                {
+                    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+                    let id = *n as u32;
+                    if handlers.contains_key(&id) {
+                        cmd_ids.insert(id);
+                    }
+                }
+                _ => {}
+            }
+        }
+        for sub in &p.protos {
+            walk_proto(sub, includes, cmd_ids, handlers);
+        }
+    }
+    walk_proto(&chunk.main, &mut includes, &mut cmd_ids, handlers);
+
+    let commandes: Vec<Json> = cmd_ids
+        .iter()
+        .map(|id| {
+            serde_json::json!({
+                "cmdId": format!("0x{id:08X}"),
+                "nom": nie_lua::menu_host::command_name(*id),
+                "handler": handlers.get(id).map(|va| format!("0x{va:X}")),
+            })
+        })
+        .collect();
+
+    serde_json::json!({
+        "instructions": chunk.main.total_instructions(),
+        "fonctions": chunk.main.total_protos() + 1,
+        "includes": includes,
+        "commandes": commandes,
+    })
+}
+
 /// Le **contenu** des fichiers d'un mode, pas seulement leur inventaire.
 ///
 /// `collect` compte et nomme ; ici on ouvre. Chaque écran rend ses calques et ses focusables,
@@ -453,12 +566,20 @@ pub fn contenu_json(vfs: &Vfs, def: &ModeDef, exe: Option<&std::path::Path>) -> 
         }
     }
 
+    let handlers_funclua = charger_handlers_funclua();
     let lua: Vec<Json> = facts
         .lua
         .iter()
         .map(|p| {
-            let octets = vfs.read(p).map(|b| b.len()).unwrap_or(0);
-            serde_json::json!({ "path": p, "octets": octets })
+            let Ok(bytes) = vfs.read(p) else {
+                return serde_json::json!({ "path": p, "octets": 0 });
+            };
+            let mut entry = serde_json::json!({ "path": p, "octets": bytes.len() });
+            let analyse = analyse_lua(&bytes, &handlers_funclua);
+            if let (Json::Object(e), Json::Object(a)) = (&mut entry, analyse) {
+                e.extend(a);
+            }
+            entry
         })
         .collect();
 
