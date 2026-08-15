@@ -448,6 +448,31 @@ const ARG_GUARDED_RETURN1: &[u32] = &[
     0xCBEA_CB36, 0xF994_7B44, 0x106C_DBDE, 0x853E_9EBB, 0xD834_8143, 0x094D_A7EF,
     0x3B76_DD51, 0x6568_3DB5, 0x83BD_04A7, 0xD824_9AD1, 0xE2B2_8B6F, 0xE283_312E,
     0xF318_85AE,
+    // 6ᵉ lot (mode `victory-road`, 2026-08-15) : 29 des 32 scripts Lua du mode n'étaient pas
+    // encore dans le corpus `data/lua_scripts/decompiled` (seuls les 3 `fake_vroad_*` y étaient)
+    // — décompilés via `luadec-all` pour cette session, ce qui a fait apparaître 31 cmdId
+    // `funcLuaMenuCommand` anonymes propres au mode. Triés avec le même détecteur CF que les
+    // lots précédents (`scripts/triage_funclua_handlers.py`, bornes `.pdata` chunkées) : 14 sont
+    // `RETURN_1_SAFE` (0 confiné au bloc mort de garde d'arité, ou absent). Les 17 autres cmdId
+    // du mode restent délibérément NON portés — soit un vrai retour 0 hors garde (`ARG_GUARD_TRUE` :
+    // 0x19D76302, 0x1601208F, 0xD99E96A0, 0xCF5F6FA8, 0x03F4DAA9, 0x73C56CAA, 0xAAD018F6), soit un
+    // argument flottant (`HAS_FLOAT_ARG`, setter à modéliser, PAS un `=>1` : 0x724F633E, 0x940EE4C3,
+    // 0x5FCBCD5D, 0xBD0FBC0B, 0x0AC1B4A8, 0xE61C42AE, 0x526DFDBC, 0x5447BD41, 0x24579EE3,
+    // 0x9AF7D6FA) — porter un retour conditionnel comme constante est interdit (cf. CLAUDE.md).
+    0x1319_3DE3, // h 0x140CA35F0 (zero=guard n=1)
+    0x53CD_EEE6, // h 0x140BEA8B0 (zero=guard n=1)
+    0x95BE_9623, // h 0x140C738B0 (zero=guard n=1)
+    0x0785_E3F0, // h 0x140CB17F0 (zero=none)
+    0xE849_1B82, // h 0x140CA61C0 (zero=none)
+    0xA631_3C13, // h 0x140C41C90 (zero=guard n=1)
+    0xDAF8_8496, // h 0x140C98FC0 (zero=none)
+    0x1726_222F, // h 0x140CB1000 (zero=none)
+    0xFA25_DA56, // h 0x140CB1780 (zero=none)
+    0x539C_F9D6, // h 0x140CAFEC0 (zero=guard n=1)
+    0x0C5D_5B56, // h 0x140CAE350 (zero=guard n=2)
+    0x37E8_6356, // h 0x140BFC9C0 (zero=guard n=1)
+    0x9D7B_D6EF, // h 0x140CB1440 (zero=guard n=1)
+    0xC879_6B78, // h 0x140CA6FD0 (zero=guard n=1)
 ];
 
 /// Nom lisible d'un `cmdId` `funcLuaMenuCommand` reversé, ou `None` si non encore identifié.
@@ -1431,7 +1456,7 @@ mod dispatch_tests {
             let ret: f64 = menu_cmd(&lua).call::<f64>((f64::from(cid), 1.0)).unwrap();
             assert_eq!(ret, 1.0, "cmdId 0x{cid:08X} : handler renvoie AL=1");
         }
-        assert_eq!(ARG_GUARDED_RETURN1.len(), 195);
+        assert_eq!(ARG_GUARDED_RETURN1.len(), 209);
     }
 
     /// `RegisterItemListCount` (cmdId `0x16C1C4C0`) — handler `0x140CD8E30` REVERSÉ : enregistre
