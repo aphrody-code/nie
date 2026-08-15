@@ -34,8 +34,8 @@ use crate::depot_resolver::{
     self, INVALID_MANIFEST,
 };
 use crate::options::{
-    DepotInfo, DownloadResult, SteamDownloadOptions, SteamDownloadPhase,
-    SteamDownloadProgress,
+    CollisionReason, DepotInfo, DownloadResult, ManifestCollision, SteamDownloadOptions,
+    SteamDownloadPhase, SteamDownloadProgress,
 };
 use crate::session::SteamSession;
 
@@ -175,6 +175,29 @@ impl SteamDepotDownloader {
                 DepotManifest::parse(&manifest_bytes).context("parse manifest")?;
             if manifest.filenames_encrypted {
                 let _ = manifest.decrypt_filenames(&plan.depot_key);
+            }
+
+            // Les entrées répertoire portent `flags=64`, que steamroom-client ne
+            // reconnaît pas (cf. STEAM_FLAG_DIRECTORY) : laissées dans le manifest,
+            // elles font échouer le depot entier sur `Is a directory (os error 21)`.
+            // On honore leur sémantique ici — créer le répertoire — puis on les
+            // retire, ne laissant que de vrais fichiers au DepotJob.
+            let dir_count = {
+                let before = manifest.files.len();
+                for f in manifest.files.iter().filter(|f| is_manifest_directory(f.flags)) {
+                    let path = opts.install_dir.join(f.normalized_path());
+                    std::fs::create_dir_all(&path)
+                        .with_context(|| format!("créer le répertoire {}", path.display()))?;
+                }
+                manifest.files.retain(|f| !is_manifest_directory(f.flags));
+                before - manifest.files.len()
+            };
+            if dir_count > 0 {
+                info!(
+                    depot = plan.depot_id,
+                    directories = dir_count,
+                    "entrées répertoire créées puis retirées du manifest"
+                );
             }
 
             let (event_tx, mut event_rx) = mpsc::unbounded_channel::<DownloadEvent>();
@@ -341,8 +364,7 @@ impl SteamDepotDownloader {
             let mut file_count: u32 = 0;
 
             for f in &manifest.files {
-                let flags = steamroom::enums::DepotFileFlags(f.flags);
-                if flags.is_directory() {
+                if is_manifest_directory(f.flags) {
                     continue;
                 }
                 total_bytes += f.size;
@@ -368,10 +390,142 @@ impl SteamDepotDownloader {
     }
 }
 
+impl SteamDepotDownloader {
+    /// Confronte le manifest à l'état réel de `opts.install_dir`, sans rien écrire.
+    ///
+    /// Le downloader de `steamroom-client` applique chaque entrée telle quelle :
+    /// répertoire → `create_dir_all`, entrée vide → `fs::write`, fichier →
+    /// staging puis `rename`. Si le disque contredit la nature attendue, l'appel
+    /// remonte un `Is a directory (os error 21)` **anonyme** qui avorte le depot
+    /// entier. Cette passe nomme les entrées fautives avant de télécharger.
+    ///
+    /// Renvoie les collisions dans l'ordre du manifest (donc l'ordre où le
+    /// downloader butera dessus) ; vide = le depot est applicable tel quel.
+    pub async fn audit_manifest(
+        &self,
+        opts: &SteamDownloadOptions,
+    ) -> Result<Vec<ManifestCollision>> {
+        let mut session = SteamSession::connect(opts).await?;
+        session.request_app_info(opts.app_id, false).await?;
+
+        let app_kv = session
+            .app_kv(opts.app_id)
+            .ok_or_else(|| anyhow::anyhow!("app info {} introuvable", opts.app_id))?
+            .clone();
+
+        let depots_kv = app_kv
+            .get("depots")
+            .ok_or_else(|| anyhow::anyhow!("section 'depots' absente"))?
+            .clone();
+
+        let depot_ids = depot_resolver::select_depot_ids(
+            &depots_kv,
+            &opts.depot_ids,
+            opts.all_platforms,
+            &opts.os,
+            opts.arch.as_deref(),
+            &opts.language,
+        );
+
+        let plans = build_depot_plans(&mut session, opts, &depot_ids, &depots_kv).await?;
+
+        let cdn_servers = session.cdn_servers(0, Some(5)).await?;
+        let cdn_server = cdn_servers
+            .first()
+            .ok_or_else(|| anyhow::anyhow!("aucun serveur CDN"))?;
+        let cdn = CdnClient::new().context("CdnClient")?;
+        let manifest_cache = ManifestCache::new(ManifestCache::default_path());
+
+        let mut collisions = Vec::new();
+        for plan in &plans {
+            let cdn_auth_token = session
+                .cdn_auth_token(plan.app_id, plan.depot_id, &cdn_server.host)
+                .await;
+            let request_code = session
+                .manifest_request_code(plan.app_id, plan.depot_id, plan.manifest_id, &plan.branch)
+                .await;
+
+            let manifest_bytes = load_or_fetch_manifest(
+                &cdn,
+                cdn_server,
+                plan,
+                request_code,
+                cdn_auth_token.as_deref(),
+                &manifest_cache,
+            )
+            .await?;
+
+            let mut manifest = DepotManifest::parse(&manifest_bytes).context("parse manifest")?;
+            if manifest.filenames_encrypted {
+                // Contrairement au chemin de download, on ne tait pas l'échec :
+                // des noms restés chiffrés produiraient un audit sans valeur.
+                manifest
+                    .decrypt_filenames(&plan.depot_key)
+                    .map_err(|e| anyhow::anyhow!("déchiffrement des noms du manifest : {e}"))?;
+            }
+
+            for f in &manifest.files {
+                let is_dir = is_manifest_directory(f.flags);
+                let rel = f.normalized_path();
+                let trimmed = rel.trim_matches('/');
+
+                let reason = if trimmed.is_empty() {
+                    Some(CollisionReason::EmptyPath)
+                } else {
+                    let path = opts.install_dir.join(&rel);
+                    match std::fs::symlink_metadata(&path) {
+                        Ok(md) if md.is_dir() && !is_dir => Some(CollisionReason::DirectoryOnDisk),
+                        Ok(md) if !md.is_dir() && is_dir => Some(CollisionReason::FileOnDisk),
+                        _ => None,
+                    }
+                };
+
+                if let Some(reason) = reason {
+                    collisions.push(ManifestCollision {
+                        depot_id: plan.depot_id,
+                        path: rel,
+                        flags: f.flags,
+                        size: f.size,
+                        chunk_count: f.chunks.len(),
+                        reason,
+                    });
+                }
+            }
+        }
+
+        Ok(collisions)
+    }
+}
+
 impl Default for SteamDepotDownloader {
     fn default() -> Self {
         Self::new()
     }
+}
+
+// ─── Flags de manifest ────────────────────────────────────────────────────────
+
+/// Bit « répertoire » de `EDepotFileFlag`, tel que Steam l'émet réellement.
+///
+/// `steamroom::enums::DepotFileFlags::DIRECTORY` vaut `2` — ce n'est **pas** la
+/// valeur du protocole. Valve numérote : `UserConfig=1`, `VersionedUserConfig=2`,
+/// `Encrypted=4`, `ReadOnly=8`, `Hidden=16`, `Executable=32`, `Directory=64`,
+/// `Symlink=128`. `DepotFileFlags::is_directory()` teste donc le mauvais bit.
+///
+/// Conséquence observée sur le depot 2799861 : ses 12 entrées répertoire
+/// (`data`, `data/packs`, `EasyAntiCheat`, …) portent `flags=64`, échappent au
+/// test de `steamroom-client`, et retombent sur la branche « fichier vide »
+/// (`size == 0 && chunks.is_empty()`) qui appelle `fs::write` sur un répertoire
+/// existant. Résultat : `Is a directory (os error 21)`, sans nom de chemin, qui
+/// avorte le depot **entier** dès la première entrée. Diagnostiqué par
+/// [`SteamDepotDownloader::audit_manifest`].
+pub const STEAM_FLAG_DIRECTORY: u32 = 64;
+
+/// Vrai si l'entrée de manifest décrit un répertoire (cf. [`STEAM_FLAG_DIRECTORY`]).
+///
+/// À préférer à `DepotFileFlags::is_directory()`, qui teste le bit `2`.
+pub fn is_manifest_directory(flags: u32) -> bool {
+    flags & STEAM_FLAG_DIRECTORY != 0
 }
 
 // ─── Plan interne ─────────────────────────────────────────────────────────────
@@ -522,5 +676,38 @@ fn emit(
             downloaded_bytes: downloaded,
             total_bytes: total,
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Valeurs réelles de `EDepotFileFlag` côté Valve, telles qu'observées sur
+    /// le manifest 7633204652048533395 du depot 2799861.
+    #[test]
+    fn directory_flag_is_bit_64() {
+        assert!(is_manifest_directory(64));
+        assert!(is_manifest_directory(STEAM_FLAG_DIRECTORY));
+        // Un répertoire combiné à d'autres attributs reste un répertoire.
+        assert!(is_manifest_directory(64 | 8));
+        assert!(is_manifest_directory(64 | 16));
+    }
+
+    /// Le piège d'origine : `steamroom` définit `DIRECTORY = 2`, qui côté Steam
+    /// est `VersionedUserConfig`. Confondre les deux fait écrire un fichier
+    /// par-dessus un répertoire (`Is a directory`, os error 21).
+    #[test]
+    fn bit_2_is_not_a_directory() {
+        assert!(!is_manifest_directory(2));
+        assert!(!is_manifest_directory(steamroom::enums::DepotFileFlags::DIRECTORY.0));
+    }
+
+    #[test]
+    fn ordinary_files_are_not_directories() {
+        assert!(!is_manifest_directory(0)); // fichier nu
+        assert!(!is_manifest_directory(1)); // UserConfig
+        assert!(!is_manifest_directory(32)); // Executable
+        assert!(!is_manifest_directory(128)); // Symlink
     }
 }
