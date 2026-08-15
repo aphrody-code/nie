@@ -2261,15 +2261,37 @@ fn rebuild(db_path: &std::path::Path, exe_path: &std::path::Path, rounds: usize)
     Ok(())
 }
 
+/// Une région d'atlas (sous-texture) du manifeste — mêmes clés que `/tex-info` de
+/// `nie-model-serve`, pour que les deux vues du même conteneur restent interchangeables.
+#[derive(serde::Serialize)]
+struct TexRegion<'a> {
+    name: &'a str,
+    x: i16,
+    y: i16,
+    width: i16,
+    height: i16,
+}
+
 /// Entrée du manifeste NDJSON pour une texture G4TX.
+///
+/// `name` et `regions_detail` manquaient jusqu'ici (issue #… vécue le 2026-08-15) : le
+/// parseur les avait déjà sous la main (`G4txTexture::name`/`sub_textures`), seule la
+/// sérialisation les jetait — le manifeste ne permettait donc de résoudre AUCUN nom de
+/// texture ni AUCUNE région d'atlas, condition bloquante pour toute correspondance
+/// nom→rôle. `regions` reste le compte, pour ne pas casser les consommateurs existants
+/// qui ne lisent que ce champ.
 #[derive(serde::Serialize)]
 struct TexEntry<'a> {
     path: &'a str,
     cpk: &'a str,
+    name: &'a str,
     width: i32,
     height: i32,
     format: &'static str,
     mips: u8,
+    regions: usize,
+    #[serde(rename = "regionsDetail")]
+    regions_detail: Vec<TexRegion<'a>>,
 }
 
 fn textures(
@@ -2363,13 +2385,22 @@ fn textures(
             let format_str: &'static str = if tex.is_dds { "DDS" } else { "NXTCH" };
             let mips: u8 = 0; // G4txHeader n'expose pas de champ mips explicite
 
+            let regions_detail: Vec<TexRegion> = tex
+                .sub_textures
+                .iter()
+                .map(|s| TexRegion { name: s.name.as_str(), x: s.x, y: s.y, width: s.width, height: s.height })
+                .collect();
+
             let entry = TexEntry {
                 path: internal_path.as_str(),
                 cpk: cpk_name.as_str(),
+                name: tex.name.as_str(),
                 width: tex.width,
                 height: tex.height,
                 format: format_str,
                 mips,
+                regions: tex.sub_textures.len(),
+                regions_detail,
             };
 
             let line = serde_json::to_string(&entry).context("sérialisation JSON")?;
@@ -2383,13 +2414,24 @@ fn textures(
                     tracing::warn!("redis SADD échec: {e}");
                 }
                 if let Err(e) = conn.hset_multiple::<_, _, _, ()>(&redis_path_key, &[
+                    ("name", tex.name.clone()),
                     ("width", tex.width.to_string()),
                     ("height", tex.height.to_string()),
                     ("format", format_str.to_string()),
                     ("mips", mips.to_string()),
+                    ("regions", tex.sub_textures.len().to_string()),
                     ("cpk", cpk_name.clone()),
                 ]) {
                     tracing::warn!("redis HSET échec: {e}");
+                }
+                // Index inversé nom-de-région → conteneur : c'est ce qui manque pour résoudre
+                // « où est gtxt_rarity01_05 » sans reparser tous les g4tx.
+                for region in &tex.sub_textures {
+                    if let Err(e) =
+                        conn.sadd::<_, _, i64>(format!("iev:tex:region:{}", region.name), internal_path.as_str())
+                    {
+                        tracing::warn!("redis SADD région échec: {e}");
+                    }
                 }
             }
         }
