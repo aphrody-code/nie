@@ -10,8 +10,27 @@
 set -euo pipefail
 
 GAME=/home/ubuntu/.local/share/Steam/iecode/inazuma
-BK=/home/ubuntu/ievr-backup-manifest-1147708054852059036
 REPO=/home/ubuntu/niers
+
+# Sauvegarde de référence. NE PAS coder en dur un chemin daté : le backup du
+# 2 mai (ievr-backup-manifest-1147708054852059036) a été supprimé pour libérer
+# du disque, ce qui rendait ce script inopérant sans le dire. Ordre de
+# résolution : $IEVR_BACKUP, sinon le plus récent /home/ubuntu/ievr-backup-*.
+if [[ -n "${IEVR_BACKUP:-}" ]]; then
+  BK="$IEVR_BACKUP"
+else
+  BK=$(ls -1d /home/ubuntu/ievr-backup-* 2>/dev/null | sort | tail -1)
+fi
+[[ -n "${BK:-}" && -d "$BK" ]] || {
+  echo "erreur: aucune sauvegarde trouvée (/home/ubuntu/ievr-backup-*)."
+  echo "       L'émulation gbe_fork et le nie.exe d'origine sont irrécupérables"
+  echo "       sans elle : ne PAS lancer de download tant qu'elle n'existe pas."
+  exit 1
+}
+for f in nie.exe steam_api64.dll EOSSDK-Win64-Shipping.dll; do
+  [[ -f "$BK/$f" ]] || { echo "erreur: sauvegarde $BK incomplète (manque $f)"; exit 1; }
+done
+echo "sauvegarde de référence : $BK"
 
 echo "== identité du binaire =="
 new_sha=$(sha256sum "$GAME/nie.exe" | cut -d' ' -f1)

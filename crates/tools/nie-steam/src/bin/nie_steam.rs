@@ -98,6 +98,21 @@ enum Commands {
         #[arg(short = 'o', long, default_value = ".")]
         output: PathBuf,
     },
+
+    /// Confronte le manifest à une install existante sans rien écrire.
+    ///
+    /// Nomme les entrées qui feraient échouer le download sur
+    /// `Is a directory (os error 21)` — erreur que Steam remonte sans dire
+    /// quel chemin la provoque, et qui avorte le depot entier.
+    Audit {
+        /// App ID Steam à auditer.
+        #[arg(default_value_t = IEVR_STEAM_APP_ID)]
+        app_id: u32,
+
+        /// Répertoire de l'install à confronter au manifest.
+        #[arg(short = 'o', long, default_value = ".")]
+        output: PathBuf,
+    },
 }
 
 #[tokio::main]
@@ -189,6 +204,28 @@ async fn main() -> Result<()> {
             } else {
                 let err = result.error.as_deref().unwrap_or("erreur inconnue");
                 eprintln!("error={err}");
+                std::process::exit(1);
+            }
+        }
+
+        Commands::Audit { app_id, output } => {
+            let opts = make_opts(app_id, output);
+            let collisions = dl.audit_manifest(&opts).await?;
+            if collisions.is_empty() {
+                println!("ok app_id={app_id} collisions=0 — manifest applicable tel quel");
+            } else {
+                for c in &collisions {
+                    println!(
+                        "collision depot={} flags={} size={} chunks={} raison={} chemin={}",
+                        c.depot_id,
+                        c.flags,
+                        c.size,
+                        c.chunk_count,
+                        c.reason.label(),
+                        if c.path.is_empty() { "(vide)" } else { &c.path }
+                    );
+                }
+                println!("collisions={}", collisions.len());
                 std::process::exit(1);
             }
         }
