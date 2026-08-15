@@ -27,6 +27,7 @@
 use std::fmt::Write as _;
 
 use thiserror::Error;
+use serde::Serialize;
 
 /// Erreurs de décodage du conteneur bytecode.
 #[derive(Debug, Error)]
@@ -51,7 +52,7 @@ pub enum BytecodeError {
 }
 
 /// En-tête d'un chunk (`lundump.c`, `LoadHeader`).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct Header {
     /// Version encodée (`0x52` pour Lua 5.2).
     pub version: u8,
@@ -72,7 +73,7 @@ pub struct Header {
 }
 
 /// Constante du pool d'un prototype.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Serialize, Debug, Clone, PartialEq)]
 pub enum Constant {
     /// `nil`.
     Nil,
@@ -107,7 +108,7 @@ impl Constant {
 }
 
 /// Description d'un upvalue (`instack` + index).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Serialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct UpvalDesc {
     /// `true` si l'upvalue vient du registre de la fonction englobante, `false` s'il vient de ses
     /// propres upvalues.
@@ -117,7 +118,7 @@ pub struct UpvalDesc {
 }
 
 /// Variable locale du bloc de débogage.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Serialize, Debug, Clone, PartialEq)]
 pub struct LocVar {
     /// Nom déclaré.
     pub name: String,
@@ -128,7 +129,7 @@ pub struct LocVar {
 }
 
 /// Un prototype de fonction — l'unité compilée de Lua.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Serialize, Debug, Clone, PartialEq)]
 pub struct Prototype {
     /// Ligne de début (`0` pour le chunk principal).
     pub line_defined: u32,
@@ -173,7 +174,7 @@ impl Prototype {
 }
 
 /// Un chunk complet : en-tête + prototype principal.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Serialize, Debug, Clone, PartialEq)]
 pub struct Chunk {
     /// En-tête décodé.
     pub header: Header,
@@ -194,7 +195,7 @@ pub const OPCODE_NAMES: [&str; 40] = [
 ];
 
 /// Mode d'encodage des opérandes (`lopcodes.h`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Serialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OpMode {
     /// `A B C`
     ABC,
@@ -251,7 +252,7 @@ const OP_MODES: [OpMode; 40] = [
 ];
 
 /// Une instruction décodée en champs.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Serialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Instruction {
     /// Mot brut de 32 bits.
     pub raw: u32,
