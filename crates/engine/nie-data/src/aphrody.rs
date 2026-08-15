@@ -36,24 +36,29 @@ use crate::skill::{parse_skill_config, CutinAssets, SkillInfo};
 /// Les 3 séries/codes d'Aphrody (code interne, `charaBaseId`, libellé, sous-dossier visage).
 ///
 /// Vérifié : `inagle_characters` (8 lignes) + index CPK (`_face/<sous-dir>/<code>/<code>.g4*`).
+///
+/// `face_subdir` en MAJUSCULES : casse réelle du VFS (`niers vfs find "_face/"`), pas une
+/// convention libre — un `face_subdir` en minuscules construit une URL byte-différente que le
+/// CDN/CPK, insensible à la casse pour le proxy de redimensionnement mais PAS pour le
+/// passthrough direct (404 vécu sur `/demo`, 2026-08-15).
 pub const SERIES: [AphrodySeriesDef; 3] = [
     AphrodySeriesDef {
         code: "c01001900",
         base_id: HashId(0x37D7_ACFB),
         label: "Inazuma Eleven (IE1)",
-        face_subdir: "01_ie1",
+        face_subdir: "01_IE1",
     },
     AphrodySeriesDef {
         code: "c05026590",
         base_id: HashId(0xFC57_A11C),
         label: "Inazuma Eleven GO",
-        face_subdir: "05_go2",
+        face_subdir: "05_GO2",
     },
     AphrodySeriesDef {
         code: "c07080010",
         base_id: HashId(0xCA01_BFAB),
         label: "Ares",
-        face_subdir: "07_ares",
+        face_subdir: "07_ARES",
     },
 ];
 
