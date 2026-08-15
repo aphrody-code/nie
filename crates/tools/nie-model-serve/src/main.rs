@@ -124,6 +124,11 @@ struct Cli {
     #[arg(long)]
     menu_cfg_dir: Option<PathBuf>,
 
+    /// `data/asset-cross-reference.json` (nom de texture → data de jeu qui la référence :
+    /// `entries/*.json` + chaînes Lua). Alimente le champ `role` de `/tex-info`.
+    #[arg(long)]
+    asset_cross_ref: Option<PathBuf>,
+
     /// Port d'écoute (localhost uniquement).
     #[arg(long, default_value_t = 8790)]
     port: u16,
@@ -167,6 +172,21 @@ struct State {
     layout_dir: PathBuf,
     /// Répertoire des `*_menu_setting.cfg.bin.json` (arbre d'écrans `/menu-tree.json`).
     menu_cfg_dir: PathBuf,
+    /// Nom de texture (basename sans extension) → sources qui la référencent (`entries/*.json`,
+    /// chaînes Lua), depuis `data/asset-cross-reference.json`. Alimente `/tex-info` `role`.
+    asset_roles: HashMap<String, Vec<AssetSource>>,
+}
+
+/// Une source qui référence un asset, telle qu'écrite par
+/// `rg/scripts/inagle/pipeline/build-asset-cross-reference.ts`.
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+struct AssetSource {
+    #[serde(rename = "entryFile")]
+    entry_file: String,
+    #[serde(rename = "entryId", skip_serializing_if = "Option::is_none")]
+    entry_id: Option<String>,
+    field: String,
+    value: String,
 }
 
 impl State {
@@ -252,6 +272,51 @@ impl State {
             map.insert(code.to_string(), idx as u8);
         }
         info!("body-type-manifest : {} entrées", map.len());
+        map
+    }
+
+    /// Charge `data/asset-cross-reference.json` (`rg/scripts/inagle/pipeline/
+    /// build-asset-cross-reference.ts`) : indexe par nom de texture (basename SANS extension) —
+    /// c'est ce qui s'aligne sur `G4txTexture::name`/`G4txSubTexture::name` (`abl_000001`, pas
+    /// `200_icon/02_icon_item/abl_000001.webp`). Un même basename peut apparaître sous plusieurs
+    /// `assetPath` (dossiers différents) : les sources de TOUS s'accumulent sous la même clé,
+    /// `/tex-info` reste correct même en cas d'ambiguïté (il montre tout, ne devine pas).
+    fn load_asset_roles(path: &Path) -> HashMap<String, Vec<AssetSource>> {
+        if !path.exists() {
+            debug!(
+                "asset-cross-reference absent : {} (rôle de texture non disponible)",
+                path.display()
+            );
+            return HashMap::new();
+        }
+        let Ok(content) = fs::read_to_string(path) else {
+            warn!("impossible de lire asset-cross-reference : {}", path.display());
+            return HashMap::new();
+        };
+        #[derive(serde::Deserialize)]
+        struct Asset {
+            #[serde(rename = "assetPath")]
+            asset_path: String,
+            sources: Vec<AssetSource>,
+        }
+        #[derive(serde::Deserialize)]
+        struct CrossRef {
+            assets: Vec<Asset>,
+        }
+        let Ok(cr) = serde_json::from_str::<CrossRef>(&content) else {
+            warn!("asset-cross-reference illisible : {}", path.display());
+            return HashMap::new();
+        };
+        let mut map: HashMap<String, Vec<AssetSource>> = HashMap::new();
+        for a in cr.assets {
+            let Some(base) = a.asset_path.rsplit('/').next() else { continue };
+            let base = base.rsplit_once('.').map_or(base, |(stem, _)| stem);
+            if base.is_empty() {
+                continue;
+            }
+            map.entry(base.to_string()).or_default().extend(a.sources);
+        }
+        info!("asset-cross-reference : {} noms de texture indexés", map.len());
         map
     }
 
@@ -2327,6 +2392,12 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                         // Rectangles des régions (recopiés du conteneur, jamais recalculés) :
                         // ce qui manquait pour construire un sprite-sheet CSS/SVG côté client
                         // sans repasser par un export CLI hors-ligne (`niers convert --to css`).
+                        // Rôle sémantique : `data/asset-cross-reference.json` (build-asset-
+                        // cross-reference.ts) associe un nom de texture aux entrées cfgbin/Lua
+                        // qui la référencent (`entries/items.json` champ `imageUrl`, id
+                        // `0x02601663`, …). Absent si le nom n'a pas de source connue — pas
+                        // d'erreur, juste rien à montrer (la texture peut être légitimement
+                        // non référencée, ex. une variante non utilisée).
                         let regions: Vec<serde_json::Value> = t
                             .sub_textures
                             .iter()
@@ -2334,6 +2405,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                                 serde_json::json!({
                                     "name": r.name,
                                     "x": r.x, "y": r.y, "width": r.width, "height": r.height,
+                                    "role": state.asset_roles.get(&r.name),
                                 })
                             })
                             .collect();
@@ -2349,6 +2421,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                             "path": format!("/tex/{rel}.g4tx/{}.png", t.name),
                             "regions": t.sub_textures.len(),
                             "regionsDetail": regions,
+                            "role": state.asset_roles.get(&t.name),
                         })
                     })
                     .collect();
@@ -3247,6 +3320,8 @@ fn main() -> Result<()> {
         .menu_cfg_dir
         .clone()
         .unwrap_or_else(|| racine.join("data/common/gamedata/menu/cfg"));
+    let asset_cross_ref =
+        cli.asset_cross_ref.clone().unwrap_or_else(|| racine.join("data/asset-cross-reference.json"));
     // Ces deux-là appartiennent au dépôt azalee : sans argument explicite, les routes qui en
     // dépendent restent inactives plutôt que de pointer un chemin inventé.
     let layout_dir = cli.layout_dir.clone().unwrap_or_default();
@@ -3281,6 +3356,7 @@ fn main() -> Result<()> {
     let crc_manifest = State::load_crc_manifest(&crc_manifest)?;
     let uniform_map = State::load_uniform_map(&uniform_map_path);
     let body_map = State::load_body_map(&body_manifest);
+    let asset_roles = State::load_asset_roles(&asset_cross_ref);
 
     // Résout le miroir SQLite.
     let db_path = resolve_db(cli.db.as_deref());
@@ -3298,6 +3374,7 @@ fn main() -> Result<()> {
         db_path,
         layout_dir: layout_dir.clone(),
         menu_cfg_dir: menu_cfg_dir.clone(),
+        asset_roles,
     });
 
     // Bind du serveur TCP.
