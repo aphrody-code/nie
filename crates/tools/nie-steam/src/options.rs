@@ -133,6 +133,20 @@ pub struct SteamDownloadOptions {
 
     /// Fournisseur de codes Steam Guard (2FA). `None` → utilise [`EnvGuardProvider`].
     pub guard_provider: Option<std::sync::Arc<dyn SteamGuardProvider>>,
+
+    /// Délai sans le moindre événement de progression au-delà duquel le
+    /// téléchargement est déclaré bloqué et interrompu. `None` → pas de garde.
+    ///
+    /// Sans cette garde, un depot peut s'arrêter **définitivement** sans rien
+    /// signaler : si tous les serveurs CDN passent en cooldown, chaque tâche de
+    /// chunk part en `sleep`, le process tombe à zéro CPU et zéro socket, et
+    /// plus rien ne le réveille. Observé le 2026-08-15 (figé à 00:21:22, encore
+    /// vivant et inerte des heures après).
+    ///
+    /// Le seuil doit dépasser le temps de vérification du **plus gros fichier**
+    /// du depot : la passe `verify` lit et hache chaque fichier existant sans
+    /// émettre d'événement entre-temps (4,26 Gio sur IEVR ≈ 90 s). Défaut : 300 s.
+    pub stall_timeout: Option<Duration>,
 }
 
 impl SteamDownloadOptions {
@@ -166,6 +180,7 @@ impl SteamDownloadOptions {
             verify: true,
             token_store_path: Some(crate::token_store::default_path()),
             guard_provider: None,
+            stall_timeout: Some(Duration::from_secs(300)),
         }
     }
 }
