@@ -43,6 +43,39 @@ use serde_json::{json, Value as Json};
 const EDIT_ROOT: &str = "chr/_face/20_EDIT/";
 
 
+
+/// Écran de l'éditeur correspondant à une catégorie, par **rapprochement lexical**.
+///
+/// Les écrans du jeu s'appellent `chara_edit_parts_menu_<quoi>` (`_eye`, `_mouth`, `_eyebrow`,
+/// `_ear`, `_hair`, `_nose`, `_contour`, `_preset`…) et chaque catégorie porte un préfixe de
+/// ressources (`eye_`, `mouth_`, `eyebrow_`, `hairF`…). Quand l'un contient l'autre, le lien est
+/// mécanique — aucune table écrite à la main, et rien n'est rendu quand aucun nom ne concorde.
+fn ecran_de_categorie(prefixe: &str, ecrans: &[String]) -> Option<String> {
+    let socle = prefixe.trim_end_matches(|c: char| c == '_' || c.is_ascii_digit());
+    if socle.len() < 3 {
+        return None;
+    }
+    let socle = socle.to_ascii_lowercase();
+    // Correspondance STRICTE. Une simple sous-chaîne rapprochait `ear` de
+    // `..._status_ability_learning` et `eye_` de `..._eye_highlight_list` : la queue d'écran doit
+    // donc valoir le socle, éventuellement suivie d'un suffixe de vue (`_list`).
+    // 1) égalité du noyau, 2) à défaut, le socle COMMENCE par le noyau (`hairF` → `_hair`).
+    // Un préfixe, jamais une sous-chaîne libre : `ear` ne commence pas par `learning`.
+    let candidats = |exact: bool| {
+        ecrans
+            .iter()
+            .filter_map(|e| {
+                let queue = e.strip_prefix("chara_edit_parts_menu_")?;
+                let noyau = queue.strip_suffix("_list").unwrap_or(queue);
+                let ok = if exact { noyau == socle } else { socle.starts_with(noyau) };
+                ok.then(|| (noyau.len(), e.clone()))
+            })
+            .max_by_key(|(n, _)| *n)
+            .map(|(_, e)| e)
+    };
+    candidats(true).or_else(|| candidats(false))
+}
+
 /// Géométrie de la grille d'une palette, déduite de son nombre de couleurs.
 ///
 /// Le jeu nomme ses écrans de palette par leur grille — `chara_edit_color_menu_10x4_skin`,
@@ -194,6 +227,8 @@ struct Sources {
     rubriques: Vec<(u32, String)>,
     /// Shaders de l'éditeur, `(nom de fichier, taille)` — cf. [`shaders_editeur`].
     shaders: Vec<(String, u64)>,
+    /// Écrans `chara_edit*` du jeu, tels que le VFS les nomme.
+    ecrans: Vec<String>,
 }
 
 /// Les **shaders de l'éditeur** : la famille `chr_edit_toon` de `dx11/shader/`.
@@ -298,6 +333,17 @@ impl Sources {
                 }
             }
 
+        let mut ecrans: Vec<String> = vfs
+            .iter()
+            .filter_map(|(p, _)| {
+                let base = p.rsplit('/').next()?;
+                let nom = base.strip_suffix("_setting.cfg.bin")?;
+                nom.starts_with("chara_edit").then(|| nom.to_string())
+            })
+            .collect();
+        ecrans.sort();
+        ecrans.dedup();
+
         let rubriques = rubriques(&vfs, &textes);
         let shaders = shaders_editeur(&vfs);
 
@@ -312,6 +358,7 @@ impl Sources {
             game_dir: game_dir.to_path_buf(),
             rubriques,
             shaders,
+            ecrans,
         })
     }
 }
@@ -722,6 +769,7 @@ pub fn run(cmd: &AvatarCmd, game_dir: &Path, db_path: &Path) -> Result<()> {
                         "couleurs": cfg.colors_of(info.face_setting_type).iter()
                             .map(|h| h.to_hex_x8()).collect::<Vec<_>>(),
                         // Grille de la palette, recoupée par le nom des écrans du jeu.
+                        "ecran": ecran_de_categorie(&category_label(cfg, info.face_setting_type), &src.ecrans),
                         "grillePalette": geometrie_palette(cfg.colors_of(info.face_setting_type).len())
                             .map(|(c, l)| json!({ "colonnes": c, "lignes": l })),
                     })
