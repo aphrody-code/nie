@@ -45,6 +45,77 @@ const EDIT_ROOT: &str = "chr/_face/20_EDIT/";
 /// Une image décodée : largeur, hauteur, octets RGBA.
 type Rgba = (u32, u32, Vec<u8>);
 
+/// Collecte, dans l'ordre, les constantes numériques d'un prototype Lua et de ses imbriqués.
+fn constantes_num(proto: &nie_lua::bytecode::Prototype, out: &mut Vec<u32>) {
+    for c in &proto.constants {
+        if let nie_lua::bytecode::Constant::Number(n) = c {
+            // Les hachages sont stockés en `double` : seuls les entiers exacts qui tiennent sur
+            // 32 bits peuvent en être un.
+            if n.fract() == 0.0 && *n >= 0.0 && *n <= f64::from(u32::MAX) {
+                #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+                out.push(*n as u32);
+            } else {
+                out.push(0);
+            }
+        } else {
+            out.push(0);
+        }
+    }
+    for p in &proto.protos {
+        constantes_num(p, out);
+    }
+}
+
+/// Les **rubriques de l'éditeur**, dans l'ordre où le jeu les affiche.
+///
+/// Le script de l'écran de liste (`chara_edit_list_menu`) porte, dans son pool de constantes,
+/// une **suite contiguë** de hachages de libellés — et cette suite est l'ordre de la colonne de
+/// gauche de l'éditeur. On la retrouve mécaniquement : la plus longue séquence consécutive de
+/// constantes numériques qui sont toutes des clés de `menu_text`.
+///
+/// Ce que cela donne, et ce que cela ne donne pas : l'**ordre** et les **libellés** sont établis ;
+/// l'association d'une rubrique à un `faceSettingType` précis, elle, ne l'est pas — c'est le code
+/// du menu qui la fait, et le driver Lua du dépôt n'apparie aucun objet sur cet écran. Aucune
+/// correspondance n'est donc inventée ici.
+fn rubriques(vfs: &Vfs, textes: &BTreeMap<u32, String>) -> Vec<(u32, String)> {
+    let Some(chemin) = vfs.iter().map(|(p, _)| p.to_string()).find(|p| {
+        p.rsplit('/')
+            .next()
+            .is_some_and(|b| b.starts_with("chara_edit_list_menu") && b.ends_with(".lua.bin"))
+    }) else {
+        return Vec::new();
+    };
+    let Ok(octets) = vfs.read(&chemin) else { return Vec::new() };
+    let Ok(chunk) = nie_lua::bytecode::parse(&octets) else { return Vec::new() };
+
+    let mut nums = Vec::new();
+    constantes_num(&chunk.main, &mut nums);
+
+    // Plus longue plage consécutive de hachages connus de `menu_text`.
+    let (mut meilleur_debut, mut meilleure_len) = (0usize, 0usize);
+    let (mut debut, mut len) = (0usize, 0usize);
+    for (i, h) in nums.iter().enumerate() {
+        if *h != 0 && textes.contains_key(h) {
+            if len == 0 {
+                debut = i;
+            }
+            len += 1;
+            if len > meilleure_len {
+                (meilleur_debut, meilleure_len) = (debut, len);
+            }
+        } else {
+            len = 0;
+        }
+    }
+    if meilleure_len < 3 {
+        return Vec::new();
+    }
+    nums[meilleur_debut..meilleur_debut + meilleure_len]
+        .iter()
+        .map(|h| (*h, textes.get(h).cloned().unwrap_or_default()))
+        .collect()
+}
+
 /// Ce que `niers avatar` sait faire.
 #[derive(Debug, Clone, clap::Subcommand)]
 pub enum AvatarCmd {
@@ -102,6 +173,8 @@ struct Sources {
     textes: BTreeMap<u32, String>,
     /// Racine du jeu, gardée pour les passes qui rouvrent le VFS (extraction d'icônes).
     game_dir: std::path::PathBuf,
+    /// Rubriques de l'éditeur dans l'ordre du jeu, `(hash, libellé)` — cf. [`rubriques`].
+    rubriques: Vec<(u32, String)>,
 }
 
 /// Cherche l'unique fichier dont le nom de base commence par `prefix` et finit par `.cfg.bin`.
@@ -181,6 +254,8 @@ impl Sources {
                 }
             }
 
+        let rubriques = rubriques(&vfs, &textes);
+
         Ok(Self {
             catalogue,
             types,
@@ -190,6 +265,7 @@ impl Sources {
             assets,
             textes,
             game_dir: game_dir.to_path_buf(),
+            rubriques,
         })
     }
 }
@@ -473,6 +549,14 @@ pub fn run(cmd: &AvatarCmd, game_dir: &Path, db_path: &Path) -> Result<()> {
                 cfg.parts.len(),
                 cfg.parts.len()
             );
+            if src.rubriques.is_empty() {
+                println!("  rubriques : aucune suite de libellés trouvée dans le script de liste");
+            } else {
+                println!("\n  rubriques de l'éditeur, dans l'ordre du jeu ({}) :", src.rubriques.len());
+                for (i, (h, libelle)) in src.rubriques.iter().enumerate() {
+                    println!("   {:>2}. {libelle}  (0x{h:08X})", i + 1);
+                }
+            }
             let libelles =
                 cfg.personalities.iter().filter(|p| src.textes.contains_key(&p.view_text_id.get())).count();
             println!(
@@ -617,6 +701,10 @@ pub fn run(cmd: &AvatarCmd, game_dir: &Path, db_path: &Path) -> Result<()> {
                         "categorie": r.category, "param": r.category_param, "paramSub": r.category_param_sub,
                     })).collect::<Vec<_>>(),
                 },
+                // Ordre et libellés établis ; l'association à un `faceSettingType` ne l'est pas.
+                "rubriques": src.rubriques.iter().map(|(h, libelle)| json!({
+                    "hash": format!("{h:08X}"), "libelle": libelle,
+                })).collect::<Vec<_>>(),
                 "categories": categories,
                 "presets": presets,
                 "avatarsFichiers": cfg.preset_files.iter().map(|f| json!({
