@@ -26,6 +26,9 @@ nie-formats = { workspace = true, features = ["serde", "textures", "audio-decode
 nie-core = { path = "../../engine/nie-core", features = ["serde"] }
 nie-data = { path = "../../engine/nie-data", features = ["serde"] }
 nie-save = { workspace = true, features = ["serde"] }
+# Decodeur de bytecode Lua 5.2 SANS la VM : `default-features = false` retire mlua (Lua
+# vendored en C), qui ne se construit pas pour wasm32. Le module `bytecode` est pur Rust.
+nie-lua = { path = "../../engine/nie-lua", default-features = false }
 # nie-app : le JEU jouable (FSM GameState + rendu CPU framebuffer). Cœur wasm-safe
 # (l'I/O assets est gatée hors wasm) → expose `WasmGame` pour le canvas navigateur.
 nie-app = { path = "../../engine/nie-app" }
