@@ -1690,6 +1690,63 @@ fn get_or_build_chr_glb(state: &State, sub: &str, code: &str) -> Result<GlbBytes
     Ok(glb)
 }
 
+/// Assemble (ou relit du cache) un modèle de l'éditeur d'avatar.
+///
+/// Voir la route `/model-edit/` pour la convention de chemins, qui diffère de celle des autres
+/// modèles : pas de sous-dossier par code, et une texture nommée soit `<nom>.g4tx`, soit
+/// `<nom>M.g4tx` pour les coiffures.
+fn get_or_build_edit_glb(state: &State, dossier: &str, nom: &str) -> Result<GlbBytes> {
+    let cache_path = state.cache_dir.join(format!("edit_{dossier}_{nom}.glb"));
+    if cache_path.exists() {
+        debug!("cache hit : edit_{dossier}_{nom}");
+        return fs::read(&cache_path)
+            .with_context(|| format!("lecture cache {}", cache_path.display()));
+    }
+
+    info!("assemblage live : edit_{dossier}_{nom}");
+    let base = format!("data/common/chr/_face/20_EDIT/{dossier}/{nom}");
+    let (g4md, g4mg, g4tx) = {
+        let vfs = state.vfs.lock().unwrap();
+        let g4md = vfs
+            .read(&format!("{base}.g4md"))
+            .with_context(|| format!("G4MD {base}.g4md"))?;
+        let g4mg = vfs
+            .read(&format!("{base}.g4mg"))
+            .with_context(|| format!("G4MG {base}.g4mg"))?;
+        let tex_base = format!("data/dx11/chr/_face/20_EDIT/{dossier}/{nom}");
+        let g4tx = vfs
+            .read(&format!("{tex_base}.g4tx"))
+            .or_else(|_| vfs.read(&format!("{tex_base}M.g4tx")))
+            .ok();
+        (g4md, g4mg, g4tx)
+    };
+
+    let mut model = assemble_generic_model(GenericModelInput {
+        code: nom.to_string(),
+        g4md,
+        g4mg,
+        component: MeshComponent::Generic,
+    })
+    .with_context(|| format!("assemblage {dossier}/{nom}"))?;
+
+    let glb = match g4tx.as_deref().and_then(|d| g4tx_decode::decode_best_to_png(d, nom)) {
+        Some(png_bytes) => {
+            model.embedded_textures.push(EmbeddedTexture {
+                component: MeshComponent::Generic,
+                name: format!("{nom}_{dossier}"),
+                png_bytes,
+            });
+            model.to_glb_embedded()
+        }
+        None => model.to_glb(),
+    };
+
+    if let Err(e) = fs::write(&cache_path, &glb) {
+        warn!("écriture cache edit_{dossier}_{nom} échouée : {e}");
+    }
+    Ok(glb)
+}
+
 // ── Préchargement du cache (warm) ───────────────────────────────────────────────
 
 /// Une unité de préchargement : un modèle servable à assembler dans le cache.
@@ -2635,6 +2692,36 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         return;
     }
 
+    // `/avatar/layout/<ecran>.json` — le layout d'un écran de l'éditeur, positions comprises.
+    //
+    // Produit par `nie-game --menu <ecran> --from-setting --runtime --export-layout`, qui place
+    // chaque objet à partir des **points d'attache** déclarés par les `CMenuAttachLocator` de
+    // l'écran (`nie_formats::menu::attach_slots`) : les positions viennent donc des fichiers du
+    // jeu, pas d'un relevé sur capture. Servir le fichier tel quel évite de refaire ce calcul.
+    if let Some(rest) = path.strip_prefix("/avatar/layout/") {
+        let ecran = rest.strip_suffix(".json").unwrap_or(rest);
+        let invalide = ecran.is_empty()
+            || ecran.len() > 64
+            || !ecran.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_');
+        if invalide {
+            respond_text(&mut stream, 400, "Bad Request", "nom d'écran invalide");
+            return;
+        }
+        let base = std::env::var("NIE_AVATAR_LAYOUTS")
+            .unwrap_or_else(|_| String::from("var/avatar-ui/layouts"));
+        let chemin = std::path::Path::new(&base).join(format!("{ecran}.json"));
+        match std::fs::read(&chemin) {
+            Ok(bytes) => respond(&mut stream, 200, "OK", "application/json; charset=utf-8", &bytes),
+            Err(e) => respond_text(
+                &mut stream,
+                404,
+                "Not Found",
+                &format!("layout {ecran} absent ({e}) — le produire par `nie-game --menu {ecran} --from-setting --runtime --export-layout`"),
+            ),
+        }
+        return;
+    }
+
     // `/avatar/icon/<nom>.png` — une vignette de l'éditeur, décodée à la volée.
     //
     // L'atlas se **dérive du nom** : `icon_ava_face05_001` vit dans `icon_ava_face05.g4tx`
@@ -3048,6 +3135,46 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                     404,
                     "Not Found",
                     &format!("modèle {sub}/{code} non disponible : {e}"),
+                );
+            }
+        }
+        return;
+    }
+
+    // `/model-edit/<dossier>/<nom>.glb` — un modèle de l'**éditeur d'avatar**.
+    //
+    // Ces modèles ne suivent pas la convention des autres : ils vivent à plat sous
+    // `common/chr/_face/20_EDIT/<dossier>/<nom>.{g4md,g4mg}` (`_base` pour les corps,
+    // `_facebase` pour les visages, `_hairF`/`_hairB`/`_hairU` pour les coiffures, `_ear`,
+    // `_accessory`), sans sous-dossier par code — d'où une route à part plutôt qu'un
+    // sous-domaine de `/model-chr/`.
+    //
+    // La texture est cherchée à deux endroits, dans cet ordre : `<nom>.g4tx` puis `<nom>M.g4tx`,
+    // la seconde forme étant celle des coiffures (`hairF001` → `hairF001M.g4tx`). Sans texture,
+    // le maillage est servi nu plutôt que refusé.
+    if let Some(rest) = path.strip_prefix("/model-edit/") {
+        let body = rest.strip_suffix(".glb").unwrap_or(rest);
+        let mut parts = body.splitn(2, '/');
+        let dossier = parts.next().unwrap_or("");
+        let nom = parts.next().unwrap_or("");
+        let valide = |s: &str| {
+            !s.is_empty()
+                && s.len() <= 48
+                && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+        };
+        if !valide(dossier) || !valide(nom) {
+            respond_text(&mut stream, 400, "Bad Request", "dossier/nom invalide");
+            return;
+        }
+        match get_or_build_edit_glb(&state, dossier, nom) {
+            Ok(glb) => respond(&mut stream, 200, "OK", "model/gltf-binary", &glb),
+            Err(e) => {
+                debug!("assemblage edit {dossier}/{nom} échoué : {e}");
+                respond_text(
+                    &mut stream,
+                    404,
+                    "Not Found",
+                    &format!("modèle {dossier}/{nom} non disponible : {e}"),
                 );
             }
         }
