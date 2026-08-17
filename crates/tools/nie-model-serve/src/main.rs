@@ -2499,6 +2499,67 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         return;
     }
 
+    // `/avatar/catalog.json` — le catalogue résolu de l'éditeur d'avatar.
+    //
+    // Le fichier est **produit par `niers avatar export`**, pas recalculé ici : la résolution
+    // croise le VFS, la base de connaissance (noms d'icônes) et `menu_text`, et ce travail vit
+    // déjà dans `nie-cli`. Le servir tel quel évite d'en tenir deux versions.
+    if path == "/avatar/catalog.json" || path == "/avatar/catalog" {
+        let chemin = std::env::var("NIE_AVATAR_CATALOG")
+            .unwrap_or_else(|_| String::from("var/avatar-resolved.json"));
+        match std::fs::read(&chemin) {
+            Ok(bytes) => respond(&mut stream, 200, "OK", "application/json; charset=utf-8", &bytes),
+            Err(e) => respond_text(
+                &mut stream,
+                404,
+                "Not Found",
+                &format!(
+                    "catalogue absent ({chemin} : {e}) — le produire par `niers avatar export -o {chemin}`"
+                ),
+            ),
+        }
+        return;
+    }
+
+    // `/avatar/icon/<nom>.png` — une vignette de l'éditeur, décodée à la volée.
+    //
+    // L'atlas se **dérive du nom** : `icon_ava_face05_001` vit dans `icon_ava_face05.g4tx`
+    // (le suffixe numérique final est l'index de la vignette). Aucun index à maintenir.
+    if let Some(rest) = path.strip_prefix("/avatar/icon/") {
+        let nom = rest.strip_suffix(".png").unwrap_or(rest);
+        let invalide = nom.is_empty()
+            || nom.contains('/')
+            || nom.contains("..")
+            || !nom.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_');
+        if invalide {
+            respond_text(&mut stream, 400, "Bad Request", "nom d'icône invalide");
+            return;
+        }
+        let Some((atlas, _index)) = nom.rsplit_once('_') else {
+            respond_text(&mut stream, 400, "Bad Request", "nom sans suffixe d'index");
+            return;
+        };
+        let cible = format!("/21_icon_avatar/{atlas}.g4tx");
+        let png = {
+            let vfs = state.vfs.lock().unwrap();
+            vfs.iter()
+                .map(|(p, _)| p.to_string())
+                .find(|p| p.ends_with(&cible))
+                .and_then(|p| vfs.read(&p).ok())
+                .and_then(|d| g4tx_decode::decode_named_to_png(&d, nom))
+        };
+        match png {
+            Some(png) => respond(&mut stream, 200, "OK", "image/png", &png),
+            None => respond_text(
+                &mut stream,
+                404,
+                "Not Found",
+                &format!("icône « {nom} » absente de {atlas}.g4tx"),
+            ),
+        }
+        return;
+    }
+
     // `/cfg/<vfs-path>.json` — décode un cfg.bin/objbin/fxbin/mevbin RDBN en JSON natif.
     if let Some(rest) = path.strip_prefix("/cfg/") {
         let rel = rest.strip_suffix(".json").unwrap_or(rest);
