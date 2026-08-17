@@ -42,6 +42,23 @@ use serde_json::{json, Value as Json};
 /// Racine des assets de l'éditeur dans le VFS.
 const EDIT_ROOT: &str = "chr/_face/20_EDIT/";
 
+
+/// Géométrie de la grille d'une palette, déduite de son nombre de couleurs.
+///
+/// Le jeu nomme ses écrans de palette par leur grille — `chara_edit_color_menu_10x4_skin`,
+/// `_12x5`, `_13x5` — et le compte de couleurs de chaque palette tombe exactement dessus :
+/// 40 = 10×4 (peau), 60 = 12×5 (œil), 65 = 13×5 (cheveux). La géométrie n'est donc pas devinée,
+/// elle est recoupée par deux sources indépendantes. Les autres tailles rendent `None` plutôt
+/// qu'une disposition inventée.
+fn geometrie_palette(n: usize) -> Option<(usize, usize)> {
+    match n {
+        40 => Some((10, 4)),
+        60 => Some((12, 5)),
+        65 => Some((13, 5)),
+        _ => None,
+    }
+}
+
 /// Une image décodée : largeur, hauteur, octets RGBA.
 type Rgba = (u32, u32, Vec<u8>);
 
@@ -704,6 +721,9 @@ pub fn run(cmd: &AvatarCmd, game_dir: &Path, db_path: &Path) -> Result<()> {
                             .collect::<Vec<_>>(),
                         "couleurs": cfg.colors_of(info.face_setting_type).iter()
                             .map(|h| h.to_hex_x8()).collect::<Vec<_>>(),
+                        // Grille de la palette, recoupée par le nom des écrans du jeu.
+                        "grillePalette": geometrie_palette(cfg.colors_of(info.face_setting_type).len())
+                            .map(|(c, l)| json!({ "colonnes": c, "lignes": l })),
                     })
                 })
                 .collect();
