@@ -2670,6 +2670,26 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         return;
     }
 
+    // `/icons/index.json` — l'index des icônes du jeu (nom → atlas + rectangle + URL).
+    //
+    // Produit par `niers icons index`. Les icônes elles-mêmes ne sont PAS matérialisées : les
+    // atlas pèsent des centaines de mégaoctets, et chaque entrée porte l'URL `/tex/…` qui les
+    // décode à la demande.
+    if path == "/icons/index.json" || path == "/icons/index" {
+        let chemin = std::env::var("NIE_ICONS_INDEX")
+            .unwrap_or_else(|_| String::from("var/icons-index.json"));
+        match std::fs::read(&chemin) {
+            Ok(bytes) => respond(&mut stream, 200, "OK", "application/json; charset=utf-8", &bytes),
+            Err(e) => respond_text(
+                &mut stream,
+                404,
+                "Not Found",
+                &format!("index absent ({chemin} : {e}) — le produire par `niers icons index`"),
+            ),
+        }
+        return;
+    }
+
     // `/avatar/catalog.json` — le catalogue résolu de l'éditeur d'avatar.
     //
     // Le fichier est **produit par `niers avatar export`**, pas recalculé ici : la résolution
@@ -3136,6 +3156,61 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                     "Not Found",
                     &format!("modèle {sub}/{code} non disponible : {e}"),
                 );
+            }
+        }
+        return;
+    }
+
+    // `/model-avatar/<pieces>.glb` — un avatar de l'éditeur, assemblé depuis ses pièces.
+    //
+    // `<pieces>` liste les pièces séparées par `+`, chacune sous la forme `<dossier>/<nom>` :
+    // `_base/base_normal_00+_facebase/face51_nose01+_hairF/hairF001`. L'avatar du jeu n'est pas un
+    // modèle unique — c'est cet empilement (corps par morphologie, visage, coiffures, oreilles,
+    // accessoires) que `nie_formats::assemble::assemble_avatar_model` recompose en un seul GLB.
+    if let Some(rest) = path.strip_prefix("/model-avatar/") {
+        let body = rest.strip_suffix(".glb").unwrap_or(rest);
+        let valide = |s: &str| {
+            !s.is_empty() && s.len() <= 48 && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+        };
+        let mut pieces: Vec<nie_formats::assemble::AvatarPiece> = Vec::new();
+        let mut noms: Vec<String> = Vec::new();
+        {
+            let vfs = state.vfs.lock().unwrap();
+            for (i, spec) in body.split('+').enumerate() {
+                let Some((dossier, nom)) = spec.split_once('/') else { continue };
+                if !valide(dossier) || !valide(nom) {
+                    continue;
+                }
+                let base = format!("data/common/chr/_face/20_EDIT/{dossier}/{nom}");
+                let (Ok(g4md), Ok(g4mg)) =
+                    (vfs.read(&format!("{base}.g4md")), vfs.read(&format!("{base}.g4mg")))
+                else {
+                    continue;
+                };
+                // Le premier élément porte le corps, les suivants sont des pièces rapportées :
+                // le composant sert au nommage des matériaux dans le GLB.
+                let component = if i == 0 {
+                    nie_formats::assemble::MeshComponent::Body
+                } else {
+                    nie_formats::assemble::MeshComponent::Generic
+                };
+                pieces.push(nie_formats::assemble::AvatarPiece { component, g4md, g4mg });
+                noms.push(nom.to_string());
+            }
+        }
+        if pieces.is_empty() {
+            respond_text(&mut stream, 404, "Not Found", "aucune pièce lisible");
+            return;
+        }
+        let code = noms.join("_");
+        match nie_formats::assemble::assemble_avatar_model(&code, &pieces) {
+            Ok(model) => {
+                let glb = model.to_glb();
+                respond(&mut stream, 200, "OK", "model/gltf-binary", &glb);
+            }
+            Err(e) => {
+                debug!("assemblage avatar {code} échoué : {e}");
+                respond_text(&mut stream, 500, "Internal Server Error", "assemblage échoué");
             }
         }
         return;
