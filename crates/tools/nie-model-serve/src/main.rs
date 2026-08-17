@@ -657,6 +657,38 @@ fn fr_accents_to_ascii(s: &str) -> String {
         .collect()
 }
 
+/// Rend `texte` dans la police latine du jeu, sur fond transparent, en PNG.
+///
+/// Même chemin que la scène de dialogue : métriques depuis `font.cfg.bin`, glyphes depuis l'atlas
+/// DDS du `font.g4tx`, `LatinAtlas` pour l'edge-scan des colonnes de glyphes. La toile est
+/// dimensionnée par `measure()` — pas de marge devinée — avec deux pixels de garde pour ne pas
+/// rogner les jambages.
+fn render_text_png(font_cfg: &[u8], font_g4tx: &[u8], texte: &str, fg: [u8; 4]) -> Option<Vec<u8>> {
+    use nie_formats::{cfgbin, font, g4tx};
+
+    // L'atlas latin ne porte pas les accents : les translittérer vaut mieux qu'afficher un trou.
+    let texte = fr_accents_to_ascii(texte);
+    let texte = texte.as_str();
+
+    let cfg = cfgbin::parse_t2b(font_cfg).ok()?;
+    let metrics = font::parse_metrics(&cfg);
+    let tx = g4tx::parse(font_g4tx).ok()?;
+    let t = tx.textures.first()?;
+    let dds = font_g4tx.get(t.data_offset..)?;
+    let px_off = if dds.len() >= 88 && &dds[84..88] == b"DX10" { 148 } else { 128 };
+    let atlas = dds.get(px_off..)?;
+    let (aw, ah) = (t.width as usize, t.height as usize);
+    let cell_h = metrics.dims.cell_height;
+    let la = font::LatinAtlas::from_atlas(atlas, aw, ah, 946, cell_h);
+
+    let largeur = la.measure(texte) as usize + 4;
+    let hauteur = usize::from(cell_h) + 4;
+    let mut buf = vec![0u8; largeur * hauteur * 4];
+    la.blit_line(atlas, aw, &mut buf, largeur, 2, 2, texte, fg);
+    let _ = ah;
+    nie_formats::g4tx_decode::encode_rgba_to_png(&buf, largeur, hauteur)
+}
+
 fn compose_story_png(
     font_cfg: &[u8],
     font_g4tx: &[u8],
@@ -2495,6 +2527,88 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         match png {
             Some(png) => respond(&mut stream, 200, "OK", "image/png", &png),
             None => respond_text(&mut stream, 404, "Not Found", "texture absente/non décodée"),
+        }
+        return;
+    }
+
+    // `/ui/theme.json` — le thème de l'interface : la palette de texte du jeu + ses polices.
+    //
+    // Les couleurs ne sont pas choisies : ce sont les 70 entrées de `common/font/font_color.cfg.bin`
+    // (`FONT_COLOR`), chacune avec son triplet de texte et celui de ses rubis (furigana), rendues
+    // en hexadécimal CSS pour être utilisables hors du moteur.
+    if path == "/ui/theme.json" || path == "/ui/theme" {
+        let (palette, polices) = {
+            let vfs = state.vfs.lock().unwrap();
+            let palette = vfs
+                .read("data/common/font/font_color.cfg.bin")
+                .ok()
+                .and_then(|d| cfgbin::to_iecode_json(&d))
+                .map(|json| nie_data::font_color::parse_font_colors(&json))
+                .unwrap_or_default();
+            // Familles de police : un dossier par famille sous `font/`, chacune avec son atlas.
+            let mut polices: Vec<String> = vfs
+                .iter()
+                .map(|(p, _)| p.to_string())
+                .filter(|p| p.contains("/font/") && p.ends_with("/font.g4tx"))
+                .filter_map(|p| p.rsplit('/').nth(1).map(str::to_string))
+                .collect();
+            polices.sort();
+            polices.dedup();
+            (palette, polices)
+        };
+        let body = serde_json::json!({
+            "source": "common/font/font_color.cfg.bin + dx11/font/*/font.g4tx",
+            "couleursTexte": palette.iter().map(|c| serde_json::json!({
+                "id": c.id.to_hex_x8(),
+                "hex": c.hex(),
+                "rubiHex": c.rubi_hex(),
+                "rgb": [c.rgb.0, c.rgb.1, c.rgb.2],
+                "rubiRgb": [c.rubi_rgb.0, c.rubi_rgb.1, c.rubi_rgb.2],
+            })).collect::<Vec<_>>(),
+            "polices": polices,
+        });
+        match serde_json::to_vec(&body) {
+            Ok(bytes) => respond(&mut stream, 200, "OK", "application/json; charset=utf-8", &bytes),
+            Err(e) => respond_text(&mut stream, 500, "Internal Server Error", &e.to_string()),
+        }
+        return;
+    }
+
+    // `/ui/text.png?t=<texte>&fg=<RRGGBB>` — un texte rendu dans la VRAIE police du jeu.
+    //
+    // Une police du jeu est un **atlas bitmap** plus des métriques, pas une police vectorielle :
+    // elle ne peut pas être servie comme webfont. Le texte est donc composé ici, avec le même
+    // chemin que la scène de dialogue (`font::LatinAtlas`), et livré en PNG à fond transparent.
+    if path == "/ui/text.png" {
+        let texte = param(query, "t").unwrap_or_default();
+        if texte.is_empty() || texte.chars().count() > 120 {
+            respond_text(&mut stream, 400, "Bad Request", "paramètre `t` vide ou trop long");
+            return;
+        }
+        let fg = param(query, "fg")
+            .and_then(|s| u32::from_str_radix(s.trim_start_matches('#'), 16).ok())
+            .map_or([255, 255, 255, 255], |v| {
+                [
+                    ((v >> 16) & 0xFF) as u8,
+                    ((v >> 8) & 0xFF) as u8,
+                    (v & 0xFF) as u8,
+                    255,
+                ]
+            });
+        let (cfg, g4tx) = {
+            let vfs = state.vfs.lock().unwrap();
+            (
+                vfs.read("data/common/font/font/font_def/font.cfg.bin").ok(),
+                vfs.read("data/dx11/font/font_def/font.g4tx").ok(),
+            )
+        };
+        let (Some(cfg), Some(g4tx)) = (cfg, g4tx) else {
+            respond_text(&mut stream, 500, "Internal Server Error", "police absente du VFS");
+            return;
+        };
+        match render_text_png(&cfg, &g4tx, &texte, fg) {
+            Some(png) => respond(&mut stream, 200, "OK", "image/png", &png),
+            None => respond_text(&mut stream, 500, "Internal Server Error", "rendu échoué"),
         }
         return;
     }
