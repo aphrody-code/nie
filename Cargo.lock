@@ -4212,6 +4212,7 @@ dependencies = [
  "ignore",
  "image",
  "image_dds",
+ "nie-data",
  "nie-explore",
  "nie-formats",
  "nie-index",

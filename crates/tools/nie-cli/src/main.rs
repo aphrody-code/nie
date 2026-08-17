@@ -2,6 +2,7 @@
 #![forbid(unsafe_code)]
 #![allow(clippy::pedantic)]
 
+mod avatar_cmd;
 mod decode_cmd;
 mod delegate;
 mod img_cmd;
@@ -313,6 +314,17 @@ enum Cmd {
     Mode {
         #[command(subcommand)]
         op: ModeOp,
+    },
+    /// Éditeur d'avatar (`chara_edit`) : catalogue, parts, recettes de presets, export résolu.
+    Avatar {
+        #[command(subcommand)]
+        op: avatar_cmd::AvatarCmd,
+        /// Racine du jeu (défaut : résolution à l'exécution).
+        #[arg(long)]
+        game_dir: Option<PathBuf>,
+        /// Base de connaissance, pour résoudre les noms d'icônes.
+        #[arg(long, default_value = "var/niers.sqlite")]
+        db: PathBuf,
     },
     /// Affiche la couverture (fonctions classifiées) du binaire indexé.
     Coverage {
@@ -1657,6 +1669,10 @@ fn run() -> anyhow::Result<()> {
             files_with_matches,
         })
         .map(|_| ()),
+        Cmd::Avatar { op, game_dir, db } => {
+            let racine = game_dir.unwrap_or_else(nie_formats::vfs::resolve_game_dir);
+            avatar_cmd::run(&op, &racine, &db)
+        }
         Cmd::Mode { op } => match op {
             ModeOp::Index { db, game_dir } => {
                 let vfs = open_vfs(game_dir)?;
