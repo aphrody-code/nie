@@ -139,6 +139,23 @@ pub const MODES: &[ModeDef] = &[
         key_pattern: Some("kizuna"),
     },
     ModeDef {
+        slug: "chara-edit",
+        label: "Éditeur d'avatar",
+        prefixes: &["chara_edit"],
+        icon_region: None,
+        text_hash: None,
+        official: false,
+        note: "Editeur de personnage joueur (creation d'avatar). 42 ecrans `chara_edit_*_setting` \
+               (menu racine, modele, liste, recette, parts par categorie, 14 grilles de couleur \
+               10x4/12x5/13x5) et 51 scripts `chara_edit_*.lua`. Ses assets d'interface vivent \
+               sous `menu/161_avatar/` (avatar01..avatar03) ; ses modeles et textures de parts \
+               sous `chr/_face/20_EDIT/`. Le catalogue de donnees, lui, est adosse a \
+               `chara_edit_<ver>.cfg.bin` — cf. `niers avatar`. Aucun libelle de mode ne lui est \
+               attribue dans `menu_text` : ce n'est pas une tuile du menu principal mais un \
+               editeur ouvert depuis un autre mode, d'ou `official: false` et `text_hash: None`.",
+        key_pattern: Some("chara_edit"),
+    },
+    ModeDef {
         slug: "soccer",
         label: "Match",
         prefixes: &["soccer_top_menu", "soccer_game_mode"],
