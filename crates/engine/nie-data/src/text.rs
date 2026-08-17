@@ -17,7 +17,7 @@
 //! 7. ≥3 sauts de ligne → 2 (`\n{3,}`) ;
 //! 8. `trim` de chaque ligne, jointure `\n`, `trim` final.
 
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use serde_json::Value;
 
@@ -236,6 +236,65 @@ pub fn sanitize_text(text: &str) -> String {
     trimmed_lines.join("\n").trim().into()
 }
 
+/// Découpe un libellé du jeu en **texte affichable** et **glyphes spéciaux**.
+///
+/// Les libellés de menu portent deux familles de marqueurs entre crochets, que `sanitize_text` ne
+/// touche pas (elle ne connaît que les balises `<…>` et le furigana `[kanji/lecture]`) :
+///
+/// - des marqueurs de **style** — `[CR]`, `[C]`, `[CDN]`, `[CFUNCBTN01]`, `[CTOKEN01]` — qui
+///   ouvrent et ferment une couleur de police. Le jeu les consomme ; ils ne s'affichent pas ;
+/// - des **gaiji** — `[$gaiji_icon_build01]`, `[$gaiji_voice01]` — qui désignent un glyphe image
+///   de la police, c'est-à-dire une icône posée dans le fil du texte.
+///
+/// Le texte rendu est donc débarrassé des deux, et les noms de gaiji sont retournés à part, dans
+/// l'ordre de leur apparition : l'appelant peut les rendre comme images là où le jeu le fait.
+/// Un `[` isolé, ou un marqueur non fermé, est laissé tel quel plutôt que d'avaler la suite.
+#[must_use]
+pub fn split_markup(text: &str) -> (String, Vec<String>) {
+    let chars: Vec<char> = text.chars().collect();
+    let mut out = String::with_capacity(text.len());
+    let mut gaiji = Vec::new();
+    let mut i = 0usize;
+    while i < chars.len() {
+        if chars[i] == '[' {
+            // Fin du marqueur ; sans `]`, ce n'en est pas un.
+            if let Some(fin) = (i + 1..chars.len()).find(|&j| chars[j] == ']') {
+                let corps: String = chars[i + 1..fin].iter().collect();
+                let est_gaiji = corps.starts_with('$');
+                // Marqueur de style : `C` seul, ou `C` suivi de lettres/chiffres sans espace.
+                let est_style = corps.starts_with('C')
+                    && corps.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+                if est_gaiji {
+                    gaiji.push(corps[1..].to_string());
+                    i = fin + 1;
+                    continue;
+                }
+                if est_style {
+                    i = fin + 1;
+                    continue;
+                }
+            }
+        }
+        out.push(chars[i]);
+        i += 1;
+    }
+    // Le retrait d'un marqueur peut laisser une espace en tête ou deux à la suite.
+    let mut propre = String::with_capacity(out.len());
+    let mut espace = false;
+    for c in out.chars() {
+        if c == ' ' {
+            espace = true;
+            continue;
+        }
+        if espace && !propre.is_empty() && !propre.ends_with('\n') {
+            propre.push(' ');
+        }
+        espace = false;
+        propre.push(c);
+    }
+    (propre.trim().to_string(), gaiji)
+}
+
 // ── Résolveur de texte universel (port de `text-parser.ts`) ───────────────────
 
 /// Catalogue des fichiers de texte localisés (`common/text/<locale>/<file>.cfg.bin`).
@@ -443,6 +502,25 @@ mod tests {
     }
 
     #[test]
+    fn markup_split_strips_style_and_extracts_gaiji() {
+        let (t, g) = super::split_markup("[CFUNCBTN01]Cacher cheveux[C]");
+        assert_eq!(t, "Cacher cheveux");
+        assert!(g.is_empty());
+
+        let (t, g) = super::split_markup("[$gaiji_icon_build04] Tension");
+        assert_eq!(t, "Tension");
+        assert_eq!(g, alloc::vec!["gaiji_icon_build04"]);
+
+        let (t, g) = super::split_markup("[CR]Certains maillots ne\ncorrespondent pas.[C]");
+        assert_eq!(t, "Certains maillots ne\ncorrespondent pas.");
+        assert!(g.is_empty());
+
+        // Un crochet qui n'est pas un marqueur reste dans le texte.
+        let (t, _) = super::split_markup("Niveau [5] requis");
+        assert_eq!(t, "Niveau [5] requis");
+    }
+
+    #[test]
     fn bare_tags_stripped() {
         assert_eq!(sanitize_text("a<CLO>b<TX0>c"), "abc");
         // `<>` vide (0 char) n'est pas une balise → laissé.
@@ -485,4 +563,5 @@ mod tests {
         let s = "<COL:FF0000>[必殺/ひっさつ] <VAL:5> coups<CLO>";
         assert_eq!(sanitize_text(s), "必殺 5 coups");
     }
+
 }

@@ -166,6 +166,69 @@ fn rubriques(vfs: &Vfs, textes: &BTreeMap<u32, String>) -> Vec<(u32, String)> {
         .collect()
 }
 
+/// Un **panneau de l'éditeur** : un script d'écran et les libellés qu'il affiche, dans l'ordre.
+struct Panneau {
+    /// Nom de base du script, sans la version ni `.lua.bin` (`chara_edit_parts_menu_contour`).
+    nom: String,
+    /// Libellés résolus dans `menu_text`, dans l'ordre du pool de constantes du script :
+    /// `(hash, texte affichable, gaiji du libellé)` — cf. `nie_data::text::split_markup`.
+    libelles: Vec<(u32, String, Vec<String>)>,
+}
+
+/// Les libellés de **chaque panneau** de l'éditeur, dans l'ordre du script qui les affiche.
+///
+/// Même mécanique que [`rubriques`], appliquée à tous les scripts `chara_edit*` : le pool de
+/// constantes d'un script d'écran porte les hachages des libellés que cet écran pose, et l'ordre du
+/// pool est celui de leur première apparition dans le code — donc l'ordre d'affichage. On ne garde
+/// que les hachages qui sont des clés de `menu_text` : une constante numérique quelconque (un
+/// index, une couleur) n'en est pas une, et la collision est improbable sur 32 bits.
+///
+/// Contrairement à [`rubriques`], **aucune contiguïté n'est exigée** : un panneau mêle ses libellés
+/// à ses constantes de mise en page. En retour, l'ordre est celui du pool et non celui du dessin —
+/// il ne prouve pas la position d'un libellé à l'écran, seulement son appartenance au panneau.
+fn panneaux(vfs: &Vfs, textes: &BTreeMap<u32, String>) -> Vec<Panneau> {
+    let mut chemins: Vec<String> = vfs
+        .iter()
+        .filter_map(|(p, _)| {
+            let base = p.rsplit('/').next()?;
+            (base.starts_with("chara_edit") && base.ends_with(".lua.bin")).then(|| p.to_string())
+        })
+        .collect();
+    chemins.sort();
+    chemins.dedup();
+
+    let mut out = Vec::new();
+    for chemin in chemins {
+        let Ok(octets) = vfs.read(&chemin) else { continue };
+        let Ok(chunk) = nie_lua::bytecode::parse(&octets) else { continue };
+        let mut nums = Vec::new();
+        constantes_num(&chunk.main, &mut nums);
+
+        let mut vus = std::collections::BTreeSet::new();
+        let libelles: Vec<(u32, String, Vec<String>)> = nums
+            .into_iter()
+            .filter(|h| *h != 0 && textes.contains_key(h) && vus.insert(*h))
+            .map(|h| {
+                let brut = textes.get(&h).cloned().unwrap_or_default();
+                let (texte, gaiji) = nie_data::text::split_markup(&brut);
+                (h, texte, gaiji)
+            })
+            .collect();
+        if libelles.is_empty() {
+            continue;
+        }
+        // `chara_edit_parts_menu_contour_1.03.71.00.lua.bin` → `chara_edit_parts_menu_contour`.
+        let base = chemin.rsplit('/').next().unwrap_or(&chemin);
+        let sans_ext = base.strip_suffix(".lua.bin").unwrap_or(base);
+        let nom = match sans_ext.rsplit_once('_') {
+            Some((tete, queue)) if queue.chars().next().is_some_and(|c| c.is_ascii_digit()) => tete,
+            _ => sans_ext,
+        };
+        out.push(Panneau { nom: nom.to_string(), libelles });
+    }
+    out
+}
+
 /// Ce que `niers avatar` sait faire.
 #[derive(Debug, Clone, clap::Subcommand)]
 pub enum AvatarCmd {
@@ -229,6 +292,8 @@ struct Sources {
     shaders: Vec<(String, u64)>,
     /// Écrans `chara_edit*` du jeu, tels que le VFS les nomme.
     ecrans: Vec<String>,
+    /// Libellés de chaque panneau de l'éditeur — cf. [`panneaux`].
+    panneaux: Vec<Panneau>,
 }
 
 /// Les **shaders de l'éditeur** : la famille `chr_edit_toon` de `dx11/shader/`.
@@ -346,6 +411,7 @@ impl Sources {
 
         let rubriques = rubriques(&vfs, &textes);
         let shaders = shaders_editeur(&vfs);
+        let panneaux = panneaux(&vfs, &textes);
 
         Ok(Self {
             catalogue,
@@ -359,6 +425,7 @@ impl Sources {
             rubriques,
             shaders,
             ecrans,
+            panneaux,
         })
     }
 }
@@ -812,6 +879,14 @@ pub fn run(cmd: &AvatarCmd, game_dir: &Path, db_path: &Path) -> Result<()> {
                 })).collect::<Vec<_>>(),
                 "rubriques": src.rubriques.iter().map(|(h, libelle)| json!({
                     "hash": format!("{h:08X}"), "libelle": libelle,
+                })).collect::<Vec<_>>(),
+                // Les libellés que chaque panneau affiche, lus dans son script : c'est la source
+                // des titres de sections et de curseurs, aucun n'est écrit à la main.
+                "panneaux": src.panneaux.iter().map(|p| json!({
+                    "nom": p.nom,
+                    "libelles": p.libelles.iter().map(|(h, l, g)| json!({
+                        "hash": format!("{h:08X}"), "libelle": l, "gaiji": g,
+                    })).collect::<Vec<_>>(),
                 })).collect::<Vec<_>>(),
                 "categories": categories,
                 "presets": presets,
