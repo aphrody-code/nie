@@ -763,6 +763,48 @@ pub fn cfgbin_typed_json(bytes: &[u8], filename: &str) -> Result<String, String>
     cfgbin_typed_json_impl(bytes, filename)
 }
 
+// ── Bytecode Lua 5.2 (scripts du jeu) ──────────────────────────────────────────
+// Le decodeur est celui du depot (`nie_lua::bytecode`), compile sans la VM : un `.lua.bin`
+// se lit donc dans le navigateur, sans passer par un service.
+
+fn lua_bytecode_json_impl(bytes: &[u8]) -> Result<String, String> {
+    let chunk = nie_lua::bytecode::parse(bytes).map_err(|e| e.to_string())?;
+    let proto = &chunk.main;
+    let constantes: Vec<serde_json::Value> = proto
+        .constants
+        .iter()
+        .map(|c| serde_json::Value::String(c.display()))
+        .collect();
+    let out = serde_json::json!({
+        "instructions": proto.total_instructions(),
+        "prototypes": proto.total_protos(),
+        "params": proto.num_params,
+        "constantes": constantes,
+        "source": proto.source,
+    });
+    serde_json::to_string(&out).map_err(|e| e.to_string())
+}
+
+/// Décode un `.lua.bin` du jeu (bytecode Lua 5.2) en résumé JSON.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn lua_bytecode_json(bytes: &[u8]) -> Result<String, JsValue> {
+    lua_bytecode_json_impl(bytes).map_err(|e| JsValue::from_str(&e))
+}
+
+/// Décode un `.lua.bin` du jeu (version native).
+#[cfg(not(target_arch = "wasm32"))]
+pub fn lua_bytecode_json(bytes: &[u8]) -> Result<String, String> {
+    lua_bytecode_json_impl(bytes)
+}
+
+/// Vrai si les octets commencent par la signature d'un bytecode Lua 5.2.
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+#[must_use]
+pub fn is_lua_bytecode(bytes: &[u8]) -> bool {
+    nie_lua::bytecode::parse(bytes).is_ok()
+}
+
 // ── G4TX -> PNG (textures décodées NATIVEMENT in-browser) ──────────────────────
 // Le décodage DDS/BCn → RGBA8 → PNG est centralisé dans `nie_formats::g4tx_decode`
 // (feature `textures`, source unique du workspace — Phase 1b dédup). Côté navigateur,
