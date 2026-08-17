@@ -175,6 +175,33 @@ struct Sources {
     game_dir: std::path::PathBuf,
     /// Rubriques de l'éditeur dans l'ordre du jeu, `(hash, libellé)` — cf. [`rubriques`].
     rubriques: Vec<(u32, String)>,
+    /// Shaders de l'éditeur, `(nom de fichier, taille)` — cf. [`shaders_editeur`].
+    shaders: Vec<(String, u64)>,
+}
+
+/// Les **shaders de l'éditeur** : la famille `chr_edit_toon` de `dx11/shader/`.
+///
+/// Le jeu range ses shaders par nom, et ceux de l'éditeur de personnage forment une famille
+/// nette — `chr_edit_toon` et ses variantes `_hair`, `_metal`, `_metal_adv`, `_cutout`, avec les
+/// suffixes `_eff_status(_tex)`. Chaque programme vient en triplet : `.fxbin` (descripteur),
+/// `.vfxo` (vertex), `.pfxo` (pixel).
+///
+/// L'identification se fait par **nom**, pas par contenu : le bytecode est du DXBC compilé, que
+/// le dépôt ne désassemble pas. Rien ici ne prétend dire ce que ces shaders calculent.
+fn shaders_editeur(vfs: &Vfs) -> Vec<(String, u64)> {
+    let mut out: Vec<(String, u64)> = vfs
+        .iter()
+        .filter_map(|(chemin, entree)| {
+            let base = chemin.rsplit('/').next()?;
+            if !chemin.contains("/shader/") || !base.starts_with("chr_edit_toon") {
+                return None;
+            }
+            Some((base.to_string(), u64::from(entree.file_size)))
+        })
+        .collect();
+    out.sort();
+    out.dedup();
+    out
 }
 
 /// Cherche l'unique fichier dont le nom de base commence par `prefix` et finit par `.cfg.bin`.
@@ -255,6 +282,7 @@ impl Sources {
             }
 
         let rubriques = rubriques(&vfs, &textes);
+        let shaders = shaders_editeur(&vfs);
 
         Ok(Self {
             catalogue,
@@ -266,6 +294,7 @@ impl Sources {
             textes,
             game_dir: game_dir.to_path_buf(),
             rubriques,
+            shaders,
         })
     }
 }
@@ -557,6 +586,14 @@ pub fn run(cmd: &AvatarCmd, game_dir: &Path, db_path: &Path) -> Result<()> {
                     println!("   {:>2}. {libelle}  (0x{h:08X})", i + 1);
                 }
             }
+            if !src.shaders.is_empty() {
+                let octets: u64 = src.shaders.iter().map(|(_, t)| *t).sum();
+                println!(
+                    "  shaders : {} fichiers `chr_edit_toon*` ({:.1} Kio) — identifies par nom, DXBC non desassemble",
+                    src.shaders.len(),
+                    octets as f64 / 1024.0
+                );
+            }
             let libelles =
                 cfg.personalities.iter().filter(|p| src.textes.contains_key(&p.view_text_id.get())).count();
             println!(
@@ -702,6 +739,9 @@ pub fn run(cmd: &AvatarCmd, game_dir: &Path, db_path: &Path) -> Result<()> {
                     })).collect::<Vec<_>>(),
                 },
                 // Ordre et libellés établis ; l'association à un `faceSettingType` ne l'est pas.
+                "shaders": src.shaders.iter().map(|(nom, taille)| json!({
+                    "fichier": nom, "octets": taille,
+                })).collect::<Vec<_>>(),
                 "rubriques": src.rubriques.iter().map(|(h, libelle)| json!({
                     "hash": format!("{h:08X}"), "libelle": libelle,
                 })).collect::<Vec<_>>(),

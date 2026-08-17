@@ -74,6 +74,7 @@ pub mod exp;
 pub mod extend_story;
 pub mod fast_travel;
 pub mod flag_config;
+pub mod font_color;
 pub mod formation;
 pub mod friendmap;
 pub mod gallery;
