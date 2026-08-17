@@ -946,6 +946,51 @@ pub fn assemble_character_model(
     })
 }
 
+
+/// Une pièce d'avatar à assembler : son rôle et ses données de maillage.
+///
+/// L'avatar de l'éditeur n'est pas un modèle unique mais un empilement : un corps par
+/// morphologie, un visage, des coiffures avant et arrière, des oreilles, des accessoires. Chaque
+/// pièce vit à plat sous `chr/_face/20_EDIT/<dossier>/<nom>.{g4md,g4mg}`.
+pub struct AvatarPiece {
+    /// Rôle de la pièce dans le modèle final.
+    pub component: MeshComponent,
+    /// Données G4MD brutes.
+    pub g4md: Vec<u8>,
+    /// Données G4MG brutes.
+    pub g4mg: Vec<u8>,
+}
+
+/// Assemble un avatar de l'éditeur depuis ses pièces, dans l'ordre donné.
+///
+/// Contrairement à [`assemble_character_model`], rien n'est résolu depuis les tables gamedata :
+/// l'appelant fournit les pièces déjà lues, parce que leur choix vient de l'éditeur (recette,
+/// morphologie) et non d'une fiche de personnage.
+///
+/// # Erreurs
+///
+/// [`AssembleError::Format`] si un couple G4MD/G4MG est invalide. Une pièce sans primitive est
+/// ignorée : un accessoire vide ne doit pas faire échouer l'avatar entier.
+pub fn assemble_avatar_model(
+    code: &str,
+    pieces: &[AvatarPiece],
+) -> Result<AssembledModel, AssembleError> {
+    let mut primitives = Vec::new();
+    for piece in pieces {
+        let extraites =
+            extract_primitives_from_g4md_g4mg(&piece.g4md, &piece.g4mg, piece.component)?;
+        primitives.extend(extraites);
+    }
+    Ok(AssembledModel {
+        internal_code: code.to_string(),
+        body_glb: String::new(),
+        face_glb: String::new(),
+        uniform_crc: 0,
+        primitives,
+        embedded_textures: Vec::new(),
+    })
+}
+
 // ── Modèles génériques (keshin / armures) ─────────────────────────────────────
 
 /// Paramètres pour l'assemblage d'un modèle générique (keshin, armure, objet…).
