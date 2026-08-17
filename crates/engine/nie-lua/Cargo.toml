@@ -13,7 +13,7 @@ workspace = true
 [dependencies]
 # VM Lua 5.2 = celle exacte du moteur Level-5 « Lives » (PUC-Rio 5.2.4 vendored).
 # Charge directement le bytecode .lua.bin du jeu (mlua, MIT).
-mlua = { version = "0.11", features = ["lua52", "vendored"] }
+mlua = { version = "0.11", features = ["lua52", "vendored"], optional = true }
 thiserror.workspace = true
 
 # Sérialisation des types de `bytecode` : un chunk décodé doit pouvoir sortir en
@@ -29,3 +29,10 @@ tree-sitter-lua = "0.5"
 
 [dev-dependencies]
 nie-formats = { workspace = true }
+
+[features]
+# La VM (mlua, Lua 5.2 vendored en C) — activée par défaut : tous les consommateurs actuels
+# l'attendent. Sans elle, seuls `bytecode` et `static_analysis` restent, purs Rust : c'est ce
+# qui permet de compiler le décodeur de bytecode pour wasm32, où Lua en C ne se construit pas.
+default = ["vm"]
+vm = ["dep:mlua"]

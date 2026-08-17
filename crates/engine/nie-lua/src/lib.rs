@@ -24,11 +24,15 @@
 
 /// Mode de chargement d'un chunk, réexporté de `mlua` : les consommateurs (nie-explorer) n'ont
 /// pas à déclarer `mlua` en dépendance directe juste pour nommer `Binary`/`Text`.
+#[cfg(feature = "vm")]
 pub use mlua::ChunkMode;
 
 pub mod bytecode;
+#[cfg(feature = "vm")]
 pub mod host;
+#[cfg(feature = "vm")]
 pub mod runtime;
+#[cfg(feature = "vm")]
 pub mod session;
 pub mod static_analysis;
 pub use static_analysis::{
@@ -36,17 +40,21 @@ pub use static_analysis::{
     LuaCall, LuaFunction, LuaSyntaxError, LuaTable, LuaTableField, StaticAnalysisError,
     SyntaxErrorKind, ValueKind,
 };
+#[cfg(feature = "vm")]
 pub mod menu_host;
+#[cfg(feature = "vm")]
 pub use menu_host::{
     drive_menu, enumerate_header_tabs, install_menu_host, run_menu, DriveReport, HeaderTab,
     MenuLayerState, MenuListItem, MenuObjectState, MenuState,
 };
 
+#[cfg(feature = "vm")]
 use thiserror::Error;
 
 /// Signature d'un chunk de bytecode Lua 5.2 PUC-Rio : `1B 4C 75 61` (`\x1bLua`) + `0x52`.
 pub const LUA52_BYTECODE_SIGNATURE: [u8; 5] = [0x1B, 0x4C, 0x75, 0x61, 0x52];
 
+#[cfg(feature = "vm")]
 /// Erreurs de chargement/exécution d'un script du jeu.
 #[derive(Debug, Error)]
 pub enum LuaError {
@@ -64,6 +72,7 @@ pub fn is_lua52_bytecode(data: &[u8]) -> bool {
     data.len() >= 5 && data[..5] == LUA52_BYTECODE_SIGNATURE
 }
 
+#[cfg(feature = "vm")]
 /// Crée une VM Lua 5.2 capable de charger du bytecode (bibliothèques non sandboxées).
 ///
 /// Note : `Lua::unsafe_new` est requis pour `ChunkMode::Binary`.
@@ -74,6 +83,7 @@ pub fn new_vm() -> mlua::Lua {
     unsafe { mlua::Lua::unsafe_new() }
 }
 
+#[cfg(feature = "vm")]
 /// **Charge** (compile) un chunk de bytecode `.lua.bin` du jeu dans `lua`, sans l'exécuter.
 ///
 /// Prouve que la VM accepte le bytecode du jeu (= même implémentation Lua). Retourne la
@@ -100,6 +110,7 @@ pub fn load_bytecode(
     Ok(func)
 }
 
+#[cfg(feature = "vm")]
 /// Installe la fonction hôte `INCLUDE(name)` — le **système de modules** du moteur : le
 /// script appelle `INCLUDE("…")`, l'hôte résout le nom en bytecode `.lua.bin` (via `resolver`)
 /// et l'exécute dans la MÊME VM. Renvoie les valeurs du module inclus (ou rien si introuvable,
@@ -176,6 +187,7 @@ pub fn script_logical_base(basename: &str) -> String {
     s
 }
 
+#[cfg(feature = "vm")]
 /// Exécute un script `.lua.bin` du jeu dans une VM instrumentée et retourne la liste TRIÉE
 /// des **globals hôtes** qu'il référence (fonctions/tables fournies par le moteur C++).
 ///
