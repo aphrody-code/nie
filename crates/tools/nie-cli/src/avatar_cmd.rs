@@ -42,6 +42,23 @@ use serde_json::{json, Value as Json};
 /// Racine des assets de l'éditeur dans le VFS.
 const EDIT_ROOT: &str = "chr/_face/20_EDIT/";
 
+/// Les sept statistiques du jeu, dans l'ordre horaire du radar de l'écran de statistiques.
+///
+/// Ces hachages sont ceux de `menu_text` — les libellés sont donc traduits comme le reste. Ils ne
+/// viennent pas du pool de constantes de `chara_edit` : cet écran-là emprunte les libellés de
+/// statistiques communs au jeu, et l'ordre ci-dessous est celui que les captures montrent autour
+/// du radar (frappe en haut, puis dans le sens horaire). C'est la seule liste de ce module dont
+/// l'appartenance à l'écran vient d'une capture et non d'un fichier de l'éditeur.
+const STATS_RADAR: [u32; 7] = [
+    0x9676_CFF2, // Frappe
+    0xBF19_862F, // Contrôle
+    0x5E95_B812, // Pression
+    0xA9F1_F72B, // Physique
+    0xE0F2_0046, // Agilité
+    0xAC95_CB90, // Intelligence
+    0xD02A_224B, // Technique
+];
+
 
 
 /// Écran de l'éditeur correspondant à une catégorie, par **rapprochement lexical**.
@@ -879,6 +896,11 @@ pub fn run(cmd: &AvatarCmd, game_dir: &Path, db_path: &Path) -> Result<()> {
                 })).collect::<Vec<_>>(),
                 "rubriques": src.rubriques.iter().map(|(h, libelle)| json!({
                     "hash": format!("{h:08X}"), "libelle": libelle,
+                })).collect::<Vec<_>>(),
+                // Les sept axes du radar de statistiques, dans l'ordre du dessin.
+                "statsRadar": STATS_RADAR.iter().map(|h| json!({
+                    "hash": format!("{h:08X}"),
+                    "libelle": src.textes.get(h).cloned().unwrap_or_default(),
                 })).collect::<Vec<_>>(),
                 // Les libellés que chaque panneau affiche, lus dans son script : c'est la source
                 // des titres de sections et de curseurs, aucun n'est écrit à la main.
