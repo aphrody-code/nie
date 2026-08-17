@@ -43,6 +43,12 @@ pub fn decode_by_key(key: &str, root: &Value) -> Option<(&'static str, Value)> {
     }
     match key {
         "formation_config" => t!("formation", crate::formation::parse_formation_config(root)),
+        // Éditeur d'avatar : deux fichiers, deux familles distinctes (`family_key` les sépare
+        // puisque seule la version en queue est retirée). Cf. `niers avatar`.
+        "chara_edit" => t!("chara_edit", crate::chara_edit::parse_chara_edit(root)),
+        "chara_edit_parts_type_config" => {
+            t!("chara_edit_parts_type", crate::chara_edit::parse_chara_edit_parts_type_config(root))
+        }
         "item_config" => t!("item", crate::item::parse_all_items(root)),
         "skill_config" => t!("skill", crate::skill::parse_skill_config(root)),
         "mission_config" => t!("mission", crate::mission::parse_mission_config(root)),
