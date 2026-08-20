@@ -20,8 +20,26 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
+use nie_formats::cfgbin;
 use nie_formats::vfs::Vfs;
 use serde_json::json;
+
+/// Lit un dictionnaire `clé → valeur` existant, ou rend une table vide s'il est absent.
+///
+/// L'absence n'est pas une erreur : le dictionnaire se reconstruit. Un fichier illisible non plus —
+/// mais il ne doit pas être écrasé en silence, d'où le message.
+fn charger_map(chemin: &Path) -> BTreeMap<String, String> {
+    match std::fs::read_to_string(chemin) {
+        Ok(txt) => match serde_json::from_str(&txt) {
+            Ok(m) => m,
+            Err(e) => {
+                eprintln!("  ({} illisible : {e} — reparti de zéro)", chemin.display());
+                BTreeMap::new()
+            }
+        },
+        Err(_) => BTreeMap::new(),
+    }
+}
 
 /// Ce que `niers icons` sait faire.
 #[derive(Debug, Clone, clap::Subcommand)]
@@ -37,6 +55,27 @@ pub enum IconsCmd {
         /// Fichier de sortie.
         #[arg(short, long, default_value = "var/icons-index.json")]
         out: PathBuf,
+    },
+    /// Écrit les deux dictionnaires que le rendu de menu consomme pour rogner ses sprites.
+    ///
+    /// Le layout runtime d'un écran ne connaît d'une région que son **hachage** ; la chaîne de
+    /// résolution (`nie-game`, `cmd_export_layout_runtime`) fait hachage → nom → atlas → rectangle.
+    /// Le premier maillon manque pour tout ce qui n'apparaît pas dans le corpus Lua : les noms de
+    /// région vivent dans les `.g4tx`, pas dans les scripts. Sans eux, le sprite est blité en
+    /// **atlas entier** au lieu du rectangle — 2640×1364 à la place d'une icône de 56×56.
+    Dict {
+        /// Préfixe VFS balayé.
+        #[arg(long, default_value = "menu/")]
+        prefix: String,
+        /// Familles écartées (sous-dossiers), séparées par des virgules.
+        #[arg(long, default_value = "")]
+        skip: String,
+        /// Répertoire des dictionnaires de reverse.
+        #[arg(long, default_value = "data/re")]
+        out_dir: PathBuf,
+        /// N'écrit rien : dit seulement ce que la fusion ajouterait.
+        #[arg(long)]
+        dry_run: bool,
     },
     /// Décode en PNG les icônes d'un préfixe, dans le dump disque servi par le CDN.
     Extract {
@@ -140,6 +179,55 @@ pub fn run(cmd: &IconsCmd, game_dir: &Path) -> Result<()> {
             std::fs::write(out, serde_json::to_vec_pretty(&doc)?)
                 .with_context(|| format!("écriture {}", out.display()))?;
             println!("indexé {} icônes → {}", index.len(), out.display());
+        }
+
+        IconsCmd::Dict { prefix, skip, out_dir, dry_run } => {
+            let skip: Vec<String> =
+                skip.split(',').filter(|s| !s.is_empty()).map(str::to_string).collect();
+            let index = indexer(&vfs, prefix, &skip);
+
+            let chemin_crc = out_dir.join("menu-crc32-dictionary.json");
+            let chemin_reg = out_dir.join("menu-region-index.json");
+            let mut crc: BTreeMap<String, String> = charger_map(&chemin_crc);
+            let mut reg: BTreeMap<String, String> = charger_map(&chemin_reg);
+            let (crc_avant, reg_avant) = (crc.len(), reg.len());
+
+            // Une collision de hachage est une information, pas un détail à écraser en silence :
+            // deux noms distincts pour un même CRC-32 rendraient la résolution ambiguë.
+            let mut collisions = 0usize;
+            for (nom, ic) in &index {
+                let cle = format!("0x{:08X}", cfgbin::crc32(nom.as_bytes()));
+                match crc.get(&cle) {
+                    Some(deja) if deja != nom => collisions += 1,
+                    Some(_) => {}
+                    None => {
+                        crc.insert(cle, nom.clone());
+                    }
+                }
+                reg.entry(nom.clone()).or_insert_with(|| ic.atlas.clone());
+            }
+
+            println!(
+                "{} noms de région balayés sous « {prefix} »\n  \
+                 crc32   {crc_avant} → {crc_apres} (+{crc_delta})\n  \
+                 régions {reg_avant} → {reg_apres} (+{reg_delta})\n  \
+                 collisions de hachage : {collisions}",
+                index.len(),
+                crc_apres = crc.len(),
+                crc_delta = crc.len() - crc_avant,
+                reg_apres = reg.len(),
+                reg_delta = reg.len() - reg_avant,
+            );
+            if *dry_run {
+                println!("  (--dry-run : rien écrit)");
+                return Ok(());
+            }
+            std::fs::create_dir_all(out_dir).ok();
+            std::fs::write(&chemin_crc, serde_json::to_vec_pretty(&crc)?)
+                .with_context(|| format!("écriture {}", chemin_crc.display()))?;
+            std::fs::write(&chemin_reg, serde_json::to_vec_pretty(&reg)?)
+                .with_context(|| format!("écriture {}", chemin_reg.display()))?;
+            println!("  écrits : {} · {}", chemin_crc.display(), chemin_reg.display());
         }
 
         IconsCmd::Extract { prefix, limit } => {
