@@ -321,10 +321,23 @@ contexte en argument. Appelée avec une table portant les trois champs, elle éc
 la même manière — `listRowNum` reste nul. Elle ne lit donc pas son argument : la table qu'elle
 consulte est une variable du module que rien, dans notre exécution, ne renseigne.
 
-Voilà où s'arrête ce qui est atteignable depuis les fichiers : la fonction de peuplement est
-nommée, le champ qui lui manque est nommé, le module qui les déclare est identifié et chargé, et
-il est établi que le script ne les renseigne pas. Le remplir demanderait de fabriquer une valeur
-que le jeu, lui, lit de son moteur — ce que ce document proscrit ailleurs et ne fera pas ici.
+La **définition d'écran** a été inspectée en dernier recours : c'est elle qui décrit les calques,
+les commandes, les ressources et le focus (`MENU_LAYER_INFO`, `MENU_CMD_INFO`, `MENU_RES`,
+`MENU_FOCUS_BASE_INFO`, `MENU_FOCUS_GROUP`). Sur `chara_edit_parts_menu_hair_list`, les deux nœuds
+de focus ne portent qu'un identifiant et des zéros — **aucune dimension de grille**. La
+configuration de liste n'y est pas.
+
+Voilà donc où s'arrête ce qui est atteignable depuis les fichiers, cinq sources ayant été
+épuisées : le script d'écran (s'exécute intégralement, ne pose pas le champ), le module inclus (le
+déclare, ne le pose pas), l'appel direct de la fonction (échoue identiquement avec et sans
+argument), les callbacks non joués (essayés, sans effet), et la définition d'écran (ne le contient
+pas). La fonction de peuplement est nommée, le champ qui lui manque est nommé, et il est établi
+qu'aucun fichier lisible ne le fournit.
+
+Le remplir demanderait de fabriquer une valeur que le jeu lit de son moteur. La voie honnête pour
+l'obtenir existe et sort du cadre statique : `niers mem`, qui lit la mémoire d'un `nie.exe` vivant.
+Relever ces trois champs sur l'écran de grille donnerait la valeur réelle plutôt qu'une valeur
+plausible.
 
 ## 7. Vérifications
 
