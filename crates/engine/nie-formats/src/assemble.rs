@@ -1126,6 +1126,49 @@ pub fn avatar_bodies_for_skeleton(skeleton: &str) -> &'static [&'static str] {
     }
 }
 
+/// Le corps qui va avec une morphologie de l'éditeur, par son nom.
+///
+/// Les huit morphologies du catalogue (`modelesDeBase.morphologies`) se répartissent les huit
+/// corps `u000101`…`u000108`. L'affectation n'est pas devinée : elle découle de **deux contraintes
+/// indépendantes qui se recoupent**.
+///
+/// 1. **Le squelette**, apparié par la jointure cou/tête ([`avatar_bodies_for_skeleton`]) : il
+///    réduit chaque morphologie à deux corps possibles.
+/// 2. **La corpulence mesurée**, qui départage la paire et concorde avec le nom :
+///
+/// | morphologie | corps | taille | épaules | tour de taille | rapport |
+/// |---|---|---:|---:|---:|---:|
+/// | `male` | `u000101` | 1,304 | 0,653 | 0,328 | 1,99 |
+/// | `female` | `u000102` | 1,303 | 0,615 | 0,354 | 1,73 |
+/// | `small` | `u000103` | 0,960 | 0,496 | 0,311 | 1,59 |
+/// | `smallfat` | `u000104` | 0,963 | 0,507 | 0,389 | 1,30 |
+/// | `tall` | `u000105` | 1,545 | 0,774 | 0,385 | 2,01 |
+/// | `tallmuscle` | `u000108` | 1,565 | 0,774 | 0,370 | 2,09 |
+/// | `muscle` | `u000106` | 1,804 | 1,367 | 0,649 | 2,11 |
+/// | `big` | `u000107` | 1,772 | 1,413 | 0,994 | 1,42 |
+///
+/// Chaque ligne se lit : `female` a les épaules plus étroites et le tour de taille plus large que
+/// `male`, d'où un rapport nettement plus bas ; `smallfat` est plus large que `small` à taille
+/// égale ; `big` a un tour de taille de 0,99 m quand `muscle`, aussi grand, garde 0,65 ;
+/// `tallmuscle` a le rapport le plus élevé de sa paire. **Aucune affectation ne repose sur l'ordre
+/// des fichiers** — il ne suit d'ailleurs pas les morphologies, `u000108` venant avant `u000106`.
+///
+/// Rend `None` pour un nom inconnu.
+#[must_use]
+pub fn avatar_body_for_morphology(morphologie: &str) -> Option<&'static str> {
+    Some(match morphologie {
+        "male" => "u000101",
+        "female" => "u000102",
+        "small" => "u000103",
+        "smallfat" => "u000104",
+        "tall" => "u000105",
+        "tallmuscle" => "u000108",
+        "muscle" => "u000106",
+        "big" => "u000107",
+        _ => return None,
+    })
+}
+
 /// Le modèle de chaussures de la tenue de l'éditeur.
 ///
 /// Contrairement au corps, il n'a pas à s'apparier au squelette : les quatre variantes
@@ -2561,6 +2604,34 @@ mod tests {
 
     /// Test d'intégration : assemble uniforme depuis CPK via VFS + manifeste.
     /// Vérifie le chemin complet CRC → g4md_path → VFS → G4MD+G4MG → primitives.
+    #[test]
+    fn chaque_morphologie_recoit_un_corps_de_son_squelette() {
+        // Les deux contraintes doivent se recouper : le corps affecté à une morphologie doit
+        // appartenir à la paire que le squelette de cette morphologie autorise. Si l'une des deux
+        // tables bouge sans l'autre, ce test le dit.
+        let par_squelette = [
+            ("c000101_edit", ["male", "female"]),
+            ("c000201_edit", ["small", "smallfat"]),
+            ("c000301_edit", ["tall", "tallmuscle"]),
+            ("c000401_edit", ["muscle", "big"]),
+        ];
+        for (squelette, morphos) in par_squelette {
+            let autorises = avatar_bodies_for_skeleton(squelette);
+            assert_eq!(autorises.len(), 2, "{squelette} doit avoir deux corps");
+            let mut vus = Vec::new();
+            for m in morphos {
+                let corps = avatar_body_for_morphology(m)
+                    .unwrap_or_else(|| panic!("morphologie {m} sans corps"));
+                assert!(
+                    autorises.contains(&corps),
+                    "{m} reçoit {corps}, qui n'appartient pas au squelette {squelette}"
+                );
+                vus.push(corps);
+            }
+            assert_ne!(vus[0], vus[1], "{squelette} : deux morphologies ne peuvent partager un corps");
+        }
+    }
+
     #[test]
     fn chaque_corps_epouse_son_squelette() {
         use crate::vfs::Vfs;
