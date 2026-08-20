@@ -2500,6 +2500,13 @@ fn collect_layout_objects(vfs: &Vfs, screen: &str, from_setting: bool) -> (Vec<L
 ///
 /// Retourne `layerHash -> nombre d'items`.
 fn collect_item_counts(vfs: &Vfs, screen: &str) -> std::collections::BTreeMap<u32, i32> {
+    // Les calques d'un écran viennent de sa DÉFINITION, pas de son nom. Le filtre par préfixe ne
+    // vaut que pour les écrans dont les objbin portent le nom de l'écran (`mainmenu01_*` pour
+    // `mainmenu`) ; il ne trouve RIEN pour l'éditeur d'avatar, dont les calques s'appellent
+    // `avatar01_*`, `mainmenu90_*`, `soccer11_*`, `cmn05_*`. Le compte d'items restait donc vide,
+    // et avec lui les listes que `GetItemButtonNum` interroge. Repli sur le préfixe quand l'écran
+    // n'a pas de définition.
+    let depuis_setting = setting_objbin_paths(vfs, screen);
     let screen_lower = screen.to_ascii_lowercase();
     let mut counts: std::collections::BTreeMap<u32, i32> = std::collections::BTreeMap::new();
     for (path, _) in vfs.iter() {
@@ -2507,7 +2514,12 @@ fn collect_item_counts(vfs: &Vfs, screen: &str) -> std::collections::BTreeMap<u3
             continue;
         }
         let Some(basename) = path.rsplit('/').next() else { continue };
-        if !basename.to_ascii_lowercase().starts_with(screen_lower.as_str()) {
+        let retenu = if depuis_setting.is_empty() {
+            basename.to_ascii_lowercase().starts_with(screen_lower.as_str())
+        } else {
+            depuis_setting.iter().any(|p| p == path || p.ends_with(basename))
+        };
+        if !retenu {
             continue;
         }
         let Ok(bytes) = vfs.read(path) else { continue };
