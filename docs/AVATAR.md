@@ -807,8 +807,16 @@ La **teinte agit** : quatre couleurs de peau donnent quatre empreintes distincte
   - leurs planches de couleur sont **identiques d'une variante à l'autre** : `highlight_L_00` et
     `highlight_L_09` valent tous deux R = G = B = A = 255, écart-type nul. Seuls leurs **masques**
     diffèrent (`msk_00` uniforme, `msk_09` à 41 d'écart-type) ;
-  - le masque est bien posé en alpha depuis ce correctif, et la planche est exemptée de la règle
-    du fond — la famille reste pourtant inerte.
+  - le masque est bien posé en alpha depuis ce correctif : sondé au niveau de la bibliothèque,
+    `highlight_L_09` sort avec un alpha variable (min 0, max 255) là où `highlight_L_00` est
+    opaque partout. Le décodage est donc correct ;
+  - la famille **agit** servie SEULE (empreintes `3765bd4d` contre `80638649`) et ne contribue
+    plus dès que `00_face` est présente ;
+  - ce n'est pas la teinte : forcer le canal rouge au blanc donne la même empreinte pour les deux
+    variantes.
+
+  La cause vit donc dans la composition en présence d'une planche de fond opaque, et reste à
+  établir. Tout le reste de la chaîne est vérifié.
 
   Leçon de méthode consignée : mes « 2 % de dessin sur le vert », qui m'avaient fait conclure à un
   écrasement, étaient des artefacts d'interpolation de mon propre redimensionnement de mesure.
