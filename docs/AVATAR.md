@@ -399,6 +399,26 @@ laisse plus de la moitié du cadre en canvas vide, et son compositeur est le plu
   d'appariement. Il faudra un oracle local (recherche de motif région par région) et non un score
   d'image entière.
 
+### La position du fond n'est pas un défaut de calcul
+
+Le fond de l'éditeur sort à `x = 1040` sur le canvas, là où un centrage exact le mettrait à 640 —
+400 pixels d'écart, qu'on pouvait prendre pour une erreur de placement. Le squelette dit autre chose.
+L'os `_bg01` de `avatar01_00` porte **`pos = (600, −540)`** et **`scale = (2640, 1080)`**, et la
+conversion vers le canvas redonne exactement ce qui est observé :
+
+```
+x = 640 + 600 × (1280/1920) = 1040
+y = 360 − (−540) × (720/1080) = 720
+```
+
+Notre chaîne restitue donc **fidèlement ce que le fichier contient** : le repère est centré, l'axe Y
+monte, et l'os est bien celui du fond (sa taille est au pixel près le rectangle de `bg01`). Aucune
+ancre simple ne recentre ce sprite depuis cette position — le décalage est dans la donnée, et c'est
+le driver qui le corrige à l'exécution.
+
+La question « la position du fond est-elle mal calculée ? » est donc fermée : **non**. Ce qui reste
+est la même inconnue que pour les widgets animés — ce que le driver fait de la position qu'il lit.
+
 ### sRGB ou lumière linéaire — mesuré, pas encore tranchable
 
 Le compositeur mélange en octets sRGB ; l'hypothèse concurrente est un mélange en lumière linéaire.
