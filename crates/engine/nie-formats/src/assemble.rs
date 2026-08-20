@@ -1035,6 +1035,57 @@ pub struct AvatarPiece {
     pub attach: Option<[[f32; 4]; 4]>,
 }
 
+/// Le corps habillé qui va avec un squelette d'édition, et les chaussures assorties.
+///
+/// L'éditeur d'avatar ne montre pas un modèle unique : il montre un corps habillé de la tenue
+/// `u117401_10` / `s117401_10` — la seule que portent les 32 recettes
+/// `common/chr/_test/default/mdl_edit_avatar*.cfg.bin` — surmonté d'une tête attachée à l'os
+/// `c_head_1_0`. Encore faut-il que le corps et le squelette soient de la même taille.
+///
+/// **Cet appariement est mesuré, pas supposé.** Pour chacune des 32 combinaisons (8 corps
+/// `u000101`…`u000108` × 4 squelettes `c000X01_edit`), on compare le haut du corps au bas de la
+/// tête une fois celle-ci attachée. Le résultat sépare nettement : un bon appariement laisse un
+/// écart de 4 à 33 mm, un mauvais d'au moins 194 mm. D'où :
+///
+/// | squelette | corps | écart mesuré |
+/// |---|---|---|
+/// | `c000101_edit` | `u000101`, `u000102` | 11 mm, 10 mm |
+/// | `c000201_edit` | `u000103`, `u000104` | 16 mm, 19 mm |
+/// | `c000301_edit` | `u000105`, `u000108` | 33 mm, 13 mm |
+/// | `c000401_edit` | `u000106`, `u000107` | 28 mm, 4 mm |
+///
+/// Chaque squelette a **deux** corps, vraisemblablement masculin et féminin — leurs hauteurs sont
+/// trop proches pour que la mesure les départage, et aucune source lue ne le dit. Le premier de
+/// la paire est donc rendu en tête, et le second reste accessible : c'est un ordre, pas un
+/// relevé de genre. Cf. le test `chaque_corps_epouse_son_squelette`.
+///
+/// Rend une liste vide si le squelette est inconnu.
+#[must_use]
+pub fn avatar_bodies_for_skeleton(skeleton: &str) -> &'static [&'static str] {
+    match skeleton {
+        "c000101_edit" => &["u000101", "u000102"],
+        "c000201_edit" => &["u000103", "u000104"],
+        "c000301_edit" => &["u000105", "u000108"],
+        "c000401_edit" => &["u000106", "u000107"],
+        _ => &[],
+    }
+}
+
+/// Le modèle de chaussures de la tenue de l'éditeur.
+///
+/// Contrairement au corps, il n'a pas à s'apparier au squelette : les quatre variantes
+/// `s000201`…`s000204` posent toutes au sol (y = 0).
+pub const AVATAR_SHOES: &str = "s000201";
+
+/// Le dossier de modèle qui héberge les corps de l'éditeur.
+///
+/// Les huit variantes vivent toutes dans `u000101/`, quel que soit leur numéro : le dossier porte
+/// le nom de la FAMILLE, pas celui de la variante.
+pub const AVATAR_BODY_DIR: &str = "u000101";
+
+/// Le dossier de modèle qui héberge les chaussures de l'éditeur.
+pub const AVATAR_SHOES_DIR: &str = "s000201";
+
 /// Pose de repos, en espace monde, de l'os nommé d'un squelette G4SK.
 ///
 /// Sert à replacer une pièce exprimée dans le repère de son os d'attache. Pour l'éditeur
@@ -2455,6 +2506,95 @@ mod tests {
 
     /// Test d'intégration : assemble uniforme depuis CPK via VFS + manifeste.
     /// Vérifie le chemin complet CRC → g4md_path → VFS → G4MD+G4MG → primitives.
+    #[test]
+    fn chaque_corps_epouse_son_squelette() {
+        use crate::vfs::Vfs;
+
+        let racine = crate::vfs::resolve_game_dir();
+        let mut vfs = Vfs::new();
+        if vfs.init(racine.join("data")).is_err() {
+            eprintln!("SKIP : VFS non initialisable");
+            return;
+        }
+
+        // Une tête de référence, attachée puis mesurée : c'est son bas qui doit rejoindre le haut
+        // du corps. N'importe quelle tête ferait l'affaire, celle-ci est la plus courante.
+        let tete = "data/common/chr/_face/20_EDIT/_facebase/face51_nose01";
+        let (Ok(tete_md), Ok(tete_mg)) =
+            (vfs.read(&format!("{tete}.g4md")), vfs.read(&format!("{tete}.g4mg")))
+        else {
+            eprintln!("SKIP : tête de référence illisible");
+            return;
+        };
+
+        let mut verifies = 0;
+        for squelette in ["c000101_edit", "c000201_edit", "c000301_edit", "c000401_edit"] {
+            let chemin_sk =
+                format!("data/common/chr/_face/20_EDIT/_bodySK/{squelette}/{squelette}.g4sk");
+            let Ok(g4sk) = vfs.read(&chemin_sk) else {
+                eprintln!("SKIP : squelette {squelette} illisible");
+                continue;
+            };
+            let Some(attache) = bone_rest_world(&g4sk, "c_head_1_0") else {
+                panic!("{squelette} : l'os c_head_1_0 doit exister");
+            };
+
+            // Bas de la tête, une fois attachée.
+            let tete_assemblee = assemble_avatar_model(
+                "t",
+                &[AvatarPiece {
+                    component: MeshComponent::Face,
+                    g4md: tete_md.clone(),
+                    g4mg: tete_mg.clone(),
+                    attach: Some(attache),
+                }],
+            )
+            .expect("assemblage de la tête");
+            let tete_bas = tete_assemblee
+                .primitives
+                .iter()
+                .flat_map(|p| p.positions.iter())
+                .fold(f32::INFINITY, |acc, v| acc.min(v.y));
+
+            for corps in avatar_bodies_for_skeleton(squelette) {
+                let base = format!("data/common/chr/_uniform/{AVATAR_BODY_DIR}/{corps}");
+                let (Ok(md), Ok(mg)) =
+                    (vfs.read(&format!("{base}.g4md")), vfs.read(&format!("{base}.g4mg")))
+                else {
+                    eprintln!("SKIP : corps {corps} illisible");
+                    continue;
+                };
+                let assemble = assemble_avatar_model(
+                    "c",
+                    &[AvatarPiece {
+                        component: MeshComponent::Uniform,
+                        g4md: md,
+                        g4mg: mg,
+                        attach: None,
+                    }],
+                )
+                .expect("assemblage du corps");
+                let corps_haut = assemble
+                    .primitives
+                    .iter()
+                    .flat_map(|p| p.positions.iter())
+                    .fold(f32::NEG_INFINITY, |acc, v| acc.max(v.y));
+
+                let ecart = (corps_haut - tete_bas).abs();
+                // Les 32 combinaisons mesurées séparent nettement : au plus 33 mm quand le corps
+                // va avec le squelette, au moins 194 mm sinon. 50 mm tranche sans être fragile.
+                assert!(
+                    ecart < 0.05,
+                    "{squelette} + {corps} : écart {ecart:.3} m entre le haut du corps \
+                     ({corps_haut:.3}) et le bas de la tête ({tete_bas:.3})"
+                );
+                verifies += 1;
+            }
+        }
+        assert!(verifies > 0, "aucune paire vérifiée — le corpus est-il présent ?");
+        eprintln!("{verifies} paire(s) corps/squelette vérifiée(s)");
+    }
+
     #[test]
     fn assemble_uniforme_depuis_cpk_via_manifeste() {
         use crate::vfs::Vfs;

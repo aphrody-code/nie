@@ -1774,6 +1774,14 @@ const AVATAR_TEX_MAX: u32 = 1024;
 ///
 /// Les dossiers de l'éditeur commencent tous par un souligné (`_facebase`, `_hairF`, `_base`…),
 /// ceux d'uniforme sont des identifiants (`u000101`, `s000201`).
+/// Version de la logique d'assemblage d'avatar, incluse dans la clé de cache.
+///
+/// À incrémenter dès que l'assemblage change ce qu'il produit pour une même requête — ajout du
+/// corps déduit du squelette, attache à l'os de tête, composition de la texture de visage… Sans
+/// elle, un GLB produit par l'ancienne logique reste servi indéfiniment et le correctif paraît
+/// sans effet : c'est exactement ce qui est arrivé lors de l'ajout du corps automatique.
+const AVATAR_CACHE_VERSION: u32 = 3;
+
 /// Nom de fichier de cache court et stable pour une clé d'assemblage.
 ///
 /// Un avatar complet cite une quinzaine de pièces et de couches : la clé littérale dépasse la
@@ -1809,7 +1817,9 @@ fn get_or_build_avatar_glb(
         .chain(couches_visage.iter().map(|c| c.replace('/', "-")))
         .collect::<Vec<_>>()
         .join("_");
-    let cache_path = state.cache_dir.join(format!("avatar_{}.glb", cle_courte(&cle)));
+    let cache_path = state
+        .cache_dir
+        .join(format!("avatar_v{AVATAR_CACHE_VERSION}_{}.glb", cle_courte(&cle)));
     if cache_path.exists() {
         debug!("cache hit : avatar_{cle}");
         return fs::read(&cache_path)
@@ -1825,6 +1835,7 @@ fn get_or_build_avatar_glb(
         // Le squelette d'attache, s'il est demandé. Une pièce `_bodySK/<code>` n'apporte aucune
         // maille — son objbin n'en référence d'ailleurs aucune, ses 15 slots `Mesh` sont vides —
         // mais elle fixe le repère dans lequel les pièces de `20_EDIT` doivent être replacées.
+        let squelette = specs.iter().find(|(d, _)| d == "_bodySK").map(|(_, n)| n.clone());
         let attache = specs
             .iter()
             .find(|(d, _)| d == "_bodySK")
@@ -1873,7 +1884,27 @@ fn get_or_build_avatar_glb(
             })
         };
 
-        for (dossier, nom) in specs {
+        // Le corps suit le squelette. L'appelant n'a pas à savoir quelle variante `u0001NN` va
+        // avec quel `c000X01_edit` : c'est un appariement mesuré, qui vit dans nie-formats. Si
+        // l'appelant fournit lui-même une pièce d'uniforme, on ne touche à rien.
+        let mut effectifs: Vec<(String, String)> = specs.to_vec();
+        if let Some(sk) = squelette.as_deref().filter(|_| !specs.iter().any(|(d, _)| est_uniforme(d)))
+        {
+            if let Some(corps) = nie_formats::assemble::avatar_bodies_for_skeleton(sk).first() {
+                effectifs.push((
+                    nie_formats::assemble::AVATAR_BODY_DIR.to_string(),
+                    (*corps).to_string(),
+                ));
+                effectifs.push((
+                    nie_formats::assemble::AVATAR_SHOES_DIR.to_string(),
+                    nie_formats::assemble::AVATAR_SHOES.to_string(),
+                ));
+            } else {
+                warn!("squelette {sk} sans corps apparié : l'avatar sortira sans corps");
+            }
+        }
+
+        for (dossier, nom) in &effectifs {
             if dossier == "_bodySK" {
                 continue;
             }
