@@ -804,12 +804,18 @@ La **teinte agit** : quatre couleurs de peau donnent quatre empreintes distincte
   `highlight_09` est à **97 % du fond** (canal rouge dominant) et ne porte que **2 %** de dessin
   sur le vert — un reflet d'iris fait quelques pixels. C'est une surface négligeable, pas une
   rubrique entière.
-- **Les valeurs RGB des palettes ne sont pas localisées.** `m_CharaEditColorDataList` ne porte que
-  `colorPresetID`, un identifiant ; et contrairement aux canaux `red`/`green`/`blue`, **aucun** des
-  165 identifiants de palette ne se résout depuis les chaînes du binaire (0 sur 165). Tant que
-  cette table n'est pas trouvée, relier les palettes de l'éditeur à la teinte reviendrait à
-  inventer des couleurs — ce que ce dépôt s'interdit. La route, elle, est prête : `?tint=` accepte
-  déjà les trois canaux.
+- **Les valeurs RGB des palettes : RELEVÉES.** Elles n'existaient nulle part sous forme de valeur —
+  `m_CharaEditColorDataList` ne porte que des identifiants, le binaire ne contient pas le motif
+  d'une entrée connue, et contrairement aux canaux `red`/`green`/`blue`, **aucun** des 165
+  identifiants ne s'y résout depuis les chaînes (0 sur 165). Seule la mémoire du jeu les porte, et
+  c'est de là qu'elles viennent désormais : `niers mem palettes` les relève sur le jeu lancé sous
+  Wine. Forme de la table : par entrée, l'identifiant CRC-32 en little-endian sur 4 octets, puis la
+  couleur **ARGB** sur 4 octets. La recherche est bornée par les identifiants attendus, et les
+  entrées non opaques sont écartées — un balayage libre produit des coïncidences à coup sûr.
+  **165 / 165**, toutes opaques, fusionnées dans le catalogue sous `couleursRgb` et servies.
+
+  Reste à relier le sélecteur de couleur de l'interface à `?tint=`, que la route accepte déjà :
+  c'est du travail d'interface, plus un verrou de données.
 - **Le PLACEMENT des pièces de texture.** Les recettes
   `common/chr/_test/default/mdl_edit_avatar*.cfg.bin` décrivent chaque pièce ainsi :
   `CHARA_EDIT_PARAM_TEX_PARTS [famille, variante, offX, offY, offZ, échelleX, échelleY]`, suivie
