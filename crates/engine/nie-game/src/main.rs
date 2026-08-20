@@ -2530,6 +2530,10 @@ fn collect_item_counts(vfs: &Vfs, screen: &str) -> std::collections::BTreeMap<u3
 struct MergedObj {
     /// Visibilité — `false` si un script a appelé `SetObjectVisible(.., false)`.
     visible: bool,
+    /// Visibilité par instance, quand la commande a nommé un index. Un écran réplique un même
+    /// gabarit une fois par item ; sans cette carte, les exemplaires partagent un seul booléen et
+    /// s'affichent ou disparaissent en bloc.
+    visible_par_index: std::collections::BTreeMap<i32, bool>,
     /// Hash de texture/chemin g4tx du sprite (`SetSprite`/`SetIconSprite` arg1).
     sprite_hash: Option<u32>,
     /// Hash de la région/texture dans l'atlas (`SetIconSprite` arg2). Paire (chemin, région).
@@ -2542,7 +2546,14 @@ struct MergedObj {
 
 impl Default for MergedObj {
     fn default() -> Self {
-        Self { visible: true, sprite_hash: None, sprite_region: None, text: None, number: None }
+        Self {
+            visible: true,
+            visible_par_index: std::collections::BTreeMap::new(),
+            sprite_hash: None,
+            sprite_region: None,
+            text: None,
+            number: None,
+        }
     }
 }
 
@@ -2782,6 +2793,9 @@ fn cmd_export_layout_runtime(
                 }
                 let m = merged_objs.entry(*oid).or_default();
                 m.visible = m.visible && o.visible;
+                for (idx, v) in &o.visible_par_index {
+                    m.visible_par_index.entry(*idx).or_insert(*v);
+                }
                 if m.sprite_hash.is_none() {
                     m.sprite_hash = o.sprite_texture_hash;
                     m.sprite_region = o.sprite_region_hash;
@@ -2817,6 +2831,8 @@ fn cmd_export_layout_runtime(
     let (mut n_matched, mut n_hidden, mut n_sprite_mut, mut n_text_mut, mut n_sprite_named) =
         (0usize, 0usize, 0usize, 0usize, 0usize);
     let mut n_region_rect = 0usize;
+    // Rang d'apparition de chaque nom : les exemplaires d'un gabarit se distinguent par lui.
+    let mut rangs_par_nom: std::collections::HashMap<String, i32> = std::collections::HashMap::new();
     for o in &mut objects {
         let h = crc32(o.name.as_bytes());
         let Some(m) = merged_objs.get(&h) else { continue };
@@ -2876,9 +2892,25 @@ fn cmd_export_layout_runtime(
                 }
             }
         }
-        if !m.visible {
+        // Visibilité : celle de l'INSTANCE si une commande a nommé son index, la visibilité
+        // d'objet sinon. Les exemplaires d'un même gabarit se suivent dans l'ordre des slots
+        // d'attache, d'où le rang comme index. Sans cela ils s'affichaient en bloc — les 51
+        // exemplaires de `avatar01_64_recipe_item_type01` tous masqués, les 16
+        // `avatar01_63_recipe_item_title` tous montrés.
+        let rang = {
+            let r = rangs_par_nom.entry(o.name.clone()).or_insert(0i32);
+            let v = *r;
+            *r += 1;
+            v
+        };
+        let visible_instance = m.visible_par_index.get(&rang).copied();
+        if !visible_instance.unwrap_or(m.visible) {
             o.visible = false;
             n_hidden += 1;
+        } else if visible_instance == Some(true) && !m.visible {
+            // L'instance est nommée visible alors que l'objet ne l'est pas : l'instance gagne,
+            // c'est la commande la plus précise des deux.
+            o.visible = true;
         }
         if m.sprite_hash.is_some() {
             n_sprite_mut += 1;
