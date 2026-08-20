@@ -50,6 +50,9 @@ pub mod cpk_encode;
 pub mod crilayla;
 /// Primitives 2D RGBA8 pures (crop/scale nearest) — source unique, no_std (le blend reste landmine #5).
 pub mod raster2d;
+/// Comparaison d'images de rendu : identité, ΔE2000, SSIM par région, carte par bloc, masques ROI.
+#[cfg(feature = "std")]
+pub mod imgmetric;
 /// Utilitaires de noms de chemins d'assets (file-stem byte-exact `FUN_140452820`), no_std.
 pub mod pathname;
 /// `strcmp` byte-exact (`FUN_14168b570`, MSVC SIMD) — comparaison C non signée, no_std.
