@@ -80,6 +80,29 @@ pub fn place_on_canvas(layout: &G4pkmLayout, sprite_w: u32, sprite_h: u32) -> Sc
     ScreenTransform { x_px, y_px, scale_x, scale_y, rot: pose.rot }
 }
 
+/// Taille, en pixels de l'espace de référence, que l'os de placement **désigne**.
+///
+/// Observation vérifiée sur l'éditeur d'avatar : l'os ne donne pas seulement une échelle, il donne
+/// la taille de l'image à afficher — et cette taille est celle de la **région**, pas de l'atlas.
+/// Pour `avatar01_00_avatar_edit_bg`, l'os mesure 2640×1080, ce qui est exactement le rectangle de
+/// `bg01`, alors que l'atlas porteur fait 2640×1364 (il contient en plus une bande de
+/// pictogrammes). Recoupé sur `avatar01_10_edit_window` : os 788×804 = `edit_win_base01`, atlas
+/// 788×1092.
+///
+/// C'est donc une règle de sélection **pilotée par les fichiers**, pas une heuristique : elle dit
+/// quelle sous-texture un objet veut, sans rien mesurer sur une capture. Rend `None` quand l'os est
+/// un locator identité (pas de géométrie), cas où la position vient du driver et non des fichiers.
+/// La pose est celle que [`place_on_canvas`] utilise réellement — donc **après** [`pick_best_pose`].
+/// La pose de placement brute est le plus souvent un locator identité : mesurée seule, elle ne
+/// désigne rien (vérifié : les 13 layers de `chara_edit_menu` rendent tous une pose sans
+/// géométrie). C'est l'os retenu pour le sprite qui porte la taille.
+#[must_use]
+pub fn taille_designee(layout: &G4pkmLayout, sprite_w: u32, sprite_h: u32) -> Option<(f32, f32)> {
+    let placement = crate::g4pkm_motion::motion_final_pose(layout, false).pose;
+    let pose = pick_best_pose(layout, placement, sprite_w, sprite_h);
+    (pose.scale_x > 1.0 && pose.scale_y > 1.0).then_some((pose.scale_x, pose.scale_y))
+}
+
 /// Raffine une pose de placement pour un sprite donné (port de `PickBestPoseForSprite`).
 ///
 /// `base` est la pose de placement déjà résolue (issue de [`crate::g4pkm_motion::motion_final_pose`],
@@ -460,6 +483,20 @@ mod tests {
         // base = premier scale>1 = le bone _gtxt → utilisé directement.
         let st = place_on_canvas(&layout, 776, 120);
         assert!((st.scale_x - 776.0 * (1280.0 / 1920.0) / 776.0).abs() < 1e-4);
+    }
+
+    /// Cas réel `avatar01_00_avatar_edit_bg` : l'atlas fait 2640×1364, l'os retenu 2640×1080 —
+    /// exactement le rectangle de la région `bg01`. L'os désigne donc l'image voulue, pas
+    /// seulement une échelle. Un squelette sans géométrie ne désigne rien : la position vient
+    /// alors du driver, pas des fichiers, et il ne faut surtout pas inventer une région.
+    #[test]
+    fn taille_designee_rend_la_region_visee() {
+        let l = layout(alloc::vec![bone("_bg", tf(0.0, 0.0, 2640.0, 1080.0))]);
+        let t = taille_designee(&l, 2640, 1364).expect("os avec géométrie");
+        assert!((t.0 - 2640.0).abs() < 0.5 && (t.1 - 1080.0).abs() < 0.5, "{t:?}");
+
+        let locator = layout(alloc::vec![bone("_atc", tf(10.0, 20.0, 1.0, 1.0))]);
+        assert!(taille_designee(&locator, 2640, 1364).is_none());
     }
 
     /// Un `CMenuAttachLocator` rend un emplacement **par quadruplet**, résolu sur le squelette
