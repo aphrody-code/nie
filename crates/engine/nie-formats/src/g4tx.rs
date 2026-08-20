@@ -227,11 +227,66 @@ pub fn find_sub_texture<'a>(
     })
 }
 
+/// Ce qu'un nom désigne dans un conteneur G4TX.
+///
+/// Un même nom d'« icône » recouvre deux réalités que le conteneur ne distingue pas de l'extérieur :
+/// soit une **texture entière** du conteneur (payload DDS autonome), soit un **rectangle** dans une
+/// texture porteuse. `avatar01_13.g4tx` porte les deux à quelques octets d'écart —
+/// `edit_bar_icon14_off` y est une sous-texture 56×56, `edit_bar_icon02_off` une texture entière
+/// 56×56. Ne chercher que dans les sous-textures fait disparaître silencieusement la moitié des
+/// icônes, qui sont alors blitées en atlas entier.
+#[derive(Debug, Clone, Copy)]
+pub enum NamedTarget<'a> {
+    /// Le nom est celui d'une texture du conteneur : rien à rogner.
+    Texture(&'a G4txTexture),
+    /// Le nom est celui d'une région : rogner `sub` dans `texture`.
+    Region {
+        /// Texture porteuse à décoder.
+        texture: &'a G4txTexture,
+        /// Rectangle à rogner dedans.
+        sub: &'a G4txSubTexture,
+    },
+}
+
+/// Résout un nom en sa cible, texture entière ou région.
+///
+/// L'ordre — texture d'abord, région ensuite — est celui de
+/// [`crate::g4tx_decode::decode_named_to_rgba`] : les deux doivent désigner le même pixel, sans
+/// quoi les métadonnées d'un rendu ne décriraient pas ce que le décodeur produit.
+#[must_use]
+pub fn find_named<'a>(g4tx: &'a G4tx, nom: &str) -> Option<NamedTarget<'a>> {
+    if let Some(tex) = g4tx.textures.iter().find(|t| t.name.eq_ignore_ascii_case(nom)) {
+        return Some(NamedTarget::Texture(tex));
+    }
+    find_sub_texture(g4tx, nom).map(|(texture, sub)| NamedTarget::Region { texture, sub })
+}
+
 impl G4tx {
     /// Région d'atlas par nom — cf. [`find_sub_texture`].
     #[must_use]
     pub fn region(&self, region_name: &str) -> Option<(&G4txTexture, &G4txSubTexture)> {
         find_sub_texture(self, region_name)
+    }
+
+    /// Cible d'un nom, texture entière ou région — cf. [`find_named`].
+    #[must_use]
+    pub fn named(&self, nom: &str) -> Option<NamedTarget<'_>> {
+        find_named(self, nom)
+    }
+
+    /// Rectangle `(x, y, w, h)` d'un nom, **qu'il désigne une région ou une texture entière**.
+    ///
+    /// Complète [`G4tx::region_rect`], qui ne répond que pour les sous-textures. Pour une texture
+    /// entière le rectangle est `(0, 0, largeur, hauteur)` de cette texture — la texture à décoder
+    /// est alors celle que rend [`G4tx::named`], pas la première du conteneur.
+    #[must_use]
+    pub fn named_rect(&self, nom: &str) -> Option<(i16, i16, i16, i16)> {
+        match self.named(nom)? {
+            NamedTarget::Texture(t) => {
+                Some((0, 0, i16::try_from(t.width).ok()?, i16::try_from(t.height).ok()?))
+            }
+            NamedTarget::Region { sub, .. } => Some((sub.x, sub.y, sub.width, sub.height)),
+        }
     }
 
     /// Rectangle `(x, y, w, h)` (en pixels) d'une région d'atlas par nom, ou `None` si absente.
@@ -510,6 +565,50 @@ mod tests {
         assert!(is_dummy_texture(&tex("foo_dmy01", 100, 100, true)));
         assert!(is_dummy_texture(&tex("foo", 4, 4, true)));
         assert!(!is_dummy_texture(&tex("title02_08", 60, 52, true)));
+    }
+
+    /// Cas réel `avatar01_13.g4tx` : le conteneur mêle des icônes qui sont des **régions** et des
+    /// icônes qui sont des **textures entières**. `region_rect` ne voit que les premières —
+    /// `named_rect` doit répondre pour les deux, sinon l'icône est blitée en atlas complet.
+    #[test]
+    fn named_rect_couvre_region_et_texture_entiere() {
+        let mut porteuse = tex("avatar01_13", 260, 44, true);
+        porteuse.sub_textures = alloc::vec![sub("edit_bar_icon14_off", 300, 0, 56, 56)];
+        let g = G4tx {
+            header: G4txHeader {
+                header_size: 0x60,
+                file_type: 0x65,
+                table_size: 0,
+                texture_count: 2,
+                total_count: 2,
+                sub_texture_count: 1,
+                texture_data_size: 0,
+            },
+            textures: alloc::vec![porteuse, tex("edit_bar_icon02_off", 56, 56, true)],
+        };
+
+        // Région : le rectangle est celui de la sous-texture, dans sa porteuse.
+        assert_eq!(g.named_rect("edit_bar_icon14_off"), Some((300, 0, 56, 56)));
+        assert_eq!(g.region_rect("edit_bar_icon14_off"), Some((300, 0, 56, 56)));
+
+        // Texture entière : `region_rect` échoue (c'est son contrat), `named_rect` répond.
+        assert_eq!(g.region_rect("edit_bar_icon02_off"), None);
+        assert_eq!(g.named_rect("edit_bar_icon02_off"), Some((0, 0, 56, 56)));
+
+        // Et la cible dit QUELLE texture décoder — la porteuse n'est pas la première venue.
+        match g.named("edit_bar_icon02_off").expect("cible") {
+            NamedTarget::Texture(t) => assert_eq!(t.name, "edit_bar_icon02_off"),
+            NamedTarget::Region { .. } => panic!("attendu une texture entière"),
+        }
+        match g.named("edit_bar_icon14_off").expect("cible") {
+            NamedTarget::Region { texture, sub } => {
+                assert_eq!(texture.name, "avatar01_13");
+                assert_eq!(sub.name, "edit_bar_icon14_off");
+            }
+            NamedTarget::Texture(_) => panic!("attendu une région"),
+        }
+
+        assert_eq!(g.named_rect("absent"), None);
     }
 
     fn sub(name: &str, x: i16, y: i16, w: i16, h: i16) -> G4txSubTexture {
