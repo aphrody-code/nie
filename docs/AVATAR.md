@@ -800,12 +800,16 @@ La **teinte agit** : quatre couleurs de peau donnent quatre empreintes distincte
 
 ### Ce qui reste
 
-- **Les reflets (`03_highlight`) restent inertes.** Leur dessin vit sur les canaux R et G à
-  égalité, donc il est lu comme du fond et rendu transparent.
-- **Les couleurs choisies dans l'éditeur n'atteignent pas encore le modèle.** Le catalogue expose
-  les palettes par CRC-32 (`categories[].couleurs`) mais **pas leurs valeurs RGB** ; les recettes,
-  elles, les donnent en clair. La table de résolution CRC → RGB reste à porter dans l'export, après
-  quoi le câblage est immédiat : la route accepte déjà les trois teintes.
+- **Les reflets (`03_highlight`) restent inertes**, mais l'enjeu est marginal et chiffré :
+  `highlight_09` est à **97 % du fond** (canal rouge dominant) et ne porte que **2 %** de dessin
+  sur le vert — un reflet d'iris fait quelques pixels. C'est une surface négligeable, pas une
+  rubrique entière.
+- **Les valeurs RGB des palettes ne sont pas localisées.** `m_CharaEditColorDataList` ne porte que
+  `colorPresetID`, un identifiant ; et contrairement aux canaux `red`/`green`/`blue`, **aucun** des
+  165 identifiants de palette ne se résout depuis les chaînes du binaire (0 sur 165). Tant que
+  cette table n'est pas trouvée, relier les palettes de l'éditeur à la teinte reviendrait à
+  inventer des couleurs — ce que ce dépôt s'interdit. La route, elle, est prête : `?tint=` accepte
+  déjà les trois canaux.
 - **Le PLACEMENT des pièces de texture.** Les recettes
   `common/chr/_test/default/mdl_edit_avatar*.cfg.bin` décrivent chaque pièce ainsi :
   `CHARA_EDIT_PARAM_TEX_PARTS [famille, variante, offX, offY, offZ, échelleX, échelleY]`, suivie
