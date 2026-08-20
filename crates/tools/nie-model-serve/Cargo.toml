@@ -23,7 +23,7 @@ workspace = true
 [dependencies]
 # Features : `textures` = décodeur G4TX/DDS partagé (`nie_formats::g4tx_decode`) ;
 # `audio-decode` = décodeur audio HCA/ADX/AWB/ACB partagé (`cri_audio::decode_to_wav`).
-nie-formats = { path = "../../engine/nie-formats", features = ["serde", "textures", "audio-decode"] }
+nie-formats = { path = "../../engine/nie-formats", features = ["serde", "textures", "images", "audio-decode"] }
 # Parseurs typés des familles game-data (formation, skill, item, mission…) :
 # alimentent la route `/typed` qui décode un cfg.bin en structures de jeu nommées.
 nie-data = { path = "../../engine/nie-data", features = ["serde"] }
