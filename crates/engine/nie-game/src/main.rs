@@ -1080,16 +1080,28 @@ fn cmd_compose_layout(game_dir: &Path, json_in: &[PathBuf], png_out: &Path) -> R
         if adv <= 0 {
             continue; // aucun glyphe résolu
         }
+        // `cw` est une borne haute (une cellule carrée par caractère) ; l'avance rendue est la
+        // largeur RÉELLE du libellé. Recadrer dessus est nécessaire pour pouvoir l'ancrer : une
+        // boîte surdimensionnée décalerait le texte de la moitié de son excédent.
+        let largeur = u32::try_from(adv).unwrap_or(cw).clamp(1, cw);
+        let Some((tw, th, texte)) = crop_rgba(&buf, cw, ch, (0, 0, largeur as i16, ch as i16))
+        else {
+            continue;
+        };
         let tr = &o["transform"];
         let f = |k: &str, d: f64| tr[k].as_f64().unwrap_or(d);
+        // Même convention d'ancre que les sprites : le transform donne un PIVOT, pas un coin. Le
+        // texte se posait jusqu'ici au coin haut-gauche, donc décalé d'une demi-boîte par rapport
+        // au widget qu'il étiquette.
+        let (ax, ay) = (f("anchorX", 0.5), f("anchorY", 0.5));
         items.push(DrawItem {
             prio: o["drawPriority"].as_i64().unwrap_or(0) + 1000, // texte au-dessus des sprites
             order: order + 1_000_000,
-            rgba: buf,
-            w: cw,
-            h: ch,
-            dx: f("x", 0.0).round() as i32,
-            dy: f("y", 0.0).round() as i32,
+            rgba: texte,
+            w: tw,
+            h: th,
+            dx: (f("x", 0.0) - ax * f64::from(tw)).round() as i32,
+            dy: (f("y", 0.0) - ay * f64::from(th)).round() as i32,
         });
         n_text += 1;
     }
