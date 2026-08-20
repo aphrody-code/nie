@@ -266,6 +266,19 @@ fn redimensionner_rgba(rgba: &[u8], w: u32, h: u32, vers_w: u32, vers_h: u32) ->
     Some(out)
 }
 
+/// Vrai si cette couche RGBA est opaque partout — auquel cas, composée par-dessus, elle masque
+/// tout ce qui précède.
+///
+/// Les planches de `_facetex` sont dans ce cas presque toutes (`face_00`, `eye_00`, `mouth_00`,
+/// `highlight_00`), ce qui rend la composition alpha inopérante entre elles : seule la dernière
+/// survit. C'est ainsi que plusieurs familles de traits restaient sans effet. L'appelant s'en
+/// sert pour le SIGNALER plutôt que de perdre des couches en silence.
+#[cfg(feature = "textures")]
+#[must_use]
+pub fn couche_totalement_opaque(rgba: &[u8]) -> bool {
+    !rgba.is_empty() && rgba.iter().skip(3).step_by(4).all(|&a| a == 255)
+}
+
 /// Compose des couches RGBA par-dessus la première, en mélange alpha classique.
 ///
 /// C'est ainsi que le visage d'un avatar se fabrique : le jeu ne stocke pas une texture par
@@ -303,10 +316,11 @@ pub fn composer_couches(couches: &[(u32, u32, Vec<u8>)]) -> Option<(u32, u32, Ve
     let rapport = f64::from(largeur) / f64::from(hauteur);
     let mut sortie = vec![0u8; attendu];
 
-    for (lw, lh, couche) in couches {
+    for (rang, (lw, lh, couche)) in couches.iter().enumerate() {
         if *lw == 0 || *lh == 0 || couche.len() < (*lw as usize) * (*lh as usize) * 4 {
             continue;
         }
+        let _ = rang;
         // Un autre rapport = un autre dépliage UV : on ne le plaque pas sur ce visage.
         if (f64::from(*lw) / f64::from(*lh) - rapport).abs() > 0.01 {
             continue;
