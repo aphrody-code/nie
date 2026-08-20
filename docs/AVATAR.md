@@ -546,6 +546,85 @@ n'est appliqué ; l'expérience a été retirée du dépôt.
 
 ---
 
+## 13. Le champ manquant est relevé — le jeu tourne, sa mémoire répond
+
+Les cinq sources de fichiers épuisées (§ précédent) disaient toutes la même chose : `listRowNum`
+est **déclaré** par le chunk Lua et **jamais affecté** par lui. La conclusion restait suspendue à
+une lecture qu'aucun fichier ne pouvait fournir. Elle est faite.
+
+### 13.1 Le jeu tourne sur ce VPS, sans GPU
+
+`scripts/nie-wine-setup.sh` + `scripts/nie-wine-run.sh`. Cinq blocages, chacun mesuré avant d'être
+contourné — le détail vit dans l'en-tête des deux scripts. En résumé :
+
+| Blocage | Symptôme exact | Levée |
+|---|---|---|
+| Wine du système | wine 10.0 n'a ni DXVK ni vkd3d | le Wine du **Proton livré avec le jeu** (wine-11.0), en natif |
+| Préfixe créé par `wineboot` | `Library D3DCOMPILER_47.dll not found` (il dépend de wined3d → libvkd3d) | copie **déréférencée** (`cp -aL`) de `files/share/default_pfx` |
+| `default_pfx` sans `dosdevices` | `could not load kernel32.dll` | `c:` → `drive_c`, `z:` → `/` |
+| Xvfb sans taux de rafraîchissement | `Unhandled division by zero` **dans dxgi**, avant la 1re image (`xrandr` : 0.00 Hz, dotclock 0) | bureau virtuel Wine (`explorer /desktop=`) |
+| Pas de gestionnaire de fenêtres | le jeu cesse de recevoir la souris après quelques secondes | `openbox` sur le display |
+
+Un dernier piège, propre au rendu logiciel : à quelques images par seconde, **tout appui
+instantané est raté**. `xdotool click` ne fait rien ; `mousedown` … `mouseup` séparés d'une à
+trois secondes passent. Idem au clavier.
+
+Écrans traversés et rendus en 1920×1080 sur lavapipe : réglage de langue, *Button Setting*, logo,
+avertissement de sauvegarde, **écran-titre** (`ver.7.1.2 0.90 301`), invite *Create Avatar*, puis
+l'**Avatar Editor** lui-même — onglets *Style*, *Body Type*, *Face & Hairstyle*, panneau
+*Face Presets*, panneau *Hairstyle / Bangs / Hair Color*.
+
+### 13.2 `niers mem lua-field` — du nom de champ à sa valeur
+
+Nouvelle sous-commande (`crates/tools/nie-cli/src/mem_lua.rs`). La chaîne, en trois pas :
+
+1. Lua interne les chaînes courtes. Une `TString` x86-64 est
+   `next(8) | tt(1) marked(1) extra(1) pad(1) hash(4) | len(8) | données…` : chercher `len`
+   suivi du nom et de son NUL identifie l'objet, et `TString* = addr(len) − 16`.
+2. Une entrée de table est un `Node { TValue i_val; TKey i_key; }` de **40 octets**
+   (`TValue` 16 ; `TKey` = `value_(8) tt_(4) pad(4) next(8)` 24). Chercher le pointeur vers la
+   `TString` donne la position de `i_key.value_` ; **la valeur est 16 octets avant**.
+3. `i_key.tt_` doit valoir `LUA_TSTRING`. Le runtime observé marque en plus le bit collectable
+   `0x40` (d'où `0x44`) — d'où le masque `0x3f`.
+
+`--radius` balaie les `Node` voisins du même tableau de hachage : c'est ce qui rend la table
+d'état complète plutôt qu'un champ isolé. `--numeric` écarte le seul bruit notable de la méthode
+(le pointeur d'une chaîne se retrouve aussi en position de clé dans `_LOADED`, les tables de
+globales, les pools de constantes).
+
+### 13.3 Ce que la mémoire dit
+
+```
+niers mem lua-field listRowNum --numeric -r 6
+```
+
+| Écran (repéré par la table voisine) | `listNum` | `listRowNum` | `listLineNum` | `pageNum` |
+|---|---:|---:|---:|---:|
+| `chara_edit_parts_menu` (`LUA_CHARA_EDIT_PARTS_MENU_INC`) | 9 | **3** | **3** | 2 |
+| `chara_edit_menu` (`LUA_CHARA_EDIT_MENU_INC`) | 40 | **2** | **6** | 4 |
+
+Les deux relevés sont **croisés par une source indépendante** : la capture de l'écran *Face
+Presets* montre exactement neuf vignettes numérotées `01`…`09` disposées en **trois colonnes sur
+trois rangées**, ce que la table donne à l'octet près. Pour le second, l'arithmétique se referme
+seule : 40 éléments à 2 × 6 par page ⇒ 4 pages, et `pageNum` vaut 4.
+
+`listRowNum` est donc le **nombre d'éléments par rangée**, `listLineNum` le **nombre de rangées
+visibles**. Ce n'est plus une hypothèse : c'est un relevé, deux fois recoupé.
+
+> Ce qui reste non établi, et ne doit pas être extrapolé : la relation exacte entre `listNum` et
+> le total réel d'une rubrique. Sur `chara_edit_menu` les 40 éléments et les 4 pages se referment ;
+> sur `chara_edit_parts_menu`, `listNum = 9` vaut exactement une page pleine, donc rien ne permet
+> de trancher entre « total » et « éléments par page » à partir de ce seul cas.
+
+### 13.4 Captures de référence
+
+`var/refs-avatar/live/` (hors dépôt — assets © LEVEL-5) : `chara_edit_style_01.png`,
+`chara_edit_body_type.png`, `chara_edit_hair_tab.png`, `chara_edit_face_presets.png`. Contrairement
+aux 18 captures antérieures, celles-ci sont produites ici, à résolution connue, sur un état
+d'écran choisi — c'est ce qui manquait pour adosser une mesure au vrai jeu.
+
+---
+
 ## Régénérer chaque chiffre de ce document
 
 ```bash
@@ -557,4 +636,5 @@ cargo test -p nie-game --test menu_render_gate                             # §1
 ls data/common/gamedata/menu/cfg | grep '^chara_edit' | grep -c '\.cfg\.bin$'   # 42 écrans
 ls var/avatar-ui/layouts | wc -l                                               # 42 layouts
 ls var/refs-avatar | wc -l                                                     # 18 captures
+niers mem lua-field listRowNum --numeric -r 6   # §13 — jeu lancé (scripts/nie-wine-setup.sh)
 ```
