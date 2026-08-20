@@ -136,6 +136,9 @@ décodait tous — alors que `nie-model-serve` sait déjà décoder n'importe qu
 
 - `index` → `{ "<nom>": { atlas, x, y, w, h } }` — **`var/icons-index.json`, 11,8 Mio**
 - `extract --prefix <p>` → PNG dans le dump servi en statique par le CDN
+- `dict` → fusionne `data/re/menu-crc32-dictionary.json` (hachage → nom) et
+  `data/re/menu-region-index.json` (nom → atlas), les deux dictionnaires que le rendu de menu
+  consomme déjà. **215 477 entrées, 0 collision** après balayage de `menu/` puis `font/`.
 
 ### Service — `nie-model-serve` (port 8790)
 
@@ -163,6 +166,12 @@ décodait tous — alors que `nie-model-serve` sait déjà décoder n'importe qu
   Canvas 1280×720, positions issues des **points d'attache** `CMenuAttachLocator`
   (`nie_formats::menu::attach_slots`) — donc **des fichiers du jeu**, pas d'un relevé sur capture.
   `chara_edit_menu` : 18 objets. `chara_edit_parts_menu` : 63 objets.
+- **Rectangles de sprite résolus : 950** (2026-08-20), contre 13 auparavant, et **plus aucun
+  hachage de région non résolu** (937 occurrences réparées). Deux causes, corrigées séparément :
+  le dictionnaire hachage → nom ignorait les noms qui vivent dans les `.g4tx` (`niers icons dict`),
+  et la résolution ne voyait que les sous-textures alors qu'une icône peut être une **texture
+  entière** du conteneur (`g4tx::named_rect`). Sans elles, ces sprites étaient blités en atlas
+  complet — 2640×1364 à la place d'une icône de 56×56.
 - **18 captures de référence** du vrai jeu dans `var/refs-avatar/`, 2560×1440.
 - **491 icônes** extraites dans `var/avatar-icons/`.
 - `var/avatar-ui/png/` est **vide** : aucun écran de l'éditeur n'a encore été composé en image.
