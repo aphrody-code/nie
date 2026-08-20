@@ -15,6 +15,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{bail, Context, Result};
 use image::imageops::FilterType;
 use image::{GenericImageView, ImageReader};
+use nie_formats::imgmetric::{self, Roi, RoiKind, ScoreRegion};
 
 /// Charge une image en devinant le format par le contenu, pas par l'extension.
 fn load(src: &Path) -> Result<image::DynamicImage> {
@@ -140,6 +141,14 @@ pub enum Op {
     Crop { src: PathBuf, out: PathBuf, x: u32, y: u32, w: u32, h: u32 },
     Convert { src: PathBuf, out: PathBuf },
     Composite { base: PathBuf, overlay: PathBuf, out: PathBuf, x: i64, y: i64 },
+    Diff {
+        rendu: PathBuf,
+        reference: PathBuf,
+        roi: Option<PathBuf>,
+        out: Option<PathBuf>,
+        downscale_ref: bool,
+        amplification: u8,
+    },
 }
 
 /// Exécute une opération d'image.
@@ -152,5 +161,148 @@ pub fn run(op: &Op) -> Result<()> {
         Op::Crop { src, out, x, y, w, h } => crop(src, out, *x, *y, *w, *h),
         Op::Convert { src, out } => convert(src, out),
         Op::Composite { base, overlay, out, x, y } => composite(base, overlay, out, *x, *y),
+        Op::Diff { rendu, reference, roi, out, downscale_ref, amplification } => {
+            diff(rendu, reference, roi.as_deref(), out.as_deref(), *downscale_ref, *amplification)
+        }
     }
+}
+
+/// Lit un fichier de régions.
+///
+/// Forme : `[{"nom": "avatar3d", "rect": [x, y, w, h], "kind": "dynamique"}]`. `kind` vaut
+/// `dynamique` (retirée de la mesure) ou `nommee` (mesurée à part, sans sortir du global).
+fn charger_rois(chemin: &Path) -> Result<Vec<Roi>> {
+    #[derive(serde::Deserialize)]
+    struct Entree {
+        nom: String,
+        rect: [u32; 4],
+        #[serde(default)]
+        kind: Option<String>,
+    }
+    let txt = std::fs::read_to_string(chemin)
+        .with_context(|| format!("lecture {}", chemin.display()))?;
+    let brut: Vec<Entree> =
+        serde_json::from_str(&txt).with_context(|| format!("format {}", chemin.display()))?;
+    brut.into_iter()
+        .map(|e| {
+            let kind = match e.kind.as_deref().unwrap_or("nommee") {
+                "dynamique" => RoiKind::Dynamique,
+                "nommee" | "nommée" => RoiKind::Nommee,
+                autre => bail!("kind inconnu « {autre} » (dynamique|nommee) pour « {} »", e.nom),
+            };
+            Ok(Roi { nom: e.nom, rect: (e.rect[0], e.rect[1], e.rect[2], e.rect[3]), kind })
+        })
+        .collect()
+}
+
+/// Une ligne de tableau pour un score.
+fn ligne_score(s: &ScoreRegion) -> String {
+    format!(
+        "  {:<22} {:>10} px   T0 {:>6.2} %   ΔE≤1 {:>6.2} %   ΔE moy {:>6.2}   p99 {:>6.2}   SSIM {:>6.4}",
+        s.nom, s.px, s.exact_pct, s.de1_pct, s.de_moyen, s.de_p99, s.ssim
+    )
+}
+
+/// `niers img diff` — compare un rendu à une capture du vrai jeu.
+///
+/// La sortie est **par région** : un score global mélange toujours une zone juste et une zone
+/// fausse, et ne dit pas laquelle. Les régions marquées `dynamique` (personnage 3D, particules,
+/// curseur) sortent de la mesure, et la part de surface ainsi retirée est imprimée — un score dont
+/// on ignore ce qu'il ne couvre pas ne vaut rien.
+pub fn diff(
+    rendu: &Path,
+    reference: &Path,
+    roi: Option<&Path>,
+    out: Option<&Path>,
+    downscale_ref: bool,
+    amplification: u8,
+) -> Result<()> {
+    let a = load(rendu)?.to_rgba8();
+    let b = load(reference)?.to_rgba8();
+    let (aw, ah) = (a.width(), a.height());
+    let (mut bw, mut bh) = (b.width(), b.height());
+    let mut bpix = b.into_raw();
+
+    if downscale_ref {
+        let (nw, nh, px) = imgmetric::downscale_lineaire_2x(bw, bh, &bpix);
+        bw = nw;
+        bh = nh;
+        bpix = px;
+    }
+    if (aw, ah) != (bw, bh) {
+        let piste = if (bw, bh) == (aw * 2, ah * 2) {
+            " — la référence fait exactement le double : `--downscale-ref` la ramène en lumière \
+             linéaire, mais rendre nativement à sa taille mesure mieux"
+        } else {
+            ""
+        };
+        bail!("dimensions incompatibles : rendu {aw}×{ah}, référence {bw}×{bh}{piste}");
+    }
+
+    let rois = match roi {
+        Some(p) => charger_rois(p)?,
+        None => Vec::new(),
+    };
+    let rapport = imgmetric::comparer(aw, ah, &a, &bpix, &rois);
+
+    println!("{} vs {}  ({aw}×{ah})", rendu.display(), reference.display());
+    println!("{}", ligne_score(&rapport.global));
+    for r in &rapport.regions {
+        println!("{}", ligne_score(r));
+    }
+    println!(
+        "  surface exclue (régions dynamiques) : {:.2} %   ·   rendu opaque sur {:.2} % des pixels mesurés",
+        rapport.surface_exclue_pct, rapport.couverture_opaque_pct
+    );
+    if rapport.couverture_opaque_pct < 99.99 {
+        println!(
+            "  ATTENTION : le rendu laisse voir le canvas — une part du score porte sur du vide, pas sur des pixels."
+        );
+    }
+
+    let Some(dir) = out else { return Ok(()) };
+    std::fs::create_dir_all(dir).with_context(|| format!("création {}", dir.display()))?;
+
+    let json = serde_json::json!({
+        "rendu": rendu.display().to_string(),
+        "reference": reference.display().to_string(),
+        "largeur": aw,
+        "hauteur": ah,
+        "surfaceExcluePct": rapport.surface_exclue_pct,
+        "couvertureOpaquePct": rapport.couverture_opaque_pct,
+        "global": json_score(&rapport.global),
+        "regions": rapport.regions.iter().map(json_score).collect::<Vec<_>>(),
+    });
+    std::fs::write(dir.join("rapport.json"), serde_json::to_vec_pretty(&json)?)?;
+
+    let (hw, hh, heat) = imgmetric::heatmap_rgba(&rapport);
+    ecrire_png(&dir.join("heatmap.png"), hw, hh, &heat)?;
+    let delta = imgmetric::delta_rgba(aw, ah, &a, &bpix, &rois, amplification);
+    ecrire_png(&dir.join("delta.png"), aw, ah, &delta)?;
+    println!("  écrits : {}/rapport.json · heatmap.png · delta.png", dir.display());
+    Ok(())
+}
+
+/// Sérialise un score.
+fn json_score(s: &ScoreRegion) -> serde_json::Value {
+    serde_json::json!({
+        "nom": s.nom,
+        "px": s.px,
+        "exactPct": s.exact_pct,
+        "de1Pct": s.de1_pct,
+        "canal2Pct": s.canal2_pct,
+        "deMoyen": s.de_moyen,
+        "deP99": s.de_p99,
+        "deMax": s.de_max,
+        "ssim": s.ssim,
+    })
+}
+
+/// Écrit un tampon RGBA8 en PNG.
+fn ecrire_png(dst: &Path, w: u32, h: u32, rgba: &[u8]) -> Result<()> {
+    let buf: image::RgbaImage = image::ImageBuffer::from_raw(w, h, rgba.to_vec())
+        .ok_or_else(|| anyhow::anyhow!("tampon RGBA de mauvaise taille pour {w}×{h}"))?;
+    image::DynamicImage::ImageRgba8(buf)
+        .save(dst)
+        .with_context(|| format!("écriture {}", dst.display()))
 }

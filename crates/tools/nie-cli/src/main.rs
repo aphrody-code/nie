@@ -574,6 +574,25 @@ enum ImgOp {
         #[arg(long, default_value_t = 0)]
         y: i64,
     },
+    /// Compare un rendu à une capture de référence : identité, ΔE2000, SSIM par région, carte.
+    Diff {
+        /// Image produite par le dépôt.
+        rendu: PathBuf,
+        /// Capture du vrai jeu.
+        reference: PathBuf,
+        /// Régions : `[{"nom":…, "rect":[x,y,w,h], "kind":"dynamique"|"nommee"}]`.
+        #[arg(long)]
+        roi: Option<PathBuf>,
+        /// Répertoire de sortie (rapport, carte, écart). Sans lui, seul le résumé est imprimé.
+        #[arg(long, short = 'o')]
+        out: Option<PathBuf>,
+        /// Ramène la référence à la moitié de ses dimensions, en lumière linéaire.
+        #[arg(long)]
+        downscale_ref: bool,
+        /// Amplification de l'image d'écart.
+        #[arg(long, default_value_t = 4)]
+        amplification: u8,
+    },
 }
 
 /// Sous-commandes de `niers mem` (RE runtime via nie-trace).
@@ -1764,6 +1783,9 @@ fn run() -> anyhow::Result<()> {
             ImgOp::Convert { src, out } => img_cmd::Op::Convert { src, out },
             ImgOp::Composite { base, overlay, out, x, y } => {
                 img_cmd::Op::Composite { base, overlay, out, x, y }
+            }
+            ImgOp::Diff { rendu, reference, roi, out, downscale_ref, amplification } => {
+                img_cmd::Op::Diff { rendu, reference, roi, out, downscale_ref, amplification }
             }
         }),
         Cmd::Coverage { db } => coverage(&db),
