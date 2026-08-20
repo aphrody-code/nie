@@ -1812,7 +1812,7 @@ type PlancheRgba = (u32, u32, Vec<u8>);
 /// corps déduit du squelette, attache à l'os de tête, composition de la texture de visage… Sans
 /// elle, un GLB produit par l'ancienne logique reste servi indéfiniment et le correctif paraît
 /// sans effet : c'est exactement ce qui est arrivé lors de l'ajout du corps automatique.
-const AVATAR_CACHE_VERSION: u32 = 15;
+const AVATAR_CACHE_VERSION: u32 = 16;
 
 /// Nom de fichier de cache court et stable pour une clé d'assemblage.
 ///
@@ -1854,6 +1854,7 @@ fn get_or_build_avatar_glb(
     specs: &[(String, String)],
     couches_visage: &[String],
     teintes: [nie_formats::image_out::TeinteCanal; 3],
+    morphologie: Option<String>,
 ) -> Result<GlbBytes> {
     // La teinte fait partie de l'identité du rendu : deux couleurs de peau différentes donnent
     // deux GLB différents, et la clé de cache doit le refléter.
@@ -1862,11 +1863,12 @@ fn get_or_build_avatar_glb(
         .map(|t| format!("{:02x}{:02x}{:02x}", t.rgb[0], t.rgb[1], t.rgb[2]))
         .collect::<Vec<_>>()
         .join("");
+    let morpho_cle = morphologie.as_deref().unwrap_or("");
     // Les deux familles sont séparées par un marqueur : sans lui, une pièce `d/n` et une couche
     // de visage `d/n` produisent le même fragment `d-n`, si bien que deux requêtes de sens
     // différent partagent un fichier de cache et que la seconde reçoit le GLB de la première.
     let cle: String = format!(
-        "{}|{}|{teinte_cle}",
+        "{}|{}|{teinte_cle}|{morpho_cle}",
         specs.iter().map(|(d, n)| format!("{d}-{n}")).collect::<Vec<_>>().join("_"),
         couches_visage.iter().map(|c| c.replace('/', "-")).collect::<Vec<_>>().join("_")
     );
@@ -2001,10 +2003,18 @@ fn get_or_build_avatar_glb(
         let mut effectifs: Vec<(String, String)> = specs.to_vec();
         if let Some(sk) = squelette.as_deref().filter(|_| !specs.iter().any(|(d, _)| est_uniforme(d)))
         {
-            if let Some(corps) = nie_formats::assemble::avatar_bodies_for_skeleton(sk).first() {
+            // La morphologie, si elle est donnée, désigne le corps exact ; sinon on retombe sur
+            // le premier corps du squelette, qui a au moins la bonne stature.
+            let choisi = morphologie
+                .as_deref()
+                .and_then(nie_formats::assemble::avatar_body_for_morphology)
+                .or_else(|| {
+                    nie_formats::assemble::avatar_bodies_for_skeleton(sk).first().copied()
+                });
+            if let Some(corps) = choisi {
                 effectifs.push((
                     nie_formats::assemble::AVATAR_BODY_DIR.to_string(),
-                    (*corps).to_string(),
+                    corps.to_string(),
                 ));
                 effectifs.push((
                     nie_formats::assemble::AVATAR_SHOES_DIR.to_string(),
@@ -3585,7 +3595,15 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             .take(MAX_COUCHES_VISAGE)
             .map(str::to_string)
             .collect();
-        match get_or_build_avatar_glb(&state, &specs, &couches_visage, couleurs_teinte(query)) {
+        let morphologie = param(query, "morpho")
+            .filter(|m| m.len() <= 20 && m.chars().all(|c| c.is_ascii_alphabetic()));
+        match get_or_build_avatar_glb(
+            &state,
+            &specs,
+            &couches_visage,
+            couleurs_teinte(query),
+            morphologie,
+        ) {
             Ok(glb) => respond(&mut stream, 200, "OK", "model/gltf-binary", &glb),
             Err(e) => {
                 debug!("assemblage avatar échoué : {e}");
