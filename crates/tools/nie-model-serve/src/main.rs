@@ -1774,6 +1774,12 @@ const AVATAR_TEX_MAX: u32 = 1024;
 ///
 /// Les dossiers de l'éditeur commencent tous par un souligné (`_facebase`, `_hairF`, `_base`…),
 /// ceux d'uniforme sont des identifiants (`u000101`, `s000201`).
+/// Nombre maximum de couches de visage acceptées dans un seul `?face=`.
+///
+/// Le visage n'a que six familles (`00_face`…`05_mouth`) et chacune est latéralisée au plus en
+/// deux planches : au-delà, la requête ne décrit plus un visage.
+const MAX_COUCHES_VISAGE: usize = 12;
+
 /// Une planche décodée : largeur, hauteur, pixels RGBA.
 type PlancheRgba = (u32, u32, Vec<u8>);
 
@@ -1783,7 +1789,7 @@ type PlancheRgba = (u32, u32, Vec<u8>);
 /// corps déduit du squelette, attache à l'os de tête, composition de la texture de visage… Sans
 /// elle, un GLB produit par l'ancienne logique reste servi indéfiniment et le correctif paraît
 /// sans effet : c'est exactement ce qui est arrivé lors de l'ajout du corps automatique.
-const AVATAR_CACHE_VERSION: u32 = 5;
+const AVATAR_CACHE_VERSION: u32 = 8;
 
 /// Nom de fichier de cache court et stable pour une clé d'assemblage.
 ///
@@ -1793,8 +1799,19 @@ fn cle_courte(cle: &str) -> String {
     format!("{:08x}_{}", nie_formats::cfgbin::crc32(cle.as_bytes()), cle.len())
 }
 
+/// Vrai si ce dossier de pièce **ressemble à** un identifiant d'uniforme.
+///
+/// Ne sert qu'à décider si l'appelant a déjà fourni son propre corps, auquel cas on ne lui en
+/// ajoute pas. La résolution des pièces, elle, n'utilise PAS cette règle : elle essaie les deux
+/// racines, parce que « pas de souligné initial » classait à tort les 124 dossiers de `20_EDIT`
+/// qui portent un code de personnage (`c0001010`…).
+///
+/// La forme d'un identifiant d'uniforme est une ou deux lettres suivies de six chiffres :
+/// `u000101` (haut), `s000201` (chaussures).
 fn est_uniforme(dossier: &str) -> bool {
-    !dossier.starts_with('_')
+    let chiffres = dossier.trim_start_matches(|c: char| c.is_ascii_alphabetic());
+    let lettres = dossier.len() - chiffres.len();
+    (1..=2).contains(&lettres) && chiffres.len() == 6 && chiffres.bytes().all(|b| b.is_ascii_digit())
 }
 
 /// Assemble l'avatar de l'éditeur depuis ses pièces, textures comprises, et le met en cache.
@@ -1814,12 +1831,14 @@ fn get_or_build_avatar_glb(
     specs: &[(String, String)],
     couches_visage: &[String],
 ) -> Result<GlbBytes> {
-    let cle: String = specs
-        .iter()
-        .map(|(d, n)| format!("{d}-{n}"))
-        .chain(couches_visage.iter().map(|c| c.replace('/', "-")))
-        .collect::<Vec<_>>()
-        .join("_");
+    // Les deux familles sont séparées par un marqueur : sans lui, une pièce `d/n` et une couche
+    // de visage `d/n` produisent le même fragment `d-n`, si bien que deux requêtes de sens
+    // différent partagent un fichier de cache et que la seconde reçoit le GLB de la première.
+    let cle: String = format!(
+        "{}|{}",
+        specs.iter().map(|(d, n)| format!("{d}-{n}")).collect::<Vec<_>>().join("_"),
+        couches_visage.iter().map(|c| c.replace('/', "-")).collect::<Vec<_>>().join("_")
+    );
     let cache_path = state
         .cache_dir
         .join(format!("avatar_v{AVATAR_CACHE_VERSION}_{}.glb", cle_courte(&cle)));
@@ -1859,30 +1878,45 @@ fn get_or_build_avatar_glb(
         // une planche de `_facetex/` partageant le même dépliage UV, et l'avatar porte leur
         // empilement. C'est ce qui fait réagir le modèle aux choix : la maille de tête, elle, ne
         // dépend que de la morphologie et du nez.
-        // Les planches de visage ne partagent PAS toutes le même dépliage : la peau, les pupilles
-        // et les reflets sont en 512×512, les yeux, les sourcils et la bouche en 2048×1024. Les
-        // ramener de force à une seule toile revenait à en jeter la moitié — dont les pupilles,
-        // la seule planche à porter un dessin. On compose donc UN visage PAR DÉPLIAGE, et chaque
-        // matériau de la tête en reçoit un : le modèle en déclare précisément deux ou trois.
-        let mut groupes: std::collections::BTreeMap<(u32, u32), Vec<PlancheRgba>> =
+        // Chaque matériau de la tête a SA planche : il n'existe pas de texture unique du visage.
+        // Les familles se répartissent par rôle — la peau sur la maille du visage, l'œil et ce qui
+        // s'y pose sur la maille des yeux, la bouche sur la sienne — parce que leurs dépliages
+        // sont disjoints (mesuré sur `face51_nose01`). Les composer toutes ensemble faisait
+        // écraser les yeux et les sourcils par la bouche, opaque sur toute sa planche.
+        let mut par_slot: std::collections::BTreeMap<usize, Vec<PlancheRgba>> =
             std::collections::BTreeMap::new();
         for rel in couches_visage {
+            let Some(slot) = nie_formats::assemble::face_layer_slot(rel) else {
+                warn!("famille de visage inconnue, ignorée : {rel}");
+                continue;
+            };
             let chemin =
                 format!("{}/_facetex/{rel}.g4tx", nie_formats::assemble::AVATAR_TEX_ROOT);
             let Ok(brut) = vfs.read(&chemin) else {
                 warn!("couche de visage illisible, ignorée : {chemin}");
                 continue;
             };
-            for planche in nie_formats::image_out::decoder_planches(&brut) {
-                groupes.entry((planche.0, planche.1)).or_default().push(planche);
+            let planches = nie_formats::image_out::decoder_planches(&brut);
+            let entree = par_slot.entry(slot).or_default();
+            for planche in planches {
+                // Une planche opaque posée sur une autre efface tout ce qui précède. C'est la
+                // raison pour laquelle plusieurs familles restaient sans effet ; qu'on le voie.
+                if !entree.is_empty()
+                    && nie_formats::image_out::couche_totalement_opaque(&planche.2)
+                {
+                    warn!(
+                        "visage, matériau {slot} : la planche de {rel} est opaque partout et \
+                         masque les {} déjà posée(s)",
+                        entree.len()
+                    );
+                }
+                entree.push(planche);
             }
         }
-        // Du plus grand dépliage au plus petit : le premier matériau reçoit le plus détaillé.
-        let visages_composes: Vec<Vec<u8>> = groupes
+        // Un PNG par rang de matériau, dans l'ordre des rangs.
+        let visages_composes: Vec<(usize, Vec<u8>)> = par_slot
             .into_iter()
-            .rev()
-            .filter_map(|((w, h), couches)| {
-                let n = couches.len();
+            .filter_map(|(slot, couches)| {
                 let png = nie_formats::image_out::composer_couches(&couches).and_then(
                     |(cw, ch, rgba)| {
                         let (rw, rh, petit) =
@@ -1896,16 +1930,13 @@ fn get_or_build_avatar_glb(
                         )
                         .ok()
                     },
-                );
-                if png.is_none() {
-                    warn!("dépliage {w}x{h} : {n} planche(s) non composables");
-                }
-                png
+                )?;
+                Some((slot, png))
             })
             .collect();
         if !couches_visage.is_empty() {
             debug!(
-                "visage : {} couche(s) demandée(s) -> {} dépliage(s) composé(s)",
+                "visage : {} couche(s) -> {} matériau(x) habillé(s)",
                 couches_visage.len(),
                 visages_composes.len()
             );
@@ -1936,18 +1967,23 @@ fn get_or_build_avatar_glb(
             if dossier == "_bodySK" {
                 continue;
             }
-            let uniforme = est_uniforme(dossier);
-            let base = if uniforme {
-                format!("data/common/chr/_uniform/{dossier}/{nom}")
-            } else {
-                format!("data/common/chr/_face/20_EDIT/{dossier}/{nom}")
-            };
-            let (Ok(g4md), Ok(g4mg)) =
-                (vfs.read(&format!("{base}.g4md")), vfs.read(&format!("{base}.g4mg")))
-            else {
-                debug!("pièce d'avatar illisible : {base}");
+            // Les deux racines sont ESSAYÉES, pas devinées. Classer sur « le dossier commence par
+            // un souligné » était faux : 124 dossiers de `20_EDIT` n'en ont pas (les codes de
+            // personnage `c0001010`…), si bien que la pièce était cherchée dans `_uniform/`,
+            // échouait en silence — et faisait au passage sauter le corps automatique.
+            let racines = [
+                format!("data/common/chr/_face/20_EDIT/{dossier}/{nom}"),
+                format!("data/common/chr/_uniform/{dossier}/{nom}"),
+            ];
+            let Some((base, g4md, g4mg)) = racines.iter().find_map(|b| {
+                let md = vfs.read(&format!("{b}.g4md")).ok()?;
+                let mg = vfs.read(&format!("{b}.g4mg")).ok()?;
+                Some((b.clone(), md, mg))
+            }) else {
+                debug!("pièce d'avatar illisible sous les deux racines : {dossier}/{nom}");
                 continue;
             };
+            let uniforme = base.contains("/_uniform/");
 
             let candidats = if uniforme {
                 let tenue =
@@ -1994,10 +2030,16 @@ fn get_or_build_avatar_glb(
                     // compositions sont disponibles, ce sont elles qui habillent le visage. Le
                     // n-ième matériau reçoit le n-ième dépliage ; s'il y a moins de compositions
                     // que de matériaux, la dernière sert aux suivants.
+                    // Le n-ième matériau reçoit la planche de son rang ; à défaut, la dernière
+                    // disponible, pour qu'un modèle à deux matériaux garde une bouche.
                     let png = if dossier == "_facebase" && !visages_composes.is_empty() {
-                        let i = idx_materiau_visage.min(visages_composes.len() - 1);
+                        let rang = idx_materiau_visage;
                         idx_materiau_visage += 1;
-                        Some(visages_composes[i].clone())
+                        let choisie = visages_composes
+                            .iter()
+                            .find(|(slot, _)| *slot == rang)
+                            .or_else(|| visages_composes.last());
+                        choisie.map(|(_, p)| p.clone()).or(png)
                     } else {
                         png
                     };
@@ -3476,6 +3518,9 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             respond_text(&mut stream, 404, "Not Found", "aucune pièce lisible");
             return;
         }
+        // Bornée : chaque couche décode une planche pouvant aller jusqu'à 2048×1024 en RGBA, soit
+        // 8 Mio gardés en mémoire le temps de la composition. Sans borne, un seul GET portant des
+        // centaines de couches suffit à mettre le service à genoux. Le visage n'a que six familles.
         let couches_visage: Vec<String> = param(query, "face")
             .unwrap_or_default()
             .split(',')
@@ -3484,6 +3529,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                     && c.len() <= 40
                     && c.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '/')
             })
+            .take(MAX_COUCHES_VISAGE)
             .map(str::to_string)
             .collect();
         match get_or_build_avatar_glb(&state, &specs, &couches_visage) {

@@ -904,12 +904,27 @@ fn extract_primitives_from_g4md_g4mg(
     let md = g4md::parse(g4md_data)?;
     let submeshes = g4mg::extract_geometry(g4mg_data, &md);
 
+    // Les modèles de `20_EDIT` déclarent `material_index = 0` sur TOUTES leurs sous-mailles alors
+    // qu'ils portent plusieurs matériaux : `face51_nose01` a 3 sous-mailles, 3 matériaux, et trois
+    // fois `mat=0`. Le lien est alors POSITIONNEL — la n-ième sous-maille prend le n-ième
+    // matériau, ce que confirment les noms (`base_eye_10` sur la maille du visage à 1501 sommets,
+    // `parts_eye_10` sur celle des yeux à 438, `parts_mouth_10` sur la bouche à 214).
+    //
+    // La règle ne vaut QUE si les deux comptes coïncident : un uniforme a 8 sous-mailles pour
+    // 2 matériaux, et là c'est bien `material_index` qui tranche.
+    let positionnel = md.material_base_names.len() == submeshes.len()
+        && submeshes.iter().all(|sg| sg.material_index == 0)
+        && md.material_base_names.len() > 1;
+
     let out = submeshes
         .into_iter()
-        .map(|sg| {
-            let mat_name = g4mg::material_base_name(&md, &sg)
-                .cloned()
-                .unwrap_or_default();
+        .enumerate()
+        .map(|(rang, sg)| {
+            let mat_name = if positionnel {
+                md.material_base_names.get(rang).cloned().unwrap_or_default()
+            } else {
+                g4mg::material_base_name(&md, &sg).cloned().unwrap_or_default()
+            };
             MeshPrimitive {
                 component,
                 source_index: sg.index,
@@ -1033,6 +1048,46 @@ pub struct AvatarPiece {
     /// (y ∈ [0 ; 1,30]). Empiler les deux sans transformation pose la tête sur les chaussures.
     /// Cette matrice est la pose de repos de l'os d'attache — cf. [`bone_rest_world`].
     pub attach: Option<[[f32; 4]; 4]>,
+}
+
+/// À quel matériau de la tête revient une famille de planches de visage.
+///
+/// Un modèle de tête déclare deux ou trois matériaux, et **chacun a sa propre planche** — il n'y
+/// a pas de texture unique du visage. Mesuré sur `face51_nose01`, dont les trois sous-mailles ont
+/// des dépliages disjoints : le visage (matériau 0, `base_eye_10`, 1501 sommets) couvre tout le
+/// carré UV, les yeux (matériau 1, `parts_eye_10`, 438 sommets) n'occupent qu'un coin, la bouche
+/// (matériau 2, `parts_mouth_10`, 214 sommets) la zone juste en dessous.
+///
+/// Les familles se répartissent donc par rôle, et non par dépliage : composer les cinq familles
+/// de traits ensemble faisait écraser les yeux et les sourcils par la bouche, opaque sur toute sa
+/// planche.
+///
+/// La répartition suit le **dépliage**, qui est ce qui se mesure :
+///
+/// | famille | dépliage | rang de matériau |
+/// |---|---|---|
+/// | `00_face`, `02_pupil`, `03_highlight` | 512×512, carré | 0 — la maille du visage, dont les UV couvrent tout le carré |
+/// | `01_eye` | 2048×1024 | 1 — la maille des yeux |
+/// | `04_eyebrow`, `05_mouth` | 2048×1024 | 2 — la maille de la bouche |
+///
+/// La pupille et les reflets partagent le dépliage carré de la peau, et non celui des yeux : ils
+/// se composent donc SUR la peau, ce que confirme leur canal alpha — `pupil_L_00` est la seule
+/// planche du visage à en porter un vrai, précisément pour se poser sur ce qu'il y a dessous.
+///
+/// Reste un cas non résolu : `04_eyebrow` partage le dépliage de `05_mouth`, opaque sur toute sa
+/// planche, qui l'écrase donc en composition. Et la planche de sourcil est elle-même entièrement
+/// transparente. Le sourcil n'atteint pas encore le modèle ; la règle qui l'y porte n'est pas
+/// établie.
+///
+/// Rend `None` si la famille n'est pas reconnue.
+#[must_use]
+pub fn face_layer_slot(famille: &str) -> Option<usize> {
+    match famille.split('/').next().unwrap_or(famille) {
+        "00_face" | "02_pupil" | "03_highlight" => Some(0),
+        "01_eye" => Some(1),
+        "04_eyebrow" | "05_mouth" => Some(2),
+        _ => None,
+    }
 }
 
 /// Le corps habillé qui va avec un squelette d'édition, et les chaussures assorties.
