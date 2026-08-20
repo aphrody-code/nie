@@ -311,9 +311,24 @@ géométrie dit autre chose : le quad d'un objet de menu porte les sommets
 pas un carré centré. C'est vérifié de longue date par le gate lui-même
 (`bg_mesh_geometry_decodes`), sans que la conséquence en ait été tirée.
 
-Ce qui reste ouvert n'est donc plus « l'ancre est-elle lisible ? » — elle l'est — mais comment elle
-se compose avec la pose d'os : l'appliquer telle quelle décalerait chaque objet d'une demi-taille,
-ce que les captures ne montrent pas. La question est déplacée d'un cran, pas résolue.
+Restait à savoir comment elle se compose avec la pose d'os. **Tranché par la mesure** (2026-08-20),
+en composant `chara_edit_menu` sous quatre hypothèses d'ancre et en le comparant à sa capture :
+
+| ancre | T0 | ΔE moyen | SSIM |
+|---|---:|---:|---:|
+| **0,5 / 0,5** (le codage actuel) | 0,56 % | **36,88** | 0,2295 |
+| 0 / 0 — coin haut-gauche, ce que dit le quad | 0,21 % | 69,75 | 0,0383 |
+| 0 / 1 — coin bas-gauche | 0,68 % | 65,56 | 0,0868 |
+| 0,5 / 1 | 1,74 % | 39,89 | 0,2302 |
+
+Les deux hypothèses que la géométrie du quad suggère **dégradent nettement** (ΔE 66 à 70 contre 37).
+La conclusion est donc l'inverse de l'intuition : le 0,5/0,5 n'est pas une approximation qu'on
+traînerait faute de mieux — **la pose d'os porte déjà le centrage**, et le quad unitaire n'est pas
+l'ancre de composition. La question est fermée.
+
+(`0,5/1` triple le T0 tout en dégradant le ΔE : un compromis ambigu, et surtout un réglage qu'aucun
+fichier ne dicte. Le retenir serait caler le rendu sur la capture — la béquille que ce document
+proscrit ailleurs.)
 
 ## 11. La mesure pixel-perfect — état du backbone
 
