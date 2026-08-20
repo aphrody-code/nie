@@ -501,6 +501,13 @@ const ARG_GUARDED_RETURN1: &[u32] = &[
     // du rapport d'erreur `0x1405E7DB0` est une sortie d'échec, pas une décision métier :
     0xFDA3_6F2F, // h 0x140CFF2D0 — un SEUL ret, précédé du rapport d'erreur ; renvoie 1 sinon
     0xCA2E_6A00, // h 0x140CDA9F0 — 3 rets, les deux à 0 précédés du rapport d'erreur
+    0x23AD_77AE, // h 0x140CD8600 — 3 rets, TOUS précédés du rapport d'erreur
+    0xD8EE_0E5B, // h 0x140CD6250 — 4 rets, tous précédés du rapport d'erreur
+    // Un seul `ret`, et aucune définition `al = 0` nulle part : renvoie 1 sur tout chemin. Le
+    // triage le rangeait en `HAS_FLOAT_ARG` par prudence — il écrit un champ flottant que
+    // `MenuObjectState` ne modélise pas, comme nombre de setters déjà portés ici. Le RETOUR, lui,
+    // est ce sur quoi le script branche, et il est certain.
+    0x940E_E4C3, // h 0x140D06870 (zero=none)
 ];
 
 /// Nom lisible d'un `cmdId` `funcLuaMenuCommand` reversé, ou `None` si non encore identifié.
@@ -1494,9 +1501,9 @@ mod dispatch_tests {
             let ret: f64 = menu_cmd(&lua).call::<f64>((f64::from(cid), 1.0)).unwrap();
             assert_eq!(ret, 1.0, "cmdId 0x{cid:08X} : handler renvoie AL=1");
         }
-        // 209 + les 3 du 7ᵉ lot (éditeur d'avatar). Le compte est verrouillé exprès : un ajout
+        // 209 + les 6 du 7ᵉ lot (éditeur d'avatar). Le compte est verrouillé exprès : un ajout
         // doit être un geste délibéré, justifié au-dessus de l'entrée, jamais un effet de bord.
-        assert_eq!(ARG_GUARDED_RETURN1.len(), 212);
+        assert_eq!(ARG_GUARDED_RETURN1.len(), 215);
     }
 
     /// `RegisterItemListCount` (cmdId `0x16C1C4C0`) — handler `0x140CD8E30` REVERSÉ : enregistre
