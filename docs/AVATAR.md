@@ -239,7 +239,22 @@ layout sont des *gabarits* ; le jeu les réplique une fois par item, à des posi
 `CMenuAttachLocator` portent déjà. Tant que cette réplication n'a pas lieu, un gabarit reste un
 objet unique, masqué, et ses 916 rectangles résolus n'ont rien à peindre.
 
-C'est la prochaine marche, et elle est dans les fichiers — pas dans un état de jeu manquant.
+Précision obtenue en la gravissant : les exemplaires **existent bien** dans le layout (51, 32, 16 —
+issus des slots d'attache), mais ils partageaient un unique état, indexé par `crc32(nom)`. Masquer
+le troisième les masquait tous, ce que les comptes montraient en bloc. La visibilité est désormais
+retenue **par index** quand une commande en nomme un (2ᵉ argument de `SetObjectVisible` /
+`SetPartVisible`, jusque-là ignoré) : `chara_edit_parts_menu` passe de 10 à 11 objets visibles,
+`..._hair_list` de 10 à 11.
+
+Le gain s'arrête là, et la mesure dit pourquoi : sur `chara_edit_parts_menu`, **6 objets seulement**
+reçoivent une visibilité nommée, sur **2 index distincts** ; sur `chara_edit_recipe_menu`, un objet
+et un index. Les scripts ne distinguent donc pas les 51 exemplaires par cet argument — il désigne
+autre chose (un sous-nœud de l'objet), et les exemplaires ne sont pas commandés un par un.
+
+Ce qui reste à établir est donc **combien d'items une liste affiche**, ce que les scripts ne disent
+pas ici et que le catalogue, lui, sait : le nombre de parts par catégorie est déjà porté. C'est une
+donnée de fichier, pas une valeur à relever sur une capture — mais c'est une marche de plus, et elle
+n'est pas franchie.
 
 ## 7. Vérifications
 
