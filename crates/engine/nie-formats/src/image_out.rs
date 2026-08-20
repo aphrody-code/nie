@@ -216,6 +216,97 @@ pub fn g4tx_vers(g4tx: &[u8], basename: &str, format: ImageOut) -> Result<Vec<u8
     encoder_rgba(&rgba, w, h, format)
 }
 
+/// Redimensionne une image RGBA vers une taille donnée, au plus proche voisin.
+///
+/// Sert à ramener les couches d'un visage à la toile commune. Le plus proche voisin suffit ici :
+/// les planches partagent le dépliage, l'écart de définition n'est qu'un facteur entier ou proche.
+#[cfg(feature = "textures")]
+fn redimensionner_rgba(rgba: &[u8], w: u32, h: u32, vers_w: u32, vers_h: u32) -> Option<Vec<u8>> {
+    if w == 0 || h == 0 || vers_w == 0 || vers_h == 0 {
+        return None;
+    }
+    if rgba.len() < (w as usize) * (h as usize) * 4 {
+        return None;
+    }
+    let mut out = vec![0u8; (vers_w as usize) * (vers_h as usize) * 4];
+    for y in 0..vers_h {
+        let sy = (u64::from(y) * u64::from(h) / u64::from(vers_h)).min(u64::from(h) - 1) as usize;
+        for x in 0..vers_w {
+            let sx =
+                (u64::from(x) * u64::from(w) / u64::from(vers_w)).min(u64::from(w) - 1) as usize;
+            let src = (sy * w as usize + sx) * 4;
+            let dst = (y as usize * vers_w as usize + x as usize) * 4;
+            out[dst..dst + 4].copy_from_slice(&rgba[src..src + 4]);
+        }
+    }
+    Some(out)
+}
+
+/// Compose des couches RGBA par-dessus la première, en mélange alpha classique.
+///
+/// C'est ainsi que le visage d'un avatar se fabrique : le jeu ne stocke pas une texture par
+/// combinaison, il empile des planches qui partagent le même dépliage UV — la peau
+/// (`_facetex/00_face/face_NN`), puis les yeux, les pupilles, les reflets, les sourcils et la
+/// bouche. Chaque rubrique de l'éditeur choisit **une** planche de sa famille ; le résultat est
+/// cette composition, et c'est elle qui change quand le joueur change de choix.
+///
+/// La taille retenue est celle de la **plus grande** couche, et non celle de la première : dans
+/// `_facetex`, la planche de peau (`00_face/face_NN`) fait 512×512 alors que les traits
+/// (`01_eye`, `05_mouth`…) font 2048×1024. Se caler sur la première jetait silencieusement tout
+/// le reste.
+///
+/// Seules les couches de **même rapport largeur/hauteur** sont composées : un rapport différent
+/// est un autre dépliage UV, et les superposer placerait les traits n'importe où sur le visage.
+/// Une couche au bon rapport mais plus petite est agrandie, une couche d'un autre rapport est
+/// ignorée. Rend `None` si la liste est vide ou si aucune couche n'est exploitable.
+#[cfg(feature = "textures")]
+#[must_use]
+pub fn composer_couches(couches: &[(u32, u32, Vec<u8>)]) -> Option<(u32, u32, Vec<u8>)> {
+    // La plus grande couche donne la toile ; son rapport donne le dépliage de référence.
+    let (largeur, hauteur, _) = *couches
+        .iter()
+        .filter(|(w, h, d)| *w > 0 && *h > 0 && d.len() >= (*w as usize) * (*h as usize) * 4)
+        .max_by_key(|(w, h, _)| u64::from(*w) * u64::from(*h))?;
+    let attendu = largeur as usize * hauteur as usize * 4;
+    let rapport = f64::from(largeur) / f64::from(hauteur);
+    let mut sortie = vec![0u8; attendu];
+
+    for (lw, lh, couche) in couches {
+        if *lw == 0 || *lh == 0 || couche.len() < (*lw as usize) * (*lh as usize) * 4 {
+            continue;
+        }
+        // Un autre rapport = un autre dépliage UV : on ne le plaque pas sur ce visage.
+        if (f64::from(*lw) / f64::from(*lh) - rapport).abs() > 0.01 {
+            continue;
+        }
+        let ajustee = if (*lw, *lh) == (largeur, hauteur) {
+            couche.clone()
+        } else {
+            match redimensionner_rgba(couche, *lw, *lh, largeur, hauteur) {
+                Some(r) => r,
+                None => continue,
+            }
+        };
+        if ajustee.len() < attendu {
+            continue;
+        }
+        for i in (0..attendu).step_by(4) {
+            let a = f32::from(ajustee[i + 3]) / 255.0;
+            if a <= 0.0 {
+                continue;
+            }
+            for c in 0..3 {
+                let dessus = f32::from(ajustee[i + c]);
+                let dessous = f32::from(sortie[i + c]);
+                sortie[i + c] = (dessus * a + dessous * (1.0 - a)).round().clamp(0.0, 255.0) as u8;
+            }
+            let a_dessous = f32::from(sortie[i + 3]) / 255.0;
+            sortie[i + 3] = ((a + a_dessous * (1.0 - a)) * 255.0).round().clamp(0.0, 255.0) as u8;
+        }
+    }
+    Some((largeur, hauteur, sortie))
+}
+
 /// Réduit une image RGBA8 pour que son plus grand côté n'excède pas `max_cote`, par **moyenne de
 /// boîte** (chaque pixel de sortie est la moyenne des pixels source qu'il recouvre).
 ///
@@ -353,6 +444,74 @@ pub fn g4tx_vignette_nommee(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Une couche RGBA unie de 2×2.
+    #[cfg(feature = "textures")]
+    fn couche(r: u8, v: u8, b: u8, a: u8) -> (u32, u32, Vec<u8>) {
+        (2, 2, [r, v, b, a].repeat(4))
+    }
+
+    #[cfg(feature = "textures")]
+    #[test]
+    fn une_couche_opaque_recouvre_le_fond() {
+        let out = composer_couches(&[couche(255, 0, 0, 255), couche(0, 0, 255, 255)]).unwrap();
+        assert_eq!(&out.2[..4], &[0, 0, 255, 255]);
+    }
+
+    #[cfg(feature = "textures")]
+    #[test]
+    fn une_couche_transparente_laisse_le_fond_intact() {
+        let out = composer_couches(&[couche(255, 0, 0, 255), couche(0, 0, 255, 0)]).unwrap();
+        assert_eq!(&out.2[..4], &[255, 0, 0, 255]);
+    }
+
+    #[cfg(feature = "textures")]
+    #[test]
+    fn une_couche_a_moitie_transparente_melange_les_deux() {
+        // 128/255 ≈ 0,502 : le résultat doit tomber entre les deux couleurs, pas sur l'une d'elles.
+        let out = composer_couches(&[couche(0, 0, 0, 255), couche(255, 255, 255, 128)]).unwrap();
+        assert!((126..=129).contains(&out.2[0]), "obtenu {}", out.2[0]);
+    }
+
+    /// Une couche RGBA unie de dimensions données.
+    #[cfg(feature = "textures")]
+    fn couche_wh(w: u32, h: u32, r: u8, v: u8, b: u8, a: u8) -> (u32, u32, Vec<u8>) {
+        (w, h, [r, v, b, a].repeat((w * h) as usize))
+    }
+
+    #[cfg(feature = "textures")]
+    #[test]
+    fn la_toile_prend_la_taille_de_la_plus_grande_couche() {
+        // Le cas réel : la peau fait 512×512, les traits 2048×1024. Se caler sur la PREMIÈRE
+        // couche jetait silencieusement toutes les autres — c'était le défaut.
+        let out = composer_couches(&[
+            couche_wh(4, 2, 255, 0, 0, 255),
+            couche_wh(8, 4, 0, 255, 0, 255),
+        ])
+        .unwrap();
+        assert_eq!((out.0, out.1), (8, 4));
+        assert_eq!(&out.2[..4], &[0, 255, 0, 255]);
+    }
+
+    #[cfg(feature = "textures")]
+    #[test]
+    fn une_couche_d_un_autre_rapport_est_ecartee() {
+        // Un rapport différent est un autre dépliage UV : la plaquer placerait les traits
+        // n'importe où sur le visage.
+        let out = composer_couches(&[
+            couche_wh(8, 4, 255, 0, 0, 255),
+            couche_wh(4, 4, 0, 255, 0, 255),
+        ])
+        .unwrap();
+        assert_eq!((out.0, out.1), (8, 4));
+        assert_eq!(&out.2[..4], &[255, 0, 0, 255], "la couche carrée ne doit pas être composée");
+    }
+
+    #[cfg(feature = "textures")]
+    #[test]
+    fn sans_couche_il_n_y_a_rien_a_composer() {
+        assert!(composer_couches(&[]).is_none());
+    }
 
     /// Damier RGBA 4×4 avec de l'alpha, pour exercer les chemins avec et sans canal alpha.
     fn damier() -> (u32, u32, Vec<u8>) {

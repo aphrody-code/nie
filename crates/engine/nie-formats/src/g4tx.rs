@@ -300,6 +300,37 @@ impl G4tx {
     }
 }
 
+/// Suffixes des textures **techniques** d'un conteneur : elles accompagnent la couleur de base
+/// sans jamais la remplacer.
+///
+/// `line` est un trait de contour 8×8, `msk` un masque de teinte, `oc` une occlusion, `sp`/`spm`
+/// des cartes spéculaires. Une sélection « la plus grande non vide » les choisit à tort : sur
+/// `hairF001M.g4tx`, `hair_10spm` fait 256×128 contre 64×32 pour la couleur de base `hair_10`.
+const SUFFIXES_TECHNIQUES: [&str; 5] = ["line", "msk", "oc", "spm", "sp"];
+
+/// Nom de la texture **couleur de base** d'un conteneur G4TX, s'il en porte une.
+///
+/// Rend la plus grande texture dont le nom ne finit par aucun suffixe technique. Les conteneurs
+/// de l'éditeur d'avatar ne nomment pas leur couleur de base d'après le matériau qui la
+/// consomme — `hairF001M.g4tx` porte `hair_10` alors que le matériau du G4MD s'appelle
+/// `hairF_10` — donc la résolution par nom de matériau échoue et il faut choisir dans le
+/// conteneur.
+#[must_use]
+pub fn base_color_texture_name(data: &[u8]) -> Option<alloc::string::String> {
+    let conteneur = parse(data).ok()?;
+    conteneur
+        .textures
+        .iter()
+        .filter(|t| {
+            !t.name.is_empty()
+                && !SUFFIXES_TECHNIQUES.iter().any(|s| t.name.ends_with(s))
+                && t.width > 0
+                && t.height > 0
+        })
+        .max_by_key(|t| (t.width as i64) * (t.height as i64))
+        .map(|t| t.name.clone())
+}
+
 /// Parse un conteneur G4TX.
 ///
 /// Le payload de chaque texture n'a PAS besoin d'être présent dans `data` : si le slice
