@@ -289,8 +289,9 @@ pub struct TeinteCanal {
 /// C'est ce qui explique que les planches paraissent « opaques » et que les composer en alpha ne
 /// donnait rien : leur canal alpha n'a jamais été le véhicule de l'information.
 ///
-/// La contribution de chaque canal est pondérée par sa valeur dans la planche, et les
-/// contributions s'additionnent en saturant à 255.
+/// Le canal dominant sélectionne la teinte ; il n'y a pas d'addition. `est_fond` distingue la
+/// planche de base des planches posées par-dessus : sur ces dernières, une zone de canal rouge
+/// — le fond, la carnation — devient transparente au lieu d'effacer ce qui est en dessous.
 #[cfg(feature = "textures")]
 #[must_use]
 pub fn teinter_par_canaux(
@@ -298,6 +299,7 @@ pub fn teinter_par_canaux(
     hauteur: u32,
     planche: &[u8],
     teintes: [TeinteCanal; 3],
+    est_fond: bool,
 ) -> Option<Vec<u8>> {
     let attendu = largeur as usize * hauteur as usize * 4;
     if attendu == 0 || planche.len() < attendu {
@@ -305,8 +307,14 @@ pub fn teinter_par_canaux(
     }
     let mut sortie = vec![0u8; attendu];
     for i in (0..attendu).step_by(4) {
-        let mut acc = [0u32; 3];
-        let mut couverture = 0u32;
+        // Le canal DOMINANT désigne la zone, et c'est sa couleur qui s'applique — un masque
+        // sélectionne, il n'additionne pas. Additionner saturait systématiquement : la teinte par
+        // défaut du canal bleu est blanche, et blanc + n'importe quoi = blanc.
+        //
+        // À égalité, l'ordre rouge > vert > bleu tranche. C'est le cas d'une planche neutre comme
+        // `face_00`, blanche partout (R = G = B = 255) : elle prend donc la teinte du canal rouge,
+        // celle que les recettes réservent à la carnation (`#F3CAC1` dans `mdl_edit_avatar01`).
+        let mut choisi: Option<(u32, &TeinteCanal, usize)> = None;
         for (canal, teinte) in teintes.iter().enumerate() {
             if !teinte.actif {
                 continue;
@@ -315,17 +323,25 @@ pub fn teinter_par_canaux(
             if poids == 0 {
                 continue;
             }
-            couverture = couverture.max(poids);
-            for (a, composante) in acc.iter_mut().zip(teinte.rgb.iter()) {
-                *a += poids * u32::from(*composante) / 255;
+            if choisi.is_none_or(|(p, _, _)| poids > p) {
+                choisi = Some((poids, teinte, canal));
             }
         }
-        for (c, a) in acc.iter().enumerate() {
-            sortie[i + c] = (*a).min(255) as u8;
+        match choisi {
+            Some((poids, teinte, canal)) => {
+                for (c, composante) in teinte.rgb.iter().enumerate() {
+                    sortie[i + c] = (poids * u32::from(*composante) / 255).min(255) as u8;
+                }
+                // Le canal ROUGE est le fond — la carnation. Une planche neutre l'a partout :
+                // `face_00`, `eye_00`, `highlight_00` sont uniformément rouges, c'est ainsi que
+                // le jeu dit « rien à ajouter ici ». Posée sur une autre, une telle zone doit
+                // donc laisser voir ce qui est dessous au lieu de l'effacer ; seule la planche de
+                // fond garde son opacité. C'est ce qui rendait quatre familles sur six inertes.
+                sortie[i + 3] = if canal == 0 && !est_fond { 0 } else { planche[i + 3] };
+            }
+            // Aucun canal actif ici : le pixel n'appartient à aucune zone.
+            None => sortie[i + 3] = 0,
         }
-        // L'alpha de la planche reste maître là où elle en porte un (la pupille) ; ailleurs, la
-        // couverture des canaux fait foi.
-        sortie[i + 3] = u32::from(planche[i + 3]).min(couverture.max(1) * 255 / 255).min(255) as u8;
     }
     Some(sortie)
 }
@@ -701,6 +717,7 @@ mod tests {
                 teinte([0, 0, 0], true),
                 teinte([255, 255, 255], true),
             ],
+            true,
         )
         .unwrap();
         assert_eq!(&out[..3], &[243, 202, 193]);
@@ -719,6 +736,7 @@ mod tests {
                 teinte([0, 0, 0], true),
                 teinte([255, 255, 255], true),
             ],
+            true,
         )
         .unwrap();
         assert_eq!(&out[..3], &[0, 0, 0], "un canal inactif ne doit rien apporter");
@@ -732,6 +750,7 @@ mod tests {
             1,
             &pixel(128, 0, 0, 255),
             [teinte([200, 100, 50], true), teinte([0, 0, 0], true), teinte([0, 0, 0], true)],
+            true,
         )
         .unwrap();
         // 128/255 ≈ 0,502 : la teinte doit être réduite d'autant, pas rendue pleine.
@@ -740,15 +759,56 @@ mod tests {
 
     #[cfg(feature = "textures")]
     #[test]
-    fn deux_canaux_additionnent_leurs_teintes() {
+    fn une_zone_de_carnation_posee_par_dessus_est_transparente() {
+        // Le canal rouge est le fond. Une planche NEUTRE l'a partout — `eye_00` et
+        // `highlight_00` sont uniformément rouges, c'est ainsi que le jeu dit « rien ici ».
+        // Posée sur une autre, une telle zone doit laisser voir ce qu'il y a dessous.
+        let teintes = [
+            teinte([243, 202, 193], true),
+            teinte([0, 0, 0], true),
+            teinte([255, 255, 255], true),
+        ];
+        let posee = teinter_par_canaux(1, 1, &pixel(255, 0, 0, 255), teintes, false).unwrap();
+        assert_eq!(posee[3], 0, "une zone de fond posée par-dessus doit être transparente");
+
+        // La même planche EN fond garde son opacité.
+        let fond = teinter_par_canaux(1, 1, &pixel(255, 0, 0, 255), teintes, true).unwrap();
+        assert_eq!(fond[3], 255, "la planche de fond, elle, reste opaque");
+        assert_eq!(&fond[..3], &[243, 202, 193]);
+    }
+
+    #[cfg(feature = "textures")]
+    #[test]
+    fn le_canal_dominant_l_emporte() {
+        // Vert plus fort que rouge : c'est la teinte du vert qui s'applique, pas leur somme.
         let out = teinter_par_canaux(
             1,
             1,
-            &pixel(255, 255, 0, 255),
-            [teinte([100, 0, 0], true), teinte([0, 100, 0], true), teinte([0, 0, 255], true)],
+            &pixel(128, 255, 0, 255),
+            [teinte([200, 0, 0], true), teinte([0, 180, 0], true), teinte([0, 0, 255], true)],
+            true,
         )
         .unwrap();
-        assert_eq!(&out[..3], &[100, 100, 0], "le bleu, à zéro dans la planche, ne participe pas");
+        assert_eq!(&out[..3], &[0, 180, 0], "le canal dominant sélectionne, il n'additionne pas");
+    }
+
+    #[cfg(feature = "textures")]
+    #[test]
+    fn a_egalite_le_rouge_tranche() {
+        // Une planche neutre est blanche partout : elle doit prendre la carnation du canal rouge.
+        let out = teinter_par_canaux(
+            1,
+            1,
+            &pixel(255, 255, 255, 255),
+            [
+                teinte([243, 202, 193], true),
+                teinte([0, 0, 0], true),
+                teinte([255, 255, 255], true),
+            ],
+            true,
+        )
+        .unwrap();
+        assert_eq!(&out[..3], &[243, 202, 193], "sinon le blanc du canal bleu sature tout");
     }
 
     #[cfg(feature = "textures")]

@@ -1812,7 +1812,7 @@ type PlancheRgba = (u32, u32, Vec<u8>);
 /// corps déduit du squelette, attache à l'os de tête, composition de la texture de visage… Sans
 /// elle, un GLB produit par l'ancienne logique reste servi indéfiniment et le correctif paraît
 /// sans effet : c'est exactement ce qui est arrivé lors de l'ajout du corps automatique.
-const AVATAR_CACHE_VERSION: u32 = 9;
+const AVATAR_CACHE_VERSION: u32 = 11;
 
 /// Nom de fichier de cache court et stable pour une clé d'assemblage.
 ///
@@ -1927,13 +1927,16 @@ fn get_or_build_avatar_glb(
                 warn!("couche de visage illisible, ignorée : {chemin}");
                 continue;
             };
+            // La PREMIÈRE planche d'un matériau est le fond : elle garde son opacité. Les
+            // suivantes ne peignent que leurs traits, leur zone de carnation devenant transparente.
+            let entree_vide = par_slot.get(&slot).is_none_or(Vec::is_empty);
             let planches: Vec<PlancheRgba> = nie_formats::image_out::decoder_planches(&brut)
                 .into_iter()
                 .map(|(w, h, rgba)| {
                     // Teinte par canaux : une planche de `_facetex` est un masque à trois canaux,
                     // chacun désignant une zone qui reçoit sa couleur. Sans cette étape, la
                     // planche est rendue brute et la couleur choisie n'atteint jamais le modèle.
-                    let teintee = nie_formats::image_out::teinter_par_canaux(w, h, &rgba, teintes)
+                    let teintee = nie_formats::image_out::teinter_par_canaux(w, h, &rgba, teintes, entree_vide)
                         .unwrap_or(rgba);
                     (w, h, teintee)
                 })
