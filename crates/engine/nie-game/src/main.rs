@@ -2656,6 +2656,8 @@ fn cmd_export_layout_runtime(
 
     // 4) DRIVE chaque script dans sa propre VM (état propre), fusionne les MenuState.
     let mut merged_objs: BTreeMap<u32, MergedObj> = BTreeMap::new();
+    // Objets qu'au moins un calque déclare visibles — sert à mesurer ce que la conjonction efface.
+    let mut vus_visibles: std::collections::HashSet<u32> = std::collections::HashSet::new();
     let mut merged_layers: BTreeMap<u32, bool> = BTreeMap::new();
     let mut total_known = 0usize;
     let mut total_list_items = 0usize;
@@ -2725,6 +2727,13 @@ fn cmd_export_layout_runtime(
             let e = merged_layers.entry(*lid).or_insert(true);
             *e = *e && layer.visible;
             for (oid, o) in &layer.objects {
+                // Diagnostic AVANT de changer quoi que ce soit : combien d'objets sont réclamés
+                // visibles par un calque et cachés par un autre ? Un écran EMPILE ses calques, donc
+                // une conjonction pourrait effacer un objet qu'un seul calque cache. Tant que ce
+                // compteur n'est pas mesuré, changer la règle serait deviner.
+                if o.visible {
+                    vus_visibles.insert(*oid);
+                }
                 let m = merged_objs.entry(*oid).or_default();
                 m.visible = m.visible && o.visible;
                 if m.sprite_hash.is_none() {
@@ -2917,6 +2926,11 @@ fn cmd_export_layout_runtime(
             "objectsMatchedTotal": n_matched_total,
             "listItemsRecorded": total_list_items,
             "objectsHidden": n_hidden,
+            // Objets qu'un calque veut visibles et qu'un autre cache : ce que la conjonction efface.
+            "objectsHiddenByMerge": vus_visibles
+                .iter()
+                .filter(|oid| merged_objs.get(oid).is_some_and(|m| !m.visible))
+                .count(),
             "spritesMutated": n_sprite_mut,
             "spritesNamed": n_sprite_named,
             "regionRects": n_region_rect,
