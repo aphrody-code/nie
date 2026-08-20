@@ -800,10 +800,12 @@ La **teinte agit** : quatre couleurs de peau donnent quatre empreintes distincte
 
 ### Ce qui reste
 
-- **Les reflets (`03_highlight`) restent inertes**, mais l'enjeu est marginal et chiffré :
-  `highlight_09` est à **97 % du fond** (canal rouge dominant) et ne porte que **2 %** de dessin
-  sur le vert — un reflet d'iris fait quelques pixels. C'est une surface négligeable, pas une
-  rubrique entière.
+- **Les reflets (`03_highlight`) ne contribuent jamais**, y compris servis SEULS : les empreintes
+  de `highlight_00` et `highlight_09`, avec ou sans peau, sont identiques. Ce n'est donc pas un
+  écrasement par une couche voisine, comme je l'avais d'abord conclu. Les « 2 % de dessin sur le
+  vert » que j'avais mesurés venaient d'artefacts d'interpolation de mon redimensionnement de
+  mesure, pas du contenu — leçon de méthode : ne pas mesurer la répartition des canaux sur une
+  image redimensionnée. La cause réelle reste à établir.
 - **Les valeurs RGB des palettes : RELEVÉES.** Elles n'existaient nulle part sous forme de valeur —
   `m_CharaEditColorDataList` ne porte que des identifiants, le binaire ne contient pas le motif
   d'une entrée connue, et contrairement aux canaux `red`/`green`/`blue`, **aucun** des 165
