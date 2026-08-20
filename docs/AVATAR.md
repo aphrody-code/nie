@@ -287,10 +287,25 @@ cinq. Les quatre autres sont nommés :
 | `OnBack`, `OnCloseLayer` | non | ce sont des **sorties** d'écran, pas des entrées |
 
 Les deux seuls candidats plausibles ont donc été essayés et mesurés sans effet ; les deux autres
-ferment un écran au lieu de l'ouvrir. Ce qui manque n'est pas un callback de plus dans la boucle,
-mais l'**état de navigation** que le moteur porte entre les écrans — quelle rubrique est ouverte,
-quelle catégorie est sélectionnée. C'est la même couche que celle qui manquait pour
-`GetItemButtonNum`, et le seul point du plan qui reste ouvert.
+ferment un écran au lieu de l'ouvrir.
+
+### La fonction qui peuple est identifiée — et elle refuse de s'exécuter hors contexte
+
+Le driver ne joue que les callbacks `OnXxx`. Or l'énumération des fonctions globales réellement
+définies par les scripts d'un écran de grille en montre bien davantage, dont les noms disent le
+rôle : `SetupListInfo`, `UpdateListInfo`, `UpdateLargeItemIcon`, `UpdateItemParts`,
+`UpdateListFocusIdx`, `CommonListFocusFunction`. Le peuplement est là, pas dans un callback de
+cycle de vie.
+
+Appelées directement, après ouverture, sur chacun des identifiants de calque de l'écran, et dans
+les deux formes (sans argument, puis avec `(layerId, 0)`) : **toutes échouent**. La fonction existe,
+elle est nommée, et elle refuse de s'exécuter — elle attend un contexte que le driver ne pose pas.
+
+C'est plus qu'un constat d'absence : cela **prouve** que ce qui manque est l'état, pas l'appel.
+Ajouter ces appels au driver produirait des erreurs Lua silencieuses et aucun item ; le diagnostic
+a donc été retiré. L'état de navigation que le moteur porte entre les écrans — quelle rubrique est
+ouverte, quelle catégorie est sélectionnée — reste le seul point du plan non résolu, et il est
+maintenant cerné au nom de fonction près.
 
 ## 7. Vérifications
 
