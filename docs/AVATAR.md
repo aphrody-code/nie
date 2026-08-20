@@ -309,6 +309,14 @@ laisse plus de la moitié du cadre en canvas vide, et son compositeur est le plu
 - **Visibilité fusionnée par ET entre calques** : soupçonnée d'effacer des objets qu'un seul calque
   cache, elle n'en efface que 0, 1 et 0 sur trois écrans (contre 8, 53 et 62 objets masqués). Les
   scripts cachent réellement ces objets ; la sémantique n'est pas en cause.
+- **Apparier les captures aux écrans par le ΔE moyen global** : résultat **dégénéré**, les 18
+  captures s'apparient toutes au même écran, `chara_edit_recipe_menu` — celui qui a le plus
+  d'objets (89 sur 42 écrans). Avec des rendus aussi incomplets, un score global récompense
+  **la couverture, pas la ressemblance** : le rendu qui remplit le plus de pixels gagne quelle que
+  soit la capture. Les marges au second (1,8 à 3,8) confirment que rien ne se détache. Aucun
+  manifeste d'appariement n'a donc été produit : un appariement faux vaut moins que pas
+  d'appariement. Il faudra un oracle local (recherche de motif région par région) et non un score
+  d'image entière.
 
 > **Rappel de doctrine** : « pixel-perfect » est le **nom d'une cible**, pas un état atteint.
 > Le byte-exact du dépôt porte sur les **données**, jamais sur les pixels.
