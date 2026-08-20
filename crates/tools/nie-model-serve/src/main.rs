@@ -1774,13 +1774,16 @@ const AVATAR_TEX_MAX: u32 = 1024;
 ///
 /// Les dossiers de l'éditeur commencent tous par un souligné (`_facebase`, `_hairF`, `_base`…),
 /// ceux d'uniforme sont des identifiants (`u000101`, `s000201`).
+/// Une planche décodée : largeur, hauteur, pixels RGBA.
+type PlancheRgba = (u32, u32, Vec<u8>);
+
 /// Version de la logique d'assemblage d'avatar, incluse dans la clé de cache.
 ///
 /// À incrémenter dès que l'assemblage change ce qu'il produit pour une même requête — ajout du
 /// corps déduit du squelette, attache à l'os de tête, composition de la texture de visage… Sans
 /// elle, un GLB produit par l'ancienne logique reste servi indéfiniment et le correctif paraît
 /// sans effet : c'est exactement ce qui est arrivé lors de l'ajout du corps automatique.
-const AVATAR_CACHE_VERSION: u32 = 3;
+const AVATAR_CACHE_VERSION: u32 = 5;
 
 /// Nom de fichier de cache court et stable pour une clé d'assemblage.
 ///
@@ -1856,33 +1859,57 @@ fn get_or_build_avatar_glb(
         // une planche de `_facetex/` partageant le même dépliage UV, et l'avatar porte leur
         // empilement. C'est ce qui fait réagir le modèle aux choix : la maille de tête, elle, ne
         // dépend que de la morphologie et du nez.
-        let visage_compose: Option<Vec<u8>> = if couches_visage.is_empty() {
-            None
-        } else {
-            let couches: Vec<(u32, u32, Vec<u8>)> = couches_visage
-                .iter()
-                .filter_map(|rel| {
-                    let chemin = format!(
-                        "{}/_facetex/{rel}.g4tx",
-                        nie_formats::assemble::AVATAR_TEX_ROOT
-                    );
-                    let brut = vfs.read(&chemin).ok()?;
-                    let nom = nie_formats::g4tx::base_color_texture_name(&brut)?;
-                    nie_formats::g4tx_decode::decode_named_to_rgba(&brut, &nom)
-                })
-                .collect();
-            nie_formats::image_out::composer_couches(&couches).and_then(|(w, h, rgba)| {
-                let (rw, rh, petit) =
-                    nie_formats::image_out::reduire_rgba(&rgba, w, h, AVATAR_TEX_MAX).ok()?;
-                nie_formats::image_out::encoder_rgba(
-                    &petit,
-                    rw,
-                    rh,
-                    nie_formats::image_out::ImageOut::Png,
-                )
-                .ok()
+        // Les planches de visage ne partagent PAS toutes le même dépliage : la peau, les pupilles
+        // et les reflets sont en 512×512, les yeux, les sourcils et la bouche en 2048×1024. Les
+        // ramener de force à une seule toile revenait à en jeter la moitié — dont les pupilles,
+        // la seule planche à porter un dessin. On compose donc UN visage PAR DÉPLIAGE, et chaque
+        // matériau de la tête en reçoit un : le modèle en déclare précisément deux ou trois.
+        let mut groupes: std::collections::BTreeMap<(u32, u32), Vec<PlancheRgba>> =
+            std::collections::BTreeMap::new();
+        for rel in couches_visage {
+            let chemin =
+                format!("{}/_facetex/{rel}.g4tx", nie_formats::assemble::AVATAR_TEX_ROOT);
+            let Ok(brut) = vfs.read(&chemin) else {
+                warn!("couche de visage illisible, ignorée : {chemin}");
+                continue;
+            };
+            for planche in nie_formats::image_out::decoder_planches(&brut) {
+                groupes.entry((planche.0, planche.1)).or_default().push(planche);
+            }
+        }
+        // Du plus grand dépliage au plus petit : le premier matériau reçoit le plus détaillé.
+        let visages_composes: Vec<Vec<u8>> = groupes
+            .into_iter()
+            .rev()
+            .filter_map(|((w, h), couches)| {
+                let n = couches.len();
+                let png = nie_formats::image_out::composer_couches(&couches).and_then(
+                    |(cw, ch, rgba)| {
+                        let (rw, rh, petit) =
+                            nie_formats::image_out::reduire_rgba(&rgba, cw, ch, AVATAR_TEX_MAX)
+                                .ok()?;
+                        nie_formats::image_out::encoder_rgba(
+                            &petit,
+                            rw,
+                            rh,
+                            nie_formats::image_out::ImageOut::Png,
+                        )
+                        .ok()
+                    },
+                );
+                if png.is_none() {
+                    warn!("dépliage {w}x{h} : {n} planche(s) non composables");
+                }
+                png
             })
-        };
+            .collect();
+        if !couches_visage.is_empty() {
+            debug!(
+                "visage : {} couche(s) demandée(s) -> {} dépliage(s) composé(s)",
+                couches_visage.len(),
+                visages_composes.len()
+            );
+        }
 
         // Le corps suit le squelette. L'appelant n'a pas à savoir quelle variante `u0001NN` va
         // avec quel `c000X01_edit` : c'est un appariement mesuré, qui vit dans nie-formats. Si
@@ -1904,6 +1931,7 @@ fn get_or_build_avatar_glb(
             }
         }
 
+        let mut idx_materiau_visage = 0usize;
         for (dossier, nom) in &effectifs {
             if dossier == "_bodySK" {
                 continue;
@@ -1930,7 +1958,7 @@ fn get_or_build_avatar_glb(
             };
             let g4tx = candidats.iter().find_map(|c| vfs.read(c).ok());
 
-            let component = match dossier.as_str() {
+            let component = match dossier.as_ref() {
                 "_facebase" => MeshComponent::Face,
                 "_base" => MeshComponent::Body,
                 _ if uniforme => MeshComponent::Uniform,
@@ -1962,10 +1990,14 @@ fn get_or_build_avatar_glb(
                             .ok()
                         })
                     });
-                    // Le conteneur `_facebase.g4tx` ne porte que des vignettes 32×32 : quand une
-                    // composition est disponible, c'est elle qui habille le visage.
-                    let png = if dossier == "_facebase" {
-                        visage_compose.clone().or(png)
+                    // Le conteneur `_facebase.g4tx` ne porte que des vignettes 32×32 : quand des
+                    // compositions sont disponibles, ce sont elles qui habillent le visage. Le
+                    // n-ième matériau reçoit le n-ième dépliage ; s'il y a moins de compositions
+                    // que de matériaux, la dernière sert aux suivants.
+                    let png = if dossier == "_facebase" && !visages_composes.is_empty() {
+                        let i = idx_materiau_visage.min(visages_composes.len() - 1);
+                        idx_materiau_visage += 1;
+                        Some(visages_composes[i].clone())
                     } else {
                         png
                     };
