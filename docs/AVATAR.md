@@ -295,12 +295,25 @@ mais ne doivent jamais être présentées comme acquises :
 | Catégories sans libellé dérivable | 3 (2, 9, 16) |
 | Catégorie 18 | préfixe `加算胸` non traduit |
 | Shaders `chr_edit_toon*` | **97 fichiers, 1 419,7 Kio** — identifiés par nom, **DXBC jamais désassemblé** : la composition matérielle de l'avatar n'est pas reproduite |
-| Écrans composés en image | **0/42** |
+| Écrans composés en image | **42/42** depuis le 2026-08-20 (`var/avatar-ui/png/`, 24 Mio) |
+| Ancre des objets | codée 0,5/0,5 en dur, **contredite par la géométrie** (voir ci-dessous) |
 
 Les catégories à 0 modèle sont presets / curseurs de corps / tenues : soit elles ne portent pas de
 `.g4md` (recettes pures), soit leur nom de ressource ne se résout pas comme les autres familles.
 La question n'est pas tranchée — c'est le seul écart qui bloque un avatar complet côté
 `/model-avatar/`.
+
+### L'ancre : elle est dans les fichiers, et elle ne vaut pas 0,5
+
+`place_on_canvas` pose 0,5/0,5 pour tous les objets, et `g4pkm.rs` note « Toujours 0.5 ». La
+géométrie dit autre chose : le quad d'un objet de menu porte les sommets
+`(1, 0) (0, 0) (0, −1) (1, −1)` — un carré unitaire dont **le coin haut-gauche est à l'origine**,
+pas un carré centré. C'est vérifié de longue date par le gate lui-même
+(`bg_mesh_geometry_decodes`), sans que la conséquence en ait été tirée.
+
+Ce qui reste ouvert n'est donc plus « l'ancre est-elle lisible ? » — elle l'est — mais comment elle
+se compose avec la pose d'os : l'appliquer telle quelle décalerait chaque objet d'une demi-taille,
+ce que les captures ne montrent pas. La question est déplacée d'un cran, pas résolue.
 
 ## 11. La mesure pixel-perfect — état du backbone
 
