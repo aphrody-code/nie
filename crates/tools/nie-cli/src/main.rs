@@ -8,6 +8,7 @@ mod decode_cmd;
 mod delegate;
 mod img_cmd;
 mod lua_cmd;
+mod mem_lua;
 mod menu_predecode;
 mod mode_index;
 mod search_cmd;
@@ -649,6 +650,28 @@ enum MemOp {
         all: bool,
         #[arg(long, short = 'l', default_value_t = 20)]
         limit: usize,
+    },
+    /// Relève un champ de table Lua dans le jeu vivant (`listRowNum`, `pageNum`…).
+    ///
+    /// Le chunk Lua déclare la clé sans jamais l'affecter : seule la mémoire du process porte
+    /// la valeur, posée par le moteur quand l'écran s'instancie.
+    LuaField {
+        /// Nom du champ, tel qu'il apparaît dans le script (ex. `listRowNum`).
+        name: String,
+        #[arg(long, short = 'p', default_value_t = 0)]
+        pid: i32,
+        /// Nombre maximum d'objets `TString` internés à considérer.
+        #[arg(long, default_value_t = 8)]
+        strings: usize,
+        /// Nombre maximum d'entrées de table à relever par `TString`.
+        #[arg(long, default_value_t = 24)]
+        nodes: usize,
+        /// Affiche aussi les `Node` voisins, jusqu'à ce rayon (0 = champ seul).
+        #[arg(long, short = 'r', default_value_t = 8)]
+        radius: i64,
+        /// N'affiche que les entrées dont la valeur est un scalaire (écarte le bruit).
+        #[arg(long)]
+        numeric: bool,
     },
     /// Patche EAC : crée une copie `--dst` de `--src` avec le call de modale fatale NOPé.
     PatchEac {
@@ -1820,6 +1843,9 @@ fn mem_cmd(op: MemOp) -> anyhow::Result<()> {
         MemOp::Dump { pid, module, all, output } => mem_dump(pid, &module, all, &output),
         MemOp::Scan { pattern, pid, module, all, limit } => {
             mem_scan(&pattern, pid, &module, all, limit)
+        }
+        MemOp::LuaField { name, pid, strings, nodes, radius, numeric } => {
+            crate::mem_lua::lua_field(pid, &name, strings, nodes, radius, numeric)
         }
         MemOp::PatchEac { src, dst } => mem_patch_eac(&src, &dst),
     }
