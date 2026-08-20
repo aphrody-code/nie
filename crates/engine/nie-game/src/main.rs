@@ -3005,6 +3005,18 @@ fn cmd_export_layout_runtime(
             "listItemsRecorded": total_list_items,
             "objectsHidden": n_hidden,
             "knownCmdsByName": known_by_name,
+            // Combien d'objets reçoivent une visibilité NOMMÉE par index, et sur combien d'index
+            // distincts : dit si les scripts distinguent vraiment les exemplaires d'un gabarit, ou
+            // s'ils les commandent tous par le même index.
+            "objectsWithIndexedVisibility": merged_objs
+                .values()
+                .filter(|m| !m.visible_par_index.is_empty())
+                .count(),
+            "distinctVisibilityIndexes": merged_objs
+                .values()
+                .flat_map(|m| m.visible_par_index.keys())
+                .collect::<std::collections::BTreeSet<_>>()
+                .len(),
             // Objets qu'un calque veut visibles et qu'un autre cache : ce que la conjonction efface.
             "objectsHiddenByMerge": vus_visibles
                 .iter()
