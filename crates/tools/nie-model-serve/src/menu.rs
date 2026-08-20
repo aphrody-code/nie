@@ -143,14 +143,7 @@ where
 
     let sprites: Vec<CompositeSprite> = prepared
         .iter()
-        .map(|p| CompositeSprite {
-            rgba: &p.rgba,
-            width: p.tw,
-            height: p.th,
-            transform: p.transform,
-            anchor_x: p.anchor_x,
-            anchor_y: p.anchor_y,
-        })
+        .map(|p| CompositeSprite::neutre(&p.rgba, p.tw, p.th, p.transform, p.anchor_x, p.anchor_y))
         .collect();
 
     let canvas = compose(cw, ch, &sprites);

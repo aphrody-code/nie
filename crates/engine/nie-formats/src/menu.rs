@@ -206,6 +206,49 @@ pub struct CompositeSprite<'a> {
     pub anchor_x: f32,
     /// Ancre Y normalisée (0=haut, 0.5=centre, 1=bas).
     pub anchor_y: f32,
+    /// Multiplicateur de couleur RGBA appliqué au sprite avant le mélange. Neutre = `[1; 4]`.
+    ///
+    /// Le compositeur n'avait aucun moyen d'exprimer une teinte : les objets qui en portent une
+    /// sortaient à leur couleur d'atlas, et un objet éclairci par le moteur ne pouvait pas l'être
+    /// ici. Le champ est neutre par défaut, donc sans effet tant que rien ne l'alimente.
+    pub couleur: [f32; 4],
+    /// Mode de mélange, tel que `drawType` du composant de rendu le donne.
+    pub mode: BlendMode,
+}
+
+/// Mode de mélange d'un sprite, lu dans les fichiers (`RenderComponent::draw_type`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum BlendMode {
+    /// `drawType = 0` — mélange « over » classique.
+    #[default]
+    Normal,
+    /// `drawType = 1` — additif : la source s'ajoute au fond au lieu de le remplacer. C'est ce qui
+    /// donne les halos et les néons ; les rendre en « over » les éteint.
+    Additif,
+}
+
+impl<'a> CompositeSprite<'a> {
+    /// Sprite sans teinte ni mode particulier — la forme qu'avaient tous les appels jusqu'ici.
+    #[must_use]
+    pub fn neutre(
+        rgba: &'a [u8],
+        width: u32,
+        height: u32,
+        transform: ScreenTransform,
+        anchor_x: f32,
+        anchor_y: f32,
+    ) -> Self {
+        Self {
+            rgba,
+            width,
+            height,
+            transform,
+            anchor_x,
+            anchor_y,
+            couleur: [1.0; 4],
+            mode: BlendMode::Normal,
+        }
+    }
 }
 
 /// Compose une liste de sprites positionnés sur un canvas RGBA8 transparent.
@@ -286,6 +329,21 @@ fn blit_sprite(canvas: &mut [u8], cw: i64, ch: i64, s: &CompositeSprite) {
             let dg = f32::from(canvas[di + 1]) / 255.0;
             let db = f32::from(canvas[di + 2]) / 255.0;
             let da = f32::from(canvas[di + 3]) / 255.0;
+            // Teinte : multiplicateur du sprite, neutre par défaut.
+            let (sr, sg, sb) = (sr * s.couleur[0], sg * s.couleur[1], sb * s.couleur[2]);
+            let sa = sa * s.couleur[3];
+            if sa <= 0.0 {
+                continue;
+            }
+            // Additif : la source s'ajoute au fond, l'opacité du fond est conservée. C'est le mode
+            // des halos ; les mélanger en « over » les éteint.
+            if s.mode == BlendMode::Additif {
+                canvas[di] = ((dr + sr * sa) * 255.0).round().clamp(0.0, 255.0) as u8;
+                canvas[di + 1] = ((dg + sg * sa) * 255.0).round().clamp(0.0, 255.0) as u8;
+                canvas[di + 2] = ((db + sb * sa) * 255.0).round().clamp(0.0, 255.0) as u8;
+                canvas[di + 3] = ((da + sa * (1.0 - da)) * 255.0).round().clamp(0.0, 255.0) as u8;
+                continue;
+            }
             let oa = sa + da * (1.0 - sa);
             if oa <= 0.0 {
                 continue;
@@ -595,19 +653,49 @@ mod tests {
     #[test]
     fn compose_blits_opaque_sprite_at_position() {
         let rgba = alloc::vec![255u8, 0, 0, 255].repeat(16); // 4×4 rouge opaque
-        let sprite = CompositeSprite {
-            rgba: &rgba,
-            width: 4,
-            height: 4,
-            transform: ScreenTransform { x_px: 4.0, y_px: 4.0, scale_x: 1.0, scale_y: 1.0, rot: 0.0 },
-            anchor_x: 0.5,
-            anchor_y: 0.5,
-        };
+        let sprite = CompositeSprite::neutre(
+            &rgba,
+            4,
+            4,
+            ScreenTransform { x_px: 4.0, y_px: 4.0, scale_x: 1.0, scale_y: 1.0, rot: 0.0 },
+            0.5,
+            0.5,
+        );
         let canvas = compose(8, 8, &[sprite]);
         assert_eq!(at(&canvas, 8, 4, 4), (255, 0, 0, 255), "centre rouge");
         assert_eq!(at(&canvas, 8, 2, 2), (255, 0, 0, 255), "coin sprite rouge");
         assert_eq!(at(&canvas, 8, 0, 0), (0, 0, 0, 0), "hors sprite transparent");
         assert_eq!(at(&canvas, 8, 7, 7), (0, 0, 0, 0), "hors sprite transparent");
+    }
+
+    /// La teinte multiplie le sprite avant le mélange : un blanc teinté de moitié sort gris.
+    #[test]
+    fn la_teinte_multiplie_le_sprite() {
+        let blanc = alloc::vec![255u8, 255, 255, 255].repeat(16);
+        let tf = ScreenTransform { x_px: 4.0, y_px: 4.0, scale_x: 1.0, scale_y: 1.0, rot: 0.0 };
+        let mut s = CompositeSprite::neutre(&blanc, 4, 4, tf, 0.5, 0.5);
+        s.couleur = [0.5, 0.5, 0.5, 1.0];
+        let canvas = compose(8, 8, &[s]);
+        let (r, g, b, a) = at(&canvas, 8, 4, 4);
+        assert_eq!(a, 255, "opacité conservée");
+        assert!((120..=136).contains(&r) && r == g && g == b, "gris attendu, obtenu ({r},{g},{b})");
+    }
+
+    /// Le mode additif AJOUTE au fond au lieu de le remplacer : deux gris superposés éclaircissent.
+    /// En mélange « over », le second gris remplacerait le premier et la valeur ne bougerait pas.
+    #[test]
+    fn le_mode_additif_eclaircit_au_lieu_de_remplacer() {
+        let gris = alloc::vec![100u8, 100, 100, 255].repeat(16);
+        let tf = ScreenTransform { x_px: 4.0, y_px: 4.0, scale_x: 1.0, scale_y: 1.0, rot: 0.0 };
+        let fond = CompositeSprite::neutre(&gris, 4, 4, tf, 0.5, 0.5);
+        let mut halo = CompositeSprite::neutre(&gris, 4, 4, tf, 0.5, 0.5);
+        halo.mode = BlendMode::Additif;
+
+        let normal = compose(8, 8, &[fond, CompositeSprite::neutre(&gris, 4, 4, tf, 0.5, 0.5)]);
+        assert_eq!(at(&normal, 8, 4, 4).0, 100, "en « over », le second remplace : inchangé");
+
+        let additif = compose(8, 8, &[CompositeSprite::neutre(&gris, 4, 4, tf, 0.5, 0.5), halo]);
+        assert_eq!(at(&additif, 8, 4, 4).0, 200, "en additif, les deux s'ajoutent");
     }
 
     /// Z-order : le 2e sprite (bleu) est dessiné PAR-DESSUS le 1er (rouge) → bleu gagne.
@@ -620,8 +708,8 @@ mod tests {
             ScreenTransform { x_px: 4.0, y_px: 4.0, scale_x: 1.0, scale_y: 1.0, rot: 0.0 }
         };
         let sprites = alloc::vec![
-            CompositeSprite { rgba: &red, width: 4, height: 4, transform: mk(&red), anchor_x: 0.5, anchor_y: 0.5 },
-            CompositeSprite { rgba: &blue, width: 4, height: 4, transform: mk(&blue), anchor_x: 0.5, anchor_y: 0.5 },
+            CompositeSprite::neutre(&red, 4, 4, mk(&red), 0.5, 0.5),
+            CompositeSprite::neutre(&blue, 4, 4, mk(&blue), 0.5, 0.5),
         ];
         let canvas = compose(8, 8, &sprites);
         assert_eq!(at(&canvas, 8, 4, 4), (0, 0, 255, 255), "le dernier dessiné (bleu) gagne");

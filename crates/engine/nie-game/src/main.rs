@@ -926,6 +926,8 @@ fn cmd_compose_layout(game_dir: &Path, json_in: &[PathBuf], png_out: &Path) -> R
         transform: menu::ScreenTransform,
         anchor_x: f32,
         anchor_y: f32,
+        /// Mode de dessin lu dans l'objbin : 1 = additif.
+        draw_type: i64,
     }
     let mut items: Vec<DrawItem> = Vec::new();
     let (mut n_region, mut n_static) = (0usize, 0usize);
@@ -1054,6 +1056,7 @@ fn cmd_compose_layout(game_dir: &Path, json_in: &[PathBuf], png_out: &Path) -> R
             },
             anchor_x: ax as f32,
             anchor_y: ay as f32,
+            draw_type: o["drawType"].as_i64().unwrap_or(0),
         });
     }
 
@@ -1117,6 +1120,7 @@ fn cmd_compose_layout(game_dir: &Path, json_in: &[PathBuf], png_out: &Path) -> R
             },
             anchor_x: ax as f32,
             anchor_y: ay as f32,
+            draw_type: 0,
         });
         n_text += 1;
     }
@@ -1132,6 +1136,15 @@ fn cmd_compose_layout(game_dir: &Path, json_in: &[PathBuf], png_out: &Path) -> R
             transform: it.transform,
             anchor_x: it.anchor_x,
             anchor_y: it.anchor_y,
+            couleur: [1.0; 4],
+            // `drawType` vient du composant de rendu de l'objbin. 1 = additif (halos, néons) :
+            // les mélanger en « over » les éteint. Les autres valeurs — dont 4, dont la
+            // sémantique n'est pas établie — restent en mélange normal plutôt qu'inventées.
+            mode: if it.draw_type == 1 {
+                menu::BlendMode::Additif
+            } else {
+                menu::BlendMode::Normal
+            },
         })
         .collect();
     let canvas = menu::compose(W, H, &sprites);
@@ -3269,14 +3282,7 @@ fn cmd_menu(game_dir: &Path, screen: &str, png_out: &Path, from_setting: bool) -
 
     let composite_sprites: Vec<menu::CompositeSprite> = sprites
         .iter()
-        .map(|(t, w, h, rgba)| menu::CompositeSprite {
-            rgba,
-            width: *w,
-            height: *h,
-            transform: *t,
-            anchor_x: 0.5,
-            anchor_y: 0.5,
-        })
+        .map(|(t, w, h, rgba)| menu::CompositeSprite::neutre(rgba, *w, *h, *t, 0.5, 0.5))
         .collect();
 
     // Fond pastel plein cadre AVANT compositing, UNIQUEMENT pour le main_menu (son vrai fond est
@@ -3317,14 +3323,7 @@ fn cmd_menu_window(game_dir: &Path, screen: &str) -> Result<()> {
     let n_sprites = sprites.len();
     let composite_sprites: Vec<menu::CompositeSprite> = sprites
         .iter()
-        .map(|(t, w, h, rgba)| menu::CompositeSprite {
-            rgba,
-            width: *w,
-            height: *h,
-            transform: *t,
-            anchor_x: 0.5,
-            anchor_y: 0.5,
-        })
+        .map(|(t, w, h, rgba)| menu::CompositeSprite::neutre(rgba, *w, *h, *t, 0.5, 0.5))
         .collect();
     let canvas = menu::compose(1280, 720, &composite_sprites);
     println!(
@@ -3802,14 +3801,7 @@ fn cmd_menu_gpu(game_dir: &Path, screen: &str, png_out: &Path, verify: bool) -> 
     if verify {
         let cpu_sprites: Vec<menu::CompositeSprite> = sprites
             .iter()
-            .map(|(t, w, h, rgba)| menu::CompositeSprite {
-                rgba,
-                width: *w,
-                height: *h,
-                transform: *t,
-                anchor_x: 0.5,
-                anchor_y: 0.5,
-            })
+            .map(|(t, w, h, rgba)| menu::CompositeSprite::neutre(rgba, *w, *h, *t, 0.5, 0.5))
             .collect();
         let cpu_pixels_straight = menu::compose(CW, CH, &cpu_sprites);
         let cpu_pixels_pm = premultiply_rgba(&cpu_pixels_straight);
