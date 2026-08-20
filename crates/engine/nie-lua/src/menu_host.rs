@@ -104,6 +104,16 @@ pub struct MenuObjectState {
     /// (`SetListItemValues` / `SetListItemValuesMulti` / `SetItemParam`). Vide pour un objet
     /// non-liste. Clé = index d'item (0-based), valeur = [`MenuListItem`].
     pub sub_items: BTreeMap<i32, MenuListItem>,
+    /// Visibilité **par instance**, quand la commande en désigne une.
+    ///
+    /// Un écran de menu réplique un même objet-gabarit une fois par item : l'éditeur d'avatar
+    /// porte 51 exemplaires de `avatar01_64_recipe_item_type01`, 32 de `avatar01_13_gauge_bar`.
+    /// Comme l'état est indexé par `crc32(nom)`, tous ces exemplaires partageaient un unique
+    /// booléen — masquer le troisième les masquait tous les cinquante-et-un, ce que la mesure
+    /// montrait en bloc (51 → 0 visibles, 16 → 16). Les commandes portent pourtant un `index`
+    /// (2ᵉ argument de `SetObjectVisible`, `SetPartVisible`), jusqu'ici ignoré. On le retient ici ;
+    /// [`Self::visible`] reste le défaut, pour les instances qu'aucune commande ne nomme.
+    pub visible_par_index: BTreeMap<i32, bool>,
 }
 
 impl MenuObjectState {
@@ -127,6 +137,7 @@ impl MenuObjectState {
             badge: None,
             progress: None,
             sub_items: BTreeMap::new(),
+            visible_par_index: BTreeMap::new(),
         }
     }
 
@@ -734,10 +745,13 @@ fn dispatch_menu_command(state: &mut MenuState, cmd_id: u32, args: &[Value]) -> 
         // ── SetObjectVisible(objId, index, visible, [layerId]) ──────────────
         CMD_SET_OBJECT_VISIBLE => {
             let obj_id = lua_to_u32(args.first());
+            let index = lua_to_i32(args.get(1));
             let visible = lua_to_bool(args.get(2), true);
             let layer = target_layer(state, args, 3);
             state.known_cmd_log.push(("SetObjectVisible".to_string(), layer));
-            state.layer(layer).obj(obj_id).visible = visible;
+            let o = state.layer(layer).obj(obj_id);
+            o.visible = visible;
+            o.visible_par_index.insert(index, visible);
         }
 
         // ── SetSprite(objId, index, cellId, frame, color, [layerId]) ────────
@@ -803,7 +817,10 @@ fn dispatch_menu_command(state: &mut MenuState, cmd_id: u32, args: &[Value]) -> 
             // rendait un objet définitivement invisible dès qu'un script l'avait masqué une fois,
             // même quand un appel ultérieur le réaffiche. C'est la commande la plus fréquente de
             // l'éditeur d'avatar : 4 409 appels sur 5 425, soit 81 % du trafic reconnu.
-            state.layer(layer).obj(obj_id).visible = enabled;
+            let index = lua_to_i32(args.get(1));
+            let o = state.layer(layer).obj(obj_id);
+            o.visible = enabled;
+            o.visible_par_index.insert(index, enabled);
         }
 
         // ── SetIconSprite(objId, h1, h2, h3, n4, [idx], [enable], [layerId]) ──
