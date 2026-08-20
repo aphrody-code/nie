@@ -221,23 +221,61 @@ pub fn g4tx_vers(g4tx: &[u8], basename: &str, format: ImageOut) -> Result<Vec<u8
 /// Un conteneur en porte souvent plusieurs, latéralisées (`eye_L_00` et `eye_R_00`), chacune
 /// accompagnée d'un `<nom>msk` de mêmes dimensions.
 ///
-/// **Le `msk` n'est PAS un masque d'opacité**, contrairement à ce que son nom laisse croire : sur
-/// `face_00msk` comme sur `pupil_L_00msk`, il est uniforme à 0,5 (écart-type NUL). Le poser en
-/// alpha rend toute la planche uniformément semi-transparente et fait disparaître les variations
-/// — essayé, mesuré, abandonné. C'est vraisemblablement un paramètre constant de matériau, pas
-/// une carte spatiale ; sa nature exacte reste à établir.
+/// Le compagnon `<nom>msk` porte l'information **quand il varie**, et seulement alors. C'est une
+/// règle mesurée, après deux erreurs symétriques :
 ///
-/// Les planches sont donc rendues telles quelles, avec l'alpha qu'elles portent — et elles n'en
-/// portent pas toutes un utile : `pupil_00` a un vrai canal alpha, `eyebrow_00` est entièrement
-/// transparente, `face_00`, `eye_00` et `mouth_00` sont entièrement opaques. **La règle qui
-/// combine ces six familles n'est pas établie** ; les empiler en alpha ne la reproduit pas.
+/// - le poser systématiquement en alpha est faux : sur `face_00msk` comme sur `pupil_L_00msk`, il
+///   est uniforme à 0,5 (écart-type **nul**), et l'appliquer rend toute la planche uniformément
+///   semi-transparente, effaçant les variations ;
+/// - l'ignorer systématiquement est faux aussi : les planches de couleur des reflets sont blanches
+///   et **identiques** d'une variante à l'autre (`highlight_L_00` et `highlight_L_09` : R = G = B =
+///   A = 255, écart-type nul partout), alors que leurs masques diffèrent — `highlight_L_00msk` est
+///   uniforme, `highlight_L_09msk` varie (écart-type 41). Pour cette famille, **tout** le dessin
+///   est dans le masque.
+///
+/// Un masque n'est donc posé en alpha que s'il varie **et** que la planche de couleur, elle, est
+/// muette. Sans cette seconde condition, la bouche devient inerte : son dessin vit dans la
+/// couleur, et le masque l'écrase.
 #[cfg(feature = "textures")]
 #[must_use]
 pub fn decoder_planches(g4tx: &[u8]) -> Vec<(u32, u32, Vec<u8>)> {
     crate::g4tx::base_color_texture_names(g4tx)
         .into_iter()
-        .filter_map(|nom| crate::g4tx_decode::decode_named_to_rgba(g4tx, &nom))
+        .filter_map(|nom| {
+            let (w, h, mut rgba) = crate::g4tx_decode::decode_named_to_rgba(g4tx, &nom)?;
+            // L'information est soit dans la COULEUR, soit dans le MASQUE — jamais dans les deux.
+            // Le masque ne sert donc que là où la planche de couleur est muette : appliqué
+            // partout, il rend la bouche inerte, dont le dessin vit bel et bien dans la couleur.
+            let couleur_muette = canal_uniforme(&rgba);
+            if let Some((mw, mh, masque)) = crate::g4tx_decode::decode_named_to_rgba(
+                g4tx,
+                &alloc::format!("{nom}msk"),
+            )
+            .filter(|(mw, mh, m)| {
+                couleur_muette
+                    && (*mw, *mh) == (w, h)
+                    && m.len() >= rgba.len()
+                    && !canal_uniforme(m)
+            }) {
+                let _ = (mw, mh);
+                for i in (0..rgba.len()).step_by(4) {
+                    rgba[i + 3] = masque[i];
+                }
+            }
+            Some((w, h, rgba))
+        })
         .collect()
+}
+
+/// Vrai si le canal rouge d'une image RGBA est constant — donc sans information spatiale.
+///
+/// Sert à décider si un masque `msk` mérite d'être posé en alpha : uniforme, il n'apporte rien et
+/// l'appliquer efface les variations de la planche.
+#[cfg(feature = "textures")]
+#[must_use]
+pub fn canal_uniforme(rgba: &[u8]) -> bool {
+    let Some(premier) = rgba.first().copied() else { return true };
+    rgba.iter().step_by(4).all(|&v| v == premier)
 }
 
 /// Redimensionne une image RGBA vers une taille donnée, au plus proche voisin.
@@ -305,6 +343,7 @@ pub fn teinter_par_canaux(
     if attendu == 0 || planche.len() < attendu {
         return None;
     }
+    let opaque_partout = couche_totalement_opaque(&planche[..attendu]);
     let mut sortie = vec![0u8; attendu];
     for i in (0..attendu).step_by(4) {
         // Le canal DOMINANT désigne la zone, et c'est sa couleur qui s'applique — un masque
@@ -337,7 +376,16 @@ pub fn teinter_par_canaux(
                 // le jeu dit « rien à ajouter ici ». Posée sur une autre, une telle zone doit
                 // donc laisser voir ce qui est dessous au lieu de l'effacer ; seule la planche de
                 // fond garde son opacité. C'est ce qui rendait quatre familles sur six inertes.
-                sortie[i + 3] = if canal == 0 && !est_fond { 0 } else { planche[i + 3] };
+                // La règle du fond ne s'applique qu'aux planches OPAQUES. Une planche dont
+                // l'information vit dans son alpha — parce que sa couleur était muette et que son
+                // masque a été posé, cas des reflets — porte déjà sa propre découpe : la forcer
+                // transparente sur le canal rouge l'effacerait entièrement.
+                let porte_son_alpha = !opaque_partout;
+                sortie[i + 3] = if canal == 0 && !est_fond && !porte_son_alpha {
+                    0
+                } else {
+                    planche[i + 3]
+                };
             }
             // Aucun canal actif ici : le pixel n'appartient à aucune zone.
             None => sortie[i + 3] = 0,
@@ -755,6 +803,16 @@ mod tests {
         .unwrap();
         // 128/255 ≈ 0,502 : la teinte doit être réduite d'autant, pas rendue pleine.
         assert!((98..=102).contains(&out[0]), "obtenu {}", out[0]);
+    }
+
+    #[cfg(feature = "textures")]
+    #[test]
+    fn un_canal_constant_est_reconnu_uniforme() {
+        // Le masque de la peau est uniforme : l'appliquer effacerait les variations de la planche.
+        assert!(canal_uniforme(&[128, 0, 0, 255, 128, 9, 9, 255]));
+        // Celui des reflets varie : c'est lui, et lui seul, qui porte le dessin.
+        assert!(!canal_uniforme(&[128, 0, 0, 255, 200, 0, 0, 255]));
+        assert!(canal_uniforme(&[]));
     }
 
     #[cfg(feature = "textures")]
