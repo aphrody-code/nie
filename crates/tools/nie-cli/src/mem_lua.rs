@@ -232,6 +232,63 @@ pub fn lua_field(
     Ok(())
 }
 
+// ─── Palettes de l'éditeur d'avatar ───────────────────────────────────────────
+
+/// Taille d'une entrée de la table de palettes : identifiant puis couleur, alignés sur 16.
+const TAILLE_ENTREE_PALETTE: usize = 16;
+
+/// Relève la table `colorPresetID → couleur` de l'éditeur d'avatar dans le jeu vivant.
+///
+/// Le catalogue (`m_CharaEditColorDataList`) ne donne que des **identifiants** : les valeurs de
+/// couleur n'existent ni dans ce fichier, ni dans le binaire — le motif d'une entrée connue y est
+/// absent — ni sous une forme résoluble depuis les chaînes, contrairement aux canaux `red`,
+/// `green` et `blue` (0 identifiant de palette sur 165 s'y retrouve). Elles ne sont donc lisibles
+/// que dans la mémoire du processus, où le jeu les charge.
+///
+/// Forme de la table, relevée : par entrée, l'identifiant CRC-32 en little-endian sur 4 octets,
+/// puis la couleur **ARGB** sur 4 octets (l'alpha en tête, `0xFF` pour une couleur opaque), le
+/// reste servant d'alignement. Les entrées se suivent, alignées sur 4.
+///
+/// `identifiants` borne la recherche : seuls les identifiants attendus sont retenus, ce qui écarte
+/// les coïncidences qu'un balayage libre de la mémoire produirait à coup sûr.
+pub fn palettes(
+    pid: i32,
+    identifiants: &[u32],
+    debut: u64,
+    longueur: usize,
+) -> anyhow::Result<Vec<(u32, [u8; 4])>> {
+    if !cfg!(target_os = "linux") {
+        anyhow::bail!("`niers mem palettes` est Linux-only (process_vm_readv).");
+    }
+    let pid = if pid > 0 {
+        pid
+    } else {
+        nie_trace::find_pid_by_name("nie.exe")
+            .context("nie.exe introuvable — lance le jeu, ou précise --pid")?
+    };
+    let attendus: std::collections::BTreeSet<u32> = identifiants.iter().copied().collect();
+    let octets = nie_trace::read_exact(pid, debut, longueur)
+        .map_err(|e| anyhow::anyhow!("lecture de {longueur} octets à 0x{debut:x} : {e}"))?;
+
+    let mut vus: std::collections::BTreeMap<u32, [u8; 4]> = std::collections::BTreeMap::new();
+    let mut offset = 0usize;
+    while offset + 8 <= octets.len() {
+        let Some(id) = u32_at(&octets, offset) else { break };
+        if attendus.contains(&id) {
+            let argb = [
+                octets[offset + 4],
+                octets[offset + 5],
+                octets[offset + 6],
+                octets[offset + 7],
+            ];
+            vus.entry(id).or_insert(argb);
+        }
+        offset += 4;
+    }
+    let _ = TAILLE_ENTREE_PALETTE;
+    Ok(vus.into_iter().collect())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
