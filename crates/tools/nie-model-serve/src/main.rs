@@ -1747,6 +1747,230 @@ fn get_or_build_edit_glb(state: &State, dossier: &str, nom: &str) -> Result<GlbB
     Ok(glb)
 }
 
+/// La tenue dont l'éditeur d'avatar habille TOUJOURS son personnage.
+///
+/// Lue dans les 32 recettes `common/chr/_test/default/mdl_edit_avatar*.cfg.bin` et
+/// `mdl_editpreview_avatar*.cfg.bin` : toutes portent, sans exception, le slot 1 = `u117401_10`
+/// (haut et short) et le slot 2 = `s117401_10` (chaussures et chaussettes). Ce sont des noms de
+/// TENUE, pas de modèle : les mailles correspondantes sont `_uniform/u000101/u000101` et
+/// `_uniform/s000201/s000201`, et le conteneur de texture d'un haut est
+/// `dx11/chr/_uniform/u000101/u117401_10.g4tx`.
+const TENUE_HAUT: &str = "u117401_10";
+/// Cf. [`TENUE_HAUT`] — la moitié « chaussures » de la même tenue.
+const TENUE_CHAUSSURES: &str = "s117401_10";
+
+/// L'os auquel le visage, la coiffure et les oreilles de l'éditeur sont attachés.
+///
+/// Présent dans les quatre squelettes `_bodySK/c000X01_edit.g4sk` de l'éditeur.
+const OS_ATTACHE_TETE: &str = "c_head_1_0";
+
+/// Côté maximal d'une texture embarquée dans un GLB d'avatar.
+///
+/// Les planches d'uniforme sont en 2048×2048 BC7 : deux d'entre elles suffisaient à faire
+/// dépasser le délai de 30 s du proxy. 1024 reste au-delà de ce qu'un visualiseur web affiche.
+const AVATAR_TEX_MAX: u32 = 1024;
+
+/// Vrai si ce dossier de pièce désigne un modèle d'uniforme et non une pièce de `20_EDIT`.
+///
+/// Les dossiers de l'éditeur commencent tous par un souligné (`_facebase`, `_hairF`, `_base`…),
+/// ceux d'uniforme sont des identifiants (`u000101`, `s000201`).
+/// Nom de fichier de cache court et stable pour une clé d'assemblage.
+///
+/// Un avatar complet cite une quinzaine de pièces et de couches : la clé littérale dépasse la
+/// longueur de nom de fichier admise. Le condensat garde l'unicité sans la longueur.
+fn cle_courte(cle: &str) -> String {
+    format!("{:08x}_{}", nie_formats::cfgbin::crc32(cle.as_bytes()), cle.len())
+}
+
+fn est_uniforme(dossier: &str) -> bool {
+    !dossier.starts_with('_')
+}
+
+/// Assemble l'avatar de l'éditeur depuis ses pièces, textures comprises, et le met en cache.
+///
+/// Chaque pièce apporte sa propre texture : le conteneur `.g4tx` se résout par le CHEMIN de la
+/// pièce (arbre `dx11` parallèle à `common`), jamais par le nom de son matériau — `hairF001M.g4tx`
+/// porte une texture nommée `hair_10` alors que le matériau du G4MD s'appelle `hairF_10`. Le nom
+/// de la texture à décoder est donc cherché en deux temps : d'abord celui que le matériau désigne
+/// une fois son suffixe de niveau de détail retiré (ce qui vaut pour les tenues, `u000101_30_LOD1`
+/// → `u000101_30`), puis, en repli, la couleur de base du conteneur.
+///
+/// Le liage au matériau glTF se fait par `EmbeddedTexture::name` == `material_name` exact, seule
+/// clé que `build_glb_embedded` consulte avant son repli par composant — lequel ne retient qu'une
+/// texture par composant et ne peut donc pas servir un empilement de pièces.
+fn get_or_build_avatar_glb(
+    state: &State,
+    specs: &[(String, String)],
+    couches_visage: &[String],
+) -> Result<GlbBytes> {
+    let cle: String = specs
+        .iter()
+        .map(|(d, n)| format!("{d}-{n}"))
+        .chain(couches_visage.iter().map(|c| c.replace('/', "-")))
+        .collect::<Vec<_>>()
+        .join("_");
+    let cache_path = state.cache_dir.join(format!("avatar_{}.glb", cle_courte(&cle)));
+    if cache_path.exists() {
+        debug!("cache hit : avatar_{cle}");
+        return fs::read(&cache_path)
+            .with_context(|| format!("lecture cache {}", cache_path.display()));
+    }
+    info!("assemblage live : avatar_{cle}");
+
+    let mut pieces: Vec<nie_formats::assemble::AvatarPiece> = Vec::new();
+    let mut textures: Vec<EmbeddedTexture> = Vec::new();
+    {
+        let vfs = state.vfs.lock().unwrap();
+
+        // Le squelette d'attache, s'il est demandé. Une pièce `_bodySK/<code>` n'apporte aucune
+        // maille — son objbin n'en référence d'ailleurs aucune, ses 15 slots `Mesh` sont vides —
+        // mais elle fixe le repère dans lequel les pièces de `20_EDIT` doivent être replacées.
+        let attache = specs
+            .iter()
+            .find(|(d, _)| d == "_bodySK")
+            .and_then(|(_, nom)| {
+                let chemin =
+                    format!("data/common/chr/_face/20_EDIT/_bodySK/{nom}/{nom}.g4sk");
+                vfs.read(&chemin).ok()
+            })
+            .and_then(|g4sk| {
+                nie_formats::assemble::bone_rest_world(&g4sk, OS_ATTACHE_TETE)
+            });
+        if attache.is_none() && specs.iter().any(|(d, _)| d == "_bodySK") {
+            warn!("squelette d'attache illisible : les pièces de tête resteront à l'origine");
+        }
+
+        // La texture de visage est COMPOSÉE, pas choisie : le jeu ne stocke pas une planche par
+        // combinaison. Chaque rubrique (peau, yeux, pupilles, reflets, sourcils, bouche) désigne
+        // une planche de `_facetex/` partageant le même dépliage UV, et l'avatar porte leur
+        // empilement. C'est ce qui fait réagir le modèle aux choix : la maille de tête, elle, ne
+        // dépend que de la morphologie et du nez.
+        let visage_compose: Option<Vec<u8>> = if couches_visage.is_empty() {
+            None
+        } else {
+            let couches: Vec<(u32, u32, Vec<u8>)> = couches_visage
+                .iter()
+                .filter_map(|rel| {
+                    let chemin = format!(
+                        "{}/_facetex/{rel}.g4tx",
+                        nie_formats::assemble::AVATAR_TEX_ROOT
+                    );
+                    let brut = vfs.read(&chemin).ok()?;
+                    let nom = nie_formats::g4tx::base_color_texture_name(&brut)?;
+                    nie_formats::g4tx_decode::decode_named_to_rgba(&brut, &nom)
+                })
+                .collect();
+            nie_formats::image_out::composer_couches(&couches).and_then(|(w, h, rgba)| {
+                let (rw, rh, petit) =
+                    nie_formats::image_out::reduire_rgba(&rgba, w, h, AVATAR_TEX_MAX).ok()?;
+                nie_formats::image_out::encoder_rgba(
+                    &petit,
+                    rw,
+                    rh,
+                    nie_formats::image_out::ImageOut::Png,
+                )
+                .ok()
+            })
+        };
+
+        for (dossier, nom) in specs {
+            if dossier == "_bodySK" {
+                continue;
+            }
+            let uniforme = est_uniforme(dossier);
+            let base = if uniforme {
+                format!("data/common/chr/_uniform/{dossier}/{nom}")
+            } else {
+                format!("data/common/chr/_face/20_EDIT/{dossier}/{nom}")
+            };
+            let (Ok(g4md), Ok(g4mg)) =
+                (vfs.read(&format!("{base}.g4md")), vfs.read(&format!("{base}.g4mg")))
+            else {
+                debug!("pièce d'avatar illisible : {base}");
+                continue;
+            };
+
+            let candidats = if uniforme {
+                let tenue =
+                    if dossier.starts_with('s') { TENUE_CHAUSSURES } else { TENUE_HAUT };
+                vec![nie_formats::assemble::uniform_texture_vfs_path(dossier, tenue)]
+            } else {
+                nie_formats::assemble::avatar_texture_candidates(dossier, nom)
+            };
+            let g4tx = candidats.iter().find_map(|c| vfs.read(c).ok());
+
+            let component = match dossier.as_str() {
+                "_facebase" => MeshComponent::Face,
+                "_base" => MeshComponent::Body,
+                _ if uniforme => MeshComponent::Uniform,
+                _ => MeshComponent::Generic,
+            };
+
+            if let (Some(tx), Ok(md)) = (g4tx.as_deref(), nie_formats::g4md::parse(&g4md)) {
+                let repli = nie_formats::g4tx::base_color_texture_name(tx);
+                for mat in &md.material_base_names {
+                    if textures.iter().any(|t| &t.name == mat) {
+                        continue;
+                    }
+                    let vise = nie_formats::assemble::avatar_texture_name(mat);
+                    let png = nie_formats::image_out::g4tx_vignette_nommee(
+                        tx,
+                        vise,
+                        AVATAR_TEX_MAX,
+                        nie_formats::image_out::ImageOut::Png,
+                    )
+                    .ok()
+                    .or_else(|| {
+                        repli.as_deref().and_then(|r| {
+                            nie_formats::image_out::g4tx_vignette_nommee(
+                                tx,
+                                r,
+                                AVATAR_TEX_MAX,
+                                nie_formats::image_out::ImageOut::Png,
+                            )
+                            .ok()
+                        })
+                    });
+                    // Le conteneur `_facebase.g4tx` ne porte que des vignettes 32×32 : quand une
+                    // composition est disponible, c'est elle qui habille le visage.
+                    let png = if dossier == "_facebase" {
+                        visage_compose.clone().or(png)
+                    } else {
+                        png
+                    };
+                    if let Some(png_bytes) = png {
+                        textures.push(EmbeddedTexture {
+                            component,
+                            name: mat.clone(),
+                            png_bytes,
+                        });
+                    }
+                }
+            }
+
+            // Seules les pièces de `20_EDIT` vivent dans le repère de leur os ; les mailles
+            // d'uniforme sont déjà en espace monde et ne doivent surtout pas être transformées.
+            let attach = if uniforme { None } else { attache };
+            pieces.push(nie_formats::assemble::AvatarPiece { component, g4md, g4mg, attach });
+        }
+    }
+
+    if pieces.is_empty() {
+        anyhow::bail!("aucune pièce lisible");
+    }
+    let mut model = nie_formats::assemble::assemble_avatar_model(&cle, &pieces)
+        .with_context(|| format!("assemblage avatar {cle}"))?;
+    let nb_tex = textures.len();
+    model.embedded_textures = textures;
+    let glb = if nb_tex > 0 { model.to_glb_embedded() } else { model.to_glb() };
+    debug!("avatar {cle} : {} pièce(s), {nb_tex} texture(s)", pieces.len());
+
+    if let Err(e) = fs::write(&cache_path, &glb) {
+        warn!("écriture cache avatar_{cle} échouée : {e}");
+    }
+    Ok(glb)
+}
+
 // ── Préchargement du cache (warm) ───────────────────────────────────────────────
 
 /// Une unité de préchargement : un modèle servable à assembler dans le cache.
@@ -3164,52 +3388,45 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
     // `/model-avatar/<pieces>.glb` — un avatar de l'éditeur, assemblé depuis ses pièces.
     //
     // `<pieces>` liste les pièces séparées par `+`, chacune sous la forme `<dossier>/<nom>` :
-    // `_base/base_normal_00+_facebase/face51_nose01+_hairF/hairF001`. L'avatar du jeu n'est pas un
-    // modèle unique — c'est cet empilement (corps par morphologie, visage, coiffures, oreilles,
-    // accessoires) que `nie_formats::assemble::assemble_avatar_model` recompose en un seul GLB.
+    // `_uniform` mis à part, un dossier commençant par `_` désigne une pièce de `20_EDIT`, un
+    // dossier sans souligné un modèle d'uniforme —
+    // `u000101/u000101+s000201/s000201+_facebase/face51_nose01+_hairF/hairF001`.
+    //
+    // L'avatar du jeu n'est pas un modèle unique : c'est cet empilement que
+    // `assemble_avatar_model` recompose. Attention, `_base/base_*` N'EST PAS le corps malgré son
+    // nom et malgré ce qu'affirmait la doc d'`assemble.rs` : ces mailles ne portent que l'œil et
+    // la bouche, à hauteur de tête (y ∈ [1,29 ; 1,60] m). Le corps habillé de l'éditeur est
+    // `_uniform/u000101` (haut et short, cheville → cou) plus `_uniform/s000201` (chaussures),
+    // d'après les recettes `common/chr/_test/default/mdl_edit_avatar*.cfg.bin`.
     if let Some(rest) = path.strip_prefix("/model-avatar/") {
         let body = rest.strip_suffix(".glb").unwrap_or(rest);
         let valide = |s: &str| {
             !s.is_empty() && s.len() <= 48 && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
         };
-        let mut pieces: Vec<nie_formats::assemble::AvatarPiece> = Vec::new();
-        let mut noms: Vec<String> = Vec::new();
-        {
-            let vfs = state.vfs.lock().unwrap();
-            for (i, spec) in body.split('+').enumerate() {
-                let Some((dossier, nom)) = spec.split_once('/') else { continue };
-                if !valide(dossier) || !valide(nom) {
-                    continue;
-                }
-                let base = format!("data/common/chr/_face/20_EDIT/{dossier}/{nom}");
-                let (Ok(g4md), Ok(g4mg)) =
-                    (vfs.read(&format!("{base}.g4md")), vfs.read(&format!("{base}.g4mg")))
-                else {
-                    continue;
-                };
-                // Le premier élément porte le corps, les suivants sont des pièces rapportées :
-                // le composant sert au nommage des matériaux dans le GLB.
-                let component = if i == 0 {
-                    nie_formats::assemble::MeshComponent::Body
-                } else {
-                    nie_formats::assemble::MeshComponent::Generic
-                };
-                pieces.push(nie_formats::assemble::AvatarPiece { component, g4md, g4mg });
-                noms.push(nom.to_string());
-            }
-        }
-        if pieces.is_empty() {
+        let specs: Vec<(String, String)> = body
+            .split('+')
+            .filter_map(|spec| spec.split_once('/'))
+            .filter(|(d, n)| valide(d) && valide(n))
+            .map(|(d, n)| (d.to_string(), n.to_string()))
+            .collect();
+        if specs.is_empty() {
             respond_text(&mut stream, 404, "Not Found", "aucune pièce lisible");
             return;
         }
-        let code = noms.join("_");
-        match nie_formats::assemble::assemble_avatar_model(&code, &pieces) {
-            Ok(model) => {
-                let glb = model.to_glb();
-                respond(&mut stream, 200, "OK", "model/gltf-binary", &glb);
-            }
+        let couches_visage: Vec<String> = param(query, "face")
+            .unwrap_or_default()
+            .split(',')
+            .filter(|c| {
+                !c.is_empty()
+                    && c.len() <= 40
+                    && c.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '/')
+            })
+            .map(str::to_string)
+            .collect();
+        match get_or_build_avatar_glb(&state, &specs, &couches_visage) {
+            Ok(glb) => respond(&mut stream, 200, "OK", "model/gltf-binary", &glb),
             Err(e) => {
-                debug!("assemblage avatar {code} échoué : {e}");
+                debug!("assemblage avatar échoué : {e}");
                 respond_text(&mut stream, 500, "Internal Server Error", "assemblage échoué");
             }
         }

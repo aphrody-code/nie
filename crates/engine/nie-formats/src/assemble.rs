@@ -276,6 +276,72 @@ pub fn uniform_texture_uri(material_base_name: &str, cfg: &TextureUriConfig) -> 
     )
 }
 
+// ── Textures de l'éditeur d'avatar ────────────────────────────────────────────
+
+/// Racine VFS des textures de l'éditeur d'avatar.
+pub const AVATAR_TEX_ROOT: &str = "data/dx11/chr/_face/20_EDIT";
+
+/// Chemins VFS candidats du conteneur `.g4tx` d'une pièce de l'éditeur, dans l'ordre d'essai.
+///
+/// Les modèles vivent sous `common/chr/_face/20_EDIT/<dossier>/<nom>.g4md`, les textures sous
+/// `dx11/chr/_face/20_EDIT/` — un arbre **parallèle mais pas identique**, et c'est ce décalage qui
+/// met en échec toute résolution par nom de matériau :
+///
+/// | dossier du modèle | conteneur de texture | remarque |
+/// |---|---|---|
+/// | `_hairF` / `_hairB` / `_hairU` | `<dossier>/<nom>M.g4tx` | suffixe `M`, mesuré 62/63, 52/54, 44/45 |
+/// | `_base` | `_base/<nom>.g4tx` | sans `M` (0/18 en forme `M`) |
+/// | `_facebase` | `_facebase/_facebase.g4tx` | **un seul** fichier pour les 64 modèles |
+/// | `_accessory` | `_accessorytex/accessory_10.g4tx` | **un seul** fichier pour les 44 modèles |
+/// | `_ear` | — | aucune texture propre |
+///
+/// La forme sans `M` est toujours essayée en repli : elle existe pour une partie de `_base`.
+#[must_use]
+pub fn avatar_texture_candidates(dossier: &str, nom: &str) -> Vec<alloc::string::String> {
+    match dossier {
+        "_facebase" => {
+            alloc::vec![alloc::format!("{AVATAR_TEX_ROOT}/_facebase/_facebase.g4tx")]
+        }
+        "_accessory" => {
+            alloc::vec![alloc::format!("{AVATAR_TEX_ROOT}/_accessorytex/accessory_10.g4tx")]
+        }
+        "_ear" => alloc::vec![],
+        _ => alloc::vec![
+            alloc::format!("{AVATAR_TEX_ROOT}/{dossier}/{nom}M.g4tx"),
+            alloc::format!("{AVATAR_TEX_ROOT}/{dossier}/{nom}.g4tx"),
+        ],
+    }
+}
+
+/// Chemin VFS du conteneur de texture d'une pièce d'**uniforme** (haut, short, chaussures).
+///
+/// Piège : le conteneur porte l'identifiant de la **tenue**, pas celui du modèle. La tenue de
+/// l'éditeur est `u117401_10` pour le haut et `s117401_10` pour les chaussures — noms lus dans les
+/// recettes `common/chr/_test/default/mdl_edit_avatar*.cfg.bin` — alors que les modèles sont
+/// `u000101` et `s000201`. Le fichier `u000101/u117401_10.g4tx` contient les textures nommées
+/// `u000101_20` et `u000101_30`.
+#[must_use]
+pub fn uniform_texture_vfs_path(dossier_modele: &str, tenue: &str) -> alloc::string::String {
+    alloc::format!("data/dx11/chr/_uniform/{dossier_modele}/{tenue}.g4tx")
+}
+
+/// Nom de la texture à décoder dans le conteneur, déduit du nom de matériau du G4MD.
+///
+/// Les matériaux d'uniforme portent un suffixe de niveau de détail (`u000101_30_LOD1`) que le nom
+/// de la texture n'a pas (`u000101_30`). Les matériaux de l'éditeur, eux, nomment déjà la texture.
+#[must_use]
+pub fn avatar_texture_name(material_name: &str) -> &str {
+    let mut fin = material_name;
+    while let Some(pos) = fin.rfind("_LOD") {
+        if fin[pos + 4..].chars().all(|c| c.is_ascii_digit()) && pos + 4 < fin.len() {
+            fin = &fin[..pos];
+        } else {
+            break;
+        }
+    }
+    fin
+}
+
 // ── Position sur le terrain ───────────────────────────────────────────────────
 
 /// Position du joueur sur le terrain (pour le choix keeper vs fielder).
@@ -959,6 +1025,58 @@ pub struct AvatarPiece {
     pub g4md: Vec<u8>,
     /// Données G4MG brutes.
     pub g4mg: Vec<u8>,
+    /// Matrice d'attache à appliquer aux sommets, si la pièce n'est pas déjà en espace monde.
+    ///
+    /// Les pièces de `20_EDIT` (visage, coiffure, oreilles) sont exprimées dans le repère de
+    /// l'os qui les porte : leur boîte englobante est centrée sur l'origine (y ∈ [−0,07 ; 0,23]),
+    /// pas à hauteur de tête. Les mailles d'uniforme, elles, sont déjà en espace monde
+    /// (y ∈ [0 ; 1,30]). Empiler les deux sans transformation pose la tête sur les chaussures.
+    /// Cette matrice est la pose de repos de l'os d'attache — cf. [`bone_rest_world`].
+    pub attach: Option<[[f32; 4]; 4]>,
+}
+
+/// Pose de repos, en espace monde, de l'os nommé d'un squelette G4SK.
+///
+/// Sert à replacer une pièce exprimée dans le repère de son os d'attache. Pour l'éditeur
+/// d'avatar, l'os est `c_head_1_0` du squelette `_bodySK/<code>_edit.g4sk` : c'est lui qui porte
+/// le visage, la coiffure et les oreilles.
+///
+/// Rend `None` si le squelette est illisible ou si l'os n'existe pas.
+#[must_use]
+pub fn bone_rest_world(g4sk: &[u8], bone_name: &str) -> Option<[[f32; 4]; 4]> {
+    let header = crate::g4sk::parse_header(g4sk).ok()?;
+    let hierarchie = crate::g4sk::parse_hierarchy(g4sk, &header);
+    let idx = hierarchie.bones.iter().position(|b| b.name == bone_name)?;
+    let poses = crate::g4sk::parse_poses(g4sk, &header)?;
+    let parents: Vec<i16> = hierarchie.bones.iter().map(|b| b.parent_index).collect();
+    crate::g4sk::rest_world_matrices(&poses, &parents).get(idx).copied()
+}
+
+/// Applique une matrice 4×4 (col-major) aux positions et aux normales d'une primitive.
+///
+/// Les normales ne reçoivent que la partie rotation : leur appliquer la translation les
+/// enverrait toutes dans la même direction.
+fn appliquer_matrice(prim: &mut MeshPrimitive, m: &[[f32; 4]; 4]) {
+    for p in &mut prim.positions {
+        let (x, y, z) = (p.x, p.y, p.z);
+        p.x = m[0][0] * x + m[1][0] * y + m[2][0] * z + m[3][0];
+        p.y = m[0][1] * x + m[1][1] * y + m[2][1] * z + m[3][1];
+        p.z = m[0][2] * x + m[1][2] * y + m[2][2] * z + m[3][2];
+    }
+    for n in &mut prim.normals {
+        let (x, y, z) = (n.x, n.y, n.z);
+        let (nx, ny, nz) = (
+            m[0][0] * x + m[1][0] * y + m[2][0] * z,
+            m[0][1] * x + m[1][1] * y + m[2][1] * z,
+            m[0][2] * x + m[1][2] * y + m[2][2] * z,
+        );
+        let l = (nx * nx + ny * ny + nz * nz).sqrt();
+        if l > 1e-6 {
+            n.x = nx / l;
+            n.y = ny / l;
+            n.z = nz / l;
+        }
+    }
 }
 
 /// Assemble un avatar de l'éditeur depuis ses pièces, dans l'ordre donné.
@@ -977,8 +1095,13 @@ pub fn assemble_avatar_model(
 ) -> Result<AssembledModel, AssembleError> {
     let mut primitives = Vec::new();
     for piece in pieces {
-        let extraites =
+        let mut extraites =
             extract_primitives_from_g4md_g4mg(&piece.g4md, &piece.g4mg, piece.component)?;
+        if let Some(m) = piece.attach.as_ref() {
+            for prim in &mut extraites {
+                appliquer_matrice(prim, m);
+            }
+        }
         primitives.extend(extraites);
     }
     Ok(AssembledModel {
@@ -1737,6 +1860,50 @@ fn build_glb_embedded(model: &AssembledModel) -> Vec<u8> {
 mod tests {
     use super::*;
     use std::path::PathBuf;
+
+    #[test]
+    fn le_suffixe_de_niveau_de_detail_ne_nomme_pas_la_texture() {
+        // Un matériau d'uniforme porte le LOD, la texture du conteneur ne le porte pas.
+        assert_eq!(avatar_texture_name("u000101_30_LOD1"), "u000101_30");
+        assert_eq!(avatar_texture_name("s000201_10_LOD1"), "s000201_10");
+        // Un matériau de l'éditeur nomme déjà la texture : rien à retirer.
+        assert_eq!(avatar_texture_name("hairF_10"), "hairF_10");
+        assert_eq!(avatar_texture_name("eye_10_normal_00"), "eye_10_normal_00");
+    }
+
+    #[test]
+    fn les_coiffures_essaient_le_suffixe_m_avant_la_forme_nue() {
+        let c = avatar_texture_candidates("_hairF", "hairF001");
+        assert_eq!(c[0], "data/dx11/chr/_face/20_EDIT/_hairF/hairF001M.g4tx");
+        assert_eq!(c[1], "data/dx11/chr/_face/20_EDIT/_hairF/hairF001.g4tx");
+    }
+
+    #[test]
+    fn le_visage_et_l_accessoire_partagent_un_conteneur_unique() {
+        // 64 modèles de visage pour un seul .g4tx, 44 accessoires pour un seul.
+        assert_eq!(
+            avatar_texture_candidates("_facebase", "face01_nose01"),
+            ["data/dx11/chr/_face/20_EDIT/_facebase/_facebase.g4tx"]
+        );
+        assert_eq!(
+            avatar_texture_candidates("_accessory", "accessory001"),
+            ["data/dx11/chr/_face/20_EDIT/_accessorytex/accessory_10.g4tx"]
+        );
+    }
+
+    #[test]
+    fn l_oreille_n_a_aucune_texture_propre() {
+        assert!(avatar_texture_candidates("_ear", "ear001").is_empty());
+    }
+
+    #[test]
+    fn le_conteneur_d_uniforme_porte_la_tenue_pas_le_modele() {
+        // Le modèle est u000101, la tenue de l'éditeur u117401_10.
+        assert_eq!(
+            uniform_texture_vfs_path("u000101", "u117401_10"),
+            "data/dx11/chr/_uniform/u000101/u117401_10.g4tx"
+        );
+    }
 
     /// Dossier des GLB de référence, sous la racine de jeu résolue à l'exécution — aucun
     /// chemin de poste en dur : `NIE_GAME_DIR`, sinon le répertoire courant ou un ancêtre.
