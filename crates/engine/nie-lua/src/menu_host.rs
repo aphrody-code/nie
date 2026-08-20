@@ -473,6 +473,19 @@ const ARG_GUARDED_RETURN1: &[u32] = &[
     0x37E8_6356, // h 0x140BFC9C0 (zero=guard n=1)
     0x9D7B_D6EF, // h 0x140CB1440 (zero=guard n=1)
     0xC879_6B78, // h 0x140CA6FD0 (zero=guard n=1)
+    // 7ᵉ lot (éditeur d'avatar `chara_edit`, 2026-08-20) : ses scripts ne sont pas dans le corpus
+    // décompilé local, donc le triage automatique ne les voyait pas. `0x5245F000` pèse à lui seul
+    // **1 062 des 1 254 appels non gérés** des 42 écrans de l'éditeur (85 %).
+    //
+    // Le triage le classait `zero=BODY` — verdict à corriger, obtenu sur un fragment : le handler
+    // est découpé en plusieurs entrées `.pdata` NON chaînées, et l'analyse s'arrêtait au premier
+    // morceau. Flux de contrôle relu morceau par morceau : `cmp edx,3 ; jae CORPS` puis, sur le
+    // chemin d'échec, un appel de rapport d'erreur suivi de `xor al,al ; ret` ; le morceau suivant
+    // teste l'objet résolu et, s'il est nul, appelle LE MÊME rapport d'erreur avant `xor al,al ;
+    // ret`. Les deux zéros sont donc des sorties d'erreur — arité insuffisante, objet introuvable —
+    // et non une décision métier. Sur le chemin normal (3 args, objet existant), le corps rend 1.
+    // Même sémantique que le reste de la liste, avec un cas d'échec de plus.
+    0x5245_F000, // h 0x140D0E7F0 (2 sorties d'erreur, n=3)
 ];
 
 /// Nom lisible d'un `cmdId` `funcLuaMenuCommand` reversé, ou `None` si non encore identifié.
@@ -1456,7 +1469,9 @@ mod dispatch_tests {
             let ret: f64 = menu_cmd(&lua).call::<f64>((f64::from(cid), 1.0)).unwrap();
             assert_eq!(ret, 1.0, "cmdId 0x{cid:08X} : handler renvoie AL=1");
         }
-        assert_eq!(ARG_GUARDED_RETURN1.len(), 209);
+        // 209 + `0x5245F000` (éditeur d'avatar, 7ᵉ lot). Le compte est verrouillé exprès : un ajout
+        // doit être un geste délibéré, justifié au-dessus de l'entrée, jamais un effet de bord.
+        assert_eq!(ARG_GUARDED_RETURN1.len(), 210);
     }
 
     /// `RegisterItemListCount` (cmdId `0x16C1C4C0`) — handler `0x140CD8E30` REVERSÉ : enregistre
