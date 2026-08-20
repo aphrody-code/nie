@@ -931,9 +931,16 @@ fn cmd_compose_layout(game_dir: &Path, json_in: &Path, png_out: &Path) -> Result
                     .and_then(|(_, b)| g4tx::parse(&b).ok().map(|p| (b, p)))
             });
             let (bytes, parsed) = entry.as_ref()?;
-            let (tex, sub) = parsed.region(region)?;
-            let (fw, fh, full) = g4tx_decode::decode_texture_rgba(bytes, tex)?;
-            crop_rgba(&full, fw, fh, (sub.x, sub.y, sub.width, sub.height))
+            // Un nom d'icône désigne soit une TEXTURE entière du conteneur, soit une région dans
+            // une porteuse (`avatar01_13.g4tx` a les deux). Ne chercher que les sous-textures
+            // rendait l'atlas complet à la place de la moitié des icônes.
+            match parsed.named(region)? {
+                g4tx::NamedTarget::Texture(tex) => g4tx_decode::decode_texture_rgba(bytes, tex),
+                g4tx::NamedTarget::Region { texture, sub } => {
+                    let (fw, fh, full) = g4tx_decode::decode_texture_rgba(bytes, texture)?;
+                    crop_rgba(&full, fw, fh, (sub.x, sub.y, sub.width, sub.height))
+                }
+            }
         })();
         // Résolution de région par HASH (D1.b) : si l'objet porte un `spriteRegionHash` (= CRC32 du
         // nom de région) non résolu en nom, on croppe la sous-région de SON atlas dont
@@ -960,6 +967,14 @@ fn cmd_compose_layout(game_dir: &Path, json_in: &Path, png_out: &Path) -> Result
                     .and_then(|(_, b)| g4tx::parse(&b).ok().map(|p| (b, p)))
             });
             let (bytes, parsed) = entry.as_ref()?;
+            // Même angle mort que `region_src` : le hash peut être celui d'une TEXTURE du
+            // conteneur, pas seulement d'une sous-texture. Les textures d'abord, comme
+            // `g4tx::find_named` et `g4tx_decode::decode_named_to_rgba`.
+            for t in &parsed.textures {
+                if cfgbin::crc32(t.name.as_bytes()) == srh {
+                    return g4tx_decode::decode_texture_rgba(bytes, t);
+                }
+            }
             for t in &parsed.textures {
                 for s in &t.sub_textures {
                     if cfgbin::crc32(s.name.as_bytes()) == srh {
@@ -2766,13 +2781,30 @@ fn cmd_export_layout_runtime(
                                 .ok()
                                 .and_then(|(_, b)| g4tx::parse(&b).ok())
                         });
+                        // `named_rect` et non `region_rect` : un nom d'icône désigne aussi bien une
+                        // TEXTURE entière du conteneur qu'une sous-texture. Sur `avatar01_13.g4tx`,
+                        // `edit_bar_icon14_off` est une région et `edit_bar_icon02_off` une texture
+                        // — ne voir que les régions laissait la seconde en atlas complet.
                         if let Some(p) = parsed
-                            && let Some((x, y, w, h)) = p.region_rect(rn)
+                            && let Some((x, y, w, h)) = p.named_rect(rn)
                         {
                             rt.insert(
                                 "spriteRect".into(),
                                 json!({"x": x, "y": y, "w": w, "h": h}),
                             );
+                            // La texture à décoder n'est pas forcément la première du conteneur :
+                            // sans son nom, le consommateur croppe le bon rectangle dans la
+                            // mauvaise image.
+                            if let Some(cible) = p.named(rn) {
+                                let porteuse = match cible {
+                                    g4tx::NamedTarget::Texture(t) => &t.name,
+                                    g4tx::NamedTarget::Region { texture, .. } => &texture.name,
+                                };
+                                rt.insert(
+                                    "spriteRegionTexture".into(),
+                                    Value::String(porteuse.clone()),
+                                );
+                            }
                             n_region_rect += 1;
                         }
                     }
