@@ -399,6 +399,25 @@ laisse plus de la moitié du cadre en canvas vide, et son compositeur est le plu
   d'appariement. Il faudra un oracle local (recherche de motif région par région) et non un score
   d'image entière.
 
+### sRGB ou lumière linéaire — mesuré, pas encore tranchable
+
+Le compositeur mélange en octets sRGB ; l'hypothèse concurrente est un mélange en lumière linéaire.
+Les deux ont été comparés en composant les mêmes écrans sous chaque formule :
+
+| écran | espace | T0 | ΔE moyen | SSIM |
+|---|---|---:|---:|---:|
+| `chara_edit_menu` | linéaire | 0,58 % | **36,65** | **0,2333** |
+| `chara_edit_menu` | sRGB (actuel) | 0,56 % | 36,88 | 0,2295 |
+| `main_menu` | linéaire | 10,85 % | 14,81 | 0,5234 |
+| `main_menu` | sRGB (actuel) | 10,85 % | 14,81 | 0,5234 |
+
+Le linéaire est très légèrement meilleur là où il y a de la semi-transparence, et **strictement
+identique** ailleurs — ce qui est attendu, les deux formules coïncidant exactement à alpha plein.
+L'écart (0,23 de ΔE sur un seul écran) est trop faible pour trancher une décision qui touche tout
+le rendu, et le rendu est encore trop incomplet pour que le test le soit : il faudrait une zone de
+chevauchement semi-transparent déjà juste pour que l'écart devienne discriminant. Aucun changement
+n'est appliqué ; l'expérience a été retirée du dépôt.
+
 > **Rappel de doctrine** : « pixel-perfect » est le **nom d'une cible**, pas un état atteint.
 > Le byte-exact du dépôt porte sur les **données**, jamais sur les pixels.
 
