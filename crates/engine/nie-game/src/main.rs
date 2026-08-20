@@ -2739,6 +2739,12 @@ fn cmd_export_layout_runtime(
     // contentent de rendre 1 au script.
     let mut known_by_name: BTreeMap<String, usize> = BTreeMap::new();
     let mut script_reports: Vec<(String, bool, usize, usize, usize)> = Vec::new();
+    // Callbacks que les scripts de l'écran DÉFINISSENT. Le driver n'en joue qu'une partie
+    // (`OnInit`, `OnSetupLayer`, `OnOpenLayer`, `OnEnter`, `Step`) ; les autres nomment
+    // précisément ce qu'une exécution complète devrait déclencher. Sans cet inventaire, « il
+    // manque l'état de navigation » reste une phrase ; avec lui, c'est une liste.
+    let mut callbacks_definis: std::collections::BTreeSet<String> =
+        std::collections::BTreeSet::new();
     // Onglets d'en-tête virtuels (sous-items absents de l'objbin), énumérés depuis la vraie
     // logique du script (GetSortOfTabs + GetMenuObjectNameFromTabType). Clé = hash d'objet.
     let mut header_tabs: BTreeMap<u32, HeaderTab> = BTreeMap::new();
@@ -2842,6 +2848,7 @@ fn cmd_export_layout_runtime(
             st.known_cmd_log.len(),
             st.unknown_cmd_log.len()
         );
+        callbacks_definis.extend(report.callbacks.iter().cloned());
         script_reports.push((name.to_string(), report.on_open, n_layers, n_objs, st.known_cmd_log.len()));
     }
 
@@ -3030,6 +3037,17 @@ fn cmd_export_layout_runtime(
             "listItemsRecorded": total_list_items,
             "objectsHidden": n_hidden,
             "knownCmdsByName": known_by_name,
+            "callbacksDefinis": callbacks_definis,
+            // Ceux que le driver ne joue pas : la cible exacte du travail de navigation restant.
+            "callbacksNonJoues": callbacks_definis
+                .iter()
+                .filter(|c| {
+                    !matches!(
+                        c.as_str(),
+                        "OnInit" | "OnSetupLayer" | "OnOpenLayer" | "OnEnter" | "Step"
+                    )
+                })
+                .collect::<Vec<_>>(),
             // Combien d'objets reçoivent une visibilité NOMMÉE par index, et sur combien d'index
             // distincts : dit si les scripts distinguent vraiment les exemplaires d'un gabarit, ou
             // s'ils les commandent tous par le même index.

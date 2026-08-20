@@ -276,10 +276,21 @@ callbacks connaît aussi `OnDecideFocus`, `OnFunction`, `OnBack`, `OnCloseLayer`
 inchangés. Le changement a été retiré : un appel de callback qui ne produit rien n'a pas sa place
 dans le driver.
 
-Ce qui manque n'est donc pas un callback de plus dans la boucle, mais l'**état de navigation** que
-le moteur porte entre les écrans — quelle rubrique est ouverte, quelle catégorie est sélectionnée.
-C'est la même couche que celle qui manquait pour `GetItemButtonNum`, et le seul point du plan qui
-reste ouvert.
+L'inventaire est désormais publié par écran (`callbacksDefinis`, `callbacksNonJoues`), et il est
+identique sur les trois écrans testés. Les scripts définissent neuf callbacks ; le driver en joue
+cinq. Les quatre autres sont nommés :
+
+| callback non joué | essayé ? | résultat |
+|---|---|---|
+| `OnDecideFocus` | oui | `listItemsRecorded` reste 0, objets visibles inchangés |
+| `OnFunction` | oui | idem — il s'exécute (+134 appels reconnus) mais ne peuple pas |
+| `OnBack`, `OnCloseLayer` | non | ce sont des **sorties** d'écran, pas des entrées |
+
+Les deux seuls candidats plausibles ont donc été essayés et mesurés sans effet ; les deux autres
+ferment un écran au lieu de l'ouvrir. Ce qui manque n'est pas un callback de plus dans la boucle,
+mais l'**état de navigation** que le moteur porte entre les écrans — quelle rubrique est ouverte,
+quelle catégorie est sélectionnée. C'est la même couche que celle qui manquait pour
+`GetItemButtonNum`, et le seul point du plan qui reste ouvert.
 
 ## 7. Vérifications
 
