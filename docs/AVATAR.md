@@ -315,6 +315,12 @@ tous les trois, 297 commandes reconnues. Il ne pose donc pas ces champs lui-mêm
 la couche que le moteur tient entre les écrans — celle qui sait quelle rubrique est ouverte et
 combien d'entrées elle contient.
 
+Une hypothèse plus simple a été testée puis écartée : `SetupListInfo` est définie par le module
+inclus, pas par le script d'écran, ce qui pouvait en faire une **méthode** attendant sa table de
+contexte en argument. Appelée avec une table portant les trois champs, elle échoue exactement de
+la même manière — `listRowNum` reste nul. Elle ne lit donc pas son argument : la table qu'elle
+consulte est une variable du module que rien, dans notre exécution, ne renseigne.
+
 Voilà où s'arrête ce qui est atteignable depuis les fichiers : la fonction de peuplement est
 nommée, le champ qui lui manque est nommé, le module qui les déclare est identifié et chargé, et
 il est établi que le script ne les renseigne pas. Le remplir demanderait de fabriquer une valeur
