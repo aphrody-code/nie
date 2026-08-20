@@ -127,6 +127,7 @@ confirmé côté binaire** (cf. §9).
 | `preset [<id>]` | les visages prédéfinis ; avec argument, la recette décodée |
 | `export -o <fichier>` | le catalogue résolu complet en JSON (**856 064 o**) |
 | `icons [-o <dir>] [--atlas-prefix …]` | localise les vignettes dans les atlas, les extrait en PNG |
+| `roi <écran> [-o <json>]` | dérive les régions de mesure d'un écran **depuis son layout**, et déclare non dérivables celles dont la géométrie est un repli |
 
 ### CLI — `niers icons` (`icons_cmd.rs`, 180 l.)
 
@@ -174,7 +175,12 @@ décodait tous — alors que `nie-model-serve` sait déjà décoder n'importe qu
   complet — 2640×1364 à la place d'une icône de 56×56.
 - **18 captures de référence** du vrai jeu dans `var/refs-avatar/`, 2560×1440.
 - **491 icônes** extraites dans `var/avatar-icons/`.
-- `var/avatar-ui/png/` est **vide** : aucun écran de l'éditeur n'a encore été composé en image.
+- **Les 42 écrans sont composés en image** (2026-08-20) — `var/avatar-ui/png/`, 24 Mio. Le dossier
+  était vide jusque-là : aucun écran de l'éditeur n'avait jamais été rendu.
+- Un écran du jeu est une **pile de calques**, pas un layout (`chara_edit_menu` en touche 2,
+  `chara_edit_parts_menu` 3, `..._hair_list` 1). `--compose-layout` est donc répétable : les objets
+  de tous les calques sont triés ensemble par priorité de dessin, l'ordre des options départageant
+  à priorité égale. Sur les trois calques de l'éditeur : 10 → **31 éléments** composés.
 
 ## 7. Vérifications
 
@@ -247,6 +253,41 @@ dépôt, et c'est le point de départ réaliste pour un écran de l'éditeur.
 
 **Aucun écran `chara_edit` n'est dans ce gate.** Les 18 captures de `var/refs-avatar/` ne sont
 adossées à aucun test : elles ont servi de référence visuelle, jamais de référence mesurée.
+
+### La métrique — `niers img diff`
+
+Depuis le 2026-08-20, la comparaison est un outil du dépôt (`nie_formats::imgmetric`, sans
+dépendance externe : `dssim-core` est en AGPL, incompatible). Trois niveaux, dans l'ordre de la
+doctrine « égalité d'octets d'abord » : **T0** identité (les trois canaux égaux), **T1**
+imperceptibilité (ΔE2000 ≤ 1), **T2** structure (SSIM). Sortie **par région**, plus une carte SSIM
+par bloc, une image d'écart et un rapport JSON.
+
+Les quatre biais du SSIM historique sont corrigés et verrouillés par un test chacun : luma seule
+(→ trois canaux linéaires, score = le pire), alpha ignoré (→ couverture opaque publiée), downscale
+non gamma-corrigé qui faussait la **référence** (→ moyenne en lumière linéaire), fenêtres disjointes
+moyennées aussitôt (→ chevauchantes, carte conservée).
+
+### Baselines de l'éditeur (2026-08-20)
+
+Premières mesures chiffrées du pilier — il n'en existait aucune.
+
+| Rendu | vs | T0 | ΔE moyen | SSIM | couverture |
+|---|---|---:|---:|---:|---:|
+| `chara_edit_menu`, voie `--menu --from-setting` | capture `125312` | 0,56 % | 36,88 | 0,2295 | 93,89 % |
+| 3 calques empilés, voie `--compose-layout` | capture `125312` | 0,00 % | 54,61 | 0,1132 | 47,56 % |
+
+L'écart entre les deux voies est structurel : `--compose-layout` porte le contenu runtime mais
+laisse plus de la moitié du cadre en canvas vide, et son compositeur est le plus faible des trois
+(plus proche voisin, rotation ignorée).
+
+### Tentatives mesurées négatives — à ne pas refaire
+
+- **Crop du fond par la région désignée, seul** : `chara_edit_menu` passe de ΔE 36,88 à 37,73 et de
+  SSIM 0,2295 à 0,2213. Le crop ne paie pas tant que la position et la luminosité du fond ne sont
+  pas corrigées avec lui. La primitive (`menu::taille_designee`) reste, le branchement attend.
+- **Visibilité fusionnée par ET entre calques** : soupçonnée d'effacer des objets qu'un seul calque
+  cache, elle n'en efface que 0, 1 et 0 sur trois écrans (contre 8, 53 et 62 objets masqués). Les
+  scripts cachent réellement ces objets ; la sémantique n'est pas en cause.
 
 > **Rappel de doctrine** : « pixel-perfect » est le **nom d'une cible**, pas un état atteint.
 > Le byte-exact du dépôt porte sur les **données**, jamais sur les pixels.
