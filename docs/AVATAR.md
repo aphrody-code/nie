@@ -800,12 +800,19 @@ La **teinte agit** : quatre couleurs de peau donnent quatre empreintes distincte
 
 ### Ce qui reste
 
-- **Les reflets (`03_highlight`) ne contribuent jamais**, y compris servis SEULS : les empreintes
-  de `highlight_00` et `highlight_09`, avec ou sans peau, sont identiques. Ce n'est donc pas un
-  écrasement par une couche voisine, comme je l'avais d'abord conclu. Les « 2 % de dessin sur le
-  vert » que j'avais mesurés venaient d'artefacts d'interpolation de mon redimensionnement de
-  mesure, pas du contenu — leçon de méthode : ne pas mesurer la répartition des canaux sur une
-  image redimensionnée. La cause réelle reste à établir.
+- **Les reflets (`03_highlight`) ne contribuent jamais**, y compris servis SEULS. Ce qui est
+  établi, après trois tentatives ciblées :
+  - ce n'est **pas** un écrasement par une couche voisine (les empreintes sont identiques même
+    quand la famille est servie seule) ;
+  - leurs planches de couleur sont **identiques d'une variante à l'autre** : `highlight_L_00` et
+    `highlight_L_09` valent tous deux R = G = B = A = 255, écart-type nul. Seuls leurs **masques**
+    diffèrent (`msk_00` uniforme, `msk_09` à 41 d'écart-type) ;
+  - le masque est bien posé en alpha depuis ce correctif, et la planche est exemptée de la règle
+    du fond — la famille reste pourtant inerte.
+
+  Leçon de méthode consignée : mes « 2 % de dessin sur le vert », qui m'avaient fait conclure à un
+  écrasement, étaient des artefacts d'interpolation de mon propre redimensionnement de mesure.
+  **Ne jamais mesurer la répartition des canaux sur une image redimensionnée.**
 - **Les valeurs RGB des palettes : RELEVÉES.** Elles n'existaient nulle part sous forme de valeur —
   `m_CharaEditColorDataList` ne porte que des identifiants, le binaire ne contient pas le motif
   d'une entrée connue, et contrairement aux canaux `red`/`green`/`blue`, **aucun** des 165
