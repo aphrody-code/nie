@@ -907,20 +907,25 @@ fn cmd_compose_layout(game_dir: &Path, json_in: &[PathBuf], png_out: &Path) -> R
         objs.extend(doc["objects"].as_array().cloned().unwrap_or_default());
     }
 
-    let mut canvas = vec![0u8; W as usize * H as usize * 4]; // transparent
     // Cache (octets, parse) par chemin g4tx logique.
     let mut cache: std::collections::HashMap<String, Option<(Vec<u8>, g4tx::G4tx)>> =
         std::collections::HashMap::new();
 
-    // Un élément à dessiner : pixels RGBA + position écran + priorité de dessin (z-order).
+    // Un élément à dessiner : pixels RGBA **natifs** + transform écran + priorité (z-order).
+    //
+    // Les pixels ne sont plus pré-agrandis ici : l'échelle est portée par le transform et
+    // appliquée par le compositeur de référence (`nie_formats::menu`), qui échantillonne en
+    // bilinéaire et sait tourner un sprite. Pré-agrandir au plus proche voisin, comme le faisait
+    // cette voie, jetait de l'information avant la composition et ignorait la rotation.
     struct DrawItem {
         prio: i64,
         order: usize,
         rgba: Vec<u8>,
         w: u32,
         h: u32,
-        dx: i32,
-        dy: i32,
+        transform: menu::ScreenTransform,
+        anchor_x: f32,
+        anchor_y: f32,
     }
     let mut items: Vec<DrawItem> = Vec::new();
     let (mut n_region, mut n_static) = (0usize, 0usize);
@@ -1026,14 +1031,9 @@ fn cmd_compose_layout(game_dir: &Path, json_in: &[PathBuf], png_out: &Path) -> R
         let (sx, sy) = (f("scaleX", 1.0).max(0.0), f("scaleY", 1.0).max(0.0));
         let (ax, ay) = (f("anchorX", 0.5), f("anchorY", 0.5));
         let (px, py) = (f("x", 0.0), f("y", 0.0));
-        let dw = ((f64::from(cw) * sx).round() as u32).max(1);
-        let dh = ((f64::from(chh) * sy).round() as u32).max(1);
-        let scaled = scale_nearest(&crop, cw, chh, dw, dh);
-        if scaled.is_empty() {
+        if crop.is_empty() || cw == 0 || chh == 0 {
             continue;
         }
-        let dx = (px - ax * f64::from(dw)).round() as i32;
-        let dy = (py - ay * f64::from(dh)).round() as i32;
         if is_region {
             n_region += 1;
         } else {
@@ -1042,11 +1042,18 @@ fn cmd_compose_layout(game_dir: &Path, json_in: &[PathBuf], png_out: &Path) -> R
         items.push(DrawItem {
             prio: o["drawPriority"].as_i64().unwrap_or(0),
             order,
-            rgba: scaled,
-            w: dw,
-            h: dh,
-            dx,
-            dy,
+            rgba: crop,
+            w: cw,
+            h: chh,
+            transform: menu::ScreenTransform {
+                x_px: px as f32,
+                y_px: py as f32,
+                scale_x: sx as f32,
+                scale_y: sy as f32,
+                rot: f("rot", 0.0) as f32,
+            },
+            anchor_x: ax as f32,
+            anchor_y: ay as f32,
         });
     }
 
@@ -1100,17 +1107,34 @@ fn cmd_compose_layout(game_dir: &Path, json_in: &[PathBuf], png_out: &Path) -> R
             rgba: texte,
             w: tw,
             h: th,
-            dx: (f("x", 0.0) - ax * f64::from(tw)).round() as i32,
-            dy: (f("y", 0.0) - ay * f64::from(th)).round() as i32,
+            // Le libellé est déjà rendu à sa taille : échelle neutre, seule l'ancre le place.
+            transform: menu::ScreenTransform {
+                x_px: f("x", 0.0) as f32,
+                y_px: f("y", 0.0) as f32,
+                scale_x: 1.0,
+                scale_y: 1.0,
+                rot: 0.0,
+            },
+            anchor_x: ax as f32,
+            anchor_y: ay as f32,
         });
         n_text += 1;
     }
 
     // Z-order : priorité de dessin croissante (fond d'abord), départage par ordre de déclaration.
     items.sort_by(|a, b| a.prio.cmp(&b.prio).then(a.order.cmp(&b.order)));
-    for it in &items {
-        blit_over(&mut canvas, (W, H), &it.rgba, (it.w, it.h), (it.dx, it.dy));
-    }
+    let sprites: Vec<menu::CompositeSprite> = items
+        .iter()
+        .map(|it| menu::CompositeSprite {
+            rgba: &it.rgba,
+            width: it.w,
+            height: it.h,
+            transform: it.transform,
+            anchor_x: it.anchor_x,
+            anchor_y: it.anchor_y,
+        })
+        .collect();
+    let canvas = menu::compose(W, H, &sprites);
     let n_drawn = items.len();
 
     let png = encoder_rgba_png(&canvas, W, H)?;
