@@ -216,6 +216,30 @@ pub fn g4tx_vers(g4tx: &[u8], basename: &str, format: ImageOut) -> Result<Vec<u8
     encoder_rgba(&rgba, w, h, format)
 }
 
+/// Décode les planches de couleur d'un conteneur de visage.
+///
+/// Un conteneur en porte souvent plusieurs, latéralisées (`eye_L_00` et `eye_R_00`), chacune
+/// accompagnée d'un `<nom>msk` de mêmes dimensions.
+///
+/// **Le `msk` n'est PAS un masque d'opacité**, contrairement à ce que son nom laisse croire : sur
+/// `face_00msk` comme sur `pupil_L_00msk`, il est uniforme à 0,5 (écart-type NUL). Le poser en
+/// alpha rend toute la planche uniformément semi-transparente et fait disparaître les variations
+/// — essayé, mesuré, abandonné. C'est vraisemblablement un paramètre constant de matériau, pas
+/// une carte spatiale ; sa nature exacte reste à établir.
+///
+/// Les planches sont donc rendues telles quelles, avec l'alpha qu'elles portent — et elles n'en
+/// portent pas toutes un utile : `pupil_00` a un vrai canal alpha, `eyebrow_00` est entièrement
+/// transparente, `face_00`, `eye_00` et `mouth_00` sont entièrement opaques. **La règle qui
+/// combine ces six familles n'est pas établie** ; les empiler en alpha ne la reproduit pas.
+#[cfg(feature = "textures")]
+#[must_use]
+pub fn decoder_planches(g4tx: &[u8]) -> Vec<(u32, u32, Vec<u8>)> {
+    crate::g4tx::base_color_texture_names(g4tx)
+        .into_iter()
+        .filter_map(|nom| crate::g4tx_decode::decode_named_to_rgba(g4tx, &nom))
+        .collect()
+}
+
 /// Redimensionne une image RGBA vers une taille donnée, au plus proche voisin.
 ///
 /// Sert à ramener les couches d'un visage à la toile commune. Le plus proche voisin suffit ici :
@@ -250,15 +274,23 @@ fn redimensionner_rgba(rgba: &[u8], w: u32, h: u32, vers_w: u32, vers_h: u32) ->
 /// bouche. Chaque rubrique de l'éditeur choisit **une** planche de sa famille ; le résultat est
 /// cette composition, et c'est elle qui change quand le joueur change de choix.
 ///
-/// La taille retenue est celle de la **plus grande** couche, et non celle de la première : dans
-/// `_facetex`, la planche de peau (`00_face/face_NN`) fait 512×512 alors que les traits
-/// (`01_eye`, `05_mouth`…) font 2048×1024. Se caler sur la première jetait silencieusement tout
-/// le reste.
+/// La taille retenue est celle de la **plus grande** couche, et non celle de la première.
 ///
 /// Seules les couches de **même rapport largeur/hauteur** sont composées : un rapport différent
 /// est un autre dépliage UV, et les superposer placerait les traits n'importe où sur le visage.
-/// Une couche au bon rapport mais plus petite est agrandie, une couche d'un autre rapport est
-/// ignorée. Rend `None` si la liste est vide ou si aucune couche n'est exploitable.
+/// Une couche au bon rapport mais plus petite est agrandie.
+///
+/// **L'appelant doit donc grouper les couches par dépliage avant d'appeler cette fonction.** Les
+/// planches de `_facetex` en ont deux — la peau, les pupilles et les reflets sont en 512×512, les
+/// yeux, les sourcils et la bouche en 2048×1024 — et tout mélanger revenait à en perdre la moitié
+/// en silence, dont les pupilles, la seule à porter un dessin. Chaque dépliage donne une texture,
+/// et chaque matériau de la tête en reçoit une.
+///
+/// Les planches de `_facetex` étant OPAQUES, leur alpha doit avoir été posé au préalable depuis
+/// leur masque compagnon — cf. [`decoder_planches_masquees`]. Sans cela, la composition ne rend
+/// que la dernière couche.
+///
+/// Rend `None` si la liste est vide ou si aucune couche n'est exploitable.
 #[cfg(feature = "textures")]
 #[must_use]
 pub fn composer_couches(couches: &[(u32, u32, Vec<u8>)]) -> Option<(u32, u32, Vec<u8>)> {
@@ -497,7 +529,8 @@ mod tests {
     #[test]
     fn une_couche_d_un_autre_rapport_est_ecartee() {
         // Un rapport différent est un autre dépliage UV : la plaquer placerait les traits
-        // n'importe où sur le visage.
+        // n'importe où sur le visage. C'est à l'appelant de grouper par dépliage AVANT d'appeler
+        // — ne pas le faire coûtait la moitié des planches du visage, en silence.
         let out = composer_couches(&[
             couche_wh(8, 4, 255, 0, 0, 255),
             couche_wh(4, 4, 0, 255, 0, 255),
@@ -505,6 +538,65 @@ mod tests {
         .unwrap();
         assert_eq!((out.0, out.1), (8, 4));
         assert_eq!(&out.2[..4], &[255, 0, 0, 255], "la couche carrée ne doit pas être composée");
+    }
+
+    /// Les six familles de `_facetex` doivent TOUTES pouvoir peser sur le visage composé.
+    ///
+    /// Le défaut que ce test verrouille : la peau, les pupilles et les reflets sont en 512×512
+    /// tandis que les yeux, les sourcils et la bouche sont en 2048×1024. Composer les six sur une
+    /// toile unique écartait les trois premières en silence — changer de peau ou de pupille ne
+    /// changeait alors pas un octet du rendu. Il faut composer UN visage PAR DÉPLIAGE.
+    #[cfg(all(feature = "textures", feature = "images"))]
+    #[test]
+    fn chaque_depliage_de_visage_est_compose_a_part() {
+        use crate::vfs::Vfs;
+
+        let mut vfs = Vfs::new();
+        if vfs.init(crate::vfs::resolve_game_dir().join("data")).is_err() {
+            eprintln!("SKIP : VFS non initialisable");
+            return;
+        }
+        let lire = |vfs: &Vfs, rel: &str| {
+            vfs.read(&format!("data/dx11/chr/_face/20_EDIT/_facetex/{rel}.g4tx")).ok()
+        };
+
+        // Une planche de chaque dépliage, et une seconde peau pour prouver que la variation passe.
+        let (Some(peau_a), Some(peau_b), Some(bouche)) = (
+            lire(&vfs, "00_face/face_00"),
+            lire(&vfs, "00_face/face_34"),
+            lire(&vfs, "05_mouth/mouth_00"),
+        ) else {
+            eprintln!("SKIP : planches de visage absentes");
+            return;
+        };
+
+        let pa = decoder_planches(&peau_a);
+        let pb = decoder_planches(&peau_b);
+        let bo = decoder_planches(&bouche);
+        assert!(!pa.is_empty() && !pb.is_empty() && !bo.is_empty(), "planches décodées");
+
+        // Les deux dépliages sont bien distincts : c'est la prémisse du défaut.
+        assert_ne!(
+            (pa[0].0, pa[0].1),
+            (bo[0].0, bo[0].1),
+            "la peau et la bouche doivent avoir des dépliages différents"
+        );
+
+        // Composées ensemble, la peau disparaît : la toile prend le plus grand dépliage.
+        let melange_a = composer_couches(&[pa[0].clone(), bo[0].clone()]).expect("composition");
+        let melange_b = composer_couches(&[pb[0].clone(), bo[0].clone()]).expect("composition");
+        assert_eq!(
+            melange_a.2, melange_b.2,
+            "tout mélanger doit bien écraser la peau — c'est le piège que le groupement évite"
+        );
+
+        // Groupées par dépliage, les deux peaux restent distinctes.
+        let seule_a = composer_couches(&[pa[0].clone()]).expect("composition");
+        let seule_b = composer_couches(&[pb[0].clone()]).expect("composition");
+        assert_ne!(
+            seule_a.2, seule_b.2,
+            "deux peaux différentes doivent donner deux compositions différentes"
+        );
     }
 
     #[cfg(feature = "textures")]

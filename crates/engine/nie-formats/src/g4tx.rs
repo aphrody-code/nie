@@ -308,6 +308,30 @@ impl G4tx {
 /// `hairF001M.g4tx`, `hair_10spm` fait 256×128 contre 64×32 pour la couleur de base `hair_10`.
 const SUFFIXES_TECHNIQUES: [&str; 5] = ["line", "msk", "oc", "spm", "sp"];
 
+/// Les planches de **couleur de base** d'un conteneur, du plus grand au plus petit.
+///
+/// Un conteneur de visage en porte souvent plusieurs : les yeux et les pupilles sont latéralisés
+/// (`eye_L_00` et `eye_R_00`), la peau ne l'est pas (`face_00` seul). Chacune a son masque
+/// compagnon `<nom>msk`, de mêmes dimensions.
+#[must_use]
+pub fn base_color_texture_names(data: &[u8]) -> alloc::vec::Vec<alloc::string::String> {
+    let Ok(conteneur) = parse(data) else {
+        return alloc::vec::Vec::new();
+    };
+    let mut retenues: alloc::vec::Vec<&G4txTexture> = conteneur
+        .textures
+        .iter()
+        .filter(|t| {
+            !t.name.is_empty()
+                && !SUFFIXES_TECHNIQUES.iter().any(|s| t.name.ends_with(s))
+                && t.width > 0
+                && t.height > 0
+        })
+        .collect();
+    retenues.sort_by_key(|t| core::cmp::Reverse((t.width as i64) * (t.height as i64)));
+    retenues.iter().map(|t| t.name.clone()).collect()
+}
+
 /// Nom de la texture **couleur de base** d'un conteneur G4TX, s'il en porte une.
 ///
 /// Rend la plus grande texture dont le nom ne finit par aucun suffixe technique. Les conteneurs
