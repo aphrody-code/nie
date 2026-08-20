@@ -678,6 +678,94 @@ Prochaine cible chiffrée : `panneau_droit` (0,6801, 542 500 px — le plus gros
 
 ---
 
+## 15. L'assembleur de modèle et de texture
+
+L'éditeur ne montre plus un modèle figé : il assemble, à la demande, le personnage que le jeu
+compose lui-même. Trois chaînes, chacune établie par mesure.
+
+### 15.1 Le corps — et pourquoi `_base/` n'en est pas un
+
+`_base/base_*.g4md` **n'est pas un corps**, malgré son nom et malgré ce qu'affirmait la doc
+d'`assemble.rs` : ces mailles ne portent que l'œil et la bouche, à hauteur de tête
+(y ∈ [1,29 ; 1,60] m, 2 sous-mailles, matériaux `eye_10_*` / `mouth_10_*`). Le corps habillé de
+l'éditeur est `_uniform/u000101` (haut et short, cheville → cou) plus `_uniform/s000201`
+(chaussures) : les 32 recettes `common/chr/_test/default/mdl_edit_avatar*.cfg.bin` portent toutes,
+sans exception, la même tenue `u117401_10` / `s117401_10`.
+
+Piège de nommage : le conteneur de texture porte l'identifiant de la **tenue**, pas celui du
+modèle — `u000101/u117401_10.g4tx` contient les textures nommées `u000101_20` et `u000101_30`.
+
+### 15.2 L'attache — la tête ne se pose pas toute seule
+
+Les pièces de `20_EDIT` sont exprimées **dans le repère de leur os** (boîte centrée sur l'origine,
+y ∈ [−0,07 ; 0,23]) ; les mailles d'uniforme sont déjà en **espace monde** (y ∈ [0 ; 1,30]).
+Empilées telles quelles, la tête se pose sur les chaussures. `AvatarPiece::attach` porte la pose
+de repos de l'os `c_head_1_0`, résolue par `bone_rest_world()` sur le squelette
+`_bodySK/<code>_edit.g4sk`.
+
+### 15.3 L'appariement corps ↔ squelette, mesuré
+
+Le genre et la taille ne changeaient rien parce que le corps était figé : rien ne disait quelle
+variante `u0001NN` va avec quel squelette. La mesure tranche. Pour les 32 combinaisons, on compare
+le haut du corps au bas de la tête une fois celle-ci attachée :
+
+| squelette | corps | écart | taille obtenue |
+|---|---|---|---|
+| `c000101_edit` | `u000101`, `u000102` | 11 mm, 10 mm | 1,60 m |
+| `c000201_edit` | `u000103`, `u000104` | 16 mm, 19 mm | 1,25 m |
+| `c000301_edit` | `u000105`, `u000108` | 33 mm, 13 mm | 1,88 m |
+| `c000401_edit` | `u000106`, `u000107` | 28 mm, 4 mm | 2,08 m |
+
+Tout autre appariement dépasse **194 mm** : le fossé est net. Le test data-gated
+`chaque_corps_epouse_son_squelette` rejoue la mesure à chaque build.
+
+La route choisit le corps elle-même d'après le squelette demandé ; le client n'a pas à connaître
+cette table. Le squelette, lui, vient du catalogue : `modeles2` de la catégorie 17.
+
+### 15.4 La texture de visage est COMPOSÉE
+
+C'est le point qui explique que tant de rubriques semblaient sans effet. La maille de tête ne
+dépend que de **la morphologie et du nez** (42 entrées = 7 nez × 6 blocs, 7 ressources distinctes
+par morphologie). **Tout le reste du visage est de la texture** : le jeu n'a pas une planche par
+combinaison, il empile des planches de `_facetex/` au même dépliage UV —
+`00_face` (35), `01_eye` (80), `02_pupil` (50), `03_highlight` (16), `04_eyebrow` (40),
+`05_mouth` (24). Les familles sont numérotées **dans leur ordre de superposition**.
+
+`composer_couches()` les mélange en alpha. Deux règles, chacune verrouillée par un test :
+
+- la toile prend la taille de la **plus grande** couche, pas de la première — la peau fait 512×512
+  et les traits 2048×1024, se caler sur la première jetait silencieusement tout le reste ;
+- seules les couches de **même rapport** sont composées : un autre rapport est un autre dépliage,
+  et le plaquer placerait les traits n'importe où.
+
+### 15.5 Résolution des textures — jamais par le nom du matériau
+
+`hairF001M.g4tx` porte une texture nommée `hair_10` alors que le matériau du G4MD s'appelle
+`hairF_10` : **aucun** des noms de matériau de l'éditeur n'existe comme fichier ni comme texture
+nommée. La résolution passe par le **chemin** de la pièce (arbre `dx11` parallèle à `common`), et
+le nom de la texture se choisit en deux temps : celui que le matériau désigne une fois son suffixe
+de niveau de détail retiré (`u000101_30_LOD1` → `u000101_30`, ce qui vaut pour les tenues), puis
+la couleur de base du conteneur. `base_color_texture_name()` écarte les planches techniques
+(`line`, `msk`, `oc`, `sp`, `spm`) qu'une sélection « la plus grande » choisissait à tort.
+
+### 15.6 Le cache doit connaître la version de la logique
+
+`AVATAR_CACHE_VERSION` entre dans la clé. Sans elle, un GLB produit par l'ancienne logique reste
+servi indéfiniment et le correctif paraît sans effet — constaté en direct lors de l'ajout du corps
+automatique.
+
+### 15.7 Ce que l'assemblage ne fait pas encore
+
+- **La teinte.** Les conteneurs portent des planches `msk` qui, d'après le RE, véhiculent la
+  couleur choisie (`customTex_`). Elles sont ignorées : les couleurs de peau, d'yeux et de cheveux
+  n'agissent donc pas encore sur le modèle.
+- **`HIDE_EAR_HAIR_INFO`.** `editCharaMdlParts.cfg.bin` déclare 8 coiffures qui **cachent les
+  oreilles**. L'assemblage les empile toujours.
+- **Le départage masculin/féminin du corps.** Chaque squelette a deux corps ; leurs hauteurs sont
+  trop proches pour que la mesure les sépare, et aucune source lue ne le dit. Le premier est servi.
+
+---
+
 ## Régénérer chaque chiffre de ce document
 
 ```bash
