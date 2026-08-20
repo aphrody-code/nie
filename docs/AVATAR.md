@@ -754,15 +754,43 @@ la couleur de base du conteneur. `base_color_texture_name()` écarte les planche
 servi indéfiniment et le correctif paraît sans effet — constaté en direct lors de l'ajout du corps
 automatique.
 
-### 15.7 Ce que l'assemblage ne fait pas encore
+### 15.7 Ce qu'une revue adversariale a trouvé
 
-- **La teinte.** Les conteneurs portent des planches `msk` qui, d'après le RE, véhiculent la
-  couleur choisie (`customTex_`). Elles sont ignorées : les couleurs de peau, d'yeux et de cheveux
-  n'agissent donc pas encore sur le modèle.
+Quatre relecteurs indépendants, chaque constat soumis à un réfutateur avant d'être retenu :
+**12 défauts confirmés**. Les principaux, et ce qu'ils ont coûté :
+
+| Défaut | Effet réel | État |
+|---|---|---|
+| `composer_couches` écartait les couches d'un autre **rapport** | peau, pupilles et reflets (512×512) jetés en silence — changer de peau ne changeait pas un octet du GLB | corrigé : un visage **par dépliage** |
+| Une coiffure n'était envoyée qu'à moitié | 45 coiffures sur 98 rendaient un crâne **chauve**, les 53 autres perdaient leur nuque | corrigé : `modeles` + `modeles2` |
+| `?face=` sans borne | chaque couche décode jusqu'à 8 Mio ; un seul GET mettait le service à genoux | corrigé : 12 couches au plus |
+| Clé de cache ambiguë | une pièce `d/n` et une couche `d/n` donnaient le même fragment `d-n` — la seconde requête recevait le GLB de la première | corrigé : les deux familles séparées |
+| `est_uniforme` classait sur « pas de souligné » | 124 dossiers de `20_EDIT` portent un code de personnage : la pièce était cherchée dans `_uniform/`, échouait en silence | corrigé : les deux racines sont **essayées** |
+| `pieces` non dédoublonné | une maille pouvait être incorporée deux fois, superposée à elle-même | corrigé |
+
+Un constat a été **réfuté par la mesure** : « la rubrique *Forme de visage* n'atteint jamais le
+modèle ». Les 42 entrées de `visages` ne portent que **7 ressources distinctes** par morphologie
+(les 6 blocs de 7 donnent tous `face51_nose01` pour la morphologie 0) : la forme de visage n'agit
+pas sur la géométrie de la tête, elle agit sur la **texture** `00_face` — ce qui fonctionne depuis
+le correctif ci-dessus. Indexer la maille par le seul nez est donc juste.
+
+### 15.8 Ce que l'assemblage ne fait pas encore
+
+- **La règle de composition du visage.** Les six familles ne s'empilent PAS en alpha simple :
+  `eyebrow_00` est entièrement transparente, `face_00`, `eye_00` et `mouth_00` entièrement
+  opaques, seule `pupil_00` porte un vrai canal alpha. Dans un même dépliage, la dernière planche
+  opaque masque donc les précédentes. La règle réelle reste à établir.
+- **La teinte.** Le compagnon `<nom>msk` **n'est pas un masque d'opacité**, contrairement à ce que
+  son nom laisse croire : `face_00msk` comme `pupil_L_00msk` sont uniformes à 0,5, écart-type
+  **nul**. Le poser en alpha rend la planche uniformément semi-transparente et efface les
+  variations — essayé, mesuré, abandonné. Sa nature exacte reste à établir, et avec elle les
+  couleurs de peau, d'yeux et de cheveux.
 - **`HIDE_EAR_HAIR_INFO`.** `editCharaMdlParts.cfg.bin` déclare 8 coiffures qui **cachent les
   oreilles**. L'assemblage les empile toujours.
 - **Le départage masculin/féminin du corps.** Chaque squelette a deux corps ; leurs hauteurs sont
-  trop proches pour que la mesure les sépare, et aucune source lue ne le dit. Le premier est servi.
+  trop proches pour que la mesure les sépare, et aucune source lue ne le dit. Le premier est servi,
+  donc **4 des 8 corps ne sont jamais rendus** et le genre ne change pas la carrure. C'est le plus
+  gros reste identifié par la revue.
 
 ---
 
