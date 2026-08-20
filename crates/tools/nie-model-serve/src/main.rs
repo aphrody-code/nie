@@ -1812,7 +1812,7 @@ type PlancheRgba = (u32, u32, Vec<u8>);
 /// corps déduit du squelette, attache à l'os de tête, composition de la texture de visage… Sans
 /// elle, un GLB produit par l'ancienne logique reste servi indéfiniment et le correctif paraît
 /// sans effet : c'est exactement ce qui est arrivé lors de l'ajout du corps automatique.
-const AVATAR_CACHE_VERSION: u32 = 14;
+const AVATAR_CACHE_VERSION: u32 = 15;
 
 /// Nom de fichier de cache court et stable pour une clé d'assemblage.
 ///
@@ -1934,8 +1934,17 @@ fn get_or_build_avatar_glb(
                 .into_iter()
                 .map(|(w, h, rgba)| {
                     // Teinte par canaux : une planche de `_facetex` est un masque à trois canaux,
-                    // chacun désignant une zone qui reçoit sa couleur. Sans cette étape, la
-                    // planche est rendue brute et la couleur choisie n'atteint jamais le modèle.
+                    // chacun désignant une zone qui reçoit sa couleur.
+                    //
+                    // SAUF quand la couleur de la planche est muette et que son masque porte la
+                    // forme — cas des reflets, blancs par nature. Les teinter reviendrait à les
+                    // peindre en carnation, donc à les rendre invisibles sur la peau qui est déjà
+                    // de cette couleur. Ces planches-là gardent leur couleur et leur alpha.
+                    let porte_sa_forme = nie_formats::image_out::canal_uniforme(&rgba)
+                        && !nie_formats::image_out::couche_totalement_opaque(&rgba);
+                    if porte_sa_forme {
+                        return (w, h, rgba);
+                    }
                     let teintee = nie_formats::image_out::teinter_par_canaux(w, h, &rgba, teintes, entree_vide)
                         .unwrap_or(rgba);
                     (w, h, teintee)

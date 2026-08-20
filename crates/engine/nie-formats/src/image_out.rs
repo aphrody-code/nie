@@ -807,6 +807,20 @@ mod tests {
 
     #[cfg(feature = "textures")]
     #[test]
+    fn une_planche_qui_porte_sa_forme_se_reconnait() {
+        // Couleur muette + alpha variable = la forme est dans le masque, la couleur est la bonne.
+        // C'est le cas des reflets : les teinter les peindrait en carnation, donc invisibles sur
+        // la peau. Le décideur est cette paire de prédicats.
+        let reflet = [255, 255, 255, 0, 255, 255, 255, 200];
+        assert!(canal_uniforme(&reflet) && !couche_totalement_opaque(&reflet));
+
+        // Une planche qui porte son dessin dans la couleur, elle, doit être teintée.
+        let bouche = [255, 0, 0, 255, 120, 0, 0, 255];
+        assert!(!canal_uniforme(&bouche));
+    }
+
+    #[cfg(feature = "textures")]
+    #[test]
     fn un_canal_constant_est_reconnu_uniforme() {
         // Le masque de la peau est uniforme : l'appliquer effacerait les variations de la planche.
         assert!(canal_uniforme(&[128, 0, 0, 255, 128, 9, 9, 255]));
