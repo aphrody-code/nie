@@ -39,7 +39,12 @@ EXE = (
 HANDLERS = ROOT / "data/re/funclua-cmdid-handlers.json"
 MENU_HOST = ROOT / "crates/engine/nie-lua/src/menu_host.rs"
 LUA = ROOT / "data/lua_scripts/decompiled"
-TOP_N = int(sys.argv[1]) if len(sys.argv) > 1 else 24
+# L'argument est soit un nombre de cibles (comportement d'origine), soit une LISTE de cmdId
+# hexadecimaux separes par des virgules. On distingue sur la forme, pour ne pas casser l'appel
+# historique `triage_funclua_handlers.py 40`.
+_ARG = sys.argv[1] if len(sys.argv) > 1 else None
+CMDIDS_DEMANDES = _ARG if _ARG and not _ARG.isdigit() else None
+TOP_N = int(_ARG) if _ARG and _ARG.isdigit() else 24
 
 
 def ported_cmdids():
@@ -96,7 +101,18 @@ def main():
     tbl = {int(k, 16): int(v, 16) for k, v in json.loads(HANDLERS.read_text()).items()}
     ported = ported_cmdids()
     used = used_counts()
-    targets = [(c, n) for c, n in used.most_common() if c not in ported and c in tbl][:TOP_N]
+    if CMDIDS_DEMANDES:
+        # Liste explicite : les cmdId d'un mode donné ne sont pas forcement dans le corpus Lua que
+        # `used_counts()` balaie (l'editeur d'avatar, par exemple, n'y figure pas). On veut pouvoir
+        # trier CEUX-LA, en les nommant, sans dependre de ce que le corpus contient.
+        demandes = [int(x, 16) for x in CMDIDS_DEMANDES.replace("0x", "").split(",") if x.strip()]
+        targets = [(c, used.get(c, 0)) for c in demandes if c in tbl]
+        absents = [c for c in demandes if c not in tbl]
+        if absents:
+            print("  (absents de la table de dispatch : "
+                  + ", ".join(f"0x{c:08X}" for c in absents) + ")")
+    else:
+        targets = [(c, n) for c, n in used.most_common() if c not in ported and c in tbl][:TOP_N]
 
     fmt = Formatter(FormatterSyntax.INTEL)
     print(f"{'cmdId':>12} {'freq':>4} {'handler':>11}  class            return")
