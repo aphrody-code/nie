@@ -303,9 +303,22 @@ elle est nommée, et elle refuse de s'exécuter — elle attend un contexte que 
 
 C'est plus qu'un constat d'absence : cela **prouve** que ce qui manque est l'état, pas l'appel.
 Ajouter ces appels au driver produirait des erreurs Lua silencieuses et aucun item ; le diagnostic
-a donc été retiré. L'état de navigation que le moteur porte entre les écrans — quelle rubrique est
-ouverte, quelle catégorie est sélectionnée — reste le seul point du plan non résolu, et il est
-maintenant cerné au nom de fonction près.
+a donc été retiré.
+
+L'erreur exacte le nomme : `attempt to perform arithmetic on field 'listRowNum' (a nil value)`. Le
+script inclut `LUA_LISTVIEW_CTRL_INC` — le module de contrôle de liste, présent dans le VFS
+(`listview_ctrl_inc_0.00.00.lua.bin`) et correctement résolu par l'index d'inclusions — et son pool
+de constantes porte les trois champs de configuration : `listNum`, `listRowNum`, `listLineNum`.
+
+Or le script s'exécute **intégralement** : `top_level_ok`, `OnInit` et `OnOpenLayer` réussissent
+tous les trois, 297 commandes reconnues. Il ne pose donc pas ces champs lui-même. Ils viennent de
+la couche que le moteur tient entre les écrans — celle qui sait quelle rubrique est ouverte et
+combien d'entrées elle contient.
+
+Voilà où s'arrête ce qui est atteignable depuis les fichiers : la fonction de peuplement est
+nommée, le champ qui lui manque est nommé, le module qui les déclare est identifié et chargé, et
+il est établi que le script ne les renseigne pas. Le remplir demanderait de fabriquer une valeur
+que le jeu, lui, lit de son moteur — ce que ce document proscrit ailleurs et ne fera pas ici.
 
 ## 7. Vérifications
 
