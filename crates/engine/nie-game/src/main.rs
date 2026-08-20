@@ -112,8 +112,12 @@ struct Cli {
     /// Render-from-runtime FINAL : COMPOSE un layout JSON (produit par `--runtime --export-layout`)
     /// en PNG (`--capture`), en rognant chaque `spriteRect` de son `spriteRegionG4tx` et en le posant
     /// au `transform` de l'objet (ancre + échelle). C'est « données runtime → image composée ».
+    ///
+    /// Répétable : un écran du jeu EMPILE plusieurs calques (l'éditeur d'avatar superpose son écran
+    /// principal, son panneau de parts et sa liste). Les objets de tous les layouts sont triés
+    /// ensemble par priorité de dessin ; à priorité égale, l'ordre des `--compose-layout` décide.
     #[arg(long)]
-    compose_layout: Option<PathBuf>,
+    compose_layout: Vec<PathBuf>,
 
     /// Nombre de trames avant fermeture automatique (mode --window uniquement).
     #[arg(long, default_value = "120")]
@@ -247,13 +251,13 @@ fn main() -> Result<()> {
         return cmd_build_region_index(&game_dir, out);
     }
 
-    // Render-from-runtime final : compose un layout JSON en PNG.
-    if let Some(ref json_in) = cli.compose_layout {
+    // Render-from-runtime final : compose un ou plusieurs layouts JSON empilés en PNG.
+    if !cli.compose_layout.is_empty() {
         let png = cli
             .capture
             .as_deref()
             .ok_or_else(|| anyhow::anyhow!("--compose-layout requiert --capture <PNG>"))?;
-        return cmd_compose_layout(&game_dir, json_in, png);
+        return cmd_compose_layout(&game_dir, &cli.compose_layout, png);
     }
 
     let n_modes = [cli.capture.is_some(), cli.window, cli.list.is_some()]
@@ -889,13 +893,19 @@ fn blit_over(
 /// `transform`, charge le g4tx, décode la texture porteuse, rogne la région (`region_rect`),
 /// l'échelonne (`scaleX/Y` du transform) et la pose au `transform` (ancre `anchorX/Y`) sur un
 /// canevas 1280×720, en alpha-over. C'est l'aboutissement « commande runtime → image composée ».
-fn cmd_compose_layout(game_dir: &Path, json_in: &Path, png_out: &Path) -> Result<()> {
+fn cmd_compose_layout(game_dir: &Path, json_in: &[PathBuf], png_out: &Path) -> Result<()> {
     const W: u32 = 1280;
     const H: u32 = 720;
-    let txt = std::fs::read_to_string(json_in)
-        .with_context(|| format!("lecture du layout {}", json_in.display()))?;
-    let doc: serde_json::Value = serde_json::from_str(&txt).context("layout JSON invalide")?;
-    let objs = doc["objects"].as_array().cloned().unwrap_or_default();
+    // Les calques sont concaténés dans l'ordre donné : le tri final se fait sur (priorité, rang),
+    // donc à priorité égale un calque déclaré plus tard passe au-dessus — c'est l'empilement du jeu.
+    let mut objs: Vec<serde_json::Value> = Vec::new();
+    for chemin in json_in {
+        let txt = std::fs::read_to_string(chemin)
+            .with_context(|| format!("lecture du layout {}", chemin.display()))?;
+        let doc: serde_json::Value = serde_json::from_str(&txt)
+            .with_context(|| format!("layout JSON invalide : {}", chemin.display()))?;
+        objs.extend(doc["objects"].as_array().cloned().unwrap_or_default());
+    }
 
     let mut canvas = vec![0u8; W as usize * H as usize * 4]; // transparent
     // Cache (octets, parse) par chemin g4tx logique.
