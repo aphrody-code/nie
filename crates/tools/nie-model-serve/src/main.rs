@@ -1774,6 +1774,29 @@ const AVATAR_TEX_MAX: u32 = 1024;
 ///
 /// Les dossiers de l'éditeur commencent tous par un souligné (`_facebase`, `_hairF`, `_base`…),
 /// ceux d'uniforme sont des identifiants (`u000101`, `s000201`).
+/// Les trois teintes de canal demandées, ou celles de la recette par défaut.
+///
+/// Forme : `?tint=RRGGBB,RRGGBB,RRGGBB` pour les canaux rouge, vert et bleu. Une composante
+/// absente ou mal formée retombe sur le défaut, qui est la première pièce de
+/// `common/chr/_test/default/mdl_edit_avatar01.cfg.bin` : chair `#F3CAC1` sur le canal rouge,
+/// noir sur le vert, blanc sur le bleu.
+fn couleurs_teinte(query: &str) -> [nie_formats::image_out::TeinteCanal; 3] {
+    const DEFAUTS: [[u8; 3]; 3] = [[243, 202, 193], [0, 0, 0], [255, 255, 255]];
+    let demande = param(query, "tint").unwrap_or_default();
+    let mut sortie = [nie_formats::image_out::TeinteCanal { rgb: [0; 3], actif: true }; 3];
+    for (i, defaut) in DEFAUTS.iter().enumerate() {
+        let rgb = demande
+            .split(',')
+            .nth(i)
+            .filter(|c| c.len() == 6)
+            .and_then(|c| u32::from_str_radix(c, 16).ok())
+            .map(|v| [(v >> 16) as u8, (v >> 8) as u8, v as u8])
+            .unwrap_or(*defaut);
+        sortie[i] = nie_formats::image_out::TeinteCanal { rgb, actif: true };
+    }
+    sortie
+}
+
 /// Nombre maximum de couches de visage acceptées dans un seul `?face=`.
 ///
 /// Le visage n'a que six familles (`00_face`…`05_mouth`) et chacune est latéralisée au plus en
@@ -1789,7 +1812,7 @@ type PlancheRgba = (u32, u32, Vec<u8>);
 /// corps déduit du squelette, attache à l'os de tête, composition de la texture de visage… Sans
 /// elle, un GLB produit par l'ancienne logique reste servi indéfiniment et le correctif paraît
 /// sans effet : c'est exactement ce qui est arrivé lors de l'ajout du corps automatique.
-const AVATAR_CACHE_VERSION: u32 = 8;
+const AVATAR_CACHE_VERSION: u32 = 9;
 
 /// Nom de fichier de cache court et stable pour une clé d'assemblage.
 ///
@@ -1830,12 +1853,20 @@ fn get_or_build_avatar_glb(
     state: &State,
     specs: &[(String, String)],
     couches_visage: &[String],
+    teintes: [nie_formats::image_out::TeinteCanal; 3],
 ) -> Result<GlbBytes> {
+    // La teinte fait partie de l'identité du rendu : deux couleurs de peau différentes donnent
+    // deux GLB différents, et la clé de cache doit le refléter.
+    let teinte_cle: String = teintes
+        .iter()
+        .map(|t| format!("{:02x}{:02x}{:02x}", t.rgb[0], t.rgb[1], t.rgb[2]))
+        .collect::<Vec<_>>()
+        .join("");
     // Les deux familles sont séparées par un marqueur : sans lui, une pièce `d/n` et une couche
     // de visage `d/n` produisent le même fragment `d-n`, si bien que deux requêtes de sens
     // différent partagent un fichier de cache et que la seconde reçoit le GLB de la première.
     let cle: String = format!(
-        "{}|{}",
+        "{}|{}|{teinte_cle}",
         specs.iter().map(|(d, n)| format!("{d}-{n}")).collect::<Vec<_>>().join("_"),
         couches_visage.iter().map(|c| c.replace('/', "-")).collect::<Vec<_>>().join("_")
     );
@@ -1896,7 +1927,17 @@ fn get_or_build_avatar_glb(
                 warn!("couche de visage illisible, ignorée : {chemin}");
                 continue;
             };
-            let planches = nie_formats::image_out::decoder_planches(&brut);
+            let planches: Vec<PlancheRgba> = nie_formats::image_out::decoder_planches(&brut)
+                .into_iter()
+                .map(|(w, h, rgba)| {
+                    // Teinte par canaux : une planche de `_facetex` est un masque à trois canaux,
+                    // chacun désignant une zone qui reçoit sa couleur. Sans cette étape, la
+                    // planche est rendue brute et la couleur choisie n'atteint jamais le modèle.
+                    let teintee = nie_formats::image_out::teinter_par_canaux(w, h, &rgba, teintes)
+                        .unwrap_or(rgba);
+                    (w, h, teintee)
+                })
+                .collect();
             let entree = par_slot.entry(slot).or_default();
             for planche in planches {
                 // Une planche opaque posée sur une autre efface tout ce qui précède. C'est la
@@ -3532,7 +3573,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             .take(MAX_COUCHES_VISAGE)
             .map(str::to_string)
             .collect();
-        match get_or_build_avatar_glb(&state, &specs, &couches_visage) {
+        match get_or_build_avatar_glb(&state, &specs, &couches_visage, couleurs_teinte(query)) {
             Ok(glb) => respond(&mut stream, 200, "OK", "model/gltf-binary", &glb),
             Err(e) => {
                 debug!("assemblage avatar échoué : {e}");

@@ -266,6 +266,70 @@ fn redimensionner_rgba(rgba: &[u8], w: u32, h: u32, vers_w: u32, vers_h: u32) ->
     Some(out)
 }
 
+/// Une couleur de teinte d'une pièce de visage : RGB, plus un alpha qui dit si le canal est actif.
+#[cfg(feature = "textures")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TeinteCanal {
+    /// Composantes de la teinte.
+    pub rgb: [u8; 3],
+    /// 0 = ce canal ne participe pas à la composition.
+    pub actif: bool,
+}
+
+/// Applique la teinte d'une planche de visage, **canal par canal**.
+///
+/// C'est la règle réelle de composition du visage, et elle n'a rien d'un empilement alpha : les
+/// planches de `_facetex` sont des **masques à trois canaux**. Les recettes de l'éditeur
+/// (`common/chr/_test/default/mdl_edit_avatar*.cfg.bin`) donnent, pour chaque pièce de texture,
+/// trois `CHARA_EDIT_PARAM_TEX_PARTS_COLOR` dont les identifiants sont les CRC-32 de `red`,
+/// `green` et `blue` — résolus depuis les chaînes du binaire. Chaque canal de la planche désigne
+/// donc une zone, et chaque zone reçoit sa propre couleur ; l'alpha de la couleur dit si le canal
+/// participe.
+///
+/// C'est ce qui explique que les planches paraissent « opaques » et que les composer en alpha ne
+/// donnait rien : leur canal alpha n'a jamais été le véhicule de l'information.
+///
+/// La contribution de chaque canal est pondérée par sa valeur dans la planche, et les
+/// contributions s'additionnent en saturant à 255.
+#[cfg(feature = "textures")]
+#[must_use]
+pub fn teinter_par_canaux(
+    largeur: u32,
+    hauteur: u32,
+    planche: &[u8],
+    teintes: [TeinteCanal; 3],
+) -> Option<Vec<u8>> {
+    let attendu = largeur as usize * hauteur as usize * 4;
+    if attendu == 0 || planche.len() < attendu {
+        return None;
+    }
+    let mut sortie = vec![0u8; attendu];
+    for i in (0..attendu).step_by(4) {
+        let mut acc = [0u32; 3];
+        let mut couverture = 0u32;
+        for (canal, teinte) in teintes.iter().enumerate() {
+            if !teinte.actif {
+                continue;
+            }
+            let poids = u32::from(planche[i + canal]);
+            if poids == 0 {
+                continue;
+            }
+            couverture = couverture.max(poids);
+            for (a, composante) in acc.iter_mut().zip(teinte.rgb.iter()) {
+                *a += poids * u32::from(*composante) / 255;
+            }
+        }
+        for (c, a) in acc.iter().enumerate() {
+            sortie[i + c] = (*a).min(255) as u8;
+        }
+        // L'alpha de la planche reste maître là où elle en porte un (la pupille) ; ailleurs, la
+        // couverture des canaux fait foi.
+        sortie[i + 3] = u32::from(planche[i + 3]).min(couverture.max(1) * 255 / 255).min(255) as u8;
+    }
+    Some(sortie)
+}
+
 /// Vrai si cette couche RGBA est opaque partout — auquel cas, composée par-dessus, elle masque
 /// tout ce qui précède.
 ///
@@ -611,6 +675,80 @@ mod tests {
             seule_a.2, seule_b.2,
             "deux peaux différentes doivent donner deux compositions différentes"
         );
+    }
+
+    /// Une planche RGBA 1×1 aux canaux choisis.
+    #[cfg(feature = "textures")]
+    fn pixel(r: u8, v: u8, b: u8, a: u8) -> Vec<u8> {
+        vec![r, v, b, a]
+    }
+
+    #[cfg(feature = "textures")]
+    fn teinte(rgb: [u8; 3], actif: bool) -> TeinteCanal {
+        TeinteCanal { rgb, actif }
+    }
+
+    #[cfg(feature = "textures")]
+    #[test]
+    fn un_canal_plein_rend_sa_teinte() {
+        // Canal rouge à fond, teinte chair : la sortie EST la teinte.
+        let out = teinter_par_canaux(
+            1,
+            1,
+            &pixel(255, 0, 0, 255),
+            [
+                teinte([243, 202, 193], true),
+                teinte([0, 0, 0], true),
+                teinte([255, 255, 255], true),
+            ],
+        )
+        .unwrap();
+        assert_eq!(&out[..3], &[243, 202, 193]);
+    }
+
+    #[cfg(feature = "textures")]
+    #[test]
+    fn un_canal_inactif_ne_teinte_rien() {
+        // Même planche, mais le canal rouge est déclaré inactif (alpha 0 dans la recette).
+        let out = teinter_par_canaux(
+            1,
+            1,
+            &pixel(255, 0, 0, 255),
+            [
+                teinte([243, 202, 193], false),
+                teinte([0, 0, 0], true),
+                teinte([255, 255, 255], true),
+            ],
+        )
+        .unwrap();
+        assert_eq!(&out[..3], &[0, 0, 0], "un canal inactif ne doit rien apporter");
+    }
+
+    #[cfg(feature = "textures")]
+    #[test]
+    fn un_canal_a_demi_pondere_sa_teinte() {
+        let out = teinter_par_canaux(
+            1,
+            1,
+            &pixel(128, 0, 0, 255),
+            [teinte([200, 100, 50], true), teinte([0, 0, 0], true), teinte([0, 0, 0], true)],
+        )
+        .unwrap();
+        // 128/255 ≈ 0,502 : la teinte doit être réduite d'autant, pas rendue pleine.
+        assert!((98..=102).contains(&out[0]), "obtenu {}", out[0]);
+    }
+
+    #[cfg(feature = "textures")]
+    #[test]
+    fn deux_canaux_additionnent_leurs_teintes() {
+        let out = teinter_par_canaux(
+            1,
+            1,
+            &pixel(255, 255, 0, 255),
+            [teinte([100, 0, 0], true), teinte([0, 100, 0], true), teinte([0, 0, 255], true)],
+        )
+        .unwrap();
+        assert_eq!(&out[..3], &[100, 100, 0], "le bleu, à zéro dans la planche, ne participe pas");
     }
 
     #[cfg(feature = "textures")]
