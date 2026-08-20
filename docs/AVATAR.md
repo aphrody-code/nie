@@ -251,10 +251,23 @@ reçoivent une visibilité nommée, sur **2 index distincts** ; sur `chara_edit_
 et un index. Les scripts ne distinguent donc pas les 51 exemplaires par cet argument — il désigne
 autre chose (un sous-nœud de l'objet), et les exemplaires ne sont pas commandés un par un.
 
-Ce qui reste à établir est donc **combien d'items une liste affiche**, ce que les scripts ne disent
-pas ici et que le catalogue, lui, sait : le nombre de parts par catégorie est déjà porté. C'est une
-donnée de fichier, pas une valeur à relever sur une capture — mais c'est une marche de plus, et elle
-n'est pas franchie.
+### La population des listes marche — elle n'est simplement pas jouée sur ces écrans
+
+Dernière inconnue levée. Les commandes qui peuplent une liste ont été tracées à l'exécution :
+
+- sur **`chara_edit_menu`**, elles sont appelées et portent de vraies tables —
+  `SetListItemValuesMulti` avec 3 colonnes, `SetListItemValues` avec 1, **5 items** chacune. Le
+  `runtimeSummary` de cet écran affiche bien `listItemsRecorded = 5` ;
+- sur `chara_edit_parts_menu`, `chara_edit_recipe_menu`, `..._hair_list` et `chara_edit_list_menu`,
+  elles ne sont **jamais appelées**.
+
+Le mécanisme n'est donc pas cassé : il fonctionne là où un script l'exerce. Ce qui manque sur les
+écrans de grille n'est ni une commande à porter, ni une donnée à trouver, c'est un **scénario** :
+l'export exécute `OnInit` → `OnSetupLayer` → `OnOpenLayer` sans jamais *entrer* dans une rubrique.
+Les scripts qui peuplent la grille sont derrière cette navigation.
+
+`listItemsRecorded = 0` ne signalait donc pas un défaut d'implémentation, mais une exécution qui
+s'arrête avant l'endroit où le contenu apparaît.
 
 ## 7. Vérifications
 
