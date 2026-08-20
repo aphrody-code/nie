@@ -800,27 +800,22 @@ La **teinte agit** : quatre couleurs de peau donnent quatre empreintes distincte
 
 ### Ce qui reste
 
-- **Les reflets (`03_highlight`) ne contribuent jamais**, y compris servis SEULS. Ce qui est
-  établi, après trois tentatives ciblées :
-  - ce n'est **pas** un écrasement par une couche voisine (les empreintes sont identiques même
-    quand la famille est servie seule) ;
-  - leurs planches de couleur sont **identiques d'une variante à l'autre** : `highlight_L_00` et
-    `highlight_L_09` valent tous deux R = G = B = A = 255, écart-type nul. Seuls leurs **masques**
-    diffèrent (`msk_00` uniforme, `msk_09` à 41 d'écart-type) ;
-  - le masque est bien posé en alpha depuis ce correctif : sondé au niveau de la bibliothèque,
-    `highlight_L_09` sort avec un alpha variable (min 0, max 255) là où `highlight_L_00` est
-    opaque partout. Le décodage est donc correct ;
-  - la famille **agit** servie SEULE (empreintes `3765bd4d` contre `80638649`) et ne contribue
-    plus dès que `00_face` est présente ;
-  - ce n'est pas la teinte : forcer le canal rouge au blanc donne la même empreinte pour les deux
-    variantes.
+- **Les reflets (`03_highlight`) : RÉSOLUS — 6 familles sur 6 agissent.** Une planche dont la
+  **couleur est muette** et dont le **masque porte la forme** ne doit PAS être teintée. Les reflets
+  sont blancs par nature (`highlight_L_00` et `highlight_L_09` valent tous deux R = G = B = 255,
+  écart-type nul ; seuls leurs masques diffèrent) : les teinter revenait à les peindre en
+  carnation, donc à les rendre invisibles sur une peau déjà de cette couleur. Ces planches gardent
+  leur couleur et l'alpha de leur masque.
 
-  La cause vit donc dans la composition en présence d'une planche de fond opaque, et reste à
-  établir. Tout le reste de la chaîne est vérifié.
+  Le chemin jusqu'à cette règle a produit trois enseignements qui valent d'être gardés :
+  - la famille **agissait déjà servie seule** — ce n'était donc pas un défaut de décodage, mais un
+    défaut de composition en présence d'un fond ;
+  - un test où `?tint=` rendait la peau ET les reflets blancs m'avait fait conclure à tort « ce
+    n'est pas la teinte » : le test était mal construit, l'hypothèse était bonne ;
+  - mes « 2 % de dessin sur le vert », qui m'avaient fait soupçonner un écrasement, étaient des
+    artefacts d'interpolation de mon propre redimensionnement de mesure. **Ne jamais mesurer la
+    répartition des canaux sur une image redimensionnée.**
 
-  Leçon de méthode consignée : mes « 2 % de dessin sur le vert », qui m'avaient fait conclure à un
-  écrasement, étaient des artefacts d'interpolation de mon propre redimensionnement de mesure.
-  **Ne jamais mesurer la répartition des canaux sur une image redimensionnée.**
 - **Les valeurs RGB des palettes : RELEVÉES.** Elles n'existaient nulle part sous forme de valeur —
   `m_CharaEditColorDataList` ne porte que des identifiants, le binaire ne contient pas le motif
   d'une entrée connue, et contrairement aux canaux `red`/`green`/`blue`, **aucun** des 165
