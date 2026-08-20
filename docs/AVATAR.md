@@ -211,12 +211,35 @@ la signature d'un setter de couleur, ce que la forme des appels laissait déjà 
 
 C'est le résultat le plus utile de cette phase, parce qu'il **déplace le verrou**. Les 916 sprites
 en attente ne le sont pas à cause des `cmdId` non implémentés : le driver exécute déjà les vrais
-scripts et applique leurs mutations. Ce qui manque est l'**état de jeu** que ces scripts
-interrogent avant de décider d'afficher — `GetItemButtonNum` et consorts lisent une couche
-scène/sauvegarde que le dépôt ne fournit pas encore (limite déjà consignée dans le driver).
+scripts et applique leurs mutations. Implémenter les 11 restants fermerait des compteurs, pas des
+pixels.
 
-Autrement dit : implémenter les 11 `cmdId` restants fermerait des compteurs, pas des pixels.
-La prochaine marche est la couche d'état, pas le reverse de handlers.
+### Et ce n'est pas non plus la couche d'état — mesuré
+
+Hypothèse suivante, naturelle : les scripts interrogeraient un état de jeu (scène, sauvegarde) que
+le dépôt ne fournit pas, et renonceraient à afficher. La ventilation des commandes reconnues la
+**réfute**. Sur les trois écrans les plus fournis, ~5 800 appels reconnus se répartissent ainsi :
+
+| commande | appels |
+|---|---:|
+| `SetPartVisible` | 4 409 |
+| retours constants (`=>1`) | 732 |
+| `SetIconSprite` · `SetChildVisible` · `SetText` · … | ~600 |
+| **toutes les lectures d'état réunies** | **14** |
+
+Quatorze appels, dont dix seulement retournent la valeur par défaut. Les scripts de l'éditeur
+**n'interrogent quasiment pas l'état** : ils commandent. La couche scène/sauvegarde n'est donc pas
+ce qui les retient ici.
+
+### Le verrou réel : les items de liste ne sont pas instanciés
+
+`listItemsRecorded` vaut **0** sur `chara_edit_parts_menu` comme sur `chara_edit_recipe_menu`, alors
+que ces écrans sont, à l'écran, des **grilles d'items** — c'est tout leur contenu. Les objets du
+layout sont des *gabarits* ; le jeu les réplique une fois par item, à des positions que les
+`CMenuAttachLocator` portent déjà. Tant que cette réplication n'a pas lieu, un gabarit reste un
+objet unique, masqué, et ses 916 rectangles résolus n'ont rien à peindre.
+
+C'est la prochaine marche, et elle est dans les fichiers — pas dans un état de jeu manquant.
 
 ## 7. Vérifications
 
