@@ -269,6 +269,18 @@ Les scripts qui peuplent la grille sont derrière cette navigation.
 `listItemsRecorded = 0` ne signalait donc pas un défaut d'implémentation, mais une exécution qui
 s'arrête avant l'endroit où le contenu apparaît.
 
+Une piste a été essayée et **mesurée sans effet** : ajouter `OnDecideFocus` à la séquence pilotée
+(le driver joue `OnInit`, `OnSetupLayer`, `OnOpenLayer`, `OnEnter`, `Step` ; l'inventaire des
+callbacks connaît aussi `OnDecideFocus`, `OnFunction`, `OnBack`, `OnCloseLayer`, jamais appelés).
+`listItemsRecorded` reste 0 sur `chara_edit_parts_menu` et `chara_edit_recipe_menu`, objets visibles
+inchangés. Le changement a été retiré : un appel de callback qui ne produit rien n'a pas sa place
+dans le driver.
+
+Ce qui manque n'est donc pas un callback de plus dans la boucle, mais l'**état de navigation** que
+le moteur porte entre les écrans — quelle rubrique est ouverte, quelle catégorie est sélectionnée.
+C'est la même couche que celle qui manquait pour `GetItemButtonNum`, et le seul point du plan qui
+reste ouvert.
+
 ## 7. Vérifications
 
 | Vérification | Résultat (2026-08-20) |
