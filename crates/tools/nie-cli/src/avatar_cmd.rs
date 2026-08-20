@@ -246,6 +246,90 @@ fn panneaux(vfs: &Vfs, textes: &BTreeMap<u32, String>) -> Vec<Panneau> {
     out
 }
 
+/// Fragments de nom qui désignent un contenu que le dépôt ne reproduit pas encore.
+const MOTIFS_DYNAMIQUES: [&str; 4] = ["model", "chara_3d", "cursor", "shadow"];
+
+/// `niers avatar roi` — dérive les régions de mesure d'un écran depuis son layout.
+fn roi(ecran: &str, layouts: &Path, out: Option<&Path>) -> Result<()> {
+    let chemin = layouts.join(format!("{ecran}.json"));
+    let txt = std::fs::read_to_string(&chemin)
+        .with_context(|| format!("lecture {}", chemin.display()))?;
+    let doc: Json = serde_json::from_str(&txt)
+        .with_context(|| format!("layout invalide : {}", chemin.display()))?;
+    let (cw, ch) = (
+        doc["canvas"]["w"].as_f64().unwrap_or(1280.0),
+        doc["canvas"]["h"].as_f64().unwrap_or(720.0),
+    );
+
+    let mut rois: Vec<Json> = Vec::new();
+    let mut non_derivables: Vec<String> = Vec::new();
+
+    for o in doc["objects"].as_array().map(Vec::as_slice).unwrap_or_default() {
+        let nom = o["name"].as_str().unwrap_or_default();
+        let bas = nom.to_ascii_lowercase();
+        if !MOTIFS_DYNAMIQUES.iter().any(|m| bas.contains(m)) {
+            continue;
+        }
+        let (sw, sh) = (o["sprite"]["w"].as_f64(), o["sprite"]["h"].as_f64());
+        let t = &o["transform"];
+        let (sx, sy) = (t["scaleX"].as_f64().unwrap_or(1.0), t["scaleY"].as_f64().unwrap_or(1.0));
+        let (x, y) = (t["x"].as_f64().unwrap_or(0.0), t["y"].as_f64().unwrap_or(0.0));
+
+        // Signature du repli documenté : sprite factice, ou objet parqué au centre exact à
+        // l'échelle native. Dans les deux cas la géométrie du layout ne décrit PAS ce que la
+        // capture montre — l'avatar y occupe une large zone centrale, pas un carré de 4 px.
+        let factice = sw.unwrap_or(0.0) <= 8.0 || sh.unwrap_or(0.0) <= 8.0;
+        let parque = (sx - 1.0).abs() < 1e-6
+            && (sy - 1.0).abs() < 1e-6
+            && (x - cw / 2.0).abs() < 0.5
+            && (y - ch / 2.0).abs() < 0.5;
+        if factice || parque {
+            non_derivables.push(String::from(nom));
+            continue;
+        }
+
+        let (Some(sw), Some(sh)) = (sw, sh) else { continue };
+        let (bw, bh) = (sw * sx, sh * sy);
+        let (bx, by) = ((x - bw / 2.0).max(0.0), (y - bh / 2.0).max(0.0));
+        rois.push(json!({
+            "nom": nom,
+            "rect": [bx.round() as i64, by.round() as i64, bw.round() as i64, bh.round() as i64],
+            "kind": "dynamique",
+        }));
+    }
+
+    println!("{ecran} : {} région(s) dérivée(s) du layout", rois.len());
+    for r in &rois {
+        println!("  {} {:?}", r["nom"].as_str().unwrap_or(""), r["rect"]);
+    }
+    if !non_derivables.is_empty() {
+        non_derivables.sort_unstable();
+        non_derivables.dedup();
+        println!(
+            "  {} objet(s) dynamique(s) SANS géométrie exploitable — aucune région produite pour eux :",
+            non_derivables.len()
+        );
+        for n in &non_derivables {
+            println!("    {n}");
+        }
+        println!(
+            "  Ces objets sont des emplacements 3D : le layout leur donne un sprite factice posé au\n  \
+             centre. Leur étendue réelle n'est dans aucun fichier lu ici ; la mesure les compte donc\n  \
+             encore, et le rapport de `niers img diff` l'annonce par une surface exclue plus faible."
+        );
+    }
+
+    if let Some(out) = out {
+        if let Some(parent) = out.parent() {
+            std::fs::create_dir_all(parent).ok();
+        }
+        std::fs::write(out, serde_json::to_vec_pretty(&Json::Array(rois))?)
+            .with_context(|| format!("écriture {}", out.display()))?;
+        println!("  écrit : {}", out.display());
+    }
+    Ok(())
+}
+
 /// Ce que `niers avatar` sait faire.
 #[derive(Debug, Clone, clap::Subcommand)]
 pub enum AvatarCmd {
@@ -270,6 +354,22 @@ pub enum AvatarCmd {
         /// Fichier de sortie.
         #[arg(short, long, default_value = "var/avatar-resolved.json")]
         out: std::path::PathBuf,
+    },
+    /// Dérive les régions de mesure d'un écran depuis son layout, pour `niers img diff`.
+    ///
+    /// Un rectangle tracé sur une capture est une valeur calée sur l'image de référence : il fait
+    /// remonter le score sans rien prouver, et il ne se régénère pas. Ici les régions viennent des
+    /// **objets du layout** — donc des fichiers du jeu. Quand un objet n'a pas de géométrie
+    /// exploitable, la commande le **déclare non dérivable** au lieu d'inventer une boîte.
+    Roi {
+        /// Écran (nom du layout, sans `.json`).
+        ecran: String,
+        /// Répertoire des layouts exportés.
+        #[arg(long, default_value = "var/avatar-ui/layouts")]
+        layouts: std::path::PathBuf,
+        /// Fichier de sortie ; sans lui, la commande n'imprime que ce qu'elle trouve.
+        #[arg(short, long)]
+        out: Option<std::path::PathBuf>,
     },
     /// Localise les icônes de vignette dans les atlas d'interface, et les extrait en PNG.
     Icons {
@@ -965,6 +1065,8 @@ pub fn run(cmd: &AvatarCmd, game_dir: &Path, db_path: &Path) -> Result<()> {
                 cfg.preset_info.len()
             );
         }
+
+        AvatarCmd::Roi { ecran, layouts, out } => return roi(ecran, layouts, out.as_deref()),
 
         AvatarCmd::Icons { out, atlas_prefix, limit } => {
             // Les noms voulus : l'icône de chaque part, résolue depuis `hash_name`.
