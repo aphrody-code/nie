@@ -1812,7 +1812,7 @@ type PlancheRgba = (u32, u32, Vec<u8>);
 /// corps déduit du squelette, attache à l'os de tête, composition de la texture de visage… Sans
 /// elle, un GLB produit par l'ancienne logique reste servi indéfiniment et le correctif paraît
 /// sans effet : c'est exactement ce qui est arrivé lors de l'ajout du corps automatique.
-const AVATAR_CACHE_VERSION: u32 = 17;
+const AVATAR_CACHE_VERSION: u32 = 18;
 
 /// Nom de fichier de cache court et stable pour une clé d'assemblage.
 ///
@@ -2020,12 +2020,9 @@ fn get_or_build_avatar_glb(
                     nie_formats::assemble::AVATAR_SHOES_DIR.to_string(),
                     nie_formats::assemble::AVATAR_SHOES.to_string(),
                 ));
-                // Les mains : le corps s'arrête aux poignets, sans elles l'avatar a les bras
-                // coupés.
-                effectifs.push((
-                    nie_formats::assemble::AVATAR_HANDS_DIR.to_string(),
-                    nie_formats::assemble::AVATAR_HANDS.to_string(),
-                ));
+                // Les mains ne sont PAS montées : livrées en pose de bind, bras en croix, elles
+                // flottent à 45 cm des manches et triplent la boîte englobante, ce qui ruine le
+                // cadrage. Le détail de la mesure est dans `AVATAR_HANDS`.
             } else {
                 warn!("squelette {sk} sans corps apparié : l'avatar sortira sans corps");
             }

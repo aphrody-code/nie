@@ -1169,14 +1169,26 @@ pub fn avatar_body_for_morphology(morphologie: &str) -> Option<&'static str> {
     })
 }
 
-/// Le modèle de **mains** de la tenue de l'éditeur.
+/// Le modèle de **mains** de la tenue de l'éditeur — **non monté**, et voici pourquoi.
 ///
-/// Le corps `u000101` couvre la cheville au cou : ni tête, ni mains. Les mains vivent dans la
-/// famille `g` de `_uniform` et se joignent aux poignets — mesuré à y ∈ [1,156 ; 1,230] m, quand
-/// le corps monte à 1,304 au cou. Sans elles l'avatar a les bras coupés.
+/// Les mains existent bien (`_uniform/g000001`, `g000201`, `g000301`, `g000401`) et se situent à
+/// la bonne hauteur, y ∈ [1,156 ; 1,230] m. Mais leur maille est **skinnée sur 158 os** et livrée
+/// en pose de bind, bras en croix : son envergure atteint **1,552 m** (x ∈ [−0,776 ; +0,776])
+/// quand le corps habillé n'en fait que 0,652. Montées telles quelles, elles flottent à 45 cm des
+/// manches — et, la boîte englobante triplant, elles ruinent le cadrage automatique du
+/// visualiseur.
+///
+/// Les quatre familles ont exactement la même envergure : ce n'est donc pas un problème de choix.
+/// Il manque, entre la manche courte du maillot (±0,326) et la main (±0,776), l'**avant-bras**,
+/// qui est de la peau. Or la peau du personnage (`common/chr/c000101`) a ses slots de maille
+/// **vides** dans son objbin, comme `_bodySK` : le moteur les pose à l'exécution.
+///
+/// Les monter correctement demande donc d'appliquer le **skinning** avec la pose de repos, ce que
+/// `nie-render3d` sait faire mais que cette chaîne d'export ne porte pas. En attendant, mieux vaut
+/// un avatar sans mains qu'un avatar aux mains flottantes.
 pub const AVATAR_HANDS: &str = "g000201";
 
-/// Le dossier de modèle qui héberge les mains de l'éditeur.
+/// Le dossier de modèle qui héberge les mains de l'éditeur. Cf. [`AVATAR_HANDS`].
 pub const AVATAR_HANDS_DIR: &str = "g000201";
 
 /// Le modèle de chaussures de la tenue de l'éditeur.
