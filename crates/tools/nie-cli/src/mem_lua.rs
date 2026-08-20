@@ -281,7 +281,19 @@ pub fn palettes(
                 octets[offset + 6],
                 octets[offset + 7],
             ];
-            vus.entry(id).or_insert(argb);
+            // Un identifiant peut réapparaître ailleurs qu'en tête d'entrée — le balayage est
+            // libre, au pas de 4 octets. Les entrées de la vraie table sont OPAQUES : privilégier
+            // `alpha = 255` écarte ces coïncidences, qui rendaient des couleurs semi-transparentes.
+            match vus.entry(id) {
+                std::collections::btree_map::Entry::Vacant(v) => {
+                    v.insert(argb);
+                }
+                std::collections::btree_map::Entry::Occupied(mut o) => {
+                    if o.get()[0] != 0xFF && argb[0] == 0xFF {
+                        o.insert(argb);
+                    }
+                }
+            }
         }
         offset += 4;
     }

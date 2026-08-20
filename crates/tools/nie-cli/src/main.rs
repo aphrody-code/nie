@@ -692,6 +692,9 @@ enum MemOp {
         /// Écrit le résultat en JSON ici plutôt que sur la sortie standard.
         #[arg(long, short = 'o')]
         output: Option<PathBuf>,
+        /// Fusionne les couleurs relevées dans le catalogue, sous la clé `couleursRgb`.
+        #[arg(long)]
+        fusionner: bool,
     },
     /// Patche EAC : crée une copie `--dst` de `--src` avec le call de modale fatale NOPé.
     PatchEac {
@@ -1867,8 +1870,8 @@ fn mem_cmd(op: MemOp) -> anyhow::Result<()> {
         MemOp::LuaField { name, pid, strings, nodes, radius, numeric } => {
             crate::mem_lua::lua_field(pid, &name, strings, nodes, radius, numeric)
         }
-        MemOp::Palettes { catalogue, pid, addr, len, output } => {
-            mem_palettes(&catalogue, pid, &addr, len, output.as_deref())
+        MemOp::Palettes { catalogue, pid, addr, len, output, fusionner } => {
+            mem_palettes(&catalogue, pid, &addr, len, output.as_deref(), fusionner)
         }
         MemOp::PatchEac { src, dst } => mem_patch_eac(&src, &dst),
     }
@@ -1881,6 +1884,7 @@ fn mem_palettes(
     addr: &str,
     len: usize,
     output: Option<&std::path::Path>,
+    fusionner: bool,
 ) -> anyhow::Result<()> {
     let brut = std::fs::read_to_string(catalogue)
         .with_context(|| format!("lecture du catalogue {}", catalogue.display()))?;
@@ -1915,6 +1919,24 @@ fn mem_palettes(
             )
         })
         .collect();
+    // Fusionner dans le catalogue met les couleurs à portée de tout consommateur qui le charge
+    // déjà — le client n'a rien à récupérer de plus.
+    if fusionner {
+        let mut catalogue_doc: serde_json::Value = serde_json::from_str(&brut)?;
+        if let Some(obj) = catalogue_doc.as_object_mut() {
+            obj.insert("couleursRgb".to_string(), serde_json::Value::Object(json.clone()));
+        }
+        std::fs::write(catalogue, serde_json::to_string(&catalogue_doc)?)
+            .with_context(|| format!("écriture de {}", catalogue.display()))?;
+        println!(
+            "  {} / {} palette(s) fusionnée(s) dans {}",
+            table.len(),
+            attendus.len(),
+            catalogue.display()
+        );
+        return Ok(());
+    }
+
     let doc = serde_json::Value::Object(json);
     match output {
         Some(p) => {
