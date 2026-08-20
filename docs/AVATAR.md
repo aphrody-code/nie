@@ -399,6 +399,26 @@ laisse plus de la moitié du cadre en canvas vide, et son compositeur est le plu
   d'appariement. Il faudra un oracle local (recherche de motif région par région) et non un score
   d'image entière.
 
+### Les 12 `cmdId` de l'éditeur, classés définitivement
+
+Six sont portés (`0x5245F000`, `0xFDA36F2F`, `0xCA2E6A00`, `0x23AD77AE`, `0xD8EE0E5B`,
+`0x940EE4C3`). Les six autres **ne relèvent pas de cette liste**, et ce n'est pas une prudence
+d'attente : la nature de la fonction qui précède chaque `ret` le décide.
+
+Trois fonctions terminales reviennent, et les distinguer suffit à classer :
+
+| fonction | ce qu'elle fait | ce que le `ret` qui la suit signifie |
+|---|---|---|
+| `0x1405E7DB0` | rapport d'erreur | sortie d'échec — le zéro n'est pas une décision |
+| `0x1405E8060` | **pousse un nombre de retour** : convertit en double, pose le type 3, avance la pile Lua de 16 octets | le handler **rend une valeur calculée** |
+| `0x140565560` | recherche dans les sous-nœuds d'un objet (compare un index à `[obj+0x14]`) | retour métier |
+
+D'où le classement : `0x39C1BB84` et `0xBB3BB79B` ont des `ret` qui suivent la poussée de nombre —
+ce sont des **getters**, les porter en « renvoie 1 » serait faux. `0x222B5EEE` rend un résultat de
+recherche. `0x3B842D73` était déjà classé getter par le triage. `0xDB1FD4EB` et `0x52BD4EDC` sont
+des setters à six arguments dont des flottants — le compositeur sait désormais teinter, mais quel
+argument porte quelle composante n'est pas établi.
+
 ### La position du fond n'est pas un défaut de calcul
 
 Le fond de l'éditeur sort à `x = 1040` sur le canvas, là où un centrage exact le mettrait à 640 —
