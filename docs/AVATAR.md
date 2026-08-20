@@ -776,6 +776,24 @@ le correctif ci-dessus. Indexer la maille par le seul nez est donc juste.
 
 ### 15.8 Ce que l'assemblage ne fait pas encore
 
+- **Le PLACEMENT des pièces de texture — la pièce qui manque.** Les recettes
+  `common/chr/_test/default/mdl_edit_avatar*.cfg.bin` décrivent chaque pièce ainsi :
+  `CHARA_EDIT_PARAM_TEX_PARTS [famille, variante, offX, offY, offZ, échelleX, échelleY]`, suivie
+  de trois `..._COLOR` dont les identifiants sont les CRC-32 de **`red`**, **`green`** et
+  **`blue`** (retrouvés dans les chaînes du binaire). Une planche de `_facetex` est donc un
+  **masque à trois canaux**, chaque canal désignant une zone qui reçoit sa couleur — et le jeu
+  **place** chaque pièce à un offset et une échelle donnés dans un atlas de destination, au lieu
+  de les empiler. `teinter_par_canaux()` porte la partie couleur, testée ; le placement, lui,
+  n'est pas porté, et sans lui la teinte ne peut pas se voir. Les pièces latéralisées ont en plus
+  leur `..._LEFT` / `..._RIGHT` avec leurs propres offsets.
+- **Conséquence mesurée, à ne pas maquiller :** avec les six familles présentes, **deux seulement**
+  font varier le rendu (`01_eye`, `05_mouth`), et la teinte n'a **aucun** effet observable — les
+  empreintes d'une peau claire et d'une peau foncée sont identiques. Dans un groupe, la dernière
+  planche opaque masque les précédentes.
+- **Quatre hypothèses de composition ont été essayées et RÉFUTÉES par la mesure**, ce qui vaut
+  d'être écrit pour qu'on ne les retente pas : l'alpha des planches (elles sont opaques), le
+  compagnon `msk` comme alpha (uniforme à 0,5, écart-type nul), le groupement par dépliage seul,
+  et la teinte par canaux sans placement.
 - **La règle de composition du visage.** Les six familles ne s'empilent PAS en alpha simple :
   `eyebrow_00` est entièrement transparente, `face_00`, `eye_00` et `mouth_00` entièrement
   opaques, seule `pupil_00` porte un vrai canal alpha. Dans un même dépliage, la dernière planche
@@ -787,8 +805,9 @@ le correctif ci-dessus. Indexer la maille par le seul nez est donc juste.
   couleurs de peau, d'yeux et de cheveux.
 - **`HIDE_EAR_HAIR_INFO`.** `editCharaMdlParts.cfg.bin` déclare 8 coiffures qui **cachent les
   oreilles**. L'assemblage les empile toujours.
-- **Le départage masculin/féminin du corps.** Chaque squelette a deux corps ; leurs hauteurs sont
-  trop proches pour que la mesure les sépare, et aucune source lue ne le dit. Le premier est servi,
+- **Le départage masculin/féminin du corps.** Chaque squelette a deux corps. La silhouette ne les
+  sépare pas non plus : mesurés tranche par tranche, `u000101` et `u000102` ne diffèrent que de
+  2 cm de rayon au buste — les corps sont **habillés**, et le vêtement masque toute signature. Le premier est servi,
   donc **4 des 8 corps ne sont jamais rendus** et le genre ne change pas la carrure. C'est le plus
   gros reste identifié par la revue.
 
