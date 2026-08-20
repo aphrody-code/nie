@@ -3,6 +3,7 @@
 #![allow(clippy::pedantic)]
 
 mod avatar_cmd;
+mod icons_cmd;
 mod decode_cmd;
 mod delegate;
 mod img_cmd;
@@ -314,6 +315,14 @@ enum Cmd {
     Mode {
         #[command(subcommand)]
         op: ModeOp,
+    },
+    /// Icônes du jeu : index (nom → atlas + rectangle) et décodage en PNG.
+    Icons {
+        #[command(subcommand)]
+        op: icons_cmd::IconsCmd,
+        /// Racine du jeu (défaut : résolution à l'exécution).
+        #[arg(long)]
+        game_dir: Option<PathBuf>,
     },
     /// Éditeur d'avatar (`chara_edit`) : catalogue, parts, recettes de presets, export résolu.
     Avatar {
@@ -1669,6 +1678,10 @@ fn run() -> anyhow::Result<()> {
             files_with_matches,
         })
         .map(|_| ()),
+        Cmd::Icons { op, game_dir } => {
+            let racine = game_dir.unwrap_or_else(nie_formats::vfs::resolve_game_dir);
+            icons_cmd::run(&op, &racine)
+        }
         Cmd::Avatar { op, game_dir, db } => {
             let racine = game_dir.unwrap_or_else(nie_formats::vfs::resolve_game_dir);
             avatar_cmd::run(&op, &racine, &db)
