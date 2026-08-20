@@ -1169,6 +1169,16 @@ pub fn avatar_body_for_morphology(morphologie: &str) -> Option<&'static str> {
     })
 }
 
+/// Le modèle de **mains** de la tenue de l'éditeur.
+///
+/// Le corps `u000101` couvre la cheville au cou : ni tête, ni mains. Les mains vivent dans la
+/// famille `g` de `_uniform` et se joignent aux poignets — mesuré à y ∈ [1,156 ; 1,230] m, quand
+/// le corps monte à 1,304 au cou. Sans elles l'avatar a les bras coupés.
+pub const AVATAR_HANDS: &str = "g000201";
+
+/// Le dossier de modèle qui héberge les mains de l'éditeur.
+pub const AVATAR_HANDS_DIR: &str = "g000201";
+
 /// Le modèle de chaussures de la tenue de l'éditeur.
 ///
 /// Contrairement au corps, il n'a pas à s'apparier au squelette : les quatre variantes
