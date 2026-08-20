@@ -857,9 +857,30 @@ La **teinte agit** : quatre couleurs de peau donnent quatre empreintes distincte
   couleurs de peau, d'yeux et de cheveux.
 - **`HIDE_EAR_HAIR_INFO`.** `editCharaMdlParts.cfg.bin` déclare 8 coiffures qui **cachent les
   oreilles**. L'assemblage les empile toujours.
-- **Le départage masculin/féminin du corps.** Chaque squelette a deux corps. La silhouette ne les
-  sépare pas non plus : mesurés tranche par tranche, `u000101` et `u000102` ne diffèrent que de
-  2 cm de rayon au buste — les corps sont **habillés**, et le vêtement masque toute signature. Le premier est servi,
+- **Le départage des corps : RÉSOLU.** Ma mesure précédente était trop grossière — un rayon moyen
+  au buste ne dit rien. Deux grandeurs séparent nettement les corps d'une même paire : la **largeur
+  d'épaules** et le **tour de taille**, dont le rapport signe la morphologie.
+
+  | morphologie | corps | taille | épaules | tour de taille | rapport |
+  |---|---|---:|---:|---:|---:|
+  | `male` | `u000101` | 1,304 | 0,653 | 0,328 | 1,99 |
+  | `female` | `u000102` | 1,303 | 0,615 | 0,354 | 1,73 |
+  | `small` | `u000103` | 0,960 | 0,496 | 0,311 | 1,59 |
+  | `smallfat` | `u000104` | 0,963 | 0,507 | 0,389 | 1,30 |
+  | `tall` | `u000105` | 1,545 | 0,774 | 0,385 | 2,01 |
+  | `tallmuscle` | `u000108` | 1,565 | 0,774 | 0,370 | 2,09 |
+  | `muscle` | `u000106` | 1,804 | 1,367 | 0,649 | 2,11 |
+  | `big` | `u000107` | 1,772 | 1,413 | **0,994** | 1,42 |
+
+  L'affectation ne repose sur aucune convention : **deux contraintes indépendantes se recoupent**.
+  Le squelette, apparié par la jointure cou/tête, réduit chaque morphologie à deux corps ; la
+  corpulence départage la paire et concorde avec le nom — `female` a les épaules plus étroites et
+  le tour de taille plus large que `male`, `smallfat` est plus large que `small` à taille égale,
+  `big` atteint 0,99 m de tour de taille quand `muscle`, aussi grand, garde 0,65. L'ordre des
+  fichiers, lui, ne suit pas les morphologies : `u000108` sert `tallmuscle`, avant `u000106`.
+
+  Le test `chaque_morphologie_recoit_un_corps_de_son_squelette` verrouille le recoupement des deux
+  tables : si l'une bouge sans l'autre, il le dit. Le premier est servi,
   donc **4 des 8 corps ne sont jamais rendus** et le genre ne change pas la carrure. C'est le plus
   gros reste identifié par la revue.
 
