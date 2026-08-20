@@ -182,6 +182,27 @@ décodait tous — alors que `nie-model-serve` sait déjà décoder n'importe qu
   de tous les calques sont triés ensemble par priorité de dessin, l'ordre des options départageant
   à priorité égale. Sur les trois calques de l'éditeur : 10 → **31 éléments** composés.
 
+## 6 bis. Ce qui bloque encore le rendu : la visibilité
+
+Sur les **950 rectangles résolus, 34 seulement portent un objet visible — 916 attendent**. Les
+sprites sont donc prêts ; ce qui manque est la décision d'affichage, prise par les scripts Lua.
+
+Les 42 écrans totalisent **12 `cmdId` non gérés pour 1 254 appels**, dont `0x5245F000` à lui seul
+1 062 (85 %). Chacun a un handler dans `data/re/funclua-cmdid-handlers.json` (3 659 entrées).
+
+**Ces adresses sont valides pour le binaire courant** — vérifié le 2026-08-20 en régénérant la table
+par `uv run scripts/extract_funclua_table.py` : **0/12 handlers ont bougé**, la table est identique
+à celle du 2026-08-15. Le doute venait d'un contrôle mal posé contre `pdata_func`, table qui est
+vide pour ce binaire dans `var/niers.sqlite` — l'absence d'index n'est pas une adresse périmée.
+(Le script, lui, localise la table par un cmdId d'ancrage stable, précisément parce que les
+handlers se déplacent d'un build à l'autre.)
+
+Première lecture du handler `0x52BD4EDC` (42 appels, `0x140CDF730`) : prologue de fonction normal,
+`cmp edx, 6` — il exige **6 arguments**, ce qui correspond exactement à la forme observée dans les
+appels — puis `comisd` / `cvttsd2si`, soit des arguments **flottants convertis en entiers**. C'est
+la signature d'un setter de couleur, ce que la forme des appels laissait déjà supposer
+(`(objId, 1, 0.5, 0.5, 0.5, 1)`).
+
 ## 7. Vérifications
 
 | Vérification | Résultat (2026-08-20) |
