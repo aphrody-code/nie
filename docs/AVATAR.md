@@ -776,7 +776,37 @@ le correctif ci-dessus. Indexer la maille par le seul nez est donc juste.
 
 ### 15.8 Ce que l'assemblage ne fait pas encore
 
-- **Le PLACEMENT des pièces de texture — la pièce qui manque.** Les recettes
+### La règle de composition, trouvée
+
+Deux règles, chacune vérifiée, ont fait passer le visage de **2 familles actives sur 6 à 5** :
+
+1. **Le canal dominant sélectionne la teinte, il ne s'additionne pas.** Additionner saturait
+   systématiquement — la teinte par défaut du canal bleu est blanche, et blanc + quoi que ce soit
+   donne blanc. C'est pourquoi la teinte n'avait aucun effet observable. À égalité, l'ordre
+   rouge > vert > bleu tranche, ce qui donne à une planche neutre (blanche partout, comme
+   `face_00`) la carnation du canal rouge.
+2. **Le canal rouge est le FOND.** Une planche neutre l'a partout : `eye_00`, `highlight_00` et
+   `eyebrow_00` sont uniformément rouges, **écart-type nul** — c'est ainsi que le jeu dit « rien à
+   ajouter ici ». Posée sur une autre, une telle zone doit laisser voir ce qui est dessous ; seule
+   la planche de fond garde son opacité.
+
+Piège de méthode, à retenir : **les variantes `_00` de chaque famille sont des planches neutres,
+uniformes.** Les prendre comme témoin de test faisait conclure à tort à l'absence d'effet — c'est
+ce qui a masqué le vrai comportement pendant plusieurs itérations. Un témoin valable doit porter du
+dessin, ce qui se vérifie par son écart-type.
+
+La **teinte agit** : quatre couleurs de peau donnent quatre empreintes distinctes, et
+`?tint=RRGGBB,RRGGBB,RRGGBB` la pilote.
+
+### Ce qui reste
+
+- **Les reflets (`03_highlight`) restent inertes.** Leur dessin vit sur les canaux R et G à
+  égalité, donc il est lu comme du fond et rendu transparent.
+- **Les couleurs choisies dans l'éditeur n'atteignent pas encore le modèle.** Le catalogue expose
+  les palettes par CRC-32 (`categories[].couleurs`) mais **pas leurs valeurs RGB** ; les recettes,
+  elles, les donnent en clair. La table de résolution CRC → RGB reste à porter dans l'export, après
+  quoi le câblage est immédiat : la route accepte déjà les trois teintes.
+- **Le PLACEMENT des pièces de texture.** Les recettes
   `common/chr/_test/default/mdl_edit_avatar*.cfg.bin` décrivent chaque pièce ainsi :
   `CHARA_EDIT_PARAM_TEX_PARTS [famille, variante, offX, offY, offZ, échelleX, échelleY]`, suivie
   de trois `..._COLOR` dont les identifiants sont les CRC-32 de **`red`**, **`green`** et
