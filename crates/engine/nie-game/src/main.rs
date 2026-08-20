@@ -2699,6 +2699,9 @@ fn cmd_export_layout_runtime(
     let mut total_list_items = 0usize;
     // cmdId -> (nombre d'appels, échantillon de représentation des args — aide à la RE du handler).
     let mut unknown_cmds: BTreeMap<u32, (usize, String)> = BTreeMap::new();
+    // Commandes reconnues, ventilées par nom : sépare celles qui agissent de celles qui se
+    // contentent de rendre 1 au script.
+    let mut known_by_name: BTreeMap<String, usize> = BTreeMap::new();
     let mut script_reports: Vec<(String, bool, usize, usize, usize)> = Vec::new();
     // Onglets d'en-tête virtuels (sous-items absents de l'objbin), énumérés depuis la vraie
     // logique du script (GetSortOfTabs + GetMenuObjectNameFromTabType). Clé = hash d'objet.
@@ -2756,6 +2759,13 @@ fn cmd_export_layout_runtime(
         for (c, _, args_repr) in &st.unknown_cmd_log {
             let e = unknown_cmds.entry(*c).or_insert((0, args_repr.clone()));
             e.0 += 1;
+        }
+        // Ventilation des commandes RECONNUES par nom. Un compteur global d'appels connus ne dit
+        // pas s'ils font quelque chose : une commande portée en « renvoie 1 » satisfait le script
+        // sans rien peindre. Cette ventilation sépare les deux, et c'est elle qui dit si le driver
+        // travaille ou s'il acquiesce.
+        for (nom, _) in &st.known_cmd_log {
+            *known_by_name.entry(nom.clone()).or_insert(0usize) += 1;
         }
         // Fusion déterministe (itération BTreeMap ordonnée) : visibilité ET-combinée, premiers
         // sprite/text/number gagnants.
@@ -2962,6 +2972,7 @@ fn cmd_export_layout_runtime(
             "objectsMatchedTotal": n_matched_total,
             "listItemsRecorded": total_list_items,
             "objectsHidden": n_hidden,
+            "knownCmdsByName": known_by_name,
             // Objets qu'un calque veut visibles et qu'un autre cache : ce que la conjonction efface.
             "objectsHiddenByMerge": vus_visibles
                 .iter()

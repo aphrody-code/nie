@@ -797,9 +797,13 @@ fn dispatch_menu_command(state: &mut MenuState, cmd_id: u32, args: &[Value]) -> 
             let enabled = lua_to_bool(args.get(3), true);
             let layer = target_layer(state, args, 4);
             state.known_cmd_log.push(("SetPartVisible".to_string(), layer));
-            if !enabled {
-                state.layer(layer).obj(obj_id).visible = false;
-            }
+            // Symétrique : la commande MONTRE autant qu'elle cache. Le handler (0x140CEA100) lit
+            // ses quatre arguments puis réduit le dernier à un booléen (`setne`) qu'il applique —
+            // il n'y a pas de chemin qui ignorerait `true`. N'agir que sur `false`, comme avant,
+            // rendait un objet définitivement invisible dès qu'un script l'avait masqué une fois,
+            // même quand un appel ultérieur le réaffiche. C'est la commande la plus fréquente de
+            // l'éditeur d'avatar : 4 409 appels sur 5 425, soit 81 % du trafic reconnu.
+            state.layer(layer).obj(obj_id).visible = enabled;
         }
 
         // ── SetIconSprite(objId, h1, h2, h3, n4, [idx], [enable], [layerId]) ──
