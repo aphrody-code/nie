@@ -673,6 +673,26 @@ enum MemOp {
         #[arg(long)]
         numeric: bool,
     },
+    /// Relève la table `colorPresetID → couleur` des palettes de l'éditeur d'avatar.
+    ///
+    /// Ces valeurs n'existent ni dans le catalogue, ni dans le binaire : seul le jeu vivant les
+    /// porte. Les identifiants attendus viennent du catalogue résolu (`niers avatar export`).
+    Palettes {
+        /// Fichier JSON du catalogue résolu, d'où sont lus les identifiants attendus.
+        #[arg(long, default_value = "var/avatar-resolved.json")]
+        catalogue: PathBuf,
+        #[arg(long, short = 'p', default_value_t = 0)]
+        pid: i32,
+        /// Début de la plage à balayer.
+        #[arg(long, default_value = "0x10400000")]
+        addr: String,
+        /// Longueur de la plage à balayer.
+        #[arg(long, short = 'n', default_value_t = 262_144)]
+        len: usize,
+        /// Écrit le résultat en JSON ici plutôt que sur la sortie standard.
+        #[arg(long, short = 'o')]
+        output: Option<PathBuf>,
+    },
     /// Patche EAC : crée une copie `--dst` de `--src` avec le call de modale fatale NOPé.
     PatchEac {
         /// nie.exe d'origine (jamais modifié).
@@ -1847,8 +1867,63 @@ fn mem_cmd(op: MemOp) -> anyhow::Result<()> {
         MemOp::LuaField { name, pid, strings, nodes, radius, numeric } => {
             crate::mem_lua::lua_field(pid, &name, strings, nodes, radius, numeric)
         }
+        MemOp::Palettes { catalogue, pid, addr, len, output } => {
+            mem_palettes(&catalogue, pid, &addr, len, output.as_deref())
+        }
         MemOp::PatchEac { src, dst } => mem_patch_eac(&src, &dst),
     }
+}
+
+/// Relève les palettes de l'éditeur d'avatar dans le jeu vivant et les rend en JSON.
+fn mem_palettes(
+    catalogue: &std::path::Path,
+    pid: i32,
+    addr: &str,
+    len: usize,
+    output: Option<&std::path::Path>,
+) -> anyhow::Result<()> {
+    let brut = std::fs::read_to_string(catalogue)
+        .with_context(|| format!("lecture du catalogue {}", catalogue.display()))?;
+    let doc: serde_json::Value = serde_json::from_str(&brut)?;
+    let mut attendus: Vec<u32> = Vec::new();
+    if let Some(cats) = doc.get("categories").and_then(|c| c.as_array()) {
+        for cat in cats {
+            for c in cat.get("couleurs").and_then(|c| c.as_array()).into_iter().flatten() {
+                if let Some(v) = c.as_str().and_then(|h| u32::from_str_radix(h, 16).ok()) {
+                    attendus.push(v);
+                }
+            }
+        }
+    }
+    attendus.sort_unstable();
+    attendus.dedup();
+    anyhow::ensure!(!attendus.is_empty(), "aucun identifiant de palette dans le catalogue");
+
+    let debut = u64::from_str_radix(addr.trim_start_matches("0x"), 16)
+        .with_context(|| format!("adresse invalide : {addr}"))?;
+    let table = crate::mem_lua::palettes(pid, &attendus, debut, len)?;
+
+    let json: serde_json::Map<String, serde_json::Value> = table
+        .iter()
+        .map(|(id, argb)| {
+            (
+                format!("{id:08X}"),
+                serde_json::json!({
+                    "rgb": format!("{:02X}{:02X}{:02X}", argb[1], argb[2], argb[3]),
+                    "alpha": argb[0],
+                }),
+            )
+        })
+        .collect();
+    let doc = serde_json::Value::Object(json);
+    match output {
+        Some(p) => {
+            std::fs::write(p, serde_json::to_string_pretty(&doc)?)?;
+            println!("  {} / {} palette(s) → {}", table.len(), attendus.len(), p.display());
+        }
+        None => println!("{}", serde_json::to_string_pretty(&doc)?),
+    }
+    Ok(())
 }
 
 /// Résout/valide le pid (auto-détecte nie.exe si 0) + avertit sur ptrace_scope. Linux-only.
