@@ -203,6 +203,21 @@ appels — puis `comisd` / `cvttsd2si`, soit des arguments **flottants convertis
 la signature d'un setter de couleur, ce que la forme des appels laissait déjà supposer
 (`(objId, 1, 0.5, 0.5, 0.5, 1)`).
 
+### Ce que le port du cmdId dominant a appris — le verrou n'est pas là
+
+`0x5245F000` est porté (2026-08-20). Les appels non gérés de `chara_edit_parts_menu` tombent de
+**364 à 7** (−98 %), les appels reconnus montent de 5 068 à 5 425. Et pourtant : **objets visibles
+10 → 10, sprites mutés 46 → 46**. Le rendu ne bouge pas d'un pixel.
+
+C'est le résultat le plus utile de cette phase, parce qu'il **déplace le verrou**. Les 916 sprites
+en attente ne le sont pas à cause des `cmdId` non implémentés : le driver exécute déjà les vrais
+scripts et applique leurs mutations. Ce qui manque est l'**état de jeu** que ces scripts
+interrogent avant de décider d'afficher — `GetItemButtonNum` et consorts lisent une couche
+scène/sauvegarde que le dépôt ne fournit pas encore (limite déjà consignée dans le driver).
+
+Autrement dit : implémenter les 11 `cmdId` restants fermerait des compteurs, pas des pixels.
+La prochaine marche est la couche d'état, pas le reverse de handlers.
+
 ## 7. Vérifications
 
 | Vérification | Résultat (2026-08-20) |
