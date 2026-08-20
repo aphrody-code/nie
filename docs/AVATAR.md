@@ -625,6 +625,59 @@ d'écran choisi — c'est ce qui manquait pour adosser une mesure au vrai jeu.
 
 ---
 
+## 14. La page publique mesurée contre le vrai écran
+
+Le pilier avait une chaîne complète en production (`/avatar` sur azalée) mais **aucune mesure** :
+rien ne disait à quelle distance du jeu elle se tenait. Le jeu tournant maintenant ici (§13), la
+distance se chiffre.
+
+Protocole : capture de la page à la **même résolution** que la référence
+(`apps/azalee/scripts/shot.ts`, 1920 × 1080, Playwright sur le chromium du système), puis
+`niers img diff … --roi` sur cinq régions nommées — un score global masque toujours une zone
+parfaite et une zone fausse.
+
+| Région | px | avant | après | ΔE moy. après |
+|---|---:|---:|---:|---:|
+| **global** | 2 073 600 | 0,6482 | **0,7074** | 10,40 |
+| `scene_avatar` | 980 100 | 0,6212 | **0,7347** | 9,53 |
+| `panneau_droit` | 542 500 | 0,6801 | 0,6801 | 10,05 |
+| `barre_haut` | 249 600 | 0,5612 | **0,5733** | 16,01 |
+| `barre_bas` | 172 800 | 0,5537 | **0,5967** | 9,90 |
+| `ergot_onglet` | 26 660 | 0,4971 | 0,4978 | 8,41 |
+
+Trois corrections, chacune adossée à une source :
+
+1. **L'emprise du modèle était estimée**, elle est maintenant relevée. Deux captures du même écran
+   — avant et après le chargement de l'avatar — différenciées puis seuillées donnent sa boîte
+   englobante : **215 × 609 px à (533, 381)**, stable du seuil 25 % au seuil 35 %. L'ancienne boîte
+   (730 × 907) faisait cadrer le visualiseur sur toute la hauteur.
+2. **Les boutons du bandeau du bas n'étaient pas les bons.** `cmn03/cmd_back_base01` et
+   `cmd_press_btn_base_on01` sont des **fonds cyan** ; le layout exporté de `chara_edit_menu`
+   désigne `mainmenu01_10_return_arrow_button_guide` et `mainmenu01_12_next_button_guide`. Leçon
+   générale : **le layout est l'autorité, pas la ressemblance d'un nom de sprite.**
+3. **La tuile de l'onglet actif** (`icon_base01`, parallélogramme 352 × 264 dont ~64 % de la hauteur
+   est opaque) manquait.
+
+Un quatrième essai a été **retiré parce que la mesure l'a contredit** : recaler la languette du
+libellé d'onglet sur l'emprise relevée à l'œil fait tomber `ergot_onglet` de 0,4971 à 0,4860.
+
+### Deux plafonds du modèle 3D, tous deux constatés et non contournés
+
+- **Pas de corps.** Le corps vit dans `_base/` (11 fichiers, 97 os référencés, contre 44 pour un
+  visage). Mais rien ne relie les 8 morphologies du catalogue à ces 11 fichiers : aucune catégorie
+  ne référence `_base/`, le CRC-32 de `base_normal_00` (`4C0FC910`) n'apparaît nulle part dans
+  `data/common/gamedata/`, et relever le corps actif en mémoire ne tranche pas — les onze noms y
+  sont chargés ensemble.
+- **Pas de texture.** Le GLB rendu contient 0 image et 0 texture. Les matériaux des pièces
+  (`hairF_10`, `base_eye_10`, `parts_mouth_10`, `eye_10_normal_00`…) n'ont **aucun `.g4tx`
+  correspondant dans le VFS**, et `customTex` n'y rend rien : la texture d'un avatar est composée à
+  l'exécution depuis les couleurs choisies.
+
+Prochaine cible chiffrée : `panneau_droit` (0,6801, 542 500 px — le plus gros gisement restant) puis
+`barre_haut` (0,5733).
+
+---
+
 ## Régénérer chaque chiffre de ce document
 
 ```bash
@@ -637,4 +690,5 @@ ls data/common/gamedata/menu/cfg | grep '^chara_edit' | grep -c '\.cfg\.bin$'   
 ls var/avatar-ui/layouts | wc -l                                               # 42 layouts
 ls var/refs-avatar | wc -l                                                     # 18 captures
 niers mem lua-field listRowNum --numeric -r 6   # §13 — jeu lancé (scripts/nie-wine-setup.sh)
+niers img diff <page.png> var/refs-avatar/live/chara_edit_style_01.png --roi <roi.json>  # §14
 ```
