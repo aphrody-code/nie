@@ -1781,7 +1781,12 @@ const AVATAR_TEX_MAX: u32 = 1024;
 /// `common/chr/_test/default/mdl_edit_avatar01.cfg.bin` : chair `#F3CAC1` sur le canal rouge,
 /// noir sur le vert, blanc sur le bleu.
 fn couleurs_teinte(query: &str) -> [nie_formats::image_out::TeinteCanal; 3] {
-    const DEFAUTS: [[u8; 3]; 3] = [[243, 202, 193], [0, 0, 0], [255, 255, 255]];
+    // Le canal vert porte l'iris. Son défaut était le noir, ce qui donnait une couche d'yeux
+    // entièrement noire — un bandeau sombre en travers du visage, puisque la sélection par canal
+    // dominant peint d'un seul coup tout ce que ce canal recouvre. La valeur retenue est mesurée
+    // sur l'écran du jeu (`chara_edit`, onglet « Face & Hairstyle ») : quatre relevés au centre
+    // des deux iris donnent 106,81,81 / 73,51,51 / 77,56,56 / 88,61,61, de médiane 83,59,59.
+    const DEFAUTS: [[u8; 3]; 3] = [[243, 202, 193], [83, 59, 59], [255, 255, 255]];
     let demande = param(query, "tint").unwrap_or_default();
     let mut sortie = [nie_formats::image_out::TeinteCanal { rgb: [0; 3], actif: true }; 3];
     for (i, defaut) in DEFAUTS.iter().enumerate() {
@@ -1796,6 +1801,29 @@ fn couleurs_teinte(query: &str) -> [nie_formats::image_out::TeinteCanal; 3] {
     }
     sortie
 }
+
+/// Lit un paramètre de couleur `RRGGBB` de la requête, s'il est présent et bien formé.
+///
+/// Une valeur mal formée est refusée plutôt que corrigée : mieux vaut la teinte par défaut qu'une
+/// couleur inventée à partir d'une saisie tronquée.
+fn couleur_hexa(query: &str, nom: &str) -> Option<[u8; 3]> {
+    let v = param(query, nom)?;
+    if v.len() != 6 {
+        return None;
+    }
+    let n = u32::from_str_radix(&v, 16).ok()?;
+    Some([(n >> 16) as u8, (n >> 8) as u8, n as u8])
+}
+
+/// Couleur de chevelure retenue quand la requête n'en porte aucune.
+///
+/// Relevée sur l'écran du jeu — `chara_edit`, onglet « Face & Hairstyle », capture 1920 × 1080 —
+/// en trois points de la masse capillaire, qui donnent 118,93,78 / 113,88,74 / 117,92,77. La
+/// valeur retenue est leur médiane. Ce n'est pas l'albédo de la planche mais la couleur **rendue**,
+/// éclairage compris : le brun servi ici sort donc un peu plus sombre que celui du jeu, l'écart
+/// valant mieux qu'un casque blanc ou qu'une couleur inventée. Dès que le joueur choisit une
+/// teinte, `?hair=` la remplace.
+const CHEVEUX_DEFAUT: [u8; 3] = [116, 91, 76];
 
 /// Nombre maximum de couches de visage acceptées dans un seul `?face=`.
 ///
@@ -1812,7 +1840,7 @@ type PlancheRgba = (u32, u32, Vec<u8>);
 /// corps déduit du squelette, attache à l'os de tête, composition de la texture de visage… Sans
 /// elle, un GLB produit par l'ancienne logique reste servi indéfiniment et le correctif paraît
 /// sans effet : c'est exactement ce qui est arrivé lors de l'ajout du corps automatique.
-const AVATAR_CACHE_VERSION: u32 = 22;
+const AVATAR_CACHE_VERSION: u32 = 27;
 
 /// Nom de fichier de cache court et stable pour une clé d'assemblage.
 ///
@@ -1855,6 +1883,7 @@ fn get_or_build_avatar_glb(
     couches_visage: &[String],
     teintes: [nie_formats::image_out::TeinteCanal; 3],
     morphologie: Option<String>,
+    cheveux: Option<[u8; 3]>,
 ) -> Result<GlbBytes> {
     // La teinte fait partie de l'identité du rendu : deux couleurs de peau différentes donnent
     // deux GLB différents, et la clé de cache doit le refléter.
@@ -1864,11 +1893,16 @@ fn get_or_build_avatar_glb(
         .collect::<Vec<_>>()
         .join("");
     let morpho_cle = morphologie.as_deref().unwrap_or("");
+    // La couleur de chevelure change la texture posée : elle appartient donc à l'identité du
+    // rendu au même titre que la carnation.
+    let cheveux_cle = cheveux
+        .map(|c| format!("{:02x}{:02x}{:02x}", c[0], c[1], c[2]))
+        .unwrap_or_default();
     // Les deux familles sont séparées par un marqueur : sans lui, une pièce `d/n` et une couche
     // de visage `d/n` produisent le même fragment `d-n`, si bien que deux requêtes de sens
     // différent partagent un fichier de cache et que la seconde reçoit le GLB de la première.
     let cle: String = format!(
-        "{}|{}|{teinte_cle}|{morpho_cle}",
+        "{}|{}|{teinte_cle}|{morpho_cle}|{cheveux_cle}",
         specs.iter().map(|(d, n)| format!("{d}-{n}")).collect::<Vec<_>>().join("_"),
         couches_visage.iter().map(|c| c.replace('/', "-")).collect::<Vec<_>>().join("_")
     );
@@ -2087,24 +2121,37 @@ fn get_or_build_avatar_glb(
                     let vise = planches
                         .get(rang)
                         .map_or_else(|| nie_formats::assemble::avatar_texture_name(mat), |p| p.as_str());
-                    let png = nie_formats::image_out::g4tx_vignette_nommee(
-                        tx,
-                        vise,
-                        AVATAR_TEX_MAX,
-                        nie_formats::image_out::ImageOut::Png,
-                    )
-                    .ok()
-                    .or_else(|| {
-                        repli.as_deref().and_then(|r| {
-                            nie_formats::image_out::g4tx_vignette_nommee(
+                    // Une chevelure porte une planche NEUTRE — `hair_10` vaut 255,255,255
+                    // partout — que la couleur choisie colore à l'exécution. Sans teinte, la tête
+                    // reçoit un casque blanc.
+                    let teinte_piece = cheveux.filter(|_| dossier.starts_with("_hair"));
+
+                    // Le nom du matériau ne désigne pas toujours une planche du conteneur :
+                    // `hairF001M.g4tx` porte `hair_10` alors que son G4MD déclare `hairF_10`. On
+                    // essaie donc le nom visé puis, à défaut, la couleur de base du conteneur — et
+                    // la teinte s'applique à celui des deux qui répond, jamais seulement au
+                    // premier : la teinter sur le seul nom visé laissait justement la chevelure
+                    // blanche, puisque c'est le repli qui la fournit.
+                    let png = [Some(vise), repli.as_deref()]
+                        .into_iter()
+                        .flatten()
+                        .find_map(|nom_planche| match teinte_piece {
+                            Some(rgb) => nie_formats::image_out::g4tx_vignette_teintee(
                                 tx,
-                                r,
+                                nom_planche,
+                                AVATAR_TEX_MAX,
+                                nie_formats::image_out::ImageOut::Png,
+                                rgb,
+                            )
+                            .ok(),
+                            None => nie_formats::image_out::g4tx_vignette_nommee(
+                                tx,
+                                nom_planche,
                                 AVATAR_TEX_MAX,
                                 nie_formats::image_out::ImageOut::Png,
                             )
-                            .ok()
-                        })
-                    });
+                            .ok(),
+                        });
                     // Le conteneur `_facebase.g4tx` ne porte que des vignettes 32×32 : quand des
                     // compositions sont disponibles, ce sont elles qui habillent le visage. Le
                     // n-ième matériau reçoit le n-ième dépliage ; s'il y a moins de compositions
@@ -3619,6 +3666,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             &couches_visage,
             couleurs_teinte(query),
             morphologie,
+            couleur_hexa(query, "hair").or(Some(CHEVEUX_DEFAUT)),
         ) {
             Ok(glb) => respond(&mut stream, 200, "OK", "model/gltf-binary", &glb),
             Err(e) => {
