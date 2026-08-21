@@ -1199,6 +1199,22 @@ Ce que cela indique pour la suite : `_base` n'est pas un complément de `_faceba
 vraisemblablement le **support alternatif**, celui sur lequel la composition de `_facetex` devrait
 être posée. Le vérifier demande de substituer l'un à l'autre et de comparer, pas de les additionner.
 
+### 16.14 La substitution `_base` ↔ `_facebase` : testée, non retenue
+
+Le câblage posé en §16.13 permet d'habiller `_base` de la composition de `_facetex`. Substitué à
+`_facebase` comme support de tête, il donne un rendu **différent mais pas meilleur** : les oreilles
+ressortent nettement et deux barres sombres occupent la place des yeux, mais la bouche disparaît.
+Ces barres ne ressemblent pas aux yeux du jeu — iris brun, blanc, cils — relevés sur la capture.
+
+Le compte est donc défavorable : on perd un trait acquis pour en gagner un qui n'est pas juste.
+La substitution n'est pas retenue ; le câblage, lui, reste, puisqu'il est correct en soi et sans
+effet sur la page.
+
+Ce qui manque pour trancher n'est plus un essai de plus mais **une référence** : une capture du jeu
+montrant l'avatar par défaut de l'éditeur, face caméra, à comparer région par région. Les quatre
+captures disponibles (`chara_edit_style_01`, `body_type`, `face_presets`, `hair_tab`) cadrent
+l'avatar de trop loin pour que l'œil se mesure.
+
 ---
 
 ## Régénérer chaque chiffre de ce document
