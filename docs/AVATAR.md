@@ -1398,6 +1398,24 @@ possibilité non explorée — que le moteur le compose à partir d'une ressourc
 dans les chemins relevés — et sa vérification demande de suivre le code de composition dans le
 binaire, pas d'examiner d'autres fichiers.
 
+### 16.22 Le point d'entrée du code de composition est nommé
+
+La base de connaissance contient la classe qui fait exactement ce qu'on cherchait à reconstituer :
+**`game::CCharaEditCustomTextureComp`** — le composant qui compose la texture personnalisée de
+l'éditeur d'avatar. Sa voisine `game::CCharaEditCustomMdlComp` compose le modèle.
+
+C'est le seul endroit qui puisse répondre à la question restée ouverte : d'où vient le dessin des
+yeux, puisque §16.20 a montré qu'aucune planche n'en porte et §16.21 qu'aucune combinaison de leurs
+zones ne peut le produire.
+
+Reverser ces méthodes — suivre les chargements de ressources qu'elles déclenchent et l'opération
+qu'elles appliquent — est un chantier de RE classique, avec un point d'entrée nommé et une
+vérification immédiate : la texture produite doit approcher les **1,530 %** d'encre de
+`base_elderlywoman/face_10`, et la maille des yeux doit cesser d'échantillonner du vide.
+
+C'est là que reprend le travail. Le reste du pilier — mesures, voies mortes, clés de méthode — est
+consigné aux §16.5 à §16.21.
+
 ---
 
 ## Régénérer chaque chiffre de ce document
