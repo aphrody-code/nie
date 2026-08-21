@@ -332,6 +332,12 @@ pub struct TeinteCanal {
 /// — le fond, la carnation — devient transparente au lieu d'effacer ce qui est en dessous.
 #[cfg(feature = "textures")]
 #[must_use]
+/// Écart minimum, sur 255, pour qu'un canal soit tenu pour dominant.
+///
+/// En deçà, l'avance est du bruit de quantification et non une désignation de zone.
+#[cfg(feature = "textures")]
+const MARGE_DOMINANCE: u32 = 8;
+
 pub fn teinter_par_canaux(
     largeur: u32,
     hauteur: u32,
@@ -354,6 +360,7 @@ pub fn teinter_par_canaux(
         // `face_00`, blanche partout (R = G = B = 255) : elle prend donc la teinte du canal rouge,
         // celle que les recettes réservent à la carnation (`#F3CAC1` dans `mdl_edit_avatar01`).
         let mut choisi: Option<(u32, &TeinteCanal, usize)> = None;
+        let mut second = 0u32;
         for (canal, teinte) in teintes.iter().enumerate() {
             if !teinte.actif {
                 continue;
@@ -363,8 +370,27 @@ pub fn teinter_par_canaux(
                 continue;
             }
             if choisi.is_none_or(|(p, _, _)| poids > p) {
+                if let Some((p, _, _)) = choisi {
+                    second = second.max(p);
+                }
                 choisi = Some((poids, teinte, canal));
+            } else {
+                second = second.max(poids);
             }
+        }
+        // Une dominance d'une unité ne désigne rien. La planche `eye_L_01` est blanche à 255 sur
+        // les trois canaux, sauf des ovales à peine plus gris où un canal passe devant d'un ou
+        // deux crans : sans marge, ces ovales basculaient d'un bloc sur la couleur de l'iris et
+        // sortaient en blobs opaques par-dessus les yeux. En deçà de la marge, la zone est traitée
+        // comme du fond — le canal rouge — ce qu'elle est : une planche presque neutre ne dit rien
+        // d'autre que « rien à ajouter ici ».
+        if let Some((poids, _, canal)) = choisi
+            && canal != 0
+            && poids.saturating_sub(second) < MARGE_DOMINANCE
+            && teintes[0].actif
+            && planche[i] > 0
+        {
+            choisi = Some((u32::from(planche[i]), &teintes[0], 0));
         }
         match choisi {
             Some((poids, teinte, canal)) => {
@@ -611,6 +637,54 @@ pub fn g4tx_vignette_nommee(
 ) -> Result<Vec<u8>, String> {
     let (w, h, rgba) = crate::g4tx_decode::decode_named_to_rgba(g4tx, nom)
         .ok_or_else(|| format!("texture `{nom}` absente du conteneur G4TX"))?;
+    let (vw, vh, petit) = reduire_rgba(&rgba, w, h, max_cote)?;
+    encoder_rgba(&petit, vw, vh, format)
+}
+
+/// Décode une planche nommée, la **multiplie** par une couleur, et lui applique son masque.
+///
+/// Certaines planches de l'éditeur ne portent aucune couleur : `hair_10`, la chevelure de
+/// `hairF001M`, fait 64 × 32 et vaut 255,255,255 sur tous ses pixels. Elle n'est pas ratée — elle
+/// est **neutre**, et c'est la couleur choisie par le joueur qui la colore à l'exécution. Posée
+/// telle quelle, elle donnait un casque blanc sur la tête de l'avatar.
+///
+/// La multiplication est le bon opérateur ici, et pas la sélection par canal dominant employée
+/// pour le visage : cette dernière suppose un masque à trois canaux, alors qu'une planche neutre
+/// n'a pas de canal dominant. Multiplier préserve en revanche les nuances de la planche quand
+/// elle en a — une mèche plus sombre le reste après teinture.
+///
+/// Le conteneur range à côté un masque `<nom>msk` de même définition. Quand il existe et qu'il
+/// varie, son canal rouge devient l'alpha : c'est lui qui découpe les mèches, que la géométrie à
+/// 227 sommets ne peut pas porter. Un masque uniforme est ignoré — il ne découpe rien.
+#[cfg(feature = "textures")]
+pub fn g4tx_vignette_teintee(
+    g4tx: &[u8],
+    nom: &str,
+    max_cote: u32,
+    format: ImageOut,
+    rgb: [u8; 3],
+) -> Result<alloc::vec::Vec<u8>, alloc::string::String> {
+    use alloc::format;
+    let (w, h, mut rgba) = crate::g4tx_decode::decode_named_to_rgba(g4tx, nom)
+        .ok_or_else(|| format!("texture `{nom}` absente du conteneur G4TX"))?;
+
+    for px in rgba.chunks_exact_mut(4) {
+        for (c, teinte) in rgb.iter().enumerate() {
+            px[c] = ((u16::from(px[c]) * u16::from(*teinte)) / 255) as u8;
+        }
+    }
+
+    let masque = crate::g4tx_decode::decode_named_to_rgba(g4tx, &format!("{nom}msk"));
+    if let Some((mw, mh, m)) = masque
+        && mw == w
+        && mh == h
+        && !canal_uniforme(&m)
+    {
+        for (px, mp) in rgba.chunks_exact_mut(4).zip(m.chunks_exact(4)) {
+            px[3] = px[3].min(mp[0]);
+        }
+    }
+
     let (vw, vh, petit) = reduire_rgba(&rgba, w, h, max_cote)?;
     encoder_rgba(&petit, vw, vh, format)
 }
