@@ -1016,6 +1016,32 @@ blanc, cils noirs, tel qu'on le relève sur la capture — n'est dans aucune des
 Il ne sert donc à rien de continuer à régler l'empilement : **la source des traits reste à
 trouver**, et c'est elle qu'il faut chercher avant d'écrire une ligne de composition de plus.
 
+### 16.8 Ce que les masques disent vraiment — et la troisième voie réfutée
+
+Les masques de `_facetex` sont bien des masques de **zones**, peints en couleurs franches :
+
+| planche | fond | zone peinte |
+|---|---|---|
+| `eye_L_01msk` | rouge | un mince croissant **vert** — le contour de paupière |
+| `pupil_L_01msk` | rouge | un grand ovale **bleu** |
+
+Le grand ovale bleu de `pupil_L_01msk` ne cerne **pas** un œil : il couvre la forme du visage
+entier, et sa planche `pupil_L_01` n'est qu'un contour ovale gris sur fond blanc. Une troisième
+tentative l'a confirmé par l'image — faire du masque le sélecteur, avec l'iris sur le canal bleu,
+peint tout le visage d'un ovale brun massif. Annulée comme les deux précédentes.
+
+Les trois essais convergent donc vers le même constat, et il est désormais solide : **la famille
+`02_pupil` ne contient pas de pupille, `01_eye` pas d'œil.** Ces noms viennent du rangement des
+dossiers, pas de leur contenu. Le dessin que montre le jeu — iris brun, blanc de l'œil, cils noirs,
+relevé sur la capture de l'onglet « Face & Hairstyle » — n'est dans aucune des six familles telles
+qu'on les empile.
+
+**Prochaine étape, et une seule : retrouver la source des traits**, avant d'écrire une ligne de
+composition de plus. Trois pistes non explorées, par ordre de coût : les 245 fichiers de `_facetex`
+dont seuls quelques-uns ont été ouverts ; les conteneurs du modèle `_facebase` lui-même, dont on
+sait seulement qu'ils portent des vignettes 32 × 32 ; et le relevé en mémoire du jeu vivant, qui a
+déjà tranché la question des palettes (§13).
+
 ---
 
 ## Régénérer chaque chiffre de ce document
