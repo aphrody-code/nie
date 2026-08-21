@@ -1272,6 +1272,22 @@ n'en a.
 La boucle est donc fermée : les traits doivent venir de la composition, et la composition n'a pas
 d'encre à poser pour l'œil.
 
+### 16.17 La voie mémoire : praticable, mais elle demande de piloter le jeu
+
+Le processus tourne toujours (`nie_eacpatched.exe`), et `niers mem scan` s'y attache. Mais aucune
+des chaînes attendues n'y figure — ni `face_10`, ni `chara_edit`, ni `hairF001`, ni `u117401`,
+toutes à zéro occurrence. Le jeu n'est pas sur l'écran de l'éditeur : ses ressources ne sont pas
+chargées, et il n'y a donc rien à y lire.
+
+Lire la texture de visage composée par le moteur reste la seule voie ouverte quand les fichiers se
+taisent — c'est elle qui avait tranché la question des palettes (§13). Elle suppose au préalable
+de **piloter le jeu jusqu'à `chara_edit`**, ce qui, à environ une image par seconde et avec des
+événements d'entrée maintenus, est un travail en soi. Le relevé lui-même n'a rien d'automatique :
+il faut d'abord trouver l'ancrage, comme il avait fallu le faire pour la table des palettes.
+
+C'est le prochain pas, et il est réaliste — pas un vœu. Mais il se mène comme une session dédiée,
+avec le jeu amené sur le bon écran, et non en fin de parcours.
+
 ---
 
 ## Régénérer chaque chiffre de ce document
