@@ -1304,9 +1304,15 @@ Avec cela, trois écrans ont été franchis : l'avertissement de sauvegarde auto
 un écran blanc de chargement où il reste plus de douze secondes — le rendu logiciel plafonne à
 environ une image par seconde.
 
-La suite du trajet — sélection de sauvegarde, monde, menu, `chara_edit` — reste à faire, et n'a rien
-d'automatique : chaque écran demande de retrouver la forme d'entrée qu'il accepte. **Prudence
-requise** : ne pas créer de partie neuve, qui écraserait une sauvegarde.
+Le trajet est **plus court qu'on ne le croyait** : au quatrième écran, le jeu propose lui-même
+« Create an avatar to represent you in all game modes », avec un bouton `Create Avatar`. C'est
+l'entrée directe dans `chara_edit`, et sans risque pour une sauvegarde puisqu'il s'agit de la
+création initiale — il n'y a donc ni sélection de fichier, ni monde à traverser.
+
+Cet écran-là résiste cependant au clic maintenu : le curseur se pose bien sur le bouton (la flèche
+verte s'y déplace) mais la validation ne passe pas, même à 2,5 s de maintien. Il attend une forme
+d'entrée qui reste à trouver — vraisemblablement une manette, le jeu étant un portage console.
+C'est le seul obstacle qui sépare encore du relevé mémoire.
 
 ---
 
