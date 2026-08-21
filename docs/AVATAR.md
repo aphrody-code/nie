@@ -1219,6 +1219,34 @@ d'œil, et la maille `eye_10_normal_00` de `_base` n'a pour texture qu'une vigne
 Tant que cette source n'est pas trouvée, la produire reviendrait à dessiner des yeux — donc à
 inventer une donnée de jeu.
 
+### 16.15 Les yeux existent — dans un conteneur, et sous forme de cible
+
+La maille `eye_10_normal_00` consomme un matériau nommé `face_10`. Or les conteneurs de `_base`
+se répartissent en deux formes, et une seule porte quelque chose :
+
+| forme | exemple | `face_10` |
+|---|---|---|
+| avec suffixe numérique | `base_normal_00.g4tx`, `base_small_00.g4tx` (4,4 Ko) | **32 × 32** — un bouchon |
+| sans suffixe | `base_elderlywoman.g4tx` (700 Ko) | **512 × 512** — un vrai dessin |
+
+Onze des treize conteneurs sont de la première forme. C'est pour cela que la maille des yeux n'a
+jamais rien eu à afficher : sa texture est un bouchon de 32 pixels de côté.
+
+Et `base_elderlywoman/face_10` montre exactement ce qu'il faudrait produire — **deux yeux dessinés**,
+contour, iris, sourcils — avec **1,530 %** d'encre, la même densité que les bouches de `mouth_01`
+(1,494 %). Ce n'est pas la texture à poser telle quelle : la coller sur tous les avatars leur
+donnerait le visage d'un personnage précis. C'est une **référence de forme**.
+
+Ce que cela change : la cible cesse d'être « faire apparaître des yeux » pour devenir « produire,
+depuis les planches de `_facetex`, une texture `face_10` de 512 × 512 comparable à celle-là ».
+Comparable se mesure — densité d'encre, position des tracés, boîte englobante — contre un fichier
+du jeu, et non contre une impression.
+
+Cela réhabilite partiellement la piste de la composition par zones (§16.8, §16.14) : le dessin
+attendu — contour de paupière, globe clair, iris — correspond bien aux trois régions que les
+masques d'`01_eye` et `02_pupil` désignent. Les essais précédents échouaient sur le calibrage, pas
+sur le principe. Ils sont à reprendre **contre cette référence**, qui manquait jusqu'ici.
+
 ---
 
 ## Régénérer chaque chiffre de ce document
