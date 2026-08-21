@@ -1210,10 +1210,14 @@ Le compte est donc défavorable : on perd un trait acquis pour en gagner un qui 
 La substitution n'est pas retenue ; le câblage, lui, reste, puisqu'il est correct en soi et sans
 effet sur la page.
 
-Ce qui manque pour trancher n'est plus un essai de plus mais **une référence** : une capture du jeu
-montrant l'avatar par défaut de l'éditeur, face caméra, à comparer région par région. Les quatre
-captures disponibles (`chara_edit_style_01`, `body_type`, `face_presets`, `hair_tab`) cadrent
-l'avatar de trop loin pour que l'œil se mesure.
+La référence, elle, ne manque pas : `chara_edit_hair_tab` cadre le visage d'assez près pour qu'on
+y relève l'iris en quatre points (§16.3), et elle montre nettement ce que le jeu affiche — iris
+brun-mauve, blanc de l'œil, cils et contour noirs, sourcils bruns. Ce qui manque est en amont :
+**aucune source lue ne fournit ce dessin**. `_facetex` n'a pas d'encre dans ses vingt variantes
+d'œil, et la maille `eye_10_normal_00` de `_base` n'a pour texture qu'une vignette 32 × 32.
+
+Tant que cette source n'est pas trouvée, la produire reviendrait à dessiner des yeux — donc à
+inventer une donnée de jeu.
 
 ---
 
