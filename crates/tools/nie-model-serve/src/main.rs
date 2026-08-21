@@ -1840,7 +1840,7 @@ type PlancheRgba = (u32, u32, Vec<u8>);
 /// corps déduit du squelette, attache à l'os de tête, composition de la texture de visage… Sans
 /// elle, un GLB produit par l'ancienne logique reste servi indéfiniment et le correctif paraît
 /// sans effet : c'est exactement ce qui est arrivé lors de l'ajout du corps automatique.
-const AVATAR_CACHE_VERSION: u32 = 68;
+const AVATAR_CACHE_VERSION: u32 = 69;
 
 /// Nom de fichier de cache court et stable pour une clé d'assemblage.
 ///
@@ -2213,7 +2213,11 @@ fn get_or_build_avatar_glb(
                     // que de matériaux, la dernière sert aux suivants.
                     // Le n-ième matériau reçoit la planche de son rang ; à défaut, la dernière
                     // disponible, pour qu'un modèle à deux matériaux garde une bouche.
-                    let png = if dossier == "_facebase" && !visages_composes.is_empty() {
+                    // `_base` porte les mêmes traits que `_facebase`, sur une coquille de tête
+                    // qui l'englobe, et son conteneur ne fournit qu'une vignette 32 × 32. C'est
+                    // donc la composition de `_facetex` qui doit l'habiller, comme `_facebase`.
+                    let support_visage = dossier == "_facebase" || dossier == "_base";
+                    let png = if support_visage && !visages_composes.is_empty() {
                         let rang = idx_materiau_visage;
                         idx_materiau_visage += 1;
                         let choisie = visages_composes
