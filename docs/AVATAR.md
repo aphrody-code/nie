@@ -1119,6 +1119,32 @@ variante, et le relevé en mémoire du jeu vivant.
 C'est la différence entre ce qui est fait et ce qui reste : la composition des traits fonctionne et
 se voit sur la texture ; leur placement sur le modèle, non.
 
+### 16.11 La maille est bien là — elle échantillonne du vide
+
+Trois expériences ferment successivement les hypothèses restantes.
+
+**La maille de traits est exportée et bien placée.** En l'avançant de 5 cm le long de sa normale —
+un décalage énorme pour une tête de 30 cm — ses bornes passent bien de `z ≤ 0,122` à `z ≤ 0,174`,
+donc devant la surface du visage (`z ≤ 0,139`). Et elle reste **invisible**. Ce n'est donc ni un
+problème de tampon de profondeur, ni une primitive absente : elle affiche du transparent.
+
+**La composition atteint bien son matériau.** Les trois textures du visage sont distinctes dans le
+GLB (empreintes et tailles différentes), et celle de `parts_mouth_10` contient les **huit bouches**.
+Le chaînage famille → emplacement → matériau fonctionne.
+
+**Mais elle échantillonne du vide.** La maille vise `u 0,019–0,232`, `v 0,325–0,493` ; les bouches
+occupent `v 0,18–0,31` en première rangée et `v 0,72–0,84` en seconde. Le rectangle visé tombe
+exactement dans l'interligne.
+
+Un défaut réel a été identifié au passage : **`eyebrow_00`, planche vide, est traitée comme le fond
+de son emplacement** et le peint en carnation opaque sur toute sa surface, sous les bouches. Une
+planche entièrement transparente ne devrait pas tenir lieu de fond.
+
+Ce qui reste à trouver n'est donc plus « où sont les traits » ni « la maille rend-elle », mais une
+seule chose : **ce qui doit occuper la zone que la maille vise**. Deux essais de report — décaler la
+planche, puis recopier une cellule dans la boîte mesurée — n'ont rien donné, ce qui suggère que la
+correspondance ne se calcule pas comme on l'a supposé.
+
 ---
 
 ## Régénérer chaque chiffre de ce document
