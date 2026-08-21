@@ -1852,7 +1852,7 @@ type PlancheRgba = (u32, u32, Vec<u8>);
 /// corps déduit du squelette, attache à l'os de tête, composition de la texture de visage… Sans
 /// elle, un GLB produit par l'ancienne logique reste servi indéfiniment et le correctif paraît
 /// sans effet : c'est exactement ce qui est arrivé lors de l'ajout du corps automatique.
-const AVATAR_CACHE_VERSION: u32 = 107;
+const AVATAR_CACHE_VERSION: u32 = 109;
 
 /// Nom de fichier de cache court et stable pour une clé d'assemblage.
 ///
@@ -2277,27 +2277,6 @@ fn get_or_build_avatar_glb(
     let mut model = nie_formats::assemble::assemble_avatar_model(&cle, &pieces)
         .with_context(|| format!("assemblage avatar {cle}"))?;
 
-    // La FORME DE VISAGE : ses parts ne désignent aucune ressource, elle est donc appliquée en
-    // déformant la tête.
-    if let Some(f) = forme {
-        nie_formats::assemble::deformer_visage(&mut model.primitives, f as usize, 1.0);
-    }
-
-    // La TAILLE. Le curseur de l'écran Physionomie ne changeait rien au modèle. Il pilote une
-    // stature, que l'on applique en mettant le modèle à l'échelle depuis le sol : le facteur
-    // multiplie les trois axes, et l'avatar reste posé sur y = 0.
-    if let Some(cran) = taille {
-        let k = facteur_taille(cran);
-        for prim in &mut model.primitives {
-            for p in &mut prim.positions {
-                p.x *= k;
-                p.y *= k;
-                p.z *= k;
-            }
-        }
-        debug!("taille cran {cran} → facteur {k:.3}");
-    }
-
     model.embedded_textures = textures;
 
     // Les YEUX, posés en géométrie. Les fichiers n'en portent aucun tracé : deux quads placés à
@@ -2337,6 +2316,30 @@ fn get_or_build_avatar_glb(
                 png_bytes,
             });
         }
+    }
+
+    // La POSE DES BRAS, appliquée au-delà du seuil mesuré qui isole le bras du torse.
+    nie_formats::assemble::poser_bras(&mut model.primitives, 1.0);
+
+    // La FORME DE VISAGE : ses parts ne désignent aucune ressource, elle est donc appliquée en
+    // déformant la tête.
+    if let Some(f) = forme {
+        nie_formats::assemble::deformer_visage(&mut model.primitives, f as usize, 1.0);
+    }
+
+    // La TAILLE. Le curseur de l'écran Physionomie ne changeait rien au modèle. Il pilote une
+    // stature, que l'on applique en mettant le modèle à l'échelle depuis le sol : le facteur
+    // multiplie les trois axes, et l'avatar reste posé sur y = 0.
+    if let Some(cran) = taille {
+        let k = facteur_taille(cran);
+        for prim in &mut model.primitives {
+            for p in &mut prim.positions {
+                p.x *= k;
+                p.y *= k;
+                p.z *= k;
+            }
+        }
+        debug!("taille cran {cran} → facteur {k:.3}");
     }
 
     let nb_tex = model.embedded_textures.len();
