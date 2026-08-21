@@ -1170,6 +1170,50 @@ pub fn deformer_visage(prims: &mut [MeshPrimitive], forme: usize, echelle: f32) 
     }
 }
 
+/// Écart au plan sagittal où commence le bras, hauteur de l'articulation, et angle de descente.
+///
+/// **Mesurés sur la maille du haut du corps**, en la découpant en tranches de `|x|` : sous 0,20 les
+/// sommets descendent jusqu'à `y = 0,895` — c'est le torse ; au-delà ils forment une bande étroite,
+/// `y ∈ [1,134 ; 1,264]` — c'est le bras. Le seuil de 0,20 sépare donc les deux, et il écarte du
+/// même coup la tête (cheveux à ± 0,157), le short (± 0,186) et les chaussures (± 0,152).
+pub const BRAS_EPAULE_X: f32 = 0.200;
+/// Hauteur de l'articulation de l'épaule. Cf. [`BRAS_EPAULE_X`].
+pub const BRAS_EPAULE_Y: f32 = 1.200;
+/// Angle dont le bras descend depuis l'horizontale, en radians. Cf. [`BRAS_EPAULE_X`].
+pub const BRAS_ANGLE: f32 = 1.05;
+
+/// Descend les bras le long du corps, depuis la pose de liaison.
+///
+/// ⚠️ **Reconstitution assumée.** La géométrie du jeu est stockée en **pose de liaison** — bras à
+/// l'horizontale — et c'est le moteur qui la met en pose par skinning à l'exécution. Cette chaîne
+/// d'export ne le porte pas : la palette qui relierait les indices d'os de la maille au squelette
+/// n'est ni dans le G4MD ni contiguë dans le fichier (`examples/skin_probe` : indices 0..37 pour
+/// 158 os déclarés).
+///
+/// La rotation ne s'applique qu'au-delà de [`BRAS_EPAULE_X`], seuil **mesuré** qui isole le bras du
+/// torse et écarte tout le reste du modèle. Deux essais antérieurs, bornés trop grossièrement,
+/// avaient emporté l'un les jambes, l'autre la tête ; c'est cette mesure qui manquait.
+///
+/// Les mains suivent sans traitement particulier : elles sont au-delà du seuil.
+pub fn poser_bras(prims: &mut [MeshPrimitive], echelle: f32) {
+    let (ex, ey) = (BRAS_EPAULE_X * echelle, BRAS_EPAULE_Y * echelle);
+    for prim in prims {
+        for p in &mut prim.positions {
+            let cote = if p.x >= 0.0 { 1.0_f32 } else { -1.0 };
+            let dx = (p.x - cote * ex) * cote; // distance à l'épaule, le long du bras
+            if dx <= 0.0 {
+                continue;
+            }
+            // Fondu sur 2 cm : l'épaule reste ronde au lieu de casser net.
+            let t = (dx / (0.020 * echelle)).clamp(0.0, 1.0);
+            let (sa, ca) = (-cote * BRAS_ANGLE * t).sin_cos();
+            let (vx, vy) = (p.x - cote * ex, p.y - ey);
+            p.x = cote * ex + vx * ca - vy * sa;
+            p.y = ey + vx * sa + vy * ca;
+        }
+    }
+}
+
 /// Boîte englobante d'une primitive, ou `None` si elle n'a aucun sommet.
 fn boite_englobante(prim: &MeshPrimitive) -> Option<([f32; 3], [f32; 3])> {
     let mut it = prim.positions.iter();
