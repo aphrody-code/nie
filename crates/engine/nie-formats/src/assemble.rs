@@ -961,7 +961,28 @@ fn extract_primitives_from_g4md_g4mg(
         })
         .collect();
 
-    Ok(retenir_niveau_detail_max(out))
+    Ok(retenir_niveau_detail_max(ecarter_positions_aberrantes(out)))
+}
+
+/// Écarte les primitives dont les positions ne sont pas finies ou sont hors de toute échelle.
+///
+/// `_base/base_normal_00` déclare une maille de bouche de 48 triangles dont les positions valent
+/// ±3,4 × 10³⁸ — la valeur de `FLT_MAX`, c'est-à-dire un tampon jamais rempli. La rendre étire le
+/// modèle jusqu'à l'infini et fait disparaître tout le reste à l'écran.
+///
+/// Le seuil est large à dessein : un avatar tient dans deux mètres, et rien de légitime ne dépasse
+/// la centaine.
+#[must_use]
+pub fn ecarter_positions_aberrantes(prims: Vec<MeshPrimitive>) -> Vec<MeshPrimitive> {
+    const LIMITE: f32 = 100.0;
+    prims
+        .into_iter()
+        .filter(|p| {
+            p.positions
+                .iter()
+                .all(|v| [v.x, v.y, v.z].iter().all(|c| c.is_finite() && c.abs() < LIMITE))
+        })
+        .collect()
 }
 
 /// Boîte englobante d'une primitive, ou `None` si elle n'a aucun sommet.

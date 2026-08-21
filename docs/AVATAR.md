@@ -1172,6 +1172,33 @@ et opaques), ce qui sépare `mouth_01`, au trait noir, de `eye_L_01`, qui n'en a
 > de la maille au moment de composer, donc d'inverser l'ordre actuel — composer après avoir
 > assemblé.
 
+### 16.13 Les traits sont des MAILLES, et elles vivent dans `_base`
+
+Aucune planche de `_facetex` ne dessine l'œil — vingt variantes mesurées, toutes à 0,000 %
+d'encre. La raison est ailleurs : **les traits du visage ne sont pas des textures, ce sont des
+mailles**, et elles sont rangées dans `_base`, dont le nom trompe.
+
+`base_normal_00` déclare deux sous-mailles, `eye_10_normal_00` (480 triangles) et
+`mouth_10_normal_00`, et elles sortent déjà à hauteur de tête, `y ∈ [1,291 ; 1,599]` — sans avoir
+besoin d'être attachées à un os, contrairement aux pièces de `20_EDIT`.
+
+Deux défauts réels ont été corrigés à cette occasion, indépendamment du reste :
+
+| défaut | correction |
+|---|---|
+| `_base` recevait l'attache à l'os et montait à `y = 2,66`, une tête trop haut | exclue de l'attache, comme l'uniforme |
+| `mouth_10_normal_00` porte des positions à ±3,4 × 10³⁸ — `FLT_MAX`, un tampon jamais rempli | `ecarter_positions_aberrantes` écarte toute primitive hors d'échelle |
+
+**Mais la monter EN PLUS du visage ne convient pas.** `eye_10_normal_00` mesure `x ± 0,147` et
+descend à `z = −0,146` quand le visage `base_eye_10` fait `± 0,123` et `−0,139` : ce n'est pas une
+paire d'yeux posée sur un visage, c'est une **coquille de tête** qui l'englobe. Montée en plus,
+elle déborde en blanc aux tempes — sa texture n'étant qu'une vignette 32 × 32 non résolue. L'essai
+a été annulé.
+
+Ce que cela indique pour la suite : `_base` n'est pas un complément de `_facebase`, c'en est
+vraisemblablement le **support alternatif**, celui sur lequel la composition de `_facetex` devrait
+être posée. Le vérifier demande de substituer l'un à l'autre et de comparer, pas de les additionner.
+
 ---
 
 ## Régénérer chaque chiffre de ce document
