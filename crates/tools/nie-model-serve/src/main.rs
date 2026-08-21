@@ -1815,6 +1815,18 @@ fn couleur_hexa(query: &str, nom: &str) -> Option<[u8; 3]> {
     Some([(n >> 16) as u8, (n >> 8) as u8, n as u8])
 }
 
+/// Facteur d'échelle du modèle pour un cran du curseur « Taille ».
+///
+/// L'éditeur propose quinze crans, et le jeu les fait correspondre à une stature de **1,25 m à
+/// 2,08 m** (cf. `Editeur.tsx`). Le modèle assemblé mesure 1,656 m au sommet du crâne : le facteur
+/// est donc le rapport de la stature voulue à cette hauteur de référence.
+fn facteur_taille(cran: u32) -> f32 {
+    const HAUTEUR_MODELE: f32 = 1.656;
+    let cran = cran.min(14) as f32;
+    let stature = 1.25 + cran * (2.08 - 1.25) / 14.0;
+    stature / HAUTEUR_MODELE
+}
+
 /// Couleur de chevelure retenue quand la requête n'en porte aucune.
 ///
 /// Relevée sur l'écran du jeu — `chara_edit`, onglet « Face & Hairstyle », capture 1920 × 1080 —
@@ -1840,7 +1852,7 @@ type PlancheRgba = (u32, u32, Vec<u8>);
 /// corps déduit du squelette, attache à l'os de tête, composition de la texture de visage… Sans
 /// elle, un GLB produit par l'ancienne logique reste servi indéfiniment et le correctif paraît
 /// sans effet : c'est exactement ce qui est arrivé lors de l'ajout du corps automatique.
-const AVATAR_CACHE_VERSION: u32 = 81;
+const AVATAR_CACHE_VERSION: u32 = 101;
 
 /// Nom de fichier de cache court et stable pour une clé d'assemblage.
 ///
@@ -1884,6 +1896,7 @@ fn get_or_build_avatar_glb(
     teintes: [nie_formats::image_out::TeinteCanal; 3],
     morphologie: Option<String>,
     cheveux: Option<[u8; 3]>,
+    taille: Option<u32>,
 ) -> Result<GlbBytes> {
     // La teinte fait partie de l'identité du rendu : deux couleurs de peau différentes donnent
     // deux GLB différents, et la clé de cache doit le refléter.
@@ -1898,11 +1911,12 @@ fn get_or_build_avatar_glb(
     let cheveux_cle = cheveux
         .map(|c| format!("{:02x}{:02x}{:02x}", c[0], c[1], c[2]))
         .unwrap_or_default();
+    let taille_cle = taille.map(|t| t.to_string()).unwrap_or_default();
     // Les deux familles sont séparées par un marqueur : sans lui, une pièce `d/n` et une couche
     // de visage `d/n` produisent le même fragment `d-n`, si bien que deux requêtes de sens
     // différent partagent un fichier de cache et que la seconde reçoit le GLB de la première.
     let cle: String = format!(
-        "{}|{}|{teinte_cle}|{morpho_cle}|{cheveux_cle}",
+        "{}|{}|{teinte_cle}|{morpho_cle}|{cheveux_cle}|{taille_cle}",
         specs.iter().map(|(d, n)| format!("{d}-{n}")).collect::<Vec<_>>().join("_"),
         couches_visage.iter().map(|c| c.replace('/', "-")).collect::<Vec<_>>().join("_")
     );
@@ -2030,6 +2044,11 @@ fn get_or_build_avatar_glb(
                 entree.push(planche);
             }
         }
+        // Les YEUX. Aucune planche de `_facetex` n'en porte le tracé — vingt variantes mesurées à
+        // 0,000 % d'encre — et aucune combinaison de leurs masques ne peut le produire. La couche
+        // est donc RECONSTITUÉE (cf. `image_out::dessiner_yeux`), à la demande explicite de
+        // l'auteur du projet, et posée sur la maille du visage dont le dépliage couvre tout le
+        // carré. Son emprise, elle, est mesurée sur une planche du jeu.
         // Un PNG par rang de matériau, dans l'ordre des rangs.
         let visages_composes: Vec<(usize, Vec<u8>)> = par_slot
             .into_iter()
@@ -2254,8 +2273,46 @@ fn get_or_build_avatar_glb(
     }
     let mut model = nie_formats::assemble::assemble_avatar_model(&cle, &pieces)
         .with_context(|| format!("assemblage avatar {cle}"))?;
-    let nb_tex = textures.len();
+
+    // La TAILLE. Le curseur de l'écran Physionomie ne changeait rien au modèle. Il pilote une
+    // stature, que l'on applique en mettant le modèle à l'échelle depuis le sol : le facteur
+    // multiplie les trois axes, et l'avatar reste posé sur y = 0.
+    if let Some(cran) = taille {
+        let k = facteur_taille(cran);
+        for prim in &mut model.primitives {
+            for p in &mut prim.positions {
+                p.x *= k;
+                p.y *= k;
+                p.z *= k;
+            }
+        }
+        debug!("taille cran {cran} → facteur {k:.3}");
+    }
+
     model.embedded_textures = textures;
+
+    // Les YEUX, posés en géométrie. Les fichiers n'en portent aucun tracé : deux quads placés à
+    // la position 3D relevée sur la maille `parts_eye_10` reçoivent une texture reconstituée, ce
+    // qui affranchit du dépliage du visage — dont aucun calage n'a abouti.
+    {
+        let iris = teintes[1].rgb;
+        let png = nie_formats::image_out::encoder_rgba(
+            &nie_formats::image_out::dessiner_oeil(128, iris),
+            128,
+            128,
+            nie_formats::image_out::ImageOut::Png,
+        );
+        if let Ok(png_bytes) = png {
+            model.primitives.extend(nie_formats::assemble::quads_yeux(1.0));
+            model.embedded_textures.push(EmbeddedTexture {
+                component: MeshComponent::Generic,
+                name: "avatar_eye".to_string(),
+                png_bytes,
+            });
+        }
+    }
+
+    let nb_tex = model.embedded_textures.len();
     let glb = if nb_tex > 0 { model.to_glb_embedded() } else { model.to_glb() };
     debug!("avatar {cle} : {} pièce(s), {nb_tex} texture(s)", pieces.len());
 
@@ -3730,6 +3787,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             couleurs_teinte(query),
             morphologie,
             couleur_hexa(query, "hair").or(Some(CHEVEUX_DEFAUT)),
+            param(query, "taille").and_then(|t| t.parse::<u32>().ok()),
         ) {
             Ok(glb) => respond(&mut stream, 200, "OK", "model/gltf-binary", &glb),
             Err(e) => {
