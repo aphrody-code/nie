@@ -1247,6 +1247,31 @@ attendu — contour de paupière, globe clair, iris — correspond bien aux troi
 masques d'`01_eye` et `02_pupil` désignent. Les essais précédents échouaient sur le calibrage, pas
 sur le principe. Ils sont à reprendre **contre cette référence**, qui manquait jusqu'ici.
 
+### 16.16 Ce que dit la recette de l'avatar par défaut
+
+`common/chr/_test/default/mdl_edit_avatar01.cfg.bin` décrit l'avatar que l'éditeur montre au
+démarrage. Ses chaînes confirment trois choses et en corrigent une :
+
+| donnée de la recette | état de la page |
+|---|---|
+| `u117401_10` / `s117401_10` | conforme — c'est bien l'uniforme et les chaussures assemblés |
+| `body_type_02` | conforme au corps apparié |
+| **`face55_nose02`** | **écart** : la page démarre sur `face51_nose01` |
+
+Le catalogue range les 42 visages par type de nez, chaque entrée listant `face51`, `face53`,
+`face55`… : la recette choisit donc le troisième style avec le nez de type 2, la page le premier
+style avec le nez de type 1. L'avatar de départ n'est pas celui du jeu.
+
+La recette nomme aussi les clés de composition — `CHARA_EDIT_PARAM_TEX_PARTS` avec ses variantes
+`LEFT`, `RIGHT` et `COLOR` — ce qui confirme que les traits se composent bien depuis les planches
+gauche/droite de `_facetex`, avec une couleur. Elle ne nomme en revanche **aucune texture de
+visage** : `face_mdl_type_01` est un nom de paramètre, pas une ressource, et n'existe nulle part
+dans le VFS. `face55_nose02` n'a pas plus de `.g4tx` que `face51_nose01` — aucun modèle de tête
+n'en a.
+
+La boucle est donc fermée : les traits doivent venir de la composition, et la composition n'a pas
+d'encre à poser pour l'œil.
+
 ---
 
 ## Régénérer chaque chiffre de ce document
