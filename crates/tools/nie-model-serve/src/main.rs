@@ -1840,7 +1840,7 @@ type PlancheRgba = (u32, u32, Vec<u8>);
 /// corps déduit du squelette, attache à l'os de tête, composition de la texture de visage… Sans
 /// elle, un GLB produit par l'ancienne logique reste servi indéfiniment et le correctif paraît
 /// sans effet : c'est exactement ce qui est arrivé lors de l'ajout du corps automatique.
-const AVATAR_CACHE_VERSION: u32 = 64;
+const AVATAR_CACHE_VERSION: u32 = 68;
 
 /// Nom de fichier de cache court et stable pour une clé d'assemblage.
 ///
@@ -2236,7 +2236,11 @@ fn get_or_build_avatar_glb(
 
             // Seules les pièces de `20_EDIT` vivent dans le repère de leur os ; les mailles
             // d'uniforme sont déjà en espace monde et ne doivent surtout pas être transformées.
-            let attach = if uniforme { None } else { attache };
+            //
+            // `_base` est dans ce second cas malgré son emplacement : ses mailles d'œil et de
+            // bouche sortent déjà à hauteur de tête, `y ∈ [1,291 ; 1,599]`. Les attacher les
+            // portait à 2,66, soit une tête entière trop haut.
+            let attach = if uniforme || dossier == "_base" { None } else { attache };
             pieces.push(nie_formats::assemble::AvatarPiece { component, g4md, g4mg, attach });
         }
     }
