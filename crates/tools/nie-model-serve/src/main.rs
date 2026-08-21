@@ -1812,7 +1812,7 @@ type PlancheRgba = (u32, u32, Vec<u8>);
 /// corps déduit du squelette, attache à l'os de tête, composition de la texture de visage… Sans
 /// elle, un GLB produit par l'ancienne logique reste servi indéfiniment et le correctif paraît
 /// sans effet : c'est exactement ce qui est arrivé lors de l'ajout du corps automatique.
-const AVATAR_CACHE_VERSION: u32 = 18;
+const AVATAR_CACHE_VERSION: u32 = 22;
 
 /// Nom de fichier de cache court et stable pour une clé d'assemblage.
 ///
@@ -2069,11 +2069,24 @@ fn get_or_build_avatar_glb(
 
             if let (Some(tx), Ok(md)) = (g4tx.as_deref(), nie_formats::g4md::parse(&g4md)) {
                 let repli = nie_formats::g4tx::base_color_texture_name(tx);
-                for mat in &md.material_base_names {
+                // Un uniforme ne nomme pas ses planches d'après ses matériaux : `u000101` déclare
+                // `u000101_30_LOD1` et `u000101_30_LOD2` alors que son conteneur porte `u000101_20`
+                // (crème, le maillot) et `u000101_30` (turquoise, le short). Résoudre par le nom
+                // donnait donc la planche turquoise aux deux, et tout le corps sortait turquoise.
+                // Le rang tranche : la n-ième planche de base va au n-ième matériau, dans l'ordre
+                // du conteneur.
+                let planches = if uniforme {
+                    nie_formats::g4tx::base_color_texture_names(tx)
+                } else {
+                    Vec::new()
+                };
+                for (rang, mat) in md.material_base_names.iter().enumerate() {
                     if textures.iter().any(|t| &t.name == mat) {
                         continue;
                     }
-                    let vise = nie_formats::assemble::avatar_texture_name(mat);
+                    let vise = planches
+                        .get(rang)
+                        .map_or_else(|| nie_formats::assemble::avatar_texture_name(mat), |p| p.as_str());
                     let png = nie_formats::image_out::g4tx_vignette_nommee(
                         tx,
                         vise,
