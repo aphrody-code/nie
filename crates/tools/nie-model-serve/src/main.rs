@@ -1852,7 +1852,7 @@ type PlancheRgba = (u32, u32, Vec<u8>);
 /// corps déduit du squelette, attache à l'os de tête, composition de la texture de visage… Sans
 /// elle, un GLB produit par l'ancienne logique reste servi indéfiniment et le correctif paraît
 /// sans effet : c'est exactement ce qui est arrivé lors de l'ajout du corps automatique.
-const AVATAR_CACHE_VERSION: u32 = 102;
+const AVATAR_CACHE_VERSION: u32 = 103;
 
 /// Nom de fichier de cache court et stable pour une clé d'assemblage.
 ///
@@ -1889,6 +1889,7 @@ fn est_uniforme(dossier: &str) -> bool {
 /// Le liage au matériau glTF se fait par `EmbeddedTexture::name` == `material_name` exact, seule
 /// clé que `build_glb_embedded` consulte avant son repli par composant — lequel ne retient qu'une
 /// texture par composant et ne peut donc pas servir un empilement de pièces.
+#[allow(clippy::too_many_arguments)]
 fn get_or_build_avatar_glb(
     state: &State,
     specs: &[(String, String)],
@@ -1897,6 +1898,7 @@ fn get_or_build_avatar_glb(
     morphologie: Option<String>,
     cheveux: Option<[u8; 3]>,
     taille: Option<u32>,
+    forme: Option<u32>,
 ) -> Result<GlbBytes> {
     // La teinte fait partie de l'identité du rendu : deux couleurs de peau différentes donnent
     // deux GLB différents, et la clé de cache doit le refléter.
@@ -1912,11 +1914,12 @@ fn get_or_build_avatar_glb(
         .map(|c| format!("{:02x}{:02x}{:02x}", c[0], c[1], c[2]))
         .unwrap_or_default();
     let taille_cle = taille.map(|t| t.to_string()).unwrap_or_default();
+    let forme_cle = forme.map(|f| f.to_string()).unwrap_or_default();
     // Les deux familles sont séparées par un marqueur : sans lui, une pièce `d/n` et une couche
     // de visage `d/n` produisent le même fragment `d-n`, si bien que deux requêtes de sens
     // différent partagent un fichier de cache et que la seconde reçoit le GLB de la première.
     let cle: String = format!(
-        "{}|{}|{teinte_cle}|{morpho_cle}|{cheveux_cle}|{taille_cle}",
+        "{}|{}|{teinte_cle}|{morpho_cle}|{cheveux_cle}|{taille_cle}|{forme_cle}",
         specs.iter().map(|(d, n)| format!("{d}-{n}")).collect::<Vec<_>>().join("_"),
         couches_visage.iter().map(|c| c.replace('/', "-")).collect::<Vec<_>>().join("_")
     );
@@ -2273,6 +2276,12 @@ fn get_or_build_avatar_glb(
     }
     let mut model = nie_formats::assemble::assemble_avatar_model(&cle, &pieces)
         .with_context(|| format!("assemblage avatar {cle}"))?;
+
+    // La FORME DE VISAGE : ses parts ne désignent aucune ressource, elle est donc appliquée en
+    // déformant la tête.
+    if let Some(f) = forme {
+        nie_formats::assemble::deformer_visage(&mut model.primitives, f as usize, 1.0);
+    }
 
     // La TAILLE. Le curseur de l'écran Physionomie ne changeait rien au modèle. Il pilote une
     // stature, que l'on applique en mettant le modèle à l'échelle depuis le sol : le facteur
@@ -3806,6 +3815,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             morphologie,
             couleur_hexa(query, "hair").or(Some(CHEVEUX_DEFAUT)),
             param(query, "taille").and_then(|t| t.parse::<u32>().ok()),
+            param(query, "forme").and_then(|t| t.parse::<u32>().ok()),
         ) {
             Ok(glb) => respond(&mut stream, 200, "OK", "model/gltf-binary", &glb),
             Err(e) => {
