@@ -1214,6 +1214,74 @@ pub fn poser_bras(prims: &mut [MeshPrimitive], echelle: f32) {
     }
 }
 
+/// Ajuste la coupe du maillot : col, manches et ourlet.
+///
+/// ⚠️ **Reconstitution assumée.** Les trois catégories de l'onglet « Habits » — 19 col, 20 manches,
+/// 21 ourlet — n'ont dans le catalogue **aucune maille ni texture** : leurs parts ne portent qu'un
+/// nom, `fashion_default`, `fashion_collar`, `fashion_shoulder_baring`, `fashion_shirt_out`,
+/// `fashion_navel_baring`. Le choix ne pouvait donc rien changer au modèle.
+///
+/// Ces noms décrivent des découpes, et c'est ce qu'on applique ici, sur la maille du haut du corps
+/// dont l'emprise est mesurée : `x = ± 0,326`, `y ∈ [0,895 ; 1,264]`, le bas du maillot à 0,895 et
+/// le bout de manche à 0,326.
+///
+/// - **manches** : `shoulder_baring` rétracte la manche vers l'épaule ;
+/// - **ourlet** : `shirt_out` descend le bas du maillot, `navel_baring` le remonte ;
+/// - **col** : `collar` dégage légèrement l'encolure en abaissant le haut du maillot.
+pub fn ajuster_maillot(
+    prims: &mut [MeshPrimitive],
+    col: usize,
+    manches: usize,
+    ourlet: usize,
+    echelle: f32,
+) {
+    /// Bas du maillot, mesuré sur la maille du haut du corps.
+    const BAS: f32 = 0.895;
+    /// Épaule : au-delà, on est dans la manche.
+    const EPAULE: f32 = 0.200;
+
+    let facteur_manche = match manches {
+        1 => 0.55, // épaules dénudées : la manche se rétracte
+        _ => 1.0,
+    };
+    let decalage_ourlet = match ourlet {
+        1 => -0.060, // chemise sortie : le bas descend
+        2 => 0.070,  // nombril découvert : le bas remonte
+        _ => 0.0,
+    } * echelle;
+    let decalage_col = match col {
+        1 => -0.022, // col dégagé
+        _ => 0.0,
+    } * echelle;
+
+    if facteur_manche == 1.0 && decalage_ourlet == 0.0 && decalage_col == 0.0 {
+        return;
+    }
+    let (bas, epaule) = (BAS * echelle, EPAULE * echelle);
+    let haut = 1.264 * echelle;
+    for prim in prims {
+        // Seule la maille du maillot est concernée ; les mains et la tête n'ont rien à y voir.
+        if prim.material_name != "u000101_30_LOD1" {
+            continue;
+        }
+        for p in &mut prim.positions {
+            // Manche : on ramène le sommet vers l'épaule.
+            let dx = p.x.abs() - epaule;
+            if dx > 0.0 && facteur_manche != 1.0 {
+                p.x = p.x.signum() * (epaule + dx * facteur_manche);
+            }
+            // Ourlet : les sommets du bas suivent, avec un fondu vers le milieu du torse.
+            let t_bas = 1.0 - ((p.y - bas) / (0.14 * echelle)).clamp(0.0, 1.0);
+            p.y += decalage_ourlet * t_bas;
+            // Col : les sommets du haut, près de l'axe, s'abaissent.
+            if p.x.abs() < epaule {
+                let t_haut = ((p.y - (haut - 0.06 * echelle)) / (0.06 * echelle)).clamp(0.0, 1.0);
+                p.y += decalage_col * t_haut;
+            }
+        }
+    }
+}
+
 /// Boîte englobante d'une primitive, ou `None` si elle n'a aucun sommet.
 fn boite_englobante(prim: &MeshPrimitive) -> Option<([f32; 3], [f32; 3])> {
     let mut it = prim.positions.iter();

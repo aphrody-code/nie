@@ -1852,7 +1852,7 @@ type PlancheRgba = (u32, u32, Vec<u8>);
 /// corps déduit du squelette, attache à l'os de tête, composition de la texture de visage… Sans
 /// elle, un GLB produit par l'ancienne logique reste servi indéfiniment et le correctif paraît
 /// sans effet : c'est exactement ce qui est arrivé lors de l'ajout du corps automatique.
-const AVATAR_CACHE_VERSION: u32 = 109;
+const AVATAR_CACHE_VERSION: u32 = 110;
 
 /// Nom de fichier de cache court et stable pour une clé d'assemblage.
 ///
@@ -1899,6 +1899,7 @@ fn get_or_build_avatar_glb(
     cheveux: Option<[u8; 3]>,
     taille: Option<u32>,
     forme: Option<u32>,
+    habits: Option<(u32, u32, u32)>,
 ) -> Result<GlbBytes> {
     // La teinte fait partie de l'identité du rendu : deux couleurs de peau différentes donnent
     // deux GLB différents, et la clé de cache doit le refléter.
@@ -1915,11 +1916,12 @@ fn get_or_build_avatar_glb(
         .unwrap_or_default();
     let taille_cle = taille.map(|t| t.to_string()).unwrap_or_default();
     let forme_cle = forme.map(|f| f.to_string()).unwrap_or_default();
+    let habits_cle = habits.map(|(c, m, o)| format!("{c}{m}{o}")).unwrap_or_default();
     // Les deux familles sont séparées par un marqueur : sans lui, une pièce `d/n` et une couche
     // de visage `d/n` produisent le même fragment `d-n`, si bien que deux requêtes de sens
     // différent partagent un fichier de cache et que la seconde reçoit le GLB de la première.
     let cle: String = format!(
-        "{}|{}|{teinte_cle}|{morpho_cle}|{cheveux_cle}|{taille_cle}|{forme_cle}",
+        "{}|{}|{teinte_cle}|{morpho_cle}|{cheveux_cle}|{taille_cle}|{forme_cle}|{habits_cle}",
         specs.iter().map(|(d, n)| format!("{d}-{n}")).collect::<Vec<_>>().join("_"),
         couches_visage.iter().map(|c| c.replace('/', "-")).collect::<Vec<_>>().join("_")
     );
@@ -2320,6 +2322,18 @@ fn get_or_build_avatar_glb(
 
     // La POSE DES BRAS, appliquée au-delà du seuil mesuré qui isole le bras du torse.
     nie_formats::assemble::poser_bras(&mut model.primitives, 1.0);
+
+    // Les HABITS — col, manches, ourlet. Leurs parts ne portent aucune maille ni texture, rien
+    // qu'un nom de découpe : la coupe du maillot est donc ajustée géométriquement.
+    if let Some((c, m, o)) = habits {
+        nie_formats::assemble::ajuster_maillot(
+            &mut model.primitives,
+            c as usize,
+            m as usize,
+            o as usize,
+            1.0,
+        );
+    }
 
     // La FORME DE VISAGE : ses parts ne désignent aucune ressource, elle est donc appliquée en
     // déformant la tête.
@@ -3819,6 +3833,10 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             couleur_hexa(query, "hair").or(Some(CHEVEUX_DEFAUT)),
             param(query, "taille").and_then(|t| t.parse::<u32>().ok()),
             param(query, "forme").and_then(|t| t.parse::<u32>().ok()),
+            param(query, "habits").and_then(|v| {
+                let mut it = v.split(',').map(|n| n.parse::<u32>().unwrap_or(0));
+                Some((it.next()?, it.next()?, it.next()?))
+            }),
         ) {
             Ok(glb) => respond(&mut stream, 200, "OK", "model/gltf-binary", &glb),
             Err(e) => {
