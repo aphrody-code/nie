@@ -1288,6 +1288,26 @@ il faut d'abord trouver l'ancrage, comme il avait fallu le faire pour la table d
 C'est le prochain pas, et il est réaliste — pas un vœu. Mais il se mène comme une session dédiée,
 avec le jeu amené sur le bon écran, et non en fin de parcours.
 
+### 16.18 Piloter le jeu : ce qui marche, et où ça bute
+
+Le pilotage par `xdotool` sur le display `:99` fonctionne, à condition de connaître deux règles que
+les essais ont dégagées :
+
+- **le clavier ne passe pas** — `Return`, `space`, `z`, `x`, `KP_Enter`, maintenus ou non, avec ou
+  sans `--window`, n'ont eu aucun effet sur l'écran titre ;
+- **la souris passe, si le clic est MAINTENU longtemps.** Un `mousedown` / `mouseup` séparés de
+  0,5 s valide une modale ; il faut **1,8 s** pour réveiller l'écran titre. Un clic instantané est
+  ignoré, et un maintien trop court aussi.
+
+Avec cela, trois écrans ont été franchis : l'avertissement de sauvegarde automatique, l'écran titre
+(qui fait alors apparaître `START GAME`), puis la validation de ce menu. Le jeu entre ensuite dans
+un écran blanc de chargement où il reste plus de douze secondes — le rendu logiciel plafonne à
+environ une image par seconde.
+
+La suite du trajet — sélection de sauvegarde, monde, menu, `chara_edit` — reste à faire, et n'a rien
+d'automatique : chaque écran demande de retrouver la forme d'entrée qu'il accepte. **Prudence
+requise** : ne pas créer de partie neuve, qui écraserait une sauvegarde.
+
 ---
 
 ## Régénérer chaque chiffre de ce document
