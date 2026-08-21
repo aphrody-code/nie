@@ -1350,6 +1350,26 @@ jeu n'a qu'à rester sur cet écran.
 positionnelle, pas `--addr`), et le hexdump se découpe en coupant les 49 premiers caractères de
 chaque ligne pour ne garder que l'ASCII.
 
+### 16.20 Le relevé mémoire ferme l'inventaire
+
+Appliqué à la famille des yeux, le relevé rend `01_eye/eye_01` … `eye_13` : exactement les fichiers
+déjà inventoriés par le VFS, et tous mesurés à **0,000 %** d'encre.
+
+C'est un résultat négatif, mais il est **concluant** : il n'existe pas de planche d'œil cachée que
+le balayage des fichiers aurait manquée. Le jeu compose les yeux à partir de ces planches-là, dont
+la couleur est muette — la forme vient donc de leurs **masques**, teintés à l'exécution.
+
+Cela restreint le problème à un seul point, et ferme définitivement les autres : il ne s'agit ni de
+trouver une source, ni de corriger un rangement, ni de changer de support de tête. Il s'agit de
+retrouver le **calibrage exact** de la teinte par zones — quelle couleur pour quel canal, quelle
+opacité pour la zone que nul canal ne réclame, et sur quelle emprise. Cinq calibrages ont été
+essayés et mesurés (§16.5, §16.8, §16.13, §16.14), tous rejetés à l'image.
+
+Ce qui manque pour le trouver n'est plus une donnée mais une **boucle de mesure** : composer une
+texture candidate, la comparer à `base_elderlywoman/face_10` — la seule référence dessinée du jeu,
+à 1,530 % d'encre — sur la densité et la position des tracés, et itérer. C'est cette boucle, et non
+un essai de plus à l'œil, qui reste à écrire.
+
 ---
 
 ## Régénérer chaque chiffre de ce document
