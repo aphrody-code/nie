@@ -1852,7 +1852,7 @@ type PlancheRgba = (u32, u32, Vec<u8>);
 /// corps déduit du squelette, attache à l'os de tête, composition de la texture de visage… Sans
 /// elle, un GLB produit par l'ancienne logique reste servi indéfiniment et le correctif paraît
 /// sans effet : c'est exactement ce qui est arrivé lors de l'ajout du corps automatique.
-const AVATAR_CACHE_VERSION: u32 = 101;
+const AVATAR_CACHE_VERSION: u32 = 102;
 
 /// Nom de fichier de cache court et stable pour une clé d'assemblage.
 ///
@@ -2304,6 +2304,24 @@ fn get_or_build_avatar_glb(
         );
         if let Ok(png_bytes) = png {
             model.primitives.extend(nie_formats::assemble::quads_yeux(1.0));
+
+            // Les MAINS, posées elles aussi en géométrie : la pièce du jeu attend un skinning que
+            // la palette d'os manquante interdit d'appliquer.
+            let peau = teintes[0].rgb;
+            let pixels: Vec<u8> = [peau[0], peau[1], peau[2], 255].repeat(64);
+            if let Ok(png_main) = nie_formats::image_out::encoder_rgba(
+                &pixels,
+                8,
+                8,
+                nie_formats::image_out::ImageOut::Png,
+            ) {
+                model.primitives.extend(nie_formats::assemble::boites_mains(1.0));
+                model.embedded_textures.push(EmbeddedTexture {
+                    component: MeshComponent::Generic,
+                    name: "avatar_hand".to_string(),
+                    png_bytes: png_main,
+                });
+            }
             model.embedded_textures.push(EmbeddedTexture {
                 component: MeshComponent::Generic,
                 name: "avatar_eye".to_string(),

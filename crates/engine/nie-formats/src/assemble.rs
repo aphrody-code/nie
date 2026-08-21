@@ -1048,6 +1048,83 @@ pub fn quads_yeux(echelle: f32) -> Vec<MeshPrimitive> {
     out
 }
 
+/// Fabrique les deux mains, posées au bout des manches.
+///
+/// ⚠️ **Reconstitution assumée.** La pièce `_uniform/g000201` existe bien, mais sa géométrie est
+/// livrée en pose de liaison et attend le skinning : `examples/skin_probe` établit que ses indices
+/// d'os vont de 0 à 37 pour 158 os déclarés — ils sont donc locaux à une palette, laquelle n'est ni
+/// dans le G4MD ni contiguë dans le fichier. Sans elle, la maille atterrit hors du corps.
+///
+/// À la demande de l'auteur du projet, les mains sont donc **produites ici**, en géométrie simple,
+/// à la position mesurée du bout de manche : `x = ± 0,326`, `y ∈ [1,134 ; 1,264]`,
+/// `z ∈ [−0,066 ; 0,061]`. Elles prolongent le bras vers l'extérieur, comme en pose de repos.
+#[must_use]
+pub fn boites_mains(echelle: f32) -> Vec<MeshPrimitive> {
+    // Bout de manche mesuré, puis dimensions de la main : longueur le long du bras, largeur et
+    // épaisseur reprises de l'emprise de la manche.
+    const MANCHE_X: f32 = 0.326;
+    const CENTRE_Y: f32 = 1.199;
+    const CENTRE_Z: f32 = -0.002;
+    const LONGUEUR: f32 = 0.095;
+    const DEMI_Y: f32 = 0.038;
+    const DEMI_Z: f32 = 0.026;
+
+    let mut out = Vec::with_capacity(2);
+    for cote in [-1.0_f32, 1.0] {
+        let x0 = cote * MANCHE_X * echelle;
+        let x1 = cote * (MANCHE_X + LONGUEUR) * echelle;
+        let (y, z) = (CENTRE_Y * echelle, CENTRE_Z * echelle);
+        let (dy, dz) = (DEMI_Y * echelle, DEMI_Z * echelle);
+        // Huit coins ; l'extrémité est légèrement rétrécie pour arrondir la silhouette.
+        let r = 0.72;
+        let coins: [[f32; 3]; 8] = [
+            [x0, y - dy, z - dz],
+            [x0, y + dy, z - dz],
+            [x0, y + dy, z + dz],
+            [x0, y - dy, z + dz],
+            [x1, y - dy * r, z - dz * r],
+            [x1, y + dy * r, z - dz * r],
+            [x1, y + dy * r, z + dz * r],
+            [x1, y - dy * r, z + dz * r],
+        ];
+        let positions: Vec<g4mg::Vec3> =
+            coins.iter().map(|c| g4mg::Vec3 { x: c[0], y: c[1], z: c[2] }).collect();
+        // Normales approchées : la direction du coin vers le centre de la main.
+        let (cx, cy, cz) = ((x0 + x1) / 2.0, y, z);
+        let normals: Vec<g4mg::Vec3> = coins
+            .iter()
+            .map(|c| {
+                let (nx, ny, nz) = (c[0] - cx, c[1] - cy, c[2] - cz);
+                let n = (nx * nx + ny * ny + nz * nz).sqrt().max(1e-6);
+                g4mg::Vec3 { x: nx / n, y: ny / n, z: nz / n }
+            })
+            .collect();
+        let uv0 = vec![g4mg::Vec2 { u: 0.5, v: 0.5 }; 8];
+        // Douze triangles : les six faces de la boîte.
+        let indices = vec![
+            0, 1, 2, 0, 2, 3, // extrémité côté bras
+            4, 6, 5, 4, 7, 6, // extrémité libre
+            0, 4, 5, 0, 5, 1, // dessous
+            3, 2, 6, 3, 6, 7, // dessus
+            0, 3, 7, 0, 7, 4, // avant
+            1, 5, 6, 1, 6, 2, // arrière
+        ];
+        out.push(MeshPrimitive {
+            component: MeshComponent::Generic,
+            source_index: 0,
+            material_index: 0,
+            material_name: "avatar_hand".to_string(),
+            texture_uri: String::new(),
+            positions,
+            normals,
+            uv0,
+            colors: Vec::new(),
+            indices,
+        });
+    }
+    out
+}
+
 /// Boîte englobante d'une primitive, ou `None` si elle n'a aucun sommet.
 fn boite_englobante(prim: &MeshPrimitive) -> Option<([f32; 3], [f32; 3])> {
     let mut it = prim.positions.iter();
