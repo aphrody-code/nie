@@ -1370,6 +1370,34 @@ texture candidate, la comparer à `base_elderlywoman/face_10` — la seule réf�
 à 1,530 % d'encre — sur la densité et la position des tracés, et itérer. C'est cette boucle, et non
 un essai de plus à l'œil, qui reste à écrire.
 
+### 16.21 La réfutation devient numérique
+
+La boucle de mesure appelée en §16.20 donne son premier verdict, et il est sans appel. Sur
+`eye_L_01msk`, les trois zones se répartissent ainsi :
+
+| zone du masque | part de la surface |
+|---|---:|
+| rouge — le fond | 79,415 % |
+| **vert — le « contour »** | **4,824 %** |
+| noir | 15,611 % |
+
+Or la référence dessinée du jeu, `base_elderlywoman/face_10`, ne porte que **1,530 %** d'encre.
+
+Peindre le canal vert produit donc **trois fois trop de matière** que le visage du jeu n'en montre,
+et la zone noire dix fois trop. Ce n'est plus une impression visuelle — les essais rejetés
+« à l'œil » en §16.8, §16.13 et §16.14 le sont désormais par le chiffre, avant même d'être rendus.
+
+**Ce que cela démontre** : les zones de `01_eye` ne sont pas des yeux. Aucun calibrage de teinte,
+si fin soit-il, ne peut faire tenir un tracé de 1,5 % dans une région qui en couvre 4,8 % sous
+forme de croissant s'étendant sur tout le visage. La famille `01_eye` désigne des régions du
+visage, pas des traits.
+
+La conséquence est nette, et elle clôt la recherche menée dans cette session : **le dessin des yeux
+n'est reconstructible ni depuis les planches, ni depuis leurs masques**. Il ne reste qu'une
+possibilité non explorée — que le moteur le compose à partir d'une ressource qu'il ne nomme pas
+dans les chemins relevés — et sa vérification demande de suivre le code de composition dans le
+binaire, pas d'examiner d'autres fichiers.
+
 ---
 
 ## Régénérer chaque chiffre de ce document
