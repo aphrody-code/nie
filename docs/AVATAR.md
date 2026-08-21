@@ -1091,16 +1091,19 @@ Reste le point dur, désormais isolé : la texture est juste, mais **la maille n
 rien**. `mouth_01` contient huit bouches côte à côte — vraisemblablement huit expressions du même
 style — et la maille des lèvres doit en viser une seule.
 
-**Le mécanisme est maintenant identifié, et il est mesuré.** La maille des lèvres échantillonne
+**Un fait mesuré, et une hypothèse qui n'est pas validée.** La maille des lèvres échantillonne
 `u 0,019–0,232`, `v 0,325–0,493`. Reporté sur la planche, ce rectangle tombe **dans le vide**,
 juste sous la première bouche, entre les deux rangées de variantes. La maille ne vise donc aucune
 des huit : elle vise un emplacement **fixe**, où le jeu attend qu'on ait recopié la variante
 choisie.
 
-Autrement dit, la composition du visage n'est pas un empilement de planches entières mais un
-**report de sous-régions** : pour chaque famille, extraire la variante retenue et la blitter à
-l'emplacement que la maille correspondante échantillonne. C'est ce report qui manque, et lui seul —
-la découpe, elle, produit déjà des traits nets.
+L'explication la plus naturelle serait que la composition du visage n'est pas un empilement de
+planches entières mais un **report de sous-régions** : extraire la variante retenue et la recopier
+à l'emplacement que la maille échantillonne. Cette hypothèse a été **testée et n'a pas été
+confirmée** — décaler la planche de bouche pour amener sa première variante dans le rectangle visé
+ne fait apparaître aucune bouche sur le modèle. Le décalage employé était estimé à l'œil, ce qui
+n'en fait pas une réfutation ; mais en l'état l'hypothèse ne tient que par le raisonnement, pas par
+la mesure, et elle ne doit pas être traitée comme acquise.
 
 Ce que cela suppose de connaître, et qui reste à établir : la sous-région source de chaque variante
 (les huit bouches ne sont pas indexées dans le fichier) et l'emplacement cible, qui se lit dans les
