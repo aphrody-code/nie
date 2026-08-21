@@ -1042,6 +1042,30 @@ dont seuls quelques-uns ont été ouverts ; les conteneurs du modèle `_facebase
 sait seulement qu'ils portent des vignettes 32 × 32 ; et le relevé en mémoire du jeu vivant, qui a
 déjà tranché la question des palettes (§13).
 
+### 16.9 La source des traits existe — `mouth_01` en est la preuve
+
+Le constat de §16.8 était trop large. Une planche au moins porte bel et bien un dessin :
+**`mouth_01`** (2048 × 1024) montre quatre bouches complètes — contour noir, lèvres, dents — et son
+masque les cerne en **noir sur fond rouge**. Pour cette famille, le dessin vit donc dans la
+COULEUR, et le noir du masque veut dire « garde ce qui est peint ici ».
+
+C'est un acquis : la source des traits n'est pas ailleurs, elle est dans `_facetex`. Reste que les
+familles n'y logent pas leur information au même endroit — la bouche dans sa couleur, l'œil dans
+son masque — et c'est cette hétérogénéité qui fait échouer tout empilement uniforme.
+
+Deux essais de plus l'ont vérifié, tous deux **annulés** :
+
+| essai | résultat mesuré |
+|---|---|
+| noir du masque → garder la couleur de la planche | visage recouvert de blanc : `face_00` est blanche et son masque a de larges zones noires |
+| idem, mais seulement si la planche n'est pas muette | inchangé — `face_00` n'est pas « muette » au sens de `canal_uniforme`, elle porte un liseré |
+
+**Cinq voies ont maintenant été essayées et mesurées négatives.** Elles partagent le même défaut :
+elles cherchent UNE règle pour six familles qui n'obéissent pas à la même. Ce qu'il faut n'est pas
+une sixième règle, mais une table par famille, établie planche par planche — quelle information
+porte la couleur, laquelle porte le masque, et ce que chaque canal désigne — avant d'écrire la
+moindre ligne de composition. `mouth_01` en donne la première entrée.
+
 ---
 
 ## Régénérer chaque chiffre de ce document
