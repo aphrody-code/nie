@@ -322,6 +322,32 @@ pub fn decoder_planches_et_masques(g4tx: &[u8]) -> alloc::vec::Vec<PlancheEtMasq
         .collect()
 }
 
+/// Vrai si cette planche porte un TRAIT dessiné, et non une simple teinte claire.
+///
+/// La distinction sépare deux familles de `_facetex` qui se ressemblent par leur histogramme mais
+/// pas par leur rôle. `mouth_01` peint quatre bouches au trait noir : elle descend jusqu'à 0.
+/// `eye_L_01` est blanche avec de pâles ovales gris — elle ne dessine rien, elle marque une zone,
+/// et c'est son masque qui porte la forme.
+///
+/// Les traiter pareil rendait le visage entièrement blanc : la planche d'œil, conservée telle
+/// quelle et rendue opaque par son masque, recouvrait la peau.
+///
+/// Le critère est la présence d'une **encre** : au moins un demi pour cent de pixels franchement
+/// sombres. Un liseré gris clair n'en produit aucun.
+#[cfg(feature = "textures")]
+#[must_use]
+pub fn porte_un_trait(rgba: &[u8]) -> bool {
+    let total = rgba.len() / 4;
+    if total == 0 {
+        return false;
+    }
+    let sombres = rgba
+        .chunks_exact(4)
+        .filter(|p| p[3] > 128 && u16::from(p[0]) + u16::from(p[1]) + u16::from(p[2]) < 288)
+        .count();
+    sombres * 200 > total
+}
+
 /// Découpe une planche DESSINÉE par son masque de zones, sans la teindre.
 ///
 /// Certaines planches de `_facetex` portent le trait dans leur couleur : `mouth_01` montre quatre
@@ -1222,6 +1248,25 @@ mod tests {
         let mut zones: Vec<u8> = [255, 0, 0, 255].repeat(8);
         zones.extend([0, 0, 0, 255].repeat(8));
         assert!(masque_de_zones(&zones));
+    }
+
+    #[cfg(feature = "textures")]
+    #[test]
+    fn seule_une_planche_a_encre_porte_un_trait() {
+        // Une planche blanche à liseré gris clair — `eye_L_01` : elle marque une zone, elle ne
+        // dessine pas. La conserver opaque recouvrait le visage de blanc.
+        let mut pale: Vec<u8> = [255, 255, 255, 255].repeat(200);
+        pale.extend([200, 200, 200, 255].repeat(24));
+        assert!(!porte_un_trait(&pale));
+
+        // Une planche au trait noir — `mouth_01` : 5 % de pixels franchement sombres.
+        let mut encre: Vec<u8> = [255, 255, 255, 255].repeat(190);
+        encre.extend([10, 10, 10, 255].repeat(10));
+        assert!(porte_un_trait(&encre));
+
+        // Du noir TRANSPARENT ne compte pas : c'est du vide, pas de l'encre.
+        let vide: Vec<u8> = [0, 0, 0, 0].repeat(200);
+        assert!(!porte_un_trait(&vide));
     }
 
 }
