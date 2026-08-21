@@ -1145,6 +1145,33 @@ seule chose : **ce qui doit occuper la zone que la maille vise**. Deux essais de
 planche, puis recopier une cellule dans la boîte mesurée — n'ont rien donné, ce qui suggère que la
 correspondance ne se calcule pas comme on l'a supposé.
 
+### 16.12 La bouche apparaît — et pourquoi rien ne marchait avant
+
+Un défaut de méthode a faussé une longue série d'essais : `AVATAR_CACHE_VERSION` était restée à 38
+après un `git checkout`, et plusieurs `sed` d'incrément ne correspondaient plus. Le serveur
+resservait donc son **cache** — des GLB produits par une version antérieure du code. Plusieurs
+« mesures négatives » ne mesuraient rien du tout. Toute conclusion tirée d'une capture doit
+désormais s'accompagner d'une vérification que la version de cache a bien changé.
+
+Une fois le cache réellement invalidé, une **texture témoin** — huit cellules opaques de couleurs
+distinctes posées sur l'emplacement des lèvres — a répondu à la question restée ouverte : la maille
+**rend**, et elle sort **rouge**, la couleur de la cellule 0. Elle échantillonne donc la première
+cellule de l'atlas, dans sa moitié basse (`v 0,325–0,493`), alors que la bouche y est peinte en haut
+(`v 0,18–0,31`). En descendant la planche de la différence des centres, **0,164**, la bouche
+apparaît sur le modèle — le premier trait de visage jamais rendu.
+
+Restait un effet de bord : le visage sortait entièrement blanc. `decouper_par_zones` s'appliquait à
+toute planche non muette, or `eye_L_01` est blanche avec de pâles ovales gris — elle ne dessine
+rien, elle marque une zone, et son masque la rendait opaque par-dessus la peau. Le critère est
+maintenant la présence d'**encre** (`porte_un_trait` : au moins 0,5 % de pixels franchement sombres
+et opaques), ce qui sépare `mouth_01`, au trait noir, de `eye_L_01`, qui n'en a aucun.
+
+> Le décalage de 0,164 est une **constante mesurée pour cette famille**, pas une règle générale.
+> Elle se retrouve ainsi : poser la texture témoin, lire la cellule visée, comparer la boîte UV de
+> la maille à la position du trait dans sa cellule. Le rendre général demande de connaître les UV
+> de la maille au moment de composer, donc d'inverser l'ordre actuel — composer après avoir
+> assemblé.
+
 ---
 
 ## Régénérer chaque chiffre de ce document

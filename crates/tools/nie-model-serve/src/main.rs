@@ -1840,7 +1840,7 @@ type PlancheRgba = (u32, u32, Vec<u8>);
 /// corps déduit du squelette, attache à l'os de tête, composition de la texture de visage… Sans
 /// elle, un GLB produit par l'ancienne logique reste servi indéfiniment et le correctif paraît
 /// sans effet : c'est exactement ce qui est arrivé lors de l'ajout du corps automatique.
-const AVATAR_CACHE_VERSION: u32 = 38;
+const AVATAR_CACHE_VERSION: u32 = 62;
 
 /// Nom de fichier de cache court et stable pour une clé d'assemblage.
 ///
@@ -1976,10 +1976,25 @@ fn get_or_build_avatar_glb(
                     // fond rouge, et seul le fond doit disparaître. La faire passer par la teinte
                     // par canaux effaçait le contour, qui n'a aucun canal dominant.
                     if let Some(m) = masque
-                        && !nie_formats::image_out::canal_uniforme(&rgba)
+                        && nie_formats::image_out::porte_un_trait(&rgba)
                         && let Some(t) =
                             nie_formats::image_out::decouper_par_zones(w, h, &rgba, &m)
                     {
+                        // ESSAI — la maille des lèvres échantillonne la cellule 0 de l'atlas
+                        // (établi par une texture témoin : elle sort rouge, la couleur de cette
+                        // cellule), mais dans sa moitié basse, v 0,325..0,493, alors que la bouche
+                        // y est peinte en haut, v 0,18..0,31. On la descend de la différence des
+                        // centres, 0,164.
+                        if rel.starts_with("05_mouth") {
+                            let dy = (h as f32 * 0.164) as usize;
+                            let lg = w as usize * 4;
+                            let mut d = vec![0u8; t.len()];
+                            for y in dy..h as usize {
+                                let (src, dst) = ((y - dy) * lg, y * lg);
+                                d[dst..dst + lg].copy_from_slice(&t[src..src + lg]);
+                            }
+                            return (w, h, d);
+                        }
                         return (w, h, t);
                     }
                     // Teinte par canaux : une planche de `_facetex` est un masque à trois canaux,
