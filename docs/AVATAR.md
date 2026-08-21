@@ -886,6 +886,85 @@ La **teinte agit** : quatre couleurs de peau donnent quatre empreintes distincte
 
 ---
 
+## 16. Le corps, la chevelure et les zones neutres — quatre défauts, quatre mesures
+
+L'avatar servi montrait un casque blanc sur la tête, un bandeau sombre en travers du visage et un
+corps entièrement turquoise barré de blanc au torse et aux genoux. La référence est l'écran du jeu
+capturé ici (§13) : maillot **crème à col turquoise**, short et chaussettes turquoise, chevelure
+brune, visage en carnation. Quatre causes distinctes, toutes tranchées par une mesure.
+
+### 16.1 Trois niveaux de détail rendus l'un sur l'autre
+
+`u000101` range ses LOD comme des sous-mailles ordinaires : huit sous-mailles, `material_index = 0`
+sur toutes. Rien dans le G4MD ne les distingue — mais la géométrie, si :
+
+| emprise | triangles | pièce |
+|---|---|---|
+| `y ∈ [0,895 ; 1,264]` | 778, 404, 298 | haut du corps |
+| `y ∈ [0,088 ; 0,895]` | 802, 400, 314 | bas du corps |
+| `y ∈ [0 ; 0,150]` | 868, 390, 274 | chaussures |
+
+`assemble::retenir_niveau_detail_max` regroupe les primitives consécutives de même boîte (à 2 %
+près) et ne garde que la plus fine. L'uniforme passe de **11 à 5 primitives**, ses cinq pièces
+réelles. Les trois sous-mailles du visage ont trois emprises différentes : aucune n'est touchée.
+
+### 16.2 La planche résolue par le nom du matériau
+
+Le G4MD déclare `u000101_30_LOD1` et `u000101_30_LOD2`, mais le conteneur porte **deux** planches :
+`u000101_20` (moyenne 242,240,238 — le maillot) et `u000101_30` (165,226,236 — le short). Les deux
+matériaux visaient donc la même planche turquoise, et le carré blanc de celle-ci ressortait au
+torse et aux genoux. La n-ième planche de base va maintenant au n-ième matériau, et les huit
+sous-mailles se répartissent en deux groupes de rangs égaux — un par matériau.
+
+Les 80 conteneurs de `_uniform/u000101/` sont **80 uniformes d'équipe** sur la même géométrie ;
+leurs couleurs diffèrent (`u010101_10` donne 151,181,115 et 107,148,166). Le conteneur employé,
+`u117401_10`, est bien celui de l'éditeur.
+
+### 16.3 Les planches neutres
+
+`hair_10` fait 64 × 32 et vaut 255,255,255 partout : elle est **neutre**, et c'est la couleur
+choisie qui la colore. `image_out::g4tx_vignette_teintee` la multiplie et lui applique son masque
+`<nom>msk` en alpha quand il varie. La teinte doit s'appliquer au nom **finalement retenu** : le
+G4MD déclare `hairF_10` quand le conteneur porte `hair_10`, donc c'est le repli qui fournit la
+planche — la teinter sur le seul nom visé laissait le casque blanc.
+
+Deux couleurs par défaut, relevées sur l'écran du jeu faute d'exister dans un fichier :
+
+| rôle | relevés | retenu |
+|---|---|---|
+| chevelure | 118,93,78 / 113,88,74 / 117,92,77 | **116,91,76** |
+| iris (canal vert) | 106,81,81 / 73,51,51 / 77,56,56 / 88,61,61 | **83,59,59** |
+
+Ce sont des couleurs **rendues**, éclairage compris, non des albédos : le brun servi sort un peu
+plus sombre que celui du jeu. `?hair=` et `?tint=` les remplacent dès que le joueur choisit.
+
+### 16.4 Une dominance d'une unité ne désigne rien
+
+`eye_L_01` est blanche à 255 sur les trois canaux, sauf des ovales à peine plus gris où un canal
+passe devant d'un ou deux crans. La sélection par canal dominant y basculait d'un bloc sur la
+couleur de l'iris : deux blobs opaques par-dessus les yeux. En deçà de **8 crans** d'écart, le
+pixel est désormais traité comme du fond.
+
+### 16.5 Ce qui reste faux
+
+**Les yeux ne sont pas composés.** Le globe est noir dans `eye_L_01msk`, et cette zone sort sombre
+au lieu de porter blanc de l'œil et iris. Les couches `02_pupil` et `03_highlight` vont bien sur la
+maille du visage — leur dépliage 512 × 512 le prouve (§15) — ce n'est donc pas un défaut de
+rangement.
+
+> **Tentative mesurée NÉGATIVE, à ne pas refaire.** Traiter `eye_L_01msk` comme un masque de
+> *zones* — le passer comme sélecteur à la teinte au lieu de le poser en alpha, le noir gardant la
+> couleur de la planche — a été implémenté (`masque_de_zones`, `decoder_planches_et_masques`,
+> `teinter_par_zones`) puis **annulé** : le visage sortait délavé avec une large bande noire sous
+> les yeux, nettement pire que l'état précédent. L'idée n'est pas absurde, mais elle demande de
+> reprendre l'empilement entier des six familles, pas de substituer un sélecteur.
+
+Restent aussi, inchangés : les bras en pose de repos (T-pose, faute de skinning dans cette chaîne
+d'export), les avant-bras absents, et les oreilles sans matériau propre — elles retombent sur
+`Default`.
+
+---
+
 ## Régénérer chaque chiffre de ce document
 
 ```bash
