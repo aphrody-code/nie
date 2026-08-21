@@ -982,6 +982,40 @@ Restent aussi, inchangés : les bras en pose de repos (T-pose, faute de skinning
 d'export), les avant-bras absents, et les oreilles sans matériau propre — elles retombent sur
 `Default`.
 
+### 16.6 L'alpha était calculé puis jeté
+
+Un champ manquait dans chaque matériau du GLB : `alphaMode`. Absent, il vaut **OPAQUE** en glTF,
+et le canal alpha de la texture est purement et simplement ignoré au rendu. Toute la composition
+du visage repose pourtant sur lui — la couche des yeux ne couvre que 17 % de sa planche — et les
+mèches de chevelure sont découpées par leur masque. Ces alphas étaient donc calculés, puis jetés.
+
+Les matériaux à texture embarquée déclarent maintenant `MASK` avec un seuil à 0,5. MASK plutôt que
+BLEND : la découpe de ces planches est franche, et MASK évite le tri par profondeur que BLEND
+impose entre mailles qui s'interpénètrent — celle des yeux est posée juste devant celle du visage.
+Une texture opaque n'est pas affectée, son alpha valant 255 partout.
+
+Gain mesuré : la chevelure passe de deux taches noires massives à des mèches découpées. Le corps
+est inchangé.
+
+### 16.7 Pourquoi les yeux ne viennent pas — la cause est enfin établie
+
+Les planches empilées **ne portent pas les traits du visage**. C'est ce que trois relevés montrent,
+et cela clôt les hypothèses précédentes :
+
+| couche composée | écart-type | contenu réel |
+|---|---:| --- |
+| `base_eye_10` (visage, 512 × 512) | 10 | un aplat de carnation |
+| `parts_eye_10` (yeux, 1024 × 512) | 78 | **cinq aplats de peau**, alpha binaire, aucun dessin |
+| `02_pupil/pupil_01` seule | 104 | un grand ovale de carnation cerné d'un liseré — la forme du visage, pas un œil |
+
+Autrement dit, la famille nommée `02_pupil` ne contient pas de pupille, et `01_eye` pas d'œil : ces
+noms viennent du rangement des dossiers, pas du contenu. Le dessin de l'œil du jeu — iris brun,
+blanc, cils noirs, tel qu'on le relève sur la capture — n'est dans aucune des six familles de
+`_facetex` telles qu'elles sont empilées aujourd'hui.
+
+Il ne sert donc à rien de continuer à régler l'empilement : **la source des traits reste à
+trouver**, et c'est elle qu'il faut chercher avant d'écrire une ligne de composition de plus.
+
 ---
 
 ## Régénérer chaque chiffre de ce document
