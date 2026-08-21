@@ -1066,6 +1066,36 @@ une sixième règle, mais une table par famille, établie planche par planche �
 porte la couleur, laquelle porte le masque, et ce que chaque canal désigne — avant d'écrire la
 moindre ligne de composition. `mouth_01` en donne la première entrée.
 
+### 16.10 La composition est juste — c'est le PLACEMENT qui manque
+
+Une planche qui porte déjà un dessin ne doit pas être teinte, seulement **découpée** : sa couleur
+est le trait, et son masque ne sert qu'à retirer le fond. C'est ce que fait `decouper_par_zones`,
+et le résultat se vérifie sur l'artefact intermédiaire — la texture composée pour
+`05_mouth/mouth_01` montre **huit bouches nettes**, contour, lèvres et dents, sur fond transparent,
+là où la teinte par canaux les effaçait (le contour noir n'a aucun canal dominant, donc passait en
+transparent, et les lèvres tombaient sur le canal du fond).
+
+Deux relevés de plus expliquent le reste :
+
+| planche | couleur | masque |
+|---|---|---|
+| `face_00` | blanc pur, opaque | **uniformément rouge** |
+| `highlight_00` | blanc pur, opaque | uniformément rouge |
+| `eyebrow_00` | entièrement **transparente** | uniformément rouge |
+
+Les variantes `_00` sont donc les variantes **vides** — « aucun sourcil », « aucun reflet » — et un
+masque tout rouge ne désigne aucune zone. La page demande justement ces trois-là par défaut : elles
+ne peuvent rien produire, et c'est normal.
+
+Reste le point dur, désormais isolé : la texture est juste, mais **la maille n'y échantillonne
+rien**. `mouth_01` contient huit variantes de bouche côte à côte ; la maille des lèvres doit en
+viser UNE, et rien dans la chaîne actuelle ne lui dit laquelle. Le décalage est donc porté
+ailleurs — et le catalogue en nomme un : **`FACE_MDL_OFFSET_INFO`**, dans `reglesModele`, deux
+entiers par entrée. C'est la piste à suivre, et elle n'a pas encore été ouverte.
+
+C'est la différence entre ce qui est fait et ce qui reste : la composition des traits fonctionne et
+se voit sur la texture ; leur placement sur le modèle, non.
+
 ---
 
 ## Régénérer chaque chiffre de ce document
