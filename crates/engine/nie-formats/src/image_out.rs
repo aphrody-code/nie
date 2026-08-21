@@ -267,6 +267,94 @@ pub fn decoder_planches(g4tx: &[u8]) -> Vec<(u32, u32, Vec<u8>)> {
         .collect()
 }
 
+/// Vrai si ce masque désigne des ZONES : un fond rouge franc et des régions d'une autre couleur.
+///
+/// Un masque de découpe est gris — son canal rouge EST l'opacité. Un masque de zones a un fond
+/// rouge saturé et peint ses régions autrement : noir sur `mouth_01msk`, vert sur le contour de
+/// paupière de `eye_L_01msk`, bleu sur l'ovale de `pupil_L_01msk`.
+#[cfg(feature = "textures")]
+#[must_use]
+pub fn masque_de_zones(masque: &[u8]) -> bool {
+    let total = masque.len() / 4;
+    if total == 0 {
+        return false;
+    }
+    let rouges = masque
+        .chunks_exact(4)
+        .filter(|p| p[0] > 160 && p[1] < 96 && p[2] < 96)
+        .count();
+    rouges * 10 > total
+}
+
+/// Une planche décodée et, s'il en existe un, son masque de zones.
+#[cfg(feature = "textures")]
+pub type PlancheEtMasque = (u32, u32, alloc::vec::Vec<u8>, Option<alloc::vec::Vec<u8>>);
+
+/// Décode les planches d'un G4TX en rendant à part leur masque de zones, quand elles en ont un.
+#[cfg(feature = "textures")]
+#[must_use]
+pub fn decoder_planches_et_masques(g4tx: &[u8]) -> alloc::vec::Vec<PlancheEtMasque> {
+    crate::g4tx::base_color_texture_names(g4tx)
+        .into_iter()
+        .filter_map(|nom| {
+            let (w, h, mut rgba) = crate::g4tx_decode::decode_named_to_rgba(g4tx, &nom)?;
+            let couleur_muette = canal_uniforme(&rgba);
+            let masque = crate::g4tx_decode::decode_named_to_rgba(
+                g4tx,
+                &alloc::format!("{nom}msk"),
+            )
+            .filter(|(mw, mh, m)| {
+                (*mw, *mh) == (w, h) && m.len() >= rgba.len() && !canal_uniforme(m)
+            });
+            let Some((_, _, m)) = masque else {
+                return Some((w, h, rgba, None));
+            };
+            if masque_de_zones(&m) {
+                return Some((w, h, rgba, Some(m)));
+            }
+            if couleur_muette {
+                for i in (0..rgba.len()).step_by(4) {
+                    rgba[i + 3] = m[i];
+                }
+            }
+            Some((w, h, rgba, None))
+        })
+        .collect()
+}
+
+/// Découpe une planche DESSINÉE par son masque de zones, sans la teindre.
+///
+/// Certaines planches de `_facetex` portent le trait dans leur couleur : `mouth_01` montre quatre
+/// bouches complètes, contour noir, lèvres et dents, et son masque les cerne en noir sur fond
+/// rouge. Les faire passer par la teinte par canaux détruisait ce dessin — le contour noir n'a
+/// aucun canal dominant, donc devenait transparent, et les lèvres tombaient sur le canal du fond.
+///
+/// Ici la couleur est conservée telle quelle, et le masque ne sert qu'à découper : tout ce que le
+/// fond rouge recouvre disparaît, le reste est opaque. C'est le geste minimal, et le seul qui
+/// respecte un dessin déjà peint.
+#[cfg(feature = "textures")]
+#[must_use]
+pub fn decouper_par_zones(
+    largeur: u32,
+    hauteur: u32,
+    planche: &[u8],
+    masque: &[u8],
+) -> Option<alloc::vec::Vec<u8>> {
+    let attendu = largeur as usize * hauteur as usize * 4;
+    if attendu == 0 || planche.len() < attendu || masque.len() < attendu {
+        return None;
+    }
+    let mut sortie = planche[..attendu].to_vec();
+    for i in (0..attendu).step_by(4) {
+        let (r, v, b) = (masque[i], masque[i + 1], masque[i + 2]);
+        let fond = r > 160 && v < 96 && b < 96;
+        if fond {
+            sortie[i + 3] = 0;
+        }
+    }
+    Some(sortie)
+}
+
 /// Vrai si le canal rouge d'une image RGBA est constant — donc sans information spatiale.
 ///
 /// Sert à décider si un masque `msk` mérite d'être posé en alpha : uniforme, il n'apporte rien et
@@ -1107,4 +1195,33 @@ mod tests {
         assert_eq!(relu.dimensions(), (w, h));
         assert_eq!(relu.as_raw().as_slice(), rgba.as_slice(), "VP8L doit être exact");
     }
+    /// Un masque de zones : fond rouge franc, une région noire au milieu.
+    #[cfg(feature = "textures")]
+    #[test]
+    fn une_planche_dessinee_garde_son_dessin_hors_du_fond() {
+        // 2×2 : trois pixels de fond rouge, un pixel de zone noire en dernier.
+        let planche = [
+            10, 20, 30, 255, // le dessin, sous le fond — doit disparaître
+            40, 50, 60, 255, //
+            70, 80, 90, 255, //
+            11, 22, 33, 255, // le dessin, dans la zone — doit rester
+        ];
+        let masque = [255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0, 255, 0, 0, 0, 255];
+        let out = decouper_par_zones(2, 2, &planche, &masque).unwrap();
+        assert_eq!(&out[0..4], &[10, 20, 30, 0], "le fond rouge devient transparent");
+        assert_eq!(&out[12..16], &[11, 22, 33, 255], "la zone garde couleur et opacité");
+    }
+
+    #[cfg(feature = "textures")]
+    #[test]
+    fn un_masque_gris_n_est_pas_un_masque_de_zones() {
+        // Une découpe en niveaux de gris : aucun pixel rouge franc.
+        let gris: Vec<u8> = [128, 128, 128, 255].repeat(16);
+        assert!(!masque_de_zones(&gris));
+        // Un masque de zones : fond rouge saturé sur la moitié des pixels.
+        let mut zones: Vec<u8> = [255, 0, 0, 255].repeat(8);
+        zones.extend([0, 0, 0, 255].repeat(8));
+        assert!(masque_de_zones(&zones));
+    }
+
 }

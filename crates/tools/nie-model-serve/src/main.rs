@@ -1966,9 +1966,22 @@ fn get_or_build_avatar_glb(
             // La PREMIÈRE planche d'un matériau est le fond : elle garde son opacité. Les
             // suivantes ne peignent que leurs traits, leur zone de carnation devenant transparente.
             let entree_vide = par_slot.get(&slot).is_none_or(Vec::is_empty);
-            let planches: Vec<PlancheRgba> = nie_formats::image_out::decoder_planches(&brut)
+            let planches: Vec<PlancheRgba> = nie_formats::image_out::decoder_planches_et_masques(
+                &brut,
+            )
                 .into_iter()
-                .map(|(w, h, rgba)| {
+                .map(|(w, h, rgba, masque)| {
+                    // Une planche qui porte DÉJÀ un dessin — les quatre bouches de `mouth_01` —
+                    // ne se teinte pas : elle se découpe. Son masque cerne le trait en noir sur
+                    // fond rouge, et seul le fond doit disparaître. La faire passer par la teinte
+                    // par canaux effaçait le contour, qui n'a aucun canal dominant.
+                    if let Some(m) = masque
+                        && !nie_formats::image_out::canal_uniforme(&rgba)
+                        && let Some(t) =
+                            nie_formats::image_out::decouper_par_zones(w, h, &rgba, &m)
+                    {
+                        return (w, h, t);
+                    }
                     // Teinte par canaux : une planche de `_facetex` est un masque à trois canaux,
                     // chacun désignant une zone qui reçoit sa couleur.
                     //
