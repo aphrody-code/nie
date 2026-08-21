@@ -904,31 +904,52 @@ fn extract_primitives_from_g4md_g4mg(
     let md = g4md::parse(g4md_data)?;
     let submeshes = g4mg::extract_geometry(g4mg_data, &md);
 
+    let nb_materiaux = md.material_base_names.len();
+    let nb_sous_mailles = submeshes.len();
+    let tous_a_zero = submeshes.iter().all(|sg| sg.material_index == 0);
+
     // Les modèles de `20_EDIT` déclarent `material_index = 0` sur TOUTES leurs sous-mailles alors
     // qu'ils portent plusieurs matériaux : `face51_nose01` a 3 sous-mailles, 3 matériaux, et trois
     // fois `mat=0`. Le lien est alors POSITIONNEL — la n-ième sous-maille prend le n-ième
     // matériau, ce que confirment les noms (`base_eye_10` sur la maille du visage à 1501 sommets,
     // `parts_eye_10` sur celle des yeux à 438, `parts_mouth_10` sur la bouche à 214).
+    let positionnel = nb_materiaux == nb_sous_mailles && tous_a_zero && nb_materiaux > 1;
+
+    // Un uniforme pousse le même défaut plus loin : `u000101` a huit sous-mailles, deux matériaux,
+    // et là encore `mat=0` partout. Les huit se rangent en deux moitiés que la géométrie sépare
+    // sans ambiguïté — quatre pour le haut du corps (dont ses trois niveaux de détail, boîte
+    // `y ∈ [0,895 ; 1,264]`) et quatre pour le bas (`y ∈ [0,088 ; 0,895]`) — soit exactement un
+    // groupe par matériau. On attribue donc le matériau par groupe de rangs égaux.
     //
-    // La règle ne vaut QUE si les deux comptes coïncident : un uniforme a 8 sous-mailles pour
-    // 2 matériaux, et là c'est bien `material_index` qui tranche.
-    let positionnel = md.material_base_names.len() == submeshes.len()
-        && submeshes.iter().all(|sg| sg.material_index == 0)
-        && md.material_base_names.len() > 1;
+    // Que ce découpage soit le bon se vérifie sur l'écran du jeu : il donne un maillot crème et un
+    // short turquoise, les deux couleurs que portent les deux planches du conteneur
+    // (`u000101_20` moyenne 242,240,238 et `u000101_30` moyenne 165,226,236). Sans lui, tout le
+    // corps échantillonnait la planche turquoise.
+    let taille_groupe = (!positionnel
+        && tous_a_zero
+        && nb_materiaux > 1
+        && nb_sous_mailles > nb_materiaux
+        && nb_sous_mailles.is_multiple_of(nb_materiaux))
+        .then(|| nb_sous_mailles / nb_materiaux);
 
     let out = submeshes
         .into_iter()
         .enumerate()
         .map(|(rang, sg)| {
+            let groupe = taille_groupe.map(|t| rang / t);
             let mat_name = if positionnel {
                 md.material_base_names.get(rang).cloned().unwrap_or_default()
+            } else if let Some(g) = groupe {
+                md.material_base_names.get(g).cloned().unwrap_or_default()
             } else {
                 g4mg::material_base_name(&md, &sg).cloned().unwrap_or_default()
             };
             MeshPrimitive {
                 component,
                 source_index: sg.index,
-                material_index: sg.material_index,
+                material_index: groupe
+                    .and_then(|g| u8::try_from(g).ok())
+                    .unwrap_or(sg.material_index),
                 material_name: mat_name,
                 texture_uri: String::new(), // résolu par resolve_texture_uris()
                 positions: sg.positions,
@@ -940,7 +961,76 @@ fn extract_primitives_from_g4md_g4mg(
         })
         .collect();
 
-    Ok(out)
+    Ok(retenir_niveau_detail_max(out))
+}
+
+/// Boîte englobante d'une primitive, ou `None` si elle n'a aucun sommet.
+fn boite_englobante(prim: &MeshPrimitive) -> Option<([f32; 3], [f32; 3])> {
+    let mut it = prim.positions.iter();
+    let p0 = it.next()?;
+    let (mut mn, mut mx) = ([p0.x, p0.y, p0.z], [p0.x, p0.y, p0.z]);
+    for p in it {
+        for (k, v) in [p.x, p.y, p.z].into_iter().enumerate() {
+            mn[k] = mn[k].min(v);
+            mx[k] = mx[k].max(v);
+        }
+    }
+    Some((mn, mx))
+}
+
+/// Dit si deux boîtes coïncident à 2 % près de leur diagonale.
+///
+/// La tolérance est relative : deux niveaux de détail de la même pièce ne donnent pas des bornes
+/// strictement égales, parce que le maillage grossier coupe des sommets extrêmes. Sur le corps de
+/// `u000101` l'écart mesuré plafonne à 2 mm pour une pièce de 65 cm, soit 0,3 %.
+fn boites_coincident(a: ([f32; 3], [f32; 3]), b: ([f32; 3], [f32; 3])) -> bool {
+    let diag = (0..3).map(|k| a.1[k] - a.0[k]).fold(0.0_f32, f32::max).max(1e-4);
+    let tol = diag * 0.02;
+    (0..3).all(|k| (a.0[k] - b.0[k]).abs() <= tol && (a.1[k] - b.1[k]).abs() <= tol)
+}
+
+/// Ne retient, parmi des sous-mailles empilées, que le niveau de détail le plus fin.
+///
+/// Un modèle d'uniforme range ses niveaux de détail comme des sous-mailles ordinaires, sans
+/// aucun champ qui les distingue : `u000101` en déclare huit, et le G4MD leur donne à toutes
+/// `material_index = 0`. Les rendre toutes empile trois copies de chaque pièce à la même place —
+/// elles s'interpénètrent, et la couleur affichée devient celle que le tampon de profondeur
+/// laisse gagner. C'est ce qui donnait un maillot turquoise barré de blanc là où le jeu montre un
+/// maillot blanc à col turquoise.
+///
+/// Ce que les fichiers permettent d'affirmer, c'est que les niveaux d'une même pièce sont
+/// **consécutifs**, qu'ils partagent la **même boîte englobante** et que leur nombre de triangles
+/// **décroît** : le haut du corps donne 778, 404 puis 298 triangles pour la boîte
+/// `y ∈ [0,895 ; 1,264]`, le bas 802, 400 et 314, les chaussures 868, 390 et 274. On regroupe donc
+/// les primitives consécutives de même boîte et on garde celle qui porte le plus de triangles.
+///
+/// Les pièces réellement distinctes ne sont pas touchées : le visage a trois sous-mailles de
+/// boîtes différentes (le visage, les yeux, la bouche), et elles sont toutes conservées.
+#[must_use]
+pub fn retenir_niveau_detail_max(prims: Vec<MeshPrimitive>) -> Vec<MeshPrimitive> {
+    let mut sortie: Vec<MeshPrimitive> = Vec::with_capacity(prims.len());
+    for prim in prims {
+        let empile = match (sortie.last(), boite_englobante(&prim)) {
+            (Some(prec), Some(b)) => {
+                boite_englobante(prec).is_some_and(|a| boites_coincident(a, b))
+            }
+            _ => false,
+        };
+        if !empile {
+            sortie.push(prim);
+            continue;
+        }
+        // Même emprise que la précédente : c'est un autre niveau de la même pièce. On garde le
+        // plus fin des deux, et l'ordre d'origine ne compte pas — seul le compte de triangles.
+        let remplacer = sortie
+            .last()
+            .is_some_and(|prec| prim.triangle_count() > prec.triangle_count());
+        if remplacer {
+            sortie.pop();
+            sortie.push(prim);
+        }
+    }
+    sortie
 }
 
 // ── API publique principale ───────────────────────────────────────────────────
@@ -2812,4 +2902,50 @@ mod tests {
         let magic = u32::from_le_bytes([glb[0], glb[1], glb[2], glb[3]]);
         assert_eq!(magic, 0x46546C67);
     }
+    /// Fabrique une primitive dont la boîte englobante et le compte de triangles sont imposés.
+    fn prim_test(mn: [f32; 3], mx: [f32; 3], triangles: usize) -> MeshPrimitive {
+        let coin = |v: [f32; 3]| g4mg::Vec3 { x: v[0], y: v[1], z: v[2] };
+        MeshPrimitive {
+            component: MeshComponent::Uniform,
+            source_index: 0,
+            material_index: 0,
+            material_name: String::new(),
+            texture_uri: String::new(),
+            positions: vec![coin(mn), coin(mx)],
+            normals: Vec::new(),
+            uv0: Vec::new(),
+            colors: Vec::new(),
+            indices: vec![0; triangles * 3],
+        }
+    }
+
+    #[test]
+    fn niveaux_de_detail_empiles_reduits_au_plus_fin() {
+        // Les trois emprises relevées sur `u000101` : haut du corps, bas du corps, chaussures —
+        // chacune en trois niveaux consécutifs de finesse décroissante.
+        let prims = vec![
+            prim_test([-0.326, 0.895, -0.091], [0.326, 1.264, 0.122], 778),
+            prim_test([-0.326, 0.895, -0.089], [0.326, 1.264, 0.122], 404),
+            prim_test([-0.326, 0.895, -0.089], [0.326, 1.264, 0.122], 298),
+            prim_test([-0.186, 0.088, -0.107], [0.186, 0.895, 0.117], 802),
+            prim_test([-0.186, 0.088, -0.107], [0.186, 0.895, 0.117], 400),
+            prim_test([-0.186, 0.088, -0.107], [0.186, 0.895, 0.117], 314),
+        ];
+        let gardees = retenir_niveau_detail_max(prims);
+        let comptes: Vec<usize> = gardees.iter().map(MeshPrimitive::triangle_count).collect();
+        assert_eq!(comptes, vec![778, 802], "un seul niveau par emprise");
+    }
+
+    #[test]
+    fn pieces_de_boites_distinctes_toutes_conservees() {
+        // Le visage : visage, yeux et bouche ont des emprises différentes — aucune n'est un
+        // niveau de détail d'une autre, et le filtre ne doit en retirer aucune.
+        let prims = vec![
+            prim_test([-0.123, 1.293, -0.139], [0.123, 1.595, 0.135], 2748),
+            prim_test([-0.116, 1.362, 0.029], [0.116, 1.579, 0.122], 752),
+            prim_test([-0.102, 1.293, 0.036], [0.102, 1.377, 0.122], 320),
+        ];
+        assert_eq!(retenir_niveau_detail_max(prims).len(), 3);
+    }
+
 }
