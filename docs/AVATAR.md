@@ -1088,10 +1088,14 @@ masque tout rouge ne désigne aucune zone. La page demande justement ces trois-l
 ne peuvent rien produire, et c'est normal.
 
 Reste le point dur, désormais isolé : la texture est juste, mais **la maille n'y échantillonne
-rien**. `mouth_01` contient huit variantes de bouche côte à côte ; la maille des lèvres doit en
-viser UNE, et rien dans la chaîne actuelle ne lui dit laquelle. Le décalage est donc porté
-ailleurs — et le catalogue en nomme un : **`FACE_MDL_OFFSET_INFO`**, dans `reglesModele`, deux
-entiers par entrée. C'est la piste à suivre, et elle n'a pas encore été ouverte.
+rien**. `mouth_01` contient huit bouches côte à côte — vraisemblablement huit expressions du même
+style — et la maille des lèvres doit en viser une seule.
+
+`FACE_MDL_OFFSET_INFO` a été ouverte et **écartée** : ses deux valeurs sont `70B13199` et
+`64C35FEC`, soit des CRC-32 et non des décalages, et la liste n'a qu'**une seule entrée** — elle ne
+peut donc pas sélectionner parmi huit. Le mécanisme reste à trouver ; les candidats non encore
+examinés sont les UV du G4MG de chaque maille de trait, qui pourraient viser directement leur
+variante, et le relevé en mémoire du jeu vivant.
 
 C'est la différence entre ce qui est fait et ce qui reste : la composition des traits fonctionne et
 se voit sur la texture ; leur placement sur le modèle, non.
