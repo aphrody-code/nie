@@ -1840,7 +1840,7 @@ type PlancheRgba = (u32, u32, Vec<u8>);
 /// corps déduit du squelette, attache à l'os de tête, composition de la texture de visage… Sans
 /// elle, un GLB produit par l'ancienne logique reste servi indéfiniment et le correctif paraît
 /// sans effet : c'est exactement ce qui est arrivé lors de l'ajout du corps automatique.
-const AVATAR_CACHE_VERSION: u32 = 29;
+const AVATAR_CACHE_VERSION: u32 = 30;
 
 /// Nom de fichier de cache court et stable pour une clé d'assemblage.
 ///
@@ -2100,6 +2100,33 @@ fn get_or_build_avatar_glb(
                 _ if uniforme => MeshComponent::Uniform,
                 _ => MeshComponent::Generic,
             };
+
+            // Une oreille n'a AUCUN conteneur de texture : `_ear/ear001` n'existe qu'en `.g4md`
+            // et `.g4mg`, et son matériau `earR` retombait donc sur `Default`, c'est-à-dire blanc.
+            // Une oreille est de la peau : elle prend la carnation, celle que le canal rouge du
+            // `?tint=` porte déjà pour le visage. Une planche unie suffit — la géométrie donne la
+            // forme, et le jeu ne dessine rien sur l'oreille.
+            if g4tx.is_none()
+                && dossier == "_ear"
+                && let Ok(md) = nie_formats::g4md::parse(&g4md)
+            {
+                let c = teintes[0].rgb;
+                let pixels: Vec<u8> = [c[0], c[1], c[2], 255].repeat(64);
+                if let Ok(png_bytes) = nie_formats::image_out::encoder_rgba(
+                    &pixels,
+                    8,
+                    8,
+                    nie_formats::image_out::ImageOut::Png,
+                ) {
+                    for mat in &md.material_base_names {
+                        textures.push(EmbeddedTexture {
+                            component,
+                            name: mat.clone(),
+                            png_bytes: png_bytes.clone(),
+                        });
+                    }
+                }
+            }
 
             if let (Some(tx), Ok(md)) = (g4tx.as_deref(), nie_formats::g4md::parse(&g4md)) {
                 let repli = nie_formats::g4tx::base_color_texture_name(tx);
