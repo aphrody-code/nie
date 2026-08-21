@@ -1125,6 +1125,51 @@ pub fn boites_mains(echelle: f32) -> Vec<MeshPrimitive> {
     out
 }
 
+/// Déforme la tête selon la forme de visage choisie.
+///
+/// ⚠️ **Reconstitution assumée.** Les six parts de la catégorie « Forme de visage » ont toutes
+/// `resource = 0xFFFFFFFF` dans le catalogue : elles ne désignent **aucune ressource**, ni maille
+/// ni texture. Le choix ne pouvait donc rien changer au modèle — ce n'était pas un défaut de la
+/// page mais une donnée absente.
+///
+/// À la demande de l'auteur du projet, chaque forme applique ici une mise à l'échelle non uniforme
+/// de la tête : `(largeur, longueur)`, autour du centre du crâne. Les six couples vont du visage
+/// large et court au visage étroit et allongé, ce que les six vignettes du jeu suggèrent.
+///
+/// Seule la tête bouge : la déformation ne s'applique qu'au-dessus de `SEUIL_COU`, la base du cou
+/// mesurée sur la maille du visage.
+pub fn deformer_visage(prims: &mut [MeshPrimitive], forme: usize, echelle: f32) {
+    /// Base du cou : la maille du visage commence à `y = 1,293`.
+    const SEUIL_COU: f32 = 1.290;
+    /// Centre du crâne, autour duquel la tête est mise à l'échelle.
+    const CENTRE_Y: f32 = 1.44;
+    const FORMES: [(f32, f32); 6] = [
+        (1.00, 1.00), // 01 — ovale, la référence
+        (1.07, 0.95), // 02 — large et court
+        (0.94, 1.06), // 03 — étroit et allongé
+        (1.04, 1.02), // 04 — plein
+        (0.97, 0.97), // 05 — menu
+        (1.10, 1.00), // 06 — carré
+    ];
+    let (kx, ky) = FORMES[forme.min(FORMES.len() - 1)];
+    if (kx - 1.0).abs() < f32::EPSILON && (ky - 1.0).abs() < f32::EPSILON {
+        return;
+    }
+    let (seuil, centre) = (SEUIL_COU * echelle, CENTRE_Y * echelle);
+    for prim in prims {
+        for p in &mut prim.positions {
+            if p.y < seuil {
+                continue;
+            }
+            // Le fondu évite une cassure nette à la base du cou.
+            let t = ((p.y - seuil) / (0.06 * echelle)).clamp(0.0, 1.0);
+            p.x *= 1.0 + (kx - 1.0) * t;
+            p.z *= 1.0 + (kx - 1.0) * t;
+            p.y = centre + (p.y - centre) * (1.0 + (ky - 1.0) * t);
+        }
+    }
+}
+
 /// Boîte englobante d'une primitive, ou `None` si elle n'a aucun sommet.
 fn boite_englobante(prim: &MeshPrimitive) -> Option<([f32; 3], [f32; 3])> {
     let mut it = prim.positions.iter();
