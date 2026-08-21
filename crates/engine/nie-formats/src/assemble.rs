@@ -985,6 +985,69 @@ pub fn ecarter_positions_aberrantes(prims: Vec<MeshPrimitive>) -> Vec<MeshPrimit
         .collect()
 }
 
+/// Fabrique les deux quads d'yeux, posés dans l'espace 3D du visage.
+///
+/// ⚠️ **Reconstitution assumée.** Aucun fichier ne porte le tracé des yeux — vingt variantes de
+/// `_facetex/01_eye` mesurées à 0,000 % d'encre — et les masques ne peuvent pas le produire : leurs
+/// zones couvrent 4,8 % et 15,6 % de la surface là où le visage du jeu n'en montre que 1,530 %.
+/// À la demande de l'auteur du projet, les yeux sont donc **produits ici**.
+///
+/// Ils sont posés en **géométrie**, et non peints dans une texture : le dépliage du visage n'est
+/// pas un plan frontal, et trois méthodes de calage — à l'œil, par les UV des sommets, par grille
+/// témoin — ont toutes échoué, la dernière parce que l'éclairage de la scène fausse la lecture des
+/// couleurs rendues. La position 3D, elle, se lit sans ambiguïté sur la maille `parts_eye_10`
+/// (`x ± 0,116`, `y ∈ [1,362 ; 1,579]`, `z ∈ [0,029 ; 0,122]`).
+///
+/// Chaque quad porte l'intégralité de la texture d'œil en UV `0..1`, ce qui rend le placement
+/// indépendant de tout dépliage.
+#[must_use]
+pub fn quads_yeux(echelle: f32) -> Vec<MeshPrimitive> {
+    // Demi-largeur, demi-hauteur, écart au plan sagittal, hauteur et avancée — en mètres, sur le
+    // modèle à l'échelle 1.
+    const DEMI_L: f32 = 0.038;
+    const DEMI_H: f32 = 0.027;
+    const ECART: f32 = 0.052;
+    const HAUTEUR: f32 = 1.4380;
+    const AVANCEE: f32 = 0.1080;
+
+    let mut out = Vec::with_capacity(2);
+    for cote in [-1.0_f32, 1.0] {
+        let cx = cote * ECART * echelle;
+        let (dl, dh) = (DEMI_L * echelle, DEMI_H * echelle);
+        let (y, z) = (HAUTEUR * echelle, AVANCEE * echelle);
+        // Le quad est légèrement incliné : son bord extérieur recule, pour épouser la joue.
+        let recul = 0.012 * echelle;
+        let positions = vec![
+            g4mg::Vec3 { x: cx - dl, y: y + dh, z: z - recul * cote.max(0.0) },
+            g4mg::Vec3 { x: cx + dl, y: y + dh, z: z - recul * (-cote).max(0.0) },
+            g4mg::Vec3 { x: cx + dl, y: y - dh, z: z - recul * (-cote).max(0.0) },
+            g4mg::Vec3 { x: cx - dl, y: y - dh, z: z - recul * cote.max(0.0) },
+        ];
+        let normals = vec![g4mg::Vec3 { x: 0.0, y: 0.0, z: 1.0 }; 4];
+        // Le côté droit est le miroir du gauche : on retourne son U.
+        let (u0, u1) = if cote < 0.0 { (0.0, 1.0) } else { (1.0, 0.0) };
+        let uv0 = vec![
+            g4mg::Vec2 { u: u0, v: 0.0 },
+            g4mg::Vec2 { u: u1, v: 0.0 },
+            g4mg::Vec2 { u: u1, v: 1.0 },
+            g4mg::Vec2 { u: u0, v: 1.0 },
+        ];
+        out.push(MeshPrimitive {
+            component: MeshComponent::Generic,
+            source_index: 0,
+            material_index: 0,
+            material_name: "avatar_eye".to_string(),
+            texture_uri: String::new(),
+            positions,
+            normals,
+            uv0,
+            colors: Vec::new(),
+            indices: vec![0, 2, 1, 0, 3, 2],
+        });
+    }
+    out
+}
+
 /// Boîte englobante d'une primitive, ou `None` si elle n'a aucun sommet.
 fn boite_englobante(prim: &MeshPrimitive) -> Option<([f32; 3], [f32; 3])> {
     let mut it = prim.positions.iter();

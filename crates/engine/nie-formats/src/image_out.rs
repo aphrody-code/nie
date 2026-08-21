@@ -322,6 +322,187 @@ pub fn decoder_planches_et_masques(g4tx: &[u8]) -> alloc::vec::Vec<PlancheEtMasq
         .collect()
 }
 
+/// Emprise d'un œil dans le carré du visage, en fraction de la texture.
+///
+/// **Lue sur une grille témoin**, et non devinée. Le dépliage du visage n'est pas un plan frontal :
+/// ni le calage à l'œil ni le calcul depuis les sommets ne convergeaient. On pose donc sur la
+/// couche du visage une grille 8 × 8 dont chaque case porte une teinte qui l'identifie — rouge =
+/// colonne × 32, vert = ligne × 32 — on capture le modèle, et on lit la couleur à l'endroit des
+/// yeux.
+///
+/// Le relevé donne `srgb(87,150,200)` à gauche et `srgb(161,132,29)` à droite, soit les cases
+/// `(2,4)` et `(5,4)` : `u ∈ [0,250 ; 0,375]` et `u ∈ [0,625 ; 0,750]`, toutes deux
+/// `v ∈ [0,500 ; 0,625]`. L'emprise retenue est cette case resserrée à 80 %.
+///
+/// La grille se rejoue en compilant avec `NIE_UV_GRID=1`.
+#[cfg(feature = "textures")]
+const YEUX_EMPRISE: [(f32, f32, f32, f32); 2] =
+    [(0.262, 0.512, 0.366, 0.616), (0.637, 0.512, 0.741, 0.616)];
+
+/// Dessine une couche d'yeux RGBA, transparente partout ailleurs.
+///
+/// ⚠️ **Cette couche est RECONSTITUÉE, pas extraite du jeu.** Les fichiers ne portent aucun tracé
+/// d'œil — vingt variantes de `_facetex/01_eye` mesurées à 0,000 % d'encre — et les zones de leurs
+/// masques couvrent 4,8 % et 15,6 % de la surface là où le visage du jeu n'en montre que 1,530 % :
+/// aucune composition ne peut en tirer un œil. Le dessin est donc produit ici, à la demande
+/// explicite de l'auteur du projet, pour que l'avatar soit complet.
+///
+/// Ce qui vient du jeu : l'**emprise** de chaque œil, relevée sur `base_elderlywoman/face_10`, et
+/// la **couleur d'iris**, relevée sur l'écran de l'éditeur. Ce qui est reconstitué : la forme du
+/// globe, du contour, de la pupille et du reflet.
+#[cfg(feature = "textures")]
+#[must_use]
+pub fn dessiner_yeux(largeur: u32, hauteur: u32, iris: [u8; 3]) -> alloc::vec::Vec<u8> {
+    let (lw, lh) = (largeur as usize, hauteur as usize);
+    let mut out = alloc::vec![0u8; lw * lh * 4];
+    // GRILLE TÉMOIN — 8 × 8 cases de teintes distinctes, pour lire à l'écran quelle case du
+    // dépliage tombe sur les yeux. Le calage à l'œil ne converge pas : le dépliage du visage n'est
+    // pas un plan frontal.
+    if core::option_env!("NIE_UV_GRID").is_some() {
+        for y in 0..lh {
+            for x in 0..lw {
+                let (cx, cy) = (x * 8 / lw, y * 8 / lh);
+                let i = (y * lw + x) * 4;
+                out[i] = (cx * 32) as u8;
+                out[i + 1] = (cy * 32) as u8;
+                out[i + 2] = if (cx + cy) % 2 == 0 { 220 } else { 60 };
+                out[i + 3] = 255;
+            }
+        }
+        return out;
+    }
+    for (x0, y0, x1, y1) in YEUX_EMPRISE {
+        let (px0, py0) = ((x0 * largeur as f32) as usize, (y0 * hauteur as f32) as usize);
+        let (px1, py1) = ((x1 * largeur as f32) as usize, (y1 * hauteur as f32) as usize);
+        if px1 <= px0 || py1 <= py0 {
+            continue;
+        }
+        let (cx, cy) = ((px0 + px1) as f32 / 2.0, (py0 + py1) as f32 / 2.0);
+        let (rx, ry) = ((px1 - px0) as f32 / 2.0, (py1 - py0) as f32 / 2.0);
+        for y in py0..py1.min(lh) {
+            for x in px0..px1.min(lw) {
+                let (dx, dy) = ((x as f32 - cx) / rx, (y as f32 - cy) / ry);
+                let d = dx * dx + dy * dy;
+                if d > 1.0 {
+                    continue;
+                }
+                // Rayons relatifs : globe, iris, pupille, et l'épaisseur du trait de paupière.
+                // Le trait sombre cerne l'œil et s'épaissit en paupière vers le haut.
+                let (couleur, alpha) = if d > 0.86 || dy < -0.62 {
+                    ([28u8, 24, 26], 255u8)
+                } else {
+                    let di = (dx * 1.32).powi(2) + (dy * 0.98).powi(2);
+                    if di < 0.10 {
+                        ([18, 15, 17], 255) // la pupille
+                    } else if di < 0.44 {
+                        // l'iris, éclairci vers le bas comme le fait le jeu
+                        let k = 1.0 + 0.35 * (dy + 0.3).max(0.0);
+                        (
+                            [
+                                (f32::from(iris[0]) * k).min(255.0) as u8,
+                                (f32::from(iris[1]) * k).min(255.0) as u8,
+                                (f32::from(iris[2]) * k).min(255.0) as u8,
+                            ],
+                            255,
+                        )
+                    } else {
+                        ([250, 249, 250], 255) // le blanc de l'œil
+                    }
+                };
+                let i = (y * lw + x) * 4;
+                out[i] = couleur[0];
+                out[i + 1] = couleur[1];
+                out[i + 2] = couleur[2];
+                out[i + 3] = alpha;
+            }
+        }
+        // Le reflet : un disque clair en haut à gauche de l'iris.
+        let (sx, sy) = (cx - rx * 0.30, cy - ry * 0.30);
+        let sr = rx * 0.17;
+        for y in (sy - sr) as usize..((sy + sr) as usize).min(lh) {
+            for x in (sx - sr) as usize..((sx + sr) as usize).min(lw) {
+                let (dx, dy) = (x as f32 - sx, y as f32 - sy);
+                if dx * dx + dy * dy <= sr * sr {
+                    let i = (y * lw + x) * 4;
+                    out[i] = 255;
+                    out[i + 1] = 255;
+                    out[i + 2] = 255;
+                    out[i + 3] = 255;
+                }
+            }
+        }
+    }
+    out
+}
+
+/// Dessine UN œil qui remplit toute l'image, en UV `0..1`.
+///
+/// ⚠️ **Reconstitution assumée**, cf. [`dessiner_yeux`] : les fichiers ne portent aucun tracé d'œil.
+/// Cette variante-ci est faite pour être posée sur un quad placé en 3D, ce qui affranchit du
+/// dépliage du visage — celui-ci n'étant pas un plan frontal, aucun calage dans sa texture n'a
+/// abouti.
+///
+/// Le tracé suit ce que montre l'écran du jeu : un globe clair cerné d'un trait sombre qui
+/// s'épaissit en paupière, un iris de la couleur choisie, une pupille et un reflet.
+#[cfg(feature = "textures")]
+#[must_use]
+pub fn dessiner_oeil(cote: u32, iris: [u8; 3]) -> alloc::vec::Vec<u8> {
+    let n = cote as usize;
+    let mut out = alloc::vec![0u8; n * n * 4];
+    let c = cote as f32 / 2.0;
+    for y in 0..n {
+        for x in 0..n {
+            // Ellipse : l'œil est plus large que haut.
+            let dx = (x as f32 - c) / (c * 0.96);
+            let dy = (y as f32 - c) / (c * 0.62);
+            let d = dx * dx + dy * dy;
+            if d > 1.0 {
+                continue;
+            }
+            let (couleur, _) = if d > 0.80 || dy < -0.55 {
+                ([26u8, 22, 24], 255u8) // trait de contour et paupière
+            } else {
+                let di = (dx * 1.55).powi(2) + (dy * 0.92).powi(2);
+                if di < 0.09 {
+                    ([16, 13, 15], 255) // pupille
+                } else if di < 0.42 {
+                    let k = 1.0 + 0.30 * (dy + 0.25).max(0.0);
+                    (
+                        [
+                            (f32::from(iris[0]) * k).min(255.0) as u8,
+                            (f32::from(iris[1]) * k).min(255.0) as u8,
+                            (f32::from(iris[2]) * k).min(255.0) as u8,
+                        ],
+                        255,
+                    )
+                } else {
+                    ([252, 250, 251], 255) // blanc de l'œil
+                }
+            };
+            let i = (y * n + x) * 4;
+            out[i] = couleur[0];
+            out[i + 1] = couleur[1];
+            out[i + 2] = couleur[2];
+            out[i + 3] = 255;
+        }
+    }
+    // Reflet : un disque clair en haut à gauche de l'iris.
+    let (sx, sy, sr) = (c - c * 0.26, c - c * 0.20, c * 0.15);
+    for y in (sy - sr).max(0.0) as usize..((sy + sr) as usize).min(n) {
+        for x in (sx - sr).max(0.0) as usize..((sx + sr) as usize).min(n) {
+            let (dx, dy) = (x as f32 - sx, y as f32 - sy);
+            if dx * dx + dy * dy <= sr * sr {
+                let i = (y * n + x) * 4;
+                out[i] = 255;
+                out[i + 1] = 255;
+                out[i + 2] = 255;
+                out[i + 3] = 255;
+            }
+        }
+    }
+    out
+}
+
 /// Vrai si cette planche porte un TRAIT dessiné, et non une simple teinte claire.
 ///
 /// La distinction sépare deux familles de `_facetex` qui se ressemblent par leur histogramme mais
