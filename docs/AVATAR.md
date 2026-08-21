@@ -1314,6 +1314,33 @@ verte s'y déplace) mais la validation ne passe pas, même à 2,5 s de maintien.
 d'entrée qui reste à trouver — vraisemblablement une manette, le jeu étant un portage console.
 C'est le seul obstacle qui sépare encore du relevé mémoire.
 
+### 16.19 Trois verrous levés : l'éditeur du jeu est atteignable, et sa mémoire lisible
+
+**1. Les entrées passent par XTEST, pas par la fenêtre.** `xdotool key --window <id>` utilise
+`XSendEvent`, que le jeu ignore — d'où l'impression tenace que « le clavier ne passe pas ». Sans
+`--window`, après `windowactivate` + `windowfocus`, les touches passent. C'est ce qui a ouvert
+l'écran de création d'avatar, resté sourd à tous les clics.
+
+**2. `niers mem scan` se limite au module `nie.exe` par défaut.** Les noms de ressources vivent dans
+le tas : il faut `--all`. Sans lui, `face_10` donnait zéro occurrence alors que le jeu était sur
+l'écran ; avec lui, huit.
+
+**3. La mémoire porte les chemins ET les tables de noms.** On y lit en clair
+`/_face/20_EDIT/_facetex/00_face/face_10.g4tx`, et plus loin des tables contiguës — `face_10`,
+`face_11`, … `face_15` — ainsi que la liste des textures d'un conteneur, `face_10`, `face_10line`,
+`face_10msk`, `face_10oc`. **On n'a donc plus à deviner quelles planches le jeu compose : on peut
+lire celles qu'il charge.**
+
+Ce que cela n'a pas résolu : les variantes hautes de `00_face` — `face_10` à `face_15`, `face_20`,
+`face_30` — sont **toutes à 0,000 % d'encre**, comme les basses. La famille du visage ne dessine
+rien, quelle que soit sa variante, et `_facetex/00_face/face_10.g4tx`, que le jeu charge pourtant,
+n'en porte que 0,153 % — un tracé isolé, pas un visage.
+
+**Le pas suivant est maintenant à portée** : scanner `--all` les chemins `_facetex/` et `_base/`
+pendant que l'éditeur est affiché donne la **liste exacte** des planches composées. Quarante
+occurrences de `_facetex/` sont déjà repérées. C'est cette liste — et non une hypothèse sur les
+familles — qui dira d'où viennent les yeux.
+
 ---
 
 ## Régénérer chaque chiffre de ce document
