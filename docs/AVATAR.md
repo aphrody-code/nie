@@ -959,6 +959,25 @@ rangement.
 > les yeux, nettement pire que l'état précédent. L'idée n'est pas absurde, mais elle demande de
 > reprendre l'empilement entier des six familles, pas de substituer un sélecteur.
 
+> **Deuxième tentative, mesurée NÉGATIVE elle aussi.** La chaîne a pourtant été comprise plus
+> finement : `01_eye` est **seule sur son rang de matériau**, donc tenue pour un fond qui garde son
+> opacité, alors que la maille des yeux se pose DEVANT celle du visage et doit la laisser voir.
+> Réserver le fond au seul rang 0 supprime bien l'aplat — mais supprime les yeux avec, parce que
+> `decoder_planches` ne consulte le masque que si la couleur est « muette », ce que `eye_L_01`
+> n'est pas : ses ovales gris varient. La teinte se décide alors sur une planche blanche où le
+> canal rouge l'emporte partout, et toute la couche part en fond, donc en transparent.
+>
+> Faire du masque le sélecteur (`teinter_par_zones`, globe laissé transparent cette fois) a donné
+> un visage noir massif taché de blanc — pire que les deux états précédents. Les deux essais ont
+> été annulés.
+>
+> Ce que ces deux mesures établissent : le défaut n'est pas dans le choix du sélecteur ni dans le
+> traitement du fond pris isolément, mais dans **l'empilement des six familles**, qui suppose des
+> planches opaques composées par alpha alors que l'information vit tantôt dans la couleur, tantôt
+> dans un masque gris, tantôt dans un masque coloré. Y revenir demande de reprendre `face_layer_slot`,
+> `decoder_planches` et `teinter_par_canaux` ensemble, contre une capture de l'écran du jeu — pas
+> de retoucher l'un des trois.
+
 Restent aussi, inchangés : les bras en pose de repos (T-pose, faute de skinning dans cette chaîne
 d'export), les avant-bras absents, et les oreilles sans matériau propre — elles retombent sur
 `Default`.
