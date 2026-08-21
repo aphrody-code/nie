@@ -330,14 +330,14 @@ pub struct TeinteCanal {
 /// Le canal dominant sélectionne la teinte ; il n'y a pas d'addition. `est_fond` distingue la
 /// planche de base des planches posées par-dessus : sur ces dernières, une zone de canal rouge
 /// — le fond, la carnation — devient transparente au lieu d'effacer ce qui est en dessous.
-#[cfg(feature = "textures")]
-#[must_use]
 /// Écart minimum, sur 255, pour qu'un canal soit tenu pour dominant.
 ///
 /// En deçà, l'avance est du bruit de quantification et non une désignation de zone.
 #[cfg(feature = "textures")]
 const MARGE_DOMINANCE: u32 = 8;
 
+#[cfg(feature = "textures")]
+#[must_use]
 pub fn teinter_par_canaux(
     largeur: u32,
     hauteur: u32,
