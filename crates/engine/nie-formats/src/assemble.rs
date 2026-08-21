@@ -1912,12 +1912,24 @@ fn build_glb_embedded(model: &AssembledModel) -> Vec<u8> {
         texture_defs.push(json!({ "source": img_idx, "name": etex.name, "sampler": 0 }));
 
         let mat_idx = material_defs.len();
+        // `alphaMode` absent vaut OPAQUE en glTF : le canal alpha de la texture est alors
+        // purement et simplement IGNORÉ au rendu. Toute la composition du visage repose pourtant
+        // sur lui — la couche des yeux ne couvre que 17 % de sa planche, le reste devant laisser
+        // voir la peau — et les mèches de chevelure sont découpées par leur masque. Sans ce
+        // champ, ces alphas étaient calculés puis jetés.
+        //
+        // MASK plutôt que BLEND : la découpe de ces planches est franche, et MASK évite le tri
+        // par profondeur que BLEND impose entre mailles qui s'interpénètrent — la maille des yeux
+        // est posée juste devant celle du visage. Une texture opaque n'est pas affectée : son
+        // alpha vaut 255 partout, donc toujours au-dessus du seuil.
         material_defs.push(json!({
             "name": etex.name,
             "pbrMetallicRoughness": {
                 "baseColorTexture": { "index": tex_idx },
                 "metallicFactor": 0.0, "roughnessFactor": 1.0
             },
+            "alphaMode": "MASK",
+            "alphaCutoff": 0.5,
             "doubleSided": true
         }));
 
