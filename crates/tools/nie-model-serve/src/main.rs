@@ -1840,7 +1840,7 @@ type PlancheRgba = (u32, u32, Vec<u8>);
 /// corps déduit du squelette, attache à l'os de tête, composition de la texture de visage… Sans
 /// elle, un GLB produit par l'ancienne logique reste servi indéfiniment et le correctif paraît
 /// sans effet : c'est exactement ce qui est arrivé lors de l'ajout du corps automatique.
-const AVATAR_CACHE_VERSION: u32 = 35;
+const AVATAR_CACHE_VERSION: u32 = 38;
 
 /// Nom de fichier de cache court et stable pour une clé d'assemblage.
 ///
