@@ -1336,10 +1336,19 @@ Ce que cela n'a pas résolu : les variantes hautes de `00_face` — `face_10` à
 rien, quelle que soit sa variante, et `_facetex/00_face/face_10.g4tx`, que le jeu charge pourtant,
 n'en porte que 0,153 % — un tracé isolé, pas un visage.
 
-**Le pas suivant est maintenant à portée** : scanner `--all` les chemins `_facetex/` et `_base/`
-pendant que l'éditeur est affiché donne la **liste exacte** des planches composées. Quarante
-occurrences de `_facetex/` sont déjà repérées. C'est cette liste — et non une hypothèse sur les
-familles — qui dira d'où viennent les yeux.
+**La méthode est validée de bout en bout.** Scanner `--all` `str:_facetex/` pendant que l'éditeur
+est affiché rend quarante occurrences ; les lire une à une et n'en garder que la colonne ASCII
+restitue les tables en clair — par exemple `_facetex/04_eyebrow/eyebrow_00` à `eyebrow_05`, la
+série complète des sourcils.
+
+Reste à l'appliquer systématiquement : élargir la limite du scan, couvrir aussi `_base/` et les
+noms de matériaux, et recouper avec ce que la maille consomme. C'est ce relevé — et non une
+hypothèse sur les familles — qui dira d'où viennent les yeux. Le travail est cadré, outillé, et le
+jeu n'a qu'à rester sur cet écran.
+
+**Rappel de méthode** : la lecture se fait avec `niers mem read <adr> --len N` (l'adresse est
+positionnelle, pas `--addr`), et le hexdump se découpe en coupant les 49 premiers caractères de
+chaque ligne pour ne garder que l'ASCII.
 
 ---
 
