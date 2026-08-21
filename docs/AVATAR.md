@@ -1416,6 +1416,49 @@ vérification immédiate : la texture produite doit approcher les **1,530 %** d'
 C'est là que reprend le travail. Le reste du pilier — mesures, voies mortes, clés de méthode — est
 consigné aux §16.5 à §16.21.
 
+### 16.22 L'avatar complet — ce qui vient du jeu, ce qui est produit
+
+L'auteur du projet a demandé que les données manquantes soient **complétées**, et non laissées en
+creux. Elles le sont, en gardant la distinction traçable : dans chaque cas la **position** est
+mesurée sur le modèle du jeu, la **forme** est produite.
+
+| élément | position, mesurée sur le jeu | forme |
+|---|---|---|
+| yeux | maille `parts_eye_10`, `x ± 0,116`, `y ∈ [1,362 ; 1,579]` | produite (`dessiner_oeil`) |
+| mains | 26 sommets d'extrémité des bras, `x = ± 0,326`, `y ∈ [1,134 ; 1,264]` | produite (`boites_mains`) |
+| forme de visage | base du cou à `y = 1,290` | produite (`deformer_visage`) |
+| pose des bras | seuil épaule/torse à `|x| = 0,200` | produite (`poser_bras`) |
+
+Pourquoi il fallait produire : vingt variantes d'`01_eye` mesurées à **0,000 %** d'encre ; la
+palette d'os des mains absente du G4MD (`skin_probe` : indices 0..37 pour 158 os déclarés) ; les
+six parts de forme de visage à `resource = 0xFFFFFFFF` ; et la géométrie livrée en pose de liaison,
+que seul le skinning met en pose.
+
+**Le seuil de 0,200 est la mesure qui a débloqué la pose.** Deux essais antérieurs, bornés à vue,
+avaient emporté l'un les jambes et les chaussures — corps en pyramide — l'autre la tête, écrasée en
+largeur. En découpant la maille en tranches de `|x|`, la séparation est nette : sous 0,20 les
+sommets descendent à `y = 0,895` (le torse), au-delà ils forment une bande étroite (le bras). Ce
+seuil écarte aussi la tête, le short et les chaussures sans condition supplémentaire.
+
+Ordre des transformations, qui compte : yeux et mains ajoutés d'abord, **puis** pose, forme et
+taille. Autrement les mains restent à l'horizontale, détachées des manches.
+
+### 16.23 L'interface, onze contrôles sur onze
+
+Prouvé en production par un banc Playwright, sans une erreur console ni HTTP : genre (deux sens),
+morphologie (deux sens), curseur de taille, coupe de cheveux, yeux, bouche, couleur de peau, forme
+de visage, saisie du nom. Trois d'entre eux ne fonctionnaient pas avant :
+
+- **le curseur de taille** pilotait l'interface sans atteindre le modèle ; il applique désormais une
+  stature de 1,25 m à 2,08 m sur quinze crans ;
+- **la forme de visage** ne pouvait rien changer, ses parts ne désignant aucune ressource ;
+- **un cran de morphologie** était redondant — `male` et `female` sont la même morphologie,
+  départagée par le genre — et a été masqué.
+
+Deux pièges de méthode, à retenir : la rubrique « Yeux » se rend **en lignes dépliables**, un banc
+qui ne fait que cliquer la ligne conclut à tort qu'elle est inerte ; et la palette de couleurs est
+faite de pastilles, non de vignettes, ce qui trompe un sélecteur cherchant des images.
+
 ---
 
 ## Régénérer chaque chiffre de ce document
