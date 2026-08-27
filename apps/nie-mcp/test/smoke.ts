@@ -75,17 +75,21 @@ async function main(): Promise<void> {
   // 8 outils de données + 5 de pilotage de l'explorateur + le lancement du jeu.
   check("listTools", names.length === 14, `${names.length} outils : ${names.join(", ")}`);
 
-  // (1) re_coverage : pct plausible (~93 %), total 52783.
+  // (1) re_coverage : pct plausible, et total COHÉRENT avec les lignes de `function`.
+  // Pas de constante en dur : le nombre de racines `.pdata` dépend du build ciblé et d'un
+  // `niers rebuild` (52 783 au 2026-08-10, 55 351 depuis le 2026-08-15). Le figer faisait
+  // échouer la smoke sur une KB pourtant saine. Ce qui doit tenir, c'est la cohérence.
   {
     const { data } = await callJson<{
       latest: { pct: number; total_funcs: number; named: number; classified: number };
       function_rows_total: number;
     }>(client, "re_coverage", {});
     const pct = data.latest?.pct ?? 0;
+    const total = data.latest?.total_funcs ?? 0;
     check(
       "re_coverage",
-      pct >= 85 && pct <= 100 && data.latest?.total_funcs === 52783,
-      `pct=${pct.toFixed(2)} total=${data.latest?.total_funcs} named=${data.latest?.named} rows=${data.function_rows_total}`,
+      pct >= 85 && pct <= 100 && total > 50_000 && total === data.function_rows_total,
+      `pct=${pct.toFixed(2)} total=${total} named=${data.latest?.named} rows=${data.function_rows_total}`,
     );
   }
 
