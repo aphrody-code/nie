@@ -189,6 +189,14 @@ pub fn pack_mod(
         if rel.ends_with("cpk_list.cfg.bin") {
             continue;
         }
+        // Tout ce qui n'est pas sous `data/` est une métadonnée du mod — manifeste, README,
+        // capture — et n'a rien à faire dans l'index du jeu. Sans ce filtre, `mod.json` était
+        // copié à la racine de l'installation ET inscrit comme une entrée neuve : le compte
+        // passait à 255 309 pour un mod de trois fichiers, ce qui se voit, mais un mod livré
+        // avec dix documents aurait pollué l'index d'autant sans que rien ne l'annonce.
+        if crate::manifeste::est_metadonnee(rel) {
+            continue;
+        }
         let taille = std::fs::metadata(absolu).map(|m| m.len()).unwrap_or(0);
         let taille = i32::try_from(taille)
             .map_err(|_| format!("{rel} : dépasse 2 Gio, taille non représentable dans cpk_list"))?;
@@ -232,6 +240,13 @@ pub fn pack_mod(
     let echecs: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
     fichiers.par_iter().for_each(|(absolu, rel)| {
         if rel.ends_with("cpk_list.cfg.bin") {
+            return;
+        }
+        // Même filtre que l'indexation ci-dessus : les deux boucles parcourent la même liste,
+        // et n'en écarter qu'une déposait le manifeste à la racine de l'installation du jeu
+        // tout en laissant l'index propre — un demi-correctif est ici pire qu'aucun, parce
+        // qu'il rend le compte rassurant alors que le dossier ne l'est pas.
+        if crate::manifeste::est_metadonnee(rel) {
             return;
         }
         let dest = sortie.join(rel);

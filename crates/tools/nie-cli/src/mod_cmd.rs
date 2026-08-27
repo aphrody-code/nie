@@ -415,8 +415,42 @@ fn set(
     // échouer ici, pas au moment de l'installation, et surtout pas dans le jeu.
     let (_, verif) = charger(&nouveaux)
         .context("le fichier réencodé ne se relit pas — modification refusée")?;
-    if verif.pointer(pointeur) != Some(&apres) {
-        bail!("le fichier réencodé ne rend pas la valeur posée — modification refusée");
+    // Dire ce qui a été relu, et non pas seulement que ça diffère : sans la valeur trouvée, on
+    // ne distingue pas un pointeur qui a glissé (nœud absent) d'un reformatage de la valeur.
+    match verif.pointer(pointeur) {
+        Some(relu) if relu == &apres => {}
+        Some(relu) => bail!(
+            "le fichier réencodé rend {relu} là où {apres} a été posé — modification refusée"
+        ),
+        None => {
+            // Dire OÙ le chemin se brise : un pointeur perdu sans plus de précision ne se
+            // diagnostique pas. On redescend segment par segment jusqu'au premier absent.
+            let mut chemin = String::new();
+            let mut rompu = String::from("(racine)");
+            for seg in pointeur.split('/').skip(1) {
+                chemin.push('/');
+                chemin.push_str(seg);
+                if verif.pointer(&chemin).is_none() {
+                    rompu = chemin.clone();
+                    break;
+                }
+            }
+            let avant_rupture = rompu.rsplit_once('/').map_or("", |(p, _)| p).to_string();
+            let dispo = verif.pointer(&avant_rupture).map_or_else(
+                || "—".to_string(),
+                |v| match v {
+                    Value::Array(a) => format!("tableau de {} éléments", a.len()),
+                    Value::Object(o) => {
+                        format!("objet {{{}}}", o.keys().cloned().collect::<Vec<_>>().join(", "))
+                    }
+                    autre => format!("{autre}"),
+                },
+            );
+            bail!(
+                "après réencodage, le pointeur « {pointeur} » se brise à « {rompu} » ; \
+                 « {avant_rupture} » contient : {dispo} — modification refusée"
+            )
+        }
     }
 
     let p = ecrire_dans_le_mod(dir, chemin, &nouveaux)?;
