@@ -356,6 +356,49 @@ impl Vfs {
             .is_file()
     }
 
+    /// Chemin disque d'un fichier « loose » — déclaré dans `cpk_list.cfg.bin` avec un CPK vide,
+    /// donc servi depuis le disque et non depuis un pack.
+    ///
+    /// Le chemin déclaré n'est pas toujours le chemin réel : sur l'installation Steam, les deux
+    /// vidéos d'introduction sont annoncées sous `data/common/movie/` et rangées sous
+    /// `data/dx11/movie/`. Le `cpk_list` donne un chemin **logique**, le disque range par
+    /// répertoire de plateforme. Prendre le chemin déclaré au pied de la lettre rendait ces
+    /// fichiers illisibles — par `read` comme par un dump.
+    ///
+    /// La résolution essaie donc le chemin déclaré, puis le même sous-chemin sous les autres
+    /// racines de premier niveau présentes dans `data/`. **Un seul** candidat est accepté :
+    /// deux racines portant le même sous-chemin décriraient deux fichiers différents (une
+    /// variante par plateforme), et en choisir un au hasard servirait un contenu faux sous un
+    /// nom juste.
+    ///
+    /// Renvoie `None` si aucun candidat n'existe ou si plusieurs sont en concurrence.
+    #[must_use]
+    pub fn resolve_loose_path(&self, internal_path: &str) -> Option<PathBuf> {
+        let rel = internal_path.strip_prefix("data/").unwrap_or(internal_path);
+        let direct = self.game_data_dir.join(rel);
+        if direct.is_file() {
+            return Some(direct);
+        }
+
+        let (racine, reste) = rel.split_once('/')?;
+        let mut candidats: Vec<PathBuf> = Vec::new();
+        for e in std::fs::read_dir(&self.game_data_dir).ok()?.flatten() {
+            // `packs/` contient les archives, jamais l'arborescence logique : l'écarter évite
+            // de proposer un homonyme qui n'en est pas un.
+            if e.file_name() == racine || e.file_name() == "packs" {
+                continue;
+            }
+            if !e.file_type().is_ok_and(|t| t.is_dir()) {
+                continue;
+            }
+            let c = e.path().join(reste);
+            if c.is_file() {
+                candidats.push(c);
+            }
+        }
+        if candidats.len() == 1 { candidats.pop() } else { None }
+    }
+
     /// Lit un fichier complet du VFS.
     ///
     /// Résolution en quatre étapes :
@@ -363,8 +406,8 @@ impl Vfs {
     /// 2. Index principal (cpk_list.cfg.bin) → CPK non vide : extrait du pack.
     /// 3. Index principal → CPK vide : fichier "loose" enregistré dans cpk_list mais servi
     ///    directement depuis le disque (ex. `IE_15th.usm`, `L5logo.usm`,
-    ///    `app_config_6.00.23.00.cfg.bin`). Le chemin interne commence par `data/` ; on retire
-    ///    ce préfixe pour reconstruire le chemin disque sous `game_data_dir`.
+    ///    `app_config_6.00.23.00.cfg.bin`), localisé par [`Vfs::resolve_loose_path`] — le
+    ///    chemin déclaré et le chemin réel diffèrent pour certains d'entre eux.
     /// 4. Index supplémentaire (`index_extra`, peuplé par [`Vfs::discover_extra_cpks`]) →
     ///    extrait du CPK hors-cpk_list correspondant.
     pub fn read(&self, internal_path: &str) -> Result<Vec<u8>, FormatError> {
@@ -393,8 +436,9 @@ impl Vfs {
         // fichier de configuration système…). Le chemin interne débute par "data/" ; on retire
         // ce préfixe pour obtenir un chemin relatif à game_data_dir.
         if cpk_filename.is_empty() {
-            let rel = internal_path.strip_prefix("data/").unwrap_or(internal_path);
-            let disk_path = self.game_data_dir.join(rel);
+            let disk_path = self
+                .resolve_loose_path(internal_path)
+                .ok_or(FormatError::Corrupt("loose file manquant sur disque"))?;
             let mut file = File::open(&disk_path)
                 .map_err(|_| FormatError::Corrupt("loose file manquant sur disque"))?;
             let mut data = Vec::new();
@@ -485,6 +529,22 @@ impl Vfs {
     pub fn iter(&self) -> impl Iterator<Item = (&str, &VfsEntry)> {
         self.index.iter().map(|(k, v)| (k.as_str(), v))
     }
+
+    /// Itère sur l'index **supplémentaire** — `(chemin_interne, nom_cpk)` des fichiers dont le
+    /// pack est absent de `cpk_list.cfg.bin` (films, `sound_asset`, packs de mise à jour).
+    ///
+    /// [`Vfs::iter`] ne les voit pas : un consommateur qui veut la couverture **complète** du
+    /// jeu (un dump, un inventaire) doit parcourir les deux. C'est exactement l'écart que
+    /// `nie_viola::dump` laissait passer avant d'appeler cette méthode — plusieurs milliers de
+    /// fichiers réels, silencieusement absents de la sortie et absents aussi du total affiché,
+    /// donc invisibles dans le rapport.
+    ///
+    /// Aucune taille n'est disponible ici : `cpk_list` est la seule source de `file_size`, et
+    /// ces entrées viennent du sommaire du pack. L'appelant lit la taille dans le TOC au
+    /// moment où il ouvre le pack.
+    pub fn iter_extra(&self) -> impl Iterator<Item = (&str, &str)> {
+        self.index_extra.iter().map(|(k, v)| (k.as_str(), v.as_str()))
+    }
 }
 
 /// Nom du marqueur qui identifie la racine du jeu : l'index VFS chiffré.
@@ -531,6 +591,43 @@ pub fn resolve_game_dir() -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Le `cpk_list` annonce les vidéos d'introduction sous `common/movie/` alors que le disque
+    /// les range sous `dx11/movie/`. Sans repli, `read` et tout dump les déclaraient
+    /// « manquantes sur disque » alors qu'elles étaient là. Avec repli, mais **sans** exiger un
+    /// candidat unique, on servirait une variante de plateforme sous le nom d'une autre.
+    #[test]
+    fn un_loose_range_sous_une_autre_racine_est_retrouve_sans_etre_devine() {
+        let base = std::env::temp_dir().join(format!("nie-vfs-loose-{}", std::process::id()));
+        let data = base.join("data");
+        std::fs::create_dir_all(data.join("dx11/movie")).expect("arborescence");
+        std::fs::create_dir_all(data.join("common/system")).expect("arborescence");
+        std::fs::write(data.join("dx11/movie/intro.usm"), b"video").expect("vidéo");
+        std::fs::write(data.join("common/system/app.cfg.bin"), b"cfg").expect("config");
+
+        let mut vfs = Vfs::new();
+        vfs.init_loose(&data).expect("montage loose");
+
+        // Chemin déclaré == chemin réel : rien à résoudre.
+        assert_eq!(
+            vfs.resolve_loose_path("data/common/system/app.cfg.bin"),
+            Some(data.join("common/system/app.cfg.bin")),
+        );
+        // Chemin déclaré sous `common/`, fichier rangé sous `dx11/` : retrouvé.
+        assert_eq!(
+            vfs.resolve_loose_path("data/common/movie/intro.usm"),
+            Some(data.join("dx11/movie/intro.usm")),
+        );
+
+        // Deux racines portant le même sous-chemin : deux fichiers distincts. En choisir un
+        // servirait un contenu faux sous un nom juste — refuser est la seule réponse correcte.
+        std::fs::create_dir_all(data.join("dx12/movie")).expect("seconde plateforme");
+        std::fs::write(data.join("dx12/movie/intro.usm"), b"autre").expect("vidéo bis");
+        assert_eq!(vfs.resolve_loose_path("data/common/movie/intro.usm"), None, "ambigu : refusé");
+
+        assert_eq!(vfs.resolve_loose_path("data/common/movie/absent.usm"), None);
+        std::fs::remove_dir_all(&base).ok();
+    }
 
     /// Mount end-to-end du VRAI jeu Steam s'il est présent (sinon skip). Prouve que
     /// `Vfs::init()` — cassé tant que `cpk_list.cfg.bin` n'était pas déchiffré (AES-256-CBC

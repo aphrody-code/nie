@@ -866,6 +866,45 @@ enum ViolaOp {
         /// Nombre de threads rayon (défaut : autant que de cœurs).
         #[arg(long)]
         threads: Option<usize>,
+        /// Ignore les packs absents de `cpk_list.cfg.bin` (films, sound_asset, mises à jour).
+        /// Par défaut ils sont inclus — les exclure retire plusieurs milliers de fichiers réels.
+        #[arg(long)]
+        sans_extra: bool,
+        /// N'écrit pas le journal des échecs `.nie-dump-echecs.json`.
+        #[arg(long)]
+        sans_journal: bool,
+        /// Dépose l'index de contenu `.nie-dump-index.tsv` (chemin, taille, pack), trié.
+        #[arg(long)]
+        index: bool,
+        /// N'exige pas que la taille extraite corresponde au sommaire du pack.
+        #[arg(long)]
+        sans_verification: bool,
+        #[arg(long)]
+        game_dir: Option<PathBuf>,
+    },
+    /// Confronte un dossier dumpé à l'index du VFS : ce qui manque, ce qui est tronqué, ce qui
+    /// est en trop. Le rapport du dump dit ce qu'il a fait ; ceci dit ce qui est là.
+    Verify {
+        /// Dossier dumpé à vérifier.
+        #[arg(long, short = 'd')]
+        dir: PathBuf,
+        /// Filtre sur le chemin VFS, même syntaxe que `dump`.
+        #[arg(long)]
+        filtre: Option<String>,
+        /// Compare le contenu d'un fichier sur N avec le VFS (0 = aucune comparaison, 1 = tout).
+        #[arg(long, default_value_t = 500)]
+        echantillon: usize,
+        /// Liste aussi les fichiers présents dans le dossier mais absents de l'index.
+        #[arg(long)]
+        intrus: bool,
+        /// Nombre d'anomalies affichées (le rapport JSON les garde toutes).
+        #[arg(long, default_value_t = 20)]
+        limite: usize,
+        /// N'écrit pas le rapport `.nie-dump-verif.json`.
+        #[arg(long)]
+        sans_rapport: bool,
+        #[arg(long)]
+        threads: Option<usize>,
         #[arg(long)]
         game_dir: Option<PathBuf>,
     },
@@ -3203,7 +3242,19 @@ fn convert_sprites(
 
 fn viola_cmd(op: ViolaOp) -> anyhow::Result<()> {
     match op {
-        ViolaOp::Dump { out, filtre, preset, sans_reprise, tout_reecrire, threads, game_dir } => {
+        ViolaOp::Dump {
+            out,
+            filtre,
+            preset,
+            sans_reprise,
+            tout_reecrire,
+            threads,
+            sans_extra,
+            sans_journal,
+            index,
+            sans_verification,
+            game_dir,
+        } => {
             // Un preset nomme se resout en specification de filtre ; un nom inconnu est une
             // erreur, jamais un dump silencieux du jeu entier.
             let filtre = match (filtre, preset) {
@@ -3222,6 +3273,11 @@ fn viola_cmd(op: ViolaOp) -> anyhow::Result<()> {
                 reprise: !sans_reprise,
                 sauter_identiques: !tout_reecrire,
                 threads,
+                inclure_extra: !sans_extra,
+                verifier_taille: !sans_verification,
+                journal: !sans_journal,
+                index_contenu: index,
+                controler_casse: true,
             };
             let annuler = std::sync::atomic::AtomicBool::new(false);
             // Le rapport d'avancement n'écrit qu'une ligne réécrite en place : appelé depuis
@@ -3232,14 +3288,81 @@ fn viola_cmd(op: ViolaOp) -> anyhow::Result<()> {
             };
             let r = nie_viola::dump_all(&vfs, &out, &options, &annuler, &progres).map_err(anyhow::Error::msg)?;
             eprintln!();
+            println!("planifiés {}", r.total);
             println!("extraits  {}", r.extraits);
             println!("sautés    {}", r.sautes);
             println!("échecs    {}", r.echecs);
-            println!("octets    {}", r.octets);
+            println!("octets    {} ({:.2} Gio)", r.octets, r.octets as f64 / 1.073_741_824e9);
             println!("packs repris {}", r.packs_repris);
+            // Ce que `Vfs::iter` seul ne voyait pas : le chiffrer rend le gain de couverture
+            // vérifiable au lieu de le supposer.
+            if r.depuis_extra > 0 {
+                println!("hors cpk_list {} (packs absents de l'index principal)", r.depuis_extra);
+            }
+            // Sur NTFS le second de deux chemins homographes écrase le premier, sans erreur :
+            // la sortie compte alors moins de fichiers qu'annoncé, et rien ne le disait.
+            if r.collisions_casse > 0 {
+                println!(
+                    "collisions de casse {} — chemins écrasés sur NTFS, détail dans {}",
+                    r.collisions_casse,
+                    nie_viola::dump::chemin_journal(&out).display()
+                );
+            }
+            // Un total d'échecs ne se répare pas ; une ventilation, si.
+            for (raison, n) in r.echecs_par_raison() {
+                println!("  {:<20} {n}", raison.nom());
+            }
+            if r.echecs > 0 && !sans_journal {
+                println!("journal   {}", nie_viola::dump::chemin_journal(&out).display());
+            }
+            if index {
+                println!("index     {}", nie_viola::dump::chemin_index(&out).display());
+            }
             if r.annule {
                 println!("annulé    oui");
             }
+            Ok(())
+        }
+        ViolaOp::Verify { dir, filtre, echantillon, intrus, limite, sans_rapport, threads, game_dir } => {
+            let vfs = open_vfs(game_dir)?;
+            let options = nie_viola::VerifOptions {
+                filtre,
+                inclure_extra: true,
+                echantillon,
+                threads,
+            };
+            let r = nie_viola::verifier(&vfs, &dir, &options).map_err(anyhow::Error::msg)?;
+            println!("attendus  {}", r.attendus);
+            println!("conformes {} ({:.3} %)", r.conformes, r.couverture());
+            println!("manquants {}", r.manquants);
+            println!("tailles divergentes {}", r.tailles_divergentes);
+            println!("octets    {} ({:.2} Gio)", r.octets, r.octets as f64 / 1.073_741_824e9);
+            // Une taille juste ne prouve pas un contenu juste : un déchiffrement à mauvaise clé
+            // rend exactement le bon nombre d'octets. C'est l'échantillon qui le détecte.
+            if r.compares > 0 {
+                println!("contenus comparés {} — divergents {}", r.compares, r.contenus_divergents);
+            }
+            if r.illisibles > 0 {
+                println!("illisibles {}", r.illisibles);
+            }
+            for c in r.constats.iter().take(limite) {
+                println!("  {:<18} {} (attendu {}, trouvé {})", c.anomalie.nom(), c.chemin, c.attendu, c.trouve);
+            }
+            if r.constats.len() > limite {
+                println!("  … {} autres", r.constats.len() - limite);
+            }
+            if intrus {
+                let liste = nie_viola::verify::intrus(&vfs, &dir).map_err(anyhow::Error::msg)?;
+                println!("hors index {}", liste.len());
+                for c in liste.iter().take(limite) {
+                    println!("  intrus  {c}");
+                }
+            }
+            if !sans_rapport {
+                nie_viola::verify::ecrire_rapport(&dir, &r)?;
+                println!("rapport   {}", nie_viola::verify::chemin_rapport(&dir).display());
+            }
+            println!("verdict   {}", if r.conforme() { "conforme" } else { "NON CONFORME" });
             Ok(())
         }
         ViolaOp::Pack { mod_dir, out, cpk_list, switch, game_dir } => {

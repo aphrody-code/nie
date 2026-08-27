@@ -180,6 +180,7 @@ pub fn viola_dump_start(
             reprise,
             sauter_identiques,
             threads: threads.map(|t| t as usize),
+            ..nie_viola::DumpOptions::default()
         };
         let app_progres = app.clone();
         let id_progres = id.clone();

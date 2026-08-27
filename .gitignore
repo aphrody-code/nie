@@ -222,3 +222,6 @@ compile_commands.json
 /*.exe.local
 /Capture*.png
 /*.glb
+
+# Artefacts du dump VFS (manifeste de reprise, journal, index de contenu)
+.nie-dump-*
