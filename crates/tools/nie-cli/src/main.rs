@@ -10,6 +10,7 @@ mod img_cmd;
 mod lua_cmd;
 mod mem_lua;
 mod menu_predecode;
+mod mod_cmd;
 mod mode_index;
 mod search_cmd;
 mod seed_ui;
@@ -64,6 +65,15 @@ enum Cmd {
     },
     /// Dit quels back-ends de la CLI unique sont construits, et où.
     Backends,
+    /// Le cycle de modding complet : créer un mod, l'éditer, le valider, l'installer.
+    ///
+    /// `viola` porte les opérations de bas niveau sur les archives ; `mod` porte le cycle de
+    /// travail par-dessus — et surtout l'**édition**, que la CLI ne savait pas faire : les
+    /// encodeurs `cfgbin`/`g4tx` existaient sans aucun appelant ici.
+    Mod {
+        #[command(subcommand)]
+        op: mod_cmd::ModOp,
+    },
     /// Opérations de modding LEVEL-5 — le périmètre de l'outil Viola, en Rust natif.
     ///
     /// Reprend ce que `niers cs dump` / `niers cpp pack` déléguaient : chaque sous-commande ici
@@ -1687,6 +1697,7 @@ fn run() -> anyhow::Result<()> {
     match cli.cmd {
         Cmd::Cpp { args } => delegate::cpp(&args),
         Cmd::Cs { args } => delegate::cs(&args),
+        Cmd::Mod { op } => mod_cmd::executer(op),
         Cmd::Viola { op } => viola_cmd(op),
         Cmd::Backends => {
             // Le nombre de commandes vient de clap : il suit le binaire, pas une note qui derive.

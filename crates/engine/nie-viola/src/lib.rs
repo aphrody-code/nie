@@ -30,6 +30,7 @@
 pub mod crypto;
 pub mod dump;
 pub mod filtre;
+pub mod manifeste;
 pub mod merge;
 pub mod pack;
 pub mod presets;
@@ -38,6 +39,7 @@ pub mod verify;
 pub use crypto::{CriwareKey, crypt_bytes, crypt_file};
 pub use filtre::Filtre;
 pub use dump::{DumpOptions, DumpProgress, DumpReport, Echec, Raison, dump_all};
+pub use manifeste::{Dependance, FichierMod, Manifeste, Version, ordonner};
 pub use merge::{Conflit, MergeReport, MergeStrategy, merge_dirs};
 pub use pack::{CpkListCrypto, PackReport, Platform, decode_cpk_list, encode_cpk_list, pack_mod};
 pub use verify::{Anomalie, Constat, VerifOptions, VerifReport, verifier};

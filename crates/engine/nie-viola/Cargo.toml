@@ -17,5 +17,8 @@ workspace = true
 nie-formats.workspace = true
 rayon.workspace = true
 memmap2.workspace = true
-# Uniquement pour le manifeste de reprise du dump (une liste de noms de packs).
+# Le manifeste de reprise du dump (une liste de noms de packs), le journal des échecs, et le
+# manifeste de mod — qui est un format de fichier public, donc décrit par des types plutôt que
+# par du parsing manuel.
 serde_json.workspace = true
+serde.workspace = true

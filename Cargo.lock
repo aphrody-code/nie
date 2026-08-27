@@ -4556,6 +4556,7 @@ dependencies = [
  "memmap2",
  "nie-formats",
  "rayon",
+ "serde",
  "serde_json",
 ]
 

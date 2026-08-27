@@ -225,3 +225,6 @@ compile_commands.json
 
 # Artefacts du dump VFS (manifeste de reprise, journal, index de contenu)
 .nie-dump-*
+
+# Espace de travail des mods — contient des assets © LEVEL-5 extraits du jeu
+mods/
