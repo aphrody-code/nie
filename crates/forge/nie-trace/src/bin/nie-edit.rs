@@ -171,6 +171,29 @@ fn classify_rva(expected: Option<u64>, got: u64) -> RvaVerdict {
     }
 }
 
+/// Noyau d'une signature AOB : son plus long préfixe d'octets **concrets**, borné à 8.
+///
+/// Nos signatures mêlent deux choses de nature différente : l'instruction qui porte
+/// l'information (un offset de champ, une chaîne de pointeurs) et le code qui l'entoure,
+/// retenu pour lever l'ambiguïté. Le second ne survit pas à une recompilation, le premier si.
+/// Isoler le préfixe concret rend donc au scan ce qui a du sens quand la signature entière
+/// échoue.
+///
+/// Le seuil de six octets n'est pas cosmétique : en deçà, le motif attrape n'importe quelle
+/// instruction courante et la liste de candidats ne vaut rien. Les signatures faites presque
+/// entièrement de jokers (les cooldowns, `F3 0F 5C ?? …`) rendent donc `None` — dire qu'il n'y
+/// a rien à rattraper est plus honnête que produire trois cents adresses au hasard.
+fn noyau_aob(aob: &str) -> Option<String> {
+    let mut octets = Vec::new();
+    for jeton in aob.split_whitespace() {
+        if jeton.contains('?') || octets.len() == 8 {
+            break;
+        }
+        octets.push(jeton);
+    }
+    (octets.len() >= 6).then(|| octets.join(" "))
+}
+
 fn cmd_resolve(pos: &[String], flags: &Flags) -> Result<(), String> {
     let pid = resolve_pid(flags)?;
     let module = module_of(flags);
@@ -191,7 +214,31 @@ fn cmd_resolve(pos: &[String], flags: &Flags) -> Result<(), String> {
         let pat = Pattern::parse(aob).map_err(|err| format!("{}: {err}", e.id))?;
         let hits = scan_regions_masked(pid, &regions, Some(base), &pat, 4);
         if hits.is_empty() {
-            println!("  {:<26} ✗ aucun hit", e.id);
+            // Une signature absente ne veut pas dire que le site a disparu : nos AOB portent du
+            // contexte de code autour de l'instruction utile, et ce contexte change à chaque
+            // recompilation. Constaté sur le build Steam d'août 2026 — `tension` était donné
+            // « introuvable » alors que son instruction porteuse, `mov eax,[rax+0x1058]`, était
+            // présente six fois. Rapporter les candidats du noyau vaut mieux qu'un verdict faux.
+            match noyau_aob(aob).and_then(|n| Pattern::parse(&n).ok().map(|p| (n, p))) {
+                Some((noyau, pat_noyau)) => {
+                    let cands = scan_regions_masked(pid, &regions, Some(base), &pat_noyau, 32);
+                    if cands.is_empty() {
+                        println!("  {:<26} ✗ aucun hit (noyau « {noyau} » absent aussi)", e.id);
+                    } else {
+                        println!(
+                            "  {:<26} ✗ signature complète absente — noyau « {noyau} » : {} candidat(s)",
+                            e.id,
+                            cands.len()
+                        );
+                        for h in cands.iter().take(8) {
+                            println!("      candidat  0x{:X}  rva 0x{:X}", h.addr, h.rva.unwrap_or(0));
+                        }
+                    }
+                }
+                // Pas de noyau exploitable : la signature est presque entièrement du contexte
+                // (cas des cooldowns), il n'y a rien de sémantique à rattraper.
+                None => println!("  {:<26} ✗ aucun hit", e.id),
+            }
             miss += 1;
             continue;
         }
