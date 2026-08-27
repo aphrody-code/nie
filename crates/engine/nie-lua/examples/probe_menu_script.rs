@@ -12,15 +12,25 @@ use nie_lua::{install_include, install_menu_host, new_vm, run_menu};
 
 fn main() {
     let needle = std::env::args().nth(1).unwrap_or_else(|| "title02".into());
-    let dir = "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road";
+    // Aucun chemin de machine en dur : la racine se résout à l'exécution (`NIE_GAME_DIR`, cwd,
+    // ancêtre portant `data/cpk_list.cfg.bin`). Un chemin WSL compilé ici échouait sous Windows
+    // natif sur « impossible d'ouvrir cpk_list.cfg.bin », qui accuse le VFS au lieu du chemin.
+    let dir = nie_formats::vfs::resolve_game_dir();
     let mut vfs = nie_formats::vfs::Vfs::new();
-    vfs.init(Path::new(dir).join("data").as_path()).expect("vfs init");
+    vfs.init(Path::new(&dir).join("data").as_path()).expect("vfs init");
 
     // Index basename → chemin (pour INCLUDE).
+    // Index par **base logique versionless** (`script_logical_base`), la clé qu'attend la
+    // résolution d'INCLUDE : le fichier porte un suffixe de version
+    // (`main_menu_inc_3.00.01.00.lua.bin`) que le nom logique n'a pas. Indexer par basename brut
+    // fait échouer l'inclusion *en silence* — la table `MENU_DEF` reste incomplète et `OnInit`
+    // plante bien plus loin sur « attempt to index field 'MAIN_MENU' (a nil value) ».
     let mut by_base: HashMap<String, String> = HashMap::new();
     for (p, _) in vfs.iter() {
         if let Some(b) = p.rsplit('/').next().filter(|b| b.ends_with(".lua.bin")) {
-            by_base.entry(b.to_ascii_lowercase()).or_insert_with(|| p.to_string());
+            by_base
+                .entry(nie_lua::script_logical_base(b))
+                .or_insert_with(|| p.to_string());
         }
     }
 
@@ -53,14 +63,36 @@ fn main() {
         {
             let (vfs, by_base) = (Rc::clone(&vfs), Rc::clone(&by_base));
             install_include(&lua, move |n| {
-                let c = format!("{}.lua.bin", n.to_ascii_lowercase());
-                by_base.get(&c).or_else(|| by_base.get(&n.to_ascii_lowercase()))
-                    .and_then(|p| vfs.read(p).ok())
+                // `INCLUDE` reçoit un nom logique (`LUA_MAIN_MENU_INC`), pas un nom de fichier.
+                let hit = by_base.get(&nie_lua::include_logical_base(n));
+                // Tracer chaque INCLUDE : une inclusion non résolue échoue *en silence* et
+                // ne se manifeste que bien plus tard, par un champ nil dans une table.
+                match hit {
+                    Some(p) => eprintln!("  INCLUDE {n:<28} -> {p}"),
+                    None => eprintln!("  INCLUDE {n:<28} -> NON RESOLU"),
+                }
+                hit.and_then(|p| vfs.read(p).ok())
             }).unwrap();
         }
         let state = install_menu_host(&lua).unwrap();
         let func = nie_lua::load_bytecode(&lua, &bytes, name).unwrap();
         let _ = func.call::<()>(());
+
+        // Trace des globals ABSENTS, posée après le top-level pour ne relever que ce qui manque
+        // pendant la construction. Non intrusive : `__index` renvoie nil, exactement ce que Lua
+        // ferait sans métatable — la sémantique du script est inchangée, on ne fait qu'observer.
+        lua.load(
+            r"
+            _MISSING = {}
+            setmetatable(_G, { __index = function(_, k)
+                _MISSING[k] = (_MISSING[k] or 0) + 1
+                return nil
+            end })
+            ",
+        )
+        .set_name("<missing-recorder>")
+        .exec()
+        .unwrap();
 
         let call0 = |fname: &str| -> String {
             match lua.globals().get::<mlua::Function>(fname) {
@@ -93,10 +125,104 @@ fn main() {
             let after = state.borrow().layers.values().map(|l| l.objects.len()).sum::<usize>();
             println!("  OnSetupLayer(0x{id:08X}) -> {r}  (objets {before} -> {after})");
         }
+        // Balayage : `OnSetupLayer` est un dispatcher qui compare le layerId reçu à ses propres
+        // constantes. Le CRC32 du nom de l'ÉCRAN n'est pas celui d'un LAYER — d'où 0 objet sur
+        // les candidats devinés. On essaie donc tous les layers connus de la KB
+        // (`var/live/layers.txt`, lignes « <hash décimal> <nom> ») et on ne retient que ceux qui
+        // font effectivement croître le nombre d'objets.
+        if let Ok(list) = std::fs::read_to_string("var/live/layers.txt") {
+            let mut hits = 0_usize;
+            let mut tried = 0_usize;
+            for line in list.lines() {
+                let Some((h, lname)) = line.split_once(' ') else { continue };
+                let Ok(id) = h.trim().parse::<u32>() else { continue };
+                tried += 1;
+                let before = state.borrow().layers.values().map(|l| l.objects.len()).sum::<usize>();
+                let _ = call1("OnSetupLayer", i64::from(id));
+                let _ = call1("OnOpenLayer", i64::from(id));
+                let after = state.borrow().layers.values().map(|l| l.objects.len()).sum::<usize>();
+                if after > before {
+                    hits += 1;
+                    println!("  ++ layer 0x{id:08X} {lname} -> +{} objets", after - before);
+                }
+            }
+            println!("  => balayage : {tried} layers essayés, {hits} produisent des objets");
+        }
+        // Provenance des hashes de sprite : le handler `0x140CE74D0` les reçoit en valeurs
+        // NUMÉRIQUES (RE : lecture d'args → `cvttsd2si`), donc le nom n'existe pas côté hôte.
+        // S'ils viennent d'une table Lua, la CLÉ d'accès porte le nom symbolique — on parcourt
+        // `_G` en profondeur pour retrouver le chemin d'accès de chaque valeur observée.
+        {
+            let wanted: Vec<u32> = state
+                .borrow()
+                .layers
+                .values()
+                .flat_map(|l| l.objects.values())
+                .filter_map(|o| o.sprite_texture_hash)
+                .collect();
+            if !wanted.is_empty() {
+                let list = wanted.iter().map(|h| format!("[{h}]=true")).collect::<Vec<_>>().join(",");
+                let src = format!(
+                    r"
+                    local want = {{{list}}}
+                    local seen, out = {{}}, {{}}
+                    local function walk(t, path, depth)
+                        if depth > 4 or seen[t] then return end
+                        seen[t] = true
+                        for k, v in pairs(t) do
+                            local kp = path .. '.' .. tostring(k)
+                            if type(v) == 'number' and want[v] then
+                                out[#out+1] = string.format('%s = %d', kp, v)
+                            elseif type(v) == 'table' then
+                                walk(v, kp, depth + 1)
+                            end
+                        end
+                    end
+                    walk(_G, '_G', 0)
+                    return table.concat(out, '\n')
+                    "
+                );
+                match lua.load(&src).set_name("<hash-origin>").eval::<String>() {
+                    Ok(s) if !s.is_empty() => {
+                        println!("  => provenance des hashes de sprite :");
+                        for l in s.lines().take(20) {
+                            println!("       {l}");
+                        }
+                    }
+                    Ok(_) => println!(
+                        "  => provenance : aucun hash de sprite n'est une constante de table Lua \
+                         (calculés à la volée, ou portés par le bytecode)"
+                    ),
+                    Err(e) => println!("  => provenance : ERR {e}"),
+                }
+            }
+        }
         let st = state.borrow();
         let nobj: usize = st.layers.values().map(|l| l.objects.len()).sum();
         println!("  => OnInit MenuState: layers={} objects={} known={} unknown={}",
             st.layers.len(), nobj, st.known_cmd_log.len(), st.unknown_cmd_log.len());
+        // Les commandes RÉELLEMENT émises : un menu qui ne construit rien mais émet quand même
+        // prouve que le canal `funcLuaMenuCommand` marche, et dit où le script s'arrête.
+        for (cmd, layer) in &st.known_cmd_log {
+            println!("    cmd connue   {cmd:<28} layer=0x{layer:08X}");
+        }
+        for (cmd, layer, arg) in &st.unknown_cmd_log {
+            println!("    cmd INCONNUE 0x{cmd:08X} layer=0x{layer:08X} {arg}");
+        }
+        // Ce que le script a cherché sans le trouver : la surface d'API hôte qui reste à fournir.
+        // Un menu qui ne construit rien échoue d'abord ici, pas dans ses callbacks.
+        if let Ok(missing) = lua.globals().get::<mlua::Table>("_MISSING") {
+            let mut names: Vec<(String, i64)> = missing
+                .pairs::<String, i64>()
+                .filter_map(Result::ok)
+                .filter(|(k, _)| k != "_MISSING")
+                .collect();
+            names.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+            println!("  => globals ABSENTS pendant la construction : {}", names.len());
+            for (k, n) in names.iter().take(25) {
+                println!("       {k:<44} x{n}");
+            }
+        }
         for (lid, layer) in &st.layers {
             println!("    layer 0x{lid:08X} vis={} obj={}", layer.visible, layer.objects.len());
             for (oid, o) in &layer.objects {
@@ -143,8 +269,9 @@ fn main() {
             {
                 let (vfs, by_base) = (Rc::clone(&vfs), Rc::clone(&by_base));
                 install_include(&lua, move |n| {
-                    let c = format!("{}.lua.bin", n.to_ascii_lowercase());
-                    by_base.get(&c).or_else(|| by_base.get(&n.to_ascii_lowercase()))
+                    // Même résolution logique que la passe DRIVER ci-dessus.
+                    by_base
+                        .get(&nie_lua::include_logical_base(n))
                         .and_then(|p| vfs.read(p).ok())
                 }).unwrap();
             }

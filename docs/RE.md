@@ -242,6 +242,46 @@ Le moteur nomme ses passes : `00_Zero`, `00_UI_Before`, `10_MapBefore`, `15_Proj
 
 `<LG>` = langue, `%s` = segment dynamique, `_l` = variante large.
 
+## RE en direct — ce que le process vivant dit du fichier (2026-08-27)
+
+Mesure faite sur l'installation Steam (`NIE_GAME_DIR` = `…/steamapps/common/INAZUMA ELEVEN Victory Road`),
+`nie.exe` lancé **sans** `GameBootstrapper`/`EACLauncher` (service `EasyAntiCheat_EOS` à l'arrêt),
+mémoire lue par `nie-mem` **élevé** (sans élévation, l'énumération des modules échoue et l'outil
+dit « module introuvable » — le message accuse le module quand le privilège est en cause).
+
+- Base runtime `0x7ff7ed6e0000`, soit un **slide ASLR de `0x7ff6ad6e0000`** sur `NIE_IMAGE_BASE`.
+- Le `.text` mappé est **byte-identique au fichier**, à **5 plages près** sur 25 602 048 octets.
+  Une seule est légitime (`IMAGE_REL_BASED_DIR64` à `rva 0xA4DEDD`) ; les **4 autres sont des
+  patchs runtime** posés par un trainer tiers actif, et n'existent pas dans le fichier :
+
+  | rva | fichier → mémoire | effet |
+  |---|---|---|
+  | `0x123B520` | `48` → `c3` (`ret` à l'offset +0) | neutralise la fonction qui appelle `EOS_Platform_GetAntiCheatClientInterface` + `EOS_Platform_GetP2PInterface` |
+  | `0x123D340` | `48` → `c3` (`ret` à l'offset +0) | neutralise la routine `QueryPerformanceCounter` + `IsDebuggerPresent` appelée par la précédente |
+  | `0x1563800` | `movzx r8d,[rax+rcx+0x2C26]` → `jmp` + 4 `nop` | trampoline en page RWX anonyme (`base+0x10000000`) qui force `[rax+0x2C26] = 0x63` avant de rejouer l'instruction volée |
+  | `0x16831BF` | `addss xmm0,[rdi+0x2208]` → `movss xmm0,[rip+…]` | remplace l'accumulation du chrono par une constante lue en `base+0x20000000` — **gel du temps de match** |
+
+  Méthode reproductible : dumper les régions du module, comparer chaque `rva` au fichier **section
+  par section** (une région dumpée déborde sur la section suivante — comparer sans re-résoudre la
+  section produit des milliers de fausses divergences), puis **croiser avec `.reloc`**. Ce qu'aucune
+  relocation ne couvre est un patch, pas un artefact du loader.
+
+- Conséquence directe sur le catalogue : `match-time` **ne se résout plus en live** non parce que sa
+  signature est périmée, mais parce que le trainer a patché les octets que l'AOB attend. Un
+  localisateur qui échoue en mémoire et réussit sur le fichier accuse l'environnement, pas la
+  signature. Le même patch a livré l'offset du champ : le chrono vit à **`entity+0x2208`**.
+
+### Ré-ancrage du catalogue `nie-trace`
+
+Le catalogue était **0 ✓ / 22 drift / 4 introuvable** : ses `rva` de référence venaient d'un autre
+build. Les AOB, eux, étaient bons — ils tombaient sur un site unique, à une `rva` simplement
+différente. Ré-ancrage en scannant le **fichier** (pas la mémoire : pas d'élévation, pas d'ASLR,
+reproductible), puis validation live → **20 ✓ / 0 drift / 4 introuvable**.
+
+Les `rva` trouvées par scan statique coïncident **exactement** avec celles du scan live : les deux
+voies se confirment. Discipline conservée — un AOB à hits multiples (`free-buy-shop`, 2 hits) ou
+introuvable (`special-move-type`) repasse à `rva: None` : on ne devine pas une adresse.
+
 ## Qualité
 
 ```

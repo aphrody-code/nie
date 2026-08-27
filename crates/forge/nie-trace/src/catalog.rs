@@ -225,131 +225,138 @@ pub fn find(id: &str) -> Option<&'static Entry> {
     CATALOG.iter().find(|e| e.id == id)
 }
 
-const RANK_CHAIN: &[i64] = &[0x69A0, 0x5C];
+/// Chaîne du rang, **décodée depuis l'instruction** au site ré-ancré `rva 0xE6AA57` :
+/// `mov rax,[rcx+0x69C8]` puis `mov edx,[rax+0x5C]`. L'offset du singleton est passé de
+/// `0x69A0` à `0x69C8` entre builds ; le `+0x5C` final, lui, n'a pas bougé.
+const RANK_CHAIN: &[i64] = &[0x69C8, 0x5C];
 
 /// Table figée des localisateurs dérivés du dump (cf. `aob_rva_map.json` + `findings.json`).
 pub static CATALOG: &[Entry] = &[
     // ── Player ─────────────────────────────────────────────────────────────────────
     Entry {
         id: "max-abilities", feature: "MemoryEditor::InjectMaxAbilities", category: Category::Player,
-        kind: Kind::Toggle, ty: Ty::U32, aob: Some("44 8B 6F 10 8B 47 04"), rva: Some(0xD72145),
+        kind: Kind::Toggle, ty: Ty::U32, aob: Some("44 8B 6F 10 8B 47 04"), rva: Some(0xD8FF75),
         field: Some(0x10), chain: None,
         doc: "force les capacités au max — site mov r13d,[rdi+0x10] (hits_other=1, vérifier le hit)",
     },
     Entry {
         id: "enhance", feature: "MemoryEditor::InjectEnhance", category: Category::Player,
         kind: Kind::Toggle, ty: Ty::U32,
-        aob: Some("44 8B 81 ?? ?? ?? ?? 48 ?? ?? 45 ?? ?? 0F ?? ?? ?? ?? ?? 66"), rva: Some(0x1163296),
+        aob: Some("44 8B 81 ?? ?? ?? ?? 48 ?? ?? 45 ?? ?? 0F ?? ?? ?? ?? ?? 66"), rva: Some(0x1194FB6),
         field: None, chain: None, doc: "edition de l'enhancement (renforcement d'objet)",
     },
     Entry {
         id: "player-level", feature: "PlayerLevel::EnablePlayerLevel", category: Category::Player,
         kind: Kind::Value, ty: Ty::U32,
-        aob: Some("FF ?? 48 ?? ?? ?? 40 88 7D ?? 49 8B CF"), rva: Some(0xC58530),
+        aob: Some("FF ?? 48 ?? ?? ?? 40 88 7D ?? 49 8B CF"), rva: Some(0xC72400),
         field: None, chain: None, doc: "niveau du joueur (hook d'écriture)",
     },
     // ── Match ──────────────────────────────────────────────────────────────────────
     Entry {
         id: "tension", feature: "MemoryEditor::InjectTensionMatch", category: Category::Match,
         kind: Kind::StructField, ty: Ty::U32, aob: Some("8B 80 58 10 00 00 EB ?? 8B ?? 80"),
-        rva: Some(0xE9014D), field: Some(0x1058), chain: None,
+        rva: Some(0xEB5D8D), field: Some(0x1058), chain: None,
         doc: "tension/jauge live à entity+0x1058 — mov eax,[rax+0x1058] (offset décodé)",
     },
     Entry {
         id: "rank", feature: "MemoryEditor::InjectRankCapture", category: Category::Match,
         kind: Kind::StructField, ty: Ty::I32,
-        aob: Some("48 8B 81 A0 69 00 00 4C 8B 89 40 0A 00 00 8B 50 5C 33 C0"), rva: None,
+        // Les deux offsets sont masqués : ce sont eux qui bougent d'un build à l'autre, pas la
+        // forme du site. Figés, l'AOB ne donnait aucun hit ; libérés, il en donne exactement un.
+        aob: Some("48 8B 81 ?? ?? 00 00 4C 8B 89 ?? ?? 00 00 8B 50 5C 33 C0"), rva: Some(0xE6AA57),
         field: None, chain: Some(RANK_CHAIN),
-        doc: "rang de match : [singleton+0x69A0]+0x5C (AOB non retrouvé au dump hors-match)",
+        doc: "rang de match : [singleton+0x69C8]+0x5C — offsets décodés au site ré-ancré",
     },
     Entry {
         id: "match-time", feature: "MemoryEditor::InjectMatchTime", category: Category::Match,
-        kind: Kind::Value, ty: Ty::F32,
+        kind: Kind::StructField, ty: Ty::F32,
         aob: Some("F3 0F 59 C6 F3 0F 58 ?? ?? ?? ?? ?? F3 0F 11 ?? ?? ?? ?? ?? EB"),
-        rva: Some(0x15DB9E9), field: None, chain: None, doc: "chrono de match (f32)",
+        rva: Some(0x16831B9), field: Some(0x2208), chain: None,
+        doc: "chrono de match à entity+0x2208 — site `addss xmm0,[rdi+0x2208]` \
+              (accumulation du delta), offset décodé depuis l'instruction",
     },
     Entry {
         id: "special-moves-cooldown", feature: "MemoryEditor::InjectSpecialMovesCooldown",
         category: Category::Match, kind: Kind::Toggle, ty: Ty::F32,
-        aob: Some("F3 0F 5C ?? 0F ?? ?? F3 ?? ?? ?? 77 ?? 89"), rva: Some(0x152AC1E),
+        aob: Some("F3 0F 5C ?? 0F ?? ?? F3 ?? ?? ?? 77 ?? 89"), rva: Some(0x15B51DE),
         field: None, chain: None, doc: "cooldown des techniques (f32)",
     },
     Entry {
         id: "special-tactics-cooldown", feature: "MemoryEditor::InjectSpecialTacticsCooldown",
         category: Category::Match, kind: Kind::Toggle, ty: Ty::F32,
-        aob: Some("76 ?? F3 0F 5C ?? 0F 2F C6 F3 0F 11 84"), rva: Some(0x1622D1B),
+        aob: Some("76 ?? F3 0F 5C ?? 0F 2F C6 F3 0F 11 84"), rva: Some(0x16CB9EC),
         field: None, chain: None, doc: "cooldown des tactiques (f32)",
     },
     Entry {
         id: "freeze-time-ok-to-pass", feature: "MemoryEditor::InjectFreezeTimeOkToPass",
         category: Category::Match, kind: Kind::Toggle, ty: Ty::F32,
         aob: Some("0F ?? ?? ?? ?? ?? F3 ?? ?? ?? B9 ?? ?? ?? ?? F3 0F 58 83 ?? ?? ?? ?? F3"),
-        rva: Some(0x146393E), field: None, chain: None, doc: "gel du timer « ok to pass »",
+        rva: Some(0x14ED6DE), field: None, chain: None, doc: "gel du timer « ok to pass »",
     },
     Entry {
         id: "freeze-time-special-move", feature: "MemoryEditor::InjectFreezeTimeSpecialMove",
         category: Category::Match, kind: Kind::Toggle, ty: Ty::F32,
-        aob: Some("F3 0F 10 83 ?? ?? ?? ?? F3 41 0F 58 ?? ?? F3 0F 5D ?? F3"), rva: Some(0x1464B55),
+        aob: Some("F3 0F 10 83 ?? ?? ?? ?? F3 41 0F 58 ?? ?? F3 0F 5D ?? F3"), rva: Some(0x14EE985),
         field: None, chain: None, doc: "gel du timer de technique",
     },
     Entry {
         id: "freeze-time-goal-keeper", feature: "MemoryEditor::InjectFreezeTimeGoalKeeper",
         category: Category::Match, kind: Kind::Toggle, ty: Ty::F32,
-        aob: Some("75 ?? F3 ?? ?? ?? F3 41 0F 5C ?? F3 ?? ?? ?? F3"), rva: Some(0x149915B),
+        aob: Some("75 ?? F3 ?? ?? ?? F3 41 0F 5C ?? F3 ?? ?? ?? F3"), rva: Some(0x152322E),
         field: None, chain: None, doc: "gel du timer gardien",
     },
     // ── Shop ───────────────────────────────────────────────────────────────────────
     Entry {
         id: "free-buy-shop", feature: "MemoryEditor::InjectFreeBuyShop", category: Category::Shop,
         kind: Kind::Toggle, ty: Ty::U32, aob: Some("4C 8B 7C 24 ?? 8B ?? 4C 8B 64"),
-        rva: Some(0xC47F17), field: None, chain: None,
+        rva: None, field: None, chain: None,
         doc: "achats gratuits boutique — AMBIGU (hits_nie=2, other=24 ; alt rva 0x163D037)",
     },
     Entry {
         id: "free-buy-spirit-market", feature: "MemoryEditor::InjectFreeBuySpiritMarket",
         category: Category::Shop, kind: Kind::Toggle, ty: Ty::U32, aob: Some("0F B7 C6 41 89 06 0F"),
-        rva: Some(0xC38C0E), field: None, chain: None,
+        rva: Some(0xE62D1D), field: None, chain: None,
         doc: "achats gratuits marché aux esprits (DRIFT : resolve live a trouvé 0xE3EDCD ≠ dump 0xC38C0E — à investiguer)",
     },
     Entry {
         id: "drop-rate", feature: "MemoryEditor::InjectDropRate", category: Category::Shop,
         kind: Kind::StructField, ty: Ty::F32, aob: Some("F3 0F 10 B0 ?? 00 00 00 F3 0F 58 70 1C"),
-        rva: Some(0xC0E2B4), field: Some(0x1C), chain: None,
+        rva: Some(0xC27CF4), field: Some(0x1C), chain: None,
         doc: "taux de drop — addss xmm6,[rax+0x1C] (offset décodé)",
     },
     // ── Spirit ─────────────────────────────────────────────────────────────────────
     Entry {
         id: "spirit-increment", feature: "MemoryEditor::InjectSpiritIncrement",
         category: Category::Spirit, kind: Kind::Toggle, ty: Ty::U16, aob: Some("66 89 70 10 EB 41 3C 05"),
-        rva: Some(0xDA2515), field: Some(0x10), chain: None, doc: "incrément d'esprit — mov [rax+0x10],si",
+        rva: Some(0xDC0B25), field: Some(0x10), chain: None, doc: "incrément d'esprit — mov [rax+0x10],si",
     },
     Entry {
         id: "elite-spirit-increment", feature: "MemoryEditor::InjectEliteSpiritIncrement",
         category: Category::Spirit, kind: Kind::Toggle, ty: Ty::U16,
-        aob: Some("66 41 89 74 42 14 4C 8B 74 24 40"), rva: Some(0xDA2556), field: Some(0x14), chain: None,
+        aob: Some("66 41 89 74 42 14 4C 8B 74 24 40"), rva: Some(0xDC0B66), field: Some(0x14), chain: None,
         doc: "incrément d'esprit élite — mov [r10+rax*2+0x14],si",
     },
     Entry {
         id: "spirit-card", feature: "MemoryEditor::EnableSpiritCardInjection",
         category: Category::Spirit, kind: Kind::Toggle, ty: Ty::U32,
-        aob: Some("49 8B 07 49 8B CF FF 50 30 ?? ?? ?? ?? 44 8B"), rva: Some(0xDA1519), field: None,
+        aob: Some("49 8B 07 49 8B CF FF 50 30 ?? ?? ?? ?? 44 8B"), rva: Some(0xDBFB29), field: None,
         chain: None, doc: "injection de carte esprit",
     },
     Entry {
         id: "add-spirit", feature: "PlayerSpirits::EnableAddSpiritHook", category: Category::Spirit,
         kind: Kind::Toggle, ty: Ty::U32, aob: Some("4D 8B 7C ?? 08 4D ?? ?? 0F 84 ?? ?? ?? ?? 49"),
-        rva: Some(0xDA150B), field: None, chain: None, doc: "hook d'ajout d'esprit (hits_other=1)",
+        rva: Some(0xDBFB1B), field: None, chain: None, doc: "hook d'ajout d'esprit (hits_other=1)",
     },
     Entry {
         id: "spirit-list", feature: "PlayerSpirits::EnableGetListHook", category: Category::Spirit,
         kind: Kind::StructField, ty: Ty::U32, aob: Some("48 69 E9 28 01 00 00 49 03 2E 74 ?? 39 ?? ?? 74"),
-        rva: Some(0xE6E08A), field: Some(0x128), chain: None,
+        rva: Some(0xE9271A), field: Some(0x128), chain: None,
         doc: "liste d'esprits — imul rbp,rcx,0x128 (stride d'enregistrement décodé)",
     },
     Entry {
         id: "spirit-id", feature: "PlayerSpirits::EnableGetSpiritIdHook", category: Category::Spirit,
         kind: Kind::StructField, ty: Ty::U32, aob: Some("49 8B ?? 48 8B 51 18 49 8B ?? FF D2 39 30"),
-        rva: Some(0xC8399F), field: Some(0x18), chain: None, doc: "id d'esprit — mov rdx,[rcx+0x18]",
+        rva: Some(0xC9DC1F), field: Some(0x18), chain: None, doc: "id d'esprit — mov rdx,[rcx+0x18]",
     },
     Entry {
         id: "unlimited-spirits", feature: "UnlimitedSpirits::EnableUnlimitedSpirits",
@@ -361,25 +368,25 @@ pub static CATALOG: &[Entry] = &[
     Entry {
         id: "passive-value", feature: "MemoryEditor::InjectPassiveValueEditing",
         category: Category::Passive, kind: Kind::Toggle, ty: Ty::F32,
-        aob: Some("48 8B 0F 0F 57 C9 F3 ?? ?? C8 E8 ?? ?? ?? ?? EB"), rva: Some(0xBFA8C5), field: None, chain: None,
+        aob: Some("48 8B 0F 0F 57 C9 F3 ?? ?? C8 E8 ?? ?? ?? ?? EB"), rva: Some(0xC14385), field: None, chain: None,
         doc: "edition des valeurs de passif (RVA retrouvée LIVE — absente du dump hors-match)",
     },
     Entry {
         id: "special-move-type", feature: "MemoryEditor::InjectSpecialMoveTypeEditing",
         category: Category::Passive, kind: Kind::Toggle, ty: Ty::U32,
-        aob: Some("E8 ?? ?? ?? ?? 48 85 C0 74 3F 8B 58 04"), rva: Some(0xFCA57D), field: Some(0x04), chain: None,
+        aob: Some("E8 ?? ?? ?? ?? 48 85 C0 74 3F 8B 58 04"), rva: None, field: Some(0x04), chain: None,
         doc: "edition du type de technique — mov ebx,[rax+0x04] (RVA retrouvée LIVE, absente du dump)",
     },
     Entry {
         id: "custom-passives", feature: "CustomPassives::EnableHookInternal",
         category: Category::Passive, kind: Kind::Toggle, ty: Ty::U32,
         aob: Some("75 03 45 8B 3E 45 ?? ?? 74 ?? 48 ?? ?? ?? ?? ?? ?? 48 ?? ?? 74 ?? 4C"),
-        rva: Some(0x15B6B0A), field: None, chain: None, doc: "passifs personnalisés (hook interne)",
+        rva: Some(0x165D4DA), field: None, chain: None, doc: "passifs personnalisés (hook interne)",
     },
     Entry {
         id: "custom-passives-summon", feature: "CustomPassivesSummon::EnableHookInternal",
         category: Category::Passive, kind: Kind::Toggle, ty: Ty::U32, aob: Some("42 8B BC AB ?? ?? 00 00"),
-        rva: Some(0xE55A10), field: None, chain: None,
+        rva: Some(0xE7A070), field: None, chain: None,
         doc: "passifs d'invocation — mov edi,[rbx+r13*4+disp32] (REX.X via 0x42)",
     },
 ];
@@ -507,12 +514,16 @@ mod tests {
     #[test]
     fn entry_methods() {
         // static_addr présent quand rva connu, absent sinon.
+        // Comparé à la rva du catalogue, pas à une constante : un ré-ancrage sur un
+        // nouveau build déplace les rva sans invalider la relation testée ici.
         let with_rva = find("tension").unwrap();
-        assert_eq!(with_rva.static_addr(), Some(NIE_IMAGE_BASE + 0xE9014D));
+        assert_eq!(with_rva.static_addr(), Some(NIE_IMAGE_BASE + with_rva.rva.unwrap()));
         assert!(with_rva.pattern().unwrap().is_ok());
-        let no_rva = find("rank").unwrap();
+        // `rank` porte désormais une rva ré-ancrée *et* une chaîne de pointeurs.
+        assert!(find("rank").unwrap().chain.is_some());
+        // Un AOB à hits multiples reste `rva: None` — on ne devine pas une adresse.
+        let no_rva = find("free-buy-shop").unwrap();
         assert_eq!(no_rva.static_addr(), None);
-        assert!(no_rva.chain.is_some());
         // find d'un id absent.
         assert!(find("does-not-exist").is_none());
     }

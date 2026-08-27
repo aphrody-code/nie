@@ -368,8 +368,11 @@ mod tests {
 
     #[test]
     fn run_find_pid_absent_is_err() {
-        assert!(r(&["find-pid"]).is_err()); // défaut "nie.exe", jamais lancé ici
+        // Un nom qui ne tourne jamais : la seule assertion inconditionnelle.
         assert!(r(&["find-pid", "zzz-process-inexistant"]).is_err());
+        // Le défaut est "nie.exe" : il ÉCHOUE si le jeu n'est pas lancé, RÉUSSIT s'il l'est.
+        // Assener l'échec ferait rougir la suite pendant toute session de RE en direct.
+        let _ = r(&["find-pid"]);
     }
 
     #[test]

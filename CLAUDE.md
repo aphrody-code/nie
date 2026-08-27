@@ -63,6 +63,9 @@ bun run lint
   l'autre fait déjà.
 - Régénérer les bindings Tauri sans ouvrir de fenêtre :
   `cd apps/nie-explorer/src-tauri && cargo run --bin export-bindings --features dev-bindings`.
+- **`nie` est aussi un paquet du registre npm.** Sans `bun install` à la racine, `import … from "nie"`
+  résout vers `nie@1.2.7` du cache et non vers `packages/nie` — erreur trompeuse
+  `Export named 'decode' not found`. Le `dlopen` de `nie_ffi.dll` n'est que la cause *suivante*.
 
 ## Doctrine polyglotte — un rôle, un langage
 
@@ -147,6 +150,15 @@ csharp/             IECODE.Core / IECODE.CLI / IECODE.Core.Tests (.NET 10, `IECO
   son `total`. Sommer par `awk '$2!="total"{s+=$1} END{print s}'` (15 549 vs 175 042 lignes).
 - `cargo test --workspace` dépasse les 600 s de timeout : le lancer en arrière-plan **avec
   redirection** (`> /tmp/x.log 2>&1`) — une sortie filtrée par un pipe est perdue à la bascule.
+- **Git Bash réécrit tout argument commençant par `/`** (MSYS path conversion) : un JSON Pointer
+  `/entries/0/...` arrive au programme en `C:/Program Files/Git/entries/0/...`, et l'erreur accuse
+  le pointeur quand le shell est en cause. `export MSYS_NO_PATHCONV=1`, ou une forme sans `/` initial.
+- **Python (Windows) ne résout pas les chemins MSYS** (`/tmp/…`), même règle que `bun` : passer un
+  chemin Windows (`C:\Users\…\AppData\Local\Temp\…`).
+- **Lire la mémoire de `nie.exe` exige une élévation** : le process est plus privilégié que la
+  session, `OpenProcess` échoue et l'outil dit « nie.exe introuvable » alors qu'il tourne.
+- `Start-Process -Verb RunAs` **interdit** `-RedirectStandardOutput` (jeux de paramètres exclusifs) :
+  passer par un `.cmd` qui redirige lui-même, sinon « Parameter set cannot be resolved ».
 
 ## Forge (produire le binaire) — dernière mesure connue 2026-08-10 : 51,86 % du fichier, 66,09 % du `.text`
 
@@ -193,6 +205,7 @@ csharp/             IECODE.Core / IECODE.CLI / IECODE.Core.Tests (.NET 10, `IECO
 
 - Toujours `uv run` (`uv run script.py` ou `uv run python -c "..."`).  
   Interdit d’appeler `python` ou `python3` directement.
+- `numpy` n'est pas dans le venv : `uv run --with numpy python -c "…"` l'ajoute à la volée.
 
 ## Données du jeu (VFS)
 
@@ -209,6 +222,24 @@ csharp/             IECODE.Core / IECODE.CLI / IECODE.Core.Tests (.NET 10, `IECO
 - `niers vfs extract <chemin> -o <FICHIER>` : `-o` est un **fichier**, pas un dossier — sinon
   « Accès refusé (os error 5) », qui n’a rien à voir avec les permissions.
 - Binaires déjà construits dans `target/debug/` (`niers.exe`, `nie-cam.exe`…) : explorer sans rebuild.
+
+## Modding (`niers mod`)
+
+- Cycle : `init` → `add` → `get`/`set` (JSON Pointer sur le pont `nie_explore::bridge`) → `status` →
+  `validate` → `install` / `uninstall`. Un mod = un dossier + `mod.json` + arborescence **VFS** (`data/…`).
+- **`encode_t2b` n'est pas fidèle, et c'est bloquant.** Aller-retour à vide du `cpk_list.cfg.bin` :
+  sha différent, 16 octets de moins, *sans aucune modification* — et `nie.exe` refuse le fichier.
+  Sur `game_param.cfg.bin`, `/entries/0/children` retombe de 812 à 1 élément. Ne rien conclure d'un
+  fichier « relu correctement » : notre parseur est plus permissif que le jeu.
+- Correctif visé : **patcher les octets en place** (offsets conservés) plutôt que réencoder — tout ce
+  qu'un mod change est à taille constante (entiers, flottants, index de chaîne vide déjà dans le pool).
+- `install` part **toujours** du `cpk_list` vanilla sauvegardé ; au-delà de 64 entrées déjà *loose*, il
+  refuse (le fichier a déjà été packé). `uninstall` relit et compare les octets après restauration.
+
+- **Sur cette machine Windows, `NIE_GAME_DIR` est nécessaire** : le `data/` du dépôt existe mais ne
+  porte **pas** `cpk_list.cfg.bin`, donc la remontée d'ancêtres échoue et le VFS ne se monte pas
+  (`niers info`, MCP `niers-game`, goldens). Posé en variable **utilisateur** vers
+  `…/steamapps/common/INAZUMA ELEVEN Victory Road` → 255 308 entrées, 936 paquets.
 
 ## Porter une famille nie-data
 
@@ -246,6 +277,21 @@ csharp/             IECODE.Core / IECODE.CLI / IECODE.Core.Tests (.NET 10, `IECO
 - Classification par `main_return` :  
   - `mov al, 1` → portable (return-1)  
   - **Interdit** de porter un retour conditionnel (`sete al` / `found ? 1 : 0`) comme constante. Source classique de doublons et d’erreurs.
+- **`niers mem` est Linux-only** (`process_vm_readv`). Sur Windows : `nie-mem.exe` (dump/scan/read,
+  `ReadProcessMemory`) et `nie-edit.exe` (catalogue de localisateurs), tous deux **élévation requise**.
+- Le catalogue `nie-trace` a été **ré-ancré** sur le build installé (2026-08-27) : `resolve --all`
+  donne **20 ✓ / 0 drift / 4 introuvable** (avant : 0 ✓ / 22 drift). Les AOB n'étaient **pas** en
+  cause — ils tombaient sur un site unique ; c'étaient les `rva` de référence qui venaient d'un
+  autre build. Ré-ancrer en scannant le **fichier** (pas la mémoire : ni élévation ni ASLR), puis
+  valider en live. Un AOB à hits multiples ou introuvable repasse à `rva: None` — on ne devine pas.
+- **Le `.text` en mémoire n'est pas le `.text` du fichier** quand un trainer tiers tourne : 4 patchs
+  runtime observés (2 `ret` neutralisant l'anti-cheat EOS, 1 trampoline RWX, 1 gel du chrono). Avant
+  d'accuser une signature qui échoue en live mais réussit sur le fichier, comparer le module dumpé
+  au fichier **section par section** et croiser avec `.reloc` : ce qu'aucune relocation ne couvre est
+  un patch, pas un artefact du loader. Détail et méthode : `docs/RE.md`.
+- **`nie_eacpatched.exe` n'est pas patché** : sha256 identique à `nie.exe` (`b1fa04ea3658…`), sur le VPS
+  comme en local. Pour sortir d'EAC, lancer `nie.exe` directement, sans `GameBootstrapper`/`EACLauncher`.
+- Le dépôt du VPS porte des **modifications non commitées** d'une autre session : ne jamais y `git pull`.
 
 ## Base de connaissance (`var/niers.sqlite`)
 
