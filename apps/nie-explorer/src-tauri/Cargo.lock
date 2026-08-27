@@ -3436,6 +3436,7 @@ name = "nie-lua"
 version = "0.5.1"
 dependencies = [
  "mlua",
+ "serde",
  "thiserror 2.0.19",
  "tree-sitter",
  "tree-sitter-lua",

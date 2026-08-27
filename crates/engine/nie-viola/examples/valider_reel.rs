@@ -59,6 +59,7 @@ fn main() -> Result<(), String> {
         reprise: true,
         sauter_identiques: true,
         threads: None,
+        ..DumpOptions::default()
     };
     let annuler = AtomicBool::new(false);
     let debut = std::time::Instant::now();
