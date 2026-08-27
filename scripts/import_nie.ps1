@@ -26,14 +26,21 @@ $ErrorActionPreference = "Stop"
 $scriptRoot = Split-Path -Parent $PSScriptRoot
 $ghidraScripts = Join-Path $PSScriptRoot "ghidra"
 
-# Trouver Ghidra
-$ghidraInstalls = Get-ChildItem $GhidraDir -Directory -Filter "ghidra_*" -ErrorAction SilentlyContinue | Sort-Object Name -Descending
-if (-not $ghidraInstalls) {
-    Write-Error "Ghidra not found in $GhidraDir. Run setup_ghidra.ps1 first."
+# Trouver Ghidra. Deux dispositions coexistent : l'archive decompressee telle quelle
+# ($GhidraDir/ghidra_<version>_PUBLIC/support/...) et l'installation a plat
+# ($GhidraDir/support/...), celle que produit une extraction dans le dossier cible.
+# N'accepter que la premiere faisait echouer la seconde sur "Ghidra not found".
+$ghidraHome = $null
+if (Test-Path (Join-Path $GhidraDir "support\analyzeHeadless.bat")) {
+    $ghidraHome = $GhidraDir
+} else {
+    $ghidraInstalls = Get-ChildItem $GhidraDir -Directory -Filter "ghidra_*" -ErrorAction SilentlyContinue | Sort-Object Name -Descending
+    if ($ghidraInstalls) { $ghidraHome = $ghidraInstalls[0].FullName }
+}
+if (-not $ghidraHome) {
+    Write-Error "Ghidra not found in $GhidraDir (ni a plat, ni en sous-dossier ghidra_*). Run setup_ghidra.ps1 first."
     exit 1
 }
-
-$ghidraHome = $ghidraInstalls[0].FullName
 $analyzeHeadless = Join-Path $ghidraHome "support\analyzeHeadless.bat"
 
 if (-not (Test-Path $analyzeHeadless)) {

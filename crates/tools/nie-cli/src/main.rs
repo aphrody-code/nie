@@ -2280,12 +2280,24 @@ fn strings_cmd_run(
     Ok(())
 }
 
+/// Binaire à **lire** pour une mesure ou une propagation.
+///
+/// Deux binaires cohabitent : l'index Ghidra (`id` le plus bas, adresses désalignées) et la vérité
+/// terrain `…#pdata` que produit `rebuild`. `ORDER BY id LIMIT 1` tombe sur le premier — donc sur
+/// un binaire qui ne porte ni fonction ni ancre dès que la KB a été refondée sur `.pdata`, et la
+/// commande annonce alors `0/0` sans erreur. Préférer `#pdata` quand il existe.
+fn analysis_binary(conn: &nie_index::rusqlite::Connection) -> anyhow::Result<i64> {
+    conn.query_row(
+        "SELECT id FROM binary ORDER BY (path LIKE '%#pdata') DESC, id LIMIT 1",
+        [],
+        |r| r.get(0),
+    )
+    .context("aucun binaire indexé — lancer `niers seed` d'abord")
+}
+
 fn coverage(db_path: &std::path::Path) -> anyhow::Result<()> {
     let db = nie_index::Db::open(db_path)?;
-    let bin: i64 = db
-        .conn()
-        .query_row("SELECT id FROM binary ORDER BY id LIMIT 1", [], |r| r.get(0))
-        .context("aucun binaire indexé — lancer `niers seed` d'abord")?;
+    let bin: i64 = analysis_binary(db.conn())?;
     let cov = nie_index::query::coverage(db.conn(), bin)?;
     let by_sub = nie_index::query::by_subsystem(db.conn(), bin)?;
     let subs = by_sub.iter().map(|(ns, n)| format!("{ns}={n}")).collect::<Vec<_>>().join(" ");
@@ -2315,10 +2327,7 @@ fn queue(op: QueueOp, redis: &str, tag: &str) -> anyhow::Result<()> {
 
 fn propagate(db_path: &std::path::Path, rounds: usize) -> anyhow::Result<()> {
     let mut db = nie_index::Db::open(db_path).context("ouverture base")?;
-    let bin: i64 = db
-        .conn()
-        .query_row("SELECT id FROM binary ORDER BY id LIMIT 1", [], |r| r.get(0))
-        .context("aucun binaire indexé — lancer `niers seed` d'abord")?;
+    let bin: i64 = analysis_binary(db.conn())?;
 
     let stats = nie_re::loop_db::propagate_db(&mut db, bin, rounds)
         .context("propagation")?;
