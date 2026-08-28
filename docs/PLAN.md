@@ -356,9 +356,23 @@ latine ne sait pas dessiner ne renseigne personne. Le même critère choisit la 
 Histoire, et il a fallu deux resserrements pour qu'il cesse de retenir une scène dont la deuxième
 réplique est « T » : compter les caractères et non les octets, exiger des lettres à 90 % latines.
 
-Restent : « Marque-pages d'informations » (aucune table dédiée trouvée — rien n'y est branché
-plutôt qu'un contenu arbitraire), « Sauvegarder » (une action, pas une liste), le son, et le rendu
-de match en disques là où `nie-render3d` sait afficher les vrais modèles.
+**Le match se voit en 3D** (touche `V`) : terrain aux dimensions réelles, vingt-deux joueurs, un
+maillage du jeu instancié — **13,3 ms par image en release, soit 75 i/s**. La vue de dessus reste
+la référence testée par les goldens ; la 3D est un choix de caméra, pas un remplacement. Deux
+limites dites : les modèles complets du VFS sont des **têtes** (un corps entier s'assemble
+tête + uniforme, ce qu'exige un manifeste `uniform-model-map.ndjson` non généré ici), et le corps
+est donc figuré aux couleurs de l'équipe — un pis-aller assumé, pas un asset d'origine.
+
+Restent :
+
+- « Marque-pages d'informations » — aucune table dédiée trouvée ; **rien n'y est branché plutôt
+  qu'un contenu arbitraire** ;
+- « Sauvegarder » — une action, pas une liste (`nie-save` sait lire et éditer les vraies saves) ;
+- **le son** — le dépôt décode déjà tout l'audio du jeu (`cri_audio::decode_to_wav`, HCA/ADX/AWB/
+  ACB, feature `audio-decode`), et `niers convert --to wav` l'expose. Ce qui manque est la
+  **sortie audio temps réel** : aucune dépendance de ce type n'existe dans le dépôt, et en ajouter
+  une (cpal, rodio) engage la portabilité wasm et `no_std` du cœur. C'est une décision
+  d'architecture à prendre, pas un détail à enchaîner.
 
 ### Autres crates
 
