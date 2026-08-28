@@ -2031,12 +2031,23 @@ fn open_in_blender(path: String, blender_exe: Option<String>, game_dir: Option<S
     let addon_dir = ensure_niers_blender_addon(&root)?;
 
     let built = with_vfs(Some(root.display().to_string()), &state, |vfs| {
-        let data = vfs.read(&path).map_err(|e| e.to_string())?;
-
         let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0);
         let export_dir = std::env::temp_dir().join("nie-explorer").join("blender").join(stamp.to_string());
         std::fs::create_dir_all(&export_dir).map_err(|e| e.to_string())?;
 
+        // Montage dump : le modèle est DÉJÀ dans une arborescence `data/common`/`data/dx11`
+        // complète, la seule chose que l'addon exige. On l'importe en place — et il y voit
+        // alors tout l'arbre, pas seulement les cinq fichiers frères qu'on sait nommer :
+        // un squelette partagé ou une texture au nom différent se résout, là où l'extraction
+        // sélective ci-dessous le laissait manquant. `export_dir` ne sert plus qu'au script
+        // de démarrage et au journal d'erreur.
+        if vfs.is_dump() {
+            if let Some(direct) = vfs.resolve_loose_path(&path) {
+                return Ok((export_dir, direct, 0usize));
+            }
+        }
+
+        let data = vfs.read(&path).map_err(|e| e.to_string())?;
         let base = path.rsplit('/').next().unwrap_or(&path);
         let stem = base.rsplit_once('.').map(|(s, _)| s).unwrap_or(base);
         let dir_prefix = path.strip_suffix(base).unwrap_or("");
@@ -2141,7 +2152,14 @@ bpy.app.timers.register(_nie_explorer_import, first_interval=0.3)
         .spawn()
         .map_err(|e| format!("échec du lancement de Blender ({}) : {e}", blender.display()))?;
 
-    Ok(format!("Blender lancé — {} exporté(s) vers {} (import différé, log d'erreur : {})", sibling_count, export_dir.display(), error_log.display()))
+    // Le compte d'exportés vaut 0 sur un dump : rien n'a été copié, le modèle est lu en place.
+    // Dire « 0 exporté(s) » sans l'expliquer ferait croire à un échec silencieux.
+    let source = if sibling_count == 0 {
+        format!("modèle lu en place dans le dump ({})", main_path.display())
+    } else {
+        format!("{sibling_count} fichier(s) exporté(s) vers {}", export_dir.display())
+    };
+    Ok(format!("Blender lancé — {source} (import différé, log d'erreur : {})", error_log.display()))
 }
 
 // ─── Installation PERSISTANTE de l'extension Blender niers (« lier au max Blender et niers ») ─
