@@ -1709,6 +1709,7 @@ fn cmd_play(max_frames: u32) -> Result<()> {
             police,
             dernier: std::time::Instant::now(),
             dernier_score: vec![0, 0],
+            enfoncees: std::collections::HashSet::new(),
         }),
     };
     event_loop.run_app(&mut app).context("boucle événements winit")?;
@@ -1894,6 +1895,28 @@ struct Jeu {
     dernier: std::time::Instant,
     /// Score affiché au dernier changement, pour ne journaliser qu'aux buts.
     dernier_score: Vec<u32>,
+    /// Touches actuellement ENFONCÉES, pour le déplacement en match.
+    ///
+    /// Un menu se pilote par événements — un appui, une action. Un joueur de football se dirige
+    /// par état : tant que la touche est tenue, il court. Les deux coexistent donc, et c'est le
+    /// même clavier.
+    enfoncees: std::collections::HashSet<winit::keyboard::KeyCode>,
+}
+
+impl Jeu {
+    /// Direction demandée par les touches tenues, en repère terrain.
+    ///
+    /// L'axe X est la longueur du terrain (le but adverse est en +x pour l'équipe domicile), l'axe
+    /// Y sa largeur. « Haut » à l'écran correspond à −y : le rendu place l'origine en haut.
+    fn direction(&self) -> (f32, f32) {
+        use winit::keyboard::KeyCode as K;
+        let tenue = |touches: &[K]| touches.iter().any(|k| self.enfoncees.contains(k));
+        let x = f32::from(u8::from(tenue(&[K::ArrowRight, K::KeyD])))
+            - f32::from(u8::from(tenue(&[K::ArrowLeft, K::KeyA, K::KeyQ])));
+        let y = f32::from(u8::from(tenue(&[K::ArrowDown, K::KeyS])))
+            - f32::from(u8::from(tenue(&[K::ArrowUp, K::KeyW, K::KeyZ])));
+        (x, y)
+    }
 }
 
 /// Nomme l'écran courant pour les traces — la FSM n'expose pas de `Debug` utile.
@@ -4099,14 +4122,29 @@ impl winit::application::ApplicationHandler for AppFenetre {
                     return;
                 };
                 debug!("touche {code:?} état={:?} repeat={}", event.state, event.repeat);
+                // L'état des touches est suivi en continu : c'est lui qui dirige le joueur
+                // pendant un match, là où les menus réagissent aux appuis.
+                if let Some(jeu) = &mut self.jeu {
+                    if event.state.is_pressed() {
+                        jeu.enfoncees.insert(code);
+                    } else {
+                        jeu.enfoncees.remove(&code);
+                    }
+                }
                 if !event.state.is_pressed() || event.repeat {
                     return;
                 }
-                if let Some(cmd) = touche_vers_commande(code)
-                    && let Some(jeu) = &mut self.jeu
-                {
-                    jeu.ecran.input(cmd);
-                    info!("{cmd} → {}", decrire_ecran(&jeu.ecran));
+                if let Some(jeu) = &mut self.jeu {
+                    // En match, les directions PILOTENT le joueur et ne doivent pas être aussi
+                    // lues comme des commandes de menu : elles y sont sans effet, mais les
+                    // confondre brouillerait le journal et coûterait un appel inutile.
+                    let en_match = jeu.ecran.in_match();
+                    if let Some(cmd) = touche_vers_commande(code)
+                        && !(en_match && cmd.starts_with("CMD_FCS"))
+                    {
+                        jeu.ecran.input(cmd);
+                        info!("{cmd} → {}", decrire_ecran(&jeu.ecran));
+                    }
                 }
             }
             WindowEvent::RedrawRequested => {
@@ -4115,6 +4153,13 @@ impl winit::application::ApplicationHandler for AppFenetre {
                 if let (Some(jeu), Some(etat)) = (&mut self.jeu, &self.etat) {
                     let dt = jeu.dernier.elapsed().as_secs_f32();
                     jeu.dernier = std::time::Instant::now();
+                    // Commandes de jeu AVANT la simulation : le joueur bouge sur cette image, pas
+                    // sur la suivante. Espace frappe le ballon (Entrée aussi, pour la cohérence
+                    // avec « valider » ailleurs).
+                    let (dx, dy) = jeu.direction();
+                    let tir = jeu.enfoncees.contains(&winit::keyboard::KeyCode::Space)
+                        || jeu.enfoncees.contains(&winit::keyboard::KeyCode::Enter);
+                    jeu.ecran.set_game_input(dx, dy, tir);
                     // Borne haute : après une pause (fenêtre déplacée, veille), un `dt` de
                     // plusieurs secondes téléporterait le ballon au lieu de le faire avancer.
                     jeu.ecran.update(dt.min(0.1));

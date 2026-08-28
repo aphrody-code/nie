@@ -4160,6 +4160,7 @@ dependencies = [
  "nie-core",
  "nie-data",
  "nie-formats",
+ "nie-geom",
  "nie-render3d",
  "nie-runtime",
  "serde_json",

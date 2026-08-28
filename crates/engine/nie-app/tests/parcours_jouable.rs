@@ -177,3 +177,63 @@ fn le_mode_histoire_se_deroule_puis_revient() {
         ou(&e),
     );
 }
+
+/// Le match se JOUE : la direction demandée déplace le joueur contrôlé.
+///
+/// Sans cela, « jouable » se limiterait à regarder une simulation tourner — c'est la différence
+/// entre un écran de démonstration et un jeu.
+#[test]
+fn la_direction_deplace_le_joueur_controle() {
+    let mut e = Screen::new();
+    e.input("CMD_ENTER");
+    for _ in 0..5 {
+        e.input("CMD_FCS_MTX_DOWN");
+    }
+    e.input("CMD_ENTER");
+    e.input("CMD_FCS_MTX_DOWN");
+    e.input("CMD_ENTER");
+    assert!(e.in_match(), "match attendu, pas {}", ou(&e));
+
+    let idx = e.controlled_player().expect("un joueur doit être contrôlable en match");
+    let Screen::Match { world } = &e else { unreachable!() };
+    let depart = world.players[idx].pos;
+
+    // Une seconde vers la droite du terrain (+x), à 60 Hz.
+    for _ in 0..60 {
+        e.set_game_input(1.0, 0.0, false);
+        e.update(1.0 / 60.0);
+    }
+
+    let Screen::Match { world } = &e else { unreachable!() };
+    let arrivee = world.players[idx].pos;
+    assert!(
+        arrivee.x > depart.x + 1.0,
+        "le joueur contrôlé doit avancer vers +x : {depart:?} → {arrivee:?}",
+    );
+}
+
+/// Sans entrée, la simulation reste EXACTEMENT ce qu'elle était : l'IA joue les 22 joueurs.
+///
+/// C'est la garantie qui permet d'ajouter le contrôle sans invalider les rejeux déterministes.
+#[test]
+fn sans_entree_la_simulation_est_inchangee() {
+    use nie_runtime::World;
+
+    let (mut a, mut b) = (World::kickoff(), World::kickoff());
+    for _ in 0..600 {
+        a.step(1.0 / 60.0);
+        // `b` reçoit une entrée NEUTRE à chaque pas : elle ne doit rien changer.
+        b.input = nie_runtime::Input::default();
+        b.step(1.0 / 60.0);
+    }
+    assert_eq!(a.score, b.score, "le score diverge alors qu'aucune entrée n'a été donnée");
+    assert_eq!(a.tick, b.tick);
+    for (i, (pa, pb)) in a.players.iter().zip(b.players.iter()).enumerate() {
+        assert!(
+            (pa.pos.x - pb.pos.x).abs() < 1e-6 && (pa.pos.y - pb.pos.y).abs() < 1e-6,
+            "joueur {i} diverge : {:?} vs {:?}",
+            pa.pos,
+            pb.pos,
+        );
+    }
+}
