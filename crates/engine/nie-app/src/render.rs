@@ -311,6 +311,35 @@ pub fn render_state<'a>(state: &GameState, f: &'a Font, bg: Option<&[u8]>) -> Fr
 /// Marge gauche du texte dans une barre de liste, en pixels.
 const TEXTE_X: i32 = 110;
 
+/// Compose le bandeau de score par-dessus une image de match.
+///
+/// Le rastériseur du moteur (`nie_runtime::render`) n'a pas de police : il rend le score par deux
+/// barres dont la longueur est proportionnelle aux buts, ce qui se lit mal dès le deuxième but et
+/// pas du tout au premier coup d'œil. La police vit ici, donc le bandeau aussi.
+///
+/// `temps` est le temps de jeu simulé, en secondes.
+#[must_use]
+pub fn hud_match(base: &[u8], f: &Font, score: [u32; 2], temps: f32) -> Vec<u8> {
+    let mut s = Frame::from_base(f, base);
+    let ligne = f.hauteur_ligne();
+    let h_bandeau = ligne + 18;
+    s.rect(0, 0, W as i32, h_bandeau, [12, 18, 38, 205]);
+
+    let minutes = (temps / 60.0) as u32;
+    let secondes = (temps % 60.0) as u32;
+    let gauche = format!("DOMICILE {}", score[0]);
+    let droite = format!("{} EXTERIEUR", score[1]);
+    let chrono = format!("{minutes:02}:{secondes:02}");
+
+    let y = (h_bandeau - ligne) / 2;
+    s.text(24, y, &gauche, [140, 190, 255, 255]);
+    let w_chrono = f.largeur(&chrono) as i32;
+    s.text((W as i32 - w_chrono) / 2, y, &chrono, [235, 240, 250, 255]);
+    let w_droite = f.largeur(&droite) as i32;
+    s.text(W as i32 - 24 - w_droite, y, &droite, [255, 170, 170, 255]);
+    s.buf
+}
+
 pub fn render_list<'a>(title: &str, items: &[&str], sel: usize, f: &'a Font) -> Frame<'a> {
     let mut s = Frame::new(f);
     s.gradient([30, 40, 80], [14, 18, 34]);
