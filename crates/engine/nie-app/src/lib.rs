@@ -11,6 +11,10 @@
 //! au fil des phases ; pour l'instant le cœur tient la FSM + l'orchestration du rendu.
 
 pub mod character;
+/// Effectif réel chargé depuis le VFS — natif seulement : le VFS lit des fichiers, ce que le web
+/// ne fait pas (il reçoit ses octets par `fetch`).
+#[cfg(not(target_arch = "wasm32"))]
+pub mod effectif;
 pub mod flow;
 pub mod render;
 #[cfg(not(target_arch = "wasm32"))]

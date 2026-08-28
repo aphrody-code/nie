@@ -1710,6 +1710,8 @@ fn cmd_play(max_frames: u32) -> Result<()> {
             dernier: std::time::Instant::now(),
             dernier_score: vec![0, 0],
             enfoncees: std::collections::HashSet::new(),
+            vfs,
+            effectif: None,
         }),
     };
     event_loop.run_app(&mut app).context("boucle événements winit")?;
@@ -1901,9 +1903,38 @@ struct Jeu {
     /// par état : tant que la touche est tenue, il court. Les deux coexistent donc, et c'est le
     /// même clavier.
     enfoncees: std::collections::HashSet<winit::keyboard::KeyCode>,
+    /// VFS monté, gardé pour charger les données des onglets à la demande.
+    vfs: nie_formats::vfs::Vfs,
+    /// Effectif résolu, mémorisé au premier affichage (`Some(vide)` = tentative échouée).
+    effectif: Option<Vec<String>>,
 }
 
 impl Jeu {
+    /// Lignes à afficher pour l'onglet `titre`, ou vide si le jeu ne sait pas encore le remplir.
+    ///
+    /// L'effectif est chargé **à la demande** et mémorisé : la jointure `chara_param` ×
+    /// `chara_base` × `chara_text` lit trois tables de plusieurs mégaoctets, ce qui se sent si on
+    /// la refait à chaque ouverture de l'onglet.
+    fn lignes_onglet(&mut self, titre: &str) -> Vec<String> {
+        if titre != nie_app::MENU[0] {
+            return Vec::new();
+        }
+        if self.effectif.is_none() {
+            // Un échec ici n'est pas fatal : l'écran d'information reste affiché, et la raison
+            // part dans le journal plutôt que sous les yeux de la joueuse.
+            match nie_app::effectif::charger(&self.vfs, 200, "fr") {
+                Ok(joueurs) => {
+                    self.effectif = Some(joueurs.iter().map(nie_app::effectif::Joueur::ligne).collect());
+                }
+                Err(e) => {
+                    warn!("effectif indisponible : {e:#}");
+                    self.effectif = Some(Vec::new());
+                }
+            }
+        }
+        self.effectif.clone().unwrap_or_default()
+    }
+
     /// Direction demandée par les touches tenues, en repère terrain.
     ///
     /// L'axe X est la longueur du terrain (le but adverse est en +x pour l'équipe domicile), l'axe
@@ -1929,6 +1960,7 @@ fn decrire_ecran(e: &nie_app::flow::Screen) -> String {
         S::Match { .. } => "match".into(),
         S::Story { idx } => format!("histoire[{idx}]"),
         S::Info { title } => format!("info « {title} »"),
+        S::Liste { titre, lignes, sel } => format!("liste « {titre} » [{sel}/{}]", lignes.len()),
     }
 }
 
@@ -4143,6 +4175,17 @@ impl winit::application::ApplicationHandler for AppFenetre {
                         && !(en_match && cmd.starts_with("CMD_FCS"))
                     {
                         jeu.ecran.input(cmd);
+                        // Un onglet vient de s'ouvrir : si le VFS sait le remplir, on remplace
+                        // le message « en cours d'intégration » par les vraies données. Le
+                        // chargement est natif — la FSM, partagée avec le web, ne peut pas le
+                        // faire elle-même.
+                        if let Some(titre) = jeu.ecran.info_title().map(str::to_owned) {
+                            let lignes = jeu.lignes_onglet(&titre);
+                            if !lignes.is_empty() {
+                                info!("{titre} : {} lignes chargées", lignes.len());
+                            }
+                            jeu.ecran.fournir_liste(lignes);
+                        }
                         info!("{cmd} → {}", decrire_ecran(&jeu.ecran));
                     }
                 }

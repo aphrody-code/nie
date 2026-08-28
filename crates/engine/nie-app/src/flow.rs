@@ -31,6 +31,12 @@ pub enum Screen {
     Story { idx: usize },
     /// Onglet/mode pas encore jouable (titre = libellé réel) — données réelles à venir.
     Info { title: String },
+    /// Liste de données réelles du jeu (effectif…) : `titre` + lignes déjà résolues.
+    ///
+    /// Les lignes arrivent **du front**, pas de la FSM : les charger demande le VFS, que le web
+    /// n'a pas (il reçoit ses octets autrement). La FSM reste ainsi portable, et un front qui ne
+    /// sait pas charger l'effectif garde simplement l'écran d'information.
+    Liste { titre: String, lignes: Vec<String>, sel: usize },
 }
 
 impl Screen {
@@ -108,6 +114,13 @@ impl Screen {
                     *self = Screen::Menu { sel: 0 };
                 }
             }
+            Screen::Liste { lignes, sel, .. } => {
+                if nav != 0 && !lignes.is_empty() {
+                    *sel = wrap(*sel, lignes.len());
+                } else if back || enter {
+                    *self = Screen::Menu { sel: 0 };
+                }
+            }
         }
     }
 
@@ -126,6 +139,29 @@ impl Screen {
     pub fn set_game_input(&mut self, dx: f32, dy: f32, shoot: bool) {
         if let Screen::Match { world } = self {
             world.input = nie_runtime::Input { dir: nie_geom::Vec2::new(dx, dy), shoot };
+        }
+    }
+
+    /// Remplace un écran d'information par une **liste de données réelles**.
+    ///
+    /// Appelée par le front juste après un `input` qui a ouvert un onglet : c'est lui qui sait
+    /// charger (VFS), la FSM qui sait naviguer. Sans effet si l'écran courant n'est pas un écran
+    /// d'information, ou si la liste est vide — mieux vaut le message « en cours d'intégration »
+    /// qu'un écran vide sans explication.
+    pub fn fournir_liste(&mut self, lignes: Vec<String>) {
+        if let Screen::Info { title } = self
+            && !lignes.is_empty()
+        {
+            *self = Screen::Liste { titre: title.clone(), lignes, sel: 0 };
+        }
+    }
+
+    /// Titre de l'écran d'information courant, pour que le front sache quoi charger.
+    #[must_use]
+    pub fn info_title(&self) -> Option<&str> {
+        match self {
+            Screen::Info { title } => Some(title),
+            _ => None,
         }
     }
 
@@ -166,6 +202,15 @@ impl Screen {
                 render_state(&st, font, None).buf
             }
             Screen::Match { world } => nie_runtime::render::render(world, W as u32, H as u32).px,
+            Screen::Liste { titre, lignes, sel } => {
+                let vues: Vec<&str> = lignes.iter().map(String::as_str).collect();
+                // Fenêtre glissante autour de la sélection : un effectif compte des milliers de
+                // joueurs, l'écran une dizaine de lignes.
+                const VISIBLES: usize = 9;
+                let debut = sel.saturating_sub(VISIBLES / 2).min(vues.len().saturating_sub(VISIBLES));
+                let fin = (debut + VISIBLES).min(vues.len());
+                render_list(titre, &vues[debut..fin], sel - debut, font).buf
+            }
             Screen::Info { title } => {
                 let st = GameState::Story {
                     speaker: title.clone(),
