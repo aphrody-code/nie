@@ -794,6 +794,32 @@ enum VfsOp {
         #[arg(long)]
         game_dir: Option<PathBuf>,
     },
+    /// Couverture des formats : quelle part du VFS le dépôt sait réellement lire.
+    ///
+    /// Lit les octets de CHAQUE fichier et les passe aux parseurs — c'est la seule façon
+    /// honnête de répondre : l'extension ment (tout `.cfg.bin` n'est pas du même format,
+    /// `.g4nv` porte le magic `NAVM`), et un magic reconnu ne dit pas que le parse aboutit.
+    ///
+    /// Deux niveaux, parce qu'ils ne coûtent pas la même chose :
+    /// - par défaut, le **magic** seul (`nie_formats::detect`) sur l'en-tête ;
+    /// - `--parse`, le **décodage complet** (`nie_formats::decode`), qui seul départage les
+    ///   conteneurs T2B (`objbin`/`cfg.bin`/`mevbin` partagent le même en-tête).
+    Formats {
+        /// Tente le décodage complet, pas seulement la reconnaissance du magic.
+        #[arg(long)]
+        parse: bool,
+        /// N'examine que les fichiers sous ce préfixe (ex. `data/common/gamedata`).
+        #[arg(long)]
+        prefix: Option<String>,
+        /// S'arrête après N fichiers — pour un sondage rapide plutôt que la mesure complète.
+        #[arg(long)]
+        limit: Option<usize>,
+        /// Sortie JSON (une ligne) pour consommation programmatique.
+        #[arg(long, short = 'j')]
+        json: bool,
+        #[arg(long)]
+        game_dir: Option<PathBuf>,
+    },
     /// Cherche un personnage par nom (FR/EN/JA), ID ou code interne (miroir wiki `nie-wiki`),
     /// puis liste ses fichiers dans le VFS (modèles, textures, animations…).
     Chara {
@@ -3461,6 +3487,9 @@ fn vfs_cmd(op: VfsOp) -> anyhow::Result<()> {
             vfs_extract(&path, &out, ext.as_deref(), game_dir)
         }
         VfsOp::Stats { top, game_dir } => vfs_stats(top, game_dir),
+        VfsOp::Formats { parse, prefix, limit, json, game_dir } => {
+            vfs_formats(parse, prefix.as_deref(), limit, json, game_dir)
+        }
         VfsOp::Find { query, ext, limit, json, game_dir } => vfs_find(&query, ext.as_deref(), limit, json, game_dir),
         VfsOp::Chara { query, no_paths, element, position, json, limit, db, game_dir } => {
             let opts = SearchOpts { show_paths: !no_paths, json, limit, db: db.as_deref(), game_dir };
@@ -3758,6 +3787,153 @@ fn vfs_stats(top: usize, game_dir: Option<PathBuf>) -> anyhow::Result<()> {
     );
     for (ext, c) in v.iter().take(top) {
         println!("  {c:>8}  .{ext}");
+    }
+    Ok(())
+}
+
+/// Mesure la part du VFS que le dépôt sait lire, en lisant réellement les fichiers.
+///
+/// Le chiffre publié dans `docs/PLAN.md` sous « Formats » vient d'ici : sans commande qui le
+/// régénère, il n'était falsifiable par personne — et le plan exige justement des chiffres
+/// qu'on peut rejouer.
+///
+/// Les fichiers illisibles (pack absent, entrée déclarée mais manquante sur disque) sont
+/// comptés à part : les fondre dans les « non reconnus » ferait passer un défaut d'installation
+/// pour un format non porté.
+fn vfs_formats(
+    parse: bool,
+    prefix: Option<&str>,
+    limit: Option<usize>,
+    json: bool,
+    game_dir: Option<PathBuf>,
+) -> anyhow::Result<()> {
+    let vfs = open_vfs(game_dir)?;
+    let mut chemins: Vec<&str> = vfs
+        .iter()
+        .map(|(p, _)| p)
+        .filter(|p| prefix.is_none_or(|pref| p.starts_with(pref)))
+        .collect();
+    // Ordre stable : deux exécutions doivent rendre le même nombre, et un sondage doit porter
+    // sur le même échantillon d'une fois sur l'autre.
+    chemins.sort_unstable();
+    if let Some(n) = limit
+        && n < chemins.len()
+    {
+        // Échantillon RÉPARTI, pas les n premiers : l'index est trié par chemin, donc les n
+        // premiers tiennent tous dans un ou deux dossiers (`common/action`, `common/chr/_animal`)
+        // et ne disent rien du VFS entier. Un pas régulier couvre toutes les familles.
+        let pas = chemins.len().div_ceil(n);
+        chemins = chemins.into_iter().step_by(pas).collect();
+    }
+    anyhow::ensure!(!chemins.is_empty(), "aucun fichier ne correspond");
+
+    let mut par_format: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
+    let (mut reconnus, mut inconnus, mut illisibles) = (0usize, 0usize, 0usize);
+    // Troisieme categorie, indispensable en mode `--parse` : un fichier dont le MAGIC est connu
+    // mais que rien ne decode. Le fondre dans « inconnus » ferait passer un format identifie
+    // pour un format absent — et c'est le cas de tous les `.g4mg`, qui n'ont de sens qu'avec
+    // leur `.g4md` frere et ne se decodent donc pas seuls. C'est le reste a faire, chiffre.
+    let mut sans_decodeur: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
+    let mut inconnus_par_ext: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
+    let mut exemples_inconnus: Vec<&str> = Vec::new();
+    for chemin in &chemins {
+        let Ok(octets) = vfs.read(chemin) else {
+            illisibles += 1;
+            continue;
+        };
+        let magic = match nie_formats::detect(&octets) {
+            nie_formats::FileFormat::Unknown => None,
+            f => Some(format!("{f:?}").to_lowercase()),
+        };
+        let nom = if parse {
+            nie_formats::decode::decode(&octets).map(|d| d.format.to_string())
+        } else {
+            magic.clone()
+        };
+        match nom {
+            Some(nom) => {
+                reconnus += 1;
+                *par_format.entry(nom).or_default() += 1;
+            }
+            None => match magic {
+                Some(m) => *sans_decodeur.entry(m).or_default() += 1,
+                None => {
+                    inconnus += 1;
+                    // Ventiler par extension : « 19 604 inconnus » ne dit pas quoi faire,
+                    // « 15 876 .g4mg + 1 335 .vfxo » nomme les chantiers restants.
+                    let base = chemin.rsplit('/').next().unwrap_or(chemin);
+                    let ext = base
+                        .rsplit_once('.')
+                        .map_or_else(|| "<sans>".to_string(), |(_, e)| e.to_lowercase());
+                    *inconnus_par_ext.entry(ext).or_default() += 1;
+                    if exemples_inconnus.len() < 10 {
+                        exemples_inconnus.push(chemin);
+                    }
+                }
+            },
+        }
+    }
+    let n_sans_decodeur: usize = sans_decodeur.values().sum();
+
+    let examines = chemins.len();
+    let pct = |n: usize| n as f64 * 100.0 / examines as f64;
+    if json {
+        let v = serde_json::json!({
+            "montage": if vfs.is_dump() { "dump" } else { "packs" },
+            "mode": if parse { "parse" } else { "magic" },
+            "examines": examines,
+            "reconnus": reconnus,
+            "sans_decodeur": n_sans_decodeur,
+            "inconnus": inconnus,
+            "illisibles": illisibles,
+            "pct_reconnus": pct(reconnus),
+            "par_format": par_format,
+            "magic_sans_decodeur": sans_decodeur,
+            "inconnus_par_extension": inconnus_par_ext,
+        });
+        println!("{}", serde_json::to_string(&v)?);
+        return Ok(());
+    }
+
+    println!(
+        "  montage {} | mode {} | {examines} fichiers examines",
+        if vfs.is_dump() { "dump" } else { "packs" },
+        if parse { "parse complet" } else { "magic" },
+    );
+    println!("  reconnus   {reconnus:>8}  ({:.2} %)", pct(reconnus));
+    if n_sans_decodeur > 0 {
+        println!(
+            "  magic connu, pas de decodeur autonome : {n_sans_decodeur} ({:.2} %) — {}",
+            pct(n_sans_decodeur),
+            sans_decodeur
+                .iter()
+                .map(|(f, n)| format!("{f} x{n}"))
+                .collect::<Vec<_>>()
+                .join(", "),
+        );
+    }
+    println!("  inconnus   {inconnus:>8}  ({:.2} %)", pct(inconnus));
+    if illisibles > 0 {
+        println!("  illisibles {illisibles:>8}  ({:.2} %) — absents du disque, pas un format manquant", pct(illisibles));
+    }
+    let mut classe: Vec<(&String, &usize)> = par_format.iter().collect();
+    classe.sort_by(|a, b| b.1.cmp(a.1));
+    for (format, n) in classe {
+        println!("  {n:>8}  {format}");
+    }
+    if !inconnus_par_ext.is_empty() {
+        println!("\n  non reconnus, par extension :");
+        let mut v: Vec<(&String, &usize)> = inconnus_par_ext.iter().collect();
+        v.sort_by(|a, b| b.1.cmp(a.1));
+        for (ext, n) in v.iter().take(15) {
+            println!("    {n:>8}  .{ext}");
+        }
+    }
+    if !exemples_inconnus.is_empty() {
+        println!("\n  exemples non reconnus :");
+        for chemin in &exemples_inconnus {
+            println!("    {chemin}");
+        }
     }
     Ok(())
 }

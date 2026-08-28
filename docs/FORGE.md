@@ -138,6 +138,14 @@ Chiffres sortis de l'outil, pas d'une estimation. Le binaire produit est **byte-
 > et ces pourcentages ne sont **pas revérifiables ici en l'état**, seulement recopiés du dernier
 > run connu (2026-08-10). Restaurer `var/forge/` (archive froide) ou rejouer `just forge` avant de
 > les citer comme un résultat frais.
+>
+> **Vérifié le 2026-08-28, machine Windows** : `var/forge/` y est absent aussi — `nie-forge report`
+> rend « recouvrement absent : var/forge\cover.json (lancer `nie-forge split` d'abord) ». Aucune
+> des deux machines ne peut donc rejouer la mesure : ces pourcentages sont, à ce jour, la trace
+> d'un run de 2026-08-10 sur une cible qui n'a pas changé — pas un résultat reconfirmé. Le binaire
+> installé localement porte bien le sha256 `b1fa04ea3658…` et 33 918 464 octets (revérifié le
+> 2026-08-28 par `niers info`), donc la cible est la bonne ; c'est l'état interne de la forge qui
+> manque, pas le binaire.
 
 ```
 split   : 219 427 unités · 55 351 fonctions .pdata · 0 trou · 0 overlay

@@ -23,6 +23,7 @@ const HEADER_LEN: usize = 0x40;
 
 /// Fichier G4MT parsé : en-tête commun + taille fichier.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct G4mt {
     pub header: Level5Header,
     pub file_size: usize,
@@ -101,6 +102,7 @@ fn i16_at(d: &[u8], o: usize) -> Option<f32> {
 
 /// Un clip nommé d'un conteneur G4MT. Un fichier en contient couramment plusieurs (cf. module doc).
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Clip {
     pub name: String,
     /// Hash CRC32 du nom de clip (même algo que [`crate::cfgbin::crc32`]).
@@ -128,6 +130,7 @@ impl Clip {
 }
 
 #[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct RawTargetInfo {
     target_index: u16,
     channel_start: u32,
@@ -135,6 +138,7 @@ struct RawTargetInfo {
 }
 
 #[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct RawChannel {
     /// Type Level-5 : `1/2/3` = scale x/y/z, `9` = rotation (quaternion), `10/11/12` = translation x/y/z.
     channel_type: u8,
@@ -154,6 +158,7 @@ struct RawChannel {
 /// échantillonner à n'importe quelle frame (interpolation keyframe, pas d'hypothèse « 1 sample =
 /// 1 frame »).
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Motion {
     pub header: Level5Header,
     pub file_size: usize,

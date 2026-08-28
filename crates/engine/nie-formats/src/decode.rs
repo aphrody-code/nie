@@ -87,30 +87,104 @@ pub fn decode(data: &[u8]) -> Option<Decoded> {
                 .and_then(|v| serde_json::to_vec(&v).ok()),
             "cpk",
         ),
-        FileFormat::Unknown => done(
-            crate::objbin::parse(data)
+        FileFormat::G4sk => done(
+            crate::g4sk::parse_header(data)
+                .ok()
+                .map(|h| {
+                    let os = crate::g4sk::parse_hierarchy(data, &h);
+                    (h, os)
+                })
+                .and_then(|v| serde_json::to_vec(&v).ok()),
+            "g4sk",
+        ),
+        FileFormat::G4nv => done(
+            crate::navm::parse(data)
                 .ok()
                 .and_then(|v| serde_json::to_vec(&v).ok()),
-            "objbin",
-        )
-        .or_else(|| {
-            done(
-                crate::cfgbin::parse_t2b(data)
-                    .ok()
-                    .and_then(|v| serde_json::to_vec(&v).ok()),
-                "cfg.bin (T2B)",
-            )
-        })
-        .or_else(|| {
-            done(
-                crate::mevbin::parse(data)
-                    .ok()
-                    .and_then(|v| serde_json::to_vec(&v).ok()),
-                "mevbin",
-            )
-        }),
+            "navm",
+        ),
+        // Un `G4MG` ne se décode PAS seul : sa géométrie n'a de sens qu'avec le `G4MD` frère,
+        // qui porte la description des sous-maillages et des attributs de sommet. Le reconnaître
+        // sans prétendre le décoder est la seule réponse honnête — le compter « non reconnu »
+        // ferait croire à un format non porté.
+        FileFormat::Unknown => decode_level5_annexe(data)
+            .or_else(|| {
+                done(
+                    crate::objbin::parse(data)
+                        .ok()
+                        .and_then(|v| serde_json::to_vec(&v).ok()),
+                    "objbin",
+                )
+            })
+            .or_else(|| {
+                done(
+                    crate::cfgbin::parse_t2b(data)
+                        .ok()
+                        .and_then(|v| serde_json::to_vec(&v).ok()),
+                    "cfg.bin (T2B)",
+                )
+            })
+            .or_else(|| {
+                done(
+                    crate::mevbin::parse(data)
+                        .ok()
+                        .and_then(|v| serde_json::to_vec(&v).ok()),
+                    "mevbin",
+                )
+            }),
         _ => None,
     }
+}
+
+/// Conteneurs Level-5 annexes que [`crate::detect`] ne distingue pas — il ne connaît que les
+/// magics des grosses familles, ceux-ci tombent tous dans `Unknown`.
+///
+/// Chaque module expose son prédicat `is_*` : on le consulte avant de parser plutôt que
+/// d'enchaîner des `parse()` qui échouent, pour que le coût reste celui d'une comparaison de
+/// quatre octets. Essayés AVANT les conteneurs T2B : ceux-là n'ont pas de magic propre et
+/// acceptent large, donc les laisser passer en premier volerait des fichiers à leur vrai
+/// parseur.
+fn decode_level5_annexe(data: &[u8]) -> Option<Decoded> {
+    fn done(json: Option<Vec<u8>>, format: &'static str) -> Option<Decoded> {
+        json.map(|json| Decoded { json, format })
+    }
+    if crate::g4mt::is_g4mt(data) {
+        return done(
+            crate::g4mt::parse(data).ok().and_then(|v| serde_json::to_vec(&v).ok()),
+            "g4mt",
+        );
+    }
+    if crate::g4cm::is_g4cm(data) {
+        return done(
+            crate::g4cm::parse(data).ok().and_then(|v| serde_json::to_vec(&v).ok()),
+            "g4cm",
+        );
+    }
+    if crate::g4la::is_g4la(data) {
+        return done(
+            crate::g4la::parse(data).ok().and_then(|v| serde_json::to_vec(&v).ok()),
+            "g4la",
+        );
+    }
+    if crate::g4ma::is_g4ma(data) {
+        return done(
+            crate::g4ma::parse(data).ok().and_then(|v| serde_json::to_vec(&v).ok()),
+            "g4ma",
+        );
+    }
+    if crate::g4vs::is_g4vs(data) {
+        return done(
+            crate::g4vs::parse(data).ok().and_then(|v| serde_json::to_vec(&v).ok()),
+            "g4vs",
+        );
+    }
+    if crate::col::is_pxcl(data) {
+        return done(
+            crate::col::parse(data).ok().and_then(|v| serde_json::to_vec(&v).ok()),
+            "col (PXCL)",
+        );
+    }
+    None
 }
 
 /// Variante « JSON seul » de [`decode`], pour les appelants qui ignorent le format (FFI).

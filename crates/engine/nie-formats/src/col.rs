@@ -16,6 +16,7 @@ const MAGIC: u32 = 0x4C43_5850;
 
 /// Fichier PXCL parsé : en-tête commun + taille fichier (intérieur PhysX non décodé).
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Pxcl {
     pub header: Level5Header,
     pub file_size: usize,

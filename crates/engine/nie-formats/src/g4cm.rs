@@ -17,6 +17,7 @@ const HEADER_LEN: usize = 0x40;
 
 /// Fichier G4CM parsé : en-tête commun + taille fichier.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct G4cm {
     pub header: Level5Header,
     pub file_size: usize,
