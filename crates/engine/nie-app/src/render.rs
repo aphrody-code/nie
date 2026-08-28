@@ -27,6 +27,48 @@ pub struct Font {
     aw: usize,
 }
 
+/// Repli ASCII d'un caractère que l'atlas latin ne porte pas.
+///
+/// **Pis-aller assumé, et voici pourquoi.** L'atlas `font_def` ne contient pas les lettres
+/// accentuées : sa rangée latine est l'ASCII imprimable (0x21..0x7E) suivi de quinze katakana
+/// demi-chasse — vérifié en extrayant les pixels, pas supposé. Les métriques de `font.cfg.bin`
+/// connaissent pourtant les 38 caractères français (sous leurs octets UTF-8 empaquetés,
+/// cf. `FontMetrics::glyph_char`), mais leurs coordonnées pointent, DANS CET ATLAS, sur des
+/// idéogrammes : elles décrivent une autre planche. Retrouver la bonne est un travail de
+/// rétro-ingénierie, pas une correction de deux lignes.
+///
+/// En attendant, sans repli, le moteur dessinait une espace : « Composition d' quipe »,
+/// « Fichier de donn es ». Un mot amputé ne se lit pas ; un mot sans accent se lit. On dégrade
+/// donc de façon lisible et prévisible, plutôt que de laisser des trous ou — pire — de blitter
+/// le glyphe que les métriques désignent, qui est un idéogramme.
+fn repli_ascii(c: char) -> Option<&'static str> {
+    Some(match c {
+        'é' | 'è' | 'ê' | 'ë' => "e",
+        'à' | 'â' | 'ä' => "a",
+        'î' | 'ï' => "i",
+        'ô' | 'ö' => "o",
+        'ù' | 'û' | 'ü' => "u",
+        'ç' => "c",
+        'É' | 'È' | 'Ê' | 'Ë' => "E",
+        'À' | 'Â' | 'Ä' => "A",
+        'Î' | 'Ï' => "I",
+        'Ô' | 'Ö' => "O",
+        'Ù' | 'Û' | 'Ü' => "U",
+        'Ç' => "C",
+        'œ' => "oe",
+        'Œ' => "OE",
+        'æ' => "ae",
+        'Æ' => "AE",
+        // Ponctuation française : les guillemets et l'apostrophe typographique ont un
+        // équivalent ASCII exact, il n'y a rien à perdre à les convertir.
+        '«' | '»' => "\"",
+        '’' | '‘' => "'",
+        '…' => "...",
+        '–' | '—' => "-",
+        _ => return None,
+    })
+}
+
 impl Font {
     /// Construit la police depuis les OCTETS de `font.cfg.bin` (métriques) + `font.g4tx` (atlas).
     /// Cœur wasm-safe (aucune I/O) : l'appelant fournit les octets (fichier natif ou fetch web).
@@ -41,6 +83,36 @@ impl Font {
         let (aw, ah) = (t.width as usize, t.height as usize);
         let la = LatinAtlas::from_atlas(&atlas, aw, ah, 946, metrics.dims.cell_height);
         Ok(Self { atlas, la, aw })
+    }
+
+    /// Largeur d'un texte en pixels, telle qu'il sera dessiné (replis ASCII compris).
+    #[must_use]
+    pub fn largeur(&self, texte: &str) -> u32 {
+        self.la.measure(&self.texte_rendu(texte))
+    }
+
+    /// Texte rendu tel qu'il sera réellement dessiné : les caractères absents de l'atlas latin
+    /// sont remplacés par leur équivalent ASCII (cf. [`repli_ascii`]).
+    ///
+    /// Mesure et dessin passent par ici tous les deux — sinon un libellé accentué serait centré
+    /// sur une largeur qu'il n'occupe pas.
+    fn texte_rendu(&self, texte: &str) -> String {
+        texte
+            .chars()
+            .map(|c| {
+                if c == ' ' || self.la.span(c as u32).is_some() {
+                    c.to_string()
+                } else {
+                    repli_ascii(c).unwrap_or(" ").to_string()
+                }
+            })
+            .collect()
+    }
+
+    /// Dessine `texte` à `(x, y)` sur `canvas` (RGBA8, `cw` px de large).
+    fn dessiner(&self, canvas: &mut [u8], cw: usize, x: i32, y: i32, texte: &str, fg: [u8; 4]) {
+        let rendu = self.texte_rendu(texte);
+        self.la.blit_line(&self.atlas, self.aw, canvas, cw, x, y, &rendu, fg);
     }
 
     /// Charge la police depuis le disque (natif) — délègue à [`Font::from_bytes`].
@@ -94,10 +166,10 @@ impl<'a> Frame<'a> {
         }
     }
     fn text(&mut self, x: i32, y: i32, s: &str, color: [u8; 4]) {
-        self.f.la.blit_line(&self.f.atlas, self.f.aw, &mut self.buf, W, x, y, s, color);
+        self.f.dessiner(&mut self.buf, W, x, y, s, color);
     }
     fn text_centered(&mut self, y: i32, s: &str, color: [u8; 4]) {
-        let w = self.f.la.measure(s) as i32;
+        let w = self.f.largeur(s) as i32;
         self.text((W as i32 - w) / 2, y, s, color);
     }
     /// Texte avec retour à la ligne par mot dans `max_w` (px). Interligne `line_h`.
@@ -105,7 +177,7 @@ impl<'a> Frame<'a> {
         let (mut line, mut row) = (String::new(), 0i32);
         for word in s.split_whitespace() {
             let trial = if line.is_empty() { word.to_string() } else { format!("{line} {word}") };
-            if self.f.la.measure(&trial) as i32 > max_w && !line.is_empty() {
+            if self.f.largeur(&trial) as i32 > max_w && !line.is_empty() {
                 self.text(x, y + row * line_h, &line, color);
                 row += 1;
                 line = word.to_string();
@@ -255,5 +327,45 @@ impl Renderer for CpuRenderer {
             GameState::Title => None,
         };
         render_state(state, &self.font, bg).buf
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::repli_ascii;
+
+    /// Tout caractère du français que l'atlas latin ne porte pas doit avoir un repli ASCII.
+    ///
+    /// Sans repli, le rendu écrit une espace : « Fichier de donn es ». Le jeu est en français —
+    /// les neuf onglets du menu principal, les cinq modes et les dialogues en sont pleins.
+    #[test]
+    fn tout_le_francais_a_un_repli() {
+        // Les caractères réellement produits par les textes du jeu, minuscules et majuscules,
+        // plus la ponctuation typographique française.
+        for c in "éèêëàâäîïôöùûüçÉÈÊËÀÂÄÎÏÔÖÙÛÜÇœŒæÆ«»’…–—".chars() {
+            assert!(repli_ascii(c).is_some(), "aucun repli pour « {c} »");
+        }
+    }
+
+    /// Le repli conserve la lettre, il ne l'invente pas : `é` donne `e`, jamais autre chose.
+    #[test]
+    fn le_repli_garde_la_lettre_de_base() {
+        assert_eq!(repli_ascii('é'), Some("e"));
+        assert_eq!(repli_ascii('È'), Some("E"));
+        assert_eq!(repli_ascii('ç'), Some("c"));
+        assert_eq!(repli_ascii('œ'), Some("oe"));
+        assert_eq!(repli_ascii('«'), Some("\""));
+        assert_eq!(repli_ascii('’'), Some("'"));
+    }
+
+    /// L'ASCII n'a rien à voir avec ce mécanisme : il est rendu par l'atlas, pas replié.
+    ///
+    /// Un repli qui capturerait l'ASCII masquerait une régression de l'edge-scan — le texte
+    /// continuerait de s'afficher alors que la police ne serait plus lue.
+    #[test]
+    fn l_ascii_n_est_pas_replie() {
+        for c in "AZaz09 !?,.-'\"".chars() {
+            assert_eq!(repli_ascii(c), None, "« {c} » ne doit pas passer par le repli");
+        }
     }
 }
