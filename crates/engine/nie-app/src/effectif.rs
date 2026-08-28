@@ -134,3 +134,97 @@ pub fn charger(vfs: &Vfs, max: usize, langue: &str) -> Result<Vec<Joueur>> {
     anyhow::ensure!(!out.is_empty(), "aucun personnage jointable entre chara_param et chara_base");
     Ok(out)
 }
+
+/// Catégorie d'objet en français, pour l'affichage.
+///
+/// `ItemCategory::as_str` rend l'identifiant interne (`special_tactics`) : correct pour du code,
+/// illisible dans un menu.
+fn categorie(c: nie_data::item::ItemCategory) -> &'static str {
+    use nie_data::item::ItemCategory as C;
+    match c {
+        C::Consume => "Consommable",
+        C::Shoes => "Chaussures",
+        C::Misanga => "Bracelet",
+        C::Accessory => "Accessoire",
+        C::Special => "Spécial",
+        C::Formation => "Formation",
+        C::SpecialTactics => "Tactique spéciale",
+        C::SuperTactics => "Super-tactique",
+        C::SpecialSkill => "Technique spéciale",
+        C::Title => "Titre",
+        C::Fashion => "Tenue",
+        C::Costume => "Costume",
+        C::Emblem => "Écusson",
+        C::Unique => "Unique",
+        C::CraftObj => "Objet d'artisanat",
+        C::Animal => "Animal",
+        C::KizunaLink => "Lien",
+        C::NamePlate => "Plaque",
+        C::Performance => "Performance",
+        C::Important => "Objet important",
+    }
+}
+
+/// Un objet du jeu, tel que l'écran « Objets » l'affiche.
+#[derive(Debug, Clone)]
+pub struct Objet {
+    /// Nom localisé, ou le code interne si le texte manque.
+    pub nom: String,
+    /// Catégorie en français.
+    pub categorie: &'static str,
+    /// Prix d'achat, quand l'objet en a un.
+    pub prix: Option<i64>,
+}
+
+impl Objet {
+    /// Ligne d'affichage : `Nom — Catégorie` et le prix s'il existe.
+    #[must_use]
+    pub fn ligne(&self) -> String {
+        match self.prix {
+            Some(p) => format!("{} — {} · {p}", self.nom, self.categorie),
+            None => format!("{} — {}", self.nom, self.categorie),
+        }
+    }
+}
+
+/// Charge les `max` premiers objets du jeu, noms résolus.
+///
+/// # Errors
+///
+/// Rend une erreur si la table d'objets est absente du VFS ou illisible.
+pub fn charger_objets(vfs: &Vfs, max: usize, langue: &str) -> Result<Vec<Objet>> {
+    const DOSSIER: &str = "data/common/gamedata/item/";
+    let p_item = resoudre(vfs, DOSSIER, "item_config").context("aucun item_config dans le VFS")?;
+    let items = nie_data::item::parse_all_items(&charger_json(vfs, &p_item)?);
+    let textes = charger_json(vfs, &format!("data/common/text/{langue}/item_text.cfg.bin"))
+        .map(|v| nie_data::text::parse_text_file(&v))
+        .unwrap_or_default();
+
+    let mut out = Vec::with_capacity(max);
+    for it in &items {
+        // Un objet sans nom résolu reste utile : son code interne l'identifie. Le taire
+        // donnerait une liste trompeusement courte.
+        let nom = nie_data::item::resolve_name(it, &textes)
+            .map(str::to_owned)
+            .or_else(|| it.internal_code.clone())
+            .unwrap_or_else(|| format!("objet {:#010x}", it.item_id.0));
+        // Certains libellés portent une VARIABLE que le jeu substitue à l'exécution (un nom
+        // d'équipe) : le texte stocké est « Esprits « » », et sept objets s'affichent alors à
+        // l'identique. Rien ne permet de les substituer ici — mais on peut au moins les
+        // distinguer, en accolant leur code interne plutôt qu'en répétant sept fois la même ligne.
+        let nom = if nom.contains("« »") || nom.contains("\"\"") || nom.contains("<>") {
+            match &it.internal_code {
+                Some(code) => format!("{nom} [{code}]"),
+                None => format!("{nom} [{:#010x}]", it.item_id.0),
+            }
+        } else {
+            nom
+        };
+        out.push(Objet { nom, categorie: categorie(it.category), prix: it.price });
+        if out.len() >= max {
+            break;
+        }
+    }
+    anyhow::ensure!(!out.is_empty(), "aucun objet dans {p_item}");
+    Ok(out)
+}

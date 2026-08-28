@@ -17,5 +17,10 @@ fn main() -> Result<(), String> {
     for (i, j) in joueurs.iter().enumerate() {
         println!("  {:>2}. {}  [{}]", i + 1, j.ligne(), j.code);
     }
+    let objets = nie_app::effectif::charger_objets(&vfs, 15, "fr").map_err(|e| format!("{e:#}"))?;
+    println!("\n{} objets chargés :\n", objets.len());
+    for (i, o) in objets.iter().enumerate() {
+        println!("  {:>2}. {}", i + 1, o.ligne());
+    }
     Ok(())
 }

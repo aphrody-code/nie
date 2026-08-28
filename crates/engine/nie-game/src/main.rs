@@ -1711,7 +1711,7 @@ fn cmd_play(max_frames: u32) -> Result<()> {
             dernier_score: vec![0, 0],
             enfoncees: std::collections::HashSet::new(),
             vfs,
-            effectif: None,
+            cache: std::collections::HashMap::new(),
         }),
     };
     event_loop.run_app(&mut app).context("boucle événements winit")?;
@@ -1905,8 +1905,20 @@ struct Jeu {
     enfoncees: std::collections::HashSet<winit::keyboard::KeyCode>,
     /// VFS monté, gardé pour charger les données des onglets à la demande.
     vfs: nie_formats::vfs::Vfs,
-    /// Effectif résolu, mémorisé au premier affichage (`Some(vide)` = tentative échouée).
-    effectif: Option<Vec<String>>,
+    /// Lignes déjà résolues par onglet (une entrée vide = tentative échouée, non réessayée).
+    ///
+    /// Chaque jointure lit des tables de plusieurs mégaoctets : la refaire à chaque ouverture de
+    /// l'onglet se sentirait à la navigation.
+    cache: std::collections::HashMap<Onglet, Vec<String>>,
+}
+
+/// Onglet du menu principal dont ce front sait charger les données réelles.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum Onglet {
+    /// « Composition d'équipe » — personnages, postes, éléments.
+    Effectif,
+    /// « Objets » — inventaire du jeu, catégories et prix.
+    Objets,
 }
 
 impl Jeu {
@@ -1916,23 +1928,32 @@ impl Jeu {
     /// `chara_base` × `chara_text` lit trois tables de plusieurs mégaoctets, ce qui se sent si on
     /// la refait à chaque ouverture de l'onglet.
     fn lignes_onglet(&mut self, titre: &str) -> Vec<String> {
-        if titre != nie_app::MENU[0] {
+        // L'onglet est identifié par son libellé — celui du jeu, pas un index qu'un
+        // réordonnancement de `MENU` rendrait silencieusement faux.
+        let quoi = if titre == nie_app::MENU[0] {
+            Onglet::Effectif
+        } else if titre == nie_app::MENU[1] {
+            Onglet::Objets
+        } else {
             return Vec::new();
+        };
+        if let Some(deja) = self.cache.get(&quoi) {
+            return deja.clone();
         }
-        if self.effectif.is_none() {
-            // Un échec ici n'est pas fatal : l'écran d'information reste affiché, et la raison
-            // part dans le journal plutôt que sous les yeux de la joueuse.
-            match nie_app::effectif::charger(&self.vfs, 200, "fr") {
-                Ok(joueurs) => {
-                    self.effectif = Some(joueurs.iter().map(nie_app::effectif::Joueur::ligne).collect());
-                }
-                Err(e) => {
-                    warn!("effectif indisponible : {e:#}");
-                    self.effectif = Some(Vec::new());
-                }
-            }
+        // Un échec ici n'est pas fatal : l'écran d'information reste affiché, et la raison
+        // part dans le journal plutôt que sous les yeux de la joueuse.
+        let lignes = match quoi {
+            Onglet::Effectif => nie_app::effectif::charger(&self.vfs, 200, "fr")
+                .map(|v| v.iter().map(nie_app::effectif::Joueur::ligne).collect()),
+            Onglet::Objets => nie_app::effectif::charger_objets(&self.vfs, 200, "fr")
+                .map(|v| v.iter().map(nie_app::effectif::Objet::ligne).collect()),
         }
-        self.effectif.clone().unwrap_or_default()
+        .unwrap_or_else(|e| {
+            warn!("{titre} indisponible : {e:#}");
+            Vec::new()
+        });
+        self.cache.insert(quoi, lignes.clone());
+        lignes
     }
 
     /// Direction demandée par les touches tenues, en repère terrain.
