@@ -91,8 +91,9 @@ Un parseur qu'elle ignore est invisible à tout le monde. Ils y sont, et un test
 (`decode_dispatch`) vérifie la correspondance extension → parseur sur de vrais fichiers, pour que
 le prochain n'y échappe pas : `.g4nv` → `navm`, `.col` → `col (PXCL)`, etc. Effet mesuré :
 1 217 `.g4cm`, 1 150 `.col`, 339 `.g4sk`, 160 `.g4nv`, 70 `.g4mt` et 43 `.g4la`/`.g4ma`/`.g4vs`
-passent de « non reconnu » à décodé. Les `.g4la` et `.g4vs` ne décodent que 4 fichiers sur 5
-échantillonnés — un écart non expliqué, pas un succès complet.
+passent de « non reconnu » à décodé. `.g4la` et `.g4vs` ne comptent que **4 fichiers chacun** dans
+tout le jeu, tous décodés : un échantillon de cette taille ne prouve pas grand-chose sur la
+robustesse du parseur, il prouve seulement que ces fichiers-là passent.
 
 ### Données — `nie-data`
 
