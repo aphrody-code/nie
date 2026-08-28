@@ -23,6 +23,9 @@ nie-lua = { workspace = true }
 # Modèles de données + résolveur de texte universel : résout les libellés STATIQUES de menu
 # (`TextComponent.hashes` → `menu_text`) pour l'export de layout (cf. DESIGN.md §7).
 nie-data = { workspace = true }
+# Le CŒUR du jeu : machine à états d'écrans (`flow::Screen`), rendu abstrait et police. `--play`
+# se contente de la brancher sur une fenêtre — même FSM que le front web, aucune réimplémentation.
+nie-app = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true }
 tracing = { workspace = true }

@@ -41,7 +41,7 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result, bail};
 use clap::Parser;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 use wgpu::util::DeviceExt;
 
 mod gpu_select;
@@ -86,6 +86,15 @@ struct Cli {
     #[arg(long)]
     window: bool,
 
+    /// **Mode jouable** : ouvre le jeu et le pilote au clavier (titre → menu → match).
+    ///
+    /// La FSM et la physique viennent du cœur (`nie_app::flow::Screen`, `nie_runtime::World`) —
+    /// ce mode ne fait que les brancher sur une fenêtre : flèches ou ZQSD/WASD pour naviguer,
+    /// Entrée ou Espace pour valider, Échap pour revenir. La police est résolue par le VFS,
+    /// aucune option n'est requise.
+    #[arg(long)]
+    play: bool,
+
     /// Mode découverte : liste les N premiers `.g4tx` du VFS (avec dimensions).
     #[arg(long)]
     list: Option<usize>,
@@ -119,9 +128,14 @@ struct Cli {
     #[arg(long)]
     compose_layout: Vec<PathBuf>,
 
-    /// Nombre de trames avant fermeture automatique (mode --window uniquement).
-    #[arg(long, default_value = "120")]
-    frames: u32,
+    /// Nombre de trames avant fermeture automatique (`0` = fenêtre persistante).
+    ///
+    /// Le défaut dépend du mode, et c'est voulu : `--window` sert de visionneuse et de test CI,
+    /// donc il se ferme seul après 120 trames ; `--play` est un jeu, il reste ouvert jusqu'à ce
+    /// qu'on le ferme. Passer `--frames` explicitement s'applique aux deux — c'est ainsi qu'on
+    /// scripte une session de jeu bornée.
+    #[arg(long)]
+    frames: Option<u32>,
 
     /// Mode rendu de menu : compose l'écran `SCREEN` en PNG (requiert --capture,
     /// exclusif avec --window/--list). Ex. : `win01_21`, `title00`, `option02_02`.
@@ -190,6 +204,12 @@ fn main() -> Result<()> {
         .clone()
         .unwrap_or_else(nie_formats::vfs::resolve_game_dir);
     info!("racine du jeu : {}", game_dir.display());
+
+    // Mode --play : le jeu jouable. Traité en premier — il ne consomme aucune des options de
+    // diagnostic (texture, écran de menu, liste) et n'a rien à valider contre elles.
+    if cli.play {
+        return cmd_play(cli.frames.unwrap_or(0));
+    }
 
     // Mode --menu : rendu d'un écran de menu complet → PNG (requiert --capture,
     // exclusif avec --window/--list). Traité avant la validation générique des modes.
@@ -287,7 +307,7 @@ fn main() -> Result<()> {
     }
 
     if cli.window {
-        return cmd_window(&rgba, width, height, cli.frames);
+        return cmd_window(&rgba, width, height, cli.frames.unwrap_or(120));
     }
 
     unreachable!()
@@ -1635,6 +1655,70 @@ fn encoder_rgba_png(rgba: &[u8], width: u32, height: u32) -> Result<Vec<u8>> {
 // ── Mode fenêtré (winit 0.30 + wgpu 22) ─────────────────────────────────────
 
 /// Ouvre une fenêtre winit et affiche la texture via wgpu.
+/// Chemins logiques de la police du jeu — ceux que `nie.exe` charge lui-même.
+const FONT_CFG: &str = "data/common/font/font/font_def/font.cfg.bin";
+/// Atlas correspondant à [`FONT_CFG`], côté ressources rendues.
+const FONT_G4TX: &str = "data/dx11/font/font_def/font.g4tx";
+
+/// Ouvre le jeu et le rend jouable au clavier.
+///
+/// Rien de la logique n'est ici : la FSM ([`nie_app::flow::Screen`]) et la physique
+/// ([`nie_runtime::World`]) existaient déjà et tournaient dans le navigateur via `nie-wasm`. Ce
+/// qui manquait, c'était le front natif — la boucle qui lit le clavier, avance le temps et
+/// téléverse le framebuffer. Le cœur reste partagé : corriger un comportement de menu le corrige
+/// pour les deux fronts.
+///
+/// La police vient du VFS (installation ou dump, indifféremment) : demander deux chemins de
+/// fichiers pour lancer un jeu serait absurde.
+fn cmd_play(max_frames: u32) -> Result<()> {
+    use winit::event_loop::EventLoop;
+
+    let vfs = nie_formats::vfs::open_game()
+        .map_err(|e| anyhow::anyhow!("aucune donnée de jeu (ni installation ni dump) : {e:?}"))?;
+    info!(
+        "VFS monté ({}) : {} fichiers",
+        if vfs.is_dump() { "dump" } else { "packs" },
+        vfs.asset_count()
+    );
+    let cfg = vfs
+        .read(FONT_CFG)
+        .map_err(|e| anyhow::anyhow!("police {FONT_CFG} : {e:?}"))?;
+    let atlas = vfs
+        .read(FONT_G4TX)
+        .map_err(|e| anyhow::anyhow!("atlas {FONT_G4TX} : {e:?}"))?;
+    let police = nie_app::Font::from_bytes(&cfg, &atlas).context("chargement de la police")?;
+
+    let ecran = nie_app::flow::Screen::new();
+    let premiere = ecran.render(&police);
+    let (w, h) = (nie_app::W as u32, nie_app::H as u32);
+    info!("jeu prêt — Entrée/Espace : valider, flèches ou ZQSD : naviguer, Échap : retour");
+
+    let event_loop = EventLoop::new().context("création EventLoop winit")?;
+    event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);
+    let mut app = AppFenetre {
+        instance: gpu_select::instance(),
+        rgba: premiere,
+        tex_width: w,
+        tex_height: h,
+        max_frames,
+        frames_rendues: 0,
+        etat: None,
+        erreur: None,
+        jeu: Some(Jeu {
+            ecran,
+            police,
+            dernier: std::time::Instant::now(),
+            dernier_score: vec![0, 0],
+        }),
+    };
+    event_loop.run_app(&mut app).context("boucle événements winit")?;
+    if let Some(e) = app.erreur {
+        return Err(e);
+    }
+    info!("session terminée ({} images)", app.frames_rendues);
+    Ok(())
+}
+
 fn cmd_window(rgba: &[u8], width: u32, height: u32, max_frames: u32) -> Result<()> {
     use winit::event_loop::EventLoop;
 
@@ -1660,6 +1744,8 @@ fn cmd_window(rgba: &[u8], width: u32, height: u32, max_frames: u32) -> Result<(
         frames_rendues: 0,
         etat: None,
         erreur: None,
+        // Visionneuse : image figée, aucune FSM (cf. `cmd_play` pour le mode jouable).
+        jeu: None,
     };
 
     event_loop
@@ -1689,6 +1775,28 @@ struct EtatFenetre {
     config: wgpu::SurfaceConfiguration,
     pipeline: wgpu::RenderPipeline,
     bind_group: wgpu::BindGroup,
+    /// Texture source, conservée pour être RÉÉCRITE à chaque image en mode jouable.
+    ///
+    /// La visionneuse n'en avait pas besoin — une image figée s'écrit une fois. Un jeu réécrit
+    /// son framebuffer 60 fois par seconde, et recréer la texture (donc le groupe de liaison et
+    /// la vue) à chaque image gaspillerait une allocation GPU par trame.
+    texture: wgpu::Texture,
+}
+
+impl EtatFenetre {
+    /// Remplace le contenu de la texture affichée par `rgba` (`W`×`H`, RGBA8).
+    fn televerser(&self, rgba: &[u8], width: u32, height: u32) {
+        self.queue.write_texture(
+            self.texture.as_image_copy(),
+            rgba,
+            wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(4 * width),
+                rows_per_image: Some(height),
+            },
+            wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+        );
+    }
 }
 
 impl EtatFenetre {
@@ -1768,6 +1876,55 @@ struct AppFenetre {
     frames_rendues: u32,
     etat: Option<EtatFenetre>,
     erreur: Option<anyhow::Error>,
+    /// Présent en mode `--play` : la fenêtre cesse d'afficher une image figée et devient le
+    /// front-end du jeu. `None` = visionneuse de texture, le comportement d'origine.
+    jeu: Option<Jeu>,
+}
+
+/// État du mode jouable : la FSM du cœur, la police qui la rend, et l'horloge de la boucle.
+///
+/// La logique n'est PAS ici — elle est dans [`nie_app::flow::Screen`], que partagent déjà le web
+/// (`nie-wasm`) et le rendu headless. Ce front ne fait que traduire : clavier → commande de menu
+/// IEVR, temps écoulé → `update`, framebuffer → texture GPU. C'est ce qui manquait pour que le
+/// jeu soit jouable en natif, et rien d'autre.
+struct Jeu {
+    ecran: nie_app::flow::Screen,
+    police: nie_app::Font,
+    /// Instant de la dernière image, pour un `dt` réel plutôt qu'un pas fixe supposé.
+    dernier: std::time::Instant,
+    /// Score affiché au dernier changement, pour ne journaliser qu'aux buts.
+    dernier_score: Vec<u32>,
+}
+
+/// Nomme l'écran courant pour les traces — la FSM n'expose pas de `Debug` utile.
+fn decrire_ecran(e: &nie_app::flow::Screen) -> String {
+    use nie_app::flow::Screen as S;
+    match e {
+        S::Title => "titre".into(),
+        S::Menu { sel } => format!("menu[{sel}] {}", nie_app::MENU[*sel]),
+        S::ModeSelect { sel } => format!("mode[{sel}] {}", nie_app::MODES[*sel]),
+        S::Match { .. } => "match".into(),
+        S::Story { idx } => format!("histoire[{idx}]"),
+        S::Info { title } => format!("info « {title} »"),
+    }
+}
+
+/// Traduit une touche en commande de menu IEVR (`MENU_CMD_INFO` / `input_ctrl`).
+///
+/// Le mapping vit ici, côté front, comme le veut la FSM : le cœur ne connaît que des commandes.
+/// Les flèches ET ZQSD/WASD naviguent — un clavier AZERTY et un QWERTY doivent tous deux marcher
+/// sans réglage.
+fn touche_vers_commande(code: winit::keyboard::KeyCode) -> Option<&'static str> {
+    use winit::keyboard::KeyCode as K;
+    Some(match code {
+        K::ArrowUp | K::KeyW | K::KeyZ => "CMD_FCS_MTX_UP",
+        K::ArrowDown | K::KeyS => "CMD_FCS_MTX_DOWN",
+        K::ArrowLeft | K::KeyA | K::KeyQ => "CMD_FCS_MTX_LEFT",
+        K::ArrowRight | K::KeyD => "CMD_FCS_MTX_RIGHT",
+        K::Enter | K::NumpadEnter | K::Space => "CMD_ENTER",
+        K::Escape | K::Backspace => "CMD_BACK",
+        _ => return None,
+    })
 }
 
 // ── Résolution VFS + chargement sprites menu ─────────────────────────────────
@@ -3888,7 +4045,11 @@ fn cmd_menu_gpu(game_dir: &Path, screen: &str, png_out: &Path, verify: bool) -> 
 impl winit::application::ApplicationHandler for AppFenetre {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
         let attrs = winit::window::Window::default_attributes()
-            .with_title("nie-game — IEVR texture viewer")
+            .with_title(if self.jeu.is_some() {
+                "niers — Inazuma Eleven: Victory Road"
+            } else {
+                "nie-game — IEVR texture viewer"
+            })
             .with_inner_size(winit::dpi::LogicalSize::new(
                 self.tex_width,
                 self.tex_height,
@@ -3930,7 +4091,41 @@ impl winit::application::ApplicationHandler for AppFenetre {
                     etat.redimensionner(taille);
                 }
             }
+            // Mode jouable : chaque touche devient une commande de menu IEVR, que la FSM du cœur
+            // interprète selon l'écran courant. Seuls les appuis comptent — une touche maintenue
+            // ne doit pas faire défiler un menu à la vitesse de la répétition clavier.
+            WindowEvent::KeyboardInput { event, .. } if self.jeu.is_some() => {
+                let winit::keyboard::PhysicalKey::Code(code) = event.physical_key else {
+                    return;
+                };
+                debug!("touche {code:?} état={:?} repeat={}", event.state, event.repeat);
+                if !event.state.is_pressed() || event.repeat {
+                    return;
+                }
+                if let Some(cmd) = touche_vers_commande(code)
+                    && let Some(jeu) = &mut self.jeu
+                {
+                    jeu.ecran.input(cmd);
+                    info!("{cmd} → {}", decrire_ecran(&jeu.ecran));
+                }
+            }
             WindowEvent::RedrawRequested => {
+                // Avancer le jeu AVANT de dessiner : la physique du match tourne sur le temps
+                // réellement écoulé, pas sur un pas fixe qu'un décrochage rendrait faux.
+                if let (Some(jeu), Some(etat)) = (&mut self.jeu, &self.etat) {
+                    let dt = jeu.dernier.elapsed().as_secs_f32();
+                    jeu.dernier = std::time::Instant::now();
+                    // Borne haute : après une pause (fenêtre déplacée, veille), un `dt` de
+                    // plusieurs secondes téléporterait le ballon au lieu de le faire avancer.
+                    jeu.ecran.update(dt.min(0.1));
+                    let score = jeu.ecran.score();
+                    if score != jeu.dernier_score {
+                        info!("score {}-{}", score[0], score[1]);
+                        jeu.dernier_score = score;
+                    }
+                    let frame = jeu.ecran.render(&jeu.police);
+                    etat.televerser(&frame, self.tex_width, self.tex_height);
+                }
                 if let Some(etat) = &mut self.etat {
                     match etat.rendre() {
                         Ok(()) => {
@@ -4004,7 +4199,7 @@ impl AppFenetre {
 
         let bgl = creer_bgl(&device);
         let pipeline = creer_pipeline(&device, &bgl, surface_format);
-        let (_, view, sampler) =
+        let (texture, view, sampler) =
             charger_gpu_texture(&device, &queue, &self.rgba, self.tex_width, self.tex_height);
         let bind_group = creer_bind_group(&device, &bgl, &view, &sampler);
 
@@ -4017,6 +4212,7 @@ impl AppFenetre {
             config,
             pipeline,
             bind_group,
+            texture,
         })
     }
 }

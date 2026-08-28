@@ -4331,6 +4331,7 @@ dependencies = [
  "image_dds",
  "libc",
  "memmap2",
+ "nie-app",
  "nie-data",
  "nie-formats",
  "nie-lua",
