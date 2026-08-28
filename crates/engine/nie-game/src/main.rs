@@ -1922,6 +1922,9 @@ enum Onglet {
     Effectif,
     /// « Objets » — inventaire du jeu, catégories et prix.
     Objets,
+    /// Onglet dont le contenu EST une table de texte localisée (aide, fichier de données,
+    /// Inacord, options) : le nom du fichier suffit à le décrire.
+    Texte(&'static str),
 }
 
 impl Jeu {
@@ -1937,6 +1940,14 @@ impl Jeu {
             Onglet::Effectif
         } else if titre == nie_app::MENU[1] {
             Onglet::Objets
+        } else if titre == nie_app::MENU[3] {
+            Onglet::Texte("inacode_text")
+        } else if titre == nie_app::MENU[4] {
+            Onglet::Texte("data_file_text")
+        } else if titre == nie_app::MENU[6] {
+            Onglet::Texte("help_list_text")
+        } else if titre == nie_app::MENU[7] {
+            Onglet::Texte("setting_text")
         } else {
             return Vec::new();
         };
@@ -1950,6 +1961,7 @@ impl Jeu {
                 .map(|v| v.iter().map(nie_app::effectif::Joueur::ligne).collect()),
             Onglet::Objets => nie_app::effectif::charger_objets(&self.vfs, 200, "fr")
                 .map(|v| v.iter().map(nie_app::effectif::Objet::ligne).collect()),
+            Onglet::Texte(fichier) => nie_app::effectif::charger_textes(&self.vfs, fichier, 200, "fr"),
         }
         .unwrap_or_else(|e| {
             warn!("{titre} indisponible : {e:#}");

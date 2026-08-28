@@ -125,6 +125,41 @@ impl Font {
         self.la.blit_line(&self.atlas, self.aw, canvas, cw, x, y_cellule, &rendu, fg);
     }
 
+    /// Tronque `texte` pour qu'il tienne dans `max_px`, en terminant par « … » s'il a été coupé.
+    ///
+    /// Les données du jeu ne sont pas calibrées pour une largeur d'écran : une entrée de
+    /// « Fichier de données » est une phrase entière, et sans coupe elle sort du cadre par la
+    /// droite — la fin du mot est perdue sans que rien ne l'indique. Mieux vaut une ellipse, qui
+    /// dit qu'il y a une suite.
+    #[must_use]
+    pub fn tronquer(&self, texte: &str, max_px: i32) -> String {
+        if max_px <= 0 || self.largeur(texte) as i32 <= max_px {
+            return texte.to_string();
+        }
+        // Réserve la place de l'ellipse avant de couper, sinon le résultat dépasse encore.
+        let reserve = max_px - self.largeur("...") as i32;
+        let mut coupe = String::new();
+        for c in texte.chars() {
+            let essai_len = {
+                coupe.push(c);
+                let l = self.largeur(&coupe) as i32;
+                coupe.pop();
+                l
+            };
+            if essai_len > reserve {
+                break;
+            }
+            coupe.push(c);
+        }
+        // Ne pas couper en plein mot quand un espace proche permet de faire mieux.
+        if let Some(pos) = coupe.rfind(' ')
+            && pos > coupe.len().saturating_sub(14)
+        {
+            coupe.truncate(pos);
+        }
+        format!("{}...", coupe.trim_end())
+    }
+
     /// Hauteur d'une ligne de texte telle qu'elle s'affiche, en pixels.
     ///
     /// C'est la hauteur à réserver dans une mise en page — la cellule complète en gaspillerait
@@ -273,6 +308,9 @@ pub fn render_state<'a>(state: &GameState, f: &'a Font, bg: Option<&[u8]>) -> Fr
 /// Rendu générique d'un menu-liste (titre + items surlignables), adapté au nombre d'items.
 /// Sert au menu principal (9 onglets réels) et au sélecteur de mode (5 modes réels). RGBA8 `W*H*4`.
 #[must_use]
+/// Marge gauche du texte dans une barre de liste, en pixels.
+const TEXTE_X: i32 = 110;
+
 pub fn render_list<'a>(title: &str, items: &[&str], sel: usize, f: &'a Font) -> Frame<'a> {
     let mut s = Frame::new(f);
     s.gradient([30, 40, 80], [14, 18, 34]);
@@ -298,7 +336,8 @@ pub fn render_list<'a>(title: &str, items: &[&str], sel: usize, f: &'a Font) -> 
         }
         // Encre centrée dans la barre : `text` prend le haut de l'encre, donc le calcul est
         // direct et ne dépend plus de la hauteur de cellule.
-        s.text(110, y + (bh - ligne) / 2, item, [240, 245, 252, 255]);
+        let coupe = f.tronquer(item, W as i32 - 70 - TEXTE_X - 16);
+        s.text(TEXTE_X, y + (bh - ligne) / 2, &coupe, [240, 245, 252, 255]);
     }
     s
 }

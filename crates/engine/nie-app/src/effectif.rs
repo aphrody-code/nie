@@ -135,6 +135,48 @@ pub fn charger(vfs: &Vfs, max: usize, langue: &str) -> Result<Vec<Joueur>> {
     Ok(out)
 }
 
+/// Vrai si `t` est une phrase réellement localisée en alphabet latin.
+///
+/// Le jeu livre ses tables de texte partiellement traduites : une même table mêle des entrées
+/// françaises et des originaux japonais. Les afficher toutes remplirait un menu français de
+/// caractères que la police latine ne sait pas dessiner.
+///
+/// Deux critères, chacun pour une raison : compter les **caractères** et non les octets (le
+/// japonais en pèse trois par caractère, la longueur en octets le surestime), et exiger que les
+/// lettres soient très majoritairement latines — ce qu'un texte japonais ne fait jamais.
+#[must_use]
+pub fn est_localise(t: &str) -> bool {
+    let lettres: Vec<char> = t.chars().filter(|c| c.is_alphabetic()).collect();
+    let latines = lettres.iter().filter(|c| c.is_ascii_alphabetic()).count();
+    t.chars().count() >= 8 && lettres.len() >= 5 && latines * 10 >= lettres.len() * 9
+}
+
+/// Charge les entrées **localisées** d'une table de texte du jeu, pour les onglets dont le
+/// contenu EST une liste de textes (aide, fichier de données…).
+///
+/// Les entrées non traduites sont écartées plutôt qu'affichées en japonais : une interface
+/// française qui montre des glyphes manquants ne renseigne personne.
+///
+/// # Errors
+///
+/// Rend une erreur si la table est absente, illisible, ou n'a aucune entrée localisée — ce
+/// dernier cas signifiant que l'onglet n'est pas traduit dans cette langue, et qu'il vaut mieux
+/// garder son écran d'information.
+pub fn charger_textes(vfs: &Vfs, fichier: &str, max: usize, langue: &str) -> Result<Vec<String>> {
+    let chemin = format!("data/common/text/{langue}/{fichier}.cfg.bin");
+    let lignes: Vec<String> = nie_data::text::parse_text_file(&charger_json(vfs, &chemin)?)
+        .into_iter()
+        .map(|(_, t)| t)
+        // Une entrée multiligne tiendrait sur plusieurs lignes de menu : on garde la première
+        // phrase, qui est le titre ou l'amorce, et la liste reste lisible.
+        .map(|t| t.lines().next().unwrap_or_default().trim().to_string())
+        .filter(|t| est_localise(t))
+        .take(max)
+        .collect();
+    anyhow::ensure!(!lignes.is_empty(), "aucune entrée localisée dans {chemin}");
+    Ok(lignes)
+}
+
 /// Charge les répliques d'une scène du mode Histoire.
 ///
 /// `event_id` est l'identifiant d'événement du jeu (`ev02_01400`). Les répliques reviennent dans
@@ -180,19 +222,16 @@ pub fn premier_dialogue_traduit(vfs: &Vfs, langue: &str, min_repliques: usize) -
         let Ok(lignes) = charger_dialogue(vfs, id, langue) else {
             continue;
         };
-        // Une scène convient si l'ESSENTIEL de ses répliques est une vraie phrase française.
+        // Une scène convient si l'ESSENTIEL de ses répliques est une vraie phrase localisée.
         //
         // Un critère trop lâche choisit mal : « au moins cinq répliques de plus de 25 octets
         // contenant une lettre latine » a retenu `ev00_00700`, dont la deuxième réplique est
-        // « T ». Deux resserrements — compter les CARACTÈRES (le japonais pèse trois octets par
-        // caractère, la longueur en octets le surestime), et exiger que les lettres soient
-        // majoritairement latines, ce qu'un texte japonais ne fait jamais.
-        let francaise = |t: &String| {
-            let lettres: Vec<char> = t.chars().filter(|c| c.is_alphabetic()).collect();
-            let latines = lettres.iter().filter(|c| c.is_ascii_alphabetic()).count();
-            t.chars().count() >= 20 && lettres.len() >= 12 && latines * 10 >= lettres.len() * 9
-        };
-        let bonnes = lignes.iter().filter(|t| francaise(t)).count();
+        // « T ». Une réplique de dialogue doit en outre être plus longue qu'un libellé de menu,
+        // d'où le seuil supplémentaire.
+        let bonnes = lignes
+            .iter()
+            .filter(|t| est_localise(t) && t.chars().count() >= 20)
+            .count();
         // La majorité de la scène doit tenir, pas seulement quelques lignes : une scène à moitié
         // japonaise s'afficherait en caractères manquants une réplique sur deux.
         if bonnes >= min_repliques && bonnes * 2 >= lignes.len() {
