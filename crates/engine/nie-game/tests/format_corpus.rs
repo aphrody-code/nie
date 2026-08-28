@@ -13,7 +13,7 @@ use std::path::PathBuf;
 fn game_dir() -> Option<PathBuf> {
     let dir = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
     let p = PathBuf::from(dir);
-    p.join("data/cpk_list.cfg.bin").exists().then_some(p)
+    nie_formats::vfs::donnees_disponibles(p.join("data")).then_some(p)
 }
 
 /// Parse tous les fichiers du VFS dont le basename finit par `ext`, via `parse`, et renvoie

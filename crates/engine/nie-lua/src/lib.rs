@@ -291,7 +291,7 @@ mod tests {
     fn loads_real_game_lua_bytecode() {
         let dir = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data_dir = std::path::Path::new(&dir).join("data");
-        if !data_dir.join("cpk_list.cfg.bin").exists() {
+        if !nie_formats::vfs::donnees_disponibles(&data_dir) {
             eprintln!("skip loads_real_game_lua_bytecode : jeu absent");
             return;
         }
@@ -332,7 +332,7 @@ mod tests {
     fn discover_host_api_of_real_menus() {
         let dir = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data_dir = std::path::Path::new(&dir).join("data");
-        if !data_dir.join("cpk_list.cfg.bin").exists() {
+        if !nie_formats::vfs::donnees_disponibles(&data_dir) {
             eprintln!("skip discover_host_api_of_real_menus : jeu absent");
             return;
         }
@@ -389,7 +389,7 @@ mod tests {
 
         let dir = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data_dir = std::path::Path::new(&dir).join("data");
-        if !data_dir.join("cpk_list.cfg.bin").exists() {
+        if !nie_formats::vfs::donnees_disponibles(&data_dir) {
             eprintln!("skip run_menu_with_menu_host : jeu absent");
             return;
         }
@@ -716,7 +716,7 @@ mod tests {
         use std::rc::Rc;
         let dir = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data_dir = std::path::Path::new(&dir).join("data");
-        if !data_dir.join("cpk_list.cfg.bin").exists() {
+        if !nie_formats::vfs::donnees_disponibles(&data_dir) {
             eprintln!("skip run_menu_with_real_include : jeu absent");
             return;
         }

@@ -219,6 +219,26 @@ csharp/             IECODE.Core / IECODE.CLI / IECODE.Core.Tests (.NET 10, `IECO
   `<NIE_GAME_DIR>/dump/gamedata`) et **annoncent leur saut** quand le corpus est absent — un
   golden muet qui ne s’exécute pas est un faux vert.
 - `Vfs::init()` prend **`<racine>/data`**, pas la racine (sinon « impossible d’ouvrir cpk_list.cfg.bin »).
+- **Deux montages, mêmes chemins logiques** (`data/common/…`, `data/dx11/…`) — vérifié le
+  2026-08-28 : `packs` (install Steam, `cpk_list.cfg.bin` + `packs/*.cpk`) et `dump` (arborescence
+  extraite, ici `<dépôt>/data`, 255 316 fichiers / 111 Go). `Vfs::init` **bascule seule** sur le
+  dump quand `cpk_list.cfg.bin` manque mais que `common/`/`dx11/` sont là ; `vfs::open_game()`
+  monte ce qui est disponible ; `NIE_DUMP_DIR` force le dump même si l’install est visible.
+  `Vfs::is_dump()` dit lequel tourne, `niers info` l’affiche (`vfs  dump — 255 316 entrees`).
+  Preuves : `nie-formats --test dump_vs_packs`, `nie-game --menu title00` (PNG **sha256 identique**
+  des deux côtés), `nie-play` (170 frames identiques). Couverture mesurée le 2026-08-28 par
+  `cargo run -p nie-formats --example dump_couverture` : **255 308 / 255 308 = 100,000 %** de
+  l’index du jeu, 0 manquant, 8 fichiers hors index (des images de travail dans `data/mod/`).
+- **Le montage dump n’indexe rien tant qu’on ne l’énumère pas** : `read`/`is_readable` résolvent
+  par chemin, l’index (255 k entrées, minutes sur NTFS) n’est construit que par `find`/`iter`/
+  `asset_count`. `Vfs::materialiser(chemin, cache)` rend un fichier disque — **sans copie** sur
+  un dump, par extraction dans le cache sur les packs (c’est ce qui permet à `nie-play` de
+  tourner sans un seul argument).
+- Garde des tests adossés au vrai jeu : `vfs::donnees_disponibles(<data_dir>)`, **pas**
+  `cpk_list.cfg.bin.exists()` — sinon 13 gates de rendu de menu se sautaient en annonçant
+  « jeu absent » sur une machine qui a le dump.
+- `NIE_GAME_DIR` / `NIE_DUMP_DIR` **posées mais vides** sont ignorées (une chaîne vide n’est pas
+  une racine — elle renvoyait un chemin vide où rien n’est jamais trouvé).
 - `niers vfs extract <chemin> -o <FICHIER>` : `-o` est un **fichier**, pas un dossier — sinon
   « Accès refusé (os error 5) », qui n’a rien à voir avec les permissions.
 - Binaires déjà construits dans `target/debug/` (`niers.exe`, `nie-cam.exe`…) : explorer sans rebuild.

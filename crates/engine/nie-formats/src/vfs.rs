@@ -2,6 +2,16 @@
 //!
 //! Reproduit fidèlement le comportement du VFS de nie.exe en chargeant
 //! `cpk_list.cfg.bin` et en indexant et extrayant les fichiers des CPK du jeu.
+//!
+//! Deux montages servent les **mêmes chemins logiques** (`data/common/…`, `data/dx11/…`) :
+//!
+//! - **packs** — l'installation du jeu : `cpk_list.cfg.bin` + `packs/*.cpk` ([`Vfs::init`]) ;
+//! - **dump** — une arborescence déjà extraite, où le chemin logique EST le chemin disque
+//!   ([`Vfs::init_loose`]).
+//!
+//! Un consommateur n'a pas à choisir : [`Vfs::init`] bascule seul sur le dump quand l'index
+//! chiffré est absent mais que l'arborescence est là, et [`resolve_game_dir`] reconnaît les
+//! deux racines. Le moteur tourne donc à l'identique sur une install Steam ou sur un dump.
 
 #![cfg(not(target_arch = "wasm32"))]
 
@@ -9,7 +19,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use crate::cpk::CpkReader;
 use crate::FormatError;
 
@@ -96,6 +106,12 @@ pub struct Vfs {
     index_extra: HashMap<String, String>,
     cpk_names: HashSet<String>,
     cpk_cache: CpkCacheMap,
+    /// Index du montage **dump**, construit paresseusement. Un dump complet porte ~255 000
+    /// fichiers : en parcourir l'arborescence coûte des minutes sur NTFS, et ni `read` ni
+    /// `is_readable` n'en ont besoin (le chemin logique est le chemin disque). Seuls les
+    /// consommateurs qui énumèrent — [`Vfs::find`], [`Vfs::iter`], [`Vfs::asset_count`] —
+    /// le déclenchent, et une seule fois.
+    loose_index: OnceLock<HashMap<String, VfsEntry>>,
 }
 
 impl Default for Vfs {
@@ -115,6 +131,7 @@ impl Vfs {
             index_extra: HashMap::new(),
             cpk_names: HashSet::new(),
             cpk_cache: Mutex::new(CpkCache::new(cpk_cache_budget())),
+            loose_index: OnceLock::new(),
         }
     }
 
@@ -147,6 +164,13 @@ impl Vfs {
         self.loose_files = false;
 
         let cpk_list_path = self.game_data_dir.join("cpk_list.cfg.bin");
+        // Pas d'index chiffré, mais l'arborescence est là : c'est un dump déjà extrait. On y
+        // bascule au lieu d'échouer — le dump sert les mêmes chemins logiques que les packs,
+        // donc tout consommateur qui appelait `init` continue de fonctionner sans le savoir.
+        // L'inverse serait faux : sans `common/`, il n'y a rien à servir, on rend l'erreur.
+        if !cpk_list_path.is_file() && est_racine_dump(&self.game_data_dir) {
+            return self.init_loose(self.game_data_dir.clone());
+        }
         let mut file = File::open(&cpk_list_path)
             .map_err(|_| FormatError::Corrupt("impossible d'ouvrir cpk_list.cfg.bin"))?;
         let mut data = Vec::new();
@@ -283,46 +307,81 @@ impl Vfs {
         added
     }
 
-    /// Initialise le VFS en mode loose files (sans CPK).
+    /// Monte un **dump** : une arborescence déjà extraite, sans CPK ni `cpk_list.cfg.bin`.
+    ///
+    /// `extracted_data_dir` est le `data/` du dump (celui qui porte `common/`, `dx11/`…),
+    /// exactement comme [`Vfs::init`] prend le `data/` de l'installation. Les chemins servis
+    /// sont les chemins **logiques** du jeu (`data/common/…`) : un dump et une install sont
+    /// interchangeables pour l'appelant.
+    ///
+    /// Le montage est immédiat — l'index n'est construit que si quelqu'un énumère
+    /// (cf. [`Vfs::loose_index`]). Lire un fichier n'a jamais besoin de l'index.
     pub fn init_loose<P: AsRef<Path>>(&mut self, extracted_data_dir: P) -> Result<(), FormatError> {
         let extracted_data_dir = extracted_data_dir.as_ref().to_path_buf();
+        if !extracted_data_dir.is_dir() {
+            return Err(FormatError::Corrupt("repertoire de dump introuvable"));
+        }
         self.game_data_dir = extracted_data_dir;
         self.loose_files = true;
         self.index.clear();
+        self.index_extra.clear();
         self.cpk_names.clear();
-
-        fn walk_dir(dir: &Path, base: &Path, index: &mut HashMap<String, VfsEntry>) -> std::io::Result<()> {
-            if dir.is_dir() {
-                for entry in std::fs::read_dir(dir)? {
-                    let entry = entry?;
-                    let path = entry.path();
-                    if path.is_dir() {
-                        walk_dir(&path, base, index)?;
-                    } else {
-                        let rel = path.strip_prefix(base).unwrap();
-                        let internal_path = rel.to_string_lossy().replace('\\', "/");
-                        let file_size = path.metadata()?.len() as u32;
-
-                        index.insert(internal_path.clone(), VfsEntry {
-                            internal_path,
-                            cpk_filename: String::new(),
-                            file_size,
-                        });
-                    }
-                }
-            }
-            Ok(())
-        }
-
-        walk_dir(&self.game_data_dir, &self.game_data_dir, &mut self.index)
-            .map_err(|_| FormatError::Corrupt("echec du parcours du repertoire loose"))?;
-
+        self.loose_index = OnceLock::new();
         Ok(())
     }
 
+    /// Index du dump, construit au premier appel puis mémorisé.
+    ///
+    /// Les clés sont des chemins **logiques** (`data/common/…`) : c'est ce que le reste du
+    /// moteur manipule, et c'est ce que sert un montage par packs. Indexer sous le chemin
+    /// relatif au dump (`common/…`) donnerait un VFS dont `iter()` et `read()` ne parlent
+    /// pas la même langue.
+    fn loose_index(&self) -> &HashMap<String, VfsEntry> {
+        self.loose_index.get_or_init(|| {
+            let mut index = HashMap::new();
+            let mut pile = vec![self.game_data_dir.clone()];
+            while let Some(dir) = pile.pop() {
+                let Ok(lecture) = std::fs::read_dir(&dir) else {
+                    continue;
+                };
+                for entree in lecture.flatten() {
+                    let chemin = entree.path();
+                    let Ok(typ) = entree.file_type() else { continue };
+                    if typ.is_dir() {
+                        pile.push(chemin);
+                        continue;
+                    }
+                    let Ok(rel) = chemin.strip_prefix(&self.game_data_dir) else {
+                        continue;
+                    };
+                    let internal_path =
+                        format!("data/{}", rel.to_string_lossy().replace('\\', "/"));
+                    let file_size = entree.metadata().map(|m| m.len() as u32).unwrap_or(0);
+                    index.insert(
+                        internal_path.clone(),
+                        VfsEntry { internal_path, cpk_filename: String::new(), file_size },
+                    );
+                }
+            }
+            index
+        })
+    }
+
+    /// Dit si ce VFS sert un **dump** (arborescence extraite) plutôt que les packs CPK.
+    #[must_use]
+    pub fn is_dump(&self) -> bool {
+        self.loose_files
+    }
+
     /// Cherche une entrée par son chemin interne.
+    ///
+    /// Sur un dump, déclenche la construction de l'index (cf. [`Vfs::loose_index`]) : préférer
+    /// [`Vfs::is_readable`] quand seule la présence importe.
     #[must_use]
     pub fn find(&self, internal_path: &str) -> Option<&VfsEntry> {
+        if self.loose_files {
+            return self.loose_index().get(internal_path);
+        }
         self.index.get(internal_path)
     }
 
@@ -339,9 +398,11 @@ impl Vfs {
     #[must_use]
     pub fn is_readable(&self, internal_path: &str) -> bool {
         if self.loose_files {
-            return self.game_data_dir.join(internal_path).is_file();
+            // Même résolution que `read` — y compris le repli inter-racine : un dump range
+            // les fichiers là où le disque les range, pas là où le `cpk_list` les déclare.
+            return self.resolve_loose_path(internal_path).is_some();
         }
-        let Some(entry) = self.find(internal_path) else {
+        let Some(entry) = self.index.get(internal_path) else {
             return self.index_extra.contains_key(internal_path);
         };
         if entry.cpk_filename.is_empty() {
@@ -412,7 +473,9 @@ impl Vfs {
     ///    extrait du CPK hors-cpk_list correspondant.
     pub fn read(&self, internal_path: &str) -> Result<Vec<u8>, FormatError> {
         if self.loose_files {
-            let disk_path = self.game_data_dir.join(internal_path);
+            let disk_path = self
+                .resolve_loose_path(internal_path)
+                .ok_or(FormatError::Corrupt("fichier absent du dump"))?;
             let mut file = File::open(&disk_path)
                 .map_err(|_| FormatError::Corrupt("impossible d'ouvrir loose file"))?;
             let mut data = Vec::new();
@@ -489,6 +552,41 @@ impl Vfs {
         reader.extract(cpk_bytes, cpk_entry)
     }
 
+    /// Rend un chemin logique accessible comme **fichier sur disque**, pour les consommateurs
+    /// qui prennent un chemin et non des octets (un décodeur qui `mmap`, un sous-processus).
+    ///
+    /// Sur un dump, renvoie le fichier lui-même : **aucune copie**, aucun octet écrit. Sur un
+    /// montage par packs, extrait vers `cache_dir` — et ne réextrait pas si le fichier y est
+    /// déjà à la bonne taille, parce que les assets visés (un atlas de police fait ~44 Mo) sont
+    /// gros et relus à chaque lancement.
+    ///
+    /// # Errors
+    ///
+    /// Rend l'erreur de [`Vfs::read`] si le fichier n'est pas servable, ou `Corrupt` si le
+    /// cache n'est pas inscriptible.
+    pub fn materialiser(
+        &self,
+        internal_path: &str,
+        cache_dir: &Path,
+    ) -> Result<PathBuf, FormatError> {
+        if self.loose_files
+            && let Some(direct) = self.resolve_loose_path(internal_path)
+        {
+            return Ok(direct);
+        }
+        let octets = self.read(internal_path)?;
+        let nom = internal_path.replace(['/', '\\'], "_");
+        let cible = cache_dir.join(nom);
+        if std::fs::metadata(&cible).is_ok_and(|m| m.len() == octets.len() as u64) {
+            return Ok(cible);
+        }
+        std::fs::create_dir_all(cache_dir)
+            .map_err(|_| FormatError::Corrupt("cache d'assets non creable"))?;
+        std::fs::write(&cible, &octets)
+            .map_err(|_| FormatError::Corrupt("ecriture dans le cache d'assets impossible"))?;
+        Ok(cible)
+    }
+
     /// Répertoire `data/` du jeu sur lequel ce VFS est monté (celui passé à [`Vfs::init`]).
     ///
     /// Exposé pour les consommateurs qui doivent atteindre les packs eux-mêmes plutôt que passer
@@ -500,8 +598,15 @@ impl Vfs {
     }
 
     /// Nombre de fichiers indexés.
+    ///
+    /// Sur un dump, compte les fichiers réellement présents sur disque (et construit l'index
+    /// au passage) : c'est le nombre de fichiers **servables**, là où un montage par packs
+    /// rapporte ce que `cpk_list.cfg.bin` déclare.
     #[must_use]
     pub fn asset_count(&self) -> usize {
+        if self.loose_files {
+            return self.loose_index().len();
+        }
         self.index.len()
     }
 
@@ -522,12 +627,19 @@ impl Vfs {
     /// fichiers chargés directement depuis le disque plutôt qu'un pack.
     #[must_use]
     pub fn loose_count(&self) -> usize {
+        if self.loose_files {
+            // Sur un dump, aucun fichier ne vient d'un pack : tout est servi depuis le disque.
+            return self.asset_count();
+        }
         self.index.values().filter(|e| e.cpk_filename.is_empty()).count()
     }
 
     /// Itère sur toutes les entrées indexées (chemin_interne, entrée VFS).
+    ///
+    /// Sur un dump, itère l'arborescence extraite (index construit au premier appel).
     pub fn iter(&self) -> impl Iterator<Item = (&str, &VfsEntry)> {
-        self.index.iter().map(|(k, v)| (k.as_str(), v))
+        let index = if self.loose_files { self.loose_index() } else { &self.index };
+        index.iter().map(|(k, v)| (k.as_str(), v))
     }
 
     /// Itère sur l'index **supplémentaire** — `(chemin_interne, nom_cpk)` des fichiers dont le
@@ -550,6 +662,97 @@ impl Vfs {
 /// Nom du marqueur qui identifie la racine du jeu : l'index VFS chiffré.
 const MARQUEUR_RACINE: &str = "data/cpk_list.cfg.bin";
 
+/// Racines de premier niveau d'un dump extrait. `common/` porte les données de plateforme
+/// neutre, `dx11/` les ressources rendues — l'une des deux suffit à identifier un dump.
+const RACINES_DUMP: [&str; 2] = ["common", "dx11"];
+
+/// Dit si `data_dir` est le `data/` d'un **dump extrait** : une arborescence logique du jeu
+/// sans index chiffré ni packs.
+///
+/// Un `data/` de dépôt vide, ou qui ne porte que des fichiers de travail, n'en est pas un :
+/// c'est la présence d'une racine logique du jeu qui tranche, pas celle du dossier `data/`.
+#[must_use]
+pub fn est_racine_dump<P: AsRef<Path>>(data_dir: P) -> bool {
+    let data_dir = data_dir.as_ref();
+    RACINES_DUMP.iter().any(|r| data_dir.join(r).is_dir())
+}
+
+/// Dit si `data_dir` porte des données de jeu **montables** — index chiffré + packs, ou dump
+/// déjà extrait.
+///
+/// C'est la garde à utiliser par les tests adossés au vrai jeu. Tester la seule présence de
+/// `cpk_list.cfg.bin` fait sauter en silence des goldens qu'un dump suffirait à exécuter :
+/// un test muet qui ne lit rien est un faux vert, exactement comme un golden sans corpus.
+#[must_use]
+pub fn donnees_disponibles<P: AsRef<Path>>(data_dir: P) -> bool {
+    let data_dir = data_dir.as_ref();
+    data_dir.join("cpk_list.cfg.bin").is_file() || est_racine_dump(data_dir)
+}
+
+/// Résout le `data/` d'un dump extrait, sans exiger d'installation du jeu.
+///
+/// Ordre : `NIE_DUMP_DIR` si posée (le `data/` du dump, ou sa racine — les deux sont
+/// acceptés) ; sinon le répertoire courant et ses ancêtres. Retourne `None` quand aucun
+/// dump n'est visible.
+#[must_use]
+pub fn resolve_dump_dir() -> Option<PathBuf> {
+    let normalise = |racine: PathBuf| -> Option<PathBuf> {
+        if est_racine_dump(&racine) {
+            return Some(racine);
+        }
+        let data = racine.join("data");
+        est_racine_dump(&data).then_some(data)
+    };
+    // Même règle que `NIE_GAME_DIR` : posée mais vide ≠ posée.
+    if let Ok(dir) = std::env::var("NIE_DUMP_DIR")
+        && !dir.trim().is_empty()
+    {
+        return normalise(PathBuf::from(dir));
+    }
+    let mut p = std::env::current_dir().ok();
+    while let Some(d) = p {
+        if let Some(dump) = normalise(d.clone()) {
+            return Some(dump);
+        }
+        p = d.parent().map(PathBuf::from);
+    }
+    None
+}
+
+/// Monte le VFS sur ce qui est disponible : l'installation du jeu si elle est là, sinon un
+/// dump extrait.
+///
+/// C'est le point d'entrée à préférer dans tout le moteur — il évite à chaque consommateur de
+/// recoder « `resolve_game_dir()` puis `join("data")` puis `init` », et surtout il rend le
+/// moteur exécutable sur une machine qui n'a que le dump.
+///
+/// `NIE_DUMP_DIR` force le dump même si une installation est visible : c'est ce qui permet de
+/// comparer les deux montages sur la même machine.
+///
+/// # Errors
+///
+/// Rend l'erreur d'[`Vfs::init`] quand une installation est détectée mais illisible, et
+/// `Corrupt` quand ni installation ni dump ne sont visibles.
+pub fn open_game() -> Result<Vfs, FormatError> {
+    let mut vfs = Vfs::new();
+    let dump_force = std::env::var("NIE_DUMP_DIR").is_ok_and(|d| !d.trim().is_empty());
+    if dump_force
+        && let Some(dump) = resolve_dump_dir()
+    {
+        vfs.init_loose(dump)?;
+        return Ok(vfs);
+    }
+    let data = resolve_game_dir().join("data");
+    if data.join("cpk_list.cfg.bin").is_file() || est_racine_dump(&data) {
+        vfs.init(&data)?;
+        return Ok(vfs);
+    }
+    let dump = resolve_dump_dir()
+        .ok_or(FormatError::Corrupt("ni installation du jeu ni dump extrait trouves"))?;
+    vfs.init_loose(dump)?;
+    Ok(vfs)
+}
+
 /// Résout le répertoire racine du jeu — celui qui contient `data/cpk_list.cfg.bin`.
 ///
 /// Ordre : `NIE_GAME_DIR` si posée ; sinon le répertoire courant **ou l'un de ses ancêtres**
@@ -562,7 +765,12 @@ const MARQUEUR_RACINE: &str = "data/cpk_list.cfg.bin";
 /// `cpk_list.cfg.bin` introuvable.
 #[must_use]
 pub fn resolve_game_dir() -> PathBuf {
-    if let Ok(dir) = std::env::var("NIE_GAME_DIR") {
+    // Une variable POSÉE MAIS VIDE n'est pas une racine : la prendre au pied de la lettre
+    // renvoyait un chemin vide, où rien n'est jamais trouvé — et tous les tests adossés au
+    // vrai jeu se sautaient en annonçant « jeu absent » sur une machine qui l'avait.
+    if let Ok(dir) = std::env::var("NIE_GAME_DIR")
+        && !dir.trim().is_empty()
+    {
         return PathBuf::from(dir);
     }
     let candidat = |depart: PathBuf| -> Option<PathBuf> {
@@ -584,6 +792,14 @@ pub fn resolve_game_dir() -> PathBuf {
         && let Some(racine) = candidat(dir.to_path_buf())
     {
         return racine;
+    }
+    // Aucune installation en vue : un dump extrait sert les mêmes chemins logiques et suffit
+    // à faire tourner le moteur. Il ne vient qu'ici, après l'installation — un dump est une
+    // copie, l'installation est la source.
+    if let Some(dump) = resolve_dump_dir()
+        && let Some(racine) = dump.parent()
+    {
+        return racine.to_path_buf();
     }
     cwd
 }

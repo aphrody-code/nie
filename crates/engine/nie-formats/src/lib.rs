@@ -301,7 +301,7 @@ mod tests {
     fn g4nv_detect_golden_via_vfs() {
         let dir = crate::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data = std::path::Path::new(&dir).join("data");
-        if !data.join("cpk_list.cfg.bin").exists() {
+        if !crate::vfs::donnees_disponibles(&data) {
             eprintln!("skip g4nv_detect_golden_via_vfs : NIE_GAME_DIR absent");
             return;
         }

@@ -2017,7 +2017,7 @@ mod tests {
     fn encode_t2b_round_trip_sur_le_vrai_jeu() {
         let dir = crate::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data_dir = std::path::Path::new(&dir).join("data");
-        if !data_dir.join("cpk_list.cfg.bin").exists() {
+        if !crate::vfs::donnees_disponibles(&data_dir) {
             eprintln!("skip encode_t2b_round_trip_sur_le_vrai_jeu : jeu absent");
             return;
         }
@@ -2080,7 +2080,7 @@ mod tests {
     fn encode_rdbn_round_trip_sur_le_vrai_jeu() {
         let dir = crate::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data_dir = std::path::Path::new(&dir).join("data");
-        if !data_dir.join("cpk_list.cfg.bin").exists() {
+        if !crate::vfs::donnees_disponibles(&data_dir) {
             eprintln!("skip encode_rdbn_round_trip_sur_le_vrai_jeu : jeu absent");
             return;
         }

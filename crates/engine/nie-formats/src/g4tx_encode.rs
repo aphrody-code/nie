@@ -310,7 +310,7 @@ mod real_game_tests {
     fn encode_g4tx_round_trip_sur_un_vrai_fichier() {
         let dir = crate::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data_dir = Path::new(&dir).join("data");
-        if !data_dir.join("cpk_list.cfg.bin").exists() {
+        if !crate::vfs::donnees_disponibles(&data_dir) {
             eprintln!("skip encode_g4tx_round_trip_sur_un_vrai_fichier : jeu absent");
             return;
         }

@@ -610,7 +610,7 @@ mod tests {
     fn real_option02_02_fullscreen_object() {
         let dir = crate::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data = std::path::Path::new(&dir).join("data");
-        if !data.join("cpk_list.cfg.bin").exists() {
+        if !crate::vfs::donnees_disponibles(&data) {
             eprintln!("skip real_option02_02_fullscreen_object : jeu absent");
             return;
         }

@@ -1130,7 +1130,7 @@ mod tests {
         use std::ffi::CString;
         let dir = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data = std::path::Path::new(&dir).join("data");
-        if !data.join("cpk_list.cfg.bin").exists() {
+        if !nie_formats::vfs::donnees_disponibles(&data) {
             eprintln!("skip font_render_text_a_real : jeu absent");
             return;
         }
