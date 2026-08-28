@@ -51,7 +51,7 @@ fn decode_route_les_familles_level5_annexes() {
 
     // Extensions dont un parseur AUTONOME existe dans le crate. `.g4mg` en est volontairement
     // absent : sa géométrie n'a de sens qu'avec le `.g4md` frère, il n'y a rien à décoder seul.
-    let familles = ["g4mt", "g4cm", "g4la", "g4ma", "g4vs", "col", "g4nv", "g4sk"];
+    let familles = ["g4mt", "g4cm", "g4la", "g4ma", "g4vs", "col", "g4nv", "g4sk", "vfxo", "pfxo", "gfxo", "cfxo"];
 
     // (décodés, essayés, nom du parseur) : afficher le dénominateur évite de lire « 4 décodés »
     // comme un échec partiel quand la famille ne compte que 4 fichiers dans tout le jeu.

@@ -13,6 +13,8 @@
 //! | `.acb`/`.awb`/`.hca`/`.adx` | wav |
 //! | `.usm` | mp4 *(contextuel)* |
 //! | `.cfg.bin`, `.objbin`, `.mevbin`, `.lip`, `.g4pk`… | json |
+//! | `.g4sk`, `.g4nv`, `.g4mt`, `.g4cm`, `.g4la`, `.g4ma`, `.g4vs`, `.col` | json |
+//! | `.vfxo`, `.pfxo`, `.gfxo`, `.cfxo` (shaders DXBC) | json |
 //! | tout | **brut** — les octets du jeu, inchangés |
 //!
 //! ## Formats contextuels
@@ -70,12 +72,39 @@ fn ext_de(path: &str) -> String {
 }
 
 /// Vrai pour les conteneurs que `nie_formats::decode` sait rendre en JSON.
+///
+/// La liste suit la table de dispatch, elle ne la devine pas : proposer un export JSON pour une
+/// extension que `decode` ignore promet une conversion qui échouera au clic, et l'oublier pour
+/// une extension qu'il gère cache une capacité réelle. C'est ce second cas qui s'était produit
+/// pour les huit familles Level-5 annexes (`g4sk`, `g4nv`, `g4mt`, `g4cm`, `g4la`, `g4ma`,
+/// `g4vs`, `col`) — décodables, jamais proposées. Cf. `nie-formats/tests/decode_dispatch.rs`.
 fn est_donnee_structuree(path: &str, ext: &str) -> bool {
     let bas = path.to_ascii_lowercase();
     bas.ends_with(".cfg.bin")
         || matches!(
             ext,
-            "bin" | "objbin" | "mevbin" | "lip" | "g4pk" | "g4pkm" | "cpk" | "clobin" | "linb"
+            "bin" | "objbin"
+                | "mevbin"
+                | "lip"
+                | "g4pk"
+                | "g4pkm"
+                | "cpk"
+                | "clobin"
+                | "linb"
+                | "g4sk"
+                | "g4nv"
+                | "g4mt"
+                | "g4cm"
+                | "g4la"
+                | "g4ma"
+                | "g4vs"
+                | "col"
+                // Shaders DXBC : l'extension dit l'étage du pipeline (vertex/pixel/geometry/
+                // compute), le conteneur est le même.
+                | "vfxo"
+                | "pfxo"
+                | "gfxo"
+                | "cfxo"
         )
 }
 
@@ -215,6 +244,26 @@ mod tests {
         let ids: Vec<String> = formats_pour("x/y.g4tx").into_iter().map(|f| f.id).collect();
         for attendu in ["raw", "png", "webp", "gif", "jpg", "bmp", "tga", "tiff", "qoi", "json"] {
             assert!(ids.contains(&attendu.to_string()), "{attendu} manquant : {ids:?}");
+        }
+    }
+
+    /// Les huit familles Level-5 annexes que `nie_formats::decode` route doivent être proposées
+    /// à l'export JSON.
+    ///
+    /// Elles ont passé des mois décodables sans être offertes nulle part : la table de dispatch
+    /// les ignorait, et celle-ci ne les listait pas non plus. Figer la correspondance ici évite
+    /// que le prochain parseur branché reste invisible dans l'interface.
+    #[test]
+    fn les_familles_level5_annexes_proposent_le_json() {
+        for ext in ["g4sk", "g4nv", "g4mt", "g4cm", "g4la", "g4ma", "g4vs", "col", "vfxo", "pfxo", "gfxo", "cfxo"] {
+            let ids: Vec<String> = formats_pour(&alloc::format!("a/b.{ext}"))
+                .into_iter()
+                .map(|f| f.id)
+                .collect();
+            assert!(
+                ids.contains(&"json".to_string()),
+                ".{ext} : export JSON non proposé alors que `decode` le rend — {ids:?}",
+            );
         }
     }
 

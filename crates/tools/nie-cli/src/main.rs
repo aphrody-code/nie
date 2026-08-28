@@ -3791,6 +3791,21 @@ fn vfs_stats(top: usize, game_dir: Option<PathBuf>) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Ce qu'on sait d'une extension que `nie_formats::decode` ne route pas.
+///
+/// La table de dispatch n'est pas tout le dépôt : du bytecode Lua est lu par `nie-lua` (qui
+/// dépend de `nie-formats`, donc `decode` ne peut pas l'appeler sans inverser la dépendance), et
+/// un `.g4mg` n'est pas décodable seul par construction. Sans ces notes, la mesure ferait passer
+/// des capacités acquises et des impossibilités de principe pour un même « reste à faire ».
+fn note_hors_dispatch(ext: &str) -> Option<&'static str> {
+    match ext {
+        "g4mg" => Some("tampon de sommets brut, decrit par le .g4md frere : rien a decoder seul"),
+        "bin" => Some("dont le bytecode Lua 5.2 (.lua.bin), charge et execute par nie-lua"),
+        "webp" | "png" | "jpg" | "log" | "cfg" => Some("fichier de travail, pas un asset du jeu"),
+        _ => None,
+    }
+}
+
 /// Mesure la part du VFS que le dépôt sait lire, en lisant réellement les fichiers.
 ///
 /// Le chiffre publié dans `docs/PLAN.md` sous « Formats » vient d'ici : sans commande qui le
@@ -3926,8 +3941,15 @@ fn vfs_formats(
         let mut v: Vec<(&String, &usize)> = inconnus_par_ext.iter().collect();
         v.sort_by(|a, b| b.1.cmp(a.1));
         for (ext, n) in v.iter().take(15) {
-            println!("    {n:>8}  .{ext}");
+            match note_hors_dispatch(ext) {
+                Some(note) => println!("    {n:>8}  .{ext}  — {note}"),
+                None => println!("    {n:>8}  .{ext}"),
+            }
         }
+        println!(
+            "\n  « non reconnu » = absent de la table de dispatch `nie_formats::decode`, PAS\n  \
+             forcement illisible par le depot : les notes ci-dessus disent qui sait deja les lire."
+        );
     }
     if !exemples_inconnus.is_empty() {
         println!("\n  exemples non reconnus :");

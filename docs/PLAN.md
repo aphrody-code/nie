@@ -24,7 +24,7 @@ Le reverse-engineering est **l'échafaudage**, pas la fin : il sert à résoudre
 | Couverture | Ce qu'elle mesure | État |
 |---|---|---|
 | **Forge** | part de `nie.exe` produite par le dépôt | **51,86 %** du fichier · **66,09 %** du `.text` — mesure du 2026-08-10, cible byte-identique au binaire installé au 2026-08-15 (même sha256, `.pdata` identique à l'octet), mais `var/forge/` absent sur ce VPS donc non rejouable ici. **Toujours pas rejouable le 2026-08-28** : `var/forge/` est absent de la machine Windows aussi (`nie-forge report` → « recouvrement absent : var/forge\cover.json »). Le chiffre tient parce que la cible n'a pas bougé, pas parce qu'on l'a revérifié |
-| **Formats** | fichiers du VFS dans un format parsé | **87,93 %** réellement décodés (224 497 / 255 316) — mesure du 2026-08-28 sur le dump complet, `niers vfs formats --parse`, 0 fichier illisible. S'y ajoutent **4,39 %** (11 215) dont le magic est connu sans décodeur autonome (`@UTF` 5 513, `AWB` 5 512, `USM` 190 : des conteneurs média), soit **92,32 % identifiés**. Restent **7,68 %** (19 604) sans magic ni parseur, dont ~15 900 `.g4mg` — des tampons de sommets bruts décrits par leur `.g4md` frère, donc non décodables seuls **par construction**. L'ancien chiffre de 99,56 % n'était adossé à aucune commande : il n'est pas « tombé », il n'a jamais été rejouable |
+| **Formats** | fichiers du VFS dans un format parsé | **88,91 %** réellement décodés (226 994 / 255 316) — mesure du 2026-08-28 sur le dump complet, `niers vfs formats --parse`, 0 fichier illisible. **94,80 %** en retirant les 15 876 `.g4mg`, qui ne sont pas décodables seuls par construction. S'y ajoutent 11 215 fichiers au magic connu sans décodeur autonome (`@UTF` 5 513, `AWB` 5 512, `USM` 190 : conteneurs média), et 1 197 `.lua.bin` que `nie-lua` exécute déjà sans passer par `decode`. Reste **~30 fichiers** réellement non lus. L'ancien chiffre de 99,56 % n'était adossé à aucune commande : il n'est pas « tombé », il n'a jamais été rejouable |
 | **Données** | familles `cfg.bin` typées et recalculées au bit | 117 modules, **121 familles routées**, 127 fichiers golden |
 | **Logique** | fonctions de gameplay portées **et** validées byte-exact | **43** validations dans la suite oracle — non rejouées le 2026-08-15 ; le binaire cible n'a pas changé (cf. Forge ci-dessus) donc rien n'indique qu'elles soient tombées, mais elles n'ont pas non plus été reconfirmées cette session |
 | **RE** | fonctions classifiées / nommées | **La KB n'est pas la même d'une machine à l'autre — citer la machine avec le chiffre.** Sur la machine Windows le 2026-08-28, `niers coverage --db var/niers.sqlite` donne **87,63 %** (48 503 / 55 351) et **257 nommées** : cette base-là n'a pas les noms du VPS (table `symbol` vide), elle est à réindexer avant d'en tirer quoi que ce soit. Mesures du VPS ci-dessous. Mesure du 2026-08-10 : 93,36 % (49 280 / 52 783) · 6 429 nommées (12,18 %). **Revérifié 2026-08-15** (`niers rebuild` sur le binaire actuellement installé, byte-identique à celui du 2026-08-10) : **91,22 %** classées (97 006 / 106 340) · 6 429 nommées (**6,05 %**, même compte brut sur un dénominateur qui a grossi — le VPS a transité par un AUTRE build entre le 2026-08-14 soir et le 2026-08-15, cf. `docs/RE.md`, ce qui a pu affecter l'indexation entre-temps) |
@@ -81,8 +81,26 @@ goldens et l'explorateur tournent sur une machine sans installation, et une mesu
 d'extraire 255 000 fichiers d'archives devient une lecture de fichiers.
 
 Reste : la hiérarchie d'os `g4sk` garde un fallback heuristique sur certains fichiers (les
-matrices, elles, sont byte-exactes) ; 1 121 fichiers en formats non structurés (`.ptlb`, `.fxbin`,
-`.clobin`, `.g4tg`, blobs hash-nommés).
+matrices, elles, sont byte-exactes).
+
+**Ce qui n'est pas lu, nommé et compté** (`niers vfs formats --parse`, dump complet, 2026-08-28) :
+
+| Fichiers | Extension | Ce que c'est |
+|---:|---|---|
+| 15 876 | `.g4mg` | tampons de sommets bruts — **pas un format manquant** : décrits par le `.g4md` frère, rien à décoder seul |
+| 1 197 | `.bin` | ce sont **exactement** les `.lua.bin` — du bytecode Lua 5.2, que `nie-lua` charge et **exécute** déjà. `decode` ne peut pas l'appeler (`nie-lua` dépend de `nie-formats`, pas l'inverse) : c'est une limite d'architecture, pas un format non porté |
+| 9 | `.g4tg` | non porté |
+| 4 + 1 | `.usm` `.g4mt` | échecs de parse isolés au sein de familles par ailleurs décodées — à investiguer, c'est le seul vrai reste |
+| 17 | `.log` `.webp` `.png` `.jpg` `.cfg` | pas des assets du jeu (fichiers de travail sous `data/mod/`) |
+
+La mesure a désigné son propre chantier et il est tombé le jour même : les 2 497 `.vfxo`/`.pfxo`/
+`.gfxo`/`.cfxo`, pris pour des effets à cause de leur extension, sont des **shaders DXBC** — le
+module `dxbc` les parse depuis toujours, il n'était pas branché. `v`/`p`/`g`/`c` disent l'étage du
+pipeline (vertex/pixel/geometry/compute), le conteneur est le même. `data/dx11/shader` passe de
+partiellement lu à **100 % décodé**.
+
+Ce qui reste vraiment non lu par le dépôt tient donc en **~30 fichiers** : 9 `.g4tg` et 5 échecs
+isolés. Les `.g4mg` ne peuvent pas l'être, les `.lua.bin` le sont ailleurs.
 
 **Huit parseurs n'étaient branchés nulle part** (constaté et corrigé le 2026-08-28). `g4sk`,
 `navm`, `g4mt`, `g4cm`, `g4la`, `g4ma`, `g4vs` et `col` existaient, testés, mais absents de

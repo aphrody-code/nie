@@ -148,6 +148,16 @@ fn decode_level5_annexe(data: &[u8]) -> Option<Decoded> {
     fn done(json: Option<Vec<u8>>, format: &'static str) -> Option<Decoded> {
         json.map(|json| Decoded { json, format })
     }
+    // Les shaders du jeu (`.vfxo`/`.pfxo`/`.gfxo`/`.cfxo` — vertex/pixel/geometry/compute) sont
+    // des conteneurs **DXBC**, pas un format Level-5 : leurs extensions les faisaient passer pour
+    // des effets, et 2 497 fichiers comptaient comme « non reconnus » alors que le module `dxbc`
+    // les parse depuis toujours.
+    if crate::dxbc::is_dxbc(data) {
+        return done(
+            crate::dxbc::parse(data).ok().and_then(|v| serde_json::to_vec(&v).ok()),
+            "dxbc",
+        );
+    }
     if crate::g4mt::is_g4mt(data) {
         return done(
             crate::g4mt::parse(data).ok().and_then(|v| serde_json::to_vec(&v).ok()),
