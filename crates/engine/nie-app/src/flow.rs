@@ -240,7 +240,12 @@ impl Screen {
                 };
                 render_state(&st, font, None).buf
             }
-            Screen::Match { world } => nie_runtime::render::render(world, W as u32, H as u32).px,
+            Screen::Match { world } => {
+                let terrain = nie_runtime::render::render(world, W as u32, H as u32).px;
+                // Le score et le chrono se composent ICI : le rastériseur du moteur n'a pas de
+                // police, la FSM en a une.
+                crate::render::hud_match(&terrain, font, world.score, world.time)
+            }
             Screen::Liste { titre, lignes, sel } => {
                 let vues: Vec<&str> = lignes.iter().map(String::as_str).collect();
                 // Fenêtre glissante autour de la sélection : un effectif compte des milliers de
