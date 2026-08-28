@@ -140,6 +140,25 @@ binaire et c'est écrit dans le code. Voir [`modele-de-match.md`](modele-de-matc
 
 ### Rendu et menu
 
+**GPU (2026-08-28).** Deux chemins wgpu existent, tous deux vérifiés sur RTX 4070 / DX12 :
+
+- **menu 2D** (`nie-game --menu … --gpu --verify`) — déjà branché, écart max 2/255 contre le
+  compositeur CPU, 100 % des pixels dans la tolérance ;
+- **3D** (`nie-render3d --gpu`) — les 688 lignes de `GpuRenderer` n'étaient **appelées par
+  personne**. Branchées, elles rendent les vrais modèles du jeu et **4,3× plus vite** que le
+  rastériseur CPU (2,16 contre 9,38 ms/image en 1920×1080, release, sur `ka000101`). Le goulot
+  devient l'encodage PNG, 23 à 40 ms/image : c'est lui qu'il faudra sortir du chemin, pas le rendu.
+
+Brancher a révélé que les deux rastériseurs avaient **divergé en silence** — rien ne les comparait.
+Trois écarts corrigés : sens de rotation (le CPU tourne le modèle, le GPU orbite la caméra), champ
+de vision (fovy 1,0 rad contre 2·atan(1/1,7) — 16 % de pixels couverts en trop), et éclairage (la
+lumière tournait avec l'objet, faute d'orienter les normales). Le recouvrement des silhouettes
+passe de **22 % à 100,00 %** (42 748 px CPU contre 42 747 GPU). Deux divergences **restent, et sont
+assumées** : ombrage lissé par sommet contre plat par face, filtrage linéaire contre plus proche
+voisin — plus le culling, que le CPU applique et le GPU non (sans effet sur la silhouette d'un
+volume fermé, visible sur une surface ouverte). Un test (`gpu_et_cpu_cadrent_la_meme_vue`) fige
+désormais le cadrage.
+
 Le rendu fidèle du menu est **gaté sur le driver de menu runtime**. Le vrai menu n'est pas dans
 les fichiers : il est construit à l'exécution par le menu-manager C++, qui lit les
 `*_menu_setting.cfg.bin`, crée les objets, et pilote le Lua via `funcLuaMenuCommand` — le script

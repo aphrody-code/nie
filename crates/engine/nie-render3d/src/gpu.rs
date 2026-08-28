@@ -47,6 +47,14 @@ const VERTEX_LAYOUT: wgpu::VertexBufferLayout<'static> = wgpu::VertexBufferLayou
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 struct CameraUniform {
     view_proj: [[f32; 4]; 4],
+    /// Rotation à appliquer aux **normales** avant l'éclairage — la même que celle que le
+    /// rastériseur CPU applique au modèle.
+    ///
+    /// Sans elle, la normale reste dans l'espace du modèle tandis que la direction de lumière est
+    /// fixe : la lumière tourne alors AVEC l'objet, et un turntable montre un éclairage qui suit
+    /// la rotation au lieu d'une source immobile. Une `mat4` plutôt qu'une `mat3` : une `mat3x3`
+    /// WGSL s'aligne de toute façon sur trois `vec4`, autant que le côté Rust le dise.
+    normal_rot: [[f32; 4]; 4],
     /// `xyz` = direction de lumière normalisée, `w` = 1.0 si la primitive porte une texture.
     light: [f32; 4],
 }
@@ -255,8 +263,14 @@ impl GpuRenderer {
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,
                 // Pas de `cull_mode` : les maillages du jeu ont des faces à orientation
-                // incohérente (vêtements, cheveux modélisés en plans simples). Le culling en
-                // trouerait visiblement — le rastériseur CPU fait le même constat.
+                // incohérente (vêtements, cheveux modélisés en plans simples), que le culling
+                // trouerait visiblement.
+                //
+                // C'est une divergence ASSUMÉE avec le rastériseur CPU, qui lui écarte les faces
+                // arrière (`render.rs`, aire signée écran ≤ 0). Elle ne change pas la silhouette
+                // d'un volume fermé — pour chaque face arrière rejetée, une face avant la
+                // recouvre — d'où l'IoU de 100 % mesuré sur un personnage. Elle se voit en
+                // revanche sur une surface ouverte, où le CPU peut ne rien dessiner du tout.
                 cull_mode: None,
                 front_face: wgpu::FrontFace::Ccw,
                 polygon_mode: wgpu::PolygonMode::Fill,
@@ -278,9 +292,16 @@ impl GpuRenderer {
 
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             label: Some("atlas"),
-            address_mode_u: wgpu::AddressMode::Repeat,
-            address_mode_v: wgpu::AddressMode::Repeat,
-            address_mode_w: wgpu::AddressMode::Repeat,
+            // `ClampToEdge`, comme `render::sample` qui borne ses UV : en `Repeat`, un UV hors
+            // [0,1] ramène un texel de l'autre bout de l'atlas — donc la texture d'une autre
+            // partie du modèle, pas un artefact de bord. C'est une divergence de sémantique, pas
+            // de qualité.
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            // Le filtrage, lui, reste linéaire là où le CPU échantillonne au plus proche : c'est
+            // un choix de qualité assumé pour un viewport, et la cause principale de l'écart de
+            // couleur que rapporte `nie-render3d --verify`.
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Linear,
             mipmap_filter: wgpu::MipmapFilterMode::Nearest,
@@ -465,6 +486,7 @@ impl GpuRenderer {
 
         let camera = camera.clamped();
         let view_proj = view_projection(model, camera, width as f32 / height as f32);
+        let normal_rot = rotation_normales(camera);
         let light = normalize3([0.35, 0.75, 0.55]);
 
         let color_view = targets.color.create_view(&wgpu::TextureViewDescriptor::default());
@@ -506,6 +528,7 @@ impl GpuRenderer {
                 // d'une primitive à l'autre.
                 let uniform = CameraUniform {
                     view_proj,
+                    normal_rot,
                     light: [light[0], light[1], light[2], if prim.has_texture { 1.0 } else { 0.0 }],
                 };
                 let buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -587,9 +610,46 @@ fn view_projection(model: &GpuModel, camera: Camera, aspect: f32) -> [[f32; 4]; 
     // modèle minuscule (coupé par le plan proche) ou un modèle immense (au-delà du plan lointain).
     let near = (dist - r * 2.0).max(r * 0.01);
     let far = dist + r * 4.0;
-    let proj = perspective(1.0, aspect, near, far);
+    // Même champ de vision que le rastériseur CPU, qui est la vérité terrain des goldens. Un fovy
+    // choisi indépendamment (1,0 rad ici avant le 2026-08-28, contre 2·atan(1/1,7) ≈ 1,083) rend
+    // le modèle sensiblement plus gros : 16 % de pixels couverts en plus sur un personnage, ce
+    // qui se lit comme une divergence de rendu alors que ce n'est qu'un réglage de caméra.
+    let proj = perspective(2.0 * (1.0 / crate::render::FOCALE).atan(), aspect, near, far);
     let view = look_at(eye, model.center, [0.0, 1.0, 0.0]);
     mat_mul(proj, view)
+}
+
+/// Rotation appliquée aux normales pour l'éclairage — l'équivalent GPU de `render::orient`.
+///
+/// Le rastériseur CPU fait tourner le MODÈLE (yaw puis tilt) devant une caméra fixe, et éclaire
+/// avec une lumière fixe : l'observateur voit une source immobile pendant qu'un turntable tourne.
+/// Ici la caméra orbite, donc le modèle ne bouge pas — il faut appliquer la rotation inverse aux
+/// normales pour retrouver le même comportement. Le yaw est nié parce qu'orbiter l'observateur de
+/// `+θ` équivaut à tourner l'objet de `−θ`.
+fn rotation_normales(camera: Camera) -> [[f32; 4]; 4] {
+    let (cy, sy) = (-camera.yaw).cos_sin();
+    let (cx, sx) = camera.pitch.cos_sin();
+    // Colonne-major, comme le reste des matrices envoyées au shader. R = Rx(pitch) · Ry(-yaw),
+    // l'ordre exact de `render::orient` (Y d'abord, X ensuite).
+    [
+        [cy, sy * sx, -sy * cx, 0.0],
+        [0.0, cx, sx, 0.0],
+        [sy, -cy * sx, cy * cx, 0.0],
+        [0.0, 0.0, 0.0, 1.0],
+    ]
+}
+
+/// `cos` et `sin` d'un même angle, calculés ensemble — évite d'écrire deux fois l'angle et de se
+/// tromper de signe sur l'un des deux.
+trait CosSin {
+    /// Rend `(cos, sin)`.
+    fn cos_sin(self) -> (f32, f32);
+}
+
+impl CosSin for f32 {
+    fn cos_sin(self) -> (f32, f32) {
+        (self.cos(), self.sin())
+    }
 }
 
 fn perspective(fovy: f32, aspect: f32, near: f32, far: f32) -> [[f32; 4]; 4] {
@@ -684,5 +744,73 @@ mod tests {
         // La texture est rouge pur, modulée par l'éclairage : le canal rouge doit dominer.
         let sample = pixels.chunks_exact(4).find(|p| p[3] > 200).expect("au moins un pixel opaque");
         assert!(sample[0] > sample[1] && sample[0] > sample[2], "couleur inattendue : {sample:?}");
+    }
+
+    /// Le pipeline GPU cadre la **même vue** que le rastériseur CPU de référence.
+    ///
+    /// Les deux ont des conventions opposées — le CPU tourne le modèle, le GPU orbite la caméra —
+    /// et elles ont divergé sans que rien ne le signale : un champ de vision choisi
+    /// indépendamment (1,0 rad contre 2·atan(1/1,7)) faisait couvrir au GPU 16 % de pixels de
+    /// plus, et le sens de rotation non converti montrait la vue en miroir. Rien de tout cela ne
+    /// se voit sur un test qui ne regarde qu'un seul des deux chemins.
+    ///
+    /// Le test compare donc les SILHOUETTES : la couleur diffère légitimement (ombrage lissé
+    /// contre plat, filtrage linéaire contre plus proche voisin), la couverture non.
+    #[test]
+    fn gpu_et_cpu_cadrent_la_meme_vue() {
+        let Ok(mut renderer) = GpuRenderer::new() else {
+            eprintln!("aucun adaptateur wgpu sur cette machine — test ignoré");
+            return;
+        };
+        // Un quad incliné hors des axes : une géométrie symétrique masquerait une inversion de
+        // rotation, et une géométrie plane frontale masquerait une erreur de champ de vision.
+        let model = Model {
+            primitives: vec![crate::glb::Primitive {
+                positions: vec![
+                    [-1.0, -0.6, 0.4],
+                    [1.2, -0.4, -0.3],
+                    [0.3, 1.1, 0.2],
+                    [-0.8, 0.9, -0.5],
+                ],
+                normals: vec![[0.0, 0.0, 1.0]; 4],
+                uv: vec![[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]],
+                // Winding tel que l'aire signée écran soit positive : le rastériseur CPU écarte
+                // les faces arrière, pas le pipeline GPU (cf. `cull_mode: None`). Une surface
+                // OUVERTE prise à l'envers ne serait donc dessinée que d'un côté, et le test
+                // mesurerait ce désaccord de culling au lieu du cadrage qu'il vise.
+                indices: vec![0, 2, 1, 0, 3, 2],
+                texture: None,
+            }],
+            textures: vec![],
+        };
+
+        const W: u32 = 128;
+        const H: u32 = 128;
+        let angle = 0.6_f32;
+        let gpu_model = renderer.upload(&model);
+        // Conversion de convention, la même que celle du binaire : orbiter de +θ montre ce que
+        // montre une rotation du modèle de −θ.
+        let camera = Camera { yaw: -angle, ..Default::default() }.clamped();
+        let gpu_px = renderer.render(&gpu_model, camera, W, H).expect("rendu GPU");
+        let cpu_px = crate::render::render(&model, angle, W, H);
+
+        let (mut inter, mut union) = (0usize, 0usize);
+        for y in 0..H {
+            let fond = crate::render::couleur_fond(y, H);
+            for x in 0..W {
+                let i = ((y * W + x) * 4) as usize;
+                let c = cpu_px[i..i + 4] != fond;
+                let g = gpu_px[i + 3] > 0;
+                union += usize::from(c || g);
+                inter += usize::from(c && g);
+            }
+        }
+        assert!(union > 500, "les deux rendus sont quasi vides ({union} px couverts)");
+        let iou = inter as f64 / union as f64;
+        assert!(
+            iou > 0.95,
+            "silhouettes divergentes : IoU {:.1} % — champ de vision, cadrage ou sens de rotation",
+            iou * 100.0,
+        );
     }
 }

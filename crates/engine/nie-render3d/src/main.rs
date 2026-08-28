@@ -4,6 +4,11 @@
 //! ```text
 //! nie-render3d --glb /tmp/c01000010.glb --frames 120 --out /tmp/chr.mp4
 //! ```
+//!
+//! Avec la feature `gpu`, `--gpu` bascule sur le pipeline wgpu (2,16 ms/image contre 9,38 au CPU
+//! en 1920×1080), et `--verify` compare les deux chemins sur la même vue. La comparaison porte sur
+//! la **silhouette** : les deux rastériseurs ne rendent pas les mêmes octets par conception
+//! (cf. la table d'écarts assumés dans la doc du crate).
 
 #![forbid(unsafe_code)]
 #![allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
@@ -182,6 +187,27 @@ struct Cli {
     /// auto-cadrée, coloration par hauteur (robuste aux submeshes non-RE).
     #[arg(long)]
     map: bool,
+    /// Angle de la vue fixe, en radians (défaut : 0.6, le trois-quarts de référence).
+    ///
+    /// Sans effet quand `--frames > 1` : le turntable balaie le tour complet.
+    #[arg(long, default_value_t = 0.6)]
+    angle: f32,
+    /// Rend sur le **GPU** (wgpu) au lieu du rastériseur CPU.
+    ///
+    /// Le modèle est téléversé une fois, puis chaque image ne coûte qu'un appel de dessin :
+    /// l'écart se creuse avec le nombre d'images, pas sur une vue fixe. Incompatible avec
+    /// `--scene` et `--map`, qui composent une géométrie que le pipeline GPU ne connaît pas.
+    #[cfg(feature = "gpu")]
+    #[arg(long)]
+    gpu: bool,
+    /// Compare la première image CPU et GPU et rend le verdict, comme `nie-game --verify`.
+    ///
+    /// Les deux rastériseurs ne peuvent pas être identiques au bit — le GPU interpole et filtre
+    /// dans son propre ordre — mais un écart massif signale une divergence de pipeline, pas un
+    /// arrondi. Implique `--gpu`.
+    #[cfg(feature = "gpu")]
+    #[arg(long)]
+    verify: bool,
 }
 
 fn encode_png(rgba: &[u8], w: u32, h: u32) -> Result<Vec<u8>> {
@@ -196,6 +222,65 @@ fn encode_png(rgba: &[u8], w: u32, h: u32) -> Result<Vec<u8>> {
     Ok(out)
 }
 
+/// Verdict de comparaison entre le rendu CPU et le rendu GPU d'une même vue.
+#[cfg(feature = "gpu")]
+struct Comparaison {
+    /// Pixels couverts par la géométrie côté CPU.
+    cpu: usize,
+    /// Idem côté GPU.
+    gpu: usize,
+    /// Recouvrement des deux silhouettes : intersection / union, en pourcentage.
+    iou: f64,
+    /// Écart de couleur maximal **là où les deux ont dessiné**.
+    ecart_max: u8,
+    /// Part de cette intersection dont l'écart tient dans la tolérance.
+    dans_tolerance: f64,
+}
+
+/// Compare un rendu CPU et un rendu GPU de la même vue.
+///
+/// **Pas une comparaison pixel à pixel du cadre entier** : le rastériseur CPU peint un fond
+/// opaque, le pipeline GPU laisse l'arrière-plan transparent — un choix assumé, l'interface
+/// décidant de ce qu'il y a derrière le modèle. Confronter les deux cadres tels quels ferait
+/// donc échouer 99 % des pixels sur une différence qui n'est pas une erreur.
+///
+/// Ce qui se compare, c'est ce que les deux prétendent dessiner : la **silhouette** (recouvrement
+/// des zones couvertes) et, sur leur intersection, la couleur. Une divergence de projection, de
+/// cadrage ou de sens de rotation effondre l'IoU ; une divergence d'éclairage ou de filtrage ne
+/// touche que la couleur. Les deux ne se confondent plus.
+#[cfg(feature = "gpu")]
+fn comparer(cpu: &[u8], gpu: &[u8], w: u32, h: u32, tolerance: u8) -> Comparaison {
+    let (mut n_cpu, mut n_gpu, mut inter, mut union) = (0usize, 0usize, 0usize, 0usize);
+    let (mut ecart_max, mut dans) = (0u8, 0usize);
+    for y in 0..h {
+        let fond = render::couleur_fond(y, h);
+        for x in 0..w {
+            let i = ((y * w + x) * 4) as usize;
+            let (pc, pg) = (&cpu[i..i + 4], &gpu[i..i + 4]);
+            // Côté CPU, « couvert » = différent du fond que le rastériseur aurait peint ici.
+            let c = pc != fond;
+            // Côté GPU, l'alpha le dit directement.
+            let g = pg[3] > 0;
+            n_cpu += usize::from(c);
+            n_gpu += usize::from(g);
+            union += usize::from(c || g);
+            if c && g {
+                inter += 1;
+                let d = (0..3).map(|k| pc[k].abs_diff(pg[k])).max().unwrap_or(0);
+                ecart_max = ecart_max.max(d);
+                dans += usize::from(d <= tolerance);
+            }
+        }
+    }
+    Comparaison {
+        cpu: n_cpu,
+        gpu: n_gpu,
+        iou: if union == 0 { 0.0 } else { inter as f64 * 100.0 / union as f64 },
+        ecart_max,
+        dans_tolerance: if inter == 0 { 0.0 } else { dans as f64 * 100.0 / inter as f64 },
+    }
+}
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
     let mut models = Vec::with_capacity(cli.glb.len());
@@ -206,8 +291,21 @@ fn main() -> Result<()> {
     let model = &models[0];
     let tris: usize = models.iter().flat_map(|m| &m.primitives).map(|p| p.indices.len() / 3).sum();
     let verts: usize = models.iter().flat_map(|m| &m.primitives).map(|p| p.positions.len()).sum();
+    // Une primitive sans indices ne dessine rien : ni le rastériseur CPU (qui itère les triangles)
+    // ni le pipeline GPU ne la voient. Compter ses sommets dans le total laissait croire à une
+    // perte au téléversement — sur un keshin, 12 096 annoncés contre 4 070 réellement envoyés.
+    let verts_dessines: usize = models
+        .iter()
+        .flat_map(|m| &m.primitives)
+        .filter(|p| !p.indices.is_empty())
+        .map(|p| p.positions.len())
+        .sum();
     let nprim: usize = models.iter().map(|m| m.primitives.len()).sum();
-    println!("glb={} primitives={nprim} vertices={verts} triangles={tris}", cli.glb.len());
+    print!("glb={} primitives={nprim} vertices={verts} triangles={tris}", cli.glb.len());
+    if verts_dessines != verts {
+        print!(" (dont {verts_dessines} sommets dessinables — le reste est sans indices)");
+    }
+    println!();
 
     // Mode map : pré-calcule la géométrie d'environnement une fois (tous les chunks composés).
     let map_data = if cli.map { Some(map_tris(&models)) } else { None };
@@ -231,8 +329,105 @@ fn main() -> Result<()> {
         }
     };
 
+    // Chemin GPU : le modèle est téléversé UNE fois, chaque image n'est plus qu'un appel de
+    // dessin. Il remplace `frame` au lieu de s'y glisser, parce que le contrat n'est pas le même —
+    // le renderer garde son état (device, pipeline, tampons) d'une image à l'autre, et c'est
+    // précisément ce qui fait la différence.
+    #[cfg(feature = "gpu")]
+    if cli.gpu || cli.verify {
+        anyhow::ensure!(
+            !cli.scene && !cli.map,
+            "--gpu ne compose ni --scene ni --map : ces modes construisent une géométrie \
+             (sol, chunks) que le pipeline GPU ne connaît pas"
+        );
+        let debut = std::time::Instant::now();
+        let mut renderer = nie_render3d::gpu::GpuRenderer::new()?;
+        let gm = renderer.upload(model);
+        println!(
+            "gpu: {} triangles, {} sommets téléversés en {:?}",
+            gm.triangle_count,
+            gm.vertex_count,
+            debut.elapsed(),
+        );
+        // Les deux rastériseurs ont des conventions OPPOSÉES, et toutes deux légitimes : le CPU
+        // fait tourner le MODÈLE devant une caméra fixe (`render::render(model, angle, …)`), le
+        // GPU fait ORBITER la caméra autour du modèle. Tourner l'objet de +θ montre la même face
+        // que tourner l'observateur de −θ — d'où l'inversion ici, sans laquelle `--angle 0.6`
+        // désignerait deux vues en miroir selon le chemin de rendu.
+        let cam = |angle: f32| {
+            nie_render3d::gpu::Camera { yaw: -angle, ..Default::default() }.clamped()
+        };
+
+        if cli.verify {
+            let gpu_px = renderer.render(&gm, cam(cli.angle), cli.width, cli.height)?;
+            let cpu_px = render::render(model, cli.angle, cli.width, cli.height);
+            let c = comparer(&cpu_px, &gpu_px, cli.width, cli.height, 32);
+            println!("=== vérification CPU vs GPU ===");
+            println!("  couverture CPU      : {} px", c.cpu);
+            println!("  couverture GPU      : {} px", c.gpu);
+            println!("  recouvrement (IoU)  : {:.2}%", c.iou);
+            println!("  écart couleur max   : {}/255 (sur l'intersection)", c.ecart_max);
+            println!("  couleur à ≤32/255   : {:.2}%", c.dans_tolerance);
+            // Le seuil porte sur la GÉOMÉTRIE. Deux rastériseurs différents ne teintent pas
+            // identiquement — filtrage de texture, ordre d'interpolation, gamma — mais ils
+            // doivent couvrir la même silhouette : c'est cela qui prouve que la projection, le
+            // cadrage et le sens de rotation concordent.
+            println!(
+                "  {}",
+                if c.iou >= 90.0 {
+                    "PASS — même silhouette"
+                } else {
+                    "ÉCART de silhouette : projection, cadrage ou sens de rotation divergent"
+                }
+            );
+            // Dire d'où vient l'écart de couleur évite de le lire comme un défaut : il est
+            // attendu, et il a deux causes connues, toutes deux assumées.
+            println!(
+                "  (l'écart de couleur restant est attendu : ombrage lissé par sommet côté GPU \
+                 contre plat par face côté CPU, et filtrage linéaire contre plus-proche-voisin)"
+            );
+        }
+
+        if cli.frames <= 1 {
+            let rgba = renderer.render(&gm, cam(cli.angle), cli.width, cli.height)?;
+            std::fs::write(&cli.out, encode_png(&rgba, cli.width, cli.height)?)?;
+            println!("png={} (gpu)", cli.out.display());
+            return Ok(());
+        }
+
+        let dir = std::env::temp_dir().join(format!("niers-r3d-gpu-{}", std::process::id()));
+        std::fs::create_dir_all(&dir)?;
+        // Rendu et encodage sont chronométrés SÉPARÉMENT : sur une sortie PNG, la compression est
+        // le goulot et masque entièrement le gain du GPU. Annoncer un temps global laisserait
+        // croire que le rendu coûte ce que coûte le PNG.
+        let (mut t_rendu, mut t_png) = (std::time::Duration::ZERO, std::time::Duration::ZERO);
+        for i in 0..cli.frames {
+            let angle = std::f32::consts::TAU * (i as f32) / (cli.frames as f32);
+            let t0 = std::time::Instant::now();
+            let rgba = renderer.render(&gm, cam(angle), cli.width, cli.height)?;
+            t_rendu += t0.elapsed();
+            let t1 = std::time::Instant::now();
+            std::fs::write(dir.join(format!("f_{i:04}.png")), encode_png(&rgba, cli.width, cli.height)?)?;
+            t_png += t1.elapsed();
+        }
+        let n = f64::from(cli.frames);
+        println!(
+            "gpu: {} images — rendu {:?} ({:.2} ms/image), encodage PNG {:?} ({:.2} ms/image)",
+            cli.frames,
+            t_rendu,
+            t_rendu.as_secs_f64() * 1000.0 / n,
+            t_png,
+            t_png.as_secs_f64() * 1000.0 / n,
+        );
+        encode_video(&dir, cli.fps, &cli.out)?;
+        let _ = std::fs::remove_dir_all(&dir);
+        let sz = std::fs::metadata(&cli.out).map(|m| m.len()).unwrap_or(0);
+        println!("video={} ({sz} octets, gpu)", cli.out.display());
+        return Ok(());
+    }
+
     if cli.frames <= 1 {
-        let rgba = frame(0.6);
+        let rgba = frame(cli.angle);
         std::fs::write(&cli.out, encode_png(&rgba, cli.width, cli.height)?)?;
         println!("png={}", cli.out.display());
         return Ok(());
@@ -240,11 +435,27 @@ fn main() -> Result<()> {
 
     let dir = std::env::temp_dir().join(format!("niers-r3d-{}", std::process::id()));
     std::fs::create_dir_all(&dir)?;
+    // Même ventilation rendu/encodage que le chemin GPU : comparer deux temps globaux, dont l'un
+    // porte un encodage PNG identique de part et d'autre, dirait surtout le coût du PNG.
+    let (mut t_rendu, mut t_png) = (std::time::Duration::ZERO, std::time::Duration::ZERO);
     for i in 0..cli.frames {
         let angle = std::f32::consts::TAU * (i as f32) / (cli.frames as f32);
+        let t0 = std::time::Instant::now();
         let rgba = frame(angle);
+        t_rendu += t0.elapsed();
+        let t1 = std::time::Instant::now();
         std::fs::write(dir.join(format!("f_{i:04}.png")), encode_png(&rgba, cli.width, cli.height)?)?;
+        t_png += t1.elapsed();
     }
+    let n = f64::from(cli.frames);
+    println!(
+        "cpu: {} images — rendu {:?} ({:.2} ms/image), encodage PNG {:?} ({:.2} ms/image)",
+        cli.frames,
+        t_rendu,
+        t_rendu.as_secs_f64() * 1000.0 / n,
+        t_png,
+        t_png.as_secs_f64() * 1000.0 / n,
+    );
     encode_video(&dir, cli.fps, &cli.out)?;
     let _ = std::fs::remove_dir_all(&dir);
     let sz = std::fs::metadata(&cli.out).map(|m| m.len()).unwrap_or(0);
