@@ -191,6 +191,18 @@ impl Screen {
         }
     }
 
+    /// Le monde du match en cours, pour qu'un front puisse le rendre autrement.
+    ///
+    /// C'est ce qui permet à `nie-game` de proposer la vue 3D (`crate::match3d`) sans que la FSM
+    /// dépende du VFS : elle expose l'état, le front choisit sa caméra.
+    #[must_use]
+    pub fn world(&self) -> Option<&nie_runtime::World> {
+        match self {
+            Screen::Match { world } => Some(world),
+            _ => None,
+        }
+    }
+
     /// Index du joueur que la joueuse contrôle, pour que l'interface puisse le désigner.
     #[must_use]
     pub fn controlled_player(&self) -> Option<usize> {

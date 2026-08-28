@@ -1713,6 +1713,8 @@ fn cmd_play(max_frames: u32) -> Result<()> {
             vfs,
             cache: std::collections::HashMap::new(),
             dialogue: None,
+            vue3d: false,
+            modele3d: None,
         }),
     };
     event_loop.run_app(&mut app).context("boucle événements winit")?;
@@ -1911,6 +1913,10 @@ struct Jeu {
     /// Chaque jointure lit des tables de plusieurs mégaoctets : la refaire à chaque ouverture de
     /// l'onglet se sentirait à la navigation.
     cache: std::collections::HashMap<Onglet, Vec<String>>,
+    /// Vue 3D du match active (touche V).
+    vue3d: bool,
+    /// Modèle 3D des joueurs (`Some(None)` = chargement tenté et échoué).
+    modele3d: Option<Option<nie_render3d::glb::Model>>,
     /// Scène de dialogue retenue pour le mode Histoire (`Some(None)` = recherche infructueuse).
     dialogue: Option<Option<(String, Vec<String>)>>,
 }
@@ -1969,6 +1975,35 @@ impl Jeu {
         });
         self.cache.insert(quoi, lignes.clone());
         lignes
+    }
+
+    /// Image de l'écran courant, vue 3D comprise.
+    ///
+    /// La FSM rend le match en vue de dessus ; ce front peut lui substituer la vue en perspective
+    /// (`nie_app::match3d`) parce qu'il a le VFS, que la FSM n'a pas. Le bandeau de score est
+    /// composé dans les deux cas — c'est l'information, pas la caméra.
+    fn image(&mut self) -> Vec<u8> {
+        if self.vue3d
+            && let Some(world) = self.ecran.world()
+        {
+            if self.modele3d.is_none() {
+                // Le chargement décode une texture BC7 : quelques secondes, une seule fois.
+                // L'échec est mémorisé pour ne pas le retenter à chaque image.
+                info!("chargement du modèle 3D…");
+                match nie_app::match3d::charger_modele_joueur(&self.vfs, 40) {
+                    Ok(m) => self.modele3d = Some(Some(m)),
+                    Err(e) => {
+                        warn!("vue 3D indisponible : {e:#}");
+                        self.modele3d = Some(None);
+                    }
+                }
+            }
+            if let Some(Some(modele)) = &self.modele3d {
+                let px = nie_app::match3d::rendre(world, modele);
+                return nie_app::render::hud_match(&px, &self.police, world.score, world.time);
+            }
+        }
+        self.ecran.render(&self.police)
     }
 
     /// Scène de dialogue à jouer dans le mode Histoire, chargée une fois puis mémorisée.
@@ -4225,6 +4260,15 @@ impl winit::application::ApplicationHandler for AppFenetre {
                 if !event.state.is_pressed() || event.repeat {
                     return;
                 }
+                // V bascule la caméra du match : vue de dessus (la référence, sans assets) ou
+                // perspective 3D avec les maillages du jeu.
+                if code == winit::keyboard::KeyCode::KeyV
+                    && let Some(jeu) = &mut self.jeu
+                {
+                    jeu.vue3d = !jeu.vue3d;
+                    info!("vue {}", if jeu.vue3d { "3D" } else { "de dessus" });
+                    return;
+                }
                 if let Some(jeu) = &mut self.jeu {
                     // En match, les directions PILOTENT le joueur et ne doivent pas être aussi
                     // lues comme des commandes de menu : elles y sont sans effet, mais les
@@ -4278,7 +4322,7 @@ impl winit::application::ApplicationHandler for AppFenetre {
                         info!("score {}-{}", score[0], score[1]);
                         jeu.dernier_score = score;
                     }
-                    let frame = jeu.ecran.render(&jeu.police);
+                    let frame = jeu.image();
                     etat.televerser(&frame, self.tex_width, self.tex_height);
                 }
                 if let Some(etat) = &mut self.etat {

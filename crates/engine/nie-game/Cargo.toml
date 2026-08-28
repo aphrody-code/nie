@@ -26,6 +26,8 @@ nie-data = { workspace = true }
 # Le CŒUR du jeu : machine à états d'écrans (`flow::Screen`), rendu abstrait et police. `--play`
 # se contente de la brancher sur une fenêtre — même FSM que le front web, aucune réimplémentation.
 nie-app = { workspace = true }
+# Le type `Model` traverse l'API de `nie_app::match3d` (vue 3D du match) : nommable ici.
+nie-render3d = { path = "../../engine/nie-render3d" }
 anyhow = { workspace = true }
 clap = { workspace = true }
 tracing = { workspace = true }
