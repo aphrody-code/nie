@@ -23,3 +23,7 @@ nie-runtime = { path = "../../engine/nie-runtime" }
 # `Vec2` traverse l'API du moteur (direction de l'entrée de jeu) : le type doit être nommable ici.
 nie-geom = { path = "../../engine/nie-geom" }
 bcdec_rs = "0.2.0"
+
+[dev-dependencies]
+# Encodage PNG des exemples (rendu 3D de match) — pas une dependance de la bibliotheque.
+png = "0.18"
