@@ -118,6 +118,27 @@ fn pelouse() -> Vec<Tri> {
     t
 }
 
+/// Corps figuré d'un joueur : deux quads croisés aux couleurs de son équipe, sous sa tête.
+///
+/// **Un pis-aller assumé.** Le VFS ne livre pas de corps skinné utilisable ici (cf.
+/// [`charger_modele_joueur`]), et une tête seule mesure 40 cm : à 40 m de la caméra, elle occupe
+/// deux pixels et le terrain paraît vide. Le corps donne la silhouette et l'appartenance
+/// d'équipe — ce que les disques du rendu top-down donnaient déjà —, la tête reste le vrai
+/// maillage du jeu. Rien ici ne prétend être un asset d'origine.
+fn corps(x: f32, z: f32, equipe: u8) -> Vec<Tri> {
+    let c = if equipe == 0 { [40, 110, 230] } else { [225, 60, 60] };
+    // Épaules à 1,22 m — exactement là où commence la boîte englobante d'une tête du jeu, pour
+    // que les deux se rejoignent sans interstice.
+    const HAUT: f32 = 1.22;
+    const DEMI: f32 = 0.28;
+    vec![
+        Tri { p: [[x - DEMI, 0.0, z], [x + DEMI, 0.0, z], [x + DEMI, HAUT, z]], color: c },
+        Tri { p: [[x - DEMI, 0.0, z], [x + DEMI, HAUT, z], [x - DEMI, HAUT, z]], color: c },
+        Tri { p: [[x, 0.0, z - DEMI], [x, 0.0, z + DEMI], [x, HAUT, z + DEMI]], color: c },
+        Tri { p: [[x, 0.0, z - DEMI], [x, HAUT, z + DEMI], [x, HAUT, z - DEMI]], color: c },
+    ]
+}
+
 /// Le ballon, en cube (le moteur n'a pas de sphère et il est vu de loin).
 fn ballon(p: [f32; 3], r: f32) -> Vec<Tri> {
     let c = [250, 250, 250];
@@ -143,7 +164,7 @@ fn camera(world: &World) -> Camera {
     // devancer, et ne sort jamais des limites.
     let cx = b.x.clamp(-HALF_LEN * 0.6, HALF_LEN * 0.6);
     Camera {
-        eye: [cx, 26.0, -(HALF_WID + 26.0)],
+        eye: [cx, 16.0, -(HALF_WID + 14.0)],
         target: [cx, 0.0, 0.0],
         up: [0.0, 1.0, 0.0],
         fov_y: 0.9,
@@ -156,11 +177,16 @@ fn camera(world: &World) -> Camera {
 #[must_use]
 pub fn rendre(world: &World, modele: &Model) -> Vec<u8> {
     let mut plats = pelouse();
+    for p in &world.players {
+        plats.extend(corps(p.pos.x, p.pos.y, p.team));
+    }
     plats.extend(ballon([world.ball.pos.x, world.ball.pos.z, world.ball.pos.y], 0.35));
 
-    // Le modèle est à l'échelle du jeu, pas à celle du terrain : on le ramène à ~1,7 m.
-    let hauteur = hauteur_modele(modele).max(1e-3);
-    let echelle = 1.7 / hauteur;
+    // **Aucune mise à l'échelle.** Les maillages du jeu sont déjà en mètres ET à leur place dans
+    // le repère du personnage : la tête de `c11010010` occupe Y ∈ [1,22 ; 1,63], exactement la
+    // hauteur où se trouve une tête. Les normaliser à 1,7 m — ce que je faisais — étirait une
+    // tête de 41 cm jusqu'à la taille d'un joueur entier, d'où des visages géants sur le terrain.
+    // Il suffit donc de translater le modèle à la position du joueur.
 
     let instances: Vec<Instance> = world
         .players
@@ -176,7 +202,7 @@ pub fn rendre(world: &World, modele: &Model) -> Vec<u8> {
             };
             let t = scene::mat_mul(
                 &scene::mat_translate([p.pos.x, 0.0, p.pos.y]),
-                &scene::mat_mul(&scene::mat_rot_y(angle), &scene::mat_scale(echelle)),
+                &scene::mat_rot_y(angle),
             );
             Instance { model: modele, transform: t, two_sided: false }
         })
@@ -193,14 +219,3 @@ pub fn rendre(world: &World, modele: &Model) -> Vec<u8> {
     )
 }
 
-/// Hauteur (axe Y) de la boîte englobante du modèle.
-fn hauteur_modele(m: &Model) -> f32 {
-    let (mut lo, mut hi) = (f32::MAX, f32::MIN);
-    for p in &m.primitives {
-        for v in &p.positions {
-            lo = lo.min(v[1]);
-            hi = hi.max(v[1]);
-        }
-    }
-    if lo > hi { 0.0 } else { hi - lo }
-}
