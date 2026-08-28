@@ -65,6 +65,11 @@ fn repli_ascii(c: char) -> Option<&'static str> {
         '’' | '‘' => "'",
         '…' => "...",
         '–' | '—' => "-",
+        // Séparateurs typographiques : sans repli, ils disparaissaient et deux champs se
+        // retrouvaient collés par une espace (« Milieu   Foret » au lieu de « Milieu · Foret »).
+        '·' | '•' => "-",
+        '×' => "x",
+        '°' => "o",
         _ => return None,
     })
 }
@@ -365,7 +370,7 @@ mod tests {
     fn tout_le_francais_a_un_repli() {
         // Les caractères réellement produits par les textes du jeu, minuscules et majuscules,
         // plus la ponctuation typographique française.
-        for c in "éèêëàâäîïôöùûüçÉÈÊËÀÂÄÎÏÔÖÙÛÜÇœŒæÆ«»’…–—".chars() {
+        for c in "éèêëàâäîïôöùûüçÉÈÊËÀÂÄÎÏÔÖÙÛÜÇœŒæÆ«»’…–—·•×°".chars() {
             assert!(repli_ascii(c).is_some(), "aucun repli pour « {c} »");
         }
     }

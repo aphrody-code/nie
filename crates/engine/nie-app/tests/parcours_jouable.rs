@@ -20,6 +20,7 @@ fn ou(e: &Screen) -> String {
         Screen::Match { .. } => "match".into(),
         Screen::Story { idx } => format!("histoire[{idx}]"),
         Screen::Info { title } => format!("info({title})"),
+        Screen::Liste { titre, sel, .. } => format!("liste({titre})[{sel}]"),
     }
 }
 
@@ -236,4 +237,41 @@ fn sans_entree_la_simulation_est_inchangee() {
             pb.pos,
         );
     }
+}
+
+/// Un onglet peut être rempli de données réelles par le front, et se parcourt alors comme une
+/// liste — c'est ce qui distingue « écran en cours d'intégration » de « contenu du jeu ».
+#[test]
+fn un_onglet_rempli_devient_une_liste_navigable() {
+    let mut e = Screen::new();
+    e.input("CMD_ENTER"); // → menu, onglet 0 = Composition d'équipe
+    e.input("CMD_ENTER"); // → écran d'information
+    assert_eq!(e.info_title(), Some(MENU[0]), "l'onglet doit s'annoncer, pas {}", ou(&e));
+
+    let lignes: Vec<String> = (0..40).map(|i| format!("Joueur {i}")).collect();
+    e.fournir_liste(lignes);
+    assert!(matches!(e, Screen::Liste { .. }), "→ liste, pas {}", ou(&e));
+
+    // La navigation boucle, comme partout ailleurs, et ne déborde jamais l'index.
+    e.input("CMD_FCS_MTX_UP");
+    assert!(
+        matches!(&e, Screen::Liste { lignes, sel, .. } if *sel == lignes.len() - 1),
+        "haut depuis 0 → dernière ligne, pas {}",
+        ou(&e),
+    );
+    e.input("CMD_BACK");
+    assert!(matches!(e, Screen::Menu { .. }), "retour → menu, pas {}", ou(&e));
+}
+
+/// Une liste VIDE ne remplace pas l'écran d'information.
+///
+/// Un front qui ne sait pas charger (données absentes, mauvaise langue) doit laisser le message
+/// « en cours d'intégration » : un écran vide sans explication serait pris pour un bug.
+#[test]
+fn une_liste_vide_laisse_l_ecran_d_information() {
+    let mut e = Screen::new();
+    e.input("CMD_ENTER");
+    e.input("CMD_ENTER");
+    e.fournir_liste(Vec::new());
+    assert!(matches!(e, Screen::Info { .. }), "doit rester un écran d'info, pas {}", ou(&e));
 }
