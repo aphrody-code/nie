@@ -7,6 +7,9 @@
 
 struct Camera {
     view_proj: mat4x4<f32>,
+    // Rotation des normales : le CPU tourne le modèle sous une lumière fixe, ici la caméra
+    // orbite — sans cette matrice, la lumière tournerait avec l'objet.
+    normal_rot: mat4x4<f32>,
     // xyz = direction de la lumière (normalisée), w = 1.0 si la primitive a une texture.
     light: vec4<f32>,
 };
@@ -38,11 +41,14 @@ fn vs_main(in: VertexIn) -> VertexOut {
 
 @fragment
 fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
-    // Lambert borné à 0.25 d'ambiante : sans plancher, les faces opposées à la lumière tombent à
-    // zéro et le modèle devient une silhouette noire — le rastériseur CPU applique la même borne.
-    let n = normalize(in.normal);
-    let lambert = max(dot(n, normalize(camera.light.xyz)), 0.0);
-    let lit = 0.25 + 0.75 * lambert;
+    // Éclairage aligné sur le rastériseur CPU de référence (`render.rs`), qui est la vérité
+    // terrain des goldens — il ne l'était pas : borne 0.25/0.75 contre 0.35/0.65, et `max(·,0)`
+    // contre `abs(·)`. La valeur absolue éclaire une face dos à la lumière comme si elle lui
+    // faisait face : ce n'est pas physique, mais sur des modèles dont le winding n'est pas
+    // toujours cohérent, cela évite des pans entièrement noirs.
+    let n = normalize((camera.normal_rot * vec4<f32>(in.normal, 0.0)).xyz);
+    let lambert = abs(dot(n, normalize(camera.light.xyz)));
+    let lit = 0.35 + 0.65 * lambert;
 
     var base: vec4<f32>;
     if (camera.light.w > 0.5) {

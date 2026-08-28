@@ -43,25 +43,55 @@ fn orient(v: V3, cy: f32, sy: f32, cx: f32, sx: f32) -> V3 {
     [x, y2, z2]
 }
 
+/// Focale de la projection perspective de référence.
+///
+/// Un point dont le rapport `x/profondeur` vaut `1/FOCALE` tombe exactement sur le bord de
+/// l'image : le demi-champ vertical est donc `atan(1/FOCALE)`. Exposée pour que le pipeline GPU
+/// cadre **la même vue** — deux champs de vision différents produisent un modèle plus ou moins
+/// gros, ce qui se lit comme une divergence de rendu alors que ce n'est qu'un réglage de caméra.
+pub const FOCALE: f32 = 1.7;
+
+/// Distance de la caméra au centre du modèle, en rayons de sa sphère englobante.
+pub const DISTANCE_CAMERA: f32 = 3.1;
+
+/// Inclinaison verticale de la vue de référence, en radians.
+pub const TILT: f32 = 0.20;
+
+/// Couleur du fond à la ligne `y` d'une image haute de `h` — dégradé vertical sombre, opaque.
+///
+/// Exposée parce que le fond du rastériseur CPU est **opaque**, là où le pipeline GPU laisse
+/// l'arrière-plan transparent (c'est l'interface qui le décide). Comparer les deux rendus exige
+/// donc de savoir ce qui est du fond côté CPU, et le recalculer chez l'appelant dupliquerait
+/// silencieusement ces constantes : le jour où le dégradé change, la comparaison mentirait.
+#[must_use]
+pub fn couleur_fond(y: u32, h: u32) -> [u8; 4] {
+    let t = y as f32 / h as f32;
+    [
+        (24.0 + 26.0 * t) as u8,
+        (28.0 + 30.0 * t) as u8,
+        (40.0 + 34.0 * t) as u8,
+        255,
+    ]
+}
+
 /// Rend `model` vu sous l'angle `angle` (radians) en RGBA8 `w`×`h`.
 #[must_use]
 pub fn render(model: &Model, angle: f32, w: u32, h: u32) -> Vec<u8> {
     let (center, radius) = bounds(model);
     let inv = 1.0 / radius;
     let (cy, sy) = (angle.cos(), angle.sin());
-    let tilt = 0.20_f32;
+    let tilt = TILT;
     let (cx, sx) = (tilt.cos(), tilt.sin());
 
-    let cam_d = 3.1_f32; // distance caméra (sur +z), modèle normalisé ~[-1,1]
-    let focal = 1.7_f32;
+    let cam_d = DISTANCE_CAMERA; // distance caméra (sur +z), modèle normalisé ~[-1,1]
+    let focal = FOCALE;
     let scale = w as f32 * 0.5;
 
     let light = normv([0.35, 0.75, 0.55]);
     let mut px = vec![0u8; (w * h * 4) as usize];
     // Fond : dégradé vertical sombre.
     for y in 0..h {
-        let t = y as f32 / h as f32;
-        let bg = [(24.0 + 26.0 * t) as u8, (28.0 + 30.0 * t) as u8, (40.0 + 34.0 * t) as u8, 255];
+        let bg = couleur_fond(y, h);
         for x in 0..w {
             let i = ((y * w + x) * 4) as usize;
             px[i..i + 4].copy_from_slice(&bg);
