@@ -53,7 +53,9 @@ fn decode_route_les_familles_level5_annexes() {
     // absent : sa géométrie n'a de sens qu'avec le `.g4md` frère, il n'y a rien à décoder seul.
     let familles = ["g4mt", "g4cm", "g4la", "g4ma", "g4vs", "col", "g4nv", "g4sk"];
 
-    let mut vus: BTreeMap<&str, (usize, String)> = BTreeMap::new();
+    // (décodés, essayés, nom du parseur) : afficher le dénominateur évite de lire « 4 décodés »
+    // comme un échec partiel quand la famille ne compte que 4 fichiers dans tout le jeu.
+    let mut vus: BTreeMap<&str, (usize, usize, String)> = BTreeMap::new();
     let mut absents: Vec<&str> = Vec::new();
     for ext in familles {
         let chemins = echantillon(&vfs, ext, 5);
@@ -75,11 +77,11 @@ fn decode_route_les_familles_level5_annexes() {
             "aucun `.{ext}` décodé sur {} essais — la table de dispatch ne le route pas",
             chemins.len(),
         );
-        vus.insert(ext, (ok, nom));
+        vus.insert(ext, (ok, chemins.len(), nom));
     }
 
-    for (ext, (ok, nom)) in &vus {
-        eprintln!("  .{ext} → {nom} ({ok} fichiers décodés)");
+    for (ext, (ok, essayes, nom)) in &vus {
+        eprintln!("  .{ext} → {nom} ({ok}/{essayes} fichiers décodés)");
     }
     if !absents.is_empty() {
         eprintln!("  extensions absentes de ce corpus : {absents:?}");
