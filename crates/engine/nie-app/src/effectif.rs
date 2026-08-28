@@ -135,6 +135,73 @@ pub fn charger(vfs: &Vfs, max: usize, langue: &str) -> Result<Vec<Joueur>> {
     Ok(out)
 }
 
+/// Charge les répliques d'une scène du mode Histoire.
+///
+/// `event_id` est l'identifiant d'événement du jeu (`ev02_01400`). Les répliques reviennent dans
+/// l'ordre du fichier, déjà nettoyées de leur balisage par `nie-data`.
+///
+/// # Errors
+///
+/// Rend une erreur si l'événement est absent du VFS, illisible, ou vide.
+pub fn charger_dialogue(vfs: &Vfs, event_id: &str, langue: &str) -> Result<Vec<String>> {
+    let chemin = format!("data/common/text/{langue}/event/{event_id}.cfg.bin");
+    let entrees = nie_data::text::parse_text_file(&charger_json(vfs, &chemin)?);
+    let lignes: Vec<String> = entrees
+        .into_iter()
+        .map(|(_, t)| t)
+        .filter(|t| !t.trim().is_empty())
+        .collect();
+    anyhow::ensure!(!lignes.is_empty(), "aucune réplique dans {chemin}");
+    Ok(lignes)
+}
+
+/// Trouve un événement réellement traduit dans `langue`, pour ouvrir le mode Histoire sur du
+/// contenu lisible plutôt que sur des marqueurs de test.
+///
+/// Le jeu compte près de 4 000 fichiers d'événement, dont beaucoup ne portent que des placeholders
+/// japonais (« テスト１ ») : en choisir un au hasard donnerait un mode Histoire incompréhensible.
+/// On scanne donc jusqu'à trouver une scène d'au moins `min_repliques` répliques localisées.
+#[must_use]
+pub fn premier_dialogue_traduit(vfs: &Vfs, langue: &str, min_repliques: usize) -> Option<String> {
+    let prefixe = format!("data/common/text/{langue}/event/");
+    let mut chemins: Vec<&str> = vfs
+        .iter()
+        .map(|(p, _)| p)
+        .filter(|p| p.starts_with(&prefixe) && p.ends_with(".cfg.bin"))
+        .collect();
+    // Ordre stable : la même scène d'une exécution à l'autre.
+    chemins.sort_unstable();
+    for chemin in chemins {
+        let id = chemin
+            .rsplit('/')
+            .next()
+            .and_then(|n| n.strip_suffix(".cfg.bin"))
+            .unwrap_or_default();
+        let Ok(lignes) = charger_dialogue(vfs, id, langue) else {
+            continue;
+        };
+        // Une scène convient si l'ESSENTIEL de ses répliques est une vraie phrase française.
+        //
+        // Un critère trop lâche choisit mal : « au moins cinq répliques de plus de 25 octets
+        // contenant une lettre latine » a retenu `ev00_00700`, dont la deuxième réplique est
+        // « T ». Deux resserrements — compter les CARACTÈRES (le japonais pèse trois octets par
+        // caractère, la longueur en octets le surestime), et exiger que les lettres soient
+        // majoritairement latines, ce qu'un texte japonais ne fait jamais.
+        let francaise = |t: &String| {
+            let lettres: Vec<char> = t.chars().filter(|c| c.is_alphabetic()).collect();
+            let latines = lettres.iter().filter(|c| c.is_ascii_alphabetic()).count();
+            t.chars().count() >= 20 && lettres.len() >= 12 && latines * 10 >= lettres.len() * 9
+        };
+        let bonnes = lignes.iter().filter(|t| francaise(t)).count();
+        // La majorité de la scène doit tenir, pas seulement quelques lignes : une scène à moitié
+        // japonaise s'afficherait en caractères manquants une réplique sur deux.
+        if bonnes >= min_repliques && bonnes * 2 >= lignes.len() {
+            return Some(id.to_string());
+        }
+    }
+    None
+}
+
 /// Catégorie d'objet en français, pour l'affichage.
 ///
 /// `ItemCategory::as_str` rend l'identifiant interne (`special_tactics`) : correct pour du code,

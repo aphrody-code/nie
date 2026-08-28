@@ -1712,6 +1712,7 @@ fn cmd_play(max_frames: u32) -> Result<()> {
             enfoncees: std::collections::HashSet::new(),
             vfs,
             cache: std::collections::HashMap::new(),
+            dialogue: None,
         }),
     };
     event_loop.run_app(&mut app).context("boucle événements winit")?;
@@ -1910,6 +1911,8 @@ struct Jeu {
     /// Chaque jointure lit des tables de plusieurs mégaoctets : la refaire à chaque ouverture de
     /// l'onglet se sentirait à la navigation.
     cache: std::collections::HashMap<Onglet, Vec<String>>,
+    /// Scène de dialogue retenue pour le mode Histoire (`Some(None)` = recherche infructueuse).
+    dialogue: Option<Option<(String, Vec<String>)>>,
 }
 
 /// Onglet du menu principal dont ce front sait charger les données réelles.
@@ -1956,6 +1959,27 @@ impl Jeu {
         lignes
     }
 
+    /// Scène de dialogue à jouer dans le mode Histoire, chargée une fois puis mémorisée.
+    ///
+    /// Le choix de la scène coûte cher — près de 4 000 fichiers d'événement, dont beaucoup ne
+    /// portent que des marqueurs de test japonais — donc on ne le refait pas à chaque ouverture.
+    fn dialogue(&mut self) -> Option<(String, Vec<String>)> {
+        if self.dialogue.is_none() {
+            let choisi = nie_app::effectif::premier_dialogue_traduit(&self.vfs, "fr", 5)
+                .and_then(|id| {
+                    nie_app::effectif::charger_dialogue(&self.vfs, &id, "fr")
+                        .ok()
+                        .map(|l| (id, l))
+                });
+            if choisi.is_none() {
+                warn!("aucune scène de dialogue traduite trouvée — scène de démonstration gardée");
+            }
+            // `Some(None)` mémorise l'échec : inutile de rescanner 4 000 fichiers à chaque fois.
+            self.dialogue = Some(choisi);
+        }
+        self.dialogue.clone().flatten()
+    }
+
     /// Direction demandée par les touches tenues, en repère terrain.
     ///
     /// L'axe X est la longueur du terrain (le but adverse est en +x pour l'équipe domicile), l'axe
@@ -1979,7 +2003,9 @@ fn decrire_ecran(e: &nie_app::flow::Screen) -> String {
         S::Menu { sel } => format!("menu[{sel}] {}", nie_app::MENU[*sel]),
         S::ModeSelect { sel } => format!("mode[{sel}] {}", nie_app::MODES[*sel]),
         S::Match { .. } => "match".into(),
-        S::Story { idx } => format!("histoire[{idx}]"),
+        S::Story { idx, titre, repliques } => {
+            format!("histoire[{idx}] {titre} ({} repliques)", repliques.len())
+        }
         S::Info { title } => format!("info « {title} »"),
         S::Liste { titre, lignes, sel } => format!("liste « {titre} » [{sel}/{}]", lignes.len()),
     }
@@ -4206,6 +4232,14 @@ impl winit::application::ApplicationHandler for AppFenetre {
                                 info!("{titre} : {} lignes chargées", lignes.len());
                             }
                             jeu.ecran.fournir_liste(lignes);
+                        }
+                        // Mode Histoire : remplacer la scène de démonstration par un vrai
+                        // dialogue du jeu, dès que l'écran s'ouvre.
+                        if jeu.ecran.attend_dialogue()
+                            && let Some((id, lignes)) = jeu.dialogue()
+                        {
+                            info!("dialogue {id} : {} répliques", lignes.len());
+                            jeu.ecran.fournir_dialogue(id, lignes);
                         }
                         info!("{cmd} → {}", decrire_ecran(&jeu.ecran));
                     }
