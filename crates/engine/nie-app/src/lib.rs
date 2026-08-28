@@ -16,6 +16,9 @@ pub mod character;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod effectif;
 pub mod flow;
+/// Rendu 3D d'un match (vrais modèles du VFS) — natif seulement, comme `effectif`.
+#[cfg(not(target_arch = "wasm32"))]
+pub mod match3d;
 pub mod render;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod roster;

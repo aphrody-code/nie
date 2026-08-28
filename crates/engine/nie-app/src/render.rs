@@ -305,9 +305,6 @@ pub fn render_state<'a>(state: &GameState, f: &'a Font, bg: Option<&[u8]>) -> Fr
     s
 }
 
-/// Rendu générique d'un menu-liste (titre + items surlignables), adapté au nombre d'items.
-/// Sert au menu principal (9 onglets réels) et au sélecteur de mode (5 modes réels). RGBA8 `W*H*4`.
-#[must_use]
 /// Marge gauche du texte dans une barre de liste, en pixels.
 const TEXTE_X: i32 = 110;
 
@@ -340,6 +337,11 @@ pub fn hud_match(base: &[u8], f: &Font, score: [u32; 2], temps: f32) -> Vec<u8> 
     s.buf
 }
 
+/// Rendu générique d'un menu-liste (titre + items surlignables), adapté au nombre d'items.
+///
+/// Sert au menu principal (9 onglets réels), au sélecteur de mode (5 modes réels) et aux listes
+/// de données du jeu. RGBA8 `W*H*4`.
+#[must_use]
 pub fn render_list<'a>(title: &str, items: &[&str], sel: usize, f: &'a Font) -> Frame<'a> {
     let mut s = Frame::new(f);
     s.gradient([30, 40, 80], [14, 18, 34]);
