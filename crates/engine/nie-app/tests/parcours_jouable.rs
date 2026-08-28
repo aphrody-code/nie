@@ -18,7 +18,7 @@ fn ou(e: &Screen) -> String {
         Screen::Menu { sel } => format!("menu[{sel}]"),
         Screen::ModeSelect { sel } => format!("mode[{sel}]"),
         Screen::Match { .. } => "match".into(),
-        Screen::Story { idx } => format!("histoire[{idx}]"),
+        Screen::Story { idx, .. } => format!("histoire[{idx}]"),
         Screen::Info { title } => format!("info({title})"),
         Screen::Liste { titre, sel, .. } => format!("liste({titre})[{sel}]"),
     }
@@ -163,7 +163,7 @@ fn le_mode_histoire_se_deroule_puis_revient() {
     }
     e.input("CMD_ENTER"); // → modes, index 0 = Mode Histoire
     e.input("CMD_ENTER");
-    assert!(matches!(e, Screen::Story { idx: 0 }), "→ histoire, pas {}", ou(&e));
+    assert!(matches!(e, Screen::Story { idx: 0, .. }), "→ histoire, pas {}", ou(&e));
 
     // Valider assez de fois pour dépasser la dernière réplique, quelle que soit sa longueur.
     for _ in 0..32 {
@@ -274,4 +274,52 @@ fn une_liste_vide_laisse_l_ecran_d_information() {
     e.input("CMD_ENTER");
     e.fournir_liste(Vec::new());
     assert!(matches!(e, Screen::Info { .. }), "doit rester un écran d'info, pas {}", ou(&e));
+}
+
+/// Le mode Histoire joue les répliques RÉELLES quand le front en fournit, et se termine dessus.
+#[test]
+fn le_mode_histoire_joue_les_repliques_fournies() {
+    let mut e = Screen::new();
+    e.input("CMD_ENTER");
+    for _ in 0..5 {
+        e.input("CMD_FCS_MTX_DOWN");
+    }
+    e.input("CMD_ENTER"); // → modes
+    e.input("CMD_ENTER"); // → histoire (démonstration)
+    assert!(e.attend_dialogue(), "la scène doit attendre un dialogue réel, pas {}", ou(&e));
+
+    let repliques: Vec<String> = (0..7).map(|i| format!("Réplique {i}")).collect();
+    e.fournir_dialogue("ev02_01400".into(), repliques.clone());
+    assert!(!e.attend_dialogue(), "le dialogue fourni doit être pris en compte");
+
+    // Il faut exactement autant de validations que de répliques pour sortir — ni la longueur de
+    // la scène de démonstration, ni une de plus.
+    for i in 0..repliques.len() {
+        assert!(
+            matches!(e, Screen::Story { .. }),
+            "sortie prématurée à la réplique {i} : {}",
+            ou(&e),
+        );
+        e.input("CMD_ENTER");
+    }
+    assert!(
+        matches!(e, Screen::ModeSelect { .. }),
+        "la scène doit rendre la main après sa dernière réplique, pas {}",
+        ou(&e),
+    );
+}
+
+/// Un dialogue VIDE laisse la scène de démonstration — comme une liste vide laisse l'écran
+/// d'information.
+#[test]
+fn un_dialogue_vide_laisse_la_demonstration() {
+    let mut e = Screen::new();
+    e.input("CMD_ENTER");
+    for _ in 0..5 {
+        e.input("CMD_FCS_MTX_DOWN");
+    }
+    e.input("CMD_ENTER");
+    e.input("CMD_ENTER");
+    e.fournir_dialogue("vide".into(), Vec::new());
+    assert!(e.attend_dialogue(), "la démonstration doit rester, pas {}", ou(&e));
 }

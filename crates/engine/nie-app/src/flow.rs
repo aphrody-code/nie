@@ -28,7 +28,11 @@ pub enum Screen {
     /// Match en cours : le **vrai moteur** `nie-runtime` (physique, 22 joueurs, ballon, buts).
     Match { world: nie_runtime::World },
     /// Scène de dialogue (mode histoire).
-    Story { idx: usize },
+    ///
+    /// `repliques` vides = la scène de démonstration intégrée ([`STORY`]) ; sinon les répliques
+    /// réelles du jeu, fournies par le front (`titre` = l'identifiant d'événement). Comme pour
+    /// [`Screen::Liste`], le chargement demande le VFS que le web n'a pas.
+    Story { idx: usize, titre: String, repliques: Vec<String> },
     /// Onglet/mode pas encore jouable (titre = libellé réel) — données réelles à venir.
     Info { title: String },
     /// Liste de données réelles du jeu (effectif…) : `titre` + lignes déjà résolues.
@@ -86,7 +90,7 @@ impl Screen {
                 } else if enter {
                     // 0 = Mode Histoire → dialogues ; 1-4 → vrai match (moteur nie-runtime).
                     if *sel == 0 {
-                        *self = Screen::Story { idx: 0 };
+                        *self = Screen::Story { idx: 0, titre: String::new(), repliques: Vec::new() };
                     } else {
                         *self = Screen::Match { world: nie_runtime::World::kickoff() };
                     }
@@ -99,10 +103,11 @@ impl Screen {
                     *self = Screen::ModeSelect { sel: 0 };
                 }
             }
-            Screen::Story { idx } => {
+            Screen::Story { idx, repliques, .. } => {
+                let total = if repliques.is_empty() { STORY.len() } else { repliques.len() };
                 if enter {
                     *idx += 1;
-                    if *idx >= STORY.len() {
+                    if *idx >= total {
                         *self = Screen::ModeSelect { sel: 0 };
                     }
                 } else if back {
@@ -156,6 +161,27 @@ impl Screen {
         }
     }
 
+    /// Remplace la scène de démonstration par un **dialogue réel** du jeu.
+    ///
+    /// Même partage que [`Screen::fournir_liste`] : le front charge (VFS), la FSM déroule. Sans
+    /// effet hors du mode Histoire ou si la scène est vide — la démonstration reste alors
+    /// affichée, ce qui vaut mieux qu'un écran muet.
+    pub fn fournir_dialogue(&mut self, id: String, lignes: Vec<String>) {
+        if let Screen::Story { idx, titre, repliques } = self
+            && !lignes.is_empty()
+        {
+            *idx = 0;
+            *titre = id;
+            *repliques = lignes;
+        }
+    }
+
+    /// Vrai si l'écran courant est une scène du mode Histoire encore vide de répliques réelles.
+    #[must_use]
+    pub fn attend_dialogue(&self) -> bool {
+        matches!(self, Screen::Story { repliques, .. } if repliques.is_empty())
+    }
+
     /// Titre de l'écran d'information courant, pour que le front sache quoi charger.
     #[must_use]
     pub fn info_title(&self) -> Option<&str> {
@@ -196,9 +222,22 @@ impl Screen {
             Screen::Title => render_state(&GameState::Title, font, None).buf,
             Screen::Menu { sel } => render_list("MENU PRINCIPAL", &MENU, *sel, font).buf,
             Screen::ModeSelect { sel } => render_list("MODE DE JEU", &MODES, *sel, font).buf,
-            Screen::Story { idx } => {
-                let (sp, ln) = STORY[(*idx).min(STORY.len() - 1)];
-                let st = GameState::Story { speaker: sp.into(), line: ln.into() };
+            Screen::Story { idx, titre, repliques } => {
+                let st = if repliques.is_empty() {
+                    // Scène de démonstration : le front n'a pas su charger de dialogue réel.
+                    let (sp, ln) = STORY[(*idx).min(STORY.len() - 1)];
+                    GameState::Story { speaker: sp.into(), line: ln.into() }
+                } else {
+                    // Le locuteur n'est pas résolu : le fichier de texte porte les répliques, pas
+                    // qui les prononce (c'est le script d'événement qui l'attribue). Afficher un
+                    // nom inventé serait pire que d'annoncer la scène et sa progression.
+                    let n = repliques.len();
+                    let i = (*idx).min(n - 1);
+                    GameState::Story {
+                        speaker: format!("{titre} — {}/{n}", i + 1),
+                        line: repliques[i].clone(),
+                    }
+                };
                 render_state(&st, font, None).buf
             }
             Screen::Match { world } => nie_runtime::render::render(world, W as u32, H as u32).px,
