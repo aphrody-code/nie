@@ -114,6 +114,18 @@ impl FontMetrics {
         self.glyphs.get(&codepoint)
     }
 
+    /// Métrique d'un **caractère**, quelle que soit la forme sous laquelle le jeu l'a stocké.
+    ///
+    /// Au-delà de l'ASCII, la table n'est pas indexée par point de code Unicode mais par les
+    /// **octets UTF-8 empaquetés** en big-endian (cf. [`decode_packed_codepoint`]) : `é` vit sous
+    /// `0xC3A9`, pas `0xE9`. Chercher `c as u32` rate donc tous les accents — et un menu français
+    /// s'affiche « Composition d' quipe ». Les deux formes sont essayées ici, une fois pour
+    /// toutes, plutôt qu'à chaque site d'appel.
+    #[must_use]
+    pub fn glyph_char(&self, c: char) -> Option<&GlyphMetric> {
+        self.glyph(c as u32).or_else(|| self.glyph(cle_empaquetee(c)))
+    }
+
     /// Métrique d'un point de code dans une police donnée (0 ou 1).
     #[must_use]
     pub fn glyph_in_font(&self, font: u8, codepoint: u32) -> Option<&GlyphMetric> {
@@ -126,6 +138,19 @@ impl FontMetrics {
     pub fn glyph_count(&self) -> usize {
         self.glyphs.len()
     }
+}
+
+/// Clé de table d'un caractère : ses octets UTF-8 empaquetés en big-endian.
+///
+/// L'inverse de [`decode_packed_codepoint`] — c'est sous cette forme que le jeu range tout ce qui
+/// dépasse l'ASCII, parce qu'il lit son texte source en UTF-8 et stocke l'entier sans le décoder.
+#[must_use]
+pub fn cle_empaquetee(c: char) -> u32 {
+    let mut buf = [0u8; 4];
+    c.encode_utf8(&mut buf)
+        .as_bytes()
+        .iter()
+        .fold(0u32, |acc, &b| (acc << 8) | u32::from(b))
 }
 
 /// Résout un `CHR.codepoint` brut vers son caractère réel.
