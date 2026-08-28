@@ -466,6 +466,17 @@ pub struct LatinAtlas {
     pub y_base: u16,
     /// Hauteur de cellule (à blitter).
     pub cell_h: u16,
+    /// Première ligne ENCRÉE de la cellule, comptée depuis son haut.
+    ///
+    /// Une cellule n'est pas pleine : sur `font_def`, l'encre commence à la ligne 21 sur 71.
+    /// Une mise en page qui l'ignore place le texte 21 px trop bas et le fait déborder de sa
+    /// boîte — c'est ce qui arrivait aux libellés du menu, qui dépassaient sous leur surlignage.
+    pub ink_top: u16,
+    /// Hauteur réellement encrée (50 sur `font_def`, contre 71 de cellule).
+    ///
+    /// C'est cette hauteur-là qu'une mise en page doit réserver, pas `cell_h` : réserver la
+    /// cellule entière gaspille un tiers de la place et ne tient pas sur neuf lignes.
+    pub ink_h: u16,
 }
 
 impl LatinAtlas {
@@ -506,7 +517,27 @@ impl LatinAtlas {
             }
             spans.push((a, b));
         }
-        Self { spans, y_base, cell_h }
+
+        // Bornes verticales de l'encre : la même rangée, scannée en lignes plutôt qu'en colonnes.
+        // Mesurée ici plutôt que déduite d'`ascent`, parce que c'est la seule valeur qui décrit
+        // ce que l'atlas contient VRAIMENT — les métriques décrivent une autre planche.
+        let (mut haut, mut bas) = (None::<u16>, 0u16);
+        for gy in 0..cell_h {
+            let ay = y_base as usize + gy as usize;
+            if ay >= ah {
+                break;
+            }
+            let encre = (0..aw)
+                .any(|ax| atlas.get(ay * stride + ax * 4 + 3).copied().unwrap_or(0) > 32);
+            if encre {
+                haut.get_or_insert(gy);
+                bas = gy;
+            }
+        }
+        let ink_top = haut.unwrap_or(0);
+        let ink_h = bas.saturating_sub(ink_top) + 1;
+
+        Self { spans, y_base, cell_h, ink_top, ink_h }
     }
 
     /// Span `(x0,x1)` d'un codepoint Latin, ou `None` si hors de la rangée scannée.

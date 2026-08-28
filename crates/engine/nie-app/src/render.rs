@@ -110,9 +110,23 @@ impl Font {
     }
 
     /// Dessine `texte` à `(x, y)` sur `canvas` (RGBA8, `cw` px de large).
+    ///
+    /// `y` désigne le haut de l'**encre**, pas le haut de la cellule : une cellule de `font_def`
+    /// porte 21 px de vide au-dessus des lettres, et une mise en page qui l'ignore décale tout
+    /// son texte vers le bas.
     fn dessiner(&self, canvas: &mut [u8], cw: usize, x: i32, y: i32, texte: &str, fg: [u8; 4]) {
         let rendu = self.texte_rendu(texte);
-        self.la.blit_line(&self.atlas, self.aw, canvas, cw, x, y, &rendu, fg);
+        let y_cellule = y - i32::from(self.la.ink_top);
+        self.la.blit_line(&self.atlas, self.aw, canvas, cw, x, y_cellule, &rendu, fg);
+    }
+
+    /// Hauteur d'une ligne de texte telle qu'elle s'affiche, en pixels.
+    ///
+    /// C'est la hauteur à réserver dans une mise en page — la cellule complète en gaspillerait
+    /// un tiers, et neuf lignes n'entreraient pas dans l'écran.
+    #[must_use]
+    pub fn hauteur_ligne(&self) -> i32 {
+        i32::from(self.la.ink_h)
     }
 
     /// Charge la police depuis le disque (natif) — délègue à [`Font::from_bytes`].
@@ -259,18 +273,27 @@ pub fn render_list<'a>(title: &str, items: &[&str], sel: usize, f: &'a Font) -> 
     s.gradient([30, 40, 80], [14, 18, 34]);
     s.rect(0, 0, W as i32, 70, [20, 60, 130, 255]);
     s.text(40, 16, title, [220, 235, 255, 255]);
+    // La mise en page part de la hauteur RÉELLE d'une ligne de texte, mesurée dans l'atlas — pas
+    // d'une constante. Avec neuf onglets, une supposition trop généreuse déborde de l'écran (le
+    // dernier libellé était coupé) et une supposition trop courte fait sortir le texte de sa
+    // barre (c'était le cas : cellule de 71 px pour une boîte de 57).
     let n = (items.len().max(1)) as i32;
-    let gap = ((H as i32 - 110) / n).clamp(40, 80);
-    let bh = gap - 10;
+    let ligne = f.hauteur_ligne();
+    let haut_liste = 100;
+    let dispo = H as i32 - haut_liste - 20;
+    let gap = (dispo / n).clamp(ligne + 8, ligne + 40);
+    let bh = gap - 8;
     for (i, item) in items.iter().enumerate() {
-        let y = 100 + i as i32 * gap;
+        let y = haut_liste + i as i32 * gap;
         let hot = i == sel;
         let bg_c = if hot { [60, 130, 220, 235] } else { [16, 22, 44, 210] };
         s.rect(70, y, W as i32 - 70, y + bh, bg_c);
         if hot {
             s.rect(70, y, 76, y + bh, [120, 220, 255, 255]);
         }
-        s.text(110, y + bh / 2 - 12, item, [240, 245, 252, 255]);
+        // Encre centrée dans la barre : `text` prend le haut de l'encre, donc le calcul est
+        // direct et ne dépend plus de la hauteur de cellule.
+        s.text(110, y + (bh - ligne) / 2, item, [240, 245, 252, 255]);
     }
     s
 }

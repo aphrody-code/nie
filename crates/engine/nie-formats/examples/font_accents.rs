@@ -86,5 +86,27 @@ fn main() -> Result<(), String> {
         let cp = 0x21 + i as u32;
         println!("  span #{i} (cp supposé {cp:#x}) x={x0}..{x1}");
     }
+    // Où l'encre se trouve-t-elle DANS la cellule ? La mise en page des listes suppose que le
+    // texte occupe le haut de ce qu'on lui donne ; si l'encre vit au milieu ou en bas d'une
+    // cellule de 71 px, tout libellé déborde sous sa barre de surlignage.
+    let stride = t.width as usize * 4;
+    let (mut haut, mut bas) = (None::<usize>, 0usize);
+    for gy in 0..metrics.dims.cell_height as usize {
+        let ay = 946 + gy;
+        let encre = (0..t.width as usize)
+            .any(|ax| atlas.get(ay * stride + ax * 4 + 3).copied().unwrap_or(0) > 32);
+        if encre {
+            haut.get_or_insert(gy);
+            bas = gy;
+        }
+    }
+    match haut {
+        Some(h) => println!(
+            "\nencre dans la cellule (hauteur {}) : lignes {h}..={bas} → hauteur utile {}",
+            metrics.dims.cell_height,
+            bas - h + 1,
+        ),
+        None => println!("\naucune encre trouvée dans la rangée"),
+    }
     Ok(())
 }
