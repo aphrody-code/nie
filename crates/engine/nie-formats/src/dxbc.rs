@@ -28,6 +28,7 @@ const MIN_LEN: usize = 0x20;
 
 /// Un chunk du conteneur DXBC (fourcc + emplacement + taille des données).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct DxbcChunk {
     /// Identifiant 4 octets (`RDEF`, `ISGN`, `OSGN`, `SHEX`, `STAT`, …).
     pub fourcc: [u8; 4],
@@ -39,6 +40,7 @@ pub struct DxbcChunk {
 
 /// Conteneur DXBC parsé.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Dxbc {
     pub digest: [u8; 16],
     pub version: u32,

@@ -20,13 +20,27 @@ dump (2026-08-28) :
 
 | Catégorie | Fichiers | Part |
 |---:|---|---:|
-| Décodés par un parseur | 224 497 | **87,93 %** |
+| Décodés par un parseur | 226 994 | **88,91 %** |
 | Magic connu, sans décodeur autonome (`@UTF`, `AWB`, `USM`) | 11 215 | 4,39 % |
-| Ni magic ni parseur (dont ~15 900 `.g4mg`) | 19 604 | 7,68 % |
+| Ni magic ni parseur (dont 15 876 `.g4mg`) | 17 107 | 6,70 % |
 | Illisibles | 0 | 0 % |
 
 Un `.g4mg` n'a pas de magic et n'est pas décodable seul : c'est un tampon de sommets brut dont la
-structure vit dans le `.g4md` frère. Le compter comme « format manquant » serait faux.
+structure vit dans le `.g4md` frère. Le compter comme « format manquant » serait faux — hors
+`.g4mg`, **94,80 %** des fichiers décodables le sont (226 994 / 239 440).
+
+Les 17 107 non reconnus, par extension : 15 876 `.g4mg`, 1 197 `.lua.bin` (bytecode Lua 5.2, que
+`nie-lua` charge et exécute — `decode` ne peut pas l'appeler, `nie-lua` dépend de `nie-formats`),
+9 `.g4tg`, 5 échecs isolés (`.usm`, `.g4mt`) et 20 fichiers de travail hors jeu (`data/mod/`).
+**Ce qui reste réellement non lu tient en ~30 fichiers.**
+
+### `.vfxo` / `.pfxo` / `.gfxo` / `.cfxo` — shaders DXBC
+
+Ce ne sont pas des effets, malgré l'extension : ce sont des **conteneurs DXBC**
+(magic `DXBC`), la lettre initiale donnant l'étage du pipeline — **v**ertex, **p**ixel,
+**g**eometry, **c**ompute. 2 497 fichiers, tous sous `data/dx11/shader/<version>/`, parsés par
+`nie_formats::dxbc` (chunks `RDEF`/`ISGN`/`OSGN`/`SHEX`/`STAT`). Ils comptaient comme « non
+reconnus » jusqu'au 2026-08-28 : le module existait, il n'était pas dans la table de dispatch.
 
 | Champ | Valeur |
 |---|---|
