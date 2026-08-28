@@ -8,7 +8,25 @@ Référence des formats propriétaires d'IEVR, et état de leur exploitation par
 Sur l'installation Steam Windows, le VFS **est le répertoire courant** : `resolve_game_dir()` le
 détecte via `data/cpk_list.cfg.bin`. `Vfs::init()` prend `<racine>/data`, pas la racine.
 
-Inspection : `niers vfs ls|find|stat|cat|extract|stats`.
+**Un dump extrait se monte à la place des packs**, et sert les mêmes chemins logiques
+(`data/common/…`) : `Vfs::init` y bascule seule quand `cpk_list.cfg.bin` manque mais que
+`common/`/`dx11/` sont là, `NIE_DUMP_DIR` le force. Un dump local couvre 255 308 / 255 308 chemins
+de l'index (100,000 %, mesuré le 2026-08-28) et rend des octets identiques à l'extraction.
+
+Inspection : `niers vfs ls|find|stat|cat|extract|stats|formats`.
+
+**Ce que le dépôt sait réellement lire** — `niers vfs formats --parse` sur les 255 316 fichiers du
+dump (2026-08-28) :
+
+| Catégorie | Fichiers | Part |
+|---:|---|---:|
+| Décodés par un parseur | 224 497 | **87,93 %** |
+| Magic connu, sans décodeur autonome (`@UTF`, `AWB`, `USM`) | 11 215 | 4,39 % |
+| Ni magic ni parseur (dont ~15 900 `.g4mg`) | 19 604 | 7,68 % |
+| Illisibles | 0 | 0 % |
+
+Un `.g4mg` n'a pas de magic et n'est pas décodable seul : c'est un tampon de sommets brut dont la
+structure vit dans le `.g4md` frère. Le compter comme « format manquant » serait faux.
 
 | Champ | Valeur |
 |---|---|

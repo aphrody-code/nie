@@ -23,6 +23,7 @@ pub const COMMON_HEADER_LEN: usize = 0x10;
 
 /// En-tête commun Level-5 (champs aux offsets fixes 0x00-0x10).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Level5Header {
     /// Magic en little-endian (ex. `0x4D43_3447` = « G4CM »).
     pub magic: u32,

@@ -21,6 +21,7 @@ const MIN_LEN: usize = 0x20 + SECTION_COUNT * 4;
 
 /// Fichier G4NV parsé : en-tête commun + comptes de sections + taille fichier.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Navm {
     pub header: Level5Header,
     pub section_counts: [u32; SECTION_COUNT],

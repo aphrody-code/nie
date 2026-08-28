@@ -23,15 +23,18 @@ Le reverse-engineering est **l'échafaudage**, pas la fin : il sert à résoudre
 
 | Couverture | Ce qu'elle mesure | État |
 |---|---|---|
-| **Forge** | part de `nie.exe` produite par le dépôt | **51,86 %** du fichier · **66,09 %** du `.text` — mesure du 2026-08-10, cible byte-identique au binaire installé au 2026-08-15 (même sha256, `.pdata` identique à l'octet), mais `var/forge/` absent sur ce VPS donc non rejouable ici pour confirmer que le pourcentage tient toujours |
-| **Formats** | fichiers du VFS dans un format parsé | **99,56 %** (254 187 / 255 308) — dénominateur revérifié 2026-08-15 (`entrees=255308` inchangé), numérateur non revérifié |
+| **Forge** | part de `nie.exe` produite par le dépôt | **51,86 %** du fichier · **66,09 %** du `.text` — mesure du 2026-08-10, cible byte-identique au binaire installé au 2026-08-15 (même sha256, `.pdata` identique à l'octet), mais `var/forge/` absent sur ce VPS donc non rejouable ici. **Toujours pas rejouable le 2026-08-28** : `var/forge/` est absent de la machine Windows aussi (`nie-forge report` → « recouvrement absent : var/forge\cover.json »). Le chiffre tient parce que la cible n'a pas bougé, pas parce qu'on l'a revérifié |
+| **Formats** | fichiers du VFS dans un format parsé | **87,93 %** réellement décodés (224 497 / 255 316) — mesure du 2026-08-28 sur le dump complet, `niers vfs formats --parse`, 0 fichier illisible. S'y ajoutent **4,39 %** (11 215) dont le magic est connu sans décodeur autonome (`@UTF` 5 513, `AWB` 5 512, `USM` 190 : des conteneurs média), soit **92,32 % identifiés**. Restent **7,68 %** (19 604) sans magic ni parseur, dont ~15 900 `.g4mg` — des tampons de sommets bruts décrits par leur `.g4md` frère, donc non décodables seuls **par construction**. L'ancien chiffre de 99,56 % n'était adossé à aucune commande : il n'est pas « tombé », il n'a jamais été rejouable |
 | **Données** | familles `cfg.bin` typées et recalculées au bit | 117 modules, **121 familles routées**, 127 fichiers golden |
 | **Logique** | fonctions de gameplay portées **et** validées byte-exact | **43** validations dans la suite oracle — non rejouées le 2026-08-15 ; le binaire cible n'a pas changé (cf. Forge ci-dessus) donc rien n'indique qu'elles soient tombées, mais elles n'ont pas non plus été reconfirmées cette session |
-| **RE** | fonctions classifiées / nommées | Mesure du 2026-08-10 : 93,36 % (49 280 / 52 783) · 6 429 nommées (12,18 %). **Revérifié 2026-08-15** (`niers rebuild` sur le binaire actuellement installé, byte-identique à celui du 2026-08-10) : **91,22 %** classées (97 006 / 106 340) · 6 429 nommées (**6,05 %**, même compte brut sur un dénominateur qui a grossi — le VPS a transité par un AUTRE build entre le 2026-08-14 soir et le 2026-08-15, cf. `docs/RE.md`, ce qui a pu affecter l'indexation entre-temps) |
+| **RE** | fonctions classifiées / nommées | **La KB n'est pas la même d'une machine à l'autre — citer la machine avec le chiffre.** Sur la machine Windows le 2026-08-28, `niers coverage --db var/niers.sqlite` donne **87,63 %** (48 503 / 55 351) et **257 nommées** : cette base-là n'a pas les noms du VPS (table `symbol` vide), elle est à réindexer avant d'en tirer quoi que ce soit. Mesures du VPS ci-dessous. Mesure du 2026-08-10 : 93,36 % (49 280 / 52 783) · 6 429 nommées (12,18 %). **Revérifié 2026-08-15** (`niers rebuild` sur le binaire actuellement installé, byte-identique à celui du 2026-08-10) : **91,22 %** classées (97 006 / 106 340) · 6 429 nommées (**6,05 %**, même compte brut sur un dénominateur qui a grossi — le VPS a transité par un AUTRE build entre le 2026-08-14 soir et le 2026-08-15, cf. `docs/RE.md`, ce qui a pu affecter l'indexation entre-temps) |
 | **Rendu** | Δpixel contre capture de référence | gaté sur le driver de menu runtime |
 
-Ces chiffres se régénèrent : `nie-forge report`, `niers vfs stats`, `niers coverage`,
-`uv run scripts/validate_re.py`. **Piège vécu le 2026-08-15** : une doc « corrigée » sur une
+Ces chiffres se régénèrent : `nie-forge report`, `niers vfs stats`, `niers vfs formats --parse`,
+`niers coverage`, `uv run scripts/validate_re.py`. La ligne **Formats** n'avait justement aucune
+commande derrière elle jusqu'au 2026-08-28 — un chiffre que personne ne pouvait falsifier, dans un
+document qui n'accepte que des chiffres falsifiables ; `niers vfs formats` a été écrite pour ça.
+**Piège vécu le 2026-08-15** : une doc « corrigée » sur une
 installation Steam locale transitoirement sur un autre build (`docs/RE.md`, commit du
 2026-08-14) s'est révélée elle-même périmée dès que le build de référence est revenu — ne jamais
 « corriger » un chiffre de cible sans citer le sha256 mesuré, sinon la correction se périme au
@@ -67,9 +70,29 @@ DXBC (shaders), et l'audio Criware (ADX/AWB/ACB/USM, HCA décodé avec la clé I
 `cpk_list.cfg.bin` est chiffré en **AES-256-CBC**, clé et IV reversés statiquement du binaire —
 un déchiffrement qu'iecode n'a pas.
 
+**Deux montages du VFS, mêmes chemins logiques** (2026-08-28). `nie_formats::vfs` sert
+indifféremment l'installation du jeu (`cpk_list.cfg.bin` + `packs/*.cpk`) et un **dump extrait**
+(`data/common/`, `data/dx11/`) : `Vfs::init` bascule seule sur le dump quand l'index chiffré
+manque, `open_game()` monte ce qui est disponible, `NIE_DUMP_DIR` force le dump. Un dump local
+couvre **255 308 / 255 308** chemins de l'index (100,000 %, `example dump_couverture`), et les
+deux montages rendent des octets identiques (`test dump_vs_packs`) — jusqu'au PNG d'un écran de
+menu et aux 170 frames d'un playthrough, au sha256 près. Conséquence pour le plan : le moteur, ses
+goldens et l'explorateur tournent sur une machine sans installation, et une mesure qui exigeait
+d'extraire 255 000 fichiers d'archives devient une lecture de fichiers.
+
 Reste : la hiérarchie d'os `g4sk` garde un fallback heuristique sur certains fichiers (les
 matrices, elles, sont byte-exactes) ; 1 121 fichiers en formats non structurés (`.ptlb`, `.fxbin`,
 `.clobin`, `.g4tg`, blobs hash-nommés).
+
+**Huit parseurs n'étaient branchés nulle part** (constaté et corrigé le 2026-08-28). `g4sk`,
+`navm`, `g4mt`, `g4cm`, `g4la`, `g4ma`, `g4vs` et `col` existaient, testés, mais absents de
+`decode` — la table de dispatch que partagent la FFI, `niers decode`, l'explorateur et le MCP.
+Un parseur qu'elle ignore est invisible à tout le monde. Ils y sont, et un test
+(`decode_dispatch`) vérifie la correspondance extension → parseur sur de vrais fichiers, pour que
+le prochain n'y échappe pas : `.g4nv` → `navm`, `.col` → `col (PXCL)`, etc. Effet mesuré :
+1 217 `.g4cm`, 1 150 `.col`, 339 `.g4sk`, 160 `.g4nv`, 70 `.g4mt` et 43 `.g4la`/`.g4ma`/`.g4vs`
+passent de « non reconnu » à décodé. Les `.g4la` et `.g4vs` ne décodent que 4 fichiers sur 5
+échantillonnés — un écart non expliqué, pas un succès complet.
 
 ### Données — `nie-data`
 
@@ -294,5 +317,11 @@ wasm-portables ou byte-exactes sans re-validation.
 1. **Le driver de menu runtime** — débloque le menu et tous les sous-menus visuels.
 2. **La forge** — continuer à monter la part produite ; la cible se choisit par le chiffre
    (`nie-forge candidates --no-reloc`, les lignes `blocker` de `lift`), jamais à l'intuition.
+   Préalable devenu bloquant : `var/forge/` n'existe sur aucune des deux machines, donc *aucune*
+   mesure de forge n'est rejouable aujourd'hui. Relancer `just forge` avant de citer un chiffre.
 3. **La physique de match byte-fidèle** — poursuivre les ports validés par oracle.
 4. **Le dialogue du mode Histoire** — résoudre la source du texte au runtime.
+5. **Rendre les mesures rejouables** — la ligne Formats l'est depuis le 2026-08-28
+   (`niers vfs formats`) ; restent la forge (§2) et la KB de la machine Windows (`symbol` vide,
+   257 noms contre 6 429 sur le VPS). Un chiffre qu'aucune commande ne régénère finit par
+   décrire un état que plus personne n'a sous les yeux.
