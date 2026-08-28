@@ -26,6 +26,11 @@ const KEEPER_H: Rgba = [250, 230, 60, 255];
 const KEEPER_A: Rgba = [60, 230, 200, 255];
 const BALL: Rgba = [250, 250, 250, 255];
 const SHADOW: Rgba = [20, 70, 30, 255];
+/// Curseur du joueur dirigé : magenta.
+///
+/// Aucune autre teinte du terrain ne s'en approche — le jaune, essayé d'abord, est exactement
+/// celui du gardien domicile, et le curseur s'y fondait.
+const CURSEUR: Rgba = [255, 60, 235, 255];
 
 /// Tampon image RGBA8 mutable.
 pub struct Frame {
@@ -188,8 +193,11 @@ pub fn render(world: &World, w: u32, h: u32) -> Frame {
         f.fill_rect(kx0.min(kx1) as i32, ky0 as i32, kx0.max(kx1) as i32, ky1 as i32, LINE);
     }
 
-    // Joueurs (ombre + disque coloré ; porteur surligné).
+    // Joueurs (ombre + disque coloré ; porteur surligné, joueur contrôlé désigné).
     let poss = world.possessor();
+    // Sans repère, on ne sait pas qui l'on dirige : indispensable dès que le match se joue, et
+    // sans effet sur une simulation autonome (le repère suit alors le joueur que l'IA pilote).
+    let pilote = world.controlled();
     for (i, p) in world.players.iter().enumerate() {
         let (sx, sy) = cam.p(p.pos.x, p.pos.y);
         f.disc(sx + 1.5, sy + 2.5, 4.6, SHADOW);
@@ -203,6 +211,21 @@ pub fn render(world: &World, w: u32, h: u32) -> Frame {
             f.disc(sx, sy, 6.4, LINE);
         }
         f.disc(sx, sy, 4.6, col);
+        // Curseur du joueur dirigé : un chevron au-dessus de la tête, comme dans tout jeu de
+        // football. Dessiné APRÈS le disque pour ne pas être recouvert, et en dehors de lui pour
+        // rester lisible quand le joueur porte déjà le halo de possession.
+        if pilote == Some(i) {
+            // Triangle plein pointant vers le joueur, assez large pour se voir au milieu de
+            // vingt-deux disques : un trait fin se perdait dans la pelouse.
+            const HAUTEUR: f32 = 9.0;
+            const DEMI_BASE: f32 = 6.0;
+            for k in 0..=HAUTEUR as i32 {
+                let t = f32::from(k as u8) / HAUTEUR;
+                let demi = DEMI_BASE * (1.0 - t);
+                let y = sy - 16.0 + k as f32;
+                f.line(sx - demi, y, sx + demi, y, 1.6, CURSEUR);
+            }
+        }
     }
 
     // Ballon : ombre au sol + ballon décalé vers le haut selon la hauteur z.

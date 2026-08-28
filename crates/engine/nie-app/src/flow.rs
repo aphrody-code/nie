@@ -118,6 +118,26 @@ impl Screen {
         }
     }
 
+    /// Transmet au match l'état des commandes de jeu, pour le prochain [`Screen::update`].
+    ///
+    /// Distinct de [`Screen::input`], qui traite des ÉVÉNEMENTS de menu : ici c'est un état
+    /// maintenu — une direction dure tant que la touche est tenue. Hors match, l'appel est sans
+    /// effet, ce qui évite au front de savoir sur quel écran il se trouve.
+    pub fn set_game_input(&mut self, dx: f32, dy: f32, shoot: bool) {
+        if let Screen::Match { world } = self {
+            world.input = nie_runtime::Input { dir: nie_geom::Vec2::new(dx, dy), shoot };
+        }
+    }
+
+    /// Index du joueur que la joueuse contrôle, pour que l'interface puisse le désigner.
+    #[must_use]
+    pub fn controlled_player(&self) -> Option<usize> {
+        match self {
+            Screen::Match { world } => world.controlled(),
+            _ => None,
+        }
+    }
+
     /// Score du match en cours `[domicile, extérieur]` (zéros hors match).
     #[must_use]
     pub fn score(&self) -> Vec<u32> {

@@ -20,4 +20,6 @@ nie-data = { path = "../../engine/nie-data", features = ["serde", "std"] }
 # Moteur de match (World : physique ballon, 22 joueurs, buts) pour la FSM interactive `flow::Screen`
 # (relocalisée depuis nie-wasm, Phase 5). Lib seulement (pas les bins ffmpeg) → wasm-compatible.
 nie-runtime = { path = "../../engine/nie-runtime" }
+# `Vec2` traverse l'API du moteur (direction de l'entrée de jeu) : le type doit être nommable ici.
+nie-geom = { path = "../../engine/nie-geom" }
 bcdec_rs = "0.2.0"

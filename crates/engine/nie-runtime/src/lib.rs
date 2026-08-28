@@ -95,11 +95,30 @@ impl Default for Ball {
     }
 }
 
+/// Ce que la joueuse demande au joueur qu'elle contrôle, pour le pas de simulation à venir.
+///
+/// Un état, pas un événement : une direction se **maintient** tant qu'une touche est enfoncée,
+/// là où un menu réagit à des appuis. Le front remplit cette structure à chaque image ; le moteur
+/// ne sait pas d'où elle vient (clavier, manette, rejeu enregistré).
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct Input {
+    /// Direction voulue, en mètres par seconde normalisés — zéro = le joueur s'arrête.
+    pub dir: V2,
+    /// Frapper le ballon cette image, si le joueur contrôlé le possède.
+    pub shoot: bool,
+}
+
 /// État complet du monde simulé à un instant donné.
 #[derive(Debug, Clone)]
 pub struct World {
     pub ball: Ball,
     pub players: Vec<Player>,
+    /// Entrée de la joueuse pour le prochain [`World::step`].
+    ///
+    /// Laissée à zéro, la simulation reste **exactement** ce qu'elle était : les 22 joueurs sont
+    /// pilotés par l'IA. C'est ce qui permet d'ajouter le contrôle sans invalider les rejeux
+    /// déterministes ni les tests de simulation existants.
+    pub input: Input,
     /// Buts marqués `[domicile, extérieur]`.
     pub score: [u32; 2],
     /// Temps de jeu simulé (s).
@@ -145,6 +164,7 @@ impl World {
         Self {
             ball: Ball::default(),
             players,
+            input: Input::default(),
             score: [0, 0],
             time: 0.0,
             tick: 0,
@@ -152,6 +172,31 @@ impl World {
             kick_timer: 0.0,
             steal_lock: 0.0,
         }
+    }
+
+    /// Index du joueur que la joueuse contrôle, dans l'équipe **domicile**.
+    ///
+    /// Le porteur s'il est de cette équipe, sinon le joueur de champ le plus proche du ballon —
+    /// la convention de tous les jeux de football : on tient celui qui compte, et le contrôle
+    /// bascule tout seul. Le gardien est exclu : le laisser quitter sa cage parce que le ballon
+    /// passe près de lui offrirait le but adverse.
+    #[must_use]
+    pub fn controlled(&self) -> Option<usize> {
+        if let Some(i) = self.possessor
+            && self.players.get(i).is_some_and(|p| p.team == 0)
+        {
+            return Some(i);
+        }
+        let ball2 = self.ball.pos.ground();
+        self.players
+            .iter()
+            .enumerate()
+            .filter(|(_, p)| p.team == 0 && p.role != Role::Goalkeeper)
+            .min_by(|(_, a), (_, b)| {
+                let (da, db) = ((a.pos - ball2).len(), (b.pos - ball2).len());
+                da.partial_cmp(&db).unwrap_or(core::cmp::Ordering::Equal)
+            })
+            .map(|(i, _)| i)
     }
 
     /// Avance la simulation d'un pas `dt` (secondes). Déterministe.
@@ -179,6 +224,9 @@ impl World {
     fn step_players(&mut self, dt: f32) {
         let ball2 = self.ball.pos.ground();
         let carrier = self.possessor;
+        // Joueur sous contrôle : seulement s'il y a une direction demandée. Sans entrée, il
+        // reste piloté par l'IA — la simulation autonome doit rester identique au bit près.
+        let pilote = (self.input.dir.len() > 0.01).then(|| self.controlled()).flatten();
         // Plus proche par équipe.
         let mut nearest = [usize::MAX, usize::MAX];
         let mut best = [f32::MAX, f32::MAX];
@@ -203,7 +251,12 @@ impl World {
             } else {
                 p.home
             };
-            let dir = (target - p.pos).norm();
+            // Le joueur pilote obéit à la direction demandée, pas à sa cible d'IA.
+            let dir = if pilote == Some(i) {
+                self.input.dir.norm()
+            } else {
+                (target - p.pos).norm()
+            };
             p.vel = dir * PLAYER_SPEED;
             p.pos = p.pos + p.vel * dt;
             p.pos.x = p.pos.x.clamp(-HALF_LEN, HALF_LEN);
@@ -286,6 +339,21 @@ impl World {
             return; // ballon en l'air : pas de contrôle au sol.
         }
         let team = self.players[i].team;
+
+        // Frappe commandée : quand la joueuse tient le ballon et appuie sur tir, elle frappe
+        // MAINTENANT, dans la direction qu'elle demande — pas quand l'IA jugerait bon de le
+        // faire. Sans direction, la frappe part vers le but adverse, comme un dégagement.
+        if self.input.shoot && self.kick_timer <= 0.0 && Some(i) == self.controlled() {
+            let vise = if self.input.dir.len() > 0.01 {
+                self.input.dir.norm()
+            } else {
+                (V2::new(if team == 0 { HALF_LEN } else { -HALF_LEN }, 0.0) - ball2).norm()
+            };
+            self.ball.vel = V3::new(vise.x * KICK_POWER, vise.y * KICK_POWER, KICK_LOFT);
+            self.kick_timer = KICK_COOLDOWN;
+            return;
+        }
+
         // But adverse : domicile (0) → +x, extérieur (1) → −x. On vise le but en suivant la
         // position latérale du PORTEUR (jeu/tirs 2D au lieu d'un axe central dégénéré) ; la cible
         // reste dans la largeur du but à l'approche.
