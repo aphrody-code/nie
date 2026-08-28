@@ -732,7 +732,7 @@ mod tests {
     fn real_font_metrics_match() {
         let dir = crate::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data = std::path::Path::new(&dir).join("data");
-        if !data.join("cpk_list.cfg.bin").exists() {
+        if !crate::vfs::donnees_disponibles(&data) {
             eprintln!("skip real_font_metrics_match : jeu absent");
             return;
         }
@@ -776,7 +776,7 @@ mod tests {
     fn real_glyph_blitter_a() {
         let dir = crate::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data = std::path::Path::new(&dir).join("data");
-        if !data.join("cpk_list.cfg.bin").exists() {
+        if !crate::vfs::donnees_disponibles(&data) {
             eprintln!("skip real_glyph_blitter_A : jeu absent");
             return;
         }

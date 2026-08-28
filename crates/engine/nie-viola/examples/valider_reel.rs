@@ -21,7 +21,7 @@ use nie_viola::{
 fn main() -> Result<(), String> {
     let racine = nie_formats::vfs::resolve_game_dir();
     let data = racine.join("data");
-    if !data.join("cpk_list.cfg.bin").is_file() {
+    if !nie_formats::vfs::donnees_disponibles(&data) {
         return Err(format!("jeu introuvable sous {} — rien à valider", racine.display()));
     }
     println!("jeu : {}", racine.display());

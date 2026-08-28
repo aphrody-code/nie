@@ -1030,7 +1030,7 @@ mod tests {
     fn real_files_golden_values() {
         let dir = crate::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data_dir = std::path::Path::new(&dir).join("data");
-        if !data_dir.join("cpk_list.cfg.bin").exists() {
+        if !crate::vfs::donnees_disponibles(&data_dir) {
             eprintln!("skip real_files_golden_values : jeu absent ({}/data)", dir);
             return;
         }

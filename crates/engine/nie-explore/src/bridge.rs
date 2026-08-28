@@ -292,7 +292,7 @@ mod tests {
     fn json_bridge_round_trip_sur_le_vrai_jeu() {
         let dir = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data_dir = std::path::Path::new(&dir).join("data");
-        if !data_dir.join("cpk_list.cfg.bin").exists() {
+        if !nie_formats::vfs::donnees_disponibles(&data_dir) {
             eprintln!("skip json_bridge_round_trip_sur_le_vrai_jeu : jeu absent");
             return;
         }
@@ -351,7 +351,7 @@ mod tests {
 
         let dir = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data_dir = std::path::Path::new(&dir).join("data");
-        if !data_dir.join("cpk_list.cfg.bin").exists() {
+        if !nie_formats::vfs::donnees_disponibles(&data_dir) {
             eprintln!("skip json_bridge_rdbn_round_trip_sur_le_vrai_jeu : jeu absent");
             return;
         }

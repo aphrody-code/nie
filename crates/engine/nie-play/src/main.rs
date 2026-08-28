@@ -16,12 +16,16 @@ use nie_core::stats::StatBlock;
 
 #[derive(Parser)]
 struct Cli {
-    /// `font.cfg.bin` (métriques de police).
+    /// `font.cfg.bin` (métriques de police). Par défaut : résolu par le VFS du jeu.
     #[arg(long)]
-    font_cfg: std::path::PathBuf,
-    /// `font.g4tx` (atlas de police).
+    font_cfg: Option<std::path::PathBuf>,
+    /// `font.g4tx` (atlas de police). Par défaut : résolu par le VFS du jeu.
     #[arg(long)]
-    font_g4tx: std::path::PathBuf,
+    font_g4tx: Option<std::path::PathBuf>,
+    /// Cache des assets matérialisés depuis les packs (inutilisé sur un dump : les fichiers
+    /// y sont déjà sur disque et servis sans copie).
+    #[arg(long, default_value = "var/cache/assets")]
+    cache: std::path::PathBuf,
     /// Répertoire de sortie des frames.
     #[arg(long, default_value = "/tmp/nie-play")]
     out: std::path::PathBuf,
@@ -88,9 +92,43 @@ fn write_png(buf: &[u8], path: &std::path::Path) -> Result<()> {
     Ok(())
 }
 
+/// Chemins logiques des assets de police par défaut — ceux que le jeu charge lui-même.
+const FONT_CFG: &str = "data/common/font/font/font_def/font.cfg.bin";
+/// Atlas de police correspondant (`FONT_CFG`), côté ressources rendues.
+const FONT_G4TX: &str = "data/dx11/font/font_def/font.g4tx";
+
+/// Résout les deux assets de police : ceux passés en argument, sinon ceux du jeu.
+///
+/// Le VFS sert les mêmes chemins logiques qu'on tourne sur une installation ou sur un dump
+/// extrait — c'est ce qui permet de lancer le playthrough sans connaître ni chemin disque ni
+/// mode de montage. Sur un dump, aucun octet n'est copié.
+fn assets_police(cli: &Cli) -> Result<(std::path::PathBuf, std::path::PathBuf)> {
+    if let (Some(cfg), Some(g4tx)) = (&cli.font_cfg, &cli.font_g4tx) {
+        return Ok((cfg.clone(), g4tx.clone()));
+    }
+    let vfs = nie_formats::vfs::open_game()
+        .map_err(|e| anyhow::anyhow!("aucune donnee de jeu (ni installation ni dump) : {e:?}"))?;
+    let montage = if vfs.is_dump() { "dump" } else { "packs" };
+    let mat = |logique: &str| -> Result<std::path::PathBuf> {
+        vfs.materialiser(logique, &cli.cache)
+            .map_err(|e| anyhow::anyhow!("asset {logique} indisponible : {e:?}"))
+    };
+    let cfg = match &cli.font_cfg {
+        Some(p) => p.clone(),
+        None => mat(FONT_CFG)?,
+    };
+    let g4tx = match &cli.font_g4tx {
+        Some(p) => p.clone(),
+        None => mat(FONT_G4TX)?,
+    };
+    println!("[nie-play] police resolue par le VFS ({montage}) : {}", cfg.display());
+    Ok((cfg, g4tx))
+}
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
     std::fs::create_dir_all(&cli.out)?;
+    let (font_cfg, font_g4tx) = assets_police(&cli)?;
 
     // Équipe domicile : vrais chara_param si fournis (pont données Phase 2), sinon stats en dur.
     let home = match &cli.chara_param {
@@ -110,7 +148,7 @@ fn main() -> Result<()> {
         (Some(md), Some(mg), Some(sk), Some(tex)) => Some(CharAssets { md, mg, sk, tex }),
         _ => None,
     };
-    let renderer = CpuRenderer::new(&cli.font_cfg, &cli.font_g4tx, chr).context("init renderer")?;
+    let renderer = CpuRenderer::new(&font_cfg, &font_g4tx, chr).context("init renderer")?;
 
     // Playthrough : la machine à états de nie-app. Avec --db, le segment Histoire joue une VRAIE
     // scène de dialogue IEVR (sinon le flow de démo).

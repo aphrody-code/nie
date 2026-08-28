@@ -4426,6 +4426,7 @@ dependencies = [
  "clap",
  "nie-app",
  "nie-core",
+ "nie-formats",
  "nie-runtime",
  "png",
  "rusqlite",

@@ -20,7 +20,7 @@ use std::process::Command;
 fn game_dir() -> Option<PathBuf> {
     let dir = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
     let p = PathBuf::from(dir);
-    p.join("data/cpk_list.cfg.bin").exists().then_some(p)
+    nie_formats::vfs::donnees_disponibles(p.join("data")).then_some(p)
 }
 
 /// CRC32 IEEE (poly réfléchi 0xEDB88320) — identifiant de layer `menu_setting` = CRC32 du nom.

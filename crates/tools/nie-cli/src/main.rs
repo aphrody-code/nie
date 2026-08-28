@@ -2998,6 +2998,13 @@ fn info_cmd(game_dir: Option<PathBuf>, json: bool) -> anyhow::Result<()> {
 
     let cpk_list = racine.join("data/cpk_list.cfg.bin");
     let vfs = open_vfs(Some(racine.clone())).ok();
+    // Deux montages servent les memes chemins : les packs CPK, ou un dump deja extrait. Le
+    // dire evite de lire « 255 308 entrees » sans savoir d'ou elles sortent.
+    let montage = match vfs.as_ref() {
+        Some(v) if v.is_dump() => "dump",
+        Some(_) => "packs",
+        None => "aucun",
+    };
     let entrees = vfs.as_ref().map_or(0, |v| v.iter().count());
     let paquets: std::collections::BTreeSet<String> =
         vfs.as_ref().map_or_else(Default::default, |v| {
@@ -3017,7 +3024,7 @@ fn info_cmd(game_dir: Option<PathBuf>, json: bool) -> anyhow::Result<()> {
         let v = serde_json::json!({
             "racine": racine.display().to_string(),
             "binaire": { "present": taille_exe.is_some(), "taille": taille_exe, "sha256": sha },
-            "vfs": { "cpk_list": cpk_list.is_file(), "entrees": entrees, "paquets": paquets.len() },
+            "vfs": { "montage": montage, "cpk_list": cpk_list.is_file(), "entrees": entrees, "paquets": paquets.len() },
             "dumps_gamedata": dumps.as_ref().map(|p| p.display().to_string()),
             "chaine_de_lancement": chaine.iter().map(|(f, role, present, taille)| serde_json::json!({
                 "fichier": f, "role": role, "present": present, "taille": taille,
@@ -3037,7 +3044,7 @@ fn info_cmd(game_dir: Option<PathBuf>, json: bool) -> anyhow::Result<()> {
         _ => println!("binaire     absent ({})", exe.display()),
     }
     println!("cpk_list    {}", if cpk_list.is_file() { "present" } else { "absent" });
-    println!("vfs         {entrees} entrees, {} paquets", paquets.len());
+    println!("vfs         {montage} — {entrees} entrees, {} paquets", paquets.len());
     match &dumps {
         Some(p) => println!("dumps       {}", p.display()),
         None => println!("dumps       absents — les goldens adosses au corpus ne s'executeront pas"),
@@ -3466,9 +3473,16 @@ fn vfs_cmd(op: VfsOp) -> anyhow::Result<()> {
     }
 }
 
-/// Ouvre le VFS depuis `game_dir` (ou [`nie_formats::vfs::resolve_game_dir`] si absent).
+/// Ouvre le VFS depuis `game_dir`, ou sur ce que la machine offre quand l'argument est absent
+/// — installation du jeu, sinon dump extrait (cf. [`nie_formats::vfs::open_game`]).
+///
+/// Une racine explicite reste servie telle quelle : c'est l'argument de l'utilisateur, pas une
+/// heuristique. `init` y bascule seul sur le dump si `cpk_list.cfg.bin` manque.
 fn open_vfs(game_dir: Option<PathBuf>) -> anyhow::Result<nie_formats::vfs::Vfs> {
-    let root = game_dir.unwrap_or_else(nie_formats::vfs::resolve_game_dir);
+    let Some(root) = game_dir else {
+        return nie_formats::vfs::open_game()
+            .map_err(|e| anyhow::anyhow!("ouverture du VFS : {e:?}"));
+    };
     let data_dir = root.join("data");
     let mut vfs = nie_formats::vfs::Vfs::new();
     vfs.init(&data_dir).with_context(|| format!("init VFS depuis {}", data_dir.display()))?;
