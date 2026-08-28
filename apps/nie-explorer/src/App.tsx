@@ -288,7 +288,13 @@ export default function App() {
     }
     api
       .preloadVfs(settings.gameDir)
-      .then((s) => toast.success(`VFS chargé : ${s.total.toLocaleString("fr-FR")} fichiers`))
+      .then((s) =>
+        toast.success(
+          `VFS chargé : ${s.total.toLocaleString("fr-FR")} fichiers (${
+            s.montage === "dump" ? "dump extrait" : "packs CPK"
+          })`,
+        ),
+      )
       .catch((e) => toast.error(`Échec du chargement du VFS : ${e}`));
   }, []);
 

@@ -149,10 +149,15 @@ fn resolve_root(game_dir: Option<&str>) -> PathBuf {
 
 /// Résolution du dossier de jeu par défaut, dans l'ordre :
 /// 1. `NIE_GAME_DIR` (env, dev/CI).
-/// 2. Répertoire courant, s'il contient déjà `data/cpk_list.cfg.bin`.
+/// 2. Répertoire courant, s'il porte déjà des données montables — l'installation
+///    (`data/cpk_list.cfg.bin` + `data/packs/`) OU un dump extrait (`data/common/`,
+///    `data/dx11/`), cf. [`nie_formats::vfs::donnees_disponibles`].
 /// 3. VRAIE détection Steam ([`steam::detect_game_dir`] — registre + `libraryfolders.vdf` +
 ///    `appmanifest_2799860.acf`), pas un chemin deviné.
-/// 4. Repli : répertoire courant tel quel (même invalide) — plus honnête qu'un faux chemin
+/// 4. Un dump désigné par `NIE_DUMP_DIR` ou trouvé au-dessus du répertoire courant : sur une
+///    machine sans installation, c'est la seule source de données, et l'explorateur sait
+///    l'ouvrir depuis que le VFS sert les mêmes chemins logiques dans les deux montages.
+/// 5. Repli : répertoire courant tel quel (même invalide) — plus honnête qu'un faux chemin
 ///    plausible : l'UI (`check_game_dir`) affichera clairement « introuvable » plutôt que de
 ///    pointer silencieusement vers un dossier qui n'existe sur aucune machine utilisatrice.
 fn resolve_game_dir_native() -> PathBuf {
@@ -162,11 +167,15 @@ fn resolve_game_dir_native() -> PathBuf {
         }
     }
     let cwd = std::env::current_dir().unwrap_or_default();
-    if cwd.join("data").join("cpk_list.cfg.bin").is_file() {
+    if nie_formats::vfs::donnees_disponibles(cwd.join("data")) {
         return cwd;
     }
     if let Some(dir) = steam::detect_game_dir() {
         return dir;
+    }
+    // Le VFS prend `<racine>/data` : on remonte donc du `data/` du dump à sa racine.
+    if let Some(parent) = nie_formats::vfs::resolve_dump_dir().and_then(|d| d.parent().map(PathBuf::from)) {
+        return parent;
     }
     cwd
 }
@@ -188,7 +197,17 @@ fn with_vfs<T>(game_dir: Option<String>, state: &VfsState, f: impl FnOnce(&Vfs) 
     if needs_rebuild {
         let data_dir = root.join("data");
         let mut vfs = Vfs::new();
-        vfs.init(&data_dir).map_err(|e| format!("init VFS depuis {} : {e}", data_dir.display()))?;
+        // `init` monte l'installation, et bascule seule sur un dump extrait si `cpk_list.cfg.bin`
+        // manque mais que l'arborescence est là. Le message d'échec doit donc nommer les DEUX
+        // possibilités : « cpk_list introuvable » enverrait chercher un fichier là où c'est
+        // l'ensemble du répertoire qui est vide.
+        vfs.init(&data_dir).map_err(|e| {
+            format!(
+                "init VFS depuis {} : {e} — ce dossier ne porte ni installation \
+                 (cpk_list.cfg.bin + packs/) ni dump extrait (common/, dx11/)",
+                data_dir.display()
+            )
+        })?;
         *guard = Some((root.clone(), vfs));
     }
     let (_, vfs) = guard.as_ref().expect("vient d'être rempli ci-dessus");
@@ -259,6 +278,11 @@ struct FolderRoleDto {
 // entrées VFS au total) sans avoir besoin de désactiver ce garde-fou.
 #[derive(Serialize, specta::Type)]
 struct StatsDto {
+    /// Provenance des données : `"packs"` (installation : `cpk_list.cfg.bin` + `packs/*.cpk`) ou
+    /// `"dump"` (arborescence déjà extraite). Les deux servent les mêmes chemins logiques, donc
+    /// rien d'autre dans l'interface ne change — mais « 255 316 fichiers, 0 CPK » est
+    /// incompréhensible tant qu'on ignore lequel des deux est monté.
+    montage: String,
     total: u32,
     cpk_count: u32,
     extra_count: u32,
@@ -274,11 +298,14 @@ fn default_game_dir() -> String {
     resolve_game_dir_native().display().to_string()
 }
 
-/// Vérifie qu'un répertoire de jeu est valide (contient `data/cpk_list.cfg.bin`).
+/// Vérifie qu'un répertoire de jeu est exploitable : `data/` y porte l'installation
+/// (`cpk_list.cfg.bin`) **ou** un dump extrait (`common/`, `dx11/`). Les deux se montent et
+/// servent les mêmes chemins — refuser le second afficherait « introuvable » sur une machine
+/// qui a pourtant tout ce qu'il faut.
 #[tauri::command]
 #[specta::specta]
 fn check_game_dir(game_dir: String) -> bool {
-    PathBuf::from(game_dir).join("data").join("cpk_list.cfg.bin").is_file()
+    nie_formats::vfs::donnees_disponibles(PathBuf::from(game_dir).join("data"))
 }
 
 /// Force le (re)chargement du VFS en cache — appelé une fois au démarrage du frontend pour
@@ -386,6 +413,7 @@ fn vfs_stats(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<
         top_ext.sort_by_key(|(_, c)| std::cmp::Reverse(*c));
         top_ext.truncate(30);
         Ok(StatsDto {
+            montage: if vfs.is_dump() { "dump" } else { "packs" }.to_string(),
             total: vfs.asset_count() as u32,
             cpk_count: vfs.cpk_count() as u32,
             extra_count: vfs.extra_count() as u32,
@@ -617,6 +645,10 @@ pub(crate) fn isoler<T: Send + 'static>(
 }
 
 /// Extrait un fichier VFS directement vers `dest` (écriture Rust→disque, pas de round-trip JS).
+///
+/// Sur un montage **dump**, le fichier est déjà sur disque : on le copie au lieu de charger ses
+/// octets en mémoire pour les réécrire. La différence se voit sur les gros assets — un `.usm`
+/// dépasse les centaines de mégaoctets, et `read` + `write` en tenait deux exemplaires en RAM.
 #[tauri::command]
 #[specta::specta]
 // `u32` (pas `u64`) pour toutes les tailles en octets retournées ci-dessous : même contrainte
@@ -624,10 +656,16 @@ pub(crate) fn isoler<T: Send + 'static>(
 // place pour `EntryDto.size`/`VfsEntry.file_size` — aucun asset individuel du jeu n'approche 4 Gio.
 fn vfs_extract_to(path: String, dest: String, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<u32, String> {
     with_vfs(game_dir, &state, |vfs| {
-        let data = vfs.read(&path).map_err(|e| e.to_string())?;
         if let Some(parent) = std::path::Path::new(&dest).parent() {
             std::fs::create_dir_all(parent).ok();
         }
+        if vfs.is_dump() {
+            if let Some(source) = vfs.resolve_loose_path(&path) {
+                let n = std::fs::copy(&source, &dest).map_err(|e| e.to_string())?;
+                return Ok(n as u32);
+            }
+        }
+        let data = vfs.read(&path).map_err(|e| e.to_string())?;
         std::fs::write(&dest, &data).map_err(|e| e.to_string())?;
         Ok(data.len() as u32)
     })
@@ -743,6 +781,9 @@ fn vfs_export_many(
 /// Refuse explicitement les entrées empaquetées dans un CPK : `nie-formats` n'a pas d'encodeur
 /// CPK, y écrire corromprait l'archive — même contrainte que partout ailleurs dans ce fichier,
 /// vérifiée ICI plutôt que suppposée (le VFS sait exactement quelles entrées sont loose).
+///
+/// Sur un montage **dump**, aucune entrée n'est empaquetée : l'écriture en place vaut pour tout
+/// le contenu, et modifie le dump lui-même — c'est une arborescence de travail, pas une archive.
 #[tauri::command]
 #[specta::specta]
 fn vfs_write_b64(path: String, data_b64: String, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<u32, String> {

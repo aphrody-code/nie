@@ -151,6 +151,24 @@ survivant à une fusion, et aller-retour de chiffrement exact sur un `.cpk`.
 
 ## Données du jeu
 
+**Deux sources, une interface.** L'application ouvre indifféremment une installation du jeu
+(`data/cpk_list.cfg.bin` + `data/packs/*.cpk`) ou un **dump extrait** (`data/common/`,
+`data/dx11/`) : le VFS sert les mêmes chemins logiques dans les deux cas, donc navigation,
+aperçus, export et éditeurs fonctionnent sans rien savoir du montage. Une machine qui n'a que le
+dump ouvre l'explorateur, `check_game_dir` accepte les deux, et la détection par défaut essaie
+l'installation d'abord (`NIE_GAME_DIR`, cwd, Steam) avant de retomber sur un dump.
+
+Ce qui change visiblement : les statistiques VFS annoncent la provenance (« dump extrait » /
+« packs CPK ») et masquent les compteurs de packs qui vaudraient zéro sur un dump — « 255 316
+fichiers, 0 CPK » se lisait comme une anomalie. Le toast de préchargement la nomme aussi. Sur un
+dump, l'extraction d'un fichier est une copie disque et non un `read` en mémoire (un `.usm`
+dépasse les centaines de mégaoctets), et l'édition en place vaut pour tout le contenu — il n'y a
+pas d'archive à réencoder, mais elle modifie le dump lui-même.
+
+Mesuré le 2026-08-28 sur ce poste : le dump sert **255 308 / 255 308** chemins de l'index du jeu
+(100,000 %, `cargo run -p nie-formats --example dump_couverture`), et les deux montages rendent
+des octets identiques (`cargo test -p nie-formats --test dump_vs_packs`).
+
 Dix-sept familles câblées avec DTO typé et onglet dédié : techniques, objets, Avatar/Keshin,
 succès, quêtes, boutiques, stades, capacités passives, tactiques spéciales, écussons, galerie,
 feintes, activités, équipes, formations, uniformes, plus le sélecteur du calculateur de stats.
@@ -288,4 +306,8 @@ cd apps/nie-explorer/src-tauri && cargo run --bin export-bindings --features dev
 
 # Opérations de modding, sur le vrai jeu
 cargo run -p nie-viola --example valider_reel --release
+
+# Les deux montages servent bien la même chose (installation ET dump requis)
+cargo test -p nie-formats --test dump_vs_packs -- --nocapture
+NIE_DUMP_DIR=<dump> cargo run -p nie-formats --example dump_couverture
 ```

@@ -630,11 +630,27 @@ export function SettingsView() {
           {stats && (
             <div className="space-y-3">
               <div className="flex flex-wrap gap-2 type-body-medium">
+                {/* Provenance d'abord : « 0 CPK » n'est une anomalie que sur une installation,
+                    et c'est la normale sur un dump extrait. Sans ce badge, les compteurs
+                    suivants se lisent de travers. */}
+                <Badge variant={stats.montage === "dump" ? "outline" : "secondary"}>
+                  {stats.montage === "dump" ? "dump extrait" : "packs CPK"}
+                </Badge>
                 <Badge variant="secondary">{stats.total.toLocaleString("fr-FR")} fichiers</Badge>
-                <Badge variant="secondary">{stats.cpk_count} CPK</Badge>
-                <Badge variant="secondary">{stats.extra_count} extra</Badge>
-                <Badge variant="secondary">{stats.loose_count} loose</Badge>
+                {stats.montage === "packs" && (
+                  <>
+                    <Badge variant="secondary">{stats.cpk_count} CPK</Badge>
+                    <Badge variant="secondary">{stats.extra_count} extra</Badge>
+                  </>
+                )}
+                <Badge variant="secondary">{stats.loose_count.toLocaleString("fr-FR")} loose</Badge>
               </div>
+              {stats.montage === "dump" && (
+                <p className="type-body-small text-on-surface-variant">
+                  Les fichiers sont servis depuis l'arborescence extraite : aucune archive à ouvrir, et
+                  l'édition en place vaut pour tout le contenu — elle modifie le dump lui-même.
+                </p>
+              )}
               <table className="w-full type-body-small">
                 <tbody>
                   {stats.top_ext.slice(0, 15).map(([e, c]) => (

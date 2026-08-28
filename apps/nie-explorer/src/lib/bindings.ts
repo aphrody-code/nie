@@ -9,7 +9,12 @@ export const commands = {
 	 *  `appmanifest_2799860.acf`, cf. [`resolve_game_dir_native`]), pas un chemin deviné.
 	 */
 	defaultGameDir: () => __TAURI_INVOKE<string>("default_game_dir"),
-	/**  Vérifie qu'un répertoire de jeu est valide (contient `data/cpk_list.cfg.bin`). */
+	/**
+	 *  Vérifie qu'un répertoire de jeu est exploitable : `data/` y porte l'installation
+	 *  (`cpk_list.cfg.bin`) **ou** un dump extrait (`common/`, `dx11/`). Les deux se montent et
+	 *  servent les mêmes chemins — refuser le second afficherait « introuvable » sur une machine
+	 *  qui a pourtant tout ce qu'il faut.
+	 */
 	checkGameDir: (gameDir: string) => __TAURI_INVOKE<boolean>("check_game_dir", { gameDir }),
 	/**
 	 *  Résout le miroir SQLite (`supabase-*.sqlite`) par défaut — même ordre de résolution que
@@ -120,7 +125,13 @@ export const commands = {
 	 *  décoder en pleine résolution pour les afficher à 90 px sature le processus de rendu.
 	 */
 	vfsTextureNamedThumbPngB64: (path: string, nom: string, maxCote: number | null, gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("vfs_texture_named_thumb_png_b64", { path, nom, maxCote, gameDir })),
-	/**  Extrait un fichier VFS directement vers `dest` (écriture Rust→disque, pas de round-trip JS). */
+	/**
+	 *  Extrait un fichier VFS directement vers `dest` (écriture Rust→disque, pas de round-trip JS).
+	 * 
+	 *  Sur un montage **dump**, le fichier est déjà sur disque : on le copie au lieu de charger ses
+	 *  octets en mémoire pour les réécrire. La différence se voit sur les gros assets — un `.usm`
+	 *  dépasse les centaines de mégaoctets, et `read` + `write` en tenait deux exemplaires en RAM.
+	 */
 	vfsExtractTo: (path: string, dest: string, gameDir: string | null) => typedError<number, string>(__TAURI_INVOKE("vfs_extract_to", { path, dest, gameDir })),
 	/**
 	 *  Formats d'export disponibles pour `path` — le brut en tête, puis les conversions réellement
@@ -154,6 +165,9 @@ export const commands = {
 	 *  Refuse explicitement les entrées empaquetées dans un CPK : `nie-formats` n'a pas d'encodeur
 	 *  CPK, y écrire corromprait l'archive — même contrainte que partout ailleurs dans ce fichier,
 	 *  vérifiée ICI plutôt que suppposée (le VFS sait exactement quelles entrées sont loose).
+	 * 
+	 *  Sur un montage **dump**, aucune entrée n'est empaquetée : l'écriture en place vaut pour tout
+	 *  le contenu, et modifie le dump lui-même — c'est une arborescence de travail, pas une archive.
 	 */
 	vfsWriteB64: (path: string, dataB64: string, gameDir: string | null) => typedError<number, string>(__TAURI_INVOKE("vfs_write_b64", { path, dataB64, gameDir })),
 	/**
@@ -1430,6 +1444,13 @@ export type StatBlockDto = {
 };
 
 export type StatsDto = {
+	/**
+	 *  Provenance des données : `"packs"` (installation : `cpk_list.cfg.bin` + `packs/*.cpk`) ou
+	 *  `"dump"` (arborescence déjà extraite). Les deux servent les mêmes chemins logiques, donc
+	 *  rien d'autre dans l'interface ne change — mais « 255 316 fichiers, 0 CPK » est
+	 *  incompréhensible tant qu'on ignore lequel des deux est monté.
+	 */
+	montage: string,
 	total: number,
 	cpk_count: number,
 	extra_count: number,

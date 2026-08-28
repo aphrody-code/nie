@@ -987,7 +987,7 @@ mod tests {
     fn list_skills_sur_le_vrai_jeu() {
         let dir = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data_dir = std::path::Path::new(&dir).join("data");
-        if !data_dir.join("cpk_list.cfg.bin").exists() {
+        if !nie_formats::vfs::donnees_disponibles(&data_dir) {
             eprintln!("skip list_skills_sur_le_vrai_jeu : jeu absent");
             return;
         }
@@ -1015,7 +1015,7 @@ mod tests {
     fn real_vfs_or_skip(test_name: &str) -> Option<Vfs> {
         let dir = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data_dir = std::path::Path::new(&dir).join("data");
-        if !data_dir.join("cpk_list.cfg.bin").exists() {
+        if !nie_formats::vfs::donnees_disponibles(&data_dir) {
             eprintln!("skip {test_name} : jeu absent");
             return None;
         }
@@ -1180,7 +1180,7 @@ mod tests {
     fn decode_cfgbin_sur_un_echantillon_large() {
         let dir = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
         let data_dir = std::path::Path::new(&dir).join("data");
-        if !data_dir.join("cpk_list.cfg.bin").exists() {
+        if !nie_formats::vfs::donnees_disponibles(&data_dir) {
             eprintln!("skip decode_cfgbin_sur_un_echantillon_large : jeu absent");
             return;
         }
