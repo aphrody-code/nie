@@ -327,6 +327,39 @@ Deux leçons de méthode, toutes deux payantes ici :
   puis ce qu'on lui **passe**. Ici le premier était vide et c'est le second qui était faux ; la
   bonne source d'identifiants est `hash_name` (`kind='menu_layer'`), pas le nom de l'écran.
 
+### Le jeu jouable — `nie-game --play` (2026-08-28)
+
+Le cœur (`nie_app::flow::Screen`) et la physique (`nie_runtime::World`) existaient et tournaient
+dans le navigateur ; le front NATIF affichait une image figée. `--play` les branche sur une
+fenêtre wgpu : clavier → commande de menu IEVR, temps réel → `update`, framebuffer → texture GPU.
+Le cœur reste partagé — corriger un comportement de menu le corrige pour les deux fronts.
+
+Ce qui se joue aujourd'hui, vérifié en jouant (fenêtre pilotée par messages Win32, captures à
+chaque étape) : écran-titre → menu principal → **match contrôlé au clavier**, avec un joueur
+dirigé (curseur magenta), une frappe commandée, et un bandeau de score lisible. La simulation
+autonome reste identique au bit près quand aucune entrée n'est donnée — un test compare deux
+mondes sur 600 pas, position par position, ce qui préserve les rejeux déterministes.
+
+**Six onglets sur neuf montrent du contenu réel du jeu**, chargé du VFS et donc identique sur une
+installation ou un dump :
+
+| Onglet | Source | Contenu |
+|---|---|---|
+| Composition d'équipe | `chara_param` × `chara_base` × `chara_text` | 200 joueurs, poste, élément |
+| Objets | `item_config` × `item_text` | 200 objets, catégorie, prix |
+| Inacord, Fichier de données, Aide, Options | tables de texte localisées | entrées filtrées |
+| Mode Histoire | `text/fr/event/*.cfg.bin` | dialogues réels (`ev01_00050`, 15 répliques) |
+
+Les tables du jeu sont **partiellement traduites** : une même table mêle français et japonais
+d'origine. `effectif::est_localise` écarte le non traduit — afficher des glyphes que la police
+latine ne sait pas dessiner ne renseigne personne. Le même critère choisit la scène du mode
+Histoire, et il a fallu deux resserrements pour qu'il cesse de retenir une scène dont la deuxième
+réplique est « T » : compter les caractères et non les octets, exiger des lettres à 90 % latines.
+
+Restent : « Marque-pages d'informations » (aucune table dédiée trouvée — rien n'y est branché
+plutôt qu'un contenu arbitraire), « Sauvegarder » (une action, pas une liste), le son, et le rendu
+de match en disques là où `nie-render3d` sait afficher les vrais modèles.
+
 ### Autres crates
 
 `nie-save` déchiffre, lit et édite les saves (XOR à clé CRC32). `nie-steam` porte l'acquisition
@@ -352,6 +385,11 @@ wasm-portables ou byte-exactes sans re-validation.
 
 ## Priorités
 
+0. **Le jeu tourne et se joue** (`nie-game --play`, cf. ci-dessus) — c'est désormais le banc
+   d'essai le plus honnête du portage : un format mal lu, un texte mal résolu ou une mise en page
+   fausse s'y voient immédiatement. Quatre défauts corrigés cette session ne se voyaient QUE là :
+   les accents mangés, le texte débordant de sa barre, les libellés coupés par le bord, et une
+   scène de dialogue choisie sur un mauvais critère.
 1. **Le driver de menu runtime** — débloque le menu et tous les sous-menus visuels.
 2. **La forge** — continuer à monter la part produite ; la cible se choisit par le chiffre
    (`nie-forge candidates --no-reloc`, les lignes `blocker` de `lift`), jamais à l'intuition.
