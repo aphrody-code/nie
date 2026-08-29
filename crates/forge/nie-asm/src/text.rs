@@ -15,7 +15,7 @@
 
 use crate::{
     Alu, BitOp, Cond, CvtOp, Insn, Mem, NoOp, Reg, RepOp, Rm, Seg, ShiftOp, Size, SseMaskOp,
-    SseOp, SseShiftOp, UnOp, Xmm, XmmRm,
+    SseOp, SseShiftOp, UnOp, VexOp, Xmm, XmmRm,
 };
 use alloc::format;
 use alloc::string::{String, ToString};
@@ -388,6 +388,35 @@ const SSES: [(&str, SseOp); 102] = [
     ("pmulhw", SseOp::Pmulhw),
 ];
 
+/// Table des opérations VEX.
+const VEXES: [(&str, VexOp); 13] = [
+    ("vmovaps", VexOp::Vmovaps),
+    ("vmovaps_st", VexOp::VmovapsStore),
+    ("vmovups", VexOp::Vmovups),
+    ("vmovups_st", VexOp::VmovupsStore),
+    ("vxorps", VexOp::Vxorps),
+    ("vaddps", VexOp::Vaddps),
+    ("vmulps", VexOp::Vmulps),
+    ("vsubps", VexOp::Vsubps),
+    ("vpermilps_i", VexOp::VpermilpsImm),
+    ("vpermilps", VexOp::Vpermilps),
+    ("vfmadd231ps", VexOp::Vfmadd231ps),
+    ("vfmadd213ps", VexOp::Vfmadd213ps),
+    ("vfmadd132ps", VexOp::Vfmadd132ps),
+];
+
+fn vex_name(o: VexOp) -> &'static str {
+    VEXES.iter().find(|(_, x)| *x == o).map_or("vmovaps", |(n, _)| *n)
+}
+
+/// Vrai si la forme n'a que deux opérandes visibles (pas de registre `vvvv`).
+fn is_two_operand(o: VexOp) -> bool {
+    matches!(
+        o,
+        VexOp::Vmovaps | VexOp::VmovapsStore | VexOp::Vmovups | VexOp::VmovupsStore
+    )
+}
+
 /// Nom de l'accumulateur pour une taille (`al`/`ax`/`eax`/`rax`).
 fn acc_name(s: Size) -> &'static str {
     match s {
@@ -655,6 +684,24 @@ impl Insn {
             Self::MovI(s, rm, i) => format!("mov {}, {:#x}", rm_text(rm, s), i as u32),
             Self::Test(s, rm, r) => format!("test {}, {}", rm_text(rm, s), reg_name(r, s)),
             Self::TestI(s, rm, i) => format!("test {}, {:#x}", rm_text(rm, s), i as u32),
+            Self::Vex(op, dst, src1, src2, imm) => {
+                let n = vex_name(op);
+                let s2 = xmmrm_text(src2);
+                match (op.is_store(), imm) {
+                    // Forme « store » : la mémoire est la destination.
+                    (true, _) => format!("{n} {s2}, {}", xmm_text(dst)),
+                    (false, Some(v)) => {
+                        format!("{n} {}, {s2}, {v:#x}", xmm_text(dst))
+                    }
+                    // Sans `vvvv` utile, la forme a deux opérandes visibles.
+                    (false, None) if src1.0 == 0 && !op.has_imm() && is_two_operand(op) => {
+                        format!("{n} {}, {s2}", xmm_text(dst))
+                    }
+                    (false, None) => {
+                        format!("{n} {}, {}, {s2}", xmm_text(dst), xmm_text(src1))
+                    }
+                }
+            }
             Self::Prefetch(h, m) => {
                 let n = match h {
                     0 => "prefetchnta",
@@ -890,6 +937,41 @@ pub fn parse_insn(line: &str) -> Result<Insn, ParseError> {
             xmm_of(&d).ok_or_else(err)?,
             parse_xmmrm(&s).ok_or_else(err)?,
         ));
+    }
+    if let Some((_, op)) = VEXES.iter().find(|(n, _)| *n == mnem) {
+        let parts: alloc::vec::Vec<&str> = args.split(',').map(str::trim).collect();
+        let zero = Xmm(0);
+        return match (op.is_store(), op.has_imm(), parts.len()) {
+            (true, _, 2) => Ok(Insn::Vex(
+                *op,
+                xmm_of(parts[1]).ok_or_else(err)?,
+                zero,
+                XmmRm::M(parse_mem(parts[0]).ok_or_else(err)?),
+                None,
+            )),
+            (false, true, 3) => Ok(Insn::Vex(
+                *op,
+                xmm_of(parts[0]).ok_or_else(err)?,
+                zero,
+                parse_xmmrm(parts[1]).ok_or_else(err)?,
+                Some(u8::try_from(parse_int(parts[2]).ok_or_else(err)?).map_err(|_| err())?),
+            )),
+            (false, false, 2) => Ok(Insn::Vex(
+                *op,
+                xmm_of(parts[0]).ok_or_else(err)?,
+                zero,
+                parse_xmmrm(parts[1]).ok_or_else(err)?,
+                None,
+            )),
+            (false, false, 3) => Ok(Insn::Vex(
+                *op,
+                xmm_of(parts[0]).ok_or_else(err)?,
+                xmm_of(parts[1]).ok_or_else(err)?,
+                parse_xmmrm(parts[2]).ok_or_else(err)?,
+                None,
+            )),
+            _ => Err(err()),
+        };
     }
     if let Some((_, op, sz)) = REPS.iter().find(|(n, _, _)| *n == mnem) {
         return Ok(Insn::RepString(*op, *sz));
@@ -1315,5 +1397,52 @@ mod tests_segment {
     fn fs_et_gs_ont_des_prefixes_distincts() {
         assert_eq!(Seg::Fs.prefix(), 0x64);
         assert_eq!(Seg::Gs.prefix(), 0x65);
+    }
+}
+
+#[cfg(test)]
+mod tests_vex {
+    use super::*;
+    use alloc::vec;
+
+    /// `vmovaps [rsp+20h], xmm6` — forme courte `C5` (table `0F`, pas de
+    /// registre haut, `W=0`), celle que MSVC emet.
+    #[test]
+    fn vmovaps_store_utilise_le_vex_court() {
+        let m = Mem::base_disp(Reg::Rsp, 0x20);
+        let i = Insn::Vex(VexOp::VmovapsStore, Xmm(6), Xmm(0), XmmRm::M(m), None);
+        assert_eq!(
+            crate::encode(&[i]),
+            vec![0xC5, 0xF8, 0x29, 0x74, 0x24, 0x20]
+        );
+    }
+
+    /// `vpermilps xmm0, xmm4, 0` — table `0F3A`, donc VEX long `C4`.
+    #[test]
+    fn vpermilps_imm_utilise_le_vex_long() {
+        let i = Insn::Vex(
+            VexOp::VpermilpsImm,
+            Xmm(0),
+            Xmm(0),
+            XmmRm::X(Xmm(4)),
+            Some(0),
+        );
+        assert_eq!(
+            crate::encode(&[i]),
+            vec![0xC4, 0xE3, 0x79, 0x04, 0xC4, 0x00]
+        );
+    }
+
+    /// `vfmadd231ps xmm4, xmm0, xmm3` — table `0F38`, `vvvv` = xmm0.
+    #[test]
+    fn vfmadd231ps_porte_le_registre_non_destructif() {
+        let i = Insn::Vex(
+            VexOp::Vfmadd231ps,
+            Xmm(4),
+            Xmm(0),
+            XmmRm::X(Xmm(3)),
+            None,
+        );
+        assert_eq!(crate::encode(&[i]), vec![0xC4, 0xE2, 0x79, 0xB8, 0xE3]);
     }
 }

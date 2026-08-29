@@ -485,6 +485,93 @@ pub enum SseOp {
     Pmulhw,
 }
 
+/// Table d'opcode d'une instruction VEX.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum VexMap {
+    /// `0F`
+    M0F,
+    /// `0F 38`
+    M0F38,
+    /// `0F 3A`
+    M0F3A,
+}
+
+impl VexMap {
+    /// Champ `mmmmm` du préfixe VEX à trois octets.
+    const fn mm(self) -> u8 {
+        match self {
+            Self::M0F => 1,
+            Self::M0F38 => 2,
+            Self::M0F3A => 3,
+        }
+    }
+}
+
+/// Opération AVX encodée en VEX.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum VexOp {
+    /// `vmovaps xmm, xmm/m` (`VEX.128.0F.WIG 28 /r`)
+    Vmovaps,
+    /// `vmovaps xmm/m, xmm` (`VEX.128.0F.WIG 29 /r`)
+    VmovapsStore,
+    /// `vmovups xmm, xmm/m` (`VEX.128.0F.WIG 10 /r`)
+    Vmovups,
+    /// `vmovups xmm/m, xmm` (`VEX.128.0F.WIG 11 /r`)
+    VmovupsStore,
+    /// `vxorps` (`VEX.128.0F.WIG 57 /r`)
+    Vxorps,
+    /// `vaddps` (`VEX.128.0F.WIG 58 /r`)
+    Vaddps,
+    /// `vmulps` (`VEX.128.0F.WIG 59 /r`)
+    Vmulps,
+    /// `vsubps` (`VEX.128.0F.WIG 5C /r`)
+    Vsubps,
+    /// `vpermilps xmm, xmm, imm8` (`VEX.128.66.0F3A.W0 04 /r ib`)
+    VpermilpsImm,
+    /// `vpermilps xmm, xmm, xmm` (`VEX.128.66.0F38.W0 0C /r`)
+    Vpermilps,
+    /// `vfmadd231ps` (`VEX.128.66.0F38.W0 B8 /r`)
+    Vfmadd231ps,
+    /// `vfmadd213ps` (`VEX.128.66.0F38.W0 A8 /r`)
+    Vfmadd213ps,
+    /// `vfmadd132ps` (`VEX.128.66.0F38.W0 98 /r`)
+    Vfmadd132ps,
+}
+
+impl VexOp {
+    /// `(table, pp, opcode, W, l'opérande mémoire est-il la destination)`.
+    const fn encoding(self) -> (VexMap, u8, u8, bool, bool) {
+        match self {
+            Self::Vmovaps => (VexMap::M0F, 0, 0x28, false, false),
+            Self::VmovapsStore => (VexMap::M0F, 0, 0x29, false, true),
+            Self::Vmovups => (VexMap::M0F, 0, 0x10, false, false),
+            Self::VmovupsStore => (VexMap::M0F, 0, 0x11, false, true),
+            Self::Vxorps => (VexMap::M0F, 0, 0x57, false, false),
+            Self::Vaddps => (VexMap::M0F, 0, 0x58, false, false),
+            Self::Vmulps => (VexMap::M0F, 0, 0x59, false, false),
+            Self::Vsubps => (VexMap::M0F, 0, 0x5C, false, false),
+            Self::VpermilpsImm => (VexMap::M0F3A, 1, 0x04, false, false),
+            Self::Vpermilps => (VexMap::M0F38, 1, 0x0C, false, false),
+            Self::Vfmadd231ps => (VexMap::M0F38, 1, 0xB8, false, false),
+            Self::Vfmadd213ps => (VexMap::M0F38, 1, 0xA8, false, false),
+            Self::Vfmadd132ps => (VexMap::M0F38, 1, 0x98, false, false),
+        }
+    }
+
+    /// Vrai si la forme prend un immédiat 8 bits.
+    #[must_use]
+    pub const fn has_imm(self) -> bool {
+        matches!(self, Self::VpermilpsImm)
+    }
+
+    /// Vrai si l'opérande mémoire est la **destination** (forme « store »).
+    #[must_use]
+    pub const fn is_store(self) -> bool {
+        matches!(self, Self::VmovapsStore | Self::VmovupsStore)
+    }
+}
+
 /// Opération sur chaîne, préfixée par `rep`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -778,6 +865,12 @@ pub enum Insn {
     /// un `dword` en mémoire). L'opération encodée est identique à [`Insn::Un`] :
     /// seul le préfixe change, mais il fait partie des octets à reproduire.
     LockUn(UnOp, Size, Rm),
+    /// Instruction encodée **VEX** (AVX) à trois opérandes.
+    ///
+    /// `vpermilps xmm0, xmm4, 0` ; `vfmadd231ps xmm4, xmm0, xmm3` ;
+    /// `vmovaps [rsp+20h], xmm6`. `src1` alimente le champ `vvvv` du préfixe
+    /// (registre non destructif) ; il vaut `xmm0` quand la forme n'en a pas.
+    Vex(VexOp, Xmm, Xmm, XmmRm, Option<u8>),
     /// `prefetch<hint> [mem]` (`0F 18 /n`) — indication de préchargement.
     ///
     /// Le niveau de cache est porté par le champ `reg` du ModRM : `nta` = 0,
@@ -1413,6 +1506,38 @@ fn encode_one(i: Insn, at: u64, out: &mut Vec<u8>) {
         }
         Insn::Cmov(c, size, r, rm) => {
             rm_form(out, size, &[0x0F, 0x40 + c.code()], r.lo(), r.hi(), rm, at, &[]);
+        }
+        Insn::Vex(op, dst, src1, src2, imm) => {
+            let base = out.len();
+            let (map, pp, opcode, w, _) = op.encoding();
+            // Bits `R`/`X`/`B` : ils désignent les registres hauts et sont
+            // stockés **inversés** dans le préfixe.
+            let (x, b) = match src2 {
+                XmmRm::X(r) => (0, r.hi()),
+                XmmRm::M(m) => mem_rex(m),
+            };
+            let r = dst.hi();
+            // La forme courte `C5` n'existe que pour la table `0F`, sans
+            // `X`/`B` hauts et sans `W` : MSVC la choisit dès qu'elle
+            // s'applique, et la forge doit rendre les mêmes octets.
+            if map == VexMap::M0F && x == 0 && b == 0 && !w {
+                out.push(0xC5);
+                out.push(((1 - r) << 7) | ((!src1.0 & 0x0F) << 3) | pp);
+            } else {
+                out.push(0xC4);
+                out.push(((1 - r) << 7) | ((1 - x) << 6) | ((1 - b) << 5) | map.mm());
+                out.push((u8::from(w) << 7) | ((!src1.0 & 0x0F) << 3) | pp);
+            }
+            out.push(opcode);
+            match src2 {
+                XmmRm::X(rr) => out.push(0xC0 | (dst.lo() << 3) | rr.lo()),
+                XmmRm::M(m) => {
+                    modrm_mem(out, dst.lo(), m, at, base, usize::from(imm.is_some()));
+                }
+            }
+            if let Some(v) = imm {
+                out.push(v);
+            }
         }
         Insn::Prefetch(hint, m) => {
             let base = out.len();
