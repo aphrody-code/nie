@@ -182,7 +182,7 @@ distinctes) — classes compilées sans RTTI, tables de rappels, tables d'interf
 
 | Espace | Fonctions | Classées | Nommées | Statut |
 |---|---|---|---|---|
-| `#pdata` — fonctions réelles | 117 521 | 80 353 (68,37 %) | 41 525 (35,33 %) | **La mesure à citer** (2026-08-29) |
+| `#pdata` — fonctions réelles | 117 521 | 101 793 (86,62 %) | 49 431 (42,06 %) | **La mesure à citer** (2026-08-29) |
 | Index Ghidra — nœuds désalignés | 60 183 | 53 083 (88,20 %) | 192 | Référentiel historique, figé |
 
 Le dénominateur a **doublé** dans la session du 2026-08-29 (57 779 → 117 521) : ce n'est pas une
@@ -195,27 +195,42 @@ dénominateur mouvant n'a pas de sens — citer les deux nombres.
 | Mesure | Avant | Après |
 |---|---|---|
 | Fonctions connues | 57 779 | 117 521 |
-| Nommées | 7 539 (13,05 %) | 41 525 (35,33 %) |
-| Classées (brut) | 52 308 | 80 353 |
+| Nommées | 7 539 (13,05 %) | 49 431 (42,06 %) |
+| Classées (brut) | 52 308 | 101 793 |
 | `.text` hors `.pdata` expliqué | — | 98,27 % |
 | Chevauchements de fonctions | — | 272 (dont 131 entre racines `.pdata` chunkées) |
 
-**Nommage** : trois familles de noms **structurels**, toutes distinctes des symboles C++ d'origine
-(qui restent inconnus — le PDB n'est pas dans le dump) :
+**Nommage** : cinq sources, dont une seule est *sémantique*. Aucune ne prétend restituer le
+symbole C++ d'origine — le PDB n'est pas dans le dump.
 
-| `name_source` | Forme | Fondement |
-|---|---|---|
-| `vtable-struct` | `Namespace::Classe::vmethod_N` | classe RTTI + rang de slot |
-| `vtable-anon-struct` | `vtbl_<va>::slot_N` | adresse de table + rang, aucune classe connue |
-| `leaf-shape` | `thunk_to_<va>`, `get_const_<K>`, `get_ptr_<va>`, `stub_<va>` | forme syntaxique lue dans les octets |
+| `name_source` | Nombre | Forme | Fondement |
+|---|---|---|---|
+| `leaf-shape` | 23 825 | `thunk_to_<va>`, `get_const_<K>`, `get_ptr_<va>`, `stub_<va>` | forme syntaxique lue dans les octets |
+| `vtable-anon-struct` | 10 149 | `vtbl_<va>::slot_N` | adresse de table + rang, aucune classe connue |
+| `vtable-struct` | 7 282 | `Namespace::Classe::vmethod_N` | classe RTTI + rang de slot |
+| `funclua` | 6 742 | `funcLuaCmd_<cmdId>` | table de répartition du script (identifiant exact, nom d'origine inconnu) |
+| `strref` | 1 164 | `fn_<identifiant>` | **sémantique** : la seule chaîne identifiante que cette fonction, seule, manipule |
 
-Un thunk hérite du sous-système de sa cible (`subsys_src='thunk-inherit'`) : c'est une identité
-structurelle, elle prime donc sur l'étiquette statistique de la propagation (`ml`).
+Un thunk hérite du sous-système de sa cible (`subsys_src='thunk-inherit'`) : identité
+structurelle, elle prime donc sur l'étiquette statistique de la propagation (`ml`). Le résidu sans
+arête entrante est classé par contiguïté d'adresse (`adjacency`, 20 998 fonctions, cohérence
+mesurée 87,9 % — cf. le module, qui s'auto-évalue à chaque exécution).
 
-**Plafond honnête** : 75 996 fonctions restent sans nom et 37 168 sans sous-système. Le résidu est
-largement isolé — ni chaîne, ni RTTI, ni arête vers une fonction étiquetée. Le nommage
-*sémantique* (le vrai nom C++) reste hors d'atteinte sans PDB : ce qui est produit ici identifie
-sans ambiguïté, il n'interprète pas.
+### Le hachage des `cmdId` funcLua reste inconnu — piste close
+
+Les `cmdId` sont des hachages de noms de commandes, calculés hors ligne par la chaîne de build de
+LEVEL-5 : aucune table inverse dans le binaire. Testé le 2026-08-29, **16 726 identifiants du
+binaire × 7 123 cmdId**, pour sept familles de hachage — CRC-32 (ISO-HDLC, JAMCRC, BZIP2, MPEG-2,
+POSIX, CRC-32C/D/Q, AUTOSAR), FNV-1, FNV-1a, djb2, djb2-xor, sdbm, ELF : **5 correspondances en
+CRC-32, 0 partout ailleurs**, soit moins que les ~27 collisions attendues par pur hasard à ce
+volume. Ne pas rouvrir cette piste sans un élément nouveau (un script Lua *source*, ou l'outil de
+build). À noter : les noms d'écran de menu, eux, **sont** du CRC-32 standard (vérifié 200/200 sur
+`hash_name`) — c'est une fonction de hachage différente pour les cmdId.
+
+**Plafond honnête** : 68 090 fonctions restent sans nom et 15 728 sans sous-système. Le résidu est
+largement isolé — ni chaîne, ni RTTI, ni arête vers une fonction étiquetée. Le nommage sémantique
+généralisé reste hors d'atteinte sans PDB : sauf pour les 1 164 `strref`, ce qui est produit ici
+identifie sans ambiguïté, il n'interprète pas.
 
 ## Ce que le RE a établi sur le binaire
 
