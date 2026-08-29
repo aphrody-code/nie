@@ -507,6 +507,9 @@ pub enum SseOp {
     Psubusb,
     Pmaddwd,
     Pmulhw,
+    Pshuflw,
+    Pshufhw,
+    Pmuludq,
 }
 
 /// Table d'opcode d'une instruction VEX.
@@ -827,6 +830,9 @@ impl SseOp {
             Self::Psubusb => (P66, 0xD8, None),
             Self::Pmaddwd => (P66, 0xF5, None),
             Self::Pmulhw => (P66, 0xE5, None),
+            Self::Pshuflw => (F2, 0x70, None),
+            Self::Pshufhw => (F3, 0x70, None),
+            Self::Pmuludq => (P66, 0xF4, None),
         }
     }
 }
@@ -904,6 +910,16 @@ pub enum Insn {
     /// un `dword` en mémoire). L'opération encodée est identique à [`Insn::Un`] :
     /// seul le préfixe change, mais il fait partie des octets à reproduire.
     LockUn(UnOp, Size, Rm),
+    /// `bswap r32/r64` (`0F C8+r`) — inversion de l'ordre des octets.
+    Bswap(Size, Reg),
+    /// `pushfq` (`9C`) / `popfq` (`9D`).
+    PushfPopf(bool),
+    /// `push imm32` (`68 id`).
+    PushImm(i32),
+    /// Opération sur chaîne **sans** préfixe `rep` (`stosb` seul).
+    StringOp(RepOp, Size),
+    /// `lock cmpxchg [mem], reg` (`F0 0F B0/B1 /r`) — comparaison-échange atomique.
+    LockCmpxchg(Size, Mem, Reg),
     /// `bsf`/`bsr` : indice du premier/dernier bit à 1 (`0F BC`/`0F BD`).
     BitScan(bool, Size, Reg, Rm),
     /// `lock xadd [mem], reg` (`F0 0F C1 /r`) — échange-et-ajoute atomique.
@@ -1552,6 +1568,31 @@ fn encode_one(i: Insn, at: u64, out: &mut Vec<u8>) {
         }
         Insn::Cmov(c, size, r, rm) => {
             rm_form(out, size, &[0x0F, 0x40 + c.code()], r.lo(), r.hi(), rm, at, &[]);
+        }
+        Insn::Bswap(size, r) => {
+            rex(out, size.rex_w(), 0, 0, r.hi());
+            out.push(0x0F);
+            out.push(0xC8 | r.lo());
+        }
+        Insn::PushfPopf(pop) => out.push(if pop { 0x9D } else { 0x9C }),
+        Insn::PushImm(v) => {
+            out.push(0x68);
+            out.extend_from_slice(&v.to_le_bytes());
+        }
+        Insn::StringOp(op, size) => {
+            opsize(out, size);
+            rex(out, size.rex_w(), 0, 0, 0);
+            out.push(op.opcode(size));
+        }
+        Insn::LockCmpxchg(size, m, r) => {
+            out.push(0xF0);
+            let base = out.len() - 1;
+            let (x, b) = mem_rex(m);
+            opsize(out, size);
+            rex(out, size.rex_w(), r.hi(), x, b);
+            out.push(0x0F);
+            out.push(if size == Size::B { 0xB0 } else { 0xB1 });
+            modrm_mem(out, r.lo(), m, at, base, 0);
         }
         Insn::BitScan(bsr, size, r, rm) => {
             rm_form(out, size, &[0x0F, if bsr { 0xBD } else { 0xBC }], r.lo(), r.hi(), rm, at, &[]);

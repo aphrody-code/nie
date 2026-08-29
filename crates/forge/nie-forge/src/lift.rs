@@ -292,6 +292,9 @@ fn sse_of(m: Mnemonic) -> Option<SseOp> {
         Mnemonic::Psubusb => SseOp::Psubusb,
         Mnemonic::Pmaddwd => SseOp::Pmaddwd,
         Mnemonic::Pmulhw => SseOp::Pmulhw,
+        Mnemonic::Pshuflw => SseOp::Pshuflw,
+        Mnemonic::Pshufhw => SseOp::Pshufhw,
+        Mnemonic::Pmuludq => SseOp::Pmuludq,
         Mnemonic::Punpcklqdq => SseOp::Punpcklqdq,
         Mnemonic::Punpckhqdq => SseOp::Punpckhqdq,
         Mnemonic::Psadbw => SseOp::Psadbw,
@@ -486,6 +489,36 @@ fn insn_of(i: &iced_x86::Instruction, raw: &[u8]) -> Option<Insn> {
             };
             Some(Insn::CvtToReg(op, r, src, sz))
         };
+    }
+    // Formes simples restantes : inversion d'octets, drapeaux, `push imm32`,
+    // chaines sans `rep`, comparaison-echange atomique.
+    if i.mnemonic() == Mnemonic::Bswap {
+        let (r, sz) = reg_of(i.op_register(0))?;
+        return Some(Insn::Bswap(sz, r));
+    }
+    if matches!(i.mnemonic(), Mnemonic::Pushfq | Mnemonic::Popfq) {
+        return Some(Insn::PushfPopf(i.mnemonic() == Mnemonic::Popfq));
+    }
+    if i.mnemonic() == Mnemonic::Push && i.op_kind(0) == OpKind::Immediate32 {
+        return Some(Insn::PushImm(i.immediate32() as i32));
+    }
+    if i.mnemonic() == Mnemonic::Cmpxchg && i.has_lock_prefix() && i.op_kind(0) == OpKind::Memory {
+        let (r, sz) = reg_of(i.op_register(1))?;
+        return Some(Insn::LockCmpxchg(sz, mem_of(i)?, r));
+    }
+    if !i.has_rep_prefix()
+        && matches!(
+            i.mnemonic(),
+            Mnemonic::Stosb | Mnemonic::Stosw | Mnemonic::Stosd | Mnemonic::Stosq
+        )
+    {
+        let sz = match i.mnemonic() {
+            Mnemonic::Stosb => Size::B,
+            Mnemonic::Stosw => Size::W,
+            Mnemonic::Stosq => Size::Q,
+            _ => Size::D,
+        };
+        return Some(Insn::StringOp(nie_asm::RepOp::Stos, sz));
     }
     // `bsf`/`bsr` et `lock xadd`.
     if matches!(i.mnemonic(), Mnemonic::Bsf | Mnemonic::Bsr) {
