@@ -663,16 +663,58 @@ fn install(
         temporaire.clone()
     };
 
-    let plateforme = if switch { nie_viola::Platform::Switch } else { nie_viola::Platform::Pc };
-    let r = nie_viola::pack_mod(&sauvegarde, &source_unique, &racine, plateforme)
-        .map_err(anyhow::Error::msg)?;
+    let _ = switch; // la plateforme ne change rien au patch d'octets : même format, même enveloppe.
+
+    // Installation par **patch d'octets**, jamais par réencodage. `encode_t2b` n'est pas fidèle
+    // sur ce fichier — mesuré : −27 octets et 5,4 M d'octets différents pour un aller-retour à
+    // vide — et le jeu refuse alors le `cpk_list` (E-02000000), y compris quand le mod est
+    // rigoureusement identique au vanilla. Ici on déchiffre, on écrit 4 octets par fichier, on
+    // rechiffre : l'enveloppe AES, elle, est fidèle.
+    let vanilla = std::fs::read(&sauvegarde)?;
+    let mut clair = nie_formats::cpk::decrypt_cpk_list(&vanilla)
+        .map_err(|e| anyhow::anyhow!("déchiffrement du cpk_list : {e}"))?;
+    let avant = clair.len();
+
+    let fichiers = manifeste::fichiers(&source_unique).map_err(anyhow::Error::msg)?;
+    let chemins: Vec<String> = fichiers.iter().map(|f| f.vfs.clone()).collect();
+    let rapport = nie_viola::patch::patcher_clair(&mut clair, &chemins).map_err(anyhow::Error::msg)?;
+    anyhow::ensure!(clair.len() == avant, "le patch a changé la taille du cpk_list — abandon");
+
+    if !rapport.introuvables.is_empty() {
+        // Ajouter une entrée déplacerait tous les offsets : hors de portée d'un patch en place.
+        bail!(
+            "{} fichier(s) absent(s) du cpk_list — l'installation par patch ne sait que \
+             REMPLACER un fichier existant, pas en AJOUTER un neuf : {}",
+            rapport.introuvables.len(),
+            rapport.introuvables.join(", ")
+        );
+    }
+
+    let rechiffre = nie_formats::cpk::encrypt_cpk_list(&clair);
+    anyhow::ensure!(
+        rechiffre.len() == vanilla.len(),
+        "le rechiffrement a changé la taille ({} → {}) — abandon",
+        vanilla.len(),
+        rechiffre.len()
+    );
+    std::fs::write(&cpk_list, &rechiffre)?;
+
+    // Copier les fichiers du mod là où le jeu les cherchera désormais.
+    let mut copies = 0usize;
+    for f in &fichiers {
+        let dest = racine.join(&f.vfs);
+        if let Some(parent) = dest.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::copy(&f.absolu, &dest)?;
+        copies += 1;
+    }
     std::fs::remove_dir_all(&temporaire).ok();
 
-    println!("mis à jour {}", r.mis_a_jour);
-    println!("ajoutés    {}", r.ajoutes);
-    println!("copiés     {}", r.copies);
-    println!("entrées    {}", r.total);
-    println!("enveloppe  {:?}", r.crypto);
+    println!("rendus loose {}", rapport.rendus_loose.len());
+    println!("déjà loose   {}", rapport.deja_loose.len());
+    println!("octets patchés {} (sur {} du cpk_list)", rapport.octets_modifies, avant);
+    println!("copiés     {copies}");
     println!("installé dans {}", racine.display());
     println!("\n`niers mod uninstall` rend au jeu son cpk_list d'origine, à l'octet.");
     Ok(())

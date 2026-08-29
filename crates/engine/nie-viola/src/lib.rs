@@ -33,6 +33,7 @@ pub mod filtre;
 pub mod manifeste;
 pub mod merge;
 pub mod pack;
+pub mod patch;
 pub mod presets;
 pub mod verify;
 
