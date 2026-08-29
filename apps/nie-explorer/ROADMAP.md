@@ -202,6 +202,23 @@ dépendance est `thiserror` : c'est ce qui le rend liable par l'application, là
 dépôt. Les adresses traversent l'IPC en chaînes hexadécimales — `specta` refuse les entiers 64
 bits, et ce refus fait paniquer l'export des bindings au démarrage.
 
+**Forge** — la part de `nie.exe` que le dépôt produit réellement, à l'octet, et ce qui bloque
+encore, trié par octets. Les deux commandes relisent les artefacts (`var/forge/cover.json`,
+`forge/registry.json`, `forge/asm/*.s`) à chaque appel : aucune valeur figée, aucun shell-out vers
+la CLI. Le seau « validé sémantiquement » est affiché en retrait — il n'est jamais compté comme
+produit.
+
+`nie-forge` est liable ici parce que sa dépendance `rusqlite` a été rendue optionnelle (feature
+`redb`, coupée pour l'explorateur) : `rusqlite` porte `links = "sqlite3"` et l'application en a
+déjà une copie via `sqlx-sqlite`. Le reste du crate — recouvrement, registre, source assembleur,
+rapport — est pur. C'est l'inverse du choix fait pour le scan AOB, où c'est le *code* qui avait
+été extrait (`nie-dump`) : ici la coupure passait par une feature, sans rien déplacer.
+
+Piège vérifié : la règle « les sections-tables ré-émises comptent comme produites » vivait dans la
+commande CLI et non dans le crate. L'onglet, qui rappelle la même chaîne, sous-déclarait donc de
+1 427 968 octets — 4,2 points. Elle est maintenant dans `Report::add_emitted_tables`, appelée des
+deux côtés, et `nie-forge/tests/chaine_rapport.rs` échoue si les deux mesures divergent.
+
 ## Lua
 
 Décodeur et désassembleur du bytecode PUC-Rio 5.2 (1 143/1 143 scripts du jeu décodés, 985 971
