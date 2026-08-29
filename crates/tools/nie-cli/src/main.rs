@@ -2550,6 +2550,14 @@ fn recover_cmd(
         ad.precision_estimate(),
         ad.control_cases,
     );
+    // Instantané de couverture : sans lui, la table `coverage` — la metrique
+    // que lisent le MCP et les rapports — resterait figee sur le dernier
+    // `rebuild` et sous-declarerait tout ce que cette passe vient d'ajouter.
+    let cov = db.snapshot_coverage(bin)?;
+    println!(
+        "  couverture: {}/{} classees ({:.2}%), {} nommees",
+        cov.classified, cov.total, cov.pct, cov.named,
+    );
     Ok(())
 }
 

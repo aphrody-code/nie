@@ -397,8 +397,13 @@ pub mod query {
     pub fn coverage(conn: &Connection, binary_id: i64) -> Result<Coverage> {
         let total: i64 =
             conn.query_row("SELECT COUNT(*) FROM function WHERE binary_id=?1", [binary_id], |r| r.get(0))?;
+        // `GLOB`, pas `LIKE` : dans un motif `LIKE`, `_` est un joker et la
+        // comparaison ignore la casse ASCII, si bien que `'FUN_%'` excluait
+        // aussi tout nom commençant par « fun » + un caractère — dont les
+        // 6 742 `funcLuaCmd_…`, qui disparaissaient du compte. `GLOB` est
+        // sensible à la casse et n'accorde aucun sens spécial à `_`.
         let named: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM function WHERE binary_id=?1 AND name IS NOT NULL AND name NOT LIKE 'FUN_%'",
+            "SELECT COUNT(*) FROM function WHERE binary_id=?1 AND name IS NOT NULL AND NOT (name GLOB 'FUN_*')",
             [binary_id],
             |r| r.get(0),
         )?;
@@ -427,6 +432,33 @@ pub mod query {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Le filtre des noms Ghidra ne doit pas emporter les noms qui commencent
+    /// par « fun ». Avec `LIKE 'FUN_%'`, `_` est un joker et la comparaison
+    /// ignore la casse : `funcLuaCmd_…` était exclu du compte des fonctions
+    /// nommées, soit 6 742 fonctions manquantes sur `nie.exe`.
+    #[test]
+    fn le_filtre_des_noms_ghidra_epargne_funclua() {
+        let mut db = Db::open_in_memory().unwrap();
+        let bin = db
+            .upsert_binary("t.exe", "sha", "x86_64", 64, 0x1_4000_0000, 0, None, None)
+            .unwrap();
+        {
+            let tx = db.conn_mut().transaction().unwrap();
+            for (va, name) in [
+                (0x1000i64, "FUN_140001000"),
+                (0x2000, "funcLuaCmd_214da123"),
+                (0x3000, "fn_UpdateCursorPos"),
+                (0x4000, "function_utile"),
+            ] {
+                ingest::function(&tx, bin, va, Some(name), Some("t"), "menu", "", 0.5).unwrap();
+            }
+            tx.commit().unwrap();
+        }
+        let cov = query::coverage(db.conn(), bin).unwrap();
+        assert_eq!(cov.total, 4);
+        assert_eq!(cov.named, 3, "seul le nom Ghidra `FUN_<hex>` est écarté");
+    }
 
     #[test]
     fn schema_applies_and_coverage_computes() {
