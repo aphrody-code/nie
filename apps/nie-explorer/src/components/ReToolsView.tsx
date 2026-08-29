@@ -431,9 +431,12 @@ export function ReToolsView() {
     );
   }
 
+  // La barre d'onglets reste affichee : l'onglet « Forge » (et « Live »/« Scan AOB ») ne dependent
+  // pas de `var/niers.sqlite`, les rendre inaccessibles parce que la base manque serait faux.
   if (dbError) {
     return (
-      <div className="p-4">
+      <div className="flex h-full flex-col gap-2 p-3">
+        {tabsHeader}
         <Alert>
           <AlertTitle>Base RE indisponible</AlertTitle>
           <AlertDescription>{dbError}</AlertDescription>

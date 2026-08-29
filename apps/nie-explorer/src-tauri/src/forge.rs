@@ -126,8 +126,20 @@ pub async fn forge_report(root: Option<String>) -> Result<ForgeReportDto, String
             .map_err(|e| e.to_string())?;
         let asm = nie_forge::AsmSource::load_dir(&root.join("forge").join("asm"))
             .map_err(|e| e.to_string())?;
-        let r = nie_forge::Report::build(&store.cover, &registry, &asm)
+        let mut r = nie_forge::Report::build(&store.cover, &registry, &asm)
             .map_err(|e| e.to_string())?;
+        // Les sections-tables (`.pdata`, `.reloc`) sont **regenerees** par
+        // `nie-pe`, pas recopiees : elles comptent comme produites, exactement
+        // comme dans `nie-forge report`. Omettre cette etape sous-declarait de
+        // 1 427 968 octets — 4,2 points — et faisait diverger cet onglet de la
+        // CLI. C'est la meme fonction des deux cotes, pour que ca ne puisse
+        // plus arriver.
+        // `src-tauri` n'est pas en edition 2024 : pas de let-chain ici.
+        if let Ok(bytes) = std::fs::read(root.join("nie.exe")) {
+            if let Ok(img) = nie_pe::PeImage::parse(bytes) {
+                r.add_emitted_tables(&store.cover, &img);
+            }
+        }
         Ok(ForgeReportDto {
             root: root.display().to_string(),
             total_bytes: u32::try_from(r.total_bytes).unwrap_or(u32::MAX),

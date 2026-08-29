@@ -640,20 +640,12 @@ fn cmd_report(paths: &Paths, json: bool) -> anyhow::Result<()> {
     let asm = AsmSource::load_dir(&paths.asm)?;
     let mut report = Report::build(&store.cover, &registry, &asm)?;
     // Même règle que `build` : les sections-tables ré-émises comptent comme
-    // produites. Sans cela le rapport sous-déclare et diverge de la construction.
+    // produites (cf. `Report::add_emitted_tables`, partagé avec l'explorateur).
     if let Ok(exe) = paths.exe_path()
         && let Ok(bytes) = std::fs::read(&exe)
         && let Ok(img) = PeImage::parse(bytes)
     {
-        for u in &store.cover.units {
-            if u.kind == UnitKind::SectionData
-                && let Some(sec) = u.section.as_deref()
-                && nie_pe::image::tables::emit_for(&img, sec).is_some_and(|b| b.len() == u.len)
-            {
-                report.emitted.units += 1;
-                report.emitted.bytes += u.len;
-            }
-        }
+        report.add_emitted_tables(&store.cover, &img);
     }
     if json {
         println!("{}", serde_json::to_string_pretty(&report)?);
