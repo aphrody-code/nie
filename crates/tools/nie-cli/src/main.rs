@@ -2530,6 +2530,12 @@ fn recover_cmd(
         "  vtables sans RTTI: {}/{} tables ({} slots, {} methodes) | fonctions+={} cohesion={} noms={}",
         av.tables, av.tables_seen, av.slots, av.methods, av.new_funcs, av.cohesion_edges, av.named,
     );
+    // Sens : les chaines que le code manipule.
+    let sr = nie_re::strref::ingest_string_refs(&mut db, bin, exe_path)?;
+    println!(
+        "  chaines: {} relevees | {} fonctions scannees, {} references ({} nouvelles) | {} chaines identifiantes a referent unique | {} noms semantiques",
+        sr.strings, sr.scanned, sr.refs, sr.refs_new, sr.unique_idents, sr.named,
+    );
     // Points d'entree du script : tables de repartition funcLua.
     let fl = nie_re::funclua::ingest_funclua(&mut db, bin, exe_path)?;
     println!(

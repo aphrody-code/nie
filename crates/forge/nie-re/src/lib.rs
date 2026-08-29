@@ -31,6 +31,7 @@ pub mod pdata;
 pub mod propagate;
 pub mod recover;
 pub mod rtti;
+pub mod strref;
 pub mod vtable;
 pub mod vtable_anon;
 
