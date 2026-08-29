@@ -1324,9 +1324,24 @@ mod tests {
 
     #[test]
     fn instruction_hors_dialecte_est_rejetee() {
-        assert!(parse_insn("vfmadd231ps xmm0, xmm1, xmm2").is_err());
+        // `vfmadd231ps` faisait partie de ce test jusqu'à ce que le dialecte
+        // apprenne l'encodage VEX ; `aesenc` reste hors dialecte.
+        assert!(parse_insn("aesenc xmm0, xmm1").is_err());
         assert!(parse_insn("mov rax, ecx").is_err(), "tailles incohérentes");
         assert!(parse_insn("wibble rax").is_err());
+    }
+
+    /// Contre-épreuve du test ci-dessus : ce que le dialecte a appris se relit.
+    #[test]
+    fn les_formes_vex_apprises_se_relisent() {
+        for l in [
+            "vfmadd231ps xmm0, xmm1, xmm2",
+            "vpermilps_i xmm0, xmm4, 0x0",
+            "vmovaps xmm1, xmm2",
+        ] {
+            let i = parse_insn(l).unwrap_or_else(|e| panic!("{l} : {e:?}"));
+            assert_eq!(parse_insn(&i.to_text()).unwrap(), i, "aller-retour de `{l}`");
+        }
     }
 }
 
