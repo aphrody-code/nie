@@ -30,6 +30,7 @@ pub mod propagate;
 pub mod recover;
 pub mod rtti;
 pub mod vtable;
+pub mod vtable_anon;
 
 /// Version du moteur.
 #[must_use]

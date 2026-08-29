@@ -2516,6 +2516,20 @@ fn recover_cmd(
         st.shape_named,
         st.shape_inherited,
     );
+    if dry_run {
+        return Ok(());
+    }
+    // Les tables de pointeurs sans RTTI relèvent de la même passe structurelle :
+    // elles désignent des fonctions et les regroupent par unité de code.
+    let rtti_bin: i64 = db
+        .conn()
+        .query_row("SELECT id FROM binary ORDER BY id LIMIT 1", [], |r| r.get(0))
+        .context("aucun binaire indexé")?;
+    let av = nie_re::vtable_anon::anon_vtable_edges_into(&mut db, rtti_bin, bin, exe_path)?;
+    println!(
+        "  vtables sans RTTI: {}/{} tables ({} slots, {} methodes) | fonctions+={} cohesion={} noms={}",
+        av.tables, av.tables_seen, av.slots, av.methods, av.new_funcs, av.cohesion_edges, av.named,
+    );
     Ok(())
 }
 
