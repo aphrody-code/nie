@@ -37,6 +37,8 @@ import {
   type QuestDto,
   type RawCpkEntryDto,
   type ReDumpHitDto,
+  type ForgeBlockerDto,
+  type ForgeReportDto,
   type ReDumpInfoDto,
   type ReDumpScanDto,
   type ReTraceDumpStatsDto,
@@ -135,6 +137,8 @@ export type CharaPicker = CharaPickerDto;
 export type StatBlock = StatBlockDto;
 export type CpkExportFile = CpkExportFileDto;
 export type ReTraceProcess = ReTraceProcessDto;
+export type ForgeReport = ForgeReportDto;
+export type ForgeBlocker = ForgeBlockerDto;
 export type ReTraceRegion = ReTraceRegionDto;
 export type ReTraceDumpStats = ReTraceDumpStatsDto;
 export type ReDumpInfo = ReDumpInfoDto;
@@ -432,6 +436,14 @@ export const api = {
   saveListBlobs: () => unwrap<SaveBlobInfo[]>(commands.saveListBlobs()),
   saveBlobHexB64: (index: number) => unwrap<string>(commands.saveBlobHexB64(index)),
   saveExport: (dest: string) => unwrap<number>(commands.saveExport(dest)),
+
+  // La FORGE — production de `nie.exe` par le dépôt, mesurée à l'octet. Les deux commandes
+  // relisent les artefacts (`var/forge/cover.json`, `forge/registry.json`, `forge/asm/*.s`) à
+  // chaque appel : aucune valeur figée, ce qui est affiché est l'état du disque. `forgeBlockers`
+  // re-décode tout `.text` — compter quelques secondes.
+  forgeReport: (root?: string) => unwrap<ForgeReport>(commands.forgeReport(root ?? null)),
+  forgeBlockers: (root?: string, limit?: number) =>
+    unwrap<ForgeBlocker[]>(commands.forgeBlockers(root ?? null, limit ?? null)),
 
   // RE en direct (`nie-trace`) — lecture SEULE de la mémoire vivante de `nie.exe`/
   // `nie_eacpatched.exe`, décision utilisatrice tranchée (cf. ROADMAP.md §4.3/§5, accord

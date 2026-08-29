@@ -17,6 +17,7 @@ mod live_mod;
 mod lua_session;
 mod lua_tools;
 mod export;
+mod forge;
 mod game_data;
 mod mcp;
 mod re_trace;
@@ -3874,6 +3875,8 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         clipboard_write_file_list,
         clipboard_read_file_list,
         trash_appdata_files,
+        forge::forge_report,
+        forge::forge_blockers,
         re_trace_find_process,
         re_trace_module_regions,
         re_trace_read_bytes_b64,

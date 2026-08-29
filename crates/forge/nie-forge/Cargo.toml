@@ -15,6 +15,10 @@ path = "src/lib.rs"
 [[bin]]
 name = "nie-forge"
 path = "src/main.rs"
+# Le binaire lit `var/niers.sqlite` (noms et bornes) : il exige la feature.
+# La bibliotheque, elle, reste liable sans — c'est ce qui permet a
+# `nie-explorer` de l'embarquer sans dupliquer le moteur SQLite.
+required-features = ["redb"]
 
 [dependencies]
 nie-pe = { path = "../../forge/nie-pe" }
@@ -25,7 +29,16 @@ clap.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 # Base de connaissance RE (var/niers.sqlite) : noms de fonctions et bornes .pdata.
-rusqlite.workspace = true
+# OPTIONNELLE : `rusqlite` porte `links = "sqlite3"`, que Cargo interdit de dupliquer. Sans
+# cela, `nie-explorer` (qui lie `sqlx-sqlite` via tauri-plugin-sql) ne peut pas lier ce crate
+# du tout — or il n'a besoin que du recouvrement, du registre et du rapport, tous purs.
+rusqlite = { workspace = true, optional = true }
+
+[features]
+default = ["redb"]
+# Lecture de `var/niers.sqlite` (module `redb`). Le binaire `nie-forge` en a besoin ;
+# `nie-explorer` la desactive pour n'embarquer qu'un seul moteur SQLite.
+redb = ["dep:rusqlite"]
 
 [dev-dependencies]
 tempfile.workspace = true

@@ -17,8 +17,9 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ReForgeView } from "@/components/ReForgeView";
 
-type SubTab = "functions" | "classes" | "live" | "aob";
+type SubTab = "functions" | "classes" | "forge" | "live" | "aob";
 
 /** Onglet « Live » — lecture directe de la mémoire du process en cours (lecture seule, jamais
  * d'écriture). Détection du process → liste des plages du module principal → lecture ponctuelle
@@ -412,17 +413,20 @@ export function ReToolsView() {
       <TabsList>
         <TabsTrigger value="functions">Fonctions</TabsTrigger>
         <TabsTrigger value="classes">Classes RTTI</TabsTrigger>
+        <TabsTrigger value="forge">Forge</TabsTrigger>
         <TabsTrigger value="live">Live</TabsTrigger>
         <TabsTrigger value="aob">Scan AOB</TabsTrigger>
       </TabsList>
     </Tabs>
   );
 
-  if (subTab === "live" || subTab === "aob") {
+  if (subTab === "live" || subTab === "aob" || subTab === "forge") {
     return (
       <div className="flex h-full flex-col gap-2 p-3">
         {tabsHeader}
-        <div className="min-h-0 flex-1">{subTab === "live" ? <ReLiveView /> : <ReAobView />}</div>
+        <div className="min-h-0 flex-1">
+          {subTab === "live" ? <ReLiveView /> : subTab === "aob" ? <ReAobView /> : <ReForgeView />}
+        </div>
       </div>
     );
   }
