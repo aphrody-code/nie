@@ -13,7 +13,10 @@
 //! - `[rip 0x140abc000]` est un opérande relatif au pointeur d'instruction, écrit
 //!   par sa cible absolue.
 
-use crate::{Alu, BitOp, Cond, CvtOp, Insn, Mem, NoOp, Reg, Rm, Seg, ShiftOp, Size, SseOp, UnOp, Xmm, XmmRm};
+use crate::{
+    Alu, BitOp, Cond, CvtOp, Insn, Mem, NoOp, Reg, Rm, Seg, ShiftOp, Size, SseMaskOp, SseOp,
+    SseShiftOp, UnOp, Xmm, XmmRm,
+};
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
@@ -366,6 +369,35 @@ const SSES: [(&str, SseOp); 83] = [
     ("pavgw", SseOp::Pavgw),
 ];
 
+/// Table des décalages vectoriels à immédiat.
+const SSE_SHIFTS: [(&str, SseShiftOp); 10] = [
+    ("psrlw", SseShiftOp::Psrlw),
+    ("psraw", SseShiftOp::Psraw),
+    ("psllw", SseShiftOp::Psllw),
+    ("psrld", SseShiftOp::Psrld),
+    ("psrad", SseShiftOp::Psrad),
+    ("pslld", SseShiftOp::Pslld),
+    ("psrlq", SseShiftOp::Psrlq),
+    ("psrldq", SseShiftOp::Psrldq),
+    ("psllq", SseShiftOp::Psllq),
+    ("pslldq", SseShiftOp::Pslldq),
+];
+
+fn sse_shift_name(o: SseShiftOp) -> &'static str {
+    SSE_SHIFTS.iter().find(|(_, x)| *x == o).map_or("psrldq", |(n, _)| *n)
+}
+
+/// Table des extractions de masque de signes.
+const SSE_MASKS: [(&str, SseMaskOp); 3] = [
+    ("movmskps", SseMaskOp::Movmskps),
+    ("movmskpd", SseMaskOp::Movmskpd),
+    ("pmovmskb", SseMaskOp::Pmovmskb),
+];
+
+fn sse_mask_name(o: SseMaskOp) -> &'static str {
+    SSE_MASKS.iter().find(|(_, x)| *x == o).map_or("movmskps", |(n, _)| *n)
+}
+
 /// Mnémonique d'une opération de décalage/rotation.
 fn shiftop_name(o: ShiftOp) -> &'static str {
     match o {
@@ -574,6 +606,12 @@ impl Insn {
             Self::MovI(s, rm, i) => format!("mov {}, {:#x}", rm_text(rm, s), i as u32),
             Self::Test(s, rm, r) => format!("test {}, {}", rm_text(rm, s), reg_name(r, s)),
             Self::TestI(s, rm, i) => format!("test {}, {:#x}", rm_text(rm, s), i as u32),
+            Self::SseShift(op, x, i) => {
+                format!("{} {}, {i:#x}", sse_shift_name(op), xmm_text(x))
+            }
+            Self::SseMovmsk(op, r, x) => {
+                format!("{} {}, {}", sse_mask_name(op), reg_name(r, Size::D), xmm_text(x))
+            }
             Self::Un(op, s, rm) => format!("{} {}", unop_name(op), rm_text(rm, s)),
             Self::LockUn(op, s, rm) => {
                 format!("lock {} {}", unop_name(op), rm_text(rm, s))
@@ -776,6 +814,22 @@ pub fn parse_insn(line: &str) -> Result<Insn, ParseError> {
             *op,
             xmm_of(&d).ok_or_else(err)?,
             parse_xmmrm(&s).ok_or_else(err)?,
+        ));
+    }
+    if let Some((_, op)) = SSE_SHIFTS.iter().find(|(n, _)| *n == mnem) {
+        let (d, v) = two()?;
+        return Ok(Insn::SseShift(
+            *op,
+            xmm_of(&d).ok_or_else(err)?,
+            u8::try_from(parse_int(&v).ok_or_else(err)?).map_err(|_| err())?,
+        ));
+    }
+    if let Some((_, op)) = SSE_MASKS.iter().find(|(n, _)| *n == mnem) {
+        let (d, sx) = two()?;
+        return Ok(Insn::SseMovmsk(
+            *op,
+            reg_of(&d).ok_or_else(err)?.0,
+            xmm_of(&sx).ok_or_else(err)?,
         ));
     }
     if let Some((_, op)) = UNOPS.iter().find(|(n, _)| *n == mnem) {

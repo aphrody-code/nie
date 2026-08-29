@@ -466,6 +466,75 @@ pub enum SseOp {
     Pavgw,
 }
 
+/// Décalage vectoriel à immédiat (groupe `0F 71`/`72`/`73`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum SseShiftOp {
+    /// `psrlw` (`66 0F 71 /2`)
+    Psrlw,
+    /// `psraw` (`66 0F 71 /4`)
+    Psraw,
+    /// `psllw` (`66 0F 71 /6`)
+    Psllw,
+    /// `psrld` (`66 0F 72 /2`)
+    Psrld,
+    /// `psrad` (`66 0F 72 /4`)
+    Psrad,
+    /// `pslld` (`66 0F 72 /6`)
+    Pslld,
+    /// `psrlq` (`66 0F 73 /2`)
+    Psrlq,
+    /// `psrldq` (`66 0F 73 /3`)
+    Psrldq,
+    /// `psllq` (`66 0F 73 /6`)
+    Psllq,
+    /// `pslldq` (`66 0F 73 /7`)
+    Pslldq,
+}
+
+impl SseShiftOp {
+    /// `(opcode, digit)` du groupe.
+    #[must_use]
+    pub const fn encoding(self) -> (u8, u8) {
+        match self {
+            Self::Psrlw => (0x71, 2),
+            Self::Psraw => (0x71, 4),
+            Self::Psllw => (0x71, 6),
+            Self::Psrld => (0x72, 2),
+            Self::Psrad => (0x72, 4),
+            Self::Pslld => (0x72, 6),
+            Self::Psrlq => (0x73, 2),
+            Self::Psrldq => (0x73, 3),
+            Self::Psllq => (0x73, 6),
+            Self::Pslldq => (0x73, 7),
+        }
+    }
+}
+
+/// Extraction de masque de signes vers un registre général.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum SseMaskOp {
+    /// `movmskps` (`0F 50 /r`)
+    Movmskps,
+    /// `movmskpd` (`66 0F 50 /r`)
+    Movmskpd,
+    /// `pmovmskb` (`66 0F D7 /r`)
+    Pmovmskb,
+}
+
+impl SseMaskOp {
+    /// `(préfixe 66 requis, opcode)`.
+    #[must_use]
+    pub const fn encoding(self) -> (bool, u8) {
+        match self {
+            Self::Movmskps => (false, 0x50),
+            Self::Movmskpd => (true, 0x50),
+            Self::Pmovmskb => (true, 0xD7),
+        }
+    }
+}
+
 /// Préfixe obligatoire d'une opération SSE.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SsePrefix {
@@ -647,6 +716,15 @@ pub enum Insn {
     /// un `dword` en mémoire). L'opération encodée est identique à [`Insn::Un`] :
     /// seul le préfixe change, mais il fait partie des octets à reproduire.
     LockUn(UnOp, Size, Rm),
+    /// Décalage vectoriel à immédiat : `psrldq xmm1, 1` (`66 0F 73 /3 ib`).
+    ///
+    /// Le champ `reg` du ModRM porte le **digit** de l'opération, l'opérande
+    /// vectoriel est en `rm` : une forme de groupe, distincte de `SseI`.
+    SseShift(SseShiftOp, Xmm, u8),
+    /// Extraction de masque de signes : `movmskps eax, xmm1` (`0F 50 /r`).
+    ///
+    /// Destination = registre **général**, source = registre vectoriel.
+    SseMovmsk(SseMaskOp, Reg, Xmm),
     /// `jmp r64` (`FF /4`).
     ///
     /// Le booléen demande un préfixe **REX.W explicite** (`48 FF E0` au lieu de
@@ -1247,6 +1325,25 @@ fn encode_one(i: Insn, at: u64, out: &mut Vec<u8>) {
         }
         Insn::Cmov(c, size, r, rm) => {
             rm_form(out, size, &[0x0F, 0x40 + c.code()], r.lo(), r.hi(), rm, at, &[]);
+        }
+        Insn::SseShift(op, x, imm) => {
+            let (opcode, digit) = op.encoding();
+            out.push(0x66);
+            rex(out, false, 0, 0, x.hi());
+            out.push(0x0F);
+            out.push(opcode);
+            out.push(0xC0 | (digit << 3) | x.lo());
+            out.push(imm);
+        }
+        Insn::SseMovmsk(op, r, x) => {
+            let (p66, opcode) = op.encoding();
+            if p66 {
+                out.push(0x66);
+            }
+            rex(out, false, r.hi(), 0, x.hi());
+            out.push(0x0F);
+            out.push(opcode);
+            out.push(0xC0 | (r.lo() << 3) | x.lo());
         }
         Insn::SseI(op, dst, src, imm) => {
             let (prefix, opcode, _) = op.encoding();
