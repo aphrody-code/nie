@@ -198,43 +198,19 @@ pub async fn forge_blockers(
         let exe = root.join("nie.exe");
         let bytes = std::fs::read(&exe)
             .map_err(|e| format!("lecture de {} : {e}", exe.display()))?;
-
-        let mut by_cause: std::collections::HashMap<String, (usize, usize, String)> =
-            std::collections::HashMap::new();
-        for u in &store.cover.units {
-            if !matches!(
-                u.kind,
-                nie_pe::units::UnitKind::Function | nie_pe::units::UnitKind::CodeResidue
-            ) {
-                continue;
-            }
-            let (Some(va), Some(body)) = (u.va, bytes.get(u.range())) else {
-                continue;
-            };
-            if nie_forge::lift_body(body, va).is_some() {
-                continue;
-            }
-            if let Some(b) = nie_forge::lift::blocking_detail(body, va) {
-                let e = by_cause.entry(b.cause).or_insert((0, 0, String::new()));
-                e.0 += 1;
-                e.1 += u.len;
-                if e.2.is_empty() {
-                    e.2 = b.sample;
-                }
-            }
-        }
-        let mut out: Vec<ForgeBlockerDto> = by_cause
+        // L'agregation vit dans `nie-forge`, partagee avec `nie-forge lift` :
+        // une boucle recopiee des deux cotes finit par diverger sans que rien
+        // ne le signale — c'est exactement ce qui etait arrive a la mesure.
+        let out: Vec<ForgeBlockerDto> = nie_forge::lift::blockers(&store.cover, &bytes, 0)
             .into_iter()
-            .map(|(cause, (units, bytes, sample))| ForgeBlockerDto {
-                cause,
-                units: u32::try_from(units).unwrap_or(u32::MAX),
-                bytes: u32::try_from(bytes).unwrap_or(u32::MAX),
-                sample,
+            .take(limit)
+            .map(|b| ForgeBlockerDto {
+                cause: b.cause,
+                units: u32::try_from(b.units).unwrap_or(u32::MAX),
+                bytes: u32::try_from(b.bytes).unwrap_or(u32::MAX),
+                sample: b.sample,
             })
             .collect();
-        // Trié par gain réel décroissant : la première ligne est la prochaine cible.
-        out.sort_by_key(|b| std::cmp::Reverse(b.bytes));
-        out.truncate(limit);
         Ok(out)
     })
     .await

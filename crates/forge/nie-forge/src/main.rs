@@ -366,10 +366,6 @@ fn cmd_lift(paths: &Paths, max_len: usize, out: &str) -> anyhow::Result<()> {
     let mut src = AsmSource::default();
     let mut scanned = 0usize;
     let mut bytes = 0usize;
-    // Cause de blocage → (unités, octets) : la liste de courses du prochain lot
-    // d'instructions à ajouter à `nie-asm`, triée par gain réel.
-    let mut blockers: std::collections::HashMap<String, (usize, usize, String)> =
-        std::collections::HashMap::new();
     for u in &store.cover.units {
         if !matches!(u.kind, UnitKind::Function | UnitKind::CodeResidue) {
             continue;
@@ -384,17 +380,12 @@ fn cmd_lift(paths: &Paths, max_len: usize, out: &str) -> anyhow::Result<()> {
         if let Some(insns) = lift_body(body, va) {
             src.bodies.insert(va, insns);
             bytes += u.len;
-        } else if let Some(b) = nie_forge::lift::blocking_detail(body, va) {
-            let e = blockers
-                .entry(b.cause)
-                .or_insert((0usize, 0usize, String::new()));
-            e.0 += 1;
-            e.1 += u.len;
-            if e.2.is_empty() {
-                e.2 = b.sample;
-            }
         }
     }
+    // La liste de courses du prochain lot d'instructions, triée par gain réel.
+    // L'agrégation vit dans `nie_forge::lift` : l'onglet « Forge » de
+    // `nie-explorer` appelle la même, pour que les deux ne divergent pas.
+    let blockers = nie_forge::lift::blockers(&store.cover, &reference.bytes, max_len);
 
     // Noms issus de l'échafaudage RE : la source produite devient navigable.
     let re = nie_forge::ReNames::load(&paths.db)?;
@@ -452,10 +443,12 @@ fn cmd_lift(paths: &Paths, max_len: usize, out: &str) -> anyhow::Result<()> {
             src.len() as f64 / scanned as f64
         },
     );
-    let mut top: Vec<_> = blockers.into_iter().collect();
-    top.sort_by_key(|(_, (_, bytes, _))| std::cmp::Reverse(*bytes));
-    for (reason, (n, b, sample)) in top.into_iter().take(15) {
-        println!("blocker cause={reason} units={n} bytes={b} sample=\"{sample}\"");
+    // Deja trie par octets decroissants : la premiere ligne est la prochaine cible.
+    for b in blockers.into_iter().take(15) {
+        println!(
+            "blocker cause={} units={} bytes={} sample=\"{}\"",
+            b.cause, b.units, b.bytes, b.sample
+        );
     }
     Ok(())
 }
