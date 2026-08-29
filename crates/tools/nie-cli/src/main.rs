@@ -2530,6 +2530,12 @@ fn recover_cmd(
         "  vtables sans RTTI: {}/{} tables ({} slots, {} methodes) | fonctions+={} cohesion={} noms={}",
         av.tables, av.tables_seen, av.slots, av.methods, av.new_funcs, av.cohesion_edges, av.named,
     );
+    // Points d'entree du script : tables de repartition funcLua.
+    let fl = nie_re::funclua::ingest_funclua(&mut db, bin, exe_path)?;
+    println!(
+        "  funcLua: {} tables ({} entrees, {} handlers) | fonctions+={} nommes={} classes script={}",
+        fl.tables, fl.entries, fl.handlers, fl.new_funcs, fl.named, fl.classified,
+    );
     // Dernier recours pour le residu sans arete : la contiguite d'adresse.
     let ad = nie_re::adjacency::classify_by_adjacency(&mut db, bin, false)?;
     println!(
