@@ -2489,7 +2489,7 @@ fn recover_cmd(
         0.0
     };
     println!(
-        "recover pdata={} o | trous={} ({} o) | candidats={} retenus={} (ref={} scan={}) rejetes={} | code neuf={} o | code en trou (cumul)={} o padding={} o | residu={} o | explique {:.2}% des trous | insert={} thunks={} edges={}",
+        "recover pdata={} o | trous={} ({} o) | candidats neufs={} | feuilles mesurees={} (par ref={} par scan={}) rejetees={} | code mesure={} o | code en trou={} o padding={} o | residu={} o | explique {:.2}% des trous | inserees={} thunks={} edges={}",
         st.pdata_bytes,
         st.gaps,
         st.gap_bytes,
