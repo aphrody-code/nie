@@ -302,7 +302,7 @@ fn split_sized_mem(s: &str) -> Option<(Size, Mem)> {
 
 
 /// Table des mnemoniques SSE supportes.
-const SSES: [(&str, SseOp); 102] = [
+const SSES: [(&str, SseOp); 105] = [
     ("movaps", SseOp::Movaps),
     ("movapd", SseOp::Movapd),
     ("movups", SseOp::Movups),
@@ -405,6 +405,9 @@ const SSES: [(&str, SseOp); 102] = [
     ("psubusb", SseOp::Psubusb),
     ("pmaddwd", SseOp::Pmaddwd),
     ("pmulhw", SseOp::Pmulhw),
+    ("pshuflw", SseOp::Pshuflw),
+    ("pshufhw", SseOp::Pshufhw),
+    ("pmuludq", SseOp::Pmuludq),
 ];
 
 /// Table des opérations VEX.
@@ -467,6 +470,18 @@ const REPS: [(&str, RepOp, Size); 8] = [
     ("rep_movsw", RepOp::Movs, Size::W),
     ("rep_movsd", RepOp::Movs, Size::D),
     ("rep_movsq", RepOp::Movs, Size::Q),
+];
+
+/// Table des opérations sur chaîne **sans** `rep`.
+const STRS: [(&str, RepOp, Size); 8] = [
+    ("stosb", RepOp::Stos, Size::B),
+    ("stosw", RepOp::Stos, Size::W),
+    ("stosd", RepOp::Stos, Size::D),
+    ("stosq", RepOp::Stos, Size::Q),
+    ("movsb", RepOp::Movs, Size::B),
+    ("movsw", RepOp::Movs, Size::W),
+    ("movsd_str", RepOp::Movs, Size::D),
+    ("movsq", RepOp::Movs, Size::Q),
 ];
 
 /// Table des indications de préchargement.
@@ -714,6 +729,25 @@ impl Insn {
             Self::MovI(s, rm, i) => format!("mov {}, {:#x}", rm_text(rm, s), i as u32),
             Self::Test(s, rm, r) => format!("test {}, {}", rm_text(rm, s), reg_name(r, s)),
             Self::TestI(s, rm, i) => format!("test {}, {:#x}", rm_text(rm, s), i as u32),
+            Self::Bswap(s, r) => format!("bswap {}", reg_name(r, s)),
+            Self::PushfPopf(pop) => (if pop { "popfq" } else { "pushfq" }).to_string(),
+            Self::PushImm(v) => format!("pushi {v:#x}"),
+            Self::StringOp(op, s) => {
+                let n = match (op, s) {
+                    (RepOp::Stos, Size::B) => "stosb",
+                    (RepOp::Stos, Size::W) => "stosw",
+                    (RepOp::Stos, Size::D) => "stosd",
+                    (RepOp::Stos, Size::Q) => "stosq",
+                    (RepOp::Movs, Size::B) => "movsb",
+                    (RepOp::Movs, Size::W) => "movsw",
+                    (RepOp::Movs, Size::D) => "movsd_str",
+                    (RepOp::Movs, Size::Q) => "movsq",
+                };
+                n.to_string()
+            }
+            Self::LockCmpxchg(s, m, r) => {
+                format!("lock cmpxchg {} {}, {}", size_name(s), mem_text(m), reg_name(r, s))
+            }
             Self::BitScan(bsr, s, r, rm) => {
                 let n = if bsr { "bsr" } else { "bsf" };
                 format!("{n} {}, {}", reg_name(r, s), rm_text(rm, s))
@@ -871,6 +905,14 @@ pub fn parse_insn(line: &str) -> Result<Insn, ParseError> {
     // l'instruction qu'il préfixe, puis on l'enveloppe.
     if let Some(rest) = line.strip_prefix("lock ") {
         let rest = rest.trim();
+        if let Some(x) = rest.strip_prefix("cmpxchg ") {
+            let bad = || ParseError(format!("`lock cmpxchg` mal formé : `{line}`"));
+            let (d, sx) = x.split_once(',').ok_or_else(bad)?;
+            let (sz, m) = split_sized_mem(d).ok_or_else(bad)?;
+            let (r, rsz) = reg_of(sx).ok_or_else(bad)?;
+            (sz == rsz).then_some(()).ok_or_else(bad)?;
+            return Ok(Insn::LockCmpxchg(sz, m, r));
+        }
         if let Some(x) = rest.strip_prefix("xadd ") {
             let (d, sx) = x.split_once(',').ok_or_else(|| {
                 ParseError(format!("`lock xadd` mal formé : `{line}`"))
@@ -1023,6 +1065,24 @@ pub fn parse_insn(line: &str) -> Result<Insn, ParseError> {
     }
     if let Some((_, op, sz)) = REPS.iter().find(|(n, _, _)| *n == mnem) {
         return Ok(Insn::RepString(*op, *sz));
+    }
+    if let Some((_, op, sz)) = STRS.iter().find(|(n, _, _)| *n == mnem) {
+        return Ok(Insn::StringOp(*op, *sz));
+    }
+    if mnem == "bswap" {
+        let (r, sz) = reg_of(args).ok_or_else(err)?;
+        return Ok(Insn::Bswap(sz, r));
+    }
+    if mnem == "pushfq" {
+        return Ok(Insn::PushfPopf(false));
+    }
+    if mnem == "popfq" {
+        return Ok(Insn::PushfPopf(true));
+    }
+    if mnem == "pushi" {
+        return Ok(Insn::PushImm(
+            as_imm32(parse_int(args).ok_or_else(err)?).ok_or_else(err)?,
+        ));
     }
     if let Some((_, hint)) = PREFETCHES.iter().find(|(n, _)| *n == mnem) {
         return Ok(Insn::Prefetch(*hint, parse_mem(args).ok_or_else(err)?));
