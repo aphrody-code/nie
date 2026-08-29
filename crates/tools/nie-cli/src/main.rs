@@ -2526,13 +2526,14 @@ fn recover_cmd(
         st.edges_new,
     );
     println!(
-        "  formes: thunk={} const={} ptr={} stub={} | noms structurels={} | sous-systeme herite={}",
+        "  formes: thunk={} const={} ptr={} stub={} | noms structurels={} | sous-systeme herite={} | fausses bornes purgees={}",
         st.shape_thunk,
         st.shape_const,
         st.shape_ptr,
         st.shape_stub,
         st.shape_named,
         st.shape_inherited,
+        st.pruned,
     );
     if dry_run {
         return Ok(());
