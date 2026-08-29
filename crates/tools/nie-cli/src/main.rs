@@ -425,6 +425,11 @@ enum Cmd {
         /// Mesure sans écrire dans la base.
         #[arg(long)]
         dry_run: bool,
+        /// CSV produit par `scripts/ghidra_export_functions.py` : ingère les
+        /// noms trouvés par Ghidra (FID, imports démanglés) avant les autres
+        /// passes.
+        #[arg(long)]
+        ghidra_csv: Option<PathBuf>,
     },
     /// Opérations sur les saves IEVR (Lives format) : decrypt/read/edit.
     Save {
@@ -1930,7 +1935,9 @@ fn run() -> anyhow::Result<()> {
         Cmd::Disasm { db, exe } => disasm(&db, &exe),
         Cmd::Pdata { db, exe } => pdata(&db, &exe),
         Cmd::Rebuild { db, exe, rounds } => rebuild(&db, &exe, rounds),
-        Cmd::Recover { db, exe, dry_run } => recover_cmd(&db, &exe, dry_run),
+        Cmd::Recover { db, exe, dry_run, ghidra_csv } => {
+            recover_cmd(&db, &exe, dry_run, ghidra_csv.as_deref())
+        }
         Cmd::Save { op } => save_cmd(op),
         Cmd::Wiki { op } => wiki_cmd(op),
         Cmd::UniformMap { game_dir, out } => uniform_map(&racine_jeu(game_dir), &out),
@@ -2479,9 +2486,20 @@ fn recover_cmd(
     db_path: &std::path::Path,
     exe_path: &std::path::Path,
     dry_run: bool,
+    ghidra_csv: Option<&std::path::Path>,
 ) -> anyhow::Result<()> {
     let mut db = nie_index::Db::open(db_path).context("ouverture base")?;
     let bin = pdata_binary_id(&db)?;
+    // Les noms Ghidra (FID) sont ingeres en premier : ils identifient la ou
+    // les passes structurelles ne font que designer, et priment donc sur
+    // elles — mais pas sur un nom tire d'une chaine du binaire.
+    if let Some(csv) = ghidra_csv.filter(|_| !dry_run) {
+        let gs = nie_re::ghidra_import::ingest_ghidra_csv(&mut db, bin, csv)?;
+        println!(
+            "  ghidra: {} lignes | {} noms par defaut ecartes, {} adresses sans correspondance | {} noms ecrits (dont {} remplacant un nom structurel)",
+            gs.rows, gs.default_names, gs.unmatched, gs.named, gs.replaced_struct,
+        );
+    }
     let st = nie_re::recover::recover_leaves(&mut db, bin, exe_path, dry_run)?;
     let pct_gap = if st.gap_bytes > 0 {
         100.0 * (st.recovered_gap_bytes + st.padding_bytes) as f64 / st.gap_bytes as f64

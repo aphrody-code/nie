@@ -25,6 +25,7 @@ pub mod anchors;
 pub mod disasm;
 pub use nie_dump as dump;
 pub mod funclua;
+pub mod ghidra_import;
 pub mod indexer;
 pub mod loop_db;
 pub mod pdata;
