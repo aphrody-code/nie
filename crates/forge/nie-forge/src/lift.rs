@@ -11,7 +11,10 @@
 //! [`nie_asm::encode_at`] : les octets sont **produits**, pas recopiés.
 
 use iced_x86::{Decoder, DecoderOptions, Mnemonic, OpKind, Register};
-use nie_asm::{Alu, BitOp, Cond, CvtOp, Insn, Mem, NoOp, Reg, Rm, ShiftOp, Size, SseOp, UnOp, Xmm, XmmRm};
+use nie_asm::{
+    Alu, BitOp, Cond, CvtOp, Insn, Mem, NoOp, Reg, Rm, ShiftOp, Size, SseMaskOp, SseOp, SseShiftOp,
+    UnOp, Xmm, XmmRm,
+};
 
 /// Traduit un registre iced-x86 en `(registre nie-asm, taille)`.
 fn reg_of(r: Register) -> Option<(Reg, Size)> {
@@ -153,6 +156,33 @@ fn alu_of(m: Mnemonic) -> Option<Alu> {
 /// Traduit un registre vectoriel iced-x86.
 fn xmm_of(r: Register) -> Option<Xmm> {
     r.is_xmm().then(|| u8::try_from(r.number()).ok())?.map(Xmm)
+}
+
+/// Décalage vectoriel à immédiat correspondant au mnémonique.
+fn sse_shift_of(m: Mnemonic) -> Option<SseShiftOp> {
+    Some(match m {
+        Mnemonic::Psrlw => SseShiftOp::Psrlw,
+        Mnemonic::Psraw => SseShiftOp::Psraw,
+        Mnemonic::Psllw => SseShiftOp::Psllw,
+        Mnemonic::Psrld => SseShiftOp::Psrld,
+        Mnemonic::Psrad => SseShiftOp::Psrad,
+        Mnemonic::Pslld => SseShiftOp::Pslld,
+        Mnemonic::Psrlq => SseShiftOp::Psrlq,
+        Mnemonic::Psrldq => SseShiftOp::Psrldq,
+        Mnemonic::Psllq => SseShiftOp::Psllq,
+        Mnemonic::Pslldq => SseShiftOp::Pslldq,
+        _ => return None,
+    })
+}
+
+/// Extraction de masque de signes correspondant au mnémonique.
+fn sse_mask_of(m: Mnemonic) -> Option<SseMaskOp> {
+    Some(match m {
+        Mnemonic::Movmskps => SseMaskOp::Movmskps,
+        Mnemonic::Movmskpd => SseMaskOp::Movmskpd,
+        Mnemonic::Pmovmskb => SseMaskOp::Pmovmskb,
+        _ => return None,
+    })
 }
 
 /// Opération SSE correspondant au mnémonique.
@@ -400,6 +430,22 @@ fn insn_of(i: &iced_x86::Instruction, raw: &[u8]) -> Option<Insn> {
             };
             Some(Insn::CvtToReg(op, r, src, sz))
         };
+    }
+    // Decalage vectoriel a immediat : le digit est dans ModRM.reg, l'operande
+    // vectoriel dans rm — une forme de groupe, pas un `SseI`.
+    if let Some(op) = sse_shift_of(i.mnemonic())
+        && i.op_kind(0) == OpKind::Register
+        && i.op_kind(1) == OpKind::Immediate8
+    {
+        return Some(Insn::SseShift(op, xmm_of(i.op_register(0))?, i.immediate8()));
+    }
+    // Masque de signes vers un registre general.
+    if let Some(op) = sse_mask_of(i.mnemonic()) {
+        return Some(Insn::SseMovmsk(
+            op,
+            reg_of(i.op_register(0))?.0,
+            xmm_of(i.op_register(1))?,
+        ));
     }
     // SSE à immédiat (`shufps xmm0, xmm1, 0x4e`).
     if let Some(op) = sse_of(i.mnemonic())
