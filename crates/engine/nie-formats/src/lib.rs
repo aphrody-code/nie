@@ -40,6 +40,7 @@
 #[cfg(feature = "std")]
 pub mod assemble;
 pub mod cfgbin;
+pub mod rdbn_patch;
 #[cfg(feature = "std")]
 pub mod font;
 #[cfg(feature = "std")]
