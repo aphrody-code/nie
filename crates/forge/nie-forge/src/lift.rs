@@ -13,7 +13,7 @@
 use iced_x86::{Decoder, DecoderOptions, Mnemonic, OpKind, Register};
 use nie_asm::{
     Alu, BitOp, Cond, CvtOp, Insn, Mem, NoOp, Reg, Rm, ShiftOp, Size, SseMaskOp, SseOp, SseShiftOp,
-    UnOp, Xmm, XmmRm,
+    UnOp, VexOp, Xmm, XmmRm,
 };
 
 /// Traduit un registre iced-x86 en `(registre nie-asm, taille)`.
@@ -165,6 +165,27 @@ fn alu_of(m: Mnemonic) -> Option<Alu> {
 /// Traduit un registre vectoriel iced-x86.
 fn xmm_of(r: Register) -> Option<Xmm> {
     r.is_xmm().then(|| u8::try_from(r.number()).ok())?.map(Xmm)
+}
+
+/// Opération VEX correspondant à l'instruction, forme « store » comprise.
+fn vex_of(i: &iced_x86::Instruction) -> Option<VexOp> {
+    let store = i.op_kind(0) == OpKind::Memory;
+    Some(match (i.mnemonic(), store) {
+        (Mnemonic::Vmovaps, false) => VexOp::Vmovaps,
+        (Mnemonic::Vmovaps, true) => VexOp::VmovapsStore,
+        (Mnemonic::Vmovups, false) => VexOp::Vmovups,
+        (Mnemonic::Vmovups, true) => VexOp::VmovupsStore,
+        (Mnemonic::Vxorps, _) => VexOp::Vxorps,
+        (Mnemonic::Vaddps, _) => VexOp::Vaddps,
+        (Mnemonic::Vmulps, _) => VexOp::Vmulps,
+        (Mnemonic::Vsubps, _) => VexOp::Vsubps,
+        (Mnemonic::Vpermilps, _) if i.op_kind(2) == OpKind::Immediate8 => VexOp::VpermilpsImm,
+        (Mnemonic::Vpermilps, _) => VexOp::Vpermilps,
+        (Mnemonic::Vfmadd231ps, _) => VexOp::Vfmadd231ps,
+        (Mnemonic::Vfmadd213ps, _) => VexOp::Vfmadd213ps,
+        (Mnemonic::Vfmadd132ps, _) => VexOp::Vfmadd132ps,
+        _ => return None,
+    })
 }
 
 /// Décalage vectoriel à immédiat correspondant au mnémonique.
@@ -458,6 +479,41 @@ fn insn_of(i: &iced_x86::Instruction, raw: &[u8]) -> Option<Insn> {
             };
             Some(Insn::CvtToReg(op, r, src, sz))
         };
+    }
+    // AVX encode en VEX. Trois familles : deplacement (deux operandes, la
+    // memoire pouvant etre destination), permutation a immediat, et multiplie-
+    // accumule a trois registres ou `vvvv` porte le second operande.
+    if let Some(op) = vex_of(i) {
+        let (dst, src1, src2, imm) = if op.is_store() {
+            (xmm_of(i.op_register(1))?, Xmm(0), XmmRm::M(mem_of(i)?), None)
+        } else if op.has_imm() {
+            let src = match i.op_kind(1) {
+                OpKind::Register => XmmRm::X(xmm_of(i.op_register(1))?),
+                OpKind::Memory => XmmRm::M(mem_of(i)?),
+                _ => return None,
+            };
+            (xmm_of(i.op_register(0))?, Xmm(0), src, Some(i.immediate8()))
+        } else if i.op_count() == 3 {
+            let src = match i.op_kind(2) {
+                OpKind::Register => XmmRm::X(xmm_of(i.op_register(2))?),
+                OpKind::Memory => XmmRm::M(mem_of(i)?),
+                _ => return None,
+            };
+            (
+                xmm_of(i.op_register(0))?,
+                xmm_of(i.op_register(1))?,
+                src,
+                None,
+            )
+        } else {
+            let src = match i.op_kind(1) {
+                OpKind::Register => XmmRm::X(xmm_of(i.op_register(1))?),
+                OpKind::Memory => XmmRm::M(mem_of(i)?),
+                _ => return None,
+            };
+            (xmm_of(i.op_register(0))?, Xmm(0), src, None)
+        };
+        return Some(Insn::Vex(op, dst, src1, src2, imm));
     }
     // Chaines repetees et prechargement : formes sans operande explicite ou
     // a operande memoire seul.
@@ -896,9 +952,18 @@ pub fn blocking_detail(bytes: &[u8], va: u64) -> Option<Blockage> {
     while d.can_decode() {
         let i = d.decode();
         if i.is_invalid() {
+            // Un `sample` vide ne dit rien : on donne l'adresse et les octets
+            // qui n'ont pas decode, seule information exploitable ici.
+            let start = consumed;
+            let octets: Vec<String> = bytes
+                .get(start..(start + 8).min(bytes.len()))
+                .unwrap_or_default()
+                .iter()
+                .map(|b| format!("{b:02x}"))
+                .collect();
             return Some(Blockage {
                 cause: "invalide".into(),
-                sample: String::new(),
+                sample: format!("@ {:#x} octets=[{}]", va + start as u64, octets.join(", ")),
             });
         }
         consumed += i.len();
