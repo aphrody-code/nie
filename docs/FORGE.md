@@ -147,16 +147,31 @@ Chiffres sortis de l'outil, pas d'une estimation. Le binaire produit est **byte-
 > 2026-08-28 par `niers info`), donc la cible est la bonne ; c'est l'état interne de la forge qui
 > manque, pas le binaire.
 
+Mesure **rejouée et reproduite le 2026-08-30** sur la cible `b1fa04ea3658…` :
+
 ```
-split   : 219 427 unités · 55 351 fonctions .pdata · 0 trou · 0 overlay
-build   : dist/nie.exe · 33 918 464 o · sha256 identique ✅
-report  : produced = 51,8607 % du fichier · code_rust = 66,0910 % du .text
+split   : 225 187 unités · 116 091 fonctions · résidu .text 51 151 o · 0 trou · 0 overlay
+lift    : 112 041 corps relevés · 22 098 966 o · ratio 0,9446
+build   : dist/nie.exe · 33 918 464 o · sha256 identique ✅ · 0 rejeté
+report  : produced = 69,3650 % du fichier · code_rust = 90,3630 % du .text
 ```
 
 | source | unités | octets |
 |---|---:|---:|
 | en-têtes PE ré-émis (`nie-pe`) | — | 1 428 592 |
-| corps réassemblés (`nie-asm`) | 97 947 | 16 161 764 |
+| corps réassemblés (`nie-asm`) | 112 041 | 22 098 966 |
+
+### Le recouvrement vient de deux sources, pas d'une
+
+`.pdata` ne décrit que les fonctions ayant des données de déroulement : 55 351 racines, et
+1 828 793 octets de `.text` laissés en résidu — haché par les seules bornes de remplissage, donc
+non relevable (une unité pouvait commencer au milieu d'une instruction). `nie-forge split` charge
+désormais les **61 076 fonctions feuilles mesurées par `nie_re::recover`** et s'en sert pour
+découper ce résidu, qui tombe à **51 151 octets**. Les plages recouvrant une plage `.pdata` sont
+écartées : `.pdata` reste la vérité terrain, les feuilles ne comblent que ce qu'elle ignore.
+
+C'est le couplage entre l'échafaudage RE et la forge : le RE ne sert pas seulement à *nommer*, il
+sert à *découper*, et sans découpe correcte il n'y a rien à produire.
 
 Attribution **exclusive** : une unité fournie par deux voies n'est comptée qu'une fois, dans
 l'ordre même de la construction (en-têtes → assembleur → codegen). `semantic` n'est jamais compté
@@ -166,8 +181,28 @@ comme produit : seuls `emitted`, `assembled` et `bytes` valent.
 
 La courbe est franchement non linéaire : quelques familles d'instructions portent l'essentiel de
 la masse. Des formes de base au dialecte actuel, la part du `.text` est passée de 0,59 % à plus de
-66 %, par vagues successives — prologues et branchements, `[rip …]`, `r/m`+immédiat, SSE,
+**90 %**, par vagues successives — prologues et branchements, `[rip …]`, `r/m`+immédiat, SSE,
 `cmovcc` et conversions, `movd`/`movq`, immédiats étendus en signe.
+
+Vague du **2026-08-30**, guidée de bout en bout par le diagnostic chiffré du `lift` (66,09 % →
+90,36 % du `.text`) :
+
+| ce qui manquait | unités | octets débloqués |
+|---|---:|---:|
+| `gs:`/`fs:` — l'accès TLS de Windows x64 (`mov rax, gs:[58h]`) | 2 443 | 3 008 522 |
+| décalages vectoriels de groupe (`psrldq`, `pslld`…) | 624 | 719 506 |
+| masques de signes vers registre général (`movmskps`) | 294 | 652 872 |
+| AVX en VEX (`vpermilps`, `vfmadd231ps`, `vmovaps`) | 541 | 733 000 |
+| comparaisons SSE à prédicat (`cmpeqps`) | 531 | 893 556 |
+| `rep stos`/`movs`, `prefetch`, `xchg` | 535 | 803 000 |
+| formes dédiées de `movq` mémoire | 84 | 238 186 |
+| REX.W superflu sur `jmp`/`call` indirects, `lock inc`/`dec` | 4 564 | 411 000 |
+
+Trois de ces entrées ne sont pas des instructions manquantes mais des **bugs d'encodage** que
+seule la confrontation aux octets réels pouvait révéler : l'immédiat 16 bits émis sur 4 octets
+(`or si, 1D6h`), l'octet SIB omis en adressage absolu, et `ah`/`ch`/`dh`/`bh` encodés comme
+`dl`/`sil` faute de pouvoir les distinguer. Aucun n'aurait été trouvé par relecture — c'est la
+comparaison byte-à-byte qui les a sortis.
 
 Deux enseignements, l'un et l'autre trouvés par l'outillage :
 
@@ -234,9 +269,9 @@ d'octets plutôt que par adresse), puis renseigner le champ `rust` de chaque ent
 | palier | définition | état |
 |---|---|---|
 | **G0 — identité** | le fichier produit est byte-identique à l'original | ✅ tenu, testé sur le vrai binaire |
-| **G1 — recouvrement** | chaque octet appartient à une unité nommée, zéro trou | ✅ 219 427 unités, invariant testé |
-| **G2 — amorçage** | une part non nulle du binaire est produite par le dépôt | ✅ **51,8607 %** du fichier |
-| **G3 — code** | 50 % du `.text` produit par le dépôt | ✅ **66,0910 %** |
+| **G1 — recouvrement** | chaque octet appartient à une unité nommée, zéro trou | ✅ 225 187 unités, invariant testé |
+| **G2 — amorçage** | une part non nulle du binaire est produite par le dépôt | ✅ **69,3650 %** du fichier |
+| **G3 — code** | 50 % du `.text` produit par le dépôt | ✅ **90,3630 %** |
 | **G4 — sections** | `.rdata`/`.data` produits depuis les structures, pas recopiés | non commencé (découpage encore d'un seul tenant) |
 | **G5 — disposition** | la forge calcule ses propres adresses (édition de liens réelle) | non commencé ; jusque-là les champs relogés viennent de la disposition de référence |
 | **G6 — total** | 100 % du fichier produit, `nie.exe` reconstructible sans référence | horizon |
