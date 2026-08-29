@@ -249,6 +249,22 @@ par une branche, ou fragments dont le décodage démarre au milieu d'une instruc
 demanderait une analyse de flot par fonction — un chantier distinct, au rendement faible à ce
 niveau. Le point de rendement décroissant est ici.
 
+### Ce que ça donne bout à bout
+
+`niers`/MCP `re_function` sur `fn_SetNaviStopLayerVisible` (`0x14179fa70`, 6 940 octets,
+sous-système `menu`) — un nom obtenu par la seule chaîne identifiante que cette fonction manipule :
+
+- **appelée par** `game::CMapMenu::vmethod_0`, `game::CMenuMinimap::vmethod_11`,
+  `game::MoveMainState::vmethod_2` — noms venus du RTTI, tous cohérents avec « couche de
+  navigation » ;
+- **et par trois handlers de commande Lua** (`funcLuaCmd_19bd7c0b`, `_0db0187f`, `_7d9fd76b`) :
+  le script du jeu pilote donc directement cette fonction ;
+- **appelle** `__security_check_cookie` et `__chkstk`, reconnus par ailleurs.
+
+Quatre sources indépendantes — chaîne, RTTI, table de répartition du script, CRT — convergent sur
+le même sens sans avoir été rapprochées à la main. C'est le signe que les couches se recoupent
+plutôt qu'elles ne s'empilent.
+
 ### La boucle à rejouer
 
 ```bash
