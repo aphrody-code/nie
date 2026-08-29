@@ -431,6 +431,53 @@ fn insn_of(i: &iced_x86::Instruction, raw: &[u8]) -> Option<Insn> {
             Some(Insn::CvtToReg(op, r, src, sz))
         };
     }
+    // Chaines repetees et prechargement : formes sans operande explicite ou
+    // a operande memoire seul.
+    if i.has_rep_prefix() {
+        let op = match i.mnemonic() {
+            Mnemonic::Stosb | Mnemonic::Stosw | Mnemonic::Stosd | Mnemonic::Stosq => {
+                nie_asm::RepOp::Stos
+            }
+            Mnemonic::Movsb | Mnemonic::Movsw | Mnemonic::Movsd | Mnemonic::Movsq => {
+                nie_asm::RepOp::Movs
+            }
+            _ => return None,
+        };
+        let sz = match i.mnemonic() {
+            Mnemonic::Stosb | Mnemonic::Movsb => Size::B,
+            Mnemonic::Stosw | Mnemonic::Movsw => Size::W,
+            Mnemonic::Stosq | Mnemonic::Movsq => Size::Q,
+            _ => Size::D,
+        };
+        return Some(Insn::RepString(op, sz));
+    }
+    if matches!(
+        i.mnemonic(),
+        Mnemonic::Prefetchnta | Mnemonic::Prefetcht0 | Mnemonic::Prefetcht1 | Mnemonic::Prefetcht2
+    ) {
+        let hint = match i.mnemonic() {
+            Mnemonic::Prefetchnta => 0,
+            Mnemonic::Prefetcht0 => 1,
+            Mnemonic::Prefetcht1 => 2,
+            _ => 3,
+        };
+        return Some(Insn::Prefetch(hint, mem_of(i)?));
+    }
+    // `xchg eax, ecx` : forme courte `90+r`, la seule que MSVC emploie.
+    if i.mnemonic() == Mnemonic::Xchg
+        && i.op_kind(0) == OpKind::Register
+        && i.op_kind(1) == OpKind::Register
+    {
+        let (a, sa) = reg_of(i.op_register(0))?;
+        let (b, sb) = reg_of(i.op_register(1))?;
+        if sa == sb && a == Reg::Rax {
+            return Some(Insn::XchgAcc(sa, b));
+        }
+        if sa == sb && b == Reg::Rax {
+            return Some(Insn::XchgAcc(sa, a));
+        }
+        return None;
+    }
     // Decalage vectoriel a immediat : le digit est dans ModRM.reg, l'operande
     // vectoriel dans rm — une forme de groupe, pas un `SseI`.
     if let Some(op) = sse_shift_of(i.mnemonic())

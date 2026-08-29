@@ -466,6 +466,30 @@ pub enum SseOp {
     Pavgw,
 }
 
+/// Opération sur chaîne, préfixée par `rep`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum RepOp {
+    /// `stos` — remplit `[rdi]` depuis `al`/`eax`/`rax` (`AA`/`AB`).
+    Stos,
+    /// `movs` — copie `[rsi]` vers `[rdi]` (`A4`/`A5`).
+    Movs,
+}
+
+impl RepOp {
+    /// Opcode pour la taille d'opérande (`B` = forme octet).
+    #[must_use]
+    pub const fn opcode(self, size: Size) -> u8 {
+        let byte = matches!(size, Size::B);
+        match (self, byte) {
+            (Self::Stos, true) => 0xAA,
+            (Self::Stos, false) => 0xAB,
+            (Self::Movs, true) => 0xA4,
+            (Self::Movs, false) => 0xA5,
+        }
+    }
+}
+
 /// Décalage vectoriel à immédiat (groupe `0F 71`/`72`/`73`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -716,6 +740,15 @@ pub enum Insn {
     /// un `dword` en mémoire). L'opération encodée est identique à [`Insn::Un`] :
     /// seul le préfixe change, mais il fait partie des octets à reproduire.
     LockUn(UnOp, Size, Rm),
+    /// `prefetch<hint> [mem]` (`0F 18 /n`) — indication de préchargement.
+    ///
+    /// Le niveau de cache est porté par le champ `reg` du ModRM : `nta` = 0,
+    /// `t0` = 1, `t1` = 2, `t2` = 3.
+    Prefetch(u8, Mem),
+    /// Chaîne répétée : `rep stosb`/`stosd`/`stosq`, `rep movsb`… (`F3` + opcode).
+    RepString(RepOp, Size),
+    /// `xchg` registre↔registre — forme courte `90+r` avec `rax`, sinon `87 /r`.
+    XchgAcc(Size, Reg),
     /// Décalage vectoriel à immédiat : `psrldq xmm1, 1` (`66 0F 73 /3 ib`).
     ///
     /// Le champ `reg` du ModRM porte le **digit** de l'opération, l'opérande
@@ -1325,6 +1358,25 @@ fn encode_one(i: Insn, at: u64, out: &mut Vec<u8>) {
         }
         Insn::Cmov(c, size, r, rm) => {
             rm_form(out, size, &[0x0F, 0x40 + c.code()], r.lo(), r.hi(), rm, at, &[]);
+        }
+        Insn::Prefetch(hint, m) => {
+            let base = out.len();
+            let (x, b) = mem_rex(m);
+            rex(out, false, 0, x, b);
+            out.push(0x0F);
+            out.push(0x18);
+            modrm_mem(out, hint, m, at, base, 0);
+        }
+        Insn::RepString(op, size) => {
+            out.push(0xF3);
+            opsize(out, size);
+            rex(out, size.rex_w(), 0, 0, 0);
+            out.push(op.opcode(size));
+        }
+        Insn::XchgAcc(size, r) => {
+            opsize(out, size);
+            rex(out, size.rex_w(), 0, 0, r.hi());
+            out.push(0x90 | r.lo());
         }
         Insn::SseShift(op, x, imm) => {
             let (opcode, digit) = op.encoding();
