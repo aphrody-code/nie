@@ -2471,6 +2471,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "iced-x86"
+version = "1.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7c447cff8c7f384a7d4f741cfcff32f75f3ad02b406432e8d6c878d56b1edf6b"
+dependencies = [
+ "lazy_static",
+]
+
+[[package]]
 name = "ico"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3328,6 +3337,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "nie-asm"
+version = "0.5.1"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "nie-core"
 version = "0.5.1"
 dependencies = [
@@ -3376,9 +3392,11 @@ dependencies = [
  "nie-data",
  "nie-dump",
  "nie-explore",
+ "nie-forge",
  "nie-formats",
  "nie-geom",
  "nie-lua",
+ "nie-pe",
  "nie-queue",
  "nie-render3d",
  "nie-runtime",
@@ -3413,6 +3431,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "nie-forge"
+version = "0.5.1"
+dependencies = [
+ "anyhow",
+ "clap",
+ "iced-x86",
+ "nie-asm",
+ "nie-pe",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "nie-formats"
 version = "0.5.1"
 dependencies = [
@@ -3441,6 +3472,15 @@ dependencies = [
  "thiserror 2.0.19",
  "tree-sitter",
  "tree-sitter-lua",
+]
+
+[[package]]
+name = "nie-pe"
+version = "0.5.1"
+dependencies = [
+ "serde",
+ "sha2",
+ "thiserror 2.0.19",
 ]
 
 [[package]]

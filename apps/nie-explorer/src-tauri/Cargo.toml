@@ -109,6 +109,14 @@ nie-core = { path = "../../../crates/engine/nie-core" }
 nie-trace = { path = "../../../crates/forge/nie-trace" }
 # Frontière BFS (redis) — chargée pour un futur outil RE intégré, pas encore câblée.
 nie-queue = { path = "../../../crates/forge/nie-queue" }
+# La FORGE (recouvrement, registre, rapport de production) — onglet « Forge » de la vue RE.
+# `default-features = false` retire `redb`, seul module a dependre de `rusqlite` : sans cela le
+# `links = "sqlite3"` entrerait en conflit avec le `sqlx-sqlite` de tauri-plugin-sql et le crate
+# serait inliable (meme raison que l'exclusion de `nie-index` plus bas). Verifie par
+# `cargo tree -i libsqlite3-sys` : une seule occurrence, via sqlx-sqlite.
+nie-forge = { path = "../../../crates/forge/nie-forge", default-features = false }
+# Recouvrement PE (`UnitKind`) — deja tire par `nie-forge`, declare pour nommer les types.
+nie-pe = { path = "../../../crates/forge/nie-pe" }
 # Minidump `.dmp` HORS LIGNE : parsing + scan AOB (`re_dump_scan`, cf. `src/re_trace.rs`). Le
 # scan porte sur un fichier déjà capturé — aucune attache au process vivant. Extrait de `nie-re`
 # précisément pour être liable ici : sa seule dépendance est `thiserror` (ni rusqlite, ni le

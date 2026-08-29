@@ -39,6 +39,7 @@
 pub mod asmsrc;
 pub mod cc;
 pub mod lift;
+#[cfg(feature = "redb")]
 pub mod redb;
 pub mod registry;
 pub mod report;
@@ -46,6 +47,7 @@ pub mod store;
 
 pub use asmsrc::AsmSource;
 pub use lift::lift_body;
+#[cfg(feature = "redb")]
 pub use redb::ReNames;
 pub use registry::{MatchStatus, Registry, RegistryEntry};
 pub use report::Report;

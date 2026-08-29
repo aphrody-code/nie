@@ -695,6 +695,34 @@ export const commands = {
 	 */
 	trashAppdataFiles: (appdataRelPaths: string[]) => typedError<null, string>(__TAURI_INVOKE("trash_appdata_files", { appdataRelPaths })),
 	/**
+	 *  Mesure de production de la forge, recalculée depuis les artefacts.
+	 * 
+	 *  Les trois entrées sont celles de la CLI : le recouvrement
+	 *  (`var/forge/cover.json`, produit par `nie-forge split`), le registre
+	 *  (`forge/registry.json`) et la source assembleur (`forge/asm/*.s`, produite
+	 *  par `nie-forge lift`). Rien n'est mis en cache : la valeur rendue est celle
+	 *  de l'état du disque au moment de l'appel.
+	 * 
+	 *  # Errors
+	 * 
+	 *  Échoue si la racine du dépôt est introuvable, si le recouvrement n'a pas
+	 *  encore été produit, ou si un artefact est illisible.
+	 */
+	forgeReport: (root: string | null) => typedError<ForgeReportDto, string>(__TAURI_INVOKE("forge_report", { root })),
+	/**
+	 *  Ce qui empêche encore la forge de produire, trié par octets bloqués.
+	 * 
+	 *  C'est la **liste de travail** : chaque ligne dit combien d'octets un
+	 *  élargissement du dialecte rapporterait, et donne l'instruction fautive
+	 *  désassemblée. C'est ce diagnostic — pas l'intuition — qui a fait passer la
+	 *  part produite de 51,86 % à 69,53 % du fichier.
+	 * 
+	 *  # Errors
+	 * 
+	 *  Mêmes conditions que [`forge_report`].
+	 */
+	forgeBlockers: (root: string | null, limit: number | null) => typedError<ForgeBlockerDto[], string>(__TAURI_INVOKE("forge_blockers", { root, limit })),
+	/**
 	 *  Cherche le process `nie.exe`/`nie_eacpatched.exe` en cours d'exécution. `None` si le jeu n'est
 	 *  pas lancé — jamais d'attache silencieuse ni de retry en boucle.
 	 */
@@ -1043,6 +1071,58 @@ export type FindPageDto = {
 export type FolderRoleDto = {
 	role: string,
 	status: string,
+};
+
+/**  Une cause de blocage du relevé, avec ce qu'elle coûte. */
+export type ForgeBlockerDto = {
+	/**  Mnémonique ou nature du blocage (`gs:`, `encodage:mov`, `invalide`…). */
+	cause: string,
+	/**  Unités bloquées par cette cause. */
+	units: number,
+	/**  Octets bloqués par cette cause — le gain d'un déblocage. */
+	bytes: number,
+	/**  Exemple désassemblé, avec son adresse. */
+	sample: string,
+};
+
+/**  Part produite par le dépôt, par source. */
+export type ForgeBucketDto = {
+	/**  Unités concernées. */
+	units: number,
+	/**  Octets concernés. */
+	bytes: number,
+};
+
+/**  Mesure de production de la forge, telle que `nie-forge report` la calcule. */
+export type ForgeReportDto = {
+	/**  Racine du dépôt effectivement utilisée. */
+	root: string,
+	/**  Taille du binaire cible. */
+	total_bytes: number,
+	/**  Nombre total d'unités du recouvrement. */
+	total_units: number,
+	/**  Octets de code (`.text` et assimilés). */
+	code_bytes: number,
+	/**  Unités de fonction du recouvrement. */
+	functions: number,
+	/**  En-têtes PE recalculés par `nie-pe`. */
+	emitted: ForgeBucketDto,
+	/**  Corps réassemblés depuis `forge/asm/*.s` par `nie-asm`. */
+	assembled: ForgeBucketDto,
+	/**  Fonctions dont le codegen Rust coïncide avec les octets d'origine. */
+	matched_bytes: ForgeBucketDto,
+	/**  Portages validés sémantiquement — **jamais** comptés comme produits. */
+	matched_semantic: ForgeBucketDto,
+	/**  Portages en cours, non validés. */
+	wip: ForgeBucketDto,
+	/**  Octets produits par le dépôt. */
+	produced_bytes: number,
+	/**  Part du fichier produite par le dépôt, en pourcentage. */
+	produced_pct: number | null,
+	/**  Part du `.text` produite par le dépôt, en pourcentage. */
+	code_pct: number | null,
+	/**  Entrées du registre sans unité correspondante. */
+	orphan_entries: number,
 };
 
 /**
