@@ -108,6 +108,17 @@ fn cadrage_version0_prouve_sur_corpus_reel() {
     }
     let mut files = Vec::new();
     walk_files(root, &mut files, 3000);
+    if files.is_empty() {
+        // La racine existe mais ne porte aucun dump : c'est le cas quand `NIE_GAME_DIR` désigne
+        // l'installation Steam, dont `gamedata/` contient les `.cfg.bin` **binaires** et non les
+        // `.cfg.bin.json`. Annoncer le saut plutôt que d'échouer sur « eu 0 » — un rouge
+        // d'environnement se lit comme une régression.
+        eprintln!(
+            "skip : {} ne contient aucun *.cfg.bin.json (corpus de dumps absent)",
+            root.display()
+        );
+        return;
+    }
     let mut blobs = Vec::new();
     for f in &files {
         if let Ok(txt) = std::fs::read_to_string(f)

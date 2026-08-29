@@ -128,11 +128,17 @@ impl CharaParam {
     }
 }
 
-/// Parse tous les noeuds `CHARA_PARAM_INFO_*` d'un `chara_param_*.cfg.bin.json` désérialisé.
+/// Parse tous les noeuds `CHARA_PARAM_INFO*` d'un `chara_param_*.cfg.bin` (dump JSON ou T2B lu
+/// directement).
+///
+/// Le préfixe est cherché **sans underscore final** : les dumps `*.cfg.bin.json` suffixent les
+/// noeuds d'un index (`CHARA_PARAM_INFO_0`), mais le T2B binaire les nomme `CHARA_PARAM_INFO`
+/// tout court (même écart que `chara_base`, cf. `is_chara_base_node`). Les conteneurs restent
+/// écartés par le filtre `_LIST_`.
 #[must_use]
 pub fn parse_all_chara_params(root: &Value) -> Vec<CharaParam> {
     let mut out = Vec::new();
-    walk_named(root, "CHARA_PARAM_INFO_", |node| {
+    walk_named(root, "CHARA_PARAM_INFO", |node| {
         // On ignore les noeuds conteneurs (`_LIST_BEG_`, etc.) qui n'ont pas le bon format.
         if node.name().contains("_LIST_") {
             return;
