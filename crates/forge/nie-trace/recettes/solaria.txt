@@ -1,0 +1,65 @@
+# Recette de live modding — Solaria-Zeus titulaire + Mode Aphrody
+#
+# Elle s'applique au jeu EN COURS. Les adresses changent à chaque lancement, donc tout est
+# exprimé en VALEURS à remplacer : un charaParamId, lui, ne bouge pas.
+#
+#   nie-mem live var/recettes/solaria.txt --game "<jeu>/nie.exe" --force
+#   nie-mem apply var/recettes/solaria.txt --force        (jeu déjà lancé)
+#
+# Sans --force, rien n'est écrit : le rapport dit ce qui aurait été touché.
+
+nom Solaria-Zeus titulaire + Mode Aphrody
+
+# ── L'équipe active ────────────────────────────────────────────────────────────────────────
+# Chaque ligne remplace un titulaire par un joueur de Solaria-Zeus.
+#
+# `si +0x04 == 0xE17C3465` est la GARDE DE FORME, et elle est indispensable : un charaParamId
+# apparaît aussi dans les tables de données chargées en mémoire, et `max 1` seul prendrait la
+# première occurrence de l'ordre de balayage — une table, pas le roster. Dans une entrée
+# d'équipe (`CraftResidentsCharaInfo`, 0x38 octets), le champ suivant est `uniformId`, commun à
+# tous les titulaires : c'est lui qui signe la structure.
+#
+# charaParamId d'origine        →  Solaria-Zeus
+u32 0x209B996D -> 0xD5ACAA9D si +0x04 == 0xE17C3465 max 1   # Aphrody Byron Love   → Archon Aphrodite Teita Tanji
+u32 0xBA4C2C21 -> 0xFF439369 si +0x04 == 0xE17C3465 max 1   # Froste Shawn Froste  → Pan Patrie Ambrosia
+u32 0xFBFCE7B9 -> 0xD46EC0AA si +0x04 == 0xE17C3465 max 1   # Tezcat               → Atlas Atol Lasalle
+u32 0x6F08BCC1 -> 0xCD75F1EB si +0x04 == 0xE17C3465 max 1   # Bailong              → Izanagi Riza Nagivar
+u32 0xBB5FB56C -> 0x8234672C si +0x04 == 0xE17C3465 max 1   # Nikas                → Izanami Orisa Namir
+u32 0xEAB2B5CF -> 0x9B2F566D si +0x04 == 0xE17C3465 max 1   # Bloomhurst Briar     → Uzume Revea Ristair
+u32 0xBCE81249 -> 0xB00205AE si +0x04 == 0xE17C3465 max 1   # Reyes Thierry        → Takemikazuchi Kazimir Stormblade
+u32 0x9D1D509E -> 0xA91934EF si +0x04 == 0xE17C3465 max 1   # Xavier               → Eros Garrick Loventhal
+u32 0x1B789CE1 -> 0x2E812820 si +0x04 == 0xE17C3465 max 1   # Swift Nathan         → Tartarus Iskandar Tarusian
+u32 0xF3A9848E -> 0x379A1961 si +0x04 == 0xE17C3465 max 1   # Fontaine Alix        → Paieon Sampa Eonius
+
+# Le roster porte DEUX uniformId : 0xE17C3465 et 0x7E51DF9E — deux tenues (domicile/extérieur,
+# ou deux équipes enregistrées). Une garde ne couvre qu'une tenue, d'où ce second jeu de règles.
+# Une règle sans occurrence n'écrit rien : les deux jeux cohabitent sans se marcher dessus.
+u32 0x209B996D -> 0xD5ACAA9D si +0x04 == 0x7E51DF9E max 1
+u32 0xBA4C2C21 -> 0xFF439369 si +0x04 == 0x7E51DF9E max 1
+u32 0xFBFCE7B9 -> 0xD46EC0AA si +0x04 == 0x7E51DF9E max 1
+u32 0x6F08BCC1 -> 0xCD75F1EB si +0x04 == 0x7E51DF9E max 1
+u32 0xBB5FB56C -> 0x8234672C si +0x04 == 0x7E51DF9E max 1
+u32 0xEAB2B5CF -> 0x9B2F566D si +0x04 == 0x7E51DF9E max 1
+u32 0xBCE81249 -> 0xB00205AE si +0x04 == 0x7E51DF9E max 1
+u32 0x9D1D509E -> 0xA91934EF si +0x04 == 0x7E51DF9E max 1
+u32 0x1B789CE1 -> 0x2E812820 si +0x04 == 0x7E51DF9E max 1
+u32 0xF3A9848E -> 0x379A1961 si +0x04 == 0x7E51DF9E max 1
+
+# ── Mode Aphrody ───────────────────────────────────────────────────────────────────────────
+# L'aura « Mode Aphrody » / « Lord Aphrody Mode » (アフロディモード) a trois paliers, déclarés
+# dans skill/aura_skill_config_1.04.09.00.cfg.bin → AURA_CMD_INFO. Leur nom interne
+# `mode_change_c11150120` porte le code d'Archon Aphrodite : c'est son changement de mode.
+#
+#   0x03D98821  mode_change_c11150120          (base,   coûts 75/90)
+#   0x0438CBD2  mode_change_c11150120_exst     (        coûts 90/90)
+#   0x3220427E  mode_change_c11150120_legend   (        coûts 90/90)
+#
+# Promouvoir le palier de base en palier légendaire partout où il est chargé. Décommenter pour
+# l'activer — la ligne touche la table d'auras en mémoire, pas un seul personnage.
+# u32 0x03D98821 -> 0x3220427E
+
+# ── Écriture à une adresse fixe ────────────────────────────────────────────────────────────
+# Utile quand une valeur n'est pas unique et qu'on a repéré l'emplacement au scan. L'adresse
+# peut être absolue (0x…) ou relative au module (nie.exe+0xRVA), auquel cas l'ASLR est résolue
+# au moment de l'application.
+# at nie.exe+0xC72400 = 63 00 00 00

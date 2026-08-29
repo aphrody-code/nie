@@ -1,4 +1,4 @@
-//! `nie-mem` — lecteur mémoire autonome d'`nie.exe`.
+//! `nie-mem` — lecteur **et éditeur** mémoire autonome d'`nie.exe`.
 //!
 //! Cross-compilé depuis WSL (`cargo build -p nie-trace --bin nie-mem --target x86_64-pc-windows-gnu`)
 //! et lancé via l'interop WSL→Windows pour inspecter le **vrai jeu Windows natif** :
@@ -11,10 +11,72 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
+use nie_trace::lancement::lancer_chaine;
+use nie_trace::recette;
 use nie_trace::{
     dump_regions, find_module_base, find_pid_by_name, module_regions, patch_eac, read_exact,
-    scan_regions,
+    scan_regions, write_exact,
 };
+
+/// Lit une recette, l'applique, et imprime son rapport règle par règle.
+///
+/// En mode à blanc (le défaut, sans `--force`), rien n'est écrit : le rapport dit ce qui **aurait**
+/// été touché. C'est ce qui permet de vérifier qu'une recette vise bien ce qu'on croit avant de
+/// la lancer sur le process.
+fn appliquer_recette_fichier(
+    pid: i32,
+    module: &str,
+    chemin: &str,
+    a_blanc: bool,
+) -> Result<(), String> {
+    let texte = std::fs::read_to_string(chemin).map_err(|e| format!("{chemin} : {e}"))?;
+    let r = recette::parser(&texte)?;
+    println!(
+        "\n  recette « {} » — {} règle(s){}",
+        if r.nom.is_empty() { chemin } else { &r.nom },
+        r.regles.len(),
+        if a_blanc { "  [À BLANC]" } else { "" }
+    );
+
+    let rapport = recette::appliquer(pid, module, &r, a_blanc);
+    for res in &rapport.resultats {
+        let quoi = match &res.regle {
+            recette::Regle::RemplacerU32 { de, vers, max, garde } => {
+                let borne = max.map_or_else(String::new, |m| format!(" max {m}"));
+                let cond = garde.map_or_else(String::new, |(o, v)| {
+                    let signe = if o < 0 { "-" } else { "+" };
+                    format!(" si {signe}0x{:X} == 0x{v:08X}", o.abs())
+                });
+                format!("u32 0x{de:08X} -> 0x{vers:08X}{cond}{borne}")
+            }
+            recette::Regle::Ecrire { adresse, octets } => {
+                format!("at {adresse} = {} octet(s)", octets.len())
+            }
+        };
+        let apercu: Vec<&str> = res.adresses.iter().take(4).map(String::as_str).collect();
+        let suite = if res.adresses.len() > 4 {
+            format!(" … +{}", res.adresses.len() - 4)
+        } else {
+            String::new()
+        };
+        println!(
+            "    {quoi}\n      {} trouvée(s), {} écrite(s)  [{}{suite}]{}",
+            res.trouvees,
+            res.ecrites,
+            apercu.join(", "),
+            res.erreur.as_ref().map_or_else(String::new, |e| format!("  ⚠ {e}"))
+        );
+    }
+    println!(
+        "\n  {} écriture(s), {} règle(s) en échec",
+        rapport.total_ecrites(),
+        rapport.echecs()
+    );
+    if a_blanc {
+        println!("  ajoute --force pour appliquer réellement");
+    }
+    Ok(())
+}
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -28,16 +90,24 @@ fn main() -> ExitCode {
 }
 
 const USAGE: &str = "\
-nie-mem — lecteur mémoire d'nie.exe (Windows natif via ReadProcessMemory, ou Wine via process_vm_readv)
+nie-mem — lecteur/éditeur mémoire d'nie.exe (Windows natif via Read/WriteProcessMemory, ou Wine via process_vm_readv/writev)
 
 USAGE:
   nie-mem find-pid [nom=nie.exe]
   nie-mem maps   [--pid N] [--module nie.exe] [--all]
   nie-mem base   [--pid N] [--module nie.exe]
   nie-mem read   <0xADDR | module+0xRVA> [--len N=256] [--pid N] [--out FICHIER]
+  nie-mem write  <0xADDR | module+0xRVA> <hex '48 8B' | str:Texte> [--in FICHIER] [--pid N] --force
   nie-mem dump   [--pid N] [--module nie.exe] [--all] [--out DOSSIER=./memdump]
   nie-mem scan   <hex '48 8B 0D' | str:Texte | wstr:Titre> [--pid N] [--module nie.exe] [--all] [--limit N=20]
   nie-mem patch-eac <src nie.exe> <dst nie_eacpatched.exe>
+
+LIVE MODDING
+  nie-mem apply  <recette.txt> [--pid N] [--force]
+  nie-mem live   [recette.txt] --game <chemin/nie.exe> [--repo DOSSIER] [--save-editor EXE]
+                 [--no-save-editor] [--wait SECS=120] [--force]
+      Lance l'editeur de sauvegarde puis le jeu SANS EAC (nie.exe direct), attend que le
+      process reponde, puis applique la recette. Sans --force, tout est a blanc.
 
 --pid 0 (défaut) auto-détecte nie.exe.";
 
@@ -100,6 +170,101 @@ fn run(args: &[String]) -> Result<(), String> {
                 None => hexdump(&buf, addr),
             }
             Ok(())
+        }
+        // Écriture — le pendant de `read`. La lib porte `write_exact` depuis toujours ; seul le
+        // binaire ne l'exposait pas. Une écriture est **relue** juste après et le hexdump montre
+        // l'état réel de la mémoire, pas ce qu'on croyait y mettre.
+        "write" => {
+            let pid = resolve_pid(&flags)?;
+            let addr_s = positionals.first().ok_or("adresse manquante")?;
+            let addr = resolve_addr(addr_s, pid)?;
+
+            // Deux sources d'octets : un motif hex en argument, ou un fichier via `--in`.
+            let octets: Vec<u8> = match flags.get("in").and_then(Clone::clone) {
+                Some(path) => std::fs::read(&path).map_err(|e| e.to_string())?,
+                None => {
+                    let motif = positionals.get(1).ok_or("octets manquants (hex, ou --in <fichier>)")?;
+                    parse_pattern(motif)?.0
+                }
+            };
+            if octets.is_empty() {
+                return Err("rien à écrire".to_owned());
+            }
+            // Garde-fou : une écriture mémoire est irréversible pour le process visé. On exige
+            // `--force`, comme `nie-edit`, pour qu'un `write` ne parte jamais par accident.
+            if !flags.contains_key("force") {
+                let avant = read_exact(pid, addr, octets.len()).map_err(|e| e.to_string())?;
+                println!("  à blanc — {} octet(s) @ 0x{addr:x}", octets.len());
+                hexdump(&avant, addr);
+                println!("  deviendrait :");
+                hexdump(&octets, addr);
+                println!("\n  ajoute --force pour écrire réellement");
+                return Ok(());
+            }
+            write_exact(pid, addr, &octets).map_err(|e| e.to_string())?;
+            let relu = read_exact(pid, addr, octets.len()).map_err(|e| e.to_string())?;
+            println!("  écrit {} octet(s) @ 0x{addr:x} — relu :", octets.len());
+            hexdump(&relu, addr);
+            if relu != octets {
+                return Err("la relecture diffère de ce qui a été écrit".to_owned());
+            }
+            Ok(())
+        }
+        // Chaîne complète de live modding : éditeur de sauvegarde → jeu (sans EAC) → recette.
+        // C'est le mode « je relance et tout se réapplique » : les adresses changent à chaque
+        // lancement, la recette s'exprime en valeurs, donc elle survit au redémarrage.
+        "live" => {
+            let racine = flags
+                .get("repo")
+                .and_then(Clone::clone)
+                .map_or_else(|| std::env::current_dir().unwrap_or_default(), PathBuf::from);
+            let editeur = flags
+                .get("save-editor")
+                .and_then(Clone::clone)
+                .map_or_else(|| racine.join("InazumaElevenVRSaveEditor.exe"), PathBuf::from);
+            let jeu = flags
+                .get("game")
+                .and_then(Clone::clone)
+                .map(PathBuf::from)
+                .ok_or("--game <chemin de nie.exe> est requis")?;
+            let attente = std::time::Duration::from_secs(flag_num(&flags, "wait").unwrap_or(120) as u64);
+            let sans_editeur = flags.contains_key("no-save-editor");
+
+            let l = lancer_chaine(
+                (!sans_editeur).then_some(editeur.as_path()),
+                Some(jeu.as_path()),
+                attente,
+            );
+            for d in &l.demarres {
+                println!("  démarré  {}", d.display());
+            }
+            for a in &l.absents {
+                println!("  ABSENT   {}", a.display());
+            }
+            for e in &l.echecs {
+                println!("  ÉCHEC    {} (démarrage refusé, même via le shell)", e.display());
+            }
+            let Some(pid) = l.pid else {
+                return Err(format!(
+                    "le jeu n'a pas répondu en {} s — rien n'a été appliqué",
+                    attente.as_secs()
+                ));
+            };
+            println!("  jeu prêt (pid {pid})");
+
+            // Sans recette, on s'arrête au lancement : `live` sert alors juste à démarrer la
+            // chaîne sans EAC.
+            let Some(chemin) = positionals.first() else {
+                println!("\n  aucune recette donnée — chaîne lancée, rien appliqué");
+                return Ok(());
+            };
+            appliquer_recette_fichier(pid, &module_of(&flags), chemin, !flags.contains_key("force"))
+        }
+        // Applique une recette au jeu déjà lancé.
+        "apply" => {
+            let pid = resolve_pid(&flags)?;
+            let chemin = positionals.first().ok_or("recette manquante")?;
+            appliquer_recette_fichier(pid, &module_of(&flags), chemin, !flags.contains_key("force"))
         }
         "dump" => {
             let pid = resolve_pid(&flags)?;

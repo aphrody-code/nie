@@ -146,6 +146,8 @@ __pycache__/
 !APP_EXPORT_README.md
 !docs/**/*.md
 !docs/**/*.txt
+# Recettes de live modding (nie-mem) — de la doc exécutable, pas des données de travail.
+!crates/forge/nie-trace/recettes/*.txt
 !packages/*/README.md
 !apps/nie-explorer/ROADMAP.md
 !plugins/niers-blender/NIERS_VENDORING_NOTE.md

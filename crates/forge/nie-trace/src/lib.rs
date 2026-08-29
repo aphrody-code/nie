@@ -34,6 +34,8 @@ use thiserror::Error;
 
 pub mod aob;
 pub mod catalog;
+pub mod lancement;
+pub mod recette;
 #[cfg(target_os = "linux")]
 pub mod wine_memory;
 #[cfg(windows)]
