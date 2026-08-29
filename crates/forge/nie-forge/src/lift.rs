@@ -1146,3 +1146,62 @@ mod tests {
         assert!(lift_body(&[0xFF, 0xFF, 0xFF], 0x140_0000).is_none());
     }
 }
+
+/// Une cause de blocage agrégée sur tout le recouvrement, avec ce qu'elle coûte.
+///
+/// C'est la **liste de travail** de la forge : chaque entrée dit combien
+/// d'octets un élargissement du dialecte rapporterait.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BlockerTally {
+    /// Mnémonique ou nature du blocage (`gs:`, `encodage:mov`, `invalide`…).
+    pub cause: String,
+    /// Unités bloquées par cette cause.
+    pub units: usize,
+    /// Octets bloqués — le gain d'un déblocage.
+    pub bytes: usize,
+    /// Premier exemple rencontré, désassemblé, avec son adresse.
+    pub sample: String,
+}
+
+/// Agrège les causes de blocage sur toutes les unités relevables d'un
+/// recouvrement, triées par octets décroissants.
+///
+/// Cette fonction vit ici, et non chez ses appelants, pour la même raison que
+/// [`crate::Report::add_emitted_tables`] : la CLI `nie-forge lift` et l'onglet
+/// « Forge » de `nie-explorer` doivent produire la **même** liste. Une boucle
+/// recopiée de part et d'autre finit par diverger sans que rien ne le signale.
+#[must_use]
+pub fn blockers(cover: &nie_pe::Cover, bytes: &[u8], max_len: usize) -> Vec<BlockerTally> {
+    use nie_pe::UnitKind;
+
+    let mut by_cause: std::collections::HashMap<String, (usize, usize, String)> =
+        std::collections::HashMap::new();
+    for u in &cover.units {
+        if !matches!(u.kind, UnitKind::Function | UnitKind::CodeResidue) {
+            continue;
+        }
+        if max_len > 0 && u.len > max_len {
+            continue;
+        }
+        let (Some(va), Some(body)) = (u.va, bytes.get(u.range())) else {
+            continue;
+        };
+        if lift_body(body, va).is_some() {
+            continue;
+        }
+        if let Some(b) = blocking_detail(body, va) {
+            let e = by_cause.entry(b.cause).or_insert((0, 0, String::new()));
+            e.0 += 1;
+            e.1 += u.len;
+            if e.2.is_empty() {
+                e.2 = b.sample;
+            }
+        }
+    }
+    let mut out: Vec<BlockerTally> = by_cause
+        .into_iter()
+        .map(|(cause, (units, bytes, sample))| BlockerTally { cause, units, bytes, sample })
+        .collect();
+    out.sort_by_key(|b| std::cmp::Reverse(b.bytes));
+    out
+}

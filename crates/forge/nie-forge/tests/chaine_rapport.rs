@@ -84,3 +84,52 @@ fn le_rapport_se_reconstruit_depuis_les_artefacts() {
         r.total_bytes
     );
 }
+
+/// L'onglet « Forge » et `nie-forge lift` affichent la **même** liste de
+/// blocages : c'est la même fonction qui l'agrège.
+///
+/// Une boucle recopiée de part et d'autre avait déjà fait diverger la *mesure*
+/// de 4,2 points ; ce test couvre l'autre moitié de la façade.
+#[test]
+fn les_blocages_sont_agreges_par_une_seule_fonction() {
+    let Some(root) = repo_root() else {
+        println!("SAUTÉ : racine du dépôt introuvable");
+        return;
+    };
+    let forge = root.join("var").join("forge");
+    let exe = root.join("nie.exe");
+    if !forge.join("cover.json").is_file() || !exe.is_file() {
+        println!("SAUTÉ : recouvrement ou binaire absent — lancer `nie-forge split`");
+        return;
+    }
+
+    let store = nie_forge::ForgeStore::load(&forge).expect("recouvrement");
+    let bytes = std::fs::read(&exe).expect("binaire");
+    let all = nie_forge::lift::blockers(&store.cover, &bytes, 0);
+
+    // Trié par octets décroissants : la première ligne est la prochaine cible,
+    // c'est ce que promettent l'onglet et la CLI.
+    for pair in all.windows(2) {
+        assert!(
+            pair[0].bytes >= pair[1].bytes,
+            "liste non triée : {} ({} o) avant {} ({} o)",
+            pair[0].cause,
+            pair[0].bytes,
+            pair[1].cause,
+            pair[1].bytes
+        );
+    }
+    // Chaque cause porte au moins une unité et un exemple exploitable : une
+    // ligne sans instruction désassemblée ne dirait pas quoi implémenter.
+    for b in &all {
+        assert!(b.units > 0, "cause `{}` sans unité", b.cause);
+        assert!(!b.cause.is_empty());
+        assert!(!b.sample.is_empty(), "cause `{}` sans exemple", b.cause);
+    }
+    if let Some(first) = all.first() {
+        println!(
+            "prochaine cible : {} — {} unités, {} octets ({})",
+            first.cause, first.units, first.bytes, first.sample
+        );
+    }
+}
