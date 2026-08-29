@@ -18,6 +18,15 @@ use nie_asm::{
 
 /// Traduit un registre iced-x86 en `(registre nie-asm, taille)`.
 fn reg_of(r: Register) -> Option<(Reg, Size)> {
+    // `ah`/`ch`/`dh`/`bh` portent les numeros 4-7 **sans** REX, la ou le meme
+    // numero avec un REX designe `spl`/`bpl`/`sil`/`dil`. Le modele du dialecte
+    // identifie un registre 8 bits par son registre 64 bits, ce qui ne peut pas
+    // distinguer les deux : `dh` deviendrait `dl`. On refuse donc, plutot que
+    // d'encoder une autre instruction — le diagnostic dira `mov` et non
+    // `encodage:mov`, ce qui est la verite.
+    if matches!(r, Register::AH | Register::CH | Register::DH | Register::BH) {
+        return None;
+    }
     let size = match r.size() {
         1 => Size::B,
         2 => Size::W,
@@ -236,6 +245,25 @@ fn sse_of(m: Mnemonic) -> Option<SseOp> {
         Mnemonic::Cmpss => SseOp::Cmpss,
         Mnemonic::Cmppd => SseOp::Cmppd,
         Mnemonic::Cmpsd => SseOp::Cmpsd,
+        Mnemonic::Packuswb => SseOp::Packuswb,
+        Mnemonic::Packsswb => SseOp::Packsswb,
+        Mnemonic::Packssdw => SseOp::Packssdw,
+        Mnemonic::Punpcklbw => SseOp::Punpcklbw,
+        Mnemonic::Punpcklwd => SseOp::Punpcklwd,
+        Mnemonic::Punpckhbw => SseOp::Punpckhbw,
+        Mnemonic::Punpckhwd => SseOp::Punpckhwd,
+        Mnemonic::Pcmpeqb => SseOp::Pcmpeqb,
+        Mnemonic::Pcmpeqw => SseOp::Pcmpeqw,
+        Mnemonic::Pcmpeqd => SseOp::Pcmpeqd,
+        Mnemonic::Pcmpgtb => SseOp::Pcmpgtb,
+        Mnemonic::Pcmpgtw => SseOp::Pcmpgtw,
+        Mnemonic::Pcmpgtd => SseOp::Pcmpgtd,
+        Mnemonic::Paddb => SseOp::Paddb,
+        Mnemonic::Psubb => SseOp::Psubb,
+        Mnemonic::Paddusb => SseOp::Paddusb,
+        Mnemonic::Psubusb => SseOp::Psubusb,
+        Mnemonic::Pmaddwd => SseOp::Pmaddwd,
+        Mnemonic::Pmulhw => SseOp::Pmulhw,
         Mnemonic::Punpcklqdq => SseOp::Punpcklqdq,
         Mnemonic::Punpckhqdq => SseOp::Punpckhqdq,
         Mnemonic::Psadbw => SseOp::Psadbw,

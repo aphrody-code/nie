@@ -283,7 +283,7 @@ fn split_sized_mem(s: &str) -> Option<(Size, Mem)> {
 
 
 /// Table des mnemoniques SSE supportes.
-const SSES: [(&str, SseOp); 83] = [
+const SSES: [(&str, SseOp); 102] = [
     ("movaps", SseOp::Movaps),
     ("movapd", SseOp::Movapd),
     ("movups", SseOp::Movups),
@@ -367,6 +367,25 @@ const SSES: [(&str, SseOp); 83] = [
     ("pmullw", SseOp::Pmullw),
     ("pavgb", SseOp::Pavgb),
     ("pavgw", SseOp::Pavgw),
+    ("packuswb", SseOp::Packuswb),
+    ("packsswb", SseOp::Packsswb),
+    ("packssdw", SseOp::Packssdw),
+    ("punpcklbw", SseOp::Punpcklbw),
+    ("punpcklwd", SseOp::Punpcklwd),
+    ("punpckhbw", SseOp::Punpckhbw),
+    ("punpckhwd", SseOp::Punpckhwd),
+    ("pcmpeqb", SseOp::Pcmpeqb),
+    ("pcmpeqw", SseOp::Pcmpeqw),
+    ("pcmpeqd", SseOp::Pcmpeqd),
+    ("pcmpgtb", SseOp::Pcmpgtb),
+    ("pcmpgtw", SseOp::Pcmpgtw),
+    ("pcmpgtd", SseOp::Pcmpgtd),
+    ("paddb", SseOp::Paddb),
+    ("psubb", SseOp::Psubb),
+    ("paddusb", SseOp::Paddusb),
+    ("psubusb", SseOp::Psubusb),
+    ("pmaddwd", SseOp::Pmaddwd),
+    ("pmulhw", SseOp::Pmulhw),
 ];
 
 /// Nom de l'accumulateur pour une taille (`al`/`ax`/`eax`/`rax`).
