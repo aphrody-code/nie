@@ -566,8 +566,18 @@ pub enum Insn {
     Setcc(Cond, Reg),
     /// `inc dword [mem]` (`FF /0`)
     IncMem32(Mem),
-    /// `jmp r64` (`FF /4`)
-    JmpReg(Reg),
+    /// Opération unaire précédée du préfixe `lock` (`F0`).
+    ///
+    /// MSVC l'émet pour les compteurs de références (`lock inc`/`lock dec` sur
+    /// un `dword` en mémoire). L'opération encodée est identique à [`Insn::Un`] :
+    /// seul le préfixe change, mais il fait partie des octets à reproduire.
+    LockUn(UnOp, Size, Rm),
+    /// `jmp r64` (`FF /4`).
+    ///
+    /// Le booléen demande un préfixe **REX.W explicite** (`48 FF E0` au lieu de
+    /// `FF E0`). `jmp r/m64` est déjà 64 bits en mode long, ce REX est donc
+    /// superflu — mais MSVC l'émet, et la forge exige l'octet exact.
+    JmpReg(Reg, bool),
     /// `call <cible absolue>` (`E8 rel32`)
     Call(u64),
     /// `jmp <cible absolue>` ; `short` choisit `EB rel8` plutôt que `E9 rel32`
@@ -1023,8 +1033,8 @@ fn encode_one(i: Insn, at: u64, out: &mut Vec<u8>) {
             out.push(0xFF);
             modrm_mem(out, 0, m, at, base, 0);
         }
-        Insn::JmpReg(r) => {
-            rex(out, false, 0, 0, r.hi());
+        Insn::JmpReg(r, w) => {
+            rex_forced(out, w, 0, 0, r.hi(), w);
             out.push(0xFF);
             out.push(0xE0 | r.lo());
         }
@@ -1102,6 +1112,10 @@ fn encode_one(i: Insn, at: u64, out: &mut Vec<u8>) {
             let opcode = if size == Size::B { 0xF6 } else { 0xF7 };
             rm_form(out, size, &[opcode], 0, 0, rm, at, &imm);
         }
+        Insn::LockUn(op, size, rm) => {
+            out.push(0xF0);
+            encode_one(Insn::Un(op, size, rm), at + 1, out);
+        }
         Insn::Un(op, size, rm) => {
             let opcode = if op.is_f7() {
                 if size == Size::B { 0xF6 } else { 0xF7 }
@@ -1110,10 +1124,12 @@ fn encode_one(i: Insn, at: u64, out: &mut Vec<u8>) {
             } else {
                 0xFF
             };
-            // `call`/`jmp`/`push` indirects sont toujours 64 bits implicites :
-            // pas de REX.W, l'opérande fait déjà la taille d'un pointeur.
+            // `call`/`jmp`/`push` indirects sont 64 bits implicites : `Size::D`
+            // signifie ici « pas de REX.W », l'opérande faisant déjà la taille
+            // d'un pointeur. `Size::Q` demande le REX.W **explicite** que MSVC
+            // émet parfois sans nécessité — la forge doit reproduire l'octet.
             let sz = match op {
-                UnOp::CallInd | UnOp::JmpInd | UnOp::PushRm => Size::D,
+                UnOp::CallInd | UnOp::JmpInd | UnOp::PushRm if size != Size::Q => Size::D,
                 _ => size,
             };
             rm_form(out, sz, &[opcode], op.digit(), 0, rm, at, &[]);
@@ -1474,7 +1490,12 @@ mod tests {
             ]),
             vec![0x48, 0x83, 0xE0, 0xFF, 0x48, 0xC1, 0xE2, 0x20, 0x48, 0x0B, 0xC2, 0xC3]
         );
-        assert_eq!(encode(&[Insn::JmpReg(Reg::Rax)]), vec![0xFF, 0xE0]);
+        assert_eq!(encode(&[Insn::JmpReg(Reg::Rax, false)]), vec![0xFF, 0xE0]);
+        // MSVC emet un REX.W superflu sur `jmp rax` : la forge exige l'octet.
+        assert_eq!(encode(&[Insn::JmpReg(Reg::Rax, true)]), vec![0x48, 0xFF, 0xE0]);
+        // Registre haut : REX.B seul, puis REX.W|B.
+        assert_eq!(encode(&[Insn::JmpReg(Reg::R8, false)]), vec![0x41, 0xFF, 0xE0]);
+        assert_eq!(encode(&[Insn::JmpReg(Reg::R8, true)]), vec![0x49, 0xFF, 0xE0]);
         assert_eq!(
             encode(&[Insn::Nop(10)]),
             vec![0x66, 0x66, 0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00]

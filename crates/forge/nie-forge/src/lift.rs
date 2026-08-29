@@ -303,7 +303,39 @@ fn bit_insn(i: &iced_x86::Instruction, op: BitOp) -> Option<Insn> {
 
 /// Traduit une instruction décodée dans le dialecte `nie-asm`.
 #[allow(clippy::too_many_lines)]
-fn insn_of(i: &iced_x86::Instruction) -> Option<Insn> {
+/// Operation unaire, enveloppee dans `lock` si l'instruction porte le prefixe.
+///
+/// MSVC emet `lock inc`/`lock dec` sur les compteurs de references ; le `F0`
+/// fait partie des octets a reproduire.
+fn un_maybe_locked(i: &iced_x86::Instruction, op: UnOp) -> Option<Insn> {
+    let (size, rm) = (rm_size(i, 0)?, rm_of(i, 0)?);
+    Some(if i.has_lock_prefix() {
+        Insn::LockUn(op, size, rm)
+    } else {
+        Insn::Un(op, size, rm)
+    })
+}
+
+/// Vrai si les octets bruts d'une instruction portent un préfixe **REX.W**.
+///
+/// Les préfixes hérités précèdent le REX, qui précède immédiatement l'opcode.
+/// MSVC émet parfois un REX.W que l'encodage minimal n'exige pas (`jmp`/`call`
+/// indirects, déjà 64 bits en mode long) : la forge doit reproduire l'octet, il
+/// faut donc le lire plutôt que le déduire de la longueur — celle-ci ne tranche
+/// pas dès que le registre de base est `r8`-`r15`.
+fn has_rex_w(raw: &[u8]) -> bool {
+    let mut k = 0usize;
+    while let Some(&b) = raw.get(k) {
+        if matches!(b, 0xF0 | 0xF2 | 0xF3 | 0x2E | 0x36 | 0x3E | 0x26 | 0x64 | 0x65 | 0x66 | 0x67) {
+            k += 1;
+            continue;
+        }
+        return (0x40..=0x4F).contains(&b) && (b & 0x08) != 0;
+    }
+    false
+}
+
+fn insn_of(i: &iced_x86::Instruction, raw: &[u8]) -> Option<Insn> {
     if let Some(c) = cmov_cond(i.mnemonic()) {
         let (r, sz) = reg_of(i.op_register(0))?;
         return Some(Insn::Cmov(c, sz, r, rm_of(i, 1)?));
@@ -416,8 +448,17 @@ fn insn_of(i: &iced_x86::Instruction) -> Option<Insn> {
         }
         Mnemonic::Jmp => match i.op_kind(0) {
             OpKind::NearBranch64 => Some(Insn::Jmp(i.near_branch_target(), i.len() <= 2)),
-            OpKind::Register => Some(Insn::JmpReg(reg_of(i.op_register(0))?.0)),
-            OpKind::Memory => Some(Insn::Un(UnOp::JmpInd, Size::D, Rm::M(mem_of(i)?))),
+            // MSVC emet un REX.W superflu sur les branchements indirects, deja
+            // 64 bits en mode long. On le lit dans les octets : la longueur ne
+            // suffit pas des que le registre de base est r8-r15.
+            OpKind::Register => {
+                Some(Insn::JmpReg(reg_of(i.op_register(0))?.0, has_rex_w(raw)))
+            }
+            OpKind::Memory => Some(Insn::Un(
+                UnOp::JmpInd,
+                if has_rex_w(raw) { Size::Q } else { Size::D },
+                Rm::M(mem_of(i)?),
+            )),
             _ => None,
         },
         Mnemonic::Test if i.op_kind(0) == OpKind::Register && i.op_kind(1) == OpKind::Register => {
@@ -486,7 +527,7 @@ fn insn_of(i: &iced_x86::Instruction) -> Option<Insn> {
                 Some(Insn::MovdToRm(rm_of(i, 0)?, xmm_of(i.op_register(1))?, Size::Q))
             }
         }
-        Mnemonic::Inc => Some(Insn::Un(UnOp::Inc, rm_size(i, 0)?, rm_of(i, 0)?)),
+        Mnemonic::Inc => Some(un_maybe_locked(i, UnOp::Inc)?),
         Mnemonic::Lea => {
             let (r, sz) = reg_of(i.op_register(0))?;
             match sz {
@@ -497,7 +538,7 @@ fn insn_of(i: &iced_x86::Instruction) -> Option<Insn> {
         }
         // Appels et sauts indirects : `call qword [rip …]` (imports), `jmp [rax]` (vtables).
         Mnemonic::Call => Some(Insn::Un(UnOp::CallInd, Size::D, rm_of(i, 0)?)),
-        Mnemonic::Dec => Some(Insn::Un(UnOp::Dec, rm_size(i, 0)?, rm_of(i, 0)?)),
+        Mnemonic::Dec => Some(un_maybe_locked(i, UnOp::Dec)?),
         Mnemonic::Not => Some(Insn::Un(UnOp::Not, rm_size(i, 0)?, rm_of(i, 0)?)),
         Mnemonic::Neg => Some(Insn::Un(UnOp::Neg, rm_size(i, 0)?, rm_of(i, 0)?)),
         Mnemonic::Test => match i.op_kind(1) {
@@ -605,7 +646,7 @@ pub fn lift_body(bytes: &[u8], va: u64) -> Option<Vec<Insn>> {
             return None;
         }
         consumed += i.len();
-        out.push(insn_of(&i)?);
+        out.push(insn_of(&i, bytes.get(consumed - i.len()..consumed)?)?);
     }
     if consumed != bytes.len() {
         return None;
@@ -678,7 +719,7 @@ pub fn blocking_detail(bytes: &[u8], va: u64) -> Option<Blockage> {
             });
         }
         consumed += i.len();
-        match insn_of(&i) {
+        match bytes.get(consumed - i.len()..consumed).and_then(|raw| insn_of(&i, raw)) {
             Some(x) => out.push(x),
             None => {
                 return Some(Blockage {

@@ -495,7 +495,9 @@ impl Insn {
             }
             Self::Setcc(c, r) => format!("set{} {}", cond_name(c), reg_name(r, Size::B)),
             Self::IncMem32(m) => format!("inc {} {}", size_name(Size::D), mem_text(m)),
-            Self::JmpReg(r) => format!("jmp {}", reg_name(r, Size::Q)),
+            Self::JmpReg(r, x) => {
+                format!("jmp{} {}", if x { ".r" } else { "" }, reg_name(r, Size::Q))
+            }
             Self::Call(t) => format!("call {t:#x}"),
             Self::Jmp(t, short) => format!("jmp{} {t:#x}", if short { ".s" } else { "" }),
             Self::Jcc(c, t, short) => format!(
@@ -514,6 +516,9 @@ impl Insn {
             Self::Test(s, rm, r) => format!("test {}, {}", rm_text(rm, s), reg_name(r, s)),
             Self::TestI(s, rm, i) => format!("test {}, {:#x}", rm_text(rm, s), i as u32),
             Self::Un(op, s, rm) => format!("{} {}", unop_name(op), rm_text(rm, s)),
+            Self::LockUn(op, s, rm) => {
+                format!("lock {} {}", unop_name(op), rm_text(rm, s))
+            }
             Self::Imul(s, r, rm) => format!("imul {}, {}", reg_name(r, s), rm_text(rm, s)),
             Self::ImulI(s, r, rm, i) => format!(
                 "imul {}, {}, {:#x}",
@@ -614,6 +619,14 @@ impl Insn {
 #[allow(clippy::too_many_lines)]
 pub fn parse_insn(line: &str) -> Result<Insn, ParseError> {
     let line = line.trim();
+    // `lock` est un préfixe de ligne, pas un mnémonique : on analyse
+    // l'instruction qu'il préfixe, puis on l'enveloppe.
+    if let Some(rest) = line.strip_prefix("lock ") {
+        return match parse_insn(rest.trim())? {
+            Insn::Un(op, sz, rm) => Ok(Insn::LockUn(op, sz, rm)),
+            _ => Err(ParseError(format!("`lock` non supporté ici : `{line}`"))),
+        };
+    }
     let (mnem_raw, args) = line.split_once(' ').unwrap_or((line, ""));
     let args = args.trim();
     let err = || ParseError(format!("instruction non supportée : `{line}`"));
@@ -764,7 +777,7 @@ pub fn parse_insn(line: &str) -> Result<Insn, ParseError> {
         "pop" => Ok(Insn::Pop(reg_of(args).ok_or_else(err)?.0, rexp)),
         "call" => Ok(Insn::Call(parse_u64(args).ok_or_else(err)?)),
         "jmp" => match reg_of(args) {
-            Some((r, Size::Q)) => Ok(Insn::JmpReg(r)),
+            Some((r, Size::Q)) => Ok(Insn::JmpReg(r, rexp)),
             _ => Ok(Insn::Jmp(parse_u64(args).ok_or_else(err)?, short)),
         },
         "test" => {
@@ -946,7 +959,7 @@ mod tests {
             vec![Insn::MovRegImm32(Reg::Rax, 0xefec_8a0d), Insn::Ret],
             vec![Insn::Load(Size::Q, Reg::Rax, Mem::base_disp(Reg::Rsp, 0x28))],
             vec![Insn::IncMem32(Mem::base(Reg::Rcx))],
-            vec![Insn::JmpReg(Reg::Rax)],
+            vec![Insn::JmpReg(Reg::Rax, false)],
             vec![Insn::Nop(10)],
             // Nouvelles formes : prologue, appel, saut, rip-relatif.
             vec![
@@ -1030,5 +1043,40 @@ mod tests {
         assert!(parse_insn("vfmadd231ps xmm0, xmm1, xmm2").is_err());
         assert!(parse_insn("mov rax, ecx").is_err(), "tailles incohérentes");
         assert!(parse_insn("wibble rax").is_err());
+    }
+}
+
+#[cfg(test)]
+mod tests_prefixes {
+    use super::*;
+    use alloc::vec;
+
+    /// `lock inc dword [rbx+60h]` : le `F0` fait partie des octets à reproduire.
+    #[test]
+    fn lock_est_un_prefixe_de_ligne() {
+        let i = Insn::LockUn(UnOp::Inc, Size::D, Rm::M(Mem::base_disp(Reg::Rbx, 0x60)));
+        assert_eq!(crate::encode(&[i]), vec![0xF0, 0xFF, 0x43, 0x60]);
+        // Sans le préfixe, les mêmes octets moins le `F0`.
+        let nu = Insn::Un(UnOp::Inc, Size::D, Rm::M(Mem::base_disp(Reg::Rbx, 0x60)));
+        assert_eq!(crate::encode(&[nu]), vec![0xFF, 0x43, 0x60]);
+        // Aller-retour : le texte rendu se relit à l'identique.
+        assert!(i.to_text().starts_with("lock inc "));
+        assert_eq!(parse_insn(&i.to_text()).unwrap(), i);
+    }
+
+    #[test]
+    fn lock_refuse_ce_qui_n_est_pas_unaire() {
+        assert!(parse_insn("lock ret").is_err());
+    }
+
+    /// MSVC émet un REX.W superflu sur `jmp rax` — le suffixe `.r` le demande.
+    #[test]
+    fn jmp_reg_avec_rex_explicite() {
+        let sans = parse_insn("jmp rax").expect("dialecte");
+        assert_eq!(crate::encode(&[sans]), vec![0xFF, 0xE0]);
+        let avec = parse_insn("jmp.r rax").expect("dialecte");
+        assert_eq!(crate::encode(&[avec]), vec![0x48, 0xFF, 0xE0]);
+        assert_eq!(avec.to_text(), "jmp.r rax");
+        assert_eq!(parse_insn(&avec.to_text()).unwrap(), avec);
     }
 }
