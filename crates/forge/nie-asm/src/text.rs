@@ -101,6 +101,14 @@ const SIZES: [(&str, Size); 4] = [
 ];
 
 fn reg_name(r: Reg, size: Size) -> &'static str {
+    if r.is_high_byte() {
+        return match r {
+            Reg::Ah => "ah",
+            Reg::Ch => "ch",
+            Reg::Dh => "dh",
+            _ => "bh",
+        };
+    }
     let i = r.num() as usize;
     match size {
         Size::B => R8N[i],
@@ -117,6 +125,17 @@ fn size_name(s: Size) -> &'static str {
 /// Résout un nom de registre en `(registre, taille)`.
 fn reg_of(name: &str) -> Option<(Reg, Size)> {
     let n = name.trim();
+    // Octets hauts : mêmes numéros que `spl`/`bpl`/`sil`/`dil`, distingués par
+    // l'absence de REX — ils ont donc leurs propres variantes.
+    if let Some(r) = match n {
+        "ah" => Some(Reg::Ah),
+        "ch" => Some(Reg::Ch),
+        "dh" => Some(Reg::Dh),
+        "bh" => Some(Reg::Bh),
+        _ => None,
+    } {
+        return Some((r, Size::B));
+    }
     for (tbl, sz) in [
         (&R64, Size::Q),
         (&R32, Size::D),
@@ -389,7 +408,7 @@ const SSES: [(&str, SseOp); 102] = [
 ];
 
 /// Table des opérations VEX.
-const VEXES: [(&str, VexOp); 13] = [
+const VEXES: [(&str, VexOp); 17] = [
     ("vmovaps", VexOp::Vmovaps),
     ("vmovaps_st", VexOp::VmovapsStore),
     ("vmovups", VexOp::Vmovups),
@@ -403,6 +422,10 @@ const VEXES: [(&str, VexOp); 13] = [
     ("vfmadd231ps", VexOp::Vfmadd231ps),
     ("vfmadd213ps", VexOp::Vfmadd213ps),
     ("vfmadd132ps", VexOp::Vfmadd132ps),
+    ("vmovdqu", VexOp::Vmovdqu),
+    ("vmovdqu_st", VexOp::VmovdquStore),
+    ("vmovdqa", VexOp::Vmovdqa),
+    ("vmovdqa_st", VexOp::VmovdqaStore),
 ];
 
 fn vex_name(o: VexOp) -> &'static str {
@@ -413,7 +436,14 @@ fn vex_name(o: VexOp) -> &'static str {
 fn is_two_operand(o: VexOp) -> bool {
     matches!(
         o,
-        VexOp::Vmovaps | VexOp::VmovapsStore | VexOp::Vmovups | VexOp::VmovupsStore
+        VexOp::Vmovaps
+            | VexOp::VmovapsStore
+            | VexOp::Vmovups
+            | VexOp::VmovupsStore
+            | VexOp::Vmovdqu
+            | VexOp::VmovdquStore
+            | VexOp::Vmovdqa
+            | VexOp::VmovdqaStore
     )
 }
 
@@ -684,6 +714,13 @@ impl Insn {
             Self::MovI(s, rm, i) => format!("mov {}, {:#x}", rm_text(rm, s), i as u32),
             Self::Test(s, rm, r) => format!("test {}, {}", rm_text(rm, s), reg_name(r, s)),
             Self::TestI(s, rm, i) => format!("test {}, {:#x}", rm_text(rm, s), i as u32),
+            Self::BitScan(bsr, s, r, rm) => {
+                let n = if bsr { "bsr" } else { "bsf" };
+                format!("{n} {}, {}", reg_name(r, s), rm_text(rm, s))
+            }
+            Self::LockXadd(s, m, r) => {
+                format!("lock xadd {} {}, {}", size_name(s), mem_text(m), reg_name(r, s))
+            }
             Self::Vex(op, dst, src1, src2, imm) => {
                 let n = vex_name(op);
                 let s2 = xmmrm_text(src2);
@@ -833,7 +870,18 @@ pub fn parse_insn(line: &str) -> Result<Insn, ParseError> {
     // `lock` est un préfixe de ligne, pas un mnémonique : on analyse
     // l'instruction qu'il préfixe, puis on l'enveloppe.
     if let Some(rest) = line.strip_prefix("lock ") {
-        return match parse_insn(rest.trim())? {
+        let rest = rest.trim();
+        if let Some(x) = rest.strip_prefix("xadd ") {
+            let (d, sx) = x.split_once(',').ok_or_else(|| {
+                ParseError(format!("`lock xadd` mal formé : `{line}`"))
+            })?;
+            let bad = || ParseError(format!("`lock xadd` mal formé : `{line}`"));
+            let (sz, m) = split_sized_mem(d).ok_or_else(bad)?;
+            let (r, rsz) = reg_of(sx).ok_or_else(bad)?;
+            (sz == rsz).then_some(()).ok_or_else(bad)?;
+            return Ok(Insn::LockXadd(sz, m, r));
+        }
+        return match parse_insn(rest)? {
             Insn::Un(op, sz, rm) => Ok(Insn::LockUn(op, sz, rm)),
             _ => Err(ParseError(format!("`lock` non supporté ici : `{line}`"))),
         };
@@ -1080,6 +1128,13 @@ pub fn parse_insn(line: &str) -> Result<Insn, ParseError> {
                     as_imm32(parse_int(v).ok_or_else(err)?).ok_or_else(err)?,
                 )),
             }
+        }
+        "bsf" | "bsr" => {
+            let (d, sx) = two()?;
+            let (r, sz) = reg_of(&d).ok_or_else(err)?;
+            let (rm, rsz) = parse_rm(&sx).ok_or_else(err)?;
+            (rsz.is_none() || rsz == Some(sz)).then_some(()).ok_or_else(err)?;
+            Ok(Insn::BitScan(mnem == "bsr", sz, r, rm))
         }
         "xchg" => {
             let (d, sx) = two()?;
@@ -1459,5 +1514,34 @@ mod tests_vex {
             None,
         );
         assert_eq!(crate::encode(&[i]), vec![0xC4, 0xE2, 0x79, 0xB8, 0xE3]);
+    }
+}
+
+#[cfg(test)]
+mod tests_octet_haut {
+    use super::*;
+    use alloc::vec;
+
+    /// `mov dh, 84h` = `B6 84`. Le meme numero avec un REX donnerait `sil`,
+    /// et sans les variantes dediees l'encodeur produisait `B2` (`dl`).
+    #[test]
+    fn les_octets_hauts_s_encodent_sans_rex() {
+        let i = Insn::MovRegImm8(Reg::Dh, 0x84);
+        assert_eq!(crate::encode(&[i]), vec![0xB6, 0x84]);
+        // Contre-epreuve : `sil` porte le meme numero, mais avec REX nul.
+        let j = Insn::MovRegImm8(Reg::Rsi, 0x84);
+        assert_eq!(crate::encode(&[j]), vec![0x40, 0xB6, 0x84]);
+    }
+
+    #[test]
+    fn les_octets_hauts_font_l_aller_retour() {
+        for (name, r) in [("ah", Reg::Ah), ("ch", Reg::Ch), ("dh", Reg::Dh), ("bh", Reg::Bh)] {
+            assert_eq!(reg_of(name), Some((r, Size::B)), "lecture de `{name}`");
+            assert_eq!(reg_name(r, Size::B), name, "rendu de `{name}`");
+            assert!(r.is_high_byte());
+        }
+        // `sil` et consorts restent des registres bas malgre le meme numero.
+        assert!(!Reg::Rsi.is_high_byte());
+        assert_eq!(Reg::Dh.num(), Reg::Rsi.num());
     }
 }

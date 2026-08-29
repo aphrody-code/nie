@@ -19,13 +19,16 @@ use nie_asm::{
 /// Traduit un registre iced-x86 en `(registre nie-asm, taille)`.
 fn reg_of(r: Register) -> Option<(Reg, Size)> {
     // `ah`/`ch`/`dh`/`bh` portent les numeros 4-7 **sans** REX, la ou le meme
-    // numero avec un REX designe `spl`/`bpl`/`sil`/`dil`. Le modele du dialecte
-    // identifie un registre 8 bits par son registre 64 bits, ce qui ne peut pas
-    // distinguer les deux : `dh` deviendrait `dl`. On refuse donc, plutot que
-    // d'encoder une autre instruction — le diagnostic dira `mov` et non
-    // `encodage:mov`, ce qui est la verite.
-    if matches!(r, Register::AH | Register::CH | Register::DH | Register::BH) {
-        return None;
+    // numero avec un REX designe `spl`/`bpl`/`sil`/`dil`. Ils ont donc leurs
+    // propres variantes de `Reg`, qui interdisent l'emission du REX.
+    if let Some(h) = match r {
+        Register::AH => Some(Reg::Ah),
+        Register::CH => Some(Reg::Ch),
+        Register::DH => Some(Reg::Dh),
+        Register::BH => Some(Reg::Bh),
+        _ => None,
+    } {
+        return Some((h, Size::B));
     }
     let size = match r.size() {
         1 => Size::B,
@@ -184,6 +187,10 @@ fn vex_of(i: &iced_x86::Instruction) -> Option<VexOp> {
         (Mnemonic::Vfmadd231ps, _) => VexOp::Vfmadd231ps,
         (Mnemonic::Vfmadd213ps, _) => VexOp::Vfmadd213ps,
         (Mnemonic::Vfmadd132ps, _) => VexOp::Vfmadd132ps,
+        (Mnemonic::Vmovdqu, false) => VexOp::Vmovdqu,
+        (Mnemonic::Vmovdqu, true) => VexOp::VmovdquStore,
+        (Mnemonic::Vmovdqa, false) => VexOp::Vmovdqa,
+        (Mnemonic::Vmovdqa, true) => VexOp::VmovdqaStore,
         _ => return None,
     })
 }
@@ -479,6 +486,15 @@ fn insn_of(i: &iced_x86::Instruction, raw: &[u8]) -> Option<Insn> {
             };
             Some(Insn::CvtToReg(op, r, src, sz))
         };
+    }
+    // `bsf`/`bsr` et `lock xadd`.
+    if matches!(i.mnemonic(), Mnemonic::Bsf | Mnemonic::Bsr) {
+        let (r, sz) = reg_of(i.op_register(0))?;
+        return Some(Insn::BitScan(i.mnemonic() == Mnemonic::Bsr, sz, r, rm_of(i, 1)?));
+    }
+    if i.mnemonic() == Mnemonic::Xadd && i.has_lock_prefix() && i.op_kind(0) == OpKind::Memory {
+        let (r, sz) = reg_of(i.op_register(1))?;
+        return Some(Insn::LockXadd(sz, mem_of(i)?, r));
     }
     // AVX encode en VEX. Trois familles : deplacement (deux operandes, la
     // memoire pouvant etre destination), permutation a immediat, et multiplie-

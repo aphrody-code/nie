@@ -65,13 +65,37 @@ pub enum Reg {
     R13,
     R14,
     R15,
+    /// `ah` — octet **haut** de `rax`, numéro 4 et **sans** préfixe REX.
+    Ah,
+    /// `ch` — octet haut de `rcx`, numéro 5.
+    Ch,
+    /// `dh` — octet haut de `rdx`, numéro 6.
+    Dh,
+    /// `bh` — octet haut de `rbx`, numéro 7.
+    Bh,
 }
 
 impl Reg {
     /// Numéro d'encodage 0..15.
+    ///
+    /// Les octets hauts (`ah`/`ch`/`dh`/`bh`) portent les numéros 4 à 7 — les
+    /// mêmes que `spl`/`bpl`/`sil`/`dil`, dont seule l'absence de préfixe REX
+    /// les distingue.
     #[must_use]
     pub fn num(self) -> u8 {
-        self as u8
+        match self {
+            Self::Ah => 4,
+            Self::Ch => 5,
+            Self::Dh => 6,
+            Self::Bh => 7,
+            _ => self as u8,
+        }
+    }
+
+    /// Vrai pour `ah`/`ch`/`dh`/`bh`, qui **interdisent** le préfixe REX.
+    #[must_use]
+    pub fn is_high_byte(self) -> bool {
+        matches!(self, Self::Ah | Self::Ch | Self::Dh | Self::Bh)
     }
 
     /// Bit haut (bit 3), porté par REX.
@@ -537,6 +561,14 @@ pub enum VexOp {
     Vfmadd213ps,
     /// `vfmadd132ps` (`VEX.128.66.0F38.W0 98 /r`)
     Vfmadd132ps,
+    /// `vmovdqu xmm, xmm/m` (`VEX.128.F3.0F.WIG 6F /r`)
+    Vmovdqu,
+    /// `vmovdqu xmm/m, xmm` (`VEX.128.F3.0F.WIG 7F /r`)
+    VmovdquStore,
+    /// `vmovdqa xmm, xmm/m` (`VEX.128.66.0F.WIG 6F /r`)
+    Vmovdqa,
+    /// `vmovdqa xmm/m, xmm` (`VEX.128.66.0F.WIG 7F /r`)
+    VmovdqaStore,
 }
 
 impl VexOp {
@@ -556,6 +588,10 @@ impl VexOp {
             Self::Vfmadd231ps => (VexMap::M0F38, 1, 0xB8, false, false),
             Self::Vfmadd213ps => (VexMap::M0F38, 1, 0xA8, false, false),
             Self::Vfmadd132ps => (VexMap::M0F38, 1, 0x98, false, false),
+            Self::Vmovdqu => (VexMap::M0F, 2, 0x6F, false, false),
+            Self::VmovdquStore => (VexMap::M0F, 2, 0x7F, false, true),
+            Self::Vmovdqa => (VexMap::M0F, 1, 0x6F, false, false),
+            Self::VmovdqaStore => (VexMap::M0F, 1, 0x7F, false, true),
         }
     }
 
@@ -568,7 +604,10 @@ impl VexOp {
     /// Vrai si l'opérande mémoire est la **destination** (forme « store »).
     #[must_use]
     pub const fn is_store(self) -> bool {
-        matches!(self, Self::VmovapsStore | Self::VmovupsStore)
+        matches!(
+            self,
+            Self::VmovapsStore | Self::VmovupsStore | Self::VmovdquStore | Self::VmovdqaStore
+        )
     }
 }
 
@@ -865,6 +904,10 @@ pub enum Insn {
     /// un `dword` en mémoire). L'opération encodée est identique à [`Insn::Un`] :
     /// seul le préfixe change, mais il fait partie des octets à reproduire.
     LockUn(UnOp, Size, Rm),
+    /// `bsf`/`bsr` : indice du premier/dernier bit à 1 (`0F BC`/`0F BD`).
+    BitScan(bool, Size, Reg, Rm),
+    /// `lock xadd [mem], reg` (`F0 0F C1 /r`) — échange-et-ajoute atomique.
+    LockXadd(Size, Mem, Reg),
     /// Instruction encodée **VEX** (AVX) à trois opérandes.
     ///
     /// `vpermilps xmm0, xmm4, 0` ; `vfmadd231ps xmm4, xmm0, xmm3` ;
@@ -1081,7 +1124,10 @@ fn rex_forced(out: &mut Vec<u8>, w: bool, r: u8, x: u8, b: u8, force: bool) {
 
 /// Vrai si le registre exige un REX en contexte 8 bits (`spl`/`bpl`/`sil`/`dil`).
 fn needs_rex8(size: Size, r: Reg) -> bool {
-    size == Size::B && (4..=7).contains(&r.num())
+    // `ah`/`ch`/`dh`/`bh` portent aussi les numéros 4-7, mais exigent
+    // exactement l'inverse : sans REX, ce sont eux ; avec, ce sont
+    // `spl`/`bpl`/`sil`/`dil`.
+    size == Size::B && !r.is_high_byte() && (4..=7).contains(&r.num())
 }
 
 /// Préfixe de taille d'opérande 16 bits.
@@ -1506,6 +1552,19 @@ fn encode_one(i: Insn, at: u64, out: &mut Vec<u8>) {
         }
         Insn::Cmov(c, size, r, rm) => {
             rm_form(out, size, &[0x0F, 0x40 + c.code()], r.lo(), r.hi(), rm, at, &[]);
+        }
+        Insn::BitScan(bsr, size, r, rm) => {
+            rm_form(out, size, &[0x0F, if bsr { 0xBD } else { 0xBC }], r.lo(), r.hi(), rm, at, &[]);
+        }
+        Insn::LockXadd(size, m, r) => {
+            out.push(0xF0);
+            let base = out.len() - 1;
+            let (x, b) = mem_rex(m);
+            opsize(out, size);
+            rex(out, size.rex_w(), r.hi(), x, b);
+            out.push(0x0F);
+            out.push(if size == Size::B { 0xC0 } else { 0xC1 });
+            modrm_mem(out, r.lo(), m, at, base, 0);
         }
         Insn::Vex(op, dst, src1, src2, imm) => {
             let base = out.len();
