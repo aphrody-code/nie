@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 use tauri_plugin_sql::{Migration, MigrationKind};
 
+mod live_mod;
 mod lua_session;
 mod lua_tools;
 mod export;
@@ -24,7 +25,7 @@ mod viola;
 
 use re_trace::{
     re_dump_open, re_dump_scan, re_trace_dump_module, re_trace_find_process, re_trace_module_regions,
-    re_trace_read_bytes_b64,
+    re_trace_read_bytes_b64, re_trace_write_bytes_b64,
 };
 
 /// Migrations SQLite du workspace de mods (`tauri-plugin-sql`, base `mods.db` dans
@@ -3876,6 +3877,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         re_trace_find_process,
         re_trace_module_regions,
         re_trace_read_bytes_b64,
+        re_trace_write_bytes_b64,
         re_trace_dump_module,
         re_dump_open,
         re_dump_scan,
@@ -3886,6 +3888,13 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         viola::viola_pack,
         viola::viola_merge,
         viola::viola_crypto,
+        live_mod::live_status,
+        live_mod::live_find_team,
+        live_mod::live_read_team,
+        live_mod::live_write_member,
+        live_mod::live_scan_u32,
+        live_mod::live_write_u32,
+        live_mod::launch_save_editor,
     ])
 }
 

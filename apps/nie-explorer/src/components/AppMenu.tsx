@@ -38,6 +38,7 @@ const VIEW_TABS = [
   "cpk",
   "re",
   "viola",
+  "livemod",
   "lua",
   "save",
   "settings",
