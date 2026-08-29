@@ -13,7 +13,7 @@
 //! - `[rip 0x140abc000]` est un opérande relatif au pointeur d'instruction, écrit
 //!   par sa cible absolue.
 
-use crate::{Alu, BitOp, Cond, CvtOp, Insn, Mem, NoOp, Reg, Rm, ShiftOp, Size, SseOp, UnOp, Xmm, XmmRm};
+use crate::{Alu, BitOp, Cond, CvtOp, Insn, Mem, NoOp, Reg, Rm, Seg, ShiftOp, Size, SseOp, UnOp, Xmm, XmmRm};
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
@@ -145,7 +145,14 @@ fn mem_text(m: Mem) -> String {
     if let Some(t) = m.rip {
         return format!("[rip {t:#x}]");
     }
-    let mut s = String::from("[");
+    let mut s = String::new();
+    if let Some(sg) = m.seg {
+        s.push_str(match sg {
+            Seg::Fs => "fs:",
+            Seg::Gs => "gs:",
+        });
+    }
+    s.push('[');
     if let Some(b) = m.base {
         s.push_str(reg_name(b, Size::Q));
     }
@@ -156,7 +163,13 @@ fn mem_text(m: Mem) -> String {
         s.push_str(reg_name(i, Size::Q));
         s.push_str(&format!("*{sc}"));
     }
-    s.push_str(&fmt_disp(m.disp));
+    if m.base.is_none() && m.index.is_none() {
+        // Adresse absolue (`gs:[58h]`) : pas de terme précédent, donc pas de
+        // signe de liaison — `[+0x58]` ne se relirait pas.
+        s.push_str(&format!("{:#x}", m.disp));
+    } else {
+        s.push_str(&fmt_disp(m.disp));
+    }
     s.push(']');
     s
 }
@@ -191,7 +204,21 @@ fn as_imm32(v: i64) -> Option<i32> {
 }
 
 fn parse_mem(s: &str) -> Option<Mem> {
-    let inner = s.trim().strip_prefix('[')?.strip_suffix(']')?;
+    // Préfixe de segment explicite : `gs:[58h]` (TLS Windows x64).
+    let t = s.trim();
+    let (seg, t) = if let Some(r) = t.strip_prefix("fs:") {
+        (Some(Seg::Fs), r)
+    } else if let Some(r) = t.strip_prefix("gs:") {
+        (Some(Seg::Gs), r)
+    } else {
+        (None, t)
+    };
+    if seg.is_some() {
+        let mut m = parse_mem(t)?;
+        m.seg = seg;
+        return Some(m);
+    }
+    let inner = t.strip_prefix('[')?.strip_suffix(']')?;
     if inner.trim().starts_with("abs") {
         return None; // traité par `mov` : forme accumulateur A0..A3
     }
@@ -230,6 +257,13 @@ fn parse_mem(s: &str) -> Option<Mem> {
         }
     }
     Some(m)
+}
+
+/// Vrai si l'opérande est mémoire — crochet, éventuellement précédé d'un
+/// préfixe de segment (`gs:[58h]`).
+fn starts_mem(s: &str) -> bool {
+    let t = s.trim_start();
+    t.starts_with('[') || t.starts_with("fs:[") || t.starts_with("gs:[")
 }
 
 /// Une taille explicite préfixant un opérande mémoire (`dword [rcx]`).
@@ -410,7 +444,7 @@ fn parse_rm(s: &str) -> Option<(Rm, Option<Size>)> {
     if let Some((sz, m)) = split_sized_mem(s) {
         return Some((Rm::M(m), Some(sz)));
     }
-    if s.trim_start().starts_with('[') {
+    if starts_mem(s) {
         return Some((Rm::M(parse_mem(s)?), None));
     }
     let (r, sz) = reg_of(s)?;
@@ -887,13 +921,13 @@ pub fn parse_insn(line: &str) -> Result<Insn, ParseError> {
                 let v = parse_int(&s).ok_or_else(err)?;
                 return Ok(Insn::MovI(sz, Rm::M(m), as_imm32(v).ok_or_else(err)?));
             }
-            if d.starts_with('[') {
+            if starts_mem(&d) {
                 let m = parse_mem(&d).ok_or_else(err)?;
                 let (r, sz) = reg_of(&s).ok_or_else(err)?;
                 return Ok(Insn::Store(sz, m, r));
             }
             let (r, sz) = reg_of(&d).ok_or_else(err)?;
-            if s.starts_with('[') {
+            if starts_mem(&s) {
                 return Ok(Insn::Load(sz, r, parse_mem(&s).ok_or_else(err)?));
             }
             if let Some((b, sz2)) = reg_of(&s) {
@@ -1028,6 +1062,7 @@ mod tests {
                 Size::Q,
                 Reg::Rax,
                 Mem {
+                    seg: None,
                     base: Some(Reg::Rdx),
                     index: Some((Reg::Rcx, 4)),
                     disp: -16,
@@ -1078,5 +1113,40 @@ mod tests_prefixes {
         assert_eq!(crate::encode(&[avec]), vec![0x48, 0xFF, 0xE0]);
         assert_eq!(avec.to_text(), "jmp.r rax");
         assert_eq!(parse_insn(&avec.to_text()).unwrap(), avec);
+    }
+}
+
+#[cfg(test)]
+mod tests_segment {
+    use super::*;
+    use alloc::vec;
+
+    /// `mov rax, gs:[58h]` — l'accès TLS de Windows x64, le corps le plus
+    /// fréquent du binaire (2 443 unités bloquées avant son support).
+    #[test]
+    fn gs_absolu_encode_le_prefixe_et_le_sib() {
+        let m = Mem { seg: Some(Seg::Gs), disp: 0x58, ..Mem::default() };
+        let i = Insn::Load(Size::Q, Reg::Rax, m);
+        assert_eq!(
+            crate::encode(&[i]),
+            vec![0x65, 0x48, 0x8B, 0x04, 0x25, 0x58, 0x00, 0x00, 0x00]
+        );
+    }
+
+    #[test]
+    fn le_segment_fait_l_aller_retour_textuel() {
+        let m = Mem { seg: Some(Seg::Gs), disp: 0x58, ..Mem::default() };
+        let i = Insn::Load(Size::Q, Reg::Rax, m);
+        let t = i.to_text();
+        assert!(t.contains("gs:["), "rendu : {t}");
+        assert_eq!(parse_insn(&t).unwrap(), i);
+    }
+
+    /// Sans segment, une adresse absolue reste hors dialecte : elle serait
+    /// non relogeable. Avec `gs:`, le déplacement est un offset de segment.
+    #[test]
+    fn fs_et_gs_ont_des_prefixes_distincts() {
+        assert_eq!(Seg::Fs.prefix(), 0x64);
+        assert_eq!(Seg::Gs.prefix(), 0x65);
     }
 }

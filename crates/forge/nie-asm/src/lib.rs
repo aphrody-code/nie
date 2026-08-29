@@ -201,6 +201,11 @@ impl ShiftOp {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Mem {
+    /// Préfixe de segment explicite (`fs:` / `gs:`).
+    ///
+    /// Windows x64 accède au TLS par `gs:[58h]` : le préfixe `65` fait partie
+    /// des octets, il ne se déduit d'aucun autre champ.
+    pub seg: Option<Seg>,
     /// Registre de base.
     pub base: Option<Reg>,
     /// Registre d'index et facteur d'échelle (1, 2, 4 ou 8).
@@ -212,6 +217,36 @@ pub struct Mem {
     /// Quand ce champ est renseigné, `base`/`index`/`disp` sont ignorés et
     /// l'encodeur calcule `cible - adresse_de_l_instruction_suivante`.
     pub rip: Option<u64>,
+}
+
+/// Segment adressé explicitement par un préfixe.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum Seg {
+    /// `fs:` — préfixe `64`.
+    Fs,
+    /// `gs:` — préfixe `65` (TLS Windows x64).
+    Gs,
+}
+
+impl Seg {
+    /// Octet de préfixe correspondant.
+    #[must_use]
+    pub const fn prefix(self) -> u8 {
+        match self {
+            Self::Fs => 0x64,
+            Self::Gs => 0x65,
+        }
+    }
+}
+
+/// Émet le préfixe de segment d'un opérande mémoire, s'il en porte un.
+///
+/// Doit précéder `66`, le REX et l'opcode.
+fn seg_prefix(out: &mut Vec<u8>, m: Mem) {
+    if let Some(sg) = m.seg {
+        out.push(sg.prefix());
+    }
 }
 
 impl Mem {
@@ -788,7 +823,11 @@ fn modrm_mem(out: &mut Vec<u8>, reg: u8, m: Mem, at: u64, base: usize, imm_len: 
         return;
     }
     let base = m.base;
-    let need_sib = m.index.is_some() || base.is_some_and(|b| b.lo() == 4);
+    // Sans base ni index (adresse absolue, `gs:[58h]`), `rm` vaut 100 — ce qui
+    // *exige* un octet SIB (base=101, index=100) suivi du disp32. Omettre ce
+    // SIB décalait tout l'opérande d'un octet.
+    let need_sib =
+        m.index.is_some() || base.is_none() || base.is_some_and(|b| b.lo() == 4);
     // rbp/r13 en mod=00 signifierait « rip-relatif » : forcer un disp8 nul.
     let force_disp8 = base.is_some_and(|b| b.lo() == 5) && m.disp == 0;
     let mode = if base.is_none() || (m.disp == 0 && !force_disp8) {
@@ -833,6 +872,7 @@ fn mem_rex(m: Mem) -> (u8, u8) {
 /// Instruction registre↔mémoire.
 fn mem_form(out: &mut Vec<u8>, size: Size, opcode: u8, reg: Reg, m: Mem, at: u64, imm: usize) {
     let base = out.len();
+    seg_prefix(out, m);
     opsize(out, size);
     let (x, b) = mem_rex(m);
     rex_forced(out, size.rex_w(), reg.hi(), x, b, needs_rex8(size, reg));
@@ -866,6 +906,9 @@ fn rm_form(
     imm: &[u8],
 ) {
     let base = out.len();
+    if let Rm::M(m) = rm {
+        seg_prefix(out, m);
+    }
     opsize(out, size);
     match rm {
         Rm::R(r) => {
