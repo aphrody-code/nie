@@ -160,19 +160,24 @@ csharp/             IECODE.Core / IECODE.CLI / IECODE.Core.Tests (.NET 10, `IECO
 - `Start-Process -Verb RunAs` **interdit** `-RedirectStandardOutput` (jeux de paramètres exclusifs) :
   passer par un `.cmd` qui redirige lui-même, sinon « Parameter set cannot be resolved ».
 
-## Forge (produire le binaire) — dernière mesure connue 2026-08-10 : 51,86 % du fichier, 66,09 % du `.text`
+## Forge (produire le binaire) — mesure du 2026-08-30 : **69,37 % du fichier, 90,36 % du `.text`**
 
-> **Cible inchangée, mesure non rejouable ici.** `nie.exe`/`nie_eacpatched.exe` installés
-> aujourd'hui (2026-08-15) sont sha256 `b1fa04ea3658…`, 33 918 464 o — **identiques** au binaire
-> que la forge cible depuis au moins le 2026-08-10 (même taille, même sha, `.pdata` 1 226 652 o à
-> l'octet près). Rien ne prouve donc que 51,86 %/66,09 % aient bougé. Ce qui est vrai en revanche :
-> **`var/forge/` est absent sur ce VPS** (`nie-forge report` échoue : « recouvrement absent :
-> var/forge/cover.json ») — la mesure n'est pas rejouable ici sans relancer `just forge` en entier
-> (long) ou restaurer l'archive froide si elle y est partie. Ne pas confondre « non revérifiable
-> ici » avec « périmée » : entre le 2026-08-14 soir et le 2026-08-15, l'installation Steam locale
-> a transitoirement porté un AUTRE build (31 468 032 o, sha `4c2b91fbae6f…`, `app_config
-> 5.00.24.00`) — c'est CE build-là qui aurait invalidé toute mesure faite dessus, et la MAJ du
-> 2026-08-15 a restauré la cible d'origine. Cf. `docs/RE.md` pour le détail et la source.
+> **Mesure rejouée sur cette machine Windows, pas citée de mémoire.** `var/forge/` était absent ;
+> `nie-forge split` + `lift` + `report` l'ont reconstruit et ont d'abord **reproduit à l'identique**
+> l'ancienne mesure (51,860709 % / 66,090975 %), ce qui prouve que la forge tourne ici et que la
+> cible est la bonne (`b1fa04ea3658…`, 33 918 464 o). Elle a ensuite été portée à **69,365 % /
+> 90,363 %**, et `nie-forge build` rend `dist/nie.exe` **byte-identique** (`identical=true`,
+> 112 044 unités et 23 527 558 octets produits, 0 rejeté).
+>
+> **Le levier décisif n'était pas l'encodeur mais le découpage.** `split` ne connaissait que les
+> 55 351 racines `.pdata` et laissait 1 828 793 o de `.text` en résidu haché, non relevable. En lui
+> passant les **61 076 fonctions feuilles mesurées par `nie_re::recover`**, le résidu tombe à
+> 51 151 o et les unités de fonction passent à 116 091. Le RE ne sert pas qu'à nommer : il sert à
+> découper, et sans découpe correcte il n'y a rien à produire.
+>
+> Ne pas confondre « non revérifiable ici » avec « périmée » : entre le 2026-08-14 soir et le
+> 2026-08-15, l'installation Steam a transitoirement porté un AUTRE build (31 468 032 o, sha
+> `4c2b91fbae6f…`) — c'est CE build-là qui invaliderait une mesure. Cf. `docs/RE.md`.
 
 - Boucle : `just forge` = `split` → `lift` → `cc` → `build` → `verify` → `report`.
 - **Deux voies de production**, toutes deux vérifiées au byte près :
