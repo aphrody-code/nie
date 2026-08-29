@@ -233,8 +233,13 @@ volume. Ne pas rouvrir cette piste sans un élément nouveau (un script Lua *sou
 build). À noter : les noms d'écran de menu, eux, **sont** du CRC-32 standard (vérifié 200/200 sur
 `hash_name`) — c'est une fonction de hachage différente pour les cmdId.
 
-**Plafond honnête** : 68 090 fonctions restent sans nom et 15 468 sans sous-système. Le résidu est
-largement isolé — ni chaîne, ni RTTI, ni arête vers une fonction étiquetée. Le nommage sémantique
+**Plafond honnête** : 68 090 fonctions restent sans nom et 15 468 sans sous-système. Ce dernier
+résidu est un plafond *structurel*, pas un oubli : vérifié le 2026-08-29, **les 15 468 sont
+encadrées par deux sous-systèmes différents** — aucune n'est en bordure de section, aucune n'a un
+encadrement concordant inexploité. Elles sont exactement à la frontière entre deux unités de
+compilation, et les classer reviendrait à choisir arbitrairement l'un des deux voisins. La règle
+de contiguïté a épuisé ce qu'elle peut affirmer. Le résidu de nommage, lui, est isolé autrement :
+ni chaîne, ni RTTI, ni arête vers une fonction étiquetée. Le nommage sémantique
 généralisé reste hors d'atteinte sans PDB : sauf pour les 1 164 `strref`, ce qui est produit ici
 identifie sans ambiguïté, il n'interprète pas.
 
