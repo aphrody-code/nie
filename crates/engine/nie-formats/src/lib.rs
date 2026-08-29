@@ -41,6 +41,7 @@
 pub mod assemble;
 pub mod cfgbin;
 pub mod rdbn_patch;
+pub mod t2b_patch;
 #[cfg(feature = "std")]
 pub mod font;
 #[cfg(feature = "std")]
