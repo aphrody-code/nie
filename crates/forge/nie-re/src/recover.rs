@@ -91,6 +91,8 @@ pub struct RecoverStats {
     pub shape_stub: usize,
     /// Noms structurels écrits par la reconnaissance de forme.
     pub shape_named: usize,
+    /// Fonctions déjà connues mais sans taille, mesurées par cette passe.
+    pub sized_late: usize,
     /// Feuilles ayant hérité du sous-système de la cible de leur thunk.
     pub shape_inherited: usize,
 }
@@ -268,6 +270,13 @@ fn decode_body(text: &Span, bytes: &[u8], start: u64, limit: u64) -> Option<Body
     // Un `jmp` en avant à l'intérieur du corps ne le termine pas : on ne
     // s'arrête que si le flot ne peut plus retomber au-delà.
     let mut furthest_branch = start;
+    // Dernier terminateur franchi (`ret` / `jmp` inconditionnel) qui n'a pas pu
+    // clore le corps parce qu'une branche visait plus loin. Si la borne est
+    // atteinte sans jamais conclure — cas d'une fonction dont une branche saute
+    // vers un bloc froid au-delà de `limit` — c'est ce point qui borne le corps
+    // plutôt que de tout rejeter : rejeter perdait des fonctions entières
+    // (94 736 octets d'un seul tenant en tête de `.text`).
+    let mut last_term: Option<u64> = None;
     let mut n_insn = 0u32;
     while dec.can_decode() {
         dec.decode_out(&mut insn);
@@ -300,14 +309,18 @@ fn decode_body(text: &Span, bytes: &[u8], start: u64, limit: u64) -> Option<Body
                         targets.push(t);
                     }
                 }
-                if insn.flow_control() == FlowControl::UnconditionalBranch && end > furthest_branch {
-                    return Some(Body { len: end - start, targets, thunk_iat: None });
+                if insn.flow_control() == FlowControl::UnconditionalBranch {
+                    if end > furthest_branch {
+                        return Some(Body { len: end - start, targets, thunk_iat: None });
+                    }
+                    last_term = Some(end);
                 }
             }
             FlowControl::Return => {
                 if end > furthest_branch {
                     return Some(Body { len: end - start, targets, thunk_iat: None });
                 }
+                last_term = Some(end);
             }
             FlowControl::Interrupt => {
                 // `int3` de remplissage : le corps s'arrête à l'instruction
@@ -323,7 +336,10 @@ fn decode_body(text: &Span, bytes: &[u8], start: u64, limit: u64) -> Option<Body
             return None;
         }
     }
-    None
+    // Borne atteinte sans conclusion : on retient jusqu'au dernier terminateur
+    // franchi, s'il y en a eu un. Sans ce repli, une fonction dont une branche
+    // vise au-delà de la borne était entièrement perdue.
+    last_term.map(|e| Body { len: e - start, targets, thunk_iat: None })
 }
 
 /// Récupère les fonctions feuilles de `.text` hors `.pdata` et les ingère dans
@@ -395,6 +411,13 @@ pub fn recover_leaves(
         q.query_map([bin], |r| r.get::<_, i64>(0).map(|v| v as u64))?
             .collect::<std::result::Result<Vec<_>, _>>()?
     };
+    let sizeless: Vec<u64> = {
+        let mut q = db
+            .conn()
+            .prepare("SELECT vaddr FROM function WHERE binary_id=?1 AND size=0")?;
+        q.query_map([bin], |r| r.get::<_, i64>(0).map(|v| v as u64))?
+            .collect::<std::result::Result<Vec<_>, _>>()?
+    };
     let mut seen: HashSet<u64> = known.iter().copied().collect();
     let mut queue: Vec<u64> = known;
 
@@ -433,6 +456,11 @@ pub fn recover_leaves(
     };
     let mut bounds = starts_sorted;
     let mut edges: Vec<(u64, u64)> = Vec::new();
+    // Feuilles déjà en base : celles qui tombent dans un trou `.pdata`. Elles
+    // sont re-mesurées à chaque passe pour rester cohérentes avec les débuts
+    // découverts depuis.
+    let known_leaves: Vec<u64> =
+        known_sizes.iter().map(|&(a, _)| a).filter(|&a| in_ranges(&gaps, a)).collect();
     let mut new_leaves: HashSet<u64> = leaves.clone();
     // Feuilles découvertes par balayage linéaire des résidus, sans qu'aucune
     // référence ne les désigne : confiance moindre, provenance distincte.
@@ -496,13 +524,32 @@ pub fn recover_leaves(
 
         // (b) mesure : chaque feuille candidate doit décoder jusqu'à un
         // terminateur, bornée par la feuille suivante ou la fin de son trou.
+        // La mesure porte sur **toutes** les feuilles (celles de cette passe et
+        // celles déjà ingérées), sinon une feuille ancienne garde une taille
+        // mesurée avec des bornes plus larges et recouvre une feuille neuve
+        // apparue entre-temps.
         let mut cand: Vec<u64> = new_leaves.iter().copied().collect();
+        cand.extend(known_leaves.iter().copied());
         cand.sort_unstable();
+        cand.dedup();
         sizes.clear();
         thunks.clear();
         stats.rejected = 0;
         for (i, &a) in cand.iter().enumerate() {
-            let next = cand.get(i + 1).copied().unwrap_or(u64::MAX).min(gap_end_of(a));
+            // La borne est le prochain début **connu**, toutes provenances
+            // confondues (`bounds`), pas seulement le prochain candidat de
+            // cette passe : sinon une feuille nouvelle se mesure par-dessus une
+            // fonction ingérée par une passe antérieure.
+            let next_known = match bounds.binary_search(&a) {
+                Ok(k) => bounds.get(k + 1).copied().unwrap_or(u64::MAX),
+                Err(k) => bounds.get(k).copied().unwrap_or(u64::MAX),
+            };
+            let next = cand
+                .get(i + 1)
+                .copied()
+                .unwrap_or(u64::MAX)
+                .min(next_known)
+                .min(gap_end_of(a));
             match decode_body(&text, &bytes, a, next) {
                 Some(b) => {
                     sizes.insert(a, b.len);
@@ -551,18 +598,34 @@ pub fn recover_leaves(
                 // zone n'est pas du code (table de saut, données inline) et on
                 // abandonne le fragment — un début inventé polluerait le graphe.
                 let mut a = fb + count_filler(&text, &bytes, fb, fe);
-                while a < fe && !seen.contains(&a) {
-                    let Some(body) = decode_body(&text, &bytes, a, fe) else { break };
-                    seen.insert(a);
-                    new_leaves.insert(a);
-                    scanned.insert(a);
-                    queue.push(a);
-                    if let Err(i) = bounds.binary_search(&a) {
-                        bounds.insert(i, a);
+                while a < fe {
+                    if seen.contains(&a) {
+                        // Début déjà connu mais sans taille mesurée : il ne doit
+                        // pas condamner la suite du fragment.
+                        a = (a + 16) & !15;
+                        continue;
                     }
-                    found += 1;
-                    let next = a + body.len.max(1);
-                    a = next + count_filler(&text, &bytes, next, fe);
+                    match decode_body(&text, &bytes, a, fe) {
+                        Some(body) => {
+                            seen.insert(a);
+                            new_leaves.insert(a);
+                            scanned.insert(a);
+                            queue.push(a);
+                            if let Err(i) = bounds.binary_search(&a) {
+                                bounds.insert(i, a);
+                            }
+                            found += 1;
+                            let next = a + body.len.max(1);
+                            a = next + count_filler(&text, &bytes, next, fe);
+                        }
+                        // Rien de décodable ici (données inline, table de saut,
+                        // milieu d'instruction) : on se recale sur la frontière
+                        // de 16 octets suivante — MSVC aligne les fonctions à
+                        // 16 — au lieu d'abandonner le fragment entier. Un
+                        // échec en tête condamnait jusqu'ici tout ce qui suit,
+                        // dont un bloc de 94 736 octets en tête de `.text`.
+                        None => a = (a + 16) & !15,
+                    }
                 }
             }
         }
@@ -580,6 +643,30 @@ pub fn recover_leaves(
     let mut all_sizes: HashMap<u64, u64> = sizes.clone();
     for &(a, l) in &known_sizes {
         all_sizes.entry(a).or_insert(l);
+    }
+    // Fonctions déjà connues mais sans taille (ingérées par `vtable`/`vtable-anon`,
+    // qui ne connaissent que l'adresse d'entrée) : les mesurer, sinon leur code
+    // reste compté comme résidu et leur forme n'est jamais reconnue.
+    {
+        let mut starts: Vec<u64> = all_sizes.keys().copied().collect();
+        for &a in &sizeless {
+            starts.push(a);
+        }
+        starts.sort_unstable();
+        starts.dedup();
+        for &a in &sizeless {
+            if all_sizes.contains_key(&a) {
+                continue;
+            }
+            let next = match starts.binary_search(&a) {
+                Ok(i) => starts.get(i + 1).copied().unwrap_or(text.end),
+                Err(i) => starts.get(i).copied().unwrap_or(text.end),
+            };
+            if let Some(b) = decode_body(&text, &bytes, a, next.max(a + 1)) {
+                all_sizes.insert(a, b.len);
+                stats.sized_late += 1;
+            }
+        }
     }
 
     // Résidu honnête : on n'attribue à la récupération que l'intersection
