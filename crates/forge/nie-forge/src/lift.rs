@@ -1048,10 +1048,12 @@ mod tests {
         assert_eq!(blocking_reason(&[0xF3, 0x0F, 0x10, 0x01, 0xC3], 0x140_0000), None);
         // `cvttss2si eax, xmm0 ; ret` : desormais dans le dialecte.
         assert_eq!(blocking_reason(&[0xF3, 0x0F, 0x2C, 0xC0, 0xC3], 0x140_0000), None);
-        // SSE2 entier : toujours hors dialecte (`paddw xmm0, xmm1`).
+        // SSE2 entier (`paddw xmm0, xmm1`) : desormais dans le dialecte.
+        assert_eq!(blocking_reason(&[0x66, 0x0F, 0xFD, 0xC1, 0xC3], 0x140_0000), None);
+        // `aesenc xmm0, xmm1` : toujours hors dialecte.
         assert_eq!(
-            blocking_reason(&[0x66, 0x0F, 0xFD, 0xC1, 0xC3], 0x140_0000).as_deref(),
-            Some("paddw")
+            blocking_reason(&[0x66, 0x0F, 0x38, 0xDC, 0xC1, 0xC3], 0x140_0000).as_deref(),
+            Some("aesenc")
         );
         // Corps relevable : aucune cause.
         assert_eq!(blocking_reason(&[0xB0, 0x01, 0xC3], 0x140_0000), None);

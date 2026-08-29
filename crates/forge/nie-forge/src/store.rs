@@ -34,9 +34,30 @@ impl ForgeStore {
     /// # Erreurs
     /// Retourne une erreur de lecture, de parsing PE ou d'écriture disque.
     pub fn split_from(exe: &Path, root: &Path) -> anyhow::Result<Self> {
+        Self::split_from_with(exe, root, &[])
+    }
+
+    /// Découpe un binaire en tenant compte de fonctions supplémentaires
+    /// `(adresse virtuelle, taille)` — les feuilles de l'échafaudage RE, que
+    /// `.pdata` ne décrit pas.
+    ///
+    /// # Erreurs
+    /// Mêmes conditions que [`ForgeStore::split_from`].
+    pub fn split_from_with(
+        exe: &Path,
+        root: &Path,
+        extra: &[(u64, u32)],
+    ) -> anyhow::Result<Self> {
         let bytes = std::fs::read(exe).with_context(|| format!("lecture de {}", exe.display()))?;
         let img = PeImage::parse(bytes).with_context(|| format!("parsing de {}", exe.display()))?;
-        let cover = Cover::split(&img).context("découpage en unités")?;
+        let base = img.opt.image_base;
+        let extra_rva: Vec<(u32, u32)> = extra
+            .iter()
+            .filter_map(|&(va, len)| {
+                u32::try_from(va.checked_sub(base)?).ok().map(|rva| (rva, len))
+            })
+            .collect();
+        let cover = Cover::split_with(&img, &extra_rva).context("découpage en unités")?;
         std::fs::create_dir_all(root)?;
         let path = Self::cover_path(root);
         std::fs::write(&path, serde_json::to_vec(&cover)?)
