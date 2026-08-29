@@ -30,9 +30,9 @@ document décrit la cible, la boucle qui l'attaque, et ce qui en est établi.
 | Éditeur / produit | LEVEL5 Inc. — *INAZUMA ELEVEN: Victory Road* (nom interne `nie1v2.exe`) |
 | Linker | MSVC 14.44 — le toolset à réutiliser pour la forge |
 | PDB de build | `G:\nie1v2\program\main\program\SteamRelease\x64\nie.pdb` (symboles absents du dump) |
-| RTTI | 1 575 classes ingérées en base (`rtti_class`, les deux `binary_id`, revérifié 2026-08-15). Les comptes de 1 234 (ancien) et 3 336/3 150 (build transitoire du 2026-08-14) valaient pour d'autres builds — ne pas les citer |
+| RTTI | **1 745 classes** ingérées en base (`rtti_class`, mesuré 2026-08-29 sur `b1fa04ea3658…`). Les comptes de 1 234, 1 575 (ancien) et 3 336/3 150 (build transitoire du 2026-08-14) valaient pour d'autres builds — ne pas les citer |
 | Exports | 2 seulement : `AmdPowerXpressRequestHighPerformance`, `NvOptimusEnablement` |
-| Imports | 465 fonctions |
+| Imports | **485 fonctions** sur 20 DLL (mesuré 2026-08-29, `pefile`). Les plus grosses : KERNEL32 (184), EOSSDK-Win64-Shipping (152), USER32 (57), WS2_32 (28). Le reste du moteur est **statiquement lié** : PhysX 3.4, CriWare, CryptoPP n'apparaissent pas dans l'IAT |
 | Version de l'app | `6.00.23.00` (`common/system/app_config_*.cfg.bin`) |
 
 ### Sections PE
@@ -152,25 +152,70 @@ Le pipeline `rebuild` travaille donc sur des adresses correctes :
    (`1/ln(deg+2)`) pour qu'un utilitaire appelé par des milliers de fonctions ne domine pas le
    label de ses voisins.
 
+### `.pdata` ne voit que 88,37 % de `.text` (mesuré 2026-08-29)
+
+Sur le binaire cible `b1fa04ea3658…`, mesuré directement dans le fichier :
+
+- `.text` = **25 601 760 octets** ; `.pdata` = **102 221 entrées** `RUNTIME_FUNCTION`, qui se
+  replient en **53 668 plages fusionnées** couvrant **22 625 021 octets — 88,37 %**.
+- Les **2 976 739 octets restants**, en **53 669 trous**, sont des fonctions *feuilles* : pas de
+  prologue, pas d'unwind, donc aucune entrée `.pdata`. Codecs SIMD (un bloc de 94 736 octets d'un
+  seul tenant en tête de `.text`), thunks d'ajustement d'héritage multiple, accesseurs générés par
+  instanciation de patron. **Elles n'existaient dans aucune table** — ni comme nœuds, ni comme
+  cibles d'appel.
+
+`nie_re::recover` (commande `niers recover`) les récupère par point fixe — références directes
+(`call`/`jmp rel32`, pointeurs de données) puis balayage linéaire des résidus recalé sur la
+frontière de 16 octets — chaque début n'étant retenu que si son décodage atteint un terminateur
+réel. La provenance est distinguée : `leaf-ref` (désignée par une référence) vs `leaf-scan`
+(balayage seul). **98,27 % des trous sont expliqués** (code attribué + remplissage), résidu
+**51 553 octets**, soit 0,20 % de `.text`.
+
+`nie_re::vtable_anon` complète `vtable` : `.rdata`/`.data` portent **3 078** suites d'au moins
+trois pointeurs `.text` consécutifs, dont **1 528 sans COL RTTI** (37 334 slots, 11 588 méthodes
+distinctes) — classes compilées sans RTTI, tables de rappels, tables d'interface. Elles donnent
+16 428 arêtes de cohésion.
+
 ### Les deux chiffres de la base, et lequel citer
 
 `var/niers.sqlite` indexe deux espaces sous deux `binary_id`. Ne pas les confondre :
 
 | Espace | Fonctions | Classées | Nommées | Statut |
 |---|---|---|---|---|
-| `#pdata` — racines réelles | 52 783 | 49 280 (**93,36 %**) | 6 429 | **La mesure à citer** |
-| Index Ghidra — nœuds désalignés | 60 183 | 53 083 (88,20 %) | 192 | Référentiel historique |
+| `#pdata` — fonctions réelles | 117 521 | 80 353 (68,37 %) | 41 525 (35,33 %) | **La mesure à citer** (2026-08-29) |
+| Index Ghidra — nœuds désalignés | 60 183 | 53 083 (88,20 %) | 192 | Référentiel historique, figé |
 
-Le dénominateur `.pdata` s'est *agrandi* (50 674 → 52 783) avec les feuilles découvertes par
-vtable, et la couverture a monté malgré cela.
+Le dénominateur a **doublé** dans la session du 2026-08-29 (57 779 → 117 521) : ce n'est pas une
+régression de couverture quand le pourcentage classé baisse, c'est l'apparition de 59 742
+fonctions qui existaient dans le binaire et manquaient à la base. Comparer un pourcentage à
+dénominateur mouvant n'a pas de sens — citer les deux nombres.
 
-**Nommage** : chaque méthode de vtable d'une classe RTTI reçoit un nom **structurel**
-`Namespace::Classe::vmethod_N` (`name_source='vtable-struct'`). Ce sont des noms de *position*
-(classe + slot), pas les symboles C++ d'origine.
+Évolution mesurée dans cette session (même binaire, mêmes outils) :
 
-**Plafond honnête** : le résidu est largement isolé — ni chaîne, ni RTTI, ni arête vers une
-fonction étiquetée. Les leviers restants sont l'ajout d'ancres et la découverte de feuilles
-supplémentaires ; les rendements sont décroissants.
+| Mesure | Avant | Après |
+|---|---|---|
+| Fonctions connues | 57 779 | 117 521 |
+| Nommées | 7 539 (13,05 %) | 41 525 (35,33 %) |
+| Classées (brut) | 52 308 | 80 353 |
+| `.text` hors `.pdata` expliqué | — | 98,27 % |
+| Chevauchements de fonctions | — | 272 (dont 131 entre racines `.pdata` chunkées) |
+
+**Nommage** : trois familles de noms **structurels**, toutes distinctes des symboles C++ d'origine
+(qui restent inconnus — le PDB n'est pas dans le dump) :
+
+| `name_source` | Forme | Fondement |
+|---|---|---|
+| `vtable-struct` | `Namespace::Classe::vmethod_N` | classe RTTI + rang de slot |
+| `vtable-anon-struct` | `vtbl_<va>::slot_N` | adresse de table + rang, aucune classe connue |
+| `leaf-shape` | `thunk_to_<va>`, `get_const_<K>`, `get_ptr_<va>`, `stub_<va>` | forme syntaxique lue dans les octets |
+
+Un thunk hérite du sous-système de sa cible (`subsys_src='thunk-inherit'`) : c'est une identité
+structurelle, elle prime donc sur l'étiquette statistique de la propagation (`ml`).
+
+**Plafond honnête** : 75 996 fonctions restent sans nom et 37 168 sans sous-système. Le résidu est
+largement isolé — ni chaîne, ni RTTI, ni arête vers une fonction étiquetée. Le nommage
+*sémantique* (le vrai nom C++) reste hors d'atteinte sans PDB : ce qui est produit ici identifie
+sans ambiguïté, il n'interprète pas.
 
 ## Ce que le RE a établi sur le binaire
 
