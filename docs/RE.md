@@ -182,7 +182,7 @@ distinctes) — classes compilées sans RTTI, tables de rappels, tables d'interf
 
 | Espace | Fonctions | Classées | Nommées | Statut |
 |---|---|---|---|---|
-| `#pdata` — fonctions réelles | 117 521 | 101 793 (86,62 %) | 49 431 (42,06 %) | **La mesure à citer** (2026-08-29) |
+| `#pdata` — fonctions réelles | 117 521 | 102 053 (86,84 %) | 49 431 (42,06 %) | **La mesure à citer** (2026-08-29) |
 | Index Ghidra — nœuds désalignés | 60 183 | 53 083 (88,20 %) | 192 | Référentiel historique, figé |
 
 Le dénominateur a **doublé** dans la session du 2026-08-29 (57 779 → 117 521) : ce n'est pas une
@@ -196,9 +196,15 @@ dénominateur mouvant n'a pas de sens — citer les deux nombres.
 |---|---|---|
 | Fonctions connues | 57 779 | 117 521 |
 | Nommées | 7 539 (13,05 %) | 49 431 (42,06 %) |
-| Classées (brut) | 52 308 | 101 793 |
+| Classées (brut) | 52 308 | 102 053 |
+| Classées avec confiance ≥ 0,3 | 5 248 (9,08 %) | 33 672 (28,65 %) |
 | `.text` hors `.pdata` expliqué | — | 98,27 % |
 | Chevauchements de fonctions | — | 272 (dont 131 entre racines `.pdata` chunkées) |
+
+La ligne « confiance ≥ 0,3 » est la plus parlante : les ancres dures ajoutées (funcLua à 0,9,
+héritage de thunk, contiguïté à 0,5) ne se contentent pas d'étiqueter plus de fonctions, elles
+remplacent des étiquettes de propagation quasi nulles par des labels que la propagation peut
+ensuite diffuser. C'est ce qui fait passer ce chiffre de 5 248 à 33 672.
 
 **Nommage** : cinq sources, dont une seule est *sémantique*. Aucune ne prétend restituer le
 symbole C++ d'origine — le PDB n'est pas dans le dump.
@@ -227,10 +233,28 @@ volume. Ne pas rouvrir cette piste sans un élément nouveau (un script Lua *sou
 build). À noter : les noms d'écran de menu, eux, **sont** du CRC-32 standard (vérifié 200/200 sur
 `hash_name`) — c'est une fonction de hachage différente pour les cmdId.
 
-**Plafond honnête** : 68 090 fonctions restent sans nom et 15 728 sans sous-système. Le résidu est
+**Plafond honnête** : 68 090 fonctions restent sans nom et 15 468 sans sous-système. Le résidu est
 largement isolé — ni chaîne, ni RTTI, ni arête vers une fonction étiquetée. Le nommage sémantique
 généralisé reste hors d'atteinte sans PDB : sauf pour les 1 164 `strref`, ce qui est produit ici
 identifie sans ambiguïté, il n'interprète pas.
+
+Les 51 553 octets de `.text` encore non attribués (0,20 %) se répartissent en 2 260 blocs qui sont
+majoritairement de l'**intérieur** de fonctions : blocs froids de boucles SIMD atteints seulement
+par une branche, ou fragments dont le décodage démarre au milieu d'une instruction. Les récupérer
+demanderait une analyse de flot par fonction — un chantier distinct, au rendement faible à ce
+niveau. Le point de rendement décroissant est ici.
+
+### La boucle à rejouer
+
+```bash
+niers recover --db var/niers.sqlite --exe nie.exe   # feuilles, formes, vtables anonymes,
+                                                    # chaînes, funcLua, contiguïté, snapshot
+niers rebuild --db var/niers.sqlite --exe nie.exe   # propagation sur le graphe enrichi
+```
+
+Les deux passes sont **idempotentes** et se renforcent : `recover` pose des ancres dures que
+`rebuild` diffuse, et `rebuild` produit des labels dont `recover` se sert pour la contiguïté.
+Deux tours suffisent à converger sur ce binaire.
 
 ## Ce que le RE a établi sur le binaire
 
