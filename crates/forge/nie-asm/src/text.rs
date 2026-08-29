@@ -14,8 +14,8 @@
 //!   par sa cible absolue.
 
 use crate::{
-    Alu, BitOp, Cond, CvtOp, Insn, Mem, NoOp, Reg, Rm, Seg, ShiftOp, Size, SseMaskOp, SseOp,
-    SseShiftOp, UnOp, Xmm, XmmRm,
+    Alu, BitOp, Cond, CvtOp, Insn, Mem, NoOp, Reg, RepOp, Rm, Seg, ShiftOp, Size, SseMaskOp,
+    SseOp, SseShiftOp, UnOp, Xmm, XmmRm,
 };
 use alloc::format;
 use alloc::string::{String, ToString};
@@ -369,6 +369,36 @@ const SSES: [(&str, SseOp); 83] = [
     ("pavgw", SseOp::Pavgw),
 ];
 
+/// Nom de l'accumulateur pour une taille (`al`/`ax`/`eax`/`rax`).
+fn acc_name(s: Size) -> &'static str {
+    match s {
+        Size::B => "al",
+        Size::W => "ax",
+        Size::D => "eax",
+        Size::Q => "rax",
+    }
+}
+
+/// Table des chaînes répétées.
+const REPS: [(&str, RepOp, Size); 8] = [
+    ("rep_stosb", RepOp::Stos, Size::B),
+    ("rep_stosw", RepOp::Stos, Size::W),
+    ("rep_stosd", RepOp::Stos, Size::D),
+    ("rep_stosq", RepOp::Stos, Size::Q),
+    ("rep_movsb", RepOp::Movs, Size::B),
+    ("rep_movsw", RepOp::Movs, Size::W),
+    ("rep_movsd", RepOp::Movs, Size::D),
+    ("rep_movsq", RepOp::Movs, Size::Q),
+];
+
+/// Table des indications de préchargement.
+const PREFETCHES: [(&str, u8); 4] = [
+    ("prefetchnta", 0),
+    ("prefetcht0", 1),
+    ("prefetcht1", 2),
+    ("prefetcht2", 3),
+];
+
 /// Table des décalages vectoriels à immédiat.
 const SSE_SHIFTS: [(&str, SseShiftOp); 10] = [
     ("psrlw", SseShiftOp::Psrlw),
@@ -606,6 +636,29 @@ impl Insn {
             Self::MovI(s, rm, i) => format!("mov {}, {:#x}", rm_text(rm, s), i as u32),
             Self::Test(s, rm, r) => format!("test {}, {}", rm_text(rm, s), reg_name(r, s)),
             Self::TestI(s, rm, i) => format!("test {}, {:#x}", rm_text(rm, s), i as u32),
+            Self::Prefetch(h, m) => {
+                let n = match h {
+                    0 => "prefetchnta",
+                    1 => "prefetcht0",
+                    2 => "prefetcht1",
+                    _ => "prefetcht2",
+                };
+                format!("{n} {}", mem_text(m))
+            }
+            Self::RepString(op, s) => {
+                let n = match (op, s) {
+                    (RepOp::Stos, Size::B) => "rep_stosb",
+                    (RepOp::Stos, Size::W) => "rep_stosw",
+                    (RepOp::Stos, Size::D) => "rep_stosd",
+                    (RepOp::Stos, Size::Q) => "rep_stosq",
+                    (RepOp::Movs, Size::B) => "rep_movsb",
+                    (RepOp::Movs, Size::W) => "rep_movsw",
+                    (RepOp::Movs, Size::D) => "rep_movsd",
+                    (RepOp::Movs, Size::Q) => "rep_movsq",
+                };
+                n.to_string()
+            }
+            Self::XchgAcc(s, r) => format!("xchg {}, {}", acc_name(s), reg_name(r, s)),
             Self::SseShift(op, x, i) => {
                 format!("{} {}, {i:#x}", sse_shift_name(op), xmm_text(x))
             }
@@ -816,6 +869,12 @@ pub fn parse_insn(line: &str) -> Result<Insn, ParseError> {
             parse_xmmrm(&s).ok_or_else(err)?,
         ));
     }
+    if let Some((_, op, sz)) = REPS.iter().find(|(n, _, _)| *n == mnem) {
+        return Ok(Insn::RepString(*op, *sz));
+    }
+    if let Some((_, hint)) = PREFETCHES.iter().find(|(n, _)| *n == mnem) {
+        return Ok(Insn::Prefetch(*hint, parse_mem(args).ok_or_else(err)?));
+    }
     if let Some((_, op)) = SSE_SHIFTS.iter().find(|(n, _)| *n == mnem) {
         let (d, v) = two()?;
         return Ok(Insn::SseShift(
@@ -917,6 +976,14 @@ pub fn parse_insn(line: &str) -> Result<Insn, ParseError> {
                     as_imm32(parse_int(v).ok_or_else(err)?).ok_or_else(err)?,
                 )),
             }
+        }
+        "xchg" => {
+            let (d, sx) = two()?;
+            // Seule la forme accumulateur (`90+r`) est du dialecte : c'est
+            // celle que MSVC emploie.
+            let (r, sz) = reg_of(&sx).ok_or_else(err)?;
+            (acc_name(sz) == d.trim()).then_some(()).ok_or_else(err)?;
+            Ok(Insn::XchgAcc(sz, r))
         }
         "shl" | "shr" | "sar" | "rol" | "ror" => {
             let (d, s) = two()?;
