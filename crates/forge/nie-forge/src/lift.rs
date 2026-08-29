@@ -46,9 +46,15 @@ fn reg_of(r: Register) -> Option<(Reg, Size)> {
 
 /// Traduit l'opérande mémoire d'une instruction.
 fn mem_of(i: &iced_x86::Instruction) -> Option<Mem> {
-    if i.segment_prefix() != Register::None {
-        return None;
-    }
+    // `fs:`/`gs:` sont acceptes : Windows x64 lit le TLS par `gs:[58h]`, et le
+    // prefixe fait partie des octets a reproduire. Tout autre segment reste
+    // hors dialecte.
+    let seg = match i.segment_prefix() {
+        Register::None => None,
+        Register::FS => Some(nie_asm::Seg::Fs),
+        Register::GS => Some(nie_asm::Seg::Gs),
+        _ => return None,
+    };
     if i.is_ip_rel_memory_operand() {
         // Adresse absolue de la cible : l'encodeur recalculera le déplacement.
         return Some(Mem::rip(i.ip_rel_memory_address()));
@@ -61,11 +67,15 @@ fn mem_of(i: &iced_x86::Instruction) -> Option<Mem> {
         Register::None => None,
         r => Some((reg_of(r)?.0, u8::try_from(i.memory_index_scale()).ok()?)),
     };
-    if base.is_none() && index.is_none() {
-        return None; // adresse absolue non relogeable dans ce dialecte
+    // Une adresse absolue sans segment n'est pas relogeable dans ce dialecte.
+    // Avec un segment, le deplacement est un offset **dans le segment**
+    // (`gs:[58h]` = entree TLS), pas une adresse image : rien a reloger.
+    if base.is_none() && index.is_none() && seg.is_none() {
+        return None;
     }
     let disp = i32::try_from(i.memory_displacement64() as i64).ok()?;
     Some(Mem {
+        seg,
         base,
         index,
         disp,
