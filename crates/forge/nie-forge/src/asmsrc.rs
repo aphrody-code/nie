@@ -166,7 +166,9 @@ mod tests {
 
     #[test]
     fn erreurs_localisees() {
-        let e = AsmSource::parse("0x140: vfmadd231ps xmm0, xmm1, xmm2\n", "f.s").unwrap_err();
+        // `vfmadd231ps` tenait ce rôle jusqu'à l'arrivée du VEX ; `aesenc`
+        // reste hors dialecte.
+        let e = AsmSource::parse("0x140: aesenc xmm0, xmm1\n", "f.s").unwrap_err();
         assert!(e.to_string().contains("f.s:1"), "{e}");
         let e = AsmSource::parse("0x140: ret\n0x140: ret\n", "f.s").unwrap_err();
         assert!(e.to_string().contains("déjà définie"), "{e}");

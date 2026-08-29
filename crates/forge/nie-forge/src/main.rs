@@ -404,13 +404,23 @@ fn cmd_lift(paths: &Paths, max_len: usize, out: &str) -> anyhow::Result<()> {
         .filter(|va| re.get(**va).is_some())
         .count();
     let roots = store.cover.count_by_kind(UnitKind::Function);
-    if re.pdata_roots > 0 && re.pdata_roots != roots {
-        // Les deux décrivent le même objet : tout écart est un signal.
+    // Le recouvrement compte les racines `.pdata` **plus** les feuilles que
+    // l'echafaudage RE a mesurees : un surplus est normal et attendu. Seul un
+    // *deficit* est un signal — il voudrait dire que la forge a perdu des
+    // racines que la base connait.
+    if re.pdata_roots > roots {
         println!(
-            "cross-check pdata_roots_db={} pdata_roots_forge={} delta={}",
+            "cross-check ALERTE racines_db={} unites_fonction_forge={} manquantes={}",
             re.pdata_roots,
             roots,
-            roots as i64 - re.pdata_roots as i64
+            re.pdata_roots - roots
+        );
+    } else if roots > re.pdata_roots {
+        println!(
+            "cross-check racines_pdata={} + feuilles_re={} = {} unites de fonction",
+            re.pdata_roots,
+            roots - re.pdata_roots,
+            roots
         );
     }
 
@@ -452,7 +462,11 @@ fn cmd_lift(paths: &Paths, max_len: usize, out: &str) -> anyhow::Result<()> {
 
 fn cmd_split(paths: &Paths) -> anyhow::Result<()> {
     let exe = paths.exe_path()?;
-    let store = ForgeStore::split_from(&exe, &paths.forge)?;
+    // Les fonctions mesurees par l'echafaudage RE decoupent le residu que
+    // `.pdata` laisse : sans elles, 1,8 Mo de `.text` restent haches par les
+    // seules bornes de remplissage, donc non relevables.
+    let re = nie_forge::ReNames::load(&paths.db)?;
+    let store = ForgeStore::split_from_with(&exe, &paths.forge, &re.sized)?;
     let c = &store.cover;
     println!(
         "split exe={} sha256={} size={} units={} fns={} frags={} residue={} data={} gaps={} overlay={}",

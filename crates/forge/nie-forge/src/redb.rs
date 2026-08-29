@@ -23,6 +23,11 @@ pub struct ReNames {
     pub names: BTreeMap<u64, String>,
     /// Racines `.pdata` enregistrées par l'échafaudage RE.
     pub pdata_roots: usize,
+    /// Fonctions **mesurées** de l'échafaudage : `(adresse virtuelle, taille)`.
+    ///
+    /// Sert à découper le résidu de `.text` que `.pdata` ne décrit pas — les
+    /// fonctions feuilles, sans données de déroulement.
+    pub sized: Vec<(u64, u32)>,
 }
 
 impl ReNames {
@@ -54,9 +59,20 @@ impl ReNames {
             .query_row("SELECT count(*) FROM pdata_func", [], |r| r.get(0))
             .unwrap_or(0);
 
+        let mut sized = Vec::new();
+        if let Ok(mut q) =
+            conn.prepare("SELECT vaddr, size FROM function WHERE size > 0 ORDER BY vaddr")
+            && let Ok(rows) = q.query_map([], |r| {
+                Ok((r.get::<_, i64>(0)? as u64, r.get::<_, i64>(1)? as u32))
+            })
+        {
+            sized.extend(rows.flatten());
+        }
+
         Ok(Self {
             names,
             pdata_roots: usize::try_from(pdata_roots).unwrap_or(0),
+            sized,
         })
     }
 

@@ -173,6 +173,25 @@ impl Cover {
     /// Retourne une erreur si les régions de section se chevauchent dans le
     /// fichier, ou si le recouvrement produit n'est pas total.
     pub fn split(img: &PeImage) -> Result<Self> {
+        Self::split_with(img, &[])
+    }
+
+    /// Découpe une image en unités, en tenant compte de **plages de fonctions
+    /// supplémentaires** (RVA de début, longueur).
+    ///
+    /// `.pdata` ne décrit que les fonctions qui ont des données de déroulement :
+    /// sur `nie.exe` il laisse 1,8 Mo de `.text` en résidu, haché par les seules
+    /// bornes de remplissage. Ce résidu n'est pas relevable — une unité peut
+    /// commencer au milieu d'une instruction ou couvrir plusieurs fonctions.
+    /// Les feuilles récupérées par l'échafaudage RE (`nie_re::recover`) le
+    /// découpent correctement.
+    ///
+    /// Les plages qui chevauchent une plage `.pdata` déjà posée sont ignorées :
+    /// `.pdata` reste la vérité terrain.
+    ///
+    /// # Erreurs
+    /// Mêmes conditions que [`Cover::split`].
+    pub fn split_with(img: &PeImage, extra: &[(u32, u32)]) -> Result<Self> {
         let file = &img.bytes;
         let total_len = file.len();
         let mut units: Vec<Unit> = Vec::new();
@@ -233,7 +252,37 @@ impl Cover {
 
         // --- sections ---------------------------------------------------------
         let (ranges, _stats) = pdata::scan(img);
-        let merged = pdata::merge(&ranges);
+        let mut merged = pdata::merge(&ranges);
+        // Les feuilles viennent compléter `.pdata`, jamais le contredire : on
+        // écarte tout ce qui recouvre une plage déjà décrite.
+        if !extra.is_empty() {
+            let covered = |rva: u32| {
+                merged
+                    .binary_search_by(|r| {
+                        if rva < r.begin {
+                            core::cmp::Ordering::Greater
+                        } else if rva >= r.end {
+                            core::cmp::Ordering::Less
+                        } else {
+                            core::cmp::Ordering::Equal
+                        }
+                    })
+                    .is_ok()
+            };
+            let mut add: Vec<pdata::CodeRange> = extra
+                .iter()
+                .filter(|&&(b, l)| l > 0 && !covered(b) && !covered(b + l - 1))
+                .map(|&(b, l)| pdata::CodeRange {
+                    begin: b,
+                    end: b + l,
+                    unwind: 0,
+                    chained: false,
+                })
+                .collect();
+            merged.append(&mut add);
+            merged.sort_unstable();
+            merged.dedup_by_key(|r| r.begin);
+        }
 
         let mut secs: Vec<_> = img
             .sections
