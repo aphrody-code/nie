@@ -2530,6 +2530,14 @@ fn recover_cmd(
         "  vtables sans RTTI: {}/{} tables ({} slots, {} methodes) | fonctions+={} cohesion={} noms={}",
         av.tables, av.tables_seen, av.slots, av.methods, av.new_funcs, av.cohesion_edges, av.named,
     );
+    // Dernier recours pour le residu sans arete : la contiguite d'adresse.
+    let ad = nie_re::adjacency::classify_by_adjacency(&mut db, bin, false)?;
+    println!(
+        "  contiguite: {} classees | coherence {:.1}% mesuree sur {} cas de controle (cohérence avec l'etiquetage existant, pas verite terrain)",
+        ad.classified,
+        ad.precision_estimate(),
+        ad.control_cases,
+    );
     Ok(())
 }
 

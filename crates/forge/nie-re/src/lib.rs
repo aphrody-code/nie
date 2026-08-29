@@ -20,6 +20,7 @@
 #![forbid(unsafe_code)]
 #![allow(clippy::pedantic)]
 
+pub mod adjacency;
 pub mod anchors;
 pub mod disasm;
 pub use nie_dump as dump;
