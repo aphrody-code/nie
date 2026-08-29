@@ -95,6 +95,8 @@ pub struct RecoverStats {
     pub sized_late: usize,
     /// Feuilles ayant hérité du sous-système de la cible de leur thunk.
     pub shape_inherited: usize,
+    /// Feuilles supprimées : leurs octets ne décodent pas intégralement.
+    pub pruned: usize,
 }
 
 /// Géométrie d'une section utile au balayage.
@@ -624,7 +626,20 @@ pub fn recover_leaves(
                         // 16 — au lieu d'abandonner le fragment entier. Un
                         // échec en tête condamnait jusqu'ici tout ce qui suit,
                         // dont un bloc de 94 736 octets en tête de `.text`.
-                        None => a = (a + 16) & !15,
+                        //
+                        // Mais l'alignement seul ne suffit pas : une adresse
+                        // multiple de 16 peut tomber au **milieu** d'une
+                        // instruction, et le début inventé coupe alors la
+                        // fonction qui la contient. On exige donc que la
+                        // position soit précédée de remplissage — le marqueur
+                        // fiable d'une frontière de fonction chez MSVC.
+                        None => {
+                            let mut n = (a + 16) & !15;
+                            while n < fe && !preceded_by_filler(&text, &bytes, n) {
+                                n += 16;
+                            }
+                            a = n;
+                        }
                     }
                 }
             }
@@ -696,6 +711,26 @@ pub fn recover_leaves(
     stats.recovered_gap_bytes = in_gap;
     stats.gap_bytes_left = stats.gap_bytes.saturating_sub(in_gap + pad);
 
+    // Nettoyage : une feuille dont les octets ne décodent pas *intégralement*
+    // n'est pas une fonction — c'est un début inventé, tombé au milieu d'une
+    // instruction, et il coupe en deux la fonction qui la contient. Ces
+    // fausses bornes se paient plus loin : la forge ne peut pas relever une
+    // unité tronquée. Les racines `.pdata` sont épargnées : elles sont la
+    // vérité terrain, pas une inférence.
+    let mut prune: Vec<u64> = Vec::new();
+    for (&a, &len) in &all_sizes {
+        if in_ranges(&covered, a) {
+            continue; // racine `.pdata`
+        }
+        if !decodes_exactly(&text, &bytes, a, len) {
+            prune.push(a);
+        }
+    }
+    for a in &prune {
+        all_sizes.remove(a);
+    }
+    stats.pruned = prune.len();
+
     // Noms d'import pour les thunks IAT.
     let iat_names = import_names(&pe, image_base);
 
@@ -725,6 +760,15 @@ pub fn recover_leaves(
     }
 
     let tx = db.conn_mut().transaction()?;
+    {
+        // Les fausses bornes sortent de la base : les garder ferait recouper
+        // la forge au meme endroit au prochain `split`.
+        let mut del =
+            tx.prepare("DELETE FROM function WHERE binary_id=?1 AND vaddr=?2")?;
+        for a in &prune {
+            del.execute(rusqlite::params![bin, *a as i64])?;
+        }
+    }
     {
         let mut upd = tx.prepare(
             "UPDATE function SET size=?2, name=COALESCE(name,?3), name_source=COALESCE(name_source,?4) WHERE id=?1",
@@ -833,6 +877,46 @@ pub fn recover_leaves(
     );
     Ok(stats)
 }
+
+/// Vrai si `[va, va+len)` se décode en instructions complètes, sans reste.
+///
+/// C'est le test qu'appliquera la forge : une unité dont la dernière
+/// instruction déborde ne peut pas être relevée.
+fn decodes_exactly(text: &Span, bytes: &[u8], va: u64, len: u64) -> bool {
+    if len == 0 || !text.contains(va) {
+        return false;
+    }
+    let off = text.off + (va - text.va) as usize;
+    let Some(buf) = bytes.get(off..off + len as usize) else {
+        return false;
+    };
+    let mut dec = Decoder::with_ip(64, buf, va, DecoderOptions::NONE);
+    let mut insn = Instruction::default();
+    let mut consumed = 0u64;
+    while dec.can_decode() {
+        dec.decode_out(&mut insn);
+        if insn.is_invalid() {
+            return false;
+        }
+        consumed += insn.len() as u64;
+    }
+    consumed == len
+}
+
+/// Vrai si l'octet précédant `va` est du remplissage (`0xCC`, `0x90`, `0x00`).
+///
+/// Chez MSVC, une fonction est précédée du remplissage d'alignement de la
+/// précédente. C'est le seul marqueur local fiable d'une frontière : une
+/// adresse alignée à 16 ne l'est pas — elle peut tomber au milieu d'une
+/// instruction, et le début inventé couperait la fonction qui la contient.
+fn preceded_by_filler(text: &Span, bytes: &[u8], va: u64) -> bool {
+    if va == 0 || !text.contains(va - 1) {
+        return false;
+    }
+    let off = text.off + (va - 1 - text.va) as usize;
+    bytes.get(off).is_some_and(|&b| matches!(b, 0xCC | 0x90 | 0x00))
+}
+
 
 /// Longueur du **run** de remplissage (`0xCC`, `0x00`, `0x90`) en tête de
 /// `[a, b)`.
