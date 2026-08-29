@@ -414,6 +414,18 @@ enum Cmd {
         #[arg(long, default_value_t = 16)]
         rounds: usize,
     },
+    /// Récupère les fonctions feuilles de `.text` invisibles à `.pdata`.
+    Recover {
+        /// Base sqlite cible.
+        #[arg(long, default_value = "var/niers.sqlite")]
+        db: PathBuf,
+        /// Binaire PE x64.
+        #[arg(long)]
+        exe: PathBuf,
+        /// Mesure sans écrire dans la base.
+        #[arg(long)]
+        dry_run: bool,
+    },
     /// Opérations sur les saves IEVR (Lives format) : decrypt/read/edit.
     Save {
         #[command(subcommand)]
@@ -1918,6 +1930,7 @@ fn run() -> anyhow::Result<()> {
         Cmd::Disasm { db, exe } => disasm(&db, &exe),
         Cmd::Pdata { db, exe } => pdata(&db, &exe),
         Cmd::Rebuild { db, exe, rounds } => rebuild(&db, &exe, rounds),
+        Cmd::Recover { db, exe, dry_run } => recover_cmd(&db, &exe, dry_run),
         Cmd::Save { op } => save_cmd(op),
         Cmd::Wiki { op } => wiki_cmd(op),
         Cmd::UniformMap { game_dir, out } => uniform_map(&racine_jeu(game_dir), &out),
@@ -2443,6 +2456,65 @@ fn pdata(db_path: &std::path::Path, exe_path: &std::path::Path) -> anyhow::Resul
         "pdata entries={} chained={} roots={} inserted={} | ghidra {}/{} aligned ({:.1}%) inside_body={}",
         stats.entries, stats.chained_fragments, stats.roots, stats.inserted,
         stats.overlap_ghidra, stats.ghidra_total, pct_aligned, stats.ghidra_inside_body
+    );
+    Ok(())
+}
+
+/// Résout l'id du binaire `…#pdata` (vérité terrain des bornes de fonction).
+///
+/// `rebuild` le crée à partir du premier binaire indexé ; les passes qui
+/// travaillent sur les fonctions doivent viser **celui-là**, pas l'index
+/// Ghidra d'origine.
+fn pdata_binary_id(db: &nie_index::Db) -> anyhow::Result<i64> {
+    db.conn()
+        .query_row(
+            "SELECT id FROM binary WHERE path LIKE '%#pdata' ORDER BY id LIMIT 1",
+            [],
+            |r| r.get(0),
+        )
+        .context("binaire #pdata absent — lancer `niers rebuild` d'abord")
+}
+
+fn recover_cmd(
+    db_path: &std::path::Path,
+    exe_path: &std::path::Path,
+    dry_run: bool,
+) -> anyhow::Result<()> {
+    let mut db = nie_index::Db::open(db_path).context("ouverture base")?;
+    let bin = pdata_binary_id(&db)?;
+    let st = nie_re::recover::recover_leaves(&mut db, bin, exe_path, dry_run)?;
+    let pct_gap = if st.gap_bytes > 0 {
+        100.0 * (st.recovered_gap_bytes + st.padding_bytes) as f64 / st.gap_bytes as f64
+    } else {
+        0.0
+    };
+    println!(
+        "recover pdata={} o | trous={} ({} o) | candidats={} retenus={} (ref={} scan={}) rejetes={} | code neuf={} o | code en trou (cumul)={} o padding={} o | residu={} o | explique {:.2}% des trous | insert={} thunks={} edges={}",
+        st.pdata_bytes,
+        st.gaps,
+        st.gap_bytes,
+        st.candidates,
+        st.recovered,
+        st.by_ref,
+        st.by_scan,
+        st.rejected,
+        st.recovered_bytes,
+        st.recovered_gap_bytes,
+        st.padding_bytes,
+        st.gap_bytes_left,
+        pct_gap,
+        st.inserted,
+        st.thunks_named,
+        st.edges_new,
+    );
+    println!(
+        "  formes: thunk={} const={} ptr={} stub={} | noms structurels={} | sous-systeme herite={}",
+        st.shape_thunk,
+        st.shape_const,
+        st.shape_ptr,
+        st.shape_stub,
+        st.shape_named,
+        st.shape_inherited,
     );
     Ok(())
 }
