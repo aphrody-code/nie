@@ -678,6 +678,9 @@ impl Insn {
                 n.to_string()
             }
             Self::XchgAcc(s, r) => format!("xchg {}, {}", acc_name(s), reg_name(r, s)),
+            Self::XchgMem(s, m, r) => {
+                format!("xchg {} {}, {}", size_name(s), mem_text(m), reg_name(r, s))
+            }
             Self::SseShift(op, x, i) => {
                 format!("{} {}, {i:#x}", sse_shift_name(op), xmm_text(x))
             }
@@ -998,6 +1001,11 @@ pub fn parse_insn(line: &str) -> Result<Insn, ParseError> {
         }
         "xchg" => {
             let (d, sx) = two()?;
+            if let Some((sz, m)) = split_sized_mem(&d) {
+                let (r, rsz) = reg_of(&sx).ok_or_else(err)?;
+                (sz == rsz).then_some(()).ok_or_else(err)?;
+                return Ok(Insn::XchgMem(sz, m, r));
+            }
             // Seule la forme accumulateur (`90+r`) est du dialecte : c'est
             // celle que MSVC emploie.
             let (r, sz) = reg_of(&sx).ok_or_else(err)?;

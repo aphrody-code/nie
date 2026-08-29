@@ -491,6 +491,14 @@ fn insn_of(i: &iced_x86::Instruction, raw: &[u8]) -> Option<Insn> {
         };
         return Some(Insn::Prefetch(hint, mem_of(i)?));
     }
+    // `xchg [mem], reg` : echange atomique, sans prefixe `lock` explicite.
+    if i.mnemonic() == Mnemonic::Xchg
+        && i.op_kind(0) == OpKind::Memory
+        && i.op_kind(1) == OpKind::Register
+    {
+        let (r, sz) = reg_of(i.op_register(1))?;
+        return Some(Insn::XchgMem(sz, mem_of(i)?, r));
+    }
     // `xchg eax, ecx` : forme courte `90+r`, la seule que MSVC emploie.
     if i.mnemonic() == Mnemonic::Xchg
         && i.op_kind(0) == OpKind::Register

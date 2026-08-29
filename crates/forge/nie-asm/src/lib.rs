@@ -785,8 +785,13 @@ pub enum Insn {
     Prefetch(u8, Mem),
     /// Chaîne répétée : `rep stosb`/`stosd`/`stosq`, `rep movsb`… (`F3` + opcode).
     RepString(RepOp, Size),
-    /// `xchg` registre↔registre — forme courte `90+r` avec `rax`, sinon `87 /r`.
+    /// `xchg` registre↔registre — forme courte `90+r` avec `rax`.
     XchgAcc(Size, Reg),
+    /// `xchg [mem], reg` (`87 /r`) — échange atomique avec la mémoire.
+    ///
+    /// L'échange avec un opérande mémoire est implicitement verrouillé, sans
+    /// préfixe `lock` : MSVC s'en sert pour les compteurs atomiques.
+    XchgMem(Size, Mem, Reg),
     /// Décalage vectoriel à immédiat : `psrldq xmm1, 1` (`66 0F 73 /3 ib`).
     ///
     /// Le champ `reg` du ModRM porte le **digit** de l'opération, l'opérande
@@ -1423,6 +1428,9 @@ fn encode_one(i: Insn, at: u64, out: &mut Vec<u8>) {
             rex(out, size.rex_w(), 0, 0, 0);
             out.push(op.opcode(size));
         }
+        Insn::XchgMem(size, m, r) => {
+            mem_form(out, size, if size == Size::B { 0x86 } else { 0x87 }, r, m, at, 0);
+        }
         Insn::XchgAcc(size, r) => {
             opsize(out, size);
             rex(out, size.rex_w(), 0, 0, r.hi());
@@ -1473,6 +1481,18 @@ fn encode_one(i: Insn, at: u64, out: &mut Vec<u8>) {
         }
         Insn::MovdToXmm(dst, src, size) => {
             let base = out.len();
+            // `movq xmm, m64` a sa forme dediee `F3 0F 7E /r`, plus courte que
+            // `66 REX.W 0F 6E /r` (qui charge depuis un registre *general*).
+            // MSVC emploie la premiere : ce sont ses octets qu'il faut rendre.
+            if size == Size::Q && let Rm::M(m) = src {
+                out.push(0xF3);
+                let (x, b) = mem_rex(m);
+                rex(out, false, dst.hi(), x, b);
+                out.push(0x0F);
+                out.push(0x7E);
+                modrm_mem(out, dst.lo(), m, at, base, 0);
+                return;
+            }
             out.push(0x66);
             match src {
                 Rm::R(r) => {
@@ -1492,6 +1512,16 @@ fn encode_one(i: Insn, at: u64, out: &mut Vec<u8>) {
         }
         Insn::MovdToRm(dst, src, size) => {
             let base = out.len();
+            // Symetrique : `movq m64, xmm` s'encode `66 0F D6 /r`.
+            if size == Size::Q && let Rm::M(m) = dst {
+                out.push(0x66);
+                let (x, b) = mem_rex(m);
+                rex(out, false, src.hi(), x, b);
+                out.push(0x0F);
+                out.push(0xD6);
+                modrm_mem(out, src.lo(), m, at, base, 0);
+                return;
+            }
             out.push(0x66);
             match dst {
                 Rm::R(r) => {
