@@ -41,6 +41,11 @@ textures = ["std", "dep:image_dds", "dep:png"]
 # Encodage d'une image décodée vers les formats d'échange (WebP lossless, GIF, JPEG, BMP, TGA,
 # TIFF, QOI). Tire `image` (std) → implique `std`. Le PNG reste hors de cette feature.
 images = ["std", "dep:image", "dep:png"]
+# Encodage RGBA → bloc compressé BCn (BC7 notamment), via `image_dds/encode` (→ `intel_tex_2`).
+# Hors du chemin par défaut : `intel_tex_2` embarque du code ISPC et alourdit le build. Sert à
+# **remplacer une texture du jeu dans son format d'origine**, seule façon de réécrire un `.g4tx`
+# compressé sans changer la taille des données — donc sans toucher aux offsets ni aux régions.
+textures-encode = ["textures", "image_dds/encode"]
 # Décodeur audio Criware → WAV (HCA + ADX/AWB/ACB) — source unique (cri_audio::decode_to_wav).
 # Tire `cridecoder` (std::io) → implique `std`.
 audio-decode = ["std", "dep:cridecoder"]
