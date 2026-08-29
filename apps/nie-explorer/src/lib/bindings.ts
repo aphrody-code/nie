@@ -719,6 +719,18 @@ export const commands = {
 	 */
 	reTraceReadBytesB64: (pid: number, addr: string, len: number) => typedError<string, string>(__TAURI_INVOKE("re_trace_read_bytes_b64", { pid, addr, len })),
 	/**
+	 *  Écrit des octets (base64) à `addr` dans `pid`, puis **relit** la zone et la rend, elle aussi
+	 *  en base64.
+	 * 
+	 *  Complète [`re_trace_read_bytes_b64`] : `nie-trace` porte `write_exact` depuis toujours, seule
+	 *  cette façade ne l'exposait pas. Ce qui est rendu est ce que la mémoire contient **après**
+	 *  l'écriture, jamais ce que l'appelant croyait y mettre — une page protégée en lecture seule ou
+	 *  une écriture partielle se voit alors immédiatement côté UI.
+	 * 
+	 *  Même plafond que la lecture : 1 Mio par appel.
+	 */
+	reTraceWriteBytesB64: (pid: number, addr: string, dataB64: string) => typedError<string, string>(__TAURI_INVOKE("re_trace_write_bytes_b64", { pid, addr, dataB64 })),
+	/**
 	 *  Dumpe les plages lisibles du module principal vers `AppData/re-dumps/<pid>-<horodatage>/` —
 	 *  jamais dans le dossier du jeu. Réutilise [`nie_trace::dump_regions`] tel quel (lecture seule,
 	 *  une plage volatile/refusée est simplement sautée).
@@ -778,6 +790,54 @@ export const commands = {
 	 *  (CRC32), ce qui est la règle des packs CPK.
 	 */
 	violaCrypto: (entree: string, sortie: string, cle: string | null) => typedError<number | null, string>(__TAURI_INVOKE("viola_crypto", { entree, sortie, cle })),
+	/**  État du jeu, sans rien lire de sa mémoire au-delà de ses modules. */
+	liveStatus: () => __TAURI_INVOKE<LiveStatus>("live_status"),
+	/**
+	 *  Retrouve l'adresse du tableau d'équipe en scannant un `charaParamId` connu.
+	 * 
+	 *  Le scan seul ne suffit pas : un identifiant apparaît dans les tables de données comme dans le
+	 *  roster. On ne retient un candidat que si la **forme** se confirme — l'entrée suivante, à
+	 *  `+0x38`, porte le même `uniformId` et un `charaParamId` non nul. C'est la signature d'un
+	 *  tableau d'équipe, pas d'une occurrence isolée.
+	 * 
+	 *  Renvoie l'adresse de la **première** entrée du tableau (en remontant tant que la forme tient).
+	 */
+	liveFindTeam: (charaParamId: number) => typedError<string, string>(__TAURI_INVOKE("live_find_team", { charaParamId })),
+	/**  Lit les membres de l'équipe active à partir de l'adresse donnée. */
+	liveReadTeam: (address: string) => typedError<LiveMember[], string>(__TAURI_INVOKE("live_read_team", { address })),
+	/**
+	 *  Écrit un champ d'un membre. Le champ est nommé, pas donné en offset : on n'écrit que dans les
+	 *  champs connus, à leur taille déclarée.
+	 */
+	liveWriteMember: (address: string, slot: number, field: string, value: number) => typedError<LiveMember, string>(__TAURI_INVOKE("live_write_member", { address, slot, field, value })),
+	/**
+	 *  Cherche une valeur 32 bits dans toutes les pages accessibles en écriture du jeu.
+	 * 
+	 *  Sert à localiser ce que les tables ne disent pas : l'identifiant d'une aura chargée, un slot
+	 *  de compétence, une fiche de personnage. Chaque résultat rend son **voisinage**, parce qu'une
+	 *  valeur seule ne dit pas dans quelle structure elle se trouve — c'est le contexte qui permet de
+	 *  reconnaître un tableau (pas régulier) d'une occurrence isolée.
+	 */
+	liveScanU32: (value: number, limit: number) => typedError<LiveHit[], string>(__TAURI_INVOKE("live_scan_u32", { value, limit })),
+	/**
+	 *  Écrit une valeur 32 bits à une adresse absolue.
+	 * 
+	 *  Volontairement brut : c'est le complément de [`live_scan_u32`] pour tout ce qui n'a pas de
+	 *  structure nommée — poser un identifiant d'aura dans un slot de compétence, par exemple. Rend
+	 *  la valeur **relue** après écriture, jamais celle qu'on croyait écrire.
+	 */
+	liveWriteU32: (address: string, value: number) => typedError<number, string>(__TAURI_INVOKE("live_write_u32", { address, value })),
+	/**
+	 *  Lance l'éditeur de sauvegarde livré avec le dépôt, puis le jeu.
+	 * 
+	 *  L'éditeur est cherché à la racine du dépôt (`InazumaElevenVRSaveEditor.exe`) ; le jeu est
+	 *  lancé **directement** (`nie.exe`), sans `EACLauncher` — c'est ce qui permet d'attacher le
+	 *  live-modding derrière.
+	 * 
+	 *  L'ordre compte : l'éditeur d'abord, pour pouvoir préparer la sauvegarde avant que le jeu ne
+	 *  la charge.
+	 */
+	launchSaveEditor: (repoDir: string | null, gameDir: string | null, alsoGame: boolean) => typedError<LaunchResult, string>(__TAURI_INVOKE("launch_save_editor", { repoDir, gameDir, alsoGame })),
 };
 
 /* Types */
@@ -1043,6 +1103,65 @@ export type ItemDto = {
 	 */
 	price: number | null,
 	internal_code: string | null,
+};
+
+/**  Résultat d'un lancement d'outil externe. */
+export type LaunchResult = {
+	/**  Ce qui a été lancé. */
+	launched: string[],
+	/**  Ce qui a été demandé mais n'existe pas sur le disque. */
+	missing: string[],
+};
+
+/**  Une occurrence d'une valeur 32 bits dans la mémoire du jeu, avec son voisinage. */
+export type LiveHit = {
+	/**  Adresse absolue de la valeur. */
+	address: string,
+	/**
+	 *  Les 64 octets à partir de `address - 32`, en hexadécimal — de quoi reconnaître la
+	 *  structure porteuse sans relancer une lecture.
+	 */
+	context_hex: string,
+	/**  Offset de la valeur dans `context_hex` (toujours 32, sauf en début de région). */
+	context_offset: number,
+};
+
+/**  Un membre de l'équipe active, champs nommés d'après la réflexion du binaire. */
+export type LiveMember = {
+	/**  Index du slot dans le tableau. */
+	slot: number,
+	/**  Adresse absolue de l'entrée. */
+	address: string,
+	/**  `charaParamId` — la variante jouable occupant le slot (0 = slot vide). */
+	chara_param_id: number,
+	/**  `uniformId` — maillot de l'équipe. */
+	uniform_id: number,
+	/**  `shoesId` — chaussures équipées. */
+	shoes_id: number,
+	/**  `gloveId` — gants (0 = aucun). */
+	glove_id: number,
+	/**  `emblemId` — emblème de l'équipe. */
+	emblem_id: number,
+	/**  `uniformNo` — numéro de maillot. */
+	uniform_no: number,
+	/**  `scPosNo` — position sur le terrain. */
+	sc_pos_no: number,
+	/**  `isCaptain` — brassard. */
+	is_captain: boolean,
+};
+
+/**  État du live-modding : le jeu tourne-t-il, et où est son équipe. */
+export type LiveStatus = {
+	/**  `true` si un process du jeu est attaché. */
+	running: boolean,
+	/**  PID trouvé. */
+	pid: number | null,
+	/**  Nom du process trouvé. */
+	process: string | null,
+	/**  Base de chargement du module principal (hex). */
+	module_base: string | null,
+	/**  Décalage ASLR par rapport à la base statique `0x140000000` (hex). */
+	aslr_slide: string | null,
 };
 
 export type LsDto = {

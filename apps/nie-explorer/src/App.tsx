@@ -15,6 +15,7 @@ import { ModsView } from "@/components/ModsView";
 import { RawCpkView } from "@/components/RawCpkView";
 import { ReToolsView } from "@/components/ReToolsView";
 import { LuaView } from "@/components/LuaView";
+import { LiveModView } from "@/components/LiveModView";
 import { ViolaView } from "@/components/ViolaView";
 import { SaveView } from "@/components/SaveView";
 import { SettingsView } from "@/components/SettingsView";
@@ -110,6 +111,7 @@ export default function App() {
           { id: "mods", label: t("tab.mods"), icon: "extension" },
           { id: "re", label: t("tab.re"), icon: "memory" },
           { id: "viola", label: "Viola", icon: "deployed_code" },
+          { id: "livemod", label: "Live mod", icon: "bolt" },
           { id: "lua", label: "Lua", icon: "edit_note" },
         ],
       },
@@ -472,6 +474,9 @@ export default function App() {
                 </TabsContent>
                 <TabsContent value="viola" className="h-full min-h-0">
                   <ViolaView />
+                </TabsContent>
+                <TabsContent value="livemod" className="h-full min-h-0 overflow-auto">
+                  <LiveModView />
                 </TabsContent>
                 <TabsContent value="lua" className="h-full min-h-0">
                   <LuaView />

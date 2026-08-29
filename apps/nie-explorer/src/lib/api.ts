@@ -64,6 +64,9 @@ import {
   type TrickDto,
   type TrophyDto,
   type UniformDto,
+  type LaunchResult,
+  type LiveHit,
+  type LiveMember,
   type ViolaMergeDto,
   type ViolaPackDto,
   type ViolaPlatform,
@@ -436,6 +439,10 @@ export const api = {
   reTraceFindProcess: () => commands.reTraceFindProcess(),
   reTraceModuleRegions: (pid: number) => unwrap<ReTraceRegion[]>(commands.reTraceModuleRegions(pid)),
   reTraceReadBytesB64: (pid: number, addr: string, len: number) => unwrap<string>(commands.reTraceReadBytesB64(pid, addr, len)),
+  // Écrit puis RELIT : la valeur rendue est celle que la mémoire contient après coup, pas celle
+  // qu'on a demandé d'écrire.
+  reTraceWriteBytesB64: (pid: number, addr: string, dataB64: string) =>
+    unwrap<string>(commands.reTraceWriteBytesB64(pid, addr, dataB64)),
   reTraceDumpModule: (pid: number) => unwrap<ReTraceDumpStats>(commands.reTraceDumpModule(pid)),
 
   // Scan AOB HORS LIGNE (`nie-dump`) : un minidump `.dmp` déjà capturé, lu en lecture seule —
@@ -476,6 +483,20 @@ export const api = {
     unwrap<ViolaMergeDto>(commands.violaMerge(gd(gameDir), sources, sortie, semantique)),
   violaCrypto: (entree: string, sortie: string, cle?: string) =>
     unwrap<number | null>(commands.violaCrypto(entree, sortie, cle?.trim() ? cle.trim() : null)),
+
+  // ─── Live-modding du process `nie.exe` ────────────────────────────────────────────────
+  // `liveStatus` ne rejette jamais (elle rend `running: false` quand le jeu est fermé) ; les
+  // trois autres exigent un process attaché et rejettent sinon.
+  liveStatus: () => commands.liveStatus(),
+  liveFindTeam: (charaParamId: number) => unwrap<string>(commands.liveFindTeam(charaParamId)),
+  liveReadTeam: (address: string) => unwrap<LiveMember[]>(commands.liveReadTeam(address)),
+  liveWriteMember: (address: string, slot: number, field: string, value: number) =>
+    unwrap<LiveMember>(commands.liveWriteMember(address, slot, field, value)),
+  liveScanU32: (value: number, limit = 40) => unwrap<LiveHit[]>(commands.liveScanU32(value, limit)),
+  liveWriteU32: (address: string, value: number) =>
+    unwrap<number>(commands.liveWriteU32(address, value)),
+  launchSaveEditor: (alsoGame: boolean, repoDir?: string, gameDir?: string) =>
+    unwrap<LaunchResult>(commands.launchSaveEditor(gd(repoDir), gd(gameDir), alsoGame)),
 };
 
 // ─── Types du GraphQL/REST azalee (contrat réel, cf. commentaire Rust `remote_search_*`) ──

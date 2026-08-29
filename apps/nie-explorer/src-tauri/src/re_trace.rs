@@ -3,11 +3,15 @@
 //! (câblage explicitement demandé, cf. `apps/nie-explorer/ROADMAP.md` §4.3/§5) : RE single-player
 //! offline d'un jeu possédé, cadrée par l'accord `RG-L5-VR-2026-001` (cf. `CLAUDE.md`).
 //!
-//! Surface **strictement lecture seule** : [`read`](nie_trace::read)/
-//! [`find_pid_by_name`](nie_trace::find_pid_by_name)/[`module_regions`](nie_trace::module_regions)/
-//! [`dump_regions`](nie_trace::dump_regions) — jamais [`nie_trace::write`] ni
-//! [`nie_trace::patch_eac`] sur un process vivant (`patch_eac` opère sur une COPIE fichier hors
-//! ligne, pas exposé ici). Aucune écriture mémoire dans un process tiers depuis cette app.
+//! Surface **lecture et écriture** : [`read_exact`](nie_trace::read_exact) /
+//! [`write_exact`](nie_trace::write_exact) / [`find_pid_by_name`](nie_trace::find_pid_by_name) /
+//! [`module_regions`](nie_trace::module_regions) / [`dump_regions`](nie_trace::dump_regions).
+//!
+//! L'écriture a été ouverte sur demande explicite de l'utilisateur (« rend nie-trace read and
+//! write ») ; elle était auparavant bridée en lecture seule par prudence. [`nie_trace::patch_eac`]
+//! reste hors de cette façade : il opère sur une COPIE fichier hors ligne, pas sur un process.
+//! Toute écriture est **relue** et c'est la relecture qui est rendue — voir
+//! [`re_trace_write_bytes_b64`].
 //!
 //! Ce module porte aussi le volet **hors ligne** : `re_dump_*` scanne un minidump `.dmp` DÉJÀ
 //! capturé (via [`nie_dump`]) — un simple fichier lu en lecture seule, sans la moindre attache à
@@ -95,6 +99,31 @@ pub fn re_trace_read_bytes_b64(pid: i32, addr: String, len: u32) -> Result<Strin
     let addr = parse_addr(&addr)?;
     let bytes = nie_trace::read_exact(pid, addr, len as usize).map_err(|e| e.to_string())?;
     Ok(base64::engine::general_purpose::STANDARD.encode(bytes))
+}
+
+/// Écrit des octets (base64) à `addr` dans `pid`, puis **relit** la zone et la rend, elle aussi
+/// en base64.
+///
+/// Complète [`re_trace_read_bytes_b64`] : `nie-trace` porte `write_exact` depuis toujours, seule
+/// cette façade ne l'exposait pas. Ce qui est rendu est ce que la mémoire contient **après**
+/// l'écriture, jamais ce que l'appelant croyait y mettre — une page protégée en lecture seule ou
+/// une écriture partielle se voit alors immédiatement côté UI.
+///
+/// Même plafond que la lecture : 1 Mio par appel.
+#[tauri::command]
+#[specta::specta]
+pub fn re_trace_write_bytes_b64(pid: i32, addr: String, data_b64: String) -> Result<String, String> {
+    const MAX_LEN: usize = 1024 * 1024;
+    let octets = base64::engine::general_purpose::STANDARD
+        .decode(data_b64.as_bytes())
+        .map_err(|e| format!("base64 invalide : {e}"))?;
+    if octets.is_empty() || octets.len() > MAX_LEN {
+        return Err(format!("longueur invalide (1..={MAX_LEN})"));
+    }
+    let addr = parse_addr(&addr)?;
+    nie_trace::write_exact(pid, addr, &octets).map_err(|e| e.to_string())?;
+    let relu = nie_trace::read_exact(pid, addr, octets.len()).map_err(|e| e.to_string())?;
+    Ok(base64::engine::general_purpose::STANDARD.encode(relu))
 }
 
 fn parse_addr(s: &str) -> Result<u64, String> {
