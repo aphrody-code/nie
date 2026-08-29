@@ -464,6 +464,25 @@ pub enum SseOp {
     Pmullw,
     Pavgb,
     Pavgw,
+    Packuswb,
+    Packsswb,
+    Packssdw,
+    Punpcklbw,
+    Punpcklwd,
+    Punpckhbw,
+    Punpckhwd,
+    Pcmpeqb,
+    Pcmpeqw,
+    Pcmpeqd,
+    Pcmpgtb,
+    Pcmpgtw,
+    Pcmpgtd,
+    Paddb,
+    Psubb,
+    Paddusb,
+    Psubusb,
+    Pmaddwd,
+    Pmulhw,
 }
 
 /// Opération sur chaîne, préfixée par `rep`.
@@ -663,6 +682,25 @@ impl SseOp {
             Self::Pmullw => (P66, 0xD5, None),
             Self::Pavgb => (P66, 0xE0, None),
             Self::Pavgw => (P66, 0xE3, None),
+            Self::Packuswb => (P66, 0x67, None),
+            Self::Packsswb => (P66, 0x63, None),
+            Self::Packssdw => (P66, 0x6B, None),
+            Self::Punpcklbw => (P66, 0x60, None),
+            Self::Punpcklwd => (P66, 0x61, None),
+            Self::Punpckhbw => (P66, 0x68, None),
+            Self::Punpckhwd => (P66, 0x69, None),
+            Self::Pcmpeqb => (P66, 0x74, None),
+            Self::Pcmpeqw => (P66, 0x75, None),
+            Self::Pcmpeqd => (P66, 0x76, None),
+            Self::Pcmpgtb => (P66, 0x64, None),
+            Self::Pcmpgtw => (P66, 0x65, None),
+            Self::Pcmpgtd => (P66, 0x66, None),
+            Self::Paddb => (P66, 0xFC, None),
+            Self::Psubb => (P66, 0xF8, None),
+            Self::Paddusb => (P66, 0xDC, None),
+            Self::Psubusb => (P66, 0xD8, None),
+            Self::Pmaddwd => (P66, 0xF5, None),
+            Self::Pmulhw => (P66, 0xE5, None),
         }
     }
 }
@@ -1078,6 +1116,18 @@ fn rm_form(
 }
 
 /// Immédiat d'une opération ALU/`mov` selon la taille d'opérande.
+/// Immédiat **à la largeur de l'opérande** : 2 octets en 16 bits, 4 sinon.
+///
+/// `or si, 1D6h` s'encode `66 81 CE D6 01` — cinq octets. Émettre l'immédiat
+/// sur 4 octets en ajoutait deux et changeait l'instruction.
+fn imm_sized(out: &mut Vec<u8>, size: Size, v: i32) {
+    if size == Size::W {
+        out.extend_from_slice(&v.to_le_bytes()[..2]);
+    } else {
+        out.extend_from_slice(&v.to_le_bytes());
+    }
+}
+
 fn imm_bytes(size: Size, v: i32, force_wide: bool) -> (Vec<u8>, bool) {
     if size == Size::B {
         return (alloc::vec![v as u8], false);
@@ -1148,8 +1198,8 @@ fn encode_one(i: Insn, at: u64, out: &mut Vec<u8>) {
             let (x, b) = mem_rex(m);
             rex(out, size.rex_w(), 0, x, b);
             out.push(0xC7);
-            modrm_mem(out, 0, m, at, base, 4);
-            out.extend_from_slice(&imm.to_le_bytes());
+            modrm_mem(out, 0, m, at, base, if size == Size::W { 2 } else { 4 });
+            imm_sized(out, size, imm);
         }
         Insn::Lea(r, m) => mem_form(out, Size::Q, 0x8D, r, m, at, 0),
         Insn::AluRR(op, size, dst, src) => reg_form(out, size, alu_rm_op(op, size), dst, src),
@@ -1169,7 +1219,7 @@ fn encode_one(i: Insn, at: u64, out: &mut Vec<u8>) {
                 opsize(out, size);
                 rex(out, size.rex_w(), 0, 0, 0);
                 out.push(op.digit() * 8 + 5);
-                out.extend_from_slice(&imm.to_le_bytes());
+                imm_sized(out, size, imm);
                 return;
             }
             opsize(out, size);
@@ -1186,7 +1236,7 @@ fn encode_one(i: Insn, at: u64, out: &mut Vec<u8>) {
             } else {
                 out.push(0x81);
                 out.push(0xC0 | (op.digit() << 3) | r.lo());
-                out.extend_from_slice(&imm.to_le_bytes());
+                imm_sized(out, size, imm);
             }
         }
         Insn::TestRR(size, a, b) => {
