@@ -185,18 +185,33 @@ async function main(): Promise<void> {
     check("vfs_search glob **", data.mode === "glob" && data.total_matches > 0, `mode=${data.mode} total=${data.total_matches}`);
   }
 
-  // (5) re_function CScene + re_query.
+  // (5) re_function + re_query.
+  //
+  // Le nom cherché est LU DANS LA BASE plutôt que codé en dur : `var/niers.sqlite` est refondée
+  // (`niers rebuild`) au fil du reverse, et l'ancien littéral « CScene » n'y a plus aucune
+  // fonction — la table `function` en compte 55 351 dont seule une fraction est nommée, et les
+  // `CScene*` ne vivent plus que dans `rtti_class`. Le test échouait donc sur l'état de la base,
+  // pas sur l'outil qu'il prétend vérifier.
   {
-    const { data } = await callJson<{ total_matches: number; matches: { name: string; vaddr: string }[] }>(
-      client,
-      "re_function",
-      { name: "CScene" },
-    );
-    check(
-      "re_function CScene",
-      data.total_matches > 0 && data.matches[0]?.vaddr?.startsWith("0x") === true,
-      `matches=${data.total_matches} top=${data.matches[0]?.name} @ ${data.matches[0]?.vaddr}`,
-    );
+    const { data: seed } = await callJson<{ rows: { name: string }[] }>(client, "re_query", {
+      sql: "SELECT name FROM function WHERE name IS NOT NULL AND length(name) > 4 LIMIT 1",
+    });
+    const nom = seed.rows[0]?.name;
+    if (!nom) {
+      check("re_function", false, "aucune fonction nommée dans var/niers.sqlite");
+    } else {
+      // Un fragment plutôt que le nom entier : c'est la recherche par fragment qu'on teste.
+      const fragment = nom.slice(0, Math.min(6, nom.length));
+      const { data } = await callJson<{
+        total_matches: number;
+        matches: { name: string; vaddr: string }[];
+      }>(client, "re_function", { name: fragment });
+      check(
+        `re_function « ${fragment} »`,
+        data.total_matches > 0 && data.matches[0]?.vaddr?.startsWith("0x") === true,
+        `matches=${data.total_matches} top=${data.matches[0]?.name} @ ${data.matches[0]?.vaddr}`,
+      );
+    }
   }
   {
     const { data } = await callJson<{ rows: Record<string, unknown>[] }>(client, "re_query", {
