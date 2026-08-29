@@ -280,7 +280,7 @@ fn split_sized_mem(s: &str) -> Option<(Size, Mem)> {
 
 
 /// Table des mnemoniques SSE supportes.
-const SSES: [(&str, SseOp); 65] = [
+const SSES: [(&str, SseOp); 83] = [
     ("movaps", SseOp::Movaps),
     ("movapd", SseOp::Movapd),
     ("movups", SseOp::Movups),
@@ -346,7 +346,36 @@ const SSES: [(&str, SseOp); 65] = [
     ("por", SseOp::Por),
     ("pand", SseOp::Pand),
     ("unpcklpd", SseOp::Unpcklpd),
+    ("cmppd", SseOp::Cmppd),
+    ("cmpsd_x", SseOp::Cmpsd),
+    ("rcpps", SseOp::Rcpps),
+    ("rsqrtps", SseOp::Rsqrtps),
+    ("punpckldq", SseOp::Punpckldq),
+    ("punpckhdq", SseOp::Punpckhdq),
+    ("paddw", SseOp::Paddw),
+    ("paddd", SseOp::Paddd),
+    ("psubw", SseOp::Psubw),
+    ("psubd", SseOp::Psubd),
+    ("pminsw", SseOp::Pminsw),
+    ("pmaxsw", SseOp::Pmaxsw),
+    ("punpcklqdq", SseOp::Punpcklqdq),
+    ("punpckhqdq", SseOp::Punpckhqdq),
+    ("psadbw", SseOp::Psadbw),
+    ("pmullw", SseOp::Pmullw),
+    ("pavgb", SseOp::Pavgb),
+    ("pavgw", SseOp::Pavgw),
 ];
+
+/// Mnémonique d'une opération de décalage/rotation.
+fn shiftop_name(o: ShiftOp) -> &'static str {
+    match o {
+        ShiftOp::Shl => "shl",
+        ShiftOp::Shr => "shr",
+        ShiftOp::Sar => "sar",
+        ShiftOp::Rol => "rol",
+        ShiftOp::Ror => "ror",
+    }
+}
 
 fn sse_name(o: SseOp) -> &'static str {
     SSES.iter().find(|(_, x)| *x == o).map_or("movaps", |(n, _)| *n)
@@ -508,11 +537,7 @@ impl Insn {
             ),
             Self::TestRR(s, a, b) => format!("test {}, {}", reg_name(a, s), reg_name(b, s)),
             Self::Shift(op, s, r, i) => {
-                let n = match op {
-                    ShiftOp::Shl => "shl",
-                    ShiftOp::Shr => "shr",
-                    ShiftOp::Sar => "sar",
-                };
+                let n = shiftop_name(op);
                 format!("{n} {}, {i:#x}", reg_name(r, s))
             }
             Self::MovzxR(src, d, s) => {
@@ -621,19 +646,11 @@ impl Insn {
             Self::NoOperand(o) => noop_name(o).to_string(),
             Self::SetccRm(c, rm) => format!("set{} {}", cond_name(c), rm_text(rm, Size::B)),
             Self::Shift1(op, s, rm) => {
-                let n = match op {
-                    ShiftOp::Shl => "shl",
-                    ShiftOp::Shr => "shr",
-                    ShiftOp::Sar => "sar",
-                };
+                let n = shiftop_name(op);
                 format!("{n} {}, 1", rm_text(rm, s))
             }
             Self::ShiftCl(op, s, rm) => {
-                let n = match op {
-                    ShiftOp::Shl => "shl",
-                    ShiftOp::Shr => "shr",
-                    ShiftOp::Sar => "sar",
-                };
+                let n = shiftop_name(op);
                 format!("{n} {}, cl", rm_text(rm, s))
             }
             Self::BitRm(op, s, rm, r) => {
@@ -847,11 +864,13 @@ pub fn parse_insn(line: &str) -> Result<Insn, ParseError> {
                 )),
             }
         }
-        "shl" | "shr" | "sar" => {
+        "shl" | "shr" | "sar" | "rol" | "ror" => {
             let (d, s) = two()?;
             let op = match mnem {
                 "shl" => ShiftOp::Shl,
                 "shr" => ShiftOp::Shr,
+                "rol" => ShiftOp::Rol,
+                "ror" => ShiftOp::Ror,
                 _ => ShiftOp::Sar,
             };
             let (rm, sz) = parse_rm(&d).ok_or_else(err)?;

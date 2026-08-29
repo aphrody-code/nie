@@ -183,6 +183,8 @@ pub enum ShiftOp {
     Shl,
     Shr,
     Sar,
+    Rol,
+    Ror,
 }
 
 impl ShiftOp {
@@ -190,6 +192,8 @@ impl ShiftOp {
     #[must_use]
     pub fn digit(self) -> u8 {
         match self {
+            Self::Rol => 0,
+            Self::Ror => 1,
             Self::Shl => 4,
             Self::Shr => 5,
             Self::Sar => 7,
@@ -442,6 +446,24 @@ pub enum SseOp {
     Por,
     Pand,
     Unpcklpd,
+    Cmppd,
+    Cmpsd,
+    Rcpps,
+    Rsqrtps,
+    Punpckldq,
+    Punpckhdq,
+    Paddw,
+    Paddd,
+    Psubw,
+    Psubd,
+    Pminsw,
+    Pmaxsw,
+    Punpcklqdq,
+    Punpckhqdq,
+    Psadbw,
+    Pmullw,
+    Pavgb,
+    Pavgw,
 }
 
 /// Préfixe obligatoire d'une opération SSE.
@@ -530,6 +552,24 @@ impl SseOp {
             Self::Por => (P66, 0xEB, None),
             Self::Pand => (P66, 0xDB, None),
             Self::Unpcklpd => (P66, 0x14, None),
+            Self::Cmppd => (P66, 0xC2, None),
+            Self::Cmpsd => (F2, 0xC2, None),
+            Self::Rcpps => (N, 0x53, None),
+            Self::Rsqrtps => (N, 0x52, None),
+            Self::Punpckldq => (P66, 0x62, None),
+            Self::Punpckhdq => (P66, 0x6A, None),
+            Self::Paddw => (P66, 0xFD, None),
+            Self::Paddd => (P66, 0xFE, None),
+            Self::Psubw => (P66, 0xF9, None),
+            Self::Psubd => (P66, 0xFA, None),
+            Self::Pminsw => (P66, 0xEA, None),
+            Self::Pmaxsw => (P66, 0xEE, None),
+            Self::Punpcklqdq => (P66, 0x6C, None),
+            Self::Punpckhqdq => (P66, 0x6D, None),
+            Self::Psadbw => (P66, 0xF6, None),
+            Self::Pmullw => (P66, 0xD5, None),
+            Self::Pavgb => (P66, 0xE0, None),
+            Self::Pavgw => (P66, 0xE3, None),
         }
     }
 }
@@ -1043,7 +1083,9 @@ fn encode_one(i: Insn, at: u64, out: &mut Vec<u8>) {
         }
         Insn::Shift(op, size, r, imm) => {
             opsize(out, size);
-            rex(out, size.rex_w(), 0, 0, r.hi());
+            // `shr bpl, 5` exige un REX nul (`40`) : sans lui, le numéro 5
+            // désignerait `ch` et non `bpl`.
+            rex_forced(out, size.rex_w(), 0, 0, r.hi(), needs_rex8(size, r));
             out.push(if size == Size::B { 0xC0 } else { 0xC1 });
             out.push(0xC0 | (op.digit() << 3) | r.lo());
             out.push(imm);

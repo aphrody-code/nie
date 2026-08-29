@@ -200,6 +200,28 @@ fn sse_of(m: Mnemonic) -> Option<SseOp> {
         Mnemonic::Cvtsd2ss => SseOp::Cvtsd2ss,
         Mnemonic::Rcpss => SseOp::Rcpss,
         Mnemonic::Rsqrtss => SseOp::Rsqrtss,
+        // `cmpeqps` n'est qu'un affichage : iced rend `Cmpps` avec l'immediat
+        // de predicat en troisieme operande, ce que `SseI` encode deja.
+        Mnemonic::Cmpps => SseOp::Cmpps,
+        Mnemonic::Cmpss => SseOp::Cmpss,
+        Mnemonic::Cmppd => SseOp::Cmppd,
+        Mnemonic::Cmpsd => SseOp::Cmpsd,
+        Mnemonic::Punpcklqdq => SseOp::Punpcklqdq,
+        Mnemonic::Punpckhqdq => SseOp::Punpckhqdq,
+        Mnemonic::Psadbw => SseOp::Psadbw,
+        Mnemonic::Pmullw => SseOp::Pmullw,
+        Mnemonic::Pavgb => SseOp::Pavgb,
+        Mnemonic::Pavgw => SseOp::Pavgw,
+        Mnemonic::Rcpps => SseOp::Rcpps,
+        Mnemonic::Rsqrtps => SseOp::Rsqrtps,
+        Mnemonic::Punpckldq => SseOp::Punpckldq,
+        Mnemonic::Punpckhdq => SseOp::Punpckhdq,
+        Mnemonic::Paddw => SseOp::Paddw,
+        Mnemonic::Paddd => SseOp::Paddd,
+        Mnemonic::Psubw => SseOp::Psubw,
+        Mnemonic::Psubd => SseOp::Psubd,
+        Mnemonic::Pminsw => SseOp::Pminsw,
+        Mnemonic::Pmaxsw => SseOp::Pmaxsw,
         Mnemonic::Shufps => SseOp::Shufps,
         Mnemonic::Shufpd => SseOp::Shufpd,
         Mnemonic::Pshufd => SseOp::Pshufd,
@@ -345,6 +367,21 @@ fn has_rex_w(raw: &[u8]) -> bool {
     false
 }
 
+/// Premier octet d'opcode, prefixes herites et REX sautes.
+fn opcode_of(raw: &[u8]) -> Option<u8> {
+    let mut k = 0usize;
+    while let Some(&b) = raw.get(k) {
+        if matches!(b, 0xF0 | 0xF2 | 0xF3 | 0x2E | 0x36 | 0x3E | 0x26 | 0x64 | 0x65 | 0x66 | 0x67)
+            || (0x40..=0x4F).contains(&b)
+        {
+            k += 1;
+            continue;
+        }
+        return Some(b);
+    }
+    None
+}
+
 fn insn_of(i: &iced_x86::Instruction, raw: &[u8]) -> Option<Insn> {
     if let Some(c) = cmov_cond(i.mnemonic()) {
         let (r, sz) = reg_of(i.op_register(0))?;
@@ -476,19 +513,24 @@ fn insn_of(i: &iced_x86::Instruction, raw: &[u8]) -> Option<Insn> {
             let (b, sb) = reg_of(i.op_register(1))?;
             (sa == sb).then_some(Insn::TestRR(sa, a, b))
         }
-        Mnemonic::Shl | Mnemonic::Shr | Mnemonic::Sar
+        Mnemonic::Shl | Mnemonic::Shr | Mnemonic::Sar | Mnemonic::Rol | Mnemonic::Ror
             if i.op_kind(1) == OpKind::Immediate8 =>
         {
             let op = match i.mnemonic() {
                 Mnemonic::Shl => ShiftOp::Shl,
                 Mnemonic::Shr => ShiftOp::Shr,
+                Mnemonic::Rol => ShiftOp::Rol,
+                Mnemonic::Ror => ShiftOp::Ror,
                 _ => ShiftOp::Sar,
             };
             let sz = rm_size(i, 0)?;
             let rm = rm_of(i, 0)?;
-            // `shr rcx, 1` a sa forme dédiée `D1 /5`, plus courte que `C1 /5 01`.
-            // iced la rend avec un immédiat 1 : c'est la LONGUEUR qui départage.
-            let one = i.immediate8() == 1 && i.len() <= 3;
+            // `shr rcx, 1` a sa forme dediee `D1 /5`, plus courte que
+            // `C1 /5 01` ; iced rend les deux avec un immediat 1. La longueur
+            // ne departage pas : `shr r8w, 1` fait 4 octets sous ses prefixes
+            // `66 41`, autant que la forme longue d'un registre bas. On lit
+            // donc l'opcode reel — `D0`/`D1` = forme par 1.
+            let one = i.immediate8() == 1 && matches!(opcode_of(raw), Some(0xD0 | 0xD1));
             match (one, rm) {
                 (true, _) => Some(Insn::Shift1(op, sz, rm)),
                 (false, Rm::R(r)) => Some(Insn::Shift(op, sz, r, i.immediate8())),
@@ -504,12 +546,14 @@ fn insn_of(i: &iced_x86::Instruction, raw: &[u8]) -> Option<Insn> {
         Mnemonic::Bts => Some(bit_insn(i, BitOp::Bts)?),
         Mnemonic::Btr => Some(bit_insn(i, BitOp::Btr)?),
         Mnemonic::Btc => Some(bit_insn(i, BitOp::Btc)?),
-        Mnemonic::Shl | Mnemonic::Shr | Mnemonic::Sar
+        Mnemonic::Shl | Mnemonic::Shr | Mnemonic::Sar | Mnemonic::Rol | Mnemonic::Ror
             if i.op_kind(1) == OpKind::Register =>
         {
             let op = match i.mnemonic() {
                 Mnemonic::Shl => ShiftOp::Shl,
                 Mnemonic::Shr => ShiftOp::Shr,
+                Mnemonic::Rol => ShiftOp::Rol,
+                Mnemonic::Ror => ShiftOp::Ror,
                 _ => ShiftOp::Sar,
             };
             (i.op_register(1) == Register::CL).then_some(())?;
