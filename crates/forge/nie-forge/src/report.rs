@@ -59,6 +59,29 @@ pub struct Report {
 }
 
 impl Report {
+    /// Ajoute au seau `emitted` les **sections-tables** que `nie-pe` sait
+    /// ré-émettre depuis leurs entrées (`.pdata`, `.reloc`).
+    ///
+    /// Ces sections ne sont pas recopiées : elles sont régénérées, au même
+    /// titre que les en-têtes PE, et `nie-forge build` les émet ainsi. Sans cet
+    /// ajout le rapport **sous-déclare** et diverge de la construction — de
+    /// 1 427 968 octets sur `nie.exe`, soit 4,2 points.
+    ///
+    /// Cette étape vit ici, et non dans l'appelant, précisément pour que les
+    /// deux façades de la mesure — la CLI `nie-forge report` et l'onglet
+    /// « Forge » de `nie-explorer` — ne puissent pas diverger.
+    pub fn add_emitted_tables(&mut self, cover: &Cover, img: &nie_pe::PeImage) {
+        for u in &cover.units {
+            if u.kind == UnitKind::SectionData
+                && let Some(sec) = u.section.as_deref()
+                && nie_pe::image::tables::emit_for(img, sec).is_some_and(|b| b.len() == u.len)
+            {
+                self.emitted.units += 1;
+                self.emitted.bytes += u.len;
+            }
+        }
+    }
+
     /// Construit le rapport en croisant recouvrement, source assembleur et registre.
     ///
     /// # Erreurs

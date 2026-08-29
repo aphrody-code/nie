@@ -961,7 +961,22 @@ fn default_wiki_db(game_dir: Option<String>) -> Option<String> {
 fn default_re_db(game_dir: Option<String>) -> Option<String> {
     let root = resolve_root(game_dir.as_deref());
     let path = root.join("var").join("niers.sqlite");
-    path.is_file().then(|| path.display().to_string())
+    if path.is_file() {
+        return Some(path.display().to_string());
+    }
+    // La base RE est un artefact du **depot**, pas de l'installation du jeu : sur un poste ou
+    // `NIE_GAME_DIR` pointe vers l'install Steam (le cas courant, cf. CLAUDE.md), elle ne se
+    // trouve pas sous la racine du jeu. On la cherche donc aussi depuis le repertoire courant,
+    // en remontant jusqu'au premier ancetre portant `var/niers.sqlite`.
+    let mut cur = std::env::current_dir().ok();
+    while let Some(dir) = cur {
+        let p = dir.join("var").join("niers.sqlite");
+        if p.is_file() {
+            return Some(p.display().to_string());
+        }
+        cur = dir.parent().map(std::path::Path::to_path_buf);
+    }
+    None
 }
 
 /// Fichier `supabase-*.sqlite` non-vide le plus récent (tri lexicographique DESC — les noms
