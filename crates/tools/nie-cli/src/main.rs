@@ -10,6 +10,7 @@ mod img_cmd;
 mod lua_cmd;
 mod mem_lua;
 mod menu_predecode;
+mod vn_cmd;
 mod mod_cmd;
 mod mode_index;
 mod search_cmd;
@@ -508,6 +509,16 @@ enum Cmd {
     Vfs {
         #[command(subcommand)]
         op: VfsOp,
+    },
+
+    /// Alimente le visual novel `nie-vn-engine` avec les assets réels du jeu (voix, textures,
+    /// musique) : produit un catalogue local, jamais versionné.
+    Vn {
+        #[command(subcommand)]
+        op: vn_cmd::VnCmd,
+        /// Racine du jeu (défaut : résolution automatique).
+        #[arg(long)]
+        game_dir: Option<PathBuf>,
     },
 }
 
@@ -1949,6 +1960,10 @@ fn run() -> anyhow::Result<()> {
             menu_predecode_cmd(&racine_jeu(game_dir), &layouts_dir, &redis_url, all)
         }
         Cmd::Vfs { op } => vfs_cmd(op),
+        Cmd::Vn { op, game_dir } => {
+            let vfs = open_vfs(game_dir)?;
+            vn_cmd::run(&op, &vfs)
+        }
     }
 }
 
