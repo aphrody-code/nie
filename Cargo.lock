@@ -206,7 +206,7 @@ checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 
 [[package]]
 name = "aphrody-re"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "goblin",
  "googletest",
@@ -4173,7 +4173,7 @@ checksum = "650eef8c711430f1a879fdd01d4745a7deea475becfb90269c06775983bbf086"
 
 [[package]]
 name = "nie-app"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "anyhow",
  "bcdec_rs",
@@ -4189,14 +4189,14 @@ dependencies = [
 
 [[package]]
 name = "nie-asm"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "serde",
 ]
 
 [[package]]
 name = "nie-bench"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "anyhow",
  "clap",
@@ -4205,7 +4205,7 @@ dependencies = [
 
 [[package]]
 name = "nie-camera"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "anyhow",
  "clap",
@@ -4221,7 +4221,7 @@ dependencies = [
 
 [[package]]
 name = "nie-cli"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "anyhow",
  "clap",
@@ -4259,7 +4259,7 @@ dependencies = [
 
 [[package]]
 name = "nie-core"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "nie-data",
  "nie-geom",
@@ -4270,7 +4270,7 @@ dependencies = [
 
 [[package]]
 name = "nie-data"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "serde",
  "serde_json",
@@ -4278,14 +4278,14 @@ dependencies = [
 
 [[package]]
 name = "nie-dump"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "thiserror 2.0.20",
 ]
 
 [[package]]
 name = "nie-editor"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "anyhow",
  "clap",
@@ -4297,7 +4297,7 @@ dependencies = [
 
 [[package]]
 name = "nie-explore"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "nie-data",
  "nie-formats",
@@ -4307,7 +4307,7 @@ dependencies = [
 
 [[package]]
 name = "nie-ffi"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "image",
  "nie-core",
@@ -4317,7 +4317,7 @@ dependencies = [
 
 [[package]]
 name = "nie-forge"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "anyhow",
  "clap",
@@ -4332,7 +4332,7 @@ dependencies = [
 
 [[package]]
 name = "nie-formats"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "aes 0.8.4",
  "cridecoder",
@@ -4345,7 +4345,7 @@ dependencies = [
 
 [[package]]
 name = "nie-game"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "anyhow",
  "bytemuck",
@@ -4371,14 +4371,14 @@ dependencies = [
 
 [[package]]
 name = "nie-geom"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "serde",
 ]
 
 [[package]]
 name = "nie-headless"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -4392,7 +4392,7 @@ dependencies = [
 
 [[package]]
 name = "nie-index"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "r2d2",
  "redis",
@@ -4405,7 +4405,7 @@ dependencies = [
 
 [[package]]
 name = "nie-lua"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "mlua",
  "nie-formats",
@@ -4417,7 +4417,7 @@ dependencies = [
 
 [[package]]
 name = "nie-model-serve"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "anyhow",
  "clap",
@@ -4435,7 +4435,7 @@ dependencies = [
 
 [[package]]
 name = "nie-pe"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "serde",
  "sha2",
@@ -4444,7 +4444,7 @@ dependencies = [
 
 [[package]]
 name = "nie-play"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "anyhow",
  "clap",
@@ -4458,7 +4458,7 @@ dependencies = [
 
 [[package]]
 name = "nie-queue"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "redis",
  "thiserror 2.0.20",
@@ -4467,7 +4467,7 @@ dependencies = [
 
 [[package]]
 name = "nie-re"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "anyhow",
  "aphrody-re",
@@ -4482,7 +4482,7 @@ dependencies = [
 
 [[package]]
 name = "nie-render3d"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "anyhow",
  "bcdec_rs",
@@ -4497,7 +4497,7 @@ dependencies = [
 
 [[package]]
 name = "nie-runtime"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "anyhow",
  "clap",
@@ -4509,7 +4509,7 @@ dependencies = [
 
 [[package]]
 name = "nie-save"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "nie-formats",
  "serde",
@@ -4519,7 +4519,7 @@ dependencies = [
 
 [[package]]
 name = "nie-seed"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "anyhow",
  "nie-index",
@@ -4533,7 +4533,7 @@ dependencies = [
 
 [[package]]
 name = "nie-steam"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "anyhow",
  "base64",
@@ -4554,7 +4554,7 @@ dependencies = [
 
 [[package]]
 name = "nie-tasks"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "async-trait",
  "serde",
@@ -4567,7 +4567,7 @@ dependencies = [
 
 [[package]]
 name = "nie-trace"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "libc",
  "thiserror 2.0.20",
@@ -4576,7 +4576,7 @@ dependencies = [
 
 [[package]]
 name = "nie-viola"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "memmap2",
  "nie-formats",
@@ -4587,7 +4587,7 @@ dependencies = [
 
 [[package]]
 name = "nie-wasm"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "console_error_panic_hook",
  "getrandom 0.2.17",
@@ -4607,7 +4607,7 @@ dependencies = [
 
 [[package]]
 name = "nie-wiki"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "anyhow",
  "rand 0.8.7",
@@ -4621,7 +4621,7 @@ dependencies = [
 
 [[package]]
 name = "nie-zukan"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "anyhow",
  "base64",
