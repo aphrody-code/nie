@@ -230,3 +230,4 @@ compile_commands.json
 
 # Espace de travail des mods — contient des assets © LEVEL-5 extraits du jeu
 mods/
+/launch.png
