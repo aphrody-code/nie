@@ -422,6 +422,12 @@ impl Vfs {
             arc
         };
 
+        // Le verrou du cache est rendu AVANT l'extraction : la recherche d'entrée et la
+        // décompression CRILAYLA sont du CPU pur sur des octets que notre `Arc` garde vivants
+        // même si un autre thread évince ce CPK entre-temps (c'est la garantie du cache).
+        // Le garder aurait sérialisé tout le décodage du serveur derrière un seul mutex.
+        drop(cache);
+
         let (reader, cpk_bytes) = &*reader_arc;
         
         // Trouver l'entrée CPK : on matche le CHEMIN COMPLET (`directory/filename`) en
