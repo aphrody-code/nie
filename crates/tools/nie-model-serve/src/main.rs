@@ -2013,6 +2013,25 @@ fn get_or_build_avatar_glb(
             )
                 .into_iter()
                 .map(|(w, h, rgba, masque)| {
+                    // L'ŒIL d'abord : son masque ne suit pas la convention de la bouche. Le noir
+                    // y est l'ouverture de l'œil et le vert le trait de paupière, quand la bouche
+                    // met son encre en noir sur fond rouge. Passer l'œil par la découpe commune
+                    // gardait l'ouverture et la teintait en carnation — une rondelle de peau
+                    // posée sur l'œil — puis jetait le tracé. Cf. `decouper_oeil`.
+                    if rel.starts_with("01_eye")
+                        && let Some(m) = masque.as_ref()
+                    {
+                        // La couleur vient de la teinte par canaux — sur `_facetex`, le vert porte
+                        // l'iris — et l'opacité de la seule zone verte du masque. La planche, elle,
+                        // n'apporte rien sur le tracé : grise (211, 211, 211) et transparente
+                        // (alpha moyen 1,1). D'où cet ordre : teinter, puis découper.
+                        let teintee = nie_formats::image_out::teinter_par_canaux(
+                            w, h, &rgba, teintes, entree_vide,
+                        )
+                        .unwrap_or(rgba);
+                        let decoupee = nie_formats::image_out::decouper_oeil(w, h, &teintee, m);
+                        return (w, h, decoupee.unwrap_or(teintee));
+                    }
                     // Une planche qui porte DÉJÀ un dessin — les quatre bouches de `mouth_01` —
                     // ne se teinte pas : elle se découpe. Son masque cerne le trait en noir sur
                     // fond rouge, et seul le fond doit disparaître. La faire passer par la teinte

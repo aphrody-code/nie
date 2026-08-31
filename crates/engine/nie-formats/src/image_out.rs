@@ -562,6 +562,60 @@ pub fn decouper_par_zones(
     Some(sortie)
 }
 
+/// Découpe une planche d'**œil** (`01_eye`) selon sa convention de masque, qui est l'INVERSE de
+/// celle de la bouche.
+///
+/// Mesuré le 2026-08-31 sur `01_eye/eye_01.g4tx`, sous-planche `eye_L_01msk` (2048×1024) — les
+/// trois zones sont portées par le MASQUE, la planche `eye_L_01` n'en porte aucune (0,00 % sur
+/// les trois critères) :
+///
+/// | zone du masque | part | rôle |
+/// |---|---|---|
+/// | rouge (`r > 200`, `v < 50`) | 79,38 % | zone morte |
+/// | noir (`r < 10`, `v < 10`) | 15,52 % | **l'ouverture de l'œil** — doit rester un trou |
+/// | vert (`v > 128`, `r < 128`) | 4,89 % | **le trait de paupière et de cils** — le tracé |
+///
+/// [`decouper_par_zones`] applique la convention de `05_mouth` (noir = encre, rouge = fond) : elle
+/// ne retire que le rouge, garde le noir, et laisse la teinte par canaux peindre l'ouverture en
+/// carnation. Résultat mesuré sur la sortie : l'ouverture opaque à 99,59 %, le liseré à 22,37 %,
+/// soit une rondelle de peau posée SUR l'œil et le tracé jeté (IoU de l'alpha avec le vert :
+/// 6,99 %). D'où un visage lisse, sans yeux.
+///
+/// Ici, seul le vert est conservé ; le rouge et le noir deviennent transparents, ce qui laisse
+/// voir la maille des yeux placée dessous.
+///
+/// **L'opacité est POSÉE, pas héritée.** La planche `eye_L_01` ne porte pas le tracé : mesurée sur
+/// la zone verte du masque, elle y est grise et quasi transparente — couleur moyenne (211, 211,
+/// 211), alpha moyen 1,1 sur 25 626 pixels. Conserver son alpha rendait donc la planche entière
+/// invisible. La couleur, elle, vient de la teinte par canaux appliquée en amont : sur une planche
+/// `_facetex`, le vert porte l'iris.
+///
+/// `planche` est donc attendue **déjà teintée** ; cette fonction ne décide que de l'alpha.
+///
+/// Rend `None` si les tampons sont trop courts pour la taille annoncée.
+#[cfg(feature = "textures")]
+#[must_use]
+pub fn decouper_oeil(
+    largeur: u32,
+    hauteur: u32,
+    planche: &[u8],
+    masque: &[u8],
+) -> Option<alloc::vec::Vec<u8>> {
+    let attendu = largeur as usize * hauteur as usize * 4;
+    if attendu == 0 || planche.len() < attendu || masque.len() < attendu {
+        return None;
+    }
+    let mut sortie = planche[..attendu].to_vec();
+    for i in (0..attendu).step_by(4) {
+        let (r, v) = (masque[i], masque[i + 1]);
+        // Le tracé est ce que le vert domine. Le seuil sur `v` écarte les pixels sombres, où les
+        // trois canaux sont bas et où aucune dominance n'a de sens.
+        let trace = v > 128 && v > r;
+        sortie[i + 3] = if trace { 255 } else { 0 };
+    }
+    Some(sortie)
+}
+
 /// Vrai si le canal rouge d'une image RGBA est constant — donc sans information spatiale.
 ///
 /// Sert à décider si un masque `msk` mérite d'être posé en alpha : uniforme, il n'apporte rien et
