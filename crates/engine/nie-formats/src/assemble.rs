@@ -1417,7 +1417,27 @@ pub fn assemble_character_model(
         Vec::new()
     };
 
-    // ── 2 bis. Recalage de la face sur le corps ───────────────────────────────
+    // ── 2 bis. Rejet des primitives à positions non finies ───────────────────
+    //
+    // Certains GLB de face portent des positions `NaN`/infinies. Mesuré le 2026-08-31 sur
+    // `c01000500` servi en production : sa maille de visage annonçait y ∈ [0,000 ; 3,34e38],
+    // c'est-à-dire la sentinelle `f32::MAX` jamais remplacée — la boîte englobante n'a donc
+    // aucun sens.
+    //
+    // Une telle boîte est contagieuse : elle est celle du modèle entier, et tout cadrage
+    // automatique sur elle (`model-viewer`, un rendu hors ligne) recule la caméra à l'infini.
+    // Le personnage devient un point. Mieux vaut servir un modèle amputé de la maille fautive
+    // qu'un modèle entier inregardable.
+    let face_primitives: Vec<MeshPrimitive> = face_primitives
+        .into_iter()
+        .filter(|prim| {
+            prim.positions
+                .iter()
+                .all(|p| p.x.is_finite() && p.y.is_finite() && p.z.is_finite())
+        })
+        .collect();
+
+    // ── 2 ter. Recalage de la face sur le corps ───────────────────────────────
     //
     // Les GLB de face pré-convertis ne sont pas tous exprimés à la même hauteur : la translation
     // y est CUITE dans les sommets (aucun nœud ne porte de `translation`, aucun `skin`), et
