@@ -1417,6 +1417,53 @@ pub fn assemble_character_model(
         Vec::new()
     };
 
+    // ── 2 bis. Recalage de la face sur le corps ───────────────────────────────
+    //
+    // Les GLB de face pré-convertis ne sont pas tous exprimés à la même hauteur : la translation
+    // y est CUITE dans les sommets (aucun nœud ne porte de `translation`, aucun `skin`), et
+    // certains modèles la portent fausse. Mesuré le 2026-08-31 sur les fichiers du VPS :
+    //
+    // | modèle | base de la face | écart |
+    // |---|---|---|
+    // | `c01004650` | 1,276 m | référence |
+    // | `c03037170` | 1,521 m | +0,24 m |
+    // | `c04001020` | 1,741 m | +0,46 m |
+    //
+    // Le corps, lui, est toujours au même endroit (`Uniform` y ∈ [0,09 ; 1,30] sur les trois),
+    // donc la tête doit toujours se poser à la même hauteur. Sans recalage, elle flotte au-dessus
+    // du cou — c'est ce qu'on voit sur la galerie des modèles.
+    //
+    // La maille de tête de base sert de référence : elle vient d'un fichier commun, jamais du
+    // modèle du personnage, et tombe à 1,291 m. Le seuil laisse passer l'écart normal entre un
+    // visage et cette base (0,015 m sur le modèle sain) et ne corrige que les décalages francs.
+    const SEUIL_RECALAGE_FACE: f32 = 0.05;
+
+    let base_y = |prims: &[MeshPrimitive]| -> Option<f32> {
+        prims
+            .iter()
+            .flat_map(|p| p.positions.iter())
+            .map(|p| p.y)
+            .fold(None::<f32>, |acc, y| Some(acc.map_or(y, |m| m.min(y))))
+    };
+
+    let mut face_primitives = face_primitives;
+    if let (Some(base_corps), Some(base_face)) =
+        (base_y(&body_primitives), base_y(&face_primitives))
+    {
+        let dy = base_corps - base_face;
+        if dy.abs() > SEUIL_RECALAGE_FACE {
+            let translation = [
+                [1.0, 0.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.0, dy, 0.0, 1.0],
+            ];
+            for prim in &mut face_primitives {
+                appliquer_matrice(prim, &translation);
+            }
+        }
+    }
+
     // ── Assemblage ────────────────────────────────────────────────────────────
     let mut all_primitives = Vec::with_capacity(
         body_primitives.len() + face_primitives.len() + uniform_primitives.len()
