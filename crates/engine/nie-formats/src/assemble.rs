@@ -1417,23 +1417,32 @@ pub fn assemble_character_model(
         Vec::new()
     };
 
-    // ── 2 bis. Rejet des primitives à positions non finies ───────────────────
+    // ── 2 bis. Rejet des primitives aux positions aberrantes ─────────────────
     //
-    // Certains GLB de face portent des positions `NaN`/infinies. Mesuré le 2026-08-31 sur
-    // `c01000500` servi en production : sa maille de visage annonçait y ∈ [0,000 ; 3,34e38],
-    // c'est-à-dire la sentinelle `f32::MAX` jamais remplacée — la boîte englobante n'a donc
-    // aucun sens.
+    // Certains GLB de face portent des coordonnées absurdes. Mesuré le 2026-08-31 sur
+    // `c01000500` servi en production, maille de visage, 439 + 271 + 29 sommets :
+    // **aucun `NaN`, aucun infini** — les valeurs sont finies, mais de l'ordre de 10³⁷ à 10³⁸
+    // (y réel jusqu'à 3,34e38). Tester la finitude ne les attrape donc pas ; c'est la
+    // plausibilité qu'il faut mesurer.
     //
-    // Une telle boîte est contagieuse : elle est celle du modèle entier, et tout cadrage
-    // automatique sur elle (`model-viewer`, un rendu hors ligne) recule la caméra à l'infini.
-    // Le personnage devient un point. Mieux vaut servir un modèle amputé de la maille fautive
+    // Une telle boîte englobante est contagieuse : c'est celle du modèle entier, et tout cadrage
+    // automatique sur elle (`model-viewer`, un rendu hors ligne) recule la caméra à l'infini —
+    // le personnage se réduit à un point. Mieux vaut servir un modèle amputé de la maille fautive
     // qu'un modèle entier inregardable.
+    //
+    // La borne est large à dessein : un personnage tient dans deux mètres, une map dans quelques
+    // centaines. Cent mètres ne rejette qu'une géométrie qui n'a de toute façon aucun sens sur un
+    // visage.
+    const LIMITE_PLAUSIBLE_M: f32 = 100.0;
+
     let face_primitives: Vec<MeshPrimitive> = face_primitives
         .into_iter()
         .filter(|prim| {
-            prim.positions
-                .iter()
-                .all(|p| p.x.is_finite() && p.y.is_finite() && p.z.is_finite())
+            prim.positions.iter().all(|p| {
+                [p.x, p.y, p.z]
+                    .iter()
+                    .all(|c| c.is_finite() && c.abs() <= LIMITE_PLAUSIBLE_M)
+            })
         })
         .collect();
 
