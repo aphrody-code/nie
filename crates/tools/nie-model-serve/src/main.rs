@@ -50,8 +50,10 @@ use std::fs;
 use std::io::{BufRead, BufReader, Write as IoWrite};
 use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::mpsc::{Receiver, SyncSender, TrySendError, sync_channel};
+use std::sync::{Arc, Mutex};
 use std::thread;
+use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
 use clap::Parser;
@@ -137,6 +139,22 @@ struct Cli {
     #[arg(long, default_value_t = 4)]
     threads: usize,
 
+    /// Threads HTTP (0 = automatique : `threads` × 2, borné à [4, 16]).
+    ///
+    /// Ce pool est BORNÉ : c'est lui qui empêche une rafale de requêtes — l'éditeur d'avatar
+    /// en tire des centaines par page — de créer un thread et un descripteur par connexion
+    /// jusqu'à épuiser `LimitNOFILE`. Le plafond est dicté par la MÉMOIRE, pas par les cœurs :
+    /// chaque requête décode une texture ou assemble un GLB en RAM, sous un `MemoryMax` de
+    /// 10 Gio déjà largement pris par le cache CPK.
+    #[arg(long, default_value_t = 0)]
+    http_threads: usize,
+
+    /// Connexions acceptées mais pas encore traitées. Au-delà, la connexion reçoit un 503
+    /// immédiat et se ferme : mieux vaut un refus net qu'un descripteur retenu pour un client
+    /// que nginx a déjà abandonné (`proxy_read_timeout` 30 s).
+    #[arg(long, default_value_t = 256)]
+    http_queue: usize,
+
     /// Précharge TOUS les modèles servables (persos/keshin/armures/génériques) dans le cache
     /// GLB au démarrage, en arrière-plan (le serveur sert immédiatement pendant le warm).
     /// Idempotent et borné par l'espace disque.
@@ -158,7 +176,12 @@ struct UniformMapEntry {
 
 /// État partagé entre les threads (derrière Arc).
 struct State {
-    vfs: std::sync::Mutex<Vfs>,
+    /// Index des fichiers du jeu. PAS de `Mutex` autour : `Vfs` est `Send + Sync` (ses
+    /// méthodes de lecture prennent `&self`, son cache CPK porte son propre verrou interne),
+    /// et le mutex externe historique ne protégeait rien — il rendait seulement le serveur
+    /// mono-tâche. C'est lui qui, le 21/8/2026, a fait attendre des milliers de threads
+    /// derrière un balayage de vignette jusqu'à épuiser les descripteurs.
+    vfs: Vfs,
     glb_dir: PathBuf,
     crc_manifest: Vec<nie_formats::assemble::ManifestEntry>,
     /// CRC uniforme → chemins G4MD+G4TX (depuis var/uniform-model-map.ndjson).
@@ -865,7 +888,7 @@ fn load_face_texture_png(state: &State, code: &str) -> Option<Vec<u8>> {
     debug!("chargement texture face : {vfs_path}");
 
     let g4tx_data = {
-        let vfs = state.vfs.lock().unwrap();
+        let vfs = &state.vfs;
         vfs.read(&vfs_path).ok()
     }?;
 
@@ -882,7 +905,7 @@ fn load_uniform_texture_png(state: &State, g4tx_vfs_path: &str) -> Option<Vec<u8
     debug!("chargement texture uniforme : {g4tx_vfs_path}");
 
     let g4tx_data = {
-        let vfs = state.vfs.lock().unwrap();
+        let vfs = &state.vfs;
         vfs.read(g4tx_vfs_path).ok()
     }?;
 
@@ -899,7 +922,7 @@ fn load_keshin_texture_png(state: &State, code: &str) -> Option<Vec<u8>> {
     debug!("chargement texture keshin : {path}");
 
     let g4tx_data = {
-        let vfs = state.vfs.lock().unwrap();
+        let vfs = &state.vfs;
         vfs.read(&path).ok()
     }?;
 
@@ -917,7 +940,7 @@ fn load_armed_texture_png(state: &State, code: &str) -> Option<Vec<u8>> {
     debug!("chargement texture armure : {path}");
 
     let g4tx_data = {
-        let vfs = state.vfs.lock().unwrap();
+        let vfs = &state.vfs;
         vfs.read(&path).ok()
     };
 
@@ -926,7 +949,7 @@ fn load_armed_texture_png(state: &State, code: &str) -> Option<Vec<u8>> {
         Some(d) => Some(d),
         None => {
             let path_fallback = format!("data/dx11/chr/_armd/{dir_name}/{code}.g4tx");
-            let vfs = state.vfs.lock().unwrap();
+            let vfs = &state.vfs;
             vfs.read(&path_fallback).ok()
         }
     }?;
@@ -1061,7 +1084,7 @@ fn load_uniform_from_vfs(state: &State, crc: u32) -> Result<UniformData> {
         let g4mg_path = g4md_to_g4mg_path(g4md_path);
         let g4tx_path = entry.g4tx.clone();
 
-        let vfs = state.vfs.lock().unwrap();
+        let vfs = &state.vfs;
         let g4md = vfs
             .read(g4md_path.as_str())
             .with_context(|| format!("lecture G4MD uniforme {g4md_path}"))?;
@@ -1081,7 +1104,7 @@ fn load_uniform_from_vfs(state: &State, crc: u32) -> Result<UniformData> {
         .ok_or_else(|| anyhow::anyhow!("CRC uniforme {:#010x} absent des deux manifestes", crc))?;
     let g4mg_path = g4md_to_g4mg_path(g4md_path);
 
-    let vfs = state.vfs.lock().unwrap();
+    let vfs = &state.vfs;
     let g4md = vfs
         .read(g4md_path)
         .with_context(|| format!("lecture G4MD {g4md_path}"))?;
@@ -1102,7 +1125,7 @@ fn assemble_keshin_code(state: &State, code: &str) -> Result<GlbBytes> {
     let g4mg_path = format!("data/common/chr/_keshin/{code}/{code}.g4mg");
 
     let (g4md, g4mg) = {
-        let vfs = state.vfs.lock().unwrap();
+        let vfs = &state.vfs;
         let g4md = vfs
             .read(&g4md_path)
             .with_context(|| format!("G4MD keshin {g4md_path}"))?;
@@ -1139,7 +1162,7 @@ fn assemble_armed_code(state: &State, code: &str) -> Result<GlbBytes> {
     let g4mg_path = format!("data/common/chr/_armd/{dir_name}/{code}.g4mg");
 
     let (g4md, g4mg) = {
-        let vfs = state.vfs.lock().unwrap();
+        let vfs = &state.vfs;
         let g4md = vfs
             .read(&g4md_path)
             .with_context(|| format!("G4MD armd {g4md_path}"))?;
@@ -1201,7 +1224,7 @@ fn assemble_chr_generic(state: &State, sub: &str, code: &str) -> Result<GlbBytes
     let g4pkm_path = format!("data/common/chr/_{sub}/{code}/{code}.g4pkm");
 
     let (g4md, g4mg) = {
-        let vfs = state.vfs.lock().unwrap();
+        let vfs = &state.vfs;
         let g4mg = vfs
             .read(&g4mg_path)
             .with_context(|| format!("G4MG {g4mg_path}"))?;
@@ -1230,7 +1253,7 @@ fn assemble_chr_generic(state: &State, sub: &str, code: &str) -> Result<GlbBytes
     // Texture du cut-in (dx11/chr/_<sub>/<code>/<code>.g4tx) → embarquée.
     let g4tx_path = format!("data/dx11/chr/_{sub}/{code}/{code}.g4tx");
     let g4tx = {
-        let vfs = state.vfs.lock().unwrap();
+        let vfs = &state.vfs;
         vfs.read(&g4tx_path).ok()
     };
     if let Some(png_bytes) = g4tx.as_deref().and_then(|d| g4tx_decode::decode_best_to_png(d, code)) {
@@ -1256,7 +1279,7 @@ fn assemble_map(state: &State, rel: &str) -> Result<GlbBytes> {
     let g4pkm_path = format!("data/common/map/{rel}/{base}.g4pkm");
 
     let (g4md, g4mg) = {
-        let vfs = state.vfs.lock().unwrap();
+        let vfs = &state.vfs;
         let g4mg = vfs
             .read(&g4mg_path)
             .with_context(|| format!("G4MG {g4mg_path}"))?;
@@ -1311,7 +1334,7 @@ fn assemble_map(state: &State, rel: &str) -> Result<GlbBytes> {
     let stage_dir = rel.rsplit_once('/').map_or(rel, |(d, _)| d);
     let group = base.trim_end_matches(|c: char| c.is_ascii_digit());
     let stage_g4tx = {
-        let vfs = state.vfs.lock().unwrap();
+        let vfs = &state.vfs;
         vfs.read(&format!("data/dx11/map/{stage_dir}/{group}.g4tx"))
             .ok()
     };
@@ -1470,7 +1493,7 @@ fn resoudre_awb(state: &State, vfs_path: &str, raw: &[u8]) -> Option<(Vec<u8>, S
     // AWB externe : l'ACB ne porte que le hash du nom, mais dans IEVR le fichier frère
     // porte systématiquement le même basename — c'est déjà l'hypothèse de la route `/audio`.
     let frere = awb_frere(vfs_path)?;
-    let vfs = state.vfs.lock().unwrap();
+    let vfs = &state.vfs;
     let bytes = vfs.read(&frere).ok()?;
     Some((bytes, format!("external:{frere}")))
 }
@@ -1706,7 +1729,7 @@ fn get_or_build_edit_glb(state: &State, dossier: &str, nom: &str) -> Result<GlbB
     info!("assemblage live : edit_{dossier}_{nom}");
     let base = format!("data/common/chr/_face/20_EDIT/{dossier}/{nom}");
     let (g4md, g4mg, g4tx) = {
-        let vfs = state.vfs.lock().unwrap();
+        let vfs = &state.vfs;
         let g4md = vfs
             .read(&format!("{base}.g4md"))
             .with_context(|| format!("G4MD {base}.g4md"))?;
@@ -1938,7 +1961,7 @@ fn get_or_build_avatar_glb(
     let mut pieces: Vec<nie_formats::assemble::AvatarPiece> = Vec::new();
     let mut textures: Vec<EmbeddedTexture> = Vec::new();
     {
-        let vfs = state.vfs.lock().unwrap();
+        let vfs = &state.vfs;
 
         // Le squelette d'attache, s'il est demandé. Une pièce `_bodySK/<code>` n'apporte aucune
         // maille — son objbin n'en référence d'ailleurs aucune, ses 15 slots `Mesh` sont vides —
@@ -2468,8 +2491,8 @@ fn spawn_preload(state: Arc<State>, workers: usize) {
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering::Relaxed};
     thread::spawn(move || {
         let jobs = {
-            let vfs = state.vfs.lock().unwrap();
-            enumerate_servable_codes(&vfs)
+            let vfs = &state.vfs;
+            enumerate_servable_codes(vfs)
         };
         let total = jobs.len();
         info!("préchargement : {total} modèles servables énumérés — warm du cache en cours…");
@@ -2761,13 +2784,100 @@ fn parse_request_line(line: &str) -> Option<(&str, &str)> {
     Some((method, path))
 }
 
+/// Délai d'inactivité en LECTURE d'une requête.
+///
+/// nginx envoie la requête entière d'un trait : dix secondes de silence signifient que le
+/// client ne parlera plus. Sans ce délai, un client muet immobilise un worker et son
+/// descripteur pour toujours — c'est ainsi que 2 048 threads ont survécu à leurs clients le
+/// 21/8/2026.
+const DELAI_LECTURE: Duration = Duration::from_secs(10);
+
+/// Délai d'inactivité en ÉCRITURE de la réponse.
+///
+/// Aligné sur le `proxy_read_timeout` de nginx (30 s) : au-delà, plus personne n'attend la
+/// réponse, et un client qui ne lit plus ne doit pas retenir un worker sur un `write_all`.
+const DELAI_ECRITURE: Duration = Duration::from_secs(30);
+
+/// Pool de threads borné : `workers` threads consomment une file d'attente de capacité fixe.
+struct Pool {
+    envoi: SyncSender<TcpStream>,
+}
+
+impl Pool {
+    fn new(workers: usize, capacite: usize, state: Arc<State>) -> Self {
+        let (envoi, reception) = sync_channel::<TcpStream>(capacite);
+        let reception: Arc<Mutex<Receiver<TcpStream>>> = Arc::new(Mutex::new(reception));
+        for i in 0..workers.max(1) {
+            let reception = reception.clone();
+            let state = state.clone();
+            thread::Builder::new()
+                .name(format!("http-{i}"))
+                .spawn(move || {
+                    loop {
+                        // Le verrou ne couvre QUE la prise de travail : le garde temporaire
+                        // meurt à la fin de cette instruction, avant le traitement — sinon le
+                        // pool serait un thread unique déguisé.
+                        let flux = reception.lock().unwrap().recv();
+                        match flux {
+                            Ok(flux) => handle_connection(flux, state.clone()),
+                            Err(_) => break, // canal fermé : le serveur s'arrête.
+                        }
+                    }
+                })
+                .expect("création d'un thread HTTP");
+        }
+        Self { envoi }
+    }
+
+    /// Met une connexion en file. File pleine = 503 immédiat : le descripteur est rendu tout
+    /// de suite au lieu d'être retenu pour un client qui a déjà renoncé.
+    fn soumettre(&self, flux: TcpStream) {
+        // Les délais sont posés AVANT la mise en file : ils valent donc aussi pour une
+        // connexion qui attend son tour.
+        let _ = flux.set_read_timeout(Some(DELAI_LECTURE));
+        let _ = flux.set_write_timeout(Some(DELAI_ECRITURE));
+        let _ = flux.set_nodelay(true);
+        if let Err(TrySendError::Full(mut flux)) = self.envoi.try_send(flux) {
+            warn!("file HTTP pleine : connexion refusée (503)");
+            respond_text(&mut flux, 503, "Service Unavailable", "serveur saturé");
+        }
+    }
+}
+
 /// Gère une connexion : lit la requête, route, renvoie la réponse.
 fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
-    let mut reader = BufReader::new(stream.try_clone().expect("clone stream"));
+    // La requête est lue dans un BLOC : le `BufReader` EMPRUNTE le flux (`impl Read for
+    // &TcpStream`) au lieu d'en dupliquer le descripteur. L'ancien `try_clone()` coûtait DEUX
+    // descripteurs par connexion — la moitié des 4 088 sockets du 21/8/2026 — et son
+    // `expect` faisait paniquer le thread au moment précis où la table était pleine (EMFILE),
+    // c'est-à-dire au pire moment. L'emprunt doit finir avant qu'on écrive la réponse.
     let mut first_line = String::new();
-
-    if reader.read_line(&mut first_line).is_err() {
-        return;
+    let mut range_header: Option<String> = None;
+    {
+        let mut reader = BufReader::new(&stream);
+        if reader.read_line(&mut first_line).is_err() {
+            return;
+        }
+        // Lit les headers ; on ne capture que `Range` (seek audio/vidéo). Le nombre de lignes
+        // est plafonné : le délai de lecture ne se déclenche que sur le SILENCE, un client qui
+        // envoie des en-têtes sans fin ne doit pas faire enfler la mémoire du worker.
+        for _ in 0..100 {
+            let mut line = String::new();
+            match reader.read_line(&mut line) {
+                Ok(0) | Err(_) => break,
+                _ => {}
+            }
+            if line == "\r\n" || line == "\n" {
+                break;
+            }
+            if let Some(v) = line
+                .trim_end()
+                .strip_prefix("Range:")
+                .or_else(|| line.trim_end().strip_prefix("range:"))
+            {
+                range_header = Some(v.trim().to_string());
+            }
+        }
     }
     let first_line = first_line.trim_end_matches(['\r', '\n']);
 
@@ -2779,26 +2889,6 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
     if method != "GET" {
         respond_text(&mut stream, 405, "Method Not Allowed", "GET uniquement");
         return;
-    }
-
-    // Lit les headers ; on ne capture que `Range` (seek audio/vidéo).
-    let mut range_header: Option<String> = None;
-    loop {
-        let mut line = String::new();
-        match reader.read_line(&mut line) {
-            Ok(0) | Err(_) => break,
-            _ => {}
-        }
-        if line == "\r\n" || line == "\n" {
-            break;
-        }
-        if let Some(v) = line
-            .trim_end()
-            .strip_prefix("Range:")
-            .or_else(|| line.trim_end().strip_prefix("range:"))
-        {
-            range_header = Some(v.trim().to_string());
-        }
     }
     let range_header = range_header.as_deref();
 
@@ -2825,7 +2915,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
     //   /vfs/find?q=<txt>&ext=&limit=       recherche par sous-chaîne
     //   /vfs/stat?path=<fichier>            métadonnées + formats d'export + description
     if let Some(route) = path.strip_prefix("/vfs/") {
-        let vfs = state.vfs.lock().unwrap();
+        let vfs = &state.vfs;
         let body = match route {
             "ls" => {
                 let dir = param(query, "path").unwrap_or_default();
@@ -2833,7 +2923,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                 // 5 000 tronquaient en silence.
                 let limit = param_usize(query, "limit", 1000).min(20_000);
                 let offset = param_usize(query, "offset", 0);
-                let l = nie_explore::listing::ls_paged(&vfs, &dir, limit, offset);
+                let l = nie_explore::listing::ls_paged(vfs, &dir, limit, offset);
                 serde_json::json!({
                     "dir": l.dir,
                     "dirs": l.dirs.iter().map(|d| serde_json::json!({ "name": d.name, "count": d.count })).collect::<Vec<_>>(),
@@ -2851,7 +2941,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                 // JSON, 20 000 tiennent en ~2,4 Mo — le client pagine s'il veut moins.
                 let limit = param_usize(query, "limit", 200).min(20_000);
                 let offset = param_usize(query, "offset", 0);
-                let r = nie_explore::listing::find_paged(&vfs, &q, ext.as_deref(), limit, offset);
+                let r = nie_explore::listing::find_paged(vfs, &q, ext.as_deref(), limit, offset);
                 serde_json::json!({
                     "query": q,
                     // `count` = la taille de CETTE page ; `total` = le corpus entier. Les deux,
@@ -2864,9 +2954,8 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             }
             "stat" => {
                 let p = param(query, "path").unwrap_or_default();
-                match nie_explore::listing::stat(&vfs, &p) {
+                match nie_explore::listing::stat(vfs, &p) {
                     None => {
-                        drop(vfs);
                         respond_text(&mut stream, 404, "Not Found", "chemin absent du VFS");
                         return;
                     }
@@ -2906,12 +2995,10 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                 "looseCount": vfs.loose_count(),
             }),
             _ => {
-                drop(vfs);
                 respond_text(&mut stream, 404, "Not Found", "route /vfs inconnue");
                 return;
             }
         };
-        drop(vfs);
         let bytes = serde_json::to_vec(&body).unwrap_or_default();
         respond(&mut stream, 200, "OK", "application/json", &bytes);
         return;
@@ -2959,7 +3046,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         }
 
         let bytes = {
-            let vfs = state.vfs.lock().unwrap();
+            let vfs = &state.vfs;
             vfs.read(&vfs_path).ok()
         };
         let Some(data) = bytes else {
@@ -3058,7 +3145,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             return;
         }
         let bytes = {
-            let vfs = state.vfs.lock().unwrap();
+            let vfs = &state.vfs;
             vfs.read(&vfs_path).ok()
         };
         let Some(raw) = bytes else {
@@ -3189,7 +3276,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             return;
         }
         let g4tx = {
-            let vfs = state.vfs.lock().unwrap();
+            let vfs = &state.vfs;
             vfs.read(&vfs_path).ok()
         };
         let png = match nom_texture.as_deref() {
@@ -3214,7 +3301,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
     // en hexadécimal CSS pour être utilisables hors du moteur.
     if path == "/ui/theme.json" || path == "/ui/theme" {
         let (palette, polices) = {
-            let vfs = state.vfs.lock().unwrap();
+            let vfs = &state.vfs;
             let palette = vfs
                 .read("data/common/font/font_color.cfg.bin")
                 .ok()
@@ -3272,7 +3359,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                 ]
             });
         let (cfg, g4tx) = {
-            let vfs = state.vfs.lock().unwrap();
+            let vfs = &state.vfs;
             (
                 vfs.read("data/common/font/font/font_def/font.cfg.bin").ok(),
                 vfs.read("data/dx11/font/font_def/font.g4tx").ok(),
@@ -3379,13 +3466,23 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             respond_text(&mut stream, 400, "Bad Request", "nom sans suffixe d'index");
             return;
         };
+        // Chemin DIRECT d'abord : l'atlas vit sous `dx11/menu/200_icon/21_icon_avatar/`, et
+        // une lecture indexée coûte un accès de table là où le balayage coûtait 255 308
+        // comparaisons ET autant de `String` allouées — des dizaines de millisecondes par
+        // vignette, multipliées par les centaines de vignettes d'une page d'éditeur, le tout
+        // sous le verrou global du VFS. Le balayage reste en repli si l'atlas déménage.
+        let direct = format!("data/dx11/menu/200_icon/21_icon_avatar/{atlas}.g4tx");
         let cible = format!("/21_icon_avatar/{atlas}.g4tx");
         let png = {
-            let vfs = state.vfs.lock().unwrap();
-            vfs.iter()
-                .map(|(p, _)| p.to_string())
-                .find(|p| p.ends_with(&cible))
-                .and_then(|p| vfs.read(&p).ok())
+            let vfs = &state.vfs;
+            vfs.read(&direct)
+                .ok()
+                .or_else(|| {
+                    vfs.iter()
+                        .find(|(p, _)| p.ends_with(&cible))
+                        .map(|(p, _)| p.to_string())
+                        .and_then(|p| vfs.read(&p).ok())
+                })
                 .and_then(|d| g4tx_decode::decode_named_to_png(&d, nom))
         };
         match png {
@@ -3413,7 +3510,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             return;
         }
         let bytes = {
-            let vfs = state.vfs.lock().unwrap();
+            let vfs = &state.vfs;
             vfs.read(&vfs_path).ok()
         };
         match bytes.as_deref().and_then(cfgbin_to_json) {
@@ -3447,7 +3544,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             return;
         }
         let bytes = {
-            let vfs = state.vfs.lock().unwrap();
+            let vfs = &state.vfs;
             vfs.read(&vfs_path).ok()
         };
         match bytes.as_deref().and_then(cfgbin_to_typed_root) {
@@ -3492,7 +3589,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             return;
         }
         let bytes = {
-            let vfs = state.vfs.lock().unwrap();
+            let vfs = &state.vfs;
             vfs.read(&vfs_path).ok()
         };
         match bytes.as_deref().map(nie_formats::lip::parse) {
@@ -3531,7 +3628,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             return;
         }
         let bytes = {
-            let vfs = state.vfs.lock().unwrap();
+            let vfs = &state.vfs;
             vfs.read(&vfs_path).ok()
         };
         match bytes {
@@ -3586,7 +3683,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                 format!("data/{logical_path}")
             };
             let g4tx = {
-                let vfs = state.vfs.lock().unwrap();
+                let vfs = &state.vfs;
                 vfs.read(&vfs_path).ok()
             }?;
             g4tx_decode::decode_best_to_rgba(&g4tx, g4tx_decode::basename_of(&vfs_path))
@@ -3716,7 +3813,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             return;
         };
         let (cfg, g4tx) = {
-            let vfs = state.vfs.lock().unwrap();
+            let vfs = &state.vfs;
             (
                 vfs.read("data/common/font/font/font_def/font.cfg.bin").ok(),
                 vfs.read("data/dx11/font/font_def/font.g4tx").ok(),
@@ -3965,7 +4062,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             return;
         }
         let bytes = {
-            let vfs = state.vfs.lock().unwrap();
+            let vfs = &state.vfs;
             vfs.read(&vfs_path).ok()
         };
         match bytes {
@@ -4003,7 +4100,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         let cue: Option<usize> = param(query, "cue").and_then(|v| v.parse().ok());
         let awb_id: Option<u16> = param(query, "id").and_then(|v| v.parse().ok());
         let bytes = {
-            let vfs = state.vfs.lock().unwrap();
+            let vfs = &state.vfs;
             vfs.read(&vfs_path).ok()
         };
         match bytes {
@@ -4060,11 +4157,10 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                         } else {
                             return Err(e);
                         };
-                        let vfs_guard = state.vfs.lock().unwrap();
-                        let awb_bytes = vfs_guard
+                        let awb_bytes = state
+                            .vfs
                             .read(&awb_path)
                             .map_err(|_| anyhow::anyhow!("AWB externe {awb_path} absent du VFS"))?;
-                        drop(vfs_guard);
                         decode_awb_first_entry(&awb_bytes, &awb_path)
                     } else {
                         Err(e)
@@ -4106,7 +4202,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         // chemin DEMANDÉ : c'est celui que l'appelant connaît.
         let lire_et_demuxer = |chemin: &str| -> Result<nie_formats::cri_audio::UsmResult, String> {
             let raw = {
-                let vfs = state.vfs.lock().unwrap();
+                let vfs = &state.vfs;
                 vfs.read(chemin).map_err(|_| "absent du VFS".to_string())?
             };
             usm_demux(&raw).map_err(|e| e.to_string())
@@ -4373,7 +4469,7 @@ fn main() -> Result<()> {
     }
 
     let state = Arc::new(State {
-        vfs: std::sync::Mutex::new(vfs),
+        vfs,
         glb_dir: glb_dir.clone(),
         crc_manifest,
         uniform_map,
@@ -4395,18 +4491,29 @@ fn main() -> Result<()> {
         spawn_preload(state.clone(), cli.threads);
     }
 
-    // Pool de threads simple (accepte les connexions dans le thread principal,
-    // les traite dans des threads indépendants).
-    for stream in listener.incoming() {
-        match stream {
-            Ok(s) => {
-                let state_clone = state.clone();
-                thread::spawn(move || {
-                    handle_connection(s, state_clone);
-                });
-            }
+    // Pool de threads BORNÉ : le thread principal n'accepte que des connexions, un nombre
+    // FIXE de workers les traite. L'ancienne boucle faisait un `thread::spawn` par connexion,
+    // sans plafond : le 21/8/2026 elle a accumulé 2 048 threads et 4 088 descripteurs (deux
+    // par connexion, `try_clone`) contre `LimitNOFILE=4096`, jusqu'à ce que tout `accept`
+    // échoue en EMFILE et que le CDN réponde 504. Avec un pool borné, au pire
+    // `workers + file` connexions vivent en même temps.
+    let workers = if cli.http_threads > 0 {
+        cli.http_threads
+    } else {
+        cli.threads.saturating_mul(2).clamp(4, 16)
+    };
+    let file = cli.http_queue.max(1);
+    let pool = Pool::new(workers, file, state);
+    info!("pool HTTP : {workers} workers, file d'attente {file}");
+
+    for flux in listener.incoming() {
+        match flux {
+            Ok(flux) => pool.soumettre(flux),
             Err(e) => {
+                // Sous EMFILE, `accept` échoue en rafale : sans cette pause la boucle brûle
+                // un cœur entier à journaliser son propre échec.
                 error!("connexion entrante échouée : {e}");
+                thread::sleep(Duration::from_millis(50));
             }
         }
     }
