@@ -1,0 +1,621 @@
+<title>niers</title>
+
+<style>
+  /* ── Jetons ───────────────────────────────────────────────────────────────
+   * Le bleu vient de --color-accent de l'application (hsl(208 100% 57%)),
+   * assombri en clair et désaturé en sombre pour tenir le contraste.
+   * Les neutres sont biaisés vers 232° : un gris neutre pur se lirait comme
+   * un gris par défaut. Le fond sombre est --color-app-darker-box, tel quel. */
+  :root {
+    --fond: hsl(228 24% 98%);
+    --fond-creux: hsl(230 20% 95%);
+    --encre: hsl(232 24% 12%);
+    --encre-douce: hsl(232 11% 38%);
+    --filet: hsl(232 13% 60%);
+    --filet-fin: hsl(232 14% 84%);
+    --accent: hsl(208 100% 33%);
+    --sur-accent: hsl(0 0% 100%);
+
+    --sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+    --c1: 0.25rem;
+    --c2: 0.5rem;
+    --c3: 1rem;
+    --c4: 2rem;
+    --c5: 5.5rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --fond: hsl(235 16% 11%);
+      --fond-creux: hsl(235 15% 15%);
+      --encre: hsl(235 22% 93%);
+      --encre-douce: hsl(235 11% 69%);
+      --filet: hsl(235 12% 42%);
+      --filet-fin: hsl(235 14% 24%);
+      --accent: hsl(205 88% 64%);
+      --sur-accent: hsl(235 16% 11%);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --fond: hsl(235 16% 11%);
+    --fond-creux: hsl(235 15% 15%);
+    --encre: hsl(235 22% 93%);
+    --encre-douce: hsl(235 11% 69%);
+    --filet: hsl(235 12% 42%);
+    --filet-fin: hsl(235 14% 24%);
+    --accent: hsl(205 88% 64%);
+    --sur-accent: hsl(235 16% 11%);
+  }
+
+  body {
+    background: var(--fond);
+    color: var(--encre);
+    font-family: var(--sans);
+    font-size: 1.0625rem;
+    line-height: 1.55;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .page {
+    max-width: 64rem;
+    margin: 0 auto;
+    padding: 0 var(--c3);
+  }
+
+  /* Une seule primitive : une bande pleine largeur, dont le contenu se pose sur
+   * une grille « étiquette mono / contenu ». Rien d'autre ne dessine de boîte. */
+  section {
+    border-top: 1px solid var(--filet);
+    padding: var(--c5) 0;
+    display: grid;
+    grid-template-columns: 9rem 1fr;
+    gap: var(--c4);
+    align-items: start;
+  }
+
+  @media (max-width: 46rem) {
+    section {
+      grid-template-columns: 1fr;
+      gap: var(--c3);
+      padding: var(--c4) 0;
+    }
+  }
+
+  .etiquette {
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+    letter-spacing: 0.06em;
+    color: var(--encre-douce);
+    text-transform: uppercase;
+    padding-top: 0.35rem;
+  }
+
+  .corps {
+    max-width: 40rem;
+    display: flex;
+    flex-direction: column;
+    gap: var(--c3);
+    min-width: 0;
+  }
+
+  h1,
+  h2 {
+    text-wrap: balance;
+    line-height: 1.15;
+    font-weight: 600;
+  }
+
+  h1 {
+    font-size: clamp(1.75rem, 1.2rem + 2.2vw, 2.4rem);
+    letter-spacing: -0.015em;
+  }
+
+  h2 {
+    font-size: 1.3rem;
+    letter-spacing: -0.01em;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  code,
+  .mono {
+    font-family: var(--mono);
+    font-size: 0.9em;
+  }
+
+  a {
+    color: inherit;
+    text-underline-offset: 0.2em;
+    text-decoration-thickness: 1px;
+  }
+
+  a:hover {
+    text-decoration-thickness: 2px;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 1px;
+  }
+
+  /* ── En-tête ─────────────────────────────────────────────────────────── */
+  header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--c3);
+    padding: var(--c4) 0 var(--c3);
+    font-family: var(--mono);
+    font-size: 0.875rem;
+  }
+
+  .marque {
+    font-weight: 600;
+    font-size: 1rem;
+    letter-spacing: 0.02em;
+  }
+
+  header nav {
+    margin-left: auto;
+    display: flex;
+    gap: var(--c3);
+    flex-wrap: wrap;
+  }
+
+  .evitement {
+    position: absolute;
+    left: -9999px;
+  }
+
+  .evitement:focus {
+    position: static;
+    left: auto;
+  }
+
+  /* ── Ouverture ───────────────────────────────────────────────────────── */
+  .ouverture {
+    border-top: none;
+    padding-top: var(--c3);
+  }
+
+  .chapeau {
+    color: var(--encre-douce);
+    max-width: 34rem;
+  }
+
+  /* ── Relevé ──────────────────────────────────────────────────────────── */
+  pre {
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+    line-height: 1.65;
+    background: var(--fond-creux);
+    padding: var(--c3);
+    border-radius: 2px;
+    overflow-x: auto;
+    tab-size: 4;
+  }
+
+  .legende {
+    font-size: 0.875rem;
+    color: var(--encre-douce);
+  }
+
+  /* ── Téléchargement ──────────────────────────────────────────────────── */
+  .etat {
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+    color: var(--encre-douce);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .bouton {
+    display: inline-block;
+    align-self: start;
+    background: var(--accent);
+    color: var(--sur-accent);
+    text-decoration: none;
+    font-weight: 600;
+    padding: 0.85rem 1.4rem;
+    border-radius: 2px;
+    min-height: 48px;
+  }
+
+  .bouton:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.25em;
+  }
+
+  .secondaire {
+    display: inline-block;
+    padding: 0.6rem 0;
+    min-height: 44px;
+  }
+
+  /* ── Tableau des formats ─────────────────────────────────────────────── */
+  .tableau {
+    overflow-x: auto;
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.9375rem;
+  }
+
+  th,
+  td {
+    text-align: left;
+    vertical-align: baseline;
+    padding: 0.7rem 1rem 0.7rem 0;
+    border-bottom: 1px solid var(--filet-fin);
+  }
+
+  th {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--encre-douce);
+    font-weight: 400;
+  }
+
+  td:first-child {
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+    white-space: nowrap;
+    padding-right: var(--c4);
+  }
+
+  /* ── Listes de définition et de manques ──────────────────────────────── */
+  dl {
+    display: flex;
+    flex-direction: column;
+    gap: var(--c3);
+  }
+
+  dt {
+    font-weight: 600;
+  }
+
+  dd {
+    color: var(--encre-douce);
+  }
+
+  .manques {
+    display: flex;
+    flex-direction: column;
+    gap: var(--c3);
+  }
+
+  .manques p {
+    padding-left: var(--c3);
+    border-left: 1px solid var(--filet-fin);
+  }
+
+  footer {
+    border-top: 1px solid var(--filet);
+    padding: var(--c4) 0 var(--c5);
+    font-size: 0.8125rem;
+    color: var(--encre-douce);
+    max-width: 46rem;
+  }
+</style>
+
+<a class="evitement" href="#contenu">Aller au contenu</a>
+
+<div class="page">
+  <header>
+    <span class="marque">niers</span>
+    <span class="etat">0.5.0 · 12 août 2026 · Windows x64</span>
+    <nav>
+      <a href="#telecharger">Télécharger</a>
+      <a href="#formats">Formats</a>
+      <a href="#manques">Manques</a>
+      <a href="#sources">Sources</a>
+    </nav>
+  </header>
+
+  <main id="contenu">
+    <section class="ouverture">
+      <div class="etiquette">Ce que c'est</div>
+      <div class="corps">
+        <h1>niers ouvre les archives d'Inazuma Eleven: Victory Road.</h1>
+        <p class="chapeau">
+          Une application Windows qui monte le VFS du jeu, décode ses formats propriétaires et les
+          exporte vers des formats d'échange. Elle édite les tables de données du jeu et empaquette
+          un mod dans un <code>.cpk</code> séparé. Écrite pour les gens qui modent et qui reversent
+          ce jeu, sur une copie qu'ils possèdent.
+        </p>
+      </div>
+    </section>
+
+    <section>
+      <div class="etiquette">Relevé</div>
+      <div class="corps">
+        <pre>racine      …/Steam/iecode/inazuma
+binaire     nie.exe (31468032 octets)
+sha256      4c53ea758f7235a5d05b76e862eb6bf18b54d7343bb5b2a6c7b6d0d2705c43f6
+cpk_list    present
+vfs         250805 entrees, 921 paquets
+
+chaine de lancement
+    31468032 o  nie.exe                      binaire du jeu
+     3975920 o  EACLauncher.exe              Easy Anti-Cheat — tiers
+      336974 o  EOSSDK-Win64-Shipping.dll    Epic Online Services — tiers
+    11423144 o  steam_api64.dll              Steamworks — tiers
+
+lancable    oui — les 5 composants sont la</pre>
+        <p class="legende">
+          Sortie de <code>niers info</code>, la ligne de commande du même dépôt, sur une
+          installation Steam complète. C'est le point de départ de tout le reste : l'application
+          lit ces 250 805 entrées sans rien extraire au préalable.
+        </p>
+      </div>
+    </section>
+
+    <section id="telecharger">
+      <div class="etiquette">Télécharger</div>
+      <div class="corps">
+        <p class="etat">
+          Version 0.5.0, publiée le 12 août 2026. MSI de 15 757 312 octets, programme NSIS de
+          10 674 348 octets. Chacun est accompagné de sa signature minisign.
+        </p>
+        <a class="bouton" href="https://github.com/aphrody-code/nie/releases/download/v0.5.0/niers_0.5.0_x64_en-US.msi">
+          Télécharger niers 0.5.0 pour Windows x64 (.msi, 15,0 Mio)
+        </a>
+        <a class="secondaire" href="https://github.com/aphrody-code/nie/releases/download/v0.5.0/niers_0.5.0_x64-setup.exe">
+          Programme d'installation .exe (NSIS, 10,2 Mio)
+        </a>
+        <p>
+          Les installeurs sont signés en minisign, pas en Authenticode : Windows affichera un
+          avertissement d'éditeur inconnu à la première exécution. WebView2 est requis, présent
+          d'origine sur Windows 11 et sur un Windows 10 à jour. Aucun paquet macOS ni ARM n'est
+          construit, et il n'existe pour Linux qu'une archive de la ligne de commande, jamais
+          publiée en release.
+        </p>
+        <p>
+          Il faut aussi le jeu. Sans son VFS, l'application s'ouvre sur rien.
+        </p>
+      </div>
+    </section>
+
+    <section id="formats">
+      <div class="etiquette">Ce qu'elle ouvre</div>
+      <div class="corps">
+        <p>
+          Vingt-trois extensions sont associées à l'application. Ce qu'elle sait en faire varie
+          d'une extension à l'autre, et la liste des sorties possibles est calculée à partir du nom
+          du fichier, avant même de le lire.
+        </p>
+        <div class="tableau">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Extension</th>
+                <th scope="col">Ce qu'on en obtient</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>.cpk</td>
+                <td>
+                  Montage du VFS et navigation. Un mod ressort en archive séparée, non chiffrée et
+                  non compressée.
+                </td>
+              </tr>
+              <tr>
+                <td>.g4tx</td>
+                <td>
+                  PNG, WebP, GIF, JPEG, BMP, TGA, TIFF, QOI, plus le JSON des en-têtes. JPEG et GIF
+                  sont annoncés comme destructifs avant l'écriture. Le remplacement par un PNG ne
+                  vaut que pour un conteneur mono-texture, et il réécrit du DDS BGRA8 non
+                  compressé : il n'existe pas d'encodeur BC dans le dépôt.
+                </td>
+              </tr>
+              <tr>
+                <td>.g4md, .g4mg</td>
+                <td>
+                  GLB et JSON. L'assemblage se fait côté Rust et n'aboutit que si le fichier frère
+                  de même radical se trouve dans le même dossier ; l'aperçu 3D ne propose donc que
+                  les modèles réellement assemblables.
+                </td>
+              </tr>
+              <tr>
+                <td>.g4sk, .g4mt</td>
+                <td>
+                  Rien d'autre que le fichier d'origine. Squelettes et pistes d'animation se lisent
+                  dans le dépôt, aucune conversion ne leur est proposée dans l'application.
+                </td>
+              </tr>
+              <tr>
+                <td>.cfg.bin</td>
+                <td>
+                  JSON, plus trois vues d'édition. Deux formats se cachent derrière cette
+                  extension, RDBN et T2B. Le ré-encodage RDBN est un patch de valeurs : la
+                  structure reste intacte, donc rien ne s'ajoute et rien ne se supprime.
+                </td>
+              </tr>
+              <tr>
+                <td>.acb, .awb, .hca, .adx</td>
+                <td>WAV PCM 16 bits.</td>
+              </tr>
+              <tr>
+                <td>.usm</td>
+                <td>
+                  MP4, à condition que ffmpeg soit installé sur la machine. Il n'est pas fourni
+                  avec l'application.
+                </td>
+              </tr>
+              <tr>
+                <td>Bytecode Lua 5.2</td>
+                <td>
+                  Listing désassemblé et annoté, exécution instrumentée. Le source n'est pas
+                  reconstruit : c'est un désassembleur.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="legende">
+          Les autres extensions associées — <span class="mono">g4pk, g4ra, g4pkm, g4cm, g4ma, g4vs,
+          g4la, g4nv, col, objbin, mevbin, p3lip, navm, nxtch, vfxo, pfxo, cfxo, gfxo</span> —
+          s'ouvrent et se lisent, sans conversion dédiée.
+        </p>
+      </div>
+    </section>
+
+    <section>
+      <div class="etiquette">Le reste</div>
+      <div class="corps">
+        <dl>
+          <dt>Explorateur</dt>
+          <dd>
+            Onglets multiples, chacun avec son préfixe, sa sélection et sa pile arrière-avant.
+            Recherche, filtre d'extension, tri, liste ou grille. Les vignettes de texture sont
+            décodées et réduites à 128 pixels de plus grand côté dans le backend Rust : servir la
+            pleine résolution faisait tomber la fenêtre sur un dossier de 12 560 textures.
+          </dd>
+
+          <dt>Données du jeu</dt>
+          <dd>
+            Dix-sept onglets typés — techniques, objets, Avatar et Keshin, succès, quêtes,
+            boutiques, stades, passifs, tactiques, écussons, galerie, feintes, activités, équipes,
+            formations, uniformes, et un calculateur de statistiques. Les entrées sans code interne
+            ne sont pas cliquables. Faute de <code>formation_text.cfg.bin</code> dans cette version
+            du jeu, formations et uniformes s'affichent avec leurs identifiants bruts.
+          </dd>
+
+          <dt>Modding</dt>
+          <dd>
+            Dump, pack, merge et criware tournent en process, sans binaire externe. Le dump reprend
+            au paquet près après une interruption. Le pack relit et réécrit le
+            <code>cpk_list.cfg.bin</code> chiffré en AES-256-CBC dans l'enveloppe réellement
+            trouvée. La fusion se fait au champ : deux mods qui touchent des valeurs différentes du
+            même fichier restent compatibles, et les vrais désaccords sont comptés.
+          </dd>
+
+          <dt>Reverse</dt>
+          <dd>
+            Recherche de fonctions, de classes RTTI et de références croisées dans la base de
+            connaissance, avec renommage enregistré. Lecture du process du jeu et scan de motifs sur
+            un minidump déjà capturé. Aucune écriture mémoire n'est exposée, et un test le vérifie.
+          </dd>
+        </dl>
+        <p class="legende">
+          Cent dix-neuf commandes traversent le pont entre l'interface et le Rust. Leurs bindings
+          TypeScript sont générés : un câblage oublié devient une erreur de compilation. Interface
+          en français, anglais et japonais.
+        </p>
+      </div>
+    </section>
+
+    <section id="manques">
+      <div class="etiquette">Manques</div>
+      <div class="corps">
+        <h2>Ce qui ne marche pas, ou pas encore</h2>
+        <div class="manques">
+          <p>
+            Les animations sont listées, jamais jouées. On lit leur nom, leur CRC32, leurs bornes,
+            leur fréquence. Il n'y a pas de bouton de lecture, parce que le GLB produit ne porte ni
+            skin ni animation.
+          </p>
+          <p>
+            Rien ne repart vers le jeu depuis la scène 3D. Les manipulations au gizmo restent dans
+            la session et rien ne les annule : aucun encodeur géométrique n'existe côté Rust.
+          </p>
+          <p>
+            Un seul <code>.cpk</code> est ouvert à la fois côté backend. Deux onglets descendus
+            dans deux archives différentes se disputent le même lecteur.
+          </p>
+          <p>
+            Le pack n'a jamais été rechargé par le jeu. L'aller-retour de format est vérifié sur
+            255 308 entrées ; la relecture par <code>nie.exe</code> ne l'est pas.
+          </p>
+          <p>
+            Le scan de motifs n'a jamais tourné sur un vrai minidump, faute d'en avoir un. Il n'est
+            ni annulable ni suivi en progression.
+          </p>
+          <p>
+            Une centaine de familles de données restent sans vue typée : elles ne sont lisibles que
+            par le décodage générique.
+          </p>
+          <p>
+            Les vues table et arbre n'ont pas été mesurées à l'échelle annoncée. La virtualisation
+            est dimensionnée pour 14 448 lignes, aucun profil de défilement n'a été pris.
+          </p>
+          <p>
+            Les ajouts les plus récents — onglets multiples, vues table et arbre, gizmos, panneau
+            d'animations, scan de motifs — sont validés par la compilation et par les tests des
+            crates en amont, pas par une passe à l'écran.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="etiquette">Avant</div>
+      <div class="corps">
+        <h2>Avant d'installer</h2>
+        <dl>
+          <dt>Où cherche-t-elle le jeu ?</dt>
+          <dd>
+            L'installation Steam est détectée seule, par le registre et
+            <code>libraryfolders.vdf</code>. Le dossier peut aussi être désigné à la main ou par la
+            variable <code>NIE_GAME_DIR</code>. Aucun chemin de machine n'est compilé dans le
+            binaire.
+          </dd>
+
+          <dt>Qu'est-ce qu'elle contacte ?</dt>
+          <dd>
+            Deux adresses, et seulement pour vérifier une mise à jour : le manifeste hébergé sur
+            azalee.rosegriffon.fr et, en secours, celui de la dernière release GitHub. Aucun compte
+            n'est demandé.
+          </dd>
+
+          <dt>Où écrit-elle ?</dt>
+          <dd>
+            Dans AppData. L'espace de travail des mods, le journal des opérations longues et les
+            réglages y vivent. Le dossier du jeu n'est pas modifié : un mod sort sous forme de
+            <code>.cpk</code> que vous placez vous-même.
+          </dd>
+
+          <dt>Et les mises à jour ?</dt>
+          <dd>
+            Depuis l'application, dans les réglages. Le manifeste est mis en cache une heure : une
+            version tout juste publiée n'apparaît pas dans la minute. Il n'y a ni canal nightly ni
+            canal bêta.
+          </dd>
+        </dl>
+      </div>
+    </section>
+
+    <section id="sources">
+      <div class="etiquette">Sources</div>
+      <div class="corps">
+        <p>
+          Le dépôt est public : <a href="https://github.com/aphrody-code/nie">github.com/aphrody-code/nie</a>.
+          Les cinq versions publiées y sont, de la 0.1.0 à la 0.5.0. Les bugs se signalent dans les
+          issues. Compiler soi-même est le seul chemin vers la ligne de commande, qui n'est publiée
+          en binaire nulle part.
+        </p>
+        <p>
+          L'extension Blender est jointe à la même release : <span class="mono">niers-1.1.0.zip</span>,
+          5 994 815 octets. Elle cherche un modèle dans le VFS ou par son nom localisé, puis
+          l'importe.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    Le fichier LICENSE du dépôt est l'accord d'exploitation N° RG-L5-VR-2026-001 du 8 août 2026
+    entre Rose Griffon et LEVEL-5 Inc. niers ne contient ni ne distribue aucun fichier du jeu.
+    Inazuma Eleven: Victory Road et ses données sont © LEVEL-5 Inc. Page à jour au 14 août 2026.
+  </footer>
+</div>
