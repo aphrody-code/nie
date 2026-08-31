@@ -1482,10 +1482,18 @@ pub struct AvatarPiece {
 /// se composent donc SUR la peau, ce que confirme leur canal alpha — `pupil_L_00` est la seule
 /// planche du visage à en porter un vrai, précisément pour se poser sur ce qu'il y a dessous.
 ///
-/// Reste un cas non résolu : `04_eyebrow` partage le dépliage de `05_mouth`, opaque sur toute sa
-/// planche, qui l'écrase donc en composition. Et la planche de sourcil est elle-même entièrement
-/// transparente. Le sourcil n'atteint pas encore le modèle ; la règle qui l'y porte n'est pas
-/// établie.
+/// Reste un cas non résolu : le sourcil n'atteint pas le modèle. La cause n'est PAS un
+/// écrasement par `05_mouth`, contrairement à ce qui était écrit ici — mesuré le 2026-08-31 en
+/// composant le slot 2 avec le sourcil SEUL, sans la bouche : la planche produite reste vide à
+/// 0,00 %, et `sourcil + bouche` rend exactement le même résultat que `bouche seule` (2,89 %
+/// d'opacité). La couche n'apporte donc rien, même sans concurrente.
+///
+/// La cause est dans la donnée : `04_eyebrow/eyebrow_00.g4tx` est un **aplat rouge pur** —
+/// 2048×1024, R = 255 sur 100 % des pixels, V et B à 0, alpha à 255. Aucun tracé. Or le rouge
+/// d'une planche `_facetex` désigne la zone de carnation : la teinte par canaux la peint donc en
+/// couleur de peau, invisible sur la peau. Le comportement du code est correct au vu de cette
+/// planche ; c'est le tracé du sourcil qui manque, et il vient d'ailleurs. La règle qui l'y porte
+/// reste à établir.
 ///
 /// Rend `None` si la famille n'est pas reconnue.
 #[must_use]
