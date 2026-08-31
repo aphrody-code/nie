@@ -61,9 +61,6 @@ pub enum VnCmd {
         /// Langue des voix.
         #[arg(long, default_value = "ja")]
         langue: String,
-        /// Nombre de personnages retenus quand `--casting` est absent.
-        #[arg(long, default_value_t = 6)]
-        roles: usize,
         /// Nombre maximal de répliques extraites par personnage.
         #[arg(long, default_value_t = 24)]
         voix_max: usize,
@@ -123,7 +120,6 @@ pub fn run(cmd: &VnCmd, vfs: &Vfs) -> Result<()> {
             noms,
             langue_noms,
             langue,
-            roles,
             voix_max,
             bgm_max,
             textures_max,
@@ -134,7 +130,6 @@ pub fn run(cmd: &VnCmd, vfs: &Vfs) -> Result<()> {
             noms,
             langue_noms,
             langue,
-            *roles,
             *voix_max,
             *bgm_max,
             *textures_max,
@@ -223,7 +218,7 @@ fn identites(vfs: &Vfs, langue_noms: &str) -> Vec<Fiche> {
     for base in &bases {
         let prenom = nie_data::chara_base::resolve_first_name(base, &nouns).unwrap_or_default();
         let nom_famille = nie_data::chara_base::resolve_last_name(base, &nouns).unwrap_or_default();
-        let complet = format!("{nom_famille} {prenom}").trim().to_string();
+        let complet = assembler_nom(prenom, nom_famille);
         if complet.is_empty() || base.internal_code.is_empty() {
             continue;
         }
@@ -234,6 +229,40 @@ fn identites(vfs: &Vfs, langue_noms: &str) -> Vec<Fiche> {
         });
     }
     fiches
+}
+
+/// Assemble un nom d'affichage sans répéter un segment déjà présent.
+///
+/// Les deux champs de la table maîtresse ne se répartissent pas proprement en
+/// « prénom » et « nom » : `name_hash` porte tantôt le seul prénom, tantôt le nom
+/// complet, et `last_name_hash` répète parfois le prénom. Concaténer à l'aveugle
+/// produisait des doublons (« Camellia Camellia », « Jude Jude Sharp »). On ne
+/// concatène donc que ce qui apporte un segment nouveau.
+fn assembler_nom(prenom: &str, nom_famille: &str) -> String {
+    let prenom = prenom.trim();
+    let famille = nom_famille.trim();
+
+    if famille.is_empty() {
+        return prenom.to_string();
+    }
+    if prenom.is_empty() {
+        return famille.to_string();
+    }
+
+    let mots_prenom: Vec<String> = prenom.split_whitespace().map(pliage).collect();
+    let mots_famille: Vec<&str> = famille.split_whitespace().collect();
+
+    // Ne garder du nom de famille que les mots absents du champ prénom.
+    let restants: Vec<&str> = mots_famille
+        .into_iter()
+        .filter(|m| !mots_prenom.contains(&pliage(m)))
+        .collect();
+
+    if restants.is_empty() {
+        prenom.to_string()
+    } else {
+        format!("{prenom} {}", restants.join(" "))
+    }
 }
 
 /// Forme comparable d'un nom : minuscules, sans accent, sans ponctuation.
@@ -374,7 +403,6 @@ fn export(
     noms: &[String],
     langue_noms: &str,
     langue: &str,
-    roles: usize,
     voix_max: usize,
     bgm_max: usize,
     textures_max: usize,
@@ -410,11 +438,18 @@ fn export(
             .iter()
             .filter_map(|c| toutes.iter().find(|b| &b.code == c).cloned()),
     );
+    if codes.is_empty() && noms.is_empty() {
+        // Pas de casting « automatique » : trier par volume de voix ramenait des
+        // personnages que le projet n'a aucune raison de mettre en scène. Le choix
+        // est éditorial, il appartient à l'équipe et doit être écrit noir sur blanc.
+        anyhow::bail!(
+            "désigner le casting avec --noms ou --casting ({} personnages doublés disponibles ; \
+             `niers vn casting --chercher <nom>` aide à les trouver)",
+            toutes.len()
+        );
+    }
     if retenues.is_empty() {
-        if !codes.is_empty() || !noms.is_empty() {
-            anyhow::bail!("aucun des personnages demandés n'a de banque de voix en « {langue} »");
-        }
-        retenues = toutes.into_iter().take(roles).collect();
+        anyhow::bail!("aucun des personnages demandés n'a de banque de voix en « {langue} »");
     }
 
     std::fs::create_dir_all(out).with_context(|| format!("création de {}", out.display()))?;
