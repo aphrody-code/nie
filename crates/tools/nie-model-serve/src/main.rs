@@ -69,7 +69,6 @@ use nie_formats::assemble::{
 use nie_formats::cfgbin;
 #[cfg(test)]
 use nie_formats::cri_audio::{Awb, is_hca};
-use nie_formats::cri_audio::{VideoCodec, usm_demux};
 use nie_formats::g4tx::parse as parse_g4tx;
 use nie_formats::g4tx_decode;
 use nie_formats::vfs::Vfs;
@@ -1628,41 +1627,208 @@ fn audio_info_json(vfs_path: &str, raw: &[u8]) -> serde_json::Value {
 /// 60 fps (cadence réelle des films IEVR) et on produit un MP4 `frag_keyframe`
 /// (sortie séquentielle compatible pipe). Renvoie `None` si ffmpeg est absent ou
 /// échoue -> l'appelant retombe alors sur le H.264 brut (téléchargement).
-fn mux_h264_to_mp4(h264: &[u8]) -> Option<Vec<u8>> {
-    use std::process::{Command, Stdio};
-    use std::sync::atomic::{AtomicU64, Ordering};
-    static SEQ: AtomicU64 = AtomicU64::new(0);
+fn mux_h264_to_mp4(usm_brut: &[u8], nom_fichier: &str) -> Result<Vec<u8>, String> {
+    conteneur_web(usm_brut, nom_fichier).map(|(_, octets)| octets)
+}
 
-    // Fichier d'entrée temporaire (évite le deadlock écriture-stdin/lecture-stdout).
-    let n = SEQ.fetch_add(1, Ordering::Relaxed);
-    let tmp = std::env::temp_dir().join(format!("nms-h264-{}-{}.264", std::process::id(), n));
-    std::fs::write(&tmp, h264).ok()?;
-
-    let out = Command::new("ffmpeg")
-        .args(["-loglevel", "error", "-r", "60", "-i"])
-        .arg(&tmp)
-        .args([
-            "-c:v",
-            "copy",
-            "-an",
-            "-f",
-            "mp4",
-            "-movflags",
-            "frag_keyframe+empty_moov+default_base_moof",
-            "pipe:1",
-        ])
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .output();
-    let _ = std::fs::remove_file(&tmp);
-
-    let out = out.ok()?;
-    if out.status.success() && !out.stdout.is_empty() {
-        Some(out.stdout)
-    } else {
-        None
+/// Emballe la piste vidéo d'un `.usm` dans son conteneur web, et rend `(type MIME, octets)`.
+///
+/// H.264 → MP4, VP9 → WebM, MPEG-2 → erreur explicite. Aucun réencodage, aucun sous-processus.
+fn conteneur_web(usm_brut: &[u8], nom_fichier: &str) -> Result<(&'static str, Vec<u8>), String> {
+    let u = nie_formats::usm::demuxer_nomme(usm_brut, nom_fichier).map_err(|e| e.to_string())?;
+    if !u.codec.lisible_par_navigateur() {
+        return Err(format!(
+            "codec {} : aucun navigateur ne le décode, servir le flux élémentaire",
+            u.codec.nom()
+        ));
     }
+    u.en_conteneur_web().map(|c| (c.mime, c.octets)).map_err(|e| e.to_string())
+}
+
+/// Remuxe avec cache disque, clé = nom du film + taille du conteneur.
+///
+/// Un film de chapitre pèse jusqu'à 300 Mo et son démultiplexage coûte plusieurs secondes :
+/// sans cache, chaque `seek` du lecteur qui relance une requête `Range` sur un intervalle non
+/// encore tamponné refait tout le travail. La taille entre dans la clé pour qu'une mise à jour
+/// du jeu invalide l'entrée d'elle-même ; l'extension y entre aussi, parce que le conteneur
+/// dépend du codec (`.mp4` ou `.webm`) et qu'un cache qui les confondrait servirait l'un pour
+/// l'autre.
+fn video_mp4_cache(state: &State, vfs_path: &str, brut: &[u8]) -> Result<(&'static str, Vec<u8>), String> {
+    let nom = vfs_path.rsplit('/').next().unwrap_or(vfs_path);
+    let radical = nom.strip_suffix(".usm").unwrap_or(nom);
+    for (ext, mime) in [("mp4", "video/mp4"), ("webm", "video/webm")] {
+        let cache = state.cache_dir.join(format!("video_{radical}_{}.{ext}", brut.len()));
+        if cache.exists()
+            && let Ok(octets) = fs::read(&cache)
+            && !octets.is_empty()
+        {
+            debug!("cache vidéo : {}", cache.display());
+            return Ok((mime, octets));
+        }
+    }
+    let (mime, octets) = conteneur_web(brut, nom)?;
+    let ext = if mime == "video/webm" { "webm" } else { "mp4" };
+    let cache = state.cache_dir.join(format!("video_{radical}_{}.{ext}", brut.len()));
+    if let Err(e) = fs::write(&cache, &octets) {
+        warn!("écriture cache vidéo {} échouée : {e}", cache.display());
+    }
+    Ok((mime, octets))
+}
+
+// ── Catalogue des cinématiques (page Cinéma de l'explorateur) ─────────────────
+
+/// Fiche JSON d'un film démultiplexé.
+///
+/// Rubrique et langue viennent de `nie_formats::usm` : ces conventions de nommage sont celles du
+/// jeu, pas celles de ce serveur, et elles servent aussi à la CLI et à l'explorateur.
+fn fiche_video_json(chemin: &str, u: &nie_formats::usm::Usm, octets: usize) -> serde_json::Value {
+    use nie_formats::usm::{langue_de, radical_de, rubrique_de};
+    use serde_json::json;
+    let radical = radical_de(chemin);
+    let pistes: Vec<serde_json::Value> = u
+        .pistes
+        .iter()
+        .map(|p| {
+            json!({
+                "canal": p.canal,
+                "codec": p.codec.nom(),
+                "frequence": p.frequence,
+                "canaux": p.canaux,
+                "octets": p.octets.len(),
+            })
+        })
+        .collect();
+    json!({
+        "chemin": chemin,
+        "nom": radical,
+        "rubrique": rubrique_de(radical),
+        "langue": langue_de(radical),
+        "octets": octets,
+        "codec": u.codec.nom(),
+        "lisibleNavigateur": u.codec.lisible_par_navigateur(),
+        "largeur": u.entete.largeur_affichee.max(u.entete.largeur),
+        "hauteur": u.entete.hauteur_affichee.max(u.entete.hauteur),
+        "images": u.images.len(),
+        "cadence": u.entete.images_par_seconde(),
+        "duree": u.duree(),
+        "audio": pistes,
+        "chiffre": u.dechiffre,
+        "nomOrigine": u.nom,
+    })
+}
+
+/// Construit (ou relit) le catalogue complet des cinématiques.
+///
+/// Le catalogue exige de démultiplexer les 97 films — plusieurs centaines de mégaoctets — pour
+/// connaître durées et définitions. Il est donc écrit dans le cache disque : la page Cinéma
+/// s'ouvre instantanément à partir du deuxième lancement, et `var/model-cache/` est déjà le
+/// dossier que le serveur nettoie.
+fn catalogue_video(state: &State) -> Result<String, String> {
+    let cache = state.cache_dir.join("video-catalog.json");
+    if let Ok(texte) = fs::read_to_string(&cache)
+        && texte.len() > 2
+    {
+        debug!("catalogue vidéo depuis le cache");
+        return Ok(texte);
+    }
+
+    let mut chemins: Vec<String> = state
+        .vfs
+        .iter()
+        .map(|(p, _)| p.to_string())
+        .filter(|p| p.starts_with("data/common/movie") && p.ends_with(".usm"))
+        .collect();
+    chemins.sort();
+
+    let liens = jointure_films(state);
+    let mut films = Vec::with_capacity(chemins.len());
+    for chemin in &chemins {
+        let nom = chemin.rsplit('/').next().unwrap_or(chemin).to_string();
+        let Ok(brut) = state.vfs.read(chemin) else { continue };
+        let taille = brut.len();
+        match nie_formats::usm::demuxer_nomme(&brut, &nom) {
+            Err(e) => warn!("catalogue : {chemin} illisible ({e})"),
+            Ok(u) => {
+                let mut f = fiche_video_json(chemin, &u, taille);
+                let cle = chemin.strip_prefix("data/").unwrap_or(chemin);
+                if let Some(j) = liens.get(cle) {
+                    f["gamedata"] = j.clone();
+                }
+                films.push(f);
+            }
+        }
+    }
+
+    let mut rubriques: Vec<String> = films
+        .iter()
+        .filter_map(|f| f["rubrique"].as_str().map(str::to_string))
+        .collect();
+    rubriques.sort();
+    rubriques.dedup();
+
+    let doc = serde_json::json!({
+        "films": films,
+        "rubriques": rubriques,
+        "langues": nie_formats::usm::LANGUES
+            .iter()
+            .map(|(c, n)| serde_json::json!({ "code": c, "nom": n }))
+            .collect::<Vec<_>>(),
+    });
+    let texte = serde_json::to_string(&doc).map_err(|e| e.to_string())?;
+    if let Err(e) = fs::write(&cache, &texte) {
+        warn!("écriture du catalogue vidéo échouée : {e}");
+    }
+    info!("catalogue vidéo : {} film(s)", chemins.len());
+    Ok(texte)
+}
+
+/// Ce que `movie_playing_config` / `event_movie_config` disent de chaque film, par `moviePath`.
+fn jointure_films(state: &State) -> HashMap<String, serde_json::Value> {
+    use serde_json::{Value, json};
+    let mut out = HashMap::new();
+    let chemins: Vec<String> = state
+        .vfs
+        .iter()
+        .map(|(p, _)| p.to_string())
+        .filter(|p| {
+            p.contains("gamedata/movie/movie_playing_config")
+                || p.contains("gamedata/event/event_movie_config")
+        })
+        .collect();
+
+    for chemin in chemins {
+        let Ok(octets) = state.vfs.read(&chemin) else { continue };
+        let Some(root) = cfgbin_to_iecode_root(&octets) else { continue };
+        let Some(listes) = root.get("lists").and_then(Value::as_array) else { continue };
+        for liste in listes {
+            let Some(lignes) = liste.get("values").and_then(Value::as_array) else { continue };
+            for ligne in lignes {
+                let Some(mp) = ligne.get("moviePath").and_then(Value::as_str) else { continue };
+                if !mp.ends_with(".usm") {
+                    continue;
+                }
+                let mut fiche = json!({});
+                for champ in [
+                    "movieId",
+                    "eventId",
+                    "menuId",
+                    "captionId",
+                    "bgmName",
+                    "fedeInTime",
+                    "fedeOutTime",
+                    "staffrollDataName",
+                    "subtitleTextPath",
+                    "subtitleSettingPath",
+                ] {
+                    if let Some(v) = ligne.get(champ) {
+                        fiche[champ] = v.clone();
+                    }
+                }
+                out.entry(mp.to_string()).or_insert(fiche);
+            }
+        }
+    }
+    out
 }
 
 /// Retourne les bytes du GLB : depuis le cache disque ou assemblage live + mise en cache.
@@ -3129,11 +3295,10 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         // commune (`nom_propose`) s'appliquer.
         let mut nom_force: Option<String> = None;
         let produit: Result<Vec<u8>, String> = match format.as_str() {
-            "mp4" => nie_formats::cri_audio::usm_demux(&data)
-                .map_err(|e| e.to_string())
-                .and_then(|r| {
-                    mux_h264_to_mp4(&r.video_data).ok_or_else(|| "remux ffmpeg indisponible".into())
-                }),
+            "mp4" => {
+                let nom = vfs_path.rsplit('/').next().unwrap_or(&vfs_path);
+                mux_h264_to_mp4(&data, nom)
+            }
             "glb" => {
                 // Le code d'assemblage est le radical du fichier — même convention que
                 // `/model-full/<code>.glb`.
@@ -4256,6 +4421,20 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
     // Résultat : flux vidéo H.264 brut (`.264`) ou VP9 (`.ivf`), piste audio WAV si présente.
     // Par défaut, renvoie la vidéo (Content-Type: video/mp4 pour H.264, video/webm pour VP9).
     // Le WAV audio peut être récupéré en suffixant `?track=audio`.
+    // `/video/catalog.json` — l'inventaire complet des cinématiques, pour la page Cinéma.
+    if path == "/video/catalog.json" || path == "/video/catalog" {
+        match catalogue_video(&state) {
+            Ok(json) => {
+                respond(&mut stream, 200, "OK", "application/json; charset=utf-8", json.as_bytes());
+            }
+            Err(e) => {
+                warn!("catalogue vidéo : {e}");
+                respond_text(&mut stream, 500, "Internal Server Error", &e);
+            }
+        }
+        return;
+    }
+
     if let Some(rest) = path.strip_prefix("/video/") {
         let vfs_path = if rest.starts_with("data/") {
             rest.to_string()
@@ -4266,56 +4445,56 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             respond_text(&mut stream, 400, "Bad Request", "chemin invalide");
             return;
         }
-        // Lit et démuxe ; en cas d'échec (absente du disque, ou octets qui ne sont pas du CRID),
-        // retente sur la variante jumelle avant d'abandonner. L'erreur rapportée reste celle du
+        // Lit les octets ; en cas d'absence, retente sur la variante jumelle
+        // (`common/movie` ↔ `dx11/movie`) avant d'abandonner. L'erreur rapportée reste celle du
         // chemin DEMANDÉ : c'est celui que l'appelant connaît.
-        let lire_et_demuxer = |chemin: &str| -> Result<nie_formats::cri_audio::UsmResult, String> {
-            let raw = {
-                let vfs = &state.vfs;
-                vfs.read(chemin).map_err(|_| "absent du VFS".to_string())?
-            };
-            usm_demux(&raw).map_err(|e| e.to_string())
+        let lire = |chemin: &str| -> Result<Vec<u8>, String> {
+            state.vfs.read(chemin).map_err(|_| "absent du VFS".to_string())
         };
+        let (chemin_reel, brut) = match lire(&vfs_path) {
+            Ok(b) => (vfs_path.clone(), b),
+            Err(origine) => match variante_jumelle(&vfs_path).and_then(|j| match lire(&j) {
+                Ok(b) => Some((j, b)),
+                Err(_) => None,
+            }) {
+                Some((j, b)) => {
+                    info!("{vfs_path} absente — servie depuis {j}");
+                    (j, b)
+                }
+                None => {
+                    respond_text(&mut stream, 404, "Not Found", &format!("vidéo {origine}"));
+                    return;
+                }
+            },
+        };
+        let nom = chemin_reel.rsplit('/').next().unwrap_or(&chemin_reel).to_string();
 
-        let demuxe = lire_et_demuxer(&vfs_path).or_else(|erreur_origine| {
-            match variante_jumelle(&vfs_path) {
-                None => Err(erreur_origine),
-                Some(jumelle) => match lire_et_demuxer(&jumelle) {
-                    Ok(r) => {
-                        info!("{vfs_path} illisible ({erreur_origine}) — servie depuis {jumelle}");
-                        Ok(r)
-                    }
-                    Err(_) => Err(erreur_origine),
-                },
+        // `?info=1` — métadonnées seules, sans remuxer les centaines de mégaoctets.
+        if param(query, "info").is_some() {
+            match nie_formats::usm::demuxer_nomme(&brut, &nom) {
+                Err(e) => respond_text(&mut stream, 500, "Internal Server Error", &e.to_string()),
+                Ok(u) => {
+                    let json = fiche_video_json(&chemin_reel, &u, brut.len());
+                    let bytes = serde_json::to_vec(&json).unwrap_or_default();
+                    respond(&mut stream, 200, "OK", "application/json; charset=utf-8", &bytes);
+                }
             }
-        });
+            return;
+        }
 
-        match demuxe {
-            Err(e) if e == "absent du VFS" => {
-                respond_text(&mut stream, 404, "Not Found", "fichier vidéo absent du VFS");
-            }
-            Err(e) => {
-                warn!("démux USM {vfs_path} échoué : {e}");
-                respond_text(
-                    &mut stream,
-                    500,
-                    "Internal Server Error",
-                    &format!("démux USM échoué : {e}"),
-                );
-            }
-            Ok(result) => {
-                // `?track=audio` — la piste sonore du film, en WAV. Le commentaire de cette
-                // route l'annonçait depuis toujours, mais rien ne l'implémentait : la query
-                // était strippée avant le routage, et `audio_tracks` n'était lu nulle part.
-                if param(query, "track").as_deref() == Some("audio") {
-                    let Some(piste) = result.audio_tracks.first() else {
+        // `?track=audio` — la piste sonore du film, en WAV.
+        if param(query, "track").as_deref() == Some("audio") {
+            match nie_formats::usm::demuxer_nomme(&brut, &nom) {
+                Err(e) => respond_text(&mut stream, 500, "Internal Server Error", &e.to_string()),
+                Ok(u) => {
+                    let Some(piste) = u.pistes.first() else {
                         respond_text(&mut stream, 404, "Not Found", "USM sans piste audio");
                         return;
                     };
-                    match nie_formats::cri_audio::decode_to_wav(piste) {
+                    match nie_formats::cri_audio::decode_to_wav(&piste.octets) {
                         Ok(wav) => respond_ranged(&mut stream, "audio/wav", &wav, range_header),
                         Err(e) => {
-                            warn!("décodage piste audio {vfs_path} échoué : {e}");
+                            warn!("décodage piste audio {chemin_reel} échoué : {e}");
                             respond_text(
                                 &mut stream,
                                 500,
@@ -4324,30 +4503,32 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                             );
                         }
                     }
-                    return;
                 }
+            }
+            return;
+        }
 
-                if result.video_data.is_empty() {
-                    respond_text(&mut stream, 404, "Not Found", "USM sans piste vidéo");
-                    return;
+        // Chemin normal : le MP4 remuxé, servi avec cache disque et support des `Range`.
+        match video_mp4_cache(&state, &chemin_reel, &brut) {
+            Ok((mime, octets)) => respond_ranged(&mut stream, mime, &octets, range_header),
+            Err(e) => {
+                // Codec que le navigateur ne décode pas (MPEG-2 des deux logos) : on sert le
+                // flux élémentaire plutôt qu'un MP4 mensonger, et on le dit dans le type MIME.
+                match nie_formats::usm::demuxer_nomme(&brut, &nom) {
+                    Ok(u) if !u.images.is_empty() => {
+                        let ct = match u.codec {
+                            nie_formats::usm::CodecVideo::Mpeg2 => "video/mpeg",
+                            nie_formats::usm::CodecVideo::Vp9 => "video/webm",
+                            _ => "application/octet-stream",
+                        };
+                        info!("{chemin_reel} : {e} — flux {} servi tel quel", u.codec.nom());
+                        respond_ranged(&mut stream, ct, &u.flux_brut(), range_header);
+                    }
+                    _ => {
+                        warn!("vidéo {chemin_reel} : {e}");
+                        respond_text(&mut stream, 500, "Internal Server Error", &e);
+                    }
                 }
-                let (ct, body) = match result.video_codec {
-                    // H.264 brut -> remux MP4 fragmenté (lisible <video>) ;
-                    // repli sur le flux brut si ffmpeg indisponible.
-                    VideoCodec::H264 => match mux_h264_to_mp4(&result.video_data) {
-                        Some(mp4) => ("video/mp4", mp4),
-                        None => ("video/h264", result.video_data),
-                    },
-                    VideoCodec::Vp9 => ("video/webm", result.video_data),
-                    VideoCodec::Unknown => ("application/octet-stream", result.video_data),
-                };
-                info!(
-                    "USM {} démuxé : {} frames, {}B",
-                    vfs_path,
-                    result.frame_count,
-                    body.len()
-                );
-                respond_ranged(&mut stream, ct, &body, range_header);
             }
         }
         return;
