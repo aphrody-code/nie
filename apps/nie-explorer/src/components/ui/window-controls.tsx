@@ -10,12 +10,27 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/utils";
 
-const win = getCurrentWindow();
+/** La fenêtre Tauri courante, ou `null` hors de son runtime.
+ *
+ * Résolue à l'APPEL et non à l'import : `getCurrentWindow()` déréférence
+ * `window.__TAURI_INTERNALS__` et jette une `TypeError` quand il n'y a pas de runtime. Au niveau
+ * module, cette exception remontait la chaîne d'imports jusqu'à `App.tsx` et empêchait
+ * l'application entière de se monter dans un navigateur — donc de la déboguer autrement qu'à
+ * l'aveugle dans la fenêtre native. */
+function fenetre() {
+  try {
+    return getCurrentWindow();
+  } catch {
+    return null;
+  }
+}
 
 export function WindowControls({ className }: { className?: string }) {
   const [maximized, setMaximized] = useState(false);
 
   useEffect(() => {
+    const win = fenetre();
+    if (!win) return;
     win.isMaximized().then(setMaximized).catch(() => {});
     const unlisten = win.onResized(() => {
       win.isMaximized().then(setMaximized).catch(() => {});
@@ -32,7 +47,7 @@ export function WindowControls({ className }: { className?: string }) {
         className="flex h-8 w-8 items-center justify-center rounded-md text-ink-dull transition-colors hover:bg-app-hover hover:text-ink"
         title="Réduire"
         aria-label="Réduire"
-        onClick={() => win.minimize()}
+        onClick={() => fenetre()?.minimize()}
       >
         <Icon name="remove" size={16} />
       </button>
@@ -41,7 +56,7 @@ export function WindowControls({ className }: { className?: string }) {
         className="flex h-8 w-8 items-center justify-center rounded-md text-ink-dull transition-colors hover:bg-app-hover hover:text-ink"
         title={maximized ? "Restaurer" : "Agrandir"}
         aria-label={maximized ? "Restaurer" : "Agrandir"}
-        onClick={() => win.toggleMaximize()}
+        onClick={() => fenetre()?.toggleMaximize()}
       >
         <Icon name={maximized ? "fullscreen_exit" : "crop_square"} size={14} />
       </button>
@@ -50,7 +65,7 @@ export function WindowControls({ className }: { className?: string }) {
         className="flex h-8 w-8 items-center justify-center rounded-md text-ink-dull transition-colors hover:bg-status-error hover:text-white"
         title="Fermer"
         aria-label="Fermer"
-        onClick={() => win.close()}
+        onClick={() => fenetre()?.close()}
       >
         <Icon name="close" size={16} />
       </button>
