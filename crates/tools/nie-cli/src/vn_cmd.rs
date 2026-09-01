@@ -543,10 +543,10 @@ fn table_des_balises(vfs: &Vfs, langue: &str) -> BTreeMap<String, String> {
 
     let lire = |nom: &str| -> BTreeMap<u32, String> {
         let mut out = BTreeMap::new();
-        if let Ok(brut) = vfs.read(&format!("data/common/text/{langue}/{nom}.cfg.bin")) {
-            if let Ok(table) = cfgbin::cfgbin_parse(&brut) {
-                collecter_textes(&table.entries, &mut out);
-            }
+        if let Ok(brut) = vfs.read(&format!("data/common/text/{langue}/{nom}.cfg.bin"))
+            && let Ok(table) = cfgbin::cfgbin_parse(&brut)
+        {
+            collecter_textes(&table.entries, &mut out);
         }
         out
     };
@@ -674,14 +674,13 @@ fn est_identifiant_de_ligne(s: &str) -> bool {
 fn collecter_textes(entrees: &[nie_formats::cfgbin::CfgEntry], out: &mut BTreeMap<u32, String>) {
     use nie_formats::cfgbin;
     for e in entrees {
-        if let Some(cfgbin::Value::Int(cle)) = e.variables.first() {
-            if let Some(cfgbin::Value::String(texte)) = e
+        if let Some(cfgbin::Value::Int(cle)) = e.variables.first()
+            && let Some(cfgbin::Value::String(texte)) = e
                 .variables
                 .iter()
                 .find(|v| matches!(v, cfgbin::Value::String(s) if !s.is_empty()))
-            {
-                out.entry(*cle as u32).or_insert_with(|| texte.clone());
-            }
+        {
+            out.entry(*cle as u32).or_insert_with(|| texte.clone());
         }
         collecter_textes(&e.children, out);
     }
