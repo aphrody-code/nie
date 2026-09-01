@@ -109,9 +109,17 @@ export function SplitPane({
     </div>
   );
 
+  // `flex flex-col` sur les deux enveloppes, et pas seulement `overflow-hidden` : en `display:
+  // block`, un enfant qui se dit `flex-1` ne reçoit AUCUNE contrainte de hauteur — `flex-1` ne
+  // veut rien dire hors d'un conteneur flex — et retombe sur sa hauteur automatique. Mesuré dans
+  // l'Explorateur : l'enveloppe faisait bien 836 px, son enfant 197 px, et la zone de liste
+  // qu'il contient 57 px. Une zone défilante qui grandit avec son contenu ne déborde jamais :
+  // son `overflow: scroll` n'a alors rien à faire défiler, et tout ce qui dépasse est coupé par
+  // l'`overflow-hidden` ci-dessous. C'est la cause du « scroll impossible » dans toutes les vues
+  // bâties sur ce composant — Explorateur, Éditeur, Lua.
   const sized = (
     <div
-      className="min-h-0 min-w-0 shrink-0 overflow-hidden"
+      className="flex min-h-0 min-w-0 shrink-0 flex-col overflow-hidden"
       style={axis === "x" ? { width: size } : { height: size }}
     >
       {panel}
@@ -124,11 +132,11 @@ export function SplitPane({
         <>
           {sized}
           {handle}
-          <div className="min-h-0 min-w-0 flex-1 overflow-hidden">{children}</div>
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{children}</div>
         </>
       ) : (
         <>
-          <div className="min-h-0 min-w-0 flex-1 overflow-hidden">{children}</div>
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{children}</div>
           {handle}
           {sized}
         </>
