@@ -6,17 +6,17 @@
 //! réellement : le harnais de test de ce paquet Tauri ne démarre pas sur cette plateforme
 //! (`STATUS_ENTRYPOINT_NOT_FOUND` avant le premier test, cf. `CLAUDE.md`).
 //!
-//! Ne restent ici que les deux formats qui demandent un contexte propre à l'application
-//! (cf. `nie_explore::export::necessite_contexte`) :
+//! Ne reste ici que le seul format qui demande un contexte propre à l'application
+//! (cf. `nie_explore::export::necessite_contexte`) : **`glb`**, qui a besoin des fichiers FRÈRES
+//! du VFS (`.g4mg`, `.g4tx` de même radical) et de la résolution de voisinage sachant dire
+//! *pourquoi* un frère manque (`assemble_glb_for_preview`).
 //!
-//! * **`glb`** — a besoin des fichiers FRÈRES du VFS (`.g4mg`, `.g4tx` de même radical) et de la
-//!   résolution de voisinage qui sait dire *pourquoi* un frère manque
-//!   (`assemble_glb_for_preview`) ;
-//! * **`mp4`** — a besoin de `ffmpeg`, binaire externe (`video_mp4_from_bytes`).
+//! `mp4` y figurait tant qu'il lançait `ffmpeg` ; le remux vit maintenant dans `nie-formats`, donc
+//! il se produit comme les autres conversions.
 
 use serde::Serialize;
 
-use crate::{assemble_glb_for_preview, isoler, video_mp4_from_bytes};
+use crate::{assemble_glb_for_preview, isoler};
 
 /// Un format d'export proposé pour un fichier donné (miroir IPC de
 /// [`nie_explore::export::FormatExport`]).
@@ -72,7 +72,6 @@ pub fn produire(
 ) -> Result<Vec<u8>, String> {
     match format {
         "glb" => assemble_glb_for_preview(vfs, path).map(|(_stem, glb)| glb),
-        "mp4" => video_mp4_from_bytes(data),
         // Isolé : décoder une texture de 2048² ou un banc audio complet sur un thread dédié à
         // pile large évite qu'un fichier atypique n'emporte la fenêtre entière (cf. `isoler`).
         autre => {

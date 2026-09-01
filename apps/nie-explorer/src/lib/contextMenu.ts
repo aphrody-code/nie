@@ -8,10 +8,10 @@
 // « web slop » qui ne répond pas : chaque action ET l'appel `popup()` lui-même sont donc
 // protégés par un `try/catch` qui remonte l'erreur en toast plutôt que de l'avaler.
 import { Menu, PredefinedMenuItem } from "@tauri-apps/api/menu";
-import { tempDir, join } from "@tauri-apps/api/path";
+import { tempDir, join, videoDir } from "@tauri-apps/api/path";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
-import { openPath } from "@tauri-apps/plugin-opener";
+import { openPath, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { humanSize } from "@/lib/bytes";
@@ -228,6 +228,157 @@ export async function showVfsFileContextMenu(opts: FileContextMenuOptions): Prom
           toast.message(opts.name, {
             description: `${opts.path}\n${humanSize(opts.size)}`,
           });
+        },
+      },
+    ],
+  });
+  await popupOrReport(menu);
+}
+
+/** Options du menu contextuel d'une miniature de film (page Cinéma). */
+export interface FilmContextMenuOptions {
+  /** Chemin VFS du `.usm`. */
+  path: string;
+  /** Radical affiché (`ev01_00050`). */
+  nom: string;
+  /** Taille du conteneur, en octets. */
+  octets: number;
+  /** Codec, quand le film a déjà été inspecté (`h264`, `vp9`, `mpeg2`). */
+  codec?: string | null;
+  /** Le film porte-t-il une piste sonore ? */
+  avecAudio?: boolean;
+  onLire?: () => void;
+  onReveler?: () => void;
+  gameDir?: string;
+}
+
+/** Format d'export « naturel » d'un film, d'après son codec.
+ *
+ * Un `.usm` n'a pas un conteneur de sortie unique : le H.264 va en MP4, le VP9 en WebM, et le
+ * MPEG-2 n'en a aucun que le web lise — il sort en flux élémentaire. Quand le codec n'est pas
+ * encore connu (carte pas encore inspectée), on l'inspecte à la demande plutôt que de deviner. */
+async function formatNaturel(path: string, codec: string | null | undefined, gameDir?: string): Promise<string> {
+  let c = codec;
+  if (!c) {
+    try {
+      c = (await api.videoInfo(path, gameDir)).codec;
+    } catch {
+      c = null;
+    }
+  }
+  if (c === "vp9") return "webm";
+  if (c === "mpeg2") return "m2v";
+  return "mp4";
+}
+
+/** Écrit `path` converti en `format` vers `dest`, et rapporte le résultat en toast. */
+async function ecrireFilm(path: string, dest: string, format: string, gameDir?: string): Promise<boolean> {
+  const attente = toast.loading(`Conversion de ${path.split("/").pop()}…`);
+  try {
+    const written = await api.exportAs(path, dest, format, gameDir);
+    toast.success(`${humanSize(written)} écrits → ${dest}`, { id: attente });
+    return true;
+  } catch (e) {
+    toast.error(String(e), { id: attente });
+    return false;
+  }
+}
+
+/** Menu contextuel natif d'une miniature de film — lecture, préchargement, téléchargement,
+ * conversion et partage.
+ *
+ * « Partager » n'a pas d'API système sur Windows depuis une webview : ce que l'utilisatrice
+ * attend concrètement, c'est un fichier posé quelque part de trouvable. L'entrée exporte donc
+ * dans le dossier **Vidéos**, copie le chemin dans le presse-papiers et ouvre l'Explorateur
+ * Windows sélection faite — d'où le menu « Partager » natif de Windows est à un clic droit. */
+export async function showFilmContextMenu(opts: FilmContextMenuOptions): Promise<void> {
+  const formats = await api.exportFormats(opts.path).catch(() => []);
+
+  const menu = await Menu.new({
+    items: [
+      { text: "Lire", action: () => opts.onLire?.() },
+      {
+        text: "Précharger (prêt à lire au clic)",
+        action: async () => {
+          const attente = toast.loading(`Préparation de ${opts.nom}…`);
+          try {
+            const octets = await api.videoPrecharger(opts.path, opts.gameDir);
+            toast.success(`${opts.nom} prêt — ${humanSize(octets)} en cache`, { id: attente });
+          } catch (e) {
+            toast.error(String(e), { id: attente });
+          }
+        },
+      },
+      await PredefinedMenuItem.new({ item: "Separator" }),
+      {
+        text: "Télécharger…",
+        action: async () => {
+          const format = await formatNaturel(opts.path, opts.codec, opts.gameDir);
+          const defaut = await api.exportDefaultName(opts.path, format);
+          const dest = await save({ defaultPath: defaut });
+          if (!dest) return;
+          await ecrireFilm(opts.path, dest, format, opts.gameDir);
+        },
+      },
+      {
+        text: "Convertir vers",
+        items: formats.map((f) => ({
+          text: f.brut ? "Conteneur USM d'origine" : f.label,
+          action: async () => {
+            const defaut = await api.exportDefaultName(opts.path, f.id);
+            const dest = await save({ defaultPath: defaut });
+            if (!dest) return;
+            await ecrireFilm(opts.path, dest, f.id, opts.gameDir);
+          },
+        })),
+      },
+      {
+        text: "Partager (dossier Vidéos)…",
+        action: async () => {
+          const format = await formatNaturel(opts.path, opts.codec, opts.gameDir);
+          const defaut = await api.exportDefaultName(opts.path, format);
+          const dest = await join(await videoDir(), defaut);
+          if (!(await ecrireFilm(opts.path, dest, format, opts.gameDir))) return;
+          try {
+            await writeText(dest);
+            await revealItemInDir(dest);
+          } catch (e) {
+            toast.error(`Fichier écrit, mais impossible de l'afficher : ${e}`);
+          }
+        },
+      },
+      {
+        text: "Ouvrir avec l'application par défaut…",
+        action: async () => {
+          const format = await formatNaturel(opts.path, opts.codec, opts.gameDir);
+          const nom = await api.exportDefaultName(opts.path, format);
+          await openWithDefaultApp(nom, (dest) => api.exportAs(opts.path, dest, format, opts.gameDir));
+        },
+      },
+      await PredefinedMenuItem.new({ item: "Separator" }),
+      {
+        text: "Copier le chemin VFS",
+        action: async () => {
+          await writeText(opts.path);
+          toast.success("Chemin copié");
+        },
+      },
+      ...(opts.onReveler
+        ? [{ text: "Révéler dans l'Explorateur", action: () => opts.onReveler?.() }]
+        : []),
+      await PredefinedMenuItem.new({ item: "Separator" }),
+      {
+        text: "Propriétés",
+        action: () => {
+          const details = [
+            opts.path,
+            humanSize(opts.octets),
+            opts.codec ? `codec ${opts.codec}` : null,
+            opts.avecAudio ? "avec piste sonore" : "sans piste sonore",
+          ]
+            .filter(Boolean)
+            .join("\n");
+          toast.message(opts.nom, { description: details });
         },
       },
     ],
