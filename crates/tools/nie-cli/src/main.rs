@@ -16,6 +16,7 @@ mod mode_index;
 mod search_cmd;
 mod seed_ui;
 mod strings_cmd;
+mod video_cmd;
 
 use std::io::Write;
 use std::path::PathBuf;
@@ -516,6 +517,15 @@ enum Cmd {
     Vn {
         #[command(subcommand)]
         op: vn_cmd::VnCmd,
+        /// Racine du jeu (défaut : résolution automatique).
+        #[arg(long)]
+        game_dir: Option<PathBuf>,
+    },
+
+    /// Cinématiques USM/Sofdec2 : inventaire, métadonnées, remux MP4 sans réencodage, catalogue.
+    Video {
+        #[command(subcommand)]
+        op: video_cmd::VideoCmd,
         /// Racine du jeu (défaut : résolution automatique).
         #[arg(long)]
         game_dir: Option<PathBuf>,
@@ -1963,6 +1973,10 @@ fn run() -> anyhow::Result<()> {
         Cmd::Vn { op, game_dir } => {
             let vfs = open_vfs(game_dir)?;
             vn_cmd::run(&op, &vfs)
+        }
+        Cmd::Video { op, game_dir } => {
+            let vfs = open_vfs(game_dir)?;
+            video_cmd::run(&op, &vfs)
         }
     }
 }
