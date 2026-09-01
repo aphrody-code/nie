@@ -23,6 +23,7 @@ mod mcp;
 mod re_trace;
 mod steam;
 mod viola;
+mod video;
 
 use re_trace::{
     re_dump_open, re_dump_scan, re_trace_dump_module, re_trace_find_process, re_trace_module_regions,
@@ -3574,14 +3575,16 @@ fn raw_cpk_audio_preview_b64(index: u32, state: tauri::State<RawCpkState>) -> Re
     audio_wav_b64_from_bytes(data)
 }
 
-// ─── Aperçu vidéo (USM/Sofdec2 → MP4, via `ffmpeg` en sous-processus) ──────────────────
+// ─── Aperçu vidéo (USM/Sofdec2 → MP4, remux pur Rust) ─────────────────────────────────
 //
-// Pas de binding `libvlc` : ce système n'a pas VLC/libvlc installé (vérifié — seul `ffmpeg`
-// est présent, via winget), et l'intégration native de libvlc demanderait un rendu dans un
-// HWND enfant superposé à la webview (fenêtrage natif spécifique par OS) — hors de portée
-// raisonnable sans confirmer d'abord la présence de libvlc chez l'utilisatrice. `ffmpeg` en
-// sous-processus + `<video>` HTML est le chemin robuste : `nie-formats::cri_audio::usm_demux`
-// extrait le flux élémentaire H.264 (déjà porté, byte-exact), remuxé en MP4 par `ffmpeg`.
+// Ni `libvlc` ni `ffmpeg` : le remux vit dans le dépôt (`nie_formats::mp4`), donc l'aperçu
+// marche sur une machine nue. Le sous-processus `ffmpeg` qui occupait cette place échouait ici
+// (binaire absent du PATH) et coûtait deux écritures disque par requête pour une opération qui
+// ne fait que recopier des octets — un remux ne réencode rien.
+//
+// Ce chemin base64 reste réservé aux APERÇUS courts (plafond 40 Mo). Les films entiers passent
+// par le protocole `nievideo://` (cf. `video.rs`), qui gère les requêtes `Range` : c'est lui qui
+// rend le déplacement dans la timeline instantané sur une cinématique de 300 Mo.
 
 /// Remuxe le flux vidéo H.264 d'un `.usm` en MP4 lisible par un `<video>` HTML (base64, borné).
 /// VP9 brut n'est pas remuxable simplement (pas de conteneur) : renvoie une erreur claire.
@@ -3589,7 +3592,24 @@ fn raw_cpk_audio_preview_b64(index: u32, state: tauri::State<RawCpkState>) -> Re
 #[specta::specta]
 fn vfs_video_preview_b64(path: String, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<String, String> {
     let data = with_vfs(game_dir, &state, |vfs| vfs.read(&path).map_err(|e| e.to_string()))?;
-    video_mp4_b64_from_bytes(data)
+    // Le nom de fichier est la clé de l'enveloppe CRI des conteneurs *loose* : le transmettre
+    // est ce qui rend `IE_15th.usm` et `L5logo.usm` lisibles ici aussi.
+    let nom = path.rsplit('/').next().unwrap_or(&path).to_string();
+    let mp4 = video::mp4_depuis_usm(&data, &nom)?;
+    borner_et_encoder(&mp4)
+}
+
+/// Encode un MP4 en base64 pour l'IPC, avec le plafond d'aperçu.
+fn borner_et_encoder(mp4: &[u8]) -> Result<String, String> {
+    const CAP: usize = 40 * 1024 * 1024;
+    if mp4.len() > CAP {
+        return Err(format!(
+            "MP4 remuxé trop volumineux pour l'aperçu ({} octets > {CAP}) — ouvrez-le dans le \
+             Cinéma, qui diffuse par `nievideo://` sans plafond",
+            mp4.len()
+        ));
+    }
+    Ok(base64::engine::general_purpose::STANDARD.encode(mp4))
 }
 
 /// Cœur du remuxage vidéo USM→MP4, indépendant de la SOURCE des octets (VFS monté OU entrée d'un
@@ -3597,46 +3617,153 @@ fn vfs_video_preview_b64(path: String, game_dir: Option<String>, state: tauri::S
 /// [`audio_wav_b64_from_bytes`], même raison (parité d'outils `RawCpkView`, roadmap §6).
 fn video_mp4_b64_from_bytes(data: Vec<u8>) -> Result<String, String> {
     let mp4 = video_mp4_from_bytes(data)?;
-    const CAP: usize = 40 * 1024 * 1024;
-    if mp4.len() > CAP {
-        return Err(format!("MP4 remuxé trop volumineux pour l'aperçu ({} octets > {CAP})", mp4.len()));
-    }
-    Ok(base64::engine::general_purpose::STANDARD.encode(&mp4))
+    borner_et_encoder(&mp4)
 }
 
 /// Remuxage USM→MP4 **sans** plafond ni base64 — forme utile à l'export, même partage que
 /// [`audio_wav_from_bytes`].
 pub(crate) fn video_mp4_from_bytes(data: Vec<u8>) -> Result<Vec<u8>, String> {
-    let usm = nie_formats::cri_audio::usm_demux(&data).map_err(|e| e.to_string())?;
-    if usm.video_codec != nie_formats::cri_audio::VideoCodec::H264 {
-        return Err(format!("codec {:?} non pris en charge pour l'aperçu (H.264 uniquement) — utilisez Extraire", usm.video_codec));
-    }
-    if usm.video_data.is_empty() {
-        return Err("aucun flux vidéo dans ce fichier".to_string());
-    }
-    let video_data = usm.video_data;
+    // Le nom sert de clé au déchiffrement de l'enveloppe CRI des deux conteneurs *loose*. Ici,
+    // la source des octets n'est pas forcément un chemin (entrée de CPK brut) : on passe une
+    // chaîne vide, et un fichier chiffré remontera une erreur explicite plutôt qu'un faux MP4.
+    video::mp4_depuis_usm(&data, "")
+}
 
-    let dir = std::env::temp_dir().join("nie-explorer").join("video-preview");
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    let raw = dir.join("in.h264");
-    let out = dir.join("out.mp4");
-    std::fs::write(&raw, &video_data).map_err(|e| e.to_string())?;
+/// Répond à une requête `nievideo://`.
+///
+/// Le corps est produit une fois puis gardé dans [`video::CacheVideo`] : un `<video>` émet une
+/// requête `Range` par saut dans la timeline, et sans ce cache chaque saut redémultiplexerait
+/// tout le conteneur.
+fn servir_video(
+    app: &tauri::AppHandle,
+    request: tauri::http::Request<Vec<u8>>,
+) -> tauri::http::Response<Vec<u8>> {
+    use tauri::Manager;
+    use tauri::http::{Response, StatusCode};
 
-    let status = std::process::Command::new("ffmpeg")
-        .args(["-y", "-f", "h264", "-i"])
-        .arg(&raw)
-        .args(["-c:v", "copy", "-movflags", "+faststart"])
-        .arg(&out)
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()
-        .map_err(|e| format!("échec de lancement de ffmpeg (introuvable sur le PATH ?) : {e}"))?;
-    if !status.success() {
-        return Err(format!("ffmpeg a échoué ({status})"));
+    let echec = |code: StatusCode, message: String| -> Response<Vec<u8>> {
+        Response::builder()
+            .status(code)
+            .header("Content-Type", "text/plain; charset=utf-8")
+            .body(message.into_bytes())
+            .unwrap_or_else(|_| Response::new(Vec::new()))
+    };
+
+    // `nievideo://localhost/data/common/movie/x.usm?track=audio` — le chemin VFS est le chemin
+    // de l'URI, la piste demandée sa query.
+    let uri = request.uri();
+    let chemin = percent_decode_uri(uri.path().trim_start_matches('/'));
+    if chemin.is_empty() || chemin.contains("..") {
+        return echec(StatusCode::BAD_REQUEST, "chemin invalide".to_string());
     }
+    let audio = uri.query().is_some_and(|q| q.contains("track=audio"));
+    let cle = format!("{chemin}{}", if audio { "?audio" } else { "" });
 
-    std::fs::read(&out).map_err(|e| e.to_string())
+    let cache = app.state::<video::CacheVideo>();
+    let (type_mime, corps) = match cache.obtenir(&cle) {
+        Some(trouve) => trouve,
+        None => {
+            let vfs_state = app.state::<VfsState>();
+            let brut = match with_vfs(None, &vfs_state, |vfs| {
+                vfs.read(&chemin).map_err(|e| e.to_string())
+            }) {
+                Ok(b) => b,
+                Err(e) => return echec(StatusCode::NOT_FOUND, e),
+            };
+            let nom = chemin.rsplit('/').next().unwrap_or(&chemin).to_string();
+            // Le type MIME vient du CODEC, pas de l'extension demandée : H.264 sort en MP4,
+            // VP9 en WebM. Annoncer `video/mp4` sur un WebM ferait échouer le décodage.
+            let produit = if audio {
+                video::wav_depuis_usm(&brut, &nom).map(|o| ("audio/wav", o))
+            } else {
+                video::flux_web_depuis_usm(&brut, &nom)
+            };
+            match produit {
+                Err(e) => return echec(StatusCode::UNPROCESSABLE_ENTITY, e),
+                Ok((mime, octets)) => {
+                    cache.ranger(cle, mime, &octets);
+                    (mime, octets)
+                }
+            }
+        }
+    };
+
+    let total = corps.len() as u64;
+
+    // `Range: bytes=<debut>-[fin]` — la seule forme qu'émettent les webviews.
+    let plage = request
+        .headers()
+        .get("range")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("bytes="))
+        .map(|v| {
+            let (d, f) = v.split_once('-').unwrap_or((v, ""));
+            let debut = d.parse::<u64>().unwrap_or(0).min(total);
+            let fin = f.parse::<u64>().unwrap_or(total.saturating_sub(1)).min(total.saturating_sub(1));
+            (debut, fin.max(debut))
+        });
+
+    match plage {
+        None => Response::builder()
+            .status(StatusCode::OK)
+            .header("Content-Type", type_mime)
+            .header("Accept-Ranges", "bytes")
+            .header("Content-Length", total.to_string())
+            .body(corps)
+            .unwrap_or_else(|_| Response::new(Vec::new())),
+        Some((debut, fin)) => {
+            let tranche = corps[debut as usize..=(fin as usize).min(corps.len().saturating_sub(1))].to_vec();
+            Response::builder()
+                .status(StatusCode::PARTIAL_CONTENT)
+                .header("Content-Type", type_mime)
+                .header("Accept-Ranges", "bytes")
+                .header("Content-Range", format!("bytes {debut}-{fin}/{total}"))
+                .header("Content-Length", tranche.len().to_string())
+                .body(tranche)
+                .unwrap_or_else(|_| Response::new(Vec::new()))
+        }
+    }
+}
+
+/// Décode le percent-encoding d'un chemin d'URI (`%2F` → `/`, `%C3%A9` → `é`).
+fn percent_decode_uri(s: &str) -> String {
+    let src = s.as_bytes();
+    let mut out = Vec::with_capacity(src.len());
+    let mut i = 0;
+    while i < src.len() {
+        if src[i] == b'%' && i + 2 < src.len() {
+            // Un `%XX` mal formé est laissé tel quel plutôt que perdu : mieux vaut un chemin qui
+            // ne correspond à rien qu'un chemin silencieusement mutilé.
+            if let Some(b) =
+                std::str::from_utf8(&src[i + 1..i + 3]).ok().and_then(|h| u8::from_str_radix(h, 16).ok())
+            {
+                out.push(b);
+                i += 3;
+                continue;
+            }
+        }
+        out.push(src[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+/// Catalogue des cinématiques : instantané, sans lire un octet des conteneurs.
+///
+/// Les champs issus du démultiplexage (durée, définition, codec) restent vides ; le frontend les
+/// remplit carte par carte avec [`video_info`], au fil du défilement. Démultiplexer les 97 films
+/// d'un coup coûterait plusieurs minutes et bloquerait l'ouverture de la page.
+#[tauri::command]
+#[specta::specta]
+fn video_catalog(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<video::CatalogueVideoDto, String> {
+    with_vfs(game_dir, &state, |vfs| Ok(video::catalogue(vfs)))
+}
+
+/// Métadonnées complètes d'un film : codec, définition, cadence, durée, pistes sonores.
+#[tauri::command]
+#[specta::specta]
+fn video_info(path: String, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<video::FilmDto, String> {
+    with_vfs(game_dir, &state, |vfs| video::info_film(vfs, &path))
 }
 
 /// Même remuxage vidéo que [`vfs_video_preview_b64`], mais depuis une entrée du CPK brut ouvert
@@ -3862,6 +3989,8 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         save_blob_hex_b64,
         save_export,
         vfs_video_preview_b64,
+        video_catalog,
+        video_info,
         open_in_scene_editor,
         lua_chunk_info,
         lua_disassemble,
@@ -3998,6 +4127,16 @@ pub fn run() {
                 .add_migrations("sqlite:mods.db", mods_migrations())
                 .build(),
         )
+        // `nievideo://localhost/<chemin VFS>` — la piste vidéo d'un `.usm`, remuxée en MP4 et
+        // servie avec le support des requêtes `Range`. C'est ce qui permet à un `<video>` de
+        // démarrer et de se déplacer instantanément dans une cinématique de 300 Mo, là où le
+        // chemin base64 (`vfs_video_preview_b64`) exige de tout charger et plafonne à 40 Mo.
+        // `?track=audio` rend la bande-son décodée en WAV : le HCA Criware n'entre dans aucun
+        // conteneur MP4, le lecteur resynchronise les deux flux.
+        .register_uri_scheme_protocol("nievideo", |ctx, request| {
+            servir_video(ctx.app_handle(), request)
+        })
+        .manage(video::CacheVideo::default())
         .manage(PendingOpen(Mutex::new(first_path_arg(std::env::args()))))
         .manage(SaveState(Mutex::new(None)))
         .manage(VfsState(Mutex::new(None)))

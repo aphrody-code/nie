@@ -537,6 +537,16 @@ export const commands = {
 	 */
 	vfsVideoPreviewB64: (path: string, gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("vfs_video_preview_b64", { path, gameDir })),
 	/**
+	 *  Catalogue des cinématiques : instantané, sans lire un octet des conteneurs.
+	 * 
+	 *  Les champs issus du démultiplexage (durée, définition, codec) restent vides ; le frontend les
+	 *  remplit carte par carte avec [`video_info`], au fil du défilement. Démultiplexer les 97 films
+	 *  d'un coup coûterait plusieurs minutes et bloquerait l'ouverture de la page.
+	 */
+	videoCatalog: (gameDir: string | null) => typedError<CatalogueVideoDto, string>(__TAURI_INVOKE("video_catalog", { gameDir })),
+	/**  Métadonnées complètes d'un film : codec, définition, cadence, durée, pistes sonores. */
+	videoInfo: (path: string, gameDir: string | null) => typedError<FilmDto, string>(__TAURI_INVOKE("video_info", { path, gameDir })),
+	/**
 	 *  Ouvre l'asset dans **nie-editor**, l'éditeur de scène 3D natif (éditeur Fyrox embarqué, rendu
 	 *  OpenGL — cf. `crates/tools/nie-editor`).
 	 * 
@@ -934,6 +944,14 @@ export type BlenderSceneResultDto = {
 	warnings: string[],
 };
 
+/**  Le catalogue complet renvoyé au frontend. */
+export type CatalogueVideoDto = {
+	/**  Films, triés par chemin. */
+	films: FilmDto[],
+	/**  Rubriques distinctes, dans l'ordre d'affichage. */
+	rubriques: string[],
+};
+
 /**
  *  Résultat d'un décodage typé : la forme générique est toujours rendue, la forme nommée
  *  seulement quand la famille est couverte.
@@ -1054,6 +1072,48 @@ export type ExportFormatDto = {
 	brut: boolean,
 	/**  Faux quand la conversion peut dégrader (JPEG, GIF). */
 	sans_perte: boolean,
+};
+
+/**
+ *  Une entrée du catalogue. Les champs issus du démultiplexage sont `None` tant que
+ *  [`video_info`] n'a pas été appelé sur ce film — le catalogue s'ouvre instantanément et se
+ *  complète à mesure que les cartes deviennent visibles.
+ */
+export type FilmDto = {
+	/**  Chemin VFS complet. */
+	chemin: string,
+	/**  Radical du nom de fichier (`ev01_00050`). */
+	nom: string,
+	/**  Rubrique d'affichage — une rubrique = une rangée. */
+	rubrique: string,
+	/**  Code de langue (`fr`, `JP`…) quand le nom en porte un. */
+	langue: string | null,
+	/**  Taille du conteneur USM, en octets. */
+	octets: number,
+	/**  Codec vidéo (`h264`, `mpeg2`), une fois le film inspecté. */
+	codec: string | null,
+	/**  Le navigateur sait-il décoder ce codec ? */
+	lisible: boolean | null,
+	/**  Largeur en pixels. */
+	largeur: number | null,
+	/**  Hauteur en pixels. */
+	hauteur: number | null,
+	/**  Nombre d'images démultiplexées. */
+	images: number | null,
+	/**  Cadence en images par seconde. */
+	cadence: number | null,
+	/**  Durée en secondes. */
+	duree: number | null,
+	/**  Pistes sonores. */
+	audio: PisteAudioDto[],
+	/**  Le conteneur était-il enveloppé par le XOR CRI ? */
+	chiffre: boolean | null,
+	/**  Nom du fichier source chez l'encodeur, tel qu'inscrit dans le conteneur. */
+	nom_origine: string | null,
+	/**  Musique de fond déclarée par le `gamedata` (hash). */
+	bgm: string | null,
+	/**  Chemin du `.cfg.bin` de texte des sous-titres, quand il y en a un. */
+	sous_titres: string | null,
 };
 
 /**
@@ -1451,6 +1511,20 @@ export type PassiveDto = {
 	scope: string,
 	boost_type: string,
 	effect_params: (number | null)[],
+};
+
+/**  Piste sonore d'un film, telle qu'annoncée par l'en-tête `AUDIO_HDRINFO`. */
+export type PisteAudioDto = {
+	/**  Numéro de canal. */
+	canal: number,
+	/**  Codec détecté (`hca`, `adx`). */
+	codec: string,
+	/**  Fréquence d'échantillonnage en Hz. */
+	frequence: number,
+	/**  Nombre de canaux. */
+	canaux: number,
+	/**  Taille du flux brut, en octets. */
+	octets: number,
 };
 
 /**
