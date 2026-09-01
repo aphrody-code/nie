@@ -3689,6 +3689,12 @@ fn servir_video(
     };
 
     let total = corps.len() as u64;
+    if total == 0 {
+        // Un corps vide ferait paniquer le découpage de plage plus bas (`..=fin` sur un tampon
+        // vide). Mieux vaut une erreur explicite qu'un panic dans le gestionnaire de protocole,
+        // qui emporterait la requête sans rien dire.
+        return echec(StatusCode::UNPROCESSABLE_ENTITY, "flux vide".to_string());
+    }
 
     // `Range: bytes=<debut>-[fin]` — la seule forme qu'émettent les webviews.
     let plage = request
