@@ -473,6 +473,56 @@ mod tests {
         }
     }
 
+    /// Conversion d'une VRAIE cinématique : le conteneur produit doit porter son propre magic,
+    /// et le format qui ne correspond pas au codec doit être refusé plutôt que rendu vide.
+    ///
+    /// C'est le seul test qui exerce le chemin complet — lecture VFS, démultiplexage USM, remux —
+    /// tel que l'utilise le menu contextuel de la page Cinéma.
+    #[test]
+    fn conversion_reelle_cinematique() {
+        let racine = nie_formats::vfs::resolve_game_dir();
+        let mut vfs = nie_formats::vfs::Vfs::new();
+        if vfs.init(racine.join("data")).is_err() {
+            eprintln!("SAUTÉ : VFS réel indisponible (corpus du jeu absent)");
+            return;
+        }
+        let film = vfs
+            .iter()
+            .map(|(p, _)| p.to_string())
+            .find(|p| p.starts_with("data/common/movie/ev") && p.ends_with(".usm"));
+        let Some(film) = film else {
+            eprintln!("SAUTÉ : aucune cinématique dans le VFS monté");
+            return;
+        };
+        let data = vfs.read(&film).expect("lecture usm");
+
+        // Les cinématiques `ev*` du jeu sont en H.264 — sauf deux, en VP9. On demande donc au
+        // démultiplexeur ce qu'il voit, plutôt que de le supposer.
+        let codec = nie_formats::usm::demuxer_nomme(&data, nie_formats::usm::nom_fichier_de(&film))
+            .expect("démux")
+            .codec;
+
+        match codec {
+            nie_formats::usm::CodecVideo::H264 => {
+                let mp4 = produire(&film, data.clone(), "mp4").expect("export MP4");
+                assert_eq!(&mp4[4..8], b"ftyp", "un MP4 commence par une boîte ftyp");
+                assert!(mp4.windows(4).any(|w| w == b"moov"), "table d'échantillons attendue");
+                // Le conteneur qui ne correspond pas au codec est REFUSÉ, pas produit à vide.
+                let e = produire(&film, data.clone(), "webm").expect_err("WebM sur du H.264");
+                assert!(e.contains("h264"), "message peu clair : {e}");
+            }
+            nie_formats::usm::CodecVideo::Vp9 => {
+                let webm = produire(&film, data.clone(), "webm").expect("export WebM");
+                assert_eq!(&webm[..4], &[0x1A, 0x45, 0xDF, 0xA3], "en-tête EBML attendu");
+                assert!(produire(&film, data.clone(), "mp4").is_err(), "MP4 sur du VP9");
+            }
+            autre => panic!("codec inattendu pour {film} : {}", autre.nom()),
+        }
+
+        // Le brut reste le fichier du jeu, octet pour octet.
+        assert_eq!(produire(&film, data.clone(), "raw").expect("brut"), data);
+    }
+
     /// Ce que coûte une grille de fichiers : vignette bornée contre pleine résolution, sur les
     /// VRAIES icônes du dossier qui tuait la fenêtre
     /// (`data/dx11/menu/200_icon/10_icon_chr/uniform`, 12 560 `.g4tx`).
