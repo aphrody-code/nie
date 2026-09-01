@@ -2111,6 +2111,16 @@ fn get_or_build_avatar_glb(
                             Some((w, h, t))
                         }
 
+                        // Les pupilles désignent leur zone en bleu, et ce bleu n'est pas un tracé
+                        // mais un ovale plein qui occupe tout le carré. On ne le découpe PAS : une
+                        // planche de cette forme ne peut pas viser le dépliage du visage, où elle
+                        // pose un ovale au milieu de la figure — ce que le rendu actuel montre.
+                        // Tant que le matériau d'accueil de `02_pupil` n'est pas établi, la
+                        // découper reviendrait à placer proprement une pièce au mauvais endroit.
+                        // Cf. `nie_formats::assemble::face_layer_slot`.
+                        //
+                        // Idem pour tout ce que la mesure ne tranche pas : le chemin par défaut
+                        // teinte, ce qu'il a toujours fait.
                         (_, _) => Some(par_defaut(rgba)),
                     }
                 })
