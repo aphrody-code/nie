@@ -24,13 +24,22 @@ type ResizeDirection =
 const EDGE = 4;
 const CORNER = 10;
 
-const win = getCurrentWindow();
-
 function start(direction: ResizeDirection, e: React.PointerEvent) {
   // Bouton gauche uniquement : un clic droit sur un bord doit rester un clic droit.
   if (e.button !== 0) return;
   e.preventDefault();
-  win.startResizeDragging(direction).catch(() => {});
+  // Résolu au CLIC, pas à l'import. `getCurrentWindow()` déréférence
+  // `window.__TAURI_INTERNALS__` : appelé au niveau module, il jette une `TypeError` dès qu'il
+  // n'y a pas de runtime Tauri, et comme `App.tsx` importe ce module, c'est TOUTE l'application
+  // qui refusait de se monter hors de la fenêtre Tauri — donc impossible de la servir dans un
+  // navigateur pour diagnostiquer une mise en page.
+  try {
+    getCurrentWindow()
+      .startResizeDragging(direction)
+      .catch(() => {});
+  } catch {
+    // Hors Tauri : il n'y a pas de fenêtre à redimensionner, et ce n'est pas une erreur.
+  }
 }
 
 interface Handle {
