@@ -387,6 +387,95 @@ fn mesures_json(m: &nie_formats::planche::Mesures) -> Json {
     })
 }
 
+/// Côté de la grille d'occupation UV : 32 × 32 cases sur le carré `[0, 1]²`.
+///
+/// Assez fin pour distinguer un dépliage qui couvre tout le carré d'un autre qui n'en occupe qu'un
+/// coin, assez grossier pour qu'une maille de quelques centaines de sommets remplisse ses cases.
+const GRILLE_UV: usize = 32;
+
+/// `niers avatar depliage` — dit quelle part du carré UV chaque sous-maille échantillonne.
+///
+/// C'est le chaînon manquant entre une planche et la maille qui la lit. Une planche se mesure
+/// (cf. [`nie_formats::planche`]), une maille se déplie, et une composition n'est juste que si les
+/// deux se recouvrent. Le rangement des familles par matériau — [`nie_formats::assemble::face_layer_slot`] —
+/// repose sur des dépliages « disjoints » relevés une fois à la main ; cette commande les rend
+/// régénérables.
+///
+/// Deux mesures par sous-maille, car la boîte englobante ment sur un dépliage épars : son
+/// **emprise** (bornes u et v) et son **occupation**, la part des cases d'une grille
+/// [`GRILLE_UV`] × [`GRILLE_UV`] qui portent au moins un sommet.
+fn depliage(game_dir: &Path, modele: &str, limit: usize) -> Result<()> {
+    let mut vfs = Vfs::new();
+    vfs.init(game_dir.join("data")).context("init VFS")?;
+    let mut chemins: Vec<String> = vfs
+        .iter()
+        .filter(|(p, _)| p.contains(EDIT_ROOT) && p.ends_with(".g4md") && p.contains(modele))
+        .map(|(p, _)| p.to_string())
+        .collect();
+    chemins.sort();
+    chemins.dedup();
+    if chemins.is_empty() {
+        println!("aucun .g4md sous {EDIT_ROOT} ne contient « {modele} »");
+        return Ok(());
+    }
+    let total = chemins.len();
+    chemins.truncate(limit);
+    println!("{total} modèle(s), {} affiché(s)", chemins.len());
+
+    for chemin in &chemins {
+        let Ok(brut_md) = vfs.read(chemin) else { continue };
+        let Ok(md) = nie_formats::g4md::parse(&brut_md) else {
+            println!("  {} — g4md illisible", court(chemin));
+            continue;
+        };
+        let chemin_mg = format!("{}.g4mg", chemin.trim_end_matches(".g4md"));
+        let Ok(brut_mg) = vfs.read(&chemin_mg) else {
+            println!("  {} — .g4mg absent", court(chemin));
+            continue;
+        };
+        let geos = nie_formats::g4mg::extract_geometry(&brut_mg, &md);
+        println!("  {} — {} sous-maille(s)", court(chemin), geos.len());
+        for geo in &geos {
+            let materiau = nie_formats::g4mg::material_base_name(&md, geo)
+                .map_or("(sans nom)", String::as_str);
+            if geo.uv0.is_empty() {
+                println!("    #{} {materiau:<18} {:>6} som.  aucun UV0", geo.index, geo.vertex_count);
+                continue;
+            }
+            let (mut u0, mut v0, mut u1, mut v1) = (f32::MAX, f32::MAX, f32::MIN, f32::MIN);
+            let mut cases = alloc_grille();
+            for uv in &geo.uv0 {
+                if !uv.u.is_finite() || !uv.v.is_finite() {
+                    continue;
+                }
+                u0 = u0.min(uv.u);
+                v0 = v0.min(uv.v);
+                u1 = u1.max(uv.u);
+                v1 = v1.max(uv.v);
+                // Un UV hors [0, 1] est licite (répétition) : on le replie pour l'occupation, sans
+                // toucher à l'emprise, qui doit dire la vérité y compris quand elle déborde.
+                let cx = ((uv.u.rem_euclid(1.0)) * GRILLE_UV as f32) as usize;
+                let cy = ((uv.v.rem_euclid(1.0)) * GRILLE_UV as f32) as usize;
+                cases[cy.min(GRILLE_UV - 1) * GRILLE_UV + cx.min(GRILLE_UV - 1)] = true;
+            }
+            let occupees = cases.iter().filter(|c| **c).count();
+            println!(
+                "    #{} {materiau:<18} {:>6} som.  u[{u0:.3};{u1:.3}] v[{v0:.3};{v1:.3}]  \
+                 occupation {}",
+                geo.index,
+                geo.vertex_count,
+                pct(occupees as f32 / (GRILLE_UV * GRILLE_UV) as f32)
+            );
+        }
+    }
+    Ok(())
+}
+
+/// Grille d'occupation vide.
+fn alloc_grille() -> Vec<bool> {
+    vec![false; GRILLE_UV * GRILLE_UV]
+}
+
 /// Écrit un tampon RGBA en PNG, éventuellement réduit à `cote` pixels de côté maximal.
 fn ecrire_png(dir: &Path, nom: &str, w: u32, h: u32, rgba: &[u8], cote: u32) -> Result<()> {
     let (w, h, pixels) = if cote > 0 {
@@ -749,6 +838,18 @@ pub enum AvatarCmd {
         #[arg(long, default_value_t = usize::MAX)]
         limit: usize,
     },
+    /// Mesure le dépliage UV d'un modèle de `20_EDIT`, sous-maille par sous-maille.
+    ///
+    /// Répond à la question que la mesure des planches laisse ouverte : quelle maille lit quelle
+    /// planche. Une planche pleine cadre posée sur une maille qui n'occupe qu'un coin du carré ne
+    /// peut pas rendre ce qu'elle dessine.
+    Depliage {
+        /// Nom ou fragment de chemin du modèle (`face51_nose01`, `_facebase/face51`).
+        modele: String,
+        /// Nombre maximum de modèles affichés.
+        #[arg(long, default_value_t = 8)]
+        limit: usize,
+    },
     /// Localise les icônes de vignette dans les atlas d'interface, et les extrait en PNG.
     Icons {
         /// Répertoire de sortie ; sans lui, la commande ne fait que localiser.
@@ -1092,11 +1193,57 @@ fn table_by_hash(root: &Json, node_name: &str) -> BTreeMap<u32, Vec<f64>> {
     out
 }
 
+/// Les centres de `TEX_PARTS_CENTER_INFO`, résolus en **noms de planches de texture**.
+///
+/// La table est indexée par `crc32`, et ces hachages ne désignent PAS des `resourceName` de parts,
+/// contrairement à ce que le reste du catalogue suppose : ce sont les noms des sous-textures des
+/// conteneurs de `_facetex/` — mesuré le 2026-09-01 en hachant les noms que les `.g4tx` déclarent
+/// eux-mêmes. Les cinq entrées se résolvent alors intégralement :
+///
+/// | planche | u | v | w | h |
+/// |---|---|---|---|---|
+/// | `eyebrow_R_01` | 0,3125 | 0,2275 | 0,1309 | 0,0654 |
+/// | `eyebrow_L_01` | 0,6875 | 0,2275 | 0,1309 | 0,0654 |
+/// | `eye_R_01` | 0,3076 | 0,3896 | 0,0986 | 0,0850 |
+/// | `eye_L_01` | 0,6924 | 0,3896 | 0,0986 | 0,0850 |
+/// | `mouth_00` | 0,4980 | 0,5996 | 0,1172 | 0,0137 |
+///
+/// C'est l'anatomie d'un visage : sourcils en haut, yeux dessous, bouche en bas, les paires
+/// gauche/droite en miroir exact autour de `u = 0,5`. Et c'est **la même emprise** que celle
+/// relevée à la grille témoin dans `nie_formats::image_out` — `eye_R_01` donne
+/// `u ∈ [0,258 ; 0,357]`, la grille avait lu `[0,262 ; 0,366]`. Le fichier disait donc déjà ce
+/// qu'une capture a servi à retrouver.
+///
+/// Cinq centres pour six familles : la table est une **référence**, pas une entrée par planche.
+/// Rien ici n'extrapole aux autres variantes.
+fn centres_de_planches(game_dir: &Path, center: &Json) -> BTreeMap<String, Vec<f64>> {
+    let table = table_by_hash(center, "TEX_PARTS_CENTER_INFO");
+    let mut vfs = Vfs::new();
+    if vfs.init(game_dir.join("data")).is_err() {
+        return BTreeMap::new();
+    }
+    let conteneurs: Vec<String> = vfs
+        .iter()
+        .filter(|(p, _)| p.contains("20_EDIT/_facetex/") && p.ends_with(".g4tx"))
+        .map(|(p, _)| p.to_string())
+        .collect();
+    let mut out = BTreeMap::new();
+    for chemin in conteneurs {
+        let Ok(brut) = vfs.read(&chemin) else { continue };
+        let Ok(conteneur) = nie_formats::g4tx::parse(&brut) else { continue };
+        for tex in &conteneur.textures {
+            if let Some(rect) = table.get(&cfgbin::crc32(tex.name.as_bytes())) {
+                out.insert(tex.name.clone(), rect.clone());
+            }
+        }
+    }
+    out
+}
+
 /// Vue résolue d'une part : ce que le catalogue dit, plus ce que le VFS et la base confirment.
 fn part_json(
     src: &Sources,
     icons: &BTreeMap<u32, String>,
-    centers: &BTreeMap<u32, Vec<f64>>,
     trans: &BTreeMap<u32, Vec<f64>>,
     scales: &BTreeMap<u32, Vec<f64>>,
     p: &nie_data::chara_edit::CharaEditPartsData,
@@ -1117,7 +1264,10 @@ fn part_json(
         "modeles2": if !p.resource_name_str2.starts_with("0x") { resource_paths(src, &p.resource_name_str2) } else { &[] },
         "icone": icons.get(&tex),
         "iconeHash": p.texture_name.to_hex_x8(),
-        "atlasCentre": centers.get(&hash1),
+        // Pas de centre d'atlas ici : `TEX_PARTS_CENTER_INFO` est indexé par nom de PLANCHE, pas
+        // par `resourceName` de part. Le champ `atlasCentre` que portait cette vue cherchait
+        // `hash1` dans cette table et sortait nul sur les 502 parts, sans que rien ne le signale.
+        // Les cinq centres résolus vivent désormais à part — cf. [`centres_de_planches`].
         // `TEX_PARTS_DEFAULT_TRANS_INFO` = (hash, mode entier, puis les composantes) : le mode
         // est séparé ici, sinon il se lit comme une translation de 3,0 unité.
         "poseTransMode": trans.get(&hash1).and_then(|v| v.first()).map(|m| *m as i64),
@@ -1132,6 +1282,9 @@ pub fn run(cmd: &AvatarCmd, game_dir: &Path, db_path: &Path) -> Result<()> {
     // L'analyse des planches ne lit que des textures : la servir avant le catalogue évite de
     // décoder cinq `cfg.bin` et le bytecode des écrans pour rien, et la rend utilisable même là
     // où le catalogue ne se résout pas.
+    if let AvatarCmd::Depliage { modele, limit } = cmd {
+        return depliage(game_dir, modele, *limit);
+    }
     if let AvatarCmd::Planches { prefix, filtre, detail, out, extraire, vignette, limit } = cmd {
         return planches(
             game_dir,
@@ -1148,7 +1301,7 @@ pub fn run(cmd: &AvatarCmd, game_dir: &Path, db_path: &Path) -> Result<()> {
     }
     let src = Sources::load(game_dir)?;
     let icons = icon_dict(db_path);
-    let centers = table_by_hash(&src.center, "TEX_PARTS_CENTER_INFO");
+    let centres = centres_de_planches(game_dir, &src.center);
     let trans = table_by_hash(&src.pose, "TEX_PARTS_DEFAULT_TRANS_INFO");
     let scales = table_by_hash(&src.pose, "TEX_PARTS_DEFAULT_SCALE_INFO");
     let cfg = &src.catalogue;
@@ -1184,11 +1337,18 @@ pub fn run(cmd: &AvatarCmd, game_dir: &Path, db_path: &Path) -> Result<()> {
                 src.types.body_data.len()
             );
             println!(
-                "  tables de 20_EDIT : {} centres d'atlas, {} translations, {} échelles",
-                centers.len(),
+                "  tables de 20_EDIT : {} centres de planche, {} translations, {} échelles",
+                centres.len(),
                 trans.len(),
                 scales.len()
             );
+            // Les centres sont peu nombreux et disent où chaque part se pose sur le carré du
+            // visage : les afficher vaut mieux que les compter.
+            for (nom, rect) in &centres {
+                if let [u, v, w, h] = rect[..] {
+                    println!("    {nom:<14} u {u:.4}  v {v:.4}  w {w:.4}  h {h:.4}");
+                }
+            }
             println!("\n  cat  parts  modèles  icônes  préfixe des ressources");
             for info in &cfg.parts_info {
                 let parts = cfg.parts_of(info.face_setting_type);
@@ -1343,7 +1503,7 @@ pub fn run(cmd: &AvatarCmd, game_dir: &Path, db_path: &Path) -> Result<()> {
                         "faceSettingType": info.face_setting_type,
                         "prefixe": category_label(cfg, info.face_setting_type),
                         "parts": cfg.parts_of(info.face_setting_type).iter()
-                            .map(|p| part_json(&src, &icons, &centers, &trans, &scales, p))
+                            .map(|p| part_json(&src, &icons, &trans, &scales, p))
                             .collect::<Vec<_>>(),
                         "couleurs": cfg.colors_of(info.face_setting_type).iter()
                             .map(|h| h.to_hex_x8()).collect::<Vec<_>>(),
@@ -1377,6 +1537,13 @@ pub fn run(cmd: &AvatarCmd, game_dir: &Path, db_path: &Path) -> Result<()> {
 
             let doc = json!({
                 "source": "chara_edit + chara_edit_parts_type_config + 20_EDIT/{center,texPartsDefaultPose,editCharaMdlParts}",
+                // Où chaque planche se pose sur le carré du visage, en fraction de texture.
+                // Indexé par nom de PLANCHE — c'est ce que la table hache, et non un
+                // `resourceName` de part. Cf. `centres_de_planches`.
+                "centresDePlanches": centres.iter().map(|(nom, r)| json!({
+                    "planche": nom,
+                    "u": r.first(), "v": r.get(1), "largeur": r.get(2), "hauteur": r.get(3),
+                })).collect::<Vec<_>>(),
                 "codePartage": {
                     "bits": cfg.code_bit_width(),
                     "alphabet": cfg.codes.iter().map(|c| c.code_char.clone()).collect::<Vec<_>>(),
@@ -1463,8 +1630,8 @@ pub fn run(cmd: &AvatarCmd, game_dir: &Path, db_path: &Path) -> Result<()> {
 
         AvatarCmd::Roi { ecran, layouts, out } => return roi(ecran, layouts, out.as_deref()),
 
-        // Déjà traitée en tête, avant le chargement des sources.
-        AvatarCmd::Planches { .. } => {}
+        // Déjà traitées en tête, avant le chargement des sources.
+        AvatarCmd::Planches { .. } | AvatarCmd::Depliage { .. } => {}
 
         AvatarCmd::Icons { out, atlas_prefix, limit } => {
             // Les noms voulus : l'icône de chaque part, résolue depuis `hash_name`.
