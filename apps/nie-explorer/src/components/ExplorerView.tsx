@@ -344,6 +344,30 @@ export function ExplorerView({
   // plafond d'action.
   const [visibles, setVisibles] = useState(PAGE_FICHIERS);
   useEffect(() => setVisibles(PAGE_FICHIERS), [state.prefix, files, sortKey]);
+
+  /** Entrée sur laquelle porte le clavier, DISTINCTE de `state.selected`.
+   *
+   * `state.selected` pilote l'inspecteur et ne vaut que pour un fichier. Les flèches s'appuyaient
+   * sur lui seul et n'assignaient que des fichiers : le curseur ne pouvait donc pas franchir les
+   * dossiers, qui sont listés en tête — dans un dossier qui en contient, la navigation au clavier
+   * ne démarrait même pas. Le curseur, lui, passe partout ; il ne met à jour l'aperçu que
+   * lorsqu'il tombe sur un fichier. */
+  const [curseur, setCurseur] = useState<string | null>(null);
+  useEffect(() => setCurseur(null), [state.prefix]);
+  /** Conteneur de la liste — sert à ramener le curseur dans la zone visible. Une recherche par
+   * `document.querySelector` serait fausse : plusieurs onglets restent montés (`keepMounted`) et
+   * portent les mêmes chemins. */
+  const listeRef = useRef<HTMLDivElement | null>(null);
+
+  /** Ramène l'entrée dans la zone visible, sans la centrer — comportement d'un explorateur de
+   * fichiers, où la liste ne bouge que si le curseur en sort. */
+  function faireDefilerVers(path: string) {
+    requestAnimationFrame(() => {
+      listeRef.current
+        ?.querySelector(`[data-path="${CSS.escape(path)}"]`)
+        ?.scrollIntoView({ block: "nearest" });
+    });
+  }
   const affiches = useMemo(() => sortedFiles.slice(0, visibles), [sortedFiles, visibles]);
 
   // Nom réel (perso/technique/objet) lié à chaque fichier, résolu par lot via le miroir wiki
@@ -630,15 +654,28 @@ export function ExplorerView({
   // n'a pas le focus DOM), donc un doublon local ferait potentiellement doubler l'action.
   function onListKeyDown(e: React.KeyboardEvent) {
     if (searching || flatEntries.length === 0) return;
-    const idx = flatEntries.findIndex((en) => en.path === state.selected);
+    // Le curseur prime sur la sélection : c'est lui que les flèches déplacent, et il peut être
+    // posé sur un dossier, que `state.selected` n'accepte pas.
+    const idx = flatEntries.findIndex((en) => en.path === (curseur ?? state.selected));
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
-      const next = e.key === "ArrowDown" ? Math.min(idx + 1, flatEntries.length - 1) : Math.max(idx - 1, 0);
-      const entry = flatEntries[Math.max(next, 0)];
+      // Sans curseur ni sélection (`idx === -1`), la première flèche prend la première entrée,
+      // quel que soit son sens : il faut bien entrer dans la liste par un bout.
+      const next =
+        idx === -1
+          ? 0
+          : e.key === "ArrowDown"
+            ? Math.min(idx + 1, flatEntries.length - 1)
+            : Math.max(idx - 1, 0);
+      const entry = flatEntries[next];
+      if (!entry) return;
+      setCurseur(entry.path);
       if (entry.kind === "file") onStateChange({ selected: entry.path });
+      faireDefilerVers(entry.path);
     } else if (e.key === "Enter" && idx >= 0) {
       const entry = flatEntries[idx];
       if (entry.kind === "dir") goto(entry.path);
+      else onStateChange({ selected: entry.path });
     } else if (e.key === "Backspace") {
       goto(segments.slice(0, -1).join("/"));
     }
@@ -866,6 +903,7 @@ export function ExplorerView({
             onKeyDown={onListKeyDown}
           >
             <div
+              ref={listeRef}
               className={viewMode === "grid" ? "grid gap-2 p-2" : "divide-y divide-app-line py-1"}
               style={viewMode === "grid" ? { gridTemplateColumns: `repeat(auto-fill,minmax(${gridSize}px,1fr))` } : undefined}
             >
@@ -881,9 +919,10 @@ export function ExplorerView({
                     return (
                       <button
                         key={d.name}
+                        data-path={path}
                         className={`state-layer flex flex-col items-center gap-1 rounded-xl p-2 text-center ${
                           isMultiSelected ? "bg-primary-container/40" : ""
-                        }`}
+                        } ${curseur === path ? "ring-1 ring-inset ring-accent" : ""}`}
                         onClick={(e) => handleDirClick(path, e)}
                         onAuxClick={(e) => handleDirAuxClick(path, e)}
                         onContextMenu={(e) => showFolderMenu(path, e)}
@@ -898,9 +937,10 @@ export function ExplorerView({
                   return (
                     <button
                       key={d.name}
+                      data-path={path}
                       className={`state-layer flex w-full items-center gap-2 px-3 py-2 text-left type-body-medium ${
                         isMultiSelected ? "bg-primary-container/40 text-on-surface" : "text-on-surface"
-                      }`}
+                      } ${curseur === path ? "ring-1 ring-inset ring-accent" : ""}`}
                       onClick={(e) => handleDirClick(path, e)}
                       onAuxClick={(e) => handleDirAuxClick(path, e)}
                       onContextMenu={(e) => showFolderMenu(path, e)}
@@ -919,7 +959,10 @@ export function ExplorerView({
                   return (
                     <button
                       key={f.path}
+                      data-path={f.path}
                       className={`state-layer flex flex-col items-center gap-1 rounded-xl p-2 text-center ${
+                        curseur === f.path ? "ring-1 ring-inset ring-accent " : ""
+                      }${
                         state.selected === f.path
                           ? "bg-secondary-container"
                           : isMultiSelected
@@ -946,13 +989,14 @@ export function ExplorerView({
                 return (
                   <button
                     key={f.path}
+                    data-path={f.path}
                     className={`state-layer flex w-full items-center justify-between gap-2 px-3 py-2 text-left type-body-medium ${
                       state.selected === f.path
                         ? "bg-secondary-container text-on-secondary-container"
                         : isMultiSelected
                           ? "bg-primary-container/40 text-on-surface"
                           : "text-on-surface"
-                    }`}
+                    } ${curseur === f.path ? "ring-1 ring-inset ring-accent" : ""}`}
                     onClick={(e) => handleFileClick(f, e)}
                     onContextMenu={(e) => handleFileContextMenu(f, e)}
                     title={f.path}

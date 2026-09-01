@@ -77,8 +77,17 @@ export default function App() {
 
   /** Sélectionne un fichier dans l'onglet ACTIF depuis une autre vue (Recherche, Données, Mods,
    * Éditeur) et bascule sur l'Explorateur. */
+  /** Ouvre l'Explorateur SUR le fichier : son dossier, puis lui sélectionné dedans.
+   *
+   * Ne poser que `selected` ne révélait rien — l'onglet restait sur son dossier courant, où le
+   * fichier désigné n'est pas listé. Depuis la Recherche ou les Données, « ouvrir un fichier »
+   * basculait donc de vue sans jamais montrer le fichier. Le préfixe est le dossier parent ;
+   * un chemin sans `/` désigne la racine du VFS, qui est la chaîne vide. */
   function revealInExplorer(path: string) {
-    explorerTabs.update(activeTabId, { selected: path });
+    const coupe = path.lastIndexOf("/");
+    const dossier = coupe === -1 ? "" : path.slice(0, coupe);
+    recordVisit(dossier);
+    explorerTabs.update(activeTabId, { prefix: dossier, selected: path });
     setTab("explorer");
   }
 
@@ -361,7 +370,14 @@ export default function App() {
   // Titre de fenêtre = même valeur que la barre supérieure (chemin courant comme l'explorateur
   // Windows, jamais un nom de produit).
   useEffect(() => {
-    getCurrentWindow().setTitle(topBarTitle).catch(() => {});
+    // `getCurrentWindow()` jette de façon SYNCHRONE hors runtime Tauri : le `.catch()` ne
+    // l'attrape pas, et l'exception casse l'effet de rendu. Hors fenêtre native, il n'y a
+    // simplement pas de titre à poser.
+    try {
+      getCurrentWindow().setTitle(topBarTitle).catch(() => {});
+    } catch {
+      /* pas de fenêtre Tauri */
+    }
   }, [topBarTitle]);
 
   return (
