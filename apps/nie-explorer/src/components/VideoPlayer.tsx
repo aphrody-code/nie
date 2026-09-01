@@ -24,6 +24,7 @@
 // `.cfg.bin` séparé (`subtitleTextPath`), indexé par un hash de menu. Le chemin est affiché dans
 // la fiche du film, sa résolution reste à faire.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { convertFileSrc } from "@tauri-apps/api/core";
 
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/utils";
@@ -37,10 +38,24 @@ const DELAI_MASQUAGE = 2600;
 /** Vitesses de lecture proposées. */
 const VITESSES = [0.25, 0.5, 1, 1.25, 1.5, 2];
 
-/** Encode un chemin VFS en URL `nievideo://`, segment par segment. */
+/** Encode un chemin VFS en URL servie par le protocole `nievideo`.
+ *
+ * **`convertFileSrc` et pas une chaîne bâtie à la main** : la forme de l'URL dépend de la
+ * plateforme. Sous Windows et Android, Tauri sert les protocoles personnalisés en
+ * `http://<protocole>.localhost/<chemin>` ; ailleurs en `<protocole>://localhost/<chemin>`.
+ * Écrire `nievideo://localhost/…` en dur ne chargerait donc rien sur cette machine.
+ *
+ * Hors runtime Tauri (un navigateur, pour déboguer une mise en page), il n'y a pas de protocole
+ * du tout : la fonction rend une chaîne vide, et le `<video>` reste sans source plutôt que de
+ * réclamer une URL qui n'existe pas. */
 export function urlVideo(chemin: string, piste?: "audio"): string {
-  const segments = chemin.split("/").map(encodeURIComponent).join("/");
-  return `nievideo://localhost/${segments}${piste ? `?track=${piste}` : ""}`;
+  let base: string;
+  try {
+    base = convertFileSrc(chemin, "nievideo");
+  } catch {
+    return "";
+  }
+  return `${base}${piste ? `?track=${piste}` : ""}`;
 }
 
 /** Deux chiffres, zéro devant. */
