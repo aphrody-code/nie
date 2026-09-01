@@ -275,15 +275,8 @@ pub fn decoder_planches(g4tx: &[u8]) -> Vec<(u32, u32, Vec<u8>)> {
 #[cfg(feature = "textures")]
 #[must_use]
 pub fn masque_de_zones(masque: &[u8]) -> bool {
-    let total = masque.len() / 4;
-    if total == 0 {
-        return false;
-    }
-    let rouges = masque
-        .chunks_exact(4)
-        .filter(|p| p[0] > 160 && p[1] < 96 && p[2] < 96)
-        .count();
-    rouges * 10 > total
+    crate::planche::part_zone_brute(masque, crate::planche::Zone::Rouge)
+        > crate::planche::PART_FOND_ZONES
 }
 
 /// Une planche décodée et, s'il en existe un, son masque de zones.
@@ -515,18 +508,14 @@ pub fn dessiner_oeil(cote: u32, iris: [u8; 3]) -> alloc::vec::Vec<u8> {
 ///
 /// Le critère est la présence d'une **encre** : au moins un demi pour cent de pixels franchement
 /// sombres. Un liseré gris clair n'en produit aucun.
+///
+/// Seuils et classification viennent de [`crate::planche`], qui les emploie aussi pour mesurer le
+/// corpus : les tenir en double faisait diverger ce que l'analyse constate de ce que la
+/// composition applique.
 #[cfg(feature = "textures")]
 #[must_use]
 pub fn porte_un_trait(rgba: &[u8]) -> bool {
-    let total = rgba.len() / 4;
-    if total == 0 {
-        return false;
-    }
-    let sombres = rgba
-        .chunks_exact(4)
-        .filter(|p| p[3] > 128 && u16::from(p[0]) + u16::from(p[1]) + u16::from(p[2]) < 288)
-        .count();
-    sombres * 200 > total
+    crate::planche::part_encre_brute(rgba) > crate::planche::PART_ENCRE_TRACE
 }
 
 /// Découpe une planche DESSINÉE par son masque de zones, sans la teindre.
@@ -623,8 +612,7 @@ pub fn decouper_oeil(
 #[cfg(feature = "textures")]
 #[must_use]
 pub fn canal_uniforme(rgba: &[u8]) -> bool {
-    let Some(premier) = rgba.first().copied() else { return true };
-    rgba.iter().step_by(4).all(|&v| v == premier)
+    crate::planche::canal_uniforme(rgba)
 }
 
 /// Redimensionne une image RGBA vers une taille donnée, au plus proche voisin.
