@@ -1875,7 +1875,7 @@ type PlancheRgba = (u32, u32, Vec<u8>);
 /// corps déduit du squelette, attache à l'os de tête, composition de la texture de visage… Sans
 /// elle, un GLB produit par l'ancienne logique reste servi indéfiniment et le correctif paraît
 /// sans effet : c'est exactement ce qui est arrivé lors de l'ajout du corps automatique.
-const AVATAR_CACHE_VERSION: u32 = 110;
+const AVATAR_CACHE_VERSION: u32 = 111;
 
 /// Nom de fichier de cache court et stable pour une clé d'assemblage.
 ///
@@ -2012,52 +2012,9 @@ fn get_or_build_avatar_glb(
                 &brut,
             )
                 .into_iter()
-                .map(|(w, h, rgba, masque)| {
-                    // L'ŒIL d'abord : son masque ne suit pas la convention de la bouche. Le noir
-                    // y est l'ouverture de l'œil et le vert le trait de paupière, quand la bouche
-                    // met son encre en noir sur fond rouge. Passer l'œil par la découpe commune
-                    // gardait l'ouverture et la teintait en carnation — une rondelle de peau
-                    // posée sur l'œil — puis jetait le tracé. Cf. `decouper_oeil`.
-                    if rel.starts_with("01_eye")
-                        && let Some(m) = masque.as_ref()
-                    {
-                        // La couleur vient de la teinte par canaux — sur `_facetex`, le vert porte
-                        // l'iris — et l'opacité de la seule zone verte du masque. La planche, elle,
-                        // n'apporte rien sur le tracé : grise (211, 211, 211) et transparente
-                        // (alpha moyen 1,1). D'où cet ordre : teinter, puis découper.
-                        let teintee = nie_formats::image_out::teinter_par_canaux(
-                            w, h, &rgba, teintes, entree_vide,
-                        )
-                        .unwrap_or(rgba);
-                        let decoupee = nie_formats::image_out::decouper_oeil(w, h, &teintee, m);
-                        return (w, h, decoupee.unwrap_or(teintee));
-                    }
-                    // Une planche qui porte DÉJÀ un dessin — les quatre bouches de `mouth_01` —
-                    // ne se teinte pas : elle se découpe. Son masque cerne le trait en noir sur
-                    // fond rouge, et seul le fond doit disparaître. La faire passer par la teinte
-                    // par canaux effaçait le contour, qui n'a aucun canal dominant.
-                    if let Some(m) = masque
-                        && nie_formats::image_out::porte_un_trait(&rgba)
-                        && let Some(t) =
-                            nie_formats::image_out::decouper_par_zones(w, h, &rgba, &m)
-                    {
-                        // ESSAI — la maille des lèvres échantillonne la cellule 0 de l'atlas
-                        // (établi par une texture témoin : elle sort rouge, la couleur de cette
-                        // cellule), mais dans sa moitié basse, v 0,325..0,493, alors que la bouche
-                        // y est peinte en haut, v 0,18..0,31. On la descend de la différence des
-                        // centres, 0,164.
-                        if rel.starts_with("05_mouth") {
-                            let dy = (h as f32 * 0.164) as usize;
-                            let lg = w as usize * 4;
-                            let mut d = vec![0u8; t.len()];
-                            for y in dy..h as usize {
-                                let (src, dst) = ((y - dy) * lg, y * lg);
-                                d[dst..dst + lg].copy_from_slice(&t[src..src + lg]);
-                            }
-                            return (w, h, d);
-                        }
-                        return (w, h, t);
-                    }
+                .filter_map(|(w, h, rgba, masque)| {
+                    use nie_formats::planche::Convention;
+
                     // Teinte par canaux : une planche de `_facetex` est un masque à trois canaux,
                     // chacun désignant une zone qui reçoit sa couleur.
                     //
@@ -2065,14 +2022,97 @@ fn get_or_build_avatar_glb(
                     // forme — cas des reflets, blancs par nature. Les teinter reviendrait à les
                     // peindre en carnation, donc à les rendre invisibles sur la peau qui est déjà
                     // de cette couleur. Ces planches-là gardent leur couleur et leur alpha.
-                    let porte_sa_forme = nie_formats::image_out::canal_uniforme(&rgba)
-                        && !nie_formats::image_out::couche_totalement_opaque(&rgba);
-                    if porte_sa_forme {
-                        return (w, h, rgba);
-                    }
-                    let teintee = nie_formats::image_out::teinter_par_canaux(w, h, &rgba, teintes, entree_vide)
+                    let par_defaut = |rgba: Vec<u8>| -> PlancheRgba {
+                        let porte_sa_forme = nie_formats::image_out::canal_uniforme(&rgba)
+                            && !nie_formats::image_out::couche_totalement_opaque(&rgba);
+                        if porte_sa_forme {
+                            return (w, h, rgba);
+                        }
+                        let teintee = nie_formats::image_out::teinter_par_canaux(
+                            w, h, &rgba, teintes, entree_vide,
+                        )
                         .unwrap_or(rgba);
-                    (w, h, teintee)
+                        (w, h, teintee)
+                    };
+
+                    // LA PEAU NE SE DÉCOUPE PAS. Le matériau 0 est la maille du visage, dont les
+                    // UV couvrent tout le carré : sa première planche est la carnation, un fond
+                    // opaque que les autres viennent marquer. Son masque porte bien une zone verte
+                    // — 13,32 % sur `face_01msk`, une bande au milieu du carré — mais celle-ci
+                    // désigne une zone à TEINDRE, pas un tracé à conserver. Mesuré : lui appliquer
+                    // la convention de découpe ramenait la texture du visage de 100 % à 13,32 %
+                    // d'opacité, soit exactement cette zone verte. Le critère est structurel — le
+                    // rang dans le matériau — et non un nom de famille.
+                    if slot == 0 && entree_vide {
+                        return Some(par_defaut(rgba));
+                    }
+
+                    // Pour tout ce qui se pose PAR-DESSUS, la convention ne se décide pas sur le
+                    // nom de la famille : elle se **mesure**, planche par planche. Le test
+                    // `rel.starts_with("01_eye")` qui régnait ici privait le sourcil de son tracé —
+                    // relevé sur les 431 planches de `_facetex` (`niers avatar planches`), 78 des
+                    // 80 planches de `04_eyebrow` suivent la convention de l'œil, et AUCUNE des
+                    // six familles n'a de convention unique. Cf. `nie_formats::planche`.
+                    let convention = nie_formats::planche::mesurer(w, h, &rgba).map_or(
+                        Convention::Indeterminee,
+                        |couleur| {
+                            let mesures = masque
+                                .as_ref()
+                                .and_then(|m| nie_formats::planche::mesurer(w, h, m));
+                            Convention::deriver(&couleur, mesures.as_ref())
+                        },
+                    );
+
+                    match (convention, masque) {
+                        // Ni la planche ni son masque ne portent de forme : c'est la variante
+                        // « sans » de la famille — toutes portent l'indice 00. La poser
+                        // couvrirait de carnation opaque ce qui est déjà en place.
+                        (Convention::Aplat, _) => None,
+
+                        // Le tracé n'existe que dans le vert du masque : la planche, elle, est
+                        // grise et transparente. La couleur vient donc de la teinte par canaux —
+                        // sur `_facetex`, le vert porte l'iris — et l'opacité de la seule zone
+                        // verte. D'où cet ordre : teinter, puis découper. Cf. `decouper_oeil`.
+                        (Convention::TraceVert, Some(m)) => {
+                            let teintee = nie_formats::image_out::teinter_par_canaux(
+                                w, h, &rgba, teintes, entree_vide,
+                            )
+                            .unwrap_or(rgba);
+                            let decoupee =
+                                nie_formats::image_out::decouper_oeil(w, h, &teintee, &m);
+                            Some((w, h, decoupee.unwrap_or(teintee)))
+                        }
+
+                        // La planche porte DÉJÀ son dessin — les quatre bouches de `mouth_01`.
+                        // Elle se découpe au lieu de se teindre : la teinte par canaux effaçait
+                        // son contour noir, qui n'a aucun canal dominant. Seul le fond disparaît.
+                        (Convention::FondRouge, Some(m)) => {
+                            let Some(t) =
+                                nie_formats::image_out::decouper_par_zones(w, h, &rgba, &m)
+                            else {
+                                return Some(par_defaut(rgba));
+                            };
+                            // ESSAI — la maille des lèvres échantillonne la cellule 0 de l'atlas
+                            // (établi par une texture témoin : elle sort rouge, la couleur de
+                            // cette cellule), mais dans sa moitié basse, v 0,325..0,493, alors que
+                            // la bouche y est peinte en haut, v 0,18..0,31. On la descend de la
+                            // différence des centres, 0,164. Ce test-ci reste par nom de famille :
+                            // c'est un recalage de dépliage, pas une convention de masque.
+                            if rel.starts_with("05_mouth") {
+                                let dy = (h as f32 * 0.164) as usize;
+                                let lg = w as usize * 4;
+                                let mut d = vec![0u8; t.len()];
+                                for y in dy..h as usize {
+                                    let (src, dst) = ((y - dy) * lg, y * lg);
+                                    d[dst..dst + lg].copy_from_slice(&t[src..src + lg]);
+                                }
+                                return Some((w, h, d));
+                            }
+                            Some((w, h, t))
+                        }
+
+                        (_, _) => Some(par_defaut(rgba)),
+                    }
                 })
                 .collect();
             let entree = par_slot.entry(slot).or_default();

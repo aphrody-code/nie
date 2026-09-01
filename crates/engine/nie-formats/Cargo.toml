@@ -59,6 +59,14 @@ real-fixtures = ["std"]
 name = "model_glb_preview"
 required-features = ["textures"]
 
+# `g4tx_patch_region` réencode en BC7 (`SurfaceRgba8::encode`), qui vit derrière `image_dds/encode`.
+# Sans cette déclaration, `cargo test -p nie-formats --features textures` échoue à compiler
+# l'exemple — donc n'exécute AUCUN test du crate — alors que l'exemple lui-même documente
+# `--features textures-encode` dans son en-tête.
+[[example]]
+name = "g4tx_patch_region"
+required-features = ["textures-encode"]
+
 [dev-dependencies]
 # Encodage PNG pour les examples/tests (atlas, anim, scène de dialogue) — indépendant
 # de la feature `textures` (qui ne gate que le décodeur DDS de la lib).
