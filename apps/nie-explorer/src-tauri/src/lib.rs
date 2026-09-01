@@ -3708,6 +3708,11 @@ fn servir_video(
             .status(StatusCode::OK)
             .header("Content-Type", type_mime)
             .header("Accept-Ranges", "bytes")
+            // Sous Windows, ce protocole est servi depuis `http://nievideo.localhost`, une
+            // origine distincte de celle de l'application : sans cet en-tête, un
+            // `<video crossorigin>` échoue et un `canvas` qui le dessine devient « teinté »,
+            // donc `toDataURL` jette. C'est ce qui rend possibles les vignettes du Cinéma.
+            .header("Access-Control-Allow-Origin", "*")
             .header("Content-Length", total.to_string())
             .body(corps)
             .unwrap_or_else(|_| Response::new(Vec::new())),
@@ -3717,6 +3722,7 @@ fn servir_video(
                 .status(StatusCode::PARTIAL_CONTENT)
                 .header("Content-Type", type_mime)
                 .header("Accept-Ranges", "bytes")
+                .header("Access-Control-Allow-Origin", "*")
                 .header("Content-Range", format!("bytes {debut}-{fin}/{total}"))
                 .header("Content-Length", tranche.len().to_string())
                 .body(tranche)

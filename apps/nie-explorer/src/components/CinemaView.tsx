@@ -542,6 +542,9 @@ function Carte({
           <video
             ref={videoRef}
             src={urlVideo(film.chemin)}
+            // `crossOrigin` : le protocole `nievideo` a sa propre origine sous Windows, et
+            // sans requête CORS le `canvas` de `capturer` serait teinté — donc aucune affiche.
+            crossOrigin="anonymous"
             muted
             autoPlay
             loop
