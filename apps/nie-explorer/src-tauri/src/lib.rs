@@ -3659,8 +3659,24 @@ fn servir_video(
     let audio = uri.query().is_some_and(|q| q.contains("track=audio"));
     let cle = format!("{chemin}{}", if audio { "?audio" } else { "" });
 
+    // `Range: bytes=<debut>-[fin]` — la seule forme qu'émettent les webviews. La borne haute
+    // n'est bornée par la taille qu'APRÈS coup, une fois le total connu.
+    let plage_demandee = request
+        .headers()
+        .get("range")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("bytes="))
+        .map(|v| {
+            let (d, f) = v.split_once('-').unwrap_or((v, ""));
+            let debut = d.parse::<u64>().unwrap_or(0);
+            let fin = f.parse::<u64>().unwrap_or(u64::MAX);
+            (debut, fin.max(debut))
+        });
+
+    // La plage est résolue AVANT d'aller chercher les octets : le cache ne rend alors que la
+    // tranche demandée, au lieu de recopier tout le film à chaque requête.
     let cache = app.state::<video::CacheVideo>();
-    let (type_mime, corps) = match cache.obtenir(&cle) {
+    let (type_mime, corps, total) = match cache.tranche(&cle, plage_demandee) {
         Some(trouve) => trouve,
         None => {
             let vfs_state = app.state::<VfsState>();
@@ -3681,33 +3697,23 @@ fn servir_video(
             match produit {
                 Err(e) => return echec(StatusCode::UNPROCESSABLE_ENTITY, e),
                 Ok((mime, octets)) => {
-                    cache.ranger(cle, mime, &octets);
-                    (mime, octets)
+                    let total = octets.len() as u64;
+                    let morceau = video::decouper(&octets, plage_demandee);
+                    cache.ranger(cle, mime, octets);
+                    (mime, morceau, total)
                 }
             }
         }
     };
 
-    let total = corps.len() as u64;
     if total == 0 {
-        // Un corps vide ferait paniquer le découpage de plage plus bas (`..=fin` sur un tampon
-        // vide). Mieux vaut une erreur explicite qu'un panic dans le gestionnaire de protocole,
-        // qui emporterait la requête sans rien dire.
         return echec(StatusCode::UNPROCESSABLE_ENTITY, "flux vide".to_string());
     }
-
-    // `Range: bytes=<debut>-[fin]` — la seule forme qu'émettent les webviews.
-    let plage = request
-        .headers()
-        .get("range")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|v| v.strip_prefix("bytes="))
-        .map(|v| {
-            let (d, f) = v.split_once('-').unwrap_or((v, ""));
-            let debut = d.parse::<u64>().unwrap_or(0).min(total);
-            let fin = f.parse::<u64>().unwrap_or(total.saturating_sub(1)).min(total.saturating_sub(1));
-            (debut, fin.max(debut))
-        });
+    // Bornes effectivement servies, une fois le total connu.
+    let plage = plage_demandee.map(|(debut, _)| {
+        let debut = debut.min(total - 1);
+        (debut, debut + corps.len() as u64 - 1)
+    });
 
     match plage {
         None => Response::builder()
@@ -3722,18 +3728,15 @@ fn servir_video(
             .header("Content-Length", total.to_string())
             .body(corps)
             .unwrap_or_else(|_| Response::new(Vec::new())),
-        Some((debut, fin)) => {
-            let tranche = corps[debut as usize..=(fin as usize).min(corps.len().saturating_sub(1))].to_vec();
-            Response::builder()
-                .status(StatusCode::PARTIAL_CONTENT)
-                .header("Content-Type", type_mime)
-                .header("Accept-Ranges", "bytes")
-                .header("Access-Control-Allow-Origin", "*")
-                .header("Content-Range", format!("bytes {debut}-{fin}/{total}"))
-                .header("Content-Length", tranche.len().to_string())
-                .body(tranche)
-                .unwrap_or_else(|_| Response::new(Vec::new()))
-        }
+        Some((debut, fin)) => Response::builder()
+            .status(StatusCode::PARTIAL_CONTENT)
+            .header("Content-Type", type_mime)
+            .header("Accept-Ranges", "bytes")
+            .header("Access-Control-Allow-Origin", "*")
+            .header("Content-Range", format!("bytes {debut}-{fin}/{total}"))
+            .header("Content-Length", corps.len().to_string())
+            .body(corps)
+            .unwrap_or_else(|_| Response::new(Vec::new())),
     }
 }
 
