@@ -11,7 +11,7 @@
 //! | `.g4tx` | png, webp, jpg, bmp, tga, tiff, qoi, gif + json (en-têtes) |
 //! | `.g4md`/`.g4mg` | glb *(contextuel, cf. plus bas)* + json |
 //! | `.acb`/`.awb`/`.hca`/`.adx` | wav |
-//! | `.usm` | mp4 *(contextuel)* |
+//! | `.usm` | mp4, webm, wav (bande-son), h264/m2v (flux élémentaire) |
 //! | `.cfg.bin`, `.objbin`, `.mevbin`, `.lip`, `.g4pk`… | json |
 //! | `.g4sk`, `.g4nv`, `.g4mt`, `.g4cm`, `.g4la`, `.g4ma`, `.g4vs`, `.col` | json |
 //! | `.vfxo`, `.pfxo`, `.gfxo`, `.cfxo` (shaders DXBC) | json |
@@ -19,16 +19,15 @@
 //!
 //! ## Formats contextuels
 //!
-//! Deux conversions ne se déduisent pas des octets du fichier seul :
+//! Une seule conversion ne se déduit pas des octets du fichier seul : **`glb`** a besoin des
+//! fichiers FRÈRES (le `.g4mg` et le `.g4tx` de même radical), donc d'un VFS monté et d'une
+//! résolution de voisinage. `mp4` en faisait partie tant qu'il passait par `ffmpeg` ; le remux
+//! vit désormais dans le dépôt (`nie_formats::mp4`), et se produit ici comme les autres.
 //!
-//! * **`glb`** a besoin des fichiers FRÈRES (le `.g4mg` et le `.g4tx` de même radical), donc d'un
-//!   VFS monté et d'une résolution de voisinage ;
-//! * **`mp4`** a besoin de `ffmpeg`, un binaire externe.
-//!
-//! [`produire`] les REFUSE explicitement plutôt que de les rater en silence
-//! ([`necessite_contexte`] permet à l'appelant de les intercepter avant). Ils restent listés par
-//! [`formats_pour`] : c'est bien l'interface qui doit les proposer, simplement pas cette fonction
-//! qui les produit.
+//! [`produire`] le REFUSE explicitement plutôt que de le rater en silence
+//! ([`necessite_contexte`] permet à l'appelant de l'intercepter avant). Il reste listé par
+//! [`formats_pour`] : c'est bien l'interface qui doit le proposer, simplement pas cette fonction
+//! qui le produit.
 
 use alloc::string::{String, ToString};
 use alloc::vec;
@@ -111,7 +110,9 @@ fn est_donnee_structuree(path: &str, ext: &str) -> bool {
 /// Vrai si `format` exige un contexte que [`produire`] n'a pas — cf. § « Formats contextuels ».
 #[must_use]
 pub fn necessite_contexte(format: &str) -> bool {
-    matches!(format, "glb" | "mp4")
+    // `mp4` n'en fait plus partie : le remux vit dans `nie_formats::mp4`, sans ffmpeg ni fichier
+    // frère. Seul `glb` a encore besoin du VFS, pour aller chercher les `.g4mg`/`.g4tx` voisins.
+    matches!(format, "glb")
 }
 
 /// Formats d'image proposés pour une texture, dans l'ordre d'affichage.
@@ -163,8 +164,17 @@ pub fn formats_pour(path: &str) -> Vec<FormatExport> {
         "acb" | "awb" | "hca" | "adx" => {
             out.push(FormatExport::new("wav", "wav", "WAV PCM 16 bits", false, true));
         }
+        // Un `.usm` n'a plus besoin d'`ffmpeg` : le remux vit dans `nie_formats::mp4`/`webm`.
+        // Les cinq formats sont proposés d'emblée parce que cette table est dérivée du NOM, sans
+        // toucher au disque : le codec réel n'est connu qu'à la conversion, qui le dit alors
+        // franchement (« ce film est en VP9, exportez-le en WebM ») plutôt que de produire un
+        // conteneur que rien ne lit.
         "usm" => {
-            out.push(FormatExport::new("mp4", "mp4", "MP4 (H.264 remuxé, ffmpeg requis)", false, true));
+            out.push(FormatExport::new("mp4", "mp4", "MP4 — H.264 remuxé, sans réencodage", false, true));
+            out.push(FormatExport::new("webm", "webm", "WebM — VP9 remuxé, sans réencodage", false, true));
+            out.push(FormatExport::new("wav", "wav", "WAV — bande-son décodée", false, true));
+            out.push(FormatExport::new("h264", "h264", "Flux H.264 élémentaire", false, true));
+            out.push(FormatExport::new("m2v", "m2v", "Flux MPEG-2 élémentaire", false, true));
         }
         _ => {}
     }
@@ -198,6 +208,59 @@ pub fn nom_propose(path: &str, format: &str) -> String {
     alloc::format!("{radical}.{ext_sortie}")
 }
 
+/// Convertit une cinématique `.usm` vers `format`.
+///
+/// Le nom de fichier est transmis au démultiplexeur : c'est la clé de l'enveloppe CRI des deux
+/// conteneurs posés hors CPK (`IE_15th.usm`, `L5logo.usm`).
+///
+/// # Erreurs
+///
+/// Rend un message explicite si le codec du film ne correspond pas au conteneur demandé, plutôt
+/// que d'écrire un fichier valide dont personne ne saura décoder le contenu.
+fn video_usm(path: &str, data: &[u8], format: &str) -> Result<Vec<u8>, String> {
+    use nie_formats::usm::{self, CodecVideo};
+    if format == "raw" {
+        return Ok(data.to_vec());
+    }
+    let nom = usm::nom_fichier_de(path);
+    let u = usm::demuxer_nomme(data, nom).map_err(|e| e.to_string())?;
+    let attendu = |voulu: CodecVideo, conteneur: &str| -> Result<(), String> {
+        if u.codec == voulu {
+            return Ok(());
+        }
+        Err(alloc::format!(
+            "« {nom} » est en {} : {conteneur} ne le transporte pas",
+            u.codec.nom()
+        ))
+    };
+    match format {
+        "mp4" => {
+            attendu(CodecVideo::H264, "un MP4")?;
+            u.en_mp4().map(|(o, _)| o).map_err(|e| e.to_string())
+        }
+        "webm" => {
+            attendu(CodecVideo::Vp9, "un WebM")?;
+            u.en_webm().map(|(o, _)| o).map_err(|e| e.to_string())
+        }
+        "h264" => {
+            attendu(CodecVideo::H264, "un flux H.264")?;
+            Ok(u.flux_brut())
+        }
+        "m2v" => {
+            attendu(CodecVideo::Mpeg2, "un flux MPEG-2")?;
+            Ok(u.flux_brut())
+        }
+        "wav" => {
+            let piste = u
+                .pistes
+                .first()
+                .ok_or_else(|| alloc::format!("« {nom} » n'a pas de piste sonore"))?;
+            nie_formats::cri_audio::decode_to_wav(&piste.octets)
+        }
+        autre => Err(alloc::format!("format d'export inconnu pour une vidéo : « {autre} »")),
+    }
+}
+
 /// Convertit `data` (le contenu de `path`) vers `format`.
 ///
 /// # Erreurs
@@ -205,6 +268,11 @@ pub fn nom_propose(path: &str, format: &str) -> String {
 /// Rend un message si le format est inconnu, s'il exige un contexte que cette fonction n'a pas
 /// (cf. [`necessite_contexte`]), ou si le décodage échoue.
 pub fn produire(path: &str, data: Vec<u8>, format: &str) -> Result<Vec<u8>, String> {
+    // Les conteneurs vidéo passent AVANT le dispatch générique : un `.usm` n'est ni une image,
+    // ni un banc audio, et son `wav` n'est pas celui d'un `.hca` — il faut d'abord le démuxer.
+    if ext_de(path) == "usm" {
+        return video_usm(path, &data, format);
+    }
     match format {
         "raw" => Ok(data),
 
@@ -237,6 +305,39 @@ mod tests {
             assert_eq!(f[0].id, "raw", "{p}");
             assert!(f[0].brut, "{p}");
         }
+    }
+
+    /// Une cinématique doit proposer les deux conteneurs web, la bande-son et les deux flux
+    /// élémentaires — et n'en proposait qu'un seul (`mp4`) tant que le remux dépendait d'ffmpeg.
+    #[test]
+    fn une_cinematique_propose_ses_cinq_conversions() {
+        let formats = formats_pour("data/common/movie/ev01_00050.usm");
+        let ids: Vec<&str> = formats.iter().map(|f| f.id.as_str()).collect();
+        assert_eq!(ids, ["raw", "mp4", "webm", "wav", "h264", "m2v"]);
+        // Aucune n'est avec perte : ce sont des changements de conteneur, pas des réencodages.
+        assert!(formats.iter().all(|f| f.sans_perte), "{ids:?}");
+        // Et les noms proposés suivent le format, pas l'extension d'origine.
+        assert_eq!(nom_propose("a/b/ev01_00050.usm", "mp4"), "ev01_00050.mp4");
+        assert_eq!(nom_propose("a/b/ev01_00050.usm", "webm"), "ev01_00050.webm");
+        assert_eq!(nom_propose("a/b/ev01_00050.usm", "raw"), "ev01_00050.usm");
+    }
+
+    /// `mp4` a cessé d'être « contextuel » le jour où le remux est entré dans le dépôt.
+    #[test]
+    fn seul_glb_demande_encore_un_contexte() {
+        assert!(necessite_contexte("glb"));
+        for f in ["mp4", "webm", "wav", "h264", "m2v", "raw", "png", "json"] {
+            assert!(!necessite_contexte(f), "{f} ne devrait plus exiger de contexte");
+        }
+    }
+
+    /// Un conteneur qui n'est pas du tout un USM doit être refusé, pas mal démultiplexé.
+    #[test]
+    fn convertir_des_octets_qui_ne_sont_pas_un_usm_echoue_proprement() {
+        let e = produire("a/b.usm", vec![0; 64], "mp4").expect_err("doit échouer");
+        assert!(e.contains("magic") || e.contains("CRID"), "message peu clair : {e}");
+        // Le format brut, lui, marche toujours : il ne regarde pas les octets.
+        assert_eq!(produire("a/b.usm", vec![1, 2, 3], "raw").expect("brut"), vec![1, 2, 3]);
     }
 
     #[test]
@@ -317,10 +418,12 @@ mod tests {
     #[test]
     fn un_format_inconnu_ou_contextuel_est_refuse_explicitement() {
         assert!(produire("x/y.g4tx", vec![0; 4], "psd").is_err());
-        // Contextuels : refusés ICI, mais bien proposés par `formats_pour` — c'est l'appelant qui
-        // les sert. Les rater en silence serait pire que les refuser.
-        assert!(necessite_contexte("glb") && necessite_contexte("mp4"));
+        // Contextuel : refusé ICI, mais bien proposé par `formats_pour` — c'est l'appelant qui le
+        // sert. Le rater en silence serait pire que le refuser.
+        assert!(necessite_contexte("glb"));
         assert!(produire("x/y.g4md", vec![0; 4], "glb").is_err());
+        // `mp4` n'est plus contextuel : il se produit ici, et échoue sur des octets qui ne sont
+        // pas un conteneur USM — pas parce qu'il manquerait un outil externe.
         assert!(produire("x/y.usm", vec![0; 4], "mp4").is_err());
     }
 

@@ -3774,6 +3774,34 @@ fn video_catalog(game_dir: Option<String>, state: tauri::State<VfsState>) -> Res
     with_vfs(game_dir, &state, |vfs| Ok(video::catalogue(vfs)))
 }
 
+/// Prépare un film pour la lecture : démuxe, remuxe, et garde le résultat en cache.
+///
+/// Sans ça, cliquer sur une carte fait attendre le temps du remux — de quelques dixièmes de
+/// seconde pour un logo à plusieurs secondes pour une cinématique de 300 Mo. Précharger pendant
+/// que le curseur survole la carte rend la lecture instantanée au clic.
+///
+/// Rend la taille du flux prêt, en octets. Appeler deux fois est sans coût : la seconde fois,
+/// l'entrée est déjà dans le cache.
+#[tauri::command]
+#[specta::specta]
+fn video_precharger(
+    path: String,
+    game_dir: Option<String>,
+    state: tauri::State<VfsState>,
+    cache: tauri::State<video::CacheVideo>,
+) -> Result<u32, String> {
+    if let Some((_, octets, total)) = cache.tranche(&path, Some((0, 0))) {
+        let _ = octets;
+        return Ok(total as u32);
+    }
+    let brut = with_vfs(game_dir, &state, |vfs| vfs.read(&path).map_err(|e| e.to_string()))?;
+    let nom = path.rsplit('/').next().unwrap_or(&path).to_string();
+    let (mime, octets) = video::flux_web_depuis_usm(&brut, &nom)?;
+    let total = octets.len() as u32;
+    cache.ranger(path, mime, octets);
+    Ok(total)
+}
+
 /// Métadonnées complètes d'un film : codec, définition, cadence, durée, pistes sonores.
 #[tauri::command]
 #[specta::specta]
@@ -4006,6 +4034,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         vfs_video_preview_b64,
         video_catalog,
         video_info,
+        video_precharger,
         open_in_scene_editor,
         lua_chunk_info,
         lua_disassemble,

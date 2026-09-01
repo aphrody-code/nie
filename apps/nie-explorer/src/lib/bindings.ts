@@ -547,6 +547,17 @@ export const commands = {
 	/**  Métadonnées complètes d'un film : codec, définition, cadence, durée, pistes sonores. */
 	videoInfo: (path: string, gameDir: string | null) => typedError<FilmDto, string>(__TAURI_INVOKE("video_info", { path, gameDir })),
 	/**
+	 *  Prépare un film pour la lecture : démuxe, remuxe, et garde le résultat en cache.
+	 * 
+	 *  Sans ça, cliquer sur une carte fait attendre le temps du remux — de quelques dixièmes de
+	 *  seconde pour un logo à plusieurs secondes pour une cinématique de 300 Mo. Précharger pendant
+	 *  que le curseur survole la carte rend la lecture instantanée au clic.
+	 * 
+	 *  Rend la taille du flux prêt, en octets. Appeler deux fois est sans coût : la seconde fois,
+	 *  l'entrée est déjà dans le cache.
+	 */
+	videoPrecharger: (path: string, gameDir: string | null) => typedError<number, string>(__TAURI_INVOKE("video_precharger", { path, gameDir })),
+	/**
 	 *  Ouvre l'asset dans **nie-editor**, l'éditeur de scène 3D natif (éditeur Fyrox embarqué, rendu
 	 *  OpenGL — cf. `crates/tools/nie-editor`).
 	 * 

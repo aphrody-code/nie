@@ -24,11 +24,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/input";
 import { VideoPlayer, formaterDuree, urlVideo } from "@/components/VideoPlayer";
-import { commands } from "@/lib/bindings";
+import { api } from "@/lib/api";
+import { showFilmContextMenu } from "@/lib/contextMenu";
 import type { FilmDto } from "@/lib/bindings";
 
 /** Délai de survol avant de lancer une prévisualisation, en millisecondes. */
 const DELAI_APERCU = 550;
+
+/** Délai de survol avant de PRÉCHARGER, en millisecondes — plus court : rien ne s'affiche. */
+const DELAI_PRECHARGE = 150;
 
 /** Clé de persistance des positions de lecture. */
 const CLE_REPRISE = "nie-explorer:cinema:reprise";
@@ -85,13 +89,11 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
 
   useEffect(() => {
     let vivant = true;
-    commands
-      .videoCatalog(null)
-      .then((r) => {
-        if (!vivant) return null;
-        if (r.status === "error") setErreur(String(r.error));
-        else setFilms(r.data.films);
-        return r;
+    api
+      .videoCatalog()
+      .then((c) => {
+        if (vivant) setFilms(c.films);
+        return c;
       })
       .catch((e: unknown) => vivant && setErreur(String(e)))
       .finally(() => vivant && setChargement(false));
@@ -105,18 +107,42 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
     const chemin = file.current.shift();
     if (!chemin) return;
     occupe.current = true;
-    commands
-      .videoInfo(chemin, null)
-      .then((r) => {
-        if (r.status === "ok") {
-          setFilms((prec) => prec.map((f) => (f.chemin === chemin ? r.data : f)));
-        }
-        return r;
+    api
+      .videoInfo(chemin)
+      .then((fiche) => {
+        setFilms((prec) => prec.map((f) => (f.chemin === chemin ? fiche : f)));
+        return fiche;
       })
       .catch(() => {})
       .finally(() => {
         occupe.current = false;
         traiterFile();
+      });
+  }, []);
+
+  // ── Préchargement ───────────────────────────────────────────────────────────
+  //
+  // Précharger, c'est produire le conteneur web et le garder côté Rust : au clic suivant, la
+  // lecture démarre sans attendre le démultiplexage. Un seul film à la fois, et seulement celui
+  // que le curseur désigne — le cache ne tient que quatre entrées et 768 Mo, précharger « tout »
+  // se contredirait lui-même en évinçant ce qu'on vient de préparer.
+  const prechargeEnCours = useRef<string | null>(null);
+  const dejaPrecharge = useRef(new Set<string>());
+
+  const precharger = useCallback((chemin: string) => {
+    if (dejaPrecharge.current.has(chemin) || prechargeEnCours.current) return;
+    prechargeEnCours.current = chemin;
+    api
+      .videoPrecharger(chemin)
+      .then((o) => {
+        dejaPrecharge.current.add(chemin);
+        return o;
+      })
+      // Un échec est normal ici (MPEG-2 sans conteneur web) : la carte le dit déjà, inutile
+      // d'ajouter un toast pour un geste que l'utilisateur n'a pas explicitement demandé.
+      .catch(() => {})
+      .finally(() => {
+        prechargeEnCours.current = null;
       });
   }, []);
 
@@ -128,6 +154,21 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
       traiterFile();
     },
     [traiterFile],
+  );
+
+  const menuFilm = useCallback(
+    (f: FilmDto) => {
+      void showFilmContextMenu({
+        path: f.chemin,
+        nom: f.nom,
+        octets: f.octets,
+        codec: f.codec,
+        avecAudio: f.audio.length > 0,
+        onLire: () => setEnLecture(f),
+        onReveler: onOpenFile ? () => onOpenFile(f.chemin) : undefined,
+      });
+    },
+    [onOpenFile],
   );
 
   const noterProgression = useCallback((chemin: string, position: number, duree: number) => {
@@ -281,6 +322,8 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
           reprises={reprises}
           onLire={setEnLecture}
           onVisible={enrichir}
+          onPrecharger={precharger}
+          onMenu={menuFilm}
         />
       )}
 
@@ -292,6 +335,8 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
           reprises={reprises}
           onLire={setEnLecture}
           onVisible={enrichir}
+          onPrecharger={precharger}
+          onMenu={menuFilm}
         />
       ))}
 
@@ -378,12 +423,16 @@ function Rangee({
   reprises,
   onLire,
   onVisible,
+  onPrecharger,
+  onMenu,
 }: {
   titre: string;
   films: FilmDto[];
   reprises: Reprises;
   onLire: (f: FilmDto) => void;
   onVisible: (chemin: string) => void;
+  onPrecharger: (chemin: string) => void;
+  onMenu: (f: FilmDto) => void;
 }) {
   const pisteRef = useRef<HTMLDivElement | null>(null);
 
@@ -418,6 +467,8 @@ function Rangee({
               reprise={reprises[f.chemin]}
               onLire={() => onLire(f)}
               onVisible={onVisible}
+              onPrecharger={onPrecharger}
+              onMenu={() => onMenu(f)}
             />
           ))}
         </div>
@@ -441,11 +492,15 @@ function Carte({
   reprise,
   onLire,
   onVisible,
+  onPrecharger,
+  onMenu,
 }: {
   film: FilmDto;
   reprise?: { position: number; duree: number };
   onLire: () => void;
   onVisible: (chemin: string) => void;
+  onPrecharger: (chemin: string) => void;
+  onMenu: () => void;
 }) {
   const hoteRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -490,20 +545,30 @@ function Carte({
     }
   }, [film.chemin]);
 
+  const minuteriePrecharge = useRef<number | null>(null);
+
   const entrer = () => {
     if (film.lisible === false) return;
+    // Deux temporisations distinctes, et c'est voulu : le PRÉCHARGEMENT part vite (150 ms), parce
+    // qu'il ne fait que préparer des octets côté Rust ; la PRÉVISUALISATION attend plus longtemps
+    // (550 ms), parce qu'elle démarre un décodage vidéo visible. Traverser une rangée à la souris
+    // ne doit lancer ni l'un ni l'autre.
+    if (minuteriePrecharge.current) window.clearTimeout(minuteriePrecharge.current);
+    minuteriePrecharge.current = window.setTimeout(() => onPrecharger(film.chemin), DELAI_PRECHARGE);
     if (minuterie.current) window.clearTimeout(minuterie.current);
     minuterie.current = window.setTimeout(() => setApercu(true), DELAI_APERCU);
   };
 
   const sortir = () => {
     if (minuterie.current) window.clearTimeout(minuterie.current);
+    if (minuteriePrecharge.current) window.clearTimeout(minuteriePrecharge.current);
     setApercu(false);
   };
 
   useEffect(
     () => () => {
       if (minuterie.current) window.clearTimeout(minuterie.current);
+      if (minuteriePrecharge.current) window.clearTimeout(minuteriePrecharge.current);
     },
     [],
   );
@@ -517,6 +582,13 @@ function Carte({
       onMouseEnter={entrer}
       onMouseLeave={sortir}
       onClick={onLire}
+      onContextMenu={(e) => {
+        // `preventDefault` : sans lui, la webview ouvre SON menu (« Recharger », « Inspecter »)
+        // par-dessus le menu natif — deux menus, dont un hors de propos.
+        e.preventDefault();
+        sortir();
+        onMenu();
+      }}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();

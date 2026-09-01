@@ -18,6 +18,7 @@ import {
   type AuraDto,
   type BelongTeamDto,
   type BlenderSceneResultDto,
+  type CatalogueVideoDto,
   type CharaPickerDto,
   type CpkExportFileDto,
   type CueDto,
@@ -26,6 +27,7 @@ import {
   type EntryDto,
   type ExportBatchDto,
   type ExportFormatDto,
+  type FilmDto,
   type FindPageDto,
   type FolderRoleDto,
   type FormationDto,
@@ -215,6 +217,14 @@ export const api = {
     unwrap<number>(commands.vfsExportAs(path, dest, format, gd(gameDir))),
   exportMany: (paths: string[], destDir: string, format: string, gameDir?: string) =>
     unwrap<ExportBatchDto>(commands.vfsExportMany(paths, destDir, format, gd(gameDir))),
+  // ── Cinématiques (cf. `src-tauri/src/video.rs`) ──
+  // `videoCatalog` ne lit aucun conteneur : il n'énumère que l'index du VFS. `videoInfo`
+  // inspecte UN film sans retenir ses images. `videoPrecharger` produit le conteneur web et le
+  // garde en cache — c'est lui qui rend la lecture instantanée au clic.
+  videoCatalog: (gameDir?: string) => unwrap<CatalogueVideoDto>(commands.videoCatalog(gd(gameDir))),
+  videoInfo: (path: string, gameDir?: string) => unwrap<FilmDto>(commands.videoInfo(path, gd(gameDir))),
+  videoPrecharger: (path: string, gameDir?: string) =>
+    unwrap<number>(commands.videoPrecharger(path, gd(gameDir))),
   // Écriture EN PLACE (pas un export) — uniquement pour les entrées "loose" (`cpk: ""`, cf.
   // `VfsEntry.cpk`) : refusé côté Rust pour toute entrée empaquetée dans un CPK.
   writeB64: (path: string, dataB64: string, gameDir?: string) => unwrap<number>(commands.vfsWriteB64(path, dataB64, gd(gameDir))),
