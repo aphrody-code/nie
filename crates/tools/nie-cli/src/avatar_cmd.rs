@@ -330,6 +330,256 @@ fn roi(ecran: &str, layouts: &Path, out: Option<&Path>) -> Result<()> {
     Ok(())
 }
 
+/// Famille d'une planche : le premier segment de chemin qui suit le préfixe balayé.
+///
+/// `…/_facetex/04_eyebrow/eyebrow_00.g4tx` sous le préfixe `…/_facetex/` donne `04_eyebrow`. Une
+/// planche posée directement sous le préfixe n'a pas de famille et se range sous `.`.
+fn famille_de(chemin: &str, prefix: &str) -> String {
+    let reste = chemin.split(prefix).nth(1).unwrap_or(chemin);
+    match reste.split_once('/') {
+        Some((dossier, _)) => dossier.to_string(),
+        None => ".".to_string(),
+    }
+}
+
+/// Rend une part en pourcentage à deux décimales, séparateur français.
+fn pct(part: f32) -> String {
+    format!("{:.2} %", part * 100.0).replace('.', ",")
+}
+
+/// Rend une emprise normalisée `u[a;b] v[c;d]`, ou `—` si la zone est vide.
+fn fmt_emprise(e: Option<[f32; 4]>) -> String {
+    e.map_or_else(
+        || "—".to_string(),
+        |[u0, v0, u1, v1]| format!("u[{u0:.3};{u1:.3}] v[{v0:.3};{v1:.3}]").replace('.', ","),
+    )
+}
+
+/// Mesures d'une planche en JSON, telles que [`nie_formats::planche::Mesures`] les porte.
+fn mesures_json(m: &nie_formats::planche::Mesures) -> Json {
+    use nie_formats::planche::Zone;
+    let zones: serde_json::Map<String, Json> = Zone::toutes()
+        .into_iter()
+        .map(|z| {
+            (
+                z.nom().to_string(),
+                json!({
+                    "part": m.part(z),
+                    "emprise": m.emprise(z).map(Vec::from),
+                }),
+            )
+        })
+        .collect();
+    json!({
+        "largeur": m.largeur,
+        "hauteur": m.hauteur,
+        "pixels": m.pixels,
+        "zones": zones,
+        "part_encre": m.part_encre,
+        "emprise_encre": m.emprise_encre.map(Vec::from),
+        "alpha_moyen": m.alpha_moyen,
+        "alpha_min": m.alpha_min,
+        "alpha_max": m.alpha_max,
+        "canaux_constants": m.canaux_constants,
+        "couleurs": m.couleurs,
+        "couleurs_plafonnees": m.couleurs_plafonnees,
+        "couleur_moyenne": m.couleur_moyenne,
+    })
+}
+
+/// `niers avatar planches` — mesure les planches d'un préfixe du VFS et agrège par famille.
+///
+/// La commande ne compose rien et n'écrit aucune image : elle **constate**. Son intérêt est le
+/// contraste — une famille dont les 80 planches rendent la même convention justifie la règle
+/// codée pour elle, une famille qui en rend deux dit que la règle par famille est fausse, et une
+/// planche muette (ni tracé dans la couleur, ni forme dans le masque) explique une pièce absente
+/// du modèle sans qu'il faille soupçonner le compositeur.
+fn planches(
+    game_dir: &Path,
+    prefix: &str,
+    filtre: Option<&str>,
+    detail: bool,
+    out: Option<&Path>,
+    limit: usize,
+) -> Result<()> {
+    use nie_formats::planche::{self, Role, Zone};
+
+    let mut vfs = Vfs::new();
+    vfs.init(game_dir.join("data")).context("init VFS")?;
+    let mut chemins: Vec<String> = vfs
+        .iter()
+        .filter(|(p, _)| p.contains(prefix) && p.ends_with(".g4tx"))
+        .map(|(p, _)| p.to_string())
+        .collect();
+    chemins.sort();
+    chemins.dedup();
+    if let Some(f) = filtre {
+        chemins.retain(|p| p.contains(f));
+    }
+    chemins.truncate(limit);
+    println!(
+        "{} conteneur(s) .g4tx sous {prefix}{}",
+        chemins.len(),
+        filtre.map_or(String::new(), |f| format!(" — filtre « {f} »"))
+    );
+
+    /// Ce qu'on retient d'une famille.
+    #[derive(Default)]
+    struct Agregat {
+        conteneurs: usize,
+        planches: usize,
+        roles: BTreeMap<&'static str, usize>,
+        conventions: BTreeMap<&'static str, usize>,
+        muettes: Vec<String>,
+    }
+
+    let mut par_famille: BTreeMap<String, Agregat> = BTreeMap::new();
+    let mut releve: Vec<Json> = Vec::new();
+    let (mut illisibles, mut sans_planche) = (0usize, 0usize);
+
+    for chemin in &chemins {
+        let Ok(raw) = vfs.read(chemin) else {
+            illisibles += 1;
+            continue;
+        };
+        let fiches = planche::analyser(&raw);
+        if fiches.is_empty() {
+            sans_planche += 1;
+            continue;
+        }
+        let famille = famille_de(chemin, prefix);
+        let agr = par_famille.entry(famille.clone()).or_default();
+        agr.conteneurs += 1;
+
+        for f in &fiches {
+            agr.planches += 1;
+            *agr.roles.entry(f.role.nom()).or_default() += 1;
+            *agr.conventions.entry(f.convention.nom()).or_default() += 1;
+            if f.est_muette() {
+                agr.muettes.push(format!("{}:{}", court(chemin), f.nom));
+            }
+            if detail {
+                let zones: Vec<String> = f
+                    .couleur
+                    .zones_presentes()
+                    .into_iter()
+                    .map(|(z, p)| format!("{} {}", z.nom(), pct(p)))
+                    .collect();
+                println!(
+                    "  {:<44} {:<16} {}×{}  {:<6} {:<12} encre {:<8} [{}]",
+                    court(chemin),
+                    f.nom,
+                    f.couleur.largeur,
+                    f.couleur.hauteur,
+                    f.role.nom(),
+                    f.convention.nom(),
+                    pct(f.couleur.part_encre),
+                    zones.join(", ")
+                );
+                if let (Some(nm), Some(m), Some(r)) =
+                    (&f.nom_masque, &f.masque, f.role_masque)
+                {
+                    let zones: Vec<String> = m
+                        .zones_presentes()
+                        .into_iter()
+                        .map(|(z, p)| format!("{} {}", z.nom(), pct(p)))
+                        .collect();
+                    println!(
+                        "  {:<44} {:<16} {:<6} {:<6} vert {} [{}]",
+                        "",
+                        nm,
+                        "msk",
+                        r.nom(),
+                        fmt_emprise(m.emprise(Zone::Vert)),
+                        zones.join(", ")
+                    );
+                }
+            }
+            if out.is_some() {
+                releve.push(json!({
+                    "chemin": chemin,
+                    "famille": famille,
+                    "planche": f.nom,
+                    "role": f.role.nom(),
+                    "convention": f.convention.nom(),
+                    "muette": f.est_muette(),
+                    "couleur": mesures_json(&f.couleur),
+                    "masque": f.nom_masque.as_ref().map(|nm| json!({
+                        "nom": nm,
+                        "role": f.role_masque.map(Role::nom),
+                        "mesures": f.masque.as_ref().map(mesures_json),
+                    })),
+                }));
+            }
+        }
+    }
+
+    if illisibles > 0 || sans_planche > 0 {
+        println!("  {illisibles} illisible(s), {sans_planche} sans planche de couleur");
+    }
+    println!();
+    println!("  {:<14} {:>5} {:>5}  {:<28} conventions", "famille", "cont.", "plan.", "rôles");
+    for (famille, agr) in &par_famille {
+        let liste = |m: &BTreeMap<&'static str, usize>| -> String {
+            let mut v: Vec<(&&str, &usize)> = m.iter().collect();
+            v.sort_by(|a, b| b.1.cmp(a.1));
+            v.iter().map(|(k, n)| format!("{k} {n}")).collect::<Vec<_>>().join(", ")
+        };
+        println!(
+            "  {:<14} {:>5} {:>5}  {:<28} {}",
+            famille,
+            agr.conteneurs,
+            agr.planches,
+            liste(&agr.roles),
+            liste(&agr.conventions)
+        );
+    }
+
+    let muettes: usize = par_famille.values().map(|a| a.muettes.len()).sum();
+    if muettes > 0 {
+        println!();
+        println!("  {muettes} planche(s) muette(s) — ni tracé dans la couleur, ni forme dans le masque :");
+        for (famille, agr) in &par_famille {
+            if agr.muettes.is_empty() {
+                continue;
+            }
+            println!(
+                "    {famille:<14} {}/{} — {}",
+                agr.muettes.len(),
+                agr.planches,
+                agr.muettes.iter().take(4).cloned().collect::<Vec<_>>().join(", ")
+            );
+        }
+    }
+
+    // Une convention minoritaire est le signal utile : elle dit qu'une règle codée par famille
+    // ne couvre pas toute sa famille.
+    let mixtes: Vec<&String> =
+        par_famille.iter().filter(|(_, a)| a.conventions.len() > 1).map(|(f, _)| f).collect();
+    if !mixtes.is_empty() {
+        println!();
+        println!("  familles à convention non unique : {}", mixtes.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", "));
+    }
+
+    if let Some(fichier) = out {
+        if let Some(parent) = fichier.parent() {
+            std::fs::create_dir_all(parent).ok();
+        }
+        std::fs::write(fichier, serde_json::to_vec_pretty(&releve)?)
+            .with_context(|| format!("écriture {}", fichier.display()))?;
+        println!();
+        println!("  {} planche(s) relevée(s) → {}", releve.len(), fichier.display());
+    }
+    Ok(())
+}
+
+/// Chemin raccourci à ce qui distingue une planche d'une autre : famille et nom de fichier.
+fn court(chemin: &str) -> String {
+    let mut segments: Vec<&str> = chemin.rsplit('/').take(2).collect();
+    segments.reverse();
+    segments.join("/")
+}
+
 /// Ce que `niers avatar` sait faire.
 #[derive(Debug, Clone, clap::Subcommand)]
 pub enum AvatarCmd {
@@ -370,6 +620,30 @@ pub enum AvatarCmd {
         /// Fichier de sortie ; sans lui, la commande n'imprime que ce qu'elle trouve.
         #[arg(short, long)]
         out: Option<std::path::PathBuf>,
+    },
+    /// Mesure les **planches de texture** de l'éditeur : zones, rôle, convention de composition.
+    ///
+    /// Les conventions de composition du visage ont été établies planche par planche, à la main,
+    /// sur une ou deux textures chacune — puis codées par famille (`if rel.starts_with("01_eye")`).
+    /// Cette commande les mesure sur le corpus entier, sans jamais regarder un nom de famille :
+    /// une convention qui vaut vraiment pour `01_eye` doit se lire dans les octets de ses 80
+    /// planches. Cf. `nie_formats::planche`.
+    Planches {
+        /// Préfixe VFS balayé.
+        #[arg(long, default_value = "chr/_face/20_EDIT/_facetex/")]
+        prefix: String,
+        /// Ne retient que les chemins contenant ce fragment (une famille, un nom de planche).
+        #[arg(long)]
+        filtre: Option<String>,
+        /// Détaille planche par planche au lieu du seul agrégat par famille.
+        #[arg(long)]
+        detail: bool,
+        /// Écrit le relevé complet en JSON.
+        #[arg(short, long)]
+        out: Option<std::path::PathBuf>,
+        /// Nombre maximum de conteneurs analysés.
+        #[arg(long, default_value_t = usize::MAX)]
+        limit: usize,
     },
     /// Localise les icônes de vignette dans les atlas d'interface, et les extrait en PNG.
     Icons {
@@ -751,6 +1025,12 @@ fn part_json(
 
 /// Point d'entrée de `niers avatar`.
 pub fn run(cmd: &AvatarCmd, game_dir: &Path, db_path: &Path) -> Result<()> {
+    // L'analyse des planches ne lit que des textures : la servir avant le catalogue évite de
+    // décoder cinq `cfg.bin` et le bytecode des écrans pour rien, et la rend utilisable même là
+    // où le catalogue ne se résout pas.
+    if let AvatarCmd::Planches { prefix, filtre, detail, out, limit } = cmd {
+        return planches(game_dir, prefix, filtre.as_deref(), *detail, out.as_deref(), *limit);
+    }
     let src = Sources::load(game_dir)?;
     let icons = icon_dict(db_path);
     let centers = table_by_hash(&src.center, "TEX_PARTS_CENTER_INFO");
@@ -1067,6 +1347,9 @@ pub fn run(cmd: &AvatarCmd, game_dir: &Path, db_path: &Path) -> Result<()> {
         }
 
         AvatarCmd::Roi { ecran, layouts, out } => return roi(ecran, layouts, out.as_deref()),
+
+        // Déjà traitée en tête, avant le chargement des sources.
+        AvatarCmd::Planches { .. } => {}
 
         AvatarCmd::Icons { out, atlas_prefix, limit } => {
             // Les noms voulus : l'icône de chaque part, résolue depuis `hash_name`.

@@ -116,6 +116,9 @@ pub mod image_out;
 /// Atlas d'icônes `.g4tx` → feuille de sprites CSS / SVG / JSON, pour le web et l'explorateur.
 #[cfg(feature = "std")]
 pub mod sprite_sheet;
+/// Analyse mesurée des planches de personnage (`chr/_face/20_EDIT`) : zones, rôle, convention de
+/// composition. Source unique des seuils employés par [`image_out`].
+pub mod planche;
 #[cfg(feature = "std")]
 pub mod lip;
 #[cfg(feature = "std")]
