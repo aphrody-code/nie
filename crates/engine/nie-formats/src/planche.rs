@@ -485,6 +485,18 @@ pub enum Convention {
     ///
     /// Convention de `01_eye`. Cf. [`crate::image_out::decouper_oeil`].
     TraceVert,
+    /// Masque de zones dont la région désignée est **bleue**, et sans vert : les pupilles.
+    ///
+    /// Mesurée sur les 16 planches que la règle du vert laissait sans réponse — 14 pupilles, dont
+    /// `pupil_L_01msk` : 64,06 % de rouge, 35,90 % de bleu, aucun vert. Le bleu n'y dessine pas un
+    /// trait mais un **ovale plein qui occupe tout le carré**, ce qui est déjà une information :
+    /// une planche de cette forme ne peut pas être destinée au dépliage du visage, où elle poserait
+    /// un ovale au milieu de la figure — c'est exactement ce que le rendu actuel produit.
+    ///
+    /// La composition ne la découpe donc **pas** : le matériau d'accueil de `02_pupil` n'est pas
+    /// établi, et découper une zone au bon endroit d'un dépliage douteux ne prouverait rien.
+    /// Cf. [`crate::assemble::face_layer_slot`].
+    ZoneBleue,
     /// La planche est un aplat : rien à composer, quoi que dise le masque.
     Aplat,
     /// Un masque existe mais ne désigne rien d'exploitable.
@@ -500,6 +512,7 @@ impl Convention {
             Self::Decoupe => "decoupe",
             Self::FondRouge => "fond-rouge",
             Self::TraceVert => "trace-vert",
+            Self::ZoneBleue => "zone-bleue",
             Self::Aplat => "aplat",
             Self::Indeterminee => "indeterminee",
         }
@@ -516,7 +529,11 @@ impl Convention {
     ///    là, le masque ne fait que retirer le fond ;
     /// 4. masque de zones, couleur muette, **zone verte présente** → [`Convention::TraceVert`] :
     ///    le tracé n'existe que dans le masque, l'alpha se pose depuis le vert ;
-    /// 5. sinon [`Convention::Indeterminee`] — mieux vaut le dire que composer au hasard.
+    /// 5. à défaut de vert, **zone bleue présente** → [`Convention::ZoneBleue`] ;
+    /// 6. sinon [`Convention::Indeterminee`] — mieux vaut le dire que composer au hasard.
+    ///
+    /// Le vert prime sur le bleu parce qu'un masque qui porte les deux est un masque d'œil, où le
+    /// vert est le tracé de paupière ; le bleu seul est la marque des pupilles.
     ///
     /// **L'aplat ne prime pas sur le masque**, et c'est la mesure qui l'impose : les 32 planches
     /// de couleur de `03_highlight` sont blanches et identiques d'une variante à l'autre, tout
@@ -536,6 +553,9 @@ impl Convention {
         }
         if m.part(Zone::Vert) > PART_ZONE_UTILE {
             return Self::TraceVert;
+        }
+        if m.part(Zone::Bleu) > PART_ZONE_UTILE {
+            return Self::ZoneBleue;
         }
         Self::Indeterminee
     }
@@ -713,6 +733,24 @@ mod tests {
         peindre(&mut plancher, 16, (0, 0, 2, 2), [210, 211, 211, 1]);
         let couleur = mesurer(16, 16, &plancher).expect("mesure");
         assert!(!couleur.est_aplat());
+        assert_eq!(Convention::deriver(&couleur, Some(&masque)), Convention::TraceVert);
+    }
+
+    #[test]
+    fn un_masque_bleu_sans_vert_est_celui_d_une_pupille() {
+        // `pupil_L_01msk` : 64 % de rouge, 36 % de bleu, aucun vert.
+        let mut plancher = unie(16, 16, [255, 255, 255, 255]);
+        peindre(&mut plancher, 16, (0, 0, 2, 2), [254, 255, 255, 255]);
+        let couleur = mesurer(16, 16, &plancher).expect("mesure");
+
+        let mut msk = unie(16, 16, [255, 0, 0, 255]);
+        peindre(&mut msk, 16, (4, 4, 12, 12), [0, 0, 255, 255]);
+        let masque = mesurer(16, 16, &msk).expect("mesure");
+        assert_eq!(Convention::deriver(&couleur, Some(&masque)), Convention::ZoneBleue);
+
+        // Le vert prime : un masque qui porte les deux est un masque d'œil.
+        peindre(&mut msk, 16, (0, 0, 16, 2), [0, 200, 0, 255]);
+        let masque = mesurer(16, 16, &msk).expect("mesure");
         assert_eq!(Convention::deriver(&couleur, Some(&masque)), Convention::TraceVert);
     }
 

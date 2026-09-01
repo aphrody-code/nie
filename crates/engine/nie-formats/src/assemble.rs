@@ -1558,6 +1558,19 @@ pub struct AvatarPiece {
 /// se composent donc SUR la peau, ce que confirme leur canal alpha — `pupil_L_00` est la seule
 /// planche du visage à en porter un vrai, précisément pour se poser sur ce qu'il y a dessous.
 ///
+/// **Ce rangement de la pupille est contredit par son contenu**, mesuré le 2026-09-01. Le masque
+/// de `pupil_L_01` est un ovale **bleu plein qui occupe tout le carré** — 35,90 % de la surface,
+/// 64,06 % de fond rouge, aucun vert — et non une pièce cadrée quelque part dans le dépliage du
+/// visage. Composé sur le matériau 0, il pose un ovale au milieu de la figure : c'est exactement
+/// ce que rend la texture produite aujourd'hui. Une planche pleine cadre vise un quad qui lui est
+/// propre, pas le carré du visage.
+///
+/// Deux inconnues restent, et aucune ne se tranche par la taille de la texture, seul critère qui
+/// avait servi ici : quel matériau reçoit `02_pupil`, et par quelle transformation d'UV. Tant
+/// qu'elles tiennent, la composition laisse ces planches au chemin par défaut plutôt que de les
+/// découper — cf. [`crate::planche::Convention::ZoneBleue`]. Le sourcil, lui, a été tranché : sa
+/// planche est un atlas de huit variantes, au même dépliage que la bouche.
+///
 /// Le sourcil, longtemps absent du modèle, a été **résolu le 2026-09-01** — et le diagnostic qui
 /// figurait ici était faux sur deux points, faute d'avoir mesuré autre chose qu'une planche.
 ///
