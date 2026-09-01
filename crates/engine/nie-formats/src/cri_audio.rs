@@ -700,13 +700,10 @@ pub fn acb_cues(data: &[u8]) -> Result<Vec<AcbCue>, FormatError> {
 
 // ── USM (Sofdec2) ─────────────────────────────────────────────────────────────
 
-/// Identifiants de flux USM (big-endian).
-const USM_STMID_CRID: u32 = 0x4352_4944; // "CRID"
-const USM_STMID_SFV: u32  = 0x4053_4656; // "@SFV"
-const USM_STMID_SFA: u32  = 0x4053_4641; // "@SFA"
-
-
 /// Codec vidéo détecté dans le flux @SFV.
+///
+/// Forme historique, conservée pour les appelants existants. [`crate::usm::CodecVideo`] la
+/// remplace et distingue en plus le MPEG-2 — que celle-ci confondait avec du H.264.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VideoCodec {
     /// H.264 (NAL units — start codes 0x000001 ou 0x00000001).
@@ -722,118 +719,50 @@ pub enum VideoCodec {
 pub struct UsmResult {
     /// Codec vidéo détecté.
     pub video_codec: VideoCodec,
-    /// Frames vidéo brutes concaténées (H.264 NAL bitstream ou VP9 frames).
-    /// Vide si aucun flux vidéo.
+    /// Flux vidéo élémentaire, images concaténées.
     pub video_data: Vec<u8>,
-    /// Pistes audio extraites (HCA ou ADX bruts, prêts pour `adx_decode` ou `cridecoder::HcaDecoder`).
-    /// Vide si aucun flux @SFA.
+    /// Pistes audio extraites (HCA ou ADX bruts, prêts pour `adx_decode` ou `cridecoder`).
     pub audio_tracks: Vec<Vec<u8>>,
     /// Largeur vidéo (0 si inconnue).
     pub width: u32,
     /// Hauteur vidéo (0 si inconnue).
     pub height: u32,
-    /// Framerate nominatif (0 si inconnu).
+    /// Cadence entière en images par seconde (0 si inconnue).
     pub frame_rate: u32,
-    /// Nombre de frames vidéo.
+    /// Nombre d'images.
     pub frame_count: u32,
 }
 
-/// Démultiplexe un fichier USM Sofdec2.
+/// Démultiplexe un fichier USM Sofdec2 — **délègue à [`crate::usm`]**.
 ///
-/// Structure d'un bloc USM :
-/// ```text
-/// [0:4]   stmid (uint32 BE) : CRID / @SFV / @SFA
-/// [4:8]   data_size (uint32 BE) : taille du reste du bloc après ces 8 octets
-/// [8:10]  r01 (uint16 BE)
-/// [10]    r02 (uint8)
-/// [11]    type (uint8) : 0=header, 1=stream, 2=end
-/// [12:16] frame_time (uint32 BE)
-/// [16:20] frame_rate (uint32 BE)
-/// [20:24] r04 (uint32 BE)
-/// [24:26] data_offset (uint16 BE) : offset du payload depuis le début du bloc
-/// [26:28] padding_size (uint16 BE) : octets de padding en fin de payload
-/// ```
-/// Taille totale d'un bloc = 8 + data_size.
+/// Ce parcours de blocs existait ici en double, et la copie d'ici était la moins bonne : elle
+/// ignorait les blocs d'en-tête, donc rendait `width = height = frame_rate = 0` sur tous les
+/// fichiers du jeu, et ne savait pas retirer l'emballage IVF des flux VP9. Déléguer corrige les
+/// deux pour tous les appelants (`nie-explore` affichait « 0x0 » sur chaque `.usm`).
+///
+/// # Erreurs
+///
+/// [`FormatError::TooShort`] si le tampon est trop court, [`FormatError::BadMagic`] si le
+/// fichier ne commence pas par `CRID` — le déchiffrement de l'enveloppe CRI demande le nom du
+/// fichier, donc [`crate::usm::demuxer_nomme`].
 pub fn usm_demux(data: &[u8]) -> Result<UsmResult, FormatError> {
-    if data.len() < 8 {
-        return Err(FormatError::TooShort { got: data.len(), need: 8 });
-    }
-    let magic = read_u32_be(data, 0);
-    if magic != USM_STMID_CRID {
-        return Err(FormatError::BadMagic { format: "USM/CRID" });
-    }
-
-    let mut video_data = Vec::new();
-    let mut audio_tracks: Vec<Vec<u8>> = Vec::new();
-    let mut video_codec = VideoCodec::Unknown;
-    let width = 0u32;
-    let height = 0u32;
-    let frame_rate = 0u32;
-    let mut frame_count = 0u32;
-
-    let mut pos = 0usize;
-    while pos + 8 <= data.len() {
-        let stmid = read_u32_be(data, pos);
-        let data_size = read_u32_be(data, pos + 4) as usize;
-        let block_total = 8 + data_size;
-
-        if block_total < 8 || pos + block_total > data.len() {
-            break;
-        }
-
-        // En-tête de bloc CRI USM (Sofdec2) : `data_offset` u8 @0x09 (depuis 0x08),
-        // `padding` u16 BE @0x0A, `channel` u8 @0x0C, `block_type` u8 @0x0F
-        // (0 = données, 1 = header, 2 = fin de section, 3 = métadonnées/seek). Le flux
-        // H.264 Annex-B (AUD + SPS + PPS + slices) vit dans les blocs `type == 0`.
-        if data_size >= 0x18 {
-            let data_offset = data[pos + 0x09] as usize;
-            let padding = read_u16_be(data, pos + 0x0A) as usize;
-            let channel_no = data[pos + 0x0C] as usize;
-            let block_type = data[pos + 0x0F];
-
-            let payload_start_abs = pos + 8 + data_offset;
-            let payload_avail = data_size.saturating_sub(data_offset).saturating_sub(padding);
-
-            if block_type == 0
-                && payload_avail > 0
-                && payload_start_abs + payload_avail <= data.len()
-            {
-                let payload = &data[payload_start_abs..payload_start_abs + payload_avail];
-
-                if stmid == USM_STMID_SFV {
-                    if video_codec == VideoCodec::Unknown && payload.len() >= 5 {
-                        // H.264 Annex-B : start-code `00 00 00 01` en tête de bloc.
-                        video_codec = if payload.starts_with(&[0, 0, 0, 1]) {
-                            VideoCodec::H264
-                        } else {
-                            VideoCodec::Vp9
-                        };
-                    }
-                    video_data.extend_from_slice(payload);
-                    frame_count += 1;
-                } else if stmid == USM_STMID_SFA {
-                    while audio_tracks.len() <= channel_no {
-                        audio_tracks.push(Vec::new());
-                    }
-                    audio_tracks[channel_no].extend_from_slice(payload);
-                }
-            }
-        }
-
-        pos += block_total;
-    }
-
+    let u = crate::usm::demuxer(data)?;
+    let video_codec = match u.codec {
+        crate::usm::CodecVideo::H264 => VideoCodec::H264,
+        crate::usm::CodecVideo::Vp9 => VideoCodec::Vp9,
+        // Le MPEG-2 n'a pas d'équivalent dans cette énumération historique.
+        _ => VideoCodec::Unknown,
+    };
     Ok(UsmResult {
         video_codec,
-        video_data,
-        audio_tracks,
-        width,
-        height,
-        frame_rate,
-        frame_count,
+        video_data: u.flux_brut(),
+        width: u.entete.largeur_affichee.max(u.entete.largeur),
+        height: u.entete.hauteur_affichee.max(u.entete.hauteur),
+        frame_rate: u.entete.images_par_seconde().unwrap_or(0.0).round() as u32,
+        frame_count: u.images.len() as u32,
+        audio_tracks: u.pistes.into_iter().map(|p| p.octets).collect(),
     })
 }
-
 // ── Détection de format audio ─────────────────────────────────────────────────
 
 /// Détecte si un slice commence par un en-tête ADX valide.
