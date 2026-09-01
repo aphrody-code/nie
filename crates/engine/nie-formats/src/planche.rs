@@ -25,6 +25,9 @@
 
 extern crate alloc;
 
+// `format!` ne sert qu'à `analyser`, derrière la feature `textures` : importer sans le garde
+// laissait un `unused_imports` sur tout build par défaut.
+#[cfg(feature = "textures")]
 use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
