@@ -387,21 +387,111 @@ fn mesures_json(m: &nie_formats::planche::Mesures) -> Json {
     })
 }
 
+/// Écrit un tampon RGBA en PNG, éventuellement réduit à `cote` pixels de côté maximal.
+fn ecrire_png(dir: &Path, nom: &str, w: u32, h: u32, rgba: &[u8], cote: u32) -> Result<()> {
+    let (w, h, pixels) = if cote > 0 {
+        nie_formats::image_out::reduire_rgba(rgba, w, h, cote)
+            .map_err(|e| anyhow::anyhow!("réduction {nom} : {e}"))?
+    } else {
+        (w, h, rgba.to_vec())
+    };
+    let png = nie_formats::g4tx_decode::encode_rgba_to_png(&pixels, w as usize, h as usize)
+        .with_context(|| format!("encodage PNG de {nom}"))?;
+    std::fs::write(dir.join(nom), png).with_context(|| format!("écriture {nom}"))?;
+    Ok(())
+}
+
+/// Écrit en PNG une planche, son masque, et le tracé que sa convention en tire.
+///
+/// Le tracé n'est **pas teinté** : la teinte par canaux dépend de la recette de couleurs choisie
+/// dans l'éditeur, qui n'a rien à faire ici. Seul l'alpha vient de la convention, et c'est lui
+/// qu'on cherche à voir — un sourcil se reconnaît à sa forme, pas à sa couleur.
+///
+/// Une planche muette n'a pas de tracé, et une convention indéterminée ne s'en invente pas : ces
+/// deux cas n'écrivent que la couleur et le masque. Rend le nombre de fichiers écrits.
+fn extraire_planche(
+    dir: &Path,
+    vfs: &Vfs,
+    chemin: &str,
+    famille: &str,
+    fiche: &nie_formats::planche::Fiche,
+    cote: u32,
+) -> Result<usize> {
+    use nie_formats::image_out;
+    use nie_formats::planche::Convention;
+
+    let brut = vfs.read(chemin).with_context(|| format!("lecture {chemin}"))?;
+    let Some((w, h, rgba)) = nie_formats::g4tx_decode::decode_named_to_rgba(&brut, &fiche.nom)
+    else {
+        return Ok(0);
+    };
+    let masque = fiche
+        .nom_masque
+        .as_ref()
+        .and_then(|nm| nie_formats::g4tx_decode::decode_named_to_rgba(&brut, nm))
+        .map(|(_, _, m)| m);
+
+    let base = format!("{famille}__{}", fiche.nom);
+    let mut ecrits = 0usize;
+    ecrire_png(dir, &format!("{base}.png"), w, h, &rgba, cote)?;
+    ecrits += 1;
+    if let Some(m) = &masque {
+        ecrire_png(dir, &format!("{base}.msk.png"), w, h, m, cote)?;
+        ecrits += 1;
+    }
+
+    let trace = match (fiche.convention, masque.as_ref()) {
+        (Convention::FondRouge, Some(m)) => image_out::decouper_par_zones(w, h, &rgba, m),
+        (Convention::TraceVert, Some(m)) => image_out::decouper_oeil(w, h, &rgba, m),
+        (Convention::Decoupe, Some(m)) => {
+            // Masque gris : son canal rouge EST l'opacité.
+            let mut copie = rgba.clone();
+            for i in (0..copie.len()).step_by(4) {
+                copie[i + 3] = m[i];
+            }
+            Some(copie)
+        }
+        (Convention::SansMasque, _) => Some(rgba.clone()),
+        _ => None,
+    };
+    if let Some(t) = trace {
+        ecrire_png(dir, &format!("{base}.trace.png"), w, h, &t, cote)?;
+        ecrits += 1;
+    }
+    Ok(ecrits)
+}
+
+/// Les options de `niers avatar planches`, telles que la ligne de commande les porte.
+struct OptionsPlanches<'a> {
+    /// Préfixe VFS balayé.
+    prefix: &'a str,
+    /// Fragment que le chemin doit contenir.
+    filtre: Option<&'a str>,
+    /// Détailler planche par planche.
+    detail: bool,
+    /// Fichier JSON du relevé complet.
+    out: Option<&'a Path>,
+    /// Répertoire d'extraction des PNG.
+    extraire: Option<&'a Path>,
+    /// Côté maximal des PNG extraits ; 0 = taille d'origine.
+    vignette: u32,
+    /// Nombre maximum de conteneurs analysés.
+    limit: usize,
+}
+
 /// `niers avatar planches` — mesure les planches d'un préfixe du VFS et agrège par famille.
 ///
-/// La commande ne compose rien et n'écrit aucune image : elle **constate**. Son intérêt est le
-/// contraste — une famille dont les 80 planches rendent la même convention justifie la règle
-/// codée pour elle, une famille qui en rend deux dit que la règle par famille est fausse, et une
-/// planche muette (ni tracé dans la couleur, ni forme dans le masque) explique une pièce absente
-/// du modèle sans qu'il faille soupçonner le compositeur.
-fn planches(
-    game_dir: &Path,
-    prefix: &str,
-    filtre: Option<&str>,
-    detail: bool,
-    out: Option<&Path>,
-    limit: usize,
-) -> Result<()> {
+/// La commande **constate** : elle ne modifie aucune donnée du jeu. Son intérêt est le contraste —
+/// une famille dont les 80 planches rendent la même convention justifie la règle codée pour elle,
+/// une famille qui en rend deux dit que la règle par famille est fausse, et une planche muette
+/// (ni tracé dans la couleur, ni forme dans le masque) explique une pièce absente du modèle sans
+/// qu'il faille soupçonner le compositeur.
+///
+/// Avec `--extraire`, elle écrit aussi ce qu'elle a mesuré : la planche, son masque, et le tracé
+/// que la convention en tire. C'est la seule façon de vérifier une convention autrement que sur
+/// des pourcentages — un tracé de sourcil se reconnaît à l'œil, pas à ses 5,46 % de vert.
+fn planches(game_dir: &Path, o: &OptionsPlanches) -> Result<()> {
+    let &OptionsPlanches { prefix, filtre, detail, out, extraire, vignette, limit } = o;
     use nie_formats::planche::{self, Role, Zone};
 
     let mut vfs = Vfs::new();
@@ -435,7 +525,7 @@ fn planches(
 
     let mut par_famille: BTreeMap<String, Agregat> = BTreeMap::new();
     let mut releve: Vec<Json> = Vec::new();
-    let (mut illisibles, mut sans_planche) = (0usize, 0usize);
+    let (mut illisibles, mut sans_planche, mut png_ecrits) = (0usize, 0usize, 0usize);
 
     for chemin in &chemins {
         let Ok(raw) = vfs.read(chemin) else {
@@ -511,11 +601,18 @@ fn planches(
                     })),
                 }));
             }
+            if let Some(dir) = extraire {
+                std::fs::create_dir_all(dir)?;
+                png_ecrits += extraire_planche(dir, &vfs, chemin, &famille, f, vignette)?;
+            }
         }
     }
 
     if illisibles > 0 || sans_planche > 0 {
         println!("  {illisibles} illisible(s), {sans_planche} sans planche de couleur");
+    }
+    if let Some(dir) = extraire {
+        println!("  {png_ecrits} PNG écrits dans {}", dir.display());
     }
     println!();
     println!("  {:<14} {:>5} {:>5}  {:<28} conventions", "famille", "cont.", "plan.", "rôles");
@@ -641,6 +738,13 @@ pub enum AvatarCmd {
         /// Écrit le relevé complet en JSON.
         #[arg(short, long)]
         out: Option<std::path::PathBuf>,
+        /// Extrait en PNG, dans ce répertoire, la planche, son masque et le tracé qu'en tire la
+        /// convention mesurée.
+        #[arg(long)]
+        extraire: Option<std::path::PathBuf>,
+        /// Côté maximal des PNG extraits ; 0 garde la taille d'origine (2048×1024 pour `_facetex`).
+        #[arg(long, default_value_t = 0)]
+        vignette: u32,
         /// Nombre maximum de conteneurs analysés.
         #[arg(long, default_value_t = usize::MAX)]
         limit: usize,
@@ -1028,8 +1132,19 @@ pub fn run(cmd: &AvatarCmd, game_dir: &Path, db_path: &Path) -> Result<()> {
     // L'analyse des planches ne lit que des textures : la servir avant le catalogue évite de
     // décoder cinq `cfg.bin` et le bytecode des écrans pour rien, et la rend utilisable même là
     // où le catalogue ne se résout pas.
-    if let AvatarCmd::Planches { prefix, filtre, detail, out, limit } = cmd {
-        return planches(game_dir, prefix, filtre.as_deref(), *detail, out.as_deref(), *limit);
+    if let AvatarCmd::Planches { prefix, filtre, detail, out, extraire, vignette, limit } = cmd {
+        return planches(
+            game_dir,
+            &OptionsPlanches {
+                prefix,
+                filtre: filtre.as_deref(),
+                detail: *detail,
+                out: out.as_deref(),
+                extraire: extraire.as_deref(),
+                vignette: *vignette,
+                limit: *limit,
+            },
+        );
     }
     let src = Sources::load(game_dir)?;
     let icons = icon_dict(db_path);

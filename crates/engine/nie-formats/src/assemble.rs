@@ -1558,18 +1558,23 @@ pub struct AvatarPiece {
 /// se composent donc SUR la peau, ce que confirme leur canal alpha — `pupil_L_00` est la seule
 /// planche du visage à en porter un vrai, précisément pour se poser sur ce qu'il y a dessous.
 ///
-/// Reste un cas non résolu : le sourcil n'atteint pas le modèle. La cause n'est PAS un
-/// écrasement par `05_mouth`, contrairement à ce qui était écrit ici — mesuré le 2026-08-31 en
-/// composant le slot 2 avec le sourcil SEUL, sans la bouche : la planche produite reste vide à
-/// 0,00 %, et `sourcil + bouche` rend exactement le même résultat que `bouche seule` (2,89 %
-/// d'opacité). La couche n'apporte donc rien, même sans concurrente.
+/// Le sourcil, longtemps absent du modèle, a été **résolu le 2026-09-01** — et le diagnostic qui
+/// figurait ici était faux sur deux points, faute d'avoir mesuré autre chose qu'une planche.
 ///
-/// La cause est dans la donnée : `04_eyebrow/eyebrow_00.g4tx` est un **aplat rouge pur** —
-/// 2048×1024, R = 255 sur 100 % des pixels, V et B à 0, alpha à 255. Aucun tracé. Or le rouge
-/// d'une planche `_facetex` désigne la zone de carnation : la teinte par canaux la peint donc en
-/// couleur de peau, invisible sur la peau. Le comportement du code est correct au vu de cette
-/// planche ; c'est le tracé du sourcil qui manque, et il vient d'ailleurs. La règle qui l'y porte
-/// reste à établir.
+/// Il était écrit que `04_eyebrow/eyebrow_00.g4tx` est un aplat rouge, donc que le tracé manque
+/// dans la donnée. En réalité c'est son **masque** qui est rouge à 100 %, la planche de couleur
+/// étant blanche ; et surtout `eyebrow_00` est la variante **« sans sourcil »** de sa famille.
+/// Les 39 autres conteneurs portent bien leur tracé — dans le vert de leur masque, comme l'œil :
+/// 1,57 à 5,46 % de la surface, emprise `v[0,120 ; 0,792]`. Relevé sur les 431 planches de
+/// `_facetex` par `niers avatar planches` (cf. [`crate::planche`]) : 78 des 80 planches de
+/// `04_eyebrow` rendent la convention `trace-vert`.
+///
+/// La cause était donc dans le compositeur, qui réservait cette convention à `01_eye` par un test
+/// sur le nom de famille et teignait le sourcil comme une planche ordinaire — le peignant en
+/// carnation opaque sur tout son rectangle. Mesuré sur la texture du matériau 2 : 33,61 % de
+/// pixels visibles avant (huit pavés de peau), 11,89 % après (huit sourcils détourés plus les
+/// bouches). Aucune des six familles n'a de convention unique : elle se mesure, planche par
+/// planche.
 ///
 /// Rend `None` si la famille n'est pas reconnue.
 #[must_use]
