@@ -1,0 +1,329 @@
+//! Lecture native des cinématiques du jeu — catalogue, métadonnées, flux vidéo.
+//!
+//! ## Ce qui a changé, et pourquoi
+//!
+//! L'aperçu vidéo passait par `ffmpeg` en sous-processus, puis renvoyait le MP4 **en base64**
+//! avec un plafond de 40 Mo. Trois murs :
+//!
+//! 1. `ffmpeg` n'est pas installé ici — l'aperçu échouait sur `échec de lancement de ffmpeg` ;
+//! 2. 40 Mo, quand une cinématique de chapitre pèse jusqu'à 300 Mo : la moitié du corpus était
+//!    hors de portée par construction ;
+//! 3. le base64 gonfle de 33 % et interdit le `seek` — un `<video src="data:…">` doit tout
+//!    charger avant de jouer la première image.
+//!
+//! Ici, [`nie_formats::usm`] démultiplexe, puis [`nie_formats::mp4`] (H.264) ou
+//! [`nie_formats::webm`] (VP9) remuxe, en pur Rust et sans réencodage. Le résultat est servi par
+//! le protocole `nievideo://` avec **support des requêtes `Range`** : le `<video>` de la webview
+//! ne charge que l'intervalle dont il a besoin, ce qui rend le déplacement dans la timeline
+//! instantané quelle que soit la taille du film.
+//!
+//! ## Ce que le protocole expose
+//!
+//! | URL | Contenu |
+//! |-----|---------|
+//! | `nievideo://localhost/<chemin VFS>` | la piste vidéo : MP4 si H.264, WebM si VP9 |
+//! | `nievideo://localhost/<chemin VFS>?track=audio` | la bande-son décodée, en WAV |
+//!
+//! La bande-son est un flux **séparé** parce qu'elle est en HCA Criware : aucun conteneur MP4
+//! ne la transporte, et l'encoder en AAC demanderait un encodeur C et dégraderait une piste
+//! qu'on vient de décoder sans perte. Le lecteur les resynchronise (cf. `VideoPlayer.tsx`).
+
+use std::collections::HashMap;
+use std::sync::Mutex;
+
+use nie_formats::usm::{self, Usm, langue_de, nom_fichier_de, radical_de, rubrique_de};
+use nie_formats::vfs::Vfs;
+use serde::{Deserialize, Serialize};
+
+/// Budget mémoire du cache vidéo, en octets. Deux cinématiques de chapitre y tiennent.
+const BUDGET_CACHE: usize = 768 * 1024 * 1024;
+
+/// Nombre maximal de films gardés simultanément.
+const ENTREES_CACHE: usize = 4;
+
+/// Cache mémoire des flux produits (MP4 ou WAV), par clé d'URL.
+///
+/// Deux usages le rendent indispensable :
+///
+/// * le lecteur émet une requête `Range` par saut dans la timeline — sans cache, chaque saut
+///   redémultiplexerait le conteneur entier ;
+/// * la page Cinéma prévisualise au survol, et l'aller-retour entre deux cartes voisines
+///   rejouerait le même travail à chaque passage.
+///
+/// D'où un petit LRU plutôt qu'une entrée unique : borné par [`ENTREES_CACHE`] **et** par
+/// [`BUDGET_CACHE`], parce qu'un film de chapitre pèse à lui seul 300 Mo.
+#[derive(Default)]
+pub struct CacheVideo(pub Mutex<Vec<(String, &'static str, Vec<u8>)>>);
+
+impl CacheVideo {
+    /// Rend le flux déjà produit pour `cle`, et le remet en tête (usage le plus récent).
+    pub fn obtenir(&self, cle: &str) -> Option<(&'static str, Vec<u8>)> {
+        let mut g = self.0.lock().ok()?;
+        let i = g.iter().position(|(k, _, _)| k == cle)?;
+        let entree = g.remove(i);
+        let rendu = (entree.1, entree.2.clone());
+        g.push(entree);
+        Some(rendu)
+    }
+
+    /// Range des octets produits, en évinçant les plus anciens si les bornes sont dépassées.
+    pub fn ranger(&self, cle: String, mime: &'static str, octets: &[u8]) {
+        let Ok(mut g) = self.0.lock() else { return };
+        g.retain(|(k, _, _)| *k != cle);
+        g.push((cle, mime, octets.to_vec()));
+        while g.len() > ENTREES_CACHE
+            || (g.len() > 1 && g.iter().map(|(_, _, v)| v.len()).sum::<usize>() > BUDGET_CACHE)
+        {
+            g.remove(0);
+        }
+    }
+}
+
+/// Piste sonore d'un film, telle qu'annoncée par l'en-tête `AUDIO_HDRINFO`.
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct PisteAudioDto {
+    /// Numéro de canal.
+    pub canal: u8,
+    /// Codec détecté (`hca`, `adx`).
+    pub codec: String,
+    /// Fréquence d'échantillonnage en Hz.
+    pub frequence: u32,
+    /// Nombre de canaux.
+    pub canaux: u32,
+    /// Taille du flux brut, en octets.
+    pub octets: u32,
+}
+
+/// Une entrée du catalogue. Les champs issus du démultiplexage sont `None` tant que
+/// [`video_info`] n'a pas été appelé sur ce film — le catalogue s'ouvre instantanément et se
+/// complète à mesure que les cartes deviennent visibles.
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct FilmDto {
+    /// Chemin VFS complet.
+    pub chemin: String,
+    /// Radical du nom de fichier (`ev01_00050`).
+    pub nom: String,
+    /// Rubrique d'affichage — une rubrique = une rangée.
+    pub rubrique: String,
+    /// Code de langue (`fr`, `JP`…) quand le nom en porte un.
+    pub langue: Option<String>,
+    /// Taille du conteneur USM, en octets.
+    pub octets: u32,
+    /// Codec vidéo (`h264`, `mpeg2`), une fois le film inspecté.
+    pub codec: Option<String>,
+    /// Le navigateur sait-il décoder ce codec ?
+    pub lisible: Option<bool>,
+    /// Largeur en pixels.
+    pub largeur: Option<u32>,
+    /// Hauteur en pixels.
+    pub hauteur: Option<u32>,
+    /// Nombre d'images démultiplexées.
+    pub images: Option<u32>,
+    /// Cadence en images par seconde.
+    pub cadence: Option<f64>,
+    /// Durée en secondes.
+    pub duree: Option<f64>,
+    /// Pistes sonores.
+    pub audio: Vec<PisteAudioDto>,
+    /// Le conteneur était-il enveloppé par le XOR CRI ?
+    pub chiffre: Option<bool>,
+    /// Nom du fichier source chez l'encodeur, tel qu'inscrit dans le conteneur.
+    pub nom_origine: Option<String>,
+    /// Musique de fond déclarée par le `gamedata` (hash).
+    pub bgm: Option<String>,
+    /// Chemin du `.cfg.bin` de texte des sous-titres, quand il y en a un.
+    pub sous_titres: Option<String>,
+}
+
+/// Le catalogue complet renvoyé au frontend.
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct CatalogueVideoDto {
+    /// Films, triés par chemin.
+    pub films: Vec<FilmDto>,
+    /// Rubriques distinctes, dans l'ordre d'affichage.
+    pub rubriques: Vec<String>,
+}
+
+/// Complète une fiche avec ce que le démultiplexage révèle.
+fn completer(f: &mut FilmDto, u: &Usm) {
+    f.codec = Some(u.codec.nom().to_string());
+    f.lisible = Some(u.codec.lisible_par_navigateur());
+    f.largeur = Some(u.entete.largeur_affichee.max(u.entete.largeur));
+    f.hauteur = Some(u.entete.hauteur_affichee.max(u.entete.hauteur));
+    f.images = Some(u.images.len() as u32);
+    f.cadence = u.entete.images_par_seconde();
+    f.duree = u.duree();
+    f.chiffre = Some(u.dechiffre);
+    f.nom_origine = u.nom.clone();
+    f.audio = u
+        .pistes
+        .iter()
+        .map(|p| PisteAudioDto {
+            canal: p.canal,
+            codec: p.codec.nom().to_string(),
+            frequence: p.frequence,
+            canaux: p.canaux,
+            octets: p.octets.len() as u32,
+        })
+        .collect();
+}
+
+/// Fiche « rapide » : ce que l'index du VFS suffit à dire, sans lire un octet du conteneur.
+fn fiche_rapide(chemin: &str, octets: u32) -> FilmDto {
+    let rad = radical_de(chemin);
+    FilmDto {
+        chemin: chemin.to_string(),
+        nom: rad.to_string(),
+        rubrique: rubrique_de(rad),
+        langue: langue_de(rad).map(str::to_string),
+        octets,
+        codec: None,
+        lisible: None,
+        largeur: None,
+        hauteur: None,
+        images: None,
+        cadence: None,
+        duree: None,
+        audio: Vec::new(),
+        chiffre: None,
+        nom_origine: None,
+        bgm: None,
+        sous_titres: None,
+    }
+}
+
+/// Ce que le `gamedata` dit de chaque film, indexé par `moviePath` (`common/movie/x.usm`).
+fn jointure(vfs: &Vfs) -> HashMap<String, (Option<String>, Option<String>)> {
+    use serde_json::Value;
+    let mut out = HashMap::new();
+    let chemins: Vec<String> = vfs
+        .iter()
+        .map(|(p, _)| p.to_string())
+        .filter(|p| {
+            p.contains("gamedata/movie/movie_playing_config")
+                || p.contains("gamedata/event/event_movie_config")
+        })
+        .collect();
+
+    for chemin in chemins {
+        let Ok(octets) = vfs.read(&chemin) else { continue };
+        let Some(root) = nie_formats::cfgbin::rdbn_to_iecode_json(&octets) else { continue };
+        let Some(listes) = root.get("lists").and_then(Value::as_array) else { continue };
+        for liste in listes {
+            let Some(lignes) = liste.get("values").and_then(Value::as_array) else { continue };
+            for ligne in lignes {
+                let Some(mp) = ligne.get("moviePath").and_then(Value::as_str) else { continue };
+                if !mp.ends_with(".usm") {
+                    continue;
+                }
+                let bgm = ligne
+                    .get("bgmName")
+                    .map(|v| v.as_str().map_or_else(|| v.to_string(), str::to_string));
+                let st = ligne
+                    .get("subtitleTextPath")
+                    .and_then(Value::as_str)
+                    .filter(|s| !s.is_empty() && *s != "0xFFFFFFFF")
+                    .map(str::to_string);
+                out.entry(mp.to_string()).or_insert((bgm, st));
+            }
+        }
+    }
+    out
+}
+
+/// Construit le catalogue **sans** démultiplexer : instantané, complété ensuite par
+/// [`info_film`] au fil de l'affichage.
+///
+/// # Erreurs
+///
+/// Aucune : un VFS vide rend un catalogue vide.
+pub fn catalogue(vfs: &Vfs) -> CatalogueVideoDto {
+    let mut entrees: Vec<(String, u32)> = vfs
+        .iter()
+        .filter(|(p, _)| p.starts_with("data/common/movie") && p.ends_with(".usm"))
+        .map(|(p, e)| (p.to_string(), e.file_size))
+        .collect();
+    entrees.sort_by(|a, b| a.0.cmp(&b.0));
+
+    let liens = jointure(vfs);
+    let films: Vec<FilmDto> = entrees
+        .into_iter()
+        .map(|(chemin, octets)| {
+            let mut f = fiche_rapide(&chemin, octets);
+            let cle = chemin.strip_prefix("data/").unwrap_or(&chemin);
+            if let Some((bgm, st)) = liens.get(cle) {
+                f.bgm = bgm.clone();
+                f.sous_titres = st.clone();
+            }
+            f
+        })
+        .collect();
+
+    // Les chapitres d'abord dans leur ordre naturel, puis les rubriques nommées.
+    let mut rubriques: Vec<String> = films.iter().map(|f| f.rubrique.clone()).collect();
+    rubriques.sort();
+    rubriques.dedup();
+    CatalogueVideoDto { films, rubriques }
+}
+
+/// Démultiplexe un film et rend sa fiche complète.
+///
+/// # Erreurs
+///
+/// Chemin absent du VFS, ou conteneur qui ne se démultiplexe pas (même déchiffré).
+pub fn info_film(vfs: &Vfs, chemin: &str) -> Result<FilmDto, String> {
+    let brut = vfs.read(chemin).map_err(|e| e.to_string())?;
+    let u = usm::demuxer_nomme(&brut, nom_fichier_de(chemin)).map_err(|e| e.to_string())?;
+    let mut f = fiche_rapide(chemin, brut.len() as u32);
+    completer(&mut f, &u);
+    Ok(f)
+}
+
+/// Emballe la piste vidéo d'un `.usm` dans son conteneur web, **sans réencodage ni processus
+/// externe**. Rend `(type MIME, octets)` : H.264 → MP4, VP9 → WebM.
+///
+/// # Erreurs
+///
+/// Conteneur illisible, ou codec que le navigateur ne décode pas (MPEG-2) : le message le dit
+/// explicitement plutôt que de produire un fichier que rien n'ouvrira.
+pub fn flux_web_depuis_usm(octets: &[u8], nom: &str) -> Result<(&'static str, Vec<u8>), String> {
+    let u = usm::demuxer_nomme(octets, nom).map_err(|e| e.to_string())?;
+    if u.images.is_empty() {
+        return Err("aucun flux vidéo dans ce fichier".to_string());
+    }
+    if !u.codec.lisible_par_navigateur() {
+        return Err(format!(
+            "codec {} : aucun navigateur ne le décode — utilisez Extraire pour obtenir le flux \
+             élémentaire .{}",
+            u.codec.nom(),
+            u.codec.extension()
+        ));
+    }
+    u.en_conteneur_web().map(|c| (c.mime, c.octets)).map_err(|e| e.to_string())
+}
+
+/// Même chose, quand seul le contenu importe (aperçu base64 borné).
+///
+/// # Erreurs
+///
+/// Voir [`flux_web_depuis_usm`].
+pub fn mp4_depuis_usm(octets: &[u8], nom: &str) -> Result<Vec<u8>, String> {
+    flux_web_depuis_usm(octets, nom).map(|(_, o)| o)
+}
+
+/// Décode la première piste sonore d'un `.usm` en WAV.
+///
+/// # Erreurs
+///
+/// Conteneur illisible, film sans piste sonore, ou HCA que le décodeur refuse.
+pub fn wav_depuis_usm(octets: &[u8], nom: &str) -> Result<Vec<u8>, String> {
+    let u = usm::demuxer_nomme(octets, nom).map_err(|e| e.to_string())?;
+    let piste = u.pistes.first().ok_or("ce film n'a pas de piste sonore")?;
+    nie_formats::cri_audio::decode_to_wav(&piste.octets)
+}
+
+// Pas de module de tests ici : `cargo test` dans `src-tauri` ne DÉMARRE pas sur cette machine
+// (`STATUS_ENTRYPOINT_NOT_FOUND` avant le premier test, cf. CLAUDE.md « Pièges d'environnement »),
+// donc un test écrit ici ne serait jamais exécuté — un faux vert. Les conventions de nommage que
+// ce module consomme sont testées à leur source, dans `nie_formats::usm` (`cargo test -p
+// nie-formats --lib usm::`), là où elles tournent vraiment.

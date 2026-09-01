@@ -17,6 +17,7 @@ import { ReToolsView } from "@/components/ReToolsView";
 import { LuaView } from "@/components/LuaView";
 import { LiveModView } from "@/components/LiveModView";
 import { ViolaView } from "@/components/ViolaView";
+import { CinemaView } from "@/components/CinemaView";
 import { SaveView } from "@/components/SaveView";
 import { SettingsView } from "@/components/SettingsView";
 import { DetailPane } from "@/components/DetailPane";
@@ -104,6 +105,7 @@ export default function App() {
           { id: "editor", label: "Éditeur", icon: "view_in_ar" },
           { id: "explorer", label: t("tab.explorer"), icon: "folder_open" },
           { id: "search", label: t("tab.search"), icon: "search" },
+          { id: "cinema", label: "Cinéma", icon: "movie" },
         ],
       },
       {
@@ -475,6 +477,9 @@ export default function App() {
                       ))}
                     </div>
                   </div>
+                </TabsContent>
+                <TabsContent value="cinema" className="h-full min-h-0">
+                  <CinemaView onOpenFile={revealInExplorer} />
                 </TabsContent>
                 <TabsContent value="search" className="h-full min-h-0">
                   <SearchView onOpenFile={revealInExplorer} />
