@@ -123,6 +123,9 @@ crates/**/pkg/
 # Captures de référence du jeu (copyright Level-5) — SSIM gates ; NE PAS publier
 /start.png
 /menu.png
+# Rendus d'avatar et de personnage produits par nie-model-serve — mêmes pixels, même règle.
+/avatar.png
+/chara.png
 
 # Sprites de menu décodés (g4tx → PNG, dérivés © Level-5) — local uniquement, jamais publier.
 # Le code HTML/CSS/TS de web/ reste committé ; seuls les pixels réels sont ignorés.
