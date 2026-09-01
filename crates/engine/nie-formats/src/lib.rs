@@ -66,6 +66,13 @@ pub mod strlen;
 /// Parseurs/décodeurs audio Criware (feature `std` : ADX décode via `f64::cos`/`sqrt`).
 #[cfg(feature = "std")]
 pub mod cri_audio;
+/// Muxeur MP4/AVC pur Rust (H.264 Annex-B → `ftyp`/`moov`/`mdat`) — remplace l'appel `ffmpeg`.
+pub mod mp4;
+/// Muxeur WebM/Matroska pur Rust (VP9) — contrepartie de [`mp4`] pour les deux plus longs films.
+pub mod webm;
+/// Démultiplexeur USM/Sofdec2 complet : métadonnées `@UTF`, images, pistes sonores.
+#[cfg(feature = "std")]
+pub mod usm;
 #[cfg(feature = "std")]
 pub mod g4md;
 #[cfg(feature = "std")]
