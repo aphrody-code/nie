@@ -224,7 +224,7 @@ fn fiche(vfs: &Vfs, chemin: &str, rapide: bool) -> Value {
             v["codec"] = json!(u.codec.nom());
             v["lisibleNavigateur"] = json!(u.codec.lisible_par_navigateur());
             v["images"] = json!(u.images.len());
-            v["octetsVideo"] = json!(u.octets_video());
+            v["octetsVideo"] = json!(u.octets_video);
             // Dimensions déclarées par `VIDEO_HDRINFO` — le SPS les affinera si le remux passe.
             v["largeur"] = json!(u.entete.largeur_affichee.max(u.entete.largeur));
             v["hauteur"] = json!(u.entete.hauteur_affichee.max(u.entete.hauteur));

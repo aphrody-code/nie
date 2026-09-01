@@ -31,7 +31,7 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-use nie_formats::usm::{self, Usm, langue_de, nom_fichier_de, radical_de, rubrique_de};
+use nie_formats::usm::{self, langue_de, nom_fichier_de, radical_de, rubrique_de};
 use nie_formats::vfs::Vfs;
 use serde::{Deserialize, Serialize};
 
@@ -56,25 +56,50 @@ const ENTREES_CACHE: usize = 4;
 pub struct CacheVideo(pub Mutex<Vec<(String, &'static str, Vec<u8>)>>);
 
 impl CacheVideo {
-    /// Rend le flux déjà produit pour `cle`, et le remet en tête (usage le plus récent).
-    pub fn obtenir(&self, cle: &str) -> Option<(&'static str, Vec<u8>)> {
+    /// Rend **la tranche demandée** d'un flux déjà produit, avec son type MIME et la taille
+    /// totale, et remet l'entrée en tête (usage le plus récent).
+    ///
+    /// La tranche, et pas tout le flux : un `<video>` émet une requête `Range` par saut et par
+    /// remplissage de tampon. Cloner les 300 Mo à chaque fois faisait monter la mémoire de
+    /// travail de l'explorateur à 15 Go — l'allocateur de Windows garde ces blocs. Ici on ne
+    /// copie que ce qui part sur le fil.
+    pub fn tranche(&self, cle: &str, plage: Option<(u64, u64)>) -> Option<(&'static str, Vec<u8>, u64)> {
         let mut g = self.0.lock().ok()?;
         let i = g.iter().position(|(k, _, _)| k == cle)?;
         let entree = g.remove(i);
-        let rendu = (entree.1, entree.2.clone());
+        let total = entree.2.len() as u64;
+        let morceau = decouper(&entree.2, plage);
+        let mime = entree.1;
         g.push(entree);
-        Some(rendu)
+        Some((mime, morceau, total))
     }
 
     /// Range des octets produits, en évinçant les plus anciens si les bornes sont dépassées.
-    pub fn ranger(&self, cle: String, mime: &'static str, octets: &[u8]) {
+    ///
+    /// Prend la propriété du tampon : le ranger ne doit pas coûter une copie de 300 Mo.
+    pub fn ranger(&self, cle: String, mime: &'static str, octets: Vec<u8>) {
         let Ok(mut g) = self.0.lock() else { return };
         g.retain(|(k, _, _)| *k != cle);
-        g.push((cle, mime, octets.to_vec()));
+        g.push((cle, mime, octets));
         while g.len() > ENTREES_CACHE
             || (g.len() > 1 && g.iter().map(|(_, _, v)| v.len()).sum::<usize>() > BUDGET_CACHE)
         {
             g.remove(0);
+        }
+    }
+}
+
+/// Extrait `plage` d'un tampon, bornes comprises. `None` rend le tampon entier.
+pub fn decouper(octets: &[u8], plage: Option<(u64, u64)>) -> Vec<u8> {
+    match plage {
+        None => octets.to_vec(),
+        Some((debut, fin)) => {
+            if octets.is_empty() {
+                return Vec::new();
+            }
+            let debut = (debut as usize).min(octets.len() - 1);
+            let fin = (fin as usize).min(octets.len() - 1).max(debut);
+            octets[debut..=fin].to_vec()
         }
     }
 }
@@ -144,13 +169,13 @@ pub struct CatalogueVideoDto {
     pub rubriques: Vec<String>,
 }
 
-/// Complète une fiche avec ce que le démultiplexage révèle.
-fn completer(f: &mut FilmDto, u: &Usm) {
+/// Complète une fiche avec ce que l'inspection révèle.
+fn completer(f: &mut FilmDto, u: &usm::Apercu) {
     f.codec = Some(u.codec.nom().to_string());
     f.lisible = Some(u.codec.lisible_par_navigateur());
     f.largeur = Some(u.entete.largeur_affichee.max(u.entete.largeur));
     f.hauteur = Some(u.entete.hauteur_affichee.max(u.entete.hauteur));
-    f.images = Some(u.images.len() as u32);
+    f.images = Some(u.images);
     f.cadence = u.entete.images_par_seconde();
     f.duree = u.duree();
     f.chiffre = Some(u.dechiffre);
@@ -163,7 +188,7 @@ fn completer(f: &mut FilmDto, u: &Usm) {
             codec: p.codec.nom().to_string(),
             frequence: p.frequence,
             canaux: p.canaux,
-            octets: p.octets.len() as u32,
+            octets: p.taille as u32,
         })
         .collect();
 }
@@ -273,7 +298,10 @@ pub fn catalogue(vfs: &Vfs) -> CatalogueVideoDto {
 /// Chemin absent du VFS, ou conteneur qui ne se démultiplexe pas (même déchiffré).
 pub fn info_film(vfs: &Vfs, chemin: &str) -> Result<FilmDto, String> {
     let brut = vfs.read(chemin).map_err(|e| e.to_string())?;
-    let u = usm::demuxer_nomme(&brut, nom_fichier_de(chemin)).map_err(|e| e.to_string())?;
+    // `inspecter` et NON `demuxer_nomme` : la fiche n'a besoin d'aucune image. Retenir le film
+    // entier coûtait jusqu'à 312 Mo et 38 081 allocations par appel — mesuré, l'explorateur
+    // montait à 15 Go de mémoire de travail en enrichissant son catalogue.
+    let u = usm::inspecter(&brut, nom_fichier_de(chemin)).map_err(|e| e.to_string())?;
     let mut f = fiche_rapide(chemin, brut.len() as u32);
     completer(&mut f, &u);
     Ok(f)

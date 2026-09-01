@@ -212,7 +212,9 @@ pub struct PisteAudio {
     pub canaux: u32,
     /// Nombre total d'échantillons déclaré, `0` si absent.
     pub echantillons: u32,
-    /// Octets bruts du flux, prêts pour `cri_audio::decode_to_wav`.
+    /// Taille du flux en octets — renseignée même quand les octets ne sont pas retenus.
+    pub taille: u64,
+    /// Octets bruts du flux, prêts pour `cri_audio::decode_to_wav`. Vide après [`inspecter`].
     #[cfg_attr(feature = "serde", serde(skip))]
     pub octets: Vec<u8>,
 }
@@ -236,6 +238,40 @@ pub struct ConteneurWeb {
     pub secondes: f64,
 }
 
+/// Ce qu'on apprend d'un film **sans en garder une seule image**.
+///
+/// Le catalogue de l'explorateur n'a besoin que de ça : durée, définition, codec, pistes. Un
+/// [`Usm`] complet retiendrait tout le film — jusqu'à 312 Mo, et 38 081 allocations pour les
+/// seules images de `ev09_05300`. Mesuré : l'explorateur montait à 15 Go de mémoire de travail
+/// en enrichissant son catalogue film par film. [`inspecter`] parcourt les mêmes blocs et ne
+/// retient que des compteurs.
+#[derive(Debug, Clone)]
+pub struct Apercu {
+    /// Nom d'origine du film, quand le conteneur le déclare.
+    pub nom: Option<String>,
+    /// En-tête vidéo déclaré.
+    pub entete: EnteteVideo,
+    /// Codec vidéo constaté.
+    pub codec: CodecVideo,
+    /// Nombre d'images.
+    pub images: u32,
+    /// Total des octets vidéo.
+    pub octets_video: u64,
+    /// Pistes sonores, sans leurs octets (`taille` reste renseignée).
+    pub pistes: Vec<PisteAudio>,
+    /// Vrai si les octets ont dû être déchiffrés par l'enveloppe CRI.
+    pub dechiffre: bool,
+}
+
+impl Apercu {
+    /// Durée en secondes d'après le nombre d'images et la cadence déclarée.
+    #[must_use]
+    pub fn duree(&self) -> Option<f64> {
+        let ips = self.entete.images_par_seconde()?;
+        (ips > 0.0).then(|| f64::from(self.images) / ips)
+    }
+}
+
 /// Résultat complet d'un démultiplexage.
 #[derive(Debug, Clone)]
 pub struct Usm {
@@ -253,6 +289,8 @@ pub struct Usm {
     pub sous_titres: Vec<Vec<u8>>,
     /// Vrai si les octets ont dû être déchiffrés par l'enveloppe CRI.
     pub dechiffre: bool,
+    /// Total des octets vidéo — renseigné même quand les images ne sont pas retenues.
+    pub octets_video: u64,
     /// Tables `@UTF` des blocs d'en-tête, dans l'ordre du fichier — la source de vérité du
     /// conteneur, gardée telle quelle pour l'inspection (`niers video info --tables`).
     pub entetes: Vec<UtfTable>,
@@ -272,17 +310,11 @@ impl Usm {
         (ips > 0.0).then(|| self.images.len() as f64 / ips)
     }
 
-    /// Total des octets vidéo (utile pour mesurer le gain d'un remux).
-    #[must_use]
-    pub fn octets_video(&self) -> usize {
-        self.images.iter().map(Vec::len).sum()
-    }
-
     /// Flux vidéo élémentaire, images concaténées dans l'ordre — la forme qu'attend un lecteur
     /// externe (`.m2v` pour du MPEG-2, `.h264` pour de l'Annex-B).
     #[must_use]
     pub fn flux_brut(&self) -> Vec<u8> {
-        let mut out = Vec::with_capacity(self.octets_video());
+        let mut out = Vec::with_capacity(self.octets_video as usize);
         for img in &self.images {
             out.extend_from_slice(img);
         }
@@ -468,7 +500,7 @@ pub fn demuxer(data: &[u8]) -> Result<Usm, FormatError> {
     if data[..4] != STMID_CRID {
         return Err(FormatError::BadMagic { format: "USM/CRID" });
     }
-    Ok(parcourir(data, false))
+    Ok(parcourir(data, false, true))
 }
 
 /// Démultiplexe un USM, en retentant l'enveloppe CRI si les octets ne sont pas en clair.
@@ -486,7 +518,7 @@ pub fn demuxer_nomme(data: &[u8], nom_fichier: &str) -> Result<Usm, FormatError>
             let cle = crate::cpk::key_from_filename(nom_fichier);
             crate::cpk::decrypt_block(&mut clair, 0, cle);
             if clair.len() >= 4 && clair[..4] == STMID_CRID {
-                Ok(parcourir(&clair, true))
+                Ok(parcourir(&clair, true, true))
             } else {
                 Err(FormatError::BadMagic { format: "USM/CRID (même déchiffré)" })
             }
@@ -495,8 +527,55 @@ pub fn demuxer_nomme(data: &[u8], nom_fichier: &str) -> Result<Usm, FormatError>
     }
 }
 
+/// Inspecte un USM **sans retenir ses images** : métadonnées, compteurs, tailles.
+///
+/// Même parcours de blocs que [`demuxer_nomme`], mais la mémoire reste constante quelle que
+/// soit la taille du film. C'est ce qu'il faut pour remplir un catalogue : le lecteur, lui,
+/// appellera [`demuxer_nomme`] au moment de jouer.
+///
+/// # Erreurs
+///
+/// Comme [`demuxer_nomme`].
+pub fn inspecter(data: &[u8], nom_fichier: &str) -> Result<Apercu, FormatError> {
+    let u = match demuxer_sans_images(data) {
+        Ok(u) => u,
+        Err(FormatError::BadMagic { .. }) => {
+            let mut clair = data.to_vec();
+            let cle = crate::cpk::key_from_filename(nom_fichier);
+            crate::cpk::decrypt_block(&mut clair, 0, cle);
+            if clair.len() >= 4 && clair[..4] == STMID_CRID {
+                parcourir(&clair, true, false)
+            } else {
+                return Err(FormatError::BadMagic { format: "USM/CRID (même déchiffré)" });
+            }
+        }
+        Err(e) => return Err(e),
+    };
+    Ok(Apercu {
+        nom: u.nom,
+        entete: u.entete,
+        codec: u.codec,
+        images: u.images.len() as u32,
+        octets_video: u.octets_video,
+        pistes: u.pistes,
+        dechiffre: u.dechiffre,
+    })
+}
+
+/// Parcours sans rétention, sur des octets déjà en clair.
+fn demuxer_sans_images(data: &[u8]) -> Result<Usm, FormatError> {
+    if data.len() < 8 {
+        return Err(FormatError::TooShort { got: data.len(), need: 8 });
+    }
+    if data[..4] != STMID_CRID {
+        return Err(FormatError::BadMagic { format: "USM/CRID" });
+    }
+    Ok(parcourir(data, false, false))
+}
+
 /// Parcourt les blocs et assemble le résultat. `data` commence forcément par `CRID`.
-fn parcourir(data: &[u8], dechiffre: bool) -> Usm {
+fn parcourir(data: &[u8], dechiffre: bool, retenir: bool) -> Usm {
+    let mut octets_video = 0u64;
     let mut nom = None;
     let mut entete = EnteteVideo::default();
     let mut codec = CodecVideo::Inconnu;
@@ -544,9 +623,16 @@ fn parcourir(data: &[u8], dechiffre: bool) -> Usm {
                         if ivf || charge.starts_with(&IVF_MAGIC) {
                             ivf = true;
                             tampon_ivf.extend_from_slice(charge);
-                            extraire_ivf(&mut tampon_ivf, &mut entete_ivf_lu, &mut images);
+                            extraire_ivf(
+                                &mut tampon_ivf,
+                                &mut entete_ivf_lu,
+                                &mut images,
+                                &mut octets_video,
+                                retenir,
+                            );
                         } else {
-                            images.push(charge.to_vec());
+                            images.push(if retenir { charge.to_vec() } else { Vec::new() });
+                            octets_video += charge.len() as u64;
                         }
                     }
                     STMID_SFA => {
@@ -554,7 +640,10 @@ fn parcourir(data: &[u8], dechiffre: bool) -> Usm {
                         if piste.codec == CodecAudio::Inconnu {
                             piste.codec = deviner_codec_audio(charge);
                         }
-                        piste.octets.extend_from_slice(charge);
+                        piste.taille += charge.len() as u64;
+                        if retenir {
+                            piste.octets.extend_from_slice(charge);
+                        }
                     }
                     STMID_SBT => sous_titres.push(charge.to_vec()),
                     _ => {}
@@ -579,7 +668,7 @@ fn parcourir(data: &[u8], dechiffre: bool) -> Usm {
     if let Some(c) = CodecVideo::depuis_mpeg_codec(entete.mpeg_codec) {
         codec = c;
     }
-    Usm { nom, entete, codec, images, pistes, sous_titres, dechiffre, entetes }
+    Usm { nom, entete, codec, images, pistes, sous_titres, dechiffre, octets_video, entetes }
 }
 
 /// Magic d'un flux IVF (`DKIF`) — l'emballage des flux VP9 dans les blocs `@SFV`.
@@ -595,7 +684,13 @@ pub const IVF_MAGIC: [u8; 4] = *b"DKIF";
 ///
 /// Le tampon permet à une image de traverser une frontière de bloc : rien ne garantit qu'un
 /// bloc `@SFV` contienne exactement une image.
-fn extraire_ivf(tampon: &mut Vec<u8>, entete_lu: &mut bool, images: &mut Vec<Vec<u8>>) {
+fn extraire_ivf(
+    tampon: &mut Vec<u8>,
+    entete_lu: &mut bool,
+    images: &mut Vec<Vec<u8>>,
+    octets_video: &mut u64,
+    retenir: bool,
+) {
     if !*entete_lu {
         if tampon.len() < 8 || tampon[..4] != IVF_MAGIC {
             return;
@@ -615,7 +710,8 @@ fn extraire_ivf(tampon: &mut Vec<u8>, entete_lu: &mut bool, images: &mut Vec<Vec
         if taille == 0 || tampon.len() < 12 + taille {
             break;
         }
-        images.push(tampon[12..12 + taille].to_vec());
+        images.push(if retenir { tampon[12..12 + taille].to_vec() } else { Vec::new() });
+        *octets_video += taille as u64;
         tampon.drain(..12 + taille);
     }
 }
@@ -702,6 +798,7 @@ fn piste_mut(pistes: &mut Vec<PisteAudio>, canal: u8) -> &mut PisteAudio {
         frequence: 0,
         canaux: 0,
         echantillons: 0,
+        taille: 0,
         octets: Vec::new(),
     });
     let dernier = pistes.len() - 1;
@@ -890,6 +987,7 @@ mod tests {
             pistes: Vec::new(),
             sous_titres: Vec::new(),
             dechiffre: false,
+            octets_video: 0,
             entetes: Vec::new(),
         };
         let d = u.duree().expect("durée");
@@ -918,13 +1016,36 @@ mod tests {
     }
 
     #[test]
+    fn l_apercu_voit_la_meme_chose_sans_rien_retenir() {
+        let mut f = bloc(&STMID_CRID, 1, 0, b"");
+        f.extend(bloc(&STMID_SFV, 0, 0, &[0, 0, 0, 1, 0x67, 0xAA]));
+        f.extend(bloc(&STMID_SFV, 0, 0, &[0, 0, 0, 1, 0x41, 0xBB, 0xCC]));
+        f.extend(bloc(&STMID_SFA, 0, 0, b"HCA\0abcd"));
+
+        let complet = demuxer(&f).expect("démux complet");
+        let apercu = inspecter(&f, "x.usm").expect("aperçu");
+
+        assert_eq!(apercu.images, complet.images.len() as u32);
+        assert_eq!(apercu.octets_video, complet.octets_video);
+        assert_eq!(apercu.codec, complet.codec);
+        assert_eq!(apercu.entete, complet.entete);
+        assert_eq!(apercu.pistes.len(), complet.pistes.len());
+        assert_eq!(apercu.pistes[0].codec, complet.pistes[0].codec);
+        assert_eq!(apercu.pistes[0].taille, complet.pistes[0].octets.len() as u64);
+
+        // Et surtout : l'aperçu ne garde AUCUN octet, c'est toute sa raison d'être.
+        assert!(apercu.pistes[0].octets.is_empty(), "l'aperçu ne retient pas l'audio");
+        assert_eq!(apercu.octets_video, 13, "6 + 7 octets de charge vidéo");
+    }
+
+    #[test]
     fn le_flux_brut_concatene_les_images_dans_l_ordre() {
         let mut f = bloc(&STMID_CRID, 1, 0, b"");
         f.extend(bloc(&STMID_SFV, 0, 0, &[0, 0, 1, 0xB3, 1]));
         f.extend(bloc(&STMID_SFV, 0, 0, &[0, 0, 1, 0x00, 2]));
         let u = demuxer(&f).expect("démux");
         assert_eq!(u.flux_brut(), vec![0, 0, 1, 0xB3, 1, 0, 0, 1, 0x00, 2]);
-        assert_eq!(u.octets_video(), 10);
+        assert_eq!(u.octets_video, 10);
     }
 
     #[test]
@@ -937,6 +1058,7 @@ mod tests {
             pistes: Vec::new(),
             sous_titres: Vec::new(),
             dechiffre: false,
+            octets_video: 0,
             entetes: Vec::new(),
         };
         assert!(matches!(u.en_mp4(), Err(FormatError::Corrupt(_))));
