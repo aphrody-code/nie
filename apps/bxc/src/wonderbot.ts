@@ -16,7 +16,7 @@
 import { journal, messageErreur, SORTIE, type OptionsCommunes } from "./journal.ts";
 
 /** Actions reconnues, dans l'ordre où l'aide les présente. */
-const ACTIONS = ["start", "doctor", "refresh", "register"] as const;
+const ACTIONS = ["start", "doctor", "refresh", "register", "forum"] as const;
 type Action = (typeof ACTIONS)[number];
 
 function estAction(valeur: string): valeur is Action {
@@ -120,6 +120,24 @@ export async function commandeWonderbot(
 			} finally {
 				catalogue.fermer();
 			}
+			return SORTIE.OK;
+		}
+
+		case "forum": {
+			// Destructeur, donc jamais automatique : la boucle du service ne
+			// l'appelle nulle part. `--tout` renonce à la garde qui épargne les
+			// fils où des membres ont écrit.
+			const { Wonderbot } = await import("@aphrody/wonderbot");
+			const bot = new Wonderbot({ config, journaliser: (m) => journal.log(m, options) });
+			try {
+				await bot.demarrer({ planifier: false });
+				await bot.reconstruireForum({ garderNonVides: !argv.includes("--tout") });
+			} catch (erreur) {
+				journal.error(messageErreur(erreur));
+				await bot.arreter();
+				return SORTIE.LOGICIEL;
+			}
+			await bot.arreter();
 			return SORTIE.OK;
 		}
 

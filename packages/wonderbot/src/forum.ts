@@ -21,8 +21,10 @@
  */
 
 import type { Catalogue } from "./catalogue.ts";
-import { ICONES, fiche, listerSaison, repartitionLangues, type Embed } from "./ui/index.ts";
+import { ecranFilArc } from "./ecrans.ts";
+import { grouperParEpisode, meilleurTitre, premiereVignette } from "./ui/index.ts";
 import type { Marque } from "./ui/theme.ts";
+import type { MessageV2 } from "./ui/v2.ts";
 
 /** Clé de métadonnée portant la table saison → identifiant de fil. */
 export const CLE_FILS = "wonderbot:forum-fils";
@@ -91,15 +93,19 @@ export interface PasserelleForum {
 	/** Identifiants des fils encore présents dans le salon forum. */
 	filsExistants(): Promise<string[]>;
 	/** Crée un fil et rend son identifiant. */
-	creerFil(nom: string, embeds: Embed[], menus: MenuEpisodes[], etiquettes: string[]): Promise<string>;
+	creerFil(nom: string, message: MessageV2, etiquettes: string[]): Promise<string>;
 	/** Réécrit le message d'ouverture d'un fil. */
-	majFil(
-		filId: string,
-		nom: string,
-		embeds: Embed[],
-		menus: MenuEpisodes[],
-		etiquettes: string[]
-	): Promise<void>;
+	majFil(filId: string, nom: string, message: MessageV2, etiquettes: string[]): Promise<void>;
+	/**
+	 * Supprime un fil.
+	 *
+	 * ── LA SEULE OPÉRATION DESTRUCTRICE DU BOT ─────────────────────────────
+	 * Elle n'est appelée QUE par une reconstruction explicitement demandée
+	 * (`recreer`), jamais par la synchronisation ordinaire : une saison qui
+	 * disparaît du catalogue est bien plus souvent un scraping raté qu'une
+	 * saison retirée, et supprimer un fil emporte les discussions qu'il porte.
+	 */
+	supprimerFil(filId: string): Promise<void>;
 }
 
 /** Ce que la synchronisation attend du support de persistance. */
@@ -121,6 +127,13 @@ export interface OptionsForum {
 	 * que la liste est complète.
 	 */
 	lacunesConfirmees?: ReadonlySet<string>;
+	/**
+	 * Horodatage du dernier rafraîchissement, affiché en tête de fil.
+	 *
+	 * Une FONCTION : la valeur change à chaque passage, et la capturer à la
+	 * construction figerait la date du démarrage du bot dans tous les fils.
+	 */
+	rafraichiLe?: () => number;
 }
 
 export interface ResultatSynchronisation {
@@ -204,49 +217,47 @@ export class SynchronisationForum {
 	}
 
 	/**
-	 * Embeds d'ouverture d'une saison : la liste, puis les compteurs.
+	 * Le message d'ouverture d'un fil : la galerie, la liste, les compteurs.
 	 *
-	 * Plusieurs embeds, parce qu'une saison complète ne tient pas dans une seule
-	 * description. Les compteurs vont sur le DERNIER : posés sur le premier, ils
-	 * sépareraient la liste en deux moitiés sans rapport visuel.
+	 * ── EN COMPOSANTS V2, ET C'EST CE QUI CHANGE TOUT ──────────────────────
+	 * Un embed ne porte qu'UNE image ; un message V2 porte une galerie de dix.
+	 * Le fil d'un arc montre donc enfin ses épisodes plutôt que d'en réciter
+	 * les numéros. Le prix est un budget de texte plus étroit — 4 000 au lieu
+	 * de 6 000 — que `ecranFilArc` absorbe en resserrant les titres au lieu
+	 * d'écarter des épisodes.
 	 */
-	construireEmbeds(saison: number, nomArc?: string | null): {
-		embeds: Embed[];
+	construireMessage(saison: number, nomArc?: string | null): {
+		message: MessageV2;
 		episodes: number;
 		langues: Record<string, number>;
 	} {
 		const episodes = this.options.catalogue.saison(saison, undefined, 10_000);
-		const liste = listerSaison(episodes);
 
 		const langues: Record<string, number> = {};
 		for (const episode of episodes) langues[episode.language] = (langues[episode.language] ?? 0) + 1;
 
-		const pages = liste.pages.length > 0 ? liste.pages : ["Aucun épisode référencé pour cette saison."];
-
-		// Le nom donné par la source fait autorité : le dixième arc s'appelle
-		// « Films », pas « Saison 10 ».
-		const libelle = nomArc?.trim() || `Saison ${saison}`;
-		const embeds = pages.map((page, index) => {
-			const f = fiche({
-				titre: index === 0 ? `${ICONES.saison} ${libelle}` : `${libelle} (suite)`,
-				marque: this.options.marque,
-			}).description(page);
-
-			if (index === pages.length - 1) {
-				f.champ("Épisodes", String(liste.episodes), { enLigne: true });
-				f.champ("Versions", repartitionLangues(langues), { enLigne: true });
-				const manquants = this.manquantsDe(saison);
-				if (manquants.length > 0) {
-					f.champ(
-						`${ICONES.attention} Introuvables`,
-						manquants.map((n) => `E${String(n).padStart(2, "0")}`).join(", ")
-					);
-				}
-			}
-			return f.finir(index === pages.length - 1 && liste.omis > 0 ? `${liste.omis} non listé(s)` : undefined);
+		const groupes = grouperParEpisode(episodes);
+		const message = ecranFilArc({
+			saison,
+			// Le nom donné par la source fait autorité : le dixième arc s'appelle
+			// « Films », pas « Saison 10 ».
+			nom: nomArc?.trim() || `Saison ${saison}`,
+			episodes: groupes.map((groupe) => ({
+				numero: groupe.numero ?? 0,
+				titre: meilleurTitre(groupe.versions),
+				langues: [...new Set(groupe.versions.map((version) => version.language))],
+				vignette: premiereVignette(groupe.versions),
+				// Un fil est PUBLIC : aucun état personnel n'y a sa place.
+				vu: false,
+				dansListe: false,
+			})),
+			langues,
+			introuvables: this.manquantsDe(saison),
+			rafraichiLe: this.options.rafraichiLe?.() ?? 0,
+			marque: this.options.marque,
 		});
 
-		return { embeds, episodes: liste.episodes, langues };
+		return { message, episodes: groupes.length, langues };
 	}
 
 	/**
@@ -268,32 +279,70 @@ export class SynchronisationForum {
 		const resultat: ResultatSynchronisation = { crees: [], majs: [], recrees: [] };
 
 		for (const saison of saisons) {
-			const { embeds, episodes, langues } = this.construireEmbeds(saison, noms.get(saison));
-			const numeros = [
-				...new Set(
-					this.options.catalogue
-						.saison(saison, undefined, 10_000)
-						.map((episode) => episode.episode)
-						.filter((numero): numero is number => numero !== null)
-				),
-			].sort((a, b) => a - b);
-			const menus = menusDeSaison(saison, numeros);
+			const { message, episodes, langues } = this.construireMessage(saison, noms.get(saison));
 			const nom = nomFilSaison(saison, episodes, noms.get(saison));
 			const tags = etiquettesDeSaison(langues, etiquettes);
 			const connu = table.get(saison);
 
 			if (connu && vivants.has(connu)) {
-				await this.options.passerelle.majFil(connu, nom, embeds, menus, tags);
+				await this.options.passerelle.majFil(connu, nom, message, tags);
 				resultat.majs.push(saison);
 				continue;
 			}
 
-			const filId = await this.options.passerelle.creerFil(nom, embeds, menus, tags);
+			const filId = await this.options.passerelle.creerFil(nom, message, tags);
 			table.set(saison, filId);
 			(connu ? resultat.recrees : resultat.crees).push(saison);
 		}
 
 		this.enregistrer(table);
 		return resultat;
+	}
+
+	/**
+	 * Reconstruit le forum de zéro : tout supprimer, tout recréer.
+	 *
+	 * ── C'EST DESTRUCTEUR, ET CE N'EST JAMAIS AUTOMATIQUE ──────────────────
+	 * Supprimer un fil emporte les messages qu'il porte. La synchronisation
+	 * ordinaire ne supprime donc RIEN — elle modifie. Cette méthode-ci n'existe
+	 * que pour une reconstruction demandée explicitement, quand la forme des
+	 * fils a changé au point qu'une modification ne suffit plus.
+	 *
+	 * `garderNonVides` est une sécurité, active par défaut : un fil où quelqu'un
+	 * a écrit n'est pas supprimé, seulement réécrit. On ne détruit pas la parole
+	 * des membres pour changer une mise en page.
+	 */
+	async recreer(
+		options: { garderNonVides?: boolean; messagesDe?: (filId: string) => Promise<number> } = {}
+	): Promise<ResultatSynchronisation & { supprimes: string[]; conserves: string[] }> {
+		const garder = options.garderNonVides ?? true;
+		const table = this.table();
+		const vivants = new Set(await this.options.passerelle.filsExistants());
+
+		const supprimes: string[] = [];
+		const conserves: string[] = [];
+
+		for (const filId of vivants) {
+			if (garder && options.messagesDe) {
+				// `> 1` : le message d'OUVERTURE est celui du bot. Un fil qui n'a
+				// que lui n'a jamais servi à personne.
+				const messages = await options.messagesDe(filId).catch(() => 0);
+				if (messages > 1) {
+					conserves.push(filId);
+					continue;
+				}
+			}
+			await this.options.passerelle.supprimerFil(filId);
+			supprimes.push(filId);
+		}
+
+		// La table ne garde que les fils survivants : les autres n'existent plus,
+		// et les laisser ferait chercher des identifiants morts au prochain tour.
+		const survivants = new Map(
+			[...table.entries()].filter(([, filId]) => conserves.includes(filId))
+		);
+		this.enregistrer(survivants);
+
+		return { ...(await this.synchroniser()), supprimes, conserves };
 	}
 }

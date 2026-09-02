@@ -1065,20 +1065,24 @@ describe("format des saisons", () => {
 });
 
 function passerelleForumFactice() {
-	const fils = new Map<string, { nom: string; embed: any; menus: any[]; tags: string[] }>();
+	const fils = new Map<string, { nom: string; message: any; tags: string[] }>();
 	let suivant = 0;
 	const journal: string[] = [];
 	const passerelle: PasserelleForum = {
 		filsExistants: async () => [...fils.keys()],
-		creerFil: async (nom, embed, menus, tags) => {
+		creerFil: async (nom, message, tags) => {
 			const id = `fil${++suivant}`;
-			fils.set(id, { nom, embed, menus, tags });
+			fils.set(id, { nom, message, tags });
 			journal.push(`creer:${nom}`);
 			return id;
 		},
-		majFil: async (id, nom, embed, menus, tags) => {
-			fils.set(id, { nom, embed, menus, tags });
+		majFil: async (id, nom, message, tags) => {
+			fils.set(id, { nom, message, tags });
 			journal.push(`maj:${id}`);
+		},
+		supprimerFil: async (id) => {
+			fils.delete(id);
+			journal.push(`supprimer:${id}`);
 		},
 	};
 	return { passerelle, fils, journal };
@@ -1086,20 +1090,24 @@ function passerelleForumFactice() {
 
 describe("SynchronisationForum", () => {
 	function passerelleFactice() {
-		const fils = new Map<string, { nom: string; embed: any; menus: any[]; tags: string[] }>();
+		const fils = new Map<string, { nom: string; message: any; tags: string[] }>();
 		let suivant = 0;
 		const journal: string[] = [];
 		const passerelle: PasserelleForum = {
 			filsExistants: async () => [...fils.keys()],
-			creerFil: async (nom, embed, menus, tags) => {
+			creerFil: async (nom, message, tags) => {
 				const id = `fil${++suivant}`;
-				fils.set(id, { nom, embed, menus, tags });
+				fils.set(id, { nom, message, tags });
 				journal.push(`creer:${nom}`);
 				return id;
 			},
-			majFil: async (id, nom, embed, menus, tags) => {
-				fils.set(id, { nom, embed, menus, tags });
+			majFil: async (id, nom, message, tags) => {
+				fils.set(id, { nom, message, tags });
 				journal.push(`maj:${id}`);
+			},
+			supprimerFil: async (id) => {
+				fils.delete(id);
+				journal.push(`supprimer:${id}`);
 			},
 		};
 		return { passerelle, fils, journal };
@@ -1491,9 +1499,122 @@ describe("menus du forum", () => {
 			marque: MARQUE_PAR_DEFAUT,
 		}).synchroniser();
 
-		const menus = [...fils.values()][0]!.menus;
+		// Le menu vit désormais DANS les composants V2 du message d'ouverture,
+		// et sa valeur est le numéro d'épisode : la saison est déjà dans la
+		// route du menu (`wb/choix/<saison>`).
+		const menus = selectsDe([...fils.values()][0]!.message);
 		expect(menus).toHaveLength(1);
-		expect(menus[0].options.map((o: any) => o.value)).toEqual(["1:1", "1:2"]);
+		expect(menus[0]!.options.map((o: any) => o.value)).toEqual(["1", "2"]);
+	});
+});
+
+/** Tout le texte d'un message V2, à plat. */
+function texteV2(message: { components: any[] }): string {
+	const morceaux: string[] = [];
+	const parcourir = (liste: any[]) => {
+		for (const composant of liste ?? []) {
+			if (composant.type === 10) morceaux.push(composant.content);
+			else if (composant.components) parcourir(composant.components);
+		}
+	};
+	parcourir(message.components);
+	return morceaux.join("\n");
+}
+
+/** Les menus déroulants d'un message V2. */
+function selectsDe(message: { components: any[] }): any[] {
+	const trouves: any[] = [];
+	const parcourir = (liste: any[]) => {
+		for (const composant of liste ?? []) {
+			if (composant.type === 3) trouves.push(composant);
+			else if (composant.components) parcourir(composant.components);
+		}
+	};
+	parcourir(message.components);
+	return trouves;
+}
+
+describe("reconstruction du forum", () => {
+	const stockageMemoire = () => {
+		const meta = new Map<string, string>();
+		return {
+			meta,
+			lireMeta: (c: string) => meta.get(c) ?? null,
+			ecrireMeta: (c: string, v: string) => void meta.set(c, v),
+		};
+	};
+
+	function forumAvec() {
+		const { catalogue } = catalogueAvec([
+			episode({ videoId: "a", season: 1, episode: 1 }),
+			episode({ videoId: "b", season: 2, episode: 1 }),
+		]);
+		const { passerelle, fils, journal } = passerelleForumFactice();
+		const support = stockageMemoire();
+		const forum = new SynchronisationForum({
+			catalogue,
+			passerelle,
+			stockage: support,
+			marque: MARQUE_PAR_DEFAUT,
+		});
+		return { forum, fils, journal, support };
+	}
+
+	it("supprime puis recrée les fils vides", async () => {
+		const { forum, fils, journal } = forumAvec();
+		await forum.synchroniser();
+		const avant = [...fils.keys()];
+		expect(avant).toHaveLength(2);
+
+		const resultat = await forum.recreer({ messagesDe: async () => 1 });
+
+		expect(resultat.supprimes).toEqual(avant);
+		expect(resultat.conserves).toEqual([]);
+		expect(resultat.crees).toHaveLength(2);
+		// Les nouveaux fils ne réutilisent pas les identifiants supprimés.
+		expect([...fils.keys()]).not.toEqual(avant);
+		expect(journal.filter((l) => l.startsWith("supprimer:"))).toHaveLength(2);
+	});
+
+	it("ÉPARGNE un fil où quelqu'un a écrit", async () => {
+		// On ne détruit pas la parole des membres pour changer une mise en page.
+		const { forum, fils } = forumAvec();
+		await forum.synchroniser();
+		const [premier, second] = [...fils.keys()];
+
+		const resultat = await forum.recreer({
+			messagesDe: async (id) => (id === premier ? 5 : 1),
+		});
+
+		expect(resultat.conserves).toEqual([premier!]);
+		expect(resultat.supprimes).toEqual([second!]);
+		expect(fils.has(premier!)).toBe(true);
+	});
+
+	it("supprime tout quand on renonce explicitement à la garde", async () => {
+		const { forum, fils } = forumAvec();
+		await forum.synchroniser();
+		const avant = [...fils.keys()];
+
+		const resultat = await forum.recreer({
+			garderNonVides: false,
+			messagesDe: async () => 99,
+		});
+
+		expect(resultat.supprimes).toEqual(avant);
+		expect(resultat.conserves).toEqual([]);
+	});
+
+	it("oublie les identifiants des fils supprimés", async () => {
+		// Les garder ferait chercher des fils morts au passage suivant.
+		const { forum, support } = forumAvec();
+		await forum.synchroniser();
+		await forum.recreer({ messagesDe: async () => 1 });
+
+		const table = JSON.parse(support.meta.get(CLE_FILS) ?? "{}") as Record<string, string>;
+		expect(Object.keys(table)).toHaveLength(2);
+		// Ce sont bien les NOUVEAUX fils, pas les anciens.
+		for (const filId of Object.values(table)) expect(filId).toMatch(/^fil[34]$/);
 	});
 });
 
@@ -1524,8 +1645,9 @@ describe("titre de l'embed d'un arc", () => {
 
 		const fil = [...fils.values()][0]!;
 		expect(fil.nom).toBe("Films — 1 épisode(s)");
-		// Le fil ET l'embed doivent dire la même chose.
-		expect(fil.embed[0].title).toContain("Films");
-		expect(fil.embed[0].title).not.toContain("Saison 10");
+		// Le fil ET son message d'ouverture doivent dire la même chose.
+		const rendu = texteV2(fil.message);
+		expect(rendu).toContain("Films");
+		expect(rendu).not.toContain("Saison 10");
 	});
 });

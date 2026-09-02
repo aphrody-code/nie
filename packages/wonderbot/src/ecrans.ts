@@ -26,7 +26,9 @@ import {
 	dateLisible,
 	echapperMarkdown,
 	fiche,
+	horodatageRelatif,
 	libelleLangue,
+	listerSaison,
 	repartitionLangues,
 	type Marque,
 	type Reponse,
@@ -640,6 +642,145 @@ export function ecranAide(marque: Marque): MessageV2 {
 		),
 	]);
 }
+
+export interface VueFilArc {
+	saison: number;
+	nom: string;
+	/** TOUS les épisodes de l'arc, pas une page. */
+	episodes: readonly VueEpisodeArc[];
+	langues: Readonly<Record<string, number>>;
+	introuvables: readonly number[];
+	/** Millisecondes epoch du dernier rafraîchissement, 0 si jamais. */
+	rafraichiLe: number;
+	marque: Marque;
+}
+
+/** Budget de texte d'un message en composants V2, réserve d'en-tête déduite. */
+const BUDGET_FIL = 3400;
+
+/**
+ * Le message d'ouverture d'un fil de forum — public, donc SANS état personnel.
+ *
+ * ── UN FIL EST PARTAGÉ, PAS PERSONNEL ──────────────────────────────────────
+ * `ecranArc` affiche les pastilles de visionnage de CELUI qui l'ouvre : c'est
+ * juste pour un écran éphémère, et faux pour un fil que tout le serveur lit.
+ * Aucun ✓ ici, aucune barre d'avancement : le fil décrit le CATALOGUE, et les
+ * boutons renvoient chacun vers son propre écran privé.
+ *
+ * ── LE BUDGET N'EST PAS CELUI DES EMBEDS ───────────────────────────────────
+ * Un message V2 plafonne à 4 000 caractères là où un message à embeds en
+ * accepte 6 000. La liste est donc bâtie avec un budget explicite, et
+ * `listerSaison` resserre les titres plutôt que d'écarter des épisodes — une
+ * liste de saison amputée serait un mensonge sur le catalogue.
+ */
+export function ecranFilArc(vue: VueFilArc): MessageV2 {
+	const total = vue.episodes.length;
+	const blocs: (ComposantV2 | null)[] = [];
+
+	blocs.push(
+		texte(
+			`# ${ICONES.saison} ${vue.nom}\n` +
+				`-# ${total} épisode(s) · ${repartitionLangues(vue.langues)}` +
+				(vue.rafraichiLe > 0 ? ` · mis à jour ${horodatageRelatif(vue.rafraichiLe)}` : "")
+		)
+	);
+
+	// La galerie de vignettes : ce qu'un message à embeds ne sait pas faire —
+	// un embed ne porte qu'UNE image. C'est elle qui donne au fil l'allure
+	// d'une page de catalogue plutôt que d'une liste.
+	blocs.push(
+		galerie(
+			vue.episodes
+				.filter((episode) => episode.vignette !== null)
+				.slice(0, 10)
+				.map((episode) => ({
+					url: episode.vignette,
+					description: `E${String(episode.numero).padStart(2, "0")} — ${episode.titre}`,
+				}))
+		)
+	);
+
+	blocs.push(separateur());
+
+	// `listerSaison` groupe par NUMÉRO et rend une ligne par épisode portant
+	// toutes ses langues : on lui repasse donc UNE entrée par langue, sinon un
+	// épisode disponible en VF et en VOSTFR n'en afficherait qu'une.
+	const liste = listerSaison(
+		vue.episodes.flatMap((episode) =>
+			(episode.langues.length > 0 ? episode.langues : (["unknown"] as const)).map((langue) => ({
+				...VERSION_MINIMALE,
+				season: vue.saison,
+				episode: episode.numero,
+				title: episode.titre,
+				language: langue,
+			}))
+		),
+		{ budgetPage: BUDGET_FIL, budgetTotal: BUDGET_FIL }
+	);
+
+	for (const page of liste.pages.length > 0 ? liste.pages : ["*Aucun épisode référencé.*"]) {
+		blocs.push(texte(page));
+	}
+
+	if (vue.introuvables.length > 0) {
+		blocs.push(
+			texte(
+				`-# ${ICONES.attention} Introuvables : ` +
+					vue.introuvables.map((numero) => `E${String(numero).padStart(2, "0")}`).join(", ") +
+					" — cherchés puis abandonnés, l'information vaut mieux que le silence."
+			)
+		);
+	}
+
+	blocs.push(separateur());
+
+	blocs.push(
+		rangeeSelect({
+			id: route("choix", vue.saison),
+			invite: "Choisis un épisode à regarder",
+			choix: vue.episodes.slice(0, 25).map((episode) => ({
+				label: `E${String(episode.numero).padStart(2, "0")} · ${episode.titre}`,
+				value: String(episode.numero),
+				emoji: { name: "▶️" },
+			})),
+		})
+	);
+
+	blocs.push(
+		rangee([
+			bouton({
+				id: route("arc", vue.saison, 0),
+				libelle: "Ouvrir l'arc",
+				emoji: "📚",
+				style: STYLE_BOUTON.primaire,
+			}),
+			bouton({ id: route("accueil"), libelle: "Accueil", emoji: "🏠" }),
+			bouton({ id: route("hasard"), emoji: "🎲" }),
+		])
+	);
+
+	blocs.push(
+		texte(
+			"-# Les boutons répondent en privé : ton avancement ne s'affiche que pour toi. " +
+				"Le fil, lui, reste ouvert à la discussion."
+		)
+	);
+
+	return ecran([conteneur(blocs, vue.marque.couleur)]);
+}
+
+/** Champs qu'un épisode de catalogue porte et dont le fil n'a que faire. */
+const VERSION_MINIMALE = {
+	videoId: "",
+	url: "",
+	description: null,
+	thumbnail: null,
+	publishDate: null,
+	titleJp: null,
+	romaji: null,
+	duration: null,
+	viewCount: null,
+} as const;
 
 export interface VueEcoute {
 	/** `"arrete"` | `"lecture"` | `"pause"`. */
