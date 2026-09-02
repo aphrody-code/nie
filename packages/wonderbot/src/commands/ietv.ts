@@ -27,7 +27,14 @@ import {
 	type Reponse,
 } from "../ui/index.ts";
 import type { Catalogue } from "../catalogue.ts";
-import { ecranAccueil, ecranLecture, ecranMaListe } from "../ecrans.ts";
+import {
+	ecranAccueil,
+	ecranAide,
+	ecranArc,
+	ecranLecture,
+	ecranMaListe,
+	ecranProgression,
+} from "../ecrans.ts";
 // Type seulement : `service.ts` importe `estLisibleEnLigne` d'ici, et une
 // importation de valeur dans les deux sens ferait un cycle à l'exécution.
 import type { Service } from "../service.ts";
@@ -140,6 +147,31 @@ export const DEFINITION_IETV = {
 		},
 		{
 			type: TYPE.sousCommande,
+			name: "arc",
+			description: "Parcourir un arc : la grille de ses épisodes, avec ton avancement",
+			options: [
+				{
+					type: TYPE.entier,
+					name: "numero",
+					description: "L'arc — tape son nom, les propositions arrivent",
+					required: true,
+					min_value: 1,
+					autocomplete: true,
+				},
+			],
+		},
+		{
+			type: TYPE.sousCommande,
+			name: "suivant",
+			description: "Enchaîner sur l'épisode suivant celui que tu viens de voir",
+		},
+		{
+			type: TYPE.sousCommande,
+			name: "progression",
+			description: "Ton avancement, arc par arc",
+		},
+		{
+			type: TYPE.sousCommande,
 			name: "reprendre",
 			description: "Reprendre là où tu t'es arrêté",
 		},
@@ -157,6 +189,11 @@ export const DEFINITION_IETV = {
 			type: TYPE.sousCommande,
 			name: "catalogue",
 			description: "État du catalogue : sources, volumes, fraîcheur",
+		},
+		{
+			type: TYPE.sousCommande,
+			name: "aide",
+			description: "Ce que sait faire le bot, et par où commencer",
 		},
 		{
 			type: TYPE.sousCommande,
@@ -184,7 +221,10 @@ const SOUS_COMMANDES_PRIVEES = new Set([
 	// les yeux des autres.
 	"maliste",
 	"accueil",
+	"arc",
+	"progression",
 	"reprendre",
+	"suivant",
 	"hasard",
 ]);
 
@@ -298,6 +338,14 @@ export async function executerIetv(
 			return saison(options, contexte);
 		case "accueil":
 			return accueil(contexte);
+		case "arc":
+			return arc(options, contexte);
+		case "suivant":
+			return suivant(contexte);
+		case "progression":
+			return progression(contexte);
+		case "aide":
+			return aide(contexte);
 		case "reprendre":
 			return reprendre(contexte);
 		case "maliste":
@@ -317,10 +365,38 @@ export async function executerIetv(
 	}
 }
 
+/**
+ * L'appelant a-t-il CHOISI une proposition d'autocomplétion ?
+ *
+ * ── UNE PROPOSITION CHOISIE N'EST PAS UNE RECHERCHE ────────────────────────
+ * Discord envoie la VALEUR de la proposition, pas son libellé : le membre voit
+ * « GO E12 · Le Stade Aérodrome » et le bot reçoit `4:12`. Traité comme du
+ * texte libre, ce `4:12` ne correspondrait à aucun titre et la recherche
+ * répondrait « aucun épisode » sur l'épisode que le membre venait justement de
+ * désigner. On le reconnaît donc, et on ouvre directement le lecteur.
+ */
+export function cleAutocompletion(texte: string): { saison: number; episode: number } | null {
+	const trouve = /^(\d{1,4}):(\d{1,5})$/.exec(texte.trim());
+	if (!trouve) return null;
+	return { saison: Number(trouve[1]), episode: Number(trouve[2]) };
+}
+
 function recherche(options: OptionsCommande, contexte: ContexteCommande): Reponse {
 	const texte = (options.chaine("texte") ?? "").trim();
 	if (texte === "") {
 		return echec("Recherche vide", "Donne au moins un mot à chercher.", contexte.marque);
+	}
+
+	const choisi = cleAutocompletion(texte);
+	if (choisi && contexte.service && contexte.membre) {
+		const vue = contexte.service.lecture(contexte.membre, choisi);
+		if (vue) return ecranLecture(vue);
+		// Proposition périmée : le catalogue a bougé entre la frappe et l'envoi.
+		return vide(
+			"Épisode indisponible",
+			"Cet épisode a quitté le catalogue depuis que la proposition s'est affichée.",
+			contexte.marque
+		);
 	}
 
 	const langue = lireLangue(options);
@@ -475,6 +551,70 @@ function accueil(contexte: ContexteCommande): Reponse {
 	const acces = exigerService(contexte);
 	if ("embeds" in acces) return acces;
 	return { embeds: [], v2: ecranAccueil(acces.service.accueil(acces.membre)) };
+}
+
+/** La grille d'un arc — la surface de parcours principale. */
+function arc(options: OptionsCommande, contexte: ContexteCommande): Reponse {
+	const acces = exigerService(contexte);
+	if ("embeds" in acces) return acces;
+
+	const numero = options.entier("numero");
+	if (numero === null) {
+		return echec("Arc manquant", "Précise l'arc : `/episodes arc numero:4`.", contexte.marque);
+	}
+
+	const vue = acces.service.arc(acces.membre, numero, 0);
+	if (vue.total === 0) {
+		const disponibles = contexte.catalogue.saisonsDisponibles();
+		return vide(
+			`Arc ${numero} absent`,
+			disponibles.length === 0
+				? "Le catalogue est vide : lance `/episodes rafraichir`."
+				: `Arcs au catalogue : ${disponibles.join(", ")}.`,
+			contexte.marque
+		);
+	}
+	return { embeds: [], v2: ecranArc(vue) };
+}
+
+/**
+ * L'épisode SUIVANT celui qu'on vient de voir.
+ *
+ * Différent de `reprendre` : « reprendre » propose le premier NON VU, qui peut
+ * être un épisode ancien laissé de côté ; « suivant » enchaîne strictement
+ * après le dernier visionnage. Les deux existent parce qu'on veut tantôt
+ * combler un trou, tantôt continuer sa série.
+ */
+function suivant(contexte: ContexteCommande): Reponse {
+	const acces = exigerService(contexte);
+	if ("embeds" in acces) return acces;
+
+	const apres = acces.service.apresDernierVu(acces.membre);
+	if (!apres) {
+		return vide(
+			"Rien à enchaîner",
+			"Tu n'as encore rien regardé — `/episodes accueil` pour commencer, " +
+				"ou `/episodes hasard` pour te laisser porter.",
+			contexte.marque
+		);
+	}
+
+	const vue = acces.service.lecture(acces.membre, apres);
+	return vue
+		? ecranLecture(vue)
+		: vide("Épisode indisponible", "Cet épisode a quitté le catalogue.", contexte.marque);
+}
+
+/** L'avancement de l'appelant, arc par arc. */
+function progression(contexte: ContexteCommande): Reponse {
+	const acces = exigerService(contexte);
+	if ("embeds" in acces) return acces;
+	return { embeds: [], v2: ecranProgression(acces.service.progressionGlobale(acces.membre)) };
+}
+
+/** Ce que le bot sait faire — la porte d'entrée pour un nouveau membre. */
+function aide(contexte: ContexteCommande): Reponse {
+	return { embeds: [], v2: ecranAide(contexte.marque) };
 }
 
 /** « Ma liste » — les épisodes mis de côté par l'appelant. */

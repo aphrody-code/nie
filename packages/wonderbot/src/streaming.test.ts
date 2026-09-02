@@ -18,10 +18,13 @@ import {
 	PAR_PAGE,
 	ecranAccueil,
 	ecranArc,
+	ecranAide,
 	ecranLecture,
 	ecranMaListe,
+	ecranProgression,
 	ecranRouteInconnue,
 } from "./ecrans.ts";
+import { cleAutocompletion } from "./commands/ietv.ts";
 import {
 	Progression,
 	ProgressionMemoire,
@@ -166,7 +169,10 @@ function serviceAvec(
 	nomsArcs: Readonly<Record<number, string>> = {},
 	options: { tirage?: () => number; lacunes?: ReadonlySet<string> } = {}
 ): { service: Service; progression: Progression } {
-	const progression = new Progression(new ProgressionMemoire(), () => 1_000);
+	// Horloge qui AVANCE : deux marquages successifs doivent se distinguer,
+	// comme en production. Une horloge figée masquerait tout défaut d'ordre.
+	let instant = 1_000;
+	const progression = new Progression(new ProgressionMemoire(), () => (instant += 1_000));
 	const service = new Service({
 		catalogue: catalogueAvec(episodes, nomsArcs),
 		progression,
@@ -320,6 +326,21 @@ describe("progression", () => {
 			[2, 1],
 			[4, 1],
 		]);
+	});
+
+	it("départage deux visionnages de la même milliseconde", () => {
+		// Deux clics dans la même milliseconde : sans départage, « le dernier
+		// vu » dépendrait de l'ordre d'insertion et `suivant` enchaînerait au
+		// mauvais endroit. Le plus avancé fait foi.
+		const memoire = new ProgressionMemoire();
+		memoire.marquerVu("m", { saison: 1, episode: 1 }, 500);
+		memoire.marquerVu("m", { saison: 1, episode: 5 }, 500);
+		expect(memoire.dernierVu("m")).toEqual({ saison: 1, episode: 5, quand: 500 });
+
+		const inverse = new ProgressionMemoire();
+		inverse.marquerVu("m", { saison: 1, episode: 5 }, 500);
+		inverse.marquerVu("m", { saison: 1, episode: 1 }, 500);
+		expect(inverse.dernierVu("m")).toEqual({ saison: 1, episode: 5, quand: 500 });
 	});
 
 	it("écrit son état à côté du catalogue, jamais dedans", () => {
@@ -504,6 +525,24 @@ describe("écrans", () => {
 		expect(rangeeFin.components[2]!.disabled).toBe(true);
 	});
 
+	it("l'aide range par intention, pas par liste de commandes", () => {
+		const rendu = texteDe(ecranAide(MARQUE_PAR_DEFAUT).components);
+		for (const intention of ["Regarder", "Retrouver", "Suivre"]) {
+			expect(rendu).toContain(intention);
+		}
+		expect(rendu).toContain("/episodes accueil");
+	});
+
+	it("reconnaît une proposition d'autocomplétion choisie", () => {
+		// Discord envoie la VALEUR (`4:12`), pas le libellé : traitée comme du
+		// texte libre, elle ne trouverait rien.
+		expect(cleAutocompletion("4:12")).toEqual({ saison: 4, episode: 12 });
+		expect(cleAutocompletion(" 10:127 ")).toEqual({ saison: 10, episode: 127 });
+		expect(cleAutocompletion("la tornade")).toBeNull();
+		expect(cleAutocompletion("4:")).toBeNull();
+		expect(cleAutocompletion("12:34:56")).toBeNull();
+	});
+
 	it("l'écran de route périmée explique et renvoie à l'accueil", () => {
 		const rendu = texteDe(ecranRouteInconnue(MARQUE_PAR_DEFAUT).components);
 		expect(rendu).toContain("n'est plus valide");
@@ -591,6 +630,74 @@ describe("service", () => {
 		for (const choix of service.autocompleter("")) {
 			expect(choix.nom.length).toBeLessThanOrEqual(100);
 		}
+	});
+
+	it("enchaîne strictement après le dernier vu, trous compris", () => {
+		// « Suivant » n'est pas « reprendre » : le membre a vu E05 après avoir
+		// sauté E02..E04. Suivant donne E06 ; reprendre donnerait E02.
+		const { service, progression } = serviceAvec(saisonComplete(1, 8));
+		progression.marquerVu("membre", { saison: 1, episode: 1 });
+		progression.marquerVu("membre", { saison: 1, episode: 5 });
+
+		expect(service.apresDernierVu("membre")).toEqual({ saison: 1, episode: 6 });
+		expect(service.reprise("membre")?.episode).toBe(2);
+	});
+
+	it("passe à l'arc suivant quand le dernier vu finissait l'arc", () => {
+		const { service, progression } = serviceAvec(
+			[...saisonComplete(1, 2), ...saisonComplete(2, 2)],
+			{ 1: "Saison 1", 2: "GO" }
+		);
+		progression.marquerVu("membre", { saison: 1, episode: 2 });
+		expect(service.apresDernierVu("membre")).toEqual({ saison: 2, episode: 1 });
+	});
+
+	it("n'enchaîne rien sans historique ni au bout du catalogue", () => {
+		const { service, progression } = serviceAvec(saisonComplete(1, 2));
+		expect(service.apresDernierVu("membre")).toBeNull();
+		progression.marquerVu("membre", { saison: 1, episode: 2 });
+		expect(service.apresDernierVu("membre")).toBeNull();
+	});
+
+	it("totalise la progression sur tous les arcs", () => {
+		const { service, progression } = serviceAvec(
+			[...saisonComplete(1, 4), ...saisonComplete(2, 6)],
+			{ 1: "Saison 1", 2: "GO" }
+		);
+		progression.marquerVu("membre", { saison: 1, episode: 1 });
+		progression.marquerVu("membre", { saison: 2, episode: 1 });
+		progression.marquerVu("membre", { saison: 2, episode: 2 });
+
+		const vue = service.progressionGlobale("membre");
+		expect(vue.total).toBe(10);
+		expect(vue.vus).toBe(3);
+		expect(vue.recents).toHaveLength(3);
+
+		const rendu = texteDe(ecranProgression(vue).components);
+		expect(rendu).toContain("30 %");
+		expect(rendu).toContain("3 épisodes vus sur 10");
+		expect(rendu).toContain("GO");
+	});
+
+	it("propose les arcs par leur NOM, mais renvoie leur numéro", () => {
+		// Le membre tape « chrono » ; il n'a jamais à savoir que c'est l'arc 3.
+		const { service } = serviceAvec(
+			[...saisonComplete(1, 1), ...saisonComplete(3, 1)],
+			{ 1: "Saison 1", 3: "Chrono Stones" }
+		);
+		const trouves = service.autocompleterArcs("chrono");
+		expect(trouves).toHaveLength(1);
+		expect(trouves[0]!.valeur).toBe(3);
+		expect(trouves[0]!.nom).toContain("Chrono Stones");
+		// Le numéro tapé directement marche aussi.
+		expect(service.autocompleterArcs("1")[0]?.valeur).toBe(1);
+		expect(service.autocompleterArcs("")).toHaveLength(2);
+	});
+
+	it("montre l'avancement dans les propositions d'arc", () => {
+		const { service, progression } = serviceAvec(saisonComplete(1, 4), { 1: "Saison 1" });
+		progression.marquerVu("membre", { saison: 1, episode: 1 });
+		expect(service.autocompleterArcs("", "membre")[0]!.nom).toContain("1/4");
 	});
 
 	it("filtre l'autocomplétion sur le texte saisi", () => {

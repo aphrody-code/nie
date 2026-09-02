@@ -258,7 +258,15 @@ export class ProgressionMemoire implements StockageProgression {
 				const [saison, episode] = cle.split(":").map(Number);
 				return { saison: saison!, episode: episode!, quand };
 			})
-			.sort((a, b) => b.quand - a.quand);
+			.sort(
+				(a, b) =>
+					// Départage à horodatage ÉGAL, ce qui arrive dès que deux
+					// marquages tombent dans la même milliseconde : sans ce
+					// second critère, « le dernier vu » dépend de l'ordre
+					// d'insertion, et `apresDernierVu` enchaîne au mauvais
+					// endroit. Le plus avancé fait foi.
+					b.quand - a.quand || b.saison - a.saison || b.episode - a.episode
+			);
 	}
 
 	dernierVu(membre: string): Visionnage | null {
@@ -377,7 +385,12 @@ export class ProgressionSqlite implements StockageProgression {
 
 	derniersVus(membre: string, limite: number): Visionnage[] {
 		return this.db
-			.prepare("SELECT saison, episode, quand FROM vus WHERE membre = ? ORDER BY quand DESC LIMIT ?")
+			.prepare(
+				// Même départage qu'en mémoire : à horodatage égal, le plus
+				// avancé fait foi, sinon l'ordre dépendrait du rowid.
+				"SELECT saison, episode, quand FROM vus WHERE membre = ? " +
+					"ORDER BY quand DESC, saison DESC, episode DESC LIMIT ?"
+			)
 			.all(membre, limite) as Visionnage[];
 	}
 
