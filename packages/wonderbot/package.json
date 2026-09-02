@@ -32,12 +32,12 @@
     "discord.js": "^14.26.4"
   },
   "peerDependencies": {
-    "sharp": "catalog:",
+    "@napi-rs/canvas": "catalog:",
     "@discordjs/voice": "catalog:",
     "libsodium-wrappers": "catalog:"
   },
   "peerDependenciesMeta": {
-    "sharp": {
+    "@napi-rs/canvas": {
       "optional": true
     },
     "@discordjs/voice": {
@@ -48,7 +48,7 @@
     }
   },
   "devDependencies": {
-    "sharp": "catalog:",
+    "@napi-rs/canvas": "catalog:",
     "@discordjs/voice": "catalog:",
     "libsodium-wrappers": "catalog:",
     "typescript": "catalog:",

@@ -1,26 +1,30 @@
 /**
  * Les vignettes d'épisode — une carte composée, à la manière d'un lecteur
- * vidéo : l'image, le badge de durée, la barre de progression, le titre.
+ * vidéo : l'image, le badge, la barre de progression, le titre.
  *
  * ── POURQUOI COMPOSER UNE IMAGE PLUTÔT QUE POSER L'URL ─────────────────────
  * Discord sait afficher une image distante, mais rien de plus : il ne peut ni
- * y incruster la durée, ni y peindre la part déjà regardée, ni y accoler le
+ * y incruster un badge, ni y peindre la part déjà regardée, ni y accoler le
  * titre dans la même tuile. Or c'est précisément ce qui fait qu'une liste
- * d'épisodes se lit d'un coup d'œil. La carte est donc composée ici, et
- * envoyée comme pièce jointe.
+ * d'épisodes se lit d'un coup d'œil. La carte est donc composée ici.
  *
- * ── LA MISE EN PAGE EST PURE, LE RENDU NE L'EST PAS ────────────────────────
- * {@link svgCarte} rend une chaîne SVG : elle se teste au caractère près, sans
- * `sharp`, sans réseau et sans fichier. Seul {@link rendreVignette} touche à
- * l'image distante et au rastériseur. Le découpage n'est pas cosmétique — la
- * quasi-totalité des défauts d'une carte sont des défauts de MISE EN PAGE
- * (texte qui déborde, badge hors cadre, titre non échappé), et ceux-là se
- * prennent en test.
+ * ── LA MESURE DU TEXTE EST EXACTE, ET C'ÉTAIT LE VRAI DÉFAUT ───────────────
+ * Une première version dessinait en SVG et devait DEVINER la largeur des
+ * textes, faute de métriques : une table de chasses moyennes écrite à la main.
+ * Elle se trompait de 14 % en moins sur les minuscules et les capitales — d'où
+ * un badge qui sortait du cadre, « corrigé » en gonflant des constantes — et de
+ * 66 % en trop sur les idéogrammes. Mesuré à 20 px : « aaaaaa » vaut 80,98 px
+ * et non 69,6 ; « サッカー » vaut 48,01 px et non 80.
  *
- * ── SHARP EST FACULTATIF ───────────────────────────────────────────────────
- * Un bot qui ne fait que lister n'a pas à tirer un rastériseur natif. Le module
- * le charge à la demande, et son absence rend `null` : la commande retombe sur
- * l'affichage sans vignette au lieu d'échouer.
+ * `@napi-rs/canvas` donne `measureText`, donc la vraie largeur. Toute la classe
+ * de bugs de débordement disparaît à la racine, au lieu d'être repoussée par
+ * des marges de sécurité. Le rendu direct supprime au passage l'échappement
+ * XML, dont un seul oubli suffisait à ne produire aucune image.
+ *
+ * ── LA MISE EN PAGE RESTE PURE ─────────────────────────────────────────────
+ * Elle prend un {@link Mesureur} en paramètre : les tests lui en passent un
+ * déterministe et vérifient les coupes au caractère près, sans canvas ni
+ * police. Seul {@link rendreVignette} touche à l'image distante et au dessin.
  */
 
 /** Dimensions de la carte, en pixels. Deux fois la taille d'affichage. */
@@ -50,6 +54,20 @@ export const COULEURS_CARTE = {
 	vu: "#3ba55d",
 } as const;
 
+/**
+ * Piles de polices.
+ *
+ * `Droid Sans Fallback` couvre le japonais et le chinois — les titres
+ * originaux du catalogue en sont pleins — et `DejaVu Sans` le latin étendu.
+ * Les deux sont présentes sur le VPS ; l'ordre compte, la première qui possède
+ * le caractère gagne.
+ */
+export const POLICES = {
+	titre: `700 26px "DejaVu Sans", "Droid Sans Fallback", sans-serif`,
+	sousTitre: `400 20px "DejaVu Sans", "Droid Sans Fallback", sans-serif`,
+	badge: `700 20px "DejaVu Sans", "Droid Sans Fallback", sans-serif`,
+} as const;
+
 export interface DonneesVignette {
 	/** URL de l'image de fond. */
 	image: string | null;
@@ -65,73 +83,35 @@ export interface DonneesVignette {
 }
 
 /**
- * Échappe le texte pour du XML.
+ * Mesure la largeur d'un texte dans une police donnée.
  *
- * ── CE N'EST PAS UN DÉTAIL ─────────────────────────────────────────────────
- * Les titres viennent de sources externes et portent des apostrophes, des
- * guillemets et des esperluettes : « Duel au sommet contre les Little
- * Gigantes ». Une seule `&` non échappée rend le SVG invalide, et le
- * rastériseur ne produit RIEN — pas une carte dégradée, rien du tout.
+ * Injectée plutôt qu'importée : c'est ce qui garde la mise en page testable
+ * sans canvas, et ce qui interdit qu'un calcul de coupe dépende en douce d'une
+ * police chargée ailleurs.
  */
-export function echapperXml(texte: string): string {
-	return texte
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;")
-		.replace(/'/g, "&apos;");
-}
+export type Mesureur = (texte: string, police: string) => number;
 
 /**
- * Largeur approchée d'un texte, en pixels.
- *
- * ── POURQUOI UNE APPROXIMATION ASSUMÉE ─────────────────────────────────────
- * Mesurer exactement demanderait de charger la police et son tableau de
- * chasses — une dépendance de plus pour un gain nul : la carte n'a besoin de
- * savoir que QUAND couper une ligne. Les chasses moyennes d'une police sans
- * empattement suffisent, à condition d'être prudentes : mieux vaut couper un
- * caractère trop tôt qu'un caractère trop tard, un débordement se voyant, une
- * ligne un peu courte non.
- */
-export function largeurApprochee(texte: string, taille: number): number {
-	let unites = 0;
-	for (const caractere of texte) {
-		const point = caractere.codePointAt(0) ?? 0;
-		if (point > 0x2e80) unites += 1; // idéogrammes : chasse pleine
-		else if (/[iIljt.,;:'!|[\]() ]/.test(caractere)) unites += 0.38;
-		else if (/[MW@%&]/.test(caractere)) unites += 0.86;
-		// Chiffres et capitales partagent une chasse large en DejaVu Sans Bold :
-		// les sous-estimer faisait déborder le badge « S03E01 » hors du cadre.
-		else if (/[A-Z0-9]/.test(caractere)) unites += 0.72;
-		else unites += 0.58;
-	}
-	return unites * taille;
-}
-
-/**
- * Retire ce que la police de la carte ne sait pas dessiner.
+ * Retire ce que les polices de la carte ne savent pas dessiner.
  *
  * ── UN CARACTÈRE ABSENT N'EST PAS INVISIBLE, IL EST LAID ───────────────────
- * DejaVu Sans n'a pas d'emoji : un drapeau 🇫🇷 posé dans un sous-titre sort en
- * rectangle vide — le « tofu » — qui attire l'œil plus sûrement que
- * l'information qu'il remplace. Les emoji sont donc RETIRÉS du texte des
- * cartes ; ils restent dans les messages Discord, où le client sait les rendre.
+ * Ni DejaVu Sans ni Droid Sans Fallback n'ont d'emoji : un drapeau posé dans un
+ * sous-titre sort en rectangle vide — le « tofu » — qui attire l'œil plus
+ * sûrement que l'information qu'il remplace. Les emoji sont donc RETIRÉS du
+ * texte des cartes ; ils restent dans les messages Discord, où le client sait
+ * les rendre.
+ *
+ * La plage 2190–2BFF (flèches, formes géométriques) compte autant que les
+ * emoji modernes : « ▶️ » est un U+25B6 suivi d'un sélecteur de variante, et
+ * retirer le seul sélecteur laisserait un « ▶ » tout aussi absent. Les
+ * ponctuations françaises utiles (« » · — …) vivent toutes sous 2190.
  */
 export function assainirTexte(texte: string): string {
 	return texte
-		// La plage 2190–2BFF (flèches, formes géométriques, symboles divers)
-		// compte autant que les emoji modernes : « ▶️ » est un U+25B6 suivi d'un
-		// sélecteur de variante, et retirer le seul sélecteur laissait un « ▶ »
-		// que la police ne dessine pas davantage. Les ponctuations françaises
-		// utiles (« » · — …) vivent toutes SOUS 2190 et ne sont pas touchées.
 		.replace(
 			/[\u{1F000}-\u{1FAFF}\u{2190}-\u{2BFF}\u{FE00}-\u{FE0F}\u{1F1E6}-\u{1F1FF}\u{20E3}]/gu,
 			""
 		)
-		// Retirer un emoji laisse un trou : « · 🇫🇷 VF » devient « ·  VF ». On
-		// referme le trou et on fusionne deux séparateurs devenus voisins —
-		// SANS toucher à l'espace qui précède un séparateur légitime, sous
-		// peine d'écrire « Saison 3· E01· » au lieu de « Saison 3 · E01 ».
 		.replace(/\s{2,}/g, " ")
 		.replace(/·(\s*·)+/g, "·")
 		.replace(/^[\s·]+|[\s·]+$/g, "")
@@ -143,25 +123,21 @@ export function assainirTexte(texte: string): string {
  *
  * Un mot plus long que la ligne entière est coupé de force : le laisser
  * déborder sortirait du cadre, ce qui est pire qu'une césure disgracieuse.
- * Le dépassement du nombre de lignes se termine par une ellipse.
+ * Le dépassement du nombre de lignes se termine par une ellipse — et il faut
+ * SAVOIR qu'il reste du texte, compter les lignes ne suffit pas : quand on
+ * s'arrête pile au maximum, rien ne distingue « ça tombait juste » de « il
+ * restait huit mots », et la carte se lirait comme un titre complet.
  */
 export function decouperLignes(
 	texte: string,
 	largeur: number,
-	taille: number,
-	lignesMax: number
+	police: string,
+	lignesMax: number,
+	mesurer: Mesureur
 ): string[] {
 	const mots = texte.split(/\s+/).filter((partie) => partie !== "");
 	const lignes: string[] = [];
 	let courante = "";
-	/**
-	 * Du texte est-il resté sur le carreau ?
-	 *
-	 * Compter les lignes ne suffit PAS : quand on s'arrête pile au nombre
-	 * maximum, la ligne courante est vide et rien ne distingue « ça tombait
-	 * juste » de « il restait huit mots ». Sans ce drapeau, une carte tronquée
-	 * s'affichait sans ellipse et se lisait comme un titre complet.
-	 */
 	let tronque = false;
 
 	const poser = () => {
@@ -176,23 +152,21 @@ export function decouperLignes(
 		}
 
 		const essai = courante === "" ? mot : `${courante} ${mot}`;
-		if (largeurApprochee(essai, taille) <= largeur) {
+		if (mesurer(essai, police) <= largeur) {
 			courante = essai;
 			continue;
 		}
 
 		poser();
 		if (lignes.length >= lignesMax) {
-			// Ce mot-ci et tous les suivants n'entreront pas.
 			tronque = true;
 			break;
 		}
 
-		// Mot plus long que la ligne : on le coupe, caractère par caractère.
 		let reste = mot;
-		while (largeurApprochee(reste, taille) > largeur && reste.length > 1) {
+		while (mesurer(reste, police) > largeur && reste.length > 1) {
 			let coupe = reste.length;
-			while (coupe > 1 && largeurApprochee(reste.slice(0, coupe), taille) > largeur) coupe--;
+			while (coupe > 1 && mesurer(reste.slice(0, coupe), police) > largeur) coupe--;
 			lignes.push(reste.slice(0, coupe));
 			reste = reste.slice(coupe);
 			if (lignes.length >= lignesMax) {
@@ -219,120 +193,85 @@ export function bornerProgression(valeur: number | undefined): number {
 	return Math.max(0, Math.min(1, valeur));
 }
 
-/**
- * La carte, en SVG.
- *
- * L'image de fond n'est PAS incluse ici : elle est composée par
- * {@link rendreVignette}, qui sait la redimensionner et la recadrer. Ce SVG
- * n'est que la surcouche — dégradé, badge, barre, texte — plus le fond du
- * bandeau. Séparer les deux évite d'avoir à encoder une image en base64 dans
- * une chaîne, ce qui multiplierait sa taille par quatre.
- */
-export function svgCarte(donnees: DonneesVignette): string {
-	const { largeur, hauteurImage, rayon, marge } = CARTE;
-	const hauteur = CARTE_HAUTEUR;
-
-	const tailleTitre = 26;
-	const tailleSousTitre = 20;
-	const lignesTitre = decouperLignes(
-		assainirTexte(donnees.titre),
-		largeur - marge * 2,
-		tailleTitre,
-		2
-	);
-
-	const progression = bornerProgression(donnees.progression);
-	const largeurProgression = Math.round((largeur - marge * 2) * progression);
-
-	const tailleBadge = 20;
-	const badge = assainirTexte(donnees.badge ?? "");
-	// Le badge ne peut pas dépasser le cadre : bornée à la moitié de la carte,
-	// sa boîte reste dedans même si l'estimation de largeur se trompe.
-	const largeurBadge = Math.min(
-		Math.round(largeurApprochee(badge, tailleBadge) + 24),
-		Math.round(largeur / 2)
-	);
-	const hauteurBadge = 32;
-
-	const morceaux: string[] = [];
-
-	// Bandeau de texte : le fond de la carte sous l'image.
-	morceaux.push(
-		`<rect x="0" y="${hauteurImage}" width="${largeur}" height="${hauteur - hauteurImage}" fill="${COULEURS_CARTE.fond}"/>`
-	);
-
-	// Voile sombre en bas de l'image : sans lui, un badge blanc posé sur une
-	// image claire devient illisible.
-	morceaux.push(
-		`<defs><linearGradient id="voile" x1="0" y1="0" x2="0" y2="1">` +
-			`<stop offset="0" stop-color="rgba(0,0,0,0)"/>` +
-			`<stop offset="1" stop-color="rgba(0,0,0,0.65)"/>` +
-			`</linearGradient></defs>` +
-			`<rect x="0" y="${hauteurImage - 110}" width="${largeur}" height="110" fill="url(#voile)"/>`
-	);
-
-	if (badge !== "") {
-		const x = largeur - marge - largeurBadge;
-		const y = hauteurImage - marge - hauteurBadge - (progression > 0 ? 12 : 0);
-		morceaux.push(
-			`<rect x="${x}" y="${y}" width="${largeurBadge}" height="${hauteurBadge}" rx="6" fill="${COULEURS_CARTE.badgeFond}"/>`,
-			`<text x="${x + largeurBadge / 2}" y="${y + hauteurBadge / 2}" fill="${COULEURS_CARTE.badgeTexte}" ` +
-				`font-family="DejaVu Sans, sans-serif" font-size="${tailleBadge}" font-weight="700" ` +
-				`text-anchor="middle" dominant-baseline="central">${echapperXml(badge)}</text>`
-		);
-	}
-
-	if (donnees.vu) {
-		morceaux.push(
-			`<rect x="${marge}" y="${marge}" width="52" height="30" rx="6" fill="${COULEURS_CARTE.vu}"/>`,
-			`<text x="${marge + 26}" y="${marge + 15}" fill="#ffffff" font-family="DejaVu Sans, sans-serif" ` +
-				`font-size="${tailleBadge}" font-weight="700" text-anchor="middle" dominant-baseline="central">vu</text>`
-		);
-	}
-
-	if (progression > 0) {
-		const y = hauteurImage - marge - 6;
-		morceaux.push(
-			`<rect x="${marge}" y="${y}" width="${largeur - marge * 2}" height="6" rx="3" fill="${COULEURS_CARTE.pisteProgression}"/>`,
-			`<rect x="${marge}" y="${y}" width="${largeurProgression}" height="6" rx="3" fill="${COULEURS_CARTE.progression}"/>`
-		);
-	}
-
-	lignesTitre.forEach((ligne, rang) => {
-		morceaux.push(
-			`<text x="${marge}" y="${hauteurImage + 34 + rang * 32}" fill="${COULEURS_CARTE.titre}" ` +
-				`font-family="DejaVu Sans, sans-serif" font-size="${tailleTitre}" font-weight="700" ` +
-				`dominant-baseline="middle">${echapperXml(ligne)}</text>`
-		);
-	});
-
-	const [sousTitre] = decouperLignes(
-		assainirTexte(donnees.sousTitre),
-		largeur - marge * 2,
-		tailleSousTitre,
-		1
-	);
-	if (sousTitre) {
-		morceaux.push(
-			`<text x="${marge}" y="${hauteurImage + 34 + lignesTitre.length * 32 + 6}" ` +
-				`fill="${COULEURS_CARTE.secondaire}" font-family="DejaVu Sans, sans-serif" ` +
-				`font-size="${tailleSousTitre}" dominant-baseline="middle">${echapperXml(sousTitre)}</text>`
-		);
-	}
-
-	return (
-		`<svg xmlns="http://www.w3.org/2000/svg" width="${largeur}" height="${hauteur}" ` +
-		`viewBox="0 0 ${largeur} ${hauteur}">${morceaux.join("")}</svg>`
-	);
+/** Une zone rectangulaire de la carte. */
+export interface Zone {
+	x: number;
+	y: number;
+	largeur: number;
+	hauteur: number;
 }
 
-/** Masque aux coins arrondis, appliqué à l'image de fond seule. */
-export function svgMasqueImage(): string {
-	const { largeur, hauteurImage, rayon } = CARTE;
-	return (
-		`<svg xmlns="http://www.w3.org/2000/svg" width="${largeur}" height="${hauteurImage}">` +
-		`<rect width="${largeur}" height="${hauteurImage}" rx="${rayon}" ry="${rayon}" fill="#fff"/></svg>`
+/** Tout ce qu'il y a à dessiner, calculé sans rien dessiner. */
+export interface PlanCarte {
+	lignesTitre: string[];
+	sousTitre: string;
+	badge: { texte: string; zone: Zone } | null;
+	pastilleVu: Zone | null;
+	progression: { piste: Zone; remplie: Zone } | null;
+}
+
+/**
+ * Calcule la carte — positions comprises — sans dessiner.
+ *
+ * ── C'EST ICI QUE VIVENT LES DÉFAUTS, DONC C'EST ICI QU'ON TESTE ───────────
+ * Débordement, badge hors cadre, ellipse manquante : tout se voit sur ce plan,
+ * et un test peut l'affirmer au pixel près. Le dessin, lui, ne fait plus que
+ * suivre.
+ */
+export function planifierCarte(donnees: DonneesVignette, mesurer: Mesureur): PlanCarte {
+	const { largeur, hauteurImage, marge } = CARTE;
+	const utile = largeur - marge * 2;
+
+	const lignesTitre = decouperLignes(
+		assainirTexte(donnees.titre),
+		utile,
+		POLICES.titre,
+		2,
+		mesurer
 	);
+	const [sousTitre = ""] = decouperLignes(
+		assainirTexte(donnees.sousTitre),
+		utile,
+		POLICES.sousTitre,
+		1,
+		mesurer
+	);
+
+	const part = bornerProgression(donnees.progression);
+	const yBarre = hauteurImage - marge - 6;
+	const progression =
+		part > 0
+			? {
+					piste: { x: marge, y: yBarre, largeur: utile, hauteur: 6 },
+					remplie: { x: marge, y: yBarre, largeur: Math.round(utile * part), hauteur: 6 },
+				}
+			: null;
+
+	const texteBadge = assainirTexte(donnees.badge ?? "");
+	let badge: PlanCarte["badge"] = null;
+	if (texteBadge !== "") {
+		// La largeur est MESURÉE, plus devinée : le badge ne peut plus sortir du
+		// cadre, et il n'y a plus de marge de sécurité à régler à la main.
+		const largeurBadge = Math.ceil(mesurer(texteBadge, POLICES.badge)) + 24;
+		const hauteurBadge = 32;
+		badge = {
+			texte: texteBadge,
+			zone: {
+				x: Math.max(marge, largeur - marge - largeurBadge),
+				y: hauteurImage - marge - hauteurBadge - (progression ? 12 : 0),
+				largeur: Math.min(largeurBadge, utile),
+				hauteur: hauteurBadge,
+			},
+		};
+	}
+
+	return {
+		lignesTitre,
+		sousTitre,
+		badge,
+		pastilleVu: donnees.vu ? { x: marge, y: marge, largeur: 52, hauteur: 30 } : null,
+		progression,
+	};
 }
 
 /**
@@ -355,8 +294,6 @@ export function variantesVignette(url: string): string[] {
 	);
 	if (!trouve) return [url];
 	const base = trouve[1]!;
-	// `maxresdefault` n'existe pas pour toutes les vidéos, `hq720` souvent si ;
-	// `hqdefault` répond toujours, d'où sa place en dernier recours.
 	return [`${base}/maxresdefault.jpg`, `${base}/hq720.jpg`, `${base}/hqdefault.jpg`, url];
 }
 
@@ -372,7 +309,6 @@ export function recadrerLetterbox(
 ): { top: number; left: number; width: number; height: number } | null {
 	if (largeur <= 0 || hauteur <= 0) return null;
 	const cible = Math.round((largeur * 9) / 16);
-	// Tolérance : une image déjà en 16/9 (ou plus large) n'a pas de bandes.
 	if (hauteur - cible < 4) return null;
 	return { left: 0, top: Math.round((hauteur - cible) / 2), width: largeur, height: cible };
 }
@@ -398,95 +334,241 @@ export const TELECHARGEUR_PAR_DEFAUT: Telechargeur = async (url) => {
 	}
 };
 
-/** `sharp`, chargé au premier besoin ; `null` s'il n'est pas installé. */
-let rasteriseur: Promise<unknown> | null = null;
+/** Le sous-ensemble de `@napi-rs/canvas` réellement utilisé. */
+interface ModuleCanvas {
+	createCanvas(largeur: number, hauteur: number): ToileCanvas;
+	loadImage(source: Uint8Array | Buffer): Promise<ImageCanvas>;
+}
 
-async function chargerSharp(): Promise<((entree?: unknown) => never) | null> {
-	rasteriseur ??= import("sharp")
-		.then((module) => (module as { default: unknown }).default)
+interface ImageCanvas {
+	width: number;
+	height: number;
+}
+
+interface ContexteCanvas {
+	font: string;
+	fillStyle: string;
+	textAlign: string;
+	textBaseline: string;
+	measureText(texte: string): { width: number };
+	fillText(texte: string, x: number, y: number): void;
+	fillRect(x: number, y: number, largeur: number, hauteur: number): void;
+	drawImage(
+		image: ImageCanvas,
+		sx: number,
+		sy: number,
+		sw: number,
+		sh: number,
+		dx: number,
+		dy: number,
+		dw: number,
+		dh: number
+	): void;
+	beginPath(): void;
+	moveTo(x: number, y: number): void;
+	lineTo(x: number, y: number): void;
+	quadraticCurveTo(cx: number, cy: number, x: number, y: number): void;
+	closePath(): void;
+	clip(): void;
+	fill(): void;
+	save(): void;
+	restore(): void;
+	createLinearGradient(x0: number, y0: number, x1: number, y1: number): DegradeCanvas;
+}
+
+interface DegradeCanvas {
+	addColorStop(position: number, couleur: string): void;
+}
+
+interface ToileCanvas {
+	getContext(type: "2d"): ContexteCanvas;
+	toBuffer(format: string, qualite?: number): Buffer;
+}
+
+/** Le module canvas, chargé au premier besoin ; `null` s'il manque. */
+let moduleCanvas: Promise<ModuleCanvas | null> | null = null;
+
+async function chargerCanvas(): Promise<ModuleCanvas | null> {
+	moduleCanvas ??= import("@napi-rs/canvas")
+		.then((module) => module as unknown as ModuleCanvas)
 		.catch(() => null);
-	return (await rasteriseur) as ((entree?: unknown) => never) | null;
+	return moduleCanvas;
+}
+
+/** Trace un rectangle aux coins arrondis dans le chemin courant. */
+function cheminArrondi(
+	ctx: ContexteCanvas,
+	x: number,
+	y: number,
+	largeur: number,
+	hauteur: number,
+	rayon: number
+): void {
+	const r = Math.max(0, Math.min(rayon, largeur / 2, hauteur / 2));
+	ctx.beginPath();
+	ctx.moveTo(x + r, y);
+	ctx.lineTo(x + largeur - r, y);
+	ctx.quadraticCurveTo(x + largeur, y, x + largeur, y + r);
+	ctx.lineTo(x + largeur, y + hauteur - r);
+	ctx.quadraticCurveTo(x + largeur, y + hauteur, x + largeur - r, y + hauteur);
+	ctx.lineTo(x + r, y + hauteur);
+	ctx.quadraticCurveTo(x, y + hauteur, x, y + hauteur - r);
+	ctx.lineTo(x, y + r);
+	ctx.quadraticCurveTo(x, y, x + r, y);
+	ctx.closePath();
 }
 
 /**
- * Compose la carte et rend un PNG.
+ * Compose la carte et rend une image WebP.
  *
- * Rend `null` — jamais une exception — quand `sharp` manque, quand l'image est
- * injoignable ou illisible. Une vignette est un ornement : son échec ne doit
- * pas empêcher la réponse, seulement la priver d'image.
+ * ── WEBP, PAS PNG ──────────────────────────────────────────────────────────
+ * La carte est aux trois quarts une photographie : le PNG, sans perte, la
+ * rendait en 577 Ko pour 640 pixels de large — mesuré. Le WebP tombe à
+ * quelques dizaines de kilooctets sans dégrader le texte.
+ *
+ * Rend `null` — jamais une exception — quand le canvas manque, quand l'image
+ * est injoignable ou illisible. Une vignette est un ornement : son échec ne
+ * doit pas empêcher la réponse, seulement la priver d'image.
  */
 export async function rendreVignette(
 	donnees: DonneesVignette,
 	options: { telecharger?: Telechargeur } = {}
 ): Promise<Buffer | null> {
-	const sharp = await chargerSharp();
-	if (!sharp) return null;
+	const canvas = await chargerCanvas();
+	if (!canvas) return null;
 
 	const telecharger = options.telecharger ?? TELECHARGEUR_PAR_DEFAUT;
+	const { largeur, hauteurImage, rayon, marge } = CARTE;
 
 	try {
-		// Les variantes sont essayées dans l'ordre : la première qui répond
-		// gagne. Une seule requête dans le cas courant, où la meilleure existe.
-		let fond: Uint8Array | null = null;
+		const toile = canvas.createCanvas(largeur, CARTE_HAUTEUR);
+		const ctx = toile.getContext("2d");
+		const mesurer: Mesureur = (texte, police) => {
+			ctx.font = police;
+			return ctx.measureText(texte).width;
+		};
+		const plan = planifierCarte(donnees, mesurer);
+
+		ctx.fillStyle = COULEURS_CARTE.fond;
+		ctx.fillRect(0, 0, largeur, CARTE_HAUTEUR);
+
+		// ── L'IMAGE ────────────────────────────────────────────────────────
 		if (donnees.image) {
+			let octets: Uint8Array | null = null;
 			for (const variante of variantesVignette(donnees.image)) {
-				fond = await telecharger(variante);
-				if (fond) break;
+				octets = await telecharger(variante);
+				if (octets) break;
+			}
+
+			if (octets) {
+				const image = await canvas.loadImage(octets);
+				// Les bandes noires d'une source 4/3 sont retirées AVANT le
+				// recadrage : sans cela elles survivent au « cover ».
+				const zone = recadrerLetterbox(image.width, image.height) ?? {
+					left: 0,
+					top: 0,
+					width: image.width,
+					height: image.height,
+				};
+
+				// Recadrage « cover » : on remplit le cadre sans déformer.
+				const echelle = Math.max(largeur / zone.width, hauteurImage / zone.height);
+				const largeurSource = Math.min(zone.width, Math.round(largeur / echelle));
+				const hauteurSource = Math.min(zone.height, Math.round(hauteurImage / echelle));
+
+				ctx.save();
+				cheminArrondi(ctx, 0, 0, largeur, hauteurImage, rayon);
+				ctx.clip();
+				ctx.drawImage(
+					image,
+					zone.left + Math.round((zone.width - largeurSource) / 2),
+					zone.top + Math.round((zone.height - hauteurSource) / 2),
+					largeurSource,
+					hauteurSource,
+					0,
+					0,
+					largeur,
+					hauteurImage
+				);
+				ctx.restore();
 			}
 		}
 
-		// L'image distante, débarrassée de ses bandes noires, recadrée en 16/9
-		// puis arrondie. Sans image, un aplat sombre : une carte sans fond reste
-		// lisible, une carte absente non.
-		let image: Buffer | null = null;
-		if (fond) {
-			const source = sharp(Buffer.from(fond)) as never as SharpLike;
-			const meta = await source.metadata();
-			const decoupe = recadrerLetterbox(meta.width ?? 0, meta.height ?? 0);
-			const prepare = decoupe ? source.extract(decoupe) : source;
-			image = await prepare
-				.resize(CARTE.largeur, CARTE.hauteurImage, { fit: "cover", position: "attention" })
-				.composite([{ input: Buffer.from(svgMasqueImage()), blend: "dest-in" }])
-				.png()
-				.toBuffer();
+		// Voile sombre en bas de l'image : sans lui, un badge blanc posé sur une
+		// image claire devient illisible.
+		const voile = ctx.createLinearGradient(0, hauteurImage - 110, 0, hauteurImage);
+		voile.addColorStop(0, "rgba(0,0,0,0)");
+		voile.addColorStop(1, "rgba(0,0,0,0.65)");
+		ctx.fillStyle = voile as unknown as string;
+		ctx.fillRect(0, hauteurImage - 110, largeur, 110);
+
+		// ── LES SURCOUCHES ─────────────────────────────────────────────────
+		if (plan.pastilleVu) {
+			const z = plan.pastilleVu;
+			ctx.fillStyle = COULEURS_CARTE.vu;
+			cheminArrondi(ctx, z.x, z.y, z.largeur, z.hauteur, 6);
+			ctx.fill();
+			ctx.fillStyle = "#ffffff";
+			ctx.font = POLICES.badge;
+			ctx.textAlign = "center";
+			ctx.textBaseline = "middle";
+			ctx.fillText("vu", z.x + z.largeur / 2, z.y + z.hauteur / 2);
 		}
 
-		const base = (sharp({
-			create: {
-				width: CARTE.largeur,
-				height: CARTE_HAUTEUR,
-				channels: 4,
-				background: COULEURS_CARTE.fond,
-			},
-		}) as never as SharpLike).composite(
-			[
-				...(image ? [{ input: image, top: 0, left: 0 }] : []),
-				{ input: Buffer.from(svgCarte(donnees)), top: 0, left: 0 },
-			].filter(Boolean)
-		);
+		if (plan.progression) {
+			ctx.fillStyle = COULEURS_CARTE.pisteProgression;
+			cheminArrondi(
+				ctx,
+				plan.progression.piste.x,
+				plan.progression.piste.y,
+				plan.progression.piste.largeur,
+				plan.progression.piste.hauteur,
+				3
+			);
+			ctx.fill();
+			ctx.fillStyle = COULEURS_CARTE.progression;
+			cheminArrondi(
+				ctx,
+				plan.progression.remplie.x,
+				plan.progression.remplie.y,
+				plan.progression.remplie.largeur,
+				plan.progression.remplie.hauteur,
+				3
+			);
+			ctx.fill();
+		}
 
-		// ── WEBP, PAS PNG ──────────────────────────────────────────────────
-		// La carte est aux trois quarts une PHOTOGRAPHIE : le PNG, sans perte,
-		// la rendait en 577 Ko pour 640 pixels de large — mesuré. Le WebP tombe
-		// à quelques dizaines de kilooctets sans dégrader le texte, et Discord
-		// l'affiche nativement. La qualité est haute exprès : les aplats du
-		// bandeau et les lettres blanches sur fond sombre sont ce qui souffre
-		// le plus d'une compression agressive.
-		return await base.webp({ quality: 88, effort: 4 }).toBuffer();
+		if (plan.badge) {
+			const z = plan.badge.zone;
+			ctx.fillStyle = COULEURS_CARTE.badgeFond;
+			cheminArrondi(ctx, z.x, z.y, z.largeur, z.hauteur, 6);
+			ctx.fill();
+			ctx.fillStyle = COULEURS_CARTE.badgeTexte;
+			ctx.font = POLICES.badge;
+			ctx.textAlign = "center";
+			ctx.textBaseline = "middle";
+			ctx.fillText(plan.badge.texte, z.x + z.largeur / 2, z.y + z.hauteur / 2);
+		}
+
+		// ── LE BANDEAU DE TEXTE ────────────────────────────────────────────
+		ctx.textAlign = "left";
+		ctx.textBaseline = "middle";
+		ctx.fillStyle = COULEURS_CARTE.titre;
+		ctx.font = POLICES.titre;
+		plan.lignesTitre.forEach((ligne, rang) => {
+			ctx.fillText(ligne, marge, hauteurImage + 34 + rang * 32);
+		});
+
+		if (plan.sousTitre !== "") {
+			ctx.fillStyle = COULEURS_CARTE.secondaire;
+			ctx.font = POLICES.sousTitre;
+			ctx.fillText(plan.sousTitre, marge, hauteurImage + 34 + plan.lignesTitre.length * 32 + 6);
+		}
+
+		return toile.toBuffer("image/webp", 88);
 	} catch {
 		return null;
 	}
-}
-
-/** Le sous-ensemble de `sharp` réellement utilisé — évite un `any` diffus. */
-interface SharpLike {
-	resize(largeur: number, hauteur: number, options?: Record<string, unknown>): SharpLike;
-	composite(couches: readonly Record<string, unknown>[]): SharpLike;
-	extract(zone: { top: number; left: number; width: number; height: number }): SharpLike;
-	metadata(): Promise<{ width?: number; height?: number }>;
-	png(options?: Record<string, unknown>): SharpLike;
-	webp(options?: Record<string, unknown>): SharpLike;
-	toBuffer(): Promise<Buffer>;
 }
 
 /** Nom de fichier d'une vignette — il s'affiche sous la pièce jointe. */
