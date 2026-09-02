@@ -80,6 +80,7 @@
 		"typecheck": "bun --bun tsc --noEmit"
 	},
 	"dependencies": {
+		"@niers/catalog": "workspace:*",
 		"@rosegriffon/db": "workspace:*",
 		"@rosegriffon/inagle": "workspace:*",
 		"@supabase/supabase-js": "catalog:",
