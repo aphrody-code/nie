@@ -43,7 +43,15 @@ Un seul lockfile, à la racine. Bibliothèque → `packages/`, application avec 
 |--------|------|
 | `packages/nie` | Bindings FFI de `libnie_ffi` — la porte d'entrée TS vers les crates Rust |
 | `packages/nie-bridge` | Protocole de contrôle partagé `nie-mcp` ↔ `nie-explorer` |
+| `packages/nie-catalog` | **La façade des quatre gisements** (jeu / extrait / re / anime) et leurs jointures |
 | `packages/nie-plugin` | Plugin Bun d'import des formats — **préchargé par `bunfig.toml`** |
+| `packages/azalee` | La bibliothèque du wiki — service, images, clients CDN client-safe (`cpk/*`) |
+| `packages/inagle` | Le pipeline des données du jeu : parsers, entités, push vers Postgres |
+| `packages/cron` | Le démon de tâches, dont `src/tasks/ie-crawl/` (43 modules de veille) |
+| `packages/ietv`, `wonderbot`, `zukan` | Catalogue d'épisodes de la série, son bot Discord, le zukan officiel |
+| `packages/db`, `types`, `auth`, `config`, `ui`, `assets`, `mcp` | Le socle partagé du wiki |
+| `apps/azalee` | Le site du wiki (Next.js 15, App Router) |
+| `apps/bxc` | La passerelle vers `@aphrody/bxc` et le workflow de scrapping unifié |
 | `apps/nie-explorer` | Explorateur/éditeur Tauri (React + Rust, `src-tauri` hors workspace Cargo) |
 | `apps/nie-mcp` | Serveur MCP `niers-game` — VFS, assets, KB RE, pilotage de l'explorateur |
 
@@ -66,6 +74,34 @@ bun run lint
 - **`nie` est aussi un paquet du registre npm.** Sans `bun install` à la racine, `import … from "nie"`
   résout vers `nie@1.2.7` du cache et non vers `packages/nie` — erreur trompeuse
   `Export named 'decode' not found`. Le `dlopen` de `nie_ffi.dll` n'est que la cause *suivante*.
+
+## Les quatre gisements — passer par la façade
+
+Depuis la fusion (`docs/FUSION.md`), **tout ce qui touche Inazuma Eleven vit ici**. Les données
+sont réparties en quatre gisements, et `@niers/catalog` est la seule porte à emprunter :
+
+| Gisement | Contenu | Emplacement |
+|---|---|---|
+| `jeu` | les fichiers du jeu, décodés à la volée | `nie-model-serve` — `NIE_CDN_URL` |
+| `extrait` | 66 tables `inagle_*` | `var/mirror.sqlite` (lien daté, `scripts/donnees/miroir-inagle.sh`) |
+| `re` | le reverse de `nie.exe` | `var/niers.sqlite` |
+| `anime` | les épisodes de la série | `data/anime/episodes.db` |
+
+```bash
+bun --bun packages/nie-catalog/src/cli.ts etat        # ce que la machine peut répondre
+bun --bun packages/nie-catalog/src/cli.ts cherche "Mark"
+```
+
+- **Ne jamais rouvrir une de ces bases à la main** : la façade porte les pièges (le miroir est un
+  lien symbolique rebasculé, le binaire de référence du reverse est le `2` et pas le `1`).
+- **Chaque jointure porte sa confiance** — `cle`, `prefixe` ou `texte`. Le jeu et la série n'ont
+  **aucune clé commune** : un rapprochement par le nom est utile, il ne se présente jamais comme
+  un fait.
+- **`inagle_game_assets` n'est PAS l'index des fichiers du jeu** : 40 469 de ses 40 471 lignes
+  sont des PNG de menu. Le seul index complet est le VFS (`/vfs/find`).
+- Un gisement **présent peut être vide** : `etat()` mesure le contenu, pas l'existence du fichier.
+- Le schéma SQL vit dans `supabase/migrations/` — rejouable, idempotent, vérifié colonne par
+  colonne contre la production (811/811). Il crée la **forme** ; le contenu vient du jeu.
 
 ## Doctrine polyglotte — un rôle, un langage
 

@@ -21,6 +21,10 @@ des services.
 | `bxc/packages/{ietv,ietv-client,wonderbot,zukan}` | `packages/*` | le catalogue d'épisodes et son bot Discord |
 | `bxc/` (app) | `apps/bxc` | l'automatisation de navigateur dont dépend le crawler |
 | `~/.cache/ietv/episodes.db` | `data/anime/episodes.db` | 355 épisodes, 10 saisons, 3 chaînes |
+| `rg/apps/azalee` | `apps/azalee` | le site du wiki (Next.js 15) — sans `.next` ni `data/` |
+| `rg/packages/azalee` | `packages/azalee` | sa bibliothèque — sans `bin/azalee`, 79 Mo de binaire recompilable |
+| `rg/packages/{ui,assets,mcp}` | `packages/*` | le socle d'interface, les images, le serveur MCP |
+| *(généré depuis la base)* | `supabase/migrations/` | le schéma des 66 tables `inagle_*`, qui n'existait nulle part |
 | *(nouveau)* | `packages/nie-catalog` | **la façade** — voir plus bas |
 
 Le catalogue de versions de `rg` (183 entrées) a été fusionné dans celui d'ici. Deux conflits,
@@ -67,13 +71,39 @@ l'ancien miroir en place, au lieu de faire répondre « aucun résultat » à to
 `@niers/catalog` résout `var/mirror.sqlite` **en premier**, et retombe sur celui de `rg` s'il
 n'existe pas encore : les deux dépôts peuvent coexister pendant la bascule.
 
+## Le schéma SQL, qui n'existait nulle part
+
+Les 66 tables `inagle_*` avaient été créées par le pipeline de push, au fil des familles portées :
+une base neuve n'était pas reconstructible, et rien ne disait quel schéma le code attend.
+`supabase/migrations/` le pose — **généré depuis la base réelle**, pas écrit de mémoire.
+
+Trois propriétés, mesurées :
+
+* **rejouables à froid** — les quatre fichiers passent sur une base vide, dans l'ordre ;
+* **idempotentes** — ils repassent sur la base qu'ils viennent de créer. Les séquences et les vues
+  manquaient aux deux premiers essais ; c'est le rejeu qui l'a dit, pas la relecture ;
+* **fidèles** — le schéma reconstruit porte **les 811 colonnes de la production, sans exception**
+  (comparaison de `information_schema.columns`).
+
+Les politiques RLS sont à part : elles interrogent `public.profiles` et `auth.uid()`, donc le
+socle Supabase. Une base qui ne porte que les tables du jeu se construit sans lui — la migration
+le détecte et passe son tour en le disant. Détail dans `supabase/README.md`.
+
+## La bibliothèque du wiki lit maintenant le miroir du dépôt
+
+`resolveMirrorPath()` ne cherchait que sous `apps/azalee/data/backups`. Elle remonte désormais
+jusqu'au dossier qui porte `Cargo.toml` **et** `crates/` — la même signature que côté Rust, pour
+qu'un `var/` homonyme rencontré en chemin ne soit jamais pris pour la racine — et y lit
+`var/mirror.sqlite`. Vérifié : 6 166 personnages, 1 002 techniques, lus depuis le miroir d'ici.
+
 ## Ce qui reste dehors, et pourquoi
 
-* **Le site `rg/apps/azalee` et ses services de production** (`azalee-web`, `azalee-api`,
-  `rg-postgrest`, `rg-realtime`, `rg-storage`, `rg-cdn`, `cdn-variants`). Ce sont des services
-  vivants servant un domaine public ; les déplacer casserait la production sans rien prouver. Ils
-  consomment désormais les mêmes données, par le même miroir.
-* **`rg/packages/azalee`** (99 Mo) — la couche web du wiki. Elle n'a de sens qu'avec le site.
+* **Les services de production qui servent le site** (`azalee-web`, `azalee-api`,
+  `rg-postgrest`, `rg-realtime`, `rg-storage`, `rg-cdn`, `cdn-variants`) tournent encore depuis
+  `rg`. Le **code** est ici ; ce sont les unités systemd qui restent à basculer, et c'est une
+  opération de production, pas une copie de fichiers.
+* **`rg/apps/website`** (le site vitrine Rose Griffon), **`rg/apps/bot`** (le bot Discord de la
+  communauté) et **`rg/packages/patreon-bun`** ne portent pas sur Inazuma Eleven.
 * **`aphrody/`** — bibliothèques Material Design 3, sans rapport avec Inazuma Eleven.
 * **Les autres services `bxc`** (`bxc.service`, les deux crawlers, `bxc-x-*`) rendent des
   services au-delà d'Inazuma Eleven : ils restent où ils sont.
@@ -84,12 +114,18 @@ n'existe pas encore : les deux dépôts peuvent coexister pendant la bascule.
 |---|---|---|
 | `azalee-mirror-sync.timer` | à désarmer | `nie-miroir.timer` (unités écrites, non installées) |
 | `rg-cron.service` | **actif**, `WorkingDirectory=/home/ubuntu/rg/packages/cron` | le code est ici ; l'unité reste à écrire et à basculer |
-| `bxc-wonderbot.service` | **actif**, `WorkingDirectory=/home/ubuntu/bxc` | `nie-wonderbot` |
+| `bxc-wonderbot.service` | **désarmé** | `niers-wonderbot.service`, **actif** — même guilde, même jeton |
+| `azalee-web`, `azalee-api` | **actifs** depuis `rg` | à basculer une fois le site vérifié ici |
 
-Rien n'a encore été arrêté ni installé : le code est rapatrié et vérifié, la bascule est une
-opération de production qui se fait sciemment, unité par unité, en vérifiant que la nouvelle
-répond avant de désarmer l'ancienne. Un seul bot par jeton Discord — deux instances sur le même
-jeton se battent et répondent en double.
+Une seule bascule a eu lieu, et elle est vérifiée : `bxc-wonderbot` est désarmé,
+`niers-wonderbot` tourne depuis ce dépôt, connecté à la même guilde avec le même jeton (les
+secrets vivent dans `~/.config/niers/wonderbot.env`, en 600, hors du dépôt). **Un seul bot par
+jeton Discord** : deux instances sur le même jeton se battent et répondent en double — c'est la
+raison pour laquelle on désarme l'ancienne avant d'armer la nouvelle, jamais l'inverse.
+
+Les autres attendent : le code est rapatrié et vérifié, mais basculer `azalee-web` ou `rg-cron`
+coupe un service public. Cela se fait unité par unité, en vérifiant que la nouvelle répond avant
+de désarmer l'ancienne.
 
 ## Vérifier
 
