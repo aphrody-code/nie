@@ -567,15 +567,18 @@
         "@discordjs/voice": "catalog:",
         "@types/bun": "catalog:",
         "libsodium-wrappers": "catalog:",
+        "sharp": "catalog:",
         "typescript": "catalog:",
       },
       "peerDependencies": {
         "@discordjs/voice": "catalog:",
         "libsodium-wrappers": "catalog:",
+        "sharp": "catalog:",
       },
       "optionalPeers": [
         "@discordjs/voice",
         "libsodium-wrappers",
+        "sharp",
       ],
     },
     "packages/zukan": {
