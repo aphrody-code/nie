@@ -100,10 +100,36 @@ Four implementations live under one root, each with a role it owns
 | `crates/` | Rust | The engine, the forge, and the **only** user-facing CLI |
 | `src/` | C++ | The `iecode` toolkit; decompiled C on its way to a playable `nie` |
 | `csharp/` | C# | Dumping, packing, memory reading, texture conversion |
-| `packages/`, `apps/` | Bun/TS | MCP server, desktop app, web surface |
+| `packages/`, `apps/` | Bun/TS | The wiki and its library, the data pipeline, the cron daemon, the Discord bots, the MCP server, the desktop app |
+| `supabase/migrations/` | SQL | The schema of the extracted game data — replayable, idempotent, verified against production |
 
 `niers` is the single entry point: `niers cpp …` and `niers cs …` delegate to the other two
 toolchains, `niers backends` reports what is built and where.
+
+### Everything Inazuma Eleven lives here
+
+The work used to be spread across three repositories. The same character existed four times over
+— a row in the wiki's database, files in the VFS, strings in the reversed binary, an episode in
+the anime catalogue — and nothing joined those four existences.
+
+They now sit under one root, and `@niers/catalog` is the joint:
+
+```bash
+bun --bun packages/nie-catalog/src/cli.ts etat
+bun --bun packages/nie-catalog/src/cli.ts personnage mark-evans-0x06E25622
+```
+
+| Gisement | What it holds | Where it lives |
+|---|---|---|
+| **jeu** | the game's files, decoded on demand | `nie-model-serve` — `NIE_CDN_URL` |
+| **extrait** | 66 `inagle_*` tables pulled from those files | `var/mirror.sqlite` |
+| **re** | the reverse of `nie.exe` | `var/niers.sqlite` |
+| **anime** | the series' episodes | `data/anime/episodes.db` |
+
+Every join carries how it was obtained — a shared key, a path prefix, or a name match. That last
+one matters: the game and the series share no key at all, so a name match is useful but is never
+presented as a fact. See [`docs/FUSION.md`](docs/FUSION.md) and
+[`packages/nie-catalog/README.md`](packages/nie-catalog/README.md).
 
 ### Rust crates (34 total, 32 compiled)
 
