@@ -1,5 +1,5 @@
 # justfile — orchestrateur de la stack RE niers.
-# Requiert `just` (cargo install just). Toolchain nightly-2026-05-17 + mold (cf .cargo/config.toml).
+# Requiert `just` (cargo install just). Toolchain nightly-2026-05-17 (cf rust-toolchain.toml).
 # Variables surchargeables : `just exe=/autre/nie.exe re-all`, ou via env NIERS_GAME_DIR.
 
 set shell := ["bash", "-uc"]
@@ -19,7 +19,8 @@ default:
 
 # --- Build -------------------------------------------------------------------
 
-# Compile le binaire niers en release (mold + target-cpu=native).
+# Compile le binaire niers en release. Ni mold ni target-cpu=native : .cargo/config.toml les
+# écarte volontairement (un `native` change l'ordre des flottants et casse les goldens byte-exacts).
 build:
     cargo build --release -p nie-cli
 
@@ -77,7 +78,7 @@ re-seed: build
 
 # 2) Refonde la carte sur .pdata (verite terrain), re-ancre, disasm, propage.
 re-rebuild: build
-    @test -f "{{db}}"  || { echo "ABSENT db: {{db}} — lance `just re-seed`" >&2; exit 1; }
+    @test -f "{{db}}"  || { echo "ABSENT db: {{db}} — lance 'just re-seed'" >&2; exit 1; }
     @test -f "{{exe}}" || { echo "ABSENT exe: {{exe}}" >&2; exit 1; }
     time {{bin}} rebuild --db {{db}} --exe {{exe}} --rounds {{rounds}}
 
@@ -188,7 +189,8 @@ cpp-configure:
 cpp-build: cpp-configure
     "{{cmake_exe}}" --build --preset {{cmake_build_preset}}
 
-# Suite GTest (828+ cas).
+# Suite GTest (59 fichiers sous src/tests). Le compte de cas n'est pas cite ici : seul ctest le
+# mesure, et il ne tourne pas sur ce VPS (ni MSVC ni vcpkg configure).
 cpp-test: cpp-build
     ctest --preset {{cmake_build_preset}} --output-on-failure
 

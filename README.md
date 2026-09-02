@@ -3,10 +3,10 @@
 **A byte-exact reimplementation of _Inazuma Eleven: Victory Road_ in pure Rust — and a forge that
 rebuilds the original `nie.exe`, byte for byte, to prove it.**
 
-![version](https://img.shields.io/badge/version-0.4.0-blue)
+![version](https://img.shields.io/badge/version-0.5.2-blue)
 ![rust](https://img.shields.io/badge/rust-nightly--2026--05--17-orange)
 ![tests](https://img.shields.io/badge/tests-2%2C448%20passing-brightgreen)
-![forge](https://img.shields.io/badge/forge-51.86%25%20of%20nie.exe-yellow)
+![forge](https://img.shields.io/badge/forge-69.37%25%20of%20nie.exe-yellow)
 
 📥 **Desktop app** (VFS explorer + Blender add-on): **<https://azalee.rosegriffon.fr/tools/niers>**
 
@@ -38,9 +38,9 @@ yourself:
 
 | What | Measured | Command |
 |---|---|---|
-| Bytes of `nie.exe` produced by this repo | **51.86 %** of the file · **66.09 %** of `.text` | `nie-forge report` |
+| Bytes of `nie.exe` produced by this repo | **69.37 %** of the file · **90.36 %** of `.text` | `nie-forge report` |
 | VFS files in a format we parse | **99.56 %** (254,187 / 255,308 across 936 CPK) | `niers vfs stats` |
-| Functions classified in the binary | **93.36 %** (49,280 / 52,783) · 6,429 named | `niers coverage --db var/niers.sqlite` |
+| Functions classified in the binary | **92.65 %** (100,664 / 108,650) · 13,653 named | `niers coverage --db var/niers.sqlite` |
 | Functions ported **and** proven byte-exact | **43** | `uv run scripts/validate_re.py` |
 | Test suite | **2,448 passing** | `cargo test --workspace` |
 
