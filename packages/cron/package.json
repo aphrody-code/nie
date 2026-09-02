@@ -1,0 +1,38 @@
+{
+	"name": "@rosegriffon/cron",
+	"version": "0.1.0",
+	"description": "Daemon de tâches planifiées (cron) pour la maintenance DB, CDN et API",
+	"private": true,
+	"type": "module",
+	"main": "./src/index.ts",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"start": "bun src/index.ts",
+		"build": "bun build src/index.ts --compile --minify --sourcemap --bytecode --format esm --external @aphrody-code/bxc --external @aphrody-code/bxc/google --external @aphrody-code/bxc/internal/html-utils --outfile dist/rg-cron",
+		"type-check": "bun --bun tsc -p tsconfig.typecheck.json --noEmit",
+		"lint": "bunx oxlint -c ../../.oxlintrc.json src"
+	},
+	"dependencies": {
+		"@aphrody-code/bxc": "catalog:",
+		"@aphrody-code/x": "catalog:",
+		"@aphrody-code/zukan": "catalog:",
+		"@asteasolutions/zod-to-openapi": "catalog:",
+		"@rosegriffon/auth": "workspace:*",
+		"@rosegriffon/db": "workspace:*",
+		"@rosegriffon/inagle": "workspace:*",
+		"@rosegriffon/types": "workspace:*",
+		"cheerio": "catalog:",
+		"discord.js": "catalog:",
+		"zod": "catalog:"
+	},
+	"devDependencies": {
+		"@types/bun": "catalog:",
+		"typescript": "catalog:"
+	},
+	"publishConfig": {
+		"access": "public",
+		"registry": "https://registry.npmjs.org"
+	}
+}

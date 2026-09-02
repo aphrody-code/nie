@@ -1,0 +1,92 @@
+[
+  {
+    "id": "0xFF00C6B4",
+    "name": "chapter01",
+    "phaseId": "0xFF00C6B4",
+    "textureId": "0x27C94F5A",
+    "imagePath": "chapter_title/fr/chapter01",
+    "attributes": {
+      "Image": "chapter_title/fr/chapter01"
+    }
+  },
+  {
+    "id": "0x6609970E",
+    "name": "chapter02",
+    "phaseId": "0x6609970E",
+    "textureId": "0xBEC01EE0",
+    "imagePath": "chapter_title/fr/chapter02",
+    "attributes": {
+      "Image": "chapter_title/fr/chapter02"
+    }
+  },
+  {
+    "id": "0x110EA798",
+    "name": "chapter03",
+    "phaseId": "0x110EA798",
+    "textureId": "0xC9C72E76",
+    "imagePath": "chapter_title/fr/chapter03",
+    "attributes": {
+      "Image": "chapter_title/fr/chapter03"
+    }
+  },
+  {
+    "id": "0x8F6A323B",
+    "name": "chapter04",
+    "phaseId": "0x8F6A323B",
+    "textureId": "0x57A3BBD5",
+    "imagePath": "chapter_title/fr/chapter04",
+    "attributes": {
+      "Image": "chapter_title/fr/chapter04"
+    }
+  },
+  {
+    "id": "0xF86D02AD",
+    "name": "chapter05",
+    "phaseId": "0xF86D02AD",
+    "textureId": "0x20A48B43",
+    "imagePath": "chapter_title/fr/chapter05",
+    "attributes": {
+      "Image": "chapter_title/fr/chapter05"
+    }
+  },
+  {
+    "id": "0x61645317",
+    "name": "chapter06",
+    "phaseId": "0x61645317",
+    "textureId": "0xB9ADDAF9",
+    "imagePath": "chapter_title/fr/chapter06",
+    "attributes": {
+      "Image": "chapter_title/fr/chapter06"
+    }
+  },
+  {
+    "id": "0x16636381",
+    "name": "chapter07",
+    "phaseId": "0x16636381",
+    "textureId": "0xCEAAEA6F",
+    "imagePath": "chapter_title/fr/chapter07",
+    "attributes": {
+      "Image": "chapter_title/fr/chapter07"
+    }
+  },
+  {
+    "id": "0x86DC7E10",
+    "name": "chapter08",
+    "phaseId": "0x86DC7E10",
+    "textureId": "0x5E15F7FE",
+    "imagePath": "chapter_title/fr/chapter08",
+    "attributes": {
+      "Image": "chapter_title/fr/chapter08"
+    }
+  },
+  {
+    "id": "0xF1DB4E86",
+    "name": "chapter09",
+    "phaseId": "0xF1DB4E86",
+    "textureId": "0x2912C768",
+    "imagePath": "chapter_title/fr/chapter09",
+    "attributes": {
+      "Image": "chapter_title/fr/chapter09"
+    }
+  }
+]

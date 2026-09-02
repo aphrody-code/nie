@@ -1,0 +1,1028 @@
+[
+  {
+    "id": "0x6AE23243",
+    "name": "0x6AE23243",
+    "emoteId": "0x6AE23243",
+    "flagIdx": 0,
+    "sortId": 0,
+    "type": 0,
+    "textId": "0x55FBBA47",
+    "stampIdx": 0,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 0,
+      "SortId": 0,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0xF3EB63F9",
+    "name": "0xF3EB63F9",
+    "emoteId": "0xF3EB63F9",
+    "flagIdx": 1,
+    "sortId": 1,
+    "type": 0,
+    "textId": "0xCCF2EBFD",
+    "stampIdx": 0,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 0,
+      "SortId": 1,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0x84EC536F",
+    "name": "0x84EC536F",
+    "emoteId": "0x84EC536F",
+    "flagIdx": 2,
+    "sortId": 2,
+    "type": 0,
+    "textId": "0xBBF5DB6B",
+    "stampIdx": 0,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 0,
+      "SortId": 2,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0x1A88C6CC",
+    "name": "0x1A88C6CC",
+    "emoteId": "0x1A88C6CC",
+    "flagIdx": 3,
+    "sortId": 3,
+    "type": 0,
+    "textId": "0x25914EC8",
+    "stampIdx": 0,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 0,
+      "SortId": 3,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0x6D8FF65A",
+    "name": "0x6D8FF65A",
+    "emoteId": "0x6D8FF65A",
+    "flagIdx": 4,
+    "sortId": 4,
+    "type": 0,
+    "textId": "0x52967E5E",
+    "stampIdx": 0,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 0,
+      "SortId": 4,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0xF486A7E0",
+    "name": "0xF486A7E0",
+    "emoteId": "0xF486A7E0",
+    "flagIdx": 5,
+    "sortId": 5,
+    "type": 0,
+    "textId": "0xCB9F2FE4",
+    "stampIdx": 0,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 0,
+      "SortId": 5,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0x83819776",
+    "name": "0x83819776",
+    "emoteId": "0x83819776",
+    "flagIdx": 6,
+    "sortId": 6,
+    "type": 0,
+    "textId": "0xBC981F72",
+    "stampIdx": 0,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 0,
+      "SortId": 6,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0x133E8AE7",
+    "name": "0x133E8AE7",
+    "emoteId": "0x133E8AE7",
+    "flagIdx": 7,
+    "sortId": 7,
+    "type": 0,
+    "textId": "0x2C2702E3",
+    "stampIdx": 0,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 0,
+      "SortId": 7,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0x6439BA71",
+    "name": "0x6439BA71",
+    "emoteId": "0x6439BA71",
+    "flagIdx": 8,
+    "sortId": 8,
+    "type": 0,
+    "textId": "0x5B203275",
+    "stampIdx": 0,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 0,
+      "SortId": 8,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0x04FE3394",
+    "name": "0x04FE3394",
+    "emoteId": "0x04FE3394",
+    "flagIdx": 9,
+    "sortId": 9,
+    "type": 0,
+    "textId": "0x3BE7BB90",
+    "stampIdx": 0,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 0,
+      "SortId": 9,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0x73F90302",
+    "name": "0x73F90302",
+    "emoteId": "0x73F90302",
+    "flagIdx": 10,
+    "sortId": 10,
+    "type": 0,
+    "textId": "0x4CE08B06",
+    "stampIdx": 0,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 0,
+      "SortId": 10,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0xEAF052B8",
+    "name": "0xEAF052B8",
+    "emoteId": "0xEAF052B8",
+    "flagIdx": 11,
+    "sortId": 11,
+    "type": 0,
+    "textId": "0xD5E9DABC",
+    "stampIdx": 0,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 0,
+      "SortId": 11,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0x9DF7622E",
+    "name": "0x9DF7622E",
+    "emoteId": "0x9DF7622E",
+    "flagIdx": 12,
+    "sortId": 12,
+    "type": 0,
+    "textId": "0xA2EEEA2A",
+    "stampIdx": 0,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 0,
+      "SortId": 12,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0x0393F78D",
+    "name": "0x0393F78D",
+    "emoteId": "0x0393F78D",
+    "flagIdx": 13,
+    "sortId": 13,
+    "type": 0,
+    "textId": "0x3C8A7F89",
+    "stampIdx": 0,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 0,
+      "SortId": 13,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0x7494C71B",
+    "name": "0x7494C71B",
+    "emoteId": "0x7494C71B",
+    "flagIdx": 14,
+    "sortId": 14,
+    "type": 0,
+    "textId": "0x4B8D4F1F",
+    "stampIdx": 0,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 0,
+      "SortId": 14,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0xED9D96A1",
+    "name": "0xED9D96A1",
+    "emoteId": "0xED9D96A1",
+    "flagIdx": 15,
+    "sortId": 15,
+    "type": 0,
+    "textId": "0xD2841EA5",
+    "stampIdx": 0,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 0,
+      "SortId": 15,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0x9A9AA637",
+    "name": "0x9A9AA637",
+    "emoteId": "0x9A9AA637",
+    "flagIdx": 16,
+    "sortId": 16,
+    "type": 0,
+    "textId": "0xA5832E33",
+    "stampIdx": 0,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 0,
+      "SortId": 16,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0x0A25BBA6",
+    "name": "0x0A25BBA6",
+    "emoteId": "0x0A25BBA6",
+    "flagIdx": 17,
+    "sortId": 17,
+    "type": 0,
+    "textId": "0x353C33A2",
+    "stampIdx": 0,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 0,
+      "SortId": 17,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0x7D228B30",
+    "name": "0x7D228B30",
+    "emoteId": "0x7D228B30",
+    "flagIdx": 18,
+    "sortId": 18,
+    "type": 0,
+    "textId": "0x423B0334",
+    "stampIdx": 0,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 0,
+      "SortId": 18,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0x2FD36057",
+    "name": "0x2FD36057",
+    "emoteId": "0x2FD36057",
+    "flagIdx": 19,
+    "sortId": 19,
+    "type": 0,
+    "textId": "0x10CAE853",
+    "stampIdx": 0,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 0,
+      "SortId": 19,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0x58D450C1",
+    "name": "0x58D450C1",
+    "emoteId": "0x58D450C1",
+    "flagIdx": 20,
+    "sortId": 20,
+    "type": 0,
+    "textId": "0x67CDD8C5",
+    "stampIdx": 0,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 0,
+      "SortId": 20,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0xC1DD017B",
+    "name": "0xC1DD017B",
+    "emoteId": "0xC1DD017B",
+    "flagIdx": 21,
+    "sortId": 21,
+    "type": 0,
+    "textId": "0xFEC4897F",
+    "stampIdx": 0,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 0,
+      "SortId": 21,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0xB6DA31ED",
+    "name": "0xB6DA31ED",
+    "emoteId": "0xB6DA31ED",
+    "flagIdx": 22,
+    "sortId": 22,
+    "type": 0,
+    "textId": "0x89C3B9E9",
+    "stampIdx": 0,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 0,
+      "SortId": 22,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0x28BEA44E",
+    "name": "0x28BEA44E",
+    "emoteId": "0x28BEA44E",
+    "flagIdx": 23,
+    "sortId": 23,
+    "type": 0,
+    "textId": "0x17A72C4A",
+    "stampIdx": 0,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 0,
+      "SortId": 23,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0x5FB994D8",
+    "name": "0x5FB994D8",
+    "emoteId": "0x5FB994D8",
+    "flagIdx": 24,
+    "sortId": 24,
+    "type": 0,
+    "textId": "0x60A01CDC",
+    "stampIdx": 0,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 0,
+      "SortId": 24,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0xC6B0C562",
+    "name": "0xC6B0C562",
+    "emoteId": "0xC6B0C562",
+    "flagIdx": 25,
+    "sortId": 25,
+    "type": 0,
+    "textId": "0xF9A94D66",
+    "stampIdx": 0,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 0,
+      "SortId": 25,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0xB1B7F5F4",
+    "name": "0xB1B7F5F4",
+    "emoteId": "0xB1B7F5F4",
+    "flagIdx": 26,
+    "sortId": 26,
+    "type": 0,
+    "textId": "0x8EAE7DF0",
+    "stampIdx": 0,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 0,
+      "SortId": 26,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0x0738FF66",
+    "name": "0x0738FF66",
+    "emoteId": "0x0738FF66",
+    "flagIdx": 100,
+    "sortId": 100,
+    "type": 1,
+    "textId": "0x88B089E4",
+    "stampIdx": 0,
+    "motionId": "0x4A6673E1",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 1,
+      "SortId": 100,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0x9E31AEDC",
+    "name": "0x9E31AEDC",
+    "emoteId": "0x9E31AEDC",
+    "flagIdx": 101,
+    "sortId": 101,
+    "type": 1,
+    "textId": "0x11B9D85E",
+    "stampIdx": 0,
+    "motionId": "0xD36F225B",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 1,
+      "SortId": 101,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0xE9369E4A",
+    "name": "0xE9369E4A",
+    "emoteId": "0xE9369E4A",
+    "flagIdx": 102,
+    "sortId": 102,
+    "type": 1,
+    "textId": "0x66BEE8C8",
+    "stampIdx": 0,
+    "motionId": "0xA46812CD",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 1,
+      "SortId": 102,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0x77520BE9",
+    "name": "0x77520BE9",
+    "emoteId": "0x77520BE9",
+    "flagIdx": 103,
+    "sortId": 103,
+    "type": 1,
+    "textId": "0xF8DA7D6B",
+    "stampIdx": 0,
+    "motionId": "0x3A0C876E",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 1,
+      "SortId": 103,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0x00553B7F",
+    "name": "0x00553B7F",
+    "emoteId": "0x00553B7F",
+    "flagIdx": 104,
+    "sortId": 104,
+    "type": 1,
+    "textId": "0x8FDD4DFD",
+    "stampIdx": 0,
+    "motionId": "0x4D0BB7F8",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 1,
+      "SortId": 104,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0x995C6AC5",
+    "name": "0x995C6AC5",
+    "emoteId": "0x995C6AC5",
+    "flagIdx": 105,
+    "sortId": 105,
+    "type": 1,
+    "textId": "0x16D41C47",
+    "stampIdx": 0,
+    "motionId": "0xD402E642",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 1,
+      "SortId": 105,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0xEE5B5A53",
+    "name": "0xEE5B5A53",
+    "emoteId": "0xEE5B5A53",
+    "flagIdx": 106,
+    "sortId": 106,
+    "type": 1,
+    "textId": "0x61D32CD1",
+    "stampIdx": 0,
+    "motionId": "0xA305D6D4",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 1,
+      "SortId": 106,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0x7EE447C2",
+    "name": "0x7EE447C2",
+    "emoteId": "0x7EE447C2",
+    "flagIdx": 107,
+    "sortId": 107,
+    "type": 1,
+    "textId": "0xF16C3140",
+    "stampIdx": 0,
+    "motionId": "0x33BACB45",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 1,
+      "SortId": 107,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0x6DD3C782",
+    "name": "0x6DD3C782",
+    "emoteId": "0x6DD3C782",
+    "flagIdx": 200,
+    "sortId": 200,
+    "type": 3,
+    "textId": "0x00000000",
+    "stampIdx": 1,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 3,
+      "SortId": 200,
+      "StampIdx": 1
+    }
+  },
+  {
+    "id": "0xF4DA9638",
+    "name": "0xF4DA9638",
+    "emoteId": "0xF4DA9638",
+    "flagIdx": 201,
+    "sortId": 201,
+    "type": 3,
+    "textId": "0x00000000",
+    "stampIdx": 2,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 3,
+      "SortId": 201,
+      "StampIdx": 2
+    }
+  },
+  {
+    "id": "0x83DDA6AE",
+    "name": "0x83DDA6AE",
+    "emoteId": "0x83DDA6AE",
+    "flagIdx": 202,
+    "sortId": 202,
+    "type": 3,
+    "textId": "0x00000000",
+    "stampIdx": 3,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 3,
+      "SortId": 202,
+      "StampIdx": 3
+    }
+  },
+  {
+    "id": "0x1DB9330D",
+    "name": "0x1DB9330D",
+    "emoteId": "0x1DB9330D",
+    "flagIdx": 203,
+    "sortId": 203,
+    "type": 3,
+    "textId": "0x00000000",
+    "stampIdx": 4,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 3,
+      "SortId": 203,
+      "StampIdx": 4
+    }
+  },
+  {
+    "id": "0x6ABE039B",
+    "name": "0x6ABE039B",
+    "emoteId": "0x6ABE039B",
+    "flagIdx": 204,
+    "sortId": 204,
+    "type": 3,
+    "textId": "0x00000000",
+    "stampIdx": 5,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 3,
+      "SortId": 204,
+      "StampIdx": 5
+    }
+  },
+  {
+    "id": "0xF3B75221",
+    "name": "0xF3B75221",
+    "emoteId": "0xF3B75221",
+    "flagIdx": 205,
+    "sortId": 205,
+    "type": 3,
+    "textId": "0x00000000",
+    "stampIdx": 6,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 3,
+      "SortId": 205,
+      "StampIdx": 6
+    }
+  },
+  {
+    "id": "0x84B062B7",
+    "name": "0x84B062B7",
+    "emoteId": "0x84B062B7",
+    "flagIdx": 206,
+    "sortId": 206,
+    "type": 3,
+    "textId": "0x00000000",
+    "stampIdx": 7,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 3,
+      "SortId": 206,
+      "StampIdx": 7
+    }
+  },
+  {
+    "id": "0x140F7F26",
+    "name": "0x140F7F26",
+    "emoteId": "0x140F7F26",
+    "flagIdx": 207,
+    "sortId": 207,
+    "type": 3,
+    "textId": "0x00000000",
+    "stampIdx": 8,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 3,
+      "SortId": 207,
+      "StampIdx": 8
+    }
+  },
+  {
+    "id": "0x5FE3E44F",
+    "name": "0x5FE3E44F",
+    "emoteId": "0x5FE3E44F",
+    "flagIdx": 300,
+    "sortId": 300,
+    "type": 2,
+    "textId": "0x00000000",
+    "stampIdx": 1,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 2,
+      "SortId": 300,
+      "StampIdx": 1
+    }
+  },
+  {
+    "id": "0xC6EAB5F5",
+    "name": "0xC6EAB5F5",
+    "emoteId": "0xC6EAB5F5",
+    "flagIdx": 301,
+    "sortId": 301,
+    "type": 2,
+    "textId": "0x00000000",
+    "stampIdx": 2,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 2,
+      "SortId": 301,
+      "StampIdx": 2
+    }
+  },
+  {
+    "id": "0xB1ED8563",
+    "name": "0xB1ED8563",
+    "emoteId": "0xB1ED8563",
+    "flagIdx": 302,
+    "sortId": 302,
+    "type": 2,
+    "textId": "0x00000000",
+    "stampIdx": 3,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 2,
+      "SortId": 302,
+      "StampIdx": 3
+    }
+  },
+  {
+    "id": "0x2F8910C0",
+    "name": "0x2F8910C0",
+    "emoteId": "0x2F8910C0",
+    "flagIdx": 303,
+    "sortId": 303,
+    "type": 2,
+    "textId": "0x00000000",
+    "stampIdx": 4,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 2,
+      "SortId": 303,
+      "StampIdx": 4
+    }
+  },
+  {
+    "id": "0x588E2056",
+    "name": "0x588E2056",
+    "emoteId": "0x588E2056",
+    "flagIdx": 304,
+    "sortId": 304,
+    "type": 2,
+    "textId": "0x00000000",
+    "stampIdx": 5,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 2,
+      "SortId": 304,
+      "StampIdx": 5
+    }
+  },
+  {
+    "id": "0xC18771EC",
+    "name": "0xC18771EC",
+    "emoteId": "0xC18771EC",
+    "flagIdx": 305,
+    "sortId": 305,
+    "type": 2,
+    "textId": "0x00000000",
+    "stampIdx": 6,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 2,
+      "SortId": 305,
+      "StampIdx": 6
+    }
+  },
+  {
+    "id": "0xB680417A",
+    "name": "0xB680417A",
+    "emoteId": "0xB680417A",
+    "flagIdx": 306,
+    "sortId": 306,
+    "type": 2,
+    "textId": "0x00000000",
+    "stampIdx": 7,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 2,
+      "SortId": 306,
+      "StampIdx": 7
+    }
+  },
+  {
+    "id": "0x263F5CEB",
+    "name": "0x263F5CEB",
+    "emoteId": "0x263F5CEB",
+    "flagIdx": 307,
+    "sortId": 307,
+    "type": 2,
+    "textId": "0x00000000",
+    "stampIdx": 8,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 2,
+      "SortId": 307,
+      "StampIdx": 8
+    }
+  },
+  {
+    "id": "0x51386C7D",
+    "name": "0x51386C7D",
+    "emoteId": "0x51386C7D",
+    "flagIdx": 308,
+    "sortId": 308,
+    "type": 2,
+    "textId": "0x00000000",
+    "stampIdx": 0,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 2,
+      "SortId": 308,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0x31FFE598",
+    "name": "0x31FFE598",
+    "emoteId": "0x31FFE598",
+    "flagIdx": 309,
+    "sortId": 309,
+    "type": 2,
+    "textId": "0x00000000",
+    "stampIdx": 0,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 2,
+      "SortId": 309,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0x46F8D50E",
+    "name": "0x46F8D50E",
+    "emoteId": "0x46F8D50E",
+    "flagIdx": 310,
+    "sortId": 310,
+    "type": 2,
+    "textId": "0x00000000",
+    "stampIdx": 0,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 2,
+      "SortId": 310,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0xDFF184B4",
+    "name": "0xDFF184B4",
+    "emoteId": "0xDFF184B4",
+    "flagIdx": 311,
+    "sortId": 311,
+    "type": 2,
+    "textId": "0x00000000",
+    "stampIdx": 0,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 2,
+      "SortId": 311,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0xA8F6B422",
+    "name": "0xA8F6B422",
+    "emoteId": "0xA8F6B422",
+    "flagIdx": 312,
+    "sortId": 312,
+    "type": 2,
+    "textId": "0x00000000",
+    "stampIdx": 0,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 2,
+      "SortId": 312,
+      "StampIdx": 0
+    }
+  },
+  {
+    "id": "0x36922181",
+    "name": "0x36922181",
+    "emoteId": "0x36922181",
+    "flagIdx": 313,
+    "sortId": 313,
+    "type": 2,
+    "textId": "0x00000000",
+    "stampIdx": 0,
+    "motionId": "0x00000000",
+    "motionLoop": false,
+    "enableCond": "�CHAT_EMOTE_CONFIG",
+    "attributes": {
+      "Type": 2,
+      "SortId": 313,
+      "StampIdx": 0
+    }
+  }
+]

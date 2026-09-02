@@ -1,0 +1,55 @@
+[Unit]
+Description=Rose Griffon Cron Daemon (Bun + Supabase)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/rg/packages/cron
+EnvironmentFile=/home/ubuntu/rg/.env.local
+Environment=NODE_ENV=production
+ExecStart=/home/ubuntu/.bun/bin/bun run src/index.ts
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=15s
+KillMode=mixed
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=rg-cron
+
+# ── Resource limits ──
+LimitNOFILE=131072
+TasksMax=512
+MemoryMax=1G
+MemoryHigh=768M
+MemoryLow=256M
+CPUWeight=200
+IOWeight=200
+OOMScoreAdjust=-300
+
+# ── Hardening systemd (MemoryDenyWriteExecute INTERDIT — casse Bun/V8 JIT) ──
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/ubuntu/rg /home/ubuntu/niers/data /tmp /home/ubuntu/.bxc
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+NoNewPrivileges=true
+ProcSubset=pid
+ProtectProc=invisible
+RemoveIPC=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallFilter=@system-service ~@obsolete @privileged
+SystemCallErrorNumber=EPERM
+
+[Install]
+WantedBy=multi-user.target

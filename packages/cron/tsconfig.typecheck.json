@@ -1,0 +1,26 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"paths": {
+			"@rosegriffon/db": ["../db/src/index.ts"],
+			"@rosegriffon/db/*": ["../db/src/*"],
+			"@rosegriffon/types": ["../types/src/index.ts"],
+			"@rosegriffon/types/*": ["../types/src/*"],
+			"@rosegriffon/auth": ["../auth/src/index.ts"],
+			"@rosegriffon/auth/*": ["../auth/src/*"],
+			"@aphrody-code/bxc": ["../inagle/types/bxc-shim.d.ts"],
+			"@aphrody-code/bxc/*": ["../inagle/types/bxc-shim.d.ts"],
+			// Le nom NON aliasé aussi : `@aphrody/zukan` publie sa source `.ts` brute
+			// et y importe `@aphrody/bxc` directement. Sans cette entrée, tsc lisait
+			// la source réelle de bxc par ce détour et remontait deux erreurs dans
+			// `src/cli/shared.ts` — du code tiers, dans un fichier de CLI que rien
+			// ici n'appelle. `skipLibCheck` ne couvre pas ce cas (ce n'est pas un
+			// `.d.ts`), et les `paths` n'affectent que la résolution des types :
+			// l'import émis reste inchangé, le vrai paquet est chargé à l'exécution.
+			"@aphrody/bxc": ["../inagle/types/bxc-shim.d.ts"],
+			"@aphrody/bxc/*": ["../inagle/types/bxc-shim.d.ts"],
+			"@aphrody-code/x": ["./types/x-shim.d.ts"],
+			"@aphrody-code/x/*": ["./types/x-shim.d.ts"]
+		}
+	}
+}

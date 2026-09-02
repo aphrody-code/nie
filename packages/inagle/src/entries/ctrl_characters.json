@@ -1,0 +1,777 @@
+[
+  {
+    "charaParamId": "0x686BE87E",
+    "controlType": 1,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x4346BBBD",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x686BE87E",
+    "controlType": 1,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x0C072D7A",
+    "controlType": 0,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x4346BBBD",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x686BE87E",
+    "controlType": 1,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x0C072D7A",
+    "controlType": 0,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x4346BBBD",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x4346BBBD",
+    "controlType": 1,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x686BE87E",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x0C072D7A",
+    "controlType": 0,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x4346BBBD",
+    "controlType": 1,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x686BE87E",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x0C072D7A",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x686BE87E",
+    "controlType": 1,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x4346BBBD",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x0C072D7A",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x686BE87E",
+    "controlType": 1,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x4346BBBD",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x0C072D7A",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x272A7EB9",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x3E314FF8",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x4346BBBD",
+    "controlType": 1,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x686BE87E",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x0C072D7A",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x272A7EB9",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x3E314FF8",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x272A7EB9",
+    "controlType": 1,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x686BE87E",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x0C072D7A",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x4346BBBD",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x3E314FF8",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x0C072D7A",
+    "controlType": 1,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x686BE87E",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x272A7EB9",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x4346BBBD",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x3E314FF8",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x3E314FF8",
+    "controlType": 1,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x686BE87E",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x272A7EB9",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x4346BBBD",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x0C072D7A",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x686BE87E",
+    "controlType": 1,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x4346BBBD",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x0C072D7A",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x272A7EB9",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x3E314FF8",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x5A5D8AFC",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x686BE87E",
+    "controlType": 1,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x4346BBBD",
+    "controlType": 0,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x0C072D7A",
+    "controlType": 0,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x272A7EB9",
+    "controlType": 0,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x3E314FF8",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x5A5D8AFC",
+    "controlType": 0,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x151C1C3B",
+    "controlType": 0,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x686BE87E",
+    "controlType": 1,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x4346BBBD",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x0C072D7A",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x272A7EB9",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x3E314FF8",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x5A5D8AFC",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x151C1C3B",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x686BE87E",
+    "controlType": 1,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x4346BBBD",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x0C072D7A",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x272A7EB9",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x3E314FF8",
+    "controlType": 0,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x5A5D8AFC",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x151C1C3B",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x686BE87E",
+    "controlType": 1,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x4346BBBD",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x0C072D7A",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x272A7EB9",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x3E314FF8",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x5A5D8AFC",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x151C1C3B",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x2FCB92AE",
+    "controlType": 1,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x686BE87E",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x4346BBBD",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x0C072D7A",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x272A7EB9",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x3E314FF8",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x5A5D8AFC",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x151C1C3B",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x686BE87E",
+    "controlType": 1,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x4346BBBD",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x0C072D7A",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x272A7EB9",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x3E314FF8",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x5A5D8AFC",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x151C1C3B",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x686BE87E",
+    "controlType": 1,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x4346BBBD",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x0C072D7A",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x272A7EB9",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x3E314FF8",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x5A5D8AFC",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x151C1C3B",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x686BE87E",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x4346BBBD",
+    "controlType": 0,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x0C072D7A",
+    "controlType": 0,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x272A7EB9",
+    "controlType": 0,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x3E314FF8",
+    "controlType": 0,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x5A5D8AFC",
+    "controlType": 0,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x151C1C3B",
+    "controlType": 0,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x686BE87E",
+    "controlType": 1,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x4346BBBD",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x0C072D7A",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x272A7EB9",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x3E314FF8",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x5A5D8AFC",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x151C1C3B",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x686BE87E",
+    "controlType": 1,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x4346BBBD",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x0C072D7A",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x272A7EB9",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x3E314FF8",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x5A5D8AFC",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x151C1C3B",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x0C072D7A",
+    "controlType": 1,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x686BE87E",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x4346BBBD",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x272A7EB9",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x3E314FF8",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x5A5D8AFC",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x151C1C3B",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x686BE87E",
+    "controlType": 1,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x4346BBBD",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x0C072D7A",
+    "controlType": 0,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x272A7EB9",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x3E314FF8",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x5A5D8AFC",
+    "controlType": 0,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x151C1C3B",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x686BE87E",
+    "controlType": 1,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x4346BBBD",
+    "controlType": 0,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x0C072D7A",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x272A7EB9",
+    "controlType": 0,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x3E314FF8",
+    "controlType": 0,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x5A5D8AFC",
+    "controlType": 0,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x151C1C3B",
+    "controlType": 0,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x04E6C16D",
+    "controlType": 1,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x686BE87E",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x4346BBBD",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x0C072D7A",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x272A7EB9",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x3E314FF8",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x5A5D8AFC",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x151C1C3B",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x686BE87E",
+    "controlType": 1,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x4346BBBD",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x0C072D7A",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x272A7EB9",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x3E314FF8",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x5A5D8AFC",
+    "controlType": 2,
+    "flags": 0
+  },
+  {
+    "charaParamId": "0x151C1C3B",
+    "controlType": 2,
+    "flags": 0
+  }
+]

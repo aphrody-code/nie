@@ -1,0 +1,2802 @@
+[
+  {
+    "passiveId": "0x4574530C",
+    "passiveIdStr": "passive_57",
+    "name_FR": "Coût d'une brèche de tension l'équipe [CPASSIVE01]- %[C]",
+    "name_JA": "チームのひっさつに必要なテンション[CPASSIVE01]－％[C]",
+    "desc_FR": "Coût d'une brèche de tension l'équipe [CPASSIVE01]- %[C]",
+    "desc_JA": "チームのひっさつに必要なテンション[CPASSIVE01]－％[C]",
+    "element": 1,
+    "scope": "team",
+    "boostType": "breach",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Coût d'une brèche de tension l'équipe [CPASSIVE01]- %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Breach",
+      "fr": "Brèche"
+    }
+  },
+  {
+    "passiveId": "0x3273639A",
+    "passiveIdStr": "passive_58",
+    "name_FR": "Coût d'une brèche de tension l'équipe [CPASSIVE01]- %[C]",
+    "name_JA": "チームのひっさつに必要なテンション[CPASSIVE01]－％[C]",
+    "desc_FR": "Coût d'une brèche de tension l'équipe [CPASSIVE01]- %[C]",
+    "desc_JA": "チームのひっさつに必要なテンション[CPASSIVE01]－％[C]",
+    "element": 1,
+    "scope": "team",
+    "boostType": "breach",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Coût d'une brèche de tension l'équipe [CPASSIVE01]- %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Breach",
+      "fr": "Brèche"
+    }
+  },
+  {
+    "passiveId": "0x4CC21F27",
+    "passiveIdStr": "passive_53",
+    "name_FR": "Quand à égalité ou en retard,\ntaux de brèche de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "同点または不利時\nチームのひっさつ率[CPASSIVE01]＋％[C]",
+    "desc_FR": "Quand à égalité ou en retard,\ntaux de brèche de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "同点または不利時\nチームのひっさつ率[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "breach",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Quand à égalité ou en retard,\ntaux de brèche de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Breach",
+      "fr": "Brèche"
+    }
+  },
+  {
+    "passiveId": "0x3BC52FB1",
+    "passiveIdStr": "passive_54",
+    "name_FR": "Quand à égalité ou en retard,\ntaux de brèche de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "同点または不利時\nチームのひっさつ率[CPASSIVE01]＋％[C]",
+    "desc_FR": "Quand à égalité ou en retard,\ntaux de brèche de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "同点または不利時\nチームのひっさつ率[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "breach",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Quand à égalité ou en retard,\ntaux de brèche de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Breach",
+      "fr": "Brèche"
+    }
+  },
+  {
+    "passiveId": "0xA2CC7E0B",
+    "passiveIdStr": "passive_55",
+    "name_FR": "Quand le taux de brèche est d'au moins 15 %,\ntaux de percée des Remparts de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "ひっさつ率＋１５％以上の時\nチームの城壁貫通率上昇[CPASSIVE01]％[C]",
+    "desc_FR": "Quand le taux de brèche est d'au moins 15 %,\ntaux de percée des Remparts de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "ひっさつ率＋１５％以上の時\nチームの城壁貫通率上昇[CPASSIVE01]％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "breach",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Quand le taux de brèche est d'au moins 15 %,\ntaux de percée des Remparts de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Breach",
+      "fr": "Brèche"
+    }
+  },
+  {
+    "passiveId": "0xD5CB4E9D",
+    "passiveIdStr": "passive_56",
+    "name_FR": "Quand le taux de brèche est d'au moins 15 %,\ntaux de percée des Remparts de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "ひっさつ率＋１５％以上の時\nチームの城壁貫通率上昇[CPASSIVE01]％[C]",
+    "desc_FR": "Quand le taux de brèche est d'au moins 15 %,\ntaux de percée des Remparts de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "ひっさつ率＋１５％以上の時\nチームの城壁貫通率上昇[CPASSIVE01]％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "breach",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Quand le taux de brèche est d'au moins 15 %,\ntaux de percée des Remparts de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Breach",
+      "fr": "Brèche"
+    }
+  },
+  {
+    "passiveId": "0xA5A1BA12",
+    "passiveIdStr": "passive_51",
+    "name_FR": "Taux de brèche de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "チームのひっさつ率[CPASSIVE01]＋％[C]",
+    "desc_FR": "Taux de brèche de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "チームのひっさつ率[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "breach",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Taux de brèche de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Breach",
+      "fr": "Brèche"
+    }
+  },
+  {
+    "passiveId": "0xD2A68A84",
+    "passiveIdStr": "passive_52",
+    "name_FR": "Taux de brèche de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "チームのひっさつ率[CPASSIVE01]＋％[C]",
+    "desc_FR": "Taux de brèche de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "チームのひっさつ率[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "breach",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Taux de brèche de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Breach",
+      "fr": "Brèche"
+    }
+  },
+  {
+    "passiveId": "0xB065E1AE",
+    "passiveIdStr": "passive_82",
+    "name_FR": "Après un affrontement ou un duel perdu,\nperte de puissance de lien de l'équipe [CPASSIVE01]- %[C] pendant 10 sec",
+    "name_JA": "チームのフォーカスまたはスクランブル敗北後\n１０秒間キズナパワーの減少量[CPASSIVE01]－％[C]",
+    "desc_FR": "Après un affrontement ou un duel perdu,\nperte de puissance de lien de l'équipe [CPASSIVE01]- %[C] pendant 10 sec",
+    "desc_JA": "チームのフォーカスまたはスクランブル敗北後\n１０秒間キズナパワーの減少量[CPASSIVE01]－％[C]",
+    "element": 1,
+    "scope": "team",
+    "boostType": "confrontation",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Après un affrontement ou un duel perdu,\nperte de puissance de lien de l'équipe [CPASSIVE01]- %[C] pendant 10 sec",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Confrontation",
+      "fr": "Affrontement"
+    }
+  },
+  {
+    "passiveId": "0x55D92E66",
+    "passiveIdStr": "passive_43",
+    "name_FR": "ATT & DÉF affrontement (équipe) [CPASSIVE01]+ %[C]\ndans la moitié de terrain de l'adversaire",
+    "name_JA": "敵陣でのチームのフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "ATT & DÉF affrontement (équipe) [CPASSIVE01]+ %[C]\ndans la moitié de terrain de l'adversaire",
+    "desc_JA": "敵陣でのチームのフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "confrontation",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "ATT & DÉF affrontement (équipe) [CPASSIVE01]+ %[C]\ndans la moitié de terrain de l'adversaire",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Confrontation",
+      "fr": "Affrontement"
+    }
+  },
+  {
+    "passiveId": "0x8391E91B",
+    "passiveIdStr": "passive_36",
+    "name_FR": "ATT & DÉF affrontement (équipe) [CPASSIVE01]+ %[C]\ndans sa moitié de terrain",
+    "name_JA": "自陣でのチームのフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "ATT & DÉF affrontement (équipe) [CPASSIVE01]+ %[C]\ndans sa moitié de terrain",
+    "desc_JA": "自陣でのチームのフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "confrontation",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "ATT & DÉF affrontement (équipe) [CPASSIVE01]+ %[C]\ndans sa moitié de terrain",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Confrontation",
+      "fr": "Affrontement"
+    }
+  },
+  {
+    "passiveId": "0x2B6852DB",
+    "passiveIdStr": "passive_48",
+    "name_FR": "ATT & DÉF affrontement (équipe) [CPASSIVE01]+ %[C]\nquand hors Zone",
+    "name_JA": "ゾーンエリア外での\nチームのフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "ATT & DÉF affrontement (équipe) [CPASSIVE01]+ %[C]\nquand hors Zone",
+    "desc_JA": "ゾーンエリア外での\nチームのフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "confrontation",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "ATT & DÉF affrontement (équipe) [CPASSIVE01]+ %[C]\nquand hors Zone",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Confrontation",
+      "fr": "Affrontement"
+    }
+  },
+  {
+    "passiveId": "0x8E8CE9D1",
+    "passiveIdStr": "passive_61",
+    "name_FR": "En gagnant un affrontement ou un duel,\ntension de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "チームのフォーカスまたはスクランブル勝利時\n獲得テンション[CPASSIVE01]＋％[C]",
+    "desc_FR": "En gagnant un affrontement ou un duel,\ntension de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "チームのフォーカスまたはスクランブル勝利時\n獲得テンション[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "confrontation",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "En gagnant un affrontement ou un duel,\ntension de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Confrontation",
+      "fr": "Affrontement"
+    }
+  },
+  {
+    "passiveId": "0xF98BD947",
+    "passiveIdStr": "passive_62",
+    "name_FR": "En gagnant un affrontement ou un duel,\ntension de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "チームのフォーカスまたはスクランブル勝利時\n獲得テンション[CPASSIVE01]＋％[C]",
+    "desc_FR": "En gagnant un affrontement ou un duel,\ntension de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "チームのフォーカスまたはスクランブル勝利時\n獲得テンション[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "confrontation",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "En gagnant un affrontement ou un duel,\ntension de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Confrontation",
+      "fr": "Affrontement"
+    }
+  },
+  {
+    "passiveId": "0xA97ED0EF",
+    "passiveIdStr": "passive_105",
+    "name_FR": "Pour la première mi-temps, ATT de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "前半戦　チームのＡＴ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Pour la première mi-temps, ATT de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "前半戦　チームのＡＴ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "attack",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Pour la première mi-temps, ATT de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Attack",
+      "fr": "Attaque"
+    }
+  },
+  {
+    "passiveId": "0x39C1CD7E",
+    "passiveIdStr": "passive_106",
+    "name_FR": "Pour la première mi-temps, ATT de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "前半戦　チームのＡＴ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Pour la première mi-temps, ATT de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "前半戦　チームのＡＴ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "attack",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Pour la première mi-temps, ATT de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Attack",
+      "fr": "Attaque"
+    }
+  },
+  {
+    "passiveId": "0x100FC45F",
+    "passiveIdStr": "passive_80",
+    "name_FR": "Quand la puissance de lien est égale ou supérieure\nà 20 %, ATT des tirs directs de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "キズナパワー２０％以上の時\nチームのダイレクト時のＡＴ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Quand la puissance de lien est égale ou supérieure\nà 20 %, ATT des tirs directs de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "キズナパワー２０％以上の時\nチームのダイレクト時のＡＴ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "attack",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Quand la puissance de lien est égale ou supérieure\nà 20 %, ATT des tirs directs de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Attack",
+      "fr": "Attaque"
+    }
+  },
+  {
+    "passiveId": "0x6708F4C9",
+    "passiveIdStr": "passive_81",
+    "name_FR": "Quand la puissance de lien est égale ou supérieure\nà 20 %, ATT des tirs directs de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "キズナパワー２０％以上の時\nチームのダイレクト時のＡＴ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Quand la puissance de lien est égale ou supérieure\nà 20 %, ATT des tirs directs de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "キズナパワー２０％以上の時\nチームのダイレクト時のＡＴ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "attack",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Quand la puissance de lien est égale ou supérieure\nà 20 %, ATT des tirs directs de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Attack",
+      "fr": "Attaque"
+    }
+  },
+  {
+    "passiveId": "0x4EC6FDE8",
+    "passiveIdStr": "passive_107",
+    "name_FR": "Pour la deuxième mi-temps, DÉF de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "後半戦　チームのＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Pour la deuxième mi-temps, DÉF de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "後半戦　チームのＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "defense",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Pour la deuxième mi-temps, DÉF de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Defense",
+      "fr": "Défense"
+    }
+  },
+  {
+    "passiveId": "0x2E01740D",
+    "passiveIdStr": "passive_108",
+    "name_FR": "Pour la deuxième mi-temps, DÉF de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "後半戦　チームのＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Pour la deuxième mi-temps, DÉF de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "後半戦　チームのＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "defense",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Pour la deuxième mi-temps, DÉF de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Defense",
+      "fr": "Défense"
+    }
+  },
+  {
+    "passiveId": "0x797E0191",
+    "passiveIdStr": "passive_95",
+    "name_FR": "Jusqu'à la prochaine faute commise,\nDÉF des Remparts de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "ファウルを取られるまで\nチームの城壁ＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Jusqu'à la prochaine faute commise,\nDÉF des Remparts de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "ファウルを取られるまで\nチームの城壁ＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "catch",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Jusqu'à la prochaine faute commise,\nDÉF des Remparts de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Catch",
+      "fr": "Arrêt"
+    }
+  },
+  {
+    "passiveId": "0xE9C11C00",
+    "passiveIdStr": "passive_96",
+    "name_FR": "Jusqu'à la prochaine faute commise,\nDÉF des Remparts de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "ファウルを取られるまで\nチームの城壁ＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Jusqu'à la prochaine faute commise,\nDÉF des Remparts de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "ファウルを取られるまで\nチームの城壁ＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "catch",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Jusqu'à la prochaine faute commise,\nDÉF des Remparts de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Catch",
+      "fr": "Arrêt"
+    }
+  },
+  {
+    "passiveId": "0x87DD1DD7",
+    "passiveIdStr": "passive_87",
+    "name_FR": "Après mouvement de recul dû à un sprint,\ntension de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "チームがダッシュで吹き飛ばした時\nテンション上昇[CPASSIVE01]％[C]",
+    "desc_FR": "Après mouvement de recul dû à un sprint,\ntension de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "チームがダッシュで吹き飛ばした時\nテンション上昇[CPASSIVE01]％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "tension",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Après mouvement de recul dû à un sprint,\ntension de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Tension",
+      "fr": "Tension"
+    }
+  },
+  {
+    "passiveId": "0xE71A9432",
+    "passiveIdStr": "passive_88",
+    "name_FR": "Après mouvement de recul dû à un sprint,\ntension de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "チームがダッシュで吹き飛ばした時\nテンション上昇[CPASSIVE01]％[C]",
+    "desc_FR": "Après mouvement de recul dû à un sprint,\ntension de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "チームがダッシュで吹き飛ばした時\nテンション上昇[CPASSIVE01]％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "tension",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Après mouvement de recul dû à un sprint,\ntension de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Tension",
+      "fr": "Tension"
+    }
+  },
+  {
+    "passiveId": "0x89E12DC8",
+    "passiveIdStr": "passive_65",
+    "name_FR": "Quand la tension est à 100%,\nATT des tirs de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "テンション１００％時\nチームのシュートＡＴ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Quand la tension est à 100%,\nATT des tirs de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "テンション１００％時\nチームのシュートＡＴ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "tension",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Quand la tension est à 100%,\nATT des tirs de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Tension",
+      "fr": "Tension"
+    }
+  },
+  {
+    "passiveId": "0xFEE61D5E",
+    "passiveIdStr": "passive_66",
+    "name_FR": "Quand la tension est à 100%,\nATT des tirs de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "テンション１００％時\nチームのシュートＡＴ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Quand la tension est à 100%,\nATT des tirs de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "テンション１００％時\nチームのシュートＡＴ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "tension",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Quand la tension est à 100%,\nATT des tirs de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Tension",
+      "fr": "Tension"
+    }
+  },
+  {
+    "passiveId": "0x67EF4CE4",
+    "passiveIdStr": "passive_63",
+    "name_FR": "Quand la tension est égale ou supérieure à 50 %,\nl'ATT & DÉF de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "テンション５０％以上の時\nチームのフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Quand la tension est égale ou supérieure à 50 %,\nl'ATT & DÉF de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "テンション５０％以上の時\nチームのフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "tension",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Quand la tension est égale ou supérieure à 50 %,\nl'ATT & DÉF de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Tension",
+      "fr": "Tension"
+    }
+  },
+  {
+    "passiveId": "0x10E87C72",
+    "passiveIdStr": "passive_64",
+    "name_FR": "Quand la tension est égale ou supérieure à 50 %,\nl'ATT & DÉF de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "テンション５０％以上の時\nチームのフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Quand la tension est égale ou supérieure à 50 %,\nl'ATT & DÉF de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "テンション５０％以上の時\nチームのフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "tension",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Quand la tension est égale ou supérieure à 50 %,\nl'ATT & DÉF de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Tension",
+      "fr": "Tension"
+    }
+  },
+  {
+    "passiveId": "0x90FA1C89",
+    "passiveIdStr": "passive_75",
+    "name_FR": "Après récupération du ballon (sauf arrêt),\nATT & DÉF des attaques brutales de l'équipe [CPASSIVE01]+ %[C] pendant 30 sec",
+    "name_JA": "キャッチ以外でボール奪還後\n３０秒間チームのラフアタックのＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Après récupération du ballon (sauf arrêt),\nATT & DÉF des attaques brutales de l'équipe [CPASSIVE01]+ %[C] pendant 30 sec",
+    "desc_JA": "キャッチ以外でボール奪還後\n３０秒間チームのラフアタックのＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "recovery",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Après récupération du ballon (sauf arrêt),\nATT & DÉF des attaques brutales de l'équipe [CPASSIVE01]+ %[C] pendant 30 sec",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Recovery",
+      "fr": "Récupération"
+    }
+  },
+  {
+    "passiveId": "0xE7FD2C1F",
+    "passiveIdStr": "passive_76",
+    "name_FR": "Après récupération du ballon (sauf arrêt),\nATT & DÉF des attaques brutales de l'équipe [CPASSIVE01]+ %[C] pendant 30 sec",
+    "name_JA": "キャッチ以外でボール奪還後\n３０秒間チームのラフアタックのＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Après récupération du ballon (sauf arrêt),\nATT & DÉF des attaques brutales de l'équipe [CPASSIVE01]+ %[C] pendant 30 sec",
+    "desc_JA": "キャッチ以外でボール奪還後\n３０秒間チームのラフアタックのＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "recovery",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Après récupération du ballon (sauf arrêt),\nATT & DÉF des attaques brutales de l'équipe [CPASSIVE01]+ %[C] pendant 30 sec",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Recovery",
+      "fr": "Récupération"
+    }
+  },
+  {
+    "passiveId": "0x6E5900CF",
+    "passiveIdStr": "passive_67",
+    "name_FR": "Après récupération du ballon (sauf arrêt),\nATT des tirs de l'équipe [CPASSIVE01]+ %[C] pendant 30 sec",
+    "name_JA": "キャッチ以外でボール奪還後\n３０秒間チームのシュートＡＴ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Après récupération du ballon (sauf arrêt),\nATT des tirs de l'équipe [CPASSIVE01]+ %[C] pendant 30 sec",
+    "desc_JA": "キャッチ以外でボール奪還後\n３０秒間チームのシュートＡＴ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "recovery",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Après récupération du ballon (sauf arrêt),\nATT des tirs de l'équipe [CPASSIVE01]+ %[C] pendant 30 sec",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Recovery",
+      "fr": "Récupération"
+    }
+  },
+  {
+    "passiveId": "0x195E3059",
+    "passiveIdStr": "passive_68",
+    "name_FR": "Après récupération du ballon (sauf arrêt),\nATT des tirs de l'équipe [CPASSIVE01]+ %[C] pendant 30 sec",
+    "name_JA": "キャッチ以外でボール奪還後\n３０秒間チームのシュートＡＴ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Après récupération du ballon (sauf arrêt),\nATT des tirs de l'équipe [CPASSIVE01]+ %[C] pendant 30 sec",
+    "desc_JA": "キャッチ以外でボール奪還後\n３０秒間チームのシュートＡＴ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "recovery",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Après récupération du ballon (sauf arrêt),\nATT des tirs de l'équipe [CPASSIVE01]+ %[C] pendant 30 sec",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Recovery",
+      "fr": "Récupération"
+    }
+  },
+  {
+    "passiveId": "0x901DA4A4",
+    "passiveIdStr": "passive_89",
+    "name_FR": "Après mouvement de recul dû à un sprint,\nATT & DÉF des attaques brutales de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "チームがダッシュで吹き飛ばした後\n次のラフアタックのＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Après mouvement de recul dû à un sprint,\nATT & DÉF des attaques brutales de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "チームがダッシュで吹き飛ばした後\n次のラフアタックのＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "mixed",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Après mouvement de recul dû à un sprint,\nATT & DÉF des attaques brutales de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Mixed",
+      "fr": "Mixte"
+    }
+  },
+  {
+    "passiveId": "0x914F51E",
+    "passiveIdStr": "passive_90",
+    "name_FR": "Après mouvement de recul dû à un sprint,\nATT & DÉF des attaques brutales de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "チームがダッシュで吹き飛ばした後\n次のラフアタックのＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Après mouvement de recul dû à un sprint,\nATT & DÉF des attaques brutales de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "チームがダッシュで吹き飛ばした後\n次のラフアタックのＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "mixed",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Après mouvement de recul dû à un sprint,\nATT & DÉF des attaques brutales de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Mixed",
+      "fr": "Mixte"
+    }
+  },
+  {
+    "passiveId": "0x9EC62C96",
+    "passiveIdStr": "passive_97",
+    "name_FR": "Jusqu'à la prochaine faute commise,\nATT & DÉF de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "ファウルを取られるまで\nチームのＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Jusqu'à la prochaine faute commise,\nATT & DÉF de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "ファウルを取られるまで\nチームのＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "mixed",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Jusqu'à la prochaine faute commise,\nATT & DÉF de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Mixed",
+      "fr": "Mixte"
+    }
+  },
+  {
+    "passiveId": "0x371A454C",
+    "passiveIdStr": "passive_98",
+    "name_FR": "Jusqu'à la prochaine faute commise,\nATT & DÉF de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "ファウルを取られるまで\nチームのＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Jusqu'à la prochaine faute commise,\nATT & DÉF de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "ファウルを取られるまで\nチームのＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "mixed",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Jusqu'à la prochaine faute commise,\nATT & DÉF de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Mixed",
+      "fr": "Mixte"
+    }
+  },
+  {
+    "passiveId": "0x57DDCCA9",
+    "passiveIdStr": "passive_112",
+    "name_FR": "Pour chaque 1% de puissance de lien qui augmente,\nmultiplicateur ATT & DÉF de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "キズナパワーが１％上昇するごとに\nチームのＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Pour chaque 1% de puissance de lien qui augmente,\nmultiplicateur ATT & DÉF de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "キズナパワーが１％上昇するごとに\nチームのＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "mixed",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Pour chaque 1% de puissance de lien qui augmente,\nmultiplicateur ATT & DÉF de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Mixed",
+      "fr": "Mixte"
+    }
+  },
+  {
+    "passiveId": "0xFE01A573",
+    "passiveIdStr": "passive_78",
+    "name_FR": "Quand la puissance de lien est à 20 % ou plus,\nATT & DÉF duels de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "キズナパワー２０％以上の時\nチームのスクランブルＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Quand la puissance de lien est à 20 % ou plus,\nATT & DÉF duels de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "キズナパワー２０％以上の時\nチームのスクランブルＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "mixed",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Quand la puissance de lien est à 20 % ou plus,\nATT & DÉF duels de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Mixed",
+      "fr": "Mixte"
+    }
+  },
+  {
+    "passiveId": "0x890695E5",
+    "passiveIdStr": "passive_79",
+    "name_FR": "Quand la puissance de lien est à 20 % ou plus,\nATT & DÉF duels de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "キズナパワー２０％以上の時\nチームのスクランブルＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Quand la puissance de lien est à 20 % ou plus,\nATT & DÉF duels de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "キズナパワー２０％以上の時\nチームのスクランブルＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "mixed",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Quand la puissance de lien est à 20 % ou plus,\nATT & DÉF duels de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Mixed",
+      "fr": "Mixte"
+    }
+  },
+  {
+    "passiveId": "0x7E13C588",
+    "passiveIdStr": "passive_91",
+    "name_FR": "Après mouvement de recul dû à un sprint,\npuissance de lien de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "味方が吹き飛ばされた時\nキズナパワー上昇[CPASSIVE01]％[C]",
+    "desc_FR": "Après mouvement de recul dû à un sprint,\npuissance de lien de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "味方が吹き飛ばされた時\nキズナパワー上昇[CPASSIVE01]％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "special",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Après mouvement de recul dû à un sprint,\npuissance de lien de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Special",
+      "fr": "Spécial"
+    }
+  },
+  {
+    "passiveId": "0xE077502B",
+    "passiveIdStr": "passive_92",
+    "name_FR": "Après mouvement de recul dû à un sprint,\npuissance de lien de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "味方が吹き飛ばされた時\nキズナパワー上昇[CPASSIVE01]％[C]",
+    "desc_FR": "Après mouvement de recul dû à un sprint,\npuissance de lien de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "味方が吹き飛ばされた時\nキズナパワー上昇[CPASSIVE01]％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "special",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Après mouvement de recul dû à un sprint,\npuissance de lien de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Special",
+      "fr": "Spécial"
+    }
+  },
+  {
+    "passiveId": "0x296CB014",
+    "passiveIdStr": "passive_77",
+    "name_FR": "Après une passe,\npuissance de lien de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "チームのパス時　獲得キズナパワー上昇[CPASSIVE01]＋％[C]",
+    "desc_FR": "Après une passe,\npuissance de lien de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "チームのパス時　獲得キズナパワー上昇[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "special",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Après une passe,\npuissance de lien de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Special",
+      "fr": "Spécial"
+    }
+  },
+  {
+    "passiveId": "0x977060BD",
+    "passiveIdStr": "passive_93",
+    "name_FR": "Quand l'adversaire commet une faute,\npuissance de lien de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "敵のファウル時\nキズナパワー上昇[CPASSIVE01]％[C]",
+    "desc_FR": "Quand l'adversaire commet une faute,\npuissance de lien de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "敵のファウル時\nキズナパワー上昇[CPASSIVE01]％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "special",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Quand l'adversaire commet une faute,\npuissance de lien de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Special",
+      "fr": "Spécial"
+    }
+  },
+  {
+    "passiveId": "0xE793107",
+    "passiveIdStr": "passive_94",
+    "name_FR": "Quand l'adversaire commet une faute,\npuissance de lien de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "敵のファウル時\nキズナパワー上昇[CPASSIVE01]％[C]",
+    "desc_FR": "Quand l'adversaire commet une faute,\npuissance de lien de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "敵のファウル時\nキズナパワー上昇[CPASSIVE01]％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "special",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Quand l'adversaire commet une faute,\npuissance de lien de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Special",
+      "fr": "Spécial"
+    }
+  },
+  {
+    "passiveId": "0x606530D0",
+    "passiveIdStr": "passive_85",
+    "name_FR": "Taux de faute de l'équipe [CPASSIVE01]- %[C] hors Zone",
+    "name_JA": "ゾーンエリア外でのチームのファウル率[CPASSIVE01]－％[C]",
+    "desc_FR": "Taux de faute de l'équipe [CPASSIVE01]- %[C] hors Zone",
+    "desc_JA": "ゾーンエリア外でのチームのファウル率[CPASSIVE01]－％[C]",
+    "element": 1,
+    "scope": "team",
+    "boostType": "special",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Taux de faute de l'équipe [CPASSIVE01]- %[C] hors Zone",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Special",
+      "fr": "Spécial"
+    }
+  },
+  {
+    "passiveId": "0xF0DA2D41",
+    "passiveIdStr": "passive_86",
+    "name_FR": "Taux de faute de l'équipe [CPASSIVE01]- %[C] hors Zone",
+    "name_JA": "ゾーンエリア外でのチームのファウル率[CPASSIVE01]－％[C]",
+    "desc_FR": "Taux de faute de l'équipe [CPASSIVE01]- %[C] hors Zone",
+    "desc_JA": "ゾーンエリア外でのチームのファウル率[CPASSIVE01]－％[C]",
+    "element": 1,
+    "scope": "team",
+    "boostType": "special",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Taux de faute de l'équipe [CPASSIVE01]- %[C] hors Zone",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Special",
+      "fr": "Spécial"
+    }
+  },
+  {
+    "passiveId": "0xC00F1521",
+    "passiveIdStr": "passive_109",
+    "name_FR": "PG de l'équipe [CPASSIVE01]+ %[C]",
+    "name_JA": "チームのＫＰ[CPASSIVE01]＋％[C]",
+    "desc_FR": "PG de l'équipe [CPASSIVE01]+ %[C]",
+    "desc_JA": "チームのＫＰ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "unknown",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "PG de l'équipe [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    }
+  },
+  {
+    "passiveId": "0x4BAFDB3E",
+    "passiveIdStr": "passive_49",
+    "name_FR": "Taux de chute de l'équipe [CPASSIVE01]+ %[C] (Commun)",
+    "name_JA": "チームの通常ドロップ率[CPASSIVE01]＋％[C]",
+    "desc_FR": "Taux de chute de l'équipe [CPASSIVE01]+ %[C] (Commun)",
+    "desc_JA": "チームの通常ドロップ率[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "unknown",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Taux de chute de l'équipe [CPASSIVE01]+ %[C] (Commun)",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    }
+  },
+  {
+    "passiveId": "0x3CA8EBA8",
+    "passiveIdStr": "passive_50",
+    "name_FR": "Taux de chute de l'équipe [CPASSIVE01]+ %[C] (Rare)",
+    "name_JA": "チームのレアドロップ率[CPASSIVE01]＋％[C]",
+    "desc_FR": "Taux de chute de l'équipe [CPASSIVE01]+ %[C] (Rare)",
+    "desc_JA": "チームのレアドロップ率[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "team",
+    "boostType": "unknown",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Taux de chute de l'équipe [CPASSIVE01]+ %[C] (Rare)",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    }
+  },
+  {
+    "passiveId": "0x8E6B51FC",
+    "passiveIdStr": "passive_83",
+    "name_FR": "Taux de faute de l'équipe [CPASSIVE01]- %[C] lors des sprints",
+    "name_JA": "チームのダッシュでのファウル率[CPASSIVE01]－％[C]",
+    "desc_FR": "Taux de faute de l'équipe [CPASSIVE01]- %[C] lors des sprints",
+    "desc_JA": "チームのダッシュでのファウル率[CPASSIVE01]－％[C]",
+    "element": 1,
+    "scope": "team",
+    "boostType": "unknown",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Taux de faute de l'équipe [CPASSIVE01]- %[C] lors des sprints",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    }
+  },
+  {
+    "passiveId": "0x17620046",
+    "passiveIdStr": "passive_84",
+    "name_FR": "Taux de faute de l'équipe [CPASSIVE01]- %[C] lors des sprints",
+    "name_JA": "チームのダッシュでのファウル率[CPASSIVE01]－％[C]",
+    "desc_FR": "Taux de faute de l'équipe [CPASSIVE01]- %[C] lors des sprints",
+    "desc_JA": "チームのダッシュでのファウル率[CPASSIVE01]－％[C]",
+    "element": 1,
+    "scope": "team",
+    "boostType": "unknown",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Taux de faute de l'équipe [CPASSIVE01]- %[C] lors des sprints",
+    "scopeName": {
+      "en": "Team",
+      "fr": "Équipe"
+    },
+    "boostTypeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    }
+  },
+  {
+    "passiveId": "0xC1CD7F16",
+    "passiveIdStr": "passive_11",
+    "name_FR": "ATT & DÉF affrontement [CPASSIVE01]+ %[C]\npour les joueurs à des positions différentes",
+    "name_JA": "異ポジションのフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "ATT & DÉF affrontement [CPASSIVE01]+ %[C]\npour les joueurs à des positions différentes",
+    "desc_JA": "異ポジションのフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "confrontation",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "ATT & DÉF affrontement [CPASSIVE01]+ %[C]\npour les joueurs à des positions différentes",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Confrontation",
+      "fr": "Affrontement"
+    }
+  },
+  {
+    "passiveId": "0xDFBB8A4E",
+    "passiveIdStr": "passive_5",
+    "name_FR": "ATT & DÉF affrontement [CPASSIVE01]+ %[C]\npour les joueurs d'éléments différents",
+    "name_JA": "異属性のフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "ATT & DÉF affrontement [CPASSIVE01]+ %[C]\npour les joueurs d'éléments différents",
+    "desc_JA": "異属性のフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "confrontation",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "ATT & DÉF affrontement [CPASSIVE01]+ %[C]\npour les joueurs d'éléments différents",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Confrontation",
+      "fr": "Affrontement"
+    }
+  },
+  {
+    "passiveId": "0x2FC31E3A",
+    "passiveIdStr": "passive_9",
+    "name_FR": "ATT & DÉF affrontement [CPASSIVE01]+ %[C]\npour les joueurs de la même position",
+    "name_JA": "同ポジションのフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "ATT & DÉF affrontement [CPASSIVE01]+ %[C]\npour les joueurs de la même position",
+    "desc_JA": "同ポジションのフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "confrontation",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "ATT & DÉF affrontement [CPASSIVE01]+ %[C]\npour les joueurs de la même position",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Confrontation",
+      "fr": "Affrontement"
+    }
+  },
+  {
+    "passiveId": "0xD8D64E57",
+    "passiveIdStr": "passive_1",
+    "name_FR": "ATT & DÉF affrontement [CPASSIVE01]+ %[C]\npour les joueurs du même élément",
+    "name_JA": "同属性のフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "ATT & DÉF affrontement [CPASSIVE01]+ %[C]\npour les joueurs du même élément",
+    "desc_JA": "同属性のフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "confrontation",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "ATT & DÉF affrontement [CPASSIVE01]+ %[C]\npour les joueurs du même élément",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Confrontation",
+      "fr": "Affrontement"
+    }
+  },
+  {
+    "passiveId": "0xC6A0BB0F",
+    "passiveIdStr": "passive_15",
+    "name_FR": "ATT & DÉF affrontement [CPASSIVE01]+ %[C]\npour les joueurs proches",
+    "name_JA": "周囲のフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "ATT & DÉF affrontement [CPASSIVE01]+ %[C]\npour les joueurs proches",
+    "desc_JA": "周囲のフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "confrontation",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "ATT & DÉF affrontement [CPASSIVE01]+ %[C]\npour les joueurs proches",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Confrontation",
+      "fr": "Affrontement"
+    }
+  },
+  {
+    "passiveId": "0x7D32F55D",
+    "passiveIdStr": "passive_28",
+    "name_FR": "Quand un joueur d'un autre élément est proche,\nATT & DÉF affrontement (perso) [CPASSIVE01]+ %[C]",
+    "name_JA": "周囲に異属性がいる時\n自身のフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Quand un joueur d'un autre élément est proche,\nATT & DÉF affrontement (perso) [CPASSIVE01]+ %[C]",
+    "desc_JA": "周囲に異属性がいる時\n自身のフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "confrontation",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Quand un joueur d'un autre élément est proche,\nATT & DÉF affrontement (perso) [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Confrontation",
+      "fr": "Affrontement"
+    }
+  },
+  {
+    "passiveId": "0x1DF57CB8",
+    "passiveIdStr": "passive_29",
+    "name_FR": "Quand un joueur d'un autre élément est proche,\nATT & DÉF affrontement (perso) [CPASSIVE01]+ %[C]",
+    "name_JA": "周囲に異属性がいる時\n自身のフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Quand un joueur d'un autre élément est proche,\nATT & DÉF affrontement (perso) [CPASSIVE01]+ %[C]",
+    "desc_JA": "周囲に異属性がいる時\n自身のフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "confrontation",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Quand un joueur d'un autre élément est proche,\nATT & DÉF affrontement (perso) [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Confrontation",
+      "fr": "Affrontement"
+    }
+  },
+  {
+    "passiveId": "0x73E97D6F",
+    "passiveIdStr": "passive_20",
+    "name_FR": "Quand un joueur du même élément est proche,\nATT & DÉF affrontement (perso) [CPASSIVE01]+ %[C]",
+    "name_JA": "周囲に同属性がいる時\n自身のフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Quand un joueur du même élément est proche,\nATT & DÉF affrontement (perso) [CPASSIVE01]+ %[C]",
+    "desc_JA": "周囲に同属性がいる時\n自身のフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "confrontation",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Quand un joueur du même élément est proche,\nATT & DÉF affrontement (perso) [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Confrontation",
+      "fr": "Affrontement"
+    }
+  },
+  {
+    "passiveId": "0xEAE02CD5",
+    "passiveIdStr": "passive_21",
+    "name_FR": "Quand un joueur du même élément est proche,\nATT & DÉF affrontement (perso) [CPASSIVE01]+ %[C]",
+    "name_JA": "周囲に同属性がいる時\n自身のフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Quand un joueur du même élément est proche,\nATT & DÉF affrontement (perso) [CPASSIVE01]+ %[C]",
+    "desc_JA": "周囲に同属性がいる時\n自身のフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "confrontation",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Quand un joueur du même élément est proche,\nATT & DÉF affrontement (perso) [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Confrontation",
+      "fr": "Affrontement"
+    }
+  },
+  {
+    "passiveId": "0x401D75DA",
+    "passiveIdStr": "passive_99",
+    "name_FR": "Après un remplacement,\nATT du joueur entrant [CPASSIVE01]+ %[C] pendant 15 sec",
+    "name_JA": "選手交代後　１５秒間交代選手のＡＴ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Après un remplacement,\nATT du joueur entrant [CPASSIVE01]+ %[C] pendant 15 sec",
+    "desc_JA": "選手交代後　１５秒間交代選手のＡＴ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "attack",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Après un remplacement,\nATT du joueur entrant [CPASSIVE01]+ %[C] pendant 15 sec",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Attack",
+      "fr": "Attaque"
+    }
+  },
+  {
+    "passiveId": "0xD9142460",
+    "passiveIdStr": "passive_100",
+    "name_FR": "Après un remplacement,\nATT du joueur entrant [CPASSIVE01]+ %[C] pendant 15 sec",
+    "name_JA": "選手交代後　１５秒間交代選手のＡＴ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Après un remplacement,\nATT du joueur entrant [CPASSIVE01]+ %[C] pendant 15 sec",
+    "desc_JA": "選手交代後　１５秒間交代選手のＡＴ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "attack",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Après un remplacement,\nATT du joueur entrant [CPASSIVE01]+ %[C] pendant 15 sec",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Attack",
+      "fr": "Attaque"
+    }
+  },
+  {
+    "passiveId": "0x46B2DBF4",
+    "passiveIdStr": "passive_4",
+    "name_FR": "ATT des tirs [CPASSIVE01]+ %[C]\npour les joueurs d'éléments différents",
+    "name_JA": "異属性のシュートＡＴ[CPASSIVE01]＋％[C]",
+    "desc_FR": "ATT des tirs [CPASSIVE01]+ %[C]\npour les joueurs d'éléments différents",
+    "desc_JA": "異属性のシュートＡＴ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "attack",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "ATT des tirs [CPASSIVE01]+ %[C]\npour les joueurs d'éléments différents",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Attack",
+      "fr": "Attaque"
+    }
+  },
+  {
+    "passiveId": "0x4F0497DF",
+    "passiveIdStr": "passive_8",
+    "name_FR": "ATT des tirs [CPASSIVE01]+ %[C]\npour les joueurs de la même position",
+    "name_JA": "同ポジションのシュートＡＴ[CPASSIVE01]＋％[C]",
+    "desc_FR": "ATT des tirs [CPASSIVE01]+ %[C]\npour les joueurs de la même position",
+    "desc_JA": "同ポジションのシュートＡＴ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "attack",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "ATT des tirs [CPASSIVE01]+ %[C]\npour les joueurs de la même position",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Attack",
+      "fr": "Attaque"
+    }
+  },
+  {
+    "passiveId": "0x41DF1FED",
+    "passiveIdStr": "passive_0",
+    "name_FR": "ATT des tirs [CPASSIVE01]+ %[C]\npour les joueurs du même élément",
+    "name_JA": "同属性のシュートＡＴ[CPASSIVE01]＋％[C]",
+    "desc_FR": "ATT des tirs [CPASSIVE01]+ %[C]\npour les joueurs du même élément",
+    "desc_JA": "同属性のシュートＡＴ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "attack",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "ATT des tirs [CPASSIVE01]+ %[C]\npour les joueurs du même élément",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Attack",
+      "fr": "Attaque"
+    }
+  },
+  {
+    "passiveId": "0x5FA9EAB5",
+    "passiveIdStr": "passive_14",
+    "name_FR": "ATT des tirs [CPASSIVE01]+ %[C]\npour les joueurs proches",
+    "name_JA": "周囲のシュートＡＴ[CPASSIVE01]＋％[C]",
+    "desc_FR": "ATT des tirs [CPASSIVE01]+ %[C]\npour les joueurs proches",
+    "desc_JA": "周囲のシュートＡＴ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "attack",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "ATT des tirs [CPASSIVE01]+ %[C]\npour les joueurs proches",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Attack",
+      "fr": "Attaque"
+    }
+  },
+  {
+    "passiveId": "0x9A8AD85A",
+    "passiveIdStr": "passive_26",
+    "name_FR": "Quand un joueur d'un autre élément est proche,\nATT des tirs (perso) [CPASSIVE01]+ %[C]",
+    "name_JA": "周囲に異属性がいる時\n自身のシュートＡＴ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Quand un joueur d'un autre élément est proche,\nATT des tirs (perso) [CPASSIVE01]+ %[C]",
+    "desc_JA": "周囲に異属性がいる時\n自身のシュートＡＴ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "attack",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Quand un joueur d'un autre élément est proche,\nATT des tirs (perso) [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Attack",
+      "fr": "Attaque"
+    }
+  },
+  {
+    "passiveId": "0xA35C5CB",
+    "passiveIdStr": "passive_27",
+    "name_FR": "Quand un joueur d'un autre élément est proche,\nATT des tirs (perso) [CPASSIVE01]+ %[C]",
+    "name_JA": "周囲に異属性がいる時\n自身のシュートＡＴ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Quand un joueur d'un autre élément est proche,\nATT des tirs (perso) [CPASSIVE01]+ %[C]",
+    "desc_JA": "周囲に異属性がいる時\n自身のシュートＡＴ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "attack",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Quand un joueur d'un autre élément est proche,\nATT des tirs (perso) [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Attack",
+      "fr": "Attaque"
+    }
+  },
+  {
+    "passiveId": "0x561FA69E",
+    "passiveIdStr": "passive_18",
+    "name_FR": "Quand un joueur du même élément est proche,\nATT des tirs (perso) [CPASSIVE01]+ %[C]",
+    "name_JA": "周囲に同属性がいる時\n自身のシュートＡＴ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Quand un joueur du même élément est proche,\nATT des tirs (perso) [CPASSIVE01]+ %[C]",
+    "desc_JA": "周囲に同属性がいる時\n自身のシュートＡＴ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "attack",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Quand un joueur du même élément est proche,\nATT des tirs (perso) [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Attack",
+      "fr": "Attaque"
+    }
+  },
+  {
+    "passiveId": "0x4EE4DF9",
+    "passiveIdStr": "passive_19",
+    "name_FR": "Quand un joueur du même élément est proche,\nATT des tirs (perso) [CPASSIVE01]+ %[C]",
+    "name_JA": "周囲に同属性がいる時\n自身のシュートＡＴ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Quand un joueur du même élément est proche,\nATT des tirs (perso) [CPASSIVE01]+ %[C]",
+    "desc_JA": "周囲に同属性がいる時\n自身のシュートＡＴ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "attack",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Quand un joueur du même élément est proche,\nATT des tirs (perso) [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Attack",
+      "fr": "Attaque"
+    }
+  },
+  {
+    "passiveId": "0xAE1314F6",
+    "passiveIdStr": "passive_101",
+    "name_FR": "Après un remplacement,\nDÉF du joueur entrant [CPASSIVE01]+ %[C] pendant 15 sec",
+    "name_JA": "選手交代後　１５秒間交代選手のＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Après un remplacement,\nDÉF du joueur entrant [CPASSIVE01]+ %[C] pendant 15 sec",
+    "desc_JA": "選手交代後　１５秒間交代選手のＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "defense",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Après un remplacement,\nDÉF du joueur entrant [CPASSIVE01]+ %[C] pendant 15 sec",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Defense",
+      "fr": "Défense"
+    }
+  },
+  {
+    "passiveId": "0x30778155",
+    "passiveIdStr": "passive_102",
+    "name_FR": "Après un remplacement,\nDÉF du joueur entrant [CPASSIVE01]+ %[C] pendant 15 sec",
+    "name_JA": "選手交代後　１５秒間交代選手のＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Après un remplacement,\nDÉF du joueur entrant [CPASSIVE01]+ %[C] pendant 15 sec",
+    "desc_JA": "選手交代後　１５秒間交代選手のＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "defense",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Après un remplacement,\nDÉF du joueur entrant [CPASSIVE01]+ %[C] pendant 15 sec",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Defense",
+      "fr": "Défense"
+    }
+  },
+  {
+    "passiveId": "0x28AEDA23",
+    "passiveIdStr": "passive_13",
+    "name_FR": "DÉF des Remparts [CPASSIVE01]+ %[C]\npour les joueurs à positions différentes",
+    "name_JA": "異ポジションの城壁ＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "DÉF des Remparts [CPASSIVE01]+ %[C]\npour les joueurs à positions différentes",
+    "desc_JA": "異ポジションの城壁ＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "catch",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "DÉF des Remparts [CPASSIVE01]+ %[C]\npour les joueurs à positions différentes",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Catch",
+      "fr": "Arrêt"
+    }
+  },
+  {
+    "passiveId": "0x3803A749",
+    "passiveIdStr": "passive_7",
+    "name_FR": "DÉF des Remparts [CPASSIVE01]+ %[C]\npour les joueurs d'éléments différents",
+    "name_JA": "異属性の城壁ＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "DÉF des Remparts [CPASSIVE01]+ %[C]\npour les joueurs d'éléments différents",
+    "desc_JA": "異属性の城壁ＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "catch",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "DÉF des Remparts [CPASSIVE01]+ %[C]\npour les joueurs d'éléments différents",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Catch",
+      "fr": "Arrêt"
+    }
+  },
+  {
+    "passiveId": "0x31B5EB62",
+    "passiveIdStr": "passive_3",
+    "name_FR": "DÉF des Remparts [CPASSIVE01]+ %[C]\npour les joueurs du même élément",
+    "name_JA": "同属性の城壁ＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "DÉF des Remparts [CPASSIVE01]+ %[C]\npour les joueurs du même élément",
+    "desc_JA": "同属性の城壁ＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "catch",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "DÉF des Remparts [CPASSIVE01]+ %[C]\npour les joueurs du même élément",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Catch",
+      "fr": "Arrêt"
+    }
+  },
+  {
+    "passiveId": "0x21189608",
+    "passiveIdStr": "passive_17",
+    "name_FR": "DÉF des Remparts [CPASSIVE01]+ %[C]\npour les joueurs proches",
+    "name_JA": "周囲の城壁ＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "DÉF des Remparts [CPASSIVE01]+ %[C]\npour les joueurs proches",
+    "desc_JA": "周囲の城壁ＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "catch",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "DÉF des Remparts [CPASSIVE01]+ %[C]\npour les joueurs proches",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Catch",
+      "fr": "Arrêt"
+    }
+  },
+  {
+    "passiveId": "0x6AF24C2E",
+    "passiveIdStr": "passive_30",
+    "name_FR": "Quand un joueur d'un autre élément est proche,\nDÉF des Remparts (perso) [CPASSIVE01]+ %[C]",
+    "name_JA": "周囲に異属性がいる時\n自身の城壁ＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Quand un joueur d'un autre élément est proche,\nDÉF des Remparts (perso) [CPASSIVE01]+ %[C]",
+    "desc_JA": "周囲に異属性がいる時\n自身の城壁ＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "catch",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Quand un joueur d'un autre élément est proche,\nDÉF des Remparts (perso) [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Catch",
+      "fr": "Arrêt"
+    }
+  },
+  {
+    "passiveId": "0xF3FB1D94",
+    "passiveIdStr": "passive_31",
+    "name_FR": "Quand un joueur d'un autre élément est proche,\nDÉF des Remparts (perso) [CPASSIVE01]+ %[C]",
+    "name_JA": "周囲に異属性がいる時\n自身の城壁ＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Quand un joueur d'un autre élément est proche,\nDÉF des Remparts (perso) [CPASSIVE01]+ %[C]",
+    "desc_JA": "周囲に異属性がいる時\n自身の城壁ＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "catch",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Quand un joueur d'un autre élément est proche,\nDÉF des Remparts (perso) [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Catch",
+      "fr": "Arrêt"
+    }
+  },
+  {
+    "passiveId": "0x7484B976",
+    "passiveIdStr": "passive_24",
+    "name_FR": "Quand un joueur du même élément est proche,\nDÉF des Remparts (perso) [CPASSIVE01]+ %[C]",
+    "name_JA": "周囲に同属性がいる時\n自身の城壁ＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Quand un joueur du même élément est proche,\nDÉF des Remparts (perso) [CPASSIVE01]+ %[C]",
+    "desc_JA": "周囲に同属性がいる時\n自身の城壁ＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "catch",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Quand un joueur du même élément est proche,\nDÉF des Remparts (perso) [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Catch",
+      "fr": "Arrêt"
+    }
+  },
+  {
+    "passiveId": "0xED8DE8CC",
+    "passiveIdStr": "passive_25",
+    "name_FR": "Quand un joueur du même élément est proche,\nDÉF des Remparts (perso) [CPASSIVE01]+ %[C]",
+    "name_JA": "周囲に同属性がいる時\n自身の城壁ＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Quand un joueur du même élément est proche,\nDÉF des Remparts (perso) [CPASSIVE01]+ %[C]",
+    "desc_JA": "周囲に同属性がいる時\n自身の城壁ＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "catch",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Quand un joueur du même élément est proche,\nDÉF des Remparts (perso) [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Catch",
+      "fr": "Arrêt"
+    }
+  },
+  {
+    "passiveId": "0xB6CA4F80",
+    "passiveIdStr": "passive_12",
+    "name_FR": "ATT & DÉF duels [CPASSIVE01]+ %[C]\npour les joueurs à des positions différentes",
+    "name_JA": "異ポジションのスクランブルＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "ATT & DÉF duels [CPASSIVE01]+ %[C]\npour les joueurs à des positions différentes",
+    "desc_JA": "異ポジションのスクランブルＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "mixed",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "ATT & DÉF duels [CPASSIVE01]+ %[C]\npour les joueurs à des positions différentes",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Mixed",
+      "fr": "Mixte"
+    }
+  },
+  {
+    "passiveId": "0xA8BCBAD8",
+    "passiveIdStr": "passive_6",
+    "name_FR": "ATT & DÉF duels [CPASSIVE01]+ %[C]\npour les joueurs d'éléments différents",
+    "name_JA": "異属性のスクランブルＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "ATT & DÉF duels [CPASSIVE01]+ %[C]\npour les joueurs d'éléments différents",
+    "desc_JA": "異属性のスクランブルＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "mixed",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "ATT & DÉF duels [CPASSIVE01]+ %[C]\npour les joueurs d'éléments différents",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Mixed",
+      "fr": "Mixte"
+    }
+  },
+  {
+    "passiveId": "0x58C42EAC",
+    "passiveIdStr": "passive_10",
+    "name_FR": "ATT & DÉF duels [CPASSIVE01]+ %[C]\npour les joueurs de la même position",
+    "name_JA": "同ポジションのスクランブルＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "ATT & DÉF duels [CPASSIVE01]+ %[C]\npour les joueurs de la même position",
+    "desc_JA": "同ポジションのスクランブルＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "mixed",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "ATT & DÉF duels [CPASSIVE01]+ %[C]\npour les joueurs de la même position",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Mixed",
+      "fr": "Mixte"
+    }
+  },
+  {
+    "passiveId": "0xAFD17EC1",
+    "passiveIdStr": "passive_2",
+    "name_FR": "ATT & DÉF duels [CPASSIVE01]+ %[C]\npour les joueurs du même élément",
+    "name_JA": "同属性のスクランブルＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "ATT & DÉF duels [CPASSIVE01]+ %[C]\npour les joueurs du même élément",
+    "desc_JA": "同属性のスクランブルＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "mixed",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "ATT & DÉF duels [CPASSIVE01]+ %[C]\npour les joueurs du même élément",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Mixed",
+      "fr": "Mixte"
+    }
+  },
+  {
+    "passiveId": "0xB1A78B99",
+    "passiveIdStr": "passive_16",
+    "name_FR": "ATT & DÉF duels [CPASSIVE01]+ %[C]\npour les joueurs proches",
+    "name_JA": "周囲のスクランブルＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "ATT & DÉF duels [CPASSIVE01]+ %[C]\npour les joueurs proches",
+    "desc_JA": "周囲のスクランブルＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "mixed",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "ATT & DÉF duels [CPASSIVE01]+ %[C]\npour les joueurs proches",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Mixed",
+      "fr": "Mixte"
+    }
+  },
+  {
+    "passiveId": "0x9DE71C43",
+    "passiveIdStr": "passive_22",
+    "name_FR": "Quand un joueur du même élément est proche,\nATT & DÉF duels (perso) [CPASSIVE01]+ %[C]",
+    "name_JA": "周囲に同属性がいる時\n自身のスクランブルＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Quand un joueur du même élément est proche,\nATT & DÉF duels (perso) [CPASSIVE01]+ %[C]",
+    "desc_JA": "周囲に同属性がいる時\n自身のスクランブルＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "mixed",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Quand un joueur du même élément est proche,\nATT & DÉF duels (perso) [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Mixed",
+      "fr": "Mixte"
+    }
+  },
+  {
+    "passiveId": "0x38389E0",
+    "passiveIdStr": "passive_23",
+    "name_FR": "Quand un joueur du même élément est proche,\nATT & DÉF duels (perso) [CPASSIVE01]+ %[C]",
+    "name_JA": "周囲に同属性がいる時\n自身のスクランブルＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Quand un joueur du même élément est proche,\nATT & DÉF duels (perso) [CPASSIVE01]+ %[C]",
+    "desc_JA": "周囲に同属性がいる時\n自身のスクランブルＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "player",
+    "boostType": "mixed",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Quand un joueur du même élément est proche,\nATT & DÉF duels (perso) [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Player",
+      "fr": "Joueur"
+    },
+    "boostTypeName": {
+      "en": "Mixed",
+      "fr": "Mixte"
+    }
+  },
+  {
+    "passiveId": "0x608288FD",
+    "passiveIdStr": "passive_59",
+    "name_FR": "Quand l'adversaire évite un affrontement ciblé avec une passe,\ndraine [CPASSIVE01] %[C] de tension",
+    "name_JA": "フォーカスで敵がパスアウト時\nテンションドレイン[CPASSIVE01]％[C]",
+    "desc_FR": "Quand l'adversaire évite un affrontement ciblé avec une passe,\ndraine [CPASSIVE01] %[C] de tension",
+    "desc_JA": "フォーカスで敵がパスアウト時\nテンションドレイン[CPASSIVE01]％[C]",
+    "element": 0,
+    "scope": "enemy",
+    "boostType": "confrontation",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Quand l'adversaire évite un affrontement ciblé avec une passe,\ndraine [CPASSIVE01] %[C] de tension",
+    "scopeName": {
+      "en": "Enemy",
+      "fr": "Adversaire"
+    },
+    "boostTypeName": {
+      "en": "Confrontation",
+      "fr": "Affrontement"
+    }
+  },
+  {
+    "passiveId": "0x1785B86B",
+    "passiveIdStr": "passive_60",
+    "name_FR": "Quand l'adversaire évite un affrontement ciblé avec une passe,\ndraine [CPASSIVE01] %[C] de tension",
+    "name_JA": "フォーカスで敵がパスアウト時\nテンションドレイン[CPASSIVE01]％[C]",
+    "desc_FR": "Quand l'adversaire évite un affrontement ciblé avec une passe,\ndraine [CPASSIVE01] %[C] de tension",
+    "desc_JA": "フォーカスで敵がパスアウト時\nテンションドレイン[CPASSIVE01]％[C]",
+    "element": 0,
+    "scope": "enemy",
+    "boostType": "confrontation",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Quand l'adversaire évite un affrontement ciblé avec une passe,\ndraine [CPASSIVE01] %[C] de tension",
+    "scopeName": {
+      "en": "Enemy",
+      "fr": "Adversaire"
+    },
+    "boostTypeName": {
+      "en": "Confrontation",
+      "fr": "Affrontement"
+    }
+  },
+  {
+    "passiveId": "0xB70825B7",
+    "passiveIdStr": "passive_110",
+    "name_FR": "Quand le taux de brèche est d'au moins 15 %,\ntaux de parade [CPASSIVE01]+ %[C]",
+    "name_JA": "ひっさつ率＋１５％以上の時\nきあい率[CPASSIVE01]＋％[C]",
+    "desc_FR": "Quand le taux de brèche est d'au moins 15 %,\ntaux de parade [CPASSIVE01]+ %[C]",
+    "desc_JA": "ひっさつ率＋１５％以上の時\nきあい率[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "breach",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Quand le taux de brèche est d'au moins 15 %,\ntaux de parade [CPASSIVE01]+ %[C]",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Breach",
+      "fr": "Brèche"
+    }
+  },
+  {
+    "passiveId": "0x9797D890",
+    "passiveIdStr": "passive_71",
+    "name_FR": "Après récupération du ballon (sauf arrêt),\nATT & DÉF affrontement [DÉF] [CPASSIVE01]+ %[C] pendant 30 sec",
+    "name_JA": "キャッチ以外でボール奪還後\n３０秒間ＤＦのフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Après récupération du ballon (sauf arrêt),\nATT & DÉF affrontement [DÉF] [CPASSIVE01]+ %[C] pendant 30 sec",
+    "desc_JA": "キャッチ以外でボール奪還後\n３０秒間ＤＦのフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "confrontation",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Après récupération du ballon (sauf arrêt),\nATT & DÉF affrontement [DÉF] [CPASSIVE01]+ %[C] pendant 30 sec",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Confrontation",
+      "fr": "Affrontement"
+    }
+  },
+  {
+    "passiveId": "0xE090E806",
+    "passiveIdStr": "passive_72",
+    "name_FR": "Après récupération du ballon (sauf arrêt),\nATT & DÉF affrontement [DÉF] [CPASSIVE01]+ %[C] pendant 30 sec",
+    "name_JA": "キャッチ以外でボール奪還後\n３０秒間ＤＦのフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Après récupération du ballon (sauf arrêt),\nATT & DÉF affrontement [DÉF] [CPASSIVE01]+ %[C] pendant 30 sec",
+    "desc_JA": "キャッチ以外でボール奪還後\n３０秒間ＤＦのフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "confrontation",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Après récupération du ballon (sauf arrêt),\nATT & DÉF affrontement [DÉF] [CPASSIVE01]+ %[C] pendant 30 sec",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Confrontation",
+      "fr": "Affrontement"
+    }
+  },
+  {
+    "passiveId": "0x7999B9BC",
+    "passiveIdStr": "passive_69",
+    "name_FR": "Après récupération du ballon (sauf arrêt),\nATT & DÉF affrontement [MIL] [CPASSIVE01]+ %[C] pendant 30 sec",
+    "name_JA": "キャッチ以外でボール奪還後\n３０秒間ＭＦのフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Après récupération du ballon (sauf arrêt),\nATT & DÉF affrontement [MIL] [CPASSIVE01]+ %[C] pendant 30 sec",
+    "desc_JA": "キャッチ以外でボール奪還後\n３０秒間ＭＦのフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "confrontation",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Après récupération du ballon (sauf arrêt),\nATT & DÉF affrontement [MIL] [CPASSIVE01]+ %[C] pendant 30 sec",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Confrontation",
+      "fr": "Affrontement"
+    }
+  },
+  {
+    "passiveId": "0xE9E892A",
+    "passiveIdStr": "passive_70",
+    "name_FR": "Après récupération du ballon (sauf arrêt),\nATT & DÉF affrontement [MIL] [CPASSIVE01]+ %[C] pendant 30 sec",
+    "name_JA": "キャッチ以外でボール奪還後\n３０秒間ＭＦのフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "Après récupération du ballon (sauf arrêt),\nATT & DÉF affrontement [MIL] [CPASSIVE01]+ %[C] pendant 30 sec",
+    "desc_JA": "キャッチ以外でボール奪還後\n３０秒間ＭＦのフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "confrontation",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Après récupération du ballon (sauf arrêt),\nATT & DÉF affrontement [MIL] [CPASSIVE01]+ %[C] pendant 30 sec",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Confrontation",
+      "fr": "Affrontement"
+    }
+  },
+  {
+    "passiveId": "0x52B4EA7F",
+    "passiveIdStr": "passive_39",
+    "name_FR": "ATT & DÉF affrontement (perso) [CPASSIVE01]+ %[C]\ndans la moitié de terrain adverse",
+    "name_JA": "敵陣での自身のフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "ATT & DÉF affrontement (perso) [CPASSIVE01]+ %[C]\ndans la moitié de terrain adverse",
+    "desc_JA": "敵陣での自身のフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "confrontation",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "ATT & DÉF affrontement (perso) [CPASSIVE01]+ %[C]\ndans la moitié de terrain adverse",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Confrontation",
+      "fr": "Affrontement"
+    }
+  },
+  {
+    "passiveId": "0x25B3DAE9",
+    "passiveIdStr": "passive_40",
+    "name_FR": "ATT & DÉF affrontement (perso) [CPASSIVE01]+ %[C]\ndans la moitié de terrain adverse",
+    "name_JA": "敵陣での自身のフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "ATT & DÉF affrontement (perso) [CPASSIVE01]+ %[C]\ndans la moitié de terrain adverse",
+    "desc_JA": "敵陣での自身のフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "confrontation",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "ATT & DÉF affrontement (perso) [CPASSIVE01]+ %[C]\ndans la moitié de terrain adverse",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Confrontation",
+      "fr": "Affrontement"
+    }
+  },
+  {
+    "passiveId": "0x84FC2D02",
+    "passiveIdStr": "passive_32",
+    "name_FR": "ATT & DÉF affrontement (perso) [CPASSIVE01]+ %[C]\ndans sa moitié de terrain",
+    "name_JA": "自陣での自身のフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "ATT & DÉF affrontement (perso) [CPASSIVE01]+ %[C]\ndans sa moitié de terrain",
+    "desc_JA": "自陣での自身のフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "confrontation",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "ATT & DÉF affrontement (perso) [CPASSIVE01]+ %[C]\ndans sa moitié de terrain",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Confrontation",
+      "fr": "Affrontement"
+    }
+  },
+  {
+    "passiveId": "0x1A98B8A1",
+    "passiveIdStr": "passive_33",
+    "name_FR": "ATT & DÉF affrontement (perso) [CPASSIVE01]+ %[C]\ndans sa moitié de terrain",
+    "name_JA": "自陣での自身のフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "ATT & DÉF affrontement (perso) [CPASSIVE01]+ %[C]\ndans sa moitié de terrain",
+    "desc_JA": "自陣での自身のフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "confrontation",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "ATT & DÉF affrontement (perso) [CPASSIVE01]+ %[C]\ndans sa moitié de terrain",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Confrontation",
+      "fr": "Affrontement"
+    }
+  },
+  {
+    "passiveId": "0x22DE1EF0",
+    "passiveIdStr": "passive_44",
+    "name_FR": "ATT & DÉF affrontement (perso) [CPASSIVE01]+ %[C]\nquand hors Zone",
+    "name_JA": "ゾーンエリア外での\n自身のフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "ATT & DÉF affrontement (perso) [CPASSIVE01]+ %[C]\nquand hors Zone",
+    "desc_JA": "ゾーンエリア外での\n自身のフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "confrontation",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "ATT & DÉF affrontement (perso) [CPASSIVE01]+ %[C]\nquand hors Zone",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Confrontation",
+      "fr": "Affrontement"
+    }
+  },
+  {
+    "passiveId": "0xBBD74F4A",
+    "passiveIdStr": "passive_45",
+    "name_FR": "ATT & DÉF affrontement (perso) [CPASSIVE01]+ %[C]\nquand hors Zone",
+    "name_JA": "ゾーンエリア外での\n自身のフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "ATT & DÉF affrontement (perso) [CPASSIVE01]+ %[C]\nquand hors Zone",
+    "desc_JA": "ゾーンエリア外での\n自身のフォーカスＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "confrontation",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "ATT & DÉF affrontement (perso) [CPASSIVE01]+ %[C]\nquand hors Zone",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Confrontation",
+      "fr": "Affrontement"
+    }
+  },
+  {
+    "passiveId": "0x132EF48A",
+    "passiveIdStr": "passive_37",
+    "name_FR": "ATT des tirs (perso) [CPASSIVE01]+ %[C]\ndans la moitié de terrain adverse",
+    "name_JA": "敵陣での自身のシュートＡＴ[CPASSIVE01]＋％[C]",
+    "desc_FR": "ATT des tirs (perso) [CPASSIVE01]+ %[C]\ndans la moitié de terrain adverse",
+    "desc_JA": "敵陣での自身のシュートＡＴ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "attack",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "ATT des tirs (perso) [CPASSIVE01]+ %[C]\ndans la moitié de terrain adverse",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Attack",
+      "fr": "Attaque"
+    }
+  },
+  {
+    "passiveId": "0x6429C41C",
+    "passiveIdStr": "passive_38",
+    "name_FR": "ATT des tirs (perso) [CPASSIVE01]+ %[C]\ndans la moitié de terrain adverse",
+    "name_JA": "敵陣での自身のシュートＡＴ[CPASSIVE01]＋％[C]",
+    "desc_FR": "ATT des tirs (perso) [CPASSIVE01]+ %[C]\ndans la moitié de terrain adverse",
+    "desc_JA": "敵陣での自身のシュートＡＴ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "attack",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "ATT des tirs (perso) [CPASSIVE01]+ %[C]\ndans la moitié de terrain adverse",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Attack",
+      "fr": "Attaque"
+    }
+  },
+  {
+    "passiveId": "0x67F653D",
+    "passiveIdStr": "passive_119",
+    "name_FR": "Frappe [CPASSIVE01]+[C]",
+    "name_JA": "キック[CPASSIVE01]＋[C]",
+    "desc_FR": "Frappe [CPASSIVE01]+[C]",
+    "desc_JA": "キック[CPASSIVE01]＋[C]",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "shoot",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Frappe [CPASSIVE01]+[C]",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Shoot",
+      "fr": "Tir"
+    }
+  },
+  {
+    "passiveId": "0x7BD0F0A",
+    "passiveIdStr": "passive_120",
+    "name_FR": "Contrôle [CPASSIVE01]+[C]",
+    "name_JA": "コントロール[CPASSIVE01]＋[C]",
+    "desc_FR": "Contrôle [CPASSIVE01]+[C]",
+    "desc_JA": "コントロール[CPASSIVE01]＋[C]",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "dribble",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Contrôle [CPASSIVE01]+[C]",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Dribble",
+      "fr": "Dribble"
+    }
+  },
+  {
+    "passiveId": "0x176CDE1",
+    "passiveIdStr": "passive_123",
+    "name_FR": "Physique [CPASSIVE01]+[C]",
+    "name_JA": "フィジカル[CPASSIVE01]＋[C]",
+    "desc_FR": "Physique [CPASSIVE01]+[C]",
+    "desc_JA": "フィジカル[CPASSIVE01]＋[C]",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "block",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Physique [CPASSIVE01]+[C]",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Block",
+      "fr": "Défense"
+    }
+  },
+  {
+    "passiveId": "0x2F2198F",
+    "passiveIdStr": "passive_125",
+    "name_FR": "Agilité [CPASSIVE01]+[C]",
+    "name_JA": "アジリティ[CPASSIVE01]＋[C]",
+    "desc_FR": "Agilité [CPASSIVE01]+[C]",
+    "desc_JA": "アジリティ[CPASSIVE01]＋[C]",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "speed",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Agilité [CPASSIVE01]+[C]",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Speed",
+      "fr": "Vitesse"
+    }
+  },
+  {
+    "passiveId": "0x7EF47DA5",
+    "passiveIdStr": "passive_73",
+    "name_FR": "Après récupération du ballon (sauf arrêt),\nPG [PG] [CPASSIVE01]+ %[C] pendant 15 sec",
+    "name_JA": "キャッチ以外でボール奪還後\n１５秒間ＫＰ上昇[CPASSIVE01]％[C]",
+    "desc_FR": "Après récupération du ballon (sauf arrêt),\nPG [PG] [CPASSIVE01]+ %[C] pendant 15 sec",
+    "desc_JA": "キャッチ以外でボール奪還後\n１５秒間ＫＰ上昇[CPASSIVE01]％[C]",
+    "element": 1,
+    "scope": "unknown",
+    "boostType": "recovery",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Après récupération du ballon (sauf arrêt),\nPG [PG] [CPASSIVE01]+ %[C] pendant 15 sec",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Recovery",
+      "fr": "Récupération"
+    }
+  },
+  {
+    "passiveId": "0x9F34D33",
+    "passiveIdStr": "passive_74",
+    "name_FR": "Après récupération du ballon (sauf arrêt),\nPG [PG] [CPASSIVE01]+ %[C] pendant 15 sec",
+    "name_JA": "キャッチ以外でボール奪還後\n１５秒間ＫＰ上昇[CPASSIVE01]％[C]",
+    "desc_FR": "Après récupération du ballon (sauf arrêt),\nPG [PG] [CPASSIVE01]+ %[C] pendant 15 sec",
+    "desc_JA": "キャッチ以外でボール奪還後\n１５秒間ＫＰ上昇[CPASSIVE01]％[C]",
+    "element": 1,
+    "scope": "unknown",
+    "boostType": "recovery",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Après récupération du ballon (sauf arrêt),\nPG [PG] [CPASSIVE01]+ %[C] pendant 15 sec",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Recovery",
+      "fr": "Récupération"
+    }
+  },
+  {
+    "passiveId": "0xBCBA8B53",
+    "passiveIdStr": "passive_41",
+    "name_FR": "ATT & DÉF duels (perso) [CPASSIVE01]+ %[C]\ndans la moitié de terrain adverse",
+    "name_JA": "敵陣での自身のスクランブルＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "ATT & DÉF duels (perso) [CPASSIVE01]+ %[C]\ndans la moitié de terrain adverse",
+    "desc_JA": "敵陣での自身のスクランブルＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "mixed",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "ATT & DÉF duels (perso) [CPASSIVE01]+ %[C]\ndans la moitié de terrain adverse",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Mixed",
+      "fr": "Mixte"
+    }
+  },
+  {
+    "passiveId": "0xCBBDBBC5",
+    "passiveIdStr": "passive_42",
+    "name_FR": "ATT & DÉF duels (perso) [CPASSIVE01]+ %[C]\ndans la moitié de terrain adverse",
+    "name_JA": "敵陣での自身のスクランブルＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "ATT & DÉF duels (perso) [CPASSIVE01]+ %[C]\ndans la moitié de terrain adverse",
+    "desc_JA": "敵陣での自身のスクランブルＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "mixed",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "ATT & DÉF duels (perso) [CPASSIVE01]+ %[C]\ndans la moitié de terrain adverse",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Mixed",
+      "fr": "Mixte"
+    }
+  },
+  {
+    "passiveId": "0x6D9F8837",
+    "passiveIdStr": "passive_34",
+    "name_FR": "ATT & DÉF duels (perso) [CPASSIVE01]+ %[C]\ndans sa moitié de terrain",
+    "name_JA": "自陣での自身のスクランブルＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "ATT & DÉF duels (perso) [CPASSIVE01]+ %[C]\ndans sa moitié de terrain",
+    "desc_JA": "自陣での自身のスクランブルＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "mixed",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "ATT & DÉF duels (perso) [CPASSIVE01]+ %[C]\ndans sa moitié de terrain",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Mixed",
+      "fr": "Mixte"
+    }
+  },
+  {
+    "passiveId": "0xF496D98D",
+    "passiveIdStr": "passive_35",
+    "name_FR": "ATT & DÉF duels (perso) [CPASSIVE01]+ %[C]\ndans sa moitié de terrain",
+    "name_JA": "自陣での自身のスクランブルＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "ATT & DÉF duels (perso) [CPASSIVE01]+ %[C]\ndans sa moitié de terrain",
+    "desc_JA": "自陣での自身のスクランブルＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "mixed",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "ATT & DÉF duels (perso) [CPASSIVE01]+ %[C]\ndans sa moitié de terrain",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Mixed",
+      "fr": "Mixte"
+    }
+  },
+  {
+    "passiveId": "0xCCD07FDC",
+    "passiveIdStr": "passive_46",
+    "name_FR": "ATT & DÉF duels (perso) [CPASSIVE01]+ %[C]\nquand hors Zone",
+    "name_JA": "ゾーンエリア外での\n自身のスクランブルＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "ATT & DÉF duels (perso) [CPASSIVE01]+ %[C]\nquand hors Zone",
+    "desc_JA": "ゾーンエリア外での\n自身のスクランブルＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "mixed",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "ATT & DÉF duels (perso) [CPASSIVE01]+ %[C]\nquand hors Zone",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Mixed",
+      "fr": "Mixte"
+    }
+  },
+  {
+    "passiveId": "0x5C6F624D",
+    "passiveIdStr": "passive_47",
+    "name_FR": "ATT & DÉF duels (perso) [CPASSIVE01]+ %[C]\nquand hors Zone",
+    "name_JA": "ゾーンエリア外での\n自身のスクランブルＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "desc_FR": "ATT & DÉF duels (perso) [CPASSIVE01]+ %[C]\nquand hors Zone",
+    "desc_JA": "ゾーンエリア外での\n自身のスクランブルＡＴＤＦ[CPASSIVE01]＋％[C]",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "mixed",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "ATT & DÉF duels (perso) [CPASSIVE01]+ %[C]\nquand hors Zone",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Mixed",
+      "fr": "Mixte"
+    }
+  },
+  {
+    "passiveId": "0xB4A7D6",
+    "passiveIdStr": "passive_124",
+    "name_FR": "Intelligence [CPASSIVE01]+[C]",
+    "name_JA": "インテリジェンス[CPASSIVE01]＋[C]",
+    "desc_FR": "Intelligence [CPASSIVE01]+[C]",
+    "desc_JA": "インテリジェンス[CPASSIVE01]＋[C]",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "special",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Intelligence [CPASSIVE01]+[C]",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Special",
+      "fr": "Spécial"
+    }
+  },
+  {
+    "passiveId": "0x71AF542C",
+    "passiveIdStr": "passive_113",
+    "name_FR": "Passif Inconnu",
+    "name_JA": "未知のパッシブ",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "special",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Passif Inconnu",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Special",
+      "fr": "Spécial"
+    }
+  },
+  {
+    "passiveId": "0x1BB4AA4F",
+    "passiveIdStr": "passive_114",
+    "name_FR": "Passif Inconnu",
+    "name_JA": "未知のパッシブ",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "special",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Passif Inconnu",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Special",
+      "fr": "Spécial"
+    }
+  },
+  {
+    "passiveId": "0x82BDFBF5",
+    "passiveIdStr": "passive_115",
+    "name_FR": "Passif Inconnu",
+    "name_JA": "未知のパッシブ",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "special",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Passif Inconnu",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Special",
+      "fr": "Spécial"
+    }
+  },
+  {
+    "passiveId": "0xF5BACB63",
+    "passiveIdStr": "passive_116",
+    "name_FR": "Passif Inconnu",
+    "name_JA": "未知のパッシブ",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "special",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Passif Inconnu",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Special",
+      "fr": "Spécial"
+    }
+  },
+  {
+    "passiveId": "0x6BDE5EC0",
+    "passiveIdStr": "passive_117",
+    "name_FR": "Passif Inconnu",
+    "name_JA": "未知のパッシブ",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "special",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Passif Inconnu",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Special",
+      "fr": "Spécial"
+    }
+  },
+  {
+    "passiveId": "0x1CD96E56",
+    "passiveIdStr": "passive_118",
+    "name_FR": "Passif Inconnu",
+    "name_JA": "未知のパッシブ",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "special",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Passif Inconnu",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Special",
+      "fr": "Spécial"
+    }
+  },
+  {
+    "passiveId": "0x0",
+    "passiveIdStr": "passive_126",
+    "name_FR": "Passif Inconnu",
+    "name_JA": "未知のパッシブ",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "special",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Passif Inconnu",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Special",
+      "fr": "Spécial"
+    }
+  },
+  {
+    "passiveId": "0x9B48B26D",
+    "passiveIdStr": "passive_127",
+    "name_FR": "Passif Inconnu",
+    "name_JA": "未知のパッシブ",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "special",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Passif Inconnu",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Special",
+      "fr": "Spécial"
+    }
+  },
+  {
+    "passiveId": "0x439DB64",
+    "passiveIdStr": "passive_122",
+    "name_FR": "Pression [CPASSIVE01]+[C]",
+    "name_JA": "プレッシャー[CPASSIVE01]＋[C]",
+    "desc_FR": "Pression [CPASSIVE01]+[C]",
+    "desc_JA": "プレッシャー[CPASSIVE01]＋[C]",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "unknown",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Pression [CPASSIVE01]+[C]",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    }
+  },
+  {
+    "passiveId": "0x5FBB153",
+    "passiveIdStr": "passive_121",
+    "name_FR": "Technique [CPASSIVE01]+[C]",
+    "name_JA": "テクニック[CPASSIVE01]＋[C]",
+    "desc_FR": "Technique [CPASSIVE01]+[C]",
+    "desc_JA": "テクニック[CPASSIVE01]＋[C]",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "unknown",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Technique [CPASSIVE01]+[C]",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    }
+  },
+  {
+    "passiveId": "0x4770B1C3",
+    "passiveIdStr": "passive_103",
+    "name_FR": "Temps de recharge des tactiques spéciales (perso) [CPASSIVE01]- %[C]",
+    "name_JA": "必殺タクティクスのリキャスト短縮[CPASSIVE01]％[C]",
+    "desc_FR": "Temps de recharge des tactiques spéciales (perso) [CPASSIVE01]- %[C]",
+    "desc_JA": "必殺タクティクスのリキャスト短縮[CPASSIVE01]％[C]",
+    "element": 1,
+    "scope": "unknown",
+    "boostType": "unknown",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Temps de recharge des tactiques spéciales (perso) [CPASSIVE01]- %[C]",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    }
+  },
+  {
+    "passiveId": "0xDE79E079",
+    "passiveIdStr": "passive_104",
+    "name_FR": "Temps de recharge des tactiques spéciales (perso) [CPASSIVE01]- %[C]",
+    "name_JA": "必殺タクティクスのリキャスト短縮[CPASSIVE01]％[C]",
+    "desc_FR": "Temps de recharge des tactiques spéciales (perso) [CPASSIVE01]- %[C]",
+    "desc_JA": "必殺タクティクスのリキャスト短縮[CPASSIVE01]％[C]",
+    "element": 1,
+    "scope": "unknown",
+    "boostType": "unknown",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Temps de recharge des tactiques spéciales (perso) [CPASSIVE01]- %[C]",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    }
+  },
+  {
+    "passiveId": "0x20DAFC3F",
+    "passiveIdStr": "passive_111",
+    "name_FR": "Temps de recharge des techniques spéciales (perso)[CPASSIVE01] - %[C]",
+    "name_JA": "必殺技のリキャスト短縮[CPASSIVE01]％[C]",
+    "desc_FR": "Temps de recharge des techniques spéciales (perso)[CPASSIVE01] - %[C]",
+    "desc_JA": "必殺技のリキャスト短縮[CPASSIVE01]％[C]",
+    "element": 0,
+    "scope": "unknown",
+    "boostType": "unknown",
+    "_source": "passive_skill_config",
+    "_file": "passive_skill_config.json",
+    "displayName": "Temps de recharge des techniques spéciales (perso)[CPASSIVE01] - %[C]",
+    "scopeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    },
+    "boostTypeName": {
+      "en": "Unknown",
+      "fr": "Inconnu"
+    }
+  }
+]

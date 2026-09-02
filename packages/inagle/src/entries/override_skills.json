@@ -1,0 +1,929 @@
+[
+  {
+    "override_skill_id": "0xBAA40F86",
+    "name_fr": "Tornade du dragon",
+    "name_en": "Dragon Tornado",
+    "name_ja": "ドラゴントルネード",
+    "element_id": 3,
+    "category_id": 1,
+    "power_min": 120,
+    "power_max": 720,
+    "conditions": [
+      {
+        "condition_type": 2,
+        "required_skills": [
+          {
+            "skill_id": "0x2CFC3E63",
+            "name_fr": "Choc du dragon",
+            "name_en": "Dragon Crash",
+            "num": 1
+          },
+          {
+            "skill_id": "0x518BCA26",
+            "name_fr": "Tornade de feu",
+            "name_en": "Fire Tornado",
+            "num": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "override_skill_id": "0xD709B785",
+    "name_fr": "Double tir fatal",
+    "name_en": "Double Wrath Shot",
+    "name_ja": "二百烈ショット",
+    "element_id": 2,
+    "category_id": 1,
+    "power_min": 120,
+    "power_max": 720,
+    "conditions": [
+      {
+        "condition_type": 2,
+        "required_skills": [
+          {
+            "skill_id": "0x1ECA5CE1",
+            "name_fr": "Tir fatal",
+            "name_en": "Wrath Shot",
+            "num": 1
+          },
+          {
+            "skill_id": "0x1ECA5CE1",
+            "name_fr": "Tir fatal",
+            "name_en": "Wrath Shot",
+            "num": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "override_skill_id": "0x2F997334",
+    "name_fr": "Super trampoline du tonnerre",
+    "name_en": "Inazuma-1 Drop",
+    "name_ja": "イナズマ１号落とし",
+    "element_id": 1,
+    "category_id": 1,
+    "power_min": 140,
+    "power_max": 800,
+    "conditions": [
+      {
+        "condition_type": 2,
+        "required_skills": [
+          {
+            "skill_id": "0x07D16DA0",
+            "name_fr": "Foudre",
+            "name_en": "Inazuma-1",
+            "num": 1
+          },
+          {
+            "skill_id": "0x63BDA8A4",
+            "name_fr": "Trampoline du tonnerre",
+            "name_en": "Inazuma Drop",
+            "num": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "override_skill_id": "0x5BF51EF0",
+    "name_fr": "Tornade puissance 2",
+    "name_en": "Twin Boost F",
+    "name_ja": "ツインブーストＦ",
+    "element_id": 3,
+    "category_id": 1,
+    "power_min": 140,
+    "power_max": 800,
+    "conditions": [
+      {
+        "condition_type": 2,
+        "required_skills": [
+          {
+            "skill_id": "0x518BCA26",
+            "name_fr": "Tornade de feu",
+            "name_en": "Fire Tornado",
+            "num": 1
+          },
+          {
+            "skill_id": "0x4890FB67",
+            "name_fr": "Tir puissance 2",
+            "name_en": "Twin Boost",
+            "num": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "override_skill_id": "0xD9A58921",
+    "name_fr": "Tornade double",
+    "name_en": "Double Tornado",
+    "name_ja": "ダブルトルネード",
+    "element_id": 2,
+    "category_id": 1,
+    "power_min": 120,
+    "power_max": 720,
+    "conditions": [
+      {
+        "condition_type": 2,
+        "required_skills": [
+          {
+            "skill_id": "0x518BCA26",
+            "name_fr": "Tornade de feu",
+            "name_en": "Fire Tornado",
+            "num": 1
+          },
+          {
+            "skill_id": "0x4AD6453E",
+            "name_fr": "Tornade inversée",
+            "name_en": "Back Tornado",
+            "num": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "override_skill_id": "0xED03D6F5",
+    "name_fr": "Blizzard de la vouivre",
+    "name_en": "Wyvern Blizzard",
+    "name_ja": "ワイバーンブリザード",
+    "element_id": 1,
+    "category_id": 1,
+    "power_min": 120,
+    "power_max": 720,
+    "conditions": [
+      {
+        "condition_type": 2,
+        "required_skills": [
+          {
+            "skill_id": "0x5F989B9E",
+            "name_fr": "Choc de la vouivre",
+            "name_en": "Wyvern Crash",
+            "num": 1
+          },
+          {
+            "skill_id": "0x19C3F43D",
+            "name_fr": "Blizzard éternel",
+            "name_en": "Eternal Blizzard",
+            "num": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "override_skill_id": "0x2867AA8C",
+    "name_fr": "Tempête du tigre",
+    "name_en": "Tiger Storm",
+    "name_ja": "タイガーストーム",
+    "element_id": 3,
+    "category_id": 1,
+    "power_min": 140,
+    "power_max": 800,
+    "conditions": [
+      {
+        "condition_type": 2,
+        "required_skills": [
+          {
+            "skill_id": "0x232D05EC",
+            "name_fr": "Frappe du tigre",
+            "name_en": "Tiger Drive",
+            "num": 1
+          },
+          {
+            "skill_id": "0x00D8C57C",
+            "name_fr": "Tempête de feu",
+            "name_en": "Fireball Storm",
+            "num": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "override_skill_id": "0xE33B7929",
+    "name_fr": "Ouragan",
+    "name_en": "The Hurricane",
+    "name_ja": "ザ・ハリケーン",
+    "element_id": 1,
+    "category_id": 1,
+    "power_min": 150,
+    "power_max": 840,
+    "conditions": [
+      {
+        "condition_type": 0,
+        "required_skills": [
+          {
+            "skill_id": "0x19C3F43D",
+            "name_fr": "Blizzard éternel",
+            "name_en": "Eternal Blizzard",
+            "num": 1
+          },
+          {
+            "skill_id": "0x2354CA2D",
+            "name_fr": "Danse d'Éole",
+            "name_en": "Wind God's Dance",
+            "num": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "override_skill_id": "0xD78FD797",
+    "name_fr": "Tir chaotique",
+    "name_en": "Chaos Break",
+    "name_ja": "カオスブレイク",
+    "element_id": 2,
+    "category_id": 1,
+    "power_min": 180,
+    "power_max": 900,
+    "conditions": [
+      {
+        "condition_type": 0,
+        "required_skills": [
+          {
+            "skill_id": "0x7577A26A",
+            "name_fr": "Tir solaire",
+            "name_en": "God Break",
+            "num": 1
+          },
+          {
+            "skill_id": "0x09C23C18",
+            "name_fr": "Blizzard enflammé",
+            "name_en": "Fire Blizzard",
+            "num": 1
+          },
+          {
+            "skill_id": "0x111B676E",
+            "name_fr": "Blizzard enflammé",
+            "name_en": "Fire Blizzard",
+            "num": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "override_skill_id": "0x4FA2C954",
+    "name_fr": "Frappe delta",
+    "name_en": "Triple Threat",
+    "name_ja": "エボリューション",
+    "element_id": 4,
+    "category_id": 1,
+    "power_min": 160,
+    "power_max": 880,
+    "conditions": [
+      {
+        "condition_type": 2,
+        "required_skills": [
+          {
+            "skill_id": "0xEDBAD1F1",
+            "name_fr": "Tir d'unité",
+            "name_en": "Brimstone Rain",
+            "num": 1
+          },
+          {
+            "skill_id": "0x9349F1DA",
+            "name_fr": "Tir en rafales",
+            "name_en": "Zephyr Shot",
+            "num": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "override_skill_id": "0xC0E23CF4",
+    "name_fr": "Fulgurante double tornade de feu",
+    "name_en": "Fire Tornado DD",
+    "name_ja": "ファイアトルネードＤＤ",
+    "element_id": 3,
+    "category_id": 1,
+    "power_min": 140,
+    "power_max": 800,
+    "conditions": [
+      {
+        "condition_type": 2,
+        "required_skills": [
+          {
+            "skill_id": "0x518BCA26",
+            "name_fr": "Tornade de feu",
+            "name_en": "Fire Tornado",
+            "num": 1
+          },
+          {
+            "skill_id": "0x518BCA26",
+            "name_fr": "Tornade de feu",
+            "name_en": "Fire Tornado",
+            "num": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "override_skill_id": "0x2753C574",
+    "name_fr": "Fulgurante triple tornade de feu",
+    "name_en": "Fire Tornado TC",
+    "name_ja": "ファイアトルネードＴＣ",
+    "element_id": 3,
+    "category_id": 1,
+    "power_min": 180,
+    "power_max": 900,
+    "conditions": [
+      {
+        "condition_type": 0,
+        "required_skills": [
+          {
+            "skill_id": "0x518BCA26",
+            "name_fr": "Tornade de feu",
+            "name_en": "Fire Tornado",
+            "num": 3
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "override_skill_id": "0x03E0C869",
+    "name_fr": "Front froid",
+    "name_en": "Cold Front",
+    "name_ja": "ホワイト・ダブルインパクト",
+    "element_id": 1,
+    "category_id": 1,
+    "power_min": 120,
+    "power_max": 720,
+    "conditions": [
+      {
+        "condition_type": 2,
+        "required_skills": [
+          {
+            "skill_id": "0x19C3F43D",
+            "name_fr": "Blizzard éternel",
+            "name_en": "Eternal Blizzard",
+            "num": 1
+          },
+          {
+            "skill_id": "0x19C3F43D",
+            "name_fr": "Blizzard éternel",
+            "name_en": "Eternal Blizzard",
+            "num": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "override_skill_id": "0x8CA03DC9",
+    "name_fr": "Triple blizzard",
+    "name_en": "Triple Blizzard",
+    "name_ja": "トリプルブリザード",
+    "element_id": 1,
+    "category_id": 1,
+    "power_min": 140,
+    "power_max": 800,
+    "conditions": [
+      {
+        "condition_type": 2,
+        "required_skills": [
+          {
+            "skill_id": "0xF4533922",
+            "name_fr": "Front froid",
+            "name_en": "Cold Front",
+            "num": 1
+          },
+          {
+            "skill_id": "0xBB12AFE5",
+            "name_fr": "Course du lièvre",
+            "name_en": "Rabbit Run",
+            "num": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "override_skill_id": "0x7430F978",
+    "name_fr": "Attaque cosmique",
+    "name_en": "Cosmic Blaster",
+    "name_ja": "コズミックブラスター",
+    "element_id": 2,
+    "category_id": 1,
+    "power_min": 160,
+    "power_max": 880,
+    "conditions": [
+      {
+        "condition_type": 2,
+        "required_skills": [
+          {
+            "skill_id": "0x8924CD67",
+            "name_fr": "La déflagration",
+            "name_en": "The Detonator",
+            "num": 1
+          },
+          {
+            "skill_id": "0x65766A4F",
+            "name_fr": "Météore géant",
+            "name_en": "Meteor Blade",
+            "num": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "override_skill_id": "0x36758428",
+    "name_fr": "Attaque cosmique",
+    "name_en": "Cosmic Blaster",
+    "name_ja": "コズミックブラスター",
+    "element_id": 2,
+    "category_id": 1,
+    "power_min": 160,
+    "power_max": 880,
+    "conditions": [
+      {
+        "condition_type": 2,
+        "required_skills": [
+          {
+            "skill_id": "0x8924CD67",
+            "name_fr": "La déflagration",
+            "name_en": "The Detonator",
+            "num": 1
+          },
+          {
+            "skill_id": "0x7601AF96",
+            "name_fr": "Météore géant A",
+            "name_en": "Meteor Blade A",
+            "num": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "override_skill_id": "0x3E1470A1",
+    "name_fr": "Triangle de la mort amélioré",
+    "name_en": "Beyond the Death Zone",
+    "name_ja": "デスクラッシャーゾーン",
+    "element_id": 2,
+    "category_id": 1,
+    "power_min": 140,
+    "power_max": 800,
+    "conditions": [
+      {
+        "condition_type": 2,
+        "required_skills": [
+          {
+            "skill_id": "0xC7A73197",
+            "name_fr": "Lance de glace",
+            "name_en": "Polar Pike",
+            "num": 1
+          },
+          {
+            "skill_id": "0xB27F13ED",
+            "name_fr": "Triangle de la mort",
+            "name_en": "Death Zone",
+            "num": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "override_skill_id": "0x040CE0BB",
+    "name_fr": "Manchot empereur nº 2 avec requin",
+    "name_en": "Emperor Penguin No. 2 feat. Shark",
+    "name_ja": "皇帝ペンギン２号　ｆｅａｔ．シャーク",
+    "element_id": 2,
+    "category_id": 1,
+    "power_min": 160,
+    "power_max": 880,
+    "conditions": [
+      {
+        "condition_type": 2,
+        "required_skills": [
+          {
+            "skill_id": "0x7DAF3139",
+            "name_fr": "Manchot empereur nº 2",
+            "name_en": "Emperor Penguin No. 2",
+            "num": 1
+          },
+          {
+            "skill_id": "0x69D15C3C",
+            "name_fr": "Requin ténébreux",
+            "name_en": "Shark Shooter",
+            "num": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "override_skill_id": "0xCCEC6FCB",
+    "name_fr": "Poussière de flocon",
+    "name_en": "Icebreaker",
+    "name_ja": "氷結のグングニル",
+    "element_id": 1,
+    "category_id": 1,
+    "power_min": 160,
+    "power_max": 880,
+    "conditions": [
+      {
+        "condition_type": 2,
+        "required_skills": [
+          {
+            "skill_id": "0x19C3F43D",
+            "name_fr": "Blizzard éternel",
+            "name_en": "Eternal Blizzard",
+            "num": 1
+          },
+          {
+            "skill_id": "0xED480863",
+            "name_fr": "Ours enragé",
+            "name_en": "Ursa Rager",
+            "num": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "override_skill_id": "0xFE364312",
+    "name_fr": "Tempête de feu",
+    "name_en": "Fireball Storm",
+    "name_ja": "爆熱ストーム",
+    "element_id": 3,
+    "category_id": 1,
+    "power_min": 140,
+    "power_max": 800,
+    "conditions": [
+      {
+        "condition_type": 2,
+        "required_skills": [
+          {
+            "skill_id": "0x2F78EA0D",
+            "name_fr": "Triangle Z",
+            "name_en": "Triangle Z",
+            "num": 1
+          },
+          {
+            "skill_id": "0x518BCA26",
+            "name_fr": "Tornade de feu",
+            "name_en": "Fire Tornado",
+            "num": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "override_skill_id": "0xC9E8B320",
+    "name_fr": "Tempête de feu",
+    "name_en": "Fireball Storm",
+    "name_ja": "爆熱ストーム",
+    "element_id": 3,
+    "category_id": 1,
+    "power_min": 120,
+    "power_max": 720,
+    "conditions": [
+      {
+        "condition_type": 2,
+        "required_skills": [
+          {
+            "skill_id": "0x83BAE06D",
+            "name_fr": "Goéland scintillant",
+            "name_en": "Golden Gull",
+            "num": 1
+          },
+          {
+            "skill_id": "0xA897B3AE",
+            "name_fr": "Tornade de feu A",
+            "name_en": "Fire Tornado A",
+            "num": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "override_skill_id": "0x5E2FCAC1",
+    "name_fr": "Triangle de la mort ultime",
+    "name_en": "Final Death Zone",
+    "name_ja": "ラスト・デスゾーン",
+    "element_id": 2,
+    "category_id": 1,
+    "power_min": 160,
+    "power_max": 880,
+    "conditions": [
+      {
+        "condition_type": 0,
+        "required_skills": [
+          {
+            "skill_id": "0xB27F13ED",
+            "name_fr": "Triangle de la mort",
+            "name_en": "Death Zone",
+            "num": 3
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "override_skill_id": "0xCD309753",
+    "name_fr": "Tatou de cirque",
+    "name_en": "Armadillo Circus",
+    "name_ja": "アルマジロサーカス",
+    "element_id": 3,
+    "category_id": 2,
+    "power_min": 120,
+    "power_max": 720,
+    "conditions": [
+      {
+        "condition_type": 0,
+        "required_skills": [
+          {
+            "skill_id": "0x166B0073",
+            "name_fr": "Tatou géant",
+            "name_en": "Super Armadillo",
+            "num": 1
+          },
+          {
+            "skill_id": "0xDF70E04C",
+            "name_fr": "Clown acrobate",
+            "name_en": "Rodeo Clown",
+            "num": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "override_skill_id": "0xB7F0C433",
+    "name_fr": "Course triple",
+    "name_en": "Triple Dash",
+    "name_ja": "トリプルダッシュ",
+    "element_id": 4,
+    "category_id": 2,
+    "power_min": 140,
+    "power_max": 800,
+    "conditions": [
+      {
+        "condition_type": 0,
+        "required_skills": [
+          {
+            "skill_id": "0x73C5AF40",
+            "name_fr": "Accélération",
+            "name_en": "Dash Accelerator",
+            "num": 3
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "override_skill_id": "0x687DA020",
+    "name_fr": "Passage en force 3",
+    "name_en": "Foul Offence 3",
+    "name_ja": "ジャッジスルー３",
+    "element_id": 3,
+    "category_id": 2,
+    "power_min": 140,
+    "power_max": 800,
+    "conditions": [
+      {
+        "condition_type": 0,
+        "required_skills": [
+          {
+            "skill_id": "0x6ADE9E01",
+            "name_fr": "Ballon illusoire",
+            "name_en": "Illusory Ball",
+            "num": 1
+          },
+          {
+            "skill_id": "0x142DBE2A",
+            "name_fr": "Passage en force",
+            "name_en": "Foul Offence",
+            "num": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "override_skill_id": "0x3164B69D",
+    "name_fr": "Roue combinée",
+    "name_en": "Rolling Hell",
+    "name_ja": "地獄車",
+    "element_id": 4,
+    "category_id": 2,
+    "power_min": 120,
+    "power_max": 720,
+    "conditions": [
+      {
+        "condition_type": 0,
+        "required_skills": [
+          {
+            "skill_id": "0x166B0073",
+            "name_fr": "Tatou géant",
+            "name_en": "Super Armadillo",
+            "num": 2
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "override_skill_id": "0x7205203E",
+    "name_fr": "Mur de roches",
+    "name_en": "Stone Wall",
+    "name_ja": "ロックウォールダム",
+    "element_id": 2,
+    "category_id": 3,
+    "power_min": 120,
+    "power_max": 720,
+    "conditions": [
+      {
+        "condition_type": 0,
+        "required_skills": [
+          {
+            "skill_id": "0x7D6E9A87",
+            "name_fr": "Le Mur",
+            "name_en": "The Wall",
+            "num": 1
+          },
+          {
+            "skill_id": "0x8C382852",
+            "name_fr": "Main céleste",
+            "name_en": "God Hand",
+            "num": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "override_skill_id": "0x8D6B3D37",
+    "name_fr": "Muraille impénétrable",
+    "name_en": "Wall for One",
+    "name_ja": "レンサ・ザ・ウォール",
+    "element_id": 4,
+    "category_id": 3,
+    "power_min": 120,
+    "power_max": 720,
+    "conditions": [
+      {
+        "condition_type": 0,
+        "required_skills": [
+          {
+            "skill_id": "0x7D6E9A87",
+            "name_fr": "Le Mur",
+            "name_en": "The Wall",
+            "num": 4
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "override_skill_id": "0xB7F5CD3F",
+    "name_fr": "Double cyclone",
+    "name_en": "Double Cyclone",
+    "name_ja": "ダブルサイクロン",
+    "element_id": 1,
+    "category_id": 3,
+    "power_min": 120,
+    "power_max": 720,
+    "conditions": [
+      {
+        "condition_type": 0,
+        "required_skills": [
+          {
+            "skill_id": "0x2B343D01",
+            "name_fr": "Cyclone",
+            "name_en": "Cyclone",
+            "num": 2
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "override_skill_id": "0x450DD255",
+    "name_fr": "Danse du bambou",
+    "name_en": "Bamboo Pattern",
+    "name_ja": "かごめかごめ",
+    "element_id": 4,
+    "category_id": 3,
+    "power_min": 120,
+    "power_max": 720,
+    "conditions": [
+      {
+        "condition_type": 0,
+        "required_skills": [
+          {
+            "skill_id": "0x55C71D2A",
+            "name_fr": "Contournement",
+            "name_en": "About Face",
+            "num": 3
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "override_skill_id": "0x552C2B5E",
+    "name_fr": "Triple main céleste",
+    "name_en": "Triple God Hand",
+    "name_ja": "ゴッドハンドトリプル",
+    "element_id": 3,
+    "category_id": 4,
+    "power_min": 120,
+    "power_max": 720,
+    "conditions": [
+      {
+        "condition_type": 0,
+        "required_skills": [
+          {
+            "skill_id": "0x8C382852",
+            "name_fr": "Main céleste",
+            "name_en": "God Hand",
+            "num": 3
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "override_skill_id": "0x15728836",
+    "name_fr": "Défense de diamant",
+    "name_en": "Diamond Igloo",
+    "name_ja": "ＫＡＭＡＫＵＲＡ　Ｄ",
+    "element_id": 2,
+    "category_id": 4,
+    "power_min": 140,
+    "power_max": 800,
+    "conditions": [
+      {
+        "condition_type": 0,
+        "required_skills": [
+          {
+            "skill_id": "0x7CCC712C",
+            "name_fr": "Éclipse lunaire",
+            "name_en": "Lunar Eclipse",
+            "num": 1
+          },
+          {
+            "skill_id": "0x0A02DF36",
+            "name_fr": "Sphère de confinement",
+            "name_en": "Containment Field",
+            "num": 1
+          },
+          {
+            "skill_id": "0x7601AF96",
+            "name_fr": "Météore géant A",
+            "name_en": "Meteor Blade A",
+            "num": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "override_skill_id": "0x6FB2DB56",
+    "name_fr": "L'Asura",
+    "name_en": "Majin Merge",
+    "name_ja": "ザ・アシュラ",
+    "element_id": 3,
+    "category_id": 4,
+    "power_min": 140,
+    "power_max": 800,
+    "conditions": [
+      {
+        "condition_type": 0,
+        "required_skills": [
+          {
+            "skill_id": "0x7F48A542",
+            "name_fr": "Fantôme de Fujin et Raijin",
+            "name_en": "Mega Majin Trio",
+            "num": 1
+          },
+          {
+            "skill_id": "0x8E7E960B",
+            "name_fr": "Perceuse",
+            "name_en": "Drill Smasher",
+            "num": 1
+          },
+          {
+            "skill_id": "0x7CCC712C",
+            "name_fr": "Éclipse lunaire",
+            "name_en": "Lunar Eclipse",
+            "num": 1
+          }
+        ]
+      }
+    ]
+  }
+]

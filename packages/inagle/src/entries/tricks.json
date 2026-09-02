@@ -1,0 +1,164 @@
+[
+  {
+    "id": "0xDAB20CDC",
+    "name": "ファイアトルネード",
+    "trickId": "0xDAB20CDC",
+    "trickIdName": "whs0010",
+    "eventId": "0xDB8CADA2",
+    "eventIdName": "ev60_0010",
+    "failEventId": "0x00000000",
+    "failEventIdName": "",
+    "trickNameJa": "ファイアトルネード",
+    "trickCategory": 1,
+    "trickCategoryName": "Tir",
+    "attributes": {
+      "Code": "whs0010",
+      "Categorie": "Tir",
+      "Evenement": "ev60_0010"
+    }
+  },
+  {
+    "id": "0xDB7066EB",
+    "name": "シャイニングバード（アレス）",
+    "trickId": "0xDB7066EB",
+    "trickIdName": "whs0110",
+    "eventId": "0xDA4EC795",
+    "eventIdName": "ev60_0110",
+    "failEventId": "0x00000000",
+    "failEventIdName": "",
+    "trickNameJa": "シャイニングバード（アレス）",
+    "trickCategory": 1,
+    "trickCategoryName": "Tir",
+    "attributes": {
+      "Code": "whs0110",
+      "Categorie": "Tir",
+      "Evenement": "ev60_0110"
+    }
+  },
+  {
+    "id": "0x7FA2765F",
+    "name": "そよかぜステップ",
+    "trickId": "0x7FA2765F",
+    "trickIdName": "who0010",
+    "eventId": "0x10D07E07",
+    "eventIdName": "ev61_0010",
+    "failEventId": "0x00000000",
+    "failEventIdName": "",
+    "trickNameJa": "そよかぜステップ",
+    "trickCategory": 2,
+    "trickCategoryName": "Dribble",
+    "attributes": {
+      "Code": "who0010",
+      "Categorie": "Dribble",
+      "Evenement": "ev61_0010"
+    }
+  },
+  {
+    "id": "0x548F259C",
+    "name": "イナビカリダッシュ（アレス）",
+    "trickId": "0x548F259C",
+    "trickIdName": "who0020",
+    "eventId": "0x3BFD2DC4",
+    "eventIdName": "ev61_0020",
+    "failEventId": "0x00000000",
+    "failEventIdName": "",
+    "trickNameJa": "イナビカリダッシュ（アレス）",
+    "trickCategory": 2,
+    "trickCategoryName": "Dribble",
+    "attributes": {
+      "Code": "who0020",
+      "Categorie": "Dribble",
+      "Evenement": "ev61_0020"
+    }
+  },
+  {
+    "id": "0x0872474E",
+    "name": "旋風陣",
+    "trickId": "0x0872474E",
+    "trickIdName": "whd0010",
+    "eventId": "0x5B578E91",
+    "eventIdName": "ev62_0010_1",
+    "failEventId": "0xC25EDF2B",
+    "failEventIdName": "ev62_0010_2",
+    "trickNameJa": "旋風陣",
+    "trickCategory": 3,
+    "trickCategoryName": "Bloc",
+    "attributes": {
+      "Code": "whd0010",
+      "Categorie": "Bloc",
+      "Evenement": "ev62_0010_1"
+    }
+  },
+  {
+    "id": "0x6C1E824A",
+    "name": "ザ・ミスト",
+    "trickId": "0x6C1E824A",
+    "trickIdName": "whd0050",
+    "eventId": "0xF228C9AD",
+    "eventIdName": "ev62_0050",
+    "failEventId": "0x00000000",
+    "failEventIdName": "",
+    "trickNameJa": "ザ・ミスト",
+    "trickCategory": 3,
+    "trickCategoryName": "Bloc",
+    "attributes": {
+      "Code": "whd0050",
+      "Categorie": "Bloc",
+      "Evenement": "ev62_0050"
+    }
+  },
+  {
+    "id": "0x8A22D09F",
+    "name": "ゴッドハンド",
+    "trickId": "0x8A22D09F",
+    "trickIdName": "whk0010",
+    "eventId": "0x97FD8E0F",
+    "eventIdName": "ev63_0010_1",
+    "failEventId": "0x0EF4DFB5",
+    "failEventIdName": "ev63_0010_2",
+    "trickNameJa": "ゴッドハンド",
+    "trickCategory": 4,
+    "trickCategoryName": "Arret",
+    "attributes": {
+      "Code": "whk0010",
+      "Categorie": "Arret",
+      "Evenement": "ev63_0010_1"
+    }
+  },
+  {
+    "id": "0xA10F835C",
+    "name": "ギガントウォール",
+    "trickId": "0xA10F835C",
+    "trickIdName": "whk0020",
+    "eventId": "0x854821E1",
+    "eventIdName": "ev63_0020_1",
+    "failEventId": "0x1C41705B",
+    "failEventIdName": "ev63_0020_2",
+    "trickNameJa": "ギガントウォール",
+    "trickCategory": 4,
+    "trickCategoryName": "Arret",
+    "attributes": {
+      "Code": "whk0020",
+      "Categorie": "Arret",
+      "Evenement": "ev63_0020_1"
+    }
+  },
+  {
+    "id": "0xB814B21D",
+    "name": "王家の盾（アレス）",
+    "trickId": "0xB814B21D",
+    "trickIdName": "whk0030",
+    "eventId": "0x3DF44684",
+    "eventIdName": "ev63_0030_1",
+    "failEventId": "0xA4FD173E",
+    "failEventIdName": "ev63_0030_2",
+    "trickNameJa": "王家の盾（アレス）",
+    "trickCategory": 4,
+    "trickCategoryName": "Arret",
+    "attributes": {
+      "Code": "whk0030",
+      "Categorie": "Arret",
+      "Evenement": "ev63_0030_1"
+    }
+  }
+]

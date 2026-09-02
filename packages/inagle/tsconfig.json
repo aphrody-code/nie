@@ -1,0 +1,27 @@
+{
+	"extends": "../config/tsconfig-base.json",
+	"compilerOptions": {
+		"outDir": "dist",
+		"noEmit": true,
+		"declaration": false,
+		"strict": true,
+		"strictNullChecks": true,
+		"noImplicitAny": true,
+		"noImplicitOverride": true,
+		"noUncheckedIndexedAccess": false,
+		"types": ["bun"],
+		"allowImportingTsExtensions": true
+	},
+	"include": ["src/**/*.ts"],
+	"exclude": [
+		"node_modules",
+		"dist",
+		// Scripts scratch/one-shot zukan (inspect-*/scrape-*/read-*/parse-and-refresh-videos)
+		// rangés sous src/zukan/scripts. Ils importent db/src en dur (fuite rootDir) et
+		// s'appuient sur des types DB obsolètes — exclus du type-check, exécutables au besoin
+		// via `bun src/zukan/scripts/<x>.ts`.
+		"src/zukan/scripts",
+		// Idem : importe en dur `../../../db/src/service.js` (hors rootDir → TS6059).
+		"src/zukan/map-missing-skill-videos.ts"
+	]
+}

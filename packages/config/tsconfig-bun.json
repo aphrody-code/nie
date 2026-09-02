@@ -1,0 +1,11 @@
+{
+	"extends": "./tsconfig-base.json",
+	"compilerOptions": {
+		"types": ["bun"],
+		"experimentalDecorators": true,
+		"emitDecoratorMetadata": true,
+		"useDefineForClassFields": false,
+		"noEmit": false,
+		"outDir": "dist"
+	}
+}

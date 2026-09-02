@@ -1,0 +1,38 @@
+{
+	"name": "@rosegriffon/db",
+	"version": "0.2.1",
+	"description": "Client Supabase partagé + Database types générés (site + bot)",
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./browser": "./src/browser.ts",
+		"./server": "./src/server.ts",
+		"./service": "./src/service.ts",
+		"./redis": "./src/redis.ts",
+		"./rag": "./src/rag.ts",
+		"./rag-store": "./src/rag-store.ts",
+		"./storage": "./src/storage.ts",
+		"./stats": "./src/services/stats.ts",
+		"./types": "./src/types.ts",
+		"./platform": "./src/platform.ts"
+	},
+	"publishConfig": {
+		"access": "public",
+		"registry": "https://registry.npmjs.org"
+	},
+	"scripts": {
+		"types:gen": "bun scripts/types-gen.ts",
+		"type-check": "bun --bun tsc --noEmit",
+		"test": "bun test"
+	},
+	"dependencies": {
+		"@rosegriffon/types": "workspace:*",
+		"@supabase/ssr": "catalog:",
+		"@supabase/supabase-js": "catalog:"
+	},
+	"devDependencies": {
+		"@types/bun": "catalog:",
+		"typescript": "catalog:",
+		"vitest": "catalog:"
+	}
+}

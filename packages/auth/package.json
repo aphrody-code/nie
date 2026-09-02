@@ -1,0 +1,32 @@
+{
+	"name": "@rosegriffon/auth",
+	"version": "0.1.1",
+	"description": "Shared authentication logic and guards for Rose Griffon apps",
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./server": "./src/server.ts"
+	},
+	"publishConfig": {
+		"access": "public",
+		"registry": "https://registry.npmjs.org"
+	},
+	"scripts": {
+		"type-check": "bun --bun tsc --noEmit",
+		"test": "bun --bun vitest run"
+	},
+	"dependencies": {
+		"@rosegriffon/db": "workspace:*",
+		"@rosegriffon/types": "workspace:*",
+		"@supabase/supabase-js": "catalog:",
+		"better-auth": "catalog:",
+		"zod": "catalog:"
+	},
+	"devDependencies": {
+		"@types/bun": "catalog:",
+		"next": "catalog:",
+		"react": "catalog:",
+		"typescript": "catalog:",
+		"vitest": "catalog:"
+	}
+}

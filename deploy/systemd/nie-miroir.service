@@ -1,0 +1,24 @@
+[Unit]
+# Republication du miroir SQLite des tables `inagle_*` dans `var/` du dépôt.
+# Remplace `azalee-mirror-sync`, qui écrivait le miroir sous `rg/apps/azalee/data/backups/` et
+# obligeait tout ce qui n'est pas le site web à aller le chercher par un chemin absolu.
+Description=Miroir inagle (niers) — dump Postgres -> var/mirror.sqlite
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/niers
+# DATABASE_URL vit hors du dépôt : le fichier est en 600, jamais commité.
+EnvironmentFile=-/home/ubuntu/.config/niers/donnees.env
+Environment=PATH=/home/ubuntu/.bun/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/home/ubuntu/niers/scripts/donnees/miroir-inagle.sh
+# Le dump lit 165 000 lignes : quelques minutes au pire, jamais des heures.
+TimeoutStartSec=900
+# Le script refuse de basculer sur un dump invalide ; un échec laisse donc le miroir intact.
+SuccessExitStatus=0
+
+[Install]
+WantedBy=multi-user.target

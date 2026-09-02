@@ -1,0 +1,17 @@
+{
+	"extends": "@rosegriffon/config/tsconfig-base.json",
+	"compilerOptions": {
+		"outDir": "dist",
+		"noEmit": true,
+		"declaration": false,
+		"baseUrl": ".",
+		"ignoreDeprecations": "6.0",
+		"rootDir": "..",
+		"paths": {
+			"@rosegriffon/db": ["../db/src/index.ts"],
+			"@rosegriffon/db/*": ["../db/src/*"]
+		}
+	},
+	"include": ["src/**/*.ts"],
+	"exclude": ["node_modules", "dist"]
+}

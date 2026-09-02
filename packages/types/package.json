@@ -1,0 +1,35 @@
+{
+	"name": "@rosegriffon/types",
+	"version": "0.2.1",
+	"description": "Types m\u00e9tier partag\u00e9s (roles, user, discord) \u2014 source unique de v\u00e9rit\u00e9 bot/azalee/website",
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./roles": "./src/roles.ts",
+		"./user": "./src/user.ts",
+		"./discord": "./src/discord.ts",
+		"./bot": "./src/bot.ts",
+		"./profil": "./src/profil.ts",
+		"./experience": "./src/experience.ts",
+		"./cron": "./src/cron.ts",
+		"./article": "./src/article.ts",
+		"./stats": "./src/stats.ts",
+		"./visitor": "./src/visitor.ts",
+		"./event": "./src/event.ts",
+		"./stream": "./src/stream.ts",
+		"./team": "./src/team.ts",
+		"./instagram": "./src/instagram.ts",
+		"./schemas": "./src/schemas.ts"
+	},
+	"publishConfig": {
+		"access": "public",
+		"registry": "https://registry.npmjs.org"
+	},
+	"dependencies": {
+		"zod": "catalog:"
+	},
+	"devDependencies": {
+		"@rosegriffon/config": "workspace:*",
+		"typescript": "catalog:"
+	}
+}
