@@ -306,9 +306,14 @@ csharp/             IECODE.Core / IECODE.CLI / IECODE.Core.Tests (.NET 10, `IECO
 
 ## Python — le fichier, pas la ligne
 
-Mesuré le 2026-09-02 sur les 21 sessions de ce dépôt (5 817 commandes Bash réelles) :
-**185 `uv run python -c` contre 10 `uv run <fichier>.py`**. Rien n'en est resté — chaque invocation
-est réécrite de zéro, alors que 77 `.py` versionnés existent déjà.
+Mesuré le 2026-09-02 sur les 21 sessions de ce dépôt — **24 832 commandes Bash uniques**, extraites
+par `jq` puis dédupliquées (les sessions reprises rejouent les mêmes messages dans plusieurs
+`.jsonl`) : **155 `uv run python -c` contre 24 `uv run <fichier>.py`**. Presque rien n'en est resté,
+alors que 77 `.py` versionnés existent déjà.
+
+> Ces chiffres ont d'abord été calculés en extrayant les transcripts avec `rg` + une regex : la
+> source était tronquée (5 817 commandes au lieu de 24 832) et trois comptages fins rendaient 0.
+> **Un transcript est du JSON : il se lit avec `jq`, jamais avec une regex** — cf. § *Outils*.
 
 - Toujours `uv run` ; appeler `python`/`python3` en direct est bloqué par `garde-bash.sh`.
 - **Ce n'est PAS un problème de vitesse.** `uv run python -c` démarre en **0,064 s**, et sur un
