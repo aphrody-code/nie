@@ -677,6 +677,7 @@ describe("/episodes", () => {
 			"reprendre",
 			"maliste",
 			"hasard",
+			"vocal",
 			"catalogue",
 			"aide",
 			"rafraichir",

@@ -187,6 +187,11 @@ export const DEFINITION_IETV = {
 		},
 		{
 			type: TYPE.sousCommande,
+			name: "vocal",
+			description: "Écouter la bande son dans ton salon vocal",
+		},
+		{
+			type: TYPE.sousCommande,
 			name: "catalogue",
 			description: "État du catalogue : sources, volumes, fraîcheur",
 		},
