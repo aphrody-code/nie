@@ -5,10 +5,11 @@
 // sonore WAV SÉPARÉE. La séparation n'est pas un choix esthétique : la bande-son d'un USM est du
 // HCA Criware, qu'aucun conteneur MP4 ne transporte. Les deux éléments sont resynchronisés ici.
 //
-// Mesuré sur le corpus : **2 films sur 97 seulement portent une piste sonore** (les deux logos).
-// Les 95 autres sont muets par construction, le moteur les accompagnant de sa musique de fond
-// (`bgmName` dans `movie_playing_config`). Le lecteur le dit plutôt que de laisser croire à une
-// panne de son.
+// Mesuré sur le corpus : **2 films sur 97 seulement portent une piste sonore** dans leur
+// conteneur (les deux logos). Pour les autres, elle vit dans la banque Criware `anime_stream`, à
+// côté — le `bgmName` du `gamedata` n'est pas « le nom d'une musique » mais le CRC32 du nom du
+// film, qui y désigne une cue. Le backend résout ce lien et sert la piste sur `?track=audio` ;
+// pour le lecteur, les deux cas sont identiques.
 //
 // ## Resynchronisation
 //
@@ -492,9 +493,9 @@ export function VideoPlayer({
           {!srcAudio && (
             <span
               className="mr-1 rounded bg-white/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-white/50"
-              title="Ce conteneur ne porte aucune piste sonore — c'est le cas de 95 des 97 films du jeu, que le moteur accompagne de sa musique de fond (bgmName)."
+              title="Aucune bande-son trouvée pour ce film — ni dans son conteneur, ni dans la banque anime_stream. Les écrans-titres et les logos n'en déclarent aucune."
             >
-              sans piste sonore
+              sans bande-son
             </span>
           )}
 

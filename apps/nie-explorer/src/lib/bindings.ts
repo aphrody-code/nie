@@ -1524,9 +1524,15 @@ export type PassiveDto = {
 	effect_params: (number | null)[],
 };
 
-/**  Piste sonore d'un film, telle qu'annoncée par l'en-tête `AUDIO_HDRINFO`. */
+/**
+ *  Piste sonore d'un film.
+ * 
+ *  Elle vient de deux endroits, et c'est le fait marquant du corpus : **2 films sur 97 seulement**
+ *  portent leur son dans leur propre conteneur (les deux logos). Pour tous les autres, il vit
+ *  dans la banque `anime_stream`, à côté — cf. [`nie_explore::bande_son`].
+ */
 export type PisteAudioDto = {
-	/**  Numéro de canal. */
+	/**  Numéro de canal (toujours `0` pour une piste externe). */
 	canal: number,
 	/**  Codec détecté (`hca`, `adx`). */
 	codec: string,
@@ -1534,8 +1540,13 @@ export type PisteAudioDto = {
 	frequence: number,
 	/**  Nombre de canaux. */
 	canaux: number,
-	/**  Taille du flux brut, en octets. */
+	/**
+	 *  Taille du flux brut, en octets — `0` pour une piste externe (connue seulement à l'ouverture
+	 *  de la banque, qui pèse 654 Mo).
+	 */
 	octets: number,
+	/**  D'où vient la piste : `conteneur` (dans le `.usm`) ou le nom de la cue de `anime_stream`. */
+	source: string,
 };
 
 /**

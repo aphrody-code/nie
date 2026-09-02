@@ -10,6 +10,7 @@
 #![forbid(unsafe_code)]
 
 pub mod audio;
+pub mod bande_son;
 pub mod bridge;
 pub mod export;
 pub mod folder_roles;

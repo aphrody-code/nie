@@ -104,10 +104,14 @@ pub fn decouper(octets: &[u8], plage: Option<(u64, u64)>) -> Vec<u8> {
     }
 }
 
-/// Piste sonore d'un film, telle qu'annoncée par l'en-tête `AUDIO_HDRINFO`.
+/// Piste sonore d'un film.
+///
+/// Elle vient de deux endroits, et c'est le fait marquant du corpus : **2 films sur 97 seulement**
+/// portent leur son dans leur propre conteneur (les deux logos). Pour tous les autres, il vit
+/// dans la banque `anime_stream`, à côté — cf. [`nie_explore::bande_son`].
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct PisteAudioDto {
-    /// Numéro de canal.
+    /// Numéro de canal (toujours `0` pour une piste externe).
     pub canal: u8,
     /// Codec détecté (`hca`, `adx`).
     pub codec: String,
@@ -115,8 +119,11 @@ pub struct PisteAudioDto {
     pub frequence: u32,
     /// Nombre de canaux.
     pub canaux: u32,
-    /// Taille du flux brut, en octets.
+    /// Taille du flux brut, en octets — `0` pour une piste externe (connue seulement à l'ouverture
+    /// de la banque, qui pèse 654 Mo).
     pub octets: u32,
+    /// D'où vient la piste : `conteneur` (dans le `.usm`) ou le nom de la cue de `anime_stream`.
+    pub source: String,
 }
 
 /// Une entrée du catalogue. Les champs issus du démultiplexage sont `None` tant que
@@ -189,8 +196,31 @@ fn completer(f: &mut FilmDto, u: &usm::Apercu) {
             frequence: p.frequence,
             canaux: p.canaux,
             octets: p.taille as u32,
+            source: "conteneur".to_string(),
         })
         .collect();
+}
+
+/// Ajoute la bande-son EXTERNE d'un film à sa fiche, quand son conteneur n'en porte pas.
+///
+/// Ne lit que la cue sheet (35 Kio), jamais l'archive de 654 Mo : le catalogue doit rester
+/// instantané. Le film garde `audio` vide s'il n'a de son nulle part — l'interface le dit alors,
+/// au lieu de monter un `<audio>` qui échouerait.
+fn completer_bande_son(f: &mut FilmDto, vfs: &Vfs) {
+    if !f.audio.is_empty() {
+        return;
+    }
+    // La durée du film sert de garde-fou : sans elle, une bobine partagée passerait pour la
+    // bande-son du film et jouerait le son de quelqu'un d'autre, ou du silence.
+    let Some(p) = nie_explore::bande_son::piste_de_film(vfs, &f.nom, f.duree, None) else { return };
+    f.audio.push(PisteAudioDto {
+        canal: 0,
+        codec: p.codec,
+        frequence: p.frequence,
+        canaux: p.canaux,
+        octets: 0,
+        source: p.cue,
+    });
 }
 
 /// Fiche « rapide » : ce que l'index du VFS suffit à dire, sans lire un octet du conteneur.
@@ -304,6 +334,7 @@ pub fn info_film(vfs: &Vfs, chemin: &str) -> Result<FilmDto, String> {
     let u = usm::inspecter(&brut, nom_fichier_de(chemin)).map_err(|e| e.to_string())?;
     let mut f = fiche_rapide(chemin, brut.len() as u32);
     completer(&mut f, &u);
+    completer_bande_son(&mut f, vfs);
     Ok(f)
 }
 
@@ -339,15 +370,31 @@ pub fn mp4_depuis_usm(octets: &[u8], nom: &str) -> Result<Vec<u8>, String> {
     flux_web_depuis_usm(octets, nom).map(|(_, o)| o)
 }
 
-/// Décode la première piste sonore d'un `.usm` en WAV.
+/// Décode la bande-son d'un film en WAV, d'où qu'elle vienne.
+///
+/// D'abord la piste du conteneur (les deux logos), sinon la cue de `anime_stream` qui porte le
+/// nom du film. C'est ce second chemin qui donne du son aux cinématiques : **95 des 97 `.usm`
+/// sont muets**, leur bande-son vit dans une banque Criware à côté.
 ///
 /// # Erreurs
 ///
-/// Conteneur illisible, film sans piste sonore, ou HCA que le décodeur refuse.
-pub fn wav_depuis_usm(octets: &[u8], nom: &str) -> Result<Vec<u8>, String> {
-    let u = usm::demuxer_nomme(octets, nom).map_err(|e| e.to_string())?;
-    let piste = u.pistes.first().ok_or("ce film n'a pas de piste sonore")?;
-    nie_formats::cri_audio::decode_to_wav(&piste.octets)
+/// Conteneur illisible, film sans son ni dans le conteneur ni dans la banque, ou décodage HCA
+/// refusé. Le message dit LEQUEL des deux chemins a échoué.
+pub fn wav_bande_son(
+    vfs: &Vfs,
+    cache_dir: &std::path::Path,
+    chemin: &str,
+    octets: &[u8],
+) -> Result<Vec<u8>, String> {
+    let u = usm::demuxer_nomme(octets, nom_fichier_de(chemin)).map_err(|e| e.to_string())?;
+    if let Some(piste) = u.pistes.first() {
+        return nie_formats::cri_audio::decode_to_wav(&piste.octets);
+    }
+    let radical = radical_de(chemin);
+    let externe = nie_explore::bande_son::piste_de_film(vfs, radical, u.duree(), None).ok_or_else(|| {
+        format!("« {radical} » n'a de bande-son ni dans son conteneur ni dans anime_stream")
+    })?;
+    nie_explore::bande_son::wav_de_la_cue(vfs, cache_dir, externe.awb_id)
 }
 
 // Pas de module de tests ici : `cargo test` dans `src-tauri` ne DÉMARRE pas sur cette machine
