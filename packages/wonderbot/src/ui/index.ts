@@ -24,6 +24,7 @@ export {
 export {
 	bornerTexte,
 	codeEpisode,
+	dateLisible,
 	grouperParEpisode,
 	echapperMarkdown,
 	formaterDuree,
@@ -33,7 +34,11 @@ export {
 	ligneSaison,
 	listerEpisodes,
 	listerSaison,
+	premiereVignette,
 	repartitionLangues,
+	meilleurTitre,
+	titreCourt,
+	titreOriginal,
 	trierEpisodes,
 	type EpisodeCatalogue,
 } from "./format.ts";

@@ -47,7 +47,17 @@ import {
 	type OptionsCommande,
 } from "./commands/ietv.ts";
 import { Planificateur } from "./planificateur.ts";
+import { ecranAccueil, ecranArc, ecranLecture, ecranMaListe, ecranRouteInconnue } from "./ecrans.ts";
+import {
+	Progression,
+	ProgressionSqlite,
+	cheminEtatDepuisCatalogue,
+	type StockageProgression,
+} from "./progression.ts";
+import { argumentEntier, lireRoute, type Route } from "./routes.ts";
+import { Service } from "./service.ts";
 import { ICONES, fiche, listerEpisodes, type Reponse } from "./ui/index.ts";
+import { DRAPEAU_V2 } from "./ui/v2.ts";
 
 export interface OptionsBot {
 	config: ConfigWonderbot;
@@ -57,6 +67,14 @@ export interface OptionsBot {
 	journal?: JournalAnnonces;
 	client?: Client;
 	journaliser?: (message: string) => void;
+	/**
+	 * Stockage de la progression des membres — injectable pour les tests.
+	 *
+	 * Par défaut : une base SQLite VOISINE de celle du catalogue. Voisine et non
+	 * partagée : le catalogue est un cache qu'un rafraîchissement réécrit par
+	 * pans entiers, ce que les membres ont regardé ne l'est pas.
+	 */
+	progression?: StockageProgression;
 }
 
 /** Rôles de l'appelant, quelle que soit la forme rendue par discord.js. */
@@ -130,6 +148,8 @@ export class Wonderbot {
 	private readonly planificateur: Planificateur;
 	private forum: SynchronisationForum | null = null;
 	private readonly reparateur: Reparateur;
+	private readonly progression: Progression;
+	private readonly service: Service;
 	/** Minuteur de la tentative de réparation en attente, s'il y en a une. */
 	private reparationEnAttente: ReturnType<typeof setTimeout> | null = null;
 
@@ -147,6 +167,17 @@ export class Wonderbot {
 		this.reparateur = new Reparateur({
 			stockage: this.catalogue,
 			tentativesMax: this.config.tentativesReparation,
+		});
+
+		this.progression = new Progression(
+			options.progression ??
+				new ProgressionSqlite(cheminEtatDepuisCatalogue(this.config.cheminCache))
+		);
+		this.service = new Service({
+			catalogue: this.catalogue,
+			progression: this.progression,
+			marque: this.config.marque,
+			lacunesConfirmees: () => this.reparateur.confirmes(),
 		});
 
 		this.planificateur = new Planificateur({
@@ -271,22 +302,236 @@ export class Wonderbot {
 			return;
 		}
 
-		const reponse = await executerIetv(
-			"episode",
-			{ chaine: () => null, entier: (nom) => (nom === "saison" ? choix.saison : nom === "numero" ? choix.numero : null) },
-			{
-				catalogue: this.catalogue,
-				marque: this.config.marque,
-				estStaff: false,
-			}
-		);
+		// Le lecteur complet, pas une simple fiche : depuis un fil de forum aussi,
+		// on veut enchaîner sur l'épisode suivant sans repasser par le menu.
+		const vue = this.service.lecture(interaction.user.id, {
+			saison: choix.saison,
+			episode: choix.numero,
+		});
+		const reponse: Reponse = vue
+			? ecranLecture(vue)
+			: {
+					embeds: [
+						fiche({ titre: `${ICONES.vide} Épisode indisponible`, intention: "muet", marque: this.config.marque })
+							.description("Cet épisode a quitté le catalogue depuis la dernière mise à jour du fil.")
+							.finir(),
+					],
+				};
 
-		await interaction.editReply({ embeds: reponse.embeds, content: reponse.contenu ?? "" });
+		await interaction.editReply(Wonderbot.charge(reponse));
+	}
+
+	/**
+	 * Une réponse neutre → un message discord.js.
+	 *
+	 * Les deux formes sont EXCLUSIVES : un message V2 n'a droit ni à `content`
+	 * ni à `embeds`, et Discord refuse le message entier si on lui donne les
+	 * deux. C'est ici, en un seul endroit, que le choix se fait.
+	 */
+	private static charge(reponse: Reponse): Record<string, unknown> {
+		if (reponse.v2) {
+			return { flags: DRAPEAU_V2, components: reponse.v2.components };
+		}
+		return {
+			embeds: reponse.embeds,
+			// `content` vide explicitement : sans lui, discord.js laisse en place
+			// le contenu d'une réponse précédente sur la même interaction.
+			content: reponse.contenu ?? "",
+			components: reponse.composants ?? [],
+		};
+	}
+
+	/** Contexte d'exécution d'une commande pour un appelant donné. */
+	private contexte(membre: string, estStaffAppelant = false) {
+		return {
+			catalogue: this.catalogue,
+			marque: this.config.marque,
+			estStaff: estStaffAppelant,
+			service: this.service,
+			membre,
+		};
+	}
+
+	/**
+	 * Un clic sur un bouton ou un menu du service de lecture.
+	 *
+	 * ── MODIFIER OU RÉPONDRE : LE DRAPEAU DÉCIDE ───────────────────────────
+	 * On ne peut pas transformer un message V2 en message V1, ni l'inverse :
+	 * le drapeau est posé à la création. Quand l'écran demandé est de la même
+	 * famille que celui d'où vient le clic, on MODIFIE le message — la
+	 * navigation se fait alors sur place, sans empiler les messages. Sinon on
+	 * répond par un NOUVEAU message éphémère : c'est le cas quand on ouvre le
+	 * lecteur depuis une grille, puisque le lecteur a besoin de son URL nue.
+	 */
+	private async traiterRoute(
+		interaction: Interaction & {
+			customId: string;
+			message?: { flags?: { has(flag: number): boolean } };
+		},
+		valeurs: readonly string[] = []
+	): Promise<void> {
+		const composant = interaction as unknown as {
+			customId: string;
+			user: { id: string };
+			message: { flags: { has(flag: bigint | number): boolean } };
+			update(charge: Record<string, unknown>): Promise<unknown>;
+			reply(charge: Record<string, unknown>): Promise<unknown>;
+		};
+
+		const route = lireRoute(composant.customId);
+		if (!route) {
+			await composant.reply({
+				flags: DRAPEAU_V2 | Number(MessageFlags.Ephemeral),
+				components: ecranRouteInconnue(this.config.marque).components,
+			});
+			return;
+		}
+
+		const membre = composant.user.id;
+		const reponse = this.ecranDeRoute(route, membre, valeurs);
+		const sourceEstV2 = composant.message.flags.has(MessageFlags.IsComponentsV2);
+		const cibleEstV2 = reponse.v2 !== undefined;
+
+		if (sourceEstV2 === cibleEstV2) {
+			await composant.update(Wonderbot.charge(reponse));
+			return;
+		}
+		await composant.reply({
+			...Wonderbot.charge(reponse),
+			flags: cibleEstV2
+				? DRAPEAU_V2 | Number(MessageFlags.Ephemeral)
+				: Number(MessageFlags.Ephemeral),
+		});
+	}
+
+	/** Traduit une route en écran. Aucun effet réseau : tout est local. */
+	private ecranDeRoute(route: Route, membre: string, valeurs: readonly string[]): Reponse {
+		const introuvable = (): Reponse => ({
+			embeds: [
+				fiche({ titre: `${ICONES.vide} Épisode indisponible`, intention: "muet", marque: this.config.marque })
+					.description("Cet épisode a quitté le catalogue depuis l'affichage de cet écran.")
+					.finir(),
+			],
+		});
+
+		const lecteur = (saison: number, episode: number): Reponse => {
+			const vue = this.service.lecture(membre, { saison, episode });
+			return vue ? ecranLecture(vue) : introuvable();
+		};
+
+		switch (route.action) {
+			case "accueil":
+				return { embeds: [], v2: ecranAccueil(this.service.accueil(membre)) };
+
+			case "maliste":
+				return { embeds: [], v2: ecranMaListe(this.service.maListe(membre)) };
+
+			case "arc": {
+				const saison = argumentEntier(route, 0);
+				if (saison === null) return introuvable();
+				return {
+					embeds: [],
+					v2: ecranArc(this.service.arc(membre, saison, argumentEntier(route, 1) ?? 0)),
+				};
+			}
+
+			case "lire": {
+				const saison = argumentEntier(route, 0);
+				const episode = argumentEntier(route, 1);
+				if (saison === null || episode === null) return introuvable();
+				return lecteur(saison, episode);
+			}
+
+			case "vu": {
+				const saison = argumentEntier(route, 0);
+				const episode = argumentEntier(route, 1);
+				if (saison === null || episode === null) return introuvable();
+				this.progression.basculerVu(
+					membre,
+					{ saison, episode },
+					this.progression.vusDeSaison(membre, saison)
+				);
+				return lecteur(saison, episode);
+			}
+
+			case "liste": {
+				const saison = argumentEntier(route, 0);
+				const episode = argumentEntier(route, 1);
+				if (saison === null || episode === null) return introuvable();
+				this.progression.basculerListe(membre, { saison, episode });
+				return lecteur(saison, episode);
+			}
+
+			case "reprendre": {
+				const reprise = this.service.reprise(membre);
+				return reprise ? lecteur(reprise.saison, reprise.episode) : introuvable();
+			}
+
+			case "hasard": {
+				const cle = this.service.hasard(membre);
+				return cle ? lecteur(cle.saison, cle.episode) : introuvable();
+			}
+
+			case "choix": {
+				// `wb/choix/<saison>` : la valeur est le numéro d'épisode. La liste
+				// personnelle, elle, pose une saison de 0 et une valeur `s:e`,
+				// puisque ses entrées viennent d'arcs différents.
+				const brut = valeurs[0] ?? "";
+				const saisonRoute = argumentEntier(route, 0);
+				if (brut.includes(":")) {
+					const [saison, episode] = brut.split(":").map((part) => Number.parseInt(part, 10));
+					if (!Number.isFinite(saison) || !Number.isFinite(episode)) return introuvable();
+					return lecteur(saison!, episode!);
+				}
+				const episode = Number.parseInt(brut, 10);
+				if (saisonRoute === null || !Number.isFinite(episode)) return introuvable();
+				return lecteur(saisonRoute, episode);
+			}
+		}
+	}
+
+	/**
+	 * Autocomplétion de la recherche.
+	 *
+	 * Discord n'accorde que trois secondes et n'accepte que vingt-cinq choix.
+	 * Tout se joue en base locale : aucune requête réseau ne peut donc faire
+	 * expirer la réponse. Une erreur rend une liste VIDE plutôt que de lever —
+	 * une autocomplétion en échec ne doit pas empêcher de taper sa recherche.
+	 */
+	private async traiterAutocompletion(interaction: Interaction): Promise<void> {
+		if (!interaction.isAutocomplete()) return;
+		if (interaction.commandName !== DEFINITION_IETV.name) return;
+
+		try {
+			const saisi = interaction.options.getFocused();
+			const choix = this.service.autocompleter(String(saisi));
+			await interaction.respond(choix.map((c) => ({ name: c.nom, value: c.valeur })));
+		} catch (err) {
+			this.journaliser(
+				`${ICONES.attention} autocomplétion en échec : ${err instanceof Error ? err.message : String(err)}`
+			);
+			await interaction.respond([]).catch(() => undefined);
+		}
 	}
 
 	private async traiterInteraction(interaction: Interaction): Promise<void> {
+		if (interaction.isAutocomplete()) {
+			await this.traiterAutocompletion(interaction);
+			return;
+		}
+		if (interaction.isButton()) {
+			await this.traiterRoute(interaction as never);
+			return;
+		}
 		if (interaction.isStringSelectMenu()) {
-			await this.traiterMenu(interaction);
+			// Les menus du forum gardent leur préfixe historique `wb:ep:` ; les
+			// écrans de lecture utilisent des routes `wb/…`. Les deux séparateurs
+			// diffèrent exprès : aucun des deux ne peut lire l'autre par erreur.
+			if (interaction.customId.startsWith(`${PREFIXE_MENU}:`)) {
+				await this.traiterMenu(interaction);
+				return;
+			}
+			await this.traiterRoute(interaction as never, interaction.values);
 			return;
 		}
 		if (!interaction.isChatInputCommand()) return;
@@ -305,15 +550,14 @@ export class Wonderbot {
 			reponse = await executerIetv(
 				sousCommande,
 				optionsDeLInteraction(interaction),
-				{
-					catalogue: this.catalogue,
-					marque: this.config.marque,
-					estStaff: estStaff(
+				this.contexte(
+					interaction.user.id,
+					estStaff(
 						rolesDeLInteraction(interaction),
 						this.config.rolesStaff,
 						estAdministrateur(interaction)
-					),
-				}
+					)
+				)
 			);
 		} catch (err) {
 			this.journaliser(
@@ -329,12 +573,7 @@ export class Wonderbot {
 			};
 		}
 
-		await interaction.editReply({
-			embeds: reponse.embeds,
-			// `content` vide explicitement : sans lui, discord.js laisse en place
-			// le contenu d'une réponse précédente sur la même interaction.
-			content: reponse.contenu ?? "",
-		});
+		await interaction.editReply(Wonderbot.charge(reponse));
 	}
 
 	/**
@@ -574,5 +813,6 @@ export class Wonderbot {
 		this.planificateur.arreter();
 		await this.client.destroy();
 		this.catalogue.fermer();
+		this.progression.fermer();
 	}
 }

@@ -64,16 +64,148 @@ export function echapperMarkdown(texte: string): string {
 }
 
 /**
- * Une ligne de résultat : `**S01E05** · titre` puis langue et durée.
+ * Le titre seul, débarrassé du préfixe que les sources y collent.
  *
- * Aucun lien : un lien sortirait le membre du serveur sans rien lui jouer. La
- * lecture se demande avec `/episodes episode`, qui répond avec le lecteur
- * intégré à Discord.
+ * ── LE PRÉFIXE NE DIT PAS LA MÊME CHOSE QUE LE CODE ────────────────────────
+ * Les sources préfixent leur titre de l'arc et d'un numéro : « Saison 3 —
+ * Épisode 68 - La Sélection Japonaise ». Or ce 68 est le numéro ABSOLU dans la
+ * série, tandis que le catalogue range cet épisode en S03E01. Affiché tel quel
+ * à côté du code, il donne deux numéros différents pour le même épisode —
+ * mesuré sur les 355 épisodes du catalogue, où les trois premiers arcs sont
+ * numérotés en absolu et les suivants en relatif.
+ *
+ * On ne garde donc que le titre. Le numéro fait foi ailleurs : c'est le code
+ * `S03E01` qui le porte, une fois.
+ *
+ * Rien n'est retiré quand le motif n'est pas reconnu, ni quand il ne resterait
+ * rien : un titre non préfixé vaut mieux qu'un titre vide.
+ */
+export function titreCourt(titre: string): string {
+	// Étiquettes de tête : « [VOSTFR] », « [VF] », posées par les chaînes.
+	let reste = titre.trim().replace(/^(?:\[[^\]]{1,12}\]\s*)+/i, "");
+
+	// Le préfixe, sous ses trois formes rencontrées dans le catalogue :
+	//   « Saison 3 — Épisode 68 - »   (site officiel)
+	//   « Épisode 12 : »              (sans nom d'arc)
+	//   « Inazuma Eleven 69 - »       (chaîne YouTube, numéro nu)
+	// Le troisième motif EXIGE un nom devant le nombre : sans cela, un titre
+	// qui commence légitimement par un chiffre (« 11 Amis ») serait décapité.
+	for (const motif of [
+		/^.{0,60}?[-–—]\s*(?:épisode|episode|ép\.?|ep\.?)\s*\d+\s*(?:[-–—:]\s*)?/i,
+		/^(?:épisode|episode|ép\.?|ep\.?)\s*\d+\s*[-–—:]\s*/i,
+		/^[^\d\n]{2,60}?\s*\d{1,4}\s*[-–—:]\s*/,
+	]) {
+		const coupe = reste.replace(motif, "");
+		if (coupe !== reste && coupe.trim() !== "") {
+			reste = coupe;
+			break;
+		}
+	}
+
+	// Marqueurs de queue : « {V2} », « (v1) » — des numéros de version d'upload.
+	reste = reste.replace(/\s*[{([]\s*v(?:ersion)?\s*\.?\s*\d+\s*[)\]}]\s*$/i, "");
+
+	// Les chaînes citent le titre : « … Épisode 127 "Le coup d'envoi" ».
+	reste = reste
+		.trim()
+		.replace(/^["“«]\s*/, "")
+		.replace(/\s*["”»]$/, "")
+		.trim();
+
+	return reste === "" ? titre.trim() : reste;
+}
+
+/**
+ * Le titre le moins bruité parmi les versions d'un même épisode.
+ *
+ * ── LA PREMIÈRE VERSION N'EST PAS LA MEILLEURE ─────────────────────────────
+ * Un épisode existe sur plusieurs sources, et elles ne se valent pas : le site
+ * officiel écrit « La Naissance d'Inazuma Japon », une chaîne écrit
+ * « [VOSTFR] Inazuma Eleven 69 - "La Naissance d'Inazuma Japan !" {V2} ».
+ * Prendre la première version rendue par le tri affichait la seconde.
+ *
+ * On classe donc par BRUIT — crochets, accolades, guillemets et chiffres
+ * résiduels — puis par longueur. Aucune source n'est privilégiée par son nom :
+ * le classement porte sur le texte, il vaudra encore pour une source future.
+ */
+export function meilleurTitre(versions: readonly EpisodeCatalogue[]): string {
+	let meilleur: string | null = null;
+	let meilleurScore = Number.POSITIVE_INFINITY;
+
+	for (const version of versions) {
+		const candidat = titreCourt(version.title ?? "");
+		if (candidat === "") continue;
+		const bruit = (candidat.match(/[[\]{}"«»<>|_]|\d/g) ?? []).length;
+		const score = bruit * 8 + candidat.length;
+		if (score < meilleurScore) {
+			meilleurScore = score;
+			meilleur = candidat;
+		}
+	}
+
+	return meilleur ?? "";
+}
+
+/**
+ * `2009-04-08` → `<t:…:D>`, l'horodatage natif de Discord.
+ *
+ * Il s'affiche dans le fuseau et la langue de chaque lecteur, là où une date
+ * écrite en dur impose le format de celui qui l'a produite. Une date illisible
+ * est rendue telle quelle plutôt que perdue.
+ */
+export function dateLisible(iso: string): string {
+	const instant = Date.parse(`${iso}T12:00:00Z`);
+	return Number.isFinite(instant) ? `<t:${Math.floor(instant / 1000)}:D>` : iso;
+}
+
+/** `サッカーやろうぜ! · Sakkā Yarō Ze!`, ou `null` si la source n'en donne pas. */
+export function titreOriginal(episode: EpisodeCatalogue): string | null {
+	const parts = [episode.titleJp, episode.romaji].filter(
+		(part): part is string => typeof part === "string" && part.trim() !== ""
+	);
+	return parts.length === 0 ? null : parts.join(" · ");
+}
+
+/**
+ * Vignette à poser sur un embed de liste : la première réellement fournie.
+ *
+ * Une liste sans image est plate, et toutes les sources n'en donnent pas —
+ * prendre la première disponible plutôt que celle du premier épisode évite un
+ * embed sans image parce qu'un seul épisode n'en a pas.
+ */
+export function premiereVignette(episodes: readonly EpisodeCatalogue[]): string | null {
+	for (const episode of episodes) {
+		if (typeof episode.thumbnail === "string" && episode.thumbnail.trim() !== "") {
+			return episode.thumbnail;
+		}
+	}
+	return null;
+}
+
+/**
+ * Une ligne de résultat : `**S01E05** · titre`, puis langue, date, durée et
+ * titre original — chaque métadonnée seulement si la source la donne.
+ *
+ * ── PAS DE CHAMP VIDE ──────────────────────────────────────────────────────
+ * La version précédente affichait toujours `· —` pour la durée. Or aucune des
+ * sources du catalogue ne donne de durée : les 355 épisodes portaient donc un
+ * tiret, qui occupait la place d'une information au lieu d'en être une. Une
+ * métadonnée absente ne s'affiche pas.
  */
 export function ligneEpisode(episode: EpisodeCatalogue): string {
 	const code = codeEpisode(episode.season, episode.episode);
-	const titre = echapperMarkdown(episode.title);
-	return `**${code}** · ${titre}\n${libelleLangue(episode.language)} · ${formaterDuree(episode.duration)}`;
+	const titre = echapperMarkdown(titreCourt(episode.title));
+
+	const details = [libelleLangue(episode.language)];
+	if (episode.publishDate) details.push(dateLisible(episode.publishDate));
+	if (episode.duration !== null && episode.duration > 0) {
+		details.push(formaterDuree(episode.duration));
+	}
+
+	const original = titreOriginal(episode);
+	const ligneOriginale = original ? `\n-# ${echapperMarkdown(original)}` : "";
+
+	return `**${code}** · ${titre}\n${details.join(" · ")}${ligneOriginale}`;
 }
 
 /**
@@ -161,7 +293,7 @@ export function grouperParEpisode(
 
 /**
  * Une ligne par épisode, SANS lien sortant :
- * `**E05** · 🇫🇷 VF · 💬 VOSTFR`.
+ * `**E05** · Le Pouvoir de Siméon · 🇫🇷 VF · 💬 VOSTFR`.
  *
  * ── POURQUOI PAS DE LIEN ───────────────────────────────────────────────────
  * Un lien Markdown ne produit aucun lecteur dans Discord : il ne fait que
@@ -169,14 +301,32 @@ export function grouperParEpisode(
  * menu déroulant du fil, qui fait répondre le bot avec le lecteur intégré —
  * personne ne quitte Discord.
  *
- * Le titre est également absent : dans une liste de saison il répète le numéro
- * (« Inazuma Eleven — Épisode 5 VF ») et coûte le tiers du budget. Il reste sur
- * `/episodes episode`.
+ * ── LE TITRE, LUI, EST REVENU ──────────────────────────────────────────────
+ * Il en avait été retiré pour tenir le budget. Une liste de soixante lignes
+ * `E01 · VF` ne dit pourtant rien de ce qu'on regarde, et le catalogue porte le
+ * titre de chacun de ses 355 épisodes. `budgetTitre` borne sa longueur :
+ * {@link listerSaison} le resserre tant que la saison ne tient pas, plutôt que
+ * de laisser tomber des épisodes. `null` le retire entièrement — dernier
+ * recours, avant de tronquer la liste.
  */
-export function ligneSaison(numero: number | null, versions: readonly EpisodeCatalogue[]): string {
+export function ligneSaison(
+	numero: number | null,
+	versions: readonly EpisodeCatalogue[],
+	options: { budgetTitre?: number | null } = {}
+): string {
 	const code = numero !== null ? `E${String(numero).padStart(2, "0")}` : "—";
 	const langues = [...new Set(versions.map((version) => libelleLangue(version.language)))];
-	return `**${code}** · ${langues.join(" · ")}`;
+
+	const budgetTitre = options.budgetTitre === undefined ? null : options.budgetTitre;
+	let titre = "";
+	if (budgetTitre !== null) {
+		const brut = meilleurTitre(versions);
+		const borne =
+			brut.length > budgetTitre ? `${brut.slice(0, budgetTitre - 1).trimEnd()}…` : brut;
+		if (borne !== "") titre = `${echapperMarkdown(borne)} · `;
+	}
+
+	return `**${code}** · ${titre}${langues.join(" · ")}`;
 }
 
 /**
@@ -190,11 +340,39 @@ export function ligneSaison(numero: number | null, versions: readonly EpisodeCat
 export function listerSaison(
 	episodes: readonly EpisodeCatalogue[],
 	options: { budgetPage?: number; budgetTotal?: number } = {}
-): { pages: string[]; episodes: number; omis: number } {
+): { pages: string[]; episodes: number; omis: number; budgetTitre: number | null } {
 	const budgetPage = options.budgetPage ?? LIMITES.description;
 	const budgetTotal = options.budgetTotal ?? LIMITES.totalEmbed;
-
 	const groupes = grouperParEpisode(episodes);
+
+	// ── ON RESSERRE LE TITRE AVANT DE PERDRE UN ÉPISODE ─────────────────────
+	// Une saison de soixante épisodes en deux langues déborde du budget si
+	// chaque ligne porte un titre complet. Plutôt que d'écarter les derniers
+	// épisodes — ce que faisait la version sans titre, et qui rend la liste
+	// fausse — on rogne le titre jusqu'à ce que la saison ENTIÈRE tienne, et
+	// on ne le retire (`null`) qu'en dernier recours.
+	const paliers: (number | null)[] = [72, 48, 32, 20, null];
+	let dernier = rendreSaison(groupes, paliers[paliers.length - 1]!, budgetPage, budgetTotal);
+	for (const budgetTitre of paliers) {
+		const essai = rendreSaison(groupes, budgetTitre, budgetPage, budgetTotal);
+		if (essai.omis === 0) return { ...essai, episodes: groupes.length, budgetTitre };
+		dernier = essai;
+	}
+
+	// Même sans titre la saison déborde : la liste est tronquée et le dit.
+	if (dernier.omis > 0 && dernier.pages.length > 0) {
+		dernier.pages[dernier.pages.length - 1] += `\n\n*…et ${dernier.omis} épisode(s) de plus.*`;
+	}
+	return { ...dernier, episodes: groupes.length, budgetTitre: null };
+}
+
+/** Un passage de {@link listerSaison} à budget de titre fixé. */
+function rendreSaison(
+	groupes: readonly { numero: number | null; versions: EpisodeCatalogue[] }[],
+	budgetTitre: number | null,
+	budgetPage: number,
+	budgetTotal: number
+): { pages: string[]; omis: number } {
 	const pages: string[] = [];
 	let courante: string[] = [];
 	let taillePage = 0;
@@ -206,7 +384,7 @@ export function listerSaison(
 	const reserve = 400;
 
 	for (const groupe of groupes) {
-		const ligne = ligneSaison(groupe.numero, groupe.versions);
+		const ligne = ligneSaison(groupe.numero, groupe.versions, { budgetTitre });
 		const cout = ligne.length + 1;
 
 		if (tailleTotale + cout > budgetTotal - reserve) break;
@@ -224,11 +402,5 @@ export function listerSaison(
 	}
 
 	if (courante.length > 0) pages.push(courante.join("\n"));
-
-	const omis = groupes.length - poses;
-	if (omis > 0 && pages.length > 0) {
-		pages[pages.length - 1] += `\n\n*…et ${omis} épisode(s) de plus.*`;
-	}
-
-	return { pages, episodes: groupes.length, omis: Math.max(0, omis) };
+	return { pages, omis: Math.max(0, groupes.length - poses) };
 }

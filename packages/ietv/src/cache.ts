@@ -83,7 +83,11 @@ export class IETVCache {
         channel_id INTEGER NOT NULL,
         season INTEGER NOT NULL,
         episode INTEGER NOT NULL,
-        videoId TEXT UNIQUE NOT NULL,
+        -- PAS d'unicité sur videoId : la même vidéo YouTube est référencée par
+        -- le site officiel ET par une chaîne. La clé est le quadruplet plus
+        -- bas ; unique ici, « INSERT OR REPLACE » faisait qu'une source
+        -- effaçait la ligne de l'autre (cf. libererVideoId).
+        videoId TEXT NOT NULL,
         title TEXT NOT NULL,
         url TEXT NOT NULL,
         description TEXT,
@@ -110,6 +114,7 @@ export class IETVCache {
       CREATE INDEX IF NOT EXISTS idx_episodes_season ON episodes(season);
       CREATE INDEX IF NOT EXISTS idx_episodes_language ON episodes(language);
       CREATE INDEX IF NOT EXISTS idx_episodes_title ON episodes(title COLLATE NOCASE);
+      CREATE INDEX IF NOT EXISTS idx_episodes_videoid ON episodes(videoId);
     `);
 
 		this.migrateSchema();
@@ -137,6 +142,88 @@ export class IETVCache {
 		addColumn("episodes", "description", "TEXT");
 		addColumn("episodes", "publishDate", "TEXT");
 		addColumn("episodes", "viewCount", "TEXT");
+
+		this.libererVideoId();
+	}
+
+	/**
+	 * Retire l'unicité de `episodes.videoId` sur une base créée avant ce
+	 * correctif.
+	 *
+	 * ── UNE SOURCE VOLAIT LES ÉPISODES DE L'AUTRE ──────────────────────────
+	 * Les épisodes du site officiel SONT des vidéos YouTube : 211 des 355
+	 * épisodes du catalogue portent le même `videoId` que la vidéo publiée par
+	 * une des chaînes. Avec `videoId TEXT UNIQUE` et des écritures en
+	 * `INSERT OR REPLACE`, enregistrer la chaîne SUPPRIMAIT la ligne du site
+	 * officiel — le « OR REPLACE » de SQLite efface toute ligne en conflit,
+	 * sur n'importe laquelle de ses contraintes d'unicité.
+	 *
+	 * Mesuré le 2026-09-02 sur une copie de la base de production : le site
+	 * officiel annonçait 355 épisodes, il n'en restait que 340 en table, et le
+	 * catalogue affichait donc un compte faux.
+	 *
+	 * La bonne clé est `UNIQUE(channel_id, season, episode, language)`, qui est
+	 * déjà là : une même vidéo référencée par deux sources est deux lignes,
+	 * c'est la vérité — les deux sources la référencent réellement, et l'UI
+	 * affiche déjà « un champ par source ».
+	 *
+	 * SQLite ne sait pas retirer une contrainte : la table est reconstruite.
+	 * L'opération est idempotente — elle ne fait rien si la contrainte est déjà
+	 * partie — et se fait en une transaction, pour ne jamais laisser une base à
+	 * demi migrée.
+	 */
+	private libererVideoId() {
+		const schema = this.db
+			.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'episodes'")
+			.get() as { sql?: string } | undefined;
+		if (!schema?.sql || !/videoId\s+TEXT\s+UNIQUE/i.test(schema.sql)) return;
+
+		this.db.exec("BEGIN IMMEDIATE");
+		try {
+			this.db.exec(`
+        CREATE TABLE episodes_migration (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          channel_id INTEGER NOT NULL,
+          season INTEGER NOT NULL,
+          episode INTEGER NOT NULL,
+          videoId TEXT NOT NULL,
+          title TEXT NOT NULL,
+          url TEXT NOT NULL,
+          description TEXT,
+          thumbnail TEXT,
+          titleJp TEXT,
+          romaji TEXT,
+          publishDate TEXT,
+          viewCount TEXT,
+          language TEXT CHECK(language IN ('vf', 'vostfr', 'unknown')),
+          duration INTEGER,
+          quality TEXT,
+          createdAt INTEGER DEFAULT (cast(unixepoch() * 1000 as integer)),
+          FOREIGN KEY(channel_id) REFERENCES channels(id) ON DELETE CASCADE,
+          UNIQUE(channel_id, season, episode, language)
+        );
+
+        INSERT INTO episodes_migration
+          (id, channel_id, season, episode, videoId, title, url, description, thumbnail,
+           titleJp, romaji, publishDate, viewCount, language, duration, quality, createdAt)
+        SELECT id, channel_id, season, episode, videoId, title, url, description, thumbnail,
+               titleJp, romaji, publishDate, viewCount, language, duration, quality, createdAt
+        FROM episodes;
+
+        DROP TABLE episodes;
+        ALTER TABLE episodes_migration RENAME TO episodes;
+
+        CREATE INDEX IF NOT EXISTS idx_episodes_channel ON episodes(channel_id);
+        CREATE INDEX IF NOT EXISTS idx_episodes_season ON episodes(season);
+        CREATE INDEX IF NOT EXISTS idx_episodes_language ON episodes(language);
+        CREATE INDEX IF NOT EXISTS idx_episodes_title ON episodes(title COLLATE NOCASE);
+        CREATE INDEX IF NOT EXISTS idx_episodes_videoid ON episodes(videoId);
+      `);
+			this.db.exec("COMMIT");
+		} catch (err) {
+			this.db.exec("ROLLBACK");
+			throw err;
+		}
 	}
 
 	// =========================================================================
@@ -200,6 +287,27 @@ export class IETVCache {
 					);
 			}
 		}
+
+		// ── LE COMPTEUR SE RECALCULE, IL NE SE DÉCLARE PAS ──────────────────
+		// `totalEpisodes` était écrit d'après ce que le scraping annonçait, pas
+		// d'après ce qui était réellement entré en table. Toute ligne perdue en
+		// chemin — conflit d'unicité, langue refusée par la contrainte CHECK —
+		// laissait la colonne à un compte plus élevé que la réalité, et c'est
+		// elle que `/episodes catalogue` affiche. Mesuré : 355 annoncés pour
+		// 340 lignes. On compte donc les lignes.
+		this.db
+			.prepare(
+				`UPDATE seasons SET totalEpisodes =
+           (SELECT COUNT(*) FROM episodes WHERE channel_id = seasons.channel_id
+              AND season = seasons.season)
+         WHERE channel_id = ?`
+			)
+			.run(channelId.id);
+		this.db
+			.prepare(
+				"UPDATE channels SET totalEpisodes = (SELECT COUNT(*) FROM episodes WHERE channel_id = ?) WHERE id = ?"
+			)
+			.run(channelId.id, channelId.id);
 	}
 
 	getChannel(channel: string): ChannelInfo | null {
