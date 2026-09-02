@@ -275,6 +275,20 @@ fn fiche(vfs: &Vfs, chemin: &str, rapide: bool) -> Value {
                 })
                 .collect();
             v["audio"] = json!(pistes);
+            // Bande-son externe : 95 films sur 97 n'ont pas la leur dans leur conteneur, elle
+            // vit dans `anime_stream`. Ne coûte que la lecture de la cue sheet (35 Kio).
+            if u.pistes.is_empty()
+                && let Some(p) = nie_explore::bande_son::piste_de_film(vfs, &rad, u.duree(), None)
+            {
+                v["bandeSon"] = json!({
+                    "cue": p.cue,
+                    "codec": p.codec,
+                    "frequence": p.frequence,
+                    "canaux": p.canaux,
+                    "dureeMs": p.duree_ms,
+                    "awbId": p.awb_id,
+                });
+            }
             if !u.sous_titres.is_empty() {
                 v["sousTitres"] = json!(u.sous_titres.len());
             }
@@ -356,6 +370,20 @@ fn info(vfs: &Vfs, entree: &str, en_json: bool, tables: bool) -> Result<()> {
             p["canaux"],
             p["octets"]
         );
+    }
+    match f.get("bandeSon") {
+        Some(b) => println!(
+            "  bande-son   anime_stream / cue {} — {} {} Hz, {} canal/aux, {:.2} s",
+            b["cue"].as_str().unwrap_or("?"),
+            b["codec"].as_str().unwrap_or("?"),
+            b["frequence"],
+            b["canaux"],
+            b["dureeMs"].as_f64().unwrap_or(0.0) / 1000.0,
+        ),
+        None if f.get("audio").and_then(Value::as_array).is_none_or(|a| a.is_empty()) => {
+            println!("  bande-son   aucune (ni conteneur, ni anime_stream)");
+        }
+        None => {}
     }
     if let Some(m) = f.get("conteneurOctets").and_then(Value::as_i64) {
         println!(
@@ -475,16 +503,31 @@ fn export(vfs: &Vfs, entree: &str, out: &Path, avec_audio: bool, brut: bool) -> 
     }
 
     if avec_audio {
-        let Some(piste) = u.pistes.first() else {
-            println!("  (aucune piste sonore dans ce film)");
-            return Ok(());
+        // Le conteneur d'abord, la banque `anime_stream` ensuite : c'est là que vivent 95 des
+        // 97 bandes-son. L'archive est matérialisée dans `var/audio-cache` — 654 Mo extraits une
+        // seule fois, puis seule l'entrée voulue est relue.
+        let (wav, provenance) = match u.pistes.first() {
+            Some(piste) => (
+                nie_formats::cri_audio::decode_to_wav(&piste.octets)
+                    .map_err(|e| anyhow::anyhow!("décodage audio : {e}"))?,
+                format!("conteneur, {}", piste.codec.nom()),
+            ),
+            None => {
+                let rad = radical(&chemin).to_string();
+                let Some(p) = nie_explore::bande_son::piste_de_film(vfs, &rad, u.duree(), None) else {
+                    println!("  (aucune bande-son : ni dans le conteneur, ni dans anime_stream)");
+                    return Ok(());
+                };
+                let cache = std::path::Path::new("var/audio-cache");
+                let wav = nie_explore::bande_son::wav_de_la_cue(vfs, cache, p.awb_id)
+                    .map_err(|e| anyhow::anyhow!("bande-son : {e}"))?;
+                (wav, format!("anime_stream, cue {}, {}", p.cue, p.codec))
+            }
         };
-        let wav = nie_formats::cri_audio::decode_to_wav(&piste.octets)
-            .map_err(|e| anyhow::anyhow!("décodage audio : {e}"))?;
         let cible_wav = cible.with_extension("wav");
         std::fs::write(&cible_wav, &wav)
             .with_context(|| format!("écriture {}", cible_wav.display()))?;
-        println!("{} — {} o ({})", cible_wav.display(), wav.len(), piste.codec.nom());
+        println!("{} — {} o ({provenance})", cible_wav.display(), wav.len());
     }
     Ok(())
 }

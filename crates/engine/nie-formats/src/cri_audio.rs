@@ -304,6 +304,23 @@ impl Awb {
     /// [aligned]+ = offset table (entry_count+1 entrées)
     /// ```
     pub fn parse(data: &[u8]) -> Result<Self, FormatError> {
+        Self::parse_entete(data, data.len() as u64)
+    }
+
+    /// Parse la table des matières depuis le seul EN-TÊTE, en bornant les tailles d'entrée sur
+    /// la taille RÉELLE du fichier plutôt que sur celle du tampon fourni.
+    ///
+    /// C'est ce qui permet de lire une piste dans un AWB sans le charger : `anime_stream.awb`
+    /// pèse 654 Mo et porte la bande-son des 97 cinématiques, dont une seule est demandée à la
+    /// fois. [`Self::parse`] délègue ici avec `taille_fichier = data.len()`, donc rien ne change
+    /// pour un appelant qui a déjà tout le fichier en mémoire.
+    ///
+    /// # Erreurs
+    ///
+    /// [`FormatError::TooShort`] si l'en-tête fait moins de 16 octets, [`FormatError::BadMagic`]
+    /// s'il ne commence pas par `AFS2`, [`FormatError::Corrupt`] si la table des matières déborde
+    /// du tampon — signe que l'en-tête lu est trop court, pas que le fichier est mauvais.
+    pub fn parse_entete(data: &[u8], taille_fichier: u64) -> Result<Self, FormatError> {
         if data.len() < 16 {
             return Err(FormatError::TooShort { got: data.len(), need: 16 });
         }
@@ -366,14 +383,16 @@ impl Awb {
             let end_offset = read_offset(i + 1);
             let size = end_offset.saturating_sub(aligned_offset);
 
-            // Sauvegarde uniquement si l'entrée est dans le tampon
+            // La taille est bornée sur le FICHIER, pas sur le tampon : lu depuis un en-tête
+            // seul, un tampon de quelques kilo-octets ramènerait sinon toutes les entrées à 0.
+            let debut = u64::from(aligned_offset);
             let entry = AwbEntry {
                 cue_id,
                 offset: aligned_offset,
-                size: if aligned_offset as usize + size as usize <= data.len() {
+                size: if debut + u64::from(size) <= taille_fichier {
                     size
-                } else if (aligned_offset as usize) < data.len() {
-                    (data.len() - aligned_offset as usize) as u32
+                } else if debut < taille_fichier {
+                    (taille_fichier - debut) as u32
                 } else {
                     0
                 },

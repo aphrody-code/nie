@@ -3690,7 +3690,18 @@ fn servir_video(
             // Le type MIME vient du CODEC, pas de l'extension demandée : H.264 sort en MP4,
             // VP9 en WebM. Annoncer `video/mp4` sur un WebM ferait échouer le décodage.
             let produit = if audio {
-                video::wav_depuis_usm(&brut, &nom).map(|o| ("audio/wav", o))
+                // La bande-son demande le VFS : 95 films sur 97 n'ont pas la leur dans leur
+                // conteneur, elle vit dans `anime_stream` — et son archive de 654 Mo se
+                // matérialise dans le cache de l'application.
+                let cache_dir = app
+                    .path()
+                    .app_cache_dir()
+                    .unwrap_or_else(|_| std::env::temp_dir().join("nie-explorer"));
+                let vfs_state = app.state::<VfsState>();
+                with_vfs(None, &vfs_state, |vfs| {
+                    video::wav_bande_son(vfs, &cache_dir, &chemin, &brut)
+                })
+                .map(|o| ("audio/wav", o))
             } else {
                 video::flux_web_depuis_usm(&brut, &nom)
             };

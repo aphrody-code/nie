@@ -356,17 +356,17 @@ function Vedette({
   onLire: () => void;
   onReveler?: () => void;
 }) {
-  // 95 des 97 films n'ont AUCUNE piste sonore dans leur conteneur : le jeu les accompagne de sa
-  // musique de fond, désignée par `bgmName` dans `movie_playing_config`. « Muet » décrit donc le
-  // fichier, pas ce qu'on entend en jouant — d'où l'affichage du nom de la BGM quand il existe.
+  // La bande-son d'un film n'est presque jamais dans son conteneur : elle vient de la banque
+  // `anime_stream`, et `audio[0].source` dit laquelle des deux voies a répondu.
+  const piste = film.audio[0];
   const meta = [
     film.duree ? formaterDuree(film.duree) : null,
     film.largeur ? `${film.largeur}×${film.hauteur}` : null,
     film.codec?.toUpperCase(),
-    film.audio.length > 0
-      ? `${film.audio[0].canaux} canal/aux ${film.audio[0].codec.toUpperCase()}`
-      : "sans piste sonore",
-    film.bgm ? `BGM ${film.bgm}` : null,
+    piste
+      ? `son ${piste.codec.toUpperCase()} ${piste.frequence ? `${Math.round(piste.frequence / 1000)} kHz` : ""}`.trim()
+      : "sans bande-son",
+    piste && piste.source !== "conteneur" ? `cue ${piste.source}` : null,
     formaterOctets(film.octets),
   ].filter(Boolean);
 
