@@ -43,6 +43,23 @@ export interface Reponse {
 	contenu?: string;
 	/** Réponse visible du seul appelant. */
 	prive?: boolean;
+	/**
+	 * Rangées d'action posées sous le message — boutons, menus déroulants.
+	 *
+	 * Elles fonctionnent AUSSI sur un message classique : seuls les conteneurs,
+	 * sections et galeries exigent le drapeau V2. C'est ce qui permet au lecteur
+	 * de garder son URL nue (donc son lecteur vidéo intégré) tout en portant sa
+	 * barre de navigation.
+	 */
+	composants?: unknown[];
+	/**
+	 * Écran en composants V2, EXCLUSIF avec `embeds` et `contenu`.
+	 *
+	 * Discord refuse un message qui porte le drapeau V2 et un contenu ou des
+	 * embeds : le pont pose donc l'un OU l'autre, jamais les deux. Une réponse
+	 * qui remplit ce champ laisse `embeds` vide.
+	 */
+	v2?: { flags: number; components: unknown[] };
 }
 
 export interface OptionsFiche {

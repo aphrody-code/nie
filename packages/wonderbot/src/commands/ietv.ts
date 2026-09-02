@@ -27,6 +27,10 @@ import {
 	type Reponse,
 } from "../ui/index.ts";
 import type { Catalogue } from "../catalogue.ts";
+import { ecranAccueil, ecranLecture, ecranMaListe } from "../ecrans.ts";
+// Type seulement : `service.ts` importe `estLisibleEnLigne` d'ici, et une
+// importation de valeur dans les deux sens ferait un cycle à l'exécution.
+import type { Service } from "../service.ts";
 
 /**
  * Types d'options de l'API Discord. Recopiés plutôt qu'importés de discord.js :
@@ -63,6 +67,9 @@ export const DEFINITION_IETV = {
 					name: "texte",
 					description: "Titre, mot-clé, nom d'arc…",
 					required: true,
+					// Les propositions arrivent pendant la frappe : le membre n'a
+					// plus à deviner l'orthographe d'un titre pour le trouver.
+					autocomplete: true,
 				},
 				{
 					type: TYPE.chaine,
@@ -128,6 +135,26 @@ export const DEFINITION_IETV = {
 		},
 		{
 			type: TYPE.sousCommande,
+			name: "accueil",
+			description: "L'accueil : reprendre, parcourir les arcs, ma liste",
+		},
+		{
+			type: TYPE.sousCommande,
+			name: "reprendre",
+			description: "Reprendre là où tu t'es arrêté",
+		},
+		{
+			type: TYPE.sousCommande,
+			name: "maliste",
+			description: "Les épisodes que tu as mis de côté",
+		},
+		{
+			type: TYPE.sousCommande,
+			name: "hasard",
+			description: "Un épisode au hasard, de préférence pas encore vu",
+		},
+		{
+			type: TYPE.sousCommande,
 			name: "catalogue",
 			description: "État du catalogue : sources, volumes, fraîcheur",
 		},
@@ -147,7 +174,19 @@ export const DEFINITION_IETV = {
  * devenir éphémère, `editReply` refuse le drapeau. `rafraichir` est du bruit
  * d'exploitation — il n'a rien à faire dans le fil d'un salon public.
  */
-const SOUS_COMMANDES_PRIVEES = new Set(["rafraichir"]);
+const SOUS_COMMANDES_PRIVEES = new Set([
+	"rafraichir",
+	// ── LES ÉCRANS PERSONNELS SONT PRIVÉS ──────────────────────────────────
+	// Ces quatre-là affichent l'avancement de l'APPELANT : ce qu'il a vu, ce
+	// qu'il a mis de côté, où il en est. Publiés dans le salon, ils exposeraient
+	// ses habitudes à tout le serveur — et leurs boutons modifieraient un
+	// message que tout le monde voit, si bien qu'un clic changerait l'écran sous
+	// les yeux des autres.
+	"maliste",
+	"accueil",
+	"reprendre",
+	"hasard",
+]);
 
 /** La réponse à cette sous-commande doit-elle être privée ? */
 export function reponsePrivee(sousCommande: string): boolean {
@@ -181,6 +220,17 @@ export interface ContexteCommande {
 	estStaff: boolean;
 	/** Plafond d'affichage des annonces, repris dans le résumé. */
 	now?: () => number;
+	/**
+	 * Service de lecture — il croise le catalogue et la progression du membre.
+	 *
+	 * FACULTATIF à dessein : les cinq sous-commandes historiques (recherche,
+	 * episode, saison, catalogue, rafraichir) n'en ont pas besoin et restent
+	 * testables avec un simple catalogue. Les écrans de lecture, eux, le
+	 * réclament — et disent lequel manque plutôt que d'échouer sur `undefined`.
+	 */
+	service?: Service;
+	/** Identifiant Discord de l'appelant, requis par les écrans personnels. */
+	membre?: string;
 }
 
 type Langue = "vf" | "vostfr";
@@ -246,6 +296,14 @@ export async function executerIetv(
 			return episode(options, contexte);
 		case "saison":
 			return saison(options, contexte);
+		case "accueil":
+			return accueil(contexte);
+		case "reprendre":
+			return reprendre(contexte);
+		case "maliste":
+			return maListe(contexte);
+		case "hasard":
+			return hasard(contexte);
 		case "catalogue":
 			return catalogue(contexte);
 		case "rafraichir":
@@ -389,6 +447,87 @@ function saison(options: OptionsCommande, contexte: ContexteCommande): Reponse {
 				.finir(`${liste.affiches} sur ${episodes.length}`),
 		],
 	};
+}
+
+/**
+ * Le service et l'appelant, ou un échec qui dit lequel manque.
+ *
+ * Une commande de lecture appelée sans service configuré doit le DIRE : un
+ * `undefined` propagé jusqu'à l'écran produirait un « L'application n'a pas
+ * répondu » qui n'apprend rien à personne.
+ */
+function exigerService(
+	contexte: ContexteCommande
+): { service: Service; membre: string } | Reponse {
+	if (!contexte.service || !contexte.membre) {
+		return echec(
+			"Lecture indisponible",
+			"Le service de lecture n'est pas branché sur ce bot. Les commandes de consultation " +
+				"(`/episodes recherche`, `saison`, `catalogue`) fonctionnent toujours.",
+			contexte.marque
+		);
+	}
+	return { service: contexte.service, membre: contexte.membre };
+}
+
+/** Écran d'accueil — le point d'entrée du service de lecture. */
+function accueil(contexte: ContexteCommande): Reponse {
+	const acces = exigerService(contexte);
+	if ("embeds" in acces) return acces;
+	return { embeds: [], v2: ecranAccueil(acces.service.accueil(acces.membre)) };
+}
+
+/** « Ma liste » — les épisodes mis de côté par l'appelant. */
+function maListe(contexte: ContexteCommande): Reponse {
+	const acces = exigerService(contexte);
+	if ("embeds" in acces) return acces;
+	// Privée : la liste d'un membre ne regarde que lui, et l'afficher
+	// publiquement remplirait le salon d'inventaires personnels.
+	return { embeds: [], prive: true, v2: ecranMaListe(acces.service.maListe(acces.membre)) };
+}
+
+/** Reprend là où l'appelant s'est arrêté, lecteur compris. */
+function reprendre(contexte: ContexteCommande): Reponse {
+	const acces = exigerService(contexte);
+	if ("embeds" in acces) return acces;
+
+	const reprise = acces.service.reprise(acces.membre);
+	if (!reprise) {
+		return vide(
+			"Rien à reprendre",
+			"Tu n'as rien commencé — ou tu as tout vu. `/episodes accueil` pour parcourir les arcs, " +
+				"`/episodes hasard` pour te laisser porter.",
+			contexte.marque
+		);
+	}
+
+	const vue = acces.service.lecture(acces.membre, {
+		saison: reprise.saison,
+		episode: reprise.episode,
+	});
+	return vue
+		? ecranLecture(vue)
+		: vide("Épisode indisponible", "Cet épisode a quitté le catalogue.", contexte.marque);
+}
+
+/** Un épisode au hasard, de préférence pas encore vu. */
+function hasard(contexte: ContexteCommande): Reponse {
+	const acces = exigerService(contexte);
+	if ("embeds" in acces) return acces;
+
+	const cle = acces.service.hasard(acces.membre);
+	if (!cle) {
+		return vide(
+			"Catalogue vide",
+			"Aucun épisode en base. Le premier rafraîchissement n'a pas encore tourné.",
+			contexte.marque
+		);
+	}
+
+	const vue = acces.service.lecture(acces.membre, cle);
+	return vue
+		? ecranLecture(vue)
+		: vide("Épisode indisponible", "Cet épisode a quitté le catalogue.", contexte.marque);
 }
 
 function catalogue(contexte: ContexteCommande): Reponse {

@@ -664,20 +664,41 @@ describe("annonces", () => {
 // ---------------------------------------------------------------------------
 
 describe("/episodes", () => {
-	it("déclare cinq sous-commandes sous un nom sans marque déposée", () => {
+	it("déclare ses sous-commandes sous un nom sans marque déposée", () => {
 		expect(DEFINITION_IETV.name).toBe("episodes");
 		expect(DEFINITION_IETV.options.map((o) => o.name)).toEqual([
 			"recherche",
 			"episode",
 			"saison",
+			"accueil",
+			"reprendre",
+			"maliste",
+			"hasard",
 			"catalogue",
 			"rafraichir",
 		]);
 	});
 
-	it("ne rend privée que la sous-commande d'exploitation", () => {
+	it("propose l'autocomplétion sur le texte de recherche", () => {
+		// Index littéral plutôt qu'un `find` : `DEFINITION_IETV` est `as const`,
+		// donc chaque entrée a son type exact et l'assertion porte sur le vrai
+		// champ, sans conversion de type qui masquerait une faute de frappe.
+		const recherche = DEFINITION_IETV.options[0];
+		expect(recherche.name).toBe("recherche");
+		expect(recherche.options[0].name).toBe("texte");
+		expect(recherche.options[0].autocomplete).toBe(true);
+	});
+
+	it("ne rend privées que l'exploitation et les écrans personnels", () => {
 		expect(reponsePrivee("rafraichir")).toBe(true);
+		// « Ma liste » ne regarde que son propriétaire : publiée, elle remplirait
+		// le salon d'inventaires personnels.
+		expect(reponsePrivee("maliste")).toBe(true);
+		// L'accueil aussi : ses boutons modifient le message, et un message
+		// public verrait son écran changer sous les yeux des autres membres.
+		expect(reponsePrivee("accueil")).toBe(true);
 		expect(reponsePrivee("recherche")).toBe(false);
+		expect(reponsePrivee("saison")).toBe(false);
 	});
 
 	it("recherche et liste", async () => {
