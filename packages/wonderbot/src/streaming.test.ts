@@ -19,6 +19,7 @@ import {
 	ecranAccueil,
 	ecranArc,
 	ecranAide,
+	ecranFilArc,
 	ecranLecture,
 	ecranMaListe,
 	ecranProgression,
@@ -523,6 +524,68 @@ describe("écrans", () => {
 		const dernier = ecranLecture(service.lecture("membre", { saison: 1, episode: 3 })!);
 		const rangeeFin = dernier.composants![0] as { components: { disabled?: boolean }[] };
 		expect(rangeeFin.components[2]!.disabled).toBe(true);
+	});
+
+	it("le fil de forum n'affiche AUCUN état personnel", () => {
+		// Un fil est lu par tout le serveur : y peindre les pastilles de celui
+		// qui l'a généré serait faux pour tous les autres.
+		const { service, progression } = serviceAvec(saisonComplete(2, 6), { 2: "GO" });
+		progression.marquerVu("membre", { saison: 2, episode: 1 });
+		const arc = service.arc("membre", 2, 0);
+
+		const rendu = texteDe(
+			ecranFilArc({
+				saison: 2,
+				nom: "GO",
+				episodes: arc.episodes.map((episode) => ({ ...episode, vu: false, dansListe: false })),
+				langues: { vf: 6, vostfr: 6 },
+				introuvables: [],
+				rafraichiLe: 0,
+				marque: MARQUE_PAR_DEFAUT,
+			}).components
+		);
+		expect(rendu).not.toContain("✓");
+		expect(rendu).toContain("GO");
+		expect(rendu).toContain("VOSTFR");
+	});
+
+	it("le fil tient le budget V2, plus étroit que celui des embeds", () => {
+		// 4 000 caractères, pas 6 000 : une saison de soixante épisodes doit
+		// tenir en resserrant les titres, sans perdre d'épisode.
+		const { service } = serviceAvec(saisonComplete(3, 60), { 3: "Saison 3" });
+		const arc = service.arc("membre", 3, 0);
+		const tous = [];
+		for (let page = 0; page < 3; page++) tous.push(...service.arc("membre", 3, page).episodes);
+
+		const message = ecranFilArc({
+			saison: 3,
+			nom: "Saison 3",
+			episodes: tous,
+			langues: { vf: 60, vostfr: 60 },
+			introuvables: [],
+			rafraichiLe: 1_700_000_000_000,
+			marque: MARQUE_PAR_DEFAUT,
+		});
+		expect(tailleTexte(message.components)).toBeLessThanOrEqual(LIMITES_V2.texteTotal);
+		expect(compterComposants(message.components)).toBeLessThanOrEqual(LIMITES_V2.total);
+		expect(arc.total).toBe(60);
+	});
+
+	it("le fil dit ce qu'il n'a pas trouvé", () => {
+		const rendu = texteDe(
+			ecranFilArc({
+				saison: 1,
+				nom: "Saison 1",
+				episodes: [],
+				langues: {},
+				introuvables: [3, 7],
+				rafraichiLe: 0,
+				marque: MARQUE_PAR_DEFAUT,
+			}).components
+		);
+		expect(rendu).toContain("E03");
+		expect(rendu).toContain("E07");
+		expect(rendu).toContain("Aucun épisode référencé");
 	});
 
 	it("l'aide range par intention, pas par liste de commandes", () => {

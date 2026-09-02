@@ -827,15 +827,18 @@ export class Wonderbot {
 				const archives = await salon.threads.fetchArchived({ type: "public", limit: 100 });
 				return [...actifs.threads.keys(), ...archives.threads.keys()];
 			},
-			creerFil: async (nom, embeds, menus, tags) => {
+			creerFil: async (nom, message, tags) => {
 				const fil = await salon.threads.create({
 					name: nom,
-					message: { embeds, components: rangeesDeMenus(menus) },
+					// Le drapeau V2 est posé À LA CRÉATION : il ne peut plus être
+					// ajouté ni retiré ensuite, et un message créé sans lui
+					// refuserait à jamais conteneurs et galeries.
+					message: { flags: DRAPEAU_V2, components: message.components as never },
 					appliedTags: tags,
 				});
 				return fil.id;
 			},
-			majFil: async (filId, nom, embeds, menus, tags) => {
+			majFil: async (filId, nom, message, tags) => {
 				const fil = await salon.threads.fetch(filId);
 				if (!fil) return;
 				// Un fil archivé doit être rouvert avant d'être modifié.
@@ -845,11 +848,69 @@ export class Wonderbot {
 				// Le message d'ouverture porte l'identifiant du fil : on le MODIFIE
 				// au lieu de republier, pour ne pas noyer les réponses des membres.
 				const ouverture = await fil.fetchStarterMessage().catch(() => null);
-				await ouverture?.edit({ embeds, components: rangeesDeMenus(menus) });
+				await ouverture?.edit({
+					flags: DRAPEAU_V2,
+					components: message.components as never,
+				});
+			},
+			supprimerFil: async (filId) => {
+				const fil = await salon.threads.fetch(filId).catch(() => null);
+				await fil?.delete("reconstruction du forum demandée");
 			},
 		};
 
 		return { passerelle, etiquettes };
+	}
+
+	/**
+	 * Reconstruit le forum de zéro — la seule opération destructrice du bot.
+	 *
+	 * ── ELLE NE S'EXÉCUTE JAMAIS TOUTE SEULE ───────────────────────────────
+	 * Ni au démarrage, ni après un rafraîchissement : uniquement sur demande
+	 * explicite (`niers-bxc wonderbot forum`). La synchronisation ordinaire
+	 * MODIFIE les fils ; celle-ci les supprime pour les refaire, ce qui n'a de
+	 * sens que lorsque leur forme a changé au point qu'une modification ne
+	 * suffit plus.
+	 *
+	 * Un fil où quelqu'un a écrit est ÉPARGNÉ — il est réécrit, pas supprimé.
+	 * Le compte de messages est lu sur Discord, et `> 1` exclut le message
+	 * d'ouverture, qui est celui du bot.
+	 */
+	async reconstruireForum(options: { garderNonVides?: boolean } = {}): Promise<void> {
+		if (!this.config.salonForum) {
+			throw new Error(
+				"[wonderbot] aucun salon de forum configuré : pose WONDERBOT_FORUM_CHANNEL_ID."
+			);
+		}
+
+		const { passerelle, etiquettes } = await this.passerelleForum(this.config.salonForum);
+		const forum = new SynchronisationForum({
+			catalogue: this.catalogue,
+			passerelle,
+			stockage: this.catalogue,
+			marque: this.config.marque,
+			etiquettes,
+			lacunesConfirmees: this.reparateur.confirmes(),
+			rafraichiLe: () => this.catalogue.resume().dernierRafraichissement,
+		});
+
+		const salon = await this.client.channels.fetch(this.config.salonForum);
+		const resultat = await forum.recreer({
+			...options,
+			messagesDe: async (filId) => {
+				if (!salon || salon.type !== ChannelType.GuildForum) return 0;
+				const fil = await salon.threads.fetch(filId).catch(() => null);
+				return fil?.messageCount ?? 0;
+			},
+		});
+
+		this.journaliser(
+			`${ICONES.saison} forum reconstruit — ${resultat.supprimes.length} fil(s) supprimé(s), ` +
+				`${resultat.crees.length} créé(s)` +
+				(resultat.conserves.length > 0
+					? `, ${resultat.conserves.length} conservé(s) car des membres y ont écrit`
+					: "")
+		);
 	}
 
 	/** Met le forum en accord avec le catalogue, si un forum est configuré. */
@@ -864,6 +925,9 @@ export class Wonderbot {
 				marque: this.config.marque,
 				etiquettes,
 				lacunesConfirmees: this.reparateur.confirmes(),
+				// Une fonction : la date change à chaque passage, et la capturer
+				// ici figerait celle du démarrage dans tous les fils.
+				rafraichiLe: () => this.catalogue.resume().dernierRafraichissement,
 			});
 			const r = await this.forum.synchroniser();
 			const total = r.crees.length + r.majs.length + r.recrees.length;
