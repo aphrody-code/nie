@@ -26,6 +26,7 @@
 			"@graphql-yoga/plugin-response-cache": "^3.23.1",
 			"@hookform/resolvers": "^5.4.0",
 			"@leeoniya/ufuzzy": "^1.0.19",
+			"@napi-rs/canvas": "^1.0.8",
 			"@lexical/code": "^0.45.0",
 			"@lexical/file": "^0.45.0",
 			"@lexical/html": "^0.45.0",

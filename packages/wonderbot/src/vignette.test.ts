@@ -1,10 +1,11 @@
 /**
  * Couverture des vignettes d'épisode.
  *
- * Tout ce qui suit porte sur la MISE EN PAGE, qui est pure : le SVG se compare
- * au caractère près, sans `sharp`, sans réseau et sans fichier. C'est là que
- * vivent les vrais défauts d'une carte — texte qui déborde, badge hors cadre,
- * titre non échappé, bandes noires conservées.
+ * Tout ce qui suit porte sur la MISE EN PAGE, qui est pure : `planifierCarte`
+ * prend un {@link Mesureur} en paramètre, donc les positions se vérifient au
+ * pixel près sans canvas, sans police et sans réseau. C'est là que vivent les
+ * vrais défauts d'une carte — texte qui déborde, badge hors cadre, ellipse
+ * manquante, bandes noires conservées.
  */
 
 import { describe, expect, it } from "bun:test";
@@ -12,87 +13,69 @@ import { describe, expect, it } from "bun:test";
 import {
 	CARTE,
 	CARTE_HAUTEUR,
+	POLICES,
 	assainirTexte,
 	bornerProgression,
 	decouperLignes,
-	echapperXml,
-	largeurApprochee,
 	nomVignette,
+	planifierCarte,
 	recadrerLetterbox,
-	svgCarte,
-	svgMasqueImage,
 	variantesVignette,
+	type Mesureur,
 } from "./vignette.ts";
+
+/**
+ * Mesureur déterministe : dix pixels par caractère, quelle que soit la police.
+ *
+ * Volontairement simpliste — un test de mise en page vérifie la LOGIQUE de
+ * coupe et de placement, pas les chasses d'une police. Celles-ci sont mesurées
+ * par le canvas en production, ce qui est justement l'objet de la réécriture.
+ */
+const MESUREUR: Mesureur = (texte) => texte.length * 10;
 
 const BASE = { image: null, titre: "Un titre", sousTitre: "Saison 1 · E01" };
 
-describe("échappement XML", () => {
-	it("échappe ce qui casserait le SVG", () => {
-		// Une seule esperluette non échappée rend le document invalide, et le
-		// rastériseur ne produit RIEN — pas une carte dégradée, rien.
-		expect(echapperXml(`Tom & Jerry <b> "x" 'y'`)).toBe(
-			"Tom &amp; Jerry &lt;b&gt; &quot;x&quot; &apos;y&apos;"
-		);
-	});
-
-	it("échappe les titres réels du catalogue dans la carte", () => {
-		const svg = svgCarte({ ...BASE, titre: `L'Académie & le "Onze" <Suprême>` });
-		expect(svg).toContain("&amp;");
-		expect(svg).toContain("&apos;");
-		expect(svg).not.toMatch(/<text[^>]*>[^<]*&(?!amp;|lt;|gt;|quot;|apos;)/);
-	});
-});
-
 describe("mise en page du texte", () => {
-	it("mesure plus large les capitales et les chiffres", () => {
-		// Les sous-estimer faisait déborder le badge « S03E01 » hors du cadre.
-		expect(largeurApprochee("S03E01", 20)).toBeGreaterThan(largeurApprochee("aaaaaa", 20));
-		expect(largeurApprochee("iiii", 20)).toBeLessThan(largeurApprochee("MMMM", 20));
-		expect(largeurApprochee("", 20)).toBe(0);
-	});
-
-	it("compte une chasse pleine pour un idéogramme", () => {
-		expect(largeurApprochee("サッカー", 20)).toBe(80);
-	});
-
 	it("coupe aux espaces et respecte la largeur", () => {
-		const lignes = decouperLignes("un deux trois quatre cinq six sept huit", 200, 20, 3);
+		const lignes = decouperLignes("un deux trois quatre cinq", 100, POLICES.titre, 3, MESUREUR);
 		expect(lignes.length).toBeLessThanOrEqual(3);
-		for (const ligne of lignes) expect(largeurApprochee(ligne, 20)).toBeLessThanOrEqual(200);
+		for (const ligne of lignes) expect(MESUREUR(ligne, POLICES.titre)).toBeLessThanOrEqual(100);
 	});
 
 	it("coupe de force un mot plus long que la ligne", () => {
 		// Le laisser déborder sortirait du cadre, ce qui est pire qu'une césure.
-		const lignes = decouperLignes("A".repeat(200), 100, 20, 2);
+		const lignes = decouperLignes("A".repeat(50), 100, POLICES.titre, 2, MESUREUR);
 		expect(lignes.length).toBeGreaterThan(0);
-		for (const ligne of lignes) expect(largeurApprochee(ligne, 20)).toBeLessThanOrEqual(100);
+		for (const ligne of lignes) expect(MESUREUR(ligne, POLICES.titre)).toBeLessThanOrEqual(100);
 	});
 
 	it("termine par une ellipse quand il reste du texte", () => {
-		const lignes = decouperLignes("un deux trois quatre cinq six sept huit neuf dix", 120, 20, 1);
+		// Compter les lignes ne suffit pas : arrêté pile au maximum, rien ne
+		// distinguerait « ça tombait juste » de « il restait huit mots », et la
+		// carte se lirait comme un titre complet.
+		const lignes = decouperLignes("un deux trois quatre cinq six", 60, POLICES.titre, 1, MESUREUR);
 		expect(lignes).toHaveLength(1);
 		expect(lignes[0]!.endsWith("…")).toBe(true);
 	});
 
 	it("ne pose pas d'ellipse quand tout tient", () => {
-		expect(decouperLignes("court", 400, 20, 2)).toEqual(["court"]);
+		expect(decouperLignes("court", 400, POLICES.titre, 2, MESUREUR)).toEqual(["court"]);
 	});
 
 	it("rend une liste vide sur un texte vide", () => {
-		expect(decouperLignes("   ", 200, 20, 2)).toEqual([]);
+		expect(decouperLignes("   ", 200, POLICES.titre, 2, MESUREUR)).toEqual([]);
 	});
 });
 
 describe("assainissement du texte", () => {
-	it("retire les emoji que la police ne sait pas dessiner", () => {
-		// Un emoji absent de DejaVu Sans sort en rectangle vide — le « tofu ».
+	it("retire les emoji qu'aucune police de la carte ne dessine", () => {
 		expect(assainirTexte("Saison 3 · 🇫🇷 VF · 2010")).toBe("Saison 3 · VF · 2010");
+		// « ▶️ » est un U+25B6 suivi d'un sélecteur : retirer le seul sélecteur
+		// laisserait un « ▶ » tout aussi absent des polices.
 		expect(assainirTexte("▶️ Épisode")).toBe("Épisode");
 	});
 
 	it("garde l'espace autour d'un séparateur légitime", () => {
-		// Une première version mangeait l'espace AVANT chaque « · » et écrivait
-		// « Saison 3· E01· VF ».
 		expect(assainirTexte("Saison 3 · E01 · VF · 2010-04-14")).toBe(
 			"Saison 3 · E01 · VF · 2010-04-14"
 		);
@@ -106,35 +89,40 @@ describe("assainissement du texte", () => {
 		expect(assainirTexte(" · 🇫🇷 · ")).toBe("");
 		expect(assainirTexte("· VF")).toBe("VF");
 	});
+
+	it("laisse intactes les ponctuations françaises", () => {
+		// « » · — … vivent toutes sous U+2190 et ne doivent pas être emportées.
+		expect(assainirTexte("« Duel » — la suite… · fin")).toBe("« Duel » — la suite… · fin");
+	});
 });
 
-describe("carte SVG", () => {
-	it("annonce les dimensions de la carte", () => {
-		const svg = svgCarte(BASE);
-		expect(svg).toContain(`width="${CARTE.largeur}"`);
-		expect(svg).toContain(`height="${CARTE_HAUTEUR}"`);
-		expect(svg.startsWith("<svg")).toBe(true);
-		expect(svg.endsWith("</svg>")).toBe(true);
-	});
-
+describe("plan de la carte", () => {
 	it("garde le badge à l'intérieur du cadre", () => {
-		// Le badge était tronqué à droite : sa boîte est désormais bornée.
-		const svg = svgCarte({ ...BASE, badge: "S03E01" });
-		for (const trouve of svg.matchAll(/<rect x="(\d+)"[^>]*width="(\d+)"/g)) {
-			expect(Number(trouve[1]) + Number(trouve[2])).toBeLessThanOrEqual(CARTE.largeur);
-		}
+		// La largeur est MESURÉE, plus devinée : le badge ne peut plus sortir.
+		const plan = planifierCarte({ ...BASE, badge: "S03E01" }, MESUREUR);
+		expect(plan.badge).not.toBeNull();
+		expect(plan.badge!.zone.x + plan.badge!.zone.largeur).toBeLessThanOrEqual(CARTE.largeur);
+		expect(plan.badge!.zone.x).toBeGreaterThanOrEqual(CARTE.marge);
 	});
 
 	it("borne même un badge absurdement long", () => {
-		const svg = svgCarte({ ...BASE, badge: "X".repeat(80) });
-		for (const trouve of svg.matchAll(/<rect x="(\d+)"[^>]*width="(\d+)"/g)) {
-			expect(Number(trouve[1]) + Number(trouve[2])).toBeLessThanOrEqual(CARTE.largeur);
-		}
+		const plan = planifierCarte({ ...BASE, badge: "X".repeat(80) }, MESUREUR);
+		expect(plan.badge!.zone.x + plan.badge!.zone.largeur).toBeLessThanOrEqual(CARTE.largeur);
+	});
+
+	it("remonte le badge quand une barre de progression l'attend", () => {
+		// Sans ce décalage, le badge et la barre se chevauchent.
+		const sans = planifierCarte({ ...BASE, badge: "E01" }, MESUREUR);
+		const avec = planifierCarte({ ...BASE, badge: "E01", progression: 0.5 }, MESUREUR);
+		expect(avec.badge!.zone.y).toBeLessThan(sans.badge!.zone.y);
 	});
 
 	it("n'affiche aucune barre à progression nulle", () => {
-		expect(svgCarte(BASE)).not.toContain("#ff0033");
-		expect(svgCarte({ ...BASE, progression: 0.5 })).toContain("#ff0033");
+		expect(planifierCarte(BASE, MESUREUR).progression).toBeNull();
+		const plan = planifierCarte({ ...BASE, progression: 0.5 }, MESUREUR);
+		expect(plan.progression!.remplie.largeur).toBe(
+			Math.round((CARTE.largeur - CARTE.marge * 2) / 2)
+		);
 	});
 
 	it("borne une progression aberrante", () => {
@@ -145,15 +133,36 @@ describe("carte SVG", () => {
 		expect(bornerProgression(0.42)).toBe(0.42);
 	});
 
-	it("n'affiche la pastille « vu » que si elle est demandée", () => {
-		expect(svgCarte(BASE)).not.toContain(">vu<");
-		expect(svgCarte({ ...BASE, vu: true })).toContain(">vu<");
+	it("garde la barre remplie dans la piste", () => {
+		const plan = planifierCarte({ ...BASE, progression: 4 }, MESUREUR);
+		expect(plan.progression!.remplie.largeur).toBeLessThanOrEqual(plan.progression!.piste.largeur);
 	});
 
-	it("arrondit les coins de l'image, pas ceux du bandeau", () => {
-		const masque = svgMasqueImage();
-		expect(masque).toContain(`rx="${CARTE.rayon}"`);
-		expect(masque).toContain(`height="${CARTE.hauteurImage}"`);
+	it("n'affiche la pastille « vu » que si elle est demandée", () => {
+		expect(planifierCarte(BASE, MESUREUR).pastilleVu).toBeNull();
+		expect(planifierCarte({ ...BASE, vu: true }, MESUREUR).pastilleVu).not.toBeNull();
+	});
+
+	it("ne planifie aucun badge sur un libellé vide ou réduit à un emoji", () => {
+		expect(planifierCarte({ ...BASE, badge: "" }, MESUREUR).badge).toBeNull();
+		expect(planifierCarte({ ...BASE, badge: "🎬" }, MESUREUR).badge).toBeNull();
+	});
+
+	it("tient le titre sur deux lignes au plus", () => {
+		const plan = planifierCarte({ ...BASE, titre: "mot ".repeat(60) }, MESUREUR);
+		expect(plan.lignesTitre.length).toBeLessThanOrEqual(2);
+		expect(plan.lignesTitre.at(-1)!.endsWith("…")).toBe(true);
+	});
+
+	it("tient le sous-titre sur une seule ligne", () => {
+		const plan = planifierCarte({ ...BASE, sousTitre: "mot ".repeat(60) }, MESUREUR);
+		expect(plan.sousTitre.endsWith("…")).toBe(true);
+	});
+
+	it("garde une carte de dimensions constantes", () => {
+		expect(CARTE_HAUTEUR).toBe(CARTE.hauteurImage + CARTE.hauteurTexte);
+		// 16/9 exact : c'est ce qui permet de recadrer sans deformer.
+		expect(CARTE.largeur / CARTE.hauteurImage).toBeCloseTo(16 / 9, 5);
 	});
 });
 
