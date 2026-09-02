@@ -1,0 +1,65 @@
+<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Azalée — llms-full</title><meta name="robots" content="index, follow"><style>body{max-width:48rem;margin:2rem auto;padding:0 1rem;font-family:system-ui,sans-serif;line-height:1.6}a{color:#0c1730}blockquote{border-left:3px solid #d4af37;margin:0;padding-left:1rem;color:#555}</style></head><body>
+<h1>Azalée — Wiki Inazuma Eleven: Victory Road — Référence complète</h1>
+<blockquote>Azalée est le wiki francophone de référence pour Inazuma Eleven: Victory Road (IEVR), le jeu de LEVEL-5. Maintenu par l'association Rose Griffon, il agrège personnages, techniques, objets, auras, tactiques, compétences passives et actualités du jeu, avec des outils communautaires.</blockquote>
+<p>Wiki : <a href="https://azalee.rosegriffon.fr">https://azalee.rosegriffon.fr</a></p>
+<p>Association : Rose Griffon — <a href="https://rosegriffon.fr">https://rosegriffon.fr</a></p>
+<p>Développeur &amp; fondateur : yoyo — <a href="https://x.com/yoyo__goat">https://x.com/yoyo__goat</a></p>
+<p>Langue : fr-FR</p>
+<p>Généré le : 2026-09-01</p>
+<h2>Présentation</h2>
+<p>Azalée recense les données de jeu d'Inazuma Eleven: Victory Road et propose des</p>
+<p>fiches détaillées ainsi que des outils (comparaison, génération d'équipe,</p>
+<p>traduction). Le wiki est produit et maintenu par Rose Griffon, association</p>
+<p>française de la communauté Inazuma Eleven.</p>
+<h2>Base de données</h2>
+<ul>
+<li><a href="https://azalee.rosegriffon.fr/chara">Personnages</a> : fiches complètes des personnages jouables.</li>
+<li><a href="https://azalee.rosegriffon.fr/skill">Techniques</a> : tirs, dribbles, blocs et techniques de gardien.</li>
+<li><a href="https://azalee.rosegriffon.fr/item">Objets</a> : objets, équipements et consommables.</li>
+<li><a href="https://azalee.rosegriffon.fr/aura">Auras</a> : esprits guerriers, totems, miximax, éveils, changements de mode.</li>
+</ul>
+<p>  - <a href="https://azalee.rosegriffon.fr/aura/esprits-guerriers">Esprits guerriers</a></p>
+<p>  - <a href="https://azalee.rosegriffon.fr/aura/totems">Totems</a></p>
+<p>  - <a href="https://azalee.rosegriffon.fr/aura/miximax">Miximax</a></p>
+<p>  - <a href="https://azalee.rosegriffon.fr/aura/eveil">Éveil</a></p>
+<p>  - <a href="https://azalee.rosegriffon.fr/aura/changement-mode">Changement de mode</a></p>
+<ul>
+<li><a href="https://azalee.rosegriffon.fr/passive">Passifs</a> : compétences passives.</li>
+<li><a href="https://azalee.rosegriffon.fr/tactic">Tactiques</a> : tactiques d'équipe.</li>
+</ul>
+<h2>Actualités</h2>
+<ul>
+<li><a href="https://azalee.rosegriffon.fr/news">News</a> : actualités du jeu et de la communauté.</li>
+<li><a href="https://azalee.rosegriffon.fr/patch-notes">Patch-notes</a> : notes de mise à jour.</li>
+</ul>
+<h2>Outils</h2>
+<ul>
+<li><a href="https://azalee.rosegriffon.fr/tools">Outils</a></li>
+<li><a href="https://azalee.rosegriffon.fr/tools/compare">Comparateur</a></li>
+<li><a href="https://azalee.rosegriffon.fr/tools/random-team">Équipe aléatoire</a></li>
+<li><a href="https://azalee.rosegriffon.fr/tools/translator">Traducteur</a></li>
+<li><a href="https://azalee.rosegriffon.fr/search">Recherche</a></li>
+</ul>
+<h2>API (pour les IA et outils)</h2>
+<p>Azalée expose une API GraphQL publique en lecture seule pour interroger la base de données du jeu.</p>
+<ul>
+<li>Endpoint GraphQL : POST <a href="https://azalee.rosegriffon.fr/api/graphql">https://azalee.rosegriffon.fr/api/graphql</a> (Content-Type: application/json)</li>
+<li>Queries disponibles : characters, character, skills, skill, items, item, auras, ragSearch, tweets.</li>
+<li>Filtres skills(page, limit, q, category, element) ; characters(page, limit, q, element, position, rarity, team, series).</li>
+<li>Champs Skill : id, name { fr en ja }, description { fr en ja }, category, element, power, tension, image, sheetData. Le champ name est de type LocalizedString (sous-champs fr/en/ja).</li>
+<li>Recherche sémantique (RAG) : POST <a href="https://azalee.rosegriffon.fr/api/rag/search">https://azalee.rosegriffon.fr/api/rag/search</a> ; données formatées LLM : <a href="https://azalee.rosegriffon.fr/api/llm/&lt;model&gt;.">https://azalee.rosegriffon.fr/api/llm/&lt;model&gt;.</a></li>
+</ul>
+<p>Exemple de requête (techniques de Tir) :</p>
+<p>POST <a href="https://azalee.rosegriffon.fr/api/graphql">https://azalee.rosegriffon.fr/api/graphql</a></p>
+<p>{"query":"{ skills(category: \"Tir\", limit: 5) { id name { fr en } category element power } }"}</p>
+<p>Réponse (extrait) : { "data": { "skills": [ { "name": { "fr": "Feu tout-puissant" }, "category": "Tir", "element": "Feu", "power": "100-640" } ] } }</p>
+<h2>Mentions légales</h2>
+<ul>
+<li><a href="https://azalee.rosegriffon.fr/legal/cgu">CGU</a></li>
+<li><a href="https://azalee.rosegriffon.fr/legal/confidentialite">Confidentialité</a></li>
+<li><a href="https://azalee.rosegriffon.fr/legal/mentions-legales">Mentions légales</a></li>
+</ul>
+<h2>Crédits</h2>
+<p>Conception, développement et architecture : yoyo — <a href="https://x.com/yoyo__goat.">https://x.com/yoyo__goat.</a></p>
+<p>Stack : Next.js, React, Bun, TypeScript. Données : Inazuma Eleven: Victory Road (LEVEL-5).</p>
+</body></html>

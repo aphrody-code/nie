@@ -1,0 +1,106 @@
+# dependencies
+node_modules/
+.bun-cache/
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# next.js
+/.next/
+/out/
+/build
+next-env.d.ts
+*.tsbuildinfo
+
+# testing
+/coverage
+
+# env & secrets
+.env*
+*.pem
+google.json
+google_new.json
+client_secret.json
+token.json
+cookies.json
+cookies.tsv
+
+# game data (extracted from IECODE, regenerable)
+/common/
+/data/common/
+!/data/passive-sheets.json
+/data/zukan/*
+!/data/zukan/param_en.json
+/data/images/
+/data/common_old_backup/
+/data/entities/
+/iecode/
+/dump/
+/temp/
+
+# generated entries (pipeline output)
+/entries/
+
+# reports
+/lighthouse-reports/
+
+# DB backups (gros fichiers SQLite régénérables via `bun run backup:supabase`)
+/data/backups/*.sqlite
+/data/backups/*.sqlite-shm
+/data/backups/*.sqlite-wal
+/data/backups/*.dump
+
+# Store RAG local (bun:sqlite, régénérable via scripts/rag-migrate-to-local.ts
+# ou ré-ingestion cron ie-crawl — cf. docs/rag-unified.md)
+/data/rag/*.sqlite
+/data/rag/*.sqlite-shm
+/data/rag/*.sqlite-wal
+
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# debug logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# misc
+/lib/generated/prisma
+
+# Déploiements atomiques
+.deployments/
+.current
+
+# stray archives & images at root (assets vivent dans public/ ou data/)
+/*.tar
+/*.tar.gz
+/*.tgz
+/*.zip
+/menu*
+!/menu-webgpu.d.ts
+/*.png
+/*.jpg
+/*.jpeg
+/*.webp
+/*.avif
+/*.gif
+
+# Claude Code worktrees / state
+.claude/
+.env*.local
+
+# Inazuma Eleven Cross public assets (kept locally, not committed)
+/public/inazuma-cross/audio/
+/public/inazuma-cross/textures/
+/app/cross/donnees/page.tsx.bak
+public/assets/font/

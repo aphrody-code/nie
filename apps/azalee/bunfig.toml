@@ -1,0 +1,2 @@
+# Reduit la memoire au prix d'un GC plus frequent
+smol = true

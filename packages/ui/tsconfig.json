@@ -1,0 +1,14 @@
+{
+	"extends": "../config/tsconfig-nextjs.json",
+	"compilerOptions": {
+		"baseUrl": ".",
+		"types": ["react", "react-dom", "bun"],
+		"paths": {
+			"@/*": ["./src/*"],
+			"@/lib/utils": ["./src/lib/utils.ts"],
+			"@/components/*": ["./src/components/*"]
+		}
+	},
+	"include": ["src/**/*.ts", "src/**/*.tsx", "scripts/**/*.ts", "test/**/*.ts"],
+	"exclude": ["node_modules", "dist"]
+}

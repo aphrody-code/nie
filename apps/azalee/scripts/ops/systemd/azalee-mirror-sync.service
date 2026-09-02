@@ -1,0 +1,11 @@
+[Unit]
+Description=Azalee — refresh du miroir SQLite (dump inagle_* Supabase -> swap atomique -> restart)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/home/ubuntu/rg/apps/azalee
+ExecStart=/home/ubuntu/rg/apps/azalee/scripts/ops/mirror-sync.sh
+TimeoutStartSec=600

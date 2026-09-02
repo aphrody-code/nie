@@ -1,0 +1,55 @@
+{
+	"name": "@rosegriffon/mcp",
+	"version": "1.0.0",
+	"description": "Serveur MCP du monorepo Rose Griffon — implémentation Bun native (zéro dépendance Node) de la révision 2026-07-28 et des révisions à handshake, exposant les données Azalée/IEVR et l'état du monorepo",
+	"type": "module",
+	"license": "MIT",
+	"bin": {
+		"rg-mcp": "./src/cli.ts"
+	},
+	"exports": {
+		".": "./src/index.ts",
+		"./protocol": "./src/protocol/index.ts",
+		"./registry": "./src/registry.ts",
+		"./server": "./src/server.ts",
+		"./transport/http": "./src/transport/http.ts",
+		"./transport/stdio": "./src/transport/stdio.ts",
+		"./package.json": "./package.json"
+	},
+	"files": [
+		"src",
+		"context",
+		"README.md"
+	],
+	"scripts": {
+		"start": "bun src/cli.ts serve --http",
+		"stdio": "bun src/cli.ts serve --stdio",
+		"test": "bun test test",
+		"lint": "oxlint --config ../../.oxlintrc.json src test",
+		"type-check": "bun --bun tsc --noEmit"
+	},
+	"dependencies": {
+		"@rosegriffon/azalee": "workspace:*",
+		"zod": "catalog:"
+	},
+	"devDependencies": {
+		"@rosegriffon/config": "workspace:*",
+		"@types/bun": "catalog:",
+		"oxlint": "catalog:",
+		"typescript": "catalog:"
+	},
+	"engines": {
+		"bun": ">=1.2.0"
+	},
+	"keywords": [
+		"mcp",
+		"model-context-protocol",
+		"bun",
+		"rose-griffon",
+		"azalee"
+	],
+	"publishConfig": {
+		"access": "public",
+		"registry": "https://registry.npmjs.org"
+	}
+}
