@@ -1,0 +1,1152 @@
+[
+  {
+    "id": "0x12881EA4",
+    "name": "0x12881EA4",
+    "trophyIdRaw": 310910628,
+    "trophyIdHex": "0x12881EA4",
+    "reward": 10,
+    "attributes": {
+      "Reward": 10
+    }
+  },
+  {
+    "id": "0x8B814F1E",
+    "name": "0x8B814F1E",
+    "trophyIdRaw": -1954459874,
+    "trophyIdHex": "0x8B814F1E",
+    "reward": 10,
+    "attributes": {
+      "Reward": 10
+    }
+  },
+  {
+    "id": "0x8CEC8B07",
+    "name": "0x8CEC8B07",
+    "trophyIdRaw": -1930654969,
+    "trophyIdHex": "0x8CEC8B07",
+    "reward": 10,
+    "attributes": {
+      "Reward": 10
+    }
+  },
+  {
+    "id": "0x62E2EA2B",
+    "name": "0x62E2EA2B",
+    "trophyIdRaw": 1659038251,
+    "trophyIdHex": "0x62E2EA2B",
+    "reward": 10,
+    "attributes": {
+      "Reward": 10
+    }
+  },
+  {
+    "id": "0x658F2E32",
+    "name": "0x658F2E32",
+    "trophyIdRaw": 1703882290,
+    "trophyIdHex": "0x658F2E32",
+    "reward": 10,
+    "attributes": {
+      "Reward": 10
+    }
+  },
+  {
+    "id": "0xFBEBBB91",
+    "name": "0xFBEBBB91",
+    "trophyIdRaw": -68437103,
+    "trophyIdHex": "0xFBEBBB91",
+    "reward": 10,
+    "attributes": {
+      "Reward": 10
+    }
+  },
+  {
+    "id": "0xFC867F88",
+    "name": "0xFC867F88",
+    "trophyIdRaw": -58294392,
+    "trophyIdHex": "0xFC867F88",
+    "reward": 10,
+    "attributes": {
+      "Reward": 10
+    }
+  },
+  {
+    "id": "0x7A81BFBC",
+    "name": "0x7A81BFBC",
+    "trophyIdRaw": 2055323580,
+    "trophyIdHex": "0x7A81BFBC",
+    "reward": 20,
+    "attributes": {
+      "Reward": 20
+    }
+  },
+  {
+    "id": "0xCE21D1CB",
+    "name": "0xCE21D1CB",
+    "trophyIdRaw": -836644405,
+    "trophyIdHex": "0xCE21D1CB",
+    "reward": 15,
+    "attributes": {
+      "Reward": 15
+    }
+  },
+  {
+    "id": "0xC94C15D2",
+    "name": "0xC94C15D2",
+    "trophyIdRaw": -917760558,
+    "trophyIdHex": "0xC94C15D2",
+    "reward": 15,
+    "attributes": {
+      "Reward": 15
+    }
+  },
+  {
+    "id": "0x202FB0E7",
+    "name": "0x202FB0E7",
+    "trophyIdRaw": 539996391,
+    "trophyIdHex": "0x202FB0E7",
+    "reward": 15,
+    "attributes": {
+      "Reward": 15
+    }
+  },
+  {
+    "id": "0x50454468",
+    "name": "0x50454468",
+    "trophyIdRaw": 1346716776,
+    "trophyIdHex": "0x50454468",
+    "reward": 15,
+    "attributes": {
+      "Reward": 15
+    }
+  },
+  {
+    "id": "0xB926E15D",
+    "name": "0xB926E15D",
+    "trophyIdRaw": -1188634275,
+    "trophyIdHex": "0xB926E15D",
+    "reward": 15,
+    "attributes": {
+      "Reward": 15
+    }
+  },
+  {
+    "id": "0x274274FE",
+    "name": "0x274274FE",
+    "trophyIdRaw": 658666750,
+    "trophyIdHex": "0x274274FE",
+    "reward": 15,
+    "attributes": {
+      "Reward": 15
+    }
+  },
+  {
+    "id": "0x57288071",
+    "name": "0x57288071",
+    "trophyIdRaw": 1462272113,
+    "trophyIdHex": "0x57288071",
+    "reward": 15,
+    "attributes": {
+      "Reward": 15
+    }
+  },
+  {
+    "id": "0x1CCA600E",
+    "name": "0x1CCA600E",
+    "trophyIdRaw": 483024910,
+    "trophyIdHex": "0x1CCA600E",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x39A13FD2",
+    "name": "0x39A13FD2",
+    "trophyIdRaw": 966868946,
+    "trophyIdHex": "0x39A13FD2",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x0DFB1B8E",
+    "name": "0x0DFB1B8E",
+    "trophyIdRaw": 234560398,
+    "trophyIdHex": "0x0DFB1B8E",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x18471CBC",
+    "name": "0x18471CBC",
+    "trophyIdRaw": 407313596,
+    "trophyIdHex": "0x18471CBC",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x1E8CDE57",
+    "name": "0x1E8CDE57",
+    "trophyIdRaw": 512548439,
+    "trophyIdHex": "0x1E8CDE57",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x1985768B",
+    "name": "0x1985768B",
+    "trophyIdRaw": 428177035,
+    "trophyIdHex": "0x1985768B",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x0C3971B9",
+    "name": "0x0C3971B9",
+    "trophyIdRaw": 205091257,
+    "trophyIdHex": "0x0C3971B9",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x95302003",
+    "name": "0x95302003",
+    "trophyIdRaw": -1792008189,
+    "trophyIdHex": "0x95302003",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0xE4E52A1F",
+    "name": "0xE4E52A1F",
+    "trophyIdRaw": -454743521,
+    "trophyIdHex": "0xE4E52A1F",
+    "reward": 10,
+    "attributes": {
+      "Reward": 10
+    }
+  },
+  {
+    "id": "0x93E21A89",
+    "name": "0x93E21A89",
+    "trophyIdRaw": -1813898615,
+    "trophyIdHex": "0x93E21A89",
+    "reward": 10,
+    "attributes": {
+      "Reward": 10
+    }
+  },
+  {
+    "id": "0x035D0718",
+    "name": "0x035D0718",
+    "trophyIdRaw": 56428312,
+    "trophyIdHex": "0x035D0718",
+    "reward": 10,
+    "attributes": {
+      "Reward": 10
+    }
+  },
+  {
+    "id": "0xB0086A6E",
+    "name": "0xB0086A6E",
+    "trophyIdRaw": -1341625746,
+    "trophyIdHex": "0xB0086A6E",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0xB24ED437",
+    "name": "0xB24ED437",
+    "trophyIdRaw": -1303456713,
+    "trophyIdHex": "0xB24ED437",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0xB38CBE00",
+    "name": "0xB38CBE00",
+    "trophyIdRaw": -1282621952,
+    "trophyIdHex": "0xB38CBE00",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0xB6C3A885",
+    "name": "0xB6C3A885",
+    "trophyIdRaw": -1228691323,
+    "trophyIdHex": "0xB6C3A885",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x95FA2BAF",
+    "name": "0x95FA2BAF",
+    "trophyIdRaw": -1778766929,
+    "trophyIdHex": "0x95FA2BAF",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x582AA6CD",
+    "name": "0x582AA6CD",
+    "trophyIdRaw": 1479190221,
+    "trophyIdHex": "0x582AA6CD",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x87D69A5C",
+    "name": "0x87D69A5C",
+    "trophyIdRaw": -2015978916,
+    "trophyIdHex": "0x87D69A5C",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x87B6D59A",
+    "name": "0x87B6D59A",
+    "trophyIdRaw": -2018060902,
+    "trophyIdHex": "0x87B6D59A",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0xDEFB8C4D",
+    "name": "0xDEFB8C4D",
+    "trophyIdRaw": -553939891,
+    "trophyIdHex": "0xDEFB8C4D",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x223B7B76",
+    "name": "0x223B7B76",
+    "trophyIdRaw": 574323574,
+    "trophyIdHex": "0x223B7B76",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x7668471C",
+    "name": "0x7668471C",
+    "trophyIdRaw": 1986545436,
+    "trophyIdHex": "0x7668471C",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x30F5ED61",
+    "name": "0x30F5ED61",
+    "trophyIdRaw": 821423457,
+    "trophyIdHex": "0x30F5ED61",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x4C373621",
+    "name": "0x4C373621",
+    "trophyIdRaw": 1278686753,
+    "trophyIdHex": "0x4C373621",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0xECE5C2C8",
+    "name": "0xECE5C2C8",
+    "trophyIdRaw": -320486712,
+    "trophyIdHex": "0xECE5C2C8",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x02601663",
+    "name": "0x02601663",
+    "trophyIdRaw": 39851619,
+    "trophyIdHex": "0x02601663",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0xE67BEFC2",
+    "name": "0xE67BEFC2",
+    "trophyIdRaw": -428085310,
+    "trophyIdHex": "0xE67BEFC2",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x892CB734",
+    "name": "0x892CB734",
+    "trophyIdRaw": -1993558220,
+    "trophyIdHex": "0x892CB734",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x7F72BE78",
+    "name": "0x7F72BE78",
+    "trophyIdRaw": 2138226296,
+    "trophyIdHex": "0x7F72BE78",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0xECCDEECF",
+    "name": "0xECCDEECF",
+    "trophyIdRaw": -322048305,
+    "trophyIdHex": "0xECCDEECF",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x745A378E",
+    "name": "0x745A378E",
+    "trophyIdRaw": 1952069518,
+    "trophyIdHex": "0x745A378E",
+    "reward": 3,
+    "attributes": {
+      "Reward": 3
+    }
+  },
+  {
+    "id": "0x023394B0",
+    "name": "0x023394B0",
+    "trophyIdRaw": 36934832,
+    "trophyIdHex": "0x023394B0",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x089ED2F7",
+    "name": "0x089ED2F7",
+    "trophyIdRaw": 144626423,
+    "trophyIdHex": "0x089ED2F7",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0xA7CC492D",
+    "name": "0xA7CC492D",
+    "trophyIdRaw": -1479784147,
+    "trophyIdHex": "0xA7CC492D",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x0E7FCFE0",
+    "name": "0x0E7FCFE0",
+    "trophyIdRaw": 243257312,
+    "trophyIdHex": "0x0E7FCFE0",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x8B6A096D",
+    "name": "0x8B6A096D",
+    "trophyIdRaw": -1955985043,
+    "trophyIdHex": "0x8B6A096D",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0xA0FB7BD9",
+    "name": "0xA0FB7BD9",
+    "trophyIdRaw": -1594131495,
+    "trophyIdHex": "0xA0FB7BD9",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0xFC6D39FB",
+    "name": "0xFC6D39FB",
+    "trophyIdRaw": -59950597,
+    "trophyIdHex": "0xFC6D39FB",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x1D080A39",
+    "name": "0x1D080A39",
+    "trophyIdRaw": 487066169,
+    "trophyIdHex": "0x1D080A39",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x65646841",
+    "name": "0x65646841",
+    "trophyIdRaw": 1701079105,
+    "trophyIdHex": "0x65646841",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x3CEE2957",
+    "name": "0x3CEE2957",
+    "trophyIdRaw": 1022241111,
+    "trophyIdHex": "0x3CEE2957",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x1F4EB460",
+    "name": "0x1F4EB460",
+    "trophyIdRaw": 525251680,
+    "trophyIdHex": "0x1F4EB460",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x69D8FB70",
+    "name": "0x69D8FB70",
+    "trophyIdRaw": 1775827824,
+    "trophyIdHex": "0x69D8FB70",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x95544CC6",
+    "name": "0x95544CC6",
+    "trophyIdRaw": -1789637434,
+    "trophyIdHex": "0x95544CC6",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x811D58B7",
+    "name": "0x811D58B7",
+    "trophyIdRaw": -2128783177,
+    "trophyIdHex": "0x811D58B7",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x08B40D0B",
+    "name": "0x08B40D0B",
+    "trophyIdRaw": 146017547,
+    "trophyIdHex": "0x08B40D0B",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x91BD5CB1",
+    "name": "0x91BD5CB1",
+    "trophyIdRaw": -1849860943,
+    "trophyIdHex": "0x91BD5CB1",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0xE6BA6C27",
+    "name": "0xE6BA6C27",
+    "trophyIdRaw": -423990233,
+    "trophyIdHex": "0xE6BA6C27",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x78DEF984",
+    "name": "0x78DEF984",
+    "trophyIdRaw": 2027878788,
+    "trophyIdHex": "0x78DEF984",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x0FD9C912",
+    "name": "0x0FD9C912",
+    "trophyIdRaw": 265931026,
+    "trophyIdHex": "0x0FD9C912",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x3F6AFD39",
+    "name": "0x3F6AFD39",
+    "trophyIdRaw": 1063976249,
+    "trophyIdHex": "0x3F6AFD39",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x96FA4754",
+    "name": "0x96FA4754",
+    "trophyIdRaw": -1761982636,
+    "trophyIdHex": "0x96FA4754",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x3D2C4360",
+    "name": "0x3D2C4360",
+    "trophyIdRaw": 1026311008,
+    "trophyIdHex": "0x3D2C4360",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x0B30D965",
+    "name": "0x0B30D965",
+    "trophyIdRaw": 187750757,
+    "trophyIdHex": "0x0B30D965",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x923988DF",
+    "name": "0x923988DF",
+    "trophyIdRaw": -1841723169,
+    "trophyIdHex": "0x923988DF",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x9197834D",
+    "name": "0x9197834D",
+    "trophyIdRaw": -1852341427,
+    "trophyIdHex": "0x9197834D",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0xE53EB849",
+    "name": "0xE53EB849",
+    "trophyIdRaw": -448874423,
+    "trophyIdHex": "0xE53EB849",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x7B5A2DEA",
+    "name": "0x7B5A2DEA",
+    "trophyIdRaw": 2069507562,
+    "trophyIdHex": "0x7B5A2DEA",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x7F99E261",
+    "name": "0x7F99E261",
+    "trophyIdRaw": 2140791393,
+    "trophyIdHex": "0x7F99E261",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x0C5D1D7C",
+    "name": "0x0C5D1D7C",
+    "trophyIdRaw": 207428988,
+    "trophyIdHex": "0x0C5D1D7C",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0xE2537C50",
+    "name": "0xE2537C50",
+    "trophyIdRaw": -497845168,
+    "trophyIdHex": "0xE2537C50",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0xA2BDC580",
+    "name": "0xA2BDC580",
+    "trophyIdRaw": -1564621440,
+    "trophyIdHex": "0xA2BDC580",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x907F3686",
+    "name": "0x907F3686",
+    "trophyIdRaw": -1870711162,
+    "trophyIdHex": "0x907F3686",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0xE1FD77C2",
+    "name": "0xE1FD77C2",
+    "trophyIdRaw": -503482430,
+    "trophyIdHex": "0xE1FD77C2",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x97769E5A",
+    "name": "0x97769E5A",
+    "trophyIdRaw": -1753833894,
+    "trophyIdHex": "0x97769E5A",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x85902405",
+    "name": "0x85902405",
+    "trophyIdRaw": -2054151163,
+    "trophyIdHex": "0x85902405",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0xF40FC3C9",
+    "name": "0xF40FC3C9",
+    "trophyIdRaw": -200293431,
+    "trophyIdHex": "0xF40FC3C9",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x84524E32",
+    "name": "0x84524E32",
+    "trophyIdRaw": -2074980814,
+    "trophyIdHex": "0x84524E32",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x1EDFCBE6",
+    "name": "0x1EDFCBE6",
+    "trophyIdRaw": 517983206,
+    "trophyIdHex": "0x1EDFCBE6",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0xA13911EE",
+    "name": "0xA13911EE",
+    "trophyIdRaw": -1590095378,
+    "trophyIdHex": "0xA13911EE",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0xEDF39DEC",
+    "name": "0xEDF39DEC",
+    "trophyIdRaw": -302801428,
+    "trophyIdHex": "0xEDF39DEC",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x881DCB02",
+    "name": "0x881DCB02",
+    "trophyIdRaw": -2011313406,
+    "trophyIdHex": "0x881DCB02",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0xEE774982",
+    "name": "0xEE774982",
+    "trophyIdRaw": -294172286,
+    "trophyIdHex": "0xEE774982",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0xF6AE12F4",
+    "name": "0xF6AE12F4",
+    "trophyIdRaw": -156364044,
+    "trophyIdHex": "0xF6AE12F4",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0xC9D048FA",
+    "name": "0xC9D048FA",
+    "trophyIdRaw": -909096710,
+    "trophyIdHex": "0xC9D048FA",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x7A13CF9F",
+    "name": "0x7A13CF9F",
+    "trophyIdRaw": 2048118687,
+    "trophyIdHex": "0x7A13CF9F",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0xCEBD8CE3",
+    "name": "0xCEBD8CE3",
+    "trophyIdRaw": -826438429,
+    "trophyIdHex": "0xCEBD8CE3",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x0CF37A15",
+    "name": "0x0CF37A15",
+    "trophyIdRaw": 217283093,
+    "trophyIdHex": "0x0CF37A15",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x39A8DC8E",
+    "name": "0x39A8DC8E",
+    "trophyIdRaw": 967367822,
+    "trophyIdHex": "0x39A8DC8E",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x0AF2B352",
+    "name": "0x0AF2B352",
+    "trophyIdRaw": 183677778,
+    "trophyIdHex": "0x0AF2B352",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x93FBE2E8",
+    "name": "0x93FBE2E8",
+    "trophyIdRaw": -1812208920,
+    "trophyIdHex": "0x93FBE2E8",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0xE4FCD27E",
+    "name": "0xE4FCD27E",
+    "trophyIdRaw": -453193090,
+    "trophyIdHex": "0xE4FCD27E",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x7A9847DD",
+    "name": "0x7A9847DD",
+    "trophyIdRaw": 2056800221,
+    "trophyIdHex": "0x7A9847DD",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x0D9F774B",
+    "name": "0x0D9F774B",
+    "trophyIdRaw": 228554571,
+    "trophyIdHex": "0x0D9F774B",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x24A8840E",
+    "name": "0x24A8840E",
+    "trophyIdRaw": 615023630,
+    "trophyIdHex": "0x24A8840E",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0xA4963D53",
+    "name": "0xA4963D53",
+    "trophyIdRaw": -1533657773,
+    "trophyIdHex": "0xA4963D53",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0xA120A55F",
+    "name": "0xA120A55F",
+    "trophyIdRaw": -1591696033,
+    "trophyIdHex": "0xA120A55F",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0xCAEA1EB8",
+    "name": "0xCAEA1EB8",
+    "trophyIdRaw": -890626376,
+    "trophyIdHex": "0xCAEA1EB8",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0xC41F00CB",
+    "name": "0xC41F00CB",
+    "trophyIdRaw": -1004601141,
+    "trophyIdHex": "0xC41F00CB",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x077C8235",
+    "name": "0x077C8235",
+    "trophyIdRaw": 125600309,
+    "trophyIdHex": "0x077C8235",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0xDD834137",
+    "name": "0xDD834137",
+    "trophyIdRaw": -578600649,
+    "trophyIdHex": "0xDD834137",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x4449C52D",
+    "name": "0x4449C52D",
+    "trophyIdRaw": 1145685293,
+    "trophyIdHex": "0x4449C52D",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0xEF325308",
+    "name": "0xEF325308",
+    "trophyIdRaw": -281914616,
+    "trophyIdHex": "0xEF325308",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x46DC9CD8",
+    "name": "0x46DC9CD8",
+    "trophyIdRaw": 1188863192,
+    "trophyIdHex": "0x46DC9CD8",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x301E90A5",
+    "name": "0x301E90A5",
+    "trophyIdRaw": 807309477,
+    "trophyIdHex": "0x301E90A5",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x6C4FB75B",
+    "name": "0x6C4FB75B",
+    "trophyIdRaw": 1817163611,
+    "trophyIdHex": "0x6C4FB75B",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0xD0CB79BB",
+    "name": "0xD0CB79BB",
+    "trophyIdRaw": -791971397,
+    "trophyIdHex": "0xD0CB79BB",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x58D87F5F",
+    "name": "0x58D87F5F",
+    "trophyIdRaw": 1490583391,
+    "trophyIdHex": "0x58D87F5F",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x2905A1E4",
+    "name": "0x2905A1E4",
+    "trophyIdRaw": 688234980,
+    "trophyIdHex": "0x2905A1E4",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  },
+  {
+    "id": "0x7BF44A83",
+    "name": "0x7BF44A83",
+    "trophyIdRaw": 2079607427,
+    "trophyIdHex": "0x7BF44A83",
+    "reward": 1,
+    "attributes": {
+      "Reward": 1
+    }
+  }
+]

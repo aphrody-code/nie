@@ -1,0 +1,12 @@
+# Ceinture ET bretelles pour les secrets du démon.
+#
+# `bun pm pack` embarque `.env` (vérifié : « packed 1.0KB .env ») alors que `npm pack`
+# l'écarte — et ce dépôt publie avec Bun. Le `"private": true` du package.json empêche
+# déjà toute publication ; ce fichier garantit qu'un `bun pm pack` manuel, lancé pour
+# inspecter le contenu, ne fabrique pas non plus une archive contenant le jeton du bot
+# Discord et les identifiants de base.
+.env
+.env.*
+!.env.example
+.secrets/
+*.log

@@ -1,0 +1,4187 @@
+[
+  {
+    "teamId": "0xF01BB293",
+    "teamIdStr": "0xF01BB293",
+    "name": "Raimon",
+    "displayName": "Raimon",
+    "name_FR": "Raimon",
+    "name_EN": "Raimon",
+    "name_JA": "雷門中",
+    "binderTeamOrderType": 1,
+    "emblems": {
+      "ie": "0xD5ABE1F0",
+      "go": "0x1D4B6E80",
+      "aresOrion": "0x5AEB1450",
+      "v": "0x87FE63EF"
+    },
+    "kits": {
+      "ie": "0x252CE113",
+      "go": "0xAECB5B3E",
+      "v": "0xBBE7C49D"
+    },
+    "seasons": {
+      "IE1": 1,
+      "IE2": 18,
+      "ARES": 1,
+      "V": 7
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x699E68EC",
+    "teamIdStr": "0x699E68EC",
+    "name": "Royal Academy",
+    "displayName": "Royal Academy",
+    "name_FR": "Royal Academy",
+    "name_EN": "Royal Academy",
+    "name_JA": "帝国学園",
+    "binderTeamOrderType": 2,
+    "emblems": {
+      "ie": "0x4CA2B04A",
+      "go": "0x832FFB23",
+      "aresOrion": "0xB388B165",
+      "v": "0x672B8AF1"
+    },
+    "kits": {
+      "ie": "0xD6ABDBB4",
+      "go": "0x93FF607B",
+      "aresOrion": "0x927DBD05",
+      "v": "0xDC35BEB6"
+    },
+    "seasons": {
+      "IE1": 2,
+      "GO1": 8,
+      "GO3": 2,
+      "ARES": 7,
+      "V": 6
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x83D22BED",
+    "teamIdStr": "0x83D22BED",
+    "name": "Inazuma KFT",
+    "displayName": "Inazuma KFT",
+    "name_FR": "Inazuma KFT",
+    "name_EN": "Inazuma Kids FC",
+    "name_JA": "稲妻ＫＦＣ",
+    "binderTeamOrderType": 3,
+    "emblems": {
+      "ie": "0xCCB0D0B1"
+    },
+    "kits": {
+      "ie": "0x297C6041",
+      "go": "0x6A1C4C4D"
+    },
+    "seasons": {
+      "IE1": 3,
+      "GO1": 4
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x4DC11E01",
+    "teamIdStr": "0x4DC11E01",
+    "name": "Occulte",
+    "displayName": "Occulte",
+    "name_FR": "Occulte",
+    "name_EN": "Occult",
+    "name_JA": "尾刈斗中",
+    "binderTeamOrderType": 4,
+    "emblems": {
+      "ie": "0x3BA580DC"
+    },
+    "kits": {
+      "ie": "0xB590F066"
+    },
+    "seasons": {
+      "IE1": 4
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xEBCF64D8",
+    "teamIdStr": "0xEBCF64D8",
+    "name": "Wild",
+    "displayName": "Wild",
+    "name_FR": "Wild",
+    "name_EN": "Wild",
+    "name_JA": "野生中",
+    "binderTeamOrderType": 5,
+    "emblems": {
+      "ie": "0xA5C1157F"
+    },
+    "kits": {
+      "ie": "0x911E63AC"
+    },
+    "seasons": {
+      "IE1": 5
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xAEEF391C",
+    "teamIdStr": "0xAEEF391C",
+    "name": "Cybertech",
+    "displayName": "Cybertech",
+    "name_FR": "Cybertech",
+    "name_EN": "Brainwashing",
+    "name_JA": "御影専農中",
+    "binderTeamOrderType": 6,
+    "emblems": {
+      "ie": "0xD2C625E9",
+      "aresOrion": "0xC48F81F3"
+    },
+    "kits": {
+      "ie": "0x1BC478F3",
+      "aresOrion": "0xC98FBA9F"
+    },
+    "seasons": {
+      "IE1": 6,
+      "ARES": 6
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x483FAF66",
+    "teamIdStr": "0x483FAF66",
+    "name": "Otaku",
+    "displayName": "Otaku",
+    "name_FR": "Otaku",
+    "name_EN": "Otaku",
+    "name_JA": "秋葉名戸学園",
+    "binderTeamOrderType": 7,
+    "emblems": {
+      "ie": "0x4BCF7453"
+    },
+    "kits": {
+      "ie": "0x3565C492"
+    },
+    "seasons": {
+      "IE1": 7
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x31ABECFD",
+    "teamIdStr": "0x31ABECFD",
+    "name": "Shuriken",
+    "displayName": "Shuriken",
+    "name_FR": "Shuriken",
+    "name_EN": "Shuriken",
+    "name_JA": "戦国伊賀島中",
+    "binderTeamOrderType": 8,
+    "emblems": {
+      "ie": "0x3CC844C5"
+    },
+    "kits": {
+      "ie": "0xEBFA8692"
+    },
+    "seasons": {
+      "IE1": 8
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x2A4F780B",
+    "teamIdStr": "0x2A4F780B",
+    "name": "Terria",
+    "displayName": "Terria",
+    "name_FR": "Terria",
+    "name_EN": "Farm",
+    "name_JA": "千羽山中",
+    "binderTeamOrderType": 9,
+    "emblems": {
+      "ie": "0xAC775954"
+    },
+    "kits": {
+      "ie": "0xE251C8C6"
+    },
+    "seasons": {
+      "IE1": 9
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x49AF2634",
+    "teamIdStr": "0x49AF2634",
+    "name": "Kirkwood",
+    "displayName": "Kirkwood",
+    "name_FR": "Kirkwood",
+    "name_EN": "Kirkwood",
+    "name_JA": "木戸川清修中",
+    "binderTeamOrderType": 10,
+    "emblems": {
+      "ie": "0xDB7069C2",
+      "go": "0x04505FC1",
+      "aresOrion": "0x5D86D049"
+    },
+    "kits": {
+      "ie": "0xBF8BEEE3",
+      "go": "0xB4156579",
+      "aresOrion": "0x03A9BB9F"
+    },
+    "seasons": {
+      "IE1": 10,
+      "GO1": 13,
+      "ARES": 5
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x9BAD3311",
+    "teamIdStr": "0x9BAD3311",
+    "name": "Zeus",
+    "displayName": "Zeus",
+    "name_FR": "Zeus",
+    "name_EN": "Zeus",
+    "name_JA": "世宇子中",
+    "binderTeamOrderType": 11,
+    "emblems": {
+      "ie": "0xBBB7E027",
+      "aresOrion": "0x2337ACF4"
+    },
+    "kits": {
+      "ie": "0xE17C3465",
+      "aresOrion": "0xCF536BCA"
+    },
+    "seasons": {
+      "IE1": 11,
+      "ARES": 8
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x422A6D6B",
+    "teamIdStr": "0x422A6D6B",
+    "name": "Parapluie MS",
+    "displayName": "Parapluie MS",
+    "name_FR": "Parapluie MS",
+    "name_EN": "Umbrella MS",
+    "name_JA": "傘美野中",
+    "binderTeamOrderType": 12,
+    "emblems": {
+      "ie": "0x55B9810B"
+    },
+    "kits": {
+      "ie": "0x7A47A6BD"
+    },
+    "seasons": {
+      "IE1": 12
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x4BDF001D",
+    "teamIdStr": "0x4BDF001D",
+    "name": "Street Sally's",
+    "displayName": "Street Sally's",
+    "name_FR": "Street Sally's",
+    "name_EN": "Street Sally's",
+    "name_JA": "一番街サリーズ",
+    "binderTeamOrderType": 13,
+    "emblems": {
+      "ie": "0x22BEB19D"
+    },
+    "kits": {
+      "ie": "0xA7F271BD"
+    },
+    "seasons": {
+      "IE1": 13
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x7ABBC40C",
+    "teamIdStr": "0x7ABBC40C",
+    "name": "Ancien Inazuma",
+    "displayName": "Ancien Inazuma",
+    "name_FR": "Ancien Inazuma",
+    "name_EN": "Raimon Veterans",
+    "name_JA": "雷門ＯＢ",
+    "binderTeamOrderType": 14,
+    "emblems": {
+      "ie": "0xBCDA243E"
+    },
+    "kits": {
+      "ie": "0xC9C2A801"
+    },
+    "seasons": {
+      "IE1": 14
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x0258565A",
+    "teamIdStr": "0x0258565A",
+    "name": "Jeunes Inazuma",
+    "displayName": "Jeunes Inazuma",
+    "name_FR": "Jeunes Inazuma",
+    "name_EN": "Young Inazuma",
+    "name_JA": "ヤングイナズマ",
+    "binderTeamOrderType": 15,
+    "emblems": {
+      "ie": "0xF10A9A3D"
+    },
+    "kits": {
+      "ie": "0x13A281B5"
+    },
+    "seasons": {
+      "IE2": 17
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xC1F58606",
+    "teamIdStr": "0xC1F58606",
+    "name": "Tempête des Gémeaux",
+    "displayName": "Tempête des Gémeaux",
+    "name_FR": "Tempête des Gémeaux",
+    "name_EN": "Gemini Storm",
+    "name_JA": "ジェミニストーム",
+    "binderTeamOrderType": 16,
+    "emblems": {
+      "ie": "0xB926C8E3"
+    },
+    "kits": {
+      "ie": "0x68FFB4EE"
+    },
+    "seasons": {
+      "IE2": 1
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x3AB7501A",
+    "teamIdStr": "0x3AB7501A",
+    "name": "Services secrets",
+    "displayName": "Services secrets",
+    "name_FR": "Services secrets",
+    "name_EN": "Secret Service",
+    "name_JA": "ＳＰフィクサーズ",
+    "binderTeamOrderType": 17,
+    "emblems": {
+      "ie": "0xBE4B0CFA"
+    },
+    "kits": {
+      "ie": "0x368C7CA2"
+    },
+    "seasons": {
+      "IE2": 2
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xCA377CE6",
+    "teamIdStr": "0xCA377CE6",
+    "name": "Alpin",
+    "displayName": "Alpin",
+    "name_FR": "Alpin",
+    "name_EN": "Alpine",
+    "name_JA": "白恋中",
+    "binderTeamOrderType": 18,
+    "emblems": {
+      "ie": "0x27425D40",
+      "go": "0x73576F57",
+      "aresOrion": "0x54309C62",
+      "v": "0x09378B26"
+    },
+    "kits": {
+      "ie": "0x1ED7F450",
+      "go": "0x620E735A",
+      "aresOrion": "0x638CAE24",
+      "v": "0x2DC4AD97"
+    },
+    "seasons": {
+      "IE2": 3,
+      "GO1": 12,
+      "ARES": 9,
+      "V": 18
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x4C48EE31",
+    "teamIdStr": "0x4C48EE31",
+    "name": "Cloître sacré",
+    "displayName": "Cloître sacré",
+    "name_FR": "Cloître sacré",
+    "name_EN": "Cloister Divinity",
+    "name_JA": "漫遊寺中",
+    "binderTeamOrderType": 19,
+    "emblems": {
+      "ie": "0x50456DD6"
+    },
+    "kits": {
+      "ie": "0xD26A74D6"
+    },
+    "seasons": {
+      "IE2": 4
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xC5629E8C",
+    "teamIdStr": "0xC5629E8C",
+    "name": "Epsilon",
+    "displayName": "Epsilon",
+    "name_FR": "Epsilon",
+    "name_EN": "Epsilon",
+    "name_JA": "イプシロン",
+    "binderTeamOrderType": 20,
+    "emblems": {
+      "ie": "0x202F9959"
+    },
+    "kits": {
+      "ie": "0xD6227C4E"
+    },
+    "seasons": {
+      "IE2": 5
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xF1E3E365",
+    "teamIdStr": "0xF1E3E365",
+    "name": "Nouvelle Royal Ac.",
+    "displayName": "Nouvelle Royal Ac.",
+    "name_FR": "Nouvelle Royal Ac.",
+    "name_EN": "Royal Academy Redux",
+    "name_JA": "真・帝国学園",
+    "binderTeamOrderType": 21,
+    "emblems": {
+      "ie": "0xC0FA7047"
+    },
+    "kits": {
+      "ie": "0xCA2D2A5D"
+    },
+    "seasons": {
+      "IE2": 6
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xF5585648",
+    "teamIdStr": "0xF5585648",
+    "name": "Triple C",
+    "displayName": "Triple C",
+    "name_FR": "Triple C",
+    "name_EN": "Super Triple C",
+    "name_JA": "大阪ギャルズ・ＣＣＣ",
+    "binderTeamOrderType": 22,
+    "emblems": {
+      "ie": "0x6F6E0F9E"
+    },
+    "kits": {
+      "ie": "0x00B0668A"
+    },
+    "seasons": {
+      "IE2": 7
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x58CE36D2",
+    "teamIdStr": "0x58CE36D2",
+    "name": "Fauxshore",
+    "displayName": "Fauxshore",
+    "name_FR": "Fauxshore",
+    "name_EN": "Fauxshore",
+    "name_JA": "陽花戸中",
+    "binderTeamOrderType": 23,
+    "emblems": {
+      "ie": "0xB7FD40D1"
+    },
+    "kits": {
+      "ie": "0x037662B1"
+    },
+    "seasons": {
+      "IE2": 8
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x95D3A452",
+    "teamIdStr": "0x95D3A452",
+    "name": "Mary Times",
+    "displayName": "Mary Times",
+    "name_FR": "Mary Times",
+    "name_EN": "Mary Times",
+    "name_JA": "大海原中",
+    "binderTeamOrderType": 24,
+    "emblems": {
+      "ie": "0x81606EB2",
+      "v": "0x5BC66041"
+    },
+    "kits": {
+      "ie": "0xB7055263",
+      "v": "0xB2361629"
+    },
+    "seasons": {
+      "IE2": 9,
+      "V": 19
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x52E7C450",
+    "teamIdStr": "0x52E7C450",
+    "name": "Epsilon +",
+    "displayName": "Epsilon +",
+    "name_FR": "Epsilon +",
+    "name_EN": "Advanced Epsilon",
+    "name_JA": "イプシロン改",
+    "binderTeamOrderType": 25,
+    "emblems": {
+      "ie": "0xC94C3C6C"
+    },
+    "kits": {
+      "ie": "0x5002E8C8"
+    },
+    "seasons": {
+      "IE2": 10
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xE0D78A15",
+    "teamIdStr": "0xE0D78A15",
+    "name": "Prominence",
+    "displayName": "Prominence",
+    "name_FR": "Prominence",
+    "name_EN": "Prominence",
+    "name_JA": "プロミネンス",
+    "binderTeamOrderType": 26,
+    "emblems": {
+      "ie": "0x1F04FB11"
+    },
+    "kits": {
+      "ie": "0x7254F858"
+    },
+    "seasons": {
+      "IE2": 11
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xA4F89470",
+    "teamIdStr": "0xA4F89470",
+    "name": "Diamond Dust",
+    "displayName": "Diamond Dust",
+    "name_FR": "Diamond Dust",
+    "name_EN": "Diamond Dust",
+    "name_JA": "ダイヤモンドダスト",
+    "binderTeamOrderType": 27,
+    "emblems": {
+      "ie": "0x8FBBE680"
+    },
+    "kits": {
+      "ie": "0x5F2427AB"
+    },
+    "seasons": {
+      "IE2": 12
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x13E73915",
+    "teamIdStr": "0x13E73915",
+    "name": "Chaos",
+    "displayName": "Chaos",
+    "name_FR": "Chaos",
+    "name_EN": "Chaos",
+    "name_JA": "カオス",
+    "binderTeamOrderType": 28,
+    "emblems": {
+      "ie": "0xF8BCD616"
+    },
+    "kits": {
+      "ie": "0x751D47AA"
+    },
+    "seasons": {
+      "IE2": 13
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x8E1A91A5",
+    "teamIdStr": "0x8E1A91A5",
+    "name": "Genesis",
+    "displayName": "Genesis",
+    "name_FR": "Genesis",
+    "name_EN": "Genesis",
+    "name_JA": "ザ・ジェネシス",
+    "binderTeamOrderType": 29,
+    "emblems": {
+      "ie": "0x5728A9CF"
+    },
+    "kits": {
+      "ie": "0x258657A2"
+    },
+    "seasons": {
+      "IE2": 14
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x844120FF",
+    "teamIdStr": "0x844120FF",
+    "name": "Empereurs obscurs",
+    "displayName": "Empereurs obscurs",
+    "name_FR": "Empereurs obscurs",
+    "name_EN": "Dark Emperors",
+    "name_JA": "ダークエンペラーズ",
+    "binderTeamOrderType": 30,
+    "emblems": {
+      "ie": "0xF6675E24"
+    },
+    "kits": {
+      "ie": "0x95BBF710"
+    },
+    "seasons": {
+      "IE2": 15
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xB38C36EE",
+    "teamIdStr": "0xB38C36EE",
+    "name": "Équipe de la forêt",
+    "displayName": "Équipe de la forêt",
+    "name_FR": "Équipe de la forêt",
+    "name_EN": "Forest Team",
+    "name_JA": "樹海チーム",
+    "binderTeamOrderType": 31,
+    "emblems": {
+      "ie": "0x860DAAAB"
+    },
+    "kits": {
+      "ie": "0x210F44A3"
+    },
+    "seasons": {
+      "IE2": 16
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x35C99268",
+    "teamIdStr": "0x35C99268",
+    "name": "Équipe de sél. A",
+    "displayName": "Équipe de sél. A",
+    "name_FR": "Équipe de sél. A",
+    "name_EN": "Team ENDO",
+    "name_JA": "日本代表候補Ａ",
+    "binderTeamOrderType": 33,
+    "emblems": {},
+    "kits": {
+      "ie": "0xC68FF352"
+    },
+    "seasons": {
+      "IE3": 1
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xACC0C3D2",
+    "teamIdStr": "0xACC0C3D2",
+    "name": "Équipe de sél. B",
+    "displayName": "Équipe de sél. B",
+    "name_FR": "Équipe de sél. B",
+    "name_EN": "Team YUTO",
+    "name_JA": "日本代表候補Ｂ",
+    "binderTeamOrderType": 34,
+    "emblems": {},
+    "kits": {
+      "ie": "0xFCC6DC25"
+    },
+    "seasons": {
+      "IE3": 2
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x6E8EFF55",
+    "teamIdStr": "0x6E8EFF55",
+    "name": "Inazuma Japon",
+    "displayName": "Inazuma Japon",
+    "name_FR": "Inazuma Japon",
+    "name_EN": "Inazuma National",
+    "name_JA": "イナズマジャパン",
+    "binderTeamOrderType": 35,
+    "emblems": {
+      "ie": "0xB11D47C8",
+      "go": "0x213EBB9A",
+      "aresOrion": "0xD8BB8381"
+    },
+    "kits": {
+      "ie": "0xC68FF352",
+      "aresOrion": "0x59441354"
+    },
+    "seasons": {
+      "IE2": 19,
+      "IE3": 3,
+      "ORION": 1
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xB3233931",
+    "teamIdStr": "0xB3233931",
+    "name": "Big Waves",
+    "displayName": "Big Waves",
+    "name_FR": "Big Waves",
+    "name_EN": "Big Waves",
+    "name_JA": "ビッグウェイブス",
+    "binderTeamOrderType": 36,
+    "emblems": {
+      "ie": "0xB8AB0BE3",
+      "go": "0x8BC3E295"
+    },
+    "kits": {
+      "ie": "0x2351303D",
+      "go": "0x84325488"
+    },
+    "seasons": {
+      "IE3": 4,
+      "GO3": 4
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x260DFB82",
+    "teamIdStr": "0x260DFB82",
+    "name": "Lions du désert",
+    "displayName": "Lions du désert",
+    "name_FR": "Lions du désert",
+    "name_EN": "Desert Lions",
+    "name_JA": "デザートライオン",
+    "binderTeamOrderType": 37,
+    "emblems": {
+      "ie": "0x743E7527"
+    },
+    "kits": {
+      "ie": "0xF3649C58"
+    },
+    "seasons": {
+      "IE3": 5
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xAAC01751",
+    "teamIdStr": "0xAAC01751",
+    "name": "Néo Japon",
+    "displayName": "Néo Japon",
+    "name_FR": "Néo Japon",
+    "name_EN": "Neo National",
+    "name_JA": "ネオジャパン",
+    "binderTeamOrderType": 38,
+    "emblems": {
+      "ie": "0xCFAC3B75"
+    },
+    "kits": {
+      "ie": "0x3AB21E5D"
+    },
+    "seasons": {
+      "IE3": 6
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x1F3FF22B",
+    "teamIdStr": "0x1F3FF22B",
+    "name": "Dragons de feu",
+    "displayName": "Dragons de feu",
+    "name_FR": "Dragons de feu",
+    "name_EN": "Fire Dragon",
+    "name_JA": "ファイアードラゴン",
+    "binderTeamOrderType": 39,
+    "emblems": {
+      "ie": "0x9D5DD012",
+      "go": "0xFCC4D203"
+    },
+    "kits": {
+      "ie": "0x1813F4FF",
+      "go": "0x6A1B930E"
+    },
+    "seasons": {
+      "IE3": 7,
+      "GO3": 3
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x4F4EC669",
+    "teamIdStr": "0x4F4EC669",
+    "name": "Knights of Queen",
+    "displayName": "Knights of Queen",
+    "name_FR": "Knights of Queen",
+    "name_EN": "Queen's Knights",
+    "name_JA": "ナイツオブクィーン",
+    "binderTeamOrderType": 40,
+    "emblems": {
+      "ie": "0xA51B7643"
+    },
+    "kits": {
+      "ie": "0x6F7F0A04"
+    },
+    "seasons": {
+      "IE3": 8
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xB95A1DDD",
+    "teamIdStr": "0xB95A1DDD",
+    "name": "TEAMK",
+    "displayName": "TEAMK",
+    "name_FR": "TEAMK",
+    "name_EN": "TEAMK",
+    "name_JA": "チームＫ",
+    "binderTeamOrderType": 41,
+    "emblems": {
+      "ie": "0xD21C46D5"
+    },
+    "kits": {
+      "ie": "0x2E484920"
+    },
+    "seasons": {
+      "IE3": 9
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x1EC622CE",
+    "teamIdStr": "0x1EC622CE",
+    "name": "Empereurs",
+    "displayName": "Empereurs",
+    "name_FR": "Empereurs",
+    "name_EN": "The Empire",
+    "name_JA": "ジ・エンパイア",
+    "binderTeamOrderType": 42,
+    "emblems": {
+      "ie": "0x4B15176F"
+    },
+    "kits": {
+      "ie": "0x76FB5C82"
+    },
+    "seasons": {
+      "IE3": 10
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x23A7DCAB",
+    "teamIdStr": "0x23A7DCAB",
+    "name": "Licornes",
+    "displayName": "Licornes",
+    "name_FR": "Licornes",
+    "name_EN": "Unicorn",
+    "name_JA": "ユニコーン",
+    "binderTeamOrderType": 43,
+    "emblems": {
+      "ie": "0x3C1227F9"
+    },
+    "kits": {
+      "ie": "0xE03C405E"
+    },
+    "seasons": {
+      "IE3": 11
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x0F3CD0F1",
+    "teamIdStr": "0x0F3CD0F1",
+    "name": "Orphée",
+    "displayName": "Orphée",
+    "name_FR": "Orphée",
+    "name_EN": "Orpheus",
+    "name_JA": "オルフェウス",
+    "binderTeamOrderType": 44,
+    "emblems": {
+      "ie": "0xA276B25A"
+    },
+    "kits": {
+      "ie": "0xCCA74C04"
+    },
+    "seasons": {
+      "IE3": 12
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xD630206C",
+    "teamIdStr": "0xD630206C",
+    "name": "Messagers du ciel",
+    "displayName": "Messagers du ciel",
+    "name_FR": "Messagers du ciel",
+    "name_EN": "Apostles from the Sky",
+    "name_JA": "天空の使徒",
+    "binderTeamOrderType": 45,
+    "emblems": {
+      "ie": "0x603844AC"
+    },
+    "kits": {
+      "ie": "0x01732636"
+    },
+    "seasons": {
+      "IE3": 13
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xC357944D",
+    "teamIdStr": "0xC357944D",
+    "name": "Armée des démons Z",
+    "displayName": "Armée des démons Z",
+    "name_FR": "Armée des démons Z",
+    "name_EN": "Devil Army Z",
+    "name_JA": "魔界軍団Ｚ",
+    "binderTeamOrderType": 46,
+    "emblems": {
+      "ie": "0x173F743A"
+    },
+    "kits": {
+      "ie": "0x3C571A4D"
+    },
+    "seasons": {
+      "IE3": 14
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x7894143E",
+    "teamIdStr": "0x7894143E",
+    "name": "Anges noirs",
+    "displayName": "Anges noirs",
+    "name_FR": "Anges noirs",
+    "name_EN": "Dark Angels",
+    "name_JA": "ダークエンジェル",
+    "binderTeamOrderType": 47,
+    "emblems": {
+      "ie": "0xE48168B6"
+    },
+    "kits": {
+      "ie": "0x71B22A1C"
+    },
+    "seasons": {
+      "IE3": 15
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x214DDC31",
+    "teamIdStr": "0x214DDC31",
+    "name": "Kingdom",
+    "displayName": "Kingdom",
+    "name_FR": "Kingdom",
+    "name_EN": "The Kingdom",
+    "name_JA": "ザ・キングダム",
+    "binderTeamOrderType": 48,
+    "emblems": {
+      "ie": "0xD57182CC"
+    },
+    "kits": {
+      "ie": "0xF424BBEB"
+    },
+    "seasons": {
+      "IE3": 16
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xD32CAC2B",
+    "teamIdStr": "0xD32CAC2B",
+    "name": "Équipe GARCILDO",
+    "displayName": "Équipe GARCILDO",
+    "name_FR": "Équipe GARCILDO",
+    "name_EN": "Team GARCILDO",
+    "name_JA": "チーム・ガルシルド",
+    "binderTeamOrderType": 49,
+    "emblems": {
+      "ie": "0x4C78D376"
+    },
+    "kits": {
+      "ie": "0x57538E36"
+    },
+    "seasons": {
+      "IE3": 17
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x1DC05039",
+    "teamIdStr": "0x1DC05039",
+    "name": "Petits géants",
+    "displayName": "Petits géants",
+    "name_FR": "Petits géants",
+    "name_EN": "Little Gigantes",
+    "name_JA": "リトルギガント",
+    "binderTeamOrderType": 50,
+    "emblems": {
+      "ie": "0x3B7FE3E0"
+    },
+    "kits": {
+      "ie": "0xA8764C5A"
+    },
+    "seasons": {
+      "IE3": 18
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x732C2E69",
+    "teamIdStr": "0x732C2E69",
+    "name": "Roses Griffons",
+    "displayName": "Roses Griffons",
+    "name_FR": "Roses Griffons",
+    "name_EN": "Rose Griffons",
+    "name_JA": "ローズグリフォン",
+    "binderTeamOrderType": 51,
+    "emblems": {
+      "ie": "0xABC0FE71"
+    },
+    "kits": {
+      "ie": "0x14360AD9"
+    },
+    "seasons": {
+      "IE3": 19
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x26CDE3DC",
+    "teamIdStr": "0x26CDE3DC",
+    "name": "Toreros rouges",
+    "displayName": "Toreros rouges",
+    "name_FR": "Toreros rouges",
+    "name_EN": "Red Matador",
+    "name_JA": "レッドマタドール",
+    "binderTeamOrderType": 52,
+    "emblems": {
+      "ie": "0xDCC7CEE7"
+    },
+    "kits": {
+      "ie": "0xF3A48406"
+    },
+    "seasons": {
+      "IE3": 20
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x9EB0E9BD",
+    "teamIdStr": "0x9EB0E9BD",
+    "name": "Brocken Bogue",
+    "displayName": "Brocken Bogue",
+    "name_FR": "Brocken Bogue",
+    "name_EN": "Brocken Brigade",
+    "name_JA": "ブロッケンボーグ",
+    "binderTeamOrderType": 53,
+    "emblems": {
+      "ie": "0x8E362580"
+    },
+    "kits": {
+      "ie": "0x96573244"
+    },
+    "seasons": {
+      "IE3": 21
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x52EAEF0F",
+    "teamIdStr": "0x52EAEF0F",
+    "name": "Antilopes",
+    "displayName": "Antilopes",
+    "name_FR": "Antilopes",
+    "name_EN": "The Cape Crusaders",
+    "name_JA": "ザ・グレイトホーン",
+    "binderTeamOrderType": 54,
+    "emblems": {
+      "ie": "0xF9311516"
+    },
+    "kits": {
+      "ie": "0x6E49901B"
+    },
+    "seasons": {
+      "IE3": 22
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x447B6344",
+    "teamIdStr": "0x447B6344",
+    "name": "Ogres",
+    "displayName": "Ogres",
+    "name_FR": "Ogres",
+    "name_EN": "Team Ogre",
+    "name_JA": "王牙学園",
+    "binderTeamOrderType": 55,
+    "emblems": {
+      "ie": "0x93865820"
+    },
+    "kits": {
+      "ie": "0x7362C53B"
+    },
+    "seasons": {
+      "IE3": 23
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x4B51EDE4",
+    "teamIdStr": "0x4B51EDE4",
+    "name": "Première équipe de Raimon",
+    "displayName": "Première équipe de Raimon",
+    "name_FR": "Première équipe de Raimon",
+    "name_EN": "Raimon First Squad",
+    "name_JA": "雷門ファーストチーム",
+    "binderTeamOrderType": 56,
+    "emblems": {
+      "go": "0x1D4B6E80"
+    },
+    "kits": {
+      "go": "0xAECB5B3E"
+    },
+    "seasons": {
+      "GO1": 1,
+      "GO2": 29
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xF7E38057",
+    "teamIdStr": "0xF7E38057",
+    "name": "Seconde équipe de Raimon",
+    "displayName": "Seconde équipe de Raimon",
+    "name_FR": "Seconde équipe de Raimon",
+    "name_EN": "Raimon Second Squad",
+    "name_JA": "雷門セカンドチーム",
+    "binderTeamOrderType": 57,
+    "emblems": {
+      "go": "0x587A3C94"
+    },
+    "kits": {
+      "go": "0xB2AA9535"
+    },
+    "seasons": {
+      "GO1": 2
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x52366FE7",
+    "teamIdStr": "0x52366FE7",
+    "name": "Chevaliers noirs",
+    "displayName": "Chevaliers noirs",
+    "name_FR": "Chevaliers noirs",
+    "name_EN": "Black Templars",
+    "name_JA": "黒の騎士団",
+    "binderTeamOrderType": 58,
+    "emblems": {
+      "go": "0x84423F3A"
+    },
+    "kits": {
+      "go": "0x69CD5731"
+    },
+    "seasons": {
+      "GO1": 3
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x97D7E0B2",
+    "teamIdStr": "0x97D7E0B2",
+    "name": "Surdoués",
+    "displayName": "Surdoués",
+    "name_FR": "Surdoués",
+    "name_EN": "Prodigy Grammar",
+    "name_JA": "栄都学園",
+    "binderTeamOrderType": 59,
+    "emblems": {
+      "go": "0xF3450FAC"
+    },
+    "kits": {
+      "go": "0x5CFCAABA"
+    },
+    "seasons": {
+      "GO1": 5
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x3366FDDC",
+    "teamIdStr": "0x3366FDDC",
+    "name": "Voie lactée",
+    "displayName": "Voie lactée",
+    "name_FR": "Voie lactée",
+    "name_EN": "Milky Way Charter",
+    "name_JA": "天河原中",
+    "binderTeamOrderType": 60,
+    "emblems": {
+      "go": "0x6D219A0F"
+    },
+    "kits": {
+      "go": "0xEBA9A9C0"
+    },
+    "seasons": {
+      "GO1": 6
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x461A9960",
+    "teamIdStr": "0x461A9960",
+    "name": "Foi toute-puissante",
+    "displayName": "Foi toute-puissante",
+    "name_FR": "Foi toute-puissante",
+    "name_EN": "Almighty Faith",
+    "name_JA": "万能坂中",
+    "binderTeamOrderType": 61,
+    "emblems": {
+      "go": "0x1A26AA99"
+    },
+    "kits": {
+      "go": "0x43AA7C8A"
+    },
+    "seasons": {
+      "GO1": 7
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x8677AA25",
+    "teamIdStr": "0x8677AA25",
+    "name": "Baie des pirates",
+    "displayName": "Baie des pirates",
+    "name_FR": "Baie des pirates",
+    "name_EN": "Pirates Cove",
+    "name_JA": "海王学園",
+    "binderTeamOrderType": 62,
+    "emblems": {
+      "go": "0xF428CBB5"
+    },
+    "kits": {
+      "go": "0xB7FF6AAB"
+    },
+    "seasons": {
+      "GO1": 9
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x02806CB5",
+    "teamIdStr": "0x02806CB5",
+    "name": "L'Âge d'or",
+    "displayName": "L'Âge d'or",
+    "name_FR": "L'Âge d'or",
+    "name_EN": "Golden Oldies",
+    "name_JA": "秋空チャレンジャーズ",
+    "binderTeamOrderType": 63,
+    "emblems": {
+      "go": "0x2F7D0C02"
+    },
+    "kits": {
+      "go": "0xF56CFFFD"
+    },
+    "seasons": {
+      "GO1": 10
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x219613A6",
+    "teamIdStr": "0x219613A6",
+    "name": "Mers lunaires",
+    "displayName": "Mers lunaires",
+    "name_FR": "Mers lunaires",
+    "name_EN": "Lunar Sea",
+    "name_JA": "月山国光中",
+    "binderTeamOrderType": 64,
+    "emblems": {
+      "go": "0x6497D624"
+    },
+    "kits": {
+      "go": "0x35A52295"
+    },
+    "seasons": {
+      "GO1": 11
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x0DF68C09",
+    "teamIdStr": "0x0DF68C09",
+    "name": "Lumière éternelle",
+    "displayName": "Lumière éternelle",
+    "name_FR": "Lumière éternelle",
+    "name_EN": "Eternal Light",
+    "name_JA": "アンリミテッドシャイニング",
+    "binderTeamOrderType": 65,
+    "emblems": {
+      "go": "0xED33FAF4"
+    },
+    "kits": {
+      "go": "0x169CA42F"
+    },
+    "seasons": {
+      "GO1": 14
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x51535E99",
+    "teamIdStr": "0x51535E99",
+    "name": "Ombre ancestrale",
+    "displayName": "Ombre ancestrale",
+    "name_FR": "Ombre ancestrale",
+    "name_EN": "Ancient Darkness",
+    "name_JA": "エンシャントダーク",
+    "binderTeamOrderType": 66,
+    "emblems": {
+      "go": "0x7D8CE765"
+    },
+    "kits": {
+      "go": "0x042E6F2B"
+    },
+    "seasons": {
+      "GO1": 15
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xC0EDF999",
+    "teamIdStr": "0xC0EDF999",
+    "name": "Zéro",
+    "displayName": "Zéro",
+    "name_FR": "Zéro",
+    "name_EN": "Team Zero",
+    "name_JA": "ゼロ",
+    "binderTeamOrderType": 67,
+    "emblems": {
+      "go": "0x0A8BD7F3"
+    },
+    "kits": {
+      "go": "0x0BC6B391"
+    },
+    "seasons": {
+      "GO1": 16
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x13CAF23A",
+    "teamIdStr": "0x13CAF23A",
+    "name": "Mirages",
+    "displayName": "Mirages",
+    "name_FR": "Mirages",
+    "name_EN": "Mirage",
+    "name_JA": "幻影学園",
+    "binderTeamOrderType": 68,
+    "emblems": {
+      "go": "0x9D590E7B"
+    },
+    "kits": {
+      "go": "0xE49F1C1B"
+    },
+    "seasons": {
+      "GO1": 17
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x3BB12717",
+    "teamIdStr": "0x3BB12717",
+    "name": "Révolutionnaires",
+    "displayName": "Révolutionnaires",
+    "name_FR": "Révolutionnaires",
+    "name_EN": "Revolutionaries",
+    "name_JA": "革命選抜チーム",
+    "binderTeamOrderType": 69,
+    "emblems": {
+      "go": "0x5F17F88D"
+    },
+    "kits": {
+      "go": "0x711553F6"
+    },
+    "seasons": {
+      "GO1": 18
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x9A0ADD16",
+    "teamIdStr": "0x9A0ADD16",
+    "name": "Universel",
+    "displayName": "Universel",
+    "name_FR": "Universel",
+    "name_EN": "Universal",
+    "name_JA": "新雲学園",
+    "binderTeamOrderType": 70,
+    "emblems": {
+      "go": "0x743AAB4E"
+    },
+    "kits": {
+      "go": "0x3233D2AA"
+    },
+    "seasons": {
+      "GO1": 19
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xC93D89FB",
+    "teamIdStr": "0xC93D89FB",
+    "name": "Mont Olympe",
+    "displayName": "Mont Olympe",
+    "name_FR": "Mont Olympe",
+    "name_EN": "Mount Olympus",
+    "name_JA": "聖堂山中",
+    "binderTeamOrderType": 71,
+    "emblems": {
+      "go": "0x033D9BD8"
+    },
+    "kits": {
+      "go": "0x3730D5DE"
+    },
+    "seasons": {
+      "GO1": 20
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xEE5915A4",
+    "teamIdStr": "0xEE5915A4",
+    "name": "Alliance du dragon",
+    "displayName": "Alliance du dragon",
+    "name_FR": "Alliance du dragon",
+    "name_EN": "Dragon Link",
+    "name_JA": "ドラゴンリンク",
+    "binderTeamOrderType": 72,
+    "emblems": {
+      "go": "0x9A34CA62"
+    },
+    "kits": {
+      "go": "0x642805DB"
+    },
+    "seasons": {
+      "GO1": 21
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x38B43B68",
+    "teamIdStr": "0x38B43B68",
+    "name": "Ultramégatétra",
+    "displayName": "Ultramégatétra",
+    "name_FR": "Ultramégatétra",
+    "name_EN": "Ivy Selective",
+    "name_JA": "青葉学園",
+    "binderTeamOrderType": 73,
+    "emblems": {
+      "go": "0xB6745DB8"
+    },
+    "kits": {
+      "go": "0x2C33D98F"
+    },
+    "seasons": {
+      "GO1": 22
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xD470CD2C",
+    "teamIdStr": "0xD470CD2C",
+    "name": "Les TENMAS",
+    "displayName": "Les TENMAS",
+    "name_FR": "Les TENMAS",
+    "name_EN": "The TENMAS",
+    "name_JA": "テンマーズ",
+    "binderTeamOrderType": 74,
+    "emblems": {
+      "go": "0x23AF935E"
+    },
+    "kits": {
+      "go": "0x63CF60EE"
+    },
+    "seasons": {
+      "GO2": 1
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xE7EAEBA2",
+    "teamIdStr": "0xE7EAEBA2",
+    "name": "Chrono Storm",
+    "displayName": "Chrono Storm",
+    "name_FR": "Chrono Storm",
+    "name_EN": "Chrono Storm",
+    "name_JA": "クロノストーム",
+    "binderTeamOrderType": 75,
+    "emblems": {
+      "go": "0xDECA07E0"
+    },
+    "kits": {
+      "go": "0xAECB5B3E"
+    },
+    "seasons": {
+      "GO2": 2
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x45B66234",
+    "teamIdStr": "0x45B66234",
+    "name": "Protocole Omega",
+    "displayName": "Protocole Omega",
+    "name_FR": "Protocole Omega",
+    "name_EN": "Protocol Omega",
+    "name_JA": "プロトコル・オメガ",
+    "binderTeamOrderType": 76,
+    "emblems": {
+      "go": "0xBAA6C2E4"
+    },
+    "kits": {
+      "go": "0x450DA068"
+    },
+    "seasons": {
+      "GO2": 3
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x3B24FCDA",
+    "teamIdStr": "0x3B24FCDA",
+    "name": "Protocole Omega 2.0",
+    "displayName": "Protocole Omega 2.0",
+    "name_FR": "Protocole Omega 2.0",
+    "name_EN": "Protocol Omega 2.0",
+    "name_JA": "プロトコル・オメガ2.0",
+    "binderTeamOrderType": 77,
+    "emblems": {
+      "go": "0x0FEF0484"
+    },
+    "kits": {
+      "go": "0x450DA068"
+    },
+    "seasons": {
+      "GO2": 4
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xE34E5409",
+    "teamIdStr": "0xE34E5409",
+    "name": "SHIROSHIKA",
+    "displayName": "SHIROSHIKA",
+    "name_FR": "SHIROSHIKA",
+    "name_EN": "SHIROSHIKA",
+    "name_JA": "白鹿組",
+    "binderTeamOrderType": 78,
+    "emblems": {
+      "go": "0x53C567D1"
+    },
+    "kits": {
+      "go": "0xF8EB9CE7"
+    },
+    "seasons": {
+      "GO2": 5
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x4C23CC4C",
+    "teamIdStr": "0x4C23CC4C",
+    "name": "Protocole Omega 3.0",
+    "displayName": "Protocole Omega 3.0",
+    "name_FR": "Protocole Omega 3.0",
+    "name_EN": "Protocol Omega 3.0",
+    "name_JA": "プロトコル・オメガ3.0",
+    "binderTeamOrderType": 79,
+    "emblems": {
+      "go": "0x24C25747"
+    },
+    "kits": {},
+    "seasons": {
+      "GO2": 6
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x160CF943",
+    "teamIdStr": "0x160CF943",
+    "name": "Soldats de terre cuite",
+    "displayName": "Soldats de terre cuite",
+    "name_FR": "Soldats de terre cuite",
+    "name_EN": "The Terracotta Army",
+    "name_JA": "からくり兵馬俑",
+    "binderTeamOrderType": 80,
+    "emblems": {
+      "go": "0xBDCB06FD"
+    },
+    "kits": {
+      "go": "0xB826F722"
+    },
+    "seasons": {
+      "GO2": 7
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x3A851A41",
+    "teamIdStr": "0x3A851A41",
+    "name": "ZANARK Domination",
+    "displayName": "ZANARK Domination",
+    "name_FR": "ZANARK Domination",
+    "name_EN": "ZANARK's Domain",
+    "name_JA": "ザナーク・ドメイン",
+    "binderTeamOrderType": 81,
+    "emblems": {
+      "go": "0xCACC366B"
+    },
+    "kits": {
+      "go": "0x9EE88F14"
+    },
+    "seasons": {
+      "GO2": 8
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xD60014D5",
+    "teamIdStr": "0xD60014D5",
+    "name": "Équipe Excellence",
+    "displayName": "Équipe Excellence",
+    "name_FR": "Équipe Excellence",
+    "name_EN": "Perfect Cascade",
+    "name_JA": "パーフェクト・カスケイド",
+    "binderTeamOrderType": 82,
+    "emblems": {
+      "go": "0x5A732BFA"
+    },
+    "kits": {
+      "go": "0x91A97E62"
+    },
+    "seasons": {
+      "GO2": 9
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x1F4F77F4",
+    "teamIdStr": "0x1F4F77F4",
+    "name": "El Dorado 1",
+    "displayName": "El Dorado 1",
+    "name_FR": "El Dorado 1",
+    "name_EN": "El Dorado 01",
+    "name_JA": "エルドラドチーム01",
+    "binderTeamOrderType": 83,
+    "emblems": {
+      "go": "0xE1E165A8"
+    },
+    "kits": {
+      "go": "0x08421B99"
+    },
+    "seasons": {
+      "GO2": 10
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x8646264E",
+    "teamIdStr": "0x8646264E",
+    "name": "El Dorado 2",
+    "displayName": "El Dorado 2",
+    "name_FR": "El Dorado 2",
+    "name_EN": "El Dorado 02",
+    "name_JA": "エルドラドチーム02",
+    "binderTeamOrderType": 84,
+    "emblems": {
+      "go": "0x715E7839"
+    },
+    "kits": {
+      "go": "0x450DA068"
+    },
+    "seasons": {
+      "GO2": 11
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xF14116D8",
+    "teamIdStr": "0xF14116D8",
+    "name": "El Dorado 3",
+    "displayName": "El Dorado 3",
+    "name_FR": "El Dorado 3",
+    "name_EN": "El Dorado 03",
+    "name_JA": "エルドラドチーム03",
+    "binderTeamOrderType": 85,
+    "emblems": {
+      "go": "0x065948AF"
+    },
+    "kits": {},
+    "seasons": {
+      "GO2": 12
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x2892DD7D",
+    "teamIdStr": "0x2892DD7D",
+    "name": "Zan",
+    "displayName": "Zan",
+    "name_FR": "Zan",
+    "name_EN": "Zan",
+    "name_JA": "ザン",
+    "binderTeamOrderType": 86,
+    "emblems": {
+      "go": "0x4DB39289"
+    },
+    "kits": {
+      "go": "0x25CB231D"
+    },
+    "seasons": {
+      "GO2": 13
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x1ABB067A",
+    "teamIdStr": "0x1ABB067A",
+    "name": "Gihl",
+    "displayName": "Gihl",
+    "name_FR": "Gihl",
+    "name_EN": "Gihl",
+    "name_JA": "ギル",
+    "binderTeamOrderType": 87,
+    "emblems": {
+      "go": "0x3AB4A21F"
+    },
+    "kits": {
+      "go": "0xDB594E63"
+    },
+    "seasons": {
+      "GO2": 14
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x85423719",
+    "teamIdStr": "0x85423719",
+    "name": "Gahl",
+    "displayName": "Gahl",
+    "name_FR": "Gahl",
+    "name_EN": "Gahl",
+    "name_JA": "ガル",
+    "binderTeamOrderType": 88,
+    "emblems": {
+      "go": "0xA3BDF3A5"
+    },
+    "kits": {
+      "go": "0xD54A1FDB"
+    },
+    "seasons": {
+      "GO2": 15
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x3CDF7869",
+    "teamIdStr": "0x3CDF7869",
+    "name": "Ragna",
+    "displayName": "Ragna",
+    "name_FR": "Ragna",
+    "name_EN": "Ragnah",
+    "name_JA": "ザ・ラグーン",
+    "binderTeamOrderType": 89,
+    "emblems": {
+      "go": "0xD4BAC333"
+    },
+    "kits": {
+      "go": "0x5F983982"
+    },
+    "seasons": {
+      "GO2": 16
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xDE70155D",
+    "teamIdStr": "0xDE70155D",
+    "name": "Griffe du sud",
+    "displayName": "Griffe du sud",
+    "name_FR": "Griffe du sud",
+    "name_EN": "Southern Claw",
+    "name_JA": "サウザンクロウ",
+    "binderTeamOrderType": 91,
+    "emblems": {
+      "go": "0x2810C81B"
+    },
+    "kits": {
+      "go": "0xEC3BE5C1"
+    },
+    "seasons": {
+      "GO1": 23
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xA149A9B0",
+    "teamIdStr": "0xA149A9B0",
+    "name": "Crocs du Nord",
+    "displayName": "Crocs du Nord",
+    "name_FR": "Crocs du Nord",
+    "name_EN": "Northern Fang",
+    "name_JA": "ノーザンファング",
+    "binderTeamOrderType": 92,
+    "emblems": {
+      "go": "0xB11999A1"
+    },
+    "kits": {
+      "go": "0x2148A698"
+    },
+    "seasons": {
+      "GO1": 24
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x1A373F52",
+    "teamIdStr": "0x1A373F52",
+    "name": "Rage du démon",
+    "displayName": "Rage du démon",
+    "name_FR": "Rage du démon",
+    "name_EN": "Demon's Horn",
+    "name_JA": "デモンズホーン",
+    "binderTeamOrderType": 93,
+    "emblems": {
+      "go": "0xC61EA937"
+    },
+    "kits": {
+      "go": "0x16DAA0FA"
+    },
+    "seasons": {
+      "GO1": 25
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xE34B936A",
+    "teamIdStr": "0xE34B936A",
+    "name": "Enfants sauvages",
+    "displayName": "Enfants sauvages",
+    "name_FR": "Enfants sauvages",
+    "name_EN": "Lunar Howl",
+    "name_JA": "ツキガミの一族",
+    "binderTeamOrderType": 94,
+    "emblems": {
+      "go": "0x4ADE5690"
+    },
+    "kits": {
+      "go": "0xFC3FF7B7"
+    },
+    "seasons": {
+      "GO2": 18
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x7479FCE3",
+    "teamIdStr": "0x7479FCE3",
+    "name": "Traqueurs nocturnes",
+    "displayName": "Traqueurs nocturnes",
+    "name_FR": "Traqueurs nocturnes",
+    "name_EN": "Nosfanatica",
+    "name_JA": "ヴァンプティム",
+    "binderTeamOrderType": 95,
+    "emblems": {
+      "go": "0x3DD96606"
+    },
+    "kits": {
+      "go": "0xE5CDCF9A"
+    },
+    "seasons": {
+      "GO2": 19
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x44CCAE37",
+    "teamIdStr": "0x44CCAE37",
+    "name": "Enfants de la nuit",
+    "displayName": "Enfants de la nuit",
+    "name_FR": "Enfants de la nuit",
+    "name_EN": "Children of the Night",
+    "name_JA": "ジ・エグゼラー",
+    "binderTeamOrderType": 96,
+    "emblems": {
+      "go": "0xA4D037BC"
+    },
+    "kits": {
+      "go": "0x002347BF"
+    },
+    "seasons": {
+      "GO2": 20
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x4A347229",
+    "teamIdStr": "0x4A347229",
+    "name": "Inazuma Japon Évolution",
+    "displayName": "Inazuma Japon Évolution",
+    "name_FR": "Inazuma Japon Évolution",
+    "name_EN": "Inazuma Legend National",
+    "name_JA": "イナズマレジェンドジャパン",
+    "binderTeamOrderType": 97,
+    "emblems": {
+      "go": "0xD3D7072A"
+    },
+    "kits": {
+      "go": "0xD5D90E67"
+    },
+    "seasons": {
+      "GO2": 21
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xCBBF6720",
+    "teamIdStr": "0xCBBF6720",
+    "name": "Roses du désespoir",
+    "displayName": "Roses du désespoir",
+    "name_FR": "Roses du désespoir",
+    "name_EN": "The Despairadoes",
+    "name_JA": "デストラクチャーズ",
+    "binderTeamOrderType": 99,
+    "emblems": {
+      "go": "0x43681ABB"
+    },
+    "kits": {
+      "go": "0x77EE5F46"
+    },
+    "seasons": {
+      "GO2": 23
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x3B68D406",
+    "teamIdStr": "0x3B68D406",
+    "name": "Le onze terrestre",
+    "displayName": "Le onze terrestre",
+    "name_FR": "Le onze terrestre",
+    "name_EN": "Earth Eleven",
+    "name_JA": "アースイレブン",
+    "binderTeamOrderType": 100,
+    "emblems": {
+      "go": "0x65CD83B9"
+    },
+    "kits": {
+      "go": "0xDE17975F"
+    },
+    "seasons": {
+      "GO3": 1
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xFB135973",
+    "teamIdStr": "0xFB135973",
+    "name": "Sabres Arides",
+    "displayName": "Sabres Arides",
+    "name_FR": "Sabres Arides",
+    "name_EN": "Shamshir",
+    "name_JA": "シャムシール",
+    "binderTeamOrderType": 101,
+    "emblems": {
+      "go": "0x15A77736"
+    },
+    "kits": {
+      "go": "0x59476C43"
+    },
+    "seasons": {
+      "GO3": 5
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xCAA009F4",
+    "teamIdStr": "0xCAA009F4",
+    "name": "Tigres de Thaïlande",
+    "displayName": "Tigres de Thaïlande",
+    "name_FR": "Tigres de Thaïlande",
+    "name_EN": "Muay Tigers",
+    "name_JA": "マッハタイガー",
+    "binderTeamOrderType": 102,
+    "emblems": {
+      "go": "0x62A047A0"
+    },
+    "kits": {
+      "go": "0x3A1BB860"
+    },
+    "seasons": {
+      "GO3": 6
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x5393BB30",
+    "teamIdStr": "0x5393BB30",
+    "name": "Rébellion Japon",
+    "displayName": "Rébellion Japon",
+    "name_FR": "Rébellion Japon",
+    "name_EN": "Japanese Resistance",
+    "name_JA": "レジスタンスジャパン",
+    "binderTeamOrderType": 103,
+    "emblems": {
+      "go": "0x8CAE268C"
+    },
+    "kits": {
+      "go": "0x856E82A1"
+    },
+    "seasons": {
+      "GO3": 7
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x0BFFCFCD",
+    "teamIdStr": "0x0BFFCFCD",
+    "name": "Loups d'Ouzbékistan",
+    "displayName": "Loups d'Ouzbékistan",
+    "name_FR": "Loups d'Ouzbékistan",
+    "name_EN": "Storm Wolves",
+    "name_JA": "ストームウルフ",
+    "binderTeamOrderType": 104,
+    "emblems": {
+      "go": "0xFBA9161A"
+    },
+    "kits": {
+      "go": "0x1792BE96"
+    },
+    "seasons": {
+      "GO3": 8
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x552A3CAA",
+    "teamIdStr": "0x552A3CAA",
+    "name": "Onze de Silica",
+    "displayName": "Onze de Silica",
+    "name_FR": "Onze de Silica",
+    "name_EN": "Silica Eleven",
+    "name_JA": "サンドリアスイレブン",
+    "binderTeamOrderType": 105,
+    "emblems": {
+      "go": "0x1C113B1D"
+    },
+    "kits": {
+      "go": "0xEF7FF9F8"
+    },
+    "seasons": {
+      "GO3": 9
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xEE5A318B",
+    "teamIdStr": "0xEE5A318B",
+    "name": "Onze de Naiadi",
+    "displayName": "Onze de Naiadi",
+    "name_FR": "Onze de Naiadi",
+    "name_EN": "Naiadi Eleven",
+    "name_JA": "サザナーライレブン",
+    "binderTeamOrderType": 106,
+    "emblems": {
+      "go": "0x6B160B8B"
+    },
+    "kits": {
+      "go": "0xE104B760"
+    },
+    "seasons": {
+      "GO3": 10
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xEAD748E1",
+    "teamIdStr": "0xEAD748E1",
+    "name": "Onze de Magmavia",
+    "displayName": "Onze de Magmavia",
+    "name_FR": "Onze de Magmavia",
+    "name_EN": "Magmavia Eleven",
+    "name_JA": "ガードンイレブン",
+    "binderTeamOrderType": 107,
+    "emblems": {
+      "go": "0x0BD1826E"
+    },
+    "kits": {
+      "go": "0xA25C1538"
+    },
+    "seasons": {
+      "GO3": 11
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x0FD5A921",
+    "teamIdStr": "0x0FD5A921",
+    "name": "Onze de Fertilia",
+    "displayName": "Onze de Fertilia",
+    "name_FR": "Onze de Fertilia",
+    "name_EN": "Fertilia Eleven",
+    "name_JA": "ラトニークイレブン",
+    "binderTeamOrderType": 108,
+    "emblems": {
+      "go": "0x7CD6B2F8"
+    },
+    "kits": {
+      "go": "0xEE74A4F3"
+    },
+    "seasons": {
+      "GO3": 12
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xCE977381",
+    "teamIdStr": "0xCE977381",
+    "name": "Falam Medius",
+    "displayName": "Falam Medius",
+    "name_FR": "Falam Medius",
+    "name_EN": "Falam Medius",
+    "name_JA": "ファラム・ディーテ",
+    "binderTeamOrderType": 110,
+    "emblems": {
+      "go": "0xE5DFE342"
+    },
+    "kits": {
+      "go": "0x38766052"
+    },
+    "seasons": {
+      "GO3": 14
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x4FB73805",
+    "teamIdStr": "0x4FB73805",
+    "name": "Armada Ixar",
+    "displayName": "Armada Ixar",
+    "name_FR": "Armada Ixar",
+    "name_EN": "Ixar Fleet",
+    "name_JA": "イクサルフリート",
+    "binderTeamOrderType": 111,
+    "emblems": {
+      "go": "0x92D8D3D4"
+    },
+    "kits": {
+      "go": "0xCF14D5D8"
+    },
+    "seasons": {
+      "GO3": 15
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x41FB3175",
+    "teamIdStr": "0x41FB3175",
+    "name": "Big Bang",
+    "displayName": "Big Bang",
+    "name_FR": "Big Bang",
+    "name_EN": "Big Bang",
+    "name_JA": "ビッグバン",
+    "binderTeamOrderType": 112,
+    "emblems": {
+      "go": "0x0CBC4677"
+    },
+    "kits": {
+      "go": "0x88AD789E"
+    },
+    "seasons": {
+      "GO3": 16
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x3536FAEF",
+    "teamIdStr": "0x3536FAEF",
+    "name": "Supernova",
+    "displayName": "Supernova",
+    "name_FR": "Supernova",
+    "name_EN": "Supernova",
+    "name_JA": "スーパーノヴァ",
+    "binderTeamOrderType": 113,
+    "emblems": {
+      "go": "0x7BBB76E1"
+    },
+    "kits": {
+      "go": "0xB5951732"
+    },
+    "seasons": {
+      "GO3": 17
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x5F1357E2",
+    "teamIdStr": "0x5F1357E2",
+    "name": "Classés galactiques",
+    "displayName": "Classés galactiques",
+    "name_FR": "Classés galactiques",
+    "name_EN": "Space Rankers",
+    "name_JA": "スペースランカーズ",
+    "binderTeamOrderType": 114,
+    "emblems": {
+      "go": "0xE2B2275B"
+    },
+    "kits": {
+      "go": "0xDE5795FC"
+    },
+    "seasons": {
+      "GO3": 18
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x1FBFA767",
+    "teamIdStr": "0x1FBFA767",
+    "name": "Île de Lointe",
+    "displayName": "Île de Lointe",
+    "name_FR": "Île de Lointe",
+    "name_EN": "Backwater Island",
+    "name_JA": "伊那国中",
+    "binderTeamOrderType": 116,
+    "emblems": {
+      "aresOrion": "0x86D317FE"
+    },
+    "kits": {
+      "aresOrion": "0xB60475A5"
+    },
+    "seasons": {
+      "ARES": 2
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x2C19F1CC",
+    "teamIdStr": "0x2C19F1CC",
+    "name": "École Polaris",
+    "displayName": "École Polaris",
+    "name_FR": "École Polaris",
+    "name_EN": "Polestar Academy",
+    "name_JA": "星章学園",
+    "binderTeamOrderType": 117,
+    "emblems": {
+      "aresOrion": "0xC3E245EA"
+    },
+    "kits": {
+      "aresOrion": "0xA3542F7A"
+    },
+    "seasons": {
+      "ARES": 3
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x34977E46",
+    "teamIdStr": "0x34977E46",
+    "name": "Collège du Bastion",
+    "displayName": "Collège du Bastion",
+    "name_FR": "Collège du Bastion",
+    "name_EN": "Rampart Junior High",
+    "name_JA": "美濃道三中",
+    "binderTeamOrderType": 118,
+    "emblems": {
+      "aresOrion": "0x2A81E0DF"
+    },
+    "kits": {
+      "aresOrion": "0x559D1F1F"
+    },
+    "seasons": {
+      "ARES": 4
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x7131F00D",
+    "teamIdStr": "0x7131F00D",
+    "name": "Alia Academy",
+    "displayName": "Alia Academy",
+    "name_FR": "Alia Academy",
+    "name_EN": "Alia Academy",
+    "name_JA": "永世学園",
+    "binderTeamOrderType": 119,
+    "emblems": {
+      "aresOrion": "0x34F71587"
+    },
+    "kits": {
+      "aresOrion": "0xE7FF78F9"
+    },
+    "seasons": {
+      "ARES": 10
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xF59FCE21",
+    "teamIdStr": "0xF59FCE21",
+    "name": "Collège Lambda",
+    "displayName": "Collège Lambda",
+    "name_FR": "Collège Lambda",
+    "name_EN": "Everytown",
+    "name_JA": "利根川東泉中",
+    "binderTeamOrderType": 120,
+    "emblems": {
+      "aresOrion": "0x43F02511"
+    },
+    "kits": {
+      "aresOrion": "0x4FA300FF"
+    },
+    "seasons": {
+      "ARES": 11
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x27CAEF44",
+    "teamIdStr": "0x27CAEF44",
+    "name": "Collège Sélène",
+    "displayName": "Collège Sélène",
+    "name_FR": "Collège Sélène",
+    "name_EN": "Lunar Prime Academy",
+    "name_JA": "王帝月ノ宮中",
+    "binderTeamOrderType": 121,
+    "emblems": {
+      "aresOrion": "0xB4E5757C"
+    },
+    "kits": {
+      "aresOrion": "0x6C8790DE"
+    },
+    "seasons": {
+      "ARES": 12
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xF0086DA2",
+    "teamIdStr": "0xF0086DA2",
+    "name": "Barcelona Orb",
+    "displayName": "Barcelona Orb",
+    "name_FR": "Barcelona Orb",
+    "name_EN": "Barcelona Orb",
+    "name_JA": "バルセロナ・オーブ",
+    "binderTeamOrderType": 122,
+    "emblems": {
+      "aresOrion": "0x3A2C9DB5"
+    },
+    "kits": {
+      "aresOrion": "0xBB089E51"
+    },
+    "seasons": {
+      "ARES": 13
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x8B320237",
+    "teamIdStr": "0x8B320237",
+    "name": "Taureaux enragés",
+    "displayName": "Taureaux enragés",
+    "name_FR": "Taureaux enragés",
+    "name_EN": "Raging Bulls",
+    "name_JA": "レッドバイソン",
+    "binderTeamOrderType": 123,
+    "emblems": {
+      "aresOrion": "0x41B2D23B"
+    },
+    "kits": {
+      "aresOrion": "0x7538A87F"
+    },
+    "seasons": {
+      "ORION": 2
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x65E98C32",
+    "teamIdStr": "0x65E98C32",
+    "name": "Anges déchus",
+    "displayName": "Anges déchus",
+    "name_FR": "Anges déchus",
+    "name_EN": "Fallen Angels",
+    "name_JA": "シャイニングサタンズ",
+    "binderTeamOrderType": 124,
+    "emblems": {
+      "aresOrion": "0x36B5E2AD"
+    },
+    "kits": {
+      "aresOrion": "0xE5E12969"
+    },
+    "seasons": {
+      "ORION": 3
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x07C063E6",
+    "teamIdStr": "0x07C063E6",
+    "name": "Danseurs éternels",
+    "displayName": "Danseurs éternels",
+    "name_FR": "Danseurs éternels",
+    "name_EN": "Eternal Dancers",
+    "name_JA": "エターナルダンサーズ",
+    "binderTeamOrderType": 125,
+    "emblems": {
+      "aresOrion": "0xA8D1770E"
+    },
+    "kits": {
+      "aresOrion": "0x19B00A61"
+    },
+    "seasons": {
+      "ORION": 4
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xDEA9DE01",
+    "teamIdStr": "0xDEA9DE01",
+    "name": "Phénix d'Arabie",
+    "displayName": "Phénix d'Arabie",
+    "name_FR": "Phénix d'Arabie",
+    "name_EN": "Arabian Firebirds",
+    "name_JA": "アラブの火の鳥軍団",
+    "binderTeamOrderType": 126,
+    "emblems": {
+      "aresOrion": "0xDFD64798"
+    },
+    "kits": {
+      "aresOrion": "0xD0AAC431"
+    },
+    "seasons": {
+      "ORION": 5
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x38D92EF6",
+    "teamIdStr": "0x38D92EF6",
+    "name": "Acrobates vengeurs",
+    "displayName": "Acrobates vengeurs",
+    "name_FR": "Acrobates vengeurs",
+    "name_EN": "Avenging Acrobats",
+    "name_JA": "足球雑技団",
+    "binderTeamOrderType": 127,
+    "emblems": {
+      "aresOrion": "0x46DF1622"
+    },
+    "kits": {
+      "aresOrion": "0xDD3EA19C"
+    },
+    "seasons": {
+      "ORION": 6
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x1C84A2B2",
+    "teamIdStr": "0x1C84A2B2",
+    "name": "Los Invencibles",
+    "displayName": "Los Invencibles",
+    "name_FR": "Los Invencibles",
+    "name_EN": "Los Invencibles",
+    "name_JA": "無敵のジャイアント",
+    "binderTeamOrderType": 128,
+    "emblems": {
+      "aresOrion": "0x31D826B4"
+    },
+    "kits": {
+      "aresOrion": "0xA5795CD0"
+    },
+    "seasons": {
+      "ORION": 7
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x358CFCC8",
+    "teamIdStr": "0x358CFCC8",
+    "name": "Navy invaders",
+    "displayName": "Navy invaders",
+    "name_FR": "Navy invaders",
+    "name_EN": "Ace Invaders",
+    "name_JA": "ネイビー・インベーダー",
+    "binderTeamOrderType": 129,
+    "emblems": {
+      "aresOrion": "0xA1673B25"
+    },
+    "kits": {
+      "aresOrion": "0x3783EE34"
+    },
+    "seasons": {
+      "ORION": 8
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x23906EBC",
+    "teamIdStr": "0x23906EBC",
+    "name": "Perfect Spark",
+    "displayName": "Perfect Spark",
+    "name_FR": "Perfect Spark",
+    "name_EN": "Pitch Perfectionists",
+    "name_JA": "パーフェクトスパーク",
+    "binderTeamOrderType": 130,
+    "emblems": {
+      "aresOrion": "0xD6600BB3"
+    },
+    "kits": {
+      "aresOrion": "0x09FA75F8"
+    },
+    "seasons": {
+      "ORION": 9
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x831F6CD4",
+    "teamIdStr": "0x831F6CD4",
+    "name": "Les Embassableurs",
+    "displayName": "Les Embassableurs",
+    "name_FR": "Les Embassableurs",
+    "name_EN": "The Sambassadors",
+    "name_JA": "オーレ・デ・サンバ",
+    "binderTeamOrderType": 131,
+    "emblems": {
+      "aresOrion": "0xB6A78256"
+    },
+    "kits": {
+      "aresOrion": "0x18DFF179"
+    },
+    "seasons": {
+      "ORION": 10
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x09CBB92C",
+    "teamIdStr": "0x09CBB92C",
+    "name": "Gardiens de la Reine",
+    "displayName": "Gardiens de la Reine",
+    "name_FR": "Gardiens de la Reine",
+    "name_EN": "Guardians of the Queen",
+    "name_JA": "ガーディアンズオブクイーン",
+    "binderTeamOrderType": 132,
+    "emblems": {
+      "aresOrion": "0xC1A0B2C0"
+    },
+    "kits": {
+      "aresOrion": "0x7CC937DE"
+    },
+    "seasons": {
+      "ORION": 11
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x9E96B18A",
+    "teamIdStr": "0x9E96B18A",
+    "name": "Champions d'Orion",
+    "displayName": "Champions d'Orion",
+    "name_FR": "Champions d'Orion",
+    "name_EN": "Orion All-Stars",
+    "name_JA": "シャドウ・オブ・オリオン",
+    "binderTeamOrderType": 133,
+    "emblems": {
+      "aresOrion": "0x58A9E37A"
+    },
+    "kits": {
+      "aresOrion": "0xBC013A12"
+    },
+    "seasons": {
+      "ORION": 12
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x32308801",
+    "teamIdStr": "0x32308801",
+    "name": "Colline verte",
+    "displayName": "Colline verte",
+    "name_FR": "Colline verte",
+    "name_EN": "Green Hill",
+    "name_JA": "緑ヶ丘中",
+    "binderTeamOrderType": 134,
+    "emblems": {
+      "aresOrion": "0x339AD19E"
+    },
+    "kits": {
+      "aresOrion": "0xC84223ED"
+    },
+    "seasons": {
+      "ARES": 14
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xCD92B742",
+    "teamIdStr": "0xCD92B742",
+    "name": "Licornes paillétoilées",
+    "displayName": "Licornes paillétoilées",
+    "name_FR": "Licornes paillétoilées",
+    "name_EN": "Star-Spangled Unicorns",
+    "name_JA": "スターユニコーン",
+    "binderTeamOrderType": 135,
+    "emblems": {
+      "aresOrion": "0x2FAED3EC"
+    },
+    "kits": {
+      "aresOrion": "0xC8A267B9"
+    },
+    "seasons": {
+      "ORION": 14
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xC05A9FA9",
+    "teamIdStr": "0xC05A9FA9",
+    "name": "NAGUMOHARA",
+    "displayName": "NAGUMOHARA",
+    "name_FR": "NAGUMOHARA",
+    "name_EN": "NAGUMOHARA",
+    "name_JA": "南雲原中",
+    "binderTeamOrderType": 136,
+    "emblems": {
+      "v": "0x1EF73255"
+    },
+    "kits": {
+      "v": "0x7E51DF9E"
+    },
+    "seasons": {
+      "V": 1
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x17B5C835",
+    "teamIdStr": "0x17B5C835",
+    "name": "West Manor",
+    "displayName": "West Manor",
+    "name_FR": "West Manor",
+    "name_EN": "West Manor",
+    "name_JA": "西ノ宮中",
+    "binderTeamOrderType": 137,
+    "emblems": {
+      "v": "0x199AF64C"
+    },
+    "kits": {
+      "v": "0x4982956E"
+    },
+    "seasons": {
+      "V": 2
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x8CE2D311",
+    "teamIdStr": "0x8CE2D311",
+    "name": "Northbright",
+    "displayName": "Northbright",
+    "name_FR": "Northbright",
+    "name_EN": "Northbright",
+    "name_JA": "北陽学園",
+    "binderTeamOrderType": 138,
+    "emblems": {
+      "v": "0xF0F95379"
+    },
+    "kits": {
+      "v": "0x6B110260"
+    },
+    "seasons": {
+      "V": 3
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xF3955041",
+    "teamIdStr": "0xF3955041",
+    "name": "Eastwind",
+    "displayName": "Eastwind",
+    "name_FR": "Eastwind",
+    "name_EN": "Eastwind",
+    "name_JA": "東風異国館",
+    "binderTeamOrderType": 139,
+    "emblems": {
+      "v": "0x8093A7F6"
+    },
+    "kits": {
+      "v": "0xBF00A7A0"
+    },
+    "seasons": {
+      "V": 4
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x9CB8C543",
+    "teamIdStr": "0x9CB8C543",
+    "name": "Stormridge",
+    "displayName": "Stormridge",
+    "name_FR": "Stormridge",
+    "name_EN": "Stormridge",
+    "name_JA": "京前嵐山中",
+    "binderTeamOrderType": 140,
+    "emblems": {
+      "v": "0xF7949760"
+    },
+    "kits": {
+      "v": "0x12758922"
+    },
+    "seasons": {
+      "V": 5
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x33662B61",
+    "teamIdStr": "0x33662B61",
+    "name": "Solaria-Zeus",
+    "displayName": "Solaria-Zeus",
+    "name_FR": "Solaria-Zeus",
+    "name_EN": "Solaria-Zeus",
+    "name_JA": "天照・世宇子中",
+    "binderTeamOrderType": 141,
+    "emblems": {
+      "v": "0x0081C70D"
+    },
+    "kits": {
+      "v": "0x5B4A7FCC"
+    },
+    "seasons": {
+      "V": 8
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x777DDE3D",
+    "teamIdStr": "0x777DDE3D",
+    "name": "Commerçants de NAGUMOHARA",
+    "displayName": "Commerçants de NAGUMOHARA",
+    "name_FR": "Commerçants de NAGUMOHARA",
+    "name_EN": "NAGUMOHARA Shopkeepers",
+    "name_JA": "南雲原ショップキーパーズ",
+    "binderTeamOrderType": 142,
+    "emblems": {
+      "v": "0x9EE552AE"
+    },
+    "kits": {
+      "v": "0x2A44CB89"
+    },
+    "seasons": {
+      "V": 9
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xBA905CA9",
+    "teamIdStr": "0xBA905CA9",
+    "name": "FC Mouettes",
+    "displayName": "FC Mouettes",
+    "name_FR": "FC Mouettes",
+    "name_EN": "Seagull FC",
+    "name_JA": "海カモメサッカークラブ",
+    "binderTeamOrderType": 143,
+    "emblems": {
+      "v": "0x7786F79B"
+    },
+    "kits": {
+      "v": "0x7D6011AF"
+    },
+    "seasons": {
+      "V": 10
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x850AA0D8",
+    "teamIdStr": "0x850AA0D8",
+    "name": "Twinford",
+    "displayName": "Twinford",
+    "name_FR": "Twinford",
+    "name_EN": "Twinford",
+    "name_JA": "二戸川中",
+    "binderTeamOrderType": 144,
+    "emblems": {
+      "v": "0x102CBA67"
+    },
+    "kits": {
+      "v": "0x506FA2ED"
+    },
+    "seasons": {
+      "V": 11
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x7EE26DDE",
+    "teamIdStr": "0x7EE26DDE",
+    "name": "Orchid",
+    "displayName": "Orchid",
+    "name_FR": "Orchid",
+    "name_EN": "Orchid Academy",
+    "name_JA": "銘蘭学院",
+    "binderTeamOrderType": 145,
+    "emblems": {
+      "v": "0x07EC0314"
+    },
+    "kits": {
+      "v": "0x351E1BD0"
+    },
+    "seasons": {
+      "V": 12
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xCB568ADA",
+    "teamIdStr": "0xCB568ADA",
+    "name": "Crosswind-Fauxshore",
+    "displayName": "Crosswind-Fauxshore",
+    "name_FR": "Crosswind-Fauxshore",
+    "name_EN": "Crosswind-Fauxshore",
+    "name_JA": "伐天・陽花戸中",
+    "binderTeamOrderType": 146,
+    "emblems": {
+      "v": "0x70EB3382"
+    },
+    "kits": {
+      "v": "0x133240DC"
+    },
+    "seasons": {
+      "V": 13
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x8A919A45",
+    "teamIdStr": "0x8A919A45",
+    "name": "Tireurs des allées sombres",
+    "displayName": "Tireurs des allées sombres",
+    "name_FR": "Tireurs des allées sombres",
+    "name_EN": "Back Alley Kickers",
+    "name_JA": "路地裏バックキックス",
+    "binderTeamOrderType": 147,
+    "emblems": {
+      "v": "0xE9E26238"
+    },
+    "kits": {
+      "v": "0x63BC4172"
+    },
+    "seasons": {
+      "V": 14
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x4901A393",
+    "teamIdStr": "0x4901A393",
+    "name": "AI Academy",
+    "displayName": "AI Academy",
+    "name_FR": "AI Academy",
+    "name_EN": "AI Academy",
+    "name_JA": "英愛学園",
+    "binderTeamOrderType": 148,
+    "emblems": {
+      "v": "0x7E30BBB0"
+    },
+    "kits": {
+      "v": "0x89E6EF4E"
+    },
+    "seasons": {
+      "V": 15
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x03E25AFE",
+    "teamIdStr": "0x03E25AFE",
+    "name": "Nobles visionnaires",
+    "displayName": "Nobles visionnaires",
+    "name_FR": "Nobles visionnaires",
+    "name_EN": "Noble Insight",
+    "name_JA": "偉仁銘文堂",
+    "binderTeamOrderType": 149,
+    "emblems": {
+      "v": "0x998896B7"
+    },
+    "kits": {
+      "v": "0x4F77AD1F"
+    },
+    "seasons": {
+      "V": 16
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x671154D4",
+    "teamIdStr": "0x671154D4",
+    "name": "Lawcrest",
+    "displayName": "Lawcrest",
+    "name_FR": "Lawcrest",
+    "name_EN": "Lawcrest",
+    "name_JA": "法令館中",
+    "binderTeamOrderType": 150,
+    "emblems": {
+      "v": "0xEE8FA621"
+    },
+    "kits": {
+      "v": "0xA0E119D2"
+    },
+    "seasons": {
+      "V": 17
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x563768CB",
+    "teamIdStr": "0x563768CB",
+    "name": "Équipe du club de baseball",
+    "displayName": "Équipe du club de baseball",
+    "name_FR": "Équipe du club de baseball",
+    "name_EN": "Baseball Club Team",
+    "name_JA": "野球部チーム",
+    "binderTeamOrderType": 151,
+    "emblems": {
+      "v": "0x6E9DC6DA"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 29
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x3D12A22F",
+    "teamIdStr": "0x3D12A22F",
+    "name": "Club de muscu",
+    "displayName": "Club de muscu",
+    "name_FR": "Club de muscu",
+    "name_EN": "Bodybuilding Club",
+    "name_JA": "ボディビルダー部",
+    "binderTeamOrderType": 152,
+    "emblems": {
+      "v": "0xC85754E7"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 39
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xE9FDABCF",
+    "teamIdStr": "0xE9FDABCF",
+    "name": "Club de sumo",
+    "displayName": "Club de sumo",
+    "name_FR": "Club de sumo",
+    "name_EN": "Sumo Club",
+    "name_JA": "相撲部",
+    "binderTeamOrderType": 153,
+    "emblems": {
+      "v": "0x382FC093"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 35
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x88DA547B",
+    "teamIdStr": "0x88DA547B",
+    "name": "Club de danse",
+    "displayName": "Club de danse",
+    "name_FR": "Club de danse",
+    "name_EN": "Dance Club",
+    "name_JA": "ダンス部",
+    "binderTeamOrderType": 154,
+    "emblems": {
+      "v": "0xA64B5530"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 30
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x6DFB6EF0",
+    "teamIdStr": "0x6DFB6EF0",
+    "name": "Club d'astronomie",
+    "displayName": "Club d'astronomie",
+    "name_FR": "Club d'astronomie",
+    "name_EN": "Space Laboratory",
+    "name_JA": "宇宙研究会",
+    "binderTeamOrderType": 155,
+    "emblems": {
+      "v": "0x7D1E9287"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 56
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xE6C8EC1F",
+    "teamIdStr": "0xE6C8EC1F",
+    "name": "Club de handball",
+    "displayName": "Club de handball",
+    "name_FR": "Club de handball",
+    "name_EN": "Handball Club",
+    "name_JA": "ハンドボール部",
+    "binderTeamOrderType": 156,
+    "emblems": {
+      "v": "0x3F42048A"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 31
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x0F29F1FE",
+    "teamIdStr": "0x0F29F1FE",
+    "name": "Club d'informatique",
+    "displayName": "Club d'informatique",
+    "name_FR": "Club d'informatique",
+    "name_EN": "Computer Club",
+    "name_JA": "電子計算機部",
+    "binderTeamOrderType": 157,
+    "emblems": {
+      "v": "0xB18BEC43"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 47
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xE312AF0A",
+    "teamIdStr": "0xE312AF0A",
+    "name": "Club de badminton",
+    "displayName": "Club de badminton",
+    "name_FR": "Club de badminton",
+    "name_EN": "Badminton Club",
+    "name_JA": "バドミントン部",
+    "binderTeamOrderType": 158,
+    "emblems": {
+      "v": "0x4845341C"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 32
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x1DB7AD3C",
+    "teamIdStr": "0x1DB7AD3C",
+    "name": "Association des Quiz",
+    "displayName": "Association des Quiz",
+    "name_FR": "Association des Quiz",
+    "name_EN": "Quiz Society",
+    "name_JA": "クイズ研究会",
+    "binderTeamOrderType": 159,
+    "emblems": {
+      "v": "0xE37A0724"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 48
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x5F641620",
+    "teamIdStr": "0x5F641620",
+    "name": "Club de surf",
+    "displayName": "Club de surf",
+    "name_FR": "Club de surf",
+    "name_EN": "Surf Club",
+    "name_JA": "サーフィン部",
+    "binderTeamOrderType": 160,
+    "emblems": {
+      "v": "0xD621A1BF"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 33
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x00264809",
+    "teamIdStr": "0x00264809",
+    "name": "Club de Karuta",
+    "displayName": "Club de Karuta",
+    "name_FR": "Club de Karuta",
+    "name_EN": "Karuta Club",
+    "name_JA": "百人一首クラブ",
+    "binderTeamOrderType": 161,
+    "emblems": {
+      "v": "0x947D37B2"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 49
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xD671B99C",
+    "teamIdStr": "0xD671B99C",
+    "name": "Club de go & shogi",
+    "displayName": "Club de go & shogi",
+    "name_FR": "Club de go & shogi",
+    "name_EN": "Go & Shogi Club",
+    "name_JA": "囲碁・将棋部",
+    "binderTeamOrderType": 162,
+    "emblems": {
+      "v": "0x0D746608"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 50
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x9E6A64D6",
+    "teamIdStr": "0x9E6A64D6",
+    "name": "Club de rugby",
+    "displayName": "Club de rugby",
+    "name_FR": "Club de rugby",
+    "name_EN": "Rugby Club",
+    "name_JA": "ラグビー部",
+    "binderTeamOrderType": 163,
+    "emblems": {
+      "v": "0xA1269129"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 34
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x0F190128",
+    "teamIdStr": "0x0F190128",
+    "name": "Club de théâtre",
+    "displayName": "Club de théâtre",
+    "name_FR": "Club de théâtre",
+    "name_EN": "Drama Club",
+    "name_JA": "演劇部",
+    "binderTeamOrderType": 164,
+    "emblems": {
+      "v": "0x7A73569E"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 51
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x40014312",
+    "teamIdStr": "0x40014312",
+    "name": "Club de kendo",
+    "displayName": "Club de kendo",
+    "name_FR": "Club de kendo",
+    "name_EN": "Kendo Club",
+    "name_JA": "剣道部",
+    "binderTeamOrderType": 165,
+    "emblems": {
+      "v": "0x4F28F005"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 36
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x72A9577D",
+    "teamIdStr": "0x72A9577D",
+    "name": "Association des magiciens",
+    "displayName": "Association des magiciens",
+    "name_FR": "Association des magiciens",
+    "name_EN": "Magic Society",
+    "name_JA": "マジック研究会",
+    "binderTeamOrderType": 166,
+    "emblems": {
+      "v": "0xE417C33D"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 52
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x76A158A3",
+    "teamIdStr": "0x76A158A3",
+    "name": "Club de danse japonaise",
+    "displayName": "Club de danse japonaise",
+    "name_FR": "Club de danse japonaise",
+    "name_EN": "Folk Dance Club",
+    "name_JA": "日本舞踊部",
+    "binderTeamOrderType": 167,
+    "emblems": {
+      "v": "0x9310F3AB"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 54
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x46D745B4",
+    "teamIdStr": "0x46D745B4",
+    "name": "Club d'art",
+    "displayName": "Club d'art",
+    "name_FR": "Club d'art",
+    "name_EN": "Art Club",
+    "name_JA": "美術部",
+    "binderTeamOrderType": 168,
+    "emblems": {
+      "v": "0xEDA18F16"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 53
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x7C061A36",
+    "teamIdStr": "0x7C061A36",
+    "name": "Club de judo",
+    "displayName": "Club de judo",
+    "name_FR": "Club de judo",
+    "name_EN": "Judo Club",
+    "name_JA": "柔道部",
+    "binderTeamOrderType": 169,
+    "emblems": {
+      "v": "0xDF97ED94"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 37
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x8CB93B98",
+    "teamIdStr": "0x8CB93B98",
+    "name": "Club de la voie du thé",
+    "displayName": "Club de la voie du thé",
+    "name_FR": "Club de la voie du thé",
+    "name_EN": "Tea Ceremony Club",
+    "name_JA": "茶道部",
+    "binderTeamOrderType": 170,
+    "emblems": {
+      "v": "0x0A19A211"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 55
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x209B4BD1",
+    "teamIdStr": "0x209B4BD1",
+    "name": "Club d'arts martiaux",
+    "displayName": "Club d'arts martiaux",
+    "name_FR": "Club d'arts martiaux",
+    "name_EN": "Martial Arts Club",
+    "name_JA": "格闘技部",
+    "binderTeamOrderType": 171,
+    "emblems": {
+      "v": "0xA890DD02"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 38
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x6F2438EB",
+    "teamIdStr": "0x6F2438EB",
+    "name": "Club de volley",
+    "displayName": "Club de volley",
+    "name_FR": "Club de volley",
+    "name_EN": "Volleyball Club",
+    "name_JA": "バレーボール部",
+    "binderTeamOrderType": 172,
+    "emblems": {
+      "v": "0xBF506471"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 40
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x1B1119B4",
+    "teamIdStr": "0x1B1119B4",
+    "name": "Club de manga",
+    "displayName": "Club de manga",
+    "name_FR": "Club de manga",
+    "name_EN": "Manga Club",
+    "name_JA": "漫画研究会",
+    "binderTeamOrderType": 173,
+    "emblems": {
+      "v": "0x6405A3C6"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 57
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xB9179641",
+    "teamIdStr": "0xB9179641",
+    "name": "Club de ping-pong",
+    "displayName": "Club de ping-pong",
+    "name_FR": "Club de ping-pong",
+    "name_EN": "Table Tennis Club",
+    "name_JA": "卓球部",
+    "binderTeamOrderType": 174,
+    "emblems": {
+      "v": "0x265935CB"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 41
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xD323886E",
+    "teamIdStr": "0xD323886E",
+    "name": "Association occulte",
+    "displayName": "Association occulte",
+    "name_FR": "Association occulte",
+    "name_EN": "Occult Society",
+    "name_JA": "オカルト研究会",
+    "binderTeamOrderType": 175,
+    "emblems": {
+      "v": "0xFA613665"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 59
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xD54F63B7",
+    "teamIdStr": "0xD54F63B7",
+    "name": "Club d'athlétisme",
+    "displayName": "Club d'athlétisme",
+    "name_FR": "Club d'athlétisme",
+    "name_EN": "Track and Field Club",
+    "name_JA": "陸上部",
+    "binderTeamOrderType": 176,
+    "emblems": {
+      "v": "0xCF3A90FE"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 43
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x78B08697",
+    "teamIdStr": "0x78B08697",
+    "name": "Club de basket",
+    "displayName": "Club de basket",
+    "name_FR": "Club de basket",
+    "name_EN": "Basketball Club",
+    "name_JA": "バスケットボール部",
+    "binderTeamOrderType": 177,
+    "emblems": {
+      "v": "0xB83DA068"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 44
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xD2477F9B",
+    "teamIdStr": "0xD2477F9B",
+    "name": "Club de métal",
+    "displayName": "Club de métal",
+    "name_FR": "Club de métal",
+    "name_EN": "Metal Club",
+    "name_JA": "メタル研究会",
+    "binderTeamOrderType": 178,
+    "emblems": {
+      "v": "0x8A0BC2EA"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 64
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x7209B6BD",
+    "teamIdStr": "0x7209B6BD",
+    "name": "Club de natation",
+    "displayName": "Club de natation",
+    "name_FR": "Club de natation",
+    "name_EN": "Swimming Club",
+    "name_JA": "水泳部",
+    "binderTeamOrderType": 179,
+    "emblems": {
+      "v": "0x2134F1D2"
+    },
+    "kits": {
+      "v": "0x5C0C63E0"
+    },
+    "seasons": {
+      "V": 45
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x71093112",
+    "teamIdStr": "0x71093112",
+    "name": "Club des idoles",
+    "displayName": "Club des idoles",
+    "name_FR": "Club des idoles",
+    "name_EN": "Idol-Lovers Club",
+    "name_JA": "アイドル同好会",
+    "binderTeamOrderType": 180,
+    "emblems": {
+      "v": "0x9AA6BF80"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 58
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x17F11AF8",
+    "teamIdStr": "0x17F11AF8",
+    "name": "Club de tennis",
+    "displayName": "Club de tennis",
+    "name_FR": "Club de tennis",
+    "name_EN": "Tennis Club",
+    "name_JA": "テニス部",
+    "binderTeamOrderType": 181,
+    "emblems": {
+      "v": "0x515E055D"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 42
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x83F3E1C8",
+    "teamIdStr": "0x83F3E1C8",
+    "name": "Club d'esport",
+    "displayName": "Club d'esport",
+    "name_FR": "Club d'esport",
+    "name_EN": "Esports Club",
+    "name_JA": "ｅスポーツ部",
+    "binderTeamOrderType": 182,
+    "emblems": {
+      "v": "0xC68CDCD5"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 66
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xBA4F5111",
+    "teamIdStr": "0xBA4F5111",
+    "name": "Club de water-polo",
+    "displayName": "Club de water-polo",
+    "name_FR": "Club de water-polo",
+    "name_EN": "Water Polo Club",
+    "name_JA": "水球部",
+    "binderTeamOrderType": 183,
+    "emblems": {
+      "v": "0x5633C144"
+    },
+    "kits": {
+      "v": "0x5C0C63E0"
+    },
+    "seasons": {
+      "V": 46
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x0438BDE5",
+    "teamIdStr": "0x0438BDE5",
+    "name": "Orchestre du ven",
+    "displayName": "Orchestre du ven",
+    "name_FR": "Orchestre du ven",
+    "name_EN": "Wind Orchestra Club",
+    "name_JA": "吹奏楽部",
+    "binderTeamOrderType": 184,
+    "emblems": {
+      "v": "0x8D6606F3"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 60
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xB0AC94AA",
+    "teamIdStr": "0xB0AC94AA",
+    "name": "Chorale",
+    "displayName": "Chorale",
+    "name_FR": "Chorale",
+    "name_EN": "Choir Club",
+    "name_JA": "合唱部",
+    "binderTeamOrderType": 185,
+    "emblems": {
+      "v": "0x146F5749"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 61
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x59B13EBB",
+    "teamIdStr": "0x59B13EBB",
+    "name": "Club de musique moderne",
+    "displayName": "Club de musique moderne",
+    "name_FR": "Club de musique moderne",
+    "name_EN": "Modern Music Club",
+    "name_JA": "軽音楽部",
+    "binderTeamOrderType": 186,
+    "emblems": {
+      "v": "0x636867DF"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 62
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xDE7472D7",
+    "teamIdStr": "0xDE7472D7",
+    "name": "Club de journalisme",
+    "displayName": "Club de journalisme",
+    "name_FR": "Club de journalisme",
+    "name_EN": "Newspaper Club",
+    "name_JA": "新聞部",
+    "binderTeamOrderType": 187,
+    "emblems": {
+      "v": "0xFD0CF27C"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 63
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x60C69BEF",
+    "teamIdStr": "0x60C69BEF",
+    "name": "Club de biologie marine",
+    "displayName": "Club de biologie marine",
+    "name_FR": "Club de biologie marine",
+    "name_EN": "Marine Biology Club",
+    "name_JA": "海洋生物部",
+    "binderTeamOrderType": 188,
+    "emblems": {
+      "v": "0x13029350"
+    },
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 65
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x29AE2318",
+    "teamIdStr": "0x29AE2318",
+    "name": "Platos",
+    "displayName": "Platos",
+    "name_FR": "Platos",
+    "name_EN": "Platos",
+    "name_JA": "プラトス",
+    "binderTeamOrderType": 189,
+    "emblems": {
+      "v": "0x2CC150D7"
+    },
+    "kits": {
+      "v": "0xCE5DF269"
+    },
+    "seasons": {
+      "V": 20
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x8E31FCEA",
+    "teamIdStr": "0x8E31FCEA",
+    "name": "Étrangers de ZANARK",
+    "displayName": "Étrangers de ZANARK",
+    "name_FR": "Étrangers de ZANARK",
+    "name_EN": "ZANARK's Outsiders",
+    "name_JA": "ザナーク・ストレンジャーズ",
+    "binderTeamOrderType": 190,
+    "emblems": {
+      "v": "0x2BAC94CE"
+    },
+    "kits": {
+      "v": "0x2FE09427"
+    },
+    "seasons": {
+      "V": 21
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xA0E08773",
+    "teamIdStr": "0xA0E08773",
+    "name": "Gardiens",
+    "displayName": "Gardiens",
+    "name_FR": "Gardiens",
+    "name_EN": "Gatekeepers",
+    "name_JA": "ゲートキーパーズ",
+    "binderTeamOrderType": 191,
+    "emblems": {
+      "v": "0xC2CF31FB"
+    },
+    "kits": {
+      "v": "0xD2B0B4E9"
+    },
+    "seasons": {
+      "V": 22
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x3A873329",
+    "teamIdStr": "0x3A873329",
+    "name": "Destructeurs",
+    "displayName": "Destructeurs",
+    "name_FR": "Destructeurs",
+    "name_EN": "Destroyers",
+    "name_JA": "デストロイヤーズ",
+    "binderTeamOrderType": 193,
+    "emblems": {
+      "v": "0xB5C8016D"
+    },
+    "kits": {
+      "v": "0xD3236651"
+    },
+    "seasons": {
+      "V": 24
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xA1C76AAD",
+    "teamIdStr": "0xA1C76AAD",
+    "name": "Non-affilié",
+    "displayName": "Non-affilié",
+    "name_FR": "Non-affilié",
+    "name_EN": "Unaffiliated",
+    "name_JA": "無所属",
+    "binderTeamOrderType": 194,
+    "emblems": {},
+    "kits": {
+      "ie": "0xB0842F13"
+    },
+    "seasons": {
+      "IE1": 160
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x38CE3B17",
+    "teamIdStr": "0x38CE3B17",
+    "name": "Non-affilié",
+    "displayName": "Non-affilié",
+    "name_FR": "Non-affilié",
+    "name_EN": "Unaffiliated",
+    "name_JA": "無所属",
+    "binderTeamOrderType": 195,
+    "emblems": {},
+    "kits": {
+      "ie": "0xB0842F13"
+    },
+    "seasons": {
+      "IE2": 160
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x4FC90B81",
+    "teamIdStr": "0x4FC90B81",
+    "name": "Non-affilié",
+    "displayName": "Non-affilié",
+    "name_FR": "Non-affilié",
+    "name_EN": "Unaffiliated",
+    "name_JA": "無所属",
+    "binderTeamOrderType": 196,
+    "emblems": {},
+    "kits": {
+      "ie": "0xB0842F13"
+    },
+    "seasons": {
+      "IE3": 160
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x51B6AF2D",
+    "teamIdStr": "0x51B6AF2D",
+    "name": "Non-affilié",
+    "displayName": "Non-affilié",
+    "name_FR": "Non-affilié",
+    "name_EN": "Unaffiliated",
+    "name_JA": "無所属",
+    "binderTeamOrderType": 197,
+    "emblems": {},
+    "kits": {
+      "go": "0xB0842F13"
+    },
+    "seasons": {
+      "GO1": 160
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xC8BFFE97",
+    "teamIdStr": "0xC8BFFE97",
+    "name": "Non-affilié",
+    "displayName": "Non-affilié",
+    "name_FR": "Non-affilié",
+    "name_EN": "Unaffiliated",
+    "name_JA": "無所属",
+    "binderTeamOrderType": 198,
+    "emblems": {},
+    "kits": {
+      "go": "0xB0842F13"
+    },
+    "seasons": {
+      "GO2": 160
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xBFB8CE01",
+    "teamIdStr": "0xBFB8CE01",
+    "name": "Non-affilié",
+    "displayName": "Non-affilié",
+    "name_FR": "Non-affilié",
+    "name_EN": "Unaffiliated",
+    "name_JA": "無所属",
+    "binderTeamOrderType": 199,
+    "emblems": {},
+    "kits": {
+      "go": "0xB0842F13"
+    },
+    "seasons": {
+      "GO3": 160
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xA4E3DC21",
+    "teamIdStr": "0xA4E3DC21",
+    "name": "Non-affilié",
+    "displayName": "Non-affilié",
+    "name_FR": "Non-affilié",
+    "name_EN": "Unaffiliated",
+    "name_JA": "無所属",
+    "binderTeamOrderType": 200,
+    "emblems": {},
+    "kits": {
+      "aresOrion": "0xB0842F13"
+    },
+    "seasons": {
+      "ARES": 160,
+      "ORION": 160
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xC9EE5B08",
+    "teamIdStr": "0xC9EE5B08",
+    "name": "Non-affilié",
+    "displayName": "Non-affilié",
+    "name_FR": "Non-affilié",
+    "name_EN": "Unaffiliated",
+    "name_JA": "無所属",
+    "binderTeamOrderType": 201,
+    "emblems": {},
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 160
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x2B7F33B4",
+    "teamIdStr": "0x2B7F33B4",
+    "name": "Personnage secondaire",
+    "displayName": "Personnage secondaire",
+    "name_FR": "Personnage secondaire",
+    "name_EN": "Sub Character",
+    "name_JA": "サブキャラクター",
+    "binderTeamOrderType": 202,
+    "emblems": {},
+    "kits": {
+      "ie": "0xB0842F13",
+      "go": "0xB0842F13",
+      "aresOrion": "0xB0842F13",
+      "v": "0xB0842F13"
+    },
+    "seasons": {
+      "IE1": 180,
+      "IE2": 180,
+      "IE3": 180,
+      "GO1": 180,
+      "GO2": 180,
+      "GO3": 180,
+      "ARES": 180,
+      "ORION": 180,
+      "V": 180
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x0A254A47",
+    "teamIdStr": "0x0A254A47",
+    "name": "Molosses écarlates",
+    "displayName": "Molosses écarlates",
+    "name_FR": "Molosses écarlates",
+    "name_EN": "The Crimson Hounds",
+    "name_JA": "クリム・ハウンド",
+    "binderTeamOrderType": 203,
+    "emblems": {
+      "go": "0xAEA0F36F"
+    },
+    "kits": {
+      "go": "0xB0842F13"
+    },
+    "seasons": {
+      "GO2": 24
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x191FAB06",
+    "teamIdStr": "0x191FAB06",
+    "name": "Belettes des neiges",
+    "displayName": "Belettes des neiges",
+    "name_FR": "Belettes des neiges",
+    "name_EN": "The Snow Weasels",
+    "name_JA": "スノウ・ウィーゼル",
+    "binderTeamOrderType": 204,
+    "emblems": {
+      "go": "0xA9CD3776"
+    },
+    "kits": {
+      "go": "0xB0842F13"
+    },
+    "seasons": {
+      "GO2": 25
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xBC1A1496",
+    "teamIdStr": "0xBC1A1496",
+    "name": "Serpents du crépuscule",
+    "displayName": "Serpents du crépuscule",
+    "name_FR": "Serpents du crépuscule",
+    "name_EN": "The Night Vipers",
+    "name_JA": "ナイト・ヴァイパー",
+    "binderTeamOrderType": 205,
+    "emblems": {
+      "go": "0xD9A7C3F9"
+    },
+    "kits": {
+      "go": "0xB0842F13"
+    },
+    "seasons": {
+      "GO2": 26
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xBD6EF5FD",
+    "teamIdStr": "0xBD6EF5FD",
+    "name": "Ours d'or",
+    "displayName": "Ours d'or",
+    "name_FR": "Ours d'or",
+    "name_EN": "The Golden Bears",
+    "name_JA": "ゴルド・ベア",
+    "binderTeamOrderType": 206,
+    "emblems": {
+      "go": "0x37A9A2D5"
+    },
+    "kits": {
+      "go": "0xB0842F13"
+    },
+    "seasons": {
+      "GO2": 27
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xA357ED35",
+    "teamIdStr": "0xA357ED35",
+    "name": "Oiseaux bleus",
+    "displayName": "Oiseaux bleus",
+    "name_FR": "Oiseaux bleus",
+    "name_EN": "The Aquatic Wings",
+    "name_JA": "アクア・ハーミット",
+    "binderTeamOrderType": 207,
+    "emblems": {
+      "go": "0x40AE9243"
+    },
+    "kits": {
+      "go": "0xB0842F13"
+    },
+    "seasons": {
+      "GO2": 28
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x8E746652",
+    "teamIdStr": "0x8E746652",
+    "name": "Conseil des élèves",
+    "displayName": "Conseil des élèves",
+    "name_FR": "Conseil des élèves",
+    "name_EN": "Student Council",
+    "name_JA": "生徒会",
+    "binderTeamOrderType": 209,
+    "emblems": {},
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 25
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x351E6283",
+    "teamIdStr": "0x351E6283",
+    "name": "Élève du comité de discipline",
+    "displayName": "Élève du comité de discipline",
+    "name_FR": "Élève du comité de discipline",
+    "name_EN": "School Committee",
+    "name_JA": "風紀委員",
+    "binderTeamOrderType": 210,
+    "emblems": {},
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 26
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x844A8D3B",
+    "teamIdStr": "0x844A8D3B",
+    "name": "Élève du comité de propreté",
+    "displayName": "Élève du comité de propreté",
+    "name_FR": "Élève du comité de propreté",
+    "name_EN": "Cleanup Committee Member",
+    "name_JA": "美化委員",
+    "binderTeamOrderType": 211,
+    "emblems": {},
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 27
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xE07FCDA7",
+    "teamIdStr": "0xE07FCDA7",
+    "name": "Crieurs publics",
+    "displayName": "Crieurs publics",
+    "name_FR": "Crieurs publics",
+    "name_EN": "Street Howlers",
+    "name_JA": "ウルフズ＆ドックス",
+    "binderTeamOrderType": 212,
+    "emblems": {},
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 67
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xDA9B47D1",
+    "teamIdStr": "0xDA9B47D1",
+    "name": "Reines",
+    "displayName": "Reines",
+    "name_FR": "Reines",
+    "name_EN": "Queens",
+    "name_JA": "クィーンズ",
+    "binderTeamOrderType": 213,
+    "emblems": {},
+    "kits": {
+      "v": "0xFF773645"
+    },
+    "seasons": {
+      "V": 68
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0x210ED37C",
+    "teamIdStr": "0x210ED37C",
+    "name": "Club des supporters",
+    "displayName": "Club des supporters",
+    "name_FR": "Club des supporters",
+    "name_EN": "Cheerleading Squad",
+    "name_JA": "応援団",
+    "binderTeamOrderType": 214,
+    "emblems": {},
+    "kits": {
+      "v": "0x5BD2D3C2"
+    },
+    "seasons": {
+      "V": 28
+    },
+    "uniforms": []
+  },
+  {
+    "teamId": "0xAACA1EB1",
+    "teamIdStr": "0xAACA1EB1",
+    "name": "0xAACA1EB1",
+    "displayName": "0xAACA1EB1",
+    "binderTeamOrderType": 215,
+    "emblems": {},
+    "kits": {
+      "aresOrion": "0xB4BA7736"
+    },
+    "seasons": {
+      "ORION": 13
+    },
+    "uniforms": []
+  }
+]

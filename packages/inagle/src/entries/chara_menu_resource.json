@@ -1,0 +1,1340 @@
+{
+  "basePath": "#/menu/",
+  "template": {
+    "faceSmall": "200_icon/10_icon_chr/<charaID>",
+    "faceLarge": "200_icon/10_icon_chr/<charaID>_l",
+    "miniChr": "200_icon/16_icon_minichr/<charaID>_dot",
+    "winIcon": "200_icon/25_icon_win06_chr/icon_<charaID>",
+    "coachSmall": "200_icon/10_icon_chr/coach/<charaID>",
+    "coachLarge": "200_icon/10_icon_chr/coach/<charaID>_l",
+    "auraFsSmall": "200_icon/10_icon_chr/aura_fs/<charaID>",
+    "auraFsLarge": "200_icon/10_icon_chr/aura_fs/<charaID>_l",
+    "auraArmedSmall": "200_icon/10_icon_chr/aura_armed/<charaID>",
+    "auraArmedLarge": "200_icon/10_icon_chr/aura_armed/<charaID>_l",
+    "auraMixiSmall": "200_icon/10_icon_chr/aura_mixi/<charaID>",
+    "auraMixiLarge": "200_icon/10_icon_chr/aura_mixi/<charaID>_l",
+    "auraSoulSmall": "200_icon/10_icon_chr/aura_soul/<charaID>",
+    "auraSoulLarge": "200_icon/10_icon_chr/aura_soul/<charaID>_l",
+    "soulEffect": "220_img/soul_effect/ef_<skillID>"
+  },
+  "overrides": [
+    {
+      "id": "0x686BE87E",
+      "name": "0x686BE87E",
+      "resourceId": "0x686BE87E",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/c090101",
+        "faceLarge": "200_icon/10_icon_chr/c090101_l",
+        "miniChr": "200_icon/10_icon_chr/c090101",
+        "winIcon": "200_icon/10_icon_chr/coach/coach01",
+        "coachSmall": "200_icon/10_icon_chr/coach/coach01_l"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/c090101",
+        "Coach": "200_icon/10_icon_chr/coach/coach01_l"
+      }
+    },
+    {
+      "id": "0x1F6CD8E8",
+      "name": "0x1F6CD8E8",
+      "resourceId": "0x1F6CD8E8",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/c090101",
+        "faceLarge": "200_icon/10_icon_chr/c090101_l",
+        "miniChr": "200_icon/10_icon_chr/c090101",
+        "winIcon": "200_icon/10_icon_chr/coach/coach01",
+        "coachSmall": "200_icon/10_icon_chr/coach/coach01_l"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/c090101",
+        "Coach": "200_icon/10_icon_chr/coach/coach01_l"
+      }
+    },
+    {
+      "id": "0x37257569",
+      "name": "0x37257569",
+      "resourceId": "0x37257569",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/coach/coach02_l",
+        "faceLarge": "200_icon/10_icon_chr/coach/coach02_l",
+        "miniChr": "200_icon/10_icon_chr/coach/coach02_l",
+        "winIcon": "200_icon/10_icon_chr/coach/coach02_l",
+        "coachSmall": "200_icon/10_icon_chr/coach/coach02_l"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/coach/coach02_l",
+        "Coach": "200_icon/10_icon_chr/coach/coach02_l"
+      }
+    },
+    {
+      "id": "0x2AC97705",
+      "name": "0x2AC97705",
+      "resourceId": "0x2AC97705",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/coach/coach05_l",
+        "faceLarge": "200_icon/10_icon_chr/coach/coach05_l",
+        "miniChr": "200_icon/10_icon_chr/coach/coach05_l",
+        "winIcon": "200_icon/10_icon_chr/coach/coach05_l",
+        "coachSmall": "200_icon/10_icon_chr/coach/coach05_l"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/coach/coach05_l",
+        "Coach": "200_icon/10_icon_chr/coach/coach05_l"
+      }
+    },
+    {
+      "id": "0x2B461689",
+      "name": "0x2B461689",
+      "resourceId": "0x2B461689",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/coach/coach03_l",
+        "faceLarge": "200_icon/10_icon_chr/coach/coach03_l",
+        "miniChr": "200_icon/10_icon_chr/coach/coach03_l",
+        "winIcon": "200_icon/10_icon_chr/coach/coach03_l",
+        "coachSmall": "200_icon/10_icon_chr/coach/coach03_l"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/coach/coach03_l",
+        "Coach": "200_icon/10_icon_chr/coach/coach03_l"
+      }
+    },
+    {
+      "id": "0xB051348D",
+      "name": "0xB051348D",
+      "resourceId": "0xB051348D",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/coach/coach04_l",
+        "faceLarge": "200_icon/10_icon_chr/coach/coach04_l",
+        "miniChr": "200_icon/10_icon_chr/coach/coach04_l",
+        "winIcon": "200_icon/10_icon_chr/coach/coach04_l",
+        "coachSmall": "200_icon/10_icon_chr/coach/coach04_l"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/coach/coach04_l",
+        "Coach": "200_icon/10_icon_chr/coach/coach04_l"
+      }
+    },
+    {
+      "id": "0xB36172B7",
+      "name": "0xB36172B7",
+      "resourceId": "0xB36172B7",
+      "isTemplate": false,
+      "paths": {},
+      "attributes": {
+        "Face": "",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0xAA7A43F6",
+      "name": "0xAA7A43F6",
+      "resourceId": "0xAA7A43F6",
+      "isTemplate": false,
+      "paths": {},
+      "attributes": {
+        "Face": "",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0xE53BD531",
+      "name": "0xE53BD531",
+      "resourceId": "0xE53BD531",
+      "isTemplate": false,
+      "paths": {},
+      "attributes": {
+        "Face": "",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0xFC20E470",
+      "name": "0xFC20E470",
+      "resourceId": "0xFC20E470",
+      "isTemplate": false,
+      "paths": {},
+      "attributes": {
+        "Face": "",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0xD70DB7B3",
+      "name": "0xD70DB7B3",
+      "resourceId": "0xD70DB7B3",
+      "isTemplate": false,
+      "paths": {},
+      "attributes": {
+        "Face": "",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0xCE1686F2",
+      "name": "0xCE1686F2",
+      "resourceId": "0xCE1686F2",
+      "isTemplate": false,
+      "paths": {},
+      "attributes": {
+        "Face": "",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x498E9A3D",
+      "name": "0x498E9A3D",
+      "resourceId": "0x498E9A3D",
+      "isTemplate": false,
+      "paths": {},
+      "attributes": {
+        "Face": "",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x5095AB7C",
+      "name": "0x5095AB7C",
+      "resourceId": "0x5095AB7C",
+      "isTemplate": false,
+      "paths": {},
+      "attributes": {
+        "Face": "",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x80957A02",
+      "name": "0x80957A02",
+      "resourceId": "0x80957A02",
+      "isTemplate": false,
+      "paths": {},
+      "attributes": {
+        "Face": "",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x998E4B43",
+      "name": "0x998E4B43",
+      "resourceId": "0x998E4B43",
+      "isTemplate": false,
+      "paths": {},
+      "attributes": {
+        "Face": "",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x85425265",
+      "name": "0x85425265",
+      "resourceId": "0x85425265",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_fs/k000010_l",
+        "faceLarge": "200_icon/10_icon_chr/aura_fs/k000010_l"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_fs/k000010_l",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0xE604E25A",
+      "name": "0xE604E25A",
+      "resourceId": "0xE604E25A",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_armed/c04000080_5200",
+        "faceLarge": "200_icon/10_icon_chr/aura_armed/c04000080_5200_l"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_armed/c04000080_5200",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x5D033B42",
+      "name": "0x5D033B42",
+      "resourceId": "0x5D033B42",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_mixi/ca0201",
+        "faceLarge": "200_icon/10_icon_chr/aura_mixi/ca0201_l"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_mixi/ca0201",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x42F0C5CB",
+      "name": "0x42F0C5CB",
+      "resourceId": "0x42F0C5CB",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_mixi/cn0221",
+        "faceLarge": "200_icon/10_icon_chr/aura_mixi/cn0221_l"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_mixi/cn0221",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0xDC73E845",
+      "name": "0xDC73E845",
+      "resourceId": "0xDC73E845",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_mixi/cn0231",
+        "faceLarge": "200_icon/10_icon_chr/aura_mixi/cn0231_l"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_mixi/cn0231",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x7104CD7E",
+      "name": "0x7104CD7E",
+      "resourceId": "0x7104CD7E",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_mixi/cn0242",
+        "faceLarge": "200_icon/10_icon_chr/aura_mixi/cn0242_l"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_mixi/cn0242",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x3E455BB9",
+      "name": "0x3E455BB9",
+      "resourceId": "0x3E455BB9",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_mixi/cn0241",
+        "faceLarge": "200_icon/10_icon_chr/aura_mixi/cn0241_l"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_mixi/cn0241",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0xD722B2ED",
+      "name": "0xD722B2ED",
+      "resourceId": "0xD722B2ED",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_mixi/ca0207",
+        "faceLarge": "200_icon/10_icon_chr/aura_mixi/ca0207_l"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_mixi/ca0207",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x7C429C19",
+      "name": "0x7C429C19",
+      "resourceId": "0x7C429C19",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_mixi/ca0210",
+        "faceLarge": "200_icon/10_icon_chr/aura_mixi/ca0210_l"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_mixi/ca0210",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0xC4AAB333",
+      "name": "0xC4AAB333",
+      "resourceId": "0xC4AAB333",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_mixi/cn0255",
+        "faceLarge": "200_icon/10_icon_chr/aura_mixi/cn0255_l"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_mixi/cn0255",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x4332AFFC",
+      "name": "0x4332AFFC",
+      "resourceId": "0x4332AFFC",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_mixi/cn0254",
+        "faceLarge": "200_icon/10_icon_chr/aura_mixi/cn0254_l"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_mixi/cn0254",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x49A19F63",
+      "name": "0x49A19F63",
+      "resourceId": "0x49A19F63",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_mixi/iau0010a",
+        "faceLarge": "200_icon/10_icon_chr/aura_mixi/iau0010a_l"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_mixi/iau0010a",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0xDDB18272",
+      "name": "0xDDB18272",
+      "resourceId": "0xDDB18272",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_mixi/cn0261",
+        "faceLarge": "200_icon/10_icon_chr/aura_mixi/cn0261_l"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_mixi/cn0261",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x5A299EBD",
+      "name": "0x5A299EBD",
+      "resourceId": "0x5A299EBD",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_mixi/cp1811",
+        "faceLarge": "200_icon/10_icon_chr/aura_mixi/cp1811_l"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_mixi/cp1811",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x99A14E1D",
+      "name": "0x99A14E1D",
+      "resourceId": "0x99A14E1D",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_mixi/iau0012a",
+        "faceLarge": "200_icon/10_icon_chr/aura_mixi/iau0012a_l"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_mixi/iau0012a",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x44180A03",
+      "name": "0x44180A03",
+      "resourceId": "0x44180A03",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_mixi/iau0013a",
+        "faceLarge": "200_icon/10_icon_chr/aura_mixi/iau0013a_l"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_mixi/iau0013a",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x6F3559C0",
+      "name": "0x6F3559C0",
+      "resourceId": "0x6F3559C0",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_mixi/iau0014a",
+        "faceLarge": "200_icon/10_icon_chr/aura_mixi/iau0014a_l"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_mixi/iau0014a",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x762E6881",
+      "name": "0x762E6881",
+      "resourceId": "0x762E6881",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_mixi/iau0015a",
+        "faceLarge": "200_icon/10_icon_chr/aura_mixi/iau0015a_l"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_mixi/iau0015a",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x396FFE46",
+      "name": "0x396FFE46",
+      "resourceId": "0x396FFE46",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_mixi/iau0016a",
+        "faceLarge": "200_icon/10_icon_chr/aura_mixi/iau0016a_l"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_mixi/iau0016a",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x21320D2B",
+      "name": "0x21320D2B",
+      "resourceId": "0x21320D2B",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000010",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000010_l",
+        "miniChr": "220_img/soul_effect/ef_wso000010"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000010",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x0A1F5EE8",
+      "name": "0x0A1F5EE8",
+      "resourceId": "0x0A1F5EE8",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000020",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000020_l",
+        "miniChr": "220_img/soul_effect/ef_wss000020"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000020",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x13046FA9",
+      "name": "0x13046FA9",
+      "resourceId": "0x13046FA9",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000030",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000030_l",
+        "miniChr": "220_img/soul_effect/ef_wss000030"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000030",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x5C45F96E",
+      "name": "0x5C45F96E",
+      "resourceId": "0x5C45F96E",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000040",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000040_l",
+        "miniChr": "220_img/soul_effect/ef_wsd000040"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000040",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x455EC82F",
+      "name": "0x455EC82F",
+      "resourceId": "0x455EC82F",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000050",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000050_l",
+        "miniChr": "220_img/soul_effect/ef_wss000050"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000050",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x6E739BEC",
+      "name": "0x6E739BEC",
+      "resourceId": "0x6E739BEC",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000060",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000060_l",
+        "miniChr": "220_img/soul_effect/ef_wso000060"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000060",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x7768AAAD",
+      "name": "0x7768AAAD",
+      "resourceId": "0x7768AAAD",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000070",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000070_l",
+        "miniChr": "220_img/soul_effect/ef_wso000060"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000070",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0xF0F0B662",
+      "name": "0xF0F0B662",
+      "resourceId": "0xF0F0B662",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000080",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000080_l",
+        "miniChr": "220_img/soul_effect/ef_wsd000470"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000080",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0xE9EB8723",
+      "name": "0xE9EB8723",
+      "resourceId": "0xE9EB8723",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000090",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000090_l",
+        "miniChr": "220_img/soul_effect/ef_wsd000090"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000090",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x39EB565D",
+      "name": "0x39EB565D",
+      "resourceId": "0x39EB565D",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000100",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000100_l",
+        "miniChr": "220_img/soul_effect/ef_wsd000090"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000100",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x20F0671C",
+      "name": "0x20F0671C",
+      "resourceId": "0x20F0671C",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000110",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000110_l",
+        "miniChr": "220_img/soul_effect/ef_wsd000110"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000110",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x0BDD34DF",
+      "name": "0x0BDD34DF",
+      "resourceId": "0x0BDD34DF",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000120",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000120_l",
+        "miniChr": "220_img/soul_effect/ef_wso000120"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000120",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x12C6059E",
+      "name": "0x12C6059E",
+      "resourceId": "0x12C6059E",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000130",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000130_l",
+        "miniChr": "220_img/soul_effect/ef_wsk000130"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000130",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x5D879359",
+      "name": "0x5D879359",
+      "resourceId": "0x5D879359",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000140",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000140_l",
+        "miniChr": "220_img/soul_effect/ef_wso000140"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000140",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x449CA218",
+      "name": "0x449CA218",
+      "resourceId": "0x449CA218",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000150",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000150_l",
+        "miniChr": "220_img/soul_effect/ef_wso000150"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000150",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x6FB1F1DB",
+      "name": "0x6FB1F1DB",
+      "resourceId": "0x6FB1F1DB",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000160",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000160_l",
+        "miniChr": "220_img/soul_effect/ef_wsd000160"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000160",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x76AAC09A",
+      "name": "0x76AAC09A",
+      "resourceId": "0x76AAC09A",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000170",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000170_l",
+        "miniChr": "220_img/soul_effect/ef_wsd000170"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000170",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0xF132DC55",
+      "name": "0xF132DC55",
+      "resourceId": "0xF132DC55",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000180",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000180_l",
+        "miniChr": "220_img/soul_effect/ef_wso000180"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000180",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0xE829ED14",
+      "name": "0xE829ED14",
+      "resourceId": "0xE829ED14",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000190",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000190_l",
+        "miniChr": "220_img/soul_effect/ef_wsd000190"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000190",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x3BADE804",
+      "name": "0x3BADE804",
+      "resourceId": "0x3BADE804",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000200",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000200_l",
+        "miniChr": "220_img/soul_effect/ef_wsd000190"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000200",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x22B6D945",
+      "name": "0x22B6D945",
+      "resourceId": "0x22B6D945",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000210",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000210_l",
+        "miniChr": "220_img/soul_effect/ef_wss000210"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000210",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x099B8A86",
+      "name": "0x099B8A86",
+      "resourceId": "0x099B8A86",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000220",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000220_l",
+        "miniChr": "220_img/soul_effect/ef_wso000220"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000220",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x1080BBC7",
+      "name": "0x1080BBC7",
+      "resourceId": "0x1080BBC7",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000230",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000230_l",
+        "miniChr": "220_img/soul_effect/ef_wso000220"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000230",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x5FC12D00",
+      "name": "0x5FC12D00",
+      "resourceId": "0x5FC12D00",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000240",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000240_l",
+        "miniChr": "220_img/soul_effect/ef_wss000240"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000240",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x46DA1C41",
+      "name": "0x46DA1C41",
+      "resourceId": "0x46DA1C41",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000250",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000250_l",
+        "miniChr": "220_img/soul_effect/ef_wsk000250"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000250",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x6DF74F82",
+      "name": "0x6DF74F82",
+      "resourceId": "0x6DF74F82",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000260",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000260_l",
+        "miniChr": "220_img/soul_effect/ef_wss000260"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000260",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x74EC7EC3",
+      "name": "0x74EC7EC3",
+      "resourceId": "0x74EC7EC3",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000270",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000270_l",
+        "miniChr": "220_img/soul_effect/ef_wss000270"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000270",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0xF374620C",
+      "name": "0xF374620C",
+      "resourceId": "0xF374620C",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000280",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000280_l",
+        "miniChr": "220_img/soul_effect/ef_wso000280"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000280",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0xEA6F534D",
+      "name": "0xEA6F534D",
+      "resourceId": "0xEA6F534D",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000290",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000290_l",
+        "miniChr": "220_img/soul_effect/ef_wsd000290"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000290",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x3A6F8233",
+      "name": "0x3A6F8233",
+      "resourceId": "0x3A6F8233",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000300",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000300_l",
+        "miniChr": "220_img/soul_effect/ef_wsk000300"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000300",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x2374B372",
+      "name": "0x2374B372",
+      "resourceId": "0x2374B372",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000310",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000310_l",
+        "miniChr": "220_img/soul_effect/ef_wso000310"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000310",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x0859E0B1",
+      "name": "0x0859E0B1",
+      "resourceId": "0x0859E0B1",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000320",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000320_l",
+        "miniChr": "220_img/soul_effect/ef_wso000320"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000320",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x1142D1F0",
+      "name": "0x1142D1F0",
+      "resourceId": "0x1142D1F0",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000330",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000330_l",
+        "miniChr": "220_img/soul_effect/ef_wsd000330"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000330",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x5E034737",
+      "name": "0x5E034737",
+      "resourceId": "0x5E034737",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000340",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000340_l",
+        "miniChr": "220_img/soul_effect/ef_wsk000340"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000340",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x47187676",
+      "name": "0x47187676",
+      "resourceId": "0x47187676",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000350",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000350_l",
+        "miniChr": "220_img/soul_effect/ef_wss000350"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000350",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x6C3525B5",
+      "name": "0x6C3525B5",
+      "resourceId": "0x6C3525B5",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000360",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000360_l",
+        "miniChr": "220_img/soul_effect/ef_wss000210"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000360",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x752E14F4",
+      "name": "0x752E14F4",
+      "resourceId": "0x752E14F4",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000370",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000370_l",
+        "miniChr": "220_img/soul_effect/ef_wsd000170"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000370",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0xF2B6083B",
+      "name": "0xF2B6083B",
+      "resourceId": "0xF2B6083B",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000380",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000380_l",
+        "miniChr": "220_img/soul_effect/ef_wsk000380"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000380",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0xEBAD397A",
+      "name": "0xEBAD397A",
+      "resourceId": "0xEBAD397A",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000350",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000390_l",
+        "miniChr": "220_img/soul_effect/ef_wss000020"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000350",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x3F2094B6",
+      "name": "0x3F2094B6",
+      "resourceId": "0x3F2094B6",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000400",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000400_l",
+        "miniChr": "220_img/soul_effect/ef_wss000030"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000400",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x263BA5F7",
+      "name": "0x263BA5F7",
+      "resourceId": "0x263BA5F7",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000410",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000410_l",
+        "miniChr": "220_img/soul_effect/ef_wss000240"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000410",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x0D16F634",
+      "name": "0x0D16F634",
+      "resourceId": "0x0D16F634",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000420",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000420_l",
+        "miniChr": "220_img/soul_effect/ef_wss000260"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000420",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x140DC775",
+      "name": "0x140DC775",
+      "resourceId": "0x140DC775",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000430",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000430_l",
+        "miniChr": "220_img/soul_effect/ef_wso000430"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000430",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x5B4C51B2",
+      "name": "0x5B4C51B2",
+      "resourceId": "0x5B4C51B2",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000440",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000440_l",
+        "miniChr": "220_img/soul_effect/ef_wso000180"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000440",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x425760F3",
+      "name": "0x425760F3",
+      "resourceId": "0x425760F3",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000450",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000450_l",
+        "miniChr": "220_img/soul_effect/ef_wso000450"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000450",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x697A3330",
+      "name": "0x697A3330",
+      "resourceId": "0x697A3330",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000460",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000460_l",
+        "miniChr": "220_img/soul_effect/ef_wso000060"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000460",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x70610271",
+      "name": "0x70610271",
+      "resourceId": "0x70610271",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000470",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000470_l",
+        "miniChr": "220_img/soul_effect/ef_wsd000470"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000470",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0xF7F91EBE",
+      "name": "0xF7F91EBE",
+      "resourceId": "0xF7F91EBE",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000480",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000480_l",
+        "miniChr": "220_img/soul_effect/ef_wsd000480"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000480",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0xEEE22FFF",
+      "name": "0xEEE22FFF",
+      "resourceId": "0xEEE22FFF",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000490",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000490_l",
+        "miniChr": "220_img/soul_effect/ef_wsd000190"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000490",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x3EE2FE81",
+      "name": "0x3EE2FE81",
+      "resourceId": "0x3EE2FE81",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000500",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000500_l",
+        "miniChr": "220_img/soul_effect/ef_wsk000340"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000500",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x27F9CFC0",
+      "name": "0x27F9CFC0",
+      "resourceId": "0x27F9CFC0",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000510",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000510_l",
+        "miniChr": "220_img/soul_effect/ef_wsd000090"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000510",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x0CD49C03",
+      "name": "0x0CD49C03",
+      "resourceId": "0x0CD49C03",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000520",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000520_l",
+        "miniChr": "220_img/soul_effect/ef_wso000220"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000520",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x15CFAD42",
+      "name": "0x15CFAD42",
+      "resourceId": "0x15CFAD42",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000530",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000530_l",
+        "miniChr": "220_img/soul_effect/ef_wsk000300"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000530",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x5A8E3B85",
+      "name": "0x5A8E3B85",
+      "resourceId": "0x5A8E3B85",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000540",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000540_l",
+        "miniChr": "220_img/soul_effect/ef_wsk000250"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000540",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x43950AC4",
+      "name": "0x43950AC4",
+      "resourceId": "0x43950AC4",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000550",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000550_l",
+        "miniChr": "220_img/soul_effect/ef_wso000560"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000550",
+        "Coach": ""
+      }
+    },
+    {
+      "id": "0x68B85907",
+      "name": "0x68B85907",
+      "resourceId": "0x68B85907",
+      "isTemplate": false,
+      "paths": {
+        "faceSmall": "200_icon/10_icon_chr/aura_soul/a000560",
+        "faceLarge": "200_icon/10_icon_chr/aura_soul/a000560_l",
+        "miniChr": "220_img/soul_effect/ef_wso000560"
+      },
+      "attributes": {
+        "Face": "200_icon/10_icon_chr/aura_soul/a000560",
+        "Coach": ""
+      }
+    }
+  ]
+}

@@ -1,0 +1,812 @@
+[
+  {
+    "id": "0x0976673C",
+    "name": "nm00001",
+    "nameplateId": "0x0976673C",
+    "nameTextId": "0x011D2282",
+    "sortNo": 1,
+    "imagePath": "200_icon/25_icon_nameplate/nm00001",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 0,
+    "enableCond": "",
+    "attributes": {
+      "SortNo": 1,
+      "Image": "200_icon/25_icon_nameplate/nm00001"
+    }
+  },
+  {
+    "id": "0x907F3686",
+    "name": "nm00002",
+    "nameplateId": "0x907F3686",
+    "nameTextId": "0x98147338",
+    "sortNo": 2,
+    "imagePath": "200_icon/25_icon_nameplate/nm00002",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 1,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNJB/NoYyAAAAAXg=",
+    "attributes": {
+      "SortNo": 2,
+      "Image": "200_icon/25_icon_nameplate/nm00002"
+    }
+  },
+  {
+    "id": "0x08B40D0B",
+    "name": "nm00101",
+    "nameplateId": "0x08B40D0B",
+    "nameTextId": "0x00DF48B5",
+    "sortNo": 3,
+    "imagePath": "200_icon/25_icon_nameplate/nm00101",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 2,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNAi0DQsyAAAAAXg=",
+    "attributes": {
+      "SortNo": 3,
+      "Image": "200_icon/25_icon_nameplate/nm00101"
+    }
+  },
+  {
+    "id": "0x91BD5CB1",
+    "name": "nm00102",
+    "nameplateId": "0x91BD5CB1",
+    "nameTextId": "0x99D6190F",
+    "sortNo": 4,
+    "imagePath": "200_icon/25_icon_nameplate/nm00102",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 3,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNJG9XLEyAAAAAXg=",
+    "attributes": {
+      "SortNo": 4,
+      "Image": "200_icon/25_icon_nameplate/nm00102"
+    }
+  },
+  {
+    "id": "0xE6BA6C27",
+    "name": "nm00103",
+    "nameplateId": "0xE6BA6C27",
+    "nameTextId": "0xEED12999",
+    "sortNo": 5,
+    "imagePath": "200_icon/25_icon_nameplate/nm00103",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 4,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNOa6bCcyAAAAAXg=",
+    "attributes": {
+      "SortNo": 5,
+      "Image": "200_icon/25_icon_nameplate/nm00103"
+    }
+  },
+  {
+    "id": "0x78DEF984",
+    "name": "nm00104",
+    "nameplateId": "0x78DEF984",
+    "nameTextId": "0x70B5BC3A",
+    "sortNo": 6,
+    "imagePath": "200_icon/25_icon_nameplate/nm00104",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 5,
+    "enableCond": "",
+    "attributes": {
+      "SortNo": 6,
+      "Image": "200_icon/25_icon_nameplate/nm00104"
+    }
+  },
+  {
+    "id": "0x0FD9C912",
+    "name": "nm00105",
+    "nameplateId": "0x0FD9C912",
+    "nameTextId": "0x07B28CAC",
+    "sortNo": 7,
+    "imagePath": "200_icon/25_icon_nameplate/nm00105",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 6,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNA/ZyRIyAAAAAXg=",
+    "attributes": {
+      "SortNo": 7,
+      "Image": "200_icon/25_icon_nameplate/nm00105"
+    }
+  },
+  {
+    "id": "0x0AF2B352",
+    "name": "nm00201",
+    "nameplateId": "0x0AF2B352",
+    "nameTextId": "0x0299F6EC",
+    "sortNo": 8,
+    "imagePath": "200_icon/25_icon_nameplate/nm00201",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 7,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNArys1IyAAAAAXg=",
+    "attributes": {
+      "SortNo": 8,
+      "Image": "200_icon/25_icon_nameplate/nm00201"
+    }
+  },
+  {
+    "id": "0x93FBE2E8",
+    "name": "nm00202",
+    "nameplateId": "0x93FBE2E8",
+    "nameTextId": "0x9B90A756",
+    "sortNo": 9,
+    "imagePath": "200_icon/25_icon_nameplate/nm00202",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 8,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNJP74ugyAAAAAXg=",
+    "attributes": {
+      "SortNo": 9,
+      "Image": "200_icon/25_icon_nameplate/nm00202"
+    }
+  },
+  {
+    "id": "0xE4FCD27E",
+    "name": "nm00203",
+    "nameplateId": "0xE4FCD27E",
+    "nameTextId": "0xEC9797C0",
+    "sortNo": 10,
+    "imagePath": "200_icon/25_icon_nameplate/nm00203",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 9,
+    "enableCond": "",
+    "attributes": {
+      "SortNo": 10,
+      "Image": "200_icon/25_icon_nameplate/nm00203"
+    }
+  },
+  {
+    "id": "0x7A9847DD",
+    "name": "nm00204",
+    "nameplateId": "0x7A9847DD",
+    "nameTextId": "0x72F30263",
+    "sortNo": 11,
+    "imagePath": "200_icon/25_icon_nameplate/nm00204",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 10,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNHqYR90yAAAAAXg=",
+    "attributes": {
+      "SortNo": 11,
+      "Image": "200_icon/25_icon_nameplate/nm00204"
+    }
+  },
+  {
+    "id": "0x0D9F774B",
+    "name": "nm00205",
+    "nameplateId": "0x0D9F774B",
+    "nameTextId": "0x05F432F5",
+    "sortNo": 12,
+    "imagePath": "200_icon/25_icon_nameplate/nm00205",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 11,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNA2fd0syAAAAAXg=",
+    "attributes": {
+      "SortNo": 12,
+      "Image": "200_icon/25_icon_nameplate/nm00205"
+    }
+  },
+  {
+    "id": "0x0B30D965",
+    "name": "nm00301",
+    "nameplateId": "0x0B30D965",
+    "nameTextId": "0x035B9CDB",
+    "sortNo": 13,
+    "imagePath": "200_icon/25_icon_nameplate/nm00301",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 12,
+    "enableCond": "",
+    "attributes": {
+      "SortNo": 13,
+      "Image": "200_icon/25_icon_nameplate/nm00301"
+    }
+  },
+  {
+    "id": "0x923988DF",
+    "name": "nm00302",
+    "nameplateId": "0x923988DF",
+    "nameTextId": "0x9A52CD61",
+    "sortNo": 14,
+    "imagePath": "200_icon/25_icon_nameplate/nm00302",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 13,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNJI5iN8yAAAAAXg=",
+    "attributes": {
+      "SortNo": 14,
+      "Image": "200_icon/25_icon_nameplate/nm00302"
+    }
+  },
+  {
+    "id": "0xE53EB849",
+    "name": "nm00303",
+    "nameplateId": "0xE53EB849",
+    "nameTextId": "0xED55FDF7",
+    "sortNo": 15,
+    "imagePath": "200_icon/25_icon_nameplate/nm00303",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 14,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNOU+uEkyAAAAAXg=",
+    "attributes": {
+      "SortNo": 15,
+      "Image": "200_icon/25_icon_nameplate/nm00303"
+    }
+  },
+  {
+    "id": "0x7B5A2DEA",
+    "name": "nm00304",
+    "nameplateId": "0x7B5A2DEA",
+    "nameTextId": "0x73316854",
+    "sortNo": 16,
+    "imagePath": "200_icon/25_icon_nameplate/nm00304",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 15,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNHtaLeoyAAAAAXg=",
+    "attributes": {
+      "SortNo": 16,
+      "Image": "200_icon/25_icon_nameplate/nm00304"
+    }
+  },
+  {
+    "id": "0x0C5D1D7C",
+    "name": "nm00305",
+    "nameplateId": "0x0C5D1D7C",
+    "nameTextId": "0x043658C2",
+    "sortNo": 17,
+    "imagePath": "200_icon/25_icon_nameplate/nm00305",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 16,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNAxdHXwyAAAAAXg=",
+    "attributes": {
+      "SortNo": 17,
+      "Image": "200_icon/25_icon_nameplate/nm00305"
+    }
+  },
+  {
+    "id": "0x95544CC6",
+    "name": "nm00306",
+    "nameplateId": "0x95544CC6",
+    "nameTextId": "0x9D3F0978",
+    "sortNo": 18,
+    "imagePath": "200_icon/25_icon_nameplate/nm00306",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 17,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNJVUTMYyAAAAAXg=",
+    "attributes": {
+      "SortNo": 18,
+      "Image": "200_icon/25_icon_nameplate/nm00306"
+    }
+  },
+  {
+    "id": "0xE2537C50",
+    "name": "nm00307",
+    "nameplateId": "0xE2537C50",
+    "nameTextId": "0xEA3839EE",
+    "sortNo": 19,
+    "imagePath": "200_icon/25_icon_nameplate/nm00307",
+    "fontStyle": "0x72A1CF45",
+    "flagIndex": 18,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNOJTfFAyAAAAAXg=",
+    "attributes": {
+      "SortNo": 19,
+      "Image": "200_icon/25_icon_nameplate/nm00307"
+    }
+  },
+  {
+    "id": "0x0E7FCFE0",
+    "name": "nm00401",
+    "nameplateId": "0x0E7FCFE0",
+    "nameTextId": "0x06148A5E",
+    "sortNo": 20,
+    "imagePath": "200_icon/25_icon_nameplate/nm00401",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 19,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNA5/z+AyAAAAAXg=",
+    "attributes": {
+      "SortNo": 20,
+      "Image": "200_icon/25_icon_nameplate/nm00401"
+    }
+  },
+  {
+    "id": "0x97769E5A",
+    "name": "nm00402",
+    "nameplateId": "0x97769E5A",
+    "nameTextId": "0x9F1DDBE4",
+    "sortNo": 21,
+    "imagePath": "200_icon/25_icon_nameplate/nm00402",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 20,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNJd2nloyAAAAAXg=",
+    "attributes": {
+      "SortNo": 21,
+      "Image": "200_icon/25_icon_nameplate/nm00402"
+    }
+  },
+  {
+    "id": "0x0DFB1B8E",
+    "name": "nm00601",
+    "nameplateId": "0x0DFB1B8E",
+    "nameTextId": "0x05905E30",
+    "sortNo": 22,
+    "imagePath": "200_icon/25_icon_nameplate/nm00601",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 21,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNA37G44yAAAAAXg=",
+    "attributes": {
+      "SortNo": 22,
+      "Image": "200_icon/25_icon_nameplate/nm00601"
+    }
+  },
+  {
+    "id": "0x0C3971B9",
+    "name": "nm00701",
+    "nameplateId": "0x0C3971B9",
+    "nameTextId": "0x04523407",
+    "sortNo": 23,
+    "imagePath": "200_icon/25_icon_nameplate/nm00701",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 22,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNAw5cbkyAAAAAXg=",
+    "attributes": {
+      "SortNo": 23,
+      "Image": "200_icon/25_icon_nameplate/nm00701"
+    }
+  },
+  {
+    "id": "0x95302003",
+    "name": "nm00702",
+    "nameplateId": "0x95302003",
+    "nameTextId": "0x9D5B65BD",
+    "sortNo": 24,
+    "imagePath": "200_icon/25_icon_nameplate/nm00702",
+    "fontStyle": "0x72A1CF45",
+    "flagIndex": 23,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNJUwIAMyAAAAAXg=",
+    "attributes": {
+      "SortNo": 24,
+      "Image": "200_icon/25_icon_nameplate/nm00702"
+    }
+  },
+  {
+    "id": "0xB0086A6E",
+    "name": "nm01101",
+    "nameplateId": "0xB0086A6E",
+    "nameTextId": "0xB8632FD0",
+    "sortNo": 25,
+    "imagePath": "200_icon/25_icon_nameplate/nm01101",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 24,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNLAIam4yAAAAAXg=",
+    "attributes": {
+      "SortNo": 25,
+      "Image": "200_icon/25_icon_nameplate/nm01101"
+    }
+  },
+  {
+    "id": "0xB24ED437",
+    "name": "nm01201",
+    "nameplateId": "0xB24ED437",
+    "nameTextId": "0xBA259189",
+    "sortNo": 26,
+    "imagePath": "200_icon/25_icon_nameplate/nm01201",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 25,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNLJO1DcyAAAAAXg=",
+    "attributes": {
+      "SortNo": 26,
+      "Image": "200_icon/25_icon_nameplate/nm01201"
+    }
+  },
+  {
+    "id": "0xB38CBE00",
+    "name": "nm01301",
+    "nameplateId": "0xB38CBE00",
+    "nameTextId": "0xBBE7FBBE",
+    "sortNo": 27,
+    "imagePath": "200_icon/25_icon_nameplate/nm01301",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 26,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNLOMvgAyAAAAAXg=",
+    "attributes": {
+      "SortNo": 27,
+      "Image": "200_icon/25_icon_nameplate/nm01301"
+    }
+  },
+  {
+    "id": "0xB6C3A885",
+    "name": "nm01401",
+    "nameplateId": "0xB6C3A885",
+    "nameTextId": "0xBEA8ED3B",
+    "sortNo": 28,
+    "imagePath": "200_icon/25_icon_nameplate/nm01401",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 27,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNLbDqIUyAAAAAXg=",
+    "attributes": {
+      "SortNo": 28,
+      "Image": "200_icon/25_icon_nameplate/nm01401"
+    }
+  },
+  {
+    "id": "0xB701C2B2",
+    "name": "nm01501",
+    "nameplateId": "0xB701C2B2",
+    "nameTextId": "0xBF6A870C",
+    "sortNo": 29,
+    "imagePath": "200_icon/25_icon_nameplate/nm01501",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 28,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNLcBwrIyAAAAAXg=",
+    "attributes": {
+      "SortNo": 29,
+      "Image": "200_icon/25_icon_nameplate/nm01501"
+    }
+  },
+  {
+    "id": "0xB5477CEB",
+    "name": "nm01601",
+    "nameplateId": "0xB5477CEB",
+    "nameTextId": "0xBD2C3955",
+    "sortNo": 30,
+    "imagePath": "200_icon/25_icon_nameplate/nm01601",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 29,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNLVHfOsyAAAAAXg=",
+    "attributes": {
+      "SortNo": 30,
+      "Image": "200_icon/25_icon_nameplate/nm01601"
+    }
+  },
+  {
+    "id": "0xB48516DC",
+    "name": "nm01701",
+    "nameplateId": "0xB48516DC",
+    "nameTextId": "0xBCEE5362",
+    "sortNo": 31,
+    "imagePath": "200_icon/25_icon_nameplate/nm01701",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 30,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNLSFFtwyAAAAAXg=",
+    "attributes": {
+      "SortNo": 31,
+      "Image": "200_icon/25_icon_nameplate/nm01701"
+    }
+  },
+  {
+    "id": "0xBFD951E1",
+    "name": "nm01801",
+    "nameplateId": "0xBFD951E1",
+    "nameTextId": "0xB7B2145F",
+    "sortNo": 32,
+    "imagePath": "200_icon/25_icon_nameplate/nm01801",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 31,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNL/ZUeEyAAAAAXg=",
+    "attributes": {
+      "SortNo": 32,
+      "Image": "200_icon/25_icon_nameplate/nm01801"
+    }
+  },
+  {
+    "id": "0xA2BDC580",
+    "name": "nm02101",
+    "nameplateId": "0xA2BDC580",
+    "nameTextId": "0xAAD6803E",
+    "sortNo": 33,
+    "imagePath": "200_icon/25_icon_nameplate/nm02101",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 32,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNKK9xYAyAAAAAXg=",
+    "attributes": {
+      "SortNo": 33,
+      "Image": "200_icon/25_icon_nameplate/nm02101"
+    }
+  },
+  {
+    "id": "0xA0FB7BD9",
+    "name": "nm02201",
+    "nameplateId": "0xA0FB7BD9",
+    "nameTextId": "0xA8903E67",
+    "sortNo": 34,
+    "imagePath": "200_icon/25_icon_nameplate/nm02201",
+    "fontStyle": "0x72A1CF45",
+    "flagIndex": 33,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNKD7e9kyAAAAAXg=",
+    "attributes": {
+      "SortNo": 34,
+      "Image": "200_icon/25_icon_nameplate/nm02201"
+    }
+  },
+  {
+    "id": "0xA13911EE",
+    "name": "nm02301",
+    "nameplateId": "0xA13911EE",
+    "nameTextId": "0xA9525450",
+    "sortNo": 35,
+    "imagePath": "200_icon/25_icon_nameplate/nm02301",
+    "fontStyle": "0x72A1CF45",
+    "flagIndex": 34,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNKE5Ee4yAAAAAXg=",
+    "attributes": {
+      "SortNo": 35,
+      "Image": "200_icon/25_icon_nameplate/nm02301"
+    }
+  },
+  {
+    "id": "0x1A01A2E5",
+    "name": "nm03101",
+    "nameplateId": "0x1A01A2E5",
+    "nameTextId": "0x126AE75B",
+    "sortNo": 36,
+    "imagePath": "200_icon/25_icon_nameplate/nm03101",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 35,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNBoBouUyAAAAAXg=",
+    "attributes": {
+      "SortNo": 36,
+      "Image": "200_icon/25_icon_nameplate/nm03101"
+    }
+  },
+  {
+    "id": "0x8308F35F",
+    "name": "nm03102",
+    "nameplateId": "0x8308F35F",
+    "nameTextId": "0x8B63B6E1",
+    "sortNo": 37,
+    "imagePath": "200_icon/25_icon_nameplate/nm03102",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 36,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNIMI818yAAAAAXg=",
+    "attributes": {
+      "SortNo": 37,
+      "Image": "200_icon/25_icon_nameplate/nm03102"
+    }
+  },
+  {
+    "id": "0xF40FC3C9",
+    "name": "nm03103",
+    "nameplateId": "0xF40FC3C9",
+    "nameTextId": "0xFC648677",
+    "sortNo": 38,
+    "imagePath": "200_icon/25_icon_nameplate/nm03103",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 37,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNPQPw8kyAAAAAXg=",
+    "attributes": {
+      "SortNo": 38,
+      "Image": "200_icon/25_icon_nameplate/nm03103"
+    }
+  },
+  {
+    "id": "0x18471CBC",
+    "name": "nm03201",
+    "nameplateId": "0x18471CBC",
+    "nameTextId": "0x102C5902",
+    "sortNo": 39,
+    "imagePath": "200_icon/25_icon_nameplate/nm03201",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 38,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNBhHHLwyAAAAAXg=",
+    "attributes": {
+      "SortNo": 39,
+      "Image": "200_icon/25_icon_nameplate/nm03201"
+    }
+  },
+  {
+    "id": "0x1985768B",
+    "name": "nm03301",
+    "nameplateId": "0x1985768B",
+    "nameTextId": "0x11EE3335",
+    "sortNo": 40,
+    "imagePath": "200_icon/25_icon_nameplate/nm03301",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 39,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNBmFdosyAAAAAXg=",
+    "attributes": {
+      "SortNo": 40,
+      "Image": "200_icon/25_icon_nameplate/nm03301"
+    }
+  },
+  {
+    "id": "0x1CCA600E",
+    "name": "nm03401",
+    "nameplateId": "0x1CCA600E",
+    "nameTextId": "0x14A125B0",
+    "sortNo": 41,
+    "imagePath": "200_icon/25_icon_nameplate/nm03401",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 40,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNBzKYA4yAAAAAXg=",
+    "attributes": {
+      "SortNo": 41,
+      "Image": "200_icon/25_icon_nameplate/nm03401"
+    }
+  },
+  {
+    "id": "0x1D080A39",
+    "name": "nm03501",
+    "nameplateId": "0x1D080A39",
+    "nameTextId": "0x15634F87",
+    "sortNo": 42,
+    "imagePath": "200_icon/25_icon_nameplate/nm03501",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 41,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNB0ICjkyAAAAAXg=",
+    "attributes": {
+      "SortNo": 42,
+      "Image": "200_icon/25_icon_nameplate/nm03501"
+    }
+  },
+  {
+    "id": "0x1F4EB460",
+    "name": "nm03601",
+    "nameplateId": "0x1F4EB460",
+    "nameTextId": "0x1725F1DE",
+    "sortNo": 43,
+    "imagePath": "200_icon/25_icon_nameplate/nm03601",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 42,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNB9OtGAyAAAAAXg=",
+    "attributes": {
+      "SortNo": 43,
+      "Image": "200_icon/25_icon_nameplate/nm03601"
+    }
+  },
+  {
+    "id": "0x1E8CDE57",
+    "name": "nm03701",
+    "nameplateId": "0x1E8CDE57",
+    "nameTextId": "0x16E79BE9",
+    "sortNo": 44,
+    "imagePath": "200_icon/25_icon_nameplate/nm03701",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 43,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNB6M3lcyAAAAAXg=",
+    "attributes": {
+      "SortNo": 44,
+      "Image": "200_icon/25_icon_nameplate/nm03701"
+    }
+  },
+  {
+    "id": "0x87D69A5C",
+    "name": "nm04101",
+    "nameplateId": "0x87D69A5C",
+    "nameTextId": "0x8FBDDFE2",
+    "sortNo": 45,
+    "imagePath": "200_icon/25_icon_nameplate/nm04101",
+    "fontStyle": "0x72A1CF45",
+    "flagIndex": 44,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNIfWmlwyAAAAAXg=",
+    "attributes": {
+      "SortNo": 45,
+      "Image": "200_icon/25_icon_nameplate/nm04101"
+    }
+  },
+  {
+    "id": "0x1EDFCBE6",
+    "name": "nm04102",
+    "nameplateId": "0x1EDFCBE6",
+    "nameTextId": "0x16B48E58",
+    "sortNo": 46,
+    "imagePath": "200_icon/25_icon_nameplate/nm04102",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 45,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNB7fy+YyAAAAAXg=",
+    "attributes": {
+      "SortNo": 46,
+      "Image": "200_icon/25_icon_nameplate/nm04102"
+    }
+  },
+  {
+    "id": "0x69D8FB70",
+    "name": "nm04103",
+    "nameplateId": "0x69D8FB70",
+    "nameTextId": "0x61B3BECE",
+    "sortNo": 47,
+    "imagePath": "200_icon/25_icon_nameplate/nm04103",
+    "fontStyle": "0x72A1CF45",
+    "flagIndex": 46,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNGnY+3AyAAAAAXg=",
+    "attributes": {
+      "SortNo": 47,
+      "Image": "200_icon/25_icon_nameplate/nm04103"
+    }
+  },
+  {
+    "id": "0x85902405",
+    "name": "nm04201",
+    "nameplateId": "0x85902405",
+    "nameTextId": "0x8DFB61BB",
+    "sortNo": 48,
+    "imagePath": "200_icon/25_icon_nameplate/nm04201",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 47,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNIWQJAUyAAAAAXg=",
+    "attributes": {
+      "SortNo": 48,
+      "Image": "200_icon/25_icon_nameplate/nm04201"
+    }
+  },
+  {
+    "id": "0x84524E32",
+    "name": "nm04301",
+    "nameplateId": "0x84524E32",
+    "nameTextId": "0x8C390B8C",
+    "sortNo": 49,
+    "imagePath": "200_icon/25_icon_nameplate/nm04301",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 48,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNIRSTjIyAAAAAXg=",
+    "attributes": {
+      "SortNo": 49,
+      "Image": "200_icon/25_icon_nameplate/nm04301"
+    }
+  },
+  {
+    "id": "0x811D58B7",
+    "name": "nm04401",
+    "nameplateId": "0x811D58B7",
+    "nameTextId": "0x89761D09",
+    "sortNo": 50,
+    "imagePath": "200_icon/25_icon_nameplate/nm04401",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 49,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNIEdWLcyAAAAAXg=",
+    "attributes": {
+      "SortNo": 50,
+      "Image": "200_icon/25_icon_nameplate/nm04401"
+    }
+  },
+  {
+    "id": "0x3F6AFD39",
+    "name": "nm05101",
+    "nameplateId": "0x3F6AFD39",
+    "nameTextId": "0x3701B887",
+    "sortNo": 51,
+    "imagePath": "200_icon/25_icon_nameplate/nm05101",
+    "fontStyle": "0x66A0930A",
+    "flagIndex": 50,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCND9q/TkyAAAAAXg=",
+    "attributes": {
+      "SortNo": 51,
+      "Image": "200_icon/25_icon_nameplate/nm05101"
+    }
+  },
+  {
+    "id": "0x3D2C4360",
+    "name": "nm05201",
+    "nameplateId": "0x3D2C4360",
+    "nameTextId": "0x354706DE",
+    "sortNo": 52,
+    "imagePath": "200_icon/25_icon_nameplate/nm05201",
+    "fontStyle": "0x72A1CF45",
+    "flagIndex": 51,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCND0sQ2AyAAAAAXg=",
+    "attributes": {
+      "SortNo": 52,
+      "Image": "200_icon/25_icon_nameplate/nm05201"
+    }
+  },
+  {
+    "id": "0x3CEE2957",
+    "name": "nm05301",
+    "nameplateId": "0x3CEE2957",
+    "nameTextId": "0x34856CE9",
+    "sortNo": 53,
+    "imagePath": "200_icon/25_icon_nameplate/nm05301",
+    "fontStyle": "0x72A1CF45",
+    "flagIndex": 52,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNDzuKVcyAAAAAXg=",
+    "attributes": {
+      "SortNo": 53,
+      "Image": "200_icon/25_icon_nameplate/nm05301"
+    }
+  },
+  {
+    "id": "0x39A13FD2",
+    "name": "nm05401",
+    "nameplateId": "0x39A13FD2",
+    "nameTextId": "0x31CA7A6C",
+    "sortNo": 54,
+    "imagePath": "200_icon/25_icon_nameplate/nm05401",
+    "fontStyle": "0x72A1CF45",
+    "flagIndex": 53,
+    "enableCond": "AAAAABgFNRftNPcACgEoAAYCNDmhP9IyAAAAAXg=",
+    "attributes": {
+      "SortNo": 54,
+      "Image": "200_icon/25_icon_nameplate/nm05401"
+    }
+  }
+]

@@ -1,0 +1,974 @@
+[
+  {
+    "id": "0xCEBAE7C8",
+    "name": "img_room_s90g001",
+    "fieldId": "0xCEBAE7C8",
+    "index": 0,
+    "imagePath": "stadium/img_room_s90g001",
+    "condition": "",
+    "attributes": {
+      "Index": 0,
+      "Image": "stadium/img_room_s90g001"
+    }
+  },
+  {
+    "id": "0x22E965A5",
+    "name": "img_room_s10g001",
+    "fieldId": "0x22E965A5",
+    "index": 1,
+    "imagePath": "stadium/img_room_s10g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNI7qCisyAAAAAXg=",
+    "attributes": {
+      "Index": 1,
+      "Image": "stadium/img_room_s10g001"
+    }
+  },
+  {
+    "id": "0x08E4A776",
+    "name": "img_room_s42g001",
+    "fieldId": "0x08E4A776",
+    "index": 2,
+    "imagePath": "stadium/img_room_s42g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNJfxO2oyAAAAAXg=",
+    "attributes": {
+      "Index": 2,
+      "Image": "stadium/img_room_s42g001"
+    }
+  },
+  {
+    "id": "0x35848EC6",
+    "name": "img_room_s43g001",
+    "fieldId": "0x35848EC6",
+    "index": 3,
+    "imagePath": "stadium/img_room_s43g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNA74atAyAAAAAXg=",
+    "attributes": {
+      "Index": 3,
+      "Image": "stadium/img_room_s43g001"
+    }
+  },
+  {
+    "id": "0x87A452D6",
+    "name": "img_room_s44g001",
+    "fieldId": "0x87A452D6",
+    "index": 4,
+    "imagePath": "stadium/img_room_s44g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNHn/WkYyAAAAAXg=",
+    "attributes": {
+      "Index": 4,
+      "Image": "stadium/img_room_s44g001"
+    }
+  },
+  {
+    "id": "0xBAC47B66",
+    "name": "img_room_s45g001",
+    "fieldId": "0xBAC47B66",
+    "index": 5,
+    "imagePath": "stadium/img_room_s45g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNOebz+UyAAAAAXg=",
+    "attributes": {
+      "Index": 5,
+      "Image": "stadium/img_room_s45g001"
+    }
+  },
+  {
+    "id": "0x2881BE7E",
+    "name": "img_room_s33g001",
+    "fieldId": "0x2881BE7E",
+    "index": 6,
+    "imagePath": "stadium/img_room_s33g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNBfjW5EyAAAAAXg=",
+    "attributes": {
+      "Index": 6,
+      "Image": "stadium/img_room_s33g001"
+    }
+  },
+  {
+    "id": "0xD769C365",
+    "name": "img_room_s14g001",
+    "fieldId": "0xD769C365",
+    "index": 7,
+    "imagePath": "stadium/img_room_s14g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNJCc/3MyAAAAAXg=",
+    "attributes": {
+      "Index": 7,
+      "Image": "stadium/img_room_s14g001"
+    }
+  },
+  {
+    "id": "0x1F894C15",
+    "name": "img_room_s11g001",
+    "fieldId": "0x1F894C15",
+    "index": 8,
+    "imagePath": "stadium/img_room_s11g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNKFsFQkyAAAAAXg=",
+    "attributes": {
+      "Index": 8,
+      "Image": "stadium/img_room_s11g001"
+    }
+  },
+  {
+    "id": "0x4F44DDA6",
+    "name": "img_room_s41g001",
+    "fieldId": "0x4F44DDA6",
+    "index": 9,
+    "imagePath": "stadium/img_room_s41g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNKKqnfEyAAAAAXg=",
+    "attributes": {
+      "Index": 9,
+      "Image": "stadium/img_room_s41g001"
+    }
+  },
+  {
+    "id": "0xE4A5D471",
+    "name": "img_room_s09g001",
+    "fieldId": "0xE4A5D471",
+    "index": 10,
+    "imagePath": "stadium/img_room_s09g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNGDkawcyAAAAAXg=",
+    "attributes": {
+      "Index": 10,
+      "Image": "stadium/img_room_s09g001"
+    }
+  },
+  {
+    "id": "0x7224F416",
+    "name": "img_room_s40g001",
+    "fieldId": "0x7224F416",
+    "index": 11,
+    "imagePath": "stadium/img_room_s40g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNH6Snl8yAAAAAXg=",
+    "attributes": {
+      "Index": 11,
+      "Image": "stadium/img_room_s40g001"
+    }
+  },
+  {
+    "id": "0xFD6401B6",
+    "name": "img_room_s46g001",
+    "fieldId": "0xFD6401B6",
+    "index": 12,
+    "imagePath": "stadium/img_room_s46g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNO4tg84yAAAAAXg=",
+    "attributes": {
+      "Index": 12,
+      "Image": "stadium/img_room_s46g001"
+    }
+  },
+  {
+    "id": "0x6F21C4AE",
+    "name": "img_room_s30g001",
+    "fieldId": "0x6F21C4AE",
+    "index": 13,
+    "imagePath": "stadium/img_room_s30g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNJkqs1gyAAAAAXg=",
+    "attributes": {
+      "Index": 13,
+      "Image": "stadium/img_room_s30g001"
+    }
+  },
+  {
+    "id": "0xC0042806",
+    "name": "img_room_s47g001",
+    "fieldId": "0xC0042806",
+    "index": 14,
+    "imagePath": "stadium/img_room_s47g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNMvbWD8yAAAAAXg=",
+    "attributes": {
+      "Index": 14,
+      "Image": "stadium/img_room_s47g001"
+    }
+  },
+  {
+    "id": "0x4254BFD7",
+    "name": "img_room_s48g001",
+    "fieldId": "0x4254BFD7",
+    "index": 15,
+    "imagePath": "stadium/img_room_s48g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNLzcaKkyAAAAAXg=",
+    "attributes": {
+      "Index": 15,
+      "Image": "stadium/img_room_s48g001"
+    }
+  },
+  {
+    "id": "0x7F349667",
+    "name": "img_room_s49g001",
+    "fieldId": "0x7F349667",
+    "index": 16,
+    "imagePath": "stadium/img_room_s49g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNCXVORMyAAAAAXg=",
+    "attributes": {
+      "Index": 16,
+      "Image": "stadium/img_room_s49g001"
+    }
+  },
+  {
+    "id": "0xB97827B3",
+    "name": "img_room_s50g001",
+    "fieldId": "0xB97827B3",
+    "index": 17,
+    "imagePath": "stadium/img_room_s50g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNP6A/qQyAAAAAXg=",
+    "attributes": {
+      "Index": 17,
+      "Image": "stadium/img_room_s50g001"
+    }
+  },
+  {
+    "id": "0x84180E03",
+    "name": "img_room_s51g001",
+    "fieldId": "0x84180E03",
+    "index": 18,
+    "imagePath": "stadium/img_room_s51g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNFLSCYUyAAAAAXg=",
+    "attributes": {
+      "Index": 18,
+      "Image": "stadium/img_room_s51g001"
+    }
+  },
+  {
+    "id": "0xC3B874D3",
+    "name": "img_room_s52g001",
+    "fieldId": "0xC3B874D3",
+    "index": 19,
+    "imagePath": "stadium/img_room_s52g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNMy2nCYyAAAAAXg=",
+    "attributes": {
+      "Index": 19,
+      "Image": "stadium/img_room_s52g001"
+    }
+  },
+  {
+    "id": "0x65491F75",
+    "name": "img_room_s13g001",
+    "fieldId": "0x65491F75",
+    "index": 20,
+    "imagePath": "stadium/img_room_s13g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNImHzjIyAAAAAXg=",
+    "attributes": {
+      "Index": 20,
+      "Image": "stadium/img_room_s13g001"
+    }
+  },
+  {
+    "id": "0x582936C5",
+    "name": "img_room_s12g001",
+    "fieldId": "0x582936C5",
+    "index": 21,
+    "imagePath": "stadium/img_room_s12g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNAmVrskyAAAAAXg=",
+    "attributes": {
+      "Index": 21,
+      "Image": "stadium/img_room_s12g001"
+    }
+  },
+  {
+    "id": "0xFED85D63",
+    "name": "img_room_s53g001",
+    "fieldId": "0xFED85D63",
+    "index": 22,
+    "imagePath": "stadium/img_room_s53g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNLuxrLAyAAAAAXg=",
+    "attributes": {
+      "Index": 22,
+      "Image": "stadium/img_room_s53g001"
+    }
+  },
+  {
+    "id": "0x7198A8C3",
+    "name": "img_room_s55g001",
+    "fieldId": "0x7198A8C3",
+    "index": 23,
+    "imagePath": "stadium/img_room_s55g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNFW/zZwyAAAAAXg=",
+    "attributes": {
+      "Index": 23,
+      "Image": "stadium/img_room_s55g001"
+    }
+  },
+  {
+    "id": "0x3638D213",
+    "name": "img_room_s56g001",
+    "fieldId": "0x3638D213",
+    "index": 24,
+    "imagePath": "stadium/img_room_s56g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNMUA0A0yAAAAAXg=",
+    "attributes": {
+      "Index": 24,
+      "Image": "stadium/img_room_s56g001"
+    }
+  },
+  {
+    "id": "0x0B58FBA3",
+    "name": "img_room_s57g001",
+    "fieldId": "0x0B58FBA3",
+    "index": 25,
+    "imagePath": "stadium/img_room_s57g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNBCOn4gyAAAAAXg=",
+    "attributes": {
+      "Index": 25,
+      "Image": "stadium/img_room_s57g001"
+    }
+  },
+  {
+    "id": "0x89086C72",
+    "name": "img_room_s58g001",
+    "fieldId": "0x89086C72",
+    "index": 26,
+    "imagePath": "stadium/img_room_s58g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNLIH4JsyAAAAAXg=",
+    "attributes": {
+      "Index": 26,
+      "Image": "stadium/img_room_s58g001"
+    }
+  },
+  {
+    "id": "0xB46845C2",
+    "name": "img_room_s59g001",
+    "fieldId": "0xB46845C2",
+    "index": 27,
+    "imagePath": "stadium/img_room_s59g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNNLAaX4yAAAAAXg=",
+    "attributes": {
+      "Index": 27,
+      "Image": "stadium/img_room_s59g001"
+    }
+  },
+  {
+    "id": "0x3FEC551D",
+    "name": "img_room_s60g001",
+    "fieldId": "0x3FEC551D",
+    "index": 28,
+    "imagePath": "stadium/img_room_s60g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNKXHWegyAAAAAXg=",
+    "attributes": {
+      "Index": 28,
+      "Image": "stadium/img_room_s60g001"
+    }
+  },
+  {
+    "id": "0x028C7CAD",
+    "name": "img_room_s61g001",
+    "fieldId": "0x028C7CAD",
+    "index": 29,
+    "imagePath": "stadium/img_room_s61g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNDzOCFIyAAAAAXg=",
+    "attributes": {
+      "Index": 29,
+      "Image": "stadium/img_room_s61g001"
+    }
+  },
+  {
+    "id": "0x452C067D",
+    "name": "img_room_s62g001",
+    "fieldId": "0x452C067D",
+    "index": 30,
+    "imagePath": "stadium/img_room_s62g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNEvJOMQyAAAAAXg=",
+    "attributes": {
+      "Index": 30,
+      "Image": "stadium/img_room_s62g001"
+    }
+  },
+  {
+    "id": "0x4CF88173",
+    "name": "img_room_s54g001",
+    "fieldId": "0x4CF88173",
+    "index": 31,
+    "imagePath": "stadium/img_room_s54g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNCK4/QoyAAAAAXg=",
+    "attributes": {
+      "Index": 31,
+      "Image": "stadium/img_room_s54g001"
+    }
+  },
+  {
+    "id": "0xEA09EAD5",
+    "name": "img_room_s15g001",
+    "fieldId": "0xEA09EAD5",
+    "index": 32,
+    "imagePath": "stadium/img_room_s15g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNNWtrWcyAAAAAXg=",
+    "attributes": {
+      "Index": 32,
+      "Image": "stadium/img_room_s15g001"
+    }
+  },
+  {
+    "id": "0xDEBD446B",
+    "name": "img_room_s22g001",
+    "fieldId": "0xDEBD446B",
+    "index": 33,
+    "imagePath": "stadium/img_room_s22g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNGeJrx4yAAAAAXg=",
+    "attributes": {
+      "Index": 33,
+      "Image": "stadium/img_room_s22g001"
+    }
+  },
+  {
+    "id": "0x2B3DE2AB",
+    "name": "img_room_s26g001",
+    "fieldId": "0x2B3DE2AB",
+    "index": 34,
+    "imagePath": "stadium/img_room_s26g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNDujzEsyAAAAAXg=",
+    "attributes": {
+      "Index": 34,
+      "Image": "stadium/img_room_s26g001"
+    }
+  },
+  {
+    "id": "0x165DCB1B",
+    "name": "img_room_s27g001",
+    "fieldId": "0x165DCB1B",
+    "index": 35,
+    "imagePath": "stadium/img_room_s27g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNEyk/N0yAAAAAXg=",
+    "attributes": {
+      "Index": 35,
+      "Image": "stadium/img_room_s27g001"
+    }
+  },
+  {
+    "id": "0x784C2FCD",
+    "name": "img_room_s63g001",
+    "fieldId": "0x784C2FCD",
+    "index": 36,
+    "imagePath": "stadium/img_room_s63g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNNwb4UwyAAAAAXg=",
+    "attributes": {
+      "Index": 36,
+      "Image": "stadium/img_room_s63g001"
+    }
+  },
+  {
+    "id": "0xCA6CF3DD",
+    "name": "img_room_s64g001",
+    "fieldId": "0xCA6CF3DD",
+    "index": 37,
+    "imagePath": "stadium/img_room_s64g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNKsc0doyAAAAAXg=",
+    "attributes": {
+      "Index": 37,
+      "Image": "stadium/img_room_s64g001"
+    }
+  },
+  {
+    "id": "0xF70CDA6D",
+    "name": "img_room_s65g001",
+    "fieldId": "0xF70CDA6D",
+    "index": 38,
+    "imagePath": "stadium/img_room_s65g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNJ2B/7kyAAAAAXg=",
+    "attributes": {
+      "Index": 38,
+      "Image": "stadium/img_room_s65g001"
+    }
+  },
+  {
+    "id": "0x90C9B9B5",
+    "name": "img_room_s17g001",
+    "fieldId": "0x90C9B9B5",
+    "index": 39,
+    "imagePath": "stadium/img_room_s17g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNOqGzy8yAAAAAXg=",
+    "attributes": {
+      "Index": 39,
+      "Image": "stadium/img_room_s17g001"
+    }
+  },
+  {
+    "id": "0xB0ACA0BD",
+    "name": "img_room_s66g001",
+    "fieldId": "0xB0ACA0BD",
+    "index": 43,
+    "imagePath": "stadium/img_room_s66g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNO3rCzYyAAAAAXg=",
+    "attributes": {
+      "Index": 43,
+      "Image": "stadium/img_room_s66g001"
+    }
+  },
+  {
+    "id": "0x8DCC890D",
+    "name": "img_room_s67g001",
+    "fieldId": "0x8DCC890D",
+    "index": 44,
+    "imagePath": "stadium/img_room_s67g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNHTiWowyAAAAAXg=",
+    "attributes": {
+      "Index": 44,
+      "Image": "stadium/img_room_s67g001"
+    }
+  },
+  {
+    "id": "0x0F9C1EDC",
+    "name": "img_room_s68g001",
+    "fieldId": "0x0F9C1EDC",
+    "index": 45,
+    "imagePath": "stadium/img_room_s68g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNPc2so8yAAAAAXg=",
+    "attributes": {
+      "Index": 45,
+      "Image": "stadium/img_room_s68g001"
+    }
+  },
+  {
+    "id": "0x12992E64",
+    "name": "img_room_s18g001",
+    "fieldId": "0x12992E64",
+    "index": 48,
+    "imagePath": "stadium/img_room_s18g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNORdRx0yAAAAAXg=",
+    "attributes": {
+      "Index": 48,
+      "Image": "stadium/img_room_s18g001"
+    }
+  },
+  {
+    "id": "0x6231A6DF",
+    "name": "img_room_s39g001",
+    "fieldId": "0x6231A6DF",
+    "index": 49,
+    "imagePath": "stadium/img_room_s39g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNISazvgyAAAAAXg=",
+    "attributes": {
+      "Index": 49,
+      "Image": "stadium/img_room_s39g001"
+    }
+  },
+  {
+    "id": "0x5241ED1E",
+    "name": "img_room_s31g001",
+    "fieldId": "0x5241ED1E",
+    "index": 50,
+    "imagePath": "stadium/img_room_s31g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNPOd/m4yAAAAAXg=",
+    "attributes": {
+      "Index": 50,
+      "Image": "stadium/img_room_s31g001"
+    }
+  },
+  {
+    "id": "0x32FC376C",
+    "name": "img_room_s69g001",
+    "fieldId": "0x32FC376C",
+    "index": 51,
+    "imagePath": "stadium/img_room_s69g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNGqUr9QyAAAAAXg=",
+    "attributes": {
+      "Index": 51,
+      "Image": "stadium/img_room_s69g001"
+    }
+  },
+  {
+    "id": "0xF4B086B8",
+    "name": "img_room_s70g001",
+    "fieldId": "0xF4B086B8",
+    "index": 52,
+    "imagePath": "stadium/img_room_s70g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNB2Tn0IyAAAAAXg=",
+    "attributes": {
+      "Index": 52,
+      "Image": "stadium/img_room_s70g001"
+    }
+  },
+  {
+    "id": "0x940D5CCA",
+    "name": "img_room_s28g001",
+    "fieldId": "0x940D5CCA",
+    "index": 53,
+    "imagePath": "stadium/img_room_s28g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNIP3CuEyAAAAAXg=",
+    "attributes": {
+      "Index": 53,
+      "Image": "stadium/img_room_s28g001"
+    }
+  },
+  {
+    "id": "0xC9D0AF08",
+    "name": "img_room_s71g001",
+    "fieldId": "0xC9D0AF08",
+    "index": 54,
+    "imagePath": "stadium/img_room_s71g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNPTwOncyAAAAAXg=",
+    "attributes": {
+      "Index": 54,
+      "Image": "stadium/img_room_s71g001"
+    }
+  },
+  {
+    "id": "0x8E70D5D8",
+    "name": "img_room_s72g001",
+    "fieldId": "0x8E70D5D8",
+    "index": 55,
+    "imagePath": "stadium/img_room_s72g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNIAxghkyAAAAAXg=",
+    "attributes": {
+      "Index": 55,
+      "Image": "stadium/img_room_s72g001"
+    }
+  },
+  {
+    "id": "0xA96D757A",
+    "name": "img_room_s29g001",
+    "fieldId": "0xA96D757A",
+    "index": 56,
+    "imagePath": "stadium/img_room_s29g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNOD2C/wyAAAAAXg=",
+    "attributes": {
+      "Index": 56,
+      "Image": "stadium/img_room_s29g001"
+    }
+  },
+  {
+    "id": "0xB310FC68",
+    "name": "img_room_s73g001",
+    "fieldId": "0xB310FC68",
+    "index": 57,
+    "imagePath": "stadium/img_room_s73g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNG35a80yAAAAAXg=",
+    "attributes": {
+      "Index": 57,
+      "Image": "stadium/img_room_s73g001"
+    }
+  },
+  {
+    "id": "0x3C5009C8",
+    "name": "img_room_s75g001",
+    "fieldId": "0x3C5009C8",
+    "index": 58,
+    "imagePath": "stadium/img_room_s75g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNIpBRsoyAAAAAXg=",
+    "attributes": {
+      "Index": 58,
+      "Image": "stadium/img_room_s75g001"
+    }
+  },
+  {
+    "id": "0x01302078",
+    "name": "img_room_s74g001",
+    "fieldId": "0x01302078",
+    "index": 59,
+    "imagePath": "stadium/img_room_s74g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNBr+W1syAAAAAXg=",
+    "attributes": {
+      "Index": 59,
+      "Image": "stadium/img_room_s74g001"
+    }
+  },
+  {
+    "id": "0x2FF907D4",
+    "name": "img_room_s19g001",
+    "fieldId": "0x2FF907D4",
+    "index": 60,
+    "imagePath": "stadium/img_room_s19g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNP1GdlwyAAAAAXg=",
+    "attributes": {
+      "Index": 60,
+      "Image": "stadium/img_room_s19g001"
+    }
+  },
+  {
+    "id": "0xB7C6E87D",
+    "name": "img_room_s87g001",
+    "fieldId": "0xB7C6E87D",
+    "index": 61,
+    "imagePath": "stadium/img_room_s87g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNF8osWIyAAAAAXg=",
+    "attributes": {
+      "Index": 61,
+      "Image": "stadium/img_room_s87g001"
+    }
+  },
+  {
+    "id": "0x932A0650",
+    "name": "img_room_b10g004",
+    "fieldId": "0x932A0650",
+    "index": 62,
+    "imagePath": "stadium/img_room_b10g004",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNK+3nTsyAAAAAXg=",
+    "attributes": {
+      "Index": 62,
+      "Image": "stadium/img_room_b10g004"
+    }
+  },
+  {
+    "id": "0x51602ECF",
+    "name": "img_room_b17g001",
+    "fieldId": "0x51602ECF",
+    "index": 63,
+    "imagePath": "stadium/img_room_b17g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNN/dabQyAAAAAXg=",
+    "attributes": {
+      "Index": 63,
+      "Image": "stadium/img_room_b17g001"
+    }
+  },
+  {
+    "id": "0x65D48071",
+    "name": "img_room_b20g001",
+    "fieldId": "0x65D48071",
+    "index": 64,
+    "imagePath": "stadium/img_room_b20g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNEbUOA4yAAAAAXg=",
+    "attributes": {
+      "Index": 64,
+      "Image": "stadium/img_room_b20g001"
+    }
+  },
+  {
+    "id": "0x9375E560",
+    "name": "img_room_s02g001",
+    "fieldId": "0x9375E560",
+    "index": 65,
+    "imagePath": "stadium/img_room_s02g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNNiwra0yAAAAAXg=",
+    "attributes": {
+      "Index": 65,
+      "Image": "stadium/img_room_s02g001"
+    }
+  },
+  {
+    "id": "0xAE15CCD0",
+    "name": "img_room_s03g001",
+    "fieldId": "0xAE15CCD0",
+    "index": 66,
+    "imagePath": "stadium/img_room_s03g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNEG5/BcyAAAAAXg=",
+    "attributes": {
+      "Index": 66,
+      "Image": "stadium/img_room_s03g001"
+    }
+  },
+  {
+    "id": "0x78D1B0C9",
+    "name": "img_room_w50",
+    "fieldId": "0x78D1B0C9",
+    "index": 67,
+    "imagePath": "stadium/img_room_w50",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNKjaWSIyAAAAAXg=",
+    "attributes": {
+      "Index": 67,
+      "Image": "stadium/img_room_w50"
+    }
+  },
+  {
+    "id": "0xD4D59FB0",
+    "name": "img_room_s01g001",
+    "fieldId": "0xD4D59FB0",
+    "index": 68,
+    "imagePath": "stadium/img_room_s01g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNDHTCJgyAAAAAXg=",
+    "attributes": {
+      "Index": 68,
+      "Image": "stadium/img_room_s01g001"
+    }
+  },
+  {
+    "id": "0x7BF07318",
+    "name": "img_room_s76g001",
+    "fieldId": "0x7BF07318",
+    "index": 69,
+    "imagePath": "stadium/img_room_s76g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNDE0sLUyAAAAAXg=",
+    "attributes": {
+      "Index": 69,
+      "Image": "stadium/img_room_s76g001"
+    }
+  },
+  {
+    "id": "0x46905AA8",
+    "name": "img_room_s77g001",
+    "fieldId": "0x46905AA8",
+    "index": 70,
+    "imagePath": "stadium/img_room_s77g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNEYzgCMyAAAAAXg=",
+    "attributes": {
+      "Index": 70,
+      "Image": "stadium/img_room_s77g001"
+    }
+  },
+  {
+    "id": "0x8AA6C1CD",
+    "name": "img_room_s86g001",
+    "fieldId": "0x8AA6C1CD",
+    "index": 71,
+    "imagePath": "stadium/img_room_s86g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNCgvgfQyAAAAAXg=",
+    "attributes": {
+      "Index": 71,
+      "Image": "stadium/img_room_s86g001"
+    }
+  },
+  {
+    "id": "0xC4C0CD79",
+    "name": "img_room_s78g001",
+    "fieldId": "0xC4C0CD79",
+    "index": 72,
+    "imagePath": "stadium/img_room_s78g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNN860ZkyAAAAAXg=",
+    "attributes": {
+      "Index": 72,
+      "Image": "stadium/img_room_s78g001"
+    }
+  },
+  {
+    "id": "0xF9A0E4C9",
+    "name": "img_room_s79g001",
+    "fieldId": "0xF9A0E4C9",
+    "index": 78,
+    "imagePath": "stadium/img_room_s79g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNKg94Q8yAAAAAXg=",
+    "attributes": {
+      "Index": 78,
+      "Image": "stadium/img_room_s79g001"
+    }
+  },
+  {
+    "id": "0x05E6346D",
+    "name": "img_room_s80g001",
+    "fieldId": "0x05E6346D",
+    "index": 79,
+    "imagePath": "stadium/img_room_s80g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNDZZdKwyAAAAAXg=",
+    "attributes": {
+      "Index": 79,
+      "Image": "stadium/img_room_s80g001"
+    }
+  },
+  {
+    "id": "0x15E197CE",
+    "name": "img_room_s32g001",
+    "fieldId": "0x15E197CE",
+    "index": 80,
+    "imagePath": "stadium/img_room_s32g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNM9wFN4yAAAAAXg=",
+    "attributes": {
+      "Index": 80,
+      "Image": "stadium/img_room_s32g001"
+    }
+  },
+  {
+    "id": "0x51FDB1CB",
+    "name": "img_room_s24g001",
+    "fieldId": "0x51FDB1CB",
+    "index": 81,
+    "imagePath": "stadium/img_room_s24g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNCjIOdkyAAAAAXg=",
+    "attributes": {
+      "Index": 81,
+      "Image": "stadium/img_room_s24g001"
+    }
+  },
+  {
+    "id": "0xE3DD6DDB",
+    "name": "img_room_s23g001",
+    "fieldId": "0xE3DD6DDB",
+    "index": 82,
+    "imagePath": "stadium/img_room_s23g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNF/PCU8yAAAAAXg=",
+    "attributes": {
+      "Index": 82,
+      "Image": "stadium/img_room_s23g001"
+    }
+  },
+  {
+    "id": "0xAB00EA6D",
+    "name": "img_room_s22g001b",
+    "fieldId": "0xAB00EA6D",
+    "index": 83,
+    "imagePath": "stadium/img_room_s22g001b",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNMbGWPUyAAAAAXg=",
+    "attributes": {
+      "Index": 83,
+      "Image": "stadium/img_room_s22g001b"
+    }
+  },
+  {
+    "id": "0x38861DDD",
+    "name": "img_room_s81g001",
+    "fieldId": "0x38861DDD",
+    "index": 84,
+    "imagePath": "stadium/img_room_s81g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNEFeRDoyAAAAAXg=",
+    "attributes": {
+      "Index": 84,
+      "Image": "stadium/img_room_s81g001"
+    }
+  },
+  {
+    "id": "0x7F26670D",
+    "name": "img_room_s82g001",
+    "fieldId": "0x7F26670D",
+    "index": 85,
+    "imagePath": "stadium/img_room_s82g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNNhXFYAyAAAAAXg=",
+    "attributes": {
+      "Index": 85,
+      "Image": "stadium/img_room_s82g001"
+    }
+  },
+  {
+    "id": "0x6C9D987B",
+    "name": "img_room_s25g001",
+    "fieldId": "0x6C9D987B",
+    "index": 86,
+    "imagePath": "stadium/img_room_s25g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNLh3JEgyAAAAAXg=",
+    "attributes": {
+      "Index": 86,
+      "Image": "stadium/img_room_s25g001"
+    }
+  },
+  {
+    "id": "0x42464EBD",
+    "name": "img_room_s83g001",
+    "fieldId": "0x42464EBD",
+    "index": 87,
+    "imagePath": "stadium/img_room_s83g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNK9QJRYyAAAAAXg=",
+    "attributes": {
+      "Index": 87,
+      "Image": "stadium/img_room_s83g001"
+    }
+  },
+  {
+    "id": "0xF06692AD",
+    "name": "img_room_s84g001",
+    "fieldId": "0xF06692AD",
+    "index": 88,
+    "imagePath": "stadium/img_room_s84g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCND/vOIcyAAAAAXg=",
+    "attributes": {
+      "Index": 88,
+      "Image": "stadium/img_room_s84g001"
+    }
+  },
+  {
+    "id": "0xCD06BB1D",
+    "name": "img_room_s85g001",
+    "fieldId": "0xCD06BB1D",
+    "index": 89,
+    "imagePath": "stadium/img_room_s85g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNEjoCBEyAAAAAXg=",
+    "attributes": {
+      "Index": 89,
+      "Image": "stadium/img_room_s85g001"
+    }
+  },
+  {
+    "id": "0x66F543A0",
+    "name": "img_room_s06g001",
+    "fieldId": "0x66F543A0",
+    "index": 90,
+    "imagePath": "stadium/img_room_s06g001",
+    "condition": "AAAAABgFNRftNPcACgEoAAYCNNZrJZ8yAAAAAXg=",
+    "attributes": {
+      "Index": 90,
+      "Image": "stadium/img_room_s06g001"
+    }
+  }
+]

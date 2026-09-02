@@ -1,0 +1,48 @@
+{
+  "battles": [
+    [
+      3514675042,
+      {
+        "battleGroupId": 3514675042,
+        "itemTableId": "0x81A08AD6"
+      }
+    ],
+    [
+      687260929,
+      {
+        "battleGroupId": 687260929,
+        "itemTableId": "0x81A08AD6"
+      }
+    ],
+    [
+      2059269181,
+      {
+        "battleGroupId": 2059269181,
+        "itemTableId": "0x81A08AD6"
+      }
+    ],
+    [
+      2289982784,
+      {
+        "battleGroupId": 2289982784,
+        "itemTableId": "0x81A08AD6"
+      }
+    ],
+    [
+      2034032687,
+      {
+        "battleGroupId": 2034032687,
+        "itemTableId": "0x18A9DB6C"
+      }
+    ],
+    [
+      1734050610,
+      {
+        "battleGroupId": 1734050610,
+        "itemTableId": "0x18A9DB6C"
+      }
+    ]
+  ],
+  "tables": [],
+  "treasures": []
+}

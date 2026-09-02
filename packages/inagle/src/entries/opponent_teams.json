@@ -1,0 +1,2958 @@
+{
+  "opponents": [
+    {
+      "id": "0x286AD48A",
+      "name": "opp110005",
+      "opponentId": "0x286AD48A",
+      "type": 0,
+      "teamId": "0xB247E862",
+      "descTextId": "0x781C740D",
+      "pointTextId": "0x65B26158",
+      "meetingEventId": "0x00000000",
+      "flagNo": 4,
+      "openCond": "AAAAAA8FNbkZNtoAAQAyAAERynE=",
+      "formationCond": "AAAAAA8FNbkZNtoAAQAyAAERynE=",
+      "menuBaseColor": 11765759,
+      "menuTextColor": -1761623809,
+      "menuPlateColor": 5665535,
+      "bgTextureName": "opp110005",
+      "bgTextureNameCrc": "0x2B39B1BF",
+      "gameId": "0x0148BC19",
+      "difficultyType": 1,
+      "attributes": {
+        "Equipe": "0xB247E862",
+        "Difficulte": 1,
+        "Texture": "opp110005"
+      }
+    },
+    {
+      "id": "0xC664B5A6",
+      "name": "opp110003",
+      "opponentId": "0xC664B5A6",
+      "type": 0,
+      "teamId": "0xC5D90D26",
+      "descTextId": "0x96121521",
+      "pointTextId": "0x8BBC0074",
+      "meetingEventId": "0x00000000",
+      "flagNo": 2,
+      "openCond": "AAAAAA8FNbkZNtoAAQAyAADqanE=",
+      "formationCond": "AAAAAA8FNbkZNtoAAQAyAADqanE=",
+      "menuBaseColor": -192675585,
+      "menuTextColor": -944385,
+      "menuPlateColor": -1051918081,
+      "bgTextureName": "opp110003",
+      "bgTextureNameCrc": "0xC25A148A",
+      "gameId": "0x961A3DE4",
+      "difficultyType": 1,
+      "attributes": {
+        "Equipe": "0xC5D90D26",
+        "Difficulte": 1,
+        "Texture": "opp110003"
+      }
+    },
+    {
+      "id": "0xBFB80D02",
+      "name": "opp110006",
+      "opponentId": "0xBFB80D02",
+      "type": 0,
+      "teamId": "0x853F4DCA",
+      "descTextId": "0x160075DA",
+      "pointTextId": "0x0BAE608F",
+      "meetingEventId": "0x00000000",
+      "flagNo": 9,
+      "openCond": "AAAAAA8FNbkZNtoAAQAyAAERynE=",
+      "formationCond": "AAAAAA8FNbkZNtoAAQAyAAERynE=",
+      "menuBaseColor": -1638774017,
+      "menuTextColor": -2437633,
+      "menuPlateColor": -1643114241,
+      "bgTextureName": "opp110006",
+      "bgTextureNameCrc": "0xB230E005",
+      "gameId": "0x03C3E5FC",
+      "difficultyType": 1,
+      "attributes": {
+        "Equipe": "0x853F4DCA",
+        "Difficulte": 1,
+        "Texture": "opp110006"
+      }
+    },
+    {
+      "id": "0xB60E4129",
+      "name": "opp110007",
+      "opponentId": "0xB60E4129",
+      "type": 0,
+      "teamId": "0x1580505B",
+      "descTextId": "0xE678E1AE",
+      "pointTextId": "0xFBD6F4FB",
+      "meetingEventId": "0x00000000",
+      "flagNo": 5,
+      "openCond": "AAAAAA8FNbkZNtoAAQAyAAE4qHE=",
+      "formationCond": "AAAAAA8FNbkZNtoAAQAyAAE4qHE=",
+      "menuBaseColor": 1062507007,
+      "menuTextColor": -540297729,
+      "menuPlateColor": 489309439,
+      "bgTextureName": "opp110007",
+      "bgTextureNameCrc": "0xC537D093",
+      "gameId": "0x6F6F0082",
+      "difficultyType": 1,
+      "attributes": {
+        "Equipe": "0x1580505B",
+        "Difficulte": 1,
+        "Texture": "opp110007"
+      }
+    },
+    {
+      "id": "0xC10971BF",
+      "name": "opp110008",
+      "opponentId": "0xC10971BF",
+      "type": 0,
+      "teamId": "0x628760CD",
+      "descTextId": "0x917FD138",
+      "pointTextId": "0x8CD1C46D",
+      "meetingEventId": "0x00000000",
+      "flagNo": 6,
+      "openCond": "AAAAAA8FNbkZNtoAAQAyAAE4snE=",
+      "formationCond": "AAAAAA8FNbkZNtoAAQAyAAE4snE=",
+      "menuBaseColor": 358036223,
+      "menuTextColor": 2027983359,
+      "menuPlateColor": -1273822721,
+      "bgTextureName": "opp110008",
+      "bgTextureNameCrc": "0x5588CD02",
+      "gameId": "0x6B6D71B4",
+      "difficultyType": 1,
+      "attributes": {
+        "Equipe": "0x628760CD",
+        "Difficulte": 1,
+        "Texture": "opp110008"
+      }
+    },
+    {
+      "id": "0x2F071093",
+      "name": "opp110012",
+      "opponentId": "0x2F071093",
+      "type": 0,
+      "teamId": "0x461448F3",
+      "descTextId": "0x98C99D13",
+      "pointTextId": "0x85678846",
+      "meetingEventId": "0x00000000",
+      "flagNo": 8,
+      "openCond": "AAAAAB4LMgAAdZ41uRk22gABAG81uRk22gABADIAAJyub48=",
+      "formationCond": "AAAAAB4LMgAAdZ41uRk22gABAG81uRk22gABADIAAJyub48=",
+      "menuBaseColor": -1456528641,
+      "menuTextColor": -187064577,
+      "menuPlateColor": -1787033089,
+      "bgTextureName": "opp110012",
+      "bgTextureNameCrc": "0xAC46155D",
+      "gameId": "0xF62E8177",
+      "difficultyType": 1,
+      "attributes": {
+        "Equipe": "0x461448F3",
+        "Difficulte": 1,
+        "Texture": "opp110012"
+      }
+    },
+    {
+      "id": "0xA4C35698",
+      "name": "opp110012",
+      "opponentId": "0xA4C35698",
+      "type": 0,
+      "teamId": "0xF2387D5C",
+      "descTextId": "0x98C99D13",
+      "pointTextId": "0x85678846",
+      "meetingEventId": "0x00000000",
+      "flagNo": 1,
+      "openCond": "AAAAAA8FNbkZNtoAAQAyAACcuHE=",
+      "formationCond": "AAAAAA8FNbkZNtoAAQAyAACcuHE=",
+      "menuBaseColor": -1456528641,
+      "menuTextColor": -187064577,
+      "menuPlateColor": -1787033089,
+      "bgTextureName": "opp110012",
+      "bgTextureNameCrc": "0xAC46155D",
+      "gameId": "0xA57EED32",
+      "difficultyType": 1,
+      "attributes": {
+        "Equipe": "0xF2387D5C",
+        "Difficulte": 1,
+        "Texture": "opp110012"
+      }
+    },
+    {
+      "id": "0x58002005",
+      "name": "opp110014",
+      "opponentId": "0x58002005",
+      "type": 0,
+      "teamId": "0x28084924",
+      "descTextId": "0xF80E14F6",
+      "pointTextId": "0xE5A001A3",
+      "meetingEventId": "0x00000000",
+      "flagNo": 7,
+      "openCond": "AAAAAB4LMgAAdZ41uRk22gABAG81uRk22gABADIAAJyub48=",
+      "formationCond": "AAAAAA8FNbkZNtoAAQAyAAB1nnE=",
+      "menuBaseColor": 296088319,
+      "menuTextColor": -805336065,
+      "menuPlateColor": 5348863,
+      "bgTextureName": "opp110014",
+      "bgTextureNameCrc": "0x4525B068",
+      "gameId": "0xD0187638",
+      "difficultyType": 1,
+      "attributes": {
+        "Equipe": "0x28084924",
+        "Difficulte": 1,
+        "Texture": "opp110014"
+      }
+    },
+    {
+      "id": "0x1C7F31FD",
+      "name": "opp110014",
+      "opponentId": "0x1C7F31FD",
+      "type": 0,
+      "teamId": "0x6B312CE6",
+      "descTextId": "0xF80E14F6",
+      "pointTextId": "0xE5A001A3",
+      "meetingEventId": "0x00000000",
+      "flagNo": 22,
+      "openCond": "AAAAAA8FNbkZNtoAAQAyAACcuHE=",
+      "formationCond": "AAAAAA8FNbkZNtoAAQAyAACcuHE=",
+      "menuBaseColor": 296088319,
+      "menuTextColor": -805336065,
+      "menuPlateColor": 5348863,
+      "bgTextureName": "opp110014",
+      "bgTextureNameCrc": "0x4525B068",
+      "gameId": "0xAB007583",
+      "difficultyType": 1,
+      "attributes": {
+        "Equipe": "0x6B312CE6",
+        "Difficulte": 1,
+        "Texture": "opp110014"
+      }
+    },
+    {
+      "id": "0xC8BF3D94",
+      "name": "opp110009",
+      "opponentId": "0xC8BF3D94",
+      "type": 1,
+      "teamId": "0xF7A12CEB",
+      "descTextId": "0x8F092460",
+      "pointTextId": "0x92A73135",
+      "meetingEventId": "0x00000000",
+      "flagNo": 10,
+      "openCond": "AAAAACcLNbkZNtoAAQAyAACcuHE1Kj1FQwAKASgABgI06MBvgDIAAAABeI8=",
+      "formationCond": "AAAAACcLNbkZNtoAAQAyAACcuHE1Kj1FQwAKASgABgI06MBvgDIAAAABeI8=",
+      "menuBaseColor": 1536901119,
+      "menuTextColor": -671111937,
+      "menuPlateColor": 1328949247,
+      "bgTextureName": "opp110009",
+      "bgTextureNameCrc": "0x228FFD94",
+      "gameId": "0x336350E3",
+      "difficultyType": 1,
+      "attributes": {
+        "Equipe": "0xF7A12CEB",
+        "Difficulte": 1,
+        "Texture": "opp110009"
+      }
+    },
+    {
+      "id": "0x4676D55D",
+      "name": "opp110011",
+      "opponentId": "0x4676D55D",
+      "type": 1,
+      "teamId": "0xCAC1055B",
+      "descTextId": "0x08768082",
+      "pointTextId": "0x15D895D7",
+      "meetingEventId": "0x00000000",
+      "flagNo": 13,
+      "openCond": "AAAAABgFNSo9RUMACgEoAAYCNPqyMzIyAAAAAXg=",
+      "formationCond": "AAAAABgFNSo9RUMACgEoAAYCNPqyMzIyAAAAAXg=",
+      "menuBaseColor": 1144040447,
+      "menuTextColor": -1343745,
+      "menuPlateColor": -1299840769,
+      "bgTextureName": "opp110011",
+      "bgTextureNameCrc": "0x354F44E7",
+      "gameId": "0x9244209D",
+      "difficultyType": 1,
+      "attributes": {
+        "Equipe": "0xCAC1055B",
+        "Difficulte": 1,
+        "Texture": "opp110011"
+      }
+    },
+    {
+      "id": "0xDF7F84E7",
+      "name": "opp110010",
+      "opponentId": "0xDF7F84E7",
+      "type": 1,
+      "teamId": "0x8D617F8B",
+      "descTextId": "0x7F71B014",
+      "pointTextId": "0x62DFA541",
+      "meetingEventId": "0x00000000",
+      "flagNo": 12,
+      "openCond": "AAAAABgFNSo9RUMACgEoAAYCNL0SSeIyAAAAAXg=",
+      "formationCond": "AAAAABgFNSo9RUMACgEoAAYCNL0SSeIyAAAAAXg=",
+      "menuBaseColor": 578798079,
+      "menuTextColor": -355291649,
+      "menuPlateColor": 941496319,
+      "bgTextureName": "opp110010",
+      "bgTextureNameCrc": "0x42487471",
+      "gameId": "0x083F7CAD",
+      "difficultyType": 1,
+      "attributes": {
+        "Equipe": "0x8D617F8B",
+        "Difficulte": 1,
+        "Texture": "opp110010"
+      }
+    },
+    {
+      "id": "0x3171E5CB",
+      "name": "opp110013",
+      "opponentId": "0x3171E5CB",
+      "type": 1,
+      "teamId": "0xB001563B",
+      "descTextId": "0xEFCEAD85",
+      "pointTextId": "0xF260B8D0",
+      "meetingEventId": "0x00000000",
+      "flagNo": 14,
+      "openCond": "AAAAABgFNSo9RUMACgEoAAYCNIByYFIyAAAAAXg=",
+      "formationCond": "AAAAABgFNSo9RUMACgEoAAYCNIByYFIyAAAAAXg=",
+      "menuBaseColor": 1882034431,
+      "menuTextColor": -1800193,
+      "menuPlateColor": 975605759,
+      "bgTextureName": "opp110013",
+      "bgTextureNameCrc": "0xDB4125CB",
+      "gameId": "0xFA8B8961",
+      "difficultyType": 1,
+      "attributes": {
+        "Equipe": "0xB001563B",
+        "Difficulte": 1,
+        "Texture": "opp110013"
+      }
+    },
+    {
+      "id": "0xBC7E85FA",
+      "name": "opp110017",
+      "opponentId": "0xBC7E85FA",
+      "type": 1,
+      "teamId": "0x3251C1EA",
+      "descTextId": "0xC8AC89D5",
+      "pointTextId": "0x0CC3A496",
+      "meetingEventId": "0x00000000",
+      "flagNo": 16,
+      "openCond": "AAAAABgFNSo9RUMACgEoAAYCNLDxgxQyAAAAAXg=",
+      "formationCond": "AAAAABgFNSo9RUMACgEoAAYCNLDxgxQyAAAAAXg=",
+      "menuBaseColor": 13026559,
+      "menuTextColor": -811009,
+      "menuPlateColor": 2715391,
+      "bgTextureName": "opp110017",
+      "bgTextureNameCrc": "0xDC2CE1D2",
+      "gameId": "0x808012A6",
+      "difficultyType": 1,
+      "attributes": {
+        "Equipe": "0x3251C1EA",
+        "Difficulte": 1,
+        "Texture": "opp110017"
+      }
+    },
+    {
+      "id": "0x2577D440",
+      "name": "opp110018",
+      "opponentId": "0x2577D440",
+      "type": 1,
+      "teamId": "0x8B2FCCB8",
+      "descTextId": "0x2507D655",
+      "pointTextId": "0x7BC49400",
+      "meetingEventId": "0x00000000",
+      "flagNo": 17,
+      "openCond": "AAAAABgFNSo9RUMACgEoAAYCNAIi94MyAAAAAXg=",
+      "formationCond": "AAAAABgFNSo9RUMACgEoAAYCNAIi94MyAAAAAXg=",
+      "menuBaseColor": -1473425153,
+      "menuTextColor": -522584065,
+      "menuPlateColor": -2146291713,
+      "bgTextureName": "opp110018",
+      "bgTextureNameCrc": "0x4C93FC43",
+      "gameId": "0x6C137904",
+      "difficultyType": 1,
+      "attributes": {
+        "Equipe": "0x8B2FCCB8",
+        "Difficulte": 1,
+        "Texture": "opp110018"
+      }
+    },
+    {
+      "id": "0x5270E4D6",
+      "name": "opp110016",
+      "opponentId": "0x5270E4D6",
+      "type": 1,
+      "teamId": "0x3C429052",
+      "descTextId": "0xDC40EE66",
+      "pointTextId": "0xEB7B8991",
+      "meetingEventId": "0x00000000",
+      "flagNo": 18,
+      "openCond": "AAAAABgFNSo9RUMACgEoAAYCNABkSdoyAAAAAXg=",
+      "formationCond": "AAAAABgFNSo9RUMACgEoAAYCNABkSdoyAAAAAXg=",
+      "menuBaseColor": -1017052929,
+      "menuTextColor": -1654529,
+      "menuPlateColor": 841488127,
+      "bgTextureName": "opp110016",
+      "bgTextureNameCrc": "0xAB2BD144",
+      "gameId": "0xF6AFFEAE",
+      "difficultyType": 1,
+      "attributes": {
+        "Equipe": "0x3C429052",
+        "Difficulte": 1,
+        "Texture": "opp110016"
+      }
+    },
+    {
+      "id": "0xC2CFF947",
+      "name": "opp110019",
+      "opponentId": "0xC2CFF947",
+      "type": 1,
+      "teamId": "0x00E0D3D5",
+      "descTextId": "0xA78CEE1F",
+      "pointTextId": "0x9C7CB907",
+      "meetingEventId": "0x00000000",
+      "flagNo": 19,
+      "openCond": "AAAAABgFNSo9RUMACgEoAAYCND9C3jMyAAAAAXg=",
+      "formationCond": "AAAAABgFNSo9RUMACgEoAAYCND9C3jMyAAAAAXg=",
+      "menuBaseColor": 1585837055,
+      "menuTextColor": -534017,
+      "menuPlateColor": 4697087,
+      "bgTextureName": "opp110019",
+      "bgTextureNameCrc": "0x3B94CCD5",
+      "gameId": "0xF9B7DE8A",
+      "difficultyType": 1,
+      "attributes": {
+        "Equipe": "0x00E0D3D5",
+        "Difficulte": 1,
+        "Texture": "opp110019"
+      }
+    }
+  ],
+  "matchDifficulties": [
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNPYugXcoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNPYugXcoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNPYugXcoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNPYugXcoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNPYugXcoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNPYugXcoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNPYugXcoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNPYugXcoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNPYugXcoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNKV+7TIoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNKV+7TIoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNKV+7TIoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNKV+7TIoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNKV+7TIoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNKV+7TIoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNNAYdjgoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNNAYdjgoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNNAYdjgoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNNAYdjgoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNNAYdjgoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNNAYdjgoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNKsAdYMoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNKsAdYMoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNKsAdYMoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNDNjUOMoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNDNjUOMoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNDNjUOMoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNDNjUOMoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNDNjUOMoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNDNjUOMoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNJJEIJ0oAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNJJEIJ0oAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNJJEIJ0oAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNAg/fK0oAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNAg/fK0oAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNAg/fK0oAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNI1uqKUoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNI1uqKUoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNI1uqKUoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNPqLiWEoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNPqLiWEoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNPqLiWEoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNAFIvBkoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNAFIvBkoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNAFIvBkoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNAPD5fwoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNAPD5fwoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNAPD5fwoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNG9vAIIoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNG9vAIIoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNG9vAIIoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNBQ7iEooAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNBQ7iEooAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNBQ7iEooAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNICAEqYoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNICAEqYoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNICAEqYoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNPio4+goAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNPio4+goAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNPio4+goAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNGwTeQQoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNGwTeQQoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNGwTeQQoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNBVQi18oAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNBVQi18oAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNBVQi18oAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNPav/q4oAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNPav/q4oAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNPav/q4oAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNGttcbQoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNGttcbQoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNGttcbQoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNI5S/04oAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNI5S/04oAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNI5S/04oAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNPm33oooAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNPm33oooAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNPm33oooAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNMUAbUgoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNMUAbUgoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNMUAbUgoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNCb/GLkoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNCb/GLkoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNCb/GLkoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNGL2dXooAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNGL2dXooAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNGL2dXooAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNMveYLMoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNMveYLMoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNMveYLMoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNJRkPaUoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNJRkPaUoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNJRkPaUoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCND1MKGwoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCND1MKGwoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCND1MKGwoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNNLlIDgoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNNLlIDgoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNNLlIDgoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNHvNNfEoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNHvNNfEoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNHvNNfEoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNNYxwo4oAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNNYxwo4oAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNNYxwo4oAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNEpPIQYoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNEpPIQYoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNEpPIQYoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNF8KyVkoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNF8KyVkoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNF8KyVkoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNMhCTRwoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNMhCTRwoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNMhCTRwoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNNud/m4oAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNNud/m4oAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNNud/m4oAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNBDRhVQoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNBDRhVQoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNBDRhVQoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNP45BQAoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNP45BQAoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNP45BQAoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNFcREMkoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNFcREMkoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNFcREMkoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNBr2jd0oAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNBr2jd0oAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNBr2jd0oAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNPjn39woAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNPjn39woAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNPjn39woAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNK+OOOUoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNK+OOOUoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNK+OOOUoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNE3whWQoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNE3whWQoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNE3whWQoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNKgXov4oAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNKgXov4oAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNKgXov4oAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNHe2yncoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNHe2yncoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNHe2yncoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNIfJhXIoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNIfJhXIoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNIfJhXIoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNGXY13MoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNGXY13MoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNGXY13MoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNCCAjFcoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNCCAjFcoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNCCAjFcoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNFdlrZMoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNFdlrZMoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNFdlrZMoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNA2X+qgoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNA2X+qgoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNA2X+qgoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNHpy22woAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNHpy22woAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNHpy22woAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNMP/MDsoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNMP/MDsoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNMP/MDsoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNGrXJfIoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNGrXJfIoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNGrXJfIoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNGbUKqgoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNGbUKqgoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNGbUKqgoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNEscnBgoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNEscnBgoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNEscnBgoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNGtc6P8oAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNGtc6P8oAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNGtc6P8oAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNLT9gHYoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNLT9gHYoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNLT9gHYoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNLK0KoUoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNLK0KoUoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNLK0KoUoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNFCleIQoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNFCleIQoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNFCleIQoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNNZonG8oAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNNZonG8oAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNNZonG8oAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNH9AiaYoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNH9AiaYoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNH9AiaYoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNJU0BEYoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNJU0BEYoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNJU0BEYoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNHbLcbcoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNHbLcbcoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNHbLcbcoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNHoLe3coAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNHoLe3coAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNHoLe3coAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNOZ1mP8oAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNOZ1mP8oAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNOZ1mP8oAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNPHJFxkoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNPHJFxkoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNPHJFxkoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNFjhAtAoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNFjhAtAoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNFjhAtAoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNAkezmQoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNAkezmQoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNAkezmQoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNH7776AoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNH7776AoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNH7776AoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNOfrv7MoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNOfrv7MoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNOfrv7MoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNHNQJV8oAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNHNQJV8oAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNHNQJV8oAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNMRkw2MoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNMRkw2MoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNMRkw2MoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNCZ1kWIoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNCZ1kWIoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNCZ1kWIoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNFX+pQAoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNFX+pQAoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNFX+pQAoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNCIbhMQoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNCIbhMQoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNCIbhMQoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNCcrBL4oAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNCcrBL4oAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNCcrBL4oAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNFDOJXooAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNFDOJXooAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNFDOJXooAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNCiV/looAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNCiV/looAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNCiV/looAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNOLMw6UoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNOLMw6UoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNOLMw6UoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNNrhP4ooAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNNrhP4ooAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNNrhP4ooAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNHPJKkMoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNHPJKkMoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNHPJKkMoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNKkYx+ooAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNKkYx+ooAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNKkYx+ooAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNAAw0iMoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNAAw0iMoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNAAw0iMoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNLNRB+EoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNLNRB+EoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNLNRB+EoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNFFAVeAoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNFFAVeAoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNFFAVeAoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNFjLwR0oAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNFjLwR0oAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNFjLwR0oAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNC8u4NkoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNC8u4NkoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNC8u4NkoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNKK3a3coAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNKK3a3coAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNKK3a3coAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNGjuVogoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNGjuVogoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNGjuVogoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNNwyUqUoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNNwyUqUoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNNwyUqUoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNKvXc2EoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNKvXc2EoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNKvXc2EoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNEuTq2QoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNEuTq2QoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNEuTq2QoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNIHKlpsoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNIHKlpsoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNIHKlpsoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNLH6yRIoAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNLH6yRIoAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNLH6yRIoAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNCVBU/4oAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNCVBU/4oAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNCVBU/4oAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNDbwys4oAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNDbwys4oAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNDbwys4oAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNNSOd08oAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNNSOd08oAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNNSOd08oAAYCMgAAAAMyAAAAAXg="
+    },
+    {
+      "difficulty": 1,
+      "openCond": " OPPONENT_TEAM_INFO"
+    },
+    {
+      "difficulty": 2,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNDnF3DooAAYCMgAAAAEyAAAAAXg="
+    },
+    {
+      "difficulty": 3,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNDnF3DooAAYCMgAAAAIyAAAAAXg="
+    },
+    {
+      "difficulty": 4,
+      "openCond": "AAAAACEFNbgXycUAEwIoAAYCNDnF3DooAAYCMgAAAAMyAAAAAXg="
+    }
+  ],
+  "practiceMatches": [
+    {
+      "id": "0x2F071093",
+      "category": 0,
+      "gameInfo": [
+        0,
+        1
+      ],
+      "newFlag": "0xB52AF77B"
+    },
+    {
+      "id": "0x132E8DE9",
+      "category": 0,
+      "gameInfo": [
+        1,
+        1
+      ],
+      "newFlag": "0x2C23A6C1"
+    },
+    {
+      "id": "0x548EF739",
+      "category": 0,
+      "gameInfo": [
+        2,
+        1
+      ],
+      "newFlag": "0x5B249657"
+    },
+    {
+      "id": "0x889AC28C",
+      "category": 0,
+      "gameInfo": [
+        3,
+        1
+      ],
+      "newFlag": "0xC54003F4"
+    },
+    {
+      "id": "0xF577D0FA",
+      "category": 0,
+      "gameInfo": [
+        4,
+        1
+      ],
+      "newFlag": "0xB2473362"
+    },
+    {
+      "id": "0x58002005",
+      "category": 0,
+      "gameInfo": [
+        5,
+        1
+      ],
+      "newFlag": "0x2B4E62D8"
+    },
+    {
+      "id": "0x2C081A00",
+      "category": 0,
+      "gameInfo": [
+        6,
+        1
+      ],
+      "newFlag": "0x5C49524E"
+    },
+    {
+      "id": "0x8958A8BB",
+      "category": 0,
+      "gameInfo": [
+        7,
+        1
+      ],
+      "newFlag": "0xCCF64FDF"
+    },
+    {
+      "id": "0xC8BF3D94",
+      "category": 1,
+      "gameInfo": [
+        8,
+        1
+      ],
+      "newFlag": "0xBBF17F49"
+    },
+    {
+      "id": "0x2AC3D8EB",
+      "category": 1,
+      "gameInfo": [
+        9,
+        1
+      ],
+      "newFlag": "0x33B95D62"
+    },
+    {
+      "id": "0x4676D55D",
+      "category": 1,
+      "gameInfo": [
+        10,
+        1
+      ],
+      "newFlag": "0x44BE6DF4"
+    },
+    {
+      "id": "0xDF7F84E7",
+      "category": 1,
+      "gameInfo": [
+        11,
+        1
+      ],
+      "newFlag": "0xDDB73C4E"
+    },
+    {
+      "id": "0x372F0D35",
+      "category": 0,
+      "gameInfo": [
+        12,
+        1
+      ],
+      "newFlag": "0xAAB00CD8"
+    },
+    {
+      "id": "0x3171E5CB",
+      "category": 0,
+      "gameInfo": [
+        13,
+        1
+      ],
+      "newFlag": "0x34D4997B"
+    },
+    {
+      "id": "0x286AD48A",
+      "category": 1,
+      "gameInfo": [
+        14,
+        1
+      ],
+      "newFlag": "0x43D3A9ED"
+    },
+    {
+      "id": "0xBFB80D02",
+      "category": 1,
+      "gameInfo": [
+        15,
+        1
+      ],
+      "newFlag": "0xDADAF857"
+    },
+    {
+      "id": "0xB60E4129",
+      "category": 1,
+      "gameInfo": [
+        16,
+        1
+      ],
+      "newFlag": "0xADDDC8C1"
+    },
+    {
+      "id": "0x3AB888E3",
+      "category": 2,
+      "gameInfo": [
+        17,
+        1
+      ],
+      "newFlag": "0x3D62D550"
+    },
+    {
+      "id": "0xD1A40CD5",
+      "category": 2,
+      "gameInfo": [
+        18,
+        1
+      ],
+      "newFlag": "0x4A65E5C6"
+    },
+    {
+      "id": "0x8355E7B2",
+      "category": 2,
+      "gameInfo": [
+        19,
+        1
+      ],
+      "newFlag": "0x18940EA1"
+    },
+    {
+      "id": "0x27DC1C82",
+      "category": 2,
+      "gameInfo": [
+        20,
+        1
+      ],
+      "newFlag": "0x6F933E37"
+    },
+    {
+      "id": "0xF452D724",
+      "category": 2,
+      "gameInfo": [
+        21,
+        1
+      ],
+      "newFlag": "0xF69A6F8D"
+    },
+    {
+      "id": "0x261E76B5",
+      "category": 2,
+      "gameInfo": [
+        22,
+        1
+      ],
+      "newFlag": "0x819D5F1B"
+    },
+    {
+      "id": "0xC10971BF",
+      "category": 1,
+      "gameInfo": [
+        23,
+        1
+      ],
+      "newFlag": "0x1FF9CAB8"
+    },
+    {
+      "id": "0x6D5B869E",
+      "category": 2,
+      "gameInfo": [
+        24,
+        1
+      ],
+      "newFlag": "0x68FEFA2E"
+    },
+    {
+      "id": "0x2458C8EC",
+      "category": 2,
+      "gameInfo": [
+        25,
+        1
+      ],
+      "newFlag": "0xF1F7AB94"
+    },
+    {
+      "id": "0xD81240FE",
+      "category": 5,
+      "gameInfo": [
+        26,
+        1
+      ],
+      "newFlag": "0x86F09B02"
+    },
+    {
+      "id": "0xD1C706EF",
+      "category": 5,
+      "gameInfo": [
+        27,
+        1
+      ],
+      "newFlag": "0x164F8693"
+    },
+    {
+      "id": "0x411B1144",
+      "category": 6,
+      "gameInfo": [
+        28,
+        1
+      ],
+      "newFlag": "0x6148B605"
+    },
+    {
+      "id": "0xD381B8B6",
+      "category": 6,
+      "gameInfo": [
+        29,
+        1
+      ],
+      "newFlag": "0x018F3FE0"
+    },
+    {
+      "id": "0x361C21D2",
+      "category": 5,
+      "gameInfo": [
+        30,
+        1
+      ],
+      "newFlag": "0x76880F76"
+    },
+    {
+      "id": "0xD243D281",
+      "category": 5,
+      "gameInfo": [
+        31,
+        1
+      ],
+      "newFlag": "0xEF815ECC"
+    },
+    {
+      "id": "0xA6A33C43",
+      "category": 3,
+      "gameInfo": [
+        32,
+        1
+      ],
+      "newFlag": "0x98866E5A"
+    },
+    {
+      "id": "0xD91F95BC",
+      "category": 3,
+      "gameInfo": [
+        33,
+        1
+      ],
+      "newFlag": "0x06E2FBF9"
+    },
+    {
+      "id": "0xB5C8C9D1",
+      "category": 5,
+      "gameInfo": [
+        34,
+        1
+      ],
+      "newFlag": "0x71E5CB6F"
+    },
+    {
+      "id": "0xC47B01DD",
+      "category": 5,
+      "gameInfo": [
+        35,
+        1
+      ],
+      "newFlag": "0xE8EC9AD5"
+    },
+    {
+      "id": "0xE73922B6",
+      "category": 4,
+      "gameInfo": [
+        36,
+        1
+      ],
+      "newFlag": "0x9FEBAA43"
+    },
+    {
+      "id": "0xC63DBF84",
+      "category": 4,
+      "gameInfo": [
+        37,
+        1
+      ],
+      "newFlag": "0x0F54B7D2"
+    },
+    {
+      "id": "0x1A5CB608",
+      "category": 6,
+      "gameInfo": [
+        38,
+        1
+      ],
+      "newFlag": "0x78538744"
+    },
+    {
+      "id": "0xC7FFD5B3",
+      "category": 6,
+      "gameInfo": [
+        39,
+        1
+      ],
+      "newFlag": "0x4ECEA927"
+    },
+    {
+      "id": "0x843823AB",
+      "category": 3,
+      "gameInfo": [
+        40,
+        1
+      ],
+      "newFlag": "0x39C999B1"
+    },
+    {
+      "id": "0xC2B0C336",
+      "category": 3,
+      "gameInfo": [
+        41,
+        1
+      ],
+      "newFlag": "0xA0C0C80B"
+    },
+    {
+      "id": "0xF33F133D",
+      "category": 6,
+      "gameInfo": [
+        42,
+        1
+      ],
+      "newFlag": "0xD7C7F89D"
+    },
+    {
+      "id": "0xC372A901",
+      "category": 6,
+      "gameInfo": [
+        43,
+        1
+      ],
+      "newFlag": "0x49A36D3E"
+    },
+    {
+      "id": "0x6A364287",
+      "category": 4,
+      "gameInfo": [
+        44,
+        1
+      ],
+      "newFlag": "0x3EA45DA8"
+    },
+    {
+      "id": "0xC1341758",
+      "category": 4,
+      "gameInfo": [
+        45,
+        1
+      ],
+      "newFlag": "0xA7AD0C12"
+    },
+    {
+      "id": "0x1D317211",
+      "category": 4,
+      "gameInfo": [
+        46,
+        1
+      ],
+      "newFlag": "0xD0AA3C84"
+    },
+    {
+      "id": "0xC0F67D6F",
+      "category": 4,
+      "gameInfo": [
+        47,
+        1
+      ],
+      "newFlag": "0x40152115"
+    },
+    {
+      "id": "0x8D8E6F80",
+      "category": 5,
+      "gameInfo": [
+        48,
+        1
+      ],
+      "newFlag": "0x37121183"
+    },
+    {
+      "id": "0xCBAA3A52",
+      "category": 5,
+      "gameInfo": [
+        49,
+        1
+      ],
+      "newFlag": "0x57D59866"
+    },
+    {
+      "id": "0xFA895F16",
+      "category": 3,
+      "gameInfo": [
+        50,
+        1
+      ],
+      "newFlag": "0x20D2A8F0"
+    },
+    {
+      "id": "0xCA685065",
+      "category": 3,
+      "gameInfo": [
+        51,
+        1
+      ],
+      "newFlag": "0xB9DBF94A"
+    },
+    {
+      "id": "0x9A4ED6F3",
+      "category": 6,
+      "gameInfo": [
+        52,
+        1
+      ],
+      "newFlag": "0xCEDCC9DC"
+    },
+    {
+      "id": "0x7D050C8F",
+      "category": 6,
+      "gameInfo": [
+        53,
+        1
+      ],
+      "newFlag": "0x50B85C7F"
+    },
+    {
+      "id": "0xED49E665",
+      "category": 3,
+      "gameInfo": [
+        54,
+        1
+      ],
+      "newFlag": "0x27BF6CE9"
+    },
+    {
+      "id": "0x7CC766B8",
+      "category": 3,
+      "gameInfo": [
+        55,
+        1
+      ],
+      "newFlag": "0xBEB63D53"
+    },
+    {
+      "id": "0x7440B7DF",
+      "category": 4,
+      "gameInfo": [
+        56,
+        1
+      ],
+      "newFlag": "0xC9B10DC5"
+    },
+    {
+      "id": "0x7E81D8E1",
+      "category": 4,
+      "gameInfo": [
+        57,
+        1
+      ],
+      "newFlag": "0x590E1054"
+    },
+    {
+      "id": "0x03478749",
+      "category": 4,
+      "gameInfo": [
+        58,
+        1
+      ],
+      "newFlag": "0x2E0920C2"
+    },
+    {
+      "id": "0x7F43B2D6",
+      "category": 4,
+      "gameInfo": [
+        59,
+        1
+      ],
+      "newFlag": "0x7CF8CBA5"
+    },
+    {
+      "id": "0x9D2312EA",
+      "category": 5,
+      "gameInfo": [
+        60,
+        1
+      ],
+      "newFlag": "0x0BFFFB33"
+    },
+    {
+      "id": "0x7A0CA453",
+      "category": 5,
+      "gameInfo": [
+        61,
+        1
+      ],
+      "newFlag": "0x92F6AA89"
+    },
+    {
+      "id": "0xEA24227C",
+      "category": 3,
+      "gameInfo": [
+        62,
+        1
+      ],
+      "newFlag": "0xE5F19A1F"
+    },
+    {
+      "id": "0x7BCECE64",
+      "category": 3,
+      "gameInfo": [
+        63,
+        1
+      ],
+      "newFlag": "0x7B950FBC"
+    },
+    {
+      "id": "0x732D73C6",
+      "category": 5,
+      "gameInfo": [
+        64,
+        1
+      ],
+      "newFlag": "0x0C923F2A"
+    },
+    {
+      "id": "0x7988703D",
+      "category": 5,
+      "gameInfo": [
+        65,
+        1
+      ],
+      "newFlag": "0x959B6E90"
+    },
+    {
+      "id": "0x042A4350",
+      "category": 6,
+      "gameInfo": [
+        66,
+        1
+      ],
+      "newFlag": "0xE29C5E06"
+    },
+    {
+      "id": "0x784A1A0A",
+      "category": 6,
+      "gameInfo": [
+        67,
+        1
+      ],
+      "newFlag": "0x72234397"
+    },
+    {
+      "id": "0x94955EC1",
+      "category": 3,
+      "gameInfo": [
+        68,
+        1
+      ],
+      "newFlag": "0x05247301"
+    },
+    {
+      "id": "0x73165D37",
+      "category": 3,
+      "gameInfo": [
+        69,
+        1
+      ],
+      "newFlag": "0x65E3FAE4"
+    },
+    {
+      "id": "0xE3926E57",
+      "category": 6,
+      "gameInfo": [
+        70,
+        1
+      ],
+      "newFlag": "0x12E4CA72"
+    },
+    {
+      "id": "0x72D43700",
+      "category": 6,
+      "gameInfo": [
+        71,
+        1
+      ],
+      "newFlag": "0x8BED9BC8"
+    },
+    {
+      "id": "0xD50F4034",
+      "category": 3,
+      "gameInfo": [
+        72,
+        1
+      ],
+      "newFlag": "0xFCEAAB5E"
+    },
+    {
+      "id": "0xE0D23436",
+      "category": 3,
+      "gameInfo": [
+        73,
+        1
+      ],
+      "newFlag": "0x628E3EFD"
+    },
+    {
+      "id": "0xA20870A2",
+      "category": 6,
+      "gameInfo": [
+        74,
+        1
+      ],
+      "newFlag": "0x15890E6B"
+    },
+    {
+      "id": "0xE1105E01",
+      "category": 6,
+      "gameInfo": [
+        75,
+        1
+      ],
+      "newFlag": "0x8C805FD1"
+    },
+    {
+      "id": "0x3B012118",
+      "category": 4,
+      "gameInfo": [
+        76,
+        1
+      ],
+      "newFlag": "0xFB876F47"
+    },
+    {
+      "id": "0xE356E058",
+      "category": 4,
+      "gameInfo": [
+        77,
+        1
+      ],
+      "newFlag": "0x6B3872D6"
+    },
+    {
+      "id": "0x4C06118E",
+      "category": 5,
+      "gameInfo": [
+        78,
+        1
+      ],
+      "newFlag": "0x1C3F4240"
+    },
+    {
+      "id": "0xE2948A6F",
+      "category": 5,
+      "gameInfo": [
+        79,
+        1
+      ],
+      "newFlag": "0xE27BE62B"
+    },
+    {
+      "id": "0xD262842D",
+      "category": 5,
+      "gameInfo": [
+        80,
+        1
+      ],
+      "newFlag": "0x957CD6BD"
+    },
+    {
+      "id": "0xE7DB9CEA",
+      "category": 5,
+      "gameInfo": [
+        81,
+        1
+      ],
+      "newFlag": "0x0C758707"
+    },
+    {
+      "id": "0xA565B4BB",
+      "category": 4,
+      "gameInfo": [
+        82,
+        1
+      ],
+      "newFlag": "0x7B72B791"
+    },
+    {
+      "id": "0xE619F6DD",
+      "category": 4,
+      "gameInfo": [
+        83,
+        1
+      ],
+      "newFlag": "0xE5162232"
+    },
+    {
+      "id": "0x3C6CE501",
+      "category": 5,
+      "gameInfo": [
+        84,
+        1
+      ],
+      "newFlag": "0x921112A4"
+    },
+    {
+      "id": "0xE45F4884",
+      "category": 5,
+      "gameInfo": [
+        85,
+        1
+      ],
+      "newFlag": "0x0B18431E"
+    },
+    {
+      "id": "0x4B6BD597",
+      "category": 6,
+      "gameInfo": [
+        86,
+        1
+      ],
+      "newFlag": "0x7C1F7388"
+    },
+    {
+      "id": "0xE59D22B3",
+      "category": 6,
+      "gameInfo": [
+        87,
+        1
+      ],
+      "newFlag": "0xECA06E19"
+    },
+    {
+      "id": "0xDBD4C806",
+      "category": 6,
+      "gameInfo": [
+        88,
+        1
+      ],
+      "newFlag": "0x9BA75E8F"
+    },
+    {
+      "id": "0xEEC1658E",
+      "category": 6,
+      "gameInfo": [
+        89,
+        1
+      ],
+      "newFlag": "0xFB60D76A"
+    },
+    {
+      "id": "0xACD3F890",
+      "category": 3,
+      "gameInfo": [
+        90,
+        1
+      ],
+      "newFlag": "0x8C67E7FC"
+    },
+    {
+      "id": "0xEF030FB9",
+      "category": 3,
+      "gameInfo": [
+        91,
+        1
+      ],
+      "newFlag": "0x156EB646"
+    },
+    {
+      "id": "0xCC147175",
+      "category": 4,
+      "gameInfo": [
+        92,
+        1
+      ],
+      "newFlag": "0x626986D0"
+    },
+    {
+      "id": "0x586E5353",
+      "category": 4,
+      "gameInfo": [
+        93,
+        1
+      ],
+      "newFlag": "0xFC0D1373"
+    },
+    {
+      "id": "0xBB1341E3",
+      "category": 3,
+      "gameInfo": [
+        94,
+        1
+      ],
+      "newFlag": "0x8B0A23E5"
+    },
+    {
+      "id": "0x59AC3964",
+      "category": 3,
+      "gameInfo": [
+        95,
+        1
+      ],
+      "newFlag": "0x1203725F"
+    },
+    {
+      "id": "0x221A1059",
+      "category": 4,
+      "gameInfo": [
+        96,
+        1
+      ],
+      "newFlag": "0x650442C9"
+    },
+    {
+      "id": "0x5BEA873D",
+      "category": 4,
+      "gameInfo": [
+        97,
+        1
+      ],
+      "newFlag": "0xF5BB5F58"
+    },
+    {
+      "id": "0x551D20CF",
+      "category": 3,
+      "gameInfo": [
+        98,
+        1
+      ],
+      "newFlag": "0x82BC6FCE"
+    },
+    {
+      "id": "0x5A28ED0A",
+      "category": 3,
+      "gameInfo": [
+        99,
+        1
+      ],
+      "newFlag": "0x57546608"
+    },
+    {
+      "id": "0xCB79B56C",
+      "category": 0,
+      "gameInfo": [
+        100,
+        1
+      ],
+      "newFlag": "0x2053569E"
+    }
+  ]
+}

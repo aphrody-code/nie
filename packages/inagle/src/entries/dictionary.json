@@ -1,0 +1,1470 @@
+{
+  "habitats": [
+    {
+      "habitatId": "0xCA6655CD",
+      "mapId": "0x00000000",
+      "mapNameId": "0x79995A45",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": false
+    },
+    {
+      "habitatId": "0x1A3F75EB",
+      "mapId": "0x63A5A6D9",
+      "mapNameId": "0xBFEA3E1C",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": true
+    },
+    {
+      "habitatId": "0xD3564AD8",
+      "mapId": "0x953DDCD1",
+      "mapNameId": "0x26E36FA6",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": true
+    },
+    {
+      "habitatId": "0x2E4F7D10",
+      "mapId": "0x6824EB19",
+      "mapNameId": "0x51E45F30",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": true
+    },
+    {
+      "habitatId": "0x7E7D95C3",
+      "mapId": "0xB6D35E90",
+      "mapNameId": "0xCF80CA93",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": true
+    },
+    {
+      "habitatId": "0xEA29DE9D",
+      "mapId": "0x228715CE",
+      "mapNameId": "0xB887FA05",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": true
+    },
+    {
+      "habitatId": "0x02CCC357",
+      "mapId": "0x7B561065",
+      "mapNameId": "0x218EABBF",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": true
+    },
+    {
+      "habitatId": "0x9FF386E1",
+      "mapId": "0xE66955D3",
+      "mapNameId": "0x56899B29",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": true
+    },
+    {
+      "habitatId": "0x28E6D28C",
+      "mapId": "0xE04819DF",
+      "mapNameId": "0xC63686B8",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": true
+    },
+    {
+      "habitatId": "0x7C47297E",
+      "mapId": "0x8EED87FB",
+      "mapNameId": "0xB131B62E",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": true
+    },
+    {
+      "habitatId": "0xE1786CC8",
+      "mapId": "0x13D2C24D",
+      "mapNameId": "0xD1F63FCB",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": true
+    },
+    {
+      "habitatId": "0x53165C47",
+      "mapId": "0x513E2CE8",
+      "mapNameId": "0xA6F10F5D",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": true
+    },
+    {
+      "habitatId": "0x018A49F1",
+      "mapId": "0x5C4B0EEF",
+      "mapNameId": "0x3FF85EE7",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": true
+    },
+    {
+      "habitatId": "0xA755A67F",
+      "mapId": "0xFA94E161",
+      "mapNameId": "0x48FF6E71",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": true
+    },
+    {
+      "habitatId": "0xF6569E33",
+      "mapId": "0xF47EEE9C",
+      "mapNameId": "0xD69BFBD2",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": true
+    },
+    {
+      "habitatId": "0x89F28CB5",
+      "mapId": "0xA2A61BE3",
+      "mapNameId": "0x9A8A3BA3",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": false
+    },
+    {
+      "habitatId": "0xA2DFDF76",
+      "mapId": "0x898B4820",
+      "mapNameId": "0x9A8A3BA3",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": false
+    },
+    {
+      "habitatId": "0xBBC4EE37",
+      "mapId": "0x90907961",
+      "mapNameId": "0x9A8A3BA3",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": false
+    },
+    {
+      "habitatId": "0xF48578F0",
+      "mapId": "0xDFD1EFA6",
+      "mapNameId": "0x9A8A3BA3",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": false
+    },
+    {
+      "habitatId": "0xED9E49B1",
+      "mapId": "0xC6CADEE7",
+      "mapNameId": "0x9A8A3BA3",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": false
+    },
+    {
+      "habitatId": "0x8F75692D",
+      "mapId": "0xE04819DF",
+      "mapNameId": "0x31B5089B",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": false
+    },
+    {
+      "habitatId": "0x167C3897",
+      "mapId": "0x5C4B0EEF",
+      "mapNameId": "0x89E1CE31",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": false
+    },
+    {
+      "habitatId": "0x2B87EF55",
+      "mapId": "0x228715CE",
+      "mapNameId": "0xF03D7695",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": false
+    },
+    {
+      "habitatId": "0x897F198C",
+      "mapId": "0x13D2C24D",
+      "mapNameId": "0x7EF49E5C",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": false
+    },
+    {
+      "habitatId": "0xEE9C43FB",
+      "mapId": "0x513E2CE8",
+      "mapNameId": "0x09F3AECA",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": false
+    },
+    {
+      "habitatId": "0xAD19EE3D",
+      "mapId": "0xFA94E161",
+      "mapNameId": "0x90FAFF70",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": false
+    },
+    {
+      "habitatId": "0x4C4D6F09",
+      "mapId": "0xFA94E161",
+      "mapNameId": "0xE7FDCFE6",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": false
+    },
+    {
+      "habitatId": "0x84FD4147",
+      "mapId": "0xFA94E161",
+      "mapNameId": "0xFEE6FEA7",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": true
+    },
+    {
+      "habitatId": "0x8632361A",
+      "mapId": "0x8EED87FB",
+      "mapNameId": "0x67EFAF1D",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": true
+    },
+    {
+      "habitatId": "0x26A3E247",
+      "mapId": "0x513E2CE8",
+      "mapNameId": "0x10E89F8B",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": true
+    },
+    {
+      "habitatId": "0xF424020D",
+      "mapId": "0xA2A61BE3",
+      "mapNameId": "0x8E8C0A28",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": true
+    },
+    {
+      "habitatId": "0xC9523C72",
+      "mapId": "0xA2A61BE3",
+      "mapNameId": "0xF98B3ABE",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": false
+    },
+    {
+      "habitatId": "0xF54E0C8B",
+      "mapId": "0x7B561065",
+      "mapNameId": "0x60826B04",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": true
+    },
+    {
+      "habitatId": "0x2BABC49D",
+      "mapId": "0x5C4B0EEF",
+      "mapNameId": "0x17855B92",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": true
+    },
+    {
+      "habitatId": "0x7EBECC59",
+      "mapId": "0xA2A61BE3",
+      "mapNameId": "0x873A4603",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": false
+    },
+    {
+      "habitatId": "0xBE047018",
+      "mapId": "0xE04819DF",
+      "mapNameId": "0x0E9E6AD3",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": false
+    },
+    {
+      "habitatId": "0x3572F8F7",
+      "mapId": "0xE04819DF",
+      "mapNameId": "0x9E217742",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": false
+    },
+    {
+      "habitatId": "0x9F0C8232",
+      "mapId": "0xE04819DF",
+      "mapNameId": "0x97973B69",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": false
+    },
+    {
+      "habitatId": "0xA681BEF7",
+      "mapId": "0x5C4B0EEF",
+      "mapNameId": "0xE0900BFF",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": false
+    },
+    {
+      "habitatId": "0x1212A37E",
+      "mapId": "0xB6D35E90",
+      "mapNameId": "0xE92647D4",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": false
+    },
+    {
+      "habitatId": "0x72414BAB",
+      "mapId": "0xB6D35E90",
+      "mapNameId": "0xBBD7ACB3",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": false
+    },
+    {
+      "habitatId": "0xA26CDBF4",
+      "mapId": "0x5C4B0EEF",
+      "mapNameId": "0xCCD09C25",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": false
+    },
+    {
+      "habitatId": "0x7D216444",
+      "mapId": "0xA2A61BE3",
+      "mapNameId": "0x55D9CD9F",
+      "fileName": "",
+      "textureNameCrc": "0x00000000",
+      "isShowAreaTexture": false
+    }
+  ],
+  "observations": [
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x877B7FFF"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x877B7FFF"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x877B7FFF"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x877B7FFF"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x877B7FFF"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x877B7FFF"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x877B7FFF"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x877B7FFF"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x877B7FFF"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x041EB09E"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x041EB09E"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x877B7FFF"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x73198008"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x041EB09E"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x9A7A253D"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x73198008"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x9A7A253D"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x73198008"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xED7D15AB"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x9A7A253D"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x73198008"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xED7D15AB"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x041EB09E"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x041EB09E"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x9A7A253D"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x73198008"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x041EB09E"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x9A7A253D"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x9A7A253D"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xED7D15AB"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x9A7A253D"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x73198008"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x9A7A253D"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x73198008"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x73198008"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x9A7A253D"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x73198008"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x73198008"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x041EB09E"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x73198008"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x73198008"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x9A7A253D"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xED7D15AB"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x041EB09E"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xEA10D1B2"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x9D17E124"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xEA10D1B2"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x3E75CCD9"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xA77C9D63"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xA77C9D63"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xD07BADF5"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xD07BADF5"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xD07BADF5"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xA77C9D63"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xD07BADF5"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xD07BADF5"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xD07BADF5"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xA77C9D63"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xD07BADF5"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xD07BADF5"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x4972FC4F"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xD07BADF5"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xD07BADF5"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xD07BADF5"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xA77C9D63"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xD07BADF5"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x9D17E124"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x9D17E124"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x9D17E124"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x167C9D19"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x9D17E124"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x2160C582"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x2160C582"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x2160C582"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x2160C582"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x2160C582"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x5667F514"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x2160C582"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x5667F514"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x5667F514"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x9D17E124"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xEA10D1B2"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xB8699438"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xB8699438"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xB8699438"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xEA10D1B2"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xCF6EA4AE"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xCF6EA4AE"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xBF045021"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xBF045021"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x2160C582"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x2160C582"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x2160C582"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x2160C582"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x2160C582"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x2160C582"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x2160C582"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x2160C582"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x260D019B"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x260D019B"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x260D019B"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xC80360B7"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xC80360B7"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xC80360B7"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x510A310D"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x510A310D"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x2FBB4DB0"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x2FBB4DB0"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x2160C582"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xE6CD43F4"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xE6CD43F4"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x91CA7362"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x91CA7362"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x91CA7362"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x2160C582"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x8F75CCA3"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xB8699438"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x260D019B"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xF872FC35"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0xEA10D1B2"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x58BC7D26"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x58BC7D26"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x4F7CC455"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x260D019B"
+    },
+    {
+      "charaid": "0x00000000",
+      "actiontype_id": "0x387BF4C3"
+    }
+  ]
+}

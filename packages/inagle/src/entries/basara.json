@@ -1,0 +1,5398 @@
+[
+  {
+    "index": 1,
+    "charaParamId": "0xBCC12B9F",
+    "charaId": "0x99A1C150",
+    "internalCode": "c01000010",
+    "names": {
+      "fr": "Mark Evans",
+      "en": "Mark Evans",
+      "ja": "守 円堂"
+    },
+    "icons": {
+      "face": "chara_face/c01000010_01.png",
+      "face2": "chara_face/c01000010_02.png"
+    },
+    "position": "GK",
+    "positionRaw": 1,
+    "element": "Montagne",
+    "elementRaw": 4,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 2,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 207,
+        "control": 223,
+        "technique": 210,
+        "physical": 225,
+        "pressure": 242,
+        "agility": 256,
+        "intelligence": 223
+      },
+      "lv50": {
+        "kick": 129,
+        "control": 139,
+        "technique": 130,
+        "physical": 141,
+        "pressure": 151,
+        "agility": 159,
+        "intelligence": 139
+      },
+      "lv1": {
+        "kick": 11,
+        "control": 12,
+        "technique": 12,
+        "physical": 11,
+        "pressure": 11,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Mark Evans",
+    "elementName": {
+      "ja": "山",
+      "en": "Mountain",
+      "fr": "Montagne"
+    },
+    "positionName": {
+      "en": "Goalkeeper",
+      "fr": "Gardien",
+      "ja": "Goalkeeper"
+    },
+    "totalStatsLv99": 1586,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      168,
+      6
+    ]
+  },
+  {
+    "index": 2,
+    "charaParamId": "0x97EC785C",
+    "charaId": "0xB28C9293",
+    "internalCode": "c01000020",
+    "names": {
+      "fr": "Nathan Swift",
+      "en": "Nathan Swift",
+      "ja": "一郎太 風丸"
+    },
+    "icons": {
+      "face": "chara_face/c01000020_01.png",
+      "face2": "chara_face/c01000020_02.png"
+    },
+    "position": "DF",
+    "positionRaw": 4,
+    "element": "Vent",
+    "elementRaw": 1,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 1,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 199,
+        "control": 207,
+        "technique": 202,
+        "physical": 242,
+        "pressure": 250,
+        "agility": 210,
+        "intelligence": 279
+      },
+      "lv50": {
+        "kick": 123,
+        "control": 129,
+        "technique": 127,
+        "physical": 151,
+        "pressure": 157,
+        "agility": 130,
+        "intelligence": 174
+      },
+      "lv1": {
+        "kick": 11,
+        "control": 12,
+        "technique": 13,
+        "physical": 10,
+        "pressure": 11,
+        "agility": 9,
+        "intelligence": 12
+      }
+    },
+    "displayName": "Nathan Swift",
+    "elementName": {
+      "ja": "風",
+      "en": "Wind",
+      "fr": "Vent"
+    },
+    "positionName": {
+      "en": "Defender",
+      "fr": "Défenseur",
+      "ja": "Defender"
+    },
+    "totalStatsLv99": 1589,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      144,
+      6
+    ]
+  },
+  {
+    "index": 3,
+    "charaParamId": "0x8E7039A0",
+    "charaId": "0xAB10D36F",
+    "internalCode": "c01010910",
+    "names": {
+      "fr": "Erik",
+      "en": "Erik",
+      "ja": "一哉 一之瀬"
+    },
+    "icons": {
+      "face": "chara_face/c01010910_01.png",
+      "face2": "chara_face/c01010910_02.png"
+    },
+    "position": "MF",
+    "positionRaw": 3,
+    "element": "Forêt",
+    "elementRaw": 2,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 0,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 238,
+        "control": 258,
+        "technique": 250,
+        "physical": 210,
+        "pressure": 211,
+        "agility": 195,
+        "intelligence": 230
+      },
+      "lv50": {
+        "kick": 150,
+        "control": 160,
+        "technique": 157,
+        "physical": 130,
+        "pressure": 132,
+        "agility": 122,
+        "intelligence": 144
+      },
+      "lv1": {
+        "kick": 13,
+        "control": 14,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Erik",
+    "elementName": {
+      "ja": "林",
+      "en": "Forest",
+      "fr": "Forêt"
+    },
+    "positionName": {
+      "en": "Midfielder",
+      "fr": "Milieu",
+      "ja": "Midfielder"
+    },
+    "totalStatsLv99": 1592,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      108,
+      6
+    ]
+  },
+  {
+    "index": 4,
+    "charaParamId": "0xA79CA487",
+    "charaId": "0x82FC4E48",
+    "internalCode": "c01000300",
+    "names": {
+      "fr": "Jude",
+      "en": "Jude",
+      "ja": "有人 鬼道"
+    },
+    "icons": {
+      "face": "chara_face/c01000300_01.png",
+      "face2": "chara_face/c01000300_02.png"
+    },
+    "position": "MF",
+    "positionRaw": 3,
+    "element": "Vent",
+    "elementRaw": 1,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 1,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 230,
+        "control": 265,
+        "technique": 267,
+        "physical": 202,
+        "pressure": 195,
+        "agility": 195,
+        "intelligence": 238
+      },
+      "lv50": {
+        "kick": 144,
+        "control": 165,
+        "technique": 166,
+        "physical": 127,
+        "pressure": 122,
+        "agility": 122,
+        "intelligence": 150
+      },
+      "lv1": {
+        "kick": 12,
+        "control": 13,
+        "technique": 13,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Jude",
+    "elementName": {
+      "ja": "風",
+      "en": "Wind",
+      "fr": "Vent"
+    },
+    "positionName": {
+      "en": "Midfielder",
+      "fr": "Milieu",
+      "ja": "Midfielder"
+    },
+    "totalStatsLv99": 1592,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      102,
+      6
+    ]
+  },
+  {
+    "index": 5,
+    "charaParamId": "0x12B74634",
+    "charaId": "0x37D7ACFB",
+    "internalCode": "c01001900",
+    "names": {
+      "fr": "Byron Love Aphrody",
+      "en": "Byron Love Aphrody",
+      "ja": "亜風炉 照美 アフロディ"
+    },
+    "icons": {
+      "face": "chara_face/c01001900_01.png",
+      "face2": "chara_face/c01001900_02.png"
+    },
+    "position": "MF",
+    "positionRaw": 3,
+    "element": "Forêt",
+    "elementRaw": 2,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 0,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 238,
+        "control": 258,
+        "technique": 250,
+        "physical": 210,
+        "pressure": 211,
+        "agility": 195,
+        "intelligence": 230
+      },
+      "lv50": {
+        "kick": 150,
+        "control": 160,
+        "technique": 157,
+        "physical": 130,
+        "pressure": 132,
+        "agility": 122,
+        "intelligence": 144
+      },
+      "lv1": {
+        "kick": 13,
+        "control": 14,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Byron Love Aphrody",
+    "elementName": {
+      "ja": "林",
+      "en": "Forest",
+      "fr": "Forêt"
+    },
+    "positionName": {
+      "en": "Midfielder",
+      "fr": "Milieu",
+      "ja": "Midfielder"
+    },
+    "totalStatsLv99": 1592,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      114,
+      6
+    ]
+  },
+  {
+    "index": 6,
+    "charaParamId": "0x578C5E71",
+    "charaId": "0x72ECB4BE",
+    "internalCode": "c02021100",
+    "names": {
+      "fr": "Janus",
+      "en": "Janus",
+      "ja": "レーゼ"
+    },
+    "icons": {
+      "face": "chara_face/c02021100_01.png",
+      "face2": "chara_face/c02021100_02.png"
+    },
+    "position": "MF",
+    "positionRaw": 3,
+    "element": "Forêt",
+    "elementRaw": 2,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 1,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 230,
+        "control": 265,
+        "technique": 267,
+        "physical": 202,
+        "pressure": 195,
+        "agility": 195,
+        "intelligence": 238
+      },
+      "lv50": {
+        "kick": 144,
+        "control": 165,
+        "technique": 166,
+        "physical": 127,
+        "pressure": 122,
+        "agility": 122,
+        "intelligence": 150
+      },
+      "lv1": {
+        "kick": 12,
+        "control": 13,
+        "technique": 13,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Janus",
+    "elementName": {
+      "ja": "林",
+      "en": "Forest",
+      "fr": "Forêt"
+    },
+    "positionName": {
+      "en": "Midfielder",
+      "fr": "Milieu",
+      "ja": "Midfielder"
+    },
+    "totalStatsLv99": 1592,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      126,
+      6
+    ]
+  },
+  {
+    "index": 7,
+    "charaParamId": "0x4CD1D169",
+    "charaId": "0x69B13BA6",
+    "internalCode": "c02021210",
+    "names": {
+      "fr": "Dvalin",
+      "en": "Dvalin",
+      "ja": "デザーム"
+    },
+    "icons": {
+      "face": "chara_face/c02021210_01.png",
+      "face2": "chara_face/c02021210_02.png"
+    },
+    "position": "GK",
+    "positionRaw": 1,
+    "element": "Feu",
+    "elementRaw": 3,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 2,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 207,
+        "control": 223,
+        "technique": 210,
+        "physical": 225,
+        "pressure": 242,
+        "agility": 256,
+        "intelligence": 223
+      },
+      "lv50": {
+        "kick": 129,
+        "control": 139,
+        "technique": 130,
+        "physical": 141,
+        "pressure": 151,
+        "agility": 159,
+        "intelligence": 139
+      },
+      "lv1": {
+        "kick": 11,
+        "control": 12,
+        "technique": 12,
+        "physical": 11,
+        "pressure": 11,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Dvalin",
+    "elementName": {
+      "ja": "火",
+      "en": "Fire",
+      "fr": "Feu"
+    },
+    "positionName": {
+      "en": "Goalkeeper",
+      "fr": "Gardien",
+      "ja": "Goalkeeper"
+    },
+    "totalStatsLv99": 1586,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      180,
+      6
+    ]
+  },
+  {
+    "index": 8,
+    "charaParamId": "0xE12368AC",
+    "charaId": "0xC4438263",
+    "internalCode": "c02020900",
+    "names": {
+      "fr": "Torch",
+      "en": "Torch",
+      "ja": "バーン"
+    },
+    "icons": {
+      "face": "chara_face/c02020900_01.png",
+      "face2": "chara_face/c02020900_02.png"
+    },
+    "position": "FW",
+    "positionRaw": 2,
+    "element": "Feu",
+    "elementRaw": 3,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 0,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 261,
+        "control": 258,
+        "technique": 235,
+        "physical": 210,
+        "pressure": 202,
+        "agility": 195,
+        "intelligence": 230
+      },
+      "lv50": {
+        "kick": 164,
+        "control": 160,
+        "technique": 146,
+        "physical": 130,
+        "pressure": 127,
+        "agility": 122,
+        "intelligence": 144
+      },
+      "lv1": {
+        "kick": 13,
+        "control": 14,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Torch",
+    "elementName": {
+      "ja": "火",
+      "en": "Fire",
+      "fr": "Feu"
+    },
+    "positionName": {
+      "en": "Forward",
+      "fr": "Attaquant",
+      "ja": "Forward"
+    },
+    "totalStatsLv99": 1591,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      252,
+      6
+    ]
+  },
+  {
+    "index": 9,
+    "charaParamId": "0x3123B9D2",
+    "charaId": "0x1443531D",
+    "internalCode": "c02020890",
+    "names": {
+      "fr": "Gazelle",
+      "en": "Gazelle",
+      "ja": "ガゼル"
+    },
+    "icons": {
+      "face": "chara_face/c02020890_01.png",
+      "face2": "chara_face/c02020890_02.png"
+    },
+    "position": "FW",
+    "positionRaw": 2,
+    "element": "Vent",
+    "elementRaw": 1,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 0,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 261,
+        "control": 258,
+        "technique": 235,
+        "physical": 210,
+        "pressure": 202,
+        "agility": 195,
+        "intelligence": 230
+      },
+      "lv50": {
+        "kick": 164,
+        "control": 160,
+        "technique": 146,
+        "physical": 130,
+        "pressure": 127,
+        "agility": 122,
+        "intelligence": 144
+      },
+      "lv1": {
+        "kick": 13,
+        "control": 14,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Gazelle",
+    "elementName": {
+      "ja": "風",
+      "en": "Wind",
+      "fr": "Vent"
+    },
+    "positionName": {
+      "en": "Forward",
+      "fr": "Attaquant",
+      "ja": "Forward"
+    },
+    "totalStatsLv99": 1591,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      258,
+      6
+    ]
+  },
+  {
+    "index": 10,
+    "charaParamId": "0x5085F6AD",
+    "charaId": "0x75E51C62",
+    "internalCode": "c02021500",
+    "names": {
+      "fr": "Bellatrix",
+      "en": "Bellatrix",
+      "ja": "ウルビダ"
+    },
+    "icons": {
+      "face": "chara_face/c02021500_01.png",
+      "face2": "chara_face/c02021500_02.png"
+    },
+    "position": "MF",
+    "positionRaw": 3,
+    "element": "Vent",
+    "elementRaw": 1,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 1,
+    "growthPattern": 1,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 230,
+        "control": 265,
+        "technique": 267,
+        "physical": 202,
+        "pressure": 195,
+        "agility": 195,
+        "intelligence": 238
+      },
+      "lv50": {
+        "kick": 144,
+        "control": 165,
+        "technique": 166,
+        "physical": 127,
+        "pressure": 122,
+        "agility": 122,
+        "intelligence": 150
+      },
+      "lv1": {
+        "kick": 12,
+        "control": 13,
+        "technique": 13,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Bellatrix",
+    "elementName": {
+      "ja": "風",
+      "en": "Wind",
+      "fr": "Vent"
+    },
+    "positionName": {
+      "en": "Midfielder",
+      "fr": "Milieu",
+      "ja": "Midfielder"
+    },
+    "totalStatsLv99": 1592,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      276,
+      6
+    ]
+  },
+  {
+    "index": 11,
+    "charaParamId": "0x499EC7EC",
+    "charaId": "0x6CFE2D23",
+    "internalCode": "c02021510",
+    "names": {
+      "fr": "Xene",
+      "en": "Xene",
+      "ja": "グラン"
+    },
+    "icons": {
+      "face": "chara_face/c02021510_01.png",
+      "face2": "chara_face/c02021510_02.png"
+    },
+    "position": "FW",
+    "positionRaw": 2,
+    "element": "Feu",
+    "elementRaw": 3,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 0,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 261,
+        "control": 258,
+        "technique": 235,
+        "physical": 210,
+        "pressure": 202,
+        "agility": 195,
+        "intelligence": 230
+      },
+      "lv50": {
+        "kick": 164,
+        "control": 160,
+        "technique": 146,
+        "physical": 130,
+        "pressure": 127,
+        "agility": 122,
+        "intelligence": 144
+      },
+      "lv1": {
+        "kick": 13,
+        "control": 14,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Xene",
+    "elementName": {
+      "ja": "火",
+      "en": "Fire",
+      "fr": "Feu"
+    },
+    "positionName": {
+      "en": "Forward",
+      "fr": "Attaquant",
+      "ja": "Forward"
+    },
+    "totalStatsLv99": 1591,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      12,
+      6
+    ]
+  },
+  {
+    "index": 12,
+    "charaParamId": "0x36D8C89C",
+    "charaId": "0x13B82253",
+    "internalCode": "c02023380",
+    "names": {
+      "fr": "Shawn Froste",
+      "en": "Shawn Froste",
+      "ja": "吹雪 士郎"
+    },
+    "icons": {
+      "face": "chara_face/c02023380_01.png",
+      "face2": "chara_face/c02023380_02.png"
+    },
+    "position": "FW",
+    "positionRaw": 2,
+    "element": "Vent",
+    "elementRaw": 1,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 1,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 279,
+        "control": 265,
+        "technique": 242,
+        "physical": 202,
+        "pressure": 195,
+        "agility": 195,
+        "intelligence": 214
+      },
+      "lv50": {
+        "kick": 174,
+        "control": 165,
+        "technique": 151,
+        "physical": 127,
+        "pressure": 122,
+        "agility": 122,
+        "intelligence": 134
+      },
+      "lv1": {
+        "kick": 12,
+        "control": 13,
+        "technique": 13,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Shawn Froste",
+    "elementName": {
+      "ja": "風",
+      "en": "Wind",
+      "fr": "Vent"
+    },
+    "positionName": {
+      "en": "Forward",
+      "fr": "Attaquant",
+      "ja": "Forward"
+    },
+    "totalStatsLv99": 1592,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      6,
+      6
+    ]
+  },
+  {
+    "index": 13,
+    "charaParamId": "0xBF45FFF1",
+    "charaId": "0x9A25153E",
+    "internalCode": "c01000210",
+    "names": {
+      "fr": "Joseph King",
+      "en": "Joseph King",
+      "ja": "幸次郎 げんおう"
+    },
+    "icons": {
+      "face": "chara_face/c01000210_01.png",
+      "face2": "chara_face/c01000210_02.png"
+    },
+    "position": "GK",
+    "positionRaw": 1,
+    "element": "Feu",
+    "elementRaw": 3,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 2,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 207,
+        "control": 223,
+        "technique": 210,
+        "physical": 225,
+        "pressure": 242,
+        "agility": 256,
+        "intelligence": 223
+      },
+      "lv50": {
+        "kick": 129,
+        "control": 139,
+        "technique": 130,
+        "physical": 141,
+        "pressure": 151,
+        "agility": 159,
+        "intelligence": 139
+      },
+      "lv1": {
+        "kick": 11,
+        "control": 12,
+        "technique": 12,
+        "physical": 11,
+        "pressure": 11,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Joseph King",
+    "elementName": {
+      "ja": "火",
+      "en": "Fire",
+      "fr": "Feu"
+    },
+    "positionName": {
+      "en": "Goalkeeper",
+      "fr": "Gardien",
+      "ja": "Goalkeeper"
+    },
+    "totalStatsLv99": 1586,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      222,
+      6
+    ]
+  },
+  {
+    "index": 14,
+    "charaParamId": "0x08928562",
+    "charaId": "0x2DF26FAD",
+    "internalCode": "c03030050",
+    "names": {
+      "fr": "Caleb Stonewall",
+      "en": "Caleb Stonewall",
+      "ja": "不動 明王"
+    },
+    "icons": {
+      "face": "chara_face/c03030050_01.png",
+      "face2": "chara_face/c03030050_02.png"
+    },
+    "position": "MF",
+    "positionRaw": 3,
+    "element": "Feu",
+    "elementRaw": 3,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 1,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 230,
+        "control": 265,
+        "technique": 267,
+        "physical": 202,
+        "pressure": 195,
+        "agility": 195,
+        "intelligence": 238
+      },
+      "lv50": {
+        "kick": 144,
+        "control": 165,
+        "technique": 166,
+        "physical": 127,
+        "pressure": 122,
+        "agility": 122,
+        "intelligence": 150
+      },
+      "lv1": {
+        "kick": 12,
+        "control": 13,
+        "technique": 13,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Caleb Stonewall",
+    "elementName": {
+      "ja": "火",
+      "en": "Fire",
+      "fr": "Feu"
+    },
+    "positionName": {
+      "en": "Midfielder",
+      "fr": "Milieu",
+      "ja": "Midfielder"
+    },
+    "totalStatsLv99": 1592,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      120,
+      6
+    ]
+  },
+  {
+    "index": 15,
+    "charaParamId": "0xEB4F9C34",
+    "charaId": "0xCE2F76FB",
+    "internalCode": "c02023810",
+    "names": {
+      "fr": "Darren LaChance",
+      "en": "Darren LaChance",
+      "ja": "勇気 立向居"
+    },
+    "icons": {
+      "face": "chara_face/c02023810_01.png",
+      "face2": "chara_face/c02023810_02.png"
+    },
+    "position": "GK",
+    "positionRaw": 1,
+    "element": "Forêt",
+    "elementRaw": 2,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 2,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 207,
+        "control": 223,
+        "technique": 210,
+        "physical": 225,
+        "pressure": 242,
+        "agility": 256,
+        "intelligence": 223
+      },
+      "lv50": {
+        "kick": 129,
+        "control": 139,
+        "technique": 130,
+        "physical": 141,
+        "pressure": 151,
+        "agility": 159,
+        "intelligence": 139
+      },
+      "lv1": {
+        "kick": 11,
+        "control": 12,
+        "technique": 12,
+        "physical": 11,
+        "pressure": 11,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Darren LaChance",
+    "elementName": {
+      "ja": "林",
+      "en": "Forest",
+      "fr": "Forêt"
+    },
+    "positionName": {
+      "en": "Goalkeeper",
+      "fr": "Gardien",
+      "ja": "Goalkeeper"
+    },
+    "totalStatsLv99": 1586,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      174,
+      6
+    ]
+  },
+  {
+    "index": 16,
+    "charaParamId": "0x05FC0170",
+    "charaId": "0x209CEBBF",
+    "internalCode": "c02024040",
+    "names": {
+      "fr": "Hurley Kane",
+      "en": "Hurley Kane",
+      "ja": "綱海 条介"
+    },
+    "icons": {
+      "face": "chara_face/c02024040_01.png",
+      "face2": "chara_face/c02024040_02.png"
+    },
+    "position": "DF",
+    "positionRaw": 4,
+    "element": "Vent",
+    "elementRaw": 1,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 1,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 199,
+        "control": 207,
+        "technique": 202,
+        "physical": 242,
+        "pressure": 250,
+        "agility": 210,
+        "intelligence": 279
+      },
+      "lv50": {
+        "kick": 123,
+        "control": 129,
+        "technique": 127,
+        "physical": 151,
+        "pressure": 157,
+        "agility": 130,
+        "intelligence": 174
+      },
+      "lv1": {
+        "kick": 11,
+        "control": 12,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 11,
+        "agility": 9,
+        "intelligence": 12
+      }
+    },
+    "displayName": "Hurley Kane",
+    "elementName": {
+      "ja": "風",
+      "en": "Wind",
+      "fr": "Vent"
+    },
+    "positionName": {
+      "en": "Defender",
+      "fr": "Défenseur",
+      "ja": "Defender"
+    },
+    "totalStatsLv99": 1589,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      216,
+      6
+    ]
+  },
+  {
+    "index": 17,
+    "charaParamId": "0x6CFE4066",
+    "charaId": "0x499EAAA9",
+    "internalCode": "c03030010",
+    "names": {
+      "fr": "Austin",
+      "en": "Austin Hobbes",
+      "ja": "虎丸"
+    },
+    "icons": {
+      "face": "chara_face/c03030010_01.png",
+      "face2": "chara_face/c03030010_02.png"
+    },
+    "position": "FW",
+    "positionRaw": 2,
+    "element": "Forêt",
+    "elementRaw": 2,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 0,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 261,
+        "control": 258,
+        "technique": 235,
+        "physical": 210,
+        "pressure": 202,
+        "agility": 195,
+        "intelligence": 230
+      },
+      "lv50": {
+        "kick": 164,
+        "control": 160,
+        "technique": 146,
+        "physical": 130,
+        "pressure": 127,
+        "agility": 122,
+        "intelligence": 144
+      },
+      "lv1": {
+        "kick": 13,
+        "control": 14,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Austin",
+    "elementName": {
+      "ja": "林",
+      "en": "Forest",
+      "fr": "Forêt"
+    },
+    "positionName": {
+      "en": "Forward",
+      "fr": "Attaquant",
+      "ja": "Forward"
+    },
+    "totalStatsLv99": 1591,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      210,
+      6
+    ]
+  },
+  {
+    "index": 18,
+    "charaParamId": "0x47D313A5",
+    "charaId": "0x62B3F96A",
+    "internalCode": "c03030020",
+    "names": {
+      "fr": "Archer",
+      "en": "Archer Hawkins",
+      "ja": "征矢 飛鷹"
+    },
+    "icons": {
+      "face": "chara_face/c03030020_01.png",
+      "face2": "chara_face/c03030020_02.png"
+    },
+    "position": "DF",
+    "positionRaw": 4,
+    "element": "Vent",
+    "elementRaw": 1,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 1,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 199,
+        "control": 207,
+        "technique": 202,
+        "physical": 242,
+        "pressure": 250,
+        "agility": 210,
+        "intelligence": 279
+      },
+      "lv50": {
+        "kick": 123,
+        "control": 129,
+        "technique": 127,
+        "physical": 151,
+        "pressure": 157,
+        "agility": 130,
+        "intelligence": 174
+      },
+      "lv1": {
+        "kick": 11,
+        "control": 12,
+        "technique": 13,
+        "physical": 10,
+        "pressure": 11,
+        "agility": 9,
+        "intelligence": 12
+      }
+    },
+    "displayName": "Archer",
+    "elementName": {
+      "ja": "風",
+      "en": "Wind",
+      "fr": "Vent"
+    },
+    "positionName": {
+      "en": "Defender",
+      "fr": "Défenseur",
+      "ja": "Defender"
+    },
+    "totalStatsLv99": 1589,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      150,
+      6
+    ]
+  },
+  {
+    "index": 19,
+    "charaParamId": "0xC81600C7",
+    "charaId": "0xED76EA08",
+    "internalCode": "c03031700",
+    "names": {
+      "fr": "Paolo",
+      "en": "Paolo Bianchi",
+      "ja": "フィディオ"
+    },
+    "icons": {
+      "face": "chara_face/c03031700_01.png",
+      "face2": "chara_face/c03031700_02.png"
+    },
+    "position": "FW",
+    "positionRaw": 2,
+    "element": "Forêt",
+    "elementRaw": 2,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 0,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 261,
+        "control": 258,
+        "technique": 235,
+        "physical": 210,
+        "pressure": 202,
+        "agility": 195,
+        "intelligence": 230
+      },
+      "lv50": {
+        "kick": 164,
+        "control": 160,
+        "technique": 146,
+        "physical": 130,
+        "pressure": 127,
+        "agility": 122,
+        "intelligence": 144
+      },
+      "lv1": {
+        "kick": 13,
+        "control": 14,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Paolo",
+    "elementName": {
+      "ja": "林",
+      "en": "Forest",
+      "fr": "Forêt"
+    },
+    "positionName": {
+      "en": "Forward",
+      "fr": "Attaquant",
+      "ja": "Forward"
+    },
+    "totalStatsLv99": 1591,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      18,
+      6
+    ]
+  },
+  {
+    "index": 20,
+    "charaParamId": "0xC5735C83",
+    "charaId": "0xE013B64C",
+    "internalCode": "c03032210",
+    "names": {
+      "fr": "Hector",
+      "en": "Hector Helio",
+      "ja": "ロココ"
+    },
+    "icons": {
+      "face": "chara_face/c03032210_01.png",
+      "face2": "chara_face/c03032210_02.png"
+    },
+    "position": "GK",
+    "positionRaw": 1,
+    "element": "Montagne",
+    "elementRaw": 4,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 2,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 207,
+        "control": 223,
+        "technique": 210,
+        "physical": 225,
+        "pressure": 242,
+        "agility": 256,
+        "intelligence": 223
+      },
+      "lv50": {
+        "kick": 129,
+        "control": 139,
+        "technique": 130,
+        "physical": 141,
+        "pressure": 151,
+        "agility": 159,
+        "intelligence": 139
+      },
+      "lv1": {
+        "kick": 11,
+        "control": 12,
+        "technique": 12,
+        "physical": 11,
+        "pressure": 11,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Hector",
+    "elementName": {
+      "ja": "山",
+      "en": "Mountain",
+      "fr": "Montagne"
+    },
+    "positionName": {
+      "en": "Goalkeeper",
+      "fr": "Gardien",
+      "ja": "Goalkeeper"
+    },
+    "totalStatsLv99": 1586,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      186,
+      6
+    ]
+  },
+  {
+    "index": 21,
+    "charaParamId": "0xB21F1932",
+    "charaId": "0x977FF3FD",
+    "internalCode": "c03033690",
+    "names": {
+      "fr": "Bash Lancer",
+      "en": "Bash Lancer",
+      "ja": "バダップ"
+    },
+    "icons": {
+      "face": "chara_face/c03033690_01.png",
+      "face2": "chara_face/c03033690_02.png"
+    },
+    "position": "FW",
+    "positionRaw": 2,
+    "element": "Forêt",
+    "elementRaw": 2,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 0,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 261,
+        "control": 258,
+        "technique": 235,
+        "physical": 210,
+        "pressure": 202,
+        "agility": 195,
+        "intelligence": 230
+      },
+      "lv50": {
+        "kick": 164,
+        "control": 160,
+        "technique": 146,
+        "physical": 130,
+        "pressure": 127,
+        "agility": 122,
+        "intelligence": 144
+      },
+      "lv1": {
+        "kick": 13,
+        "control": 14,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Bash Lancer",
+    "elementName": {
+      "ja": "林",
+      "en": "Forest",
+      "fr": "Forêt"
+    },
+    "positionName": {
+      "en": "Forward",
+      "fr": "Attaquant",
+      "ja": "Forward"
+    },
+    "totalStatsLv99": 1591,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      24,
+      6
+    ]
+  },
+  {
+    "index": 22,
+    "charaParamId": "0x3F3BBF71",
+    "charaId": "0x1A5B55BE",
+    "internalCode": "c04000080",
+    "names": {
+      "fr": "Arion",
+      "en": "Arion",
+      "ja": "天馬"
+    },
+    "icons": {
+      "face": "chara_face/c04000080_01.png",
+      "face2": "chara_face/c04000080_02.png"
+    },
+    "position": "MF",
+    "positionRaw": 3,
+    "element": "Vent",
+    "elementRaw": 1,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 1,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 230,
+        "control": 265,
+        "technique": 267,
+        "physical": 202,
+        "pressure": 195,
+        "agility": 195,
+        "intelligence": 238
+      },
+      "lv50": {
+        "kick": 144,
+        "control": 165,
+        "technique": 166,
+        "physical": 127,
+        "pressure": 122,
+        "agility": 122,
+        "intelligence": 150
+      },
+      "lv1": {
+        "kick": 12,
+        "control": 13,
+        "technique": 13,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Arion",
+    "elementName": {
+      "ja": "風",
+      "en": "Wind",
+      "fr": "Vent"
+    },
+    "positionName": {
+      "en": "Midfielder",
+      "fr": "Milieu",
+      "ja": "Midfielder"
+    },
+    "totalStatsLv99": 1592,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      96,
+      6
+    ]
+  },
+  {
+    "index": 23,
+    "charaParamId": "0xF6205F4E",
+    "charaId": "0xD340B581",
+    "internalCode": "c04000100",
+    "names": {
+      "fr": "Victor",
+      "en": "Victor",
+      "ja": "京介 剣城"
+    },
+    "icons": {
+      "face": "chara_face/c04000100_01.png",
+      "face2": "chara_face/c04000100_02.png"
+    },
+    "position": "FW",
+    "positionRaw": 2,
+    "element": "Feu",
+    "elementRaw": 3,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 0,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 261,
+        "control": 258,
+        "technique": 235,
+        "physical": 210,
+        "pressure": 202,
+        "agility": 195,
+        "intelligence": 230
+      },
+      "lv50": {
+        "kick": 164,
+        "control": 160,
+        "technique": 146,
+        "physical": 130,
+        "pressure": 127,
+        "agility": 122,
+        "intelligence": 144
+      },
+      "lv1": {
+        "kick": 13,
+        "control": 14,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Victor",
+    "elementName": {
+      "ja": "火",
+      "en": "Fire",
+      "fr": "Feu"
+    },
+    "positionName": {
+      "en": "Forward",
+      "fr": "Attaquant",
+      "ja": "Forward"
+    },
+    "totalStatsLv99": 1591,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      30,
+      6
+    ]
+  },
+  {
+    "index": 24,
+    "charaParamId": "0x26208E30",
+    "charaId": "0x034064FF",
+    "internalCode": "c04000090",
+    "names": {
+      "fr": "Riccardo",
+      "en": "Riccardo",
+      "ja": "拓人 神童"
+    },
+    "icons": {
+      "face": "chara_face/c04000090_01.png",
+      "face2": "chara_face/c04000090_02.png"
+    },
+    "position": "MF",
+    "positionRaw": 3,
+    "element": "Forêt",
+    "elementRaw": 2,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 1,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 230,
+        "control": 265,
+        "technique": 267,
+        "physical": 202,
+        "pressure": 195,
+        "agility": 195,
+        "intelligence": 238
+      },
+      "lv50": {
+        "kick": 144,
+        "control": 165,
+        "technique": 166,
+        "physical": 127,
+        "pressure": 122,
+        "agility": 122,
+        "intelligence": 150
+      },
+      "lv1": {
+        "kick": 11,
+        "control": 12,
+        "technique": 13,
+        "physical": 10,
+        "pressure": 11,
+        "agility": 9,
+        "intelligence": 12
+      }
+    },
+    "displayName": "Riccardo",
+    "elementName": {
+      "ja": "林",
+      "en": "Forest",
+      "fr": "Forêt"
+    },
+    "positionName": {
+      "en": "Midfielder",
+      "fr": "Milieu",
+      "ja": "Midfielder"
+    },
+    "totalStatsLv99": 1592,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      132,
+      6
+    ]
+  },
+  {
+    "index": 25,
+    "charaParamId": "0x8A95C13C",
+    "charaId": "0xAFF52BF3",
+    "internalCode": "c04000050",
+    "names": {
+      "fr": "Jean-Pierre JP",
+      "en": "Jean-Pierre JP",
+      "ja": "信助"
+    },
+    "icons": {
+      "face": "chara_face/c04000050_01.png",
+      "face2": "chara_face/c04000050_02.png"
+    },
+    "position": "GK",
+    "positionRaw": 1,
+    "element": "Montagne",
+    "elementRaw": 4,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 2,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 207,
+        "control": 223,
+        "technique": 210,
+        "physical": 225,
+        "pressure": 242,
+        "agility": 256,
+        "intelligence": 223
+      },
+      "lv50": {
+        "kick": 129,
+        "control": 139,
+        "technique": 130,
+        "physical": 141,
+        "pressure": 151,
+        "agility": 159,
+        "intelligence": 139
+      },
+      "lv1": {
+        "kick": 10,
+        "control": 11,
+        "technique": 11,
+        "physical": 11,
+        "pressure": 12,
+        "agility": 10,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Jean-Pierre JP",
+    "elementName": {
+      "ja": "山",
+      "en": "Mountain",
+      "fr": "Montagne"
+    },
+    "positionName": {
+      "en": "Goalkeeper",
+      "fr": "Gardien",
+      "ja": "Goalkeeper"
+    },
+    "totalStatsLv99": 1586,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      204,
+      6
+    ]
+  },
+  {
+    "index": 26,
+    "charaParamId": "0xDCCF66BA",
+    "charaId": "0xF9AF8C75",
+    "internalCode": "c04000030",
+    "names": {
+      "fr": "Gabriel Gabi",
+      "en": "Gabriel Gabi",
+      "ja": "蘭丸 霧野"
+    },
+    "icons": {
+      "face": "chara_face/c04000030_01.png",
+      "face2": "chara_face/c04000030_02.png"
+    },
+    "position": "DF",
+    "positionRaw": 4,
+    "element": "Forêt",
+    "elementRaw": 2,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 1,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 199,
+        "control": 207,
+        "technique": 202,
+        "physical": 242,
+        "pressure": 250,
+        "agility": 210,
+        "intelligence": 279
+      },
+      "lv50": {
+        "kick": 123,
+        "control": 129,
+        "technique": 127,
+        "physical": 151,
+        "pressure": 157,
+        "agility": 130,
+        "intelligence": 174
+      },
+      "lv1": {
+        "kick": 11,
+        "control": 12,
+        "technique": 13,
+        "physical": 10,
+        "pressure": 11,
+        "agility": 9,
+        "intelligence": 12
+      }
+    },
+    "displayName": "Gabriel Gabi",
+    "elementName": {
+      "ja": "林",
+      "en": "Forest",
+      "fr": "Forêt"
+    },
+    "positionName": {
+      "en": "Defender",
+      "fr": "Défenseur",
+      "ja": "Defender"
+    },
+    "totalStatsLv99": 1589,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      162,
+      6
+    ]
+  },
+  {
+    "index": 27,
+    "charaParamId": "0xB3E8BD4A",
+    "charaId": "0x96885785",
+    "internalCode": "c08120020",
+    "names": {
+      "fr": "Jade",
+      "en": "Jade",
+      "ja": "ユリカ"
+    },
+    "icons": {
+      "face": "chara_face/c08120020_01.png",
+      "face2": "chara_face/c08120020_02.png"
+    },
+    "position": "FW",
+    "positionRaw": 2,
+    "element": "Forêt",
+    "elementRaw": 2,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 1,
+    "growthPattern": 0,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 261,
+        "control": 258,
+        "technique": 235,
+        "physical": 210,
+        "pressure": 202,
+        "agility": 195,
+        "intelligence": 230
+      },
+      "lv50": {
+        "kick": 164,
+        "control": 160,
+        "technique": 146,
+        "physical": 130,
+        "pressure": 127,
+        "agility": 122,
+        "intelligence": 144
+      },
+      "lv1": {
+        "kick": 13,
+        "control": 14,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Jade",
+    "elementName": {
+      "ja": "林",
+      "en": "Forest",
+      "fr": "Forêt"
+    },
+    "positionName": {
+      "en": "Forward",
+      "fr": "Attaquant",
+      "ja": "Forward"
+    },
+    "totalStatsLv99": 1591,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      390,
+      6
+    ]
+  },
+  {
+    "index": 28,
+    "charaParamId": "0xFFC87FB8",
+    "charaId": "0xDAA89577",
+    "internalCode": "c04003210",
+    "names": {
+      "fr": "Quentin",
+      "en": "Quentin",
+      "ja": "大和 千宮路"
+    },
+    "icons": {
+      "face": "chara_face/c04003210_01.png",
+      "face2": "chara_face/c04003210_02.png"
+    },
+    "position": "GK",
+    "positionRaw": 1,
+    "element": "Feu",
+    "elementRaw": 3,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 2,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 207,
+        "control": 223,
+        "technique": 210,
+        "physical": 225,
+        "pressure": 242,
+        "agility": 256,
+        "intelligence": 223
+      },
+      "lv50": {
+        "kick": 129,
+        "control": 139,
+        "technique": 130,
+        "physical": 141,
+        "pressure": 151,
+        "agility": 159,
+        "intelligence": 139
+      },
+      "lv1": {
+        "kick": 11,
+        "control": 12,
+        "technique": 12,
+        "physical": 11,
+        "pressure": 11,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Quentin",
+    "elementName": {
+      "ja": "火",
+      "en": "Fire",
+      "fr": "Feu"
+    },
+    "positionName": {
+      "en": "Goalkeeper",
+      "fr": "Gardien",
+      "ja": "Goalkeeper"
+    },
+    "totalStatsLv99": 1586,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      198,
+      6
+    ]
+  },
+  {
+    "index": 29,
+    "charaParamId": "0xE39C587C",
+    "charaId": "0xC6FCB2B3",
+    "internalCode": "c04003500",
+    "names": {
+      "fr": "Bailong",
+      "en": "Bailong",
+      "ja": "白竜"
+    },
+    "icons": {
+      "face": "chara_face/c04003500_01.png",
+      "face2": "chara_face/c04003500_02.png"
+    },
+    "position": "FW",
+    "positionRaw": 2,
+    "element": "Vent",
+    "elementRaw": 1,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 0,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 261,
+        "control": 258,
+        "technique": 235,
+        "physical": 210,
+        "pressure": 202,
+        "agility": 195,
+        "intelligence": 230
+      },
+      "lv50": {
+        "kick": 164,
+        "control": 160,
+        "technique": 146,
+        "physical": 130,
+        "pressure": 127,
+        "agility": 122,
+        "intelligence": 144
+      },
+      "lv1": {
+        "kick": 13,
+        "control": 14,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Bailong",
+    "elementName": {
+      "ja": "風",
+      "en": "Wind",
+      "fr": "Vent"
+    },
+    "positionName": {
+      "en": "Forward",
+      "fr": "Attaquant",
+      "ja": "Forward"
+    },
+    "totalStatsLv99": 1591,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      36,
+      6
+    ]
+  },
+  {
+    "index": 30,
+    "charaParamId": "0xE0188C12",
+    "charaId": "0xC57866DD",
+    "internalCode": "c04003700",
+    "names": {
+      "fr": "Tezcat",
+      "en": "Tezcat",
+      "ja": "シュウ"
+    },
+    "icons": {
+      "face": "chara_face/c04003700_01.png",
+      "face2": "chara_face/c04003700_02.png"
+    },
+    "position": "FW",
+    "positionRaw": 2,
+    "element": "Forêt",
+    "elementRaw": 2,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 0,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 261,
+        "control": 258,
+        "technique": 235,
+        "physical": 210,
+        "pressure": 202,
+        "agility": 195,
+        "intelligence": 230
+      },
+      "lv50": {
+        "kick": 164,
+        "control": 160,
+        "technique": 146,
+        "physical": 130,
+        "pressure": 127,
+        "agility": 122,
+        "intelligence": 144
+      },
+      "lv1": {
+        "kick": 13,
+        "control": 14,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Tezcat",
+    "elementName": {
+      "ja": "林",
+      "en": "Forest",
+      "fr": "Forêt"
+    },
+    "positionName": {
+      "en": "Forward",
+      "fr": "Attaquant",
+      "ja": "Forward"
+    },
+    "totalStatsLv99": 1591,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      42,
+      6
+    ]
+  },
+  {
+    "index": 31,
+    "charaParamId": "0x8EF7491D",
+    "charaId": "0xAB97A3D2",
+    "internalCode": "c01000030",
+    "names": {
+      "fr": "Jack Wallside",
+      "en": "Jack Wallside",
+      "ja": "壁山 塀吾郎"
+    },
+    "icons": {
+      "face": "chara_face/c01000030_01.png",
+      "face2": "chara_face/c01000030_02.png"
+    },
+    "position": "DF",
+    "positionRaw": 4,
+    "element": "Montagne",
+    "elementRaw": 4,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 1,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 199,
+        "control": 207,
+        "technique": 202,
+        "physical": 242,
+        "pressure": 250,
+        "agility": 210,
+        "intelligence": 279
+      },
+      "lv50": {
+        "kick": 123,
+        "control": 129,
+        "technique": 127,
+        "physical": 151,
+        "pressure": 157,
+        "agility": 130,
+        "intelligence": 174
+      },
+      "lv1": {
+        "kick": 11,
+        "control": 12,
+        "technique": 13,
+        "physical": 10,
+        "pressure": 11,
+        "agility": 9,
+        "intelligence": 12
+      }
+    },
+    "displayName": "Jack Wallside",
+    "elementName": {
+      "ja": "山",
+      "en": "Mountain",
+      "fr": "Montagne"
+    },
+    "positionName": {
+      "en": "Defender",
+      "fr": "Défenseur",
+      "ja": "Defender"
+    },
+    "totalStatsLv99": 1589,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      138,
+      6
+    ]
+  },
+  {
+    "index": 32,
+    "charaParamId": "0x338C36DB",
+    "charaId": "0x16ECDC14",
+    "internalCode": "c05020110",
+    "names": {
+      "fr": "Fei",
+      "en": "Fei",
+      "ja": "フェイ"
+    },
+    "icons": {
+      "face": "chara_face/c05020110_01.png",
+      "face2": "chara_face/c05020110_02.png"
+    },
+    "position": "FW",
+    "positionRaw": 2,
+    "element": "Forêt",
+    "elementRaw": 2,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 1,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 279,
+        "control": 265,
+        "technique": 242,
+        "physical": 202,
+        "pressure": 195,
+        "agility": 195,
+        "intelligence": 214
+      },
+      "lv50": {
+        "kick": 174,
+        "control": 165,
+        "technique": 151,
+        "physical": 127,
+        "pressure": 122,
+        "agility": 122,
+        "intelligence": 134
+      },
+      "lv1": {
+        "kick": 12,
+        "control": 13,
+        "technique": 13,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Fei",
+    "elementName": {
+      "ja": "林",
+      "en": "Forest",
+      "fr": "Forêt"
+    },
+    "positionName": {
+      "en": "Forward",
+      "fr": "Attaquant",
+      "ja": "Forward"
+    },
+    "totalStatsLv99": 1592,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      48,
+      6
+    ]
+  },
+  {
+    "index": 33,
+    "charaParamId": "0x4EFBC29E",
+    "charaId": "0x6B9B2851",
+    "internalCode": "c05020140",
+    "names": {
+      "fr": "Goldie",
+      "en": "Goldie",
+      "ja": "黄名子"
+    },
+    "icons": {
+      "face": "chara_face/c05020140_01.png",
+      "face2": "chara_face/c05020140_02.png"
+    },
+    "position": "DF",
+    "positionRaw": 4,
+    "element": "Feu",
+    "elementRaw": 3,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 1,
+    "growthPattern": 1,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 199,
+        "control": 207,
+        "technique": 202,
+        "physical": 242,
+        "pressure": 250,
+        "agility": 210,
+        "intelligence": 279
+      },
+      "lv50": {
+        "kick": 123,
+        "control": 129,
+        "technique": 127,
+        "physical": 151,
+        "pressure": 157,
+        "agility": 130,
+        "intelligence": 174
+      },
+      "lv1": {
+        "kick": 11,
+        "control": 12,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 11,
+        "agility": 9,
+        "intelligence": 12
+      }
+    },
+    "displayName": "Goldie",
+    "elementName": {
+      "ja": "火",
+      "en": "Fire",
+      "fr": "Feu"
+    },
+    "positionName": {
+      "en": "Defender",
+      "fr": "Défenseur",
+      "ja": "Defender"
+    },
+    "totalStatsLv99": 1589,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      156,
+      6
+    ]
+  },
+  {
+    "index": 34,
+    "charaParamId": "0x2D9EAF46",
+    "charaId": "0x08FE4589",
+    "internalCode": "c05020500",
+    "names": {
+      "fr": "Alpha",
+      "en": "Alpha",
+      "ja": "アルファ"
+    },
+    "icons": {
+      "face": "chara_face/c05020500_01.png",
+      "face2": "chara_face/c05020500_02.png"
+    },
+    "position": "FW",
+    "positionRaw": 2,
+    "element": "Feu",
+    "elementRaw": 3,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 0,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 261,
+        "control": 258,
+        "technique": 235,
+        "physical": 210,
+        "pressure": 202,
+        "agility": 195,
+        "intelligence": 230
+      },
+      "lv50": {
+        "kick": 164,
+        "control": 160,
+        "technique": 146,
+        "physical": 130,
+        "pressure": 127,
+        "agility": 122,
+        "intelligence": 144
+      },
+      "lv1": {
+        "kick": 13,
+        "control": 14,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Alpha",
+    "elementName": {
+      "ja": "火",
+      "en": "Fire",
+      "fr": "Feu"
+    },
+    "positionName": {
+      "en": "Forward",
+      "fr": "Attaquant",
+      "ja": "Forward"
+    },
+    "totalStatsLv99": 1591,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      54,
+      6
+    ]
+  },
+  {
+    "index": 35,
+    "charaParamId": "0x2E1A7B28",
+    "charaId": "0x0B7A91E7",
+    "internalCode": "c05020700",
+    "names": {
+      "fr": "Beta",
+      "en": "Beta",
+      "ja": "ベータ"
+    },
+    "icons": {
+      "face": "chara_face/c05020700_01.png",
+      "face2": "chara_face/c05020700_02.png"
+    },
+    "position": "FW",
+    "positionRaw": 2,
+    "element": "Vent",
+    "elementRaw": 1,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 1,
+    "growthPattern": 0,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 261,
+        "control": 258,
+        "technique": 235,
+        "physical": 210,
+        "pressure": 202,
+        "agility": 195,
+        "intelligence": 230
+      },
+      "lv50": {
+        "kick": 164,
+        "control": 160,
+        "technique": 146,
+        "physical": 130,
+        "pressure": 127,
+        "agility": 122,
+        "intelligence": 144
+      },
+      "lv1": {
+        "kick": 13,
+        "control": 14,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Beta",
+    "elementName": {
+      "ja": "風",
+      "en": "Wind",
+      "fr": "Vent"
+    },
+    "positionName": {
+      "en": "Forward",
+      "fr": "Attaquant",
+      "ja": "Forward"
+    },
+    "totalStatsLv99": 1591,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      60,
+      6
+    ]
+  },
+  {
+    "index": 36,
+    "charaParamId": "0x25463C15",
+    "charaId": "0x0026D6DA",
+    "internalCode": "c05020800",
+    "names": {
+      "fr": "Gamma",
+      "en": "Gamma",
+      "ja": "ガンマ"
+    },
+    "icons": {
+      "face": "chara_face/c05020800_01.png",
+      "face2": "chara_face/c05020800_02.png"
+    },
+    "position": "FW",
+    "positionRaw": 2,
+    "element": "Forêt",
+    "elementRaw": 2,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 0,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 261,
+        "control": 258,
+        "technique": 235,
+        "physical": 210,
+        "pressure": 202,
+        "agility": 195,
+        "intelligence": 230
+      },
+      "lv50": {
+        "kick": 164,
+        "control": 160,
+        "technique": 146,
+        "physical": 130,
+        "pressure": 127,
+        "agility": 122,
+        "intelligence": 144
+      },
+      "lv1": {
+        "kick": 13,
+        "control": 14,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Gamma",
+    "elementName": {
+      "ja": "林",
+      "en": "Forest",
+      "fr": "Forêt"
+    },
+    "positionName": {
+      "en": "Forward",
+      "fr": "Attaquant",
+      "ja": "Forward"
+    },
+    "totalStatsLv99": 1591,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      66,
+      6
+    ]
+  },
+  {
+    "index": 37,
+    "charaParamId": "0x9522C823",
+    "charaId": "0xB04222EC",
+    "internalCode": "c05021500",
+    "names": {
+      "fr": "Zanark",
+      "en": "Zanark",
+      "ja": "ザナーク"
+    },
+    "icons": {
+      "face": "chara_face/c05021500_01.png",
+      "face2": "chara_face/c05021500_02.png"
+    },
+    "position": "FW",
+    "positionRaw": 2,
+    "element": "Montagne",
+    "elementRaw": 4,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 0,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 261,
+        "control": 258,
+        "technique": 235,
+        "physical": 210,
+        "pressure": 202,
+        "agility": 195,
+        "intelligence": 230
+      },
+      "lv50": {
+        "kick": 164,
+        "control": 160,
+        "technique": 146,
+        "physical": 130,
+        "pressure": 127,
+        "agility": 122,
+        "intelligence": 144
+      },
+      "lv1": {
+        "kick": 13,
+        "control": 14,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Zanark",
+    "elementName": {
+      "ja": "山",
+      "en": "Mountain",
+      "fr": "Montagne"
+    },
+    "positionName": {
+      "en": "Forward",
+      "fr": "Attaquant",
+      "ja": "Forward"
+    },
+    "totalStatsLv99": 1591,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      72,
+      6
+    ]
+  },
+  {
+    "index": 38,
+    "charaParamId": "0x3BA67C1A",
+    "charaId": "0x1EC696D5",
+    "internalCode": "c05023300",
+    "names": {
+      "fr": "Siméon Ayp",
+      "en": "Simeon Ayp",
+      "ja": "サリュー・エヴァン ＳＡＲＵ"
+    },
+    "icons": {
+      "face": "chara_face/c05023300_01.png",
+      "face2": "chara_face/c05023300_02.png"
+    },
+    "position": "FW",
+    "positionRaw": 2,
+    "element": "Montagne",
+    "elementRaw": 4,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 0,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 261,
+        "control": 258,
+        "technique": 235,
+        "physical": 210,
+        "pressure": 202,
+        "agility": 195,
+        "intelligence": 230
+      },
+      "lv50": {
+        "kick": 164,
+        "control": 160,
+        "technique": 146,
+        "physical": 130,
+        "pressure": 127,
+        "agility": 122,
+        "intelligence": 144
+      },
+      "lv1": {
+        "kick": 13,
+        "control": 14,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Siméon Ayp",
+    "elementName": {
+      "ja": "山",
+      "en": "Mountain",
+      "fr": "Montagne"
+    },
+    "positionName": {
+      "en": "Forward",
+      "fr": "Attaquant",
+      "ja": "Forward"
+    },
+    "totalStatsLv99": 1591,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      78,
+      6
+    ]
+  },
+  {
+    "index": 39,
+    "charaParamId": "0xA41870E9",
+    "charaId": "0x81789A26",
+    "internalCode": "c01000100",
+    "names": {
+      "fr": "Axel",
+      "en": "Axel",
+      "ja": "修也 豪炎寺"
+    },
+    "icons": {
+      "face": "chara_face/c01000100_01.png",
+      "face2": "chara_face/c01000100_02.png"
+    },
+    "position": "FW",
+    "positionRaw": 2,
+    "element": "Feu",
+    "elementRaw": 3,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 0,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 261,
+        "control": 258,
+        "technique": 235,
+        "physical": 210,
+        "pressure": 202,
+        "agility": 195,
+        "intelligence": 230
+      },
+      "lv50": {
+        "kick": 164,
+        "control": 160,
+        "technique": 146,
+        "physical": 130,
+        "pressure": 127,
+        "agility": 122,
+        "intelligence": 144
+      },
+      "lv1": {
+        "kick": 13,
+        "control": 14,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Axel",
+    "elementName": {
+      "ja": "火",
+      "en": "Fire",
+      "fr": "Feu"
+    },
+    "positionName": {
+      "en": "Forward",
+      "fr": "Attaquant",
+      "ja": "Forward"
+    },
+    "totalStatsLv99": 1591,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      0,
+      6
+    ]
+  },
+  {
+    "index": 40,
+    "charaParamId": "0xD05F14ED",
+    "charaId": "0xF53FFE22",
+    "internalCode": "c06038020",
+    "names": {
+      "fr": "Falco Flashman",
+      "en": "Falco Flashman",
+      "ja": "瞬木 隼人"
+    },
+    "icons": {
+      "face": "chara_face/c06038020_01.png",
+      "face2": "chara_face/c06038020_02.png"
+    },
+    "position": "FW",
+    "positionRaw": 2,
+    "element": "Vent",
+    "elementRaw": 1,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 0,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 261,
+        "control": 258,
+        "technique": 235,
+        "physical": 210,
+        "pressure": 202,
+        "agility": 195,
+        "intelligence": 230
+      },
+      "lv50": {
+        "kick": 164,
+        "control": 160,
+        "technique": 146,
+        "physical": 130,
+        "pressure": 127,
+        "agility": 122,
+        "intelligence": 144
+      },
+      "lv1": {
+        "kick": 13,
+        "control": 14,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Falco Flashman",
+    "elementName": {
+      "ja": "風",
+      "en": "Wind",
+      "fr": "Vent"
+    },
+    "positionName": {
+      "en": "Forward",
+      "fr": "Attaquant",
+      "ja": "Forward"
+    },
+    "totalStatsLv99": 1591,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      228,
+      6
+    ]
+  },
+  {
+    "index": 41,
+    "charaParamId": "0x3EC66FC1",
+    "charaId": "0x1BA6850E",
+    "internalCode": "c06030010",
+    "names": {
+      "fr": "Terry",
+      "en": "Terry",
+      "ja": "宗正 井吹"
+    },
+    "icons": {
+      "face": "chara_face/c06030010_01.png",
+      "face2": "chara_face/c06030010_02.png"
+    },
+    "position": "GK",
+    "positionRaw": 1,
+    "element": "Vent",
+    "elementRaw": 1,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 2,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 207,
+        "control": 223,
+        "technique": 210,
+        "physical": 225,
+        "pressure": 242,
+        "agility": 256,
+        "intelligence": 223
+      },
+      "lv50": {
+        "kick": 129,
+        "control": 139,
+        "technique": 130,
+        "physical": 141,
+        "pressure": 151,
+        "agility": 159,
+        "intelligence": 139
+      },
+      "lv1": {
+        "kick": 11,
+        "control": 12,
+        "technique": 12,
+        "physical": 11,
+        "pressure": 11,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Terry",
+    "elementName": {
+      "ja": "風",
+      "en": "Wind",
+      "fr": "Vent"
+    },
+    "positionName": {
+      "en": "Goalkeeper",
+      "fr": "Gardien",
+      "ja": "Goalkeeper"
+    },
+    "totalStatsLv99": 1586,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      282,
+      6
+    ]
+  },
+  {
+    "index": 42,
+    "charaParamId": "0x7187F906",
+    "charaId": "0x54E713C9",
+    "internalCode": "c06030060",
+    "names": {
+      "fr": "Buddy",
+      "en": "Buddy",
+      "ja": "隆二 九坂"
+    },
+    "icons": {
+      "face": "chara_face/c06030060_01.png",
+      "face2": "chara_face/c06030060_02.png"
+    },
+    "position": "MF",
+    "positionRaw": 3,
+    "element": "Montagne",
+    "elementRaw": 4,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 1,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 230,
+        "control": 265,
+        "technique": 267,
+        "physical": 202,
+        "pressure": 195,
+        "agility": 195,
+        "intelligence": 238
+      },
+      "lv50": {
+        "kick": 144,
+        "control": 165,
+        "technique": 166,
+        "physical": 127,
+        "pressure": 122,
+        "agility": 122,
+        "intelligence": 150
+      },
+      "lv1": {
+        "kick": 11,
+        "control": 12,
+        "technique": 13,
+        "physical": 10,
+        "pressure": 11,
+        "agility": 9,
+        "intelligence": 12
+      }
+    },
+    "displayName": "Buddy",
+    "elementName": {
+      "ja": "山",
+      "en": "Mountain",
+      "fr": "Montagne"
+    },
+    "positionName": {
+      "en": "Midfielder",
+      "fr": "Milieu",
+      "ja": "Midfielder"
+    },
+    "totalStatsLv99": 1592,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      288,
+      6
+    ]
+  },
+  {
+    "index": 43,
+    "charaParamId": "0xFB72472E",
+    "charaId": "0xDE12ADE1",
+    "internalCode": "c06038010",
+    "names": {
+      "fr": "Buddy Fury",
+      "en": "Buddy Fury",
+      "ja": "九坂 隆二"
+    },
+    "icons": {
+      "face": "chara_face/c06038010_01.png",
+      "face2": "chara_face/c06038010_02.png"
+    },
+    "position": "MF",
+    "positionRaw": 3,
+    "element": "Montagne",
+    "elementRaw": 4,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 1,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 230,
+        "control": 265,
+        "technique": 267,
+        "physical": 202,
+        "pressure": 195,
+        "agility": 195,
+        "intelligence": 238
+      },
+      "lv50": {
+        "kick": 144,
+        "control": 165,
+        "technique": 166,
+        "physical": 127,
+        "pressure": 122,
+        "agility": 122,
+        "intelligence": 150
+      },
+      "lv1": {
+        "kick": 11,
+        "control": 12,
+        "technique": 13,
+        "physical": 10,
+        "pressure": 11,
+        "agility": 9,
+        "intelligence": 12
+      }
+    },
+    "displayName": "Buddy Fury",
+    "elementName": {
+      "ja": "山",
+      "en": "Mountain",
+      "fr": "Montagne"
+    },
+    "positionName": {
+      "en": "Midfielder",
+      "fr": "Milieu",
+      "ja": "Midfielder"
+    },
+    "totalStatsLv99": 1592,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      294,
+      6
+    ]
+  },
+  {
+    "index": 44,
+    "charaParamId": "0xE69BB112",
+    "charaId": "0xC3FB5BDD",
+    "internalCode": "c06031650",
+    "names": {
+      "fr": "Plink Powai",
+      "en": "Plink Powai",
+      "ja": "ポワイ"
+    },
+    "icons": {
+      "face": "chara_face/c06031650_01.png",
+      "face2": "chara_face/c06031650_02.png"
+    },
+    "position": "MF",
+    "positionRaw": 3,
+    "element": "Vent",
+    "elementRaw": 1,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 1,
+    "growthPattern": 1,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 230,
+        "control": 265,
+        "technique": 267,
+        "physical": 202,
+        "pressure": 195,
+        "agility": 195,
+        "intelligence": 238
+      },
+      "lv50": {
+        "kick": 144,
+        "control": 165,
+        "technique": 166,
+        "physical": 127,
+        "pressure": 122,
+        "agility": 122,
+        "intelligence": 150
+      },
+      "lv1": {
+        "kick": 11,
+        "control": 12,
+        "technique": 13,
+        "physical": 10,
+        "pressure": 11,
+        "agility": 9,
+        "intelligence": 12
+      }
+    },
+    "displayName": "Plink Powai",
+    "elementName": {
+      "ja": "風",
+      "en": "Wind",
+      "fr": "Vent"
+    },
+    "positionName": {
+      "en": "Midfielder",
+      "fr": "Milieu",
+      "ja": "Midfielder"
+    },
+    "totalStatsLv99": 1592,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      300,
+      6
+    ]
+  },
+  {
+    "index": 45,
+    "charaParamId": "0xA8184DE2",
+    "charaId": "0x8D78A72D",
+    "internalCode": "c06031720",
+    "names": {
+      "fr": "Rondula",
+      "en": "Rondula",
+      "ja": "ヒラリ"
+    },
+    "icons": {
+      "face": "chara_face/c06031720_01.png",
+      "face2": "chara_face/c06031720_02.png"
+    },
+    "position": "MF",
+    "positionRaw": 3,
+    "element": "Vent",
+    "elementRaw": 1,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 1,
+    "growthPattern": 0,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 238,
+        "control": 258,
+        "technique": 250,
+        "physical": 210,
+        "pressure": 211,
+        "agility": 195,
+        "intelligence": 230
+      },
+      "lv50": {
+        "kick": 150,
+        "control": 160,
+        "technique": 157,
+        "physical": 130,
+        "pressure": 132,
+        "agility": 122,
+        "intelligence": 144
+      },
+      "lv1": {
+        "kick": 13,
+        "control": 14,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Rondula",
+    "elementName": {
+      "ja": "風",
+      "en": "Wind",
+      "fr": "Vent"
+    },
+    "positionName": {
+      "en": "Midfielder",
+      "fr": "Milieu",
+      "ja": "Midfielder"
+    },
+    "totalStatsLv99": 1592,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      306,
+      6
+    ]
+  },
+  {
+    "index": 46,
+    "charaParamId": "0xBE209EBE",
+    "charaId": "0x9B407471",
+    "internalCode": "c06032120",
+    "names": {
+      "fr": "Ruger",
+      "en": "Ruger",
+      "ja": "リュゲル"
+    },
+    "icons": {
+      "face": "chara_face/c06032120_01.png",
+      "face2": "chara_face/c06032120_02.png"
+    },
+    "position": "FW",
+    "positionRaw": 2,
+    "element": "Forêt",
+    "elementRaw": 2,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 0,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 261,
+        "control": 258,
+        "technique": 235,
+        "physical": 210,
+        "pressure": 202,
+        "agility": 195,
+        "intelligence": 230
+      },
+      "lv50": {
+        "kick": 164,
+        "control": 160,
+        "technique": 146,
+        "physical": 130,
+        "pressure": 127,
+        "agility": 122,
+        "intelligence": 144
+      },
+      "lv1": {
+        "kick": 13,
+        "control": 14,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Ruger",
+    "elementName": {
+      "ja": "林",
+      "en": "Forest",
+      "fr": "Forêt"
+    },
+    "positionName": {
+      "en": "Forward",
+      "fr": "Attaquant",
+      "ja": "Forward"
+    },
+    "totalStatsLv99": 1591,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      264,
+      6
+    ]
+  },
+  {
+    "index": 47,
+    "charaParamId": "0xA73BAFFF",
+    "charaId": "0x825B4530",
+    "internalCode": "c06032130",
+    "names": {
+      "fr": "Gandares",
+      "en": "Gandares",
+      "ja": "ガンダレス"
+    },
+    "icons": {
+      "face": "chara_face/c06032130_01.png",
+      "face2": "chara_face/c06032130_02.png"
+    },
+    "position": "FW",
+    "positionRaw": 2,
+    "element": "Forêt",
+    "elementRaw": 2,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 0,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 261,
+        "control": 258,
+        "technique": 235,
+        "physical": 210,
+        "pressure": 202,
+        "agility": 195,
+        "intelligence": 230
+      },
+      "lv50": {
+        "kick": 164,
+        "control": 160,
+        "technique": 146,
+        "physical": 130,
+        "pressure": 127,
+        "agility": 122,
+        "intelligence": 144
+      },
+      "lv1": {
+        "kick": 13,
+        "control": 14,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Gandares",
+    "elementName": {
+      "ja": "林",
+      "en": "Forest",
+      "fr": "Forêt"
+    },
+    "positionName": {
+      "en": "Forward",
+      "fr": "Attaquant",
+      "ja": "Forward"
+    },
+    "totalStatsLv99": 1591,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      270,
+      6
+    ]
+  },
+  {
+    "index": 48,
+    "charaParamId": "0x8205AD84",
+    "charaId": "0xA765474B",
+    "internalCode": "c06032900",
+    "names": {
+      "fr": "Ozrock",
+      "en": "Ozrock",
+      "ja": "ビットウェイ オズロック"
+    },
+    "icons": {
+      "face": "chara_face/c06032900_01.png",
+      "face2": "chara_face/c06032900_02.png"
+    },
+    "position": "FW",
+    "positionRaw": 2,
+    "element": "Vent",
+    "elementRaw": 1,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 0,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 261,
+        "control": 258,
+        "technique": 235,
+        "physical": 210,
+        "pressure": 202,
+        "agility": 195,
+        "intelligence": 230
+      },
+      "lv50": {
+        "kick": 164,
+        "control": 160,
+        "technique": 146,
+        "physical": 130,
+        "pressure": 127,
+        "agility": 122,
+        "intelligence": 144
+      },
+      "lv1": {
+        "kick": 13,
+        "control": 14,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Ozrock",
+    "elementName": {
+      "ja": "風",
+      "en": "Wind",
+      "fr": "Vent"
+    },
+    "positionName": {
+      "en": "Forward",
+      "fr": "Attaquant",
+      "ja": "Forward"
+    },
+    "totalStatsLv99": 1591,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      234,
+      6
+    ]
+  },
+  {
+    "index": 49,
+    "charaParamId": "0x34AA9B59",
+    "charaId": "0x11CA7196",
+    "internalCode": "c06033100",
+    "names": {
+      "fr": "Circulus",
+      "en": "Circulus",
+      "ja": "サージェス"
+    },
+    "icons": {
+      "face": "chara_face/c06033100_01.png",
+      "face2": "chara_face/c06033100_02.png"
+    },
+    "position": "FW",
+    "positionRaw": 2,
+    "element": "Feu",
+    "elementRaw": 3,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 0,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 261,
+        "control": 258,
+        "technique": 235,
+        "physical": 210,
+        "pressure": 202,
+        "agility": 195,
+        "intelligence": 230
+      },
+      "lv50": {
+        "kick": 164,
+        "control": 160,
+        "technique": 146,
+        "physical": 130,
+        "pressure": 127,
+        "agility": 122,
+        "intelligence": 144
+      },
+      "lv1": {
+        "kick": 13,
+        "control": 14,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Circulus",
+    "elementName": {
+      "ja": "火",
+      "en": "Fire",
+      "fr": "Feu"
+    },
+    "positionName": {
+      "en": "Forward",
+      "fr": "Attaquant",
+      "ja": "Forward"
+    },
+    "totalStatsLv99": 1591,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      246,
+      6
+    ]
+  },
+  {
+    "index": 50,
+    "charaParamId": "0x372E4F37",
+    "charaId": "0x124EA5F8",
+    "internalCode": "c06033300",
+    "names": {
+      "fr": "Arculus",
+      "en": "Arculus",
+      "ja": "アクロウス"
+    },
+    "icons": {
+      "face": "chara_face/c06033300_01.png",
+      "face2": "chara_face/c06033300_02.png"
+    },
+    "position": "FW",
+    "positionRaw": 2,
+    "element": "Vent",
+    "elementRaw": 1,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 0,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 261,
+        "control": 258,
+        "technique": 235,
+        "physical": 210,
+        "pressure": 202,
+        "agility": 195,
+        "intelligence": 230
+      },
+      "lv50": {
+        "kick": 164,
+        "control": 160,
+        "technique": 146,
+        "physical": 130,
+        "pressure": 127,
+        "agility": 122,
+        "intelligence": 144
+      },
+      "lv1": {
+        "kick": 13,
+        "control": 14,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Arculus",
+    "elementName": {
+      "ja": "風",
+      "en": "Wind",
+      "fr": "Vent"
+    },
+    "positionName": {
+      "en": "Forward",
+      "fr": "Attaquant",
+      "ja": "Forward"
+    },
+    "totalStatsLv99": 1591,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      240,
+      6
+    ]
+  },
+  {
+    "index": 51,
+    "charaParamId": "0xE2713715",
+    "charaId": "0xC711DDDA",
+    "internalCode": "c07010010",
+    "names": {
+      "fr": "Sonny",
+      "en": "Sonny",
+      "ja": "明日人"
+    },
+    "icons": {
+      "face": "chara_face/c07010010_01.png",
+      "face2": "chara_face/c07010010_02.png"
+    },
+    "position": "FW",
+    "positionRaw": 2,
+    "element": "Feu",
+    "elementRaw": 3,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 1,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 279,
+        "control": 265,
+        "technique": 242,
+        "physical": 202,
+        "pressure": 195,
+        "agility": 195,
+        "intelligence": 214
+      },
+      "lv50": {
+        "kick": 174,
+        "control": 165,
+        "technique": 151,
+        "physical": 127,
+        "pressure": 122,
+        "agility": 122,
+        "intelligence": 134
+      },
+      "lv1": {
+        "kick": 12,
+        "control": 13,
+        "technique": 13,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Sonny",
+    "elementName": {
+      "ja": "火",
+      "en": "Fire",
+      "fr": "Feu"
+    },
+    "positionName": {
+      "en": "Forward",
+      "fr": "Attaquant",
+      "ja": "Forward"
+    },
+    "totalStatsLv99": 1592,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      312,
+      6
+    ]
+  },
+  {
+    "index": 52,
+    "charaParamId": "0x260F257E",
+    "charaId": "0x036FCFB1",
+    "internalCode": "c08010030",
+    "names": {
+      "fr": "Basile Hardy",
+      "en": "Basile Hardy",
+      "ja": "小僧丸 サスケ"
+    },
+    "icons": {
+      "face": "chara_face/c08010030_01.png",
+      "face2": "chara_face/c08010030_02.png"
+    },
+    "position": "FW",
+    "positionRaw": 2,
+    "element": "Feu",
+    "elementRaw": 3,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 1,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 279,
+        "control": 265,
+        "technique": 242,
+        "physical": 202,
+        "pressure": 195,
+        "agility": 195,
+        "intelligence": 214
+      },
+      "lv50": {
+        "kick": 174,
+        "control": 165,
+        "technique": 151,
+        "physical": 127,
+        "pressure": 122,
+        "agility": 122,
+        "intelligence": 134
+      },
+      "lv1": {
+        "kick": 12,
+        "control": 13,
+        "technique": 13,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Basile Hardy",
+    "elementName": {
+      "ja": "火",
+      "en": "Fire",
+      "fr": "Feu"
+    },
+    "positionName": {
+      "en": "Forward",
+      "fr": "Attaquant",
+      "ja": "Forward"
+    },
+    "totalStatsLv99": 1592,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      420,
+      6
+    ]
+  },
+  {
+    "index": 53,
+    "charaParamId": "0x6ACA67D7",
+    "charaId": "0x4FAA8D18",
+    "internalCode": "c08010240",
+    "names": {
+      "fr": "Sandra Fischer",
+      "en": "Sandra Fischer",
+      "ja": "海腹 のりか"
+    },
+    "icons": {
+      "face": "chara_face/c08010240_01.png",
+      "face2": "chara_face/c08010240_02.png"
+    },
+    "position": "GK",
+    "positionRaw": 1,
+    "element": "Vent",
+    "elementRaw": 1,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 1,
+    "growthPattern": 2,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 207,
+        "control": 223,
+        "technique": 210,
+        "physical": 225,
+        "pressure": 242,
+        "agility": 256,
+        "intelligence": 223
+      },
+      "lv50": {
+        "kick": 129,
+        "control": 139,
+        "technique": 130,
+        "physical": 141,
+        "pressure": 151,
+        "agility": 159,
+        "intelligence": 139
+      },
+      "lv1": {
+        "kick": 10,
+        "control": 11,
+        "technique": 11,
+        "physical": 11,
+        "pressure": 12,
+        "agility": 10,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Sandra Fischer",
+    "elementName": {
+      "ja": "風",
+      "en": "Wind",
+      "fr": "Vent"
+    },
+    "positionName": {
+      "en": "Goalkeeper",
+      "fr": "Gardien",
+      "ja": "Goalkeeper"
+    },
+    "totalStatsLv99": 1586,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      414,
+      6
+    ]
+  },
+  {
+    "index": 54,
+    "charaParamId": "0xF38BEA43",
+    "charaId": "0xD6EB008C",
+    "internalCode": "c07020070",
+    "names": {
+      "fr": "Acker Reese",
+      "en": "Acker Reese",
+      "ja": "水神矢 成龍"
+    },
+    "icons": {
+      "face": "chara_face/c07020070_01.png",
+      "face2": "chara_face/c07020070_02.png"
+    },
+    "position": "DF",
+    "positionRaw": 4,
+    "element": "Vent",
+    "elementRaw": 1,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 0,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 207,
+        "control": 216,
+        "technique": 218,
+        "physical": 235,
+        "pressure": 242,
+        "agility": 210,
+        "intelligence": 261
+      },
+      "lv50": {
+        "kick": 129,
+        "control": 135,
+        "technique": 136,
+        "physical": 146,
+        "pressure": 151,
+        "agility": 130,
+        "intelligence": 164
+      },
+      "lv1": {
+        "kick": 11,
+        "control": 13,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 11,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Acker Reese",
+    "elementName": {
+      "ja": "風",
+      "en": "Wind",
+      "fr": "Vent"
+    },
+    "positionName": {
+      "en": "Defender",
+      "fr": "Défenseur",
+      "ja": "Defender"
+    },
+    "totalStatsLv99": 1589,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      342,
+      6
+    ]
+  },
+  {
+    "index": 55,
+    "charaParamId": "0x6EC011E4",
+    "charaId": "0x4BA0FB2B",
+    "internalCode": "c08060090",
+    "names": {
+      "fr": "Jimmy",
+      "en": "Jimmy",
+      "ja": "ハオ"
+    },
+    "icons": {
+      "face": "chara_face/c08060090_01.png",
+      "face2": "chara_face/c08060090_02.png"
+    },
+    "position": "MF",
+    "positionRaw": 3,
+    "element": "Vent",
+    "elementRaw": 1,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 0,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 238,
+        "control": 258,
+        "technique": 250,
+        "physical": 210,
+        "pressure": 211,
+        "agility": 195,
+        "intelligence": 230
+      },
+      "lv50": {
+        "kick": 150,
+        "control": 160,
+        "technique": 157,
+        "physical": 130,
+        "pressure": 132,
+        "agility": 122,
+        "intelligence": 144
+      },
+      "lv1": {
+        "kick": 11,
+        "control": 13,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 11,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Jimmy",
+    "elementName": {
+      "ja": "風",
+      "en": "Wind",
+      "fr": "Vent"
+    },
+    "positionName": {
+      "en": "Midfielder",
+      "fr": "Milieu",
+      "ja": "Midfielder"
+    },
+    "totalStatsLv99": 1592,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      384,
+      6
+    ]
+  },
+  {
+    "index": 56,
+    "charaParamId": "0xA5D14DC5",
+    "charaId": "0x80B1A70A",
+    "internalCode": "c07020010",
+    "names": {
+      "fr": "Elliot Ember",
+      "en": "Elliot Ember",
+      "ja": "凌兵 灰崎"
+    },
+    "icons": {
+      "face": "chara_face/c07020010_01.png",
+      "face2": "chara_face/c07020010_02.png"
+    },
+    "position": "FW",
+    "positionRaw": 2,
+    "element": "Forêt",
+    "elementRaw": 2,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 1,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 279,
+        "control": 265,
+        "technique": 242,
+        "physical": 202,
+        "pressure": 195,
+        "agility": 195,
+        "intelligence": 214
+      },
+      "lv50": {
+        "kick": 174,
+        "control": 165,
+        "technique": 151,
+        "physical": 127,
+        "pressure": 122,
+        "agility": 122,
+        "intelligence": 134
+      },
+      "lv1": {
+        "kick": 11,
+        "control": 12,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 11,
+        "agility": 9,
+        "intelligence": 12
+      }
+    },
+    "displayName": "Elliot Ember",
+    "elementName": {
+      "ja": "林",
+      "en": "Forest",
+      "fr": "Forêt"
+    },
+    "positionName": {
+      "en": "Forward",
+      "fr": "Attaquant",
+      "ja": "Forward"
+    },
+    "totalStatsLv99": 1592,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      318,
+      6
+    ]
+  },
+  {
+    "index": 57,
+    "charaParamId": "0x98B16475",
+    "charaId": "0xBDD18EBA",
+    "internalCode": "c07030010",
+    "names": {
+      "fr": "Heath Moore",
+      "en": "Heath Moore",
+      "ja": "悠馬 野坂"
+    },
+    "icons": {
+      "face": "chara_face/c07030010_01.png",
+      "face2": "chara_face/c07030010_02.png"
+    },
+    "position": "FW",
+    "positionRaw": 2,
+    "element": "Feu",
+    "elementRaw": 3,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 1,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 279,
+        "control": 265,
+        "technique": 242,
+        "physical": 202,
+        "pressure": 195,
+        "agility": 195,
+        "intelligence": 214
+      },
+      "lv50": {
+        "kick": 174,
+        "control": 165,
+        "technique": 151,
+        "physical": 127,
+        "pressure": 122,
+        "agility": 122,
+        "intelligence": 134
+      },
+      "lv1": {
+        "kick": 11,
+        "control": 12,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 11,
+        "agility": 9,
+        "intelligence": 12
+      }
+    },
+    "displayName": "Heath Moore",
+    "elementName": {
+      "ja": "火",
+      "en": "Fire",
+      "fr": "Feu"
+    },
+    "positionName": {
+      "en": "Forward",
+      "fr": "Attaquant",
+      "ja": "Forward"
+    },
+    "totalStatsLv99": 1592,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      324,
+      6
+    ]
+  },
+  {
+    "index": 58,
+    "charaParamId": "0x24490C3D",
+    "charaId": "0x0129E6F2",
+    "internalCode": "c08090010",
+    "names": {
+      "fr": "Alexander",
+      "en": "Alexander",
+      "ja": "フロイ"
+    },
+    "icons": {
+      "face": "chara_face/c08090010_01.png",
+      "face2": "chara_face/c08090010_02.png"
+    },
+    "position": "MF",
+    "positionRaw": 3,
+    "element": "Vent",
+    "elementRaw": 1,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 1,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 230,
+        "control": 265,
+        "technique": 267,
+        "physical": 202,
+        "pressure": 195,
+        "agility": 195,
+        "intelligence": 238
+      },
+      "lv50": {
+        "kick": 144,
+        "control": 165,
+        "technique": 166,
+        "physical": 127,
+        "pressure": 122,
+        "agility": 122,
+        "intelligence": 150
+      },
+      "lv1": {
+        "kick": 12,
+        "control": 13,
+        "technique": 13,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Alexander",
+    "elementName": {
+      "ja": "風",
+      "en": "Wind",
+      "fr": "Vent"
+    },
+    "positionName": {
+      "en": "Midfielder",
+      "fr": "Milieu",
+      "ja": "Midfielder"
+    },
+    "totalStatsLv99": 1592,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      408,
+      6
+    ]
+  },
+  {
+    "index": 59,
+    "charaParamId": "0xF92C2F17",
+    "charaId": "0xDC4CC5D8",
+    "internalCode": "c07090020",
+    "names": {
+      "fr": "Aiden",
+      "en": "Aiden",
+      "ja": "アツヤ"
+    },
+    "icons": {
+      "face": "chara_face/c07090020_01.png",
+      "face2": "chara_face/c07090020_02.png"
+    },
+    "position": "FW",
+    "positionRaw": 2,
+    "element": "Feu",
+    "elementRaw": 3,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 0,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 261,
+        "control": 258,
+        "technique": 235,
+        "physical": 210,
+        "pressure": 202,
+        "agility": 195,
+        "intelligence": 230
+      },
+      "lv50": {
+        "kick": 164,
+        "control": 160,
+        "technique": 146,
+        "physical": 130,
+        "pressure": 127,
+        "agility": 122,
+        "intelligence": 144
+      },
+      "lv1": {
+        "kick": 12,
+        "control": 13,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 11,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Aiden",
+    "elementName": {
+      "ja": "火",
+      "en": "Fire",
+      "fr": "Feu"
+    },
+    "positionName": {
+      "en": "Forward",
+      "fr": "Attaquant",
+      "ja": "Forward"
+    },
+    "totalStatsLv99": 1591,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      336,
+      6
+    ]
+  },
+  {
+    "index": 60,
+    "charaParamId": "0x3F609EC3",
+    "charaId": "0x1A00740C",
+    "internalCode": "c07100020",
+    "names": {
+      "fr": "Xavier",
+      "en": "Xavier",
+      "ja": "ヒロト"
+    },
+    "icons": {
+      "face": "chara_face/c07100020_01.png",
+      "face2": "chara_face/c07100020_02.png"
+    },
+    "position": "FW",
+    "positionRaw": 2,
+    "element": "Forêt",
+    "elementRaw": 2,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 0,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 261,
+        "control": 258,
+        "technique": 235,
+        "physical": 210,
+        "pressure": 202,
+        "agility": 195,
+        "intelligence": 230
+      },
+      "lv50": {
+        "kick": 164,
+        "control": 160,
+        "technique": 146,
+        "physical": 130,
+        "pressure": 127,
+        "agility": 122,
+        "intelligence": 144
+      },
+      "lv1": {
+        "kick": 13,
+        "control": 14,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Xavier",
+    "elementName": {
+      "ja": "林",
+      "en": "Forest",
+      "fr": "Forêt"
+    },
+    "positionName": {
+      "en": "Forward",
+      "fr": "Attaquant",
+      "ja": "Forward"
+    },
+    "totalStatsLv99": 1591,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      330,
+      6
+    ]
+  },
+  {
+    "index": 61,
+    "charaParamId": "0x53EDB7D0",
+    "charaId": "0x768D5D1F",
+    "internalCode": "c07130010",
+    "names": {
+      "fr": "Sergi",
+      "en": "Sergi",
+      "ja": "クラリオ"
+    },
+    "icons": {
+      "face": "chara_face/c07130010_01.png",
+      "face2": "chara_face/c07130010_02.png"
+    },
+    "position": "MF",
+    "positionRaw": 3,
+    "element": "Montagne",
+    "elementRaw": 4,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 1,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 230,
+        "control": 265,
+        "technique": 267,
+        "physical": 202,
+        "pressure": 195,
+        "agility": 195,
+        "intelligence": 238
+      },
+      "lv50": {
+        "kick": 144,
+        "control": 165,
+        "technique": 166,
+        "physical": 127,
+        "pressure": 122,
+        "agility": 122,
+        "intelligence": 150
+      },
+      "lv1": {
+        "kick": 12,
+        "control": 13,
+        "technique": 13,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Sergi",
+    "elementName": {
+      "ja": "山",
+      "en": "Mountain",
+      "fr": "Montagne"
+    },
+    "positionName": {
+      "en": "Midfielder",
+      "fr": "Milieu",
+      "ja": "Midfielder"
+    },
+    "totalStatsLv99": 1592,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      402,
+      6
+    ]
+  },
+  {
+    "index": 62,
+    "charaParamId": "0x3F14143F",
+    "charaId": "0x1A74FEF0",
+    "internalCode": "c08010020",
+    "names": {
+      "fr": "Lucas",
+      "en": "Lucas",
+      "ja": "光"
+    },
+    "icons": {
+      "face": "chara_face/c08010020_01.png",
+      "face2": "chara_face/c08010020_02.png"
+    },
+    "position": "MF",
+    "positionRaw": 3,
+    "element": "Vent",
+    "elementRaw": 1,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 0,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 238,
+        "control": 258,
+        "technique": 250,
+        "physical": 210,
+        "pressure": 211,
+        "agility": 195,
+        "intelligence": 230
+      },
+      "lv50": {
+        "kick": 150,
+        "control": 160,
+        "technique": 157,
+        "physical": 130,
+        "pressure": 132,
+        "agility": 122,
+        "intelligence": 144
+      },
+      "lv1": {
+        "kick": 13,
+        "control": 14,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Lucas",
+    "elementName": {
+      "ja": "風",
+      "en": "Wind",
+      "fr": "Vent"
+    },
+    "positionName": {
+      "en": "Midfielder",
+      "fr": "Milieu",
+      "ja": "Midfielder"
+    },
+    "totalStatsLv99": 1592,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      396,
+      6
+    ]
+  },
+  {
+    "index": 63,
+    "charaParamId": "0x66265172",
+    "charaId": "0x4346BBBD",
+    "internalCode": "c11010020",
+    "names": {
+      "fr": "Briar Bloomhurst",
+      "en": "Briar Bloomhurst",
+      "ja": "丈二 桜咲"
+    },
+    "icons": {
+      "face": "chara_face/c11010020_01.png",
+      "face2": "chara_face/c11010020_02.png"
+    },
+    "position": "FW",
+    "positionRaw": 2,
+    "element": "Montagne",
+    "elementRaw": 4,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 0,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 261,
+        "control": 258,
+        "technique": 235,
+        "physical": 210,
+        "pressure": 202,
+        "agility": 195,
+        "intelligence": 230
+      },
+      "lv50": {
+        "kick": 164,
+        "control": 160,
+        "technique": 146,
+        "physical": 130,
+        "pressure": 127,
+        "agility": 122,
+        "intelligence": 144
+      },
+      "lv1": {
+        "kick": 12,
+        "control": 13,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 11,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Briar Bloomhurst",
+    "elementName": {
+      "ja": "山",
+      "en": "Mountain",
+      "fr": "Montagne"
+    },
+    "positionName": {
+      "en": "Forward",
+      "fr": "Attaquant",
+      "ja": "Forward"
+    },
+    "totalStatsLv99": 1591,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      90,
+      6
+    ]
+  },
+  {
+    "index": 64,
+    "charaParamId": "0x2967C7B5",
+    "charaId": "0x0C072D7A",
+    "internalCode": "c11010050",
+    "names": {
+      "fr": "Cédric Freud",
+      "en": "Cedric Freud",
+      "ja": "兵太 木曽路"
+    },
+    "icons": {
+      "face": "chara_face/c11010050_01.png",
+      "face2": "chara_face/c11010050_02.png"
+    },
+    "position": "MF",
+    "positionRaw": 3,
+    "element": "Forêt",
+    "elementRaw": 2,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 0,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 238,
+        "control": 258,
+        "technique": 250,
+        "physical": 210,
+        "pressure": 211,
+        "agility": 195,
+        "intelligence": 230
+      },
+      "lv50": {
+        "kick": 150,
+        "control": 160,
+        "technique": 157,
+        "physical": 130,
+        "pressure": 132,
+        "agility": 122,
+        "intelligence": 144
+      },
+      "lv1": {
+        "kick": 13,
+        "control": 14,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 10,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Cédric Freud",
+    "elementName": {
+      "ja": "林",
+      "en": "Forest",
+      "fr": "Forêt"
+    },
+    "positionName": {
+      "en": "Midfielder",
+      "fr": "Milieu",
+      "ja": "Midfielder"
+    },
+    "totalStatsLv99": 1592,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      354,
+      6
+    ]
+  },
+  {
+    "index": 65,
+    "charaParamId": "0x024A9476",
+    "charaId": "0x272A7EB9",
+    "internalCode": "c11010060",
+    "names": {
+      "fr": "Raika",
+      "en": "Raika",
+      "ja": "来夏"
+    },
+    "icons": {
+      "face": "chara_face/c11010060_01.png",
+      "face2": "chara_face/c11010060_02.png"
+    },
+    "position": "FW",
+    "positionRaw": 2,
+    "element": "Feu",
+    "elementRaw": 3,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 1,
+    "growthPattern": 2,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 279,
+        "control": 265,
+        "technique": 242,
+        "physical": 202,
+        "pressure": 195,
+        "agility": 195,
+        "intelligence": 214
+      },
+      "lv50": {
+        "kick": 174,
+        "control": 165,
+        "technique": 151,
+        "physical": 127,
+        "pressure": 122,
+        "agility": 122,
+        "intelligence": 134
+      },
+      "lv1": {
+        "kick": 11,
+        "control": 12,
+        "technique": 12,
+        "physical": 11,
+        "pressure": 11,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Raika",
+    "elementName": {
+      "ja": "火",
+      "en": "Fire",
+      "fr": "Feu"
+    },
+    "positionName": {
+      "en": "Forward",
+      "fr": "Attaquant",
+      "ja": "Forward"
+    },
+    "totalStatsLv99": 1592,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      348,
+      6
+    ]
+  },
+  {
+    "index": 66,
+    "charaParamId": "0x1B51A537",
+    "charaId": "0x3E314FF8",
+    "internalCode": "c11010070",
+    "names": {
+      "fr": "Cade",
+      "en": "Cade",
+      "ja": "亀雄"
+    },
+    "icons": {
+      "face": "chara_face/c11010070_01.png",
+      "face2": "chara_face/c11010070_02.png"
+    },
+    "position": "DF",
+    "positionRaw": 4,
+    "element": "Vent",
+    "elementRaw": 1,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 1,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 199,
+        "control": 207,
+        "technique": 202,
+        "physical": 242,
+        "pressure": 250,
+        "agility": 210,
+        "intelligence": 279
+      },
+      "lv50": {
+        "kick": 123,
+        "control": 129,
+        "technique": 127,
+        "physical": 151,
+        "pressure": 157,
+        "agility": 130,
+        "intelligence": 174
+      },
+      "lv1": {
+        "kick": 11,
+        "control": 12,
+        "technique": 13,
+        "physical": 10,
+        "pressure": 11,
+        "agility": 9,
+        "intelligence": 12
+      }
+    },
+    "displayName": "Cade",
+    "elementName": {
+      "ja": "風",
+      "en": "Wind",
+      "fr": "Vent"
+    },
+    "positionName": {
+      "en": "Defender",
+      "fr": "Défenseur",
+      "ja": "Defender"
+    },
+    "totalStatsLv99": 1589,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      366,
+      6
+    ]
+  },
+  {
+    "index": 67,
+    "charaParamId": "0x7F3D6033",
+    "charaId": "0x5A5D8AFC",
+    "internalCode": "c11010030",
+    "names": {
+      "fr": "Alix Fontaine",
+      "en": "Alix Fontaine",
+      "ja": "我流 四川堂"
+    },
+    "icons": {
+      "face": "chara_face/c11010030_01.png",
+      "face2": "chara_face/c11010030_02.png"
+    },
+    "position": "GK",
+    "positionRaw": 1,
+    "element": "Vent",
+    "elementRaw": 1,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 0,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 207,
+        "control": 223,
+        "technique": 210,
+        "physical": 235,
+        "pressure": 242,
+        "agility": 246,
+        "intelligence": 223
+      },
+      "lv50": {
+        "kick": 129,
+        "control": 139,
+        "technique": 130,
+        "physical": 146,
+        "pressure": 151,
+        "agility": 153,
+        "intelligence": 139
+      },
+      "lv1": {
+        "kick": 12,
+        "control": 13,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 11,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Alix Fontaine",
+    "elementName": {
+      "ja": "風",
+      "en": "Wind",
+      "fr": "Vent"
+    },
+    "positionName": {
+      "en": "Goalkeeper",
+      "fr": "Gardien",
+      "ja": "Goalkeeper"
+    },
+    "totalStatsLv99": 1586,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      372,
+      6
+    ]
+  },
+  {
+    "index": 68,
+    "charaParamId": "0x307CF6F4",
+    "charaId": "0x151C1C3B",
+    "internalCode": "c11010040",
+    "names": {
+      "fr": "Thierry Reyes",
+      "en": "Thierry Reyes",
+      "ja": "駿河 柳生"
+    },
+    "icons": {
+      "face": "chara_face/c11010040_01.png",
+      "face2": "chara_face/c11010040_02.png"
+    },
+    "position": "MF",
+    "positionRaw": 3,
+    "element": "Montagne",
+    "elementRaw": 4,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 1,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 230,
+        "control": 265,
+        "technique": 267,
+        "physical": 202,
+        "pressure": 195,
+        "agility": 195,
+        "intelligence": 238
+      },
+      "lv50": {
+        "kick": 144,
+        "control": 165,
+        "technique": 166,
+        "physical": 127,
+        "pressure": 122,
+        "agility": 122,
+        "intelligence": 150
+      },
+      "lv1": {
+        "kick": 11,
+        "control": 12,
+        "technique": 13,
+        "physical": 10,
+        "pressure": 11,
+        "agility": 9,
+        "intelligence": 12
+      }
+    },
+    "displayName": "Thierry Reyes",
+    "elementName": {
+      "ja": "山",
+      "en": "Mountain",
+      "fr": "Montagne"
+    },
+    "positionName": {
+      "en": "Midfielder",
+      "fr": "Milieu",
+      "ja": "Midfielder"
+    },
+    "totalStatsLv99": 1592,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      360,
+      6
+    ]
+  },
+  {
+    "index": 69,
+    "charaParamId": "0x0AAB7861",
+    "charaId": "0x2FCB92AE",
+    "internalCode": "c11020010",
+    "names": {
+      "fr": "Harper",
+      "en": "Harper",
+      "ja": "ハル"
+    },
+    "icons": {
+      "face": "chara_face/c11020010_01.png",
+      "face2": "chara_face/c11020010_02.png"
+    },
+    "position": "FW",
+    "positionRaw": 2,
+    "element": "Montagne",
+    "elementRaw": 4,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 1,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 279,
+        "control": 265,
+        "technique": 242,
+        "physical": 202,
+        "pressure": 195,
+        "agility": 195,
+        "intelligence": 214
+      },
+      "lv50": {
+        "kick": 174,
+        "control": 165,
+        "technique": 151,
+        "physical": 127,
+        "pressure": 122,
+        "agility": 122,
+        "intelligence": 134
+      },
+      "lv1": {
+        "kick": 11,
+        "control": 12,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 11,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Harper",
+    "elementName": {
+      "ja": "山",
+      "en": "Mountain",
+      "fr": "Montagne"
+    },
+    "positionName": {
+      "en": "Forward",
+      "fr": "Attaquant",
+      "ja": "Forward"
+    },
+    "totalStatsLv99": 1592,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      84,
+      6
+    ]
+  },
+  {
+    "index": 70,
+    "charaParamId": "0x37CB51D1",
+    "charaId": "0x12ABBB1E",
+    "internalCode": "c11030010",
+    "names": {
+      "fr": "Nikas",
+      "en": "Nikas Himmelstein",
+      "ja": "征 空宮"
+    },
+    "icons": {
+      "face": "chara_face/c11030010_01.png",
+      "face2": "chara_face/c11030010_02.png"
+    },
+    "position": "FW",
+    "positionRaw": 2,
+    "element": "Feu",
+    "elementRaw": 3,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 1,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 279,
+        "control": 265,
+        "technique": 242,
+        "physical": 202,
+        "pressure": 195,
+        "agility": 195,
+        "intelligence": 214
+      },
+      "lv50": {
+        "kick": 174,
+        "control": 165,
+        "technique": 151,
+        "physical": 127,
+        "pressure": 122,
+        "agility": 122,
+        "intelligence": 134
+      },
+      "lv1": {
+        "kick": 11,
+        "control": 12,
+        "technique": 12,
+        "physical": 10,
+        "pressure": 11,
+        "agility": 9,
+        "intelligence": 12
+      }
+    },
+    "displayName": "Nikas",
+    "elementName": {
+      "ja": "火",
+      "en": "Fire",
+      "fr": "Feu"
+    },
+    "positionName": {
+      "en": "Forward",
+      "fr": "Attaquant",
+      "ja": "Forward"
+    },
+    "totalStatsLv99": 1592,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      378,
+      6
+    ]
+  },
+  {
+    "index": 71,
+    "charaParamId": "0xEEF90438",
+    "charaId": "0xCB99EEF7",
+    "internalCode": "c04000010",
+    "names": {
+      "fr": "Samguk",
+      "en": "Samguk",
+      "ja": "太一 三国"
+    },
+    "icons": {
+      "face": "chara_face/c04000010_01.png",
+      "face2": "chara_face/c04000010_02.png"
+    },
+    "position": "GK",
+    "positionRaw": 1,
+    "element": "Feu",
+    "elementRaw": 3,
+    "rarity": "BASARA",
+    "rarityCode": 20,
+    "gender": 0,
+    "growthPattern": 2,
+    "builds": [],
+    "skills": [],
+    "heroVariants": {
+      "hasFire": false,
+      "hasBlack": false,
+      "hasPink": false
+    },
+    "stats": {
+      "lv99": {
+        "kick": 207,
+        "control": 223,
+        "technique": 210,
+        "physical": 225,
+        "pressure": 242,
+        "agility": 256,
+        "intelligence": 223
+      },
+      "lv50": {
+        "kick": 129,
+        "control": 139,
+        "technique": 130,
+        "physical": 141,
+        "pressure": 151,
+        "agility": 159,
+        "intelligence": 139
+      },
+      "lv1": {
+        "kick": 11,
+        "control": 12,
+        "technique": 12,
+        "physical": 11,
+        "pressure": 11,
+        "agility": 9,
+        "intelligence": 11
+      }
+    },
+    "displayName": "Samguk",
+    "elementName": {
+      "ja": "火",
+      "en": "Fire",
+      "fr": "Feu"
+    },
+    "positionName": {
+      "en": "Goalkeeper",
+      "fr": "Gardien",
+      "ja": "Goalkeeper"
+    },
+    "totalStatsLv99": 1586,
+    "heroVariantCount": 0,
+    "buildTypeIndices": [
+      192,
+      6
+    ]
+  }
+]

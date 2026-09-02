@@ -1,0 +1,27 @@
+{
+	"name": "@rosegriffon/config",
+	"version": "0.1.1",
+	"description": "Configs partag\u00e9es : tsconfig, eslint, oxlint, tailwind preset",
+	"files": [
+		"tsconfig-*.json",
+		"oxlintrc.json",
+		"tailwind-preset.ts"
+	],
+	"type": "module",
+	"exports": {
+		"./tsconfig-base.json": "./tsconfig-base.json",
+		"./tsconfig-nextjs.json": "./tsconfig-nextjs.json",
+		"./tsconfig-bun.json": "./tsconfig-bun.json",
+		"./oxlintrc.json": "./oxlintrc.json",
+		"./tailwind-preset.ts": "./tailwind-preset.ts"
+	},
+	"publishConfig": {
+		"access": "public",
+		"registry": "https://registry.npmjs.org"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/rose-griffon/rg.git",
+		"directory": "packages/config"
+	}
+}

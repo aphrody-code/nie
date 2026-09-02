@@ -1,0 +1,11 @@
+[Unit]
+Description=Republication quotidienne du miroir inagle
+
+[Timer]
+# Même créneau que l'ancien `azalee-mirror-sync` : la nuit, après le dump du jeu.
+OnCalendar=*-*-* 04:10:00
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

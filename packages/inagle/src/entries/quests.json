@@ -1,0 +1,3083 @@
+[
+  {
+    "questId": "0x673DC707",
+    "titleHash": "0x0B0F1787",
+    "phase": 0,
+    "type": 0,
+    "image": "story_img001_l01",
+    "titles": {
+      "en": "You Still Have Football",
+      "fr": "Tu n'as pas perdu le foot",
+      "ja": "君はサッカーができる"
+    },
+    "id": "0x673DC707",
+    "displayText": "You Still Have Football",
+    "explain_EN": "You Still Have Football",
+    "explain_FR": "Tu n'as pas perdu le foot",
+    "explain_JA": "君はサッカーができる"
+  },
+  {
+    "questId": "0x103AF791",
+    "titleHash": "0xA04C7405",
+    "phase": 1,
+    "type": 1,
+    "image": "story_img001_s01",
+    "titles": {
+      "en": "Gather info from nearby students.",
+      "fr": "Interrogez les élèves des alentours.",
+      "ja": "近くの生徒から情報収集しよう"
+    },
+    "id": "0x103AF791",
+    "displayText": "Gather info from nearby students.",
+    "explain_EN": "Gather info from nearby students.",
+    "explain_FR": "Interrogez les élèves des alentours.",
+    "explain_JA": "近くの生徒から情報収集しよう"
+  },
+  {
+    "questId": "0xF95952A4",
+    "titleHash": "0xD74B4493",
+    "phase": 2,
+    "type": 2,
+    "image": "story_img001_s01",
+    "titles": {
+      "en": "Organize the info you've\ngathered in Intelligence Bookmarks.",
+      "fr": "Organisez les infos obtenues\ndans les marque-pages d'informations.",
+      "ja": "メインメニューから情報ブックマークを\nひらいて集めた情報を整理しよう"
+    },
+    "id": "0xF95952A4",
+    "displayText": "Organize the info you've\ngathered in Intelligence Bookmarks.",
+    "explain_EN": "Organize the info you've\ngathered in Intelligence Bookmarks.",
+    "explain_FR": "Organisez les infos obtenues\ndans les marque-pages d'informations.",
+    "explain_JA": "メインメニューから情報ブックマークを\nひらいて集めた情報を整理しよう"
+  },
+  {
+    "questId": "0x8933A62B",
+    "titleHash": "0x4E421529",
+    "phase": 3,
+    "type": 3,
+    "image": "story_img001_s02",
+    "titles": {
+      "en": "Go to your homeroom: 1-A.",
+      "fr": "Allez à la salle de classe 1-A.",
+      "ja": "自分のクラス『１－Ａ』へ行こう"
+    },
+    "id": "0x8933A62B",
+    "displayText": "Go to your homeroom: 1-A.",
+    "explain_EN": "Go to your homeroom: 1-A.",
+    "explain_FR": "Allez à la salle de classe 1-A.",
+    "explain_JA": "自分のクラス『１－Ａ』へ行こう"
+  },
+  {
+    "questId": "0xFE3496BD",
+    "titleHash": "0x394525BF",
+    "phase": 4,
+    "type": 4,
+    "image": "story_img001_s03",
+    "titles": {
+      "en": "Shake off KISOJI and head home.",
+      "fr": "Semez KISOJI et rentrez chez vous.",
+      "ja": "木曽路をまいて下校しよう"
+    },
+    "id": "0xFE3496BD",
+    "displayText": "Shake off KISOJI and head home.",
+    "explain_EN": "Shake off KISOJI and head home.",
+    "explain_FR": "Semez KISOJI et rentrez chez vous.",
+    "explain_JA": "木曽路をまいて下校しよう"
+  },
+  {
+    "questId": "0x69E64F35",
+    "titleHash": "0x492FD130",
+    "phase": 5,
+    "type": 5,
+    "image": "story_img001_s03",
+    "titles": {
+      "en": "Make your way back home.",
+      "fr": "Rentrez chez vous.",
+      "ja": "帰宅ルートで家へ帰ろう"
+    },
+    "id": "0x69E64F35",
+    "displayText": "Make your way back home.",
+    "explain_EN": "Make your way back home.",
+    "explain_FR": "Rentrez chez vous.",
+    "explain_JA": "帰宅ルートで家へ帰ろう"
+  },
+  {
+    "questId": "0x6050031E",
+    "titleHash": "0xA721B01C",
+    "phase": 6,
+    "type": 6,
+    "image": "story_img001_s04",
+    "titles": {
+      "en": "Feel the breeze at Seaside Park.",
+      "fr": "Allez prendre l'air au parc océanique.",
+      "ja": "海公園へ風に当たりに行こう"
+    },
+    "id": "0x6050031E",
+    "displayText": "Feel the breeze at Seaside Park.",
+    "explain_EN": "Feel the breeze at Seaside Park.",
+    "explain_FR": "Allez prendre l'air au parc océanique.",
+    "explain_JA": "海公園へ風に当たりに行こう"
+  },
+  {
+    "questId": "0x17573388",
+    "titleHash": "0xD026808A",
+    "phase": 7,
+    "type": 7,
+    "image": "story_img001_s05",
+    "titles": {
+      "en": "Find out more about SAKURAZAKI.",
+      "fr": "En découvrir plus sur SAKURAZAKI.",
+      "ja": "桜咲のことを調べよう"
+    },
+    "id": "0x17573388",
+    "displayText": "Find out more about SAKURAZAKI.",
+    "explain_EN": "Find out more about SAKURAZAKI.",
+    "explain_FR": "En découvrir plus sur SAKURAZAKI.",
+    "explain_JA": "桜咲のことを調べよう"
+  },
+  {
+    "questId": "0x1EE17FA3",
+    "titleHash": "0xD74B4493",
+    "phase": 8,
+    "type": 8,
+    "image": "story_img001_s05",
+    "titles": {
+      "en": "Organize the info you've\ngathered in Intelligence Bookmarks.",
+      "fr": "Organisez les infos obtenues\ndans les marque-pages d'informations.",
+      "ja": "メインメニューから情報ブックマークを\nひらいて集めた情報を整理しよう"
+    },
+    "id": "0x1EE17FA3",
+    "displayText": "Organize the info you've\ngathered in Intelligence Bookmarks.",
+    "explain_EN": "Organize the info you've\ngathered in Intelligence Bookmarks.",
+    "explain_FR": "Organisez les infos obtenues\ndans les marque-pages d'informations.",
+    "explain_JA": "メインメニューから情報ブックマークを\nひらいて集めた情報を整理しよう"
+  },
+  {
+    "questId": "0x220C9513",
+    "titleHash": "0x492FD130",
+    "phase": 9,
+    "type": 9,
+    "image": "story_img001_s05",
+    "titles": {
+      "en": "Make your way back home.",
+      "fr": "Rentrez chez vous.",
+      "ja": "帰宅ルートで家へ帰ろう"
+    },
+    "id": "0x220C9513",
+    "displayText": "Make your way back home.",
+    "explain_EN": "Make your way back home.",
+    "explain_FR": "Rentrez chez vous.",
+    "explain_JA": "帰宅ルートで家へ帰ろう"
+  },
+  {
+    "questId": "0x70FD7E74",
+    "titleHash": "0xAE97FC37",
+    "phase": 10,
+    "type": 10,
+    "image": "quest_img006_s01",
+    "titles": {
+      "en": "Chase after the UMIBOZU.",
+      "fr": "Poursuivez l'umi-bozu.",
+      "ja": "海坊主を追いかけよう"
+    },
+    "id": "0x70FD7E74",
+    "displayText": "Chase after the UMIBOZU.",
+    "explain_EN": "Chase after the UMIBOZU.",
+    "explain_FR": "Poursuivez l'umi-bozu.",
+    "explain_JA": "海坊主を追いかけよう"
+  },
+  {
+    "questId": "0x8E5E6232",
+    "titleHash": "0x492FD130",
+    "phase": 13,
+    "type": 11,
+    "image": "story_img001_s06",
+    "titles": {
+      "en": "Make your way back home.",
+      "fr": "Rentrez chez vous.",
+      "ja": "帰宅ルートで家へ帰ろう"
+    },
+    "id": "0x8E5E6232",
+    "displayText": "Make your way back home.",
+    "explain_EN": "Make your way back home.",
+    "explain_FR": "Rentrez chez vous.",
+    "explain_JA": "帰宅ルートで家へ帰ろう"
+  },
+  {
+    "questId": "0x7E26F646",
+    "titleHash": "0x492FD130",
+    "phase": 14,
+    "type": 12,
+    "image": "story_img001_s07",
+    "titles": {
+      "en": "Make your way back home.",
+      "fr": "Rentrez chez vous.",
+      "ja": "帰宅ルートで家へ帰ろう"
+    },
+    "id": "0x7E26F646",
+    "displayText": "Make your way back home.",
+    "explain_EN": "Make your way back home.",
+    "explain_FR": "Rentrez chez vous.",
+    "explain_JA": "帰宅ルートで家へ帰ろう"
+  },
+  {
+    "questId": "0x0F8E68FE",
+    "titleHash": "0x01E43BC3",
+    "phase": 15,
+    "type": 13,
+    "image": "story_img001_s08",
+    "titles": {
+      "en": "Write something in Inacord.",
+      "fr": "Essayez Inacord.",
+      "ja": "イナコードを使ってみよう"
+    },
+    "id": "0x0F8E68FE",
+    "displayText": "Write something in Inacord.",
+    "explain_EN": "Write something in Inacord.",
+    "explain_FR": "Essayez Inacord.",
+    "explain_JA": "イナコードを使ってみよう"
+  },
+  {
+    "questId": "0x0921C6D0",
+    "titleHash": "0x3E28E1A6",
+    "phase": 16,
+    "type": 14,
+    "image": "story_img001_s08",
+    "titles": {
+      "en": "Look for a potential club room.",
+      "fr": "Cherchez un endroit qui\npourrait servir de local de club.",
+      "ja": "部室になりそうな場所を探そう"
+    },
+    "id": "0x0921C6D0",
+    "displayText": "Look for a potential club room.",
+    "explain_EN": "Look for a potential club room.",
+    "explain_FR": "Cherchez un endroit qui\npourrait servir de local de club.",
+    "explain_JA": "部室になりそうな場所を探そう"
+  },
+  {
+    "questId": "0x9028976A",
+    "titleHash": "0xD74B4493",
+    "phase": 17,
+    "type": 15,
+    "image": "story_img001_s08",
+    "titles": {
+      "en": "Organize the info you've\ngathered in Intelligence Bookmarks.",
+      "fr": "Organisez les infos obtenues\ndans les marque-pages d'informations.",
+      "ja": "メインメニューから情報ブックマークを\nひらいて集めた情報を整理しよう"
+    },
+    "id": "0x9028976A",
+    "displayText": "Organize the info you've\ngathered in Intelligence Bookmarks.",
+    "explain_EN": "Organize the info you've\ngathered in Intelligence Bookmarks.",
+    "explain_FR": "Organisez les infos obtenues\ndans les marque-pages d'informations.",
+    "explain_JA": "メインメニューから情報ブックマークを\nひらいて集めた情報を整理しよう"
+  },
+  {
+    "questId": "0xE72FA7FC",
+    "titleHash": "0x492FD130",
+    "phase": 18,
+    "type": 16,
+    "image": "story_img001_s09",
+    "titles": {
+      "en": "Make your way back home.",
+      "fr": "Rentrez chez vous.",
+      "ja": "帰宅ルートで家へ帰ろう"
+    },
+    "id": "0xE72FA7FC",
+    "displayText": "Make your way back home.",
+    "explain_EN": "Make your way back home.",
+    "explain_FR": "Rentrez chez vous.",
+    "explain_JA": "帰宅ルートで家へ帰ろう"
+  },
+  {
+    "questId": "0x794B325F",
+    "titleHash": "0x492FD130",
+    "phase": 19,
+    "type": 17,
+    "image": "story_img001_s10",
+    "titles": {
+      "en": "Make your way back home.",
+      "fr": "Rentrez chez vous.",
+      "ja": "帰宅ルートで家へ帰ろう"
+    },
+    "id": "0x794B325F",
+    "displayText": "Make your way back home.",
+    "explain_EN": "Make your way back home.",
+    "explain_FR": "Rentrez chez vous.",
+    "explain_JA": "帰宅ルートで家へ帰ろう"
+  },
+  {
+    "questId": "0x0E4C02C9",
+    "titleHash": "0xD990CCA1",
+    "phase": 20,
+    "type": 18,
+    "image": "story_img001_s11",
+    "titles": {
+      "en": "Train at the Hecaton Stairway.",
+      "fr": "Entraînez-vous sur l'escalier Hekaton.",
+      "ja": "百目階段で特訓しよう"
+    },
+    "id": "0x0E4C02C9",
+    "displayText": "Train at the Hecaton Stairway.",
+    "explain_EN": "Train at the Hecaton Stairway.",
+    "explain_FR": "Entraînez-vous sur l'escalier Hekaton.",
+    "explain_JA": "百目階段で特訓しよう"
+  },
+  {
+    "questId": "0x97455373",
+    "titleHash": "0x492FD130",
+    "phase": 21,
+    "type": 19,
+    "image": "story_img001_s11",
+    "titles": {
+      "en": "Make your way back home.",
+      "fr": "Rentrez chez vous.",
+      "ja": "帰宅ルートで家へ帰ろう"
+    },
+    "id": "0x97455373",
+    "displayText": "Make your way back home.",
+    "explain_EN": "Make your way back home.",
+    "explain_FR": "Rentrez chez vous.",
+    "explain_JA": "帰宅ルートで家へ帰ろう"
+  },
+  {
+    "questId": "0xE04263E5",
+    "titleHash": "0xAE97FC37",
+    "phase": 22,
+    "type": 20,
+    "image": "story_img001_s12",
+    "titles": {
+      "en": "Chase after the UMIBOZU.",
+      "fr": "Poursuivez l'umi-bozu.",
+      "ja": "海坊主を追いかけよう"
+    },
+    "id": "0xE04263E5",
+    "displayText": "Chase after the UMIBOZU.",
+    "explain_EN": "Chase after the UMIBOZU.",
+    "explain_FR": "Poursuivez l'umi-bozu.",
+    "explain_JA": "海坊主を追いかけよう"
+  },
+  {
+    "questId": "0xCC02F43F",
+    "titleHash": "0x9206463D",
+    "phase": 23,
+    "type": 0,
+    "image": "story_img002_l01",
+    "titles": {
+      "en": "From Zero to Hero",
+      "fr": "Des tréfonds vers le sommet",
+      "ja": "どん底から最高へ"
+    },
+    "id": "0xCC02F43F",
+    "displayText": "From Zero to Hero",
+    "explain_EN": "From Zero to Hero",
+    "explain_FR": "Des tréfonds vers le sommet",
+    "explain_JA": "どん底から最高へ"
+  },
+  {
+    "questId": "0x5266619C",
+    "titleHash": "0xCE5075D2",
+    "phase": 24,
+    "type": 1,
+    "image": "story_img002_s01",
+    "titles": {
+      "en": "Persuade MOMOCHI to help.",
+      "fr": "Convainquez MOMOCHI\nde donner un coup de main.",
+      "ja": "百道を説得しよう"
+    },
+    "id": "0x5266619C",
+    "displayText": "Persuade MOMOCHI to help.",
+    "explain_EN": "Persuade MOMOCHI to help.",
+    "explain_FR": "Convainquez MOMOCHI\nde donner un coup de main.",
+    "explain_JA": "百道を説得しよう"
+  },
+  {
+    "questId": "0x2561510A",
+    "titleHash": "0x57592468",
+    "phase": 25,
+    "type": 2,
+    "image": "story_img002_s02",
+    "titles": {
+      "en": "Go to NAGUMOHARA Hospital.",
+      "fr": "Rendez-vous à l'hôpital de NAGUMOHARA.",
+      "ja": "南雲原総合病院へ行こう"
+    },
+    "id": "0x2561510A",
+    "displayText": "Go to NAGUMOHARA Hospital.",
+    "explain_EN": "Go to NAGUMOHARA Hospital.",
+    "explain_FR": "Rendez-vous à l'hôpital de NAGUMOHARA.",
+    "explain_JA": "南雲原総合病院へ行こう"
+  },
+  {
+    "questId": "0xBC6800B0",
+    "titleHash": "0x205E14FE",
+    "phase": 26,
+    "type": 3,
+    "image": "story_img002_s03",
+    "titles": {
+      "en": "Play football with the\nMan Who Lost Hope.",
+      "fr": "Jouez au foot avec\nl'homme qui a perdu espoir.",
+      "ja": "何かに絶望した男の人の\nエアサッカーにつき合おう"
+    },
+    "id": "0xBC6800B0",
+    "displayText": "Play football with the\nMan Who Lost Hope.",
+    "explain_EN": "Play football with the\nMan Who Lost Hope.",
+    "explain_FR": "Jouez au foot avec\nl'homme qui a perdu espoir.",
+    "explain_JA": "何かに絶望した男の人の\nエアサッカーにつき合おう"
+  },
+  {
+    "questId": "0xE18009D2",
+    "titleHash": "0xEFEA5AEF",
+    "phase": 27,
+    "type": 4,
+    "image": "story_img002_s02",
+    "titles": {
+      "en": "Feel the breeze at Seaside Park.",
+      "fr": "Allez prendre l'air au parc océanique.",
+      "ja": "海公園に風に当たりに行こう"
+    },
+    "id": "0xE18009D2",
+    "displayText": "Feel the breeze at Seaside Park.",
+    "explain_EN": "Feel the breeze at Seaside Park.",
+    "explain_FR": "Allez prendre l'air au parc océanique.",
+    "explain_JA": "海公園に風に当たりに行こう"
+  },
+  {
+    "questId": "0xCB6F3026",
+    "titleHash": "0xBE3A815D",
+    "phase": 28,
+    "type": 5,
+    "image": "story_img002_s04",
+    "titles": {
+      "en": "Test the Match Simulation System.",
+      "fr": "Testez le système de simulation de match",
+      "ja": "試合練習システムを試そう"
+    },
+    "id": "0xCB6F3026",
+    "displayText": "Test the Match Simulation System.",
+    "explain_EN": "Test the Match Simulation System.",
+    "explain_FR": "Testez le système de simulation de match",
+    "explain_JA": "試合練習システムを試そう"
+  },
+  {
+    "questId": "0x5BD02DB7",
+    "titleHash": "0xC93DB1CB",
+    "phase": 29,
+    "type": 6,
+    "image": "story_img002_s05",
+    "titles": {
+      "en": "Go to the Old Gym Storage.",
+      "fr": "Rendez-vous à la réserve de l'ancien gymnase",
+      "ja": "旧体育倉庫へ行こう"
+    },
+    "id": "0x5BD02DB7",
+    "displayText": "Go to the Old Gym Storage.",
+    "explain_EN": "Go to the Old Gym Storage.",
+    "explain_FR": "Rendez-vous à la réserve de l'ancien gymnase",
+    "explain_JA": "旧体育倉庫へ行こう"
+  },
+  {
+    "questId": "0x2CD71D21",
+    "titleHash": "0x5034E071",
+    "phase": 30,
+    "type": 7,
+    "image": "story_img002_s06",
+    "titles": {
+      "en": "Go to the Dance Club Room.",
+      "fr": "Rendez-vous à la salle du club de danse.",
+      "ja": "ダンス部の部室へ行こう"
+    },
+    "id": "0x2CD71D21",
+    "displayText": "Go to the Dance Club Room.",
+    "explain_EN": "Go to the Dance Club Room.",
+    "explain_FR": "Rendez-vous à la salle du club de danse.",
+    "explain_JA": "ダンス部の部室へ行こう"
+  },
+  {
+    "questId": "0x4C1094C4",
+    "titleHash": "0x2733D0E7",
+    "phase": 31,
+    "type": 8,
+    "image": "story_img002_s07",
+    "titles": {
+      "en": "Try scouting KAMEO.",
+      "fr": "Essayez de recruter KAMEO.",
+      "ja": "古道飼をスカウトしよう"
+    },
+    "id": "0x4C1094C4",
+    "displayText": "Try scouting KAMEO.",
+    "explain_EN": "Try scouting KAMEO.",
+    "explain_FR": "Essayez de recruter KAMEO.",
+    "explain_JA": "古道飼をスカウトしよう"
+  },
+  {
+    "questId": "0x3B17A452",
+    "titleHash": "0xB78CCD76",
+    "phase": 32,
+    "type": 9,
+    "image": "story_img002_s09",
+    "titles": {
+      "en": "Find out more about RAIKA.",
+      "fr": "En découvrir plus sur RAIKA.",
+      "ja": "来夏のことを調べよう"
+    },
+    "id": "0x3B17A452",
+    "displayText": "Find out more about RAIKA.",
+    "explain_EN": "Find out more about RAIKA.",
+    "explain_FR": "En découvrir plus sur RAIKA.",
+    "explain_JA": "来夏のことを調べよう"
+  },
+  {
+    "questId": "0xA21EF5E8",
+    "titleHash": "0xC08BFDE0",
+    "phase": 33,
+    "type": 10,
+    "image": "story_img002_s09",
+    "titles": {
+      "en": "Organize the info you've\ngathered in Intelligence Bookmarks.",
+      "fr": "Organisez les infos obtenues\ndans les marque-pages d'informations.",
+      "ja": "メインメニューから情報ブックマークを\nひらいて集めた情報を整理しよう"
+    },
+    "id": "0xA21EF5E8",
+    "displayText": "Organize the info you've\ngathered in Intelligence Bookmarks.",
+    "explain_EN": "Organize the info you've\ngathered in Intelligence Bookmarks.",
+    "explain_FR": "Organisez les infos obtenues\ndans les marque-pages d'informations.",
+    "explain_JA": "メインメニューから情報ブックマークを\nひらいて集めた情報を整理しよう"
+  },
+  {
+    "questId": "0xD519C57E",
+    "titleHash": "0x927A1687",
+    "phase": 34,
+    "type": 11,
+    "image": "story_img002_s10",
+    "titles": {
+      "en": "Go to the Rooftop Plaza.",
+      "fr": "Rendez-vous sur la place du toit.",
+      "ja": "屋上生徒広場へ行こう"
+    },
+    "id": "0xD519C57E",
+    "displayText": "Go to the Rooftop Plaza.",
+    "explain_EN": "Go to the Rooftop Plaza.",
+    "explain_FR": "Rendez-vous sur la place du toit.",
+    "explain_JA": "屋上生徒広場へ行こう"
+  },
+  {
+    "questId": "0x4B7D50DD",
+    "titleHash": "0xE57D2611",
+    "phase": 35,
+    "type": 12,
+    "image": "story_img002_s11",
+    "titles": {
+      "en": "Check out the noodle shop\nin the Shopping District.",
+      "fr": "Rendez-vous au restaurant d'udon\nde la Rue Marchande.",
+      "ja": "商店街のうどん屋へ行こう"
+    },
+    "id": "0x4B7D50DD",
+    "displayText": "Check out the noodle shop\nin the Shopping District.",
+    "explain_EN": "Check out the noodle shop\nin the Shopping District.",
+    "explain_FR": "Rendez-vous au restaurant d'udon\nde la Rue Marchande.",
+    "explain_JA": "商店街のうどん屋へ行こう"
+  },
+  {
+    "questId": "0x3C7A604B",
+    "titleHash": "0x7C7477AB",
+    "phase": 36,
+    "type": 13,
+    "image": "story_img002_s12",
+    "titles": {
+      "en": "Go to the back-alley plaza.",
+      "fr": "Rendez-vous sur la place de la ruelle.",
+      "ja": "路地裏の広場へ行こう"
+    },
+    "id": "0x3C7A604B",
+    "displayText": "Go to the back-alley plaza.",
+    "explain_EN": "Go to the back-alley plaza.",
+    "explain_FR": "Rendez-vous sur la place de la ruelle.",
+    "explain_JA": "路地裏の広場へ行こう"
+  },
+  {
+    "questId": "0xA57331F1",
+    "titleHash": "0x0B73473D",
+    "phase": 37,
+    "type": 14,
+    "image": "story_img002_s13",
+    "titles": {
+      "en": "Join the NAGUMOHARA Shopkeepers\nfor a Football Battle.",
+      "fr": "Participez à un défi de foot contre\nles commerçants de NAGUMOHARA.",
+      "ja": "南雲原ショップキーパーズに加わって\nサッカーバトルをしよう"
+    },
+    "id": "0xA57331F1",
+    "displayText": "Join the NAGUMOHARA Shopkeepers\nfor a Football Battle.",
+    "explain_EN": "Join the NAGUMOHARA Shopkeepers\nfor a Football Battle.",
+    "explain_FR": "Participez à un défi de foot contre\nles commerçants de NAGUMOHARA.",
+    "explain_JA": "南雲原ショップキーパーズに加わって\nサッカーバトルをしよう"
+  },
+  {
+    "questId": "0xD2740167",
+    "titleHash": "0x9517D29E",
+    "phase": 38,
+    "type": 15,
+    "image": "story_img002_s14",
+    "titles": {
+      "en": "Make your way back home.",
+      "fr": "Rentrez chez vous.",
+      "ja": "帰宅ルートで家へ帰ろう"
+    },
+    "id": "0xD2740167",
+    "displayText": "Make your way back home.",
+    "explain_EN": "Make your way back home.",
+    "explain_FR": "Rentrez chez vous.",
+    "explain_JA": "帰宅ルートで家へ帰ろう"
+  },
+  {
+    "questId": "0x42CB1CF6",
+    "titleHash": "0xE210E208",
+    "phase": 39,
+    "type": 16,
+    "image": "story_img002_s15",
+    "titles": {
+      "en": "Begin the dance-off.",
+      "fr": "Commencez le battle de danse.",
+      "ja": "ダンス対決を始めよう"
+    },
+    "id": "0x42CB1CF6",
+    "displayText": "Begin the dance-off.",
+    "explain_EN": "Begin the dance-off.",
+    "explain_FR": "Commencez le battle de danse.",
+    "explain_JA": "ダンス対決を始めよう"
+  },
+  {
+    "questId": "0x35CC2C60",
+    "titleHash": "0xE50176AB",
+    "phase": 40,
+    "type": 0,
+    "image": "story_img003_l01",
+    "titles": {
+      "en": "The Day Football Changed",
+      "fr": "Le jour où le foot a changé",
+      "ja": "サッカーが変わる日"
+    },
+    "id": "0x35CC2C60",
+    "displayText": "The Day Football Changed",
+    "explain_EN": "The Day Football Changed",
+    "explain_FR": "Le jour où le foot a changé",
+    "explain_JA": "サッカーが変わる日"
+  },
+  {
+    "questId": "0x03510203",
+    "titleHash": "0x7B19B3B2",
+    "phase": 41,
+    "type": 1,
+    "image": "story_img003_s01",
+    "titles": {
+      "en": "Follow KISOJI's directions.",
+      "fr": "Suivez les instructions de KISOJI.",
+      "ja": "木曽路に指定された場所へ行こう"
+    },
+    "id": "0x03510203",
+    "displayText": "Follow KISOJI's directions.",
+    "explain_EN": "Follow KISOJI's directions.",
+    "explain_FR": "Suivez les instructions de KISOJI.",
+    "explain_JA": "木曽路に指定された場所へ行こう"
+  },
+  {
+    "questId": "0x74563295",
+    "titleHash": "0x0C1E8324",
+    "phase": 42,
+    "type": 2,
+    "image": "story_img003_s02",
+    "titles": {
+      "en": "Gather info at\nNAGUMOHARA Junior High.",
+      "fr": "Rassemblez des informations au\ncollège NAGUMOHARA.",
+      "ja": "南雲原中で情報収集しよう"
+    },
+    "id": "0x74563295",
+    "displayText": "Gather info at\nNAGUMOHARA Junior High.",
+    "explain_EN": "Gather info at\nNAGUMOHARA Junior High.",
+    "explain_FR": "Rassemblez des informations au\ncollège NAGUMOHARA.",
+    "explain_JA": "南雲原中で情報収集しよう"
+  },
+  {
+    "questId": "0xED5F632F",
+    "titleHash": "0x9CA19EB5",
+    "phase": 43,
+    "type": 3,
+    "image": "story_img003_s03",
+    "titles": {
+      "en": "Organize the info you've\ngathered in Intelligence Bookmarks.",
+      "fr": "Organisez les infos obtenues\ndans les marque-pages d'informations.",
+      "ja": "メインメニューから情報ブックマークを\nひらいて集めた情報を整理しよう"
+    },
+    "id": "0xED5F632F",
+    "displayText": "Organize the info you've\ngathered in Intelligence Bookmarks.",
+    "explain_EN": "Organize the info you've\ngathered in Intelligence Bookmarks.",
+    "explain_FR": "Organisez les infos obtenues\ndans les marque-pages d'informations.",
+    "explain_JA": "メインメニューから情報ブックマークを\nひらいて集めた情報を整理しよう"
+  },
+  {
+    "questId": "0x9A5853B9",
+    "titleHash": "0xEBA6AE23",
+    "phase": 44,
+    "type": 4,
+    "image": "story_img003_s04",
+    "titles": {
+      "en": "Gather info along School Road.",
+      "fr": "Rassemblez des infos sur le chemin du collège.",
+      "ja": "学校通りで情報収集しよう"
+    },
+    "id": "0x9A5853B9",
+    "displayText": "Gather info along School Road.",
+    "explain_EN": "Gather info along School Road.",
+    "explain_FR": "Rassemblez des infos sur le chemin du collège.",
+    "explain_JA": "学校通りで情報収集しよう"
+  },
+  {
+    "questId": "0x043CC61A",
+    "titleHash": "0x8B6127C6",
+    "phase": 45,
+    "type": 5,
+    "image": "story_img003_s05",
+    "titles": {
+      "en": "Organize the info you've\ngathered in Intelligence Bookmarks.",
+      "fr": "Organisez les infos obtenues\ndans les marque-pages d'informations.",
+      "ja": "メインメニューから情報ブックマークを\nひらいて集めた情報を整理しよう"
+    },
+    "id": "0x043CC61A",
+    "displayText": "Organize the info you've\ngathered in Intelligence Bookmarks.",
+    "explain_EN": "Organize the info you've\ngathered in Intelligence Bookmarks.",
+    "explain_FR": "Organisez les infos obtenues\ndans les marque-pages d'informations.",
+    "explain_JA": "メインメニューから情報ブックマークを\nひらいて集めた情報を整理しよう"
+  },
+  {
+    "questId": "0x733BF68C",
+    "titleHash": "0xFC661750",
+    "phase": 46,
+    "type": 6,
+    "image": "story_img003_s06",
+    "titles": {
+      "en": "Gather info Downtown.",
+      "fr": "Rassemblez des infos au centre-ville.",
+      "ja": "繁華街で情報収集しよう"
+    },
+    "id": "0x733BF68C",
+    "displayText": "Gather info Downtown.",
+    "explain_EN": "Gather info Downtown.",
+    "explain_FR": "Rassemblez des infos au centre-ville.",
+    "explain_JA": "繁華街で情報収集しよう"
+  },
+  {
+    "questId": "0xEA32A736",
+    "titleHash": "0x656F46EA",
+    "phase": 47,
+    "type": 7,
+    "image": "story_img003_s07",
+    "titles": {
+      "en": "Organize the info you've\ngathered in Intelligence Bookmarks.",
+      "fr": "Organisez les infos obtenues\ndans les marque-pages d'informations.",
+      "ja": "メインメニューから情報ブックマークを\nひらいて集めた情報を整理しよう"
+    },
+    "id": "0xEA32A736",
+    "displayText": "Organize the info you've\ngathered in Intelligence Bookmarks.",
+    "explain_EN": "Organize the info you've\ngathered in Intelligence Bookmarks.",
+    "explain_FR": "Organisez les infos obtenues\ndans les marque-pages d'informations.",
+    "explain_JA": "メインメニューから情報ブックマークを\nひらいて集めた情報を整理しよう"
+  },
+  {
+    "questId": "0x9D3597A0",
+    "titleHash": "0x1268767C",
+    "phase": 48,
+    "type": 8,
+    "image": "story_img003_s08",
+    "titles": {
+      "en": "Gather info at\nNAGUMOHARA Junior High.",
+      "fr": "Rassemblez des informations au\ncollège NAGUMOHARA.",
+      "ja": "南雲原中で情報収集しよう"
+    },
+    "id": "0x9D3597A0",
+    "displayText": "Gather info at\nNAGUMOHARA Junior High.",
+    "explain_EN": "Gather info at\nNAGUMOHARA Junior High.",
+    "explain_FR": "Rassemblez des informations au\ncollège NAGUMOHARA.",
+    "explain_JA": "南雲原中で情報収集しよう"
+  },
+  {
+    "questId": "0x0D8A8A31",
+    "titleHash": "0x8C0CE3DF",
+    "phase": 49,
+    "type": 9,
+    "image": "story_img003_s09",
+    "titles": {
+      "en": "Organize the info you've\ngathered in Intelligence Bookmarks.",
+      "fr": "Organisez les infos obtenues\ndans les marque-pages d'informations.",
+      "ja": "メインメニューから情報ブックマークを\nひらいて集めた情報を整理しよう"
+    },
+    "id": "0x0D8A8A31",
+    "displayText": "Organize the info you've\ngathered in Intelligence Bookmarks.",
+    "explain_EN": "Organize the info you've\ngathered in Intelligence Bookmarks.",
+    "explain_FR": "Organisez les infos obtenues\ndans les marque-pages d'informations.",
+    "explain_JA": "メインメニューから情報ブックマークを\nひらいて集めた情報を整理しよう"
+  },
+  {
+    "questId": "0x7A8DBAA7",
+    "titleHash": "0xFB0BD349",
+    "phase": 50,
+    "type": 10,
+    "image": "story_img003_s10",
+    "titles": {
+      "en": "Go to the Archive.",
+      "fr": "Rendez-vous aux archives.",
+      "ja": "資料保管室へ行こう"
+    },
+    "id": "0x7A8DBAA7",
+    "displayText": "Go to the Archive.",
+    "explain_EN": "Go to the Archive.",
+    "explain_FR": "Rendez-vous aux archives.",
+    "explain_JA": "資料保管室へ行こう"
+  },
+  {
+    "questId": "0x1A4A3342",
+    "titleHash": "0x620282F3",
+    "phase": 51,
+    "type": 11,
+    "image": "story_img003_s11",
+    "titles": {
+      "en": "Go to Café Tank.",
+      "fr": "Rendez-vous au Café Tank.",
+      "ja": "喫茶タンクへ行こう"
+    },
+    "id": "0x1A4A3342",
+    "displayText": "Go to Café Tank.",
+    "explain_EN": "Go to Café Tank.",
+    "explain_FR": "Rendez-vous au Café Tank.",
+    "explain_JA": "喫茶タンクへ行こう"
+  },
+  {
+    "questId": "0x6D4D03D4",
+    "titleHash": "0x1505B265",
+    "phase": 52,
+    "type": 12,
+    "image": "story_img003_s12",
+    "titles": {
+      "en": "Look for MACHI at Seaside Park.",
+      "fr": "Cherchez MACHI au parc océanique.",
+      "ja": "海公園で間知を探そう"
+    },
+    "id": "0x6D4D03D4",
+    "displayText": "Look for MACHI at Seaside Park.",
+    "explain_EN": "Look for MACHI at Seaside Park.",
+    "explain_FR": "Cherchez MACHI au parc océanique.",
+    "explain_JA": "海公園で間知を探そう"
+  },
+  {
+    "questId": "0xF444526E",
+    "titleHash": "0x85BAAFF4",
+    "phase": 53,
+    "type": 13,
+    "image": "story_img003_s13",
+    "titles": {
+      "en": "Go to the Old Shipyard.",
+      "fr": "Rendez-vous à l'ancien chantier naval.",
+      "ja": "造船所跡へ行こう"
+    },
+    "id": "0xF444526E",
+    "displayText": "Go to the Old Shipyard.",
+    "explain_EN": "Go to the Old Shipyard.",
+    "explain_FR": "Rendez-vous à l'ancien chantier naval.",
+    "explain_JA": "造船所跡へ行こう"
+  },
+  {
+    "questId": "0x834362F8",
+    "titleHash": "0xF2BD9F62",
+    "phase": 54,
+    "type": 14,
+    "image": "story_img003_s14",
+    "titles": {
+      "en": "Go to Seaside Park.",
+      "fr": "Rendez-vous au parc océanique.",
+      "ja": "海公園へ行こう"
+    },
+    "id": "0x834362F8",
+    "displayText": "Go to Seaside Park.",
+    "explain_EN": "Go to Seaside Park.",
+    "explain_FR": "Rendez-vous au parc océanique.",
+    "explain_JA": "海公園へ行こう"
+  },
+  {
+    "questId": "0x96873944",
+    "titleHash": "0x98ED6A79",
+    "phase": 55,
+    "type": 15,
+    "image": "story_img003_s15",
+    "titles": {
+      "en": "Take a group photo together.",
+      "fr": "Prenez une photo de groupe.",
+      "ja": "みんなと記念撮影をしよう"
+    },
+    "id": "0x96873944",
+    "displayText": "Take a group photo together.",
+    "explain_EN": "Take a group photo together.",
+    "explain_FR": "Prenez une photo de groupe.",
+    "explain_JA": "みんなと記念撮影をしよう"
+  },
+  {
+    "questId": "0x1D27F75B",
+    "titleHash": "0xC420B101",
+    "phase": 56,
+    "type": 16,
+    "image": "story_img003_s15",
+    "titles": {
+      "en": "Go to Cove Beach.",
+      "fr": "Rendez-vous à la Crique.",
+      "ja": "入り江の浜辺へ行こう"
+    },
+    "id": "0x1D27F75B",
+    "displayText": "Go to Cove Beach.",
+    "explain_EN": "Go to Cove Beach.",
+    "explain_FR": "Rendez-vous à la Crique.",
+    "explain_JA": "入り江の浜辺へ行こう"
+  },
+  {
+    "questId": "0x6A20C7CD",
+    "titleHash": "0xB3278197",
+    "phase": 57,
+    "type": 17,
+    "image": "story_img003_s17",
+    "titles": {
+      "en": "Challenge Seagull FC\nto a Football Battle.",
+      "fr": "Défiez le FC Mouettes\npour un défi de foot.",
+      "ja": "海カモメサッカークラブに\nサッカーバトルを申し込もう"
+    },
+    "id": "0x6A20C7CD",
+    "displayText": "Challenge Seagull FC\nto a Football Battle.",
+    "explain_EN": "Challenge Seagull FC\nto a Football Battle.",
+    "explain_FR": "Défiez le FC Mouettes\npour un défi de foot.",
+    "explain_JA": "海カモメサッカークラブに\nサッカーバトルを申し込もう"
+  },
+  {
+    "questId": "0xF3299677",
+    "titleHash": "0x2A2ED02D",
+    "phase": 58,
+    "type": 18,
+    "image": "story_img003_s17",
+    "titles": {
+      "en": "Check the quest menu and\nensure you meet the requirements.",
+      "fr": "Vérifiez le menu de quête pour\nconsulter les objectifs à remplir.",
+      "ja": "クエストメニューを確認して\n試合開始条件を達成しよう"
+    },
+    "id": "0xF3299677",
+    "displayText": "Check the quest menu and\nensure you meet the requirements.",
+    "explain_EN": "Check the quest menu and\nensure you meet the requirements.",
+    "explain_FR": "Vérifiez le menu de quête pour\nconsulter les objectifs à remplir.",
+    "explain_JA": "クエストメニューを確認して\n試合開始条件を達成しよう"
+  },
+  {
+    "questId": "0x842EA6E1",
+    "titleHash": "0x5D29E0BB",
+    "phase": 59,
+    "type": 19,
+    "image": "story_img003_s18",
+    "titles": {
+      "en": "Start the match from the quest menu\nand challenge the baseball club.",
+      "fr": "Commencez le match depuis le menu\net défiez le club de baseball.",
+      "ja": "クエストメニューから試合開始を選び\n野球部に戦いを挑もう"
+    },
+    "id": "0x842EA6E1",
+    "displayText": "Start the match from the quest menu\nand challenge the baseball club.",
+    "explain_EN": "Start the match from the quest menu\nand challenge the baseball club.",
+    "explain_FR": "Commencez le match depuis le menu\net défiez le club de baseball.",
+    "explain_JA": "クエストメニューから試合開始を選び\n野球部に戦いを挑もう"
+  },
+  {
+    "questId": "0x1491BB70",
+    "titleHash": "0x7B65E308",
+    "phase": 60,
+    "type": 0,
+    "image": "story_img004_l01",
+    "titles": {
+      "en": "Invasion of the Football Monster!",
+      "fr": "L'invasion du monstre du foot !",
+      "ja": "襲来　サッカーモンスター！！"
+    },
+    "id": "0x1491BB70",
+    "displayText": "Invasion of the Football Monster!",
+    "explain_EN": "Invasion of the Football Monster!",
+    "explain_FR": "L'invasion du monstre du foot !",
+    "explain_JA": "襲来　サッカーモンスター！！"
+  },
+  {
+    "questId": "0x63968BE6",
+    "titleHash": "0xC34D7518",
+    "phase": 61,
+    "type": 1,
+    "image": "story_img004_s01",
+    "titles": {
+      "en": "Negotiate a merger\nbetween the two clubs.",
+      "fr": "Négociez une fusion\nentre les deux clubs.",
+      "ja": "２つのクラブに合併の交渉をしよう"
+    },
+    "id": "0x63968BE6",
+    "displayText": "Negotiate a merger\nbetween the two clubs.",
+    "explain_EN": "Negotiate a merger\nbetween the two clubs.",
+    "explain_FR": "Négociez une fusion\nentre les deux clubs.",
+    "explain_JA": "２つのクラブに合併の交渉をしよう"
+  },
+  {
+    "questId": "0x31676081",
+    "titleHash": "0xB44A458E",
+    "phase": 62,
+    "type": 2,
+    "image": "story_img004_s02",
+    "titles": {
+      "en": "Chase after KAMEO.",
+      "fr": "Partez à la poursuite de KAMEO.",
+      "ja": "亀雄を追いかけよう"
+    },
+    "id": "0x31676081",
+    "displayText": "Chase after KAMEO.",
+    "explain_EN": "Chase after KAMEO.",
+    "explain_FR": "Partez à la poursuite de KAMEO.",
+    "explain_JA": "亀雄を追いかけよう"
+  },
+  {
+    "questId": "0x46605017",
+    "titleHash": "0x2D431434",
+    "phase": 63,
+    "type": 3,
+    "image": "story_img004_s03",
+    "titles": {
+      "en": "Ask Miss KASUMISAKI to be your\nclub advisor.",
+      "fr": "Demandez à madame KASUMISAKI d'être\nla conseillère du club.",
+      "ja": "香澄崎先生に顧問をお願いしよう"
+    },
+    "id": "0x46605017",
+    "displayText": "Ask Miss KASUMISAKI to be your\nclub advisor.",
+    "explain_EN": "Ask Miss KASUMISAKI to be your\nclub advisor.",
+    "explain_FR": "Demandez à madame KASUMISAKI d'être\nla conseillère du club.",
+    "explain_JA": "香澄崎先生に顧問をお願いしよう"
+  },
+  {
+    "questId": "0xDF6901AD",
+    "titleHash": "0x5A4424A2",
+    "phase": 64,
+    "type": 4,
+    "image": "story_img004_s04",
+    "titles": {
+      "en": "Look for KAMEO.",
+      "fr": "Cherchez KAMEO.",
+      "ja": "亀雄を探そう"
+    },
+    "id": "0xDF6901AD",
+    "displayText": "Look for KAMEO.",
+    "explain_EN": "Look for KAMEO.",
+    "explain_FR": "Cherchez KAMEO.",
+    "explain_JA": "亀雄を探そう"
+  },
+  {
+    "questId": "0xA86E313B",
+    "titleHash": "0xCAFB3933",
+    "phase": 65,
+    "type": 5,
+    "image": "story_img004_s05",
+    "titles": {
+      "en": "Look for RAIKA.",
+      "fr": "Cherchez RAIKA.",
+      "ja": "来夏を探そう"
+    },
+    "id": "0xA86E313B",
+    "displayText": "Look for RAIKA.",
+    "explain_EN": "Look for RAIKA.",
+    "explain_FR": "Cherchez RAIKA.",
+    "explain_JA": "来夏を探そう"
+  },
+  {
+    "questId": "0x360AA498",
+    "titleHash": "0xBDFC09A5",
+    "phase": 66,
+    "type": 6,
+    "image": "story_img004_s06",
+    "titles": {
+      "en": "Start the entry trials.",
+      "fr": "Commencez les périodes d'essai.",
+      "ja": "入部テストを始めよう"
+    },
+    "id": "0x360AA498",
+    "displayText": "Start the entry trials.",
+    "explain_EN": "Start the entry trials.",
+    "explain_FR": "Commencez les périodes d'essai.",
+    "explain_JA": "入部テストを始めよう"
+  },
+  {
+    "questId": "0x410D940E",
+    "titleHash": "0xDD3B8040",
+    "phase": 67,
+    "type": 7,
+    "image": "story_img004_s07",
+    "titles": {
+      "en": "Pick five new club members.",
+      "fr": "Choisissez cinq nouveaux membres du club.",
+      "ja": "入部させる５人を決めよう"
+    },
+    "id": "0x410D940E",
+    "displayText": "Pick five new club members.",
+    "explain_EN": "Pick five new club members.",
+    "explain_FR": "Choisissez cinq nouveaux membres du club.",
+    "explain_JA": "入部させる５人を決めよう"
+  },
+  {
+    "questId": "0xD804C5B4",
+    "titleHash": "0xAA3CB0D6",
+    "phase": 68,
+    "type": 8,
+    "image": "story_img004_s08",
+    "titles": {
+      "en": "Check your teammates' conditions.",
+      "fr": "Vérifiez l'état de vos coéquipiers.",
+      "ja": "部員のコンディションをチェックしよう"
+    },
+    "id": "0xD804C5B4",
+    "displayText": "Check your teammates' conditions.",
+    "explain_EN": "Check your teammates' conditions.",
+    "explain_FR": "Vérifiez l'état de vos coéquipiers.",
+    "explain_JA": "部員のコンディションをチェックしよう"
+  },
+  {
+    "questId": "0xAF03F522",
+    "titleHash": "0x3335E16C",
+    "phase": 69,
+    "type": 9,
+    "image": "story_img004_s09",
+    "titles": {
+      "en": "Look for KAMEO.",
+      "fr": "Cherchez KAMEO.",
+      "ja": "亀雄を探そう"
+    },
+    "id": "0xAF03F522",
+    "displayText": "Look for KAMEO.",
+    "explain_EN": "Look for KAMEO.",
+    "explain_FR": "Cherchez KAMEO.",
+    "explain_JA": "亀雄を探そう"
+  },
+  {
+    "questId": "0x3FBCE8B3",
+    "titleHash": "0x4432D1FA",
+    "phase": 70,
+    "type": 10,
+    "image": "story_img004_s10",
+    "titles": {
+      "en": "Go to the Staff Room.",
+      "fr": "Rendez-vous à la salle des professeurs.",
+      "ja": "職員室へ行こう"
+    },
+    "id": "0x3FBCE8B3",
+    "displayText": "Go to the Staff Room.",
+    "explain_EN": "Go to the Staff Room.",
+    "explain_FR": "Rendez-vous à la salle des professeurs.",
+    "explain_JA": "職員室へ行こう"
+  },
+  {
+    "questId": "0x48BBD825",
+    "titleHash": "0xDA564459",
+    "phase": 71,
+    "type": 11,
+    "image": "story_img004_s11",
+    "titles": {
+      "en": "Check the quest menu and\nensure you meet the requirements.",
+      "fr": "Vérifiez le menu de quête pour\nconsulter les objectifs à remplir.",
+      "ja": "クエストメニューを確認して\n試合開始条件を達成しよう"
+    },
+    "id": "0x48BBD825",
+    "displayText": "Check the quest menu and\nensure you meet the requirements.",
+    "explain_EN": "Check the quest menu and\nensure you meet the requirements.",
+    "explain_FR": "Vérifiez le menu de quête pour\nconsulter les objectifs à remplir.",
+    "explain_JA": "クエストメニューを確認して\n試合開始条件を達成しよう"
+  },
+  {
+    "questId": "0x287C51C0",
+    "titleHash": "0xAD5174CF",
+    "phase": 72,
+    "type": 12,
+    "image": "story_img004_s12",
+    "titles": {
+      "en": "Start the match from the quest menu\nand challenge West Manor.",
+      "fr": "Commencez le match depuis le menu\net défiez West Manor.",
+      "ja": "クエストメニューから試合開始を選び\n西ノ宮中との戦いに挑もう"
+    },
+    "id": "0x287C51C0",
+    "displayText": "Start the match from the quest menu\nand challenge West Manor.",
+    "explain_EN": "Start the match from the quest menu\nand challenge West Manor.",
+    "explain_FR": "Commencez le match depuis le menu\net défiez West Manor.",
+    "explain_JA": "クエストメニューから試合開始を選び\n西ノ宮中との戦いに挑もう"
+  },
+  {
+    "questId": "0x5F7B6156",
+    "titleHash": "0x0C62D39E",
+    "phase": 73,
+    "type": 0,
+    "image": "story_img005_l01",
+    "titles": {
+      "en": "The Crybaby Rival",
+      "fr": "Le rival pleurnichard",
+      "ja": "泣き虫ライバル"
+    },
+    "id": "0x5F7B6156",
+    "displayText": "The Crybaby Rival",
+    "explain_EN": "The Crybaby Rival",
+    "explain_FR": "Le rival pleurnichard",
+    "explain_JA": "泣き虫ライバル"
+  },
+  {
+    "questId": "0xC67230EC",
+    "titleHash": "0x34582575",
+    "phase": 74,
+    "type": 1,
+    "image": "story_img005_s01",
+    "titles": {
+      "en": "Go to the bench\nin front of the Stadium.",
+      "fr": "Rendez-vous au banc\ndevant le stade.",
+      "ja": "スタジアム前のベンチへ行こう"
+    },
+    "id": "0xC67230EC",
+    "displayText": "Go to the bench\nin front of the Stadium.",
+    "explain_EN": "Go to the bench\nin front of the Stadium.",
+    "explain_FR": "Rendez-vous au banc\ndevant le stade.",
+    "explain_JA": "スタジアム前のベンチへ行こう"
+  },
+  {
+    "questId": "0xB175007A",
+    "titleHash": "0x435F15E3",
+    "phase": 75,
+    "type": 2,
+    "image": "story_img005_s02",
+    "titles": {
+      "en": "Go to the school grounds.",
+      "fr": "Rendez-vous dans la cour du collège.",
+      "ja": "校庭グラウンドへ行こう"
+    },
+    "id": "0xB175007A",
+    "displayText": "Go to the school grounds.",
+    "explain_EN": "Go to the school grounds.",
+    "explain_FR": "Rendez-vous dans la cour du collège.",
+    "explain_JA": "校庭グラウンドへ行こう"
+  },
+  {
+    "questId": "0x2F1195D9",
+    "titleHash": "0xD3E00872",
+    "phase": 76,
+    "type": 3,
+    "image": "story_img005_s03",
+    "titles": {
+      "en": "Go to NAGUMOHARA Hospital.",
+      "fr": "Rendez-vous à l'hôpital de NAGUMOHARA.",
+      "ja": "南雲原総合病院へ行こう"
+    },
+    "id": "0x2F1195D9",
+    "displayText": "Go to NAGUMOHARA Hospital.",
+    "explain_EN": "Go to NAGUMOHARA Hospital.",
+    "explain_FR": "Rendez-vous à l'hôpital de NAGUMOHARA.",
+    "explain_JA": "南雲原総合病院へ行こう"
+  },
+  {
+    "questId": "0x5816A54F",
+    "titleHash": "0xA4E738E4",
+    "phase": 77,
+    "type": 4,
+    "image": "story_img005_s04",
+    "titles": {
+      "en": "Check the quest menu and\nensure you meet the requirements.",
+      "fr": "Vérifiez le menu de quête pour\nconsulter les objectifs à remplir.",
+      "ja": "クエストメニューを確認して\n試合開始条件を達成しよう"
+    },
+    "id": "0x5816A54F",
+    "displayText": "Check the quest menu and\nensure you meet the requirements.",
+    "explain_EN": "Check the quest menu and\nensure you meet the requirements.",
+    "explain_FR": "Vérifiez le menu de quête pour\nconsulter les objectifs à remplir.",
+    "explain_JA": "クエストメニューを確認して\n試合開始条件を達成しよう"
+  },
+  {
+    "questId": "0xC11FF4F5",
+    "titleHash": "0xF616D383",
+    "phase": 78,
+    "type": 5,
+    "image": "story_img005_s05",
+    "titles": {
+      "en": "Start the match from the quest menu\nand challenge Northbright Middle.",
+      "fr": "Commencez le match depuis le menu\net défiez le collège Northbright.",
+      "ja": "クエストメニューから試合開始を選び\n北陽学園との戦いに挑もう"
+    },
+    "id": "0xC11FF4F5",
+    "displayText": "Start the match from the quest menu\nand challenge Northbright Middle.",
+    "explain_EN": "Start the match from the quest menu\nand challenge Northbright Middle.",
+    "explain_FR": "Commencez le match depuis le menu\net défiez le collège Northbright.",
+    "explain_JA": "クエストメニューから試合開始を選び\n北陽学園との戦いに挑もう"
+  },
+  {
+    "questId": "0xB618C463",
+    "titleHash": "0x956B8224",
+    "phase": 79,
+    "type": 0,
+    "image": "story_img006_l01",
+    "titles": {
+      "en": "Come Together, Football Club!",
+      "fr": "Tous ensemble, club de foot !",
+      "ja": "南雲原よ　ひとつになれ"
+    },
+    "id": "0xB618C463",
+    "displayText": "Come Together, Football Club!",
+    "explain_EN": "Come Together, Football Club!",
+    "explain_FR": "Tous ensemble, club de foot !",
+    "explain_JA": "南雲原よ　ひとつになれ"
+  },
+  {
+    "questId": "0x26A7D9F2",
+    "titleHash": "0x8111E315",
+    "phase": 80,
+    "type": 1,
+    "image": "story_img006_s01",
+    "titles": {
+      "en": "Go to the special training site\nat the Old Shipyard.",
+      "fr": "Rendez-vous sur le terrain d'entraînement\nde l'ancien chantier naval.",
+      "ja": "造船所跡の特訓場へ行こう"
+    },
+    "id": "0x26A7D9F2",
+    "displayText": "Go to the special training site\nat the Old Shipyard.",
+    "explain_EN": "Go to the special training site\nat the Old Shipyard.",
+    "explain_FR": "Rendez-vous sur le terrain d'entraînement\nde l'ancien chantier naval.",
+    "explain_JA": "造船所跡の特訓場へ行こう"
+  },
+  {
+    "questId": "0x51A0E964",
+    "titleHash": "0x1818B2AF",
+    "phase": 81,
+    "type": 2,
+    "image": "story_img006_s02",
+    "titles": {
+      "en": "Go to the Football Club Room.",
+      "fr": "Rendez-vous au local du club de foot.",
+      "ja": "サッカー部の部室へ行こう"
+    },
+    "id": "0x51A0E964",
+    "displayText": "Go to the Football Club Room.",
+    "explain_EN": "Go to the Football Club Room.",
+    "explain_FR": "Rendez-vous au local du club de foot.",
+    "explain_JA": "サッカー部の部室へ行こう"
+  },
+  {
+    "questId": "0xAFE44D0F",
+    "titleHash": "0x6F1F8239",
+    "phase": 82,
+    "type": 3,
+    "image": "story_img006_s03",
+    "titles": {
+      "en": "Go to the Baseball Club Building.",
+      "fr": "Rendez-vous dans le bâtiment\ndu club de baseball.",
+      "ja": "野球部棟へ行こう"
+    },
+    "id": "0xAFE44D0F",
+    "displayText": "Go to the Baseball Club Building.",
+    "explain_EN": "Go to the Baseball Club Building.",
+    "explain_FR": "Rendez-vous dans le bâtiment\ndu club de baseball.",
+    "explain_JA": "野球部棟へ行こう"
+  },
+  {
+    "questId": "0xD8E37D99",
+    "titleHash": "0xF17B179A",
+    "phase": 83,
+    "type": 4,
+    "image": "story_img006_s04",
+    "titles": {
+      "en": "Go to the noodle shop\nin the Downtown area.",
+      "fr": "Rendez-vous au restaurant d'udon\ndu centre-ville.",
+      "ja": "繁華街のうどん屋へ行こう"
+    },
+    "id": "0xD8E37D99",
+    "displayText": "Go to the noodle shop\nin the Downtown area.",
+    "explain_EN": "Go to the noodle shop\nin the Downtown area.",
+    "explain_FR": "Rendez-vous au restaurant d'udon\ndu centre-ville.",
+    "explain_JA": "繁華街のうどん屋へ行こう"
+  },
+  {
+    "questId": "0x41EA2C23",
+    "titleHash": "0x867C270C",
+    "phase": 84,
+    "type": 5,
+    "image": "story_img006_s05",
+    "titles": {
+      "en": "Start the Manager\nand Skill Showdowns.",
+      "fr": "Commencez les duels d'entraîneur\net de compétences.",
+      "ja": "監督対決と個人技選手権を始めよう"
+    },
+    "id": "0x41EA2C23",
+    "displayText": "Start the Manager\nand Skill Showdowns.",
+    "explain_EN": "Start the Manager\nand Skill Showdowns.",
+    "explain_FR": "Commencez les duels d'entraîneur\net de compétences.",
+    "explain_JA": "監督対決と個人技選手権を始めよう"
+  },
+  {
+    "questId": "0x36ED1CB5",
+    "titleHash": "0x1F7576B6",
+    "phase": 85,
+    "type": 6,
+    "image": "story_img006_s06",
+    "titles": {
+      "en": "Pick your players from\nthe former Northbright team.",
+      "fr": "Choisissez vos joueurs\nparmi l'ancienne équipe de Northbright.",
+      "ja": "元北陽からメンバーを選ぼう"
+    },
+    "id": "0x36ED1CB5",
+    "displayText": "Pick your players from\nthe former Northbright team.",
+    "explain_EN": "Pick your players from\nthe former Northbright team.",
+    "explain_FR": "Choisissez vos joueurs\nparmi l'ancienne équipe de Northbright.",
+    "explain_JA": "元北陽からメンバーを選ぼう"
+  },
+  {
+    "questId": "0xA8898916",
+    "titleHash": "0x68724620",
+    "phase": 86,
+    "type": 7,
+    "image": "story_img006_s07",
+    "titles": {
+      "en": "Go to the Football Club Room.",
+      "fr": "Rendez-vous au local du club de foot.",
+      "ja": "サッカー部の部室へ行こう"
+    },
+    "id": "0xA8898916",
+    "displayText": "Go to the Football Club Room.",
+    "explain_EN": "Go to the Football Club Room.",
+    "explain_FR": "Rendez-vous au local du club de foot.",
+    "explain_JA": "サッカー部の部室へ行こう"
+  },
+  {
+    "questId": "0xDF8EB980",
+    "titleHash": "0xF8CD5BB1",
+    "phase": 87,
+    "type": 8,
+    "image": "story_img006_s08",
+    "titles": {
+      "en": "Check the quest menu and\nensure you meet the requirements.",
+      "fr": "Vérifiez le menu de quête pour\nconsulter les objectifs à remplir.",
+      "ja": "クエストメニューを確認して\n試合開始条件を達成しよう"
+    },
+    "id": "0xDF8EB980",
+    "displayText": "Check the quest menu and\nensure you meet the requirements.",
+    "explain_EN": "Check the quest menu and\nensure you meet the requirements.",
+    "explain_FR": "Vérifiez le menu de quête pour\nconsulter les objectifs à remplir.",
+    "explain_JA": "クエストメニューを確認して\n試合開始条件を達成しよう"
+  },
+  {
+    "questId": "0x4687E83A",
+    "titleHash": "0x8FCA6B27",
+    "phase": 88,
+    "type": 9,
+    "image": "story_img006_s09",
+    "titles": {
+      "en": "Start the match from the quest menu\nand challenge Eastwind International.",
+      "fr": "Commencez le match depuis le menu\net défiez Eastwind International.",
+      "ja": "クエストメニューから試合開始を選び\n東風異国館との戦いに挑もう"
+    },
+    "id": "0x4687E83A",
+    "displayText": "Start the match from the quest menu\nand challenge Eastwind International.",
+    "explain_EN": "Start the match from the quest menu\nand challenge Eastwind International.",
+    "explain_FR": "Commencez le match depuis le menu\net défiez Eastwind International.",
+    "explain_JA": "クエストメニューから試合開始を選び\n東風異国館との戦いに挑もう"
+  },
+  {
+    "questId": "0x3180D8AC",
+    "titleHash": "0xEF0DE2C2",
+    "phase": 89,
+    "type": 10,
+    "image": "story_img006_s10",
+    "titles": {
+      "en": "Take a look around\nthis town in Nagasaki.",
+      "fr": "Baladez-vous dans Nagasaki.",
+      "ja": "長崎の町を見て回ろう"
+    },
+    "id": "0x3180D8AC",
+    "displayText": "Take a look around\nthis town in Nagasaki.",
+    "explain_EN": "Take a look around\nthis town in Nagasaki.",
+    "explain_FR": "Baladez-vous dans Nagasaki.",
+    "explain_JA": "長崎の町を見て回ろう"
+  },
+  {
+    "questId": "0xA13FC53D",
+    "titleHash": "0x980AD254",
+    "phase": 90,
+    "type": 11,
+    "image": "story_img006_s11",
+    "titles": {
+      "en": "Organize the info you've\ngathered in Intelligence Bookmarks.",
+      "fr": "Organisez les infos obtenues\ndans les marque-pages d'informations.",
+      "ja": "メインメニューから情報ブックマークを\nひらいて集めた情報を整理しよう"
+    },
+    "id": "0xA13FC53D",
+    "displayText": "Organize the info you've\ngathered in Intelligence Bookmarks.",
+    "explain_EN": "Organize the info you've\ngathered in Intelligence Bookmarks.",
+    "explain_FR": "Organisez les infos obtenues\ndans les marque-pages d'informations.",
+    "explain_JA": "メインメニューから情報ブックマークを\nひらいて集めた情報を整理しよう"
+  },
+  {
+    "questId": "0xD638F5AB",
+    "titleHash": "0x010383EE",
+    "phase": 91,
+    "type": 12,
+    "image": "story_img006_s12",
+    "titles": {
+      "en": "Go to NAGUMOHARA Junior High.",
+      "fr": "Rendez-vous au collège NAGUMOHARA.",
+      "ja": "南雲原中学校へ行こう"
+    },
+    "id": "0xD638F5AB",
+    "displayText": "Go to NAGUMOHARA Junior High.",
+    "explain_EN": "Go to NAGUMOHARA Junior High.",
+    "explain_FR": "Rendez-vous au collège NAGUMOHARA.",
+    "explain_JA": "南雲原中学校へ行こう"
+  },
+  {
+    "questId": "0xB6FF7C4E",
+    "titleHash": "0xE26CB2B2",
+    "phase": 92,
+    "type": 0,
+    "image": "story_img007_l01",
+    "titles": {
+      "en": "Keshin in the Storm",
+      "fr": "Keshin en pleine tempête",
+      "ja": "化身は嵐の中に"
+    },
+    "id": "0xB6FF7C4E",
+    "displayText": "Keshin in the Storm",
+    "explain_EN": "Keshin in the Storm",
+    "explain_FR": "Keshin en pleine tempête",
+    "explain_JA": "化身は嵐の中に"
+  },
+  {
+    "questId": "0xC1F84CD8",
+    "titleHash": "0x7604B378",
+    "phase": 93,
+    "type": 1,
+    "image": "story_img007_s01",
+    "titles": {
+      "en": "Check out the Football Gardens.",
+      "fr": "Rendez-vous au village sportif.",
+      "ja": "サッカーガーデンの施設を見て回ろう"
+    },
+    "id": "0xC1F84CD8",
+    "displayText": "Check out the Football Gardens.",
+    "explain_EN": "Check out the Football Gardens.",
+    "explain_FR": "Rendez-vous au village sportif.",
+    "explain_JA": "サッカーガーデンの施設を見て回ろう"
+  },
+  {
+    "questId": "0x58F11D62",
+    "titleHash": "0xE86026DB",
+    "phase": 94,
+    "type": 2,
+    "image": "story_img007_s02",
+    "titles": {
+      "en": "Organize the info you've\ngathered in Intelligence Bookmarks.",
+      "fr": "Organisez les infos obtenues\ndans les marque-pages d'informations.",
+      "ja": "メインメニューから情報ブックマークを\nひらいて集めた情報を整理しよう"
+    },
+    "id": "0x58F11D62",
+    "displayText": "Organize the info you've\ngathered in Intelligence Bookmarks.",
+    "explain_EN": "Organize the info you've\ngathered in Intelligence Bookmarks.",
+    "explain_FR": "Organisez les infos obtenues\ndans les marque-pages d'informations.",
+    "explain_JA": "メインメニューから情報ブックマークを\nひらいて集めた情報を整理しよう"
+  },
+  {
+    "questId": "0x2FF62DF4",
+    "titleHash": "0x9F67164D",
+    "phase": 95,
+    "type": 3,
+    "image": "story_img007_s03",
+    "titles": {
+      "en": "Watch the designated players\nand take photos.",
+      "fr": "Observez les joueurs en question\net prenez des photos.",
+      "ja": "指定されたメンバーの行動を\nチェックして写真に収めよう"
+    },
+    "id": "0x2FF62DF4",
+    "displayText": "Watch the designated players\nand take photos.",
+    "explain_EN": "Watch the designated players\nand take photos.",
+    "explain_FR": "Observez les joueurs en question\net prenez des photos.",
+    "explain_JA": "指定されたメンバーの行動を\nチェックして写真に収めよう"
+  },
+  {
+    "questId": "0xB192B857",
+    "titleHash": "0x066E47F7",
+    "phase": 96,
+    "type": 4,
+    "image": "story_img007_s04",
+    "titles": {
+      "en": "Go to NAGUMOHARA's Lodging Cottage.",
+      "fr": "Rendez-vous à l'hébergement de NAGUMOHARA.",
+      "ja": "南雲原の宿舎コテージへ行こう"
+    },
+    "id": "0xB192B857",
+    "displayText": "Go to NAGUMOHARA's Lodging Cottage.",
+    "explain_EN": "Go to NAGUMOHARA's Lodging Cottage.",
+    "explain_FR": "Rendez-vous à l'hébergement de NAGUMOHARA.",
+    "explain_JA": "南雲原の宿舎コテージへ行こう"
+  },
+  {
+    "questId": "0xC69588C1",
+    "titleHash": "0x71697761",
+    "phase": 97,
+    "type": 5,
+    "image": "story_img007_s05",
+    "titles": {
+      "en": "Go to the Skyport.",
+      "fr": "Rendez-vous à l'aérodrome.",
+      "ja": "スカイポートへ行こう"
+    },
+    "id": "0xC69588C1",
+    "displayText": "Go to the Skyport.",
+    "explain_EN": "Go to the Skyport.",
+    "explain_FR": "Rendez-vous à l'aérodrome.",
+    "explain_JA": "スカイポートへ行こう"
+  },
+  {
+    "questId": "0x5F9CD97B",
+    "titleHash": "0xE1D66AF0",
+    "phase": 98,
+    "type": 6,
+    "image": "story_img007_s06",
+    "titles": {
+      "en": "Go to the Archive.",
+      "fr": "Rendez-vous aux archives.",
+      "ja": "資料保管室へ行こう"
+    },
+    "id": "0x5F9CD97B",
+    "displayText": "Go to the Archive.",
+    "explain_EN": "Go to the Archive.",
+    "explain_FR": "Rendez-vous aux archives.",
+    "explain_JA": "資料保管室へ行こう"
+  },
+  {
+    "questId": "0x289BE9ED",
+    "titleHash": "0x96D15A66",
+    "phase": 99,
+    "type": 7,
+    "image": "story_img007_s07",
+    "titles": {
+      "en": "Look for the Archive key.",
+      "fr": "Cherchez la clé des archives.",
+      "ja": "資料保管室の鍵を探そう"
+    },
+    "id": "0x289BE9ED",
+    "displayText": "Look for the Archive key.",
+    "explain_EN": "Look for the Archive key.",
+    "explain_FR": "Cherchez la clé des archives.",
+    "explain_JA": "資料保管室の鍵を探そう"
+  },
+  {
+    "questId": "0xB824F47C",
+    "titleHash": "0x6895FE0D",
+    "phase": 100,
+    "type": 8,
+    "image": "story_img007_s08",
+    "titles": {
+      "en": "Go for a stroll and enjoy the breeze.",
+      "fr": "Allez vous promener et profiter de la brise.",
+      "ja": "風に当たりに行こう"
+    },
+    "id": "0xB824F47C",
+    "displayText": "Go for a stroll and enjoy the breeze.",
+    "explain_EN": "Go for a stroll and enjoy the breeze.",
+    "explain_FR": "Allez vous promener et profiter de la brise.",
+    "explain_JA": "風に当たりに行こう"
+  },
+  {
+    "questId": "0xCF23C4EA",
+    "titleHash": "0x1F92CE9B",
+    "phase": 101,
+    "type": 9,
+    "image": "story_img007_s09",
+    "titles": {
+      "en": "Check the quest menu and\nensure you meet the requirements.",
+      "fr": "Vérifiez le menu de quête pour\nconsulter les objectifs à remplir.",
+      "ja": "クエストメニューを確認して\n試合開始条件を達成しよう"
+    },
+    "id": "0xCF23C4EA",
+    "displayText": "Check the quest menu and\nensure you meet the requirements.",
+    "explain_EN": "Check the quest menu and\nensure you meet the requirements.",
+    "explain_FR": "Vérifiez le menu de quête pour\nconsulter les objectifs à remplir.",
+    "explain_JA": "クエストメニューを確認して\n試合開始条件を達成しよう"
+  },
+  {
+    "questId": "0x66FFAD30",
+    "titleHash": "0x869B9F21",
+    "phase": 102,
+    "type": 10,
+    "image": "story_img007_s10",
+    "titles": {
+      "en": "Start the match from the quest menu\nand challenge Stormridge.",
+      "fr": "Commencez le match depuis le menu\net défiez Stormridge.",
+      "ja": "クエストメニューから試合開始を選び\n京前嵐山との戦いに挑もう"
+    },
+    "id": "0x66FFAD30",
+    "displayText": "Start the match from the quest menu\nand challenge Stormridge.",
+    "explain_EN": "Start the match from the quest menu\nand challenge Stormridge.",
+    "explain_FR": "Commencez le match depuis le menu\net défiez Stormridge.",
+    "explain_JA": "クエストメニューから試合開始を選び\n京前嵐山との戦いに挑もう"
+  },
+  {
+    "questId": "0x11F89DA6",
+    "titleHash": "0x72D3AF23",
+    "phase": 103,
+    "type": 0,
+    "image": "story_img008_l01",
+    "titles": {
+      "en": "ALICE's Wonderland",
+      "fr": "Le pays du football d'ALICE",
+      "ja": "アリスの世界"
+    },
+    "id": "0x11F89DA6",
+    "displayText": "ALICE's Wonderland",
+    "explain_EN": "ALICE's Wonderland",
+    "explain_FR": "Le pays du football d'ALICE",
+    "explain_JA": "アリスの世界"
+  },
+  {
+    "questId": "0x88F1CC1C",
+    "titleHash": "0xF19CAFB7",
+    "phase": 104,
+    "type": 1,
+    "image": "story_img008_s01",
+    "titles": {
+      "en": "Tell everyone their tasks.",
+      "fr": "Donnez à tout le monde leurs instructions.",
+      "ja": "みんなに課題を伝えに行こう"
+    },
+    "id": "0x88F1CC1C",
+    "displayText": "Tell everyone their tasks.",
+    "explain_EN": "Tell everyone their tasks.",
+    "explain_FR": "Donnez à tout le monde leurs instructions.",
+    "explain_JA": "みんなに課題を伝えに行こう"
+  },
+  {
+    "questId": "0x713F1443",
+    "titleHash": "0x7F55477E",
+    "phase": 105,
+    "type": 2,
+    "image": "story_img008_s02",
+    "titles": {
+      "en": "Win friendly matches against Lawcrest,\nAI Academy, and Noble Insight.",
+      "fr": "Gagnez des matchs amicaux contre Lawcrest,\nl'AI Academy et l'Institut des nobles visionnaires.",
+      "ja": "英愛学園　偉仁明文堂　法令館中に\n練習試合で勝利しよう"
+    },
+    "id": "0x713F1443",
+    "displayText": "Win friendly matches against Lawcrest,\nAI Academy, and Noble Insight.",
+    "explain_EN": "Win friendly matches against Lawcrest,\nAI Academy, and Noble Insight.",
+    "explain_FR": "Gagnez des matchs amicaux contre Lawcrest,\nl'AI Academy et l'Institut des nobles visionnaires.",
+    "explain_JA": "英愛学園　偉仁明文堂　法令館中に\n練習試合で勝利しよう"
+  },
+  {
+    "questId": "0xFFF6FC8A",
+    "titleHash": "0x6FF83A14",
+    "phase": 106,
+    "type": 3,
+    "image": "story_img008_s02",
+    "titles": {
+      "en": "Check the quest menu and\nensure you meet the requirements.",
+      "fr": "Vérifiez le menu de quête pour\nconsulter les objectifs à remplir.",
+      "ja": "クエストメニューを確認して\n試合開始条件を達成しよう"
+    },
+    "id": "0xFFF6FC8A",
+    "displayText": "Check the quest menu and\nensure you meet the requirements.",
+    "explain_EN": "Check the quest menu and\nensure you meet the requirements.",
+    "explain_FR": "Vérifiez le menu de quête pour\nconsulter les objectifs à remplir.",
+    "explain_JA": "クエストメニューを確認して\n試合開始条件を達成しよう"
+  },
+  {
+    "questId": "0x61926929",
+    "titleHash": "0x18FF0A82",
+    "phase": 107,
+    "type": 4,
+    "image": "story_img008_s03",
+    "titles": {
+      "en": "Start the match from the quest menu\nand challenge Royal Academy.",
+      "fr": "Commencez le match depuis le menu\net défiez la Royal Academy.",
+      "ja": "クエストメニューから試合開始を選び\n帝国学園との戦いに挑もう"
+    },
+    "id": "0x61926929",
+    "displayText": "Start the match from the quest menu\nand challenge Royal Academy.",
+    "explain_EN": "Start the match from the quest menu\nand challenge Royal Academy.",
+    "explain_FR": "Commencez le match depuis le menu\net défiez la Royal Academy.",
+    "explain_JA": "クエストメニューから試合開始を選び\n帝国学園との戦いに挑もう"
+  },
+  {
+    "questId": "0x169559BF",
+    "titleHash": "0x81F65B38",
+    "phase": 108,
+    "type": 5,
+    "image": "story_img008_s04",
+    "titles": {
+      "en": "Look for AMISAKI.",
+      "fr": "Cherchez AMISAKI.",
+      "ja": "有海崎を探そう"
+    },
+    "id": "0x169559BF",
+    "displayText": "Look for AMISAKI.",
+    "explain_EN": "Look for AMISAKI.",
+    "explain_FR": "Cherchez AMISAKI.",
+    "explain_JA": "有海崎を探そう"
+  },
+  {
+    "questId": "0x8F9C0805",
+    "titleHash": "0xF6F16BAE",
+    "phase": 109,
+    "type": 6,
+    "image": "story_img008_s05",
+    "titles": {
+      "en": "Go to the Football Club Room.",
+      "fr": "Rendez-vous au local du club de foot.",
+      "ja": "サッカー部の部室へ行こう"
+    },
+    "id": "0x8F9C0805",
+    "displayText": "Go to the Football Club Room.",
+    "explain_EN": "Go to the Football Club Room.",
+    "explain_FR": "Rendez-vous au local du club de foot.",
+    "explain_JA": "サッカー部の部室へ行こう"
+  },
+  {
+    "questId": "0xF89B3893",
+    "titleHash": "0x05D49FB5",
+    "phase": 110,
+    "type": 0,
+    "image": "story_img009_l01",
+    "titles": {
+      "en": "Sunshine Through the Clouds",
+      "fr": "Le soleil qui traverse les nuages",
+      "ja": "雲から太陽はのぞく"
+    },
+    "id": "0xF89B3893",
+    "displayText": "Sunshine Through the Clouds",
+    "explain_EN": "Sunshine Through the Clouds",
+    "explain_FR": "Le soleil qui traverse les nuages",
+    "explain_JA": "雲から太陽はのぞく"
+  },
+  {
+    "questId": "0x68242502",
+    "titleHash": "0x664E763F",
+    "phase": 111,
+    "type": 1,
+    "image": "story_img009_s01",
+    "titles": {
+      "en": "Check on the team.",
+      "fr": "Allez voir l'équipe.",
+      "ja": "メンバーの様子を見に行こう"
+    },
+    "id": "0x68242502",
+    "displayText": "Check on the team.",
+    "explain_EN": "Check on the team.",
+    "explain_FR": "Allez voir l'équipe.",
+    "explain_JA": "メンバーの様子を見に行こう"
+  },
+  {
+    "questId": "0x1F231594",
+    "titleHash": "0x114946A9",
+    "phase": 112,
+    "type": 2,
+    "image": "story_img009_s02",
+    "titles": {
+      "en": "Go to the Old Football Club Room.",
+      "fr": "Rendez-vous à l'ancien local du club de foot.",
+      "ja": "サッカー部の旧部室へ行こう"
+    },
+    "id": "0x1F231594",
+    "displayText": "Go to the Old Football Club Room.",
+    "explain_EN": "Go to the Old Football Club Room.",
+    "explain_FR": "Rendez-vous à l'ancien local du club de foot.",
+    "explain_JA": "サッカー部の旧部室へ行こう"
+  },
+  {
+    "questId": "0x7FE49C71",
+    "titleHash": "0x718ECF4C",
+    "phase": 113,
+    "type": 3,
+    "image": "story_img009_s03",
+    "titles": {
+      "en": "Find a way to gain an advantage.",
+      "fr": "Trouvez un moyen de prendre l'avantage.",
+      "ja": "敵の分析を超える力を探そう"
+    },
+    "id": "0x7FE49C71",
+    "displayText": "Find a way to gain an advantage.",
+    "explain_EN": "Find a way to gain an advantage.",
+    "explain_FR": "Trouvez un moyen de prendre l'avantage.",
+    "explain_JA": "敵の分析を超える力を探そう"
+  },
+  {
+    "questId": "0x08E3ACE7",
+    "titleHash": "0x0689FFDA",
+    "phase": 114,
+    "type": 4,
+    "image": "story_img009_s04",
+    "titles": {
+      "en": "Check on how practice is going.",
+      "fr": "Vérifiez comment se porte l'entraînement.",
+      "ja": "練習の様子を見に行こう"
+    },
+    "id": "0x08E3ACE7",
+    "displayText": "Check on how practice is going.",
+    "explain_EN": "Check on how practice is going.",
+    "explain_FR": "Vérifiez comment se porte l'entraînement.",
+    "explain_JA": "練習の様子を見に行こう"
+  },
+  {
+    "questId": "0x91EAFD5D",
+    "titleHash": "0x9F80AE60",
+    "phase": 115,
+    "type": 5,
+    "image": "story_img009_s05",
+    "titles": {
+      "en": "Go to the school grounds.",
+      "fr": "Rendez-vous dans la cour du collège.",
+      "ja": "南雲原中のグラウンドへ行こう"
+    },
+    "id": "0x91EAFD5D",
+    "displayText": "Go to the school grounds.",
+    "explain_EN": "Go to the school grounds.",
+    "explain_FR": "Rendez-vous dans la cour du collège.",
+    "explain_JA": "南雲原中のグラウンドへ行こう"
+  },
+  {
+    "questId": "0xE6EDCDCB",
+    "titleHash": "0xE8879EF6",
+    "phase": 116,
+    "type": 6,
+    "image": "story_img009_s06",
+    "titles": {
+      "en": "Check the quest menu and\nensure you meet the requirements.",
+      "fr": "Vérifiez le menu de quête pour\nconsulter les objectifs à remplir.",
+      "ja": "クエストメニューを確認して\n試合開始条件を達成しよう"
+    },
+    "id": "0xE6EDCDCB",
+    "displayText": "Check the quest menu and\nensure you meet the requirements.",
+    "explain_EN": "Check the quest menu and\nensure you meet the requirements.",
+    "explain_FR": "Vérifiez le menu de quête pour\nconsulter les objectifs à remplir.",
+    "explain_JA": "クエストメニューを確認して\n試合開始条件を達成しよう"
+  },
+  {
+    "questId": "0x78895868",
+    "titleHash": "0x76E30B55",
+    "phase": 117,
+    "type": 7,
+    "image": "story_img009_s07",
+    "titles": {
+      "en": "Start the match from the quest menu\nand challenge Raimon Junior High.",
+      "fr": "Commencez le match depuis le menu\net défiez le collège Raimon.",
+      "ja": "クエストメニューから試合開始を選び\n雷門中との戦いに挑もう"
+    },
+    "id": "0x78895868",
+    "displayText": "Start the match from the quest menu\nand challenge Raimon Junior High.",
+    "explain_EN": "Start the match from the quest menu\nand challenge Raimon Junior High.",
+    "explain_FR": "Commencez le match depuis le menu\net défiez le collège Raimon.",
+    "explain_JA": "クエストメニューから試合開始を選び\n雷門中との戦いに挑もう"
+  },
+  {
+    "questId": "0x010D0B2E",
+    "titleHash": "0x37F9010E",
+    "phase": 1,
+    "type": 0,
+    "image": "game_img01",
+    "titles": {
+      "en": "Duel with the Baseball Club",
+      "fr": "Duel contre le club de baseball",
+      "ja": "野球部との決闘"
+    },
+    "id": "0x010D0B2E",
+    "displayText": "Duel with the Baseball Club",
+    "explain_EN": "Duel with the Baseball Club",
+    "explain_FR": "Duel contre le club de baseball",
+    "explain_JA": "野球部との決闘"
+  },
+  {
+    "questId": "0x98045A94",
+    "titleHash": "0xAEF050B4",
+    "phase": 2,
+    "type": 1,
+    "image": "game_img02",
+    "titles": {
+      "en": "West Manor Academy",
+      "fr": "West Manor",
+      "ja": "西ノ宮中"
+    },
+    "id": "0x98045A94",
+    "displayText": "West Manor Academy",
+    "explain_EN": "West Manor Academy",
+    "explain_FR": "West Manor",
+    "explain_JA": "西ノ宮中"
+  },
+  {
+    "questId": "0xEF036A02",
+    "titleHash": "0xD9F76022",
+    "phase": 3,
+    "type": 2,
+    "image": "game_img03",
+    "titles": {
+      "en": "Northbright Middle School",
+      "fr": "Collège Northbright",
+      "ja": "北陽学園"
+    },
+    "id": "0xEF036A02",
+    "displayText": "Northbright Middle School",
+    "explain_EN": "Northbright Middle School",
+    "explain_FR": "Collège Northbright",
+    "explain_JA": "北陽学園"
+  },
+  {
+    "questId": "0x0660CF37",
+    "titleHash": "0x3094C517",
+    "phase": 5,
+    "type": 4,
+    "image": "game_img04",
+    "titles": {
+      "en": "Eastwind International",
+      "fr": "Eastwind International",
+      "ja": "東風異国館"
+    },
+    "id": "0x0660CF37",
+    "displayText": "Eastwind International",
+    "explain_EN": "Eastwind International",
+    "explain_FR": "Eastwind International",
+    "explain_JA": "東風異国館"
+  },
+  {
+    "questId": "0x9F699E8D",
+    "titleHash": "0xA99D94AD",
+    "phase": 6,
+    "type": 5,
+    "image": "game_img05",
+    "titles": {
+      "en": "Stormridge",
+      "fr": "Stormridge",
+      "ja": "京前嵐山中"
+    },
+    "id": "0x9F699E8D",
+    "displayText": "Stormridge",
+    "explain_EN": "Stormridge",
+    "explain_FR": "Stormridge",
+    "explain_JA": "京前嵐山中"
+  },
+  {
+    "questId": "0xE86EAE1B",
+    "titleHash": "0xDE9AA43B",
+    "phase": 7,
+    "type": 6,
+    "image": "game_img06",
+    "titles": {
+      "en": "Royal Academy",
+      "fr": "Royal Academy",
+      "ja": "帝国学園"
+    },
+    "id": "0xE86EAE1B",
+    "displayText": "Royal Academy",
+    "explain_EN": "Royal Academy",
+    "explain_FR": "Royal Academy",
+    "explain_JA": "帝国学園"
+  },
+  {
+    "questId": "0x78D1B38A",
+    "titleHash": "0x4E25B9AA",
+    "phase": 8,
+    "type": 6,
+    "image": "game_img07",
+    "titles": {
+      "en": "Raimon Junior High",
+      "fr": "Collège Raimon",
+      "ja": "雷門中"
+    },
+    "id": "0x78D1B38A",
+    "displayText": "Raimon Junior High",
+    "explain_EN": "Raimon Junior High",
+    "explain_FR": "Collège Raimon",
+    "explain_JA": "雷門中"
+  },
+  {
+    "questId": "0x864BB65F",
+    "titleHash": "0x7E6007CE",
+    "phase": 0,
+    "type": 0,
+    "titles": {
+      "en": "メインクエストタイトル１",
+      "fr": "メインクエストタイトル１",
+      "ja": "メインクエストタイトル１"
+    },
+    "id": "0x864BB65F",
+    "displayText": "メインクエストタイトル１",
+    "explain_EN": "メインクエストタイトル１",
+    "explain_FR": "メインクエストタイトル１",
+    "explain_JA": "メインクエストタイトル１"
+  },
+  {
+    "questId": "0xF14C86C9",
+    "titleHash": "0x09673758",
+    "phase": 1,
+    "type": 1,
+    "titles": {
+      "en": "Gathering Info",
+      "fr": "Rassembler des infos",
+      "ja": "情報収集"
+    },
+    "id": "0xF14C86C9",
+    "displayText": "Gathering Info",
+    "explain_EN": "Gathering Info",
+    "explain_FR": "Rassembler des infos",
+    "explain_JA": "情報収集"
+  },
+  {
+    "questId": "0x6845D773",
+    "titleHash": "0x906E66E2",
+    "phase": 2,
+    "type": 2,
+    "titles": {
+      "en": "Gathering Info on SAKURAZAKI",
+      "fr": "Rassemblez les informations sur SAKURAZAKI",
+      "ja": "桜咲の情報収集"
+    },
+    "id": "0x6845D773",
+    "displayText": "Gathering Info on SAKURAZAKI",
+    "explain_EN": "Gathering Info on SAKURAZAKI",
+    "explain_FR": "Rassemblez les informations sur SAKURAZAKI",
+    "explain_JA": "桜咲の情報収集"
+  },
+  {
+    "questId": "0x1F42E7E5",
+    "titleHash": "0x35C9AFDD",
+    "phase": 3,
+    "type": 3,
+    "image": "quest_img006_s01",
+    "titles": {
+      "en": "The Rumored UMIBOZU",
+      "fr": "La rumeur de l'umi-bozu",
+      "ja": "海坊主のウワサ"
+    },
+    "id": "0x1F42E7E5",
+    "displayText": "The Rumored UMIBOZU",
+    "explain_EN": "The Rumored UMIBOZU",
+    "explain_FR": "La rumeur de l'umi-bozu",
+    "explain_JA": "海坊主のウワサ"
+  },
+  {
+    "questId": "0x81267246",
+    "titleHash": "0x09673758",
+    "phase": 4,
+    "type": 4,
+    "titles": {
+      "en": "Gathering Info",
+      "fr": "Rassembler des infos",
+      "ja": "情報収集"
+    },
+    "id": "0x81267246",
+    "displayText": "Gathering Info",
+    "explain_EN": "Gathering Info",
+    "explain_FR": "Rassembler des infos",
+    "explain_JA": "情報収集"
+  },
+  {
+    "questId": "0xF62142D0",
+    "titleHash": "0x09673758",
+    "phase": 5,
+    "type": 5,
+    "titles": {
+      "en": "Gathering Info",
+      "fr": "Rassembler des infos",
+      "ja": "情報収集"
+    },
+    "id": "0xF62142D0",
+    "displayText": "Gathering Info",
+    "explain_EN": "Gathering Info",
+    "explain_FR": "Rassembler des infos",
+    "explain_JA": "情報収集"
+  },
+  {
+    "questId": "0x6F28136A",
+    "titleHash": "0x09673758",
+    "phase": 6,
+    "type": 6,
+    "titles": {
+      "en": "Gathering Info",
+      "fr": "Rassembler des infos",
+      "ja": "情報収集"
+    },
+    "id": "0x6F28136A",
+    "displayText": "Gathering Info",
+    "explain_EN": "Gathering Info",
+    "explain_FR": "Rassembler des infos",
+    "explain_JA": "情報収集"
+  },
+  {
+    "questId": "0x182F23FC",
+    "titleHash": "0x09673758",
+    "phase": 7,
+    "type": 7,
+    "titles": {
+      "en": "Gathering Info",
+      "fr": "Rassembler des infos",
+      "ja": "情報収集"
+    },
+    "id": "0x182F23FC",
+    "displayText": "Gathering Info",
+    "explain_EN": "Gathering Info",
+    "explain_FR": "Rassembler des infos",
+    "explain_JA": "情報収集"
+  },
+  {
+    "questId": "0x88903E6D",
+    "titleHash": "0x09673758",
+    "phase": 8,
+    "type": 8,
+    "titles": {
+      "en": "Gathering Info",
+      "fr": "Rassembler des infos",
+      "ja": "情報収集"
+    },
+    "id": "0x88903E6D",
+    "displayText": "Gathering Info",
+    "explain_EN": "Gathering Info",
+    "explain_FR": "Rassembler des infos",
+    "explain_JA": "情報収集"
+  },
+  {
+    "questId": "0xFF970EFB",
+    "titleHash": "0x09673758",
+    "phase": 9,
+    "type": 9,
+    "titles": {
+      "en": "Gathering Info",
+      "fr": "Rassembler des infos",
+      "ja": "情報収集"
+    },
+    "id": "0xFF970EFB",
+    "displayText": "Gathering Info",
+    "explain_EN": "Gathering Info",
+    "explain_FR": "Rassembler des infos",
+    "explain_JA": "情報収集"
+  },
+  {
+    "questId": "0x9F50871E",
+    "titleHash": "0x09673758",
+    "phase": 10,
+    "type": 10,
+    "titles": {
+      "en": "Gathering Info",
+      "fr": "Rassembler des infos",
+      "ja": "情報収集"
+    },
+    "id": "0x9F50871E",
+    "displayText": "Gathering Info",
+    "explain_EN": "Gathering Info",
+    "explain_FR": "Rassembler des infos",
+    "explain_JA": "情報収集"
+  },
+  {
+    "questId": "0xE857B788",
+    "titleHash": "0x09673758",
+    "phase": 11,
+    "type": 11,
+    "titles": {
+      "en": "Gathering Info",
+      "fr": "Rassembler des infos",
+      "ja": "情報収集"
+    },
+    "id": "0xE857B788",
+    "displayText": "Gathering Info",
+    "explain_EN": "Gathering Info",
+    "explain_FR": "Rassembler des infos",
+    "explain_JA": "情報収集"
+  },
+  {
+    "questId": "0x715EE632",
+    "titleHash": "0x09673758",
+    "phase": 12,
+    "type": 12,
+    "titles": {
+      "en": "Gathering Info",
+      "fr": "Rassembler des infos",
+      "ja": "情報収集"
+    },
+    "id": "0x715EE632",
+    "displayText": "Gathering Info",
+    "explain_EN": "Gathering Info",
+    "explain_FR": "Rassembler des infos",
+    "explain_JA": "情報収集"
+  },
+  {
+    "questId": "0x0659D6A4",
+    "titleHash": "0x7F55477E",
+    "phase": 13,
+    "type": 13,
+    "titles": {
+      "en": "Win friendly matches against Lawcrest,\nAI Academy, and Noble Insight.",
+      "fr": "Gagnez des matchs amicaux contre Lawcrest,\nl'AI Academy et l'Institut des nobles visionnaires.",
+      "ja": "英愛学園　偉仁明文堂　法令館中に\n練習試合で勝利しよう"
+    },
+    "id": "0x0659D6A4",
+    "displayText": "Win friendly matches against Lawcrest,\nAI Academy, and Noble Insight.",
+    "explain_EN": "Win friendly matches against Lawcrest,\nAI Academy, and Noble Insight.",
+    "explain_FR": "Gagnez des matchs amicaux contre Lawcrest,\nl'AI Academy et l'Institut des nobles visionnaires.",
+    "explain_JA": "英愛学園　偉仁明文堂　法令館中に\n練習試合で勝利しよう"
+  },
+  {
+    "questId": "0x8B01EF45",
+    "titleHash": "0x28CC9F65",
+    "phase": 10100,
+    "type": 2,
+    "image": "quest_img001_s01",
+    "titles": {
+      "en": "Top Secret Dangerous Treasure",
+      "fr": "Un trésor secret et délicat",
+      "ja": "秘密のアブないお宝"
+    },
+    "id": "0x8B01EF45",
+    "displayText": "Top Secret Dangerous Treasure",
+    "explain_EN": "Top Secret Dangerous Treasure",
+    "explain_FR": "Un trésor secret et délicat",
+    "explain_JA": "秘密のアブないお宝"
+  },
+  {
+    "questId": "0x8947511C",
+    "titleHash": "0xAE58EDCB",
+    "phase": 10200,
+    "type": 5,
+    "image": "quest_img002_s01",
+    "titles": {
+      "en": "Why Grandma Got Lost: Part 1",
+      "fr": "S.O.S. mamie égarée 1",
+      "ja": "おばあさんが道に迷った理由１"
+    },
+    "id": "0x8947511C",
+    "displayText": "Why Grandma Got Lost: Part 1",
+    "explain_EN": "Why Grandma Got Lost: Part 1",
+    "explain_FR": "S.O.S. mamie égarée 1",
+    "explain_JA": "おばあさんが道に迷った理由１"
+  },
+  {
+    "questId": "0x88853B2B",
+    "titleHash": "0x65043E6E",
+    "phase": 10300,
+    "type": 6,
+    "image": "quest_img003_s01",
+    "titles": {
+      "en": "Why Grandma Got Lost: Part 2",
+      "fr": "S.O.S. mamie égarée 2",
+      "ja": "おばあさんが道に迷った理由２"
+    },
+    "id": "0x88853B2B",
+    "displayText": "Why Grandma Got Lost: Part 2",
+    "explain_EN": "Why Grandma Got Lost: Part 2",
+    "explain_FR": "S.O.S. mamie égarée 2",
+    "explain_JA": "おばあさんが道に迷った理由２"
+  },
+  {
+    "questId": "0x8DCA2DAE",
+    "titleHash": "0x78010ED6",
+    "phase": 10400,
+    "type": 1,
+    "image": "quest_img004_s01",
+    "titles": {
+      "en": "The Fake Cop of NAGUMOHARA",
+      "fr": "Le faux policier de NAGUMOHARA",
+      "ja": "南雲原町のニセ警官"
+    },
+    "id": "0x8DCA2DAE",
+    "displayText": "The Fake Cop of NAGUMOHARA",
+    "explain_EN": "The Fake Cop of NAGUMOHARA",
+    "explain_FR": "Le faux policier de NAGUMOHARA",
+    "explain_JA": "南雲原町のニセ警官"
+  },
+  {
+    "questId": "0x8C084799",
+    "titleHash": "0xB35DDD73",
+    "phase": 10500,
+    "type": 3,
+    "image": "quest_img005_s01",
+    "titles": {
+      "en": "Miss KASUMISAKI's Lost Property",
+      "fr": "L'objet perdu de Mme KASUMISAKI",
+      "ja": "香澄崎先生の落とし物"
+    },
+    "id": "0x8C084799",
+    "displayText": "Miss KASUMISAKI's Lost Property",
+    "explain_EN": "Miss KASUMISAKI's Lost Property",
+    "explain_FR": "L'objet perdu de Mme KASUMISAKI",
+    "explain_JA": "香澄崎先生の落とし物"
+  },
+  {
+    "questId": "0x8F8C93F7",
+    "titleHash": "0xFE957C78",
+    "phase": 10700,
+    "type": 4,
+    "image": "quest_img007_s01",
+    "titles": {
+      "en": "Lead on, Legs",
+      "fr": "Le mystère du ballon disparu",
+      "ja": "ぼくの足のゆくえ"
+    },
+    "id": "0x8F8C93F7",
+    "displayText": "Lead on, Legs",
+    "explain_EN": "Lead on, Legs",
+    "explain_FR": "Le mystère du ballon disparu",
+    "explain_JA": "ぼくの足のゆくえ"
+  },
+  {
+    "questId": "0xCCA19595",
+    "titleHash": "0x9F607824",
+    "phase": 20100,
+    "type": 7,
+    "image": "qsb020100_01",
+    "titles": {
+      "en": "The Neighborhood Thief",
+      "fr": "Le voleur du quartier",
+      "ja": "ご近所怪盗"
+    },
+    "id": "0xCCA19595",
+    "displayText": "The Neighborhood Thief",
+    "explain_EN": "The Neighborhood Thief",
+    "explain_FR": "Le voleur du quartier",
+    "explain_JA": "ご近所怪盗"
+  },
+  {
+    "questId": "0xCEE72BCC",
+    "titleHash": "0x19F40A8A",
+    "phase": 20200,
+    "type": 8,
+    "image": "qsb020200_01",
+    "titles": {
+      "en": "PsyRanger Makes an Entrance!",
+      "fr": "PsyRanger surgit de la nuit !",
+      "ja": "サイレンジャー登場！"
+    },
+    "id": "0xCEE72BCC",
+    "displayText": "PsyRanger Makes an Entrance!",
+    "explain_EN": "PsyRanger Makes an Entrance!",
+    "explain_FR": "PsyRanger surgit de la nuit !",
+    "explain_JA": "サイレンジャー登場！"
+  },
+  {
+    "questId": "0xCF2541FB",
+    "titleHash": "0xD2A8D92F",
+    "phase": 20300,
+    "type": 9,
+    "image": "qsb020300_01",
+    "titles": {
+      "en": "Why Grandma Got Lost: Part 3",
+      "fr": "S.O.S. mamie égarée 3",
+      "ja": "おばあさんが道に迷った理由３"
+    },
+    "id": "0xCF2541FB",
+    "displayText": "Why Grandma Got Lost: Part 3",
+    "explain_EN": "Why Grandma Got Lost: Part 3",
+    "explain_FR": "S.O.S. mamie égarée 3",
+    "explain_JA": "おばあさんが道に迷った理由３"
+  },
+  {
+    "questId": "0xCA6A577E",
+    "titleHash": "0xCFADE997",
+    "phase": 20400,
+    "type": 10,
+    "image": "qsb020400_01",
+    "titles": {
+      "en": "The Elusive Prize",
+      "fr": "Le grand prix d'un seul homme",
+      "ja": "何が当たるかな"
+    },
+    "id": "0xCA6A577E",
+    "displayText": "The Elusive Prize",
+    "explain_EN": "The Elusive Prize",
+    "explain_FR": "Le grand prix d'un seul homme",
+    "explain_JA": "何が当たるかな"
+  },
+  {
+    "questId": "0xF1C1BC25",
+    "titleHash": "0x53CA78BA",
+    "phase": 30100,
+    "type": 11,
+    "image": "qsb030100_01",
+    "titles": {
+      "en": "JOSEPHINE's Elegant Stroll: Part 1",
+      "fr": "L'élégante promenade de JOSEPHINE 1",
+      "ja": "ジョセフィーヌのエレガントな散歩１"
+    },
+    "id": "0xF1C1BC25",
+    "displayText": "JOSEPHINE's Elegant Stroll: Part 1",
+    "explain_EN": "JOSEPHINE's Elegant Stroll: Part 1",
+    "explain_FR": "L'élégante promenade de JOSEPHINE 1",
+    "explain_JA": "ジョセフィーヌのエレガントな散歩１"
+  },
+  {
+    "questId": "0xF387027C",
+    "titleHash": "0xD55E0A14",
+    "phase": 30200,
+    "type": 12,
+    "image": "qsb030200_01",
+    "titles": {
+      "en": "Show Me the Best Spots",
+      "fr": "Je veux découvrir les meilleurs coins",
+      "ja": "ベストスポットを教えて"
+    },
+    "id": "0xF387027C",
+    "displayText": "Show Me the Best Spots",
+    "explain_EN": "Show Me the Best Spots",
+    "explain_FR": "Je veux découvrir les meilleurs coins",
+    "explain_JA": "ベストスポットを教えて"
+  },
+  {
+    "questId": "0xF245684B",
+    "titleHash": "0x1E02D9B1",
+    "phase": 30300,
+    "type": 13,
+    "image": "qsb030300_01",
+    "titles": {
+      "en": "Unable to Attend the Reunion",
+      "fr": "Impossible d'assister à la réunion",
+      "ja": "同窓会にいけない理由"
+    },
+    "id": "0xF245684B",
+    "displayText": "Unable to Attend the Reunion",
+    "explain_EN": "Unable to Attend the Reunion",
+    "explain_FR": "Impossible d'assister à la réunion",
+    "explain_JA": "同窓会にいけない理由"
+  },
+  {
+    "questId": "0xF70A7ECE",
+    "titleHash": "0x0307E909",
+    "phase": 30400,
+    "type": 14,
+    "image": "qsb030400_01",
+    "titles": {
+      "en": "RAIKA's Sacred Pilgrimage",
+      "fr": "Le pèlerinage sacré de RAIKA",
+      "ja": "来夏の聖地巡礼"
+    },
+    "id": "0xF70A7ECE",
+    "displayText": "RAIKA's Sacred Pilgrimage",
+    "explain_EN": "RAIKA's Sacred Pilgrimage",
+    "explain_FR": "Le pèlerinage sacré de RAIKA",
+    "explain_JA": "来夏の聖地巡礼"
+  },
+  {
+    "questId": "0xF48EAAA0",
+    "titleHash": "0x4ECF4802",
+    "phase": 30600,
+    "type": 15,
+    "image": "qsb030600_01",
+    "titles": {
+      "en": "Tristar Pride",
+      "fr": "Fierté Mitsuboshi",
+      "ja": "三ツ星のプライド"
+    },
+    "id": "0xF48EAAA0",
+    "displayText": "Tristar Pride",
+    "explain_EN": "Tristar Pride",
+    "explain_FR": "Fierté Mitsuboshi",
+    "explain_JA": "三ツ星のプライド"
+  },
+  {
+    "questId": "0x43E16035",
+    "titleHash": "0x590F71A3",
+    "phase": 40100,
+    "type": 16,
+    "image": "qsb040100_01",
+    "titles": {
+      "en": "JOSEPHINE's Elegant Stroll: Part 2",
+      "fr": "L'élégante promenade de JOSEPHINE 2",
+      "ja": "ジョセフィーヌのエレガントな散歩２"
+    },
+    "id": "0x43E16035",
+    "displayText": "JOSEPHINE's Elegant Stroll: Part 2",
+    "explain_EN": "JOSEPHINE's Elegant Stroll: Part 2",
+    "explain_FR": "L'élégante promenade de JOSEPHINE 2",
+    "explain_JA": "ジョセフィーヌのエレガントな散歩２"
+  },
+  {
+    "questId": "0x41A7DE6C",
+    "titleHash": "0xDF9B030D",
+    "phase": 40200,
+    "type": 17,
+    "image": "qsb040200_01",
+    "titles": {
+      "en": "Join Me for Art Training",
+      "fr": "Dessinons ensemble",
+      "ja": "絵の修行に付き合って"
+    },
+    "id": "0x41A7DE6C",
+    "displayText": "Join Me for Art Training",
+    "explain_EN": "Join Me for Art Training",
+    "explain_FR": "Dessinons ensemble",
+    "explain_JA": "絵の修行に付き合って"
+  },
+  {
+    "questId": "0x4065B45B",
+    "titleHash": "0x14C7D0A8",
+    "phase": 40300,
+    "type": 18,
+    "image": "qsb040300_01",
+    "titles": {
+      "en": "Coying Up to UNMEI",
+      "fr": "Se rapprocher de UNMEI",
+      "ja": "笹波君と仲良くなりたい"
+    },
+    "id": "0x4065B45B",
+    "displayText": "Coying Up to UNMEI",
+    "explain_EN": "Coying Up to UNMEI",
+    "explain_FR": "Se rapprocher de UNMEI",
+    "explain_JA": "笹波君と仲良くなりたい"
+  },
+  {
+    "questId": "0x452AA2DE",
+    "titleHash": "0x09C2E010",
+    "phase": 40400,
+    "type": 19,
+    "image": "qsb040400_01",
+    "titles": {
+      "en": "Finding SHIROYAMA",
+      "fr": "À la recherche de SHIROYAMA",
+      "ja": "白山くんを探せ"
+    },
+    "id": "0x452AA2DE",
+    "displayText": "Finding SHIROYAMA",
+    "explain_EN": "Finding SHIROYAMA",
+    "explain_FR": "À la recherche de SHIROYAMA",
+    "explain_JA": "白山くんを探せ"
+  },
+  {
+    "questId": "0x44E8C8E9",
+    "titleHash": "0xC29E33B5",
+    "phase": 40500,
+    "type": 20,
+    "image": "qsb040500_01",
+    "titles": {
+      "en": "In-Depth Coverage",
+      "fr": "Reportage approfondi",
+      "ja": "密着取材"
+    },
+    "id": "0x44E8C8E9",
+    "displayText": "In-Depth Coverage",
+    "explain_EN": "In-Depth Coverage",
+    "explain_FR": "Reportage approfondi",
+    "explain_JA": "密着取材"
+  },
+  {
+    "questId": "0x7E814985",
+    "titleHash": "0x95A5713D",
+    "phase": 50100,
+    "type": 21,
+    "image": "qsb050100_01",
+    "titles": {
+      "en": "The Perfect Shot",
+      "fr": "La photo parfaite",
+      "ja": "いい画をください"
+    },
+    "id": "0x7E814985",
+    "displayText": "The Perfect Shot",
+    "explain_EN": "The Perfect Shot",
+    "explain_FR": "La photo parfaite",
+    "explain_JA": "いい画をください"
+  },
+  {
+    "questId": "0x7CC7F7DC",
+    "titleHash": "0x13310393",
+    "phase": 50200,
+    "type": 22,
+    "image": "qsb050200_01",
+    "titles": {
+      "en": "The Dark Society Emerges",
+      "fr": "L'arrivée de la Société du mal",
+      "ja": "闇の組織あらわる"
+    },
+    "id": "0x7CC7F7DC",
+    "displayText": "The Dark Society Emerges",
+    "explain_EN": "The Dark Society Emerges",
+    "explain_FR": "L'arrivée de la Société du mal",
+    "explain_JA": "闇の組織あらわる"
+  },
+  {
+    "questId": "0x7D059DEB",
+    "titleHash": "0xD86DD036",
+    "phase": 50300,
+    "type": 23,
+    "image": "qsb050300_01",
+    "titles": {
+      "en": "The Return of Doll and Finn",
+      "fr": "Le grand retour de Dodo et Finn",
+      "ja": "帰って来たイルとカル"
+    },
+    "id": "0x7D059DEB",
+    "displayText": "The Return of Doll and Finn",
+    "explain_EN": "The Return of Doll and Finn",
+    "explain_FR": "Le grand retour de Dodo et Finn",
+    "explain_JA": "帰って来たイルとカル"
+  },
+  {
+    "questId": "0x784A8B6E",
+    "titleHash": "0xC568E08E",
+    "phase": 50400,
+    "type": 24,
+    "image": "qsb050400_01",
+    "titles": {
+      "en": "Picture Perfect: YAGYU's Finest",
+      "fr": "Photo parfaite : YAGYU à son apogée",
+      "ja": "激写！トップ・オブ・柳生"
+    },
+    "id": "0x784A8B6E",
+    "displayText": "Picture Perfect: YAGYU's Finest",
+    "explain_EN": "Picture Perfect: YAGYU's Finest",
+    "explain_FR": "Photo parfaite : YAGYU à son apogée",
+    "explain_JA": "激写！トップ・オブ・柳生"
+  },
+  {
+    "questId": "0x7BCE5F00",
+    "titleHash": "0x88A04185",
+    "phase": 50600,
+    "type": 25,
+    "image": "qsb050600_01",
+    "titles": {
+      "en": "Magnetic Field Encounters",
+      "fr": "Rencontre du champ magnétique",
+      "ja": "磁場との遭遇"
+    },
+    "id": "0x7BCE5F00",
+    "displayText": "Magnetic Field Encounters",
+    "explain_EN": "Magnetic Field Encounters",
+    "explain_FR": "Rencontre du champ magnétique",
+    "explain_JA": "磁場との遭遇"
+  },
+  {
+    "questId": "0x39213355",
+    "titleHash": "0x1B2A76DE",
+    "phase": 60100,
+    "type": 26,
+    "image": "qsb060100_01",
+    "titles": {
+      "en": "Noodle Shop Troubles",
+      "fr": "Du grabuge au resto d'udon",
+      "ja": "うどん屋の困りごと"
+    },
+    "id": "0x39213355",
+    "displayText": "Noodle Shop Troubles",
+    "explain_EN": "Noodle Shop Troubles",
+    "explain_FR": "Du grabuge au resto d'udon",
+    "explain_JA": "うどん屋の困りごと"
+  },
+  {
+    "questId": "0x3B678D0C",
+    "titleHash": "0x9DBE0470",
+    "phase": 60200,
+    "type": 27,
+    "image": "qsb060200_01",
+    "titles": {
+      "en": "Go Viral! Special Football Drill",
+      "fr": "IL S'ENTRAÎNE AU FOOT COMME ÇA ???",
+      "ja": "バズれ！先生のサッカー特訓"
+    },
+    "id": "0x3B678D0C",
+    "displayText": "Go Viral! Special Football Drill",
+    "explain_EN": "Go Viral! Special Football Drill",
+    "explain_FR": "IL S'ENTRAÎNE AU FOOT COMME ÇA ???",
+    "explain_JA": "バズれ！先生のサッカー特訓"
+  },
+  {
+    "questId": "0x3AA5E73B",
+    "titleHash": "0x56E2D7D5",
+    "phase": 60300,
+    "type": 28,
+    "image": "qsb060300_01",
+    "titles": {
+      "en": "Don Gorillo Bowl King",
+      "fr": "Don Gorillo, roi des nouilles",
+      "ja": "ゴリラどんぶり大将"
+    },
+    "id": "0x3AA5E73B",
+    "displayText": "Don Gorillo Bowl King",
+    "explain_EN": "Don Gorillo Bowl King",
+    "explain_FR": "Don Gorillo, roi des nouilles",
+    "explain_JA": "ゴリラどんぶり大将"
+  },
+  {
+    "questId": "0x3FEAF1BE",
+    "titleHash": "0x4BE7E76D",
+    "phase": 60400,
+    "type": 29,
+    "image": "qsb060400_01",
+    "titles": {
+      "en": "My Goddess",
+      "fr": "Ma déesse",
+      "ja": "ぼくの女神"
+    },
+    "id": "0x3FEAF1BE",
+    "displayText": "My Goddess",
+    "explain_EN": "My Goddess",
+    "explain_FR": "Ma déesse",
+    "explain_JA": "ぼくの女神"
+  },
+  {
+    "questId": "0x3E289B89",
+    "titleHash": "0x80BB34C8",
+    "phase": 60500,
+    "type": 30,
+    "image": "qsb060500_01",
+    "titles": {
+      "en": "MAKINO's Keepsake",
+      "fr": "MAKINO et son souvenir",
+      "ja": "みどりさんの宝物"
+    },
+    "id": "0x3E289B89",
+    "displayText": "MAKINO's Keepsake",
+    "explain_EN": "MAKINO's Keepsake",
+    "explain_FR": "MAKINO et son souvenir",
+    "explain_JA": "みどりさんの宝物"
+  },
+  {
+    "questId": "0x04411AE5",
+    "titleHash": "0xD7807640",
+    "phase": 70100,
+    "type": 31,
+    "image": "qsb070100_01",
+    "titles": {
+      "en": "The Missing Rookie",
+      "fr": "Le nouveau a disparu",
+      "ja": "消えた新人スタッフ"
+    },
+    "id": "0x04411AE5",
+    "displayText": "The Missing Rookie",
+    "explain_EN": "The Missing Rookie",
+    "explain_FR": "Le nouveau a disparu",
+    "explain_JA": "消えた新人スタッフ"
+  },
+  {
+    "questId": "0x0607A4BC",
+    "titleHash": "0x511404EE",
+    "phase": 70200,
+    "type": 32,
+    "image": "qsb070200_01",
+    "titles": {
+      "en": "Gunning for Top Keeper",
+      "fr": "Dans le but d'être le meilleur gardien",
+      "ja": "凄腕キーパーを目指して"
+    },
+    "id": "0x0607A4BC",
+    "displayText": "Gunning for Top Keeper",
+    "explain_EN": "Gunning for Top Keeper",
+    "explain_FR": "Dans le but d'être le meilleur gardien",
+    "explain_JA": "凄腕キーパーを目指して"
+  },
+  {
+    "questId": "0x07C5CE8B",
+    "titleHash": "0x9A48D74B",
+    "phase": 70300,
+    "type": 33,
+    "image": "qsb070300_01",
+    "titles": {
+      "en": "Where's That Ball?",
+      "fr": "Où est ce ballon ?",
+      "ja": "あのボールはどこに"
+    },
+    "id": "0x07C5CE8B",
+    "displayText": "Where's That Ball?",
+    "explain_EN": "Where's That Ball?",
+    "explain_FR": "Où est ce ballon ?",
+    "explain_JA": "あのボールはどこに"
+  },
+  {
+    "questId": "0x028AD80E",
+    "titleHash": "0x874DE7F3",
+    "phase": 70400,
+    "type": 34,
+    "image": "qsb070400_01",
+    "titles": {
+      "en": "JOSEPHINE's Elegant Stroll: Part 3",
+      "fr": "L'élégante promenade de JOSEPHINE 3",
+      "ja": "ジョセフィーヌのエレガントな散歩３"
+    },
+    "id": "0x028AD80E",
+    "displayText": "JOSEPHINE's Elegant Stroll: Part 3",
+    "explain_EN": "JOSEPHINE's Elegant Stroll: Part 3",
+    "explain_FR": "L'élégante promenade de JOSEPHINE 3",
+    "explain_JA": "ジョセフィーヌのエレガントな散歩３"
+  },
+  {
+    "questId": "0x010E0C60",
+    "titleHash": "0xCA8546F8",
+    "phase": 70600,
+    "type": 35,
+    "image": "qsb070600_01",
+    "titles": {
+      "en": "Can You Show Me Around?",
+      "fr": "Tu me montres les environs ?",
+      "ja": "案内してくれマスカ？"
+    },
+    "id": "0x010E0C60",
+    "displayText": "Can You Show Me Around?",
+    "explain_EN": "Can You Show Me Around?",
+    "explain_FR": "Tu me montres les environs ?",
+    "explain_JA": "案内してくれマスカ？"
+  },
+  {
+    "questId": "0x00CC6657",
+    "titleHash": "0x01D9955D",
+    "phase": 70700,
+    "type": 36,
+    "image": "qsb070700_01",
+    "titles": {
+      "en": "After-Hours Student Shenanigans",
+      "fr": "Troubles après les cours",
+      "ja": "夜に消える生徒"
+    },
+    "id": "0x00CC6657",
+    "displayText": "After-Hours Student Shenanigans",
+    "explain_EN": "After-Hours Student Shenanigans",
+    "explain_FR": "Troubles après les cours",
+    "explain_JA": "夜に消える生徒"
+  },
+  {
+    "questId": "0x86118D34",
+    "titleHash": "0x0EA064EC",
+    "phase": 80100,
+    "type": 37,
+    "image": "qsb080100_01",
+    "titles": {
+      "en": "Between Bowls and Glances",
+      "fr": "Entre un bol et un regard",
+      "ja": "うどんの花"
+    },
+    "id": "0x86118D34",
+    "displayText": "Between Bowls and Glances",
+    "explain_EN": "Between Bowls and Glances",
+    "explain_FR": "Entre un bol et un regard",
+    "explain_JA": "うどんの花"
+  },
+  {
+    "questId": "0x8595595A",
+    "titleHash": "0x4368C5E7",
+    "phase": 80300,
+    "type": 38,
+    "image": "qsb080300_01",
+    "titles": {
+      "en": "The Ultimate Soup",
+      "fr": "La soupe ultime",
+      "ja": "究極のスープ"
+    },
+    "id": "0x8595595A",
+    "displayText": "The Ultimate Soup",
+    "explain_EN": "The Ultimate Soup",
+    "explain_FR": "La soupe ultime",
+    "explain_JA": "究極のスープ"
+  },
+  {
+    "questId": "0x80DA4FDF",
+    "titleHash": "0x5E6DF55F",
+    "phase": 80400,
+    "type": 39,
+    "image": "qsb080400_01",
+    "titles": {
+      "en": "Odaiba's UMIBOZU Scare",
+      "fr": "Le jour où l'umi-bozu envahit Odaiba",
+      "ja": "恐怖！お台場の海坊主"
+    },
+    "id": "0x80DA4FDF",
+    "displayText": "Odaiba's UMIBOZU Scare",
+    "explain_EN": "Odaiba's UMIBOZU Scare",
+    "explain_FR": "Le jour où l'umi-bozu envahit Odaiba",
+    "explain_JA": "恐怖！お台場の海坊主"
+  },
+  {
+    "questId": "0x811825E8",
+    "titleHash": "0x953126FA",
+    "phase": 80500,
+    "type": 40,
+    "image": "qsb080500_01",
+    "titles": {
+      "en": "What Do You Want to Eat?",
+      "fr": "Que veux-tu manger ?",
+      "ja": "食べたいものは？"
+    },
+    "id": "0x811825E8",
+    "displayText": "What Do You Want to Eat?",
+    "explain_EN": "What Do You Want to Eat?",
+    "explain_FR": "Que veux-tu manger ?",
+    "explain_JA": "食べたいものは？"
+  },
+  {
+    "questId": "0xBB71A484",
+    "titleHash": "0xC20A6472",
+    "phase": 90100,
+    "type": 41,
+    "image": "qsb090100_01",
+    "titles": {
+      "en": "Find Sigdor's Tale",
+      "fr": "À la recherche du conte de Sigdor",
+      "ja": "シグド戦記を探せ"
+    },
+    "id": "0xBB71A484",
+    "displayText": "Find Sigdor's Tale",
+    "explain_EN": "Find Sigdor's Tale",
+    "explain_FR": "À la recherche du conte de Sigdor",
+    "explain_JA": "シグド戦記を探せ"
+  },
+  {
+    "questId": "0xB9371ADD",
+    "titleHash": "0x449E16DC",
+    "phase": 90200,
+    "type": 42,
+    "image": "qsb090200_01",
+    "titles": {
+      "en": "Chasing the Bogus Reporter",
+      "fr": "Pourchasser le journaliste bidon",
+      "ja": "デタラメ記者を追って"
+    },
+    "id": "0xB9371ADD",
+    "displayText": "Chasing the Bogus Reporter",
+    "explain_EN": "Chasing the Bogus Reporter",
+    "explain_FR": "Pourchasser le journaliste bidon",
+    "explain_JA": "デタラメ記者を追って"
+  },
+  {
+    "questId": "0xB8F570EA",
+    "titleHash": "0x8FC2C579",
+    "phase": 90300,
+    "type": 43,
+    "image": "qsb090300_01",
+    "titles": {
+      "en": "Card Soldier's First Crush",
+      "fr": "Le premier amour de l'espion",
+      "ja": "トランプ兵の一目惚れ"
+    },
+    "id": "0xB8F570EA",
+    "displayText": "Card Soldier's First Crush",
+    "explain_EN": "Card Soldier's First Crush",
+    "explain_FR": "Le premier amour de l'espion",
+    "explain_JA": "トランプ兵の一目惚れ"
+  },
+  {
+    "questId": "0xBDBA666F",
+    "titleHash": "0x92C7F5C1",
+    "phase": 90400,
+    "type": 44,
+    "image": "qsb090400_01",
+    "titles": {
+      "en": "May I Take Your Picture?",
+      "fr": "Une photo ?",
+      "ja": "一枚いいですか？"
+    },
+    "id": "0xBDBA666F",
+    "displayText": "May I Take Your Picture?",
+    "explain_EN": "May I Take Your Picture?",
+    "explain_FR": "Une photo ?",
+    "explain_JA": "一枚いいですか？"
+  },
+  {
+    "questId": "0xBC780C58",
+    "titleHash": "0x599B2664",
+    "phase": 90500,
+    "type": 45,
+    "image": "qsb090500_01",
+    "titles": {
+      "en": "New Local Gourmet Dish!",
+      "fr": "Le nouveau plat régional !",
+      "ja": "ご当地グルメの新メニュー！"
+    },
+    "id": "0xBC780C58",
+    "displayText": "New Local Gourmet Dish!",
+    "explain_EN": "New Local Gourmet Dish!",
+    "explain_FR": "Le nouveau plat régional !",
+    "explain_JA": "ご当地グルメの新メニュー！"
+  }
+]

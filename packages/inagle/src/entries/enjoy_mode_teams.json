@@ -1,0 +1,422 @@
+[
+  {
+    "id": "0x35B87230",
+    "name": "ev_bb_s10g001_01",
+    "teamId": "0x35B87230",
+    "subId": "0x3055CF22",
+    "colorCrc": "0xB2221B08",
+    "type": 1,
+    "formationCrc": "0x22E965A5",
+    "texturePath": "ev_chronicle_img/ev_bb_s10g001_01.g4tx",
+    "textureName": "ev_bb_s10g001_01",
+    "attributes": {
+      "Type": 1,
+      "Texture": "ev_bb_s10g001_01"
+    }
+  },
+  {
+    "id": "0x54EA4346",
+    "name": "ev_bb_s11g001_01",
+    "teamId": "0x54EA4346",
+    "subId": "0x9E23A289",
+    "colorCrc": "0xC5252B9E",
+    "type": 3,
+    "formationCrc": "0x1F894C15",
+    "texturePath": "ev_chronicle_img/ev_bb_s11g001_01.g4tx",
+    "textureName": "ev_bb_s11g001_01",
+    "attributes": {
+      "Type": 3,
+      "Texture": "ev_bb_s11g001_01"
+    }
+  },
+  {
+    "id": "0x11F7C481",
+    "name": "ev_bb_s33g001_01",
+    "teamId": "0x11F7C481",
+    "subId": "0x2B08403A",
+    "colorCrc": "0x2B2B4AB2",
+    "type": 2,
+    "formationCrc": "0x2881BE7E",
+    "texturePath": "ev_chronicle_img/ev_bb_s33g001_01.g4tx",
+    "textureName": "ev_bb_s33g001_01",
+    "attributes": {
+      "Type": 2,
+      "Texture": "ev_bb_s33g001_01"
+    }
+  },
+  {
+    "id": "0x755824A6",
+    "name": "ev_bb_s14g001_01",
+    "teamId": "0x755824A6",
+    "subId": "0x3055CF22",
+    "colorCrc": "0xC248EF87",
+    "type": 7,
+    "formationCrc": "0xD769C365",
+    "texturePath": "ev_chronicle_img/ev_bb_s14g001_01.g4tx",
+    "textureName": "ev_bb_s14g001_01",
+    "attributes": {
+      "Type": 7,
+      "Texture": "ev_bb_s14g001_01"
+    }
+  },
+  {
+    "id": "0x3D867C7C",
+    "name": "ev_bb_s09g001_01",
+    "teamId": "0x3D867C7C",
+    "subId": "0xDB18BACC",
+    "colorCrc": "0x5C2C7A24",
+    "type": 4,
+    "formationCrc": "0xE4A5D471",
+    "texturePath": "ev_chronicle_img/ev_bb_s09g001_01.g4tx",
+    "textureName": "ev_bb_s09g001_01",
+    "attributes": {
+      "Type": 4,
+      "Texture": "ev_bb_s09g001_01"
+    }
+  },
+  {
+    "id": "0x93D44005",
+    "name": "ev_bb_s52g001_01",
+    "teamId": "0x93D44005",
+    "subId": "0xC04535D4",
+    "colorCrc": "0xB54FDF11",
+    "type": 5,
+    "formationCrc": "0xC3B874D3",
+    "texturePath": "ev_chronicle_img/ev_bb_s52g001_01.g4tx",
+    "textureName": "ev_bb_s52g001_01",
+    "attributes": {
+      "Type": 5,
+      "Texture": "ev_bb_s52g001_01"
+    }
+  },
+  {
+    "id": "0xDBB12446",
+    "name": "ev_bb_s13g001_01",
+    "teamId": "0xDBB12446",
+    "subId": "0xC50A2351",
+    "colorCrc": "0x2C468EAB",
+    "type": 6,
+    "formationCrc": "0x65491F75",
+    "texturePath": "ev_chronicle_img/ev_bb_s13g001_01.g4tx",
+    "textureName": "ev_bb_s13g001_01",
+    "attributes": {
+      "Type": 6,
+      "Texture": "ev_bb_s13g001_01"
+    }
+  },
+  {
+    "id": "0xE092549C",
+    "name": "ev_bb_s68g001_01",
+    "teamId": "0xE092549C",
+    "subId": "0x6F08BCC1",
+    "colorCrc": "0xCBFEA3AC",
+    "type": 9,
+    "formationCrc": "0x0F9C1EDC",
+    "texturePath": "ev_chronicle_img/ev_bb_s68g001_01.g4tx",
+    "textureName": "ev_bb_s68g001_01",
+    "attributes": {
+      "Type": 9,
+      "Texture": "ev_bb_s68g001_01"
+    }
+  },
+  {
+    "id": "0x4EB3FA87",
+    "name": "ev_bb_s22g001_01",
+    "teamId": "0x4EB3FA87",
+    "subId": "0xAAB46A8D",
+    "colorCrc": "0x5B41BE3D",
+    "type": 8,
+    "formationCrc": "0xDEBD446B",
+    "texturePath": "ev_chronicle_img/ev_bb_s22g001_01.g4tx",
+    "textureName": "ev_bb_s22g001_01",
+    "attributes": {
+      "Type": 8,
+      "Texture": "ev_bb_s22g001_01"
+    }
+  },
+  {
+    "id": "0xA8EDA4FD",
+    "name": "ev_bb_s19g001_01",
+    "teamId": "0xA8EDA4FD",
+    "subId": "0xB3AF5BCC",
+    "colorCrc": "0xDC3E1ADF",
+    "type": 11,
+    "formationCrc": "0x2FF907D4",
+    "texturePath": "ev_chronicle_img/ev_bb_s19g001_01.g4tx",
+    "textureName": "ev_bb_s19g001_01",
+    "attributes": {
+      "Type": 11,
+      "Texture": "ev_bb_s19g001_01"
+    }
+  },
+  {
+    "id": "0xBBDA960F",
+    "name": "ev_bb_s17g001_01",
+    "teamId": "0xBBDA960F",
+    "subId": "0xA28E9F95",
+    "colorCrc": "0xBCF9933A",
+    "type": 10,
+    "formationCrc": "0x90C9B9B5",
+    "texturePath": "ev_chronicle_img/ev_bb_s17g001_01.g4tx",
+    "textureName": "ev_bb_s17g001_01",
+    "attributes": {
+      "Type": 10,
+      "Texture": "ev_bb_s17g001_01"
+    }
+  },
+  {
+    "id": "0xD1878EAC",
+    "name": "ev_bb_s29g001_02",
+    "teamId": "0xD1878EAC",
+    "subId": "0x19B62C9E",
+    "colorCrc": "0xAB392A49",
+    "type": 12,
+    "formationCrc": "0xA96D757A",
+    "texturePath": "ev_chronicle_img/ev_bb_s29g001_02.g4tx",
+    "textureName": "ev_bb_s29g001_02",
+    "attributes": {
+      "Type": 12,
+      "Texture": "ev_bb_s29g001_02"
+    }
+  },
+  {
+    "id": "0x525671D8",
+    "name": "ev_bb_s78g001_01",
+    "teamId": "0x525671D8",
+    "subId": "0xB3AF5BCC",
+    "colorCrc": "0x32307BF3",
+    "type": 13,
+    "formationCrc": "0xC4C0CD79",
+    "texturePath": "ev_chronicle_img/ev_bb_s78g001_01.g4tx",
+    "textureName": "ev_bb_s78g001_01",
+    "attributes": {
+      "Type": 13,
+      "Texture": "ev_bb_s78g001_01"
+    }
+  },
+  {
+    "id": "0x6372F595",
+    "name": "ev_bb_b10g004_01",
+    "teamId": "0x6372F595",
+    "subId": "0xC19FE60C",
+    "colorCrc": "0x45374B65",
+    "type": 14,
+    "formationCrc": "0x932A0650",
+    "texturePath": "ev_chronicle_img/ev_bb_b10g004_01.g4tx",
+    "textureName": "ev_bb_b10g004_01",
+    "attributes": {
+      "Type": 14,
+      "Texture": "ev_bb_b10g004_01"
+    }
+  },
+  {
+    "id": "0x152912CE",
+    "name": "ev_bb_b10g004_01",
+    "teamId": "0x152912CE",
+    "subId": "0xC19FE60C",
+    "colorCrc": "0xDB53DEC6",
+    "type": 15,
+    "formationCrc": "0x932A0650",
+    "texturePath": "ev_chronicle_img/ev_bb_b10g004_01.g4tx",
+    "textureName": "ev_bb_b10g004_01",
+    "attributes": {
+      "Type": 15,
+      "Texture": "ev_bb_b10g004_01"
+    }
+  },
+  {
+    "id": "0x88A8FF3A",
+    "name": "ev_bb_b10g004_01",
+    "teamId": "0x88A8FF3A",
+    "subId": "0xC19FE60C",
+    "colorCrc": "0xAC54EE50",
+    "type": 16,
+    "formationCrc": "0x932A0650",
+    "texturePath": "ev_chronicle_img/ev_bb_b10g004_01.g4tx",
+    "textureName": "ev_bb_b10g004_01",
+    "attributes": {
+      "Type": 16,
+      "Texture": "ev_bb_b10g004_01"
+    }
+  },
+  {
+    "id": "0x92EF7CC2",
+    "name": "ev_bb_s22g001b_01",
+    "teamId": "0x92EF7CC2",
+    "subId": "0x38BF742E",
+    "colorCrc": "0x355DBFEA",
+    "type": 17,
+    "formationCrc": "0xAB00EA6D",
+    "texturePath": "ev_chronicle_img/ev_bb_s22g001b_01.g4tx",
+    "textureName": "ev_bb_s22g001b_01",
+    "attributes": {
+      "Type": 17,
+      "Texture": "ev_bb_s22g001b_01"
+    }
+  },
+  {
+    "id": "0xEE700CE3",
+    "name": "ev_bb_s24g001_01",
+    "teamId": "0xEE700CE3",
+    "subId": "0x6EE5D3A8",
+    "colorCrc": "0x425A8F7C",
+    "type": 18,
+    "formationCrc": "0x51FDB1CB",
+    "texturePath": "ev_chronicle_img/ev_bb_s24g001_01.g4tx",
+    "textureName": "ev_bb_s24g001_01",
+    "attributes": {
+      "Type": 18,
+      "Texture": "ev_bb_s24g001_01"
+    }
+  },
+  {
+    "id": "0x8A10F7BF",
+    "name": "ev_bb_s02g001_01",
+    "teamId": "0x8A10F7BF",
+    "subId": "0xBB5FB56C",
+    "colorCrc": "0x191D2830",
+    "type": 23,
+    "formationCrc": "0x9375E560",
+    "texturePath": "ev_chronicle_img/ev_bb_s02g001_01.g4tx",
+    "textureName": "ev_bb_s02g001_01",
+    "attributes": {
+      "Type": 23,
+      "Texture": "ev_bb_s02g001_01"
+    }
+  },
+  {
+    "id": "0x691CDA53",
+    "name": "ev_bb_s01g001_01",
+    "teamId": "0x691CDA53",
+    "subId": "0xAD12CF1F",
+    "colorCrc": "0x8014798A",
+    "type": 22,
+    "formationCrc": "0xD4D59FB0",
+    "texturePath": "ev_chronicle_img/ev_bb_s01g001_01.g4tx",
+    "textureName": "ev_bb_s01g001_01",
+    "attributes": {
+      "Type": 22,
+      "Texture": "ev_bb_s01g001_01"
+    }
+  },
+  {
+    "id": "0x225D96A7",
+    "name": "ev_ch_s21g001_0502",
+    "teamId": "0x225D96A7",
+    "subId": "0x7AB4BBF3",
+    "colorCrc": "0xD2E592ED",
+    "type": 19,
+    "formationCrc": "0x991D3EBB",
+    "texturePath": "ev_chronicle_img/ev_ch_s21g001_0502.g4tx",
+    "textureName": "ev_ch_s21g001_0502",
+    "attributes": {
+      "Type": 19,
+      "Texture": "ev_ch_s21g001_0502"
+    }
+  },
+  {
+    "id": "0x8F126EC3",
+    "name": "ev_ch_s23g001_0116",
+    "teamId": "0x8F126EC3",
+    "subId": "0x7F1F0EFE",
+    "colorCrc": "0xA5E2A27B",
+    "type": 20,
+    "formationCrc": "0xE3DD6DDB",
+    "texturePath": "ev_chronicle_img/ev_ch_s23g001_0116.g4tx",
+    "textureName": "ev_ch_s23g001_0116",
+    "attributes": {
+      "Type": 20,
+      "Texture": "ev_ch_s23g001_0116"
+    }
+  },
+  {
+    "id": "0x5AB58347",
+    "name": "ev_ch_s82g001_0101",
+    "teamId": "0x5AB58347",
+    "subId": "0x142580C8",
+    "colorCrc": "0xF713491C",
+    "type": 21,
+    "formationCrc": "0x7F26670D",
+    "texturePath": "ev_chronicle_img/ev_ch_s82g001_0101.g4tx",
+    "textureName": "ev_ch_s82g001_0101",
+    "attributes": {
+      "Type": 21,
+      "Texture": "ev_ch_s82g001_0101"
+    }
+  },
+  {
+    "id": "0xB88BCF4B",
+    "name": "ev_ch_s85g001_0416",
+    "teamId": "0xB88BCF4B",
+    "subId": "0x8E9453CE",
+    "colorCrc": "0x8779BD93",
+    "type": 26,
+    "formationCrc": "0xCD06BB1D",
+    "texturePath": "ev_chronicle_img/ev_ch_s85g001_0416.g4tx",
+    "textureName": "ev_ch_s85g001_0416",
+    "attributes": {
+      "Type": 26,
+      "Texture": "ev_ch_s85g001_0416"
+    }
+  },
+  {
+    "id": "0xE2B8A544",
+    "name": "ev_ch_s25g001_0116",
+    "teamId": "0xE2B8A544",
+    "subId": "0x8E9453CE",
+    "colorCrc": "0x6E1A18A6",
+    "type": 24,
+    "formationCrc": "0x6C9D987B",
+    "texturePath": "ev_chronicle_img/ev_ch_s25g001_0116.g4tx",
+    "textureName": "ev_ch_s25g001_0116",
+    "attributes": {
+      "Type": 24,
+      "Texture": "ev_ch_s25g001_0116"
+    }
+  },
+  {
+    "id": "0xE46B7760",
+    "name": "ev_ch_s83g001_0116",
+    "teamId": "0xE46B7760",
+    "subId": "0x142580C8",
+    "colorCrc": "0xF07E8D05",
+    "type": 25,
+    "formationCrc": "0x42464EBD",
+    "texturePath": "ev_chronicle_img/ev_ch_s83g001_0116.g4tx",
+    "textureName": "ev_ch_s83g001_0116",
+    "attributes": {
+      "Type": 25,
+      "Texture": "ev_ch_s83g001_0116"
+    }
+  },
+  {
+    "id": "0x5A3C45E3",
+    "name": "ev_ch_s06g001_0121",
+    "teamId": "0x5A3C45E3",
+    "subId": "0x2AA62CA1",
+    "colorCrc": "0x1E70EC29",
+    "type": 27,
+    "formationCrc": "0x66F543A0",
+    "texturePath": "ev_chronicle_img/ev_ch_s06g001_0121.g4tx",
+    "textureName": "ev_ch_s06g001_0121",
+    "attributes": {
+      "Type": 27,
+      "Texture": "ev_ch_s06g001_0121"
+    }
+  },
+  {
+    "id": "0xFEB025C9",
+    "name": "ev_ch_s06g001_0121",
+    "teamId": "0xFEB025C9",
+    "subId": "0xCBF73DD7",
+    "colorCrc": "0x6977DCBF",
+    "type": 28,
+    "formationCrc": "0x66F543A0",
+    "texturePath": "ev_chronicle_img/ev_ch_s06g001_0121.g4tx",
+    "textureName": "ev_ch_s06g001_0121",
+    "attributes": {
+      "Type": 28,
+      "Texture": "ev_ch_s06g001_0121"
+    }
+  }
+]

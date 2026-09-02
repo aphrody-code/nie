@@ -1,0 +1,84 @@
+{
+	"name": "@rosegriffon/inagle",
+	"version": "2.0.2",
+	"description": "Universal Game Data API for Inazuma Eleven: Victory Road — parsers, types, and tools for IEVR game data",
+	"keywords": [
+		"cfg-bin",
+		"game-data",
+		"iecode",
+		"ievr",
+		"inazuma-eleven",
+		"parser",
+		"victory-road",
+		"zukan"
+	],
+	"homepage": "https://azalee.rosegriffon.fr",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/rose-griffon/rosegriffon.git",
+		"directory": "packages/inagle"
+	},
+	"bin": {
+		"inagle": "./dist/cli.js"
+	},
+	"files": [
+		"dist",
+		"src"
+	],
+	"type": "module",
+	"main": "./src/index.ts",
+	"types": "./src/index.ts",
+	"exports": {
+		".": "./src/index.ts",
+		"./*": "./src/*.ts"
+	},
+	"publishConfig": {
+		"access": "public",
+		"registry": "https://registry.npmjs.org"
+	},
+	"scripts": {
+		"build": "bun --bun tsc -p tsconfig.build.json",
+		"cli": "bun src/cli.ts",
+		"entries": "bun src/scripts/generate-entries.ts",
+		"push": "bun src/cli.ts push",
+		"serve": "bun src/scripts/serve-data.ts",
+		"compile": "bun src/scripts/build-standalone.ts",
+		"prepublishOnly": "bun run build",
+		"test": "bun test",
+		"lint": "bunx oxlint -c ../../.oxlintrc.json -A style -A pedantic -A restriction src",
+		"lint:fix": "bunx oxlint -c ../../.oxlintrc.json -A style -A pedantic -A restriction --fix src",
+		"type-check": "bun --bun tsc -p tsconfig.build.json --noEmit"
+	},
+	"dependencies": {
+		"@aphrody-code/bxc": "catalog:",
+		"@aphrody-code/zukan": "catalog:",
+		"@leeoniya/ufuzzy": "catalog:",
+		"@streamparser/json": "catalog:",
+		"@supabase/supabase-js": "catalog:",
+		"cheerio": "catalog:",
+		"commander": "catalog:",
+		"fengari": "catalog:",
+		"hono": "catalog:",
+		"jsonwebtoken": "catalog:",
+		"kuroshiro": "catalog:",
+		"kuroshiro-analyzer-kuromoji": "catalog:",
+		"picocolors": "catalog:",
+		"web-tree-sitter": "catalog:",
+		"zod": "catalog:",
+		"zod-to-json-schema": "catalog:"
+	},
+	"devDependencies": {
+		"@types/bun": "catalog:",
+		"@types/jsonwebtoken": "catalog:",
+		"@types/node": "catalog:",
+		"@types/pg": "catalog:",
+		"typescript": "catalog:",
+		"vitest": "catalog:"
+	},
+	"trustedDependencies": [
+		"tree-sitter",
+		"tree-sitter-c",
+		"esbuild"
+	]
+}

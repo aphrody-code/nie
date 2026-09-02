@@ -1,0 +1,263 @@
+[
+  {
+    "auraId": "0xA17C3D72",
+    "auraIdStr": "aura_0xA17C3D72",
+    "element": 0,
+    "name_FR": "Boost chrono",
+    "name_EN": "Instant Burst",
+    "name_JA": "タイムブースト",
+    "desc_FR": "Au top de sa concentration, le joueur\ntraverse le terrain à toute vitesse.",
+    "desc_JA": "集中力が研ぎ澄まされ\n俊敏にフィールドを駆け抜ける。",
+    "image": "220_img/telop_waza/fr/aura_power_wap01005.webp",
+    "assetCode": "wap01005",
+    "subType": "Aura",
+    "config": {
+      "val4": 30,
+      "val5": 90,
+      "val9": 8,
+      "val11": 1,
+      "buffId": "0x93B3F7AB",
+      "rank": 3005
+    },
+    "_source": "AURA_CMD_INFO",
+    "_file": "aura_skill_config",
+    "displayName": "Boost chrono",
+    "elementName": {
+      "en": "None",
+      "ja": "なし",
+      "fr": "Aucun"
+    }
+  },
+  {
+    "auraId": "0xD67B0DE4",
+    "auraIdStr": "aura_0xD67B0DE4",
+    "element": 0,
+    "name_FR": "Catalyste élémentaire",
+    "name_EN": "Elemental Catalyst",
+    "name_JA": "エレメントアクセル",
+    "desc_FR": "Le joueur puise dans son potentiel,\net débloque une puissance élémentaire encore plus grande.",
+    "desc_JA": "潜在能力を呼び覚まし\n属性の力を　さらに引き出す。",
+    "image": "220_img/telop_waza/fr/aura_power_wap01004.webp",
+    "assetCode": "wap01004",
+    "subType": "Aura",
+    "config": {
+      "val4": 30,
+      "val5": 90,
+      "val9": 8,
+      "val11": 1,
+      "buffId": "0x93B3F7AB",
+      "rank": 3004
+    },
+    "_source": "AURA_CMD_INFO",
+    "_file": "aura_skill_config",
+    "displayName": "Catalyste élémentaire",
+    "elementName": {
+      "en": "None",
+      "ja": "なし",
+      "fr": "Aucun"
+    }
+  },
+  {
+    "auraId": "0x481F9847",
+    "auraIdStr": "aura_0x481F9847",
+    "element": 0,
+    "name_FR": "Défense cuirassée",
+    "name_EN": "Ironclad Guardian",
+    "name_JA": "鉄壁ガーディアン",
+    "desc_FR": "Porté par sa volonté de protéger, le joueur\nen défense devient un mur incassable.",
+    "desc_JA": "仲間を守る　揺るがぬ信念が\nディフェンスの壁を頑丈にする。",
+    "image": "220_img/telop_waza/fr/aura_power_wap01003.webp",
+    "assetCode": "wap01003",
+    "subType": "Aura",
+    "config": {
+      "val4": 30,
+      "val5": 90,
+      "val9": 8,
+      "val11": 1,
+      "buffId": "0x93B3F7AB",
+      "rank": 3003
+    },
+    "_source": "AURA_CMD_INFO",
+    "_file": "aura_skill_config",
+    "displayName": "Défense cuirassée",
+    "elementName": {
+      "en": "None",
+      "ja": "なし",
+      "fr": "Aucun"
+    }
+  },
+  {
+    "auraId": "0x63A5D184",
+    "auraIdStr": "aura_0x63A5D184",
+    "element": 0,
+    "name_FR": "Désactivation des limiteurs",
+    "name_EN": "Limiters Off",
+    "name_JA": "リミッター解除",
+    "desc_FR": "Description de Limiter Release.",
+    "desc_JA": "リミッター解除説明テキスト",
+    "image": "220_img/telop_waza/fr/aura_power_wap09001.webp",
+    "assetCode": "wap09001",
+    "subType": "Aura",
+    "config": {
+      "val4": 30,
+      "val5": 60,
+      "val9": 8,
+      "val11": 1,
+      "buffId": "0x93B3F7AB",
+      "rank": 3901
+    },
+    "_source": "AURA_CMD_INFO",
+    "_file": "aura_skill_config",
+    "displayName": "Désactivation des limiteurs",
+    "elementName": {
+      "en": "None",
+      "ja": "なし",
+      "fr": "Aucun"
+    }
+  },
+  {
+    "auraId": "0x8DABB0A8",
+    "auraIdStr": "aura_0x8DABB0A8",
+    "element": 0,
+    "name_FR": "Fiole d'aura",
+    "name_EN": "Ampoule Enhancement",
+    "name_JA": "アンプル強化",
+    "desc_FR": "Description de Ampule Enhancement.",
+    "desc_JA": "アンプル強化説明テキスト",
+    "image": "220_img/telop_waza/fr/aura_power_wap09003.webp",
+    "assetCode": "wap09003",
+    "subType": "Aura",
+    "config": {
+      "val4": 30,
+      "val5": 60,
+      "val9": 8,
+      "val11": 1,
+      "buffId": "0x93B3F7AB",
+      "rank": 3903
+    },
+    "_source": "AURA_CMD_INFO",
+    "_file": "aura_skill_config",
+    "displayName": "Fiole d'aura",
+    "elementName": {
+      "en": "None",
+      "ja": "なし",
+      "fr": "Aucun"
+    }
+  },
+  {
+    "auraId": "0xA611F96B",
+    "auraIdStr": "aura_0xA611F96B",
+    "element": 0,
+    "name_FR": "Passion ardente",
+    "name_EN": "Burning Overdrive",
+    "name_JA": "熱血オーバードライブ",
+    "desc_FR": "La passion de l'attaquant s'enflamme,\net éveille son vrai pouvoir.",
+    "desc_JA": "勝利への闘魂が燃え上がり\nストライカーの力が覚醒する。",
+    "image": "220_img/telop_waza/fr/aura_power_wap01001.webp",
+    "assetCode": "wap01001",
+    "subType": "Aura",
+    "config": {
+      "val4": 30,
+      "val5": 90,
+      "val9": 8,
+      "val11": 1,
+      "buffId": "0x93B3F7AB",
+      "rank": 3001
+    },
+    "_source": "AURA_CMD_INFO",
+    "_file": "aura_skill_config",
+    "displayName": "Passion ardente",
+    "elementName": {
+      "en": "None",
+      "ja": "なし",
+      "fr": "Aucun"
+    }
+  },
+  {
+    "auraId": "0x3F18A8D1",
+    "auraIdStr": "aura_0x3F18A8D1",
+    "element": 0,
+    "name_FR": "Ténacité du gardien",
+    "name_EN": "Keeper's Grit",
+    "name_JA": "キーパー根性",
+    "desc_FR": "Assumant le poids de son rôle, le gardien\ncreuse profondément et ressort au bon moment.",
+    "desc_JA": "キーパーとして覚悟を背負い\nここぞというふんばりを発揮する。",
+    "image": "220_img/telop_waza/fr/aura_power_wap01002.webp",
+    "assetCode": "wap01002",
+    "subType": "Aura",
+    "config": {
+      "val4": 30,
+      "val5": 90,
+      "val9": 8,
+      "val11": 1,
+      "buffId": "0x93B3F7AB",
+      "rank": 3002
+    },
+    "_source": "AURA_CMD_INFO",
+    "_file": "aura_skill_config",
+    "displayName": "Ténacité du gardien",
+    "elementName": {
+      "en": "None",
+      "ja": "なし",
+      "fr": "Aucun"
+    }
+  },
+  {
+    "auraId": "0xDD2E7375",
+    "auraIdStr": "aura_0xDD2E7375",
+    "element": 0,
+    "name_FR": "Transformation de lien",
+    "name_EN": "Bond Transform",
+    "name_JA": "キズナトランス",
+    "desc_FR": "S'empare d'une aura liée et se transforme\ncomplètement en cette personne.",
+    "desc_JA": "キズナで結ばれたオーラを憑依させ\nその人そのものに変身する。",
+    "image": "220_img/telop_waza/fr/aura_power_test_kizuna_trans.webp",
+    "assetCode": "test_kizuna_trans",
+    "subType": "Aura",
+    "config": {
+      "val4": 60,
+      "val5": 60,
+      "val9": 8,
+      "val11": 1,
+      "buffId": "0x35C4FC1F",
+      "rank": 5900
+    },
+    "_source": "AURA_CMD_INFO",
+    "_file": "aura_skill_config",
+    "displayName": "Transformation de lien",
+    "elementName": {
+      "en": "None",
+      "ja": "なし",
+      "fr": "Aucun"
+    }
+  },
+  {
+    "auraId": "0x19F744A8",
+    "auraIdStr": "aura_0x19F744A8",
+    "element": 0,
+    "name_FR": "Transformation de lien",
+    "name_EN": "Bond Transform",
+    "name_JA": "キズナトランス",
+    "desc_FR": "S'empare d'une aura liée et se transforme\ncomplètement en cette personne.",
+    "desc_JA": "キズナで結ばれたオーラを憑依させ\nその人そのものに変身する。",
+    "image": "220_img/telop_waza/fr/aura_power_pv8_kizuna_trans_GK.webp",
+    "assetCode": "pv8_kizuna_trans_GK",
+    "subType": "Aura",
+    "config": {
+      "val4": 60,
+      "val5": 60,
+      "val9": 8,
+      "val11": 1,
+      "buffId": "0x1EE9AFDC",
+      "rank": 5901
+    },
+    "_source": "AURA_CMD_INFO",
+    "_file": "aura_skill_config",
+    "displayName": "Transformation de lien",
+    "elementName": {
+      "en": "None",
+      "ja": "なし",
+      "fr": "Aucun"
+    }
+  }
+]

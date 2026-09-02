@@ -1,0 +1,41 @@
+{
+	"compilerOptions": {
+		"target": "ESNext",
+		"lib": ["ESNext"],
+		"module": "ESNext",
+		"moduleResolution": "Bundler",
+		"strict": true,
+		"noImplicitAny": true,
+		"strictNullChecks": true,
+		"noFallthroughCasesInSwitch": true,
+		"noImplicitOverride": true,
+		"noUncheckedIndexedAccess": true,
+		"forceConsistentCasingInFileNames": true,
+		"esModuleInterop": true,
+		"allowSyntheticDefaultImports": true,
+		"resolveJsonModule": true,
+		"isolatedModules": true,
+		"skipLibCheck": true,
+		"allowJs": false,
+		"baseUrl": ".",
+		"ignoreDeprecations": "6.0",
+		"rootDir": "../..",
+		"paths": {
+			"@rosegriffon/db": ["../db/src/index.ts"],
+			"@rosegriffon/db/*": ["../db/src/*"],
+			"@rosegriffon/types": ["../types/src/index.ts"],
+			"@rosegriffon/types/*": ["../types/src/*"],
+			"@rosegriffon/auth": ["../auth/src/index.ts"],
+			"@rosegriffon/auth/*": ["../auth/src/*"],
+			"@rosegriffon/ui": ["../ui/src/index.ts"],
+			"@rosegriffon/ui/*": ["../ui/src/*"],
+			"@rosegriffon/assets": ["../assets/src/index.ts"],
+			"@rosegriffon/assets/*": ["../assets/src/*"],
+			"@rosegriffon/patreon-bun": ["../patreon-bun/src/index.ts"],
+			"@rosegriffon/patreon-bun/*": ["../patreon-bun/src/*"],
+			"@rosegriffon/inagle-cross": ["../inagle-cross/src/index.ts"],
+			"@rosegriffon/inagle-cross/*": ["../inagle-cross/src/*"]
+		}
+	},
+	"exclude": ["node_modules", "dist", "build", ".turbo", "coverage"]
+}

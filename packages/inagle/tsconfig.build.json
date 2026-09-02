@@ -1,0 +1,43 @@
+{
+	"extends": "../config/tsconfig-base.json",
+	"compilerOptions": {
+		"outDir": "dist",
+		"rootDir": "src",
+		"noEmit": false,
+		"declaration": true,
+		"strict": true,
+		"strictNullChecks": true,
+		"noImplicitAny": true,
+		"noImplicitOverride": true,
+		"noUncheckedIndexedAccess": false,
+		"types": ["bun"],
+		"baseUrl": ".",
+		"paths": {
+			"@aphrody-code/bxc": ["./types/bxc-shim.d.ts"],
+			"@aphrody-code/bxc/*": ["./types/bxc-shim.d.ts"],
+			// ⚠ Le NOM RÉEL du paquet doit être mappé lui aussi.
+			//
+			// `@aphrody-code/bxc` n'est qu'un alias npm (`npm:@aphrody/bxc@^0.6.7`,
+			// cf. `overrides` du package.json racine) : mapper l'alias suffit tant
+			// que c'est NOUS qui importons. Mais `@aphrody-code/zukan` — alias de
+			// `@aphrody/zukan`, dont nous dépendons — importe `@aphrody/bxc` sous
+			// son vrai nom. Ce chemin-là échappait au mappage, tsc lisait donc la
+			// source `.ts` brute du paquet et crachait une trentaine de TS5097
+			// (« An import path can only end with a '.ts' extension… »).
+			// Résultat : `inagle#build` cassé, `dist/` figé au 5/6/2026.
+			"@aphrody/bxc": ["./types/bxc-shim.d.ts"],
+			"@aphrody/bxc/*": ["./types/bxc-shim.d.ts"]
+		}
+	},
+	"include": ["src/**/*.ts"],
+	"exclude": [
+		"node_modules",
+		"dist",
+		"src/**/*.test.ts",
+		"src/zukan/scripts",
+		// Script de maintenance one-shot : importe en dur `../../../db/src/service.js`
+		// (source d'un autre workspace, hors `rootDir` → TS6059). Aucun consommateur
+		// du `dist` (lancé via `bun src/zukan/map-missing-skill-videos.ts`). Exclu du build.
+		"src/zukan/map-missing-skill-videos.ts"
+	]
+}

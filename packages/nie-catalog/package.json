@@ -1,0 +1,27 @@
+{
+	"name": "@niers/catalog",
+	"version": "0.1.0",
+	"description": "Façade unique des quatre gisements Inazuma Eleven du dépôt : le jeu (VFS/CDN), les données extraites (inagle_*), le reverse (niers.sqlite) et l'anime (épisodes IETV).",
+	"type": "module",
+	"private": true,
+	"main": "./src/index.ts",
+	"types": "./src/index.ts",
+	"exports": {
+		".": "./src/index.ts",
+		"./sources": "./src/sources.ts",
+		"./extrait": "./src/extrait.ts",
+		"./re": "./src/re.ts",
+		"./jeu": "./src/jeu.ts",
+		"./anime": "./src/anime.ts",
+		"./synergie": "./src/synergie.ts"
+	},
+	"scripts": {
+		"typecheck": "bunx tsc --noEmit",
+		"test": "bun test"
+	},
+	"devDependencies": {
+		"typescript": "catalog:",
+		"@types/bun": "catalog:"
+	},
+	"license": "Apache-2.0"
+}

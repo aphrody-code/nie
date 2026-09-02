@@ -1,0 +1,20 @@
+{
+	"extends": "../config/tsconfig-base.json",
+	"compilerOptions": {
+		"types": ["bun"],
+		"lib": ["ESNext", "DOM"],
+		"noEmit": true,
+		"jsx": "preserve",
+		"baseUrl": ".",
+		"ignoreDeprecations": "6.0",
+		"rootDir": "..",
+		"paths": {
+			"@rosegriffon/db": ["./src/index.ts"],
+			"@rosegriffon/db/*": ["./src/*"],
+			"@rosegriffon/types": ["../types/src/index.ts"],
+			"@rosegriffon/types/*": ["../types/src/*"]
+		}
+	},
+	"include": ["src/**/*.ts"],
+	"exclude": ["node_modules", "dist"]
+}
