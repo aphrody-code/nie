@@ -1675,160 +1675,65 @@ fn video_mp4_cache(state: &State, vfs_path: &str, brut: &[u8]) -> Result<(&'stat
     Ok((mime, octets))
 }
 
-// ── Catalogue des cinématiques (page Cinéma de l'explorateur) ─────────────────
+// ── Catalogue des cinématiques (page /videos d'azalée, page Cinéma de l'explorateur) ──────────
+//
+// La fiche d'un film n'est plus construite ici : elle vit dans `nie_explore::cinema`, avec la
+// CLI `niers video` et l'explorateur. Ce serveur n'en est plus qu'une façade HTTP. Le catalogue
+// que publiait cette section ignorait la bande-son externe — que la CLI joignait déjà — et
+// annonçait `octets: 0` sur les pistes, parce que trois fiches concurrentes décrivaient les
+// mêmes octets.
 
-/// Fiche JSON d'un film démultiplexé.
-///
-/// Rubrique et langue viennent de `nie_formats::usm` : ces conventions de nommage sont celles du
-/// jeu, pas celles de ce serveur, et elles servent aussi à la CLI et à l'explorateur.
-fn fiche_video_json(chemin: &str, u: &nie_formats::usm::Usm, octets: usize) -> serde_json::Value {
-    use nie_formats::usm::{langue_de, radical_de, rubrique_de};
-    use serde_json::json;
-    let radical = radical_de(chemin);
-    let pistes: Vec<serde_json::Value> = u
-        .pistes
-        .iter()
-        .map(|p| {
-            json!({
-                "canal": p.canal,
-                "codec": p.codec.nom(),
-                "frequence": p.frequence,
-                "canaux": p.canaux,
-                "octets": p.octets.len(),
-            })
-        })
-        .collect();
-    json!({
-        "chemin": chemin,
-        "nom": radical,
-        "rubrique": rubrique_de(radical),
-        "langue": langue_de(radical),
-        "octets": octets,
-        "codec": u.codec.nom(),
-        "lisibleNavigateur": u.codec.lisible_par_navigateur(),
-        "largeur": u.entete.largeur_affichee.max(u.entete.largeur),
-        "hauteur": u.entete.hauteur_affichee.max(u.entete.hauteur),
-        "images": u.images.len(),
-        "cadence": u.entete.images_par_seconde(),
-        "duree": u.duree(),
-        "audio": pistes,
-        "chiffre": u.dechiffre,
-        "nomOrigine": u.nom,
-    })
+use nie_explore::cinema;
+
+/// Nom du catalogue dans le cache disque.
+const FICHIER_CATALOGUE: &str = "video-catalog.json";
+
+/// Fiche complète d'un film, remux mesuré compris — ce que sert `?info=1`.
+fn fiche_video(state: &State, chemin: &str) -> serde_json::Value {
+    let jointure = cinema::jointure_gamedata(&state.vfs);
+    let film = cinema::complet(&state.vfs, chemin, Some(&jointure));
+    serde_json::to_value(&film).unwrap_or_else(|e| serde_json::json!({ "erreur": e.to_string() }))
 }
 
-/// Construit (ou relit) le catalogue complet des cinématiques.
+/// Sert le catalogue des cinématiques, **depuis le cache disque uniquement**.
 ///
-/// Le catalogue exige de démultiplexer les 97 films — plusieurs centaines de mégaoctets — pour
-/// connaître durées et définitions. Il est donc écrit dans le cache disque : la page Cinéma
-/// s'ouvre instantanément à partir du deuxième lancement, et `var/model-cache/` est déjà le
-/// dossier que le serveur nettoie.
+/// Ce serveur ne le construit pas, et ne doit pas le construire : il vit collé à son
+/// `MemoryHigh` (cache CPK de 8 Gio plus le préchargement des modèles), et la moindre passe sur
+/// les 3,7 Gio de films pousse la pression mémoire du cgroup au-delà du seuil du watchdog, qui
+/// le redémarre — la construction repart alors de zéro, indéfiniment. Mesuré le 2/9/2026 :
+/// `memory.pressure full avg300=33 % > 20 %`, redémarrage, catalogue perdu.
+///
+/// Le catalogue est donc un **artefact produit hors ligne**, comme `--crc-manifest` ou
+/// `--uniform-map` :
+///
+/// ```text
+/// niers video catalogue --out <cache-dir>/video-catalog.json
+/// ```
+///
+/// L'empreinte du corpus (nombre de films et volume) est revérifiée à chaque requête : un
+/// catalogue qui ne décrit plus le jeu installé est refusé plutôt que servi.
 fn catalogue_video(state: &State) -> Result<String, String> {
-    let cache = state.cache_dir.join("video-catalog.json");
-    if let Ok(texte) = fs::read_to_string(&cache)
-        && texte.len() > 2
-    {
-        debug!("catalogue vidéo depuis le cache");
-        return Ok(texte);
+    let cache = state.cache_dir.join(FICHIER_CATALOGUE);
+    let texte = fs::read_to_string(&cache).map_err(|_| {
+        format!(
+            "catalogue absent — le produire avec `niers video catalogue --out {}`",
+            cache.display()
+        )
+    })?;
+    if texte.len() <= 2 {
+        return Err("catalogue vide".to_string());
     }
-
-    let mut chemins: Vec<String> = state
-        .vfs
-        .iter()
-        .map(|(p, _)| p.to_string())
-        .filter(|p| p.starts_with("data/common/movie") && p.ends_with(".usm"))
-        .collect();
-    chemins.sort();
-
-    let liens = jointure_films(state);
-    let mut films = Vec::with_capacity(chemins.len());
-    for chemin in &chemins {
-        let nom = chemin.rsplit('/').next().unwrap_or(chemin).to_string();
-        let Ok(brut) = state.vfs.read(chemin) else { continue };
-        let taille = brut.len();
-        match nie_formats::usm::demuxer_nomme(&brut, &nom) {
-            Err(e) => warn!("catalogue : {chemin} illisible ({e})"),
-            Ok(u) => {
-                let mut f = fiche_video_json(chemin, &u, taille);
-                let cle = chemin.strip_prefix("data/").unwrap_or(chemin);
-                if let Some(j) = liens.get(cle) {
-                    f["gamedata"] = j.clone();
-                }
-                films.push(f);
-            }
-        }
+    let attendue = cinema::empreinte(&state.vfs, cinema::DOSSIER_FILMS);
+    let lue = serde_json::from_str::<serde_json::Value>(&texte)
+        .ok()
+        .and_then(|v| v.get("empreinte").and_then(|e| e.as_str().map(str::to_string)));
+    match lue {
+        Some(e) if e == attendue => Ok(texte),
+        Some(e) => Err(format!(
+            "catalogue périmé (empreinte {e} ≠ {attendue}) — le régénérer avec `niers video catalogue`"
+        )),
+        None => Err("catalogue sans empreinte — régénérer avec `niers video catalogue`".to_string()),
     }
-
-    let mut rubriques: Vec<String> = films
-        .iter()
-        .filter_map(|f| f["rubrique"].as_str().map(str::to_string))
-        .collect();
-    rubriques.sort();
-    rubriques.dedup();
-
-    let doc = serde_json::json!({
-        "films": films,
-        "rubriques": rubriques,
-        "langues": nie_formats::usm::LANGUES
-            .iter()
-            .map(|(c, n)| serde_json::json!({ "code": c, "nom": n }))
-            .collect::<Vec<_>>(),
-    });
-    let texte = serde_json::to_string(&doc).map_err(|e| e.to_string())?;
-    if let Err(e) = fs::write(&cache, &texte) {
-        warn!("écriture du catalogue vidéo échouée : {e}");
-    }
-    info!("catalogue vidéo : {} film(s)", chemins.len());
-    Ok(texte)
-}
-
-/// Ce que `movie_playing_config` / `event_movie_config` disent de chaque film, par `moviePath`.
-fn jointure_films(state: &State) -> HashMap<String, serde_json::Value> {
-    use serde_json::{Value, json};
-    let mut out = HashMap::new();
-    let chemins: Vec<String> = state
-        .vfs
-        .iter()
-        .map(|(p, _)| p.to_string())
-        .filter(|p| {
-            p.contains("gamedata/movie/movie_playing_config")
-                || p.contains("gamedata/event/event_movie_config")
-        })
-        .collect();
-
-    for chemin in chemins {
-        let Ok(octets) = state.vfs.read(&chemin) else { continue };
-        let Some(root) = cfgbin_to_iecode_root(&octets) else { continue };
-        let Some(listes) = root.get("lists").and_then(Value::as_array) else { continue };
-        for liste in listes {
-            let Some(lignes) = liste.get("values").and_then(Value::as_array) else { continue };
-            for ligne in lignes {
-                let Some(mp) = ligne.get("moviePath").and_then(Value::as_str) else { continue };
-                if !mp.ends_with(".usm") {
-                    continue;
-                }
-                let mut fiche = json!({});
-                for champ in [
-                    "movieId",
-                    "eventId",
-                    "menuId",
-                    "captionId",
-                    "bgmName",
-                    "fedeInTime",
-                    "fedeOutTime",
-                    "staffrollDataName",
-                    "subtitleTextPath",
-                    "subtitleSettingPath",
-                ] {
-                    if let Some(v) = ligne.get(champ) {
-                        fiche[champ] = v.clone();
-                    }
-                }
-                out.entry(mp.to_string()).or_insert(fiche);
-            }
-        }
-    }
-    out
 }
 
 /// Retourne les bytes du GLB : depuis le cache disque ou assemblage live + mise en cache.
@@ -4428,8 +4333,10 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                 respond(&mut stream, 200, "OK", "application/json; charset=utf-8", json.as_bytes());
             }
             Err(e) => {
+                // Le construire ICI tiendrait la connexion une minute et ferait redémarrer le
+                // service par pression mémoire (cf. `catalogue_video`). On dit ce qui manque.
                 warn!("catalogue vidéo : {e}");
-                respond_text(&mut stream, 500, "Internal Server Error", &e);
+                respond_text(&mut stream, 503, "Service Unavailable", &e);
             }
         }
         return;
@@ -4469,41 +4376,30 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         };
         let nom = chemin_reel.rsplit('/').next().unwrap_or(&chemin_reel).to_string();
 
-        // `?info=1` — métadonnées seules, sans remuxer les centaines de mégaoctets.
+        // `?info=1` — la fiche du film : métadonnées, bande-son, et ce que coûte le remux.
         if param(query, "info").is_some() {
-            match nie_formats::usm::demuxer_nomme(&brut, &nom) {
-                Err(e) => respond_text(&mut stream, 500, "Internal Server Error", &e.to_string()),
-                Ok(u) => {
-                    let json = fiche_video_json(&chemin_reel, &u, brut.len());
-                    let bytes = serde_json::to_vec(&json).unwrap_or_default();
-                    respond(&mut stream, 200, "OK", "application/json; charset=utf-8", &bytes);
-                }
-            }
+            let json = fiche_video(&state, &chemin_reel);
+            let bytes = serde_json::to_vec(&json).unwrap_or_default();
+            respond(&mut stream, 200, "OK", "application/json; charset=utf-8", &bytes);
             return;
         }
 
-        // `?track=audio` — la piste sonore du film, en WAV.
+        // `?track=audio` — la bande-son du film, en WAV, d'où qu'elle vienne.
+        //
+        // 95 films sur 97 sont muets dans leur conteneur : leur son vit dans `anime_stream`,
+        // que `nie_explore::cinema` résout par le nom du film. Chercher la piste dans le seul
+        // conteneur, comme le faisait cette route, rendait « sans bande-son » sur 30 films qui
+        // en ont une.
         if param(query, "track").as_deref() == Some("audio") {
-            match nie_formats::usm::demuxer_nomme(&brut, &nom) {
-                Err(e) => respond_text(&mut stream, 500, "Internal Server Error", &e.to_string()),
-                Ok(u) => {
-                    let Some(piste) = u.pistes.first() else {
-                        respond_text(&mut stream, 404, "Not Found", "USM sans piste audio");
-                        return;
-                    };
-                    match nie_formats::cri_audio::decode_to_wav(&piste.octets) {
-                        Ok(wav) => respond_ranged(&mut stream, "audio/wav", &wav, range_header),
-                        Err(e) => {
-                            warn!("décodage piste audio {chemin_reel} échoué : {e}");
-                            respond_text(
-                                &mut stream,
-                                500,
-                                "Internal Server Error",
-                                &format!("décodage audio du film échoué : {e}"),
-                            );
-                        }
-                    }
+            let jointure = cinema::jointure_gamedata(&state.vfs);
+            let film = cinema::apercu(&state.vfs, &chemin_reel, Some(&jointure));
+            match cinema::wav_bande_son(&state.vfs, &state.cache_dir, &film) {
+                Ok(wav) => respond_ranged(&mut stream, "audio/wav", &wav, range_header),
+                Err(e) if film.a_du_son() => {
+                    warn!("décodage bande-son {chemin_reel} échoué : {e}");
+                    respond_text(&mut stream, 500, "Internal Server Error", &e);
                 }
+                Err(e) => respond_text(&mut stream, 404, "Not Found", &e),
             }
             return;
         }
@@ -4739,6 +4635,13 @@ fn main() -> Result<()> {
     // Préchargement optionnel : warm exhaustif du cache GLB en arrière-plan.
     if cli.preload {
         spawn_preload(state.clone(), cli.threads);
+    }
+
+    // Catalogue des cinématiques : artefact hors ligne. On dit au démarrage s'il manque, plutôt
+    // que de laisser la page /videos découvrir un 503 sans savoir quoi lancer.
+    match catalogue_video(&state) {
+        Ok(_) => info!("catalogue vidéo : présent et à jour"),
+        Err(e) => warn!("catalogue vidéo : {e}"),
     }
 
     // Pool de threads BORNÉ : le thread principal n'accepte que des connexions, un nombre

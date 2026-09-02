@@ -12,6 +12,7 @@
 pub mod audio;
 pub mod bande_son;
 pub mod bridge;
+pub mod cinema;
 pub mod export;
 pub mod folder_roles;
 pub mod listing;

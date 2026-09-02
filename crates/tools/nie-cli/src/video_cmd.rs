@@ -4,31 +4,32 @@
 //! `common/movie` et `dx11/movie`) sont des conteneurs **USM / Sofdec2** : du H.264 et du HCA
 //! Criware entrelacés par blocs. Aucun lecteur ne sait ouvrir ça directement.
 //!
-//! Cette commande s'appuie sur trois briques pures Rust :
+//! Cette commande n'est qu'une **façade texte** : la fiche d'un film vit dans
+//! [`nie_explore::cinema`], la même que sert `nie-model-serve` à la page `/videos` d'azalée et
+//! que lit l'explorateur. Trois fiches concurrentes décrivaient les mêmes octets sans en dire la
+//! même chose ; il n'y en a plus qu'une.
+//!
+//! Sous elle, trois briques pures Rust :
 //!
 //! * [`nie_formats::usm`] — démultiplexage, métadonnées `@UTF`, une unité d'accès par image ;
 //! * [`nie_formats::mp4`] — remux MP4 des flux H.264 (les octets sont conservés, seuls les
 //!   start-codes Annex-B deviennent des préfixes de longueur AVCC) ;
 //! * [`nie_formats::webm`] — muxage WebM des flux VP9, après retrait de leur emballage IVF.
 //!
-//! Le remux est donc sans perte ET compressant : tout ce que perd le fichier, c'est l'entrelacement
-//! du conteneur USM (en-têtes de bloc de 32 octets, bourrage d'alignement sur 32, et la piste
-//! sonore quand elle est exportée à part). `info` et `export` chiffrent ce gain.
+//! Le remux est donc sans perte ET compressant : tout ce que perd le fichier, c'est
+//! l'entrelacement du conteneur USM (en-têtes de bloc de 32 octets, bourrage d'alignement sur 32,
+//! et la piste sonore quand elle est exportée à part). `info` et `export` chiffrent ce gain.
 //!
 //! Les trois codecs du corpus, mesurés par `niers video catalogue` : **75 H.264**, **20 MPEG-2**,
 //! **2 VP9**. Les MPEG-2 (les écrans-titres et les deux logos) n'ont pas de conteneur web — ils
 //! sortent en flux élémentaire `.m2v`, que VLC et mpv lisent.
 
-use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use nie_formats::usm::{
-    self, Usm, langue_de as langue, nom_fichier_de as nom_fichier, radical_de as radical,
-    rubrique_de as rubrique,
-};
+use nie_explore::cinema::{self, Film};
+use nie_formats::usm::{self, Usm};
 use nie_formats::vfs::Vfs;
-use serde_json::{Value, json};
 
 /// Sous-commandes de `niers video`.
 #[derive(clap::Subcommand, Debug)]
@@ -48,7 +49,7 @@ pub enum VideoCmd {
     /// Inventaire des films, avec leurs métadonnées réelles.
     Liste {
         /// Préfixe VFS à parcourir.
-        #[arg(long, default_value = "data/common/movie")]
+        #[arg(long, default_value = cinema::DOSSIER_FILMS)]
         prefixe: String,
         /// Sortie JSON.
         #[arg(long)]
@@ -56,7 +57,8 @@ pub enum VideoCmd {
         /// Nombre maximal de films traités.
         #[arg(long)]
         limit: Option<usize>,
-        /// Ne pas démultiplexer : taille seule, immédiat.
+        /// Ne pas mesurer le remux : durée, définition et bande-son restent lues, à mémoire
+        /// constante (aucune image n'est retenue).
         #[arg(long)]
         rapide: bool,
     },
@@ -82,7 +84,7 @@ pub enum VideoCmd {
         /// Fichier JSON de sortie (défaut : la sortie standard).
         #[arg(long)]
         out: Option<PathBuf>,
-        /// Ne pas démultiplexer : catalogue immédiat, sans durée ni dimensions.
+        /// Ne pas mesurer le remux — catalogue à mémoire constante, celui que sert le CDN.
         #[arg(long)]
         rapide: bool,
     },
@@ -104,197 +106,13 @@ pub fn run(op: &VideoCmd, vfs: &Vfs) -> Result<()> {
     }
 }
 
-// ── Résolution de chemin ──────────────────────────────────────────────────────
-
-/// Complète un nom court en chemin VFS. `ev01_00050` → `data/common/movie/ev01_00050.usm`.
-fn resoudre(vfs: &Vfs, entree: &str) -> String {
-    if entree.contains('/') {
-        let p = if entree.starts_with("data/") {
-            entree.to_string()
-        } else {
-            format!("data/{entree}")
-        };
-        return p;
-    }
-    let nom = entree.strip_suffix(".usm").unwrap_or(entree);
-    for base in ["data/common/movie", "data/dx11/movie"] {
-        let cand = format!("{base}/{nom}.usm");
-        if vfs.is_readable(&cand) {
-            return cand;
-        }
-    }
-    format!("data/common/movie/{nom}.usm")
-}
-
 /// Lit et démultiplexe un film. Renvoie aussi la taille brute du conteneur.
-fn charger(vfs: &Vfs, chemin: &str) -> Result<(Usm, usize)> {
+fn charger(vfs: &Vfs, chemin: &str) -> Result<(Usm, u64)> {
     let brut = vfs.read(chemin).with_context(|| format!("lecture VFS {chemin}"))?;
-    let taille = brut.len();
-    let u = usm::demuxer_nomme(&brut, nom_fichier(chemin))
+    let taille = brut.len() as u64;
+    let u = usm::demuxer_nomme(&brut, usm::nom_fichier_de(chemin))
         .with_context(|| format!("démultiplexage {chemin}"))?;
     Ok((u, taille))
-}
-
-// ── Jointure avec les données de jeu ──────────────────────────────────────────
-
-/// Ce que le `gamedata` dit d'un film, indexé par son chemin logique (`common/movie/x.usm`).
-type Jointure = BTreeMap<String, Value>;
-
-/// Construit la jointure depuis `movie_playing_config` et `event_movie_config`.
-///
-/// Ces deux tables RDBN portent le `moviePath` de chaque cinématique, avec sa musique, ses
-/// fondus et le chemin de ses sous-titres. Absentes ou illisibles, la jointure reste vide —
-/// le catalogue est alors dégradé, pas faux.
-fn jointure_gamedata(vfs: &Vfs) -> Jointure {
-    let mut out = Jointure::new();
-    let chemins: Vec<String> = vfs
-        .iter()
-        .map(|(p, _)| p.to_string())
-        .filter(|p| {
-            p.contains("gamedata/movie/movie_playing_config")
-                || p.contains("gamedata/event/event_movie_config")
-        })
-        .collect();
-
-    for chemin in chemins {
-        let Ok(octets) = vfs.read(&chemin) else { continue };
-        let Some(root) = nie_formats::cfgbin::rdbn_to_iecode_json(&octets) else { continue };
-        let Some(listes) = root.get("lists").and_then(Value::as_array) else { continue };
-        for liste in listes {
-            let Some(lignes) = liste.get("values").and_then(Value::as_array) else { continue };
-            for ligne in lignes {
-                let Some(mp) = ligne.get("moviePath").and_then(Value::as_str) else { continue };
-                if !mp.ends_with(".usm") {
-                    continue;
-                }
-                let mut fiche = json!({ "source": nom_fichier(&chemin) });
-                for champ in [
-                    "movieId",
-                    "eventId",
-                    "menuId",
-                    "captionId",
-                    "bgmName",
-                    "fedeInTime",
-                    "fedeOutTime",
-                    "staffrollDataName",
-                    "subtitleTextPath",
-                    "subtitleSettingPath",
-                ] {
-                    if let Some(v) = ligne.get(champ) {
-                        fiche[champ] = v.clone();
-                    }
-                }
-                out.entry(mp.to_string()).or_insert(fiche);
-            }
-        }
-    }
-    out
-}
-
-/// Clé de jointure d'un chemin VFS (`data/common/movie/x.usm` → `common/movie/x.usm`).
-fn cle_jointure(chemin: &str) -> String {
-    chemin.strip_prefix("data/").unwrap_or(chemin).to_string()
-}
-
-// ── Fiches ────────────────────────────────────────────────────────────────────
-
-/// Fiche JSON d'un film, avec ou sans démultiplexage.
-fn fiche(vfs: &Vfs, chemin: &str, rapide: bool) -> Value {
-    let rad = radical(chemin).to_string();
-    let mut v = json!({
-        "chemin": chemin,
-        "nom": rad,
-        "rubrique": rubrique(&rad),
-        "langue": langue(&rad),
-    });
-
-    if rapide {
-        if let Some(e) = vfs.find(chemin) {
-            v["octets"] = json!(e.file_size);
-        }
-        return v;
-    }
-
-    match charger(vfs, chemin) {
-        Err(e) => {
-            v["erreur"] = json!(e.to_string());
-        }
-        Ok((u, taille)) => {
-            v["octets"] = json!(taille);
-            v["codec"] = json!(u.codec.nom());
-            v["lisibleNavigateur"] = json!(u.codec.lisible_par_navigateur());
-            v["images"] = json!(u.images.len());
-            v["octetsVideo"] = json!(u.octets_video);
-            // Dimensions déclarées par `VIDEO_HDRINFO` — le SPS les affinera si le remux passe.
-            v["largeur"] = json!(u.entete.largeur_affichee.max(u.entete.largeur));
-            v["hauteur"] = json!(u.entete.hauteur_affichee.max(u.entete.hauteur));
-            v["totalImagesDeclare"] = json!(u.entete.total_images);
-            if u.dechiffre {
-                v["dechiffre"] = json!(true);
-            }
-            if let Some(n) = &u.nom {
-                v["nomOrigine"] = json!(n);
-            }
-            if let Some((n, d)) = u.cadence() {
-                v["cadence"] = json!(f64::from(n) / f64::from(d));
-            }
-            if let Some(s) = u.duree() {
-                v["duree"] = json!((s * 1000.0).round() / 1000.0);
-            }
-            // Le remux mesure aussi ce que le conteneur USM coûtait : c'est la seule façon
-            // honnête de chiffrer le gain, sans avoir à croire une estimation.
-            match u.en_conteneur_web() {
-                Ok(c) => {
-                    v["conteneur"] = json!(c.mime);
-                    v["conteneurOctets"] = json!(c.octets.len());
-                    v["cles"] = json!(c.cles);
-                    // Dimensions lues dans le bitstream : elles priment sur l'en-tête USM, qui
-                    // déclare la taille codée là où le SPS donne la taille effective.
-                    v["largeur"] = json!(c.largeur);
-                    v["hauteur"] = json!(c.hauteur);
-                    if taille > 0 {
-                        let gain = 100.0 - (c.octets.len() as f64 * 100.0 / taille as f64);
-                        v["gainRemux"] = json!((gain * 100.0).round() / 100.0);
-                    }
-                }
-                Err(e) => {
-                    v["remuxImpossible"] = json!(e.to_string());
-                }
-            }
-            let pistes: Vec<Value> = u
-                .pistes
-                .iter()
-                .map(|p| {
-                    json!({
-                        "canal": p.canal,
-                        "codec": p.codec.nom(),
-                        "frequence": p.frequence,
-                        "canaux": p.canaux,
-                        "octets": p.octets.len(),
-                    })
-                })
-                .collect();
-            v["audio"] = json!(pistes);
-            // Bande-son externe : 95 films sur 97 n'ont pas la leur dans leur conteneur, elle
-            // vit dans `anime_stream`. Ne coûte que la lecture de la cue sheet (35 Kio).
-            if u.pistes.is_empty()
-                && let Some(p) = nie_explore::bande_son::piste_de_film(vfs, &rad, u.duree(), None)
-            {
-                v["bandeSon"] = json!({
-                    "cue": p.cue,
-                    "codec": p.codec,
-                    "frequence": p.frequence,
-                    "canaux": p.canaux,
-                    "dureeMs": p.duree_ms,
-                    "awbId": p.awb_id,
-                });
-            }
-            if !u.sous_titres.is_empty() {
-                v["sousTitres"] = json!(u.sous_titres.len());
-            }
-        }
-    }
-    v
 }
 
 // ── Opérations ────────────────────────────────────────────────────────────────
@@ -323,79 +141,87 @@ fn vider_tables(vfs: &Vfs, chemin: &str) -> Result<()> {
     Ok(())
 }
 
-fn info(vfs: &Vfs, entree: &str, en_json: bool, tables: bool) -> Result<()> {
-    let chemin = resoudre(vfs, entree);
-    if tables {
-        vider_tables(vfs, &chemin)?;
-    }
-    let f = fiche(vfs, &chemin, false);
-    if en_json {
-        println!("{}", serde_json::to_string_pretty(&f)?);
-        return Ok(());
-    }
-
-    println!("{chemin}");
-    if let Some(e) = f.get("erreur").and_then(Value::as_str) {
+/// Rend la fiche d'un film en texte, telle qu'on la lit dans un terminal.
+fn afficher(f: &Film) {
+    println!("{}", f.chemin);
+    if let Some(e) = &f.erreur {
         println!("  erreur      {e}");
-        return Ok(());
+        return;
     }
-    let n = |c: &str| f.get(c).and_then(Value::as_i64).unwrap_or(0);
-    let r = |c: &str| f.get(c).and_then(Value::as_f64).unwrap_or(0.0);
-    println!("  rubrique    {}", f["rubrique"].as_str().unwrap_or("-"));
-    if let Some(l) = f.get("langue").and_then(Value::as_str) {
+    println!("  rubrique    {}", f.rubrique);
+    if let Some(l) = &f.langue {
         println!("  langue      {l}");
     }
-    if let Some(o) = f.get("nomOrigine").and_then(Value::as_str) {
+    if let Some(o) = &f.nom_origine {
         println!("  nom encodé  {o}");
     }
-    if f.get("dechiffre").is_some() {
+    if f.dechiffre {
         println!("  chiffrement enveloppe CRI (clé dérivée du nom de fichier)");
     }
     println!(
         "  vidéo       {}×{} {} — {} images, {:.3} i/s, {:.2} s",
-        n("largeur"),
-        n("hauteur"),
-        f["codec"].as_str().unwrap_or("?"),
-        n("images"),
-        r("cadence"),
-        r("duree")
+        f.largeur,
+        f.hauteur,
+        f.codec,
+        f.images,
+        f.cadence.unwrap_or(0.0),
+        f.duree.unwrap_or(0.0)
     );
-    println!("  clés        {} image(s) de synchronisation", n("cles"));
-    for p in f.get("audio").and_then(Value::as_array).into_iter().flatten() {
+    if let Some(c) = f.cles {
+        println!("  clés        {c} image(s) de synchronisation");
+    }
+    for p in &f.audio {
         println!(
             "  audio {}     {} — {} Hz, {} canal/aux, {} o",
-            p["canal"],
-            p["codec"].as_str().unwrap_or("?"),
-            p["frequence"],
-            p["canaux"],
-            p["octets"]
+            p.canal, p.codec, p.frequence, p.canaux, p.octets
         );
     }
-    match f.get("bandeSon") {
+    match &f.bande_son {
         Some(b) => println!(
-            "  bande-son   anime_stream / cue {} — {} {} Hz, {} canal/aux, {:.2} s",
-            b["cue"].as_str().unwrap_or("?"),
-            b["codec"].as_str().unwrap_or("?"),
-            b["frequence"],
-            b["canaux"],
-            b["dureeMs"].as_f64().unwrap_or(0.0) / 1000.0,
+            "  bande-son   anime_stream / cue {} — {} {} Hz, {} canal/aux, {:.2} s{}",
+            b.cue,
+            b.codec,
+            b.frequence,
+            b.canaux,
+            f64::from(b.duree_ms) / 1000.0,
+            if b.confirme_par_hash { " (confirmée par le bgmName)" } else { "" },
         ),
-        None if f.get("audio").and_then(Value::as_array).is_none_or(|a| a.is_empty()) => {
+        None if f.audio.is_empty() => {
             println!("  bande-son   aucune (ni conteneur, ni anime_stream)");
         }
         None => {}
     }
-    if let Some(m) = f.get("conteneurOctets").and_then(Value::as_i64) {
+    if let Some(m) = f.conteneur_octets {
         println!(
             "  remux       {} — {} o depuis {} o, {:.2} % de moins, sans réencodage",
-            f["conteneur"].as_str().unwrap_or("?"),
+            f.conteneur.as_deref().unwrap_or("?"),
             m,
-            n("octets"),
-            r("gainRemux")
+            f.octets,
+            f.gain_remux.unwrap_or(0.0)
         );
-    } else if let Some(e) = f.get("remuxImpossible").and_then(Value::as_str) {
+    } else if let Some(e) = &f.remux_impossible {
         println!("  remux       impossible : {e}");
     }
+    if let Some(g) = &f.gamedata {
+        println!("  gamedata    {}", g.source);
+        if let Some(s) = &g.subtitle_text_path {
+            println!("  sous-titres {s}");
+        }
+    }
+}
+
+fn info(vfs: &Vfs, entree: &str, en_json: bool, tables: bool) -> Result<()> {
+    let chemin = cinema::resoudre(vfs, entree);
+    if tables {
+        vider_tables(vfs, &chemin)?;
+    }
+    let jointure = cinema::jointure_gamedata(vfs);
+    let f = cinema::complet(vfs, &chemin, Some(&jointure));
+    if en_json {
+        println!("{}", serde_json::to_string_pretty(&f)?);
+        return Ok(());
+    }
+    afficher(&f);
     Ok(())
 }
 
@@ -406,54 +232,58 @@ fn liste(
     limit: Option<usize>,
     rapide: bool,
 ) -> Result<()> {
-    let mut chemins: Vec<String> = vfs
-        .iter()
-        .map(|(p, _)| p.to_string())
-        .filter(|p| p.starts_with(prefixe) && p.ends_with(".usm"))
-        .collect();
-    chemins.sort();
+    let mut chemins = cinema::chemins_films(vfs, prefixe);
     if let Some(n) = limit {
         chemins.truncate(n);
     }
 
-    let fiches: Vec<Value> = chemins.iter().map(|c| fiche(vfs, c, rapide)).collect();
+    let jointure = cinema::jointure_gamedata(vfs);
+    let fiches: Vec<Film> = chemins
+        .iter()
+        .map(|c| {
+            if rapide {
+                cinema::apercu(vfs, c, Some(&jointure))
+            } else {
+                cinema::complet(vfs, c, Some(&jointure))
+            }
+        })
+        .collect();
+
     if en_json {
-        println!("{}", serde_json::to_string_pretty(&json!({ "films": fiches }))?);
+        println!("{}", serde_json::to_string_pretty(&serde_json::json!({ "films": fiches }))?);
         return Ok(());
     }
 
     println!(
-        "{:<24} {:>10} {:>11} {:>8} {:>9}  rubrique",
-        "film", "octets", "définition", "durée", "cadence"
+        "{:<24} {:>10} {:>11} {:>8} {:>9}  {:<5} rubrique",
+        "film", "octets", "définition", "durée", "cadence", "son"
     );
     for f in &fiches {
-        let n = |c: &str| f.get(c).and_then(Value::as_i64).unwrap_or(0);
-        let definition = if n("largeur") > 0 {
-            format!("{}×{}", n("largeur"), n("hauteur"))
-        } else {
-            "-".to_string()
-        };
+        let definition =
+            if f.largeur > 0 { format!("{}×{}", f.largeur, f.hauteur) } else { "-".to_string() };
         println!(
-            "{:<24} {:>10} {:>11} {:>7.2}s {:>8.3}  {}",
-            f["nom"].as_str().unwrap_or("?"),
-            n("octets"),
+            "{:<24} {:>10} {:>11} {:>7.2}s {:>8.3}  {:<5} {}",
+            f.nom,
+            f.octets,
             definition,
-            f.get("duree").and_then(Value::as_f64).unwrap_or(0.0),
-            f.get("cadence").and_then(Value::as_f64).unwrap_or(0.0),
-            f["rubrique"].as_str().unwrap_or("-"),
+            f.duree.unwrap_or(0.0),
+            f.cadence.unwrap_or(0.0),
+            if f.a_du_son() { "oui" } else { "—" },
+            f.rubrique,
         );
     }
-    println!("\n{} film(s)", fiches.len());
+    let sonores = fiches.iter().filter(|f| f.a_du_son()).count();
+    println!("\n{} film(s), {sonores} avec bande-son", fiches.len());
     Ok(())
 }
 
 fn export(vfs: &Vfs, entree: &str, out: &Path, avec_audio: bool, brut: bool) -> Result<()> {
-    let chemin = resoudre(vfs, entree);
+    let chemin = cinema::resoudre(vfs, entree);
     let (u, taille) = charger(vfs, &chemin)?;
 
     // `--out` accepte un dossier : c'est la forme naturelle pour exporter plusieurs films.
     let cible = if out.is_dir() {
-        out.join(format!("{}.mp4", radical(&chemin)))
+        out.join(format!("{}.mp4", usm::radical_de(&chemin)))
     } else {
         out.to_path_buf()
     };
@@ -505,24 +335,21 @@ fn export(vfs: &Vfs, entree: &str, out: &Path, avec_audio: bool, brut: bool) -> 
     if avec_audio {
         // Le conteneur d'abord, la banque `anime_stream` ensuite : c'est là que vivent 95 des
         // 97 bandes-son. L'archive est matérialisée dans `var/audio-cache` — 654 Mo extraits une
-        // seule fois, puis seule l'entrée voulue est relue.
-        let (wav, provenance) = match u.pistes.first() {
-            Some(piste) => (
-                nie_formats::cri_audio::decode_to_wav(&piste.octets)
-                    .map_err(|e| anyhow::anyhow!("décodage audio : {e}"))?,
-                format!("conteneur, {}", piste.codec.nom()),
-            ),
-            None => {
-                let rad = radical(&chemin).to_string();
-                let Some(p) = nie_explore::bande_son::piste_de_film(vfs, &rad, u.duree(), None) else {
-                    println!("  (aucune bande-son : ni dans le conteneur, ni dans anime_stream)");
-                    return Ok(());
-                };
-                let cache = std::path::Path::new("var/audio-cache");
-                let wav = nie_explore::bande_son::wav_de_la_cue(vfs, cache, p.awb_id)
-                    .map_err(|e| anyhow::anyhow!("bande-son : {e}"))?;
-                (wav, format!("anime_stream, cue {}, {}", p.cue, p.codec))
-            }
+        // seule fois, puis seule l'entrée voulue est relue. La résolution est celle du catalogue,
+        // pas une seconde implémentation : le `bgmName` du gamedata y confirme la cue.
+        let jointure = cinema::jointure_gamedata(vfs);
+        let film = cinema::fiche_de_usm(vfs, &chemin, taille, &u, Some(&jointure));
+        if !film.a_du_son() {
+            println!("  (aucune bande-son : ni dans le conteneur, ni dans anime_stream)");
+            return Ok(());
+        }
+        let cache = Path::new("var/audio-cache");
+        let wav = cinema::wav_bande_son(vfs, cache, &film)
+            .map_err(|e| anyhow::anyhow!("bande-son : {e}"))?;
+        let provenance = match (&film.bande_son, film.audio.first()) {
+            (Some(b), _) => format!("anime_stream, cue {}, {}", b.cue, b.codec),
+            (None, Some(p)) => format!("conteneur, {}", p.codec),
+            (None, None) => "inconnue".to_string(),
         };
         let cible_wav = cible.with_extension("wav");
         std::fs::write(&cible_wav, &wav)
@@ -535,60 +362,27 @@ fn export(vfs: &Vfs, entree: &str, out: &Path, avec_audio: bool, brut: bool) -> 
 fn catalogue(vfs: &Vfs, out: Option<&Path>, rapide: bool) -> Result<()> {
     // `common/movie` seul : `dx11/movie` porte les mêmes films en définition supérieure, et le
     // VFS bascule tout seul de l'un à l'autre. Deux entrées par film feraient un doublon.
-    let mut chemins: Vec<String> = vfs
-        .iter()
-        .map(|(p, _)| p.to_string())
-        .filter(|p| p.starts_with("data/common/movie") && p.ends_with(".usm"))
-        .collect();
-    chemins.sort();
-
-    let liens = jointure_gamedata(vfs);
-    let mut fiches: Vec<Value> = Vec::with_capacity(chemins.len());
-    for c in &chemins {
-        let mut f = fiche(vfs, c, rapide);
-        if let Some(j) = liens.get(&cle_jointure(c)) {
-            f["gamedata"] = j.clone();
-        }
-        fiches.push(f);
-    }
-
-    // Rubriques dans un ordre stable : les chapitres d'abord, dans l'ordre du jeu.
-    let mut rubriques: Vec<String> =
-        fiches.iter().filter_map(|f| f["rubrique"].as_str().map(str::to_string)).collect();
-    rubriques.sort();
-    rubriques.dedup();
-
-    let doc = json!({
-        "films": fiches,
-        "rubriques": rubriques,
-        "langues": usm::LANGUES.iter().map(|(c, n)| json!({ "code": c, "nom": n })).collect::<Vec<_>>(),
-    });
-    let texte = serde_json::to_string_pretty(&doc)?;
+    let cat = cinema::catalogue(vfs, cinema::DOSSIER_FILMS, !rapide);
     match out {
-        None => println!("{texte}"),
+        // À l'écran on lit ; dans un fichier on sert. `--out` produit exactement ce que
+        // `nie-model-serve` publie sur `/video/catalog.json` : compact, empreinte comprise.
+        None => println!("{}", serde_json::to_string_pretty(&cat)?),
         Some(p) => {
+            let texte = serde_json::to_string(&cat)?;
             if let Some(parent) = p.parent()
                 && !parent.as_os_str().is_empty()
             {
                 std::fs::create_dir_all(parent)?;
             }
             std::fs::write(p, &texte).with_context(|| format!("écriture {}", p.display()))?;
-            println!("{} — {} film(s), {} rubrique(s)", p.display(), chemins.len(), rubriques.len());
+            let sonores = cat.films.iter().filter(|f| f.a_du_son()).count();
+            println!(
+                "{} — {} film(s), {} rubrique(s), {sonores} avec bande-son",
+                p.display(),
+                cat.films.len(),
+                cat.rubriques.len()
+            );
         }
     }
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// Les conventions de nom sont testées à leur source (`nie_formats::usm`) ; ici on ne
-    /// vérifie que ce que ce module ajoute — la clé de jointure avec le `gamedata`.
-    #[test]
-    fn la_cle_de_jointure_retire_le_prefixe_data() {
-        assert_eq!(cle_jointure("data/common/movie/x.usm"), "common/movie/x.usm");
-        // Un chemin déjà sans préfixe `data/` reste intact.
-        assert_eq!(cle_jointure("common/movie/x.usm"), "common/movie/x.usm");
-    }
 }
