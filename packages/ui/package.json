@@ -1,0 +1,89 @@
+{
+	"name": "@rosegriffon/ui",
+	"version": "0.2.1",
+	"description": "Composants shadcn/ui partagés (new-york style, Tailwind v4)",
+	"type": "module",
+	"sideEffects": [
+		"*.css"
+	],
+	"exports": {
+		".": "./src/index.ts",
+		"./tokens": "./src/tokens.ts",
+		"./lib/utils": "./src/lib/utils.ts",
+		"./lib/adsense": "./src/lib/adsense.ts",
+		"./styles.css": "./src/styles.css",
+		"./hooks/*": "./src/hooks/*.ts",
+		"./*": "./src/components/*.tsx"
+	},
+	"publishConfig": {
+		"access": "public",
+		"registry": "https://registry.npmjs.org"
+	},
+	"scripts": {
+		"lint": "bunx oxlint -c ../../.oxlintrc.json src",
+		"type-check": "bun --bun tsc --noEmit",
+		"test": "bun test test",
+		"tokens": "bun scripts/generer-tokens.ts"
+	},
+	"dependencies": {
+		"@hookform/resolvers": "catalog:",
+		"@rosegriffon/types": "workspace:*",
+		"@radix-ui/react-accordion": "catalog:",
+		"@radix-ui/react-alert-dialog": "catalog:",
+		"@radix-ui/react-aspect-ratio": "catalog:",
+		"@radix-ui/react-avatar": "catalog:",
+		"@radix-ui/react-checkbox": "catalog:",
+		"@radix-ui/react-collapsible": "catalog:",
+		"@radix-ui/react-context-menu": "catalog:",
+		"@radix-ui/react-dialog": "catalog:",
+		"@radix-ui/react-dropdown-menu": "catalog:",
+		"@radix-ui/react-hover-card": "catalog:",
+		"@radix-ui/react-label": "catalog:",
+		"@radix-ui/react-menubar": "catalog:",
+		"@radix-ui/react-navigation-menu": "catalog:",
+		"@radix-ui/react-popover": "catalog:",
+		"@radix-ui/react-progress": "catalog:",
+		"@radix-ui/react-radio-group": "catalog:",
+		"@radix-ui/react-scroll-area": "catalog:",
+		"@radix-ui/react-select": "catalog:",
+		"@radix-ui/react-separator": "catalog:",
+		"@radix-ui/react-slider": "catalog:",
+		"@radix-ui/react-slot": "catalog:",
+		"@radix-ui/react-switch": "catalog:",
+		"@radix-ui/react-tabs": "catalog:",
+		"@radix-ui/react-toggle": "catalog:",
+		"@radix-ui/react-toggle-group": "catalog:",
+		"@radix-ui/react-tooltip": "catalog:",
+		"@rosegriffon/db": "workspace:*",
+		"@tanstack/react-table": "catalog:",
+		"class-variance-authority": "catalog:",
+		"clsx": "catalog:",
+		"cmdk": "catalog:",
+		"date-fns": "catalog:",
+		"embla-carousel-react": "catalog:",
+		"input-otp": "catalog:",
+		"lucide-react": "catalog:",
+		"next-themes": "catalog:",
+		"qrcode-generator": "^2.0.4",
+		"react-day-picker": "catalog:",
+		"react-hook-form": "catalog:",
+		"react-resizable-panels": "catalog:",
+		"recharts": "catalog:",
+		"sonner": "catalog:",
+		"tailwind-merge": "catalog:",
+		"vaul": "catalog:",
+		"zod": "catalog:"
+	},
+	"devDependencies": {
+		"@types/bun": "catalog:",
+		"@types/react": "catalog:",
+		"@types/react-dom": "catalog:",
+		"tailwindcss": "catalog:",
+		"typescript": "catalog:"
+	},
+	"peerDependencies": {
+		"next": "catalog:",
+		"react": "catalog:",
+		"react-dom": "catalog:"
+	}
+}

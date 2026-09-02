@@ -1,0 +1,25 @@
+Dockerfile
+.dockerignore
+node_modules
+npm-debug.log
+README.md
+.next
+.git
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+build_output.txt
+lint_output.txt
+tsc_output.txt
+
+# Large data (mounted as volumes)
+data/images/
+data/*.7z
+data/*.sql
+data/common_old_backup/
+dump/
+temp/
+common/
+iecode/

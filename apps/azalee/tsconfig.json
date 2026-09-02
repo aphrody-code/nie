@@ -1,0 +1,42 @@
+{
+	"extends": "@rosegriffon/config/tsconfig-nextjs.json",
+	"compilerOptions": {
+		"baseUrl": ".",
+		"noImplicitOverride": false,
+		"noUncheckedIndexedAccess": false,
+		"target": "ES2022",
+		"lib": ["dom", "dom.iterable", "esnext"],
+		"allowJs": true,
+		"module": "esnext",
+		"moduleResolution": "bundler",
+		"jsx": "react-jsx",
+		"allowImportingTsExtensions": true,
+		"types": ["node", "react", "react-dom", "@webgpu/types"],
+		"paths": {
+			"@/*": ["./src/*", "./*"],
+			"@rosegriffon/db": ["../../packages/db/src/index.ts"],
+			"@rosegriffon/db/*": ["../../packages/db/src/*"],
+			"@rosegriffon/types": ["../../packages/types/src/index.ts"],
+			"@rosegriffon/types/*": ["../../packages/types/src/*"],
+			"@rosegriffon/auth": ["../../packages/auth/src/index.ts"],
+			"@rosegriffon/auth/*": ["../../packages/auth/src/*"]
+		},
+		"incremental": true,
+		"plugins": [
+			{
+				"name": "next"
+			}
+		]
+	},
+	"include": [
+		"next-env.d.ts",
+		"**/*.ts",
+		"**/*.tsx",
+		".next/types/**/*.ts",
+		".next/dev/types/**/*.ts",
+		"**/*.mts"
+	],
+	"exclude": [
+		"tests-e2e",
+		"tests","node_modules", ".next", "dist", ".turbo", "scripts"]
+}

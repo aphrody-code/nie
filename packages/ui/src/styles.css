@@ -1,0 +1,702 @@
+/* Styles partagés @rosegriffon/ui — Tailwind v4 inline tokens.
+ * Importer dans chaque app via `@import "@rosegriffon/ui/styles.css"` au début de globals.css.
+ * Les apps complètent avec leurs propres tokens (cf. apps/<app>/src/app/globals.css).
+ *
+ * Material Design 3 — couverture complète niveau tokens :
+ *   - 35 tokens sys-color (light + dark) dérivés du seed Rose Griffon
+ *   - shape scale (7 corners)
+ *   - motion easings (6) + durations (16)
+ *   - elevation (6 levels)
+ *   - typescale (15 rôles officiels)
+ *   - state-layer utility
+ *
+ * Thèmes unifiés (4) — appliqués via classe sur <html> ou ancêtre :
+ *   - .theme-roy           — Inazuma character, light, accent bleu/doré
+ *   - .theme-gaelle        — Inazuma character, light, vermillon/orange
+ *   - .theme-azalee-light  — Wiki Azalée, light, seed MD3 #F89C5A
+ *   - .theme-azalee-dark   — Wiki Azalée, dark, seed MD3 #F89C5A
+ *
+ * Pont shadcn → MD3 : chaque thème mappe les vars shadcn (--primary, --background,
+ * --card, --foreground, …) vers les sys-color MD3 actifs, pour que les composants
+ * shadcn héritent automatiquement de la palette MD3 sélectionnée.
+ */
+
+@theme inline {
+	/* Accordion animation tokens — utilisés par packages/ui/src/components/accordion.tsx.
+	 * Présents dans le package partagé pour que toute app qui importe @rosegriffon/ui/styles.css
+	 * obtienne les keyframes sans dépendre de tw-animate-css / tailwindcss-animate. */
+	--animate-accordion-down: accordion-down 0.2s ease-out;
+	--animate-accordion-up: accordion-up 0.2s ease-out;
+
+	/* ─── M3 Shape scale ─────────────────────────────────────────────────── */
+	--md-sys-shape-corner-none: 0;
+	--md-sys-shape-corner-extra-small: 4px;
+	--md-sys-shape-corner-small: 8px;
+	--md-sys-shape-corner-medium: 12px;
+	--md-sys-shape-corner-large: 16px;
+	--md-sys-shape-corner-extra-large: 28px;
+	--md-sys-shape-corner-full: 9999px;
+
+	/* ─── M3 Motion — easings ────────────────────────────────────────────── */
+	--md-sys-motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+	--md-sys-motion-easing-standard-accelerate: cubic-bezier(0.3, 0, 1, 1);
+	--md-sys-motion-easing-standard-decelerate: cubic-bezier(0, 0, 0, 1);
+	--md-sys-motion-easing-emphasized: cubic-bezier(0.3, 0, 0, 1);
+	--md-sys-motion-easing-emphasized-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
+	--md-sys-motion-easing-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+
+	/* ─── M3 Motion — durations ──────────────────────────────────────────── */
+	--md-sys-motion-duration-short1: 50ms;
+	--md-sys-motion-duration-short2: 100ms;
+	--md-sys-motion-duration-short3: 150ms;
+	--md-sys-motion-duration-short4: 200ms;
+	--md-sys-motion-duration-medium1: 250ms;
+	--md-sys-motion-duration-medium2: 300ms;
+	--md-sys-motion-duration-medium3: 350ms;
+	--md-sys-motion-duration-medium4: 400ms;
+	--md-sys-motion-duration-long1: 450ms;
+	--md-sys-motion-duration-long2: 500ms;
+	--md-sys-motion-duration-long3: 550ms;
+	--md-sys-motion-duration-long4: 600ms;
+	--md-sys-motion-duration-extra-long1: 700ms;
+	--md-sys-motion-duration-extra-long2: 800ms;
+	--md-sys-motion-duration-extra-long3: 900ms;
+	--md-sys-motion-duration-extra-long4: 1000ms;
+
+	/* ─── Breakpoint custom xs (375px / iPhone) ──────────────────────────── */
+	/* Tailwind defaults : sm 640 / md 768 / lg 1024 / xl 1280 / 2xl 1536.
+	 * Ajout `xs` 375px pour cibler les iPhones standard et améliorer le
+	 * fine-grained responsive sur petites screens. */
+	--breakpoint-xs: 23.4375rem;
+
+	/* ─── Fluid typography ───────────────────────────────────────────────── */
+	/* Type scale fluide qui interpole entre 320px (mobile) et 1920px (desktop)
+	 * via `clamp(min, preferred, max)`. Évite les cascades sm:/md:/lg: dans le
+	 * markup. À utiliser sur les titres hero, landing, design-system, shop.
+	 * Min = mobile lisible · Preferred = fluide vw · Max = desktop majestueux. */
+	--text-fluid-display-2xl: clamp(3rem, 7vw + 1rem, 9.75rem); /* 48 → 156 */
+	--text-fluid-display-xl: clamp(2.5rem, 5.5vw + 1rem, 7.5rem); /* 40 → 120 */
+	--text-fluid-display-lg: clamp(2.25rem, 4vw + 1rem, 5rem); /* 36 → 80 */
+	--text-fluid-headline-xl: clamp(1.75rem, 3vw + 0.5rem, 3.5rem); /* 28 → 56 */
+	--text-fluid-headline-lg: clamp(1.5rem, 2vw + 0.5rem, 2.5rem); /* 24 → 40 */
+	--text-fluid-headline-md: clamp(1.25rem, 1.2vw + 0.5rem, 2rem); /* 20 → 32 */
+	--text-fluid-body-lg: clamp(1rem, 0.5vw + 0.875rem, 1.25rem); /* 16 → 20 */
+	--text-fluid-body-md: clamp(0.9375rem, 0.25vw + 0.875rem, 1rem); /* 15 → 16 */
+
+	/* Spacing fluide section padding-block (mobile généreux → desktop spacieux) */
+	--space-fluid-section-y: clamp(3rem, 6vw + 1rem, 8rem); /* 48 → 128 */
+	--space-fluid-section-x: clamp(1rem, 3vw + 0.5rem, 5rem); /* 16 → 80 */
+
+	/* ─── M3 Elevation ───────────────────────────────────────────────────── */
+	--md-sys-elevation-level0: none;
+	--md-sys-elevation-level1: 0 1px 2px 0 rgb(0 0 0 / 0.3), 0 1px 3px 1px rgb(0 0 0 / 0.15);
+	--md-sys-elevation-level2: 0 1px 2px 0 rgb(0 0 0 / 0.3), 0 2px 6px 2px rgb(0 0 0 / 0.15);
+	--md-sys-elevation-level3: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 4px 8px 3px rgb(0 0 0 / 0.15);
+	--md-sys-elevation-level4: 0 2px 3px 0 rgb(0 0 0 / 0.3), 0 6px 10px 4px rgb(0 0 0 / 0.15);
+	--md-sys-elevation-level5: 0 4px 4px 0 rgb(0 0 0 / 0.3), 0 8px 12px 6px rgb(0 0 0 / 0.15);
+
+	/* ─── Pont MD3 → utilities Tailwind v4 ───────────────────────────────── */
+	/* Expose chaque rôle MD3 comme utility Tailwind (`bg-primary-container`,
+	 * `text-on-surface-variant`, `border-outline-variant`, etc.) — source unique
+	 * de vérité pour TOUTE app qui importe @rosegriffon/ui/styles.css. Évite la
+	 * duplication du pont dans chaque globals.css. */
+	--color-primary: var(--md-sys-color-primary);
+	--color-on-primary: var(--md-sys-color-on-primary);
+	--color-primary-container: var(--md-sys-color-primary-container);
+	--color-on-primary-container: var(--md-sys-color-on-primary-container);
+	--color-secondary: var(--md-sys-color-secondary);
+	--color-on-secondary: var(--md-sys-color-on-secondary);
+	--color-secondary-container: var(--md-sys-color-secondary-container);
+	--color-on-secondary-container: var(--md-sys-color-on-secondary-container);
+	--color-tertiary: var(--md-sys-color-tertiary);
+	--color-on-tertiary: var(--md-sys-color-on-tertiary);
+	--color-tertiary-container: var(--md-sys-color-tertiary-container);
+	--color-on-tertiary-container: var(--md-sys-color-on-tertiary-container);
+	--color-error: var(--md-sys-color-error);
+	--color-on-error: var(--md-sys-color-on-error);
+	--color-error-container: var(--md-sys-color-error-container);
+	--color-on-error-container: var(--md-sys-color-on-error-container);
+	--color-background: var(--md-sys-color-background);
+	--color-on-background: var(--md-sys-color-on-background);
+	--color-surface: var(--md-sys-color-surface);
+	--color-on-surface: var(--md-sys-color-on-surface);
+	--color-surface-variant: var(--md-sys-color-surface-variant);
+	--color-on-surface-variant: var(--md-sys-color-on-surface-variant);
+	--color-outline: var(--md-sys-color-outline);
+	--color-outline-variant: var(--md-sys-color-outline-variant);
+	--color-scrim: var(--md-sys-color-scrim);
+	--color-shadow: var(--md-sys-color-shadow);
+	--color-inverse-surface: var(--md-sys-color-inverse-surface);
+	--color-inverse-on-surface: var(--md-sys-color-inverse-on-surface);
+	--color-inverse-primary: var(--md-sys-color-inverse-primary);
+	--color-surface-dim: var(--md-sys-color-surface-dim);
+	--color-surface-bright: var(--md-sys-color-surface-bright);
+	--color-surface-container-lowest: var(--md-sys-color-surface-container-lowest);
+	--color-surface-container-low: var(--md-sys-color-surface-container-low);
+	--color-surface-container: var(--md-sys-color-surface-container);
+	--color-surface-container-high: var(--md-sys-color-surface-container-high);
+	--color-surface-container-highest: var(--md-sys-color-surface-container-highest);
+
+	/* ─── Couleurs de marque Rose Griffon ────────────────────────────────── */
+	/* Le pont vit ici et non dans le `globals.css` d'une app : les composants
+	 * partagés (page « Mon compte », en-têtes de section…) s'en servent, donc
+	 * `bg-rg-or` doit être généré côté website ET côté azalée. Les variables
+	 * source sont déclarées plus bas dans `@layer base :root`. */
+	--color-rg-marine: var(--rg-marine);
+	--color-rg-marine-clair: var(--rg-marine-clair);
+	--color-rg-or: var(--rg-griffon);
+	--color-rg-rose: var(--rg-rose);
+	--color-rg-brique: var(--rg-brique);
+	--color-rg-brique-clair: var(--rg-brique-clair);
+	--color-rg-sur-marine: var(--rg-sur-marine);
+	--color-succes: var(--rg-succes);
+	--color-info: var(--rg-info);
+	--color-alerte: var(--rg-alerte);
+
+	/* ─── Éléments d'Inazuma Eleven ──────────────────────────────────────── */
+	/* Comme les marques tierces ci-dessous : ces quatre teintes ne sont pas des
+	 * choix de design system, ce sont celles du JEU. Elles ont été relevées sur
+	 * ses propres icônes (`public/spirit_type/*.webp` : feu #b50100, vent
+	 * #0244b0, forêt #207d00, montagne #ab5200), puis remontées à une clarté
+	 * commune (0.60) pour rester lisibles sur fond clair comme sur fond sombre —
+	 * le rouge d'origine disparaît sur le marine du thème Roy.
+	 *
+	 * ⚠ Elles existaient en SIX exemplaires divergents dans `apps/azalee`
+	 * (`PassiveCard`, `PassiveDetail`, `TeamStats`, `FormationField`, deux
+	 * `opengraph-image`), et le VENT y était tantôt bleu, tantôt vert. L'icône du
+	 * jeu tranche : il est bleu. Toute nouvelle surface qui colore un élément
+	 * doit lire ces tokens, pas réinventer sa palette. */
+	--color-element-feu: oklch(0.6 0.16 29.3);
+	--color-element-vent: oklch(0.6 0.16 261);
+	--color-element-foret: oklch(0.6 0.16 140.4);
+	--color-element-montagne: oklch(0.6 0.139 52);
+
+	/* ─── Postes d'Inazuma Eleven ────────────────────────────────────────── */
+	/* Les quatre couleurs de poste du jeu, reprises telles quelles de
+	 * `CharacterSheet.tsx` (« matching game exactly ») où elles étaient écrites
+	 * en hexadécimal au milieu d'un composant. Comme les éléments ci-dessus :
+	 * ce sont des constantes du jeu, pas des choix de design system, mais elles
+	 * n'ont aucune raison de vivre en six exemplaires. */
+	--color-poste-gardien: #fdd835;
+	--color-poste-defenseur: #1e88e5;
+	--color-poste-milieu: #43a047;
+	--color-poste-attaquant: #e53935;
+
+	/* Couleurs de marque tierces — constantes imposées par chaque marque, pas
+	 * des choix de design system : elles ne varient donc pas selon le thème. */
+	--color-discord: #5865f2;
+	--color-patreon: #ff424d;
+	--color-twitch: #9146ff;
+	--color-youtube: #ff0000;
+	/* Instagram est un dégradé : on retient la teinte dominante de sa charte,
+	 * celle que la marque emploie pour ses aplats monochromes. Un dégradé en
+	 * `hover:bg-linear-to-tr hover:from-[…]` écrit dans un composant serait trois
+	 * hex de plus, recopiés à chaque nouvel usage. */
+	--color-instagram: #e4405f;
+}
+
+@keyframes accordion-down {
+	from {
+		height: 0;
+	}
+	to {
+		height: var(--radix-accordion-content-height);
+	}
+}
+
+@keyframes accordion-up {
+	from {
+		height: var(--radix-accordion-content-height);
+	}
+	to {
+		height: 0;
+	}
+}
+
+@layer base {
+	:root {
+		/* Rose Griffon — branding tokens (seed M3).
+		 * Ces quatre teintes sont la DA de l'association : elles ne suivent PAS
+		 * le thème (une bannière de marque reste identique en Roy comme en
+		 * Azalée sombre). Elles existent en tokens pour qu'aucun composant
+		 * n'ait à écrire l'hexadécimal en dur. */
+		--rg-marine: oklch(0.2 0.05 264); /* #0c1730 — neutral dark */
+		--rg-rose: oklch(0.65 0.22 0); /* #e91e63 — primary seed */
+		--rg-griffon: oklch(0.78 0.13 90); /* #d4af37 — or, tertiary seed */
+		--rg-brique: oklch(0.5 0.11 30); /* #a14b3f — rouge brique RG */
+		--rg-marine-clair: oklch(0.31 0.07 264); /* #16264a — dégradé de marine */
+		--rg-brique-clair: oklch(0.63 0.12 35); /* #d16854 — dégradé de brique */
+		--rg-sur-marine: oklch(0.98 0.004 90); /* blanc cassé — texte sur marine */
+
+		/* États sémantiques partagés (succès / info / alerte). L'erreur passe par
+		 * `--destructive`, déjà thémé. Sans ces tokens, les composants retombent
+		 * sur `bg-green-500` & consorts, qui ignorent le thème. */
+		--rg-succes: oklch(0.62 0.15 150);
+		--rg-info: oklch(0.6 0.14 240);
+		--rg-alerte: oklch(0.75 0.15 75);
+
+		/* ─── M3 sys-color — LIGHT scheme (35 tokens) ────────────────────── */
+		--md-sys-color-primary: oklch(0.5 0.22 0);
+		--md-sys-color-on-primary: oklch(1 0 0);
+		--md-sys-color-primary-container: oklch(0.9 0.08 0);
+		--md-sys-color-on-primary-container: oklch(0.2 0.18 0);
+		--md-sys-color-secondary: oklch(0.5 0.08 0);
+		--md-sys-color-on-secondary: oklch(1 0 0);
+		--md-sys-color-secondary-container: oklch(0.9 0.04 0);
+		--md-sys-color-on-secondary-container: oklch(0.2 0.06 0);
+		--md-sys-color-tertiary: oklch(0.5 0.13 90);
+		--md-sys-color-on-tertiary: oklch(1 0 0);
+		--md-sys-color-tertiary-container: oklch(0.9 0.06 90);
+		--md-sys-color-on-tertiary-container: oklch(0.2 0.1 90);
+		--md-sys-color-error: oklch(0.5 0.22 27);
+		--md-sys-color-on-error: oklch(1 0 0);
+		--md-sys-color-error-container: oklch(0.9 0.06 27);
+		--md-sys-color-on-error-container: oklch(0.2 0.18 27);
+		--md-sys-color-background: oklch(0.99 0.003 264);
+		--md-sys-color-on-background: oklch(0.2 0.02 264);
+		--md-sys-color-surface: oklch(0.99 0.003 264);
+		--md-sys-color-on-surface: oklch(0.2 0.02 264);
+		--md-sys-color-surface-variant: oklch(0.9 0.01 264);
+		--md-sys-color-on-surface-variant: oklch(0.3 0.02 264);
+		--md-sys-color-outline: oklch(0.5 0.01 264);
+		--md-sys-color-outline-variant: oklch(0.8 0.01 264);
+		--md-sys-color-scrim: oklch(0 0 0);
+		--md-sys-color-shadow: oklch(0 0 0);
+		--md-sys-color-inverse-surface: oklch(0.2 0.02 264);
+		--md-sys-color-inverse-on-surface: oklch(0.95 0.005 264);
+		--md-sys-color-inverse-primary: oklch(0.8 0.15 0);
+		--md-sys-color-surface-dim: oklch(0.87 0.005 264);
+		--md-sys-color-surface-bright: oklch(0.99 0.003 264);
+		--md-sys-color-surface-container-lowest: oklch(1 0 0);
+		--md-sys-color-surface-container-low: oklch(0.96 0.004 264);
+		--md-sys-color-surface-container: oklch(0.94 0.005 264);
+		--md-sys-color-surface-container-high: oklch(0.92 0.006 264);
+		--md-sys-color-surface-container-highest: oklch(0.9 0.007 264);
+	}
+
+	:root.dark,
+	.dark {
+		--md-sys-color-primary: oklch(0.8 0.15 0);
+		--md-sys-color-on-primary: oklch(0.2 0.18 0);
+		--md-sys-color-primary-container: oklch(0.3 0.18 0);
+		--md-sys-color-on-primary-container: oklch(0.9 0.08 0);
+		--md-sys-color-secondary: oklch(0.8 0.04 0);
+		--md-sys-color-on-secondary: oklch(0.2 0.06 0);
+		--md-sys-color-secondary-container: oklch(0.3 0.06 0);
+		--md-sys-color-on-secondary-container: oklch(0.9 0.04 0);
+		--md-sys-color-tertiary: oklch(0.8 0.1 90);
+		--md-sys-color-on-tertiary: oklch(0.2 0.1 90);
+		--md-sys-color-tertiary-container: oklch(0.3 0.1 90);
+		--md-sys-color-on-tertiary-container: oklch(0.9 0.06 90);
+		--md-sys-color-error: oklch(0.8 0.15 27);
+		--md-sys-color-on-error: oklch(0.2 0.18 27);
+		--md-sys-color-error-container: oklch(0.3 0.18 27);
+		--md-sys-color-on-error-container: oklch(0.9 0.06 27);
+		--md-sys-color-background: oklch(0.13 0.02 264);
+		--md-sys-color-on-background: oklch(0.9 0.01 264);
+		--md-sys-color-surface: oklch(0.13 0.02 264);
+		--md-sys-color-on-surface: oklch(0.9 0.01 264);
+		--md-sys-color-surface-variant: oklch(0.3 0.02 264);
+		--md-sys-color-on-surface-variant: oklch(0.8 0.01 264);
+		--md-sys-color-outline: oklch(0.6 0.01 264);
+		--md-sys-color-outline-variant: oklch(0.3 0.02 264);
+		--md-sys-color-scrim: oklch(0 0 0);
+		--md-sys-color-shadow: oklch(0 0 0);
+		--md-sys-color-inverse-surface: oklch(0.9 0.01 264);
+		--md-sys-color-inverse-on-surface: oklch(0.2 0.02 264);
+		--md-sys-color-inverse-primary: oklch(0.5 0.22 0);
+		--md-sys-color-surface-dim: oklch(0.13 0.02 264);
+		--md-sys-color-surface-bright: oklch(0.27 0.02 264);
+		--md-sys-color-surface-container-lowest: oklch(0.1 0.02 264);
+		--md-sys-color-surface-container-low: oklch(0.16 0.02 264);
+		--md-sys-color-surface-container: oklch(0.18 0.02 264);
+		--md-sys-color-surface-container-high: oklch(0.22 0.02 264);
+		--md-sys-color-surface-container-highest: oklch(0.27 0.02 264);
+	}
+
+	:root.theme-roy,
+	.theme-roy,
+	:root.roy,
+	.roy {
+		--md-sys-color-primary: oklch(0.45 0.12 250);
+		--md-sys-color-on-primary: oklch(0.985 0 0);
+		--md-sys-color-primary-container: oklch(0.85 0.08 250);
+		--md-sys-color-on-primary-container: oklch(0.18 0.1 250);
+		--md-sys-color-secondary: oklch(0.8 0.1 80);
+		--md-sys-color-on-secondary: oklch(0.2 0.05 250);
+		--md-sys-color-secondary-container: oklch(0.92 0.06 80);
+		--md-sys-color-on-secondary-container: oklch(0.2 0.08 80);
+		--md-sys-color-tertiary: oklch(0.55 0.1 240);
+		--md-sys-color-on-tertiary: oklch(1 0 0);
+		--md-sys-color-tertiary-container: oklch(0.88 0.06 240);
+		--md-sys-color-on-tertiary-container: oklch(0.18 0.08 240);
+		--md-sys-color-error: oklch(0.577 0.245 27.325);
+		--md-sys-color-on-error: oklch(1 0 0);
+		--md-sys-color-error-container: oklch(0.92 0.06 27);
+		--md-sys-color-on-error-container: oklch(0.2 0.18 27);
+		--md-sys-color-background: oklch(0.97 0.01 80);
+		--md-sys-color-on-background: oklch(0.2 0.05 250);
+		--md-sys-color-surface: oklch(0.97 0.01 80);
+		--md-sys-color-on-surface: oklch(0.2 0.05 250);
+		--md-sys-color-surface-variant: oklch(0.92 0.02 250);
+		--md-sys-color-on-surface-variant: oklch(0.4 0.04 250);
+		--md-sys-color-outline: oklch(0.55 0.04 250);
+		--md-sys-color-outline-variant: oklch(0.85 0.02 250);
+		--md-sys-color-surface-dim: oklch(0.88 0.01 80);
+		--md-sys-color-surface-bright: oklch(0.99 0.005 80);
+		--md-sys-color-surface-container-lowest: oklch(1 0 0);
+		--md-sys-color-surface-container-low: oklch(0.97 0.008 80);
+		--md-sys-color-surface-container: oklch(0.95 0.01 80);
+		--md-sys-color-surface-container-high: oklch(0.93 0.012 80);
+		--md-sys-color-surface-container-highest: oklch(0.91 0.014 80);
+		--md-sys-color-inverse-surface: oklch(0.25 0.05 250);
+		--md-sys-color-inverse-on-surface: oklch(0.96 0.01 80);
+		--md-sys-color-inverse-primary: oklch(0.75 0.1 250);
+		--background: oklch(0.97 0.01 80);
+		--foreground: oklch(0.2 0.05 250);
+		--card: oklch(1 0 0);
+		--card-foreground: oklch(0.2 0.05 250);
+		--popover: oklch(1 0 0);
+		--popover-foreground: oklch(0.2 0.05 250);
+		--primary: oklch(0.45 0.12 250);
+		--primary-foreground: oklch(0.985 0 0);
+		--secondary: oklch(0.8 0.1 80);
+		--secondary-foreground: oklch(0.2 0.05 250);
+		--muted: oklch(0.95 0.01 80);
+		--muted-foreground: oklch(0.5 0.05 250);
+		--accent: oklch(0.8 0.1 80);
+		--accent-foreground: oklch(0.2 0.05 250);
+		--destructive: oklch(0.577 0.245 27.325);
+		/* Texte posé SUR `--destructive`. Absent des thèmes RG jusqu'ici, alors que
+		 * la variante `destructive` du Badge partagé s'en sert : elle rendait son
+		 * libellé sans couleur. Blanc cassé, comme sur les deux thèmes Azalée. */
+		--destructive-foreground: oklch(0.985 0 0);
+		--border: oklch(0.9 0.02 250);
+		--input: oklch(0.9 0.02 250);
+		--ring: oklch(0.45 0.12 250);
+		--chart-1: oklch(0.45 0.12 250);
+		--chart-2: oklch(0.8 0.1 80);
+		--chart-3: oklch(0.6 0.08 250);
+		--chart-4: oklch(0.7 0.09 260);
+		--chart-5: oklch(0.55 0.1 240);
+		--sidebar: #344e8c;
+		--sidebar-foreground: #ffffff;
+		--sidebar-primary: #243d5b;
+		--sidebar-primary-foreground: #ffffff;
+		--sidebar-accent: rgba(255, 196, 110, 0.2);
+		--sidebar-accent-foreground: #ffffff;
+		--sidebar-border: rgba(255, 196, 110, 0.3);
+		--sidebar-ring: rgba(255, 196, 110, 0.4);
+	}
+
+	:root.theme-gaelle,
+	.theme-gaelle,
+	:root.gaelle,
+	.gaelle {
+		--md-sys-color-primary: oklch(0.5 0.18 25);
+		--md-sys-color-on-primary: oklch(0.985 0 0);
+		--md-sys-color-primary-container: oklch(0.88 0.08 25);
+		--md-sys-color-on-primary-container: oklch(0.2 0.15 25);
+		--md-sys-color-secondary: oklch(0.8 0.12 50);
+		--md-sys-color-on-secondary: oklch(0.25 0.15 25);
+		--md-sys-color-secondary-container: oklch(0.92 0.06 50);
+		--md-sys-color-on-secondary-container: oklch(0.2 0.1 50);
+		--md-sys-color-tertiary: oklch(0.6 0.15 35);
+		--md-sys-color-on-tertiary: oklch(1 0 0);
+		--md-sys-color-tertiary-container: oklch(0.9 0.06 35);
+		--md-sys-color-on-tertiary-container: oklch(0.2 0.1 35);
+		--md-sys-color-error: oklch(0.35 0.2 15);
+		--md-sys-color-on-error: oklch(1 0 0);
+		--md-sys-color-error-container: oklch(0.9 0.1 15);
+		--md-sys-color-on-error-container: oklch(0.18 0.18 15);
+		--md-sys-color-background: oklch(0.95 0.03 40);
+		--md-sys-color-on-background: oklch(0.25 0.15 25);
+		--md-sys-color-surface: oklch(0.95 0.03 40);
+		--md-sys-color-on-surface: oklch(0.25 0.15 25);
+		--md-sys-color-surface-variant: oklch(0.9 0.04 30);
+		--md-sys-color-on-surface-variant: oklch(0.4 0.08 25);
+		--md-sys-color-outline: oklch(0.55 0.06 25);
+		--md-sys-color-outline-variant: oklch(0.85 0.04 30);
+		--md-sys-color-surface-dim: oklch(0.88 0.03 40);
+		--md-sys-color-surface-bright: oklch(0.97 0.02 40);
+		--md-sys-color-surface-container-lowest: oklch(1 0 0);
+		--md-sys-color-surface-container-low: oklch(0.96 0.025 40);
+		--md-sys-color-surface-container: oklch(0.94 0.03 40);
+		--md-sys-color-surface-container-high: oklch(0.92 0.035 40);
+		--md-sys-color-surface-container-highest: oklch(0.9 0.04 40);
+		--md-sys-color-inverse-surface: oklch(0.25 0.05 25);
+		--md-sys-color-inverse-on-surface: oklch(0.96 0.02 40);
+		--md-sys-color-inverse-primary: oklch(0.75 0.12 25);
+		--background: oklch(0.95 0.03 40);
+		--foreground: oklch(0.25 0.15 25);
+		--card: oklch(1 0 0);
+		--card-foreground: oklch(0.25 0.15 25);
+		--popover: oklch(1 0 0);
+		--popover-foreground: oklch(0.25 0.15 25);
+		--primary: oklch(0.5 0.18 25);
+		--primary-foreground: oklch(0.985 0 0);
+		--secondary: oklch(0.8 0.12 50);
+		--secondary-foreground: oklch(0.25 0.15 25);
+		--muted: oklch(0.92 0.03 40);
+		--muted-foreground: oklch(0.5 0.1 25);
+		--accent: oklch(0.8 0.12 50);
+		--accent-foreground: oklch(0.25 0.15 25);
+		--destructive: oklch(0.35 0.2 15);
+		/* Texte posé SUR `--destructive`. Absent des thèmes RG jusqu'ici, alors que
+		 * la variante `destructive` du Badge partagé s'en sert : elle rendait son
+		 * libellé sans couleur. Blanc cassé, comme sur les deux thèmes Azalée. */
+		--destructive-foreground: oklch(0.985 0 0);
+		--border: oklch(0.88 0.05 30);
+		--input: oklch(0.88 0.05 30);
+		--ring: oklch(0.5 0.18 25);
+		--chart-1: oklch(0.5 0.18 25);
+		--chart-2: oklch(0.8 0.12 50);
+		--chart-3: oklch(0.35 0.2 15);
+		--chart-4: oklch(0.6 0.15 35);
+		--chart-5: oklch(0.7 0.14 45);
+		--sidebar: #b03519;
+		--sidebar-foreground: #ffffff;
+		--sidebar-primary: #770007;
+		--sidebar-primary-foreground: #ffffff;
+		--sidebar-accent: rgba(255, 196, 110, 0.2);
+		--sidebar-accent-foreground: #ffffff;
+		--sidebar-border: rgba(255, 196, 110, 0.3);
+		--sidebar-ring: rgba(255, 196, 110, 0.4);
+	}
+
+	:root.theme-azalee-light,
+	.theme-azalee-light,
+	:root.azalee-light,
+	.azalee-light {
+		--md-sys-color-primary: #f2a93b;
+		--md-sys-color-on-primary: #2a1519;
+		--md-sys-color-primary-container: #ffe08b;
+		--md-sys-color-on-primary-container: #2a1519;
+		--md-sys-color-secondary: #a92335;
+		--md-sys-color-on-secondary: #ffffff;
+		--md-sys-color-secondary-container: #ffdad6;
+		--md-sys-color-on-secondary-container: #410006;
+		--md-sys-color-tertiary: #2f4f4f;
+		--md-sys-color-on-tertiary: #ffffff;
+		--md-sys-color-tertiary-container: #b1ecec;
+		--md-sys-color-on-tertiary-container: #002020;
+		--md-sys-color-error: #ba1a1a;
+		--md-sys-color-on-error: #ffffff;
+		--md-sys-color-error-container: #ffdad6;
+		--md-sys-color-on-error-container: #93000a;
+		--md-sys-color-background: #fff8f5;
+		--md-sys-color-on-background: #221a15;
+		--md-sys-color-surface: #fff8f5;
+		--md-sys-color-on-surface: #221a15;
+		--md-sys-color-surface-variant: #f4ded3;
+		--md-sys-color-on-surface-variant: #52443c;
+		--md-sys-color-outline: #84746a;
+		--md-sys-color-outline-variant: #d7c3b7;
+		--md-sys-color-scrim: #000000;
+		--md-sys-color-shadow: #000000;
+		--md-sys-color-inverse-surface: #382e29;
+		--md-sys-color-inverse-on-surface: #feede5;
+		--md-sys-color-inverse-primary: #ffb786;
+		--md-sys-color-surface-dim: #e7d7ce;
+		--md-sys-color-surface-bright: #fff8f5;
+		--md-sys-color-surface-container-lowest: #ffffff;
+		--md-sys-color-surface-container-low: #fff1ea;
+		--md-sys-color-surface-container: #fcebe2;
+		--md-sys-color-surface-container-high: #f6e5dc;
+		--md-sys-color-surface-container-highest: #f0dfd7;
+		--background: var(--md-sys-color-surface);
+		--foreground: var(--md-sys-color-on-surface);
+		--card: var(--md-sys-color-surface-container-low);
+		--card-foreground: var(--md-sys-color-on-surface);
+		--popover: var(--md-sys-color-surface-container-high);
+		--popover-foreground: var(--md-sys-color-on-surface);
+		--primary: var(--md-sys-color-primary);
+		--primary-foreground: var(--md-sys-color-on-primary);
+		--secondary: var(--md-sys-color-secondary-container);
+		--secondary-foreground: var(--md-sys-color-on-secondary-container);
+		--muted: var(--md-sys-color-surface-container);
+		--muted-foreground: var(--md-sys-color-on-surface-variant);
+		--accent: var(--md-sys-color-tertiary-container);
+		--accent-foreground: var(--md-sys-color-on-tertiary-container);
+		--destructive: var(--md-sys-color-error);
+		--destructive-foreground: var(--md-sys-color-on-error);
+		--border: var(--md-sys-color-outline-variant);
+		--input: var(--md-sys-color-outline);
+		--ring: var(--md-sys-color-primary);
+		--sidebar: var(--md-sys-color-surface);
+		--sidebar-foreground: var(--md-sys-color-on-surface);
+		--sidebar-primary: var(--md-sys-color-primary);
+		--sidebar-primary-foreground: var(--md-sys-color-on-primary);
+		--sidebar-accent: var(--md-sys-color-tertiary-container);
+		--sidebar-accent-foreground: var(--md-sys-color-on-tertiary-container);
+		--sidebar-border: var(--md-sys-color-outline-variant);
+		--sidebar-ring: var(--md-sys-color-primary);
+	}
+
+	:root.theme-azalee-dark,
+	.theme-azalee-dark,
+	:root.azalee-dark,
+	.azalee-dark {
+		--md-sys-color-primary: #ffc66c;
+		--md-sys-color-on-primary: #412d00;
+		--md-sys-color-primary-container: #5d4200;
+		--md-sys-color-on-primary-container: #ffe0aa;
+		--md-sys-color-secondary: #ffb2be;
+		--md-sys-color-on-secondary: #5e1123;
+		--md-sys-color-secondary-container: #7c2939;
+		--md-sys-color-on-secondary-container: #ffd9df;
+		--md-sys-color-tertiary: #edc26e;
+		--md-sys-color-on-tertiary: #422d00;
+		--md-sys-color-tertiary-container: #5e4200;
+		--md-sys-color-on-tertiary-container: #ffdea6;
+		--md-sys-color-error: #ffb4ab;
+		--md-sys-color-on-error: #690005;
+		--md-sys-color-error-container: #93000a;
+		--md-sys-color-on-error-container: #ffdad6;
+		--md-sys-color-background: #1a120d;
+		--md-sys-color-on-background: #ede0db;
+		--md-sys-color-surface: #1a120d;
+		--md-sys-color-on-surface: #ede0db;
+		--md-sys-color-surface-variant: #52443c;
+		--md-sys-color-on-surface-variant: #d7c3b7;
+		--md-sys-color-outline: #9f8d83;
+		--md-sys-color-outline-variant: #52443c;
+		--md-sys-color-scrim: #000000;
+		--md-sys-color-shadow: #000000;
+		--md-sys-color-inverse-surface: #ede0db;
+		--md-sys-color-inverse-on-surface: #1a120d;
+		--md-sys-color-inverse-primary: #8b5023;
+		--md-sys-color-surface-dim: #1a120d;
+		--md-sys-color-surface-bright: #413732;
+		--md-sys-color-surface-container-lowest: #140d09;
+		--md-sys-color-surface-container-low: #221a15;
+		--md-sys-color-surface-container: #271e19;
+		--md-sys-color-surface-container-high: #322823;
+		--md-sys-color-surface-container-highest: #3d332d;
+		--background: var(--md-sys-color-surface);
+		--foreground: var(--md-sys-color-on-surface);
+		--card: var(--md-sys-color-surface-container-low);
+		--card-foreground: var(--md-sys-color-on-surface);
+		--popover: var(--md-sys-color-surface-container-high);
+		--popover-foreground: var(--md-sys-color-on-surface);
+		--primary: var(--md-sys-color-primary);
+		--primary-foreground: var(--md-sys-color-on-primary);
+		--secondary: var(--md-sys-color-secondary-container);
+		--secondary-foreground: var(--md-sys-color-on-secondary-container);
+		--muted: var(--md-sys-color-surface-container);
+		--muted-foreground: var(--md-sys-color-on-surface-variant);
+		--accent: var(--md-sys-color-tertiary-container);
+		--accent-foreground: var(--md-sys-color-on-tertiary-container);
+		--destructive: var(--md-sys-color-error);
+		--destructive-foreground: var(--md-sys-color-on-error);
+		--border: var(--md-sys-color-outline-variant);
+		--input: var(--md-sys-color-outline);
+		--ring: var(--md-sys-color-primary);
+		--sidebar: var(--md-sys-color-surface);
+		--sidebar-foreground: var(--md-sys-color-on-surface);
+		--sidebar-primary: var(--md-sys-color-primary);
+		--sidebar-primary-foreground: var(--md-sys-color-on-primary);
+		--sidebar-accent: var(--md-sys-color-tertiary-container);
+		--sidebar-accent-foreground: var(--md-sys-color-on-tertiary-container);
+		--sidebar-border: var(--md-sys-color-outline-variant);
+		--sidebar-ring: var(--md-sys-color-primary);
+	}
+
+	html {
+		scroll-behavior: smooth;
+		text-rendering: optimizeLegibility;
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+	}
+
+	body {
+		font-feature-settings:
+			"rlig" 1,
+			"calt" 1;
+	}
+
+	:focus-visible {
+		outline: 2px solid var(--rg-rose);
+		outline-offset: 2px;
+	}
+}
+
+@layer components {
+	.type-display-large {
+		font: 400 57px/64px var(--font-sans);
+		letter-spacing: -0.25px;
+	}
+	.type-display-medium {
+		font: 400 45px/52px var(--font-sans);
+	}
+	.type-display-small {
+		font: 400 36px/44px var(--font-sans);
+	}
+	.type-headline-large {
+		font: 400 32px/40px var(--font-sans);
+	}
+	.type-headline-medium {
+		font: 400 28px/36px var(--font-sans);
+	}
+	.type-headline-small {
+		font: 400 24px/32px var(--font-sans);
+	}
+	.type-title-large {
+		font: 400 22px/28px var(--font-sans);
+	}
+	.type-title-medium {
+		font: 500 16px/24px var(--font-sans);
+		letter-spacing: 0.15px;
+	}
+	.type-title-small {
+		font: 500 14px/20px var(--font-sans);
+		letter-spacing: 0.1px;
+	}
+	.type-body-large {
+		font: 400 16px/24px var(--font-sans);
+		letter-spacing: 0.5px;
+	}
+	.type-body-medium {
+		font: 400 14px/20px var(--font-sans);
+		letter-spacing: 0.25px;
+	}
+	.type-body-small {
+		font: 400 12px/16px var(--font-sans);
+		letter-spacing: 0.4px;
+	}
+	.type-label-large {
+		font: 500 14px/20px var(--font-sans);
+		letter-spacing: 0.1px;
+	}
+	.type-label-medium {
+		font: 500 12px/16px var(--font-sans);
+		letter-spacing: 0.5px;
+	}
+	.type-label-small {
+		font: 500 11px/16px var(--font-sans);
+		letter-spacing: 0.5px;
+	}
+
+	.state-layer {
+		position: relative;
+	}
+	.state-layer::before {
+		content: "";
+		position: absolute;
+		inset: 0;
+		background: currentColor;
+		opacity: 0;
+		transition: opacity var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+		pointer-events: none;
+		border-radius: inherit;
+	}
+	.state-layer:hover::before {
+		opacity: 0.08;
+	}
+	.state-layer:focus-visible::before {
+		opacity: 0.12;
+	}
+	.state-layer:active::before {
+		opacity: 0.12;
+	}
+}

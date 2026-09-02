@@ -1,0 +1,1168 @@
+@import "tailwindcss" source(none);
+@source "../app";
+@source "../components";
+@source "../lib";
+@source "../hooks";
+@source "../config";
+@source "../src";
+/* Scanne les composants @rosegriffon/ui pour générer leurs utilitaires propres
+ * (ex: w-(--sidebar-width), w-(--sidebar-width-icon)) que l'app n'utilise pas
+ * directement — sans ça le sidebar-gap reste à width:0 et le sidebar recouvre
+ * le contenu au lieu de le décaler. source(none) impose ce @source explicite. */
+@source "../../../packages/ui/src";
+@plugin "tailwindcss-animate";
+@plugin "@tailwindcss/typography";
+
+/* Thèmes unifiés cross-app (Roy, Gaelle, Azalee light/dark) fournis par @rosegriffon/ui.
+ * La palette `:root` par défaut ci-dessous reste la palette MD3 azalee (seed #F89C5A)
+ * pour préserver le rendu d'origine ; `.theme-azalee-light` / `.theme-azalee-dark`
+ * de @rosegriffon/ui exposent la même palette pour usage par d'autres apps du monorepo. */
+@import "@rosegriffon/ui/styles.css";
+
+/* ── Largeur du Sidebar @rosegriffon/ui (fix bulletproof) ──────────────────
+ * Tailwind ne génère pas de façon fiable les utilitaires `w-(--sidebar-width)`
+ * du package scanné (hors répertoire racine du build). Sans largeur, le sidebar-gap
+ * reste à 0 et le sidebar fixe recouvre le contenu au lieu de le pousser.
+ * On force ici la largeur via les data-slot, en suivant l'état data-collapsible.
+ * Mobile (Sheet) n'a pas ces slots → non affecté. */
+[data-slot="sidebar-gap"],
+[data-slot="sidebar-container"] {
+	width: var(--sidebar-width);
+}
+[data-collapsible="icon"] [data-slot="sidebar-gap"],
+[data-collapsible="icon"] [data-slot="sidebar-container"] {
+	width: var(--sidebar-width-icon);
+}
+[data-collapsible="offcanvas"] [data-slot="sidebar-gap"] {
+	width: 0;
+}
+[data-collapsible="offcanvas"][data-side="left"] [data-slot="sidebar-container"] {
+	left: calc(var(--sidebar-width) * -1);
+}
+[data-collapsible="offcanvas"][data-side="right"] [data-slot="sidebar-container"] {
+	right: calc(var(--sidebar-width) * -1);
+}
+
+@custom-variant dark (&:is(.dark, .dark *));
+
+/* Zones sûres iOS. `pt-safe` / `pb-safe` étaient déjà utilisées par l'en-tête
+ * mobile et la barre basse alors qu'aucun plugin ni token ne les générait :
+ * les classes étaient purement inertes, et comme le layout déclare
+ * `viewportFit: "cover"`, la barre du haut passait réellement sous l'encoche. */
+@utility pt-safe {
+	padding-top: env(safe-area-inset-top);
+}
+
+@utility pb-safe {
+	padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* ── Font Faces ────────────────────────────────────────── */
+/* Google Sans Flex is loaded via Next.js localFont (woff2) in layout.tsx */
+
+@font-face {
+	font-family: "Super Cartoon";
+	src:
+		url("/fonts/Super Cartoon.woff2") format("woff2"),
+		url("/fonts/Super Cartoon.ttf") format("truetype");
+	font-weight: 400;
+	font-style: normal;
+	font-display: optional;
+	unicode-range: U+0020-007F, U+00A0-00FF;
+}
+
+@font-face {
+	font-family: "BradBunR";
+	src: url("/fonts/DEFAULT_BradBunR.woff2") format("woff2");
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+	unicode-range: U+0020-007F, U+00A0-00FF;
+}
+
+@layer base {
+	html {
+		font-size: 16px;
+		overscroll-behavior-y: contain;
+	}
+}
+
+/* ── Light Theme ───────────────────────────────────────── */
+
+/* Palettes de tokens — DOIVENT rester dans `@layer base`.
+ * `@rosegriffon/ui/styles.css` (importé plus haut) publie les thèmes partagés
+ * `.roy` / `.gaelle` / `.theme-azalee-*` dans cette même couche. Une règle hors
+ * couche l'emporte sur TOUTE règle en couche, quelle que soit la spécificité :
+ * un `:root` non-layered figerait la palette et le sélecteur de thème
+ * n'aurait plus aucun effet visible. */
+@layer base {
+	:root {
+		--md-sys-color-primary: #f2a93b;
+		--md-sys-color-on-primary: #2a1519;
+		--md-sys-color-primary-container: #ffe08b;
+		--md-sys-color-on-primary-container: #2a1519;
+
+		--md-sys-color-secondary: #a92335;
+		--md-sys-color-on-secondary: #ffffff;
+		--md-sys-color-secondary-container: #ffdad6;
+		--md-sys-color-on-secondary-container: #410006;
+
+		--md-sys-color-tertiary: #2f4f4f;
+		--md-sys-color-on-tertiary: #ffffff;
+		--md-sys-color-tertiary-container: #b1ecec;
+		--md-sys-color-on-tertiary-container: #002020;
+
+		--md-sys-color-error: #ba1a1a;
+		--md-sys-color-on-error: #ffffff;
+		--md-sys-color-error-container: #ffdad6;
+		--md-sys-color-on-error-container: #93000a;
+
+		--md-sys-color-background: #fff8f5;
+		--md-sys-color-on-background: #221a15;
+
+		--md-sys-color-surface: #fff8f5;
+		--md-sys-color-on-surface: #221a15;
+		--md-sys-color-surface-variant: #f4ded3;
+		--md-sys-color-on-surface-variant: #52443c;
+
+		--md-sys-color-outline: #84746a;
+		--md-sys-color-outline-variant: #d7c3b7;
+
+		--md-sys-color-scrim: #000000;
+		--md-sys-color-inverse-surface: #382e29;
+		--md-sys-color-inverse-on-surface: #feede5;
+		--md-sys-color-inverse-primary: #ffb786;
+
+		--md-sys-color-surface-dim: #e7d7ce;
+		--md-sys-color-surface-bright: #fff8f5;
+		--md-sys-color-surface-container-lowest: #ffffff;
+		--md-sys-color-surface-container-low: #fff1ea;
+		--md-sys-color-surface-container: #fcebe2;
+		--md-sys-color-surface-container-high: #f6e5dc;
+		--md-sys-color-surface-container-highest: #f0dfd7;
+
+		/* Shadcn compatibility */
+		--background: 15 100% 98%;
+		--foreground: 25 24% 11%;
+		--card: 15 100% 98%;
+		--card-foreground: 25 24% 11%;
+		--popover: 15 100% 98%;
+		--popover-foreground: 25 24% 11%;
+		--primary: 36 89% 59%;
+		--primary-foreground: 348 33% 12%;
+		--secondary: 352 66% 40%;
+		--secondary-foreground: 0 0% 100%;
+		--muted: 20 57% 89%;
+		--muted-foreground: 52 14% 28%;
+		--accent: 21 82% 94%;
+		--accent-foreground: 25 24% 11%;
+		--destructive: 0 75% 42%;
+		--destructive-foreground: 0 0% 100%;
+		--border: 22 31% 78%;
+		--input: 22 31% 78%;
+		--ring: 36 89% 59%;
+		--radius: 1.5rem;
+		--sidebar: 15 100% 98%;
+		--sidebar-foreground: 25 24% 11%;
+		--sidebar-primary: 36 89% 59%;
+		--sidebar-primary-foreground: 348 33% 12%;
+		--sidebar-accent: 21 82% 94%;
+		--sidebar-accent-foreground: 25 24% 11%;
+		--sidebar-border: 22 31% 85%;
+		--sidebar-ring: 36 89% 59%;
+	}
+
+	/* ── Dark Theme ────────────────────────────────────────── */
+
+	:root.dark {
+		--md-sys-color-primary: #ffc66c;
+		--md-sys-color-on-primary: #412d00;
+		--md-sys-color-primary-container: #5d4200;
+		--md-sys-color-on-primary-container: #ffe0aa;
+
+		--md-sys-color-secondary: #ffb2be;
+		--md-sys-color-on-secondary: #5e1123;
+		--md-sys-color-secondary-container: #7c2939;
+		--md-sys-color-on-secondary-container: #ffd9df;
+
+		--md-sys-color-tertiary: #edc26e;
+		--md-sys-color-on-tertiary: #422d00;
+		--md-sys-color-tertiary-container: #5e4200;
+		--md-sys-color-on-tertiary-container: #ffdea6;
+
+		--md-sys-color-error: #ffb4ab;
+		--md-sys-color-on-error: #690005;
+		--md-sys-color-error-container: #93000a;
+		--md-sys-color-on-error-container: #ffdad6;
+
+		--md-sys-color-background: #1a120d;
+		--md-sys-color-on-background: #ede0db;
+
+		--md-sys-color-surface: #1a120d;
+		--md-sys-color-on-surface: #ede0db;
+		--md-sys-color-surface-variant: #52443c;
+		--md-sys-color-on-surface-variant: #d7c3b7;
+
+		--md-sys-color-outline: #9f8d83;
+		--md-sys-color-outline-variant: #52443c;
+
+		--md-sys-color-scrim: #000000;
+		--md-sys-color-inverse-surface: #ede0db;
+		--md-sys-color-inverse-on-surface: #1a120d;
+		--md-sys-color-inverse-primary: #8b5023;
+
+		--md-sys-color-surface-dim: #1a120d;
+		--md-sys-color-surface-bright: #413732;
+		--md-sys-color-surface-container-lowest: #140d09;
+		--md-sys-color-surface-container-low: #221a15;
+		--md-sys-color-surface-container: #271e19;
+		--md-sys-color-surface-container-high: #322823;
+		--md-sys-color-surface-container-highest: #3d332d;
+
+		/* Shadcn dark */
+		--background: 25 30% 8%;
+		--foreground: 25 20% 90%;
+		--card: 25 30% 10%;
+		--card-foreground: 25 20% 90%;
+		--popover: 25 30% 10%;
+		--popover-foreground: 25 20% 90%;
+		--primary: 25 100% 76%;
+		--primary-foreground: 25 100% 15%;
+		--secondary: 25 20% 80%;
+		--secondary-foreground: 25 30% 20%;
+		--muted: 25 20% 15%;
+		--muted-foreground: 25 10% 70%;
+		--accent: 25 30% 15%;
+		--accent-foreground: 25 20% 90%;
+		--destructive: 0 100% 83%;
+		--destructive-foreground: 0 100% 16%;
+		--border: 25 20% 20%;
+		--input: 25 20% 20%;
+		--ring: 25 100% 76%;
+		--sidebar: 25 30% 8%;
+		--sidebar-foreground: 25 20% 90%;
+		--sidebar-primary: 25 100% 76%;
+		--sidebar-primary-foreground: 25 100% 15%;
+		--sidebar-accent: 25 30% 15%;
+		--sidebar-accent-foreground: 25 20% 90%;
+		--sidebar-border: 25 20% 20%;
+		--sidebar-ring: 25 100% 76%;
+
+		/* MD3 Surface Tint dark mode — primary tonal overlays (1%, 3%, 8%, 11%) */
+		--md-sys-color-surface-container-low: color-mix(
+			in oklch,
+			#221a15 99%,
+			var(--md-sys-color-primary)
+		);
+		--md-sys-color-surface-container: color-mix(in oklch, #271e19 97%, var(--md-sys-color-primary));
+		--md-sys-color-surface-container-high: color-mix(
+			in oklch,
+			#322823 92%,
+			var(--md-sys-color-primary)
+		);
+		--md-sys-color-surface-container-highest: color-mix(
+			in oklch,
+			#3d332d 89%,
+			var(--md-sys-color-primary)
+		);
+	}
+
+	/* Les thèmes RG partagés (`@rosegriffon/ui/styles.css`) exposent leurs tokens
+	 * shadcn en couleurs CSS. Azalee, lui, les consomme via `hsl(var(--x))` :
+	 * il faut donc redéclarer ces tokens en TRIPLETS HSL, sinon `hsl(#344e8c)`
+	 * est invalide et toute la surface passe en transparent. Les tokens MD3
+	 * (`--md-sys-color-*`) sont pris tels quels depuis le package. */
+	/* ── Thème Roy (partagé avec rosegriffon.fr) ─────────────────────────────────────── */
+
+	:root.roy,
+	:root.theme-roy {
+		--background: 37 46.3% 95.4%;
+		--foreground: 210 89% 9%;
+		--card: 0 0% 100%;
+		--card-foreground: 210 89% 9%;
+		--popover: 0 0% 100%;
+		--popover-foreground: 210 89% 9%;
+		--primary: 207 83.1% 31.8%;
+		--primary-foreground: 180 0% 98%;
+		--secondary: 38 63.8% 66%;
+		--secondary-foreground: 210 89% 9%;
+		--muted: 37 29.4% 92.8%;
+		--muted-foreground: 211 24.2% 40.1%;
+		--accent: 38 63.8% 66%;
+		--accent-foreground: 210 89% 9%;
+		--destructive: 357 100% 45.3%;
+		--destructive-foreground: 0 0% 100%;
+		--border: 211 36.4% 87.8%;
+		--input: 211 36.4% 87.8%;
+		--ring: 207 83.1% 31.8%;
+		--sidebar: 222 45.8% 37.6%;
+		--sidebar-foreground: 0 0% 100%;
+		--sidebar-primary: 36 100% 71.6%;
+		--sidebar-primary-foreground: 213 43.3% 24.9%;
+		--sidebar-accent: 220 42% 43.9%;
+		--sidebar-accent-foreground: 0 0% 100%;
+		--sidebar-border: 220 37.1% 48%;
+		--sidebar-ring: 36 100% 71.6%;
+	}
+
+	/* ── Thème Gaëlle (partagé avec rosegriffon.fr) ─────────────────────────────────────── */
+
+	:root.gaelle,
+	:root.theme-gaelle {
+		--background: 17 100% 93.9%;
+		--foreground: 0 100% 16.6%;
+		--card: 0 0% 100%;
+		--card-foreground: 0 100% 16.6%;
+		--popover: 0 0% 100%;
+		--popover-foreground: 0 100% 16.6%;
+		--primary: 358 67.9% 41.9%;
+		--primary-foreground: 180 0% 98%;
+		--secondary: 22 95.5% 72.4%;
+		--secondary-foreground: 0 100% 16.6%;
+		--muted: 15 68.7% 90.4%;
+		--muted-foreground: 4 36% 42.6%;
+		--accent: 22 95.5% 72.4%;
+		--accent-foreground: 0 100% 16.6%;
+		--destructive: 351 100% 25.9%;
+		--destructive-foreground: 0 0% 100%;
+		--border: 9 75.7% 86.9%;
+		--input: 9 75.7% 86.9%;
+		--ring: 358 67.9% 41.9%;
+		--sidebar: 11 75.1% 39.4%;
+		--sidebar-foreground: 0 0% 100%;
+		--sidebar-primary: 36 100% 71.6%;
+		--sidebar-primary-foreground: 356 100% 23.3%;
+		--sidebar-accent: 12 67.1% 45.3%;
+		--sidebar-accent-foreground: 0 0% 100%;
+		--sidebar-border: 13 60% 50%;
+		--sidebar-ring: 36 100% 71.6%;
+	}
+}
+
+/* ── Tailwind Theme Tokens ─────────────────────────────── */
+
+@theme inline {
+	/* MD3 Color Tokens */
+	--color-primary: var(--md-sys-color-primary);
+	--color-on-primary: var(--md-sys-color-on-primary);
+	--color-primary-container: var(--md-sys-color-primary-container);
+	--color-on-primary-container: var(--md-sys-color-on-primary-container);
+	--color-secondary: var(--md-sys-color-secondary);
+	--color-on-secondary: var(--md-sys-color-on-secondary);
+	--color-secondary-container: var(--md-sys-color-secondary-container);
+	--color-on-secondary-container: var(--md-sys-color-on-secondary-container);
+	--color-tertiary: var(--md-sys-color-tertiary);
+	--color-on-tertiary: var(--md-sys-color-on-tertiary);
+	--color-tertiary-container: var(--md-sys-color-tertiary-container);
+	--color-on-tertiary-container: var(--md-sys-color-on-tertiary-container);
+	--color-background: var(--md-sys-color-background);
+	--color-on-background: var(--md-sys-color-on-background);
+	--color-surface: var(--md-sys-color-surface);
+	--color-on-surface: var(--md-sys-color-on-surface);
+	--color-surface-variant: var(--md-sys-color-surface-variant);
+	--color-on-surface-variant: var(--md-sys-color-on-surface-variant);
+	--color-outline: var(--md-sys-color-outline);
+	--color-outline-variant: var(--md-sys-color-outline-variant);
+	--color-surface-container-lowest: var(--md-sys-color-surface-container-lowest);
+	--color-surface-container-low: var(--md-sys-color-surface-container-low);
+	--color-surface-container: var(--md-sys-color-surface-container);
+	--color-surface-container-high: var(--md-sys-color-surface-container-high);
+	--color-surface-container-highest: var(--md-sys-color-surface-container-highest);
+	--color-surface-dim: var(--md-sys-color-surface-dim);
+	--color-surface-bright: var(--md-sys-color-surface-bright);
+	--color-scrim: var(--md-sys-color-scrim);
+
+	/* Font */
+	--font-sans: "Google Sans Flex", var(--font-google-sans), sans-serif;
+	--font-heading: var(--font-sans);
+	--font-cartoon: "Super Cartoon", system-ui;
+
+	/* MD3 Elevations */
+	--shadow-level-1: 0px 1px 3px 1px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.3);
+	--shadow-level-2: 0px 2px 6px 2px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.3);
+	--shadow-level-3: 0px 4px 8px 3px rgba(0, 0, 0, 0.15), 0px 1px 3px 0px rgba(0, 0, 0, 0.3);
+	--shadow-level-4: 0px 6px 10px 4px rgba(0, 0, 0, 0.15), 0px 2px 3px 0px rgba(0, 0, 0, 0.3);
+	--shadow-level-5: 0px 8px 12px 6px rgba(0, 0, 0, 0.15), 0px 4px 4px 0px rgba(0, 0, 0, 0.3);
+
+	/* Shadcn tokens */
+	/* `primary-foreground` et `secondary-foreground` étaient absents de ce pont :
+	 * les utilitaires n'étaient donc jamais générés et les composants partagés
+	 * qui s'appuient dessus (variantes `default`/`secondary` de Button et Badge,
+	 * Tooltip, Switch…) rendaient leur libellé sans couleur de texte — ambre
+	 * clair sur fond clair. Vérifié à 0 règle dans le CSS servi. Ils pointent sur
+	 * les paires M3 pour rester cohérents avec `--color-primary`/`--color-secondary`
+	 * ci-dessus, qui viennent eux aussi de `md-sys`. */
+	--color-primary-foreground: var(--md-sys-color-on-primary);
+	--color-secondary-foreground: var(--md-sys-color-on-secondary);
+	--color-destructive: hsl(var(--destructive));
+	--color-destructive-foreground: hsl(var(--destructive-foreground));
+	--color-muted: hsl(var(--muted));
+	--color-muted-foreground: hsl(var(--muted-foreground));
+	--color-accent: hsl(var(--accent));
+	--color-accent-foreground: hsl(var(--accent-foreground));
+	--color-popover: hsl(var(--popover));
+	--color-popover-foreground: hsl(var(--popover-foreground));
+	--color-card: hsl(var(--card));
+	--color-card-foreground: hsl(var(--card-foreground));
+	--color-foreground: hsl(var(--foreground));
+	--color-border: hsl(var(--border));
+	--color-input: hsl(var(--input));
+	--color-ring: hsl(var(--ring));
+	--radius-lg: var(--radius);
+	--radius-md: calc(var(--radius) - 2px);
+	--radius-sm: calc(var(--radius) - 4px);
+	--color-sidebar-ring: hsl(var(--sidebar-ring));
+	--color-sidebar-border: hsl(var(--sidebar-border));
+	--color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+	--color-sidebar-accent: hsl(var(--sidebar-accent));
+	--color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
+	--color-sidebar-primary: hsl(var(--sidebar-primary));
+	--color-sidebar-foreground: hsl(var(--sidebar-foreground));
+	--color-sidebar: hsl(var(--sidebar));
+
+	/* MD3 Motion (used) */
+	--ease-emphasized: cubic-bezier(0.3, 0, 0, 1);
+	--ease-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+	--ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+	/* MD3 Shape Scale (corner radius) */
+	--md-sys-shape-corner-none: 0;
+	--md-sys-shape-corner-extra-small: 4px;
+	--md-sys-shape-corner-small: 8px;
+	--md-sys-shape-corner-medium: 12px;
+	--md-sys-shape-corner-large: 16px;
+	--md-sys-shape-corner-extra-large: 28px;
+	--md-sys-shape-corner-full: 9999px;
+
+	/* MD3 Motion Durations (full scale) */
+	--md-sys-motion-duration-short1: 50ms;
+	--md-sys-motion-duration-short2: 100ms;
+	--md-sys-motion-duration-short3: 150ms;
+	--md-sys-motion-duration-short4: 200ms;
+	--md-sys-motion-duration-medium1: 250ms;
+	--md-sys-motion-duration-medium2: 300ms;
+	--md-sys-motion-duration-medium3: 350ms;
+	--md-sys-motion-duration-medium4: 400ms;
+	--md-sys-motion-duration-long1: 450ms;
+	--md-sys-motion-duration-long2: 500ms;
+	--md-sys-motion-duration-long3: 550ms;
+	--md-sys-motion-duration-long4: 600ms;
+	--md-sys-motion-duration-extra-long1: 700ms;
+	--md-sys-motion-duration-extra-long2: 800ms;
+	--md-sys-motion-duration-extra-long3: 900ms;
+	--md-sys-motion-duration-extra-long4: 1000ms;
+
+	/* MD3 Motion Easings (full scale, official sys names) */
+	--md-sys-motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+	--md-sys-motion-easing-standard-accelerate: cubic-bezier(0.3, 0, 1, 1);
+	--md-sys-motion-easing-standard-decelerate: cubic-bezier(0, 0, 0, 1);
+	--md-sys-motion-easing-emphasized: cubic-bezier(0.3, 0, 0, 1);
+	--md-sys-motion-easing-emphasized-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
+	--md-sys-motion-easing-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+}
+
+/* ── Base ──────────────────────────────────────────────── */
+
+/* Source de vérité unique pour le fond et la couleur du texte : les tokens MD3.
+ * Ce bloc était hors couche et écrasait un `@apply bg-background text-foreground`
+ * placé, lui, dans `@layer base` — ce dernier n'a jamais pu s'appliquer, et les
+ * deux systèmes divergeaient en silence dès qu'un thème ne redéfinissait que
+ * l'un des deux jeux de tokens. */
+@layer base {
+	body {
+		background-color: var(--color-background);
+		color: var(--color-on-background);
+		font-family: var(--font-sans);
+		-webkit-tap-highlight-color: transparent;
+	}
+}
+
+button,
+a,
+[role="button"] {
+	touch-action: manipulation;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.hero-particle,
+	.animate-gradient,
+	.hero-kenburns,
+	.fade-item-hidden,
+	.animate-section-hidden {
+		animation: none;
+		transition: none;
+	}
+}
+
+@layer base {
+	* {
+		@apply border-outline-variant;
+	}
+}
+
+/* ── Fade-in animations (replaces framer-motion) ──────── */
+
+.fade-item-hidden {
+	opacity: 0;
+	transform: translateY(20px);
+	transition:
+		opacity 0.4s ease-out,
+		transform 0.4s ease-out;
+}
+
+.fade-item-visible {
+	opacity: 1;
+	transform: translateY(0);
+}
+
+/* ── Utilities ─────────────────────────────────────────── */
+
+@layer utilities {
+	.font-grade-low {
+		font-variation-settings: "GRAD" -25;
+	}
+	.font-grade-high {
+		font-variation-settings: "GRAD" 100;
+	}
+	.font-width-expanded {
+		font-variation-settings: "wdth" 150;
+	}
+
+	.font-expressive-title {
+		font-variation-settings:
+			"wdth" 115,
+			"wght" 600,
+			"opsz" 48;
+		letter-spacing: -0.02em;
+	}
+
+	.text-dynamic {
+		font-optical-sizing: auto;
+	}
+
+	.victory-skew {
+		transform: skewX(-15deg);
+	}
+	.victory-unskew {
+		transform: skewX(15deg);
+	}
+}
+
+/* ── MD3 Typography Scale ──────────────────────────────── */
+
+@layer components {
+	.type-display-large {
+		/* Mobile-first fluide : shrink sous ~683px, capé a 57px (desktop identique). */
+		font-size: clamp(2.25rem, 6vw + 1rem, 3.5625rem);
+		line-height: 1.122;
+		letter-spacing: -0.25px;
+		font-weight: 400;
+		font-optical-sizing: auto;
+		font-variation-settings:
+			"opsz" 64,
+			"wght" 400;
+	}
+	.type-display-medium {
+		font-size: clamp(2rem, 5vw + 1rem, 2.8125rem);
+		line-height: 1.156;
+		letter-spacing: 0;
+		font-weight: 400;
+		font-optical-sizing: auto;
+		font-variation-settings:
+			"opsz" 52,
+			"wght" 400;
+	}
+	.type-display-small {
+		font-size: clamp(1.75rem, 4vw + 1rem, 2.25rem);
+		line-height: 1.222;
+		letter-spacing: 0;
+		font-weight: 400;
+		font-optical-sizing: auto;
+		font-variation-settings:
+			"opsz" 44,
+			"wght" 400;
+	}
+	.type-headline-large {
+		font-size: clamp(1.5rem, 3.5vw + 1rem, 2rem);
+		line-height: 1.25;
+		letter-spacing: 0;
+		font-weight: 400;
+		font-optical-sizing: auto;
+		font-variation-settings:
+			"opsz" 40,
+			"wght" 400;
+	}
+	.type-headline-medium {
+		font-size: clamp(1.375rem, 3vw + 0.9rem, 1.75rem);
+		line-height: 1.286;
+		letter-spacing: 0;
+		font-weight: 400;
+		font-optical-sizing: auto;
+		font-variation-settings:
+			"opsz" 36,
+			"wght" 400;
+	}
+	.type-headline-small {
+		font-size: clamp(1.25rem, 2.5vw + 0.8rem, 1.5rem);
+		line-height: 1.333;
+		letter-spacing: 0;
+		font-weight: 400;
+		font-optical-sizing: auto;
+		font-variation-settings:
+			"opsz" 32,
+			"wght" 400;
+	}
+	.type-title-large {
+		@apply text-[22px] leading-[28px] tracking-[0px] font-normal;
+		font-optical-sizing: auto;
+		font-variation-settings:
+			"opsz" 28,
+			"wght" 400;
+	}
+	.type-title-medium {
+		@apply text-[16px] leading-[24px] tracking-[0.15px] font-medium;
+		font-optical-sizing: auto;
+		font-variation-settings:
+			"opsz" 24,
+			"wght" 500;
+	}
+	.type-title-small {
+		@apply text-[14px] leading-[20px] tracking-[0.1px] font-medium;
+		font-optical-sizing: auto;
+		font-variation-settings:
+			"opsz" 20,
+			"wght" 500;
+	}
+	.type-body-large {
+		@apply text-[16px] leading-[24px] tracking-[0.5px] font-normal;
+		font-optical-sizing: auto;
+		font-variation-settings:
+			"opsz" 24,
+			"wght" 400;
+	}
+	.type-body-medium {
+		@apply text-[14px] leading-[20px] tracking-[0.25px] font-normal;
+		font-optical-sizing: auto;
+		font-variation-settings:
+			"opsz" 20,
+			"wght" 400;
+	}
+	.type-body-small {
+		@apply text-[12px] leading-[16px] tracking-[0.4px] font-normal;
+		font-optical-sizing: auto;
+		font-variation-settings:
+			"opsz" 16,
+			"wght" 400;
+	}
+	.type-label-large {
+		@apply text-[14px] leading-[20px] tracking-[0.1px] font-medium;
+		font-optical-sizing: auto;
+		font-variation-settings:
+			"opsz" 20,
+			"wght" 500;
+	}
+	.type-label-medium {
+		@apply text-[12px] leading-[16px] tracking-[0.5px] font-medium;
+		font-optical-sizing: auto;
+		font-variation-settings:
+			"opsz" 16,
+			"wght" 500;
+	}
+	.type-label-small {
+		@apply text-[11px] leading-[16px] tracking-[0.5px] font-medium;
+		font-optical-sizing: auto;
+		font-variation-settings:
+			"opsz" 16,
+			"wght" 500;
+	}
+
+	/* MD3 Elevation */
+	.elevation-0 {
+		box-shadow: none;
+	}
+	.elevation-1 {
+		box-shadow: var(--shadow-level-1);
+	}
+	.elevation-2 {
+		box-shadow: var(--shadow-level-2);
+	}
+	.elevation-3 {
+		box-shadow: var(--shadow-level-3);
+	}
+	.elevation-4 {
+		box-shadow: var(--shadow-level-4);
+	}
+	.elevation-5 {
+		box-shadow: var(--shadow-level-5);
+	}
+
+	/* MD3 State Layer */
+	.state-layer {
+		@apply relative overflow-hidden;
+	}
+	.state-layer::before {
+		content: "";
+		@apply absolute inset-0 pointer-events-none transition-opacity duration-200;
+		background-color: currentColor;
+		opacity: 0;
+	}
+	.state-layer:hover::before {
+		opacity: 0.08;
+	}
+	.state-layer:focus-visible::before,
+	.state-layer:active::before {
+		opacity: 0.12;
+	}
+	.state-layer:disabled::before {
+		opacity: 0;
+	}
+
+	/* MD3 Motion */
+	.motion-standard {
+		transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+	}
+	.motion-emphasized {
+		transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+	}
+	.motion-emphasized-decelerate {
+		transition-timing-function: cubic-bezier(0.05, 0.7, 0.1, 1);
+	}
+
+	/* Scrollbar */
+	.scrollbar-hide {
+		-ms-overflow-style: none;
+		scrollbar-width: none;
+	}
+	.scrollbar-hide::-webkit-scrollbar {
+		display: none;
+	}
+}
+
+/* ── Character Themes (Roy + Gaelle) ──────────────────────
+ * Fournis maintenant par @rosegriffon/ui/styles.css via les classes
+ * `.theme-roy` et `.theme-gaelle` (cf. import en tête de fichier).
+ * Les anciens sélecteurs `:root:not(.dark).roy` / `.gaelle` ont été
+ * retirés pour unification cross-app — source unique de vérité. */
+
+/* ── Lexical Editor ────────────────────────────────────── */
+
+.ContentEditable__root {
+	outline: none;
+}
+.ContentEditable__root p {
+	@apply mb-4 leading-relaxed;
+}
+.ContentEditable__root h1 {
+	@apply text-3xl font-bold mb-6 mt-8;
+}
+.ContentEditable__root h2 {
+	@apply text-2xl font-bold mb-4 mt-6;
+}
+.ContentEditable__root h3 {
+	@apply text-xl font-bold mb-3 mt-4;
+}
+.ContentEditable__root ul {
+	@apply list-disc list-inside mb-4 pl-4;
+}
+.ContentEditable__root ol {
+	@apply list-decimal list-inside mb-4 pl-4;
+}
+.ContentEditable__root blockquote {
+	@apply border-l-4 border-primary/30 pl-4 italic my-6 text-on-surface-variant;
+}
+.ContentEditable__root a {
+	@apply text-primary underline;
+}
+.ContentEditable__root img {
+	@apply max-w-full h-auto rounded-xl my-4;
+}
+
+/* ── View Transitions (Next.js experimental) ─────────── */
+
+@layer utilities {
+	/* Named transition for main content area */
+	.vt-page-content {
+		view-transition-name: page-content;
+	}
+}
+
+/* Cross-fade with MD3 emphasized-decelerate easing */
+@media (prefers-reduced-motion: no-preference) {
+	::view-transition-old(page-content) {
+		animation: vt-fade-out 150ms cubic-bezier(0.2, 0, 0, 1) both;
+	}
+	::view-transition-new(page-content) {
+		animation: vt-fade-in 200ms cubic-bezier(0.05, 0.7, 0.1, 1) both;
+		animation-delay: 50ms;
+	}
+}
+
+@keyframes vt-fade-out {
+	from {
+		opacity: 1;
+	}
+	to {
+		opacity: 0;
+	}
+}
+
+@keyframes vt-fade-in {
+	from {
+		opacity: 0;
+		transform: translateY(4px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+/* ── Scroll-Reveal Animations (multi-direction) ──────── */
+.scroll-reveal-up,
+.scroll-reveal-left,
+.scroll-reveal-right,
+.scroll-reveal-scale,
+.scroll-stagger-child {
+	opacity: 0;
+	transition:
+		opacity 0.7s cubic-bezier(0.05, 0.7, 0.1, 1),
+		transform 0.7s cubic-bezier(0.05, 0.7, 0.1, 1);
+}
+
+.scroll-reveal-up {
+	transform: translateY(50px);
+}
+.scroll-reveal-left {
+	transform: translateX(-60px);
+}
+.scroll-reveal-right {
+	transform: translateX(60px);
+}
+.scroll-reveal-scale {
+	transform: scale(0.92);
+}
+.scroll-stagger-child {
+	transform: translateY(30px);
+}
+
+.scroll-reveal-visible {
+	opacity: 1;
+	transform: translateY(0) translateX(0) scale(1);
+}
+
+/* Legacy compat */
+.animate-section-hidden {
+	opacity: 0;
+	transform: translateY(40px);
+	transition:
+		opacity 0.6s cubic-bezier(0.05, 0.7, 0.1, 1),
+		transform 0.6s cubic-bezier(0.05, 0.7, 0.1, 1);
+}
+.animate-section-visible {
+	opacity: 1;
+	transform: translateY(0);
+}
+
+/* ── Hero Animations ──────────────────────────────────── */
+@keyframes fadeSlideUp {
+	from {
+		opacity: 0;
+		transform: translateY(20px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes fadeSlideIn {
+	from {
+		opacity: 0;
+		transform: translateX(50px) scale(0.8);
+	}
+	to {
+		opacity: 1;
+		transform: translateX(0) scale(1);
+	}
+}
+
+@keyframes mascotEntrance {
+	0% {
+		opacity: 0;
+		transform: translateY(40px) scale(0.9);
+	}
+	60% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 1;
+		transform: translateY(0) scale(1);
+	}
+}
+
+@keyframes glowPulse {
+	0%,
+	100% {
+		opacity: 0.25;
+		transform: scale(1);
+	}
+	50% {
+		opacity: 0.5;
+		transform: scale(1.1);
+	}
+}
+
+@keyframes shimmer {
+	0% {
+		background-position: -200% 0;
+	}
+	100% {
+		background-position: 200% 0;
+	}
+}
+
+@keyframes gentleFloat {
+	0%,
+	100% {
+		transform: translateY(0);
+	}
+	50% {
+		transform: translateY(-12px);
+	}
+}
+
+@keyframes gentleBounce {
+	0%,
+	100% {
+		transform: translateY(0);
+	}
+	50% {
+		transform: translateY(10px);
+	}
+}
+
+@keyframes gradient {
+	0% {
+		background-position: 0% 50%;
+	}
+	50% {
+		background-position: 100% 50%;
+	}
+	100% {
+		background-position: 0% 50%;
+	}
+}
+
+.animate-gradient {
+	animation: gradient 4s ease infinite;
+}
+
+.bg-300\% {
+	background-size: 300% 300%;
+}
+
+/* Ken Burns — zoom/pan lent et continu sur le fond actif du hero.
+   Désactivé via prefers-reduced-motion (cf. media query plus haut). */
+@keyframes heroKenBurns {
+	0% {
+		transform: scale(1.05) translate3d(0, 0, 0);
+	}
+	100% {
+		transform: scale(1.16) translate3d(-1.5%, -2%, 0);
+	}
+}
+
+.hero-kenburns {
+	animation: heroKenBurns 18s ease-in-out infinite alternate;
+	will-change: transform;
+}
+
+/* CSS Particles — lightweight replacement for Konva Canvas */
+@keyframes particleDrift1 {
+	0% {
+		transform: translate(10vw, 20vh);
+	}
+	50% {
+		transform: translate(70vw, 60vh);
+	}
+	100% {
+		transform: translate(10vw, 20vh);
+	}
+}
+@keyframes particleDrift2 {
+	0% {
+		transform: translate(80vw, 10vh);
+	}
+	50% {
+		transform: translate(20vw, 70vh);
+	}
+	100% {
+		transform: translate(80vw, 10vh);
+	}
+}
+@keyframes particleDrift3 {
+	0% {
+		transform: translate(50vw, 80vh);
+	}
+	50% {
+		transform: translate(30vw, 10vh);
+	}
+	100% {
+		transform: translate(50vw, 80vh);
+	}
+}
+@keyframes particleDrift4 {
+	0% {
+		transform: translate(20vw, 50vh);
+	}
+	50% {
+		transform: translate(90vw, 30vh);
+	}
+	100% {
+		transform: translate(20vw, 50vh);
+	}
+}
+@keyframes particleDrift5 {
+	0% {
+		transform: translate(60vw, 15vh);
+	}
+	50% {
+		transform: translate(10vw, 85vh);
+	}
+	100% {
+		transform: translate(60vw, 15vh);
+	}
+}
+@keyframes particleDrift6 {
+	0% {
+		transform: translate(90vw, 70vh);
+	}
+	50% {
+		transform: translate(40vw, 20vh);
+	}
+	100% {
+		transform: translate(90vw, 70vh);
+	}
+}
+
+.hero-particle {
+	position: absolute;
+	border-radius: 50%;
+	will-change: transform;
+}
+
+.hero-particle-1 {
+	width: 6px;
+	height: 6px;
+	background: #f2a93b;
+	opacity: 0.4;
+	animation: particleDrift1 18s ease-in-out infinite;
+}
+.hero-particle-2 {
+	width: 4px;
+	height: 4px;
+	background: #a92335;
+	opacity: 0.3;
+	animation: particleDrift2 22s ease-in-out infinite;
+}
+.hero-particle-3 {
+	width: 8px;
+	height: 8px;
+	background: #f2a93b;
+	opacity: 0.2;
+	animation: particleDrift3 25s ease-in-out infinite;
+}
+.hero-particle-4 {
+	width: 3px;
+	height: 3px;
+	background: #a92335;
+	opacity: 0.5;
+	animation: particleDrift4 20s ease-in-out infinite;
+}
+.hero-particle-5 {
+	width: 5px;
+	height: 5px;
+	background: #f2a93b;
+	opacity: 0.35;
+	animation: particleDrift5 28s ease-in-out infinite;
+}
+.hero-particle-6 {
+	width: 4px;
+	height: 4px;
+	background: #a92335;
+	opacity: 0.25;
+	animation: particleDrift6 24s ease-in-out infinite;
+}
+
+/* ── Hero Search Glow ──────────────────────────────────── */
+@keyframes heroGlow {
+	0%,
+	100% {
+		box-shadow: 0 0 20px rgba(242, 169, 59, 0.1);
+	}
+	50% {
+		box-shadow: 0 0 40px rgba(242, 169, 59, 0.25);
+	}
+}
+
+.hero-search-glow {
+	animation: heroGlow 3s ease-in-out infinite;
+}
+
+/* ── My Team — Formation Field ─────────────────────────── */
+@keyframes slot-pulse {
+	0%,
+	100% {
+		opacity: 0.4;
+	}
+	50% {
+		opacity: 1;
+	}
+}
+
+.animate-slot-pulse {
+	animation: slot-pulse 2.5s ease-in-out infinite;
+}
+
+/* ── Active states tactiles MD3 ─────────────────────────── */
+@media (hover: none) and (pointer: coarse) {
+	/* Touch-only: replace hover effects with active states */
+	.state-layer:hover::before {
+		opacity: 0;
+	}
+	.state-layer:active::before {
+		opacity: 0.12;
+	}
+}
+
+/* ── Image fade-in on load ──────────────────────────────── */
+.img-fade-in {
+	opacity: 0;
+	transition: opacity 0.3s ease;
+}
+.img-fade-in.loaded {
+	opacity: 1;
+}
+
+/* Search result image fallback — show icon placeholder when image fails */
+.search-img-fallback::after {
+	content: "";
+	display: block;
+	width: 20px;
+	height: 20px;
+	background: var(--md-sys-color-primary);
+	opacity: 0.3;
+	border-radius: 4px;
+	mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'%3E%3Crect x='3' y='3' width='18' height='18' rx='2'/%3E%3Ccircle cx='9' cy='9' r='2'/%3E%3Cpath d='m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21'/%3E%3C/svg%3E");
+	mask-size: contain;
+	mask-repeat: no-repeat;
+}
+
+/* Hide scrollbar for horizontal scroll containers */
+.scrollbar-none {
+	-ms-overflow-style: none;
+	scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+	display: none;
+}

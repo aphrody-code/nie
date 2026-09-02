@@ -1,0 +1,18 @@
+{
+	"extends": "../config/tsconfig-base.json",
+	"compilerOptions": {
+		"noEmit": true,
+		"declaration": false,
+		// Aligné sur `packages/azalee` : ce paquet importe ses sources TypeScript
+		// directement (pas de `dist`), donc elles sont vérifiées avec NOS options.
+		// Sans cet alignement, tsc rapporte les erreurs d'un autre paquet.
+		"noUncheckedIndexedAccess": false,
+		"types": ["bun"],
+		"lib": ["ESNext"],
+		"allowImportingTsExtensions": true,
+		"baseUrl": ".",
+		"moduleDetection": "force"
+	},
+	"include": ["src/**/*.ts", "test/**/*.ts"],
+	"exclude": ["node_modules", "dist"]
+}

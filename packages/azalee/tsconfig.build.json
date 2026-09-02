@@ -1,0 +1,38 @@
+{
+	"extends": "../config/tsconfig-base.json",
+	"compilerOptions": {
+		"outDir": "dist",
+		"rootDir": "src",
+		"baseUrl": ".",
+		"noEmit": false,
+		"declaration": true,
+		"noUncheckedIndexedAccess": false,
+		"types": [
+			"bun"
+		],
+		"lib": [
+			"ESNext",
+			"DOM",
+			"DOM.Iterable"
+		],
+		"allowImportingTsExtensions": false,
+		"paths": {
+			"@rosegriffon/db": [
+				"./types/workspace-shims.d.ts"
+			],
+			"@rosegriffon/db/redis": [
+				"./types/workspace-shims.d.ts"
+			]
+		},
+		"moduleDetection": "force"
+	},
+	"include": [
+		"src/**/*.ts",
+		"types/**/*.d.ts"
+	],
+	"exclude": [
+		"node_modules",
+		"dist",
+		"src/**/*.test.ts"
+	]
+}

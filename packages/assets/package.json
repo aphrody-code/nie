@@ -1,0 +1,13 @@
+{
+	"name": "@rosegriffon/assets",
+	"version": "0.1.1",
+	"description": "Shared static assets for Rose Griffon apps",
+	"exports": {
+		".": "./package.json",
+		"./public/*": "./public/*"
+	},
+	"publishConfig": {
+		"access": "public",
+		"registry": "https://registry.npmjs.org"
+	}
+}

@@ -1,0 +1,135 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+
+interface InlineModelViewerProps {
+	/** URL absolue du GLB complet (cdn.rosegriffon.fr/model-full/<code>.glb, nie-model-serve). */
+	glbUrl: string;
+	name?: string;
+}
+
+// Bundle <model-viewer> auto-hébergé (public/vendor) — pas de dépendance npm ni de CDN
+// tiers (la CSP reste script-src 'self'). Chargé une seule fois pour toute la page.
+const MODEL_VIEWER_SRC = "/vendor/model-viewer.min.js";
+
+let modelViewerLoading: Promise<void> | null = null;
+
+function loadModelViewer(): Promise<void> {
+	if (typeof window === "undefined") return Promise.resolve();
+	if (window.customElements?.get("model-viewer")) return Promise.resolve();
+	if (modelViewerLoading) return modelViewerLoading;
+
+	const existing = document.querySelector<HTMLScriptElement>(
+		`script[src="${MODEL_VIEWER_SRC}"]`
+	);
+	if (existing) {
+		modelViewerLoading = window.customElements.whenDefined("model-viewer").then(() => {});
+		return modelViewerLoading;
+	}
+
+	modelViewerLoading = new Promise<void>((resolve, reject) => {
+		const script = document.createElement("script");
+		script.src = MODEL_VIEWER_SRC;
+		script.async = true;
+		script.addEventListener("load", () => {
+			window.customElements.whenDefined("model-viewer").then(() => resolve(), reject);
+		});
+		script.addEventListener("error", () => {
+			modelViewerLoading = null;
+			reject(new Error("model-viewer load failed"));
+		});
+		document.head.appendChild(script);
+	});
+	return modelViewerLoading;
+}
+
+/**
+ * Viewer 3D **inline** d'un GLB texturé (vrai `<model-viewer>` natif, pas une icône
+ * placeholder). Le canvas WebGL n'est monté QUE lorsque la carte entre dans le viewport
+ * (IntersectionObserver) et démonté quand elle en sort largement — sinon une galerie de
+ * dizaines de modèles ouvrirait des dizaines de contextes WebGL (limite navigateur ~16).
+ * En attente/hors-champ : fond stade neutre + spinner au chargement (aucune fausse icône).
+ */
+export default function InlineModelViewer({ glbUrl, name }: InlineModelViewerProps) {
+	const hostRef = useRef<HTMLDivElement>(null);
+	const [visible, setVisible] = useState(false);
+	const [ready, setReady] = useState(false);
+	const [errored, setErrored] = useState(false);
+
+	// Monte/démonte selon la visibilité (préchargement à 200px du viewport).
+	useEffect(() => {
+		const host = hostRef.current;
+		if (!host) return;
+		const io = new IntersectionObserver(
+			(entries) => {
+				for (const e of entries) setVisible(e.isIntersecting);
+			},
+			{ rootMargin: "200px" }
+		);
+		io.observe(host);
+		return () => io.disconnect();
+	}, []);
+
+	useEffect(() => {
+		const host = hostRef.current;
+		if (!host) return;
+		if (!visible) {
+			// Hors-champ : libère le contexte WebGL.
+			host.innerHTML = "";
+			setReady(false);
+			return;
+		}
+		let cancelled = false;
+		setErrored(false);
+		loadModelViewer()
+			.then(() => {
+				if (cancelled || !hostRef.current) return;
+				const mv = document.createElement("model-viewer");
+				mv.setAttribute("alt", `Modèle 3D de ${name ?? "modèle"}`);
+				mv.setAttribute("camera-controls", "");
+				mv.setAttribute("auto-rotate", "");
+				mv.setAttribute("rotation-per-second", "24deg");
+				mv.setAttribute("interaction-prompt", "none");
+				mv.setAttribute("shadow-intensity", "0.8");
+				mv.setAttribute("exposure", "1");
+				mv.setAttribute("touch-action", "pan-y");
+				mv.style.width = "100%";
+				mv.style.height = "100%";
+				mv.style.backgroundColor = "transparent";
+
+				// Enregistre les écouteurs d'événements AVANT de définir la source (src),
+				// pour éviter les conditions de concurrence si le modèle est déjà en cache.
+				mv.addEventListener("load", () => {
+					if (!cancelled) setReady(true);
+				});
+				mv.addEventListener("error", () => {
+					if (!cancelled) setErrored(true);
+				});
+
+				mv.setAttribute("src", glbUrl);
+
+				hostRef.current.innerHTML = "";
+				hostRef.current.appendChild(mv);
+			})
+			.catch(() => !cancelled && setErrored(true));
+		return () => {
+			cancelled = true;
+		};
+	}, [visible, glbUrl, name]);
+
+	return (
+		<div className="absolute inset-0">
+			<div ref={hostRef} className="absolute inset-0" />
+			{visible && !ready && !errored && (
+				<div className="absolute inset-0 flex items-center justify-center">
+					<div className="animate-spin rounded-full size-7 border-b-2 border-primary" />
+				</div>
+			)}
+			{errored && (
+				<div className="absolute inset-0 flex items-center justify-center p-3 text-center">
+					<span className="text-xs text-on-surface-variant">Modèle indisponible</span>
+				</div>
+			)}
+		</div>
+	);
+}
