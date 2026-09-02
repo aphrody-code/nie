@@ -48,6 +48,19 @@ use serde_json::Value;
 /// qu'un préfixe `nie-` dit d'où vient le fichier quand on le retrouve six mois plus tard.
 const SAUVEGARDE: &str = "cpk_list.cfg.bin.nie-vanilla";
 
+/// Chemin de la sauvegarde, résolu à côté du **vrai** `cpk_list.cfg.bin`.
+///
+/// `data/cpk_list.cfg.bin` est fréquemment un lien symbolique vers l'installation Steam. Composer
+/// la sauvegarde à partir du répertoire *non résolu* la fait écrire à un endroit et chercher à un
+/// autre dès que la racine est atteinte par un autre chemin : `install` la déposait à côté de la
+/// cible du lien, `uninstall` la cherchait à côté du lien lui-même et annonçait « le mod n'a pas
+/// été installé » alors que la sauvegarde existait bel et bien.
+fn chemin_sauvegarde(cpk_list: &Path) -> PathBuf {
+    std::fs::canonicalize(cpk_list)
+        .unwrap_or_else(|_| cpk_list.to_path_buf())
+        .with_file_name(SAUVEGARDE)
+}
+
 /// Au-delà, un `cpk_list` est réputé **déjà packé** par un mod précédent.
 ///
 /// Le jeu a légitimement quelques entrées *loose* (vidéos d'introduction, configuration
@@ -589,7 +602,7 @@ fn install(
     let racine = crate::racine_jeu(game_dir.clone());
     let data = racine.join("data");
     let cpk_list = data.join("cpk_list.cfg.bin");
-    let sauvegarde = data.join(SAUVEGARDE);
+    let sauvegarde = chemin_sauvegarde(&cpk_list);
     if !cpk_list.is_file() {
         bail!("« {} » introuvable — ce n'est pas une installation du jeu", cpk_list.display());
     }
@@ -724,7 +737,7 @@ fn uninstall(game_dir: Option<PathBuf>, dir: Option<&Path>) -> anyhow::Result<()
     let racine = crate::racine_jeu(game_dir);
     let data = racine.join("data");
     let cpk_list = data.join("cpk_list.cfg.bin");
-    let sauvegarde = data.join(SAUVEGARDE);
+    let sauvegarde = chemin_sauvegarde(&cpk_list);
     if !sauvegarde.is_file() {
         bail!(
             "aucune sauvegarde à « {} » — rien à restaurer (le mod n'a pas été installé par \

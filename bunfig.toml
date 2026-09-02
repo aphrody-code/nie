@@ -12,14 +12,15 @@ preload = ["./packages/nie-plugin/src/register.ts"]
 [install]
 linker = "isolated"       # pnpm-style strict node_modules
 
-[install.scopes]
-# @rose-griffon/* (types/db/ui, écosystème azalee) — registre privé GitHub Packages,
-# restreint (publishConfig.access="restricted"). Token via $GH_PACKAGES_TOKEN (.env.local,
-# gitignoré — jamais commité). N'installer QUE ce qui est sûr pour une app desktop distribuée :
-# @rose-griffon/types (schémas/types purs) oui ; @rose-griffon/db (client Supabase, expose des
-# clés service-role côté serveur) et @rose-griffon/ui (dépend de db) volontairement écartés
-# ici, cf. commentaire dans apps/nie-explorer.
-"@rose-griffon" = { token = "$GH_PACKAGES_TOKEN", url = "https://npm.pkg.github.com/" }
+# Pas de [install.scopes] ici, et c'est délibéré depuis la fusion : les paquets `@rosegriffon/*`
+# (types, db, ui, auth, azalee, inagle) vivent DANS ce dépôt et se résolvent en
+# `workspace:packages/…` — aucun registre à interroger. Les seuls scopes réellement tirés d'un
+# registre privé sont `@aphrody-code/*` et `@rpbey/*`, configurés dans `.npmrc` avec
+# `${GITHUB_TOKEN}`.
+#
+# Le bloc qui vivait ici déclarait le scope `@rose-griffon` (avec tiret — un nom que ce monorepo
+# ne porte nulle part) et un jeton `$GH_PACKAGES_TOKEN` défini nulle part : configuration morte
+# qui, si un jour un paquet portait ce nom, l'aurait authentifié avec un jeton vide.
 
 [test]
 preload = ["./packages/nie-plugin/src/register.ts"]

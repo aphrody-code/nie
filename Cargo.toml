@@ -124,7 +124,9 @@ nie-save = { path = "crates/engine/nie-save" }
 nie-wiki = { path = "crates/tools/nie-wiki" }
 nie-core = { path = "crates/engine/nie-core" }
 nie-data = { path = "crates/engine/nie-data" }
-nie-engine = { path = "crates/archive/nie-engine" }
+# PAS de `nie-engine` ici : la crate est `exclude` du workspace (cf. plus haut) et aucune crate
+# vivante ne la consomme. La déclarer invitait un `nie-engine.workspace = true` qui aurait ramené
+# dans le build un portage conservé en lecture seule.
 nie-model-serve = { path = "crates/tools/nie-model-serve" }
 nie-zukan = { path = "crates/tools/nie-zukan" }
 nie-lua = { path = "crates/engine/nie-lua" }
