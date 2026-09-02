@@ -392,7 +392,15 @@ export class Wonderbot {
 		const sourceEstV2 = composant.message.flags.has(MessageFlags.IsComponentsV2);
 		const cibleEstV2 = reponse.v2 !== undefined;
 
-		if (sourceEstV2 === cibleEstV2) {
+		// ── ON NE MODIFIE QUE SES PROPRES MESSAGES ÉPHÉMÈRES ────────────────
+		// Modifier un message PUBLIC ferait changer l'écran sous les yeux de
+		// tous les membres du salon : le premier qui clique « suivant » ferait
+		// défiler la fiche de tout le monde. Depuis un message public — un fil
+		// de forum, une annonce — on répond donc par un nouveau message visible
+		// du seul appelant.
+		const sourceEstPrivee = composant.message.flags.has(MessageFlags.Ephemeral);
+
+		if (sourceEstPrivee && sourceEstV2 === cibleEstV2) {
 			await composant.update(Wonderbot.charge(reponse));
 			return;
 		}
@@ -503,8 +511,16 @@ export class Wonderbot {
 		if (interaction.commandName !== DEFINITION_IETV.name) return;
 
 		try {
-			const saisi = interaction.options.getFocused();
-			const choix = this.service.autocompleter(String(saisi));
+			// L'option EN COURS de frappe décide de ce qu'on propose : un nom
+			// d'arc sur `/episodes arc numero:`, un épisode sur la recherche.
+			const focalisee = interaction.options.getFocused(true);
+			const saisi = String(focalisee.value ?? "");
+			if (focalisee.name === "numero" && interaction.options.getSubcommand(false) === "arc") {
+				const arcs = this.service.autocompleterArcs(saisi, interaction.user.id);
+				await interaction.respond(arcs.map((a) => ({ name: a.nom, value: a.valeur })));
+				return;
+			}
+			const choix = this.service.autocompleter(saisi);
 			await interaction.respond(choix.map((c) => ({ name: c.nom, value: c.valeur })));
 		} catch (err) {
 			this.journaliser(

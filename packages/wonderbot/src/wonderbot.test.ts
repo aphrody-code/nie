@@ -671,10 +671,14 @@ describe("/episodes", () => {
 			"episode",
 			"saison",
 			"accueil",
+			"arc",
+			"suivant",
+			"progression",
 			"reprendre",
 			"maliste",
 			"hasard",
 			"catalogue",
+			"aide",
 			"rafraichir",
 		]);
 	});

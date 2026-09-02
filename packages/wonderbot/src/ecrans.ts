@@ -510,6 +510,134 @@ export function ecranLecture(vue: VueLecture): Reponse {
 	};
 }
 
+export interface VueProgression {
+	arcs: readonly VueArcResume[];
+	/** Épisodes vus, toutes saisons confondues. */
+	vus: number;
+	/** Épisodes disponibles, toutes saisons confondues. */
+	total: number;
+	/** Les derniers épisodes regardés, du plus récent au plus ancien. */
+	recents: readonly { saison: number; nomArc: string; episode: number; titre: string }[];
+	marque: Marque;
+}
+
+/**
+ * L'avancement du membre, arc par arc.
+ *
+ * Un service de lecture qui ne sait pas dire « il te reste dix-sept épisodes »
+ * laisse son catalogue en vrac. Les arcs entamés viennent d'abord : ce sont
+ * ceux sur lesquels on peut agir tout de suite.
+ */
+export function ecranProgression(vue: VueProgression): MessageV2 {
+	const global = avancement(vue.vus, vue.total);
+	const blocs: (ComposantV2 | null)[] = [
+		texte(
+			`# 📈 Ta progression\n` +
+				`${barre(global, 20)} **${global} %**\n` +
+				`-# ${vue.vus} épisodes vus sur ${vue.total}`
+		),
+		separateur(),
+	];
+
+	// Entamés d'abord, puis les plus fournis : un arc jamais commencé n'a rien
+	// à dire, un arc à 40/47 attend une action.
+	const classes = [...vue.arcs].sort((a, b) => {
+		const entameA = a.vus > 0 && a.vus < a.total ? 0 : 1;
+		const entameB = b.vus > 0 && b.vus < b.total ? 0 : 1;
+		if (entameA !== entameB) return entameA - entameB;
+		return b.vus - a.vus;
+	});
+
+	blocs.push(
+		texte(
+			classes
+				.map((arc) => {
+					const pourcentage = avancement(arc.vus, arc.total);
+					const etat = arc.total > 0 && arc.vus >= arc.total ? "✅" : arc.vus > 0 ? "▶️" : "◦";
+					return `${etat} **${arc.nom}** · ${barre(pourcentage, 10)} ${arc.vus}/${arc.total}`;
+				})
+				.join("\n")
+		)
+	);
+
+	if (vue.recents.length > 0) {
+		blocs.push(separateur());
+		blocs.push(
+			texte(
+				`### 🕒 Derniers vus\n` +
+					vue.recents
+						.map(
+							(recent) =>
+								`**${recent.nomArc} E${String(recent.episode).padStart(2, "0")}** · ` +
+								echapperMarkdown(recent.titre)
+						)
+						.join("\n")
+			)
+		);
+	}
+
+	blocs.push(separateur());
+	blocs.push(
+		rangee([
+			bouton({ id: route("reprendre"), libelle: "Reprendre", emoji: "▶️", style: STYLE_BOUTON.primaire }),
+			bouton({ id: route("accueil"), libelle: "Accueil", emoji: "🏠" }),
+			bouton({ id: route("maliste"), libelle: "Ma liste", emoji: "⭐" }),
+		])
+	);
+
+	return ecran([conteneur(blocs, vue.marque.couleur)]);
+}
+
+/**
+ * L'aide — ce que le bot sait faire.
+ *
+ * Elle est écrite du point de vue de CE QU'ON VEUT FAIRE, pas de la liste des
+ * commandes : « regarder », « retrouver », « suivre ». Une énumération de
+ * sous-commandes n'apprend rien à qui ne sait pas encore ce que le bot propose.
+ */
+export function ecranAide(marque: Marque): MessageV2 {
+	return ecran([
+		conteneur(
+			[
+				texte(
+					`# ${ICONES.catalogue} ${marque.nom}\n` +
+						"Le catalogue d'épisodes du serveur, avec son lecteur — sans quitter Discord."
+				),
+				separateur(),
+				texte(
+					"### ▶️ Regarder\n" +
+						"`/episodes accueil` — l'écran principal : reprendre, parcourir, ta liste.\n" +
+						"`/episodes arc numero:` — la grille d'un arc, avec ce que tu as déjà vu.\n" +
+						"`/episodes suivant` — enchaîner après ton dernier épisode.\n" +
+						"`/episodes hasard` — un épisode au hasard, de préférence pas encore vu."
+				),
+				texte(
+					"### 🔎 Retrouver\n" +
+						"`/episodes recherche texte:` — les propositions arrivent pendant la frappe ; " +
+						"en choisir une ouvre directement le lecteur.\n" +
+						"`/episodes episode saison: numero:` — toutes les versions d'un épisode précis."
+				),
+				texte(
+					"### 📈 Suivre\n" +
+						"`/episodes progression` — ton avancement, arc par arc.\n" +
+						"`/episodes maliste` — ce que tu as mis de côté avec le bouton ⭐.\n" +
+						"-# Ces écrans-là ne sont visibles que par toi."
+				),
+				separateur(),
+				texte(
+					"-# Le catalogue se met à jour tout seul. Les nouveautés sont annoncées, " +
+						"et le forum tient un fil par arc."
+				),
+				rangee([
+					bouton({ id: route("accueil"), libelle: "Ouvrir l'accueil", emoji: "🏠", style: STYLE_BOUTON.primaire }),
+					bouton({ id: route("hasard"), libelle: "Au hasard", emoji: "🎲" }),
+				]),
+			],
+			marque.couleur
+		),
+	]);
+}
+
 /** Écran d'erreur d'un bouton devenu invalide. */
 export function ecranRouteInconnue(marque: Marque): MessageV2 {
 	return ecran([

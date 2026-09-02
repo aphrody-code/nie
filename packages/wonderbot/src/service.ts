@@ -170,6 +170,83 @@ export class Service {
 		return null;
 	}
 
+	/**
+	 * L'épisode qui SUIT strictement le dernier regardé.
+	 *
+	 * ── CE N'EST PAS `reprise()` ───────────────────────────────────────────
+	 * `reprise()` propose le premier NON VU, qui peut être un épisode ancien
+	 * laissé de côté. Celle-ci enchaîne après le dernier visionnage, même si
+	 * des trous subsistent derrière — c'est le geste « je continue ma série »,
+	 * distinct de « je rattrape ce qui me manque ».
+	 *
+	 * Quand l'arc est fini, elle passe au premier épisode de l'arc suivant.
+	 * Rend `null` si le membre n'a rien regardé, ou s'il est au bout.
+	 */
+	apresDernierVu(membre: string): CleEpisode | null {
+		const dernier = this.options.progression.dernierVu(membre);
+		if (!dernier) return null;
+
+		const suivantDansArc = voisins(this.chargerArc(dernier.saison).numeros, dernier.episode).suivant;
+		if (suivantDansArc !== null) return { saison: dernier.saison, episode: suivantDansArc };
+
+		const saisons = this.options.catalogue.saisonsDisponibles();
+		const rang = saisons.indexOf(dernier.saison);
+		for (const saison of saisons.slice(rang + 1)) {
+			const numeros = this.chargerArc(saison).numeros;
+			if (numeros.length > 0) return { saison, episode: numeros[0]! };
+		}
+		return null;
+	}
+
+	/** L'avancement du membre, arc par arc, plus ses derniers visionnages. */
+	progressionGlobale(membre: string) {
+		const arcs = this.arcs(membre);
+		const noms = this.options.catalogue.nomsDeSaisons();
+		return {
+			arcs,
+			vus: arcs.reduce((total, arc) => total + arc.vus, 0),
+			total: arcs.reduce((total, arc) => total + arc.total, 0),
+			marque: this.options.marque,
+			recents: this.options.progression.derniersVus(membre, 5).map((visionnage) => {
+				const versions = this.options.catalogue.episode(visionnage.saison, visionnage.episode);
+				return {
+					saison: visionnage.saison,
+					nomArc: noms.get(visionnage.saison)?.trim() || `Saison ${visionnage.saison}`,
+					episode: visionnage.episode,
+					titre: versions.length > 0 ? meilleurTitre(versions) : `Épisode ${visionnage.episode}`,
+				};
+			}),
+		};
+	}
+
+	/**
+	 * Propositions d'arcs pour l'autocomplétion.
+	 *
+	 * Le membre tape « chrono » et choisit « Chrono Stones » : il n'a jamais à
+	 * savoir que cet arc porte le numéro 5. La valeur envoyée reste le numéro,
+	 * puisque c'est lui qui indexe le catalogue.
+	 */
+	autocompleterArcs(texte: string, membre?: string): { nom: string; valeur: number }[] {
+		const requete = texte.trim().toLowerCase();
+		const avancements = membre ? new Map(this.arcs(membre).map((arc) => [arc.saison, arc])) : null;
+
+		return this.options.catalogue
+			.saisonsDisponibles()
+			.map((saison) => ({ saison, nom: this.nomArc(saison) }))
+			.filter(
+				(arc) =>
+					requete === "" ||
+					arc.nom.toLowerCase().includes(requete) ||
+					String(arc.saison) === requete
+			)
+			.slice(0, 25)
+			.map((arc) => {
+				const etat = avancements?.get(arc.saison);
+				const nom = etat ? `${arc.nom} · ${etat.vus}/${etat.total}` : arc.nom;
+				return { nom: nom.length > 100 ? `${nom.slice(0, 99)}…` : nom, valeur: arc.saison };
+			});
+	}
+
 	accueil(membre: string): VueAccueil {
 		const resume = this.options.catalogue.resume();
 		return {
