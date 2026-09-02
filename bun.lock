@@ -545,8 +545,16 @@
   ],
   "overrides": {
     "@aphrody-code/bxc": "npm:@aphrody/bxc@^0.6.7",
+    "@aphrody-code/canvas": "npm:@aphrody/canvas@0.1.99",
+    "@aphrody-code/challonge": "npm:@aphrody/challonge@^0.1.6",
+    "@aphrody-code/fut": "npm:@aphrody/fut@^0.1.5",
+    "@aphrody-code/voiranime": "npm:@aphrody/voiranime@^0.1.5",
+    "@aphrody-code/worldbeyblade": "npm:@aphrody/worldbeyblade@^0.1.5",
     "@aphrody-code/x": "npm:@aphrody/x@^1.1.0",
+    "@aphrody-code/xai": "npm:@aphrody/xai@^1.0.5",
+    "@aphrody-code/xcom": "npm:@aphrody/xcom@^0.1.6",
     "@aphrody-code/zukan": "npm:@aphrody/zukan@^0.1.5",
+    "kysely": "0.28.17",
   },
   "catalog": {
     "@aphrody-code/bxc": "^0.6.0",
@@ -2562,7 +2570,7 @@
 
     "kuroshiro-analyzer-kuromoji": ["kuroshiro-analyzer-kuromoji@1.1.0", "", { "dependencies": { "kuromoji": "^0.1.1" } }, "sha512-BSJFhpsQdPwfFLfjKxfLA9iL+/PC6LCR9vgwgb5Jc7jZwk9ilX8SAV6CwhAQZY611tiuhbB52ONYKDO8hgY1bA=="],
 
-    "kysely": ["kysely@0.29.5", "", {}, "sha512-ooa+eSbBNPTo3MycPEuW5jdrxQdQwdtB3LC3h43FiXQbIry5tR0C5lDG7eealK0E4D7XjrnOP5DIUg/LyjRMYQ=="],
+    "kysely": ["kysely@0.28.17", "", {}, "sha512-nbD8lB9EB3wNdMhOCdx5Li8DxnLbvKByylRLcJ1h+4SkrowVeECAyZlyiKMThF7xFdRz0jSQ2MoJr+wXux2y0Q=="],
 
     "lexical": ["lexical@0.45.0", "", { "dependencies": { "@lexical/internal": "0.45.0" } }, "sha512-z2M9C2ILPW7SopQE1aKbOFdZJbe3HvsrgWnJKveMDrSEvVjU9Hce4UpKVsAdkwY7TgY9RDuCV3+sfrGu0WkL+w=="],
 
