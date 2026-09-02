@@ -10,9 +10,10 @@ Level-5 / CPK). Sortie le 9/6/2026, APK récupéré et rétro-conçu statiquemen
   (références FK + héritage résolus), extraites du dump IL2CPP (Unity 6000.0.62f1).
 - `data/enums.json` — **214 énumérations** du jeu avec leurs valeurs
   (`CharacterElement` = Wind/Forest/Fire/Mountain, `CharacterPosition` = FW/MF/DF/GK, …).
-- `supabase/migrations/20260610_create_inagle_cross_core.sql` — DDL des 153 tables
+- `<racine>/supabase/migrations/20260610000000_inagle_cross_core.sql` — DDL des 153 tables
   `public.inagle_cross_*` (id + colonnes promues + `data jsonb` + RLS « Public Read »),
-  généré depuis le schéma.
+  généré depuis le schéma. Le fichier vivait ici **en double, identique au byte** ; le
+  schéma SQL du dépôt n'a qu'un seul foyer, à la racine, d'où il est rejoué en entier.
 - `src/` — types (`CrossSchema`, `CrossTable`, …) + `crossTableName()`.
 
 Le préfixe `inagle_cross_` est routé gratuitement vers le miroir SQLite d'azalée
