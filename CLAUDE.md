@@ -74,6 +74,11 @@ bun run lint
 - **`nie` est aussi un paquet du registre npm.** Sans `bun install` à la racine, `import … from "nie"`
   résout vers `nie@1.2.7` du cache et non vers `packages/nie` — erreur trompeuse
   `Export named 'decode' not found`. Le `dlopen` de `nie_ffi.dll` n'est que la cause *suivante*.
+- **Rapatrier un paquet d'un autre workspace exige d'y fusionner son `catalog` ET ses
+  `overrides`** : `catalog: failed to resolve` sur chaque entrée absente, et sans l'override
+  `kysely` de rg, Bun dédoublonne `better-auth` sous un nom généré que Next ne résout plus.
+- Un paquet dont `exports` pointe sur `./dist/*` ne résout pas sans build : le repointer sur
+  `./src/index.ts`, Bun lit le TypeScript.
 
 ## Les quatre gisements — passer par la façade
 
@@ -102,6 +107,9 @@ bun --bun packages/nie-catalog/src/cli.ts cherche "Mark"
 - Un gisement **présent peut être vide** : `etat()` mesure le contenu, pas l'existence du fichier.
 - Le schéma SQL vit dans `supabase/migrations/` — rejouable, idempotent, vérifié colonne par
   colonne contre la production (811/811). Il crée la **forme** ; le contenu vient du jeu.
+- Une migration n'est idempotente que **rejouée** : `CREATE TABLE IF NOT EXISTS` ne suffit pas,
+  il faut aussi les séquences (`IF NOT EXISTS`), les vues (`OR REPLACE`) et les contraintes
+  (Postgres n'a pas `ADD CONSTRAINT IF NOT EXISTS` — garder sur `pg_constraint`).
 
 ## Doctrine polyglotte — un rôle, un langage
 
@@ -380,6 +388,15 @@ csharp/             IECODE.Core / IECODE.CLI / IECODE.Core.Tests (.NET 10, `IECO
   retirer un import qui sert (vu sur `phase_set_golden.rs`).
 - Un `sed` qui remappe un chemin (`tools/x` → `plugins/y`) touche aussi les **URLs** portant le
   même segment (`azalee.rosegriffon.fr/tools/niers` — endpoint de l'updater Tauri). Relire après.
+- **Ne jamais reconstruire un bloc d'`import` par regex** : `Mountain as MountainIcon` ne matche
+  pas `^\t(\w+),`, l'alias disparaît en silence et toute page qui touche le module part en 500
+  (vécu sur `apps/azalee/lib/icons.ts`). Éditer les lignes, jamais réécrire le bloc.
+- `comm` exige un tri **`LC_ALL=C sort`** : sans lui il annonce « 0 différence » sur des fichiers
+  qu'il refuse en réalité de comparer (le message `not in sorted order` part sur stderr).
+- Copier un SQLite ouvert en WAL **sans son `-wal`** perd les écritures récentes (42 épisodes
+  manquants). Utiliser `sqlite3 src ".backup 'dest'"`.
+- Une page qui rend un titre correct peut quand même être en 500 : **démarrer le service** est ce
+  qui trouve le bug, pas relire le diff.
 
 ## Références légales
 
