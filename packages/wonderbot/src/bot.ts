@@ -848,8 +848,20 @@ export class Wonderbot {
 				// Le message d'ouverture porte l'identifiant du fil : on le MODIFIE
 				// au lieu de republier, pour ne pas noyer les réponses des membres.
 				const ouverture = await fil.fetchStarterMessage().catch(() => null);
-				await ouverture?.edit({
+				if (!ouverture) return;
+
+				// ── VIDER LES CHAMPS HÉRITÉS, DANS LA MÊME MODIFICATION ─────
+				// Une modification qui ne mentionne pas `embeds` LAISSE en place
+				// ceux du message. Un fil créé avant le passage en V2 gardait
+				// donc ses embeds, et Discord refusait tout le message :
+				// « MESSAGE_CANNOT_USE_LEGACY_FIELDS_WITH_COMPONENTS_V2 ».
+				// Les vider explicitement convertit le fil sur place — et c'est
+				// ce qui permet de ne PAS le supprimer, donc de préserver les
+				// discussions qu'il porte.
+				await ouverture.edit({
 					flags: DRAPEAU_V2,
+					content: "",
+					embeds: [],
 					components: message.components as never,
 				});
 			},
