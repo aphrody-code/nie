@@ -78,6 +78,7 @@ import {
 	MessageSquare,
 	Minimize,
 	Moon,
+	Mountain as MountainIcon,
 	Music,
 	Network,
 	Newspaper,

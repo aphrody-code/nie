@@ -18,6 +18,7 @@
  */
 import { existsSync, readlinkSync, statSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve } from "node:path";
+import { BASE_JEU_DEFAUT, baseJeu } from "./jeu.ts";
 
 /** Une source résolue : son chemin (ou son URL) et la raison de son absence, jamais les deux. */
 export interface Source {
@@ -130,11 +131,12 @@ export function sources(depart?: string): Sources {
 			join(process.env.HOME ?? "", ".cache", "ietv", "episodes.db"),
 		]),
 		extrait: sourceExtrait(racine),
+		// La base du CDN n'est PAS recalculée ici : elle vient de `./jeu.ts`, qui porte les
+		// conventions d'URL du serveur. La dupliquer laisserait `sources()` et les constructeurs
+		// d'URL diverger en silence — chacun visant une origine différente.
 		jeu: {
-			emplacement: (
-				process.env.NIE_CDN_URL?.trim() || "https://cdn.rosegriffon.fr"
-			).replace(/\/+$/, ""),
-			essais: ["NIE_CDN_URL", "https://cdn.rosegriffon.fr"],
+			emplacement: baseJeu(),
+			essais: ["NIE_CDN_URL", BASE_JEU_DEFAUT],
 		},
 		racine,
 		re: premierLisible([process.env.NIE_KB_SQLITE?.trim(), join(racine, "var", "niers.sqlite")]),
