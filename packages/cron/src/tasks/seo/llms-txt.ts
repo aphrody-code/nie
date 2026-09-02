@@ -28,11 +28,14 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
-// Racine du monorepo, déduite depuis l'emplacement de ce fichier
-// (packages/cron/src/tasks/seo/llms-txt.ts → remonter de 5 niveaux).
-const MONOREPO_ROOT = join(import.meta.dir, "..", "..", "..", "..", "..");
-const WEBSITE_PUBLIC = join(MONOREPO_ROOT, "apps", "website", "public");
-const AZALEE_PUBLIC = join(MONOREPO_ROOT, "apps", "azalee", "public");
+import { dansLeDepot, depotRoseGriffon } from "../../lib/racine";
+
+// Le wiki vit dans ce dépôt ; le site vitrine est resté dans `rg` (cf. `docs/FUSION.md`).
+// Chacun est donc résolu à l'exécution, jamais par un nombre de « .. » qui change de sens
+// selon le dépôt d'où le démon tourne.
+const AZALEE_PUBLIC = dansLeDepot("apps", "azalee", "public");
+const RG = depotRoseGriffon();
+const WEBSITE_PUBLIC = RG ? join(RG, "apps", "website", "public") : null;
 
 const DEV_CREDIT = "yoyo — https://x.com/yoyo__goat";
 
@@ -312,7 +315,12 @@ export async function runSeoLlmsTxt(): Promise<{ success: boolean; error?: strin
 		const websiteFull = websiteLlmsFull();
 		const azaleeFull = azaleeLlmsFull();
 
-		const targets: Array<{ path: string; content: string }> = [
+		const targets: Array<{ path: string; content: string }> = [];
+
+		// Le site vitrine n'est pas dans ce dépôt : sans lui, on écrit la moitié Azalée et
+		// on le DIT. Une tâche qui rend « succès » après n'avoir rien écrit est un faux vert.
+		if (WEBSITE_PUBLIC) {
+			targets.push(
 			// Website : llm.txt est l'alias référencé par les métadonnées Next.
 			{ path: join(WEBSITE_PUBLIC, "llms.txt"), content: websiteIndex },
 			{ path: join(WEBSITE_PUBLIC, "llm.txt"), content: websiteIndex },
@@ -323,6 +331,14 @@ export async function runSeoLlmsTxt(): Promise<{ success: boolean; error?: strin
 			{ path: join(WEBSITE_PUBLIC, "llms-full.md"), content: websiteFull },
 			{ path: join(WEBSITE_PUBLIC, "llm.html"), content: llmsToHtml(websiteIndex, "Rose Griffon — llm.txt") },
 			{ path: join(WEBSITE_PUBLIC, "llms-full.html"), content: llmsToHtml(websiteFull, "Rose Griffon — llms-full") },
+			);
+		} else {
+			console.warn(
+				"[SEO llms.txt] Site vitrine introuvable (RG_MONOREPO absent) : seule la moitié Azalée est générée.",
+			);
+		}
+
+		targets.push(
 			// Azalée.
 			{ path: join(AZALEE_PUBLIC, "llms.txt"), content: azaleeIndex },
 			{ path: join(AZALEE_PUBLIC, "llm.txt"), content: azaleeIndex },
@@ -333,7 +349,7 @@ export async function runSeoLlmsTxt(): Promise<{ success: boolean; error?: strin
 			{ path: join(AZALEE_PUBLIC, "llms-full.md"), content: azaleeFull },
 			{ path: join(AZALEE_PUBLIC, "llm.html"), content: llmsToHtml(azaleeIndex, "Azalée — llm.txt") },
 			{ path: join(AZALEE_PUBLIC, "llms-full.html"), content: llmsToHtml(azaleeFull, "Azalée — llms-full") },
-		];
+		);
 
 		for (const { path, content } of targets) {
 			await writeFile(path, content, "utf-8");

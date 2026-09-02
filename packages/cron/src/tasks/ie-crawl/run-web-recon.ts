@@ -6,13 +6,13 @@
 
 // Runner reproductible du recon web exhaustif (victory-road/fr).
 // Usage : bun packages/cron/src/tasks/ie-crawl/run-web-recon.ts [outDir] [rootUrl]
-//   outDir  défaut : /home/ubuntu/rg/iecode/re/ie-crawl/victory-road-fr
+//   outDir  défaut : <racine du dépôt>/var/ie-crawl/victory-road-fr
 //   rootUrl défaut : https://www.inazuma.jp/victory-road/fr/
 
 import { crawlWebRecon } from "./web-recon";
+import { dansLeDepot } from "../../lib/racine";
 
-const outDir =
-	process.argv[2] || "/home/ubuntu/rg/iecode/re/ie-crawl/victory-road-fr";
+const outDir = process.argv[2] || dansLeDepot("var", "ie-crawl", "victory-road-fr");
 const rootUrl = process.argv[3] || "https://www.inazuma.jp/victory-road/fr/";
 
 const t0 = Date.now();

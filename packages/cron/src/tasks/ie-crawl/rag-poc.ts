@@ -13,6 +13,7 @@
 
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { dansLeDepot } from "../../lib/racine";
 import { ingestSources, ragHybridSearch, type RagSource } from "./rag-store-local";
 
 const DATA = "/home/ubuntu/niers/data";
@@ -92,8 +93,8 @@ function collectSamples(): RagSource[] {
 
 	// 4. Types TS générés
 	const tsCandidates = [
-		"/home/ubuntu/rg/packages/db/src/types.gen.ts",
-		"/home/ubuntu/rg/packages/db/src/types.ts",
+		dansLeDepot("packages", "db", "src", "types.gen.ts"),
+		dansLeDepot("packages", "db", "src", "types.ts"),
 	].filter(existsSync);
 	for (const f of take(tsCandidates, SAMPLE)) {
 		sources.push({
@@ -107,7 +108,7 @@ function collectSamples(): RagSource[] {
 	}
 
 	// 5. Docs monorepo (.md)
-	const docsDir = "/home/ubuntu/rg/docs";
+	const docsDir = dansLeDepot("docs");
 	if (existsSync(docsDir)) {
 		const mds = readdirSync(docsDir).filter((n) => n.endsWith(".md") && n !== "llms-full.txt");
 		for (const n of take(mds, SAMPLE)) {
@@ -123,7 +124,7 @@ function collectSamples(): RagSource[] {
 	}
 
 	// 6. Web crawl (sortie de l'agent ie-crawl, si déjà présente)
-	const crawlDir = "/home/ubuntu/rg/iecode/re/ie-crawl/victory-road-fr";
+	const crawlDir = dansLeDepot("var", "ie-crawl", "victory-road-fr");
 	if (existsSync(crawlDir)) {
 		const htmls = findFiles(crawlDir, ".html", SAMPLE).concat(findFiles(crawlDir, ".md", SAMPLE));
 		for (const f of take(htmls, SAMPLE)) {

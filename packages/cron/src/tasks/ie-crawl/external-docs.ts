@@ -6,8 +6,9 @@
 
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { dansLeDepot } from "../../lib/racine";
 
-const DOCS_DIR = "/home/ubuntu/rg/docs";
+const DOCS_DIR = dansLeDepot("docs");
 // Les docs de référence externes (crawlées) sont isolées dans docs/reference/
 // pour ne pas polluer la racine des docs-projet écrits à la main.
 const REFERENCE_DIR = join(DOCS_DIR, "reference");

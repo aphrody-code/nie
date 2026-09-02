@@ -1,0 +1,27 @@
+[Unit]
+Description=rag-api — recherche RAG locale (bun:sqlite, zero Supabase) pour api.rosegriffon.fr/rag/
+After=network.target rg-rag-embed.service
+Wants=rg-rag-embed.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/niers/apps/rag-api
+Environment=PATH=/home/ubuntu/.bun/bin:/usr/local/bin:/usr/bin:/bin
+Environment=RAG_API_PORT=8806
+Environment=RAG_API_HOST=127.0.0.1
+Environment=RAG_EMBED_URL=http://127.0.0.1:8799
+Environment=RAG_STORE_PATH=/home/ubuntu/niers/var/rag/rag-store.sqlite
+ExecStart=/home/ubuntu/.bun/bin/bun server.ts
+# `always` : une sortie en code 0 laissait le service mort sans alerte (cf. cdn-variants).
+Restart=always
+RestartSec=3
+
+# Plafond mémoire (raisonnement complet dans azalee-api.service). Mesuré : 121 Mio,
+# mais un index SQLite chargé en mémoire peut croître avec le corpus.
+MemoryHigh=1G
+MemoryMax=2G
+MemorySwapMax=256M
+
+[Install]
+WantedBy=multi-user.target

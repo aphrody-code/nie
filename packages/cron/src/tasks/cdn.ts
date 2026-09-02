@@ -3,8 +3,9 @@ import { mkdir, stat, writeFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { brotliCompressSync, gzipSync, constants } from "node:zlib";
 import { execSync } from "node:child_process";
+import { dansLeDepot } from "../lib/racine";
 
-const SOURCE_DIR = "/home/ubuntu/rg/packages/assets/public";
+const SOURCE_DIR = dansLeDepot("packages", "assets", "public");
 const DEST_DIRS = ["/var/www/cdn/static/azalee/public", "/var/www/cdn/static/website/public"];
 
 /**

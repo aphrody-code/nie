@@ -15,6 +15,11 @@ WorkingDirectory=/home/ubuntu/niers
 EnvironmentFile=-/home/ubuntu/.config/niers/donnees.env
 Environment=PATH=/home/ubuntu/.bun/bin:/usr/local/bin:/usr/bin:/bin
 ExecStart=/home/ubuntu/niers/scripts/donnees/miroir-inagle.sh
+# `nie-model-serve` ouvre le miroir une fois pour toutes, en Rust, sans la vérification
+# d'inode que fait `packages/azalee/src/db/sqlite-client.ts` toutes les 5 s : après la bascule
+# du lien il garderait un descripteur sur l'instantané précédent, que la rétention finit par
+# délier. Le `+` exécute la commande en root, alors que le service tourne en `ubuntu`.
+ExecStartPost=+/usr/bin/systemctl try-restart nie-model-serve.service
 # Le dump lit 165 000 lignes : quelques minutes au pire, jamais des heures.
 TimeoutStartSec=900
 # Le script refuse de basculer sur un dump invalide ; un échec laisse donc le miroir intact.

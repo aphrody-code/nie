@@ -1,4 +1,5 @@
 import { $ } from "bun";
+import { racineDepot } from "../lib/racine";
 
 /**
  * Chemin du binaire Bun **courant**, utilisé au lieu d'un `bun` nu.
@@ -19,7 +20,7 @@ import { $ } from "bun";
 const BUN = process.execPath;
 
 /** Racine du monorepo : les commandes de workspace doivent partir de là. */
-const RACINE = "/home/ubuntu/rg";
+const RACINE = racineDepot();
 
 /**
  * Exécute la commande de push d'Inagle pour synchroniser la base de données

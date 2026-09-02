@@ -1,0 +1,110 @@
+[Unit]
+# nie-cron — le démon de tâches planifiées, servi depuis `niers/packages/cron`.
+#
+# Remplace `rg-cron.service`. Le démon est un SINGLETON : il ouvre le port 3006 (annonces),
+# le port 4001 (IPC) et la socket `/var/lib/rg/cron.sock`, et il monte la passerelle Discord
+# de la guilde. Deux instances, c'est un `EADDRINUSE` au mieux, et des annonces Discord en
+# double devant de vrais utilisateurs au pire. On arrête `rg-cron` AVANT de démarrer celle-ci,
+# jamais les deux ensemble.
+#
+# Les cinq chemins qui ne valaient que dans `rg` ont été rapatriés (`packages/cron/src/lib/
+# racine.ts`) : la racine du dépôt se résout à l'exécution au dossier qui porte `Cargo.toml`
+# ET `crates/`, et les deux surfaces restées dans `rg` — le site vitrine et le bot communautaire
+# — sont désignées par `depotRoseGriffon()` (`RG_MONOREPO`, sinon `/home/ubuntu/rg`). Quand
+# elles manquent, la tâche le DIT au lieu d'écrire à côté.
+#
+# Bascule :
+#   1. rafraîchir `/home/ubuntu/.config/niers/cron.env` depuis `/home/ubuntu/rg/.env.local` ;
+#   2. `sudo systemctl disable --now rg-cron` ;
+#   3. `sudo cp deploy/systemd/nie-cron.service /etc/systemd/system/ && sudo systemctl daemon-reload` ;
+#   4. `sudo systemctl enable --now nie-cron` ;
+#   5. vérifier : `systemctl is-active nie-cron`, `ss -lntp | grep -E ':3006|:4001'`,
+#      `journalctl -u nie-cron -n 50`, et UNE tâche sans effet de bord avant d'attendre la nuit.
+Description=Démon de tâches planifiées Inazuma Eleven (Bun + Bun.cron, depuis niers)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/niers/packages/cron
+# Les secrets vivent hors du dépôt, en 600 — comme `wonderbot.env` et `donnees.env`.
+# Ce fichier est la copie niers de `/home/ubuntu/rg/.env.local` : tant que `rg-cron` tourne, les
+# deux existent, et c'est celui-ci qu'il faut rafraîchir juste avant la bascule.
+EnvironmentFile=/home/ubuntu/.config/niers/cron.env
+Environment=NODE_ENV=production
+
+# `PATH` est OBLIGATOIRE : systemd n'en fournit pas qui contienne `/home/ubuntu/.bun/bin`. Sans
+# lui, toute commande `bun …` lancée par une tâche échoue en code 127 (« command not found ») —
+# c'est ce qui avait silencieusement cassé les sauvegardes nocturnes côté `rg-cron`.
+Environment=PATH=/home/ubuntu/.bun/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Cibles publiques. Le code a les mêmes valeurs en repli, mais les rendre explicites permet de
+# basculer un environnement sans recompiler.
+Environment=AZALEE_URL=https://azalee.rosegriffon.fr
+Environment=WEBSITE_URL=https://rosegriffon.fr
+Environment=API_URL=https://api.rosegriffon.fr
+Environment=CDN_URL=https://cdn.rosegriffon.fr
+
+# `@aphrody-code/bxc` tente en dernier recours `cargo run --manifest-path rust-bridge/Cargo.toml`
+# pour localiser Chrome — ce dossier n'est jamais publié dans le tarball npm, donc l'appel échoue
+# toujours en production. `CHROME_PATH` court-circuite entièrement cette résolution.
+Environment=CHROME_PATH=/usr/local/bin/google-chrome
+
+ExecStart=/home/ubuntu/.bun/bin/bun --bun src/index.ts
+# `always` : le démon planifie en continu, il n'a aucune raison de sortir. Une sortie en code 0 —
+# fin de boucle inattendue, exception avalée — n'était pas relancée, et TOUTES les tâches
+# planifiées s'arrêtaient sans qu'aucune unité ne soit en échec.
+Restart=always
+RestartSec=5s
+TimeoutStopSec=15s
+KillMode=mixed
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=nie-cron
+
+# ── Limites de ressources ──
+LimitNOFILE=131072
+TasksMax=512
+MemoryMax=1G
+MemoryHigh=768M
+MemoryLow=256M
+CPUWeight=200
+IOWeight=200
+OOMScoreAdjust=-300
+
+# ── Durcissement (MemoryDenyWriteExecute INTERDIT — casse le JIT de Bun) ──
+ProtectSystem=strict
+ProtectHome=read-only
+# `/home/ubuntu/niers` : le dépôt d'ici, celui d'où tourne le démon.
+# `/home/ubuntu/rg` : le site vitrine et le bot communautaire y vivent toujours, et deux tâches
+#   les visent — `seo:llms-txt` écrit `apps/website/public`, `noctaly:import` lance un script
+#   dans `apps/bot`. À retirer le jour où ces deux surfaces auront suivi.
+# `/var/www/cdn/static/*/public` : la cible de la tâche `cdn`. Sans elles, `ProtectSystem=strict`
+#   rend la copie impossible et un nouvel asset n'atteint jamais le CDN.
+# `/var/lib/rg` : cache de la collecte d'audience du second serveur, et la socket du pont bot
+#   (`cron.sock`). Sans cette entrée la tâche `stats:achillea` échoue en EROFS et le pont ne
+#   s'ouvre pas.
+# `/home/ubuntu/.bxc` : l'état de l'automatisation de navigateur.
+ReadWritePaths=/home/ubuntu/niers /home/ubuntu/rg /tmp /home/ubuntu/.bxc /var/www/cdn/static/azalee/public /var/www/cdn/static/website/public /var/lib/rg
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+NoNewPrivileges=true
+ProcSubset=pid
+ProtectProc=invisible
+RemoveIPC=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallFilter=@system-service ~@obsolete @privileged
+SystemCallErrorNumber=EPERM
+
+[Install]
+WantedBy=multi-user.target

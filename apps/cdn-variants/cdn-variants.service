@@ -1,0 +1,22 @@
+[Unit]
+Description=cdn-variants — variantes resize+webp (cache disque) pour cdn.rosegriffon.fr
+After=network.target iecode-cdn.service
+Wants=iecode-cdn.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/rg/apps/cdn-variants
+Environment=PATH=/home/ubuntu/.bun/bin:/usr/local/bin:/usr/bin:/bin
+Environment=VARIANTS_PORT=8805
+Environment=VARIANTS_HOST=127.0.0.1
+Environment=VARIANTS_REPO_ROOT=/home/ubuntu/rg
+Environment=VARIANTS_DX11_ROOT=/home/ubuntu/.local/share/Steam/iecode/inazuma/data/dx11
+Environment=VARIANTS_LIVE_ORIGIN=http://127.0.0.1:8788
+Environment=VARIANTS_CACHE_ROOT=/var/cache/cdn-variants
+ExecStart=/home/ubuntu/.bun/bin/bun server.ts
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

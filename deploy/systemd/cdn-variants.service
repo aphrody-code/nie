@@ -1,0 +1,32 @@
+[Unit]
+Description=cdn-variants — variantes resize+webp (cache disque) pour cdn.rosegriffon.fr
+After=network.target iecode-cdn.service
+Wants=iecode-cdn.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/niers/apps/cdn-variants
+Environment=PATH=/home/ubuntu/.bun/bin:/usr/local/bin:/usr/bin:/bin
+Environment=VARIANTS_PORT=8805
+Environment=VARIANTS_HOST=127.0.0.1
+Environment=VARIANTS_REPO_ROOT=/home/ubuntu/niers
+Environment=VARIANTS_DX11_ROOT=/home/ubuntu/.local/share/Steam/iecode/inazuma/data/dx11
+Environment=VARIANTS_LIVE_ORIGIN=http://127.0.0.1:8788
+Environment=VARIANTS_CACHE_ROOT=/var/cache/cdn-variants
+ExecStart=/home/ubuntu/.bun/bin/bun server.ts
+# `always` et non `on-failure` : une sortie en code 0 — fin volontaire, exception
+# avalée, arrêt d'un runtime qui croit son travail fini — n'était jamais relancée, et
+# le service restait mort sans que rien ne le signale.
+Restart=always
+RestartSec=3
+
+# Plafond mémoire (cf. azalee-api.service pour le raisonnement complet). Ce service
+# redimensionne et réencode des images : ses pics sont les plus larges du lot hors
+# nie-model-serve. Mesuré : 1,2 Gio.
+MemoryHigh=2G
+MemoryMax=3G
+MemorySwapMax=512M
+
+[Install]
+WantedBy=multi-user.target
