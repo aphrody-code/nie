@@ -1,0 +1,81 @@
+# --db : miroir SQLite inagle_* (le meme que sert azalee-web). Sans lui, /story-scene
+# repond 503 « miroir SQLite absent » : la resolution automatique ne le trouve pas
+# depuis WorkingDirectory=/home/ubuntu/niers.
+# --uniform-map : resolution des uniformes (CRC32 -> G4MD+G4TX).
+# --menu-cfg-dir : les dumps `*_setting.cfg.bin.json` que lit /menu-tree. Ils vivent dans le
+# depot niers (475 fichiers), PAS dans l'installation Steam : sans ce drapeau la route se
+# rabat sur `<game-dir>/data/common/gamedata/menu/cfg`, qui n'existe pas cote Steam, et
+# /menu-tree repond 404 « aucun menu_setting (dump absent ?) » — une route eteinte en
+# silence, alors que les donnees sont la.
+# --asset-cross-ref : etait passe a l'unite active mais absent de ce fichier (derive non
+# reportee) ; reintegre ici pour que le depot decrive vraiment ce qui tourne.
+[Unit]
+Description=nie-model-serve — assemblage GLB IEVR live (corps+face+uniforme depuis CPK)
+# `iecode-cdn.service` a disparu du dépôt le 11/8/2026 et de la machine le 14 : son
+# WorkingDirectory n'existait plus et l'unité rebouclait en échec. La dépendance est
+# retirée plutôt que laissée pendante — systemd ignore une unité inconnue en silence,
+# ce qui rend ce genre de reste invisible pour des mois.
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/niers
+ExecStart=/home/ubuntu/niers/target/release/nie-model-serve \
+    --game-dir /home/ubuntu/.local/share/Steam/iecode/inazuma \
+    --glb-dir  /home/ubuntu/.local/share/Steam/iecode/inazuma/data/dx11/model \
+    --crc-manifest /home/ubuntu/niers/var/model-crc-manifest.ndjson \
+    --body-manifest /home/ubuntu/niers/var/body-type-manifest.ndjson \
+    --cache-dir /home/ubuntu/niers/var/model-cache \
+    --uniform-map /home/ubuntu/niers/var/uniform-model-map.ndjson \
+    --asset-cross-ref /home/ubuntu/niers/data/asset-cross-reference.json \
+    --menu-cfg-dir /home/ubuntu/niers/data/common/gamedata/menu/cfg \
+    --db /home/ubuntu/niers/var/mirror.sqlite \
+    --port 8790 --preload --http-threads 8 --http-queue 256
+Environment=RUST_LOG=info
+Environment=NIE_CPK_CACHE_BUDGET_GIB=8
+Restart=always
+RestartSec=5s
+
+# Descripteurs et tâches — panne du 21/8/2026.
+#
+# Le service a saturé ses descripteurs : 4089 fd sur 4096, dont 4088 sockets et 2057
+# connexions en CLOSE-WAIT, avec des panics en boucle « clone stream: Os { code: 24,
+# ... "Too many open files" } » — et le CDN répondait 504 sur /avatar/catalog.json,
+# donc la page /avatar du wiki rendait son état de repli.
+#
+# La CAUSE était dans le code, pas ici (verrou global sur le VFS tenu pendant le
+# décodage d'une vignette + boucle d'accept qui créait un thread NON borné par
+# connexion) ; elle est corrigée, mais 4096 n'avait de toute façon aucune justification :
+# l'hôte autorise fs.nr_open = 4 194 304 et le défaut de systemd est 524288.
+LimitNOFILE=65536
+
+# TasksMax n'était PAS la limite atteinte : sans déclaration, l'unité héritait de
+# DefaultTasksMax=51593, vingt-cinq fois au-dessus des 2048 threads observés. La borne
+# est maintenant dans le code (pool HTTP de 8 workers, file de 256) ; celle-ci n'est
+# qu'un filet : 1024 threads laissent cent fois la marge du fonctionnement normal
+# (≈ 15 threads) et rendent impossible un retour à l'emballement d'alors.
+TasksMax=1024
+
+# Plafonds mémoire — fusionnés depuis le drop-in memory.conf, qui échappait au dépôt.
+#
+# Ce service a été tué le 14/8/2026 à 02h16 par l'OOM killer GLOBAL
+# (`constraint=CONSTRAINT_NONE`, 10,7 Gio résidents), alors que sa propre limite était
+# à 24 Gio : ce n'est pas son cgroup qui a cédé, c'est l'hôte entier. Un plafond plus
+# haut que la RAM disponible ne protège rien — il désigne seulement la victime au
+# hasard, et la prochaine aurait pu être le wiki public.
+#
+# 10 Gio, c'est le budget applicatif du cache CPK (NIE_CPK_CACHE_BUDGET_GIB=8) plus la
+# marge de décodage. Si ce plafond est atteint, le service redémarre seul en cinq
+# secondes ; c'est très préférable à un hôte qui manque de mémoire pour tout le monde.
+MemoryHigh=8G
+MemoryMax=10G
+MemorySwapMax=2G
+# Si l'hôte manque quand même de mémoire, que le noyau choisisse CELUI-CI plutôt qu'une
+# surface publique : azalee-web et website-web sont à -200, les bots à -300. Un rendu de
+# modèle 3D interrompu se relance ; un wiki tué se voit.
+OOMScoreAdjust=300
+
+[Install]
+WantedBy=multi-user.target
