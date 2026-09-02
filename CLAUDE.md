@@ -5,6 +5,23 @@ Réécriture **pixel-perfect / byte-perfect** d’*Inazuma Eleven: Victory Road*
 Projet réalisé dans le cadre de l’**Accord Commercial Officiel d’Exploitation N° RG-L5-VR-2026-001** du 8 août 2026 entre Rose Griffon (Level 5 France) et LEVEL-5 Inc.  
 Droits exclusifs de reverse-engineering, développement de mods, portage et outils associés explicitement concédés.
 
+## Deux machines — savoir sur laquelle on est
+
+Ce fichier a été écrit depuis le **poste Windows**. Le VPS Linux (`/home/ubuntu/niers`) est une
+autre machine, et une bonne moitié des pièges ci-dessous n'y existe pas.
+
+- Le hook `SessionStart` (`.claude/hooks/etat.sh`) affiche la plateforme et l'état **mesuré**
+  dès l'ouverture : plateforme, git, cible RE, KB, forge, gisements, services. Ce qu'il dit prime
+  sur ce fichier — lui mesure, ce fichier se souvient.
+- Sur **Linux** : pas de MSVC (donc pas de voie B de la forge), pas de Git Bash / MSYS / UAC,
+  `cargo fmt --all` fonctionne, `sed -i` ne mange pas les backslashes, `niers mem` marche.
+  La section « Pièges d'environnement » plus bas ne vaut **que** pour le poste Windows.
+- Sur le **VPS** : les 18 services de production tournent ici (azalee-*, rg-*, bxc-*,
+  nie-model-serve). `pkill -f` y tue la session Claude — cibler un PID.
+- `.claude/hooks/garde-bash.sh` bloque en amont les commandes que ce dépôt n'accepte pas
+  (`python` direct, `node`, `bun install` hors racine, `pkill -f`, `cargo test --workspace` sans
+  redirection) en donnant la forme correcte. Commandes du dépôt : `/etat`, `/verif`, `/forge`, `/porter`.
+
 ## Mode de fonctionnement obligatoire
 
 - Tu es un exécutant autonome. Dès que l’utilisateur lance une session, tu codes immédiatement.
@@ -168,7 +185,10 @@ csharp/             IECODE.Core / IECODE.CLI / IECODE.Core.Tests (.NET 10, `IECO
   et le plugin `plugins/niers-plugin/**/*.md` sont ré-inclus explicitement. Ne pas retirer ces
   lignes `!…` — sans elles, toute la chaîne de build C++ sort du dépôt.
 
-## Pièges d'environnement (Windows)
+## Pièges d'environnement — **poste Windows uniquement**
+
+> Rien de cette section ne s'applique au VPS Linux. Vérifier `uname` (ou lire la ligne `machine`
+> du hook d'état) avant d'en invoquer un.
 
 - **Un `dlopen` raté casse TOUT `bun`/`bunx` lancé depuis le dépôt**, même sans rapport avec le
   jeu : `bunfig.toml` précharge `nie-plugin`, qui charge `libnie_ffi`. Construire la lib avant de
@@ -363,6 +383,15 @@ csharp/             IECODE.Core / IECODE.CLI / IECODE.Core.Tests (.NET 10, `IECO
 - Le dépôt du VPS porte des **modifications non commitées** d'une autre session : ne jamais y `git pull`.
 
 ## Base de connaissance (`var/niers.sqlite`)
+
+> **Mesuré sur le VPS le 2026-09-02 — la base d'ici n'est PAS ancrée sur la cible.**
+> `binary` id=2 porte le sha `4c2b91fbae6f…` / 31 468 032 o, c'est-à-dire le build **transitoire**,
+> alors que `nie.exe` local (lien vers l'install Steam) est bien `b1fa04ea3658…` / 33 918 464 o.
+> Ses chiffres d'ici (108 650 fonctions, 13 653 nommées = 12,57 %, 100 664 classifiées = 92,65 %,
+> `pdata_func` = 50 674 racines sur id=1) décrivent donc l'**autre** binaire : ne pas les citer comme
+> mesures de la cible, et rejouer `niers rebuild` contre `nie.exe` avant toute affirmation chiffrée.
+> Le hook d'état affiche cette contradiction à chaque session tant qu'elle dure.
+> Les tables réelles sont `function`, `pdata_func`, `coverage` (pas `functions`).
 
 - `Db::init` (nie-index) applique `schema.sql` **puis** `camera.sql` (`meta.schema_version = 2`).
 - Peupler la caméra : `nie-cam index [--samples]` ; état : `nie-cam stats`.

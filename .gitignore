@@ -234,3 +234,14 @@ compile_commands.json
 # Espace de travail des mods — contient des assets © LEVEL-5 extraits du jeu
 mods/
 /launch.png
+
+# Outillage Claude Code du depot : hooks, commandes et reglages PARTAGES.
+# Le reste de .claude/ (settings.local.json, caches) reste ignore.
+# Place apres les regles *.md/*.txt : la derniere regle qui matche l'emporte.
+!.claude/
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
+!.claude/hooks/*.sh
+!.claude/commands/
+!.claude/commands/*.md
