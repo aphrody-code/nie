@@ -102,6 +102,11 @@ re-check: build
 health: build
     bash scripts/re-health.sh
 
+# Rejoue les preuves uemu (scripts/validate_*.py) : N ✓ / N ✗ / N ⧗, sort en 1 si une tombe.
+# `just preuves parabola` n'en rejoue qu'une famille ; PREUVES_TIMEOUT=30 raccourcit l'attente.
+preuves motif="":
+    bash scripts/preuves.sh {{motif}}
+
 # --- Regen des artefacts var/ ------------------------------------------------
 
 # Manifeste CRC32→chemin des modeles (.g4md/.g4mg) pour resoudre les uniformes.
