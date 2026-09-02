@@ -36,6 +36,40 @@ Le reverse-engineering de `nie.exe` est le **moyen**. Le moteur Rust est la **fi
 La **forge** (`docs/FORGE.md`) est le **juge** : elle produit `nie.exe` et mesure, à l'octet, la part
 réellement générée par le dépôt. Un portage qui n'y bouge rien n'a rien prouvé.
 
+## Outils — lequel dans quelle situation (mesuré ici le 2026-09-02)
+
+**Le dépôt fait 3 Go dans `apps/` (`node_modules`, `.next`) et 111 Go dans `data/`.** Tout outil
+qui ne respecte pas `.gitignore` s'y noie. Mesures faites à la racine :
+
+| Situation | Outil | Mesure / raison |
+|---|---|---|
+| Chercher du texte dans le code | **`rg`** (15.1.0) | `rg -l NIE_GAME_DIR` = **0,061 s** ; `grep -rn` = **timeout à 60 s** (il descend dans `node_modules`) |
+| Chercher dans **un** fichier ou un flux (pipe) | `grep` | pas de parcours d'arbre : rien à gagner ailleurs |
+| Lister des fichiers | **`rg --files -g '<glob>'`** ou **`fdfind`** | `find . -name '*.rs'` = **5,4 s / 840** (pollué) ; `fdfind -e rs` = **0,017 s / 687** |
+| Chercher sous un sous-arbre déjà propre (`crates/`) | `find`/`grep` acceptables | mesuré à égalité (0,01 s) — le gain de `rg`/`fd` est le `.gitignore`, pas le moteur |
+| Sortie exploitable sans relire | `rg --json`, `rg -l`, `rg -c`, `rg --stats` | `-l`/`-c` situent sans déverser les lignes : moins de tokens pour la même information |
+| Recherche depuis le harnais | outils **Grep/Glob** dédiés | même moteur que `rg`, sortie déjà structurée ; le Bash sert quand il faut composer (pipe, `--json`, comptage) |
+| Recherche **récurrente**, du domaine | **`niers find` / `niers grep`** | embarquent le moteur `ignore`/ripgrep. Une recherche qui mérite d'être rejouée s'écrit en Rust dans `nie-cli` ; `rg` en direct ne vaut que pour l'exploration jetable d'une session |
+| Fichiers **du jeu** | **`niers vfs find`** | le VFS n'est pas sur le disque : `rg`/`fdfind` sur `data/` ne voient pas l'intérieur des CPK |
+| Contenu reversé de `nie.exe` | `sqlite3 var/niers.sqlite` | la base fait **15,5 Go** : toujours un `WHERE` indexé et un `LIMIT`, jamais un `SELECT *` |
+| Données de jeu (perso, skill, item) | façade `@niers/catalog`, `niers wiki` | § *Les quatre gisements* |
+| Qui appelle quoi / définition d'un symbole | outil **LSP**, ou la KB | `rg` sur un identifiant courant rend des centaines de faux positifs |
+| Dépôt **à distance** | MCP `repo_grep` / `repo_read` | inutile de rapatrier pour lire |
+| JSON | **`jq`** (1.8.1) | 6,8 Mo parcourus en 0,3 s |
+| Éditer du code | **Edit/Write** | `sed -i` n'est pas idempotent et n'a aucun garde-fou ; cf. § *Pièges d'édition* |
+| Éditer un flux dans un pipe | `sed`/`awk` | c'est leur seul emploi correct ici |
+| Remplacer dans N fichiers | `rg -l <motif>` **puis** Edit fichier par fichier | `rg --passthru` prévisualise le remplacement sans écrire |
+| Compter des lignes | `awk '$2!="total"{s+=$1} END{print s}'` | `xargs wc -l \| tail -1` sous-compte (§ pièges) |
+
+- **`sg` sur cette machine est `setgroup` (util-linux), PAS `ast-grep`.** Lancer `sg -p '…'` exécute
+  un tout autre programme. ast-grep n'est pas installé : pour une réécriture structurelle
+  (bloc d'`import`, signature, appel), éditer les lignes une par une — jamais une regex sur le bloc.
+- **`fd` s'appelle `fdfind`** ici (nommage Debian). `fd` seul n'existe pas.
+- **Absents, ne pas les invoquer** : `ast-grep`, `sd`, `comby`, `semgrep`, `ugrep`, `gron`, `tokei`,
+  `scc`, `duckdb`, `difft`, `srgn`, `hyperfine`. Installables par `cargo install --locked <nom>`
+  (non fait : le disque est à 67 %).
+- Présents et vérifiés : `rg` 15.1.0, `fdfind` 10.3.0, `jq` 1.8.1, `sqlite3` 3.46.1, `just`, `uv`, `bun`.
+
 ## Build / test (règles strictes)
 
 - Workspace Cargo, 34 crates (32 compilées) rangées par rôle :
@@ -270,11 +304,40 @@ csharp/             IECODE.Core / IECODE.CLI / IECODE.Core.Tests (.NET 10, `IECO
 - Ne jamais compter `semantic` comme des octets produits. Seuls `emitted`/`assembled`/`bytes` comptent.
 - `nie-forge candidates --no-reloc` et les lignes `blocker` de `lift` donnent la prochaine cible, chiffrée.
 
-## Python
+## Python — le fichier, pas la ligne
 
-- Toujours `uv run` (`uv run script.py` ou `uv run python -c "..."`).  
-  Interdit d’appeler `python` ou `python3` directement.
-- `numpy` n'est pas dans le venv : `uv run --with numpy python -c "…"` l'ajoute à la volée.
+Mesuré le 2026-09-02 sur les 21 sessions de ce dépôt (5 817 commandes Bash réelles) :
+**185 `uv run python -c` contre 10 `uv run <fichier>.py`**. Rien n'en est resté — chaque invocation
+est réécrite de zéro, alors que 77 `.py` versionnés existent déjà.
+
+- Toujours `uv run` ; appeler `python`/`python3` en direct est bloqué par `garde-bash.sh`.
+- **Ce n'est PAS un problème de vitesse.** `uv run python -c` démarre en **0,064 s**, et sur un
+  fichier réel de 6,8 Mo Python répond en **0,269 s** contre **0,201 s** à `jq`. Ne jamais justifier
+  un changement d'outil ici par la performance : l'écart n'existe pas.
+- **C'est un problème de couches de quoting.** Le corps traverse bash *avant* Python : `$VAR` est
+  substitué, `$(…)` est **exécuté**, `\\` devient `\`. Vérifié :
+  `uv run python -c "print(len('\\'))"` meurt en `SyntaxError: unterminated string literal` — le
+  shell a mangé l'antislash. Même cause que le `\0` littéral qui finit dans une source Rust
+  (§ *Pièges d'édition*). Écrire du Python dans une chaîne shell, c'est déboguer deux langages.
+- **Règle : plus de 2 lignes de Python ⇒ un fichier.** Scratchpad si jetable, `scripts/` si
+  versionné, puis `uv run <fichier>`. Un fichier se corrige par Edit, se rejoue à l'identique, se
+  cite en `chemin:ligne` — et ne repasse pas par le quoting. `garde-bash.sh` refuse désormais un
+  `python -c` de plus de 2 lignes en rappelant cette forme.
+- **Les dépendances vivent DANS le fichier (PEP 723)**, pas dans la ligne de commande — ça remplace
+  `uv run --with <paquet>` :
+  ```python
+  # /// script
+  # dependencies = ["numpy"]
+  # ///
+  ```
+  `uv run mon_script.py` résout et lance seul (vérifié : numpy 2.5.2, 0,6 s à froid, instantané
+  ensuite). Zéro usage dans le dépôt aujourd'hui — c'est la forme à adopter.
+- Quel outil pour quoi : **JSON** → `jq` (une seule couche de quoting, et pas d'`except: continue`
+  qui avale les lignes fautives en silence) ; **fichiers en masse** → `fdfind -x` ; **dates** →
+  `date -d @<epoch>` ; **binaire / PE / désassemblage** → Python reste le bon outil (toolbox `.venv` :
+  capstone, pefile, lief, iced-x86, unicorn, angr), mais **en fichier** ; **récurrent et du domaine**
+  → une commande `niers` en Rust, cf. § *Outils — lequel dans quelle situation*.
+
 
 ## Données du jeu (VFS)
 

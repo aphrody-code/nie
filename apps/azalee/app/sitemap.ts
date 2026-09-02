@@ -28,9 +28,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 			.select("base_slug, updated_at")
 			.not("base_slug", "is", null)
 			.order("updated_at", { ascending: false }),
+		// `internal_code` en plus de `id` : c'est lui qui dit si la ligne est une
+		// vraie technique (`wh*`/`rh*`) ou une entrée de service (`swap_skill_waza_*`).
 		supabase
 			.from("inagle_skills")
-			.select("id, created_at")
+			.select("id, internal_code, created_at")
 			.order("created_at", { ascending: false }),
 		supabase
 			.from("inagle_items")
@@ -178,10 +180,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 	// Skills
 	if (skills.data) {
 		for (const s of skills.data) {
-			// Les identifiants suffixés `_or` sont écartés de la liste par le service
-			// (`getSkillsList`) : les annoncer produisait 34 URLs orphelines, hors de
-			// toute navigation, pour des doublons de technique.
-			if (typeof s.id === "string" && s.id.endsWith("_or")) continue;
+			// Le plan de site doit annoncer EXACTEMENT ce que la liste publie. Le
+			// service (`getSkillsList`) ne retient que les codes `wh*`/`rh*` non
+			// suffixés `_or` : reproduire ici la seule moitié `_or` du filtre laissait
+			// **9 URL orphelines** — les `swap_skill_waza_*`, qui répondent 200 avec un
+			// code pour titre et une puissance de 0, et qu'aucune page ne lie.
+			// Reproduire le filtre en entier plutôt que d'en recopier un morceau.
+			if (typeof s.id !== "string" || s.id.endsWith("_or")) continue;
+			if (!/^(wh|rh)/.test(s.internal_code ?? s.id)) continue;
 			entries.push({
 				changeFrequency: "monthly",
 				lastModified: s.created_at ? new Date(s.created_at) : new Date(),

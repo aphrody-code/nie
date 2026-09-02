@@ -3,11 +3,12 @@ export const dynamic = "force-dynamic";
 import type { Metadata } from "next";
 import { FadeInItem, FadeInStagger } from "@/components/ui/fade-in";
 import { SkillFilterBar } from "@/components/wiki/filters/SkillFilterBar";
+import { MediaCount } from "@/components/wiki/MediaShell";
 import { MoveCard } from "@/components/wiki/MoveCard";
 import { WikiPagination } from "@/components/wiki/WikiPagination";
 import { WikiSearchToolbar } from "@/components/wiki/WikiSearchToolbar";
 import { getSkillCategoryIconUrl } from "@rosegriffon/azalee/images";
-import { buildCanonical, LIST_CANONICAL_KEYS } from "@/lib/seo";
+import { buildCanonical, SKILL_CANONICAL_KEYS } from "@/lib/seo";
 import { parseSearchParams } from "@/lib/validations";
 import { wikiService } from "@/lib/wiki-service";
 
@@ -51,7 +52,7 @@ export async function generateMetadata({
 
 	return {
 		alternates: {
-			canonical: buildCanonical("/skill", rawParams, LIST_CANONICAL_KEYS),
+			canonical: buildCanonical("/skill", rawParams, SKILL_CANONICAL_KEYS),
 		},
 		description: `Base de données des techniques spéciales (Hissatsu)${filters.length > 0 ? ` filtrée par ${filters.join(", ")}` : ""}. Puissance, tension et effets.`,
 		title: `${title} | Inazuma Eleven Victory Road - Azalée`,
@@ -134,7 +135,10 @@ export default async function SkillsPage({
 				"@type": "ListItem",
 				position: (pageNumber - 1) * ITEMS_PER_PAGE + i + 1,
 				url: `https://azalee.rosegriffon.fr/skill/${s.skillId}`,
-				name: s.name_FR || s.name_EN || "Technique",
+				// `displayName` porte déjà le repli des techniques sans nom (quatre
+				// lignes dont les trois noms valent le code interne) : le balisage ne
+				// doit pas plus publier un code de fichier que la page ne l'affiche.
+				name: s.name_FR || s.name_EN || s.displayName || "Technique",
 			})),
 			numberOfItems: total,
 		},
@@ -173,12 +177,13 @@ export default async function SkillsPage({
 				/>
 			</div>
 
-			<div className="flex items-center justify-between text-xs font-medium text-on-surface-variant px-1 uppercase tracking-wider">
-				<span>{total.toLocaleString("fr-FR")} techniques</span>
-				<span>
-					Page {pageNumber} sur {Math.max(1, Math.ceil(total / ITEMS_PER_PAGE))}
-				</span>
-			</div>
+			{/* Ligne de compte partagée avec /gallery, /textures, /sons, /videos et
+			    /modeles : /skill la réimplémentait à l'identique, aux détails de
+			    classes près, et dérivait donc à chaque retouche de l'une des cinq. */}
+			<MediaCount
+				left={`${total.toLocaleString("fr-FR")} techniques`}
+				right={`Page ${pageNumber} sur ${Math.max(1, Math.ceil(total / ITEMS_PER_PAGE))}`}
+			/>
 
 			{skills.length > 0 ? (
 				<FadeInStagger className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">

@@ -15,7 +15,22 @@
  *   - g4md/g4mg → `/model-full/<code>.glb` (assemblage glTF live ; 200 pour les
  *     codes assemblables, 404 sinon → cf. note sur la branche model).
  *   - autre → `/raw/<path>` (bytes décompressés bruts du CPK).
+ *
+ * ⚠ **Aucune de ces URL n'est écrite ici.** La forme des routes appartient à
+ * `@niers/catalog/jeu`, la façade du gisement *jeu* : elle est adossée au serveur qui les sert
+ * (`crates/tools/nie-model-serve/src/main.rs`) et testée contre lui. Ce module ne fait plus que
+ * choisir LAQUELLE s'applique à une extension donnée. Ce qui est produit reste identique au
+ * caractère près — `shared.test.ts` compare chaque chaîne à sa forme d'avant, écrite en dur.
  */
+
+import {
+	urlAudio,
+	urlCfg,
+	urlDx11,
+	urlFichier,
+	urlFilm,
+	urlModeleComplet,
+} from "@niers/catalog/jeu";
 
 /** Une ligne de l'index CPK (forme exposée par l'API/lib). */
 export interface CpkFile {
@@ -50,8 +65,6 @@ export interface CpkListing {
 /** Type de contenu CDN dérivé de l'extension. */
 export type CpkAssetKind = "image" | "model" | "raw";
 
-const CDN_BASE = "https://cdn.rosegriffon.fr";
-
 /** Extensions décodées en image (g4tx → png live par le CDN). */
 const IMAGE_EXTS = new Set(["g4tx"]);
 /** Extensions de modèle 3D (assemblées en glb live par le CDN `/model/`). */
@@ -63,11 +76,6 @@ export function cpkAssetKind(ext: string): CpkAssetKind {
 	if (IMAGE_EXTS.has(e)) return "image";
 	if (MODEL_EXTS.has(e)) return "model";
 	return "raw";
-}
-
-/** Retire le préfixe racine `data/` d'un chemin index. */
-function stripDataPrefix(path: string): string {
-	return path.startsWith("data/") ? path.slice("data/".length) : path;
 }
 
 /**
@@ -84,14 +92,8 @@ export function cpkAssetUrl(path: string, ext?: string): string | null {
 	const e = (ext ?? (dot > 0 ? name.slice(dot + 1) : "")).toLowerCase();
 	const kind = cpkAssetKind(e);
 
-	if (kind === "image") {
-		// g4tx vivent 100 % sous `data/dx11/` → `/dx11/<reste>.png` (g4tx→png live).
-		const rel = path.startsWith("data/dx11/")
-			? path.slice("data/dx11/".length)
-			: stripDataPrefix(path);
-		const noExt = rel.replace(/\.g4tx$/i, "");
-		return `${CDN_BASE}/dx11/${noExt}.png`;
-	}
+	// g4tx vivent 100 % sous `data/dx11/` → `/dx11/<reste>.png` (g4tx→png live).
+	if (kind === "image") return urlDx11(path);
 
 	if (kind === "model") {
 		// `/model-full/<code>.glb` — assemblage glTF live (corps+visage+uniforme) par
@@ -99,12 +101,11 @@ export function cpkAssetUrl(path: string, ext?: string): string | null {
 		// codes non assemblables (uniforme `n0…`, visage, props) : la fiche fichier ne montre
 		// donc PAS ce lien pour les modèles (cf. CpkFilePreview) — le viewer 3D assemble
 		// in-browser et propose son propre GLB. Mapping conservé pour `CpkFileMeta.assetUrl`.
-		const base = name.replace(/\.(g4md|g4mg)$/i, "");
-		return `${CDN_BASE}/model-full/${base}.glb`;
+		return urlModeleComplet(name.replace(/\.(g4md|g4mg)$/i, ""));
 	}
 
 	// raw : bytes décompressés/déchiffrés bruts du CPK (nie-model-serve /raw, texte/download).
-	return `${CDN_BASE}/raw/${path}`;
+	return urlFichier(path);
 }
 
 /**
@@ -112,12 +113,12 @@ export function cpkAssetUrl(path: string, ext?: string): string | null {
  * par nie-model-serve (`/cfg/<vfs-path>.json`). `path` = chemin d'index (préfixe `data/`).
  */
 export function cpkCfgUrl(path: string): string {
-	return `${CDN_BASE}/cfg/${path}.json`;
+	return urlCfg(path);
 }
 
 /** URL des bytes bruts décompressés du CPK (`/raw/<vfs-path>`) — texte, download, lecteurs. */
 export function cpkRawUrl(path: string): string {
-	return `${CDN_BASE}/raw/${path}`;
+	return urlFichier(path);
 }
 
 /**
@@ -125,7 +126,7 @@ export function cpkRawUrl(path: string): string {
  * nie-model-serve (HCA/ADX, conteneurs ACB/AWB). Lisible directement par `<audio>`.
  */
 export function cpkAudioUrl(path: string): string {
-	return `${CDN_BASE}/audio/${path}`;
+	return urlAudio(path);
 }
 
 /**
@@ -133,18 +134,20 @@ export function cpkAudioUrl(path: string): string {
  * + remux H.264) décodé live par nie-model-serve. Lisible directement par `<video>`.
  */
 export function cpkVideoUrl(path: string): string {
-	return `${CDN_BASE}/video/${path}`;
+	return urlFilm(path);
 }
 
 /**
  * Variante WebP redimensionnée pour les vignettes d'images (g4tx → webp `?w=`).
  * Sert la galerie/arbre en léger ; `null` si l'extension n'est pas une image.
+ *
+ * Le redimensionnement est une propriété de la `location` nginx `/dx11/`, pas de `/tex/` :
+ * c'est `urlDx11` qui le porte, et c'est pour cela que la branche image ne passe pas par
+ * `urlTexture`.
  */
 export function cpkThumbUrl(path: string, ext?: string, width = 400): string | null {
-	const url = cpkAssetUrl(path, ext);
-	if (!url || cpkAssetKind(ext ?? path.split(".").pop() ?? "") !== "image") return null;
-	// `/dx11/...png` accepte `?w=&format=webp` (cdn-variants resize+webp).
-	return `${url}?w=${width}&format=webp`;
+	if (cpkAssetKind(ext ?? path.split(".").pop() ?? "") !== "image") return null;
+	return urlDx11(path, { largeur: width });
 }
 
 /** Libellé humain d'un segment top-level (pour l'UI de l'arbre). */

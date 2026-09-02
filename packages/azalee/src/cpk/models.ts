@@ -11,10 +11,11 @@
  * d'assemblage répond 404 pour ce qu'elle ne sait pas produire — on n'enferme pas le corpus
  * dans une liste écrite à la main.
  *
- * ⚠ Module **client-safe** : constantes et construction d'URL, rien d'autre.
+ * ⚠ Module **client-safe** : constantes et construction d'URL, rien d'autre — et les deux routes
+ * d'assemblage viennent de `@niers/catalog/jeu`, qui les tient du serveur.
  */
 
-const CDN_BASE = "https://cdn.rosegriffon.fr";
+import { urlModeleChr, urlModeleComplet } from "@niers/catalog/jeu";
 
 /** Identifiant d'une famille de modèles. */
 export type ModelFamily = "chara" | "waza" | "item" | "keshin" | "armd" | "animal";
@@ -84,9 +85,7 @@ export function modelFamily(id: string): ModelFamilyDef | undefined {
  * autrement rend un 404 « sous-domaine chr non servable ».
  */
 export function modelGlbUrl(famille: ModelFamily, code: string): string {
-	return famille === "chara"
-		? `${CDN_BASE}/model-full/${code}.glb`
-		: `${CDN_BASE}/model-chr/${famille}/${code}.glb`;
+	return famille === "chara" ? urlModeleComplet(code) : urlModeleChr(famille, code);
 }
 
 /**

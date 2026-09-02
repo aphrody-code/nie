@@ -412,6 +412,68 @@ function specialTacticToListItem(s: any): any {
 	};
 }
 
+/** Client de données du wiki, tel que rendu par `createClient()`. */
+type ClientDonnees = Awaited<ReturnType<typeof createClient>>;
+
+/**
+ * Le hex `0x…` d'une technique — la **seule** clé que partagent
+ * `inagle_override_skills` (`id`, `conditions[].required_skills[].skill_id`) et
+ * `inagle_characters.skills[].skillId`.
+ *
+ * `inagle_skills.id` n'est PAS ce hex : il vaut le code interne (`whs00030`) sur
+ * les 1002 lignes de la table, et le hex ne vit que dans `data->>'skillID'`.
+ * Confondre les deux rendait vide toute jointure — c'est la raison pour laquelle
+ * la section Overdrive ne s'affichait jamais, sur aucune fiche.
+ *
+ * Un identifiant déjà hexadécimal est rendu normalisé (`0x` + 8 chiffres
+ * majuscules, la forme écrite en base) : `0x518bca26` et `0x518BCA26` désignent
+ * la même technique, mais une égalité SQL, elle, ne le sait pas.
+ */
+async function resolveSkillHexId(client: ClientDonnees, id: string): Promise<string | null> {
+	if (/^0x[0-9a-f]{1,8}$/i.test(id)) {
+		return `0x${id.slice(2).toUpperCase().padStart(8, "0")}`;
+	}
+	const { data } = await client
+		.from("inagle_skills")
+		.select("data")
+		.eq("internal_code", sanitizeFilter(id))
+		.limit(1)
+		.maybeSingle();
+	const hex = (data as { data?: { skillID?: string } } | null)?.data?.skillID;
+	return typeof hex === "string" ? hex : null;
+}
+
+/**
+ * Le nom d'une technique, ou `null` quand la base n'en porte pas.
+ *
+ * Quatre techniques (`whd01480`, `whk01615`, `whk01720`, `whs03005`) ont leurs
+ * trois noms — fr, en, ja — égaux à leur code interne : le pipeline a recopié la
+ * clé faute de traduction. Les rendre tels quels affichait un code de fichier en
+ * titre de fiche et sur la carte, ce que la doctrine du dépôt interdit
+ * explicitement. On les traite donc comme une absence de nom.
+ */
+function realSkillName(nom: string | null, ...codes: Array<string | null>): string | null {
+	if (!nom) {
+		return null;
+	}
+	return codes.includes(nom) ? null : nom;
+}
+
+/**
+ * Libellé de repli d'une technique sans nom : ce qu'on sait d'elle, jamais son code.
+ *
+ * Le code reste affiché par la fiche et la carte, mais à sa place — en petit,
+ * sous le titre — comme le fait déjà `MediaTitle` pour les médias.
+ */
+function fallbackSkillLabel(categorie: string, element: string): string {
+	if (categorie && categorie !== "Aucun") {
+		return element && element !== "Néant"
+			? `Technique ${categorie.toLowerCase()} · ${element}`
+			: `Technique ${categorie.toLowerCase()}`;
+	}
+	return "Technique sans nom";
+}
+
 export const wikiService = {
 	/** Get all distinct constellations for a character (by name — heroes appear in multiple constellations via different chara_ids) */
 	async _getHeroConstellations(row: any): Promise<Array<{ name: string; index: number }>> {
@@ -1678,8 +1740,23 @@ export const wikiService = {
 		};
 	},
 
-	async getOverrideSkillsForSkill(skillId: string): Promise<any[]> {
+	/**
+	 * Les combinaisons Overdrive où la technique apparaît — comme résultat ou
+	 * comme ingrédient.
+	 *
+	 * **Accepte le code interne autant que le hex.** `inagle_override_skills`
+	 * n'écrit que des hex (`0xBAA40F86`) ; la fiche, elle, n'avait sous la main
+	 * que `skill.skillId`, c'est-à-dire `inagle_skills.id`, égal au code interne
+	 * sur 1002 lignes sur 1002. Aucun rapprochement n'était donc possible et la
+	 * section ne s'affichait sur aucune fiche. La résolution se fait ici, une
+	 * fois, plutôt que dans chaque appelant.
+	 */
+	async getOverrideSkillsForSkill(skillIdOrCode: string): Promise<any[]> {
 		const supabase = await createClient();
+		const skillId = await resolveSkillHexId(supabase, skillIdOrCode);
+		if (!skillId) {
+			return [];
+		}
 
 		// Two cases:
 		// A) This skill IS the override result → query by id
@@ -1720,6 +1797,115 @@ export const wikiService = {
 			power_max: row.power_max,
 			conditions: row.conditions,
 		}));
+	},
+
+	/**
+	 * Les personnages qui apprennent une technique, avec le niveau d'apprentissage.
+	 *
+	 * Le lien existe depuis toujours dans les données — `inagle_characters.skills`
+	 * porte `[{ skillId: "0x…", learnLevel }]` sur 5 875 des 6 166 lignes — mais
+	 * n'était affiché nulle part : on pouvait lire la liste des techniques d'un
+	 * personnage, jamais la liste des personnages d'une technique.
+	 *
+	 * `skills` est du JSONB sans index : la sélection se fait côté SQL sur les
+	 * seules colonnes utiles, puis le filtre sur le tableau se fait ici. On
+	 * dédoublonne par `base_slug` — les variantes d'un même personnage
+	 * (98 lignes pour 83 personnages sur `0x518BCA26`) mènent toutes à la même
+	 * fiche — en gardant le plus petit niveau d'apprentissage, celui qui répond à
+	 * la question posée : « à partir de quand ? ».
+	 */
+	async getCharactersLearningSkill(
+		skillIdOrCode: string,
+		limite = 60
+	): Promise<{
+		data: Array<{
+			slug: string;
+			name: string;
+			internalCode: string | null;
+			position: string | null;
+			element: string | null;
+			rarity: string | null;
+			learnLevel: number | null;
+		}>;
+		total: number;
+	}> {
+		const supabase = await createClient();
+		const hexId = await resolveSkillHexId(supabase, skillIdOrCode);
+		if (!hexId) {
+			return { data: [], total: 0 };
+		}
+
+		const { data } = await supabase
+			.from("inagle_characters")
+			.select("base_slug, slug, name_fr, name_en, internal_code, position, element, rarity_label, skills")
+			.not("skills", "is", null)
+			// `ilike` sur le JSONB sérialisé : le hex est une chaîne de 10 caractères,
+			// assez discriminante pour servir de pré-filtre, et l'insensibilité à la
+			// casse couvre les deux graphies. Le tableau est ensuite relu ligne par
+			// ligne — c'est cette lecture-là qui fait foi, jamais le `LIKE`.
+			.ilike("skills", `%${hexId}%`);
+
+		const parNom = new Map<
+			string,
+			{
+				slug: string;
+				name: string;
+				internalCode: string | null;
+				position: string | null;
+				element: string | null;
+				rarity: string | null;
+				learnLevel: number | null;
+			}
+		>();
+
+		for (const ligne of (data as any[]) || []) {
+			const brut = ligne.skills;
+			const liste: any[] = Array.isArray(brut)
+				? brut
+				: (() => {
+						try {
+							const parsed = JSON.parse(String(brut));
+							return Array.isArray(parsed) ? parsed : [];
+						} catch {
+							return [];
+						}
+					})();
+			const appris = liste.find(
+				(s) => typeof s?.skillId === "string" && s.skillId.toUpperCase() === hexId
+			);
+			if (!appris) {
+				continue;
+			}
+			const slug = ligne.base_slug || ligne.slug;
+			if (!slug) {
+				continue;
+			}
+			const niveau = typeof appris.learnLevel === "number" ? appris.learnLevel : null;
+			const existant = parNom.get(slug);
+			if (existant) {
+				// Même personnage, autre variante : on garde le plus tôt appris.
+				if (niveau != null && (existant.learnLevel == null || niveau < existant.learnLevel)) {
+					existant.learnLevel = niveau;
+				}
+				continue;
+			}
+			parNom.set(slug, {
+				element: ligne.element ?? null,
+				internalCode: ligne.internal_code ?? null,
+				learnLevel: niveau,
+				name: ligne.name_fr || ligne.name_en || slug,
+				position: ligne.position ?? null,
+				rarity: ligne.rarity_label ?? null,
+				slug,
+			});
+		}
+
+		const tous = [...parNom.values()].toSorted(
+			(a, b) =>
+				(a.learnLevel ?? Number.MAX_SAFE_INTEGER) - (b.learnLevel ?? Number.MAX_SAFE_INTEGER) ||
+				a.name.localeCompare(b.name, "fr")
+		);
+		return { data: tous.slice(0, limite), total: tous.length };
 	},
 
 	async getRandomTeamPools(playstyles?: string[]): Promise<{
@@ -1809,23 +1995,43 @@ export const wikiService = {
 			// vide pour les hissatsu wh*/rh*). On fusionne les deux, sheet_data prioritaire.
 			const sd = { ...(((h as any).data as any) || {}), ...((h.sheet_data as any) || {}) } as any;
 
+			// Les quatre techniques dont les trois noms valent leur code interne sont
+			// traitées comme sans nom : un code de fichier n'est jamais un titre.
+			const nomFr = realSkillName(h.name_fr, h.internal_code, h.id);
+			const nomEn = realSkillName(h.name_en, h.internal_code, h.id);
+			const nomJa = realSkillName(h.name_ja, h.internal_code, h.id);
+
 			return {
 				// Spread all inagle fields from data + sheet_data (foulRate, tags, shops, etc.)
 				...sd,
 				// Override with DB column values (authoritative)
 				skillId: h.id,
+				// Le hex `0x…` — clé des combinaisons Overdrive et des movesets de
+				// personnage. `skillId` ne le porte PAS (il vaut le code interne) : les
+				// deux doivent rester distincts et nommés pour ce qu'ils sont.
+				skillHexId: typeof sd.skillID === "string" ? sd.skillID : null,
 				internalCode: h.internal_code,
-				names: { en: h.name_en, fr: h.name_fr, ja: h.name_ja },
+				names: { en: nomEn, fr: nomFr, ja: nomJa },
 				descriptions: { fr: h.description_fr, ja: h.description_ja },
-				displayName: h.name_fr || h.name_en || "Inconnu",
-				name_FR: h.name_fr,
-				name_EN: h.name_en,
-				name_JA: h.name_ja,
+				displayName: nomFr || nomEn || fallbackSkillLabel(categoryInfo.fr, elementInfo.fr),
+				name_FR: nomFr,
+				name_EN: nomEn,
+				name_JA: nomJa,
 				desc_FR: h.description_fr || sd.desc_FR,
 				desc_EN: sd.desc_EN,
 				power_min: h.power_min,
 				power_max: h.power_max,
-				consumeTp: h.tension_cost,
+				// `tension_cost` est NULL sur les 1002 lignes : le coût réel vit dans
+				// `tp_cost`. Lire la seule colonne vide affichait « aucune tension »
+				// partout, sur une fiche dont c'est une caractéristique centrale.
+				consumeTp: h.tp_cost ?? h.tension_cost,
+				// Colonnes chargées par la fiche mais jusqu'ici jamais rendues. Elles
+				// sont exposées sous un nom qui ne recouvre PAS `growthType` du JSON
+				// `data` (un entier), lu par l'affichage de l'évolution.
+				growthTypeId: h.growth_type ?? null,
+				skillEffectBitFlag: h.skill_effect_bit_flag ?? null,
+				hashId: h.hash_id ?? null,
+				hasTelop: h.has_telop ?? null,
 				elementName: elementInfo,
 				categoryName: categoryInfo,
 				image: resolveAssetUrl(h.image_url) || h.image_url,
@@ -1898,11 +2104,21 @@ export const wikiService = {
 		if (params.has_video) {
 			query = query.not("video_url", "is", null);
 		}
+		// Filtre de puissance : INTERSECTION de l'intervalle de la technique
+		// (`power_min`–`power_max`, la fourchette affichée sur la carte) avec
+		// l'intervalle demandé — pas deux bornes sur la même colonne.
+		//
+		// Les deux bornes s'appliquaient à `power_max`, ce qui rendait la borne
+		// basse inopérante dès qu'on la voulait fine. Et la corriger « comme on
+		// l'écrit » — `power_min >= borne_basse` — la rend inutilisable : mesuré
+		// sur le miroir, `max(power_min) = 160` sur les 959 techniques listées,
+		// donc `power_min >= 700` renvoie 0 ligne. L'intersection, elle, rend les
+		// 141 techniques dont la puissance dépasse 640 (mesuré).
 		if (params.power_min) {
 			query = query.gte("power_max", parseInt(params.power_min, 10));
 		}
 		if (params.power_max) {
-			query = query.lte("power_max", parseInt(params.power_max, 10));
+			query = query.lte("power_min", parseInt(params.power_max, 10));
 		}
 		if (!params.show_aura) {
 			query = query.eq("is_hyper", false);
@@ -1929,20 +2145,26 @@ export const wikiService = {
 			}
 		}
 
-		// Sorting: explicit user sort takes priority; default = videos first then tension desc
+		// Tri.
+		//
+		// Deux défauts se cumulaient. `sort=tension` — la valeur qu'émet la barre
+		// de filtres — n'était gérée par aucune branche et retombait en silence sur
+		// le tri par défaut ; et ce tri par défaut ordonnait sur `tension_cost`,
+		// NULL sur les 1002 lignes de la table (le coût réel vit dans `tp_cost`).
+		// L'ordre réellement visible était donc `video_url ASC`, c'est-à-dire
+		// l'alphabet des URL CloudFront : un ordre que rien n'explique à l'écran.
+		//
+		// Le tri retenu par défaut est celui que la barre annonce déjà comme
+		// sélectionné : la **tension décroissante**, départagée par la puissance
+		// puis par le nom pour que la pagination soit stable d'une page à l'autre.
 		if (params.sort === "power") {
 			query = query.order("power_max", { ascending: false, nullsFirst: false });
-		} else if (params.sort === "tension_asc") {
-			query = query.order("tension_cost", {
-				ascending: true,
-				nullsFirst: false,
-			});
 		} else {
-			// Default: videos first, then highest tension
 			query = query
-				.order("video_url", { ascending: true, nullsFirst: false })
-				.order("tension_cost", { ascending: false, nullsFirst: false });
+				.order("tp_cost", { ascending: params.sort === "tension_asc", nullsFirst: false })
+				.order("power_max", { ascending: false, nullsFirst: false });
 		}
+		query = query.order("name_fr", { ascending: true, nullsFirst: false });
 
 		const { data, count, error } = await query.range(from, to);
 
@@ -1969,22 +2191,31 @@ export const wikiService = {
 			const elementInfo = elementMap[h.element || ""] || { en: "Void", ja: "無", fr: "Néant" };
 			const categoryInfo = categoryMap[h.category || ""] || { en: "None", ja: "なし", fr: "Aucun" };
 
+			// Même règle que sur la fiche : un nom égal au code interne n'est pas un nom.
+			const nomFr = realSkillName(h.name_fr, h.internal_code, h.id);
+			const nomEn = realSkillName(h.name_en, h.internal_code, h.id);
+
 			return {
 				skillId: h.id,
 				skillID: h.id,
 				skillIDStr: h.internal_code || h.id,
+				// Le hex `0x…` de la technique — distinct de `skillId`, qui porte le code
+				// interne. C'est lui qui joint les combinaisons Overdrive et les movesets.
+				skillHexId: (h.data as { skillID?: string } | null)?.skillID ?? null,
 				internalCode: h.internal_code,
 				category: h.category_id,
-				names: { en: h.name_en, fr: h.name_fr, ja: h.name_ja },
-				displayName: h.name_fr || h.name_en || "Inconnu",
-				name_FR: h.name_fr,
+				names: { en: nomEn, fr: nomFr, ja: realSkillName(h.name_ja, h.internal_code, h.id) },
+				displayName: nomFr || nomEn || fallbackSkillLabel(categoryInfo.fr, elementInfo.fr),
+				name_FR: nomFr,
 				// `getSkill` expose les deux ; la liste et son JSON-LD lisent
 				// `name_FR || name_EN` — sans ce champ le repli anglais était mort, et
 				// une technique sans nom français serait retombée sur « Technique ».
-				name_EN: h.name_en,
+				name_EN: nomEn,
 				power_min: h.power_min,
 				power_max: h.power_max,
-				consumeTp: h.tension_cost,
+				// `tension_cost` est NULL sur 1002 lignes sur 1002 : le coût réel est
+				// dans `tp_cost`. La carte affichait donc toujours zéro tension.
+				consumeTp: h.tp_cost ?? h.tension_cost,
 				elementName: elementInfo,
 				categoryName: categoryInfo,
 				image: resolveAssetUrl(h.image_url) || h.image_url,

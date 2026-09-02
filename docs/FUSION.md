@@ -48,7 +48,7 @@ bun --bun packages/nie-catalog/src/cli.ts etat
 ```
 Gisements Inazuma Eleven
   ✓ jeu      https://cdn.rosegriffon.fr
-  ✓ extrait  66 tables, 165 244 lignes    var/miroir/inagle-2026-09-02T02-27-54.sqlite
+  ✓ extrait  66 tables, 165 244 lignes    var/miroir/inagle-2026-09-02T05-54-13.sqlite
   ✓ re       108 650 fonctions, 13 653 nommées    var/niers.sqlite
   ✓ anime    355 épisodes, 10 saisons, 3 chaînes  data/anime/episodes.db
 ```
@@ -64,9 +64,10 @@ devait aller le chercher là-bas par un chemin absolu vers un autre dépôt.
 
 Il est maintenant republié dans `var/miroir/` d'ici, avec `var/mirror.sqlite` comme lien daté
 basculé atomiquement — `scripts/donnees/miroir-inagle.sh`, planifié par
-`deploy/systemd/nie-miroir.{service,timer}` (04:10 UTC, le créneau de l'ancien
-`azalee-mirror-sync`). Le script refuse de basculer sur un dump invalide : un dump vide laisse
-l'ancien miroir en place, au lieu de faire répondre « aucun résultat » à tout le site.
+`deploy/systemd/nie-miroir.{service,timer}` à 04:10 UTC, dix minutes après le créneau de
+`azalee-mirror-sync`. Ces unités sont **installées et armées** depuis le 2026-09-02. Le script
+refuse de basculer sur un dump invalide : un dump vide laisse l'ancien miroir en place, au lieu de
+faire répondre « aucun résultat » à tout le site.
 
 `@niers/catalog` résout `var/mirror.sqlite` **en premier**, et retombe sur celui de `rg` s'il
 n'existe pas encore : les deux dépôts peuvent coexister pendant la bascule.
@@ -112,20 +113,38 @@ qu'un `var/` homonyme rencontré en chemin ne soit jamais pris pour la racine �
 
 | Service | État | Remplaçant |
 |---|---|---|
-| `azalee-mirror-sync.timer` | à désarmer | `nie-miroir.timer` (unités écrites, non installées) |
-| `rg-cron.service` | **actif**, `WorkingDirectory=/home/ubuntu/rg/packages/cron` | le code est ici ; l'unité reste à écrire et à basculer |
 | `bxc-wonderbot.service` | **désarmé** | `niers-wonderbot.service`, **actif** — même guilde, même jeton |
-| `azalee-web`, `azalee-api` | **actifs** depuis `rg` | à basculer une fois le site vérifié ici |
+| `nie-miroir.timer` | **installé et armé** depuis le 2026-09-02 | republie `var/mirror.sqlite` à 04:10 UTC |
+| `azalee-mirror-sync.timer` | **toujours armé**, et il doit l'être | quatre services de production sont épinglés en dur sur le miroir de `rg` |
+| `rg-cron.service` | **actif**, `WorkingDirectory=/home/ubuntu/rg/packages/cron` | `deploy/systemd/nie-cron.service` est **écrite et prête**, pas armée |
+| `azalee-web`, `azalee-api`, `rg-mcp` | **actifs** depuis `rg` | à basculer une fois le site vérifié ici |
 
-Une seule bascule a eu lieu, et elle est vérifiée : `bxc-wonderbot` est désarmé,
-`niers-wonderbot` tourne depuis ce dépôt, connecté à la même guilde avec le même jeton (les
-secrets vivent dans `~/.config/niers/wonderbot.env`, en 600, hors du dépôt). **Un seul bot par
-jeton Discord** : deux instances sur le même jeton se battent et répondent en double — c'est la
-raison pour laquelle on désarme l'ancienne avant d'armer la nouvelle, jamais l'inverse.
+Deux bascules ont eu lieu, toutes deux vérifiées.
+
+`bxc-wonderbot` est désarmé, `niers-wonderbot` tourne depuis ce dépôt, connecté à la même guilde
+avec le même jeton (les secrets vivent dans `~/.config/niers/wonderbot.env`, en 600, hors du
+dépôt). **Un seul bot par jeton Discord** : deux instances sur le même jeton se battent et
+répondent en double — c'est la raison pour laquelle on désarme l'ancienne avant d'armer la
+nouvelle, jamais l'inverse.
+
+`nie-miroir` a été lancé à la main avant tout armement, et son résultat contrôlé par la façade :
+`var/mirror.sqlite` pointe sur un instantané frais (165 244 lignes, `quick_check` à `ok`) et les
+quatre gisements répondent. Son `DATABASE_URL` vient de `~/.config/niers/donnees.env`, en 600,
+hors du dépôt.
+
+**`azalee-mirror-sync` n'a pas été désarmé pour autant**, contrairement à ce qui était prévu :
+`azalee-web`, `azalee-api`, `rg-mcp` et — c'est le plus surprenant — `nie-model-serve`, un service
+de `niers`, lisent tous le miroir de `rg` par un chemin épinglé dans leur unité. Le désarmer sans
+les repointer n'aurait rien cassé de visible : cela aurait figé les données du site sans aucun
+signal. Les deux timers cohabitent donc, à dix minutes d'écart.
 
 Les autres attendent : le code est rapatrié et vérifié, mais basculer `azalee-web` ou `rg-cron`
 coupe un service public. Cela se fait unité par unité, en vérifiant que la nouvelle répond avant
-de désarmer l'ancienne.
+de désarmer l'ancienne — sauf pour un service à instance unique, comme un bot ou le démon de cron,
+où l'ordre s'inverse.
+
+**L'état réel de la machine, unité par unité, avec ce qui reste dehors et pourquoi, vit dans
+`docs/EXPLOITATION.md`.**
 
 ## Vérifier
 

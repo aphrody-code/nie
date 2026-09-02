@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
-import { AURAS_PAR_PAGE, AuraList } from "@/components/wiki/AuraList";
+import { notFound } from "next/navigation";
+import { AuraList } from "@/components/wiki/AuraList";
 import { buildCanonical, LIST_CANONICAL_KEYS } from "@/lib/seo";
 import { parseSearchParams } from "@/lib/validations";
 import { wikiService } from "@/lib/wiki-service";

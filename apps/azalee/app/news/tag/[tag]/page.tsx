@@ -5,7 +5,6 @@ import { fr } from "date-fns/locale";
 import { ArrowLeft, Tag } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { Badge, Button } from "@rosegriffon/ui";
 import { WikiPagination } from "@/components/wiki/WikiPagination";
 import { getPgPool } from "@/lib/db/pg";

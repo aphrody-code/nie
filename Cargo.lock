@@ -4302,6 +4302,7 @@ dependencies = [
  "nie-data",
  "nie-formats",
  "nie-lua",
+ "serde",
  "serde_json",
 ]
 

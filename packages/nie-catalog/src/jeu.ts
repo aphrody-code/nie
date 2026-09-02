@@ -80,24 +80,54 @@ export function cheminFiche(chemin: string): string {
 	return `/vfs/stat?${new URLSearchParams({ path: chemin })}`;
 }
 
+/** Les options de pagination communes à `/vfs/find` et `/vfs/ls`. */
+export interface OptionsRecherche {
+	/** Filtre par extension, sans point (`g4tx`). Une chaîne vide est ignorée par le serveur. */
+	ext?: string;
+	/** Taille de page. Le serveur plafonne à 20 000 (`main.rs`, `param_usize(query, "limit", …)`). */
+	limite?: number;
+	/** Décalage. Omis, il n'apparaît pas dans l'URL — le serveur vaut 0 par défaut. */
+	decalage?: number;
+}
+
 /**
- * `/vfs/find?…` — recherche par sous-chaîne dans les chemins internes.
+ * `/vfs/find?q=…&limit=…[&offset=…][&ext=…]` — recherche par sous-chaîne dans les chemins.
  *
- * L'ordre des paramètres est celui de l'implémentation historique (`limit` puis `q`, `ext` en
- * dernier) : une URL est une clé de cache, et en changer l'ordre invaliderait tout ce qui est
- * déjà en cache chez nginx comme chez les navigateurs.
+ * **L'ordre des paramètres est celui que la production émet déjà** (`q`, `limit`, `offset`, puis
+ * `ext`) : une URL est une clé de cache, et en changer l'ordre invaliderait tout ce qui est déjà
+ * en cache chez nginx comme chez les navigateurs. C'est aussi l'ordre dans lequel
+ * `crates/tools/nie-model-serve/src/main.rs:3055` documente la route. Le serveur lit ses
+ * paramètres par leur nom (`param(query, "q")`, `param_usize(query, "limit", 200)`,
+ * `param_usize(query, "offset", 0)`), donc l'ordre ne change rien pour LUI — seulement pour le
+ * cache.
+ *
+ * `decalage` n'est écrit que s'il est donné : c'est ce qui permet à une URL sans pagination de
+ * rester la chaîne courte qu'elle a toujours été.
  */
-export function cheminRecherche(texte: string, ext?: string, limite = 100): string {
-	const q = new URLSearchParams({ limit: String(limite), q: texte });
-	if (ext) {
-		q.set("ext", ext);
+export function cheminRecherche(texte: string, options: OptionsRecherche = {}): string {
+	const q = new URLSearchParams({ q: texte, limit: String(options.limite ?? 100) });
+	if (options.decalage !== undefined) {
+		q.set("offset", String(options.decalage));
+	}
+	if (options.ext) {
+		q.set("ext", options.ext);
 	}
 	return `/vfs/find?${q}`;
 }
 
-/** `/vfs/ls?path=…&limit=…` — le listing d'un dossier. */
-export function cheminListe(dossier: string, limite = 500): string {
-	return `/vfs/ls?path=${encodeURIComponent(dossier)}&limit=${limite}`;
+/**
+ * `/vfs/ls?path=…&limit=…[&offset=…]` — le listing d'un dossier.
+ *
+ * Même règle que [`cheminRecherche`] pour `decalage` : absent des options, il est absent de l'URL.
+ * `limit` à 0 ne rend que les sous-dossiers et le total — ce que veut un arbre qui n'affiche que
+ * la structure.
+ */
+export function cheminListe(dossier: string, limite = 500, decalage?: number): string {
+	const q = new URLSearchParams({ path: dossier, limit: String(limite) });
+	if (decalage !== undefined) {
+		q.set("offset", String(decalage));
+	}
+	return `/vfs/ls?${q}`;
 }
 
 /** `/vfs/stats` — les compteurs globaux du VFS monté. */
@@ -251,6 +281,56 @@ export function cheminIndexIcones(): string {
 }
 
 // ---------------------------------------------------------------------------
+// Les deux surfaces nginx — `/dx11/` et `/g4tx/`.
+//
+// Elles ne sont PAS des routes de `nie-model-serve` (le test `jeu.test.ts` l'exige) : ce sont
+// des `location` de `/etc/nginx/conf.d/cdn.rosegriffon.conf`, qui savent redimensionner avant de
+// réécrire vers `/tex/`. Les remplacer par `cheminTexture` ferait perdre `?w=` et `format=webp`.
+// ---------------------------------------------------------------------------
+
+/** Options de rendu d'une image servie par les `location` nginx. */
+export interface OptionsImage {
+	/** Largeur cible en pixels ; le redimensionnement est fait par `cdn-variants`. */
+	largeur?: number;
+	/** Sert la variante WebP plutôt que le PNG. N'a de sens qu'avec `largeur`. */
+	webp?: boolean;
+}
+
+/** Ajoute `?w=…&format=webp` à un chemin d'image, dans cet ordre — c'est la forme en cache. */
+function avecVariante(chemin: string, options: OptionsImage): string {
+	if (options.largeur === undefined) {
+		return chemin;
+	}
+	return options.webp === false
+		? `${chemin}?w=${options.largeur}`
+		: `${chemin}?w=${options.largeur}&format=webp`;
+}
+
+/**
+ * `/dx11/<chemin sous `data/dx11/`, sans `.g4tx`>.png` — une texture du dump PC.
+ *
+ * Les `.g4tx` vivent à 100 % sous `data/dx11/`. nginx sert d'abord le dump sur disque, puis
+ * retombe sur `@cpk_live`, qui réécrit vers `/tex/dx11/<x>.png`. Le chemin donné peut porter ou
+ * non son préfixe `data/dx11/` : les deux formes rendent la même URL.
+ */
+export function cheminDx11(chemin: string, options: OptionsImage = {}): string {
+	const relatif = chemin.startsWith("data/dx11/")
+		? chemin.slice("data/dx11/".length)
+		: chemin.replace(/^data\//, "");
+	return avecVariante(`/dx11/${sansG4tx(relatif)}.png`, options);
+}
+
+/**
+ * Une image que le serveur a DÉJÀ nommée, éventuellement redimensionnée.
+ *
+ * `/tex-info` publie pour chaque texture d'un conteneur son propre `path` (`/tex/<…>.g4tx/<nom>
+ * .png`) : on le sert tel quel plutôt que de le reconstruire, et on n'y ajoute que la variante.
+ */
+export function cheminImage(chemin: string, options: OptionsImage = {}): string {
+	return avecVariante(chemin, options);
+}
+
+// ---------------------------------------------------------------------------
 // Les URL absolues — un chemin, préfixé de [`baseJeu`].
 // ---------------------------------------------------------------------------
 
@@ -265,13 +345,13 @@ export function urlFiche(chemin: string): string {
 }
 
 /** Recherche par sous-chaîne dans les 255 308 entrées du VFS. */
-export function urlRecherche(texte: string, ext?: string, limite = 100): string {
-	return baseJeu() + cheminRecherche(texte, ext, limite);
+export function urlRecherche(texte: string, options: OptionsRecherche = {}): string {
+	return baseJeu() + cheminRecherche(texte, options);
 }
 
 /** Le listing d'un dossier du VFS. */
-export function urlListe(dossier: string, limite = 500): string {
-	return baseJeu() + cheminListe(dossier, limite);
+export function urlListe(dossier: string, limite = 500, decalage?: number): string {
+	return baseJeu() + cheminListe(dossier, limite, decalage);
 }
 
 /** Une texture, décodée en PNG. Le `.g4tx` se retire — le garder donne un 400. */
@@ -344,6 +424,16 @@ export function urlExport(chemin: string, format: string, id?: string | number):
 	return baseJeu() + cheminExport(chemin, format, id);
 }
 
+/** Une texture du dump PC, servie par la `location` nginx qui sait la redimensionner. */
+export function urlDx11(chemin: string, options: OptionsImage = {}): string {
+	return baseJeu() + cheminDx11(chemin, options);
+}
+
+/** Une image déjà nommée par le serveur, préfixée de la base et éventuellement redimensionnée. */
+export function urlImage(chemin: string, options: OptionsImage = {}): string {
+	return baseJeu() + cheminImage(chemin, options);
+}
+
 /** Vrai si le serveur de décodage répond. Une seconde d'attente au plus : c'est une sonde. */
 export async function jeuJoignable(delaiMs = 1000): Promise<boolean> {
 	try {
@@ -353,5 +443,315 @@ export async function jeuJoignable(delaiMs = 1000): Promise<boolean> {
 		return reponse.ok;
 	} catch {
 		return false;
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Les fiches que le gisement publie — et leurs formateurs.
+//
+// Une convention d'URL ne suffit pas : deux surfaces qui appellent la même route doivent aussi
+// lire la même forme de réponse, et l'écrire de la même façon. Ces types décrivent ce que
+// `nie_explore::cinema` et `nie_explore::audio` sérialisent sur `/video/catalog.json`,
+// `/video/<x>?info=1` et `/audio-info/<x>` ; ils vivent ici pour la même raison que les URL.
+// ---------------------------------------------------------------------------
+
+/** Une piste sonore portée par le conteneur du film lui-même — 2 films sur 97. */
+export interface FilmPisteInterne {
+	/** Numéro de canal déclaré par le conteneur. */
+	canal: number;
+	/** Codec de la piste (`hca`, `adx`…). */
+	codec: string;
+	/** Fréquence d'échantillonnage, en hertz. */
+	frequence: number;
+	/** Nombre de canaux. */
+	canaux: number;
+	/** Taille de la piste, en octets. */
+	octets: number;
+}
+
+/** La bande-son d'un film qui n'en porte pas dans son conteneur. */
+export interface FilmBandeSon {
+	/** Nom de la cue dans `anime_stream`, ex. `ev01_00050_bgm`. */
+	cue: string;
+	/** Identifiant AFS2 de la forme d'onde. */
+	awbId: number;
+	/** Codec déclaré par la banque. */
+	codec: string;
+	/** Fréquence d'échantillonnage, en hertz. */
+	frequence: number;
+	/** Nombre de canaux. */
+	canaux: number;
+	/** Durée de la cue, en millisecondes — ce que le jeu joue. */
+	dureeMs: number;
+	/** Durée de la forme d'onde, en millisecondes — ce que le fichier contient. */
+	dureeOndeMs: number;
+	/** Vrai quand le `bgmName` du gamedata confirme la cue trouvée par son nom. */
+	confirmeParHash: boolean;
+}
+
+/** Ce que les tables du jeu disent d'un film (`movie_playing_config`, `event_movie_config`). */
+export interface FilmGamedata {
+	/** Fichier de jeu d'où vient la ligne. */
+	source: string;
+	/** Identifiant du film, tel que le jeu le hache. */
+	movieId?: string;
+	/** Événement d'histoire qui déclenche le film. */
+	eventId?: string;
+	/** Menu depuis lequel le film est joué. */
+	menuId?: string;
+	/** Identifiant de la légende associée. */
+	captionId?: string;
+	/** « Nom de musique » — en réalité le CRC32 du nom du film. */
+	bgmName?: string;
+	/** Durée du fondu d'entrée, en secondes. */
+	fedeInTime?: number;
+	/** Durée du fondu de sortie, en secondes. */
+	fedeOutTime?: number;
+	/** Générique joué par-dessus le film, quand il y en a un. */
+	staffrollDataName?: string;
+	/** Chemin des textes de sous-titres, `<LG>` restant à substituer par la langue. */
+	subtitleTextPath?: string;
+	/** Chemin des réglages de sous-titres. */
+	subtitleSettingPath?: string;
+}
+
+/**
+ * La fiche d'un film telle que le SERVEUR la publie.
+ *
+ * À ne pas confondre avec le `FilmDto` de l'explorateur Tauri : celui-là est **généré** depuis le
+ * même crate par `tauri-specta` (`apps/nie-explorer/src/lib/bindings.ts`) et porte les noms de
+ * champs Rust (`nom_origine`, `sous_titres`, `lisible`). Les deux décrivent la même fonction, pas
+ * la même sérialisation — les unifier exige de régénérer les bindings, pas de recopier un type.
+ */
+export interface FilmDto {
+	/** Chemin VFS complet du film. */
+	chemin: string;
+	/** Radical du fichier (`ev01_00050`) — la clé de tout : jointure, cue, libellé. */
+	nom: string;
+	/** Rubrique déduite du nom, convention du jeu (`Chapitre 01`, `Écrans-titres`…). */
+	rubrique: string;
+	/** Code de langue quand le nom en porte un, `null` sinon. */
+	langue: string | null;
+	/** Taille du conteneur `.usm`, en octets. */
+	octets: number;
+	/** Message d'erreur si le film n'a pas pu être lu. */
+	erreur?: string;
+	/** Codec vidéo constaté : `h264`, `mpeg2`, `vp9`. */
+	codec: string;
+	/** Vrai si un navigateur sait décoder ce codec — faux pour les 20 MPEG-2. */
+	lisibleNavigateur: boolean;
+	/** Largeur en pixels. */
+	largeur: number;
+	/** Hauteur en pixels. */
+	hauteur: number;
+	/** Nombre d'images réellement présentes dans le conteneur. */
+	images: number;
+	/** Nombre d'images que l'en-tête annonce. */
+	totalImagesDeclare: number;
+	/** Cadence en images par seconde, `null` si l'en-tête ne la déclare pas. */
+	cadence: number | null;
+	/** Durée en secondes. */
+	duree: number | null;
+	/** Total des octets vidéo, hors en-têtes de bloc et bourrage. */
+	octetsVideo: number;
+	/** Vrai si le conteneur était chiffré par l'enveloppe CRI. */
+	dechiffre?: boolean;
+	/** Nom du fichier tel que l'encodeur l'a inscrit. */
+	nomOrigine?: string;
+	/** Pistes sonores du conteneur — vide pour 95 films sur 97. */
+	audio: FilmPisteInterne[];
+	/** Bande-son externe résolue dans `anime_stream`, quand le conteneur est muet. */
+	bandeSon?: FilmBandeSon;
+	/** Nombre de blocs de sous-titres du conteneur. */
+	sousTitres?: number;
+	/** Type MIME du conteneur web produit par le remux (fiche détaillée seulement). */
+	conteneur?: string;
+	/** Taille du conteneur web produit, en octets. */
+	conteneurOctets?: number;
+	/** Nombre d'images-clés — ce sur quoi un lecteur peut se repositionner. */
+	cles?: number;
+	/** Part du fichier économisée par le remux, en pourcentage. */
+	gainRemux?: number;
+	/** Raison pour laquelle aucun conteneur web n'est possible. */
+	remuxImpossible?: string;
+	/** Ce que les tables du jeu disent du film. */
+	gamedata?: FilmGamedata;
+}
+
+/** Une langue du jeu, code et nom. */
+export interface LangueDto {
+	/** Code tel qu'il apparaît dans les noms de fichiers (`JP`, `fr`…). */
+	code: string;
+	/** Nom en français. */
+	nom: string;
+}
+
+/** Le catalogue complet des cinématiques, tel que `/video/catalog.json` le rend. */
+export interface CatalogueVideo {
+	/** Les films, triés par chemin. */
+	films: FilmDto[];
+	/** Les rubriques présentes — de quoi bâtir un filtre sans le deviner. */
+	rubriques: string[];
+	/** Les neuf langues du jeu. */
+	langues: LangueDto[];
+	/** Empreinte du corpus servie par le serveur (nombre de films : volume total). */
+	empreinte?: string;
+}
+
+/** Un cue d'une banque audio, résolu jusqu'à sa forme d'onde (`/audio-info/<x>`). */
+export interface AudioCue {
+	/** Rang du cue dans la `CueTable` de la banque. */
+	index: number;
+	/** Identifiant du cue (`CueTable.CueId`). */
+	cueId: number;
+	/** Nom du cue, ex. `ev60_00010_me`. `null` si la banque n'en donne pas. */
+	name: string | null;
+	/** Codec de la forme d'onde : `hca`, `adx`, `autre` ou `inconnu`. */
+	codec: string;
+	/** Nombre de canaux, `null` si non résolu. */
+	channels: number | null;
+	/** Fréquence d'échantillonnage en Hz, `null` si non résolue. */
+	sampleRate: number | null;
+	/** Nombre d'échantillons, `null` si non résolu. */
+	numSamples: number | null;
+	/** Durée en secondes. */
+	durationSec: number;
+	/** La forme d'onde boucle (typique des BGM). */
+	looped: boolean;
+	/** La forme d'onde vit dans l'AWB externe plutôt qu'en mémoire. */
+	streaming: boolean;
+	/** Identifiant AWB — c'est LUI qu'on passe à `?id=`, pas `index`. */
+	awbId: number | null;
+	/** Rang de l'entrée dans l'AWB, quand l'en-tête AFS2 embarqué permet de le résoudre. */
+	awbIndex: number | null;
+}
+
+/** Catalogue complet d'une banque audio. */
+export interface AudioBank {
+	/** Chemin VFS de l'ACB. */
+	path: string;
+	/** Type de conteneur (`acb`, `hca`, `adx`). */
+	container: string;
+	/** Nom de la cue sheet déclaré par la banque. */
+	name: string | null;
+	/** Version de l'outil CRI ayant produit la banque. */
+	version: number | null;
+	/** Nombre de cues. */
+	cueCount: number;
+	/** Nombre d'entrées dans l'AWB, `null` si l'en-tête n'est pas embarqué. */
+	awbEntryCount: number | null;
+	/** La banque porte son AWB en interne. */
+	embeddedAwb: boolean;
+	/** Chemin VFS de l'AWB frère, `null` si le conteneur n'est pas un ACB. */
+	externalAwb: string | null;
+	/** Les cues, dans l'ordre de la `CueTable`. */
+	cues: AudioCue[];
+}
+
+/** Deux chiffres, zéro devant. */
+function deuxChiffres(n: number): string {
+	return String(n).padStart(2, "0");
+}
+
+/**
+ * Durée d'un film en `m:ss`, ou `h:mm:ss` au-delà de l'heure. `null` si la durée est inconnue.
+ *
+ * Rendre `null` plutôt qu'un `--:--` laisse l'appelant décider de ce qu'il affiche à la place :
+ * une liste veut sauter la cellule, un lecteur veut un gabarit. C'est pour cela que l'explorateur
+ * Tauri garde le sien, qui rend `--:--` — deux besoins, pas deux copies de la même règle.
+ */
+export function formatDuree(secondes: number | null | undefined): string | null {
+	if (secondes == null || !Number.isFinite(secondes) || secondes <= 0) {
+		return null;
+	}
+	const total = Math.round(secondes);
+	const h = Math.floor(total / 3600);
+	const m = Math.floor((total % 3600) / 60);
+	const s = total % 60;
+	return h > 0
+		? `${h}:${deuxChiffres(m)}:${deuxChiffres(s)}`
+		: `${m}:${deuxChiffres(s)}`;
+}
+
+/**
+ * Durée d'un cue audio : `m:ss` à partir de la minute, `12,3 s` en deçà, `0,50 s` sous la seconde.
+ *
+ * Distincte de [`formatDuree`] et volontairement : une cue de voix dure une seconde et demie, et
+ * `0:02` en dirait moins que `1,50 s`. La virgule décimale est celle du français.
+ */
+export function formatDureeCue(secondes: number): string {
+	if (!Number.isFinite(secondes) || secondes <= 0) {
+		return "—";
+	}
+	if (secondes < 1) {
+		return `${secondes.toFixed(2).replace(".", ",")} s`;
+	}
+	const m = Math.floor(secondes / 60);
+	const s = Math.round(secondes % 60);
+	return m > 0
+		? `${m}:${deuxChiffres(s)}`
+		: `${secondes.toFixed(1).replace(".", ",")} s`;
+}
+
+/** Taille en unités binaires, telle qu'on l'annonce à côté d'un lien de téléchargement. */
+export function formatOctets(octets: number): string {
+	const mio = octets / 1024 ** 2;
+	return mio >= 1024
+		? `${(mio / 1024).toFixed(1).replace(".", ",")} Gio`
+		: `${Math.round(mio)} Mio`;
+}
+
+/**
+ * Définition `1920×1080`, ou `null` quand le conteneur ne la déclare pas.
+ *
+ * Prend les deux nombres plutôt qu'une fiche : c'est la même règle pour le `FilmDto` du serveur
+ * (`largeur: number`) et pour celui de l'explorateur (`largeur: number | null`), qui ne sont pas
+ * le même type.
+ */
+export function formatDefinition(
+	largeur: number | null | undefined,
+	hauteur: number | null | undefined,
+): string | null {
+	return largeur && hauteur ? `${largeur}×${hauteur}` : null;
+}
+
+/**
+ * Ordre d'affichage des rubriques : les chapitres dans l'ordre du jeu, le reste ensuite.
+ *
+ * Un tri alphabétique mettrait « Chronicle » entre deux chapitres et « Écrans-titres » en tête à
+ * cause de son accent. L'ordre du récit est celui qui se lit.
+ */
+export function ordreRubrique(rubrique: string): number {
+	const chapitre = /^Chapitre (\d+)$/.exec(rubrique);
+	if (chapitre) {
+		return Number(chapitre[1]);
+	}
+	if (rubrique === "Chronicle") {
+		return 900;
+	}
+	if (rubrique === "Écrans-titres") {
+		return 901;
+	}
+	return 902;
+}
+
+/**
+ * Le format de téléchargement qui correspond au codec d'un film.
+ *
+ * H.264 → MP4, VP9 → WebM, MPEG-2 → flux élémentaire `.m2v` (VLC et mpv le lisent ; aucun
+ * navigateur ne le décode, et l'emballer en MP4 serait un mensonge).
+ */
+export function formatSortie(codec: string | null | undefined): {
+	id: string;
+	ext: string;
+	libelle: string;
+} {
+	switch (codec) {
+		case "vp9":
+			return { id: "webm", ext: "webm", libelle: "WebM" };
+		case "mpeg2":
+			return { id: "m2v", ext: "m2v", libelle: "MPEG-2" };
+		default:
+			return { id: "mp4", ext: "mp4", libelle: "MP4" };
 	}
 }
