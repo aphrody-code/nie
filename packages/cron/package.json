@@ -18,6 +18,7 @@
 		"@aphrody-code/bxc": "catalog:",
 		"@aphrody-code/x": "catalog:",
 		"@aphrody-code/zukan": "catalog:",
+		"@aphrody/ietv": "workspace:*",
 		"@asteasolutions/zod-to-openapi": "catalog:",
 		"@rosegriffon/auth": "workspace:*",
 		"@rosegriffon/db": "workspace:*",

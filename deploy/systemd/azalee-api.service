@@ -1,0 +1,50 @@
+[Unit]
+# azalee-api — API HTTP headless de la bibliothèque @rose-griffon/azalee,
+# exposée derrière nginx sur https://api.rosegriffon.fr/azalee/.
+#
+# Sert les MÊMES données que le wiki web (miroir SQLite inagle_*, index CPK,
+# index de texte de jeu) en JSON pur, sans Next. C'est la source de repli du
+# CLI `azalee` et d'un GUI Tauri quand la machine cliente n'a ni base locale
+# ni dump du jeu.
+#
+# Installation :
+#   sudo cp deploy/systemd/azalee-api.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now azalee-api.service
+Description=azalee-api — API headless du wiki Azalée (Bun, lecture seule)
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/niers
+Environment=PATH=/home/ubuntu/.bun/bin:/usr/local/bin:/usr/bin:/bin
+Environment=AZALEE_PORT=8807
+Environment=AZALEE_HOST=127.0.0.1
+# Miroir épinglé — même source que azalee-web (cf. drop-in azalee-web.service).
+Environment=SQLITE_DB_PATH=/home/ubuntu/niers/var/mirror.sqlite
+Environment=AZALEE_DATA_DIR=/home/ubuntu/niers/apps/azalee/data
+ExecStart=/home/ubuntu/.bun/bin/bun packages/azalee/src/server/main.ts
+Restart=always
+RestartSec=5
+
+# Plafond mémoire. Le 14/8/2026, huit unités de production tournaient en
+# MemoryMax=infinity : une fuite dans n'importe laquelle d'entre elles pouvait épuiser
+# les 45 Gio de l'hôte, et c'est l'OOM killer GLOBAL qui tranchait — il a tué
+# nie-model-serve à 02h16 ce jour-là, mais le prochain choisi aurait pu être le wiki.
+# Un plafond par service transforme une panne d'hôte en panne d'un seul service, que
+# Restart= répare seul. Mesuré ici : 38 Mio de working set.
+MemoryHigh=1G
+MemoryMax=2G
+MemorySwapMax=256M
+
+# Lecture seule : le service n'écrit que ses SQLite matérialisés en tmpfs.
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=false
+ReadWritePaths=/tmp
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

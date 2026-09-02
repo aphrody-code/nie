@@ -45,10 +45,16 @@
 import { $ } from "bun";
 import { join } from "node:path";
 
-/** `packages/cron/src/tasks/` → racine du monorepo, 4 niveaux au-dessus. */
-const MONOREPO_ROOT = join(import.meta.dir, "..", "..", "..", "..");
-const BOT_DIR = join(MONOREPO_ROOT, "apps", "bot");
-const SCRIPT = join(BOT_DIR, "src", "scripts", "import-noctaly.ts");
+import { depotRoseGriffon } from "../lib/racine";
+
+/**
+ * Le bot communautaire est resté dans `rg` (cf. `docs/FUSION.md`) : son dossier est résolu
+ * à l'exécution, jamais par un nombre de « .. » qui change de sens selon le dépôt d'où le
+ * démon tourne — depuis ici, quatre niveaux au-dessus désignaient un `apps/bot` inexistant.
+ */
+const RG = depotRoseGriffon();
+const BOT_DIR = RG ? join(RG, "apps", "bot") : null;
+const SCRIPT = BOT_DIR ? join(BOT_DIR, "src", "scripts", "import-noctaly.ts") : null;
 
 interface ResultatImportNoctaly {
 	success: boolean;
@@ -70,6 +76,12 @@ interface ResultatImportNoctaly {
  * clairement d'un import réussi.
  */
 export async function runNoctalyImport(): Promise<ResultatImportNoctaly> {
+	if (!SCRIPT || !BOT_DIR) {
+		const error =
+			"Bot communautaire introuvable : `RG_MONOREPO` n'est pas défini et /home/ubuntu/rg n'existe pas.";
+		console.error(`[Noctaly] ${error}`);
+		return { success: false, error };
+	}
 	const proc = await $`bun ${SCRIPT}`.cwd(BOT_DIR).nothrow().quiet();
 	const sortie = `${proc.stdout.toString()}${proc.stderr.toString()}`.trim();
 

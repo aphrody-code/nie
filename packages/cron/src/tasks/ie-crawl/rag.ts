@@ -13,6 +13,7 @@ import { chunkText, computeStringHash } from "./rag-utils";
 import { ingestSources, type RagSource } from "./rag-store-local";
 import { chunkBySource, type SourceKind } from "./rag-chunkers";
 import { sql } from "../../lib/db.js";
+import { dansLeDepot } from "../../lib/racine";
 
 interface DBTweetRow {
 	id: string;
@@ -404,7 +405,7 @@ function collectScrapedItems(): ScrapedItem[] {
 	}
 
 	// 7. Collecter les documentations du monorepo (docs/*.md et docs/reference/*.md)
-	const docsDir = "/home/ubuntu/rg/docs";
+	const docsDir = dansLeDepot("docs");
 	const docPaths: { path: string; isReference: boolean }[] = [];
 
 	if (existsSync(docsDir)) {
