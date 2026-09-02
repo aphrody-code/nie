@@ -74,3 +74,27 @@ export const LIST_CANONICAL_KEYS = [
 	"series",
 	"type",
 ] as const;
+
+/**
+ * Clés canoniques de `/skill` — les clés communes, plus les quatre filtres qui
+ * n'existent que là.
+ *
+ * `has_video`, `overdrive`, `power_min` et `power_max` changent le **contenu**
+ * listé, exactement comme `element` ou `type` : les omettre faisait de
+ * `/skill?overdrive=1&power_min=700` un simple alias canonique de `/skill`, donc
+ * une vue sans aucune URL indexable — la sélection des techniques d'Overdrive et
+ * celle des techniques les plus puissantes n'existaient, pour un robot, nulle
+ * part.
+ *
+ * Elles vivent dans une liste à part plutôt que dans `LIST_CANONICAL_KEYS` :
+ * `/chara` et `/aura` partagent cette dernière et n'ont aucun de ces filtres —
+ * les y ajouter y ferait entrer des paramètres que ces pages ignorent.
+ */
+export const SKILL_CANONICAL_KEYS = [
+	...LIST_CANONICAL_KEYS,
+	"has_video",
+	"overdrive",
+	"power_max",
+	"power_min",
+	"show_aura",
+] as const;

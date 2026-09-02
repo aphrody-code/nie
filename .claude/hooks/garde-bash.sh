@@ -49,6 +49,17 @@ mot 'node' && refus deny \
 printf '%s' "$cmd" | grep -qE 'bun[[:space:]]+install' && ! printf '%s' "$cmd" | grep -qE '(cd[[:space:]]+/home/ubuntu/niers[[:space:]]*(;|&&)|^[[:space:]]*bun[[:space:]]+install)' && refus deny \
   "bun install se lance depuis la RACINE du depot, jamais dans un sous-paquet : un seul lockfile, et les versions sont partagees par catalogue."
 
+# --- fragile a coup sur : du Python dans une chaine shell --------------------
+# Le corps traverse bash AVANT python : $VAR substitue, $(...) EXECUTE, \\ reduit a \.
+# Un one-liner passe ; au-dela de 2 lignes le quoting est la premiere cause de panne.
+if printf '%s' "$cmd" | grep -qE 'python[[:space:]]+-c'; then
+  corps=${cmd#*python }; corps=${corps#-c}
+  if [ "$(printf '%s' "$corps" | wc -l)" -ge 2 ]; then
+    refus deny \
+      "Python de plus de 2 lignes dans une chaine shell : le corps traverse bash AVANT python (\$VAR substitue, \$(...) EXECUTE, \\\\ reduit a \\). Ecris-le dans un fichier — scratchpad si jetable, scripts/ si versionne — puis 'uv run <fichier>'. Les dependances vont DANS le fichier (PEP 723 : '# /// script' / '# dependencies = [\"numpy\"]' / '# ///'), pas en --with. Pour du JSON, jq suffit et n'a qu'une couche de quoting."
+  fi
+fi
+
 # --- couteux : proposer la forme qui tient dans le budget --------------------
 printf '%s' "$cmd" | grep -qE 'cargo[[:space:]]+(test|build)[[:space:]].*--workspace' \
   && ! printf '%s' "$cmd" | grep -qE '(>[[:space:]]*[^[:space:]]+|run_in_background)' && refus deny \

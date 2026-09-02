@@ -90,8 +90,40 @@ describe("la forme des URL", () => {
 	test("`/vfs/*` prend son chemin en query, jamais en segment", () => {
 		expect(jeu.cheminFiche("data/a b/c.bin")).toBe("/vfs/stat?path=data%2Fa+b%2Fc.bin");
 		expect(jeu.cheminListe("data/dx11/menu")).toBe("/vfs/ls?path=data%2Fdx11%2Fmenu&limit=500");
-		expect(jeu.cheminRecherche("mark", "g4tx", 20)).toBe("/vfs/find?limit=20&q=mark&ext=g4tx");
-		expect(jeu.cheminRecherche("mark")).toBe("/vfs/find?limit=100&q=mark");
+		expect(jeu.cheminRecherche("mark", { ext: "g4tx", limite: 20 })).toBe(
+			"/vfs/find?q=mark&limit=20&ext=g4tx",
+		);
+		expect(jeu.cheminRecherche("mark")).toBe("/vfs/find?q=mark&limit=100");
+	});
+
+	test("le décalage n'entre dans l'URL que lorsqu'on le demande", () => {
+		// Une URL est une clé de cache : un `&offset=0` ajouté d'office dédoublerait chaque entrée
+		// de cache déjà chaude. Les appelants qui paginent le passent, les autres non.
+		expect(jeu.cheminListe("data/dx11/menu", 1000, 0)).toBe(
+			"/vfs/ls?path=data%2Fdx11%2Fmenu&limit=1000&offset=0",
+		);
+		expect(jeu.cheminRecherche("mark", { limite: 200, decalage: 0 })).toBe(
+			"/vfs/find?q=mark&limit=200&offset=0",
+		);
+		expect(jeu.cheminRecherche("mark", { limite: 200, decalage: 40, ext: "usm" })).toBe(
+			"/vfs/find?q=mark&limit=200&offset=40&ext=usm",
+		);
+	});
+
+	test("`/dx11/` retire `data/dx11/` comme `data/`, et porte la variante", () => {
+		// La `location` nginx sert le dump depuis la racine `dx11/`, d'où le préfixe retiré.
+		expect(jeu.cheminDx11("data/dx11/menu/a/b.g4tx")).toBe("/dx11/menu/a/b.png");
+		expect(jeu.cheminDx11("data/common/x.g4tx")).toBe("/dx11/common/x.png");
+		expect(jeu.cheminDx11("data/dx11/menu/a/b.g4tx", { largeur: 400 })).toBe(
+			"/dx11/menu/a/b.png?w=400&format=webp",
+		);
+	});
+
+	test("une image déjà nommée par le serveur n'est pas reconstruite", () => {
+		// `/tex-info` publie le `path` de chaque texture : on le sert tel quel.
+		const servi = "/tex/dx11/menu/icon_item01.g4tx/icon_a.png";
+		expect(jeu.cheminImage(servi)).toBe(servi);
+		expect(jeu.cheminImage(servi, { largeur: 160 })).toBe(`${servi}?w=160&format=webp`);
 	});
 
 	test("`/export` porte le format en query et l'identifiant de sous-entité avec", () => {

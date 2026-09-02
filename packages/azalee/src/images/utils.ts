@@ -500,7 +500,28 @@ export function getSkillImageUrl(
 	}
 	// Le code peut porter un suffixe de variante (`who00060_or`, `whd00900_mm`) qui
 	// existe parfois comme fichier à part entière : on tente le code tel quel d'abord.
-	return telopUrl(skillId) ?? telopUrl(skillId.replace(/_[a-z]+$/i, "")) ?? PLACEHOLDERS.skill;
+	return getSkillTelopUrl(skillId) ?? PLACEHOLDERS.skill;
+}
+
+/**
+ * URL du telop d'une technique, ou `null` quand il n'en existe aucun — la même
+ * résolution que `getSkillImageUrl`, mais **sans repli placeholder**.
+ *
+ * C'est la forme dont a besoin tout appelant qui veut décider s'il affiche
+ * l'image ou rien du tout. La section cut-in, elle, forgeait son URL depuis
+ * `skills-cutin.json`, qui annonce un telop dans neuf langues pour toutes les
+ * techniques — y compris les 19 `rh*`, dont aucun fichier n'existe : mesuré,
+ * `…/telop_waza/fr/rhd10010.png` et son équivalent `en` répondent 404.
+ *
+ * Le garde ne peut pas être `inagle_skills.has_telop` : cette colonne vaut 1 sur
+ * les 1002 lignes, `rh*` comprises. Le seul garde qui discrimine est l'index des
+ * fichiers réellement présents dans les CPK (`TELOP_FR`/`TELOP_EN`).
+ */
+export function getSkillTelopUrl(skillId: string | undefined | null): string | null {
+	if (!skillId) {
+		return null;
+	}
+	return telopUrl(skillId) ?? telopUrl(skillId.replace(/_[a-z]+$/i, ""));
 }
 
 /**

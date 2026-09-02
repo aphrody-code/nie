@@ -5,6 +5,23 @@
 // TELLES QUELLES depuis `crates/tools/nie-wiki/src/query.rs` (`search_characters`/`search_skills`)
 // — même vérité SQL, juste un moteur d'exécution différent.
 import Database from "@tauri-apps/plugin-sql";
+import { japaneseToRomaji } from "@rosegriffon/azalee/text";
+
+import { dedoublonnerParNom, type EntreeNoms } from "@/lib/traduction";
+import {
+  REQUETES_INDEX_NOMS,
+  SQL_ENCADREMENT,
+  SQL_ROSTER,
+  SQL_ROSTER_SANS_JSON,
+  SQL_SKILLS_BRUTS,
+  idsTechniques,
+  sqlTechniquesParIds,
+  sqlTechniquesParIdsSansJson,
+  type LigneEncadrement,
+  type LigneNoms,
+  type LigneRoster,
+  type LigneTechnique,
+} from "@/lib/wikiQueries";
 
 export interface CharaRow {
   id: string;
@@ -164,5 +181,79 @@ export const wikiDb = {
        LIMIT 20`,
       [q, likePat],
     );
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Vues migrées depuis `apps/azalee` — cf. `docs/MIGRATION-EXPLORATEUR.md`.
+  // Le SQL vit dans `wikiQueries.ts` (pur, rejouable hors application) ; ici, seule
+  // l'exécution.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Index complet des noms multilingues — le Traducteur.
+   *
+   * Les sept requêtes partent EN PARALLÈLE : ce sont six tables distinctes d'un fichier local,
+   * rien ne les sérialise. Le romaji est dérivé de `name_ja` à la lecture (aucune colonne
+   * `name_roma` n'existe dans le miroir) puis mémorisé dans l'entrée — le calculer à chaque
+   * frappe sur 9 500 lignes coûterait plus cher que toute la recherche.
+   */
+  async chargerIndexNoms(dbPath: string): Promise<EntreeNoms[]> {
+    const d = await connect(dbPath);
+    const lots = await Promise.all(
+      REQUETES_INDEX_NOMS.map(async ({ type, sql }) => {
+        const lignes = await d.select<LigneNoms[]>(sql);
+        return lignes.map(
+          (l): EntreeNoms => ({
+            type,
+            id: String(l.id),
+            nomFr: l.name_fr,
+            nomEn: l.name_en,
+            nomJa: l.name_ja,
+            romaji: japaneseToRomaji(l.name_ja),
+            code: l.internal_code,
+          }),
+        );
+      }),
+    );
+    return dedoublonnerParNom(lots.flat());
+  },
+
+  /**
+   * Roster complet (6 166 personnages) — générateur d'équipe, comparateur, constructeur.
+   *
+   * Repli sans JSON1 : `json_extract` est compilé par défaut dans SQLite depuis 3.38 mais rien ne
+   * le garantit dans un binaire tiers. Si la requête échoue, la même sans extraction JSON est
+   * rejouée — on perd le code de rareté exact, jamais la liste.
+   */
+  async chargerRoster(dbPath: string): Promise<LigneRoster[]> {
+    const d = await connect(dbPath);
+    try {
+      return await d.select<LigneRoster[]>(SQL_ROSTER);
+    } catch {
+      return d.select<LigneRoster[]>(SQL_ROSTER_SANS_JSON);
+    }
+  },
+
+  /** Encadrement (`inagle_coordinators`, 102 lignes) — entraîneurs, managers, coordinateurs. */
+  async chargerEncadrement(dbPath: string): Promise<LigneEncadrement[]> {
+    const d = await connect(dbPath);
+    return d.select<LigneEncadrement[]>(SQL_ENCADREMENT);
+  },
+
+  /**
+   * Techniques d'un personnage — une requête pour lire la colonne `skills`, une seconde pour
+   * résoudre tous ses identifiants d'un coup. Le wiki appelait `wikiService.getSkill` une fois
+   * par technique, soit six allers-retours par personnage comparé.
+   */
+  async techniquesDuPersonnage(dbPath: string, charaId: string): Promise<LigneTechnique[]> {
+    const d = await connect(dbPath);
+    const lignes = await d.select<{ skills: string | null }[]>(SQL_SKILLS_BRUTS, [charaId]);
+    const ids = idsTechniques(lignes[0]?.skills ?? null);
+    if (ids.length === 0) return [];
+    try {
+      return await d.select<LigneTechnique[]>(sqlTechniquesParIds(ids.length), ids);
+    } catch {
+      return d.select<LigneTechnique[]>(sqlTechniquesParIdsSansJson(ids.length), ids);
+    }
   },
 };

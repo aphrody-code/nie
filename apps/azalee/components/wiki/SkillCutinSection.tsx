@@ -12,6 +12,7 @@ import { Icon } from "@/components/ui/Icon";
 // `next/dynamic { ssr:false }` de la scène et le repli `<CharacterModelViewer>` interne.
 import { CutinViewer } from "@/components/wiki/cutin/CutinViewer";
 import { cpkAssetUrl } from "@rosegriffon/azalee/cpk/shared";
+import { getSkillTelopUrl } from "@rosegriffon/azalee/images";
 import { downloadName } from "@rosegriffon/azalee/text/download-filename";
 import type { SkillCutin } from "@rosegriffon/azalee/game/skills-cutin";
 
@@ -31,22 +32,28 @@ function DownloadChip({ href, filename }: { href: string; filename: string }) {
 
 export function SkillCutinSection({
 	cutin,
+	skillCode,
 	skillName,
 	assetsAvailable,
 }: {
 	cutin: SkillCutin;
+	/** Code interne de la technique (`whs00030`) — la clé de l'index des telops réels. */
+	skillCode: string;
 	skillName: string;
 	/** Le modèle 3D + la texture `_waza` existent dans cette build (vérifié serveur via l'index
 	    CPK) : ~157/992 hissatsu. Faux → on n'affiche ni le viewer ni la texture (sinon 404/broken). */
 	assetsAvailable: boolean;
 }) {
 	const [telopError, setTelopError] = useState(false);
-	// Telop préféré : fr puis en puis 1re langue dispo (g4tx→png via le CDN /dx11).
-	const telopPath =
-		cutin.telop_by_lang.find(([l]) => l === "fr")?.[1] ??
-		cutin.telop_by_lang.find(([l]) => l === "en")?.[1] ??
-		cutin.telop_by_lang[0]?.[1];
-	const telopUrl = telopPath ? cpkAssetUrl(telopPath) : null;
+	// Telop : résolu contre l'index des fichiers RÉELLEMENT présents dans les CPK.
+	//
+	// `skills-cutin.json` annonce un telop dans neuf langues pour TOUTE technique,
+	// y compris les 19 `rh*` qui n'en ont aucun — la section forgeait donc une URL
+	// sans garde et servait un 404 mesuré (`…/telop_waza/fr/rhd10010.png`, et son
+	// équivalent `en`). `getSkillTelopUrl` fait la même résolution fr → en que
+	// `getSkillImageUrl`, contre le même index, et rend `null` quand rien n'existe
+	// (pas de placeholder : il n'a rien à faire dans une section « assets »).
+	const telopUrl = getSkillTelopUrl(skillCode);
 	const textureUrl = cpkAssetUrl(cutin.texture_g4tx);
 
 	return (

@@ -12,59 +12,16 @@
  *
  * ⚠ Module **client-safe** : `fetch` seul. Le rattachement d'une banque à un personnage exige le
  * miroir SQLite et vit donc côté serveur.
+ *
+ * Les deux URL et les deux fiches (`AudioCue`, `AudioBank`) viennent de `@niers/catalog/jeu` : ce
+ * que le serveur sérialise n'appartient pas à cette bibliothèque, et le décrire une deuxième fois
+ * ici ferait diverger le wiki de l'explorateur sans que rien ne le signale.
  */
 
-const CDN_BASE = "https://cdn.rosegriffon.fr";
+import { formatDureeCue, urlAudio, urlBanqueSon } from "@niers/catalog/jeu";
+import type { AudioBank } from "@niers/catalog/jeu";
 
-/** Un cue d'une banque, résolu jusqu'à sa forme d'onde. */
-export interface AudioCue {
-	/** Rang du cue dans la `CueTable` de la banque. */
-	index: number;
-	/** Identifiant du cue (`CueTable.CueId`). */
-	cueId: number;
-	/** Nom du cue, ex. `ev60_00010_me`. `null` si la banque n'en donne pas. */
-	name: string | null;
-	/** Codec de la forme d'onde : `hca`, `adx`, `autre` ou `inconnu`. */
-	codec: string;
-	/** Nombre de canaux, `null` si non résolu. */
-	channels: number | null;
-	/** Fréquence d'échantillonnage en Hz, `null` si non résolue. */
-	sampleRate: number | null;
-	/** Nombre d'échantillons, `null` si non résolu. */
-	numSamples: number | null;
-	/** Durée en secondes. */
-	durationSec: number;
-	/** La forme d'onde boucle (typique des BGM). */
-	looped: boolean;
-	/** La forme d'onde vit dans l'AWB externe plutôt qu'en mémoire. */
-	streaming: boolean;
-	/** Identifiant AWB — c'est LUI qu'on passe à `?id=`, pas `index`. */
-	awbId: number | null;
-	/** Rang de l'entrée dans l'AWB, quand l'en-tête AFS2 embarqué permet de le résoudre. */
-	awbIndex: number | null;
-}
-
-/** Catalogue complet d'une banque audio. */
-export interface AudioBank {
-	/** Chemin VFS de l'ACB. */
-	path: string;
-	/** Type de conteneur (`acb`, `hca`, `adx`). */
-	container: string;
-	/** Nom de la cue sheet déclaré par la banque. */
-	name: string | null;
-	/** Version de l'outil CRI ayant produit la banque. */
-	version: number | null;
-	/** Nombre de cues. */
-	cueCount: number;
-	/** Nombre d'entrées dans l'AWB, `null` si l'en-tête n'est pas embarqué. */
-	awbEntryCount: number | null;
-	/** La banque porte son AWB en interne. */
-	embeddedAwb: boolean;
-	/** Chemin VFS de l'AWB frère, `null` si le conteneur n'est pas un ACB. */
-	externalAwb: string | null;
-	/** Les cues, dans l'ordre de la `CueTable`. */
-	cues: AudioCue[];
-}
+export type { AudioBank, AudioCue } from "@niers/catalog/jeu";
 
 /**
  * URL de lecture d'un cue précis d'une banque → WAV PCM 16 bits décodé live.
@@ -74,13 +31,12 @@ export interface AudioBank {
  * la piste la plus volumineuse de la banque.
  */
 export function cpkAudioCueUrl(path: string, awbId?: number | null): string {
-	const base = `${CDN_BASE}/audio/${path}`;
-	return awbId == null ? base : `${base}?id=${awbId}`;
+	return urlAudio(path, awbId);
 }
 
 /** URL du catalogue d'une banque. */
 export function cpkAudioInfoUrl(path: string): string {
-	return `${CDN_BASE}/audio-info/${path}`;
+	return urlBanqueSon(path);
 }
 
 /** Récupère le catalogue d'une banque. Lève si le pont ne répond pas. */
@@ -145,11 +101,13 @@ export function voiceBankCharacterCode(path: string): string | null {
 	return /^c\d{8,9}$/i.test(nom) ? nom.toLowerCase() : null;
 }
 
-/** Formate une durée en `m:ss` (ou `s,d s` sous la seconde). */
+/**
+ * Formate une durée de cue en `m:ss` (ou `s,d s` sous la minute).
+ *
+ * Le nom historique reste : c'est celui qu'importent les pages du wiki. La règle, elle, vit
+ * dans `@niers/catalog/jeu` sous `formatDureeCue`, à côté de celle des films — dont elle diffère
+ * volontairement (une cue de voix dure une seconde et demie, `0:02` en dirait moins).
+ */
 export function formatDuration(sec: number): string {
-	if (!Number.isFinite(sec) || sec <= 0) return "—";
-	if (sec < 1) return `${sec.toFixed(2).replace(".", ",")} s`;
-	const m = Math.floor(sec / 60);
-	const s = Math.round(sec % 60);
-	return m > 0 ? `${m}:${String(s).padStart(2, "0")}` : `${sec.toFixed(1).replace(".", ",")} s`;
+	return formatDureeCue(sec);
 }

@@ -46,7 +46,22 @@ ln -sfn "miroir/$(basename "$FICHIER")" "$RACINE/var/mirror.sqlite"
 echo "[miroir] var/mirror.sqlite -> $(basename "$FICHIER")"
 
 # Rétention : les deux plus récents suffisent — un pour servir, un pour revenir en arrière.
-ls -1t "$SORTIE"/inagle-*.sqlite 2>/dev/null | tail -n +3 | xargs -r rm -f
+#
+# Chaque instantané part avec ses fichiers annexes `-wal` et `-shm`. Sans cette précaution, un
+# lecteur qui a ouvert la base en WAL laisse derrière lui un `-shm` et un `-wal` que le glob
+# `inagle-*.sqlite` ne voit pas : la base est purgée, ses annexes restent, et le dossier
+# accumule des orphelins nuit après nuit. Le cas est observable dans le dossier de l'ancienne
+# synchronisation (`rg/apps/azalee/data/backups/`), qui porte encore les `-shm`/`-wal` d'un
+# instantané supprimé le 2026-09-01.
+ls -1t "$SORTIE"/inagle-*.sqlite 2>/dev/null | tail -n +3 | while read -r vieux; do
+	rm -f "$vieux" "$vieux-wal" "$vieux-shm"
+done
+# Balayage des annexes déjà orphelines — celles dont la base a disparu lors d'un passage
+# antérieur, avant que la ligne ci-dessus n'existe.
+for annexe in "$SORTIE"/inagle-*.sqlite-wal "$SORTIE"/inagle-*.sqlite-shm; do
+	[ -e "$annexe" ] || continue
+	[ -e "${annexe%-*}" ] || rm -f "$annexe"
+done
 echo "[miroir] rétention : $(ls -1 "$SORTIE"/inagle-*.sqlite | wc -l) instantané(s) conservé(s)"
 
 # Contrôle final par la façade elle-même : si le catalogue ne voit pas le nouveau miroir, la

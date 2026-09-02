@@ -128,6 +128,31 @@ fn mods_migrations() -> Vec<Migration> {
                 CREATE INDEX idx_jobs_created ON jobs(created_at DESC);
             "#,
         },
+        Migration {
+            // Compositions d'équipe du constructeur (vue Outils, portée depuis `/tools/my-team`
+            // du wiki). Le site les enregistre côté serveur derrière `getServerSession` : sans
+            // compte connecté, il n'en garde qu'UN brouillon en `localStorage`. Une application
+            // de bureau n'a pas de session, mais elle a un disque — d'où cette table, qui rend
+            // plusieurs compositions NOMMÉES persistantes sans réseau ni authentification.
+            //
+            // `members` est le JSON `Record<créneau, TeamMember>` de
+            // `@rosegriffon/azalee/game/team-types` — la MÊME forme que le wiki persiste, pour
+            // que le code de partage reste interchangeable entre les deux surfaces.
+            version: 4,
+            description: "teams (compositions d'équipe locales, sans session)",
+            kind: MigrationKind::Up,
+            sql: r"
+                CREATE TABLE teams (
+                    id           TEXT PRIMARY KEY,
+                    name         TEXT NOT NULL,
+                    formation_id TEXT NOT NULL,
+                    members      TEXT NOT NULL DEFAULT '{}',
+                    created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+                    updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
+                );
+                CREATE INDEX idx_teams_updated ON teams(updated_at DESC);
+            ",
+        },
     ]
 }
 

@@ -18,6 +18,8 @@ import { LuaView } from "@/components/LuaView";
 import { LiveModView } from "@/components/LiveModView";
 import { ViolaView } from "@/components/ViolaView";
 import { CinemaView } from "@/components/CinemaView";
+import { GalleryView } from "@/components/GalleryView";
+import { ToolsView } from "@/components/ToolsView";
 import { SaveView } from "@/components/SaveView";
 import { SettingsView } from "@/components/SettingsView";
 import { DetailPane } from "@/components/DetailPane";
@@ -112,6 +114,7 @@ export default function App() {
         label: "Données",
         items: [
           { id: "data", label: t("tab.data"), icon: "database" },
+          { id: "gallery", label: "Galerie", icon: "photo_library" },
           { id: "cpk", label: t("tab.cpk"), icon: "deployed_code" },
           { id: "save", label: t("tab.save"), icon: "save" },
         ],
@@ -119,6 +122,7 @@ export default function App() {
       {
         label: "Outils",
         items: [
+          { id: "tools", label: "Outils wiki", icon: "handyman" },
           { id: "mods", label: t("tab.mods"), icon: "extension" },
           { id: "re", label: t("tab.re"), icon: "memory" },
           { id: "viola", label: "Viola", icon: "deployed_code" },
@@ -328,6 +332,8 @@ export default function App() {
         explorer: t("tab.explorer"),
         search: t("tab.search"),
         data: t("tab.data"),
+        gallery: "Galerie",
+        tools: "Outils wiki",
         mods: t("tab.mods"),
         cpk: t("tab.cpk"),
         re: t("tab.re"),
@@ -486,6 +492,19 @@ export default function App() {
                 </TabsContent>
                 <TabsContent value="data" className="h-full min-h-0">
                   <GameDataView onOpenFile={revealInExplorer} />
+                </TabsContent>
+                <TabsContent value="gallery" className="h-full min-h-0">
+                  <GalleryView onOpenFile={revealInExplorer} />
+                </TabsContent>
+                <TabsContent value="tools" className="h-full min-h-0">
+                  {/* « Ses fichiers » du Traducteur : le code interne part dans la Recherche de
+                      l'onglet actif — c'est le geste que le wiki ne peut pas offrir. */}
+                  <ToolsView
+                    onOpenSearch={(q) => {
+                      explorerTabs.update(activeTabId, { query: q });
+                      setTab("explorer");
+                    }}
+                  />
                 </TabsContent>
                 <TabsContent value="mods" className="h-full min-h-0">
                   <ModsView onOpenFile={revealInExplorer} />

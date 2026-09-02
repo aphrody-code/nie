@@ -25,11 +25,18 @@
  * lui-même — il vit collé à son plafond mémoire, et une passe sur les 3,7 Gio de films le fait
  * redémarrer par son watchdog. Tant qu'il manque, le CDN répond 503 et la page retombe sur le
  * listing VFS live : moins riche, mais elle rend.
+ *
+ * L'état de la page — filtres, recherche, film ouvert — vit dans l'URL (`etat-url.ts`). C'est ce
+ * qui rend une cinématique partageable : `/videos?film=ev01_00050` ouvre son lecteur, et le
+ * canonique comme le titre de l'onglet en découlent.
  */
 import type { Metadata } from "next";
-import { type FilmVue, VideoGallery } from "@/app/videos/VideoGallery";
+import { VideoGallery } from "@/app/videos/VideoGallery";
+import { CLES_CANONIQUES, lireEtat } from "@/app/videos/etat-url";
+import type { FilmVue } from "@/app/videos/film-vue";
 import { MediaEmpty, MediaHeader } from "@/components/wiki/MediaShell";
 import { videoLabel } from "@/lib/cpk/media-names";
+import { buildCanonical } from "@/lib/seo";
 import { lsOrNull } from "@rosegriffon/azalee/cpk/live";
 import {
 	aDuSon,
@@ -41,21 +48,50 @@ import {
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-export const metadata: Metadata = {
-	alternates: { canonical: "/videos" },
-	description:
-		"Cinématiques et vidéos d'Inazuma Eleven: Victory Road (écrans-titre, événements), décodées à la volée depuis les fichiers du jeu (USM → MP4).",
-	openGraph: {
+/** Les paramètres d'URL, tels que Next les livre à cette page. */
+type Recherche = Promise<Record<string, string | string[] | undefined>>;
+
+/**
+ * Le titre et le canonique suivent les paramètres.
+ *
+ * Une lightbox ouverte sur `?film=ev01_00050` est un document à part entière : elle mérite son
+ * titre — le vrai libellé du film, résolu par `videoLabel` comme dans la page elle-même, pas le
+ * code de fichier — et son canonique. `q` est la seule clé écartée du canonique : c'est une
+ * recherche interne, sur un espace non borné, et chaque frappe y deviendrait une page de plus
+ * (même raisonnement que `LIST_CANONICAL_KEYS` dans `lib/seo.ts`).
+ */
+export async function generateMetadata({
+	searchParams,
+}: {
+	searchParams: Recherche;
+}): Promise<Metadata> {
+	const params = await searchParams;
+	const etat = lireEtat(params);
+
+	let titre = "Vidéos & cinématiques";
+	if (etat.film) {
+		const label = await videoLabel(etat.film);
+		titre = `${label.title} (${etat.film})`;
+	} else if (etat.rubrique !== "toutes") {
+		titre = `Vidéos — ${etat.rubrique}`;
+	}
+
+	return {
+		alternates: { canonical: buildCanonical("/videos", params, CLES_CANONIQUES) },
 		description:
-			"Toutes les cinématiques d'Inazuma Eleven: Victory Road, décodées live depuis les CPK.",
-		locale: "fr_FR",
-		siteName: "Azalée - Inazuma Eleven Victory Road",
-		title: "Vidéos & cinématiques | Azalée",
-		type: "website",
-		url: "/videos",
-	},
-	title: "Vidéos & cinématiques — Inazuma Eleven Victory Road - Azalée",
-};
+			"Cinématiques et vidéos d'Inazuma Eleven: Victory Road (écrans-titre, événements), décodées à la volée depuis les fichiers du jeu (USM → MP4).",
+		openGraph: {
+			description:
+				"Toutes les cinématiques d'Inazuma Eleven: Victory Road, décodées live depuis les CPK.",
+			locale: "fr_FR",
+			siteName: "Azalée - Inazuma Eleven Victory Road",
+			title: `${titre} | Azalée`,
+			type: "website",
+			url: buildCanonical("/videos", params, CLES_CANONIQUES),
+		},
+		title: `${titre} — Inazuma Eleven Victory Road - Azalée`,
+	};
+}
 
 /**
  * Fiche minimale bâtie sur le seul listing VFS, quand le catalogue n'est pas disponible.
@@ -84,13 +120,15 @@ function ficheDeRepli(path: string, nom: string, octets: number): FilmDto {
 	};
 }
 
-export default async function VideosPage() {
+export default async function VideosPage({ searchParams }: { searchParams: Recherche }) {
 	// Le catalogue porte les métadonnées ; le listing dx11 dit lesquels existent en haut débit,
 	// avec leur poids réel. Les deux en parallèle : ni l'un ni l'autre ne bloque l'autre.
-	const [catalogue, hd] = await Promise.all([
+	const [params, catalogue, hd] = await Promise.all([
+		searchParams,
 		fetchVideoCatalogueOrNull(),
 		lsOrNull("data/dx11/movie", 500),
 	]);
+	const etatUrl = lireEtat(params);
 
 	// Repli : le catalogue n'est pas encore construit. On liste au moins les films.
 	let films: FilmDto[] = catalogue?.films ?? [];
@@ -164,7 +202,7 @@ export default async function VideosPage() {
 					établie.
 				</MediaEmpty>
 			) : (
-				<VideoGallery films={vues} langues={langues} degrade={degrade} />
+				<VideoGallery films={vues} langues={langues} degrade={degrade} etatUrl={etatUrl} />
 			)}
 		</div>
 	);

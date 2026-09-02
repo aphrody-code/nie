@@ -34,6 +34,8 @@ const VIEW_TABS = [
   "explorer",
   "search",
   "data",
+  "gallery",
+  "tools",
   "mods",
   "cpk",
   "re",

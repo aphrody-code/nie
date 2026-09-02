@@ -14,9 +14,18 @@
  * dégrader (cf. `lsOrNull`) continue de rendre au lieu de casser.
  */
 
-import type { CpkDir, CpkFile } from "./shared";
+import {
+	baseJeu,
+	cheminCatalogueTextures,
+	cheminListe,
+	cheminRecherche,
+	cheminStatsVfs,
+	cheminFiche,
+	urlExport,
+	urlImage,
+} from "@niers/catalog/jeu";
 
-const CDN_BASE = "https://cdn.rosegriffon.fr";
+import type { CpkDir, CpkFile } from "./shared";
 
 /**
  * Un fichier du VFS live.
@@ -113,7 +122,7 @@ export class VfsError extends Error {
 async function getJson<T>(chemin: string): Promise<T> {
 	let res: Response;
 	try {
-		res = await fetch(`${CDN_BASE}${chemin}`);
+		res = await fetch(baseJeu() + chemin);
 	} catch {
 		// Statut 0 = la requête n'a pas abouti (DNS, TLS, réseau) : distinct d'un 404 du pont.
 		throw new VfsError(`pont VFS injoignable (${chemin})`, 0);
@@ -129,8 +138,7 @@ async function getJson<T>(chemin: string): Promise<T> {
  * que la structure, sans payer le transfert des fichiers.
  */
 export function vfsLs(dir: string, limit = 1000, offset = 0): Promise<VfsListing> {
-	const q = new URLSearchParams({ path: dir, limit: String(limit), offset: String(offset) });
-	return getJson<VfsListing>(`/vfs/ls?${q}`);
+	return getJson<VfsListing>(cheminListe(dir, limit, offset));
 }
 
 /**
@@ -143,23 +151,23 @@ export function vfsFind(
 	query: string,
 	options: { ext?: string; limit?: number; offset?: number } = {},
 ): Promise<VfsSearch> {
-	const q = new URLSearchParams({
-		q: query,
-		limit: String(options.limit ?? 200),
-		offset: String(options.offset ?? 0),
-	});
-	if (options.ext) q.set("ext", options.ext);
-	return getJson<VfsSearch>(`/vfs/find?${q}`);
+	return getJson<VfsSearch>(
+		cheminRecherche(query, {
+			limite: options.limit ?? 200,
+			decalage: options.offset ?? 0,
+			ext: options.ext,
+		}),
+	);
 }
 
 /** Métadonnées d'un fichier précis, avec ses formats d'export et sa description. */
 export function vfsStat(path: string): Promise<VfsFileMeta> {
-	return getJson<VfsFileMeta>(`/vfs/stat?${new URLSearchParams({ path })}`);
+	return getJson<VfsFileMeta>(cheminFiche(path));
 }
 
 /** Compteurs globaux du VFS monté. */
 export function vfsStats(): Promise<VfsStats> {
-	return getJson<VfsStats>("/vfs/stats");
+	return getJson<VfsStats>(cheminStatsVfs());
 }
 
 /**
@@ -193,9 +201,7 @@ export function exportUrl(
 	format: string,
 	options: { awbId?: number | null } = {},
 ): string {
-	const q = new URLSearchParams({ format });
-	if (options.awbId != null) q.set("id", String(options.awbId));
-	return `${CDN_BASE}/export/${path}?${q}`;
+	return urlExport(path, format, options.awbId ?? undefined);
 }
 
 /**
@@ -249,7 +255,7 @@ export interface TexContainer {
  */
 export async function texContainer(rel: string): Promise<TexContainer | null> {
 	try {
-		const res = await fetch(`${CDN_BASE}/tex-info/${rel}.g4tx`);
+		const res = await fetch(baseJeu() + cheminCatalogueTextures(rel));
 		if (!res.ok) return null;
 		return (await res.json()) as TexContainer;
 	} catch {
@@ -259,8 +265,9 @@ export async function texContainer(rel: string): Promise<TexContainer | null> {
 
 /** URL absolue d'une texture du catalogue (le champ `path` est relatif au CDN). */
 export function texUrl(path: string, width?: number): string {
-	const url = `${CDN_BASE}${path}`;
-	return width ? `${url}?w=${width}&format=webp` : url;
+	// `width` absent OU nul : l'URL reste la pleine résolution, sans query. Un `?w=0` demanderait
+	// une image de largeur zéro à `cdn-variants` — d'où le test de véracité, et non de présence.
+	return urlImage(path, width ? { largeur: width } : {});
 }
 
 /** Variante tolérante de [`vfsFind`]. */

@@ -1,7 +1,7 @@
 "use client";
 
 import { Play } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -55,6 +55,9 @@ export function SkillVideoPlayer({
 }: SkillVideoPlayerProps) {
 	const [internalIndex, setInternalIndex] = useState(0);
 	const [failed, setFailed] = useState<Record<number, boolean>>({});
+	// Préfixe stable et unique, côté serveur comme côté client : deux lecteurs sur
+	// la même page ne doivent pas partager les identifiants de leurs onglets.
+	const idBase = useId();
 
 	const activeIndex = controlledIndex ?? internalIndex;
 	const setActiveIndex = (index: number) => {
@@ -70,9 +73,23 @@ export function SkillVideoPlayer({
 	const poster = active.posterUrl || fallbackPoster || undefined;
 	const variantFr = VARIANT_FR[active.label] || active.label;
 
+	const multiple = videos.length > 1;
+	const idOnglet = (i: number) => `${idBase}-onglet-${i}`;
+	const idPanneau = `${idBase}-panneau`;
+
 	return (
 		<div className={cn("space-y-2", className)}>
-			<div className="w-full aspect-video relative rounded-2xl overflow-hidden shadow-lg border border-outline-variant/20 bg-surface-container-highest">
+			{/* Le cadre vidéo EST le panneau des onglets : sans `role="tabpanel"` ni
+			    `aria-controls`, un `role="tablist"` promet une relation qu'aucun
+			    lecteur d'écran ne peut suivre — l'utilisateur active un onglet sans
+			    savoir ce qui a changé, ni où aller le lire. */}
+			<div
+				id={multiple ? idPanneau : undefined}
+				role={multiple ? "tabpanel" : undefined}
+				aria-labelledby={multiple ? idOnglet(activeIndex) : undefined}
+				tabIndex={multiple ? 0 : undefined}
+				className="w-full aspect-video relative rounded-2xl overflow-hidden shadow-lg border border-outline-variant/20 bg-surface-container-highest"
+			>
 				{failed[activeIndex] ? (
 					<div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-on-surface-variant">
 						<Play size={40} aria-hidden="true" />
@@ -106,14 +123,29 @@ export function SkillVideoPlayer({
 
 			{/* Sélecteur de variante — 236 techniques sur 895 en ont deux (réussite/échec,
 			    défense/contre-tir). L'onglet n'apparaît que s'il y a un choix à faire. */}
-			{videos.length > 1 && (
+			{multiple && (
 				<div className="flex flex-wrap gap-2" role="tablist" aria-label={`Variantes de ${skillName}`}>
 					{videos.map((v, i) => (
 						<button
 							key={v.videoUrl}
+							id={idOnglet(i)}
 							type="button"
 							role="tab"
 							aria-selected={i === activeIndex}
+							aria-controls={idPanneau}
+							// Un `tablist` ne compte qu'un seul arrêt de tabulation : la flèche
+							// change d'onglet, la tabulation en sort vers le panneau.
+							tabIndex={i === activeIndex ? 0 : -1}
+							onKeyDown={(e) => {
+								if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") {
+									return;
+								}
+								e.preventDefault();
+								const pas = e.key === "ArrowRight" ? 1 : -1;
+								const suivant = (activeIndex + pas + videos.length) % videos.length;
+								setActiveIndex(suivant);
+								document.getElementById(idOnglet(suivant))?.focus();
+							}}
 							onClick={() => setActiveIndex(i)}
 							className={cn(
 								"inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors min-h-11 sm:min-h-9",
