@@ -20,4 +20,7 @@ nie-lua = { path = "../../engine/nie-lua" }
 # ~100 parseurs spécialisés de nie-data (chara_base/chara_text/skill/growth/item/aura/…) contre
 # les octets VFS LIVE, sans dump externe : ils consomment tous la même forme `&serde_json::Value`.
 nie-data = { path = "../../engine/nie-data", features = ["serde", "std"] }
+# Le catalogue des cinématiques (`cinema`) est un DTO partagé par la CLI, le serveur HTTP et
+# la page /videos d'azalée : il doit se sérialiser à l'identique des trois côtés.
+serde = { workspace = true, features = ["derive"] }
 serde_json = { version = "1", default-features = false, features = ["std"] }
