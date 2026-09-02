@@ -45,6 +45,14 @@ export const ACTIONS = [
 	"hasard",
 	/** Menu de sélection d'un épisode : `wb/choix/<saison>`. */
 	"choix",
+	/** Écouter en vocal : `wb/vocal/<saison>/<episode>`. */
+	"vocal",
+	/** Pause / reprise de l'écoute vocale. */
+	"vpause",
+	/** Piste suivante de la file vocale. */
+	"vpasser",
+	/** Couper l'écoute et quitter le salon. */
+	"vstop",
 ] as const;
 
 export type Action = (typeof ACTIONS)[number];

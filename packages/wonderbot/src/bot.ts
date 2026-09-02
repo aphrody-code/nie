@@ -47,7 +47,14 @@ import {
 	type OptionsCommande,
 } from "./commands/ietv.ts";
 import { Planificateur } from "./planificateur.ts";
-import { ecranAccueil, ecranArc, ecranLecture, ecranMaListe, ecranRouteInconnue } from "./ecrans.ts";
+import {
+	ecranAccueil,
+	ecranArc,
+	ecranEcoute,
+	ecranLecture,
+	ecranMaListe,
+	ecranRouteInconnue,
+} from "./ecrans.ts";
 import {
 	Progression,
 	ProgressionSqlite,
@@ -56,8 +63,10 @@ import {
 } from "./progression.ts";
 import { argumentEntier, lireRoute, type Route } from "./routes.ts";
 import { Service } from "./service.ts";
+import { PasserelleVocaleDiscord } from "./passerelle-vocale.ts";
 import { ICONES, fiche, listerEpisodes, type Reponse } from "./ui/index.ts";
 import { DRAPEAU_V2 } from "./ui/v2.ts";
+import { SessionVocale, SessionsVocales, resolveurDepuisTable } from "./vocal.ts";
 
 export interface OptionsBot {
 	config: ConfigWonderbot;
@@ -75,6 +84,8 @@ export interface OptionsBot {
 	 * pans entiers, ce que les membres ont regardé ne l'est pas.
 	 */
 	progression?: StockageProgression;
+	/** Sessions vocales — injectables pour tester sans salon ni ffmpeg. */
+	ecoutes?: SessionsVocales;
 }
 
 /** Rôles de l'appelant, quelle que soit la forme rendue par discord.js. */
@@ -150,6 +161,7 @@ export class Wonderbot {
 	private readonly reparateur: Reparateur;
 	private readonly progression: Progression;
 	private readonly service: Service;
+	private readonly ecoutes: SessionsVocales;
 	/** Minuteur de la tentative de réparation en attente, s'il y en a une. */
 	private reparationEnAttente: ReturnType<typeof setTimeout> | null = null;
 
@@ -161,7 +173,11 @@ export class Wonderbot {
 		this.client =
 			options.client ??
 			new Client({
-				intents: [GatewayIntentBits.Guilds],
+				// `GuildVoiceStates` n'est PAS un intent privilégié : il n'exige
+				// rien dans le portail développeur. Sans lui, le bot ignore dans
+				// quel salon vocal se trouve l'appelant, et `/episodes vocal` ne
+				// saurait pas où se connecter.
+				intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates],
 			});
 
 		this.reparateur = new Reparateur({
@@ -179,6 +195,23 @@ export class Wonderbot {
 			marque: this.config.marque,
 			lacunesConfirmees: () => this.reparateur.confirmes(),
 		});
+
+		this.ecoutes =
+			options.ecoutes ??
+			new SessionsVocales(
+				(guildeId) =>
+					new SessionVocale({
+						passerelle: new PasserelleVocaleDiscord(guildeId, {
+							adaptateur: async (id) => {
+								const guilde = await this.client.guilds.fetch(id);
+								return guilde.voiceAdapterCreator;
+							},
+							journaliser: (message) => this.journaliser(`${ICONES.attention} vocal : ${message}`),
+						}),
+						resoudre: resolveurDepuisTable(this.config.sourcesAudio),
+						journaliser: (message) => this.journaliser(`${ICONES.attention} vocal : ${message}`),
+					})
+			);
 
 		this.planificateur = new Planificateur({
 			intervalleMs: this.config.intervalleRafraichissementMs,
@@ -388,7 +421,11 @@ export class Wonderbot {
 		}
 
 		const membre = composant.user.id;
-		const reponse = this.ecranDeRoute(route, membre, valeurs);
+		const guildeId = interaction.guildId;
+		const reponse = await this.ecranDeRoute(route, membre, valeurs, {
+			guildeId,
+			salonVocal: this.salonVocalDe(guildeId, membre),
+		});
 		const sourceEstV2 = composant.message.flags.has(MessageFlags.IsComponentsV2);
 		const cibleEstV2 = reponse.v2 !== undefined;
 
@@ -412,8 +449,157 @@ export class Wonderbot {
 		});
 	}
 
-	/** Traduit une route en écran. Aucun effet réseau : tout est local. */
-	private ecranDeRoute(route: Route, membre: string, valeurs: readonly string[]): Reponse {
+	/**
+	 * Le salon vocal où se trouve un membre, `null` s'il n'est dans aucun.
+	 *
+	 * Lu dans le CACHE des états vocaux, qu'alimente l'intent
+	 * `GuildVoiceStates` : c'est immédiat et n'appelle pas l'API. Sans cet
+	 * intent le cache reste vide, et le bot répondrait « tu n'es dans aucun
+	 * salon » à quelqu'un qui y est — d'où l'intent posé à la construction.
+	 */
+	private salonVocalDe(guildeId: string | null, membreId: string): string | null {
+		if (!guildeId) return null;
+		const guilde = this.client.guilds.cache.get(guildeId);
+		return guilde?.voiceStates.cache.get(membreId)?.channelId ?? null;
+	}
+
+	/**
+	 * Met un épisode en file d'écoute et rend l'écran du vocal.
+	 *
+	 * Les deux refus possibles sont dits AVANT toute tentative : hors serveur,
+	 * il n'y a pas de salon vocal ; hors salon, le bot ne saurait pas où aller.
+	 * Laisser `rejoindre` échouer rendrait une erreur de bibliothèque, pas une
+	 * consigne.
+	 */
+	private async mettreEnEcoute(
+		membre: string,
+		contexte: { guildeId: string | null; salonVocal: string | null },
+		cle: { saison: number; episode: number }
+	): Promise<Reponse> {
+		if (!contexte.guildeId) {
+			return this.messageVocal("L'écoute en vocal n'existe que sur un serveur, pas en message privé.");
+		}
+		if (!contexte.salonVocal) {
+			return this.messageVocal(
+				"Rejoins d'abord un salon vocal : c'est là que le bot vient jouer la bande son."
+			);
+		}
+
+		const vue = this.service.lecture(membre, cle);
+		if (!vue) return this.messageVocal("Cet épisode a quitté le catalogue.");
+
+		const session = this.ecoutes.de(contexte.guildeId);
+		try {
+			const resultat = await session.ajouter(contexte.guildeId, contexte.salonVocal, {
+				...cle,
+				titre: vue.titre,
+				nomArc: vue.nomArc,
+				demandeur: membre,
+			});
+			return this.ecranEcouteCourant(session, resultat.erreur ?? this.avertissementSources());
+		} catch (err) {
+			this.journaliser(
+				`${ICONES.echec} vocal : ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`
+			);
+			return this.messageVocal(err instanceof Error ? err.message : String(err));
+		}
+	}
+
+	/** Pause, piste suivante ou arrêt de l'écoute en cours. */
+	private async piloterEcoute(
+		action: "vpause" | "vpasser" | "vstop",
+		contexte: { guildeId: string | null }
+	): Promise<Reponse> {
+		const session = contexte.guildeId ? this.ecoutes.existante(contexte.guildeId) : null;
+		if (!session) return this.messageVocal("Aucune écoute en cours sur ce serveur.");
+
+		let avertissement: string | null = null;
+		if (action === "vpause") session.basculerPause();
+		else if (action === "vpasser") avertissement = (await session.passer()).erreur ?? null;
+		else session.arreter();
+
+		return this.ecranEcouteCourant(session, avertissement);
+	}
+
+	/**
+	 * `/episodes vocal` — met en écoute ce que l'appelant est en train de suivre.
+	 *
+	 * Sans argument à dessein : le bot sait déjà où en est le membre. Quand une
+	 * écoute tourne déjà sur le serveur, la commande se contente d'en montrer
+	 * l'état — c'est le geste « où en est-on ? », pas « remets tout depuis le
+	 * début ».
+	 */
+	private async commandeVocal(interaction: ChatInputCommandInteraction): Promise<Reponse> {
+		const guildeId = interaction.guildId;
+		const membre = interaction.user.id;
+		const session = guildeId ? this.ecoutes.existante(guildeId) : null;
+
+		if (session && session.vue().etat !== "arrete") {
+			return this.ecranEcouteCourant(session, this.avertissementSources());
+		}
+
+		const reprise = this.service.reprise(membre);
+		if (!reprise) {
+			return this.messageVocal(
+				"Rien à écouter : le catalogue est vide, ou tu as déjà tout vu. " +
+					"`/episodes hasard` pour te laisser porter."
+			);
+		}
+
+		return this.mettreEnEcoute(
+			membre,
+			{ guildeId, salonVocal: this.salonVocalDe(guildeId, membre) },
+			{ saison: reprise.saison, episode: reprise.episode }
+		);
+	}
+
+	/** L'écran du vocal, bâti sur l'état courant de la session. */
+	private ecranEcouteCourant(session: SessionVocale, avertissement: string | null): Reponse {
+		const vue = session.vue();
+		return {
+			embeds: [],
+			v2: ecranEcoute({ ...vue, avertissement, marque: this.config.marque }),
+		};
+	}
+
+	/** Un écran de vocal vide, portant une seule explication. */
+	private messageVocal(explication: string): Reponse {
+		return {
+			embeds: [],
+			v2: ecranEcoute({
+				etat: "arrete",
+				courante: null,
+				file: [],
+				salonId: null,
+				avertissement: explication,
+				marque: this.config.marque,
+			}),
+		};
+	}
+
+	/**
+	 * L'avertissement à poser quand aucune source audio n'est configurée.
+	 *
+	 * Sans lui, le vocal échouerait épisode après épisode sans jamais dire que
+	 * la cause est une table vide, et non un problème de réseau.
+	 */
+	private avertissementSources(): string | null {
+		return Object.keys(this.config.sourcesAudio).length === 0
+			? "Aucune source audio n'est déclarée : pose `WONDERBOT_SOURCES_AUDIO` sur un fichier JSON " +
+					"associant `saison:episode` à une URL de média directe (MP4, MP3, HLS…)."
+			: null;
+	}
+
+	/** Traduit une route en écran. Seul le vocal sort du local. */
+	private async ecranDeRoute(
+		route: Route,
+		membre: string,
+		valeurs: readonly string[],
+		contexte: { guildeId: string | null; salonVocal: string | null } = {
+			guildeId: null,
+			salonVocal: null,
+		}
+	): Promise<Reponse> {
 		const introuvable = (): Reponse => ({
 			embeds: [
 				fiche({ titre: `${ICONES.vide} Épisode indisponible`, intention: "muet", marque: this.config.marque })
@@ -479,6 +665,18 @@ export class Wonderbot {
 				const cle = this.service.hasard(membre);
 				return cle ? lecteur(cle.saison, cle.episode) : introuvable();
 			}
+
+			case "vocal": {
+				const saison = argumentEntier(route, 0);
+				const episode = argumentEntier(route, 1);
+				if (saison === null || episode === null) return introuvable();
+				return this.mettreEnEcoute(membre, contexte, { saison, episode });
+			}
+
+			case "vpause":
+			case "vpasser":
+			case "vstop":
+				return this.piloterEcoute(route.action, contexte);
 
 			case "choix": {
 				// `wb/choix/<saison>` : la valeur est le numéro d'épisode. La liste
@@ -563,18 +761,25 @@ export class Wonderbot {
 
 		let reponse: Reponse;
 		try {
-			reponse = await executerIetv(
-				sousCommande,
-				optionsDeLInteraction(interaction),
-				this.contexte(
-					interaction.user.id,
-					estStaff(
-						rolesDeLInteraction(interaction),
-						this.config.rolesStaff,
-						estAdministrateur(interaction)
-					)
-				)
-			);
+			// `vocal` a besoin du serveur et du salon vocal de l'appelant, deux
+			// choses qui n'existent que dans l'interaction. La traiter ici plutôt
+			// que de faire descendre la passerelle Discord jusqu'aux commandes,
+			// qui sont écrites pour ne rien connaître d'elle.
+			reponse =
+				sousCommande === "vocal"
+					? await this.commandeVocal(interaction)
+					: await executerIetv(
+							sousCommande,
+							optionsDeLInteraction(interaction),
+							this.contexte(
+								interaction.user.id,
+								estStaff(
+									rolesDeLInteraction(interaction),
+									this.config.rolesStaff,
+									estAdministrateur(interaction)
+								)
+							)
+						);
 		} catch (err) {
 			this.journaliser(
 				`${ICONES.echec} /${DEFINITION_IETV.name} a levé : ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`

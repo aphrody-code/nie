@@ -500,6 +500,9 @@ export function ecranLecture(vue: VueLecture): Reponse {
 	const secondaire = rangee([
 		bouton({ id: route("accueil"), libelle: "Accueil", emoji: "🏠" }),
 		bouton({ id: route("hasard"), emoji: "🎲" }),
+		// La bande son dans le salon vocal, pour écouter à plusieurs. L'image,
+		// elle, reste ici : Discord n'offre aucune API vidéo à un bot.
+		bouton({ id: route("vocal", vue.saison, vue.episode), libelle: "En vocal", emoji: "🔊" }),
 		...(jouable ? [boutonLien(jouable.url, "Ouvrir ailleurs", "🔗")] : []),
 	]);
 
@@ -636,6 +639,105 @@ export function ecranAide(marque: Marque): MessageV2 {
 			marque.couleur
 		),
 	]);
+}
+
+export interface VueEcoute {
+	/** `"arrete"` | `"lecture"` | `"pause"`. */
+	etat: "arrete" | "lecture" | "pause";
+	courante: { saison: number; episode: number; titre: string; nomArc: string } | null;
+	file: readonly { saison: number; episode: number; titre: string; nomArc: string }[];
+	/** Salon vocal où le bot se trouve, `null` s'il n'y est pas. */
+	salonId: string | null;
+	/** Message d'avertissement — source introuvable, par exemple. */
+	avertissement?: string | null;
+	marque: Marque;
+}
+
+/**
+ * L'écoute en vocal : ce qui passe, ce qui suit, et les commandes.
+ *
+ * ── ON DIT CE QUE LE VOCAL EST, ET CE QU'IL N'EST PAS ──────────────────────
+ * Un membre qui lance « écouter en vocal » s'attend souvent à voir l'épisode
+ * dans le salon. Discord ne le permet pas — un bot n'a aucune API pour
+ * diffuser de la vidéo. L'écran l'écrit noir sur blanc plutôt que de laisser
+ * croire à une panne.
+ */
+export function ecranEcoute(vue: VueEcoute): MessageV2 {
+	const blocs: (ComposantV2 | null)[] = [];
+
+	const etatLisible =
+		vue.etat === "lecture" ? "▶️ en lecture" : vue.etat === "pause" ? "⏸️ en pause" : "⏹️ arrêté";
+
+	blocs.push(
+		texte(
+			`# 🔊 Écoute en vocal\n` +
+				(vue.salonId ? `-# ${etatLisible} · salon <#${vue.salonId}>` : `-# ${etatLisible}`)
+		)
+	);
+
+	if (vue.courante) {
+		blocs.push(
+			texte(
+				`### ${vue.courante.nomArc} — E${String(vue.courante.episode).padStart(2, "0")}\n` +
+					echapperMarkdown(vue.courante.titre)
+			)
+		);
+	} else {
+		blocs.push(texte("*Rien en lecture.*"));
+	}
+
+	if (vue.file.length > 0) {
+		blocs.push(separateur());
+		blocs.push(
+			texte(
+				`### 🎞️ À suivre · ${vue.file.length}\n` +
+					vue.file
+						.slice(0, 10)
+						.map(
+							(piste, rang) =>
+								`\`${rang + 1}.\` **${piste.nomArc} E${String(piste.episode).padStart(2, "0")}** · ` +
+								echapperMarkdown(piste.titre)
+						)
+						.join("\n") +
+					(vue.file.length > 10 ? `\n-# …et ${vue.file.length - 10} de plus.` : "")
+			)
+		);
+	}
+
+	if (vue.avertissement) {
+		blocs.push(texte(`-# ${ICONES.attention} ${vue.avertissement}`));
+	}
+
+	blocs.push(separateur());
+	blocs.push(
+		texte(
+			"-# Le vocal porte la bande son. Discord n'offre aucune API permettant à un bot de " +
+				"diffuser de la vidéo : l'image reste dans le lecteur du message."
+		)
+	);
+
+	blocs.push(
+		rangee([
+			bouton({
+				id: route("vpause"),
+				libelle: vue.etat === "pause" ? "Reprendre" : "Pause",
+				emoji: vue.etat === "pause" ? "▶️" : "⏸️",
+				style: STYLE_BOUTON.primaire,
+				desactive: vue.etat === "arrete",
+			}),
+			bouton({ id: route("vpasser"), libelle: "Suivante", emoji: "⏭️", desactive: vue.file.length === 0 }),
+			bouton({
+				id: route("vstop"),
+				libelle: "Arrêter",
+				emoji: "⏹️",
+				style: STYLE_BOUTON.danger,
+				desactive: vue.etat === "arrete" && vue.salonId === null,
+			}),
+			bouton({ id: route("accueil"), emoji: "🏠" }),
+		])
+	);
+
+	return ecran([conteneur(blocs, vue.marque.couleur)]);
 }
 
 /** Écran d'erreur d'un bouton devenu invalide. */

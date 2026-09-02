@@ -17,6 +17,7 @@
  * dans un `.env`.
  */
 
+import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -74,6 +75,18 @@ export interface ConfigWonderbot {
 	/** Délai avant une tentative de réparation. */
 	delaiReparationMs: number;
 	marque: Marque;
+	/**
+	 * Table `saison:episode` → URL de média DIRECTE, pour l'écoute en vocal.
+	 *
+	 * ── AUCUNE SOURCE N'EST CODÉE EN DUR ───────────────────────────────────
+	 * ffmpeg lit un MP4, un MP3 ou un flux HLS, pas une page web. C'est donc à
+	 * l'exploitant de désigner les médias qu'il a le droit de servir — un
+	 * miroir qu'il héberge, un flux dont il dispose. Vide, le vocal le DIT au
+	 * lieu de faire semblant.
+	 *
+	 * Lue depuis `WONDERBOT_SOURCES_AUDIO`, un chemin de fichier JSON.
+	 */
+	sourcesAudio: Readonly<Record<string, string>>;
 }
 
 /** Variable portant le jeton, et ses replis historiques, dans l'ordre. */
@@ -239,7 +252,38 @@ export function lireConfig(env: EnvLisible): ConfigWonderbot {
 			minimum: 60_000,
 		}),
 		marque: MARQUE_PAR_DEFAUT,
+		sourcesAudio: lireSourcesAudio(env.WONDERBOT_SOURCES_AUDIO),
 	};
+}
+
+/**
+ * Table des sources audio, lue depuis un fichier JSON désigné par
+ * `WONDERBOT_SOURCES_AUDIO`.
+ *
+ * ── UN FICHIER ILLISIBLE NE DOIT PAS EMPÊCHER LE BOT DE DÉMARRER ───────────
+ * Le vocal est une commodité ; le catalogue est la fonction principale. Un
+ * chemin absent, un JSON abîmé ou une valeur d'un mauvais type rendent donc une
+ * table VIDE — le vocal dira qu'il n'a pas de source — plutôt que de refuser le
+ * démarrage et de priver le serveur de toutes ses commandes.
+ *
+ * La lecture est synchrone et faite une fois : c'est un fichier de
+ * configuration, pas une donnée qui bouge.
+ */
+export function lireSourcesAudio(chemin: string | undefined): Readonly<Record<string, string>> {
+	const nettoye = (chemin ?? "").trim();
+	if (nettoye === "") return {};
+	try {
+		const brut: unknown = JSON.parse(readFileSync(nettoye, "utf8"));
+		if (typeof brut !== "object" || brut === null || Array.isArray(brut)) return {};
+		return Object.fromEntries(
+			Object.entries(brut as Record<string, unknown>).filter(
+				(entree): entree is [string, string] =>
+					typeof entree[1] === "string" && entree[1].trim() !== ""
+			)
+		);
+	} catch {
+		return {};
+	}
 }
 
 /**
