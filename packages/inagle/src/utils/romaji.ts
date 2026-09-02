@@ -4,6 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// `kuroshiro` et son analyseur n'ont ni `.d.ts` ni `@types/*` amont. La référence est POSÉE
+// ICI, dans le seul fichier qui les importe : un `declare module` n'entre dans le programme
+// que s'il y est tiré, et les consommateurs de ce paquet (`apps/azalee`, `packages/mcp`)
+// compilent cette source directement depuis que `inagle` expose `src/` au lieu de `dist/`.
+/// <reference path="../../types/kuroshiro-shim.d.ts" />
 import Kuroshiro from "kuroshiro";
 import KuromojiAnalyzer from "kuroshiro-analyzer-kuromoji";
 import { dirname, join } from "node:path";

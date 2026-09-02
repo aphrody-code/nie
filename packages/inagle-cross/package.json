@@ -8,14 +8,16 @@
 		".": "./src/index.ts"
 	},
 	"scripts": {
-		"type-check": "bun --bun tsc --noEmit"
+		"type-check": "bun --bun tsc --noEmit",
+		"typecheck": "bun --bun tsc --noEmit"
 	},
 	"dependencies": {
 		"zod": "catalog:"
 	},
 	"devDependencies": {
 		"@types/node": "catalog:",
-		"typescript": "catalog:"
+		"typescript": "catalog:",
+		"@types/bun": "catalog:"
 	},
 	"publishConfig": {
 		"access": "public",

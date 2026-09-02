@@ -33,7 +33,7 @@ import { createPortal } from "react-dom";
 import { definirPhotoDepuisAvatar } from "./actions";
 import { H, MORPHOLOGIES, resolveur } from "./libelles";
 import { Modele3D } from "./Modele3D";
-import { Partage } from "./Partage";
+import { Partage } from "./PanneauPartage";
 import { encoder, specDe, valeursDepuisChoix, verifierSpec } from "./partage";
 import {
 	CentreStats,
@@ -463,7 +463,6 @@ export function Editeur({ catalogue, cdn }: { catalogue: Catalogue; cdn: string 
 	// molette ne faisait rien — ce qui déroute sur un écran court ou un portable.
 	const [monte, setMonte] = useState(false);
 	useEffect(() => setMonte(true), []);
-	if (!monte) return null;
 
 	/** Le contenu du panneau de droite, selon l'onglet et la rubrique ouverte. */
 	const panneau = (() => {
@@ -520,6 +519,12 @@ export function Editeur({ catalogue, cdn }: { catalogue: Catalogue; cdn: string 
 		() => ({ choix, valeurs, champs, genre, morphologie }),
 		[choix, valeurs, champs, genre, morphologie],
 	);
+
+	// Le portail n'existe qu'une fois le composant monté côté navigateur. Ce retour est POSÉ ICI,
+	// après tous les `use*` : plus haut, il en sautait trois (`codePartage`, `restaurer`,
+	// `etatAEnregistrer`) au premier rendu et les faisait apparaître au second — React compte les
+	// crochets par position, et rendre plus de crochets qu'au rendu précédent lève une exception.
+	if (!monte) return null;
 
 	return createPortal(
 		<div

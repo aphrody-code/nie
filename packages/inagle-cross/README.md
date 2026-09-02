@@ -16,7 +16,7 @@ Level-5 / CPK). Sortie le 9/6/2026, APK récupéré et rétro-conçu statiquemen
 - `src/` — types (`CrossSchema`, `CrossTable`, …) + `crossTableName()`.
 
 Le préfixe `inagle_cross_` est routé gratuitement vers le miroir SQLite d'azalée
-(`server.ts` `startsWith("inagle_")`) et capté par `mirror-sync.sh` (`--prefix=inagle_`).
+(`server.ts` `startsWith("inagle_")`) et capté par `miroir-inagle.sh` (`--prefix=inagle_`).
 
 > **Note Phase 0** : ce dossier est de la **préparation** (schéma/DDL/types figés), pas
 > encore un workspace member — le `package.json` est volontairement différé en Phase 1 pour

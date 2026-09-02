@@ -60,7 +60,7 @@ export interface FichiersEntite {
  */
 export async function fichiersDe(identifiant: string, limite = 100): Promise<string[]> {
 	try {
-		const reponse = await fetch(jeu.urlRecherche(identifiant, undefined, limite), {
+		const reponse = await fetch(jeu.urlRecherche(identifiant, { limite }), {
 			signal: AbortSignal.timeout(8000),
 		});
 		if (!reponse.ok) {

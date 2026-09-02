@@ -4,6 +4,7 @@
 	"private": true,
 	"scripts": {
 		"dev": "bun --smol --bun node_modules/next/dist/bin/next dev --turbopack",
+		"prebuild": "bun run --filter @rosegriffon/inagle build",
 		"build": "bash ../../scripts/next-build.sh",
 		"start": "bun --bun node_modules/next/dist/bin/next start",
 		"lint": "oxlint -A style -A pedantic -A restriction -A react/react-in-jsx-scope -A unicorn/consistent-function-scoping -A promise/no-multiple-resolved -A react-perf . && eslint .",
@@ -16,7 +17,8 @@
 		"create-draft": "bun scripts/create-draft.ts",
 		"backup:supabase": "bun scripts/ops/backup-supabase-to-sqlite.ts",
 		"sync:supabase": "bun scripts/ops/sync-supabase-to-sqlite.ts",
-		"sync:full": "bun scripts/ops/sync-supabase-to-sqlite.ts --full --deletes"
+		"sync:full": "bun scripts/ops/sync-supabase-to-sqlite.ts --full --deletes",
+		"typecheck": "bun --bun tsc --noEmit"
 	},
 	"dependencies": {
 		"@better-auth/agent-auth": "catalog:",

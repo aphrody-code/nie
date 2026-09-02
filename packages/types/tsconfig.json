@@ -5,7 +5,7 @@
 		"noEmit": true,
 		"declaration": false,
 		"baseUrl": ".",
-		"ignoreDeprecations": "6.0",
+		"ignoreDeprecations": "5.0",
 		"rootDir": "..",
 		"paths": {
 			"@rosegriffon/db": ["../db/src/index.ts"],

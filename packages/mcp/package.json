@@ -26,7 +26,8 @@
 		"stdio": "bun src/cli.ts serve --stdio",
 		"test": "bun test test",
 		"lint": "oxlint --config ../../.oxlintrc.json src test",
-		"type-check": "bun --bun tsc --noEmit"
+		"type-check": "bun --bun tsc --noEmit",
+		"typecheck": "bun --bun tsc --noEmit"
 	},
 	"dependencies": {
 		"@rosegriffon/azalee": "workspace:*",

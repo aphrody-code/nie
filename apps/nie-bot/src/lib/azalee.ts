@@ -57,7 +57,7 @@ let client: AzaleeClient | null = null;
  * démarrage du bot ne doit pas dépendre de la disponibilité d'un autre service.
  */
 export function azalee(): AzaleeClient {
-	// Réessais calibrés sur le TROU DE LA ROTATION NOCTURNE : `mirror-sync.sh`
+	// Réessais calibrés sur le TROU DE LA ROTATION NOCTURNE : `miroir-inagle.sh`
 	// redémarre `azalee-api.service`, qui met ~2,4 s à répondre 200 (mesuré).
 	// Les défauts de la bibliothèque (3 tentatives, 300 ms de base) couvraient
 	// ~0,9 s : une commande `/ievr` échouait une fois par nuit pour rien.

@@ -1,0 +1,17 @@
+{
+	"name": "cdn",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"main": "server.ts",
+	"scripts": {
+		"start": "bun server.ts",
+		"dev": "bun --watch server.ts",
+		"typecheck": "bun --bun tsc --noEmit"
+	},
+	"dependencies": {},
+	"devDependencies": {
+		"typescript": "catalog:",
+		"@types/bun": "catalog:"
+	}
+}

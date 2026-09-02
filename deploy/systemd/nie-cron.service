@@ -103,7 +103,11 @@ ProtectProc=invisible
 RemoveIPC=true
 CapabilityBoundingSet=
 AmbientCapabilities=
-SystemCallFilter=@system-service ~@obsolete @privileged
+# Deux directives SÉPARÉES : sur une seule ligne, systemd lit « ~@obsolete » comme le nom d'un
+# appel système et le rejette (« System call ~@obsolete is not known, ignoring ») — la liste de
+# refus était donc silencieusement inappliquée.
+SystemCallFilter=@system-service
+SystemCallFilter=~@obsolete @privileged
 SystemCallErrorNumber=EPERM
 
 [Install]

@@ -1,0 +1,36 @@
+[Unit]
+# rg-realtime — diffusion SSE des changements Postgres, servie depuis `niers/apps/realtime`.
+#
+# Même raisonnement que `rg-storage` : le code a suivi la fusion, le NOM de l'unité reste
+# `rg-*` parce que ce service est du socle Supabase auto-hébergé et sert les deux surfaces.
+# Ce qui compte est qu'aucun chemin ne pointe plus vers `/home/ubuntu/rg`.
+#
+# Les secrets restent hors du dépôt, en 600 : `/etc/rg-realtime.env`.
+#
+# Installation :
+#   sudo cp deploy/systemd/rg-realtime.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl restart rg-realtime.service
+Description=rg-realtime — diffusion SSE des changements Postgres (depuis niers)
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/niers
+EnvironmentFile=/etc/rg-realtime.env
+ExecStart=/home/ubuntu/.bun/bin/bun --bun /home/ubuntu/niers/apps/realtime/server.ts
+Restart=always
+RestartSec=2
+
+# Plafond mémoire (raisonnement complet dans azalee-api.service). Mesuré : 18 Mio ;
+# la diffusion SSE ne retient que les connexions ouvertes.
+MemoryHigh=512M
+MemoryMax=1G
+MemorySwapMax=256M
+ProtectSystem=full
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

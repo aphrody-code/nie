@@ -9,7 +9,7 @@
  * robot d'indexation, et un Core Web Vital dégradé pour tout le monde.
  *
  * Une heure de fraîcheur couvre largement le rythme réel de la donnée : le
- * miroir SQLite n'est échangé qu'une fois par nuit (`azalee-mirror-sync`), et
+ * miroir SQLite n'est échangé qu'une fois par nuit (`nie-miroir`), et
  * la republication qui suit repart de toute façon sur un cache vide.
  */
 export const revalidate = 3600;
@@ -337,6 +337,7 @@ export default async function MoveDetailPage({ params }: { params: Promise<{ id:
 				<div className="mt-6">
 					<SkillCutinSection
 						cutin={cutinEntry.cutin}
+						skillCode={String((skill as any).internalCode || id)}
 						skillName={name}
 						assetsAvailable={cutinHasAssets(cutinEntry.cutin.event_id_name)}
 					/>

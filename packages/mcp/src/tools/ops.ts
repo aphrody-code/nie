@@ -11,18 +11,34 @@ import { z } from "zod";
 import { structured, text } from "../protocol/types.ts";
 import { defineTool, type RegisteredTool } from "../registry.ts";
 
-/** Unités systemd du périmètre Rose Griffon, vérifiées sur le VPS. */
+/**
+ * Unités systemd du périmètre, vérifiées sur le VPS après la fin de la migration
+ * (`docs/FUSION.md`) : toutes tournent depuis `niers`, sauf `website-web` — le site vitrine
+ * est la seule surface restée dans `rg`.
+ *
+ * Les noms en `rg-*` ne sont PAS des oublis : ils désignent des services d'infrastructure
+ * (socle Supabase auto-hébergé, CDN, serveur MCP) dont le nom est référencé par les
+ * watchdogs et par nginx, et qui servent les deux surfaces. Ce qui a migré, c'est le code
+ * et les chemins ; renommer les unités aurait cassé la surveillance sans rien prouver.
+ *
+ * `azalee-mirror-sync.service` a disparu de la machine : le miroir est republié par
+ * `nie-miroir.timer` (04:10 UTC), et `rg-cron` a été remplacé par `nie-cron`.
+ */
 export const KNOWN_SERVICES = [
 	"azalee-web.service",
 	"azalee-api.service",
-	"azalee-mirror-sync.service",
+	"nie-miroir.service",
 	"website-web.service",
-	"rg-cron.service",
+	"nie-cron.service",
 	"rg-cdn.service",
+	"rg-storage.service",
+	"rg-realtime.service",
+	"rg-postgrest.service",
 	"rg-rag-embed.service",
 	"rag-api.service",
 	"cdn-variants.service",
 	"nie-model-serve.service",
+	"niers-wonderbot.service",
 	"rg-mcp.service",
 ] as const;
 

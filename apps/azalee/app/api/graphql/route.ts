@@ -1,3 +1,5 @@
+// oxlint-disable react-hooks/rules-of-hooks -- `useGraphQlJit` et `useResponseCache` sont des
+// greffons GraphQL Yoga, pas des crochets React : la règle ne va que sur leur préfixe `use`.
 import { useGraphQlJit } from "@envelop/graphql-jit";
 import { useResponseCache } from "@graphql-yoga/plugin-response-cache";
 import { createSchema, createYoga } from "graphql-yoga";

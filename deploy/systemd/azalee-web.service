@@ -1,0 +1,110 @@
+# azalee-web.service — wiki Azalée (Next 16 standalone, runtime Bun) — SLOT A.
+#
+# Slot de production : c'est lui qui sert azalee.rosegriffon.fr en régime stable, via
+# l'amont nginx `azalee_web` (/etc/nginx/rg-upstreams/azalee_web.conf). Sa doublure de
+# bascule est `azalee-web-b.service` (:3013), démarrée le temps d'un déploiement.
+#
+# Le service ne lit PAS le dépôt : il lit une **version figée** publiée sous
+# /home/ubuntu/rg-releases/azalee/releases/<version>, désignée par le lien `slot-a`.
+# Un `next build` peut donc écraser `apps/azalee/.next` pendant que ce processus tourne
+# sans jamais lui retirer les fragments de route qu'il charge à la demande.
+#
+# Installation : `bun scripts/ops/deploy.ts install azalee` (copie ce fichier dans
+# /etc/systemd/system/, crée l'arborescence des versions, instrumente nginx).
+# Les anciens drop-ins (override.conf / resilience.conf / zz-memory-upgrade.conf) sont
+# fusionnés ici : le dépôt est la seule source de vérité.
+[Unit]
+Description=Azalee Web (Next.js 16, Bun runtime) — slot A
+After=network.target network-online.target postgresql@18-main.service redis-server.service
+Wants=network-online.target postgresql@18-main.service
+# Aucun rate-limit de redémarrage : 5 crashs en 60 s laissaient l'unité en `failed`,
+# donc le site DOWN. On veut qu'elle retente indéfiniment (le watchdog couvre le cas
+# « vivant mais figé », que Restart= ne voit pas).
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/rg-releases/azalee/slot-a/apps/azalee
+
+EnvironmentFile=-/home/ubuntu/niers/apps/azalee/.env
+Environment=NODE_ENV=production
+Environment=PORT=3003
+# Boucle locale uniquement, comme le slot B et website-web. L'écoute sur 0.0.0.0
+# servait la vérification directe par IP, mais nginx répond déjà sur l'IP
+# (`server_name azalee.rosegriffon.fr 51.77.147.152`) : le port direct n'apportait
+# qu'un second chemin d'entrée, en HTTP clair, qui contournait HSTS et CSP.
+Environment=HOSTNAME=127.0.0.1
+# Base locale par socket unix (peer auth ubuntu) — latence < 1 ms
+Environment=PGHOST=/var/run/postgresql
+Environment=PGDATABASE=rose_griffon
+Environment=PGUSER=ubuntu
+Environment=BUN_RUNTIME_TRANSPILER_CACHE_PATH=/home/ubuntu/rg-releases/azalee/bun-cache
+# Miroir SQLite épinglé : sans ça `getSqlitePath` prend le plus grand nom lexical du
+# répertoire, donc une source silencieusement différente de celle que publie la synchro.
+Environment=SQLITE_DB_PATH=/home/ubuntu/niers/var/mirror.sqlite
+
+ExecStart=/home/ubuntu/.bun/bin/bun /home/ubuntu/rg-releases/azalee/slot-a/apps/azalee/server.js
+
+TimeoutStopSec=60
+KillMode=mixed
+KillSignal=SIGTERM
+# Bun quitte en 143 (128+SIGTERM) au lieu de mourir du signal : sans cette ligne,
+# systemd marque l'unité `failed` à chaque arrêt propre, ce qui pollue le diagnostic.
+SuccessExitStatus=143
+Restart=always
+RestartSec=5
+
+# Ressources : working set observé ~6 GiB, pics SSR/ISR absorbés sans redémarrage
+# préventif. Hôte = 45 GiB, ~20 autres services actifs → on garde de la marge.
+#
+# 14/8/2026 — plafonds ramenés de 20/28 Gio à 8/12. La somme des MemoryMax déclarés
+# atteignait 67 Gio pour 45 Gio de RAM : aucun plafond ne pouvait donc jouer son rôle,
+# et c'est l'OOM killer global qui arbitrait (nie-model-serve tué à 02h16, sans que sa
+# propre limite de 24 Gio soit approchée). 12 Gio, c'est le double du working set
+# observé : assez pour un pic de rendu, trop peu pour emporter l'hôte.
+MemoryHigh=8G
+MemoryMax=12G
+MemorySwapMax=512M
+MemoryLow=256M
+TasksMax=2048
+OOMScoreAdjust=-200
+CPUWeight=150
+IOWeight=150
+
+# Durcissement (compatible JIT — PAS de MemoryDenyWriteExecute, qui casse le JIT Bun/V8)
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectHostname=true
+ProtectClock=true
+ProtectProc=invisible
+ProcSubset=pid
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@obsolete @privileged
+# Seule zone inscriptible : l'arborescence des versions (cache ISR, cache Bun).
+# Le dépôt reste en lecture seule pour le service.
+ReadWritePaths=/home/ubuntu/rg-releases/azalee
+
+LimitNOFILE=131072
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=azalee-web
+
+[Install]
+WantedBy=multi-user.target

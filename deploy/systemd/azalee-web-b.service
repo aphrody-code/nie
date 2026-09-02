@@ -1,0 +1,94 @@
+# azalee-web-b.service — wiki Azalée — SLOT B, doublure de bascule.
+#
+# Copie conforme du slot A (azalee-web.service) sur le port 3013 et le lien `slot-b`.
+# Elle ne tourne QUE pendant un déploiement : `scripts/ops/deploy.ts` la démarre sur la
+# nouvelle version, la sonde, bascule nginx dessus, remet le slot A à niveau, rebascule,
+# puis l'éteint. C'est ce recouvrement qui supprime la coupure de service.
+#
+# Volontairement NON activée au démarrage (`systemctl enable`) : en régime stable, seul
+# le slot A doit consommer de la mémoire. Si un déploiement s'est arrêté avec la
+# production sur B (slot A refusant la version), le watchdog relance l'unité vivante
+# d'après /home/ubuntu/rg-releases/azalee/live.env.
+[Unit]
+Description=Azalee Web (Next.js 16, Bun runtime) — slot B (doublure de déploiement)
+After=network.target network-online.target postgresql@18-main.service redis-server.service
+Wants=network-online.target postgresql@18-main.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/rg-releases/azalee/slot-b/apps/azalee
+
+EnvironmentFile=-/home/ubuntu/niers/apps/azalee/.env
+Environment=NODE_ENV=production
+Environment=PORT=3013
+# Boucle locale seulement : la doublure n'est jamais exposée directement, nginx la
+# joint par 127.0.0.1 le temps de la bascule.
+Environment=HOSTNAME=127.0.0.1
+Environment=PGHOST=/var/run/postgresql
+Environment=PGDATABASE=rose_griffon
+Environment=PGUSER=ubuntu
+Environment=BUN_RUNTIME_TRANSPILER_CACHE_PATH=/home/ubuntu/rg-releases/azalee/bun-cache-b
+Environment=SQLITE_DB_PATH=/home/ubuntu/niers/var/mirror.sqlite
+
+ExecStart=/home/ubuntu/.bun/bin/bun /home/ubuntu/rg-releases/azalee/slot-b/apps/azalee/server.js
+
+TimeoutStopSec=60
+KillMode=mixed
+KillSignal=SIGTERM
+# Bun quitte en 143 (128+SIGTERM) au lieu de mourir du signal : sans cette ligne,
+# systemd marque l'unité `failed` à chaque arrêt propre, ce qui pollue le diagnostic.
+SuccessExitStatus=143
+Restart=always
+RestartSec=5
+
+# Plafonds plus bas que le slot A : une instance fraîche n'a pas le cache accumulé
+# d'un processus vieux de plusieurs jours, et les deux slots coexistent quelques
+# minutes seulement.
+# Aligné sur le slot A (14/8/2026, 8/12 Gio) : les deux slots servent le MÊME
+# application et tournent parfois en même temps, le temps d'une bascule. Laisser la
+# doublure à un plafond plus haut que le slot de production n'avait aucune raison
+# d'être et ajoutait 2 Gio à la somme des plafonds de l'hôte.
+MemoryHigh=8G
+MemoryMax=12G
+MemorySwapMax=512M
+MemoryLow=256M
+TasksMax=2048
+OOMScoreAdjust=-100
+CPUWeight=150
+IOWeight=150
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectHostname=true
+ProtectClock=true
+ProtectProc=invisible
+ProcSubset=pid
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@obsolete @privileged
+ReadWritePaths=/home/ubuntu/rg-releases/azalee
+
+LimitNOFILE=131072
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=azalee-web-b
+
+[Install]
+WantedBy=multi-user.target

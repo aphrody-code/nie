@@ -76,7 +76,8 @@
 		"lint:fix": "bunx oxlint -c ../../.oxlintrc.json -A style -A pedantic -A restriction --fix src",
 		"type-check": "bun --bun tsc --noEmit",
 		"clean": "rm -rf dist *.tsbuildinfo",
-		"prepublishOnly": "bun run build"
+		"prepublishOnly": "bun run build",
+		"typecheck": "bun --bun tsc --noEmit"
 	},
 	"dependencies": {
 		"@rosegriffon/db": "workspace:*",

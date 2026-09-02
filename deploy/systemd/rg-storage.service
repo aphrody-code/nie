@@ -1,0 +1,42 @@
+[Unit]
+# rg-storage — API Storage compatible Supabase, servie depuis `niers/apps/storage`.
+#
+# Le code a suivi la fusion (`docs/FUSION.md`) : `rg/apps/storage` est devenu
+# `niers/apps/storage`. Seuls le répertoire de travail et le chemin du serveur changent —
+# le nom de l'unité, lui, RESTE `rg-storage`. Ce n'est pas un oubli : ce service est du
+# socle Supabase auto-hébergé, il sert le wiki ET le site vitrine resté dans `rg`, et son
+# nom est référencé par `rg-watchdog@rg-storage.timer` et par nginx. Le renommer aurait
+# cassé la surveillance sans rien prouver sur la migration ; ce qui compte est qu'aucun
+# chemin ne pointe plus vers `/home/ubuntu/rg`.
+#
+# Les secrets restent hors du dépôt, en 600 : `/etc/rg-storage.env`.
+#
+# Installation :
+#   sudo cp deploy/systemd/rg-storage.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl restart rg-storage.service
+Description=rg-storage — API Storage compatible Supabase (Bun, fichiers locaux, depuis niers)
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/niers
+EnvironmentFile=/etc/rg-storage.env
+ExecStart=/home/ubuntu/.bun/bin/bun --bun /home/ubuntu/niers/apps/storage/server.ts
+Restart=always
+RestartSec=2
+
+# Plafond mémoire (raisonnement complet dans azalee-api.service). Mesuré : 38 Mio.
+# Un envoi de fichier passe en flux, sans être bufferisé entièrement en mémoire — d'où
+# un plafond bas assumé : s'il est atteint, c'est que ce n'est plus vrai.
+MemoryHigh=512M
+MemoryMax=1G
+MemorySwapMax=256M
+ProtectSystem=full
+ReadWritePaths=/var/www/rg-storage /tmp
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

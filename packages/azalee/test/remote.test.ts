@@ -9,6 +9,8 @@
  */
 
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
+
+import { rendreReseauNatif } from "../../../happydom";
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 
 import {
@@ -63,7 +65,13 @@ beforeAll(async () => {
 
 afterAll(async () => {
 	server?.stop(true);
-	if (happyDomRestored) await GlobalRegistrator.register();
+	if (happyDomRestored) {
+		await GlobalRegistrator.register();
+		// `register()` réinstalle la pile réseau simulée de happy-dom, et les fichiers de test
+		// exécutés APRÈS celui-ci en héritent. On rend aussitôt à Bun ses primitives, comme le
+		// fait le préchargement (`happydom.ts`).
+		rendreReseauNatif();
+	}
 });
 
 /** Les routes de données ne répondent que si le miroir SQLite existe sur la machine. */

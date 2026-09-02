@@ -15,7 +15,7 @@
  *
  * Écrit `inagle_skills.video_url` / `poster_url` / `thumbnail_url` et la table
  * `inagle_skill_videos` (une ligne par variante). Le miroir SQLite servi par
- * azalée est rafraîchi par `azalee-mirror-sync.timer`, pas ici.
+ * azalée est rafraîchi par `nie-miroir.timer` (dépôt `niers`), pas ici.
  *
  * Planifiée à 2h00 UTC, ENTRE `db:sync` et `db:sqlite-backup` (cf. `index.ts`).
  * Ce n'est pas une question de fraîcheur — le catalogue upstream ne bouge qu'aux

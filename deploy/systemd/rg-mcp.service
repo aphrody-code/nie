@@ -1,0 +1,70 @@
+[Unit]
+# rg-mcp — serveur MCP du monorepo, servi depuis `niers/packages/mcp`,
+# exposé derrière nginx sur https://api.rosegriffon.fr/mcp.
+#
+# C'est ce que contacte un Claude Code exécuté sur une autre machine : il y trouve les
+# données du jeu (wiki Azalée, miroir SQLite, index CPK, texte du jeu), le contenu du
+# dépôt et l'état de la production.
+#
+# Le NOM de l'unité reste `rg-mcp` : il est publié comme point d'entrée
+# (`api.rosegriffon.fr/mcp`) et configuré chez les clients. Ce qui a migré, c'est le
+# répertoire de travail — plus aucun chemin ne pointe vers `/home/ubuntu/rg`.
+#
+# DEUX PORTÉES, décidées par le jeton présenté :
+#   - `RG_MCP_TOKEN`       (/etc/rg-mcp.env)                  → lecture seule ;
+#   - `RG_MCP_ADMIN_TOKEN` (~/.config/niers/mcp.env)          → écriture, suppression,
+#     exécution de commandes, actions systemd.
+# Le second est un accès équivalent à un accès SSH : le traiter comme tel. Il était
+# auparavant lu dans `/home/ubuntu/rg/.env`, chargé implicitement par Bun depuis le
+# répertoire de travail. Il est maintenant DÉCLARÉ, en 600 hors du dépôt, comme les autres
+# secrets de `niers` (`cron.env`, `wonderbot.env`) : un secret chargé implicitement par le
+# cwd disparaît en silence dès qu'on déplace le service — c'est exactement ce que cette
+# migration devait éviter.
+#
+# Installation :
+#   sudo cp deploy/systemd/rg-mcp.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl restart rg-mcp.service
+Description=rg-mcp — serveur MCP Rose Griffon (Bun, lecture + administration sur jeton, depuis niers)
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/niers
+Environment=PATH=/home/ubuntu/.bun/bin:/usr/local/bin:/usr/bin:/bin
+Environment=RG_MCP_PORT=8808
+Environment=RG_MCP_HOST=127.0.0.1
+Environment=RG_MCP_ENDPOINT=/mcp
+# Même miroir que le wiki et l'API headless.
+Environment=SQLITE_DB_PATH=/home/ubuntu/niers/var/mirror.sqlite
+Environment=AZALEE_DATA_DIR=/home/ubuntu/niers/apps/azalee/data
+# Jeton porteur exigé sur chaque requête. Le fichier n'est PAS optionnel :
+# sans lui, l'endpoint distant serait ouvert à tous.
+EnvironmentFile=/etc/rg-mcp.env
+# Jeton d'administration, en 600 hors du dépôt.
+EnvironmentFile=/home/ubuntu/.config/niers/mcp.env
+ExecStart=/home/ubuntu/.bun/bin/bun packages/mcp/src/cli.ts serve --http
+Restart=always
+RestartSec=5
+
+# Plafond mémoire (raisonnement complet dans azalee-api.service). Mesuré : 97 Mio.
+MemoryHigh=1G
+MemoryMax=2G
+MemorySwapMax=256M
+
+# Durcissement. Le système reste en lecture seule : même la portée `admin` ne peut écrire
+# que dans le dépôt et /tmp (matérialisation de l'index CPK). C'est une seconde barrière —
+# la première reste le jeton. `/home/ubuntu/rg` reste inscriptible tant que le site vitrine
+# et le bot communautaire y vivent : l'outil `repo_write` en portée admin les sert aussi.
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=false
+ReadWritePaths=/home/ubuntu/niers /home/ubuntu/rg /tmp
+LockPersonality=true
+# `NoNewPrivileges` est volontairement ABSENT : il interdirait `sudo`, dont
+# l'outil `ops_service` a besoin pour agir sur les unités systemd.
+
+[Install]
+WantedBy=multi-user.target

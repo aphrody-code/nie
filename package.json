@@ -226,6 +226,7 @@
 		"kysely": "0.28.17"
 	},
 	"devDependencies": {
+		"@happy-dom/global-registrator": "^20.10.1",
 		"@types/pg": "catalog:",
 		"pg": "catalog:"
 	}
