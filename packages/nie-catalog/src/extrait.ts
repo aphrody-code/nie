@@ -1,7 +1,7 @@
 /**
  * Le gisement **extrait** : les 68 tables `inagle_*` tirées des fichiers du jeu.
  *
- * Lecture seule, sur le miroir SQLite republié par `azalee-mirror-sync`. Le miroir n'est jamais
+ * Lecture seule, sur le miroir SQLite republié par `nie-miroir`. Le miroir n'est jamais
  * ouvert en écriture — c'est un artefact, pas une base de travail : la vérité est dans les
  * `.cfg.bin` du jeu, et le miroir n'en est qu'une projection interrogeable.
  *

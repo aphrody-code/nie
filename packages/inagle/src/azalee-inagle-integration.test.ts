@@ -135,7 +135,11 @@ describe.skipIf(!CORPUS_PRESENT)("Azalée CLI & Inagle Real-World Integration Te
 		// Ce test vérifie la CLI, pas la capacité de deviner un chemin depuis un dossier
 		// quelconque — et le faire échouer pour cette raison rendait `bun run test` rouge
 		// en permanence.
-		const proc = Bun.spawn(["/home/ubuntu/.local/bin/azalee", "test"], {
+		// La CLI est lancée DEPUIS LES SOURCES, pas depuis `/home/ubuntu/.local/bin/azalee` :
+		// ce binaire compilé date du 2026-08-10 et fige un code que le dépôt a corrigé depuis.
+		// Le test vérifiait donc un artefact périmé, et échouait sur des bogues déjà réparés.
+		const cliSource = new URL("../../azalee/src/cli.ts", import.meta.url).pathname;
+		const proc = Bun.spawn([process.execPath, cliSource, "test"], {
 			env: { ...process.env, SQLITE_DB_PATH: sqlitePath },
 			stdout: "pipe",
 			stderr: "pipe"

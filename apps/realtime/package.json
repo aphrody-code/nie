@@ -1,0 +1,19 @@
+{
+	"name": "realtime",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"main": "server.ts",
+	"scripts": {
+		"start": "bun server.ts",
+		"dev": "bun --watch server.ts",
+		"typecheck": "bun --bun tsc --noEmit"
+	},
+	"dependencies": {
+		"pg": "catalog:"
+	},
+	"devDependencies": {
+		"typescript": "catalog:",
+		"@types/bun": "catalog:"
+	}
+}

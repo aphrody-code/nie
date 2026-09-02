@@ -148,13 +148,20 @@ function miroirDuDepot(): string | null {
 /**
  * Résout le miroir SQLite des tables `inagle_*`.
  *
- * `SQLITE_DB_PATH` est épinglé en production (drop-in systemd) sur
- * `data/backups/mirror.sqlite` : sans épinglage, le repli prend le snapshot au
- * nom lexicographiquement le plus grand, ce qui est une source silencieuse.
+ * `SQLITE_DB_PATH` est épinglé en production (unités systemd) sur `var/mirror.sqlite` :
+ * sans épinglage, le repli par `data/backups` prend le snapshot au nom
+ * lexicographiquement le plus grand, ce qui est une source silencieuse.
  */
 export function resolveMirrorPath(): string | null {
 	if (explicit.mirrorPath) return explicit.mirrorPath;
 	if (process.env.SQLITE_DB_PATH) return path.resolve(process.env.SQLITE_DB_PATH);
+
+	// Le miroir du dépôt PRIME sur `data/backups`. C'est `nie-miroir.timer` qui le publie ;
+	// l'ancien dossier existe encore sur les machines qui ont connu `azalee-mirror-sync`, mais
+	// il ne se rafraîchit plus — le préférer ferait servir des données figées sans qu'aucune
+	// erreur ne le dise.
+	const miroir = miroirDuDepot();
+	if (miroir) return miroir;
 
 	for (const dir of dataDirCandidates()) {
 		const backups = path.join(dir, "backups");
@@ -169,8 +176,7 @@ export function resolveMirrorPath(): string | null {
 			// dossier absent ou illisible — candidat suivant
 		}
 	}
-	// Dernier recours, et le seul qui vaille hors du site : le miroir du dépôt.
-	return miroirDuDepot();
+	return null;
 }
 
 /**

@@ -16,6 +16,7 @@ const require = createRequire(import.meta.url);
 
 import { createImageAPI } from "../core/images.js";
 import { PATHS } from "../core/paths.js";
+import { entreesDe } from "../utils/tables.js";
 import { loadTextFile } from "../parsers/text-parser.js";
 import type { SkillInfo } from "../types/gamedata.js";
 import { loadAuraSkills } from "./mapper-aura.js";
@@ -935,7 +936,7 @@ export function createSkillsAPI(options?: { gamedataPath?: string; entitiesPath?
 		byElement: (element: number | string) => {
 			let elementId: number;
 			if (typeof element === "string") {
-				const entry = Object.entries(ELEMENT_NAMES).find(
+				const entry = entreesDe(ELEMENT_NAMES).find(
 					([, v]) => v.en.toLowerCase() === element.toLowerCase()
 				);
 				if (!entry) return [];
@@ -950,7 +951,7 @@ export function createSkillsAPI(options?: { gamedataPath?: string; entitiesPath?
 		byCategory: (category: number | string) => {
 			let categoryId: number;
 			if (typeof category === "string") {
-				const entry = Object.entries(CATEGORY_NAMES).find(
+				const entry = entreesDe(CATEGORY_NAMES).find(
 					([, v]) => v.en.toLowerCase() === category.toLowerCase()
 				);
 				if (!entry) return [];
@@ -1044,7 +1045,7 @@ export function createSkillsAPI(options?: { gamedataPath?: string; entitiesPath?
 		auraByElement: (element: number | string) => {
 			let elementId: number;
 			if (typeof element === "string") {
-				const entry = Object.entries(ELEMENT_NAMES).find(
+				const entry = entreesDe(ELEMENT_NAMES).find(
 					([, v]) => v.en.toLowerCase() === element.toLowerCase()
 				);
 				if (!entry) return [];

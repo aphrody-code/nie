@@ -89,7 +89,7 @@ function premierLisible(candidats: readonly (string | undefined)[]): Source {
 /**
  * Le miroir des tables `inagle_*`.
  *
- * Il est republié par `azalee-mirror-sync` sous la forme d'un **lien symbolique daté**
+ * Il est republié par `nie-miroir` sous la forme d'un **lien symbolique daté**
  * (`mirror.sqlite -> supabase-<horodatage>.sqlite`) que le script bascule atomiquement. On suit
  * donc le lien : ouvrir le lien lui-même marcherait, mais laisserait croire que le fichier ne
  * change jamais, alors qu'il change à chaque synchronisation.

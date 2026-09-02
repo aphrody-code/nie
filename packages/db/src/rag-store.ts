@@ -77,14 +77,14 @@ export interface RagChunkResult {
 
 function resolveStorePath(): string {
 	if (process.env.RAG_STORE_PATH) return path.resolve(process.env.RAG_STORE_PATH);
+	// `var/rag` PASSE EN PREMIER. Le candidat est retenu sur l'existence de son DOSSIER, et
+	// `data/` existe toujours dans ce dépôt — c'est le VFS du jeu : le tester d'abord rendait
+	// un `data/rag/rag-store.sqlite` qui n'a jamais existé, au lieu du store réellement écrit
+	// par le cron et lu par `rag-api.service`.
 	const candidates = [
-		path.resolve(process.cwd(), "data/rag/rag-store.sqlite"),
 		path.resolve(process.cwd(), "var/rag/rag-store.sqlite"),
+		path.resolve(process.cwd(), "data/rag/rag-store.sqlite"),
 		path.resolve(process.cwd(), "apps/azalee/data/rag/rag-store.sqlite"),
-		// Le store a suivi la fusion : il vit dans `var/` du dépôt (cf. `docs/FUSION.md`).
-		// L'ancien emplacement reste en dernier repli tant que `rg` existe.
-		"/home/ubuntu/niers/var/rag/rag-store.sqlite",
-		"/home/ubuntu/rg/apps/azalee/data/rag/rag-store.sqlite",
 	];
 	for (const c of candidates) {
 		if (existsSync(path.dirname(c))) return c;

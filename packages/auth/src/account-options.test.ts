@@ -31,9 +31,9 @@ describe("suppression de compte", () => {
 			id: "16bf61fd-edb7-445b-9a9f-848e63974ce7",
 		});
 		expect(executees).toHaveLength(2);
-		expect(executees[0].requete).toContain("delete from public.profiles");
-		expect(executees[0].parametres).toEqual(["16bf61fd-edb7-445b-9a9f-848e63974ce7"]);
-		expect(executees[1].requete).toContain("delete from auth.users");
+		expect(executees[0]?.requete).toContain("delete from public.profiles");
+		expect(executees[0]?.parametres).toEqual(["16bf61fd-edb7-445b-9a9f-848e63974ce7"]);
+		expect(executees[1]?.requete).toContain("delete from auth.users");
 	});
 
 	test("un identifiant qui n'est pas un uuid retombe sur l'adresse", async () => {
@@ -45,8 +45,8 @@ describe("suppression de compte", () => {
 			id: "user_2abcdef",
 		});
 		expect(executees).toHaveLength(2);
-		expect(executees[0].parametres).toEqual(["ancien@exemple.fr"]);
-		expect(executees[0].requete).toContain("where email");
+		expect(executees[0]?.parametres).toEqual(["ancien@exemple.fr"]);
+		expect(executees[0]?.requete).toContain("where email");
 	});
 
 	test("ni uuid ni adresse : on n'efface rien plutôt que d'effacer au hasard", async () => {

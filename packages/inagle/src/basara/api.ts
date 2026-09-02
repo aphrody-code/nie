@@ -18,6 +18,7 @@ import {
 	type PositionId,
 } from "../core/types.js";
 import { loadBasaraConfig } from "../parsers/basara-config.js";
+import { entreesDe } from "../utils/tables.js";
 
 // Type aliases for compatibility
 type BasaraCharacter = Basara;
@@ -289,7 +290,7 @@ export function createBasaraAPI(options?: { entitiesPath?: string }) {
 		byElement: (element: number | string) => {
 			let elementId: number;
 			if (typeof element === "string") {
-				const entry = Object.entries(ELEMENT_NAMES).find(
+				const entry = entreesDe(ELEMENT_NAMES).find(
 					([, v]) =>
 						v.en.toLowerCase() === element.toLowerCase() ||
 						v.fr.toLowerCase() === element.toLowerCase()
@@ -308,7 +309,7 @@ export function createBasaraAPI(options?: { entitiesPath?: string }) {
 			if (typeof position === "string") {
 				// Reverse lookup code from POSITION_MAP if possible?
 				// Or search in POSITION_NAMES
-				const entry = Object.entries(POSITION_NAMES).find(
+				const entry = entreesDe(POSITION_NAMES).find(
 					([, v]) =>
 						v.code.toLowerCase() === position.toLowerCase() ||
 						v.fr.toLowerCase() === position.toLowerCase() ||

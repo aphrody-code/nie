@@ -23,7 +23,8 @@
 		"lint": "bunx oxlint -c ../../.oxlintrc.json src",
 		"type-check": "bun --bun tsc --noEmit",
 		"test": "bun test test",
-		"tokens": "bun scripts/generer-tokens.ts"
+		"tokens": "bun scripts/generer-tokens.ts",
+		"typecheck": "bun --bun tsc --noEmit"
 	},
 	"dependencies": {
 		"@hookform/resolvers": "catalog:",

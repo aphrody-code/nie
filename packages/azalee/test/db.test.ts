@@ -5,7 +5,7 @@
  * Aucun stub : toutes les assertions portent sur des lignes réellement présentes
  * dans `apps/azalee/data/backups/mirror.sqlite`. Les volumes sont asserés par
  * ordre de grandeur (`toBeGreaterThan`) — pas d'égalité fragile sur un snapshot
- * qui est resynchronisé quotidiennement (`azalee-mirror-sync.timer`).
+ * qui est resynchronisé quotidiennement (`nie-miroir.timer`).
  */
 
 import { afterEach, describe, expect, test } from "bun:test";

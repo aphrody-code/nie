@@ -12,6 +12,7 @@
 import { createImageAPI } from "../core/images.js";
 import type { BaseCharacter, Character } from "../core/types.js";
 import { loadAllCharacters, loadBaseCharacters } from "../entities/character.js";
+import { entreesDe } from "../utils/tables.js";
 
 // Alias for backward compatibility
 export type EnrichedCharacter = Character;
@@ -396,7 +397,7 @@ export function createCharactersAPI() {
 		byPersonality: (personality: number | string) => {
 			let pType: number;
 			if (typeof personality === "string") {
-				const entry = Object.entries(PERSONALITY_NAMES).find(
+				const entry = entreesDe(PERSONALITY_NAMES).find(
 					([, v]) => v.en.toLowerCase() === personality.toLowerCase()
 				);
 				if (!entry) return [];

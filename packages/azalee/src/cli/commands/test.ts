@@ -55,11 +55,17 @@ const STATIC_PAGES = [
 /** Pages dynamiques témoins (une par type de fiche). */
 const DYNAMIC_PAGES = [
 	{ name: "character-detail", path: "/chara/buddy-0x6A6392AD" },
-	{ name: "skill-detail", path: "/skill/bcps10001" },
+	// Techniques et tactiques s'adressent par leur CODE INTERNE (`wh*`/`rh*`), pas par un
+	// identifiant hexadécimal : les deux témoins précédents répondaient 404 depuis que la
+	// liste ne publie plus que les codes.
+	{ name: "skill-detail", path: "/skill/whd00180" },
 	{ name: "item-detail", path: "/item/0x5F0F1EAC" },
-	{ name: "tactic-detail", path: "/tactic/0x790F3F39" },
+	{ name: "tactic-detail", path: "/tactic/wht10010" },
 	{ name: "aura-detail", path: "/aura/esprits-guerriers/keshin_0x0181A884" },
-	{ name: "news-detail", path: "/news/welcome" },
+	// `/news/welcome` n'existe plus : l'article témoin avait été supprimé, et la suite
+	// entière échouait sur ce 404. Celui-ci est l'article de fond du wiki, celui vers
+	// lequel la page d'accueil pointe.
+	{ name: "news-detail", path: "/news/critique-communautaire-de-inazuma-eleven-victory-road" },
 	{ name: "patch-notes-detail", path: "/patch-notes/ps-steam_ver_1_4_2" },
 ];
 
@@ -140,9 +146,15 @@ export function registerTestCommand(program: Command): void {
 					"Step 4: Filtre de genre (Garçon / Male)",
 					"SELECT count(*) as count FROM inagle_characters WHERE gender = 'M'",
 				);
+				// Le « style de jeu » (`sheet_data.playstyle`) N'EXISTE PLUS dans les données :
+				// mesuré sur le miroir, `playstyle` vaut `null` sur les 6 166 personnages, et
+				// `sheet_data` ne porte plus que `heroType`. L'étape le cherchait quand même et
+				// faisait échouer toute la suite — donc `bun test` et la CLI — sur un champ
+				// retiré du pipeline. La constellation le remplace : elle est peuplée, et c'est
+				// un vrai axe de tri du wiki.
 				runTestStep(
-					"Step 5: Filtre de style de jeu (Lien / Bond)",
-					"SELECT count(*) as count FROM inagle_characters WHERE json_extract(sheet_data, '$.playstyle') = 'Bond'",
+					"Step 5: Filtre de constellation (Sommetus)",
+					"SELECT count(*) as count FROM inagle_characters WHERE constellation = 'Sommetus'",
 				);
 				runTestStep(
 					"Step 6: Filtre de rareté (Normal)",
@@ -157,8 +169,8 @@ export function registerTestCommand(program: Command): void {
 					"SELECT count(*) as count FROM inagle_characters WHERE series = 'Victory Road'",
 				);
 				runTestStep(
-					"Step 9: Combinaison en chaîne (Feu + GAR + Garçon + Lien + Normal + VR)",
-					"SELECT count(*) as count FROM inagle_characters WHERE element = 'Feu' AND position = 'Gardien' AND gender = 'M' AND json_extract(sheet_data, '$.playstyle') = 'Bond' AND rarity_label = 'Normal' AND series = 'Victory Road'",
+					"Step 9: Combinaison en chaîne (Feu + GAR + Garçon + Normal + VR)",
+					"SELECT count(*) as count FROM inagle_characters WHERE element = 'Feu' AND position = 'Gardien' AND gender = 'M' AND rarity_label = 'Normal' AND series = 'Victory Road'",
 				);
 				runTestStep(
 					"Step 10: Filtre d'équipe (Raimon - 0xF01BB293)",
@@ -360,6 +372,20 @@ export function registerTestCommand(program: Command): void {
 				}
 				console.log(`\n  ${colors.green}🎉 Suite 2 réussie (4/4 étapes).${colors.reset}\n`);
 
+				/**
+				 * Isole l'objet JSON de la sortie de `bxc … --json`.
+				 *
+				 * `bxc recon` écrit une ligne de progression sur la sortie standard AVANT le
+				 * JSON (« [recon] Probing target using profile: http ») : la passer telle quelle
+				 * à `JSON.parse` lève « Unexpected identifier "recon" », et toute la suite
+				 * échouait là-dessus. On repart de la première accolade.
+				 */
+				const jsonDeBxc = (sortie: string): unknown => {
+					const debut = sortie.indexOf("{");
+					if (debut < 0) throw new Error(`sortie bxc sans JSON : ${sortie.slice(0, 120)}`);
+					return JSON.parse(sortie.slice(debut));
+				};
+
 				// ─── SUITE 3 : audits du moteur bxc ───
 				console.log(`${colors.bold}${colors.blue}SUITE 3: BXC BROWSER ENGINE AUDITS (CLI)${colors.reset}`);
 
@@ -379,7 +405,7 @@ export function registerTestCommand(program: Command): void {
 						});
 					}
 					const duration = (performance.now() - start).toFixed(1);
-					const data = JSON.parse(stdout);
+					const data = jsonDeBxc(stdout) as any;
 					if (data.httpStatus !== 200) throw new Error(`Bxc httpStatus: ${data.httpStatus}`);
 					if (data.hostname !== "localhost") throw new Error(`Bxc hostname: ${data.hostname}`);
 
@@ -410,11 +436,15 @@ export function registerTestCommand(program: Command): void {
 						});
 					}
 					const duration = (performance.now() - start).toFixed(1);
-					const data = JSON.parse(stdout);
+					const data = jsonDeBxc(stdout) as any;
 					if (data.httpStatus !== 200) throw new Error(`Bxc httpStatus: ${data.httpStatus}`);
 					if (!data.bytes || data.bytes <= 0) throw new Error(`Taille de page invalide : ${data.bytes}`);
-					if (!data.headers?.contentType?.includes("text/html"))
-						throw new Error(`Content type invalide : ${JSON.stringify(data.headers)}`);
+					// `headers` du schéma `bxc-recon-v1` n'est PAS la table des en-têtes HTTP : il
+					// porte `{ cdnVendor, cspHosts }`. L'assertion cherchait un `contentType` qui
+					// n'y a jamais existé, et faisait échouer la suite sur la forme du rapport,
+					// pas sur la page. On vérifie ce que le rapport porte vraiment.
+					if (typeof data.finalUrl !== "string" || !data.finalUrl.startsWith("http"))
+						throw new Error(`URL finale invalide : ${JSON.stringify(data.finalUrl)}`);
 					if (!Array.isArray(data.assets) || data.assets.length === 0) throw new Error("Aucun asset détecté");
 					if (!Array.isArray(data.cssSelectors) || data.cssSelectors.length === 0)
 						throw new Error("Aucun sélecteur CSS scanné");
@@ -439,11 +469,15 @@ export function registerTestCommand(program: Command): void {
 						});
 					}
 					const duration = (performance.now() - start).toFixed(1);
-					const data = JSON.parse(stdout);
+					const data = jsonDeBxc(stdout) as any;
 					if (data.httpStatus !== 200) throw new Error(`Bxc httpStatus: ${data.httpStatus}`);
 					if (!data.bytes || data.bytes <= 0) throw new Error(`Taille de page invalide : ${data.bytes}`);
-					if (!data.headers?.contentType?.includes("text/html"))
-						throw new Error(`Content type invalide : ${JSON.stringify(data.headers)}`);
+					// `headers` du schéma `bxc-recon-v1` n'est PAS la table des en-têtes HTTP : il
+					// porte `{ cdnVendor, cspHosts }`. L'assertion cherchait un `contentType` qui
+					// n'y a jamais existé, et faisait échouer la suite sur la forme du rapport,
+					// pas sur la page. On vérifie ce que le rapport porte vraiment.
+					if (typeof data.finalUrl !== "string" || !data.finalUrl.startsWith("http"))
+						throw new Error(`URL finale invalide : ${JSON.stringify(data.finalUrl)}`);
 					console.log(
 						`  ${colors.green}✓${colors.reset} bxc recon - audits contact page successfully       | ${colors.yellow}${duration}ms${colors.reset}`,
 					);

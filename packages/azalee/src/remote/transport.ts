@@ -340,6 +340,7 @@ export async function requestJson<T>(
 		}
 	}
 
-	/* c8 ignore next — la boucle sort toujours par `return` ou `throw`. */
-	throw lastError;
+	/* c8 ignore next 2 — la boucle sort toujours par `return` ou `throw`. */
+	// `lastError` est de type `unknown` : on ne relance jamais un littéral nu.
+	throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }

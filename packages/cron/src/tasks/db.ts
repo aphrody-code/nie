@@ -39,12 +39,17 @@ export async function runInaglePush(): Promise<{ success: boolean; error?: strin
 }
 
 /**
- * Génère une sauvegarde SQLite locale optimisée depuis la base Supabase.
+ * Republie le miroir SQLite des tables `inagle_*` — les données extraites du jeu.
+ *
+ * Le miroir n'est plus écrit sous `apps/azalee/data/backups` : c'est
+ * `scripts/donnees/miroir-inagle.sh` qui le publie dans `var/`, avec sa validation de
+ * dump et sa bascule atomique. Le démon ne fait plus que le déclencher.
+ * (L'unité `nie-miroir.timer` le fait aussi, chaque nuit à 04:10 UTC.)
  */
 export async function runSQLiteBackup(): Promise<{ success: boolean; error?: string }> {
-	console.log("[Cron DB] Démarrage de la sauvegarde Supabase vers SQLite local...");
+	console.log("[Cron DB] Republication du miroir SQLite des données de jeu…");
 	try {
-		await $`${BUN} run --filter @rosegriffon/azalee-web backup:supabase`.cwd(RACINE);
+		await $`${RACINE}/scripts/donnees/miroir-inagle.sh`.cwd(RACINE);
 		console.log("[Cron DB] Sauvegarde SQLite réussie.");
 		return { success: true };
 	} catch (err: unknown) {

@@ -12,7 +12,8 @@
 		"start": "bun src/index.ts",
 		"build": "bun build src/index.ts --compile --minify --sourcemap --bytecode --format esm --external @aphrody-code/bxc --external @aphrody-code/bxc/google --external @aphrody-code/bxc/internal/html-utils --outfile dist/rg-cron",
 		"type-check": "bun --bun tsc -p tsconfig.typecheck.json --noEmit",
-		"lint": "bunx oxlint -c ../../.oxlintrc.json src"
+		"lint": "bunx oxlint -c ../../.oxlintrc.json src",
+		"typecheck": "bun --bun tsc -p tsconfig.typecheck.json --noEmit"
 	},
 	"dependencies": {
 		"@aphrody-code/bxc": "catalog:",

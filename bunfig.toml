@@ -23,7 +23,12 @@ linker = "isolated"       # pnpm-style strict node_modules
 # qui, si un jour un paquet portait ce nom, l'aurait authentifié avec un jeton vide.
 
 [test]
-preload = ["./packages/nie-plugin/src/register.ts"]
+# Deux préchargements : le plugin de formats du jeu, et les globals DOM (document/window)
+# dont les tests de composants React d'`apps/azalee` et `packages/ui` ont besoin.
+# `happydom.ts` rend à Bun ses primitives réseau juste après avoir posé le DOM — sans quoi
+# tout `fetch` hors `localhost:3000` échoue en « Cross-Origin Request Blocked » et
+# `Bun.serve` refuse les `Response` de happy-dom. Le détail est dans le fichier.
+preload = ["./packages/nie-plugin/src/register.ts", "./happydom.ts"]
 coverage = false
 
 [run]

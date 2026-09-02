@@ -9,6 +9,7 @@ import { join } from "node:path";
 import type { ConfigNode } from "../core/config-parser.js";
 import { toHex } from "../core/data-loader.js";
 import { DATA_ROOT } from "../core/paths.js";
+import { entreesDe } from "../utils/tables.js";
 
 /** Gamedata file info */
 export interface GamedataFileInfo {
@@ -265,7 +266,7 @@ export function extractEntities<T extends Record<string, unknown>>(
 		if (config.pattern.test(entry.name)) {
 			const entity: Record<string, unknown> = {};
 
-			for (const [indexStr, fieldName] of Object.entries(config.fields)) {
+			for (const [indexStr, fieldName] of entreesDe(config.fields)) {
 				const index = Number.parseInt(indexStr, 10);
 				let value = entry.values[index];
 

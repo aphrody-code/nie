@@ -1,3 +1,6 @@
+// oxlint-disable react/no-unknown-property -- react-three-fiber : `position`, `args`,
+// `intensity`, `rotation`… sont des propriétés de la scène 3D, pas du DOM. La règle les
+// juge inconnues parce qu'elle ne connaît que HTML.
 /**
  * Scène R3F COMPOSÉE « joueur + super-technique » (cible d'un `next/dynamic { ssr:false }`).
  *

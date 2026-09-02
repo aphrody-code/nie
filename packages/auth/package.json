@@ -13,7 +13,8 @@
 	},
 	"scripts": {
 		"type-check": "bun --bun tsc --noEmit",
-		"test": "bun --bun vitest run"
+		"test": "bun --bun vitest run",
+		"typecheck": "bun --bun tsc --noEmit"
 	},
 	"dependencies": {
 		"@rosegriffon/db": "workspace:*",

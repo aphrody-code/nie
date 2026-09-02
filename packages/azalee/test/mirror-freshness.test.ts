@@ -1,7 +1,7 @@
 /**
  * Fraîcheur du miroir SQLite : un processus long doit suivre le swap.
  *
- * La synchronisation quotidienne (`azalee-mirror-sync`) fait pointer le lien
+ * La synchronisation quotidienne (`nie-miroir`) fait pointer le lien
  * `mirror.sqlite` sur un nouveau snapshot puis purge les anciens. `azalee-web`
  * est redémarré dans la foulée, mais pas les autres consommateurs de la lib
  * (`azalee-api`, `rg-mcp`, un CLI ouvert longtemps, un sidecar Tauri) : sans
@@ -57,7 +57,7 @@ describe("réouverture du miroir après un swap", () => {
 		configureAzalee({ mirrorPath: lien });
 		expect(await lireNom()).toBe("AVANT");
 
-		// Swap atomique du lien, exactement comme le fait mirror-sync.sh, puis
+		// Swap atomique du lien, exactement comme le fait miroir-inagle.sh, puis
 		// purge de l'ancien snapshot (rétention).
 		await Bun.spawn(["ln", "-sfn", "snapshot-2.sqlite", lien]).exited;
 		await Bun.file(ancien).delete();
