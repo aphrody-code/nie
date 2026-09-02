@@ -67,6 +67,7 @@
 		"@supabase/supabase-js": "catalog:",
 		"cheerio": "catalog:",
 		"commander": "catalog:",
+		"dotenv": "catalog:",
 		"fengari": "catalog:",
 		"hono": "catalog:",
 		"jsonwebtoken": "catalog:",
