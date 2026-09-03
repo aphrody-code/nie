@@ -28,6 +28,7 @@ from __future__ import annotations
 from ._ffi import chemin_bibliotheque
 from .formats import decoder, detecter, g4tx_vers_png, nom_format, version
 from .match import PAS_PAR_DEFAUT, Ballon, Joueur, Match
+from .rendu import ErreurRendu, Rendu, chemin_nie_game
 from .renpy import Catalogue, Personnage
 from .vfs import Vfs, racine_jeu
 
@@ -35,11 +36,14 @@ __all__ = [
     "PAS_PAR_DEFAUT",
     "Ballon",
     "Catalogue",
+    "ErreurRendu",
     "Joueur",
     "Match",
     "Personnage",
+    "Rendu",
     "Vfs",
     "chemin_bibliotheque",
+    "chemin_nie_game",
     "decoder",
     "detecter",
     "g4tx_vers_png",

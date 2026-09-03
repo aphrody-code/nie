@@ -10,6 +10,7 @@ Trois usages, du plus simple au plus engageant :
 |---|---|---|
 | Lire le jeu | `Vfs`, `decoder`, `g4tx_vers_png` | Le VFS (packs CPK ou dump) et les décodeurs de formats |
 | Faire tourner le jeu | `Match` | La simulation 11 v 11 déterministe, tick par tick |
+| Rendre les assets | `Rendu` | `nie-game` en sous-processus : textures et écrans composés → PNG |
 | Alimenter un VN | `renpy.Catalogue` | Le catalogue d'assets exporté, et la génération de `.rpy` |
 
 ## Prérequis
@@ -66,6 +67,30 @@ remontée des ancêtres à la recherche de `data/cpk_list.cfg.bin`.
 
 Le montage « dump » n'indexe rien tant qu'on ne l'énumère pas : `lire()` résout par chemin,
 mais `chercher()` et `parcourir()` construisent l'index — des minutes sur 255 000 entrées.
+
+## Rendre les vrais assets
+
+```python
+from niepy import Rendu
+
+r = Rendu()
+r.capturer("data/common/…/menu.g4tx", "game/nie/images/menu.png")
+r.capturer_region("atlas.g4tx", "icone_01", "game/nie/images/icone_01.png")
+```
+
+`nie-game` est atteint en **sous-processus**, jamais en process, et c'est délibéré : il n'a
+pas de `lib.rs`, c'est un hôte wgpu. Charger un contexte GPU dans une bibliothèque elle-même
+chargée par le Python de Ren'Py est une bonne façon d'obtenir des plantages illisibles. Le
+dépôt applique déjà cette règle au toolkit C++ (`niers cpp`), pour la même raison.
+
+Seuls les modes **hors-écran** sont exposés. `--window` et `--play` ouvrent une fenêtre et ne
+rendent la main qu'à sa fermeture : les appeler depuis un jeu déjà lancé le bloquerait.
+
+Le binaire se construit à part :
+
+```bash
+cargo build -p nie-game --release
+```
 
 ## Alimenter un projet Ren'Py
 
