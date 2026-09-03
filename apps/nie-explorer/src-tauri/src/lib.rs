@@ -19,7 +19,7 @@ mod lua_session;
 mod lua_tools;
 mod export;
 mod forge;
-mod game_data;
+pub mod game_data;
 mod mcp;
 mod re_trace;
 mod steam;
@@ -1068,6 +1068,18 @@ fn save_blob_hex_b64(index: u32, state: tauri::State<SaveState>) -> Result<Strin
     Ok(base64::engine::general_purpose::STANDARD.encode(&blob.body))
 }
 
+/// Écrit un texte (CSV/JSON/Markdown) à un chemin choisi par l'utilisatrice via la boîte de
+/// dialogue système. Le plugin `fs` du front est cantonné aux dossiers de l'application
+/// (`fs:allow-app-write*`, cf. `capabilities/`) : sans cette commande, aucun export de l'app ne
+/// peut atterrir ailleurs que dans `%APPDATA%`, ce qui rend un « Exporter… » inutilisable.
+/// Retourne le nombre d'octets écrits (`f64` : `specta` refuse les BigInt vers TypeScript).
+#[tauri::command]
+#[specta::specta]
+fn write_text_file(dest: String, contents: String) -> Result<f64, String> {
+    std::fs::write(&dest, contents.as_bytes()).map_err(|e| format!("écriture {dest} : {e}"))?;
+    Ok(contents.len() as f64)
+}
+
 /// Ré-encode le conteneur actuellement ouvert (round-trip octet-identique si rien n'a été
 /// modifié) et l'écrit à `dest` — jamais l'original en place (choisi par l'utilisatrice).
 #[tauri::command]
@@ -1658,6 +1670,63 @@ fn game_data_formations(game_dir: Option<String>, state: tauri::State<VfsState>)
 #[specta::specta]
 fn game_data_uniforms(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<Vec<game_data::UniformDto>, String> {
     with_vfs(game_dir, &state, game_data::list_uniforms)
+}
+
+/// Personnages complets (`game_data::list_charas` : identité, série, équipe, techniques apprises)
+/// — la fiche entière, à distinguer du sélecteur réduit [`game_data_chara_picker`].
+#[tauri::command]
+#[specta::specta]
+fn game_data_charas(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<Vec<game_data::CharaDto>, String> {
+    with_vfs(game_dir, &state, game_data::list_charas)
+}
+
+/// Équipes adverses (`nie_data::opponent_team`) — même patron que [`game_data_skills`].
+#[tauri::command]
+#[specta::specta]
+fn game_data_opponent_teams(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<Vec<game_data::OpponentTeamDto>, String> {
+    with_vfs(game_dir, &state, game_data::list_opponent_teams)
+}
+
+/// Vidéos (`nie_data::movie`) — même patron que [`game_data_skills`].
+#[tauri::command]
+#[specta::specta]
+fn game_data_movies(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<Vec<game_data::MovieDto>, String> {
+    with_vfs(game_dir, &state, game_data::list_movies)
+}
+
+/// Bande-son (`nie_data::music_app`) — même patron que [`game_data_skills`].
+#[tauri::command]
+#[specta::specta]
+fn game_data_musics(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<Vec<game_data::MusicDto>, String> {
+    with_vfs(game_dir, &state, game_data::list_musics)
+}
+
+/// Dictionnaire in-game (`nie_data::dictionary`) — même patron que [`game_data_skills`].
+#[tauri::command]
+#[specta::specta]
+fn game_data_dictionary(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<Vec<game_data::DictionaryDto>, String> {
+    with_vfs(game_dir, &state, game_data::list_dictionary)
+}
+
+/// Courbe d'expérience (`nie_data::exp`) — même patron que [`game_data_skills`].
+#[tauri::command]
+#[specta::specta]
+fn game_data_exp_table(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<Vec<game_data::ExpLevelDto>, String> {
+    with_vfs(game_dir, &state, game_data::list_exp_table)
+}
+
+/// Butin (`nie_data::soccer_drop`, table des esprits) — même patron que [`game_data_skills`].
+#[tauri::command]
+#[specta::specta]
+fn game_data_drops(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<Vec<game_data::DropDto>, String> {
+    with_vfs(game_dir, &state, game_data::list_drops)
+}
+
+/// Taux de tirage des capsules (`nie_data::capsule`) — même patron que [`game_data_skills`].
+#[tauri::command]
+#[specta::specta]
+fn game_data_capsule_rates(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<Vec<game_data::CapsuleRateDto>, String> {
+    with_vfs(game_dir, &state, game_data::list_capsule_rates)
 }
 
 /// Personnages sélectionnables pour le calculateur de stats (`nie_data::chara_param` joint à
@@ -4455,6 +4524,14 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         game_data_formations,
         game_data_uniforms,
         game_data_chara_picker,
+        game_data_charas,
+        game_data_opponent_teams,
+        game_data_movies,
+        game_data_musics,
+        game_data_dictionary,
+        game_data_exp_table,
+        game_data_drops,
+        game_data_capsule_rates,
         game_data_calculate_stats,
         vfs_decode_cfgbin,
         vfs_decode_cfgbin_typed,
@@ -4493,6 +4570,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         save_list_blobs,
         save_blob_hex_b64,
         save_export,
+        write_text_file,
         vfs_video_preview_b64,
         video_catalog,
         video_info,

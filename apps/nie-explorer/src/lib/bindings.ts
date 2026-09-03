@@ -286,6 +286,25 @@ export const commands = {
 	 */
 	gameDataCharaPicker: (gameDir: string | null) => typedError<CharaPickerDto[], string>(__TAURI_INVOKE("game_data_chara_picker", { gameDir })),
 	/**
+	 *  Personnages complets (`game_data::list_charas` : identité, série, équipe, techniques apprises)
+	 *  — la fiche entière, à distinguer du sélecteur réduit [`game_data_chara_picker`].
+	 */
+	gameDataCharas: (gameDir: string | null) => typedError<CharaDto[], string>(__TAURI_INVOKE("game_data_charas", { gameDir })),
+	/**  Équipes adverses (`nie_data::opponent_team`) — même patron que [`game_data_skills`]. */
+	gameDataOpponentTeams: (gameDir: string | null) => typedError<OpponentTeamDto[], string>(__TAURI_INVOKE("game_data_opponent_teams", { gameDir })),
+	/**  Vidéos (`nie_data::movie`) — même patron que [`game_data_skills`]. */
+	gameDataMovies: (gameDir: string | null) => typedError<MovieDto[], string>(__TAURI_INVOKE("game_data_movies", { gameDir })),
+	/**  Bande-son (`nie_data::music_app`) — même patron que [`game_data_skills`]. */
+	gameDataMusics: (gameDir: string | null) => typedError<MusicDto[], string>(__TAURI_INVOKE("game_data_musics", { gameDir })),
+	/**  Dictionnaire in-game (`nie_data::dictionary`) — même patron que [`game_data_skills`]. */
+	gameDataDictionary: (gameDir: string | null) => typedError<DictionaryDto[], string>(__TAURI_INVOKE("game_data_dictionary", { gameDir })),
+	/**  Courbe d'expérience (`nie_data::exp`) — même patron que [`game_data_skills`]. */
+	gameDataExpTable: (gameDir: string | null) => typedError<ExpLevelDto[], string>(__TAURI_INVOKE("game_data_exp_table", { gameDir })),
+	/**  Butin (`nie_data::soccer_drop`, table des esprits) — même patron que [`game_data_skills`]. */
+	gameDataDrops: (gameDir: string | null) => typedError<DropDto[], string>(__TAURI_INVOKE("game_data_drops", { gameDir })),
+	/**  Taux de tirage des capsules (`nie_data::capsule`) — même patron que [`game_data_skills`]. */
+	gameDataCapsuleRates: (gameDir: string | null) => typedError<CapsuleRateDto[], string>(__TAURI_INVOKE("game_data_capsule_rates", { gameDir })),
+	/**
 	 *  Calcule les stats d'un personnage (§4.2 roadmap) — `nie_core::growth::calculate_stats` sur
 	 *  les tables de croissance IEVR embarquées, cf. `game_data::calculate_character_stats`.
 	 *  `rarity_code` : 0=N, 2=R, 3=SR, 4=SSR, 5=UR, 6=LR, 7=Legend, 20=BASARA.
@@ -580,6 +599,14 @@ export const commands = {
 	 *  modifié) et l'écrit à `dest` — jamais l'original en place (choisi par l'utilisatrice).
 	 */
 	saveExport: (dest: string) => typedError<number, string>(__TAURI_INVOKE("save_export", { dest })),
+	/**
+	 *  Écrit un texte (CSV/JSON/Markdown) à un chemin choisi par l'utilisatrice via la boîte de
+	 *  dialogue système. Le plugin `fs` du front est cantonné aux dossiers de l'application
+	 *  (`fs:allow-app-write*`, cf. `capabilities/`) : sans cette commande, aucun export de l'app ne
+	 *  peut atterrir ailleurs que dans `%APPDATA%`, ce qui rend un « Exporter… » inutilisable.
+	 *  Retourne le nombre d'octets écrits (`f64` : `specta` refuse les BigInt vers TypeScript).
+	 */
+	writeTextFile: (dest: string, contents: string) => typedError<number | null, string>(__TAURI_INVOKE("write_text_file", { dest, contents })),
 	/**
 	 *  Remuxe le flux vidéo H.264 d'un `.usm` en MP4 lisible par un `<video>` HTML (base64, borné).
 	 *  VP9 brut n'est pas remuxable simplement (pas de conteneur) : renvoie une erreur claire.
@@ -1068,6 +1095,17 @@ export type CacheCpkDto = {
 	budget_mo: number,
 };
 
+/**  Table de gain de capsules (`capsule_config`) — une ligne par rang, avec son taux. */
+export type CapsuleRateDto = {
+	table_id: string,
+	/**  `f64`, cf. [`ItemDto::price`] — rang de rareté du lot. */
+	rank: number | null,
+	/**  Taux brut de la donnée (base 10 000 dans le dump de référence). */
+	rate: number | null,
+	/**  Part du taux dans le total de sa table, en pourcentage. */
+	share_pct: number | null,
+};
+
 /**  Le catalogue complet renvoyé au frontend. */
 export type CatalogueVideoDto = {
 	/**  Films, triés par chemin. */
@@ -1089,6 +1127,43 @@ export type CfgbinTyped = {
 	json: string,
 	/**  Forme générique du conteneur — toujours présente. */
 	brut: string,
+};
+
+/**
+ *  Personnage jouable/PNJ — `chara_param` joint à `chara_base` (identité), `chara_text` (nom),
+ *  `chara_description_text` (description), `chara_series` (série d'origine), `belong_team_config`
+ *  (équipe) et `skill_config` (techniques apprises). C'est la fiche complète, pas le sélecteur
+ *  réduit de [`CharaPickerDto`] (qui reste séparé : le calculateur de stats n'a besoin que du nom
+ *  et des positions, et le recharger complet le ralentirait sans raison).
+ */
+export type CharaDto = {
+	chara_param_id: string,
+	chara_base_id: string,
+	/**  Code interne (`c01000010`) — ouvre l'éditeur de propriétés (modèle, textures, sons). */
+	internal_code: string,
+	name: string,
+	description: string | null,
+	/**  `1` = masculin, `2` = féminin dans la donnée ; rendu tel quel, non interprété. */
+	gender: number | null,
+	element: string,
+	main_position: string,
+	sub_position: string,
+	/**  `f64`, cf. [`ItemDto::price`] — pattern de croissance (entrée des tables `growth`). */
+	growth_pattern: number | null,
+	series: string | null,
+	team: string | null,
+	/**  Techniques apprises, `« niveau — nom »` quand le nom se résout (sinon le hash). */
+	skills: string[],
+	/**  `f64`, cf. [`ItemDto::price`]. */
+	skill_count: number | null,
+	/**
+	 *  Stats au **niveau 99, rang de rareté UR** (code 5), calculées par
+	 *  `nie_core::growth::calculate_stats` sur les tables embarquées. Le rang N'EST PAS dans
+	 *  `chara_param` (il dépend de l'exemplaire possédé) : c'est une base de COMPARAISON commune,
+	 *  affichée comme telle, pas la fiche d'un personnage précis — pour un couple (niveau,
+	 *  rareté) choisi, c'est `game_data_calculate_stats` qui répond.
+	 */
+	stats: StatBlockDto,
 };
 
 /**
@@ -1143,6 +1218,30 @@ export type CueDto = {
 };
 
 /**
+ *  Entrée du dictionnaire in-game (`dictionary_config`) — le « bestiaire » des personnages
+ *  observables, avec leur habitat résolu (`map_text`).
+ */
+export type DictionaryDto = {
+	chara_id: string,
+	/**  Nom du personnage quand `chara_base`+`chara_text` le résolvent. */
+	name: string | null,
+	habitat: string | null,
+	habitat_file: string | null,
+	/**  `f64`, cf. [`ItemDto::price`] — numéro d'affichage dans le dictionnaire. */
+	view_dict_no: number | null,
+	/**  `f64`, cf. [`ItemDto::price`]. */
+	category: number | null,
+	/**  `f64`, cf. [`ItemDto::price`]. */
+	sub_category: number | null,
+	/**  `true` si l'entrée est affrontable. */
+	is_battle: boolean,
+	/**  Nombre d'actions d'observation rattachées. */
+	observation_count: number | null,
+	medal_id: string,
+	weapon_item_id: string,
+};
+
+/**
  *  Un sous-dossier direct et le nombre de fichiers qu'il porte, tous niveaux confondus.
  * 
  *  Le compte vient du même balayage que le listing : il ne coûte rien de plus, et il évite à
@@ -1151,6 +1250,24 @@ export type CueDto = {
 export type DirDto = {
 	name: string,
 	count: number,
+};
+
+/**
+ *  Ligne de butin (`soccer_drop_config`) — un personnage-esprit tirable, avec son poids et sa
+ *  condition d'apparition.
+ */
+export type DropDto = {
+	chara_id: string,
+	name: string | null,
+	/**  `f64`, cf. [`ItemDto::price`] — poids de tirage (probabilité relative dans sa table). */
+	weight: number | null,
+	/**
+	 *  Part du poids dans le total de la table, en pourcentage — la seule lecture humaine d'un
+	 *  poids brut.
+	 */
+	share_pct: number | null,
+	/**  Condition d'exécution telle quelle (mini-langage du jeu, non interprété). */
+	run_cond: string,
 };
 
 /**  Écusson d'équipe (`emblem_resource_*`) — une entrée `EMBLEM_RESOURCE_INFO`. */
@@ -1174,6 +1291,16 @@ export type EntryDto = {
 	name: string,
 	size: number,
 	cpk: string,
+};
+
+/**  Palier de la courbe d'expérience (`chara_exp_table_config`). */
+export type ExpLevelDto = {
+	/**  `f64`, cf. [`ItemDto::price`]. */
+	level: number | null,
+	/**  EXP nécessaire pour ce niveau depuis le précédent. */
+	need_exp: number | null,
+	/**  EXP cumulée depuis le niveau 1 — la valeur que le jeu affiche, calculée ici. */
+	cumulative: number | null,
 };
 
 /**
@@ -1621,6 +1748,59 @@ export type MotionClipsDto = {
 	 *  beaucoup d'assets n'en ont pas, et échouer ferait passer un fait pour une panne.
 	 */
 	notice: string | null,
+};
+
+/**  Vidéo du jeu (`movie_playing_config`) — chemin USM, BGM, sous-titres. */
+export type MovieDto = {
+	movie_id: string,
+	movie_path: string,
+	bgm_name: string,
+	/**  `true` si la vidéo porte une table de sous-titres (≠ [`nie_data::movie::NONE_SENTINEL`]). */
+	has_subtitles: boolean,
+	subtitle_text_path: string,
+	staffroll_data_name: string,
+	fade_in: number | null,
+	fade_out: number | null,
+};
+
+/**  Piste de la bande-son (`music_app_config`) — nom FR joint depuis `music_name_text`. */
+export type MusicDto = {
+	entry_id: string,
+	music_id: string,
+	name: string | null,
+	/**  `f64`, cf. [`ItemDto::price`]. */
+	app_category: number | null,
+	/**  `f64`, cf. [`ItemDto::price`]. */
+	track_no: number | null,
+	/**  `f64`, cf. [`ItemDto::price`]. */
+	variant: number | null,
+	/**  `f64`, cf. [`ItemDto::price`]. */
+	volume: number | null,
+	/**  `f64`, cf. [`ItemDto::price`] — index de tri 1-basé du lecteur du jeu. */
+	sort_index: number | null,
+	/**  `true` si la piste porte un chemin audio (105/108 dans le dump de référence). */
+	has_path: boolean,
+};
+
+/**
+ *  Équipe adverse rencontrable (`opponent_team_config`) — nom d'équipe résolu via
+ *  `belong_team_config` + `team_text`, difficulté, condition d'ouverture.
+ */
+export type OpponentTeamDto = {
+	opponent_id: string,
+	team_id: string,
+	team_name: string | null,
+	/**  `f64`, cf. [`ItemDto::price`]. */
+	team_type: number | null,
+	/**  `f64`, cf. [`ItemDto::price`]. */
+	difficulty_type: number | null,
+	/**  `f64`, cf. [`ItemDto::price`]. */
+	flag_no: number | null,
+	/**  Condition d'ouverture, telle quelle (mini-langage du jeu, non interprété ici). */
+	open_cond: string,
+	formation_cond: string,
+	bg_texture_name: string,
+	game_id: string,
 };
 
 export type PackFileDto = {
