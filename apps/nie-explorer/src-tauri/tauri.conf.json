@@ -2,7 +2,7 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "niers",
   "mainBinaryName": "nie-explorer",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "identifier": "dev.niers.explorer",
   "build": {
     "beforeDevCommand": "bun run dev",
