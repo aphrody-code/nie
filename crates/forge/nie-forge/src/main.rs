@@ -166,6 +166,9 @@ enum Cmd {
         /// Fichier de sortie, dans le répertoire de source assembleur.
         #[arg(long, default_value = "lifted.s")]
         out: String,
+        /// Nombre de causes de blocage affichées (0 = toutes).
+        #[arg(long, default_value_t = 15)]
+        top: usize,
     },
     /// Recense les corps de fonctions identiques : la liste de travail du portage.
     ///
@@ -215,7 +218,8 @@ fn main() -> anyhow::Result<()> {
             paths,
             max_len,
             out,
-        } => cmd_lift(&paths, max_len, &out),
+            top,
+        } => cmd_lift(&paths, max_len, &out, top),
         Cmd::Cc {
             paths,
             src,
@@ -358,7 +362,7 @@ fn cmd_cc(paths: &Paths, src: &Path, cl: Option<&Path>, register: bool) -> anyho
     Ok(())
 }
 
-fn cmd_lift(paths: &Paths, max_len: usize, out: &str) -> anyhow::Result<()> {
+fn cmd_lift(paths: &Paths, max_len: usize, out: &str, top: usize) -> anyhow::Result<()> {
     let exe = paths.exe_path()?;
     let store = ForgeStore::load(&paths.forge)?;
     let reference = ReferenceBinary::load_checked(&exe, &store.cover)?;
@@ -443,8 +447,17 @@ fn cmd_lift(paths: &Paths, max_len: usize, out: &str) -> anyhow::Result<()> {
             src.len() as f64 / scanned as f64
         },
     );
+    // Le total dit ce qui reste a conquerir ; sans lui, une liste tronquee
+    // laisse croire que les quinze premieres causes epuisent le sujet.
+    println!(
+        "blocages causes={} units={} bytes={}",
+        blockers.len(),
+        blockers.iter().map(|b| b.units).sum::<usize>(),
+        blockers.iter().map(|b| b.bytes).sum::<usize>(),
+    );
     // Deja trie par octets decroissants : la premiere ligne est la prochaine cible.
-    for b in blockers.into_iter().take(15) {
+    let n = if top == 0 { blockers.len() } else { top };
+    for b in blockers.into_iter().take(n) {
         println!(
             "blocker cause={} units={} bytes={} sample=\"{}\"",
             b.cause, b.units, b.bytes, b.sample
@@ -459,7 +472,20 @@ fn cmd_split(paths: &Paths) -> anyhow::Result<()> {
     // `.pdata` laisse : sans elles, 1,8 Mo de `.text` restent haches par les
     // seules bornes de remplissage, donc non relevables.
     let re = nie_forge::ReNames::load(&paths.db)?;
-    let store = ForgeStore::split_from_with(&exe, &paths.forge, &re.sized)?;
+    // Une feuille dont l'adresse tombe au milieu d'une instruction coupe un
+    // corps en deux : le relevé rejette les deux moitiés, et l'accuse ensuite
+    // de l'encodeur. Le filtre ne retire que ce que le désassembleur infirme.
+    let img = PeImage::parse(std::fs::read(&exe)?)?;
+    let (feuilles, verdict) = nie_forge::bornes::valider(&img, &re.sized);
+    println!(
+        "bornes soumises={} retenues={} coupantes={} indecises={} octets_ecartes={}",
+        verdict.soumises,
+        verdict.retenues,
+        verdict.coupantes,
+        verdict.indecises,
+        verdict.octets_ecartes,
+    );
+    let store = ForgeStore::split_from_with(&exe, &paths.forge, &feuilles)?;
     let c = &store.cover;
     println!(
         "split exe={} sha256={} size={} units={} fns={} frags={} residue={} data={} gaps={} overlay={}",

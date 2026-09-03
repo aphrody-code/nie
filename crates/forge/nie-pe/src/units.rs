@@ -115,12 +115,29 @@ impl Unit {
     /// Elle vit ici, et non chez l'appelant, pour la même raison que
     /// `image::tables::emit_for` : la construction et la mesure doivent lire
     /// la même règle, sinon elles divergent.
+    ///
+    /// Le résultat est **confronté à l'empreinte de l'unité** avant d'être
+    /// rendu : une règle qui se tromperait ne produit rien plutôt que de
+    /// gonfler la mesure. `sha256` est une empreinte, pas la donnée — la
+    /// charge utile reste calculée, jamais lue dans la référence.
     #[must_use]
     pub fn emit_rule(&self) -> Option<Vec<u8>> {
-        match self.kind {
-            UnitKind::Padding => Some(vec![INT3; self.len]),
-            _ => None,
-        }
+        let bytes = match self.kind {
+            UnitKind::Padding => vec![INT3; self.len],
+            // Bourrage du linker entre la table des sections et `SizeOfHeaders`.
+            UnitKind::HeaderPad => vec![0u8; self.len],
+            _ => return None,
+        };
+        (bytes.len() == self.len && self.checks(&bytes)).then_some(bytes)
+    }
+
+    /// Vrai si `bytes` correspond à l'empreinte de référence de l'unité.
+    ///
+    /// Une unité sans empreinte renseignée (recouvrement synthétique d'un test)
+    /// accepte toute charge de la bonne taille.
+    #[must_use]
+    pub fn checks(&self, bytes: &[u8]) -> bool {
+        self.sha256.is_empty() || sha256_hex(bytes) == self.sha256
     }
 }
 
@@ -586,6 +603,11 @@ mod tests {
             sha256: String::new(),
         };
         assert_eq!(pad.emit_rule(), Some(vec![INT3; 7]));
+        let hdrpad = Unit {
+            kind: UnitKind::HeaderPad,
+            ..pad.clone()
+        };
+        assert_eq!(hdrpad.emit_rule(), Some(vec![0u8; 7]));
         for kind in [
             UnitKind::Function,
             UnitKind::CodeResidue,
@@ -598,6 +620,27 @@ mod tests {
             };
             assert_eq!(u.emit_rule(), None, "{kind:?} n'a pas de règle connue");
         }
+    }
+
+    #[test]
+    fn une_regle_qui_se_trompe_ne_produit_rien() {
+        // L'empreinte est le garde-fou : sans elle, une règle fausse gonflerait
+        // la mesure sans que `build` ait son mot à dire.
+        let menteuse = Unit {
+            id: "pad..text.0".into(),
+            kind: UnitKind::Padding,
+            section: Some(".text".into()),
+            file_off: 0,
+            len: 4,
+            va: None,
+            sha256: sha256_hex(&[0x90, 0x90, 0x90, 0x90]),
+        };
+        assert_eq!(menteuse.emit_rule(), None);
+        let fidele = Unit {
+            sha256: sha256_hex(&[INT3; 4]),
+            ..menteuse
+        };
+        assert_eq!(fidele.emit_rule(), Some(vec![INT3; 4]));
     }
 
     #[test]
