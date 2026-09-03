@@ -739,8 +739,10 @@ pub fn index_anim(
     bytes: &[u8],
     with_samples: bool,
 ) -> Result<IndexStats> {
+    // `g4cm::decode` vit désormais dans `nie-formats` et rend une `FormatError` ; `CameraError`
+    // l'absorbe (variante `Format`), ce que `DbError::Decode` continue d'attendre.
     let anim = g4cm::decode(bytes)
-        .map_err(|source| DbError::Decode { path: path.to_string(), source })?;
+        .map_err(|e| DbError::Decode { path: path.to_string(), source: crate::CameraError::Format(e) })?;
     let roundtrip_ok = g4cm::encode(&anim).is_ok_and(|re| re == bytes);
     let mut st = IndexStats::default();
 

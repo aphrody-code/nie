@@ -24,8 +24,10 @@ serde.workspace = true
 # `tree-sitter-lua` 0.5 n'expose que `LanguageFn` (via `tree-sitter-language`) et se
 # valide contre `tree-sitter` 0.26 — les deux versions doivent rester alignées, un
 # écart d'ABI de grammaire se manifeste par un `set_language` qui échoue à l'exécution.
-tree-sitter = "0.26"
-tree-sitter-lua = "0.5"
+# Optionnelles (feature `analysis`) : ce sont les seules dépendances C hors mlua, et
+# `nie-formats` ne veut que le décodeur de bytecode, pur Rust.
+tree-sitter = { version = "0.26", optional = true }
+tree-sitter-lua = { version = "0.5", optional = true }
 
 [dev-dependencies]
 nie-formats = { workspace = true }
@@ -34,5 +36,7 @@ nie-formats = { workspace = true }
 # La VM (mlua, Lua 5.2 vendored en C) — activée par défaut : tous les consommateurs actuels
 # l'attendent. Sans elle, seuls `bytecode` et `static_analysis` restent, purs Rust : c'est ce
 # qui permet de compiler le décodeur de bytecode pour wasm32, où Lua en C ne se construit pas.
-default = ["vm"]
+default = ["vm", "analysis"]
 vm = ["dep:mlua"]
+# Analyse statique des sources Lua (module `static_analysis`) — tire tree-sitter (C).
+analysis = ["dep:tree-sitter", "dep:tree-sitter-lua"]
