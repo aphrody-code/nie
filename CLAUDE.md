@@ -166,6 +166,21 @@ bun run lint
   démarrer (« could not determine which binary to run »).
 - Un `tauri dev`/`build` échouant sur « Accès refusé » à l'écriture de `nie-explorer.exe` = une
   instance tourne encore. Tuer le PID, pas relancer le build.
+- **`bundle.resources` CONSERVE le chemin relatif déclaré** : `"resources/db/*.gz"` atterrit en
+  `<resource_dir>/resources/db/`, jamais en `<resource_dir>/db/`. Viser le mauvais chemin ne casse
+  rien de visible — le paquet pèse son poids, la signature est valide, et la ressource n'est
+  simplement jamais lue. Essayer les deux formes (`resource_dir()` varie : dossier de l'exe hors
+  bundle, `<install>/resources` pour un MSI). Vécu le 2026-09-03.
+- **Seul le LANCEMENT trouve ces bugs-là** : ni `tsc`, ni clippy, ni le contrôle de taille du
+  bundle ne voient une ressource jamais lue ou une table vide. Après un build, lancer l'exe et
+  regarder ce qu'il a écrit dans `%APPDATA%\dev.niers.explorer\`.
+- `ui/Icon` rend **`null`** sur un nom absent de sa table (`photo_library`, `handyman` n'y sont
+  pas) : une icône manquante ne lève rien, elle disparaît. Vérifier le nom dans `Icon.tsx`.
+- `base-ui` **refuse `<SelectItem value="">`** (la chaîne vide y signifie « rien de sélectionné ») :
+  coder la valeur « tout » par un jeton (`__toutes__`) et le retraduire à la sortie.
+- Une commande Tauri nouvelle : `#[tauri::command] #[specta::specta]` **+** ajout à la liste du
+  `invoke_handler` **+** `cargo run --bin export-bindings --features dev-bindings`. Sans le 2ᵉ ou
+  le 3ᵉ pas, le front ne la voit pas.
 
 ## Les quatre gisements — passer par la façade
 
@@ -192,6 +207,16 @@ bun --bun packages/nie-catalog/src/cli.ts cherche "Mark"
 - **`inagle_game_assets` n'est PAS l'index des fichiers du jeu** : 40 469 de ses 40 471 lignes
   sont des PNG de menu. Le seul index complet est le VFS (`/vfs/find`).
 - Un gisement **présent peut être vide** : `etat()` mesure le contenu, pas l'existence du fichier.
+- **Trois de ces bases voyagent avec l'installeur de `nie-explorer`** : `var/mirror.sqlite`,
+  `var/niers.sqlite` et `data/anime/episodes.db`, compressées par
+  `scripts/packager-bases-explorer.sh` vers `apps/nie-explorer/src-tauri/resources/db/*.gz` (~35 Mo)
+  puis décompressées dans `%APPDATA%\dev.niers.explorer\db\` au premier lancement. `release-desktop.sh`
+  appelle le packager en étape 5/8, **avant** le build : après, le bundler a déjà lu `bundle.resources`.
+- Les rapatrier depuis le VPS : `scp ovh-vps-direct:/home/ubuntu/niers/var/miroir/inagle-*.sqlite`
+  et `…/data/anime/episodes.db`. **`ovh-vps` passe par le VPN (10.8.0.1) et expire** — utiliser
+  l'alias `-direct`. Copier un SQLite ouvert en WAL : voir § *Pièges d'édition*.
+- Le catalogue d'épisodes vient de `packages/ietv` (`IETVCache`) ; son scraper est du Node qui
+  parle à YouTube, seule **la base** entre dans l'application.
 - Le schéma SQL vit dans `supabase/migrations/` — rejouable, idempotent, vérifié colonne par
   colonne contre la production (811/811). Il crée la **forme** ; le contenu vient du jeu.
 - Une migration n'est idempotente que **rejouée** : `CREATE TABLE IF NOT EXISTS` ne suffit pas,
@@ -291,6 +316,9 @@ csharp/             IECODE.Core / IECODE.CLI / IECODE.Core.Tests (.NET 10, `IECO
   chemin Windows (`C:\Users\…\AppData\Local\Temp\…`).
 - **Lire la mémoire de `nie.exe` exige une élévation** : le process est plus privilégié que la
   session, `OpenProcess` échoue et l'outil dit « nie.exe introuvable » alors qu'il tourne.
+- **Les liens symboliques natifs marchent** ici (mode développeur actif) :
+  `MSYS=winsymlinks:nativestrict ln -sfn cible lien`. `sqlite3` et le `sqlx` de `tauri-plugin-sql`
+  les suivent — c'est ainsi que `var/mirror.sqlite` pointe l'instantané courant sans le dupliquer.
 - `Start-Process -Verb RunAs` **interdit** `-RedirectStandardOutput` (jeux de paramètres exclusifs) :
   passer par un `.cmd` qui redirige lui-même, sinon « Parameter set cannot be resolved ».
 
@@ -506,6 +534,12 @@ alors que 77 `.py` versionnés existent déjà.
 - `Db::init` (nie-index) applique `schema.sql` **puis** `camera.sql` (`meta.schema_version = 2`).
 - Peupler la caméra : `nie-cam index [--samples]` ; état : `nie-cam stats`.
 - `sqlite3` est dans le PATH (fourni par le SDK Android) : `sqlite3 var/niers.sqlite "…"`.
+- **La forge écrit dans la KB** (`nie-forge kb`, module `crates/forge/nie-forge/src/kb.rs`) :
+  `forge_unit` (statut + cause par unité — `produit`/`bloque`/`regle`/`donnees_inline`/`verbatim`),
+  `forge_classe` (par classe RTTI : méthodes, résolues, produites, bloquées) et la vue
+  `v_forge_function` (chaque fonction avec son statut). C'est la table à joindre pour savoir si le
+  dépôt sait produire un corps donné. `forge_classe.resolues` borne la lecture : les vtables
+  viennent de l'index Ghidra, les fonctions du découpage `#pdata`.
 - **Deux `binary_id` coexistent** : `1` = index Ghidra désaligné (60 183 nœuds, 88,20 %, figé —
   projet Ghidra jamais rejoué), `2` = `#pdata`, la vérité terrain. Citer le **2**. État vérifié
   2026-08-15 (revérifié à la main, `niers rebuild --db var/niers.sqlite --exe nie_eacpatched.exe`,
@@ -532,6 +566,10 @@ alors que 77 `.py` versionnés existent déjà.
   (vécu sur `apps/azalee/lib/icons.ts`). Éditer les lignes, jamais réécrire le bloc.
 - `comm` exige un tri **`LC_ALL=C sort`** : sans lui il annonce « 0 différence » sur des fichiers
   qu'il refuse en réalité de comparer (le message `not in sorted order` part sur stderr).
+- **`path.join` de Node suit la plateforme HÔTE, pas la forme du chemin** : un `HOME` POSIX
+  (`/home/ubuntu`, celui d'un service Linux) ressort en `\home\ubuntu\…` sous Windows, et le test
+  qui l'attendait vire au rouge sur ce poste seulement. Passer par `posix.join` quand la base
+  commence par `/` (vu sur `wonderbot/src/config.ts`).
 - Copier un SQLite ouvert en WAL **sans son `-wal`** perd les écritures récentes (42 épisodes
   manquants). Utiliser `sqlite3 src ".backup 'dest'"`.
 - Une page qui rend un titre correct peut quand même être en 500 : **démarrer le service** est ce
