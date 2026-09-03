@@ -45,6 +45,17 @@ export interface Vue {
 /** Les vues, dans l'ordre d'affichage — celui de la barre latérale ET des accélérateurs. */
 export const VUES: readonly Vue[] = [
   {
+    // Le Cinéma ouvre l'application (`App.tsx`) : c'est la seule vue qui se regarde plutôt
+    // qu'elle ne s'interroge, et elle demande d'abord QUI regarde. Elle tient donc la première
+    // place de la barre latérale et `Ctrl+1`.
+    id: "cinema",
+    cle: "tab.cinema",
+    icone: "movie",
+    groupe: "principal",
+    description: "La médiathèque : les dix saisons de la série et les cinématiques du jeu.",
+    barreLaterale: true,
+  },
+  {
     id: "dashboard",
     cle: "tab.dashboard",
     icone: "dashboard",
@@ -74,14 +85,6 @@ export const VUES: readonly Vue[] = [
     icone: "search",
     groupe: "principal",
     description: "Recherche par chemin, extension et code interne.",
-    barreLaterale: true,
-  },
-  {
-    id: "cinema",
-    cle: "tab.cinema",
-    icone: "movie",
-    groupe: "principal",
-    description: "Lecture des cinématiques USM du jeu.",
     barreLaterale: true,
   },
   {

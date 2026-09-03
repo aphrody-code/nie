@@ -49,9 +49,11 @@ const SIDEBAR_WIDTH = 200;
 export default function App() {
   const t = useT();
   useApplyAppearance();
-  // Le tableau de bord ouvre l'application : il dit, chiffres à l'appui, ce que cette machine
-  // peut faire (jeu monté ou non, bases présentes ou non) avant qu'un onglet ne le découvre.
-  const [tab, setTab] = useState("dashboard");
+  // Le Cinéma ouvre l'application, et sa première question est « qui regarde ? » — comme les
+  // deux plateformes dont la médiathèque emprunte la forme. Le tableau de bord reste à un clic
+  // (ou `Ctrl+2`) : il dit ce que cette machine peut faire, mais ce n'est pas la question qu'on
+  // se pose en ouvrant la fenêtre.
+  const [tab, setTab] = useState("cinema");
   // Onglets de l'Explorateur — état module-level persistant (`lib/explorerTabs.ts`), pas un
   // `useState` local : la navigation, l'historique et les préférences d'affichage appartiennent à
   // l'onglet et survivent au changement de vue comme au redémarrage de l'application.
