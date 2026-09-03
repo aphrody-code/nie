@@ -6,7 +6,7 @@
 // cycle. Rien de neuf n'est décidé ici : c'est le même catalogue unifié qu'avant, décrit une
 // seule fois.
 import { clePourProfil, PROFIL_PRINCIPAL } from "./profils";
-import type { EpisodeAnime } from "./animeDb";
+import { plateformeDe, type EpisodeAnime } from "./animeDb";
 import type { FilmDto } from "./bindings";
 
 /** Clé de la saison qui porte les cinématiques du jeu. */
@@ -72,14 +72,10 @@ export function ecrireReprises(r: Reprises, profilId: string = PROFIL_PRINCIPAL)
 }
 
 // ── Affiches capturées ────────────────────────────────────────────────────────
-
-/**
- * Affiches déjà capturées, par chemin — un cache de session, jamais persisté.
- *
- * Partagé entre les cartes, le héros et la fiche de détail : une image capturée au survol d'une
- * carte sert de fond au héros sans re-démultiplexer un conteneur de 300 Mo.
- */
-export const affiches = new Map<string, string>();
+//
+// Le cache vit dans `lib/affiches.ts` : c'est lui qui capture, met en file et PERSISTE. Une
+// `Map` de session vivait ici, remplie seulement par le survol — une carte jamais survolée
+// n'avait donc jamais d'image, et tout était perdu à la fermeture.
 
 /** Fraction de la durée à laquelle on capture l'affiche : le tout début est souvent noir. */
 export const INSTANT_AFFICHE = 0.12;
@@ -93,13 +89,19 @@ export function formaterOctets(n: number): string {
 }
 
 /**
- * Vignette YouTube en haute définition d'un épisode.
+ * La meilleure vignette disponible pour un épisode.
  *
- * La base porte l'URL `hqdefault` (480×360), assez pour une carte de 224 px mais floue en fond de
- * héros ou d'en-tête de fiche, qui font toute la largeur. `maxresdefault` existe pour la quasi-
- * totalité des vidéos de la chaîne ; quand elle manque, YouTube répond une image de remplacement
- * et l'appelant retombe sur `vignette` par `onError`.
+ * **Ne force plus `i.ytimg` pour tout le monde** : 143 épisodes sur 355 ne sont pas sur YouTube
+ * (toute la saison Chrono Stones, toute la saison Galaxy et 49 épisodes de la saison 3), et leur
+ * demander une image `maxresdefault` produisait une vignette morte — c'est ce qui faisait
+ * paraître ces saisons « en panne ». Leur vignette Dailymotion, elle, est dans la base et
+ * fonctionne.
+ *
+ * Pour YouTube on demande quand même `maxresdefault` : la base porte `hqdefault` (480×360),
+ * assez pour une carte de 224 px, flou en fond de héros ou d'en-tête de fiche. Quand elle
+ * n'existe pas, la requête échoue et l'appelant retombe sur `vignette` par `onError`.
  */
-export function vignetteHd(videoId: string): string {
-  return `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;
+export function vignetteDe(ep: EpisodeAnime): string | null {
+  if (plateformeDe(ep) === "youtube") return `https://i.ytimg.com/vi/${ep.videoId}/maxresdefault.jpg`;
+  return ep.vignette;
 }

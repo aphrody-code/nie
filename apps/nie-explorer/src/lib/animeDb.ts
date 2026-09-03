@@ -24,8 +24,13 @@ export interface EpisodeAnime {
   saison: number;
   /** Numéro d'épisode dans la saison, `null` pour un film ou un hors-série. */
   episode: number | null;
-  /** Identifiant YouTube — c'est lui qui sert à la lecture (`embed`). */
+  /**
+   * Identifiant de la vidéo. **Pas toujours un identifiant YouTube** : 143 épisodes sur 355
+   * portent un jeton propre à la base (`off-galaxy-1`) — cf. `plateformeDe`.
+   */
   videoId: string;
+  /** Page publique de l'épisode — YouTube, ou la plateforme officielle pour les 143 autres. */
+  url: string;
   titre: string;
   /** Titre original japonais — renseigné pour 330 des 355 épisodes. */
   titreJp: string | null;
@@ -128,7 +133,7 @@ export const animeDb = {
   async episodes(chemin: string, saison: number): Promise<EpisodeAnime[]> {
     const d = await connect(chemin);
     return d.select<EpisodeAnime[]>(
-      `SELECT id, season AS saison, episode, videoId, title AS titre, description,
+      `SELECT id, season AS saison, episode, videoId, url, title AS titre, description,
               titleJp AS titreJp, romaji,
               thumbnail AS vignette, publishDate AS publie, language AS langue, duration AS duree
          FROM episodes WHERE season = $1
@@ -141,7 +146,7 @@ export const animeDb = {
   async tous(chemin: string): Promise<EpisodeAnime[]> {
     const d = await connect(chemin);
     return d.select<EpisodeAnime[]>(
-      `SELECT id, season AS saison, episode, videoId, title AS titre, description,
+      `SELECT id, season AS saison, episode, videoId, url, title AS titre, description,
               titleJp AS titreJp, romaji,
               thumbnail AS vignette, publishDate AS publie, language AS langue, duration AS duree
          FROM episodes
@@ -161,7 +166,7 @@ export const animeDb = {
     if (terme.length < 2) return [];
     const d = await connect(chemin);
     return d.select<EpisodeAnime[]>(
-      `SELECT id, season AS saison, episode, videoId, title AS titre, description,
+      `SELECT id, season AS saison, episode, videoId, url, title AS titre, description,
               titleJp AS titreJp, romaji,
               thumbnail AS vignette, publishDate AS publie, language AS langue, duration AS duree
          FROM episodes
@@ -280,16 +285,90 @@ export const animeDb = {
   },
 };
 
-/** URL d'intégration YouTube d'un épisode. `youtube-nocookie` plutôt que `youtube` : le domaine
- * sans cookie ne dépose rien tant que la lecture n'a pas commencé — la vue Cinéma affiche des
- * dizaines de vignettes, elle n'a aucune raison d'ouvrir autant de traceurs. */
+// ── D'où vient réellement la vidéo d'un épisode ───────────────────────────────
+//
+// **Tous les épisodes ne sont PAS sur YouTube**, et le supposer cassait deux saisons entières.
+// Mesuré le 2026-09-03 sur les 355 épisodes de la base :
+//
+// | Saison        | Épisodes | Sur YouTube |
+// |---------------|---------:|------------:|
+// | 1, 2, GO, Outer Code, Ares, Orion, Films | 201 | 201 |
+// | 3             |       60 |          11 |
+// | Chrono Stones |       51 |           0 |
+// | Galaxy        |       43 |           0 |
+//
+// Soit **143 épisodes (40 %)** dont le `videoId` n'est pas un identifiant YouTube mais un jeton
+// de la base (`off-galaxy-1`), dont l'`url` pointe la plateforme officielle
+// (`inazuma-eleven.fr/tv/watch/...`) et dont la vignette est servie par Dailymotion. Les 143
+// portent une vignette Dailymotion : l'identifiant de lecture y est lisible, donc ces épisodes
+// sont parfaitement jouables — ils ne l'étaient pas parce qu'on les envoyait tous à YouTube.
+
+/** Un identifiant YouTube fait onze caractères de l'alphabet base64url. */
+const RE_YOUTUBE = /^[A-Za-z0-9_-]{11}$/;
+
+/** Identifiant Dailymotion, tel que la vignette de la base le porte. */
+const RE_DAILYMOTION = /dailymotion\.com\/thumbnail\/video\/([A-Za-z0-9]+)/;
+
+export type Plateforme = "youtube" | "dailymotion" | "inconnue";
+
+/** Où vit la vidéo de cet épisode. */
+export function plateformeDe(ep: EpisodeAnime): Plateforme {
+  if (RE_YOUTUBE.test(ep.videoId)) return "youtube";
+  if (ep.vignette && RE_DAILYMOTION.test(ep.vignette)) return "dailymotion";
+  return "inconnue";
+}
+
+/** L'identifiant de lecture Dailymotion, extrait de la vignette. */
+export function idDailymotion(ep: EpisodeAnime): string | null {
+  return ep.vignette ? (RE_DAILYMOTION.exec(ep.vignette)?.[1] ?? null) : null;
+}
+
+/**
+ * URL d'intégration d'un épisode, quelle que soit sa plateforme.
+ *
+ * `youtube-nocookie` plutôt que `youtube` : le domaine sans cookie ne dépose rien tant que la
+ * lecture n'a pas commencé — la vue Cinéma affiche des dizaines de vignettes, elle n'a aucune
+ * raison d'ouvrir autant de traceurs. Dailymotion a son équivalent avec `sharing-enable=false`
+ * et le suivi publicitaire désactivé.
+ *
+ * Rend `null` quand aucune intégration n'est possible : l'appelant propose alors d'ouvrir la
+ * page officielle plutôt que d'afficher un cadre vide.
+ */
+export function urlIntegrationEpisode(ep: EpisodeAnime, depart?: number): string | null {
+  const plateforme = plateformeDe(ep);
+  if (plateforme === "youtube") {
+    const p = new URLSearchParams({ autoplay: "1", rel: "0", modestbranding: "1" });
+    if (depart && depart > 0) p.set("start", String(Math.floor(depart)));
+    return `https://www.youtube-nocookie.com/embed/${ep.videoId}?${p}`;
+  }
+  if (plateforme === "dailymotion") {
+    const id = idDailymotion(ep);
+    if (!id) return null;
+    const p = new URLSearchParams({ autoplay: "1", "queue-enable": "false", "sharing-enable": "false" });
+    if (depart && depart > 0) p.set("start", String(Math.floor(depart)));
+    return `https://www.dailymotion.com/embed/video/${id}?${p}`;
+  }
+  return null;
+}
+
+/** URL d'intégration YouTube — conservée pour les appelants qui n'ont qu'un identifiant. */
 export function urlIntegration(videoId: string, depart?: number): string {
   const p = new URLSearchParams({ autoplay: "1", rel: "0", modestbranding: "1" });
   if (depart && depart > 0) p.set("start", String(Math.floor(depart)));
   return `https://www.youtube-nocookie.com/embed/${videoId}?${p}`;
 }
 
-/** URL de la page YouTube — pour « ouvrir dans le navigateur ». */
+/**
+ * La page publique de l'épisode — pour « ouvrir dans le navigateur ».
+ *
+ * C'est `url` de la base, pas une URL YouTube reconstruite : pour les 143 épisodes hors YouTube
+ * elle désigne la plateforme officielle, seul endroit où ils se regardent en entier.
+ */
+export function urlExterne(ep: EpisodeAnime): string {
+  return ep.url || `https://www.youtube.com/watch?v=${ep.videoId}`;
+}
+
+/** URL de la page YouTube — pour un identifiant seul. */
 export function urlYoutube(videoId: string): string {
   return `https://www.youtube.com/watch?v=${videoId}`;
 }

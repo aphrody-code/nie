@@ -21,7 +21,8 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/Icon";
 import { formaterDuree } from "@/components/VideoPlayer";
-import { affiches, formaterOctets, vignetteHd, type ElementCinema } from "@/lib/cinema";
+import { afficheConnue } from "@/lib/affiches";
+import { formaterOctets, vignetteDe, type ElementCinema } from "@/lib/cinema";
 import { cn } from "@/lib/utils";
 
 /** Durée d'affichage d'un titre, en millisecondes. */
@@ -66,9 +67,9 @@ export function HerosCarrousel({
   const episode = courant.episode;
   const film = courant.film;
   const fond = episode
-    ? vignetteHd(episode.videoId)
+    ? vignetteDe(episode)
     : film
-      ? (affiches.get(film.chemin) ?? null)
+      ? afficheConnue(film.chemin)
       : null;
 
   const badges = [
@@ -82,7 +83,7 @@ export function HerosCarrousel({
 
   return (
     <div
-      className="relative mx-4 mt-3 overflow-hidden rounded-xl border border-app-line bg-app-darkBox"
+      className="relative mx-4 mt-3 overflow-hidden rounded-xl border border-app-line bg-app-dark-box"
       onMouseEnter={() => setFige(true)}
       onMouseLeave={() => setFige(false)}
     >
@@ -96,7 +97,7 @@ export function HerosCarrousel({
             draggable={false}
           />
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-app-box to-app-darkBox" />
+          <div className="absolute inset-0 bg-gradient-to-br from-app-box to-app-dark-box" />
         )}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-app via-app/70 to-transparent" />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-app to-transparent" />
