@@ -37,7 +37,7 @@ import { useApplyAppearance } from "@/lib/appearance";
 import { PINNED_PLACES, recordVisit, usePinnedPlaces, useRecentPlaces } from "@/lib/places";
 import { canGoBack, canGoForward, explorerTabs, useExplorerTabs } from "@/lib/explorerTabs";
 import { showPlaceContextMenu } from "@/lib/contextMenu";
-import { getSettings, setSettings } from "@/lib/settings";
+import { getSettings, setSettings, useSettings } from "@/lib/settings";
 import { modsDb } from "@/lib/modsDb";
 import { jobsDb } from "@/lib/jobsDb";
 import { vfsIndexDb } from "@/lib/vfsIndexDb";
@@ -58,6 +58,9 @@ export default function App() {
   // (ou `Ctrl+2`) : il dit ce que cette machine peut faire, mais ce n'est pas la question qu'on
   // se pose en ouvrant la fenêtre.
   const [tab, setTab] = useState("cinema");
+  /** Les réglages, en lecture RÉACTIVE : la barre latérale doit se réorganiser dès qu'on
+   *  bascule « Outils avancés », sans relancer l'application. */
+  const reglages = useSettings();
   /**
    * Barre latérale repliée — retenue d'une session à l'autre.
    *
@@ -142,12 +145,18 @@ export default function App() {
       // `ui/Icon`, qui rend `null` sur un nom inconnu.
       ...(["principal", "donnees", "outils"] as const).map((groupe) => ({
         label: LIBELLE_GROUPE[groupe],
-        items: vuesDuGroupe(groupe).map((v) => ({
-          id: v.id,
-          label: t(v.cle),
-          icon: v.icone,
-          title: `${t(v.cle)} — ${v.description}`,
-        })),
+        // Les outils de spécialiste (RE, Viola, Live mod, Lua) ne sont pas listés tant que
+        // « Outils avancés » est éteint. L'application s'ouvre sur une médiathèque : offrir
+        // d'emblée le reverse-engineering et la lecture de la mémoire du jeu noyait les cinq
+        // entrées qui servent à tout le monde. Elles restent atteignables par Ctrl+K.
+        items: vuesDuGroupe(groupe)
+          .filter((v) => !v.avancee || reglages.outilsAvances)
+          .map((v) => ({
+            id: v.id,
+            label: t(v.cle),
+            icon: v.icone,
+            title: `${t(v.cle)} — ${v.description}`,
+          })),
       })),
       {
         label: t("explorer.places"),

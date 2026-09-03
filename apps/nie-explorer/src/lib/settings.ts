@@ -37,6 +37,19 @@ export interface Settings {
    * changer d'onglet) via le pont local `@niers/bridge`. Désactivé, aucun socket n'est ouvert.
    */
   bridgeEnabled: boolean;
+  /**
+   * Affiche les outils de spécialiste dans la barre latérale : RE, Viola, Live mod, Lua
+   * (les vues marquées `avancee` dans `lib/vues.ts`).
+   *
+   * **Faux par défaut**, et c'est le point : l'application s'ouvre sur une médiathèque, or la
+   * barre latérale offrait d'emblée le reverse-engineering, la lecture de la mémoire du jeu et
+   * le désassemblage de scripts. Ces quatre entrées ne servent qu'à une personne ; les laisser
+   * en permanence noyait les cinq qui comptent pour tout le monde.
+   *
+   * Rien n'est retiré : les vues restent atteignables par la palette de commandes (Ctrl+K) même
+   * quand ce réglage est faux.
+   */
+  outilsAvances: boolean;
 }
 
 // Le thème clair/sombre/système est géré par next-themes (sa propre clé localStorage
@@ -52,6 +65,7 @@ const DEFAULTS: Settings = {
   uiZoom: 1,
   accentTheme: "spacedrive",
   bridgeEnabled: true,
+  outilsAvances: false,
 };
 
 function load(): Settings {
