@@ -2,7 +2,7 @@
 
 import { Gift, Shirt } from "lucide-react";
 import { Link } from "@/components/ui/link";
-import type { CapsulePrize, Costume } from "@rosegriffon/azalee/wiki/gacha-shared";
+import type { CapsulePrize, Costume } from "@/lib/wikiTypes";
 import { cn } from "@/lib/utils";
 
 /**

@@ -1,6 +1,6 @@
 import { Flag, ScrollText } from "lucide-react";
 import { Link } from "@/components/ui/link";
-import type { Quest } from "@/lib/wiki/quests";
+import type { Quest } from "@/lib/wikiTypes";
 import { cn } from "@/lib/utils";
 
 export interface QuestCardProps {
