@@ -5,7 +5,7 @@
  * le classement et la tolérance aux fautes de frappe côté application.
  */
 
-import type { VideoRef, ChannelInfo } from "./index";
+import type { VideoRef, ChannelInfo, LanguageVersion } from "./index";
 import { IETVCache } from "./cache";
 
 export interface SearchResult {
@@ -20,7 +20,14 @@ export interface SearchOptions {
 	query?: string;
 	season?: number;
 	episode?: number;
-	language?: "vf" | "vostfr";
+	/**
+	 * Langue recherchée — le vocabulaire complet, pas deux valeurs sur six.
+	 *
+	 * Il valait `"vf" | "vostfr"` : filtrer sur la VO ou l'espagnol était donc
+	 * impossible à écrire, alors que la base porte les deux. `unknown` reste
+	 * exclu, et c'est voulu — on ne FILTRE pas sur l'absence de renseignement.
+	 */
+	language?: Exclude<LanguageVersion, "unknown">;
 	channel?: string;
 	fuzzy?: boolean;
 	limit?: number;
