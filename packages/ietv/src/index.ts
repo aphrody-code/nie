@@ -77,7 +77,9 @@ import {
 	ARCS_SERIE_ORIGINE,
 	CHAINES_OFFICIELLES,
 	LANGUES_OFFICIELLES,
+	OFFICIALITE_NON_ETABLIE,
 	arcDeTitre,
+	moissonnable,
 	numeroEpisodeDeTitre,
 	saisonDeSlug,
 	type LangueOfficielle,
@@ -326,10 +328,10 @@ function stripHtml(html: string): string {
 function videoIdFromUrl(url: string): string {
 	// youtube.com/watch?v=XXX
 	const m1 = /[?&]v=([a-zA-Z0-9_-]+)/.exec(url);
-	if (m1) return m1[1];
+	if (m1?.[1]) return m1[1];
 	// youtu.be/XXX
 	const m2 = /youtu\.be\/([a-zA-Z0-9_-]+)/.exec(url);
-	if (m2) return m2[1];
+	if (m2?.[1]) return m2[1];
 	// Short ID or fallback
 	if (/^[a-zA-Z0-9_-]{11}$/.test(url)) return url;
 	return url;
@@ -372,7 +374,7 @@ export function detectLanguage(title: string): LanguageVersion {
 /** Saison explicitement nommée dans le titre, `null` si aucune. */
 function saisonDuTitre(title: string): number | null {
 	const trouve = /[Ss](?:aison|eason)\s*(\d{1,2})/i.exec(title);
-	return trouve ? parseInt(trouve[1], 10) : null;
+	return trouve?.[1] ? parseInt(trouve[1], 10) : null;
 }
 
 /**
@@ -404,7 +406,7 @@ export function situerAbsolu(
 export function parseSeasonEpisode(title: string): { season: number | null; episode: number | null } {
 	// Pattern 1: S##E## or Season 1 Episode 5 (or Saison 1 Épisode 5)
 	const m1 = /[Ss](?:eason|aison)?\s*(\d{1,2})[^\d]*[Ee](?:pisode)?\s*(\d{1,3})/i.exec(title);
-	if (m1) {
+	if (m1?.[1] && m1[2]) {
 		return {
 			season: parseInt(m1[1], 10),
 			episode: parseInt(m1[2], 10),
@@ -420,22 +422,26 @@ export function parseSeasonEpisode(title: string): { season: number | null; epis
 	// Une saison inconnue se déduit ailleurs, à partir des tailles réelles des
 	// arcs (`situerAbsolu`), ou reste inconnue.
 	const m2 = /[Éè]?[Ee]pisod[eéèê]\s*(\d{1,3})|épis(?:od)?[eéèê]\s*(\d{1,3})/i.exec(title);
-	if (m2) {
+	// L'alternance rend DEUX groupes dont un seul est renseigné : le premier
+	// qui l'est porte le numéro. Sans cette garde, `m2[1] || m2[2]` est typé
+	// `string | undefined` et masque le cas où l'alternance a matché à vide.
+	const numero2 = m2?.[1] ?? m2?.[2];
+	if (numero2) {
 		return {
 			season: saisonDuTitre(title),
-			episode: parseInt(m2[1] || m2[2], 10),
+			episode: parseInt(numero2, 10),
 		};
 	}
 
 	// Pattern 3: Ep. 5 (short form)
 	const m3 = /\bEp\.?\s*(\d{1,3})/i.exec(title);
-	if (m3) {
+	if (m3?.[1]) {
 		return { season: saisonDuTitre(title), episode: parseInt(m3[1], 10) };
 	}
 
 	// Pattern 4: Trailing number (last sequence of 1-3 digits)
 	const m4 = /(\d{1,3})(?!\d)/i.exec(title);
-	if (m4) {
+	if (m4?.[1]) {
 		return { season: saisonDuTitre(title), episode: parseInt(m4[1], 10) };
 	}
 
@@ -627,6 +633,9 @@ export class IETVScraper {
 
 		for (const match of ytDataMatches) {
 			const jsonStr = match[1];
+			// Un `matchAll` rend toujours le groupe 1 ici, mais le type ne le sait
+			// pas : sans cette garde, tout le corps travaille sur `string | undefined`.
+			if (!jsonStr) continue;
 			try {
 				// Use regex to extract video IDs and associated titles from the JSON
 				// Pattern: "videoId":"XXXXX","thumbnail":{"thumbnails":[...]},...
@@ -641,6 +650,7 @@ export class IETVScraper {
 				// Extract all video IDs
 				while ((videoMatch = videoRe.exec(jsonStr)) !== null) {
 					const vid = videoMatch[1];
+					if (!vid) continue;
 					if (!seen.has(vid)) {
 						videoIds.set(vid, `Video ${vid}`);
 						seen.add(vid);
@@ -657,9 +667,11 @@ export class IETVScraper {
 				);
 
 				for (let i = 0; i < Math.min(videoIdArray.length, titlesMatches.length); i++) {
-					const title =
-						titlesMatches[i][1] || titlesMatches[i][2] || videoIdArray[i];
-					videoIds.set(videoIdArray[i], decodeURIComponent(title));
+					const identifiant = videoIdArray[i];
+					const correspondance = titlesMatches[i];
+					if (!identifiant || !correspondance) continue;
+					const title = correspondance[1] || correspondance[2] || identifiant;
+					videoIds.set(identifiant, decodeURIComponent(title));
 				}
 
 				// Convert to VideoRef objects
@@ -712,7 +724,7 @@ export class IETVScraper {
 					/"title":\s*"([^"]*episode[^"]*)"/i.exec(html) ??
 					/data-title="([^"]+)"/i.exec(html);
 
-				const title = titleMatch ? stripHtml(titleMatch[1]) : `Video ${videoId}`;
+				const title = titleMatch?.[1] ? stripHtml(titleMatch[1]) : `Video ${videoId}`;
 				const { season, episode } = parseSeasonEpisode(title);
 				const language = detectLanguage(title);
 
@@ -737,8 +749,10 @@ export class IETVScraper {
 		let match;
 
 		while ((match = watchLinkRe.exec(html)) !== null) {
-			const fullUrl = "https://www.youtube.com" + match[1];
+			const chemin = match[1];
 			const videoId = match[2];
+			if (!chemin || !videoId) continue;
+			const fullUrl = "https://www.youtube.com" + chemin;
 
 			if (seen.has(videoId)) continue;
 			seen.add(videoId);
@@ -749,9 +763,8 @@ export class IETVScraper {
 				"i",
 			).exec(html);
 
-			const title = titleMatch
-				? stripHtml(titleMatch[1] || titleMatch[2])
-				: `Video ${videoId}`;
+			const libelle = titleMatch?.[1] || titleMatch?.[2];
+			const title = libelle ? stripHtml(libelle) : `Video ${videoId}`;
 			const { season, episode } = parseSeasonEpisode(title);
 			const language = detectLanguage(title);
 
@@ -999,18 +1012,21 @@ export class IETVScraper {
 					const handle = match[1];
 					const channelId = match[2];
 
-					if (!handle && !channelId) continue;
+					// La regex a deux alternatives, donc un seul des deux groupes est
+					// renseigné : la clé est celui qui l'est. La garde remplace le
+					// `handle || channelId` répété, qui restait `string | undefined`.
 					const key = handle || channelId;
+					if (!key) continue;
 					if (seen.has(key)) continue;
 					seen.add(key);
 
 					// Fetch channel metadata
 					try {
-						const info = await this.getChannelEpisodes(handle || channelId);
+						const info = await this.getChannelEpisodes(key);
 						channels.push({
-							handle: handle || channelId,
+							handle: key,
 							channelId: channelId || "unknown",
-							title: info.title || handle || channelId,
+							title: info.title || key,
 							description: info.description,
 							subscriberCount: null, // Not easily extractable from channel page
 							videoCount: String(info.totalEpisodes),
@@ -1066,8 +1082,10 @@ export class IETVScraper {
 		let match;
 
 		while ((match = jsonLdRe.exec(html)) !== null) {
+			const charge = match[1];
+			if (!charge) continue;
 			try {
-				const jsonData = JSON.parse(match[1]) as any;
+				const jsonData = JSON.parse(charge) as any;
 
 				// Handle different JSON-LD structures
 				if (jsonData.containsSeason && Array.isArray(jsonData.containsSeason)) {
@@ -1110,7 +1128,9 @@ export class IETVScraper {
 
 			while ((match = episodeRe.exec(html)) !== null) {
 				const url = match[1];
-				const title = stripHtml(match[2]);
+				const brut = match[2];
+				if (!url || !brut) continue;
+				const title = stripHtml(brut);
 
 				if (title.length < 3) continue;
 
@@ -1584,6 +1604,15 @@ export class IETVScraper {
 	): Promise<ChannelInfo[]> {
 		const resultats = await Promise.all(
 			comptes.map(async (compte) => {
+				// `inaztvfr` porte la même marque que la chaîne YouTube écartée et
+				// renvoie vers le même site de téléchargement : même exclusion, et
+				// c'est `OFFICIALITE_NON_ETABLIE` qui la porte, pas une condition
+				// bricolée ici.
+				if (!moissonnable(compte.compte)) {
+					const motif = OFFICIALITE_NON_ETABLIE.find((c) => c.handle === compte.compte)?.motif;
+					console.warn(`compte Dailymotion ecarte — ${compte.compte} : ${motif}`);
+					return null;
+				}
 				try {
 					const videos: VideoRef[] = [];
 					const PAGES_MAX = 20;
@@ -1696,6 +1725,15 @@ export class IETVScraper {
 	): Promise<ChannelInfo[]> {
 		const resultats = await Promise.all(
 			chaines.map(async (chaine) => {
+				// ── LE FILTRE EST ICI, PAS DANS UNE NOTE ────────────────────────
+				// Trois des cinq chaînes listées se révèlent non autorisées à
+				// diffuser (cf. `OFFICIALITE_NON_ETABLIE`). Un commentaire ne
+				// retient personne : la moisson les saute, et le dit.
+				if (!moissonnable(chaine.handle)) {
+					const motif = OFFICIALITE_NON_ETABLIE.find((c) => c.handle === chaine.handle)?.motif;
+					console.warn(`chaine ecartee — ${chaine.handle} : ${motif}`);
+					return null;
+				}
 				try {
 					const flux = await this.fetchTexte(urlFlux(chaine.channelId));
 					this.stats.httpRequests++;
@@ -1807,8 +1845,13 @@ export class IETVScraper {
 
 		while ((match = episodeRe.exec(html)) !== null) {
 			const url = match[1];
-			const title = stripHtml(match[2]);
+			const brut = match[2];
 			const thumbnail = match[3];
+			// Les trois groupes sont obligatoires dans la regex, mais le type ne
+			// le sait pas : sans garde, `url`, le titre et la vignette restent
+			// `string | undefined` jusque dans l'objet `VideoRef` construit plus bas.
+			if (!url || !brut || !thumbnail) continue;
+			const title = stripHtml(brut);
 
 			// Extract video ID or use URL hash
 			const videoId = url.match(/(?:id=|v=|\/)?([a-zA-Z0-9_-]{8,})/) ?.[1] ||
@@ -1840,8 +1883,14 @@ export class IETVScraper {
 			const linkRe =
 				/<a[^>]*href="([^"]*ep(?:isode|od)?[^"]*)"[^>]*>([^<]+)<\/a>/gi;
 			while ((match = linkRe.exec(html)) !== null) {
+				// Garde explicite : sous `noUncheckedIndexedAccess` — la configuration de
+				// `@rosegriffon/cron`, plus stricte que celle d'ietv — un groupe de capture est
+				// `string | undefined`, même quand la regex garantit sa présence. Sans elle, le
+				// typecheck du monorepo échoue alors que celui d'ietv seul passe.
 				const url = match[1];
-				const title = stripHtml(match[2]);
+				const brut = match[2];
+				if (!url || !brut) continue;
+				const title = stripHtml(brut);
 
 				if (title.length < 5 || seen.has(url)) continue;
 				seen.add(url);

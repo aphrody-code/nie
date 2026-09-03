@@ -40,6 +40,17 @@ export interface Vue {
    * en bas, séparé — mais elle reste une vue à part entière pour le menu et la palette.
    */
   barreLaterale: boolean;
+  /**
+   * Outil de spécialiste, masqué par défaut — reverse-engineering, mémoire du jeu lancé,
+   * scripts, dump Criware.
+   *
+   * **Ce n'est pas une suppression** : la vue reste entière, atteignable par la palette de
+   * commandes et par le réglage « Outils avancés ». Elle quitte simplement la barre latérale,
+   * où quinze entrées dont la moitié ne parlent qu'à une personne rendaient les cinq qui
+   * comptent — le Cinéma, l'Explorateur, les Données, la Galerie, les Mods — indistinctes des
+   * autres.
+   */
+  avancee?: boolean;
 }
 
 /** Les vues, dans l'ordre d'affichage — celui de la barre latérale ET des accélérateurs. */
@@ -85,12 +96,19 @@ export const VUES: readonly Vue[] = [
     icone: "search",
     groupe: "principal",
     description: "Recherche par chemin, extension et code interne.",
-    barreLaterale: true,
+    // Hors barre latérale : trois entrées y proposaient la même intention — cette vue, le champ
+    // « Rechercher… Ctrl+K » de la barre du haut, et la palette de commandes. Chercher un fichier
+    // est d'ailleurs déjà ce que fait l'Explorateur, juste au-dessus. La vue reste entière et
+    // s'ouvre par Ctrl+K.
+    barreLaterale: false,
   },
   {
     id: "data",
     cle: "tab.data",
-    icone: "database",
+    // `menu_book` et non `database` : la vue montre des techniques, des objets et des quêtes,
+    // pas des tables. Un cylindre de base de données annonçait de la plomberie là où il y a un
+    // catalogue de jeu.
+    icone: "menu_book",
     groupe: "donnees",
     description: "Techniques, objets, quêtes, boutiques, formations.",
     barreLaterale: true,
@@ -110,6 +128,10 @@ export const VUES: readonly Vue[] = [
     groupe: "donnees",
     description: "Ouverture brute d'une archive CPK, hors montage VFS.",
     barreLaterale: true,
+    // « Hors montage VFS » dit tout : on ouvre le conteneur au lieu de parcourir les fichiers du
+    // jeu. C'est l'Explorateur qu'on veut dans 99 % des cas ; celle-ci sert quand le VFS ne monte
+    // plus, donc à qui sait déjà pourquoi il la cherche.
+    avancee: true,
   },
   {
     id: "save",
@@ -142,6 +164,7 @@ export const VUES: readonly Vue[] = [
     groupe: "outils",
     description: "Fonctions, classes RTTI, xrefs, et la forge.",
     barreLaterale: true,
+    avancee: true,
   },
   {
     id: "viola",
@@ -150,6 +173,7 @@ export const VUES: readonly Vue[] = [
     groupe: "outils",
     description: "Dump, pack et crypto Criware.",
     barreLaterale: true,
+    avancee: true,
   },
   {
     id: "livemod",
@@ -158,6 +182,7 @@ export const VUES: readonly Vue[] = [
     groupe: "outils",
     description: "Lecture de la mémoire vivante du jeu lancé.",
     barreLaterale: true,
+    avancee: true,
   },
   {
     id: "lua",
@@ -166,6 +191,7 @@ export const VUES: readonly Vue[] = [
     groupe: "outils",
     description: "Scripts du jeu — désassemblage et session d'exécution.",
     barreLaterale: true,
+    avancee: true,
   },
   {
     id: "settings",

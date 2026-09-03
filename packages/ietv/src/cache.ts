@@ -16,6 +16,7 @@ import {
 	LANGUES_SOURCE,
 	RE_YOUTUBE_ID,
 	reconnaitre,
+	type EtatSource,
 	type LangueSource,
 	type Plateforme,
 	type SourceEpisode,
@@ -225,6 +226,21 @@ export class IETVCache {
 
 		this.refondreEpisodes();
 		this.db.exec(IETVCache.SCHEMA_SOURCES);
+
+		// ── L'ÉTAT MESURÉ D'UNE SOURCE, À CÔTÉ DE SA CONFIANCE ──────────────
+		// `confiance` dit d'où vient la source ; `etat` dit si elle RÉPOND
+		// aujourd'hui. Les deux sont indépendants : une source `declaree` peut
+		// être parfaitement vivante, et une source `verifiee` il y a un mois
+		// peut avoir été retirée depuis. Les confondre revenait à ne jamais
+		// pouvoir dire qu'un lien est mort sans effacer d'où il venait.
+		//
+		// Pas de contrainte `CHECK` : SQLite ne sait pas en ajouter une par
+		// `ALTER TABLE`, et une valeur nouvelle ne doit pas exiger de refonte.
+		// Le vocabulaire est tenu par `EtatSource` dans `verifier.ts`.
+		addColumn("episode_sources", "etat", "TEXT");
+		addColumn("episode_sources", "codeHttp", "INTEGER");
+		addColumn("episode_sources", "raisonEtat", "TEXT");
+
 		this.supprimerOrphelins();
 		this.reprendreSourcesHeritees();
 	}
@@ -610,6 +626,151 @@ export class IETVCache {
 				moyenne: Number((parEpisode.moyenne ?? 0).toFixed(2)),
 			},
 		};
+	}
+
+	// =========================================================================
+	// Vérification — l'état MESURÉ des sources
+	// =========================================================================
+
+	/**
+	 * Les sources à sonder, avec de quoi les identifier et les recoller.
+	 *
+	 * Renvoie des LIGNES, pas des sources dédoublonnées : c'est le vérificateur
+	 * qui groupe par cible réseau, parce que lui seul sait que deux lignes
+	 * différentes (même vidéo, deux langues déclarées) ne valent qu'un appel.
+	 */
+	sourcesAVerifier(filtre: { plateforme?: Plateforme; limite?: number } = {}): {
+		id: number;
+		plateforme: Plateforme;
+		sourceId: string;
+		url: string;
+		langue: LangueSource;
+		etat: EtatSource | null;
+	}[] {
+		const conditions: string[] = [];
+		const args: unknown[] = [];
+		if (filtre.plateforme) {
+			conditions.push("plateforme = ?");
+			args.push(filtre.plateforme);
+		}
+		const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+		const limite = filtre.limite && filtre.limite > 0 ? `LIMIT ${Math.floor(filtre.limite)}` : "";
+		return (
+			this.db
+				.prepare(
+					`SELECT id, plateforme, sourceId, url, langue, etat
+             FROM episode_sources ${where} ORDER BY id ${limite}`
+				)
+				.all(...(args as never[])) as any[]
+		).map((r) => ({
+			id: r.id as number,
+			plateforme: r.plateforme as Plateforme,
+			sourceId: r.sourceId as string,
+			url: r.url as string,
+			langue: langueValide(r.langue),
+			etat: (r.etat ?? null) as EtatSource | null,
+		}));
+	}
+
+	/**
+	 * Inscrit le verdict d'une sonde sur des lignes de sources.
+	 *
+	 * ── CE QUI EST ÉCRIT, ET CE QUI NE L'EST PAS ───────────────────────────
+	 * `confiance` ne passe à `verifiee` que pour un état `vivante` : une sonde
+	 * qui répond « cette vidéo n'existe pas » établit un fait sur la source,
+	 * mais ne rend pas la source meilleure — la marquer `verifiee` ferait
+	 * remonter un lien mort en tête de `sourcesDeEpisode`, dont le tri met les
+	 * `verifiee` d'abord. Une source morte garde donc sa confiance d'origine et
+	 * porte son état ; c'est l'état qui doit la faire écarter.
+	 *
+	 * `verifieeLe` n'est posé que sur un test CONCLUANT (`vivante` ou `morte`).
+	 * Un `non_testable` n'est pas une vérification : dater ce non-événement
+	 * ferait passer pour mesuré ce que personne n'a pu mesurer.
+	 */
+	marquerVerification(
+		verdicts: readonly {
+			id: number;
+			etat: EtatSource;
+			codeHttp: number | null;
+			raison: string;
+		}[],
+		horodatage = Date.now()
+	): number {
+		if (verdicts.length === 0) return 0;
+		const stmt = this.db.prepare(
+			`UPDATE episode_sources
+          SET etat = ?, codeHttp = ?, raisonEtat = ?,
+              confiance = CASE WHEN ? = 'vivante' THEN 'verifiee' ELSE confiance END,
+              verifieeLe = CASE WHEN ? IN ('vivante', 'morte') THEN ? ELSE verifieeLe END,
+              updatedAt = cast(unixepoch() * 1000 as integer)
+        WHERE id = ?`
+		);
+		const transaction = this.db.transaction((tous: typeof verdicts) => {
+			for (const v of tous) {
+				stmt.run(v.etat, v.codeHttp, v.raison, v.etat, v.etat, horodatage, v.id);
+			}
+		});
+		transaction(verdicts);
+		return verdicts.length;
+	}
+
+	/**
+	 * Le tableau de vérification : combien de sources dans quel état, ventilé
+	 * par plateforme et par langue, en LIGNES et en épisodes distincts.
+	 *
+	 * `null` (jamais sondée) est rendu tel quel sous la clé `jamais_testee` :
+	 * une source qu'on n'a pas regardée n'est pas « non testable », et les
+	 * confondre effacerait la seule chose qui distingue un travail restant à
+	 * faire d'un travail impossible.
+	 */
+	etatVerification(): {
+		parPlateforme: { plateforme: string; etat: string; sources: number }[];
+		parLangue: { langue: string; etat: string; sources: number; episodes: number }[];
+		total: { etat: string; sources: number }[];
+	} {
+		const etat = "COALESCE(s.etat, 'jamais_testee')";
+		return {
+			parPlateforme: this.db
+				.prepare(
+					`SELECT s.plateforme AS plateforme, ${etat} AS etat, COUNT(*) AS sources
+             FROM episode_sources s GROUP BY 1, 2 ORDER BY 1, 2`
+				)
+				.all() as { plateforme: string; etat: string; sources: number }[],
+			parLangue: this.db
+				.prepare(
+					`SELECT s.langue AS langue, ${etat} AS etat, COUNT(*) AS sources,
+                    COUNT(DISTINCT e.season || '/' || COALESCE(e.episode, -1)) AS episodes
+               FROM episode_sources s JOIN episodes e ON e.id = s.episode_id
+              GROUP BY 1, 2 ORDER BY 1, 2`
+				)
+				.all() as { langue: string; etat: string; sources: number; episodes: number }[],
+			total: this.db
+				.prepare(
+					`SELECT ${etat} AS etat, COUNT(*) AS sources
+             FROM episode_sources s GROUP BY 1 ORDER BY 2 DESC`
+				)
+				.all() as { etat: string; sources: number }[],
+		};
+	}
+
+	/**
+	 * Couverture par langue en épisodes DISTINCTS, limitée aux sources qui
+	 * tiennent debout : intégrables et non mortes.
+	 *
+	 * C'est la mesure honnête de « combien d'épisodes puis-je regarder dans
+	 * cette langue » — celle de `couverture()` compte tout ce qui est au
+	 * catalogue, y compris des pages qu'aucun lecteur n'ouvre.
+	 */
+	couvertureRegardable(): { langue: string; episodes: number }[] {
+		return this.db
+			.prepare(
+				`SELECT s.langue AS langue,
+                COUNT(DISTINCT e.season || '/' || COALESCE(e.episode, -1)) AS episodes
+           FROM episode_sources s JOIN episodes e ON e.id = s.episode_id
+          WHERE s.plateforme <> 'page' AND COALESCE(s.etat, 'jamais_testee') <> 'morte'
+          GROUP BY 1 ORDER BY 2 DESC`
+			)
+			.all() as { langue: string; episodes: number }[];
 	}
 
 	// =========================================================================

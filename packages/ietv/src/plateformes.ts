@@ -62,6 +62,29 @@ export const LANGUES_SOURCE: readonly LangueSource[] = [
  */
 export type Confiance = "verifiee" | "declaree" | "deduite";
 
+/**
+ * État MESURÉ d'une source — ce que la plateforme répond aujourd'hui.
+ *
+ * ── POURQUOI CE N'EST PAS LA MÊME CHOSE QUE `Confiance` ────────────────────
+ * `confiance` dit d'OÙ VIENT la source ; `etat` dit si elle RÉPOND. Les deux
+ * varient indépendamment : une source `declaree` peut être parfaitement
+ * vivante, et une source `verifiee` il y a un mois peut avoir été retirée
+ * depuis. Les confondre revenait à ne pas pouvoir marquer un lien mort sans
+ * effacer sa provenance.
+ *
+ * * `vivante` — la plateforme a répondu que la vidéo existe et est diffusable ;
+ * * `morte` — elle a répondu qu'elle n'existe pas, est privée, ou n'est pas
+ *   intégrable ; ou l'identifiant stocké n'a pas la forme de la plateforme ;
+ * * `non_testable` — aucune sonde publique ne tranche. C'est un résultat, pas
+ *   un échec : le lecteur officiel de Dailymotion répond 404 hors contexte
+ *   d'intégration, y compris sur des vidéos publiques (mesuré le 2026-09-03).
+ *   Le déclarer « mort » aurait condamné 143 épisodes qui se lisent très bien.
+ */
+export type EtatSource = "vivante" | "morte" | "non_testable";
+
+/** Toutes les valeurs d'{@link EtatSource}, pour les validations d'entrée. */
+export const ETATS_SOURCE: readonly EtatSource[] = ["vivante", "morte", "non_testable"];
+
 /** Une façon concrète et datée de regarder un épisode. */
 export interface SourceEpisode {
 	plateforme: Plateforme;
@@ -182,10 +205,24 @@ export interface LangueOfficielle {
  * supposées.
  *
  * Sondées le 2026-09-03 : `fr`, `en` et `es` rendent chacune un index et des
- * pages distinctes. `ja`, `de` et `it` répondent 200 mais servent **octet pour
- * octet la page française** (20 271 o pour les trois, comme `fr`) : ce sont des
- * retombées silencieuses, pas des langues. Les inscrire ici aurait triplé le
- * catalogue avec trois copies de la VF sous trois étiquettes fausses.
+ * pages distinctes. `ja`, `jp`, `vostfr`, `it`, `pt` et `nl` répondent 200 mais
+ * servent **octet pour octet la page française** (sha256 identique à `fr` sur
+ * `saison1/ep-1`, 24 999 o) : ce sont des retombées silencieuses, pas des
+ * langues. Les inscrire ici remplirait le catalogue de copies de la VF sous des
+ * étiquettes fausses. Il n'y a donc **ni VO ni VOSTFR** sur cette plateforme.
+ *
+ * ── `de` EST UNE VRAIE QUATRIÈME LANGUE, CONTRAIREMENT À CE QUI ÉTAIT ÉCRIT ─
+ * Cette note affirmait que `de` retombait lui aussi sur la page française.
+ * C'est faux au 2026-09-03 : `?lang=de` rend un sha256 DIFFÉRENT (24 481 o) et
+ * un identifiant de vidéo distinct — `saison1/ep-1` donne `G_kly6CVpX8` en `de`
+ * contre `xbpo3u3P9dc` en `fr`. Vérifié page par page sur les deux premiers
+ * arcs : **67 / 67** portent un identifiant allemand. À partir de `saison3` et
+ * pour tous les arcs GO, la page `de` n'en porte aucun.
+ *
+ * `de` n'est pas inscrit ici pour autant : ce serait une langue de plus dans le
+ * type {@link LangueSource}, dans la contrainte `CHECK` de deux tables et dans
+ * le sélecteur de l'explorateur. C'est un travail à part entière, chiffré
+ * (67 épisodes), pas un ajout à glisser dans une liste.
  */
 export const LANGUES_OFFICIELLES: readonly LangueOfficielle[] = [
 	{ code: "fr", langue: "vf", origine: "inazuma-eleven.fr (official)" },
@@ -241,6 +278,27 @@ export function saisonDeSlug(slug: string): number | null {
  *
  * `LEVEL5ch【公式】` est la chaîne de l'éditeur : c'est la seule source **VO**
  * du catalogue, et elle republie la série d'origine épisode par épisode.
+ *
+ * ── LE TITRE NE SUFFISAIT PAS : LA DESCRIPTION CONTREDIT DEUX ENTRÉES ──────
+ * Le critère retenu ci-dessus était le TITRE de la chaîne. Les descriptions ont
+ * été lues le 2026-09-03, et deux d'entre elles disent l'inverse de ce que leur
+ * titre laissait croire :
+ *
+ *  * `inazumaelevengofrance` — « Je suis une chaîne **non officielle**, je ne
+ *    représente en aucun cas la licence », sur une chaîne qui annonce
+ *    « l'intégralité des épisodes des 3 saisons ». C'est une redistribution non
+ *    autorisée, énoncée par son auteur même.
+ *  * `inazumatvfr` et `InazumaTVFR__` — « Pour voir ou **télécharger** tous les
+ *    épisodes d'Inazuma Eleven en VF ou VOSTFR, c'est sur le site Inazuma TV
+ *    FR ». Un site qui propose le téléchargement de l'intégralité d'une série
+ *    sous licence n'est pas un diffuseur de l'ayant droit. Le compte Dailymotion
+ *    `inaztvfr`, même marque, est `verified: false` — son `partner: true` est le
+ *    programme de monétisation, pas un statut d'ayant droit.
+ *
+ * Ces trois entrées sont donc listées dans {@link OFFICIALITE_NON_ETABLIE} et
+ * ne doivent pas servir à ÉTENDRE le catalogue. Elles ne sont pas retirées de
+ * la liste ci-dessous par ce constat seul : des sources déjà en base en
+ * dépendent, et les effacer est un arbitrage éditorial, pas une mesure.
  */
 export interface ChaineOfficielle {
 	handle: string;
@@ -281,6 +339,44 @@ export const CHAINES_OFFICIELLES: readonly ChaineOfficielle[] = [
 		langue: "vo",
 	},
 ];
+
+/**
+ * Chaînes dont le DROIT DE DIFFUSER n'est pas établi — à ne pas moissonner.
+ *
+ * Chaque entrée porte la phrase mesurée qui la disqualifie, pas une impression.
+ * Voir l'en-tête de {@link CHAINES_OFFICIELLES} pour la méthode.
+ *
+ * ── POURQUOI UNE LISTE, ET PAS UNE SUPPRESSION ─────────────────────────────
+ * Retirer ces chaînes de la liste précédente les ferait simplement redécouvrir
+ * au prochain élargissement, avec les mêmes titres rassurants et sans la
+ * mesure qui les écarte. Une liste nommée porte le constat ; c'est ce qui
+ * empêche de refaire l'erreur.
+ */
+export const OFFICIALITE_NON_ETABLIE: readonly { handle: string; motif: string }[] = [
+	{
+		handle: "inazumaelevengofrance",
+		motif: "sa description se declare « chaine non officielle », et elle heberge les 3 saisons de GO",
+	},
+	{
+		handle: "inazumatvfr",
+		motif: "renvoie vers un site proposant le TELECHARGEMENT de tous les episodes VF et VOSTFR",
+	},
+	{
+		handle: "InazumaTVFR__",
+		motif: "meme marque et meme renvoi que inazumatvfr",
+	},
+	{
+		// Le compte Dailymotion de la même marque. Il est nommé ici et pas
+		// ailleurs pour que `moissonnable` réponde sur les deux plateformes.
+		handle: "inaztvfr",
+		motif: "compte Dailymotion de la marque Inazuma TV FR, non verifie, meme renvoi",
+	},
+];
+
+/** Une chaîne est moissonnable si son droit de diffuser n'est pas contesté. */
+export function moissonnable(handle: string): boolean {
+	return !OFFICIALITE_NON_ETABLIE.some((c) => c.handle === handle);
+}
 
 /**
  * Numéro d'épisode porté par un titre de vidéo, toutes conventions confondues.
@@ -385,9 +481,23 @@ export const ARCS_SERIE_ORIGINE: readonly { season: number; totalEpisodes: numbe
  * tous deux `xbpo3u3P9dc` — 211 des 355 épisodes actuels sont dans ce cas. La
  * plateforme entre dans la clé parce qu'un identifiant Dailymotion et un
  * identifiant YouTube peuvent, en principe, se ressembler.
+ *
+ * ── LE SÉPARATEUR EST CONSTRUIT, PAS ÉCRIT ─────────────────────────────────
+ * Ce gabarit portait deux octets NUL *réels*, posés là par un outil d'édition.
+ * Le code marchait — mais `file` classait la source en `data` et `rg` refusait
+ * de la parcourir (« binary file matches »), donc toute recherche dans le
+ * module rendait silencieusement zéro ligne. Le remplacer par la séquence
+ * échappée ne suffit pas : plusieurs outils d'édition la reconvertissent en
+ * octet en écrivant le fichier, et le piège revient à l'identique (vécu deux
+ * fois le 2026-09-03). {@link SEPARATEUR_CLE} le fabrique donc à l'exécution :
+ * la chaîne produite est la même, et la source reste du texte quoi qu'il
+ * arrive.
  */
+export const SEPARATEUR_CLE = String.fromCharCode(31);
+
+/** Clé de dédoublonnage — cf. {@link SEPARATEUR_CLE}. */
 export function cleSource(source: SourceEpisode): string {
-	return `${source.plateforme} ${source.sourceId} ${source.langue}`;
+	return [source.plateforme, source.sourceId, source.langue].join(SEPARATEUR_CLE);
 }
 
 /**

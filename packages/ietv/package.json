@@ -12,6 +12,8 @@
     "./cache": "./src/cache.ts",
     "./plateformes": "./src/plateformes.ts",
     "./official": "./src/official.ts",
+    "./verifier": "./src/verifier.ts",
+    "./playlist-youtube": "./src/playlist-youtube.ts",
     "./video": "./src/video.ts",
     "./video-player": "./src/video-player.ts",
     "./video-codec": "./src/video-codec.ts",
