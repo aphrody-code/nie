@@ -39,6 +39,7 @@
 pub mod asmsrc;
 pub mod bornes;
 pub mod cc;
+pub mod donnees;
 pub mod lift;
 #[cfg(feature = "redb")]
 pub mod redb;

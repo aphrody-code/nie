@@ -68,6 +68,27 @@ impl ForgeStore {
         })
     }
 
+    /// Écrit un recouvrement déjà calculé.
+    ///
+    /// Le découpage complet demande deux passes — la seconde isole les données
+    /// inline repérées sur la première — et l'image n'a aucune raison d'être
+    /// relue et reparsée entre les deux.
+    ///
+    /// # Erreurs
+    /// Retourne une erreur si le recouvrement est incohérent ou si l'écriture
+    /// échoue.
+    pub fn persist(root: &Path, cover: Cover) -> anyhow::Result<Self> {
+        cover.validate().context("recouvrement incohérent")?;
+        std::fs::create_dir_all(root)?;
+        let path = Self::cover_path(root);
+        std::fs::write(&path, serde_json::to_vec(&cover)?)
+            .with_context(|| format!("écriture de {}", path.display()))?;
+        Ok(Self {
+            root: root.to_path_buf(),
+            cover,
+        })
+    }
+
     /// Charge un recouvrement déjà calculé.
     ///
     /// # Erreurs
