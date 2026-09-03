@@ -987,6 +987,326 @@ pub unsafe extern "C" fn nie_font_free(ctx: *mut c_void) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Moteur de match (`nie-runtime`) — la simulation, pilotable depuis l'extérieur
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Tout ce qui précède LIT le jeu (assets, formats, VFS). Ce bloc le fait TOURNER : il expose
+// `nie_runtime::World`, la simulation 11 v 11 déterministe, pour qu'un hôte non-Rust — la lib
+// Python `niepy`, et donc Ren'Py — puisse avancer un match tick par tick et lire son état.
+//
+// Le déterminisme est le contrat : à `dt` et entrées identiques, deux exécutions donnent la
+// même suite d'états. C'est ce qui permet à un visual novel de rejouer une action à l'identique.
+
+/// Handle opaque de monde de match, alloué par [`nie_world_new`].
+///
+/// Le type réel est `nie_runtime::World` ; l'hôte ne le manipule que par ce pointeur.
+pub struct NieWorld {
+    _priv: [u8; 0],
+}
+
+/// Un joueur, aplati en `repr(C)` pour la frontière.
+///
+/// Les positions sont en mètres, origine au centre du terrain
+/// (demi-longueur [`nie_runtime::HALF_LEN`], demi-largeur [`nie_runtime::HALF_WID`]).
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct NiePlayer {
+    /// Position au sol, axe but-à-but.
+    pub x: f32,
+    /// Position au sol, axe touche-à-touche.
+    pub y: f32,
+    /// Vitesse au sol, composante `x` (m/s).
+    pub vx: f32,
+    /// Vitesse au sol, composante `y` (m/s).
+    pub vy: f32,
+    /// Équipe : `0` = domicile (attaque vers `+x`), `1` = extérieur.
+    pub team: u8,
+    /// Rôle : `0` gardien, `1` défenseur, `2` milieu, `3` attaquant.
+    pub role: u8,
+}
+
+/// Le ballon, aplati en `repr(C)`. `z` est la **hauteur** (convention `nie-runtime`).
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct NieBall {
+    /// Position, axe but-à-but.
+    pub x: f32,
+    /// Position, axe touche-à-touche.
+    pub y: f32,
+    /// Hauteur au-dessus du sol.
+    pub z: f32,
+    /// Vitesse, composante `x` (m/s).
+    pub vx: f32,
+    /// Vitesse, composante `y` (m/s).
+    pub vy: f32,
+    /// Vitesse verticale (m/s).
+    pub vz: f32,
+}
+
+/// Crée un monde de match au coup d'envoi (22 joueurs + ballon, un gardien par camp).
+///
+/// Rend un handle à libérer **exactement une fois** par [`nie_world_free`].
+#[unsafe(no_mangle)]
+pub extern "C" fn nie_world_new() -> *mut NieWorld {
+    let w = Box::new(nie_runtime::World::kickoff());
+    Box::into_raw(w).cast::<NieWorld>()
+}
+
+/// Remet le monde au coup d'envoi, sans réallouer le handle.
+///
+/// # Safety
+///
+/// `w` doit provenir de [`nie_world_new`] et ne pas avoir été libéré.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_world_kickoff(w: *mut NieWorld) {
+    if w.is_null() {
+        return;
+    }
+    // SAFETY: w provient de nie_world_new → Box<World>, encore vivant par contrat.
+    let world = unsafe { &mut *w.cast::<nie_runtime::World>() };
+    *world = nie_runtime::World::kickoff();
+}
+
+/// Avance la simulation de `dt` secondes.
+///
+/// # Safety
+///
+/// `w` doit provenir de [`nie_world_new`] et ne pas avoir été libéré.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_world_step(w: *mut NieWorld, dt: f32) {
+    if w.is_null() {
+        return;
+    }
+    // SAFETY: idem nie_world_kickoff.
+    let world = unsafe { &mut *w.cast::<nie_runtime::World>() };
+    world.step(dt);
+}
+
+/// Pose l'entrée du joueur contrôlé : direction souhaitée et ordre de frappe.
+///
+/// # Safety
+///
+/// `w` doit provenir de [`nie_world_new`] et ne pas avoir été libéré.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_world_set_input(w: *mut NieWorld, dx: f32, dy: f32, shoot: bool) {
+    if w.is_null() {
+        return;
+    }
+    // SAFETY: idem nie_world_kickoff.
+    let world = unsafe { &mut *w.cast::<nie_runtime::World>() };
+    // Affectation champ par champ : évite de nommer `nie_geom::Vec2` ici, donc évite d'ajouter
+    // une dépendance à ce crate juste pour construire deux flottants.
+    world.input.dir.x = dx;
+    world.input.dir.y = dy;
+    world.input.shoot = shoot;
+}
+
+/// Nombre de joueurs sur le terrain (22 au coup d'envoi). `0` si `w` est null.
+///
+/// # Safety
+///
+/// `w` doit provenir de [`nie_world_new`] et ne pas avoir été libéré.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_world_player_count(w: *const NieWorld) -> usize {
+    if w.is_null() {
+        return 0;
+    }
+    // SAFETY: w provient de nie_world_new ; lecture partagée.
+    let world = unsafe { &*w.cast::<nie_runtime::World>() };
+    world.players.len()
+}
+
+/// Copie le joueur d'indice `i` dans `out`. Rend `false` si `i` est hors bornes.
+///
+/// # Safety
+///
+/// `w` doit provenir de [`nie_world_new`] ; `out` doit pointer un [`NiePlayer`] inscriptible.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_world_player(
+    w: *const NieWorld,
+    i: usize,
+    out: *mut NiePlayer,
+) -> bool {
+    if w.is_null() || out.is_null() {
+        return false;
+    }
+    // SAFETY: w provient de nie_world_new ; lecture partagée.
+    let world = unsafe { &*w.cast::<nie_runtime::World>() };
+    let Some(p) = world.players.get(i) else {
+        return false;
+    };
+    let role = match p.role {
+        nie_runtime::Role::Goalkeeper => 0,
+        nie_runtime::Role::Defender => 1,
+        nie_runtime::Role::Midfielder => 2,
+        nie_runtime::Role::Forward => 3,
+    };
+    // SAFETY: out est un NiePlayer inscriptible par contrat.
+    unsafe {
+        *out = NiePlayer {
+            x: p.pos.x,
+            y: p.pos.y,
+            vx: p.vel.x,
+            vy: p.vel.y,
+            team: p.team,
+            role,
+        };
+    }
+    true
+}
+
+/// Copie l'état du ballon dans `out`.
+///
+/// # Safety
+///
+/// `w` doit provenir de [`nie_world_new`] ; `out` doit pointer un [`NieBall`] inscriptible.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_world_ball(w: *const NieWorld, out: *mut NieBall) {
+    if w.is_null() || out.is_null() {
+        return;
+    }
+    // SAFETY: w provient de nie_world_new ; lecture partagée.
+    let world = unsafe { &*w.cast::<nie_runtime::World>() };
+    let b = &world.ball;
+    // SAFETY: out est un NieBall inscriptible par contrat.
+    unsafe {
+        *out = NieBall { x: b.pos.x, y: b.pos.y, z: b.pos.z, vx: b.vel.x, vy: b.vel.y, vz: b.vel.z };
+    }
+}
+
+/// Écrit le score dans `home` et `away` (chacun optionnel — un pointeur null est ignoré).
+///
+/// # Safety
+///
+/// `w` doit provenir de [`nie_world_new`] ; `home`/`away` sont null ou inscriptibles.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_world_score(w: *const NieWorld, home: *mut u32, away: *mut u32) {
+    if w.is_null() {
+        return;
+    }
+    // SAFETY: w provient de nie_world_new ; lecture partagée.
+    let world = unsafe { &*w.cast::<nie_runtime::World>() };
+    if !home.is_null() {
+        // SAFETY: non-null et inscriptible par contrat.
+        unsafe { *home = world.score[0] };
+    }
+    if !away.is_null() {
+        // SAFETY: non-null et inscriptible par contrat.
+        unsafe { *away = world.score[1] };
+    }
+}
+
+/// Temps de jeu écoulé, en secondes. `0.0` si `w` est null.
+///
+/// # Safety
+///
+/// `w` doit provenir de [`nie_world_new`] et ne pas avoir été libéré.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_world_time(w: *const NieWorld) -> f32 {
+    if w.is_null() {
+        return 0.0;
+    }
+    // SAFETY: w provient de nie_world_new ; lecture partagée.
+    unsafe { &*w.cast::<nie_runtime::World>() }.time
+}
+
+/// Numéro du tick courant — le compteur qui atteste du déterminisme. `0` si `w` est null.
+///
+/// # Safety
+///
+/// `w` doit provenir de [`nie_world_new`] et ne pas avoir été libéré.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_world_tick(w: *const NieWorld) -> u64 {
+    if w.is_null() {
+        return 0;
+    }
+    // SAFETY: w provient de nie_world_new ; lecture partagée.
+    unsafe { &*w.cast::<nie_runtime::World>() }.tick
+}
+
+/// Indice du joueur qui possède le ballon, ou `-1` si personne ne l'a.
+///
+/// # Safety
+///
+/// `w` doit provenir de [`nie_world_new`] et ne pas avoir été libéré.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_world_possessor(w: *const NieWorld) -> isize {
+    if w.is_null() {
+        return -1;
+    }
+    // SAFETY: w provient de nie_world_new ; lecture partagée.
+    let world = unsafe { &*w.cast::<nie_runtime::World>() };
+    world.possessor().map_or(-1, |i| i as isize)
+}
+
+/// État complet du monde en JSON UTF-8 — la voie pratique pour un hôte scripté.
+///
+/// Forme : `{"tick","time","score":[h,a],"possessor","ball":{…},"players":[{…}]}`.
+/// L'hôte DOIT libérer le tampon par [`nie_bytes_free`] / [`nie_bytes_free_fields`].
+///
+/// # Safety
+///
+/// `w` doit provenir de [`nie_world_new`] ; `out` doit pointer un [`NieBytes`] inscriptible.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_world_snapshot_json_out(w: *const NieWorld, out: *mut NieBytes) {
+    if out.is_null() {
+        return;
+    }
+    if w.is_null() {
+        // SAFETY: out non-null et inscriptible par contrat.
+        unsafe { *out = NieBytes::empty() };
+        return;
+    }
+    // SAFETY: w provient de nie_world_new ; lecture partagée.
+    let world = unsafe { &*w.cast::<nie_runtime::World>() };
+    let players: Vec<serde_json::Value> = world
+        .players
+        .iter()
+        .map(|p| {
+            serde_json::json!({
+                "x": p.pos.x, "y": p.pos.y,
+                "vx": p.vel.x, "vy": p.vel.y,
+                "team": p.team,
+                "role": match p.role {
+                    nie_runtime::Role::Goalkeeper => "GK",
+                    nie_runtime::Role::Defender => "DF",
+                    nie_runtime::Role::Midfielder => "MF",
+                    nie_runtime::Role::Forward => "FW",
+                },
+            })
+        })
+        .collect();
+    let snap = serde_json::json!({
+        "tick": world.tick,
+        "time": world.time,
+        "score": [world.score[0], world.score[1]],
+        "possessor": world.possessor().map_or(-1, |i| i as isize),
+        "ball": {
+            "x": world.ball.pos.x, "y": world.ball.pos.y, "z": world.ball.pos.z,
+            "vx": world.ball.vel.x, "vy": world.ball.vel.y, "vz": world.ball.vel.z,
+        },
+        "players": players,
+    });
+    let bytes = serde_json::to_vec(&snap).unwrap_or_default();
+    // SAFETY: out non-null et inscriptible par contrat.
+    unsafe { *out = NieBytes::from_vec(bytes) };
+}
+
+/// Libère un handle de monde.
+///
+/// # Safety
+///
+/// `w` doit provenir de [`nie_world_new`] et n'être libéré **qu'une fois**. Null est un no-op.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_world_free(w: *mut NieWorld) {
+    if w.is_null() {
+        return;
+    }
+    // SAFETY: w provient de nie_world_new → Box<World> ; appelé exactement une fois.
+    unsafe { drop(Box::from_raw(w.cast::<nie_runtime::World>())) };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Tests
 // ─────────────────────────────────────────────────────────────────────────────
 
