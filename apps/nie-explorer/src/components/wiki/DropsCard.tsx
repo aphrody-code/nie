@@ -4,8 +4,8 @@ import { Image } from "@/components/ui/image";
 import { Link } from "@/components/ui/link";
 import { useState } from "react";
 import { Icon } from "@/components/ui/Icon";
-import type { DropEntry } from "@rosegriffon/azalee/wiki/drops-shared";
-import { dropCategoryLabel, dropSourceLabel } from "@rosegriffon/azalee/wiki/drops-shared";
+import type { DropEntry } from "@/lib/wikiTypes";
+import { dropCategoryLabel, dropSourceLabel } from "@/lib/wikiTypes";
 import { getItemIconUrl, PLACEHOLDERS, resolveAssetUrl } from "@/lib/wikiImages";
 import { cn } from "@/lib/utils";
 

@@ -1,6 +1,6 @@
 "use client";
 
-import type { GameCharacterStats } from "@rosegriffon/inagle";
+import type { GameCharacterStats } from "@/lib/wikiTypes";
 import { BarChart3 } from "lucide-react";
 // Cf. la note d'AuraCard : jamais `@rosegriffon/ui` ici — `process.env` → page blanche.
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";

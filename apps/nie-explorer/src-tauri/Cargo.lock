@@ -3394,7 +3394,7 @@ checksum = "650eef8c711430f1a879fdd01d4745a7deea475becfb90269c06775983bbf086"
 
 [[package]]
 name = "nie-app"
-version = "0.5.5"
+version = "0.5.6"
 dependencies = [
  "anyhow",
  "bcdec_rs",
@@ -3409,14 +3409,14 @@ dependencies = [
 
 [[package]]
 name = "nie-asm"
-version = "0.5.5"
+version = "0.5.6"
 dependencies = [
  "serde",
 ]
 
 [[package]]
 name = "nie-core"
-version = "0.5.5"
+version = "0.5.6"
 dependencies = [
  "nie-data",
  "nie-geom",
@@ -3427,7 +3427,7 @@ dependencies = [
 
 [[package]]
 name = "nie-data"
-version = "0.5.5"
+version = "0.5.6"
 dependencies = [
  "serde",
  "serde_json",
@@ -3435,14 +3435,14 @@ dependencies = [
 
 [[package]]
 name = "nie-dump"
-version = "0.5.5"
+version = "0.5.6"
 dependencies = [
  "thiserror 2.0.19",
 ]
 
 [[package]]
 name = "nie-explore"
-version = "0.5.5"
+version = "0.5.6"
 dependencies = [
  "nie-data",
  "nie-formats",
@@ -3453,7 +3453,7 @@ dependencies = [
 
 [[package]]
 name = "nie-explorer"
-version = "0.5.5"
+version = "0.5.6"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3509,7 +3509,7 @@ dependencies = [
 
 [[package]]
 name = "nie-forge"
-version = "0.5.5"
+version = "0.5.6"
 dependencies = [
  "anyhow",
  "clap",
@@ -3522,7 +3522,7 @@ dependencies = [
 
 [[package]]
 name = "nie-formats"
-version = "0.5.5"
+version = "0.5.6"
 dependencies = [
  "aes 0.8.4",
  "cridecoder",
@@ -3536,14 +3536,14 @@ dependencies = [
 
 [[package]]
 name = "nie-geom"
-version = "0.5.5"
+version = "0.5.6"
 dependencies = [
  "serde",
 ]
 
 [[package]]
 name = "nie-lua"
-version = "0.5.5"
+version = "0.5.6"
 dependencies = [
  "mlua",
  "serde",
@@ -3554,7 +3554,7 @@ dependencies = [
 
 [[package]]
 name = "nie-pe"
-version = "0.5.5"
+version = "0.5.6"
 dependencies = [
  "serde",
  "sha2",
@@ -3563,7 +3563,7 @@ dependencies = [
 
 [[package]]
 name = "nie-queue"
-version = "0.5.5"
+version = "0.5.6"
 dependencies = [
  "redis",
  "thiserror 2.0.19",
@@ -3572,7 +3572,7 @@ dependencies = [
 
 [[package]]
 name = "nie-render3d"
-version = "0.5.5"
+version = "0.5.6"
 dependencies = [
  "anyhow",
  "bcdec_rs",
@@ -3583,7 +3583,7 @@ dependencies = [
 
 [[package]]
 name = "nie-runtime"
-version = "0.5.5"
+version = "0.5.6"
 dependencies = [
  "anyhow",
  "clap",
@@ -3595,7 +3595,7 @@ dependencies = [
 
 [[package]]
 name = "nie-save"
-version = "0.5.5"
+version = "0.5.6"
 dependencies = [
  "nie-formats",
  "serde",
@@ -3604,7 +3604,7 @@ dependencies = [
 
 [[package]]
 name = "nie-steam"
-version = "0.5.5"
+version = "0.5.6"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -3624,7 +3624,7 @@ dependencies = [
 
 [[package]]
 name = "nie-tasks"
-version = "0.5.5"
+version = "0.5.6"
 dependencies = [
  "async-trait",
  "serde",
@@ -3637,7 +3637,7 @@ dependencies = [
 
 [[package]]
 name = "nie-trace"
-version = "0.5.5"
+version = "0.5.6"
 dependencies = [
  "libc",
  "thiserror 2.0.19",
@@ -3646,7 +3646,7 @@ dependencies = [
 
 [[package]]
 name = "nie-viola"
-version = "0.5.5"
+version = "0.5.6"
 dependencies = [
  "memmap2",
  "nie-formats",
