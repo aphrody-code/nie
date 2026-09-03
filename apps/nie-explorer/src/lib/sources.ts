@@ -251,10 +251,24 @@ export function sourcesDe(
 }
 
 /**
+ * Les trois langues que le filtre du catalogue PROPOSE — et rien d'autre.
+ *
+ * `LANGUES` en décrit dix parce que les films du jeu portent un code de langue dans leur nom
+ * (`JP`, `fr`, `de`, `es`, `it`, `pt`, `CN`, `TW`). Le sélecteur les reprenait toutes, si bien
+ * qu'on y trouvait « Allemand » ou « Chinois traditionnel » à côté de « VF » : un résidu du
+ * filtre des films du jeu, dans un sélecteur qu'on lit comme celui de la série.
+ *
+ * Restreindre ne perd rien du jeu : `vo` couvre déjà le code `JP` et `vf` le code `fr`
+ * (cf. `LANGUES`), c'est-à-dire les deux seules versions que le corpus contient en nombre.
+ */
+export const LANGUES_PROPOSEES: readonly string[] = ["vo", "vf", "vostfr"];
+
+/**
  * Les langues réellement présentes dans le catalogue, avec leur compte.
  *
- * Le sélecteur n'affiche que celles-ci : sur ce corpus, proposer les dix langues du modèle
- * donnerait huit entrées qui ne filtrent rien, et « VOSTFR » désignerait un ensemble vide.
+ * Deux filtres, et les deux comptent : on ne propose que `LANGUES_PROPOSEES`, et parmi elles
+ * seulement celles que le corpus contient VRAIMENT. Une entrée qui ne filtrerait rien est une
+ * promesse vide, et « VOSTFR » sur un corpus qui n'en a pas désignerait un ensemble vide.
  */
 export function languesDisponibles(
   films: readonly FilmDto[],
@@ -274,7 +288,7 @@ export function languesDisponibles(
     const l = langueDEpisode(e);
     if (l) ajouter(l.cle, "episodes");
   }
-  return LANGUES.filter((l) => compte.has(l.cle)).map((langue) => ({
+  return LANGUES.filter((l) => LANGUES_PROPOSEES.includes(l.cle) && compte.has(l.cle)).map((langue) => ({
     langue,
     films: compte.get(langue.cle)?.films ?? 0,
     episodes: compte.get(langue.cle)?.episodes ?? 0,

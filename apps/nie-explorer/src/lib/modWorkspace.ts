@@ -178,6 +178,3 @@ export async function exportMod(
   return destRoot;
 }
 
-export async function stagedFileExists(path: string): Promise<boolean> {
-  return exists(path, { baseDir: BaseDirectory.AppData });
-}

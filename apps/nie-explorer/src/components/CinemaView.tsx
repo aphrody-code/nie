@@ -93,6 +93,8 @@ import { showFilmContextMenu } from "@/lib/contextMenu";
 import { verifier, type EtatMaj } from "@/lib/majCatalogue";
 import { analyser, chercher, requeteVide } from "@/lib/recherche";
 import {
+  LANGUES,
+  LANGUES_PROPOSEES,
   langueParCle,
   languesDisponibles,
   passeLangue,
@@ -139,6 +141,9 @@ const TOUTES_LANGUES = "__toutes__";
  * L'ordre compte : la première source d'un épisode est celle que le lecteur ouvre par défaut,
  * la mieux établie (vérifiée avant déclarée, officielle avant le reste).
  */
+/** Identité stable d'une source — ce que le sélecteur met en `value`. */
+const cleDe = (s: SourceEpisode) => `${s.plateforme}:${s.sourceId}:${s.langue}`;
+
 function indexerSources(sources: readonly SourceEpisode[]): Map<string, SourceEpisode[]> {
   const parEpisode = new Map<string, SourceEpisode[]>();
   for (const s of sources) {
@@ -528,11 +533,37 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
     return sortie;
   }, [episodes, films]);
 
+  /**
+   * Les langues d'un épisode, d'après ses SOURCES — pas d'après sa ligne de catalogue.
+   *
+   * `episodes.language` ne peut porter qu'une valeur, et la déduplication retient la VF : les
+   * 355 lignes affichées sont donc **toutes en `vf`**. Un filtre bâti dessus n'aurait qu'une
+   * entrée. La vérité est dans `episode_sources`, où le même épisode existe en plusieurs
+   * langues — mesuré : VF 355 épisodes, VOSTFR 42, VO 13.
+   */
+  const languesParEpisode = useMemo(() => {
+    const par = new Map<string, Set<string>>();
+    for (const [cle, sources] of sourcesParEpisode) {
+      par.set(cle, new Set(sources.map((s) => s.langue)));
+    }
+    return par;
+  }, [sourcesParEpisode]);
+
   /** Ce que la langue choisie et la recherche laissent passer, classé par pertinence. */
   const retenus = useMemo(() => {
-    const parLangue = langue ? tous.filter((el) => passeLangue(el, langue)) : tous;
+    // Un ÉPISODE passe si l'une de ses sources est dans la langue voulue ; `passeLangue` ne
+    // regarde que `episodes.language`, qui vaut `vf` pour les 355 lignes affichées et ferait
+    // donc disparaître le catalogue entier dès qu'on choisit VO ou VOSTFR. Les FILMS du jeu
+    // n'ont pas de sources : pour eux, `passeLangue` reste la bonne réponse.
+    const garde = (el: ElementCinema) => {
+      if (!el.episode) return passeLangue(el, langue);
+      const langues = languesParEpisode.get(empreinte(el.episode.saison, el.episode.episode ?? -1));
+      // Aucune source connue : on ne masque pas l'épisode sur une information qu'on n'a pas.
+      return langues === undefined || langues.size === 0 ? true : langues.has(langue);
+    };
+    const parLangue = langue ? tous.filter(garde) : tous;
     return chercher(parLangue, requete, estVu);
-  }, [tous, langue, requete, estVu]);
+  }, [tous, langue, requete, estVu, languesParEpisode]);
 
   /** Les films retenus, dans l'ordre — c'est la file de lecture du lecteur. */
   const filtres = useMemo(
@@ -555,14 +586,25 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
   }, [filtres]);
 
   /**
-   * Les langues RÉELLEMENT présentes, avec leur compte.
+   * Les langues RÉELLEMENT proposables, avec leur compte.
    *
-   * Le menu affichait les codes bruts du jeu (`fr`, `JP`) et ignorait la série. Mesuré sur ce
-   * corpus : 4 titres du jeu seulement portent des variantes de langue (9 et 6 versions), et les
-   * 355 épisodes sont tous en `vf`. Proposer les dix langues du modèle donnerait huit entrées qui
-   * ne filtrent rien — `languesDisponibles` n'en rend que ce qui existe (`lib/sources.ts`).
+   * Deux corpus se rejoignent ici et ne se comptent pas pareil : les films du jeu portent leur
+   * code dans leur nom (`langueDisponibles`), les épisodes le portent dans leurs sources. On
+   * additionne les deux, et `languesDisponibles` borne déjà l'ensemble à VO / VF / VOSTFR.
    */
-  const languesDispo = useMemo(() => languesDisponibles(films, episodes), [films, episodes]);
+  const languesDispo = useMemo(() => {
+    const desFilms = languesDisponibles(films, []);
+    const compte = new Map<string, number>();
+    for (const langues of languesParEpisode.values()) {
+      for (const l of langues) compte.set(l, (compte.get(l) ?? 0) + 1);
+    }
+    const cles = new Set<string>([...desFilms.map((d) => d.langue.cle), ...compte.keys()]);
+    return LANGUES.filter((l) => LANGUES_PROPOSEES.includes(l.cle) && cles.has(l.cle)).map((langue) => ({
+      langue,
+      films: desFilms.find((d) => d.langue.cle === langue.cle)?.films ?? 0,
+      episodes: compte.get(langue.cle) ?? 0,
+    }));
+  }, [films, languesParEpisode]);
 
   // ── Le catalogue unifié ─────────────────────────────────────────────────────
   //
@@ -818,12 +860,21 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
     // Cinq en moyenne (min 4, max 8), en plusieurs langues et sur trois plateformes. L'ordre
     // vient de SQL et porte la préférence : vérifiée avant déclarée, officielle avant le reste.
     const sourcesEp = sourcesParEpisode.get(empreinte(e.saison, e.episode ?? -1)) ?? [];
-    const cleDe = (s: SourceEpisode) => `${s.plateforme}:${s.sourceId}:${s.langue}`;
     /** Les langues réellement disponibles POUR CET ÉPISODE — pas la liste théorique. */
     const languesEp = [...new Set(sourcesEp.map((s) => s.langue))];
-    /** La langue retenue : celle qu'on préfère si cet épisode l'a, sinon celle qu'il a. */
+    /**
+     * La langue retenue : celle qu'on préfère si cet épisode l'a, sinon la VF, sinon ce qu'il a.
+     *
+     * Le repli sur `vf` est explicite et ne doit pas devenir « la première de la liste » : le
+     * sélecteur les range vo, vf, vostfr, or la VO ne couvre que 13 épisodes quand la VF les
+     * couvre tous. Prendre la première ouvrirait donc en VO les rares épisodes qui en ont une,
+     * et en VF tous les autres — la langue changerait d'un épisode à l'autre sans qu'on l'ait
+     * demandé.
+     */
     const langueEp =
-      languePreferee && languesEp.includes(languePreferee) ? languePreferee : (languesEp[0] ?? null);
+      languePreferee && languesEp.includes(languePreferee)
+        ? languePreferee
+        : (languesEp.find((l) => l === "vf") ?? languesEp[0] ?? null);
     const sourcesLangue = sourcesEp.filter((s) => s.langue === langueEp);
     /** Le choix explicite s'il vaut encore pour cet épisode, sinon la première — la mieux établie. */
     const sourceActive =
@@ -1063,7 +1114,13 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
     vue === VUE_SERIE ? saisonsSerie : accueil ? saisons : [];
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-app">
+    // `overflow-x-hidden` + `min-w-0` : sans eux, ce conteneur `flex-col` prend la largeur de son
+    // enfant le plus LARGE — une rangée de cartes déborde toujours — et la barre collante s'étire
+    // d'autant. Tout ce qu'elle aligne à droite (la recherche, le sélecteur de langue) partait
+    // alors hors du viewport : les pilules restaient visibles à gauche, et on croyait ces deux
+    // contrôles absents alors qu'ils étaient rendus, hors champ. Chaque rangée garde son propre
+    // défilement horizontal, qui n'est pas affecté.
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-y-auto overflow-x-hidden bg-app">
       {/* ── La barre ────────────────────────────────────────────────────────────
           Ni titre ni compteur : ce qui compte est la navigation et la recherche. Elle est
           translucide et floute ce qui défile dessous, comme celle de Netflix. */}
@@ -1092,12 +1149,40 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
 
         <div className="flex-1" />
 
-        <div className="relative">
+        <IndicateurMaj etat={maj} onVerifier={verifierMaintenant} />
+
+        <button
+          type="button"
+          onClick={() => setChangerProfil(true)}
+          title={`${profil.nom} — changer de profil`}
+          aria-label={`Profil ${profil.nom} — changer de profil`}
+          className="rounded-lg outline-none transition-transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          <AvatarProfil profil={profil} taille={26} />
+        </button>
+      </div>
+
+      {/* ── Les filtres, sur la page ────────────────────────────────────────────
+          Ils vivaient dans la barre au-dessus, poussés à droite par un `flex-1`. Dans ce
+          conteneur, tout ce qui est aligné à droite finissait hors champ : la recherche, le
+          sélecteur de langue, et jusqu'à l'indicateur de mise à jour n'étaient jamais visibles.
+          On les croyait absents ; ils étaient rendus, ailleurs.
+
+          Ici ils sont dans le FLUX, sur toute la largeur, alignés à GAUCHE : rien ne peut les
+          repousser, et ils ne dépendent plus de la largeur de la fenêtre. C'est aussi la place
+          qu'ils méritent — filtrer un catalogue n'est pas une action secondaire. */}
+      <div className="flex w-full min-w-0 flex-wrap items-center gap-2 border-b border-app-line bg-app-dark-box px-4 py-2">
+        <div className="relative min-w-0 flex-1 sm:max-w-md">
+          <Icon
+            name="search"
+            size={14}
+            className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-ink-faint"
+          />
           <Input
             value={recherche}
             onChange={(e) => setRecherche(e.target.value)}
-            placeholder="Rechercher — « s3e12 », « lang:vf », « chapitre:5 »…"
-            className="h-7 w-72 text-xs"
+            placeholder="Rechercher un épisode, un film, une technique…"
+            className="h-8 w-full border-app-line bg-app-box pl-7 pr-7 text-xs"
             title={
               "Filtres reconnus : s3e12 · s:3 · e:12 · lang:vf|vo|vostfr · type:jeu|serie · " +
               "chapitre:5 · st:oui · vu:non. Tout le reste est cherché dans le titre, le titre " +
@@ -1116,19 +1201,18 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
           )}
         </div>
 
-        {/* Le sélecteur de langue : VO / VF / VOSTFR, pas `fr` et `JP`.
-            Il n'affiche que ce que le catalogue contient VRAIMENT, avec son compte — sur ce
-            corpus, huit des dix langues du modèle ne filtreraient rien du tout. */}
+        {/* VO / VF / VOSTFR, et seulement ce que le catalogue contient vraiment, avec son
+            compte : annoncer une langue qui ne filtrerait rien est une promesse vide. */}
         {languesDispo.length > 0 && (
           <Select
             value={langue || TOUTES_LANGUES}
             onValueChange={(v) => setLangue(v === TOUTES_LANGUES ? "" : (v ?? ""))}
           >
-            <SelectTrigger size="sm" className="h-7 w-40 text-xs" aria-label="Choisir la langue">
-              <SelectValue placeholder="Toutes langues" />
+            <SelectTrigger size="sm" className="h-8 w-44 text-xs" aria-label="Choisir la langue">
+              <SelectValue placeholder="Toutes les langues" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={TOUTES_LANGUES}>Toutes langues</SelectItem>
+              <SelectItem value={TOUTES_LANGUES}>Toutes les langues</SelectItem>
               {languesDispo.map(({ langue: l, films: nf, episodes: ne }) => (
                 <SelectItem key={l.cle} value={l.cle}>
                   {l.libelle}
@@ -1143,17 +1227,13 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
           </Select>
         )}
 
-        <IndicateurMaj etat={maj} onVerifier={verifierMaintenant} />
-
-        <button
-          type="button"
-          onClick={() => setChangerProfil(true)}
-          title={`${profil.nom} — changer de profil`}
-          aria-label={`Profil ${profil.nom} — changer de profil`}
-          className="rounded-lg outline-none transition-transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-accent"
-        >
-          <AvatarProfil profil={profil} taille={26} />
-        </button>
+        {/* Le compte de ce que les filtres laissent passer : sans lui, une recherche qui ne rend
+            rien ressemble à une vue qui s'est vidée toute seule. */}
+        {(enRecherche || langue) && (
+          <span className="text-tiny text-ink-faint">
+            {filtres.length} résultat{filtres.length > 1 ? "s" : ""}
+          </span>
+        )}
       </div>
 
       {chargement && (
@@ -1531,9 +1611,11 @@ function RangeeElements({
           <button
             type="button"
             onClick={onTout}
-            className="text-tiny text-ink-faint underline-offset-2 hover:text-accent hover:underline"
+            title="Voir tous les épisodes de cette saison"
+            className="flex items-center gap-1 rounded-full border border-app-line bg-app-box px-2.5 py-0.5 text-tiny font-medium text-ink transition-colors hover:border-accent hover:text-accent"
           >
-            tout voir
+            Tous les épisodes
+            <Icon name="chevron_right" size={12} />
           </button>
         )}
       </div>
@@ -1707,7 +1789,11 @@ const CarteTitre = memo(function CarteTitre({
   return (
     <div
       ref={hoteRef}
-      className="group/carte relative w-full cursor-pointer select-none"
+      // `anneau-focus` : la carte est déjà atteignable au clavier (`tabIndex={0}`,
+      // `role="button"`, Entrée/Espace gérés juste en dessous) mais RIEN ne montrait laquelle
+      // avait le focus — on tabulait à l'aveugle dans une rangée de trente vignettes. La classe
+      // n'agit qu'en `:focus-visible`, donc un clic à la souris ne laisse aucun halo.
+      className="group/carte anneau-focus relative w-full cursor-pointer select-none"
       onMouseEnter={entrer}
       onMouseLeave={sortir}
       onClick={onOuvrir}
@@ -1734,7 +1820,14 @@ const CarteTitre = memo(function CarteTitre({
     >
       <div
         className={cn(
-          "relative aspect-video overflow-hidden rounded-md border bg-app-dark-box transition-transform duration-150 group-hover/carte:scale-[1.03] group-hover/carte:border-accent/60",
+          // Ombre et durée viennent des jetons du thème (`styles.css`, § Médiathèque) et non
+          // d'un `duration-150` écrit ici : chaque carte avait sinon son propre rythme, et une
+          // rangée survolée rapidement donnait l'impression que certaines cartes traînaient.
+          // `transform` + `box-shadow` seulement — composés par le GPU, aucun recalcul de mise
+          // en page quand on balaie une rangée de trente cartes.
+          "relative aspect-video overflow-hidden rounded-md border bg-app-dark-box",
+          "shadow-[var(--ombre-carte)] transition-[transform,box-shadow] duration-[var(--duree-vignette)] ease-[var(--courbe-sortie)]",
+          "group-hover/carte:scale-[1.04] group-hover/carte:border-accent/60 group-hover/carte:shadow-[var(--ombre-carte-survol)]",
           vu ? "border-emerald-500/40" : "border-app-line",
         )}
       >

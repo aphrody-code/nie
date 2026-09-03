@@ -192,12 +192,6 @@ export function vue(id: string): Vue | undefined {
   return PAR_ID.get(id);
 }
 
-/** Libellé traduit d'une vue — `id` inconnu rend `id`, jamais une chaîne vide. */
-export function libelleVue(id: string, t: TFn): string {
-  const v = PAR_ID.get(id);
-  return v ? t(v.cle) : id;
-}
-
 /** Tous les libellés, pour le menu Affichage (`AppMenuActions.tabLabels`). */
 export function libellesVues(t: TFn): Record<string, string> {
   return Object.fromEntries(VUES.map((v) => [v.id, t(v.cle)]));

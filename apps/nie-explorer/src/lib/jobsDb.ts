@@ -134,8 +134,3 @@ export function useJobs(): JobRow[] {
   );
 }
 
-/** Nombre de jobs en cours — pour la pastille du bouton du gestionnaire. */
-export function useRunningJobCount(): number {
-  const jobs = useJobs();
-  return jobs.filter((j) => j.status === "running").length;
-}

@@ -86,6 +86,22 @@ specta = { version = "2.0.0-rc.25", features = ["serde_json"] }
 tauri-specta = { version = "2.0.0-rc.25", features = ["derive", "typescript"] }
 specta-typescript = "0.0.12"
 
+# Journalisation PERSISTANTE. Sur un build release Windows aucune console n'est attachee :
+# `eprintln!` n'ecrit nulle part, et une utilisatrice qui signale une anomalie n'a aucun fichier
+# a joindre. `tauri-plugin-log` ecrit dans `%APPDATA%\dev.niers.explorer\logs\` (cible `LogDir`)
+# ET relaie `console.*` du front. `log` est la facade : tout le code Rust ecrit `log::warn!` /
+# `log::error!`, jamais `eprintln!` (cf. `installer_bases_embarquees`).
+tauri-plugin-log = "2.9.1"
+# Version d'OS / architecture / locale — cout quasi nul, valeur diagnostique dans un rapport
+# d'anomalie et le panneau Parametres. Cote JS : `@tauri-apps/plugin-os`.
+tauri-plugin-os = "2.3.2"
+log = "0.4.34"
+# Schema `niers://` — ouvrir un titre depuis le wiki azalee. ATTENTION Windows : ce plugin exige
+# que `tauri-plugin-single-instance` soit enregistre AVANT lui dans la chaine `.plugin(...)`
+# (sans quoi une seconde instance se lance au lieu de transmettre l'URL), et l'enregistrement du
+# schema aupres du systeme se fait a l'INSTALLATION (MSI/NSIS) — jamais en `tauri dev`.
+tauri-plugin-deep-link = "2.4.10"
+
 # Forward-ouverture "Ouvrir avec" Explorer → instance déjà lancée (argv[1] = chemin du fichier).
 # Updater : vérifie/télécharge/installe les nouvelles versions (desktop uniquement — pas de cible
 # mobile dans ce projet). `tauri-plugin-process` fournit `relaunch()` après installation (requis

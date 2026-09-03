@@ -97,11 +97,6 @@ export function poserAffiche(chemin: string, url: string): void {
   persister();
 }
 
-/** Vrai si ce film a déjà été tenté sans succès — inutile de le remettre en file. */
-export function afficheImpossible(chemin: string): boolean {
-  return echecs.has(chemin);
-}
-
 // ── La file ───────────────────────────────────────────────────────────────────
 
 const attente: string[] = [];
