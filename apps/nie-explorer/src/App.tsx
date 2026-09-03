@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
+import { DashboardView } from "@/components/DashboardView";
 import { ExplorerView } from "@/components/ExplorerView";
 import { ExplorerTabsBar } from "@/components/ExplorerTabsBar";
 import { EditorView, type EditorViewState } from "@/components/editor/EditorView";
@@ -39,6 +40,7 @@ import { getSettings, setSettings } from "@/lib/settings";
 import { modsDb } from "@/lib/modsDb";
 import { jobsDb } from "@/lib/jobsDb";
 import { vfsIndexDb } from "@/lib/vfsIndexDb";
+import { LIBELLE_GROUPE, libellesVues, vuesDuGroupe } from "@/lib/vues";
 
 /** Largeur de la barre latérale — même valeur que `ShellLayout.tsx` de spacedrive (220 px, dont
  * 8 px de marge flottante de chaque côté), lue par `TopBar` pour se décaler d'autant. */
@@ -47,7 +49,9 @@ const SIDEBAR_WIDTH = 200;
 export default function App() {
   const t = useT();
   useApplyAppearance();
-  const [tab, setTab] = useState("explorer");
+  // Le tableau de bord ouvre l'application : il dit, chiffres à l'appui, ce que cette machine
+  // peut faire (jeu monté ou non, bases présentes ou non) avant qu'un onglet ne le découvre.
+  const [tab, setTab] = useState("dashboard");
   // Onglets de l'Explorateur — état module-level persistant (`lib/explorerTabs.ts`), pas un
   // `useState` local : la navigation, l'historique et les préférences d'affichage appartiennent à
   // l'onglet et survivent au changement de vue comme au redémarrage de l'application.
@@ -102,35 +106,20 @@ export default function App() {
   const sections: SidebarSection[] = useMemo(() => {
     const inExplorer = tab === "explorer" && !externalPath;
     return [
-      {
-        label: null,
-        items: [
-          { id: "editor", label: "Éditeur", icon: "view_in_ar" },
-          { id: "explorer", label: t("tab.explorer"), icon: "folder_open" },
-          { id: "search", label: t("tab.search"), icon: "search" },
-          { id: "cinema", label: "Cinéma", icon: "movie" },
-        ],
-      },
-      {
-        label: "Données",
-        items: [
-          { id: "data", label: t("tab.data"), icon: "database" },
-          { id: "gallery", label: "Galerie", icon: "photo_library" },
-          { id: "cpk", label: t("tab.cpk"), icon: "deployed_code" },
-          { id: "save", label: t("tab.save"), icon: "save" },
-        ],
-      },
-      {
-        label: "Outils",
-        items: [
-          { id: "tools", label: "Outils wiki", icon: "handyman" },
-          { id: "mods", label: t("tab.mods"), icon: "extension" },
-          { id: "re", label: t("tab.re"), icon: "memory" },
-          { id: "viola", label: "Viola", icon: "deployed_code" },
-          { id: "livemod", label: "Live mod", icon: "bolt" },
-          { id: "lua", label: "Lua", icon: "edit_note" },
-        ],
-      },
+      // Les trois groupes de vues viennent du registre (`lib/vues.ts`) : leur ordre, leurs
+      // libellés et leurs icônes n'existent plus qu'à un seul endroit, partagé avec le menu
+      // Affichage, les accélérateurs et la palette de commandes. Deux icônes se rendaient
+      // d'ailleurs en RIEN ici — `photo_library` et `handyman` ne sont pas dans la table de
+      // `ui/Icon`, qui rend `null` sur un nom inconnu.
+      ...(["principal", "donnees", "outils"] as const).map((groupe) => ({
+        label: LIBELLE_GROUPE[groupe],
+        items: vuesDuGroupe(groupe).map((v) => ({
+          id: v.id,
+          label: t(v.cle),
+          icon: v.icone,
+          title: `${t(v.cle)} — ${v.description}`,
+        })),
+      })),
       {
         label: t("explorer.places"),
         items: PINNED_PLACES.map((p) => ({
@@ -359,21 +348,10 @@ export default function App() {
         setExternalPath(null);
         setTab(id);
       },
-      tabLabels: {
-        editor: "Éditeur",
-        explorer: t("tab.explorer"),
-        search: t("tab.search"),
-        data: t("tab.data"),
-        gallery: "Galerie",
-        tools: "Outils wiki",
-        mods: t("tab.mods"),
-        cpk: t("tab.cpk"),
-        re: t("tab.re"),
-        viola: "Viola",
-        lua: "Lua",
-        save: t("tab.save"),
-        settings: t("tab.settings"),
-      },
+      // Le menu Affichage lit le même registre que la barre latérale. Cette table était écrite à
+      // la main et il y manquait `cinema` et `livemod` : le menu affichait leur identifiant brut
+      // (`AppMenu` retombe sur `?? tab`), deux entrées en anglais technique au milieu du reste.
+      tabLabels: libellesVues(t),
     }),
     [t],
   );
@@ -468,6 +446,9 @@ export default function App() {
               </div>
             ) : (
               <Tabs value={tab} className="h-full min-h-0">
+                <TabsContent value="dashboard" className="h-full min-h-0">
+                  <DashboardView onSelectTab={setTab} />
+                </TabsContent>
                 <TabsContent value="editor" className="h-full min-h-0">
                   <EditorView
                     state={editor}
@@ -577,6 +558,10 @@ export default function App() {
         onSearch={(q) => {
           explorerTabs.update(activeTabId, { query: q });
           setTab("explorer");
+        }}
+        onSelectTab={(id) => {
+          setExternalPath(null);
+          setTab(id);
         }}
       />
       <Toaster position="bottom-right" />

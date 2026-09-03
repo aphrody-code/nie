@@ -196,4 +196,49 @@ export const reDb = {
     const db = await connect(path);
     await db.execute(`UPDATE rtti_class SET name = $1 WHERE id = $2`, [name.trim(), id]);
   },
+
+  /**
+   * Volumétrie de la base RE, pour le tableau de bord.
+   *
+   * Le binaire de référence n'est PAS choisi par son identifiant : deux `binary` coexistent
+   * (`1` = index Ghidra désaligné et figé, `2` = `#pdata`, la vérité terrain), et laquelle porte
+   * les données dépend de la machine. On retient donc celle qui porte le plus de fonctions, et on
+   * affiche son empreinte — c'est ce qui permet de VOIR qu'une base est ancrée sur un autre build
+   * que le `nie.exe` local, cas déjà rencontré sur le VPS.
+   */
+  async stats(path: string): Promise<ReStats> {
+    const db = await connect(path);
+    const [binaire] = await db.select<{ id: number; chemin: string; sha256: string; taille: number; fonctions: number }[]>(
+      `SELECT b.id, b.path AS chemin, b.sha256, b.size AS taille, count(f.id) AS fonctions
+         FROM binary b LEFT JOIN function f ON f.binary_id = b.id
+        GROUP BY b.id ORDER BY fonctions DESC LIMIT 1`,
+    );
+    if (!binaire) return { fonctions: 0, nommees: 0, racines: 0, classes: 0, sha256: null, binaire: null };
+    const [n] = await db.select<{ nommees: number }[]>(
+      `SELECT count(*) AS nommees FROM function WHERE binary_id = $1 AND name IS NOT NULL`,
+      [binaire.id],
+    );
+    const [r] = await db.select<{ racines: number }[]>(`SELECT count(*) AS racines FROM pdata_func WHERE binary_id = $1`, [binaire.id]);
+    const [c] = await db.select<{ classes: number }[]>(`SELECT count(*) AS classes FROM rtti_class WHERE binary_id = $1`, [binaire.id]);
+    return {
+      fonctions: binaire.fonctions,
+      nommees: n?.nommees ?? 0,
+      racines: r?.racines ?? 0,
+      classes: c?.classes ?? 0,
+      sha256: binaire.sha256,
+      binaire: binaire.chemin,
+    };
+  },
 };
+
+/** Volumétrie de `niers.sqlite` — cf. [`reDb.stats`]. */
+export interface ReStats {
+  fonctions: number;
+  nommees: number;
+  /** Racines `.pdata` : les bornes de fonction que le binaire déclare lui-même. */
+  racines: number;
+  classes: number;
+  /** Empreinte du binaire indexé — à confronter à celle du `nie.exe` de la machine. */
+  sha256: string | null;
+  binaire: string | null;
+}

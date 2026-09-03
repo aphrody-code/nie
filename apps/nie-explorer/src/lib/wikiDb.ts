@@ -256,4 +256,40 @@ export const wikiDb = {
       return d.select<LigneTechnique[]>(sqlTechniquesParIdsSansJson(ids.length), ids);
     }
   },
+
+  /**
+   * Volumétrie du miroir, pour le tableau de bord. Compte les tables réellement présentes puis
+   * n'interroge que celles-là : un miroir peut être partiel (dump interrompu), et une requête sur
+   * une table absente ferait échouer tout le panneau au lieu d'afficher les autres chiffres.
+   */
+  async stats(dbPath: string): Promise<StatsMiroir> {
+    const d = await connect(dbPath);
+    const tables = await d.select<{ name: string }[]>(
+      `SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'inagle_%'`,
+    );
+    const presentes = new Set(tables.map((t) => t.name));
+    const compter = async (table: string): Promise<number | null> => {
+      if (!presentes.has(table)) return null;
+      const [r] = await d.select<{ n: number }[]>(`SELECT count(*) AS n FROM ${table}`);
+      return r?.n ?? 0;
+    };
+    return {
+      tables: presentes.size,
+      personnages: await compter("inagle_characters"),
+      techniques: await compter("inagle_skills"),
+      objets: await compter("inagle_items"),
+      equipes: await compter("inagle_teams"),
+      avatars: await compter("inagle_keshins"),
+    };
+  },
 };
+
+/** Volumétrie du miroir wiki — cf. [`wikiDb.stats`]. `null` = table absente de ce miroir. */
+export interface StatsMiroir {
+  tables: number;
+  personnages: number | null;
+  techniques: number | null;
+  objets: number | null;
+  equipes: number | null;
+  avatars: number | null;
+}
