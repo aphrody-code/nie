@@ -14,7 +14,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { commands } from "@/lib/bindings";
 import type { ApercuNavmDto } from "@/lib/bindings";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 /** Marge intérieure du tracé, en pixels — évite que le maillage touche les bords. */
 const MARGE = 12;
@@ -185,11 +187,28 @@ export function NavmeshView({ path, gameDir }: { path: string; gameDir?: string 
 		[apercu],
 	);
 
+	// Les deux états d'attente passent par `Alert`, comme les quatorze autres vues de l'appli :
+	// une erreur de décodage s'affichait ici en simple texte rouge, sans titre ni cadre, donc
+	// sans rien qui la distingue d'une légende.
 	if (erreur) {
-		return <div className="p-4 text-sm text-destructive">Navmesh illisible — {erreur}</div>;
+		return (
+			<div className="p-3">
+				<Alert variant="destructive">
+					<AlertTitle>Navmesh illisible</AlertTitle>
+					<AlertDescription>{erreur}</AlertDescription>
+				</Alert>
+			</div>
+		);
 	}
 	if (!apercu) {
-		return <div className="p-4 text-sm text-muted-foreground">Décodage du navmesh…</div>;
+		return (
+			<div className="p-3">
+				<Alert>
+					<AlertTitle>Décodage du navmesh…</AlertTitle>
+					<AlertDescription>Lecture des sommets, polygones et arêtes du fichier.</AlertDescription>
+				</Alert>
+			</div>
+		);
 	}
 
 	return (
@@ -206,19 +225,28 @@ export function NavmeshView({ path, gameDir }: { path: string; gameDir?: string 
 						{dimensions.x.toFixed(1)} × {dimensions.z.toFixed(1)} m (h {dimensions.y.toFixed(1)})
 					</Badge>
 				)}
-				<button
-					type="button"
+				<Button
+					variant="outline"
+					size="sm"
+					className="h-6 px-2 text-[11px]"
 					onClick={() => setMontrerTriangles((v) => !v)}
-					className="rounded bg-muted/40 px-2 py-0.5 text-[11px]"
 				>
 					{montrerTriangles ? "masquer" : "afficher"} les triangles
-				</button>
-				{apercu.tronque && (
-					<span className="text-[11px] text-amber-500">
-						aperçu plafonné — le maillage affiché est partiel
-					</span>
-				)}
+				</Button>
 			</div>
+
+			{/* Un maillage plafonné n'est pas une coquetterie d'affichage : ce qui est à l'écran
+			    n'est PAS le fichier. Un `<span>` ambre au milieu d'une rangée de badges se lisait
+			    comme une étiquette de plus. */}
+			{apercu.tronque && (
+				<Alert>
+					<AlertTitle>Aperçu plafonné</AlertTitle>
+					<AlertDescription>
+						Le maillage affiché est partiel — les compteurs ci-dessus décrivent le fichier, le
+						tracé n'en montre qu'une part.
+					</AlertDescription>
+				</Alert>
+			)}
 
 			<Plan apercu={apercu} montrerTriangles={montrerTriangles} />
 

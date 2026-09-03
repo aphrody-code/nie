@@ -15,6 +15,10 @@ import { useCallback, useEffect, useState } from "react";
 import { commands } from "@/lib/bindings";
 import type { CacheCpkDto } from "@/lib/bindings";
 import { toast } from "sonner";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 
 /** Rafraîchissement automatique, en millisecondes. */
 const PERIODE = 5000;
@@ -86,36 +90,44 @@ export function MemoireCard() {
 				rend la RAM immédiatement ; les lectures suivantes relisent depuis le disque.
 			</p>
 
-			{erreur && <div className="mb-2 text-xs text-destructive">{erreur}</div>}
+			{erreur && (
+				<Alert variant="destructive" className="mb-2">
+					<AlertTitle>Mesure impossible</AlertTitle>
+					<AlertDescription>{erreur}</AlertDescription>
+				</Alert>
+			)}
 
 			{stats ? (
 				<>
-					<div className="mb-1 flex items-baseline justify-between font-mono text-xs">
+					<div className="mb-1 flex items-baseline justify-between gap-2 font-mono text-xs">
 						<span>{lisible(stats.octets_mo)}</span>
+						{/* Le seuil était porté par la COULEUR de la jauge (ambre au-delà de 85 %), donc
+						    perdu pour qui ne la distingue pas — et perdu tout court une fois la jauge
+						    passée au composant partagé, dont l'indicateur a une teinte fixe. Un badge
+						    le dit en toutes lettres. */}
+						{part > 0.85 && (
+							<Badge variant="outline" className="border-amber-500/30 text-amber-500">
+								{(part * 100).toFixed(0)} % du budget
+							</Badge>
+						)}
 						<span className="text-muted-foreground">budget {lisible(stats.budget_mo)}</span>
 					</div>
-					<div className="h-2 w-full overflow-hidden rounded bg-muted/40">
-						<div
-							className={`h-full transition-[width] ${part > 0.85 ? "bg-amber-500" : "bg-sky-500"}`}
-							style={{ width: `${(part * 100).toFixed(1)}%` }}
-						/>
-					</div>
+					{/* `Progress` du design system — la jauge était une paire de `<div>` avec une
+					    largeur en pourcentage, invisible aux lecteurs d'écran (aucun rôle, aucune
+					    valeur) là où les trois autres jauges de l'application l'exposent. */}
+					<Progress value={Math.min(100, part * 100)} />
 					<div className="mt-3 flex items-center gap-2">
-						<button
-							type="button"
+						<Button
+							size="sm"
+							variant="outline"
 							onClick={() => void vider()}
 							disabled={occupe || stats.octets_mo === 0}
-							className="rounded bg-muted/50 px-2.5 py-1 text-xs disabled:opacity-40"
 						>
 							{occupe ? "…" : "Vider le cache"}
-						</button>
-						<button
-							type="button"
-							onClick={() => void rafraichir()}
-							className="rounded bg-muted/50 px-2.5 py-1 text-xs"
-						>
+						</Button>
+						<Button size="sm" variant="outline" onClick={() => void rafraichir()}>
 							Rafraîchir
-						</button>
+						</Button>
 					</div>
 				</>
 			) : (

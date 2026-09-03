@@ -21,12 +21,19 @@
 //   ensuite affichée comme affiche.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/Icon";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { VideoPlayer, formaterDuree, urlVideo } from "@/components/VideoPlayer";
 import { api } from "@/lib/api";
 import { showFilmContextMenu } from "@/lib/contextMenu";
 import type { FilmDto } from "@/lib/bindings";
+
+/** Valeur du filtre « toutes langues » — `base-ui` réserve la chaîne vide à l'absence de
+ * sélection et refuse un `SelectItem value=""`, d'où ce jeton, traduit en `""` à la sortie. */
+const TOUTES_LANGUES = "__toutes__";
 
 /** Délai de survol avant de lancer une prévisualisation, en millisecondes. */
 const DELAI_APERCU = 550;
@@ -274,19 +281,26 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
           placeholder="Rechercher un film…"
           className="h-7 w-56 text-xs"
         />
-        <select
-          value={langue}
-          onChange={(e) => setLangue(e.target.value)}
-          aria-label="Filtrer par langue"
-          className="h-7 rounded-md border border-app-line bg-app-box px-2 text-xs text-ink outline-none"
+        {/* `Select` du design system, comme `DetailPane` : ce `<select>` HTML brut était l'un des
+            deux derniers de l'application à ignorer la palette et la navigation clavier des
+            autres listes. La valeur vide se code `TOUTES` — un `SelectItem value=""` est refusé
+            par base-ui, qui réserve la chaîne vide à l'absence de sélection. */}
+        <Select
+          value={langue || TOUTES_LANGUES}
+          onValueChange={(v) => setLangue(v === TOUTES_LANGUES ? "" : (v ?? ""))}
         >
-          <option value="">Toutes langues</option>
-          {langues.map((l) => (
-            <option key={l} value={l}>
-              {l}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger size="sm" className="h-7 w-40 text-xs" aria-label="Filtrer par langue">
+            <SelectValue placeholder="Toutes langues" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={TOUTES_LANGUES}>Toutes langues</SelectItem>
+            {langues.map((l) => (
+              <SelectItem key={l} value={l}>
+                {l}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {chargement && (
@@ -295,15 +309,26 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
         </div>
       )}
 
+      {/* `Alert` plutôt qu'un cadre rouge écrit à la main : c'est le composant que toutes les
+          autres vues emploient pour dire qu'une source a échoué. */}
       {erreur && (
-        <div className="m-4 rounded-md border border-status-error/40 bg-status-error/10 p-3 text-xs text-status-error">
-          {erreur}
+        <div className="m-4">
+          <Alert variant="destructive">
+            <AlertTitle>Catalogue indisponible</AlertTitle>
+            <AlertDescription>{erreur}</AlertDescription>
+          </Alert>
         </div>
       )}
 
       {!chargement && !erreur && films.length === 0 && (
-        <div className="flex flex-1 items-center justify-center text-sm text-ink-faint">
-          Aucune cinématique trouvée — le VFS du jeu est-il monté ?
+        <div className="m-4">
+          <Alert>
+            <AlertTitle>Aucune cinématique</AlertTitle>
+            <AlertDescription>
+              Le catalogue est vide : le VFS du jeu n'est pas monté, ou ce montage ne porte aucun
+              fichier USM.
+            </AlertDescription>
+          </Alert>
         </div>
       )}
 
@@ -391,23 +416,18 @@ function Vedette({
           ))}
         </div>
         <div className="mt-4 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onLire}
-            className="flex items-center gap-1.5 rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
-          >
+          {/* Les deux actions de la vedette passent par `Button` : elles étaient peintes à la
+              main (`bg-accent`, `text-white`), donc sourdes au thème clair et au zoom d'interface
+              que le reste de l'application respecte. */}
+          <Button onClick={onLire}>
             <Icon name="play_arrow" size={16} />
             Lire
-          </button>
+          </Button>
           {onReveler && (
-            <button
-              type="button"
-              onClick={onReveler}
-              className="flex items-center gap-1.5 rounded-md border border-app-line px-3 py-2 text-sm text-ink-dull transition-colors hover:bg-app-hover hover:text-ink"
-            >
+            <Button variant="outline" onClick={onReveler}>
               <Icon name="folder_open" size={16} />
               Voir le fichier
-            </button>
+            </Button>
           )}
         </div>
       </div>

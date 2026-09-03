@@ -13,8 +13,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { commands } from "@/lib/bindings";
 import type { ApercuCameraDto, PisteCameraDto } from "@/lib/bindings";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 /** Couleur par famille de canal — position, visée, champ de vision. */
 const COULEURS: Record<string, string> = {
@@ -178,11 +180,27 @@ export function CameraTrackView({ path, gameDir }: { path: string; gameDir?: str
 		return apercu.pistes.filter((p) => p.canal === filtre);
 	}, [apercu, filtre]);
 
+	// Même traitement des états d'attente que le reste de l'application (`Alert`) : ces deux
+	// lignes étaient du texte nu, sans cadre ni titre.
 	if (erreur) {
-		return <div className="p-4 text-sm text-destructive">Caméra illisible — {erreur}</div>;
+		return (
+			<div className="p-3">
+				<Alert variant="destructive">
+					<AlertTitle>Caméra illisible</AlertTitle>
+					<AlertDescription>{erreur}</AlertDescription>
+				</Alert>
+			</div>
+		);
 	}
 	if (!apercu) {
-		return <div className="p-4 text-sm text-muted-foreground">Décodage de la caméra…</div>;
+		return (
+			<div className="p-3">
+				<Alert>
+					<AlertTitle>Décodage de la caméra…</AlertTitle>
+					<AlertDescription>Lecture des canaux, objets et clips d'animation.</AlertDescription>
+				</Alert>
+			</div>
+		);
 	}
 
 	const canaux = [...new Set(apercu.pistes.map((p) => p.canal))].sort();
@@ -198,33 +216,38 @@ export function CameraTrackView({ path, gameDir }: { path: string; gameDir?: str
 				<Badge variant="outline">
 					frames {(apercu.frame_min ?? 0).toFixed(0)} → {(apercu.frame_max ?? 0).toFixed(0)}
 				</Badge>
-				{apercu.canaux_resolus < apercu.canaux && (
-					<span className="text-[11px] text-muted-foreground">
-						les canaux non résolus ne sont pas tracés — leur encodage n'est pas élucidé
-					</span>
-				)}
 			</div>
 
-			<div className="flex flex-wrap gap-1">
-				<button
-					type="button"
-					onClick={() => setFiltre("")}
-					className={`rounded px-2 py-0.5 text-[11px] ${filtre === "" ? "bg-accent" : "bg-muted/40"}`}
-				>
-					tous
-				</button>
+			{/* Ce que la vue NE montre PAS mérite un cadre, pas une note en petits caractères
+			    au bout d'une rangée de badges : un canal non tracé peut se lire comme un canal
+			    vide. */}
+			{apercu.canaux_resolus < apercu.canaux && (
+				<Alert>
+					<AlertTitle>
+						{apercu.canaux - apercu.canaux_resolus} canaux non tracés sur {apercu.canaux}
+					</AlertTitle>
+					<AlertDescription>
+						Leur encodage n'est pas élucidé — ils existent dans le fichier, mais rien n'en est
+						dessiné ci-dessous.
+					</AlertDescription>
+				</Alert>
+			)}
+
+			{/* Filtre par canal — `ToggleGroup`, le même sélecteur exclusif que `CfgbinViewer`.
+			    C'étaient des `<button>` avec un état actif peint à la main (`bg-accent`), sans
+			    sémantique de pression pour l'accessibilité. */}
+			<ToggleGroup
+				value={[filtre]}
+				onValueChange={(v: string[]) => setFiltre(v[0] ?? "")}
+				className="flex-wrap"
+			>
+				<ToggleGroupItem value="">tous</ToggleGroupItem>
 				{canaux.map((c) => (
-					<button
-						key={c}
-						type="button"
-						onClick={() => setFiltre(c === filtre ? "" : c)}
-						className={`rounded px-2 py-0.5 text-[11px] ${filtre === c ? "bg-accent" : "bg-muted/40"}`}
-						style={{ color: couleur(c) }}
-					>
+					<ToggleGroupItem key={c} value={c} style={{ color: couleur(c) }}>
 						{c}
-					</button>
+					</ToggleGroupItem>
 				))}
-			</div>
+			</ToggleGroup>
 
 			<ScrollArea className="min-h-0 flex-1 rounded border border-border/50">
 				<div className="px-2">
@@ -237,7 +260,11 @@ export function CameraTrackView({ path, gameDir }: { path: string; gameDir?: str
 						/>
 					))}
 					{pistes.length === 0 && (
-						<div className="p-4 text-sm text-muted-foreground">Aucun canal.</div>
+						<div className="p-4 text-sm text-muted-foreground">
+							{filtre
+								? `Aucune piste sur le canal « ${filtre} ».`
+								: "Aucune piste tracée — aucun canal de ce fichier n'est résolu."}
+						</div>
 					)}
 				</div>
 			</ScrollArea>
