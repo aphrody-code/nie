@@ -147,19 +147,42 @@ Chiffres sortis de l'outil, pas d'une estimation. Le binaire produit est **byte-
 > 2026-08-28 par `niers info`), donc la cible est la bonne ; c'est l'état interne de la forge qui
 > manque, pas le binaire.
 
-Mesure **rejouée et reproduite le 2026-08-30** sur la cible `b1fa04ea3658…` :
+Mesure **rejouée le 2026-09-03** sur la cible `b1fa04ea3658…` :
 
 ```
-split   : 225 187 unités · 116 091 fonctions · résidu .text 51 151 o · 0 trou · 0 overlay
-lift    : 112 041 corps relevés · 22 098 966 o · ratio 0,9446
+bornes  : 116 679 feuilles soumises · 880 coupantes écartées · 38 indécises conservées
+données : 998 unités refusées · 39 968 o isolés · 994 179 o de code libérés · 136 sandwichs
+split   : 225 427 unités · 115 326 fonctions · résidu .text 59 665 o · 0 trou · 0 overlay
+lift    : 112 649 corps relevés · 22 525 789 o · ratio 0,9567
 build   : dist/nie.exe · 33 918 464 o · sha256 identique ✅ · 0 rejeté
-report  : produced = 69,3650 % du fichier · code_rust = 90,3630 % du .text
+report  : produced = 74,0033 % du fichier · code_rust = 92,2595 % du .text
 ```
 
 | source | unités | octets |
 |---|---:|---:|
-| en-têtes PE ré-émis (`nie-pe`) | — | 1 428 592 |
-| corps réassemblés (`nie-asm`) | 112 041 | 22 098 966 |
+| en-têtes PE et tables ré-émis (`nie-pe`) | 3 | 1 428 592 |
+| bourrage régénéré par règle (`Unit::emit_rule`) | 106 566 | 1 146 305 |
+| corps réassemblés (`nie-asm`) | 112 649 | 22 525 789 |
+
+Le point de départ de cette séance était 69,3650 % / 90,3630 %. Les quatre leviers, dans
+l'ordre de leur rendement :
+
+| levier | produced | code_rust |
+|---|---|---|
+| bourrage `int3` produit par règle plutôt que recopié | 69,5291 → 72,9087 % | inchangé |
+| bornes de fonction tombant au milieu d'une instruction, écartées | → 72,9583 % | 90,5906 → 90,6593 % |
+| **données inline isolées du code qui les entoure** | → 73,7572 % | → 91,9176 % |
+| deux sens d'encodage reg/reg (`.d`) et déplacement nul explicite | → 74,0033 % | → 92,2595 % |
+
+Le troisième est le plus instructif : 998 unités et 1 034 147 octets étaient refusées par le
+désassembleur, mais **95,8 % de cette masse était du code parfaitement décodable**, bloqué par
+39 968 octets de tables de sauts et de constantes déposées au milieu des corps. Un rapport de
+25 pour 1 — la découpe, pas l'encodeur.
+
+Le quatrième rappelle une limite de la ventilation des blocages : `encodage:mov` annonçait
+1 677 unités et 43 234 octets, le déblocage en a rendu 10 185. **Une cause dit ce qui bloque en
+premier, pas ce que son déblocage rapporte** — les unités concernées portaient un second blocage
+derrière le premier.
 
 ### Le recouvrement vient de deux sources, pas d'une
 
@@ -218,23 +241,68 @@ Deux enseignements, l'un et l'autre trouvés par l'outillage :
 
 ### Ce qui bloque encore, par masse
 
-Régénérer la liste : `nie-forge lift`, lignes `blocker`, triées par masse.
+Régénérer la liste : `nie-forge lift --top 0`, lignes `blocker`, triées par masse. La ligne
+`blocages` qui les précède donne le total — sans elle, une liste tronquée laisse croire que les
+quinze premières causes épuisent le sujet.
+
+État au 2026-09-03 : **194 causes · 4 427 unités · 1 284 617 octets**.
 
 ```
-mov          2 443 corps  3 008 522 o   « mov rax,gs:[58h] »  (segment, adresse absolue moffs)
-cmpps          519 corps    866 730 o   « cmpeqps xmm1,[rbx+10h] »
-invalide     1 988 corps    467 038 o   (données inline prises pour du code)
-vpermilps      331 corps    449 128 o   (AVX)
-prefetchnta    159 corps    248 224 o
-psrldq         239 corps    193 722 o
-encodage:jmp 2 082 corps    142 000 o   orig=[48, ff, e0] · nie-asm=[ff, e0]
-encodage:dec   372 corps    155 672 o   préfixe `lock` non ré-émis
+extractps       25 corps   45 482 o   SSE4.1 hors dialecte
+vmovdqu         37 corps   45 061 o   AVX
+encodage:add    34 corps   43 611 o   orig=[47, 00, 2b] · nie-asm=[45, 00, 2b]  (bit REX.X posé)
+in              32 corps   42 997 o   instruction privilégiée : des données prises pour du code
+encodage:mov 1 675 corps   42 399 o   orig=[40, 8b, ce] · nie-asm=[8b, ce]      (REX nul explicite)
+paddq            6 corps   33 956 o
+sti              9 corps   30 196 o   même remarque que `in`
+push            19 corps   28 713 o
+out             29 corps   28 099 o
+paddsw          41 corps   24 281 o
 ```
 
-Les causes `encodage:*` sont les plus instructives : ce sont des corps **entièrement traduits**
-dont le ré-encodage diverge de quelques octets — un `jmp rax` que MSVC préfixe d'un REX nul, un
-`lock` perdu. Le diagnostic affiche `orig=` contre `nie-asm=` précisément pour ça. Chacune est un
-*finding* exploitable, et aucune ne peut passer pour produite.
+Trois familles, et elles ne se traitent pas de la même façon :
+
+- **Les instructions SIMD/x87 manquantes** (`extractps`, `vmovdqu`, `paddq`, `paddsw`, `pshufb`,
+  `pmaddubsw`, `stmxcsr`…) — du vrai travail d'encodeur, chacune chiffrée.
+- **Les causes `encodage:*`** — des corps entièrement traduits dont le ré-encodage diverge de
+  quelques octets. Le diagnostic affiche `orig=` contre `nie-asm=` précisément pour ça. La
+  première en masse est aujourd'hui le **préfixe REX explicite** : `40 8B CE` pour un
+  `mov ecx,esi` qui n'en a pas besoin, ou un bit `REX.X` posé sans index.
+- **Les instructions que MSVC n'émet jamais** (`in`, `out`, `sti`, `retf`, `insb`, `scasb`,
+  `cld`, `lodsb`, `xlatb`…) — elles se *décodent*, donc l'isolation des données inline ne les
+  voit pas, mais leur présence signale des octets qui ne sont pas du code. Les élargir serait
+  courir après un mirage ; c'est la découpe qu'il faut affiner.
+
+Aucune ne peut passer pour produite tant qu'elle n'est pas relevée.
+
+### Le tri de toutes les fonctions : `nie-forge kb`
+
+La base de connaissance RE et la forge décrivent le même objet par deux chemins indépendants —
+la première par le reverse (`.pdata`, RTTI, vtables, chaînes), la seconde par un recouvrement
+total qui se réassemble à l'octet près. `nie-forge kb` fait porter au même endroit ce que chacune
+sait : la table `forge_unit` et la vue `v_forge_function` donnent, pour chaque fonction, son
+offset, sa taille **mesurée**, sa nature et son statut réel.
+
+```sql
+SELECT statut, count(*), sum(taille_forge) FROM v_forge_function GROUP BY statut;
+```
+
+| statut | fonctions | nommées | octets |
+|---|---:|---:|---:|
+| `produit` | 111 303 | 47 490 | 22 509 901 |
+| `bloque` | 4 849 | 1 769 | 1 878 198 |
+| `hors_decoupage` | 1 338 | 164 | — |
+| `donnees_inline` | 4 | 3 | 15 |
+
+Le croisement dit ce qu'aucun des deux inventaires ne voyait seul : les 115 326 unités de
+fonction de la forge sont **toutes** connues de la base (aucune n'est inventée), la base porte
+**1 338 adresses sans unité en face**, et **14 768 fonctions y déclarent une taille que la mesure
+contredit**. La liste de travail se lit alors par domaine et non plus seulement par mnémonique —
+`physics` 503 697 o bloqués, `menu` 304 422 o, `script` 220 758 o, `network` 2 810 fonctions.
+
+Rien n'est écrit dans `function` : le reverse garde ses colonnes, la forge les siennes, et la
+jointure vit dans la vue. La synchronisation réécrit son binaire au lieu d'empiler — sinon un
+découpage plus fin laisserait des unités fantômes.
 
 ## 6. Un constat que l'outillage a produit immédiatement
 
@@ -270,8 +338,8 @@ d'octets plutôt que par adresse), puis renseigner le champ `rust` de chaque ent
 |---|---|---|
 | **G0 — identité** | le fichier produit est byte-identique à l'original | ✅ tenu, testé sur le vrai binaire |
 | **G1 — recouvrement** | chaque octet appartient à une unité nommée, zéro trou | ✅ 225 187 unités, invariant testé |
-| **G2 — amorçage** | une part non nulle du binaire est produite par le dépôt | ✅ **69,3650 %** du fichier |
-| **G3 — code** | 50 % du `.text` produit par le dépôt | ✅ **90,3630 %** |
+| **G2 — amorçage** | une part non nulle du binaire est produite par le dépôt | ✅ **74,0033 %** du fichier |
+| **G3 — code** | 50 % du `.text` produit par le dépôt | ✅ **92,2595 %** |
 | **G4 — sections** | `.rdata`/`.data` produits depuis les structures, pas recopiés | non commencé (découpage encore d'un seul tenant) |
 | **G5 — disposition** | la forge calcule ses propres adresses (édition de liens réelle) | non commencé ; jusque-là les champs relogés viennent de la disposition de référence |
 | **G6 — total** | 100 % du fichier produit, `nie.exe` reconstructible sans référence | horizon |
