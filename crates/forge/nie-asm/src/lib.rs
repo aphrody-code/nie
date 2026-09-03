@@ -240,6 +240,17 @@ pub struct Mem {
     pub index: Option<(Reg, u8)>,
     /// Déplacement signé.
     pub disp: i32,
+    /// Déplacement **nul encodé explicitement** (`mod=01`, `disp8 = 0`).
+    ///
+    /// `[rbx]` s'encode normalement `8B 0B` (`mod=00`) ; une partie de
+    /// `nie.exe` écrit `8B 4B 00`, un octet de plus pour le même accès. Le
+    /// choix appartient au binaire d'origine, comme la forme longue d'un
+    /// immédiat dans [`Insn::AluRI`] — sans ce champ, 1 732 corps se
+    /// ré-encodaient un octet trop court et étaient rejetés.
+    ///
+    /// Sans effet quand `mod=01` est de toute façon imposé (base `rbp`/`r13`)
+    /// ou impossible (adresse absolue, `rip`-relatif).
+    pub disp_explicite: bool,
     /// Cible **absolue** d'un adressage relatif au pointeur d'instruction.
     ///
     /// Quand ce champ est renseigné, `base`/`index`/`disp` sont ignorés et
@@ -1191,7 +1202,10 @@ fn modrm_mem(out: &mut Vec<u8>, reg: u8, m: Mem, at: u64, base: usize, imm_len: 
     let need_sib =
         m.index.is_some() || base.is_none() || base.is_some_and(|b| b.lo() == 4);
     // rbp/r13 en mod=00 signifierait « rip-relatif » : forcer un disp8 nul.
-    let force_disp8 = base.is_some_and(|b| b.lo() == 5) && m.disp == 0;
+    // `disp_explicite` demande le même octet, mais parce que l'original le
+    // porte et non parce que l'encodage l'exige.
+    let force_disp8 =
+        base.is_some() && m.disp == 0 && (base.is_some_and(|b| b.lo() == 5) || m.disp_explicite);
     let mode = if base.is_none() || (m.disp == 0 && !force_disp8) {
         0b00
     } else if i8::try_from(m.disp).is_ok() {

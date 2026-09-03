@@ -189,6 +189,10 @@ fn mem_text(m: Mem) -> String {
         // Adresse absolue (`gs:[58h]`) : pas de terme précédent, donc pas de
         // signe de liaison — `[+0x58]` ne se relirait pas.
         s.push_str(&format!("{:#x}", m.disp));
+    } else if m.disp == 0 && m.disp_explicite {
+        // Le déplacement nul est écrit pour que la relecture le retrouve :
+        // `[rbx]` s'encode `mod=00`, `[rbx+0x0]` garde le `disp8` de l'original.
+        s.push_str("+0x0");
     } else {
         s.push_str(&fmt_disp(m.disp));
     }
@@ -276,6 +280,8 @@ fn parse_mem(s: &str) -> Option<Mem> {
             }
         } else {
             m.disp = i32::try_from(parse_int(term)? * i64::from(sign)).ok()?;
+            // Un déplacement nul écrit noir sur blanc demande le `disp8`.
+            m.disp_explicite = m.disp == 0;
         }
     }
     Some(m)
@@ -1445,11 +1451,10 @@ mod tests {
                 Size::Q,
                 Reg::Rax,
                 Mem {
-                    seg: None,
                     base: Some(Reg::Rdx),
                     index: Some((Reg::Rcx, 4)),
                     disp: -16,
-                    rip: None
+                    ..Mem::default()
                 }
             )]),
             "mov rax, [rdx+rcx*4-0x10]"
@@ -1500,6 +1505,24 @@ mod tests_prefixes {
     #[test]
     fn lock_refuse_ce_qui_n_est_pas_unaire() {
         assert!(parse_insn("lock ret").is_err());
+    }
+
+    /// `[rbx]` et `[rbx+0x0]` designent le meme acces et n'ont pas les memes
+    /// octets : le second garde le `disp8` nul que porte l'original.
+    #[test]
+    fn le_deplacement_nul_explicite_fait_l_aller_retour() {
+        let court = parse_insn("mov ecx, [rbx]").expect("dialecte");
+        assert_eq!(crate::encode(&[court]), vec![0x8B, 0x0B]);
+        assert_eq!(court.to_text(), "mov ecx, [rbx]");
+
+        let long = parse_insn("mov ecx, [rbx+0x0]").expect("dialecte");
+        assert_eq!(crate::encode(&[long]), vec![0x8B, 0x4B, 0x00]);
+        assert_eq!(long.to_text(), "mov ecx, [rbx+0x0]");
+        assert_ne!(court, long);
+
+        // Un deplacement non nul n'est pas concerne.
+        let d = parse_insn("mov ecx, [rbx+0x8]").expect("dialecte");
+        assert_eq!(crate::encode(&[d]), vec![0x8B, 0x4B, 0x08]);
     }
 
     /// Le suffixe `.d` choisit l'autre sens d'encodage d'une forme reg/reg.
