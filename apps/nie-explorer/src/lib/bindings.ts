@@ -306,6 +306,28 @@ export const commands = {
 	 */
 	vfsDecodeCfgbinTyped: (path: string, gameDir: string | null) => typedError<CfgbinTyped, string>(__TAURI_INVOKE("vfs_decode_cfgbin_typed", { path, gameDir })),
 	/**
+	 *  Aperçu traçable d'une caméra de cinématique (`.g4cm`) — 1 215 fichiers dans le jeu.
+	 * 
+	 *  Rend des **pistes** `(objet, canal, temps → valeur)` plutôt que la structure complète du
+	 *  décodeur : celle-ci descend jusqu'aux octets de rembourrage, ce qu'il faut pour réencoder à
+	 *  l'octet près mais qui noierait une vue. Les canaux portent la position de la caméra
+	 *  (`PosX/Y/Z`), son point visé (`RefX/Y/Z`) et son champ de vision (`Fov`).
+	 * 
+	 *  Un canal dont le flux n'est pas `f32` sort avec `resolu = false` et sans valeurs :
+	 *  l'encodage 2 octets n'est pas élucidé, et inventer des nombres donnerait une trajectoire
+	 *  plausible et fausse.
+	 */
+	vfsApercuCamera: (path: string, gameDir: string | null) => typedError<ApercuCameraDto, string>(__TAURI_INVOKE("vfs_apercu_camera", { path, gameDir })),
+	/**
+	 *  Aperçu projetable d'un maillage de navigation (`.g4nv`) — 160 fichiers, 153 cartes.
+	 * 
+	 *  Rend les sommets en coordonnées monde, les **triangles** (trois coins par polygone) et les
+	 *  arêtes du graphe avec leur coût. `bord` marque les arêtes qui ne relient qu'un polygone :
+	 *  c'est le contour de la zone marchable. `tronque` dit qu'un plafond a mordu — l'affichage
+	 *  doit le signaler plutôt que de laisser croire à un maillage complet.
+	 */
+	vfsApercuNavmesh: (path: string, gameDir: string | null) => typedError<ApercuNavmDto, string>(__TAURI_INVOKE("vfs_apercu_navmesh", { path, gameDir })),
+	/**
 	 *  Ré-encode du JSON édité (forme "inagle" `{"entries":[...]}` T2B **ou** `{"lists":[...]}`
 	 *  RDBN, dispatch automatique symétrique à [`vfs_decode_cfgbin`]) vers un `.cfg.bin` binaire
 	 *  VALIDE.
@@ -905,6 +927,54 @@ export type ActivityDto = {
 	data_len: number | null,
 };
 
+/**  Tout ce qu'une vue a besoin de savoir d'un `.g4cm`. */
+export type ApercuCameraDto = {
+	/**  Noms des objets animés. */
+	objets: string[],
+	/**  Clips déclarés. */
+	clips: ClipCameraDto[],
+	/**  Pistes, une par canal. */
+	pistes: PisteCameraDto[],
+	/**  Première frame observée, toutes pistes confondues. */
+	frame_min: number | null,
+	/**  Dernière frame observée. */
+	frame_max: number | null,
+	/**  Nombre total de canaux. */
+	canaux: number,
+	/**  Nombre de canaux dont le flux est décodé en `f32`. */
+	canaux_resolus: number,
+};
+
+/**  Tout ce qu'une vue a besoin de savoir d'un `.g4nv`. */
+export type ApercuNavmDto = {
+	/**  Sommets, en coordonnées monde `[x, y, z]`. */
+	sommets: ([(number | null), (number | null), (number | null)])[],
+	/**  Triangles, en index de sommets (trois par polygone). */
+	triangles: ([number, number, number])[],
+	/**  Arêtes du graphe. */
+	aretes: AreteNavmDto[],
+	/**  Coin inférieur de la boîte englobante. */
+	bbox_min: [(number | null), (number | null), (number | null)],
+	/**  Coin supérieur de la boîte englobante. */
+	bbox_max: [(number | null), (number | null), (number | null)],
+	/**  Nombre de polygones du fichier (avant tout plafonnement). */
+	polygones: number,
+	/**  `true` si l'aperçu a été plafonné — l'affichage doit le signaler. */
+	tronque: boolean,
+};
+
+/**  Une arête du graphe de navigation, en indices de sommets. */
+export type AreteNavmDto = {
+	/**  Sommet de départ. */
+	a: number,
+	/**  Sommet d'arrivée. */
+	b: number,
+	/**  Coût de franchissement. */
+	cout: number | null,
+	/**  `true` si l'arête est au bord du maillage (elle ne relie qu'un seul polygone). */
+	bord: boolean,
+};
+
 /**  Catalogue des pistes d'une banque audio du VFS, avec la provenance de ses octets. */
 export type AudioBankDto = {
 	/**  `self` (le fichier EST l'AWB), `embedded`, ou le chemin VFS de l'AWB frère. */
@@ -988,6 +1058,16 @@ export type CharaPickerDto = {
 	name: string,
 	main_position: string,
 	sub_position: string,
+};
+
+/**  Un clip : un intervalle de frames déclaré en tête de fichier. */
+export type ClipCameraDto = {
+	/**  Première frame. */
+	debut: number,
+	/**  Dernière frame. */
+	fin: number,
+	/**  Index déclaré. */
+	index: number,
 };
 
 /**
@@ -1547,6 +1627,20 @@ export type PisteAudioDto = {
 	octets: number,
 	/**  D'où vient la piste : `conteneur` (dans le `.usm`) ou le nom de la cue de `anime_stream`. */
 	source: string,
+};
+
+/**  Une piste d'animation : un canal d'un objet, échantillonné dans le temps. */
+export type PisteCameraDto = {
+	/**  Nom de l'objet animé, tel qu'il figure dans la table de noms du fichier. */
+	objet: string,
+	/**  Canal : `PosX`, `PosY`, `PosZ`, `RefX`, `RefY`, `RefZ`, `Fov`, ou `Inconnu(0x..)`. */
+	canal: string,
+	/**  `true` si le flux est un `f32` décodé — donc si `valeurs` a un sens. */
+	resolu: boolean,
+	/**  Numéros de frame des échantillons. */
+	temps: (number | null)[],
+	/**  Valeurs, vides quand `resolu` est faux. */
+	valeurs: (number | null)[],
 };
 
 /**

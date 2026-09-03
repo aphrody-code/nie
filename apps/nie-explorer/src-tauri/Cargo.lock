@@ -3452,6 +3452,7 @@ dependencies = [
  "cridecoder",
  "image",
  "image_dds",
+ "nie-lua",
  "png 0.18.1",
  "serde",
  "serde_json",
