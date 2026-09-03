@@ -355,6 +355,24 @@ export function SettingsView() {
           >
             {t("settings.reset")}
           </Button>
+
+          {/* Les quatre outils de spécialiste occupaient en permanence la barre latérale d'une
+              application qui s'ouvre sur une médiathèque. Ils y reviennent d'un clic, et restent
+              de toute façon atteignables par Ctrl+K même quand ce réglage est éteint. */}
+          <div className="flex items-center justify-between border-t border-app-line pt-4">
+            <div className="space-y-0.5">
+              <Label htmlFor="outils-avances">Outils avancés</Label>
+              <p className="text-xs text-on-surface-variant">
+                Affiche Reverse-engineering, Archives Criware, Mémoire du jeu, Scripts Lua et
+                Archives CPK dans la barre latérale.
+              </p>
+            </div>
+            <Switch
+              id="outils-avances"
+              checked={settings.outilsAvances}
+              onCheckedChange={(v) => setSettings({ outilsAvances: v })}
+            />
+          </div>
         </CardContent>
       </Card>
 
