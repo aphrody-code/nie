@@ -19,7 +19,7 @@
 
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { join, posix } from "node:path";
 
 import { MARQUE_PAR_DEFAUT, type Marque } from "./ui/theme.ts";
 
@@ -171,7 +171,15 @@ export function lireEntier(
 export function cheminCacheParDefaut(env: EnvLisible): string {
 	const impose = (env.IETV_CACHE_PATH ?? env.WONDERBOT_CACHE_PATH ?? "").trim();
 	if (impose !== "") return impose;
-	return join(env.HOME || homedir(), ".cache", "ietv", "episodes.db");
+	const base = env.HOME || homedir();
+	// `join` de `node:path` suit la plateforme HÔTE, pas la forme du chemin qu'on lui donne : sur
+	// un poste Windows, un `HOME` POSIX (`/home/ubuntu`, celui du service) ressortait en
+	// `\home\ubuntu\.cache\ietv\episodes.db`. Le bot tourne sur Linux, donc rien ne cassait en
+	// production — mais le test de configuration échouait ici, et un test rouge en permanence est
+	// un test qu'on cesse de lire.
+	return base.startsWith("/")
+		? posix.join(base, ".cache", "ietv", "episodes.db")
+		: join(base, ".cache", "ietv", "episodes.db");
 }
 
 /**
