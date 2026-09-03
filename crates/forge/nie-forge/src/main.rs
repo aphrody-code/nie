@@ -485,7 +485,22 @@ fn cmd_split(paths: &Paths) -> anyhow::Result<()> {
         verdict.indecises,
         verdict.octets_ecartes,
     );
-    let store = ForgeStore::split_from_with(&exe, &paths.forge, &feuilles)?;
+    // Deux passes : la première découpe, la seconde isole les données que MSVC
+    // a déposées au milieu du code et qui rendaient irrelevable tout le corps
+    // qui les entoure.
+    let base = img.opt.image_base;
+    let feuilles_rva: Vec<(u32, u32)> = feuilles
+        .iter()
+        .filter_map(|&(va, len)| u32::try_from(va.checked_sub(base)?).ok().map(|r| (r, len)))
+        .collect();
+    let brut = nie_pe::Cover::split_with(&img, &feuilles_rva)?;
+    let (inline, bilan) = nie_forge::donnees::detecter(&img, &brut);
+    println!(
+        "donnees_inline unites={} octets={} donnees={} code_libere={} sandwichs={}",
+        bilan.unites, bilan.octets, bilan.donnees, bilan.code_libere, bilan.sandwichs,
+    );
+    let cover = nie_pe::Cover::split_with_data(&img, &feuilles_rva, &inline)?;
+    let store = ForgeStore::persist(&paths.forge, cover)?;
     let c = &store.cover;
     println!(
         "split exe={} sha256={} size={} units={} fns={} frags={} residue={} data={} gaps={} overlay={}",
