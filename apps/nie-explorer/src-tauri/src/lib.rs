@@ -217,6 +217,27 @@ fn resolve_game_dir_native() -> PathBuf {
 /// toute interaction utilisatrice.
 struct VfsState(Mutex<Option<(PathBuf, Vfs)>>);
 
+/// Budget par défaut du cache CPK **pour cette application**, en octets (1 Gio).
+///
+/// `nie-formats` monte à 16 Gio, et c'est cohérent pour un outil de traitement par lots qui a
+/// la machine pour lui : garder les paquets chauds évite de relire 57 Go de CPK. Un
+/// explorateur, lui, tourne à côté du jeu, d'un navigateur et d'un IDE ; le cache retient les
+/// octets **bruts** de chaque paquet ouvert, si bien que quelques lectures dans des paquets
+/// différents suffisent à retenir plusieurs centaines de mégaoctets — sans qu'aucune interface
+/// ne le dise, et sans que le symptôme (la machine qui rame) n'accuse jamais le cache.
+const BUDGET_CACHE_GUI: usize = 1024 * 1024 * 1024;
+
+/// Abaisse le budget du cache CPK, **sauf** si l'utilisateur l'a fixé explicitement.
+///
+/// `NIE_CPK_CACHE_BUDGET_GIB` posée est un choix délibéré : on ne l'écrase pas. On ne corrige
+/// que le défaut, qui n'a pas été pensé pour une application de bureau.
+fn appliquer_budget_cache(vfs: &Vfs) {
+    if std::env::var_os("NIE_CPK_CACHE_BUDGET_GIB").is_some() {
+        return;
+    }
+    vfs.regler_budget_cache(BUDGET_CACHE_GUI);
+}
+
 /// Exécute `f` sur le VFS mis en cache pour `game_dir` (le (re)construit d'abord si la racine
 /// résolue diffère de celle en cache, ou si aucun VFS n'a encore été chargé).
 fn with_vfs<T>(game_dir: Option<String>, state: &VfsState, f: impl FnOnce(&Vfs) -> Result<T, String>) -> Result<T, String> {
@@ -237,6 +258,7 @@ fn with_vfs<T>(game_dir: Option<String>, state: &VfsState, f: impl FnOnce(&Vfs) 
                 data_dir.display()
             )
         })?;
+        appliquer_budget_cache(&vfs);
         *guard = Some((root.clone(), vfs));
     }
     let (_, vfs) = guard.as_ref().expect("vient d'être rempli ci-dessus");
@@ -1363,6 +1385,58 @@ fn game_data_calculate_stats(
 #[specta::specta]
 fn vfs_decode_cfgbin(path: String, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<RawJson, String> {
     with_vfs(game_dir, &state, |vfs| game_data::decode_cfgbin(vfs, &path).map(RawJson))
+}
+
+/// Occupation du cache CPK, en mégaoctets.
+///
+/// Les tailles sont en Mo et non en octets pour rester des entiers simples côté interface :
+/// Specta traduit un flottant en `number | null` (un flottant non fini n'est pas
+/// représentable en JSON), ce qui obligerait chaque affichage à traiter un cas impossible.
+#[derive(Serialize, specta::Type)]
+struct CacheCpkDto {
+    /// Octets bruts retenus, en Mo.
+    octets_mo: u32,
+    /// Nombre de paquets CPK en cache.
+    entrees: u32,
+    /// Budget au-delà duquel l'éviction LRU se déclenche, en Mo.
+    budget_mo: u32,
+}
+
+/// Convertit des octets en mégaoctets, arrondis au plus proche.
+fn en_mo(octets: usize) -> u32 {
+    u32::try_from(octets.div_ceil(1024 * 1024)).unwrap_or(u32::MAX)
+}
+
+/// Occupation actuelle du cache CPK — ce que l'explorateur retient en RAM.
+///
+/// Rend la consommation observable depuis l'interface : sans cette mesure, un cache qui monte
+/// à plusieurs gigaoctets ne se voit nulle part, et le symptôme (la machine qui rame) n'accuse
+/// jamais le cache.
+#[tauri::command]
+#[specta::specta]
+fn vfs_cache_stats(
+    game_dir: Option<String>,
+    state: tauri::State<VfsState>,
+) -> Result<CacheCpkDto, String> {
+    with_vfs(game_dir, &state, |vfs| {
+        let s = vfs.cache_stats();
+        Ok(CacheCpkDto {
+            octets_mo: en_mo(s.octets),
+            entrees: u32::try_from(s.entrees).unwrap_or(u32::MAX),
+            budget_mo: en_mo(s.budget),
+        })
+    })
+}
+
+/// Vide le cache CPK et rend les mégaoctets libérés.
+///
+/// Sans danger pour les lectures en cours : chacune détient un `Arc` sur sa donnée, qui reste
+/// vivante jusqu'à la fin de l'extraction. Les lectures suivantes relisent le paquet depuis le
+/// disque — c'est le prix, assumé, de rendre la RAM.
+#[tauri::command]
+#[specta::specta]
+fn vfs_cache_vider(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<u32, String> {
+    with_vfs(game_dir, &state, |vfs| Ok(en_mo(vfs.vider_cache())))
 }
 
 /// Aperçu traçable d'une caméra de cinématique (`.g4cm`) — 1 215 fichiers dans le jeu.
@@ -4075,6 +4149,8 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         vfs_decode_cfgbin_typed,
         vfs_apercu_camera,
         vfs_apercu_navmesh,
+        vfs_cache_stats,
+        vfs_cache_vider,
         encode_cfgbin_config,
         list_packs_dir,
         open_raw_cpk,

@@ -328,6 +328,22 @@ export const commands = {
 	 */
 	vfsApercuNavmesh: (path: string, gameDir: string | null) => typedError<ApercuNavmDto, string>(__TAURI_INVOKE("vfs_apercu_navmesh", { path, gameDir })),
 	/**
+	 *  Occupation actuelle du cache CPK — ce que l'explorateur retient en RAM.
+	 * 
+	 *  Rend la consommation observable depuis l'interface : sans cette mesure, un cache qui monte
+	 *  à plusieurs gigaoctets ne se voit nulle part, et le symptôme (la machine qui rame) n'accuse
+	 *  jamais le cache.
+	 */
+	vfsCacheStats: (gameDir: string | null) => typedError<CacheCpkDto, string>(__TAURI_INVOKE("vfs_cache_stats", { gameDir })),
+	/**
+	 *  Vide le cache CPK et rend les mégaoctets libérés.
+	 * 
+	 *  Sans danger pour les lectures en cours : chacune détient un `Arc` sur sa donnée, qui reste
+	 *  vivante jusqu'à la fin de l'extraction. Les lectures suivantes relisent le paquet depuis le
+	 *  disque — c'est le prix, assumé, de rendre la RAM.
+	 */
+	vfsCacheVider: (gameDir: string | null) => typedError<number, string>(__TAURI_INVOKE("vfs_cache_vider", { gameDir })),
+	/**
 	 *  Ré-encode du JSON édité (forme "inagle" `{"entries":[...]}` T2B **ou** `{"lists":[...]}`
 	 *  RDBN, dispatch automatique symétrique à [`vfs_decode_cfgbin`]) vers un `.cfg.bin` binaire
 	 *  VALIDE.
@@ -1023,6 +1039,22 @@ export type BlenderSceneResultDto = {
 	skill_name: string,
 	event_id_name: string,
 	warnings: string[],
+};
+
+/**
+ *  Occupation du cache CPK, en mégaoctets.
+ * 
+ *  Les tailles sont en Mo et non en octets pour rester des entiers simples côté interface :
+ *  Specta traduit un flottant en `number | null` (un flottant non fini n'est pas
+ *  représentable en JSON), ce qui obligerait chaque affichage à traiter un cas impossible.
+ */
+export type CacheCpkDto = {
+	/**  Octets bruts retenus, en Mo. */
+	octets_mo: number,
+	/**  Nombre de paquets CPK en cache. */
+	entrees: number,
+	/**  Budget au-delà duquel l'éviction LRU se déclenche, en Mo. */
+	budget_mo: number,
 };
 
 /**  Le catalogue complet renvoyé au frontend. */

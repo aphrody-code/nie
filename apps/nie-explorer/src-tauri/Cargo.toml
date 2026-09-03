@@ -10,6 +10,11 @@ description = "Explorateur/éditeur du VFS (CPK) d'Inazuma Eleven: Victory Road 
 version = "0.5.2"
 authors = ["niers"]
 edition = "2021"
+# Deux binaires vivent ici : l'application et `export-bindings`. `tauri dev` lance
+# `cargo run` SANS `--bin`, ce qui echouait en « could not determine which binary to run »
+# avant meme d'ouvrir la fenetre. `required-features` sur `export-bindings` ne suffit pas :
+# cargo compte les cibles declarees, pas celles que les features activent.
+default-run = "nie-explorer"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

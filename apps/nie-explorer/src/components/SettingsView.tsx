@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTheme } from "next-themes";
+import { MemoireCard } from "@/components/MemoireCard";
 import { open } from "@tauri-apps/plugin-dialog";
 import { check as checkUpdate, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
@@ -665,6 +666,8 @@ export function SettingsView() {
           )}
         </CardContent>
       </Card>
+
+      <MemoireCard />
 
       <McpCard />
 
