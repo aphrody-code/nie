@@ -114,6 +114,55 @@ export function empreinte(saison: number, episode: number): string {
   return `${saison}:${episode}`;
 }
 
+// ── Titres ────────────────────────────────────────────────────────────────────
+
+/**
+ * Le titre d'un épisode SANS le préfixe que la base y a collé.
+ *
+ * **Le défaut mesuré (2026-09-03, 355 épisodes).** La colonne `title` ne contient pas le titre
+ * de l'épisode mais `<saison> — Épisode <n> - <titre>` — un préfixe rapporté par le scraper.
+ * Deux problèmes, tous deux visibles à l'écran :
+ *
+ *  1. **Il contredit le badge.** Le badge affiche `episode`, qui vaut 1 pour le premier épisode
+ *     de la saison 2 ; le préfixe, lui, dit « Épisode 27 » (la numérotation continue depuis la
+ *     saison 1). La carte affichait donc « É1 » au-dessus de « Saison 2 — Épisode 27 ».
+ *     Aucune des deux n'est fausse — elles ne comptent simplement pas la même chose — mais les
+ *     mettre côte à côte dans le même cadre ne peut que se lire comme une erreur.
+ *  2. **Il est redondant.** La rangée porte déjà le nom de la saison en en-tête.
+ *
+ * Et il n'est même pas homogène : les saisons 1 à 6 numérotent en continu (1 à 141) tandis
+ * qu'`Outer Code`, `Ares` et `Orion` repartent de 1 — un même « Épisode 26 » désigne deux
+ * épisodes différents selon la saison. Raison de plus pour ne pas l'afficher.
+ *
+ * **Pourquoi corriger ici et pas en base.** La donnée brute reste intacte : c'est ce que la
+ * source a publié, et la réparer en base demanderait de savoir reconstruire ces titres à
+ * l'identique. Le préfixe est une affaire de présentation, il se retire à la présentation.
+ *
+ * Les deux formes rencontrées, et rien d'autre :
+ *
+ * ```
+ * "Saison 2 — Épisode 27 - Les extraterrestres débarquent" → "Les extraterrestres débarquent"
+ * "Films — Inazuma Eleven LE FILM 2025"                    → "Inazuma Eleven LE FILM 2025"
+ * ```
+ *
+ * Un titre qui ne porte aucun préfixe ressort tel quel : la fonction ne devine pas.
+ */
+export function titreCourt(titre: string): string {
+  const brut = titre.trim();
+
+  // Forme complète. `.+?` s'arrête au PREMIER « — Épisode <n> - » : sans cela, un titre qui
+  // contient lui-même un tiret cadratin (« … — tout a commencé », Orion 47) serait tronqué.
+  const complet = /^.+?\s—\s[ÉE]pisode\s+\d+\s+-\s+(.+)$/u.exec(brut);
+  if (complet?.[1]) return complet[1].trim();
+
+  // Forme sans numéro (« Films — … »). La borne de longueur est la garde : elle distingue un
+  // préfixe de saison d'un titre qui contiendrait un tiret cadratin en cours de phrase.
+  const nu = /^(.{1,20}?)\s—\s(.+)$/u.exec(brut);
+  if (nu?.[2]) return nu[2].trim();
+
+  return brut;
+}
+
 // ── Recherche approchée ───────────────────────────────────────────────────────
 
 /**

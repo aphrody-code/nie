@@ -26,6 +26,7 @@ import { SettingsView } from "@/components/SettingsView";
 import { DetailPane } from "@/components/DetailPane";
 import { CommandPalette } from "@/components/CommandPalette";
 import { Sidebar, type SidebarSection } from "@/components/Sidebar";
+import { Icon } from "@/components/ui/Icon";
 import { TopBar } from "@/components/TopBar";
 import { WindowResizeHandles } from "@/components/ui/window-resize-handles";
 import { useAppMenuShortcuts, type AppMenuActions } from "@/components/AppMenu";
@@ -46,6 +47,9 @@ import { LIBELLE_GROUPE, libellesVues, vuesDuGroupe } from "@/lib/vues";
  * 8 px de marge flottante de chaque côté), lue par `TopBar` pour se décaler d'autant. */
 const SIDEBAR_WIDTH = 200;
 
+/** Clé de persistance du repli de la barre latérale. */
+const CLE_SIDEBAR_REPLIEE = "nie-explorer:sidebar:repliee";
+
 export default function App() {
   const t = useT();
   useApplyAppearance();
@@ -54,6 +58,29 @@ export default function App() {
   // (ou `Ctrl+2`) : il dit ce que cette machine peut faire, mais ce n'est pas la question qu'on
   // se pose en ouvrant la fenêtre.
   const [tab, setTab] = useState("cinema");
+  /**
+   * Barre latérale repliée — retenue d'une session à l'autre.
+   *
+   * Lue une seule fois, à l'initialisation : `localStorage` est synchrone, et la relire à chaque
+   * rendu ferait un accès disque par frappe de touche.
+   */
+  const [sidebarRepliee, setSidebarRepliee] = useState(
+    () => localStorage.getItem(CLE_SIDEBAR_REPLIEE) === "1",
+  );
+  useEffect(() => {
+    localStorage.setItem(CLE_SIDEBAR_REPLIEE, sidebarRepliee ? "1" : "0");
+  }, [sidebarRepliee]);
+  // Ctrl+B — la même bascule que le bouton, sans quitter le clavier.
+  useEffect(() => {
+    const surTouche = (ev: KeyboardEvent) => {
+      if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === "b") {
+        ev.preventDefault();
+        setSidebarRepliee((r) => !r);
+      }
+    };
+    window.addEventListener("keydown", surTouche);
+    return () => window.removeEventListener("keydown", surTouche);
+  }, []);
   // Onglets de l'Explorateur — état module-level persistant (`lib/explorerTabs.ts`), pas un
   // `useState` local : la navigation, l'historique et les préférences d'affichage appartiennent à
   // l'onglet et survivent au changement de vue comme au redémarrage de l'application.
@@ -416,18 +443,34 @@ export default function App() {
         />
 
         <div className="flex flex-1 overflow-hidden">
-          <Sidebar
-            sections={sections}
-            current={tab}
-            onSelect={(id) => {
-              setExternalPath(null);
-              setTab(id);
-            }}
-            onOpenSettings={() => {
-              setExternalPath(null);
-              setTab("settings");
-            }}
-          />
+          {/* La barre latérale se replie : sur la vue Cinéma, ses 200 px prennent la place d'une
+              carte entière par rangée. Le bouton de dépli reste visible une fois repliée —
+              sinon le repli serait un aller sans retour. */}
+          {sidebarRepliee ? (
+            <button
+              type="button"
+              onClick={() => setSidebarRepliee(false)}
+              title="Afficher la barre latérale (Ctrl+B)"
+              aria-label="Afficher la barre latérale"
+              className="z-[51] mt-11 h-9 w-6 shrink-0 rounded-r-md border border-l-0 border-app-line bg-app-box text-ink-faint hover:text-ink"
+            >
+              <Icon name="chevron_right" size={14} />
+            </button>
+          ) : (
+            <Sidebar
+              sections={sections}
+              current={tab}
+              onSelect={(id) => {
+                setExternalPath(null);
+                setTab(id);
+              }}
+              onOpenSettings={() => {
+                setExternalPath(null);
+                setTab("settings");
+              }}
+              onBasculerRepli={() => setSidebarRepliee(true)}
+            />
+          )}
 
           <div className="relative z-[38] flex flex-1 flex-col overflow-hidden pt-12">
             {externalPath ? (

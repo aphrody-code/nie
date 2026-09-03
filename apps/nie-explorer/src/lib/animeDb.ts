@@ -50,6 +50,45 @@ export interface EpisodeAnime {
   duree: number | null;
 }
 
+/**
+ * Une façon concrète de regarder un épisode — une ligne d'`episode_sources`.
+ *
+ * **Pourquoi une table à part.** `episodes.videoId` ne pouvait porter qu'UNE vidéo, et il portait
+ * en réalité trois choses : 212 identifiants YouTube, et 143 jetons locaux (`off-galaxy-1`)
+ * qu'aucun lecteur n'ouvre. Un épisode a maintenant en moyenne cinq sources (min 4, max 8) —
+ * plusieurs langues, plusieurs plateformes — et le lecteur choisit.
+ *
+ * `confiance` n'est pas décoratif : `verifiee` signifie qu'on a obtenu une réponse de la
+ * plateforme, `declaree` que la source l'annonce sans qu'on l'ait rejouée. Une source non
+ * vérifiée ne doit pas se présenter comme un fait.
+ */
+export interface SourceEpisode {
+  episodeId: number;
+  /**
+   * Saison et numéro de l'épisode servi — la clé par laquelle le lecteur retrouve ses sources.
+   *
+   * Et pas `episodeId` : plusieurs lignes d'`episodes` décrivent le MÊME épisode (une par
+   * langue et par chaîne), chacune avec son propre `id`. Indexer par `id` ne rendrait donc que
+   * les sources de la variante affichée, en perdant les autres langues — exactement celles que
+   * le sélecteur doit proposer.
+   */
+  saison: number;
+  episode: number | null;
+  /** `page` désigne une page à ouvrir dans le navigateur, pas un lecteur intégrable. */
+  plateforme: "youtube" | "dailymotion" | "page";
+  sourceId: string;
+  url: string;
+  /** `vo` | `vf` | `vostfr` | `en` | `es` | `unknown` — familles de `lib/sources.ts`. */
+  langue: string;
+  /** Renseignée par la plateforme quand elle la donne ; souvent absente. */
+  qualite: string | null;
+  officielle: number;
+  confiance: "verifiee" | "declaree" | "deduite";
+  /** Clé du lecteur propriétaire, quand la vidéo n'est lisible que par lui. */
+  origine: string | null;
+  vignette: string | null;
+}
+
 /** Une saison, telle que nommée par la source (« GO », « Chrono Stones », « Films »…). */
 export interface SaisonAnime {
   saison: number;
@@ -142,15 +181,61 @@ export const animeDb = {
     );
   },
 
-  /** Tous les épisodes, saison puis numéro — une seule requête pour bâtir toutes les rangées. */
+  /**
+   * Tous les épisodes, saison puis numéro — **un par épisode réel**, pas un par variante.
+   *
+   * `episodes` porte une ligne par (chaîne, saison, numéro, langue) : depuis que le catalogue est
+   * multilingue, elle compte **931 lignes pour 355 épisodes** (390 en `vf`, 355 en `es`, 131 en
+   * `en`, 42 en `vostfr`, 13 en `vo`). Rendre ces lignes telles quelles afficherait cinq fois le
+   * même épisode dans la même rangée.
+   *
+   * On garde donc UNE ligne par (saison, numéro) — la VF d'abord, parce que le catalogue est
+   * francophone et que c'est la seule langue complète sur les dix saisons. Les autres langues ne
+   * sont pas perdues : elles sont devenues des entrées d'`episode_sources`, et c'est le sélecteur
+   * du lecteur qui les propose.
+   */
   async tous(chemin: string): Promise<EpisodeAnime[]> {
     const d = await connect(chemin);
     return d.select<EpisodeAnime[]>(
       `SELECT id, season AS saison, episode, videoId, url, title AS titre, description,
               titleJp AS titreJp, romaji,
               thumbnail AS vignette, publishDate AS publie, language AS langue, duration AS duree
-         FROM episodes
+         FROM episodes e
+        WHERE e.id = (
+                SELECT e2.id FROM episodes e2
+                 WHERE e2.season = e.season
+                   AND COALESCE(e2.episode, -1) = COALESCE(e.episode, -1)
+                 ORDER BY CASE e2.language
+                            WHEN 'vf' THEN 0 WHEN 'vostfr' THEN 1 WHEN 'vo' THEN 2 ELSE 3 END,
+                          e2.id
+                 LIMIT 1)
         ORDER BY season, COALESCE(episode, 9999), id`,
+    );
+  },
+
+  /**
+   * TOUTES les sources, en une requête — 1 770 lignes pour 355 épisodes.
+   *
+   * En une fois et pas par épisode : la vue tient déjà les 355 épisodes en mémoire, et cinq
+   * sources chacun tiennent dans la même page. Une requête par épisode ouvert produirait 355
+   * allers-retours pour la même information, et un temps d'attente à chaque ouverture de fiche.
+   *
+   * Le classement porte la préférence par défaut : une source vérifiée avant une source
+   * seulement déclarée, une source officielle avant le reste, et YouTube avant Dailymotion
+   * (l'intégration Dailymotion dépend d'un lecteur propriétaire, cf. `origine`).
+   */
+  async sources(chemin: string): Promise<SourceEpisode[]> {
+    const d = await connect(chemin);
+    return d.select<SourceEpisode[]>(
+      `SELECT s.episode_id AS episodeId, e.season AS saison, e.episode AS episode,
+              s.plateforme, s.sourceId, s.url, s.langue, s.qualite,
+              s.officielle, s.confiance, s.origine, s.vignette
+         FROM episode_sources s
+         JOIN episodes e ON e.id = s.episode_id
+        ORDER BY e.season, COALESCE(e.episode, 9999),
+                 CASE s.confiance WHEN 'verifiee' THEN 0 WHEN 'declaree' THEN 1 ELSE 2 END,
+                 s.officielle DESC,
+                 CASE s.plateforme WHEN 'youtube' THEN 0 WHEN 'dailymotion' THEN 1 ELSE 2 END`,
     );
   },
 
@@ -347,6 +432,39 @@ export function urlIntegrationEpisode(ep: EpisodeAnime, depart?: number): string
     const p = new URLSearchParams({ autoplay: "1", "queue-enable": "false", "sharing-enable": "false" });
     if (depart && depart > 0) p.set("start", String(Math.floor(depart)));
     return `https://www.dailymotion.com/embed/video/${id}?${p}`;
+  }
+  return null;
+}
+
+/**
+ * L'URL d'intégration d'une SOURCE choisie — la forme à préférer depuis que chaque épisode en a
+ * plusieurs.
+ *
+ * Trois cas, et le troisième n'est pas un échec :
+ *
+ *  * **YouTube** — `youtube-nocookie`, `rel=0` pour que la fin de la vidéo ne propose pas le
+ *    catalogue de la plateforme.
+ *  * **Dailymotion** — les 143 épisodes hors YouTube sont **restreints au lecteur officiel** :
+ *    leur identifiant renvoie 404 sur l'API publique. Quand la source porte une `origine`
+ *    (la clé de ce lecteur), on passe par lui ; c'est la seule adresse où ils se lisent.
+ *  * **`page`** — il n'existe pas de lecteur intégrable, seulement une page à ouvrir. La
+ *    fonction rend `null` pour que l'appelant propose « ouvrir » au lieu d'afficher un cadre
+ *    noir en prétendant lire.
+ */
+export function urlIntegrationSource(source: SourceEpisode, depart?: number): string | null {
+  if (source.plateforme === "youtube") {
+    const p = new URLSearchParams({ autoplay: "1", rel: "0", modestbranding: "1" });
+    if (depart && depart > 0) p.set("start", String(Math.floor(depart)));
+    return `https://www.youtube-nocookie.com/embed/${source.sourceId}?${p}`;
+  }
+  if (source.plateforme === "dailymotion") {
+    const p = new URLSearchParams({ autoplay: "1", "queue-enable": "false", "sharing-enable": "false" });
+    if (depart && depart > 0) p.set("start", String(Math.floor(depart)));
+    if (source.origine) {
+      p.set("video", source.sourceId);
+      return `https://geo.dailymotion.com/player/${source.origine}.html?${p}`;
+    }
+    return `https://www.dailymotion.com/embed/video/${source.sourceId}?${p}`;
   }
   return null;
 }

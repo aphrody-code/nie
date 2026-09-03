@@ -49,11 +49,14 @@ export function Sidebar({
   current,
   onSelect,
   onOpenSettings,
+  onBasculerRepli,
 }: {
   sections: SidebarSection[];
   current: string;
   onSelect: (id: string) => void;
   onOpenSettings: () => void;
+  /** Absent = pas de bouton de repli (la barre reste telle quelle). */
+  onBasculerRepli?: () => void;
 }) {
   const t = useT();
   const { resolvedTheme, setTheme } = useTheme();
@@ -130,13 +133,24 @@ export function Sidebar({
                * `SpacesSidebar` amont (pied de barre, à côté du moniteur de sync). */}
               <JobManagerButton />
             </div>
-            <CircleButton
-              icon="settings"
-              size="sm"
-              title={t("tab.settings")}
-              aria-label={t("tab.settings")}
-              onClick={onOpenSettings}
-            />
+            <div className="flex items-center gap-1">
+              {onBasculerRepli && (
+                <CircleButton
+                  icon="chevron_left"
+                  size="sm"
+                  title="Replier la barre latérale (Ctrl+B)"
+                  aria-label="Replier la barre latérale"
+                  onClick={onBasculerRepli}
+                />
+              )}
+              <CircleButton
+                icon="settings"
+                size="sm"
+                title={t("tab.settings")}
+                aria-label={t("tab.settings")}
+                onClick={onOpenSettings}
+              />
+            </div>
           </div>
         </nav>
       </div>
