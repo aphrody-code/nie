@@ -735,6 +735,82 @@ pub unsafe extern "C" fn nie_vfs_count(vfs: *mut c_void) -> u64 {
     vfs_ref.iter().count() as u64
 }
 
+/// Occupation du cache CPK — miroir de `nie_formats::vfs::CacheCpkStats`.
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct NieCacheStats {
+    /// Octets bruts actuellement retenus.
+    pub octets: u64,
+    /// Nombre de paquets CPK en cache.
+    pub entrees: u64,
+    /// Budget au-delà duquel l'éviction LRU se déclenche.
+    pub budget: u64,
+}
+
+/// Écrit l'occupation du cache CPK dans `out`.
+///
+/// Le VFS garde les octets **bruts** de chaque paquet ouvert : quelques lectures dans des
+/// paquets différents suffisent à retenir plusieurs centaines de mégaoctets. Un hôte qui
+/// embarque cette bibliothèque — un jeu, par exemple — a besoin de le voir pour décider, et le
+/// budget par défaut (16 Gio) est dimensionné pour un traitement par lots, pas pour lui.
+///
+/// # Safety
+///
+/// - `vfs` doit provenir de [`nie_vfs_open`] et ne pas avoir été libéré ; null est un no-op.
+/// - `out` doit pointer un [`NieCacheStats`] inscriptible.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_vfs_cache_stats(vfs: *mut c_void, out: *mut NieCacheStats) {
+    if vfs.is_null() || out.is_null() {
+        return;
+    }
+    // SAFETY: vfs provient de nie_vfs_open ; out est inscriptible par contrat.
+    let vfs_ref = unsafe { &*(vfs.cast::<nie_formats::vfs::Vfs>()) };
+    let s = vfs_ref.cache_stats();
+    unsafe {
+        *out = NieCacheStats {
+            octets: s.octets as u64,
+            entrees: s.entrees as u64,
+            budget: s.budget as u64,
+        };
+    }
+}
+
+/// Vide le cache CPK et rend les octets libérés.
+///
+/// Sans danger pour les lectures en cours : chacune détient sa donnée par `Arc` jusqu'à la fin
+/// de l'extraction. Les lectures suivantes relisent le paquet depuis le disque.
+///
+/// # Safety
+///
+/// `vfs` doit provenir de [`nie_vfs_open`] et ne pas avoir été libéré ; null rend 0.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_vfs_cache_vider(vfs: *mut c_void) -> u64 {
+    if vfs.is_null() {
+        return 0;
+    }
+    // SAFETY: vfs provient de nie_vfs_open.
+    let vfs_ref = unsafe { &*(vfs.cast::<nie_formats::vfs::Vfs>()) };
+    vfs_ref.vider_cache() as u64
+}
+
+/// Change le budget du cache CPK et évince immédiatement ce qui dépasse.
+///
+/// Rend les octets libérés par l'éviction déclenchée. L'éviction garde toujours un paquet :
+/// évincer celui qu'on vient de demander ferait relire le disque au prochain appel, en boucle.
+///
+/// # Safety
+///
+/// `vfs` doit provenir de [`nie_vfs_open`] et ne pas avoir été libéré ; null rend 0.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_vfs_cache_budget(vfs: *mut c_void, budget: u64) -> u64 {
+    if vfs.is_null() {
+        return 0;
+    }
+    // SAFETY: vfs provient de nie_vfs_open.
+    let vfs_ref = unsafe { &*(vfs.cast::<nie_formats::vfs::Vfs>()) };
+    vfs_ref.regler_budget_cache(usize::try_from(budget).unwrap_or(usize::MAX)) as u64
+}
+
 /// Tranche `[offset, offset + limit)` de l'index VFS, en JSON `[{path, cpk, size}]`.
 ///
 /// Complète [`nie_vfs_list_json`], dont le plafond de 50 000 entrées tronque **en silence**

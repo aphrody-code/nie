@@ -63,6 +63,36 @@ with Vfs() as vfs:
 La racine du jeu se résout à l'exécution : argument explicite, puis `NIE_GAME_DIR`, puis
 remontée des ancêtres à la recherche de `data/cpk_list.cfg.bin`.
 
+`decoder()` sert **tous** les formats du dispatch partagé, sans une ligne de code par format
+dans `niepy` — y compris les trois du mode histoire, qui ne rendaient qu'un en-tête jusqu'à
+récemment :
+
+| Format | Ce que `decoder()` rend |
+|---|---|
+| `.g4cm` | Caméra de cinématique : `clips`, `names`, `objects`, `channels`, `times` |
+| `.g4nv` | Navmesh : `vertices`, `polygons`, `edges`, `corners` |
+| `.lua.bin` | Bytecode Lua 5.2 : en-tête et prototypes imbriqués (`main.code`, `constants`, `protos`) |
+
+## Borner la mémoire
+
+Le VFS garde les octets **bruts** de chaque paquet CPK ouvert, pour éviter de le relire.
+Quelques lectures dans des paquets différents suffisent donc à retenir plusieurs centaines de
+mégaoctets — et **le budget par défaut de la bibliothèque native est de 16 Gio**, dimensionné
+pour un traitement par lots qui a la machine pour lui.
+
+Un jeu n'est pas dans ce cas. Posez votre plafond au démarrage :
+
+```python
+with Vfs() as vfs:
+    vfs.regler_budget_cache(256 * 1024 * 1024)   # 256 Mio
+    ...
+    print(vfs.stats_cache())    # {'octets': …, 'entrees': …, 'budget': …}
+    vfs.vider_cache()           # rend la RAM immédiatement
+```
+
+Vider est sans danger pour une lecture en cours : elle détient sa donnée jusqu'au bout. Les
+lectures suivantes relisent depuis le disque — c'est le prix, assumé, de rendre la mémoire.
+
 > `Vfs` prend la **racine**, et passe `<racine>/data` à la couche native. Lui donner
 > directement le dossier `data` donne « impossible d'ouvrir cpk_list.cfg.bin », une erreur qui
 > accuse le fichier.

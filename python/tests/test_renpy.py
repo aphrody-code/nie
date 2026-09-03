@@ -29,7 +29,12 @@ CATALOGUE = {
                 {"source": "…/planche.g4tx", "fichier": "images/c01000010/planche.png", "role": "planche"},
                 {"source": "…/_face/x.g4tx", "fichier": "images/c01000010/face.png", "role": "expressions"},
             ],
-            "dialogues": [{"evenement": "ev01", "ligne": 3, "texte": "…"}],
+            # `ligne` est un IDENTIFIANT, pas un numéro : c'est la forme que produit
+            # réellement `niers vn export`. Un entier ici — ce qu'il y avait — laissait
+            # passer un `int()` qui casse sur tout catalogue réel.
+            "dialogues": [
+                {"evenement": "ev01_01200", "ligne": "ev01_01200_010_010", "texte": "…"}
+            ],
         },
         {"code": "c02000020", "nom": None, "genre": None, "voix": [], "textures": [], "dialogues": []},
     ],
@@ -49,6 +54,18 @@ def test_chargement(catalogue: Catalogue) -> None:
     assert catalogue.version == 1
     assert catalogue.langue == "fr"
     assert len(catalogue) == 2
+
+
+def test_identifiant_de_replique_reste_une_chaine(catalogue: Catalogue) -> None:
+    """`ligne` porte `ev01_01200_010_010`, jamais un numéro.
+
+    Régression : le champ était converti en `int`, ce qui faisait échouer le chargement
+    de tout catalogue réel comportant des dialogues — la forme du producteur est une
+    chaîne (`relever_dialogues`, `nie-cli/src/vn_cmd.rs`).
+    """
+    replique = catalogue.par_code("c01000010").dialogues[0]
+    assert replique.ligne == "ev01_01200_010_010"
+    assert replique.evenement == "ev01_01200"
 
 
 def test_catalogue_absent_dit_quoi_lancer(tmp_path: Path) -> None:

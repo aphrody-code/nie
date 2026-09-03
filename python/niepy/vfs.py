@@ -13,7 +13,7 @@ from pathlib import Path
 from types import TracebackType
 from typing import Any, Iterator
 
-from ._ffi import NieBytes, bibliotheque
+from ._ffi import NieBytes, NieCacheStats, bibliotheque
 from .formats import decoder, prendre_octets
 
 __all__ = ["Vfs", "racine_jeu"]
@@ -130,6 +130,46 @@ class Vfs:
                 if len(trouves) >= limite:
                     break
         return trouves
+
+    # ── Mémoire ──────────────────────────────────────────────────────────────
+
+    def stats_cache(self) -> dict[str, int]:
+        """Occupation du cache de paquets CPK : `{octets, entrees, budget}`.
+
+        Le VFS garde les octets **bruts** de chaque paquet ouvert pour éviter de le relire.
+        Quelques lectures dans des paquets différents suffisent donc à retenir plusieurs
+        centaines de mégaoctets, sans que rien ne le signale.
+        """
+        brut = NieCacheStats()
+        bibliotheque().nie_vfs_cache_stats(self._vivant(), ctypes.byref(brut))
+        return {"octets": brut.octets, "entrees": brut.entrees, "budget": brut.budget}
+
+    def vider_cache(self) -> int:
+        """Vide le cache de paquets et rend les octets libérés.
+
+        Sans danger pour une lecture en cours : elle détient sa donnée jusqu'au bout. Les
+        lectures suivantes relisent le paquet depuis le disque — c'est le prix, assumé, de
+        rendre la mémoire.
+        """
+        return int(bibliotheque().nie_vfs_cache_vider(self._vivant()))
+
+    def regler_budget_cache(self, octets: int) -> int:
+        """Change le plafond du cache et évince immédiatement ce qui dépasse.
+
+        **Le défaut de la bibliothèque native est de 16 Gio**, dimensionné pour un traitement
+        par lots qui a la machine pour lui. Un jeu qui embarque `niepy` — un projet Ren'Py, par
+        exemple — a tout intérêt à poser un plafond bien plus bas dès le démarrage :
+
+            vfs.regler_budget_cache(256 * 1024 * 1024)   # 256 Mio
+
+        L'éviction garde toujours un paquet : évincer celui qu'on vient de demander ferait
+        relire le disque à l'appel suivant, en boucle.
+
+        Rend les octets libérés par l'éviction déclenchée.
+        """
+        if octets < 0:
+            raise ValueError("le budget ne peut pas être négatif")
+        return int(bibliotheque().nie_vfs_cache_budget(self._vivant(), octets))
 
     def fermer(self) -> None:
         """Libère le handle natif. Idempotent."""

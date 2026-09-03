@@ -68,7 +68,12 @@ class Replique:
     """Une ligne de dialogue relevée dans les données d'évènement du jeu."""
 
     evenement: str
-    ligne: int
+    #: Identifiant de la réplique, pas un numéro : `ev01_01200_010_010`. C'est la chaîne
+    #: que porte la commande `OP_REPLIQUE` du script d'évènement, et par le `crc32` de
+    #: laquelle le texte est indexé (voir `relever_dialogues` dans `nie-cli/src/vn_cmd.rs`).
+    #: Le typer `int` faisait échouer `Catalogue.charger` sur tout catalogue réel portant
+    #: des dialogues — le catalogue synthétique des tests, lui, ne le montrait pas.
+    ligne: str
     texte: str
 
 
@@ -263,7 +268,7 @@ def _personnage_depuis(brut: dict[str, Any]) -> Personnage:
         dialogues=[
             Replique(
                 evenement=str(d.get("evenement", "")),
-                ligne=int(d.get("ligne", 0)),
+                ligne=str(d.get("ligne", "")),
                 texte=str(d.get("texte", "")),
             )
             for d in brut.get("dialogues", []) or []
