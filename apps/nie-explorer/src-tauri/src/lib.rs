@@ -4,7 +4,7 @@
 //! IPC (JSON) au-dessus de ces crates + une recherche chara/waza via le miroir `nie-wiki`.
 
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 
 use base64::Engine as _;
 use nie_formats::cpk::{CpkEntry, CpkReader};
@@ -215,7 +215,18 @@ fn resolve_game_dir_native() -> PathBuf {
 /// clic de navigation dans l'Explorateur — cause réelle de la latence signalée. Précédé d'un
 /// appel explicite [`preload_vfs`] au démarrage de l'appli pour amortir le premier coût avant
 /// toute interaction utilisatrice.
-struct VfsState(Mutex<Option<(PathBuf, Vfs)>>);
+/// Le VFS monté, partagé.
+///
+/// **`RwLock` et non `Mutex`**, et **`Arc<Vfs>` et non `Vfs`** — les deux comptent :
+///
+/// - Un `Mutex` sérialisait les **66** commandes qui passent par [`with_vfs`], pour toute la
+///   durée de leur travail. Décoder une texture de plusieurs mégaoctets gelait donc le listage
+///   d'un dossier, alors que les deux ne font que LIRE. `Vfs::read` prend `&self` et son cache
+///   interne est déjà verrouillé de son côté : rien ne justifiait l'exclusivité.
+/// - L'`Arc` permet de relâcher le verrou **avant** le travail lourd, et de confier celui-ci à
+///   un thread bloquant. Sans lui, une commande longue garde le verrou pendant tout son calcul,
+///   ce qui annule le bénéfice du `RwLock` dès qu'une écriture attend.
+struct VfsState(RwLock<Option<(PathBuf, Arc<Vfs>)>>);
 
 /// Budget par défaut du cache CPK **pour cette application**, en octets (1 Gio).
 ///
@@ -241,28 +252,80 @@ fn appliquer_budget_cache(vfs: &Vfs) {
 /// Exécute `f` sur le VFS mis en cache pour `game_dir` (le (re)construit d'abord si la racine
 /// résolue diffère de celle en cache, ou si aucun VFS n'a encore été chargé).
 fn with_vfs<T>(game_dir: Option<String>, state: &VfsState, f: impl FnOnce(&Vfs) -> Result<T, String>) -> Result<T, String> {
+    let vfs = vfs_partage(game_dir, state)?;
+    f(&vfs)
+}
+
+/// Rend le VFS monté pour `game_dir`, **en relâchant le verrou avant de rendre la main**.
+///
+/// C'est ce qui rend la navigation non bloquante : l'appelant garde un `Arc` vivant et peut
+/// travailler aussi longtemps qu'il veut — décoder une texture, extraire un fichier — sans
+/// qu'aucune autre commande n'attende derrière lui.
+///
+/// Le montage lui-même reste exclusif, mais il est rare (une fois par racine).
+fn vfs_partage(game_dir: Option<String>, state: &VfsState) -> Result<Arc<Vfs>, String> {
     let root = resolve_root(game_dir.as_deref());
-    let mut guard = state.0.lock().map_err(|_| "verrou VFS empoisonné".to_string())?;
-    let needs_rebuild = guard.as_ref().is_none_or(|(cached_root, _)| cached_root != &root);
-    if needs_rebuild {
-        let data_dir = root.join("data");
-        let mut vfs = Vfs::new();
-        // `init` monte l'installation, et bascule seule sur un dump extrait si `cpk_list.cfg.bin`
-        // manque mais que l'arborescence est là. Le message d'échec doit donc nommer les DEUX
-        // possibilités : « cpk_list introuvable » enverrait chercher un fichier là où c'est
-        // l'ensemble du répertoire qui est vide.
-        vfs.init(&data_dir).map_err(|e| {
-            format!(
-                "init VFS depuis {} : {e} — ce dossier ne porte ni installation \
-                 (cpk_list.cfg.bin + packs/) ni dump extrait (common/, dx11/)",
-                data_dir.display()
-            )
-        })?;
-        appliquer_budget_cache(&vfs);
-        *guard = Some((root.clone(), vfs));
+
+    // Cas normal : déjà monté sur cette racine → verrou PARTAGÉ, plusieurs commandes à la fois.
+    {
+        let guard = state.0.read().map_err(|_| "verrou VFS empoisonné".to_string())?;
+        if let Some((cached_root, vfs)) = guard.as_ref() {
+            if cached_root == &root {
+                return Ok(Arc::clone(vfs));
+            }
+        }
     }
-    let (_, vfs) = guard.as_ref().expect("vient d'être rempli ci-dessus");
-    f(vfs)
+
+    // Montage : exclusif. Un autre thread a pu monter la même racine pendant qu'on attendait le
+    // verrou — d'où la re-vérification, sans laquelle on remonterait le VFS pour rien.
+    let mut guard = state.0.write().map_err(|_| "verrou VFS empoisonné".to_string())?;
+    if let Some((cached_root, vfs)) = guard.as_ref() {
+        if cached_root == &root {
+            return Ok(Arc::clone(vfs));
+        }
+    }
+
+    let data_dir = root.join("data");
+    let mut vfs = Vfs::new();
+    // `init` monte l'installation, et bascule seule sur un dump extrait si `cpk_list.cfg.bin`
+    // manque mais que l'arborescence est là. Le message d'échec doit donc nommer les DEUX
+    // possibilités : « cpk_list introuvable » enverrait chercher un fichier là où c'est
+    // l'ensemble du répertoire qui est vide.
+    vfs.init(&data_dir).map_err(|e| {
+        format!(
+            "init VFS depuis {} : {e} — ce dossier ne porte ni installation \
+             (cpk_list.cfg.bin + packs/) ni dump extrait (common/, dx11/)",
+            data_dir.display()
+        )
+    })?;
+    appliquer_budget_cache(&vfs);
+
+    let partage = Arc::new(vfs);
+    *guard = Some((root, Arc::clone(&partage)));
+    Ok(partage)
+}
+
+/// Exécute un travail lourd sur le VFS **hors du thread principal**.
+///
+/// En Tauri v2, une commande synchrone s'exécute sur le thread principal : tant qu'elle
+/// calcule, l'interface ne répond plus. Une commande déclarée `async` qui délègue ici rend la
+/// main immédiatement, et son travail part sur un thread bloquant.
+///
+/// Le `Arc<Vfs>` est résolu **avant** le `spawn_blocking` : la résolution touche au verrou, le
+/// travail non.
+async fn sur_vfs_bloquant<T, F>(
+    game_dir: Option<String>,
+    state: &VfsState,
+    f: F,
+) -> Result<T, String>
+where
+    T: Send + 'static,
+    F: FnOnce(&Vfs) -> Result<T, String> + Send + 'static,
+{
+    let vfs = vfs_partage(game_dir, state)?;
+    tauri::async_runtime::spawn_blocking(move || f(&vfs))
+        .await
+        .map_err(|e| format!("tâche VFS interrompue : {e}"))?
 }
 
 // `specta::Type` (en plus de `Serialize`) sur tous les DTOs qui traversent l'IPC : c'est ce qui
@@ -365,12 +428,12 @@ fn check_game_dir(game_dir: String) -> bool {
 /// statistiques que [`vfs_stats`] pour un toast de confirmation côté UI.
 #[tauri::command]
 #[specta::specta]
-fn preload_vfs(
+async fn preload_vfs(
     game_dir: Option<String>,
-    state: tauri::State<VfsState>,
-    cache: tauri::State<StatsCache>,
+    state: tauri::State<'_, VfsState>,
+    cache: tauri::State<'_, StatsCache>,
 ) -> Result<StatsDto, String> {
-    vfs_stats(game_dir, state, cache)
+    vfs_stats(game_dir, state, cache).await
 }
 
 /// Contenu direct d'un dossier du VFS, fichiers paginés et sous-dossiers comptés.
@@ -467,10 +530,10 @@ struct StatsCache(Mutex<Option<(PathBuf, StatsDto)>>);
 
 #[tauri::command]
 #[specta::specta]
-fn vfs_stats(
+async fn vfs_stats(
     game_dir: Option<String>,
-    state: tauri::State<VfsState>,
-    cache: tauri::State<StatsCache>,
+    state: tauri::State<'_, VfsState>,
+    cache: tauri::State<'_, StatsCache>,
 ) -> Result<StatsDto, String> {
     // `if let` imbriqués et non chaînés : ce crate est en édition 2021, où les « let chains »
     // ne compilent pas (contrairement à `nie-formats`, en 2024).
@@ -483,7 +546,7 @@ fn vfs_stats(
         }
     }
 
-    let stats = vfs_stats_calcul(game_dir, &state)?;
+    let stats = vfs_stats_calcul(game_dir, &state).await?;
     if let Ok(mut guard) = cache.0.lock() {
         *guard = Some((root, stats.clone()));
     }
@@ -491,8 +554,8 @@ fn vfs_stats(
 }
 
 /// Le calcul réel, sans cache — appelé une fois par racine.
-fn vfs_stats_calcul(game_dir: Option<String>, state: &VfsState) -> Result<StatsDto, String> {
-    with_vfs(game_dir, state, |vfs| {
+async fn vfs_stats_calcul(game_dir: Option<String>, state: &VfsState) -> Result<StatsDto, String> {
+    sur_vfs_bloquant(game_dir, state, |vfs| {
         let mut counts: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
         for (path, _) in vfs.iter() {
             let base = path.rsplit('/').next().unwrap_or(path);
@@ -511,6 +574,7 @@ fn vfs_stats_calcul(game_dir: Option<String>, state: &VfsState) -> Result<StatsD
             top_ext,
         })
     })
+    .await
 }
 
 /// Métadonnées d'une seule entrée VFS (`None` si le chemin n'existe pas) — sert notamment à
@@ -550,8 +614,8 @@ fn vfs_describe(path: String, game_dir: Option<String>, state: tauri::State<VfsS
 /// utiliser `vfs_extract_to` pour les gros fichiers (écriture disque directe côté Rust).
 #[tauri::command]
 #[specta::specta]
-fn vfs_read_b64(path: String, game_dir: Option<String>, max_bytes: Option<u32>, state: tauri::State<VfsState>) -> Result<String, String> {
-    with_vfs(game_dir, &state, |vfs| {
+async fn vfs_read_b64(path: String, game_dir: Option<String>, max_bytes: Option<u32>, state: tauri::State<'_, VfsState>) -> Result<String, String> {
+    sur_vfs_bloquant(game_dir, &state, move |vfs| {
         let data = vfs.read(&path).map_err(|e| e.to_string())?;
         let cap = max_bytes.map(|b| b as usize).unwrap_or(2 * 1024 * 1024);
         if data.len() > cap {
@@ -559,6 +623,7 @@ fn vfs_read_b64(path: String, game_dir: Option<String>, max_bytes: Option<u32>, 
         }
         Ok(base64::engine::general_purpose::STANDARD.encode(&data))
     })
+    .await
 }
 
 /// Décode la meilleure texture d'un `.g4tx` en PNG (base64), pour un `<img>` côté UI.
@@ -567,13 +632,14 @@ fn vfs_read_b64(path: String, game_dir: Option<String>, max_bytes: Option<u32>, 
 /// grille de vignettes, utiliser [`vfs_texture_thumb_png_b64`] — cf. la note qui l'accompagne.
 #[tauri::command]
 #[specta::specta]
-fn vfs_texture_png_b64(path: String, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<String, String> {
-    with_vfs(game_dir, &state, |vfs| {
+async fn vfs_texture_png_b64(path: String, game_dir: Option<String>, state: tauri::State<'_, VfsState>) -> Result<String, String> {
+    sur_vfs_bloquant(game_dir, &state, move |vfs| {
         let data = vfs.read(&path).map_err(|e| e.to_string())?;
         let base = nie_formats::g4tx_decode::basename_of(&path).to_string();
         let png = nie_formats::g4tx_decode::decode_best_to_png(&data, &base).ok_or("décodage PNG impossible (texture non reconnue)")?;
         Ok(base64::engine::general_purpose::STANDARD.encode(&png))
     })
+    .await
 }
 
 /// Plus grand côté par défaut d'une vignette, en pixels. 128 : les grilles affichent au plus
@@ -598,14 +664,14 @@ const VIGNETTE_COTE_MAX: u32 = 512;
 /// résolution pour réduire côté client ne réglerait rien.
 #[tauri::command]
 #[specta::specta]
-fn vfs_texture_thumb_png_b64(
+async fn vfs_texture_thumb_png_b64(
     path: String,
     max_cote: Option<u32>,
     game_dir: Option<String>,
-    state: tauri::State<VfsState>,
+    state: tauri::State<'_, VfsState>,
 ) -> Result<String, String> {
     let cote = max_cote.unwrap_or(VIGNETTE_COTE_DEFAUT).clamp(8, VIGNETTE_COTE_MAX);
-    with_vfs(game_dir, &state, |vfs| {
+    sur_vfs_bloquant(game_dir, &state, move |vfs| {
         let data = vfs.read(&path).map_err(|e| e.to_string())?;
         // Le sélecteur de sous-texture d'un conteneur g4tx s'adresse par le basename du fichier
         // (cf. `g4tx_decode::decode_best_to_rgba`) : sans lui, un conteneur multi-textures rendrait
@@ -618,6 +684,7 @@ fn vfs_texture_thumb_png_b64(
         })??;
         Ok(base64::engine::general_purpose::STANDARD.encode(&png))
     })
+    .await
 }
 
 /// Une texture nommée à l'intérieur d'un conteneur `.g4tx`.
@@ -1092,8 +1159,11 @@ fn latest_sqlite_in(dir: &std::path::Path) -> Option<PathBuf> {
 /// apparaissant par hasard ailleurs dans un chemin non lié).
 #[tauri::command]
 #[specta::specta]
-fn vfs_all_entries(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<Vec<EntryDto>, String> {
-    with_vfs(game_dir, &state, |vfs| {
+async fn vfs_all_entries(
+    game_dir: Option<String>,
+    state: tauri::State<'_, VfsState>,
+) -> Result<Vec<EntryDto>, String> {
+    sur_vfs_bloquant(game_dir, &state, |vfs| {
         Ok(vfs
             .iter()
             .map(|(path, entry)| EntryDto {
@@ -1104,6 +1174,7 @@ fn vfs_all_entries(game_dir: Option<String>, state: tauri::State<VfsState>) -> R
             })
             .collect())
     })
+    .await
 }
 
 // ─── Scan VFS annulable/pausable avec progression (nie-tasks) ─────────────────────────
@@ -1490,12 +1561,12 @@ fn vfs_cache_vider(game_dir: Option<String>, state: tauri::State<VfsState>) -> R
 /// plausible et fausse.
 #[tauri::command]
 #[specta::specta]
-fn vfs_apercu_camera(
+async fn vfs_apercu_camera(
     path: String,
     game_dir: Option<String>,
-    state: tauri::State<VfsState>,
+    state: tauri::State<'_, VfsState>,
 ) -> Result<camera_nav::ApercuCameraDto, String> {
-    with_vfs(game_dir, &state, |vfs| camera_nav::apercu_camera(vfs, &path))
+    sur_vfs_bloquant(game_dir, &state, move |vfs| camera_nav::apercu_camera(vfs, &path)).await
 }
 
 /// Aperçu projetable d'un maillage de navigation (`.g4nv`) — 160 fichiers, 153 cartes.
@@ -1506,12 +1577,12 @@ fn vfs_apercu_camera(
 /// doit le signaler plutôt que de laisser croire à un maillage complet.
 #[tauri::command]
 #[specta::specta]
-fn vfs_apercu_navmesh(
+async fn vfs_apercu_navmesh(
     path: String,
     game_dir: Option<String>,
-    state: tauri::State<VfsState>,
+    state: tauri::State<'_, VfsState>,
 ) -> Result<camera_nav::ApercuNavmDto, String> {
-    with_vfs(game_dir, &state, |vfs| camera_nav::apercu_navm(vfs, &path))
+    sur_vfs_bloquant(game_dir, &state, move |vfs| camera_nav::apercu_navm(vfs, &path)).await
 }
 
 /// Décode un `.cfg.bin` **et** le passe au parseur typé de sa famille, si elle en a un.
@@ -4373,7 +4444,7 @@ pub fn run() {
         .manage(video::CacheVideo::default())
         .manage(PendingOpen(Mutex::new(first_path_arg(std::env::args()))))
         .manage(SaveState(Mutex::new(None)))
-        .manage(VfsState(Mutex::new(None)))
+        .manage(VfsState(RwLock::new(None)))
         .manage(StatsCache(Mutex::new(None)))
         .manage(RawCpkState(Mutex::new(None)))
         // Session Lua PERSISTANTE (thread dédié, cf. `lua_session.rs`) — équivalent du
