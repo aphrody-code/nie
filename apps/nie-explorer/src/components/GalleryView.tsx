@@ -45,6 +45,67 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 /** Illustrations affichées d'un coup — au-delà, un bouton « en afficher plus ». */
 const PAR_PAGE = 60;
 
+/**
+ * Images PLEINE RÉSOLUTION gardées par la visionneuse.
+ *
+ * Volontairement minuscule : une planche du jeu pèse plusieurs mégaoctets une fois encodée en
+ * base64, et la garder est autrement plus cher qu'une vignette de 128 px. Trois entrées
+ * couvrent exactement ce que sert le préchargement — l'image courante et ses deux voisines —
+ * sans retenir un album entier.
+ */
+const MAX_PLEINES = 3;
+
+/** Cache LRU des images pleine résolution : `Map` = ordre d'insertion. */
+const cachePleines = new Map<string, string>();
+
+/** Lit le cache en marquant l'entrée comme récemment utilisée. */
+function pleineDuCache(chemin: string): string | undefined {
+	const trouve = cachePleines.get(chemin);
+	if (trouve === undefined) return undefined;
+	cachePleines.delete(chemin);
+	cachePleines.set(chemin, trouve);
+	return trouve;
+}
+
+/** Range une image et évince la plus ancienne au-delà de `MAX_PLEINES`. */
+function rangerPleine(chemin: string, src: string) {
+	cachePleines.delete(chemin);
+	cachePleines.set(chemin, src);
+	while (cachePleines.size > MAX_PLEINES) {
+		const plusAncien = cachePleines.keys().next();
+		if (plusAncien.done) break;
+		cachePleines.delete(plusAncien.value);
+	}
+}
+
+/**
+ * Charge une image pleine résolution, en passant par le cache.
+ *
+ * Les demandes concurrentes du même chemin sont partagées : sans cela, afficher une image
+ * pendant que son préchargement est en vol la décoderait deux fois.
+ */
+const enVol = new Map<string, Promise<string>>();
+
+function chargerPleine(chemin: string, gameDir?: string): Promise<string> {
+	const connu = pleineDuCache(chemin);
+	if (connu !== undefined) return Promise.resolve(connu);
+
+	const dejaEnVol = enVol.get(chemin);
+	if (dejaEnVol) return dejaEnVol;
+
+	const promesse = api
+		.texturePngB64(chemin, gameDir)
+		.then((b64) => {
+			const src = `data:image/png;base64,${b64}`;
+			rangerPleine(chemin, src);
+			return src;
+		})
+		.finally(() => enVol.delete(chemin));
+
+	enVol.set(chemin, promesse);
+	return promesse;
+}
+
 /** Plafond de listage d'une catégorie. `telop_waza` en porte 12 460 (neuf langues) : le plus gros
  * dossier de la galerie tient largement en dessous, et la borne protège d'un dossier inattendu. */
 const MAX_PAR_CATEGORIE = 30000;
@@ -94,18 +155,33 @@ function Visionneuse({
   useEffect(() => {
     if (!item) return;
     let annule = false;
-    setSrc(null);
+
+    // Une image déjà en cache s'affiche SANS repasser par `null` : sinon chaque flèche fait
+    // clignoter la visionneuse alors que l'image est déjà là, ce qui annule tout le bénéfice
+    // du préchargement.
+    const connu = pleineDuCache(item.chemin);
+    setSrc(connu ?? null);
     setErreur(null);
-    api
-      .texturePngB64(item.chemin, gameDir)
-      .then((b64) => (annule ? null : setSrc(`data:image/png;base64,${b64}`)))
-      .catch((e) => {
-        if (!annule) setErreur(String(e));
-      });
+
+    if (connu === undefined) {
+      chargerPleine(item.chemin, gameDir)
+        .then((src) => (annule ? null : setSrc(src)))
+        .catch((e) => {
+          if (!annule) setErreur(String(e));
+        });
+    }
+
+    // Préchargement des voisines : c'est la navigation aux flèches qui en profite. Les échecs
+    // sont ignorés — une voisine illisible ne doit pas parasiter l'image qu'on regarde ; elle
+    // signalera son erreur quand on arrivera dessus.
+    for (const voisin of [liste[index + 1], liste[index - 1]]) {
+      if (voisin) void chargerPleine(voisin.chemin, gameDir).catch(() => undefined);
+    }
+
     return () => {
       annule = true;
     };
-  }, [item, gameDir]);
+  }, [item, index, liste, gameDir]);
 
   useEffect(() => {
     function onTouche(e: KeyboardEvent) {

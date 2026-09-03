@@ -327,7 +327,7 @@ struct FolderRoleDto {
 // compris) par défaut — risque réel de perte de précision côté JS (`Number.MAX_SAFE_INTEGER`
 // < 2⁶⁴). `u32` (≤ 4 294 967 295) couvre très largement des compteurs de fichiers (~255 800
 // entrées VFS au total) sans avoir besoin de désactiver ce garde-fou.
-#[derive(Serialize, specta::Type)]
+#[derive(Serialize, specta::Type, Clone)]
 struct StatsDto {
     /// Provenance des données : `"packs"` (installation : `cpk_list.cfg.bin` + `packs/*.cpk`) ou
     /// `"dump"` (arborescence déjà extraite). Les deux servent les mêmes chemins logiques, donc
@@ -365,8 +365,12 @@ fn check_game_dir(game_dir: String) -> bool {
 /// statistiques que [`vfs_stats`] pour un toast de confirmation côté UI.
 #[tauri::command]
 #[specta::specta]
-fn preload_vfs(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<StatsDto, String> {
-    vfs_stats(game_dir, state)
+fn preload_vfs(
+    game_dir: Option<String>,
+    state: tauri::State<VfsState>,
+    cache: tauri::State<StatsCache>,
+) -> Result<StatsDto, String> {
+    vfs_stats(game_dir, state, cache)
 }
 
 /// Contenu direct d'un dossier du VFS, fichiers paginés et sous-dossiers comptés.
@@ -450,10 +454,45 @@ fn vfs_find_paged(
     })
 }
 
+/// Statistiques du VFS mémoïsées par racine.
+///
+/// Les calculer demande de parcourir l'index **entier** — 255 308 entrées — et de compter les
+/// extensions une par une. Sur un montage « dump », ce parcours DÉCLENCHE en plus la
+/// construction paresseuse de l'index, qui prend des minutes sur NTFS. Ce coût est justifié
+/// une fois ; le payer à chaque appel (barre d'état, ouverture d'un onglet, retour sur
+/// Paramètres) ne l'est pas.
+///
+/// L'invalidation suit la racine : un VFS remonté sur un autre dossier recalcule.
+struct StatsCache(Mutex<Option<(PathBuf, StatsDto)>>);
+
 #[tauri::command]
 #[specta::specta]
-fn vfs_stats(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<StatsDto, String> {
-    with_vfs(game_dir, &state, |vfs| {
+fn vfs_stats(
+    game_dir: Option<String>,
+    state: tauri::State<VfsState>,
+    cache: tauri::State<StatsCache>,
+) -> Result<StatsDto, String> {
+    // `if let` imbriqués et non chaînés : ce crate est en édition 2021, où les « let chains »
+    // ne compilent pas (contrairement à `nie-formats`, en 2024).
+    let root = resolve_root(game_dir.as_deref());
+    if let Ok(guard) = cache.0.lock() {
+        if let Some((racine, stats)) = guard.as_ref() {
+            if racine == &root {
+                return Ok(stats.clone());
+            }
+        }
+    }
+
+    let stats = vfs_stats_calcul(game_dir, &state)?;
+    if let Ok(mut guard) = cache.0.lock() {
+        *guard = Some((root, stats.clone()));
+    }
+    Ok(stats)
+}
+
+/// Le calcul réel, sans cache — appelé une fois par racine.
+fn vfs_stats_calcul(game_dir: Option<String>, state: &VfsState) -> Result<StatsDto, String> {
+    with_vfs(game_dir, state, |vfs| {
         let mut counts: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
         for (path, _) in vfs.iter() {
             let base = path.rsplit('/').next().unwrap_or(path);
@@ -4335,6 +4374,7 @@ pub fn run() {
         .manage(PendingOpen(Mutex::new(first_path_arg(std::env::args()))))
         .manage(SaveState(Mutex::new(None)))
         .manage(VfsState(Mutex::new(None)))
+        .manage(StatsCache(Mutex::new(None)))
         .manage(RawCpkState(Mutex::new(None)))
         // Session Lua PERSISTANTE (thread dédié, cf. `lua_session.rs`) — équivalent du
         // `ScriptInterpreter` d'Overload : la VM vit tant que l'app vit, l'état survit d'une
