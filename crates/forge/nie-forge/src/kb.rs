@@ -39,6 +39,17 @@ CREATE TABLE IF NOT EXISTS forge_unit (
 );
 CREATE INDEX IF NOT EXISTS idx_forge_unit_vaddr ON forge_unit(binary_id, vaddr);
 CREATE INDEX IF NOT EXISTS idx_forge_unit_statut ON forge_unit(binary_id, statut);
+CREATE TABLE IF NOT EXISTS forge_classe (
+    binary_id    INTEGER NOT NULL,
+    classe       TEXT NOT NULL,
+    vtable_vaddr INTEGER,
+    methodes     INTEGER NOT NULL,
+    resolues     INTEGER NOT NULL,
+    produites    INTEGER NOT NULL,
+    bloquees     INTEGER NOT NULL,
+    octets       INTEGER NOT NULL,
+    PRIMARY KEY (binary_id, classe)
+);
 CREATE VIEW IF NOT EXISTS v_forge_function AS
 SELECT f.binary_id,
        f.vaddr,
@@ -87,6 +98,63 @@ pub struct Bilan {
     pub hors_decoupage: usize,
     /// Fonctions de la base dont la taille contredit celle du découpage.
     pub tailles_divergentes: usize,
+    /// Classes RTTI dotées d'une adresse de vtable exploitable.
+    pub classes: usize,
+    /// Entrées de vtable lues.
+    pub methodes: usize,
+    /// Entrées tombant exactement sur une unité de fonction du découpage.
+    pub methodes_resolues: usize,
+}
+
+/// Nombre maximal d'entrées lues dans une vtable.
+///
+/// Garde-fou : une adresse fausse ferait courir la lecture jusqu'au bout de la
+/// section. Les hiérarchies les plus profondes du binaire restent loin en deçà.
+const MAX_METHODES: usize = 4096;
+
+/// Décalage entre l'adresse enregistrée et la première méthode.
+///
+/// `rtti_class.vtable_vaddr` désigne le **`complete object locator`**, pas la
+/// première entrée : MSVC place ce pointeur juste avant la table. Mesuré sur
+/// les 1 745 classes du binaire — **aucune** ne pointe sur du code, **toutes**
+/// en ont à `+8`. Accessoirement, cette régularité valide ces adresses, que
+/// l'avertissement du dépôt sur l'index Ghidra (« désaligné, figé ») donnait
+/// pour douteuses : un index décalé ne tomberait pas juste 1 745 fois.
+const COL_AVANT_VTABLE: usize = 8;
+
+/// Énumère les entrées d'une vtable : des pointeurs vers du code, consécutifs.
+///
+/// S'arrête au premier mot qui ne pointe pas dans une section exécutable —
+/// c'est la borne naturelle, la vtable suivante étant précédée de son propre
+/// `complete object locator`, qui pointe dans `.rdata`.
+fn methodes_de(img: &nie_pe::PeImage, vtable: u64) -> Vec<u64> {
+    let mut out = Vec::new();
+    let Some(mut off) = img
+        .va_to_offset(vtable)
+        .map(|o| o + COL_AVANT_VTABLE)
+    else {
+        return out;
+    };
+    while out.len() < MAX_METHODES {
+        let Some(mot) = img.bytes.get(off..off + 8) else {
+            break;
+        };
+        let va = u64::from_le_bytes(mot.try_into().expect("8 octets"));
+        let Some(rva) = va.checked_sub(img.opt.image_base) else {
+            break;
+        };
+        let Ok(rva) = u32::try_from(rva) else { break };
+        let exec = img
+            .sections
+            .iter()
+            .any(|s| s.contains_rva(rva) && s.characteristics & 0x2000_0020 != 0);
+        if !exec {
+            break;
+        }
+        out.push(va);
+        off += 8;
+    }
+    out
 }
 
 /// Écrit la classification de chaque unité dans la base et rend le bilan.
@@ -97,7 +165,12 @@ pub struct Bilan {
 /// # Erreurs
 /// Retourne une erreur si la base est absente, illisible, ou si aucun binaire
 /// n'y porte de fonctions.
-pub fn synchroniser(db: &Path, cover: &Cover, bytes: &[u8]) -> anyhow::Result<Bilan> {
+pub fn synchroniser(
+    db: &Path,
+    cover: &Cover,
+    bytes: &[u8],
+    img: Option<&nie_pe::PeImage>,
+) -> anyhow::Result<Bilan> {
     let mut conn = rusqlite::Connection::open(db)
         .with_context(|| format!("ouverture de {}", db.display()))?;
     conn.execute_batch(SCHEMA).context("schéma forge_unit")?;
@@ -160,7 +233,88 @@ pub fn synchroniser(db: &Path, cover: &Cover, bytes: &[u8]) -> anyhow::Result<Bi
         [binary_id],
         |r| r.get::<_, i64>(0),
     )? as usize;
+
+    if let Some(img) = img {
+        classes(&mut conn, binary_id, img, &mut b)?;
+    }
     Ok(b)
+}
+
+/// Croise les vtables RTTI avec l'état de production de leurs méthodes.
+///
+/// Les adresses de vtable et les fonctions **ne vivent pas sous le même
+/// `binary_id`** : `rtti_class` ne les porte que sur l'entrée de l'index
+/// Ghidra, quand les fonctions sont sur celle de `#pdata`. Les deux décrivent
+/// le même fichier, mais l'avertissement du dépôt sur l'index Ghidra
+/// (« désaligné, figé ») interdit de le supposer — d'où le compteur
+/// `methodes_resolues` : c'est lui qui dit si ces adresses tombent vraiment sur
+/// des fonctions du découpage, ou si elles décrivent un autre agencement.
+fn classes(
+    conn: &mut rusqlite::Connection,
+    binary_id: i64,
+    img: &nie_pe::PeImage,
+    b: &mut Bilan,
+) -> anyhow::Result<()> {
+    let sources: Vec<(String, i64)> = {
+        let mut q = conn.prepare(
+            "SELECT name, vtable_vaddr FROM rtti_class
+              WHERE vtable_vaddr IS NOT NULL ORDER BY name",
+        )?;
+        let rows = q.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))?;
+        rows.flatten().collect()
+    };
+
+    // Statut de chaque unité de fonction, par adresse.
+    let par_va: std::collections::HashMap<i64, (String, i64)> = {
+        let mut q = conn.prepare(
+            "SELECT vaddr, statut, size FROM forge_unit
+              WHERE binary_id = ?1 AND vaddr IS NOT NULL AND kind = 'fn'",
+        )?;
+        let rows = q.query_map([binary_id], |r| {
+            Ok((r.get::<_, i64>(0)?, (r.get::<_, String>(1)?, r.get::<_, i64>(2)?)))
+        })?;
+        rows.flatten().collect()
+    };
+
+    let tx = conn.transaction()?;
+    tx.execute("DELETE FROM forge_classe WHERE binary_id = ?1", [binary_id])?;
+    {
+        let mut ins = tx.prepare(
+            "INSERT OR REPLACE INTO forge_classe
+                (binary_id, classe, vtable_vaddr, methodes, resolues, produites, bloquees, octets)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        )?;
+        for (nom, vtable) in sources {
+            let m = methodes_de(img, vtable as u64);
+            let (mut resolues, mut produites, mut bloquees, mut octets) = (0i64, 0i64, 0i64, 0i64);
+            for va in &m {
+                if let Some((statut, taille)) = par_va.get(&(*va as i64)) {
+                    resolues += 1;
+                    octets += taille;
+                    match statut.as_str() {
+                        statut::PRODUIT => produites += 1,
+                        statut::BLOQUE => bloquees += 1,
+                        _ => {}
+                    }
+                }
+            }
+            b.classes += 1;
+            b.methodes += m.len();
+            b.methodes_resolues += usize::try_from(resolues).unwrap_or(0);
+            ins.execute(rusqlite::params![
+                binary_id,
+                nom,
+                vtable,
+                i64::try_from(m.len()).unwrap_or(-1),
+                resolues,
+                produites,
+                bloquees,
+                octets,
+            ])?;
+        }
+    }
+    tx.commit()?;
+    Ok(())
 }
 
 /// Statut et cause d'une unité.
@@ -247,14 +401,14 @@ mod tests {
         };
         let bytes = vec![0x33, 0xC0, 0xC3];
 
-        let a = synchroniser(&db, &cover, &bytes).expect("sync");
+        let a = synchroniser(&db, &cover, &bytes, None).expect("sync");
         assert_eq!(a.binary_id, 2);
         assert_eq!(a.unites, 1);
         assert_eq!(a.produites, 1);
         assert_eq!(a.hors_decoupage, 0);
 
         // Rejouee, elle ne duplique rien.
-        let b = synchroniser(&db, &cover, &bytes).expect("sync 2");
+        let b = synchroniser(&db, &cover, &bytes, None).expect("sync 2");
         assert_eq!(a, b);
         let conn = rusqlite::Connection::open(&db).expect("relecture");
         let n: i64 = conn
