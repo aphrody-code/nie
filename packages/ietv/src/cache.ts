@@ -416,9 +416,14 @@ export class IETVCache {
 		const params: any[] = [];
 
 		if (query.q) {
-			sql += ` AND (e.title LIKE ? OR c.title LIKE ?)`;
+			// La recherche porte sur les QUATRE champs qui nomment un épisode, pas seulement sur
+			// son titre localisé : la base garde 330 titres japonais, 327 transcriptions romaji et
+			// 355 résumés, et c'est souvent par le romaji (« Sakkā Yarō Ze! ») ou par un détail du
+			// résumé qu'on retrouve un épisode dont on ne sait plus le titre français. Sans eux,
+			// une recherche pourtant exacte ne rendait rien.
+			sql += ` AND (e.title LIKE ? OR e.titleJp LIKE ? OR e.romaji LIKE ? OR e.description LIKE ? OR c.title LIKE ?)`;
 			const q = `%${query.q}%`;
-			params.push(q, q);
+			params.push(q, q, q, q, q);
 		}
 		if (query.season) {
 			sql += ` AND e.season = ?`;

@@ -48,6 +48,17 @@ import { VideoPlayer, formaterDuree, urlVideo } from "@/components/VideoPlayer";
 import { api } from "@/lib/api";
 import { animeDb, defaultAnimeDbPath, urlIntegration, urlYoutube, type EpisodeAnime, type SaisonAnime } from "@/lib/animeDb";
 import { showFilmContextMenu } from "@/lib/contextMenu";
+import {
+  decrireLacune,
+  ecrireVus,
+  empreinte,
+  lacunesDeSaison,
+  lireVus,
+  prochainNonVu,
+  ressemble,
+  voisins,
+  type LacuneSaison,
+} from "@/lib/serie";
 import { useSettings } from "@/lib/settings";
 import { cn } from "@/lib/utils";
 import type { FilmDto } from "@/lib/bindings";
@@ -149,6 +160,21 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
   const [enLectureEpisode, setEnLectureEpisode] = useState<EpisodeAnime | null>(null);
   /** Saison affichée, ou `CLE_TOUT` pour la vue d'ensemble. */
   const [saisonOuverte, setSaisonOuverte] = useState<string>(CLE_TOUT);
+  /** Épisodes marqués vus, en empreintes `saison:episode` — même règle que le bot Discord. */
+  const [vus, setVus] = useState<Set<string>>(() => lireVus());
+
+  /** Bascule « vu » d'un épisode, et le persiste aussitôt. */
+  const basculerVu = useCallback((saison: number, episode: number | null) => {
+    if (episode === null) return;
+    setVus((prec) => {
+      const suivant = new Set(prec);
+      const cle = empreinte(saison, episode);
+      if (suivant.has(cle)) suivant.delete(cle);
+      else suivant.add(cle);
+      ecrireVus(suivant);
+      return suivant;
+    });
+  }, []);
 
   // Le catalogue de la série se charge en parallèle de celui du jeu, et son absence n'est pas une
   // erreur : sans le jeu on garde les épisodes, sans la base d'épisodes on garde les cinématiques.
@@ -313,13 +339,24 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
   // exactement ce que la vue veut dire.
   const saisons = useMemo<Saison[]>(() => {
     const q = recherche.trim().toLowerCase();
-    const garde = (titre: string, sous: string | null) =>
-      !q || titre.toLowerCase().includes(q) || (sous ?? "").toLowerCase().includes(q);
+    // La recherche porte sur les QUATRE champs qui nomment un épisode. Chercher « Sakkā » ou
+    // « 必殺技 » doit trouver, et c'est souvent tout ce dont on se souvient d'un épisode : la base
+    // porte 330 titres japonais, 327 romaji et 355 résumés que rien n'exploitait.
+    const champs = (e: EpisodeAnime) => [e.titre, e.titreJp ?? "", e.romaji ?? "", e.description ?? ""];
+    const exact = (e: EpisodeAnime) => champs(e).some((c) => c.toLowerCase().includes(q));
+
+    let retenus = q ? episodes.filter(exact) : episodes;
+    // Repli approché quand la frappe exacte ne rend rien : « Sakkaa » ou « Teïkoku » ne se
+    // transcrivent pas d'une seule façon, et une lettre près ne devrait pas vider l'écran. C'est
+    // le `fuzzyScore` de `ietv/src/video-search.ts`, porté dans `lib/serie.ts` — mais en REPLI,
+    // jamais en premier : une correspondance exacte ne doit pas se faire diluer par des à-peu-près.
+    if (q.length >= 3 && retenus.length === 0) {
+      retenus = episodes.filter((e) => champs(e).some((c) => ressemble(q, c)));
+    }
 
     const parSaison = new Map<number, Element[]>();
-    for (const e of episodes) {
+    for (const e of retenus) {
       const sousTitre = e.episode ? `Épisode ${e.episode}` : null;
-      if (!garde(e.titre, sousTitre)) continue;
       const cle = `s${e.saison}`;
       const el: Element = {
         cle: e.videoId,
@@ -369,6 +406,69 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
     [saisons, saisonOuverte],
   );
 
+  /**
+   * Les trous du catalogue, saison par saison — calculés sur le catalogue COMPLET (`episodes`) et
+   * non sur le résultat filtré : une recherche qui laisse trois épisodes ne crée pas trente-huit
+   * lacunes. C'est la règle du bot Discord, portée telle quelle (`lib/serie.ts`).
+   */
+  const lacunes = useMemo(() => {
+    const parSaison = new Map<number, (number | null)[]>();
+    for (const e of episodes) {
+      const liste = parSaison.get(e.saison);
+      if (liste) liste.push(e.episode);
+      else parSaison.set(e.saison, [e.episode]);
+    }
+    const sortie = new Map<number, LacuneSaison>();
+    for (const [saison, numeros] of parSaison) {
+      const l = lacunesDeSaison(saison, numeros);
+      if (l) sortie.set(saison, l);
+    }
+    return sortie;
+  }, [episodes]);
+
+  /**
+   * Les épisodes les plus récemment DIFFUSÉS (`publishDate`, renseignée pour 330 des 355).
+   *
+   * Ce n'est pas « récemment ajouté au catalogue » : la base ne garde pas la date de moisson, et
+   * l'annoncer ainsi serait faux. C'est la date de première diffusion, donc la fin de la série —
+   * ce qu'on cherche quand on revient après une longue absence.
+   */
+  const plusRecents = useMemo<Element[]>(
+    () =>
+      episodes
+        .filter((e) => e.publie)
+        .sort((a, b) => (b.publie ?? "").localeCompare(a.publie ?? ""))
+        .slice(0, 20)
+        .map((e) => ({
+          cle: e.videoId,
+          titre: e.titre,
+          sousTitre: e.publie ? new Date(e.publie).toLocaleDateString("fr-FR") : null,
+          source: "anime" as const,
+          saison: `s${e.saison}`,
+          vignette: e.vignette,
+          episode: e,
+        })),
+    [episodes],
+  );
+
+  /**
+   * Le prochain épisode à regarder : le premier non vu de la première saison qui en a un. C'est
+   * `prochainNonVu` du bot, appliqué saison par saison — donc jamais un numéro absent du
+   * catalogue, et jamais « celui qui suit le dernier vu » quand un trou a été sauté.
+   */
+  const aReprendreSerie = useMemo(() => {
+    for (const s of saisonsAnime) {
+      const dansSaison = episodes.filter((e) => e.saison === s.saison);
+      const numeros = dansSaison.map((e) => e.episode).filter((n): n is number => n !== null);
+      const vusSaison = new Set(numeros.filter((n) => vus.has(empreinte(s.saison, n))));
+      const prochain = prochainNonVu(numeros, vusSaison);
+      if (prochain === null) continue;
+      const ep = dansSaison.find((e) => e.episode === prochain);
+      if (ep) return { episode: ep, saison: s };
+    }
+    return null;
+  }, [saisonsAnime, episodes, vus]);
+
   /** Ouvre un élément, quelle que soit sa source — le seul endroit qui connaît les deux lecteurs. */
   const lire = useCallback((el: Element) => {
     if (el.film) setEnLecture(el.film);
@@ -398,8 +498,13 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
   if (enLectureEpisode) {
     const e = enLectureEpisode;
     const dansSaison = episodes.filter((x) => x.saison === e.saison);
-    const rang = dansSaison.findIndex((x) => x.videoId === e.videoId);
+    const numeros = dansSaison.map((x) => x.episode).filter((n): n is number => n !== null);
+    // `voisins` du bot, et non un `index ± 1` : il encadre correctement un épisode retiré du
+    // catalogue entre-temps, et ne propose jamais un numéro qui n'existe pas.
+    const { precedent, suivant } = e.episode !== null ? voisins(numeros, e.episode) : { precedent: null, suivant: null };
+    const parNumero = (n: number | null) => (n === null ? null : (dansSaison.find((x) => x.episode === n) ?? null));
     const nomSaison = saisonsAnime.find((s) => s.saison === e.saison)?.nom ?? `Saison ${e.saison}`;
+    const vu = e.episode !== null && vus.has(empreinte(e.saison, e.episode));
     return (
       <div className="flex h-full min-h-0 flex-col bg-black">
         <div className="flex items-center gap-2 border-b border-white/10 px-4 py-2">
@@ -408,18 +513,29 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
             <div className="truncate text-xs text-white/50">
               {nomSaison}
               {e.episode ? ` · épisode ${e.episode}` : ""}
-              {rang >= 0 ? ` · ${rang + 1} / ${dansSaison.length}` : ""}
+              {e.publie ? ` · ${new Date(e.publie).toLocaleDateString("fr-FR")}` : ""}
             </div>
           </div>
           <Button
             variant="ghost"
             size="sm"
+            className={vu ? "text-emerald-400" : "text-white/80 hover:text-white"}
+            onClick={() => basculerVu(e.saison, e.episode)}
+            disabled={e.episode === null}
+            title={vu ? "Marquer comme non vu" : "Marquer comme vu"}
+          >
+            <Icon name={vu ? "check_circle" : "radio_button_unchecked"} size={16} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             className="text-white/80 hover:text-white"
-            disabled={rang <= 0}
+            disabled={precedent === null}
             onClick={() => {
-              const p = dansSaison[rang - 1];
+              const p = parNumero(precedent);
               if (p) setEnLectureEpisode(p);
             }}
+            title="Épisode précédent"
           >
             <Icon name="skip_previous" size={16} />
           </Button>
@@ -427,11 +543,12 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
             variant="ghost"
             size="sm"
             className="text-white/80 hover:text-white"
-            disabled={rang < 0 || rang >= dansSaison.length - 1}
+            disabled={suivant === null}
             onClick={() => {
-              const s = dansSaison[rang + 1];
+              const s = parNumero(suivant);
               if (s) setEnLectureEpisode(s);
             }}
+            title="Épisode suivant"
           >
             <Icon name="skip_next" size={16} />
           </Button>
@@ -462,6 +579,20 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
           allowFullScreen
           className="min-h-0 flex-1 border-0 bg-black"
         />
+        {/* La fiche sous la vidéo : titre original, transcription et résumé. Trois colonnes de la
+            base que rien n'affichait — 330 titres japonais et 355 résumés dormaient dans le
+            fichier. */}
+        {(e.titreJp || e.romaji || e.description) && (
+          <div className="max-h-40 shrink-0 overflow-y-auto border-t border-white/10 px-4 py-2">
+            {(e.titreJp || e.romaji) && (
+              <div className="mb-1 flex flex-wrap items-baseline gap-2 text-xs">
+                {e.titreJp && <span className="text-white/85">{e.titreJp}</span>}
+                {e.romaji && <span className="italic text-white/45">{e.romaji}</span>}
+              </div>
+            )}
+            {e.description && <p className="text-xs leading-relaxed text-white/60">{e.description}</p>}
+          </div>
+        )}
       </div>
     );
   }
@@ -603,6 +734,25 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
             />
           )}
 
+          {/* Le prochain épisode non vu, en tête : c'est la question qu'on se pose devant une
+              série de 355 épisodes, et la seule réponse que le catalogue seul ne donne pas. */}
+          {aReprendreSerie && !recherche && (
+            <div className="mx-4 mb-1 flex items-center gap-3 rounded-lg border border-app-line bg-app-box px-3 py-2">
+              <Icon name="play_circle" size={20} className="text-accent" />
+              <div className="min-w-0 flex-1">
+                <div className="text-tiny uppercase tracking-wider text-ink-faint">Reprendre la série</div>
+                <div className="truncate text-sm text-ink">
+                  {aReprendreSerie.saison.nom}
+                  {aReprendreSerie.episode.episode ? ` · épisode ${aReprendreSerie.episode.episode}` : ""} —{" "}
+                  {aReprendreSerie.episode.titre}
+                </div>
+              </div>
+              <Button size="sm" onClick={() => setEnLectureEpisode(aReprendreSerie.episode)}>
+                Lire
+              </Button>
+            </div>
+          )}
+
           {aReprendre.length > 0 && (
             <Rangee
               titre="Reprendre la lecture"
@@ -612,6 +762,25 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
               onVisible={enrichir}
               onPrecharger={precharger}
               onMenu={menuFilm}
+            />
+          )}
+
+          {!recherche && plusRecents.length > 0 && (
+            <RangeeElements
+              titre="Les plus récents (diffusion)"
+              elements={plusRecents}
+              total={plusRecents.length}
+              reprises={reprises}
+              onLire={lire}
+              onVisible={enrichir}
+              onPrecharger={precharger}
+              onMenu={menuFilm}
+              onOuvrirSaison={() => {
+                const s = plusRecents[0]?.saison;
+                if (s) setSaisonOuverte(s);
+              }}
+              vus={vus}
+              onBasculerVu={basculerVu}
             />
           )}
 
@@ -627,6 +796,8 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
               onPrecharger={precharger}
               onMenu={menuFilm}
               onOuvrirSaison={() => setSaisonOuverte(s.cle)}
+              vus={vus}
+              onBasculerVu={basculerVu}
             />
           ))}
         </>
@@ -660,9 +831,38 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
               {saisonCourante.elements.length} épisodes
             </span>
           </h3>
+
+          {/* Ce que le catalogue N'A PAS. Le bot Discord le dit depuis toujours ; l'application le
+              taisait, et une saison trouée y ressemblait à une saison courte. */}
+          {(() => {
+            const numSaison = saisonCourante.elements[0]?.episode?.saison;
+            const lacune = numSaison === undefined ? undefined : lacunes.get(numSaison);
+            if (!lacune) return null;
+            return (
+              <Alert className="mb-3">
+                <AlertTitle>
+                  {lacune.manquants.length} épisode{lacune.manquants.length > 1 ? "s" : ""} absent
+                  {lacune.manquants.length > 1 ? "s" : ""} du catalogue
+                </AlertTitle>
+                <AlertDescription>
+                  Entre les épisodes {lacune.borne.debut} et {lacune.borne.fin} : {decrireLacune(lacune)}. La
+                  source ne les publie pas — ce n'est pas un défaut de lecture.
+                </AlertDescription>
+              </Alert>
+            );
+          })()}
+
           <div className="grid grid-cols-[repeat(auto-fill,minmax(224px,1fr))] gap-3">
             {saisonCourante.elements.map((el) => (
-              <CarteEpisode key={el.cle} element={el} onLire={() => lire(el)} />
+              <CarteEpisode
+                key={el.cle}
+                element={el}
+                vu={
+                  el.episode?.episode != null && vus.has(empreinte(el.episode.saison, el.episode.episode))
+                }
+                onLire={() => lire(el)}
+                onBasculerVu={() => el.episode && basculerVu(el.episode.saison, el.episode.episode)}
+              />
             ))}
           </div>
         </section>
@@ -855,6 +1055,8 @@ function RangeeElements({
   onPrecharger,
   onMenu,
   onOuvrirSaison,
+  vus,
+  onBasculerVu,
 }: {
   titre: string;
   elements: Element[];
@@ -865,6 +1067,9 @@ function RangeeElements({
   onPrecharger: (chemin: string) => void;
   onMenu: (f: FilmDto) => void;
   onOuvrirSaison: () => void;
+  /** Empreintes `saison:episode` des épisodes déjà vus. */
+  vus: ReadonlySet<string>;
+  onBasculerVu: (saison: number, episode: number | null) => void;
 }) {
   const pisteRef = useRef<HTMLDivElement | null>(null);
 
@@ -911,7 +1116,12 @@ function RangeeElements({
               />
             ) : (
               <div key={el.cle} className="w-56 shrink-0">
-                <CarteEpisode element={el} onLire={() => onLire(el)} />
+                <CarteEpisode
+                  element={el}
+                  vu={el.episode?.episode != null && vus.has(empreinte(el.episode.saison, el.episode.episode))}
+                  onLire={() => onLire(el)}
+                  onBasculerVu={() => el.episode && onBasculerVu(el.episode.saison, el.episode.episode)}
+                />
               </div>
             ),
           )}
@@ -936,14 +1146,27 @@ function RangeeElements({
  * Son échec est traité (`onError`) plutôt qu'ignoré — une carte muette avec une image cassée est
  * moins lisible qu'une carte qui assume de n'avoir que du texte.
  */
-function CarteEpisode({ element, onLire }: { element: Element; onLire: () => void }) {
+function CarteEpisode({
+  element,
+  vu,
+  onLire,
+  onBasculerVu,
+}: {
+  element: Element;
+  vu?: boolean;
+  onLire: () => void;
+  onBasculerVu?: () => void;
+}) {
   const [imageKo, setImageKo] = useState(false);
   const e = element.episode;
   return (
     <button
       type="button"
       onClick={onLire}
-      className="group/carte flex w-full flex-col overflow-hidden rounded-md border border-app-line bg-app-box text-left transition-colors hover:border-accent"
+      className={cn(
+        "group/carte flex w-full flex-col overflow-hidden rounded-md border bg-app-box text-left transition-colors hover:border-accent",
+        vu ? "border-emerald-500/40" : "border-app-line",
+      )}
     >
       <div className="relative aspect-video w-full overflow-hidden bg-app-darkBox">
         {element.vignette && !imageKo ? (
@@ -972,12 +1195,37 @@ function CarteEpisode({ element, onLire }: { element: Element; onLire: () => voi
             {e.langue}
           </span>
         ) : null}
+        {/* Marquer vu sans ouvrir : `stopPropagation` parce que la carte entière est un bouton —
+            sans lui, cocher lancerait la lecture. */}
+        {onBasculerVu && (
+          <span
+            role="button"
+            tabIndex={-1}
+            aria-label={vu ? "Marquer comme non vu" : "Marquer comme vu"}
+            title={vu ? "Marquer comme non vu" : "Marquer comme vu"}
+            onClick={(ev) => {
+              ev.stopPropagation();
+              onBasculerVu();
+            }}
+            className={cn(
+              "absolute bottom-1 right-1 rounded-full bg-black/70 p-0.5 transition-opacity",
+              vu ? "text-emerald-400 opacity-100" : "text-white/70 opacity-0 group-hover/carte:opacity-100",
+            )}
+          >
+            <Icon name={vu ? "check_circle" : "radio_button_unchecked"} size={16} />
+          </span>
+        )}
       </div>
       <div className="p-2">
         <div className="line-clamp-2 text-xs font-medium text-ink" title={element.titre}>
           {element.titre}
         </div>
-        {element.sousTitre && <div className="mt-0.5 text-tiny text-ink-faint">{element.sousTitre}</div>}
+        <div className="mt-0.5 flex items-baseline gap-1.5 text-tiny text-ink-faint">
+          {element.sousTitre && <span>{element.sousTitre}</span>}
+          {/* La transcription romaji sous le titre français : c'est par elle qu'on relie un
+              épisode à ce qu'en disent les sources japonaises. */}
+          {e?.romaji && <span className="truncate italic opacity-70">{e.romaji}</span>}
+        </div>
       </div>
     </button>
   );

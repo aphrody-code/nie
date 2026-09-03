@@ -27,11 +27,21 @@ export interface EpisodeAnime {
   /** Identifiant YouTube — c'est lui qui sert à la lecture (`embed`). */
   videoId: string;
   titre: string;
+  /** Titre original japonais — renseigné pour 330 des 355 épisodes. */
+  titreJp: string | null;
+  /** Transcription latine du titre japonais — 327 des 355. */
+  romaji: string | null;
   description: string | null;
   vignette: string | null;
+  /** Date de première diffusion (`2008-10-05`) — 330 des 355. */
   publie: string | null;
   langue: string | null;
-  /** Durée en secondes quand la source la donne — souvent absente. */
+  /**
+   * Durée en secondes. **Vide sur tout le corpus actuel** (0 épisode sur 355), comme `viewCount`
+   * et `quality` : la colonne existe au schéma de `IETVCache`, la source ne la remplit pas. Elle
+   * est lue quand même — le jour où elle l'est, rien n'aura à changer ici — mais l'interface ne
+   * réserve aucune place à un chiffre qui n'arrive jamais.
+   */
   duree: number | null;
 }
 
@@ -88,6 +98,7 @@ export const animeDb = {
     const d = await connect(chemin);
     return d.select<EpisodeAnime[]>(
       `SELECT id, season AS saison, episode, videoId, title AS titre, description,
+              titleJp AS titreJp, romaji,
               thumbnail AS vignette, publishDate AS publie, language AS langue, duration AS duree
          FROM episodes WHERE season = $1
         ORDER BY COALESCE(episode, 9999), id`,
@@ -100,9 +111,33 @@ export const animeDb = {
     const d = await connect(chemin);
     return d.select<EpisodeAnime[]>(
       `SELECT id, season AS saison, episode, videoId, title AS titre, description,
+              titleJp AS titreJp, romaji,
               thumbnail AS vignette, publishDate AS publie, language AS langue, duration AS duree
          FROM episodes
         ORDER BY season, COALESCE(episode, 9999), id`,
+    );
+  },
+
+  /**
+   * Recherche plein texte, sur les quatre champs qui peuvent porter le nom d'un épisode.
+   *
+   * La vue Cinéma filtre en mémoire (elle a déjà les 355 épisodes) ; cette requête sert aux
+   * appelants qui n'ont pas le catalogue sous la main — l'équivalent de `IETVCache.search` côté
+   * bot, avec la même portée de champs que celle qu'`IETVCache` couvre désormais.
+   */
+  async chercher(chemin: string, q: string, limite = 200): Promise<EpisodeAnime[]> {
+    const terme = q.trim().replace(/[%_]/g, "");
+    if (terme.length < 2) return [];
+    const d = await connect(chemin);
+    return d.select<EpisodeAnime[]>(
+      `SELECT id, season AS saison, episode, videoId, title AS titre, description,
+              titleJp AS titreJp, romaji,
+              thumbnail AS vignette, publishDate AS publie, language AS langue, duration AS duree
+         FROM episodes
+        WHERE title LIKE $1 OR titleJp LIKE $1 OR romaji LIKE $1 OR description LIKE $1
+        ORDER BY season, COALESCE(episode, 9999)
+        LIMIT $2`,
+      [`%${terme}%`, limite],
     );
   },
 
