@@ -12,6 +12,7 @@ Trois usages, du plus simple au plus engageant :
 | Faire tourner le jeu | `Match` | La simulation 11 v 11 déterministe, tick par tick |
 | Rendre les assets | `Rendu` | `nie-game` en sous-processus : textures et écrans composés → PNG |
 | Lire les scènes | `Scenario`, `Scene` | Les 5 173 scènes du jeu, leurs dialogues et leurs voix |
+| Le mode histoire | `StoryMode` | 1 735 cinématiques, 889 cartes, 115 déclencheurs |
 | Alimenter un VN | `renpy.Catalogue` | Le catalogue d'assets exporté, et la génération de `.rpy` |
 
 ## Prérequis
@@ -128,6 +129,29 @@ uv run python -m niepy scenes --index game/nie/scenes.json          # index + ch
 uv run python -m niepy scenes --out game/nie/scenes --langue fr     # export des répliques
 uv run python -m niepy scenes --out … --chapitre ev01 --limite 50   # un chapitre seulement
 ```
+
+## Le mode histoire — cinématiques, cartes, progression
+
+```bash
+uv run python -m niepy story --index game/nie/story.json   # index + chiffres
+uv run python -m niepy story --cle ev60_01560              # détail d'une cinématique
+uv run python -m niepy story --acteurs 10                  # les acteurs les plus présents
+uv run python -m niepy story --out game/nie/story          # fiches JSON
+```
+
+Mesuré sur l'installation de référence : **1 735 cinématiques** (7 808 plans, 132 acteurs,
+1 214 avec caméra), **889 cartes** (dont 153 avec navmesh) sur neuf zones, 9 tables globales
+et **115 déclencheurs**, tous porteurs d'une table décodable.
+
+Le liant d'une cinématique n'est ni l'acteur ni la prise, mais le **plan** — le suffixe
+`_cNNNN`, seul élément quasi universel du nommage. La forme `<clé>_<acteur>_sNN_pNN_cNNNN`
+ne couvre que **52,4 %** des noms ; s'y limiter perdrait la moitié du corpus, dont *toutes*
+les caméras, qui ne portent ni acteur ni numéro de plan.
+
+> **Deux limites à connaître.** Les `.g4cm` (caméras) et `.g4nv` (navmesh) sont indexés et
+> localisés, mais leur décodage ne rend pour l'instant que l'en-tête — pas les trajectoires
+> ni les polygones. Les `.lua.bin` des déclencheurs sont du Lua compilé, non décodé ; leur
+> table `.cfg.bin` jumelle, elle, se lit (`Trigger.exploitable`).
 
 ## Alimenter un projet Ren'Py
 
