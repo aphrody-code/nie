@@ -4,7 +4,10 @@ import { CircleDot, Sparkles } from "lucide-react";
 import { Image } from "@/components/ui/image";
 import { Link } from "@/components/ui/link";
 import { useState } from "react";
-import { Badge } from "@rosegriffon/ui";
+// PAS `@rosegriffon/ui` : cette bibliothèque est WEB, son `lib/adsense.ts` lit `process.env`, qui
+// n'existe pas dans une WebView. L'importer levait un `ReferenceError: process is not defined` au
+// montage et rendait TOUTE l'application blanche. Les composants locaux ont la même API.
+import { Badge } from "@/components/ui/badge";
 import { CommonSpriteIcon } from "@/components/ui/CommonSpriteIcon";
 import { ElementIcon } from "@/components/wiki/ElementIcon";
 import type { SpriteCommonKey } from "@/config/sprites-common";

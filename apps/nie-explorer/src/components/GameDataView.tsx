@@ -71,6 +71,7 @@ import { StadiumCard } from "@/components/wiki/StadiumCard";
 import { TacticCard } from "@/components/wiki/TacticCard";
 import { PropertyEditor } from "@/components/PropertyEditor";
 import { StatCalculator } from "@/components/tools/StatCalculator";
+import { estAbsent } from "@/lib/valeurs";
 import { cn } from "@/lib/utils";
 
 /** Valeur affichable d'une cellule — `null` rend une cellule vide, jamais la chaîne « null ». */
@@ -652,7 +653,8 @@ function texte(v: Cellule): string {
   if (v === null || v === undefined) return "";
   if (typeof v === "boolean") return v ? "oui" : "";
   if (typeof v === "number") return Number.isInteger(v) ? v.toLocaleString("fr-FR") : String(v);
-  return v;
+  // Une sentinelle d'absence ne s'affiche pas telle quelle, cf. `lib/valeurs.ts`.
+  return estAbsent(v) ? "" : v;
 }
 
 /** Échappement CSV (RFC 4180) — une virgule ou un guillemet dans un nom du jeu casserait le fichier. */
@@ -1012,8 +1014,9 @@ export function GameDataView({ onOpenFile }: { onOpenFile?: (path: string) => vo
                 </>
               ) : (
                 <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-app-line px-4 text-center text-xs text-ink-faint">
-                  Sélectionnez une ligne pour voir sa fiche complète, et l'éditeur de propriétés
-                  (fichiers, données, moteur) si elle porte un code interne.
+                  {vue === "cartes" && famille?.carte
+                    ? "Choisissez une carte pour voir sa fiche complète, et l'éditeur de propriétés (fichiers, données, moteur) si elle porte un code interne."
+                    : "Sélectionnez une ligne pour voir sa fiche complète, et l'éditeur de propriétés (fichiers, données, moteur) si elle porte un code interne."}
                 </div>
               )}
             </div>

@@ -2,7 +2,8 @@
 
 import type { GameCharacterStats } from "@rosegriffon/inagle";
 import { BarChart3 } from "lucide-react";
-import { Button, Popover, PopoverContent, PopoverTrigger } from "@rosegriffon/ui";
+// Cf. la note d'AuraCard : jamais `@rosegriffon/ui` ici — `process.env` → page blanche.
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
 interface CharacterStatsPopoverProps {
@@ -29,15 +30,12 @@ export function CharacterStatsPopover({ stats, name }: CharacterStatsPopoverProp
 
 	return (
 		<Popover>
-			<PopoverTrigger asChild>
-				<Button
-					variant="ghost"
-					size="icon"
-					className="size-11 sm:size-8 text-on-surface-variant hover:text-primary"
-				>
-					<BarChart3 className="size-4" />
-					<span className="sr-only">Stats de {name}</span>
-				</Button>
+			{/* Le `PopoverTrigger` local (base-ui) REND déjà un `<button>` : il n'a pas de prop
+			 * `asChild` (c'est l'API Radix du web), et l'y emboîter produirait un bouton dans un
+			 * bouton. Les classes du bouton fantôme sont donc portées directement ici. */}
+			<PopoverTrigger className="inline-flex size-11 items-center justify-center rounded-md text-on-surface-variant transition-colors hover:bg-app-hover hover:text-primary sm:size-8">
+				<BarChart3 className="size-4" />
+				<span className="sr-only">Stats de {name}</span>
 			</PopoverTrigger>
 			<PopoverContent
 				className="w-[calc(100vw-2rem)] max-w-sm sm:w-80 p-4 bg-surface-container-high border-outline-variant"
