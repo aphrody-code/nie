@@ -21,13 +21,87 @@ from typing import Any
 from ._ffi import NieBall, NieBytes, NiePlayer, bibliotheque
 from .formats import prendre_octets
 
-__all__ = ["Ballon", "Joueur", "Match", "PAS_PAR_DEFAUT", "ROLES"]
+__all__ = ["Ballon", "Joueur", "Match", "PAS_PAR_DEFAUT", "ROLES", "STATS", "simuler_match"]
 
 #: Pas de simulation par défaut (secondes) — 60 Hz, la cadence à laquelle le moteur est réglé.
 PAS_PAR_DEFAUT = 1.0 / 60.0
 
 #: Rôles, dans l'ordre du discriminant rendu par la couche native.
 ROLES = ("GK", "DF", "MF", "FW")
+
+#: Les sept statistiques d'un joueur IEVR, dans l'ordre du jeu. Noms confirmés
+#: par `packages/inagle/src/stat-calculator.ts`, validés sur dump réel.
+STATS = ("kc", "cr", "tc", "pr", "ps", "ag", "it")
+
+
+def simuler_match(
+    nous: dict[str, Any] | tuple[str, dict[str, int]],
+    eux: dict[str, Any] | tuple[str, dict[str, int]],
+    graine: int = 0,
+) -> dict[str, Any]:
+    """Tranche une rencontre d'un bloc, à partir des STATISTIQUES et d'une GRAINE.
+
+    C'est le complément de [`Match`], et il répond à un autre besoin.
+
+    [`Match`] fait TOURNER un match jouable : on lui pousse des entrées et on
+    l'avance pas à pas. Il n'accepte **aucune graine** et son onze est le sien —
+    deux matchs laissés à eux-mêmes rendent le même score, et rien n'y distingue
+    les joueurs d'un camp de ceux de l'autre. Pour raconter une rencontre que le
+    joueur ne dispute pas, c'est le mauvais outil : on ne peut ni la faire
+    dépendre de la force des effectifs, ni la rejouer à l'identique.
+
+    Cette fonction fait l'inverse. Elle appelle `nie_core::match_sim::simulate_match`,
+    un modèle minute par minute où la probabilité de but de chaque camp sort du
+    rapport entre son `kc` et le `ps` de l'autre, et où la graine fixe tout le
+    reste. Deux appels de même graine rendent le même match.
+
+        >>> issue = simuler_match(
+        ...     ("Raimon", {"kc": 207, "cr": 216, "tc": 218,
+        ...                 "pr": 235, "ps": 242, "ag": 210, "it": 261}),
+        ...     ("Zeus", dict.fromkeys(STATS, 120)),
+        ...     graine=42,
+        ... )
+        >>> issue["home_score"], issue["away_score"]        # doctest: +SKIP
+        (3, 1)
+
+    Chaque camp se donne soit en `(nom, stats)`, soit en `TeamSetup` complet
+    (`{"name", "aggregate_stats", "placements"}`). Les statistiques absentes
+    valent 0 ; un `dict.fromkeys(STATS, n)` donne une équipe uniforme de niveau `n`.
+
+    Rend le `MatchResult` : `home_score`, `away_score`, `final_clock`
+    (`minutes * 10_000 + secondes`) et la séquence complète d'`events`.
+
+    Lève `ValueError` si la couche native refuse l'entrée.
+    """
+
+    def equipe(valeur: Any) -> dict[str, Any]:
+        if isinstance(valeur, tuple):
+            nom, stats = valeur
+            return {
+                "name": str(nom),
+                "aggregate_stats": {cle: int(stats.get(cle, 0)) for cle in STATS},
+                "placements": None,
+            }
+        # Un TeamSetup déjà formé : on complète seulement ce qui manque, pour que
+        # `placements` reste optionnel côté appelant.
+        forme = dict(valeur)
+        forme.setdefault("placements", None)
+        return forme
+
+    brut = NieBytes()
+    bibliotheque().nie_match_simulate_json_out(
+        json.dumps(equipe(nous)).encode("utf-8"),
+        json.dumps(equipe(eux)).encode("utf-8"),
+        ctypes.c_uint64(int(graine) & 0xFFFFFFFFFFFFFFFF),
+        ctypes.byref(brut),
+    )
+    octets = prendre_octets(brut)
+    if not octets:
+        raise ValueError(
+            "simulation refusée : vérifie que chaque camp porte un `name` et les "
+            "sept statistiques " + ", ".join(STATS)
+        )
+    return json.loads(octets.decode("utf-8"))
 
 
 @dataclass(frozen=True, slots=True)
