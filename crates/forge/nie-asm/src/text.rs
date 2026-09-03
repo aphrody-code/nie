@@ -659,6 +659,7 @@ impl Insn {
             Self::MovRegImm32(r, i) => format!("mov {}, {i:#x}", reg_name(r, Size::D)),
             Self::MovRegImm64(r, i) => format!("movabs {}, {i:#x}", reg_name(r, Size::Q)),
             Self::MovRR(s, a, b) => format!("mov {}, {}", reg_name(a, s), reg_name(b, s)),
+            Self::MovRRm(s, a, b) => format!("mov.d {}, {}", reg_name(a, s), reg_name(b, s)),
             Self::Load(s, r, m) => format!("mov {}, {}", reg_name(r, s), mem_text(m)),
             Self::Store(s, m, r) => format!("mov {}, {}", mem_text(m), reg_name(r, s)),
             Self::StoreImm32(s, m, i) => {
@@ -667,6 +668,12 @@ impl Insn {
             Self::Lea(r, m) => format!("lea {}, {}", reg_name(r, Size::Q), mem_text(m)),
             Self::AluRR(op, s, a, b) => format!(
                 "{} {}, {}",
+                ALUS[op.digit() as usize].0,
+                reg_name(a, s),
+                reg_name(b, s)
+            ),
+            Self::AluRRm(op, s, a, b) => format!(
+                "{}.d {}, {}",
                 ALUS[op.digit() as usize].0,
                 reg_name(a, s),
                 reg_name(b, s)
@@ -940,6 +947,10 @@ pub fn parse_insn(line: &str) -> Result<Insn, ParseError> {
     let (mnem, wide) = mnem.strip_suffix(".w").map_or((mnem, false), |m| (m, true));
     //   `.r` = préfixe REX nul explicite (`40 53` au lieu de `53`)
     let (mnem, rexp) = mnem.strip_suffix(".r").map_or((mnem, false), |m| (m, true));
+    //   `.d` = direction inverse d'une forme registre/registre : `op*8+1`
+    //          (r/m ← registre) au lieu de `op*8+3`. Les deux calculent la même
+    //          chose ; seuls les octets diffèrent, et c'est l'original qui tranche.
+    let (mnem, dir) = mnem.strip_suffix(".d").map_or((mnem, false), |m| (m, true));
 
     let two = || -> Result<(String, String), ParseError> {
         let (a, b) = args.split_once(',').ok_or_else(err)?;
@@ -1134,7 +1145,11 @@ pub fn parse_insn(line: &str) -> Result<Insn, ParseError> {
             if sz != sz2 {
                 return Err(err());
             }
-            return Ok(Insn::AluRR(*op, sz, r, b));
+            return Ok(if dir {
+                Insn::AluRRm(*op, sz, r, b)
+            } else {
+                Insn::AluRR(*op, sz, r, b)
+            });
         }
         let v = parse_int(&s).ok_or_else(err)?;
         return Ok(Insn::AluRI(*op, sz, r, as_imm32(v).ok_or_else(err)?, wide));
@@ -1298,7 +1313,11 @@ pub fn parse_insn(line: &str) -> Result<Insn, ParseError> {
                 if sz != sz2 {
                     return Err(err());
                 }
-                return Ok(Insn::MovRR(sz, r, b));
+                return Ok(if dir {
+                    Insn::MovRRm(sz, r, b)
+                } else {
+                    Insn::MovRR(sz, r, b)
+                });
             }
             let v = parse_int(&s).ok_or_else(err)?;
             match sz {
@@ -1481,6 +1500,25 @@ mod tests_prefixes {
     #[test]
     fn lock_refuse_ce_qui_n_est_pas_unaire() {
         assert!(parse_insn("lock ret").is_err());
+    }
+
+    /// Le suffixe `.d` choisit l'autre sens d'encodage d'une forme reg/reg.
+    /// Les deux calculent la même chose ; c'est l'original qui tranche.
+    #[test]
+    fn la_direction_inverse_fait_l_aller_retour_textuel() {
+        for (texte, octets) in [
+            ("mov.d rbp, rsp", vec![0x48u8, 0x89, 0xE5]),
+            ("add.d rcx, rdx", vec![0x48, 0x01, 0xD1]),
+        ] {
+            let i = parse_insn(texte).expect("dialecte");
+            assert_eq!(crate::encode(&[i]), octets, "{texte}");
+            assert_eq!(i.to_text(), texte);
+        }
+        // Sans le suffixe, la forme MSVC — des octets differents.
+        assert_eq!(
+            crate::encode(&[parse_insn("mov rbp, rsp").expect("dialecte")]),
+            vec![0x48, 0x8B, 0xEC]
+        );
     }
 
     /// MSVC émet un REX.W superflu sur `jmp rax` — le suffixe `.r` le demande.
