@@ -1249,13 +1249,24 @@ fn parse_task_id(task_id: &str) -> Result<nie_tasks::TaskId, String> {
 /// une fois l'événement `vfs-index-done` reçu.
 #[tauri::command]
 #[specta::specta]
-fn vfs_index_scan_start(
+async fn vfs_index_scan_start(
     game_dir: Option<String>,
     app: tauri::AppHandle,
-    state: tauri::State<VfsState>,
-    scan: tauri::State<VfsScanState>,
+    state: tauri::State<'_, VfsState>,
+    scan: tauri::State<'_, VfsScanState>,
 ) -> Result<String, String> {
-    let entries = with_vfs(game_dir, &state, |vfs| {
+    // `async` n'est pas ici une optimisation, c'est une CORRECTION DE PLANTAGE.
+    //
+    // `TaskSystem::dispatch` appelle `tokio::spawn`, qui exige un runtime Tokio. En Tauri v2,
+    // une commande synchrone s'exécute sur le thread principal, hors de ce runtime : l'appel
+    // paniquait donc en « there is no reactor running », et comme ce panic traverse une
+    // frontière qui ne peut pas se dérouler, il devenait un `STATUS_STACK_BUFFER_OVERRUN` —
+    // l'application entière s'abattait, sans message exploitable pour l'utilisateur.
+    //
+    // Déclarée `async`, la commande s'exécute dans le runtime, et `dispatch` y trouve son
+    // réacteur. Le parcours de l'index (255 308 entrées) passe au passage hors du thread
+    // principal, ce qui était de toute façon nécessaire.
+    let entries = sur_vfs_bloquant(game_dir, &state, |vfs| {
         Ok(vfs
             .iter()
             .map(|(path, entry)| EntryDto {
@@ -1265,7 +1276,8 @@ fn vfs_index_scan_start(
                 cpk: entry.cpk_filename.clone(),
             })
             .collect::<Vec<_>>())
-    })?;
+    })
+    .await?;
 
     let id = nie_tasks::TaskId::new();
     let handle = scan.system.dispatch(VfsScanTask { id, entries });
