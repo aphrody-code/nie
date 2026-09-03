@@ -28,7 +28,7 @@ export const PROFIL_PRINCIPAL = "principal";
 /** Clé de la liste des profils. */
 const CLE_PROFILS = "nie-explorer:cinema:profils";
 
-/** Clé du profil sélectionné au dernier passage. */
+/** Clé du profil choisi pour LA SESSION en cours (`sessionStorage`, cf. `lireProfilActif`). */
 const CLE_ACTIF = "nie-explorer:cinema:profil-actif";
 
 /** Clé de « ma liste » — cf. la section du même nom, plus bas. */
@@ -130,10 +130,18 @@ export function ecrireProfils(profils: readonly Profil[]): void {
   ecrireJson(CLE_PROFILS, profils);
 }
 
-/** L'identifiant du profil actif, ou `null` — auquel cas il faut demander qui regarde. */
+/**
+ * L'identifiant du profil actif, ou `null` — auquel cas il faut demander qui regarde.
+ *
+ * Le choix vit dans `sessionStorage`, PAS dans `localStorage` : il dure ce que dure la fenêtre.
+ * L'application redemande donc « Qui regarde ? » à chaque lancement — c'est ce que font les deux
+ * plateformes de référence, et c'est la seule façon qu'un profil veuille dire quelque chose sur
+ * une machine partagée. Changer de vue et revenir au Cinéma ne le redemande pas : la session,
+ * elle, n'a pas été interrompue.
+ */
 export function lireProfilActif(): string | null {
   try {
-    return localStorage.getItem(CLE_ACTIF);
+    return sessionStorage.getItem(CLE_ACTIF);
   } catch {
     return null;
   }
@@ -141,8 +149,12 @@ export function lireProfilActif(): string | null {
 
 export function ecrireProfilActif(id: string | null): void {
   try {
-    if (id === null) localStorage.removeItem(CLE_ACTIF);
-    else localStorage.setItem(CLE_ACTIF, id);
+    if (id === null) sessionStorage.removeItem(CLE_ACTIF);
+    else sessionStorage.setItem(CLE_ACTIF, id);
+    // La clé homonyme de `localStorage` date de la première version, qui gardait le choix d'un
+    // lancement à l'autre. La retirer évite qu'une valeur morte survive dans le stockage sans
+    // que plus rien ne la lise.
+    localStorage.removeItem(CLE_ACTIF);
   } catch {
     // Ignoré volontairement.
   }
