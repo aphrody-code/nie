@@ -304,6 +304,23 @@ Rien n'est écrit dans `function` : le reverse garde ses colonnes, la forge les 
 jointure vit dans la vue. La synchronisation réécrit son binaire au lieu d'empiler — sinon un
 découpage plus fin laisserait des unités fantômes.
 
+La même commande remplit `forge_classe` : pour chacune des **1 745 classes RTTI**, les entrées de
+sa vtable et leur état de production.
+
+| méthodes lues | résolues | produites | bloquées | octets |
+|---:|---:|---:|---:|---:|
+| 37 812 | 36 667 (96,97 %) | 36 442 | 225 | 5 729 659 |
+
+Deux choses valent d'être notées, parce qu'aucune n'était supposée au départ :
+
+- `rtti_class.vtable_vaddr` désigne le **`complete object locator`**, pas la première méthode :
+  le premier passage a rendu 0 méthode sur 1 745 classes. `scripts/forge/verif_vtables.py` a
+  tranché plutôt que de laisser deviner — les 1 745 adresses sont dans `.rdata`, aucune ne pointe
+  sur du code, toutes en ont à `+8`.
+- Ces adresses ne vivent que sous `binary_id = 1`, l'index Ghidra que ce dépôt donne pour
+  « désaligné, figé », quand les fonctions sont sous `binary_id = 2`. **Un index décalé ne
+  tomberait pas juste 1 745 fois de suite** : pour les vtables, ces adresses sont bonnes.
+
 ## 6. Un constat que l'outillage a produit immédiatement
 
 Le registre `forge/registry.json` distingue deux statuts, et cette distinction est le cœur de
