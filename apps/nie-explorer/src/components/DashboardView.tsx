@@ -20,6 +20,7 @@ import { defaultReDbPath, reDb, type ReStats } from "@/lib/reDb";
 import { vfsIndexDb, type VfsIndexMeta } from "@/lib/vfsIndexDb";
 import { modsDb } from "@/lib/modsDb";
 import { useT } from "@/lib/i18n";
+import { animeDb, defaultAnimeDbPath } from "@/lib/animeDb";
 import { vue } from "@/lib/vues";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -117,6 +118,7 @@ export function DashboardView({ onSelectTab }: { onSelectTab: (id: string) => vo
   const [re, setRe] = useState<ReStats | null>(null);
   const [cheminRe, setCheminRe] = useState<string | null>(null);
   const [index, setIndex] = useState<VfsIndexMeta | null>(null);
+  const [anime, setAnime] = useState<{ saisons: number; episodes: number } | null>(null);
   const [packs, setPacks] = useState<number | null>(null);
   const [mods, setMods] = useState<number | null>(null);
   const [processusJeu, setProcessusJeu] = useState<{ pid: number; process_name: string } | null>(null);
@@ -144,6 +146,10 @@ export function DashboardView({ onSelectTab }: { onSelectTab: (id: string) => vo
 
     const chemin = settings.wikiDb.trim();
     if (chemin) wikiDb.stats(chemin).then(pose(setMiroir)).catch(() => {});
+
+    defaultAnimeDbPath(settings.gameDir)
+      .then((p) => (p ? animeDb.stats(p).then(pose(setAnime)) : undefined))
+      .catch(() => {});
 
     defaultReDbPath(settings.gameDir)
       .then((p) => {
@@ -182,7 +188,7 @@ export function DashboardView({ onSelectTab }: { onSelectTab: (id: string) => vo
         </div>
 
         {/* ── Le socle : les quatre sources dont tout le reste dépend ─────────────────────── */}
-        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <CarteSource
             titre="Jeu (VFS)"
             icone="folder_open"
@@ -220,6 +226,22 @@ export function DashboardView({ onSelectTab }: { onSelectTab: (id: string) => vo
                 : "Aucune base RE trouvée (var/niers.sqlite, NIE_RE_DB, ou livrée avec l'application)"
             }
             sous={rePret && re?.sha256 ? [`${re.binaire} · ${re.sha256.slice(0, 12)}…`] : cheminRe ? [cheminRe] : undefined}
+          />
+          <CarteSource
+            titre="Série (épisodes)"
+            icone="movie"
+            etat={anime && anime.episodes > 0 ? "pret" : "absent"}
+            valeur={anime ? nb(anime.episodes) : "—"}
+            detail={
+              anime && anime.episodes > 0
+                ? `épisodes · ${nb(anime.saisons)} saisons — vue Cinéma, à côté de Victory Road`
+                : "Aucun catalogue d'épisodes (data/anime/episodes.db, NIE_ANIME_DB, ou livré avec l'application)"
+            }
+            action={
+              anime && anime.episodes > 0
+                ? { libelle: "Ouvrir le Cinéma", onClick: () => onSelectTab("cinema") }
+                : undefined
+            }
           />
           <CarteSource
             titre="Index du VFS"

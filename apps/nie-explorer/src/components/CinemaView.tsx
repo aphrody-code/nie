@@ -1,4 +1,21 @@
-// Cinéma — les 97 cinématiques du jeu, présentées comme un catalogue de streaming.
+// Cinéma — la médiathèque Inazuma Eleven : les dix saisons de la série ET les cinématiques du
+// jeu, dans un seul catalogue à saisons.
+//
+// ## Deux sources, un seul catalogue
+//
+// La série vient de `data/anime/episodes.db` (355 épisodes, dix saisons nommées — Saison 1 à 3,
+// GO, Chrono Stones, Galaxy, Outer Code, Ares, Orion, Films), que `packages/ietv` recense et que
+// l'installeur embarque (cf. `lib/animeDb.ts`). Les cinématiques du jeu viennent du VFS.
+//
+// **`Victory Road` est présentée comme la saison qui suit les autres** : c'est ce qu'elle est
+// pour qui regarde la série — la suite de l'histoire, dans un autre média. La ranger dans un
+// onglet séparé aurait demandé de savoir, avant de chercher, si un passage est un épisode ou une
+// cinématique ; ici la question ne se pose plus.
+//
+// Les deux sources ne se lisent pas de la même façon : un épisode est une vidéo YouTube (cadre
+// d'intégration), une cinématique est un `.usm` démultiplexé par le lecteur natif. C'est la seule
+// asymétrie visible, et elle l'est jusque dans les cartes (une vignette distante contre une
+// affiche capturée à la volée).
 //
 // ## Pourquoi cette forme
 //
@@ -20,6 +37,7 @@
 //   l'on sait que l'utilisateur veut vraiment voir ce film-là. La première image capturée reste
 //   ensuite affichée comme affiche.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -28,8 +46,44 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { VideoPlayer, formaterDuree, urlVideo } from "@/components/VideoPlayer";
 import { api } from "@/lib/api";
+import { animeDb, defaultAnimeDbPath, urlIntegration, urlYoutube, type EpisodeAnime, type SaisonAnime } from "@/lib/animeDb";
 import { showFilmContextMenu } from "@/lib/contextMenu";
+import { useSettings } from "@/lib/settings";
+import { cn } from "@/lib/utils";
 import type { FilmDto } from "@/lib/bindings";
+
+/** Clé de la saison qui porte les cinématiques du jeu. */
+const CLE_VICTORY_ROAD = "victory-road";
+
+/** Clé de la vue « toutes les saisons ». */
+const CLE_TOUT = "__tout__";
+
+/**
+ * Un élément du catalogue, quelle que soit sa source. C'est ce type qui permet à la recherche, à
+ * la reprise de lecture et aux rangées de traiter un épisode et une cinématique de la même façon ;
+ * seule la LECTURE les distingue.
+ */
+interface Element {
+  /** Identité stable : chemin VFS pour le jeu, identifiant YouTube pour la série. */
+  cle: string;
+  titre: string;
+  sousTitre: string | null;
+  source: "anime" | "jeu";
+  /** Clé de la saison d'appartenance. */
+  saison: string;
+  /** Vignette distante (série) — le jeu, lui, capture son affiche à la volée. */
+  vignette: string | null;
+  film?: FilmDto;
+  episode?: EpisodeAnime;
+}
+
+/** Une saison du catalogue — une rangée dans la vue d'ensemble, une grille quand elle est ouverte. */
+interface Saison {
+  cle: string;
+  titre: string;
+  source: "anime" | "jeu";
+  elements: Element[];
+}
 
 /** Valeur du filtre « toutes langues » — `base-ui` réserve la chaîne vide à l'absence de
  * sélection et refuse un `SelectItem value=""`, d'où ce jeton, traduit en `""` à la sortie. */
@@ -87,6 +141,33 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
   const [langue, setLangue] = useState<string>("");
   const [enLecture, setEnLecture] = useState<FilmDto | null>(null);
   const [reprises, setReprises] = useState<Reprises>(() => lireReprises());
+  const parametres = useSettings();
+  /** Catalogue de la série — vide tant que la base n'est pas résolue, ou si elle est absente. */
+  const [episodes, setEpisodes] = useState<EpisodeAnime[]>([]);
+  const [saisonsAnime, setSaisonsAnime] = useState<SaisonAnime[]>([]);
+  /** Épisode ouvert dans le cadre d'intégration — l'équivalent série de `enLecture`. */
+  const [enLectureEpisode, setEnLectureEpisode] = useState<EpisodeAnime | null>(null);
+  /** Saison affichée, ou `CLE_TOUT` pour la vue d'ensemble. */
+  const [saisonOuverte, setSaisonOuverte] = useState<string>(CLE_TOUT);
+
+  // Le catalogue de la série se charge en parallèle de celui du jeu, et son absence n'est pas une
+  // erreur : sans le jeu on garde les épisodes, sans la base d'épisodes on garde les cinématiques.
+  // C'est ce qui permet à la vue de rester utile sur une machine qui n'a que l'un des deux.
+  useEffect(() => {
+    let vivant = true;
+    defaultAnimeDbPath(parametres.gameDir)
+      .then(async (chemin) => {
+        if (!chemin || !vivant) return;
+        const [liste, saisons] = await Promise.all([animeDb.tous(chemin), animeDb.saisons(chemin)]);
+        if (!vivant) return;
+        setEpisodes(liste);
+        setSaisonsAnime(saisons);
+      })
+      .catch(() => {});
+    return () => {
+      vivant = false;
+    };
+  }, [parametres.gameDir]);
 
   // File d'enrichissement : un seul film inspecté à la fois. Démultiplexer en parallèle ferait
   // lire plusieurs centaines de mégaoctets simultanément pour aucun gain d'affichage.
@@ -225,6 +306,75 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
     return [...vues].sort();
   }, [films]);
 
+  // ── Le catalogue unifié ─────────────────────────────────────────────────────
+  //
+  // Les saisons de la série d'abord, dans leur ordre de diffusion, puis Victory Road. L'ordre
+  // n'est pas cosmétique : c'est la chronologie de la franchise, et la place du jeu à la fin est
+  // exactement ce que la vue veut dire.
+  const saisons = useMemo<Saison[]>(() => {
+    const q = recherche.trim().toLowerCase();
+    const garde = (titre: string, sous: string | null) =>
+      !q || titre.toLowerCase().includes(q) || (sous ?? "").toLowerCase().includes(q);
+
+    const parSaison = new Map<number, Element[]>();
+    for (const e of episodes) {
+      const sousTitre = e.episode ? `Épisode ${e.episode}` : null;
+      if (!garde(e.titre, sousTitre)) continue;
+      const cle = `s${e.saison}`;
+      const el: Element = {
+        cle: e.videoId,
+        titre: e.titre,
+        sousTitre,
+        source: "anime",
+        saison: cle,
+        vignette: e.vignette,
+        episode: e,
+      };
+      const liste = parSaison.get(e.saison);
+      if (liste) liste.push(el);
+      else parSaison.set(e.saison, [el]);
+    }
+
+    const sortie: Saison[] = saisonsAnime
+      .map((s) => ({
+        cle: `s${s.saison}`,
+        titre: s.nom,
+        source: "anime" as const,
+        elements: parSaison.get(s.saison) ?? [],
+      }))
+      .filter((s) => s.elements.length > 0);
+
+    // Victory Road : les cinématiques, déjà filtrées par langue et par recherche plus haut.
+    if (filtres.length > 0) {
+      sortie.push({
+        cle: CLE_VICTORY_ROAD,
+        titre: "Victory Road",
+        source: "jeu",
+        elements: filtres.map((f) => ({
+          cle: f.chemin,
+          titre: f.nom,
+          sousTitre: f.rubrique,
+          source: "jeu" as const,
+          saison: CLE_VICTORY_ROAD,
+          vignette: null,
+          film: f,
+        })),
+      });
+    }
+    return sortie;
+  }, [episodes, saisonsAnime, filtres, recherche]);
+
+  const saisonCourante = useMemo(
+    () => (saisonOuverte === CLE_TOUT ? null : (saisons.find((s) => s.cle === saisonOuverte) ?? null)),
+    [saisons, saisonOuverte],
+  );
+
+  /** Ouvre un élément, quelle que soit sa source — le seul endroit qui connaît les deux lecteurs. */
+  const lire = useCallback((el: Element) => {
+    if (el.film) setEnLecture(el.film);
+    else if (el.episode) setEnLectureEpisode(el.episode);
+  }, []);
+
   const aReprendre = useMemo(
     () => films.filter((f) => reprises[f.chemin]).slice(0, 12),
     [films, reprises],
@@ -242,6 +392,80 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
 
   // ── Rendu ───────────────────────────────────────────────────────────────────
 
+  // Un épisode de la série se lit dans un cadre d'intégration : la vidéo est hébergée par la
+  // chaîne officielle, l'application n'en détient ni le flux ni le droit de le redistribuer. Le
+  // lecteur natif reste pour ce que le jeu contient, et lui seul.
+  if (enLectureEpisode) {
+    const e = enLectureEpisode;
+    const dansSaison = episodes.filter((x) => x.saison === e.saison);
+    const rang = dansSaison.findIndex((x) => x.videoId === e.videoId);
+    const nomSaison = saisonsAnime.find((s) => s.saison === e.saison)?.nom ?? `Saison ${e.saison}`;
+    return (
+      <div className="flex h-full min-h-0 flex-col bg-black">
+        <div className="flex items-center gap-2 border-b border-white/10 px-4 py-2">
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-semibold text-white">{e.titre}</div>
+            <div className="truncate text-xs text-white/50">
+              {nomSaison}
+              {e.episode ? ` · épisode ${e.episode}` : ""}
+              {rang >= 0 ? ` · ${rang + 1} / ${dansSaison.length}` : ""}
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-white/80 hover:text-white"
+            disabled={rang <= 0}
+            onClick={() => {
+              const p = dansSaison[rang - 1];
+              if (p) setEnLectureEpisode(p);
+            }}
+          >
+            <Icon name="skip_previous" size={16} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-white/80 hover:text-white"
+            disabled={rang < 0 || rang >= dansSaison.length - 1}
+            onClick={() => {
+              const s = dansSaison[rang + 1];
+              if (s) setEnLectureEpisode(s);
+            }}
+          >
+            <Icon name="skip_next" size={16} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-white/80 hover:text-white"
+            onClick={() => void openUrl(urlYoutube(e.videoId))}
+            title="Ouvrir sur YouTube"
+          >
+            <Icon name="open_in_new" size={16} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-white/80 hover:text-white"
+            onClick={() => setEnLectureEpisode(null)}
+            title="Fermer"
+          >
+            <Icon name="close" size={16} />
+          </Button>
+        </div>
+        <iframe
+          key={e.videoId}
+          src={urlIntegration(e.videoId)}
+          title={e.titre}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+          allowFullScreen
+          className="min-h-0 flex-1 border-0 bg-black"
+        />
+      </div>
+    );
+  }
+
   if (enLecture) {
     const f = enLecture;
     const detail = [
@@ -252,15 +476,28 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
     ]
       .filter(Boolean)
       .join(" · ");
+    // La file de lecture est la LISTE AFFICHÉE (`filtres`), pas le catalogue entier : « suivant »
+    // doit désigner ce que l'utilisatrice voit à l'écran, filtres de recherche et de langue
+    // compris. Un film joué puis exclu par un changement de filtre sort de la file (`-1`) — les
+    // boutons disparaissent alors plutôt que de sauter à un film sans rapport.
+    const rang = filtres.findIndex((x) => x.chemin === f.chemin);
+    const versRang = (delta: number) => {
+      const cible = filtres[rang + delta];
+      if (cible) setEnLecture(cible);
+    };
     return (
       <VideoPlayer
         chemin={f.chemin}
         titre={f.nom}
         detail={detail}
+        film={f}
         avecAudio={f.audio.length > 0}
         depart={reprises[f.chemin]?.position}
         onProgression={(p, d) => noterProgression(f.chemin, p, d)}
         onClose={() => setEnLecture(null)}
+        file={rang >= 0 ? { index: rang, total: filtres.length } : null}
+        onPrecedent={rang > 0 ? () => versRang(-1) : undefined}
+        onSuivant={rang >= 0 && rang < filtres.length - 1 ? () => versRang(1) : undefined}
       />
     );
   }
@@ -303,6 +540,29 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
         </Select>
       </div>
 
+      {/* Les saisons, en tête et toujours visibles : c'est la navigation principale du catalogue.
+          « Victory Road » y a exactement le même statut que « Orion » ou « Chrono Stones ». */}
+      {saisons.length > 0 && (
+        <div className="sticky top-[41px] z-10 flex gap-1 overflow-x-auto border-b border-app-line bg-app/85 px-4 py-1.5 backdrop-blur">
+          <ChipSaison
+            titre="Tout"
+            nombre={saisons.reduce((n, s) => n + s.elements.length, 0)}
+            actif={saisonOuverte === CLE_TOUT}
+            onClick={() => setSaisonOuverte(CLE_TOUT)}
+          />
+          {saisons.map((s) => (
+            <ChipSaison
+              key={s.cle}
+              titre={s.titre}
+              nombre={s.elements.length}
+              jeu={s.source === "jeu"}
+              actif={saisonOuverte === s.cle}
+              onClick={() => setSaisonOuverte(s.cle)}
+            />
+          ))}
+        </div>
+      )}
+
       {chargement && (
         <div className="flex flex-1 items-center justify-center text-sm text-ink-faint">
           Chargement du catalogue…
@@ -332,38 +592,81 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
         </div>
       )}
 
-      {vedette && !recherche && !langue && (
-        <Vedette
-          film={vedette}
-          onLire={() => setEnLecture(vedette)}
-          onReveler={onOpenFile ? () => onOpenFile(vedette.chemin) : undefined}
-        />
+      {/* Vue d'ensemble : la vedette, ce qu'on a commencé, puis une rangée par saison. */}
+      {!saisonCourante && (
+        <>
+          {vedette && !recherche && !langue && (
+            <Vedette
+              film={vedette}
+              onLire={() => setEnLecture(vedette)}
+              onReveler={onOpenFile ? () => onOpenFile(vedette.chemin) : undefined}
+            />
+          )}
+
+          {aReprendre.length > 0 && (
+            <Rangee
+              titre="Reprendre la lecture"
+              films={aReprendre}
+              reprises={reprises}
+              onLire={setEnLecture}
+              onVisible={enrichir}
+              onPrecharger={precharger}
+              onMenu={menuFilm}
+            />
+          )}
+
+          {saisons.map((s) => (
+            <RangeeElements
+              key={s.cle}
+              titre={s.titre}
+              elements={s.elements.slice(0, 30)}
+              total={s.elements.length}
+              reprises={reprises}
+              onLire={lire}
+              onVisible={enrichir}
+              onPrecharger={precharger}
+              onMenu={menuFilm}
+              onOuvrirSaison={() => setSaisonOuverte(s.cle)}
+            />
+          ))}
+        </>
       )}
 
-      {aReprendre.length > 0 && (
-        <Rangee
-          titre="Reprendre la lecture"
-          films={aReprendre}
-          reprises={reprises}
-          onLire={setEnLecture}
-          onVisible={enrichir}
-          onPrecharger={precharger}
-          onMenu={menuFilm}
-        />
+      {/* Saison ouverte. Victory Road garde ses rubriques — « Chapitre 3 » et « Logos et intros »
+          ne sont pas du même ordre, et les aplatir en une grille de 97 vignettes reviendrait à
+          l'état que cette vue a justement remplacé. */}
+      {saisonCourante && saisonCourante.cle === CLE_VICTORY_ROAD && (
+        <>
+          {rangees.map(([rubrique, liste]) => (
+            <Rangee
+              key={rubrique}
+              titre={rubrique}
+              films={liste}
+              reprises={reprises}
+              onLire={setEnLecture}
+              onVisible={enrichir}
+              onPrecharger={precharger}
+              onMenu={menuFilm}
+            />
+          ))}
+        </>
       )}
 
-      {rangees.map(([rubrique, liste]) => (
-        <Rangee
-          key={rubrique}
-          titre={rubrique}
-          films={liste}
-          reprises={reprises}
-          onLire={setEnLecture}
-          onVisible={enrichir}
-          onPrecharger={precharger}
-          onMenu={menuFilm}
-        />
-      ))}
+      {saisonCourante && saisonCourante.cle !== CLE_VICTORY_ROAD && (
+        <section className="px-4 py-3">
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-dull">
+            {saisonCourante.titre}
+            <span className="ml-1 font-normal normal-case text-ink-faint">
+              {saisonCourante.elements.length} épisodes
+            </span>
+          </h3>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(224px,1fr))] gap-3">
+            {saisonCourante.elements.map((el) => (
+              <CarteEpisode key={el.cle} element={el} onLire={() => lire(el)} />
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="h-6" />
     </div>
@@ -502,6 +805,181 @@ function Rangee({
         </button>
       </div>
     </section>
+  );
+}
+
+// ── Sélecteur de saison ───────────────────────────────────────────────────────
+
+/** Une pastille de saison. Les cinématiques du jeu portent un liseré d'accent : elles sont une
+ * saison du catalogue, pas une saison de la série — le dire dans l'interface évite d'avoir à
+ * l'expliquer ailleurs. */
+function ChipSaison({
+  titre,
+  nombre,
+  actif,
+  jeu,
+  onClick,
+}: {
+  titre: string;
+  nombre: number;
+  actif: boolean;
+  jeu?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={actif}
+      className={cn(
+        "shrink-0 rounded-full px-3 py-1 text-xs transition-colors",
+        actif ? "bg-accent text-white" : "bg-app-box text-ink-dull hover:bg-app-hover hover:text-ink",
+        jeu && !actif && "ring-1 ring-inset ring-accent/40",
+      )}
+    >
+      {titre}
+      <span className={cn("ml-1.5 tabular-nums", actif ? "text-white/70" : "text-ink-faint")}>{nombre}</span>
+    </button>
+  );
+}
+
+// ── Rangée d'éléments (série ou jeu) ──────────────────────────────────────────
+
+function RangeeElements({
+  titre,
+  elements,
+  total,
+  reprises,
+  onLire,
+  onVisible,
+  onPrecharger,
+  onMenu,
+  onOuvrirSaison,
+}: {
+  titre: string;
+  elements: Element[];
+  total: number;
+  reprises: Reprises;
+  onLire: (el: Element) => void;
+  onVisible: (chemin: string) => void;
+  onPrecharger: (chemin: string) => void;
+  onMenu: (f: FilmDto) => void;
+  onOuvrirSaison: () => void;
+}) {
+  const pisteRef = useRef<HTMLDivElement | null>(null);
+
+  const defiler = (sens: 1 | -1) => {
+    const piste = pisteRef.current;
+    if (!piste) return;
+    piste.scrollBy({ left: sens * piste.clientWidth * 0.8, behavior: "smooth" });
+  };
+
+  return (
+    <section className="group/rangee relative px-4 py-2">
+      <div className="mb-1.5 flex items-baseline gap-2">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-dull">
+          {titre} <span className="ml-1 font-normal normal-case text-ink-faint">{total}</span>
+        </h3>
+        <button
+          type="button"
+          onClick={onOuvrirSaison}
+          className="text-tiny text-ink-faint underline-offset-2 hover:text-accent hover:underline"
+        >
+          tout voir
+        </button>
+      </div>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => defiler(-1)}
+          aria-label="Défiler vers la gauche"
+          className="absolute left-0 top-0 z-10 hidden h-full w-8 items-center justify-center rounded-l-md bg-gradient-to-r from-app to-transparent text-ink-dull opacity-0 transition-opacity hover:text-ink group-hover/rangee:opacity-100 md:flex"
+        >
+          <Icon name="chevron_left" size={20} />
+        </button>
+        <div ref={pisteRef} className="no-scrollbar flex gap-2 overflow-x-auto scroll-smooth pb-1">
+          {elements.map((el) =>
+            el.film ? (
+              <Carte
+                key={el.cle}
+                film={el.film}
+                reprise={reprises[el.cle]}
+                onLire={() => onLire(el)}
+                onVisible={onVisible}
+                onPrecharger={onPrecharger}
+                onMenu={() => el.film && onMenu(el.film)}
+              />
+            ) : (
+              <div key={el.cle} className="w-56 shrink-0">
+                <CarteEpisode element={el} onLire={() => onLire(el)} />
+              </div>
+            ),
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => defiler(1)}
+          aria-label="Défiler vers la droite"
+          className="absolute right-0 top-0 z-10 hidden h-full w-8 items-center justify-center rounded-r-md bg-gradient-to-l from-app to-transparent text-ink-dull opacity-0 transition-opacity hover:text-ink group-hover/rangee:opacity-100 md:flex"
+        >
+          <Icon name="chevron_right" size={20} />
+        </button>
+      </div>
+    </section>
+  );
+}
+
+// ── Carte d'épisode (série) ───────────────────────────────────────────────────
+
+/**
+ * La vignette vient de `img.youtube.com` : c'est une ressource distante, donc soumise au réseau.
+ * Son échec est traité (`onError`) plutôt qu'ignoré — une carte muette avec une image cassée est
+ * moins lisible qu'une carte qui assume de n'avoir que du texte.
+ */
+function CarteEpisode({ element, onLire }: { element: Element; onLire: () => void }) {
+  const [imageKo, setImageKo] = useState(false);
+  const e = element.episode;
+  return (
+    <button
+      type="button"
+      onClick={onLire}
+      className="group/carte flex w-full flex-col overflow-hidden rounded-md border border-app-line bg-app-box text-left transition-colors hover:border-accent"
+    >
+      <div className="relative aspect-video w-full overflow-hidden bg-app-darkBox">
+        {element.vignette && !imageKo ? (
+          <img
+            src={element.vignette}
+            alt=""
+            loading="lazy"
+            onError={() => setImageKo(true)}
+            className="h-full w-full object-cover transition-transform duration-300 group-hover/carte:scale-105"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center text-ink-faint">
+            <Icon name="movie" size={28} />
+          </div>
+        )}
+        <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover/carte:opacity-100">
+          <Icon name="play_circle" size={36} className="text-white" />
+        </div>
+        {e?.episode ? (
+          <span className="absolute left-1 top-1 rounded bg-black/70 px-1.5 py-0.5 text-tiny font-medium text-white">
+            É{e.episode}
+          </span>
+        ) : null}
+        {e?.langue ? (
+          <span className="absolute right-1 top-1 rounded bg-black/70 px-1.5 py-0.5 text-tiny uppercase text-white/80">
+            {e.langue}
+          </span>
+        ) : null}
+      </div>
+      <div className="p-2">
+        <div className="line-clamp-2 text-xs font-medium text-ink" title={element.titre}>
+          {element.titre}
+        </div>
+        {element.sousTitre && <div className="mt-0.5 text-tiny text-ink-faint">{element.sousTitre}</div>}
+      </div>
+    </button>
   );
 }
 

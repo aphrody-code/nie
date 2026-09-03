@@ -62,12 +62,31 @@ compresser "$MIROIR" "mirror.sqlite"
 # pas de lien, un seul fichier.
 compresser "$RACINE/var/niers.sqlite" "niers.sqlite"
 
+# Le catalogue des épisodes de la série (`packages/ietv` → `IETVCache`), que la vue Cinéma
+# présente à côté des cinématiques du jeu. 290 Ko : le seuil de validité des deux autres (1 Mo)
+# ne s'y applique pas — d'où le contrôle par le nombre d'épisodes plutôt que par la taille.
+EPISODES="$RACINE/data/anime/episodes.db"
+if [ -f "$EPISODES" ]; then
+	NB_EP=$(sqlite3 "$EPISODES" "SELECT count(*) FROM episodes" 2>/dev/null || echo 0)
+	if [ "${NB_EP:-0}" -lt 100 ]; then
+		echo "  ✗ episodes.db : $NB_EP épisodes — base incomplète, non empaquetée" >&2
+		exit 1
+	fi
+	echo "  → episodes.db : $NB_EP épisodes"
+	gzip -6 -c "$EPISODES" >"$CIBLE/episodes.db.gz.part"
+	mv -f "$CIBLE/episodes.db.gz.part" "$CIBLE/episodes.db.gz"
+	echo "  ✓ episodes.db : $(stat -c%s "$CIBLE/episodes.db.gz") octets compressés"
+else
+	echo "  ✗ episodes.db : source absente ($EPISODES)" >&2
+	exit 1
+fi
+
 # Contrôle final : `bundle.resources` porte le glob `resources/db/*.gz`. Un glob qui ne matche
 # rien produirait un installeur SANS ses bases — exactement la release qu'on veut éviter, et que
 # rien ne distinguerait ensuite d'une release complète.
 NB=$(find "$CIBLE" -name '*.gz' -type f | wc -l)
-if [ "$NB" -lt 2 ]; then
-	echo "ERREUR: $NB archive(s) sur 2 — l'installeur ne serait pas autonome." >&2
+if [ "$NB" -lt 3 ]; then
+	echo "ERREUR: $NB archive(s) sur 3 — l'installeur ne serait pas autonome." >&2
 	exit 1
 fi
 echo "  $NB bases prêtes à voyager avec l'installeur ($(du -ch "$CIBLE"/*.gz | tail -1 | cut -f1) au total)"
