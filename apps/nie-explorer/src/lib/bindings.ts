@@ -17,22 +17,33 @@ export const commands = {
 	 */
 	checkGameDir: (gameDir: string) => __TAURI_INVOKE<boolean>("check_game_dir", { gameDir }),
 	/**
-	 *  Résout le miroir SQLite (`supabase-*.sqlite`) par défaut — même ordre de résolution que
-	 *  [`nie_wiki::mirror::resolve`] (`NIE_WIKI_DB`/`SQLITE_DB_PATH`, fichier le plus récent), mais
-	 *  avec un répertoire de backups RÉEL pour cette appli desktop (`<racine du jeu>/var/wiki-mirror`,
-	 *  où vit effectivement `supabase-2026-06-05T00-08-26.sqlite` sur ce poste) plutôt que le chemin
-	 *  de dev WSL codé en dur `/home/ubuntu/niers/data/backups` (inexistant hors de la machine de
-	 *  développement). Renvoie `None` si rien n'est trouvé — jamais un chemin deviné : le champ
-	 *  « Base SQLite » des Paramètres reste alors vide, à renseigner manuellement.
+	 *  Résout le miroir SQLite du wiki (tables `inagle_*`) par défaut. Renvoie `None` si rien n'est
+	 *  trouvé — jamais un chemin deviné : le champ « Base SQLite » des Paramètres reste alors vide,
+	 *  à renseigner manuellement.
+	 * 
+	 *  Ordre : `NIE_WIKI_DB`/`SQLITE_DB_PATH`, puis les bases **livrées avec l'application**
+	 *  ([`bases_embarquees`] — c'est ce qui donne une expérience complète à une utilisatrice qui n'a
+	 *  ni le dépôt ni le jeu), puis les emplacements du dépôt ([`miroir_wiki_sous`]).
 	 */
 	defaultWikiDb: (gameDir: string | null) => __TAURI_INVOKE<string | null>("default_wiki_db", { gameDir }),
 	/**
 	 *  Résout `var/niers.sqlite` (base RE — fonctions/classes RTTI/xrefs labellisées par `nie-re`,
-	 *  cf. `src/lib/reDb.ts`) sous la racine du jeu. Commande Rust plutôt qu'un `exists()` JS
-	 *  (`@tauri-apps/plugin-fs`) : la portée `fs:scope` de l'app ne couvre que `$APPDATA`, un
-	 *  `std::fs` Rust n'a pas cette restriction — même raison que [`default_wiki_db`] au-dessus.
+	 *  cf. `src/lib/reDb.ts`). Commande Rust plutôt qu'un `exists()` JS (`@tauri-apps/plugin-fs`) :
+	 *  la portée `fs:scope` de l'app ne couvre que `$APPDATA`, un `std::fs` Rust n'a pas cette
+	 *  restriction — même raison que [`default_wiki_db`] au-dessus.
+	 * 
+	 *  Même ordre que le miroir wiki : `NIE_RE_DB`, bases livrées avec l'application, puis le dépôt.
 	 */
 	defaultReDb: (gameDir: string | null) => __TAURI_INVOKE<string | null>("default_re_db", { gameDir }),
+	/**
+	 *  Résout `data/anime/episodes.db` — le catalogue des épisodes de la série (10 saisons, 355
+	 *  épisodes avec vignettes), alimenté par `packages/ietv` et sa tâche `ietv-cache`.
+	 * 
+	 *  C'est le quatrième gisement de `docs/FUSION.md` (`anime`), et la vue Cinéma le présente à côté
+	 *  des cinématiques du jeu. Même ordre de résolution que les deux autres bases : `NIE_ANIME_DB`,
+	 *  bases livrées avec l'application, puis le dépôt.
+	 */
+	defaultAnimeDb: (gameDir: string | null) => __TAURI_INVOKE<string | null>("default_anime_db", { gameDir }),
 	/**
 	 *  Force le (re)chargement du VFS en cache — appelé une fois au démarrage du frontend pour
 	 *  amortir le coût d'indexation AVANT la première navigation (cf. demande utilisatrice

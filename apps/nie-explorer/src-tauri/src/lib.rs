@@ -1182,6 +1182,32 @@ fn default_re_db(app: tauri::AppHandle, game_dir: Option<String>) -> Option<Stri
         .map(|p| p.display().to_string())
 }
 
+/// Résout `data/anime/episodes.db` — le catalogue des épisodes de la série (10 saisons, 355
+/// épisodes avec vignettes), alimenté par `packages/ietv` et sa tâche `ietv-cache`.
+///
+/// C'est le quatrième gisement de `docs/FUSION.md` (`anime`), et la vue Cinéma le présente à côté
+/// des cinématiques du jeu. Même ordre de résolution que les deux autres bases : `NIE_ANIME_DB`,
+/// bases livrées avec l'application, puis le dépôt.
+#[tauri::command]
+#[specta::specta]
+fn default_anime_db(app: tauri::AppHandle, game_dir: Option<String>) -> Option<String> {
+    if let Ok(v) = std::env::var("NIE_ANIME_DB") {
+        if PathBuf::from(&v).is_file() {
+            return Some(v);
+        }
+    }
+    for base in bases_embarquees(&app, "episodes.db") {
+        if base.is_file() {
+            return Some(base.display().to_string());
+        }
+    }
+    racines_candidates(game_dir.as_deref())
+        .iter()
+        .map(|r| r.join("data").join("anime").join("episodes.db"))
+        .find(|p| p.is_file())
+        .map(|p| p.display().to_string())
+}
+
 /// Emplacements d'une base **livrée avec l'application**, dans l'ordre de préférence :
 /// le cache de données de l'app (`$APPDATA/db/<nom>` — où [`installer_bases_embarquees`] a
 /// décompressé la base au premier lancement), puis les ressources empaquetées telles quelles
@@ -4364,6 +4390,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         check_game_dir,
         default_wiki_db,
         default_re_db,
+        default_anime_db,
         preload_vfs,
         vfs_ls,
         vfs_find,
