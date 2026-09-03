@@ -190,10 +190,18 @@ fn load_t2b(vfs: &Vfs, pred: impl Fn(&str) -> bool, what: &str) -> Result<Value,
 /// base_name(p).starts_with("skill_text")`, déjà dupliqué 5 fois), au risque de coller à un nom
 /// approximatif ; ici un type inconnu échoue franchement au lieu de chercher un fichier inexistant.
 fn load_text_json(vfs: &Vfs, text_type: &str) -> Result<Value, String> {
+    load_text_json_lang(vfs, text_type, "fr")
+}
+
+/// Table de texte d'un `text_type` dans une LANGUE donnée (`fr`, `en`, `ja`, `de`, `es`, `it`,
+/// `pt`, `zh_hans`, `zh_hant` — les neuf dossiers de `data/common/text/`, relevés sur
+/// l'installation, cf. [`LANGUES`]). Généralise [`load_text_json`], qui forçait `fr`.
+fn load_text_json_lang(vfs: &Vfs, text_type: &str, langue: &str) -> Result<Value, String> {
     let stem = nie_data::text::text_file_name(text_type)
         .ok_or_else(|| format!("type de texte inconnu : {text_type} (cf. nie_data::text::TEXT_FILES)"))?;
     let file = format!("{stem}.cfg.bin");
-    load_t2b(vfs, |p| p.contains("/text/fr/") && base_name(p) == file, &format!("{file} fr"))
+    let dossier = format!("/text/{langue}/");
+    load_t2b(vfs, |p| p.contains(&dossier) && base_name(p) == file, &format!("{file} {langue}"))
 }
 
 /// Table de texte FR d'un `text_type` convivial, déjà parsée en `(hashId, texte)` — la forme
@@ -1513,6 +1521,125 @@ pub fn list_capsule_rates(vfs: &Vfs) -> Result<Vec<CapsuleRateDto>, String> {
     Ok(out)
 }
 
+
+// ─── Index multilingue des noms (traducteur) ─────────────────────────────────────────────────
+
+/// Les langues du jeu, dans l'ordre d'affichage. Relevé sur l'installation Steam :
+/// `data/common/text/` porte `ja`, `fr`, `en`, `de`, `es`, `it`, `pt`, `zh_hans`, `zh_hant`
+/// (plus `common`, `event`, `map`, qui ne sont pas des langues).
+pub const LANGUES: [&str; 9] = ["fr", "en", "ja", "de", "es", "it", "pt", "zh_hans", "zh_hant"];
+
+/// Un nom dans une langue.
+#[derive(Serialize, specta::Type)]
+pub struct NomLangueDto {
+    /// Code de langue (`fr`, `ja`, `zh_hans`…).
+    pub langue: String,
+    pub nom: String,
+}
+
+/// Une entité du jeu et ses noms dans toutes les langues où elle en a un.
+#[derive(Serialize, specta::Type)]
+pub struct NomsDto {
+    /// Famille : `chara`, `skill` ou `item`.
+    pub kind: String,
+    /// Code interne (`c01000010`, `whs00340`) ou hash à défaut — la clé qui ouvre l'éditeur.
+    pub code: String,
+    pub noms: Vec<NomLangueDto>,
+}
+
+/// Index multilingue des noms, construit DIRECTEMENT depuis le jeu monté.
+///
+/// C'est ce qui rend le traducteur utilisable sans le miroir du wiki : celui-ci n'est ni requis
+/// ni toujours présent (vérifié à l'écran — « Index indisponible : unable to open database
+/// file », 0 nom indexé, sur une machine où le jeu était pourtant monté). Et il va plus loin que
+/// le site, qui n'expose que FR/EN/JA/romaji : les **neuf** langues de `data/common/text/` sont
+/// lues, y compris l'allemand, l'espagnol, l'italien, le portugais et les deux chinois.
+///
+/// Trois familles couvertes — personnages, techniques, objets — celles dont le nom est la clé
+/// d'entrée d'une recherche. Une langue absente ou une table illisible est simplement sautée :
+/// l'index rend ce qu'il a, jamais une erreur pour toute la commande.
+pub fn list_noms(vfs: &Vfs) -> Result<Vec<NomsDto>, String> {
+    use std::collections::BTreeMap;
+
+    // code interne → (kind, noms par langue). `BTreeMap` : sortie stable d'un appel à l'autre.
+    let mut index: BTreeMap<String, (String, Vec<NomLangueDto>)> = BTreeMap::new();
+
+    // — Personnages : `chara_base` donne le code interne, `chara_text` le nom par langue.
+    let bases = load_t2b(
+        vfs,
+        |p| p.contains("/character/") && base_name(p).starts_with("chara_base_1") && base_name(p).ends_with(".cfg.bin"),
+        "chara_base",
+    )
+    .map(|j| nie_data::chara_base::parse_all_chara_base(&j))
+    .unwrap_or_default();
+
+    // — Techniques : `skill_config` donne le code interne (`whs00340`), `skill_text` le nom.
+    let skills = load_rdbn(
+        vfs,
+        |p| p.contains("/skill/") && base_name(p).starts_with("skill_config") && base_name(p).ends_with(".cfg.bin"),
+        "skill_config",
+    )
+    .map(|j| nie_data::skill::parse_skill_config(&j))
+    .unwrap_or_default();
+
+    // — Objets : `item_config` donne le code interne, `item_text` le nom.
+    let items = load_t2b(
+        vfs,
+        |p| p.contains("/gamedata/item/") && base_name(p).starts_with("item_config") && base_name(p).ends_with(".cfg.bin"),
+        "item_config",
+    )
+    .map(|j| nie_data::item::parse_all_items(&j))
+    .unwrap_or_default();
+
+    for langue in LANGUES {
+        if let Ok(j) = load_text_json_lang(vfs, "chara", langue) {
+            let nouns = nie_data::chara_text::parse_all_nouns(&j);
+            for b in &bases {
+                let Some(first) = nie_data::chara_base::resolve_first_name(b, &nouns) else { continue };
+                let nom = match nie_data::chara_base::resolve_last_name(b, &nouns) {
+                    Some(l) => format!("{first} {l}"),
+                    None => first.to_string(),
+                };
+                let cle = if b.internal_code.is_empty() { b.chara_id.to_hex() } else { b.internal_code.clone() };
+                index
+                    .entry(cle)
+                    .or_insert_with(|| ("chara".to_string(), Vec::new()))
+                    .1
+                    .push(NomLangueDto { langue: langue.to_string(), nom });
+            }
+        }
+
+        if let Ok(j) = load_text_json_lang(vfs, "skill", langue) {
+            let maps = nie_data::skill::parse_skill_text(&j);
+            for s in &skills {
+                let Some(nom) = nie_data::skill::join_skill_text(s, &maps).name else { continue };
+                index
+                    .entry(s.skill_id_str.clone())
+                    .or_insert_with(|| ("skill".to_string(), Vec::new()))
+                    .1
+                    .push(NomLangueDto { langue: langue.to_string(), nom });
+            }
+        }
+
+        if let Ok(j) = load_text_json_lang(vfs, "item", langue) {
+            let textes = nie_data::text::parse_text_file(&j);
+            for it in &items {
+                let Some(nom) = nie_data::item::resolve_name(it, &textes) else { continue };
+                let cle = it.internal_code.clone().unwrap_or_else(|| it.item_id.to_hex());
+                index
+                    .entry(cle)
+                    .or_insert_with(|| ("item".to_string(), Vec::new()))
+                    .1
+                    .push(NomLangueDto { langue: langue.to_string(), nom: nom.to_string() });
+            }
+        }
+    }
+
+    Ok(index
+        .into_iter()
+        .map(|(code, (kind, noms))| NomsDto { kind, code, noms })
+        .collect())
+}
 #[cfg(test)]
 mod tests {
     use super::*;

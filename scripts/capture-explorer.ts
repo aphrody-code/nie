@@ -45,7 +45,12 @@ async function trouverCible(): Promise<Cible> {
   const r = await fetch(`http://127.0.0.1:${PORT}/json/list`);
   if (!r.ok) throw new Error(`CDP injoignable sur ${PORT} : HTTP ${r.status}`);
   const cibles = (await r.json()) as Cible[];
-  const page = cibles.find((c) => c.type === "page" && !c.url.startsWith("devtools://"));
+  const pages = cibles.filter((c) => c.type === "page" && !c.url.startsWith("devtools://"));
+  // Une WebView de BUILD sert `tauri.localhost` (front embarqué), une WebView de DÉVELOPPEMENT
+  // sert `localhost:1420` (Vite). Quand les deux cibles traînent sur le même port de débogage,
+  // prendre la première revient à vérifier la mauvaise application — vécu : le script décrivait
+  // l'ancienne instance de dev pendant que le build tournait à côté.
+  const page = pages.find((c) => c.url.includes("tauri.localhost")) ?? pages[0];
   if (!page) {
     throw new Error(
       `aucune page dans ${cibles.length} cible(s). L'application a-t-elle été lancée avec ` +

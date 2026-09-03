@@ -64,6 +64,7 @@ import {
   type McpStatusDto,
   type McpTarget,
   type MotionClipDto,
+  type NomsDto,
   type MotionClipsDto,
   type PassiveDto,
   type SaveBlobDto,
@@ -152,6 +153,8 @@ export type DictionaryEntry = DictionaryDto;
 export type ExpLevel = ExpLevelDto;
 export type Drop = DropDto;
 export type CapsuleRate = CapsuleRateDto;
+/** Une entité du jeu et ses noms dans les 9 langues de `data/common/text/`. */
+export type NomsEntite = NomsDto;
 export type StatBlock = StatBlockDto;
 export type CpkExportFile = CpkExportFileDto;
 export type ReTraceProcess = ReTraceProcessDto;
@@ -447,6 +450,8 @@ export const api = {
   gameDataExpTable: (gameDir?: string) => unwrap<ExpLevel[]>(commands.gameDataExpTable(gd(gameDir))),
   gameDataDrops: (gameDir?: string) => unwrap<Drop[]>(commands.gameDataDrops(gd(gameDir))),
   gameDataCapsuleRates: (gameDir?: string) => unwrap<CapsuleRate[]>(commands.gameDataCapsuleRates(gd(gameDir))),
+  /** Index multilingue des noms lu du JEU (9 langues) — source du traducteur sans miroir wiki. */
+  gameDataNoms: (gameDir?: string) => unwrap<NomsEntite[]>(commands.gameDataNoms(gd(gameDir))),
   // Calculateur de stats (§4.2) — rarityCode : 0=N, 2=R, 3=SR, 4=SSR, 5=UR, 6=LR, 7=Legend, 20=BASARA.
   gameDataCalculateStats: (charaParamId: string, level: number, rarityCode: number, gameDir?: string) =>
     unwrap<StatBlock>(commands.gameDataCalculateStats(charaParamId, level, rarityCode, gd(gameDir))),

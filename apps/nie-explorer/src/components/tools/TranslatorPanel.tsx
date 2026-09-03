@@ -20,12 +20,17 @@ import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { toast } from "sonner";
 
 import {
+  LIBELLES_LANGUE,
   LIBELLES_TYPE,
   chercher,
+  depuisIndexJeu,
   type EntreeNoms,
   type ResultatTraduction,
   type TypeEntite,
 } from "@/lib/traduction";
+import { japaneseToRomaji } from "@rosegriffon/azalee/text";
+
+import { api } from "@/lib/api";
 import { useSettings } from "@/lib/settings";
 import { wikiDb } from "@/lib/wikiDb";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -72,22 +77,41 @@ export function TranslatorPanel({ onOpenCode }: { onOpenCode?: (code: string) =>
   const [requete, setRequete] = useState("");
   const [type, setType] = useState<TypeEntite | null>(null);
   const [choisi, setChoisi] = useState<ResultatTraduction | null>(null);
+  /** D'où vient l'index affiché — lisible à l'écran, jamais à deviner. */
+  const [source, setSource] = useState<"miroir" | "jeu" | null>(null);
 
+  // Deux sources, dans cet ordre : le miroir wiki s'il est lisible, sinon le JEU lui-même
+  // (`api.gameDataNoms`). Le repli n'est pas un pis-aller — il porte NEUF langues quand le miroir
+  // en porte trois. Il a été ajouté après l'avoir vu à l'écran, en build de production :
+  // « Index indisponible — unable to open database file », 0 nom indexé, sur une machine où le
+  // jeu était pourtant monté.
   useEffect(() => {
-    const chemin = settings.wikiDb.trim();
-    if (!chemin) {
-      setChargement(false);
-      setErreur(
-        "Aucun miroir wiki configuré. Paramètres → Base du wiki (fichier `supabase-*.sqlite`).",
-      );
-      return;
-    }
     let annule = false;
     setChargement(true);
     setErreur(null);
-    wikiDb
-      .chargerIndexNoms(chemin)
-      .then((lignes) => (annule ? null : setIndex(lignes)))
+
+    const depuisLeJeu = () =>
+      api.gameDataNoms(settings.gameDir).then((entrees) => {
+        if (annule) return null;
+        setIndex(depuisIndexJeu(entrees, japaneseToRomaji));
+        setSource("jeu");
+        return null;
+      });
+
+    const chemin = settings.wikiDb.trim();
+    const promesse = chemin
+      ? wikiDb
+          .chargerIndexNoms(chemin)
+          .then((lignes) => {
+            if (annule) return null;
+            setIndex(lignes);
+            setSource("miroir");
+            return null;
+          })
+          .catch(() => depuisLeJeu())
+      : depuisLeJeu();
+
+    promesse
       .catch((e) => {
         if (!annule) setErreur(String(e));
       })
@@ -97,7 +121,7 @@ export function TranslatorPanel({ onOpenCode }: { onOpenCode?: (code: string) =>
     return () => {
       annule = true;
     };
-  }, [settings.wikiDb]);
+  }, [settings.wikiDb, settings.gameDir]);
 
   const resultats = useMemo(
     () => chercher(index, requete, type),
@@ -121,6 +145,18 @@ export function TranslatorPanel({ onOpenCode }: { onOpenCode?: (code: string) =>
           onChange={(e) => setRequete(e.target.value)}
         />
         <Badge variant="secondary">{index.length.toLocaleString("fr-FR")} noms indexés</Badge>
+        {source && (
+          <Badge
+            variant="outline"
+            title={
+              source === "jeu"
+                ? "Index décodé du jeu : les neuf langues de data/common/text/"
+                : "Index du miroir wiki : français, anglais, japonais"
+            }
+          >
+            {source === "jeu" ? "source : jeu (9 langues)" : "source : miroir wiki (3 langues)"}
+          </Badge>
+        )}
         {approchant && <Badge variant="outline">résultats approchants</Badge>}
       </div>
 
@@ -243,6 +279,37 @@ export function TranslatorPanel({ onOpenCode }: { onOpenCode?: (code: string) =>
                   </div>
                 );
               })}
+
+              {/* Les six langues que le miroir du wiki ne porte pas : elles n'existent que
+               * lorsque l'index vient du JEU (`data/common/text/<langue>/`). */}
+              {choisi.autresLangues && choisi.autresLangues.length > 0 && (
+                <div className="space-y-1 border-t border-app-line pt-2">
+                  {choisi.autresLangues.map(({ langue, nom }) => (
+                    <div
+                      key={langue}
+                      className="flex items-center gap-3 rounded-lg px-2 py-1 hover:bg-app-hover"
+                    >
+                      <span
+                        className="w-12 shrink-0 rounded bg-surface-container px-1.5 py-0.5 text-center type-label-small text-on-surface-variant"
+                        title={LIBELLES_LANGUE[langue] ?? langue}
+                      >
+                        {langue.toUpperCase().replace("ZH_HANS", "ZH-S").replace("ZH_HANT", "ZH-T")}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate select-all type-body-medium text-on-surface">
+                        {nom}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={`Copier le nom ${LIBELLES_LANGUE[langue] ?? langue}`}
+                        className="state-layer shrink-0 rounded-full p-1 text-on-surface-variant"
+                        onClick={() => copier(nom)}
+                      >
+                        <Icon name="content_copy" size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <div className="mt-auto space-y-1 border-t border-app-line pt-2">
                 <p className="type-label-small text-on-surface-variant">
