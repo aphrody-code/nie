@@ -12,9 +12,20 @@ KB=var/niers.sqlite
 echo "=== etat mesure du depot (hook SessionStart, $(date '+%F %H:%M')) ==="
 
 # --- plateforme -------------------------------------------------------------
-echo "machine   $(uname -sm) — $(nproc) coeurs, $(free -g | awk '/^Mem:/{print $7}') Gio libres, disque $(df -h --output=pcent . | tail -1 | tr -d ' ') plein"
-echo "          CETTE machine est le VPS Linux. Les sections Windows de CLAUDE.md (MSVC, Git Bash,"
-echo "          MSYS, UAC, .exe, sed -i, cargo fmt --all) ne s'appliquent PAS ici."
+# `free` n'existe pas sous MSYS : sans repli, la ligne affichait «  Gio libres », un trou muet
+# la ou ce hook s'interdit justement de taire ce qu'il ne mesure pas.
+MEM="$(free -g 2>/dev/null | awk '/^Mem:/{print $7" Gio libres"}')"
+[ -n "$MEM" ] || MEM="RAM libre indisponible"
+echo "machine   $(uname -sm) — $(nproc) coeurs, $MEM, disque $(df -h --output=pcent . | tail -1 | tr -d ' ') plein"
+# La plateforme se MESURE : ce hook a longtemps affirme « VPS Linux » en dur, y compris sous
+# Git Bash (uname rend MINGW64_NT), ou il annoncait l'inverse de la verite a chaque session.
+if [ "$(uname -s)" = "Linux" ]; then
+  echo "          CETTE machine est le VPS Linux. Les sections Windows de CLAUDE.md (MSVC, Git Bash,"
+  echo "          MSYS, UAC, .exe, sed -i, cargo fmt --all) ne s'appliquent PAS ici."
+else
+  echo "          CETTE machine est le poste Windows (Git Bash/MSYS). Les pieges Windows de"
+  echo "          CLAUDE.md (MSVC, UAC, .exe, sed -i, cargo fmt --all, verrou DLL) s'appliquent TOUS."
+fi
 
 # --- git --------------------------------------------------------------------
 if git rev-parse --git-dir >/dev/null 2>&1; then

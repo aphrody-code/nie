@@ -12,7 +12,11 @@ autre machine, et une bonne moitié des pièges ci-dessous n'y existe pas.
 
 - Le hook `SessionStart` (`.claude/hooks/etat.sh`) affiche la plateforme et l'état **mesuré**
   dès l'ouverture : plateforme, git, cible RE, KB, forge, gisements, services. Ce qu'il dit prime
-  sur ce fichier — lui mesure, ce fichier se souvient.
+  sur ce fichier — lui mesure, ce fichier se souvient. **Sauf quand il affirme au lieu de mesurer** :
+  il a longtemps annoncé « CETTE machine est le VPS Linux » en dur, y compris sous Git Bash, en
+  invalidant à tort toute la section Windows. Corrigé le 2026-09-03 (test sur `uname -s`) — mais
+  face à une contradiction entre le hook et l'évidence (`C:\…` dans `NIE_GAME_DIR`, des `.exe`),
+  trancher sur `uname -s`, jamais sur une phrase du hook.
 - Sur **Linux** : pas de MSVC (donc pas de voie B de la forge), pas de Git Bash / MSYS / UAC,
   `cargo fmt --all` fonctionne, `sed -i` ne mange pas les backslashes, `niers mem` marche.
   La section « Pièges d'environnement » plus bas ne vaut **que** pour le poste Windows.
@@ -82,9 +86,31 @@ qui ne respecte pas `.gitignore` s'y noie. Mesures faites à la racine :
 - `nie-core`, `nie-pe`, `nie-asm`, `nie-forge` : `#![warn(missing_docs)]` → documenter **chaque** item `pub`.
 - Avant tout commit : `cargo clippy -p <crate> --lib --tests` doit retourner **0 warning**.
 - Golden tests : `cargo test -p nie-data --test <fam>_golden`.
+- **`nie-formats` n'active par défaut que `std` et `lua`** : `serde`, `textures`, `images` sont
+  optionnelles. Un test `#![cfg(all(…))]` sur une feature éteinte affiche « ok. 0 passed » — un
+  **faux vert**, deux fois vécu. Déclarer `[[test]] required-features = […]` (le harnais dit alors
+  pourquoi il saute), et lancer `--features images,textures` pour tout ce qui touche l'image.
+- Une suite qui rend `0 passed` n'est jamais un succès : c'est une suite qui n'a pas tourné.
 - Le dépôt peut être réorganisé **pendant** une session (crates déplacés/créés par un travail
   parallèle) : si un build échoue sur un crate étranger, vérifier `cargo metadata --no-deps`,
   attendre, et ne jamais déplacer ni « réparer » le crate d'une autre session.
+
+## Release de l'app desktop — une seule commande
+
+`scripts/release-desktop.sh <X.Y.Z>` fait tout et est **idempotent** : bump des 9 manifestes,
+lockfiles, `cargo check`, zip de l'extension Blender, build **signé** msi+nsis, commit, tag, push,
+GitHub Release. Il exige un arbre propre, `main`, `gh`, et un tag encore libre.
+
+- **Ne jamais rejouer ses étapes à la main.** `bun run tauri build` seul produit les bundles puis
+  échoue sur `TAURI_SIGNING_PRIVATE_KEY` : on obtient des installeurs **non signés** à côté de
+  `.sig` périmés d'une release antérieure — que rien ne distingue, et que l'updater refusera.
+- Le script contrôle la **taille** des installeurs (msi ≥ 5 Mo, nsis ≥ 3 Mo) : un bundle peut être
+  parfaitement signé et ne pas contenir l'application (c'est arrivé avec `export-bindings.exe`).
+- La clé `~/.tauri/niers.key` tient sur **une seule ligne** et son mot de passe est **vide** :
+  un `cat`/`head` dessus la divulgue en entier. La passer par `-f`/`TAURI_SIGNING_PRIVATE_KEY_PATH`,
+  ne jamais l'afficher. Régénérer la paire invalide l'updater de tous les clients déjà installés.
+- Rien à déployer côté VPS : `azalee.rosegriffon.fr/tools/niers` et `/latest.json` lisent la
+  dernière release GitHub en direct (cache 1 h).
 
 ## Workspace Bun (`packages/*`, `apps/*`)
 
@@ -130,6 +156,16 @@ bun run lint
   `kysely` de rg, Bun dédoublonne `better-auth` sous un nom généré que Next ne résout plus.
 - Un paquet dont `exports` pointe sur `./dist/*` ne résout pas sans build : le repointer sur
   `./src/index.ts`, Bun lit le TypeScript.
+- **`apps/nie-explorer/src-tauri` est en édition 2021**, quand le workspace est en 2024 : les
+  let-chains n'y compilent pas — écrire des `if let` imbriqués.
+- **Une commande `#[tauri::command]` synchrone tourne sur le THREAD PRINCIPAL** : tout
+  `tokio::spawn` dedans panique « there is no reactor running », et cette panique, en contexte
+  non-unwinding, **abat l'application** (`STATUS_STACK_BUFFER_OVERRUN`, sans trace utile). Toute
+  commande qui touche au VFS, à une tâche ou au disque doit être `async`.
+- `src-tauri` a deux binaires : sans `default-run` dans son `Cargo.toml`, `tauri dev` refuse de
+  démarrer (« could not determine which binary to run »).
+- Un `tauri dev`/`build` échouant sur « Accès refusé » à l'écriture de `nie-explorer.exe` = une
+  instance tourne encore. Tuer le PID, pas relancer le build.
 
 ## Les quatre gisements — passer par la façade
 
@@ -379,6 +415,12 @@ alors que 77 `.py` versionnés existent déjà.
 - `niers vfs extract <chemin> -o <FICHIER>` : `-o` est un **fichier**, pas un dossier — sinon
   « Accès refusé (os error 5) », qui n’a rien à voir avec les permissions.
 - Binaires déjà construits dans `target/debug/` (`niers.exe`, `nie-cam.exe`…) : explorer sans rebuild.
+- **`niers decode` ≠ `niers refresh-typed-json`.** `decode` rend le RDBN **brut** ; un consommateur
+  typé (export de formations, front de l'explorateur) y lit alors 0 élément **en annonçant un
+  succès**. Pour du JSON typé, c'est `refresh-typed-json` — son aide le dit explicitement.
+- Un chemin VFS **cité de mémoire est presque toujours faux** : les fichiers du jeu portent un
+  numéro de version (`chara_base_1.03.98.00.cfg.bin`). Viser le **dossier**, et vérifier par
+  `niers vfs find` avant d'écrire le chemin dans du code ou un test.
 
 ## Modding (`niers mod`)
 
