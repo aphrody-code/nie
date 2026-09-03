@@ -17,13 +17,20 @@
 // asymétrie visible, et elle l'est jusque dans les cartes (une vignette distante contre une
 // affiche capturée à la volée).
 //
-// ## Pourquoi cette forme
+// ## La forme : ce que font Netflix et Disney+, et ce qu'on leur emprunte
 //
-// Les films vivaient dans l'Explorateur comme 194 lignes `.usm` (chaque film étant présent sous
-// `common/movie` ET `dx11/movie`), sans durée, sans définition, sans aperçu : rien ne distinguait
-// une cinématique de vingt minutes d'un logo de six secondes. Une grille par rubrique avec durée,
-// définition et prévisualisation au survol répond exactement à la question qu'on se pose devant
-// ce dossier — « lequel est-ce ? ».
+// * **« Qui regarde ? »** (`cinema/ChoixProfil`) — la progression, les reprises et « ma liste »
+//   n'ont de sens que rapportées à quelqu'un. Une seule série de clés `localStorage` faisait que
+//   deux personnes devant la même fenêtre s'effaçaient l'une l'autre.
+// * **Un bandeau de tête qui tourne** (`cinema/HerosCarrousel`) — sans jamais ouvrir un
+//   conteneur : il n'affiche que des vignettes distantes ou des affiches déjà capturées.
+// * **Une fiche avant la lecture** (`cinema/FicheDetail`) — durée, résumé, position de reprise et
+//   épisodes voisins, AVANT de démultiplexer jusqu'à 300 Mo pour s'apercevoir qu'on s'est trompé.
+//   Le bouton ▶ des cartes court-circuite la fiche quand on sait déjà ce qu'on veut.
+// * **Une navigation en pilules**, pas une barre de saisons. La rangée de pastilles qui listait
+//   les onze saisons débordait, se tassait et ne disait plus rien ; les saisons s'atteignent
+//   désormais par « tout voir » sur leur rangée, et se choisissent au sélecteur DANS la fiche —
+//   comme sur les deux plateformes de référence.
 //
 // ## Coût, et ce qui en découle
 //
@@ -36,9 +43,12 @@
 // * la prévisualisation animée ne démarre qu'au **survol soutenu** — c'est le seul moment où
 //   l'on sait que l'utilisateur veut vraiment voir ce film-là. La première image capturée reste
 //   ensuite affichée comme affiche.
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
+import { AvatarProfil, ChoixProfil } from "@/components/cinema/ChoixProfil";
+import { FicheDetail } from "@/components/cinema/FicheDetail";
+import { HerosCarrousel } from "@/components/cinema/HerosCarrousel";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/Icon";
@@ -47,7 +57,29 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { VideoPlayer, formaterDuree, urlVideo } from "@/components/VideoPlayer";
 import { api } from "@/lib/api";
 import { animeDb, defaultAnimeDbPath, urlIntegration, urlYoutube, type EpisodeAnime, type SaisonAnime } from "@/lib/animeDb";
+import {
+  affiches,
+  CLE_VICTORY_ROAD,
+  ecrireReprises,
+  formaterOctets,
+  INSTANT_AFFICHE,
+  lireReprises,
+  REPRISE_MIN,
+  vignetteHd,
+  type ElementCinema,
+  type Reprises,
+  type SaisonCinema,
+} from "@/lib/cinema";
 import { showFilmContextMenu } from "@/lib/contextMenu";
+import {
+  ecrireListe,
+  ecrireProfilActif,
+  lireListe,
+  lireProfilActif,
+  lireProfils,
+  PROFIL_PRINCIPAL,
+  type Profil,
+} from "@/lib/profils";
 import {
   decrireLacune,
   ecrireVus,
@@ -63,38 +95,10 @@ import { useSettings } from "@/lib/settings";
 import { cn } from "@/lib/utils";
 import type { FilmDto } from "@/lib/bindings";
 
-/** Clé de la saison qui porte les cinématiques du jeu. */
-const CLE_VICTORY_ROAD = "victory-road";
-
-/** Clé de la vue « toutes les saisons ». */
-const CLE_TOUT = "__tout__";
-
-/**
- * Un élément du catalogue, quelle que soit sa source. C'est ce type qui permet à la recherche, à
- * la reprise de lecture et aux rangées de traiter un épisode et une cinématique de la même façon ;
- * seule la LECTURE les distingue.
- */
-interface Element {
-  /** Identité stable : chemin VFS pour le jeu, identifiant YouTube pour la série. */
-  cle: string;
-  titre: string;
-  sousTitre: string | null;
-  source: "anime" | "jeu";
-  /** Clé de la saison d'appartenance. */
-  saison: string;
-  /** Vignette distante (série) — le jeu, lui, capture son affiche à la volée. */
-  vignette: string | null;
-  film?: FilmDto;
-  episode?: EpisodeAnime;
-}
-
-/** Une saison du catalogue — une rangée dans la vue d'ensemble, une grille quand elle est ouverte. */
-interface Saison {
-  cle: string;
-  titre: string;
-  source: "anime" | "jeu";
-  elements: Element[];
-}
+/** Vues de la navigation principale. Une saison ouverte porte sa propre clé (`s3`). */
+const VUE_ACCUEIL = "__accueil__";
+const VUE_SERIE = "__serie__";
+const VUE_LISTE = "__liste__";
 
 /** Valeur du filtre « toutes langues » — `base-ui` réserve la chaîne vide à l'absence de
  * sélection et refuse un `SelectItem value=""`, d'où ce jeton, traduit en `""` à la sortie. */
@@ -106,43 +110,8 @@ const DELAI_APERCU = 550;
 /** Délai de survol avant de PRÉCHARGER, en millisecondes — plus court : rien ne s'affiche. */
 const DELAI_PRECHARGE = 150;
 
-/** Clé de persistance des positions de lecture. */
-const CLE_REPRISE = "nie-explorer:cinema:reprise";
-
-/** Un film au-delà de ce nombre de secondes vues est considéré comme « en cours ». */
-const REPRISE_MIN = 5;
-
-/** Fraction de la durée à laquelle on capture l'affiche : le tout début est souvent noir. */
-const INSTANT_AFFICHE = 0.12;
-
-type Reprises = Record<string, { position: number; duree: number }>;
-
-function lireReprises(): Reprises {
-  try {
-    return JSON.parse(localStorage.getItem(CLE_REPRISE) ?? "{}") as Reprises;
-  } catch {
-    return {};
-  }
-}
-
-function ecrireReprises(r: Reprises) {
-  try {
-    localStorage.setItem(CLE_REPRISE, JSON.stringify(r));
-  } catch {
-    // Quota plein : la reprise est un confort, pas une donnée à défendre.
-  }
-}
-
-/** `312761536` → `298 Mo`. */
-function formaterOctets(n: number): string {
-  if (n < 1024) return `${n} o`;
-  if (n < 1024 * 1024) return `${Math.round(n / 1024)} Ko`;
-  if (n < 1024 * 1024 * 1024) return `${Math.round(n / (1024 * 1024))} Mo`;
-  return `${(n / (1024 * 1024 * 1024)).toFixed(1)} Go`;
-}
-
-/** Affiches déjà capturées, par chemin — un cache de session, jamais persisté. */
-const affiches = new Map<string, string>();
+/** Nombre de titres mis en avant par le bandeau de tête. */
+const MAX_HEROS = 7;
 
 export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void }) {
   const [films, setFilms] = useState<FilmDto[]>([]);
@@ -151,30 +120,70 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
   const [recherche, setRecherche] = useState("");
   const [langue, setLangue] = useState<string>("");
   const [enLecture, setEnLecture] = useState<FilmDto | null>(null);
-  const [reprises, setReprises] = useState<Reprises>(() => lireReprises());
   const parametres = useSettings();
+
+  // ── Profils ─────────────────────────────────────────────────────────────────
+  const [profils, setProfils] = useState<Profil[]>(() => lireProfils());
+  const [profilActif, setProfilActif] = useState<string | null>(() => lireProfilActif());
+  const [changerProfil, setChangerProfil] = useState(false);
+  const profil = profils.find((p) => p.id === profilActif) ?? null;
+  const idProfil = profil?.id ?? PROFIL_PRINCIPAL;
+
+  const [reprises, setReprises] = useState<Reprises>(() => lireReprises(lireProfilActif() ?? PROFIL_PRINCIPAL));
+  /** Épisodes marqués vus, en empreintes `saison:episode` — même règle que le bot Discord. */
+  const [vus, setVus] = useState<Set<string>>(() => lireVus(lireProfilActif() ?? PROFIL_PRINCIPAL));
+  /** Clés des titres mis de côté — le `+` des deux plateformes de référence. */
+  const [liste, setListe] = useState<Set<string>>(() => lireListe(lireProfilActif() ?? PROFIL_PRINCIPAL));
+
+  // Changer de profil recharge les trois jeux de données d'un coup : rien n'est fusionné, rien
+  // n'est écrit à la bascule — ce qui appartient à l'autre profil reste dans ses propres clés.
+  useEffect(() => {
+    setReprises(lireReprises(idProfil));
+    setVus(lireVus(idProfil));
+    setListe(lireListe(idProfil));
+  }, [idProfil]);
+
   /** Catalogue de la série — vide tant que la base n'est pas résolue, ou si elle est absente. */
   const [episodes, setEpisodes] = useState<EpisodeAnime[]>([]);
   const [saisonsAnime, setSaisonsAnime] = useState<SaisonAnime[]>([]);
   /** Épisode ouvert dans le cadre d'intégration — l'équivalent série de `enLecture`. */
   const [enLectureEpisode, setEnLectureEpisode] = useState<EpisodeAnime | null>(null);
-  /** Saison affichée, ou `CLE_TOUT` pour la vue d'ensemble. */
-  const [saisonOuverte, setSaisonOuverte] = useState<string>(CLE_TOUT);
-  /** Épisodes marqués vus, en empreintes `saison:episode` — même règle que le bot Discord. */
-  const [vus, setVus] = useState<Set<string>>(() => lireVus());
+  /** Vue affichée : accueil, série, Victory Road, ma liste, ou une saison précise. */
+  const [vue, setVue] = useState<string>(VUE_ACCUEIL);
+  /** Le titre dont la fiche est ouverte, et la saison que cette fiche liste. */
+  const [fiche, setFiche] = useState<ElementCinema | null>(null);
+  const [saisonFiche, setSaisonFiche] = useState<string>("");
 
   /** Bascule « vu » d'un épisode, et le persiste aussitôt. */
-  const basculerVu = useCallback((saison: number, episode: number | null) => {
-    if (episode === null) return;
-    setVus((prec) => {
-      const suivant = new Set(prec);
-      const cle = empreinte(saison, episode);
-      if (suivant.has(cle)) suivant.delete(cle);
-      else suivant.add(cle);
-      ecrireVus(suivant);
-      return suivant;
-    });
-  }, []);
+  const basculerVu = useCallback(
+    (saison: number, episode: number | null) => {
+      if (episode === null) return;
+      setVus((prec) => {
+        const suivant = new Set(prec);
+        const cle = empreinte(saison, episode);
+        if (suivant.has(cle)) suivant.delete(cle);
+        else suivant.add(cle);
+        ecrireVus(suivant, idProfil);
+        return suivant;
+      });
+    },
+    [idProfil],
+  );
+
+  /** Ajoute ou retire un titre de « ma liste ». La clé est celle du catalogue unifié : chemin VFS
+   * pour une cinématique, identifiant YouTube pour un épisode. */
+  const basculerListe = useCallback(
+    (cle: string) => {
+      setListe((prec) => {
+        const suivant = new Set(prec);
+        if (suivant.has(cle)) suivant.delete(cle);
+        else suivant.add(cle);
+        ecrireListe(idProfil, suivant);
+        return suivant;
+      });
+    },
+    [idProfil],
+  );
 
   // Le catalogue de la série se charge en parallèle de celui du jeu, et son absence n'est pas une
   // erreur : sans le jeu on garde les épisodes, sans la base d'épisodes on garde les cinématiques.
@@ -285,17 +294,20 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
     [onOpenFile],
   );
 
-  const noterProgression = useCallback((chemin: string, position: number, duree: number) => {
-    if (position < REPRISE_MIN || duree <= 0) return;
-    setReprises((prec) => {
-      const suivant = { ...prec };
-      // Un film vu à plus de 95 % n'est plus « en cours » : le proposer serait absurde.
-      if (position / duree > 0.95) delete suivant[chemin];
-      else suivant[chemin] = { position, duree };
-      ecrireReprises(suivant);
-      return suivant;
-    });
-  }, []);
+  const noterProgression = useCallback(
+    (chemin: string, position: number, duree: number) => {
+      if (position < REPRISE_MIN || duree <= 0) return;
+      setReprises((prec) => {
+        const suivant = { ...prec };
+        // Un film vu à plus de 95 % n'est plus « en cours » : le proposer serait absurde.
+        if (position / duree > 0.95) delete suivant[chemin];
+        else suivant[chemin] = { position, duree };
+        ecrireReprises(suivant, idProfil);
+        return suivant;
+      });
+    },
+    [idProfil],
+  );
 
   // ── Filtrage et regroupement ────────────────────────────────────────────────
 
@@ -337,7 +349,7 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
   // Les saisons de la série d'abord, dans leur ordre de diffusion, puis Victory Road. L'ordre
   // n'est pas cosmétique : c'est la chronologie de la franchise, et la place du jeu à la fin est
   // exactement ce que la vue veut dire.
-  const saisons = useMemo<Saison[]>(() => {
+  const saisons = useMemo<SaisonCinema[]>(() => {
     const q = recherche.trim().toLowerCase();
     // La recherche porte sur les QUATRE champs qui nomment un épisode. Chercher « Sakkā » ou
     // « 必殺技 » doit trouver, et c'est souvent tout ce dont on se souvient d'un épisode : la base
@@ -354,11 +366,11 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
       retenus = episodes.filter((e) => champs(e).some((c) => ressemble(q, c)));
     }
 
-    const parSaison = new Map<number, Element[]>();
+    const parSaison = new Map<number, ElementCinema[]>();
     for (const e of retenus) {
       const sousTitre = e.episode ? `Épisode ${e.episode}` : null;
       const cle = `s${e.saison}`;
-      const el: Element = {
+      const el: ElementCinema = {
         cle: e.videoId,
         titre: e.titre,
         sousTitre,
@@ -372,7 +384,7 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
       else parSaison.set(e.saison, [el]);
     }
 
-    const sortie: Saison[] = saisonsAnime
+    const sortie: SaisonCinema[] = saisonsAnime
       .map((s) => ({
         cle: `s${s.saison}`,
         titre: s.nom,
@@ -401,9 +413,25 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
     return sortie;
   }, [episodes, saisonsAnime, filtres, recherche]);
 
+  /** Tous les éléments du catalogue, par clé — la table que « ma liste » et la fiche consultent. */
+  const parCle = useMemo(() => {
+    const m = new Map<string, ElementCinema>();
+    for (const s of saisons) for (const el of s.elements) m.set(el.cle, el);
+    return m;
+  }, [saisons]);
+
+  const saisonsSerie = useMemo(() => saisons.filter((s) => s.source === "anime"), [saisons]);
+  const saisonVR = useMemo(() => saisons.find((s) => s.cle === CLE_VICTORY_ROAD) ?? null, [saisons]);
+
+  /** Les titres mis de côté, dans l'ordre du catalogue. */
+  const maListe = useMemo(
+    () => [...liste].map((c) => parCle.get(c)).filter((el): el is ElementCinema => el !== undefined),
+    [liste, parCle],
+  );
+
   const saisonCourante = useMemo(
-    () => (saisonOuverte === CLE_TOUT ? null : (saisons.find((s) => s.cle === saisonOuverte) ?? null)),
-    [saisons, saisonOuverte],
+    () => saisons.find((s) => s.cle === vue) ?? null,
+    [saisons, vue],
   );
 
   /**
@@ -433,7 +461,7 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
    * l'annoncer ainsi serait faux. C'est la date de première diffusion, donc la fin de la série —
    * ce qu'on cherche quand on revient après une longue absence.
    */
-  const plusRecents = useMemo<Element[]>(
+  const plusRecents = useMemo<ElementCinema[]>(
     () =>
       episodes
         .filter((e) => e.publie)
@@ -470,27 +498,110 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
   }, [saisonsAnime, episodes, vus]);
 
   /** Ouvre un élément, quelle que soit sa source — le seul endroit qui connaît les deux lecteurs. */
-  const lire = useCallback((el: Element) => {
+  const lire = useCallback((el: ElementCinema) => {
+    setFiche(null);
     if (el.film) setEnLecture(el.film);
     else if (el.episode) setEnLectureEpisode(el.episode);
   }, []);
 
+  /**
+   * Ouvre la FICHE d'un titre — le geste par défaut d'un clic sur une carte.
+   *
+   * La saison que la fiche listera n'est pas toujours celle de l'élément : pour une cinématique,
+   * la fratrie utile est sa RUBRIQUE (« Chapitre 3 »), pas les 97 films du jeu d'un bloc.
+   */
+  const ouvrirFiche = useCallback((el: ElementCinema) => {
+    setSaisonFiche(el.film ? `rubrique:${el.film.rubrique}` : el.saison);
+    setFiche(el);
+  }, []);
+
   const aReprendre = useMemo(
-    () => films.filter((f) => reprises[f.chemin]).slice(0, 12),
-    [films, reprises],
+    () =>
+      Object.keys(reprises)
+        .map((c) => parCle.get(c))
+        .filter((el): el is ElementCinema => el !== undefined)
+        .slice(0, 12),
+    [reprises, parCle],
   );
 
-  // Le film mis en avant : le plus long du catalogue, celui qu'on a le plus envie de voir.
-  const vedette = useMemo(() => {
-    if (films.length === 0) return null;
-    return films.reduce((meilleur, f) => (f.octets > meilleur.octets ? f : meilleur), films[0]);
-  }, [films]);
+  /**
+   * Les titres du bandeau de tête.
+   *
+   * L'ordre dit quelque chose : ce qu'on a commencé, puis ce qui reste à voir de la série, puis
+   * le plus gros morceau du jeu, puis les diffusions récentes. Un doublon serait un titre qui
+   * revient deux fois dans le même carrousel — la table de clés l'empêche.
+   */
+  const misEnAvant = useMemo<ElementCinema[]>(() => {
+    const sortie: ElementCinema[] = [];
+    const vues = new Set<string>();
+    const pousser = (el: ElementCinema | undefined | null) => {
+      if (!el || vues.has(el.cle) || sortie.length >= MAX_HEROS) return;
+      vues.add(el.cle);
+      sortie.push(el);
+    };
+
+    pousser(aReprendre[0]);
+    if (aReprendreSerie) pousser(parCle.get(aReprendreSerie.episode.videoId));
+    // Le plus gros conteneur du jeu : c'est presque toujours une cinématique de chapitre, donc
+    // ce que le catalogue a de plus proche d'un « film ».
+    const vedette = films.length > 0 ? films.reduce((m, f) => (f.octets > m.octets ? f : m), films[0]!) : null;
+    if (vedette) pousser(parCle.get(vedette.chemin));
+    for (const el of plusRecents) pousser(el);
+    return sortie;
+  }, [aReprendre, aReprendreSerie, films, parCle, plusRecents]);
 
   useEffect(() => {
-    if (vedette && vedette.duree == null) enrichir(vedette.chemin);
-  }, [vedette, enrichir]);
+    // Le bandeau affiche la durée et la définition d'une cinématique : elles n'existent qu'après
+    // inspection, et il n'est pas dans le champ d'un `IntersectionObserver` de carte.
+    for (const el of misEnAvant) if (el.film && el.film.duree == null) enrichir(el.film.chemin);
+  }, [misEnAvant, enrichir]);
+
+  // ── Ce que la fiche affiche ─────────────────────────────────────────────────
+
+  /** Les saisons proposées par le sélecteur de la fiche : les saisons de la série pour un
+   * épisode, les rubriques du jeu pour une cinématique. */
+  const saisonsFiche = useMemo<SaisonCinema[]>(() => {
+    if (!fiche) return [];
+    if (fiche.source === "anime") return saisonsSerie;
+    return rangees.map(([rubrique, liste]) => ({
+      cle: `rubrique:${rubrique}`,
+      titre: rubrique,
+      source: "jeu" as const,
+      elements: liste.map((f) => ({
+        cle: f.chemin,
+        titre: f.nom,
+        sousTitre: f.rubrique,
+        source: "jeu" as const,
+        saison: CLE_VICTORY_ROAD,
+        vignette: null,
+        film: f,
+      })),
+    }));
+  }, [fiche, saisonsSerie, rangees]);
+
+  const fratrieFiche = useMemo(
+    () => saisonsFiche.find((s) => s.cle === saisonFiche)?.elements ?? [],
+    [saisonsFiche, saisonFiche],
+  );
 
   // ── Rendu ───────────────────────────────────────────────────────────────────
+
+  // « Qui regarde ? » : au premier passage, ou sur demande explicite. Le choix est mémorisé, donc
+  // l'écran ne réapparaît pas à chaque ouverture de la vue.
+  if (!profil || changerProfil) {
+    return (
+      <ChoixProfil
+        profils={profils}
+        onProfils={setProfils}
+        onChoisir={(id) => {
+          ecrireProfilActif(id);
+          setProfilActif(id);
+          setChangerProfil(false);
+        }}
+        onAnnuler={profil ? () => setChangerProfil(false) : undefined}
+      />
+    );
+  }
 
   // Un épisode de la série se lit dans un cadre d'intégration : la vidéo est hébergée par la
   // chaîne officielle, l'application n'en détient ni le flux ni le droit de le redistribuer. Le
@@ -633,66 +744,83 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
     );
   }
 
+  const technique = !profil.jeunesse;
+  const accueil = vue === VUE_ACCUEIL;
+  const enRecherche = recherche.trim().length > 0;
+
+  /** Les rangées de la vue courante — le seul endroit qui décide de ce qui est affiché. */
+  const rangeesElements: SaisonCinema[] =
+    vue === VUE_SERIE ? saisonsSerie : accueil ? saisons : [];
+
   return (
     <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-app">
-      <div className="sticky top-0 z-20 flex items-center gap-2 border-b border-app-line bg-app/85 px-4 py-2 backdrop-blur">
-        <Icon name="movie" size={16} className="text-ink-faint" />
-        <span className="text-sm font-semibold">Cinéma</span>
-        <span className="text-tiny text-ink-faint">
-          {filtres.length} film{filtres.length > 1 ? "s" : ""}
-          {filtres.length !== films.length ? ` sur ${films.length}` : ""}
-        </span>
+      {/* ── La barre ────────────────────────────────────────────────────────────
+          Ni titre ni compteur : ce qui compte est la navigation et la recherche. Elle est
+          translucide et floute ce qui défile dessous, comme celle de Netflix. */}
+      <div className="sticky top-0 z-20 flex items-center gap-2 border-b border-app-line bg-app/80 px-4 py-2 backdrop-blur">
+        {/* Les pilules de Disney+ : quatre destinations, pas onze saisons. */}
+        <nav className="flex items-center gap-0.5 rounded-full bg-app-box/80 p-0.5">
+          <Pilule titre="Accueil" actif={accueil} onClick={() => setVue(VUE_ACCUEIL)} />
+          {saisonsSerie.length > 0 && (
+            <Pilule
+              titre="Série"
+              actif={vue === VUE_SERIE || vue.startsWith("s")}
+              onClick={() => setVue(VUE_SERIE)}
+            />
+          )}
+          {saisonVR && (
+            <Pilule
+              titre="Victory Road"
+              actif={vue === CLE_VICTORY_ROAD}
+              onClick={() => setVue(CLE_VICTORY_ROAD)}
+            />
+          )}
+          {maListe.length > 0 && (
+            <Pilule titre="Ma liste" actif={vue === VUE_LISTE} onClick={() => setVue(VUE_LISTE)} />
+          )}
+        </nav>
+
         <div className="flex-1" />
+
         <Input
           value={recherche}
           onChange={(e) => setRecherche(e.target.value)}
-          placeholder="Rechercher un film…"
+          placeholder="Rechercher un titre…"
           className="h-7 w-56 text-xs"
         />
         {/* `Select` du design system, comme `DetailPane` : ce `<select>` HTML brut était l'un des
             deux derniers de l'application à ignorer la palette et la navigation clavier des
             autres listes. La valeur vide se code `TOUTES` — un `SelectItem value=""` est refusé
             par base-ui, qui réserve la chaîne vide à l'absence de sélection. */}
-        <Select
-          value={langue || TOUTES_LANGUES}
-          onValueChange={(v) => setLangue(v === TOUTES_LANGUES ? "" : (v ?? ""))}
-        >
-          <SelectTrigger size="sm" className="h-7 w-40 text-xs" aria-label="Filtrer par langue">
-            <SelectValue placeholder="Toutes langues" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={TOUTES_LANGUES}>Toutes langues</SelectItem>
-            {langues.map((l) => (
-              <SelectItem key={l} value={l}>
-                {l}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+        {langues.length > 1 && (
+          <Select
+            value={langue || TOUTES_LANGUES}
+            onValueChange={(v) => setLangue(v === TOUTES_LANGUES ? "" : (v ?? ""))}
+          >
+            <SelectTrigger size="sm" className="h-7 w-32 text-xs" aria-label="Filtrer par langue">
+              <SelectValue placeholder="Toutes langues" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={TOUTES_LANGUES}>Toutes langues</SelectItem>
+              {langues.map((l) => (
+                <SelectItem key={l} value={l}>
+                  {l}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
 
-      {/* Les saisons, en tête et toujours visibles : c'est la navigation principale du catalogue.
-          « Victory Road » y a exactement le même statut que « Orion » ou « Chrono Stones ». */}
-      {saisons.length > 0 && (
-        <div className="sticky top-[41px] z-10 flex gap-1 overflow-x-auto border-b border-app-line bg-app/85 px-4 py-1.5 backdrop-blur">
-          <ChipSaison
-            titre="Tout"
-            nombre={saisons.reduce((n, s) => n + s.elements.length, 0)}
-            actif={saisonOuverte === CLE_TOUT}
-            onClick={() => setSaisonOuverte(CLE_TOUT)}
-          />
-          {saisons.map((s) => (
-            <ChipSaison
-              key={s.cle}
-              titre={s.titre}
-              nombre={s.elements.length}
-              jeu={s.source === "jeu"}
-              actif={saisonOuverte === s.cle}
-              onClick={() => setSaisonOuverte(s.cle)}
-            />
-          ))}
-        </div>
-      )}
+        <button
+          type="button"
+          onClick={() => setChangerProfil(true)}
+          title={`${profil.nom} — changer de profil`}
+          aria-label={`Profil ${profil.nom} — changer de profil`}
+          className="rounded-lg outline-none transition-transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          <AvatarProfil profil={profil} taille={26} />
+        </button>
+      </div>
 
       {chargement && (
         <div className="flex flex-1 items-center justify-center text-sm text-ink-faint">
@@ -711,33 +839,48 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
         </div>
       )}
 
-      {!chargement && !erreur && films.length === 0 && (
+      {!chargement && !erreur && films.length === 0 && episodes.length === 0 && (
         <div className="m-4">
           <Alert>
-            <AlertTitle>Aucune cinématique</AlertTitle>
+            <AlertTitle>Médiathèque vide</AlertTitle>
             <AlertDescription>
-              Le catalogue est vide : le VFS du jeu n'est pas monté, ou ce montage ne porte aucun
-              fichier USM.
+              Ni cinématique ni épisode : le VFS du jeu n'est pas monté (aucun fichier USM) et la
+              base des épisodes est absente.
             </AlertDescription>
           </Alert>
         </div>
       )}
 
-      {/* Vue d'ensemble : la vedette, ce qu'on a commencé, puis une rangée par saison. */}
-      {!saisonCourante && (
+      {enRecherche && saisons.length === 0 && !chargement && (
+        <div className="m-4">
+          <Alert>
+            <AlertTitle>Aucun résultat</AlertTitle>
+            <AlertDescription>
+              Rien ne correspond à « {recherche} », ni dans les titres du jeu ni dans les quatre
+              champs qui nomment un épisode.
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
+
+      {/* ── Accueil et Série : le bandeau, puis des rangées ──────────────────── */}
+      {(accueil || vue === VUE_SERIE) && (
         <>
-          {vedette && !recherche && !langue && (
-            <Vedette
-              film={vedette}
-              onLire={() => setEnLecture(vedette)}
-              onReveler={onOpenFile ? () => onOpenFile(vedette.chemin) : undefined}
+          {accueil && !enRecherche && misEnAvant.length > 0 && (
+            <HerosCarrousel
+              elements={misEnAvant}
+              liste={liste}
+              technique={technique}
+              onLire={lire}
+              onOuvrir={ouvrirFiche}
+              onBasculerListe={basculerListe}
             />
           )}
 
           {/* Le prochain épisode non vu, en tête : c'est la question qu'on se pose devant une
               série de 355 épisodes, et la seule réponse que le catalogue seul ne donne pas. */}
-          {aReprendreSerie && !recherche && (
-            <div className="mx-4 mb-1 flex items-center gap-3 rounded-lg border border-app-line bg-app-box px-3 py-2">
+          {aReprendreSerie && !enRecherche && (
+            <div className="mx-4 mt-3 flex items-center gap-3 rounded-lg border border-app-line bg-app-box px-3 py-2">
               <Icon name="play_circle" size={20} className="text-accent" />
               <div className="min-w-0 flex-1">
                 <div className="text-tiny uppercase tracking-wider text-ink-faint">Reprendre la série</div>
@@ -753,85 +896,132 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
             </div>
           )}
 
-          {aReprendre.length > 0 && (
-            <Rangee
-              titre="Reprendre la lecture"
-              films={aReprendre}
+          {accueil && maListe.length > 0 && !enRecherche && (
+            <RangeeElements
+              titre="Ma liste"
+              elements={maListe.slice(0, 30)}
+              total={maListe.length}
               reprises={reprises}
-              onLire={setEnLecture}
+              onOuvrir={ouvrirFiche}
+              onLire={lire}
               onVisible={enrichir}
               onPrecharger={precharger}
               onMenu={menuFilm}
+              onTout={() => setVue(VUE_LISTE)}
+              vus={vus}
             />
           )}
 
-          {!recherche && plusRecents.length > 0 && (
+          {accueil && aReprendre.length > 0 && (
+            <RangeeElements
+              titre="Reprendre la lecture"
+              elements={aReprendre}
+              total={aReprendre.length}
+              reprises={reprises}
+              onOuvrir={ouvrirFiche}
+              onLire={lire}
+              onVisible={enrichir}
+              onPrecharger={precharger}
+              onMenu={menuFilm}
+              vus={vus}
+            />
+          )}
+
+          {accueil && !enRecherche && plusRecents.length > 0 && (
             <RangeeElements
               titre="Les plus récents (diffusion)"
               elements={plusRecents}
               total={plusRecents.length}
               reprises={reprises}
+              onOuvrir={ouvrirFiche}
               onLire={lire}
               onVisible={enrichir}
               onPrecharger={precharger}
               onMenu={menuFilm}
-              onOuvrirSaison={() => {
+              onTout={() => {
                 const s = plusRecents[0]?.saison;
-                if (s) setSaisonOuverte(s);
+                if (s) setVue(s);
               }}
               vus={vus}
-              onBasculerVu={basculerVu}
             />
           )}
 
-          {saisons.map((s) => (
+          {rangeesElements.map((s) => (
             <RangeeElements
               key={s.cle}
               titre={s.titre}
               elements={s.elements.slice(0, 30)}
               total={s.elements.length}
               reprises={reprises}
+              onOuvrir={ouvrirFiche}
               onLire={lire}
               onVisible={enrichir}
               onPrecharger={precharger}
               onMenu={menuFilm}
-              onOuvrirSaison={() => setSaisonOuverte(s.cle)}
+              onTout={() => setVue(s.cle)}
               vus={vus}
-              onBasculerVu={basculerVu}
             />
           ))}
         </>
       )}
 
-      {/* Saison ouverte. Victory Road garde ses rubriques — « Chapitre 3 » et « Logos et intros »
-          ne sont pas du même ordre, et les aplatir en une grille de 97 vignettes reviendrait à
-          l'état que cette vue a justement remplacé. */}
-      {saisonCourante && saisonCourante.cle === CLE_VICTORY_ROAD && (
+      {/* ── Victory Road : ses rubriques, en rangées ─────────────────────────────
+          « Chapitre 3 » et « Logos et intros » ne sont pas du même ordre, et les aplatir en une
+          grille de 97 vignettes reviendrait à l'état que cette vue a justement remplacé. */}
+      {vue === CLE_VICTORY_ROAD && (
         <>
-          {rangees.map(([rubrique, liste]) => (
-            <Rangee
+          {rangees.map(([rubrique, listeFilms]) => (
+            <RangeeElements
               key={rubrique}
               titre={rubrique}
-              films={liste}
+              elements={listeFilms.map((f) => ({
+                cle: f.chemin,
+                titre: f.nom,
+                sousTitre: f.rubrique,
+                source: "jeu" as const,
+                saison: CLE_VICTORY_ROAD,
+                vignette: null,
+                film: f,
+              }))}
+              total={listeFilms.length}
               reprises={reprises}
-              onLire={setEnLecture}
+              onOuvrir={ouvrirFiche}
+              onLire={lire}
               onVisible={enrichir}
               onPrecharger={precharger}
               onMenu={menuFilm}
+              vus={vus}
             />
           ))}
         </>
       )}
 
-      {saisonCourante && saisonCourante.cle !== CLE_VICTORY_ROAD && (
-        <section className="px-4 py-3">
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-dull">
-            {saisonCourante.titre}
-            <span className="ml-1 font-normal normal-case text-ink-faint">
-              {saisonCourante.elements.length} épisodes
-            </span>
-          </h3>
+      {/* ── Ma liste ─────────────────────────────────────────────────────────── */}
+      {vue === VUE_LISTE && (
+        <Grille
+          titre="Ma liste"
+          sousTitre={`${maListe.length} titre${maListe.length > 1 ? "s" : ""}`}
+          elements={maListe}
+          vus={vus}
+          reprises={reprises}
+          onOuvrir={ouvrirFiche}
+          onLire={lire}
+          onRetour={() => setVue(VUE_ACCUEIL)}
+        />
+      )}
 
+      {/* ── Une saison ouverte ───────────────────────────────────────────────── */}
+      {saisonCourante && saisonCourante.source === "anime" && (
+        <Grille
+          titre={saisonCourante.titre}
+          sousTitre={`${saisonCourante.elements.length} épisodes`}
+          elements={saisonCourante.elements}
+          vus={vus}
+          reprises={reprises}
+          onOuvrir={ouvrirFiche}
+          onLire={lire}
+          onRetour={() => setVue(VUE_SERIE)}
+        >
           {/* Ce que le catalogue N'A PAS. Le bot Discord le dit depuis toujours ; l'application le
               taisait, et une saison trouée y ressemblait à une saison courte. */}
           {(() => {
@@ -851,225 +1041,131 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
               </Alert>
             );
           })()}
-
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(224px,1fr))] gap-3">
-            {saisonCourante.elements.map((el) => (
-              <CarteEpisode
-                key={el.cle}
-                element={el}
-                vu={
-                  el.episode?.episode != null && vus.has(empreinte(el.episode.saison, el.episode.episode))
-                }
-                onLire={() => lire(el)}
-                onBasculerVu={() => el.episode && basculerVu(el.episode.saison, el.episode.episode)}
-              />
-            ))}
-          </div>
-        </section>
+        </Grille>
       )}
 
       <div className="h-6" />
+
+      {fiche && (
+        <FicheDetail
+          element={fiche}
+          fratrie={fratrieFiche}
+          saisons={saisonsFiche}
+          saisonAffichee={saisonFiche}
+          vus={vus}
+          liste={liste}
+          reprises={reprises}
+          technique={technique}
+          onLire={lire}
+          onBasculerVu={(el) => el.episode && basculerVu(el.episode.saison, el.episode.episode)}
+          onBasculerListe={basculerListe}
+          onChoisirSaison={setSaisonFiche}
+          onChoisirElement={setFiche}
+          onPrecharger={precharger}
+          onReveler={onOpenFile}
+          onFermer={() => setFiche(null)}
+        />
+      )}
     </div>
   );
 }
 
-// ── Bandeau de tête ───────────────────────────────────────────────────────────
+// ── Navigation ────────────────────────────────────────────────────────────────
 
-function Vedette({
-  film,
-  onLire,
-  onReveler,
-}: {
-  film: FilmDto;
-  onLire: () => void;
-  onReveler?: () => void;
-}) {
-  // La bande-son d'un film n'est presque jamais dans son conteneur : elle vient de la banque
-  // `anime_stream`, et `audio[0].source` dit laquelle des deux voies a répondu.
-  const piste = film.audio[0];
-  const meta = [
-    film.duree ? formaterDuree(film.duree) : null,
-    film.largeur ? `${film.largeur}×${film.hauteur}` : null,
-    film.codec?.toUpperCase(),
-    piste
-      ? `son ${piste.codec.toUpperCase()} ${piste.frequence ? `${Math.round(piste.frequence / 1000)} kHz` : ""}`.trim()
-      : "sans bande-son",
-    piste && piste.source !== "conteneur" ? `cue ${piste.source}` : null,
-    formaterOctets(film.octets),
-  ].filter(Boolean);
-
-  return (
-    <div className="relative m-4 mb-2 overflow-hidden rounded-xl border border-app-line bg-gradient-to-br from-app-box to-app-darkBox p-6">
-      <div className="absolute inset-0 opacity-[0.07]">
-        <Icon name="movie" size={320} className="absolute -right-10 -top-10" />
-      </div>
-      <div className="relative max-w-2xl">
-        <div className="text-tiny uppercase tracking-wider text-accent">{film.rubrique}</div>
-        <h2 className="mt-1 text-2xl font-semibold text-ink">{film.nom}</h2>
-        {film.nom_origine && (
-          <div className="mt-1 truncate font-mono text-tiny text-ink-faint" title={film.nom_origine}>
-            {film.nom_origine}
-          </div>
-        )}
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-ink-dull">
-          {meta.map((m) => (
-            <span key={m} className="rounded bg-app-line/60 px-1.5 py-0.5">
-              {m}
-            </span>
-          ))}
-        </div>
-        <div className="mt-4 flex items-center gap-2">
-          {/* Les deux actions de la vedette passent par `Button` : elles étaient peintes à la
-              main (`bg-accent`, `text-white`), donc sourdes au thème clair et au zoom d'interface
-              que le reste de l'application respecte. */}
-          <Button onClick={onLire}>
-            <Icon name="play_arrow" size={16} />
-            Lire
-          </Button>
-          {onReveler && (
-            <Button variant="outline" onClick={onReveler}>
-              <Icon name="folder_open" size={16} />
-              Voir le fichier
-            </Button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Rangée horizontale ────────────────────────────────────────────────────────
-
-function Rangee({
-  titre,
-  films,
-  reprises,
-  onLire,
-  onVisible,
-  onPrecharger,
-  onMenu,
-}: {
-  titre: string;
-  films: FilmDto[];
-  reprises: Reprises;
-  onLire: (f: FilmDto) => void;
-  onVisible: (chemin: string) => void;
-  onPrecharger: (chemin: string) => void;
-  onMenu: (f: FilmDto) => void;
-}) {
-  const pisteRef = useRef<HTMLDivElement | null>(null);
-
-  const defiler = (sens: 1 | -1) => {
-    const piste = pisteRef.current;
-    if (!piste) return;
-    piste.scrollBy({ left: sens * piste.clientWidth * 0.8, behavior: "smooth" });
-  };
-
-  return (
-    <section className="group/rangee relative px-4 py-2">
-      <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-dull">
-        {titre} <span className="ml-1 font-normal normal-case text-ink-faint">{films.length}</span>
-      </h3>
-      <div className="relative">
-        <button
-          type="button"
-          onClick={() => defiler(-1)}
-          aria-label="Défiler vers la gauche"
-          className="absolute left-0 top-0 z-10 hidden h-full w-8 items-center justify-center rounded-l-md bg-gradient-to-r from-app to-transparent text-ink-dull opacity-0 transition-opacity hover:text-ink group-hover/rangee:opacity-100 md:flex"
-        >
-          <Icon name="chevron_left" size={20} />
-        </button>
-        <div
-          ref={pisteRef}
-          className="no-scrollbar flex gap-2 overflow-x-auto scroll-smooth pb-1"
-        >
-          {films.map((f) => (
-            <Carte
-              key={f.chemin}
-              film={f}
-              reprise={reprises[f.chemin]}
-              onLire={() => onLire(f)}
-              onVisible={onVisible}
-              onPrecharger={onPrecharger}
-              onMenu={() => onMenu(f)}
-            />
-          ))}
-        </div>
-        <button
-          type="button"
-          onClick={() => defiler(1)}
-          aria-label="Défiler vers la droite"
-          className="absolute right-0 top-0 z-10 hidden h-full w-8 items-center justify-center rounded-r-md bg-gradient-to-l from-app to-transparent text-ink-dull opacity-0 transition-opacity hover:text-ink group-hover/rangee:opacity-100 md:flex"
-        >
-          <Icon name="chevron_right" size={20} />
-        </button>
-      </div>
-    </section>
-  );
-}
-
-// ── Sélecteur de saison ───────────────────────────────────────────────────────
-
-/** Une pastille de saison. Les cinématiques du jeu portent un liseré d'accent : elles sont une
- * saison du catalogue, pas une saison de la série — le dire dans l'interface évite d'avoir à
- * l'expliquer ailleurs. */
-function ChipSaison({
-  titre,
-  nombre,
-  actif,
-  jeu,
-  onClick,
-}: {
-  titre: string;
-  nombre: number;
-  actif: boolean;
-  jeu?: boolean;
-  onClick: () => void;
-}) {
+/** Une destination de la barre — la pilule de Disney+, pas la pastille de saison qu'elle
+ * remplace : quatre entrées tiennent sur une ligne, onze débordaient et se tassaient. */
+function Pilule({ titre, actif, onClick }: { titre: string; actif: boolean; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={actif}
       className={cn(
-        "shrink-0 rounded-full px-3 py-1 text-xs transition-colors",
-        actif ? "bg-accent text-white" : "bg-app-box text-ink-dull hover:bg-app-hover hover:text-ink",
-        jeu && !actif && "ring-1 ring-inset ring-accent/40",
+        "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+        actif ? "bg-ink text-app" : "text-ink-dull hover:bg-app-hover hover:text-ink",
       )}
     >
       {titre}
-      <span className={cn("ml-1.5 tabular-nums", actif ? "text-white/70" : "text-ink-faint")}>{nombre}</span>
     </button>
   );
 }
 
-// ── Rangée d'éléments (série ou jeu) ──────────────────────────────────────────
+// ── Grille d'une vue ouverte ──────────────────────────────────────────────────
+
+function Grille({
+  titre,
+  sousTitre,
+  elements,
+  vus,
+  reprises,
+  onOuvrir,
+  onLire,
+  onRetour,
+  children,
+}: {
+  titre: string;
+  sousTitre: string;
+  elements: ElementCinema[];
+  vus: ReadonlySet<string>;
+  reprises: Reprises;
+  onOuvrir: (el: ElementCinema) => void;
+  onLire: (el: ElementCinema) => void;
+  onRetour: () => void;
+  children?: ReactNode;
+}) {
+  return (
+    <section className="px-4 py-3">
+      <div className="mb-3 flex items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={onRetour} title="Revenir">
+          <Icon name="arrow_back" size={16} />
+        </Button>
+        <h3 className="text-sm font-semibold text-ink">{titre}</h3>
+        <span className="text-tiny text-ink-faint">{sousTitre}</span>
+      </div>
+      {children}
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(224px,1fr))] gap-3">
+        {elements.map((el) => (
+          <CarteTitre
+            key={el.cle}
+            element={el}
+            reprise={reprises[el.cle]}
+            vu={el.episode?.episode != null && vus.has(empreinte(el.episode.saison, el.episode.episode))}
+            onOuvrir={() => onOuvrir(el)}
+            onLire={() => onLire(el)}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// ── Rangée horizontale ────────────────────────────────────────────────────────
 
 function RangeeElements({
   titre,
   elements,
   total,
   reprises,
+  onOuvrir,
   onLire,
   onVisible,
   onPrecharger,
   onMenu,
-  onOuvrirSaison,
+  onTout,
   vus,
-  onBasculerVu,
 }: {
   titre: string;
-  elements: Element[];
+  elements: ElementCinema[];
   total: number;
   reprises: Reprises;
-  onLire: (el: Element) => void;
+  onOuvrir: (el: ElementCinema) => void;
+  onLire: (el: ElementCinema) => void;
   onVisible: (chemin: string) => void;
   onPrecharger: (chemin: string) => void;
   onMenu: (f: FilmDto) => void;
-  onOuvrirSaison: () => void;
-  /** Empreintes `saison:episode` des épisodes déjà vus. */
+  /** Absent quand la rangée n'a pas de vue « tout voir » propre (reprise, rubriques du jeu). */
+  onTout?: () => void;
   vus: ReadonlySet<string>;
-  onBasculerVu: (saison: number, episode: number | null) => void;
 }) {
   const pisteRef = useRef<HTMLDivElement | null>(null);
 
@@ -1082,16 +1178,18 @@ function RangeeElements({
   return (
     <section className="group/rangee relative px-4 py-2">
       <div className="mb-1.5 flex items-baseline gap-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-dull">
-          {titre} <span className="ml-1 font-normal normal-case text-ink-faint">{total}</span>
+        <h3 className="text-sm font-semibold text-ink">
+          {titre} <span className="ml-1 text-tiny font-normal text-ink-faint">{total}</span>
         </h3>
-        <button
-          type="button"
-          onClick={onOuvrirSaison}
-          className="text-tiny text-ink-faint underline-offset-2 hover:text-accent hover:underline"
-        >
-          tout voir
-        </button>
+        {onTout && (
+          <button
+            type="button"
+            onClick={onTout}
+            className="text-tiny text-ink-faint underline-offset-2 hover:text-accent hover:underline"
+          >
+            tout voir
+          </button>
+        )}
       </div>
       <div className="relative">
         <button
@@ -1103,28 +1201,20 @@ function RangeeElements({
           <Icon name="chevron_left" size={20} />
         </button>
         <div ref={pisteRef} className="no-scrollbar flex gap-2 overflow-x-auto scroll-smooth pb-1">
-          {elements.map((el) =>
-            el.film ? (
-              <Carte
-                key={el.cle}
-                film={el.film}
+          {elements.map((el) => (
+            <div key={el.cle} className="w-56 shrink-0">
+              <CarteTitre
+                element={el}
                 reprise={reprises[el.cle]}
+                vu={el.episode?.episode != null && vus.has(empreinte(el.episode.saison, el.episode.episode))}
+                onOuvrir={() => onOuvrir(el)}
                 onLire={() => onLire(el)}
                 onVisible={onVisible}
                 onPrecharger={onPrecharger}
-                onMenu={() => el.film && onMenu(el.film)}
+                onMenu={el.film ? () => el.film && onMenu(el.film) : undefined}
               />
-            ) : (
-              <div key={el.cle} className="w-56 shrink-0">
-                <CarteEpisode
-                  element={el}
-                  vu={el.episode?.episode != null && vus.has(empreinte(el.episode.saison, el.episode.episode))}
-                  onLire={() => onLire(el)}
-                  onBasculerVu={() => el.episode && onBasculerVu(el.episode.saison, el.episode.episode)}
-                />
-              </div>
-            ),
-          )}
+            </div>
+          ))}
         </div>
         <button
           type="button"
@@ -1139,126 +1229,56 @@ function RangeeElements({
   );
 }
 
-// ── Carte d'épisode (série) ───────────────────────────────────────────────────
+// ── La carte, une seule pour les deux sources ─────────────────────────────────
 
 /**
- * La vignette vient de `img.youtube.com` : c'est une ressource distante, donc soumise au réseau.
- * Son échec est traité (`onError`) plutôt qu'ignoré — une carte muette avec une image cassée est
- * moins lisible qu'une carte qui assume de n'avoir que du texte.
+ * Une carte de titre.
+ *
+ * Elle était en deux exemplaires — `Carte` pour le jeu, `CarteEpisode` pour la série — qui
+ * divergeaient sur tout ce qui n'était pas l'image : le survol, la progression, le menu
+ * contextuel, le geste de clic. Une seule carte porte désormais les deux sources, et la seule
+ * différence qui subsiste est celle qui existe vraiment : d'où vient l'image, et si un aperçu
+ * animé est possible.
+ *
+ * **Le clic ouvre la FICHE**, le bouton ▶ lance la lecture. C'est le geste des deux plateformes
+ * de référence, et il évite de démultiplexer 300 Mo pour vérifier qu'on ne s'est pas trompé.
  */
-function CarteEpisode({
+function CarteTitre({
   element,
-  vu,
-  onLire,
-  onBasculerVu,
-}: {
-  element: Element;
-  vu?: boolean;
-  onLire: () => void;
-  onBasculerVu?: () => void;
-}) {
-  const [imageKo, setImageKo] = useState(false);
-  const e = element.episode;
-  return (
-    <button
-      type="button"
-      onClick={onLire}
-      className={cn(
-        "group/carte flex w-full flex-col overflow-hidden rounded-md border bg-app-box text-left transition-colors hover:border-accent",
-        vu ? "border-emerald-500/40" : "border-app-line",
-      )}
-    >
-      <div className="relative aspect-video w-full overflow-hidden bg-app-darkBox">
-        {element.vignette && !imageKo ? (
-          <img
-            src={element.vignette}
-            alt=""
-            loading="lazy"
-            onError={() => setImageKo(true)}
-            className="h-full w-full object-cover transition-transform duration-300 group-hover/carte:scale-105"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center text-ink-faint">
-            <Icon name="movie" size={28} />
-          </div>
-        )}
-        <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover/carte:opacity-100">
-          <Icon name="play_circle" size={36} className="text-white" />
-        </div>
-        {e?.episode ? (
-          <span className="absolute left-1 top-1 rounded bg-black/70 px-1.5 py-0.5 text-tiny font-medium text-white">
-            É{e.episode}
-          </span>
-        ) : null}
-        {e?.langue ? (
-          <span className="absolute right-1 top-1 rounded bg-black/70 px-1.5 py-0.5 text-tiny uppercase text-white/80">
-            {e.langue}
-          </span>
-        ) : null}
-        {/* Marquer vu sans ouvrir : `stopPropagation` parce que la carte entière est un bouton —
-            sans lui, cocher lancerait la lecture. */}
-        {onBasculerVu && (
-          <span
-            role="button"
-            tabIndex={-1}
-            aria-label={vu ? "Marquer comme non vu" : "Marquer comme vu"}
-            title={vu ? "Marquer comme non vu" : "Marquer comme vu"}
-            onClick={(ev) => {
-              ev.stopPropagation();
-              onBasculerVu();
-            }}
-            className={cn(
-              "absolute bottom-1 right-1 rounded-full bg-black/70 p-0.5 transition-opacity",
-              vu ? "text-emerald-400 opacity-100" : "text-white/70 opacity-0 group-hover/carte:opacity-100",
-            )}
-          >
-            <Icon name={vu ? "check_circle" : "radio_button_unchecked"} size={16} />
-          </span>
-        )}
-      </div>
-      <div className="p-2">
-        <div className="line-clamp-2 text-xs font-medium text-ink" title={element.titre}>
-          {element.titre}
-        </div>
-        <div className="mt-0.5 flex items-baseline gap-1.5 text-tiny text-ink-faint">
-          {element.sousTitre && <span>{element.sousTitre}</span>}
-          {/* La transcription romaji sous le titre français : c'est par elle qu'on relie un
-              épisode à ce qu'en disent les sources japonaises. */}
-          {e?.romaji && <span className="truncate italic opacity-70">{e.romaji}</span>}
-        </div>
-      </div>
-    </button>
-  );
-}
-
-// ── Carte ─────────────────────────────────────────────────────────────────────
-
-function Carte({
-  film,
   reprise,
+  vu,
+  onOuvrir,
   onLire,
   onVisible,
   onPrecharger,
   onMenu,
 }: {
-  film: FilmDto;
+  element: ElementCinema;
   reprise?: { position: number; duree: number };
+  vu?: boolean;
+  onOuvrir: () => void;
   onLire: () => void;
-  onVisible: (chemin: string) => void;
-  onPrecharger: (chemin: string) => void;
-  onMenu: () => void;
+  onVisible?: (chemin: string) => void;
+  onPrecharger?: (chemin: string) => void;
+  onMenu?: () => void;
 }) {
+  const film = element.film;
+  const episode = element.episode;
   const hoteRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const minuterie = useRef<number | null>(null);
+  const minuteriePrecharge = useRef<number | null>(null);
   const [apercu, setApercu] = useState(false);
-  const [affiche, setAffiche] = useState<string | null>(() => affiches.get(film.chemin) ?? null);
+  const [imageKo, setImageKo] = useState(false);
+  const [affiche, setAffiche] = useState<string | null>(() =>
+    film ? (affiches.get(film.chemin) ?? null) : null,
+  );
 
   // Enrichissement à l'entrée dans le champ de vision : ni au montage (97 requêtes d'un coup)
   // ni au survol (l'utilisateur veut voir la durée AVANT de choisir où pointer).
   useEffect(() => {
     const hote = hoteRef.current;
-    if (!hote || film.duree != null) return;
+    if (!hote || !film || film.duree != null || !onVisible) return;
     const obs = new IntersectionObserver(
       (entrees) => {
         if (entrees.some((e) => e.isIntersecting)) {
@@ -1270,11 +1290,11 @@ function Carte({
     );
     obs.observe(hote);
     return () => obs.disconnect();
-  }, [film.chemin, film.duree, onVisible]);
+  }, [film, onVisible]);
 
   const capturer = useCallback(() => {
     const v = videoRef.current;
-    if (!v || affiches.has(film.chemin) || v.videoWidth === 0) return;
+    if (!v || !film || affiches.has(film.chemin) || v.videoWidth === 0) return;
     const canvas = document.createElement("canvas");
     // Largeur d'affiche fixe : une carte fait 224 px, inutile de garder du 1920.
     canvas.width = 320;
@@ -1289,18 +1309,18 @@ function Carte({
     } catch {
       // Canvas « teinté » : sans affiche, la carte garde son fond typographique.
     }
-  }, [film.chemin]);
-
-  const minuteriePrecharge = useRef<number | null>(null);
+  }, [film]);
 
   const entrer = () => {
-    if (film.lisible === false) return;
+    if (!film || film.lisible === false) return;
     // Deux temporisations distinctes, et c'est voulu : le PRÉCHARGEMENT part vite (150 ms), parce
     // qu'il ne fait que préparer des octets côté Rust ; la PRÉVISUALISATION attend plus longtemps
     // (550 ms), parce qu'elle démarre un décodage vidéo visible. Traverser une rangée à la souris
     // ne doit lancer ni l'un ni l'autre.
-    if (minuteriePrecharge.current) window.clearTimeout(minuteriePrecharge.current);
-    minuteriePrecharge.current = window.setTimeout(() => onPrecharger(film.chemin), DELAI_PRECHARGE);
+    if (onPrecharger) {
+      if (minuteriePrecharge.current) window.clearTimeout(minuteriePrecharge.current);
+      minuteriePrecharge.current = window.setTimeout(() => onPrecharger(film.chemin), DELAI_PRECHARGE);
+    }
     if (minuterie.current) window.clearTimeout(minuterie.current);
     minuterie.current = window.setTimeout(() => setApercu(true), DELAI_APERCU);
   };
@@ -1320,42 +1340,59 @@ function Carte({
   );
 
   const progression = reprise && reprise.duree > 0 ? (reprise.position / reprise.duree) * 100 : 0;
+  const vignette = episode ? (imageKo ? element.vignette : vignetteHd(episode.videoId)) : affiche;
 
   return (
     <div
       ref={hoteRef}
-      className="group/carte relative w-56 shrink-0 cursor-pointer select-none"
+      className="group/carte relative w-full cursor-pointer select-none"
       onMouseEnter={entrer}
       onMouseLeave={sortir}
-      onClick={onLire}
-      onContextMenu={(e) => {
-        // `preventDefault` : sans lui, la webview ouvre SON menu (« Recharger », « Inspecter »)
-        // par-dessus le menu natif — deux menus, dont un hors de propos.
-        e.preventDefault();
-        sortir();
-        onMenu();
-      }}
+      onClick={onOuvrir}
+      onContextMenu={
+        onMenu
+          ? (e) => {
+              // `preventDefault` : sans lui, la webview ouvre SON menu (« Recharger »,
+              // « Inspecter ») par-dessus le menu natif — deux menus, dont un hors de propos.
+              e.preventDefault();
+              sortir();
+              onMenu();
+            }
+          : undefined
+      }
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          onLire();
+          onOuvrir();
         }
       }}
       role="button"
       tabIndex={0}
-      title={film.chemin}
+      title={film?.chemin ?? element.titre}
     >
-      <div className="relative aspect-video overflow-hidden rounded-md border border-app-line bg-app-darkBox transition-transform duration-150 group-hover/carte:scale-[1.03] group-hover/carte:border-accent/60">
-        {affiche && !apercu && (
-          <img src={affiche} alt="" className="h-full w-full object-cover" draggable={false} />
+      <div
+        className={cn(
+          "relative aspect-video overflow-hidden rounded-md border bg-app-darkBox transition-transform duration-150 group-hover/carte:scale-[1.03] group-hover/carte:border-accent/60",
+          vu ? "border-emerald-500/40" : "border-app-line",
         )}
-        {!affiche && !apercu && (
+      >
+        {vignette && !apercu && (
+          <img
+            src={vignette}
+            alt=""
+            loading="lazy"
+            onError={() => setImageKo(true)}
+            className="h-full w-full object-cover"
+            draggable={false}
+          />
+        )}
+        {!vignette && !apercu && (
           <div className="flex h-full w-full flex-col items-center justify-center gap-1 bg-gradient-to-br from-app-box to-app-darkBox">
             <Icon name="movie" size={22} className="text-ink-faint/50" />
-            <span className="px-2 text-center font-mono text-[10px] text-ink-faint">{film.nom}</span>
+            <span className="px-2 text-center font-mono text-[10px] text-ink-faint">{element.titre}</span>
           </div>
         )}
-        {apercu && (
+        {apercu && film && (
           // eslint-disable-next-line jsx-a11y/media-has-caption -- aperçu muet, sans dialogue.
           <video
             ref={videoRef}
@@ -1377,43 +1414,73 @@ function Carte({
           />
         )}
 
-        {film.lisible === false && (
+        {film?.lisible === false && (
           <div className="absolute inset-x-0 bottom-0 bg-status-warning/85 px-1.5 py-0.5 text-center text-[10px] font-medium text-black">
             {film.codec?.toUpperCase()} — non lisible ici
           </div>
         )}
 
-        {film.duree != null && film.lisible !== false && (
+        {film?.duree != null && film.lisible !== false && (
           <div className="absolute bottom-1 right-1 rounded bg-black/70 px-1 py-0.5 font-mono text-[10px] text-white/90">
             {formaterDuree(film.duree)}
           </div>
         )}
 
-        {film.langue && (
-          <div className="absolute left-1 top-1 rounded bg-black/60 px-1 py-0.5 text-[10px] font-medium uppercase text-white/80">
-            {film.langue}
+        {episode?.episode ? (
+          <span className="absolute left-1 top-1 rounded bg-black/70 px-1.5 py-0.5 text-tiny font-medium text-white">
+            É{episode.episode}
+          </span>
+        ) : null}
+
+        {(film?.langue || episode?.langue) && (
+          <div className="absolute right-1 top-1 rounded bg-black/60 px-1 py-0.5 text-[10px] font-medium uppercase text-white/80">
+            {film?.langue ?? episode?.langue}
           </div>
+        )}
+
+        {vu && (
+          <span className="absolute bottom-1 left-1 rounded-full bg-black/70 p-0.5 text-emerald-400">
+            <Icon name="check_circle" size={14} />
+          </span>
         )}
 
         {progression > 0 && (
           <div className="absolute inset-x-0 bottom-0 h-0.5 bg-white/20">
-            <div className="h-full bg-accent" style={{ width: `${progression}%` }} />
+            <div className="h-full bg-accent" style={{ width: `${Math.min(100, progression)}%` }} />
           </div>
         )}
 
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover/carte:opacity-100">
-          <div className="rounded-full bg-black/55 p-2 backdrop-blur-sm">
+        {/* Le seul bouton de la carte : il LIT. Le reste de la surface ouvre la fiche. */}
+        <button
+          type="button"
+          aria-label={`Lire ${element.titre}`}
+          title="Lire"
+          onClick={(e) => {
+            e.stopPropagation();
+            onLire();
+          }}
+          className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover/carte:opacity-100"
+        >
+          <span className="rounded-full bg-black/55 p-2 backdrop-blur-sm">
             <Icon name="play_arrow" size={18} className="text-white" />
-          </div>
-        </div>
+          </span>
+        </button>
       </div>
 
-      <div className="mt-1 truncate text-xs text-ink" title={film.nom}>
-        {film.nom}
+      <div className="mt-1 truncate text-xs text-ink" title={element.titre}>
+        {element.titre}
       </div>
       <div className="truncate text-[10px] text-ink-faint">
-        {film.largeur ? `${film.largeur}×${film.hauteur} · ` : ""}
-        {formaterOctets(film.octets)}
+        {episode?.romaji ? (
+          <span className="italic">{episode.romaji}</span>
+        ) : film ? (
+          <>
+            {film.largeur ? `${film.largeur}×${film.hauteur} · ` : ""}
+            {formaterOctets(film.octets)}
+          </>
+        ) : (
+          (element.sousTitre ?? "")
+        )}
       </div>
     </div>
   );

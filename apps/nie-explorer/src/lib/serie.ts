@@ -14,10 +14,11 @@
 // * `prochainNonVu` et `voisins` ← `wonderbot/src/progression.ts`.
 //
 // Ce qui N'EST PAS porté : la persistance. Le bot garde la progression par membre Discord, en
-// base ; ici il n'y a qu'une personne devant la fenêtre, et `localStorage` suffit — c'est déjà
-// où vivent les positions de lecture des cinématiques.
+// base ; ici elle tient dans `localStorage`, cloisonnée par profil (`lib/profils.ts`) — c'est
+// déjà où vivent les positions de lecture des cinématiques.
+import { clePourProfil, PROFIL_PRINCIPAL } from "./profils";
 
-/** Clé de persistance des épisodes marqués vus. */
+/** Clé de persistance des épisodes marqués vus, avant cloisonnement par profil. */
 const CLE_VUS = "nie-explorer:cinema:vus";
 
 /** Un épisode, désigné comme le fait le bot : par sa saison et son numéro. */
@@ -167,10 +168,17 @@ export function ressemble(requete: string, cible: string, seuil = 72): boolean {
 
 // ── Progression locale ────────────────────────────────────────────────────────
 
-/** Les épisodes marqués vus, sous forme d'empreintes `saison:episode`. */
-export function lireVus(): Set<string> {
+/**
+ * Les épisodes marqués vus, sous forme d'empreintes `saison:episode`.
+ *
+ * La progression est cloisonnée par PROFIL depuis que la vue en propose (`lib/profils.ts`) :
+ * deux personnes devant la même fenêtre ne partagent plus le même « déjà vu ». Le profil
+ * `principal` lit la clé historique, donc rien de ce qui a été accumulé avant n'est perdu — et
+ * l'argument reste facultatif pour les appelants qui n'ont pas de profil sous la main.
+ */
+export function lireVus(profilId: string = PROFIL_PRINCIPAL): Set<string> {
   try {
-    const brut = JSON.parse(localStorage.getItem(CLE_VUS) ?? "[]") as unknown;
+    const brut = JSON.parse(localStorage.getItem(clePourProfil(CLE_VUS, profilId)) ?? "[]") as unknown;
     return new Set(Array.isArray(brut) ? brut.filter((x): x is string => typeof x === "string") : []);
   } catch {
     return new Set();
@@ -179,9 +187,9 @@ export function lireVus(): Set<string> {
 
 /** Enregistre l'ensemble des épisodes vus. Un quota plein reste sans conséquence : la progression
  * est un confort, comme les positions de reprise. */
-export function ecrireVus(vus: ReadonlySet<string>): void {
+export function ecrireVus(vus: ReadonlySet<string>, profilId: string = PROFIL_PRINCIPAL): void {
   try {
-    localStorage.setItem(CLE_VUS, JSON.stringify([...vus]));
+    localStorage.setItem(clePourProfil(CLE_VUS, profilId), JSON.stringify([...vus]));
   } catch {
     // Ignoré volontairement.
   }
