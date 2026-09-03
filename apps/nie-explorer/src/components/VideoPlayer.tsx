@@ -26,8 +26,14 @@
 // la fiche du film, sa résolution reste à faire.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
+import { save } from "@tauri-apps/plugin-dialog";
+import { toast } from "sonner";
 
 import { Icon } from "@/components/ui/Icon";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
+import { api } from "@/lib/api";
+import type { FilmDto } from "@/lib/bindings";
 import { cn } from "@/lib/utils";
 
 /** Dérive tolérée entre l'image et le son, en secondes, avant recalage. */
@@ -38,6 +44,27 @@ const DELAI_MASQUAGE = 2600;
 
 /** Vitesses de lecture proposées. */
 const VITESSES = [0.25, 0.5, 1, 1.25, 1.5, 2];
+
+/** Les raccourcis, écrits UNE fois : le panneau d'aide les affiche, la boucle clavier les
+ * applique. Une aide qui se maintient à la main finit par décrire un lecteur qui n'existe plus. */
+const RACCOURCIS: readonly (readonly [string, string])[] = [
+  ["K / Espace", "Lecture ou pause"],
+  ["J / L", "Reculer ou avancer de 10 s"],
+  ["← / →", "Reculer ou avancer de 5 s (Maj : 1 s)"],
+  [", / .", "Image précédente ou suivante"],
+  ["B / N", "Film précédent ou suivant"],
+  ["↑ / ↓", "Volume"],
+  ["M", "Couper le son"],
+  ["]", "Poser A, puis B, puis effacer la boucle"],
+  ["C", "Capturer l'image affichée en PNG"],
+  ["< / >", "Ralentir ou accélérer"],
+  ["0 – 9", "Sauter à 0 %, 10 %… de la durée"],
+  ["F", "Plein écran"],
+  ["P", "Incrustation (PiP)"],
+  ["I", "Fiche technique"],
+  ["?", "Cette aide"],
+  ["Échap", "Fermer"],
+];
 
 /** Encode un chemin VFS en URL servie par le protocole `nievideo`.
  *
@@ -88,7 +115,25 @@ export interface VideoPlayerProps {
   onProgression?: (secondes: number, duree: number) => void;
   /** Position de reprise, en secondes. */
   depart?: number;
+  /**
+   * Fiche technique du film — alimente le panneau d'informations (touche `I`) et, surtout, donne
+   * la CADENCE : sans elle, l'avance image par image devrait deviner la durée d'une image.
+   */
+  film?: FilmDto | null;
+  /** Film suivant de la file courante — bouton, touche `N`, et enchaînement en fin de lecture. */
+  onSuivant?: () => void;
+  /** Film précédent de la file courante — bouton, touche `B`. */
+  onPrecedent?: () => void;
+  /** Rang dans la file, affiché en clair (« 12 / 97 ») : sans lui, « suivant » ne veut rien dire. */
+  file?: { index: number; total: number } | null;
   className?: string;
+}
+
+/** Une image, en secondes, pour un film de cadence `c`. 30 i/s par défaut : la cadence n'est
+ * connue qu'une fois le film inspecté, et une avance « image par image » qui ne bouge pas tant
+ * que l'inspection n'a pas rendu serait pire qu'une avance approchée. */
+function pasImage(cadence: number | null | undefined): number {
+  return 1 / (cadence && cadence > 0 ? cadence : 30);
 }
 
 export function VideoPlayer({
@@ -100,12 +145,20 @@ export function VideoPlayer({
   onClose,
   onProgression,
   depart,
+  film,
+  onSuivant,
+  onPrecedent,
+  file,
   className,
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const hoteRef = useRef<HTMLDivElement | null>(null);
   const minuterieRef = useRef<number | null>(null);
+  /** Second `<video>`, hors écran, dédié à la vignette d'aperçu : chercher dans l'élément
+   * principal pour dessiner un survol interromprait la lecture en cours. */
+  const apercuRef = useRef<HTMLVideoElement | null>(null);
+  const barreRef = useRef<HTMLDivElement | null>(null);
 
   const [enLecture, setEnLecture] = useState(false);
   const [position, setPosition] = useState(0);
@@ -118,9 +171,32 @@ export function VideoPlayer({
   const [visible, setVisible] = useState(true);
   const [erreur, setErreur] = useState<string | null>(null);
   const [chargement, setChargement] = useState(true);
+  /** Survol de la barre : l'instant visé et son abscisse, pour la vignette. */
+  const [apercu, setApercu] = useState<{ t: number; x: number } | null>(null);
+  /** Glissement en cours sur la barre — un vrai scrub, pas un clic ponctuel. */
+  const [scrub, setScrub] = useState(false);
+  /**
+   * Boucle A–B. Deux bornes, posées à la volée : c'est l'outil qui permet de revoir vingt fois
+   * les mêmes trente images d'une animation sans reprendre le film au début.
+   */
+  const [boucle, setBoucle] = useState<{ a: number | null; b: number | null }>({ a: null, b: null });
+  /** Panneau latéral ouvert, s'il y en a un. */
+  const [panneau, setPanneau] = useState<"aucun" | "infos" | "aide">("aucun");
 
   const src = useMemo(() => urlVideo(chemin), [chemin]);
   const srcAudio = useMemo(() => (avecAudio ? urlVideo(chemin, "audio") : null), [chemin, avecAudio]);
+
+  // Deux valeurs lues DEPUIS les écouteurs du média, jamais dans leurs dépendances : les borner
+  // par `useEffect` remonterait les huit `addEventListener` à chaque borne posée et à chaque
+  // rendu du parent — un remontage en plein `timeupdate` fait sauter la lecture.
+  const boucleRef = useRef(boucle);
+  const suivantRef = useRef(onSuivant);
+  useEffect(() => {
+    boucleRef.current = boucle;
+  }, [boucle]);
+  useEffect(() => {
+    suivantRef.current = onSuivant;
+  }, [onSuivant]);
 
   // ── Contrôles ───────────────────────────────────────────────────────────────
 
@@ -158,6 +234,67 @@ export function VideoPlayer({
     [chercher],
   );
 
+  /**
+   * Avance ou recule d'une image. Met la lecture en pause d'abord : sans cela, la lecture
+   * reprend la main au `timeupdate` suivant et le pas n'est jamais visible.
+   */
+  const parImage = useCallback(
+    (sens: 1 | -1) => {
+      const v = videoRef.current;
+      if (!v) return;
+      v.pause();
+      chercher(v.currentTime + sens * pasImage(film?.cadence));
+    },
+    [chercher, film?.cadence],
+  );
+
+  /**
+   * Enregistre l'image affichée en PNG, à la résolution réelle du film (pas celle de la fenêtre).
+   *
+   * `drawImage` sur un `<video>` dont la source vient d'un protocole personnalisé teinte le canvas
+   * — l'appel à `toBlob` échouerait sur une `SecurityError` si le flux était considéré comme
+   * d'une autre origine. `nievideo://` est servi par l'application elle-même, donc de même
+   * origine ; l'échec éventuel est rapporté tel quel plutôt que masqué.
+   */
+  const capturer = useCallback(async () => {
+    const v = videoRef.current;
+    if (!v || !v.videoWidth) return;
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = v.videoWidth;
+      canvas.height = v.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("contexte 2D indisponible");
+      ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+      const url = canvas.toDataURL("image/png");
+      const b64 = url.slice(url.indexOf(",") + 1);
+      const image = Math.round(v.currentTime * (film?.cadence || 30));
+      const dest = await save({
+        defaultPath: `${film?.nom ?? "capture"}_${String(image).padStart(5, "0")}.png`,
+        filters: [{ name: "Image PNG", extensions: ["png"] }],
+      });
+      if (!dest) return;
+      const octets = await api.saveBytesB64(dest, b64);
+      toast.success(`Image ${image} capturée — ${octets.toLocaleString("fr-FR")} octets`);
+    } catch (e) {
+      toast.error(`Capture impossible : ${e}`);
+    }
+  }, [film?.cadence, film?.nom]);
+
+  /**
+   * Pose la borne suivante de la boucle : A si aucune, B si A seule, remise à zéro si les deux
+   * sont posées. Un seul geste pour les trois états — c'est la convention des lecteurs d'analyse.
+   */
+  const poserBoucle = useCallback(() => {
+    const t = videoRef.current?.currentTime ?? 0;
+    setBoucle((b) => {
+      if (b.a === null) return { a: t, b: null };
+      if (b.b === null) return t > b.a ? { a: b.a, b: t } : { a: t, b: b.a };
+      return { a: null, b: null };
+    });
+    reveiller();
+  }, [reveiller]);
+
   const basculerPleinEcran = useCallback(() => {
     const hote = hoteRef.current;
     if (!hote) return;
@@ -179,6 +316,14 @@ export function VideoPlayer({
     if (!v) return;
 
     const surTemps = () => {
+      // La boucle A–B se referme ICI, pas dans un `setInterval` : `timeupdate` est l'horloge du
+      // média lui-même, donc le rebouclage suit la vitesse de lecture sans dériver. Elle passe
+      // par une ref pour ne pas remonter tout ce bloc de listeners à chaque borne posée.
+      const bcl = boucleRef.current;
+      if (bcl.a !== null && bcl.b !== null && v.currentTime >= bcl.b) {
+        v.currentTime = bcl.a;
+        if (audioRef.current) audioRef.current.currentTime = bcl.a;
+      }
       setPosition(v.currentTime);
       onProgression?.(v.currentTime, v.duration || 0);
       const a = audioRef.current;
@@ -213,6 +358,11 @@ export function VideoPlayer({
       setEnLecture(false);
       audioRef.current?.pause();
       setVisible(true);
+      // Enchaînement sur le film suivant de la file — ce qui fait la différence entre « ouvrir un
+      // fichier » et « regarder ». Une boucle A–B posée l'emporte : elle signifie qu'on travaille
+      // sur CE passage, et enchaîner serait l'inverse de ce qui est demandé.
+      const bcl = boucleRef.current;
+      if (bcl.a === null || bcl.b === null) suivantRef.current?.();
     };
     const surErreur = () => {
       setChargement(false);
@@ -261,13 +411,17 @@ export function VideoPlayer({
     }
   }, [volume, muet]);
 
-  // Changement de film : on repart de zéro plutôt que de garder l'erreur du précédent.
+  // Changement de film : on repart de zéro plutôt que de garder l'erreur du précédent. La boucle
+  // en fait partie — ses deux bornes sont des instants d'UN film, les reporter sur le suivant
+  // ferait boucler un passage choisi ailleurs.
   useEffect(() => {
     setErreur(null);
     setChargement(true);
     setPosition(0);
     setDuree(0);
     setTampon(0);
+    setBoucle({ a: null, b: null });
+    setApercu(null);
   }, [chemin]);
 
   useEffect(() => {
@@ -327,8 +481,48 @@ export function VideoPlayer({
         case "p":
           basculerPip();
           break;
+        // Pas à pas : les deux touches des tables de montage, `,` et `.`.
+        case ",":
+          e.preventDefault();
+          parImage(-1);
+          break;
+        case ".":
+          e.preventDefault();
+          parImage(1);
+          break;
+        case "b":
+          onPrecedent?.();
+          break;
+        case "n":
+          onSuivant?.();
+          break;
+        case "]":
+          poserBoucle();
+          break;
+        case "c":
+          void capturer();
+          break;
+        case "i":
+          setPanneau((p) => (p === "infos" ? "aucun" : "infos"));
+          reveiller();
+          break;
+        case "?":
+          setPanneau((p) => (p === "aide" ? "aucun" : "aide"));
+          reveiller();
+          break;
+        case "<":
+          setVitesse((v) => VITESSES[Math.max(0, VITESSES.indexOf(v) - 1)] ?? v);
+          reveiller();
+          break;
+        case ">":
+          setVitesse((v) => VITESSES[Math.min(VITESSES.length - 1, VITESSES.indexOf(v) + 1)] ?? v);
+          reveiller();
+          break;
         case "Escape":
-          if (!document.fullscreenElement) onClose?.();
+          // Un panneau ouvert se ferme d'abord : sinon `Échap` referme le lecteur entier alors
+          // qu'on voulait seulement replier la fiche technique.
+          if (panneau !== "aucun") setPanneau("aucun");
+          else if (!document.fullscreenElement) onClose?.();
           break;
         default:
           // 0–9 : saut au pourcentage correspondant, comme sur un lecteur web.
@@ -340,7 +534,22 @@ export function VideoPlayer({
     };
     window.addEventListener("keydown", surTouche);
     return () => window.removeEventListener("keydown", surTouche);
-  }, [basculerLecture, basculerPip, basculerPleinEcran, chercher, decaler, duree, onClose, reveiller]);
+  }, [
+    basculerLecture,
+    basculerPip,
+    basculerPleinEcran,
+    capturer,
+    chercher,
+    decaler,
+    duree,
+    onClose,
+    onPrecedent,
+    onSuivant,
+    panneau,
+    parImage,
+    poserBoucle,
+    reveiller,
+  ]);
 
   useEffect(
     () => () => {
@@ -354,10 +563,36 @@ export function VideoPlayer({
   const pourcentage = duree > 0 ? (position / duree) * 100 : 0;
   const pourcentageTampon = duree > 0 ? (tampon / duree) * 100 : 0;
 
-  const surBarre = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    if (rect.width <= 0 || duree <= 0) return;
-    chercher(((e.clientX - rect.left) / rect.width) * duree);
+  /** L'instant visé par une abscisse écran, borné à la durée du film. */
+  const instantSous = (clientX: number): number | null => {
+    const rect = barreRef.current?.getBoundingClientRect();
+    if (!rect || rect.width <= 0 || duree <= 0) return null;
+    return Math.max(0, Math.min(1, (clientX - rect.left) / rect.width)) * duree;
+  };
+
+  /** Survol : vignette d'aperçu. Le `<video>` caché est cherché à la volée — un survol de la
+   * barre ne doit jamais toucher l'élément qui joue. */
+  const surSurvolBarre = (e: React.PointerEvent<HTMLDivElement>) => {
+    const t = instantSous(e.clientX);
+    if (t === null) return;
+    const rect = barreRef.current?.getBoundingClientRect();
+    setApercu({ t, x: e.clientX - (rect?.left ?? 0) });
+    const a = apercuRef.current;
+    if (a && Number.isFinite(t)) a.currentTime = t;
+    if (scrub) chercher(t);
+  };
+
+  const surAppuiBarre = (e: React.PointerEvent<HTMLDivElement>) => {
+    const t = instantSous(e.clientX);
+    if (t === null) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setScrub(true);
+    chercher(t);
+  };
+
+  const surRelacheBarre = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+    setScrub(false);
   };
 
   return (
@@ -422,6 +657,68 @@ export function VideoPlayer({
         )}
       </div>
 
+      {/* Panneau latéral — fiche technique ou raccourcis. En surimpression et non dans une
+          modale : on continue de voir le film pendant qu'on lit ce qu'il est. */}
+      {panneau !== "aucun" && (
+        <div className="absolute right-3 top-14 z-20 w-72 rounded-lg border border-white/10 bg-black/85 p-3 text-xs backdrop-blur">
+          <div className="mb-2 flex items-center gap-2 text-white">
+            <Icon name={panneau === "infos" ? "feed" : "lightbulb"} size={15} />
+            <span className="flex-1 font-medium">
+              {panneau === "infos" ? "Fiche technique" : "Raccourcis"}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPanneau("aucun")}
+              aria-label="Fermer le panneau"
+              className="rounded p-0.5 text-white/60 hover:bg-white/15 hover:text-white"
+            >
+              <Icon name="close" size={14} />
+            </button>
+          </div>
+
+          {panneau === "infos" && film && (
+            <div className="space-y-0">
+              <LigneFiche intitule="Fichier" valeur={film.nom} />
+              <LigneFiche intitule="Rubrique" valeur={film.rubrique} />
+              <LigneFiche intitule="Langue" valeur={film.langue} />
+              <LigneFiche intitule="Codec" valeur={film.codec} />
+              <LigneFiche
+                intitule="Définition"
+                valeur={film.largeur && film.hauteur ? `${film.largeur} × ${film.hauteur}` : null}
+              />
+              <LigneFiche intitule="Cadence" valeur={film.cadence ? `${film.cadence.toFixed(2)} i/s` : null} />
+              <LigneFiche intitule="Images" valeur={film.images?.toLocaleString("fr-FR")} />
+              <LigneFiche intitule="Durée" valeur={formaterDuree(film.duree ?? duree)} />
+              <LigneFiche intitule="Taille" valeur={`${(film.octets / 1024 / 1024).toFixed(1)} Mo`} />
+              <LigneFiche
+                intitule="Bande-son"
+                valeur={film.audio.length > 0 ? `${film.audio.length} piste(s)` : "aucune"}
+              />
+              <LigneFiche intitule="XOR CRI" valeur={film.chiffre === null ? null : film.chiffre ? "oui" : "non"} />
+              <LigneFiche intitule="Nom d'origine" valeur={film.nom_origine} />
+              {/* Le chemin en entier, sélectionnable : c'est ce qu'on recopie dans une commande
+                  `niers vfs extract` ou dans un test. */}
+              <div className="mt-2 select-text break-all border-t border-white/10 pt-2 font-mono text-[10px] text-white/45">
+                {film.chemin}
+              </div>
+            </div>
+          )}
+
+          {panneau === "aide" && (
+            <div className="space-y-0.5">
+              {RACCOURCIS.map(([touche, quoi]) => (
+                <div key={touche} className="flex items-baseline justify-between gap-4 py-0.5">
+                  <kbd className="shrink-0 rounded border border-white/15 bg-white/10 px-1.5 font-mono text-[10px] text-white/80">
+                    {touche}
+                  </kbd>
+                  <span className="truncate text-right text-white/70">{quoi}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Contrôles. */}
       <div
         className={cn(
@@ -429,10 +726,17 @@ export function VideoPlayer({
           visible || !enLecture ? "opacity-100" : "pointer-events-none opacity-0",
         )}
       >
-        {/* Barre de progression : le tampon en gris, la position en accent. */}
+        {/* Barre de progression : le tampon en gris, la position en accent, l'intervalle de
+            boucle en surbrillance. Elle se GLISSE (pointer capture) et non plus seulement se
+            clique — un clic isolé ne permet pas de chercher une image précise. */}
         <div
-          className="group/barre relative h-4 cursor-pointer"
-          onClick={surBarre}
+          ref={barreRef}
+          className="group/barre relative h-4 cursor-pointer touch-none"
+          onPointerDown={surAppuiBarre}
+          onPointerMove={surSurvolBarre}
+          onPointerUp={surRelacheBarre}
+          onPointerCancel={surRelacheBarre}
+          onPointerLeave={() => setApercu(null)}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") basculerLecture();
           }}
@@ -446,20 +750,70 @@ export function VideoPlayer({
           <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-white/20 transition-[height] group-hover/barre:h-1.5">
             <div className="h-full rounded-full bg-white/30" style={{ width: `${pourcentageTampon}%` }} />
           </div>
+          {boucle.a !== null && duree > 0 && (
+            <div
+              className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-amber-400/40 transition-[height] group-hover/barre:h-1.5"
+              style={{
+                left: `${(boucle.a / duree) * 100}%`,
+                width: `${(((boucle.b ?? boucle.a) - boucle.a) / duree) * 100}%`,
+              }}
+            />
+          )}
           <div
             className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-accent transition-[height] group-hover/barre:h-1.5"
             style={{ width: `${pourcentage}%` }}
           />
+          {/* Les deux bornes restent visibles même hors survol : c'est un état du travail en
+              cours, pas une décoration de la barre. */}
+          {(["a", "b"] as const).map((borne) =>
+            boucle[borne] !== null && duree > 0 ? (
+              <div
+                key={borne}
+                className="absolute top-1/2 h-3 w-0.5 -translate-y-1/2 bg-amber-400"
+                style={{ left: `${((boucle[borne] as number) / duree) * 100}%` }}
+                title={`Boucle ${borne.toUpperCase()} — ${formaterDuree(boucle[borne] as number)}`}
+              />
+            ) : null,
+          )}
           <div
-            className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent opacity-0 transition-opacity group-hover/barre:opacity-100"
+            className={cn(
+              "absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent transition-opacity",
+              scrub ? "opacity-100" : "opacity-0 group-hover/barre:opacity-100",
+            )}
             style={{ left: `${pourcentage}%` }}
           />
+
+          {/* Vignette d'aperçu — l'image du point visé, pas seulement son horodatage. */}
+          {apercu && duree > 0 && (
+            <div
+              className="pointer-events-none absolute bottom-5 z-10 -translate-x-1/2 overflow-hidden rounded-md border border-white/15 bg-black/90 shadow-lg"
+              style={{ left: `${Math.max(80, Math.min(apercu.x, (barreRef.current?.clientWidth ?? 0) - 80))}px` }}
+            >
+              <video
+                ref={apercuRef}
+                src={src}
+                muted
+                preload="metadata"
+                className="h-[90px] w-40 bg-black object-contain"
+              />
+              <div className="border-t border-white/10 py-0.5 text-center font-mono text-[10px] tabular-nums text-white/80">
+                {formaterDuree(apercu.t)}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-1 text-white">
+          {onPrecedent && <BoutonLecteur icone="skip_previous" titre="Film précédent (B)" onClick={onPrecedent} />}
           <BoutonLecteur icone={enLecture ? "pause" : "play_arrow"} titre={enLecture ? "Pause (K)" : "Lecture (K)"} onClick={basculerLecture} />
+          {onSuivant && <BoutonLecteur icone="skip_next" titre="Film suivant (N)" onClick={onSuivant} />}
           <BoutonLecteur icone="fast_rewind" titre="Reculer de 10 s (J)" onClick={() => decaler(-10)} />
           <BoutonLecteur icone="fast_forward" titre="Avancer de 10 s (L)" onClick={() => decaler(10)} />
+
+          {/* Pas à pas image par image — l'outil qui distingue un lecteur d'analyse d'un lecteur
+              de salon. La cadence vient de la fiche du film, pas d'une constante. */}
+          <BoutonLecteur icone="chevron_left" titre="Image précédente (,)" onClick={() => parImage(-1)} />
+          <BoutonLecteur icone="chevron_right" titre="Image suivante (.)" onClick={() => parImage(1)} />
 
           <div className="group/volume flex items-center gap-1">
             <BoutonLecteur
@@ -468,27 +822,43 @@ export function VideoPlayer({
               onClick={() => setMuet((m) => !m)}
               desactive={!srcAudio}
             />
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.01}
-              value={muet ? 0 : volume}
-              disabled={!srcAudio}
-              onChange={(e) => {
-                setVolume(Number(e.target.value));
-                setMuet(false);
-              }}
-              aria-label="Volume"
-              className="h-1 w-0 cursor-pointer appearance-none rounded-full bg-white/30 opacity-0 transition-all group-hover/volume:w-20 group-hover/volume:opacity-100 accent-accent"
-            />
+            {/* `Slider` du design system : la glissière était un `<input type=range>` nu, sans
+                piste ni curseur communs au reste de l'application. */}
+            <div className="w-0 overflow-hidden opacity-0 transition-all group-hover/volume:w-24 group-hover/volume:opacity-100">
+              <Slider
+                value={[muet ? 0 : volume]}
+                min={0}
+                max={1}
+                step={0.01}
+                disabled={!srcAudio}
+                onValueChange={(v) => {
+                  const n = Array.isArray(v) ? v[0] : v;
+                  if (typeof n !== "number") return;
+                  setVolume(n);
+                  setMuet(false);
+                }}
+                aria-label="Volume"
+                className="w-24"
+              />
+            </div>
           </div>
 
           <div className="ml-2 select-none font-mono text-xs tabular-nums text-white/80">
             {formaterDuree(position)} <span className="text-white/35">/ {formaterDuree(duree)}</span>
+            {/* Le numéro d'image : sur un film à 30 i/s, « 2:14 » ne désigne pas une image, il en
+                désigne trente. */}
+            {film?.cadence ? (
+              <span className="ml-2 text-white/35">img {Math.round(position * film.cadence).toLocaleString("fr-FR")}</span>
+            ) : null}
           </div>
 
           <div className="flex-1" />
+
+          {file && file.total > 1 && (
+            <span className="mr-2 select-none font-mono text-[11px] tabular-nums text-white/45">
+              {file.index + 1} / {file.total}
+            </span>
+          )}
 
           {!srcAudio && (
             <span
@@ -499,20 +869,46 @@ export function VideoPlayer({
             </span>
           )}
 
-          <select
-            value={vitesse}
-            onChange={(e) => setVitesse(Number(e.target.value))}
-            aria-label="Vitesse de lecture"
-            title="Vitesse de lecture"
-            className="mr-1 rounded-md bg-white/10 px-1.5 py-1 text-xs text-white/85 outline-none hover:bg-white/20"
-          >
-            {VITESSES.map((v) => (
-              <option key={v} value={v} className="text-ink">
-                {v}×
-              </option>
-            ))}
-          </select>
+          <BoutonLecteur
+            icone="replay"
+            titre={
+              boucle.b !== null
+                ? `Boucle ${formaterDuree(boucle.a)} → ${formaterDuree(boucle.b)} — effacer (])`
+                : boucle.a !== null
+                  ? `Borne A posée à ${formaterDuree(boucle.a)} — poser B (])`
+                  : "Poser la borne A de la boucle (])"
+            }
+            onClick={poserBoucle}
+            actif={boucle.a !== null}
+          />
+          <BoutonLecteur icone="image" titre="Capturer l'image affichée (C)" onClick={() => void capturer()} />
 
+          <Select value={String(vitesse)} onValueChange={(v) => setVitesse(Number(v ?? 1))}>
+            <SelectTrigger size="sm" className="mr-1 h-7 w-16 border-white/15 bg-white/10 text-xs text-white/85">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {VITESSES.map((v) => (
+                <SelectItem key={v} value={String(v)}>
+                  {v}×
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <BoutonLecteur
+            icone="feed"
+            titre="Fiche technique (I)"
+            onClick={() => setPanneau((p) => (p === "infos" ? "aucun" : "infos"))}
+            actif={panneau === "infos"}
+            desactive={!film}
+          />
+          <BoutonLecteur
+            icone="lightbulb"
+            titre="Raccourcis clavier (?)"
+            onClick={() => setPanneau((p) => (p === "aide" ? "aucun" : "aide"))}
+            actif={panneau === "aide"}
+          />
           <BoutonLecteur icone="picture_in_picture" titre="Incrustation (P)" onClick={basculerPip} />
           <BoutonLecteur
             icone={pleinEcran ? "fullscreen_exit" : "fullscreen"}
@@ -530,11 +926,14 @@ function BoutonLecteur({
   titre,
   onClick,
   desactive,
+  actif,
 }: {
   icone: string;
   titre: string;
   onClick: () => void;
   desactive?: boolean;
+  /** Bascule enfoncée (boucle armée, panneau ouvert) — `aria-pressed`, pas seulement une teinte. */
+  actif?: boolean;
 }) {
   return (
     <button
@@ -542,10 +941,27 @@ function BoutonLecteur({
       onClick={onClick}
       title={titre}
       aria-label={titre}
+      aria-pressed={actif}
       disabled={desactive}
-      className="rounded-md p-1.5 text-white/85 transition-colors hover:bg-white/15 hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
+      className={cn(
+        "rounded-md p-1.5 transition-colors hover:bg-white/15 hover:text-white disabled:cursor-not-allowed disabled:opacity-30",
+        actif ? "bg-white/15 text-amber-300" : "text-white/85",
+      )}
     >
       <Icon name={icone} size={18} />
     </button>
+  );
+}
+
+/** Une ligne « intitulé → valeur » de la fiche technique. Rend `null` quand la valeur manque :
+ * une fiche qui affiche « — » partout ne dit pas que le film n'a pas été inspecté, elle laisse
+ * croire qu'il n'a pas ces propriétés. */
+function LigneFiche({ intitule, valeur }: { intitule: string; valeur: React.ReactNode }) {
+  if (valeur === null || valeur === undefined || valeur === "") return null;
+  return (
+    <div className="flex items-baseline justify-between gap-4 py-0.5">
+      <span className="shrink-0 text-white/45">{intitule}</span>
+      <span className="truncate text-right font-mono text-white/85">{valeur}</span>
+    </div>
   );
 }

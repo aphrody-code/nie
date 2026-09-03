@@ -17,22 +17,33 @@ export const commands = {
 	 */
 	checkGameDir: (gameDir: string) => __TAURI_INVOKE<boolean>("check_game_dir", { gameDir }),
 	/**
-	 *  Résout le miroir SQLite (`supabase-*.sqlite`) par défaut — même ordre de résolution que
-	 *  [`nie_wiki::mirror::resolve`] (`NIE_WIKI_DB`/`SQLITE_DB_PATH`, fichier le plus récent), mais
-	 *  avec un répertoire de backups RÉEL pour cette appli desktop (`<racine du jeu>/var/wiki-mirror`,
-	 *  où vit effectivement `supabase-2026-06-05T00-08-26.sqlite` sur ce poste) plutôt que le chemin
-	 *  de dev WSL codé en dur `/home/ubuntu/niers/data/backups` (inexistant hors de la machine de
-	 *  développement). Renvoie `None` si rien n'est trouvé — jamais un chemin deviné : le champ
-	 *  « Base SQLite » des Paramètres reste alors vide, à renseigner manuellement.
+	 *  Résout le miroir SQLite du wiki (tables `inagle_*`) par défaut. Renvoie `None` si rien n'est
+	 *  trouvé — jamais un chemin deviné : le champ « Base SQLite » des Paramètres reste alors vide,
+	 *  à renseigner manuellement.
+	 * 
+	 *  Ordre : `NIE_WIKI_DB`/`SQLITE_DB_PATH`, puis les bases **livrées avec l'application**
+	 *  ([`bases_embarquees`] — c'est ce qui donne une expérience complète à une utilisatrice qui n'a
+	 *  ni le dépôt ni le jeu), puis les emplacements du dépôt ([`miroir_wiki_sous`]).
 	 */
 	defaultWikiDb: (gameDir: string | null) => __TAURI_INVOKE<string | null>("default_wiki_db", { gameDir }),
 	/**
 	 *  Résout `var/niers.sqlite` (base RE — fonctions/classes RTTI/xrefs labellisées par `nie-re`,
-	 *  cf. `src/lib/reDb.ts`) sous la racine du jeu. Commande Rust plutôt qu'un `exists()` JS
-	 *  (`@tauri-apps/plugin-fs`) : la portée `fs:scope` de l'app ne couvre que `$APPDATA`, un
-	 *  `std::fs` Rust n'a pas cette restriction — même raison que [`default_wiki_db`] au-dessus.
+	 *  cf. `src/lib/reDb.ts`). Commande Rust plutôt qu'un `exists()` JS (`@tauri-apps/plugin-fs`) :
+	 *  la portée `fs:scope` de l'app ne couvre que `$APPDATA`, un `std::fs` Rust n'a pas cette
+	 *  restriction — même raison que [`default_wiki_db`] au-dessus.
+	 * 
+	 *  Même ordre que le miroir wiki : `NIE_RE_DB`, bases livrées avec l'application, puis le dépôt.
 	 */
 	defaultReDb: (gameDir: string | null) => __TAURI_INVOKE<string | null>("default_re_db", { gameDir }),
+	/**
+	 *  Résout `data/anime/episodes.db` — le catalogue des épisodes de la série (10 saisons, 355
+	 *  épisodes avec vignettes), alimenté par `packages/ietv` et sa tâche `ietv-cache`.
+	 * 
+	 *  C'est le quatrième gisement de `docs/FUSION.md` (`anime`), et la vue Cinéma le présente à côté
+	 *  des cinématiques du jeu. Même ordre de résolution que les deux autres bases : `NIE_ANIME_DB`,
+	 *  bases livrées avec l'application, puis le dépôt.
+	 */
+	defaultAnimeDb: (gameDir: string | null) => __TAURI_INVOKE<string | null>("default_anime_db", { gameDir }),
 	/**
 	 *  Force le (re)chargement du VFS en cache — appelé une fois au démarrage du frontend pour
 	 *  amortir le coût d'indexation AVANT la première navigation (cf. demande utilisatrice
@@ -305,6 +316,44 @@ export const commands = {
 	 *  (map, event, effect…), qui n'ont pas de sémantique portée.
 	 */
 	vfsDecodeCfgbinTyped: (path: string, gameDir: string | null) => typedError<CfgbinTyped, string>(__TAURI_INVOKE("vfs_decode_cfgbin_typed", { path, gameDir })),
+	/**
+	 *  Aperçu traçable d'une caméra de cinématique (`.g4cm`) — 1 215 fichiers dans le jeu.
+	 * 
+	 *  Rend des **pistes** `(objet, canal, temps → valeur)` plutôt que la structure complète du
+	 *  décodeur : celle-ci descend jusqu'aux octets de rembourrage, ce qu'il faut pour réencoder à
+	 *  l'octet près mais qui noierait une vue. Les canaux portent la position de la caméra
+	 *  (`PosX/Y/Z`), son point visé (`RefX/Y/Z`) et son champ de vision (`Fov`).
+	 * 
+	 *  Un canal dont le flux n'est pas `f32` sort avec `resolu = false` et sans valeurs :
+	 *  l'encodage 2 octets n'est pas élucidé, et inventer des nombres donnerait une trajectoire
+	 *  plausible et fausse.
+	 */
+	vfsApercuCamera: (path: string, gameDir: string | null) => typedError<ApercuCameraDto, string>(__TAURI_INVOKE("vfs_apercu_camera", { path, gameDir })),
+	/**
+	 *  Aperçu projetable d'un maillage de navigation (`.g4nv`) — 160 fichiers, 153 cartes.
+	 * 
+	 *  Rend les sommets en coordonnées monde, les **triangles** (trois coins par polygone) et les
+	 *  arêtes du graphe avec leur coût. `bord` marque les arêtes qui ne relient qu'un polygone :
+	 *  c'est le contour de la zone marchable. `tronque` dit qu'un plafond a mordu — l'affichage
+	 *  doit le signaler plutôt que de laisser croire à un maillage complet.
+	 */
+	vfsApercuNavmesh: (path: string, gameDir: string | null) => typedError<ApercuNavmDto, string>(__TAURI_INVOKE("vfs_apercu_navmesh", { path, gameDir })),
+	/**
+	 *  Occupation actuelle du cache CPK — ce que l'explorateur retient en RAM.
+	 * 
+	 *  Rend la consommation observable depuis l'interface : sans cette mesure, un cache qui monte
+	 *  à plusieurs gigaoctets ne se voit nulle part, et le symptôme (la machine qui rame) n'accuse
+	 *  jamais le cache.
+	 */
+	vfsCacheStats: (gameDir: string | null) => typedError<CacheCpkDto, string>(__TAURI_INVOKE("vfs_cache_stats", { gameDir })),
+	/**
+	 *  Vide le cache CPK et rend les mégaoctets libérés.
+	 * 
+	 *  Sans danger pour les lectures en cours : chacune détient un `Arc` sur sa donnée, qui reste
+	 *  vivante jusqu'à la fin de l'extraction. Les lectures suivantes relisent le paquet depuis le
+	 *  disque — c'est le prix, assumé, de rendre la RAM.
+	 */
+	vfsCacheVider: (gameDir: string | null) => typedError<number, string>(__TAURI_INVOKE("vfs_cache_vider", { gameDir })),
 	/**
 	 *  Ré-encode du JSON édité (forme "inagle" `{"entries":[...]}` T2B **ou** `{"lists":[...]}`
 	 *  RDBN, dispatch automatique symétrique à [`vfs_decode_cfgbin`]) vers un `.cfg.bin` binaire
@@ -905,6 +954,54 @@ export type ActivityDto = {
 	data_len: number | null,
 };
 
+/**  Tout ce qu'une vue a besoin de savoir d'un `.g4cm`. */
+export type ApercuCameraDto = {
+	/**  Noms des objets animés. */
+	objets: string[],
+	/**  Clips déclarés. */
+	clips: ClipCameraDto[],
+	/**  Pistes, une par canal. */
+	pistes: PisteCameraDto[],
+	/**  Première frame observée, toutes pistes confondues. */
+	frame_min: number | null,
+	/**  Dernière frame observée. */
+	frame_max: number | null,
+	/**  Nombre total de canaux. */
+	canaux: number,
+	/**  Nombre de canaux dont le flux est décodé en `f32`. */
+	canaux_resolus: number,
+};
+
+/**  Tout ce qu'une vue a besoin de savoir d'un `.g4nv`. */
+export type ApercuNavmDto = {
+	/**  Sommets, en coordonnées monde `[x, y, z]`. */
+	sommets: ([(number | null), (number | null), (number | null)])[],
+	/**  Triangles, en index de sommets (trois par polygone). */
+	triangles: ([number, number, number])[],
+	/**  Arêtes du graphe. */
+	aretes: AreteNavmDto[],
+	/**  Coin inférieur de la boîte englobante. */
+	bbox_min: [(number | null), (number | null), (number | null)],
+	/**  Coin supérieur de la boîte englobante. */
+	bbox_max: [(number | null), (number | null), (number | null)],
+	/**  Nombre de polygones du fichier (avant tout plafonnement). */
+	polygones: number,
+	/**  `true` si l'aperçu a été plafonné — l'affichage doit le signaler. */
+	tronque: boolean,
+};
+
+/**  Une arête du graphe de navigation, en indices de sommets. */
+export type AreteNavmDto = {
+	/**  Sommet de départ. */
+	a: number,
+	/**  Sommet d'arrivée. */
+	b: number,
+	/**  Coût de franchissement. */
+	cout: number | null,
+	/**  `true` si l'arête est au bord du maillage (elle ne relie qu'un seul polygone). */
+	bord: boolean,
+};
+
 /**  Catalogue des pistes d'une banque audio du VFS, avec la provenance de ses octets. */
 export type AudioBankDto = {
 	/**  `self` (le fichier EST l'AWB), `embedded`, ou le chemin VFS de l'AWB frère. */
@@ -955,6 +1052,22 @@ export type BlenderSceneResultDto = {
 	warnings: string[],
 };
 
+/**
+ *  Occupation du cache CPK, en mégaoctets.
+ * 
+ *  Les tailles sont en Mo et non en octets pour rester des entiers simples côté interface :
+ *  Specta traduit un flottant en `number | null` (un flottant non fini n'est pas
+ *  représentable en JSON), ce qui obligerait chaque affichage à traiter un cas impossible.
+ */
+export type CacheCpkDto = {
+	/**  Octets bruts retenus, en Mo. */
+	octets_mo: number,
+	/**  Nombre de paquets CPK en cache. */
+	entrees: number,
+	/**  Budget au-delà duquel l'éviction LRU se déclenche, en Mo. */
+	budget_mo: number,
+};
+
 /**  Le catalogue complet renvoyé au frontend. */
 export type CatalogueVideoDto = {
 	/**  Films, triés par chemin. */
@@ -988,6 +1101,16 @@ export type CharaPickerDto = {
 	name: string,
 	main_position: string,
 	sub_position: string,
+};
+
+/**  Un clip : un intervalle de frames déclaré en tête de fichier. */
+export type ClipCameraDto = {
+	/**  Première frame. */
+	debut: number,
+	/**  Dernière frame. */
+	fin: number,
+	/**  Index déclaré. */
+	index: number,
 };
 
 /**
@@ -1547,6 +1670,20 @@ export type PisteAudioDto = {
 	octets: number,
 	/**  D'où vient la piste : `conteneur` (dans le `.usm`) ou le nom de la cue de `anime_stream`. */
 	source: string,
+};
+
+/**  Une piste d'animation : un canal d'un objet, échantillonné dans le temps. */
+export type PisteCameraDto = {
+	/**  Nom de l'objet animé, tel qu'il figure dans la table de noms du fichier. */
+	objet: string,
+	/**  Canal : `PosX`, `PosY`, `PosZ`, `RefX`, `RefY`, `RefZ`, `Fov`, ou `Inconnu(0x..)`. */
+	canal: string,
+	/**  `true` si le flux est un `f32` décodé — donc si `valeurs` a un sens. */
+	resolu: boolean,
+	/**  Numéros de frame des échantillons. */
+	temps: (number | null)[],
+	/**  Valeurs, vides quand `resolu` est faux. */
+	valeurs: (number | null)[],
 };
 
 /**

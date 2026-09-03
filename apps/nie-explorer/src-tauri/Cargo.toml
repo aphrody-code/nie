@@ -7,9 +7,14 @@
 [package]
 name = "nie-explorer"
 description = "Explorateur/éditeur du VFS (CPK) d'Inazuma Eleven: Victory Road — UI native Windows (Fluent/Mica)"
-version = "0.5.2"
+version = "0.5.5"
 authors = ["niers"]
 edition = "2021"
+# Deux binaires vivent ici : l'application et `export-bindings`. `tauri dev` lance
+# `cargo run` SANS `--bin`, ce qui echouait en « could not determine which binary to run »
+# avant meme d'ouvrir la fenetre. `required-features` sur `export-bindings` ne suffit pas :
+# cargo compte les cibles declarees, pas celles que les features activent.
+default-run = "nie-explorer"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -63,6 +68,11 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 anyhow = "1"
 base64 = "0.22"
+# Décompresse les bases livrées avec l'application (`resources/db/*.sqlite.gz` → `$APPDATA/db/`,
+# cf. `installer_bases_embarquees`). gzip plutôt que zstd : le format que `gzip` produit déjà sur
+# les deux postes (aucun `zstd` installé ici), et un décodeur pur Rust sans dépendance native —
+# donc rien qui puisse entrer en conflit de lien avec le `sqlx-sqlite` du bloc d'exclusions.
+flate2 = "1"
 # Client HTTP synchrone minimal — résolveur distant azalee (GraphQL/REST), désactivé tant que
 # l'URL n'est pas renseignée côté UI (Paramètres). Pas de runtime async requis (appel bloquant
 # dans un `tauri::command`, exécuté hors thread UI par Tauri).
@@ -75,6 +85,22 @@ ureq = { version = "2", default-features = false, features = ["tls", "json"] }
 specta = { version = "2.0.0-rc.25", features = ["serde_json"] }
 tauri-specta = { version = "2.0.0-rc.25", features = ["derive", "typescript"] }
 specta-typescript = "0.0.12"
+
+# Journalisation PERSISTANTE. Sur un build release Windows aucune console n'est attachee :
+# `eprintln!` n'ecrit nulle part, et une utilisatrice qui signale une anomalie n'a aucun fichier
+# a joindre. `tauri-plugin-log` ecrit dans `%APPDATA%\dev.niers.explorer\logs\` (cible `LogDir`)
+# ET relaie `console.*` du front. `log` est la facade : tout le code Rust ecrit `log::warn!` /
+# `log::error!`, jamais `eprintln!` (cf. `installer_bases_embarquees`).
+tauri-plugin-log = "2.9.1"
+# Version d'OS / architecture / locale — cout quasi nul, valeur diagnostique dans un rapport
+# d'anomalie et le panneau Parametres. Cote JS : `@tauri-apps/plugin-os`.
+tauri-plugin-os = "2.3.2"
+log = "0.4.34"
+# Schema `niers://` — ouvrir un titre depuis le wiki azalee. ATTENTION Windows : ce plugin exige
+# que `tauri-plugin-single-instance` soit enregistre AVANT lui dans la chaine `.plugin(...)`
+# (sans quoi une seconde instance se lance au lieu de transmettre l'URL), et l'enregistrement du
+# schema aupres du systeme se fait a l'INSTALLATION (MSI/NSIS) — jamais en `tauri dev`.
+tauri-plugin-deep-link = "2.4.10"
 
 # Forward-ouverture "Ouvrir avec" Explorer → instance déjà lancée (argv[1] = chemin du fichier).
 # Updater : vérifie/télécharge/installe les nouvelles versions (desktop uniquement — pas de cible

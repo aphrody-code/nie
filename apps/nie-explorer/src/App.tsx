@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
+import { DashboardView } from "@/components/DashboardView";
 import { ExplorerView } from "@/components/ExplorerView";
 import { ExplorerTabsBar } from "@/components/ExplorerTabsBar";
 import { EditorView, type EditorViewState } from "@/components/editor/EditorView";
@@ -25,6 +26,7 @@ import { SettingsView } from "@/components/SettingsView";
 import { DetailPane } from "@/components/DetailPane";
 import { CommandPalette } from "@/components/CommandPalette";
 import { Sidebar, type SidebarSection } from "@/components/Sidebar";
+import { Icon } from "@/components/ui/Icon";
 import { TopBar } from "@/components/TopBar";
 import { WindowResizeHandles } from "@/components/ui/window-resize-handles";
 import { useAppMenuShortcuts, type AppMenuActions } from "@/components/AppMenu";
@@ -38,15 +40,47 @@ import { showPlaceContextMenu } from "@/lib/contextMenu";
 import { getSettings, setSettings } from "@/lib/settings";
 import { modsDb } from "@/lib/modsDb";
 import { jobsDb } from "@/lib/jobsDb";
+import { vfsIndexDb } from "@/lib/vfsIndexDb";
+import { LIBELLE_GROUPE, libellesVues, vuesDuGroupe } from "@/lib/vues";
 
 /** Largeur de la barre latérale — même valeur que `ShellLayout.tsx` de spacedrive (220 px, dont
  * 8 px de marge flottante de chaque côté), lue par `TopBar` pour se décaler d'autant. */
 const SIDEBAR_WIDTH = 200;
 
+/** Clé de persistance du repli de la barre latérale. */
+const CLE_SIDEBAR_REPLIEE = "nie-explorer:sidebar:repliee";
+
 export default function App() {
   const t = useT();
   useApplyAppearance();
-  const [tab, setTab] = useState("explorer");
+  // Le Cinéma ouvre l'application, et sa première question est « qui regarde ? » — comme les
+  // deux plateformes dont la médiathèque emprunte la forme. Le tableau de bord reste à un clic
+  // (ou `Ctrl+2`) : il dit ce que cette machine peut faire, mais ce n'est pas la question qu'on
+  // se pose en ouvrant la fenêtre.
+  const [tab, setTab] = useState("cinema");
+  /**
+   * Barre latérale repliée — retenue d'une session à l'autre.
+   *
+   * Lue une seule fois, à l'initialisation : `localStorage` est synchrone, et la relire à chaque
+   * rendu ferait un accès disque par frappe de touche.
+   */
+  const [sidebarRepliee, setSidebarRepliee] = useState(
+    () => localStorage.getItem(CLE_SIDEBAR_REPLIEE) === "1",
+  );
+  useEffect(() => {
+    localStorage.setItem(CLE_SIDEBAR_REPLIEE, sidebarRepliee ? "1" : "0");
+  }, [sidebarRepliee]);
+  // Ctrl+B — la même bascule que le bouton, sans quitter le clavier.
+  useEffect(() => {
+    const surTouche = (ev: KeyboardEvent) => {
+      if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === "b") {
+        ev.preventDefault();
+        setSidebarRepliee((r) => !r);
+      }
+    };
+    window.addEventListener("keydown", surTouche);
+    return () => window.removeEventListener("keydown", surTouche);
+  }, []);
   // Onglets de l'Explorateur — état module-level persistant (`lib/explorerTabs.ts`), pas un
   // `useState` local : la navigation, l'historique et les préférences d'affichage appartiennent à
   // l'onglet et survivent au changement de vue comme au redémarrage de l'application.
@@ -101,35 +135,20 @@ export default function App() {
   const sections: SidebarSection[] = useMemo(() => {
     const inExplorer = tab === "explorer" && !externalPath;
     return [
-      {
-        label: null,
-        items: [
-          { id: "editor", label: "Éditeur", icon: "view_in_ar" },
-          { id: "explorer", label: t("tab.explorer"), icon: "folder_open" },
-          { id: "search", label: t("tab.search"), icon: "search" },
-          { id: "cinema", label: "Cinéma", icon: "movie" },
-        ],
-      },
-      {
-        label: "Données",
-        items: [
-          { id: "data", label: t("tab.data"), icon: "database" },
-          { id: "gallery", label: "Galerie", icon: "photo_library" },
-          { id: "cpk", label: t("tab.cpk"), icon: "deployed_code" },
-          { id: "save", label: t("tab.save"), icon: "save" },
-        ],
-      },
-      {
-        label: "Outils",
-        items: [
-          { id: "tools", label: "Outils wiki", icon: "handyman" },
-          { id: "mods", label: t("tab.mods"), icon: "extension" },
-          { id: "re", label: t("tab.re"), icon: "memory" },
-          { id: "viola", label: "Viola", icon: "deployed_code" },
-          { id: "livemod", label: "Live mod", icon: "bolt" },
-          { id: "lua", label: "Lua", icon: "edit_note" },
-        ],
-      },
+      // Les trois groupes de vues viennent du registre (`lib/vues.ts`) : leur ordre, leurs
+      // libellés et leurs icônes n'existent plus qu'à un seul endroit, partagé avec le menu
+      // Affichage, les accélérateurs et la palette de commandes. Deux icônes se rendaient
+      // d'ailleurs en RIEN ici — `photo_library` et `handyman` ne sont pas dans la table de
+      // `ui/Icon`, qui rend `null` sur un nom inconnu.
+      ...(["principal", "donnees", "outils"] as const).map((groupe) => ({
+        label: LIBELLE_GROUPE[groupe],
+        items: vuesDuGroupe(groupe).map((v) => ({
+          id: v.id,
+          label: t(v.cle),
+          icon: v.icone,
+          title: `${t(v.cle)} — ${v.description}`,
+        })),
+      })),
       {
         label: t("explorer.places"),
         items: PINNED_PLACES.map((p) => ({
@@ -297,22 +316,53 @@ export default function App() {
       })
       .catch(() => {});
     const settings = getSettings();
-    if (!settings.wikiDb.trim()) {
+    // Miroir wiki : résolu maintenant s'il est déjà là (dépôt, ou base installée par un
+    // lancement précédent), sinon à l'arrivée de `bases-pretes` — au tout premier lancement, la
+    // décompression des bases livrées avec l'appli (~140 Mo) n'est pas encore finie ici.
+    function resoudreWikiDb() {
+      if (getSettings().wikiDb.trim()) return;
       api
-        .defaultWikiDb(settings.gameDir)
+        .defaultWikiDb(getSettings().gameDir)
         .then((db) => db && setSettings({ wikiDb: db }))
         .catch(() => {});
     }
+    resoudreWikiDb();
+    const arretBases = listen<string[]>("bases-pretes", () => {
+      resoudreWikiDb();
+      toast.success("Données embarquées prêtes (wiki + base RE)");
+    });
+
     api
       .preloadVfs(settings.gameDir)
-      .then((s) =>
+      .then((s) => {
         toast.success(
           `VFS chargé : ${s.total.toLocaleString("fr-FR")} fichiers (${
             s.montage === "dump" ? "dump extrait" : "packs CPK"
           })`,
-        ),
-      )
-      .catch((e) => toast.error(`Échec du chargement du VFS : ${e}`));
+        );
+        // Index SQL du VFS : construit une fois, en tâche de fond, si `vfs_files` est vide ou
+        // ne décrit plus le montage courant (jeu mis à jour, bascule packs↔dump). Sans lui, la
+        // recherche par code et la résolution de noms retombent silencieusement sur le
+        // `.contains()` approximatif de `vfs_related` — un index absent ne se voyait nulle part
+        // dans l'UI, et il l'était sur ce poste (`vfs_files` = 0 ligne).
+        vfsIndexDb
+          .meta()
+          .then((meta) => {
+            if (meta && meta.total === s.total) return;
+            return vfsIndexDb
+              .reindex(settings.gameDir)
+              .then((m) => toast.success(`Index VFS construit : ${m.total.toLocaleString("fr-FR")} fichiers`));
+          })
+          .catch((e) => toast.warning(`Index VFS non construit : ${e}`));
+      })
+      .catch(() =>
+        // Sans le jeu, l'application reste utile : wiki, base RE, outils. Le message le dit,
+        // plutôt que d'annoncer un échec qui laisserait croire que rien ne marche.
+        toast.info("Jeu non détecté — wiki et base RE disponibles ; indiquez le dossier du jeu dans les Paramètres pour explorer les fichiers"),
+      );
+    return () => {
+      arretBases.then((f) => f());
+    };
   }, []);
 
   // Barre de menu Fichier/Édition/Affichage : rendue DANS la barre supérieure custom, plus
@@ -327,21 +377,10 @@ export default function App() {
         setExternalPath(null);
         setTab(id);
       },
-      tabLabels: {
-        editor: "Éditeur",
-        explorer: t("tab.explorer"),
-        search: t("tab.search"),
-        data: t("tab.data"),
-        gallery: "Galerie",
-        tools: "Outils wiki",
-        mods: t("tab.mods"),
-        cpk: t("tab.cpk"),
-        re: t("tab.re"),
-        viola: "Viola",
-        lua: "Lua",
-        save: t("tab.save"),
-        settings: t("tab.settings"),
-      },
+      // Le menu Affichage lit le même registre que la barre latérale. Cette table était écrite à
+      // la main et il y manquait `cinema` et `livemod` : le menu affichait leur identifiant brut
+      // (`AppMenu` retombe sur `?? tab`), deux entrées en anglais technique au milieu du reste.
+      tabLabels: libellesVues(t),
     }),
     [t],
   );
@@ -404,18 +443,34 @@ export default function App() {
         />
 
         <div className="flex flex-1 overflow-hidden">
-          <Sidebar
-            sections={sections}
-            current={tab}
-            onSelect={(id) => {
-              setExternalPath(null);
-              setTab(id);
-            }}
-            onOpenSettings={() => {
-              setExternalPath(null);
-              setTab("settings");
-            }}
-          />
+          {/* La barre latérale se replie : sur la vue Cinéma, ses 200 px prennent la place d'une
+              carte entière par rangée. Le bouton de dépli reste visible une fois repliée —
+              sinon le repli serait un aller sans retour. */}
+          {sidebarRepliee ? (
+            <button
+              type="button"
+              onClick={() => setSidebarRepliee(false)}
+              title="Afficher la barre latérale (Ctrl+B)"
+              aria-label="Afficher la barre latérale"
+              className="z-[51] mt-11 h-9 w-6 shrink-0 rounded-r-md border border-l-0 border-app-line bg-app-box text-ink-faint hover:text-ink"
+            >
+              <Icon name="chevron_right" size={14} />
+            </button>
+          ) : (
+            <Sidebar
+              sections={sections}
+              current={tab}
+              onSelect={(id) => {
+                setExternalPath(null);
+                setTab(id);
+              }}
+              onOpenSettings={() => {
+                setExternalPath(null);
+                setTab("settings");
+              }}
+              onBasculerRepli={() => setSidebarRepliee(true)}
+            />
+          )}
 
           <div className="relative z-[38] flex flex-1 flex-col overflow-hidden pt-12">
             {externalPath ? (
@@ -436,6 +491,9 @@ export default function App() {
               </div>
             ) : (
               <Tabs value={tab} className="h-full min-h-0">
+                <TabsContent value="dashboard" className="h-full min-h-0">
+                  <DashboardView onSelectTab={setTab} />
+                </TabsContent>
                 <TabsContent value="editor" className="h-full min-h-0">
                   <EditorView
                     state={editor}
@@ -545,6 +603,10 @@ export default function App() {
         onSearch={(q) => {
           explorerTabs.update(activeTabId, { query: q });
           setTab("explorer");
+        }}
+        onSelectTab={(id) => {
+          setExternalPath(null);
+          setTab(id);
         }}
       />
       <Toaster position="bottom-right" />

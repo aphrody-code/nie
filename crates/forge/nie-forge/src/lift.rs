@@ -94,6 +94,9 @@ fn mem_of(i: &iced_x86::Instruction) -> Option<Mem> {
         base,
         index,
         disp,
+        // Un deplacement nul occupant un octet dans l'original : la forme
+        // courte `mod=00` rendrait un corps plus court, donc rejete.
+        disp_explicite: disp == 0 && i.memory_displ_size() >= 1,
         rip: None,
     })
 }
@@ -671,7 +674,17 @@ fn insn_of(i: &iced_x86::Instruction, raw: &[u8]) -> Option<Insn> {
             (OpKind::Register, OpKind::Register) => {
                 let (a, sa) = reg_of(i.op_register(0))?;
                 let (b, sb) = reg_of(i.op_register(1))?;
-                (sa == sb).then_some(Insn::AluRR(op, sa, a, b))
+                if sa != sb {
+                    return None;
+                }
+                // Les deux sens d'encodage rendent le même texte : seul
+                // l'opcode réel les sépare, et c'est l'original qui tranche.
+                let mr = u32::from(op.digit() * 8 + u8::from(sa != Size::B));
+                Some(if i.op_code().op_code() == mr {
+                    Insn::AluRRm(op, sa, a, b)
+                } else {
+                    Insn::AluRR(op, sa, a, b)
+                })
             }
             (OpKind::Register, OpKind::Memory) => {
                 let (a, sa) = reg_of(i.op_register(0))?;
@@ -882,7 +895,15 @@ fn insn_of(i: &iced_x86::Instruction, raw: &[u8]) -> Option<Insn> {
             (OpKind::Register, OpKind::Register) => {
                 let (a, sa) = reg_of(i.op_register(0))?;
                 let (b, sb) = reg_of(i.op_register(1))?;
-                (sa == sb).then_some(Insn::MovRR(sa, a, b))
+                if sa != sb {
+                    return None;
+                }
+                let mr = if sa == Size::B { 0x88 } else { 0x89 };
+                Some(if i.op_code().op_code() == mr {
+                    Insn::MovRRm(sa, a, b)
+                } else {
+                    Insn::MovRR(sa, a, b)
+                })
             }
             (OpKind::Register, OpKind::Immediate8) => {
                 let (r, sz) = reg_of(i.op_register(0))?;
@@ -1071,12 +1092,15 @@ mod tests {
 
     #[test]
     fn diagnostique_les_causes_de_blocage() {
-        // Encodage LLVM de `mov rax, rcx` : traduit, mais ré-encodé différemment.
-        // La cause est ventilee par mnemonique : `encodage:<insn>`.
+        // `lea eax, [edx+ecx]` : le prefixe 67 (adressage 32 bits) n'est pas
+        // encore emis. La cause est ventilee par mnemonique : `encodage:<insn>`.
         assert_eq!(
-            blocking_reason(&[0x48, 0x89, 0xC8, 0xC3], 0x140_0000).as_deref(),
-            Some("encodage:mov")
+            blocking_reason(&[0x67, 0x8D, 0x04, 0x0A, 0xC3], 0x140_0000).as_deref(),
+            Some("encodage:lea")
         );
+        // `mov rax, rcx` encode en `89` (sens r/m <- registre) : desormais dans
+        // le dialecte, via le suffixe `.d`.
+        assert_eq!(blocking_reason(&[0x48, 0x89, 0xC8, 0xC3], 0x140_0000), None);
         // `movss xmm0, [rcx] ; ret` : desormais DANS le dialecte.
         assert_eq!(blocking_reason(&[0xF3, 0x0F, 0x10, 0x01, 0xC3], 0x140_0000), None);
         // `cvttss2si eax, xmm0 ; ret` : desormais dans le dialecte.
@@ -1142,8 +1166,24 @@ mod tests {
 
     #[test]
     fn refuse_ce_qui_ne_se_regenere_pas() {
-        assert!(lift_body(&[0x48, 0x89, 0xC8, 0xC3], 0x140_0000).is_none());
+        // Prefixe d'adressage 32 bits non emis : le re-encodage perd le `67`.
+        assert!(lift_body(&[0x67, 0x8D, 0x04, 0x0A, 0xC3], 0x140_0000).is_none());
         assert!(lift_body(&[0xFF, 0xFF, 0xFF], 0x140_0000).is_none());
+    }
+
+    #[test]
+    fn releve_les_deux_sens_d_encodage_reg_reg() {
+        // Meme instruction, deux encodages : chacun doit se relever et rendre
+        // exactement ses octets d'origine, pas ceux de l'autre forme.
+        for bytes in [
+            vec![0x48u8, 0x89, 0xC8, 0xC3], // mov rax, rcx  (89, sens r/m <- r)
+            vec![0x48, 0x8B, 0xC1, 0xC3],   // mov rax, rcx  (8B, forme MSVC)
+            vec![0x48, 0x01, 0xD1, 0xC3],   // add rcx, rdx  (01)
+            vec![0x48, 0x03, 0xCA, 0xC3],   // add rcx, rdx  (03, forme MSVC)
+        ] {
+            let insns = lift_body(&bytes, 0x140_0000).expect("relevable");
+            assert_eq!(nie_asm::encode_at(&insns, 0x140_0000), bytes);
+        }
     }
 }
 

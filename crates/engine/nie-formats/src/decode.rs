@@ -2,10 +2,12 @@
 //! (`nie-ffi`) et la CLI (`niers decode`). Une famille ajoutée ici profite aux deux.
 //!
 //! Ordre de dispatch (le premier qui parse gagne) :
-//! 1. `lip\0` — testé avant [`crate::detect`], qui ne le distingue pas ;
+//! 1. `\x1bLua` (bytecode Lua 5.2) et `lip\0` — testés avant [`crate::detect`], qui ne les
+//!    distingue pas ;
 //! 2. `G4TX`, `G4MD`, `G4PK`/`G4PKM`, `RDBN`, `CPK ` — d'après le magic ;
-//! 3. inconnu — on tente les conteneurs T2B dans l'ordre `objbin` → `cfgbin` → `mevbin`,
-//!    qui partagent le même en-tête et ne se distinguent qu'au contenu.
+//! 3. inconnu — les conteneurs Level-5 annexes au prédicat (`dxbc`, `g4mt`, `g4cm`, `g4la`,
+//!    `g4ma`, `g4vs`, `col`), puis les conteneurs T2B dans l'ordre `objbin` → `cfgbin` →
+//!    `mevbin`, qui partagent le même en-tête et ne se distinguent qu'au contenu.
 
 extern crate alloc;
 
@@ -34,6 +36,21 @@ pub struct Decoded {
 pub fn decode(data: &[u8]) -> Option<Decoded> {
     fn done(json: Option<Vec<u8>>, format: &'static str) -> Option<Decoded> {
         json.map(|json| Decoded { json, format })
+    }
+
+    // Bytecode Lua 5.2 (`\x1bLua`) : le format des 1 197 `.lua.bin` du jeu — déclencheurs de
+    // chapitre (`gamedata/phase/`), de quête (`gamedata/quest/`) et scripts de scène. Testé au
+    // magic, avant `detect` qui ne le connaît pas. Le décodeur reste celui de `nie-lua`
+    // (en-tête, prototypes imbriqués, constantes, instructions, locales, upvalues) : une seule
+    // implémentation, atteignable depuis la FFI depuis que `nie-formats` en dépend.
+    #[cfg(feature = "lua")]
+    if data.len() >= 4 && data[..4] == *b"\x1bLua" {
+        return done(
+            nie_lua::bytecode::parse(data)
+                .ok()
+                .and_then(|c| serde_json::to_vec(&c).ok()),
+            "lua-bytecode",
+        );
     }
 
     // `lip\0` n'a pas de variante dans `FileFormat` : le tester au magic.
@@ -209,6 +226,9 @@ pub fn to_json(data: &[u8]) -> Option<Vec<u8>> {
 /// seule ne distingue pas les conteneurs T2B.
 #[must_use]
 pub fn format_name(data: &[u8]) -> &'static str {
+    if data.len() >= 4 && data[..4] == *b"\x1bLua" {
+        return "lua-bytecode";
+    }
     if data.len() >= 4 && data[..4] == *b"lip\0" {
         return "lip";
     }

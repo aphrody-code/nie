@@ -171,6 +171,8 @@ export const api = {
   defaultWikiDb: (gameDir?: string) => commands.defaultWikiDb(gd(gameDir)),
   // `var/niers.sqlite` — base RE (fonctions/classes RTTI/xrefs), cf. `src/lib/reDb.ts`.
   defaultReDb: (gameDir?: string) => commands.defaultReDb(gd(gameDir)),
+  // `data/anime/episodes.db` — catalogue des épisodes de la série, cf. `src/lib/animeDb.ts`.
+  defaultAnimeDb: (gameDir?: string) => commands.defaultAnimeDb(gd(gameDir)),
   // Force le (re)chargement du VFS en cache côté Rust — appelé une fois au montage de l'appli
   // pour amortir l'indexation AVANT la première navigation (cf. `VfsState` côté Rust).
   preloadVfs: (gameDir?: string) => unwrap<VfsStats>(commands.preloadVfs(gd(gameDir))),

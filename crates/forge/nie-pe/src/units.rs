@@ -40,6 +40,15 @@ pub enum UnitKind {
     CodeResidue,
     /// Bourrage `int3` (`0xCC`) inséré par le linker entre deux corps de code.
     Padding,
+    /// Données déposées **au milieu** d'une section de code : tables de sauts,
+    /// constantes vectorielles alignées, littéraux flottants.
+    ///
+    /// MSVC les place entre les instructions qui les utilisent. Tant qu'elles
+    /// restaient soudées au corps qui les entoure, l'unité entière échouait au
+    /// relevé — mesuré sur `nie.exe` : 998 unités et 1 034 147 octets refusés
+    /// par le désassembleur, dont **990 445 octets de code parfaitement
+    /// décodable** que 39 968 octets de données rendaient inexploitables.
+    InlineData,
     /// Contenu brut d'une section de données.
     SectionData,
     /// Trou entre deux régions de données de section.
@@ -60,6 +69,7 @@ impl UnitKind {
             Self::CodeFragment => "frag",
             Self::CodeResidue => "res",
             Self::Padding => "pad",
+            Self::InlineData => "idata",
             Self::SectionData => "data",
             Self::Gap => "gap",
             Self::Overlay => "overlay",
@@ -98,6 +108,46 @@ impl Unit {
     #[must_use]
     pub fn range(&self) -> core::ops::Range<usize> {
         self.file_off..self.file_off + self.len
+    }
+
+    /// Régénère la charge utile d'une unité dont la **règle de construction du
+    /// linker est connue**, sans jamais consulter le binaire de référence.
+    ///
+    /// Aujourd'hui une seule règle : le bourrage `int3`. Elle n'est pas une
+    /// recopie déguisée, et c'est le découpage lui-même qui le garantit —
+    /// `push_residue` ne ferme une unité [`UnitKind::Padding`] que sur le
+    /// critère « l'octet vaut `0xCC` », si bien qu'une telle unité ne peut,
+    /// par construction, contenir autre chose. Mesuré sur `nie.exe` : les
+    /// 106 565 unités de bourrage, 1 146 297 octets, sont du `0xCC` pur à
+    /// 100 %. `nie-forge build` le revérifie de toute façon à l'octet près,
+    /// l'identité globale du fichier restant le contrat.
+    ///
+    /// Elle vit ici, et non chez l'appelant, pour la même raison que
+    /// `image::tables::emit_for` : la construction et la mesure doivent lire
+    /// la même règle, sinon elles divergent.
+    ///
+    /// Le résultat est **confronté à l'empreinte de l'unité** avant d'être
+    /// rendu : une règle qui se tromperait ne produit rien plutôt que de
+    /// gonfler la mesure. `sha256` est une empreinte, pas la donnée — la
+    /// charge utile reste calculée, jamais lue dans la référence.
+    #[must_use]
+    pub fn emit_rule(&self) -> Option<Vec<u8>> {
+        let bytes = match self.kind {
+            UnitKind::Padding => vec![INT3; self.len],
+            // Bourrage du linker entre la table des sections et `SizeOfHeaders`.
+            UnitKind::HeaderPad => vec![0u8; self.len],
+            _ => return None,
+        };
+        (bytes.len() == self.len && self.checks(&bytes)).then_some(bytes)
+    }
+
+    /// Vrai si `bytes` correspond à l'empreinte de référence de l'unité.
+    ///
+    /// Une unité sans empreinte renseignée (recouvrement synthétique d'un test)
+    /// accepte toute charge de la bonne taille.
+    #[must_use]
+    pub fn checks(&self, bytes: &[u8]) -> bool {
+        self.sha256.is_empty() || sha256_hex(bytes) == self.sha256
     }
 }
 
@@ -192,6 +242,127 @@ impl Cover {
     /// # Erreurs
     /// Mêmes conditions que [`Cover::split`].
     pub fn split_with(img: &PeImage, extra: &[(u32, u32)]) -> Result<Self> {
+        Self::split_with_data(img, extra, &[])
+    }
+
+    /// Découpe une image en isolant en plus des **données inline** `(RVA, len)`
+    /// déposées au milieu du code.
+    ///
+    /// Une table de sauts ou une constante vectorielle soudée au corps qui
+    /// l'entoure fait échouer le relevé de la fonction entière. Les isoler rend
+    /// relevable le code qui les encadre ; elles-mêmes restent comptées comme
+    /// des données, jamais comme du code produit.
+    ///
+    /// Les plages sont exprimées en RVA parce que c'est ce que manipulent le
+    /// désassembleur et `.pdata` ; celles qui ne tombent pas dans une unité de
+    /// code sont ignorées sans erreur.
+    ///
+    /// # Erreurs
+    /// Mêmes conditions que [`Cover::split`].
+    pub fn split_with_data(
+        img: &PeImage,
+        extra: &[(u32, u32)],
+        inline: &[(u32, u32)],
+    ) -> Result<Self> {
+        let mut cover = Self::split_raw(img, extra)?;
+        if !inline.is_empty() {
+            let plages: Vec<(usize, usize)> = inline
+                .iter()
+                .filter_map(|&(rva, len)| {
+                    let off = img.rva_to_offset(rva)?;
+                    (len > 0).then_some((off, len as usize))
+                })
+                .collect();
+            cover.subdivide_data(&img.bytes, &plages);
+            cover.validate()?;
+        }
+        Ok(cover)
+    }
+
+    /// Isole les plages `(offset fichier, longueur)` données comme des unités
+    /// [`UnitKind::InlineData`], en scindant les unités de code qui les portent.
+    ///
+    /// Le recouvrement reste total : une unité scindée rend la somme exacte de
+    /// ses morceaux. Une plage qui déborde de l'unité est tronquée à celle-ci.
+    fn subdivide_data(&mut self, file: &[u8], plages: &[(usize, usize)]) {
+        use std::collections::BTreeMap;
+        // Regroupées par unité porteuse pour ne parcourir le recouvrement
+        // qu'une fois : 200 000 unités contre quelques milliers de plages.
+        let mut par_unite: BTreeMap<usize, Vec<(usize, usize)>> = BTreeMap::new();
+        for (i, u) in self.units.iter().enumerate() {
+            if !u.kind.is_code() {
+                continue;
+            }
+            for &(off, len) in plages {
+                let d0 = off.max(u.file_off);
+                let d1 = (off + len).min(u.file_off + u.len);
+                if d0 < d1 {
+                    par_unite.entry(i).or_default().push((d0, d1));
+                }
+            }
+        }
+        if par_unite.is_empty() {
+            return;
+        }
+
+        let mut out: Vec<Unit> = Vec::with_capacity(self.units.len() + par_unite.len() * 2);
+        for (i, u) in self.units.iter().enumerate() {
+            let Some(mut coupes) = par_unite.remove(&i) else {
+                out.push(u.clone());
+                continue;
+            };
+            coupes.sort_unstable();
+            let base_va = u.va;
+            let fin = u.file_off + u.len;
+            let mut pos = u.file_off;
+            let mut premier = true;
+            let mut pousser = |kind: UnitKind, a: usize, b: usize, premier: bool| {
+                if a >= b {
+                    return;
+                }
+                let va = base_va.map(|v| v + (a - u.file_off) as u64);
+                // Le premier morceau garde l'identité de l'unité d'origine :
+                // le registre et les preuves déjà écrites y restent adossés.
+                let id = if premier {
+                    u.id.clone()
+                } else {
+                    match kind {
+                        UnitKind::InlineData => format!("idata.{:x}", va.unwrap_or(a as u64)),
+                        _ => format!("{}.{:x}", kind.tag(), va.unwrap_or(a as u64)),
+                    }
+                };
+                out.push(Unit {
+                    id,
+                    kind,
+                    section: u.section.clone(),
+                    file_off: a,
+                    len: b - a,
+                    va,
+                    sha256: sha256_hex(&file[a..b]),
+                });
+            };
+            for (d0, d1) in coupes {
+                if d0 > pos {
+                    pousser(u.kind, pos, d0, premier);
+                    premier = false;
+                }
+                pousser(UnitKind::InlineData, d0, d1, premier);
+                premier = false;
+                pos = d1;
+            }
+            // La reprise de code après les données est un fragment du corps.
+            let reprise = if u.kind == UnitKind::Function {
+                UnitKind::CodeFragment
+            } else {
+                u.kind
+            };
+            pousser(reprise, pos, fin, premier);
+        }
+        self.units = out;
+    }
+
+    /// Découpe brute, sans isolation des données inline.
+    fn split_raw(img: &PeImage, extra: &[(u32, u32)]) -> Result<Self> {
         let file = &img.bytes;
         let total_len = file.len();
         let mut units: Vec<Unit> = Vec::new();
@@ -549,6 +720,136 @@ mod tests {
             })
             .unwrap_err();
         assert!(matches!(err, PeError::Cover(m) if m.contains("taille invalide")));
+    }
+
+    #[test]
+    fn seul_le_bourrage_a_une_regle_de_regeneration() {
+        let pad = Unit {
+            id: "pad..text.0".into(),
+            kind: UnitKind::Padding,
+            section: Some(".text".into()),
+            file_off: 0,
+            len: 7,
+            va: Some(0x1_4000_1000),
+            sha256: String::new(),
+        };
+        assert_eq!(pad.emit_rule(), Some(vec![INT3; 7]));
+        let hdrpad = Unit {
+            kind: UnitKind::HeaderPad,
+            ..pad.clone()
+        };
+        assert_eq!(hdrpad.emit_rule(), Some(vec![0u8; 7]));
+        for kind in [
+            UnitKind::Function,
+            UnitKind::CodeResidue,
+            UnitKind::SectionData,
+            UnitKind::DosStub,
+        ] {
+            let u = Unit {
+                kind,
+                ..pad.clone()
+            };
+            assert_eq!(u.emit_rule(), None, "{kind:?} n'a pas de règle connue");
+        }
+    }
+
+    #[test]
+    fn une_regle_qui_se_trompe_ne_produit_rien() {
+        // L'empreinte est le garde-fou : sans elle, une règle fausse gonflerait
+        // la mesure sans que `build` ait son mot à dire.
+        let menteuse = Unit {
+            id: "pad..text.0".into(),
+            kind: UnitKind::Padding,
+            section: Some(".text".into()),
+            file_off: 0,
+            len: 4,
+            va: None,
+            sha256: sha256_hex(&[0x90, 0x90, 0x90, 0x90]),
+        };
+        assert_eq!(menteuse.emit_rule(), None);
+        let fidele = Unit {
+            sha256: sha256_hex(&[INT3; 4]),
+            ..menteuse
+        };
+        assert_eq!(fidele.emit_rule(), Some(vec![INT3; 4]));
+    }
+
+    #[test]
+    fn le_bourrage_se_reassemble_sans_consulter_la_reference() {
+        // `.text` contenant deux corps séparés par un run d'`int3` : la règle
+        // doit suffire à reconstituer le fichier à l'identique. Le bourrage
+        // n'est isolé que dans une section où une plage de code est posée —
+        // ici via `extra`, comme le fait l'échafaudage RE sur `nie.exe`.
+        let mut img = synth_image();
+        let text = img.bytes.len() - 0x400;
+        for byte in img.bytes[text + 0x10..text + 0x1c].iter_mut() {
+            *byte = INT3;
+        }
+        let img = PeImage::parse(img.bytes).expect("reparse");
+        let cover = Cover::split_with(&img, &[(0x1000, 0x10)]).expect("split");
+        let pads: Vec<_> = cover
+            .units
+            .iter()
+            .filter(|u| u.kind == UnitKind::Padding)
+            .collect();
+        assert!(!pads.is_empty(), "le découpage doit isoler le bourrage");
+
+        let rebuilt = cover
+            .assemble(|u| {
+                u.emit_rule()
+                    .or_else(|| Some(img.bytes[u.range()].to_vec()))
+            })
+            .expect("assemble");
+        assert_eq!(rebuilt, img.bytes, "identité préservée par la règle");
+    }
+
+    #[test]
+    fn les_donnees_inline_scindent_le_corps_sans_trouer_le_recouvrement() {
+        let img = synth_image();
+        // Une fonction couvre RVA 0x1000..0x1100 ; on y declare une table de
+        // sauts de 16 octets a RVA 0x1040.
+        let cover = Cover::split_with_data(&img, &[(0x1000, 0x100)], &[(0x1040, 16)])
+            .expect("split");
+        cover.validate().expect("recouvrement total");
+
+        let morceaux: Vec<_> = cover
+            .units
+            .iter()
+            .filter(|u| u.va.is_some_and(|v| (0x1_4000_1000..0x1_4000_1100).contains(&v)))
+            .collect();
+        let kinds: Vec<_> = morceaux.iter().map(|u| u.kind).collect();
+        assert_eq!(
+            kinds,
+            vec![
+                UnitKind::Function,
+                UnitKind::InlineData,
+                UnitKind::CodeFragment
+            ],
+            "code / donnees / reprise"
+        );
+        assert_eq!(morceaux[0].len, 0x40);
+        assert_eq!(morceaux[1].len, 16);
+        assert_eq!(morceaux[2].len, 0x100 - 0x40 - 16);
+        assert_eq!(
+            morceaux[0].id, "fn.140001000",
+            "le premier morceau garde l'identite de l'unite"
+        );
+        assert!(morceaux.iter().map(|u| u.len).sum::<usize>() == 0x100);
+
+        let rebuilt = cover
+            .assemble(|u| Some(img.bytes[u.range()].to_vec()))
+            .expect("assemble");
+        assert_eq!(rebuilt, img.bytes);
+    }
+
+    #[test]
+    fn une_plage_de_donnees_hors_du_code_est_ignoree() {
+        let img = synth_image();
+        // 0x8000 ne tombe dans aucune section : la plage doit etre ecartee
+        // sans erreur, et le decoupage rester celui d'un split ordinaire.
+        let a = Cover::split_with(&img, &[(0x1000, 0x100)]).expect("split");
+        let b = Cover::split_with_data(&img, &[(0x1000, 0x100)], &[(0x8000, 16)]).expect("split");
+        assert_eq!(a.units.len(), b.units.len());
     }
 
     #[test]

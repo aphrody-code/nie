@@ -73,6 +73,25 @@ import {
 	type CategorieOfficielle,
 	type MetaEpisode,
 } from "./official.ts";
+import {
+	ARCS_SERIE_ORIGINE,
+	CHAINES_OFFICIELLES,
+	LANGUES_OFFICIELLES,
+	arcDeTitre,
+	numeroEpisodeDeTitre,
+	saisonDeSlug,
+	type LangueOfficielle,
+	type SourceEpisode,
+} from "./plateformes.ts";
+import {
+	COMPTES_DAILYMOTION,
+	langueDeTitre,
+	numeroDeTitre,
+	parserPage,
+	urlLecteurOfficiel,
+	urlPublique,
+	urlVideosCompte,
+} from "./dailymotion.ts";
 
 type AnyPage = Awaited<ReturnType<typeof Browser.newPage>>;
 
@@ -116,6 +135,15 @@ export interface VideoRef {
 	titleJp?: string | null;
 	/** Transcription rōmaji du titre japonais. */
 	romaji?: string | null;
+	/**
+	 * Toutes les façons de regarder cet épisode, quand la moisson en a observé
+	 * plusieurs.
+	 *
+	 * `videoId`/`url`/`thumbnail` restent la MEILLEURE d'entre elles — c'est ce
+	 * que lit l'explorateur, qui ne connaît pas ce champ. Les sources sont le
+	 * détail complet, écrit dans `episode_sources`.
+	 */
+	sources?: SourceEpisode[];
 }
 
 export interface SeasonInfo {
@@ -1211,8 +1239,23 @@ export class IETVScraper {
 		return this.chronologieChargee;
 	}
 
-	async scrapeOfficialSite(): Promise<ChannelInfo> {
-		const racine = "https://inazuma-eleven.fr/tv/watch?lang=fr";
+	/**
+	 * Le catalogue de la plateforme officielle, dans UNE langue.
+	 *
+	 * ── LA PLATEFORME SERT TROIS LANGUES, PAS UNE ──────────────────────────
+	 * `?lang=` n'est pas qu'une traduction d'interface : la même page rend un
+	 * identifiant de vidéo DIFFÉRENT selon la langue, parfois sur une autre
+	 * plateforme. Mesuré le 2026-09-03 sur `saison1/ep-1` — `fr` → YouTube
+	 * `xbpo3u3P9dc`, `en` → Dailymotion `x8c1xw5`, `es` → YouTube
+	 * `x8F4GnpoCrw`. Une langue est donc un catalogue à part entière.
+	 *
+	 * Trois langues seulement sont réelles : `ja`, `de` et `it` répondent 200 en
+	 * servant la page française à l'octet près. Cf. `LANGUES_OFFICIELLES`.
+	 */
+	async scrapeOfficialSite(
+		langue: LangueOfficielle = LANGUES_OFFICIELLES[0]!
+	): Promise<ChannelInfo> {
+		const racine = `https://inazuma-eleven.fr/tv/watch?lang=${langue.code}`;
 
 		const index = await this.fetchTexte(racine);
 		this.stats.httpRequests++;
@@ -1233,14 +1276,18 @@ export class IETVScraper {
 		const parCategorie = await Promise.all(
 			categories.map(async (categorie) => ({
 				categorie,
-				episodes: await this.episodesDeCategorie(categorie),
+				episodes: await this.episodesDeCategorie(categorie, langue),
 			}))
 		);
 
 		const seasons: SeasonInfo[] = parCategorie
-			.filter((entree) => entree.episodes.length > 0)
+			.filter((entree) => entree.episodes.length > 0 && saisonDeSlug(entree.categorie.slug))
 			.map((entree) => ({
-				season: entree.categorie.position,
+				// Le SLUG, pas le rang : l'index anglais ne publie que quatre
+				// catégories et y met les films en position 4, là où le français les
+				// met en position 10. Prendre le rang aurait rangé les films anglais
+				// dans « GO ». Cf. `SAISON_PAR_SLUG`.
+				season: saisonDeSlug(entree.categorie.slug)!,
 				// Le nom du site fait autorité : « Films » ne doit pas s'afficher
 				// « Saison 10 ».
 				name: entree.categorie.nom,
@@ -1254,9 +1301,14 @@ export class IETVScraper {
 		this.stats.totalEpisodes += totalEpisodes;
 
 		return {
-			channel: "inazuma-eleven.fr (official)",
-			title: "Site Officiel Inazuma Eleven France",
-			description: "Plateforme de streaming officielle française",
+			// Une langue = une « chaîne » en base. C'est ce qui permet à la
+			// contrainte `UNIQUE(channel_id, season, episode, language)` de porter
+			// les trois versions d'un même épisode sans qu'aucune n'écrase l'autre,
+			// et à `clearChannel` de remoissonner une langue sans toucher aux deux
+			// autres quand l'une d'elles est momentanément injoignable.
+			channel: langue.origine,
+			title: `Site Officiel Inazuma Eleven (${langue.code})`,
+			description: `Plateforme de streaming officielle — version « ${langue.langue} »`,
 			avatar: null,
 			seasons,
 			totalEpisodes,
@@ -1276,9 +1328,15 @@ export class IETVScraper {
 	 */
 	private async resoudreMetaEpisodes(
 		categorie: CategorieOfficielle,
-		episodes: readonly { numero: number; url: string }[]
+		episodes: readonly { numero: number; url: string }[],
+		langue: LangueOfficielle
 	): Promise<Map<number, MetaEpisode>> {
-		const fichier = join(DATA_CACHE_DIR, `meta-${categorie.slug}.json`);
+		// Le cache est PAR LANGUE : la page anglaise d'un épisode ne porte ni le
+		// même titre ni le même identifiant de vidéo que la française. Partager le
+		// fichier aurait servi les identifiants français sous l'étiquette
+		// anglaise — trois catalogues identiques sous trois noms différents, le
+		// genre d'erreur qui se mesure « 841 sources » et ne vaut rien.
+		const fichier = join(DATA_CACHE_DIR, `meta-${categorie.slug}-${langue.code}.json`);
 		let connus: Record<string, MetaEpisode> = {};
 		try {
 			if (existsSync(fichier)) {
@@ -1339,53 +1397,398 @@ export class IETVScraper {
 	 * Une catégorie qui échoue rend une liste vide au lieu de faire tomber tout
 	 * le scraping : neuf saisons valent mieux que zéro.
 	 */
-	private async episodesDeCategorie(categorie: CategorieOfficielle): Promise<VideoRef[]> {
+	private async episodesDeCategorie(
+		categorie: CategorieOfficielle,
+		langue: LangueOfficielle
+	): Promise<VideoRef[]> {
 		try {
 			const page = await this.fetchTexte(categorie.url);
 			this.stats.httpRequests++;
 			if (page.status !== 200) return [];
 
+			const saison = saisonDeSlug(categorie.slug);
+			if (saison === null) return [];
+
 			const listes = parserEpisodes(page.html);
 			const [metas, chrono] = await Promise.all([
-				this.resoudreMetaEpisodes(categorie, listes),
+				this.resoudreMetaEpisodes(categorie, listes, langue),
 				this.chronologie(),
 			]);
 
 			return listes.map((episode) => {
 				const meta = metas.get(episode.numero);
-				const wiki = chrono.get(cleEpisode(categorie.position, episode.numero));
+				const wiki = chrono.get(cleEpisode(saison, episode.numero));
 				const idYoutube = meta?.idYoutube ?? null;
+				const idDailymotion = meta?.idDailymotion ?? null;
+
+				// ── TOUTES LES SOURCES DE CETTE PAGE, PAS SEULEMENT LA PREMIÈRE ──
+				// La page d'un épisode peut porter les deux : un `iframe` YouTube ET
+				// une vignette Dailymotion. Les 143 épisodes qui n'ont AUCUN
+				// identifiant YouTube (saison 3 sauf onze, Chrono Stones, Galaxy)
+				// n'étaient jusqu'ici jouables nulle part ; leur Dailymotion, lui,
+				// était déjà dans le HTML.
+				//
+				// Ces sources sont `verifiee` : la page A été récupérée et
+				// l'identifiant y a été LU. C'est la seule chose qu'on ait le droit
+				// d'affirmer — on n'a pas lancé la lecture, donc rien ne dit que la
+				// vidéo n'est pas géobloquée. `verifiee` porte sur l'existence de
+				// l'identifiant, pas sur la lisibilité depuis n'importe où.
+				const maintenant = Date.now();
+				const sources: SourceEpisode[] = [];
+				const commun = {
+					langue: langue.langue,
+					qualite: null,
+					officielle: true,
+					confiance: "verifiee" as const,
+					verifieeLe: maintenant,
+					origine: langue.origine,
+					titre: meta?.titre ?? episode.titre,
+				};
+				if (idYoutube) {
+					sources.push({
+						...commun,
+						plateforme: "youtube",
+						sourceId: idYoutube,
+						url: urlYoutube(idYoutube),
+						vignette: `https://i.ytimg.com/vi/${idYoutube}/hqdefault.jpg`,
+					});
+				}
+				if (idDailymotion) {
+					// L'URL du LECTEUR OFFICIEL, pas l'URL publique de la vidéo : ces
+					// vidéos-là sont restreintes à ce lecteur. Vérifié le 2026-09-03,
+					// l'API publique répond « This video does not exist or has been
+					// deleted » sur `x7v8ls0` et `x8c1xw5` pendant que le site les
+					// joue. Une URL `dailymotion.com/video/<id>` serait un lien mort
+					// d'apparence valide — le pire des deux mondes.
+					const cle = meta?.clePlayerDailymotion ?? null;
+					sources.push({
+						...commun,
+						plateforme: "dailymotion",
+						sourceId: idDailymotion,
+						url: cle
+							? urlLecteurOfficiel(cle, idDailymotion)
+							: `https://www.dailymotion.com/video/${idDailymotion}`,
+						vignette: `https://www.dailymotion.com/thumbnail/video/${idDailymotion}`,
+					});
+				}
+				// La page officielle est TOUJOURS une source, même quand on sait
+				// intégrer la vidéo : c'est la seule qui reste valable si la
+				// plateforme change de lecteur. Elle n'est pas intégrable
+				// (`plateforme: "page"`), et la couverture ne la compte pas comme
+				// lisible — dire « couvert » d'un épisode qu'on ne sait qu'ouvrir
+				// dans un navigateur serait un faux vert.
+				sources.push({
+					...commun,
+					plateforme: "page",
+					sourceId: episode.url,
+					url: episode.url,
+					vignette: meta?.vignette ?? null,
+					confiance: meta ? "verifiee" : "declaree",
+					verifieeLe: meta ? maintenant : null,
+				});
+
 				return {
 					title: `${categorie.nom} — ${meta?.titre ?? episode.titre}`,
 					// L'identifiant YouTube quand on l'a : il unifie cet épisode avec
 					// la même vidéo vue par le flux d'une chaîne, au lieu d'en faire
-					// deux entrées distinctes.
-					videoId: idYoutube ?? identifiantOfficiel(categorie.slug, episode.numero),
+					// deux entrées distinctes. À défaut le Dailymotion, qui est un
+					// VRAI identifiant de lecture — le jeton local `off-<slug>-<n>`
+					// ne reste que pour les épisodes dont la page ne dit rien.
+					videoId:
+						idYoutube ?? idDailymotion ?? identifiantOfficiel(categorie.slug, episode.numero),
 					// L'URL YouTube est ce qui produit un LECTEUR dans Discord ; la
 					// page du site n'y donne qu'une carte. On retombe sur la page
 					// quand l'identifiant n'a pas pu être résolu.
 					url: idYoutube ? urlYoutube(idYoutube) : episode.url,
 					description: meta?.description ?? null,
+					// L'ordre de repli suit celui de la plateforme réellement retenue :
+					// une vignette YouTube pour un épisode servi par Dailymotion
+					// afficherait l'image d'une autre vidéo.
 					thumbnail:
 						meta?.vignette ??
-						(idYoutube ? `https://i.ytimg.com/vi/${idYoutube}/hqdefault.jpg` : null),
+						(idYoutube
+							? `https://i.ytimg.com/vi/${idYoutube}/hqdefault.jpg`
+							: idDailymotion
+								? `https://www.dailymotion.com/thumbnail/video/${idDailymotion}`
+								: null),
 					// Le site officiel ne date rien ; la date de première diffusion
 					// vient de la chronologie.
 					publishDate: wiki?.diffusion ?? null,
 					titleJp: wiki?.titreJp ?? null,
 					romaji: wiki?.romaji ?? null,
-					season: categorie.position,
+					season: saison,
 					episode: episode.numero,
-					// `?lang=fr` sert la version française doublée ; le site ne propose
-					// pas de piste sous-titrée à cette adresse.
-					language: "vf" as LanguageVersion,
+					language: langue.langue as LanguageVersion,
 					duration: null,
 					viewCount: null,
+					sources,
 				};
 			});
 		} catch {
 			return [];
 		}
+	}
+
+	/**
+	 * Le catalogue officiel dans TOUTES les langues servies.
+	 *
+	 * Une langue qui échoue rend `null` au lieu de faire tomber les autres :
+	 * l'anglais n'a que quatre catégories, sa panne ne doit pas coûter les 355
+	 * épisodes espagnols. Même principe que `episodesDeCategorie`, un cran plus
+	 * haut.
+	 */
+	async scrapeOfficialSiteToutesLangues(
+		langues: readonly LangueOfficielle[] = LANGUES_OFFICIELLES
+	): Promise<ChannelInfo[]> {
+		const resultats = await Promise.all(
+			langues.map(async (langue) => {
+				try {
+					return await this.scrapeOfficialSite(langue);
+				} catch (err) {
+					console.warn(`scrapeOfficialSite(${langue.code}) a échoué : ${String(err)}`);
+					return null;
+				}
+			})
+		);
+		return resultats.filter((r): r is ChannelInfo => r !== null);
+	}
+
+	/**
+	 * Les comptes Dailymotion officiels, par l'API de données publique.
+	 *
+	 * ── CE QUE CE GISEMENT APPORTE, ET QUE RIEN D'AUTRE N'APPORTE ──────────
+	 * Le catalogue ne comptait AUCUN épisode sous-titré : 355 lignes, toutes en
+	 * `vf`. Le compte officiel « Inazuma TV FR » sert 46 épisodes complets dont
+	 * 42 en VOSTFR, sur des arcs (Chrono Stones, Galaxy) que la plateforme
+	 * officielle ne propose qu'en doublage. C'est la première source `vostfr`
+	 * réelle du catalogue.
+	 *
+	 * L'API est publique et documentée : pas de grattage, pas de clé, une
+	 * pagination annoncée par `has_more`. La boucle s'arrête sur `has_more`
+	 * faux, sur une page vide, ou au plafond de pages — trois conditions, parce
+	 * qu'une seule qui ne se réalise pas donne une boucle infinie sur une
+	 * réponse inattendue.
+	 *
+	 * La langue vient du TITRE, pas du champ `language` de l'API : celui-ci vaut
+	 * `"fr"` aussi bien pour un doublage que pour un sous-titrage, et s'y fier
+	 * aurait étiqueté 42 épisodes VOSTFR comme de la VF.
+	 */
+	async scrapeDailymotionOfficiel(
+		comptes: readonly { compte: string; titre: string }[] = COMPTES_DAILYMOTION,
+		/** Tailles d'arc pour convertir une numérotation continue. */
+		taillesParSaison: readonly { season: number; totalEpisodes: number }[] = [
+			{ season: 1, totalEpisodes: 26 },
+			{ season: 2, totalEpisodes: 41 },
+			{ season: 3, totalEpisodes: 60 },
+		]
+	): Promise<ChannelInfo[]> {
+		const resultats = await Promise.all(
+			comptes.map(async (compte) => {
+				try {
+					const videos: VideoRef[] = [];
+					const PAGES_MAX = 20;
+					for (let page = 1; page <= PAGES_MAX; page++) {
+						const reponse = await this.fetchTexte(urlVideosCompte(compte.compte, page));
+						this.stats.httpRequests++;
+						if (reponse.status !== 200) break;
+
+						const lot = parserPage(JSON.parse(reponse.html));
+						if (lot.list.length === 0) break;
+
+						for (const video of lot.list) {
+							const arc = arcDeTitre(video.title);
+							const numero = numeroDeTitre(video.title);
+							// Ni arc ni numéro : ce n'est pas un épisode (bande-annonce,
+							// hors-série). L'ignorer vaut mieux que le ranger au hasard.
+							if (!arc || numero === null) continue;
+
+							const place = arc.absolu
+								? situerAbsolu(numero, taillesParSaison)
+								: arc.saison !== null
+									? { season: arc.saison, episode: numero }
+									: null;
+							if (!place) continue;
+
+							const langue = langueDeTitre(video.title);
+							const vignette = video.thumbnailUrl;
+							videos.push({
+								title: video.title,
+								videoId: video.id,
+								url: urlPublique(video.id),
+								description: null,
+								thumbnail: vignette,
+								publishDate: video.createdTime
+									? new Date(video.createdTime * 1000).toISOString().slice(0, 10)
+									: null,
+								season: place.season,
+								episode: place.episode,
+								language: langue as LanguageVersion,
+								duration: video.duration,
+								viewCount: null,
+								sources: [
+									{
+										plateforme: "dailymotion",
+										sourceId: video.id,
+										url: urlPublique(video.id),
+										langue,
+										qualite: null,
+										officielle: true,
+										// `verifiee` : l'API a rendu l'objet vidéo lui-même, avec
+										// son identifiant, sa durée et sa vignette. C'est une
+										// lecture, pas une annonce de liste.
+										confiance: "verifiee",
+										verifieeLe: Date.now(),
+										origine: compte.titre,
+										vignette,
+										titre: video.title,
+									},
+								],
+							});
+						}
+
+						if (!lot.hasMore) break;
+					}
+
+					if (videos.length === 0) return null;
+					this.stats.channelsScraped++;
+					this.stats.totalEpisodes += videos.length;
+					const info: ChannelInfo = {
+						channel: `dailymotion:${compte.compte}`,
+						title: compte.titre,
+						description: "Compte officiel Dailymotion — API de données publique",
+						avatar: null,
+						seasons: this.regrouperEnSaisons(videos),
+						totalEpisodes: videos.length,
+					};
+					return info;
+				} catch (err) {
+					console.warn(`scrapeDailymotionOfficiel(${compte.compte}) : ${String(err)}`);
+					return null;
+				}
+			})
+		);
+		return resultats.filter((r): r is ChannelInfo => r !== null);
+	}
+
+	/**
+	 * Les chaînes YouTube officielles, par leur flux Atom.
+	 *
+	 * ── CE QUE CETTE SOURCE PEUT, ET CE QU'ELLE NE PEUT PAS ────────────────
+	 * Quinze vidéos par chaîne, c'est le plafond du flux. Ni la grille
+	 * `/videos` ni la page d'une playlist ne rendent leurs entrées dans le HTML
+	 * servi — revérifié le 2026-09-03 sur la playlist des mises en ligne de
+	 * `LEVEL5ch` : 1,09 Mo de page, `ytInitialData` bien présent, **zéro**
+	 * `playlistVideoRenderer` et zéro jeton de continuation. L'énumération du
+	 * fond de catalogue passe par l'API YouTube Data, qui demande une clé —
+	 * aucune n'est configurée sur cette machine (`loadYouTubeApiKey()` rend
+	 * `null`). Ce n'est donc pas un défaut de parsing, et ça ne se contourne pas.
+	 *
+	 * Le flux reste la seule source **VO** du catalogue : `LEVEL5ch【公式】`, la
+	 * chaîne de l'éditeur, republie la série d'origine épisode par épisode.
+	 *
+	 * Les sources produites ici sont `declaree`, jamais `verifiee` : le flux
+	 * annonce un identifiant, on n'a ouvert aucune page. Et le numéro d'épisode
+	 * est *déduit* du titre — un épisode dont le titre ne porte pas de numéro
+	 * est ignoré plutôt que rangé au hasard.
+	 */
+	async scrapeChainesOfficielles(
+		chaines: readonly (typeof CHAINES_OFFICIELLES)[number][] = CHAINES_OFFICIELLES
+	): Promise<ChannelInfo[]> {
+		const resultats = await Promise.all(
+			chaines.map(async (chaine) => {
+				try {
+					const flux = await this.fetchTexte(urlFlux(chaine.channelId));
+					this.stats.httpRequests++;
+					if (flux.status !== 200) return null;
+
+					const entrees = parserFluxYoutube(flux.html);
+					const videos: VideoRef[] = [];
+					for (const entree of entrees) {
+						const numero = numeroEpisodeDeTitre(entree.titre);
+						if (numero === null) continue; // Une bande-annonce n'est pas un épisode.
+
+						// ── NE JAMAIS RETOMBER SUR « SAISON 1 » ──────────────────────
+						// Le repli `?? 1` a réellement fabriqué 23 épisodes inexistants
+						// lors de la première moisson complète : `EP45`…`EP59` et
+						// `第55話`…`第67話` rangés en saison 1 — qui en compte 26 — et un
+						// `Go Galaxy - 25` rangé en saison 1 au lieu de la saison 6. La
+						// saison 1 annonçait alors 41 épisodes VF pour 26 réels, et le
+						// total distinct passait de 355 à 378.
+						//
+						// Trois voies, dans l'ordre de fiabilité : la saison écrite noir
+						// sur blanc, puis l'arc nommé dans le titre, puis la numérotation
+						// absolue de la série d'origine. Si aucune ne tranche, l'entrée
+						// est ÉCARTÉE — un épisode non classé vaut mieux qu'un épisode
+						// inventé.
+						const explicite = saisonDuTitre(entree.titre);
+						const arc = arcDeTitre(entree.titre);
+						const place = explicite
+							? { season: explicite, episode: numero }
+							: arc && !arc.absolu && arc.saison !== null
+								? { season: arc.saison, episode: numero }
+								: arc?.absolu
+									? situerAbsolu(numero, ARCS_SERIE_ORIGINE)
+									: null;
+						if (!place) continue;
+						const saison = place.season;
+						videos.push({
+							title: entree.titre,
+							videoId: entree.videoId,
+							url: entree.url,
+							description: null,
+							thumbnail: `https://i.ytimg.com/vi/${entree.videoId}/hqdefault.jpg`,
+							publishDate: entree.publie,
+							season: saison,
+							// `place.episode`, PAS `numero` : sur une numérotation absolue
+							// les deux diffèrent (l'épisode 67 de la série d'origine est
+							// l'épisode 26 de la saison 3). Garder `numero` aurait remis
+							// dans la bonne saison des épisodes portant le mauvais numéro —
+							// une erreur plus discrète que la précédente, et pire.
+							episode: place.episode,
+							language: chaine.langue as LanguageVersion,
+							duration: null,
+							viewCount: null,
+							sources: [
+								{
+									plateforme: "youtube",
+									sourceId: entree.videoId,
+									url: entree.url,
+									langue: chaine.langue,
+									qualite: null,
+									officielle: true,
+									confiance: "declaree",
+									verifieeLe: null,
+									origine: chaine.titre,
+									vignette: `https://i.ytimg.com/vi/${entree.videoId}/hqdefault.jpg`,
+									titre: entree.titre,
+								},
+							],
+						});
+					}
+					if (videos.length === 0) return null;
+
+					this.stats.channelsScraped++;
+					this.stats.totalEpisodes += videos.length;
+					// Annotation explicite plutôt que `satisfies` : ce dernier fige le
+					// type littéral (`title: string`), et `ChannelInfo.title` étant
+					// `string | null`, le prédicat de filtrage ci-dessous devenait
+					// inassignable.
+					const info: ChannelInfo = {
+						channel: chaine.handle,
+						title: chaine.titre,
+						description: `Chaîne officielle — flux Atom (${chaine.langue})`,
+						avatar: null,
+						seasons: this.regrouperEnSaisons(videos),
+						totalEpisodes: videos.length,
+					};
+					return info;
+				} catch (err) {
+					console.warn(`scrapeChainesOfficielles(${chaine.handle}) : ${String(err)}`);
+					return null;
+				}
+			})
+		);
+		return resultats.filter((r): r is ChannelInfo => r !== null);
 	}
 
 	/**

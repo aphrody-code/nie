@@ -9,7 +9,15 @@ import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { open } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
 import { useSettings } from "@/lib/settings";
-import { reDb, defaultReDbPath, toStaticHex, type FunctionRow, type RttiClassRow, type XrefRow } from "@/lib/reDb";
+import {
+  reDb,
+  defaultReDbPath,
+  toStaticHex,
+  type FunctionRow,
+  type RttiClassRow,
+  type StatutProduction,
+  type XrefRow,
+} from "@/lib/reDb";
 import { api, type ReDumpHit, type ReDumpInfo, type ReTraceDumpStats, type ReTraceProcess, type ReTraceRegion } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -475,6 +483,10 @@ export function ReToolsView() {
                   >
                     <span className="flex w-full items-center gap-2">
                       <span className="truncate font-mono">{f.name ?? `FUN_${f.vaddr.toString(16)}`}</span>
+                      {/* Ce que la FORGE fait de cette fonction. Le reverse répond « à quoi sert
+                          ce code » ; la forge répond « le dépôt sait-il le produire ». Les deux
+                          questions se posent devant la même ligne, elles s'affichent ensemble. */}
+                      <BadgeForge statut={f.statut} cause={f.cause} />
                       {f.subsystem && (
                         <Badge variant="outline" className="shrink-0">
                           {f.subsystem}
@@ -586,10 +598,18 @@ export function ReToolsView() {
                     {selectedFn.name_source}
                   </Badge>
                 )}
+                <BadgeForge statut={selectedFn.statut} cause={selectedFn.cause} />
               </div>
               <p className="mt-1 type-body-small text-on-surface-variant">
                 taille {selectedFn.size} octets · confiance {(selectedFn.confidence * 100).toFixed(0)}% · pagerank {selectedFn.pagerank.toFixed(4)}
               </p>
+              {/* La cause, en toutes lettres : c'est elle qui dit quoi implémenter dans `nie-asm`
+                  pour que ce corps précis devienne productible. */}
+              {selectedFn.statut === "bloque" && selectedFn.cause && (
+                <p className="mt-1 font-mono type-label-small text-amber-500" title="Ce que le relevé refuse encore">
+                  forge bloquée : {selectedFn.cause}
+                </p>
+              )}
             </div>
             <ScrollArea className="min-h-0 flex-1 rounded-lg border border-app-line bg-app-box p-3">
               <div className="flex flex-col gap-4">
@@ -611,4 +631,41 @@ export function ReToolsView() {
       </div>
     </div>
   );
+}
+
+/**
+ * Pastille d'état de production, telle que `nie-forge kb` l'a inscrite dans `forge_unit`.
+ *
+ * Rien n'est affiché quand la base ne porte pas cette table (base antérieure à la forge, ou base
+ * tierce) : une pastille « inconnu » sur chaque ligne dirait quelque chose de la fonction alors
+ * qu'elle ne dirait que l'âge du fichier. Les états non-code (`regle`, `donnees_inline`,
+ * `verbatim`) ne s'affichent pas non plus ici — ce ne sont pas des fonctions.
+ */
+function BadgeForge({ statut, cause }: { statut?: StatutProduction; cause?: string | null }) {
+  if (statut === "produit") {
+    return (
+      <Badge variant="outline" className="shrink-0 border-emerald-500/40 text-emerald-500" title="Le dépôt produit ce corps à l'octet près">
+        produit
+      </Badge>
+    );
+  }
+  if (statut === "bloque") {
+    return (
+      <Badge
+        variant="outline"
+        className="shrink-0 border-amber-500/40 text-amber-500"
+        title={cause ? `Le relevé refuse ce corps : ${cause}` : "Le relevé refuse encore ce corps"}
+      >
+        bloqué
+      </Badge>
+    );
+  }
+  if (statut === "hors_decoupage") {
+    return (
+      <Badge variant="outline" className="shrink-0 opacity-50" title="Aucune unité du découpage ne couvre cette adresse">
+        hors découpage
+      </Badge>
+    );
+  }
+  return null;
 }

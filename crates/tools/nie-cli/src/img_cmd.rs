@@ -134,9 +134,120 @@ pub fn composite(base: &Path, overlay: &Path, dst: &Path, x: i64, y: i64) -> Res
     Ok(())
 }
 
+/// Assemble plusieurs images en planche (sprite sheet) et écrit son manifeste.
+///
+/// Le manifeste est ce qui distingue une planche d'une image : sans les rectangles, la sortie
+/// se regarde mais ne se réutilise pas. Il porte, pour chaque case, son nom (le nom du fichier
+/// source, sans extension) et le rectangle **de l'image**, jamais celui de la cellule.
+///
+/// Aucune image n'est redimensionnée : les plus petites sont centrées dans leur cellule.
+pub fn planche(
+    srcs: &[PathBuf],
+    dst: &Path,
+    manifeste: Option<&Path>,
+    colonnes: u32,
+    marge: u32,
+    gouttiere: u32,
+    fond: [u8; 4],
+) -> Result<()> {
+    if srcs.is_empty() {
+        anyhow::bail!("aucune image source");
+    }
+
+    let mut cases = Vec::with_capacity(srcs.len());
+    for src in srcs {
+        let img = load(src)?.to_rgba8();
+        let (w, h) = img.dimensions();
+        cases.push(nie_formats::image_out::CasePlanche {
+            // Le nom du fichier fait le nom de la case : c'est ce que l'appelant reconnaîtra
+            // dans le manifeste, et il l'a déjà choisi en nommant ses fichiers.
+            nom: src.file_stem().map_or_else(|| "sans-nom".to_string(), |s| s.to_string_lossy().into_owned()),
+            largeur: w,
+            hauteur: h,
+            rgba: img.into_raw(),
+        });
+    }
+
+    let colonnes = if colonnes == 0 { cases.len() as u32 } else { colonnes };
+    let p = nie_formats::image_out::composer_planche(&cases, colonnes, marge, gouttiere, fond);
+
+    let img = image::RgbaImage::from_raw(p.largeur, p.hauteur, p.rgba)
+        .context("planche composée incohérente (dimensions vs tampon)")?;
+    save(&image::DynamicImage::ImageRgba8(img), dst)?;
+
+    if let Some(chemin) = manifeste {
+        let cases_json: Vec<serde_json::Value> = p
+            .cases
+            .iter()
+            .zip(srcs)
+            .map(|(r, src)| {
+                serde_json::json!({
+                    "nom": r.nom,
+                    "source": src.to_string_lossy(),
+                    "rect": { "x": r.x, "y": r.y, "w": r.w, "h": r.h },
+                })
+            })
+            .collect();
+        let doc = serde_json::json!({
+            "planche": dst.file_name().map(|n| n.to_string_lossy().into_owned()),
+            "largeur": p.largeur,
+            "hauteur": p.hauteur,
+            "colonnes": colonnes,
+            "marge": marge,
+            "gouttiere": gouttiere,
+            "redimensionnement": "aucun",
+            "cases": cases_json,
+        });
+        if let Some(parent) = chemin.parent()
+            && !parent.as_os_str().is_empty()
+        {
+            std::fs::create_dir_all(parent)
+                .with_context(|| format!("création {}", parent.display()))?;
+        }
+        std::fs::write(chemin, serde_json::to_vec_pretty(&doc)?)
+            .with_context(|| format!("écriture {}", chemin.display()))?;
+    }
+
+    println!(
+        "planche {}x{} — {} case(s), {} colonne(s) -> {}{}",
+        p.largeur,
+        p.hauteur,
+        p.cases.len(),
+        colonnes,
+        dst.display(),
+        manifeste.map_or_else(String::new, |m| format!(" + {}", m.display()))
+    );
+    Ok(())
+}
+
+/// Lit une couleur `RRGGBB` ou `RRGGBBAA` hexadécimale.
+///
+/// Sans alpha, la couleur est opaque : un fond que l'appelant écrit à six chiffres est un fond
+/// qu'il veut voir, pas un fond transparent.
+pub fn couleur_hex(s: &str) -> Result<[u8; 4]> {
+    let t = s.trim_start_matches('#');
+    let lire = |i: usize| -> Result<u8> {
+        u8::from_str_radix(&t[i..i + 2], 16).with_context(|| format!("couleur invalide : {s}"))
+    };
+    match t.len() {
+        6 => Ok([lire(0)?, lire(2)?, lire(4)?, 255]),
+        8 => Ok([lire(0)?, lire(2)?, lire(4)?, lire(6)?]),
+        _ => anyhow::bail!("couleur attendue en RRGGBB ou RRGGBBAA, reçu : {s}"),
+    }
+}
+
 /// Sous-commandes de `niers img`, résolues depuis `main`.
 pub enum Op {
     Info { src: PathBuf },
+    Planche {
+        srcs: Vec<PathBuf>,
+        out: PathBuf,
+        manifeste: Option<PathBuf>,
+        colonnes: u32,
+        marge: u32,
+        gouttiere: u32,
+        fond: String,
+    },
     Resize { src: PathBuf, out: PathBuf, width: Option<u32>, height: Option<u32>, filter: String, exact: bool },
     Crop { src: PathBuf, out: PathBuf, x: u32, y: u32, w: u32, h: u32 },
     Convert { src: PathBuf, out: PathBuf },
@@ -161,6 +272,15 @@ pub fn run(op: &Op) -> Result<()> {
         Op::Crop { src, out, x, y, w, h } => crop(src, out, *x, *y, *w, *h),
         Op::Convert { src, out } => convert(src, out),
         Op::Composite { base, overlay, out, x, y } => composite(base, overlay, out, *x, *y),
+        Op::Planche { srcs, out, manifeste, colonnes, marge, gouttiere, fond } => planche(
+            srcs,
+            out,
+            manifeste.as_deref(),
+            *colonnes,
+            *marge,
+            *gouttiere,
+            couleur_hex(fond)?,
+        ),
         Op::Diff { rendu, reference, roi, out, downscale_ref, amplification } => {
             diff(rendu, reference, roi.as_deref(), out.as_deref(), *downscale_ref, *amplification)
         }

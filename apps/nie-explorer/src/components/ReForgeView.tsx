@@ -12,6 +12,8 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { api, type ForgeBlocker, type ForgeReport } from "@/lib/api";
+import { defaultReDbPath, reDb, type ClasseForge, type StatutForge } from "@/lib/reDb";
+import { useSettings } from "@/lib/settings";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -21,12 +23,46 @@ function o(n: number): string {
   return n.toLocaleString("fr-FR");
 }
 
+/** Ce que chaque état signifie — repris mot pour mot des constantes de `nie-forge/src/kb.rs`,
+ * pour que la colonne ne raconte pas autre chose que ce que la forge a écrit. */
+const SENS_STATUT: Record<string, string> = {
+  produit: "corps relevé et ré-encodé à l'octet près",
+  bloque: "code que le relevé refuse encore, avec sa cause",
+  regle: "octets régénérés par une règle du linker (bourrage int3, en-têtes)",
+  donnees_inline: "données déposées au milieu du code (tables de sauts, constantes)",
+  verbatim: "recopié de la référence : rien n'est prétendu",
+  hors_decoupage: "fonction de la base sans unité correspondante",
+};
+
 export function ReForgeView() {
   const [report, setReport] = useState<ForgeReport | null>(null);
   const [blockers, setBlockers] = useState<ForgeBlocker[]>([]);
   const [loading, setLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Ce que la forge a écrit DANS la base (`nie-forge kb`) : l'état par unité et par classe. */
+  const [statuts, setStatuts] = useState<StatutForge[]>([]);
+  const [classes, setClasses] = useState<ClasseForge[]>([]);
+  const parametres = useSettings();
+
+  // La répartition et le classement viennent de `niers.sqlite`, pas des artefacts de `var/forge/`
+  // que relit `forgeReport` : ce sont deux vues du même travail, et la base est la seule à savoir
+  // à QUELLE classe appartient un corps bloqué.
+  useEffect(() => {
+    let vivant = true;
+    defaultReDbPath(parametres.gameDir)
+      .then(async (chemin) => {
+        if (!chemin || !vivant) return;
+        const [s, c] = await Promise.all([reDb.statutsForge(chemin), reDb.classesForge(chemin, 300)]);
+        if (!vivant) return;
+        setStatuts(s);
+        setClasses(c);
+      })
+      .catch(() => {});
+    return () => {
+      vivant = false;
+    };
+  }, [parametres.gameDir]);
 
   async function load() {
     setLoading(true);
@@ -143,6 +179,75 @@ export function ReForgeView() {
                   : null}
               </div>
             </div>
+
+            {/* Ce que la forge a inscrit dans la base : l'état de CHAQUE unité du découpage.
+                Les deux colonnes disent des choses différentes — le bourrage `int3` pèse des
+                dizaines de milliers d'unités pour un peu plus d'un mégaoctet, quand une poignée
+                d'unités recopiées en pèsent huit. Compter les unités seules donnerait au bourrage
+                l'apparence du gros du travail. */}
+            {statuts.length > 0 ? (
+              <div>
+                <div className="mb-1 text-xs uppercase opacity-60">Par état de production (base de connaissance)</div>
+                <table className="w-full text-sm">
+                  <thead className="text-xs opacity-60">
+                    <tr>
+                      <th className="text-left font-normal">état</th>
+                      <th className="text-right font-normal">unités</th>
+                      <th className="text-right font-normal">octets</th>
+                      <th className="text-left font-normal">ce que cela veut dire</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {statuts.map((s) => (
+                      <tr key={s.statut}>
+                        <td className="font-mono">{s.statut}</td>
+                        <td className="text-right tabular-nums">{o(s.unites)}</td>
+                        <td className="text-right tabular-nums">{o(s.octets)}</td>
+                        <td className="text-xs opacity-70">{SENS_STATUT[s.statut] ?? ""}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+
+            {/* Le tri par classe : à quelles classes appartiennent les corps qui bloquent encore.
+                `résolues` borne la lecture — les adresses de vtable viennent de l'index Ghidra,
+                les fonctions du découpage `#pdata` ; une classe dont peu de méthodes se résolvent
+                décrit un autre agencement, et ses compteurs ne se lisent pas. */}
+            {classes.length > 0 ? (
+              <div>
+                <div className="mb-1 text-xs uppercase opacity-60">
+                  Classes RTTI où il reste à produire — {o(classes.length)} classes affichées
+                </div>
+                <table className="w-full text-sm">
+                  <thead className="text-xs opacity-60">
+                    <tr>
+                      <th className="text-left font-normal">classe</th>
+                      <th className="text-right font-normal">méthodes</th>
+                      <th className="text-right font-normal">résolues</th>
+                      <th className="text-right font-normal">produites</th>
+                      <th className="text-right font-normal">bloquées</th>
+                      <th className="text-right font-normal">octets</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {classes.slice(0, 60).map((c) => (
+                      <tr key={c.classe} className={c.bloquees === 0 ? "opacity-60" : undefined}>
+                        <td className="max-w-[22rem] truncate font-mono text-xs" title={c.classe}>
+                          {c.classe}
+                        </td>
+                        <td className="text-right tabular-nums">{o(c.methodes)}</td>
+                        <td className="text-right tabular-nums">{o(c.resolues)}</td>
+                        <td className="text-right tabular-nums">{o(c.produites)}</td>
+                        <td className="text-right tabular-nums font-semibold">{o(c.bloquees)}</td>
+                        <td className="text-right tabular-nums">{o(c.octets)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
 
             {blockers.length > 0 ? (
               <div>

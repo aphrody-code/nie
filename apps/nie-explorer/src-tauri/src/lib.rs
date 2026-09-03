@@ -4,7 +4,7 @@
 //! IPC (JSON) au-dessus de ces crates + une recherche chara/waza via le miroir `nie-wiki`.
 
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 
 use base64::Engine as _;
 use nie_formats::cpk::{CpkEntry, CpkReader};
@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 use tauri_plugin_sql::{Migration, MigrationKind};
 
+mod camera_nav;
 mod live_mod;
 mod lua_session;
 mod lua_tools;
@@ -214,32 +215,117 @@ fn resolve_game_dir_native() -> PathBuf {
 /// clic de navigation dans l'Explorateur — cause réelle de la latence signalée. Précédé d'un
 /// appel explicite [`preload_vfs`] au démarrage de l'appli pour amortir le premier coût avant
 /// toute interaction utilisatrice.
-struct VfsState(Mutex<Option<(PathBuf, Vfs)>>);
+/// Le VFS monté, partagé.
+///
+/// **`RwLock` et non `Mutex`**, et **`Arc<Vfs>` et non `Vfs`** — les deux comptent :
+///
+/// - Un `Mutex` sérialisait les **66** commandes qui passent par [`with_vfs`], pour toute la
+///   durée de leur travail. Décoder une texture de plusieurs mégaoctets gelait donc le listage
+///   d'un dossier, alors que les deux ne font que LIRE. `Vfs::read` prend `&self` et son cache
+///   interne est déjà verrouillé de son côté : rien ne justifiait l'exclusivité.
+/// - L'`Arc` permet de relâcher le verrou **avant** le travail lourd, et de confier celui-ci à
+///   un thread bloquant. Sans lui, une commande longue garde le verrou pendant tout son calcul,
+///   ce qui annule le bénéfice du `RwLock` dès qu'une écriture attend.
+struct VfsState(RwLock<Option<(PathBuf, Arc<Vfs>)>>);
+
+/// Budget par défaut du cache CPK **pour cette application**, en octets (1 Gio).
+///
+/// `nie-formats` monte à 16 Gio, et c'est cohérent pour un outil de traitement par lots qui a
+/// la machine pour lui : garder les paquets chauds évite de relire 57 Go de CPK. Un
+/// explorateur, lui, tourne à côté du jeu, d'un navigateur et d'un IDE ; le cache retient les
+/// octets **bruts** de chaque paquet ouvert, si bien que quelques lectures dans des paquets
+/// différents suffisent à retenir plusieurs centaines de mégaoctets — sans qu'aucune interface
+/// ne le dise, et sans que le symptôme (la machine qui rame) n'accuse jamais le cache.
+const BUDGET_CACHE_GUI: usize = 1024 * 1024 * 1024;
+
+/// Abaisse le budget du cache CPK, **sauf** si l'utilisateur l'a fixé explicitement.
+///
+/// `NIE_CPK_CACHE_BUDGET_GIB` posée est un choix délibéré : on ne l'écrase pas. On ne corrige
+/// que le défaut, qui n'a pas été pensé pour une application de bureau.
+fn appliquer_budget_cache(vfs: &Vfs) {
+    if std::env::var_os("NIE_CPK_CACHE_BUDGET_GIB").is_some() {
+        return;
+    }
+    vfs.regler_budget_cache(BUDGET_CACHE_GUI);
+}
 
 /// Exécute `f` sur le VFS mis en cache pour `game_dir` (le (re)construit d'abord si la racine
 /// résolue diffère de celle en cache, ou si aucun VFS n'a encore été chargé).
 fn with_vfs<T>(game_dir: Option<String>, state: &VfsState, f: impl FnOnce(&Vfs) -> Result<T, String>) -> Result<T, String> {
+    let vfs = vfs_partage(game_dir, state)?;
+    f(&vfs)
+}
+
+/// Rend le VFS monté pour `game_dir`, **en relâchant le verrou avant de rendre la main**.
+///
+/// C'est ce qui rend la navigation non bloquante : l'appelant garde un `Arc` vivant et peut
+/// travailler aussi longtemps qu'il veut — décoder une texture, extraire un fichier — sans
+/// qu'aucune autre commande n'attende derrière lui.
+///
+/// Le montage lui-même reste exclusif, mais il est rare (une fois par racine).
+fn vfs_partage(game_dir: Option<String>, state: &VfsState) -> Result<Arc<Vfs>, String> {
     let root = resolve_root(game_dir.as_deref());
-    let mut guard = state.0.lock().map_err(|_| "verrou VFS empoisonné".to_string())?;
-    let needs_rebuild = guard.as_ref().is_none_or(|(cached_root, _)| cached_root != &root);
-    if needs_rebuild {
-        let data_dir = root.join("data");
-        let mut vfs = Vfs::new();
-        // `init` monte l'installation, et bascule seule sur un dump extrait si `cpk_list.cfg.bin`
-        // manque mais que l'arborescence est là. Le message d'échec doit donc nommer les DEUX
-        // possibilités : « cpk_list introuvable » enverrait chercher un fichier là où c'est
-        // l'ensemble du répertoire qui est vide.
-        vfs.init(&data_dir).map_err(|e| {
-            format!(
-                "init VFS depuis {} : {e} — ce dossier ne porte ni installation \
-                 (cpk_list.cfg.bin + packs/) ni dump extrait (common/, dx11/)",
-                data_dir.display()
-            )
-        })?;
-        *guard = Some((root.clone(), vfs));
+
+    // Cas normal : déjà monté sur cette racine → verrou PARTAGÉ, plusieurs commandes à la fois.
+    {
+        let guard = state.0.read().map_err(|_| "verrou VFS empoisonné".to_string())?;
+        if let Some((cached_root, vfs)) = guard.as_ref() {
+            if cached_root == &root {
+                return Ok(Arc::clone(vfs));
+            }
+        }
     }
-    let (_, vfs) = guard.as_ref().expect("vient d'être rempli ci-dessus");
-    f(vfs)
+
+    // Montage : exclusif. Un autre thread a pu monter la même racine pendant qu'on attendait le
+    // verrou — d'où la re-vérification, sans laquelle on remonterait le VFS pour rien.
+    let mut guard = state.0.write().map_err(|_| "verrou VFS empoisonné".to_string())?;
+    if let Some((cached_root, vfs)) = guard.as_ref() {
+        if cached_root == &root {
+            return Ok(Arc::clone(vfs));
+        }
+    }
+
+    let data_dir = root.join("data");
+    let mut vfs = Vfs::new();
+    // `init` monte l'installation, et bascule seule sur un dump extrait si `cpk_list.cfg.bin`
+    // manque mais que l'arborescence est là. Le message d'échec doit donc nommer les DEUX
+    // possibilités : « cpk_list introuvable » enverrait chercher un fichier là où c'est
+    // l'ensemble du répertoire qui est vide.
+    vfs.init(&data_dir).map_err(|e| {
+        format!(
+            "init VFS depuis {} : {e} — ce dossier ne porte ni installation \
+             (cpk_list.cfg.bin + packs/) ni dump extrait (common/, dx11/)",
+            data_dir.display()
+        )
+    })?;
+    appliquer_budget_cache(&vfs);
+
+    let partage = Arc::new(vfs);
+    *guard = Some((root, Arc::clone(&partage)));
+    Ok(partage)
+}
+
+/// Exécute un travail lourd sur le VFS **hors du thread principal**.
+///
+/// En Tauri v2, une commande synchrone s'exécute sur le thread principal : tant qu'elle
+/// calcule, l'interface ne répond plus. Une commande déclarée `async` qui délègue ici rend la
+/// main immédiatement, et son travail part sur un thread bloquant.
+///
+/// Le `Arc<Vfs>` est résolu **avant** le `spawn_blocking` : la résolution touche au verrou, le
+/// travail non.
+async fn sur_vfs_bloquant<T, F>(
+    game_dir: Option<String>,
+    state: &VfsState,
+    f: F,
+) -> Result<T, String>
+where
+    T: Send + 'static,
+    F: FnOnce(&Vfs) -> Result<T, String> + Send + 'static,
+{
+    let vfs = vfs_partage(game_dir, state)?;
+    tauri::async_runtime::spawn_blocking(move || f(&vfs))
+        .await
+        .map_err(|e| format!("tâche VFS interrompue : {e}"))?
 }
 
 // `specta::Type` (en plus de `Serialize`) sur tous les DTOs qui traversent l'IPC : c'est ce qui
@@ -304,7 +390,7 @@ struct FolderRoleDto {
 // compris) par défaut — risque réel de perte de précision côté JS (`Number.MAX_SAFE_INTEGER`
 // < 2⁶⁴). `u32` (≤ 4 294 967 295) couvre très largement des compteurs de fichiers (~255 800
 // entrées VFS au total) sans avoir besoin de désactiver ce garde-fou.
-#[derive(Serialize, specta::Type)]
+#[derive(Serialize, specta::Type, Clone)]
 struct StatsDto {
     /// Provenance des données : `"packs"` (installation : `cpk_list.cfg.bin` + `packs/*.cpk`) ou
     /// `"dump"` (arborescence déjà extraite). Les deux servent les mêmes chemins logiques, donc
@@ -342,8 +428,12 @@ fn check_game_dir(game_dir: String) -> bool {
 /// statistiques que [`vfs_stats`] pour un toast de confirmation côté UI.
 #[tauri::command]
 #[specta::specta]
-fn preload_vfs(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<StatsDto, String> {
-    vfs_stats(game_dir, state)
+async fn preload_vfs(
+    game_dir: Option<String>,
+    state: tauri::State<'_, VfsState>,
+    cache: tauri::State<'_, StatsCache>,
+) -> Result<StatsDto, String> {
+    vfs_stats(game_dir, state, cache).await
 }
 
 /// Contenu direct d'un dossier du VFS, fichiers paginés et sous-dossiers comptés.
@@ -427,10 +517,45 @@ fn vfs_find_paged(
     })
 }
 
+/// Statistiques du VFS mémoïsées par racine.
+///
+/// Les calculer demande de parcourir l'index **entier** — 255 308 entrées — et de compter les
+/// extensions une par une. Sur un montage « dump », ce parcours DÉCLENCHE en plus la
+/// construction paresseuse de l'index, qui prend des minutes sur NTFS. Ce coût est justifié
+/// une fois ; le payer à chaque appel (barre d'état, ouverture d'un onglet, retour sur
+/// Paramètres) ne l'est pas.
+///
+/// L'invalidation suit la racine : un VFS remonté sur un autre dossier recalcule.
+struct StatsCache(Mutex<Option<(PathBuf, StatsDto)>>);
+
 #[tauri::command]
 #[specta::specta]
-fn vfs_stats(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<StatsDto, String> {
-    with_vfs(game_dir, &state, |vfs| {
+async fn vfs_stats(
+    game_dir: Option<String>,
+    state: tauri::State<'_, VfsState>,
+    cache: tauri::State<'_, StatsCache>,
+) -> Result<StatsDto, String> {
+    // `if let` imbriqués et non chaînés : ce crate est en édition 2021, où les « let chains »
+    // ne compilent pas (contrairement à `nie-formats`, en 2024).
+    let root = resolve_root(game_dir.as_deref());
+    if let Ok(guard) = cache.0.lock() {
+        if let Some((racine, stats)) = guard.as_ref() {
+            if racine == &root {
+                return Ok(stats.clone());
+            }
+        }
+    }
+
+    let stats = vfs_stats_calcul(game_dir, &state).await?;
+    if let Ok(mut guard) = cache.0.lock() {
+        *guard = Some((root, stats.clone()));
+    }
+    Ok(stats)
+}
+
+/// Le calcul réel, sans cache — appelé une fois par racine.
+async fn vfs_stats_calcul(game_dir: Option<String>, state: &VfsState) -> Result<StatsDto, String> {
+    sur_vfs_bloquant(game_dir, state, |vfs| {
         let mut counts: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
         for (path, _) in vfs.iter() {
             let base = path.rsplit('/').next().unwrap_or(path);
@@ -449,6 +574,7 @@ fn vfs_stats(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<
             top_ext,
         })
     })
+    .await
 }
 
 /// Métadonnées d'une seule entrée VFS (`None` si le chemin n'existe pas) — sert notamment à
@@ -488,8 +614,8 @@ fn vfs_describe(path: String, game_dir: Option<String>, state: tauri::State<VfsS
 /// utiliser `vfs_extract_to` pour les gros fichiers (écriture disque directe côté Rust).
 #[tauri::command]
 #[specta::specta]
-fn vfs_read_b64(path: String, game_dir: Option<String>, max_bytes: Option<u32>, state: tauri::State<VfsState>) -> Result<String, String> {
-    with_vfs(game_dir, &state, |vfs| {
+async fn vfs_read_b64(path: String, game_dir: Option<String>, max_bytes: Option<u32>, state: tauri::State<'_, VfsState>) -> Result<String, String> {
+    sur_vfs_bloquant(game_dir, &state, move |vfs| {
         let data = vfs.read(&path).map_err(|e| e.to_string())?;
         let cap = max_bytes.map(|b| b as usize).unwrap_or(2 * 1024 * 1024);
         if data.len() > cap {
@@ -497,6 +623,7 @@ fn vfs_read_b64(path: String, game_dir: Option<String>, max_bytes: Option<u32>, 
         }
         Ok(base64::engine::general_purpose::STANDARD.encode(&data))
     })
+    .await
 }
 
 /// Décode la meilleure texture d'un `.g4tx` en PNG (base64), pour un `<img>` côté UI.
@@ -505,13 +632,14 @@ fn vfs_read_b64(path: String, game_dir: Option<String>, max_bytes: Option<u32>, 
 /// grille de vignettes, utiliser [`vfs_texture_thumb_png_b64`] — cf. la note qui l'accompagne.
 #[tauri::command]
 #[specta::specta]
-fn vfs_texture_png_b64(path: String, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<String, String> {
-    with_vfs(game_dir, &state, |vfs| {
+async fn vfs_texture_png_b64(path: String, game_dir: Option<String>, state: tauri::State<'_, VfsState>) -> Result<String, String> {
+    sur_vfs_bloquant(game_dir, &state, move |vfs| {
         let data = vfs.read(&path).map_err(|e| e.to_string())?;
         let base = nie_formats::g4tx_decode::basename_of(&path).to_string();
         let png = nie_formats::g4tx_decode::decode_best_to_png(&data, &base).ok_or("décodage PNG impossible (texture non reconnue)")?;
         Ok(base64::engine::general_purpose::STANDARD.encode(&png))
     })
+    .await
 }
 
 /// Plus grand côté par défaut d'une vignette, en pixels. 128 : les grilles affichent au plus
@@ -536,14 +664,14 @@ const VIGNETTE_COTE_MAX: u32 = 512;
 /// résolution pour réduire côté client ne réglerait rien.
 #[tauri::command]
 #[specta::specta]
-fn vfs_texture_thumb_png_b64(
+async fn vfs_texture_thumb_png_b64(
     path: String,
     max_cote: Option<u32>,
     game_dir: Option<String>,
-    state: tauri::State<VfsState>,
+    state: tauri::State<'_, VfsState>,
 ) -> Result<String, String> {
     let cote = max_cote.unwrap_or(VIGNETTE_COTE_DEFAUT).clamp(8, VIGNETTE_COTE_MAX);
-    with_vfs(game_dir, &state, |vfs| {
+    sur_vfs_bloquant(game_dir, &state, move |vfs| {
         let data = vfs.read(&path).map_err(|e| e.to_string())?;
         // Le sélecteur de sous-texture d'un conteneur g4tx s'adresse par le basename du fichier
         // (cf. `g4tx_decode::decode_best_to_rgba`) : sans lui, un conteneur multi-textures rendrait
@@ -556,6 +684,7 @@ fn vfs_texture_thumb_png_b64(
         })??;
         Ok(base64::engine::general_purpose::STANDARD.encode(&png))
     })
+    .await
 }
 
 /// Une texture nommée à l'intérieur d'un conteneur `.g4tx`.
@@ -956,16 +1085,59 @@ fn save_export(dest: String, state: tauri::State<SaveState>) -> Result<u32, Stri
 // `search_skills`) — pas de commande Rust ici : `nie-wiki` (rusqlite) est volontairement HORS
 // de ce binaire (conflit de lien natif `sqlite3` avec `sqlx-sqlite`, cf. Cargo.toml).
 
-/// Résout le miroir SQLite (`supabase-*.sqlite`) par défaut — même ordre de résolution que
-/// [`nie_wiki::mirror::resolve`] (`NIE_WIKI_DB`/`SQLITE_DB_PATH`, fichier le plus récent), mais
-/// avec un répertoire de backups RÉEL pour cette appli desktop (`<racine du jeu>/var/wiki-mirror`,
-/// où vit effectivement `supabase-2026-06-05T00-08-26.sqlite` sur ce poste) plutôt que le chemin
-/// de dev WSL codé en dur `/home/ubuntu/niers/data/backups` (inexistant hors de la machine de
-/// développement). Renvoie `None` si rien n'est trouvé — jamais un chemin deviné : le champ
-/// « Base SQLite » des Paramètres reste alors vide, à renseigner manuellement.
+/// Racines où chercher les artefacts du **dépôt** (miroir wiki, base RE), dans l'ordre : la
+/// racine du jeu (une installation peut porter son propre `var/`), puis le répertoire courant et
+/// chacun de ses ancêtres, puis le répertoire de l'exécutable et ses ancêtres.
+///
+/// Les deux dernières familles sont ce qui fait fonctionner l'application **installée** : son
+/// `.exe` vit dans `Program Files`, `NIE_GAME_DIR` pointe vers l'install Steam, et aucun des deux
+/// ne porte le `var/` du dépôt. Lancée depuis `target/release`, la remontée d'ancêtres retrouve
+/// en revanche `<dépôt>/var` — c'est le cas du poste de développement.
+fn racines_candidates(game_dir: Option<&str>) -> Vec<PathBuf> {
+    let mut racines = vec![resolve_root(game_dir)];
+    let mut ajouter_ancetres = |depart: Option<PathBuf>| {
+        let mut cur = depart;
+        while let Some(dir) = cur {
+            if !racines.contains(&dir) {
+                racines.push(dir.clone());
+            }
+            cur = dir.parent().map(std::path::Path::to_path_buf);
+        }
+    };
+    ajouter_ancetres(std::env::current_dir().ok());
+    ajouter_ancetres(
+        std::env::current_exe().ok().and_then(|p| p.parent().map(std::path::Path::to_path_buf)),
+    );
+    racines
+}
+
+/// Miroir wiki sous une racine donnée, par ordre de préférence :
+/// 1. `var/mirror.sqlite` — le nom canonique de `@niers/catalog` (un lien vers l'instantané
+///    courant, rebasculé atomiquement par `scripts/donnees/miroir-inagle.sh`).
+/// 2. `var/miroir/inagle-*.sqlite` — l'instantané daté le plus récent, si le lien manque.
+/// 3. `var/wiki-mirror/supabase-*.sqlite`, puis `data/backups/supabase-*.sqlite` — les deux
+///    emplacements historiques, conservés pour les postes qui les portent encore.
+fn miroir_wiki_sous(racine: &std::path::Path) -> Option<PathBuf> {
+    let var = racine.join("var");
+    let lien = var.join("mirror.sqlite");
+    if lien.is_file() {
+        return Some(lien);
+    }
+    dernier_sqlite(&var.join("miroir"), "inagle-")
+        .or_else(|| dernier_sqlite(&var.join("wiki-mirror"), "supabase-"))
+        .or_else(|| dernier_sqlite(&racine.join("data").join("backups"), "supabase-"))
+}
+
+/// Résout le miroir SQLite du wiki (tables `inagle_*`) par défaut. Renvoie `None` si rien n'est
+/// trouvé — jamais un chemin deviné : le champ « Base SQLite » des Paramètres reste alors vide,
+/// à renseigner manuellement.
+///
+/// Ordre : `NIE_WIKI_DB`/`SQLITE_DB_PATH`, puis les bases **livrées avec l'application**
+/// ([`bases_embarquees`] — c'est ce qui donne une expérience complète à une utilisatrice qui n'a
+/// ni le dépôt ni le jeu), puis les emplacements du dépôt ([`miroir_wiki_sous`]).
 #[tauri::command]
 #[specta::specta]
-fn default_wiki_db(game_dir: Option<String>) -> Option<String> {
+fn default_wiki_db(app: tauri::AppHandle, game_dir: Option<String>) -> Option<String> {
     for var in ["NIE_WIKI_DB", "SQLITE_DB_PATH"] {
         if let Ok(v) = std::env::var(var) {
             if PathBuf::from(&v).is_file() {
@@ -973,49 +1145,194 @@ fn default_wiki_db(game_dir: Option<String>) -> Option<String> {
             }
         }
     }
-    let root = resolve_root(game_dir.as_deref());
-    let backups_dir = root.join("var").join("wiki-mirror");
-    latest_sqlite_in(&backups_dir).map(|p| p.display().to_string())
+    for base in bases_embarquees(&app, "mirror.sqlite") {
+        if base.is_file() {
+            return Some(base.display().to_string());
+        }
+    }
+    racines_candidates(game_dir.as_deref())
+        .iter()
+        .find_map(|r| miroir_wiki_sous(r))
+        .map(|p| p.display().to_string())
 }
 
 /// Résout `var/niers.sqlite` (base RE — fonctions/classes RTTI/xrefs labellisées par `nie-re`,
-/// cf. `src/lib/reDb.ts`) sous la racine du jeu. Commande Rust plutôt qu'un `exists()` JS
-/// (`@tauri-apps/plugin-fs`) : la portée `fs:scope` de l'app ne couvre que `$APPDATA`, un
-/// `std::fs` Rust n'a pas cette restriction — même raison que [`default_wiki_db`] au-dessus.
+/// cf. `src/lib/reDb.ts`). Commande Rust plutôt qu'un `exists()` JS (`@tauri-apps/plugin-fs`) :
+/// la portée `fs:scope` de l'app ne couvre que `$APPDATA`, un `std::fs` Rust n'a pas cette
+/// restriction — même raison que [`default_wiki_db`] au-dessus.
+///
+/// Même ordre que le miroir wiki : `NIE_RE_DB`, bases livrées avec l'application, puis le dépôt.
 #[tauri::command]
 #[specta::specta]
-fn default_re_db(game_dir: Option<String>) -> Option<String> {
-    let root = resolve_root(game_dir.as_deref());
-    let path = root.join("var").join("niers.sqlite");
-    if path.is_file() {
-        return Some(path.display().to_string());
-    }
-    // La base RE est un artefact du **depot**, pas de l'installation du jeu : sur un poste ou
-    // `NIE_GAME_DIR` pointe vers l'install Steam (le cas courant, cf. CLAUDE.md), elle ne se
-    // trouve pas sous la racine du jeu. On la cherche donc aussi depuis le repertoire courant,
-    // en remontant jusqu'au premier ancetre portant `var/niers.sqlite`.
-    let mut cur = std::env::current_dir().ok();
-    while let Some(dir) = cur {
-        let p = dir.join("var").join("niers.sqlite");
-        if p.is_file() {
-            return Some(p.display().to_string());
+fn default_re_db(app: tauri::AppHandle, game_dir: Option<String>) -> Option<String> {
+    if let Ok(v) = std::env::var("NIE_RE_DB") {
+        if PathBuf::from(&v).is_file() {
+            return Some(v);
         }
-        cur = dir.parent().map(std::path::Path::to_path_buf);
     }
-    None
+    for base in bases_embarquees(&app, "niers.sqlite") {
+        if base.is_file() {
+            return Some(base.display().to_string());
+        }
+    }
+    racines_candidates(game_dir.as_deref())
+        .iter()
+        .map(|r| r.join("var").join("niers.sqlite"))
+        .find(|p| p.is_file())
+        .map(|p| p.display().to_string())
 }
 
-/// Fichier `supabase-*.sqlite` non-vide le plus récent (tri lexicographique DESC — les noms
+/// Résout `data/anime/episodes.db` — le catalogue des épisodes de la série (10 saisons, 355
+/// épisodes avec vignettes), alimenté par `packages/ietv` et sa tâche `ietv-cache`.
+///
+/// C'est le quatrième gisement de `docs/FUSION.md` (`anime`), et la vue Cinéma le présente à côté
+/// des cinématiques du jeu. Même ordre de résolution que les deux autres bases : `NIE_ANIME_DB`,
+/// bases livrées avec l'application, puis le dépôt.
+#[tauri::command]
+#[specta::specta]
+fn default_anime_db(app: tauri::AppHandle, game_dir: Option<String>) -> Option<String> {
+    if let Ok(v) = std::env::var("NIE_ANIME_DB") {
+        if PathBuf::from(&v).is_file() {
+            return Some(v);
+        }
+    }
+    for base in bases_embarquees(&app, "episodes.db") {
+        if base.is_file() {
+            return Some(base.display().to_string());
+        }
+    }
+    racines_candidates(game_dir.as_deref())
+        .iter()
+        .map(|r| r.join("data").join("anime").join("episodes.db"))
+        .find(|p| p.is_file())
+        .map(|p| p.display().to_string())
+}
+
+/// Emplacements d'une base **livrée avec l'application**, dans l'ordre de préférence :
+/// le cache de données de l'app (`$APPDATA/db/<nom>` — où [`installer_bases_embarquees`] a
+/// décompressé la base au premier lancement), puis les ressources empaquetées telles quelles
+/// (`<resources>/db/<nom>`, cas d'une base livrée non compressée).
+///
+/// Le cache passe en premier : une base décompressée est ouvrable en écriture (WAL), là où les
+/// ressources d'un MSI vivent sous `Program Files` en lecture seule.
+fn bases_embarquees(app: &tauri::AppHandle, nom: &str) -> Vec<PathBuf> {
+    use tauri::Manager as _;
+    let mut chemins = Vec::new();
+    if let Ok(dir) = app.path().app_data_dir() {
+        chemins.push(dir.join("db").join(nom));
+    }
+    for source in dossiers_ressources(app) {
+        chemins.push(source.join(nom));
+    }
+    chemins
+}
+
+/// Où le bundler dépose `resources/db/*.gz`.
+///
+/// **Tauri conserve le chemin relatif déclaré dans `bundle.resources`** : `"resources/db/*.gz"`
+/// atterrit donc en `<resource_dir>/resources/db/`, et non en `<resource_dir>/db/`. La première
+/// version de ce code visait le second — les archives étaient bien dans le paquet, le dossier
+/// `$APPDATA/db/` ne s'est jamais créé, et rien ne le disait : la résolution retombait simplement
+/// sur le dépôt, qui existe sur cette machine mais sur aucune machine utilisatrice.
+///
+/// Les deux formes sont essayées, la déclarée d'abord : `resource_dir()` lui-même varie (dossier
+/// de l'exécutable hors bundle, `<install>/resources` pour un MSI).
+fn dossiers_ressources(app: &tauri::AppHandle) -> Vec<PathBuf> {
+    use tauri::Manager as _;
+    let Ok(dir) = app.path().resource_dir() else {
+        return Vec::new();
+    };
+    vec![dir.join("resources").join("db"), dir.join("db")]
+}
+
+/// Décompresse les bases livrées avec l'application (`<resources>/db/*.sqlite.gz`) vers
+/// `$APPDATA/db/`, une fois par version de ressource. Renvoie les bases effectivement installées.
+///
+/// C'est ce qui rend l'application autonome : une utilisatrice qui n'a ni le dépôt, ni le jeu, ni
+/// le VPS ouvre le wiki (6 166 personnages) et la base RE dès le premier lancement. Les bases
+/// voyagent compressées (66 Mo → 7,9 Mo pour le miroir, 74 Mo → 22,4 Mo pour la base RE) et sont
+/// décompressées **hors** de `Program Files` : SQLite doit pouvoir écrire son `-wal` à côté du
+/// fichier, ce que les ressources d'un MSI, en lecture seule, interdisent.
+///
+/// Le témoin `<nom>.source` porte la taille de l'archive d'origine : une release qui embarque une
+/// base plus récente le change, donc la décompression est refaite ; un lancement ordinaire ne
+/// recopie rien.
+fn installer_bases_embarquees(app: &tauri::AppHandle) -> Vec<PathBuf> {
+    use tauri::Manager as _;
+    let Ok(data_dir) = app.path().app_data_dir() else {
+        return Vec::new();
+    };
+    let cible = data_dir.join("db");
+    // Le premier dossier de ressources qui existe réellement — cf. [`dossiers_ressources`] pour
+    // la raison d'en essayer deux.
+    let Some(entrees) = dossiers_ressources(app).into_iter().find_map(|d| std::fs::read_dir(d).ok())
+    else {
+        log::error!("bases embarquées : aucun dossier de ressources lisible");
+        return Vec::new();
+    };
+    let mut installees = Vec::new();
+    for archive in entrees.flatten().map(|e| e.path()) {
+        if archive.extension().is_none_or(|e| e != "gz") {
+            continue;
+        }
+        let Some(nom) = archive.file_stem().and_then(|n| n.to_str()).map(str::to_owned) else {
+            continue;
+        };
+        let Ok(taille) = archive.metadata().map(|m| m.len()) else {
+            continue;
+        };
+        let base = cible.join(&nom);
+        let temoin = cible.join(format!("{nom}.source"));
+        let deja = std::fs::read_to_string(&temoin).ok().and_then(|v| v.trim().parse::<u64>().ok());
+        if base.is_file() && deja == Some(taille) {
+            installees.push(base);
+            continue;
+        }
+        if let Err(e) = decompresser_gz(&archive, &base, &cible) {
+            log::error!("base embarquée {nom} : {e}");
+            continue;
+        }
+        let _ = std::fs::write(&temoin, taille.to_string());
+        log::info!("base embarquée installée : {}", base.display());
+        installees.push(base);
+    }
+    installees
+}
+
+/// Décompresse `archive` (gzip) vers `dest`, en passant par un fichier temporaire du même
+/// répertoire : une décompression interrompue (coupure, disque plein) ne laisse jamais une base
+/// tronquée que le lancement suivant prendrait pour valide, puisque le renommage final est
+/// atomique et que le témoin n'est écrit qu'après.
+fn decompresser_gz(
+    archive: &std::path::Path,
+    dest: &std::path::Path,
+    dossier: &std::path::Path,
+) -> std::io::Result<()> {
+    std::fs::create_dir_all(dossier)?;
+    let tmp = dest.with_extension("part");
+    {
+        let entree = std::fs::File::open(archive)?;
+        let mut lecteur = flate2::read::GzDecoder::new(std::io::BufReader::new(entree));
+        let mut sortie = std::io::BufWriter::new(std::fs::File::create(&tmp)?);
+        std::io::copy(&mut lecteur, &mut sortie)?;
+        std::io::Write::flush(&mut sortie)?;
+    }
+    // Un `rename` sur un fichier existant échoue sous Windows : retirer la cible d'abord.
+    let _ = std::fs::remove_file(dest);
+    std::fs::rename(&tmp, dest)
+}
+
+/// Fichier `<prefixe>*.sqlite` non-vide le plus récent (tri lexicographique DESC — les noms
 /// portent un horodatage ISO 8601, donc l'ordre lexicographique = l'ordre chronologique) —
 /// même algorithme que `nie_wiki::mirror::latest_sqlite_in`.
-fn latest_sqlite_in(dir: &std::path::Path) -> Option<PathBuf> {
+fn dernier_sqlite(dir: &std::path::Path, prefixe: &str) -> Option<PathBuf> {
     let mut entries: Vec<PathBuf> = std::fs::read_dir(dir)
         .ok()?
         .flatten()
         .map(|e| e.path())
         .filter(|p| {
             p.extension().is_some_and(|ext| ext == "sqlite")
-                && p.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.starts_with("supabase-"))
+                && p.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.starts_with(prefixe))
                 && p.metadata().is_ok_and(|m| m.len() > 0)
         })
         .collect();
@@ -1030,8 +1347,11 @@ fn latest_sqlite_in(dir: &std::path::Path) -> Option<PathBuf> {
 /// apparaissant par hasard ailleurs dans un chemin non lié).
 #[tauri::command]
 #[specta::specta]
-fn vfs_all_entries(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<Vec<EntryDto>, String> {
-    with_vfs(game_dir, &state, |vfs| {
+async fn vfs_all_entries(
+    game_dir: Option<String>,
+    state: tauri::State<'_, VfsState>,
+) -> Result<Vec<EntryDto>, String> {
+    sur_vfs_bloquant(game_dir, &state, |vfs| {
         Ok(vfs
             .iter()
             .map(|(path, entry)| EntryDto {
@@ -1042,6 +1362,7 @@ fn vfs_all_entries(game_dir: Option<String>, state: tauri::State<VfsState>) -> R
             })
             .collect())
     })
+    .await
 }
 
 // ─── Scan VFS annulable/pausable avec progression (nie-tasks) ─────────────────────────
@@ -1116,13 +1437,24 @@ fn parse_task_id(task_id: &str) -> Result<nie_tasks::TaskId, String> {
 /// une fois l'événement `vfs-index-done` reçu.
 #[tauri::command]
 #[specta::specta]
-fn vfs_index_scan_start(
+async fn vfs_index_scan_start(
     game_dir: Option<String>,
     app: tauri::AppHandle,
-    state: tauri::State<VfsState>,
-    scan: tauri::State<VfsScanState>,
+    state: tauri::State<'_, VfsState>,
+    scan: tauri::State<'_, VfsScanState>,
 ) -> Result<String, String> {
-    let entries = with_vfs(game_dir, &state, |vfs| {
+    // `async` n'est pas ici une optimisation, c'est une CORRECTION DE PLANTAGE.
+    //
+    // `TaskSystem::dispatch` appelle `tokio::spawn`, qui exige un runtime Tokio. En Tauri v2,
+    // une commande synchrone s'exécute sur le thread principal, hors de ce runtime : l'appel
+    // paniquait donc en « there is no reactor running », et comme ce panic traverse une
+    // frontière qui ne peut pas se dérouler, il devenait un `STATUS_STACK_BUFFER_OVERRUN` —
+    // l'application entière s'abattait, sans message exploitable pour l'utilisateur.
+    //
+    // Déclarée `async`, la commande s'exécute dans le runtime, et `dispatch` y trouve son
+    // réacteur. Le parcours de l'index (255 308 entrées) passe au passage hors du thread
+    // principal, ce qui était de toute façon nécessaire.
+    let entries = sur_vfs_bloquant(game_dir, &state, |vfs| {
         Ok(vfs
             .iter()
             .map(|(path, entry)| EntryDto {
@@ -1132,7 +1464,8 @@ fn vfs_index_scan_start(
                 cpk: entry.cpk_filename.clone(),
             })
             .collect::<Vec<_>>())
-    })?;
+    })
+    .await?;
 
     let id = nie_tasks::TaskId::new();
     let handle = scan.system.dispatch(VfsScanTask { id, entries });
@@ -1362,6 +1695,94 @@ fn game_data_calculate_stats(
 #[specta::specta]
 fn vfs_decode_cfgbin(path: String, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<RawJson, String> {
     with_vfs(game_dir, &state, |vfs| game_data::decode_cfgbin(vfs, &path).map(RawJson))
+}
+
+/// Occupation du cache CPK, en mégaoctets.
+///
+/// Les tailles sont en Mo et non en octets pour rester des entiers simples côté interface :
+/// Specta traduit un flottant en `number | null` (un flottant non fini n'est pas
+/// représentable en JSON), ce qui obligerait chaque affichage à traiter un cas impossible.
+#[derive(Serialize, specta::Type)]
+struct CacheCpkDto {
+    /// Octets bruts retenus, en Mo.
+    octets_mo: u32,
+    /// Nombre de paquets CPK en cache.
+    entrees: u32,
+    /// Budget au-delà duquel l'éviction LRU se déclenche, en Mo.
+    budget_mo: u32,
+}
+
+/// Convertit des octets en mégaoctets, arrondis au plus proche.
+fn en_mo(octets: usize) -> u32 {
+    u32::try_from(octets.div_ceil(1024 * 1024)).unwrap_or(u32::MAX)
+}
+
+/// Occupation actuelle du cache CPK — ce que l'explorateur retient en RAM.
+///
+/// Rend la consommation observable depuis l'interface : sans cette mesure, un cache qui monte
+/// à plusieurs gigaoctets ne se voit nulle part, et le symptôme (la machine qui rame) n'accuse
+/// jamais le cache.
+#[tauri::command]
+#[specta::specta]
+fn vfs_cache_stats(
+    game_dir: Option<String>,
+    state: tauri::State<VfsState>,
+) -> Result<CacheCpkDto, String> {
+    with_vfs(game_dir, &state, |vfs| {
+        let s = vfs.cache_stats();
+        Ok(CacheCpkDto {
+            octets_mo: en_mo(s.octets),
+            entrees: u32::try_from(s.entrees).unwrap_or(u32::MAX),
+            budget_mo: en_mo(s.budget),
+        })
+    })
+}
+
+/// Vide le cache CPK et rend les mégaoctets libérés.
+///
+/// Sans danger pour les lectures en cours : chacune détient un `Arc` sur sa donnée, qui reste
+/// vivante jusqu'à la fin de l'extraction. Les lectures suivantes relisent le paquet depuis le
+/// disque — c'est le prix, assumé, de rendre la RAM.
+#[tauri::command]
+#[specta::specta]
+fn vfs_cache_vider(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<u32, String> {
+    with_vfs(game_dir, &state, |vfs| Ok(en_mo(vfs.vider_cache())))
+}
+
+/// Aperçu traçable d'une caméra de cinématique (`.g4cm`) — 1 215 fichiers dans le jeu.
+///
+/// Rend des **pistes** `(objet, canal, temps → valeur)` plutôt que la structure complète du
+/// décodeur : celle-ci descend jusqu'aux octets de rembourrage, ce qu'il faut pour réencoder à
+/// l'octet près mais qui noierait une vue. Les canaux portent la position de la caméra
+/// (`PosX/Y/Z`), son point visé (`RefX/Y/Z`) et son champ de vision (`Fov`).
+///
+/// Un canal dont le flux n'est pas `f32` sort avec `resolu = false` et sans valeurs :
+/// l'encodage 2 octets n'est pas élucidé, et inventer des nombres donnerait une trajectoire
+/// plausible et fausse.
+#[tauri::command]
+#[specta::specta]
+async fn vfs_apercu_camera(
+    path: String,
+    game_dir: Option<String>,
+    state: tauri::State<'_, VfsState>,
+) -> Result<camera_nav::ApercuCameraDto, String> {
+    sur_vfs_bloquant(game_dir, &state, move |vfs| camera_nav::apercu_camera(vfs, &path)).await
+}
+
+/// Aperçu projetable d'un maillage de navigation (`.g4nv`) — 160 fichiers, 153 cartes.
+///
+/// Rend les sommets en coordonnées monde, les **triangles** (trois coins par polygone) et les
+/// arêtes du graphe avec leur coût. `bord` marque les arêtes qui ne relient qu'un polygone :
+/// c'est le contour de la zone marchable. `tronque` dit qu'un plafond a mordu — l'affichage
+/// doit le signaler plutôt que de laisser croire à un maillage complet.
+#[tauri::command]
+#[specta::specta]
+async fn vfs_apercu_navmesh(
+    path: String,
+    game_dir: Option<String>,
+    state: tauri::State<'_, VfsState>,
+) -> Result<camera_nav::ApercuNavmDto, String> {
+    sur_vfs_bloquant(game_dir, &state, move |vfs| camera_nav::apercu_navm(vfs, &path)).await
 }
 
 /// Décode un `.cfg.bin` **et** le passe au parseur typé de sa famille, si elle en a un.
@@ -3990,6 +4411,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         check_game_dir,
         default_wiki_db,
         default_re_db,
+        default_anime_db,
         preload_vfs,
         vfs_ls,
         vfs_find,
@@ -4036,6 +4458,10 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         game_data_calculate_stats,
         vfs_decode_cfgbin,
         vfs_decode_cfgbin_typed,
+        vfs_apercu_camera,
+        vfs_apercu_navmesh,
+        vfs_cache_stats,
+        vfs_cache_vider,
         encode_cfgbin_config,
         list_packs_dir,
         open_raw_cpk,
@@ -4191,6 +4617,45 @@ pub fn run() {
                 let _ = w.set_focus();
             }
         }))
+        // Journal PERSISTANT — enregistré juste après `single-instance` (qui doit rester premier)
+        // et AVANT tous les autres, pour que leur initialisation soit déjà tracée. Deux cibles :
+        // `LogDir` → `%APPDATA%\dev.niers.explorer\logs\nie-explorer.log` (le fichier à demander
+        // à une utilisatrice qui signale une anomalie : en release Windows aucune console n'est
+        // attachée, `eprintln!` n'écrivait donc nulle part), et `Stdout` pour `tauri dev`.
+        // `Webview` va dans l'autre sens : il pousse les logs RUST vers la console du webview
+        // (événement `log://log`), ce qui n'a d'effet que si le front appelle `attachConsole()`
+        // de `@tauri-apps/plugin-log`. Le trajet inverse (les `console.*` du front vers CE
+        // fichier) n'est PAS automatique : il exige que le front logue via les fonctions du
+        // paquet JS (`info`/`warn`/`error`), qui passent par la commande `log:allow-log`.
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .target(tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {
+                    file_name: Some("nie-explorer".into()),
+                }))
+                .target(tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout))
+                .target(tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Webview))
+                // Un seul fichier qui bascule à 8 Mo : un journal non borné grossit sans fin sur
+                // une machine utilisatrice, et un `KeepAll` accumule les rotations.
+                .max_file_size(8 * 1024 * 1024)
+                .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepOne)
+                // `Info` en release (les `debug!` d'un webview sont très bavards), `Debug` en dev.
+                .level(if cfg!(debug_assertions) {
+                    log::LevelFilter::Debug
+                } else {
+                    log::LevelFilter::Info
+                })
+                .build(),
+        )
+        // `niers://…` — ouvrir un titre depuis le wiki azalée. DOIT être enregistré APRÈS
+        // `single-instance` sur Windows/Linux : le système relance l'exe avec l'URL en argv, et
+        // c'est `single-instance` qui la fait remonter à l'instance vivante. L'inverse ouvre une
+        // seconde fenêtre. L'enregistrement du schéma auprès de Windows se fait à
+        // l'INSTALLATION (MSI/NSIS, cf. `plugins.deep-link` de `tauri.conf.json`) : en
+        // `tauri dev` rien n'est associé tant que `register_all()` (dans `.setup()`) n'a pas
+        // écrit la clé HKCU.
+        .plugin(tauri_plugin_deep_link::init())
+        // Version d'OS / architecture — diagnostic (panneau Paramètres, rapport d'anomalie).
+        .plugin(tauri_plugin_os::init())
         // Updater : vérifie/télécharge/installe les nouvelles versions depuis les endpoints
         // `plugins.updater.endpoints` de `tauri.conf.json` (azalee + fallback GitHub releases).
         // `tauri-plugin-process` (relaunch après install) doit être présent côté capacités
@@ -4219,7 +4684,8 @@ pub fn run() {
         .manage(video::CacheVideo::default())
         .manage(PendingOpen(Mutex::new(first_path_arg(std::env::args()))))
         .manage(SaveState(Mutex::new(None)))
-        .manage(VfsState(Mutex::new(None)))
+        .manage(VfsState(RwLock::new(None)))
+        .manage(StatsCache(Mutex::new(None)))
         .manage(RawCpkState(Mutex::new(None)))
         // Session Lua PERSISTANTE (thread dédié, cf. `lua_session.rs`) — équivalent du
         // `ScriptInterpreter` d'Overload : la VM vit tant que l'app vit, l'état survit d'une
@@ -4240,6 +4706,28 @@ pub fn run() {
                             VfsIndexProgressDto { task_id: p.id.to_string(), done: p.done as u32, total: p.total as u32 },
                         );
                     }
+                });
+            }
+            // `niers://…` — deux temps, tous deux nécessaires :
+            //  1. `register_all()` écrit l'association du schéma dans HKCU pour l'exe COURANT.
+            //     C'est indispensable en `tauri dev` (aucun installeur n'est passé) et inoffensif
+            //     sur une install (elle réécrit la même valeur). Best-effort : un poste où la
+            //     clé est verrouillée par une stratégie ne doit pas empêcher l'app de démarrer.
+            //  2. `on_open_url` relaie chaque URL reçue en événement Tauri `deep-link` — même
+            //     forme que l'événement `open-path` déjà utilisé pour « Ouvrir avec ». La charge
+            //     utile est la liste des URLs telles quelles (`niers://titre/<id>`), c'est au
+            //     front de les router.
+            {
+                use tauri_plugin_deep_link::DeepLinkExt as _;
+                #[cfg(any(target_os = "windows", target_os = "linux"))]
+                if let Err(e) = app.deep_link().register_all() {
+                    log::warn!("schéma niers:// non enregistré : {e}");
+                }
+                let app_handle = app.handle().clone();
+                app.deep_link().on_open_url(move |event| {
+                    let urls: Vec<String> = event.urls().iter().map(|u| u.to_string()).collect();
+                    log::info!("deep-link reçu : {urls:?}");
+                    let _ = app_handle.emit("deep-link", urls);
                 });
             }
             // Habillage natif Windows 11 (Mica) — cf. demande utilisateur « ui windows native ».
@@ -4271,6 +4759,25 @@ pub fn run() {
                     // à coins vifs sans cet appel DWM explicite.
                     apply_rounded_corners(&window);
                 }
+            }
+
+            // Installe les bases livrées avec l'application (miroir wiki + base RE) sur un thread
+            // dédié : ~140 Mo décompressés au tout premier lancement, à ne pas faire attendre à la
+            // fenêtre. `bases-pretes` prévient le frontend, qui relance alors sa résolution du
+            // miroir (`api.defaultWikiDb`) — sans cet événement, la première session afficherait
+            // des codes internes bruts (`c01000010`) là où le miroir donne « Mark Evans », et il
+            // faudrait relancer l'appli pour que les noms apparaissent.
+            {
+                let handle = app.handle().clone();
+                std::thread::spawn(move || {
+                    let installees = installer_bases_embarquees(&handle);
+                    if !installees.is_empty() {
+                        let _ = handle.emit(
+                            "bases-pretes",
+                            installees.iter().map(|p| p.display().to_string()).collect::<Vec<_>>(),
+                        );
+                    }
+                });
             }
 
             // Précharge le VFS sur un thread dédié pendant que la fenêtre s'affiche — le premier

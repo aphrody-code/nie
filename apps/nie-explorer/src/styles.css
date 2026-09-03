@@ -110,6 +110,41 @@
     --radius-lg: 8px;
     --radius-md: 6px;
 
+    /* ── Médiathèque ──────────────────────────────────────────────────────────
+     *
+     * Le reste de ce thème décrit un OUTIL : des boîtes, des lignes, des états de
+     * sélection. Une médiathèque pose trois questions qu'aucun de ces jetons ne
+     * traite, et que chaque carte du Cinéma résolvait donc dans son coin, avec des
+     * valeurs écrites à la main qui ne concordaient pas d'un composant à l'autre.
+     *
+     * 1. LA PROFONDEUR. Une grille de vignettes n'a pas de bordures : ce qui
+     *    détache une carte de son fond, c'est son ombre, et ce qui signale qu'elle
+     *    répond au survol, c'est que cette ombre grandit. Trois marches, pas plus —
+     *    au-delà l'œil ne les distingue plus et on obtient du bruit.
+     * 2. LA LISIBILITÉ SUR IMAGE. Un titre blanc posé sur une vignette est illisible
+     *    dès que l'image est claire. Le voile est un dégradé qui part du bas, opaque
+     *    là où le texte se pose et nul en haut pour ne pas ternir l'image.
+     * 3. LE RYTHME. Trois durées suffisent, et les nommer évite qu'une carte réagisse
+     *    en 120 ms quand sa voisine met 300 ms.
+     *
+     * `prefers-reduced-motion` annule les durées plus bas : rien n'est codé en dur
+     * dans les composants, donc l'annulation vaut partout d'un coup.
+     */
+    --ombre-carte: 0 1px 2px hsl(235 15% 0% / 0.3);
+    --ombre-carte-survol: 0 8px 24px -4px hsl(235 15% 0% / 0.55);
+    --ombre-flottante: 0 16px 48px -8px hsl(235 15% 0% / 0.7);
+
+    /* Le voile de lisibilité, et sa variante haute pour un bandeau de tête. */
+    --voile-bas: linear-gradient(to top, hsl(235 15% 4% / 0.95) 0%, hsl(235 15% 4% / 0.7) 28%, transparent 70%);
+    --voile-heros: linear-gradient(to top, hsl(235 15% 8%) 0%, hsl(235 15% 8% / 0.6) 35%, transparent 75%);
+
+    /* Rythme. `--duree-vignette` sert au grossissement d'une carte au survol :
+     * volontairement plus lente que le reste, parce qu'elle déplace de la surface. */
+    --duree-rapide: 120ms;
+    --duree-normale: 200ms;
+    --duree-vignette: 320ms;
+    --courbe-sortie: cubic-bezier(0.22, 1, 0.36, 1);
+
     /* Font families */
     --font-sans: "Inter", "Google Sans Flex", system-ui, sans-serif;
     --font-mono: "JetBrains Mono", "Menlo", "Monaco", monospace;
@@ -675,5 +710,62 @@
     }
     .scrollbar-hide::-webkit-scrollbar {
         display: none;
+    }
+
+    /* ── Médiathèque ─────────────────────────────────────────────────────────
+     * Les jetons correspondants sont définis en tête de fichier, avec le pourquoi. */
+
+    /* Une carte de catalogue : détachée du fond au repos, soulevée au survol.
+     * `transform` et `box-shadow` seulement — ni `width`, ni `margin`, ni `top` :
+     * ces deux propriétés-là sont composées par le GPU et ne provoquent pas de
+     * recalcul de mise en page, donc survoler une rangée de trente cartes ne
+     * refait pas la mise en page de la vue. */
+    .carte-media {
+        box-shadow: var(--ombre-carte);
+        transition:
+            transform var(--duree-vignette) var(--courbe-sortie),
+            box-shadow var(--duree-vignette) var(--courbe-sortie);
+    }
+    .carte-media:hover {
+        transform: scale(1.04);
+        box-shadow: var(--ombre-carte-survol);
+    }
+
+    /* Le voile qui rend un titre lisible par-dessus une vignette. */
+    .voile-bas::after,
+    .voile-heros::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+    }
+    .voile-bas::after {
+        background: var(--voile-bas);
+    }
+    .voile-heros::after {
+        background: var(--voile-heros);
+    }
+
+    /* Un anneau de focus VISIBLE au clavier, et invisible à la souris : `:focus-visible`
+     * et non `:focus`, sinon chaque clic sur une carte laisserait un halo derrière lui. */
+    .anneau-focus:focus-visible {
+        outline: 2px solid var(--color-accent);
+        outline-offset: 2px;
+        border-radius: var(--radius-md);
+    }
+}
+
+/* Le mouvement est une préférence système, pas un détail : quand il est refusé, les
+ * cartes ne grossissent plus et les transitions tombent à une durée nulle. Écrit ici,
+ * une seule fois, plutôt que dans chaque composant — un composant qui oublierait la
+ * règle serait le seul à bouger, et c'est exactement ce qui gêne. */
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --duree-rapide: 0ms;
+        --duree-normale: 0ms;
+        --duree-vignette: 0ms;
+    }
+    .carte-media:hover {
+        transform: none;
     }
 }
