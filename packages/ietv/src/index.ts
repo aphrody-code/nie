@@ -83,6 +83,7 @@ import {
 	numeroEpisodeDeTitre,
 	saisonDeSlug,
 	type LangueOfficielle,
+	type LangueSource,
 	type SourceEpisode,
 } from "./plateformes.ts";
 import {
@@ -106,7 +107,25 @@ const DATA_CACHE_DIR = join(homedir(), ".cache", "ietv", "data");
 // Public types
 // ---------------------------------------------------------------------------
 
-export type LanguageVersion = "vf" | "vostfr" | "unknown";
+/**
+ * Langue d'un épisode — le MÊME vocabulaire que {@link LangueSource}.
+ *
+ * ── CE TYPE DÉCLARAIT TROIS LANGUES QUAND LE SCHÉMA EN ACCEPTE SIX ─────────
+ * Il valait `"vf" | "vostfr" | "unknown"`, alors que la contrainte `CHECK` de
+ * `episodes` et de `episode_sources` accepte aussi `vo`, `en` et `es`, et que
+ * la plateforme officielle sert réellement l'anglais et l'espagnol. Le
+ * désaccord ne se voyait pas parce que les trois sites concernés le
+ * contournaient par un `as LanguageVersion` — un cast qui ne convertit rien et
+ * ne fait que taire la question.
+ *
+ * Ce n'est pas resté théorique : la moisson VO de `youtube-api.ts` a été
+ * refusée à la compilation avec « Type `"vo"` is not comparable to type
+ * `LanguageVersion` », sur des lignes que la base accepte parfaitement.
+ *
+ * L'alias fait des deux vocabulaires un seul. Les faire diverger à nouveau
+ * obligerait à traduire dans les deux sens, ce que `plateformes.ts` dit déjà.
+ */
+export type LanguageVersion = LangueSource;
 
 export interface VideoRef {
 	/** Raw video title from YouTube. */
