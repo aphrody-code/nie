@@ -110,6 +110,9 @@ impl Report {
             let entry = u.va.and_then(|va| by_va.get(&va));
             if u.kind == UnitKind::PeHeaders {
                 r.emitted.add(u.len);
+            } else if u.emit_rule().is_some_and(|b| b.len() == u.len) {
+                // Règle du linker connue (bourrage `int3`) : produite, pas recopiée.
+                r.emitted.add(u.len);
             } else if u.kind.is_code()
                 && let Some(va) = u.va
                 && asm.emit(va).is_some_and(|b| b.len() == u.len)

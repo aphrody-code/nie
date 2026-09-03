@@ -510,7 +510,14 @@ fn cmd_build(paths: &Paths, out: &Path) -> anyhow::Result<()> {
             from_rust_bytes += u.len;
             return Some(bytes);
         }
-        // 3. Corps présent dans la source assembleur : réassemblé par nie-asm.
+        // 3. Unité dont la règle du linker est connue (bourrage `int3`) :
+        //    régénérée sans consulter la référence.
+        if let Some(bytes) = u.emit_rule() {
+            from_rust_units += 1;
+            from_rust_bytes += u.len;
+            return Some(bytes);
+        }
+        // 4. Corps présent dans la source assembleur : réassemblé par nie-asm.
         if u.kind.is_code()
             && let Some(va) = u.va
             && let Some(bytes) = asm.emit(va)
@@ -527,7 +534,7 @@ fn cmd_build(paths: &Paths, out: &Path) -> anyhow::Result<()> {
                 u.len
             ));
         }
-        // 3. Fonction dont le codegen Rust coïncide : on émet le codegen, les champs
+        // 5. Fonction dont le codegen Rust coïncide : on émet le codegen, les champs
         //    relogés étant résolus depuis la disposition de référence (le calcul de
         //    disposition propre est un jalon ultérieur, jamais un faux « produit »).
         if let Some(e) = u.va.and_then(|va| by_va.get(&va))

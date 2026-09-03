@@ -99,6 +99,29 @@ impl Unit {
     pub fn range(&self) -> core::ops::Range<usize> {
         self.file_off..self.file_off + self.len
     }
+
+    /// Régénère la charge utile d'une unité dont la **règle de construction du
+    /// linker est connue**, sans jamais consulter le binaire de référence.
+    ///
+    /// Aujourd'hui une seule règle : le bourrage `int3`. Elle n'est pas une
+    /// recopie déguisée, et c'est le découpage lui-même qui le garantit —
+    /// `push_residue` ne ferme une unité [`UnitKind::Padding`] que sur le
+    /// critère « l'octet vaut `0xCC` », si bien qu'une telle unité ne peut,
+    /// par construction, contenir autre chose. Mesuré sur `nie.exe` : les
+    /// 106 565 unités de bourrage, 1 146 297 octets, sont du `0xCC` pur à
+    /// 100 %. `nie-forge build` le revérifie de toute façon à l'octet près,
+    /// l'identité globale du fichier restant le contrat.
+    ///
+    /// Elle vit ici, et non chez l'appelant, pour la même raison que
+    /// `image::tables::emit_for` : la construction et la mesure doivent lire
+    /// la même règle, sinon elles divergent.
+    #[must_use]
+    pub fn emit_rule(&self) -> Option<Vec<u8>> {
+        match self.kind {
+            UnitKind::Padding => Some(vec![INT3; self.len]),
+            _ => None,
+        }
+    }
 }
 
 /// Octet de bourrage inséré par le linker MSVC entre deux corps de code.
@@ -549,6 +572,61 @@ mod tests {
             })
             .unwrap_err();
         assert!(matches!(err, PeError::Cover(m) if m.contains("taille invalide")));
+    }
+
+    #[test]
+    fn seul_le_bourrage_a_une_regle_de_regeneration() {
+        let pad = Unit {
+            id: "pad..text.0".into(),
+            kind: UnitKind::Padding,
+            section: Some(".text".into()),
+            file_off: 0,
+            len: 7,
+            va: Some(0x1_4000_1000),
+            sha256: String::new(),
+        };
+        assert_eq!(pad.emit_rule(), Some(vec![INT3; 7]));
+        for kind in [
+            UnitKind::Function,
+            UnitKind::CodeResidue,
+            UnitKind::SectionData,
+            UnitKind::DosStub,
+        ] {
+            let u = Unit {
+                kind,
+                ..pad.clone()
+            };
+            assert_eq!(u.emit_rule(), None, "{kind:?} n'a pas de règle connue");
+        }
+    }
+
+    #[test]
+    fn le_bourrage_se_reassemble_sans_consulter_la_reference() {
+        // `.text` contenant deux corps séparés par un run d'`int3` : la règle
+        // doit suffire à reconstituer le fichier à l'identique. Le bourrage
+        // n'est isolé que dans une section où une plage de code est posée —
+        // ici via `extra`, comme le fait l'échafaudage RE sur `nie.exe`.
+        let mut img = synth_image();
+        let text = img.bytes.len() - 0x400;
+        for byte in img.bytes[text + 0x10..text + 0x1c].iter_mut() {
+            *byte = INT3;
+        }
+        let img = PeImage::parse(img.bytes).expect("reparse");
+        let cover = Cover::split_with(&img, &[(0x1000, 0x10)]).expect("split");
+        let pads: Vec<_> = cover
+            .units
+            .iter()
+            .filter(|u| u.kind == UnitKind::Padding)
+            .collect();
+        assert!(!pads.is_empty(), "le découpage doit isoler le bourrage");
+
+        let rebuilt = cover
+            .assemble(|u| {
+                u.emit_rule()
+                    .or_else(|| Some(img.bytes[u.range()].to_vec()))
+            })
+            .expect("assemble");
+        assert_eq!(rebuilt, img.bytes, "identité préservée par la règle");
     }
 
     #[test]
