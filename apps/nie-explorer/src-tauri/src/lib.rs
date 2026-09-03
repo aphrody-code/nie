@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 use tauri_plugin_sql::{Migration, MigrationKind};
 
+mod camera_nav;
 mod live_mod;
 mod lua_session;
 mod lua_tools;
@@ -1362,6 +1363,42 @@ fn game_data_calculate_stats(
 #[specta::specta]
 fn vfs_decode_cfgbin(path: String, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<RawJson, String> {
     with_vfs(game_dir, &state, |vfs| game_data::decode_cfgbin(vfs, &path).map(RawJson))
+}
+
+/// Aperçu traçable d'une caméra de cinématique (`.g4cm`) — 1 215 fichiers dans le jeu.
+///
+/// Rend des **pistes** `(objet, canal, temps → valeur)` plutôt que la structure complète du
+/// décodeur : celle-ci descend jusqu'aux octets de rembourrage, ce qu'il faut pour réencoder à
+/// l'octet près mais qui noierait une vue. Les canaux portent la position de la caméra
+/// (`PosX/Y/Z`), son point visé (`RefX/Y/Z`) et son champ de vision (`Fov`).
+///
+/// Un canal dont le flux n'est pas `f32` sort avec `resolu = false` et sans valeurs :
+/// l'encodage 2 octets n'est pas élucidé, et inventer des nombres donnerait une trajectoire
+/// plausible et fausse.
+#[tauri::command]
+#[specta::specta]
+fn vfs_apercu_camera(
+    path: String,
+    game_dir: Option<String>,
+    state: tauri::State<VfsState>,
+) -> Result<camera_nav::ApercuCameraDto, String> {
+    with_vfs(game_dir, &state, |vfs| camera_nav::apercu_camera(vfs, &path))
+}
+
+/// Aperçu projetable d'un maillage de navigation (`.g4nv`) — 160 fichiers, 153 cartes.
+///
+/// Rend les sommets en coordonnées monde, les **triangles** (trois coins par polygone) et les
+/// arêtes du graphe avec leur coût. `bord` marque les arêtes qui ne relient qu'un polygone :
+/// c'est le contour de la zone marchable. `tronque` dit qu'un plafond a mordu — l'affichage
+/// doit le signaler plutôt que de laisser croire à un maillage complet.
+#[tauri::command]
+#[specta::specta]
+fn vfs_apercu_navmesh(
+    path: String,
+    game_dir: Option<String>,
+    state: tauri::State<VfsState>,
+) -> Result<camera_nav::ApercuNavmDto, String> {
+    with_vfs(game_dir, &state, |vfs| camera_nav::apercu_navm(vfs, &path))
 }
 
 /// Décode un `.cfg.bin` **et** le passe au parseur typé de sa famille, si elle en a un.
@@ -4036,6 +4073,8 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         game_data_calculate_stats,
         vfs_decode_cfgbin,
         vfs_decode_cfgbin_typed,
+        vfs_apercu_camera,
+        vfs_apercu_navmesh,
         encode_cfgbin_config,
         list_packs_dir,
         open_raw_cpk,
