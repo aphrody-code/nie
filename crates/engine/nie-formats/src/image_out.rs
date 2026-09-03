@@ -1123,7 +1123,13 @@ pub fn composer_planche(
         let x = cellule_x + (cell_w.saturating_sub(case.largeur)) / 2;
         let y = cellule_y + (cell_h.saturating_sub(case.hauteur)) / 2;
 
-        poser_rgba(&mut rgba, largeur, hauteur, &case.rgba, case.largeur, case.hauteur, x, y);
+        poser_rgba(
+            &mut rgba,
+            (largeur, hauteur),
+            &case.rgba,
+            (case.largeur, case.hauteur),
+            (x, y),
+        );
         rects.push(RectPlanche { nom: case.nom.clone(), x, y, w: case.largeur, h: case.hauteur });
     }
 
@@ -1136,14 +1142,14 @@ pub fn composer_planche(
 /// tronquer, jamais réapparaître de l'autre côté de l'image.
 fn poser_rgba(
     dest: &mut [u8],
-    dest_w: u32,
-    dest_h: u32,
+    dest_dim: (u32, u32),
     src: &[u8],
-    src_w: u32,
-    src_h: u32,
-    x: u32,
-    y: u32,
+    src_dim: (u32, u32),
+    pos: (u32, u32),
 ) {
+    let (dest_w, dest_h) = dest_dim;
+    let (src_w, src_h) = src_dim;
+    let (x, y) = pos;
     for ligne in 0..src_h {
         let cible_y = y + ligne;
         if cible_y >= dest_h {
