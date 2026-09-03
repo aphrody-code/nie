@@ -68,6 +68,11 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 anyhow = "1"
 base64 = "0.22"
+# Décompresse les bases livrées avec l'application (`resources/db/*.sqlite.gz` → `$APPDATA/db/`,
+# cf. `installer_bases_embarquees`). gzip plutôt que zstd : le format que `gzip` produit déjà sur
+# les deux postes (aucun `zstd` installé ici), et un décodeur pur Rust sans dépendance native —
+# donc rien qui puisse entrer en conflit de lien avec le `sqlx-sqlite` du bloc d'exclusions.
+flate2 = "1"
 # Client HTTP synchrone minimal — résolveur distant azalee (GraphQL/REST), désactivé tant que
 # l'URL n'est pas renseignée côté UI (Paramètres). Pas de runtime async requis (appel bloquant
 # dans un `tauri::command`, exécuté hors thread UI par Tauri).

@@ -1085,16 +1085,59 @@ fn save_export(dest: String, state: tauri::State<SaveState>) -> Result<u32, Stri
 // `search_skills`) — pas de commande Rust ici : `nie-wiki` (rusqlite) est volontairement HORS
 // de ce binaire (conflit de lien natif `sqlite3` avec `sqlx-sqlite`, cf. Cargo.toml).
 
-/// Résout le miroir SQLite (`supabase-*.sqlite`) par défaut — même ordre de résolution que
-/// [`nie_wiki::mirror::resolve`] (`NIE_WIKI_DB`/`SQLITE_DB_PATH`, fichier le plus récent), mais
-/// avec un répertoire de backups RÉEL pour cette appli desktop (`<racine du jeu>/var/wiki-mirror`,
-/// où vit effectivement `supabase-2026-06-05T00-08-26.sqlite` sur ce poste) plutôt que le chemin
-/// de dev WSL codé en dur `/home/ubuntu/niers/data/backups` (inexistant hors de la machine de
-/// développement). Renvoie `None` si rien n'est trouvé — jamais un chemin deviné : le champ
-/// « Base SQLite » des Paramètres reste alors vide, à renseigner manuellement.
+/// Racines où chercher les artefacts du **dépôt** (miroir wiki, base RE), dans l'ordre : la
+/// racine du jeu (une installation peut porter son propre `var/`), puis le répertoire courant et
+/// chacun de ses ancêtres, puis le répertoire de l'exécutable et ses ancêtres.
+///
+/// Les deux dernières familles sont ce qui fait fonctionner l'application **installée** : son
+/// `.exe` vit dans `Program Files`, `NIE_GAME_DIR` pointe vers l'install Steam, et aucun des deux
+/// ne porte le `var/` du dépôt. Lancée depuis `target/release`, la remontée d'ancêtres retrouve
+/// en revanche `<dépôt>/var` — c'est le cas du poste de développement.
+fn racines_candidates(game_dir: Option<&str>) -> Vec<PathBuf> {
+    let mut racines = vec![resolve_root(game_dir)];
+    let mut ajouter_ancetres = |depart: Option<PathBuf>| {
+        let mut cur = depart;
+        while let Some(dir) = cur {
+            if !racines.contains(&dir) {
+                racines.push(dir.clone());
+            }
+            cur = dir.parent().map(std::path::Path::to_path_buf);
+        }
+    };
+    ajouter_ancetres(std::env::current_dir().ok());
+    ajouter_ancetres(
+        std::env::current_exe().ok().and_then(|p| p.parent().map(std::path::Path::to_path_buf)),
+    );
+    racines
+}
+
+/// Miroir wiki sous une racine donnée, par ordre de préférence :
+/// 1. `var/mirror.sqlite` — le nom canonique de `@niers/catalog` (un lien vers l'instantané
+///    courant, rebasculé atomiquement par `scripts/donnees/miroir-inagle.sh`).
+/// 2. `var/miroir/inagle-*.sqlite` — l'instantané daté le plus récent, si le lien manque.
+/// 3. `var/wiki-mirror/supabase-*.sqlite`, puis `data/backups/supabase-*.sqlite` — les deux
+///    emplacements historiques, conservés pour les postes qui les portent encore.
+fn miroir_wiki_sous(racine: &std::path::Path) -> Option<PathBuf> {
+    let var = racine.join("var");
+    let lien = var.join("mirror.sqlite");
+    if lien.is_file() {
+        return Some(lien);
+    }
+    dernier_sqlite(&var.join("miroir"), "inagle-")
+        .or_else(|| dernier_sqlite(&var.join("wiki-mirror"), "supabase-"))
+        .or_else(|| dernier_sqlite(&racine.join("data").join("backups"), "supabase-"))
+}
+
+/// Résout le miroir SQLite du wiki (tables `inagle_*`) par défaut. Renvoie `None` si rien n'est
+/// trouvé — jamais un chemin deviné : le champ « Base SQLite » des Paramètres reste alors vide,
+/// à renseigner manuellement.
+///
+/// Ordre : `NIE_WIKI_DB`/`SQLITE_DB_PATH`, puis les bases **livrées avec l'application**
+/// ([`bases_embarquees`] — c'est ce qui donne une expérience complète à une utilisatrice qui n'a
+/// ni le dépôt ni le jeu), puis les emplacements du dépôt ([`miroir_wiki_sous`]).
 #[tauri::command]
 #[specta::specta]
-fn default_wiki_db(game_dir: Option<String>) -> Option<String> {
+fn default_wiki_db(app: tauri::AppHandle, game_dir: Option<String>) -> Option<String> {
     for var in ["NIE_WIKI_DB", "SQLITE_DB_PATH"] {
         if let Ok(v) = std::env::var(var) {
             if PathBuf::from(&v).is_file() {
@@ -1102,49 +1145,147 @@ fn default_wiki_db(game_dir: Option<String>) -> Option<String> {
             }
         }
     }
-    let root = resolve_root(game_dir.as_deref());
-    let backups_dir = root.join("var").join("wiki-mirror");
-    latest_sqlite_in(&backups_dir).map(|p| p.display().to_string())
+    for base in bases_embarquees(&app, "mirror.sqlite") {
+        if base.is_file() {
+            return Some(base.display().to_string());
+        }
+    }
+    racines_candidates(game_dir.as_deref())
+        .iter()
+        .find_map(|r| miroir_wiki_sous(r))
+        .map(|p| p.display().to_string())
 }
 
 /// Résout `var/niers.sqlite` (base RE — fonctions/classes RTTI/xrefs labellisées par `nie-re`,
-/// cf. `src/lib/reDb.ts`) sous la racine du jeu. Commande Rust plutôt qu'un `exists()` JS
-/// (`@tauri-apps/plugin-fs`) : la portée `fs:scope` de l'app ne couvre que `$APPDATA`, un
-/// `std::fs` Rust n'a pas cette restriction — même raison que [`default_wiki_db`] au-dessus.
+/// cf. `src/lib/reDb.ts`). Commande Rust plutôt qu'un `exists()` JS (`@tauri-apps/plugin-fs`) :
+/// la portée `fs:scope` de l'app ne couvre que `$APPDATA`, un `std::fs` Rust n'a pas cette
+/// restriction — même raison que [`default_wiki_db`] au-dessus.
+///
+/// Même ordre que le miroir wiki : `NIE_RE_DB`, bases livrées avec l'application, puis le dépôt.
 #[tauri::command]
 #[specta::specta]
-fn default_re_db(game_dir: Option<String>) -> Option<String> {
-    let root = resolve_root(game_dir.as_deref());
-    let path = root.join("var").join("niers.sqlite");
-    if path.is_file() {
-        return Some(path.display().to_string());
-    }
-    // La base RE est un artefact du **depot**, pas de l'installation du jeu : sur un poste ou
-    // `NIE_GAME_DIR` pointe vers l'install Steam (le cas courant, cf. CLAUDE.md), elle ne se
-    // trouve pas sous la racine du jeu. On la cherche donc aussi depuis le repertoire courant,
-    // en remontant jusqu'au premier ancetre portant `var/niers.sqlite`.
-    let mut cur = std::env::current_dir().ok();
-    while let Some(dir) = cur {
-        let p = dir.join("var").join("niers.sqlite");
-        if p.is_file() {
-            return Some(p.display().to_string());
+fn default_re_db(app: tauri::AppHandle, game_dir: Option<String>) -> Option<String> {
+    if let Ok(v) = std::env::var("NIE_RE_DB") {
+        if PathBuf::from(&v).is_file() {
+            return Some(v);
         }
-        cur = dir.parent().map(std::path::Path::to_path_buf);
     }
-    None
+    for base in bases_embarquees(&app, "niers.sqlite") {
+        if base.is_file() {
+            return Some(base.display().to_string());
+        }
+    }
+    racines_candidates(game_dir.as_deref())
+        .iter()
+        .map(|r| r.join("var").join("niers.sqlite"))
+        .find(|p| p.is_file())
+        .map(|p| p.display().to_string())
 }
 
-/// Fichier `supabase-*.sqlite` non-vide le plus récent (tri lexicographique DESC — les noms
+/// Emplacements d'une base **livrée avec l'application**, dans l'ordre de préférence :
+/// le cache de données de l'app (`$APPDATA/db/<nom>` — où [`installer_bases_embarquees`] a
+/// décompressé la base au premier lancement), puis les ressources empaquetées telles quelles
+/// (`<resources>/db/<nom>`, cas d'une base livrée non compressée).
+///
+/// Le cache passe en premier : une base décompressée est ouvrable en écriture (WAL), là où les
+/// ressources d'un MSI vivent sous `Program Files` en lecture seule.
+fn bases_embarquees(app: &tauri::AppHandle, nom: &str) -> Vec<PathBuf> {
+    use tauri::Manager as _;
+    let mut chemins = Vec::new();
+    if let Ok(dir) = app.path().app_data_dir() {
+        chemins.push(dir.join("db").join(nom));
+    }
+    if let Ok(dir) = app.path().resource_dir() {
+        chemins.push(dir.join("db").join(nom));
+    }
+    chemins
+}
+
+/// Décompresse les bases livrées avec l'application (`<resources>/db/*.sqlite.gz`) vers
+/// `$APPDATA/db/`, une fois par version de ressource. Renvoie les bases effectivement installées.
+///
+/// C'est ce qui rend l'application autonome : une utilisatrice qui n'a ni le dépôt, ni le jeu, ni
+/// le VPS ouvre le wiki (6 166 personnages) et la base RE dès le premier lancement. Les bases
+/// voyagent compressées (66 Mo → 7,9 Mo pour le miroir, 74 Mo → 22,4 Mo pour la base RE) et sont
+/// décompressées **hors** de `Program Files` : SQLite doit pouvoir écrire son `-wal` à côté du
+/// fichier, ce que les ressources d'un MSI, en lecture seule, interdisent.
+///
+/// Le témoin `<nom>.source` porte la taille de l'archive d'origine : une release qui embarque une
+/// base plus récente le change, donc la décompression est refaite ; un lancement ordinaire ne
+/// recopie rien.
+fn installer_bases_embarquees(app: &tauri::AppHandle) -> Vec<PathBuf> {
+    use tauri::Manager as _;
+    let (Ok(res_dir), Ok(data_dir)) = (app.path().resource_dir(), app.path().app_data_dir()) else {
+        return Vec::new();
+    };
+    let source = res_dir.join("db");
+    let cible = data_dir.join("db");
+    let Ok(entrees) = std::fs::read_dir(&source) else {
+        return Vec::new();
+    };
+    let mut installees = Vec::new();
+    for archive in entrees.flatten().map(|e| e.path()) {
+        if archive.extension().is_none_or(|e| e != "gz") {
+            continue;
+        }
+        let Some(nom) = archive.file_stem().and_then(|n| n.to_str()).map(str::to_owned) else {
+            continue;
+        };
+        let Ok(taille) = archive.metadata().map(|m| m.len()) else {
+            continue;
+        };
+        let base = cible.join(&nom);
+        let temoin = cible.join(format!("{nom}.source"));
+        let deja = std::fs::read_to_string(&temoin).ok().and_then(|v| v.trim().parse::<u64>().ok());
+        if base.is_file() && deja == Some(taille) {
+            installees.push(base);
+            continue;
+        }
+        if let Err(e) = decompresser_gz(&archive, &base, &cible) {
+            eprintln!("base embarquée {nom} : {e}");
+            continue;
+        }
+        let _ = std::fs::write(&temoin, taille.to_string());
+        eprintln!("base embarquée installée : {}", base.display());
+        installees.push(base);
+    }
+    installees
+}
+
+/// Décompresse `archive` (gzip) vers `dest`, en passant par un fichier temporaire du même
+/// répertoire : une décompression interrompue (coupure, disque plein) ne laisse jamais une base
+/// tronquée que le lancement suivant prendrait pour valide, puisque le renommage final est
+/// atomique et que le témoin n'est écrit qu'après.
+fn decompresser_gz(
+    archive: &std::path::Path,
+    dest: &std::path::Path,
+    dossier: &std::path::Path,
+) -> std::io::Result<()> {
+    std::fs::create_dir_all(dossier)?;
+    let tmp = dest.with_extension("part");
+    {
+        let entree = std::fs::File::open(archive)?;
+        let mut lecteur = flate2::read::GzDecoder::new(std::io::BufReader::new(entree));
+        let mut sortie = std::io::BufWriter::new(std::fs::File::create(&tmp)?);
+        std::io::copy(&mut lecteur, &mut sortie)?;
+        std::io::Write::flush(&mut sortie)?;
+    }
+    // Un `rename` sur un fichier existant échoue sous Windows : retirer la cible d'abord.
+    let _ = std::fs::remove_file(dest);
+    std::fs::rename(&tmp, dest)
+}
+
+/// Fichier `<prefixe>*.sqlite` non-vide le plus récent (tri lexicographique DESC — les noms
 /// portent un horodatage ISO 8601, donc l'ordre lexicographique = l'ordre chronologique) —
 /// même algorithme que `nie_wiki::mirror::latest_sqlite_in`.
-fn latest_sqlite_in(dir: &std::path::Path) -> Option<PathBuf> {
+fn dernier_sqlite(dir: &std::path::Path, prefixe: &str) -> Option<PathBuf> {
     let mut entries: Vec<PathBuf> = std::fs::read_dir(dir)
         .ok()?
         .flatten()
         .map(|e| e.path())
         .filter(|p| {
             p.extension().is_some_and(|ext| ext == "sqlite")
-                && p.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.starts_with("supabase-"))
+                && p.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.starts_with(prefixe))
                 && p.metadata().is_ok_and(|m| m.len() > 0)
         })
         .collect();
@@ -4509,6 +4650,25 @@ pub fn run() {
                     // à coins vifs sans cet appel DWM explicite.
                     apply_rounded_corners(&window);
                 }
+            }
+
+            // Installe les bases livrées avec l'application (miroir wiki + base RE) sur un thread
+            // dédié : ~140 Mo décompressés au tout premier lancement, à ne pas faire attendre à la
+            // fenêtre. `bases-pretes` prévient le frontend, qui relance alors sa résolution du
+            // miroir (`api.defaultWikiDb`) — sans cet événement, la première session afficherait
+            // des codes internes bruts (`c01000010`) là où le miroir donne « Mark Evans », et il
+            // faudrait relancer l'appli pour que les noms apparaissent.
+            {
+                let handle = app.handle().clone();
+                std::thread::spawn(move || {
+                    let installees = installer_bases_embarquees(&handle);
+                    if !installees.is_empty() {
+                        let _ = handle.emit(
+                            "bases-pretes",
+                            installees.iter().map(|p| p.display().to_string()).collect::<Vec<_>>(),
+                        );
+                    }
+                });
             }
 
             // Précharge le VFS sur un thread dédié pendant que la fenêtre s'affiche — le premier

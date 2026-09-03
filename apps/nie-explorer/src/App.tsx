@@ -38,6 +38,7 @@ import { showPlaceContextMenu } from "@/lib/contextMenu";
 import { getSettings, setSettings } from "@/lib/settings";
 import { modsDb } from "@/lib/modsDb";
 import { jobsDb } from "@/lib/jobsDb";
+import { vfsIndexDb } from "@/lib/vfsIndexDb";
 
 /** Largeur de la barre latérale — même valeur que `ShellLayout.tsx` de spacedrive (220 px, dont
  * 8 px de marge flottante de chaque côté), lue par `TopBar` pour se décaler d'autant. */
@@ -297,22 +298,53 @@ export default function App() {
       })
       .catch(() => {});
     const settings = getSettings();
-    if (!settings.wikiDb.trim()) {
+    // Miroir wiki : résolu maintenant s'il est déjà là (dépôt, ou base installée par un
+    // lancement précédent), sinon à l'arrivée de `bases-pretes` — au tout premier lancement, la
+    // décompression des bases livrées avec l'appli (~140 Mo) n'est pas encore finie ici.
+    function resoudreWikiDb() {
+      if (getSettings().wikiDb.trim()) return;
       api
-        .defaultWikiDb(settings.gameDir)
+        .defaultWikiDb(getSettings().gameDir)
         .then((db) => db && setSettings({ wikiDb: db }))
         .catch(() => {});
     }
+    resoudreWikiDb();
+    const arretBases = listen<string[]>("bases-pretes", () => {
+      resoudreWikiDb();
+      toast.success("Données embarquées prêtes (wiki + base RE)");
+    });
+
     api
       .preloadVfs(settings.gameDir)
-      .then((s) =>
+      .then((s) => {
         toast.success(
           `VFS chargé : ${s.total.toLocaleString("fr-FR")} fichiers (${
             s.montage === "dump" ? "dump extrait" : "packs CPK"
           })`,
-        ),
-      )
-      .catch((e) => toast.error(`Échec du chargement du VFS : ${e}`));
+        );
+        // Index SQL du VFS : construit une fois, en tâche de fond, si `vfs_files` est vide ou
+        // ne décrit plus le montage courant (jeu mis à jour, bascule packs↔dump). Sans lui, la
+        // recherche par code et la résolution de noms retombent silencieusement sur le
+        // `.contains()` approximatif de `vfs_related` — un index absent ne se voyait nulle part
+        // dans l'UI, et il l'était sur ce poste (`vfs_files` = 0 ligne).
+        vfsIndexDb
+          .meta()
+          .then((meta) => {
+            if (meta && meta.total === s.total) return;
+            return vfsIndexDb
+              .reindex(settings.gameDir)
+              .then((m) => toast.success(`Index VFS construit : ${m.total.toLocaleString("fr-FR")} fichiers`));
+          })
+          .catch((e) => toast.warning(`Index VFS non construit : ${e}`));
+      })
+      .catch(() =>
+        // Sans le jeu, l'application reste utile : wiki, base RE, outils. Le message le dit,
+        // plutôt que d'annoncer un échec qui laisserait croire que rien ne marche.
+        toast.info("Jeu non détecté — wiki et base RE disponibles ; indiquez le dossier du jeu dans les Paramètres pour explorer les fichiers"),
+      );
+    return () => {
+      arretBases.then((f) => f());
+    };
   }, []);
 
   // Barre de menu Fichier/Édition/Affichage : rendue DANS la barre supérieure custom, plus
