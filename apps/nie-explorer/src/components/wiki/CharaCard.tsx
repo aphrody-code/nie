@@ -5,7 +5,6 @@
 // décodé par `ui/image.tsx` → `lib/thumbs`), donc hors ligne et à la source. La mise en page
 // reprend celle des autres cartes portées (cadre arrondi, dégradé de survol, pastilles).
 import { Image } from "@/components/ui/image";
-import { ElementIcon } from "@/components/wiki/ElementIcon";
 import { getCharacterFaceUrl } from "@/lib/wikiImages";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +24,20 @@ export interface CharaCardProps {
   onClick?: () => void;
   className?: string;
 }
+
+/**
+ * Teintes d'élément. `ElementIcon` (porté du wiki) rend `null` ici : son icône vit dans un ATLAS
+ * du jeu qu'aucun index ne découpe (cf. `lib/wikiImages.ts`), donc l'élément DISPARAISSAIT
+ * silencieusement de la carte — vérifié à l'écran. Une pastille colorée le rend lisible sans
+ * prétendre afficher l'icône officielle.
+ */
+const ELEMENTS: Record<string, string> = {
+  Feu: "bg-red-500/20 text-red-300",
+  Vent: "bg-emerald-500/20 text-emerald-300",
+  Forêt: "bg-lime-600/20 text-lime-300",
+  Montagne: "bg-amber-600/20 text-amber-300",
+  Néant: "bg-violet-500/20 text-violet-300",
+};
 
 /** Teintes de poste — mêmes familles de couleur que les rôles du constructeur d'équipe. */
 const POSTES: Record<string, string> = {
@@ -75,8 +88,13 @@ export function CharaCard({
           </span>
         )}
         {element && (
-          <span className="absolute right-1 top-1">
-            <ElementIcon element={element} size="sm" />
+          <span
+            className={cn(
+              "absolute right-1 top-1 rounded px-1.5 py-0.5 text-[10px] font-bold",
+              ELEMENTS[element] ?? "bg-app-selected/30 text-ink-dull",
+            )}
+          >
+            {element}
           </span>
         )}
       </div>

@@ -256,3 +256,6 @@ mods/
 !.claude/hooks/*.sh
 !.claude/commands/
 !.claude/commands/*.md
+
+# Captures de vérification visuelle de nie-explorer (scripts/capture-explorer.ts) — locales.
+capture/

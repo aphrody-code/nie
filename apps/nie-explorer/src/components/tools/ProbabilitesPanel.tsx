@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { api, type CapsuleRate, type Drop } from "@/lib/api";
 import { useSettings } from "@/lib/settings";
+import { conditionLisible } from "@/lib/valeurs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -127,7 +128,7 @@ export function ProbabilitesPanel() {
                       {tiragesPour50(d.share_pct ?? 0)}
                     </td>
                     <td className="px-3 py-1 truncate text-ink-faint" title={d.run_cond}>
-                      {d.run_cond || "—"}
+                      {conditionLisible(d.run_cond)}
                     </td>
                   </tr>
                 ))
