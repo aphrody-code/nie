@@ -1267,7 +1267,7 @@ fn installer_bases_embarquees(app: &tauri::AppHandle) -> Vec<PathBuf> {
     // la raison d'en essayer deux.
     let Some(entrees) = dossiers_ressources(app).into_iter().find_map(|d| std::fs::read_dir(d).ok())
     else {
-        eprintln!("bases embarquées : aucun dossier de ressources lisible");
+        log::error!("bases embarquées : aucun dossier de ressources lisible");
         return Vec::new();
     };
     let mut installees = Vec::new();
@@ -1289,11 +1289,11 @@ fn installer_bases_embarquees(app: &tauri::AppHandle) -> Vec<PathBuf> {
             continue;
         }
         if let Err(e) = decompresser_gz(&archive, &base, &cible) {
-            eprintln!("base embarquée {nom} : {e}");
+            log::error!("base embarquée {nom} : {e}");
             continue;
         }
         let _ = std::fs::write(&temoin, taille.to_string());
-        eprintln!("base embarquée installée : {}", base.display());
+        log::info!("base embarquée installée : {}", base.display());
         installees.push(base);
     }
     installees
@@ -4617,6 +4617,45 @@ pub fn run() {
                 let _ = w.set_focus();
             }
         }))
+        // Journal PERSISTANT — enregistré juste après `single-instance` (qui doit rester premier)
+        // et AVANT tous les autres, pour que leur initialisation soit déjà tracée. Deux cibles :
+        // `LogDir` → `%APPDATA%\dev.niers.explorer\logs\nie-explorer.log` (le fichier à demander
+        // à une utilisatrice qui signale une anomalie : en release Windows aucune console n'est
+        // attachée, `eprintln!` n'écrivait donc nulle part), et `Stdout` pour `tauri dev`.
+        // `Webview` va dans l'autre sens : il pousse les logs RUST vers la console du webview
+        // (événement `log://log`), ce qui n'a d'effet que si le front appelle `attachConsole()`
+        // de `@tauri-apps/plugin-log`. Le trajet inverse (les `console.*` du front vers CE
+        // fichier) n'est PAS automatique : il exige que le front logue via les fonctions du
+        // paquet JS (`info`/`warn`/`error`), qui passent par la commande `log:allow-log`.
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .target(tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {
+                    file_name: Some("nie-explorer".into()),
+                }))
+                .target(tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout))
+                .target(tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Webview))
+                // Un seul fichier qui bascule à 8 Mo : un journal non borné grossit sans fin sur
+                // une machine utilisatrice, et un `KeepAll` accumule les rotations.
+                .max_file_size(8 * 1024 * 1024)
+                .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepOne)
+                // `Info` en release (les `debug!` d'un webview sont très bavards), `Debug` en dev.
+                .level(if cfg!(debug_assertions) {
+                    log::LevelFilter::Debug
+                } else {
+                    log::LevelFilter::Info
+                })
+                .build(),
+        )
+        // `niers://…` — ouvrir un titre depuis le wiki azalée. DOIT être enregistré APRÈS
+        // `single-instance` sur Windows/Linux : le système relance l'exe avec l'URL en argv, et
+        // c'est `single-instance` qui la fait remonter à l'instance vivante. L'inverse ouvre une
+        // seconde fenêtre. L'enregistrement du schéma auprès de Windows se fait à
+        // l'INSTALLATION (MSI/NSIS, cf. `plugins.deep-link` de `tauri.conf.json`) : en
+        // `tauri dev` rien n'est associé tant que `register_all()` (dans `.setup()`) n'a pas
+        // écrit la clé HKCU.
+        .plugin(tauri_plugin_deep_link::init())
+        // Version d'OS / architecture — diagnostic (panneau Paramètres, rapport d'anomalie).
+        .plugin(tauri_plugin_os::init())
         // Updater : vérifie/télécharge/installe les nouvelles versions depuis les endpoints
         // `plugins.updater.endpoints` de `tauri.conf.json` (azalee + fallback GitHub releases).
         // `tauri-plugin-process` (relaunch après install) doit être présent côté capacités
@@ -4667,6 +4706,28 @@ pub fn run() {
                             VfsIndexProgressDto { task_id: p.id.to_string(), done: p.done as u32, total: p.total as u32 },
                         );
                     }
+                });
+            }
+            // `niers://…` — deux temps, tous deux nécessaires :
+            //  1. `register_all()` écrit l'association du schéma dans HKCU pour l'exe COURANT.
+            //     C'est indispensable en `tauri dev` (aucun installeur n'est passé) et inoffensif
+            //     sur une install (elle réécrit la même valeur). Best-effort : un poste où la
+            //     clé est verrouillée par une stratégie ne doit pas empêcher l'app de démarrer.
+            //  2. `on_open_url` relaie chaque URL reçue en événement Tauri `deep-link` — même
+            //     forme que l'événement `open-path` déjà utilisé pour « Ouvrir avec ». La charge
+            //     utile est la liste des URLs telles quelles (`niers://titre/<id>`), c'est au
+            //     front de les router.
+            {
+                use tauri_plugin_deep_link::DeepLinkExt as _;
+                #[cfg(any(target_os = "windows", target_os = "linux"))]
+                if let Err(e) = app.deep_link().register_all() {
+                    log::warn!("schéma niers:// non enregistré : {e}");
+                }
+                let app_handle = app.handle().clone();
+                app.deep_link().on_open_url(move |event| {
+                    let urls: Vec<String> = event.urls().iter().map(|u| u.to_string()).collect();
+                    log::info!("deep-link reçu : {urls:?}");
+                    let _ = app_handle.emit("deep-link", urls);
                 });
             }
             // Habillage natif Windows 11 (Mica) — cf. demande utilisateur « ui windows native ».

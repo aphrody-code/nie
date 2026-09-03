@@ -84,7 +84,12 @@ export interface SourceEpisode {
   qualite: string | null;
   officielle: number;
   confiance: "verifiee" | "declaree" | "deduite";
-  /** Clé du lecteur propriétaire, quand la vidéo n'est lisible que par lui. */
+  /**
+   * D'où vient la source, en clair — « inazuma-eleven.fr (official) », « Inazuma TV FR
+   * (Dailymotion) ». C'est une PROVENANCE lisible, **pas** un identifiant technique : ne jamais
+   * la mettre dans une URL. L'adresse du lecteur, quand la vidéo y est restreinte, est déjà
+   * dans `url`.
+   */
   origine: string | null;
   vignette: string | null;
 }
@@ -232,7 +237,9 @@ export const animeDb = {
               s.officielle, s.confiance, s.origine, s.vignette
          FROM episode_sources s
          JOIN episodes e ON e.id = s.episode_id
+        WHERE s.langue IN ('vo', 'vf', 'vostfr')
         ORDER BY e.season, COALESCE(e.episode, 9999),
+                 CASE s.langue WHEN 'vo' THEN 0 WHEN 'vf' THEN 1 ELSE 2 END,
                  CASE s.confiance WHEN 'verifiee' THEN 0 WHEN 'declaree' THEN 1 ELSE 2 END,
                  s.officielle DESC,
                  CASE s.plateforme WHEN 'youtube' THEN 0 WHEN 'dailymotion' THEN 1 ELSE 2 END`,
@@ -460,20 +467,23 @@ export function urlIntegrationSource(source: SourceEpisode, depart?: number): st
   if (source.plateforme === "dailymotion") {
     const p = new URLSearchParams({ autoplay: "1", "queue-enable": "false", "sharing-enable": "false" });
     if (depart && depart > 0) p.set("start", String(Math.floor(depart)));
-    if (source.origine) {
+
+    // **`url` porte DÉJÀ l'adresse du lecteur** quand la vidéo est restreinte à celui de la
+    // chaîne : `…/player/<clé>.html?video=<id>` (143 sources sur ce corpus). On la reprend telle
+    // quelle, en n'ajoutant que nos paramètres.
+    //
+    // Ne PAS reconstruire cette adresse à partir d'`origine` : cette colonne contient le nom
+    // lisible de la chaîne (« inazuma-eleven.fr (official) »), pas une clé de lecteur. L'y
+    // employer produisait `…/player/inazuma-eleven.fr (official).html` et le lecteur répondait
+    // « Not found » — vu à l'écran.
+    if (source.url.includes("/player/")) {
+      const base = source.url.split("?")[0];
       p.set("video", source.sourceId);
-      return `https://geo.dailymotion.com/player/${source.origine}.html?${p}`;
+      return `${base}?${p}`;
     }
     return `https://www.dailymotion.com/embed/video/${source.sourceId}?${p}`;
   }
   return null;
-}
-
-/** URL d'intégration YouTube — conservée pour les appelants qui n'ont qu'un identifiant. */
-export function urlIntegration(videoId: string, depart?: number): string {
-  const p = new URLSearchParams({ autoplay: "1", rel: "0", modestbranding: "1" });
-  if (depart && depart > 0) p.set("start", String(Math.floor(depart)));
-  return `https://www.youtube-nocookie.com/embed/${videoId}?${p}`;
 }
 
 /**
@@ -486,7 +496,3 @@ export function urlExterne(ep: EpisodeAnime): string {
   return ep.url || `https://www.youtube.com/watch?v=${ep.videoId}`;
 }
 
-/** URL de la page YouTube — pour un identifiant seul. */
-export function urlYoutube(videoId: string): string {
-  return `https://www.youtube.com/watch?v=${videoId}`;
-}

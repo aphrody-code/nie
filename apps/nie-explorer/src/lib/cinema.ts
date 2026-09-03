@@ -12,9 +12,6 @@ import type { FilmDto } from "./bindings";
 /** Clé de la saison qui porte les cinématiques du jeu. */
 export const CLE_VICTORY_ROAD = "victory-road";
 
-/** Clé de la vue « toutes les saisons ». */
-export const CLE_TOUT = "__tout__";
-
 /**
  * Un élément du catalogue, quelle que soit sa source. C'est ce type qui permet à la recherche, à
  * la reprise de lecture et aux rangées de traiter un épisode et une cinématique de la même façon ;
