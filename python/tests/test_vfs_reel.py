@@ -91,3 +91,81 @@ def test_fichier_absent_leve_proprement() -> None:
     with _vfs_ou_saut() as vfs:
         with pytest.raises(FileNotFoundError):
             vfs.lire("data/ceci/n/existe/pas.cfg.bin")
+
+
+# ── Cache de paquets CPK ─────────────────────────────────────────────────────
+
+
+def test_le_cache_est_mesurable_reglable_et_videable() -> None:
+    """Un hôte qui embarque niepy doit pouvoir voir et borner ce que le VFS retient.
+
+    Le défaut de la bibliothèque native est de 16 Gio : dimensionné pour un traitement par
+    lots, pas pour un jeu. Sans ces trois méthodes, un projet Ren'Py ne pourrait que le subir.
+    """
+    with _vfs_ou_saut() as vfs:
+        depart = vfs.stats_cache()
+        assert set(depart) == {"octets", "entrees", "budget"}
+        assert depart["budget"] > 0
+
+        chemin = None
+        for entree in vfs.parcourir():
+            candidat = entree.get("path", "")
+            if candidat.endswith(".cfg.bin"):
+                chemin = candidat
+                break
+        if chemin is None:
+            pytest.skip("aucun .cfg.bin dans cette installation")
+
+        vfs.lire(chemin)
+        apres = vfs.stats_cache()
+        assert apres["octets"] > 0, "la lecture a chargé un paquet en cache"
+
+        # Abaisser le budget évince tout de suite, mais garde toujours un paquet : évincer
+        # celui qu'on vient de demander ferait relire le disque en boucle.
+        vfs.regler_budget_cache(1)
+        serre = vfs.stats_cache()
+        assert serre["budget"] == 1
+        assert serre["entrees"] >= 1
+
+        libere = vfs.vider_cache()
+        assert libere == serre["octets"]
+        assert vfs.stats_cache()["octets"] == 0
+
+        vfs.lire(chemin)
+        assert vfs.stats_cache()["octets"] > 0, "le cache se remplit de nouveau"
+
+
+def test_budget_negatif_refuse() -> None:
+    with _vfs_ou_saut() as vfs:
+        with pytest.raises(ValueError):
+            vfs.regler_budget_cache(-1)
+
+
+# ── Les trois formats du mode histoire ───────────────────────────────────────
+
+
+def test_camera_navmesh_et_lua_se_decodent() -> None:
+    """G4CM, G4NV et le bytecode Lua remontent par le dispatch partagé.
+
+    Ces trois-là ne rendaient qu'un en-tête auparavant. Ils passent par `nie_decode_json`,
+    donc `decoder()` les sert sans que `niepy` ait une ligne de code par format — c'est tout
+    l'intérêt d'une table de dispatch unique.
+    """
+    cibles = {
+        "g4cm": ("data/common/event/ev60/ev60_01930/ev60_01930_camera.g4cm", "channels"),
+        "g4nv": ("data/common/map/s/s27g001b/s27g001b.g4nv", "vertices"),
+        "lua": ("data/common/gamedata/phase/phase_set_c21_0.00.00.lua.bin", "main"),
+    }
+    with _vfs_ou_saut() as vfs:
+        vus = 0
+        for etiquette, (chemin, cle_attendue) in cibles.items():
+            try:
+                brut = vfs.lire(chemin)
+            except FileNotFoundError:
+                continue
+            decode = decoder(brut)
+            assert isinstance(decode, dict), f"{etiquette} : structure attendue"
+            assert cle_attendue in decode, f"{etiquette} : « {cle_attendue} » manquant"
+            vus += 1
+        if vus == 0:
+            pytest.skip("aucun des trois fichiers de référence dans cette installation")

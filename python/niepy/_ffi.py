@@ -20,7 +20,14 @@ import os
 import sys
 from pathlib import Path
 
-__all__ = ["NieBytes", "NieBall", "NiePlayer", "bibliotheque", "chemin_bibliotheque"]
+__all__ = [
+    "NieBall",
+    "NieBytes",
+    "NieCacheStats",
+    "NiePlayer",
+    "bibliotheque",
+    "chemin_bibliotheque",
+]
 
 
 class NieBytes(ctypes.Structure):
@@ -34,6 +41,21 @@ class NieBytes(ctypes.Structure):
         ("ptr", ctypes.POINTER(ctypes.c_ubyte)),
         ("len", ctypes.c_size_t),
         ("cap", ctypes.c_size_t),
+    ]
+
+
+class NieCacheStats(ctypes.Structure):
+    """Occupation du cache CPK — miroir de `NieCacheStats` côté `nie-ffi`.
+
+    Le VFS garde les octets **bruts** de chaque paquet ouvert. Quelques lectures dans des
+    paquets différents suffisent à retenir plusieurs centaines de mégaoctets, et le budget par
+    défaut est dimensionné pour un traitement par lots (16 Gio), pas pour un jeu.
+    """
+
+    _fields_ = [
+        ("octets", ctypes.c_uint64),
+        ("entrees", ctypes.c_uint64),
+        ("budget", ctypes.c_uint64),
     ]
 
 
@@ -187,6 +209,15 @@ def _declarer(lib: ctypes.CDLL) -> None:
         p_bytes,
     ]
     lib.nie_vfs_list_range_json_out.restype = None
+
+    lib.nie_vfs_cache_stats.argtypes = [ctypes.c_void_p, ctypes.POINTER(NieCacheStats)]
+    lib.nie_vfs_cache_stats.restype = None
+
+    lib.nie_vfs_cache_vider.argtypes = [ctypes.c_void_p]
+    lib.nie_vfs_cache_vider.restype = ctypes.c_uint64
+
+    lib.nie_vfs_cache_budget.argtypes = [ctypes.c_void_p, ctypes.c_uint64]
+    lib.nie_vfs_cache_budget.restype = ctypes.c_uint64
 
     lib.nie_vfs_free.argtypes = [ctypes.c_void_p]
     lib.nie_vfs_free.restype = None
