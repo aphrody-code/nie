@@ -23,11 +23,11 @@ import { Icon } from "@/components/ui/Icon";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formaterDuree, urlVideo } from "@/components/VideoPlayer";
+import { afficheConnue, poserAffiche } from "@/lib/affiches";
 import {
-  affiches,
   formaterOctets,
   INSTANT_AFFICHE,
-  vignetteHd,
+  vignetteDe,
   type ElementCinema,
   type Reprises,
   type SaisonCinema,
@@ -138,7 +138,7 @@ export function FicheDetail({
         className="max-h-[90vh] w-[min(56rem,calc(100vw-3rem))] max-w-[min(56rem,calc(100vw-3rem))] gap-0 overflow-y-auto bg-app p-0 sm:max-w-[min(56rem,calc(100vw-3rem))]"
       >
         {/* ── L'en-tête, qui joue ─────────────────────────────────────────── */}
-        <div className="relative aspect-video w-full shrink-0 overflow-hidden bg-app-darkBox">
+        <div className="relative aspect-video w-full shrink-0 overflow-hidden bg-app-dark-box">
           <ApercuTitre element={element} />
           {/* Deux dégradés superposés : l'un éteint le bas pour porter le titre, l'autre la
               gauche pour que le texte reste lisible sur une image claire. */}
@@ -324,13 +324,13 @@ function ApercuTitre({ element }: { element: ElementCinema }) {
   const film = element.film;
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [affiche, setAffiche] = useState<string | null>(() =>
-    film ? (affiches.get(film.chemin) ?? null) : null,
+    film ? afficheConnue(film.chemin) : null,
   );
   const [imageKo, setImageKo] = useState(false);
 
   const capturer = () => {
     const v = videoRef.current;
-    if (!v || !film || affiches.has(film.chemin) || v.videoWidth === 0) return;
+    if (!v || !film || afficheConnue(film.chemin) || v.videoWidth === 0) return;
     const canvas = document.createElement("canvas");
     canvas.width = 640;
     canvas.height = Math.round((640 * v.videoHeight) / v.videoWidth);
@@ -339,7 +339,7 @@ function ApercuTitre({ element }: { element: ElementCinema }) {
     ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
     try {
       const url = canvas.toDataURL("image/jpeg", 0.72);
-      affiches.set(film.chemin, url);
+      poserAffiche(film.chemin, url);
       setAffiche(url);
     } catch {
       // Canvas teinté : l'en-tête garde son fond typographique.
@@ -347,7 +347,7 @@ function ApercuTitre({ element }: { element: ElementCinema }) {
   };
 
   if (element.episode) {
-    const source = imageKo ? element.vignette : vignetteHd(element.episode.videoId);
+    const source = imageKo ? element.vignette : vignetteDe(element.episode);
     if (!source) return <FondTypographique titre={element.titre} />;
     return (
       <img
@@ -399,7 +399,7 @@ function ApercuTitre({ element }: { element: ElementCinema }) {
 
 function FondTypographique({ titre }: { titre: string }) {
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-app-box to-app-darkBox">
+    <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-app-box to-app-dark-box">
       <Icon name="movie" size={48} className="text-ink-faint/40" />
       <span className="px-6 text-center font-mono text-xs text-ink-faint">{titre}</span>
     </div>
@@ -430,9 +430,9 @@ function LigneEpisode({
   const vignette = element.episode
     ? imageKo
       ? element.vignette
-      : vignetteHd(element.episode.videoId)
+      : vignetteDe(element.episode)
     : film
-      ? (affiches.get(film.chemin) ?? null)
+      ? afficheConnue(film.chemin)
       : null;
   const progression = reprise && reprise.duree > 0 ? (reprise.position / reprise.duree) * 100 : 0;
 
@@ -453,7 +453,7 @@ function LigneEpisode({
       }}
     >
       <span className="w-5 shrink-0 pt-6 text-center text-sm tabular-nums text-ink-faint">{rang}</span>
-      <div className="relative aspect-video w-36 shrink-0 overflow-hidden rounded bg-app-darkBox">
+      <div className="relative aspect-video w-36 shrink-0 overflow-hidden rounded bg-app-dark-box">
         {vignette ? (
           <img
             src={vignette}

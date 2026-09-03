@@ -43,7 +43,16 @@
 // * la prévisualisation animée ne démarre qu'au **survol soutenu** — c'est le seul moment où
 //   l'on sait que l'utilisateur veut vraiment voir ce film-là. La première image capturée reste
 //   ensuite affichée comme affiche.
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  memo,
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
 import { AvatarProfil, ChoixProfil } from "@/components/cinema/ChoixProfil";
@@ -56,20 +65,28 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { VideoPlayer, formaterDuree, urlVideo } from "@/components/VideoPlayer";
 import { api } from "@/lib/api";
-import { animeDb, defaultAnimeDbPath, urlIntegration, urlYoutube, type EpisodeAnime, type SaisonAnime } from "@/lib/animeDb";
 import {
-  affiches,
+  animeDb,
+  defaultAnimeDbPath,
+  plateformeDe,
+  urlExterne,
+  urlIntegrationEpisode,
+  type EpisodeAnime,
+  type SaisonAnime,
+} from "@/lib/animeDb";
+import {
   CLE_VICTORY_ROAD,
   ecrireReprises,
   formaterOctets,
   INSTANT_AFFICHE,
   lireReprises,
   REPRISE_MIN,
-  vignetteHd,
+  vignetteDe,
   type ElementCinema,
   type Reprises,
   type SaisonCinema,
 } from "@/lib/cinema";
+import { afficheConnue, demanderAffiche, poserAffiche, surAffiche, viderFile } from "@/lib/affiches";
 import { showFilmContextMenu } from "@/lib/contextMenu";
 import { verifier, type EtatMaj } from "@/lib/majCatalogue";
 import { analyser, chercher, requeteVide } from "@/lib/recherche";
@@ -205,10 +222,13 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
     defaultAnimeDbPath(parametres.gameDir)
       .then(async (chemin) => {
         if (!chemin || !vivant) return;
-        const [liste, saisons] = await Promise.all([animeDb.tous(chemin), animeDb.saisons(chemin)]);
+        const [tousEpisodes, saisonsLues] = await Promise.all([
+          animeDb.tous(chemin),
+          animeDb.saisons(chemin),
+        ]);
         if (!vivant) return;
-        setEpisodes(liste);
-        setSaisonsAnime(saisons);
+        setEpisodes(tousEpisodes);
+        setSaisonsAnime(saisonsLues);
         setCheminAnimeDb(chemin);
 
         // ── Mise à jour depuis le VPS ────────────────────────────────────────
@@ -299,6 +319,13 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
     });
   }, [cheminAnimeDb]);
 
+  // Changer de vue vide la file des vignettes en attente : ce qui n'est plus à l'écran n'a plus
+  // de raison d'être démultiplexé, et laisser la file finir ferait attendre les cartes de la
+  // vue qu'on vient d'ouvrir derrière celles qu'on vient de quitter.
+  useEffect(() => {
+    viderFile();
+  }, [vue]);
+
   const contexteSources = useMemo<ContexteSources>(
     () => ({ films, episodes, dx11 }),
     [films, episodes, dx11],
@@ -311,9 +338,9 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
     occupe.current = true;
     api
       .videoInfo(chemin)
-      .then((fiche) => {
-        setFilms((prec) => prec.map((f) => (f.chemin === chemin ? fiche : f)));
-        return fiche;
+      .then((inspecte) => {
+        setFilms((prec) => prec.map((f) => (f.chemin === chemin ? inspecte : f)));
+        return inspecte;
       })
       .catch(() => {})
       .finally(() => {
@@ -390,8 +417,15 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
 
   // ── Filtrage et regroupement ────────────────────────────────────────────────
 
-  /** La requête analysée : filtres nommés (`s3e12`, `lang:vf`, `type:jeu`) et termes libres. */
-  const requete = useMemo(() => analyser(recherche), [recherche]);
+  /**
+   * La requête analysée : filtres nommés (`s3e12`, `lang:vf`, `type:jeu`) et termes libres.
+   *
+   * Sur la valeur DIFFÉRÉE, pas sur la frappe : filtrer et classer 452 titres à chaque touche
+   * faisait sauter le curseur du champ. `useDeferredValue` garde la saisie réactive et laisse
+   * React re-classer quand il a le temps — la liste a un rendu de retard, la frappe aucune.
+   */
+  const rechercheDifferee = useDeferredValue(recherche);
+  const requete = useMemo(() => analyser(rechercheDifferee), [rechercheDifferee]);
   const enRecherche = !requeteVide(requete);
 
   const estVu = useCallback(
@@ -449,8 +483,8 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
   const rangees = useMemo(() => {
     const par = new Map<string, FilmDto[]>();
     for (const f of filtres) {
-      const liste = par.get(f.rubrique);
-      if (liste) liste.push(f);
+      const groupe = par.get(f.rubrique);
+      if (groupe) groupe.push(f);
       else par.set(f.rubrique, [f]);
     }
     // Les rubriques nommées d'abord, puis les chapitres dans leur ordre numérique.
@@ -478,8 +512,8 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
   const saisons = useMemo<SaisonCinema[]>(() => {
     const parSaison = new Map<string, ElementCinema[]>();
     for (const el of retenus) {
-      const liste = parSaison.get(el.saison);
-      if (liste) liste.push(el);
+      const groupe = parSaison.get(el.saison);
+      if (groupe) groupe.push(el);
       else parSaison.set(el.saison, [el]);
     }
 
@@ -528,8 +562,8 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
   const lacunes = useMemo(() => {
     const parSaison = new Map<number, (number | null)[]>();
     for (const e of episodes) {
-      const liste = parSaison.get(e.saison);
-      if (liste) liste.push(e.episode);
+      const numeros = parSaison.get(e.saison);
+      if (numeros) numeros.push(e.episode);
       else parSaison.set(e.saison, [e.episode]);
     }
     const sortie = new Map<number, LacuneSaison>();
@@ -541,29 +575,30 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
   }, [episodes]);
 
   /**
-   * Les épisodes les plus récemment DIFFUSÉS (`publishDate`, renseignée pour 330 des 355).
+   * Le premier épisode de chaque saison — les portes d'entrée du catalogue.
    *
-   * Ce n'est pas « récemment ajouté au catalogue » : la base ne garde pas la date de moisson, et
-   * l'annoncer ainsi serait faux. C'est la date de première diffusion, donc la fin de la série —
-   * ce qu'on cherche quand on revient après une longue absence.
+   * Remplace la rangée « les plus récents (diffusion) », qui classait 355 épisodes par date de
+   * première diffusion : elle mettait donc toujours en avant la FIN de la série, ce qui est
+   * exactement ce qu'on ne veut montrer à personne. Dix ouvertures de saison disent au moins par
+   * où commencer.
    */
-  const plusRecents = useMemo<ElementCinema[]>(
-    () =>
-      episodes
-        .filter((e) => e.publie)
-        .sort((a, b) => (b.publie ?? "").localeCompare(a.publie ?? ""))
-        .slice(0, 20)
-        .map((e) => ({
-          cle: e.videoId,
-          titre: e.titre,
-          sousTitre: e.publie ? new Date(e.publie).toLocaleDateString("fr-FR") : null,
-          source: "anime" as const,
-          saison: `s${e.saison}`,
-          vignette: e.vignette,
-          episode: e,
-        })),
-    [episodes],
-  );
+  const ouverturesSaisons = useMemo<ElementCinema[]>(() => {
+    const sortie: ElementCinema[] = [];
+    for (const s of saisonsAnime) {
+      const premier = episodes.find((e) => e.saison === s.saison);
+      if (!premier) continue;
+      sortie.push({
+        cle: premier.videoId,
+        titre: premier.titre,
+        sousTitre: s.nom,
+        source: "anime",
+        saison: `s${s.saison}`,
+        vignette: premier.vignette,
+        episode: premier,
+      });
+    }
+    return sortie;
+  }, [episodes, saisonsAnime]);
 
   /**
    * Le prochain épisode à regarder : le premier non vu de la première saison qui en a un. C'est
@@ -612,21 +647,16 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
     setFiche(el);
   }, []);
 
-  const aReprendre = useMemo(
-    () =>
-      Object.keys(reprises)
-        .map((c) => parCle.get(c))
-        .filter((el): el is ElementCinema => el !== undefined)
-        .slice(0, 12),
-    [reprises, parCle],
-  );
-
   /**
    * Les titres du bandeau de tête.
    *
-   * L'ordre dit quelque chose : ce qu'on a commencé, puis ce qui reste à voir de la série, puis
-   * le plus gros morceau du jeu, puis les diffusions récentes. Un doublon serait un titre qui
-   * revient deux fois dans le même carrousel — la table de clés l'empêche.
+   * L'ordre dit quelque chose : ce qui reste à voir de la série, puis le plus gros morceau du
+   * jeu, puis une porte d'entrée par saison. Un doublon serait un titre qui revient deux fois
+   * dans le même carrousel — la table de clés l'empêche.
+   *
+   * La reprise de lecture n'y figure plus : elle ne concernait que les cinématiques du jeu, seule
+   * source dont le lecteur natif rapporte une position (une intégration YouTube ou Dailymotion
+   * n'en rapporte aucune). Le bandeau mettait donc systématiquement en avant un `.usm`.
    */
   const misEnAvant = useMemo<ElementCinema[]>(() => {
     const sortie: ElementCinema[] = [];
@@ -637,15 +667,14 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
       sortie.push(el);
     };
 
-    pousser(aReprendre[0]);
     if (aReprendreSerie) pousser(parCle.get(aReprendreSerie.episode.videoId));
     // Le plus gros conteneur du jeu : c'est presque toujours une cinématique de chapitre, donc
     // ce que le catalogue a de plus proche d'un « film ».
     const vedette = films.length > 0 ? films.reduce((m, f) => (f.octets > m.octets ? f : m), films[0]!) : null;
     if (vedette) pousser(parCle.get(vedette.chemin));
-    for (const el of plusRecents) pousser(el);
+    for (const el of ouverturesSaisons) pousser(el);
     return sortie;
-  }, [aReprendre, aReprendreSerie, films, parCle, plusRecents]);
+  }, [aReprendreSerie, films, parCle, ouverturesSaisons]);
 
   useEffect(() => {
     // Le bandeau affiche la durée et la définition d'une cinématique : elles n'existent qu'après
@@ -660,11 +689,11 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
   const saisonsFiche = useMemo<SaisonCinema[]>(() => {
     if (!fiche) return [];
     if (fiche.source === "anime") return saisonsSerie;
-    return rangees.map(([rubrique, liste]) => ({
+    return rangees.map(([rubrique, filmsRubrique]) => ({
       cle: `rubrique:${rubrique}`,
       titre: rubrique,
       source: "jeu" as const,
-      elements: liste.map((f) => ({
+      elements: filmsRubrique.map((f) => ({
         cle: f.chemin,
         titre: f.nom,
         sousTitre: f.rubrique,
@@ -774,8 +803,12 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
             variant="ghost"
             size="sm"
             className="text-white/80 hover:text-white"
-            onClick={() => void openUrl(urlYoutube(e.videoId))}
-            title="Ouvrir sur YouTube"
+            onClick={() => void openUrl(urlExterne(e))}
+            title={
+              plateformeDe(e) === "youtube"
+                ? "Ouvrir sur YouTube"
+                : "Ouvrir sur la plateforme officielle"
+            }
           >
             <Icon name="open_in_new" size={16} />
           </Button>
@@ -789,14 +822,38 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
             <Icon name="close" size={16} />
           </Button>
         </div>
-        <iframe
-          key={e.videoId}
-          src={urlIntegration(e.videoId)}
-          title={e.titre}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-          allowFullScreen
-          className="min-h-0 flex-1 border-0 bg-black"
-        />
+        {/* L'intégration dépend de la PLATEFORME, et pas toujours de YouTube : 143 épisodes sur
+            355 (Chrono Stones et Galaxy en entier, 49 de la saison 3) vivent sur la plateforme
+            officielle et se lisent par Dailymotion. Les envoyer tous à `youtube-nocookie` donnait
+            un cadre vide — c'est ce qui faisait paraître ces deux saisons en panne. */}
+        {(() => {
+          const integration = urlIntegrationEpisode(e);
+          if (!integration) {
+            return (
+              <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 bg-black px-6 text-center">
+                <Icon name="movie" size={40} className="text-white/30" />
+                <p className="max-w-md text-sm text-white/70">
+                  Cet épisode n'a pas de source intégrable dans la base : ni identifiant YouTube,
+                  ni vignette Dailymotion dont tirer un lecteur.
+                </p>
+                <Button variant="outline" onClick={() => void openUrl(urlExterne(e))}>
+                  <Icon name="open_in_new" size={16} />
+                  Ouvrir la page officielle
+                </Button>
+              </div>
+            );
+          }
+          return (
+            <iframe
+              key={e.videoId}
+              src={integration}
+              title={e.titre}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+              allowFullScreen
+              className="min-h-0 flex-1 border-0 bg-black"
+            />
+          );
+        })()}
         {/* La fiche sous la vidéo : titre original, transcription et résumé. Trois colonnes de la
             base que rien n'affichait — 330 titres japonais et 355 résumés dormaient dans le
             fichier. */}
@@ -1042,39 +1099,6 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
             />
           )}
 
-          {accueil && aReprendre.length > 0 && (
-            <RangeeElements
-              titre="Reprendre la lecture"
-              elements={aReprendre}
-              total={aReprendre.length}
-              reprises={reprises}
-              onOuvrir={ouvrirFiche}
-              onLire={lire}
-              onVisible={enrichir}
-              onPrecharger={precharger}
-              onMenu={menuFilm}
-              vus={vus}
-            />
-          )}
-
-          {accueil && !enRecherche && plusRecents.length > 0 && (
-            <RangeeElements
-              titre="Les plus récents (diffusion)"
-              elements={plusRecents}
-              total={plusRecents.length}
-              reprises={reprises}
-              onOuvrir={ouvrirFiche}
-              onLire={lire}
-              onVisible={enrichir}
-              onPrecharger={precharger}
-              onMenu={menuFilm}
-              onTout={() => {
-                const s = plusRecents[0]?.saison;
-                if (s) setVue(s);
-              }}
-              vus={vus}
-            />
-          )}
 
           {rangeesElements.map((s) => (
             <RangeeElements
@@ -1415,7 +1439,7 @@ function RangeeElements({
  * **Le clic ouvre la FICHE**, le bouton ▶ lance la lecture. C'est le geste des deux plateformes
  * de référence, et il évite de démultiplexer 300 Mo pour vérifier qu'on ne s'est pas trompé.
  */
-function CarteTitre({
+const CarteTitre = memo(function CarteTitre({
   element,
   reprise,
   vu,
@@ -1443,20 +1467,26 @@ function CarteTitre({
   const [apercu, setApercu] = useState(false);
   const [imageKo, setImageKo] = useState(false);
   const [affiche, setAffiche] = useState<string | null>(() =>
-    film ? (affiches.get(film.chemin) ?? null) : null,
+    film ? afficheConnue(film.chemin) : null,
   );
 
-  // Enrichissement à l'entrée dans le champ de vision : ni au montage (97 requêtes d'un coup)
-  // ni au survol (l'utilisateur veut voir la durée AVANT de choisir où pointer).
+  /**
+   * À l'entrée dans le champ de vision : la fiche technique ET la vignette.
+   *
+   * Ni au montage (97 requêtes d'un coup) ni au survol — la vignette d'un film doit être là
+   * AVANT qu'on pointe dessus, sinon elle ne sert à rien pour choisir. La capture passe par la
+   * file à un travailleur de `lib/affiches`, qui la persiste : le second passage dans ce dossier
+   * est instantané.
+   */
   useEffect(() => {
     const hote = hoteRef.current;
-    if (!hote || !film || film.duree != null || !onVisible) return;
+    if (!hote || !film) return;
     const obs = new IntersectionObserver(
       (entrees) => {
-        if (entrees.some((e) => e.isIntersecting)) {
-          onVisible(film.chemin);
-          obs.disconnect();
-        }
+        if (!entrees.some((e) => e.isIntersecting)) return;
+        if (film.duree == null) onVisible?.(film.chemin);
+        if (!afficheConnue(film.chemin) && film.lisible !== false) demanderAffiche(film.chemin);
+        obs.disconnect();
       },
       { rootMargin: "200px" },
     );
@@ -1464,9 +1494,19 @@ function CarteTitre({
     return () => obs.disconnect();
   }, [film, onVisible]);
 
+  // La capture est asynchrone et vient d'ailleurs (la file) : la carte s'abonne plutôt que
+  // d'attendre. Une carte sans affiche montre son fond typographique et se met à jour seule.
+  useEffect(() => {
+    if (!film) return;
+    return surAffiche((chemin, url) => {
+      if (chemin === film.chemin) setAffiche(url);
+    });
+  }, [film]);
+
+  /** Capture opportuniste : l'aperçu au survol joue déjà, autant en garder l'image. */
   const capturer = useCallback(() => {
     const v = videoRef.current;
-    if (!v || !film || affiches.has(film.chemin) || v.videoWidth === 0) return;
+    if (!v || !film || afficheConnue(film.chemin) || v.videoWidth === 0) return;
     const canvas = document.createElement("canvas");
     // Largeur d'affiche fixe : une carte fait 224 px, inutile de garder du 1920.
     canvas.width = 320;
@@ -1476,7 +1516,7 @@ function CarteTitre({
     ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
     try {
       const url = canvas.toDataURL("image/jpeg", 0.7);
-      affiches.set(film.chemin, url);
+      poserAffiche(film.chemin, url);
       setAffiche(url);
     } catch {
       // Canvas « teinté » : sans affiche, la carte garde son fond typographique.
@@ -1512,7 +1552,7 @@ function CarteTitre({
   );
 
   const progression = reprise && reprise.duree > 0 ? (reprise.position / reprise.duree) * 100 : 0;
-  const vignette = episode ? (imageKo ? element.vignette : vignetteHd(episode.videoId)) : affiche;
+  const vignette = episode ? (imageKo ? element.vignette : vignetteDe(episode)) : affiche;
 
   return (
     <div
@@ -1544,7 +1584,7 @@ function CarteTitre({
     >
       <div
         className={cn(
-          "relative aspect-video overflow-hidden rounded-md border bg-app-darkBox transition-transform duration-150 group-hover/carte:scale-[1.03] group-hover/carte:border-accent/60",
+          "relative aspect-video overflow-hidden rounded-md border bg-app-dark-box transition-transform duration-150 group-hover/carte:scale-[1.03] group-hover/carte:border-accent/60",
           vu ? "border-emerald-500/40" : "border-app-line",
         )}
       >
@@ -1559,7 +1599,7 @@ function CarteTitre({
           />
         )}
         {!vignette && !apercu && (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-1 bg-gradient-to-br from-app-box to-app-darkBox">
+          <div className="flex h-full w-full flex-col items-center justify-center gap-1 bg-gradient-to-br from-app-box to-app-dark-box">
             <Icon name="movie" size={22} className="text-ink-faint/50" />
             <span className="px-2 text-center font-mono text-[10px] text-ink-faint">{element.titre}</span>
           </div>
@@ -1656,4 +1696,4 @@ function CarteTitre({
       </div>
     </div>
   );
-}
+});
