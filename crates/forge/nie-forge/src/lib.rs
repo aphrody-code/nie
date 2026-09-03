@@ -37,6 +37,7 @@
 #![warn(missing_docs)]
 
 pub mod asmsrc;
+pub mod bornes;
 pub mod cc;
 pub mod lift;
 #[cfg(feature = "redb")]
