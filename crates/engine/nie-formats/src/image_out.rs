@@ -1136,7 +1136,20 @@ pub fn composer_planche(
     Planche { largeur, hauteur, rgba, cases: rects }
 }
 
-/// Recopie une image RGBA dans une autre, en respectant l'alpha de la source.
+/// Recopie une image RGBA dans une autre, **pixel pour pixel, sans compositing**.
+///
+/// Deux raisons de ne pas mélanger avec le fond, et la seconde est la plus importante :
+///
+/// 1. Les cases d'une planche ne se chevauchent jamais — il n'y a rien à composer.
+/// 2. Une planche existe pour être **redécoupée** d'après son manifeste. Si l'alpha était
+///    fusionné avec le fond, redécouper ne rendrait plus l'image d'origine mais une version
+///    aplatie sur une couleur arbitraire : le manifeste décrirait des pixels qui ne sont plus
+///    ceux de la source. Copier préserve l'alpha exact, donc la réversibilité.
+///
+/// C'est aussi ce qui évite d'ajouter un blend de plus au workspace : le compositing alpha est
+/// la **landmine #5** (`docs/ARCHITECTURE.md`, cf. l'avertissement en tête de
+/// [`crate::raster2d`]) — `nie-runtime` et `nie-game` divergent déjà, et `menu.rs` porte son
+/// propre compositeur « over ». Un quatrième n'aiderait personne.
 ///
 /// Les pixels qui sortiraient du cadre sont ignorés plutôt que repliés : un dépassement doit
 /// tronquer, jamais réapparaître de l'autre côté de l'image.
@@ -1165,18 +1178,7 @@ fn poser_rgba(
             let (Some(s), Some(d)) = (src.get(is..is + 4), dest.get_mut(id..id + 4)) else {
                 continue;
             };
-            let alpha = u32::from(s[3]);
-            if alpha == 255 {
-                d.copy_from_slice(s);
-            } else if alpha > 0 {
-                // Fusion « source over » classique, en entiers pour rester exact.
-                for canal in 0..3 {
-                    let sc = u32::from(s[canal]);
-                    let dc = u32::from(d[canal]);
-                    d[canal] = ((sc * alpha + dc * (255 - alpha)) / 255) as u8;
-                }
-                d[3] = d[3].max(s[3]);
-            }
+            d.copy_from_slice(s);
         }
     }
 }
@@ -1249,11 +1251,17 @@ mod tests_planche {
     }
 
     #[test]
-    fn l_alpha_de_la_source_est_respecte() {
-        // Une case totalement transparente ne doit pas effacer le fond.
-        let cases = vec![case("vide", 4, 4, [255, 255, 255, 0])];
+    fn l_alpha_source_est_copie_tel_quel_pas_fusionne() {
+        // Une planche se REDÉCOUPE d'après son manifeste : l'alpha doit survivre intact.
+        // Fusionner avec le fond rendrait le redécoupage lossy — on récupérerait une image
+        // aplatie sur une couleur arbitraire au lieu de la source.
+        let cases = vec![case("translucide", 4, 4, [255, 255, 255, 128])];
         let p = composer_planche(&cases, 1, 0, 0, [10, 20, 30, 255]);
-        assert_eq!(pixel(&p, 0, 0), [10, 20, 30, 255], "le fond reste visible sous du transparent");
+        assert_eq!(
+            pixel(&p, 0, 0),
+            [255, 255, 255, 128],
+            "les pixels sources sont copiés, pas composés avec le fond"
+        );
     }
 
     #[test]
