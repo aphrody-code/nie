@@ -129,6 +129,25 @@ export function numeroSerieOrigine(titre: string): number | null {
 	return n > 0 && n < 1000 ? n : null;
 }
 
+/**
+ * Numéro d'un épisode d'`Outer Code`, `null` sinon.
+ *
+ * Outer Code est un arc court (6 épisodes) que `LEVEL5ch` publie sous un titre
+ * distinct : `【イナズマイレブン アウターコード】第N話`. Sa numérotation est
+ * PROPRE à l'arc — elle ne se convertit pas par `situerAbsolu`, qui ne connaît
+ * que la série d'origine. Le catalogue le range en saison 7 (`SAISON_PAR_SLUG`),
+ * où l'espagnol et le français comptent déjà 6 épisodes chacun.
+ */
+export function numeroOuterCode(titre: string): number | null {
+	const trouve = /イナズマイレブン\s*アウターコード】\s*第\s*(\d{1,3})\s*話/.exec(titre);
+	if (!trouve?.[1]) return null;
+	const n = Number.parseInt(trouve[1], 10);
+	return n > 0 && n <= 99 ? n : null;
+}
+
+/** Saison du catalogue pour Outer Code — cf. `SAISON_PAR_SLUG.outerCode`. */
+export const SAISON_OUTER_CODE = 7;
+
 /** Playlist des mises en ligne de `LEVEL5ch【公式】`. */
 export const UPLOADS_LEVEL5CH = "UUlfhcLqicImW9Se7NKaFADQ";
 
@@ -171,11 +190,25 @@ export function episodesVo(entrees: readonly EntreeApi[]): VideoRef[] {
 	const vus = new Set<number>();
 
 	for (const entree of entrees) {
-		const absolu = numeroSerieOrigine(entree.titre);
-		if (absolu === null || vus.has(absolu)) continue;
-		const situe = situerAbsolu(absolu, ARCS_SERIE_ORIGINE);
+		// Deux gabarits, deux numérotations. Outer Code est numéroté DANS son
+		// arc ; la série d'origine est numérotée en absolu sur 127 et demande
+		// donc `situerAbsolu`. Les confondre rangerait Outer Code 1 à 6 dans la
+		// saison 1.
+		const outer = numeroOuterCode(entree.titre);
+		const absolu = outer === null ? numeroSerieOrigine(entree.titre) : null;
+		const situe =
+			outer !== null
+				? { season: SAISON_OUTER_CODE, episode: outer }
+				: absolu === null
+					? null
+					: situerAbsolu(absolu, ARCS_SERIE_ORIGINE);
 		if (!situe) continue;
-		vus.add(absolu);
+
+		// La clé d'unicité est (saison, épisode) : un numéro d'Outer Code et un
+		// numéro absolu de la série peuvent valoir tous deux « 1 ».
+		const cle = situe.season * 1000 + situe.episode;
+		if (vus.has(cle)) continue;
+		vus.add(cle);
 
 		const source: SourceEpisode = {
 			plateforme: "youtube",
