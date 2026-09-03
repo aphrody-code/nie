@@ -36,6 +36,10 @@
 // = std. `default = ["std"]` → build par défaut INCHANGÉ ; `--no-default-features` = cœur no_std (nie-data).
 #![cfg_attr(not(feature = "std"), no_std)]
 
+// `FormatError::Malformed` porte un message construit : la crate a besoin d'`alloc` au niveau
+// racine, pas seulement dans les modules qui le déclarent chacun de leur côté.
+extern crate alloc;
+
 /// Assemblage GLB d'un personnage (feature `std` : I/O fichiers + `HashMap`).
 #[cfg(feature = "std")]
 pub mod assemble;
@@ -145,6 +149,12 @@ pub enum FormatError {
     BadMagic { format: &'static str },
     /// Données corrompues.
     Corrupt(&'static str),
+    /// Structure incohérente, avec le détail chiffré (offset, compteur…) qui permet de la situer.
+    ///
+    /// Distinct de [`Self::Corrupt`], qui ne porte qu'un message figé : un décodeur qui suit des
+    /// offsets calculés doit pouvoir dire **lesquels** ne retombent pas juste, sinon le
+    /// diagnostic se refait à la main à chaque fois.
+    Malformed(alloc::string::String),
 }
 
 // Display + Error MANUELS (no_std-ready via `core::error::Error`) — `thiserror` retiré (Phase 3 dédup).
@@ -156,6 +166,7 @@ impl core::fmt::Display for FormatError {
             }
             Self::BadMagic { format } => write!(f, "magic invalide pour {format}"),
             Self::Corrupt(s) => write!(f, "données corrompues : {s}"),
+            Self::Malformed(s) => write!(f, "structure incohérente : {s}"),
         }
     }
 }

@@ -29,12 +29,20 @@ image = { version = "0.25", default-features = false, features = [
 # Décodage HCA chiffré (feature `audio-decode` uniquement, off par défaut).
 # `default-features = false` = pur Rust, compatible wasm32 (nie-wasm le prouve).
 cridecoder = { workspace = true, optional = true }
+# Decodeur de bytecode Lua 5.2 (feature `lua`) : c'est le format des 1 197 `.lua.bin` du jeu.
+# `default-features = false` coupe la VM (mlua, Lua en C) ET l'analyse statique (tree-sitter) —
+# il ne reste que `nie_lua::bytecode`, pur Rust, donc wasm-compatible.
+# Le cycle avec la dev-dependency `nie-formats` de nie-lua est legal (Cargo n'interdit que les
+# cycles de dependances NORMALES) et verifie ici : `cargo check -p nie-lua` passe.
+nie-lua = { path = "../nie-lua", default-features = false, optional = true }
 
 [features]
 # `default = ["std"]` → build par défaut = crate std (consommateurs INCHANGÉS).
 # `--no-default-features` → `#![no_std]` strict (cœur de parseurs alloc-only, pour nie-data).
-default = ["std"]
+default = ["std", "lua"]
 std = []
+# Bytecode Lua 5.2 (`.lua.bin`) branche sur `decode` — via `nie-lua`, source unique du decodeur.
+lua = ["std", "dep:nie-lua"]
 serde = ["dep:serde"]
 # Décodeur G4TX/DDS → RGBA8/PNG unique (module `g4tx_decode`). Tire `image_dds` (std) → implique `std`.
 textures = ["std", "dep:image_dds", "dep:png"]
@@ -66,6 +74,15 @@ required-features = ["textures"]
 [[example]]
 name = "g4tx_patch_region"
 required-features = ["textures-encode"]
+
+# `luabin_reel` vérifie que le bytecode Lua produit bien du JSON : il lui faut `serde`, qui
+# n'est PAS dans `default`. Sans cette déclaration, son `#![cfg(…)]` vidait le fichier et
+# `cargo test -p nie-formats` affichait « ok. 0 passed » — un vert qui n'a rien exécuté, alors
+# que le test compte 2 cas et passe sous `--features serde`. `required-features` rend
+# l'exigence explicite : cargo écarte la cible au lieu d'en produire une coquille verte.
+[[test]]
+name = "luabin_reel"
+required-features = ["serde", "lua"]
 
 [dev-dependencies]
 # Encodage PNG pour les examples/tests (atlas, anim, scène de dialogue) — indépendant

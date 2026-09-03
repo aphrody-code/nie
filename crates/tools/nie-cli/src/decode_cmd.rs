@@ -27,16 +27,9 @@ fn decode_bytes(data: &[u8], basename: &str, as_png: bool) -> Option<(Vec<u8>, &
         return nie_formats::g4tx_decode::decode_best_to_png(data, basename)
             .map(|png| (png, "png", "g4tx"));
     }
-    // Bytecode Lua 5.2 compilé (signature `\x1bLua`) : c'est le format des 1 197
-    // `.lua.bin` du jeu. Le décodeur vit dans `nie-lua` (en-tête, prototypes,
-    // constantes, instructions, 40 opcodes), pas dans `nie-formats` — d'où cette
-    // branche ici, dans le seul crate qui dépende des deux. Sans elle, `decode`
-    // saute l'intégralité du corpus (`ok=0 skipped=1197`).
-    if data.starts_with(b"\x1bLua") {
-        let chunk = nie_lua::bytecode::parse(data).ok()?;
-        let json = serde_json::to_vec_pretty(&chunk).ok()?;
-        return Some((json, "json", "lua-bytecode"));
-    }
+    // Le bytecode Lua 5.2 (`\x1bLua`, les 1 197 `.lua.bin` du jeu) n'a plus de branche ici :
+    // `nie-formats` dépend désormais de `nie-lua` (feature `lua`) et le route lui-même, donc la
+    // FFI et le MCP le décodent aussi. Une seule table de dispatch, comme le dit l'en-tête.
     nie_formats::decode::decode(data).map(|d| (d.json, "json", d.format))
 }
 
