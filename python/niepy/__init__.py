@@ -31,14 +31,18 @@ from .match import PAS_PAR_DEFAUT, Ballon, Joueur, Match
 from .rendu import ErreurRendu, Rendu, chemin_nie_game
 from .renpy import Catalogue, Personnage
 from .scenes import LANGUES, LANGUES_DOUBLEES, Scenario, Scene, lignes_de
+from .story import ZONES, Carte, Cinematique, StoryMode, Trigger
 from .vfs import Vfs, racine_jeu
 
 __all__ = [
     "LANGUES",
     "LANGUES_DOUBLEES",
     "PAS_PAR_DEFAUT",
+    "ZONES",
     "Ballon",
+    "Carte",
     "Catalogue",
+    "Cinematique",
     "ErreurRendu",
     "Joueur",
     "Match",
@@ -46,6 +50,8 @@ __all__ = [
     "Rendu",
     "Scenario",
     "Scene",
+    "StoryMode",
+    "Trigger",
     "Vfs",
     "chemin_bibliotheque",
     "chemin_nie_game",

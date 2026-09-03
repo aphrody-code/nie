@@ -208,6 +208,88 @@ def _cmd_scenes(args: argparse.Namespace) -> int:
         return 0 if ecrits else 1
 
 
+def _cmd_story(args: argparse.Namespace) -> int:
+    """Indexe le mode histoire — cinématiques, cartes, déclencheurs — et l'exporte."""
+    from .story import StoryMode
+    from .vfs import Vfs
+
+    try:
+        vfs = Vfs(args.racine)
+    except (FileNotFoundError, RuntimeError) as erreur:
+        print(erreur, file=sys.stderr)
+        return 1
+
+    with vfs:
+        print("indexation du mode histoire…", file=sys.stderr)
+        story = StoryMode.indexer(vfs)
+        r = story.resume()
+
+        print(f"cinématiques  {r['cinematiques']:6}  ({r['plans']} plans, {r['acteurs']} acteurs)")
+        print(f"  avec caméra {r['avec_camera']:6}")
+        print(f"  avec script {r['avec_script']:6}")
+        print(f"cartes        {r['cartes']:6}  (dont {r['cartes_avec_navmesh']} avec navmesh)")
+        for zone, n in r["cartes_par_zone"].items():
+            print(f"    {zone:8} {n:5}")
+        print(f"tables map    {r['tables_map']:6}")
+        print(f"déclencheurs  {r['triggers']:6}  (dont {r['triggers_exploitables']} avec table)")
+
+        if args.acteurs:
+            print("\nacteurs les plus présents :")
+            for acteur, n in story.acteurs_frequents(args.acteurs):
+                print(f"    {acteur:14} {n:5} cinématique(s)")
+
+        if args.cle:
+            cine = story.cinematique(args.cle)
+            if cine is None:
+                print(f"cinématique inconnue : {args.cle}", file=sys.stderr)
+                return 2
+            print(f"\n{cine.cle} — {cine.nb_plans} plan(s), {len(cine.acteurs)} acteur(s)")
+            print(f"  caméras {len(cine.cameras)}, scripts {len(cine.scripts)}, "
+                  f"packs {len(cine.packs)}, décors {len(cine.decors)}")
+            for plan in sorted(cine.plans):
+                print(f"    plan {plan} : {len(cine.plans[plan])} fichier(s)")
+
+        if args.index:
+            print(f"\nindex → {story.sauver(args.index)}")
+
+        if not args.out:
+            return 0
+
+        # Export : une fiche JSON par cinématique, plus les cartes et les déclencheurs.
+        sortie = Path(args.out)
+        cines = story.trier_cinematiques()
+        if args.chapitre:
+            cines = [c for c in cines if c.chapitre == args.chapitre]
+        if args.limite:
+            cines = cines[: args.limite]
+
+        dossier_cine = sortie / "cinematiques"
+        dossier_cine.mkdir(parents=True, exist_ok=True)
+        for cine in cines:
+            (dossier_cine / f"{cine.cle}.json").write_text(
+                json.dumps(cine.vers_dict(), ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+
+        (sortie / "cartes.json").write_text(
+            json.dumps(
+                [c.vers_dict() for c in story.trier_cartes()], ensure_ascii=False, indent=2
+            ),
+            encoding="utf-8",
+        )
+        (sortie / "triggers.json").write_text(
+            json.dumps(
+                [t.vers_dict() for t in story.trier_triggers()], ensure_ascii=False, indent=2
+            ),
+            encoding="utf-8",
+        )
+
+        print(
+            f"{len(cines)} cinématique(s), {len(story.cartes)} carte(s) et "
+            f"{len(story.triggers)} déclencheur(s) → {sortie}"
+        )
+        return 0
+
+
 def _cmd_info(_args: argparse.Namespace) -> int:
     """Dit ce que `niepy` voit : lib native, version, VFS."""
     from . import __version__
@@ -264,6 +346,18 @@ def construire_parseur() -> argparse.ArgumentParser:
     p_scenes.add_argument("--chapitre", default="", help="ne garde qu'un chapitre (ex. ev01)")
     p_scenes.add_argument("--limite", type=int, default=0, help="nombre maximal de scènes")
     p_scenes.set_defaults(fonction=_cmd_scenes)
+
+    p_story = sous.add_parser("story", help="cinématiques, cartes et progression du mode histoire")
+    p_story.add_argument("--racine", default=None, help="racine du jeu (défaut : NIE_GAME_DIR)")
+    p_story.add_argument("--index", default="", help="écrit l'index du mode histoire ici")
+    p_story.add_argument("--out", default="", help="exporte les fiches JSON dans ce dossier")
+    p_story.add_argument("--cle", default="", help="détaille une cinématique (ex. ev60_01560)")
+    p_story.add_argument("--chapitre", default="", help="ne garde qu'un chapitre (ex. ev60)")
+    p_story.add_argument("--limite", type=int, default=0, help="nombre maximal de cinématiques")
+    p_story.add_argument(
+        "--acteurs", type=int, default=0, help="affiche les N acteurs les plus présents"
+    )
+    p_story.set_defaults(fonction=_cmd_story)
 
     p_info = sous.add_parser("info", help="état de la lib native et du VFS")
     p_info.set_defaults(fonction=_cmd_info)
