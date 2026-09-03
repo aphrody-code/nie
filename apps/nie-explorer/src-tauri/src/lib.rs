@@ -1221,10 +1221,28 @@ fn bases_embarquees(app: &tauri::AppHandle, nom: &str) -> Vec<PathBuf> {
     if let Ok(dir) = app.path().app_data_dir() {
         chemins.push(dir.join("db").join(nom));
     }
-    if let Ok(dir) = app.path().resource_dir() {
-        chemins.push(dir.join("db").join(nom));
+    for source in dossiers_ressources(app) {
+        chemins.push(source.join(nom));
     }
     chemins
+}
+
+/// Où le bundler dépose `resources/db/*.gz`.
+///
+/// **Tauri conserve le chemin relatif déclaré dans `bundle.resources`** : `"resources/db/*.gz"`
+/// atterrit donc en `<resource_dir>/resources/db/`, et non en `<resource_dir>/db/`. La première
+/// version de ce code visait le second — les archives étaient bien dans le paquet, le dossier
+/// `$APPDATA/db/` ne s'est jamais créé, et rien ne le disait : la résolution retombait simplement
+/// sur le dépôt, qui existe sur cette machine mais sur aucune machine utilisatrice.
+///
+/// Les deux formes sont essayées, la déclarée d'abord : `resource_dir()` lui-même varie (dossier
+/// de l'exécutable hors bundle, `<install>/resources` pour un MSI).
+fn dossiers_ressources(app: &tauri::AppHandle) -> Vec<PathBuf> {
+    use tauri::Manager as _;
+    let Ok(dir) = app.path().resource_dir() else {
+        return Vec::new();
+    };
+    vec![dir.join("resources").join("db"), dir.join("db")]
 }
 
 /// Décompresse les bases livrées avec l'application (`<resources>/db/*.sqlite.gz`) vers
@@ -1241,12 +1259,15 @@ fn bases_embarquees(app: &tauri::AppHandle, nom: &str) -> Vec<PathBuf> {
 /// recopie rien.
 fn installer_bases_embarquees(app: &tauri::AppHandle) -> Vec<PathBuf> {
     use tauri::Manager as _;
-    let (Ok(res_dir), Ok(data_dir)) = (app.path().resource_dir(), app.path().app_data_dir()) else {
+    let Ok(data_dir) = app.path().app_data_dir() else {
         return Vec::new();
     };
-    let source = res_dir.join("db");
     let cible = data_dir.join("db");
-    let Ok(entrees) = std::fs::read_dir(&source) else {
+    // Le premier dossier de ressources qui existe réellement — cf. [`dossiers_ressources`] pour
+    // la raison d'en essayer deux.
+    let Some(entrees) = dossiers_ressources(app).into_iter().find_map(|d| std::fs::read_dir(d).ok())
+    else {
+        eprintln!("bases embarquées : aucun dossier de ressources lisible");
         return Vec::new();
     };
     let mut installees = Vec::new();
