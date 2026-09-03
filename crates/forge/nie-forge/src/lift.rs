@@ -94,6 +94,9 @@ fn mem_of(i: &iced_x86::Instruction) -> Option<Mem> {
         base,
         index,
         disp,
+        // Un deplacement nul occupant un octet dans l'original : la forme
+        // courte `mod=00` rendrait un corps plus court, donc rejete.
+        disp_explicite: disp == 0 && i.memory_displ_size() >= 1,
         rip: None,
     })
 }
