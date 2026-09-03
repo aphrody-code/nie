@@ -623,6 +623,30 @@ enum ImgOp {
         #[arg(long, default_value_t = 0)]
         y: i64,
     },
+    /// Assemble des images en planche (sprite sheet) + son manifeste de rectangles.
+    ///
+    /// Aucune image n'est redimensionnée : les cellules prennent la taille de la plus grande
+    /// et les plus petites sont centrées. Le manifeste porte le rectangle de l'IMAGE, pas
+    /// celui de la cellule — c'est ce qu'un consommateur veut découper.
+    Planche {
+        /// Images sources, dans l'ordre où elles seront posées.
+        srcs: Vec<PathBuf>,
+        #[arg(long, short = 'o')]
+        out: PathBuf,
+        /// Écrit le manifeste JSON à ce chemin. Sans lui, la planche n'est qu'une image.
+        #[arg(long)]
+        manifeste: Option<PathBuf>,
+        /// Nombre de colonnes. `0` = tout sur une seule ligne.
+        #[arg(long, default_value_t = 0)]
+        colonnes: u32,
+        #[arg(long, default_value_t = 16)]
+        marge: u32,
+        #[arg(long, default_value_t = 16)]
+        gouttiere: u32,
+        /// Couleur de fond, `RRGGBB` ou `RRGGBBAA` (défaut : transparent).
+        #[arg(long, default_value = "00000000")]
+        fond: String,
+    },
     /// Compare un rendu à une capture de référence : identité, ΔE2000, SSIM par région, carte.
     Diff {
         /// Image produite par le dépôt.
@@ -1943,6 +1967,9 @@ fn run() -> anyhow::Result<()> {
             ImgOp::Convert { src, out } => img_cmd::Op::Convert { src, out },
             ImgOp::Composite { base, overlay, out, x, y } => {
                 img_cmd::Op::Composite { base, overlay, out, x, y }
+            }
+            ImgOp::Planche { srcs, out, manifeste, colonnes, marge, gouttiere, fond } => {
+                img_cmd::Op::Planche { srcs, out, manifeste, colonnes, marge, gouttiere, fond }
             }
             ImgOp::Diff { rendu, reference, roi, out, downscale_ref, amplification } => {
                 img_cmd::Op::Diff { rendu, reference, roi, out, downscale_ref, amplification }
