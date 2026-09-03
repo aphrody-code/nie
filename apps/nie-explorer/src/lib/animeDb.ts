@@ -52,6 +52,37 @@ export interface SaisonAnime {
   total: number;
 }
 
+/**
+ * Un lot de catalogue venu du VPS (`GET /api/ietv`), tel que `fusionner` l'attend.
+ *
+ * Les champs portent les noms de la ROUTE, pas ceux des colonnes : c'est un contrat entre deux
+ * machines, et le renommer côté serveur casserait le client silencieusement si les deux
+ * partageaient les mêmes noms par coïncidence.
+ */
+export interface LotCatalogue {
+  genere: number;
+  chaines: { id: number; channel: string; title: string | null }[];
+  saisons: { chaineId: number; saison: number; nom: string; total: number }[];
+  episodes: {
+    saison: number;
+    episode: number | null;
+    videoId: string;
+    titre: string;
+    url: string;
+    description: string | null;
+    titreJp: string | null;
+    romaji: string | null;
+    vignette: string | null;
+    publie: string | null;
+    langue: string | null;
+    duree: number | null;
+    /** Nom de la chaîne (`inazuma-eleven.fr (official)`) — la seule clé stable entre les deux bases. */
+    chaine: string;
+    /** `createdAt` du serveur : conservé tel quel, c'est le `since` de la prochaine requête. */
+    moissonne: number;
+  }[];
+}
+
 let promesseDb: Promise<Database> | null = null;
 let cheminOuvert: string | null = null;
 
@@ -139,6 +170,103 @@ export const animeDb = {
         LIMIT $2`,
       [`%${terme}%`, limite],
     );
+  },
+
+  /**
+   * Date de la dernière moisson connue localement (`createdAt` le plus récent), en ms.
+   *
+   * C'est le `since` envoyé au VPS : le serveur ne renvoie alors que ce qui a été moissonné
+   * après, donc quelques centaines d'octets pour un client à jour.
+   */
+  async derniereMoisson(chemin: string): Promise<number> {
+    const d = await connect(chemin);
+    const [r] = await d.select<{ v: number | null }[]>("SELECT max(createdAt) AS v FROM episodes");
+    return r?.v ?? 0;
+  },
+
+  /**
+   * Fusionne un lot venu du VPS dans la base locale.
+   *
+   * `INSERT OR REPLACE` et non un `ON CONFLICT` ciblé : la table porte DEUX contraintes uniques
+   * (`videoId` seul, et `(channel_id, season, episode, language)`), et un épisode republié sous
+   * un autre identifiant violerait la seconde pendant qu'on résout la première. Rien ne référence
+   * `episodes.id`, donc remplacer la ligne n'a aucun effet de bord.
+   *
+   * `createdAt` conserve la valeur du SERVEUR : elle est ce que la prochaine requête enverra en
+   * `since`. L'écraser par l'heure locale ferait redemander éternellement le même lot.
+   *
+   * Les écritures sont **séquentielles à dessein** (le lint le signale) : elles partent toutes
+   * vers la même connexion SQLite, que `sqlx` sérialise de toute façon. Les lancer par
+   * `Promise.all` n'accélérerait rien et ferait perdre l'ordre chaînes → saisons → épisodes, dont
+   * dépendent les clés étrangères.
+   */
+  async fusionner(chemin: string, lot: LotCatalogue): Promise<{ chaines: number; episodes: number }> {
+    const d = await connect(chemin);
+    /** Identifiant DISTANT → identifiant local, et nom de chaîne → identifiant local. */
+    const idParChaine = new Map<number, number>();
+    const idParNom = new Map<string, number>();
+
+    for (const c of lot.chaines) {
+      await d.execute(
+        `INSERT INTO channels (channel, title) VALUES ($1, $2)
+         ON CONFLICT(channel) DO UPDATE SET title = excluded.title,
+                                            updatedAt = cast(unixepoch() * 1000 as integer)`,
+        [c.channel, c.title],
+      );
+      const [r] = await d.select<{ id: number }[]>("SELECT id FROM channels WHERE channel = $1", [
+        c.channel,
+      ]);
+      // Les identifiants du VPS ne sont PAS ceux d'ici (deux AUTOINCREMENT indépendants) : la
+      // correspondance se fait par le nom de chaîne, seule clé stable des deux côtés.
+      if (r) {
+        idParChaine.set(c.id, r.id);
+        idParNom.set(c.channel, r.id);
+      }
+    }
+
+    for (const s of lot.saisons) {
+      const local = idParChaine.get(s.chaineId);
+      if (local === undefined) continue;
+      await d.execute(
+        `INSERT INTO seasons (channel_id, season, name, totalEpisodes) VALUES ($1, $2, $3, $4)
+         ON CONFLICT(channel_id, season) DO UPDATE SET name = excluded.name,
+                                                       totalEpisodes = excluded.totalEpisodes`,
+        [local, s.saison, s.nom, s.total],
+      );
+    }
+
+    let episodes = 0;
+    for (const e of lot.episodes) {
+      // Un épisode dont la chaîne n'a pas été fusionnée est ignoré plutôt que rattaché au
+      // hasard : `channel_id` porte une clé étrangère, et le rattacher à la mauvaise chaîne
+      // ferait apparaître l'épisode sous une source qui ne l'a jamais publié.
+      const local = idParNom.get(e.chaine);
+      if (local === undefined) continue;
+      await d.execute(
+        `INSERT OR REPLACE INTO episodes
+           (channel_id, season, episode, videoId, title, url, description, titleJp, romaji,
+            thumbnail, publishDate, language, duration, createdAt)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+        [
+          local,
+          e.saison,
+          e.episode,
+          e.videoId,
+          e.titre,
+          e.url,
+          e.description,
+          e.titreJp,
+          e.romaji,
+          e.vignette,
+          e.publie,
+          e.langue,
+          e.duree,
+          e.moissonne,
+        ],
+      );
+      episodes += 1;
+    }
+    return { chaines: idParChaine.size, episodes };
   },
 
   /** Volumétrie, pour le tableau de bord et l'état de la vue Cinéma. */
