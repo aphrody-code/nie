@@ -71,6 +71,15 @@ import {
   type SaisonCinema,
 } from "@/lib/cinema";
 import { showFilmContextMenu } from "@/lib/contextMenu";
+import { verifier, type EtatMaj } from "@/lib/majCatalogue";
+import { analyser, chercher, requeteVide } from "@/lib/recherche";
+import {
+  languesDisponibles,
+  passeLangue,
+  sourcesDe,
+  type ContexteSources,
+  type SourceLecture,
+} from "@/lib/sources";
 import {
   ecrireListe,
   ecrireProfilActif,
@@ -87,7 +96,6 @@ import {
   lacunesDeSaison,
   lireVus,
   prochainNonVu,
-  ressemble,
   voisins,
   type LacuneSaison,
 } from "@/lib/serie";
@@ -146,6 +154,10 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
   /** Catalogue de la série — vide tant que la base n'est pas résolue, ou si elle est absente. */
   const [episodes, setEpisodes] = useState<EpisodeAnime[]>([]);
   const [saisonsAnime, setSaisonsAnime] = useState<SaisonAnime[]>([]);
+  /** Chemin résolu de la base des épisodes — ce que la mise à jour depuis le VPS fusionne. */
+  const [cheminAnimeDb, setCheminAnimeDb] = useState<string | null>(null);
+  /** Dernier verdict de la mise à jour : à jour, N épisodes ajoutés, hors ligne, indisponible. */
+  const [maj, setMaj] = useState<EtatMaj | null>(null);
   /** Épisode ouvert dans le cadre d'intégration — l'équivalent série de `enLecture`. */
   const [enLectureEpisode, setEnLectureEpisode] = useState<EpisodeAnime | null>(null);
   /** Vue affichée : accueil, série, Victory Road, ma liste, ou une saison précise. */
@@ -197,6 +209,25 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
         if (!vivant) return;
         setEpisodes(liste);
         setSaisonsAnime(saisons);
+        setCheminAnimeDb(chemin);
+
+        // ── Mise à jour depuis le VPS ────────────────────────────────────────
+        //
+        // APRÈS l'affichage, jamais avant : le catalogue embarqué s'ouvre tout de suite, et se
+        // complète si le serveur a du neuf. Un VPS injoignable ne retarde donc rien et ne
+        // produit aucune erreur visible (`lib/majCatalogue.ts` rend un état, pas une exception).
+        const etat = await verifier(chemin);
+        if (!vivant || !etat) return;
+        setMaj(etat);
+        if (etat.etat === "maj") {
+          const [apres, saisonsApres] = await Promise.all([
+            animeDb.tous(chemin),
+            animeDb.saisons(chemin),
+          ]);
+          if (!vivant) return;
+          setEpisodes(apres);
+          setSaisonsAnime(saisonsApres);
+        }
       })
       .catch(() => {});
     return () => {
@@ -224,6 +255,54 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
       vivant = false;
     };
   }, []);
+
+  /**
+   * Les chemins réellement présents sous `data/dx11/movie`.
+   *
+   * Mesuré le 2026-09-03 : le VFS porte 196 `.usm` pour 97 films — chacun existe sous `common`
+   * ET sous `dx11`, et le catalogue Rust ne retient que `common` (`video.rs`). La seconde source
+   * existait donc sans que rien ne la propose. On la MESURE plutôt que de la deviner : offrir un
+   * montage absent produirait une lecture qui échoue.
+   */
+  const [dx11, setDx11] = useState<ReadonlySet<string>>(() => new Set<string>());
+
+  useEffect(() => {
+    let vivant = true;
+    api
+      .find("dx11/movie", "usm", 500)
+      .then((entrees) => {
+        if (vivant) setDx11(new Set(entrees.map((e) => e.path)));
+        return entrees;
+      })
+      // Un VFS sans montage `dx11` n'est pas une erreur : le sélecteur de source n'aura
+      // simplement qu'une entrée par langue.
+      .catch(() => {});
+    return () => {
+      vivant = false;
+    };
+  }, []);
+
+  /** « Vérifier maintenant » : le même chemin que le contrôle automatique, sans son espacement. */
+  const verifierMaintenant = useCallback(() => {
+    const chemin = cheminAnimeDb;
+    if (!chemin) return;
+    setMaj(null);
+    void verifier(chemin, true).then(async (etat) => {
+      if (!etat) return;
+      setMaj(etat);
+      if (etat.etat === "maj") {
+        const [apres, saisonsApres] = await Promise.all([animeDb.tous(chemin), animeDb.saisons(chemin)]);
+        setEpisodes(apres);
+        setSaisonsAnime(saisonsApres);
+      }
+      return etat;
+    });
+  }, [cheminAnimeDb]);
+
+  const contexteSources = useMemo<ContexteSources>(
+    () => ({ films, episodes, dx11 }),
+    [films, episodes, dx11],
+  );
 
   const traiterFile = useCallback(() => {
     if (occupe.current) return;
@@ -311,18 +390,61 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
 
   // ── Filtrage et regroupement ────────────────────────────────────────────────
 
-  const filtres = useMemo(() => {
-    const q = recherche.trim().toLowerCase();
-    return films.filter((f) => {
-      if (langue && f.langue !== langue) return false;
-      if (!q) return true;
-      return (
-        f.nom.toLowerCase().includes(q) ||
-        f.rubrique.toLowerCase().includes(q) ||
-        (f.nom_origine ?? "").toLowerCase().includes(q)
-      );
-    });
-  }, [films, recherche, langue]);
+  /** La requête analysée : filtres nommés (`s3e12`, `lang:vf`, `type:jeu`) et termes libres. */
+  const requete = useMemo(() => analyser(recherche), [recherche]);
+  const enRecherche = !requeteVide(requete);
+
+  const estVu = useCallback(
+    (el: ElementCinema) =>
+      el.episode?.episode != null && vus.has(empreinte(el.episode.saison, el.episode.episode)),
+    [vus],
+  );
+
+  /**
+   * Le catalogue entier, les deux sources sur le même pied — AVANT toute recherche.
+   *
+   * Les films et les épisodes étaient filtrés séparément, par deux codes qui ne se ressemblaient
+   * pas : trois champs d'un côté, quatre de l'autre, et aucun classement. Une seule liste, un
+   * seul moteur (`lib/recherche.ts`), et la pertinence vaut pour les deux.
+   */
+  const tous = useMemo<ElementCinema[]>(() => {
+    const sortie: ElementCinema[] = [];
+    for (const e of episodes) {
+      sortie.push({
+        cle: e.videoId,
+        titre: e.titre,
+        sousTitre: e.episode ? `Épisode ${e.episode}` : null,
+        source: "anime",
+        saison: `s${e.saison}`,
+        vignette: e.vignette,
+        episode: e,
+      });
+    }
+    for (const f of films) {
+      sortie.push({
+        cle: f.chemin,
+        titre: f.nom,
+        sousTitre: f.rubrique,
+        source: "jeu",
+        saison: CLE_VICTORY_ROAD,
+        vignette: null,
+        film: f,
+      });
+    }
+    return sortie;
+  }, [episodes, films]);
+
+  /** Ce que la langue choisie et la recherche laissent passer, classé par pertinence. */
+  const retenus = useMemo(() => {
+    const parLangue = langue ? tous.filter((el) => passeLangue(el, langue)) : tous;
+    return chercher(parLangue, requete, estVu);
+  }, [tous, langue, requete, estVu]);
+
+  /** Les films retenus, dans l'ordre — c'est la file de lecture du lecteur. */
+  const filtres = useMemo(
+    () => retenus.map((el) => el.film).filter((f): f is FilmDto => f !== undefined),
+    [retenus],
+  );
 
   const rangees = useMemo(() => {
     const par = new Map<string, FilmDto[]>();
@@ -338,11 +460,15 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
     return [...par.entries()].sort(([a], [b]) => ordre(a) - ordre(b) || a.localeCompare(b, "fr"));
   }, [filtres]);
 
-  const langues = useMemo(() => {
-    const vues = new Set<string>();
-    for (const f of films) if (f.langue) vues.add(f.langue);
-    return [...vues].sort();
-  }, [films]);
+  /**
+   * Les langues RÉELLEMENT présentes, avec leur compte.
+   *
+   * Le menu affichait les codes bruts du jeu (`fr`, `JP`) et ignorait la série. Mesuré sur ce
+   * corpus : 4 titres du jeu seulement portent des variantes de langue (9 et 6 versions), et les
+   * 355 épisodes sont tous en `vf`. Proposer les dix langues du modèle donnerait huit entrées qui
+   * ne filtrent rien — `languesDisponibles` n'en rend que ce qui existe (`lib/sources.ts`).
+   */
+  const languesDispo = useMemo(() => languesDisponibles(films, episodes), [films, episodes]);
 
   // ── Le catalogue unifié ─────────────────────────────────────────────────────
   //
@@ -350,38 +476,11 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
   // n'est pas cosmétique : c'est la chronologie de la franchise, et la place du jeu à la fin est
   // exactement ce que la vue veut dire.
   const saisons = useMemo<SaisonCinema[]>(() => {
-    const q = recherche.trim().toLowerCase();
-    // La recherche porte sur les QUATRE champs qui nomment un épisode. Chercher « Sakkā » ou
-    // « 必殺技 » doit trouver, et c'est souvent tout ce dont on se souvient d'un épisode : la base
-    // porte 330 titres japonais, 327 romaji et 355 résumés que rien n'exploitait.
-    const champs = (e: EpisodeAnime) => [e.titre, e.titreJp ?? "", e.romaji ?? "", e.description ?? ""];
-    const exact = (e: EpisodeAnime) => champs(e).some((c) => c.toLowerCase().includes(q));
-
-    let retenus = q ? episodes.filter(exact) : episodes;
-    // Repli approché quand la frappe exacte ne rend rien : « Sakkaa » ou « Teïkoku » ne se
-    // transcrivent pas d'une seule façon, et une lettre près ne devrait pas vider l'écran. C'est
-    // le `fuzzyScore` de `ietv/src/video-search.ts`, porté dans `lib/serie.ts` — mais en REPLI,
-    // jamais en premier : une correspondance exacte ne doit pas se faire diluer par des à-peu-près.
-    if (q.length >= 3 && retenus.length === 0) {
-      retenus = episodes.filter((e) => champs(e).some((c) => ressemble(q, c)));
-    }
-
-    const parSaison = new Map<number, ElementCinema[]>();
-    for (const e of retenus) {
-      const sousTitre = e.episode ? `Épisode ${e.episode}` : null;
-      const cle = `s${e.saison}`;
-      const el: ElementCinema = {
-        cle: e.videoId,
-        titre: e.titre,
-        sousTitre,
-        source: "anime",
-        saison: cle,
-        vignette: e.vignette,
-        episode: e,
-      };
-      const liste = parSaison.get(e.saison);
+    const parSaison = new Map<string, ElementCinema[]>();
+    for (const el of retenus) {
+      const liste = parSaison.get(el.saison);
       if (liste) liste.push(el);
-      else parSaison.set(e.saison, [el]);
+      else parSaison.set(el.saison, [el]);
     }
 
     const sortie: SaisonCinema[] = saisonsAnime
@@ -389,29 +488,16 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
         cle: `s${s.saison}`,
         titre: s.nom,
         source: "anime" as const,
-        elements: parSaison.get(s.saison) ?? [],
+        elements: parSaison.get(`s${s.saison}`) ?? [],
       }))
       .filter((s) => s.elements.length > 0);
 
-    // Victory Road : les cinématiques, déjà filtrées par langue et par recherche plus haut.
-    if (filtres.length > 0) {
-      sortie.push({
-        cle: CLE_VICTORY_ROAD,
-        titre: "Victory Road",
-        source: "jeu",
-        elements: filtres.map((f) => ({
-          cle: f.chemin,
-          titre: f.nom,
-          sousTitre: f.rubrique,
-          source: "jeu" as const,
-          saison: CLE_VICTORY_ROAD,
-          vignette: null,
-          film: f,
-        })),
-      });
+    const vr = parSaison.get(CLE_VICTORY_ROAD);
+    if (vr && vr.length > 0) {
+      sortie.push({ cle: CLE_VICTORY_ROAD, titre: "Victory Road", source: "jeu", elements: vr });
     }
     return sortie;
-  }, [episodes, saisonsAnime, filtres, recherche]);
+  }, [retenus, saisonsAnime]);
 
   /** Tous les éléments du catalogue, par clé — la table que « ma liste » et la fiche consultent. */
   const parCle = useMemo(() => {
@@ -498,8 +584,19 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
   }, [saisonsAnime, episodes, vus]);
 
   /** Ouvre un élément, quelle que soit sa source — le seul endroit qui connaît les deux lecteurs. */
-  const lire = useCallback((el: ElementCinema) => {
+  const lire = useCallback((el: ElementCinema, source?: SourceLecture) => {
     setFiche(null);
+    // La source choisie prime sur l'élément : c'est elle qui porte la langue et le montage
+    // retenus (`dx11` plutôt que `common`, `JP` plutôt que `fr`). Sans source, on lit ce que la
+    // carte désigne — le comportement d'avant le sélecteur.
+    if (source?.film) {
+      setEnLecture(source.film);
+      return;
+    }
+    if (source?.episode) {
+      setEnLectureEpisode(source.episode);
+      return;
+    }
     if (el.film) setEnLecture(el.film);
     else if (el.episode) setEnLectureEpisode(el.episode);
   }, []);
@@ -578,6 +675,16 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
       })),
     }));
   }, [fiche, saisonsSerie, rangees]);
+
+  /**
+   * Les façons de regarder le titre ouvert : variantes de langue, montages `dx11`/`common`, et
+   * — pour un épisode — les autres entrées du même numéro. La langue choisie dans la barre passe
+   * en tête, c'est elle que « Lecture » lancera.
+   */
+  const sourcesFiche = useMemo(
+    () => (fiche ? sourcesDe(fiche, contexteSources, langue || undefined) : []),
+    [fiche, contexteSources, langue],
+  );
 
   const fratrieFiche = useMemo(
     () => saisonsFiche.find((s) => s.cle === saisonFiche)?.elements ?? [],
@@ -746,7 +853,6 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
 
   const technique = !profil.jeunesse;
   const accueil = vue === VUE_ACCUEIL;
-  const enRecherche = recherche.trim().length > 0;
 
   /** Les rangées de la vue courante — le seul endroit qui décide de ce qui est affiché. */
   const rangeesElements: SaisonCinema[] =
@@ -782,34 +888,58 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
 
         <div className="flex-1" />
 
-        <Input
-          value={recherche}
-          onChange={(e) => setRecherche(e.target.value)}
-          placeholder="Rechercher un titre…"
-          className="h-7 w-56 text-xs"
-        />
-        {/* `Select` du design system, comme `DetailPane` : ce `<select>` HTML brut était l'un des
-            deux derniers de l'application à ignorer la palette et la navigation clavier des
-            autres listes. La valeur vide se code `TOUTES` — un `SelectItem value=""` est refusé
-            par base-ui, qui réserve la chaîne vide à l'absence de sélection. */}
-        {langues.length > 1 && (
+        <div className="relative">
+          <Input
+            value={recherche}
+            onChange={(e) => setRecherche(e.target.value)}
+            placeholder="Rechercher — « s3e12 », « lang:vf », « chapitre:5 »…"
+            className="h-7 w-72 text-xs"
+            title={
+              "Filtres reconnus : s3e12 · s:3 · e:12 · lang:vf|vo|vostfr · type:jeu|serie · " +
+              "chapitre:5 · st:oui · vu:non. Tout le reste est cherché dans le titre, le titre " +
+              "japonais, la transcription et le résumé."
+            }
+          />
+          {recherche && (
+            <button
+              type="button"
+              onClick={() => setRecherche("")}
+              aria-label="Effacer la recherche"
+              className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-0.5 text-ink-faint hover:text-ink"
+            >
+              <Icon name="close" size={13} />
+            </button>
+          )}
+        </div>
+
+        {/* Le sélecteur de langue : VO / VF / VOSTFR, pas `fr` et `JP`.
+            Il n'affiche que ce que le catalogue contient VRAIMENT, avec son compte — sur ce
+            corpus, huit des dix langues du modèle ne filtreraient rien du tout. */}
+        {languesDispo.length > 0 && (
           <Select
             value={langue || TOUTES_LANGUES}
             onValueChange={(v) => setLangue(v === TOUTES_LANGUES ? "" : (v ?? ""))}
           >
-            <SelectTrigger size="sm" className="h-7 w-32 text-xs" aria-label="Filtrer par langue">
+            <SelectTrigger size="sm" className="h-7 w-40 text-xs" aria-label="Choisir la langue">
               <SelectValue placeholder="Toutes langues" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={TOUTES_LANGUES}>Toutes langues</SelectItem>
-              {langues.map((l) => (
-                <SelectItem key={l} value={l}>
-                  {l}
+              {languesDispo.map(({ langue: l, films: nf, episodes: ne }) => (
+                <SelectItem key={l.cle} value={l.cle}>
+                  {l.libelle}
+                  <span className="ml-2 text-ink-faint">
+                    {[nf > 0 ? `${nf} film${nf > 1 ? "s" : ""}` : null, ne > 0 ? `${ne} ép.` : null]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         )}
+
+        <IndicateurMaj etat={maj} onVerifier={verifierMaintenant} />
 
         <button
           type="button"
@@ -1050,6 +1180,7 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
         <FicheDetail
           element={fiche}
           fratrie={fratrieFiche}
+          sources={sourcesFiche}
           saisons={saisonsFiche}
           saisonAffichee={saisonFiche}
           vus={vus}
@@ -1086,6 +1217,47 @@ function Pilule({ titre, actif, onClick }: { titre: string; actif: boolean; onCl
       )}
     >
       {titre}
+    </button>
+  );
+}
+
+/**
+ * L'état de la mise à jour du catalogue, en un point et une info-bulle.
+ *
+ * Volontairement minuscule : une mise à jour réussie n'est pas une nouvelle, c'est le
+ * fonctionnement normal. Seul le cas « N épisodes ajoutés » mérite d'être lisible sans survoler,
+ * parce qu'il explique pourquoi le catalogue vient de changer sous les yeux.
+ */
+function IndicateurMaj({ etat, onVerifier }: { etat: EtatMaj | null; onVerifier: () => void }) {
+  const couleur =
+    etat === null
+      ? "bg-ink-faint/40"
+      : etat.etat === "maj"
+        ? "bg-accent"
+        : etat.etat === "a-jour"
+          ? "bg-emerald-500/70"
+          : "bg-status-warning/70";
+  const titre =
+    etat === null
+      ? "Catalogue : contrôle non effectué. Cliquer pour vérifier maintenant."
+      : etat.etat === "maj"
+        ? `${etat.ajoutes} épisode${etat.ajoutes > 1 ? "s" : ""} ajouté${etat.ajoutes > 1 ? "s" : ""} depuis le serveur.`
+        : etat.etat === "a-jour"
+          ? "Catalogue à jour."
+          : etat.etat === "hors-ligne"
+            ? "Serveur injoignable — le catalogue embarqué reste utilisable."
+            : `Mise à jour indisponible : ${etat.raison}`;
+
+  return (
+    <button
+      type="button"
+      onClick={onVerifier}
+      title={titre}
+      aria-label={titre}
+      className="flex items-center gap-1.5 rounded px-1.5 py-1 text-tiny text-ink-faint transition-colors hover:bg-app-hover hover:text-ink"
+    >
+      <span className={cn("size-1.5 rounded-full", couleur)} />
+      {etat?.etat === "maj" && <span className="text-accent">+{etat.ajoutes}</span>}
     </button>
   );
 }

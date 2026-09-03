@@ -33,12 +33,15 @@ import {
   type SaisonCinema,
 } from "@/lib/cinema";
 import { empreinte } from "@/lib/serie";
+import type { SourceLecture } from "@/lib/sources";
 import { cn } from "@/lib/utils";
 
 export interface FicheDetailProps {
   element: ElementCinema;
   /** Les autres titres de la saison affichée — la liste d'épisodes de la fiche. */
   fratrie: ElementCinema[];
+  /** Toutes les façons de regarder ce titre : langues, montages, chaînes (`lib/sources.ts`). */
+  sources: SourceLecture[];
   /** Saisons proposées par le sélecteur. Vide pour un titre du jeu. */
   saisons: SaisonCinema[];
   /** Clé de la saison dont la fratrie est affichée. */
@@ -48,7 +51,7 @@ export interface FicheDetailProps {
   reprises: Reprises;
   /** Fiche technique visible — masquée pour un profil jeunesse. */
   technique: boolean;
-  onLire: (el: ElementCinema) => void;
+  onLire: (el: ElementCinema, source?: SourceLecture) => void;
   onBasculerVu: (el: ElementCinema) => void;
   onBasculerListe: (cle: string) => void;
   onChoisirSaison: (cle: string) => void;
@@ -61,6 +64,7 @@ export interface FicheDetailProps {
 export function FicheDetail({
   element,
   fratrie,
+  sources,
   saisons,
   saisonAffichee,
   vus,
@@ -81,6 +85,18 @@ export function FicheDetail({
   const reprise = reprises[element.cle];
   const vu = episode?.episode != null && vus.has(empreinte(episode.saison, episode.episode));
   const dansListe = liste.has(element.cle);
+
+  /**
+   * La source retenue, par son identifiant.
+   *
+   * `null` signifie « celle que le catalogue propose par défaut », pas « aucune » : tant que
+   * personne n'a choisi, la fiche suit la langue de la barre et la meilleure définition
+   * disponible (cf. le tri de `sourcesDe`). Le choix se réinitialise en changeant de titre — le
+   * garder ferait lire l'épisode suivant dans une langue qu'on n'a pas demandée pour lui.
+   */
+  const [choisie, setChoisie] = useState<string | null>(null);
+  useEffect(() => setChoisie(null), [element.cle]);
+  const source = sources.find((s) => s.id === choisie) ?? sources.find((s) => s.defaut) ?? null;
 
   // Le préchargement part dès l'ouverture de la fiche : à ce stade l'intention n'a plus rien
   // d'ambigu — on ne survole pas une fiche par accident. C'est le seul endroit de la vue où on
@@ -162,10 +178,30 @@ export function FicheDetail({
             )}
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              <Button onClick={() => onLire(element)}>
+              <Button onClick={() => onLire(element, source ?? undefined)}>
                 <Icon name="play_arrow" size={16} />
                 {progression > 0 ? "Reprendre" : "Lecture"}
               </Button>
+
+              {/* Le choix de source, et seulement quand il y en a un.
+                  Mesuré sur ce corpus : 4 titres du jeu existent en 6 à 9 langues, et les 97
+                  films ont chacun deux montages (`common` et `dx11`). Les 93 autres n'ont qu'une
+                  version — leur afficher un sélecteur à une entrée serait un choix pour rien. */}
+              {sources.length > 1 && (
+                <Select value={source?.id ?? ""} onValueChange={(v) => v && setChoisie(v)}>
+                  <SelectTrigger size="sm" className="h-9 w-64 text-xs" aria-label="Choisir la source">
+                    <SelectValue placeholder="Source" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sources.map((s) => (
+                      <SelectItem key={s.id} value={s.id} disabled={!s.lisible}>
+                        {s.libelle}
+                        {s.detail ? <span className="ml-2 text-ink-faint">{s.detail}</span> : null}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               <BoutonRond
                 actif={dansListe}
                 titre={dansListe ? "Retirer de ma liste" : "Ajouter à ma liste"}
