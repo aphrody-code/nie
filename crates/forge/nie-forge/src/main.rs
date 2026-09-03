@@ -170,6 +170,16 @@ enum Cmd {
         #[arg(long, default_value_t = 15)]
         top: usize,
     },
+    /// Reporte le découpage et l'état de production dans la base de connaissance.
+    ///
+    /// Écrit la table `forge_unit` et la vue `v_forge_function` : chaque fonction
+    /// de la base y gagne son offset, sa taille mesurée, sa nature et son statut
+    /// (`produit`, `bloque` avec cause, `donnees_inline`, `regle`, `verbatim`).
+    /// Rien n'est modifié dans `function` — le reverse garde ses colonnes.
+    Kb {
+        #[command(flatten)]
+        paths: Paths,
+    },
     /// Recense les corps de fonctions identiques : la liste de travail du portage.
     ///
     /// Un même corps partagé par N fonctions signifie qu'**une** implémentation
@@ -220,6 +230,7 @@ fn main() -> anyhow::Result<()> {
             out,
             top,
         } => cmd_lift(&paths, max_len, &out, top),
+        Cmd::Kb { paths } => cmd_kb(&paths),
         Cmd::Cc {
             paths,
             src,
@@ -463,6 +474,24 @@ fn cmd_lift(paths: &Paths, max_len: usize, out: &str, top: usize) -> anyhow::Res
             b.cause, b.units, b.bytes, b.sample
         );
     }
+    Ok(())
+}
+
+fn cmd_kb(paths: &Paths) -> anyhow::Result<()> {
+    let exe = paths.exe_path()?;
+    let store = ForgeStore::load(&paths.forge)?;
+    let reference = ReferenceBinary::load_checked(&exe, &store.cover)?;
+    let b = nie_forge::kb::synchroniser(&paths.db, &store.cover, &reference.bytes)?;
+    println!(
+        "kb db={} binary_id={} unites={} produites={} bloquees={} hors_decoupage={} tailles_divergentes={}",
+        paths.db.display(),
+        b.binary_id,
+        b.unites,
+        b.produites,
+        b.bloquees,
+        b.hors_decoupage,
+        b.tailles_divergentes,
+    );
     Ok(())
 }
 
