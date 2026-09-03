@@ -3388,6 +3388,7 @@ dependencies = [
  "async-trait",
  "base64 0.22.1",
  "clipboard-win",
+ "flate2",
  "nie-app",
  "nie-core",
  "nie-data",
