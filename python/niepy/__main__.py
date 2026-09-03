@@ -1,0 +1,193 @@
+"""Ligne de commande de `niepy` — `uv run python -m niepy <commande>`.
+
+Ce point d'entrée ne double pas `niers` : il couvre ce qui appartient au monde Python, à
+savoir la génération de script Ren'Py et l'export de données vers un projet Python. Les
+assets (voix, portraits, musique) restent produits par `niers vn export`, qui sait lire les
+CPK.
+
+    uv run python -m niepy renpy --out <projet>/game/nie
+    uv run python -m niepy data  --out <projet>/game/nie/data
+    uv run python -m niepy info
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+from typing import Any, Sequence
+
+from .renpy import Catalogue
+
+#: Familles de données du jeu exportées par `data`, et leur **dossier** dans le VFS.
+#:
+#: Ce sont des dossiers, pas des fichiers, et c'est délibéré : les noms de fichiers du jeu
+#: portent un numéro de version (`chara_base_1.03.98.00.cfg.bin`, `item_config_7.00.25.00…`)
+#: qui change d'un patch à l'autre. Un chemin de fichier en dur casserait à la mise à jour
+#: suivante ; le dossier, lui, est stable.
+#:
+#: La liste est volontairement courte : un export « tout le VFS » produirait des dizaines de
+#: gigaoctets, dont l'essentiel n'a aucun sens dans un visual novel.
+FAMILLES: dict[str, str] = {
+    "personnages": "data/common/gamedata/character/",
+    "techniques": "data/common/gamedata/skill/",
+    "objets": "data/common/gamedata/item/",
+    "equipes": "data/common/gamedata/team/",
+}
+
+
+def _cmd_renpy(args: argparse.Namespace) -> int:
+    """Génère le `.rpy` qui déclare personnages, portraits et musique."""
+    dossier = Path(args.out)
+    try:
+        catalogue = Catalogue.charger(dossier)
+    except FileNotFoundError as erreur:
+        print(erreur, file=sys.stderr)
+        return 1
+
+    cible = dossier.parent / args.nom if args.nom else dossier.parent / "nie_catalogue.rpy"
+    ecrit = catalogue.ecrire_script(cible, prefixe=args.prefixe)
+    doubles = len(catalogue.doubles())
+    print(
+        f"{ecrit}  —  {len(catalogue)} personnage(s) dont {doubles} doublé(s), "
+        f"{len(catalogue.musique)} piste(s)"
+    )
+    return 0
+
+
+def _cmd_data(args: argparse.Namespace) -> int:
+    """Exporte les familles de données du jeu en JSON, lisibles depuis un projet Python."""
+    # Import tardif : `renpy` et `info` doivent marcher sans que le VFS soit montable.
+    from .vfs import Vfs
+
+    sortie = Path(args.out)
+    sortie.mkdir(parents=True, exist_ok=True)
+
+    demandees = args.familles.split(",") if args.familles else list(FAMILLES)
+    inconnues = [f for f in demandees if f not in FAMILLES]
+    if inconnues:
+        print(
+            f"famille(s) inconnue(s) : {', '.join(inconnues)}. "
+            f"Connues : {', '.join(FAMILLES)}",
+            file=sys.stderr,
+        )
+        return 2
+
+    try:
+        vfs = Vfs(args.racine)
+    except (FileNotFoundError, RuntimeError) as erreur:
+        print(erreur, file=sys.stderr)
+        return 1
+
+    ecrits, echecs = 0, 0
+    with vfs:
+        # Un SEUL parcours de l'index pour toutes les familles : l'énumération est ce qui
+        # coûte (255 000 entrées), pas le filtrage. Une passe par famille multiplierait ce
+        # coût par le nombre de familles demandées.
+        a_traiter: list[tuple[str, str]] = []
+        for entree in vfs.parcourir():
+            chemin = entree.get("path", "")
+            if not chemin.endswith(".cfg.bin"):
+                continue
+            for famille in demandees:
+                if chemin.startswith(FAMILLES[famille]):
+                    a_traiter.append((famille, chemin))
+                    break
+
+        for famille, chemin in a_traiter:
+            dossier = sortie / famille
+            dossier.mkdir(parents=True, exist_ok=True)
+            nom = Path(chemin).name.removesuffix(".cfg.bin")
+            try:
+                donnees: Any = vfs.charger(chemin)
+            except (FileNotFoundError, ValueError) as erreur:
+                # Un fichier illisible n'arrête pas l'export : le corpus est hétérogène et un
+                # export partiel reste utilisable. Mais il est signalé, jamais avalé.
+                print(f"  ⚠ {famille}/{nom} — {erreur}", file=sys.stderr)
+                echecs += 1
+                continue
+
+            (dossier / f"{nom}.json").write_text(
+                json.dumps(donnees, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+            ecrits += 1
+
+        for famille in demandees:
+            n = sum(1 for f, _ in a_traiter if f == famille)
+            print(f"  {famille:14} {n:4} fichier(s)")
+
+    print(f"{ecrits} fichier(s) exporté(s) vers {sortie}", end="")
+    print(f", {echecs} en échec" if echecs else "")
+    return 0 if ecrits else 1
+
+
+def _cmd_info(_args: argparse.Namespace) -> int:
+    """Dit ce que `niepy` voit : lib native, version, VFS."""
+    from . import __version__
+    from ._ffi import chemin_bibliotheque
+
+    print(f"niepy        {__version__}")
+    try:
+        chemin = chemin_bibliotheque()
+        print(f"nie_ffi      {chemin}")
+    except FileNotFoundError as erreur:
+        print(f"nie_ffi      ABSENTE — {erreur}", file=sys.stderr)
+        return 1
+
+    from .formats import version
+
+    print(f"crate        {version()}")
+
+    try:
+        from .vfs import Vfs
+
+        with Vfs() as vfs:
+            print(f"vfs          {len(vfs)} entrées — {vfs.racine}")
+    except (FileNotFoundError, RuntimeError) as erreur:
+        print(f"vfs          indisponible — {erreur}")
+    return 0
+
+
+def construire_parseur() -> argparse.ArgumentParser:
+    """Construit le parseur d'arguments."""
+    parseur = argparse.ArgumentParser(
+        prog="niepy", description="Pont Python vers le moteur et les données de niers."
+    )
+    sous = parseur.add_subparsers(dest="commande", required=True)
+
+    p_renpy = sous.add_parser("renpy", help="génère le .rpy depuis un catalogue exporté")
+    p_renpy.add_argument("--out", required=True, help="dossier d'export (contient catalogue.json)")
+    p_renpy.add_argument("--prefixe", default="nie", help="préfixe des identifiants (défaut : nie)")
+    p_renpy.add_argument("--nom", default="", help="nom du fichier .rpy produit")
+    p_renpy.set_defaults(fonction=_cmd_renpy)
+
+    p_data = sous.add_parser("data", help="exporte les familles de données du jeu en JSON")
+    p_data.add_argument("--out", required=True, help="dossier de sortie")
+    p_data.add_argument("--racine", default=None, help="racine du jeu (défaut : NIE_GAME_DIR)")
+    p_data.add_argument(
+        "--familles", default="", help=f"liste séparée par des virgules ({', '.join(FAMILLES)})"
+    )
+    p_data.set_defaults(fonction=_cmd_data)
+
+    p_info = sous.add_parser("info", help="état de la lib native et du VFS")
+    p_info.set_defaults(fonction=_cmd_info)
+
+    return parseur
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """Point d'entrée. Rend le code de sortie du processus."""
+    # La console Windows est en cp1252 par défaut : sans cela, « exporté » sort en « export? ».
+    # `errors="replace"` évite qu'un nom d'asset exotique fasse planter l'affichage.
+    for flux in (sys.stdout, sys.stderr):
+        if hasattr(flux, "reconfigure"):
+            flux.reconfigure(encoding="utf-8", errors="replace")
+
+    args = construire_parseur().parse_args(argv)
+    resultat: int = args.fonction(args)
+    return resultat
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

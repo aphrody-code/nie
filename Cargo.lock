@@ -4313,6 +4313,7 @@ dependencies = [
  "image",
  "nie-core",
  "nie-formats",
+ "nie-runtime",
  "serde_json",
 ]
 

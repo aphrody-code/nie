@@ -24,3 +24,7 @@ nie-formats = { workspace = true, features = ["serde", "textures"] }
 serde_json.workspace = true
 # `image` : encodage PNG des atlas de glyphes (make_glyph_png) + décodage dans les tests.
 image = { version = "0.25", default-features = false, features = ["png"] }
+# `nie-runtime` : le moteur de match jouable (World/step/kickoff), exposé au bloc `nie_world_*`.
+# C'est ce qui permet à un runtime extérieur — la lib Python `niepy`, donc Ren'Py — de faire
+# TOURNER la simulation, et pas seulement de lire des assets.
+nie-runtime.workspace = true
