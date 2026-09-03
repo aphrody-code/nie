@@ -169,6 +169,23 @@ export function identifiantOfficiel(slug: string, numero: number): string {
 /** Métadonnées lues sur la page d'un épisode. */
 export interface MetaEpisode {
 	idYoutube: string | null;
+	/**
+	 * Identifiant Dailymotion de la page, quand la vidéo n'est pas sur YouTube.
+	 *
+	 * Optionnel à dessein : les caches sur disque écrits par les versions
+	 * antérieures (`~/.cache/ietv/data/meta-*.json`) ne portent pas ce champ, et
+	 * les relire ne doit pas échouer. Une valeur absente vaut « pas encore
+	 * cherché », pas « pas de Dailymotion ».
+	 */
+	idDailymotion?: string | null;
+	/**
+	 * Clé du lecteur Dailymotion de la page (`xm8tv`).
+	 *
+	 * Les vidéos Dailymotion du site sont RESTREINTES à ce lecteur : l'API
+	 * publique répond 404 sur `x7v8ls0` alors que le site le joue. Sans la clé,
+	 * la seule URL qu'on saurait fabriquer serait morte.
+	 */
+	clePlayerDailymotion?: string | null;
 	titre: string | null;
 	description: string | null;
 	vignette: string | null;
@@ -205,6 +222,8 @@ export function parserMetaEpisode(html: string): MetaEpisode {
 
 	return {
 		idYoutube: extraireIdYoutube(html),
+		idDailymotion: extraireIdDailymotion(html),
+		clePlayerDailymotion: extraireClePlayerDailymotion(html),
 		titre: chaine(episode?.name) ?? chaine(video?.name),
 		description: chaine(episode?.description) ?? chaine(video?.description),
 		vignette,
@@ -227,6 +246,35 @@ export function extraireIdYoutube(html: string): string | null {
 		/youtube(?:-nocookie)?\.com\/embed\/([A-Za-z0-9_-]{11})/.exec(html) ??
 		/img\.youtube\.com\/vi\/([A-Za-z0-9_-]{11})/.exec(html) ??
 		/youtube\.com\/watch\?v=([A-Za-z0-9_-]{11})/.exec(html);
+	return trouve ? trouve[1]! : null;
+}
+
+/**
+ * Identifiant Dailymotion porté par une page d'épisode.
+ *
+ * ── LA MOITIÉ DU CATALOGUE PASSE PAR LÀ ────────────────────────────────────
+ * Toutes les pages d'épisode n'intègrent pas YouTube : mesuré le 2026-09-03,
+ * 143 des 355 épisodes français — la saison 3 sauf onze, tout Chrono Stones et
+ * tout Galaxy — sont servis par Dailymotion. La page les intègre par
+ * `dailymotion.com/player/<clé>.html?video=<id>` et annonce la même vidéo dans
+ * l'URL de sa vignette. Sans cette lecture, ces 143 épisodes n'avaient AUCUN
+ * identifiant de lecture : le catalogue leur fabriquait un jeton local
+ * (`off-galaxy-1`) qu'aucun lecteur ne sait ouvrir.
+ *
+ * Les trois formes sont acceptées parce que les trois apparaissent réellement
+ * dans le HTML servi, et qu'aucune n'est garantie présente à elle seule.
+ */
+export function extraireIdDailymotion(html: string): string | null {
+	const trouve =
+		/dailymotion\.com\/player\/[A-Za-z0-9]+\.html\?(?:[^"'&]*&)?video=([A-Za-z0-9]+)/.exec(html) ??
+		/dailymotion\.com\/(?:embed\/)?video\/([A-Za-z0-9]+)/.exec(html) ??
+		/dailymotion\.com\/thumbnail\/video\/([A-Za-z0-9]+)/.exec(html);
+	return trouve ? trouve[1]! : null;
+}
+
+/** Clé du lecteur Dailymotion intégré par une page (`xm8tv`), sinon `null`. */
+export function extraireClePlayerDailymotion(html: string): string | null {
+	const trouve = /dailymotion\.com\/player\/([A-Za-z0-9]+)\.html/.exec(html);
 	return trouve ? trouve[1]! : null;
 }
 

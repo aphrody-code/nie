@@ -71,8 +71,10 @@ import {
   plateformeDe,
   urlExterne,
   urlIntegrationEpisode,
+  urlIntegrationSource,
   type EpisodeAnime,
   type SaisonAnime,
+  type SourceEpisode,
 } from "@/lib/animeDb";
 import {
   CLE_VICTORY_ROAD,
@@ -91,6 +93,7 @@ import { showFilmContextMenu } from "@/lib/contextMenu";
 import { verifier, type EtatMaj } from "@/lib/majCatalogue";
 import { analyser, chercher, requeteVide } from "@/lib/recherche";
 import {
+  langueParCle,
   languesDisponibles,
   passeLangue,
   sourcesDe,
@@ -113,6 +116,7 @@ import {
   lacunesDeSaison,
   lireVus,
   prochainNonVu,
+  titreCourt,
   voisins,
   type LacuneSaison,
 } from "@/lib/serie";
@@ -128,6 +132,23 @@ const VUE_LISTE = "__liste__";
 /** Valeur du filtre « toutes langues » — `base-ui` réserve la chaîne vide à l'absence de
  * sélection et refuse un `SelectItem value=""`, d'où ce jeton, traduit en `""` à la sortie. */
 const TOUTES_LANGUES = "__toutes__";
+
+/**
+ * Range les sources par épisode, en conservant l'ordre de préférence rendu par SQL.
+ *
+ * L'ordre compte : la première source d'un épisode est celle que le lecteur ouvre par défaut,
+ * la mieux établie (vérifiée avant déclarée, officielle avant le reste).
+ */
+function indexerSources(sources: readonly SourceEpisode[]): Map<string, SourceEpisode[]> {
+  const parEpisode = new Map<string, SourceEpisode[]>();
+  for (const s of sources) {
+    const cle = empreinte(s.saison, s.episode ?? -1);
+    const liste = parEpisode.get(cle);
+    if (liste) liste.push(s);
+    else parEpisode.set(cle, [s]);
+  }
+  return parEpisode;
+}
 
 /** Délai de survol avant de lancer une prévisualisation, en millisecondes. */
 const DELAI_APERCU = 550;
@@ -171,6 +192,32 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
   /** Catalogue de la série — vide tant que la base n'est pas résolue, ou si elle est absente. */
   const [episodes, setEpisodes] = useState<EpisodeAnime[]>([]);
   const [saisonsAnime, setSaisonsAnime] = useState<SaisonAnime[]>([]);
+  /**
+   * Les sources de lecture, indexées par épisode — 1 770 lignes pour 355 épisodes.
+   *
+   * Chargées avec le catalogue et gardées en mémoire : une requête par fiche ouverte ferait
+   * attendre à chaque clic pour une information qui tient entière dans une page.
+   */
+  const [sourcesParEpisode, setSourcesParEpisode] = useState<Map<string, SourceEpisode[]>>(new Map());
+  /**
+   * La source que l'utilisateur a choisie dans le lecteur — `null` = celle par défaut.
+   *
+   * Une CLÉ (`plateforme:sourceId:langue`) et pas un rang : le catalogue peut se compléter
+   * pendant la lecture, et un rang désignerait alors une autre vidéo sans prévenir.
+   */
+  const [cleSourceChoisie, setCleSourceChoisie] = useState<string | null>(null);
+  /** La langue voulue dans le lecteur, retenue d'un épisode au suivant — `null` = indifférent. */
+  const [languePreferee, setLanguePreferee] = useState<string | null>(null);
+  // Échap referme le lecteur d'épisode. Le lecteur de cinématiques a déjà le sien
+  // (`VideoPlayer`, où Échap est documenté dans le panneau d'aide) ; l'intégration n'en avait
+  // aucun, et une iframe qui a le focus ne rend pas la touche à la fenêtre.
+  useEffect(() => {
+    const surTouche = (ev: KeyboardEvent) => {
+      if (ev.key === "Escape") setEnLectureEpisode(null);
+    };
+    window.addEventListener("keydown", surTouche);
+    return () => window.removeEventListener("keydown", surTouche);
+  }, []);
   /** Chemin résolu de la base des épisodes — ce que la mise à jour depuis le VPS fusionne. */
   const [cheminAnimeDb, setCheminAnimeDb] = useState<string | null>(null);
   /** Dernier verdict de la mise à jour : à jour, N épisodes ajoutés, hors ligne, indisponible. */
@@ -222,13 +269,17 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
     defaultAnimeDbPath(parametres.gameDir)
       .then(async (chemin) => {
         if (!chemin || !vivant) return;
-        const [tousEpisodes, saisonsLues] = await Promise.all([
+        const [tousEpisodes, saisonsLues, toutesSources] = await Promise.all([
           animeDb.tous(chemin),
           animeDb.saisons(chemin),
+          // `catch` et pas `await` nu : une base antérieure à la table `episode_sources` doit
+          // continuer d'ouvrir le catalogue, sans sélecteur, plutôt que de rester noire.
+          animeDb.sources(chemin).catch(() => [] as SourceEpisode[]),
         ]);
         if (!vivant) return;
         setEpisodes(tousEpisodes);
         setSaisonsAnime(saisonsLues);
+        setSourcesParEpisode(indexerSources(toutesSources));
         setCheminAnimeDb(chemin);
 
         // ── Mise à jour depuis le VPS ────────────────────────────────────────
@@ -240,13 +291,15 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
         if (!vivant || !etat) return;
         setMaj(etat);
         if (etat.etat === "maj") {
-          const [apres, saisonsApres] = await Promise.all([
+          const [apres, saisonsApres, sourcesApres] = await Promise.all([
             animeDb.tous(chemin),
             animeDb.saisons(chemin),
+            animeDb.sources(chemin).catch(() => [] as SourceEpisode[]),
           ]);
           if (!vivant) return;
           setEpisodes(apres);
           setSaisonsAnime(saisonsApres);
+          setSourcesParEpisode(indexerSources(sourcesApres));
         }
       })
       .catch(() => {});
@@ -311,9 +364,14 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
       if (!etat) return;
       setMaj(etat);
       if (etat.etat === "maj") {
-        const [apres, saisonsApres] = await Promise.all([animeDb.tous(chemin), animeDb.saisons(chemin)]);
+        const [apres, saisonsApres, sourcesApres] = await Promise.all([
+          animeDb.tous(chemin),
+          animeDb.saisons(chemin),
+          animeDb.sources(chemin).catch(() => [] as SourceEpisode[]),
+        ]);
         setEpisodes(apres);
         setSaisonsAnime(saisonsApres);
+        setSourcesParEpisode(indexerSources(sourcesApres));
       }
       return etat;
     });
@@ -446,7 +504,9 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
     for (const e of episodes) {
       sortie.push({
         cle: e.videoId,
-        titre: e.titre,
+        // `titreCourt` et pas `e.titre` : la base préfixe chaque titre de « <saison> — Épisode
+        // <n> - », en numérotation CONTINUE, quand le badge et `sousTitre` comptent par saison.
+        titre: titreCourt(e.titre),
         sousTitre: e.episode ? `Épisode ${e.episode}` : null,
         source: "anime",
         saison: `s${e.saison}`,
@@ -589,7 +649,7 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
       if (!premier) continue;
       sortie.push({
         cle: premier.videoId,
-        titre: premier.titre,
+        titre: titreCourt(premier.titre),
         sousTitre: s.nom,
         source: "anime",
         saison: `s${s.saison}`,
@@ -752,17 +812,94 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
     const parNumero = (n: number | null) => (n === null ? null : (dansSaison.find((x) => x.episode === n) ?? null));
     const nomSaison = saisonsAnime.find((s) => s.saison === e.saison)?.nom ?? `Saison ${e.saison}`;
     const vu = e.episode !== null && vus.has(empreinte(e.saison, e.episode));
+
+    // ── Les sources de CET épisode ────────────────────────────────────────────
+    //
+    // Cinq en moyenne (min 4, max 8), en plusieurs langues et sur trois plateformes. L'ordre
+    // vient de SQL et porte la préférence : vérifiée avant déclarée, officielle avant le reste.
+    const sourcesEp = sourcesParEpisode.get(empreinte(e.saison, e.episode ?? -1)) ?? [];
+    const cleDe = (s: SourceEpisode) => `${s.plateforme}:${s.sourceId}:${s.langue}`;
+    /** Les langues réellement disponibles POUR CET ÉPISODE — pas la liste théorique. */
+    const languesEp = [...new Set(sourcesEp.map((s) => s.langue))];
+    /** La langue retenue : celle qu'on préfère si cet épisode l'a, sinon celle qu'il a. */
+    const langueEp =
+      languePreferee && languesEp.includes(languePreferee) ? languePreferee : (languesEp[0] ?? null);
+    const sourcesLangue = sourcesEp.filter((s) => s.langue === langueEp);
+    /** Le choix explicite s'il vaut encore pour cet épisode, sinon la première — la mieux établie. */
+    const sourceActive =
+      sourcesLangue.find((s) => cleDe(s) === cleSourceChoisie) ?? sourcesLangue[0] ?? null;
+
     return (
       <div className="flex h-full min-h-0 flex-col bg-black">
         <div className="flex items-center gap-2 border-b border-white/10 px-4 py-2">
+          {/* Le retour est le premier élément du bandeau, à gauche du titre : c'est là qu'on le
+              cherche, et c'est le geste le plus fréquent une fois l'épisode fini. */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0 border-white/20 bg-white/5 text-white hover:bg-white/10"
+            onClick={() => setEnLectureEpisode(null)}
+            title="Retour au catalogue (Échap)"
+          >
+            <Icon name="arrow_back" size={16} />
+            Retour
+          </Button>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-semibold text-white">{e.titre}</div>
+            {/* `titreCourt` : la ligne du dessous donne déjà la saison et le numéro. Sans lui, le
+                bandeau affichait « Chrono Stones — Épisode 48 - … » AU-DESSUS de « Chrono Stones ·
+                épisode 1 » — deux numérotations du même épisode, à deux lignes d'écart. */}
+            <div className="truncate text-sm font-semibold text-white">{titreCourt(e.titre)}</div>
             <div className="truncate text-xs text-white/50">
               {nomSaison}
               {e.episode ? ` · épisode ${e.episode}` : ""}
               {e.publie ? ` · ${new Date(e.publie).toLocaleDateString("fr-FR")}` : ""}
             </div>
           </div>
+
+          {/* ── Langue et source ──────────────────────────────────────────────
+              Les deux sélecteurs n'apparaissent QUE s'il y a un choix à faire : un épisode qui
+              n'existe qu'en une langue afficherait sinon un menu à une entrée, qui promet un
+              choix inexistant. Le second est étiqueté par la plateforme, parce que c'est ce qui
+              change réellement d'une source à l'autre — la qualité, elle, n'est presque jamais
+              renseignée par les plateformes, et l'annoncer serait inventer. */}
+          {languesEp.length > 1 && (
+            <Select
+              value={langueEp ?? undefined}
+              onValueChange={(v) => {
+                setLanguePreferee(v);
+                setCleSourceChoisie(null);
+              }}
+            >
+              <SelectTrigger className="h-7 w-auto min-w-[5.5rem] border-white/15 bg-white/5 text-xs text-white/85">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {languesEp.map((l) => (
+                  <SelectItem key={l} value={l}>
+                    {langueParCle(l)?.libelle ?? l.toUpperCase()}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          {sourcesLangue.length > 1 && sourceActive && (
+            <Select value={cleDe(sourceActive)} onValueChange={(v) => setCleSourceChoisie(v)}>
+              <SelectTrigger className="h-7 w-auto min-w-[7rem] border-white/15 bg-white/5 text-xs text-white/85">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {sourcesLangue.map((s) => (
+                  <SelectItem key={cleDe(s)} value={cleDe(s)}>
+                    {s.plateforme === "page" ? "Page officielle" : s.plateforme}
+                    {s.qualite ? ` · ${s.qualite}` : ""}
+                    {s.confiance === "verifiee" ? " ✓" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
           <Button
             variant="ghost"
             size="sm"
@@ -827,16 +964,24 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
             officielle et se lisent par Dailymotion. Les envoyer tous à `youtube-nocookie` donnait
             un cadre vide — c'est ce qui faisait paraître ces deux saisons en panne. */}
         {(() => {
-          const integration = urlIntegrationEpisode(e);
+          // La SOURCE choisie d'abord ; `urlIntegrationEpisode` ne sert plus que de repli pour
+          // une base antérieure à `episode_sources`, où l'épisode n'a que son `videoId`.
+          const integration = sourceActive
+            ? urlIntegrationSource(sourceActive)
+            : urlIntegrationEpisode(e);
           if (!integration) {
             return (
               <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 bg-black px-6 text-center">
                 <Icon name="movie" size={40} className="text-white/30" />
                 <p className="max-w-md text-sm text-white/70">
-                  Cet épisode n'a pas de source intégrable dans la base : ni identifiant YouTube,
-                  ni vignette Dailymotion dont tirer un lecteur.
+                  {sourceActive
+                    ? "Cette source n'a pas de lecteur intégrable : elle désigne une page à ouvrir."
+                    : "Cet épisode n'a aucune source intégrable dans la base."}
                 </p>
-                <Button variant="outline" onClick={() => void openUrl(urlExterne(e))}>
+                <Button
+                  variant="outline"
+                  onClick={() => void openUrl(sourceActive?.url ?? urlExterne(e))}
+                >
                   <Icon name="open_in_new" size={16} />
                   Ouvrir la page officielle
                 </Button>
@@ -845,7 +990,9 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
           }
           return (
             <iframe
-              key={e.videoId}
+              // La clé porte la SOURCE : changer de langue ou de plateforme doit remonter un
+              // nouveau lecteur. Avec `e.videoId`, React gardait l'iframe et sa vidéo d'origine.
+              key={sourceActive ? `${sourceActive.plateforme}:${sourceActive.sourceId}` : e.videoId}
               src={integration}
               title={e.titre}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
@@ -1074,7 +1221,7 @@ export function CinemaView({ onOpenFile }: { onOpenFile?: (path: string) => void
                 <div className="truncate text-sm text-ink">
                   {aReprendreSerie.saison.nom}
                   {aReprendreSerie.episode.episode ? ` · épisode ${aReprendreSerie.episode.episode}` : ""} —{" "}
-                  {aReprendreSerie.episode.titre}
+                  {titreCourt(aReprendreSerie.episode.titre)}
                 </div>
               </div>
               <Button size="sm" onClick={() => setEnLectureEpisode(aReprendreSerie.episode)}>
@@ -1312,8 +1459,11 @@ function Grille({
   return (
     <section className="px-4 py-3">
       <div className="mb-3 flex items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={onRetour} title="Revenir">
+        {/* Libellé et pas seulement une flèche : une icône nue de 16 px, en variante fantôme,
+            ne se distingue pas du titre qu'elle jouxte — on ne la voyait pas. */}
+        <Button variant="outline" size="sm" onClick={onRetour} title="Revenir (Échap)">
           <Icon name="arrow_back" size={16} />
+          Retour
         </Button>
         <h3 className="text-sm font-semibold text-ink">{titre}</h3>
         <span className="text-tiny text-ink-faint">{sousTitre}</span>

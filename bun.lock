@@ -178,7 +178,7 @@
     },
     "apps/nie-explorer": {
       "name": "nie-explorer",
-      "version": "0.5.4",
+      "version": "0.5.5",
       "dependencies": {
         "@base-ui/react": "^1.7.0",
         "@monaco-editor/react": "^4.7.0",
@@ -226,7 +226,7 @@
     },
     "apps/nie-mcp": {
       "name": "@niers/nie-mcp",
-      "version": "0.5.4",
+      "version": "0.5.5",
       "bin": {
         "nie-mcp": "src/index.ts",
       },
@@ -449,7 +449,7 @@
     },
     "packages/nie": {
       "name": "nie",
-      "version": "0.5.4",
+      "version": "0.5.5",
       "devDependencies": {
         "@types/bun": "catalog:",
         "typescript": "catalog:",
@@ -457,7 +457,7 @@
     },
     "packages/nie-bridge": {
       "name": "@niers/bridge",
-      "version": "0.5.4",
+      "version": "0.5.5",
       "devDependencies": {
         "@types/bun": "catalog:",
         "typescript": "catalog:",
@@ -473,7 +473,7 @@
     },
     "packages/nie-plugin": {
       "name": "nie-plugin",
-      "version": "0.5.4",
+      "version": "0.5.5",
       "dependencies": {
         "nie": "workspace:*",
       },

@@ -59,7 +59,15 @@ export const LANGUES: readonly Langue[] = [
   { cle: "vostfr", libelle: "VOSTFR — japonais sous-titré", court: "VOSTFR", jeu: [], serie: ["vostfr"] },
   { cle: "en", libelle: "Anglais", court: "EN", jeu: ["EN"], serie: ["en"] },
   { cle: "de", libelle: "Allemand", court: "DE", jeu: ["de"], serie: [] },
-  { cle: "es", libelle: "Espagnol", court: "ES", jeu: ["es"], serie: [] },
+  // `serie: ["es"]` et non `[]` : la plateforme officielle sert bien l'espagnol
+  // (mesuré le 2026-09-03 — 355 épisodes sous `?lang=es`, avec des identifiants
+  // de vidéo DIFFÉRENTS du français). Tant que la liste était vide, ces
+  // épisodes entraient en base sans qu'aucune famille de langue ne les
+  // reconnaisse : `langueDEpisode` rendait `null`, le sélecteur ne les
+  // proposait pas, et ils s'affichaient « Langue non renseignée ».
+  // L'allemand et l'italien restent vides — la plateforme répond 200 sur
+  // `?lang=de` et `?lang=it` mais y sert la page française à l'octet près.
+  { cle: "es", libelle: "Espagnol", court: "ES", jeu: ["es"], serie: ["es"] },
   { cle: "it", libelle: "Italien", court: "IT", jeu: ["it"], serie: [] },
   { cle: "pt", libelle: "Portugais", court: "PT", jeu: ["pt"], serie: [] },
   { cle: "cn", libelle: "Chinois simplifié", court: "CN", jeu: ["CN"], serie: [] },
