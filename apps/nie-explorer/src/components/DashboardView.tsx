@@ -16,7 +16,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api, type VfsStats } from "@/lib/api";
 import { useSettings } from "@/lib/settings";
 import { wikiDb, type StatsMiroir } from "@/lib/wikiDb";
-import { defaultReDbPath, reDb, type ReStats } from "@/lib/reDb";
+import { defaultReDbPath, reDb, type ReStats, type StatutForge } from "@/lib/reDb";
 import { vfsIndexDb, type VfsIndexMeta } from "@/lib/vfsIndexDb";
 import { modsDb } from "@/lib/modsDb";
 import { useT } from "@/lib/i18n";
@@ -119,6 +119,8 @@ export function DashboardView({ onSelectTab }: { onSelectTab: (id: string) => vo
   const [cheminRe, setCheminRe] = useState<string | null>(null);
   const [index, setIndex] = useState<VfsIndexMeta | null>(null);
   const [anime, setAnime] = useState<{ saisons: number; episodes: number } | null>(null);
+  /** Répartition des unités du découpage par état — écrite dans la base par `nie-forge kb`. */
+  const [statutsForge, setStatutsForge] = useState<StatutForge[]>([]);
   const [packs, setPacks] = useState<number | null>(null);
   const [mods, setMods] = useState<number | null>(null);
   const [processusJeu, setProcessusJeu] = useState<{ pid: number; process_name: string } | null>(null);
@@ -152,10 +154,12 @@ export function DashboardView({ onSelectTab }: { onSelectTab: (id: string) => vo
       .catch(() => {});
 
     defaultReDbPath(settings.gameDir)
-      .then((p) => {
+      .then(async (p) => {
         if (!p) return;
         pose(setCheminRe)(p);
-        return reDb.stats(p).then(pose(setRe));
+        const [stats, statuts] = await Promise.all([reDb.stats(p), reDb.statutsForge(p)]);
+        pose(setRe)(stats);
+        pose(setStatutsForge)(statuts);
       })
       .catch(() => {});
 
@@ -283,6 +287,28 @@ export function DashboardView({ onSelectTab }: { onSelectTab: (id: string) => vo
                     </span>
                     <span className="ml-2 text-xs text-muted-foreground">du .text</span>
                   </div>
+                  {/* Ce que la forge a inscrit dans la base : les deux nombres qui disent où en
+                      est le travail, là où les pourcentages disent seulement à quelle hauteur. */}
+                  {statutsForge.length > 0 && (
+                    <div className="flex items-baseline gap-4 text-xs text-muted-foreground">
+                      {statutsForge
+                        .filter((s) => s.statut === "produit" || s.statut === "bloque")
+                        .map((s) => (
+                          <span key={s.statut}>
+                            <span
+                              className={
+                                s.statut === "produit"
+                                  ? "font-semibold tabular-nums text-emerald-500"
+                                  : "font-semibold tabular-nums text-amber-500"
+                              }
+                            >
+                              {nb(s.unites)}
+                            </span>{" "}
+                            {s.statut === "produit" ? "unités produites" : "bloquées"} ({nb(s.octets)} o)
+                          </span>
+                        ))}
+                    </div>
+                  )}
                   <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => onSelectTab("re")}>
                     Ouvrir la forge
                   </Button>
