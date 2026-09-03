@@ -1729,6 +1729,15 @@ fn game_data_capsule_rates(game_dir: Option<String>, state: tauri::State<VfsStat
     with_vfs(game_dir, &state, game_data::list_capsule_rates)
 }
 
+/// Index multilingue des noms (personnages, techniques, objets) lu DIRECTEMENT du jeu — les neuf
+/// langues de `data/common/text/`. C'est la source du traducteur quand aucun miroir wiki n'est
+/// configuré, cf. `game_data::list_noms`.
+#[tauri::command]
+#[specta::specta]
+fn game_data_noms(game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<Vec<game_data::NomsDto>, String> {
+    with_vfs(game_dir, &state, game_data::list_noms)
+}
+
 /// Personnages sélectionnables pour le calculateur de stats (`nie_data::chara_param` joint à
 /// `chara_base`/`chara_text`) — même patron que [`game_data_skills`].
 #[tauri::command]
@@ -4532,6 +4541,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         game_data_exp_table,
         game_data_drops,
         game_data_capsule_rates,
+        game_data_noms,
         game_data_calculate_stats,
         vfs_decode_cfgbin,
         vfs_decode_cfgbin_typed,

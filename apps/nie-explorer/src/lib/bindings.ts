@@ -305,6 +305,12 @@ export const commands = {
 	/**  Taux de tirage des capsules (`nie_data::capsule`) — même patron que [`game_data_skills`]. */
 	gameDataCapsuleRates: (gameDir: string | null) => typedError<CapsuleRateDto[], string>(__TAURI_INVOKE("game_data_capsule_rates", { gameDir })),
 	/**
+	 *  Index multilingue des noms (personnages, techniques, objets) lu DIRECTEMENT du jeu — les neuf
+	 *  langues de `data/common/text/`. C'est la source du traducteur quand aucun miroir wiki n'est
+	 *  configuré, cf. `game_data::list_noms`.
+	 */
+	gameDataNoms: (gameDir: string | null) => typedError<NomsDto[], string>(__TAURI_INVOKE("game_data_noms", { gameDir })),
+	/**
 	 *  Calcule les stats d'un personnage (§4.2 roadmap) — `nie_core::growth::calculate_stats` sur
 	 *  les tables de croissance IEVR embarquées, cf. `game_data::calculate_character_stats`.
 	 *  `rarity_code` : 0=N, 2=R, 3=SR, 4=SSR, 5=UR, 6=LR, 7=Legend, 20=BASARA.
@@ -1780,6 +1786,22 @@ export type MusicDto = {
 	sort_index: number | null,
 	/**  `true` si la piste porte un chemin audio (105/108 dans le dump de référence). */
 	has_path: boolean,
+};
+
+/**  Un nom dans une langue. */
+export type NomLangueDto = {
+	/**  Code de langue (`fr`, `ja`, `zh_hans`…). */
+	langue: string,
+	nom: string,
+};
+
+/**  Une entité du jeu et ses noms dans toutes les langues où elle en a un. */
+export type NomsDto = {
+	/**  Famille : `chara`, `skill` ou `item`. */
+	kind: string,
+	/**  Code interne (`c01000010`, `whs00340`) ou hash à défaut — la clé qui ouvre l'éditeur. */
+	code: string,
+	noms: NomLangueDto[],
 };
 
 /**

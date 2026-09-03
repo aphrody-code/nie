@@ -668,7 +668,20 @@ function csvCell(v: Cellule): string {
 export function GameDataView({ onOpenFile }: { onOpenFile?: (path: string) => void }) {
   const settings = useSettings();
   const [cle, setCle] = useState<string>(REGISTRE[0].cle);
-  const [lignes, setLignes] = useState<unknown[]>([]);
+  /**
+   * Les lignes portent la clé de LEUR famille — jamais un simple tableau.
+   *
+   * Sans cet appariement, changer de famille produisait un rendu intermédiaire où `cle` était
+   * déjà la nouvelle (donc les nouvelles colonnes) alors que `lignes` tenait encore les anciennes
+   * : la colonne « Inventaire » d'une boutique lisait `s.items.join` sur un personnage, et
+   * l'application se vidait sur `TypeError: Cannot read properties of undefined (reading 'join')`.
+   * Reproduit UNIQUEMENT dans le build de production, jamais en développement — l'effet y tourne
+   * assez vite pour masquer la frame fautive.
+   */
+  const [donnees, setDonnees] = useState<{ cle: string; lignes: unknown[] }>({ cle: "", lignes: [] });
+  /** Lignes de la famille COURANTE, et rien d'autre : vide tant que le chargement n'a pas rendu. */
+  const lignes = donnees.cle === cle ? donnees.lignes : [];
+  const setLignes = (r: unknown[]) => setDonnees({ cle, lignes: r });
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState<string | null>(null);
   const [filtre, setFiltre] = useState("");
