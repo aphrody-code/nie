@@ -11,6 +11,7 @@ Trois usages, du plus simple au plus engageant :
 | Lire le jeu | `Vfs`, `decoder`, `g4tx_vers_png` | Le VFS (packs CPK ou dump) et les décodeurs de formats |
 | Faire tourner le jeu | `Match` | La simulation 11 v 11 déterministe, tick par tick |
 | Rendre les assets | `Rendu` | `nie-game` en sous-processus : textures et écrans composés → PNG |
+| Lire les scènes | `Scenario`, `Scene` | Les 5 173 scènes du jeu, leurs dialogues et leurs voix |
 | Alimenter un VN | `renpy.Catalogue` | Le catalogue d'assets exporté, et la génération de `.rpy` |
 
 ## Prérequis
@@ -92,6 +93,42 @@ Le binaire se construit à part :
 cargo build -p nie-game --release
 ```
 
+## Lire les scènes — ce dont un VN a réellement besoin
+
+Le jeu porte **5 173 scènes** réparties sur 45 chapitres, identifiées par une clé
+`evNN_NNNNN`. Cette clé appaire des ressources dispersées dans quatre endroits du VFS :
+
+| Ressource | Emplacement | Volume |
+|---|---|---|
+| Texte des dialogues | `data/common/text/<langue>/event/` | 44 241 fichiers |
+| Scripts de scène | `data/common/event/` | 56 450 |
+| Lipsync | `data/common/sound/<langue>/*.p3lip` | 21 047 |
+| Sous-titres | `gamedata/event/subtitle/<langue>/` | ~1 400 |
+
+```python
+from niepy import Scenario, Vfs
+
+with Vfs() as vfs:
+    scenario = Scenario.indexer(vfs)     # parcourt le VFS une fois
+    scenario.sauver("game/nie/scenes.json")   # …et ne le refait plus
+
+    scene = scenario.scene("ev01_01700")
+    lignes = scenario.lignes(scene, "fr", vfs)
+```
+
+> **Le texte existe en neuf langues, le doublage en deux.** Mesuré sur l'installation de
+> référence : 3 973 scènes traduites en français, mais **zéro** doublée ; le japonais en
+> double 2 989, l'anglais 538. Un VN qui suppose que toute langue jouable est doublée se
+> trompera sur sept langues sur neuf — d'où `Scene.est_doublee` et `LANGUES_DOUBLEES`.
+
+En ligne de commande :
+
+```bash
+uv run python -m niepy scenes --index game/nie/scenes.json          # index + chiffres
+uv run python -m niepy scenes --out game/nie/scenes --langue fr     # export des répliques
+uv run python -m niepy scenes --out … --chapitre ev01 --limite 50   # un chapitre seulement
+```
+
 ## Alimenter un projet Ren'Py
 
 D'abord produire les assets, depuis la CLI Rust :
@@ -105,6 +142,11 @@ niers vn export --out <projet-renpy>/game/nie
 uv run python -m niepy renpy --out <projet-renpy>/game/nie
 uv run python -m niepy data  --out <projet-renpy>/game/nie/data
 ```
+
+Les treize familles de `data` visent des **dossiers** du VFS, jamais des fichiers : les noms
+du jeu portent un numéro de version (`chara_base_1.03.98.00.cfg.bin`) qui change à chaque
+patch. Leur poids réel surprend — `menu` compte 3 866 fichiers et `event` pèse 14,7 Mo, quand
+`item` et `team` en comptent 5 et 6. `--familles evenements,personnages` restreint l'export.
 
 Puis, dans un `init python:` du projet :
 

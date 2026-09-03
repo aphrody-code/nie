@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any, Sequence
 
 from .renpy import Catalogue
+from .scenes import LANGUES as LANGUES_CLI
 
 #: Familles de données du jeu exportées par `data`, et leur **dossier** dans le VFS.
 #:
@@ -29,11 +30,23 @@ from .renpy import Catalogue
 #:
 #: La liste est volontairement courte : un export « tout le VFS » produirait des dizaines de
 #: gigaoctets, dont l'essentiel n'a aucun sens dans un visual novel.
+#: Les tailles en commentaire sont MESURÉES sur l'installation de référence, pas estimées.
+#: Elles expliquent l'ordre : `menu` et `map` dominent en nombre, `event` en volume, et les
+#: familles « évidentes » d'un jeu de rôle (`item`, `team`) sont marginales — 5 et 6 fichiers.
 FAMILLES: dict[str, str] = {
-    "personnages": "data/common/gamedata/character/",
-    "techniques": "data/common/gamedata/skill/",
-    "objets": "data/common/gamedata/item/",
-    "equipes": "data/common/gamedata/team/",
+    "evenements": "data/common/gamedata/event/",  # 1 438 fichiers, 14,7 Mo — le plus gros
+    "menus": "data/common/gamedata/menu/",  # 3 866 fichiers
+    "cartes": "data/common/gamedata/map/",  # 3 115
+    "football": "data/common/gamedata/soccer/",  # 873
+    "quetes": "data/common/gamedata/quest/",  # 131
+    "phases": "data/common/gamedata/phase/",  # 88
+    "personnages": "data/common/gamedata/character/",  # 46, mais 6,6 Mo
+    "systeme": "data/common/gamedata/system/",  # 29
+    "techniques": "data/common/gamedata/skill/",  # 23
+    "equipes": "data/common/gamedata/team/",  # 6
+    "objets": "data/common/gamedata/item/",  # 5
+    "formations": "data/common/gamedata/formation/",  # 3
+    "boutiques": "data/common/gamedata/shop/",  # 1
 }
 
 
@@ -122,6 +135,79 @@ def _cmd_data(args: argparse.Namespace) -> int:
     return 0 if ecrits else 1
 
 
+def _cmd_scenes(args: argparse.Namespace) -> int:
+    """Indexe les scènes du jeu, et exporte au besoin leurs répliques dans une langue."""
+    from .scenes import LANGUES, Scenario
+    from .vfs import Vfs
+
+    if args.langue and args.langue not in LANGUES:
+        print(
+            f"langue inconnue : {args.langue}. Connues : {', '.join(LANGUES)}", file=sys.stderr
+        )
+        return 2
+
+    try:
+        vfs = Vfs(args.racine)
+    except (FileNotFoundError, RuntimeError) as erreur:
+        print(erreur, file=sys.stderr)
+        return 1
+
+    with vfs:
+        print("indexation du VFS…", file=sys.stderr)
+        scenario = Scenario.indexer(vfs)
+        resume = scenario.resume()
+
+        print(f"{resume['scenes']} scène(s), {resume['chapitres']} chapitre(s)")
+        print("  texte par langue :")
+        for langue, n in resume["texte_par_langue"].items():
+            print(f"    {langue:8} {n:5}")
+        print("  doublage :")
+        for langue, n in resume["doublage_par_langue"].items():
+            print(f"    {langue:8} {n:5}")
+        print(f"  avec sous-titres : {resume['avec_sous_titres']}")
+
+        if args.index:
+            chemin = scenario.sauver(args.index)
+            print(f"index → {chemin}")
+
+        if not args.out:
+            return 0
+
+        # Export des répliques : un JSON par scène, sous le chapitre.
+        langue = args.langue or "fr"
+        sortie = Path(args.out)
+        a_traiter = scenario.traduites(langue)
+        if args.chapitre:
+            a_traiter = [s for s in a_traiter if s.chapitre == args.chapitre]
+        if args.limite:
+            a_traiter = a_traiter[: args.limite]
+
+        ecrits, vides = 0, 0
+        for scene in a_traiter:
+            lignes = scenario.lignes(scene, langue, vfs)
+            if not lignes:
+                vides += 1
+                continue
+            dossier = sortie / langue / scene.chapitre
+            dossier.mkdir(parents=True, exist_ok=True)
+            charge = {
+                "cle": scene.cle,
+                "chapitre": scene.chapitre,
+                "langue": langue,
+                "doublee": scene.est_doublee,
+                "repliques_doublees": scene.repliques_doublees(langue),
+                "lignes": lignes,
+            }
+            (dossier / f"{scene.cle}.json").write_text(
+                json.dumps(charge, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+            ecrits += 1
+
+        print(f"{ecrits} scène(s) exportée(s) en « {langue} » vers {sortie}", end="")
+        print(f", {vides} sans réplique" if vides else "")
+        return 0 if ecrits else 1
+
+
 def _cmd_info(_args: argparse.Namespace) -> int:
     """Dit ce que `niepy` voit : lib native, version, VFS."""
     from . import __version__
@@ -169,6 +255,15 @@ def construire_parseur() -> argparse.ArgumentParser:
         "--familles", default="", help=f"liste séparée par des virgules ({', '.join(FAMILLES)})"
     )
     p_data.set_defaults(fonction=_cmd_data)
+
+    p_scenes = sous.add_parser("scenes", help="indexe et exporte les scènes (dialogues)")
+    p_scenes.add_argument("--racine", default=None, help="racine du jeu (défaut : NIE_GAME_DIR)")
+    p_scenes.add_argument("--index", default="", help="écrit l'index des scènes à ce chemin")
+    p_scenes.add_argument("--out", default="", help="exporte les répliques dans ce dossier")
+    p_scenes.add_argument("--langue", default="", help=f"langue ({', '.join(LANGUES_CLI)})")
+    p_scenes.add_argument("--chapitre", default="", help="ne garde qu'un chapitre (ex. ev01)")
+    p_scenes.add_argument("--limite", type=int, default=0, help="nombre maximal de scènes")
+    p_scenes.set_defaults(fonction=_cmd_scenes)
 
     p_info = sous.add_parser("info", help="état de la lib native et du VFS")
     p_info.set_defaults(fonction=_cmd_info)
