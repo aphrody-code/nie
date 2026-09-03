@@ -91,6 +91,49 @@ export function versJoueur(l: LigneRoster): Joueur {
   };
 }
 
+/**
+ * Convertit un personnage décodé du **jeu** (`api.gameDataCharas`) en joueur — le roster de repli
+ * des outils quand aucun miroir wiki n'est configuré.
+ *
+ * Ce que cette source a de plus que le miroir : elle est TOUJOURS disponible (le jeu est monté,
+ * sinon l'application n'affiche rien), et ses stats sortent des tables de croissance embarquées
+ * plutôt que d'une colonne recopiée. Ce qu'elle a de moins, et qui est dit tel quel : le rang de
+ * rareté d'un exemplaire n'existe pas dans `chara_param` — les stats sont celles du **niveau 99
+ * au rang UR**, base de comparaison commune (cf. `CharaDto::stats` côté Rust). `codeRarete` reste
+ * donc `null` : aucun libellé de rareté n'est inventé.
+ */
+export function versJoueurDepuisJeu(c: {
+  chara_param_id: string;
+  name: string;
+  main_position: string;
+  element: string;
+  series: string | null;
+  internal_code: string;
+  gender: number | null;
+  stats: { kc: number | null; cr: number | null; tc: number | null; pr: number | null; ps: number | null; ag: number | null; it: number | null };
+}): Joueur {
+  return {
+    id: c.chara_param_id,
+    nom: c.name,
+    poste: c.main_position,
+    element: c.element,
+    rarete: "Lv99 UR",
+    codeRarete: null,
+    serie: c.series,
+    genre: c.gender === 2 ? "F" : c.gender === 1 ? "M" : null,
+    code: c.internal_code || null,
+    stats: {
+      kick: c.stats.kc ?? 0,
+      control: c.stats.cr ?? 0,
+      technique: c.stats.tc ?? 0,
+      pressure: c.stats.pr ?? 0,
+      physical: c.stats.ps ?? 0,
+      agility: c.stats.ag ?? 0,
+      intelligence: c.stats.it ?? 0,
+    },
+  };
+}
+
 /** Postes FR du miroir → codes courts attendus par `@rosegriffon/azalee/game`. */
 const CODE_POSTE: Record<string, string> = {
   Gardien: "GK",
