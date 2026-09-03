@@ -34,7 +34,14 @@ pub mod host;
 pub mod runtime;
 #[cfg(feature = "vm")]
 pub mod session;
+/// Analyse statique des **sources** Lua (tree-sitter) — feature `analysis`, active par défaut.
+///
+/// Elle est optionnelle parce qu'elle tire `tree-sitter` (code C) : `nie-formats`, qui n'a
+/// besoin que du décodeur [`bytecode`] pour brancher les `.lua.bin` sur `decode`, la coupe et
+/// reste ainsi en Rust pur.
+#[cfg(feature = "analysis")]
 pub mod static_analysis;
+#[cfg(feature = "analysis")]
 pub use static_analysis::{
     analyze, analyze_dir, analyze_file, collect_lua_files, FunctionKind, LuaAnalysis, LuaAssignment,
     LuaCall, LuaFunction, LuaSyntaxError, LuaTable, LuaTableField, StaticAnalysisError,

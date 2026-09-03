@@ -989,6 +989,11 @@ describe("métadonnées d'un épisode officiel", () => {
 		const vide = parserMetaEpisode("<html></html>");
 		expect(vide).toEqual({
 			idYoutube: null,
+			// Les 143 épisodes hors YouTube passent par Dailymotion, et leurs
+			// vidéos sont restreintes au lecteur du site : l'identifiant ET la clé
+			// du lecteur sont donc lus sur la page, au même titre que l'id YouTube.
+			idDailymotion: null,
+			clePlayerDailymotion: null,
 			titre: null,
 			description: null,
 			vignette: null,

@@ -16,7 +16,7 @@
 // 128 px côté Rust, cache LRU, file de décodage. Une grille qui appellerait `api.texturePngB64`
 // ferait entrer 8 Mo de bitmap par image dans le processus de rendu (les `gallery_img2` pèsent
 // 8 294 752 octets pièce) — c'est exactement l'accident que `thumbs.ts` documente.
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { save } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
 
@@ -44,6 +44,67 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 /** Illustrations affichées d'un coup — au-delà, un bouton « en afficher plus ». */
 const PAR_PAGE = 60;
+
+/**
+ * Images PLEINE RÉSOLUTION gardées par la visionneuse.
+ *
+ * Volontairement minuscule : une planche du jeu pèse plusieurs mégaoctets une fois encodée en
+ * base64, et la garder est autrement plus cher qu'une vignette de 128 px. Trois entrées
+ * couvrent exactement ce que sert le préchargement — l'image courante et ses deux voisines —
+ * sans retenir un album entier.
+ */
+const MAX_PLEINES = 3;
+
+/** Cache LRU des images pleine résolution : `Map` = ordre d'insertion. */
+const cachePleines = new Map<string, string>();
+
+/** Lit le cache en marquant l'entrée comme récemment utilisée. */
+function pleineDuCache(chemin: string): string | undefined {
+	const trouve = cachePleines.get(chemin);
+	if (trouve === undefined) return undefined;
+	cachePleines.delete(chemin);
+	cachePleines.set(chemin, trouve);
+	return trouve;
+}
+
+/** Range une image et évince la plus ancienne au-delà de `MAX_PLEINES`. */
+function rangerPleine(chemin: string, src: string) {
+	cachePleines.delete(chemin);
+	cachePleines.set(chemin, src);
+	while (cachePleines.size > MAX_PLEINES) {
+		const plusAncien = cachePleines.keys().next();
+		if (plusAncien.done) break;
+		cachePleines.delete(plusAncien.value);
+	}
+}
+
+/**
+ * Charge une image pleine résolution, en passant par le cache.
+ *
+ * Les demandes concurrentes du même chemin sont partagées : sans cela, afficher une image
+ * pendant que son préchargement est en vol la décoderait deux fois.
+ */
+const enVol = new Map<string, Promise<string>>();
+
+function chargerPleine(chemin: string, gameDir?: string): Promise<string> {
+	const connu = pleineDuCache(chemin);
+	if (connu !== undefined) return Promise.resolve(connu);
+
+	const dejaEnVol = enVol.get(chemin);
+	if (dejaEnVol) return dejaEnVol;
+
+	const promesse = api
+		.texturePngB64(chemin, gameDir)
+		.then((b64) => {
+			const src = `data:image/png;base64,${b64}`;
+			rangerPleine(chemin, src);
+			return src;
+		})
+		.finally(() => enVol.delete(chemin));
+
+	enVol.set(chemin, promesse);
+	return promesse;
+}
 
 /** Plafond de listage d'une catégorie. `telop_waza` en porte 12 460 (neuf langues) : le plus gros
  * dossier de la galerie tient largement en dessous, et la borne protège d'un dossier inattendu. */
@@ -94,18 +155,33 @@ function Visionneuse({
   useEffect(() => {
     if (!item) return;
     let annule = false;
-    setSrc(null);
+
+    // Une image déjà en cache s'affiche SANS repasser par `null` : sinon chaque flèche fait
+    // clignoter la visionneuse alors que l'image est déjà là, ce qui annule tout le bénéfice
+    // du préchargement.
+    const connu = pleineDuCache(item.chemin);
+    setSrc(connu ?? null);
     setErreur(null);
-    api
-      .texturePngB64(item.chemin, gameDir)
-      .then((b64) => (annule ? null : setSrc(`data:image/png;base64,${b64}`)))
-      .catch((e) => {
-        if (!annule) setErreur(String(e));
-      });
+
+    if (connu === undefined) {
+      chargerPleine(item.chemin, gameDir)
+        .then((src) => (annule ? null : setSrc(src)))
+        .catch((e) => {
+          if (!annule) setErreur(String(e));
+        });
+    }
+
+    // Préchargement des voisines : c'est la navigation aux flèches qui en profite. Les échecs
+    // sont ignorés — une voisine illisible ne doit pas parasiter l'image qu'on regarde ; elle
+    // signalera son erreur quand on arrivera dessus.
+    for (const voisin of [liste[index + 1], liste[index - 1]]) {
+      if (voisin) void chargerPleine(voisin.chemin, gameDir).catch(() => undefined);
+    }
+
     return () => {
       annule = true;
     };
-  }, [item, gameDir]);
+  }, [item, index, liste, gameDir]);
 
   useEffect(() => {
     function onTouche(e: KeyboardEvent) {
@@ -302,6 +378,34 @@ export function GalleryView({ onOpenFile }: { onOpenFile?: (path: string) => voi
 
   const filtres = useMemo(() => filtrerIllustrations(items, recherche), [items, recherche]);
   const affiches = useMemo(() => filtres.slice(0, visibles), [filtres, visibles]);
+
+  /** Sentinelle de fin de grille : sa venue à l'écran déclenche la page suivante. */
+  const sentinelle = useRef<HTMLButtonElement | null>(null);
+  const reste = visibles < filtres.length;
+
+  // Chargement automatique au défilement. La marge de 300 px déclenche AVANT que la sentinelle
+  // n'entre réellement dans le champ : les vignettes suivantes sont donc déjà demandées quand
+  // l'utilisateur arrive dessus, au lieu d'apparaître en retard sous ses yeux.
+  //
+  // La boucle se referme d'elle-même : chaque déclenchement augmente `visibles`, ce qui
+  // recalcule `reste` et réattache un observateur ; quand tout est affiché, `reste` passe à
+  // faux et l'effet ne se remonte plus. `setVisibles` est appelé sous forme fonctionnelle pour
+  // que deux déclenchements rapprochés s'additionnent au lieu de s'écraser.
+  useEffect(() => {
+    if (!reste) return;
+    const el = sentinelle.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setVisibles((v) => Math.min(v + PAR_PAGE, filtres.length));
+        }
+      },
+      { rootMargin: "300px" },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [reste, filtres.length]);
   const total = useMemo(
     () => categories.reduce((somme, d) => somme + d.count, 0),
     [categories],
@@ -416,14 +520,17 @@ export function GalleryView({ onOpenFile }: { onOpenFile?: (path: string) => voi
                 </button>
               ))}
             </div>
-            {visibles < filtres.length && (
+            {reste && (
+              // La sentinelle EST le bouton, et c'est délibéré : le défilement la déclenche
+              // seul, mais elle reste actionnable au clavier — et sert de repli si un
+              // conteneur exotique empêchait l'observateur de se déclencher.
               <button
+                ref={sentinelle}
                 type="button"
-                className="state-layer mt-2 w-full rounded-lg py-2 type-label-medium text-accent"
-                onClick={() => setVisibles((v) => v + PAR_PAGE)}
+                className="state-layer mt-2 w-full rounded-lg py-2 type-label-medium text-on-surface-variant"
+                onClick={() => setVisibles((v) => Math.min(v + PAR_PAGE, filtres.length))}
               >
-                Afficher {Math.min(PAR_PAGE, filtres.length - visibles).toLocaleString("fr-FR")} de
-                plus ({(filtres.length - visibles).toLocaleString("fr-FR")} restantes)
+                Chargement… ({(filtres.length - visibles).toLocaleString("fr-FR")} restantes)
               </button>
             )}
             {!chargement && filtres.length === 0 && (

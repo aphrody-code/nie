@@ -230,3 +230,37 @@ CREATE TABLE IF NOT EXISTS coverage (
     classified  INTEGER NOT NULL,
     pct         REAL NOT NULL
 );
+
+-- Decoupage byte-exact de la forge, par unite du recouvrement.
+-- Ecrite par `nie-forge kb`. statut : produit|bloque|regle|donnees_inline|verbatim.
+-- Rien n'est modifie dans `function` : la vue ci-dessous fait la jointure, si
+-- bien que le reverse garde ses colonnes et la forge les siennes.
+CREATE TABLE IF NOT EXISTS forge_unit (
+    binary_id INTEGER NOT NULL,
+    file_off  INTEGER NOT NULL,
+    vaddr     INTEGER,
+    size      INTEGER NOT NULL,
+    kind      TEXT NOT NULL,
+    statut    TEXT NOT NULL,
+    cause     TEXT,
+    PRIMARY KEY (binary_id, file_off)
+);
+CREATE INDEX IF NOT EXISTS idx_forge_unit_vaddr ON forge_unit(binary_id, vaddr);
+CREATE INDEX IF NOT EXISTS idx_forge_unit_statut ON forge_unit(binary_id, statut);
+CREATE VIEW IF NOT EXISTS v_forge_function AS
+SELECT f.binary_id,
+       f.vaddr,
+       printf('0x%x', f.vaddr) AS va_hex,
+       f.name,
+       f.name_source,
+       f.subsystem,
+       f.role,
+       f.size        AS taille_kb,
+       u.size        AS taille_forge,
+       u.file_off,
+       u.kind,
+       COALESCE(u.statut, 'hors_decoupage') AS statut,
+       u.cause
+FROM function f
+LEFT JOIN forge_unit u
+       ON u.binary_id = f.binary_id AND u.vaddr = f.vaddr;

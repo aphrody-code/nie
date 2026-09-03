@@ -240,6 +240,17 @@ pub struct Mem {
     pub index: Option<(Reg, u8)>,
     /// Déplacement signé.
     pub disp: i32,
+    /// Déplacement **nul encodé explicitement** (`mod=01`, `disp8 = 0`).
+    ///
+    /// `[rbx]` s'encode normalement `8B 0B` (`mod=00`) ; une partie de
+    /// `nie.exe` écrit `8B 4B 00`, un octet de plus pour le même accès. Le
+    /// choix appartient au binaire d'origine, comme la forme longue d'un
+    /// immédiat dans [`Insn::AluRI`] — sans ce champ, 1 732 corps se
+    /// ré-encodaient un octet trop court et étaient rejetés.
+    ///
+    /// Sans effet quand `mod=01` est de toute façon imposé (base `rbp`/`r13`)
+    /// ou impossible (adresse absolue, `rip`-relatif).
+    pub disp_explicite: bool,
     /// Cible **absolue** d'un adressage relatif au pointeur d'instruction.
     ///
     /// Quand ce champ est renseigné, `base`/`index`/`disp` sont ignorés et
@@ -870,6 +881,11 @@ pub enum Insn {
     MovRegImm64(Reg, u64),
     /// `mov r, r` — MSVC encode `8B /r`
     MovRR(Size, Reg, Reg),
+    /// `mov r, r` **encodé dans l'autre sens** : `89 /r` (`88 /r` en 8 bits).
+    ///
+    /// Même remarque que pour [`Insn::AluRRm`] : `mov rbp, rsp` s'écrit
+    /// `48 89 E5` dans une partie de `nie.exe`, `48 8B EC` sous MSVC.
+    MovRRm(Size, Reg, Reg),
     /// `mov r, [mem]` (`8B /r`)
     Load(Size, Reg, Mem),
     /// `mov [mem], r` (`89 /r`)
@@ -880,6 +896,14 @@ pub enum Insn {
     Lea(Reg, Mem),
     /// `<alu> r, r` — MSVC encode `op*8+3` (registre ← r/m)
     AluRR(Alu, Size, Reg, Reg),
+    /// `<alu> r, r` **encodé dans l'autre sens** : `op*8+1` (r/m ← registre).
+    ///
+    /// Les deux formes calculent la même chose et le désassembleur les rend
+    /// identiques ; seuls les octets diffèrent. `nie.exe` porte les deux —
+    /// `add rcx, rdx` y apparaît en `48 01 D1` là où MSVC écrit `48 03 CA`,
+    /// signature du code lié statiquement qui n'a pas été compilé par MSVC.
+    /// Le choix appartient au binaire d'origine, comme pour [`Insn::AluRI`].
+    AluRRm(Alu, Size, Reg, Reg),
     /// `<alu> r, [mem]` (`op*8+3`)
     AluRM(Alu, Size, Reg, Mem),
     /// `<alu> [mem], r` (`op*8+1`)
@@ -1178,7 +1202,10 @@ fn modrm_mem(out: &mut Vec<u8>, reg: u8, m: Mem, at: u64, base: usize, imm_len: 
     let need_sib =
         m.index.is_some() || base.is_none() || base.is_some_and(|b| b.lo() == 4);
     // rbp/r13 en mod=00 signifierait « rip-relatif » : forcer un disp8 nul.
-    let force_disp8 = base.is_some_and(|b| b.lo() == 5) && m.disp == 0;
+    // `disp_explicite` demande le même octet, mais parce que l'original le
+    // porte et non parce que l'encodage l'exige.
+    let force_disp8 =
+        base.is_some() && m.disp == 0 && (base.is_some_and(|b| b.lo() == 5) || m.disp_explicite);
     let mode = if base.is_none() || (m.disp == 0 && !force_disp8) {
         0b00
     } else if i8::try_from(m.disp).is_ok() {
@@ -1346,6 +1373,9 @@ fn encode_one(i: Insn, at: u64, out: &mut Vec<u8>) {
         Insn::MovRR(size, dst, src) => {
             reg_form(out, size, if size == Size::B { 0x8A } else { 0x8B }, dst, src);
         }
+        Insn::MovRRm(size, dst, src) => {
+            reg_form(out, size, if size == Size::B { 0x88 } else { 0x89 }, src, dst);
+        }
         Insn::Load(size, r, m) => {
             mem_form(out, size, if size == Size::B { 0x8A } else { 0x8B }, r, m, at, 0);
         }
@@ -1363,6 +1393,9 @@ fn encode_one(i: Insn, at: u64, out: &mut Vec<u8>) {
         }
         Insn::Lea(r, m) => mem_form(out, Size::Q, 0x8D, r, m, at, 0),
         Insn::AluRR(op, size, dst, src) => reg_form(out, size, alu_rm_op(op, size), dst, src),
+        // Sens inverse : le registre source occupe le champ `/r`, la destination
+        // le champ `r/m`.
+        Insn::AluRRm(op, size, dst, src) => reg_form(out, size, alu_mr_op(op, size), src, dst),
         Insn::AluRM(op, size, dst, m) => mem_form(out, size, alu_rm_op(op, size), dst, m, at, 0),
         Insn::AluMR(op, size, m, src) => mem_form(out, size, alu_mr_op(op, size), src, m, at, 0),
         Insn::AluRI(op, size, r, imm, wide) => {
@@ -1982,6 +2015,23 @@ mod tests {
         assert_eq!(
             encode(&[Insn::MovRR(Size::Q, Reg::Rax, Reg::Rcx), Insn::Ret]),
             vec![0x48, 0x8B, 0xC1, 0xC3]
+        );
+        // Les mêmes opérations dans l'autre sens d'encodage : `nie.exe` porte
+        // les deux formes, celle-ci venant du code lié statiquement hors MSVC.
+        assert_eq!(
+            encode(&[Insn::MovRRm(Size::Q, Reg::Rbp, Reg::Rsp)]),
+            vec![0x48, 0x89, 0xE5],
+            "mov rbp, rsp en 89, pas 8B"
+        );
+        assert_eq!(
+            encode(&[Insn::AluRRm(Alu::Add, Size::Q, Reg::Rcx, Reg::Rdx)]),
+            vec![0x48, 0x01, 0xD1],
+            "add rcx, rdx en 01, pas 03"
+        );
+        assert_eq!(
+            encode(&[Insn::AluRRm(Alu::Xor, Size::B, Reg::Rax, Reg::Rax)]),
+            vec![0x30, 0xC0],
+            "forme 8 bits : op*8+0"
         );
         // `mov [rcx], rdx ; mov rax, rcx ; mov [rcx+8], r8 ; ret` — 125 unités
         assert_eq!(

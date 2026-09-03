@@ -1026,6 +1026,256 @@ pub fn g4tx_vignette_teintee(
     encoder_rgba(&petit, vw, vh, format)
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Planches (sprite sheets)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Assembler plusieurs images en une planche est une opération que le dépôt refaisait à la
+// main à chaque besoin, en script jetable. Le nécessaire existait pourtant déjà à côté :
+// `decoder_planches` décode les textures d'un `.g4tx`, `decouper_par_zones` en extrait des
+// morceaux, et `nie-game --compose-layout` compose un écran — mais rien ne savait poser N
+// images côte à côte ET dire où elles ont atterri.
+//
+// Ce « où » est ce qui distingue une planche d'une simple image : sans les rectangles, la
+// sortie se regarde mais ne se réutilise pas.
+
+/// Une image à poser dans une planche.
+pub struct CasePlanche {
+    /// Nom de la case, repris tel quel dans le manifeste.
+    pub nom: String,
+    /// Largeur en pixels.
+    pub largeur: u32,
+    /// Hauteur en pixels.
+    pub hauteur: u32,
+    /// Pixels RGBA8, `largeur * hauteur * 4` octets.
+    pub rgba: Vec<u8>,
+}
+
+/// Où une case a atterri dans la planche composée.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RectPlanche {
+    /// Nom de la case.
+    pub nom: String,
+    /// Abscisse du coin supérieur gauche.
+    pub x: u32,
+    /// Ordonnée du coin supérieur gauche.
+    pub y: u32,
+    /// Largeur réelle de l'image posée — **jamais** celle de la cellule.
+    pub w: u32,
+    /// Hauteur réelle de l'image posée.
+    pub h: u32,
+}
+
+/// Une planche composée et son manifeste.
+pub struct Planche {
+    /// Largeur totale.
+    pub largeur: u32,
+    /// Hauteur totale.
+    pub hauteur: u32,
+    /// Pixels RGBA8 de la planche.
+    pub rgba: Vec<u8>,
+    /// Position de chaque case, dans l'ordre d'entrée.
+    pub cases: Vec<RectPlanche>,
+}
+
+/// Compose des images en planche, sur une grille de `colonnes`.
+///
+/// **Aucune image n'est jamais redimensionnée.** Les cellules prennent la taille de la plus
+/// grande case, et les plus petites sont centrées dedans. Étirer pour remplir donnerait une
+/// planche visuellement régulière au prix de portraits déformés — et le manifeste mentirait,
+/// puisqu'il décrirait des rectangles qui ne correspondent plus aux pixels d'origine.
+///
+/// Les rectangles rendus sont ceux des **images**, pas des cellules : c'est ce qu'un
+/// consommateur veut découper.
+///
+/// Rend une planche vide (0 × 0) si `cases` est vide ou si `colonnes` vaut 0.
+#[must_use]
+pub fn composer_planche(
+    cases: &[CasePlanche],
+    colonnes: u32,
+    marge: u32,
+    gouttiere: u32,
+    fond: [u8; 4],
+) -> Planche {
+    if cases.is_empty() || colonnes == 0 {
+        return Planche { largeur: 0, hauteur: 0, rgba: Vec::new(), cases: Vec::new() };
+    }
+
+    let cell_w = cases.iter().map(|c| c.largeur).max().unwrap_or(0);
+    let cell_h = cases.iter().map(|c| c.hauteur).max().unwrap_or(0);
+    let lignes = (cases.len() as u32).div_ceil(colonnes);
+
+    let largeur = marge * 2 + cell_w * colonnes + gouttiere * colonnes.saturating_sub(1);
+    let hauteur = marge * 2 + cell_h * lignes + gouttiere * lignes.saturating_sub(1);
+
+    let mut rgba = Vec::with_capacity((largeur as usize) * (hauteur as usize) * 4);
+    for _ in 0..(largeur as usize) * (hauteur as usize) {
+        rgba.extend_from_slice(&fond);
+    }
+
+    let mut rects = Vec::with_capacity(cases.len());
+    for (i, case) in cases.iter().enumerate() {
+        let col = (i as u32) % colonnes;
+        let ligne = (i as u32) / colonnes;
+        let cellule_x = marge + col * (cell_w + gouttiere);
+        let cellule_y = marge + ligne * (cell_h + gouttiere);
+        // Centrage dans la cellule : une case plus petite ne se colle pas au coin.
+        let x = cellule_x + (cell_w.saturating_sub(case.largeur)) / 2;
+        let y = cellule_y + (cell_h.saturating_sub(case.hauteur)) / 2;
+
+        poser_rgba(
+            &mut rgba,
+            (largeur, hauteur),
+            &case.rgba,
+            (case.largeur, case.hauteur),
+            (x, y),
+        );
+        rects.push(RectPlanche { nom: case.nom.clone(), x, y, w: case.largeur, h: case.hauteur });
+    }
+
+    Planche { largeur, hauteur, rgba, cases: rects }
+}
+
+/// Recopie une image RGBA dans une autre, **pixel pour pixel, sans compositing**.
+///
+/// Deux raisons de ne pas mélanger avec le fond, et la seconde est la plus importante :
+///
+/// 1. Les cases d'une planche ne se chevauchent jamais — il n'y a rien à composer.
+/// 2. Une planche existe pour être **redécoupée** d'après son manifeste. Si l'alpha était
+///    fusionné avec le fond, redécouper ne rendrait plus l'image d'origine mais une version
+///    aplatie sur une couleur arbitraire : le manifeste décrirait des pixels qui ne sont plus
+///    ceux de la source. Copier préserve l'alpha exact, donc la réversibilité.
+///
+/// C'est aussi ce qui évite d'ajouter un blend de plus au workspace : le compositing alpha est
+/// la **landmine #5** (`docs/ARCHITECTURE.md`, cf. l'avertissement en tête de
+/// [`crate::raster2d`]) — `nie-runtime` et `nie-game` divergent déjà, et `menu.rs` porte son
+/// propre compositeur « over ». Un quatrième n'aiderait personne.
+///
+/// Les pixels qui sortiraient du cadre sont ignorés plutôt que repliés : un dépassement doit
+/// tronquer, jamais réapparaître de l'autre côté de l'image.
+fn poser_rgba(
+    dest: &mut [u8],
+    dest_dim: (u32, u32),
+    src: &[u8],
+    src_dim: (u32, u32),
+    pos: (u32, u32),
+) {
+    let (dest_w, dest_h) = dest_dim;
+    let (src_w, src_h) = src_dim;
+    let (x, y) = pos;
+    for ligne in 0..src_h {
+        let cible_y = y + ligne;
+        if cible_y >= dest_h {
+            break;
+        }
+        for colonne in 0..src_w {
+            let cible_x = x + colonne;
+            if cible_x >= dest_w {
+                break;
+            }
+            let is = ((ligne * src_w + colonne) * 4) as usize;
+            let id = ((cible_y * dest_w + cible_x) * 4) as usize;
+            let (Some(s), Some(d)) = (src.get(is..is + 4), dest.get_mut(id..id + 4)) else {
+                continue;
+            };
+            d.copy_from_slice(s);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests_planche {
+    use super::*;
+
+    /// Une case unie de `w × h`.
+    fn case(nom: &str, w: u32, h: u32, couleur: [u8; 4]) -> CasePlanche {
+        CasePlanche {
+            nom: nom.to_string(),
+            largeur: w,
+            hauteur: h,
+            rgba: couleur.repeat((w * h) as usize),
+        }
+    }
+
+    /// Lit un pixel de la planche.
+    fn pixel(p: &Planche, x: u32, y: u32) -> [u8; 4] {
+        let i = ((y * p.largeur + x) * 4) as usize;
+        [p.rgba[i], p.rgba[i + 1], p.rgba[i + 2], p.rgba[i + 3]]
+    }
+
+    #[test]
+    fn trois_cases_de_meme_taille_en_ligne() {
+        let cases =
+            vec![case("a", 10, 6, [255, 0, 0, 255]), case("b", 10, 6, [0, 255, 0, 255]), case("c", 10, 6, [0, 0, 255, 255])];
+        let p = composer_planche(&cases, 3, 4, 2, [0, 0, 0, 255]);
+
+        // 4 + 10 + 2 + 10 + 2 + 10 + 4
+        assert_eq!(p.largeur, 42);
+        assert_eq!(p.hauteur, 14, "4 + 6 + 4");
+        assert_eq!(p.rgba.len(), (42 * 14 * 4) as usize);
+
+        assert_eq!(p.cases[0], RectPlanche { nom: "a".into(), x: 4, y: 4, w: 10, h: 6 });
+        assert_eq!(p.cases[1], RectPlanche { nom: "b".into(), x: 16, y: 4, w: 10, h: 6 });
+        assert_eq!(p.cases[2], RectPlanche { nom: "c".into(), x: 28, y: 4, w: 10, h: 6 });
+
+        // Les pixels sont bien là où le manifeste les annonce — sans quoi il mentirait.
+        assert_eq!(pixel(&p, 4, 4), [255, 0, 0, 255]);
+        assert_eq!(pixel(&p, 16, 4), [0, 255, 0, 255]);
+        assert_eq!(pixel(&p, 28, 4), [0, 0, 255, 255]);
+        assert_eq!(pixel(&p, 0, 0), [0, 0, 0, 255], "la marge porte le fond");
+    }
+
+    #[test]
+    fn une_case_plus_petite_est_centree_jamais_etiree() {
+        let cases = vec![case("grande", 10, 10, [255, 0, 0, 255]), case("petite", 4, 4, [0, 255, 0, 255])];
+        let p = composer_planche(&cases, 2, 0, 0, [0, 0, 0, 0]);
+
+        // La petite garde SA taille : le manifeste décrit l'image, pas la cellule.
+        let petite = &p.cases[1];
+        assert_eq!((petite.w, petite.h), (4, 4));
+        // Cellule de 10 à partir de x=10 → décalage de 3 pour centrer une case de 4.
+        assert_eq!((petite.x, petite.y), (13, 3));
+        assert_eq!(pixel(&p, 13, 3), [0, 255, 0, 255]);
+        assert_eq!(pixel(&p, 10, 0), [0, 0, 0, 0], "le reste de la cellule est du fond");
+    }
+
+    #[test]
+    fn la_grille_passe_a_la_ligne() {
+        let cases: Vec<_> = (0..5).map(|i| case(&format!("c{i}"), 8, 8, [1, 2, 3, 255])).collect();
+        let p = composer_planche(&cases, 2, 0, 0, [0, 0, 0, 255]);
+
+        assert_eq!(p.largeur, 16);
+        assert_eq!(p.hauteur, 24, "5 cases sur 2 colonnes = 3 lignes");
+        assert_eq!((p.cases[2].x, p.cases[2].y), (0, 8), "la troisième ouvre la ligne 2");
+        assert_eq!((p.cases[4].x, p.cases[4].y), (0, 16));
+    }
+
+    #[test]
+    fn l_alpha_source_est_copie_tel_quel_pas_fusionne() {
+        // Une planche se REDÉCOUPE d'après son manifeste : l'alpha doit survivre intact.
+        // Fusionner avec le fond rendrait le redécoupage lossy — on récupérerait une image
+        // aplatie sur une couleur arbitraire au lieu de la source.
+        let cases = vec![case("translucide", 4, 4, [255, 255, 255, 128])];
+        let p = composer_planche(&cases, 1, 0, 0, [10, 20, 30, 255]);
+        assert_eq!(
+            pixel(&p, 0, 0),
+            [255, 255, 255, 128],
+            "les pixels sources sont copiés, pas composés avec le fond"
+        );
+    }
+
+    #[test]
+    fn une_planche_sans_case_est_vide_et_ne_panique_pas() {
+        let p = composer_planche(&[], 3, 4, 2, [0, 0, 0, 255]);
+        assert_eq!((p.largeur, p.hauteur), (0, 0));
+        assert!(p.cases.is_empty());
+
+        // Zéro colonne est une demande absurde, pas une raison de paniquer.
+        let une = vec![case("a", 4, 4, [1, 1, 1, 255])];
+        assert_eq!(composer_planche(&une, 0, 0, 0, [0, 0, 0, 0]).largeur, 0);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

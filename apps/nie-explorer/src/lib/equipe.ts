@@ -36,16 +36,6 @@ export type { Formation, TeamMember };
 export const NB_RESERVES = 5;
 export const NB_SUPPORTS = 3;
 
-/** Les 20 créneaux d'une composition, dans l'ordre d'affichage. */
-export function creneaux(formation: Formation): string[] {
-  return [
-    ...formation.positions.map((p) => `field-${p.index}`),
-    ...Array.from({ length: NB_RESERVES }, (_, i) => `reserve-${i}`),
-    "manager-0",
-    ...Array.from({ length: NB_SUPPORTS }, (_, i) => `support-${i}`),
-  ];
-}
-
 /** Un personnage sélectionnable, tel que le miroir le rend (cf. `wikiQueries.LigneRoster`). */
 export interface Joueur {
   /** `chara_param_id` — la clé qui ouvre `api.gameDataCalculateStats`. */

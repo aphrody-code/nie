@@ -47,7 +47,7 @@ KEY_PATH="${TAURI_SIGNING_PRIVATE_KEY_PATH:-$HOME/.tauri/niers.key}"
 	exit 1
 }
 
-echo "▸ [1/7] bump version → $VERSION (workspace Cargo + Bun)…"
+echo "▸ [1/8] bump version → $VERSION (workspace Cargo + Bun)…"
 sed -i "s/^version = \"[0-9]*\.[0-9]*\.[0-9]*\"/version = \"$VERSION\"/" Cargo.toml
 sed -i "s/\"version\": \"[0-9]*\.[0-9]*\.[0-9]*\"/\"version\": \"$VERSION\"/" package.json
 for f in apps/nie-explorer/package.json apps/nie-mcp/package.json \
@@ -58,16 +58,16 @@ done
 sed -i "s/^version = \"[0-9]*\.[0-9]*\.[0-9]*\"/version = \"$VERSION\"/" apps/nie-explorer/src-tauri/Cargo.toml
 sed -i "s/\"version\": \"[0-9]*\.[0-9]*\.[0-9]*\"/\"version\": \"$VERSION\"/" apps/nie-explorer/src-tauri/tauri.conf.json
 
-echo "▸ [2/7] sync lockfiles (Cargo.lock + bun.lock)…"
+echo "▸ [2/8] sync lockfiles (Cargo.lock + bun.lock)…"
 cargo update --workspace --offline 2>/dev/null || cargo update --workspace
 (cd apps/nie-explorer/src-tauri && cargo update --workspace --offline 2>/dev/null || cargo update --workspace)
 bun install
 
-echo "▸ [3/7] sanity check (cargo check workspace + src-tauri)…"
+echo "▸ [3/8] sanity check (cargo check workspace + src-tauri)…"
 cargo check --workspace
 (cd apps/nie-explorer/src-tauri && cargo check)
 
-echo "▸ [4/7] zip extension Blender (plugins/niers-blender, hors __pycache__)…"
+echo "▸ [4/8] zip extension Blender (plugins/niers-blender, hors __pycache__)…"
 BLENDER_VERSION="$(grep -m1 '^version' plugins/niers-blender/blender_manifest.toml | sed -E 's/.*"([0-9.]+)".*/\1/')"
 ZIP_STAGE="$(mktemp -d)"
 mkdir -p "$ZIP_STAGE/niers"   # racine = nom de MODULE Python (le dossier source a un tiret)
@@ -91,7 +91,14 @@ fi
 rm -rf "$ZIP_STAGE"
 echo "  → $BLENDER_ZIP (addon v$BLENDER_VERSION)"
 
-echo "▸ [5/7] build desktop signé (msi + nsis, minisign)…"
+echo "▸ [5/8] bases embarquées (miroir wiki + base RE → resources/db/*.gz)…"
+# Ce que l'installeur emporte pour être utile SANS le jeu et SANS le dépôt. L'étape est ici, avant
+# le build : `bundle.resources` est lu par le bundler, une archive écrite après coup n'entrerait
+# dans aucun paquet. Le script s'arrête si une base manque — une release amputée de ses données
+# s'installe et se signe exactement comme une release complète, rien ne l'en distinguerait ensuite.
+"$ROOT/scripts/packager-bases-explorer.sh"
+
+echo "▸ [6/8] build desktop signé (msi + nsis, minisign)…"
 (
 	cd apps/nie-explorer
 	export TAURI_SIGNING_PRIVATE_KEY="$KEY_PATH"
@@ -126,7 +133,7 @@ nsis_size=$(wc -c <"$NSIS")
 }
 echo "  taille verifiee : msi=$msi_size nsis=$nsis_size"
 
-echo "▸ [6/7] commit + tag $TAG + push…"
+echo "▸ [7/8] commit + tag $TAG + push…"
 git add Cargo.toml Cargo.lock package.json bun.lock \
         apps/nie-explorer/package.json apps/nie-mcp/package.json apps/nie-explorer/src-tauri/Cargo.toml \
         apps/nie-explorer/src-tauri/Cargo.lock apps/nie-explorer/src-tauri/tauri.conf.json \
@@ -145,7 +152,7 @@ git tag -a "$TAG" -m "niers $TAG"
 git push origin main
 git push origin "$TAG"
 
-echo "▸ [7/7] GitHub Release $TAG (upload msi+nsis+sig+blender zip)…"
+echo "▸ [8/8] GitHub Release $TAG (upload msi+nsis+sig+blender zip)…"
 gh release create "$TAG" \
 	--title "niers $TAG" \
 	--notes "App desktop (Tauri v2) signée minisign + extension Blender v$BLENDER_VERSION. Détail : docs/PLAN.md, apps/nie-explorer/ROADMAP.md." \

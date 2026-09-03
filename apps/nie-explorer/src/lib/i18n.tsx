@@ -7,12 +7,23 @@ type Dict = Record<string, string>;
 
 const fr: Dict = {
   "app.title": "niers",
+  // Une clé PAR VUE, sans exception : six vues portaient leur libellé en dur dans `App.tsx`
+  // (« Éditeur », « Cinéma », « Galerie », « Outils wiki », « Viola », « Live mod », « Lua »),
+  // donc restaient en français dans les trois locales. Le registre `lib/vues.ts` lit ces clés.
+  "tab.dashboard": "Tableau de bord",
+  "tab.editor": "Éditeur",
   "tab.explorer": "Explorateur",
   "tab.search": "Recherche",
+  "tab.cinema": "Cinéma",
   "tab.data": "Données",
+  "tab.gallery": "Galerie",
+  "tab.tools": "Outils wiki",
   "tab.mods": "Mods",
   "tab.cpk": "CPK brut",
   "tab.re": "RE",
+  "tab.viola": "Viola",
+  "tab.livemod": "Live mod",
+  "tab.lua": "Lua",
   "tab.save": "Sauvegardes",
   "tab.settings": "Paramètres",
 
@@ -45,12 +56,20 @@ const fr: Dict = {
 
 const en: Dict = {
   "app.title": "niers",
+  "tab.dashboard": "Dashboard",
+  "tab.editor": "Editor",
   "tab.explorer": "Explorer",
   "tab.search": "Search",
+  "tab.cinema": "Cinema",
   "tab.data": "Game data",
+  "tab.gallery": "Gallery",
+  "tab.tools": "Wiki tools",
   "tab.mods": "Mods",
   "tab.cpk": "Raw CPK",
   "tab.re": "RE",
+  "tab.viola": "Viola",
+  "tab.livemod": "Live mod",
+  "tab.lua": "Lua",
   "tab.save": "Saves",
   "tab.settings": "Settings",
 
@@ -83,12 +102,20 @@ const en: Dict = {
 
 const ja: Dict = {
   "app.title": "niers",
+  "tab.dashboard": "ダッシュボード",
+  "tab.editor": "エディター",
   "tab.explorer": "エクスプローラー",
   "tab.search": "検索",
+  "tab.cinema": "シネマ",
   "tab.data": "ゲームデータ",
+  "tab.gallery": "ギャラリー",
+  "tab.tools": "Wikiツール",
   "tab.mods": "MOD",
   "tab.cpk": "CPK直接展開",
   "tab.re": "RE",
+  "tab.viola": "Viola",
+  "tab.livemod": "ライブMOD",
+  "tab.lua": "Lua",
   "tab.save": "セーブデータ",
   "tab.settings": "設定",
 
@@ -133,7 +160,11 @@ function interpolate(template: string, vars?: Record<string, string | number>): 
 }
 
 /** Traduction réactive : re-render dès que `settings.locale` change. Repli FR -> clé brute. */
-export function useT(): (key: string, vars?: Record<string, string | number>) => string {
+/** La fonction de traduction rendue par [`useT`] — nommée pour être passable en argument
+ * (`lib/vues.ts` la reçoit : le registre des vues ne peut pas appeler un hook). */
+export type TFn = (key: string, vars?: Record<string, string | number>) => string;
+
+export function useT(): TFn {
   const { locale } = useSettings();
   const dict = DICTS[locale] ?? fr;
   return (key, vars) => interpolate(dict[key] ?? fr[key] ?? key, vars);

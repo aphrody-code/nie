@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { copySelectionActive, pasteActive, selectAllActive } from "@/lib/editBus";
 import { getSettings, setSettings } from "@/lib/settings";
 import { cn } from "@/lib/utils";
+import { IDS_VUES } from "@/lib/vues";
 
 export interface AppMenuActions {
   onOpenExternalPath: (path: string) => void;
@@ -27,24 +28,14 @@ export interface AppMenuActions {
   tabLabels: Record<string, string>;
 }
 
+// L'ordre des vues vient du registre (`lib/vues.ts`), celui-là même que suit la barre latérale :
+// cette liste était écrite à la main et « Cinéma » n'y figurait pas — la vue existait, se rendait,
+// et n'était atteignable ni par le menu Affichage ni par un accélérateur.
+//
 // Au-delà de neuf entrées, l'accélérateur Ctrl+N n'existe plus (cf. `viewMenu`) : les vues
-// suivantes restent accessibles par la barre latérale et le menu, sans raccourci.
-const VIEW_TABS = [
-  "editor",
-  "explorer",
-  "search",
-  "data",
-  "gallery",
-  "tools",
-  "mods",
-  "cpk",
-  "re",
-  "viola",
-  "livemod",
-  "lua",
-  "save",
-  "settings",
-] as const;
+// suivantes restent accessibles par la barre latérale et le menu, sans raccourci. Le tableau de
+// bord prend `Ctrl+1` en tant que page d'accueil, donc les neuf accélérateurs glissent d'un cran.
+const VIEW_TABS = IDS_VUES;
 
 function zoomIn() {
   setSettings({ uiZoom: Math.min(1.5, getSettings().uiZoom + 0.1) });

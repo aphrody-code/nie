@@ -12,6 +12,29 @@
 import { Database } from "bun:sqlite";
 import { existsSync, mkdirSync } from "fs";
 import type { ChannelInfo, VideoRef } from "./index";
+import {
+	LANGUES_SOURCE,
+	RE_YOUTUBE_ID,
+	reconnaitre,
+	type LangueSource,
+	type Plateforme,
+	type SourceEpisode,
+} from "./plateformes";
+
+/**
+ * Ramène une valeur de langue à ce que la contrainte `CHECK` accepte.
+ *
+ * Une langue inconnue devient `unknown` et n'est PAS rejetée : une source qui
+ * arrive avec un code exotique doit entrer au catalogue en disant qu'on ne sait
+ * pas la nommer, pas faire échouer toute la moisson. C'est la même règle que
+ * `langueDeChaine`, qui rend déjà `null` plutôt que de deviner.
+ */
+function langueValide(valeur: string | null | undefined): LangueSource {
+	const code = valeur?.toLowerCase().trim();
+	return code && (LANGUES_SOURCE as readonly string[]).includes(code)
+		? (code as LangueSource)
+		: "unknown";
+}
 
 /** `VideoRef` tel que stocké en cache : le nom de chaîne d'origine en plus. */
 export type CachedVideoRef = VideoRef & { channel?: string };
@@ -21,7 +44,7 @@ export interface CacheSearchQuery {
 	q?: string;
 	season?: number;
 	episode?: number;
-	language?: "vf" | "vostfr";
+	language?: LangueSource;
 	channel?: string;
 	limit?: number;
 }
@@ -38,6 +61,56 @@ export interface CacheStats {
 export class IETVCache {
 	private db: Database;
 	private dbPath: string;
+
+	/**
+	 * La table des SOURCES — N façons de regarder un même épisode.
+	 *
+	 * ── POURQUOI UNE TABLE, ET PAS TROIS COLONNES DE PLUS ──────────────────
+	 * `episodes` décrivait à la fois l'ŒUVRE (saison, numéro, titre japonais,
+	 * date de diffusion) et sa DIFFUSION (`videoId`, `url`, `thumbnail`,
+	 * `quality`). Tant qu'il n'y avait qu'une diffusion par épisode l'amalgame
+	 * tenait. Il ne tient plus : la plateforme officielle sert le même épisode
+	 * en trois langues, sous trois identifiants, sur deux plateformes
+	 * différentes. Ajouter `videoId_en`, `videoId_es` figerait dans le schéma le
+	 * nombre de langues connues aujourd'hui.
+	 *
+	 * `episodes` n'est pas touchée pour autant : l'explorateur
+	 * (`apps/nie-explorer/src/lib/animeDb.ts`) lit ses colonnes une par une, et
+	 * la vue Cinéma doit continuer de fonctionner sans rien connaître d'ici. La
+	 * ligne `episodes` reste la MEILLEURE source de l'épisode ; la table ci-
+	 * dessous les porte toutes.
+	 *
+	 * `verifieeLe IS NULL` est ce qui distingue une source qu'on a lue d'une
+	 * source qu'on suppose : sans ce champ, une déduction entrerait en base
+	 * avec exactement la même autorité qu'une mesure.
+	 */
+	static readonly SCHEMA_SOURCES = `
+      CREATE TABLE IF NOT EXISTS episode_sources (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        episode_id INTEGER NOT NULL,
+        plateforme TEXT NOT NULL CHECK(plateforme IN ('youtube', 'dailymotion', 'page')),
+        sourceId TEXT NOT NULL,
+        url TEXT NOT NULL,
+        langue TEXT NOT NULL CHECK(langue IN ('vo', 'vf', 'vostfr', 'en', 'es', 'unknown')),
+        qualite TEXT,
+        officielle INTEGER NOT NULL DEFAULT 1,
+        confiance TEXT NOT NULL DEFAULT 'declaree'
+          CHECK(confiance IN ('verifiee', 'declaree', 'deduite')),
+        verifieeLe INTEGER,
+        origine TEXT,
+        vignette TEXT,
+        titre TEXT,
+        createdAt INTEGER DEFAULT (cast(unixepoch() * 1000 as integer)),
+        updatedAt INTEGER DEFAULT (cast(unixepoch() * 1000 as integer)),
+        FOREIGN KEY(episode_id) REFERENCES episodes(id) ON DELETE CASCADE,
+        UNIQUE(episode_id, plateforme, sourceId, langue)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_sources_episode ON episode_sources(episode_id);
+      CREATE INDEX IF NOT EXISTS idx_sources_langue ON episode_sources(langue);
+      CREATE INDEX IF NOT EXISTS idx_sources_plateforme ON episode_sources(plateforme);
+      CREATE INDEX IF NOT EXISTS idx_sources_sourceid ON episode_sources(sourceId);
+	`;
 
 	constructor(dbPath = "~/.cache/ietv/episodes.db") {
 		this.dbPath = dbPath.replace("~", process.env.HOME || "/root");
@@ -96,13 +169,20 @@ export class IETVCache {
         romaji TEXT,
         publishDate TEXT,
         viewCount TEXT,
-        language TEXT CHECK(language IN ('vf', 'vostfr', 'unknown')),
+        -- La contrainte connaît SIX langues, pas trois. « vo » manquait alors que
+        -- sources.ts déclare la famille depuis toujours : la VO japonaise, seule
+        -- source officielle de l'éditeur pour la série d'origine, était donc
+        -- REFUSÉE en écriture par le schéma qui prétendait l'accueillir. « en » et
+        -- « es » manquaient de même, alors que la plateforme officielle les sert.
+        language TEXT CHECK(language IN ('vo', 'vf', 'vostfr', 'en', 'es', 'unknown')),
         duration INTEGER,
         quality TEXT,
         createdAt INTEGER DEFAULT (cast(unixepoch() * 1000 as integer)),
         FOREIGN KEY(channel_id) REFERENCES channels(id) ON DELETE CASCADE,
         UNIQUE(channel_id, season, episode, language)
       );
+
+      ${IETVCache.SCHEMA_SOURCES}
 
       CREATE TABLE IF NOT EXISTS metadata (
         key TEXT PRIMARY KEY,
@@ -143,7 +223,10 @@ export class IETVCache {
 		addColumn("episodes", "publishDate", "TEXT");
 		addColumn("episodes", "viewCount", "TEXT");
 
-		this.libererVideoId();
+		this.refondreEpisodes();
+		this.db.exec(IETVCache.SCHEMA_SOURCES);
+		this.supprimerOrphelins();
+		this.reprendreSourcesHeritees();
 	}
 
 	/**
@@ -172,11 +255,23 @@ export class IETVCache {
 	 * partie — et se fait en une transaction, pour ne jamais laisser une base à
 	 * demi migrée.
 	 */
-	private libererVideoId() {
+	private refondreEpisodes() {
 		const schema = this.db
 			.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'episodes'")
 			.get() as { sql?: string } | undefined;
-		if (!schema?.sql || !/videoId\s+TEXT\s+UNIQUE/i.test(schema.sql)) return;
+		if (!schema?.sql) return;
+
+		// Les DEUX défauts qu'une reconstruction corrige, testés séparément parce
+		// qu'ils n'ont pas la même histoire : une base peut avoir déjà perdu
+		// l'unicité sur `videoId` sans connaître « vo ».
+		const videoIdUnique = /videoId\s+TEXT\s+UNIQUE/i.test(schema.sql);
+		const langueEtroite = !/'vo'/.test(schema.sql);
+		// ── LE TEST EST CE QUI REND LA MIGRATION REJOUABLE ──────────────────
+		// Rejouée sur une base déjà migrée, la fonction sort ici : elle ne
+		// reconstruit rien, ne réattribue aucun `id`, et laisse les `createdAt`
+		// intacts. C'est ce qui permet à `IETVCache` d'appeler la migration à
+		// CHAQUE ouverture sans que la base dérive à chaque fois.
+		if (!videoIdUnique && !langueEtroite) return;
 
 		this.db.exec("BEGIN IMMEDIATE");
 		try {
@@ -195,7 +290,7 @@ export class IETVCache {
           romaji TEXT,
           publishDate TEXT,
           viewCount TEXT,
-          language TEXT CHECK(language IN ('vf', 'vostfr', 'unknown')),
+          language TEXT CHECK(language IN ('vo', 'vf', 'vostfr', 'en', 'es', 'unknown')),
           duration INTEGER,
           quality TEXT,
           createdAt INTEGER DEFAULT (cast(unixepoch() * 1000 as integer)),
@@ -226,14 +321,324 @@ export class IETVCache {
 		}
 	}
 
+	/**
+	 * Supprime les épisodes rattachés à une chaîne qui n'existe plus.
+	 *
+	 * ── LES DÉGÂTS DÉJÀ ÉCRITS PAR L'ANCIEN `INSERT OR REPLACE` ────────────
+	 * Tant que `saveChannel` réinsérait ses chaînes, chaque moisson leur donnait
+	 * un nouvel `id` et abandonnait le lot d'épisodes précédent sous l'ancien.
+	 * Ces lignes ne sont plus jointes à aucune chaîne — `getAllChannels` ne les
+	 * voit pas — mais `COUNT(*) FROM episodes` les compte, et c'est ce compte
+	 * que le catalogue affiche. Une base ayant tourné avec l'ancien code porte
+	 * donc un lot d'épisodes fantômes par moisson passée.
+	 *
+	 * Le correctif de `saveChannel` empêche d'en créer de nouveaux ; celui-ci
+	 * enlève ceux qui sont déjà là. Rejoué sur une base saine, il ne supprime
+	 * rien — la clause `NOT IN` ne désigne alors aucune ligne.
+	 */
+	private supprimerOrphelins() {
+		this.db.exec(
+			`DELETE FROM episode_sources
+              WHERE episode_id IN (SELECT id FROM episodes
+                                    WHERE channel_id NOT IN (SELECT id FROM channels));
+       DELETE FROM episodes WHERE channel_id NOT IN (SELECT id FROM channels);
+       DELETE FROM seasons  WHERE channel_id NOT IN (SELECT id FROM channels);`
+		);
+	}
+
+	/**
+	 * Convertit en SOURCES les épisodes déjà en base — la reprise de l'existant.
+	 *
+	 * ── CE QUE LA COLONNE `videoId` CONTENAIT RÉELLEMENT ───────────────────
+	 * Trois choses différentes sous un seul nom, mesurées le 2026-09-03 sur les
+	 * 355 lignes de production :
+	 *
+	 *  * **212** identifiants YouTube (onze caractères) — lisibles tels quels ;
+	 *  * **143** jetons fabriqués par nous (`off-galaxy-1`, 12 à 19 caractères),
+	 *    qu'aucun lecteur ne sait ouvrir — mais dont la VIGNETTE porte, elle, un
+	 *    identifiant Dailymotion parfaitement valide ;
+	 *  * quelques `url` pointant la page du site sans identifiant du tout.
+	 *
+	 * La reprise lit donc `videoId`, puis `url`, puis `thumbnail`, et ne
+	 * fabrique jamais d'identifiant : à défaut des trois, la source est de type
+	 * `page` — « ça s'ouvre là, on ne sait pas l'intégrer », ce qui est vrai,
+	 * plutôt qu'un identifiant inventé qui aurait l'air jouable.
+	 *
+	 * Aucune de ces sources n'est marquée `verifiee` : elles viennent d'une
+	 * moisson antérieure, personne n'a rouvert la page. `confiance = 'declaree'`
+	 * et `verifieeLe = NULL` disent exactement cela.
+	 *
+	 * `INSERT OR IGNORE` sur la clé `(episode_id, plateforme, sourceId, langue)`
+	 * rend l'opération **rejouable** : au deuxième passage, chaque ligne existe
+	 * déjà et rien n'est écrit.
+	 */
+	private reprendreSourcesHeritees() {
+		const lignes = this.db
+			.prepare(
+				`SELECT e.id, e.videoId, e.url, e.thumbnail, e.title, e.language, e.quality, c.channel
+                   FROM episodes e LEFT JOIN channels c ON c.id = e.channel_id
+                  WHERE NOT EXISTS (SELECT 1 FROM episode_sources s WHERE s.episode_id = e.id)`
+			)
+			.all() as {
+			id: number;
+			videoId: string | null;
+			url: string | null;
+			thumbnail: string | null;
+			title: string | null;
+			language: string | null;
+			quality: string | null;
+			channel: string | null;
+		}[];
+		if (lignes.length === 0) return;
+
+		const inserer = this.db.prepare(
+			`INSERT OR IGNORE INTO episode_sources
+         (episode_id, plateforme, sourceId, url, langue, qualite, officielle, confiance,
+          verifieeLe, origine, vignette, titre)
+       VALUES (?, ?, ?, ?, ?, ?, 1, 'declaree', NULL, ?, ?, ?)`
+		);
+
+		const transaction = this.db.transaction((toutes: typeof lignes) => {
+			for (const ligne of toutes) {
+				const candidats = [ligne.videoId ?? "", ligne.url ?? "", ligne.thumbnail ?? ""];
+				let plateforme: Plateforme = "page";
+				let sourceId = "";
+
+				if (ligne.videoId && RE_YOUTUBE_ID.test(ligne.videoId)) {
+					plateforme = "youtube";
+					sourceId = ligne.videoId;
+				} else {
+					for (const candidat of candidats) {
+						const trouve = candidat ? reconnaitre(candidat) : null;
+						if (trouve) {
+							plateforme = trouve.plateforme;
+							sourceId = trouve.sourceId;
+							break;
+						}
+					}
+				}
+
+				// Pas d'identifiant de lecture : l'URL de la page EST l'identité de
+				// la source. Elle est unique par épisode, donc la clé tient.
+				if (sourceId === "") sourceId = ligne.url ?? `episode-${ligne.id}`;
+
+				inserer.run(
+					ligne.id,
+					plateforme,
+					sourceId,
+					ligne.url ?? "",
+					langueValide(ligne.language),
+					ligne.quality,
+					ligne.channel,
+					ligne.thumbnail,
+					ligne.title
+				);
+			}
+		});
+		transaction(lignes);
+	}
+
+	// =========================================================================
+	// Sources — N façons de regarder un épisode
+	// =========================================================================
+
+	/**
+	 * Écrit les sources d'un épisode déjà en base.
+	 *
+	 * `ON CONFLICT … DO UPDATE` plutôt que `INSERT OR REPLACE` : remplacer la
+	 * ligne effacerait son `createdAt`, c'est-à-dire la date à laquelle cette
+	 * source a été DÉCOUVERTE, qui n'a aucune raison de bouger parce qu'on l'a
+	 * revue. Seuls la vérification et ce qui peut changer d'un passage à l'autre
+	 * sont mis à jour.
+	 *
+	 * `verifieeLe` ne recule jamais : une source relue sans être rouverte
+	 * (`verifieeLe` nul) conserve la date de sa dernière vérification réelle.
+	 * Sans ce `COALESCE`, un simple rafraîchissement de liste effacerait la
+	 * preuve qu'on avait, un jour, réellement ouvert la page.
+	 */
+	enregistrerSources(episodeId: number, sources: readonly SourceEpisode[]): number {
+		if (sources.length === 0) return 0;
+		const stmt = this.db.prepare(
+			`INSERT INTO episode_sources
+         (episode_id, plateforme, sourceId, url, langue, qualite, officielle, confiance,
+          verifieeLe, origine, vignette, titre)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(episode_id, plateforme, sourceId, langue) DO UPDATE SET
+         url = excluded.url,
+         qualite = COALESCE(excluded.qualite, episode_sources.qualite),
+         officielle = excluded.officielle,
+         confiance = excluded.confiance,
+         verifieeLe = COALESCE(excluded.verifieeLe, episode_sources.verifieeLe),
+         origine = COALESCE(excluded.origine, episode_sources.origine),
+         vignette = COALESCE(excluded.vignette, episode_sources.vignette),
+         titre = COALESCE(excluded.titre, episode_sources.titre),
+         updatedAt = cast(unixepoch() * 1000 as integer)`
+		);
+
+		const transaction = this.db.transaction((toutes: readonly SourceEpisode[]) => {
+			for (const s of toutes) {
+				stmt.run(
+					episodeId,
+					s.plateforme,
+					s.sourceId,
+					s.url,
+					s.langue,
+					s.qualite,
+					s.officielle ? 1 : 0,
+					s.confiance,
+					s.verifieeLe,
+					s.origine,
+					s.vignette,
+					s.titre
+				);
+			}
+		});
+		transaction(sources);
+		return sources.length;
+	}
+
+	/** Toutes les sources d'un épisode, la plus établie d'abord. */
+	sourcesDeEpisode(episodeId: number): SourceEpisode[] {
+		return (
+			this.db
+				.prepare(
+					`SELECT plateforme, sourceId, url, langue, qualite, officielle, confiance,
+                  verifieeLe, origine, vignette, titre
+             FROM episode_sources WHERE episode_id = ?
+            ORDER BY CASE confiance WHEN 'verifiee' THEN 0 WHEN 'declaree' THEN 1 ELSE 2 END,
+                     CASE plateforme WHEN 'youtube' THEN 0 WHEN 'dailymotion' THEN 1 ELSE 2 END`
+				)
+				.all(episodeId) as any[]
+		).map((r) => ({
+			plateforme: r.plateforme as Plateforme,
+			sourceId: r.sourceId,
+			url: r.url,
+			langue: langueValide(r.langue),
+			qualite: r.qualite ?? null,
+			officielle: r.officielle === 1,
+			confiance: r.confiance as SourceEpisode["confiance"],
+			verifieeLe: r.verifieeLe ?? null,
+			origine: r.origine ?? "",
+			vignette: r.vignette ?? null,
+			titre: r.titre ?? null,
+		}));
+	}
+
+	/**
+	 * Couverture mesurée : saison × langue × plateforme, et ce qui reste muet.
+	 *
+	 * C'est le seul chiffre qui vaille pour dire si une moisson a servi à
+	 * quelque chose. Il compte des épisodes DISTINCTS (`season, episode`), pas
+	 * des lignes : trois sources du même épisode ne font pas trois épisodes
+	 * couverts, et c'est exactement l'erreur que `totalEpisodes` faisait déjà
+	 * une fois.
+	 *
+	 * `sansSourceLisible` est la mesure qui compte pour l'utilisateur : un
+	 * épisode dont la seule source est de type `page` existe au catalogue et ne
+	 * se regarde pas.
+	 */
+	couverture(): {
+		parSaisonLangue: { saison: number; langue: string; episodes: number; sources: number }[];
+		parPlateforme: { plateforme: string; sources: number; episodes: number }[];
+		episodesDistincts: number;
+		sourcesTotal: number;
+		sansSourceLisible: { saison: number; episode: number | null }[];
+		sourcesParEpisode: { min: number; max: number; moyenne: number };
+	} {
+		const parSaisonLangue = this.db
+			.prepare(
+				`SELECT e.season AS saison, s.langue AS langue,
+                COUNT(DISTINCT e.season || '/' || COALESCE(e.episode, -1)) AS episodes,
+                COUNT(*) AS sources
+           FROM episode_sources s JOIN episodes e ON e.id = s.episode_id
+          GROUP BY e.season, s.langue ORDER BY e.season, s.langue`
+			)
+			.all() as { saison: number; langue: string; episodes: number; sources: number }[];
+
+		const parPlateforme = this.db
+			.prepare(
+				`SELECT s.plateforme AS plateforme, COUNT(*) AS sources,
+                COUNT(DISTINCT e.season || '/' || COALESCE(e.episode, -1)) AS episodes
+           FROM episode_sources s JOIN episodes e ON e.id = s.episode_id
+          GROUP BY s.plateforme ORDER BY sources DESC`
+			)
+			.all() as { plateforme: string; sources: number; episodes: number }[];
+
+		const distincts = this.db
+			.prepare(
+				"SELECT COUNT(*) AS n FROM (SELECT DISTINCT season, episode FROM episodes)"
+			)
+			.get() as { n: number };
+		const total = this.db.prepare("SELECT COUNT(*) AS n FROM episode_sources").get() as {
+			n: number;
+		};
+
+		// Un épisode est muet quand AUCUNE de ses lignes — toutes langues et
+		// toutes chaînes confondues — ne porte de source intégrable.
+		const sansSourceLisible = this.db
+			.prepare(
+				`SELECT DISTINCT e.season AS saison, e.episode AS episode
+           FROM episodes e
+          WHERE NOT EXISTS (
+                  SELECT 1 FROM episodes e2
+                    JOIN episode_sources s ON s.episode_id = e2.id
+                   WHERE e2.season = e.season
+                     AND COALESCE(e2.episode, -1) = COALESCE(e.episode, -1)
+                     AND s.plateforme <> 'page')
+          ORDER BY e.season, e.episode`
+			)
+			.all() as { saison: number; episode: number | null }[];
+
+		const parEpisode = this.db
+			.prepare(
+				`SELECT MIN(n) AS mini, MAX(n) AS maxi, AVG(n) AS moyenne FROM (
+           SELECT COUNT(s.id) AS n
+             FROM episodes e LEFT JOIN episode_sources s ON s.episode_id = e.id
+            GROUP BY e.season, COALESCE(e.episode, -1))`
+			)
+			.get() as { mini: number | null; maxi: number | null; moyenne: number | null };
+
+		return {
+			parSaisonLangue,
+			parPlateforme,
+			episodesDistincts: distincts.n,
+			sourcesTotal: total.n,
+			sansSourceLisible,
+			sourcesParEpisode: {
+				min: parEpisode.mini ?? 0,
+				max: parEpisode.maxi ?? 0,
+				moyenne: Number((parEpisode.moyenne ?? 0).toFixed(2)),
+			},
+		};
+	}
+
 	// =========================================================================
 	// Channel operations
 	// =========================================================================
 
 	saveChannel(info: ChannelInfo) {
+		// ── `INSERT OR REPLACE` CHANGEAIT L'IDENTIFIANT DE LA CHAÎNE ─────────
+		// Il SUPPRIME la ligne en conflit puis en insère une neuve, qui reçoit un
+		// nouvel `id` AUTOINCREMENT. Les épisodes, eux, gardaient l'ancien
+		// `channel_id` : ils devenaient orphelins d'une chaîne disparue, pendant
+		// que la moisson en réinsérait une copie complète sous le nouvel id.
+		//
+		// Mesuré : après une seule moisson, `channels.id` était passé de 64 à 67
+		// et la base portait 355 épisodes orphelins en `channel_id = 64` EN PLUS
+		// des 355 remoissonnés — chaque épisode compté deux fois, chaque source
+		// présente en double sous deux confiances différentes.
+		//
+		// L'upsert met à jour la ligne EN PLACE : `id` ne bouge plus jamais.
 		const stmt = this.db.prepare(`
-      INSERT OR REPLACE INTO channels (channel, title, description, avatar, totalEpisodes, lastScrape, updatedAt)
+      INSERT INTO channels (channel, title, description, avatar, totalEpisodes, lastScrape, updatedAt)
       VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(channel) DO UPDATE SET
+        title = excluded.title,
+        description = COALESCE(excluded.description, channels.description),
+        avatar = COALESCE(excluded.avatar, channels.avatar),
+        totalEpisodes = excluded.totalEpisodes,
+        lastScrape = excluded.lastScrape,
+        updatedAt = excluded.updatedAt
     `);
 
 		const now = Date.now();
@@ -255,18 +660,47 @@ export class IETVCache {
 		for (const season of info.seasons) {
 			this.db
 				.prepare(
-					"INSERT OR REPLACE INTO seasons (channel_id, season, name, totalEpisodes) VALUES (?, ?, ?, ?)"
+					// Même raison que pour `channels` : `seasons.id` n'est référencé
+					// par rien aujourd'hui, mais un `OR REPLACE` qui réattribue des
+					// identifiants à chaque moisson est une bombe à retardement — c'est
+					// exactement comme ça que les épisodes se sont dédoublés.
+					`INSERT INTO seasons (channel_id, season, name, totalEpisodes) VALUES (?, ?, ?, ?)
+           ON CONFLICT(channel_id, season) DO UPDATE SET
+             name = COALESCE(excluded.name, seasons.name),
+             totalEpisodes = excluded.totalEpisodes`
 				)
 				.run(channelId.id, season.season, season.name ?? null, season.totalEpisodes);
 
-			// Save episodes
+			// ── L'IDENTIFIANT DE LA LIGNE DOIT SURVIVRE À UNE REMOISSON ──────
+			// `INSERT OR REPLACE` SUPPRIME puis réinsère : la ligne repart avec un
+			// nouveau `rowid`. Tant que rien ne référençait `episodes.id`, c'était
+			// sans effet. `episode_sources.episode_id` le référence désormais, et
+			// comme `PRAGMA foreign_keys` n'est pas posé, SQLite ne cascaderait
+			// même pas — chaque remoisson aurait silencieusement détaché TOUTES
+			// les sources de leur épisode, et la couverture serait retombée à zéro
+			// au premier passage du cron.
+			//
+			// L'upsert sur la clé métier met à jour la ligne EN PLACE : `id` ne
+			// bouge pas, les sources restent attachées.
 			for (const ep of season.episodes) {
 				this.db
 					.prepare(
-						`INSERT OR REPLACE INTO episodes
+						`INSERT INTO episodes
            (channel_id, season, episode, videoId, title, url, description, thumbnail,
             titleJp, romaji, publishDate, viewCount, language, duration, quality)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(channel_id, season, episode, language) DO UPDATE SET
+           videoId = excluded.videoId,
+           title = excluded.title,
+           url = excluded.url,
+           description = COALESCE(excluded.description, episodes.description),
+           thumbnail = COALESCE(excluded.thumbnail, episodes.thumbnail),
+           titleJp = COALESCE(excluded.titleJp, episodes.titleJp),
+           romaji = COALESCE(excluded.romaji, episodes.romaji),
+           publishDate = COALESCE(excluded.publishDate, episodes.publishDate),
+           viewCount = COALESCE(excluded.viewCount, episodes.viewCount),
+           duration = COALESCE(excluded.duration, episodes.duration),
+           quality = COALESCE(excluded.quality, episodes.quality)`
 					)
 					.run(
 						channelId.id,
@@ -285,6 +719,20 @@ export class IETVCache {
 						ep.duration ?? null,
 						ep.quality || null
 					);
+
+				// Les sources que la moisson a réellement observées pour cet épisode.
+				// Elles sont écrites APRÈS l'upsert, donc contre un `id` stable.
+				if (ep.sources && ep.sources.length > 0) {
+					const ligne = this.db
+						.prepare(
+							`SELECT id FROM episodes
+                WHERE channel_id = ? AND season = ? AND episode IS ? AND language IS ?`
+						)
+						.get(channelId.id, season.season, ep.episode, ep.language) as
+						| { id: number }
+						| undefined;
+					if (ligne) this.enregistrerSources(ligne.id, ep.sources);
+				}
 			}
 		}
 
@@ -416,9 +864,14 @@ export class IETVCache {
 		const params: any[] = [];
 
 		if (query.q) {
-			sql += ` AND (e.title LIKE ? OR c.title LIKE ?)`;
+			// La recherche porte sur les QUATRE champs qui nomment un épisode, pas seulement sur
+			// son titre localisé : la base garde 330 titres japonais, 327 transcriptions romaji et
+			// 355 résumés, et c'est souvent par le romaji (« Sakkā Yarō Ze! ») ou par un détail du
+			// résumé qu'on retrouve un épisode dont on ne sait plus le titre français. Sans eux,
+			// une recherche pourtant exacte ne rendait rien.
+			sql += ` AND (e.title LIKE ? OR e.titleJp LIKE ? OR e.romaji LIKE ? OR e.description LIKE ? OR c.title LIKE ?)`;
 			const q = `%${query.q}%`;
-			params.push(q, q);
+			params.push(q, q, q, q, q);
 		}
 		if (query.season) {
 			sql += ` AND e.season = ?`;
@@ -527,8 +980,20 @@ export class IETVCache {
 		);
 	}
 
+	/**
+	 * Vide tout le catalogue.
+	 *
+	 * Les sources s'effacent EXPLICITEMENT et en premier : `ON DELETE CASCADE`
+	 * est bien déclaré sur `episode_sources`, mais SQLite ne l'applique que sous
+	 * `PRAGMA foreign_keys = ON`, qui n'est pas posé ici (même piège que
+	 * `clearChannel`). S'y fier laisserait toute la table des sources en place,
+	 * rattachée à des épisodes disparus — et la première remoisson aurait
+	 * réattribué ces `episode_id` à d'autres épisodes.
+	 */
 	clear() {
-		this.db.exec("DELETE FROM episodes; DELETE FROM seasons; DELETE FROM channels;");
+		this.db.exec(
+			"DELETE FROM episode_sources; DELETE FROM episodes; DELETE FROM seasons; DELETE FROM channels;"
+		);
 	}
 
 	/**
@@ -550,6 +1015,11 @@ export class IETVCache {
 			| { id: number }
 			| undefined;
 		if (!ligne) return;
+		this.db
+			.prepare(
+				"DELETE FROM episode_sources WHERE episode_id IN (SELECT id FROM episodes WHERE channel_id = ?)"
+			)
+			.run(ligne.id);
 		this.db.prepare("DELETE FROM episodes WHERE channel_id = ?").run(ligne.id);
 		this.db.prepare("DELETE FROM seasons WHERE channel_id = ?").run(ligne.id);
 		this.db.prepare("DELETE FROM channels WHERE id = ?").run(ligne.id);

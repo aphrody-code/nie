@@ -74,6 +74,14 @@ impl CpkCache {
         }
         self.bytes += size;
         self.order.push_back(key);
+        self.evincer();
+    }
+
+    /// Évince les CPK les moins récents tant que le budget est dépassé.
+    ///
+    /// Garde toujours au moins une entrée : évincer le CPK qu'on vient de demander ferait
+    /// boucler le prochain `read()` sur un rechargement disque immédiat.
+    fn evincer(&mut self) {
         while self.bytes > self.budget && self.order.len() > 1 {
             if let Some(old_key) = self.order.pop_front()
                 && let Some(old) = self.map.remove(&old_key)
@@ -82,6 +90,30 @@ impl CpkCache {
             }
         }
     }
+
+    /// Vide entièrement le cache et rend les octets libérés.
+    fn vider(&mut self) -> usize {
+        let liberes = self.bytes;
+        self.map.clear();
+        self.order.clear();
+        self.bytes = 0;
+        liberes
+    }
+}
+
+/// Occupation du cache CPK à un instant donné.
+///
+/// Sert à rendre la consommation **observable** : un cache dont le budget par défaut est de
+/// 16 Gio peut faire grossir un hôte de plusieurs gigaoctets sans qu'aucune interface ne le
+/// dise, et le symptôme (machine qui rame) n'accuse jamais le cache.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CacheCpkStats {
+    /// Octets bruts actuellement retenus.
+    pub octets: usize,
+    /// Nombre de CPK en cache.
+    pub entrees: usize,
+    /// Budget au-delà duquel l'éviction LRU se déclenche.
+    pub budget: usize,
 }
 
 /// Cache des CPK déjà chargés, borné LRU (cf. [`CpkCache`]).
@@ -371,6 +403,42 @@ impl Vfs {
     #[must_use]
     pub fn is_dump(&self) -> bool {
         self.loose_files
+    }
+
+    /// Occupation actuelle du cache CPK.
+    ///
+    /// Le cache retient les octets **bruts** de chaque CPK ouvert : quelques lectures dans des
+    /// paquets différents suffisent à retenir plusieurs centaines de mégaoctets. Sans cette
+    /// mesure, cette consommation est invisible depuis l'extérieur.
+    #[must_use]
+    pub fn cache_stats(&self) -> CacheCpkStats {
+        let cache = self.cpk_cache.lock().expect("verrou du cache CPK empoisonné");
+        CacheCpkStats { octets: cache.bytes, entrees: cache.map.len(), budget: cache.budget }
+    }
+
+    /// Vide le cache CPK et rend les octets libérés.
+    ///
+    /// Les lectures en cours ne sont pas affectées : chacune détient un `Arc` sur sa donnée,
+    /// qui reste vivante jusqu'à la fin de l'extraction. Vider ne fait que relâcher la
+    /// référence du cache.
+    pub fn vider_cache(&self) -> usize {
+        self.cpk_cache.lock().expect("verrou du cache CPK empoisonné").vider()
+    }
+
+    /// Change le budget du cache CPK et évince immédiatement ce qui dépasse.
+    ///
+    /// Le budget par défaut (16 Gio, cf. `NIE_CPK_CACHE_BUDGET_GIB`) vise un outil de traitement
+    /// par lots qui a la machine pour lui. Une application de bureau qui tourne à côté du jeu
+    /// et d'un navigateur a besoin d'un plafond bien plus bas, et doit pouvoir le poser
+    /// **après** la construction du VFS — au moment où elle sait ce qu'elle est.
+    ///
+    /// Rend les octets libérés par l'éviction déclenchée.
+    pub fn regler_budget_cache(&self, budget: usize) -> usize {
+        let mut cache = self.cpk_cache.lock().expect("verrou du cache CPK empoisonné");
+        let avant = cache.bytes;
+        cache.budget = budget;
+        cache.evincer();
+        avant.saturating_sub(cache.bytes)
     }
 
     /// Cherche une entrée par son chemin interne.
@@ -849,6 +917,59 @@ mod tests {
 
         assert_eq!(vfs.resolve_loose_path("data/common/movie/absent.usm"), None);
         std::fs::remove_dir_all(&base).ok();
+    }
+
+    /// Le cache CPK est mesurable, réglable à chaud et videable — sur le vrai jeu.
+    ///
+    /// Le budget par défaut (16 Gio) vise un traitement par lots qui a la machine pour lui.
+    /// Une application de bureau doit pouvoir l'abaisser **après** la construction du VFS, au
+    /// moment où elle sait ce qu'elle est ; sans cela elle ne peut que subir, le budget étant
+    /// lu depuis l'environnement à la construction.
+    ///
+    /// Adossé au jeu parce que remplir le cache demande un vrai CPK : `CpkReader` ne se
+    /// fabrique pas à partir d'octets factices, et un test sur une structure inventée ne
+    /// prouverait rien de l'API réellement appelée.
+    #[test]
+    fn le_cache_cpk_est_mesurable_reglable_et_videable() {
+        let dir = crate::vfs::resolve_game_dir().to_string_lossy().into_owned();
+        let data = std::path::Path::new(&dir).join("data");
+        if !data.join("cpk_list.cfg.bin").exists() {
+            eprintln!("skip le_cache_cpk_est_mesurable_reglable_et_videable : jeu absent");
+            return;
+        }
+        let mut vfs = Vfs::new();
+        vfs.init(&data).expect("Vfs::init");
+
+        assert_eq!(vfs.cache_stats().octets, 0, "cache vide avant toute lecture");
+
+        // Une lecture quelconque suffit à charger le CPK qui la porte.
+        let Some((chemin, _)) = vfs.iter().find(|(p, _)| p.ends_with(".cfg.bin")) else {
+            eprintln!("skip : aucun .cfg.bin dans l'index");
+            return;
+        };
+        let chemin = chemin.to_string();
+        vfs.read(&chemin).expect("lecture d'un fichier du jeu");
+
+        let apres = vfs.cache_stats();
+        assert!(apres.octets > 0, "la lecture a chargé un paquet en cache");
+        assert_eq!(apres.entrees, 1, "un seul paquet touché");
+
+        // Abaisser le budget évince immédiatement, sans attendre la prochaine insertion —
+        // mais garde toujours une entrée : évincer le paquet qu'on vient de demander ferait
+        // relire le disque au `read()` suivant, en boucle.
+        vfs.regler_budget_cache(1);
+        let serre = vfs.cache_stats();
+        assert_eq!(serre.budget, 1);
+        assert_eq!(serre.entrees, 1, "le dernier paquet survit au budget dépassé");
+
+        // Vider rend tout, et laisse un cache réutilisable.
+        let liberes = vfs.vider_cache();
+        assert_eq!(liberes, serre.octets, "les octets rendus sont ceux qui étaient retenus");
+        assert_eq!(vfs.cache_stats().octets, 0);
+        assert_eq!(vfs.cache_stats().entrees, 0);
+
+        vfs.read(&chemin).expect("relecture après vidage");
+        assert!(vfs.cache_stats().octets > 0, "le cache se remplit de nouveau");
     }
 
     /// Mount end-to-end du VRAI jeu Steam s'il est présent (sinon skip). Prouve que

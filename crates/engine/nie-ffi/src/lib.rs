@@ -34,6 +34,8 @@
 //! | `nie_vfs_list_json`        | JSON `[{path,cpk,size}]` ; plafonné à 50 000 entrées             |
 //! | `nie_vfs_list_json_out`    | Idem, via `*mut NieBytes`                                        |
 //! | `nie_vfs_count`            | Nombre total d'entrées indexées (sans plafond)                   |
+//! | `nie_vfs_is_readable`      | Présence servable d'un chemin, **sans lire le contenu**          |
+//! | `nie_match_simulate_json_out` | Simulation de match à graine et à statistiques → JSON        |
 //! | `nie_vfs_list_range_json_out` | Tranche `[offset, offset+limit)` de l'index, via `*mut NieBytes` |
 //! | `nie_vfs_free`             | Libère le handle VFS                                             |
 //!
@@ -735,6 +737,114 @@ pub unsafe extern "C" fn nie_vfs_count(vfs: *mut c_void) -> u64 {
     vfs_ref.iter().count() as u64
 }
 
+/// Dit si un chemin interne est réellement servable, **sans extraire son contenu**.
+///
+/// Délègue à [`nie_formats::vfs::Vfs::is_readable`], donc tient compte des fichiers
+/// « loose » que `cpk_list.cfg.bin` déclare sans qu'ils existent sur une installation
+/// donnée : une simple présence dans l'index annoncerait des fichiers que
+/// [`nie_vfs_read`] refuserait ensuite.
+///
+/// C'est le test qu'un consommateur interactif doit employer pour décider s'il peut
+/// afficher un asset. L'alternative — appeler [`nie_vfs_read`] et regarder si le
+/// tampon est vide — extrait le CPK entier pour répondre par oui ou par non, et
+/// remplit le cache de paquets au passage : mesuré à 4,9 Go retenus pour soixante
+/// vérifications de textures dispersées.
+///
+/// # Safety
+///
+/// - `vfs` doit être un handle valide retourné par [`nie_vfs_open`], non encore libéré.
+/// - `internal_path` doit être une chaîne C null-terminée valide.
+/// - null (l'un ou l'autre) → retourne 0.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_vfs_is_readable(vfs: *mut c_void, internal_path: *const c_char) -> u32 {
+    if vfs.is_null() || internal_path.is_null() {
+        return 0;
+    }
+    // SAFETY: vfs provient de nie_vfs_open ; internal_path est null-terminé.
+    let vfs_ref = unsafe { &*(vfs.cast::<nie_formats::vfs::Vfs>()) };
+    let path = match unsafe { std::ffi::CStr::from_ptr(internal_path) }.to_str() {
+        Ok(s) => s,
+        Err(_) => return 0,
+    };
+    u32::from(vfs_ref.is_readable(path))
+}
+
+/// Occupation du cache CPK — miroir de `nie_formats::vfs::CacheCpkStats`.
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct NieCacheStats {
+    /// Octets bruts actuellement retenus.
+    pub octets: u64,
+    /// Nombre de paquets CPK en cache.
+    pub entrees: u64,
+    /// Budget au-delà duquel l'éviction LRU se déclenche.
+    pub budget: u64,
+}
+
+/// Écrit l'occupation du cache CPK dans `out`.
+///
+/// Le VFS garde les octets **bruts** de chaque paquet ouvert : quelques lectures dans des
+/// paquets différents suffisent à retenir plusieurs centaines de mégaoctets. Un hôte qui
+/// embarque cette bibliothèque — un jeu, par exemple — a besoin de le voir pour décider, et le
+/// budget par défaut (16 Gio) est dimensionné pour un traitement par lots, pas pour lui.
+///
+/// # Safety
+///
+/// - `vfs` doit provenir de [`nie_vfs_open`] et ne pas avoir été libéré ; null est un no-op.
+/// - `out` doit pointer un [`NieCacheStats`] inscriptible.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_vfs_cache_stats(vfs: *mut c_void, out: *mut NieCacheStats) {
+    if vfs.is_null() || out.is_null() {
+        return;
+    }
+    // SAFETY: vfs provient de nie_vfs_open ; out est inscriptible par contrat.
+    let vfs_ref = unsafe { &*(vfs.cast::<nie_formats::vfs::Vfs>()) };
+    let s = vfs_ref.cache_stats();
+    unsafe {
+        *out = NieCacheStats {
+            octets: s.octets as u64,
+            entrees: s.entrees as u64,
+            budget: s.budget as u64,
+        };
+    }
+}
+
+/// Vide le cache CPK et rend les octets libérés.
+///
+/// Sans danger pour les lectures en cours : chacune détient sa donnée par `Arc` jusqu'à la fin
+/// de l'extraction. Les lectures suivantes relisent le paquet depuis le disque.
+///
+/// # Safety
+///
+/// `vfs` doit provenir de [`nie_vfs_open`] et ne pas avoir été libéré ; null rend 0.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_vfs_cache_vider(vfs: *mut c_void) -> u64 {
+    if vfs.is_null() {
+        return 0;
+    }
+    // SAFETY: vfs provient de nie_vfs_open.
+    let vfs_ref = unsafe { &*(vfs.cast::<nie_formats::vfs::Vfs>()) };
+    vfs_ref.vider_cache() as u64
+}
+
+/// Change le budget du cache CPK et évince immédiatement ce qui dépasse.
+///
+/// Rend les octets libérés par l'éviction déclenchée. L'éviction garde toujours un paquet :
+/// évincer celui qu'on vient de demander ferait relire le disque au prochain appel, en boucle.
+///
+/// # Safety
+///
+/// `vfs` doit provenir de [`nie_vfs_open`] et ne pas avoir été libéré ; null rend 0.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_vfs_cache_budget(vfs: *mut c_void, budget: u64) -> u64 {
+    if vfs.is_null() {
+        return 0;
+    }
+    // SAFETY: vfs provient de nie_vfs_open.
+    let vfs_ref = unsafe { &*(vfs.cast::<nie_formats::vfs::Vfs>()) };
+    vfs_ref.regler_budget_cache(usize::try_from(budget).unwrap_or(usize::MAX)) as u64
+}
+
 /// Tranche `[offset, offset + limit)` de l'index VFS, en JSON `[{path, cpk, size}]`.
 ///
 /// Complète [`nie_vfs_list_json`], dont le plafond de 50 000 entrées tronque **en silence**
@@ -987,6 +1097,326 @@ pub unsafe extern "C" fn nie_font_free(ctx: *mut c_void) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Moteur de match (`nie-runtime`) — la simulation, pilotable depuis l'extérieur
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Tout ce qui précède LIT le jeu (assets, formats, VFS). Ce bloc le fait TOURNER : il expose
+// `nie_runtime::World`, la simulation 11 v 11 déterministe, pour qu'un hôte non-Rust — la lib
+// Python `niepy`, et donc Ren'Py — puisse avancer un match tick par tick et lire son état.
+//
+// Le déterminisme est le contrat : à `dt` et entrées identiques, deux exécutions donnent la
+// même suite d'états. C'est ce qui permet à un visual novel de rejouer une action à l'identique.
+
+/// Handle opaque de monde de match, alloué par [`nie_world_new`].
+///
+/// Le type réel est `nie_runtime::World` ; l'hôte ne le manipule que par ce pointeur.
+pub struct NieWorld {
+    _priv: [u8; 0],
+}
+
+/// Un joueur, aplati en `repr(C)` pour la frontière.
+///
+/// Les positions sont en mètres, origine au centre du terrain
+/// (demi-longueur [`nie_runtime::HALF_LEN`], demi-largeur [`nie_runtime::HALF_WID`]).
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct NiePlayer {
+    /// Position au sol, axe but-à-but.
+    pub x: f32,
+    /// Position au sol, axe touche-à-touche.
+    pub y: f32,
+    /// Vitesse au sol, composante `x` (m/s).
+    pub vx: f32,
+    /// Vitesse au sol, composante `y` (m/s).
+    pub vy: f32,
+    /// Équipe : `0` = domicile (attaque vers `+x`), `1` = extérieur.
+    pub team: u8,
+    /// Rôle : `0` gardien, `1` défenseur, `2` milieu, `3` attaquant.
+    pub role: u8,
+}
+
+/// Le ballon, aplati en `repr(C)`. `z` est la **hauteur** (convention `nie-runtime`).
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct NieBall {
+    /// Position, axe but-à-but.
+    pub x: f32,
+    /// Position, axe touche-à-touche.
+    pub y: f32,
+    /// Hauteur au-dessus du sol.
+    pub z: f32,
+    /// Vitesse, composante `x` (m/s).
+    pub vx: f32,
+    /// Vitesse, composante `y` (m/s).
+    pub vy: f32,
+    /// Vitesse verticale (m/s).
+    pub vz: f32,
+}
+
+/// Crée un monde de match au coup d'envoi (22 joueurs + ballon, un gardien par camp).
+///
+/// Rend un handle à libérer **exactement une fois** par [`nie_world_free`].
+#[unsafe(no_mangle)]
+pub extern "C" fn nie_world_new() -> *mut NieWorld {
+    let w = Box::new(nie_runtime::World::kickoff());
+    Box::into_raw(w).cast::<NieWorld>()
+}
+
+/// Remet le monde au coup d'envoi, sans réallouer le handle.
+///
+/// # Safety
+///
+/// `w` doit provenir de [`nie_world_new`] et ne pas avoir été libéré.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_world_kickoff(w: *mut NieWorld) {
+    if w.is_null() {
+        return;
+    }
+    // SAFETY: w provient de nie_world_new → Box<World>, encore vivant par contrat.
+    let world = unsafe { &mut *w.cast::<nie_runtime::World>() };
+    *world = nie_runtime::World::kickoff();
+}
+
+/// Avance la simulation de `dt` secondes.
+///
+/// # Safety
+///
+/// `w` doit provenir de [`nie_world_new`] et ne pas avoir été libéré.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_world_step(w: *mut NieWorld, dt: f32) {
+    if w.is_null() {
+        return;
+    }
+    // SAFETY: idem nie_world_kickoff.
+    let world = unsafe { &mut *w.cast::<nie_runtime::World>() };
+    world.step(dt);
+}
+
+/// Pose l'entrée du joueur contrôlé : direction souhaitée et ordre de frappe.
+///
+/// # Safety
+///
+/// `w` doit provenir de [`nie_world_new`] et ne pas avoir été libéré.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_world_set_input(w: *mut NieWorld, dx: f32, dy: f32, shoot: bool) {
+    if w.is_null() {
+        return;
+    }
+    // SAFETY: idem nie_world_kickoff.
+    let world = unsafe { &mut *w.cast::<nie_runtime::World>() };
+    // Affectation champ par champ : évite de nommer `nie_geom::Vec2` ici, donc évite d'ajouter
+    // une dépendance à ce crate juste pour construire deux flottants.
+    world.input.dir.x = dx;
+    world.input.dir.y = dy;
+    world.input.shoot = shoot;
+}
+
+/// Nombre de joueurs sur le terrain (22 au coup d'envoi). `0` si `w` est null.
+///
+/// # Safety
+///
+/// `w` doit provenir de [`nie_world_new`] et ne pas avoir été libéré.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_world_player_count(w: *const NieWorld) -> usize {
+    if w.is_null() {
+        return 0;
+    }
+    // SAFETY: w provient de nie_world_new ; lecture partagée.
+    let world = unsafe { &*w.cast::<nie_runtime::World>() };
+    world.players.len()
+}
+
+/// Copie le joueur d'indice `i` dans `out`. Rend `false` si `i` est hors bornes.
+///
+/// # Safety
+///
+/// `w` doit provenir de [`nie_world_new`] ; `out` doit pointer un [`NiePlayer`] inscriptible.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_world_player(
+    w: *const NieWorld,
+    i: usize,
+    out: *mut NiePlayer,
+) -> bool {
+    if w.is_null() || out.is_null() {
+        return false;
+    }
+    // SAFETY: w provient de nie_world_new ; lecture partagée.
+    let world = unsafe { &*w.cast::<nie_runtime::World>() };
+    let Some(p) = world.players.get(i) else {
+        return false;
+    };
+    let role = match p.role {
+        nie_runtime::Role::Goalkeeper => 0,
+        nie_runtime::Role::Defender => 1,
+        nie_runtime::Role::Midfielder => 2,
+        nie_runtime::Role::Forward => 3,
+    };
+    // SAFETY: out est un NiePlayer inscriptible par contrat.
+    unsafe {
+        *out = NiePlayer {
+            x: p.pos.x,
+            y: p.pos.y,
+            vx: p.vel.x,
+            vy: p.vel.y,
+            team: p.team,
+            role,
+        };
+    }
+    true
+}
+
+/// Copie l'état du ballon dans `out`.
+///
+/// # Safety
+///
+/// `w` doit provenir de [`nie_world_new`] ; `out` doit pointer un [`NieBall`] inscriptible.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_world_ball(w: *const NieWorld, out: *mut NieBall) {
+    if w.is_null() || out.is_null() {
+        return;
+    }
+    // SAFETY: w provient de nie_world_new ; lecture partagée.
+    let world = unsafe { &*w.cast::<nie_runtime::World>() };
+    let b = &world.ball;
+    // SAFETY: out est un NieBall inscriptible par contrat.
+    unsafe {
+        *out = NieBall { x: b.pos.x, y: b.pos.y, z: b.pos.z, vx: b.vel.x, vy: b.vel.y, vz: b.vel.z };
+    }
+}
+
+/// Écrit le score dans `home` et `away` (chacun optionnel — un pointeur null est ignoré).
+///
+/// # Safety
+///
+/// `w` doit provenir de [`nie_world_new`] ; `home`/`away` sont null ou inscriptibles.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_world_score(w: *const NieWorld, home: *mut u32, away: *mut u32) {
+    if w.is_null() {
+        return;
+    }
+    // SAFETY: w provient de nie_world_new ; lecture partagée.
+    let world = unsafe { &*w.cast::<nie_runtime::World>() };
+    if !home.is_null() {
+        // SAFETY: non-null et inscriptible par contrat.
+        unsafe { *home = world.score[0] };
+    }
+    if !away.is_null() {
+        // SAFETY: non-null et inscriptible par contrat.
+        unsafe { *away = world.score[1] };
+    }
+}
+
+/// Temps de jeu écoulé, en secondes. `0.0` si `w` est null.
+///
+/// # Safety
+///
+/// `w` doit provenir de [`nie_world_new`] et ne pas avoir été libéré.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_world_time(w: *const NieWorld) -> f32 {
+    if w.is_null() {
+        return 0.0;
+    }
+    // SAFETY: w provient de nie_world_new ; lecture partagée.
+    unsafe { &*w.cast::<nie_runtime::World>() }.time
+}
+
+/// Numéro du tick courant — le compteur qui atteste du déterminisme. `0` si `w` est null.
+///
+/// # Safety
+///
+/// `w` doit provenir de [`nie_world_new`] et ne pas avoir été libéré.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_world_tick(w: *const NieWorld) -> u64 {
+    if w.is_null() {
+        return 0;
+    }
+    // SAFETY: w provient de nie_world_new ; lecture partagée.
+    unsafe { &*w.cast::<nie_runtime::World>() }.tick
+}
+
+/// Indice du joueur qui possède le ballon, ou `-1` si personne ne l'a.
+///
+/// # Safety
+///
+/// `w` doit provenir de [`nie_world_new`] et ne pas avoir été libéré.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_world_possessor(w: *const NieWorld) -> isize {
+    if w.is_null() {
+        return -1;
+    }
+    // SAFETY: w provient de nie_world_new ; lecture partagée.
+    let world = unsafe { &*w.cast::<nie_runtime::World>() };
+    world.possessor().map_or(-1, |i| i as isize)
+}
+
+/// État complet du monde en JSON UTF-8 — la voie pratique pour un hôte scripté.
+///
+/// Forme : `{"tick","time","score":[h,a],"possessor","ball":{…},"players":[{…}]}`.
+/// L'hôte DOIT libérer le tampon par [`nie_bytes_free`] / [`nie_bytes_free_fields`].
+///
+/// # Safety
+///
+/// `w` doit provenir de [`nie_world_new`] ; `out` doit pointer un [`NieBytes`] inscriptible.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_world_snapshot_json_out(w: *const NieWorld, out: *mut NieBytes) {
+    if out.is_null() {
+        return;
+    }
+    if w.is_null() {
+        // SAFETY: out non-null et inscriptible par contrat.
+        unsafe { *out = NieBytes::empty() };
+        return;
+    }
+    // SAFETY: w provient de nie_world_new ; lecture partagée.
+    let world = unsafe { &*w.cast::<nie_runtime::World>() };
+    let players: Vec<serde_json::Value> = world
+        .players
+        .iter()
+        .map(|p| {
+            serde_json::json!({
+                "x": p.pos.x, "y": p.pos.y,
+                "vx": p.vel.x, "vy": p.vel.y,
+                "team": p.team,
+                "role": match p.role {
+                    nie_runtime::Role::Goalkeeper => "GK",
+                    nie_runtime::Role::Defender => "DF",
+                    nie_runtime::Role::Midfielder => "MF",
+                    nie_runtime::Role::Forward => "FW",
+                },
+            })
+        })
+        .collect();
+    let snap = serde_json::json!({
+        "tick": world.tick,
+        "time": world.time,
+        "score": [world.score[0], world.score[1]],
+        "possessor": world.possessor().map_or(-1, |i| i as isize),
+        "ball": {
+            "x": world.ball.pos.x, "y": world.ball.pos.y, "z": world.ball.pos.z,
+            "vx": world.ball.vel.x, "vy": world.ball.vel.y, "vz": world.ball.vel.z,
+        },
+        "players": players,
+    });
+    let bytes = serde_json::to_vec(&snap).unwrap_or_default();
+    // SAFETY: out non-null et inscriptible par contrat.
+    unsafe { *out = NieBytes::from_vec(bytes) };
+}
+
+/// Libère un handle de monde.
+///
+/// # Safety
+///
+/// `w` doit provenir de [`nie_world_new`] et n'être libéré **qu'une fois**. Null est un no-op.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_world_free(w: *mut NieWorld) {
+    if w.is_null() {
+        return;
+    }
+    // SAFETY: w provient de nie_world_new → Box<World> ; appelé exactement une fois.
+    unsafe { drop(Box::from_raw(w.cast::<nie_runtime::World>())) };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Tests
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1161,4 +1591,78 @@ mod tests {
         unsafe { nie_font_free(fctx) };
         unsafe { nie_vfs_free(vfs) };
     }
+}
+
+// ============================================================================
+// Simulation de match — à graine et à statistiques
+// ============================================================================
+
+/// Simule une rencontre complète et rend le résultat en JSON UTF-8.
+///
+/// C'est le complément du bloc `nie_world_*`, et il répond à un autre besoin.
+/// `nie_world_*` fait TOURNER un match jouable : on lui pousse des entrées et on
+/// l'avance pas à pas. Il n'accepte aucune graine et son onze est le sien — deux
+/// matchs laissés à eux-mêmes rendent le même score, et rien ne distingue les
+/// joueurs d'un camp de ceux de l'autre.
+///
+/// [`nie_core::match_sim::simulate_match`] fait l'inverse : il tranche une
+/// rencontre d'un bloc, à partir des STATISTIQUES des deux équipes et d'une
+/// GRAINE. C'est ce qu'un récit demande — un match que le joueur ne dispute pas,
+/// dont le résultat dépend de la force des effectifs et se rejoue à l'identique.
+///
+/// `home_json` et `away_json` sont des `TeamSetup` sérialisés :
+///
+/// ```json
+/// {"name": "Raimon", "aggregate_stats": {"kc":207,"cr":216,"tc":218,
+///  "pr":235,"ps":242,"ag":210,"it":261}, "placements": null}
+/// ```
+///
+/// La sortie est un `MatchResult` : `home_score`, `away_score`, `final_clock`
+/// (`minutes * 10_000 + secondes`) et la séquence complète d'`events`.
+///
+/// `NieBytes::empty` en sortie signale une entrée illisible — JSON invalide,
+/// champ manquant, ou pointeur nul.
+///
+/// # Safety
+///
+/// - `home_json` et `away_json` doivent être des chaînes C null-terminées valides.
+/// - `out` doit pointer sur un `NieBytes` inscriptible et aligné.
+/// - null (n'importe lequel) → `NieBytes::empty`, aucun effet.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_match_simulate_json_out(
+    home_json: *const c_char,
+    away_json: *const c_char,
+    seed: u64,
+    out: *mut NieBytes,
+) {
+    if out.is_null() {
+        return;
+    }
+    if home_json.is_null() || away_json.is_null() {
+        // SAFETY: out est non-null et aligné.
+        unsafe { out.write(NieBytes::empty()) };
+        return;
+    }
+
+    // SAFETY: les deux pointeurs sont non-null et null-terminés.
+    let (home_str, away_str) = unsafe {
+        (
+            std::ffi::CStr::from_ptr(home_json).to_str(),
+            std::ffi::CStr::from_ptr(away_json).to_str(),
+        )
+    };
+
+    let resultat = (|| -> Option<Vec<u8>> {
+        let home: nie_core::match_sim::TeamSetup = serde_json::from_str(home_str.ok()?).ok()?;
+        let away: nie_core::match_sim::TeamSetup = serde_json::from_str(away_str.ok()?).ok()?;
+        let issue = nie_core::match_sim::simulate_match(home, away, seed);
+        serde_json::to_vec(&issue).ok()
+    })();
+
+    let sortie = match resultat {
+        Some(v) => NieBytes::from_vec(v),
+        None => NieBytes::empty(),
+    };
+    // SAFETY: out est non-null et aligné.
+    unsafe { out.write(sortie) };
 }

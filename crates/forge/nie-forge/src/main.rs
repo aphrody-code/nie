@@ -166,6 +166,19 @@ enum Cmd {
         /// Fichier de sortie, dans le répertoire de source assembleur.
         #[arg(long, default_value = "lifted.s")]
         out: String,
+        /// Nombre de causes de blocage affichées (0 = toutes).
+        #[arg(long, default_value_t = 15)]
+        top: usize,
+    },
+    /// Reporte le découpage et l'état de production dans la base de connaissance.
+    ///
+    /// Écrit la table `forge_unit` et la vue `v_forge_function` : chaque fonction
+    /// de la base y gagne son offset, sa taille mesurée, sa nature et son statut
+    /// (`produit`, `bloque` avec cause, `donnees_inline`, `regle`, `verbatim`).
+    /// Rien n'est modifié dans `function` — le reverse garde ses colonnes.
+    Kb {
+        #[command(flatten)]
+        paths: Paths,
     },
     /// Recense les corps de fonctions identiques : la liste de travail du portage.
     ///
@@ -215,7 +228,9 @@ fn main() -> anyhow::Result<()> {
             paths,
             max_len,
             out,
-        } => cmd_lift(&paths, max_len, &out),
+            top,
+        } => cmd_lift(&paths, max_len, &out, top),
+        Cmd::Kb { paths } => cmd_kb(&paths),
         Cmd::Cc {
             paths,
             src,
@@ -358,7 +373,7 @@ fn cmd_cc(paths: &Paths, src: &Path, cl: Option<&Path>, register: bool) -> anyho
     Ok(())
 }
 
-fn cmd_lift(paths: &Paths, max_len: usize, out: &str) -> anyhow::Result<()> {
+fn cmd_lift(paths: &Paths, max_len: usize, out: &str, top: usize) -> anyhow::Result<()> {
     let exe = paths.exe_path()?;
     let store = ForgeStore::load(&paths.forge)?;
     let reference = ReferenceBinary::load_checked(&exe, &store.cover)?;
@@ -443,13 +458,52 @@ fn cmd_lift(paths: &Paths, max_len: usize, out: &str) -> anyhow::Result<()> {
             src.len() as f64 / scanned as f64
         },
     );
+    // Le total dit ce qui reste a conquerir ; sans lui, une liste tronquee
+    // laisse croire que les quinze premieres causes epuisent le sujet.
+    println!(
+        "blocages causes={} units={} bytes={}",
+        blockers.len(),
+        blockers.iter().map(|b| b.units).sum::<usize>(),
+        blockers.iter().map(|b| b.bytes).sum::<usize>(),
+    );
     // Deja trie par octets decroissants : la premiere ligne est la prochaine cible.
-    for b in blockers.into_iter().take(15) {
+    let n = if top == 0 { blockers.len() } else { top };
+    for b in blockers.into_iter().take(n) {
         println!(
             "blocker cause={} units={} bytes={} sample=\"{}\"",
             b.cause, b.units, b.bytes, b.sample
         );
     }
+    Ok(())
+}
+
+fn cmd_kb(paths: &Paths) -> anyhow::Result<()> {
+    let exe = paths.exe_path()?;
+    let store = ForgeStore::load(&paths.forge)?;
+    let reference = ReferenceBinary::load_checked(&exe, &store.cover)?;
+    let img = PeImage::parse(reference.bytes.clone())?;
+    let b = nie_forge::kb::synchroniser(&paths.db, &store.cover, &reference.bytes, Some(&img))?;
+    println!(
+        "kb db={} binary_id={} unites={} produites={} bloquees={} hors_decoupage={} tailles_divergentes={}",
+        paths.db.display(),
+        b.binary_id,
+        b.unites,
+        b.produites,
+        b.bloquees,
+        b.hors_decoupage,
+        b.tailles_divergentes,
+    );
+    println!(
+        "kb classes={} methodes={} resolues={} ({:.2}%)",
+        b.classes,
+        b.methodes,
+        b.methodes_resolues,
+        if b.methodes == 0 {
+            0.0
+        } else {
+            b.methodes_resolues as f64 * 100.0 / b.methodes as f64
+        },
+    );
     Ok(())
 }
 
@@ -459,7 +513,35 @@ fn cmd_split(paths: &Paths) -> anyhow::Result<()> {
     // `.pdata` laisse : sans elles, 1,8 Mo de `.text` restent haches par les
     // seules bornes de remplissage, donc non relevables.
     let re = nie_forge::ReNames::load(&paths.db)?;
-    let store = ForgeStore::split_from_with(&exe, &paths.forge, &re.sized)?;
+    // Une feuille dont l'adresse tombe au milieu d'une instruction coupe un
+    // corps en deux : le relevé rejette les deux moitiés, et l'accuse ensuite
+    // de l'encodeur. Le filtre ne retire que ce que le désassembleur infirme.
+    let img = PeImage::parse(std::fs::read(&exe)?)?;
+    let (feuilles, verdict) = nie_forge::bornes::valider(&img, &re.sized);
+    println!(
+        "bornes soumises={} retenues={} coupantes={} indecises={} octets_ecartes={}",
+        verdict.soumises,
+        verdict.retenues,
+        verdict.coupantes,
+        verdict.indecises,
+        verdict.octets_ecartes,
+    );
+    // Deux passes : la première découpe, la seconde isole les données que MSVC
+    // a déposées au milieu du code et qui rendaient irrelevable tout le corps
+    // qui les entoure.
+    let base = img.opt.image_base;
+    let feuilles_rva: Vec<(u32, u32)> = feuilles
+        .iter()
+        .filter_map(|&(va, len)| u32::try_from(va.checked_sub(base)?).ok().map(|r| (r, len)))
+        .collect();
+    let brut = nie_pe::Cover::split_with(&img, &feuilles_rva)?;
+    let (inline, bilan) = nie_forge::donnees::detecter(&img, &brut);
+    println!(
+        "donnees_inline unites={} octets={} donnees={} code_libere={} sandwichs={}",
+        bilan.unites, bilan.octets, bilan.donnees, bilan.code_libere, bilan.sandwichs,
+    );
+    let cover = nie_pe::Cover::split_with_data(&img, &feuilles_rva, &inline)?;
+    let store = ForgeStore::persist(&paths.forge, cover)?;
     let c = &store.cover;
     println!(
         "split exe={} sha256={} size={} units={} fns={} frags={} residue={} data={} gaps={} overlay={}",
@@ -510,7 +592,14 @@ fn cmd_build(paths: &Paths, out: &Path) -> anyhow::Result<()> {
             from_rust_bytes += u.len;
             return Some(bytes);
         }
-        // 3. Corps présent dans la source assembleur : réassemblé par nie-asm.
+        // 3. Unité dont la règle du linker est connue (bourrage `int3`) :
+        //    régénérée sans consulter la référence.
+        if let Some(bytes) = u.emit_rule() {
+            from_rust_units += 1;
+            from_rust_bytes += u.len;
+            return Some(bytes);
+        }
+        // 4. Corps présent dans la source assembleur : réassemblé par nie-asm.
         if u.kind.is_code()
             && let Some(va) = u.va
             && let Some(bytes) = asm.emit(va)
@@ -527,7 +616,7 @@ fn cmd_build(paths: &Paths, out: &Path) -> anyhow::Result<()> {
                 u.len
             ));
         }
-        // 3. Fonction dont le codegen Rust coïncide : on émet le codegen, les champs
+        // 5. Fonction dont le codegen Rust coïncide : on émet le codegen, les champs
         //    relogés étant résolus depuis la disposition de référence (le calcul de
         //    disposition propre est un jalon ultérieur, jamais un faux « produit »).
         if let Some(e) = u.va.and_then(|va| by_va.get(&va))

@@ -267,7 +267,28 @@ pub fn describe_content(path: &str, data: &[u8]) -> Option<Vec<String>> {
     if g4cm::is_g4cm(data)
         && let Ok(c) = g4cm::parse(data)
     {
-        return Some(describe_l5_container("G4CM (caméra, non décodée)", c.header, c.file_size, c.is_size_consistent()));
+        // Le `.g4cm` est décodé pour de bon depuis que le codec a rejoint `nie-formats` :
+        // afficher ses objets et ses canaux, pas seulement l'en-tête du conteneur.
+        let mut out = describe_l5_container(
+            "G4CM (caméra de cutscene)",
+            c.header,
+            data.len(),
+            c.header.is_size_consistent(data.len()),
+        );
+        out.push(format!(
+            "objets      {} ({})",
+            c.objects.len(),
+            c.names.join(", ")
+        ));
+        out.push(format!("canaux      {}", c.channels.len()));
+        if let Some((a, b)) = c.frame_range() {
+            out.push(format!("frames      {a} → {b} ({} temps)", c.times.len()));
+        }
+        out.push(format!(
+            "échantillons décodés {:.0} %",
+            f64::from(c.decoded_ratio()) * 100.0
+        ));
+        return Some(out);
     }
 
     if g4ma::is_g4ma(data)

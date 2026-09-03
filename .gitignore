@@ -13,6 +13,17 @@ obj/
 data/
 dump/
 out/
+# Meme piege que `bin/` ci-dessus : `data/` n'est pas ancre, il avale aussi les `src/data/` des
+# paquets Bun, qui contiennent du CODE SOURCE. `packages/inagle/src/data/drops/*.ts` (importes
+# par src/drops/index.ts et src/api/drops.ts) n'est dans AUCUN commit : sur un clone frais, le
+# build de `@rosegriffon/inagle` echoue en TS2307, et tout ce qui en depend avec lui.
+# On ne re-inclut que les sources : les .json restent ignores, car `src/data/` sert aussi de
+# depot a des manifestes generes et a du contenu de jeu (c) LEVEL-5 (cf. `/export/` plus bas).
+!packages/*/src/data/
+!packages/*/src/data/**/*.ts
+# Re-inclure le repertoire suffit a desigorer TOUT son contenu : il faut re-exclure ce qui
+# n'est pas du code, sinon les manifestes et les donnees de jeu rentrent avec les sources.
+packages/*/src/data/**/*.json
 # Sortie par defaut des exportateurs de familles nie-data (`export_formations --out`) : du
 # contenu de jeu (c) LEVEL-5 reserialise en JSON, regenerable, jamais du code du depot.
 /export/
