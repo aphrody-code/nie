@@ -481,7 +481,8 @@ fn cmd_kb(paths: &Paths) -> anyhow::Result<()> {
     let exe = paths.exe_path()?;
     let store = ForgeStore::load(&paths.forge)?;
     let reference = ReferenceBinary::load_checked(&exe, &store.cover)?;
-    let b = nie_forge::kb::synchroniser(&paths.db, &store.cover, &reference.bytes)?;
+    let img = PeImage::parse(reference.bytes.clone())?;
+    let b = nie_forge::kb::synchroniser(&paths.db, &store.cover, &reference.bytes, Some(&img))?;
     println!(
         "kb db={} binary_id={} unites={} produites={} bloquees={} hors_decoupage={} tailles_divergentes={}",
         paths.db.display(),
@@ -491,6 +492,17 @@ fn cmd_kb(paths: &Paths) -> anyhow::Result<()> {
         b.bloquees,
         b.hors_decoupage,
         b.tailles_divergentes,
+    );
+    println!(
+        "kb classes={} methodes={} resolues={} ({:.2}%)",
+        b.classes,
+        b.methodes,
+        b.methodes_resolues,
+        if b.methodes == 0 {
+            0.0
+        } else {
+            b.methodes_resolues as f64 * 100.0 / b.methodes as f64
+        },
     );
     Ok(())
 }
