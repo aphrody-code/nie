@@ -34,6 +34,8 @@
 //! | `nie_vfs_list_json`        | JSON `[{path,cpk,size}]` ; plafonné à 50 000 entrées             |
 //! | `nie_vfs_list_json_out`    | Idem, via `*mut NieBytes`                                        |
 //! | `nie_vfs_count`            | Nombre total d'entrées indexées (sans plafond)                   |
+//! | `nie_vfs_is_readable`      | Présence servable d'un chemin, **sans lire le contenu**          |
+//! | `nie_match_simulate_json_out` | Simulation de match à graine et à statistiques → JSON        |
 //! | `nie_vfs_list_range_json_out` | Tranche `[offset, offset+limit)` de l'index, via `*mut NieBytes` |
 //! | `nie_vfs_free`             | Libère le handle VFS                                             |
 //!
@@ -733,6 +735,38 @@ pub unsafe extern "C" fn nie_vfs_count(vfs: *mut c_void) -> u64 {
     // SAFETY: vfs provient de nie_vfs_open.
     let vfs_ref = unsafe { &*(vfs.cast::<nie_formats::vfs::Vfs>()) };
     vfs_ref.iter().count() as u64
+}
+
+/// Dit si un chemin interne est réellement servable, **sans extraire son contenu**.
+///
+/// Délègue à [`nie_formats::vfs::Vfs::is_readable`], donc tient compte des fichiers
+/// « loose » que `cpk_list.cfg.bin` déclare sans qu'ils existent sur une installation
+/// donnée : une simple présence dans l'index annoncerait des fichiers que
+/// [`nie_vfs_read`] refuserait ensuite.
+///
+/// C'est le test qu'un consommateur interactif doit employer pour décider s'il peut
+/// afficher un asset. L'alternative — appeler [`nie_vfs_read`] et regarder si le
+/// tampon est vide — extrait le CPK entier pour répondre par oui ou par non, et
+/// remplit le cache de paquets au passage : mesuré à 4,9 Go retenus pour soixante
+/// vérifications de textures dispersées.
+///
+/// # Safety
+///
+/// - `vfs` doit être un handle valide retourné par [`nie_vfs_open`], non encore libéré.
+/// - `internal_path` doit être une chaîne C null-terminée valide.
+/// - null (l'un ou l'autre) → retourne 0.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_vfs_is_readable(vfs: *mut c_void, internal_path: *const c_char) -> u32 {
+    if vfs.is_null() || internal_path.is_null() {
+        return 0;
+    }
+    // SAFETY: vfs provient de nie_vfs_open ; internal_path est null-terminé.
+    let vfs_ref = unsafe { &*(vfs.cast::<nie_formats::vfs::Vfs>()) };
+    let path = match unsafe { std::ffi::CStr::from_ptr(internal_path) }.to_str() {
+        Ok(s) => s,
+        Err(_) => return 0,
+    };
+    u32::from(vfs_ref.is_readable(path))
 }
 
 /// Occupation du cache CPK — miroir de `nie_formats::vfs::CacheCpkStats`.
@@ -1557,4 +1591,78 @@ mod tests {
         unsafe { nie_font_free(fctx) };
         unsafe { nie_vfs_free(vfs) };
     }
+}
+
+// ============================================================================
+// Simulation de match — à graine et à statistiques
+// ============================================================================
+
+/// Simule une rencontre complète et rend le résultat en JSON UTF-8.
+///
+/// C'est le complément du bloc `nie_world_*`, et il répond à un autre besoin.
+/// `nie_world_*` fait TOURNER un match jouable : on lui pousse des entrées et on
+/// l'avance pas à pas. Il n'accepte aucune graine et son onze est le sien — deux
+/// matchs laissés à eux-mêmes rendent le même score, et rien ne distingue les
+/// joueurs d'un camp de ceux de l'autre.
+///
+/// [`nie_core::match_sim::simulate_match`] fait l'inverse : il tranche une
+/// rencontre d'un bloc, à partir des STATISTIQUES des deux équipes et d'une
+/// GRAINE. C'est ce qu'un récit demande — un match que le joueur ne dispute pas,
+/// dont le résultat dépend de la force des effectifs et se rejoue à l'identique.
+///
+/// `home_json` et `away_json` sont des `TeamSetup` sérialisés :
+///
+/// ```json
+/// {"name": "Raimon", "aggregate_stats": {"kc":207,"cr":216,"tc":218,
+///  "pr":235,"ps":242,"ag":210,"it":261}, "placements": null}
+/// ```
+///
+/// La sortie est un `MatchResult` : `home_score`, `away_score`, `final_clock`
+/// (`minutes * 10_000 + secondes`) et la séquence complète d'`events`.
+///
+/// `NieBytes::empty` en sortie signale une entrée illisible — JSON invalide,
+/// champ manquant, ou pointeur nul.
+///
+/// # Safety
+///
+/// - `home_json` et `away_json` doivent être des chaînes C null-terminées valides.
+/// - `out` doit pointer sur un `NieBytes` inscriptible et aligné.
+/// - null (n'importe lequel) → `NieBytes::empty`, aucun effet.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_match_simulate_json_out(
+    home_json: *const c_char,
+    away_json: *const c_char,
+    seed: u64,
+    out: *mut NieBytes,
+) {
+    if out.is_null() {
+        return;
+    }
+    if home_json.is_null() || away_json.is_null() {
+        // SAFETY: out est non-null et aligné.
+        unsafe { out.write(NieBytes::empty()) };
+        return;
+    }
+
+    // SAFETY: les deux pointeurs sont non-null et null-terminés.
+    let (home_str, away_str) = unsafe {
+        (
+            std::ffi::CStr::from_ptr(home_json).to_str(),
+            std::ffi::CStr::from_ptr(away_json).to_str(),
+        )
+    };
+
+    let resultat = (|| -> Option<Vec<u8>> {
+        let home: nie_core::match_sim::TeamSetup = serde_json::from_str(home_str.ok()?).ok()?;
+        let away: nie_core::match_sim::TeamSetup = serde_json::from_str(away_str.ok()?).ok()?;
+        let issue = nie_core::match_sim::simulate_match(home, away, seed);
+        serde_json::to_vec(&issue).ok()
+    })();
+
+    let sortie = match resultat {
+        Some(v) => NieBytes::from_vec(v),
+        None => NieBytes::empty(),
+    };
+    // SAFETY: out est non-null et aligné.
+    unsafe { out.write(sortie) };
 }

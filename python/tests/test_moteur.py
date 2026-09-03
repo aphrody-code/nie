@@ -119,3 +119,61 @@ def test_avancer_refuse_un_pas_nul() -> None:
     with Match() as m:
         with pytest.raises(ValueError):
             m.avancer(1.0, dt=0.0)
+
+
+# ── La simulation à graine ───────────────────────────────────────────────────
+#
+# `Match` fait tourner un match jouable mais n'accepte aucune graine, et son onze
+# est le sien. `simuler_match` tranche une rencontre à partir des statistiques et
+# d'une graine : c'est ce qu'un récit demande pour un match hors écran.
+
+
+def test_la_graine_rejoue_le_meme_match() -> None:
+    stats = dict.fromkeys(niepy.STATS, 150)
+    premier = niepy.simuler_match(("A", stats), ("B", stats), graine=42)
+    second = niepy.simuler_match(("A", stats), ("B", stats), graine=42)
+    assert premier == second
+    assert premier["final_clock"] == 900_000  # 90 minutes
+
+
+def test_des_graines_differentes_donnent_des_matchs_differents() -> None:
+    stats = dict.fromkeys(niepy.STATS, 150)
+    scores = {
+        (r["home_score"], r["away_score"])
+        for r in (niepy.simuler_match(("A", stats), ("B", stats), graine=g) for g in range(20))
+    }
+    assert len(scores) > 1, "la graine ne change rien — la variété ne peut pas venir du moteur"
+
+
+def test_la_force_des_effectifs_decide() -> None:
+    """Le différentiel doit suivre l'écart de statistiques, pas le hasard seul."""
+    fort = dict(zip(niepy.STATS, (207, 216, 218, 235, 242, 210, 261)))
+    faible = dict.fromkeys(niepy.STATS, 80)
+
+    def differentiel(a: dict[str, int], b: dict[str, int]) -> float:
+        matchs = [niepy.simuler_match(("A", a), ("B", b), graine=g) for g in range(40)]
+        return sum(m["home_score"] - m["away_score"] for m in matchs) / len(matchs)
+
+    assert differentiel(fort, faible) > differentiel(fort, fort)
+    assert differentiel(fort, faible) > 0.5
+
+
+def test_les_buts_sont_datables() -> None:
+    """Un récit but par but a besoin de la minute et du camp."""
+    fort = dict(zip(niepy.STATS, (207, 216, 218, 235, 242, 210, 261)))
+    for graine in range(30):
+        issue = niepy.simuler_match(("A", fort), ("B", fort), graine=graine)
+        buts = [e["Goal"] for e in issue["events"] if isinstance(e, dict) and "Goal" in e]
+        if not buts:
+            continue
+        assert len(buts) == issue["home_score"] + issue["away_score"]
+        for but in buts:
+            assert 1 <= but["minute"] <= 90
+            assert isinstance(but["is_home"], bool)
+        return
+    pytest.fail("aucun but sur trente graines — le modèle ne marque jamais")
+
+
+def test_une_entree_invalide_leve_plutot_que_de_mentir() -> None:
+    with pytest.raises(ValueError, match="simulation refusée"):
+        niepy.simuler_match({"name": "sans stats"}, ("B", dict.fromkeys(niepy.STATS, 100)))

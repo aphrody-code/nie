@@ -202,6 +202,17 @@ def _declarer(lib: ctypes.CDLL) -> None:
     lib.nie_vfs_count.argtypes = [ctypes.c_void_p]
     lib.nie_vfs_count.restype = ctypes.c_size_t
 
+    lib.nie_vfs_is_readable.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+    lib.nie_vfs_is_readable.restype = ctypes.c_uint32
+
+    lib.nie_match_simulate_json_out.argtypes = [
+        ctypes.c_char_p,
+        ctypes.c_char_p,
+        ctypes.c_uint64,
+        p_bytes,
+    ]
+    lib.nie_match_simulate_json_out.restype = None
+
     lib.nie_vfs_list_range_json_out.argtypes = [
         ctypes.c_void_p,
         ctypes.c_size_t,

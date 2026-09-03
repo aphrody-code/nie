@@ -169,3 +169,82 @@ def test_camera_navmesh_et_lua_se_decodent() -> None:
             vus += 1
         if vus == 0:
             pytest.skip("aucun des trois fichiers de référence dans cette installation")
+
+
+# ── Le handle natif ne doit ni voyager ni se dupliquer ───────────────────────
+#
+# Ces trois tests couvrent un défaut mesuré, pas une précaution théorique :
+# `pickle.dumps(vfs)` rendait 183 octets EN SILENCE, pointeur natif compris, et
+# rechargé dans un autre processus le premier `.lire()` faisait avorter le
+# processus (exit 127). Un moteur de jeu qui sauvegarde son store — Ren'Py, par
+# exemple — tombe dessus tout seul.
+
+
+def test_le_vfs_refuse_de_se_serialiser() -> None:
+    """Sérialiser un montage doit lever ICI, pas planter le processus qui recharge."""
+    import pickle
+
+    with _vfs_ou_saut() as vfs:
+        with pytest.raises(TypeError, match="pointeur natif"):
+            pickle.dumps(vfs)
+
+
+def test_la_copie_profonde_ne_duplique_pas_le_handle() -> None:
+    """Deux objets portant le même pointeur le libéreraient deux fois."""
+    import copy
+
+    with _vfs_ou_saut() as vfs:
+        assert copy.deepcopy(vfs) is vfs
+        assert copy.copy(vfs) is vfs
+
+
+def test_le_budget_de_cache_borne_vraiment_la_memoire() -> None:
+    """Le défaut natif est de 16 Gio : sans plafond, quelques lectures retiennent des gigaoctets."""
+    with _vfs_ou_saut() as vfs:
+        textures = [e["path"] for e in vfs.entrees(0, 20000) if str(e["path"]).endswith(".g4tx")][:40]
+        if len(textures) < 10:
+            pytest.skip("pas assez de textures dans la première tranche de l'index")
+
+        for chemin in textures:
+            vfs.lire(str(chemin))
+        sans_plafond = vfs.stats_cache()["octets"]
+
+        vfs.vider_cache()
+        vfs.regler_budget_cache(64 * 1024 * 1024)
+        for chemin in textures:
+            vfs.lire(str(chemin))
+        avec_plafond = vfs.stats_cache()
+
+        assert avec_plafond["budget"] == 64 * 1024 * 1024
+        # Le plafond garde toujours le dernier paquet, qui peut à lui seul le dépasser :
+        # on n'exige donc pas de descendre SOUS le budget, seulement de ne plus croître.
+        assert avec_plafond["entrees"] <= 2
+        assert avec_plafond["octets"] <= max(sans_plafond, 1)
+
+
+def test_existe_ne_lit_pas_le_contenu() -> None:
+    """La présence doit se trancher sans remplir le cache de paquets.
+
+    C'est la raison d'être de `nie_vfs_is_readable` : tester la présence en
+    appelant `lire()` dans un `try` extrait le CPK entier — mesuré à 4,9 Go
+    retenus pour soixante vérifications de textures dispersées.
+    """
+    with _vfs_ou_saut() as vfs:
+        chemins = [str(e["path"]) for e in vfs.entrees(0, 500)]
+        if not chemins:
+            pytest.skip("index vide")
+
+        vfs.vider_cache()
+        avant = vfs.stats_cache()["octets"]
+
+        for chemin in chemins:
+            assert vfs.existe(chemin), f"{chemin} est dans l'index mais dit absent"
+            assert chemin in vfs
+
+        assert vfs.stats_cache()["octets"] == avant, (
+            "tester la présence a chargé des paquets — le test n'est pas gratuit"
+        )
+
+        assert not vfs.existe("data/ceci/nexiste/pas.g4tx")
+        assert "data/ceci/nexiste/pas.g4tx" not in vfs
+        assert 42 not in vfs  # type: ignore[operator]

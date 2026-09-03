@@ -27,7 +27,7 @@ from __future__ import annotations
 
 from ._ffi import chemin_bibliotheque
 from .formats import decoder, detecter, g4tx_vers_png, nom_format, version
-from .match import PAS_PAR_DEFAUT, Ballon, Joueur, Match
+from .match import PAS_PAR_DEFAUT, STATS, Ballon, Joueur, Match, simuler_match
 from .rendu import ErreurRendu, Rendu, chemin_nie_game
 from .renpy import Catalogue, Personnage
 from .scenes import LANGUES, LANGUES_DOUBLEES, Scenario, Scene, lignes_de
@@ -62,6 +62,8 @@ __all__ = [
     "nom_format",
     "racine_jeu",
     "version",
+    "STATS",
+    "simuler_match",
 ]
 
 #: Version de la bibliothèque Python. Distincte de `version()`, qui rend celle du crate natif.
