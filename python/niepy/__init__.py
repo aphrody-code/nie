@@ -30,9 +30,12 @@ from .formats import decoder, detecter, g4tx_vers_png, nom_format, version
 from .match import PAS_PAR_DEFAUT, Ballon, Joueur, Match
 from .rendu import ErreurRendu, Rendu, chemin_nie_game
 from .renpy import Catalogue, Personnage
+from .scenes import LANGUES, LANGUES_DOUBLEES, Scenario, Scene, lignes_de
 from .vfs import Vfs, racine_jeu
 
 __all__ = [
+    "LANGUES",
+    "LANGUES_DOUBLEES",
     "PAS_PAR_DEFAUT",
     "Ballon",
     "Catalogue",
@@ -41,12 +44,15 @@ __all__ = [
     "Match",
     "Personnage",
     "Rendu",
+    "Scenario",
+    "Scene",
     "Vfs",
     "chemin_bibliotheque",
     "chemin_nie_game",
     "decoder",
     "detecter",
     "g4tx_vers_png",
+    "lignes_de",
     "nom_format",
     "racine_jeu",
     "version",
