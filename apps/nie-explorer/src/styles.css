@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "./sprites.css";
 
 /* `dark` est le thème PAR DÉFAUT (comme spacedrive : `tokens/src/css/theme.css` EST la palette
  * sombre, `themes/light.css` n'est qu'un override) — la variante Tailwind `dark:` reste posée par

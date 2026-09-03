@@ -1,0 +1,147 @@
+/* 
+  Example CSS implementation for Sprite System 
+  Usage: <span class="sprite-icon role-att-glow"></span>
+*/
+
+.sprite-icon {
+	display: inline-block;
+	background-image: url("/icon_common2.webp");
+	background-repeat: no-repeat;
+	vertical-align: middle;
+}
+
+/* Generated Utility Classes */
+
+/* Sizes */
+.size-l-default {
+	width: 80px;
+	height: 80px;
+	background-position: -20px -20px;
+}
+.size-m-default {
+	width: 80px;
+	height: 80px;
+	background-position: -20px -180px;
+}
+.size-s-default {
+	width: 80px;
+	height: 80px;
+	background-position: -340px -20px;
+}
+
+/* Roles - Glow */
+.role-att-glow {
+	width: 180px;
+	height: 70px;
+	background-position: -580px -20px;
+}
+.role-mil-glow {
+	width: 180px;
+	height: 70px;
+	background-position: -580px -150px;
+}
+.role-def-glow {
+	width: 180px;
+	height: 70px;
+	background-position: -570px -300px;
+}
+.role-gar-glow {
+	width: 190px;
+	height: 70px;
+	background-position: -790px -300px;
+}
+
+/* Roles - Solid */
+.role-att-solid {
+	width: 210px;
+	height: 80px;
+	background-position: -550px -610px;
+}
+.role-mil-solid {
+	width: 190px;
+	height: 70px;
+	background-position: -270px -630px;
+}
+.role-def-solid {
+	width: 210px;
+	height: 80px;
+	background-position: -0px -630px;
+}
+.role-gar-solid {
+	width: 190px;
+	height: 60px;
+	background-position: -460px -900px;
+}
+
+/* Roles - Grey */
+.role-att-grey {
+	width: 200px;
+	height: 70px;
+	background-position: -780px -460px;
+}
+.role-mil-grey {
+	width: 190px;
+	height: 70px;
+	background-position: -780px -610px;
+}
+.role-def-grey {
+	width: 200px;
+	height: 70px;
+	background-position: -500px -750px;
+}
+.role-gar-grey {
+	width: 190px;
+	height: 70px;
+	background-position: -570px -460px;
+}
+.role-gar-grey-2 {
+	width: 200px;
+	height: 70px;
+	background-position: -720px -750px;
+}
+
+/* Roles - Flat */
+.role-att-flat {
+	width: 200px;
+	height: 90px;
+	background-position: -220px -770px;
+}
+.role-mil-flat {
+	width: 200px;
+	height: 90px;
+	background-position: -0px -790px;
+}
+.role-def-flat {
+	width: 200px;
+	height: 90px;
+	background-position: -220px -880px;
+}
+.role-tout-flat {
+	width: 160px;
+	height: 90px;
+	background-position: -790px -10px;
+}
+
+/* Roles - Tag */
+.role-att-tag {
+	width: 120px;
+	height: 50px;
+	background-position: -790px -150px;
+}
+
+/* Roles - Simple */
+.role-mil-simple {
+	width: 120px;
+	height: 50px;
+	background-position: -670px -880px;
+}
+.role-def-simple {
+	width: 130px;
+	height: 50px;
+	background-position: -810px -880px;
+}
+.role-gar-simple {
+	width: 120px;
+	height: 50px;
+	background-position: -0px -920px;
+}
