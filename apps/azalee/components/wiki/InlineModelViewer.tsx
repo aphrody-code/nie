@@ -49,7 +49,12 @@ export default function InlineModelViewer({ glbUrl, name }: InlineModelViewerPro
 		let cancelled = false;
 		setReady(false);
 		setErrored(false);
-		loadModelViewer()
+		const controller = new AbortController();
+		fetch(glbUrl, { method: "HEAD", signal: controller.signal, cache: "no-store" })
+			.then((response) => {
+				if (!response.ok) throw new Error(`GLB indisponible (${response.status})`);
+				return loadModelViewer();
+			})
 			.then(() => {
 				if (cancelled || !hostRef.current) return;
 				const mv = document.createElement("model-viewer");
@@ -82,6 +87,7 @@ export default function InlineModelViewer({ glbUrl, name }: InlineModelViewerPro
 			.catch(() => !cancelled && setErrored(true));
 		return () => {
 			cancelled = true;
+			controller.abort();
 			host.replaceChildren();
 		};
 	}, [visible, glbUrl, name]);
