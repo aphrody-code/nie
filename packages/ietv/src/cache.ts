@@ -92,7 +92,7 @@ export class IETVCache {
         plateforme TEXT NOT NULL CHECK(plateforme IN ('youtube', 'dailymotion', 'page')),
         sourceId TEXT NOT NULL,
         url TEXT NOT NULL,
-        langue TEXT NOT NULL CHECK(langue IN ('vo', 'vf', 'vostfr', 'en', 'es', 'unknown')),
+        langue TEXT NOT NULL CHECK(langue IN ('vo', 'vf', 'vostfr', 'en', 'es', 'de', 'unknown')),
         qualite TEXT,
         officielle INTEGER NOT NULL DEFAULT 1,
         confiance TEXT NOT NULL DEFAULT 'declaree'
@@ -175,7 +175,7 @@ export class IETVCache {
         -- source officielle de l'éditeur pour la série d'origine, était donc
         -- REFUSÉE en écriture par le schéma qui prétendait l'accueillir. « en » et
         -- « es » manquaient de même, alors que la plateforme officielle les sert.
-        language TEXT CHECK(language IN ('vo', 'vf', 'vostfr', 'en', 'es', 'unknown')),
+        language TEXT CHECK(language IN ('vo', 'vf', 'vostfr', 'en', 'es', 'de', 'unknown')),
         duration INTEGER,
         quality TEXT,
         createdAt INTEGER DEFAULT (cast(unixepoch() * 1000 as integer)),
@@ -241,6 +241,11 @@ export class IETVCache {
 		addColumn("episode_sources", "codeHttp", "INTEGER");
 		addColumn("episode_sources", "raisonEtat", "TEXT");
 
+		// APRÈS les `addColumn` : la reconstruction recopie les colonnes d'état,
+		// qui doivent donc déjà exister. L'ordre inverse effacerait `etat` et
+		// `verifieeLe` de 1 858 sources — c'est-à-dire toute la vérification.
+		this.refondreSources();
+
 		this.supprimerOrphelins();
 		this.reprendreSourcesHeritees();
 	}
@@ -281,7 +286,12 @@ export class IETVCache {
 		// qu'ils n'ont pas la même histoire : une base peut avoir déjà perdu
 		// l'unicité sur `videoId` sans connaître « vo ».
 		const videoIdUnique = /videoId\s+TEXT\s+UNIQUE/i.test(schema.sql);
-		const langueEtroite = !/'vo'/.test(schema.sql);
+		// Le test porte sur la DERNIÈRE langue ajoutée, pas sur `'vo'` : sur une
+		// base déjà migrée pour `vo`, chercher `'vo'` répond « à jour » et la
+		// contrainte reste bloquée à cinq langues. Une base qui ignore `'de'`
+		// refuse en écriture les 67 épisodes allemands que le site sert
+		// réellement — un refus silencieux, puisque `saveChannel` avale l'erreur.
+		const langueEtroite = !/'de'/.test(schema.sql);
 		// ── LE TEST EST CE QUI REND LA MIGRATION REJOUABLE ──────────────────
 		// Rejouée sur une base déjà migrée, la fonction sort ici : elle ne
 		// reconstruit rien, ne réattribue aucun `id`, et laisse les `createdAt`
@@ -306,7 +316,7 @@ export class IETVCache {
           romaji TEXT,
           publishDate TEXT,
           viewCount TEXT,
-          language TEXT CHECK(language IN ('vo', 'vf', 'vostfr', 'en', 'es', 'unknown')),
+          language TEXT CHECK(language IN ('vo', 'vf', 'vostfr', 'en', 'es', 'de', 'unknown')),
           duration INTEGER,
           quality TEXT,
           createdAt INTEGER DEFAULT (cast(unixepoch() * 1000 as integer)),
@@ -329,6 +339,80 @@ export class IETVCache {
         CREATE INDEX IF NOT EXISTS idx_episodes_language ON episodes(language);
         CREATE INDEX IF NOT EXISTS idx_episodes_title ON episodes(title COLLATE NOCASE);
         CREATE INDEX IF NOT EXISTS idx_episodes_videoid ON episodes(videoId);
+      `);
+			this.db.exec("COMMIT");
+		} catch (err) {
+			this.db.exec("ROLLBACK");
+			throw err;
+		}
+	}
+
+	/**
+	 * Élargit la contrainte `CHECK` de `episode_sources.langue` sur une base
+	 * créée avant l'ajout d'une langue.
+	 *
+	 * ── POURQUOI CE N'EST PAS OPTIONNEL ────────────────────────────────────
+	 * `CREATE TABLE IF NOT EXISTS` ne touche pas une table existante, et SQLite
+	 * ne sait pas modifier un `CHECK` par `ALTER TABLE`. Une base créée quand le
+	 * vocabulaire comptait six langues REFUSE donc `de` en écriture — et le
+	 * refus est silencieux, parce que `saveChannel` attrape l'erreur par
+	 * source. On obtiendrait une moisson qui annonce 67 épisodes allemands et
+	 * une base qui n'en contient aucun.
+	 *
+	 * Rejouée sur une base déjà élargie, la fonction sort au premier test : elle
+	 * ne reconstruit rien et ne réattribue aucun `id`.
+	 */
+	private refondreSources() {
+		const schema = this.db
+			.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'episode_sources'")
+			.get() as { sql?: string } | undefined;
+		if (!schema?.sql || /'de'/.test(schema.sql)) return;
+
+		// Les colonnes sont lues sur la table RÉELLE : une base ancienne peut ne
+		// pas porter `etat`/`codeHttp`/`raisonEtat`, et les nommer en dur ferait
+		// échouer la copie avec « no such column ».
+		const colonnes = (
+			this.db.prepare("PRAGMA table_info(episode_sources)").all() as { name: string }[]
+		).map((c) => c.name);
+		const liste = colonnes.join(", ");
+
+		this.db.exec("BEGIN IMMEDIATE");
+		try {
+			this.db.exec(`
+        CREATE TABLE episode_sources_migration (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          episode_id INTEGER NOT NULL,
+          plateforme TEXT NOT NULL CHECK(plateforme IN ('youtube', 'dailymotion', 'page')),
+          sourceId TEXT NOT NULL,
+          url TEXT NOT NULL,
+          langue TEXT NOT NULL CHECK(langue IN ('vo', 'vf', 'vostfr', 'en', 'es', 'de', 'unknown')),
+          qualite TEXT,
+          officielle INTEGER NOT NULL DEFAULT 1,
+          confiance TEXT NOT NULL DEFAULT 'declaree'
+            CHECK(confiance IN ('verifiee', 'declaree', 'deduite')),
+          verifieeLe INTEGER,
+          origine TEXT,
+          vignette TEXT,
+          titre TEXT,
+          createdAt INTEGER DEFAULT (cast(unixepoch() * 1000 as integer)),
+          updatedAt INTEGER DEFAULT (cast(unixepoch() * 1000 as integer)),
+          etat TEXT,
+          codeHttp INTEGER,
+          raisonEtat TEXT,
+          FOREIGN KEY(episode_id) REFERENCES episodes(id) ON DELETE CASCADE,
+          UNIQUE(episode_id, plateforme, sourceId, langue)
+        );
+
+        INSERT INTO episode_sources_migration (${liste})
+        SELECT ${liste} FROM episode_sources;
+
+        DROP TABLE episode_sources;
+        ALTER TABLE episode_sources_migration RENAME TO episode_sources;
+
+        CREATE INDEX IF NOT EXISTS idx_sources_episode ON episode_sources(episode_id);
+        CREATE INDEX IF NOT EXISTS idx_sources_langue ON episode_sources(langue);
+        CREATE INDEX IF NOT EXISTS idx_sources_plateforme ON episode_sources(plateforme);
+        CREATE INDEX IF NOT EXISTS idx_sources_sourceid ON episode_sources(sourceId);
       `);
 			this.db.exec("COMMIT");
 		} catch (err) {

@@ -52,6 +52,52 @@ export interface EntreeNoms {
   romaji: string | null;
   /** Code interne quand la table en porte un — sert à ouvrir les fichiers liés. */
   code: string | null;
+  /**
+   * Noms dans les autres langues du JEU (`de`, `es`, `it`, `pt`, `zh_hans`, `zh_hant`), présents
+   * uniquement quand l'index vient du jeu et non du miroir — le wiki ne publie que FR/EN/JA.
+   */
+  autresLangues?: { langue: string; nom: string }[];
+}
+
+/** Libellés des neuf langues de `data/common/text/`, pour l'affichage. */
+export const LIBELLES_LANGUE: Record<string, string> = {
+  de: "Allemand",
+  en: "Anglais",
+  es: "Espagnol",
+  fr: "Français",
+  it: "Italien",
+  ja: "Japonais",
+  pt: "Portugais",
+  zh_hans: "Chinois simplifié",
+  zh_hant: "Chinois traditionnel",
+};
+
+/**
+ * Convertit l'index multilingue du JEU (`api.gameDataNoms`) en entrées de traduction.
+ *
+ * C'est la source de repli — et la plus riche : le miroir du wiki s'arrête à FR/EN/JA, le jeu
+ * porte neuf langues. Le romaji reste DÉRIVÉ du japonais (aucune table de romaji n'existe dans
+ * le jeu non plus), par la même fonction que pour le miroir.
+ */
+export function depuisIndexJeu(
+  entrees: { kind: string; code: string; noms: { langue: string; nom: string }[] }[],
+  versRomaji: (ja: string | null | undefined) => string | null,
+): EntreeNoms[] {
+  const TYPES: Record<string, TypeEntite> = { chara: "chara", item: "objet", skill: "waza" };
+  return entrees.map((e) => {
+    const par = (l: string) => e.noms.find((n) => n.langue === l)?.nom ?? null;
+    const ja = par("ja");
+    return {
+      type: TYPES[e.kind] ?? "chara",
+      id: e.code,
+      nomFr: par("fr"),
+      nomEn: par("en"),
+      nomJa: ja,
+      romaji: ja ? versRomaji(ja) : null,
+      code: e.code,
+      autresLangues: e.noms.filter((n) => !["fr", "en", "ja"].includes(n.langue)),
+    };
+  });
 }
 
 /** Une entrée retenue par la recherche, avec son score. */

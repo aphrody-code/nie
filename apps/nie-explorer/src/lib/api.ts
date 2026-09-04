@@ -19,7 +19,15 @@ import {
   type BelongTeamDto,
   type BlenderSceneResultDto,
   type CatalogueVideoDto,
+  type CapsuleRateDto,
+  type CharaDto,
   type CharaPickerDto,
+  type DictionaryDto,
+  type DropDto,
+  type ExpLevelDto,
+  type MovieDto,
+  type MusicDto,
+  type OpponentTeamDto,
   type CpkExportFileDto,
   type CueDto,
   type DirDto,
@@ -56,6 +64,7 @@ import {
   type McpStatusDto,
   type McpTarget,
   type MotionClipDto,
+  type NomsDto,
   type MotionClipsDto,
   type PassiveDto,
   type SaveBlobDto,
@@ -136,6 +145,16 @@ export type BelongTeam = BelongTeamDto;
 export type Formation = FormationDto;
 export type Uniform = UniformDto;
 export type CharaPicker = CharaPickerDto;
+export type Chara = CharaDto;
+export type OpponentTeam = OpponentTeamDto;
+export type Movie = MovieDto;
+export type Music = MusicDto;
+export type DictionaryEntry = DictionaryDto;
+export type ExpLevel = ExpLevelDto;
+export type Drop = DropDto;
+export type CapsuleRate = CapsuleRateDto;
+/** Une entité du jeu et ses noms dans les 9 langues de `data/common/text/`. */
+export type NomsEntite = NomsDto;
 export type StatBlock = StatBlockDto;
 export type CpkExportFile = CpkExportFileDto;
 export type ReTraceProcess = ReTraceProcessDto;
@@ -420,6 +439,19 @@ export const api = {
   gameDataFormations: (gameDir?: string) => unwrap<Formation[]>(commands.gameDataFormations(gd(gameDir))),
   gameDataUniforms: (gameDir?: string) => unwrap<Uniform[]>(commands.gameDataUniforms(gd(gameDir))),
   gameDataCharaPicker: (gameDir?: string) => unwrap<CharaPicker[]>(commands.gameDataCharaPicker(gd(gameDir))),
+  // §4.3 — familles SANS équivalent dans l'encyclopédie du wiki : la fiche complète des
+  // personnages (identité, série, équipe, techniques apprises), les équipes adverses, les vidéos,
+  // la bande-son, le dictionnaire in-game, la courbe d'expérience, le butin, les taux de capsules.
+  gameDataCharas: (gameDir?: string) => unwrap<Chara[]>(commands.gameDataCharas(gd(gameDir))),
+  gameDataOpponentTeams: (gameDir?: string) => unwrap<OpponentTeam[]>(commands.gameDataOpponentTeams(gd(gameDir))),
+  gameDataMovies: (gameDir?: string) => unwrap<Movie[]>(commands.gameDataMovies(gd(gameDir))),
+  gameDataMusics: (gameDir?: string) => unwrap<Music[]>(commands.gameDataMusics(gd(gameDir))),
+  gameDataDictionary: (gameDir?: string) => unwrap<DictionaryEntry[]>(commands.gameDataDictionary(gd(gameDir))),
+  gameDataExpTable: (gameDir?: string) => unwrap<ExpLevel[]>(commands.gameDataExpTable(gd(gameDir))),
+  gameDataDrops: (gameDir?: string) => unwrap<Drop[]>(commands.gameDataDrops(gd(gameDir))),
+  gameDataCapsuleRates: (gameDir?: string) => unwrap<CapsuleRate[]>(commands.gameDataCapsuleRates(gd(gameDir))),
+  /** Index multilingue des noms lu du JEU (9 langues) — source du traducteur sans miroir wiki. */
+  gameDataNoms: (gameDir?: string) => unwrap<NomsEntite[]>(commands.gameDataNoms(gd(gameDir))),
   // Calculateur de stats (§4.2) — rarityCode : 0=N, 2=R, 3=SR, 4=SSR, 5=UR, 6=LR, 7=Legend, 20=BASARA.
   gameDataCalculateStats: (charaParamId: string, level: number, rarityCode: number, gameDir?: string) =>
     unwrap<StatBlock>(commands.gameDataCalculateStats(charaParamId, level, rarityCode, gd(gameDir))),
@@ -448,6 +480,9 @@ export const api = {
   saveListBlobs: () => unwrap<SaveBlobInfo[]>(commands.saveListBlobs()),
   saveBlobHexB64: (index: number) => unwrap<string>(commands.saveBlobHexB64(index)),
   saveExport: (dest: string) => unwrap<number>(commands.saveExport(dest)),
+  /** Écrit un texte (CSV/JSON) où l'utilisatrice le demande — le plugin `fs` du front est
+   * cantonné aux dossiers de l'app, cf. `write_text_file` côté Rust. */
+  writeTextFile: (dest: string, contents: string) => unwrap<number>(commands.writeTextFile(dest, contents)),
 
   // La FORGE — production de `nie.exe` par le dépôt, mesurée à l'octet. Les deux commandes
   // relisent les artefacts (`var/forge/cover.json`, `forge/registry.json`, `forge/asm/*.s`) à
