@@ -18,50 +18,21 @@
 //! ligne. Rien de maison : le but est d'égaler l'outil de référence, pas de le réécrire.
 
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
-use globset::{Glob, GlobSet, GlobSetBuilder};
 use grep_regex::RegexMatcher;
 use grep_searcher::sinks::UTF8;
 use grep_searcher::{BinaryDetection, SearcherBuilder};
-use ignore::{WalkBuilder, WalkState};
+use ignore::WalkState;
 
-/// Construit l'ensemble de globs à partir des motifs `--glob` et des extensions `--ext`.
-fn build_globset(globs: &[String], exts: &[String]) -> Result<Option<GlobSet>> {
-    if globs.is_empty() && exts.is_empty() {
-        return Ok(None);
-    }
-    let mut b = GlobSetBuilder::new();
-    for g in globs {
-        b.add(Glob::new(g).with_context(|| format!("glob invalide : {g}"))?);
-    }
-    for e in exts {
-        let e = e.trim_start_matches('.');
-        b.add(Glob::new(&format!("**/*.{e}")).with_context(|| format!("extension invalide : {e}"))?);
-    }
-    Ok(Some(b.build().context("construction du GlobSet")?))
-}
-
-/// Prépare un parcours : racine, fichiers cachés, respect de `.gitignore`, profondeur.
-fn walker(
-    dir: &Path,
-    hidden: bool,
-    no_ignore: bool,
-    depth: Option<usize>,
-) -> WalkBuilder {
-    let mut w = WalkBuilder::new(dir);
-    w.hidden(!hidden) // `hidden(true)` = **exclure** les cachés : on inverse le drapeau utilisateur.
-        .git_ignore(!no_ignore)
-        .git_global(!no_ignore)
-        .git_exclude(!no_ignore)
-        .ignore(!no_ignore)
-        .parents(!no_ignore)
-        .max_depth(depth);
-    w
-}
+// Le parcours et l'ensemble de globs venaient d'ici ; ils vivent désormais dans
+// `nie_explore::depot`, partagés avec l'accès confiné au code du dépôt (serveur MCP, app
+// desktop). Cette commande garde en revanche sa racine libre : elle doit pouvoir fouiller les
+// dumps et le scratchpad, hors du dépôt, ce que `Depot` interdit par construction.
+use nie_explore::depot::{construire_globs as build_globset, parcours_disque as walker};
 
 /// Options de `niers find`.
 pub struct FindArgs {

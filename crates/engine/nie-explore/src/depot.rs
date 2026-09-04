@@ -403,15 +403,7 @@ impl Depot {
         } else {
             self.resoudre(&o.sous_dossier)?
         };
-        let mut w = WalkBuilder::new(depart);
-        // `hidden(true)` signifie **exclure** les cachés : le drapeau utilisateur est inversé.
-        w.hidden(!o.caches)
-            .git_ignore(!o.sans_ignore)
-            .git_global(!o.sans_ignore)
-            .git_exclude(!o.sans_ignore)
-            .ignore(!o.sans_ignore)
-            .parents(!o.sans_ignore)
-            .max_depth(o.profondeur);
+        let mut w = parcours_disque(&depart, o.caches, o.sans_ignore, o.profondeur);
 
         // Les dossiers exclus sont coupés à la source : sans ce filtre, un parcours sans
         // `.gitignore` (`sans_ignore`) descendrait dans les 112 Go de `data/`.
@@ -586,11 +578,38 @@ impl Depot {
     }
 }
 
+/// Prépare un parcours `ignore` **sans confinement** : racine libre, fichiers cachés,
+/// respect de `.gitignore`, profondeur.
+///
+/// Public parce que `niers find`/`niers grep` cherchent sur tout le disque (dumps, scratchpad,
+/// arbres hors dépôt) et ne peuvent donc pas passer par [`Depot`], qui confine par construction.
+/// Ils partagent malgré tout ce parcours et [`construire_globs`], au lieu d'en garder une copie.
+///
+/// `caches = true` **inclut** les fichiers cachés — l'inverse du drapeau `hidden` d'`ignore`,
+/// dont la sémantique se lit à l'envers et s'est déjà payée.
+#[must_use]
+pub fn parcours_disque(
+    dir: &Path,
+    caches: bool,
+    sans_ignore: bool,
+    profondeur: Option<usize>,
+) -> WalkBuilder {
+    let mut w = WalkBuilder::new(dir);
+    w.hidden(!caches)
+        .git_ignore(!sans_ignore)
+        .git_global(!sans_ignore)
+        .git_exclude(!sans_ignore)
+        .ignore(!sans_ignore)
+        .parents(!sans_ignore)
+        .max_depth(profondeur);
+    w
+}
+
 /// Construit l'ensemble de globs depuis les motifs et les extensions.
 ///
 /// # Erreurs
 /// Si un motif glob ou une extension est syntaxiquement invalide.
-fn construire_globs(globs: &[String], exts: &[String]) -> Result<Option<GlobSet>> {
+pub fn construire_globs(globs: &[String], exts: &[String]) -> Result<Option<GlobSet>> {
     if globs.is_empty() && exts.is_empty() {
         return Ok(None);
     }
