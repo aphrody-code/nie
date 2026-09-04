@@ -4,7 +4,8 @@
   },
   "env": {
     "NIERS_REPO": "/home/ubuntu/niers",
-    "BASH_ENV": "/home/ubuntu/niers/.claude/shell-init.sh"
+    "BASH_ENV": "/home/ubuntu/niers/.claude/shell-init.sh",
+    "NIE_GAME_DIR": "/home/ubuntu/niers"
   },
   "hooks": {
     "SessionStart": [
