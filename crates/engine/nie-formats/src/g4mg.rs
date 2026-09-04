@@ -111,24 +111,41 @@ pub struct VertexSkin {
 /// WEIGHTS/INDICES, ou si les données sortent des limites).
 #[must_use]
 pub fn extract_skin(g4mg: &[u8], g4md: &G4md, submesh: usize) -> Option<Vec<VertexSkin>> {
-    let w = g4md.find_attribute(5)?;
-    let idx = g4md.find_attribute(6)?;
     let sm = g4md.submeshes.get(submesh)?;
-    // stride perso skinné = 68 ; le champ peut valoir 0 sur certains g4md → plancher.
-    let stride = if (sm.stride as usize) >= 12 { sm.stride as usize } else { 68 };
+    // Le layout propre à la sous-maille : sur `c01001900`, la chevelure (layout 2) et les yeux
+    // (layout 0) partagent les offsets de skinning, mais rien ne garantit ce partage ailleurs.
+    let w = g4md.find_attribute_of(sm, 5)?;
+    let idx = g4md.find_attribute_of(sm, 6)?;
+    // stride perso skinné = 68 ; le champ historique vaut souvent 0, le champ réel (+0x3E) le
+    // porte ; à défaut des deux, plancher documenté.
+    let declared = sm.declared_stride();
+    let stride = if declared >= 12 { declared } else { 68 };
+    // Nombre d'influences réellement stockées : les tranches WEIGHTS (u16) et INDICES (u8)
+    // peuvent être plus courtes que 8 sur certains layouts. Les emplacements au-delà restent à
+    // poids 0.
+    let n_w = (g4md.attribute_extent(sm, w, stride) / 2).min(8);
+    let n_i = g4md.attribute_extent(sm, idx, stride).min(8);
+    let n = n_w.min(n_i);
+    if n == 0 {
+        return None;
+    }
     let vbase = sm.vertex_offset as usize;
     let (wo0, io0) = (w.offset as usize, idx.offset as usize);
     let mut out = Vec::with_capacity(sm.vertex_count as usize);
     for v in 0..sm.vertex_count as usize {
         let vo = vbase + v * stride;
         let (wo, io) = (vo + wo0, vo + io0);
-        if wo + 16 > g4mg.len() || io + 8 > g4mg.len() {
+        if wo + n * 2 > g4mg.len() || io + n > g4mg.len() {
             return None;
         }
         let weights: [f32; 8] = core::array::from_fn(|k| {
-            f32::from(u16::from_le_bytes([g4mg[wo + k * 2], g4mg[wo + k * 2 + 1]])) / 65535.0
+            if k < n {
+                f32::from(u16::from_le_bytes([g4mg[wo + k * 2], g4mg[wo + k * 2 + 1]])) / 65535.0
+            } else {
+                0.0
+            }
         });
-        let bones: [u8; 8] = core::array::from_fn(|k| g4mg[io + k]);
+        let bones: [u8; 8] = core::array::from_fn(|k| if k < n { g4mg[io + k] } else { 0 });
         out.push(VertexSkin { bones, weights });
     }
     Some(out)
@@ -168,9 +185,9 @@ pub fn extract_geometry(g4mg: &[u8], g4md: &G4md) -> Vec<SubmeshGeometry> {
         if cnt == 0 {
             continue;
         }
-        let next = order
-            .get(k + 1)
-            .map_or(face_data_base, |&j| g4md.submeshes[j].vertex_offset as usize);
+        let next = order.get(k + 1).map_or(face_data_base, |&j| {
+            g4md.submeshes[j].vertex_offset as usize
+        });
         gap_stride[i] = next.saturating_sub(g4md.submeshes[i].vertex_offset as usize) / cnt;
     }
 
@@ -204,8 +221,10 @@ pub fn extract_geometry(g4mg: &[u8], g4md: &G4md) -> Vec<SubmeshGeometry> {
             continue;
         }
 
-        let stride = if sm.stride > 0 {
-            sm.stride as usize
+        // Priorité au stride déclaré : champ historique (+0x2E, fixtures et maps), puis champ réel
+        // (+0x3E, tous les modèles de personnage mesurés) ; les dérivations ne servent qu'à défaut.
+        let stride = if sm.declared_stride() >= 12 {
+            sm.declared_stride()
         } else if shared_vertices {
             derived_stride.max(attr_extent) // vertices partagés (menu) : derived sous-estime
         } else if gap_stride[idx] >= 12 {
@@ -224,6 +243,21 @@ pub fn extract_geometry(g4mg: &[u8], g4md: &G4md) -> Vec<SubmeshGeometry> {
         }
 
         // Décodage conditionnel des normales/UV/couleurs : l'attribut doit tenir dans le stride.
+        // Le layout propre à la sous-maille prime sur le premier layout du fichier.
+        let normal_attr = g4md.find_attribute_of(sm, 2).or(normal_attr);
+        let uv_attr = g4md.find_attribute_of(sm, 10).or(uv_attr).map(|a| {
+            // `datatype = 2` est ambigu : ushort×2 sur les maps (4 octets), float×2 sur les
+            // personnages (`u011001` layout 1 : UV @0x40, stride 72 → 8 octets). Ce n'est pas
+            // le code qui tranche mais la place réservée dans le vertex : huit octets ou plus,
+            // c'est du float. Lu en ushort, le short de Byron avait tous ses V dans une bande de
+            // 1 % de la planche — chaussettes et nœud disparus.
+            if a.datatype == 2 && g4md.attribute_extent(sm, a, stride) >= 8 {
+                VertexAttribute { datatype: 3, ..a }
+            } else {
+                a
+            }
+        });
+        let color_attr = g4md.find_attribute_of(sm, 8).or(color_attr);
         let decode_normal = normal_attr.filter(|a| {
             let sz = vec3_byte_size(a.datatype);
             sz > 0 && a.offset as usize + sz <= stride
@@ -238,9 +272,17 @@ pub fn extract_geometry(g4mg: &[u8], g4md: &G4md) -> Vec<SubmeshGeometry> {
         });
 
         let mut positions = Vec::with_capacity(vertex_count);
-        let mut normals = Vec::with_capacity(if decode_normal.is_some() { vertex_count } else { 0 });
+        let mut normals = Vec::with_capacity(if decode_normal.is_some() {
+            vertex_count
+        } else {
+            0
+        });
         let mut uv0 = Vec::with_capacity(if decode_uv.is_some() { vertex_count } else { 0 });
-        let mut colors = Vec::with_capacity(if decode_color.is_some() { vertex_count } else { 0 });
+        let mut colors = Vec::with_capacity(if decode_color.is_some() {
+            vertex_count
+        } else {
+            0
+        });
 
         for i in 0..vertex_count {
             let p = v_offset + i * stride;
@@ -342,14 +384,12 @@ pub fn vec2_byte_size(datatype: u32) -> usize {
 /// Décode une couleur (4 composantes) à `off` (port de `DecodeColor`).
 fn decode_color_at(data: &[u8], off: usize, datatype: u32) -> Vec4 {
     match datatype {
-        2 | 3 => {
-            Vec4 {
-                x: sanitize(read_f32(data, off)),
-                y: sanitize(read_f32(data, off + 4)),
-                z: sanitize(read_f32(data, off + 8)),
-                w: sanitize(read_f32(data, off + 12)),
-            }
-        }
+        2 | 3 => Vec4 {
+            x: sanitize(read_f32(data, off)),
+            y: sanitize(read_f32(data, off + 4)),
+            z: sanitize(read_f32(data, off + 8)),
+            w: sanitize(read_f32(data, off + 12)),
+        },
         12 => {
             if off + 4 <= data.len() {
                 Vec4 {
@@ -359,25 +399,26 @@ fn decode_color_at(data: &[u8], off: usize, datatype: u32) -> Vec4 {
                     w: data[off + 3] as f32 / 255.0,
                 }
             } else {
-                Vec4 { x: 1.0, y: 1.0, z: 1.0, w: 1.0 }
+                Vec4 {
+                    x: 1.0,
+                    y: 1.0,
+                    z: 1.0,
+                    w: 1.0,
+                }
             }
         }
-        14 => {
-            Vec4 {
-                x: f32::from(read_u16(data, off)) / 65535.0,
-                y: f32::from(read_u16(data, off + 2)) / 65535.0,
-                z: f32::from(read_u16(data, off + 4)) / 65535.0,
-                w: f32::from(read_u16(data, off + 6)) / 65535.0,
-            }
-        }
-        _ => {
-            Vec4 {
-                x: snorm16(read_i16(data, off)),
-                y: snorm16(read_i16(data, off + 2)),
-                z: snorm16(read_i16(data, off + 4)),
-                w: snorm16(read_i16(data, off + 6)),
-            }
-        }
+        14 => Vec4 {
+            x: f32::from(read_u16(data, off)) / 65535.0,
+            y: f32::from(read_u16(data, off + 2)) / 65535.0,
+            z: f32::from(read_u16(data, off + 4)) / 65535.0,
+            w: f32::from(read_u16(data, off + 6)) / 65535.0,
+        },
+        _ => Vec4 {
+            x: snorm16(read_i16(data, off)),
+            y: snorm16(read_i16(data, off + 2)),
+            z: snorm16(read_i16(data, off + 4)),
+            w: snorm16(read_i16(data, off + 6)),
+        },
     }
 }
 
@@ -390,7 +431,11 @@ pub fn snorm16(s: i16) -> f32 {
 /// Décode une normale à `off` et la renormalise (port de `DecodeNormal`).
 fn decode_normal_at(data: &[u8], off: usize, datatype: u32) -> Vec3 {
     let (mut x, mut y, mut z) = match datatype {
-        2 | 3 => (read_f32(data, off), read_f32(data, off + 4), read_f32(data, off + 8)),
+        2 | 3 => (
+            read_f32(data, off),
+            read_f32(data, off + 4),
+            read_f32(data, off + 8),
+        ),
         _ => (
             snorm16(read_i16(data, off)),
             snorm16(read_i16(data, off + 2)),
@@ -402,9 +447,17 @@ fn decode_normal_at(data: &[u8], off: usize, datatype: u32) -> Vec3 {
     z = sanitize(z);
     let len = (x * x + y * y + z * z).sqrt();
     if len > 1e-6 {
-        Vec3 { x: x / len, y: y / len, z: z / len }
+        Vec3 {
+            x: x / len,
+            y: y / len,
+            z: z / len,
+        }
     } else {
-        Vec3 { x: 0.0, y: 0.0, z: 1.0 } // normale dégénérée : repli sûr
+        Vec3 {
+            x: 0.0,
+            y: 0.0,
+            z: 1.0,
+        } // normale dégénérée : repli sûr
     }
 }
 
@@ -417,9 +470,15 @@ fn decode_uv_at(data: &[u8], off: usize, datatype: u32) -> Vec2 {
             f32::from(read_u16(data, off)) / 65535.0,
             f32::from(read_u16(data, off + 2)) / 65535.0,
         ),
-        _ => (snorm16(read_i16(data, off)), snorm16(read_i16(data, off + 2))),
+        _ => (
+            snorm16(read_i16(data, off)),
+            snorm16(read_i16(data, off + 2)),
+        ),
     };
-    Vec2 { u: sanitize(u), v: sanitize(v) }
+    Vec2 {
+        u: sanitize(u),
+        v: sanitize(v),
+    }
 }
 
 fn sanitize(f: f32) -> f32 {
@@ -536,7 +595,14 @@ mod tests {
         assert_eq!(g.stride, 72);
 
         // Positions = (0,0,0),(1,0,0),(2,0,0).
-        assert_eq!(g.positions[0], Vec3 { x: 0.0, y: 0.0, z: 0.0 });
+        assert_eq!(
+            g.positions[0],
+            Vec3 {
+                x: 0.0,
+                y: 0.0,
+                z: 0.0
+            }
+        );
         assert_eq!(g.positions[1].x, 1.0);
         assert_eq!(g.positions[2].x, 2.0);
 
@@ -697,7 +763,11 @@ mod tests {
         let g = &geo[0];
         assert_eq!(g.vertex_count, 4);
         assert_eq!(g.stride, 32);
-        assert_eq!(g.indices, alloc::vec![0u32, 1, 2, 0, 2, 3], "quad = deux triangles");
+        assert_eq!(
+            g.indices,
+            alloc::vec![0u32, 1, 2, 0, 2, 3],
+            "quad = deux triangles"
+        );
         assert!(!g.index32, "indices sur 16 bits");
         assert_eq!(g.positions.len(), 4);
         assert_eq!(g.positions[0].x, 1.0, "premier sommet en x = 1.0");
@@ -707,13 +777,16 @@ mod tests {
     /// une vérité terrain d'une constante recopiée.
     #[test]
     fn le_litteral_menu_correspond_au_fichier_du_jeu() {
-        let Some((chemin, data)) =
-            crate::g4pk::tests_vfs::lire_par_suffixe("mainmenu90_02_2.g4mg")
+        let Some((chemin, data)) = crate::g4pk::tests_vfs::lire_par_suffixe("mainmenu90_02_2.g4mg")
         else {
             return;
         };
         assert!(data.len() >= 192, "{chemin} : moins de 192 octets");
-        assert_eq!(&data[..192], &MENU_G4MG[..], "{chemin} : les 192 premiers octets");
+        assert_eq!(
+            &data[..192],
+            &MENU_G4MG[..],
+            "{chemin} : les 192 premiers octets"
+        );
 
         // Et la géométrie extraite du fichier réel est celle du quad.
         let md = build_menu_g4md();

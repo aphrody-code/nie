@@ -40,6 +40,8 @@ rusqlite.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 clap.workspace = true
+# Empreinte SHA-256 du GLB servi, citée dans chaque rapport d'assemblage.
+sha2.workspace = true
 
 [dev-dependencies]
 # Example `probe_g4tx_dds` réfère l'enum `ImageFormat` en direct (le décodage applicatif

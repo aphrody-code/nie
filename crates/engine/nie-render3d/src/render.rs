@@ -127,7 +127,8 @@ pub fn render(model: &Model, angle: f32, w: u32, h: u32) -> Vec<u8> {
             // Backface culling : aire signée écran (y vers le bas). Les faces arrière (crâne, intérieur
             // des cheveux) sont éliminées → la tête cesse d'être « traversée ».
             let screen_area = (b.0 - a.0) * (c.1 - a.1) - (b.1 - a.1) * (c.0 - a.0);
-            if screen_area <= 0.0 {
+            // glTF définit les faces avant en CCW ; la projection inverse l'axe Y.
+            if screen_area >= 0.0 {
                 continue;
             }
             // Normale de face (espace monde centré/orienté) pour Lambert.
@@ -141,7 +142,7 @@ pub fn render(model: &Model, angle: f32, w: u32, h: u32) -> Vec<u8> {
             let lambert = dot(fn_, light).abs();
             let shade = 0.35 + 0.65 * lambert; // texturé : moins d'écrasement que l'argile
             // UV par sommet (vides si la primitive n'est pas texturée → fallback argile).
-            let uv = if tex.is_some() && ia < prim.uv.len() && ic < prim.uv.len() {
+            let uv = if tex.is_some() && ia < prim.uv.len() && ib < prim.uv.len() && ic < prim.uv.len() {
                 [prim.uv[ia], prim.uv[ib], prim.uv[ic]]
             } else {
                 [[0.0, 0.0]; 3]
@@ -200,7 +201,7 @@ fn fill_triangle(
             if w0 < 0.0 || w1 < 0.0 || w2 < 0.0 {
                 continue;
             }
-            let depth = w0 * a.2 + w1 * b.2 + w2 * c.2;
+            let depth = 1.0 / (w0 / a.2 + w1 / b.2 + w2 / c.2);
             let zi = (y as u32 * w + x as u32) as usize;
             if depth >= zbuf[zi] {
                 continue;
@@ -241,7 +242,7 @@ mod tests {
                 positions: vec![[-1.0, -1.0, 0.0], [1.0, -1.0, 0.0], [0.0, 1.0, 0.0]],
                 normals: vec![[0.0, 0.0, 1.0]; 3],
                 uv: Vec::new(),
-                indices: vec![0, 2, 1], // front-facing (screen_area > 0, sinon culled)
+                indices: vec![0, 1, 2], // CCW, normale +Z : face avant glTF.
                 texture: None,
             }],
             textures: Vec::new(),
@@ -260,7 +261,7 @@ mod tests {
                 positions: vec![[-1.0, -1.0, 0.0], [1.0, -1.0, 0.0], [1.0, 1.0, 0.0], [-1.0, 1.0, 0.0]],
                 normals: vec![[0.0, 0.0, 1.0]; 4],
                 uv: vec![[0.0, 1.0], [1.0, 1.0], [1.0, 0.0], [0.0, 0.0]],
-                indices: vec![0, 2, 1, 0, 3, 2], // winding inversé → front-facing (cf. backface culling)
+                indices: vec![0, 1, 2, 0, 2, 3], // CCW glTF.
                 texture: Some(0),
             }],
             textures: vec![tex],
@@ -290,5 +291,18 @@ mod tests {
         // Au moins quelques pixels de mesh (argile ~100-200) au-dessus du fond sombre (<60).
         let lit = buf.chunks_exact(4).filter(|p| p[0] > 80 && p[1] > 80 && p[2] > 80).count();
         assert!(lit > 50, "le triangle doit produire des pixels de mesh ({lit})");
+    }
+
+    #[test]
+    fn face_ccw_visible_et_face_inverse_masquee() {
+        let mut model = tri_model();
+        let front = render(&model, 0.0, 64, 64);
+        model.primitives[0].indices.reverse();
+        let back = render(&model, 0.0, 64, 64);
+        let background: Vec<u8> = (0..64)
+            .flat_map(|y| (0..64).flat_map(move |_| couleur_fond(y, 64)))
+            .collect();
+        assert_ne!(front, background, "face CCW tournée vers +Z visible");
+        assert_eq!(back, background, "face arrière éliminée");
     }
 }

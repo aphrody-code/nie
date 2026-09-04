@@ -15,6 +15,7 @@ import { TextureSheet } from "@/components/TextureSheet";
 import { AudioBankPanel } from "@/components/AudioBankPanel";
 import { CameraTrackView } from "@/components/CameraTrackView";
 import { NavmeshView } from "@/components/NavmeshView";
+import { ModelPreview } from "@/components/ModelPreview";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -585,8 +586,8 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
           </Button>
         )}
         {target.kind === "vfs" && (ext === "g4md" || ext === "g4mg") && !glbTurntableUrl && (
-          <Button size="sm" variant="outline" onClick={loadGlbTurntable} disabled={glbLoading} title="Turntable 360° — la barre de défilement vidéo fait office de caméra orbitale">
-            {glbLoading ? "Rendu turntable…" : "🔄 Aperçu 3D interactif"}
+          <Button size="sm" variant="outline" onClick={loadGlbTurntable} disabled={glbLoading} title="Vidéo pré-rendue de 36 vues">
+            {glbLoading ? "Rendu turntable…" : "Vidéo de rotation 360°"}
           </Button>
         )}
         {target.kind === "vfs" && ext === "usm" && !videoUrl && (
@@ -665,6 +666,9 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
       )}
 
       {glbError && <p className="type-body-small text-error">{glbError}</p>}
+      {target.kind === "vfs" && (ext === "g4md" || ext === "g4mg") && (
+        <ModelPreview key={`${settings.gameDir}:${target.path}`} path={target.path} gameDir={settings.gameDir} />
+      )}
       {glbUrl && (
         <div className="max-h-96 overflow-auto rounded-lg border border-app-line bg-app-dark-box p-2">
           <img src={glbUrl} alt={`Rendu 3D de ${name}`} className="max-w-full" />

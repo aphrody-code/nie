@@ -62,10 +62,14 @@ use serde_json::Value;
 use tracing::{debug, error, info, warn};
 
 use nie_formats::assemble::{
-    CharacterAssemblyInput, EmbeddedTexture, GenericModelInput, MeshComponent, SeasonKey,
-    assemble_armed, assemble_character_model, assemble_generic_model, assemble_keshin,
-    g4md_to_g4mg_path, load_manifest, resolve_crc_to_g4md_path,
+    AuxTexture, CharacterAssemblyInput, CharacterUniformPart, EmbeddedTexture, GenericModelInput,
+    MeshComponent, RawPiece, SeasonKey, Skeleton, assemble_armed, assemble_character_model,
+    assemble_generic_model, assemble_keshin, avatar_texture_name, g4md_to_g4mg_path, load_manifest,
+    resolve_crc_to_g4md_path, texture_role_from_name, type_idx_to_glb_name,
 };
+
+mod catalogue;
+use catalogue::{CharaModelCatalog, CharacterPartsCatalog, ResolvedPart};
 use nie_formats::cfgbin;
 #[cfg(test)]
 use nie_formats::cri_audio::{Awb, is_hca};
@@ -159,6 +163,40 @@ struct Cli {
     /// Idempotent et borné par l'espace disque.
     #[arg(long)]
     preload: bool,
+
+    /// Audit hors ligne : assemble **chaque** personnage de `chara_model`, applique les critères
+    /// de validité (voir `audit_models`), écrit un NDJSON par modèle et un résumé, puis quitte
+    /// (le serveur HTTP n'est pas lancé). Code de sortie 1 si au moins un modèle échoue.
+    #[arg(long)]
+    audit: bool,
+
+    /// Fichier NDJSON de l'audit (défaut : `<game-dir>/var/model-audit.ndjson` ; le résumé JSON
+    /// est écrit à côté, suffixe `-summary.json`).
+    #[arg(long)]
+    audit_out: Option<PathBuf>,
+
+    /// Limite le nombre de personnages audités (0 = tous), pour un essai rapide.
+    #[arg(long, default_value_t = 0)]
+    audit_limit: usize,
+
+    /// N'audite que les codes contenant cette sous-chaîne (ex. `c01`, `c11`).
+    #[arg(long)]
+    audit_filter: Option<String>,
+
+    /// Expose le **code du dépôt** en lecture seule sous `/depot/…` (lister, lire, trouver,
+    /// chercher), sur le même moteur que `niers find`/`grep`, le serveur MCP et l'app desktop.
+    ///
+    /// **Éteint par défaut, et il doit le rester sans décision explicite** : cette instance est
+    /// joignable publiquement (`cdn.rosegriffon.fr`). Le moteur refuse déjà la traversée, les
+    /// dossiers non-code et les fichiers de secrets, mais aucune de ces gardes ne remplace le
+    /// choix de publier, ou non, le code du projet.
+    #[arg(long)]
+    depot_code: bool,
+
+    /// Racine du dépôt niers servie par `--depot-code`. Défaut : le répertoire courant, ou le
+    /// premier ancêtre portant `Cargo.toml` et `crates/`.
+    #[arg(long)]
+    depot_racine: Option<PathBuf>,
 }
 
 // ── État partagé ──────────────────────────────────────────────────────────────
@@ -168,10 +206,17 @@ struct Cli {
 /// Chaque ligne : `{"crc":2636889360,"crc_hex":"0x9D2BBD10","code":"u010101_10",
 ///                  "g4md":"data/common/chr/_uniform/u000101/u000101.g4md",
 ///                  "g4tx":"data/dx11/chr/_uniform/u000101/u010101_10.g4tx"}`
+#[derive(Clone)]
 struct UniformMapEntry {
+    code: String,
     g4md: String,
     g4tx: String,
 }
+
+/// Version de l'assembleur de personnages. À incrémenter à chaque changement de recette ou de
+/// format de sortie : le cache GLB (`var/model-cache`) est purgé au démarrage quand la version
+/// enregistrée dans `VERSION` diffère, et chaque rapport la cite avec le SHA-256 du GLB servi.
+const ASSEMBLER_VERSION: &str = "2026-09-04.skin-4";
 
 /// État partagé entre les threads (derrière Arc).
 struct State {
@@ -185,6 +230,10 @@ struct State {
     crc_manifest: Vec<nie_formats::assemble::ManifestEntry>,
     /// CRC uniforme → chemins G4MD+G4TX (depuis var/uniform-model-map.ndjson).
     uniform_map: HashMap<u32, UniformMapEntry>,
+    /// Recettes de pièces modulaires issues du `chara_parts*.cfg.bin` réel du VFS.
+    chara_parts: CharacterPartsCatalog,
+    /// Fiches modèle (visage, corps, tenue par défaut) issues du `chara_model*.cfg.bin` réel.
+    chara_model: CharaModelCatalog,
     /// internal_code → body_type_idx (depuis var/body-type-manifest.ndjson).
     body_map: HashMap<String, u8>,
     cache_dir: PathBuf,
@@ -197,6 +246,11 @@ struct State {
     /// Nom de texture (basename sans extension) → sources qui la référencent (`entries/*.json`,
     /// chaînes Lua), depuis `data/asset-cross-reference.json`. Alimente `/tex-info` `role`.
     asset_roles: HashMap<String, Vec<AssetSource>>,
+    /// Accès au code du dépôt, `None` tant que `--depot-code` n'est pas passé.
+    ///
+    /// L'`Option` porte la décision de publier : une route absente ne peut pas fuiter, alors
+    /// qu'un drapeau lu à chaque requête finit par être oublié quelque part.
+    depot: Option<nie_explore::depot::Depot>,
 }
 
 /// Une source qui référence un asset, telle qu'écrite par
@@ -256,10 +310,72 @@ impl State {
             let Some(g4tx) = v["g4tx"].as_str().map(str::to_string) else {
                 continue;
             };
-            map.insert(crc, UniformMapEntry { g4md, g4tx });
+            let code = v["code"]
+                .as_str()
+                .map(str::to_string)
+                .unwrap_or_else(|| g4tx_decode::basename_of(&g4tx).to_string());
+            map.insert(crc, UniformMapEntry { code, g4md, g4tx });
         }
         info!("uniform-model-map : {} entrées", map.len());
         map
+    }
+
+    /// Charge les recettes de tenue directement depuis le dernier `chara_parts*.cfg.bin`
+    /// présent dans le VFS. Le catalogue est construit une fois au démarrage : le préchargement
+    /// de milliers de personnages ne reparcourt donc jamais les 20 000+ lignes de la table.
+    fn load_character_parts(vfs: &Vfs) -> CharacterPartsCatalog {
+        let Some((path, cfg)) = Self::load_latest_cfg(vfs, "chara_parts_") else {
+            warn!("chara_parts absent ou illisible dans le VFS : assemblage modulaire désactivé");
+            return CharacterPartsCatalog::default();
+        };
+        let catalog = CharacterPartsCatalog::from_entries(&cfg.entries, &path);
+        info!(
+            "chara_parts : {} tenues, {} chaussures, {} gants ({path})",
+            catalog.clothes.len(),
+            catalog.shoes.len(),
+            catalog.gloves.len()
+        );
+        catalog
+    }
+
+    /// Charge les fiches modèle depuis le dernier `chara_model_<version>.cfg.bin` du VFS
+    /// (visage, corps, squelette et tenue par défaut de chaque personnage).
+    fn load_chara_model(vfs: &Vfs) -> CharaModelCatalog {
+        let Some((path, cfg)) = Self::load_latest_cfg(vfs, "chara_model_") else {
+            warn!("chara_model absent ou illisible dans le VFS : squelette et visage devinés");
+            return CharaModelCatalog::default();
+        };
+        let catalog = CharaModelCatalog::from_entries(&cfg.entries, &path);
+        info!(
+            "chara_model : {} fiches, {} corps ({path})",
+            catalog.by_code.len(),
+            catalog.bodies.len()
+        );
+        catalog
+    }
+
+    /// Dernier `data/common/gamedata/character/<prefix><version>.cfg.bin` du VFS, décodé.
+    /// Le préfixe se termine par `_` pour ne pas confondre `chara_model_` et
+    /// `chara_model_change_` : ce dernier est écarté par son nom.
+    fn load_latest_cfg(vfs: &Vfs, prefix: &str) -> Option<(String, cfgbin::CfgBinFile)> {
+        let dir = "data/common/gamedata/character/";
+        let mut paths: Vec<String> = vfs
+            .iter()
+            .map(|(path, _)| path)
+            .chain(vfs.iter_extra().map(|(path, _)| path))
+            .filter(|path| path.ends_with(".cfg.bin"))
+            .filter(|path| {
+                path.strip_prefix(dir)
+                    .and_then(|name| name.strip_prefix(prefix))
+                    .is_some_and(|rest| rest.starts_with(|c: char| c.is_ascii_digit()))
+            })
+            .map(str::to_string)
+            .collect();
+        paths.sort();
+        let path = paths.pop()?;
+        let bytes = vfs.read(&path).ok()?;
+        let cfg = cfgbin::parse_t2b(&bytes).ok()?;
+        Some((path, cfg))
     }
 
     /// Charge le manifeste body_type_idx depuis le fichier NDJSON.
@@ -312,7 +428,10 @@ impl State {
             return HashMap::new();
         }
         let Ok(content) = fs::read_to_string(path) else {
-            warn!("impossible de lire asset-cross-reference : {}", path.display());
+            warn!(
+                "impossible de lire asset-cross-reference : {}",
+                path.display()
+            );
             return HashMap::new();
         };
         #[derive(serde::Deserialize)]
@@ -331,14 +450,19 @@ impl State {
         };
         let mut map: HashMap<String, Vec<AssetSource>> = HashMap::new();
         for a in cr.assets {
-            let Some(base) = a.asset_path.rsplit('/').next() else { continue };
+            let Some(base) = a.asset_path.rsplit('/').next() else {
+                continue;
+            };
             let base = base.rsplit_once('.').map_or(base, |(stem, _)| stem);
             if base.is_empty() {
                 continue;
             }
             map.entry(base.to_string()).or_default().extend(a.sources);
         }
-        info!("asset-cross-reference : {} noms de texture indexés", map.len());
+        info!(
+            "asset-cross-reference : {} noms de texture indexés",
+            map.len()
+        );
         map
     }
 
@@ -365,10 +489,24 @@ impl State {
 
 // ── Résolution uniforme depuis SQLite ─────────────────────────────────────────
 
-/// Résolution de l'uniforme par défaut d'un personnage (fielder CRC).
+/// CRC des modèles d'une tenue, tels que les porte `inagle_uniforms.models[typeId=0]`.
+#[derive(Clone, Debug, Default)]
+struct UniformCrcs {
+    /// `uniformFielderModelIdCrc` (0 si absent).
+    fielder: u32,
+    /// `shoesFielderModelIdCrc` (0 si absent).
+    shoes: u32,
+    /// `gloveModelIdCrc` (0 si absent).
+    glove: u32,
+    /// Identifiant du kit retenu (`inagle_uniforms.name_id`), pour le rapport.
+    kit_id: String,
+}
+
+/// Résolution de la tenue d'un personnage depuis le miroir SQLite.
 ///
-/// Chaîne : series → season_key → inagle_teams.kits → kit_id → inagle_uniforms → CRC.
-fn resolve_uniform_crc(db_path: &Path, internal_code: &str) -> Option<u32> {
+/// Chaîne : series → season_key → inagle_teams.kits → kit_id → inagle_uniforms.models →
+/// CRC du haut, des chaussures et des gants (l'entrée `typeId = 0`, sinon la première).
+fn resolve_uniform_crcs(db_path: &Path, internal_code: &str) -> Option<UniformCrcs> {
     let conn = Connection::open_with_flags(
         db_path,
         OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
@@ -385,7 +523,6 @@ fn resolve_uniform_crc(db_path: &Path, internal_code: &str) -> Option<u32> {
             |row| {
                 let series: String = row.get(0).unwrap_or_default();
                 let data_raw: String = row.get(1).unwrap_or_default();
-                // Extrait le premier team ID depuis data.teams[0].id
                 let team_id = serde_json::from_str::<Value>(&data_raw).ok().and_then(|v| {
                     v["teams"]
                         .as_array()
@@ -414,35 +551,32 @@ fn resolve_uniform_crc(db_path: &Path, internal_code: &str) -> Option<u32> {
                 .and_then(|v| v["kits"][season.as_str()].as_str().map(str::to_string))
         })?;
 
-    // 3. Récupère le CRC fielder depuis inagle_uniforms (name_id = kit_id).
-    let fielder_crc_str: String = conn
+    // 3. Les CRC de modèles depuis inagle_uniforms (name_id = kit_id).
+    let models_raw: String = conn
         .query_row(
             "SELECT models FROM inagle_uniforms WHERE name_id=?1 ORDER BY type_id ASC LIMIT 1",
             [&kit_id],
             |row| row.get::<_, String>(0),
         )
-        .ok()
-        .and_then(|models_raw| {
-            serde_json::from_str::<Value>(&models_raw)
-                .ok()
-                .and_then(|v| {
-                    // Cherche typeId=0 en premier, sinon prend le premier élément
-                    let arr = v.as_array()?;
-                    let entry = arr
-                        .iter()
-                        .find(|e| e["typeId"].as_u64() == Some(0))
-                        .or_else(|| arr.first())?;
-                    entry["uniformFielderModelIdCrc"]
-                        .as_str()
-                        .map(str::to_string)
-                })
-        })?;
-
-    // Parse le CRC hex "0xXXXXXXXX"
-    let hex = fielder_crc_str
-        .strip_prefix("0x")
-        .unwrap_or(&fielder_crc_str);
-    u32::from_str_radix(hex, 16).ok()
+        .ok()?;
+    let models: Value = serde_json::from_str(&models_raw).ok()?;
+    let arr = models.as_array()?;
+    let entry = arr
+        .iter()
+        .find(|e| e["typeId"].as_u64() == Some(0))
+        .or_else(|| arr.first())?;
+    let crc_field = |name: &str| -> u32 {
+        entry[name]
+            .as_str()
+            .and_then(|s| u32::from_str_radix(s.strip_prefix("0x").unwrap_or(s), 16).ok())
+            .unwrap_or(0)
+    };
+    Some(UniformCrcs {
+        fielder: crc_field("uniformFielderModelIdCrc"),
+        shoes: crc_field("shoesFielderModelIdCrc"),
+        glove: crc_field("gloveModelIdCrc"),
+        kit_id,
+    })
 }
 
 // ── Décodage G4TX → PNG ───────────────────────────────────────────────────────
@@ -697,7 +831,11 @@ fn render_text_png(font_cfg: &[u8], font_g4tx: &[u8], texte: &str, fg: [u8; 4]) 
     let tx = g4tx::parse(font_g4tx).ok()?;
     let t = tx.textures.first()?;
     let dds = font_g4tx.get(t.data_offset..)?;
-    let px_off = if dds.len() >= 88 && &dds[84..88] == b"DX10" { 148 } else { 128 };
+    let px_off = if dds.len() >= 88 && &dds[84..88] == b"DX10" {
+        148
+    } else {
+        128
+    };
     let atlas = dds.get(px_off..)?;
     let (aw, ah) = (t.width as usize, t.height as usize);
     let cell_h = metrics.dims.cell_height;
@@ -898,23 +1036,6 @@ fn load_face_texture_png(state: &State, code: &str) -> Option<Vec<u8>> {
     png
 }
 
-/// Tente de charger et décoder la texture d'uniforme depuis un chemin VFS G4TX.
-/// Retourne `None` si le G4TX est absent ou le décodage échoue.
-fn load_uniform_texture_png(state: &State, g4tx_vfs_path: &str) -> Option<Vec<u8>> {
-    debug!("chargement texture uniforme : {g4tx_vfs_path}");
-
-    let g4tx_data = {
-        let vfs = &state.vfs;
-        vfs.read(g4tx_vfs_path).ok()
-    }?;
-
-    let png = g4tx_decode::decode_best_to_png(&g4tx_data, g4tx_decode::basename_of(g4tx_vfs_path));
-    if png.is_none() {
-        warn!("décodage G4TX uniforme {g4tx_vfs_path} échoué");
-    }
-    png
-}
-
 /// Tente de charger et décoder la texture de keshin en PNG.
 fn load_keshin_texture_png(state: &State, code: &str) -> Option<Vec<u8>> {
     let path = format!("data/dx11/chr/_keshin/{code}/{code}.g4tx");
@@ -968,28 +1089,498 @@ fn load_armed_texture_png(state: &State, code: &str) -> Option<Vec<u8>> {
 /// Résultat de l'assemblage : bytes GLB.
 type GlbBytes = Vec<u8>;
 
-/// Assemble un personnage (code `cXXXXXXXX`).
-fn assemble_chara(state: &State, code: &str) -> Result<GlbBytes> {
-    let body_type_idx = state.body_type_idx(code);
+/// Résultat d'un assemblage : le GLB et son rapport machine-readable.
+struct Assembled {
+    glb: GlbBytes,
+    report: Value,
+}
 
-    // Résolution de l'uniforme via SQLite.
-    let uniform_crc = state
+/// Lit une paire G4MD/G4MG du VFS.
+fn read_raw_piece(state: &State, name: &str, g4md_vfs: &str) -> Result<RawPiece> {
+    let g4mg_vfs = g4md_to_g4mg_path(g4md_vfs);
+    let g4md = state
+        .vfs
+        .read(g4md_vfs)
+        .with_context(|| format!("lecture G4MD {g4md_vfs}"))?;
+    let g4mg = state
+        .vfs
+        .read(&g4mg_vfs)
+        .with_context(|| format!("lecture G4MG {g4mg_vfs}"))?;
+    Ok(RawPiece {
+        name: name.to_string(),
+        g4md_path: g4md_vfs.to_string(),
+        g4md,
+        g4mg,
+    })
+}
+
+/// Chemins VFS candidats pour le squelette d'un corps, par ordre de préférence : le dossier
+/// du corps lui-même, puis `_common`, puis le squelette de l'éditeur. Le premier présent gagne.
+fn skeleton_candidates(stem: &str) -> [String; 3] {
+    [
+        format!("data/common/chr/{stem}/{stem}.g4sk"),
+        format!("data/common/chr/_common/{stem}/{stem}.g4sk"),
+        format!("data/common/chr/_face/20_EDIT/_bodySK/{stem}_edit/{stem}_edit.g4sk"),
+    ]
+}
+
+/// Ce que l'objbin d'un corps ou d'un modèle déclare : le chemin `Skeleton` (`.g4sk` ou `.g4pkm`).
+fn objbin_skeleton_param(state: &State, objbin_rel: &str) -> Option<String> {
+    let path = format!("data/common/chr/{objbin_rel}");
+    let bytes = state.vfs.read(&path).ok()?;
+    let obj = nie_formats::objbin::parse(&bytes).ok()?;
+    obj.skeleton_path
+        .map(|p| format!("data/{}", p.replace('\\', "/").trim_start_matches('/')))
+}
+
+/// Extrait un sous-fichier d'un `.g4pkm` par extension (`.g4sk`, `.g4md`).
+fn g4pkm_sub_file(pkm: &[u8], ext: &str) -> Option<Vec<u8>> {
+    let pk = nie_formats::g4pk::parse(pkm).ok()?;
+    let f = pk.files.iter().find(|f| f.name.ends_with(ext))?;
+    pkm.get(f.offset..f.offset + f.size).map(<[u8]>::to_vec)
+}
+
+/// Charge le squelette d'un corps : d'abord ce que son objbin déclare (`Skeleton` → `.g4sk`
+/// direct, ou `.g4pkm` qui l'empaquette), puis, si l'objbin est muet, les emplacements
+/// conventionnels (`chr/<stem>/<stem>.g4sk`, `_common`, squelette de l'éditeur).
+fn load_skeleton(state: &State, objbin_rel: &str, stem: &str) -> Option<Skeleton> {
+    if let Some(declared) = objbin_skeleton_param(state, objbin_rel) {
+        let bytes = if declared.ends_with(".g4pkm") {
+            state
+                .vfs
+                .read(&declared)
+                .ok()
+                .and_then(|pkm| g4pkm_sub_file(&pkm, ".g4sk"))
+        } else {
+            state.vfs.read(&declared).ok()
+        };
+        match bytes.map(|b| Skeleton::from_g4sk(&declared, &b)) {
+            Some(Ok(sk)) => {
+                debug!(
+                    "squelette {stem} : {declared} ({} os, déclaré par {objbin_rel})",
+                    sk.bones.len()
+                );
+                return Some(sk);
+            }
+            Some(Err(e)) => warn!("squelette déclaré {declared} rejeté : {e}"),
+            None => warn!("squelette déclaré {declared} introuvable dans le VFS"),
+        }
+    }
+    for path in skeleton_candidates(stem) {
+        if state.vfs.find(&path).is_none() {
+            continue;
+        }
+        match state.vfs.read(&path) {
+            Ok(bytes) => match Skeleton::from_g4sk(&path, &bytes) {
+                Ok(sk) => {
+                    debug!("squelette {stem} : {path} ({} os)", sk.bones.len());
+                    return Some(sk);
+                }
+                Err(e) => warn!("squelette {path} rejeté : {e}"),
+            },
+            Err(e) => warn!("squelette {path} illisible : {e}"),
+        }
+    }
+    warn!("aucun squelette lisible pour {stem} : assemblage statique");
+    None
+}
+
+/// Une pièce à texturer : ses primitives portent `piece`, ses planches vivent dans `container`.
+struct PieceTextures {
+    piece: String,
+    component: MeshComponent,
+    /// Chemin VFS du conteneur G4TX (`data/dx11/chr/...`).
+    container: String,
+}
+
+/// Lie les textures d'une pièce à ses matériaux, par nom exact — jamais par composant.
+///
+/// Pour chaque matériau distinct des primitives de la pièce, la planche de base est cherchée
+/// dans le conteneur de la pièce, dans cet ordre, et le rapport dit laquelle a gagné :
+/// 1. le nom exact du matériau sans son suffixe `_LODn` (`u011001_20`) ;
+/// 2. pour les matériaux partagés `eye_10`/`mouth_10`/`hair*`/`mant_*`, la planche `<pièce>_10`
+///    (règle de l'add-on Blender, `material_texture_keys`) ;
+/// 3. si le conteneur n'a qu'une seule planche de base, celle-ci (tête de base : `face_10`).
+///
+/// Les rôles auxiliaires (`line`, `msk`, `oc`, `sp`, `spm`) de la planche retenue sont embarqués
+/// en [`AuxTexture`]. Un matériau sans planche reste `Default` et figure dans le rapport.
+fn bind_piece_textures(
+    state: &State,
+    model: &mut nie_formats::assemble::AssembledModel,
+    src: &PieceTextures,
+    bound: &mut BTreeSet<String>,
+) -> Value {
+    use serde_json::json;
+    let materials: Vec<String> = model
+        .primitives
+        .iter()
+        .filter(|p| p.piece == src.piece && !p.material_name.is_empty())
+        .map(|p| p.material_name.clone())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect();
+    let Ok(g4tx_data) = state.vfs.read(&src.container) else {
+        warn!(
+            "conteneur G4TX absent : {} (pièce {})",
+            src.container, src.piece
+        );
+        return json!({
+            "piece": src.piece, "container": src.container, "error": "conteneur absent",
+            "materials": materials.iter().map(|m| json!({"material": m, "texture": null})).collect::<Vec<_>>()
+        });
+    };
+    let Ok(parsed) = parse_g4tx(&g4tx_data) else {
+        warn!("conteneur G4TX illisible : {}", src.container);
+        return json!({ "piece": src.piece, "container": src.container, "error": "conteneur illisible" });
+    };
+    let names: Vec<String> = parsed.textures.iter().map(|t| t.name.clone()).collect();
+    let bases: Vec<&String> = names
+        .iter()
+        .filter(|n| texture_role_from_name(n).1 == "base")
+        .collect();
+    let find = |wanted: &str| {
+        names
+            .iter()
+            .find(|n| n.eq_ignore_ascii_case(wanted))
+            .cloned()
+    };
+
+    let mut entries = Vec::new();
+    for material_orig in &materials {
+        // Un nom de matériau partagé entre deux pièces (`eye_10` sur la tête de base ET sur le
+        // visage) désigne deux planches différentes : la seconde pièce reçoit un matériau à
+        // elle, `eye_10@c01001900`, plutôt que la planche de la première.
+        let mut material = material_orig.clone();
+        if bound.contains(&material) {
+            material = format!("{material_orig}@{}", src.piece);
+            for p in model
+                .primitives
+                .iter_mut()
+                .filter(|p| p.piece == src.piece && p.material_name == *material_orig)
+            {
+                p.material_name = material.clone();
+            }
+        }
+        let material = &material;
+        let base = avatar_texture_name(material_orig);
+        let base_lower = base.to_ascii_lowercase();
+        let partage = ["eye_10", "mouth_10", "hair", "mant_"]
+            .iter()
+            .any(|p| base_lower.starts_with(p));
+        // Planche déclarée par la recette : le conteneur `n000201_10.g4tx` porte `n000201_10`,
+        // et la variante de profil `n000205` (matériau `n000205_10`) l'utilise telle quelle —
+        // même suffixe de planche (`_10`), famille commune.
+        let container_stem = src
+            .container
+            .rsplit('/')
+            .next()
+            .and_then(|f| f.strip_suffix(".g4tx"))
+            .unwrap_or("");
+        let same_suffix = |a: &str, b: &str| a.rsplit('_').next() == b.rsplit('_').next();
+        let (chosen, rule) = if let Some(n) = find(base) {
+            (Some(n), "exact")
+        } else if partage && let Some(n) = find(&format!("{}_10", src.piece)) {
+            (Some(n), "piece_10")
+        } else if same_suffix(base, container_stem)
+            && let Some(n) = find(container_stem)
+        {
+            (Some(n), "declared")
+        } else if bases.len() == 1 {
+            (Some(bases[0].clone()), "unique_base")
+        } else {
+            (None, "aucune")
+        };
+        let Some(texture) = chosen else {
+            warn!(
+                "matériau {material} (pièce {}) : aucune planche dans {} — reste Default",
+                src.piece, src.container
+            );
+            entries.push(json!({
+                "material": material, "texture": null, "rule": rule,
+                "available": names,
+            }));
+            continue;
+        };
+        let Some(png_bytes) = g4tx_decode::decode_named_to_png(&g4tx_data, &texture) else {
+            warn!("planche {texture} indécodable dans {}", src.container);
+            entries.push(
+                json!({ "material": material, "texture": texture, "rule": rule, "decoded": false }),
+            );
+            continue;
+        };
+        model.embedded_textures.push(EmbeddedTexture {
+            component: src.component,
+            name: material.clone(),
+            png_bytes,
+        });
+        bound.insert(material.clone());
+        let mut roles = serde_json::Map::new();
+        for suffix in ["line", "msk", "oc", "sp", "spm"] {
+            let aux_name = format!("{texture}{suffix}");
+            let Some(real) = find(&aux_name) else {
+                continue;
+            };
+            let role = texture_role_from_name(&real).1;
+            if let Some(png) = g4tx_decode::decode_named_to_png(&g4tx_data, &real) {
+                model.aux_textures.push(AuxTexture {
+                    material: material.clone(),
+                    role: role.to_string(),
+                    name: real.clone(),
+                    png_bytes: png,
+                });
+                roles.insert(role.to_string(), json!(real));
+            }
+        }
+        entries.push(json!({
+            "material": material, "texture": texture, "rule": rule, "decoded": true,
+            "roles": roles,
+        }));
+    }
+    json!({ "piece": src.piece, "container": src.container, "materials": entries })
+}
+
+/// Assemble un personnage (code `cXXXXXXXX`) depuis les tables réelles du jeu.
+///
+/// Chaîne : `CHARA_MODEL_INFO[code]` → visage brut, corps (`CHARA_BODY_INFO` → tête de base,
+/// profil, squelette), tenue par défaut ; le miroir SQLite affine la tenue par l'équipe (haut,
+/// chaussures, gants) ; `chara_parts` résout chaque pièce par CRC et profil. Tout ce qui manque
+/// est dit dans le rapport, et les replis (GLB pré-convertis, manifestes CRC) y sont nommés.
+fn assemble_chara(state: &State, code: &str) -> Result<Assembled> {
+    use serde_json::json;
+    let mut notes: Vec<String> = Vec::new();
+
+    let fiche = state.chara_model.row(code);
+    let body = fiche.and_then(|r| state.chara_model.body(r));
+    if fiche.is_none() {
+        notes.push(
+            "fiche CHARA_MODEL_INFO absente : visage par convention de série, corps par manifeste"
+                .into(),
+        );
+    }
+
+    let body_type_idx = body.map_or_else(
+        || state.body_type_idx(code),
+        |b| u8::try_from(b.type_idx).unwrap_or(0),
+    );
+    let profile = body.map_or(0, |b| b.type_idx);
+    let base_name = type_idx_to_glb_name(body_type_idx)
+        .ok_or_else(|| anyhow::anyhow!("type corporel {body_type_idx} sans tête de base"))?;
+
+    // ── Tenue : CRC du haut, des chaussures, des gants ─────────────────────────
+    let db = state
         .db_path
         .as_deref()
-        .and_then(|db| resolve_uniform_crc(db, code))
-        .unwrap_or(0);
+        .and_then(|db| resolve_uniform_crcs(db, code));
+    let model_default = fiche.map_or(0, |r| r.uniform_crc);
+    let uniform_crc = db
+        .as_ref()
+        .map(|d| d.fielder)
+        .filter(|&c| c != 0)
+        .unwrap_or(model_default);
+    let uniform_source = match (&db, uniform_crc) {
+        (Some(d), c) if c == d.fielder && c != 0 => format!("inagle_uniforms kit {}", d.kit_id),
+        (_, c) if c == model_default && c != 0 => "CHARA_MODEL_INFO.var[5]".to_string(),
+        _ => "aucune".to_string(),
+    };
+    // Chaussures et gants : le kit d'équipe s'il est connu, sinon les défauts du modèle
+    // (`CHARA_MODEL_INFO.var[6]`/`var[7]`, clés de `CHARA_PARTS_SHOES_MODEL`/`GLOVE_MODEL`).
+    let pick = |db_val: Option<u32>, model_val: u32, role: &str| -> (u32, String) {
+        match db_val.filter(|&c| c != 0) {
+            Some(c) => (c, format!("{role} : kit d'équipe")),
+            None if model_val != 0 => (model_val, format!("{role} : défaut du modèle")),
+            None => (
+                0,
+                format!("{role} : aucun CRC (ni kit, ni défaut du modèle)"),
+            ),
+        }
+    };
+    let (shoes_crc, shoes_note) = pick(
+        db.as_ref().map(|d| d.shoes),
+        fiche.map_or(0, |r| r.shoes_crc),
+        "shoes",
+    );
+    let (glove_crc, glove_note) = pick(
+        db.as_ref().map(|d| d.glove),
+        fiche.map_or(0, |r| r.glove_crc),
+        "gloves",
+    );
+    notes.push(shoes_note);
+    notes.push(glove_note);
+    if db.is_none() {
+        notes.push("miroir SQLite muet : tenue et pièces par défaut du modèle".into());
+    }
 
-    // Tentative de chargement des données G4MD/G4MG+G4TX de l'uniforme depuis le VFS.
-    let (uniform_g4md, uniform_g4mg, uniform_g4tx_path) = if uniform_crc != 0 {
-        match load_uniform_from_vfs(state, uniform_crc) {
-            Ok(ud) => (Some(ud.g4md), Some(ud.g4mg), ud.g4tx_path),
+    // ── Visage ─────────────────────────────────────────────────────────────────
+    // Trois formes dans `chara_model` : un `.g4md` libre (IE1…GO), un objbin dont le `Skeleton`
+    // est un `.g4pkm` empaquetant G4MD **et** G4SK (Victory Road), ou rien (repli : convention
+    // de série, `.g4md` libre puis `.g4pkm` voisin).
+    let series = series_dir_from_code_upper(code).unwrap_or("01_IE1");
+    let face_g4md = fiche
+        .and_then(|r| r.face_g4md.as_ref())
+        .map(|rel| format!("data/common/chr/{rel}"))
+        .unwrap_or_else(|| format!("data/common/chr/_face/{series}/{code}/{code}.g4md"));
+    let face_pack_path: Option<String> = fiche
+        .and_then(|r| r.objbin.as_deref())
+        .and_then(|objbin| objbin_skeleton_param(state, objbin))
+        .filter(|p| p.ends_with(".g4pkm"))
+        .or_else(|| {
+            let conv = format!("data/common/chr/_face/{series}/{code}/{code}.g4pkm");
+            state.vfs.find(&conv).map(|_| conv)
+        });
+    let face_pack: Option<Vec<u8>> = face_pack_path
+        .as_deref()
+        .and_then(|p| state.vfs.read(p).ok());
+    let face_raw = match read_raw_piece(state, code, &face_g4md) {
+        Ok(p) => Some(p),
+        Err(e) => {
+            let packed = face_pack
+                .as_deref()
+                .zip(face_pack_path.as_deref())
+                .and_then(|(pkm, pkm_path)| {
+                    let g4md = g4pkm_sub_file(pkm, ".g4md")?;
+                    let g4mg_path = pkm_path.replace(".g4pkm", ".g4mg");
+                    let g4mg = state.vfs.read(&g4mg_path).ok()?;
+                    Some(RawPiece {
+                        name: code.to_string(),
+                        g4md_path: format!("{pkm_path}::{code}.g4md"),
+                        g4md,
+                        g4mg,
+                    })
+                });
+            if packed.is_none() {
+                notes.push(format!("visage brut absent ({e}) : repli GLB pré-converti"));
+            }
+            packed
+        }
+    };
+
+    // ── Squelette ──────────────────────────────────────────────────────────────
+    // Un modèle empaqueté porte son propre squelette (les os de chevelure de `c11010057` n'existent
+    // que là) : il prime. Sinon, celui que l'objbin du corps déclare (`c000101.g4sk`).
+    let skeleton = face_pack
+        .as_deref()
+        .zip(face_pack_path.as_deref())
+        .and_then(|(pkm, path)| {
+            let g4sk = g4pkm_sub_file(pkm, ".g4sk")?;
+            match Skeleton::from_g4sk(path, &g4sk) {
+                Ok(sk) => Some(sk),
+                Err(e) => {
+                    warn!("squelette empaqueté {path} rejeté : {e}");
+                    None
+                }
+            }
+        })
+        .or_else(|| body.and_then(|b| load_skeleton(state, &b.objbin, b.skeleton_stem())));
+    if skeleton.is_none() {
+        notes.push("squelette indisponible : toutes les pièces restent statiques".into());
+    }
+
+    // ── Tête de base de l'éditeur ──────────────────────────────────────────────
+    // `_face/20_EDIT/_base/<base>` est la tête nue de l'éditeur d'avatar : `chara_model` ne la
+    // référence jamais, et un visage de personnage porte déjà sa tête (yeux et bouche compris —
+    // c'est ce que montre l'import Blender de `c01001900`, sans tête de base). La superposer
+    // ferait deux paires d'yeux au même endroit, avec sa planche 32×32. Elle ne sert donc qu'au
+    // repli GLB, quand aucun visage brut n'a été trouvé.
+    let body_raw = if face_raw.is_some() {
+        notes.push(format!(
+            "tête de base {base_name} non chargée : le visage brut porte déjà sa tête"
+        ));
+        None
+    } else {
+        let body_g4md = format!("data/common/chr/_face/20_EDIT/_base/{base_name}.g4md");
+        match read_raw_piece(state, base_name, &body_g4md) {
+            Ok(p) => Some(p),
             Err(e) => {
-                debug!("uniforme {:#010x} non chargé depuis VFS : {e}", uniform_crc);
-                (None, None, None)
+                notes.push(format!(
+                    "tête de base brute absente ({e}) : repli GLB pré-converti"
+                ));
+                None
+            }
+        }
+    };
+
+    let mut resolved: Vec<ResolvedPart> = Vec::new();
+    if uniform_crc != 0 {
+        match state.chara_parts.resolve_clothes(uniform_crc, profile) {
+            Some(parts) => resolved.extend(parts),
+            None => notes.push(format!(
+                "tenue {uniform_crc:#010x} inconnue de chara_parts : repli manifestes CRC"
+            )),
+        }
+    }
+    for (role, crc) in [("shoes", shoes_crc), ("gloves", glove_crc)] {
+        if crc == 0 {
+            notes.push(format!("{role} : aucun CRC connu pour ce personnage"));
+            continue;
+        }
+        match state.chara_parts.resolve_part(role, crc, profile) {
+            Some(p) => resolved.push(p),
+            None => notes.push(format!("{role} {crc:#010x} inconnu de chara_parts")),
+        }
+    }
+
+    let mut uniform_parts = Vec::new();
+    let mut texture_sources: Vec<PieceTextures> = Vec::new();
+    let mut parts_report = Vec::new();
+    for part in &resolved {
+        let g4md_vfs = format!("data/common/chr/{}", part.g4md);
+        match read_raw_piece(state, part.name(), &g4md_vfs) {
+            Ok(raw) => {
+                if let Some(tex) = &part.g4tx {
+                    texture_sources.push(PieceTextures {
+                        piece: part.name().to_string(),
+                        component: MeshComponent::Uniform,
+                        container: format!("data/dx11/chr/{tex}"),
+                    });
+                } else {
+                    notes.push(format!(
+                        "{} ({}) : aucune texture déclarée",
+                        part.role,
+                        part.name()
+                    ));
+                }
+                parts_report.push(json!({
+                    "role": part.role, "piece": part.name(), "family": part.family,
+                    "crc": format!("{:#010x}", part.crc), "row": part.row_index,
+                    "profile_requested": part.profile_requested, "profile_used": part.profile_used,
+                    "g4md": g4md_vfs, "g4tx": part.g4tx.as_ref().map(|t| format!("data/dx11/chr/{t}")),
+                }));
+                uniform_parts.push(CharacterUniformPart {
+                    role: part.role.to_string(),
+                    raw,
+                });
+            }
+            Err(e) => {
+                warn!("pièce {} ({}) absente du VFS : {e}", part.role, part.name());
+                notes.push(format!("{} {} : {e}", part.role, part.name()));
+            }
+        }
+    }
+
+    // Repli historique : la tenue par les manifestes CRC (sans pièces liées).
+    let (uniform_g4md, uniform_g4mg) = if uniform_crc != 0 && resolved.is_empty() {
+        match load_uniform_from_vfs(state, uniform_crc) {
+            Ok(ud) => {
+                notes.push(format!(
+                    "uniforme {uniform_crc:#010x} chargé par manifeste ({})",
+                    ud.code.as_deref().unwrap_or("manifeste CRC")
+                ));
+                if let Some(path) = &ud.g4tx_path {
+                    texture_sources.push(PieceTextures {
+                        piece: "uniform".into(),
+                        component: MeshComponent::Uniform,
+                        container: path.clone(),
+                    });
+                }
+                (Some(ud.g4md), Some(ud.g4mg))
+            }
+            Err(e) => {
+                notes.push(format!("uniforme {uniform_crc:#010x} : {e}"));
+                (None, None)
             }
         }
     } else {
-        (None, None, None)
+        (None, None)
     };
 
     let input = CharacterAssemblyInput {
@@ -1000,72 +1591,96 @@ fn assemble_chara(state: &State, code: &str) -> Result<GlbBytes> {
         uniform_g4md,
         uniform_g4mg,
         uniform_glb_path: None,
+        uniform_parts,
+        body_raw,
+        face_raw,
+        skeleton,
     };
-
     let mut model = assemble_character_model(&input)
         .with_context(|| format!("assemblage personnage {code}"))?;
 
-    // Charge la texture d'UNIFORME une seule fois. Elle habille à la fois le maillage d'uniforme
-    // ET le corps de base : le corps VISIBLE du perso EST l'uniforme (réf. art officielle —
-    // tunique + ceinture), pas une « peau de base ». L'ancien placeholder
-    // `_face/20_EDIT/_base/{type}.g4tx` (32×32) donnait un corps jaune uni cassé.
-    let uniform_png = uniform_g4tx_path
-        .as_deref()
-        .and_then(|path| load_uniform_texture_png(state, path));
-
-    // Corps de base → texture d'uniforme (au lieu du placeholder de peau 32×32).
-    if let Some(png_bytes) = uniform_png.clone() {
-        info!(
-            "texture corps (uniforme) embarquée : {} ({} B PNG)",
-            code,
-            png_bytes.len()
+    // ── Textures, par pièce et par nom de matériau ─────────────────────────────
+    let mut bound = BTreeSet::new();
+    let mut textures_report = Vec::new();
+    if input.body_raw.is_some() {
+        texture_sources.insert(
+            0,
+            PieceTextures {
+                piece: base_name.to_string(),
+                component: MeshComponent::Body,
+                container: format!("data/dx11/chr/_face/20_EDIT/_base/{base_name}.g4tx"),
+            },
         );
-        model.embedded_textures.push(EmbeddedTexture {
-            component: MeshComponent::Body,
-            name: format!("{code}_body"),
-            png_bytes,
-        });
-    } else {
-        debug!("uniforme indisponible pour le corps de {code} — matériau Default");
     }
-
-    // Visage : atlas de visage (inchangé).
-    if let Some(png_bytes) = load_face_texture_png(state, code) {
-        info!(
-            "texture face embarquée : {} ({} B PNG)",
-            code,
-            png_bytes.len()
-        );
+    let face_container = face_g4md
+        .replacen("data/common/chr/", "data/dx11/chr/", 1)
+        .replace(".g4md", ".g4tx");
+    texture_sources.insert(
+        usize::from(input.body_raw.is_some()),
+        PieceTextures {
+            piece: code.to_string(),
+            component: MeshComponent::Face,
+            container: face_container,
+        },
+    );
+    for src in &texture_sources {
+        textures_report.push(bind_piece_textures(state, &mut model, src, &mut bound));
+    }
+    // Les composants lus en GLB pré-converti n'ont pas de nom de matériau : ils reçoivent la
+    // première planche de leur composant (repli explicite, journalisé), comme avant.
+    if input.face_raw.is_none()
+        && let Some(png) = load_face_texture_png(state, code)
+    {
+        notes.push("visage GLB : planche principale du conteneur appliquée au composant".into());
         model.embedded_textures.push(EmbeddedTexture {
             component: MeshComponent::Face,
             name: format!("{code}_face"),
-            png_bytes,
+            png_bytes: png,
         });
-    } else {
-        debug!("texture face absente/non décodée pour {code} — matériau Default");
     }
+    let unbound: Vec<String> = model
+        .primitives
+        .iter()
+        .filter(|p| !p.material_name.is_empty() && !bound.contains(&p.material_name))
+        .map(|p| format!("{}:{}", p.piece, p.material_name))
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect();
 
-    // Uniforme : même texture que le corps.
-    if let Some(png_bytes) = uniform_png {
-        info!(
-            "texture uniforme embarquée : {} ({} B PNG)",
-            code,
-            png_bytes.len()
-        );
-        model.embedded_textures.push(EmbeddedTexture {
-            component: MeshComponent::Uniform,
-            name: format!("{code}_uniform"),
-            png_bytes,
-        });
-    } else {
-        debug!("texture uniforme absente/non décodée pour {code} — matériau Default");
-    }
+    model.report["uniform"] = json!({
+        "crc": format!("{uniform_crc:#010x}"),
+        "code": state.chara_parts.clothes_code(uniform_crc),
+        "source": uniform_source,
+        "shoes_crc": format!("{shoes_crc:#010x}"),
+        "glove_crc": format!("{glove_crc:#010x}"),
+        "profile": profile,
+        "parts": parts_report,
+    });
+    model.report["catalogues"] = json!({
+        "chara_model": state.chara_model.source,
+        "chara_parts": state.chara_parts.source,
+        "chara_model_row": fiche.map(|r| r.id),
+        "chara_model_objbin": fiche.and_then(|r| r.objbin.clone()),
+        "body_row": body.map(|b| b.id),
+        "body_objbin": body.map(|b| b.objbin.clone()),
+        "body_skeleton_crc": body.map(|b| format!("{:#010x}", b.skeleton_crc as u32)),
+        "body_mesh_profile": body.map(|b| b.mesh_profile),
+    });
+    model.report["textures"] = json!(textures_report);
+    model.report["materials_without_texture"] = json!(unbound);
+    model.report["notes"] = json!(notes);
 
-    Ok(model.to_glb_embedded())
+    let report = std::mem::take(&mut model.report);
+    Ok(Assembled {
+        glb: model.to_glb_embedded(),
+        report,
+    })
 }
 
 /// Résultat du chargement d'un uniforme depuis le VFS.
 struct UniformData {
+    /// Code logique du manifeste uniforme (`u011001_10`), pour le journal.
+    code: Option<String>,
     g4md: Vec<u8>,
     g4mg: Vec<u8>,
     /// Chemin VFS du G4TX de texture (pour chargement séparé).
@@ -1092,6 +1707,7 @@ fn load_uniform_from_vfs(state: &State, crc: u32) -> Result<UniformData> {
             .with_context(|| format!("lecture G4MG uniforme {g4mg_path}"))?;
 
         return Ok(UniformData {
+            code: Some(entry.code.clone()),
             g4md,
             g4mg,
             g4tx_path: Some(g4tx_path),
@@ -1112,6 +1728,7 @@ fn load_uniform_from_vfs(state: &State, crc: u32) -> Result<UniformData> {
         .with_context(|| format!("lecture G4MG {g4mg_path}"))?;
 
     Ok(UniformData {
+        code: None,
         g4md,
         g4mg,
         g4tx_path: None,
@@ -1191,11 +1808,17 @@ fn assemble_armed_code(state: &State, code: &str) -> Result<GlbBytes> {
 }
 
 /// Point d'entrée d'assemblage : dispatch selon le code.
-fn assemble_code(state: &State, code: &str) -> Result<GlbBytes> {
+fn assemble_code(state: &State, code: &str) -> Result<Assembled> {
     if code.starts_with("ka") {
-        assemble_armed_code(state, code)
+        assemble_armed_code(state, code).map(|glb| Assembled {
+            glb,
+            report: Value::Null,
+        })
     } else if code.starts_with('k') {
-        assemble_keshin_code(state, code)
+        assemble_keshin_code(state, code).map(|glb| Assembled {
+            glb,
+            report: Value::Null,
+        })
     } else if code.starts_with('c') {
         assemble_chara(state, code)
     } else {
@@ -1255,7 +1878,10 @@ fn assemble_chr_generic(state: &State, sub: &str, code: &str) -> Result<GlbBytes
         let vfs = &state.vfs;
         vfs.read(&g4tx_path).ok()
     };
-    if let Some(png_bytes) = g4tx.as_deref().and_then(|d| g4tx_decode::decode_best_to_png(d, code)) {
+    if let Some(png_bytes) = g4tx
+        .as_deref()
+        .and_then(|d| g4tx_decode::decode_best_to_png(d, code))
+    {
         model.embedded_textures.push(EmbeddedTexture {
             component: MeshComponent::Generic,
             name: format!("{code}_{sub}"),
@@ -1518,7 +2144,10 @@ fn nom_de_cue(acb: &[u8], vfs_path: &str, awb_id: Option<u16>, rang: Option<usiz
             .next()
             .and_then(|n| n.split('.').next())
             .unwrap_or("audio");
-        let n = awb_id.map(u32::from).or(rang.map(|r| r as u32)).unwrap_or(0);
+        let n = awb_id
+            .map(u32::from)
+            .or(rang.map(|r| r as u32))
+            .unwrap_or(0);
         format!("{radical}_{n}")
     });
     // Un nom de cue vient du jeu, pas de l'utilisateur ; il est tout de même restreint à ce qui
@@ -1642,7 +2271,9 @@ fn conteneur_web(usm_brut: &[u8], nom_fichier: &str) -> Result<(&'static str, Ve
             u.codec.nom()
         ));
     }
-    u.en_conteneur_web().map(|c| (c.mime, c.octets)).map_err(|e| e.to_string())
+    u.en_conteneur_web()
+        .map(|c| (c.mime, c.octets))
+        .map_err(|e| e.to_string())
 }
 
 /// Remuxe avec cache disque, clé = nom du film + taille du conteneur.
@@ -1653,11 +2284,17 @@ fn conteneur_web(usm_brut: &[u8], nom_fichier: &str) -> Result<(&'static str, Ve
 /// du jeu invalide l'entrée d'elle-même ; l'extension y entre aussi, parce que le conteneur
 /// dépend du codec (`.mp4` ou `.webm`) et qu'un cache qui les confondrait servirait l'un pour
 /// l'autre.
-fn video_mp4_cache(state: &State, vfs_path: &str, brut: &[u8]) -> Result<(&'static str, Vec<u8>), String> {
+fn video_mp4_cache(
+    state: &State,
+    vfs_path: &str,
+    brut: &[u8],
+) -> Result<(&'static str, Vec<u8>), String> {
     let nom = vfs_path.rsplit('/').next().unwrap_or(vfs_path);
     let radical = nom.strip_suffix(".usm").unwrap_or(nom);
     for (ext, mime) in [("mp4", "video/mp4"), ("webm", "video/webm")] {
-        let cache = state.cache_dir.join(format!("video_{radical}_{}.{ext}", brut.len()));
+        let cache = state
+            .cache_dir
+            .join(format!("video_{radical}_{}.{ext}", brut.len()));
         if cache.exists()
             && let Ok(octets) = fs::read(&cache)
             && !octets.is_empty()
@@ -1668,7 +2305,9 @@ fn video_mp4_cache(state: &State, vfs_path: &str, brut: &[u8]) -> Result<(&'stat
     }
     let (mime, octets) = conteneur_web(brut, nom)?;
     let ext = if mime == "video/webm" { "webm" } else { "mp4" };
-    let cache = state.cache_dir.join(format!("video_{radical}_{}.{ext}", brut.len()));
+    let cache = state
+        .cache_dir
+        .join(format!("video_{radical}_{}.{ext}", brut.len()));
     if let Err(e) = fs::write(&cache, &octets) {
         warn!("écriture cache vidéo {} échouée : {e}", cache.display());
     }
@@ -1726,13 +2365,18 @@ fn catalogue_video(state: &State) -> Result<String, String> {
     let attendue = cinema::empreinte(&state.vfs, cinema::DOSSIER_FILMS);
     let lue = serde_json::from_str::<serde_json::Value>(&texte)
         .ok()
-        .and_then(|v| v.get("empreinte").and_then(|e| e.as_str().map(str::to_string)));
+        .and_then(|v| {
+            v.get("empreinte")
+                .and_then(|e| e.as_str().map(str::to_string))
+        });
     match lue {
         Some(e) if e == attendue => Ok(texte),
         Some(e) => Err(format!(
             "catalogue périmé (empreinte {e} ≠ {attendue}) — le régénérer avec `niers video catalogue`"
         )),
-        None => Err("catalogue sans empreinte — régénérer avec `niers video catalogue`".to_string()),
+        None => {
+            Err("catalogue sans empreinte — régénérer avec `niers video catalogue`".to_string())
+        }
     }
 }
 
@@ -1747,18 +2391,81 @@ fn get_or_build_glb(state: &State, code: &str) -> Result<GlbBytes> {
             .with_context(|| format!("lecture cache {}", cache_path.display()));
     }
 
-    // Assemblage live.
-    info!("assemblage live : {code}");
-    let glb = assemble_code(state, code)?;
+    Ok(build_and_cache(state, code)?.glb)
+}
 
-    // Écriture dans le cache (best-effort — on ne bloque pas si ça échoue).
-    if let Err(e) = fs::write(&cache_path, &glb) {
+/// Rapport d'assemblage d'un modèle : lu dans le cache (`<code>.report.json`), sinon produit
+/// avec le GLB. Les keshin et armures n'ont pas de rapport détaillé (`null`).
+fn get_or_build_report(state: &State, code: &str) -> Result<Value> {
+    let report_path = state.cache_dir.join(format!("{code}.report.json"));
+    if let Ok(text) = fs::read_to_string(&report_path)
+        && let Ok(v) = serde_json::from_str::<Value>(&text)
+    {
+        return Ok(v);
+    }
+    Ok(build_and_cache(state, code)?.report)
+}
+
+/// Assemble, complète le rapport (version, SHA-256 et taille du GLB servi) et écrit les deux
+/// fichiers du cache. L'écriture est best-effort : un cache en échec ne bloque pas la réponse.
+fn build_and_cache(state: &State, code: &str) -> Result<Assembled> {
+    use sha2::{Digest, Sha256};
+    info!("assemblage live : {code}");
+    let mut assembled = assemble_code(state, code)?;
+    let sha = format!("{:x}", Sha256::digest(&assembled.glb));
+    if assembled.report.is_null() {
+        assembled.report = serde_json::json!({ "code": code });
+    }
+    assembled.report["assembler_version"] = Value::from(ASSEMBLER_VERSION);
+    assembled.report["glb_sha256"] = Value::from(sha.as_str());
+    assembled.report["glb_bytes"] = Value::from(assembled.glb.len());
+    info!(
+        "{code} : {} octets, sha256 {}, mode {}",
+        assembled.glb.len(),
+        &sha[..16],
+        assembled.report["mode"].as_str().unwrap_or("n/a")
+    );
+
+    let cache_path = state.cache_dir.join(format!("{code}.glb"));
+    if let Err(e) = fs::write(&cache_path, &assembled.glb) {
         warn!("écriture cache {code} échouée : {e}");
     } else {
-        debug!("cache écrit : {code} ({}B)", glb.len());
+        debug!("cache écrit : {code} ({}B)", assembled.glb.len());
     }
+    let report_path = state.cache_dir.join(format!("{code}.report.json"));
+    if let Err(e) = fs::write(&report_path, assembled.report.to_string()) {
+        warn!("écriture rapport {code} échouée : {e}");
+    }
+    Ok(assembled)
+}
 
-    Ok(glb)
+/// Purge les GLB et rapports du cache si la version d'assembleur enregistrée diffère de
+/// [`ASSEMBLER_VERSION`], puis enregistre la version courante. Sans cela, un `c01001900.glb`
+/// assemblé par une recette antérieure serait resservi en silence après un déploiement.
+fn purge_stale_cache(cache_dir: &Path) {
+    let stamp = cache_dir.join("VERSION");
+    let recorded = fs::read_to_string(&stamp).unwrap_or_default();
+    if recorded.trim() == ASSEMBLER_VERSION {
+        return;
+    }
+    let mut purged = 0usize;
+    if let Ok(entries) = fs::read_dir(cache_dir) {
+        for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if (name.ends_with(".glb") || name.ends_with(".report.json"))
+                && fs::remove_file(entry.path()).is_ok()
+            {
+                purged += 1;
+            }
+        }
+    }
+    info!(
+        "cache modèles : version « {} » → « {ASSEMBLER_VERSION} », {purged} fichier(s) purgé(s)",
+        recorded.trim()
+    );
+    if let Err(e) = fs::write(&stamp, ASSEMBLER_VERSION) {
+        warn!("impossible d'écrire {} : {e}", stamp.display());
+    }
 }
 
 /// Variante sous-domaine chr : cache préfixé `chr_<sub>_<code>.glb` (évite la collision
@@ -1823,7 +2530,10 @@ fn get_or_build_edit_glb(state: &State, dossier: &str, nom: &str) -> Result<GlbB
     })
     .with_context(|| format!("assemblage {dossier}/{nom}"))?;
 
-    let glb = match g4tx.as_deref().and_then(|d| g4tx_decode::decode_best_to_png(d, nom)) {
+    let glb = match g4tx
+        .as_deref()
+        .and_then(|d| g4tx_decode::decode_best_to_png(d, nom))
+    {
         Some(png_bytes) => {
             model.embedded_textures.push(EmbeddedTexture {
                 component: MeshComponent::Generic,
@@ -1882,7 +2592,10 @@ fn couleurs_teinte(query: &str) -> [nie_formats::image_out::TeinteCanal; 3] {
     // des deux iris donnent 106,81,81 / 73,51,51 / 77,56,56 / 88,61,61, de médiane 83,59,59.
     const DEFAUTS: [[u8; 3]; 3] = [[243, 202, 193], [83, 59, 59], [255, 255, 255]];
     let demande = param(query, "tint").unwrap_or_default();
-    let mut sortie = [nie_formats::image_out::TeinteCanal { rgb: [0; 3], actif: true }; 3];
+    let mut sortie = [nie_formats::image_out::TeinteCanal {
+        rgb: [0; 3],
+        actif: true,
+    }; 3];
     for (i, defaut) in DEFAUTS.iter().enumerate() {
         let rgb = demande
             .split(',')
@@ -1953,7 +2666,11 @@ const AVATAR_CACHE_VERSION: u32 = 111;
 /// Un avatar complet cite une quinzaine de pièces et de couches : la clé littérale dépasse la
 /// longueur de nom de fichier admise. Le condensat garde l'unicité sans la longueur.
 fn cle_courte(cle: &str) -> String {
-    format!("{:08x}_{}", nie_formats::cfgbin::crc32(cle.as_bytes()), cle.len())
+    format!(
+        "{:08x}_{}",
+        nie_formats::cfgbin::crc32(cle.as_bytes()),
+        cle.len()
+    )
 }
 
 /// Vrai si ce dossier de pièce **ressemble à** un identifiant d'uniforme.
@@ -1968,7 +2685,9 @@ fn cle_courte(cle: &str) -> String {
 fn est_uniforme(dossier: &str) -> bool {
     let chiffres = dossier.trim_start_matches(|c: char| c.is_ascii_alphabetic());
     let lettres = dossier.len() - chiffres.len();
-    (1..=2).contains(&lettres) && chiffres.len() == 6 && chiffres.bytes().all(|b| b.is_ascii_digit())
+    (1..=2).contains(&lettres)
+        && chiffres.len() == 6
+        && chiffres.bytes().all(|b| b.is_ascii_digit())
 }
 
 /// Assemble l'avatar de l'éditeur depuis ses pièces, textures comprises, et le met en cache.
@@ -2010,18 +2729,29 @@ fn get_or_build_avatar_glb(
         .unwrap_or_default();
     let taille_cle = taille.map(|t| t.to_string()).unwrap_or_default();
     let forme_cle = forme.map(|f| f.to_string()).unwrap_or_default();
-    let habits_cle = habits.map(|(c, m, o)| format!("{c}{m}{o}")).unwrap_or_default();
+    let habits_cle = habits
+        .map(|(c, m, o)| format!("{c}{m}{o}"))
+        .unwrap_or_default();
     // Les deux familles sont séparées par un marqueur : sans lui, une pièce `d/n` et une couche
     // de visage `d/n` produisent le même fragment `d-n`, si bien que deux requêtes de sens
     // différent partagent un fichier de cache et que la seconde reçoit le GLB de la première.
     let cle: String = format!(
         "{}|{}|{teinte_cle}|{morpho_cle}|{cheveux_cle}|{taille_cle}|{forme_cle}|{habits_cle}",
-        specs.iter().map(|(d, n)| format!("{d}-{n}")).collect::<Vec<_>>().join("_"),
-        couches_visage.iter().map(|c| c.replace('/', "-")).collect::<Vec<_>>().join("_")
+        specs
+            .iter()
+            .map(|(d, n)| format!("{d}-{n}"))
+            .collect::<Vec<_>>()
+            .join("_"),
+        couches_visage
+            .iter()
+            .map(|c| c.replace('/', "-"))
+            .collect::<Vec<_>>()
+            .join("_")
     );
-    let cache_path = state
-        .cache_dir
-        .join(format!("avatar_v{AVATAR_CACHE_VERSION}_{}.glb", cle_courte(&cle)));
+    let cache_path = state.cache_dir.join(format!(
+        "avatar_v{AVATAR_CACHE_VERSION}_{}.glb",
+        cle_courte(&cle)
+    ));
     if cache_path.exists() {
         debug!("cache hit : avatar_{cle}");
         return fs::read(&cache_path)
@@ -2037,18 +2767,18 @@ fn get_or_build_avatar_glb(
         // Le squelette d'attache, s'il est demandé. Une pièce `_bodySK/<code>` n'apporte aucune
         // maille — son objbin n'en référence d'ailleurs aucune, ses 15 slots `Mesh` sont vides —
         // mais elle fixe le repère dans lequel les pièces de `20_EDIT` doivent être replacées.
-        let squelette = specs.iter().find(|(d, _)| d == "_bodySK").map(|(_, n)| n.clone());
+        let squelette = specs
+            .iter()
+            .find(|(d, _)| d == "_bodySK")
+            .map(|(_, n)| n.clone());
         let attache = specs
             .iter()
             .find(|(d, _)| d == "_bodySK")
             .and_then(|(_, nom)| {
-                let chemin =
-                    format!("data/common/chr/_face/20_EDIT/_bodySK/{nom}/{nom}.g4sk");
+                let chemin = format!("data/common/chr/_face/20_EDIT/_bodySK/{nom}/{nom}.g4sk");
                 vfs.read(&chemin).ok()
             })
-            .and_then(|g4sk| {
-                nie_formats::assemble::bone_rest_world(&g4sk, OS_ATTACHE_TETE)
-            });
+            .and_then(|g4sk| nie_formats::assemble::bone_rest_world(&g4sk, OS_ATTACHE_TETE));
         if attache.is_none() && specs.iter().any(|(d, _)| d == "_bodySK") {
             warn!("squelette d'attache illisible : les pièces de tête resteront à l'origine");
         }
@@ -2070,8 +2800,10 @@ fn get_or_build_avatar_glb(
                 warn!("famille de visage inconnue, ignorée : {rel}");
                 continue;
             };
-            let chemin =
-                format!("{}/_facetex/{rel}.g4tx", nie_formats::assemble::AVATAR_TEX_ROOT);
+            let chemin = format!(
+                "{}/_facetex/{rel}.g4tx",
+                nie_formats::assemble::AVATAR_TEX_ROOT
+            );
             let Ok(brut) = vfs.read(&chemin) else {
                 warn!("couche de visage illisible, ignorée : {chemin}");
                 continue;
@@ -2079,123 +2811,130 @@ fn get_or_build_avatar_glb(
             // La PREMIÈRE planche d'un matériau est le fond : elle garde son opacité. Les
             // suivantes ne peignent que leurs traits, leur zone de carnation devenant transparente.
             let entree_vide = par_slot.get(&slot).is_none_or(Vec::is_empty);
-            let planches: Vec<PlancheRgba> = nie_formats::image_out::decoder_planches_et_masques(
-                &brut,
-            )
-                .into_iter()
-                .filter_map(|(w, h, rgba, masque)| {
-                    use nie_formats::planche::Convention;
+            let planches: Vec<PlancheRgba> =
+                nie_formats::image_out::decoder_planches_et_masques(&brut)
+                    .into_iter()
+                    .filter_map(|(w, h, rgba, masque)| {
+                        use nie_formats::planche::Convention;
 
-                    // Teinte par canaux : une planche de `_facetex` est un masque à trois canaux,
-                    // chacun désignant une zone qui reçoit sa couleur.
-                    //
-                    // SAUF quand la couleur de la planche est muette et que son masque porte la
-                    // forme — cas des reflets, blancs par nature. Les teinter reviendrait à les
-                    // peindre en carnation, donc à les rendre invisibles sur la peau qui est déjà
-                    // de cette couleur. Ces planches-là gardent leur couleur et leur alpha.
-                    let par_defaut = |rgba: Vec<u8>| -> PlancheRgba {
-                        let porte_sa_forme = nie_formats::image_out::canal_uniforme(&rgba)
-                            && !nie_formats::image_out::couche_totalement_opaque(&rgba);
-                        if porte_sa_forme {
-                            return (w, h, rgba);
-                        }
-                        let teintee = nie_formats::image_out::teinter_par_canaux(
-                            w, h, &rgba, teintes, entree_vide,
-                        )
-                        .unwrap_or(rgba);
-                        (w, h, teintee)
-                    };
-
-                    // LA PEAU NE SE DÉCOUPE PAS. Le matériau 0 est la maille du visage, dont les
-                    // UV couvrent tout le carré : sa première planche est la carnation, un fond
-                    // opaque que les autres viennent marquer. Son masque porte bien une zone verte
-                    // — 13,32 % sur `face_01msk`, une bande au milieu du carré — mais celle-ci
-                    // désigne une zone à TEINDRE, pas un tracé à conserver. Mesuré : lui appliquer
-                    // la convention de découpe ramenait la texture du visage de 100 % à 13,32 %
-                    // d'opacité, soit exactement cette zone verte. Le critère est structurel — le
-                    // rang dans le matériau — et non un nom de famille.
-                    if slot == 0 && entree_vide {
-                        return Some(par_defaut(rgba));
-                    }
-
-                    // Pour tout ce qui se pose PAR-DESSUS, la convention ne se décide pas sur le
-                    // nom de la famille : elle se **mesure**, planche par planche. Le test
-                    // `rel.starts_with("01_eye")` qui régnait ici privait le sourcil de son tracé —
-                    // relevé sur les 431 planches de `_facetex` (`niers avatar planches`), 78 des
-                    // 80 planches de `04_eyebrow` suivent la convention de l'œil, et AUCUNE des
-                    // six familles n'a de convention unique. Cf. `nie_formats::planche`.
-                    let convention = nie_formats::planche::mesurer(w, h, &rgba).map_or(
-                        Convention::Indeterminee,
-                        |couleur| {
-                            let mesures = masque
-                                .as_ref()
-                                .and_then(|m| nie_formats::planche::mesurer(w, h, m));
-                            Convention::deriver(&couleur, mesures.as_ref())
-                        },
-                    );
-
-                    match (convention, masque) {
-                        // Ni la planche ni son masque ne portent de forme : c'est la variante
-                        // « sans » de la famille — toutes portent l'indice 00. La poser
-                        // couvrirait de carnation opaque ce qui est déjà en place.
-                        (Convention::Aplat, _) => None,
-
-                        // Le tracé n'existe que dans le vert du masque : la planche, elle, est
-                        // grise et transparente. La couleur vient donc de la teinte par canaux —
-                        // sur `_facetex`, le vert porte l'iris — et l'opacité de la seule zone
-                        // verte. D'où cet ordre : teinter, puis découper. Cf. `decouper_oeil`.
-                        (Convention::TraceVert, Some(m)) => {
+                        // Teinte par canaux : une planche de `_facetex` est un masque à trois canaux,
+                        // chacun désignant une zone qui reçoit sa couleur.
+                        //
+                        // SAUF quand la couleur de la planche est muette et que son masque porte la
+                        // forme — cas des reflets, blancs par nature. Les teinter reviendrait à les
+                        // peindre en carnation, donc à les rendre invisibles sur la peau qui est déjà
+                        // de cette couleur. Ces planches-là gardent leur couleur et leur alpha.
+                        let par_defaut = |rgba: Vec<u8>| -> PlancheRgba {
+                            let porte_sa_forme = nie_formats::image_out::canal_uniforme(&rgba)
+                                && !nie_formats::image_out::couche_totalement_opaque(&rgba);
+                            if porte_sa_forme {
+                                return (w, h, rgba);
+                            }
                             let teintee = nie_formats::image_out::teinter_par_canaux(
-                                w, h, &rgba, teintes, entree_vide,
+                                w,
+                                h,
+                                &rgba,
+                                teintes,
+                                entree_vide,
                             )
                             .unwrap_or(rgba);
-                            let decoupee =
-                                nie_formats::image_out::decouper_oeil(w, h, &teintee, &m);
-                            Some((w, h, decoupee.unwrap_or(teintee)))
+                            (w, h, teintee)
+                        };
+
+                        // LA PEAU NE SE DÉCOUPE PAS. Le matériau 0 est la maille du visage, dont les
+                        // UV couvrent tout le carré : sa première planche est la carnation, un fond
+                        // opaque que les autres viennent marquer. Son masque porte bien une zone verte
+                        // — 13,32 % sur `face_01msk`, une bande au milieu du carré — mais celle-ci
+                        // désigne une zone à TEINDRE, pas un tracé à conserver. Mesuré : lui appliquer
+                        // la convention de découpe ramenait la texture du visage de 100 % à 13,32 %
+                        // d'opacité, soit exactement cette zone verte. Le critère est structurel — le
+                        // rang dans le matériau — et non un nom de famille.
+                        if slot == 0 && entree_vide {
+                            return Some(par_defaut(rgba));
                         }
 
-                        // La planche porte DÉJÀ son dessin — les quatre bouches de `mouth_01`.
-                        // Elle se découpe au lieu de se teindre : la teinte par canaux effaçait
-                        // son contour noir, qui n'a aucun canal dominant. Seul le fond disparaît.
-                        (Convention::FondRouge, Some(m)) => {
-                            let Some(t) =
-                                nie_formats::image_out::decouper_par_zones(w, h, &rgba, &m)
-                            else {
-                                return Some(par_defaut(rgba));
-                            };
-                            // ESSAI — la maille des lèvres échantillonne la cellule 0 de l'atlas
-                            // (établi par une texture témoin : elle sort rouge, la couleur de
-                            // cette cellule), mais dans sa moitié basse, v 0,325..0,493, alors que
-                            // la bouche y est peinte en haut, v 0,18..0,31. On la descend de la
-                            // différence des centres, 0,164. Ce test-ci reste par nom de famille :
-                            // c'est un recalage de dépliage, pas une convention de masque.
-                            if rel.starts_with("05_mouth") {
-                                let dy = (h as f32 * 0.164) as usize;
-                                let lg = w as usize * 4;
-                                let mut d = vec![0u8; t.len()];
-                                for y in dy..h as usize {
-                                    let (src, dst) = ((y - dy) * lg, y * lg);
-                                    d[dst..dst + lg].copy_from_slice(&t[src..src + lg]);
-                                }
-                                return Some((w, h, d));
+                        // Pour tout ce qui se pose PAR-DESSUS, la convention ne se décide pas sur le
+                        // nom de la famille : elle se **mesure**, planche par planche. Le test
+                        // `rel.starts_with("01_eye")` qui régnait ici privait le sourcil de son tracé —
+                        // relevé sur les 431 planches de `_facetex` (`niers avatar planches`), 78 des
+                        // 80 planches de `04_eyebrow` suivent la convention de l'œil, et AUCUNE des
+                        // six familles n'a de convention unique. Cf. `nie_formats::planche`.
+                        let convention = nie_formats::planche::mesurer(w, h, &rgba).map_or(
+                            Convention::Indeterminee,
+                            |couleur| {
+                                let mesures = masque
+                                    .as_ref()
+                                    .and_then(|m| nie_formats::planche::mesurer(w, h, m));
+                                Convention::deriver(&couleur, mesures.as_ref())
+                            },
+                        );
+
+                        match (convention, masque) {
+                            // Ni la planche ni son masque ne portent de forme : c'est la variante
+                            // « sans » de la famille — toutes portent l'indice 00. La poser
+                            // couvrirait de carnation opaque ce qui est déjà en place.
+                            (Convention::Aplat, _) => None,
+
+                            // Le tracé n'existe que dans le vert du masque : la planche, elle, est
+                            // grise et transparente. La couleur vient donc de la teinte par canaux —
+                            // sur `_facetex`, le vert porte l'iris — et l'opacité de la seule zone
+                            // verte. D'où cet ordre : teinter, puis découper. Cf. `decouper_oeil`.
+                            (Convention::TraceVert, Some(m)) => {
+                                let teintee = nie_formats::image_out::teinter_par_canaux(
+                                    w,
+                                    h,
+                                    &rgba,
+                                    teintes,
+                                    entree_vide,
+                                )
+                                .unwrap_or(rgba);
+                                let decoupee =
+                                    nie_formats::image_out::decouper_oeil(w, h, &teintee, &m);
+                                Some((w, h, decoupee.unwrap_or(teintee)))
                             }
-                            Some((w, h, t))
-                        }
 
-                        // Les pupilles désignent leur zone en bleu, et ce bleu n'est pas un tracé
-                        // mais un ovale plein qui occupe tout le carré. On ne le découpe PAS : une
-                        // planche de cette forme ne peut pas viser le dépliage du visage, où elle
-                        // pose un ovale au milieu de la figure — ce que le rendu actuel montre.
-                        // Tant que le matériau d'accueil de `02_pupil` n'est pas établi, la
-                        // découper reviendrait à placer proprement une pièce au mauvais endroit.
-                        // Cf. `nie_formats::assemble::face_layer_slot`.
-                        //
-                        // Idem pour tout ce que la mesure ne tranche pas : le chemin par défaut
-                        // teinte, ce qu'il a toujours fait.
-                        (_, _) => Some(par_defaut(rgba)),
-                    }
-                })
-                .collect();
+                            // La planche porte DÉJÀ son dessin — les quatre bouches de `mouth_01`.
+                            // Elle se découpe au lieu de se teindre : la teinte par canaux effaçait
+                            // son contour noir, qui n'a aucun canal dominant. Seul le fond disparaît.
+                            (Convention::FondRouge, Some(m)) => {
+                                let Some(t) =
+                                    nie_formats::image_out::decouper_par_zones(w, h, &rgba, &m)
+                                else {
+                                    return Some(par_defaut(rgba));
+                                };
+                                // ESSAI — la maille des lèvres échantillonne la cellule 0 de l'atlas
+                                // (établi par une texture témoin : elle sort rouge, la couleur de
+                                // cette cellule), mais dans sa moitié basse, v 0,325..0,493, alors que
+                                // la bouche y est peinte en haut, v 0,18..0,31. On la descend de la
+                                // différence des centres, 0,164. Ce test-ci reste par nom de famille :
+                                // c'est un recalage de dépliage, pas une convention de masque.
+                                if rel.starts_with("05_mouth") {
+                                    let dy = (h as f32 * 0.164) as usize;
+                                    let lg = w as usize * 4;
+                                    let mut d = vec![0u8; t.len()];
+                                    for y in dy..h as usize {
+                                        let (src, dst) = ((y - dy) * lg, y * lg);
+                                        d[dst..dst + lg].copy_from_slice(&t[src..src + lg]);
+                                    }
+                                    return Some((w, h, d));
+                                }
+                                Some((w, h, t))
+                            }
+
+                            // Les pupilles désignent leur zone en bleu, et ce bleu n'est pas un tracé
+                            // mais un ovale plein qui occupe tout le carré. On ne le découpe PAS : une
+                            // planche de cette forme ne peut pas viser le dépliage du visage, où elle
+                            // pose un ovale au milieu de la figure — ce que le rendu actuel montre.
+                            // Tant que le matériau d'accueil de `02_pupil` n'est pas établi, la
+                            // découper reviendrait à placer proprement une pièce au mauvais endroit.
+                            // Cf. `nie_formats::assemble::face_layer_slot`.
+                            //
+                            // Idem pour tout ce que la mesure ne tranche pas : le chemin par défaut
+                            // teinte, ce qu'il a toujours fait.
+                            (_, _) => Some(par_defaut(rgba)),
+                        }
+                    })
+                    .collect();
             let entree = par_slot.entry(slot).or_default();
             for planche in planches {
                 // Une planche opaque posée sur une autre efface tout ce qui précède. C'est la
@@ -2250,7 +2989,9 @@ fn get_or_build_avatar_glb(
         // avec quel `c000X01_edit` : c'est un appariement mesuré, qui vit dans nie-formats. Si
         // l'appelant fournit lui-même une pièce d'uniforme, on ne touche à rien.
         let mut effectifs: Vec<(String, String)> = specs.to_vec();
-        if let Some(sk) = squelette.as_deref().filter(|_| !specs.iter().any(|(d, _)| est_uniforme(d)))
+        if let Some(sk) = squelette
+            .as_deref()
+            .filter(|_| !specs.iter().any(|(d, _)| est_uniforme(d)))
         {
             // La morphologie, si elle est donnée, désigne le corps exact ; sinon on retombe sur
             // le premier corps du squelette, qui a au moins la bonne stature.
@@ -2258,7 +2999,9 @@ fn get_or_build_avatar_glb(
                 .as_deref()
                 .and_then(nie_formats::assemble::avatar_body_for_morphology)
                 .or_else(|| {
-                    nie_formats::assemble::avatar_bodies_for_skeleton(sk).first().copied()
+                    nie_formats::assemble::avatar_bodies_for_skeleton(sk)
+                        .first()
+                        .copied()
                 });
             if let Some(corps) = choisi {
                 effectifs.push((
@@ -2301,9 +3044,14 @@ fn get_or_build_avatar_glb(
             let uniforme = base.contains("/_uniform/");
 
             let candidats = if uniforme {
-                let tenue =
-                    if dossier.starts_with('s') { TENUE_CHAUSSURES } else { TENUE_HAUT };
-                vec![nie_formats::assemble::uniform_texture_vfs_path(dossier, tenue)]
+                let tenue = if dossier.starts_with('s') {
+                    TENUE_CHAUSSURES
+                } else {
+                    TENUE_HAUT
+                };
+                vec![nie_formats::assemble::uniform_texture_vfs_path(
+                    dossier, tenue,
+                )]
             } else {
                 nie_formats::assemble::avatar_texture_candidates(dossier, nom)
             };
@@ -2360,9 +3108,10 @@ fn get_or_build_avatar_glb(
                     if textures.iter().any(|t| &t.name == mat) {
                         continue;
                     }
-                    let vise = planches
-                        .get(rang)
-                        .map_or_else(|| nie_formats::assemble::avatar_texture_name(mat), |p| p.as_str());
+                    let vise = planches.get(rang).map_or_else(
+                        || nie_formats::assemble::avatar_texture_name(mat),
+                        |p| p.as_str(),
+                    );
                     // Une chevelure porte une planche NEUTRE — `hair_10` vaut 255,255,255
                     // partout — que la couleur choisie colore à l'exécution. Sans teinte, la tête
                     // reçoit un casque blanc.
@@ -2431,8 +3180,17 @@ fn get_or_build_avatar_glb(
             // `_base` est dans ce second cas malgré son emplacement : ses mailles d'œil et de
             // bouche sortent déjà à hauteur de tête, `y ∈ [1,291 ; 1,599]`. Les attacher les
             // portait à 2,66, soit une tête entière trop haut.
-            let attach = if uniforme || dossier == "_base" { None } else { attache };
-            pieces.push(nie_formats::assemble::AvatarPiece { component, g4md, g4mg, attach });
+            let attach = if uniforme || dossier == "_base" {
+                None
+            } else {
+                attache
+            };
+            pieces.push(nie_formats::assemble::AvatarPiece {
+                component,
+                g4md,
+                g4mg,
+                attach,
+            });
         }
     }
 
@@ -2456,7 +3214,9 @@ fn get_or_build_avatar_glb(
             nie_formats::image_out::ImageOut::Png,
         );
         if let Ok(png_bytes) = png {
-            model.primitives.extend(nie_formats::assemble::quads_yeux(1.0));
+            model
+                .primitives
+                .extend(nie_formats::assemble::quads_yeux(1.0));
 
             // Les MAINS, posées elles aussi en géométrie : la pièce du jeu attend un skinning que
             // la palette d'os manquante interdit d'appliquer.
@@ -2468,7 +3228,9 @@ fn get_or_build_avatar_glb(
                 8,
                 nie_formats::image_out::ImageOut::Png,
             ) {
-                model.primitives.extend(nie_formats::assemble::boites_mains(1.0));
+                model
+                    .primitives
+                    .extend(nie_formats::assemble::boites_mains(1.0));
                 model.embedded_textures.push(EmbeddedTexture {
                     component: MeshComponent::Generic,
                     name: "avatar_hand".to_string(),
@@ -2520,8 +3282,15 @@ fn get_or_build_avatar_glb(
     }
 
     let nb_tex = model.embedded_textures.len();
-    let glb = if nb_tex > 0 { model.to_glb_embedded() } else { model.to_glb() };
-    debug!("avatar {cle} : {} pièce(s), {nb_tex} texture(s)", pieces.len());
+    let glb = if nb_tex > 0 {
+        model.to_glb_embedded()
+    } else {
+        model.to_glb()
+    };
+    debug!(
+        "avatar {cle} : {} pièce(s), {nb_tex} texture(s)",
+        pieces.len()
+    );
 
     if let Err(e) = fs::write(&cache_path, &glb) {
         warn!("écriture cache avatar_{cle} échouée : {e}");
@@ -2803,7 +3572,13 @@ fn respond_download(stream: &mut TcpStream, content_type: &str, nom: &str, body:
     // tolère ni guillemet ni saut de ligne.
     let nom: String = nom
         .chars()
-        .map(|c| if c.is_ascii_graphic() && c != '"' { c } else { '_' })
+        .map(|c| {
+            if c.is_ascii_graphic() && c != '"' {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect();
     let headers = format!(
         "HTTP/1.1 200 OK\r\n\
@@ -3144,6 +3919,87 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         return;
     }
 
+    // `/depot/…` — le CODE du dépôt, en lecture seule, sur `nie_explore::depot`.
+    //
+    // Quatrième façade du même moteur, après `niers find`/`grep`, le serveur MCP et l'app
+    // desktop : mêmes règles de confinement, mêmes exclusions, mêmes plafonds. Rien n'est
+    // réimplémenté ici, et il n'y a donc aucune politique d'accès à tenir à jour en double.
+    //
+    //   /depot/ls?path=<dir>                 entrées immédiates (dossiers d'abord)
+    //   /depot/read?path=<fichier>&max=      contenu texte, tronqué
+    //   /depot/find?q=<txt>&dir=&ext=&limit= recherche par chemin
+    //   /depot/grep?q=<regex>&dir=&ext=&limit= recherche dans le contenu
+    //
+    // La route n'existe QUE si `--depot-code` a été passé : sans lui, `state.depot` est `None`
+    // et l'on répond 404 comme pour n'importe quelle route inconnue — cette instance est
+    // joignable publiquement, et publier le code du projet est une décision, pas un défaut.
+    if let Some(rest) = path.strip_prefix("/depot/") {
+        let Some(depot) = state.depot.as_ref() else {
+            respond_text(&mut stream, 404, "Not Found", "route /depot inconnue");
+            return;
+        };
+        // `query` vient de la fonction : `path` en a déjà été débarrassé plus haut. La
+        // re-découper ici donnait une query VIDE, donc `ls?path=crates/engine` listait la
+        // racine et `read` répondait « chemin vide » — trouvé en appelant la route, pas en la
+        // relisant.
+        let route = rest;
+        let limite = param_usize(query, "limit", 200).min(5_000);
+        let extensions: Vec<String> = param(query, "ext")
+            .filter(|e| !e.is_empty())
+            .map(|e| e.split(',').map(str::to_string).collect())
+            .unwrap_or_default();
+        let options = nie_explore::depot::OptionsParcours {
+            sous_dossier: param(query, "dir").unwrap_or_default(),
+            extensions,
+            limite,
+            ..Default::default()
+        };
+
+        // Une erreur du moteur (chemin hors du dépôt, dossier interdit, regex invalide) est une
+        // faute de l'appelant : 400 avec son message, pas 500.
+        let resultat = match route {
+            "ls" => depot
+                .lister(&param(query, "path").unwrap_or_default())
+                .map(|v| serde_json::json!(v)),
+            // `chemin_absolu` est délibérément omis : il est utile en local (MCP, app desktop,
+            // où l'on veut ouvrir le fichier) mais divulgue l'arborescence de la machine à un
+            // client HTTP, qui n'en fera rien de bon.
+            "read" => depot
+                .lire(
+                    &param(query, "path").unwrap_or_default(),
+                    param(query, "max").and_then(|m| m.parse::<u64>().ok()),
+                )
+                .map(|f| {
+                    serde_json::json!({
+                        "chemin": f.chemin,
+                        "taille": f.taille,
+                        "tronque": f.tronque,
+                        "binaire": f.binaire,
+                        "contenu": f.contenu,
+                        "note": f.note,
+                    })
+                }),
+            "find" => depot
+                .trouver(&param(query, "q").unwrap_or_default(), &options)
+                .map(|v| serde_json::json!(v)),
+            "grep" => depot
+                .chercher(&param(query, "q").unwrap_or_default(), &options)
+                .map(|v| serde_json::json!(v)),
+            _ => {
+                respond_text(&mut stream, 404, "Not Found", "route /depot inconnue");
+                return;
+            }
+        };
+        match resultat {
+            Ok(body) => {
+                let bytes = serde_json::to_vec(&body).unwrap_or_default();
+                respond(&mut stream, 200, "OK", "application/json", &bytes);
+            }
+            Err(e) => respond_text(&mut stream, 400, "Bad Request", &e.to_string()),
+        }
+        return;
+    }
+
     // `/export/<vfs-path>?format=<id>` — le fichier converti AU FORMAT VOULU, en téléchargement.
     //
     // Même table de formats et même règle de nommage que l'app desktop
@@ -3194,7 +4050,11 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             return;
         };
 
-        let ext = vfs_path.rsplit('.').next().unwrap_or("").to_ascii_lowercase();
+        let ext = vfs_path
+            .rsplit('.')
+            .next()
+            .unwrap_or("")
+            .to_ascii_lowercase();
         // Nom imposé au téléchargement quand le fichier produit ne désigne PAS le fichier
         // source — un cue d'une banque, par exemple. `None` laisse la règle de nommage
         // commune (`nom_propose`) s'appliquer.
@@ -3316,7 +4176,13 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                         nie_formats::sprite_sheet::ModeCss::Image
                     };
                     let css = feuille.vers_css_mode(&format!("/tex/{rel}.png"), mode);
-                    respond(&mut stream, 200, "OK", "text/css; charset=utf-8", css.as_bytes());
+                    respond(
+                        &mut stream,
+                        200,
+                        "OK",
+                        "text/css; charset=utf-8",
+                        css.as_bytes(),
+                    );
                     return;
                 }
                 let textures: Vec<serde_json::Value> = g4tx
@@ -3400,7 +4266,11 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                 None,
             ),
         };
-        let vfs_path = if rel.starts_with("data/") { rel } else { format!("data/{rel}") };
+        let vfs_path = if rel.starts_with("data/") {
+            rel
+        } else {
+            format!("data/{rel}")
+        };
 
         let nom_invalide = nom_texture
             .as_deref()
@@ -3421,10 +4291,12 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         let png = match nom_texture.as_deref() {
             // Texture nommée : jamais de repli sur « la plus grande » — un nom qui n'existe pas
             // doit donner 404, pas une image arbitraire qui passerait pour la bonne.
-            Some(nom) => g4tx.as_deref().and_then(|d| g4tx_decode::decode_named_to_png(d, nom)),
-            None => g4tx
+            Some(nom) => g4tx
                 .as_deref()
-                .and_then(|d| g4tx_decode::decode_best_to_png(d, g4tx_decode::basename_of(&vfs_path))),
+                .and_then(|d| g4tx_decode::decode_named_to_png(d, nom)),
+            None => g4tx.as_deref().and_then(|d| {
+                g4tx_decode::decode_best_to_png(d, g4tx_decode::basename_of(&vfs_path))
+            }),
         };
         match png {
             Some(png) => respond(&mut stream, 200, "OK", "image/png", &png),
@@ -3470,7 +4342,13 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             "polices": polices,
         });
         match serde_json::to_vec(&body) {
-            Ok(bytes) => respond(&mut stream, 200, "OK", "application/json; charset=utf-8", &bytes),
+            Ok(bytes) => respond(
+                &mut stream,
+                200,
+                "OK",
+                "application/json; charset=utf-8",
+                &bytes,
+            ),
             Err(e) => respond_text(&mut stream, 500, "Internal Server Error", &e.to_string()),
         }
         return;
@@ -3484,7 +4362,12 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
     if path == "/ui/text.png" {
         let texte = param(query, "t").unwrap_or_default();
         if texte.is_empty() || texte.chars().count() > 120 {
-            respond_text(&mut stream, 400, "Bad Request", "paramètre `t` vide ou trop long");
+            respond_text(
+                &mut stream,
+                400,
+                "Bad Request",
+                "paramètre `t` vide ou trop long",
+            );
             return;
         }
         let fg = param(query, "fg")
@@ -3505,7 +4388,12 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             )
         };
         let (Some(cfg), Some(g4tx)) = (cfg, g4tx) else {
-            respond_text(&mut stream, 500, "Internal Server Error", "police absente du VFS");
+            respond_text(
+                &mut stream,
+                500,
+                "Internal Server Error",
+                "police absente du VFS",
+            );
             return;
         };
         match render_text_png(&cfg, &g4tx, &texte, fg) {
@@ -3524,7 +4412,13 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         let chemin = std::env::var("NIE_ICONS_INDEX")
             .unwrap_or_else(|_| String::from("var/icons-index.json"));
         match std::fs::read(&chemin) {
-            Ok(bytes) => respond(&mut stream, 200, "OK", "application/json; charset=utf-8", &bytes),
+            Ok(bytes) => respond(
+                &mut stream,
+                200,
+                "OK",
+                "application/json; charset=utf-8",
+                &bytes,
+            ),
             Err(e) => respond_text(
                 &mut stream,
                 404,
@@ -3544,7 +4438,13 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         let chemin = std::env::var("NIE_AVATAR_CATALOG")
             .unwrap_or_else(|_| String::from("var/avatar-resolved.json"));
         match std::fs::read(&chemin) {
-            Ok(bytes) => respond(&mut stream, 200, "OK", "application/json; charset=utf-8", &bytes),
+            Ok(bytes) => respond(
+                &mut stream,
+                200,
+                "OK",
+                "application/json; charset=utf-8",
+                &bytes,
+            ),
             Err(e) => respond_text(
                 &mut stream,
                 404,
@@ -3567,7 +4467,9 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         let ecran = rest.strip_suffix(".json").unwrap_or(rest);
         let invalide = ecran.is_empty()
             || ecran.len() > 64
-            || !ecran.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_');
+            || !ecran
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b == b'_');
         if invalide {
             respond_text(&mut stream, 400, "Bad Request", "nom d'écran invalide");
             return;
@@ -3576,12 +4478,20 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             .unwrap_or_else(|_| String::from("var/avatar-ui/layouts"));
         let chemin = std::path::Path::new(&base).join(format!("{ecran}.json"));
         match std::fs::read(&chemin) {
-            Ok(bytes) => respond(&mut stream, 200, "OK", "application/json; charset=utf-8", &bytes),
+            Ok(bytes) => respond(
+                &mut stream,
+                200,
+                "OK",
+                "application/json; charset=utf-8",
+                &bytes,
+            ),
             Err(e) => respond_text(
                 &mut stream,
                 404,
                 "Not Found",
-                &format!("layout {ecran} absent ({e}) — le produire par `nie-game --menu {ecran} --from-setting --runtime --export-layout`"),
+                &format!(
+                    "layout {ecran} absent ({e}) — le produire par `nie-game --menu {ecran} --from-setting --runtime --export-layout`"
+                ),
             ),
         }
         return;
@@ -4032,7 +4942,9 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
     if let Some(rest) = path.strip_prefix("/model-avatar/") {
         let body = rest.strip_suffix(".glb").unwrap_or(rest);
         let valide = |s: &str| {
-            !s.is_empty() && s.len() <= 48 && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+            !s.is_empty()
+                && s.len() <= 48
+                && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
         };
         let specs: Vec<(String, String)> = body
             .split('+')
@@ -4053,7 +4965,8 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             .filter(|c| {
                 !c.is_empty()
                     && c.len() <= 40
-                    && c.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '/')
+                    && c.chars()
+                        .all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '/')
             })
             .take(MAX_COUCHES_VISAGE)
             .map(str::to_string)
@@ -4077,7 +4990,12 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
             Ok(glb) => respond(&mut stream, 200, "OK", "model/gltf-binary", &glb),
             Err(e) => {
                 debug!("assemblage avatar échoué : {e}");
-                respond_text(&mut stream, 500, "Internal Server Error", "assemblage échoué");
+                respond_text(
+                    &mut stream,
+                    500,
+                    "Internal Server Error",
+                    "assemblage échoué",
+                );
             }
         }
         return;
@@ -4153,6 +5071,40 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         return;
     }
 
+    // `/model-report/<code>.json` — rapport d'assemblage machine-readable : pièces, sources
+    // CFG et VFS, matériaux, textures liées, skinning, version et SHA-256 du GLB servi.
+    if let Some(rest) = path.strip_prefix("/model-report/") {
+        let code = rest.strip_suffix(".json").unwrap_or(rest);
+        if code.is_empty()
+            || code.len() > 32
+            || !code
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+        {
+            respond_text(&mut stream, 400, "Bad Request", "code invalide");
+            return;
+        }
+        match get_or_build_report(&state, code) {
+            Ok(report) => respond(
+                &mut stream,
+                200,
+                "OK",
+                "application/json; charset=utf-8",
+                report.to_string().as_bytes(),
+            ),
+            Err(e) => {
+                warn!("rapport {code} échoué : {e:#}");
+                respond_text(
+                    &mut stream,
+                    404,
+                    "Not Found",
+                    &format!("rapport {code} non disponible : {e}"),
+                );
+            }
+        }
+        return;
+    }
+
     // `/model-full/<code>.glb`
     if let Some(rest) = path.strip_prefix("/model-full/") {
         let code = rest.strip_suffix(".glb").unwrap_or(rest);
@@ -4172,7 +5124,7 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                 respond(&mut stream, 200, "OK", "model/gltf-binary", &glb);
             }
             Err(e) => {
-                warn!("assemblage {code} échoué : {e}");
+                warn!("assemblage {code} échoué : {e:#}");
                 respond_text(
                     &mut stream,
                     404,
@@ -4330,7 +5282,13 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
     if path == "/video/catalog.json" || path == "/video/catalog" {
         match catalogue_video(&state) {
             Ok(json) => {
-                respond(&mut stream, 200, "OK", "application/json; charset=utf-8", json.as_bytes());
+                respond(
+                    &mut stream,
+                    200,
+                    "OK",
+                    "application/json; charset=utf-8",
+                    json.as_bytes(),
+                );
             }
             Err(e) => {
                 // Le construire ICI tiendrait la connexion une minute et ferait redémarrer le
@@ -4356,7 +5314,10 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         // (`common/movie` ↔ `dx11/movie`) avant d'abandonner. L'erreur rapportée reste celle du
         // chemin DEMANDÉ : c'est celui que l'appelant connaît.
         let lire = |chemin: &str| -> Result<Vec<u8>, String> {
-            state.vfs.read(chemin).map_err(|_| "absent du VFS".to_string())
+            state
+                .vfs
+                .read(chemin)
+                .map_err(|_| "absent du VFS".to_string())
         };
         let (chemin_reel, brut) = match lire(&vfs_path) {
             Ok(b) => (vfs_path.clone(), b),
@@ -4374,13 +5335,23 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                 }
             },
         };
-        let nom = chemin_reel.rsplit('/').next().unwrap_or(&chemin_reel).to_string();
+        let nom = chemin_reel
+            .rsplit('/')
+            .next()
+            .unwrap_or(&chemin_reel)
+            .to_string();
 
         // `?info=1` — la fiche du film : métadonnées, bande-son, et ce que coûte le remux.
         if param(query, "info").is_some() {
             let json = fiche_video(&state, &chemin_reel);
             let bytes = serde_json::to_vec(&json).unwrap_or_default();
-            respond(&mut stream, 200, "OK", "application/json; charset=utf-8", &bytes);
+            respond(
+                &mut stream,
+                200,
+                "OK",
+                "application/json; charset=utf-8",
+                &bytes,
+            );
             return;
         }
 
@@ -4417,7 +5388,10 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                             nie_formats::usm::CodecVideo::Vp9 => "video/webm",
                             _ => "application/octet-stream",
                         };
-                        info!("{chemin_reel} : {e} — flux {} servi tel quel", u.codec.nom());
+                        info!(
+                            "{chemin_reel} : {e} — flux {} servi tel quel",
+                            u.codec.nom()
+                        );
                         respond_ranged(&mut stream, ct, &u.flux_brut(), range_header);
                     }
                     _ => {
@@ -4435,7 +5409,29 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
 
 // ── Résolution du miroir SQLite ───────────────────────────────────────────────
 
-fn resolve_db(db_override: Option<&Path>) -> Option<PathBuf> {
+/// Remonte jusqu'à un ancêtre qui ressemble à la racine du dépôt niers.
+///
+/// Même marqueur que la commande Tauri équivalente (`Cargo.toml` **et** `crates/`) : aucun
+/// chemin de machine en dur, c'est la doctrine de `resolve_game_dir` appliquée au dépôt.
+fn resolve_depot_racine() -> Result<PathBuf> {
+    let cwd = std::env::current_dir().context("répertoire courant")?;
+    let mut cur = Some(cwd.as_path());
+    while let Some(dir) = cur {
+        if dir.join("Cargo.toml").is_file() && dir.join("crates").is_dir() {
+            return Ok(dir.to_path_buf());
+        }
+        cur = dir.parent();
+    }
+    anyhow::bail!(
+        "racine du dépôt niers introuvable depuis {} — passer --depot-racine",
+        cwd.display()
+    )
+}
+
+/// `racine` est la racine du jeu **effective** (`--game-dir` compris) : chercher les backups
+/// sous `resolve_game_dir()` ignorait l'argument et regardait sous l'installation Steam, où
+/// `data/backups` n'existe pas — le miroir passait alors pour absent.
+fn resolve_db(racine: &Path, db_override: Option<&Path>) -> Option<PathBuf> {
     if let Some(p) = db_override {
         if p.exists() {
             return Some(p.to_path_buf());
@@ -4455,7 +5451,7 @@ fn resolve_db(db_override: Option<&Path>) -> Option<PathBuf> {
     }
 
     // Répertoire de backups niers.
-    let backups = nie_formats::vfs::resolve_game_dir().join("data/backups");
+    let backups = racine.join("data/backups");
     if backups.is_dir() {
         let mut candidates: Vec<PathBuf> = fs::read_dir(&backups)
             .into_iter()
@@ -4558,20 +5554,40 @@ fn main() -> Result<()> {
     // Tous les chemins dérivent de la racine du jeu, résolue à l'exécution : le même binaire
     // sert un serveur Linux et un poste Windows sans qu'aucun chemin de machine ne soit compilé
     // dedans. `var/` vit à côté du jeu, comme le reste des artefacts régénérables.
-    let racine = cli.game_dir.clone().unwrap_or_else(nie_formats::vfs::resolve_game_dir);
+    let racine = cli
+        .game_dir
+        .clone()
+        .unwrap_or_else(nie_formats::vfs::resolve_game_dir);
     info!("racine du jeu : {}", racine.display());
     let var = racine.join("var");
-    let glb_dir = cli.glb_dir.clone().unwrap_or_else(|| racine.join("data/dx11/model"));
-    let cache_dir = cli.cache_dir.clone().unwrap_or_else(|| var.join("model-cache"));
-    let crc_manifest = cli.crc_manifest.clone().unwrap_or_else(|| var.join("model-crc-manifest.ndjson"));
-    let uniform_map_path = cli.uniform_map.clone().unwrap_or_else(|| var.join("uniform-model-map.ndjson"));
-    let body_manifest = cli.body_manifest.clone().unwrap_or_else(|| var.join("body-type-manifest.ndjson"));
+    let glb_dir = cli
+        .glb_dir
+        .clone()
+        .unwrap_or_else(|| racine.join("data/dx11/model"));
+    let cache_dir = cli
+        .cache_dir
+        .clone()
+        .unwrap_or_else(|| var.join("model-cache"));
+    let crc_manifest = cli
+        .crc_manifest
+        .clone()
+        .unwrap_or_else(|| var.join("model-crc-manifest.ndjson"));
+    let uniform_map_path = cli
+        .uniform_map
+        .clone()
+        .unwrap_or_else(|| var.join("uniform-model-map.ndjson"));
+    let body_manifest = cli
+        .body_manifest
+        .clone()
+        .unwrap_or_else(|| var.join("body-type-manifest.ndjson"));
     let menu_cfg_dir = cli
         .menu_cfg_dir
         .clone()
         .unwrap_or_else(|| racine.join("data/common/gamedata/menu/cfg"));
-    let asset_cross_ref =
-        cli.asset_cross_ref.clone().unwrap_or_else(|| racine.join("data/asset-cross-reference.json"));
+    let asset_cross_ref = cli
+        .asset_cross_ref
+        .clone()
+        .unwrap_or_else(|| racine.join("data/asset-cross-reference.json"));
     // Ces deux-là appartiennent au dépôt azalee : sans argument explicite, les routes qui en
     // dépendent restent inactives plutôt que de pointer un chemin inventé.
     let layout_dir = cli.layout_dir.clone().unwrap_or_default();
@@ -4605,27 +5621,72 @@ fn main() -> Result<()> {
     // Charge les manifestes.
     let crc_manifest = State::load_crc_manifest(&crc_manifest)?;
     let uniform_map = State::load_uniform_map(&uniform_map_path);
+    let chara_parts = State::load_character_parts(&vfs);
+    let chara_model = State::load_chara_model(&vfs);
     let body_map = State::load_body_map(&body_manifest);
+    purge_stale_cache(&cache_dir);
     let asset_roles = State::load_asset_roles(&asset_cross_ref);
 
     // Résout le miroir SQLite.
-    let db_path = resolve_db(cli.db.as_deref());
+    let db_path = resolve_db(&racine, cli.db.as_deref());
     if let Some(ref p) = db_path {
         info!("miroir SQLite : {}", p.display());
     }
+
+    // Accès au code du dépôt : monté UNIQUEMENT sur `--depot-code`. Un échec d'ouverture est
+    // fatal plutôt que silencieux — on a demandé à publier le code, servir 404 sans rien dire
+    // laisserait croire que la route existe et qu'elle est vide.
+    let depot = if cli.depot_code {
+        let racine = match cli.depot_racine.clone() {
+            Some(r) => r,
+            None => resolve_depot_racine()?,
+        };
+        let d = nie_explore::depot::Depot::ouvrir(&racine)
+            .with_context(|| format!("--depot-code : racine {}", racine.display()))?;
+        info!(
+            "code du dépôt exposé sous /depot/ — racine {}",
+            d.racine().display()
+        );
+        Some(d)
+    } else {
+        None
+    };
 
     let state = Arc::new(State {
         vfs,
         glb_dir: glb_dir.clone(),
         crc_manifest,
         uniform_map,
+        chara_parts,
+        chara_model,
         body_map,
         cache_dir: cache_dir.clone(),
         db_path,
         layout_dir: layout_dir.clone(),
         menu_cfg_dir: menu_cfg_dir.clone(),
         asset_roles,
+        depot,
     });
+
+    // Audit hors ligne : pas de serveur (donc pas de port à prendre — un serveur peut tourner à
+    // côté), un rapport par personnage, puis sortie.
+    if cli.audit {
+        let out = cli
+            .audit_out
+            .clone()
+            .unwrap_or_else(|| var.join("model-audit.ndjson"));
+        let failures = audit_models(
+            &state,
+            cli.threads.max(1),
+            cli.audit_limit,
+            cli.audit_filter.as_deref(),
+            &out,
+        )?;
+        if failures > 0 {
+            std::process::exit(1);
+        }
+        return Ok(());
+    }
 
     // Bind du serveur TCP.
     let addr = format!("127.0.0.1:{}", cli.port);
@@ -4676,9 +5737,360 @@ fn main() -> Result<()> {
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
+// ── Audit de validité de tous les personnages ────────────────────────────────
+
+/// Critères de validité d'un personnage assemblé. Chaque critère est **mesuré** sur le rapport
+/// d'assemblage et le GLB produit, jamais déduit : un critère absent du rapport échoue.
+///
+/// | critère | condition |
+/// |---|---|
+/// | `assemblage` | `assemble_chara` rend un GLB |
+/// | `fiche` | `CHARA_MODEL_INFO` et `CHARA_BODY_INFO` trouvées |
+/// | `visage_brut` | le visage vient du VFS (G4MD/G4MG ou g4pkm), pas d'un GLB pré-converti |
+/// | `squelette` | squelette chargé, `monde_repos · inverse_bind = I` à 1e-4 près |
+/// | `skinnee` | mode `skinned` et **toutes** les primitives skinnées |
+/// | `os_resolus` | 0 hachage d'os non résolu, 0 sommet sans os, sur toutes les pièces |
+/// | `tenue` | une tenue résolue par `chara_parts` (haut au minimum) |
+/// | `pieces_chargees` | chaque pièce résolue par la recette a été lue dans le VFS |
+/// | `chaussures` | des chaussures résolues (kit ou défaut du modèle) |
+/// | `textures` | tous les matériaux liés à une planche décodée |
+/// | `bornes` | hauteur ∈ [0,6 ; 3,0] m, sol ∈ [−0,1 ; 0,3] m, x et z dans ±2 m, valeurs finies |
+/// | `glb` | GLB non vide, JSON glTF lisible, `skins` présent quand le mode est `skinned` |
+///
+/// Informatif (ne fait pas échouer) : `notes` du rapport, règles de texture autres que `exact`.
+const AUDIT_CRITERIA: &[&str] = &[
+    "assemblage",
+    "fiche",
+    "visage_brut",
+    "squelette",
+    "skinnee",
+    "os_resolus",
+    "tenue",
+    "pieces_chargees",
+    "chaussures",
+    "textures",
+    "bornes",
+    "glb",
+];
+
+/// Une ligne d'audit : `(code, critères, détails)`.
+type AuditRow = (String, serde_json::Map<String, Value>, Value);
+
+/// Évalue les critères sur un personnage. Renvoie `(critères, détails)`.
+fn audit_one(state: &State, code: &str) -> (serde_json::Map<String, Value>, Value) {
+    use serde_json::json;
+    let mut crit = serde_json::Map::new();
+    let assembled = match assemble_chara(state, code) {
+        Ok(a) => a,
+        Err(e) => {
+            for c in AUDIT_CRITERIA {
+                crit.insert((*c).to_string(), Value::Bool(false));
+            }
+            return (crit, json!({ "erreur": format!("{e:#}") }));
+        }
+    };
+    let mut set = |name: &str, ok: bool| {
+        crit.insert(name.to_string(), Value::Bool(ok));
+    };
+    set("assemblage", true);
+    let r = &assembled.report;
+
+    let fiche =
+        !r["catalogues"]["chara_model_row"].is_null() && !r["catalogues"]["body_row"].is_null();
+    set("fiche", fiche);
+
+    let pieces = r["pieces"].as_array().cloned().unwrap_or_default();
+    let face = pieces.iter().find(|p| p["role"] == "face");
+    set("visage_brut", face.is_some_and(|p| p["origin"] == "vfs"));
+
+    let sk_err = r["skeleton"]["bind_consistency_error"].as_f64();
+    set(
+        "squelette",
+        sk_err.is_some_and(|e| e.is_finite() && e < 1e-4),
+    );
+
+    let prims = r["primitives"].as_u64().unwrap_or(0);
+    let skinned = r["skinned_primitives"].as_u64().unwrap_or(0);
+    set(
+        "skinnee",
+        r["mode"] == "skinned" && prims > 0 && skinned == prims,
+    );
+
+    let unresolved: usize = pieces
+        .iter()
+        .map(|p| {
+            p["skin"]["unresolved_hashes"]
+                .as_array()
+                .map_or(0, Vec::len)
+        })
+        .sum();
+    let sans_os: u64 = pieces
+        .iter()
+        .map(|p| p["skin"]["vertices_without_bone"].as_u64().unwrap_or(0))
+        .sum();
+    set("os_resolus", unresolved == 0 && sans_os == 0);
+
+    let parts = r["uniform"]["parts"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    set("tenue", parts.iter().any(|p| p["role"] == "uniform"));
+    let loaded_roles: Vec<String> = pieces
+        .iter()
+        .filter_map(|p| p["role"].as_str().map(str::to_string))
+        .collect();
+    let recipe_roles: Vec<String> = parts
+        .iter()
+        .filter_map(|p| p["role"].as_str().map(str::to_string))
+        .collect();
+    let missing: Vec<&String> = recipe_roles
+        .iter()
+        .filter(|role| !loaded_roles.contains(role))
+        .collect();
+    // Les notes « <rôle> <pièce> : lecture G4M… » signalent une pièce résolue mais absente du VFS.
+    let notes: Vec<String> = r["notes"]
+        .as_array()
+        .map(|a| {
+            a.iter()
+                .filter_map(|n| n.as_str().map(str::to_string))
+                .collect()
+        })
+        .unwrap_or_default();
+    let vfs_missing = notes.iter().filter(|n| n.contains("lecture G4M")).count();
+    set("pieces_chargees", missing.is_empty() && vfs_missing == 0);
+    set("chaussures", parts.iter().any(|p| p["role"] == "shoes"));
+
+    let unbound = r["materials_without_texture"]
+        .as_array()
+        .map_or(0, Vec::len);
+    let materials_tex: Vec<Value> = r["textures"]
+        .as_array()
+        .map(|ts| {
+            ts.iter()
+                .flat_map(|t| t["materials"].as_array().cloned().unwrap_or_default())
+                .collect()
+        })
+        .unwrap_or_default();
+    let undecoded = materials_tex
+        .iter()
+        .filter(|m| m["texture"].is_null() || m["decoded"] == false)
+        .count();
+    let non_exact: Vec<String> = materials_tex
+        .iter()
+        .filter(|m| m["rule"].as_str().is_some_and(|r| r != "exact"))
+        .filter_map(|m| {
+            Some(format!(
+                "{}<-{} ({})",
+                m["material"].as_str()?,
+                m["texture"].as_str().unwrap_or("-"),
+                m["rule"].as_str().unwrap_or("")
+            ))
+        })
+        .collect();
+    set("textures", unbound == 0 && undecoded == 0);
+
+    let mut lo = [f64::INFINITY; 3];
+    let mut hi = [f64::NEG_INFINITY; 3];
+    for p in &pieces {
+        for k in 0..3 {
+            if let Some(v) = p["bounds_min"][k].as_f64() {
+                lo[k] = lo[k].min(v);
+            }
+            if let Some(v) = p["bounds_max"][k].as_f64() {
+                hi[k] = hi[k].max(v);
+            }
+        }
+    }
+    let finite = lo.iter().chain(hi.iter()).all(|v| v.is_finite());
+    let height = hi[1] - lo[1];
+    let bornes_ok = finite
+        && (0.6..=3.0).contains(&height)
+        && (-0.1..=0.3).contains(&lo[1])
+        && lo[0].abs() < 2.0
+        && hi[0].abs() < 2.0
+        && lo[2].abs() < 2.0
+        && hi[2].abs() < 2.0;
+    set("bornes", bornes_ok);
+
+    let glb_ok = assembled.glb.len() > 20 && {
+        let json_len = u32::from_le_bytes([
+            assembled.glb[12],
+            assembled.glb[13],
+            assembled.glb[14],
+            assembled.glb[15],
+        ]) as usize;
+        assembled
+            .glb
+            .get(20..20 + json_len)
+            .and_then(|j| serde_json::from_slice::<Value>(j).ok())
+            .is_some_and(|g| r["mode"] != "skinned" || !g["skins"].is_null())
+    };
+    set("glb", glb_ok);
+
+    let details = json!({
+        "glb_bytes": assembled.glb.len(),
+        "mode": r["mode"],
+        "primitives": prims,
+        "skinned_primitives": skinned,
+        "skeleton": r["skeleton"]["source"],
+        "bind_consistency_error": sk_err,
+        "unresolved_hashes": unresolved,
+        "vertices_without_bone": sans_os,
+        "uniform": { "crc": r["uniform"]["crc"], "code": r["uniform"]["code"], "source": r["uniform"]["source"] },
+        "recipe_roles": recipe_roles,
+        "loaded_roles": loaded_roles,
+        "missing_roles": missing,
+        "materials_without_texture": r["materials_without_texture"],
+        "texture_rules_non_exact": non_exact,
+        "bounds_min": lo, "bounds_max": hi, "height": height,
+        "notes": notes,
+    });
+    (crit, details)
+}
+
+/// Audite tous les personnages de `chara_model` (filtre et limite optionnels) sur `threads`
+/// threads, écrit un NDJSON (`{code, ok, criteres, details}` par ligne) et un résumé JSON, et
+/// affiche le bilan. Renvoie le nombre de personnages en échec.
+fn audit_models(
+    state: &Arc<State>,
+    threads: usize,
+    limit: usize,
+    filter: Option<&str>,
+    out: &Path,
+) -> Result<usize> {
+    use serde_json::json;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    let mut codes: Vec<String> = state
+        .chara_model
+        .by_code
+        .keys()
+        .filter(|c| filter.is_none_or(|f| c.contains(f)))
+        .cloned()
+        .collect();
+    codes.sort();
+    if limit > 0 {
+        codes.truncate(limit);
+    }
+    info!(
+        "audit : {} personnage(s), {threads} thread(s), sortie {}",
+        codes.len(),
+        out.display()
+    );
+
+    let next = AtomicUsize::new(0);
+    let done = AtomicUsize::new(0);
+    let results: Mutex<Vec<AuditRow>> = Mutex::new(Vec::with_capacity(codes.len()));
+    thread::scope(|scope| {
+        for _ in 0..threads {
+            scope.spawn(|| {
+                loop {
+                    let i = next.fetch_add(1, Ordering::Relaxed);
+                    let Some(code) = codes.get(i) else { break };
+                    let (crit, details) = audit_one(state, code);
+                    let n = done.fetch_add(1, Ordering::Relaxed) + 1;
+                    if n.is_multiple_of(100) {
+                        info!("audit : {n}/{}", codes.len());
+                    }
+                    results
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
+                        .push((code.clone(), crit, details));
+                }
+            });
+        }
+    });
+    let mut results = results
+        .into_inner()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    results.sort_by(|a, b| a.0.cmp(&b.0));
+
+    let mut ndjson = String::new();
+    let mut failures = 0usize;
+    let mut per_criterion: std::collections::BTreeMap<&str, usize> =
+        std::collections::BTreeMap::new();
+    let mut failed_codes: Vec<Value> = Vec::new();
+    for (code, crit, details) in &results {
+        let failing: Vec<&str> = AUDIT_CRITERIA
+            .iter()
+            .copied()
+            .filter(|c| crit.get(*c) != Some(&Value::Bool(true)))
+            .collect();
+        let ok = failing.is_empty();
+        if !ok {
+            failures += 1;
+            for c in &failing {
+                *per_criterion.entry(c).or_default() += 1;
+            }
+            failed_codes.push(json!({ "code": code, "criteres_en_echec": failing }));
+        }
+        let line = json!({ "code": code, "ok": ok, "criteres": crit, "details": details });
+        ndjson.push_str(&line.to_string());
+        ndjson.push('\n');
+    }
+    fs::write(out, &ndjson).with_context(|| format!("écriture {}", out.display()))?;
+    let summary_path = out.with_file_name(format!(
+        "{}-summary.json",
+        out.file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("model-audit")
+    ));
+    let summary = json!({
+        "assembler_version": ASSEMBLER_VERSION,
+        "chara_model": state.chara_model.source,
+        "chara_parts": state.chara_parts.source,
+        "criteres": AUDIT_CRITERIA,
+        "total": results.len(),
+        "ok": results.len() - failures,
+        "echecs": failures,
+        "echecs_par_critere": per_criterion,
+        "modeles_en_echec": failed_codes,
+    });
+    fs::write(&summary_path, serde_json::to_string_pretty(&summary)?)
+        .with_context(|| format!("écriture {}", summary_path.display()))?;
+
+    println!(
+        "audit : {} personnage(s), {} valide(s), {} en échec — {}",
+        results.len(),
+        results.len() - failures,
+        failures,
+        summary_path.display()
+    );
+    for (c, n) in &per_criterion {
+        println!("  {c:<16} {n} échec(s)");
+    }
+    Ok(failures)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    /// Le cache est indexé par version d'assembleur : un GLB écrit par une version antérieure
+    /// n'est jamais resservi tel quel après un rebuild.
+    #[test]
+    fn le_cache_glb_est_purge_quand_la_version_change() {
+        let dir = std::env::temp_dir().join(format!("nie-model-cache-test-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("c01001900.glb"), b"ancien").unwrap();
+        fs::write(dir.join("c01001900.report.json"), b"{}").unwrap();
+        fs::write(dir.join("VERSION"), "0000-00-00.rien").unwrap();
+        purge_stale_cache(&dir);
+        assert!(
+            !dir.join("c01001900.glb").exists(),
+            "l'ancien GLB doit disparaître"
+        );
+        assert!(!dir.join("c01001900.report.json").exists());
+        assert_eq!(
+            fs::read_to_string(dir.join("VERSION")).unwrap(),
+            ASSEMBLER_VERSION
+        );
+        // Même version : rien n'est touché.
+        fs::write(dir.join("c01001900.glb"), b"courant").unwrap();
+        purge_stale_cache(&dir);
+        assert_eq!(fs::read(dir.join("c01001900.glb")).unwrap(), b"courant");
+        let _ = fs::remove_dir_all(&dir);
+    }
 
     // Les tests de résolution de format DDS (DX10 / FourCC legacy / non compressé) ont migré
     // avec le décodeur dans `nie_formats::g4tx_decode` (feature `textures`, source unique).
@@ -4866,8 +6278,7 @@ mod tests {
     #[cfg(feature = "real-audio")]
     #[test]
     fn hca_ievr_dechiffrement_cle_correcte() {
-        const AWB_PATH: &str =
-            concat!("data/cross-apk/work/laneE-audio/staging/c00001001.awb");
+        const AWB_PATH: &str = concat!("data/cross-apk/work/laneE-audio/staging/c00001001.awb");
 
         let data = std::fs::read(AWB_PATH)
             .expect("fichier AWB absent — lancer avec `--features real-audio` sur le VPS IEVR");

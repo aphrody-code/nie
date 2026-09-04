@@ -23,19 +23,23 @@ const CDN = "https://cdn.rosegriffon.fr";
 export function CpkModelViewer({ path, name }: { path: string; name: string }) {
 	const [url, setUrl] = useState<string | null>(null);
 	const [error, setError] = useState(false);
+	const [source, setSource] = useState<"wasm" | "server">("wasm");
 
 	useEffect(() => {
 		let cancelled = false;
 		let objectUrl: string | null = null;
+		const controller = new AbortController();
 		setUrl(null);
 		setError(false);
 
 		// Modèles à G4MD packé (_waza/_item/_keshin/_animal/_armd) → route serveur texturée.
 		const sub = path.match(/\/common\/chr\/_([a-z]+)\/([^/]+)\/[^/]+\.g4m[dg]$/i);
 		if (sub && SERVER_SUBS.has(sub[1].toLowerCase())) {
+			setSource("server");
 			setUrl(`${CDN}/model-chr/${sub[1].toLowerCase()}/${sub[2]}.glb`);
 			return;
 		}
+		setSource("wasm");
 
 		(async () => {
 			try {
@@ -44,12 +48,13 @@ export function CpkModelViewer({ path, name }: { path: string; name: string }) {
 				const mdPath = path.replace(/\.g4mg$/i, ".g4md");
 				const mgPath = mdPath.replace(/\.g4md$/i, ".g4mg");
 				const [mdRes, mgRes] = await Promise.all([
-					fetch(cpkRawUrl(mdPath)),
-					fetch(cpkRawUrl(mgPath)),
+					fetch(cpkRawUrl(mdPath), { signal: controller.signal }),
+					fetch(cpkRawUrl(mgPath), { signal: controller.signal }),
 				]);
 				if (!mdRes.ok || !mgRes.ok) throw new Error("paire g4md/g4mg introuvable");
 				const md = new Uint8Array(await mdRes.arrayBuffer());
 				const mg = new Uint8Array(await mgRes.arrayBuffer());
+				if (cancelled) return;
 				const glb = await modelToGlb(md, mg);
 				if (cancelled) return;
 				objectUrl = URL.createObjectURL(new Blob([glb.slice()], { type: "model/gltf-binary" }));
@@ -61,6 +66,7 @@ export function CpkModelViewer({ path, name }: { path: string; name: string }) {
 
 		return () => {
 			cancelled = true;
+			controller.abort();
 			if (objectUrl) URL.revokeObjectURL(objectUrl);
 		};
 	}, [path]);
@@ -86,7 +92,9 @@ export function CpkModelViewer({ path, name }: { path: string; name: string }) {
 	return (
 		<div className="flex flex-col items-center gap-2 p-4">
 			<p className="text-xs text-on-surface-variant">
-				Modèle 3D assemblé in-browser (G4MD + G4MG → GLB, wasm)
+				{source === "wasm"
+					? "Géométrie assemblée dans le navigateur (G4MD + G4MG → GLB, WASM)"
+					: "Modèle texturé assemblé par NieModelServer"}
 			</p>
 			<CharacterModelViewer glbUrl={url} name={name} inline />
 			<a

@@ -14,6 +14,7 @@ dépôt au lieu de la mémoire du modèle.
 | Skill `niers-monorepo` | Conventions, emplacements, commandes de build et de test, règles avant commit |
 | Skill `formats-level5` | Les formats Level-5 et Criware, par famille, avec magic réel, module Rust et pièges |
 | Skill `jouer-ievr` | Lancer, simuler, rendre et observer le jeu — et ce qui n'est **pas** possible |
+| Skill `aphrody-pet` | Découvrir et charger le package Aphrody v2, valider son atlas, extraire une frame et choisir une direction |
 | Agent `vfs-scout` | Localise des assets dans les 255 308 entrées sans déverser les chemins |
 | Agent `forge-analyst` | Diagnostique un plateau de la forge : blocages ventilés, octets divergents, cible chiffrée |
 | Agent `re-lookup` | Interroge la KB de reverse-engineering (52 783 fonctions, lecture seule) |

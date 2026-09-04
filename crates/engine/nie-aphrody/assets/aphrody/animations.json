@@ -1,0 +1,3489 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schemaVersion": 1,
+  "pet": {
+    "id": "aphrody",
+    "displayName": "Aphrody",
+    "spriteVersionNumber": 2,
+    "description": "Aphrody, the graceful sharp-eyed Zeus midfielder, faithfully based on official full-body and facial assets."
+  },
+  "atlas": {
+    "image": "sprites/spritesheet.png",
+    "runtimeImage": "sprites/spritesheet.webp",
+    "format": "PNG",
+    "sourceMode": "RGBA",
+    "decodedMode": "RGBA",
+    "width": 1536,
+    "height": 2288,
+    "columns": 8,
+    "rows": 11,
+    "cellWidth": 192,
+    "cellHeight": 208,
+    "coordinateSystem": "origin top-left; x increases right; y increases down; right/bottom are exclusive",
+    "pngSha256": "bc48f3e2a4d3086234062b9175d58f2caaec39f6afeb53ab8b222513fe964037",
+    "rgbaSha256": "84b6fec1a8a941024cfc4694f3349ea7fce677bb949af4b3d4222b73ca2fe3d6",
+    "runtimeFormat": "WEBP",
+    "runtimeSourceMode": "RGBA",
+    "runtimeContainerChunk": "VP8L",
+    "webpSha256": "93238150de5b86b5977f8409800a91637dfcc3b70b3b0d6d617f6563fa54389b",
+    "webpRgbaSha256": "84b6fec1a8a941024cfc4694f3349ea7fce677bb949af4b3d4222b73ca2fe3d6"
+  },
+  "pixelAccuracy": {
+    "cropMethod": "integer atlas rectangles",
+    "resampled": false,
+    "colorConversionDuringCrop": false,
+    "frameStorage": "lossless RGBA PNG",
+    "roundTripVerified": true,
+    "recompositionVerified": true,
+    "recompositionRgbaSha256": "84b6fec1a8a941024cfc4694f3349ea7fce677bb949af4b3d4222b73ca2fe3d6",
+    "runtimeWebpLosslessVp8l": true,
+    "runtimeWebpDecodedMatchesPng": true,
+    "hashAlgorithm": "SHA-256"
+  },
+  "animationCount": 11,
+  "exportedFrameCount": 74,
+  "animations": {
+    "idle": {
+      "kind": "timed-animation",
+      "row": 0,
+      "frameCount": 6,
+      "totalDurationMs": 1100,
+      "purpose": "calm resting, breathing, and blinking",
+      "frames": [
+        {
+          "index": 0,
+          "image": "frames/idle/frame-00.png",
+          "row": 0,
+          "column": 0,
+          "atlasRect": {
+            "x": 0,
+            "y": 0,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 192,
+            "bottomExclusive": 208
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 60,
+            "y": 5,
+            "width": 72,
+            "height": 198,
+            "rightExclusive": 132,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 60,
+            "y": 5,
+            "width": 72,
+            "height": 198,
+            "rightExclusive": 132,
+            "bottomExclusive": 203
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 9345,
+          "opaquePixels": 6885,
+          "translucentPixels": 2460,
+          "transparentPixels": 30591,
+          "rgbaSha256": "5ad45d0bb4c6edbfba3821277b7dfc99968d2e21ba79081f660672d354b048d8",
+          "pngSha256": "78eeaa6791d00ccd63fdc40f9cb6d9a9a888ee8e5ff2d12f48971806be50215f",
+          "durationMs": 280
+        },
+        {
+          "index": 1,
+          "image": "frames/idle/frame-01.png",
+          "row": 0,
+          "column": 1,
+          "atlasRect": {
+            "x": 192,
+            "y": 0,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 384,
+            "bottomExclusive": 208
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 60,
+            "y": 5,
+            "width": 72,
+            "height": 198,
+            "rightExclusive": 132,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 252,
+            "y": 5,
+            "width": 72,
+            "height": 198,
+            "rightExclusive": 324,
+            "bottomExclusive": 203
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 9350,
+          "opaquePixels": 6889,
+          "translucentPixels": 2461,
+          "transparentPixels": 30586,
+          "rgbaSha256": "bf3e79cd934b352bd2672feb4047558cdd2a94d041239f610b8612827c861493",
+          "pngSha256": "f7fb7d81ed6f75b0ad25463b0eac3933a4e81f5a681208a8cc2d08d87b8d1178",
+          "durationMs": 110
+        },
+        {
+          "index": 2,
+          "image": "frames/idle/frame-02.png",
+          "row": 0,
+          "column": 2,
+          "atlasRect": {
+            "x": 384,
+            "y": 0,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 576,
+            "bottomExclusive": 208
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 59,
+            "y": 5,
+            "width": 73,
+            "height": 198,
+            "rightExclusive": 132,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 443,
+            "y": 5,
+            "width": 73,
+            "height": 198,
+            "rightExclusive": 516,
+            "bottomExclusive": 203
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 9436,
+          "opaquePixels": 6980,
+          "translucentPixels": 2456,
+          "transparentPixels": 30500,
+          "rgbaSha256": "9f11ac4508281b84018435a6932ddc4f0d9123b13eb3c41e862b99d750e71024",
+          "pngSha256": "b6d6cc2325331dac798e3c3a4c963ec5fb13a8bf3e4495071c64d8347f424233",
+          "durationMs": 110
+        },
+        {
+          "index": 3,
+          "image": "frames/idle/frame-03.png",
+          "row": 0,
+          "column": 3,
+          "atlasRect": {
+            "x": 576,
+            "y": 0,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 768,
+            "bottomExclusive": 208
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 60,
+            "y": 5,
+            "width": 72,
+            "height": 198,
+            "rightExclusive": 132,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 636,
+            "y": 5,
+            "width": 72,
+            "height": 198,
+            "rightExclusive": 708,
+            "bottomExclusive": 203
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 9382,
+          "opaquePixels": 6973,
+          "translucentPixels": 2409,
+          "transparentPixels": 30554,
+          "rgbaSha256": "171e08c5f4158e30c41ea6c15ed531b51ef8a938c54e9d3bacddfc7d1aca2ab6",
+          "pngSha256": "0e76a1c793bfe002b5ce2e6214710d0c7957b0e587015593f78e383ce5f5639d",
+          "durationMs": 140
+        },
+        {
+          "index": 4,
+          "image": "frames/idle/frame-04.png",
+          "row": 0,
+          "column": 4,
+          "atlasRect": {
+            "x": 768,
+            "y": 0,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 960,
+            "bottomExclusive": 208
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 57,
+            "y": 5,
+            "width": 77,
+            "height": 198,
+            "rightExclusive": 134,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 825,
+            "y": 5,
+            "width": 77,
+            "height": 198,
+            "rightExclusive": 902,
+            "bottomExclusive": 203
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 9444,
+          "opaquePixels": 6968,
+          "translucentPixels": 2476,
+          "transparentPixels": 30492,
+          "rgbaSha256": "254afa57e25401d0cc561427655d5464075b27008c7ab2949ff47f6fb984a582",
+          "pngSha256": "f88ff0c17474efa0503cc2d83fd9a8560d68b39c0b33c18cdf62ac959cd2cc5f",
+          "durationMs": 140
+        },
+        {
+          "index": 5,
+          "image": "frames/idle/frame-05.png",
+          "row": 0,
+          "column": 5,
+          "atlasRect": {
+            "x": 960,
+            "y": 0,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 1152,
+            "bottomExclusive": 208
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 60,
+            "y": 5,
+            "width": 72,
+            "height": 198,
+            "rightExclusive": 132,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 1020,
+            "y": 5,
+            "width": 72,
+            "height": 198,
+            "rightExclusive": 1092,
+            "bottomExclusive": 203
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 9323,
+          "opaquePixels": 6932,
+          "translucentPixels": 2391,
+          "transparentPixels": 30613,
+          "rgbaSha256": "8f5bd370a5f295daa48330d91b3a8014de724b9c00149877930e02ec3ada8a02",
+          "pngSha256": "bd915fe6e9237f05e638d194286fac850d9d9bd17038b28ea15b3f9a03dbf1df",
+          "durationMs": 320
+        }
+      ]
+    },
+    "running-right": {
+      "kind": "timed-animation",
+      "row": 1,
+      "frameCount": 8,
+      "totalDurationMs": 1060,
+      "purpose": "rightward drag movement",
+      "frames": [
+        {
+          "index": 0,
+          "image": "frames/running-right/frame-00.png",
+          "row": 1,
+          "column": 0,
+          "atlasRect": {
+            "x": 0,
+            "y": 208,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 192,
+            "bottomExclusive": 416
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 30,
+            "y": 5,
+            "width": 132,
+            "height": 198,
+            "rightExclusive": 162,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 30,
+            "y": 213,
+            "width": 132,
+            "height": 198,
+            "rightExclusive": 162,
+            "bottomExclusive": 411
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 10579,
+          "opaquePixels": 7819,
+          "translucentPixels": 2760,
+          "transparentPixels": 29357,
+          "rgbaSha256": "e8b355eecdd87f5c8e9f01bd812526456c5351d839eb1a153eeaf04b3288e5c8",
+          "pngSha256": "7f6b32e50059dc2206021aa9bb413087f161c3532d903f5c6a00744e2a9b0466",
+          "durationMs": 120
+        },
+        {
+          "index": 1,
+          "image": "frames/running-right/frame-01.png",
+          "row": 1,
+          "column": 1,
+          "atlasRect": {
+            "x": 192,
+            "y": 208,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 384,
+            "bottomExclusive": 416
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 22,
+            "y": 5,
+            "width": 148,
+            "height": 198,
+            "rightExclusive": 170,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 214,
+            "y": 213,
+            "width": 148,
+            "height": 198,
+            "rightExclusive": 362,
+            "bottomExclusive": 411
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 11163,
+          "opaquePixels": 8323,
+          "translucentPixels": 2840,
+          "transparentPixels": 28773,
+          "rgbaSha256": "be102714aa6b4f5933f3a4ca5d3db14acd155678c713b266f50949fa981f067a",
+          "pngSha256": "36f59fc158c975134f601bc9829076f388020779d43abe99820e6446c752dba6",
+          "durationMs": 120
+        },
+        {
+          "index": 2,
+          "image": "frames/running-right/frame-02.png",
+          "row": 1,
+          "column": 2,
+          "atlasRect": {
+            "x": 384,
+            "y": 208,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 576,
+            "bottomExclusive": 416
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 56,
+            "y": 5,
+            "width": 80,
+            "height": 198,
+            "rightExclusive": 136,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 440,
+            "y": 213,
+            "width": 80,
+            "height": 198,
+            "rightExclusive": 520,
+            "bottomExclusive": 411
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 8813,
+          "opaquePixels": 6844,
+          "translucentPixels": 1969,
+          "transparentPixels": 31123,
+          "rgbaSha256": "73debc8ef6ecbb0d78096d71729d25e1d1875cb47c4994c4d0cbcda18ae50824",
+          "pngSha256": "8188c2461daa6cd31e794aac7d8303dd206b7abaaf387610f78ff1438e93d2e5",
+          "durationMs": 120
+        },
+        {
+          "index": 3,
+          "image": "frames/running-right/frame-03.png",
+          "row": 1,
+          "column": 3,
+          "atlasRect": {
+            "x": 576,
+            "y": 208,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 768,
+            "bottomExclusive": 416
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 16,
+            "y": 5,
+            "width": 159,
+            "height": 198,
+            "rightExclusive": 175,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 592,
+            "y": 213,
+            "width": 159,
+            "height": 198,
+            "rightExclusive": 751,
+            "bottomExclusive": 411
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 11137,
+          "opaquePixels": 8327,
+          "translucentPixels": 2810,
+          "transparentPixels": 28799,
+          "rgbaSha256": "23e9bd74ea3217b13e5c488badcc3ad473c45cab44c3a3a0c0187c20a30467d6",
+          "pngSha256": "14128906beb3e3f6425518746a7c77146ee4cf4d16ad3630036a62973943abfd",
+          "durationMs": 120
+        },
+        {
+          "index": 4,
+          "image": "frames/running-right/frame-04.png",
+          "row": 1,
+          "column": 4,
+          "atlasRect": {
+            "x": 768,
+            "y": 208,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 960,
+            "bottomExclusive": 416
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 48,
+            "y": 5,
+            "width": 96,
+            "height": 198,
+            "rightExclusive": 144,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 816,
+            "y": 213,
+            "width": 96,
+            "height": 198,
+            "rightExclusive": 912,
+            "bottomExclusive": 411
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 9685,
+          "opaquePixels": 7233,
+          "translucentPixels": 2452,
+          "transparentPixels": 30251,
+          "rgbaSha256": "5b197584dff6367406c41d83ba24fcb2ffcdcfcce68525969ee90d75f804fa35",
+          "pngSha256": "006e9e0debf1d7b7c049115bbe5b878be3799b96d67d316c2305ad2b59d48ea0",
+          "durationMs": 120
+        },
+        {
+          "index": 5,
+          "image": "frames/running-right/frame-05.png",
+          "row": 1,
+          "column": 5,
+          "atlasRect": {
+            "x": 960,
+            "y": 208,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 1152,
+            "bottomExclusive": 416
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 35,
+            "y": 5,
+            "width": 122,
+            "height": 198,
+            "rightExclusive": 157,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 995,
+            "y": 213,
+            "width": 122,
+            "height": 198,
+            "rightExclusive": 1117,
+            "bottomExclusive": 411
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 10933,
+          "opaquePixels": 8188,
+          "translucentPixels": 2745,
+          "transparentPixels": 29003,
+          "rgbaSha256": "1ee938f65ec6775d3f17673e5aced396a96a7c551adf41d1b40ba3d2afb4b322",
+          "pngSha256": "0ed6346dbae88a0bf27fb16d87692386365615d077f50b3a821793cd27c06fdd",
+          "durationMs": 120
+        },
+        {
+          "index": 6,
+          "image": "frames/running-right/frame-06.png",
+          "row": 1,
+          "column": 6,
+          "atlasRect": {
+            "x": 1152,
+            "y": 208,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 1344,
+            "bottomExclusive": 416
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 56,
+            "y": 5,
+            "width": 79,
+            "height": 198,
+            "rightExclusive": 135,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 1208,
+            "y": 213,
+            "width": 79,
+            "height": 198,
+            "rightExclusive": 1287,
+            "bottomExclusive": 411
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 8950,
+          "opaquePixels": 7034,
+          "translucentPixels": 1916,
+          "transparentPixels": 30986,
+          "rgbaSha256": "993e85a33c4b80e7112d7170c3858b6dbe4ccb75145b429a5e78f50c16e28c37",
+          "pngSha256": "b7fb98d5024557acbc0e402c3182e1b8f90eb1d6f46c9e6fc71672ca616760d8",
+          "durationMs": 120
+        },
+        {
+          "index": 7,
+          "image": "frames/running-right/frame-07.png",
+          "row": 1,
+          "column": 7,
+          "atlasRect": {
+            "x": 1344,
+            "y": 208,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 1536,
+            "bottomExclusive": 416
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 29,
+            "y": 5,
+            "width": 133,
+            "height": 198,
+            "rightExclusive": 162,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 1373,
+            "y": 213,
+            "width": 133,
+            "height": 198,
+            "rightExclusive": 1506,
+            "bottomExclusive": 411
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 10450,
+          "opaquePixels": 7925,
+          "translucentPixels": 2525,
+          "transparentPixels": 29486,
+          "rgbaSha256": "b1c9586006313656b6be790910262b0310ac4d5c742f622f695c4325eee7fec3",
+          "pngSha256": "998e9783b2020a987fb825516ee0643896c4b6d113559520ee73f82842821e3c",
+          "durationMs": 220
+        }
+      ]
+    },
+    "running-left": {
+      "kind": "timed-animation",
+      "row": 2,
+      "frameCount": 8,
+      "totalDurationMs": 1060,
+      "purpose": "leftward drag movement",
+      "frames": [
+        {
+          "index": 0,
+          "image": "frames/running-left/frame-00.png",
+          "row": 2,
+          "column": 0,
+          "atlasRect": {
+            "x": 0,
+            "y": 416,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 192,
+            "bottomExclusive": 624
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 41,
+            "y": 5,
+            "width": 110,
+            "height": 198,
+            "rightExclusive": 151,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 41,
+            "y": 421,
+            "width": 110,
+            "height": 198,
+            "rightExclusive": 151,
+            "bottomExclusive": 619
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 9577,
+          "opaquePixels": 7155,
+          "translucentPixels": 2422,
+          "transparentPixels": 30359,
+          "rgbaSha256": "6f859a2c6c8d856af4f902ba0b3184fb8e5bb0007205b23f29e4c192947cafb1",
+          "pngSha256": "81b40903b6011456e1d34c358be5a5d89989ed4ea74446d080a5547372dcc3ac",
+          "durationMs": 120
+        },
+        {
+          "index": 1,
+          "image": "frames/running-left/frame-01.png",
+          "row": 2,
+          "column": 1,
+          "atlasRect": {
+            "x": 192,
+            "y": 416,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 384,
+            "bottomExclusive": 624
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 42,
+            "y": 5,
+            "width": 107,
+            "height": 198,
+            "rightExclusive": 149,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 234,
+            "y": 421,
+            "width": 107,
+            "height": 198,
+            "rightExclusive": 341,
+            "bottomExclusive": 619
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 10596,
+          "opaquePixels": 7879,
+          "translucentPixels": 2717,
+          "transparentPixels": 29340,
+          "rgbaSha256": "038d668095c5d3862f64d21b250b0bb7340c70a1dfbb57e38c19ee53a2c207a2",
+          "pngSha256": "36b43bb47264b87d5fb5c632dc6307fd6afd1795603b33c0f631661075d10dbb",
+          "durationMs": 120
+        },
+        {
+          "index": 2,
+          "image": "frames/running-left/frame-02.png",
+          "row": 2,
+          "column": 2,
+          "atlasRect": {
+            "x": 384,
+            "y": 416,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 576,
+            "bottomExclusive": 624
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 45,
+            "y": 5,
+            "width": 101,
+            "height": 198,
+            "rightExclusive": 146,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 429,
+            "y": 421,
+            "width": 101,
+            "height": 198,
+            "rightExclusive": 530,
+            "bottomExclusive": 619
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 10263,
+          "opaquePixels": 7594,
+          "translucentPixels": 2669,
+          "transparentPixels": 29673,
+          "rgbaSha256": "cf0aa4ac6a904abe6de5f45d152846cbc66d12c6dfdd59867e1989451b9dbe20",
+          "pngSha256": "62e0e5821bce4e889d7eb063c703be7fbac5c426483fcb0abd50912471e0319e",
+          "durationMs": 120
+        },
+        {
+          "index": 3,
+          "image": "frames/running-left/frame-03.png",
+          "row": 2,
+          "column": 3,
+          "atlasRect": {
+            "x": 576,
+            "y": 416,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 768,
+            "bottomExclusive": 624
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 39,
+            "y": 5,
+            "width": 113,
+            "height": 198,
+            "rightExclusive": 152,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 615,
+            "y": 421,
+            "width": 113,
+            "height": 198,
+            "rightExclusive": 728,
+            "bottomExclusive": 619
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 10028,
+          "opaquePixels": 7393,
+          "translucentPixels": 2635,
+          "transparentPixels": 29908,
+          "rgbaSha256": "d1bc9691de2262fbfb676eb9bf9ea3ab290d4fd8f6b879356b96e6ab6d2e2463",
+          "pngSha256": "ba070706e4cceeae6e4e24fd359e7790660d51bcdf8b2b0f26d77953f14952c8",
+          "durationMs": 120
+        },
+        {
+          "index": 4,
+          "image": "frames/running-left/frame-04.png",
+          "row": 2,
+          "column": 4,
+          "atlasRect": {
+            "x": 768,
+            "y": 416,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 960,
+            "bottomExclusive": 624
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 52,
+            "y": 5,
+            "width": 87,
+            "height": 198,
+            "rightExclusive": 139,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 820,
+            "y": 421,
+            "width": 87,
+            "height": 198,
+            "rightExclusive": 907,
+            "bottomExclusive": 619
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 9243,
+          "opaquePixels": 6955,
+          "translucentPixels": 2288,
+          "transparentPixels": 30693,
+          "rgbaSha256": "986064c1ef8df79b7b4c113649a76f765b30db014b258de3e3aafe2a5c0710e5",
+          "pngSha256": "1c71959f2fa25cb951d125c72819783ce2aa10affd36500982ea8078f2ec0611",
+          "durationMs": 120
+        },
+        {
+          "index": 5,
+          "image": "frames/running-left/frame-05.png",
+          "row": 2,
+          "column": 5,
+          "atlasRect": {
+            "x": 960,
+            "y": 416,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 1152,
+            "bottomExclusive": 624
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 41,
+            "y": 5,
+            "width": 110,
+            "height": 198,
+            "rightExclusive": 151,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 1001,
+            "y": 421,
+            "width": 110,
+            "height": 198,
+            "rightExclusive": 1111,
+            "bottomExclusive": 619
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 10144,
+          "opaquePixels": 7583,
+          "translucentPixels": 2561,
+          "transparentPixels": 29792,
+          "rgbaSha256": "2df7ff1850a9cc3caf39bc45c3020c9a63f9bcf820b01f7953ee37aaaba2d7c3",
+          "pngSha256": "083e7cc6268dcc3d56df249bfcbfa9597c0af6852d24671ae759b792b84c6990",
+          "durationMs": 120
+        },
+        {
+          "index": 6,
+          "image": "frames/running-left/frame-06.png",
+          "row": 2,
+          "column": 6,
+          "atlasRect": {
+            "x": 1152,
+            "y": 416,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 1344,
+            "bottomExclusive": 624
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 47,
+            "y": 5,
+            "width": 98,
+            "height": 198,
+            "rightExclusive": 145,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 1199,
+            "y": 421,
+            "width": 98,
+            "height": 198,
+            "rightExclusive": 1297,
+            "bottomExclusive": 619
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 9595,
+          "opaquePixels": 7253,
+          "translucentPixels": 2342,
+          "transparentPixels": 30341,
+          "rgbaSha256": "607eaf8edc1337f6b375f07ccd3feae4869fb0dac367358292c8d85c48880962",
+          "pngSha256": "0be0ea8afd502d2cf3215536d3a098d4ff08472d6c63fc17203d1e853ebac644",
+          "durationMs": 120
+        },
+        {
+          "index": 7,
+          "image": "frames/running-left/frame-07.png",
+          "row": 2,
+          "column": 7,
+          "atlasRect": {
+            "x": 1344,
+            "y": 416,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 1536,
+            "bottomExclusive": 624
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 50,
+            "y": 5,
+            "width": 92,
+            "height": 198,
+            "rightExclusive": 142,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 1394,
+            "y": 421,
+            "width": 92,
+            "height": 198,
+            "rightExclusive": 1486,
+            "bottomExclusive": 619
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 9309,
+          "opaquePixels": 7017,
+          "translucentPixels": 2292,
+          "transparentPixels": 30627,
+          "rgbaSha256": "aa4b1ba3299e8ed19f141ac95fc3541e10132536f1491d573d0a2c4491de3099",
+          "pngSha256": "11bb1850ae72f9703fd01fdb507e216534228974825ae7b5100291b5f8560ca9",
+          "durationMs": 220
+        }
+      ]
+    },
+    "waving": {
+      "kind": "timed-animation",
+      "row": 3,
+      "frameCount": 4,
+      "totalDurationMs": 700,
+      "purpose": "greeting or attention gesture",
+      "frames": [
+        {
+          "index": 0,
+          "image": "frames/waving/frame-00.png",
+          "row": 3,
+          "column": 0,
+          "atlasRect": {
+            "x": 0,
+            "y": 624,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 192,
+            "bottomExclusive": 832
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 61,
+            "y": 5,
+            "width": 69,
+            "height": 198,
+            "rightExclusive": 130,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 61,
+            "y": 629,
+            "width": 69,
+            "height": 198,
+            "rightExclusive": 130,
+            "bottomExclusive": 827
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 8941,
+          "opaquePixels": 6621,
+          "translucentPixels": 2320,
+          "transparentPixels": 30995,
+          "rgbaSha256": "61690bca489fa86230a6e19f62ff2335a409551bee47cd1c080a15bbb6436ede",
+          "pngSha256": "20865054fd1307cde1d7d74cfd8bea2759ce16bea5101f7fd911c8f1042487e2",
+          "durationMs": 140
+        },
+        {
+          "index": 1,
+          "image": "frames/waving/frame-01.png",
+          "row": 3,
+          "column": 1,
+          "atlasRect": {
+            "x": 192,
+            "y": 624,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 384,
+            "bottomExclusive": 832
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 55,
+            "y": 5,
+            "width": 81,
+            "height": 198,
+            "rightExclusive": 136,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 247,
+            "y": 629,
+            "width": 81,
+            "height": 198,
+            "rightExclusive": 328,
+            "bottomExclusive": 827
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 9228,
+          "opaquePixels": 6511,
+          "translucentPixels": 2717,
+          "transparentPixels": 30708,
+          "rgbaSha256": "92eba4149e3b9a64fdad4c80459727dba64295e40efaf959b98daaa81d33cbdc",
+          "pngSha256": "9b3e62e2b6dcbf4ceef4e9a25815c2e56368714fcca43042e55717521020a3c2",
+          "durationMs": 140
+        },
+        {
+          "index": 2,
+          "image": "frames/waving/frame-02.png",
+          "row": 3,
+          "column": 2,
+          "atlasRect": {
+            "x": 384,
+            "y": 624,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 576,
+            "bottomExclusive": 832
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 58,
+            "y": 5,
+            "width": 75,
+            "height": 198,
+            "rightExclusive": 133,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 442,
+            "y": 629,
+            "width": 75,
+            "height": 198,
+            "rightExclusive": 517,
+            "bottomExclusive": 827
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 9089,
+          "opaquePixels": 6421,
+          "translucentPixels": 2668,
+          "transparentPixels": 30847,
+          "rgbaSha256": "beea54fc6707f5285a88ee67eeda0dc8a8173812f9f898fd438ba648a020daf2",
+          "pngSha256": "bb836904520f23a3d7669b6daaa9f26e3f8371a4ed2ba99abaeb83b24be0f543",
+          "durationMs": 140
+        },
+        {
+          "index": 3,
+          "image": "frames/waving/frame-03.png",
+          "row": 3,
+          "column": 3,
+          "atlasRect": {
+            "x": 576,
+            "y": 624,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 768,
+            "bottomExclusive": 832
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 56,
+            "y": 5,
+            "width": 80,
+            "height": 198,
+            "rightExclusive": 136,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 632,
+            "y": 629,
+            "width": 80,
+            "height": 198,
+            "rightExclusive": 712,
+            "bottomExclusive": 827
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 9107,
+          "opaquePixels": 6451,
+          "translucentPixels": 2656,
+          "transparentPixels": 30829,
+          "rgbaSha256": "33fd5e01f642547ba4159611e3150f0a4a07c19d0194600582f6956a06b2402d",
+          "pngSha256": "23f99d6ee49be9d9179f85fbb1df6d7e37da90deba364e5f73a12698c9140a92",
+          "durationMs": 280
+        }
+      ]
+    },
+    "jumping": {
+      "kind": "timed-animation",
+      "row": 4,
+      "frameCount": 5,
+      "totalDurationMs": 840,
+      "purpose": "anticipation, lift, peak, descent, and settle",
+      "frames": [
+        {
+          "index": 0,
+          "image": "frames/jumping/frame-00.png",
+          "row": 4,
+          "column": 0,
+          "atlasRect": {
+            "x": 0,
+            "y": 832,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 192,
+            "bottomExclusive": 1040
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 57,
+            "y": 77,
+            "width": 76,
+            "height": 126,
+            "rightExclusive": 133,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 57,
+            "y": 909,
+            "width": 76,
+            "height": 126,
+            "rightExclusive": 133,
+            "bottomExclusive": 1035
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 5491,
+          "opaquePixels": 3743,
+          "translucentPixels": 1748,
+          "transparentPixels": 34445,
+          "rgbaSha256": "a6f69cf35d0fc22e43fe3a35a20f2887c884fe48141533b9b9dbd529b282e4af",
+          "pngSha256": "a4acd764d2b62a81a1c97341ce18f32829e5d7aa76eb35607b9f6ab3c1f56cec",
+          "durationMs": 140
+        },
+        {
+          "index": 1,
+          "image": "frames/jumping/frame-01.png",
+          "row": 4,
+          "column": 1,
+          "atlasRect": {
+            "x": 192,
+            "y": 832,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 384,
+            "bottomExclusive": 1040
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 57,
+            "y": 28,
+            "width": 77,
+            "height": 136,
+            "rightExclusive": 134,
+            "bottomExclusive": 164
+          },
+          "alphaBoundsInAtlas": {
+            "x": 249,
+            "y": 860,
+            "width": 77,
+            "height": 136,
+            "rightExclusive": 326,
+            "bottomExclusive": 996
+          },
+          "baselineYInCell": 163,
+          "nonTransparentPixels": 5415,
+          "opaquePixels": 3733,
+          "translucentPixels": 1682,
+          "transparentPixels": 34521,
+          "rgbaSha256": "c50663c313484a369689f929cde9e4431d2462f0484f3457a9c9e296b4d3c94a",
+          "pngSha256": "ae3944608a7bf9ec534d50406ee212b5ca95597cc3f0a858b9ae5f8d363f4bcf",
+          "durationMs": 140
+        },
+        {
+          "index": 2,
+          "image": "frames/jumping/frame-02.png",
+          "row": 4,
+          "column": 2,
+          "atlasRect": {
+            "x": 384,
+            "y": 832,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 576,
+            "bottomExclusive": 1040
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 50,
+            "y": 5,
+            "width": 91,
+            "height": 140,
+            "rightExclusive": 141,
+            "bottomExclusive": 145
+          },
+          "alphaBoundsInAtlas": {
+            "x": 434,
+            "y": 837,
+            "width": 91,
+            "height": 140,
+            "rightExclusive": 525,
+            "bottomExclusive": 977
+          },
+          "baselineYInCell": 144,
+          "nonTransparentPixels": 5793,
+          "opaquePixels": 3988,
+          "translucentPixels": 1805,
+          "transparentPixels": 34143,
+          "rgbaSha256": "b8cccf519e1f5831363a91a9d384676276d63a68447fcd7c24036a8311c29fbf",
+          "pngSha256": "fb6cdedbb19160dda268d873934623c90e0f2d47fc69acd0179aa037cbc6688d",
+          "durationMs": 140
+        },
+        {
+          "index": 3,
+          "image": "frames/jumping/frame-03.png",
+          "row": 4,
+          "column": 3,
+          "atlasRect": {
+            "x": 576,
+            "y": 832,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 768,
+            "bottomExclusive": 1040
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 52,
+            "y": 31,
+            "width": 87,
+            "height": 138,
+            "rightExclusive": 139,
+            "bottomExclusive": 169
+          },
+          "alphaBoundsInAtlas": {
+            "x": 628,
+            "y": 863,
+            "width": 87,
+            "height": 138,
+            "rightExclusive": 715,
+            "bottomExclusive": 1001
+          },
+          "baselineYInCell": 168,
+          "nonTransparentPixels": 5462,
+          "opaquePixels": 3731,
+          "translucentPixels": 1731,
+          "transparentPixels": 34474,
+          "rgbaSha256": "1ff0b881448a639677ffe8215471e8315e729079dd0006f1ebb616f281bcbe1f",
+          "pngSha256": "b7ea80a5fa147c0eaf0b27e40551e35d28bdf2c9d84c51374653a290c4ccacf4",
+          "durationMs": 140
+        },
+        {
+          "index": 4,
+          "image": "frames/jumping/frame-04.png",
+          "row": 4,
+          "column": 4,
+          "atlasRect": {
+            "x": 768,
+            "y": 832,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 960,
+            "bottomExclusive": 1040
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 57,
+            "y": 52,
+            "width": 76,
+            "height": 151,
+            "rightExclusive": 133,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 825,
+            "y": 884,
+            "width": 76,
+            "height": 151,
+            "rightExclusive": 901,
+            "bottomExclusive": 1035
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 6017,
+          "opaquePixels": 3925,
+          "translucentPixels": 2092,
+          "transparentPixels": 33919,
+          "rgbaSha256": "555acfafee65859d34ed527b4ede3454022cb340542135e6277c43f86f25b845",
+          "pngSha256": "f5ca6a3f24f560e38260260aec74846690957cf2b1385438bc3f51e24c129c14",
+          "durationMs": 280
+        }
+      ]
+    },
+    "failed": {
+      "kind": "timed-animation",
+      "row": 5,
+      "frameCount": 8,
+      "totalDurationMs": 1220,
+      "purpose": "blocked, failed, or cancelled reaction",
+      "frames": [
+        {
+          "index": 0,
+          "image": "frames/failed/frame-00.png",
+          "row": 5,
+          "column": 0,
+          "atlasRect": {
+            "x": 0,
+            "y": 1040,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 192,
+            "bottomExclusive": 1248
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 63,
+            "y": 5,
+            "width": 66,
+            "height": 198,
+            "rightExclusive": 129,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 63,
+            "y": 1045,
+            "width": 66,
+            "height": 198,
+            "rightExclusive": 129,
+            "bottomExclusive": 1243
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 8365,
+          "opaquePixels": 6279,
+          "translucentPixels": 2086,
+          "transparentPixels": 31571,
+          "rgbaSha256": "8746dcddd3f009e74f8a3d9c5017e1f0b7588380b4f88cda6d121cd2f20ebe14",
+          "pngSha256": "089d07117720d05cf066b46e6846901eb9a907730768343d54f0e21f537a7744",
+          "durationMs": 140
+        },
+        {
+          "index": 1,
+          "image": "frames/failed/frame-01.png",
+          "row": 5,
+          "column": 1,
+          "atlasRect": {
+            "x": 192,
+            "y": 1040,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 384,
+            "bottomExclusive": 1248
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 63,
+            "y": 17,
+            "width": 66,
+            "height": 186,
+            "rightExclusive": 129,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 255,
+            "y": 1057,
+            "width": 66,
+            "height": 186,
+            "rightExclusive": 321,
+            "bottomExclusive": 1243
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 7894,
+          "opaquePixels": 5897,
+          "translucentPixels": 1997,
+          "transparentPixels": 32042,
+          "rgbaSha256": "d8759040e39b1666b641663121768edc89b4682d019d587665d2d404a10dcce4",
+          "pngSha256": "c66b0e6839bffe7eb4fa3f6e01f6f2a715cecc7711e0228d28789de8f827e99c",
+          "durationMs": 140
+        },
+        {
+          "index": 2,
+          "image": "frames/failed/frame-02.png",
+          "row": 5,
+          "column": 2,
+          "atlasRect": {
+            "x": 384,
+            "y": 1040,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 576,
+            "bottomExclusive": 1248
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 61,
+            "y": 51,
+            "width": 70,
+            "height": 152,
+            "rightExclusive": 131,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 445,
+            "y": 1091,
+            "width": 70,
+            "height": 152,
+            "rightExclusive": 515,
+            "bottomExclusive": 1243
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 7038,
+          "opaquePixels": 5244,
+          "translucentPixels": 1794,
+          "transparentPixels": 32898,
+          "rgbaSha256": "1d1503fda8846b3d813cdcc03d55d6798402116a598adac6c809f0b6f4c34902",
+          "pngSha256": "816a4edc3a6b6cf0ea27cf8c154dbd4d2e5fbe31d757248230852962a4b3afe4",
+          "durationMs": 140
+        },
+        {
+          "index": 3,
+          "image": "frames/failed/frame-03.png",
+          "row": 5,
+          "column": 3,
+          "atlasRect": {
+            "x": 576,
+            "y": 1040,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 768,
+            "bottomExclusive": 1248
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 60,
+            "y": 82,
+            "width": 72,
+            "height": 121,
+            "rightExclusive": 132,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 636,
+            "y": 1122,
+            "width": 72,
+            "height": 121,
+            "rightExclusive": 708,
+            "bottomExclusive": 1243
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 6348,
+          "opaquePixels": 5040,
+          "translucentPixels": 1308,
+          "transparentPixels": 33588,
+          "rgbaSha256": "e7792877fe267bae0f3f614b5f61d4a96404c618214248b5e536e9b28af7a962",
+          "pngSha256": "5d9e8327117bfd03a918e9678217943d3c51d532bd503e1993a5a7c8fd5b950c",
+          "durationMs": 140
+        },
+        {
+          "index": 4,
+          "image": "frames/failed/frame-04.png",
+          "row": 5,
+          "column": 4,
+          "atlasRect": {
+            "x": 768,
+            "y": 1040,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 960,
+            "bottomExclusive": 1248
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 57,
+            "y": 104,
+            "width": 77,
+            "height": 99,
+            "rightExclusive": 134,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 825,
+            "y": 1144,
+            "width": 77,
+            "height": 99,
+            "rightExclusive": 902,
+            "bottomExclusive": 1243
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 5190,
+          "opaquePixels": 4150,
+          "translucentPixels": 1040,
+          "transparentPixels": 34746,
+          "rgbaSha256": "9c889337b6d132eb78bbc6201844119a3af20bee900e23a738151c2cd6e4d59b",
+          "pngSha256": "b06e4718ecada18d7fd5931a17e652b66aeaccccbf5cd218c88b325c028aefd2",
+          "durationMs": 140
+        },
+        {
+          "index": 5,
+          "image": "frames/failed/frame-05.png",
+          "row": 5,
+          "column": 5,
+          "atlasRect": {
+            "x": 960,
+            "y": 1040,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 1152,
+            "bottomExclusive": 1248
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 61,
+            "y": 72,
+            "width": 70,
+            "height": 130,
+            "rightExclusive": 131,
+            "bottomExclusive": 202
+          },
+          "alphaBoundsInAtlas": {
+            "x": 1021,
+            "y": 1112,
+            "width": 70,
+            "height": 130,
+            "rightExclusive": 1091,
+            "bottomExclusive": 1242
+          },
+          "baselineYInCell": 201,
+          "nonTransparentPixels": 6344,
+          "opaquePixels": 5087,
+          "translucentPixels": 1257,
+          "transparentPixels": 33592,
+          "rgbaSha256": "db6038d06623df2cf6a75d149ee003790ad3be70c8c38ed91a7d9420baec7910",
+          "pngSha256": "377f3c063d0378e5628516d30bb2d364bc42bab4847c1a03b826aced595092c1",
+          "durationMs": 140
+        },
+        {
+          "index": 6,
+          "image": "frames/failed/frame-06.png",
+          "row": 5,
+          "column": 6,
+          "atlasRect": {
+            "x": 1152,
+            "y": 1040,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 1344,
+            "bottomExclusive": 1248
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 64,
+            "y": 73,
+            "width": 64,
+            "height": 130,
+            "rightExclusive": 128,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 1216,
+            "y": 1113,
+            "width": 64,
+            "height": 130,
+            "rightExclusive": 1280,
+            "bottomExclusive": 1243
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 6211,
+          "opaquePixels": 4986,
+          "translucentPixels": 1225,
+          "transparentPixels": 33725,
+          "rgbaSha256": "bee4afaa40b902968f16851a2d68630fdacb219492cad748703486ebde0f7ad7",
+          "pngSha256": "402cd10e99efc4ae7ec09ab3920ebdf1cf031e0131c9156fb363f428cb4801b6",
+          "durationMs": 140
+        },
+        {
+          "index": 7,
+          "image": "frames/failed/frame-07.png",
+          "row": 5,
+          "column": 7,
+          "atlasRect": {
+            "x": 1344,
+            "y": 1040,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 1536,
+            "bottomExclusive": 1248
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 64,
+            "y": 74,
+            "width": 64,
+            "height": 129,
+            "rightExclusive": 128,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 1408,
+            "y": 1114,
+            "width": 64,
+            "height": 129,
+            "rightExclusive": 1472,
+            "bottomExclusive": 1243
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 6098,
+          "opaquePixels": 4884,
+          "translucentPixels": 1214,
+          "transparentPixels": 33838,
+          "rgbaSha256": "31be5f7a399a40bf358ba4050123351054d0f496f5018075ebd3b7586b964f72",
+          "pngSha256": "63c58d5fac7dfb34368d59c0289511e58b018f3e0fbd1e8bdca9159923eaad9e",
+          "durationMs": 240
+        }
+      ]
+    },
+    "waiting": {
+      "kind": "timed-animation",
+      "row": 6,
+      "frameCount": 6,
+      "totalDurationMs": 1010,
+      "purpose": "waiting for approval, help, or user input",
+      "frames": [
+        {
+          "index": 0,
+          "image": "frames/waiting/frame-00.png",
+          "row": 6,
+          "column": 0,
+          "atlasRect": {
+            "x": 0,
+            "y": 1248,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 192,
+            "bottomExclusive": 1456
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 65,
+            "y": 5,
+            "width": 62,
+            "height": 198,
+            "rightExclusive": 127,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 65,
+            "y": 1253,
+            "width": 62,
+            "height": 198,
+            "rightExclusive": 127,
+            "bottomExclusive": 1451
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 8062,
+          "opaquePixels": 5928,
+          "translucentPixels": 2134,
+          "transparentPixels": 31874,
+          "rgbaSha256": "e7bfc5120845f839481260b6984743f14f60325a7283ff6e24a9c3af93c7d744",
+          "pngSha256": "716da6f075f1c645efe17c5dc61de10768ca2b0c1212c26336582ddd18089c4b",
+          "durationMs": 150
+        },
+        {
+          "index": 1,
+          "image": "frames/waiting/frame-01.png",
+          "row": 6,
+          "column": 1,
+          "atlasRect": {
+            "x": 192,
+            "y": 1248,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 384,
+            "bottomExclusive": 1456
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 65,
+            "y": 5,
+            "width": 61,
+            "height": 198,
+            "rightExclusive": 126,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 257,
+            "y": 1253,
+            "width": 61,
+            "height": 198,
+            "rightExclusive": 318,
+            "bottomExclusive": 1451
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 7907,
+          "opaquePixels": 5798,
+          "translucentPixels": 2109,
+          "transparentPixels": 32029,
+          "rgbaSha256": "2d06b995d9a99e35ddb485985faeb124e5e70f3576c0c85cca139482e7c7b856",
+          "pngSha256": "fb7b5ec000adf0d295eb37e3a09ba0a5f62dd7931c4c2b3bf79379ca901f4a45",
+          "durationMs": 150
+        },
+        {
+          "index": 2,
+          "image": "frames/waiting/frame-02.png",
+          "row": 6,
+          "column": 2,
+          "atlasRect": {
+            "x": 384,
+            "y": 1248,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 576,
+            "bottomExclusive": 1456
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 64,
+            "y": 5,
+            "width": 64,
+            "height": 198,
+            "rightExclusive": 128,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 448,
+            "y": 1253,
+            "width": 64,
+            "height": 198,
+            "rightExclusive": 512,
+            "bottomExclusive": 1451
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 8031,
+          "opaquePixels": 5903,
+          "translucentPixels": 2128,
+          "transparentPixels": 31905,
+          "rgbaSha256": "f737341faa76c19ae921aeb878ce16927d35048776a05f84d2b3bcffdb51e995",
+          "pngSha256": "9a166eb3ef69ea5122dfb2708ec11a70c5f58ebfde362915ff2aafec2f301972",
+          "durationMs": 150
+        },
+        {
+          "index": 3,
+          "image": "frames/waiting/frame-03.png",
+          "row": 6,
+          "column": 3,
+          "atlasRect": {
+            "x": 576,
+            "y": 1248,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 768,
+            "bottomExclusive": 1456
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 63,
+            "y": 5,
+            "width": 66,
+            "height": 198,
+            "rightExclusive": 129,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 639,
+            "y": 1253,
+            "width": 66,
+            "height": 198,
+            "rightExclusive": 705,
+            "bottomExclusive": 1451
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 8318,
+          "opaquePixels": 6080,
+          "translucentPixels": 2238,
+          "transparentPixels": 31618,
+          "rgbaSha256": "941906af91a884b412abb9a604a59435d40bfdbb4b71566999ba053d8e4fe3a1",
+          "pngSha256": "e54b39f9e5ad83895aadb58d23db270b43849ad814885e804715fa634ae5e9c9",
+          "durationMs": 150
+        },
+        {
+          "index": 4,
+          "image": "frames/waiting/frame-04.png",
+          "row": 6,
+          "column": 4,
+          "atlasRect": {
+            "x": 768,
+            "y": 1248,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 960,
+            "bottomExclusive": 1456
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 65,
+            "y": 5,
+            "width": 61,
+            "height": 198,
+            "rightExclusive": 126,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 833,
+            "y": 1253,
+            "width": 61,
+            "height": 198,
+            "rightExclusive": 894,
+            "bottomExclusive": 1451
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 7925,
+          "opaquePixels": 5837,
+          "translucentPixels": 2088,
+          "transparentPixels": 32011,
+          "rgbaSha256": "1f14e1e226f0c05d4402f6aae5414f97572b0c2a09466c5852392d9ded9491e0",
+          "pngSha256": "459f92d3c5230bd136999b7a695f1ad3137b75ead6cf5187a26b64f61898fdb8",
+          "durationMs": 150
+        },
+        {
+          "index": 5,
+          "image": "frames/waiting/frame-05.png",
+          "row": 6,
+          "column": 5,
+          "atlasRect": {
+            "x": 960,
+            "y": 1248,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 1152,
+            "bottomExclusive": 1456
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 64,
+            "y": 5,
+            "width": 64,
+            "height": 198,
+            "rightExclusive": 128,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 1024,
+            "y": 1253,
+            "width": 64,
+            "height": 198,
+            "rightExclusive": 1088,
+            "bottomExclusive": 1451
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 8453,
+          "opaquePixels": 6272,
+          "translucentPixels": 2181,
+          "transparentPixels": 31483,
+          "rgbaSha256": "3a36fa2f2f3de4e21922bc76e90384f2c7a558585045d4c30ea0fd75cbec114b",
+          "pngSha256": "dfc677427274270862a6e0b4b8d9fafba53832b917ddd5cb8e8cebd67d478c06",
+          "durationMs": 260
+        }
+      ]
+    },
+    "running": {
+      "kind": "timed-animation",
+      "row": 7,
+      "frameCount": 6,
+      "totalDurationMs": 820,
+      "purpose": "active task work or processing",
+      "frames": [
+        {
+          "index": 0,
+          "image": "frames/running/frame-00.png",
+          "row": 7,
+          "column": 0,
+          "atlasRect": {
+            "x": 0,
+            "y": 1456,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 192,
+            "bottomExclusive": 1664
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 63,
+            "y": 5,
+            "width": 65,
+            "height": 198,
+            "rightExclusive": 128,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 63,
+            "y": 1461,
+            "width": 65,
+            "height": 198,
+            "rightExclusive": 128,
+            "bottomExclusive": 1659
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 8170,
+          "opaquePixels": 5988,
+          "translucentPixels": 2182,
+          "transparentPixels": 31766,
+          "rgbaSha256": "0ce7c5618f51381df63d0b4d58975641ca75c5fff61ce9f54b8bb6b8332bd164",
+          "pngSha256": "4365c1c8856bc285e0558962f8d783b0704fb9917b4d81e43b79c9a25fd43d59",
+          "durationMs": 120
+        },
+        {
+          "index": 1,
+          "image": "frames/running/frame-01.png",
+          "row": 7,
+          "column": 1,
+          "atlasRect": {
+            "x": 192,
+            "y": 1456,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 384,
+            "bottomExclusive": 1664
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 65,
+            "y": 5,
+            "width": 61,
+            "height": 198,
+            "rightExclusive": 126,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 257,
+            "y": 1461,
+            "width": 61,
+            "height": 198,
+            "rightExclusive": 318,
+            "bottomExclusive": 1659
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 8004,
+          "opaquePixels": 5901,
+          "translucentPixels": 2103,
+          "transparentPixels": 31932,
+          "rgbaSha256": "048ecebe986e73b2c1bbc9c1a5b5a3ef743a699e00caf20cb438def51f461df7",
+          "pngSha256": "fe22b7290909b3d6e5803046b161343d21059379b7fcb8d062f8e211919e8907",
+          "durationMs": 120
+        },
+        {
+          "index": 2,
+          "image": "frames/running/frame-02.png",
+          "row": 7,
+          "column": 2,
+          "atlasRect": {
+            "x": 384,
+            "y": 1456,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 576,
+            "bottomExclusive": 1664
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 64,
+            "y": 5,
+            "width": 64,
+            "height": 198,
+            "rightExclusive": 128,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 448,
+            "y": 1461,
+            "width": 64,
+            "height": 198,
+            "rightExclusive": 512,
+            "bottomExclusive": 1659
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 8096,
+          "opaquePixels": 5920,
+          "translucentPixels": 2176,
+          "transparentPixels": 31840,
+          "rgbaSha256": "cae9b051cd6a3bf7617f88106add1d907bd20b353f92e704a7e8ef884ee9903d",
+          "pngSha256": "4226045658f2723f4f8b5318ab9becb870ea27aa465ef966626aa769e72671ab",
+          "durationMs": 120
+        },
+        {
+          "index": 3,
+          "image": "frames/running/frame-03.png",
+          "row": 7,
+          "column": 3,
+          "atlasRect": {
+            "x": 576,
+            "y": 1456,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 768,
+            "bottomExclusive": 1664
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 61,
+            "y": 5,
+            "width": 69,
+            "height": 198,
+            "rightExclusive": 130,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 637,
+            "y": 1461,
+            "width": 69,
+            "height": 198,
+            "rightExclusive": 706,
+            "bottomExclusive": 1659
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 8392,
+          "opaquePixels": 6095,
+          "translucentPixels": 2297,
+          "transparentPixels": 31544,
+          "rgbaSha256": "963fcd3bf489cd7e85c0abf9159f50865ccf09de4c9aa049933922aa4005f9ae",
+          "pngSha256": "fba7a177934b111da5150c681014b0b5b2897b795cb945c4a24be38b5e047cea",
+          "durationMs": 120
+        },
+        {
+          "index": 4,
+          "image": "frames/running/frame-04.png",
+          "row": 7,
+          "column": 4,
+          "atlasRect": {
+            "x": 768,
+            "y": 1456,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 960,
+            "bottomExclusive": 1664
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 60,
+            "y": 5,
+            "width": 72,
+            "height": 198,
+            "rightExclusive": 132,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 828,
+            "y": 1461,
+            "width": 72,
+            "height": 198,
+            "rightExclusive": 900,
+            "bottomExclusive": 1659
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 8398,
+          "opaquePixels": 6128,
+          "translucentPixels": 2270,
+          "transparentPixels": 31538,
+          "rgbaSha256": "f6b173d213d2816743b6a1178b9e0d05a83f3e108e2f62e86fe760fce395bf30",
+          "pngSha256": "143a1ecb163dc2e203cc3cc6919788eb4279436a029aefe134a32a721e2a89f7",
+          "durationMs": 120
+        },
+        {
+          "index": 5,
+          "image": "frames/running/frame-05.png",
+          "row": 7,
+          "column": 5,
+          "atlasRect": {
+            "x": 960,
+            "y": 1456,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 1152,
+            "bottomExclusive": 1664
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 65,
+            "y": 5,
+            "width": 62,
+            "height": 198,
+            "rightExclusive": 127,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 1025,
+            "y": 1461,
+            "width": 62,
+            "height": 198,
+            "rightExclusive": 1087,
+            "bottomExclusive": 1659
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 8066,
+          "opaquePixels": 5966,
+          "translucentPixels": 2100,
+          "transparentPixels": 31870,
+          "rgbaSha256": "463242ef99cb2c46b17c60cee27c856944540dc4315a20ea1140ceba5c9bf0c3",
+          "pngSha256": "842cefb8751ad6bc9256d06b73a4f026be851877958c8d437888556db2bbcb5f",
+          "durationMs": 220
+        }
+      ]
+    },
+    "review": {
+      "kind": "timed-animation",
+      "row": 8,
+      "frameCount": 6,
+      "totalDurationMs": 1030,
+      "purpose": "focused inspection of completed output",
+      "frames": [
+        {
+          "index": 0,
+          "image": "frames/review/frame-00.png",
+          "row": 8,
+          "column": 0,
+          "atlasRect": {
+            "x": 0,
+            "y": 1664,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 192,
+            "bottomExclusive": 1872
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 65,
+            "y": 5,
+            "width": 62,
+            "height": 198,
+            "rightExclusive": 127,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 65,
+            "y": 1669,
+            "width": 62,
+            "height": 198,
+            "rightExclusive": 127,
+            "bottomExclusive": 1867
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 8008,
+          "opaquePixels": 5821,
+          "translucentPixels": 2187,
+          "transparentPixels": 31928,
+          "rgbaSha256": "d721eade53a106f4596cf81b1a61b36495420c0b0ca7fb93155eac6061194b37",
+          "pngSha256": "4328ff4cea245bb5ce0fe9172b90a95c91f71760d100de8b005a50d68196611a",
+          "durationMs": 150
+        },
+        {
+          "index": 1,
+          "image": "frames/review/frame-01.png",
+          "row": 8,
+          "column": 1,
+          "atlasRect": {
+            "x": 192,
+            "y": 1664,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 384,
+            "bottomExclusive": 1872
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 64,
+            "y": 5,
+            "width": 63,
+            "height": 198,
+            "rightExclusive": 127,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 256,
+            "y": 1669,
+            "width": 63,
+            "height": 198,
+            "rightExclusive": 319,
+            "bottomExclusive": 1867
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 8253,
+          "opaquePixels": 6356,
+          "translucentPixels": 1897,
+          "transparentPixels": 31683,
+          "rgbaSha256": "501053e575ad37fa5bb0a8266ed8efceb48e0c2ff4f8b20a86557fd3c959cef4",
+          "pngSha256": "bb804cbebf1a6ef3723480c5b4ccd19d5ef826ec705ca45327fae6ec5ade4eb6",
+          "durationMs": 150
+        },
+        {
+          "index": 2,
+          "image": "frames/review/frame-02.png",
+          "row": 8,
+          "column": 2,
+          "atlasRect": {
+            "x": 384,
+            "y": 1664,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 576,
+            "bottomExclusive": 1872
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 65,
+            "y": 5,
+            "width": 62,
+            "height": 198,
+            "rightExclusive": 127,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 449,
+            "y": 1669,
+            "width": 62,
+            "height": 198,
+            "rightExclusive": 511,
+            "bottomExclusive": 1867
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 8071,
+          "opaquePixels": 5933,
+          "translucentPixels": 2138,
+          "transparentPixels": 31865,
+          "rgbaSha256": "5d46de980c2835d714b8ef48b3ae44c42c0c2c1a35a2d0140cbd7886b8e9f45c",
+          "pngSha256": "efc126efa58dcd1e4844d8380a67f0c63cf6a616d784d837167a5e93feba85a9",
+          "durationMs": 150
+        },
+        {
+          "index": 3,
+          "image": "frames/review/frame-03.png",
+          "row": 8,
+          "column": 3,
+          "atlasRect": {
+            "x": 576,
+            "y": 1664,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 768,
+            "bottomExclusive": 1872
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 64,
+            "y": 5,
+            "width": 64,
+            "height": 198,
+            "rightExclusive": 128,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 640,
+            "y": 1669,
+            "width": 64,
+            "height": 198,
+            "rightExclusive": 704,
+            "bottomExclusive": 1867
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 8251,
+          "opaquePixels": 6098,
+          "translucentPixels": 2153,
+          "transparentPixels": 31685,
+          "rgbaSha256": "4512764e1a5652018fa7e4e05a4d76ae295dd8745737ccb8d1fbaa379c8e7b99",
+          "pngSha256": "de9009c34e1261a6bfd5ffe6974a5060063454c2292dcb2116783e015b0a64fc",
+          "durationMs": 150
+        },
+        {
+          "index": 4,
+          "image": "frames/review/frame-04.png",
+          "row": 8,
+          "column": 4,
+          "atlasRect": {
+            "x": 768,
+            "y": 1664,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 960,
+            "bottomExclusive": 1872
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 63,
+            "y": 5,
+            "width": 66,
+            "height": 198,
+            "rightExclusive": 129,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 831,
+            "y": 1669,
+            "width": 66,
+            "height": 198,
+            "rightExclusive": 897,
+            "bottomExclusive": 1867
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 8317,
+          "opaquePixels": 6308,
+          "translucentPixels": 2009,
+          "transparentPixels": 31619,
+          "rgbaSha256": "ca18850087a501cb07dcbe7a6da5a4b263fc1c1b25e04c9a3913e1b881476d82",
+          "pngSha256": "aab8bd6bdb75b90aef009873c522c57ea6d39c88558576de256bdb4d0bcd3095",
+          "durationMs": 150
+        },
+        {
+          "index": 5,
+          "image": "frames/review/frame-05.png",
+          "row": 8,
+          "column": 5,
+          "atlasRect": {
+            "x": 960,
+            "y": 1664,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 1152,
+            "bottomExclusive": 1872
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 62,
+            "y": 5,
+            "width": 68,
+            "height": 198,
+            "rightExclusive": 130,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 1022,
+            "y": 1669,
+            "width": 68,
+            "height": 198,
+            "rightExclusive": 1090,
+            "bottomExclusive": 1867
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 8353,
+          "opaquePixels": 6254,
+          "translucentPixels": 2099,
+          "transparentPixels": 31583,
+          "rgbaSha256": "0062535388d0ab2586da60ae149beaa8ac379d6720eecb2f8d181ae40ec789c2",
+          "pngSha256": "facd893ac51a252266452704e1fac2f8f93ea730af483ad3f509c1991cf6a973",
+          "durationMs": 280
+        }
+      ]
+    },
+    "look-directions": {
+      "kind": "directional-pose-set",
+      "frameCount": 16,
+      "order": "clockwise",
+      "zeroDegrees": "up",
+      "angularStepDegrees": 22.5,
+      "purpose": "pointer-driven gaze direction; neutral deadzone uses look-neutral",
+      "frames": [
+        {
+          "index": 0,
+          "image": "frames/look-directions/000-up.png",
+          "row": 9,
+          "column": 0,
+          "atlasRect": {
+            "x": 0,
+            "y": 1872,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 192,
+            "bottomExclusive": 2080
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 59,
+            "y": 5,
+            "width": 71,
+            "height": 198,
+            "rightExclusive": 130,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 59,
+            "y": 1877,
+            "width": 71,
+            "height": 198,
+            "rightExclusive": 130,
+            "bottomExclusive": 2075
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 9373,
+          "opaquePixels": 7055,
+          "translucentPixels": 2318,
+          "transparentPixels": 30563,
+          "rgbaSha256": "3fdd243224436c575a0f9dd8cb9c999c65c5f166cd90a5f86566035e4f5df39d",
+          "pngSha256": "650226ef7d12eae6751e8eb78c90c6fd04737d7b698fdbd5a08e0617b9ac4831",
+          "directionDegrees": "000",
+          "direction": "up"
+        },
+        {
+          "index": 1,
+          "image": "frames/look-directions/022_5-up-right.png",
+          "row": 9,
+          "column": 1,
+          "atlasRect": {
+            "x": 192,
+            "y": 1872,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 384,
+            "bottomExclusive": 2080
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 61,
+            "y": 5,
+            "width": 64,
+            "height": 198,
+            "rightExclusive": 125,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 253,
+            "y": 1877,
+            "width": 64,
+            "height": 198,
+            "rightExclusive": 317,
+            "bottomExclusive": 2075
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 8924,
+          "opaquePixels": 6722,
+          "translucentPixels": 2202,
+          "transparentPixels": 31012,
+          "rgbaSha256": "0db8fa6749781549fb3a5373813b753c8b7b6862d5a606a88d6d5c2afc50a81c",
+          "pngSha256": "093038c4e65d34051146909db0f65143533640f869670d8c7fd42ac338ec2bb0",
+          "directionDegrees": "022.5",
+          "direction": "up-right"
+        },
+        {
+          "index": 2,
+          "image": "frames/look-directions/045-up-right.png",
+          "row": 9,
+          "column": 2,
+          "atlasRect": {
+            "x": 384,
+            "y": 1872,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 576,
+            "bottomExclusive": 2080
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 61,
+            "y": 5,
+            "width": 62,
+            "height": 198,
+            "rightExclusive": 123,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 445,
+            "y": 1877,
+            "width": 62,
+            "height": 198,
+            "rightExclusive": 507,
+            "bottomExclusive": 2075
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 8446,
+          "opaquePixels": 6405,
+          "translucentPixels": 2041,
+          "transparentPixels": 31490,
+          "rgbaSha256": "64654d1eb1cc6383224683047239310a5c9e32cd97edc5e553adcacde6048f07",
+          "pngSha256": "8cdcc871ec3476d7915286d96c62961dee4bd9fc36540d774cd8e3b12f364e4a",
+          "directionDegrees": "045",
+          "direction": "up-right"
+        },
+        {
+          "index": 3,
+          "image": "frames/look-directions/067_5-up-right.png",
+          "row": 9,
+          "column": 3,
+          "atlasRect": {
+            "x": 576,
+            "y": 1872,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 768,
+            "bottomExclusive": 2080
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 66,
+            "y": 5,
+            "width": 54,
+            "height": 198,
+            "rightExclusive": 120,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 642,
+            "y": 1877,
+            "width": 54,
+            "height": 198,
+            "rightExclusive": 696,
+            "bottomExclusive": 2075
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 7022,
+          "opaquePixels": 5415,
+          "translucentPixels": 1607,
+          "transparentPixels": 32914,
+          "rgbaSha256": "bda433a577add576895df2ad1ead423252f6cdd812a9f134714f53aa5287677f",
+          "pngSha256": "23f3bdc195787152753b7336e4e17c3dbe53816a86159ee0b4d8a5cbbcf8259b",
+          "directionDegrees": "067.5",
+          "direction": "up-right"
+        },
+        {
+          "index": 4,
+          "image": "frames/look-directions/090-right.png",
+          "row": 9,
+          "column": 4,
+          "atlasRect": {
+            "x": 768,
+            "y": 1872,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 960,
+            "bottomExclusive": 2080
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 67,
+            "y": 7,
+            "width": 53,
+            "height": 196,
+            "rightExclusive": 120,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 835,
+            "y": 1879,
+            "width": 53,
+            "height": 196,
+            "rightExclusive": 888,
+            "bottomExclusive": 2075
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 6783,
+          "opaquePixels": 5224,
+          "translucentPixels": 1559,
+          "transparentPixels": 33153,
+          "rgbaSha256": "6d07c7fbd1d497e4e72f96677abb3f8d2454141d9e1ffff2253b72c3d2fe2a79",
+          "pngSha256": "ed0b85a8e20c0959a7e9a921832d68c2caca1a7cd3a9be0aec5a7959eecc673a",
+          "directionDegrees": "090",
+          "direction": "right"
+        },
+        {
+          "index": 5,
+          "image": "frames/look-directions/112_5-down-right.png",
+          "row": 9,
+          "column": 5,
+          "atlasRect": {
+            "x": 960,
+            "y": 1872,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 1152,
+            "bottomExclusive": 2080
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 68,
+            "y": 7,
+            "width": 54,
+            "height": 196,
+            "rightExclusive": 122,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 1028,
+            "y": 1879,
+            "width": 54,
+            "height": 196,
+            "rightExclusive": 1082,
+            "bottomExclusive": 2075
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 7057,
+          "opaquePixels": 5511,
+          "translucentPixels": 1546,
+          "transparentPixels": 32879,
+          "rgbaSha256": "5e90e80a66760cb60f0183cc806a94c1c2d6039f996a5235fa0f910f9fb87211",
+          "pngSha256": "fffc74973e747d52c0e5071c8168620e32b2c992aa87b34a26e3556cc37ee88a",
+          "directionDegrees": "112.5",
+          "direction": "down-right"
+        },
+        {
+          "index": 6,
+          "image": "frames/look-directions/135-down-right.png",
+          "row": 9,
+          "column": 6,
+          "atlasRect": {
+            "x": 1152,
+            "y": 1872,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 1344,
+            "bottomExclusive": 2080
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 66,
+            "y": 7,
+            "width": 56,
+            "height": 196,
+            "rightExclusive": 122,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 1218,
+            "y": 1879,
+            "width": 56,
+            "height": 196,
+            "rightExclusive": 1274,
+            "bottomExclusive": 2075
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 8088,
+          "opaquePixels": 6166,
+          "translucentPixels": 1922,
+          "transparentPixels": 31848,
+          "rgbaSha256": "e7ba72ddff4f19dac2f8bc60ed6f744e190c98a9f0ee9c7637e980145d4ee597",
+          "pngSha256": "9311476fefd3b1989b1e989e3a28325a0ac31d28d8d3c510c003127f359e8bc8",
+          "directionDegrees": "135",
+          "direction": "down-right"
+        },
+        {
+          "index": 7,
+          "image": "frames/look-directions/157_5-down-right.png",
+          "row": 9,
+          "column": 7,
+          "atlasRect": {
+            "x": 1344,
+            "y": 1872,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 1536,
+            "bottomExclusive": 2080
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 61,
+            "y": 9,
+            "width": 69,
+            "height": 194,
+            "rightExclusive": 130,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 1405,
+            "y": 1881,
+            "width": 69,
+            "height": 194,
+            "rightExclusive": 1474,
+            "bottomExclusive": 2075
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 8964,
+          "opaquePixels": 6690,
+          "translucentPixels": 2274,
+          "transparentPixels": 30972,
+          "rgbaSha256": "5e453a08d32334f0f5271bed67aa9de0fa8653f433348488e8ae7a995eba3c52",
+          "pngSha256": "948f3a208e0e2d1377b011a868dfa127b1122ce0b83c3869d60f7e15c02d6365",
+          "directionDegrees": "157.5",
+          "direction": "down-right"
+        },
+        {
+          "index": 8,
+          "image": "frames/look-directions/180-down.png",
+          "row": 10,
+          "column": 0,
+          "atlasRect": {
+            "x": 0,
+            "y": 2080,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 192,
+            "bottomExclusive": 2288
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 61,
+            "y": 7,
+            "width": 69,
+            "height": 196,
+            "rightExclusive": 130,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 61,
+            "y": 2087,
+            "width": 69,
+            "height": 196,
+            "rightExclusive": 130,
+            "bottomExclusive": 2283
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 9117,
+          "opaquePixels": 6751,
+          "translucentPixels": 2366,
+          "transparentPixels": 30819,
+          "rgbaSha256": "1dcedbb27dd1a38f48a456ac89d5975da47438fb597586fb72c0630d8a7fd373",
+          "pngSha256": "4fc5f7d325d6eaab269f54ba79f5278c0bdd58ded68ff98300bb895306f60fc9",
+          "directionDegrees": "180",
+          "direction": "down"
+        },
+        {
+          "index": 9,
+          "image": "frames/look-directions/202_5-down-left.png",
+          "row": 10,
+          "column": 1,
+          "atlasRect": {
+            "x": 192,
+            "y": 2080,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 384,
+            "bottomExclusive": 2288
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 65,
+            "y": 7,
+            "width": 62,
+            "height": 196,
+            "rightExclusive": 127,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 257,
+            "y": 2087,
+            "width": 62,
+            "height": 196,
+            "rightExclusive": 319,
+            "bottomExclusive": 2283
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 8382,
+          "opaquePixels": 6248,
+          "translucentPixels": 2134,
+          "transparentPixels": 31554,
+          "rgbaSha256": "32400d267a330e4c9f47b42f0fde26553579ebce3728ed5491ebea15eb9f5102",
+          "pngSha256": "6e5d9c49892d5f572305417f4445f1b6ea20ebadf43d2248eb477a9a912b9ec0",
+          "directionDegrees": "202.5",
+          "direction": "down-left"
+        },
+        {
+          "index": 10,
+          "image": "frames/look-directions/225-down-left.png",
+          "row": 10,
+          "column": 2,
+          "atlasRect": {
+            "x": 384,
+            "y": 2080,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 576,
+            "bottomExclusive": 2288
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 67,
+            "y": 6,
+            "width": 62,
+            "height": 197,
+            "rightExclusive": 129,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 451,
+            "y": 2086,
+            "width": 62,
+            "height": 197,
+            "rightExclusive": 513,
+            "bottomExclusive": 2283
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 8193,
+          "opaquePixels": 6128,
+          "translucentPixels": 2065,
+          "transparentPixels": 31743,
+          "rgbaSha256": "d54a892526061d3dc188342e7096dfdd2c219e7cef4e283fd4497add46c5a2fe",
+          "pngSha256": "d43b764b3f4c913915aa653ce92046516a2956d0090630bb31917824bdc32241",
+          "directionDegrees": "225",
+          "direction": "down-left"
+        },
+        {
+          "index": 11,
+          "image": "frames/look-directions/247_5-down-left.png",
+          "row": 10,
+          "column": 3,
+          "atlasRect": {
+            "x": 576,
+            "y": 2080,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 768,
+            "bottomExclusive": 2288
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 74,
+            "y": 7,
+            "width": 51,
+            "height": 196,
+            "rightExclusive": 125,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 650,
+            "y": 2087,
+            "width": 51,
+            "height": 196,
+            "rightExclusive": 701,
+            "bottomExclusive": 2283
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 6501,
+          "opaquePixels": 4962,
+          "translucentPixels": 1539,
+          "transparentPixels": 33435,
+          "rgbaSha256": "d9b817f845496d9630a240fa70ad27c46059bd90434744d00b4a47160cca34d3",
+          "pngSha256": "0a49e9e751b513caf0b6b4f402abc99f9ba834afdac81371ef43a5fdc1ce4852",
+          "directionDegrees": "247.5",
+          "direction": "down-left"
+        },
+        {
+          "index": 12,
+          "image": "frames/look-directions/270-left.png",
+          "row": 10,
+          "column": 4,
+          "atlasRect": {
+            "x": 768,
+            "y": 2080,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 960,
+            "bottomExclusive": 2288
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 75,
+            "y": 7,
+            "width": 53,
+            "height": 196,
+            "rightExclusive": 128,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 843,
+            "y": 2087,
+            "width": 53,
+            "height": 196,
+            "rightExclusive": 896,
+            "bottomExclusive": 2283
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 6527,
+          "opaquePixels": 4961,
+          "translucentPixels": 1566,
+          "transparentPixels": 33409,
+          "rgbaSha256": "1dd0aeebd6d8dd78730f7b4da5df49635abcd5fcd6981a03ce053bf965fe6a35",
+          "pngSha256": "118a185c8f430d716a3f33d42790c26629fe163c23fdc590130581f10b2d3226",
+          "directionDegrees": "270",
+          "direction": "left"
+        },
+        {
+          "index": 13,
+          "image": "frames/look-directions/292_5-up-left.png",
+          "row": 10,
+          "column": 5,
+          "atlasRect": {
+            "x": 960,
+            "y": 2080,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 1152,
+            "bottomExclusive": 2288
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 74,
+            "y": 7,
+            "width": 55,
+            "height": 196,
+            "rightExclusive": 129,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 1034,
+            "y": 2087,
+            "width": 55,
+            "height": 196,
+            "rightExclusive": 1089,
+            "bottomExclusive": 2283
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 6606,
+          "opaquePixels": 4961,
+          "translucentPixels": 1645,
+          "transparentPixels": 33330,
+          "rgbaSha256": "dbb1fbc39714da5a01ad0b57213472267cd5dde81baddde352ffeb6bb452b848",
+          "pngSha256": "f73df44b2201b478bc203c15dac9c2080a427565981aa64d3bdf2692d5c48782",
+          "directionDegrees": "292.5",
+          "direction": "up-left"
+        },
+        {
+          "index": 14,
+          "image": "frames/look-directions/315-up-left.png",
+          "row": 10,
+          "column": 6,
+          "atlasRect": {
+            "x": 1152,
+            "y": 2080,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 1344,
+            "bottomExclusive": 2288
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 65,
+            "y": 7,
+            "width": 64,
+            "height": 196,
+            "rightExclusive": 129,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 1217,
+            "y": 2087,
+            "width": 64,
+            "height": 196,
+            "rightExclusive": 1281,
+            "bottomExclusive": 2283
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 8415,
+          "opaquePixels": 6368,
+          "translucentPixels": 2047,
+          "transparentPixels": 31521,
+          "rgbaSha256": "2aa4af5a5527b6704f0f4d0c13a980cfc9932d12a565972d45cfaacf0790b24a",
+          "pngSha256": "547c2836f84842fa64bb58146dcbabc5c47262e478a38076b78000564068278e",
+          "directionDegrees": "315",
+          "direction": "up-left"
+        },
+        {
+          "index": 15,
+          "image": "frames/look-directions/337_5-up-left.png",
+          "row": 10,
+          "column": 7,
+          "atlasRect": {
+            "x": 1344,
+            "y": 2080,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 1536,
+            "bottomExclusive": 2288
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 60,
+            "y": 8,
+            "width": 68,
+            "height": 195,
+            "rightExclusive": 128,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 1404,
+            "y": 2088,
+            "width": 68,
+            "height": 195,
+            "rightExclusive": 1472,
+            "bottomExclusive": 2283
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 8945,
+          "opaquePixels": 6618,
+          "translucentPixels": 2327,
+          "transparentPixels": 30991,
+          "rgbaSha256": "9ec60ae4b72b6e5661910af6b92a8c27252e022c7aa1ee4431dedc626cfaa2a4",
+          "pngSha256": "b5f403ca980f217b8142a616d5c3f2a680a6ae4448fdddffb68c347f82c96090",
+          "directionDegrees": "337.5",
+          "direction": "up-left"
+        }
+      ]
+    },
+    "look-neutral": {
+      "kind": "still",
+      "row": 0,
+      "column": 6,
+      "frameCount": 1,
+      "purpose": "neutral pointer deadzone pose",
+      "frames": [
+        {
+          "index": 0,
+          "image": "frames/look-neutral/neutral.png",
+          "row": 0,
+          "column": 6,
+          "atlasRect": {
+            "x": 1152,
+            "y": 0,
+            "width": 192,
+            "height": 208,
+            "rightExclusive": 1344,
+            "bottomExclusive": 208
+          },
+          "size": {
+            "width": 192,
+            "height": 208
+          },
+          "alphaBoundsInCell": {
+            "x": 60,
+            "y": 5,
+            "width": 72,
+            "height": 198,
+            "rightExclusive": 132,
+            "bottomExclusive": 203
+          },
+          "alphaBoundsInAtlas": {
+            "x": 1212,
+            "y": 5,
+            "width": 72,
+            "height": 198,
+            "rightExclusive": 1284,
+            "bottomExclusive": 203
+          },
+          "baselineYInCell": 202,
+          "nonTransparentPixels": 9288,
+          "opaquePixels": 6885,
+          "translucentPixels": 2403,
+          "transparentPixels": 30648,
+          "rgbaSha256": "7a9949e71c5c724db89fc98da9b888f218682d6014d57e01a8d4e021eaefbedb",
+          "pngSha256": "eb6bf8bbf3b4a68ecd1b26e867e9fa00380a25b6687c7e9b1812389df5e46db9"
+        }
+      ]
+    }
+  },
+  "unusedCells": [
+    {
+      "row": 0,
+      "column": 7,
+      "atlasRect": {
+        "x": 1344,
+        "y": 0,
+        "width": 192,
+        "height": 208,
+        "rightExclusive": 1536,
+        "bottomExclusive": 208
+      },
+      "nonTransparentPixels": 0
+    },
+    {
+      "row": 3,
+      "column": 4,
+      "atlasRect": {
+        "x": 768,
+        "y": 624,
+        "width": 192,
+        "height": 208,
+        "rightExclusive": 960,
+        "bottomExclusive": 832
+      },
+      "nonTransparentPixels": 0
+    },
+    {
+      "row": 3,
+      "column": 5,
+      "atlasRect": {
+        "x": 960,
+        "y": 624,
+        "width": 192,
+        "height": 208,
+        "rightExclusive": 1152,
+        "bottomExclusive": 832
+      },
+      "nonTransparentPixels": 0
+    },
+    {
+      "row": 3,
+      "column": 6,
+      "atlasRect": {
+        "x": 1152,
+        "y": 624,
+        "width": 192,
+        "height": 208,
+        "rightExclusive": 1344,
+        "bottomExclusive": 832
+      },
+      "nonTransparentPixels": 0
+    },
+    {
+      "row": 3,
+      "column": 7,
+      "atlasRect": {
+        "x": 1344,
+        "y": 624,
+        "width": 192,
+        "height": 208,
+        "rightExclusive": 1536,
+        "bottomExclusive": 832
+      },
+      "nonTransparentPixels": 0
+    },
+    {
+      "row": 4,
+      "column": 5,
+      "atlasRect": {
+        "x": 960,
+        "y": 832,
+        "width": 192,
+        "height": 208,
+        "rightExclusive": 1152,
+        "bottomExclusive": 1040
+      },
+      "nonTransparentPixels": 0
+    },
+    {
+      "row": 4,
+      "column": 6,
+      "atlasRect": {
+        "x": 1152,
+        "y": 832,
+        "width": 192,
+        "height": 208,
+        "rightExclusive": 1344,
+        "bottomExclusive": 1040
+      },
+      "nonTransparentPixels": 0
+    },
+    {
+      "row": 4,
+      "column": 7,
+      "atlasRect": {
+        "x": 1344,
+        "y": 832,
+        "width": 192,
+        "height": 208,
+        "rightExclusive": 1536,
+        "bottomExclusive": 1040
+      },
+      "nonTransparentPixels": 0
+    },
+    {
+      "row": 6,
+      "column": 6,
+      "atlasRect": {
+        "x": 1152,
+        "y": 1248,
+        "width": 192,
+        "height": 208,
+        "rightExclusive": 1344,
+        "bottomExclusive": 1456
+      },
+      "nonTransparentPixels": 0
+    },
+    {
+      "row": 6,
+      "column": 7,
+      "atlasRect": {
+        "x": 1344,
+        "y": 1248,
+        "width": 192,
+        "height": 208,
+        "rightExclusive": 1536,
+        "bottomExclusive": 1456
+      },
+      "nonTransparentPixels": 0
+    },
+    {
+      "row": 7,
+      "column": 6,
+      "atlasRect": {
+        "x": 1152,
+        "y": 1456,
+        "width": 192,
+        "height": 208,
+        "rightExclusive": 1344,
+        "bottomExclusive": 1664
+      },
+      "nonTransparentPixels": 0
+    },
+    {
+      "row": 7,
+      "column": 7,
+      "atlasRect": {
+        "x": 1344,
+        "y": 1456,
+        "width": 192,
+        "height": 208,
+        "rightExclusive": 1536,
+        "bottomExclusive": 1664
+      },
+      "nonTransparentPixels": 0
+    },
+    {
+      "row": 8,
+      "column": 6,
+      "atlasRect": {
+        "x": 1152,
+        "y": 1664,
+        "width": 192,
+        "height": 208,
+        "rightExclusive": 1344,
+        "bottomExclusive": 1872
+      },
+      "nonTransparentPixels": 0
+    },
+    {
+      "row": 8,
+      "column": 7,
+      "atlasRect": {
+        "x": 1344,
+        "y": 1664,
+        "width": 192,
+        "height": 208,
+        "rightExclusive": 1536,
+        "bottomExclusive": 1872
+      },
+      "nonTransparentPixels": 0
+    }
+  ],
+  "qa": {
+    "contactSheet": "qa/contact-sheet.png",
+    "lookDirections": "qa/look-directions.png",
+    "blindDirectionPairs": "qa/direction-blind-pairs.png",
+    "blindDirectionValidation": "qa/direction-blind-validation.json",
+    "directionSemantics": "qa/direction-semantics.json",
+    "atlasValidation": "qa/atlas-validation.json",
+    "runSummary": "qa/run-summary.json",
+    "previewsDirectory": "qa/previews",
+    "files": [
+      "atlas-layout.json",
+      "atlas-validation.json",
+      "cardinal-anchors.json",
+      "chroma-despill.json",
+      "contact-sheet.png",
+      "direction-blind-answer-key.json",
+      "direction-blind-pairs.png",
+      "direction-blind-validation.json",
+      "direction-blind-verdicts-1.json",
+      "direction-blind-verdicts-2.json",
+      "direction-blind-verdicts-3.json",
+      "direction-blind-verdicts.json",
+      "direction-semantics.json",
+      "look-continuity.json",
+      "look-directions.png",
+      "look-mechanics.md",
+      "look-row-10-semantics.json",
+      "look-row-9-registration.json",
+      "look-row-9-semantics.json",
+      "pet-request.json",
+      "review.json",
+      "run-summary.json",
+      "source-analysis.md"
+    ]
+  }
+}

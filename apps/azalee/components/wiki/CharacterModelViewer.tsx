@@ -19,50 +19,12 @@ interface CharacterModelViewerProps {
 	inline?: boolean;
 }
 
-// Bundle <model-viewer> auto-hébergé (public/vendor) — pas de dépendance npm ni de
-// CDN tiers (CSP reste script-src 'self'). Chargé une seule fois, à l'ouverture.
-const MODEL_VIEWER_SRC = "/vendor/model-viewer.min.js";
-
-let modelViewerLoading: Promise<void> | null = null;
-
-function loadModelViewer(): Promise<void> {
-	if (typeof window === "undefined") {
-		return Promise.resolve();
-	}
-	if (window.customElements?.get("model-viewer")) {
-		return Promise.resolve();
-	}
-	if (modelViewerLoading) {
-		return modelViewerLoading;
-	}
-
-	const existing = document.querySelector<HTMLScriptElement>(
-		`script[src="${MODEL_VIEWER_SRC}"]`
-	);
-	if (existing) {
-		modelViewerLoading = window.customElements.whenDefined("model-viewer").then(() => {});
-		return modelViewerLoading;
-	}
-
-	modelViewerLoading = new Promise<void>((resolve, reject) => {
-		const script = document.createElement("script");
-		script.src = MODEL_VIEWER_SRC;
-		script.async = true;
-		script.addEventListener("load", () => {
-			window.customElements.whenDefined("model-viewer").then(() => resolve(), reject);
-		});
-		script.addEventListener("error", () => {
-			modelViewerLoading = null;
-			reject(new Error("model-viewer load failed"));
-		});
-		document.head.appendChild(script);
-	});
-	return modelViewerLoading;
-}
+import { loadModelViewer } from "../../lib/model-viewer-loader";
 
 export default function CharacterModelViewer({ glbUrl, name, inline }: CharacterModelViewerProps) {
 	const [open, setOpen] = useState(false);
 	const [ready, setReady] = useState(false);
+	const [loaded, setLoaded] = useState(false);
 	const [errored, setErrored] = useState(false);
 	const containerRef = useRef<HTMLDivElement>(null);
 	// En mode inline, le viewer est toujours « ouvert » (rendu direct, sans dialog).
@@ -99,6 +61,9 @@ export default function CharacterModelViewer({ glbUrl, name, inline }: Character
 			return;
 		}
 		const host = containerRef.current;
+		setErrored(false);
+		setLoaded(false);
+		let cancelled = false;
 		host.innerHTML = "";
 		const mv = document.createElement("model-viewer");
 		mv.setAttribute("alt", `Modèle 3D de ${name ?? "personnage"}`);
@@ -114,19 +79,21 @@ export default function CharacterModelViewer({ glbUrl, name, inline }: Character
 
 		// Enregistre les écouteurs d'événements AVANT de définir la source (src),
 		// pour éviter les conditions de concurrence si le modèle est déjà en cache.
-		mv.addEventListener("error", () => setErrored(true));
+		mv.addEventListener("load", () => { if (!cancelled) setLoaded(true); });
+		mv.addEventListener("error", () => { if (!cancelled) setErrored(true); });
 
 		mv.setAttribute("src", glbUrl);
 
 		host.appendChild(mv);
 		return () => {
+			cancelled = true;
 			host.innerHTML = "";
 		};
 	}, [active, ready, glbUrl, name]);
 
 	// Bouton de téléchargement du GLB (assemblage complet texturé) — affiché dès que le
 	// modèle est chargé sans erreur. Couvre tous les usages du viewer (perso, keshin, cut-in).
-	const downloadBtn = ready && !errored && (
+	const downloadBtn = loaded && !errored && (
 		<a
 			href={glbUrl}
 			download={`${name ?? "modele"}.glb`}
@@ -142,7 +109,7 @@ export default function CharacterModelViewer({ glbUrl, name, inline }: Character
 	const viewerBody = (
 		<div className="aspect-[3/4] relative bg-surface-container-high rounded-xl overflow-hidden">
 			<div ref={containerRef} className="absolute inset-0" />
-			{!ready && !errored && (
+			{!loaded && !errored && (
 				<div className="absolute inset-0 flex items-center justify-center bg-surface/50">
 					<div className="animate-spin rounded-full size-8 border-b-2 border-primary" />
 				</div>
@@ -153,7 +120,7 @@ export default function CharacterModelViewer({ glbUrl, name, inline }: Character
 				</div>
 			)}
 			{downloadBtn}
-			{ready && !errored && (
+			{loaded && !errored && (
 				<div className="absolute bottom-3 left-0 right-0 text-center pointer-events-none">
 					<span className="text-xs text-on-surface-variant/60 bg-surface/40 px-2 py-1 rounded">
 						Glissez pour tourner · molette pour zoomer
@@ -194,7 +161,7 @@ export default function CharacterModelViewer({ glbUrl, name, inline }: Character
 				<div className="aspect-[3/4] relative bg-surface-container-high">
 					<div ref={containerRef} className="absolute inset-0" />
 
-					{!ready && !errored && (
+					{!loaded && !errored && (
 						<div className="absolute inset-0 flex items-center justify-center bg-surface/50">
 							<div className="animate-spin rounded-full size-8 border-b-2 border-primary" />
 						</div>
@@ -208,7 +175,7 @@ export default function CharacterModelViewer({ glbUrl, name, inline }: Character
 						</div>
 					)}
 
-					{ready && !errored && (
+					{loaded && !errored && (
 						<a
 							href={glbUrl}
 							download={`${name ?? "modele"}.glb`}
@@ -219,7 +186,7 @@ export default function CharacterModelViewer({ glbUrl, name, inline }: Character
 						</a>
 					)}
 
-					{ready && !errored && (
+					{loaded && !errored && (
 						<div className="absolute bottom-3 left-0 right-0 text-center pointer-events-none">
 							<span className="text-xs text-on-surface-variant/60 bg-surface/40 px-2 py-1 rounded">
 								Glissez pour tourner · molette pour zoomer

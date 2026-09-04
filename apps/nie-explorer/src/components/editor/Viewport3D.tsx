@@ -126,6 +126,12 @@ function disposeAsset(state: GlState, key: string) {
     state.gizmoTarget = null;
   }
   state.scene.remove(group);
+  disposeObject(group);
+  state.assets.delete(key);
+}
+
+/** Libère également un chargement terminé après l'annulation de sa requête. */
+function disposeObject(group: THREE.Object3D) {
   group.traverse((o) => {
     const mesh = o as THREE.Mesh;
     if (mesh.geometry) mesh.geometry.dispose();
@@ -133,7 +139,6 @@ function disposeAsset(state: GlState, key: string) {
     if (Array.isArray(mat)) mat.forEach(disposeMaterial);
     else if (mat) disposeMaterial(mat as THREE.Material);
   });
-  state.assets.delete(key);
 }
 
 /** Cadre la caméra sur la boîte englobante de TOUS les assets — sans ça, un modèle de 2 unités et
@@ -333,6 +338,8 @@ export function Viewport3D({
       renderer.domElement.removeEventListener("webglcontextrestored", onContextRestored);
       observer.disconnect();
       for (const key of [...state.assets.keys()]) disposeAsset(state, key);
+      if (state.selectionBox) disposeObject(state.selectionBox);
+      disposeObject(grid);
       gizmo.detach();
       scene.remove(gizmoHelper);
       gizmoHelper.dispose();
@@ -356,6 +363,7 @@ export function Viewport3D({
 
     const missing = assetsRef.current.filter((a) => !state.assets.has(a.key));
     if (missing.length === 0) {
+      setLoading(false);
       rebuildOutline(false);
       return;
     }
@@ -385,7 +393,10 @@ export function Viewport3D({
           buffer,
           "",
           (gltf) => {
-            if (cancelled || !gl.current) return;
+            if (cancelled || gl.current !== state) {
+              disposeObject(gltf.scene);
+              return;
+            }
             try {
               gltf.scene.userData.nieAsset = asset.key;
               gl.current.scene.add(gltf.scene);
@@ -554,9 +565,39 @@ export function Viewport3D({
     onSelect?.(hit ? (hit.object.userData.nieId as string) ?? null : null);
   }
 
+  function setCameraView(direction: "front" | "side" | "back") {
+    const state = gl.current;
+    if (!state || state.assets.size === 0) return;
+    const box = new THREE.Box3();
+    for (const object of state.assets.values()) box.union(new THREE.Box3().setFromObject(object));
+    if (box.isEmpty()) return;
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const halfHeight = size.y / 2;
+    const halfWidth = (direction === "side" ? size.z : size.x) / 2;
+    const halfDepth = (direction === "side" ? size.x : size.z) / 2;
+    const tangent = Math.tan(THREE.MathUtils.degToRad(state.camera.fov / 2));
+    const distance = Math.max(halfHeight / tangent, halfWidth / (tangent * state.camera.aspect), 0.01) * 1.15 + halfDepth;
+    state.controls.target.copy(center);
+    state.camera.position.copy(center).add(
+      direction === "side" ? new THREE.Vector3(distance, 0, 0) : new THREE.Vector3(0, 0, direction === "back" ? -distance : distance),
+    );
+    state.controls.update();
+  }
+
   return (
     <div className={className} style={{ position: "relative" }}>
       <div ref={hostRef} className="h-full w-full" onPointerDown={onPointerDown} />
+      {assets.length > 0 && !loading && !error && (
+        <div className="absolute bottom-2 left-2 flex gap-1" aria-label="Orientation de la caméra">
+          {([["front", "Face"], ["side", "Côté"], ["back", "Dos"]] as const).map(([direction, label]) => (
+            <button key={direction} type="button" onClick={() => setCameraView(direction)}
+              className="rounded border border-app-line bg-app-box/90 px-2 py-1 text-xs text-ink hover:bg-app-selected">
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
       {loading && (
         <div className="pointer-events-none absolute left-3 top-3 rounded-md bg-app-box/80 px-2 py-1 text-tiny text-ink-dull">
           chargement du modèle…

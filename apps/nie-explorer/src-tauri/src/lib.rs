@@ -3266,7 +3266,7 @@ fn summarize_names(names: &[String]) -> String {
 /// entre [`vfs_glb_preview_png_b64`] (vue fixe) et [`vfs_glb_preview_turntable_mp4_b64`] (rotation
 /// §2.3 roadmap), pour ne pas dupliquer la résolution de frères/assemblage.
 pub(crate) fn assemble_glb_for_preview(vfs: &nie_formats::vfs::Vfs, path: &str) -> Result<(String, Vec<u8>), String> {
-    use nie_formats::assemble::{assemble_generic_model, EmbeddedTexture, GenericModelInput, MeshComponent};
+    use nie_formats::assemble::{assemble_generic_model, GenericModelInput, MeshComponent};
 
     let data = vfs.read(path).map_err(|e| e.to_string())?;
 
@@ -3293,12 +3293,36 @@ pub(crate) fn assemble_glb_for_preview(vfs: &nie_formats::vfs::Vfs, path: &str) 
     let mut model = assemble_generic_model(GenericModelInput { code: stem.to_string(), g4md, g4mg, component: MeshComponent::Generic })
         .map_err(|e| format!("assemblage GLB : {e}"))?;
 
-    let png = sibling("g4tx").and_then(|g4tx| nie_formats::g4tx_decode::decode_best_to_png(&g4tx, stem));
-    if let Some(png) = png {
-        model.embedded_textures.push(EmbeddedTexture { component: MeshComponent::Generic, name: format!("{stem}_tex"), png_bytes: png });
+    model.strict_materials = true;
+    if let Some(g4tx) = sibling("g4tx").or_else(|| {
+        vfs.read(&format!("{dir_prefix}{stem}.g4tx").replace("/common/", "/dx11/")).ok()
+    }) {
+        bind_preview_textures(&mut model, &g4tx, stem);
     }
 
     Ok((stem.to_string(), model.to_glb_embedded()))
+}
+
+/// Les cheveux, yeux et bouche partagent un conteneur, pas nécessairement une image.
+/// Une correspondance manquante reste neutre grâce au mode strict.
+fn bind_preview_textures(model: &mut nie_formats::assemble::AssembledModel, g4tx: &[u8], stem: &str) {
+    use nie_formats::assemble::{avatar_texture_name, EmbeddedTexture};
+    let mut seen = std::collections::HashSet::new();
+    model.strict_materials = true;
+    for primitive in &model.primitives {
+        let material = &primitive.material_name;
+        if !seen.insert(material.clone()) { continue; }
+        let base = avatar_texture_name(material);
+        let facial_atlas = format!("{stem}_10");
+        let texture = if matches!(base, "eye_10" | "mouth_10") { facial_atlas.as_str() } else { base };
+        if let Some(png_bytes) = nie_formats::g4tx_decode::decode_named_to_png(g4tx, texture) {
+            model.embedded_textures.push(EmbeddedTexture {
+                component: primitive.component,
+                name: material.clone(),
+                png_bytes,
+            });
+        }
+    }
 }
 
 /// Même logique que [`assemble_glb_for_preview`] (résolution de frères g4mg/g4tx + assemblage
@@ -3309,7 +3333,7 @@ pub(crate) fn assemble_glb_for_preview(vfs: &nie_formats::vfs::Vfs, path: &str) 
 /// chemin VFS complet : un CPK brut ouvert hors VFS n'a pas de préfixe `data/...` fiable, mais
 /// `CpkEntry` porte déjà `directory`/`filename` séparément — pas besoin de reconstruire un chemin.
 fn assemble_glb_from_cpk_entries(data: &[u8], reader: &CpkReader, entry: &CpkEntry) -> Result<(String, Vec<u8>), String> {
-    use nie_formats::assemble::{assemble_generic_model, EmbeddedTexture, GenericModelInput, MeshComponent};
+    use nie_formats::assemble::{assemble_generic_model, GenericModelInput, MeshComponent};
 
     let stem = entry.filename.rsplit_once('.').map(|(s, _)| s).unwrap_or(&entry.filename).to_string();
     let sibling = |ext: &str| -> Option<Vec<u8>> {
@@ -3327,9 +3351,9 @@ fn assemble_glb_from_cpk_entries(data: &[u8], reader: &CpkReader, entry: &CpkEnt
     let mut model = assemble_generic_model(GenericModelInput { code: stem.clone(), g4md, g4mg, component: MeshComponent::Generic })
         .map_err(|e| format!("assemblage GLB : {e}"))?;
 
-    let png = sibling("g4tx").and_then(|g4tx| nie_formats::g4tx_decode::decode_best_to_png(&g4tx, &stem));
-    if let Some(png) = png {
-        model.embedded_textures.push(EmbeddedTexture { component: MeshComponent::Generic, name: format!("{stem}_tex"), png_bytes: png });
+    model.strict_materials = true;
+    if let Some(g4tx) = sibling("g4tx") {
+        bind_preview_textures(&mut model, &g4tx, &stem);
     }
 
     Ok((stem, model.to_glb_embedded()))
@@ -3657,10 +3681,14 @@ const RENDER3D_SIZE: u32 = 512;
 /// les ressources.
 #[tauri::command]
 #[specta::specta]
-fn vfs_glb_bytes_b64(path: String, game_dir: Option<String>, state: tauri::State<VfsState>) -> Result<String, String> {
-    let root = resolve_root(game_dir.as_deref());
-    let (_stem, glb) = with_vfs(Some(root.display().to_string()), &state, |vfs| assemble_glb_for_preview(vfs, &path))?;
-    Ok(base64::engine::general_purpose::STANDARD.encode(&glb))
+async fn vfs_glb_bytes_b64(path: String, game_dir: Option<String>, state: tauri::State<'_, VfsState>) -> Result<String, String> {
+    let vfs = vfs_partage(game_dir, &state)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let (_stem, glb) = assemble_glb_for_preview(&vfs, &path)?;
+        Ok(base64::engine::general_purpose::STANDARD.encode(&glb))
+    })
+    .await
+    .map_err(|error| format!("Assemblage 3D interrompu : {error}"))?
 }
 
 // ─── Clips d'animation (G4MT dans les G4PK frères) — LISTE SEULE ────────────────────────────

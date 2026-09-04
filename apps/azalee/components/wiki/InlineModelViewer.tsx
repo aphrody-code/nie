@@ -8,40 +8,7 @@ interface InlineModelViewerProps {
 	name?: string;
 }
 
-// Bundle <model-viewer> auto-hébergé (public/vendor) — pas de dépendance npm ni de CDN
-// tiers (la CSP reste script-src 'self'). Chargé une seule fois pour toute la page.
-const MODEL_VIEWER_SRC = "/vendor/model-viewer.min.js";
-
-let modelViewerLoading: Promise<void> | null = null;
-
-function loadModelViewer(): Promise<void> {
-	if (typeof window === "undefined") return Promise.resolve();
-	if (window.customElements?.get("model-viewer")) return Promise.resolve();
-	if (modelViewerLoading) return modelViewerLoading;
-
-	const existing = document.querySelector<HTMLScriptElement>(
-		`script[src="${MODEL_VIEWER_SRC}"]`
-	);
-	if (existing) {
-		modelViewerLoading = window.customElements.whenDefined("model-viewer").then(() => {});
-		return modelViewerLoading;
-	}
-
-	modelViewerLoading = new Promise<void>((resolve, reject) => {
-		const script = document.createElement("script");
-		script.src = MODEL_VIEWER_SRC;
-		script.async = true;
-		script.addEventListener("load", () => {
-			window.customElements.whenDefined("model-viewer").then(() => resolve(), reject);
-		});
-		script.addEventListener("error", () => {
-			modelViewerLoading = null;
-			reject(new Error("model-viewer load failed"));
-		});
-		document.head.appendChild(script);
-	});
-	return modelViewerLoading;
-}
+import { loadModelViewer } from "../../lib/model-viewer-loader";
 
 /**
  * Viewer 3D **inline** d'un GLB texturé (vrai `<model-viewer>` natif, pas une icône
@@ -80,6 +47,7 @@ export default function InlineModelViewer({ glbUrl, name }: InlineModelViewerPro
 			return;
 		}
 		let cancelled = false;
+		setReady(false);
 		setErrored(false);
 		loadModelViewer()
 			.then(() => {
@@ -114,6 +82,7 @@ export default function InlineModelViewer({ glbUrl, name }: InlineModelViewerPro
 			.catch(() => !cancelled && setErrored(true));
 		return () => {
 			cancelled = true;
+			host.replaceChildren();
 		};
 	}, [visible, glbUrl, name]);
 

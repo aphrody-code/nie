@@ -122,12 +122,16 @@ pub fn parse(data: &[u8]) -> Result<Model> {
 
     // Lit un accessor scalaire/vecteur en f32 (composantes consécutives).
     let read_floats = |acc_idx: usize, ncomp: usize| -> Result<Vec<f32>> {
-        let acc = &accessors[acc_idx];
-        let bv = &views[acc["bufferView"].as_u64().context("bufferView")? as usize];
+        let acc = accessors.get(acc_idx).context("accessor hors limites")?;
+        let bv = views.get(acc["bufferView"].as_u64().context("bufferView")? as usize)
+            .context("bufferView hors limites")?;
         let comp_ty = acc["componentType"].as_u64().context("componentType")?;
         let count = acc["count"].as_u64().context("count")? as usize;
-        let base = bv["byteOffset"].as_u64().unwrap_or(0) as usize
-            + acc["byteOffset"].as_u64().unwrap_or(0) as usize;
+        let view_start = bv["byteOffset"].as_u64().unwrap_or(0) as usize;
+        let view_end = view_start.checked_add(bv["byteLength"].as_u64().context("byteLength")? as usize)
+            .context("bufferView déborde")?;
+        let base = view_start.checked_add(acc["byteOffset"].as_u64().unwrap_or(0) as usize)
+            .context("offset accessor déborde")?;
         let comp_sz = match comp_ty {
             5126 => 4,
             5125 => 4,
@@ -136,6 +140,14 @@ pub fn parse(data: &[u8]) -> Result<Model> {
             other => bail!("componentType {other} non géré"),
         };
         let stride = bv["byteStride"].as_u64().map(|s| s as usize).unwrap_or(ncomp * comp_sz);
+        let element_size = ncomp * comp_sz;
+        let end = if count == 0 { base } else {
+            (count - 1).checked_mul(stride).and_then(|n| base.checked_add(n))
+                .and_then(|n| n.checked_add(element_size)).context("taille accessor déborde")?
+        };
+        if stride < element_size || end > view_end || view_end > bin.len() {
+            bail!("accessor hors du bufferView ou du chunk BIN");
+        }
         let mut out = Vec::with_capacity(count * ncomp);
         for i in 0..count {
             let p = base + i * stride;
@@ -159,10 +171,11 @@ pub fn parse(data: &[u8]) -> Result<Model> {
     if let Some(imgs) = root["images"].as_array() {
         for im in imgs {
             let bvi = im["bufferView"].as_u64().context("image bufferView")? as usize;
-            let bv = &views[bvi];
+            let bv = views.get(bvi).context("image bufferView hors limites")?;
             let bo = bv["byteOffset"].as_u64().unwrap_or(0) as usize;
             let bl = bv["byteLength"].as_u64().context("image byteLength")? as usize;
-            textures.push(decode_png(&bin[bo..bo + bl])?);
+            let end = bo.checked_add(bl).context("image déborde")?;
+            textures.push(decode_png(bin.get(bo..end).context("image hors du chunk BIN")?)?);
         }
     }
 
@@ -193,6 +206,9 @@ pub fn parse(data: &[u8]) -> Result<Model> {
                 .as_u64()
                 .and_then(|mi| material_image(&root, mi as usize))
                 .filter(|&src| src < textures.len());
+            if indices.iter().any(|&i| i as usize >= positions.len()) {
+                bail!("indice de sommet hors limites");
+            }
             primitives.push(Primitive { positions, normals, uv, indices, texture });
         }
     }
@@ -205,6 +221,44 @@ pub fn parse(data: &[u8]) -> Result<Model> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn fixture(root: Value) -> Vec<u8> {
+        let mut json = serde_json::to_vec(&root).unwrap();
+        while !json.len().is_multiple_of(4) { json.push(b' '); }
+        let mut data = b"glTF".to_vec();
+        data.extend_from_slice(&2u32.to_le_bytes());
+        data.extend_from_slice(&((12 + 8 + json.len() + 8 + 12) as u32).to_le_bytes());
+        data.extend_from_slice(&(json.len() as u32).to_le_bytes());
+        data.extend_from_slice(&0x4E4F_534Au32.to_le_bytes());
+        data.extend(json);
+        data.extend_from_slice(&12u32.to_le_bytes());
+        data.extend_from_slice(&0x004E_4942u32.to_le_bytes());
+        data.extend_from_slice(&[0; 12]);
+        data
+    }
+
+    #[test]
+    fn rejette_accessors_et_images_hors_limites_sans_panique() {
+        let root = serde_json::json!({
+            "accessors": [{"bufferView": 0, "componentType": 5126, "count": 1, "type": "VEC3"}],
+            "bufferViews": [{"byteLength": 12}],
+            "meshes": [{"primitives": [{"attributes": {"POSITION": 0}}]}]
+        });
+        assert!(parse(&fixture(root.clone())).is_ok());
+        for (pointer, value) in [
+            ("/meshes/0/primitives/0/attributes/POSITION", 99),
+            ("/accessors/0/bufferView", 99),
+            ("/accessors/0/count", 2),
+            ("/bufferViews/0/byteLength", 4),
+        ] {
+            let mut invalid = root.clone();
+            *invalid.pointer_mut(pointer).unwrap() = serde_json::json!(value);
+            assert!(parse(&fixture(invalid)).is_err(), "{pointer}");
+        }
+        let mut invalid = root;
+        invalid["images"] = serde_json::json!([{"bufferView": 99}]);
+        assert!(parse(&fixture(invalid)).is_err());
+    }
 
     #[test]
     fn rejette_non_glb() {

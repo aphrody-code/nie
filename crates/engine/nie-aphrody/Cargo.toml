@@ -1,0 +1,18 @@
+[package]
+name = "nie-aphrody"
+description = "Runtime typé du pet Codex Aphrody v2 : atlas RGBA, animations et directions"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+png = "0.18"
+
