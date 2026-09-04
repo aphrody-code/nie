@@ -826,6 +826,18 @@ export const commands = {
 	 */
 	forgeBlockers: (root: string | null, limit: number | null) => typedError<ForgeBlockerDto[], string>(__TAURI_INVOKE("forge_blockers", { root, limit })),
 	/**
+	 *  Lit un fichier texte du dépôt.
+	 * 
+	 *  `max_octets` plafonne la lecture (défaut 256 Kio, plafond dur 8 Mio).
+	 */
+	depotLire: (racine: string | null, chemin: string, maxOctets: number | null) => typedError<FichierDepotDto, string>(__TAURI_INVOKE("depot_lire", { racine, chemin, maxOctets })),
+	/**  Liste les entrées immédiates d'un dossier du dépôt (dossiers d'abord). */
+	depotLister: (racine: string | null, chemin: string | null) => typedError<EntreeDepotDto[], string>(__TAURI_INVOKE("depot_lister", { racine, chemin })),
+	/**  Cherche des fichiers du dépôt par sous-chaîne de chemin. */
+	depotTrouver: (racine: string | null, motif: string, sousDossier: string | null, extensions: string[] | null, globs: string[] | null, limite: number | null, sensibleCasse: boolean | null) => typedError<string[], string>(__TAURI_INVOKE("depot_trouver", { racine, motif, sousDossier, extensions, globs, limite, sensibleCasse })),
+	/**  Cherche une expression régulière dans le contenu des fichiers du dépôt. */
+	depotChercher: (racine: string | null, motif: string, sousDossier: string | null, extensions: string[] | null, globs: string[] | null, limite: number | null, sensibleCasse: boolean | null) => typedError<CorrespondanceDto[], string>(__TAURI_INVOKE("depot_chercher", { racine, motif, sousDossier, extensions, globs, limite, sensibleCasse })),
+	/**
 	 *  Cherche le process `nie.exe`/`nie_eacpatched.exe` en cours d'exécution. `None` si le jeu n'est
 	 *  pas lancé — jamais d'attache silencieuse ni de retry en boucle.
 	 */
@@ -1194,6 +1206,16 @@ export type ClipCameraDto = {
 	index: number,
 };
 
+/**  Une ligne trouvée par [`depot_chercher`]. */
+export type CorrespondanceDto = {
+	/**  Chemin relatif à la racine du dépôt. */
+	chemin: string,
+	/**  Numéro de ligne, à partir de 1. */
+	ligne: number,
+	/**  Texte de la ligne, sans le saut de ligne final. */
+	texte: string,
+};
+
 /**
  *  Une entrée à empaqueter dans un `.cpk` exporté (§1.2 roadmap) — `vfs_path` sert à dériver
  *  `directory`/`filename` (même convention que [`nie_formats::cpk::CpkEntry`] en lecture),
@@ -1292,6 +1314,18 @@ export type EmblemDto = {
 	is_template: boolean,
 };
 
+/**  Une entrée de dossier du dépôt. */
+export type EntreeDepotDto = {
+	/**  Chemin relatif à la racine du dépôt. */
+	chemin: string,
+	/**  Nom seul de l'entrée. */
+	nom: string,
+	/**  Vrai pour un dossier. */
+	dossier: boolean,
+	/**  Taille en octets (0 pour un dossier). */
+	taille: number,
+};
+
 export type EntryDto = {
 	path: string,
 	name: string,
@@ -1339,6 +1373,22 @@ export type ExportFormatDto = {
 	brut: boolean,
 	/**  Faux quand la conversion peut dégrader (JPEG, GIF). */
 	sans_perte: boolean,
+};
+
+/**  Un fichier du dépôt, lu ou décrit. */
+export type FichierDepotDto = {
+	/**  Chemin relatif à la racine du dépôt, séparateurs `/`. */
+	chemin: string,
+	/**  Taille totale du fichier en octets. */
+	taille: number,
+	/**  Vrai si le contenu s'arrête avant la fin du fichier. */
+	tronque: boolean,
+	/**  Vrai si le fichier est binaire ; le contenu n'est alors pas renvoyé. */
+	binaire: boolean,
+	/**  Contenu textuel, absent pour un binaire ou au-delà du plafond. */
+	contenu: string | null,
+	/**  Explication lisible quand le contenu manque. */
+	note: string | null,
 };
 
 /**

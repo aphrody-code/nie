@@ -17,6 +17,7 @@ mod camera_nav;
 mod live_mod;
 mod lua_session;
 mod lua_tools;
+mod depot;
 mod export;
 mod forge;
 pub mod game_data;
@@ -4615,6 +4616,10 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         trash_appdata_files,
         forge::forge_report,
         forge::forge_blockers,
+        depot::depot_lire,
+        depot::depot_lister,
+        depot::depot_trouver,
+        depot::depot_chercher,
         re_trace_find_process,
         re_trace_module_regions,
         re_trace_read_bytes_b64,
