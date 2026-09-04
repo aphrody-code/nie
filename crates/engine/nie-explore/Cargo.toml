@@ -11,6 +11,11 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
+anyhow.workspace = true
+globset.workspace = true
+grep-regex.workspace = true
+grep-searcher.workspace = true
+ignore.workspace = true
 nie-formats = { workspace = true, features = ["serde", "textures", "images", "audio-decode"] }
 # Introspection best-effort des scripts `.lua.bin` (VM Lua 5.2 réelle, mlua vendored) —
 # stubs tous les globals hôtes et collecte ceux référencés, sans jamais exécuter la vraie
