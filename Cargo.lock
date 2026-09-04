@@ -4173,7 +4173,7 @@ checksum = "650eef8c711430f1a879fdd01d4745a7deea475becfb90269c06775983bbf086"
 
 [[package]]
 name = "nie-aphrody"
-version = "0.5.8"
+version = "0.5.6"
 dependencies = [
  "png",
  "serde",
@@ -4309,6 +4309,11 @@ dependencies = [
 name = "nie-explore"
 version = "0.5.6"
 dependencies = [
+ "anyhow",
+ "globset",
+ "grep-regex",
+ "grep-searcher",
+ "ignore",
  "nie-data",
  "nie-formats",
  "nie-lua",
