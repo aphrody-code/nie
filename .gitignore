@@ -252,6 +252,7 @@ mods/
 !.claude/
 .claude/*
 !.claude/settings.json
+!.claude/shell-init.sh
 !.claude/hooks/
 !.claude/hooks/*.sh
 !.claude/commands/
