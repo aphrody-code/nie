@@ -37,7 +37,11 @@ fn parse_addr(s: &str) -> Result<i64, String> {
 }
 
 #[derive(Parser)]
-#[command(name = "niers", about = "Boucle RE + réimplémentation Rust d'Inazuma Eleven: Victory Road")]
+#[command(
+    name = "niers",
+    version,
+    about = "Boucle RE + réimplémentation Rust d'Inazuma Eleven: Victory Road"
+)]
 struct Cli {
     #[command(subcommand)]
     cmd: Cmd,

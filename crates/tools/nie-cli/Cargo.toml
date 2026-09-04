@@ -6,10 +6,16 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+publish = false
 
 [[bin]]
 name = "niers"
 path = "src/main.rs"
+
+[package.metadata.aphrody-package]
+binary = "niers"
+install-package = "nie-cli"
+supported-os = ["linux", "macos", "windows"]
 
 [lints]
 workspace = true

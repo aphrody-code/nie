@@ -205,3 +205,12 @@ rights to reverse-engineer, port, and build mods and tooling for the game.
 ---
 
 Built by Rose Griffon · <https://github.com/aphrody-code/nie>
+
+## Future vitrine Rust
+
+`nie.aphrody.com` est réservé à une vitrine Axum/Tokio 100 % Rust intégrée à ce
+workspace. Elle présentera uniquement les résultats reproductibles et les
+contenus Inazuma Eleven dont l'exploitation et la diffusion sont autorisées par
+l'Accord Commercial Officiel N° RG-L5-VR-2026-001, y compris les assets prévus
+par celui-ci. Aucune donnée personnelle ni aucun secret ne sera publié. Les
+règles de construction et de sécurité sont définies dans [`AGENTS.md`](AGENTS.md).

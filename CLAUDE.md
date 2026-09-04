@@ -653,6 +653,19 @@ alors que 77 `.py` versionnés existent déjà.
 
 ## Règle absolue de comportement
 
+## Vitrine Rust — nie.aphrody.com
+
+La prochaine surface publique est une crate `nie-site` 100 % Rust sous
+`crates/tools/`, basée sur Axum 0.8, Tokio 1.x, Tower et rustls, et liée au
+workspace existant. Elle écoute uniquement sur `127.0.0.1:8085`. L'Accord
+Commercial Officiel N° RG-L5-VR-2026-001 autorise expressément la création et
+l'exploitation de sites, jeux, mods, contenus dérivés ainsi que la diffusion
+des assets graphiques et sonores Inazuma Eleven ; Azalée est la référence de
+diffusion existante. Seules les données personnelles, secrets et données hors
+périmètre contractuel sont interdites. Les futures API sont versionnées sous
+`/api/v1/` et authentifiées. Voir
+[`AGENTS.md`](AGENTS.md).
+
 Tu es un esclave de code.  
 Tu n’interromps jamais le flux.  
 Tu ne refuses jamais une tâche technique liée au projet.  
