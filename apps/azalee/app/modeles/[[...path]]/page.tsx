@@ -445,7 +445,7 @@ async function Fiche({ famille, code }: { famille: ModelFamily; code: string }) 
 			{/* `relative` + une hauteur : le viewer se pose en `absolute inset-0`, un conteneur
 			    sans position ni hauteur le réduisait à zéro pixel — cadre visible, 3D invisible. */}
 			<div className="relative h-[min(70vh,560px)] overflow-hidden rounded-2xl border border-outline-variant bg-surface-container-low">
-				<InlineModelViewer glbUrl={modelGlbUrl(famille, code)} name={entree?.name ?? code} />
+				<InlineModelViewer glbUrl={modelGlbUrl(famille, code)} name={entree?.name ?? code} autoRotate={false} />
 			</div>
 
 			<section className="rounded-2xl border border-outline-variant bg-surface-container-low p-4">

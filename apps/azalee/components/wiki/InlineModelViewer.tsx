@@ -6,6 +6,7 @@ interface InlineModelViewerProps {
 	/** URL absolue du GLB complet (cdn.rosegriffon.fr/model-full/<code>.glb, nie-model-serve). */
 	glbUrl: string;
 	name?: string;
+	autoRotate?: boolean;
 }
 
 import { loadModelViewer } from "../../lib/model-viewer-loader";
@@ -17,7 +18,7 @@ import { loadModelViewer } from "../../lib/model-viewer-loader";
  * dizaines de modèles ouvrirait des dizaines de contextes WebGL (limite navigateur ~16).
  * En attente/hors-champ : fond stade neutre + spinner au chargement (aucune fausse icône).
  */
-export default function InlineModelViewer({ glbUrl, name }: InlineModelViewerProps) {
+export default function InlineModelViewer({ glbUrl, name, autoRotate = true }: InlineModelViewerProps) {
 	const hostRef = useRef<HTMLDivElement>(null);
 	const [visible, setVisible] = useState(false);
 	const [ready, setReady] = useState(false);
@@ -63,7 +64,7 @@ export default function InlineModelViewer({ glbUrl, name }: InlineModelViewerPro
 				// Les GLB IEVR sont exportés avec leur face avant à 180° de l'axe caméra
 				// par défaut de model-viewer ; sans cette orbite la galerie montre le dos.
 				mv.setAttribute("camera-orbit", "180deg 75deg auto");
-				mv.setAttribute("auto-rotate", "");
+				if (autoRotate) mv.setAttribute("auto-rotate", "");
 				mv.setAttribute("rotation-per-second", "24deg");
 				mv.setAttribute("interaction-prompt", "none");
 				mv.setAttribute("shadow-intensity", "0.8");
@@ -93,7 +94,7 @@ export default function InlineModelViewer({ glbUrl, name }: InlineModelViewerPro
 			controller.abort();
 			host.replaceChildren();
 		};
-	}, [visible, glbUrl, name]);
+	}, [visible, glbUrl, name, autoRotate]);
 
 	return (
 		<div className="absolute inset-0">
