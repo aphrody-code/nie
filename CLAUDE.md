@@ -50,7 +50,7 @@ qui ne respecte pas `.gitignore` s'y noie. Mesures faites à la racine :
 | Chercher du texte dans le code | **`rg`** (15.1.0) | `rg -l NIE_GAME_DIR` = **0,061 s** ; `grep -rn` = **timeout à 60 s** (il descend dans `node_modules`) |
 | Chercher dans **un** fichier ou un flux (pipe) | `grep` | pas de parcours d'arbre : rien à gagner ailleurs |
 | Lister des fichiers | **`rg --files -g '<glob>'`** ou **`fdfind`** | `find . -name '*.rs'` = **5,4 s / 840** (pollué) ; `fdfind -e rs` = **0,017 s / 687** |
-| Chercher sous un sous-arbre déjà propre (`crates/`) | `find`/`grep` acceptables | mesuré à égalité (0,01 s) — le gain de `rg`/`fd` est le `.gitignore`, pas le moteur |
+| Chercher sous un sous-arbre déjà propre (`crates/`) | **`rg` quand même** | `hyperfine` (10 runs) : `rg` **19,1 ms**, `git grep` 41,7 ms, `grep -r` 71,3 ms — **3,73×**. Seul le *listage* est à égalité (`find` ≈ `fd`, 0,01 s) |
 | Sortie exploitable sans relire | `rg --json`, `rg -l`, `rg -c`, `rg --stats` | `-l`/`-c` situent sans déverser les lignes : moins de tokens pour la même information |
 | Recherche depuis le harnais | outils **Grep/Glob** dédiés | même moteur que `rg`, sortie déjà structurée ; le Bash sert quand il faut composer (pipe, `--json`, comptage) |
 | Recherche **récurrente**, du domaine | **`niers find` / `niers grep`** | embarquent le moteur `ignore`/ripgrep. Une recherche qui mérite d'être rejouée s'écrit en Rust dans `nie-cli` ; `rg` en direct ne vaut que pour l'exploration jetable d'une session |
@@ -65,14 +65,86 @@ qui ne respecte pas `.gitignore` s'y noie. Mesures faites à la racine :
 | Remplacer dans N fichiers | `rg -l <motif>` **puis** Edit fichier par fichier | `rg --passthru` prévisualise le remplacement sans écrire |
 | Compter des lignes | `awk '$2!="total"{s+=$1} END{print s}'` | `xargs wc -l \| tail -1` sous-compte (§ pièges) |
 
-- **`sg` sur cette machine est `setgroup` (util-linux), PAS `ast-grep`.** Lancer `sg -p '…'` exécute
-  un tout autre programme. ast-grep n'est pas installé : pour une réécriture structurelle
-  (bloc d'`import`, signature, appel), éditer les lignes une par une — jamais une regex sur le bloc.
-- **`fd` s'appelle `fdfind`** ici (nommage Debian). `fd` seul n'existe pas.
-- **Absents, ne pas les invoquer** : `ast-grep`, `sd`, `comby`, `semgrep`, `ugrep`, `gron`, `tokei`,
-  `scc`, `duckdb`, `difft`, `srgn`, `hyperfine`. Installables par `cargo install --locked <nom>`
-  (non fait : le disque est à 67 %).
-- Présents et vérifiés : `rg` 15.1.0, `fdfind` 10.3.0, `jq` 1.8.1, `sqlite3` 3.46.1, `just`, `uv`, `bun`.
+- **Toujours écrire `ast-grep`, jamais `sg`.** ast-grep pose un alias `sg` qui **masque `setgroup`**
+  (util-linux) : il a été retiré volontairement de `~/.cargo/bin`. `sg` doit rester `/usr/bin/sg`.
+- **`fd` existe maintenant** (10.5.0, en plus de `fdfind` 10.3.0). Piège : **fd prend le motif AVANT
+  le chemin**, à l'inverse de `find` — `fd -e rs . crates`, jamais `fd -e rs crates` (qui cherche des
+  fichiers *nommés* « crates » et rend 0).
+- Toujours absents : `comby`, `semgrep`, `ugrep`, `gron`, `scc`, `srgn`. `cargo binstall -y <nom>`
+  les pose en secondes (binaires précompilés) — mais **binstall abandonne tout le lot** si un seul
+  nom est inconnu, et `-y` est déjà `--no-confirm` (le passer deux fois est une erreur).
+- Présents et vérifiés : `rg` 15.1.0, `fd` 10.5.0 / `fdfind` 10.3.0, `jq` 1.8.1, `sqlite3` 3.46.1,
+  `just`, `uv`, `bun`, `ffmpeg`, ImageMagick (`compare` — SSIM), `xxd`.
+
+### Outillage installé le 2026-09-02 — ce que chacun a mesurablement gagné
+
+Installés par `cargo binstall` (+ `duckdb` par son script officiel), puis **mesurés sur ce dépôt** ;
+ceux qui n'apportent rien ici sont dits tels quels plutôt que recommandés par principe.
+
+| Outil | Gain **mesuré ici** | Quand s'en servir |
+|---|---|---|
+| `hyperfine` 1.20 | remplace un `time` unique par 10 runs ± σ — il a **invalidé** deux de mes affirmations | toute comparaison de perf, jamais `time` seul |
+| `jaq` 3.1.1 | **1,95×** plus rapide que `jq` (94,9 ms vs 185,1 ms sur 6,8 Mo), sortie **identique** | gros JSON ; `jq` reste la référence de compatibilité |
+| `tokei` 14.0 | ventile ce que `wc` ne sait pas : **147 323** lignes de code Rust, pas 219 388 (33 % = commentaires + blancs) | tout décompte de taille |
+| `ast-grep` 0.45 | cherche une **structure** : 3 514 `pub fn … -> Result<…>` dans `nie-formats`, 5 `.unwrap()` dans `nie-core/src` | réécriture de code — remplace la regex sur du code |
+| `hexyl` 0.17 | dump hexa coloré et lisible d'un `.cfg.bin` (magic, offsets) | formats binaires Level-5, forge, byte-exact |
+| `duckdb` 1.5.5 | lit SQLite/JSON/CSV/Parquet en SQL (`sqlite_scan`) | agrégats et jointures **entre gisements** ; pour une requête indexée simple, `sqlite3` reste 100× plus direct |
+| `cargo-nextest` | **2,81× plus LENT** sur un petit crate (`nie-pe` : 1,131 s vs 402,8 ms) — un process par test | ne PAS l'utiliser par crate ; son intérêt éventuel est le workspace |
+| `difft`, `sd`, `watchexec`, `nu`, `sccache`, `tree-sitter`, `dust` | posés, non encore mesurés ici | ne pas les recommander avant de les avoir mesurés |
+
+### Le shell : ce qui casse, et ce qui n'est pas le problème
+
+- **Le shell n'est pas le goulot.** Mesuré : `bash -c true` démarre en **3,2 ms** (50 lancements en
+  0,159 s). Changer de shell ne ferait rien gagner ; ce qui coûte, ce sont les allers-retours et les
+  mesures fausses.
+- **`$?` à travers un pipe est le code du DERNIER maillon.** `uv run x.py | tail` rend celui de
+  `tail`, donc `0` : une preuve en échec passe pour verte (payé le 2026-09-02). `bash` est désormais
+  lancé avec `set -o pipefail` via `.claude/shell-init.sh` (posé par `BASH_ENV` dans
+  `.claude/settings.json`), **au premier niveau seulement** — les scripts du dépôt et les
+  build-scripts cargo/cmake gardent leur sémantique. Sans pipefail, lire `${PIPESTATUS[0]}`.
+- **Contrepartie assumée : `| head` peut rendre un code non nul.** Le producteur meurt de SIGPIPE
+  quand `head` ferme le tuyau. Mesuré : `jq|head` = **141**, `seq|head` = **141**, `sort|head` = **2**,
+  mais `rg|head` = 0 et `cat|head` = 0 (ils gèrent SIGPIPE). **Un 141 après un `| head` est une
+  coupure, pas un échec** — ne pas ouvrir de diagnostic dessus. Quand le code retour compte, limiter
+  à la source : `rg -m5`, `jq 'limit(5; …)'`, `LIMIT 5`. Ce compromis est délibéré : un faux vert
+  invisible (le bug d'origine) coûte plus cher qu'un faux rouge qui s'explique en une ligne.
+- **Un transcript, un dump, une réponse d'API : c'est du JSON, donc `jq`.** Extraire les commandes
+  d'un `.jsonl` avec `rg` + regex a tronqué la source (5 817 au lieu de 24 832) et rendu 0 sur trois
+  comptages : les `\"` échappés cassent la regex en silence. `jq -r '… | .input.command'` lit la
+  structure et ne peut pas se tromper de frontière.
+- **`cd` dans une commande persiste pour les suivantes.** Un `cd` vers un dossier hors dépôt fait
+  échouer le `git` de la commande d'après avec « not a git repository », ce qui accuse git au lieu du
+  `cd`. Chemins absolus, ou `( cd x && … )` en sous-shell.
+- **`sed -i` : 135 usages, et il échoue en silence des deux côtés.** Vérifié : motif absent →
+  0 remplacement, `exit=0`, fichier intact et rien ne le dit ; motif présent 2 fois là où on en
+  visait 1 → 2 remplacements, `exit=0`. `Edit` échoue bruyamment dans les deux cas (motif introuvable,
+  motif ambigu). Pour modifier un fichier suivi : `Edit`, jamais `sed -i`.
+- Répartition mesurée des 24 832 commandes : **18 %** lisent (`cat`/`head`/`tail`/`sed -n`),
+  **9 %** cherchent (`rg`/`grep`), le reste exécute. Les outils `Grep`/`Glob` du harnais n'ont
+  **jamais** été appelés (0 sur 6 800 appels d'outils) — pour une recherche simple dont on ne veut
+  que le résultat, ils évitent un aller-retour ; `rg` en Bash reste meilleur dès qu'il faut composer
+  (pipe, `--json`, `uniq -c`).
+
+## Les commandes du dépôt sont publiées globalement
+
+`just installer` publie dans `~/.local/bin` (déjà dans le PATH) les **20 binaires Rust** de
+`target/release` et **5 lanceurs** de CLI Bun. Fait le 2026-09-02 : 25 posés, 0 collision.
+
+- **Par liens symboliques, jamais par copie** : 174 Mio de binaires (dont `nie-editor` à 82 Mio) ne
+  sont écrits qu'une fois, et un `cargo build --release` met à jour la commande publiée sans
+  réinstaller. Une copie se périmerait en silence.
+- **Le script refuse d'écraser un exécutable étranger** déjà dans le PATH — leçon du jour, où
+  l'alias `sg` d'ast-grep a masqué `setgroup`. Aucune collision sur les 25.
+- Les CLI Bun sont publiées sous `nie-catalog`, `niers-azalee`, `niers-inagle`, `niers-mcp`,
+  `niers-bxc`, via un lanceur `bun --bun` (jamais `bun run` : le shebang `node` serait honoré).
+- **`NIE_GAME_DIR=/home/ubuntu/niers` est posée** dans `.claude/settings.json`. Sans elle, les 4
+  `export_*` échouent hors du dépôt : ils appellent bien `resolve_game_dir()` (doctrine respectée),
+  mais depuis `/tmp` aucun ancêtre ne porte `data/cpk_list.cfg.bin`. Avec elle, les 20 commandes
+  fonctionnent depuis n'importe quel répertoire (vérifié : `export_skills` → 1004 skills, code 0).
+- Les `export_*` n'ont **pas** de `--help` : leur absence de réponse à `--help` n'est pas une panne.
+- Doctrine inchangée : **`niers` reste la seule CLI utilisateur**. `nie-mem` et `nie-steam`
+  recouvrent `niers mem` / `niers steam` ; une commande nouvelle s'écrit dans `nie-cli`, jamais dans
+  un binaire de plus.
 
 ## Build / test (règles strictes)
 
@@ -392,15 +464,14 @@ alors que 77 `.py` versionnés existent déjà.
   versionné, puis `uv run <fichier>`. Un fichier se corrige par Edit, se rejoue à l'identique, se
   cite en `chemin:ligne` — et ne repasse pas par le quoting. `garde-bash.sh` refuse désormais un
   `python -c` de plus de 2 lignes en rappelant cette forme.
-- **Les dépendances vivent DANS le fichier (PEP 723)**, pas dans la ligne de commande — ça remplace
-  `uv run --with <paquet>` :
-  ```python
-  # /// script
-  # dependencies = ["numpy"]
-  # ///
-  ```
-  `uv run mon_script.py` résout et lance seul (vérifié : numpy 2.5.2, 0,6 s à froid, instantané
-  ensuite). Zéro usage dans le dépôt aujourd'hui — c'est la forme à adopter.
+- **PEP 723 remplace `--with`, mais SEULEMENT pour un script autonome.** Un en-tête
+  `# /// script` / `# dependencies = ["numpy"]` / `# ///` fait résoudre les dépendances par `uv run`
+  seul (vérifié : numpy 2.5.2, 0,6 s à froid). **Piège payé** : ce bloc fait tourner le script dans
+  un environnement **isolé**, donc sans le `.venv` du dépôt — un script qui importe la toolbox RE
+  (`uemu`, capstone, pefile, unicorn) meurt alors en `ModuleNotFoundError`. Règle :
+  - script **autonome** (aucun import du dépôt) → bloc PEP 723 avec ses dépendances ;
+  - script qui s'appuie sur la **toolbox du dépôt** → **pas** de bloc, `uv run <fichier>` prend
+    le `.venv` du projet. C'est ce que font les 47 `scripts/validate_*.py`.
 - Quel outil pour quoi : **JSON** → `jq` (une seule couche de quoting, et pas d'`except: continue`
   qui avale les lignes fautives en silence) ; **fichiers en masse** → `fdfind -x` ; **dates** →
   `date -d @<epoch>` ; **binaire / PE / désassemblage** → Python reste le bon outil (toolbox `.venv` :

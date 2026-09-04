@@ -36,7 +36,9 @@ printf '%s' "$cmd" | grep -qE 'git[[:space:]]+(add|commit).*(-f|--force).*(^|[[:
 printf '%s' "$cmd" | grep -qE 'pkill[[:space:]]+(-[a-zA-Z]+[[:space:]]+)*-f' && refus deny \
   "pkill -f tue la session Claude elle-meme (son argv contient le motif). Cible un PID explicite : pgrep -a <motif> puis kill <PID>."
 
-printf '%s' "$cmd" | grep -qE 'rm[[:space:]]+-[a-zA-Z]*r[a-zA-Z]*[[:space:]]+.*target/release([[:space:]]|/|$)' && refus deny \
+# Le `[^;&|]*` est essentiel : avec `.*`, la regex traversait les separateurs et un
+# `rm -rf target/debug/x ; du -sh target/release` etait refuse a tort (vecu le 2026-09-02).
+printf '%s' "$cmd" | grep -qE 'rm[[:space:]]+-[a-zA-Z]*r[a-zA-Z]*[[:space:]]+[^;&|]*target/release([[:space:]]|/|$)' && refus deny \
   "target/release/ contient 20 binaires deja construits (niers, nie-forge, nie-game, nie-play…) qui evitent des rebuilds de plusieurs minutes. Supprime un binaire precis, ou nettoie target/debug/{incremental,examples}."
 
 # --- faux a coup sur : la commande n'aurait pas marche -----------------------
