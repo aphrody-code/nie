@@ -4299,6 +4299,11 @@ dependencies = [
 name = "nie-explore"
 version = "0.5.7"
 dependencies = [
+ "anyhow",
+ "globset",
+ "grep-regex",
+ "grep-searcher",
+ "ignore",
  "nie-data",
  "nie-formats",
  "nie-lua",

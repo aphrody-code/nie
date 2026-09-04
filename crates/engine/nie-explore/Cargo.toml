@@ -24,3 +24,10 @@ nie-data = { path = "../../engine/nie-data", features = ["serde", "std"] }
 # la page /videos d'azalée : il doit se sérialiser à l'identique des trois côtés.
 serde = { workspace = true, features = ["derive"] }
 serde_json = { version = "1", default-features = false, features = ["std"] }
+# Accès au code du dépôt (`depot`) : le moteur qui EST ripgrep/fd, partagé par la CLI, le
+# serveur MCP et l'app desktop pour qu'aucun des trois ne réimplémente sa propre recherche.
+anyhow = { workspace = true }
+ignore.workspace = true
+globset.workspace = true
+grep-searcher.workspace = true
+grep-regex.workspace = true
