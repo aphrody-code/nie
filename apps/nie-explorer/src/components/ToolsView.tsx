@@ -1,4 +1,12 @@
-// Vue **Outils** — les cinq outils du wiki (`/tools`), réunis dans une seule vue à onglets.
+// Vue **Outils** — les cinq outils du wiki (`/tools`), réunis dans une seule vue à onglets, PLUS
+// deux que le site n'a pas : « Progression » (courbe d'expérience, `chara_exp_table_config`) et
+// « Probabilités » (butin de match et tirages de capsules, `soccer_drop_config` /
+// `capsule_config`). Ces trois tables ne sont publiées nulle part sur le wiki ; elles sont lues
+// ici directement du jeu monté.
+//
+// Le roster des outils d'équipe a DEUX sources (cf. le `useEffect` plus bas) : le miroir wiki
+// quand il est configuré, sinon le jeu lui-même. Sans ce repli, l'absence de miroir rendait les
+// quatre outils d'équipe muets sur une machine où le jeu, lui, était bien monté.
 //
 // ## Pourquoi une vue à onglets et non cinq entrées de barre latérale
 //
@@ -17,7 +25,8 @@
 // même que monte l'onglet « Calculateur de stats » de `GameDataView`.
 import { useEffect, useMemo, useState } from "react";
 
-import { versJoueur, type Joueur } from "@/lib/equipe";
+import { api } from "@/lib/api";
+import { versJoueur, versJoueurDepuisJeu, type Joueur } from "@/lib/equipe";
 import { useSettings } from "@/lib/settings";
 import { wikiDb } from "@/lib/wikiDb";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -28,8 +37,17 @@ import { RandomTeamPanel } from "@/components/tools/RandomTeamPanel";
 import { StatCalculator } from "@/components/tools/StatCalculator";
 import { TeamBuilderPanel } from "@/components/tools/TeamBuilderPanel";
 import { TranslatorPanel } from "@/components/tools/TranslatorPanel";
+import { ProbabilitesPanel } from "@/components/tools/ProbabilitesPanel";
+import { ProgressionPanel } from "@/components/tools/ProgressionPanel";
 
-type Outil = "traducteur" | "stats" | "comparateur" | "aleatoire" | "equipe";
+type Outil =
+  | "traducteur"
+  | "stats"
+  | "comparateur"
+  | "aleatoire"
+  | "equipe"
+  | "progression"
+  | "probabilites";
 
 const LIBELLES: Record<Outil, string> = {
   traducteur: "Traducteur",
@@ -37,35 +55,57 @@ const LIBELLES: Record<Outil, string> = {
   comparateur: "Comparateur",
   aleatoire: "Équipe aléatoire",
   equipe: "Mon équipe",
+  // Les deux suivants n'ont AUCUN équivalent sur le wiki : leurs tables
+  // (`chara_exp_table_config`, `soccer_drop_config`, `capsule_config`) n'y sont pas publiées.
+  progression: "Progression",
+  probabilites: "Probabilités",
 };
 
 export function ToolsView({ onOpenSearch }: { onOpenSearch?: (query: string) => void }) {
   const settings = useSettings();
   const [outil, setOutil] = useState<Outil>("traducteur");
   const [roster, setRoster] = useState<Joueur[]>([]);
+  /** D'où viennent les joueurs affichés — l'utilisatrice doit pouvoir le lire, pas le deviner. */
+  const [sourceRoster, setSourceRoster] = useState<"miroir" | "jeu" | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [chargement, setChargement] = useState(true);
 
   // Un seul chargement du roster pour les trois outils d'équipe. Les postes d'encadrement
   // (`Entraîneur`) sont écartés du vivier de joueurs : ils ne tiennent aucun créneau de terrain.
+  //
+  // Deux sources, dans cet ordre : le miroir wiki s'il est configuré (il porte la rareté réelle
+  // et les stats de chaque exemplaire), sinon le JEU lui-même (`api.gameDataCharas`, stats Lv99
+  // au rang UR calculées par les tables de croissance embarquées). Avant, l'absence de miroir
+  // rendait les quatre outils d'équipe muets — alors que le jeu est monté et suffit.
   useEffect(() => {
-    const chemin = settings.wikiDb.trim();
-    if (!chemin) {
-      setChargement(false);
-      setErreur(
-        "Aucun miroir wiki configuré. Paramètres → Base du wiki (fichier `supabase-*.sqlite`).",
-      );
-      return;
-    }
     let annule = false;
     setChargement(true);
     setErreur(null);
-    wikiDb
-      .chargerRoster(chemin)
-      .then((lignes) => {
-        if (!annule) setRoster(lignes.map(versJoueur).filter((j) => j.poste !== "Entraîneur"));
+
+    const chemin = settings.wikiDb.trim();
+    const depuisLeJeu = () =>
+      api.gameDataCharas(settings.gameDir).then((charas) => {
+        if (annule) return null;
+        setRoster(charas.map(versJoueurDepuisJeu));
+        setSourceRoster("jeu");
         return null;
-      })
+      });
+
+    const promesse = chemin
+      ? wikiDb
+          .chargerRoster(chemin)
+          .then((lignes) => {
+            if (annule) return null;
+            setRoster(lignes.map(versJoueur).filter((j) => j.poste !== "Entraîneur"));
+            setSourceRoster("miroir");
+            return null;
+          })
+          // Un miroir illisible (fichier déplacé, schéma d'une autre version) ne doit pas rendre
+          // les outils inutilisables : on retombe sur le jeu et on le DIT.
+          .catch(() => depuisLeJeu())
+      : depuisLeJeu();
+
+    promesse
       .catch((e) => {
         if (!annule) setErreur(String(e));
       })
@@ -75,7 +115,7 @@ export function ToolsView({ onOpenSearch }: { onOpenSearch?: (query: string) => 
     return () => {
       annule = true;
     };
-  }, [settings.wikiDb]);
+  }, [settings.wikiDb, settings.gameDir]);
 
   const onglets = useMemo(() => Object.entries(LIBELLES) as [Outil, string][], []);
 
@@ -94,7 +134,19 @@ export function ToolsView({ onOpenSearch }: { onOpenSearch?: (query: string) => 
         {chargement ? (
           <Badge variant="outline">chargement du roster…</Badge>
         ) : (
-          <Badge variant="secondary">{roster.length.toLocaleString("fr-FR")} joueurs</Badge>
+          <>
+            <Badge variant="secondary">{roster.length.toLocaleString("fr-FR")} joueurs</Badge>
+            <Badge
+              variant="outline"
+              title={
+                sourceRoster === "jeu"
+                  ? "Roster décodé du jeu (chara_param + chara_base) — stats au niveau 99, rang UR, calculées par les tables de croissance embarquées"
+                  : "Roster du miroir wiki — rareté et stats de chaque exemplaire"
+              }
+            >
+              {sourceRoster === "jeu" ? "source : jeu" : "source : miroir wiki"}
+            </Badge>
+          </>
         )}
       </div>
 
@@ -111,6 +163,8 @@ export function ToolsView({ onOpenSearch }: { onOpenSearch?: (query: string) => 
         {outil === "comparateur" && <ComparatorPanel roster={roster} />}
         {outil === "aleatoire" && <RandomTeamPanel roster={roster} />}
         {outil === "equipe" && <TeamBuilderPanel roster={roster} />}
+        {outil === "progression" && <ProgressionPanel />}
+        {outil === "probabilites" && <ProbabilitesPanel />}
       </div>
     </div>
   );

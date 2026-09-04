@@ -7,7 +7,7 @@
 [package]
 name = "nie-explorer"
 description = "Explorateur/éditeur du VFS (CPK) d'Inazuma Eleven: Victory Road — UI native Windows (Fluent/Mica)"
-version = "0.5.5"
+version = "0.5.6"
 authors = ["niers"]
 edition = "2021"
 # Deux binaires vivent ici : l'application et `export-bindings`. `tauri dev` lance
@@ -260,3 +260,11 @@ winreg = "0.52"
 # `x-special/gnome-copied-files` que cosmic-files pose sur le presse-papiers X11/Wayland, cf.
 # `crates/clipboard.rs` du dépôt amont, ClipboardCopy/ClipboardPaste).
 clipboard-win = { version = "5", features = ["std"] }
+
+# Vérification RÉELLE des familles de l'encyclopédie sur le jeu monté — outil de développement,
+# comme `export-bindings` : `cargo test` ne démarre pas dans ce crate sur le poste Windows
+# (STATUS_ENTRYPOINT_NOT_FOUND), ce binaire est la seule façon d'y exécuter les `list_*`.
+[[bin]]
+name = "verif-familles"
+path = "src/bin/verif-familles.rs"
+required-features = ["dev-bindings"]

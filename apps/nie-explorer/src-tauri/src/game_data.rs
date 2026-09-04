@@ -190,10 +190,18 @@ fn load_t2b(vfs: &Vfs, pred: impl Fn(&str) -> bool, what: &str) -> Result<Value,
 /// base_name(p).starts_with("skill_text")`, déjà dupliqué 5 fois), au risque de coller à un nom
 /// approximatif ; ici un type inconnu échoue franchement au lieu de chercher un fichier inexistant.
 fn load_text_json(vfs: &Vfs, text_type: &str) -> Result<Value, String> {
+    load_text_json_lang(vfs, text_type, "fr")
+}
+
+/// Table de texte d'un `text_type` dans une LANGUE donnée (`fr`, `en`, `ja`, `de`, `es`, `it`,
+/// `pt`, `zh_hans`, `zh_hant` — les neuf dossiers de `data/common/text/`, relevés sur
+/// l'installation, cf. [`LANGUES`]). Généralise [`load_text_json`], qui forçait `fr`.
+fn load_text_json_lang(vfs: &Vfs, text_type: &str, langue: &str) -> Result<Value, String> {
     let stem = nie_data::text::text_file_name(text_type)
         .ok_or_else(|| format!("type de texte inconnu : {text_type} (cf. nie_data::text::TEXT_FILES)"))?;
     let file = format!("{stem}.cfg.bin");
-    load_t2b(vfs, |p| p.contains("/text/fr/") && base_name(p) == file, &format!("{file} fr"))
+    let dossier = format!("/text/{langue}/");
+    load_t2b(vfs, |p| p.contains(&dossier) && base_name(p) == file, &format!("{file} {langue}"))
 }
 
 /// Table de texte FR d'un `text_type` convivial, déjà parsée en `(hashId, texte)` — la forme
@@ -538,8 +546,12 @@ pub struct StadiumDto {
 pub fn list_stadiums(vfs: &Vfs) -> Result<Vec<StadiumDto>, String> {
     let config = load_t2b(
         vfs,
-        |p| p.contains("/gamedata/") && base_name(p).starts_with("stadium_config") && base_name(p).ends_with(".cfg.bin"),
-        "stadium_config",
+        // Le fichier ne s'appelle PAS `stadium_config` : les stades vivent dans la liste
+        // `SOCCER_OPTION_FIELD_INFO_*` de `soccer/soccer_game_option.cfg.bin` (cf. l'en-tête de
+        // `nie_data::stadium`). L'ancien prédicat ne trouvait rien et l'onglet « Stades » de
+        // l'encyclopédie affichait « stadium_config introuvable dans le VFS monté ».
+        |p| p.contains("/gamedata/soccer/") && base_name(p).starts_with("soccer_game_option") && base_name(p).ends_with(".cfg.bin"),
+        "soccer_game_option (stades)",
     )?;
     Ok(nie_data::stadium::parse_stadium_config(&config)
         .iter()
@@ -975,6 +987,659 @@ pub fn list_uniforms(vfs: &Vfs) -> Result<Vec<UniformDto>, String> {
         .collect())
 }
 
+// ─── Familles au-delà du wiki azalee (§4.3 ROADMAP) ──────────────────────────────────────────
+//
+// Même patron que `list_shops`/`list_uniforms` : `load_t2b`/`load_rdbn` (ponts déjà testés) →
+// parseur typé de `nie-data` → DTO applati, entiers en `f64` (`specta` refuse les BigInt).
+// Ces huit familles n'ont AUCUN équivalent dans l'encyclopédie du wiki : personnages complets
+// (avec leurs techniques apprises), équipes adverses, vidéos, bande-son, dictionnaire, butin,
+// capsules, courbe d'expérience.
+
+/// Personnage jouable/PNJ — `chara_param` joint à `chara_base` (identité), `chara_text` (nom),
+/// `chara_description_text` (description), `chara_series` (série d'origine), `belong_team_config`
+/// (équipe) et `skill_config` (techniques apprises). C'est la fiche complète, pas le sélecteur
+/// réduit de [`CharaPickerDto`] (qui reste séparé : le calculateur de stats n'a besoin que du nom
+/// et des positions, et le recharger complet le ralentirait sans raison).
+#[derive(Serialize, specta::Type)]
+pub struct CharaDto {
+    pub chara_param_id: String,
+    pub chara_base_id: String,
+    /// Code interne (`c01000010`) — ouvre l'éditeur de propriétés (modèle, textures, sons).
+    pub internal_code: String,
+    pub name: String,
+    pub description: Option<String>,
+    /// `1` = masculin, `2` = féminin dans la donnée ; rendu tel quel, non interprété.
+    pub gender: f64,
+    pub element: String,
+    pub main_position: String,
+    pub sub_position: String,
+    /// `f64`, cf. [`ItemDto::price`] — pattern de croissance (entrée des tables `growth`).
+    pub growth_pattern: f64,
+    pub series: Option<String>,
+    pub team: Option<String>,
+    /// Techniques apprises, `« niveau — nom »` quand le nom se résout (sinon le hash).
+    pub skills: Vec<String>,
+    /// `f64`, cf. [`ItemDto::price`].
+    pub skill_count: f64,
+    /// Stats au **niveau 99, rang de rareté UR** (code 5), calculées par
+    /// `nie_core::growth::calculate_stats` sur les tables embarquées. Le rang N'EST PAS dans
+    /// `chara_param` (il dépend de l'exemplaire possédé) : c'est une base de COMPARAISON commune,
+    /// affichée comme telle, pas la fiche d'un personnage précis — pour un couple (niveau,
+    /// rareté) choisi, c'est `game_data_calculate_stats` qui répond.
+    pub stats: StatBlockDto,
+}
+
+/// Liste TOUS les personnages du jeu avec leur fiche complète. Un `chara_base_id` peut porter
+/// plusieurs `chara_param` (variantes de tenue) : chacune est une ligne, différenciée par son
+/// `chara_param_id`. Les entrées sans nom résolu sont écartées (même convention que les autres
+/// `list_*` : pas de ligne fantôme sans identité lisible).
+pub fn list_charas(vfs: &Vfs) -> Result<Vec<CharaDto>, String> {
+    let param_json = load_t2b(
+        vfs,
+        |p| base_name(p).starts_with("chara_param_1") && base_name(p).ends_with(".cfg.bin"),
+        "chara_param",
+    )?;
+    let params = nie_data::chara_param::parse_all_chara_params(&param_json);
+
+    let base_json = load_t2b(
+        vfs,
+        |p| p.contains("/character/") && base_name(p).starts_with("chara_base_1") && base_name(p).ends_with(".cfg.bin"),
+        "chara_base",
+    )?;
+    let bases = nie_data::chara_base::parse_all_chara_base(&base_json);
+
+    let nouns = nie_data::chara_text::parse_all_nouns(&load_text_json(vfs, "chara")?);
+    // Sources d'enrichissement TOUTES facultatives : une table absente retire une colonne, elle
+    // ne fait jamais échouer la liste entière.
+    let descriptions = load_text_json(vfs, "chara_description")
+        .map(|j| nie_data::chara_description::parse_chara_descriptions(&j))
+        .unwrap_or_default();
+    let series = load_rdbn(
+        vfs,
+        |p| p.contains("/gamedata/character/") && base_name(p).starts_with("chara_series_config") && base_name(p).ends_with(".cfg.bin"),
+        "chara_series_config",
+    )
+    .map(|j| nie_data::chara_series::parse_chara_series_config(&j))
+    .unwrap_or_default();
+
+    // Équipes : hash → nom FR, via la même jointure que `list_belong_teams`.
+    let teams: HashMap<String, String> = match (
+        load_rdbn(
+            vfs,
+            |p| p.contains("/gamedata/character/") && base_name(p).starts_with("belong_team_config") && base_name(p).ends_with(".cfg.bin"),
+            "belong_team_config",
+        ),
+        load_text(vfs, "team"),
+    ) {
+        (Ok(cfg), Ok(txt)) => nie_data::belong_team::parse_belong_team_config(&cfg)
+            .iter()
+            .filter_map(|t| {
+                nie_data::belong_team::resolve_team_name(t, &txt).map(|n| (t.belong_team_id.to_hex(), n.to_string()))
+            })
+            .collect(),
+        _ => HashMap::new(),
+    };
+
+    // Techniques : hash → nom FR (ou code interne à défaut de table de texte).
+    // Tables de croissance EMBARQUÉES (byte-exactes, aucun fichier du VFS à reparser) : chargées
+    // une fois pour les ~6 000 personnages, le calcul par ligne n'est qu'une recherche de table.
+    let tables = nie_core::growth::GrowthTables::load_embedded();
+
+    let skill_names: HashMap<String, String> = list_skills(vfs)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|s| (s.skill_id, s.name.unwrap_or(s.skill_id_str)))
+        .collect();
+
+    Ok(params
+        .iter()
+        .filter_map(|cp| {
+            let base = nie_data::chara_base::find_by_chara_id(&bases, cp.chara_base_id)?;
+            let first = nie_data::chara_base::resolve_first_name(base, &nouns)?;
+            let name = match nie_data::chara_base::resolve_last_name(base, &nouns) {
+                Some(l) => format!("{first} {l}"),
+                None => first.to_string(),
+            };
+            Some(CharaDto {
+                chara_param_id: cp.chara_param_id.to_hex(),
+                chara_base_id: cp.chara_base_id.to_hex(),
+                internal_code: base.internal_code.clone(),
+                name,
+                description: nie_data::chara_base::resolve_description(base, &descriptions).map(str::to_string),
+                gender: base.gender as f64,
+                element: nie_data::chara_param::element_id_to_names(cp.element)
+                    .map_or_else(|| format!("? ({})", cp.element), |(fr, _, _)| fr.to_string()),
+                main_position: nie_data::chara_param::position_code_owned(cp.main_position).unwrap_or_else(|| "?".to_string()),
+                sub_position: nie_data::chara_param::position_code_owned(cp.sub_position).unwrap_or_else(|| "—".to_string()),
+                growth_pattern: cp.growth_pattern as f64,
+                series: nie_data::chara_base::resolve_series_name_fr(base, &series).map(str::to_string),
+                team: base.belong_team_id.and_then(|t| teams.get(&t.to_hex()).cloned()),
+                skills: cp
+                    .skills
+                    .iter()
+                    .map(|s| {
+                        let hex = s.skill_id.to_hex();
+                        let nom = skill_names.get(&hex).cloned().unwrap_or(hex);
+                        format!("Nv {} — {nom}", s.learn_level)
+                    })
+                    .collect(),
+                skill_count: cp.skills.len() as f64,
+                stats: {
+                    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+                    let p = nie_core::growth::GrowthParams {
+                        main_position: cp.main_position as u8,
+                        sub_position: cp.sub_position as u8,
+                        growth_pattern: cp.growth_pattern as u8,
+                        chara_rank: 5,
+                        play_style: cp.raw_variables.get(5).copied().unwrap_or(0) as u8,
+                    };
+                    nie_core::growth::calculate_stats(&tables, &p, 99).into()
+                },
+            })
+        })
+        .collect())
+}
+
+/// Équipe adverse rencontrable (`opponent_team_config`) — nom d'équipe résolu via
+/// `belong_team_config` + `team_text`, difficulté, condition d'ouverture.
+#[derive(Serialize, specta::Type)]
+pub struct OpponentTeamDto {
+    pub opponent_id: String,
+    pub team_id: String,
+    pub team_name: Option<String>,
+    /// `f64`, cf. [`ItemDto::price`].
+    pub team_type: f64,
+    /// `f64`, cf. [`ItemDto::price`].
+    pub difficulty_type: f64,
+    /// `f64`, cf. [`ItemDto::price`].
+    pub flag_no: f64,
+    /// Condition d'ouverture, telle quelle (mini-langage du jeu, non interprété ici).
+    pub open_cond: String,
+    pub formation_cond: String,
+    pub bg_texture_name: String,
+    pub game_id: String,
+}
+
+/// Liste les équipes adverses (`team/opponent_team_config_*`).
+pub fn list_opponent_teams(vfs: &Vfs) -> Result<Vec<OpponentTeamDto>, String> {
+    let config = load_rdbn(
+        vfs,
+        |p| {
+            p.contains("/gamedata/team/")
+                && base_name(p).starts_with("opponent_team_config")
+                && base_name(p).ends_with(".cfg.bin")
+        },
+        "opponent_team_config",
+    )?;
+    let teams: HashMap<String, String> = match (
+        load_rdbn(
+            vfs,
+            |p| p.contains("/gamedata/character/") && base_name(p).starts_with("belong_team_config") && base_name(p).ends_with(".cfg.bin"),
+            "belong_team_config",
+        ),
+        load_text(vfs, "team"),
+    ) {
+        (Ok(cfg), Ok(txt)) => nie_data::belong_team::parse_belong_team_config(&cfg)
+            .iter()
+            .filter_map(|t| {
+                nie_data::belong_team::resolve_team_name(t, &txt).map(|n| (t.belong_team_id.to_hex(), n.to_string()))
+            })
+            .collect(),
+        _ => HashMap::new(),
+    };
+
+    Ok(nie_data::opponent_team::parse_opponent_team_config(&config)
+        .opponents
+        .iter()
+        .map(|o| OpponentTeamDto {
+            opponent_id: o.opponent_id.to_hex(),
+            team_id: o.team_id.to_hex(),
+            team_name: teams.get(&o.team_id.to_hex()).cloned(),
+            team_type: o.team_type as f64,
+            difficulty_type: o.difficulty_type as f64,
+            flag_no: o.flag_no as f64,
+            open_cond: o.open_cond.clone(),
+            formation_cond: o.formation_cond.clone(),
+            bg_texture_name: o.bg_texture_name.clone(),
+            game_id: o.game_id.to_hex(),
+        })
+        .collect())
+}
+
+/// Vidéo du jeu (`movie_playing_config`) — chemin USM, BGM, sous-titres.
+#[derive(Serialize, specta::Type)]
+pub struct MovieDto {
+    pub movie_id: String,
+    pub movie_path: String,
+    pub bgm_name: String,
+    /// `true` si la vidéo porte une table de sous-titres (≠ [`nie_data::movie::NONE_SENTINEL`]).
+    pub has_subtitles: bool,
+    pub subtitle_text_path: String,
+    pub staffroll_data_name: String,
+    pub fade_in: f64,
+    pub fade_out: f64,
+}
+
+/// Liste les vidéos (`movie/movie_playing_config_*`).
+pub fn list_movies(vfs: &Vfs) -> Result<Vec<MovieDto>, String> {
+    let config = load_rdbn(
+        vfs,
+        |p| {
+            p.contains("/gamedata/movie/")
+                && base_name(p).starts_with("movie_playing_config")
+                && base_name(p).ends_with(".cfg.bin")
+        },
+        "movie_playing_config",
+    )?;
+    Ok(nie_data::movie::parse_movie_playing_config(&config)
+        .playing_infos
+        .iter()
+        .map(|m| MovieDto {
+            movie_id: m.movie_id.to_hex(),
+            movie_path: m.movie_path.clone(),
+            bgm_name: m.bgm_name.to_hex(),
+            has_subtitles: m.subtitle_text_path != nie_data::movie::NONE_SENTINEL && !m.subtitle_text_path.is_empty(),
+            subtitle_text_path: m.subtitle_text_path.clone(),
+            staffroll_data_name: m.staffroll_data_name.clone(),
+            fade_in: f64::from(m.fede_in_time),
+            fade_out: f64::from(m.fede_out_time),
+        })
+        .collect())
+}
+
+/// Piste de la bande-son (`music_app_config`) — nom FR joint depuis `music_name_text`.
+#[derive(Serialize, specta::Type)]
+pub struct MusicDto {
+    pub entry_id: String,
+    pub music_id: String,
+    pub name: Option<String>,
+    /// `f64`, cf. [`ItemDto::price`].
+    pub app_category: f64,
+    /// `f64`, cf. [`ItemDto::price`].
+    pub track_no: f64,
+    /// `f64`, cf. [`ItemDto::price`].
+    pub variant: f64,
+    /// `f64`, cf. [`ItemDto::price`].
+    pub volume: f64,
+    /// `f64`, cf. [`ItemDto::price`] — index de tri 1-basé du lecteur du jeu.
+    pub sort_index: f64,
+    /// `true` si la piste porte un chemin audio (105/108 dans le dump de référence).
+    pub has_path: bool,
+}
+
+/// Liste les pistes du lecteur de musique (`music_app/music_app_config.cfg.bin`).
+pub fn list_musics(vfs: &Vfs) -> Result<Vec<MusicDto>, String> {
+    let config = load_t2b(
+        vfs,
+        |p| p.contains("/gamedata/music_app/") && base_name(p).starts_with("music_app_config") && base_name(p).ends_with(".cfg.bin"),
+        "music_app_config",
+    )?;
+    // Table facultative : sans elle, `name` reste `None` — jamais un nom inventé.
+    let noms = load_text(vfs, "music").unwrap_or_default();
+    Ok(nie_data::music_app::parse_music_app_config(&config)
+        .items
+        .iter()
+        .map(|m| MusicDto {
+            entry_id: m.entry_id.to_hex(),
+            music_id: m.music_id.to_hex(),
+            name: nie_data::text::find_text(&noms, m.music_id)
+                .or_else(|| nie_data::text::find_text(&noms, m.entry_id))
+                .map(str::to_string),
+            app_category: m.app_category as f64,
+            track_no: m.track_no as f64,
+            variant: m.variant as f64,
+            volume: m.volume as f64,
+            sort_index: m.sort_index as f64,
+            has_path: m.has_path(),
+        })
+        .collect())
+}
+
+/// Entrée du dictionnaire in-game (`dictionary_config`) — le « bestiaire » des personnages
+/// observables, avec leur habitat résolu (`map_text`).
+#[derive(Serialize, specta::Type)]
+pub struct DictionaryDto {
+    pub chara_id: String,
+    /// Nom du personnage quand `chara_base`+`chara_text` le résolvent.
+    pub name: Option<String>,
+    pub habitat: Option<String>,
+    pub habitat_file: Option<String>,
+    /// `f64`, cf. [`ItemDto::price`] — numéro d'affichage dans le dictionnaire.
+    pub view_dict_no: f64,
+    /// `f64`, cf. [`ItemDto::price`].
+    pub category: f64,
+    /// `f64`, cf. [`ItemDto::price`].
+    pub sub_category: f64,
+    /// `true` si l'entrée est affrontable.
+    pub is_battle: bool,
+    /// Nombre d'actions d'observation rattachées.
+    pub observation_count: f64,
+    pub medal_id: String,
+    pub weapon_item_id: String,
+}
+
+/// Liste les entrées du dictionnaire (`dictionary/dictionary_config_*`).
+pub fn list_dictionary(vfs: &Vfs) -> Result<Vec<DictionaryDto>, String> {
+    let config = load_rdbn(
+        vfs,
+        |p| {
+            p.contains("/gamedata/dictionary/")
+                && base_name(p).starts_with("dictionary_config")
+                && base_name(p).ends_with(".cfg.bin")
+        },
+        "dictionary_config",
+    )?;
+    let cfg = nie_data::dictionary::parse_dictionary_config(&config);
+
+    // Noms des personnages : mêmes jointures que `list_charas`, facultatives.
+    let noms: HashMap<String, String> = match (
+        load_t2b(
+            vfs,
+            |p| p.contains("/character/") && base_name(p).starts_with("chara_base_1") && base_name(p).ends_with(".cfg.bin"),
+            "chara_base",
+        ),
+        load_text_json(vfs, "chara"),
+    ) {
+        (Ok(bj), Ok(tj)) => {
+            let nouns = nie_data::chara_text::parse_all_nouns(&tj);
+            nie_data::chara_base::parse_all_chara_base(&bj)
+                .iter()
+                .filter_map(|b| {
+                    let first = nie_data::chara_base::resolve_first_name(b, &nouns)?;
+                    let nom = match nie_data::chara_base::resolve_last_name(b, &nouns) {
+                        Some(l) => format!("{first} {l}"),
+                        None => first.to_string(),
+                    };
+                    Some((b.chara_id.to_hex(), nom))
+                })
+                .collect()
+        }
+        _ => HashMap::new(),
+    };
+    let cartes = load_text(vfs, "map").unwrap_or_default();
+
+    Ok(cfg
+        .params
+        .iter()
+        .map(|p| {
+            let habitat = cfg.habitats.iter().find(|h| h.habitat_id == p.habitat_id);
+            DictionaryDto {
+                chara_id: p.chara_id.to_hex(),
+                name: noms.get(&p.chara_id.to_hex()).cloned(),
+                habitat: habitat.and_then(|h| nie_data::text::find_text(&cartes, h.map_name_id)).map(str::to_string),
+                habitat_file: habitat.map(|h| h.file_name.clone()),
+                view_dict_no: p.view_dict_no as f64,
+                category: p.category as f64,
+                sub_category: p.sub_category as f64,
+                is_battle: p.is_buttle,
+                observation_count: p.observation_count as f64,
+                medal_id: p.medal_id.to_hex(),
+                weapon_item_id: p.weapon_item_id.to_hex(),
+            }
+        })
+        .collect())
+}
+
+/// Palier de la courbe d'expérience (`chara_exp_table_config`).
+#[derive(Serialize, specta::Type)]
+pub struct ExpLevelDto {
+    /// `f64`, cf. [`ItemDto::price`].
+    pub level: f64,
+    /// EXP nécessaire pour ce niveau depuis le précédent.
+    pub need_exp: f64,
+    /// EXP cumulée depuis le niveau 1 — la valeur que le jeu affiche, calculée ici.
+    pub cumulative: f64,
+}
+
+/// Courbe d'expérience des personnages (`character/chara_exp_table_config_*`).
+pub fn list_exp_table(vfs: &Vfs) -> Result<Vec<ExpLevelDto>, String> {
+    let config = load_rdbn(
+        vfs,
+        |p| {
+            p.contains("/gamedata/character/")
+                && base_name(p).starts_with("chara_exp_table_config")
+                && base_name(p).ends_with(".cfg.bin")
+        },
+        "chara_exp_table_config",
+    )?;
+    let table = nie_data::exp::parse_exp_table(&config);
+    let mut cumul = 0.0;
+    Ok(table
+        .exp_table
+        .iter()
+        .map(|e| {
+            cumul += e.need_exp as f64;
+            ExpLevelDto { level: e.level as f64, need_exp: e.need_exp as f64, cumulative: cumul }
+        })
+        .collect())
+}
+
+/// Ligne de butin (`soccer_drop_config`) — un personnage-esprit tirable, avec son poids et sa
+/// condition d'apparition.
+#[derive(Serialize, specta::Type)]
+pub struct DropDto {
+    pub chara_id: String,
+    pub name: Option<String>,
+    /// `f64`, cf. [`ItemDto::price`] — poids de tirage (probabilité relative dans sa table).
+    pub weight: f64,
+    /// Part du poids dans le total de la table, en pourcentage — la seule lecture humaine d'un
+    /// poids brut.
+    pub share_pct: f64,
+    /// Condition d'exécution telle quelle (mini-langage du jeu, non interprété).
+    pub run_cond: String,
+}
+
+/// Liste les personnages tirables au butin (`soccer/soccer_drop_config_*`, liste
+/// `spirit_table_data`), noms résolus quand `chara_base`+`chara_text` les connaissent.
+pub fn list_drops(vfs: &Vfs) -> Result<Vec<DropDto>, String> {
+    let config = load_rdbn(
+        vfs,
+        |p| {
+            p.contains("/gamedata/soccer/")
+                && base_name(p).starts_with("soccer_drop_config")
+                && base_name(p).ends_with(".cfg.bin")
+        },
+        "soccer_drop_config",
+    )?;
+    let cfg = nie_data::soccer_drop::parse_soccer_drop_config(&config);
+
+    let noms: HashMap<String, String> = match (
+        load_t2b(
+            vfs,
+            |p| p.contains("/character/") && base_name(p).starts_with("chara_base_1") && base_name(p).ends_with(".cfg.bin"),
+            "chara_base",
+        ),
+        load_text_json(vfs, "chara"),
+    ) {
+        (Ok(bj), Ok(tj)) => {
+            let nouns = nie_data::chara_text::parse_all_nouns(&tj);
+            nie_data::chara_base::parse_all_chara_base(&bj)
+                .iter()
+                .filter_map(|b| {
+                    let first = nie_data::chara_base::resolve_first_name(b, &nouns)?;
+                    let nom = match nie_data::chara_base::resolve_last_name(b, &nouns) {
+                        Some(l) => format!("{first} {l}"),
+                        None => first.to_string(),
+                    };
+                    Some((b.chara_id.to_hex(), nom))
+                })
+                .collect()
+        }
+        _ => HashMap::new(),
+    };
+
+    let total: f64 = cfg.spirit_table_data.iter().map(|s| s.weight as f64).sum();
+    Ok(cfg
+        .spirit_table_data
+        .iter()
+        .map(|s| DropDto {
+            chara_id: s.chara_id.to_hex(),
+            name: noms.get(&s.chara_id.to_hex()).cloned(),
+            weight: s.weight as f64,
+            share_pct: if total > 0.0 { s.weight as f64 * 100.0 / total } else { 0.0 },
+            run_cond: s.run_cond.clone(),
+        })
+        .collect())
+}
+
+/// Table de gain de capsules (`capsule_config`) — une ligne par rang, avec son taux.
+#[derive(Serialize, specta::Type)]
+pub struct CapsuleRateDto {
+    pub table_id: String,
+    /// `f64`, cf. [`ItemDto::price`] — rang de rareté du lot.
+    pub rank: f64,
+    /// Taux brut de la donnée (base 10 000 dans le dump de référence).
+    pub rate: f64,
+    /// Part du taux dans le total de sa table, en pourcentage.
+    pub share_pct: f64,
+}
+
+/// Liste les taux de tirage des capsules (`capsule/capsule_config_*`, liste `lot_rank_rates`).
+pub fn list_capsule_rates(vfs: &Vfs) -> Result<Vec<CapsuleRateDto>, String> {
+    let config = load_t2b(
+        vfs,
+        |p| {
+            p.contains("/gamedata/capsule/")
+                && base_name(p).starts_with("capsule_config")
+                && base_name(p).ends_with(".cfg.bin")
+        },
+        "capsule_config",
+    )?;
+    let db = nie_data::capsule::parse_capsule_database(&config);
+    let mut out = Vec::new();
+    for table in &db.lot_rank_rates {
+        let total: f64 = table.rates.iter().map(|r| r.rate as f64).sum();
+        for r in &table.rates {
+            out.push(CapsuleRateDto {
+                table_id: table.id.to_hex(),
+                rank: r.rank as f64,
+                rate: r.rate as f64,
+                share_pct: if total > 0.0 { r.rate as f64 * 100.0 / total } else { 0.0 },
+            });
+        }
+    }
+    Ok(out)
+}
+
+
+// ─── Index multilingue des noms (traducteur) ─────────────────────────────────────────────────
+
+/// Les langues du jeu, dans l'ordre d'affichage. Relevé sur l'installation Steam :
+/// `data/common/text/` porte `ja`, `fr`, `en`, `de`, `es`, `it`, `pt`, `zh_hans`, `zh_hant`
+/// (plus `common`, `event`, `map`, qui ne sont pas des langues).
+pub const LANGUES: [&str; 9] = ["fr", "en", "ja", "de", "es", "it", "pt", "zh_hans", "zh_hant"];
+
+/// Un nom dans une langue.
+#[derive(Serialize, specta::Type)]
+pub struct NomLangueDto {
+    /// Code de langue (`fr`, `ja`, `zh_hans`…).
+    pub langue: String,
+    pub nom: String,
+}
+
+/// Une entité du jeu et ses noms dans toutes les langues où elle en a un.
+#[derive(Serialize, specta::Type)]
+pub struct NomsDto {
+    /// Famille : `chara`, `skill` ou `item`.
+    pub kind: String,
+    /// Code interne (`c01000010`, `whs00340`) ou hash à défaut — la clé qui ouvre l'éditeur.
+    pub code: String,
+    pub noms: Vec<NomLangueDto>,
+}
+
+/// Index multilingue des noms, construit DIRECTEMENT depuis le jeu monté.
+///
+/// C'est ce qui rend le traducteur utilisable sans le miroir du wiki : celui-ci n'est ni requis
+/// ni toujours présent (vérifié à l'écran — « Index indisponible : unable to open database
+/// file », 0 nom indexé, sur une machine où le jeu était pourtant monté). Et il va plus loin que
+/// le site, qui n'expose que FR/EN/JA/romaji : les **neuf** langues de `data/common/text/` sont
+/// lues, y compris l'allemand, l'espagnol, l'italien, le portugais et les deux chinois.
+///
+/// Trois familles couvertes — personnages, techniques, objets — celles dont le nom est la clé
+/// d'entrée d'une recherche. Une langue absente ou une table illisible est simplement sautée :
+/// l'index rend ce qu'il a, jamais une erreur pour toute la commande.
+pub fn list_noms(vfs: &Vfs) -> Result<Vec<NomsDto>, String> {
+    use std::collections::BTreeMap;
+
+    // code interne → (kind, noms par langue). `BTreeMap` : sortie stable d'un appel à l'autre.
+    let mut index: BTreeMap<String, (String, Vec<NomLangueDto>)> = BTreeMap::new();
+
+    // — Personnages : `chara_base` donne le code interne, `chara_text` le nom par langue.
+    let bases = load_t2b(
+        vfs,
+        |p| p.contains("/character/") && base_name(p).starts_with("chara_base_1") && base_name(p).ends_with(".cfg.bin"),
+        "chara_base",
+    )
+    .map(|j| nie_data::chara_base::parse_all_chara_base(&j))
+    .unwrap_or_default();
+
+    // — Techniques : `skill_config` donne le code interne (`whs00340`), `skill_text` le nom.
+    let skills = load_rdbn(
+        vfs,
+        |p| p.contains("/skill/") && base_name(p).starts_with("skill_config") && base_name(p).ends_with(".cfg.bin"),
+        "skill_config",
+    )
+    .map(|j| nie_data::skill::parse_skill_config(&j))
+    .unwrap_or_default();
+
+    // — Objets : `item_config` donne le code interne, `item_text` le nom.
+    let items = load_t2b(
+        vfs,
+        |p| p.contains("/gamedata/item/") && base_name(p).starts_with("item_config") && base_name(p).ends_with(".cfg.bin"),
+        "item_config",
+    )
+    .map(|j| nie_data::item::parse_all_items(&j))
+    .unwrap_or_default();
+
+    for langue in LANGUES {
+        if let Ok(j) = load_text_json_lang(vfs, "chara", langue) {
+            let nouns = nie_data::chara_text::parse_all_nouns(&j);
+            for b in &bases {
+                let Some(first) = nie_data::chara_base::resolve_first_name(b, &nouns) else { continue };
+                let nom = match nie_data::chara_base::resolve_last_name(b, &nouns) {
+                    Some(l) => format!("{first} {l}"),
+                    None => first.to_string(),
+                };
+                let cle = if b.internal_code.is_empty() { b.chara_id.to_hex() } else { b.internal_code.clone() };
+                index
+                    .entry(cle)
+                    .or_insert_with(|| ("chara".to_string(), Vec::new()))
+                    .1
+                    .push(NomLangueDto { langue: langue.to_string(), nom });
+            }
+        }
+
+        if let Ok(j) = load_text_json_lang(vfs, "skill", langue) {
+            let maps = nie_data::skill::parse_skill_text(&j);
+            for s in &skills {
+                let Some(nom) = nie_data::skill::join_skill_text(s, &maps).name else { continue };
+                index
+                    .entry(s.skill_id_str.clone())
+                    .or_insert_with(|| ("skill".to_string(), Vec::new()))
+                    .1
+                    .push(NomLangueDto { langue: langue.to_string(), nom });
+            }
+        }
+
+        if let Ok(j) = load_text_json_lang(vfs, "item", langue) {
+            let textes = nie_data::text::parse_text_file(&j);
+            for it in &items {
+                let Some(nom) = nie_data::item::resolve_name(it, &textes) else { continue };
+                let cle = it.internal_code.clone().unwrap_or_else(|| it.item_id.to_hex());
+                index
+                    .entry(cle)
+                    .or_insert_with(|| ("item".to_string(), Vec::new()))
+                    .1
+                    .push(NomLangueDto { langue: langue.to_string(), nom: nom.to_string() });
+            }
+        }
+    }
+
+    Ok(index
+        .into_iter()
+        .map(|(code, (kind, noms))| NomsDto { kind, code, noms })
+        .collect())
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1221,5 +1886,45 @@ mod tests {
             ok + failed.len()
         );
     }
-}
+    /// Exerce les HUIT familles ajoutées (§4.3) sur le VRAI jeu : chacune doit décoder son
+    /// `.cfg.bin` et rendre des lignes. Un `list_*` qui rendrait `Ok(vec![])` serait un onglet
+    /// vide dans l'encyclopédie — un faux vert exactement comme une suite à « 0 passed ».
+    #[test]
+    fn nouvelles_familles_sur_le_vrai_jeu() {
+        let dir = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
+        let data_dir = std::path::Path::new(&dir).join("data");
+        if !nie_formats::vfs::donnees_disponibles(&data_dir) {
+            eprintln!("skip nouvelles_familles_sur_le_vrai_jeu : jeu absent");
+            return;
+        }
+        let mut vfs = Vfs::new();
+        vfs.init(&data_dir).expect("vfs init");
 
+        let charas = list_charas(&vfs).expect("list_charas");
+        assert!(charas.len() > 1000, "attendu > 1000 personnages, obtenu {}", charas.len());
+        assert!(
+            charas.iter().any(|c| c.stats.total > 0 && !c.internal_code.is_empty()),
+            "aucun personnage avec code interne ET stats calculées"
+        );
+
+        macro_rules! non_vide {
+            ($f:ident) => {{
+                let v = $f(&vfs).unwrap_or_else(|e| panic!("{} : {e}", stringify!($f)));
+                assert!(!v.is_empty(), "{} rend une liste vide", stringify!($f));
+                v.len()
+            }};
+        }
+        let n_opp = non_vide!(list_opponent_teams);
+        let n_mov = non_vide!(list_movies);
+        let n_mus = non_vide!(list_musics);
+        let n_dic = non_vide!(list_dictionary);
+        let n_exp = non_vide!(list_exp_table);
+        let n_drp = non_vide!(list_drops);
+        let n_cap = non_vide!(list_capsule_rates);
+        eprintln!(
+            "familles : charas={} adversaires={n_opp} videos={n_mov} musiques={n_mus} \
+             dictionnaire={n_dic} exp={n_exp} butin={n_drp} capsules={n_cap}",
+            charas.len()
+        );
+    }
+}

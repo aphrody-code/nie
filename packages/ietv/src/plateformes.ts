@@ -38,7 +38,7 @@ export type Plateforme = "youtube" | "dailymotion" | "page";
  * `es` : les faire diverger obligerait à traduire dans les deux sens.
  * `unknown` n'est PAS une langue, c'est l'absence de renseignement.
  */
-export type LangueSource = "vo" | "vf" | "vostfr" | "en" | "es" | "unknown";
+export type LangueSource = "vo" | "vf" | "vostfr" | "en" | "es" | "de" | "unknown";
 
 /** Toutes les valeurs que la contrainte `CHECK` de la base doit accepter. */
 export const LANGUES_SOURCE: readonly LangueSource[] = [
@@ -47,6 +47,7 @@ export const LANGUES_SOURCE: readonly LangueSource[] = [
 	"vostfr",
 	"en",
 	"es",
+	"de",
 	"unknown",
 ];
 
@@ -219,15 +220,16 @@ export interface LangueOfficielle {
  * arcs : **67 / 67** portent un identifiant allemand. À partir de `saison3` et
  * pour tous les arcs GO, la page `de` n'en porte aucun.
  *
- * `de` n'est pas inscrit ici pour autant : ce serait une langue de plus dans le
- * type {@link LangueSource}, dans la contrainte `CHECK` de deux tables et dans
- * le sélecteur de l'explorateur. C'est un travail à part entière, chiffré
- * (67 épisodes), pas un ajout à glisser dans une liste.
+ * `de` est donc inscrit ici, et le travail qu'il implique a été fait : une
+ * valeur de plus dans {@link LangueSource}, dans les contraintes `CHECK` des
+ * deux tables (par reconstruction — SQLite ne sait pas modifier un `CHECK`), et
+ * dans les tableaux de couverture.
  */
 export const LANGUES_OFFICIELLES: readonly LangueOfficielle[] = [
 	{ code: "fr", langue: "vf", origine: "inazuma-eleven.fr (official)" },
 	{ code: "en", langue: "en", origine: "inazuma-eleven.fr (en)" },
 	{ code: "es", langue: "es", origine: "inazuma-eleven.fr (es)" },
+	{ code: "de", langue: "de", origine: "inazuma-eleven.fr (de)" },
 ];
 
 /**
