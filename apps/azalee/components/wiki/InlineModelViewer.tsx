@@ -60,6 +60,9 @@ export default function InlineModelViewer({ glbUrl, name }: InlineModelViewerPro
 				const mv = document.createElement("model-viewer");
 				mv.setAttribute("alt", `Modèle 3D de ${name ?? "modèle"}`);
 				mv.setAttribute("camera-controls", "");
+				// Les GLB IEVR sont exportés avec leur face avant à 180° de l'axe caméra
+				// par défaut de model-viewer ; sans cette orbite la galerie montre le dos.
+				mv.setAttribute("camera-orbit", "180deg 75deg auto");
 				mv.setAttribute("auto-rotate", "");
 				mv.setAttribute("rotation-per-second", "24deg");
 				mv.setAttribute("interaction-prompt", "none");
