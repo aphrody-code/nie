@@ -83,6 +83,7 @@ const lib = dlopen(SO_PATH, {
     returns: FFIType.void,
   },
   nie_font_free:        { args: [FFIType.ptr],              returns: FFIType.void },
+  nie_depot_json_out:   { args: [FFIType.ptr, FFIType.u64, FFIType.ptr], returns: FFIType.void },
 } as const);
 
 const { symbols } = lib;
@@ -476,3 +477,140 @@ export function vfsOpen(gameDataDir: string): VfsHandle | null {
   return new VfsHandle(handle);
 }
 
+
+// ─── accès au code du dépôt ──────────────────────────────────────────────────
+
+/** Un fichier du dépôt, lu ou décrit — reflet de `nie_explore::depot::FichierDepot`. */
+export interface FichierDepot {
+  /** Chemin relatif à la racine du dépôt, séparateurs `/`. */
+  chemin: string;
+  /** Chemin absolu réel (liens symboliques résolus). */
+  chemin_absolu: string;
+  /** Taille totale du fichier en octets. */
+  taille: number;
+  /** Vrai si le contenu s'arrête avant la fin du fichier. */
+  tronque: boolean;
+  /** Vrai si le fichier contient des octets nuls ; le contenu n'est alors pas renvoyé. */
+  binaire: boolean;
+  /** Contenu textuel, absent pour un binaire ou au-delà du plafond de 8 Mio. */
+  contenu?: string;
+  /** Explication lisible quand le contenu manque. */
+  note?: string;
+}
+
+/** Une entrée de dossier — reflet de `nie_explore::depot::EntreeDepot`. */
+export interface EntreeDepot {
+  /** Chemin relatif à la racine du dépôt. */
+  chemin: string;
+  /** Nom seul de l'entrée. */
+  nom: string;
+  /** Vrai pour un dossier. */
+  dossier: boolean;
+  /** Taille en octets (0 pour un dossier). */
+  taille: number;
+}
+
+/** Une ligne trouvée par `depotChercher` — reflet de `nie_explore::depot::Correspondance`. */
+export interface Correspondance {
+  /** Chemin relatif à la racine du dépôt. */
+  chemin: string;
+  /** Numéro de ligne, à partir de 1. */
+  ligne: number;
+  /** Texte de la ligne, sans le saut de ligne final. */
+  texte: string;
+}
+
+/** Options de parcours communes à `depotTrouver` et `depotChercher`. */
+export interface OptionsParcours {
+  /** Sous-dossier de départ, relatif à la racine (vide = tout le dépôt). */
+  sous_dossier?: string;
+  /** Motifs glob (`**\/*.rs`), cumulatifs avec `extensions`. */
+  globs?: string[];
+  /** Extensions (`rs`, `.toml`) — sucre pour `**\/*.<ext>`. */
+  extensions?: string[];
+  /** Inclure les fichiers cachés. */
+  caches?: boolean;
+  /** Ignorer les règles `.gitignore`. */
+  sans_ignore?: boolean;
+  /** Profondeur maximale de descente. */
+  profondeur?: number;
+  /** Nombre maximal de résultats (0 = illimité). */
+  limite?: number;
+  /** Recherche sensible à la casse. */
+  sensible_casse?: boolean;
+}
+
+/**
+ * Erreur métier remontée par la couche dépôt (chemin hors du dépôt, glob invalide…).
+ *
+ * Elle traverse l'ABI C **dans** le JSON de réponse, pas par un tampon vide : seul un JSON de
+ * requête illisible produit un résultat vide, ce qui reste une erreur de programmation.
+ */
+export class ErreurDepot extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ErreurDepot";
+  }
+}
+
+/**
+ * Appelle `nie_depot_json_out` et déballe l'enveloppe `{ok, resultat|erreur}`.
+ *
+ * @throws {ErreurDepot} si l'opération a échoué côté Rust.
+ */
+function depotAppel<T>(requete: Record<string, unknown>): T {
+  const buf = _enc.encode(JSON.stringify(requete));
+  const out = callOut((outPtr) => {
+    symbols.nie_depot_json_out(ptr(buf), BigInt(buf.byteLength), outPtr);
+  });
+  if (out === null) throw new ErreurDepot("requête dépôt illisible par la couche native");
+  const rep = JSON.parse(_dec.decode(out)) as
+    | { ok: true; resultat: T }
+    | { ok: false; erreur: string };
+  if (!rep.ok) throw new ErreurDepot(rep.erreur);
+  return rep.resultat;
+}
+
+/**
+ * Lit un fichier texte du dépôt.
+ *
+ * Le moteur est `nie_explore::depot`, partagé avec `niers find`/`grep` et l'app desktop :
+ * même confinement, mêmes plafonds, mêmes exclusions (`data/`, `target/`, `node_modules/`…).
+ *
+ * @throws {ErreurDepot} chemin hors du dépôt, dossier exclu, ou fichier introuvable.
+ */
+export function depotLire(racine: string, chemin: string, maxOctets?: number): FichierDepot {
+  return depotAppel<FichierDepot>({ op: "lire", racine, chemin, max_octets: maxOctets });
+}
+
+/**
+ * Liste les entrées immédiates d'un dossier du dépôt (dossiers d'abord, puis alphabétique).
+ *
+ * @throws {ErreurDepot} chemin hors du dépôt, dossier exclu, ou introuvable.
+ */
+export function depotLister(racine: string, chemin = ""): EntreeDepot[] {
+  return depotAppel<EntreeDepot[]>({ op: "lister", racine, chemin });
+}
+
+/**
+ * Cherche des fichiers par sous-chaîne de chemin. `motif` vide liste tout ce que les filtres
+ * laissent passer.
+ *
+ * @throws {ErreurDepot} glob invalide ou sous-dossier refusé.
+ */
+export function depotTrouver(racine: string, motif: string, options: OptionsParcours = {}): string[] {
+  return depotAppel<string[]>({ op: "trouver", racine, motif, ...options });
+}
+
+/**
+ * Cherche une expression régulière dans le contenu des fichiers. Les binaires sont écartés.
+ *
+ * @throws {ErreurDepot} motif vide, expression invalide, ou sous-dossier refusé.
+ */
+export function depotChercher(
+  racine: string,
+  motif: string,
+  options: OptionsParcours = {},
+): Correspondance[] {
+  return depotAppel<Correspondance[]>({ op: "chercher", racine, motif, ...options });
+}

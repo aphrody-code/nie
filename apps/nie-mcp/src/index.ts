@@ -21,7 +21,7 @@ import { Control, launchGame } from "./control.ts";
 import { VfsIndex } from "./vfs.ts";
 import { KnowledgeBase } from "./kb.ts";
 import { getAsset } from "./assets.ts";
-import { repoRead } from "./repo.ts";
+import { repoFind, repoGrep, repoList, repoRead } from "./repo.ts";
 import { ToolError } from "./security.ts";
 
 type ToolResult = { content: { type: "text"; text: string }[]; isError?: boolean };
@@ -80,6 +80,16 @@ async function main(): Promise<void> {
   };
 
   const server = new McpServer({ name: "niers-game", version: "0.1.0" });
+
+  // Le nombre d'outils annoncé au démarrage est MESURÉ ici, pas écrit à la main : le message
+  // affirmait « 14 outils » alors que 17 étaient enregistrés, et rien ne le contredisait. Un
+  // compteur qui s'incrémente à l'enregistrement ne peut pas se désynchroniser.
+  let outilsEnregistres = 0;
+  const enregistrer = server.registerTool.bind(server);
+  server.registerTool = ((...a: Parameters<typeof enregistrer>) => {
+    outilsEnregistres += 1;
+    return enregistrer(...a);
+  }) as typeof server.registerTool;
 
   // ---------------------------------------------------------------- VFS ----
   server.registerTool(
@@ -199,6 +209,61 @@ async function main(): Promise<void> {
     ({ path, maxBytes }) => safe(() => repoRead({ path, maxBytes })),
   );
 
+  server.registerTool(
+    "repo_list",
+    {
+      title: "Lister un dossier du repo niers",
+      description:
+        "Liste les sous-dossiers et fichiers immédiats d'un dossier du repo (dossiers d'abord). path vide = racine. Les dossiers non-code (data/ var/ target/ node_modules/ .git/ refs/) n'apparaissent pas. C'est le point d'entrée pour explorer le repo sans en connaître l'arborescence.",
+      inputSchema: {
+        path: z.string().optional().describe("ex. 'crates/engine' (vide = racine du repo)"),
+      },
+    },
+    ({ path }) => safe(() => repoList({ path })),
+  );
+
+  server.registerTool(
+    "repo_find",
+    {
+      title: "Trouver des fichiers du repo par chemin",
+      description:
+        "Cherche des fichiers dont le chemin contient une sous-chaîne. Respecte .gitignore. pattern vide = tout lister sous les filtres. Moteur `ignore` (celui de fd/ripgrep) — même parcours que `niers find`.",
+      inputSchema: {
+        pattern: z.string().optional().describe("sous-chaîne cherchée dans le chemin, ex. 'depot'"),
+        dir: z.string().optional().describe("sous-dossier de départ, ex. 'crates/engine'"),
+        globs: z.array(z.string()).optional().describe("motifs glob, ex. ['**/*.rs']"),
+        exts: z.array(z.string()).optional().describe("extensions, ex. ['rs','toml']"),
+        hidden: z.boolean().optional().describe("inclure les fichiers cachés"),
+        noIgnore: z.boolean().optional().describe("ignorer les règles .gitignore"),
+        depth: z.number().int().positive().optional().describe("profondeur maximale"),
+        limit: z.number().int().positive().optional().describe("résultats max (défaut 200)"),
+        caseSensitive: z.boolean().optional().describe("sensible à la casse"),
+      },
+    },
+    (args) => safe(() => repoFind(args)),
+  );
+
+  server.registerTool(
+    "repo_grep",
+    {
+      title: "Chercher dans le contenu du code du repo",
+      description:
+        "Cherche une expression régulière dans le contenu des fichiers du repo et renvoie les lignes situées (chemin + numéro de ligne). Binaires écartés, .gitignore respecté. Moteur grep-searcher/grep-regex (celui de ripgrep) — même recherche que `niers grep`.",
+      inputSchema: {
+        pattern: z.string().min(1).describe("expression régulière, ex. 'fn resolve_game_dir'"),
+        dir: z.string().optional().describe("sous-dossier de départ, ex. 'crates'"),
+        globs: z.array(z.string()).optional().describe("motifs glob, ex. ['**/*.rs']"),
+        exts: z.array(z.string()).optional().describe("extensions, ex. ['rs','ts']"),
+        hidden: z.boolean().optional().describe("inclure les fichiers cachés"),
+        noIgnore: z.boolean().optional().describe("ignorer les règles .gitignore"),
+        depth: z.number().int().positive().optional().describe("profondeur maximale"),
+        limit: z.number().int().positive().optional().describe("lignes max (défaut 200)"),
+        caseSensitive: z.boolean().optional().describe("sensible à la casse"),
+      },
+    },
+    (args) => safe(() => repoGrep(args)),
+  );
+
   // ------------------------------------------------------------- Contrôle ----
   // Pilotage de nie-explorer via `@niers/bridge` : le protocole est le même module des deux
   // côtés, donc une commande ajoutée ici doit être gérée par le client, ou ça ne compile pas.
@@ -283,7 +348,7 @@ async function main(): Promise<void> {
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("[niers-game] serveur MCP prêt (stdio) — 14 outils exposés");
+  console.error(`[niers-game] serveur MCP prêt (stdio) — ${outilsEnregistres} outils exposés`);
 }
 
 main().catch((e) => {

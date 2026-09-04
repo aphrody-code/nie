@@ -72,8 +72,24 @@ async function main(): Promise<void> {
   // Liste des outils exposés.
   const tools = await client.listTools();
   const names = tools.tools.map((t) => t.name).sort();
-  // 8 outils de données + 5 de pilotage de l'explorateur + le lancement du jeu.
-  check("listTools", names.length === 14, `${names.length} outils : ${names.join(", ")}`);
+  // On vérifie la PRÉSENCE de chaque outil attendu, pas un total. Un compte en dur casse à
+  // chaque ajout légitime (il annonçait 14 quand 17 étaient enregistrés) sans rien dire de ce
+  // qui manque ; une liste nommée détecte la perte d'un outil et laisse passer les nouveaux.
+  const attendus = [
+    "vfs_list", "vfs_search", "vfs_stat", "asset_get",
+    "re_query", "re_function", "re_coverage",
+    "repo_read", "repo_list", "repo_find", "repo_grep",
+    "explorer_status", "explorer_navigate", "explorer_open", "explorer_tab", "explorer_toast",
+    "game_launch",
+  ];
+  const manquants = attendus.filter((a) => !names.includes(a));
+  check(
+    "listTools",
+    manquants.length === 0,
+    manquants.length === 0
+      ? `${names.length} outils, les ${attendus.length} attendus présents`
+      : `manquants : ${manquants.join(", ")}`,
+  );
 
   // (1) re_coverage : pct plausible, et total COHÉRENT avec les lignes de `function`.
   // Pas de constante en dur : le nombre de racines `.pdata` dépend du build ciblé et d'un
@@ -239,6 +255,49 @@ async function main(): Promise<void> {
   {
     const { isError, raw } = await callJson(client, "repo_read", { path: "../../etc/passwd" });
     check("repo_read bloque traversal", isError, raw.slice(0, 70));
+  }
+
+  // (7) repo_list / repo_find / repo_grep — la navigation et la recherche dans le code, sur le
+  // même moteur natif que `niers find`/`grep`. Aucune valeur en dur : on vérifie des invariants
+  // (présence des dossiers de code, absence des dossiers exclus, lignes situées).
+  {
+    const { data } = await callJson<Array<{ name: string; is_dir: boolean }>>(client, "repo_list", {});
+    const noms = data.map((e) => e.name);
+    const exclusVus = ["data", "target", "node_modules", ".git", "var"].filter((x) => noms.includes(x));
+    check(
+      "repo_list racine",
+      noms.includes("crates") && noms.includes("packages") && exclusVus.length === 0,
+      `${data.length} entrées, exclus vus : ${exclusVus.length === 0 ? "aucun" : exclusVus.join(",")}`,
+    );
+  }
+  {
+    const { data } = await callJson<string[]>(client, "repo_find", {
+      pattern: "depot",
+      dir: "crates/engine/nie-explore",
+      exts: ["rs"],
+      limit: 20,
+    });
+    check(
+      "repo_find depot.rs",
+      data.some((p) => p.endsWith("nie-explore/src/depot.rs")),
+      `${data.length} résultat(s)`,
+    );
+  }
+  {
+    const { data } = await callJson<Array<{ path: string; line: number; text: string }>>(
+      client,
+      "repo_grep",
+      { pattern: "DOSSIERS_EXCLUS", dir: "crates/engine/nie-explore/src", exts: ["rs"], limit: 20 },
+    );
+    check(
+      "repo_grep DOSSIERS_EXCLUS",
+      data.length > 0 && data.every((m) => m.line >= 1 && m.path.includes("nie-explore")),
+      `${data.length} ligne(s), 1re : ${data[0]?.path}:${data[0]?.line}`,
+    );
+  }
+  {
+    const { isError, raw } = await callJson(client, "repo_grep", { pattern: "x", dir: "data" });
+    check("repo_grep bloque data/", isError, raw.slice(0, 70));
   }
 
   await client.close();

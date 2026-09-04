@@ -22,6 +22,9 @@ nie-core = { workspace = true, features = ["serde"] }
 # Feature `textures` = décodeur G4TX/DDS → RGBA8/PNG partagé (`nie_formats::g4tx_decode`),
 # utilisé par nie_g4tx_to_png (le DDS/BCn vit désormais dans nie-formats).
 nie-formats = { workspace = true, features = ["serde", "textures"] }
+# Accès au code du dépôt (`nie_depot_json`) : le MCP `niers-game` atteint par ici le MÊME
+# moteur que `niers find`/`grep` et que l'app desktop, au lieu d'en réimplémenter un en TS.
+nie-explore = { path = "../nie-explore" }
 serde_json.workspace = true
 # `image` : encodage PNG des atlas de glyphes (make_glyph_png) + décodage dans les tests.
 image = { version = "0.25", default-features = false, features = ["png"] }

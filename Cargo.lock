@@ -4317,6 +4317,7 @@ version = "0.5.7"
 dependencies = [
  "image",
  "nie-core",
+ "nie-explore",
  "nie-formats",
  "nie-runtime",
  "serde_json",

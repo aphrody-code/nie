@@ -1666,3 +1666,160 @@ pub unsafe extern "C" fn nie_match_simulate_json_out(
     // SAFETY: out est non-null et aligné.
     unsafe { out.write(sortie) };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Accès au code du dépôt
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Exécute une opération d'accès au code du dépôt décrite en JSON, et rend du JSON.
+///
+/// Le moteur est [`nie_explore::depot`] — le même que celui de `niers find`/`niers grep` et des
+/// commandes Tauri de l'app desktop. Aucune de ces façades n'a sa propre implémentation.
+///
+/// Une **seule** entrée FFI plutôt qu'une par opération : la requête étant du JSON, ajouter un
+/// champ ou une opération n'change pas l'ABI, donc ne casse aucun binaire déjà distribué.
+///
+/// ## Requête
+///
+/// ```json
+/// { "op": "lire",     "racine": "<chemin>", "chemin": "crates/…/lib.rs", "max_octets": 65536 }
+/// { "op": "lister",   "racine": "<chemin>", "chemin": "crates/engine" }
+/// { "op": "trouver",  "racine": "<chemin>", "motif": "depot", "extensions": ["rs"] }
+/// { "op": "chercher", "racine": "<chemin>", "motif": "DOSSIERS_EXCLUS", "limite": 50 }
+/// ```
+///
+/// Champs de parcours acceptés par `trouver`/`chercher` : `sous_dossier`, `globs`, `extensions`,
+/// `caches`, `sans_ignore`, `profondeur`, `limite`, `sensible_casse`.
+///
+/// ## Réponse
+///
+/// `{"ok":true,"resultat":…}` ou `{"ok":false,"erreur":"…"}`. Une erreur métier (chemin hors du
+/// dépôt, glob invalide) est donc rendue **dans** le JSON, pas par un tampon vide : seul un JSON
+/// de requête illisible produit [`NieBytes::empty`].
+fn depot_json_impl(requete: &[u8]) -> NieBytes {
+    let Ok(v) = serde_json::from_slice::<serde_json::Value>(requete) else {
+        return NieBytes::empty();
+    };
+    let reponse = match executer_depot(&v) {
+        Ok(resultat) => serde_json::json!({ "ok": true, "resultat": resultat }),
+        Err(e) => serde_json::json!({ "ok": false, "erreur": e.to_string() }),
+    };
+    match serde_json::to_vec(&reponse) {
+        Ok(bytes) => NieBytes::from_vec(bytes),
+        Err(_) => NieBytes::empty(),
+    }
+}
+
+/// Traduit la requête JSON en appel [`nie_explore::depot`] et sérialise le résultat.
+///
+/// L'erreur est une `String` plutôt qu'un type riche : elle traverse l'ABI C en JSON, où seul
+/// son texte survit. Cela évite aussi une dépendance de plus dans la couche FFI.
+fn executer_depot(v: &serde_json::Value) -> Result<serde_json::Value, String> {
+    use nie_explore::depot::{Depot, OptionsParcours};
+
+    let racine = v.get("racine").and_then(serde_json::Value::as_str).unwrap_or(".");
+    let depot = Depot::ouvrir(racine).map_err(|e| e.to_string())?;
+    let op = v.get("op").and_then(serde_json::Value::as_str).unwrap_or("");
+    let chemin = v.get("chemin").and_then(serde_json::Value::as_str).unwrap_or("");
+    let motif = v.get("motif").and_then(serde_json::Value::as_str).unwrap_or("");
+
+    let chaines = |cle: &str| -> Vec<String> {
+        v.get(cle)
+            .and_then(serde_json::Value::as_array)
+            .map(|a| a.iter().filter_map(|x| x.as_str().map(str::to_string)).collect())
+            .unwrap_or_default()
+    };
+    let booleen = |cle: &str| v.get(cle).and_then(serde_json::Value::as_bool).unwrap_or(false);
+
+    let options = OptionsParcours {
+        sous_dossier: v
+            .get("sous_dossier")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("")
+            .to_string(),
+        globs: chaines("globs"),
+        extensions: chaines("extensions"),
+        caches: booleen("caches"),
+        sans_ignore: booleen("sans_ignore"),
+        profondeur: v
+            .get("profondeur")
+            .and_then(serde_json::Value::as_u64)
+            .and_then(|n| usize::try_from(n).ok()),
+        limite: v
+            .get("limite")
+            .and_then(serde_json::Value::as_u64)
+            .and_then(|n| usize::try_from(n).ok())
+            .unwrap_or(200),
+        sensible_casse: booleen("sensible_casse"),
+    };
+
+    let sortie = match op {
+        "lire" => {
+            let f = depot
+                .lire(chemin, v.get("max_octets").and_then(serde_json::Value::as_u64))
+                .map_err(|e| e.to_string())?;
+            serde_json::to_value(f).map_err(|e| e.to_string())?
+        }
+        "lister" => {
+            let l = depot.lister(chemin).map_err(|e| e.to_string())?;
+            serde_json::to_value(l).map_err(|e| e.to_string())?
+        }
+        "trouver" => {
+            let t = depot.trouver(motif, &options).map_err(|e| e.to_string())?;
+            serde_json::to_value(t).map_err(|e| e.to_string())?
+        }
+        "chercher" => {
+            let c = depot.chercher(motif, &options).map_err(|e| e.to_string())?;
+            serde_json::to_value(c).map_err(|e| e.to_string())?
+        }
+        autre => {
+            return Err(format!(
+                "opération inconnue : '{autre}' (lire, lister, trouver, chercher)"
+            ));
+        }
+    };
+    Ok(sortie)
+}
+
+/// Accès au code du dépôt : requête JSON → réponse JSON. Voir [`depot_json_impl`].
+///
+/// JS doit appeler [`nie_bytes_free`] après avoir consommé le résultat.
+///
+/// **Note Bun FFI** : retourne `NieBytes` par valeur (24 octets, sret x86-64) —
+/// préférer [`nie_depot_json_out`].
+///
+/// # Safety
+///
+/// - Si `len > 0`, `ptr` doit pointer vers `len` octets valides.
+/// - `ptr == null` ou `len == 0` → retourne [`NieBytes::empty`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_depot_json(ptr: *const u8, len: usize) -> NieBytes {
+    if ptr.is_null() || len == 0 {
+        return NieBytes::empty();
+    }
+    // SAFETY: l'appelant garantit ptr..len valides.
+    let requete = unsafe { core::slice::from_raw_parts(ptr, len) };
+    depot_json_impl(requete)
+}
+
+/// Variante Bun-FFI-friendly de [`nie_depot_json`] : écrit le résultat dans `*out`.
+///
+/// # Safety
+///
+/// - `out` doit pointer vers un `NieBytes` de 24 octets valide et aligné.
+/// - Si `len > 0`, `ptr` doit pointer vers `len` octets valides.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nie_depot_json_out(ptr: *const u8, len: usize, out: *mut NieBytes) {
+    if out.is_null() {
+        return;
+    }
+    let sortie = if ptr.is_null() || len == 0 {
+        NieBytes::empty()
+    } else {
+        // SAFETY: l'appelant garantit ptr..len valides.
+        let requete = unsafe { core::slice::from_raw_parts(ptr, len) };
+        depot_json_impl(requete)
+    };
+    // SAFETY: out est non-null et aligné.
+    unsafe { out.write(sortie) };
+}
