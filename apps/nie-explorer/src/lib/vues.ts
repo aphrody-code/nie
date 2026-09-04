@@ -167,6 +167,18 @@ export const VUES: readonly Vue[] = [
     avancee: true,
   },
   {
+    // Le code du dépôt, lu par le MÊME moteur que `niers find`/`grep` et que le serveur MCP
+    // (`nie_explore::depot`). Volontairement PAS `avancee` : l'application distribuée est la
+    // façon dont le client atteint le code, et une vue masquée par défaut ne remplirait pas
+    // cet office.
+    id: "code",
+    cle: "tab.code",
+    icone: "deployed_code",
+    groupe: "outils",
+    description: "Parcourir, lire et chercher dans le code source du dépôt.",
+    barreLaterale: true,
+  },
+  {
     id: "viola",
     cle: "tab.viola",
     icone: "hard_drive",

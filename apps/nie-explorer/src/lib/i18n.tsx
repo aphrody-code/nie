@@ -24,6 +24,7 @@ const fr: Dict = {
   // les affiche il faut pouvoir deviner ce qu'ils font sans ouvrir la vue.
   "tab.cpk": "Archives CPK",
   "tab.re": "Reverse-engineering",
+  "tab.code": "Code du dépôt",
   "tab.viola": "Archives Criware",
   "tab.livemod": "Mémoire du jeu",
   "tab.lua": "Scripts Lua",
@@ -70,6 +71,7 @@ const en: Dict = {
   "tab.mods": "Mods",
   "tab.cpk": "CPK archives",
   "tab.re": "Reverse engineering",
+  "tab.code": "Repository code",
   "tab.viola": "Criware archives",
   "tab.livemod": "Game memory",
   "tab.lua": "Lua scripts",
@@ -116,6 +118,7 @@ const ja: Dict = {
   "tab.mods": "MOD",
   "tab.cpk": "CPKアーカイブ",
   "tab.re": "リバースエンジニアリング",
+  "tab.code": "リポジトリのコード",
   "tab.viola": "Criwareアーカイブ",
   "tab.livemod": "ゲームメモリ",
   "tab.lua": "Luaスクリプト",

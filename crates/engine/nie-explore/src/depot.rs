@@ -45,6 +45,31 @@ use serde::{Deserialize, Serialize};
 /// `docs/`, `scripts/`, `plugins/`, `supabase/`, et les manifestes de la racine.
 pub const DOSSIERS_EXCLUS: &[&str] = &["refs", "data", "var", ".git", "target", "node_modules"];
 
+/// Fichiers refusés quel que soit leur emplacement : ils portent des secrets, pas du code.
+///
+/// Sans cette barrière, `lire(".env.local")` rendait les 6 727 octets de secrets du dépôt —
+/// acceptable pour un outil local, inadmissible dès que la même fonction sert un client distant
+/// (serveur MCP, et a fortiori une façade HTTP). Le filtre porte sur le **nom** de fichier, donc
+/// il tient à n'importe quelle profondeur, y compris pour un `.env.local` d'un sous-projet.
+///
+/// Il complète, sans le remplacer, l'exclusion des fichiers cachés au parcours : `*.key` et
+/// `*.pem` ne commencent pas par un point, et un appelant peut demander `caches: true`.
+fn fichier_sensible(nom: &str) -> bool {
+    let bas = nom.to_ascii_lowercase();
+    if bas.starts_with(".env") {
+        return true;
+    }
+    const SUFFIXES: &[&str] = &[".key", ".pem", ".p12", ".pfx", ".keystore", ".jks", ".asc"];
+    if SUFFIXES.iter().any(|s| bas.ends_with(s)) {
+        return true;
+    }
+    const NOMS: &[&str] = &[
+        "id_rsa", "id_ed25519", "id_ecdsa", ".npmrc", ".netrc", ".pgpass", "credentials",
+        "secrets.json", ".htpasswd",
+    ];
+    NOMS.contains(&bas.as_str())
+}
+
 /// Taille de lecture par défaut quand l'appelant n'en impose pas (256 Kio).
 pub const OCTETS_DEFAUT: u64 = 256 * 1024;
 
@@ -227,7 +252,11 @@ impl Depot {
         Ok(reel)
     }
 
-    /// Refuse un chemin dont le premier segment sous la racine est exclu.
+    /// Refuse un chemin dont le premier segment est un dossier exclu, ou dont un segment
+    /// quelconque est un fichier de secrets.
+    ///
+    /// C'est le point de contrôle unique : [`Self::resoudre`] l'appelle avant **et** après
+    /// `canonicalize`, et [`Self::lister`] s'en sert pour masquer les entrées.
     fn verifier_exclusion(&self, absolu: &Path) -> Result<()> {
         let Ok(rel) = absolu.strip_prefix(&self.racine) else {
             return Ok(());
@@ -239,6 +268,12 @@ impl Depot {
                     "dossier interdit '{nom}/' (exclus : {})",
                     self.exclus.iter().cloned().collect::<Vec<_>>().join(", ")
                 );
+            }
+        }
+        for part in rel.components() {
+            let nom = part.as_os_str().to_string_lossy();
+            if fichier_sensible(&nom) {
+                bail!("fichier de secrets refusé : '{nom}'");
             }
         }
         Ok(())
@@ -383,6 +418,13 @@ impl Depot {
         let racine = self.racine.clone();
         let exclus = self.exclus.clone();
         w.filter_entry(move |e| {
+            // Un fichier de secrets est écarté partout, pas seulement à la racine : `trouver` et
+            // `chercher` ne doivent pas en révéler le contenu ni même l'existence.
+            if let Some(nom) = e.path().file_name()
+                && fichier_sensible(&nom.to_string_lossy())
+            {
+                return false;
+            }
             let Ok(rel) = e.path().strip_prefix(&racine) else {
                 return true;
             };
@@ -639,6 +681,33 @@ mod tests {
         let hits = d.chercher("DOSSIERS_EXCLUS", &o).expect("recherche");
         assert!(!hits.is_empty(), "la constante doit être trouvée dans ce module");
         assert!(hits.iter().all(|c| c.ligne >= 1));
+    }
+
+    #[test]
+    fn refuse_les_fichiers_de_secrets() {
+        // Le dépôt porte un vrai `.env.local` : sans barrière, `lire` en rendait le contenu.
+        let d = depot();
+        for secret in [".env.local", ".env", "apps/azalee/.env.local", "cle.pem", "id_rsa"] {
+            assert!(
+                d.lire(secret, None).is_err(),
+                "'{secret}' ne doit jamais être lisible"
+            );
+        }
+        assert!(fichier_sensible(".env.production"));
+        assert!(fichier_sensible("serveur.KEY"), "la casse ne doit pas contourner le filtre");
+        assert!(!fichier_sensible("lib.rs"));
+        assert!(!fichier_sensible("environment.ts"), "un nom qui commence par 'env' sans point");
+    }
+
+    #[test]
+    fn les_secrets_ne_remontent_pas_dans_une_recherche() {
+        let d = depot();
+        let o = OptionsParcours { caches: true, limite: 500, ..Default::default() };
+        let hits = d.trouver(".env", &o).expect("recherche");
+        assert!(
+            hits.iter().all(|h| !h.contains(".env")),
+            "un fichier d'environnement est remonté : {hits:?}"
+        );
     }
 
     #[test]

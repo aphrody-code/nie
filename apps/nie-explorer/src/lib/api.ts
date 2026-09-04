@@ -49,6 +49,9 @@ import {
   type ReDumpHitDto,
   type ForgeBlockerDto,
   type ForgeReportDto,
+  type FichierDepotDto,
+  type EntreeDepotDto,
+  type CorrespondanceDto,
   type ReDumpInfoDto,
   type ReDumpScanDto,
   type ReTraceDumpStatsDto,
@@ -160,6 +163,9 @@ export type CpkExportFile = CpkExportFileDto;
 export type ReTraceProcess = ReTraceProcessDto;
 export type ForgeReport = ForgeReportDto;
 export type ForgeBlocker = ForgeBlockerDto;
+export type FichierDepot = FichierDepotDto;
+export type EntreeDepot = EntreeDepotDto;
+export type Correspondance = CorrespondanceDto;
 export type ReTraceRegion = ReTraceRegionDto;
 export type ReTraceDumpStats = ReTraceDumpStatsDto;
 export type ReDumpInfo = ReDumpInfoDto;
@@ -491,6 +497,46 @@ export const api = {
   forgeReport: (root?: string) => unwrap<ForgeReport>(commands.forgeReport(root ?? null)),
   forgeBlockers: (root?: string, limit?: number) =>
     unwrap<ForgeBlocker[]>(commands.forgeBlockers(root ?? null, limit ?? null)),
+
+  // Code du dépôt — même moteur natif que `niers find`/`grep` et que le serveur MCP
+  // (`nie_explore::depot`). Le confinement et les exclusions (`data/`, `target/`, `var/`…)
+  // sont appliqués côté Rust : l'UI n'a aucune règle de sécurité à retenir.
+  depotLire: (chemin: string, maxOctets?: number, racine?: string) =>
+    unwrap<FichierDepot>(commands.depotLire(racine ?? null, chemin, maxOctets ?? null)),
+  depotLister: (chemin?: string, racine?: string) =>
+    unwrap<EntreeDepot[]>(commands.depotLister(racine ?? null, chemin ?? null)),
+  depotTrouver: (
+    motif: string,
+    opts?: { sousDossier?: string; extensions?: string[]; limite?: number },
+    racine?: string,
+  ) =>
+    unwrap<string[]>(
+      commands.depotTrouver(
+        racine ?? null,
+        motif,
+        opts?.sousDossier ?? null,
+        opts?.extensions ?? null,
+        null,
+        opts?.limite ?? null,
+        null,
+      ),
+    ),
+  depotChercher: (
+    motif: string,
+    opts?: { sousDossier?: string; extensions?: string[]; limite?: number },
+    racine?: string,
+  ) =>
+    unwrap<Correspondance[]>(
+      commands.depotChercher(
+        racine ?? null,
+        motif,
+        opts?.sousDossier ?? null,
+        opts?.extensions ?? null,
+        null,
+        opts?.limite ?? null,
+        null,
+      ),
+    ),
 
   // RE en direct (`nie-trace`) — lecture SEULE de la mémoire vivante de `nie.exe`/
   // `nie_eacpatched.exe`, décision utilisatrice tranchée (cf. ROADMAP.md §4.3/§5, accord

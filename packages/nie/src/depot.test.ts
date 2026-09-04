@@ -70,6 +70,18 @@ describe("depot", () => {
     expect(() => depotLire(RACINE, ".git/HEAD")).toThrow(ErreurDepot);
   });
 
+  test("refuse les fichiers de secrets", () => {
+    // Le dépôt porte un vrai `.env.local` : sans barrière, il traversait la FFI en entier.
+    for (const secret of [".env.local", "apps/azalee/.env.local"]) {
+      expect(() => depotLire(RACINE, secret)).toThrow(ErreurDepot);
+    }
+  });
+
+  test("les secrets ne remontent pas dans une recherche", () => {
+    const hits = depotTrouver(RACINE, ".env", { caches: true, limite: 500 });
+    expect(hits.filter((h) => h.includes(".env"))).toEqual([]);
+  });
+
   test("rend une erreur lisible plutôt qu'un résultat vide", () => {
     try {
       depotLire(RACINE, "crates/inexistant-xyz.rs");

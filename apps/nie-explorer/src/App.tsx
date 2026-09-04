@@ -14,6 +14,7 @@ import { GameDataView } from "@/components/GameDataView";
 import { SearchView } from "@/components/SearchView";
 import { ModsView } from "@/components/ModsView";
 import { RawCpkView } from "@/components/RawCpkView";
+import { CodeView } from "@/components/CodeView";
 import { ReToolsView } from "@/components/ReToolsView";
 import { LuaView } from "@/components/LuaView";
 import { LiveModView } from "@/components/LiveModView";
@@ -590,6 +591,9 @@ export default function App() {
                 </TabsContent>
                 <TabsContent value="re" className="h-full min-h-0">
                   <ReToolsView />
+                </TabsContent>
+                <TabsContent value="code" className="h-full min-h-0">
+                  <CodeView />
                 </TabsContent>
                 <TabsContent value="save" className="h-full min-h-0 overflow-auto">
                   <SaveView />
