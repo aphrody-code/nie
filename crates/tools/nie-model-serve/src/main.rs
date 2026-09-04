@@ -159,6 +159,21 @@ struct Cli {
     /// Idempotent et borné par l'espace disque.
     #[arg(long)]
     preload: bool,
+
+    /// Expose le **code du dépôt** en lecture seule sous `/depot/…` (lister, lire, trouver,
+    /// chercher), sur le même moteur que `niers find`/`grep`, le serveur MCP et l'app desktop.
+    ///
+    /// **Éteint par défaut, et il doit le rester sans décision explicite** : cette instance est
+    /// joignable publiquement (`cdn.rosegriffon.fr`). Le moteur refuse déjà la traversée, les
+    /// dossiers non-code et les fichiers de secrets, mais aucune de ces gardes ne remplace le
+    /// choix de publier, ou non, le code du projet.
+    #[arg(long)]
+    depot_code: bool,
+
+    /// Racine du dépôt niers servie par `--depot-code`. Défaut : le répertoire courant, ou le
+    /// premier ancêtre portant `Cargo.toml` et `crates/`.
+    #[arg(long)]
+    depot_racine: Option<PathBuf>,
 }
 
 // ── État partagé ──────────────────────────────────────────────────────────────
@@ -197,6 +212,11 @@ struct State {
     /// Nom de texture (basename sans extension) → sources qui la référencent (`entries/*.json`,
     /// chaînes Lua), depuis `data/asset-cross-reference.json`. Alimente `/tex-info` `role`.
     asset_roles: HashMap<String, Vec<AssetSource>>,
+    /// Accès au code du dépôt, `None` tant que `--depot-code` n'est pas passé.
+    ///
+    /// L'`Option` porte la décision de publier : une route absente ne peut pas fuiter, alors
+    /// qu'un drapeau lu à chaque requête finit par être oublié quelque part.
+    depot: Option<nie_explore::depot::Depot>,
 }
 
 /// Une source qui référence un asset, telle qu'écrite par
@@ -3144,6 +3164,87 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
         return;
     }
 
+    // `/depot/…` — le CODE du dépôt, en lecture seule, sur `nie_explore::depot`.
+    //
+    // Quatrième façade du même moteur, après `niers find`/`grep`, le serveur MCP et l'app
+    // desktop : mêmes règles de confinement, mêmes exclusions, mêmes plafonds. Rien n'est
+    // réimplémenté ici, et il n'y a donc aucune politique d'accès à tenir à jour en double.
+    //
+    //   /depot/ls?path=<dir>                 entrées immédiates (dossiers d'abord)
+    //   /depot/read?path=<fichier>&max=      contenu texte, tronqué
+    //   /depot/find?q=<txt>&dir=&ext=&limit= recherche par chemin
+    //   /depot/grep?q=<regex>&dir=&ext=&limit= recherche dans le contenu
+    //
+    // La route n'existe QUE si `--depot-code` a été passé : sans lui, `state.depot` est `None`
+    // et l'on répond 404 comme pour n'importe quelle route inconnue — cette instance est
+    // joignable publiquement, et publier le code du projet est une décision, pas un défaut.
+    if let Some(rest) = path.strip_prefix("/depot/") {
+        let Some(depot) = state.depot.as_ref() else {
+            respond_text(&mut stream, 404, "Not Found", "route /depot inconnue");
+            return;
+        };
+        // `query` vient de la fonction : `path` en a déjà été débarrassé plus haut. La
+        // re-découper ici donnait une query VIDE, donc `ls?path=crates/engine` listait la
+        // racine et `read` répondait « chemin vide » — trouvé en appelant la route, pas en la
+        // relisant.
+        let route = rest;
+        let limite = param_usize(query, "limit", 200).min(5_000);
+        let extensions: Vec<String> = param(query, "ext")
+            .filter(|e| !e.is_empty())
+            .map(|e| e.split(',').map(str::to_string).collect())
+            .unwrap_or_default();
+        let options = nie_explore::depot::OptionsParcours {
+            sous_dossier: param(query, "dir").unwrap_or_default(),
+            extensions,
+            limite,
+            ..Default::default()
+        };
+
+        // Une erreur du moteur (chemin hors du dépôt, dossier interdit, regex invalide) est une
+        // faute de l'appelant : 400 avec son message, pas 500.
+        let resultat = match route {
+            "ls" => depot
+                .lister(&param(query, "path").unwrap_or_default())
+                .map(|v| serde_json::json!(v)),
+            // `chemin_absolu` est délibérément omis : il est utile en local (MCP, app desktop,
+            // où l'on veut ouvrir le fichier) mais divulgue l'arborescence de la machine à un
+            // client HTTP, qui n'en fera rien de bon.
+            "read" => depot
+                .lire(
+                    &param(query, "path").unwrap_or_default(),
+                    param(query, "max").and_then(|m| m.parse::<u64>().ok()),
+                )
+                .map(|f| {
+                    serde_json::json!({
+                        "chemin": f.chemin,
+                        "taille": f.taille,
+                        "tronque": f.tronque,
+                        "binaire": f.binaire,
+                        "contenu": f.contenu,
+                        "note": f.note,
+                    })
+                }),
+            "find" => depot
+                .trouver(&param(query, "q").unwrap_or_default(), &options)
+                .map(|v| serde_json::json!(v)),
+            "grep" => depot
+                .chercher(&param(query, "q").unwrap_or_default(), &options)
+                .map(|v| serde_json::json!(v)),
+            _ => {
+                respond_text(&mut stream, 404, "Not Found", "route /depot inconnue");
+                return;
+            }
+        };
+        match resultat {
+            Ok(body) => {
+                let bytes = serde_json::to_vec(&body).unwrap_or_default();
+                respond(&mut stream, 200, "OK", "application/json", &bytes);
+            }
+            Err(e) => respond_text(&mut stream, 400, "Bad Request", &e.to_string()),
+        }
+        return;
+    }
+
     // `/export/<vfs-path>?format=<id>` — le fichier converti AU FORMAT VOULU, en téléchargement.
     //
     // Même table de formats et même règle de nommage que l'app desktop
@@ -4435,6 +4536,25 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
 
 // ── Résolution du miroir SQLite ───────────────────────────────────────────────
 
+/// Remonte jusqu'à un ancêtre qui ressemble à la racine du dépôt niers.
+///
+/// Même marqueur que la commande Tauri équivalente (`Cargo.toml` **et** `crates/`) : aucun
+/// chemin de machine en dur, c'est la doctrine de `resolve_game_dir` appliquée au dépôt.
+fn resolve_depot_racine() -> Result<PathBuf> {
+    let cwd = std::env::current_dir().context("répertoire courant")?;
+    let mut cur = Some(cwd.as_path());
+    while let Some(dir) = cur {
+        if dir.join("Cargo.toml").is_file() && dir.join("crates").is_dir() {
+            return Ok(dir.to_path_buf());
+        }
+        cur = dir.parent();
+    }
+    anyhow::bail!(
+        "racine du dépôt niers introuvable depuis {} — passer --depot-racine",
+        cwd.display()
+    )
+}
+
 fn resolve_db(db_override: Option<&Path>) -> Option<PathBuf> {
     if let Some(p) = db_override {
         if p.exists() {
@@ -4614,6 +4734,22 @@ fn main() -> Result<()> {
         info!("miroir SQLite : {}", p.display());
     }
 
+    // Accès au code du dépôt : monté UNIQUEMENT sur `--depot-code`. Un échec d'ouverture est
+    // fatal plutôt que silencieux — on a demandé à publier le code, servir 404 sans rien dire
+    // laisserait croire que la route existe et qu'elle est vide.
+    let depot = if cli.depot_code {
+        let racine = match cli.depot_racine.clone() {
+            Some(r) => r,
+            None => resolve_depot_racine()?,
+        };
+        let d = nie_explore::depot::Depot::ouvrir(&racine)
+            .with_context(|| format!("--depot-code : racine {}", racine.display()))?;
+        info!("code du dépôt exposé sous /depot/ — racine {}", d.racine().display());
+        Some(d)
+    } else {
+        None
+    };
+
     let state = Arc::new(State {
         vfs,
         glb_dir: glb_dir.clone(),
@@ -4625,6 +4761,7 @@ fn main() -> Result<()> {
         layout_dir: layout_dir.clone(),
         menu_cfg_dir: menu_cfg_dir.clone(),
         asset_roles,
+        depot,
     });
 
     // Bind du serveur TCP.
