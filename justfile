@@ -107,6 +107,19 @@ health: build
 preuves motif="":
     bash scripts/preuves.sh {{motif}}
 
+# Publie dans ~/.local/bin les 20 binaires Rust + 5 CLI Bun, par liens symboliques (aucune copie).
+# Refuse d'ecraser un executable etranger deja dans le PATH. `just installer --dry-run` pour voir.
+installer *args:
+    bash scripts/installer-binaires.sh {{args}}
+
+# Verifie que les commandes du depot sont publiees et que les 4 gisements repondent.
+outils:
+    bash scripts/pipeline-donnees.sh --verif-seule
+
+# Chaine complete des donnees : outils -> gisements -> 4 exports, via le PATH et @niers/catalog.
+donnees:
+    bash scripts/pipeline-donnees.sh
+
 # --- Regen des artefacts var/ ------------------------------------------------
 
 # Manifeste CRC32→chemin des modeles (.g4md/.g4mg) pour resoudre les uniformes.

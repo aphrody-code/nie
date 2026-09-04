@@ -1,7 +1,7 @@
+import { readFileSync } from "node:fs";
 import * as path from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import type { Command } from "commander";
-import * as dotenv from "dotenv";
 import jwt from "jsonwebtoken";
 import {
 	CATEGORY_NAMES,
@@ -59,6 +59,37 @@ import { importLuaScripts } from "./lua/pusher.js";
 // arrêtaient le reste des catégories (exception non rattrapée), silencieusement chaque nuit.
 const DATA_ROOT = process.env.DATA_PATH || "/home/ubuntu/niers/data";
 
+// Remplace `dotenv`, qui n'était déclaré nulle part : la CLI mourait en « Cannot find package
+// 'dotenv' » dès qu'on la lançait hors d'un contexte où le paquet traînait par hoisting. Bun lit
+// `.env`/`.env.local` tout seul ; il ne manquait que le cas d'un chemin donné par `--env`.
+// Une dépendance de moins au lockfile partagé par les 18 services de production.
+function chargerEnv(fichier: string): void {
+	let texte: string;
+	try {
+		texte = readFileSync(fichier, "utf8");
+	} catch {
+		console.warn(`[push] fichier d'environnement introuvable : ${fichier}`);
+		return;
+	}
+	for (const ligne of texte.split("\n")) {
+		const nette = ligne.trim();
+		if (!nette || nette.startsWith("#")) continue;
+		const coupe = nette.indexOf("=");
+		if (coupe < 1) continue;
+		const cle = nette.slice(0, coupe).trim();
+		let valeur = nette.slice(coupe + 1).trim();
+		if (
+			(valeur.startsWith('"') && valeur.endsWith('"')) ||
+			(valeur.startsWith("'") && valeur.endsWith("'"))
+		) {
+			valeur = valeur.slice(1, -1);
+		}
+		// `dotenv` n'écrase pas une variable déjà posée : garder ce comportement, sinon un
+		// `SUPABASE_URL=…` de la ligne de commande serait silencieusement remplacé.
+		if (process.env[cle] === undefined) process.env[cle] = valeur;
+	}
+}
+
 // === Helpers ===
 
 const getLoc = (obj: any, lang: string) => {
@@ -94,7 +125,7 @@ export function registerPushCommand(program: Command) {
 		.option("--db-url <url>", "Postgres Connection URL (Direct DB mode)")
 		.action(async (options) => {
 			if (options.env) {
-				dotenv.config({ path: path.resolve(process.cwd(), options.env) });
+				chargerEnv(path.resolve(process.cwd(), options.env));
 			}
 
 			let adapter: DataAdapter;
