@@ -126,6 +126,14 @@ suivante : **on ne bascule pas un vendredi soir.**
 
 ## Hors semaine — décidé, pas encore planifié
 
+- **Azalée devient le wiki de référence** (amendement A4, programme
+  [`docs/stack/wiki-azalee.md`](docs/stack/wiki-azalee.md)) : une page par **concept**
+  (5 723 `internal_code`, pas 6 168 lignes), slugs lisibles désambiguïsés par le sens et
+  versionnés avec `301`, noms FR/EN/JP + romaji, `hreflang`, JSON-LD et métadonnées sur les
+  91 pages (départ : 31), puis corrections et contributions de la communauté sur surcouche
+  révisable. Étapes 1 à 4 enchaînables juste après la semaine ; étapes 5 et 6 seulement quand
+  quelqu'un accepte de modérer.
+
 - **`nie-db` et `niers push`** (amendement A2) : couche SQL native — `rusqlite` pour SQLite,
   `sqlx` 0.8 pour PostgreSQL — et reprise du workflow des tables `inagle_*` (18 importeurs,
   2 575 l. du paquet Bun), alimentée par `nie-data`. Gate : `niers push --dry-run` annonce

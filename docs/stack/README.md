@@ -50,11 +50,14 @@ workflow — les 2 575 lignes et 18 importeurs du paquet Bun deviennent `niers p
 par `nie-data`. Restent au TypeScript, sans bloquer personne : les 153 tables
 `inagle_cross_*` du jeu mobile, le scraping zukan et le RAG.
 
-**Identité (amendement A3).** Aphrody et Inacord calquent slugs, URL et arborescence de base
-sur le **VFS**, comme `nie.exe` : l'adresse est le chemin du jeu verbatim, le slug est le code
-du jeu (`c01000010`), **aucun nom traduit dans une adresse**. Mesure qui tranche : les 6 168
-personnages n'ont que 5 199 `base_slug` distincts — 969 collisions, `unknown` 65 fois. Azalée
-garde ses slugs traduits, c'est un wiki.
+**Identité (amendements A3 et A4).** Aphrody et Inacord calquent slugs, URL et arborescence
+de base sur le **VFS**, comme `nie.exe` : l'adresse est le chemin du jeu verbatim, le slug est
+le code du jeu (`c01000010`), **aucun nom traduit dans une adresse**. Azalée vise la place de
+Fandom et garde des slugs **lisibles**, mais adresse le **concept** et non la ligne : les deux
+sites convergent donc sur le même identifiant, `internal_code`, affiché en chemin d'un côté et
+en slug de l'autre. Mesures qui tranchent : 6 168 lignes pour **5 723 concepts** et seulement
+5 199 `base_slug` distincts — 969 collisions, `unknown` 65 fois, et 17 lignes « mark-evans »
+qui recouvrent six personnages différents. Programme du wiki : [wiki-azalee.md](wiki-azalee.md).
 
 Ce qui ne change **pas** de nom : les crates `nie-*` (le préfixe est celui du jeu), la CLI
 `niers`, le plugin Blender `niers-blender`, l'identifiant Tauri `dev.niers.explorer` (dossier
@@ -142,6 +145,7 @@ l'applique ; aucun verdict serverless n'est recevable sans ses comptes.
 ## Documents
 
 - [Décision, alternatives, amendements](decision-record.md)
+- [Azalée — le wiki de référence : slugs, langues, contributions, SEO](wiki-azalee.md)
 - [Web, API, Supabase, Vercel, nginx](web-platform.md)
 - [Versions, licences et maintenance](dependencies.md)
 - [Sécurité et prérequis d'exposition](security.md)

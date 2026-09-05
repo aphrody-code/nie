@@ -357,6 +357,63 @@ même ressource ; `rg` sur les routes d'Aphrody ne trouve **aucun** slug traduit
 identifiant ; et une entité dont le nom est `unknown` reste adressable — c'est le cas qui
 prouve la règle.
 
+### A4 — 2026-09-05 : Azalée devient le wiki de référence, pas un catalogue
+
+**Décision.** Azalée vise la place d'`inazuma-eleven.fandom.com/fr` : un slug **lisible et
+unique** par joueur, équipe et technique ; les noms **français, anglais, japonais** affichés
+en écriture latine **et** japonaise ; les **corrections et contributions** de la communauté ;
+et le référencement d'un vrai wiki. Programme détaillé, mesures et gates :
+[wiki-azalee.md](wiki-azalee.md).
+
+**Ce que la mesure a tranché.** Le slug unique existe déjà (`mark-evans-0x3055CF22`, 6 168
+sur 6 168) et il ne vaut rien : un hash dans une URL n'est ni lisible, ni partageable, ni
+référençable. Il fallait remonter d'un cran. Sur les 17 lignes portant `mark-evans` : **onze**
+sont le code `c01000010` (le personnage, plus ses variantes `hero_type` *black*, *pink*, et
+une `_5000`), et **six** sont des personnages différents (`c05024610`, `c05029460`,
+`c07110020`, `c11500500`, `c11901150`) qui partagent un nom traduit. Le dépôt contient donc
+**5 723 concepts** (`internal_code`) pour 6 168 lignes, et `is_primary = 1` désigne déjà une
+ligne canonique sur 5 260 d'entre elles.
+
+Trois conséquences :
+
+1. **L'unité éditoriale est le concept, pas la ligne.** Une page par `internal_code` ; les
+   variantes sont des sections. Créer 17 pages « Mark Evans » ferait perdre le wiki.
+2. **Le slug se désambiguïse par le sens**, jamais par un hash : `/chara/mark-evans`, puis
+   `/chara/mark-evans-victory-road`, le code en dernier recours ; table de slugs versionnée,
+   `301` permanent à chaque renommage, page de désambiguïsation pour les homonymes. Les 969
+   collisions deviennent une fonctionnalité.
+3. **Azalée et Aphrody convergent sur la même identité.** `internal_code` est exactement le
+   code qui nomme les fichiers du VFS (amendement A3). Aphrody l'affiche en chemin, Azalée en
+   slug lisible : deux sites, deux publics, un seul objet désigné. Ce n'est pas un hasard,
+   c'est ce qui rend les liens croisés fiables.
+
+**Ce qui change dans les décisions déjà gelées.** Rien n'est retiré ; deux points s'étendent :
+
+- **L'écriture arrive sur Vercel.** `anon` reste en lecture seule ; `authenticated` écrit
+  **uniquement** dans les tables de propositions et de révisions, **jamais** dans `inagle_*`.
+  Une correction humaine est une **surcouche** appliquée par-dessus la valeur extraite, qui
+  reste visible — c'est ce qui permet de rejouer un import sans détruire la communauté, le
+  mode d'échec qui tue les wikis adossés à des données. Gate : une correction acceptée
+  **survit à un réimport complet**.
+- **`auth.users` reste non migré.** Les comptes repartent de zéro sur le Cloud ; la
+  réinscription vaut consentement. Décision inchangée, et la contribution ne la remet pas en
+  cause.
+
+**Ce que je ne promets pas.** « Premier sur tous les mots-clés » est un cap, pas une gate :
+Fandom a quinze ans d'antériorité et une autorité de domaine qu'aucune optimisation technique
+ne renverse en un mois. Ce qui se pilote et se mesure : 100 % de pages à métadonnées uniques
+(départ **31 sur 91**), JSON-LD et `hreflang` partout, `/chara` sous 250 Ko (départ
+2 355 397 o), sitemaps segmentés, URL stables. Le seul avantage structurel réel sur Fandom
+est que **nos données viennent du jeu, décodées et vérifiables** — le référencement doit
+exposer cette exactitude plutôt qu'imiter un wiki communautaire. Le suivi de position est
+mensuel, sur un panier de mots-clés fixé à l'avance, publié avec sa date.
+
+**Ordonnancement.** **Hors semaine J1–J7**, et sans la retarder : le programme s'appuie sur le
+socle serverless qu'elle livre. Ses étapes 1 à 4 (slugs, noms, désambiguïsation, SEO) ne
+demandent aucun compte et peuvent suivre immédiatement. Les étapes 5 et 6 (contributions,
+modération) ne démarrent pas avant que **quelqu'un accepte de modérer** — c'est une charge
+humaine, pas une fonctionnalité.
+
 ---
 
 Toute modification de la stack s'écrit ici, datée, avec sa mesure et son alternative
