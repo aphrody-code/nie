@@ -100,6 +100,14 @@ Pas de `rustls` dans la crate : nginx termine le TLS, `nie-site` parle HTTP en c
   fichiers, 53 126 textures) ; lecture des gisements par `rusqlite` en `mode=ro`, requêtes
   préparées, `LIMIT` partout ; le miroir est un lien symbolique daté : réouvrir le handle quand
   l'inode change.
+- **Adresse par le VFS** (amendement A3) : l'URL est le chemin du jeu verbatim, en **segment**
+  et jamais en query (`/f/data/common/chr/_face/01_IE1/c01000010/c01000010.g4md`), extension du
+  jeu conservée, conversion en suffixe ou paramètre explicite. Le slug d'une entité est son code
+  de jeu (`c01000010`), **jamais un nom traduit** : 6 168 personnages ne portent que 5 199
+  `base_slug` distincts, `unknown` y sert 65 fois. Les noms restent affichés et cherchables,
+  jamais adressés. Cela corrige deux verrues mesurées de `nie-model-serve` : `/vfs/*` en
+  `?path=` quand les autres routes prennent un segment, et `/tex/` qui exige de retirer
+  `.g4tx`.
 - **Met en cache** avec `moka` par clé canonique, TTL court sur les listes, long sur les objets
   immuables ; `ETag` = `blake3` du corps ; `Cache-Control: public, max-age,
   stale-while-revalidate`.

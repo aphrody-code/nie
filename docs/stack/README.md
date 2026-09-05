@@ -50,6 +50,12 @@ workflow — les 2 575 lignes et 18 importeurs du paquet Bun deviennent `niers p
 par `nie-data`. Restent au TypeScript, sans bloquer personne : les 153 tables
 `inagle_cross_*` du jeu mobile, le scraping zukan et le RAG.
 
+**Identité (amendement A3).** Aphrody et Inacord calquent slugs, URL et arborescence de base
+sur le **VFS**, comme `nie.exe` : l'adresse est le chemin du jeu verbatim, le slug est le code
+du jeu (`c01000010`), **aucun nom traduit dans une adresse**. Mesure qui tranche : les 6 168
+personnages n'ont que 5 199 `base_slug` distincts — 969 collisions, `unknown` 65 fois. Azalée
+garde ses slugs traduits, c'est un wiki.
+
 Ce qui ne change **pas** de nom : les crates `nie-*` (le préfixe est celui du jeu), la CLI
 `niers`, le plugin Blender `niers-blender`, l'identifiant Tauri `dev.niers.explorer` (dossier
 de données et continuité de l'updater), les URL de l'updater.

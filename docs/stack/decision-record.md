@@ -286,6 +286,58 @@ hors commentaires → les requêtes visent le gisement produit par `niers push`.
 ne crée aucune nouvelle lecture d'`inagle_*` en attendant, et le miroir nocturne reste la
 source jusqu'à ce que `niers push` ait prouvé l'égalité.
 
+### A3 — 2026-09-05 : Aphrody et Inacord sont calqués sur le VFS, comme `nie.exe`
+
+**Décision.** Slugs, URL et arborescence de base d'Aphrody et d'Inacord suivent le **VFS du
+jeu**, chemin pour chemin, code pour code. **Aucun nom traduit dans une adresse.** Les noms
+français ou anglais restent des **libellés d'affichage** ; ils ne désignent jamais une
+ressource. Azalée garde ses slugs traduits — c'est un wiki lu par des humains et des
+moteurs ; Aphrody est un atelier sur les fichiers du jeu, et parle donc la langue du jeu.
+
+**Pourquoi, mesuré le 2026-09-05.** Le slug traduit n'identifie pas. Sur les 6 168 lignes
+d'`inagle_characters` : **5 199 `base_slug` distincts, soit 969 collisions**, contre 5 737
+`chara_id`. `unknown` sert 65 fois, `kr-k9` 20 fois, `shawn-froste` 17. `mark-evans` recouvre
+six lignes, toutes sur le même code `c01000010`. Une adresse bâtie dessus est ambiguë par
+construction — et c'est déjà le défaut documenté « l'identifiant n'est jamais un titre ».
+Le VFS, lui, est unique, stable entre versions du jeu, et **vérifiable** : `niers vfs find`
+dit si le chemin existe, ce qu'aucun slug ne permet.
+
+**Les règles.**
+
+1. **L'adresse est le chemin VFS, verbatim**, y compris `data/`, `common/`, `dx11/` :
+   `aphrody.com/f/data/common/chr/_face/01_IE1/c01000010/c01000010.g4md`. Pas de
+   réécriture, pas de raccourci, pas de casse normalisée — le VFS est sensible à la casse.
+2. **Le slug d'une entité est son code de jeu** : `c01000010` pour un personnage,
+   l'identifiant natif pour une équipe, un item, une technique. Jamais `mark-evans`. Quand
+   plusieurs codes coexistent (`id` hash, `chara_id`, `internal_code`), le canonique est
+   **celui qui nomme les fichiers du VFS**.
+3. **L'arborescence de la base est celle du VFS** : chaque ligne porte son chemin canonique
+   et son code, indexés ; la navigation par dossier est une requête de préfixe, pas une
+   taxonomie inventée.
+4. **Le chemin passe en segment d'URL, jamais en query.** Cela corrige la verrue mesurée de
+   `nie-model-serve`, où `/vfs/*` prend `?path=` quand toutes les autres routes prennent un
+   segment — source connue de 404 attribués à tort au décodage.
+5. **L'extension du jeu est conservée dans l'adresse** ; la conversion est un suffixe ou un
+   paramètre explicite (`.png`, `?format=`), pas une amputation. La règle actuelle
+   « `/tex/<chemin sans .g4tx>.png`, garder l'extension donne un 400 » est un piège à
+   supprimer, pas à propager.
+6. **Les noms traduits restent affichables et cherchables**, dans le corps de la page et
+   dans l'index de recherche — jamais dans l'adresse, jamais comme clé.
+
+**Conséquences.** Aphrody et Inacord partagent alors la **même arborescence** que
+l'utilisateur voit dans l'application de bureau : un chemin copié depuis Inacord s'ouvre
+dans Aphrody, et inversement. `packages/asset-source` n'a plus qu'un espace de noms à
+porter, celui du VFS, ce qui simplifie `url-conventions.ts`. Les 255 308 entrées du VFS
+deviennent adressables sans table de correspondance.
+
+**Ce qui n'est pas concerné.** Azalée : ses URL indexées ne bougent pas, ses slugs traduits
+non plus. Les 153 tables `inagle_cross_*` (jeu mobile, pas de VFS) gardent leurs clés.
+
+**Gate.** Un échantillon de 200 chemins tirés de `niers vfs find` répond 200 sur Aphrody
+sous la forme exacte du VFS ; le même chemin ouvert dans Inacord désigne la même ressource ;
+`rg` sur les routes d'Aphrody ne trouve **aucun** slug traduit ; et une entité dont le nom
+est `unknown` reste adressable — c'est le cas qui prouve la règle.
+
 ---
 
 Toute modification de la stack s'écrit ici, datée, avec sa mesure et son alternative
