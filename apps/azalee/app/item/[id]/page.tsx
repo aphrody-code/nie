@@ -4,7 +4,12 @@ import { notFound } from "next/navigation";
 import { ItemDetail } from "@/components/wiki/ItemDetail";
 import { wikiService } from "@/lib/wiki-service";
 
-export const dynamic = "force-dynamic";
+// Donnée de jeu immuable entre deux dumps : rendue une fois, revalidée à l'heure, et les
+// identifiants inconnus au build restent servis à la demande (`dynamicParams`). C'est ce qui
+// permet de servir la fiche sans toucher la base à chaque requête.
+export const dynamic = "force-static";
+export const revalidate = 3600;
+export const dynamicParams = true;
 
 export async function generateMetadata({
 	params,

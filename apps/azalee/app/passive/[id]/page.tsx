@@ -7,7 +7,11 @@ import {
 } from "@/components/wiki/PassiveDetail";
 import { wikiService } from "@/lib/wiki-service";
 
-export const dynamic = "force-dynamic";
+// Donnée de jeu immuable entre deux dumps : rendue une fois, revalidée à l'heure, et les
+// identifiants inconnus au build restent servis à la demande (`dynamicParams`).
+export const dynamic = "force-static";
+export const revalidate = 3600;
+export const dynamicParams = true;
 
 export async function generateMetadata({
 	params,

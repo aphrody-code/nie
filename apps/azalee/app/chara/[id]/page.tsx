@@ -1,4 +1,9 @@
-export const revalidate = 3600; // ISR: Revalidate every hour
+// Donnée de jeu immuable entre deux dumps : rendue une fois, revalidée à l'heure, et les
+// identifiants inconnus au build restent servis à la demande (`dynamicParams`). Sans
+// `force-static`, le rendu repartait en dynamique dès qu'une dépendance lisait la requête.
+export const revalidate = 3600;
+export const dynamic = "force-static";
+export const dynamicParams = true;
 
 import { ArrowLeftRight } from "lucide-react";
 import type { Metadata } from "next";

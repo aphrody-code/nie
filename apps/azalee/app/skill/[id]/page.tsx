@@ -13,6 +13,8 @@
  * la republication qui suit repart de toute façon sur un cache vide.
  */
 export const revalidate = 3600;
+export const dynamic = "force-static";
+export const dynamicParams = true;
 
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
