@@ -1,6 +1,12 @@
 import { Database } from "bun:sqlite";
 
-const DB_PATH = "/home/ubuntu/rg/apps/azalee/data/backups/supabase-2026-06-09T07-12-52.sqlite";
+// Script d'exploration : la base se donne en argument ou par `SQLITE_DB_PATH`. L'ancienne
+// valeur était un instantané daté du dépôt d'une autre machine, donc introuvable ailleurs.
+const DB_PATH = process.argv[2] ?? process.env.SQLITE_DB_PATH;
+if (!DB_PATH) {
+	console.error("usage: bun query_ids.ts <chemin.sqlite>   (ou SQLITE_DB_PATH)");
+	process.exit(2);
+}
 
 async function main() {
 	const db = new Database(DB_PATH);

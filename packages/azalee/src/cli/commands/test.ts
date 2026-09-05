@@ -236,10 +236,15 @@ export function registerTestCommand(program: Command): void {
 					const monorepoRoot = (() => {
 						let d = process.cwd();
 						while (d !== path.dirname(d)) {
-							if (existsSync(path.join(d, "turbo.json"))) return d;
+							// `bun.lock` et pas `turbo.json` : le workspace Bun n'a qu'un seul
+							// lockfile, à la racine, dans les deux dépôts — `turbo.json`, lui,
+							// n'existe que dans `rg`, donc il n'aurait jamais rien trouvé ici.
+							if (existsSync(path.join(d, "bun.lock"))) return d;
 							d = path.dirname(d);
 						}
-						return "/home/ubuntu/rg";
+						// Aucun `turbo.json` en remontant : on reste où l'on est plutôt que de
+						// désigner le dépôt d'une machine précise, qui n'existe nulle part ailleurs.
+						return process.cwd();
 					})();
 					devServerProcess = Bun.spawn([bunPath, "run", "dev"], {
 						cwd: path.resolve(monorepoRoot, "apps/azalee"),

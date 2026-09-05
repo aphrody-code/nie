@@ -8,14 +8,31 @@
  */
 
 import { existsSync, readdirSync, statSync } from "node:fs";
+import path from "node:path";
 
 import type { Command } from "commander";
 
 import { colors } from "../context";
 import type { DataMigrateOptions, DataSyncOptions } from "../types";
 
-/** Racine du monorepo (les scripts orchestrés y sont ancrés). */
-const REPO_ROOT = "/home/ubuntu/rg";
+/**
+ * Racine du monorepo (les scripts orchestrés y sont ancrés).
+ *
+ * Résolue à l'exécution, jamais compilée : `AZALEE_REPO_ROOT` d'abord, sinon la remontée
+ * jusqu'au répertoire qui porte `bun.lock`. Ce marqueur-là et pas `turbo.json` : le
+ * workspace Bun n'a qu'un seul lockfile, à la racine, dans les deux dépôts — alors que
+ * `turbo.json` n'existe que dans `rg`, si bien qu'un marqueur turbo aurait toujours échoué
+ * ici. La valeur était auparavant le chemin d'une machine précise, absent partout ailleurs.
+ */
+const REPO_ROOT = ((): string => {
+	if (process.env.AZALEE_REPO_ROOT) return path.resolve(process.env.AZALEE_REPO_ROOT);
+	let d = process.cwd();
+	while (d !== path.dirname(d)) {
+		if (existsSync(path.join(d, "bun.lock"))) return d;
+		d = path.dirname(d);
+	}
+	return process.cwd();
+})();
 /** Fichier d'environnement chargé par le pousseur inagle. */
 const AZALEE_ENV = `${REPO_ROOT}/apps/azalee/.env`;
 /** Racine des dumps de jeu. */

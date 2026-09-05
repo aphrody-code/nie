@@ -1,6 +1,6 @@
 import { chromium } from "@playwright/test";
 import { mkdirSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 
 const PAGES = {
 	accueil: "http://127.0.0.1:3003/",
@@ -47,8 +47,11 @@ const PAGES = {
 	"patch-notes-detail": "http://127.0.0.1:3003/patch-notes/ps-steam_ver_1_4_2"
 };
 
-const ARTIFACT_DIR = "/home/ubuntu/.gemini/antigravity-cli/brain/55f253a8-fe2a-43f0-a9de-53e6b7a11964/screenshots";
-const DOCS_DIR = "/home/ubuntu/rg/docs/tools/screenshots";
+// Paramétrables : les deux chemins d'origine désignaient le dossier de travail d'un agent et
+// le dépôt d'une machine précise — introuvables partout ailleurs.
+const ARTIFACT_DIR = process.env.AZALEE_ARTIFACT_DIR ?? resolve(import.meta.dirname, "../.artifacts/screenshots");
+const DOCS_DIR =
+	process.env.AZALEE_SCREENSHOTS_DIR ?? resolve(import.meta.dirname, "../../../docs/tools/screenshots");
 
 mkdirSync(ARTIFACT_DIR, { recursive: true });
 mkdirSync(DOCS_DIR, { recursive: true });

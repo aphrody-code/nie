@@ -7,7 +7,9 @@ dotenv.config({ path: resolve(import.meta.dirname, "../.env") });
 dotenv.config({ path: resolve(import.meta.dirname, "../../.env") });
 
 const DOC_ID = "1AGlA8GADu_KBaX-Rr5p_9BsQqe8bTXtzGKLBGOjsdJY";
-const DOCS_DIR = "/home/ubuntu/rg/docs/tools/screenshots";
+// Paramétrable : le chemin d'origine désignait le dépôt d'une machine précise.
+const DOCS_DIR =
+	process.env.AZALEE_SCREENSHOTS_DIR ?? resolve(import.meta.dirname, "../../../docs/tools/screenshots");
 const SCRIPT_PATH = "/home/ubuntu/.gemini/antigravity-cli/brain/55f253a8-fe2a-43f0-a9de-53e6b7a11964/youtube_video_script.md";
 
 const SECTION_MAP: Record<string, string[]> = {

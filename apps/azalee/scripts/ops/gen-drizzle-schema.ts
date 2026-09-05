@@ -22,11 +22,13 @@ type ColInfo = { name: string; type: string };
 
 function getMirrorPath(): string {
 	if (process.env.SQLITE_DB_PATH) return path.resolve(process.env.SQLITE_DB_PATH);
+	// Même règle que `sync-supabase-to-sqlite.ts` : l'emplacement des instantanés se donne
+	// par l'environnement, jamais par le chemin d'une autre machine.
 	const dirs = [
+		process.env.AZALEE_DATA_DIR ? path.join(process.env.AZALEE_DATA_DIR, "backups") : undefined,
 		path.resolve(process.cwd(), "apps/azalee/data/backups"),
 		path.resolve(process.cwd(), "data/backups"),
-		"/home/ubuntu/rg/apps/azalee/data/backups",
-	];
+	].filter((d): d is string => Boolean(d));
 	for (const dir of dirs) {
 		try {
 			const files = readdirSync(dir);

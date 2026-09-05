@@ -135,10 +135,10 @@ export function getAurasForChara(charaId: string, charaParamId: string): Resolve
 		}
 
 		// 2. Mapping change_aura_skills d'inagle (source hors miroir).
-		let changeAuraSkillsPath = path.resolve(process.cwd(), "packages/inagle/src/entries/change_aura_skills.json");
-		if (!existsSync(changeAuraSkillsPath)) {
-			changeAuraSkillsPath = "/home/ubuntu/rg/packages/inagle/src/entries/change_aura_skills.json";
-		}
+		const changeAuraSkillsPath = path.resolve(
+			process.cwd(),
+			"packages/inagle/src/entries/change_aura_skills.json",
+		);
 		if (existsSync(changeAuraSkillsPath)) {
 			try {
 				const changeAuraSkills = JSON.parse(readFileSync(changeAuraSkillsPath, "utf-8")) as Array<{

@@ -56,11 +56,13 @@ const pageSize = Math.min(1000, Number(args.get("page") ?? "1000"));
 
 function findActiveMirror(): string {
 	if (args.get("db")) return path.resolve(args.get("db")!);
+	// `data/backups/` reste volontairement hors dépôt (instantanés pouvant porter de la PII) :
+	// son emplacement se donne par l'environnement, jamais par le chemin d'une autre machine.
 	const dirs = [
+		process.env.AZALEE_DATA_DIR ? path.join(process.env.AZALEE_DATA_DIR, "backups") : undefined,
 		path.resolve(process.cwd(), "data/backups"),
 		path.resolve(process.cwd(), "apps/azalee/data/backups"),
-		"/home/ubuntu/rg/apps/azalee/data/backups",
-	];
+	].filter((d): d is string => Boolean(d));
 	for (const dir of dirs) {
 		try {
 			const files = readdirSync(dir)
