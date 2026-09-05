@@ -238,6 +238,54 @@ apps/inacord/package.json packages/inacord-ui apps/nie-web` → **0**. Lot à pl
 n'est **pas** dans la semaine J1–J7, et `nie-site` ne doit pas créer de nouvelle lecture
 d'`inagle_*` en attendant.
 
+### A2 — 2026-09-05 : `nie` gère nativement SQL et possède le workflow des tables `inagle_*`
+
+**Correction d'A1.** A1 traitait les tables `inagle_*` comme une dépendance à Rose Griffon.
+C'est faux : `inagle_` est un **préfixe de table**, pas un lien au paquet. Les tables sont
+un schéma de données de jeu, légitime et à conserver sous ce nom (13 crates, le wiki, le
+miroir et l'installeur d'Inacord s'y adossent ; renommer casserait tout pour rien).
+
+**Décision.** `nie` acquiert une **couche SQL native** — SQLite et PostgreSQL — et reprend
+**tout le workflow** des tables `inagle_*` que le paquet Bun assurait : lire les données de
+jeu, normaliser, publier, vérifier. `inagle` cesse d'être le producteur ; il devient
+l'ancêtre dont on garde le schéma et les leçons. Aphrody, Inacord et nie fonctionnent alors
+sans le paquet, tout en lisant et écrivant les mêmes tables.
+
+**Ce qui est porté, mesuré le 2026-09-05.**
+
+| Élément | Aujourd'hui (TypeScript) | Cible (Rust) |
+|---|---|---|
+| Abstraction de base | `DataAdapter`, 2 impls : `SupabaseAdapter`, `PostgresAdapter` | un trait à 2 impls : SQLite (`rusqlite` 0.37, déjà au lock) et PostgreSQL (`sqlx` 0.8, `postgres` + `runtime-tokio` + `tls-rustls` + `macros`) |
+| Transport vers le Cloud | `@supabase/supabase-js`, donc **PostgREST en HTTP** | SQL direct via `sqlx` — une couche réseau **supprimée**, pas reproduite |
+| Workflow | 18 fonctions `import*` / `export*`, 2 575 l. (`cli-push.ts` + `push-categories.ts`) : `importCharacters` 164 l., `importSkills` 129, `importItems` 106, `importAuras` 100, `importGrowthTables` 66, `importDrops` 51… | une commande `niers push`, un module par famille, alimenté par `nie-data` (déjà byte-exact, 130 goldens) |
+| Idempotence | `ON CONFLICT` par `id`, `delete + reinsert` pour les tables curatées | identique, en transactions explicites |
+| Migrations | `supabase/migrations/*.sql` | inchangées : le SQL reste la source de vérité du schéma |
+
+**Où ça vit.** Une crate `crates/tools/nie-db` (le trait, les deux back-ends, les migrations
+rejouables), exposée par **une seule commande utilisateur, `niers push`** — la doctrine « `niers`
+est la seule CLI » interdit un binaire de plus. `nie-data` n'y touche pas : elle reste le
+lecteur typé, sans `tokio` ni client SQL.
+
+**Ce que ça n'est pas.** Ce n'est pas une contradiction de l'ADR, qui rejette `sqlx` pour
+`nie-site` : ce dernier **lit** des fichiers locaux, où `rusqlite` est plus direct ; `nie-db`
+**écrit** vers un Postgres distant, où `sqlx` est le bon outil. Deux métiers, deux clients,
+la même règle — le client suit la distance à la donnée.
+
+**Ce qui n'est pas repris tout de suite.** Les 153 tables `inagle_cross_*` (*Inazuma Eleven
+Cross*, jeu mobile) n'ont aucun décodeur Rust : leur alimentation reste au paquet Bun jusqu'à
+ce que quelqu'un décide de porter ce domaine. Le scraping zukan (navigateur headless `bxc`)
+et l'étage RAG restent également TypeScript ; ils ne bloquent ni Aphrody, ni Inacord, ni nie.
+
+**Gate.** `niers push --dry-run` annonce, table par table, le nombre de lignes qu'il écrirait ;
+un `niers push` réel suivi d'un comptage rend **le même total qu'aujourd'hui**, table par
+table, écart **0** — la migration se prouve par égalité avec l'existant, jamais par « ça
+tourne ». Puis `rg -n 'inagle_' crates/tools/nie-model-serve/src crates/engine/nie-play/src`
+hors commentaires → les requêtes visent le gisement produit par `niers push`.
+
+**Ordonnancement.** Lot **hors semaine J1–J7**. Contrainte immédiate maintenue : `nie-site`
+ne crée aucune nouvelle lecture d'`inagle_*` en attendant, et le miroir nocturne reste la
+source jusqu'à ce que `niers push` ait prouvé l'égalité.
+
 ---
 
 Toute modification de la stack s'écrit ici, datée, avec sa mesure et son alternative

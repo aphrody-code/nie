@@ -25,6 +25,18 @@ existe ; ce tableau dit ce qu'on y écrit, et ce qu'on refuse d'y écrire.
 | `criterion` | 0.5 | MIT OR Apache-2.0 | non (dev) | benches `benches/routing.rs` |
 | `insta` | 1.40 | MIT OR Apache-2.0 | non (dev) | snapshots des réponses |
 
+## `nie-db` — la couche SQL native (amendement A2, hors semaine)
+
+| Crate | Version | Licence | Dans `Cargo.lock` ? | Décision |
+|---|---|---|---|---|
+| `rusqlite` | 0.37.0, `bundled` | MIT | oui | back-end SQLite du trait `DataAdapter` ; 12 crates l'utilisent déjà |
+| `sqlx` | 0.8, `postgres,runtime-tokio,tls-rustls,macros` | MIT OR Apache-2.0 | **non** | back-end PostgreSQL ; `query!` vérifie le SQL à la compilation. Rejetés : `tokio-postgres` seul (pas de vérification), `diesel` (modèle bloquant), `@supabase/supabase-js` (PostgREST en HTTP — une couche réseau à supprimer, pas à reproduire) |
+
+Ce n'est pas une contradiction du refus de `sqlx` pour `nie-site` : celui-ci **lit** des
+fichiers locaux (`rusqlite` plus direct), `nie-db` **écrit** vers un Postgres distant. Le
+client suit la distance à la donnée. `nie-data` ne gagne aucune de ces dépendances : elle
+reste le lecteur typé, sans `tokio` ni client SQL.
+
 Toutes compatibles avec la licence du workspace ; aucune GPL/AGPL. `[workspace.lints]`
 s'applique : `todo!`, `unimplemented!`, `dbg!` interdits — **aucun squelette non implémenté**,
 une route existe quand elle répond et qu'un test compte sa réponse.
