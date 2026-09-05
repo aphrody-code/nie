@@ -37,16 +37,24 @@ const MIROIR = join(RACINE, "var", "mirror.sqlite");
 
 function args() {
     const a = process.argv.slice(2);
-    const drapeaux = new Set(["--sortie", "--zukan"]);
+    const drapeaux = new Set(["--sortie", "--zukan", "--fandom", "--google"]);
     const lire = (nom: string, defaut: string) => {
         const i = a.indexOf(nom);
         return i >= 0 && a[i + 1] ? a[i + 1]! : defaut;
     };
     const positionnels = a.filter((x, i) => !x.startsWith("--") && !drapeaux.has(a[i - 1] ?? ""));
+    // `--zukan` est repetable : une URL par langue. Le zukan japonais porte le furigana et
+    // les noms d'equipe en japonais, que la version anglaise ne rend pas du tout.
+    const zukan = a.flatMap((x, i) => (x === "--zukan" && a[i + 1] ? [a[i + 1]!] : []));
+    // `--fandom lang:Page`, repetable. Le wiki anglais est nettement plus structure que le
+    // francais (Keshin, Mixi Max, Voicelines, Recruitment) : les deux valent d'etre compares.
+    const fandom = a.flatMap((x, i) => (x === "--fandom" && a[i + 1] ? [a[i + 1]!] : []));
     return {
+        fandom,
+        google: lire("--google", ""),
         slug: positionnels[0] ?? "byron-love-aphrody",
         sortie: lire("--sortie", join(RACINE, "var", "aphrody")),
-        zukan: lire("--zukan", ""),
+        zukan,
         horsLigne: a.includes("--hors-ligne"),
     };
 }
@@ -146,19 +154,37 @@ function gisement(slugBase: string) {
 
 // ---------------------------------------------------------------- zukan officiel
 
-/** Lit le tableau de resultats du zukan. Une ligne = une version canonique du personnage. */
-function parseZukan(md: string) {
-    const lignes = md.split("\n").filter((l) => l.trim().startsWith("|") && l.includes("/en/chara_param/"));
+/** `ja` sauf si l'URL porte un segment de langue explicite (`/en/`). */
+function localeZukan(url: string): "ja" | "en" {
+    return /\/(en)\//.test(url) ? "en" : "ja";
+}
+
+/**
+ * Lit le tableau de resultats du zukan. Une ligne = une version canonique du personnage.
+ * La colonne du nom porte, en japonais seulement, le furigana a la suite des kanji :
+ * « 亜風炉 照美 あふろ てるみ ». On le separe, c'est la lecture officielle et nous ne
+ * l'avons dans aucun gisement.
+ */
+function parseZukan(md: string, locale: "ja" | "en" = "en") {
+    // Le zukan japonais sert ses liens sans segment de langue : filtrer sur "/en/chara_param/"
+    // ne matche AUCUNE ligne de la page JA, et le parseur rend zero version sans rien dire.
+    const lignes = md.split("\n").filter((l) => l.trim().startsWith("|") && /\/(?:en\/)?chara_param\//.test(l));
     return lignes.map((l) => {
         const c = l.split("|").map((x) => x.trim());
         const cell = (i: number) => (c[i] ?? "").replace(/<br\/>/g, " · ").replace(/\\-/g, "—").trim();
         const nom = c[3] ?? "";
+        const brut = ((nom.match(/\]\s*\(\/(?:en\/)?chara_param/) ? nom : nom).match(/\[([^\]]*?)\s*\]\(\/(?:en\/)?chara_param/) ?? [])[1] ?? "";
+        // kanji + espace + kana : tout ce qui suit le premier bloc hiragana est le furigana
+        const fura = locale === "ja" ? (brut.match(/^(\S+\s+\S+)\s+([\u3040-\u309f\s]+)$/) ?? null) : null;
         return {
+            locale,
             numero: cell(2),
             nom: (nom.match(/\[!\[([^\]]+)\]/) ?? [])[1] ?? null,
+            nom_complet: fura ? fura[1]!.trim() : brut.trim() || null,
+            furigana: fura ? fura[2]!.replace(/\s+/g, " ").trim() : null,
             image: (nom.match(/\((https:\/\/[^\s)]+\.png)\)/) ?? [])[1] ?? null,
-            lien_fiche: (nom.match(/\((\/en\/chara_param\/[^\s)]+)\)/) ?? [])[1]?.replace(/%3D/g, "=") ?? null,
-            lien_modele: (nom.match(/\((\/en\/chara_model_view\/[^\s)]+)\)/) ?? [])[1] ?? null,
+            lien_fiche: (nom.match(/\((\/(?:en\/)?chara_param\/[^\s)]+)\)/) ?? [])[1]?.replace(/%3D/g, "=") ?? null,
+            lien_modele: (nom.match(/\((\/(?:en\/)?chara_model_view\/[^\s)]+)\)/) ?? [])[1] ?? null,
             surnom: cell(4),
             jeu: cell(5),
             genre: cell(6),
@@ -176,23 +202,55 @@ function parseZukan(md: string) {
 // ---------------------------------------------------------------- Fandom : couverture seule
 
 /** Rend la STRUCTURE d'une page Fandom (titres de sections, noms de champs). Jamais son texte. */
-async function couvertureFandom(page: string) {
-    const url = `https://inazuma-eleven.fandom.com/fr/api.php?action=parse&page=${encodeURIComponent(page)}&prop=sections%7Cwikitext&format=json`;
+async function couvertureFandom(lang: string, page: string) {
+    // fandom.com sert le wiki anglais a la racine, les autres langues sous /<lang>/
+    const base = lang === "en" ? "https://inazuma-eleven.fandom.com" : `https://inazuma-eleven.fandom.com/${lang}`;
+    const url = `${base}/api.php?action=parse&page=${encodeURIComponent(page)}&prop=sections%7Cwikitext&format=json`;
     const r = await fetch(url, { headers: { "user-agent": "azalee-coverage-audit/1.0 (comparaison de champs)" } });
     if (!r.ok) return null;
     const j = (await r.json()) as { parse?: { sections?: { level: string; line: string }[]; wikitext?: { "*": string } } };
     const wikitext = j.parse?.wikitext?.["*"] ?? "";
     const champs = [...wikitext.slice(0, 4000).matchAll(/^\|\s*([A-Za-zÀ-ÿ_0-9 ]+?)\s*=/gm)].map((m) => m[1]!.trim());
+    const propre = (t: string) => t.replace(/<[^>]+>/g, "").trim();
     return {
-        sections: (j.parse?.sections ?? []).map((s) => ({ niveau: Number(s.level), titre: s.line })),
+        lang,
+        page,
+        url: `${base}/wiki/${encodeURIComponent(page)}`,
+        sections: (j.parse?.sections ?? []).map((s) => ({ niveau: Number(s.level), titre: propre(s.line) })),
         champs_infobox: [...new Set(champs)],
         note: "structure seule — aucun texte de Fandom n'est lu ni repris (CC BY-SA)",
     };
 }
 
+// ---------------------------------------------------------------- recherche web
+
+/**
+ * Liens de reference trouves par `bxc search`. On ne garde QUE titre + URL : le but est de
+ * savoir ou la donnee existe ailleurs, pas d'en aspirer le contenu. Une recherche qui ne
+ * rend rien est rapportee comme telle — c'est arrive sur « 亜風炉 照美 », profil `fetch`.
+ */
+async function recherche(q: string) {
+    if (!q) return null;
+    const p = Bun.spawn(["bxc", "search", q, "--json"], { cwd: "/tmp", stdout: "pipe", stderr: "ignore" });
+    const txt = await new Response(p.stdout).text();
+    await p.exited;
+    try {
+        const j = JSON.parse(txt) as { organic?: { title?: string; link?: string; url?: string }[]; profileUsed?: string };
+        return {
+            requete: q,
+            profil: j.profileUsed ?? null,
+            resultats: (j.organic ?? []).map((r) => ({ titre: r.title ?? null, url: r.link ?? r.url ?? null })),
+        };
+    } catch {
+        return { requete: q, profil: null, resultats: [] as { titre: string | null; url: string | null }[] };
+    }
+}
+
 // ---------------------------------------------------------------- ecart de couverture
 
-function ecart(dossier: Ligne, fandom: { champs_infobox: string[]; sections: { titre: string }[] } | null, zukan: ReturnType<typeof parseZukan>) {
+type Couverture = { lang: string; champs_infobox: string[]; sections: { titre: string }[] };
+
+function ecart(dossier: Ligne, wikis: Couverture[], zukan: ReturnType<typeof parseZukan>) {
     const vide = (v: unknown) => v === null || v === undefined || v === "" || (Array.isArray(v) && v.length === 0);
     const manquants: string[] = [];
 
@@ -233,6 +291,25 @@ function ecart(dossier: Ligne, fandom: { champs_infobox: string[]; sections: { t
         elemant: id.element,
         numero: id.zukan,
         "debut jeu": id.serie,
+        // Le wiki anglais nomme ses champs en snake_case technique — meme donnee, autre cle.
+        name: id.nom_fr,
+        name_jp: id.nom_ja_officiel ?? id.nom_ja,
+        name_dub: id.nom_en,
+        nickname_jp: id.surnom_ja,
+        nickname_dub: id.surnom,
+        gender: id.genre,
+        number: id.zukan,
+        team: id.equipes,
+        school_year: id.annee_scolaire,
+        position: id.poste,
+        element_en: id.element,
+        debut_game: id.serie,
+        // Toujours sans equivalent chez nous — c'est le resultat utile :
+        birthday: undefined,
+        seiyuu: undefined,
+        va: undefined,
+        debut_anime: undefined,
+        debut_manga: undefined,
         // Sans equivalent chez nous, et c'est le resultat utile de la comparaison :
         anniversaire: undefined,
         nationalite: undefined,
@@ -240,10 +317,14 @@ function ecart(dossier: Ligne, fandom: { champs_infobox: string[]; sections: { t
         "debut anime": undefined,
         "debut manga": undefined,
     };
-    for (const champ of fandom?.champs_infobox ?? []) if (vide(equiv[norm(champ)])) manquants.push(`fandom:${champ}`);
-    for (const s of fandom?.sections ?? []) {
-        const t = s.titre.toLowerCase();
-        if (/personnalit|apparence|histoire|recrutement/.test(t)) manquants.push(`fandom-section:${s.titre}`);
+    for (const w of wikis) {
+        for (const champ of w.champs_infobox) if (vide(equiv[norm(champ)])) manquants.push(`fandom-${w.lang}:${champ}`);
+        for (const s of w.sections) {
+            const t = norm(s.titre);
+            // Sections redigees ou factuelles que nos gisements ne portent pas du tout.
+            if (/personnalit|personality|apparence|appearance|histoire|plot|recrutement|recruitment|voiceline|keshin|mixi|soul|armed/.test(t))
+                manquants.push(`fandom-${w.lang}-section:${s.titre}`);
+        }
     }
     return [...new Set(manquants)];
 }
@@ -266,7 +347,7 @@ function jsonLd(d: Ligne) {
                 "@type": ["Person", "Thing"],
                 "@id": `${url}#concept`,
                 name: id.nom_fr,
-                alternateName: [id.nom_en, id.nom_ja, id.surnom].filter(Boolean),
+                alternateName: [...new Set([id.nom_en, id.nom_ja, id.nom_ja_officiel, id.furigana, id.surnom, id.surnom_ja].filter(Boolean))],
                 identifier: (d.codes_internes as string[])?.[0],
                 description: id.description_fr ?? id.description_en,
                 image: [m.portrait, ...((m.visages as string[]) ?? [])].filter(Boolean),
@@ -284,6 +365,8 @@ function jsonLd(d: Ligne) {
                     ["Poste", id.poste],
                     ["Numéro de zukan", id.zukan],
                     ["Série", id.serie],
+                    ["Lecture (furigana)", id.furigana],
+                    ["Nom japonais officiel", id.nom_ja_officiel],
                     ...Object.entries((d.statistiques as Ligne)?.niveau_99 ?? {}),
                 ]
                     .filter(([, v]) => v !== null && v !== undefined && v !== "")
@@ -321,20 +404,40 @@ const p = g.principal;
 console.error(`  extrait : ${g.variantes.length} variantes, ${g.codes.length} codes, ${g.skills.length} techniques`);
 
 let zukan: ReturnType<typeof parseZukan> = [];
-let fandom: Awaited<ReturnType<typeof couvertureFandom>> = null;
+let zukanJa: ReturnType<typeof parseZukan> = [];
+let wikis: Couverture[] = [];
+let web: Awaited<ReturnType<typeof recherche>> = null;
 let publiee: string | null = null;
 
 if (!o.horsLigne) {
-    const urlZukan = o.zukan || `https://zukan.inazuma.jp/en/chara_list/?q=&per_page=50`;
-    const [mdZukan, mdPage, cov] = await Promise.all([
-        o.zukan ? bxc(urlZukan) : Promise.resolve(null),
+    const cibles = o.fandom.length
+        ? o.fandom.map((x) => {
+              const i = x.indexOf(":");
+              return i > 0 ? { lang: x.slice(0, i), page: x.slice(i + 1) } : { lang: "fr", page: x };
+          })
+        : [{ lang: "fr", page: String(p.name_fr ?? "").replace(/ Aphrody$/, "").replace(/ /g, "_") }];
+    const [pagesZukan, mdPage, cov, g6] = await Promise.all([
+        Promise.all(o.zukan.map(async (u) => ({ url: u, md: await bxc(u) }))),
         bxc(`${SITE}/chara/${o.slug}`),
-        couvertureFandom(String(p.name_fr ?? "").replace(/ Aphrody$/, "").replace(/ /g, "_")),
+        Promise.all(cibles.map((c) => couvertureFandom(c.lang, c.page))),
+        recherche(o.google),
     ]);
-    if (mdZukan) zukan = parseZukan(mdZukan);
+    for (const { url, md } of pagesZukan) {
+        if (!md) continue;
+        const lu = parseZukan(md, localeZukan(url));
+        if (lu[0]?.locale === "ja") zukanJa = lu;
+        else zukan = lu;
+    }
+    // Si une seule langue a ete fournie, elle sert de reference pour les deux.
+    if (zukan.length === 0) zukan = zukanJa;
     publiee = mdPage;
-    fandom = cov;
-    console.error(`  zukan : ${zukan.length} versions · azalee : ${publiee ? "lue" : "non lue"} · fandom : ${fandom ? `${fandom.sections.length} sections` : "indisponible"}`);
+    wikis = cov.filter((x): x is NonNullable<typeof x> => x !== null);
+    web = g6;
+    console.error(
+        `  zukan : ${zukan.length} versions EN, ${zukanJa.length} JA · azalee : ${publiee ? "lue" : "non lue"}` +
+            ` · fandom : ${wikis.map((w) => `${w.lang}=${w.sections.length} sections`).join(", ") || "indisponible"}` +
+            (web ? ` · web : ${web.resultats.length} liens` : ""),
+    );
 }
 
 const face = (code: string) => `${CDN}/dx11/menu/200_icon/10_icon_chr/face/${code}_l.png`;
@@ -350,7 +453,10 @@ const dossier: Ligne = {
         nom_fr: p.name_fr,
         nom_en: p.name_en,
         nom_ja: p.name_ja,
+        nom_ja_officiel: zukanJa[0]?.nom_complet ?? null,
+        furigana: zukanJa[0]?.furigana ?? null,
         surnom: p.nickname ?? zukan[0]?.surnom ?? null,
+        surnom_ja: zukanJa[0]?.surnom ?? null,
         zukan: p.zukan_order,
         zukan_officiel: zukan.map((z) => z.numero),
         serie: p.series,
@@ -370,10 +476,14 @@ const dossier: Ligne = {
             }
         })(),
         role: zukan[0]?.role ?? null,
+        role_ja: zukanJa[0]?.role ?? null,
+        equipes_ja: zukanJa[0]?.equipes ?? [],
+        serie_ja: zukanJa[0]?.jeu ?? null,
         description_fr: p.description_fr,
         description_en: p.description_en,
         description_ja: p.description_ja,
         description_officielle_en: zukan[0]?.description_officielle_en ?? null,
+        description_officielle_ja: zukanJa[0]?.description_officielle_en ?? null,
     },
     codes_internes: g.codes,
     variantes: g.variantes.map((v) => ({
@@ -425,16 +535,25 @@ const dossier: Ligne = {
     },
     sources: {
         extrait: { fichier: "var/mirror.sqlite", table: "inagle_characters", lignes: g.variantes.length, confiance: "cle" },
-        zukan: { url: o.zukan || null, versions: zukan.length, confiance: "cle", note: "canon officiel LEVEL-5" },
+        zukan: {
+            urls: o.zukan,
+            versions_en: zukan.length,
+            versions_ja: zukanJa.length,
+            confiance: "cle",
+            note: "canon officiel LEVEL-5 ; le zukan japonais est la seule source du furigana",
+        },
         azalee: { url: `${SITE}/chara/${o.slug}`, lue: !!publiee, octets: publiee?.length ?? 0, confiance: "publie" },
         techniques_orphelines: g.orphelins,
-        fandom: fandom ? { role: "checklist de couverture uniquement", ...fandom } : null,
+        fandom: wikis.length
+            ? { role: "checklist de couverture uniquement — aucun texte lu ni repris", wikis }
+            : null,
+        web: web,
     },
     couverture: { manquants: [] as string[] },
 };
 
 // L'ecart se mesure sur le dossier assemble : il se calcule apres, pas dans l'initialiseur.
-(dossier.couverture as Ligne).manquants = ecart(dossier, fandom, zukan);
+(dossier.couverture as Ligne).manquants = ecart(dossier, wikis, zukan);
 
 mkdirSync(o.sortie, { recursive: true });
 const fJson = join(o.sortie, "aphrody.json");
