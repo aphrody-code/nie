@@ -14,6 +14,9 @@
 pub mod assets;
 pub mod codex;
 pub mod gisement;
+/// Le contrat « pet » de Codex : manifeste, pistes minutées, états. Dérivé d'`openai/codex`
+/// (Apache-2.0) — voir `NOTICE`.
+pub mod pets;
 /// Mesure, comparaison et rastérisation — le socle de la skill `pixel-perfect`.
 pub mod pixel;
 

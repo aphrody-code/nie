@@ -1,0 +1,30 @@
+nie-aphrody
+Copyright 2026 aphrody-dev
+
+Le module `src/pets.rs` est une réimplémentation dérivée du sous-système `pets` de
+OpenAI Codex (https://github.com/openai/codex, `codex-rs/tui/src/pets/`), distribué
+sous licence Apache License 2.0 :
+
+    OpenAI Codex
+    Copyright 2025 OpenAI
+
+En sont repris : le schéma du manifeste `pet.json`, ses valeurs par défaut et ses
+bornes de validation, la sémantique `loop_start` / `fallback` des pistes d'animation,
+l'algorithme de sélection de frame par accumulation de durées, et le modèle d'état
+ambiant à durée de vie.
+
+Modifications apportées par rapport à l'original, et leur raison :
+
+  - la géométrie de la grille est lue dans le manifeste au lieu d'être figée à
+    8 x 9 cellules. L'atlas d'Aphrody v2 est un 8 x 11 (1536 x 2288) que la
+    validation d'origine rejetterait ; la cellule (192 x 208) et le nombre de
+    colonnes (8) sont, eux, inchangés.
+  - le module ne lit jamais l'horloge : le temps écoulé est passé en argument, en
+    millisecondes, ce qui le rend utilisable en navigateur, sur mobile et dans un
+    test déterministe.
+  - aucun accès au système de fichiers, au réseau ni au terminal n'est repris : le
+    téléchargement CDN, le cache disque et les protocoles image du terminal restent
+    hors de cette crate.
+
+Les ASSETS de Codex (spritesheets des pets) ne sont pas repris : ils ne figurent pas
+dans le dépôt d'origine et ne sont donc pas couverts par sa licence.

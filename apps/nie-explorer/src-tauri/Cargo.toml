@@ -126,6 +126,10 @@ nie-save = { path = "../../../crates/engine/nie-save", features = ["serde"] }
 # Modèles de données de jeu (skills/auras/chara_param/items…) — chargée pour un futur navigateur
 # de données 100 % hors-ligne (sans miroir wiki), pas encore câblée dans une commande.
 nie-data = { path = "../../../crates/engine/nie-data", features = ["serde", "std"] }
+# Pet Aphrody (la mascotte de l'app) ET la chaine pixel-perfect : mesure, comparaison SSIM,
+# vectorisation, planche de sprites. La crate ne depend d'AUCUN specta — les DTO vivent dans
+# `src/aphrody.rs`, comme pour `export.rs` : ce backend est une facade, pas un second moteur.
+nie-aphrody = { path = "../../../crates/engine/nie-aphrody" }
 # Logique de jeu reversée (ballon/IA/état de match) — chargée pour de futurs outils de mod
 # gameplay, pas encore câblée dans une commande.
 nie-core = { path = "../../../crates/engine/nie-core" }

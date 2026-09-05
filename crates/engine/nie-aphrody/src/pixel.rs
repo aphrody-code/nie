@@ -18,6 +18,7 @@
 //!   produire un SVG conçu comme vectoriel.
 
 use crate::Error;
+#[cfg(feature = "fs")]
 use std::path::Path;
 
 /// Une couleur de la palette mesurée, dans les trois espaces qui servent à décider.
@@ -173,10 +174,29 @@ impl Image {
         Ok(Self { largeur, hauteur, rgba })
     }
 
+    /// Décode une image en mémoire (PNG, JPEG, WebP) et la ramène en RGBA8.
+    ///
+    /// C'est **le** point d'entrée portable : un navigateur ou un mobile n'a pas de système de
+    /// fichiers à offrir, mais toujours des octets. [`Image::charger`] n'en est que la variante
+    /// de commodité pour un hôte qui a un disque.
+    ///
+    /// # Erreurs
+    /// Si le format n'est pas reconnu ou les données sont corrompues.
+    pub fn depuis_octets(octets: &[u8]) -> Result<Self, Error> {
+        let img = image::load_from_memory(octets)
+            .map_err(|e| Error::Invalid(format!("image illisible : {e}")))?
+            .to_rgba8();
+        let (largeur, hauteur) = img.dimensions();
+        Ok(Self { largeur, hauteur, rgba: img.into_raw() })
+    }
+
     /// Charge un fichier image (PNG, JPEG, WebP) et le ramène en RGBA8.
+    ///
+    /// Réservé aux hôtes qui ont un disque : sur le web, passer par [`Image::depuis_octets`].
     ///
     /// # Erreurs
     /// Si le fichier est illisible ou son format non reconnu.
+    #[cfg(feature = "fs")]
     pub fn charger(chemin: &Path) -> Result<Self, Error> {
         let img = image::open(chemin)
             .map_err(|e| Error::Invalid(format!("{} : {e}", chemin.display())))?

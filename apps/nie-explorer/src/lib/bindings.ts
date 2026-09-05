@@ -4,6 +4,32 @@ import { invoke as __TAURI_INVOKE } from "@tauri-apps/api/core";
 
 /** Commands */
 export const commands = {
+	/**  Etat du pet Aphrody embarque : atlas, grille, animations, diagnostic d'integrite. */
+	aphrodyPetEtat: () => typedError<PetEtatDto, string>(__TAURI_INVOKE("aphrody_pet_etat")),
+	/**  Une frame d'animation du pet, extraite sans reechantillonnage, en PNG base64. */
+	aphrodyPetFramePngB64: (animation: string, index: number) => typedError<string, string>(__TAURI_INVOKE("aphrody_pet_frame_png_b64", { animation, index })),
+	/**
+	 *  Mesure une image du disque : boite, ratio, remplissage, palette, epaisseur de trait, pente
+	 *  des bords. `angles_exploitables` dit si les angles rendus veulent dire quelque chose.
+	 */
+	aphrodyPixelMesurer: (chemin: string, k: number | null, boite: number[] | null, mode: string, seuil: number | null, teinteMin: number | null, teinteMax: number | null, saturation: number | null) => typedError<MesureDto, string>(__TAURI_INVOKE("aphrody_pixel_mesurer", { chemin, k, boite, mode, seuil, teinteMin, teinteMax, saturation })),
+	/**  La palette d'une image en proprietes personnalisees CSS `oklch()`, HEX mesure en commentaire. */
+	aphrodyPixelTokensCss: (chemin: string, prefixe: string, k: number | null) => typedError<string, string>(__TAURI_INVOKE("aphrody_pixel_tokens_css", { chemin, prefixe, k })),
+	/**
+	 *  Compare deux images : SSIM et part des pixels dans la tolerance. Ce ne sont pas le meme
+	 *  critere — le premier juge une reproduction, le second un rendu qui doit etre identique.
+	 */
+	aphrodyPixelComparer: (a: string, b: string, tolerance: number | null) => typedError<ComparaisonDto, string>(__TAURI_INVOKE("aphrody_pixel_comparer", { a, b, tolerance })),
+	/**
+	 *  Vectorise une image en SVG. C'est un DECALQUE : bon pour un logo plat, jamais pour pretendre
+	 *  produire un dessin concu comme vectoriel.
+	 */
+	aphrodyPixelVectoriser: (chemin: string, k: number | null, tolerance: number | null, mode: string, seuil: number | null) => typedError<string, string>(__TAURI_INVOKE("aphrody_pixel_vectoriser", { chemin, k, tolerance, mode, seuil })),
+	/**
+	 *  Assemble des images en planche de sprites et rend PNG + CSS + SVG + JSON — le meme rendu que
+	 *  pour un atlas du jeu, via `nie_formats::sprite_sheet`.
+	 */
+	aphrodyPixelPlanche: (chemins: string[], colonnes: number | null, nom: string) => typedError<PlancheDto, string>(__TAURI_INVOKE("aphrody_pixel_planche", { chemins, colonnes, nom })),
 	/**
 	 *  Racine de jeu par défaut — VRAIE détection (registre Steam + bibliothèques +
 	 *  `appmanifest_2799860.acf`, cf. [`resolve_game_dir_native`]), pas un chemin deviné.
@@ -1181,6 +1207,30 @@ export type ClipCameraDto = {
 	index: number,
 };
 
+/**  Le verdict d'une comparaison (miroir IPC de `nie_aphrody::pixel::Comparaison`). */
+export type ComparaisonDto = {
+	/**  Similarité structurelle hybride RGB, 0 à 1. */
+	ssim: number | null,
+	/**  Part des pixels dont chaque canal tient dans la tolérance. */
+	pixels_dans_tolerance_pct: number | null,
+	/**  Tolérance appliquée, par canal. */
+	tolerance: number,
+	/**  Vrai si les deux images sont rigoureusement égales. */
+	identique: boolean,
+};
+
+/**  Une couleur de la palette mesurée (miroir IPC de `nie_aphrody::pixel::Couleur`). */
+export type CouleurDto = {
+	/**  Part des pixels retenus, en pourcentage. */
+	part_pct: number | null,
+	/**  Forme `#RRGGBB`. */
+	hex: string,
+	/**  `oklch(L C h)` prêt à coller dans une feuille de style. */
+	oklch: string,
+	/**  Teinte HSL en degrés, pour trier une palette à l'affichage. */
+	teinte_deg: number | null,
+};
+
 /**
  *  Une entrée à empaqueter dans un `.cpk` exporté (§1.2 roadmap) — `vfs_path` sert à dériver
  *  `directory`/`filename` (même convention que [`nie_formats::cpk::CpkEntry`] en lecture),
@@ -1707,6 +1757,48 @@ export type McpTarget =
 "claude-desktop";
 
 /**
+ *  Ce qu'une mesure rend au front (miroir IPC de `nie_aphrody::pixel::Mesure`).
+ * 
+ *  Les profils de silhouette et les bords ligne à ligne **ne sont pas exposés** : ce sont
+ *  plusieurs milliers de valeurs par mesure, que l'interface ne sait pas afficher et que l'IPC
+ *  paierait à chaque appel. Ils restent accessibles côté Rust pour qui en a besoin.
+ */
+export type MesureDto = {
+	/**  Largeur de l'image source. */
+	source_largeur: number,
+	/**  Hauteur de l'image source. */
+	source_hauteur: number,
+	/**  Boîte englobante du sujet : `[x0, y0, x1, y1]`, bornes incluses. */
+	boite: [number, number, number, number],
+	/**  Largeur de la boîte. */
+	largeur: number,
+	/**  Hauteur de la boîte. */
+	hauteur: number,
+	/**  Largeur / hauteur. */
+	ratio: number | null,
+	/**  Part de la boîte occupée, en pourcentage (78,54 % = un disque plein). */
+	remplissage_pct: number | null,
+	/**  Part de l'image entière occupée. */
+	part_image_pct: number | null,
+	/**  Épaisseur médiane du trait, en pourcentage de la largeur. */
+	trait_pct: number | null,
+	/**  Angle du bord gauche par rapport à la verticale, en degrés. */
+	angle_gauche_deg: number | null,
+	/**  Angle du bord droit. */
+	angle_droit_deg: number | null,
+	/**  Le pire des deux R² d'ajustement des bords. */
+	bord_droiture: number | null,
+	/**
+	 *  Faux quand `bord_droiture` est sous 0,95 : les angles ci-dessus ne veulent alors **rien
+	 *  dire** et l'interface doit refuser de les proposer en `skewX`. Le calcul du seuil est
+	 *  fait ici pour qu'aucun front n'ait à le réinventer — ni à l'oublier.
+	 */
+	angles_exploitables: boolean,
+	/**  Palette, triée par part décroissante. */
+	palette: CouleurDto[],
+};
+
+/**
  *  Un clip déclaré par un conteneur G4MT.
  * 
  *  Tous les entiers sont des `f64` : `specta` refuse les entiers 64 bits (`u64`/`i64` panique à
@@ -1836,6 +1928,24 @@ export type PassiveDto = {
 	effect_params: (number | null)[],
 };
 
+/**  L'état du pet embarqué. */
+export type PetEtatDto = {
+	/**  Nom affichable du pet. */
+	nom: string,
+	/**  Dimensions de l'atlas. */
+	atlas: [number, number],
+	/**  Grille de l'atlas : colonnes, lignes. */
+	grille: [number, number],
+	/**  Noms des animations disponibles. */
+	animations: string[],
+	/**  Nombre de frames vérifiées par le diagnostic. */
+	frames_verifiees: number,
+	/**  Vrai si le diagnostic ne relève aucune erreur. */
+	ok: boolean,
+	/**  Erreurs relevées, vides quand `ok`. */
+	erreurs: string[],
+};
+
 /**
  *  Piste sonore d'un film.
  * 
@@ -1873,6 +1983,24 @@ export type PisteCameraDto = {
 	temps: (number | null)[],
 	/**  Valeurs, vides quand `resolu` est faux. */
 	valeurs: (number | null)[],
+};
+
+/**  Une planche assemblée et les trois formes que le web en attend. */
+export type PlancheDto = {
+	/**  Largeur de la planche. */
+	largeur: number,
+	/**  Hauteur de la planche. */
+	hauteur: number,
+	/**  Nombre de sprites. */
+	sprites: number,
+	/**  PNG de la planche, en base64 — affichable directement en `data:`. */
+	png_b64: string,
+	/**  Feuille CSS, telle que l'écrit `nie_formats::sprite_sheet`. */
+	css: string,
+	/**  SVG autonome à `<symbol>`, image embarquée en `data:`. */
+	svg: string,
+	/**  JSON des régions. */
+	json: string,
 };
 
 /**

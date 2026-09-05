@@ -33,6 +33,13 @@ resvg.workspace = true
 usvg.workspace = true
 tiny-skia.workspace = true
 
+[features]
+# `fs` : les points d'entrée qui lisent le DISQUE. Par défaut, parce que la plupart des hôtes en
+# ont un ; à couper pour le web et le mobile, où `Image::depuis_octets` et `Pet::from_png`
+# suffisent — tout le reste de la crate travaille déjà en mémoire.
+default = ["fs"]
+fs = []
+
 [[bin]]
 name = "pixel"
 path = "src/bin/pixel.rs"

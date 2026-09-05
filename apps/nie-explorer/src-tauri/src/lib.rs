@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 use tauri_plugin_sql::{Migration, MigrationKind};
 
+mod aphrody;
 mod camera_nav;
 mod export;
 mod forge;
@@ -5107,6 +5108,93 @@ fn urlencode(s: &str) -> String {
     out
 }
 
+
+// --- Aphrody : le pet, et la chaine pixel-perfect -------------------------------------------
+//
+// Toutes ces commandes sont `async` : elles lisent le disque, et une commande Tauri SYNCHRONE
+// tourne sur le THREAD PRINCIPAL — une lecture lente y fige la fenetre (cf. `CLAUDE.md`).
+
+/// Etat du pet Aphrody embarque : atlas, grille, animations, diagnostic d'integrite.
+#[tauri::command]
+#[specta::specta]
+async fn aphrody_pet_etat() -> Result<aphrody::PetEtatDto, String> {
+    aphrody::pet_etat()
+}
+
+/// Une frame d'animation du pet, extraite sans reechantillonnage, en PNG base64.
+#[tauri::command]
+#[specta::specta]
+async fn aphrody_pet_frame_png_b64(animation: String, index: u32) -> Result<String, String> {
+    aphrody::pet_frame_png_b64(&animation, index)
+}
+
+/// Mesure une image du disque : boite, ratio, remplissage, palette, epaisseur de trait, pente
+/// des bords. `angles_exploitables` dit si les angles rendus veulent dire quelque chose.
+#[tauri::command]
+#[specta::specta]
+#[allow(clippy::too_many_arguments)]
+async fn aphrody_pixel_mesurer(
+    chemin: String,
+    k: Option<u32>,
+    boite: Option<Vec<u32>>,
+    mode: String,
+    seuil: Option<u32>,
+    teinte_min: Option<f64>,
+    teinte_max: Option<f64>,
+    saturation: Option<f64>,
+) -> Result<aphrody::MesureDto, String> {
+    aphrody::mesurer_fichier(&chemin, k, boite, &mode, seuil, teinte_min, teinte_max, saturation)
+}
+
+/// La palette d'une image en proprietes personnalisees CSS `oklch()`, HEX mesure en commentaire.
+#[tauri::command]
+#[specta::specta]
+async fn aphrody_pixel_tokens_css(
+    chemin: String,
+    prefixe: String,
+    k: Option<u32>,
+) -> Result<String, String> {
+    aphrody::tokens_css_fichier(&chemin, &prefixe, k)
+}
+
+/// Compare deux images : SSIM et part des pixels dans la tolerance. Ce ne sont pas le meme
+/// critere — le premier juge une reproduction, le second un rendu qui doit etre identique.
+#[tauri::command]
+#[specta::specta]
+async fn aphrody_pixel_comparer(
+    a: String,
+    b: String,
+    tolerance: Option<u32>,
+) -> Result<aphrody::ComparaisonDto, String> {
+    aphrody::comparer_fichiers(&a, &b, tolerance)
+}
+
+/// Vectorise une image en SVG. C'est un DECALQUE : bon pour un logo plat, jamais pour pretendre
+/// produire un dessin concu comme vectoriel.
+#[tauri::command]
+#[specta::specta]
+async fn aphrody_pixel_vectoriser(
+    chemin: String,
+    k: Option<u32>,
+    tolerance: Option<f64>,
+    mode: String,
+    seuil: Option<u32>,
+) -> Result<String, String> {
+    aphrody::vectoriser_fichier(&chemin, k, tolerance, &mode, seuil)
+}
+
+/// Assemble des images en planche de sprites et rend PNG + CSS + SVG + JSON — le meme rendu que
+/// pour un atlas du jeu, via `nie_formats::sprite_sheet`.
+#[tauri::command]
+#[specta::specta]
+async fn aphrody_pixel_planche(
+    chemins: Vec<String>,
+    colonnes: Option<u32>,
+    nom: String,
+) -> Result<aphrody::PlancheDto, String> {
+    aphrody::planche_fichiers(&chemins, colonnes, &nom)
+}
+
 /// Collecte toutes les commandes IPC pour `tauri-specta` — une SEULE liste, source de vérité à
 /// la fois pour l'enregistrement runtime (`invoke_handler`) et pour l'export des bindings
 /// TypeScript (`src/lib/bindings.ts`), là où il fallait avant maintenir `tauri::generate_handler!`
@@ -5114,6 +5202,13 @@ fn urlencode(s: &str) -> String {
 /// jamais signalé par le compilateur.
 fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
     tauri_specta::Builder::<tauri::Wry>::new().commands(tauri_specta::collect_commands![
+        aphrody_pet_etat,
+        aphrody_pet_frame_png_b64,
+        aphrody_pixel_mesurer,
+        aphrody_pixel_tokens_css,
+        aphrody_pixel_comparer,
+        aphrody_pixel_vectoriser,
+        aphrody_pixel_planche,
         default_game_dir,
         check_game_dir,
         default_wiki_db,
