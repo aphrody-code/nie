@@ -13,14 +13,13 @@ namespace IECODE.Core.Tests;
 ///   -> data/common/map/s/s28g001b/s28g001b.g4pk  (1 sous-fichier g4sk)
 ///
 /// Les fixtures (sous-fichiers G4MT/G4TP/G4VS/G4MA extraits de packs réels) sont
-/// déposées dans le dump Steam local :
-///   /home/ubuntu/.local/share/Steam/iecode/inazuma/data/_g4pk_fixtures/
+/// déposées dans <c>data/_g4pk_fixtures/</c> sous la racine de jeu configurée.
 /// Les tests dépendant des fichiers réels sont skippés si ceux-ci sont absents.
 /// </summary>
 public class G4pkParserTests
 {
     private static readonly string FixtureDir =
-        "/home/ubuntu/.local/share/Steam/iecode/inazuma/data/_g4pk_fixtures";
+        Path.Combine(TestDataPaths.DataRoot, "_g4pk_fixtures");
 
     private static string Fixture(string name) => Path.Combine(FixtureDir, name);
 

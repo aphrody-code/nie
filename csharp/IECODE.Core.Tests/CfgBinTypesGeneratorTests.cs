@@ -16,15 +16,15 @@ namespace IECODE.Core.Tests;
 /// </summary>
 public class CfgBinTypesGeneratorTests
 {
-    private const string DataRoot = "/home/ubuntu/niers/data";
+    private static readonly string DataRoot = TestDataPaths.DataRoot;
 
     // Fichier RDBN de référence — courant dans le dump IEVR.
-    private const string RdbnFile =
-        DataRoot + "/common/gamedata/event/event_movie_config_0.00.00.cfg.bin";
+    private static readonly string RdbnFile = Path.Combine(
+        DataRoot, "common", "gamedata", "event", "event_movie_config_0.00.00.cfg.bin");
 
     // Fichier T2B de référence — event_cmnd_config utilisé dans CfgBinGenericTests.
-    private const string T2bFile =
-        DataRoot + "/common/gamedata/event/event_cmnd_config_0.00.00.cfg.bin";
+    private static readonly string T2bFile = Path.Combine(
+        DataRoot, "common", "gamedata", "event", "event_cmnd_config_0.00.00.cfg.bin");
 
     private static bool HasFile(string path) => File.Exists(path);
 

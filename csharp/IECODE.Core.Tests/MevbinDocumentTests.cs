@@ -17,8 +17,7 @@ public class MevbinDocumentTests
 {
     private static readonly string[] SampleDirs =
     {
-        "/tmp/s/mevbin/data/common/chr",
-        "/home/ubuntu/niers/data/common/chr",
+        Path.Combine(TestDataPaths.DataRoot, "common", "chr"),
     };
 
     private static string? FindSample()

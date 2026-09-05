@@ -414,7 +414,9 @@ public static class EverythingSearchExtensions
     {
         return provider.SearchAsync(characterId, new FileSearchOptions
         {
-            BasePath = basePath ?? @"C:\iecode\dump\data\common\chr"
+            BasePath = basePath ?? Path.Combine(
+                Environment.GetEnvironmentVariable("NIE_GAME_DIR") ?? Environment.CurrentDirectory,
+                "data", "common", "chr")
         }, ct);
     }
 

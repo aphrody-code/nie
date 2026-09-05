@@ -5,7 +5,7 @@ namespace IECODE.Core.Game.Soccer
     ///
     /// NON VÉRIFIÉ — le layout mémoire exact de cette structure exige du RE sur le
     /// binaire d'exécution (offsets de champs dans le tableau de joueurs en RAM).
-    /// Ce binaire est ABSENT du VPS : <c>/home/ubuntu/niers/data</c> ne contient que le
+    /// Le dossier <c>data/</c> du jeu ne contient que le
     /// corpus cfg.bin parsé (données de jeu), pas un dump mémoire ni l'exécutable.
     ///
     /// Aucune des sources de vérité disponibles (parsers inagle, dump cfg.bin, azalee)

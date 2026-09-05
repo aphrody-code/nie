@@ -16,13 +16,20 @@ public static class IEVRConstants
     public const string GAME_EXECUTABLE = "nie.exe";
 
     /// <summary>
-    /// Default Steam install paths to check.
+    /// Steam install paths derived from the host environment.
     /// </summary>
-    public static readonly string[] SteamPaths =
-    [
-        @"C:\Program Files (x86)\Steam",
-        @"C:\Program Files\Steam",
-        @"D:\Steam",
-        @"E:\Steam"
-    ];
+    public static IEnumerable<string> SteamPaths
+    {
+        get
+        {
+            var roots = new[]
+            {
+                Environment.GetEnvironmentVariable("ProgramFiles(x86)"),
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            };
+            return roots.Where(static root => !string.IsNullOrWhiteSpace(root))
+                .Select(static root => Path.Combine(root!, "Steam"))
+                .Distinct(StringComparer.OrdinalIgnoreCase);
+        }
+    }
 }

@@ -16,7 +16,7 @@ public static class DumpGameDataCommand
 
         var dumpOption = new Option<string?>(
             aliases: ["--dump", "-d"],
-            description: "Path to dump folder (auto-detects C:\\iecode\\dump)");
+            description: "Path to dump folder (auto-detects NIE_GAME_DIR or current directory)");
         command.AddOption(dumpOption);
 
         var langOption = new Option<string>(
@@ -140,7 +140,11 @@ public static class DumpGameDataCommand
         if (!string.IsNullOrEmpty(userPath) && Directory.Exists(userPath))
             return userPath;
 
-        string[] defaultPaths = [@"C:\iecode\dump", @"C:\iecode"];
+        string[] defaultPaths =
+        [
+            Environment.GetEnvironmentVariable("NIE_GAME_DIR") ?? string.Empty,
+            Directory.GetCurrentDirectory(),
+        ];
         foreach (var path in defaultPaths)
         {
             if (Directory.Exists(Path.Combine(path, "data")))

@@ -13,9 +13,9 @@ public sealed class IEVRGame : IDisposable
     #region Constants
 
     /// <summary>
-    /// Chemin Steam par défaut du jeu.
+    /// Nom du dossier d'installation Steam du jeu.
     /// </summary>
-    public const string DefaultSteamPath = @"C:\Program Files (x86)\Steam\steamapps\common\INAZUMA ELEVEN Victory Road";
+    public const string SteamGameFolderName = "INAZUMA ELEVEN Victory Road";
 
     /// <summary>
     /// Nom de l'exécutable principal.
@@ -125,7 +125,8 @@ public sealed class IEVRGame : IDisposable
     /// 1. variable d'env <c>IECODE_GAME_PATH</c> (override explicite) ;
     /// 2. premier candidat existant (install Linux steamcmd, libs Steam usuelles) contenant
     ///    <c>data/cpk_list.cfg.bin</c> ;
-    /// 3. <see cref="DefaultSteamPath"/> (Windows) en dernier recours.
+    /// 3. les racines Steam dérivées de l'environnement hôte ;
+    /// 4. le répertoire courant en dernier recours.
     /// Permet d'utiliser la CLI sans <c>--game</c> sur un hôte Linux (cf. install VPS).
     /// </summary>
     public static string ResolveDefaultGamePath()
@@ -146,7 +147,14 @@ public sealed class IEVRGame : IDisposable
             if (File.Exists(Path.Combine(candidate, "data", "cpk_list.cfg.bin")))
                 return candidate;
 
-        return DefaultSteamPath;
+        foreach (var steamPath in IEVRConstants.SteamPaths)
+        {
+            var candidate = Path.Combine(steamPath, "steamapps", "common", SteamGameFolderName);
+            if (Directory.Exists(candidate))
+                return candidate;
+        }
+
+        return Directory.GetCurrentDirectory();
     }
 
     #endregion

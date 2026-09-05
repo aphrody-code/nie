@@ -41,7 +41,7 @@ public static class SearchCommand
 
         var dumpOption = new Option<string?>(
             aliases: ["--dump", "-d"],
-            description: "Path to dump folder (auto-detects C:\\iecode\\dump)");
+            description: "Path to dump folder (auto-detects NIE_GAME_DIR or current directory)");
         command.AddOption(dumpOption);
 
         var langOption = new Option<string>(
@@ -85,7 +85,7 @@ public static class SearchCommand
         {
             Console.Error.WriteLine($"Error: {ex.Message}");
             Console.Error.WriteLine("Make sure the dump folder contains extracted cfg.bin files.");
-            Console.Error.WriteLine("Use: iecode dump --output C:\\iecode\\dump");
+            Console.Error.WriteLine("Use: iecode dump --output <dump-folder>");
         }
         catch (Exception ex)
         {

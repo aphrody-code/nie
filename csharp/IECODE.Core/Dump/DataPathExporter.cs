@@ -7,7 +7,7 @@ namespace IECODE.Core.Dump;
 /// (createInagleService, DATA_PATH) consomme.
 ///
 /// Contrat inagle (vérifié empiriquement contre packages/inagle/src/core/paths.ts
-/// + cfgbin-db.ts + data-loader.ts + /home/ubuntu/niers/data) :
+/// + cfgbin-db.ts + data-loader.ts + le dossier <c>data/</c> du jeu) :
 ///
 ///  1. PAS de préfixe `data/`. inagle lit `DATA_ROOT/common/gamedata/...`,
 ///     `DATA_ROOT/common/text/...` — alors que le dump iecode écrit avec le
@@ -19,11 +19,11 @@ namespace IECODE.Core.Dump;
 ///       - parsers spécialisés       → `{ version, lists:[{name,typeName,values}] }` (format RDBN)
 ///     Le décodeur iecode (CfgBinService.ExportToJson) route AUTOMATIQUEMENT
 ///     T2B→entries / RDBN→lists ; la sortie est byte-identique à la référence
-///     /home/ubuntu/niers/data (validé sur chara_exp_table RDBN et chara_param T2B).
+///     du dump de jeu (validé sur chara_exp_table RDBN et chara_param T2B).
 ///     → pour CHAQUE `<x>.cfg.bin`, on émet le sibling `<x>.cfg.bin.json`.
 ///
 ///  3. On conserve aussi le `.cfg.bin` brut à côté (le tree de référence
-///     /home/ubuntu/niers/data a les deux ; certains consommateurs iecode/cfgbin-db
+///     de jeu a les deux ; certains consommateurs iecode/cfgbin-db
 ///     repartent du binaire). Lossless, jamais de recompression.
 ///
 /// Idempotent : un fichier `.json` déjà présent et plus récent que sa source
@@ -62,7 +62,7 @@ public sealed class DataPathExporter
         /// <summary>Ré-écrire les `.json` même s'ils sont à jour.</summary>
         public bool Force { get; init; }
 
-        /// <summary>Copier le `.cfg.bin` brut à côté du `.json` (défaut true, comme /home/ubuntu/niers/data).</summary>
+        /// <summary>Copier le `.cfg.bin` brut à côté du `.json` (défaut true, comme dans le dump de jeu).</summary>
         public bool CopyRawCfgBin { get; init; } = true;
 
         /// <summary>Parallélisme du décodage.</summary>

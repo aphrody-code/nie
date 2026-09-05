@@ -118,7 +118,7 @@ public class GameFileTypeTests
     [Fact]
     public void Detect_RealRdbnFile_ReturnsCfgBin()
     {
-        const string path = "/home/ubuntu/niers/data/common/gamedata/event/event_movie_config_0.00.00.cfg.bin";
+        string path = Path.Combine(TestDataPaths.DataRoot, "common", "gamedata", "event", "event_movie_config_0.00.00.cfg.bin");
         if (!File.Exists(path)) return;
 
         var kind = GameFileType.Detect(path);
@@ -128,7 +128,7 @@ public class GameFileTypeTests
     [Fact]
     public void Detect_RealLuaFile_ReturnsLuaBytecode()
     {
-        const string path = "/home/ubuntu/niers/data/lua_scripts/qrcode_menu.lua.bin";
+        string path = Path.Combine(TestDataPaths.DataRoot, "common", "script", "lua", "menu", "qrcode_menu.lua.bin");
         if (!File.Exists(path)) return;
 
         var kind = GameFileType.Detect(path);

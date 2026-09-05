@@ -10,12 +10,6 @@ namespace IECODE.Core.GameData;
 /// </summary>
 public class CharacterDataPipeline
 {
-    private static readonly string[] DumpPaths =
-    [
-        @"C:\iecode\dump",
-        @"C:\iecode"
-    ];
-
     private static readonly string CharaBasePath = @"data\common\gamedata\character";
     private static readonly string CharaTextPath = @"data\common\text";
 
@@ -143,7 +137,12 @@ public class CharacterDataPipeline
         if (!string.IsNullOrEmpty(userPath) && Directory.Exists(userPath))
             return userPath;
 
-        foreach (var path in DumpPaths)
+        string[] candidates =
+        [
+            Environment.GetEnvironmentVariable("NIE_GAME_DIR") ?? string.Empty,
+            Directory.GetCurrentDirectory(),
+        ];
+        foreach (var path in candidates)
         {
             if (Directory.Exists(Path.Combine(path, "data")))
                 return path;
