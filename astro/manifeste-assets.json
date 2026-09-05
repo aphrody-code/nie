@@ -1,0 +1,441 @@
+{
+  "personnage": "Astro Lor",
+  "nature": "personnage original (OC) — n'existe pas dans les données du jeu",
+  "auteur_des_planches": "@Karumina_san",
+  "gabarit": {
+    "code_interne": "c02023290",
+    "pourquoi": "gardien déjà présent dans le jeu ; ses fichiers donnent la forme exacte de ce qu'un personnage possède en propre",
+    "fichiers": [
+      {
+        "chemin": "data/common/chr/_face/02_IE2/c02023290/c02023290.g4md",
+        "octets": 2664
+      },
+      {
+        "chemin": "data/common/chr/_face/02_IE2/c02023290/c02023290.g4mg",
+        "octets": 141696
+      },
+      {
+        "chemin": "data/common/gamedata/menu/obj/soccer10_01_mode_change_c02023290.objbin",
+        "octets": 784
+      },
+      {
+        "chemin": "data/common/sound_asset/ja/c02023290.acb",
+        "octets": 26848
+      },
+      {
+        "chemin": "data/common/sound_asset/ja/c02023290.awb",
+        "octets": 635682
+      },
+      {
+        "chemin": "data/dx11/chr/_face/02_IE2/c02023290/c02023290.g4tx",
+        "octets": 5271872
+      },
+      {
+        "chemin": "data/dx11/chr/_face/02_IE2/c02023290/c02023290_03.g4tx",
+        "octets": 5271920
+      },
+      {
+        "chemin": "data/dx11/menu/200_icon/10_icon_chr/face/c02023290_l.g4tx",
+        "octets": 131648
+      },
+      {
+        "chemin": "data/dx11/menu/220_img/telop_waza/de/mode_change_c02023290.g4tx",
+        "octets": 608608
+      },
+      {
+        "chemin": "data/dx11/menu/220_img/telop_waza/en/mode_change_c02023290.g4tx",
+        "octets": 608608
+      },
+      {
+        "chemin": "data/dx11/menu/220_img/telop_waza/es/mode_change_c02023290.g4tx",
+        "octets": 608608
+      },
+      {
+        "chemin": "data/dx11/menu/220_img/telop_waza/fr/mode_change_c02023290.g4tx",
+        "octets": 608608
+      },
+      {
+        "chemin": "data/dx11/menu/220_img/telop_waza/it/mode_change_c02023290.g4tx",
+        "octets": 608608
+      },
+      {
+        "chemin": "data/dx11/menu/220_img/telop_waza/mode_change_c02023290.g4tx",
+        "octets": 608608
+      },
+      {
+        "chemin": "data/dx11/menu/220_img/telop_waza/pt/mode_change_c02023290.g4tx",
+        "octets": 608608
+      },
+      {
+        "chemin": "data/dx11/menu/220_img/telop_waza/zh_hans/mode_change_c02023290.g4tx",
+        "octets": 608608
+      },
+      {
+        "chemin": "data/dx11/menu/220_img/telop_waza/zh_hant/mode_change_c02023290.g4tx",
+        "octets": 608608
+      }
+    ]
+  },
+  "groupes_de_dossier": [
+    "01_IE1",
+    "02_IE2",
+    "03_IE3",
+    "04_GO1",
+    "05_GO2",
+    "06_GO3",
+    "07_ARES",
+    "08_ORION",
+    "11_VICTORY",
+    "20_EDIT",
+    "21_MANNEQUIN",
+    "22_COMBO"
+  ],
+  "cibles": [
+    {
+      "code_interne": "c99019010",
+      "nom": "Astro Lor — Inazuma Eleven",
+      "groupe_dossier": "01_IE1",
+      "chara_param_id": "0x9983CCE2",
+      "assets": [
+        {
+          "cle": "maille_tete",
+          "role": "Maille de la tête",
+          "format": "G4MD",
+          "chemin_vfs": "data/common/chr/_face/01_IE1/c99019010/c99019010.g4md",
+          "present_dans_le_jeu": false,
+          "statut": "a_produire",
+          "source": null,
+          "outil": null,
+          "note": "Le dépôt lit le G4MD (nie-formats) ; l'écriture reste à faire."
+        },
+        {
+          "cle": "geometrie_tete",
+          "role": "Géométrie de la tête (sommets, poids de skinning)",
+          "format": "G4MG",
+          "chemin_vfs": "data/common/chr/_face/01_IE1/c99019010/c99019010.g4mg",
+          "present_dans_le_jeu": false,
+          "statut": "a_produire",
+          "source": null,
+          "outil": null,
+          "note": "Lecture validée byte-exact (extract_skin) ; écriture à faire."
+        },
+        {
+          "cle": "texture_tete",
+          "role": "Texture de la tête",
+          "format": "G4TX",
+          "chemin_vfs": "data/dx11/chr/_face/01_IE1/c99019010/c99019010.g4tx",
+          "present_dans_le_jeu": false,
+          "statut": "a_produire",
+          "source": null,
+          "outil": "niers (conversion d'image → G4TX, encodage BC7)",
+          "note": "Le décodage BC7 est validé ; l'encodage passe par la voie C#/C++."
+        },
+        {
+          "cle": "icone_portrait",
+          "role": "Icône de portrait (menus, fiche, effectif)",
+          "format": "G4TX",
+          "chemin_vfs": "data/dx11/menu/200_icon/10_icon_chr/face/c99019010_l.g4tx",
+          "present_dans_le_jeu": false,
+          "statut": "source_prete",
+          "source": {
+            "fichier": "apps/azalee/public/oc/astro-lor/face-og.webp",
+            "octets": 50940
+          },
+          "outil": "niers (conversion d'image → G4TX)",
+          "note": "Une source 512×512 existe déjà pour les deux variantes."
+        },
+        {
+          "cle": "voix_acb",
+          "role": "Banque de voix",
+          "format": "ACB (CriWare)",
+          "chemin_vfs": "data/common/sound_asset/ja/c99019010.acb",
+          "present_dans_le_jeu": false,
+          "statut": "a_produire",
+          "source": null,
+          "outil": null,
+          "note": "Le dépôt décode le HCA ; l'écriture d'un ACB n'est pas faite."
+        },
+        {
+          "cle": "voix_awb",
+          "role": "Flux audio des voix",
+          "format": "AWB (CriWare)",
+          "chemin_vfs": "data/common/sound_asset/ja/c99019010.awb",
+          "present_dans_le_jeu": false,
+          "statut": "a_produire",
+          "source": null,
+          "outil": null,
+          "note": "Facultatif : un personnage muet reste jouable."
+        }
+      ],
+      "references_artistiques": [
+        {
+          "fichier": "apps/azalee/public/oc/astro-lor/planche-og-tenue-jaune.webp",
+          "octets": 117296
+        },
+        {
+          "fichier": "apps/azalee/public/oc/astro-lor/planche-og-tenue-foot.webp",
+          "octets": 119366
+        },
+        {
+          "fichier": "apps/azalee/public/oc/astro-lor/planche-og-tenue-hakuren.webp",
+          "octets": 119764
+        },
+        {
+          "fichier": "apps/azalee/public/oc/astro-lor/planche-og-anatomie.webp",
+          "octets": 62872
+        },
+        {
+          "fichier": "apps/azalee/public/oc/astro-lor/planche-og-expressions.webp",
+          "octets": 142022
+        }
+      ]
+    },
+    {
+      "code_interne": "c99019020",
+      "nom": "Astro Lor — Victory Road",
+      "groupe_dossier": "11_VICTORY",
+      "chara_param_id": "0x0C78B74B",
+      "assets": [
+        {
+          "cle": "maille_tete",
+          "role": "Maille de la tête",
+          "format": "G4MD",
+          "chemin_vfs": "data/common/chr/_face/11_VICTORY/c99019020/c99019020.g4md",
+          "present_dans_le_jeu": false,
+          "statut": "a_produire",
+          "source": null,
+          "outil": null,
+          "note": "Le dépôt lit le G4MD (nie-formats) ; l'écriture reste à faire."
+        },
+        {
+          "cle": "geometrie_tete",
+          "role": "Géométrie de la tête (sommets, poids de skinning)",
+          "format": "G4MG",
+          "chemin_vfs": "data/common/chr/_face/11_VICTORY/c99019020/c99019020.g4mg",
+          "present_dans_le_jeu": false,
+          "statut": "a_produire",
+          "source": null,
+          "outil": null,
+          "note": "Lecture validée byte-exact (extract_skin) ; écriture à faire."
+        },
+        {
+          "cle": "texture_tete",
+          "role": "Texture de la tête",
+          "format": "G4TX",
+          "chemin_vfs": "data/dx11/chr/_face/11_VICTORY/c99019020/c99019020.g4tx",
+          "present_dans_le_jeu": false,
+          "statut": "a_produire",
+          "source": null,
+          "outil": "niers (conversion d'image → G4TX, encodage BC7)",
+          "note": "Le décodage BC7 est validé ; l'encodage passe par la voie C#/C++."
+        },
+        {
+          "cle": "icone_portrait",
+          "role": "Icône de portrait (menus, fiche, effectif)",
+          "format": "G4TX",
+          "chemin_vfs": "data/dx11/menu/200_icon/10_icon_chr/face/c99019020_l.g4tx",
+          "present_dans_le_jeu": false,
+          "statut": "source_prete",
+          "source": {
+            "fichier": "apps/azalee/public/oc/astro-lor/face-go.webp",
+            "octets": 47172
+          },
+          "outil": "niers (conversion d'image → G4TX)",
+          "note": "Une source 512×512 existe déjà pour les deux variantes."
+        },
+        {
+          "cle": "voix_acb",
+          "role": "Banque de voix",
+          "format": "ACB (CriWare)",
+          "chemin_vfs": "data/common/sound_asset/ja/c99019020.acb",
+          "present_dans_le_jeu": false,
+          "statut": "a_produire",
+          "source": null,
+          "outil": null,
+          "note": "Le dépôt décode le HCA ; l'écriture d'un ACB n'est pas faite."
+        },
+        {
+          "cle": "voix_awb",
+          "role": "Flux audio des voix",
+          "format": "AWB (CriWare)",
+          "chemin_vfs": "data/common/sound_asset/ja/c99019020.awb",
+          "present_dans_le_jeu": false,
+          "statut": "a_produire",
+          "source": null,
+          "outil": null,
+          "note": "Facultatif : un personnage muet reste jouable."
+        }
+      ],
+      "references_artistiques": [
+        {
+          "fichier": "apps/azalee/public/oc/astro-lor/planche-go-tenue-ville.webp",
+          "octets": 120610
+        },
+        {
+          "fichier": "apps/azalee/public/oc/astro-lor/planche-go-tenue-foot.webp",
+          "octets": 126104
+        },
+        {
+          "fichier": "apps/azalee/public/oc/astro-lor/planche-go-anatomie.webp",
+          "octets": 62816
+        },
+        {
+          "fichier": "apps/azalee/public/oc/astro-lor/planche-go-expressions.webp",
+          "octets": 126128
+        }
+      ]
+    }
+  ],
+  "tables_a_declarer": [
+    {
+      "table": "chara_base",
+      "role": "Fiche de base : identité, série, code interne",
+      "chemins": [
+        {
+          "chemin": "data/common/gamedata/character/chara_base_1.03.98.00.cfg.bin",
+          "octets": 1381344
+        }
+      ],
+      "trouve": true
+    },
+    {
+      "table": "chara_param",
+      "role": "Paramètres : poste, élément, rareté, statistiques",
+      "chemins": [
+        {
+          "chemin": "data/common/gamedata/character/chara_param_1.03.66.00.cfg.bin",
+          "octets": 1238672
+        },
+        {
+          "chemin": "data/common/gamedata/character/chara_param_table_config_0.00.00.00.cfg.bin",
+          "octets": 5556
+        }
+      ],
+      "trouve": true
+    },
+    {
+      "table": "chara_model",
+      "role": "Association code interne → modèle et texture",
+      "chemins": [
+        {
+          "chemin": "data/common/gamedata/character/chara_model_1.03.49.00.cfg.bin",
+          "octets": 1511088
+        },
+        {
+          "chemin": "data/common/gamedata/character/chara_model_change_1.00.92.00.cfg.bin",
+          "octets": 12848
+        },
+        {
+          "chemin": "data/common/gamedata/character/chara_model_preset_0.00.00.cfg.bin",
+          "octets": 48
+        }
+      ],
+      "trouve": true
+    },
+    {
+      "table": "chara_parts",
+      "role": "Pièces du modèle (tête, corps, uniforme)",
+      "chemins": [
+        {
+          "chemin": "data/common/gamedata/character/chara_parts_0.07.22.cfg.bin",
+          "octets": 1996976
+        }
+      ],
+      "trouve": true
+    },
+    {
+      "table": "chara_scale",
+      "role": "Échelle et stature",
+      "chemins": [
+        {
+          "chemin": "data/common/gamedata/character/chara_scale_0.11.12.cfg.bin",
+          "octets": 150705
+        }
+      ],
+      "trouve": true
+    },
+    {
+      "table": "chara_motion",
+      "role": "Jeux d'animations",
+      "chemins": [
+        {
+          "chemin": "data/common/gamedata/character/chara_motion_1.02.91.00.cfg.bin",
+          "octets": 17952
+        }
+      ],
+      "trouve": true
+    },
+    {
+      "table": "chara_face",
+      "role": "Expressions du visage",
+      "chemins": [
+        {
+          "chemin": "data/common/gamedata/character/chara_face_1.03.00.00.cfg.bin",
+          "octets": 7184
+        }
+      ],
+      "trouve": true
+    },
+    {
+      "table": "chara_name_tag",
+      "role": "Étiquette de nom affichée en match",
+      "chemins": [
+        {
+          "chemin": "data/common/gamedata/character/chara_name_tag_1.03.38.00.cfg.bin",
+          "octets": 9792
+        }
+      ],
+      "trouve": true
+    },
+    {
+      "table": "chara_costume",
+      "role": "Tenues disponibles",
+      "chemins": [
+        {
+          "chemin": "data/common/gamedata/character/chara_costume_1.02.28.00.cfg.bin",
+          "octets": 46864
+        }
+      ],
+      "trouve": true
+    }
+  ],
+  "verrous": [
+    {
+      "nom": "Réencodage fidèle des cfg.bin",
+      "bloquant": true,
+      "constat": "Un aller-retour à vide de cpk_list.cfg.bin change le sha et perd 16 octets, sans qu'aucune modification ait été faite, et le jeu refuse le fichier. Sur game_param.cfg.bin, /entries/0/children retombe de 812 à 1 élément.",
+      "consequence": "Ajouter une LIGNE à chara_base ou chara_param change la taille du fichier : le patch d'octets en place, qui suffit pour un mod à taille constante, ne suffit pas ici.",
+      "avant_de_conclure": "Ne rien déduire d'un fichier « relu correctement » : le parseur du dépôt est plus permissif que le jeu."
+    },
+    {
+      "nom": "Écriture des formats de modèle",
+      "bloquant": true,
+      "constat": "G4MD et G4MG se lisent (skinning validé byte-exact) ; rien ne les écrit.",
+      "consequence": "Le modèle de tête doit être produit par un autre chemin, ou la voie d'écriture doit être ouverte."
+    },
+    {
+      "nom": "Encodage G4TX",
+      "bloquant": false,
+      "constat": "Le décodage BC7 est validé ; l'encodage existe côté C# et C++, la conversion C++ étant la moins bonne des trois.",
+      "consequence": "Passer par la voie C# pour les textures et les icônes."
+    },
+    {
+      "nom": "Budget d'entrées loose",
+      "bloquant": false,
+      "constat": "`niers mod install` refuse au-delà de 64 entrées déjà loose dans le cpk_list : le fichier a alors déjà été packé."
+    }
+  ],
+  "hors_perimetre_du_manifeste": [
+    "Corps, uniformes, squelettes et animations : partagés entre personnages, ils ne portent pas le code interne et n'ont donc pas à être produits.",
+    "Textes de nom et de description : servis par les tables de texte du jeu, pas par un fichier propre au personnage."
+  ],
+  "resume": {
+    "assets_total": 12,
+    "present": 0,
+    "source_prete": 2,
+    "a_produire": 10,
+    "tables_reperees": 9,
+    "tables_total": 9,
+    "references_artistiques": 9
+  }
+}
