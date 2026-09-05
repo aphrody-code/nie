@@ -50,7 +50,7 @@ test("GLB invalide ou URL distante refusés avant chargement", () => {
 });
 test("gzip réel et import local GLB compressé", async () => {
 	const bytes = glb(document);
-	const compressed = Bun.gzipSync(bytes);
+	const compressed = Bun.gzipSync(bytes.slice());
 	expect(await decompresserGzip(new Blob([compressed]))).toEqual(bytes);
 	const result = await importerLocal([new File([compressed], "test.glb.gz")]);
 	expect(result.type).toBe("3d"); expect(result.nom).toBe("test.glb");
