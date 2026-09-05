@@ -6,6 +6,13 @@ export function loadModelViewer(): Promise<void> {
 	if (typeof window === "undefined") return Promise.resolve();
 	if (window.customElements?.get("model-viewer")) return Promise.resolve();
 	if (loading) return loading;
+	// Décodeurs locaux : aucun fichier utilisateur ni demande de décodage vers un CDN tiers.
+	const config = window as typeof window & { ModelViewerElement?: Record<string, unknown> };
+	config.ModelViewerElement = { ...config.ModelViewerElement,
+		dracoDecoderLocation: "/vendor/draco/",
+		ktx2TranscoderLocation: "/vendor/basis/",
+		meshoptDecoderLocation: "/vendor/meshopt_decoder.module.js",
+	};
 	const attempt = new Promise<void>((resolve, reject) => {
 		const existing = document.querySelector<HTMLScriptElement>(`script[src="${SOURCE}"]`);
 		const script = existing ?? document.createElement("script");

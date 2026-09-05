@@ -34,3 +34,8 @@ nie-formats = { path = "../../engine/nie-formats" }
 [features]
 default = []
 gpu = ["dep:wgpu", "dep:pollster", "dep:bytemuck"]
+# Présentation canvas facultative ; aucun backend GPU ajouté aux consommateurs CPU par défaut.
+webgpu = ["gpu", "wgpu/webgpu", "dep:web-sys"]
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+web-sys = { version = "0.3", features = ["HtmlCanvasElement"], optional = true }

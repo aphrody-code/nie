@@ -1,0 +1,16 @@
+[shell_environment_policy]
+inherit = "core"
+
+[shell_environment_policy.set]
+BASH_ENV = "C:/Users/aphro/nie/.claude/shell-init.sh"
+
+[mcp_servers.niers-game]
+command = "bun"
+args = [
+    "run",
+    "apps/nie-mcp/src/index.ts",
+]
+
+[mcp_servers.niers-game.env]
+NIERS_REDIS = "redis://127.0.0.1:6379"
+MODEL_SERVE_URL = "http://127.0.0.1:8790"

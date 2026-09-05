@@ -13,6 +13,7 @@ import init, {
 	cfgbin_typed_json,
 	g4pk_parse_json,
 	g4tx_to_png,
+	g4tx_sprite_sheet_json,
 	is_lua_bytecode,
 	lua_bytecode_json,
 	init_panic_hook,
@@ -77,6 +78,12 @@ export async function cfgbinTyped(bytes: Uint8Array, filename: string): Promise<
 export async function g4txToPng(bytes: Uint8Array): Promise<Uint8Array> {
 	await ensureWasm();
 	return g4tx_to_png(bytes);
+}
+
+/** Rectangles d'atlas fournis par le parseur Rust, sans grille supposée. */
+export async function g4txSpriteSheet(bytes: Uint8Array): Promise<unknown> {
+	await ensureWasm();
+	return JSON.parse(g4tx_sprite_sheet_json(bytes));
 }
 
 /**

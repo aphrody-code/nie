@@ -50,6 +50,13 @@ export function lireProjet(texte: string, catalogue: Catalogue): Projet {
 	for (const [cle, v] of Object.entries(a.valeurs)) {
 		if (!/^[a-zA-Z0-9_.-]{1,80}$/.test(cle) || ["__proto__", "constructor", "prototype"].includes(cle) ||
 			!nombre(v, -10000, 10000)) throw new Error("Valeur numérique invalide.");
+		if (cle.startsWith("couleur.")) {
+			const cat = catalogue.categories.find(c => `couleur.${c.faceSettingType}` === cle);
+			if (!cat || !Number.isInteger(v) || v < -1 || v >= cat.couleurs.length)
+				throw new Error("Couleur absente du catalogue.");
+		}
+		if (cle === "taille" && (!Number.isInteger(v) || v < 0 || v > 14))
+			throw new Error("Taille hors limites.");
 		valeurs[cle] = v;
 	}
 	const champs: Record<string, string> = {};

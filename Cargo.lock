@@ -4757,6 +4757,7 @@ dependencies = [
  "pollster",
  "serde",
  "serde_json",
+ "web-sys",
  "wgpu",
 ]
 
@@ -4861,12 +4862,14 @@ dependencies = [
  "nie-data",
  "nie-formats",
  "nie-lua",
+ "nie-render3d",
  "nie-runtime",
  "nie-save",
  "parking_lot",
  "serde_json",
  "wasm-bindgen",
  "wasm-bindgen-futures",
+ "web-sys",
  "web-time",
 ]
 

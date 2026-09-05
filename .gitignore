@@ -259,3 +259,9 @@ mods/
 
 # Captures de vérification visuelle de nie-explorer (scripts/capture-explorer.ts) — locales.
 capture/
+
+# Références privées conservées sur le poste et le VPS, hors dépôt public.
+/astro/*.jpg
+/astro/manifest-*.json
+# Outils binaires téléchargés pour produire le WASM, reproductibles.
+/outputs/webgpu-wasm-tools/

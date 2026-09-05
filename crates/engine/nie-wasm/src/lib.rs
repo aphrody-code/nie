@@ -86,6 +86,9 @@
 #![forbid(unsafe_code)]
 #![allow(clippy::pedantic)]
 
+#[cfg(all(target_arch = "wasm32", feature = "webgpu"))]
+pub mod web_viewer;
+
 use nie_formats::{FileFormat, cfgbin, cpk, crilayla, detect};
 
 // wasm-bindgen n'est importé qu'en cible wasm32.

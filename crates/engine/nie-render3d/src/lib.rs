@@ -37,6 +37,8 @@ pub mod glb;
 pub mod document;
 #[cfg(feature = "gpu")]
 pub mod gpu;
+#[cfg(feature = "webgpu")]
+pub mod web;
 pub mod render;
 pub mod scene;
 mod vecmath;
