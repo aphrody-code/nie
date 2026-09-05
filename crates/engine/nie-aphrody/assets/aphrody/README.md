@@ -9,8 +9,8 @@ Source d'admission :
 
 | Fichier | SHA-256 |
 |---|---|
-| `pet.json` | `93b3af384a3ab44e6a0882f05458a9999bd9e8f2e42ac32a620eec7246e69cee` |
-| `animations.json` | `21fb99f37e862edcc28ffe5c7f3877499d10e52f60e5dcf2b1e008e24f01cc3b` |
+| `pet.json` | `1a458332b408f168cfedf43bffe1c79418168d86a534663e96a8fdcfb28f6067` |
+| `animations.json` | `511da87b80816cedcc83654806e7f363ba392c67e0d4d370728f0a1b6fd51741` |
 | `sprites/spritesheet.png` | `bc48f3e2a4d3086234062b9175d58f2caaec39f6afeb53ab8b222513fe964037` |
 | `sprites/spritesheet.webp` | `93238150de5b86b5977f8409800a91637dfcc3b70b3b0d6d617f6563fa54389b` |
 
@@ -18,3 +18,24 @@ Les 74 PNG individuels et les artefacts QA ne sont pas dupliqués : `animations.
 leurs rectangles et hashes, et le test d'intégration reconstruit l'atlas complet depuis ces
 cellules. L'utilisation s'inscrit dans l'Accord Commercial RG-L5-VR-2026-001 documenté à la
 racine du dépôt.
+
+## Le dossier documentaire
+
+`../dossier/aphrody.json` et `../dossier/aphrody.md` rassemblent tout ce que le dépôt sait
+d'Aphrody : les données du jeu (via `export_aphrody`), le canon officiel du zukan LEVEL-5, les
+fichiers réels du VFS, le romaji calculé depuis le furigana, ce que les wikis documentent et
+pas nous, et le paquet du pet décrit ci-dessus. Chaque bloc porte sa source et sa confiance.
+
+Les deux fichiers sont embarqués par `include_str!` (`BUNDLED_DOSSIER_JSON`,
+`BUNDLED_DOSSIER_MD`) et lisibles par `Dossier::bundled()` — sans fichier, sans base, sans
+réseau. Ils se régénèrent par :
+
+```bash
+bun --bun scripts/aphrody/dossier.ts byron-love-aphrody \
+  --zukan "<url zukan EN>" --zukan "<url zukan JA>" \
+  --fandom "fr:Byron_Love" --fandom "en:Afuro_Terumi" --google "亜風炉 照美"
+```
+
+Le script écrit ici par défaut. Après régénération, `cargo test -p nie-aphrody` vérifie que le
+dossier se lit, que son bloc `pet` décrit bien le paquet embarqué, et que les empreintes du
+tableau ci-dessus sont exactes.

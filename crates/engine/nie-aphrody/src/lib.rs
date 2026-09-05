@@ -1,4 +1,10 @@
-//! Runtime 2D du pet Codex Aphrody v2.
+//! Aphrody — la source de vérité du dépôt sur ce personnage, et le runtime 2D de son pet.
+//!
+//! Cette crate porte deux choses, et c'est délibéré : le **paquet du pet** (atlas RGBA,
+//! animations, directions) et le **dossier documentaire** qui rassemble tout ce que le dépôt
+//! sait d'Aphrody. Quiconque a besoin d'une information sur Aphrody la lit ici, plutôt que de
+//! rejouer un export ou d'interroger un gisement — les deux jeux d'octets sont embarqués par
+//! `include_str!`, donc disponibles sans fichier, sans base et sans réseau.
 //!
 //! Le pet est une feuille RGBA 8×11 (cellules 192×208) décrite par JSON. Il ne s'agit pas d'un
 //! modèle Level-5 : G4MD décrit un modèle 3D, G4MG sa géométrie et `assemble` produit un GLB ;
@@ -21,6 +27,15 @@ pub const BUNDLED_ANIMATIONS_JSON: &str = include_str!("../assets/aphrody/animat
 pub const BUNDLED_ATLAS_PNG: &[u8] = include_bytes!("../assets/aphrody/sprites/spritesheet.png");
 /// Atlas WebP VP8L utilisé par le runtime Codex.
 pub const BUNDLED_ATLAS_WEBP: &[u8] = include_bytes!("../assets/aphrody/sprites/spritesheet.webp");
+
+/// Dossier complet d'Aphrody, en JSON.
+///
+/// Produit par `scripts/aphrody/dossier.ts`, qui croise le dossier Rust
+/// (`export_aphrody`, données du jeu), le zukan officiel de LEVEL-5, le VFS, la couverture des
+/// wikis et le paquet du pet. Chaque bloc y porte sa source et sa confiance.
+pub const BUNDLED_DOSSIER_JSON: &str = include_str!("../assets/dossier/aphrody.json");
+/// Le même dossier, en Markdown lisible — la forme qu'on relit et qu'on cite.
+pub const BUNDLED_DOSSIER_MD: &str = include_str!("../assets/dossier/aphrody.md");
 
 /// Taille d'une cellule de l'atlas v2.
 pub const CELL_WIDTH: u32 = 192;
@@ -524,6 +539,62 @@ impl Pet {
                         .unwrap_or(0.0),
                 ) as u32
             })
+    }
+}
+
+/// Le dossier documentaire d'Aphrody.
+///
+/// Les champs stables sont typés ; le reste est laissé en [`serde_json::Value`] à dessein. Le
+/// dossier gagne des blocs au fil des sources qu'on lui branche, et figer sa forme complète
+/// obligerait à modifier cette crate à chaque ajout — ce qui la rendrait plus fragile que la
+/// donnée qu'elle décrit.
+#[derive(Debug, Clone, Deserialize)]
+pub struct Dossier {
+    /// Identifiant stable du concept, tel que publié (`byron-love-aphrody`).
+    pub slug: String,
+    /// Horodatage ISO-8601 de la génération.
+    pub genere_le: String,
+    /// Noms, surnoms, lecture kana, romaji, élément, poste, équipes…
+    pub identite: serde_json::Value,
+    /// Codes internes du jeu couverts par ce dossier (un par ère du personnage).
+    pub codes_internes: Vec<String>,
+    /// Tous les blocs, y compris ceux qui ne sont pas typés ci-dessus.
+    #[serde(flatten)]
+    pub reste: BTreeMap<String, serde_json::Value>,
+}
+
+impl Dossier {
+    /// Charge le dossier embarqué.
+    ///
+    /// # Errors
+    /// Rend [`Error::Json`] si le JSON embarqué n'est pas conforme — ce qui ne peut arriver
+    /// qu'après une modification manuelle du fichier, le test d'intégrité le vérifiant.
+    pub fn bundled() -> Result<Self, Error> {
+        Ok(serde_json::from_str(BUNDLED_DOSSIER_JSON)?)
+    }
+
+    /// Un bloc du dossier par son nom (`statistiques`, `techniques`, `jeu`, `pet`…).
+    #[must_use]
+    pub fn bloc(&self, nom: &str) -> Option<&serde_json::Value> {
+        match nom {
+            "identite" => Some(&self.identite),
+            _ => self.reste.get(nom),
+        }
+    }
+
+    /// Les noms de tous les blocs présents, triés.
+    #[must_use]
+    pub fn blocs(&self) -> Vec<&str> {
+        let mut v: Vec<&str> = self.reste.keys().map(String::as_str).collect();
+        v.push("identite");
+        v.sort_unstable();
+        v
+    }
+
+    /// Une valeur d'identité par son nom (`nom_fr`, `romaji`, `furigana`, `element`…).
+    #[must_use]
+    pub fn identite_str(&self, champ: &str) -> Option<&str> {
+        self.identite.get(champ).and_then(serde_json::Value::as_str)
     }
 }
 

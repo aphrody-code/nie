@@ -62,7 +62,11 @@ function args() {
         base: lire("--base", join(RACINE, "apps", "azalee", "data", "aphrody-dossier.json")),
         google: lire("--google", ""),
         slug: positionnels[0] ?? "byron-love-aphrody",
-        sortie: lire("--sortie", join(RACINE, "var", "aphrody")),
+        // Par defaut, le dossier va DANS la crate : `crates/engine/nie-aphrody` est la source
+        // de verite du depot sur Aphrody, et elle embarque ces deux fichiers par
+        // `include_str!`. Les ecrire ailleurs produirait une copie qui se perimerait en
+        // silence — c'est exactement ce qui est arrive aux empreintes de son README.
+        sortie: lire("--sortie", join(RACINE, "crates", "engine", "nie-aphrody", "assets", "dossier")),
         zukan,
         horsLigne: a.includes("--hors-ligne"),
     };
@@ -1073,4 +1077,5 @@ writeFileSync(fMd, markdown(dossier));
 
 console.error(`\n  ${fJson}`);
 console.error(`  ${fMd}`);
+console.error("  (rejouer `cargo test -p nie-aphrody` : le dossier embarque est verifie par 5 tests)");
 console.error(`  ${(dossier.couverture as Ligne).manquants as string[]}`.replace(/,/g, ", "));
