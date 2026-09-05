@@ -23,10 +23,12 @@ export interface CatalogAsset {
 
 function resolveSourcePath(): string | null {
 	const candidates = [
+		process.env.AZALEE_DATA_DIR
+			? path.join(process.env.AZALEE_DATA_DIR, "cross/catalog-index.ndjson.gz")
+			: undefined,
 		path.resolve(process.cwd(), "data/cross/catalog-index.ndjson.gz"),
 		path.resolve(process.cwd(), "apps/azalee/data/cross/catalog-index.ndjson.gz"),
-		"/home/ubuntu/rg/apps/azalee/data/cross/catalog-index.ndjson.gz",
-	];
+	].filter((c): c is string => Boolean(c));
 	for (const c of candidates) {
 		if (existsSync(c)) return c;
 	}

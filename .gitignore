@@ -42,6 +42,26 @@ packages/*/src/data/**/*.json
 # Cf. `data/oc/astro-lor/README.md`.
 /data/oc/*/source/
 
+# `apps/azalee/data/` — MEME PIEGE que `packages/*/src/data/` ci-dessus, et il a deja coute.
+# La regle `data/` (non ancree) avalait aussi les donnees de reference du wiki. Elles sont
+# suivies par le depot `rg` (15 fichiers, 10 Mo) mais n'existaient pas ici : d'ou les deux
+# chemins en dur `/home/ubuntu/rg/apps/azalee/data/...` de `packages/azalee/src/cross/catalog.ts`
+# et `src/wiki/game-text.ts`. Ce n'etait pas de la paresse, c'etait un contournement.
+# Git ne descend jamais dans un repertoire exclu : re-inclure le parent, re-exclure son
+# contenu direct, puis re-inclure la cible.
+!apps/azalee/data/
+apps/azalee/data/*
+!apps/azalee/data/*.json
+!apps/azalee/data/*.ndjson.gz
+!apps/azalee/data/cross/
+!apps/azalee/data/schema-snapshot/
+!apps/azalee/data/zukan/
+# Restent dehors, et pour une raison mesuree : `backups/` porte des instantanes qui peuvent
+# encore contenir de la PII (cf. rg/docs/decision-archi-donnees-azalee.md), et `mirror.sqlite`
+# est un artefact republie par `nie-miroir.timer`, jamais une source.
+apps/azalee/data/backups/
+apps/azalee/data/mirror.sqlite
+
 # Rust build
 /target
 **/*.rs.bk

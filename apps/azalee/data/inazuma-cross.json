@@ -1,0 +1,441 @@
+{
+  "$schema": "inazuma-cross-crawl-v2",
+  "source": "https://www.inazuma-cross.jp/",
+  "sources": [
+    "https://www.inazuma-cross.jp/",
+    "https://www.inazuma-cross.jp/samuraiblue2026/",
+    "https://www.inazuma-cross.jp/cbt-report/",
+    "https://x.com/inazuma_cross"
+  ],
+  "crawledAt": "2026-06-06",
+  "crawler": "bxc (recon + scrape_markdown + x_client) — DOM rendu réel",
+  "note": "Traduction FR strictement factuelle du site officiel + tweets réels @inazuma_cross. Aucun contenu inventé : chaque champ *Fr est la traduction d'un texte réel (JP) du site ou d'un tweet, sourcé.",
+  "site": {
+    "title": "イナズマイレブン クロス",
+    "titleRomaji": "Inazuma Eleven Cross",
+    "subtitle": "スマホゲーム 公式サイト",
+    "subtitleFr": "Jeu mobile — site officiel",
+    "description": "「イナズマイレブン」シリーズの最新スマホゲーム『イナズマイレブン クロス』（イナイレクロス）公式サイト",
+    "descriptionFr": "Site officiel d'Inazuma Eleven Cross (イナイレクロス), le dernier jeu mobile de la série Inazuma Eleven.",
+    "ogImage": "/inazuma-cross/ogp.jpg"
+  },
+  "status": {
+    "phase": "pre-registration",
+    "phaseLabelJa": "事前登録受付中",
+    "phaseLabelFr": "Pré-enregistrement ouvert",
+    "serviceStart": "2026-06-09",
+    "serviceStartLabelJa": "6/9(火)サービス開始！",
+    "serviceStartLabelFr": "Lancement le mardi 9 juin 2026",
+    "note": "ストアで表示されている配信予定日は実際の日程と異なる場合がございます。",
+    "noteFr": "La date de sortie affichée sur les stores peut différer du calendrier réel."
+  },
+  "spec": {
+    "title": "イナズマイレブン クロス",
+    "genre": "育成シミュレーション",
+    "genreFr": "Simulation de gestion / développement (育成シミュレーション)",
+    "platforms": "iOS/Android",
+    "pricing": "アイテム課金型(基本プレイ無料)",
+    "pricingFr": "Free-to-play, achats intégrés (基本プレイ無料 — jeu de base gratuit)",
+    "releaseDate": "2026/6/9(火)",
+    "developers": [
+      "LEVEL5 Inc.",
+      "Aiming Inc."
+    ],
+    "copyright": "©LEVEL5 Inc. ©Aiming Inc.",
+    "collabCopyright": "©2026 adidas Japan K.K. ©Japan Football Association"
+  },
+  "disclaimerFr": "Les images et vidéos présentées correspondent à des écrans en cours de développement et peuvent différer du jeu final (mention « 開発中の画面 » du site officiel).",
+  "introduction": {
+    "headingJa": "INTRODUCTION イントロダクション",
+    "headingFr": "Introduction",
+    "storyJa": "日本代表イナズマジャパンは、大型クルーズ船『イナズマビッグフェリー』に乗り、全世界が注目する少年サッカーの祭典『フットボールフロンティア・インターナショナル（ＦＦＩ）』を勝ち進んでいた。しかし、大会中に監督が突然の退任を発表する。次の監督に指名されたのは、チームの補佐をしていた主人公・汐沢 陽（しおさわ よう）だった。いきなりの監督任命に戸惑いながらも、陽は戦術分析能力を活かし、キャプテンの円堂守や選手たちと力を合わせて、世界の頂点に立つ。ところが、突如発生した謎の地震で意識を失い、目覚めた時には、円堂たちの記憶から陽の存在だけが消えていた。さらに、仲間だったエースストライカー豪炎寺修也と、ゲームメイカー鬼道有人が帝国学園の姿で敵として現れ、冷たい視線で勝負を挑んでくるのだった。記憶の消失、改変された関係、変わってしまった世界――すべての真相を求め、陽は未知なる未来へと進み始める。",
+    "storyFr": "L'équipe nationale du Japon, l'Inazuma Japan, voguait à bord du grand ferry de croisière « Inazuma Big Ferry » et progressait dans le tournoi mondial de football junior, le « Football Frontier International » (FFI), qui captive le monde entier. Mais en plein tournoi, l'entraîneur annonce sa démission soudaine. C'est le héros, Yo Shiosawa, jusque-là assistant de l'équipe, qui est désigné nouvel entraîneur. Déstabilisé par cette nomination inattendue, Yo met à profit ses capacités d'analyse tactique et, aux côtés du capitaine Mark Evans (Mamoru Endou) et des joueurs, mène l'équipe au sommet du monde. Mais un séisme mystérieux le fait sombrer dans l'inconscience ; à son réveil, l'existence même de Yo a disparu de la mémoire d'Endou et des autres. Pire encore, ses anciens coéquipiers — l'attaquant vedette Axel Blaze (Shuuya Gouenji) et le stratège Jude Sharp (Yuuto Kidou) — réapparaissent sous les couleurs de Teikoku comme ennemis, et le défient d'un regard glacial. Perte de mémoire, relations altérées, un monde transformé : en quête de toute la vérité, Yo s'avance vers un futur inconnu.",
+    "storySource": "Section « INTRODUCTION イントロダクション » du site officiel (texte identique au tweet du 2026-06-04, id 2062444464581509440)."
+  },
+  "protagonist": {
+    "nameJa": "汐沢 陽",
+    "nameReadingJa": "しおさわ よう",
+    "nameRomaji": "Yo Shiosawa",
+    "descriptionJa": "戦術分析を駆使し選手のサポートをおこなう。消えてしまった弟を探している。",
+    "descriptionFr": "Il met à profit son analyse tactique pour épauler les joueurs. Il recherche son petit frère qui a disparu.",
+    "image": "/inazuma-cross/intro-character.webp"
+  },
+  "system": {
+    "headingJa": "SYSTEM ゲーム紹介",
+    "headingFr": "Système de jeu",
+    "noteFr": "Les trois piliers de gameplay tels que présentés en intitulés dans la section « SYSTEM ゲーム紹介 » du site officiel.",
+    "pillars": [
+      {
+        "ja": "選手を集めてオリジナルチームを作ろう！",
+        "fr": "Rassemblez des joueurs et composez votre équipe originale."
+      },
+      {
+        "ja": "選手を強化してチーム総合能力をアップ！",
+        "fr": "Renforcez vos joueurs et faites grimper la puissance globale de l'équipe."
+      },
+      {
+        "ja": "必殺技を駆使して勝利を目指そう！",
+        "fr": "Maîtrisez les techniques spéciales (hissatsu) et visez la victoire."
+      }
+    ]
+  },
+  "news": [
+    {
+      "date": "2026-05-29",
+      "titleJa": "「日本代表２０２６プロジェクト」特設ページ 公開",
+      "titleFr": "Ouverture de la page spéciale « Projet Équipe Nationale 2026 »",
+      "url": "https://www.inazuma-cross.jp/samuraiblue2026/",
+      "tagJa": "公開",
+      "tagFr": "Publication"
+    },
+    {
+      "date": "2026-04-10",
+      "titleJa": "今日の格言キャンペーン 開催",
+      "titleFr": "Lancement de la campagne « La maxime du jour »",
+      "url": "https://x.com/inazuma_cross",
+      "tagJa": "開催",
+      "tagFr": "Événement"
+    },
+    {
+      "date": "2026-04-10",
+      "titleJa": "新必殺技予想キャンペーン 開催",
+      "titleFr": "Lancement de la campagne de pronostics sur les nouvelles techniques spéciales",
+      "url": "https://x.com/inazuma_cross/status/2042578864480891044",
+      "tagJa": "開催",
+      "tagFr": "Événement"
+    },
+    {
+      "date": "2026-04-10",
+      "titleJa": "公式サイト 公開",
+      "titleFr": "Ouverture du site officiel",
+      "url": "https://www.inazuma-cross.jp/",
+      "tagJa": "公開",
+      "tagFr": "Publication"
+    }
+  ],
+  "rewards": {
+    "headingJa": "事前登録報酬",
+    "headingFr": "Récompenses de pré-enregistrement",
+    "noteFr": "Le site officiel présente quatre paliers de récompenses de pré-enregistrement débloqués lorsqu'un objectif collectif est atteint (badge « 達成 », « objectif atteint »). Le détail est affiché sous forme de bannières sur la page d'accueil.",
+    "images": [
+      "/inazuma-cross/reward-image1-achieve.webp",
+      "/inazuma-cross/reward-image2-achieve.webp",
+      "/inazuma-cross/reward-image3-achieve.webp",
+      "/inazuma-cross/reward-image4-achieve.webp"
+    ]
+  },
+  "samuraiBlue2026": {
+    "titleJa": "サッカー日本代表2026プロジェクト",
+    "titleFr": "Projet Équipe Nationale de football du Japon 2026",
+    "url": "https://www.inazuma-cross.jp/samuraiblue2026/",
+    "leadFr": "Inazuma Eleven Cross lance le « Projet Équipe Nationale 2026 », une collaboration avec l'équipe nationale officielle de football du Japon (SamuraiBlue / JFA).",
+    "eventPeriod": "6/14(日) 11:00 〜 6/30(火) 4:59",
+    "eventPeriodFr": "Du dimanche 14 juin 2026 à 11h00 au mardi 30 juin 2026 à 4h59 (JST)",
+    "limitedCharactersHeadingFr": "Des personnages limités font leur apparition (限定キャラクターが登場！)",
+    "limitedCharacters": [
+      {
+        "position": "MF",
+        "tagJa": "［日本代表２０２６］",
+        "tagFr": "[Équipe Nationale 2026]",
+        "nameJa": "円堂 守",
+        "nameFr": "Mark Evans (Mamoru Endou)",
+        "skillsJa": [
+          "サムライショット",
+          "サムライフェイント"
+        ],
+        "skillsFr": [
+          "Samurai Shot",
+          "Samurai Feint"
+        ],
+        "image": "/inazuma-cross/sb-chara-endo.webp",
+        "icon": "/inazuma-cross/sb-icon-endo.webp",
+        "hissatsuImages": [
+          "/inazuma-cross/sb-hissatsu-endo-1.webp",
+          "/inazuma-cross/sb-hissatsu-endo-2.webp"
+        ]
+      },
+      {
+        "position": "MF",
+        "tagJa": "［日本代表２０２６］",
+        "tagFr": "[Équipe Nationale 2026]",
+        "nameJa": "鬼道 有人",
+        "nameFr": "Jude Sharp (Yuuto Kidou)",
+        "skillsJa": [
+          "サムライペンギン2号",
+          "ブルーサイクロン"
+        ],
+        "skillsFr": [
+          "Samurai Penguin n°2",
+          "Blue Cyclone"
+        ],
+        "image": "/inazuma-cross/sb-chara-kido.webp",
+        "icon": "/inazuma-cross/sb-icon-kido.webp",
+        "hissatsuImages": [
+          "/inazuma-cross/sb-hissatsu-kido-1.webp",
+          "/inazuma-cross/sb-hissatsu-kido-2.webp"
+        ]
+      }
+    ],
+    "designNoteJa": "必殺技は、サッカー日本代表エンブレムのモチーフとして描かれている「3本足の烏」をイメージしたデザインになっています",
+    "designNoteFr": "Les techniques spéciales adoptent un design inspiré du « corbeau à trois pattes » (Yatagarasu), motif de l'emblème de l'équipe nationale japonaise de football.",
+    "catchFr": "« Maîtrise des techniques spéciales bénies par le Yatagarasu — vise la victoire ! » (八咫烏の加護を宿した必殺技で、勝利を目指せ！)",
+    "wearItem": {
+      "headingFr": "Vente d'objets vestimentaires dans le jeu (ゲーム内ウェアアイテム販売)",
+      "descriptionFr": "Faites porter l'uniforme de l'équipe nationale du Japon à votre personnage favori. Le site présente les tenues Home, Away et Gardien de but (GK).",
+      "image": "/inazuma-cross/sb-items-lounge.webp"
+    },
+    "loginBonus": {
+      "headingFr": "Objets exclusifs pour le « Cross Lounge » offerts",
+      "descriptionFr": "Un login-bonus spécial est organisé : en se connectant 2 jours, on obtient une tapisserie et un tapis à l'effigie de l'emblème de l'équipe nationale du Japon, à exposer dans le « Cross Lounge ».",
+      "periodFr": "Période de réception : du dimanche 14 juin 2026 à 11h00 au mardi 30 juin 2026 à 4h59 (JST)"
+    },
+    "advertisement": {
+      "headingFr": "« Inazuma Eleven Cross » s'affiche à Shibuya et Shinjuku",
+      "outdoorFr": "Affichage extérieur — emplacement : ligne Marunouchi du métro de Tokyo, gare de Shinjuku (et autres). Période : du lundi 15 juin au dimanche 21 juin 2026.",
+      "adTruckFr": "Camion publicitaire (ad truck) — période : du vendredi 12 juin 2026 à 12h00 au dimanche 21 juin 2026 à 19h00."
+    },
+    "character": "/inazuma-cross/sb-hissatsu-chara.webp",
+    "banner": "/inazuma-cross/banner-samuraiblue-collabo.webp"
+  },
+  "cbtReport": {
+    "url": "https://www.inazuma-cross.jp/cbt-report/",
+    "headingJa": "クローズドベータテストアンケートレポート",
+    "headingFr": "Rapport du test bêta fermé (CBT)",
+    "introFr": "Le site officiel a publié un rapport de la bêta fermée (CBT) : présentation des contenus testés, commentaires de l'équipe de développement et principaux ajustements prévus avant le lancement.",
+    "modes": [
+      {
+        "nameJa": "メインストーリー",
+        "nameFr": "Histoire principale",
+        "descFr": "Du tutoriel jusqu'au chapitre 2 (histoire et matchs) ; le chapitre 3 était une zone spéciale réservée à la bêta, composée uniquement de matchs."
+      },
+      {
+        "nameJa": "対戦",
+        "nameFr": "Versus (対戦)",
+        "descFr": "Affronter les équipes d'autres joueurs et grimper dans le classement ; la cote varie selon les victoires/défaites et des récompenses sont attribuées selon le rang."
+      },
+      {
+        "nameJa": "人脈ボード",
+        "nameFr": "Tableau de relations (人脈ボード)",
+        "descFr": "En progressant sur les paliers, on obtient des joueurs et des matériaux d'éveil (« âmes d'éveil », 覚醒魂). En bêta, on pouvait obtenir des joueurs comme ★1 Matsuno Kuusuke, ★1 Gojou Masaru, ★2 [membre de Raimon] Kurimatsu Teppei et ★2 [membre de Teikoku] Sakuma Jirou."
+      },
+      {
+        "nameJa": "リミテッドサッカーバトル",
+        "nameFr": "Limited Soccer Battle",
+        "descFr": "Un mode où la composition d'équipe est restreinte, face à des adversaires de plus en plus forts à chaque étage. En bêta, on pouvait affronter avec des équipes composées uniquement de joueurs portant les tags « Raimon », « Inazuma Japan » ou « Teikoku »."
+      },
+      {
+        "nameJa": "試練",
+        "nameFr": "Épreuves (試練)",
+        "descFr": "Des défis quotidiens dans un format différent des matchs ; les joueurs adaptés à chaque épreuve permettent de viser le meilleur score, en compétition entre utilisateurs."
+      }
+    ],
+    "plannedAdjustmentsFr": [
+      "Refonte du comportement de l'IA (optimisation des passes en retrait, choix des techniques spéciales selon la situation de match).",
+      "Rythme des matchs : lecture des temps forts en vitesse x2 et matchs raccourcis pour un tempo adapté au mobile.",
+      "Personnages et développement : ajout de joueurs et d'entraîneurs pour diversifier les formations ; ajustement de la jauge TP pour utiliser les techniques plus librement.",
+      "Améliorations d'interface et de performance : meilleure réactivité du swipe et réduction de la charge pour un jeu plus fluide."
+    ]
+  },
+  "movies": {
+    "headingJa": "MOVIE ムービー",
+    "headingFr": "Vidéos",
+    "youtube": [
+      {
+        "id": "fpiqLTzmEtU",
+        "labelJa": "事前登録PV",
+        "labelFr": "PV de pré-enregistrement"
+      },
+      {
+        "id": "K47IkCIn0T8",
+        "labelJa": "ティザーPV",
+        "labelFr": "PV teaser"
+      },
+      {
+        "id": "EJF5WOK0JDc",
+        "labelFr": "Vidéo"
+      },
+      {
+        "id": "o0rIafgYq8c",
+        "labelFr": "Vidéo"
+      },
+      {
+        "id": "E0kBnA62Q3I",
+        "labelFr": "Vidéo"
+      }
+    ]
+  },
+  "tweets": [
+    {
+      "id": "2062822310529339692",
+      "date": "2026-06-05",
+      "textJa": "“禁断のイナズマイレブン” コンセプトアート公開！ この姿は一体……？？",
+      "textFr": "Révélation de l'artwork conceptuel de « l'Inazuma Eleven interdit » (禁断のイナズマイレブン). Quelle est donc cette apparence… ?",
+      "url": "https://x.com/inazuma_cross/status/2062822310529339692",
+      "hasMedia": true
+    },
+    {
+      "id": "2062807834497290554",
+      "date": "2026-06-05",
+      "textJa": "「イナズマイレブン 世界への挑戦!!編」が無料公開中！本日より85話〜106話の公開がスタート。イナイレクロスはこの「世界への挑戦!!編」の後の物語となります。",
+      "textFr": "L'anime « Inazuma Eleven — Le Défi du Monde !! » (世界への挑戦!!編) est diffusé gratuitement : les épisodes 85 à 106 sont disponibles depuis aujourd'hui. L'histoire d'Inazuma Eleven Cross se situe après cet arc « Le Défi du Monde !! ».",
+      "url": "https://x.com/inazuma_cross/status/2062807834497290554",
+      "hasMedia": true
+    },
+    {
+      "id": "2062731317998125067",
+      "date": "2026-06-05",
+      "textJa": "サービス開始まであと4日！6/9(火)に正式サービス開始。事前登録受付中！",
+      "textFr": "Plus que 4 jours avant le lancement ! Service officiel ouvert le mardi 9 juin 2026. Pré-enregistrement en cours.",
+      "url": "https://x.com/inazuma_cross/status/2062731317998125067",
+      "hasMedia": true
+    },
+    {
+      "id": "2062459788798423063",
+      "date": "2026-06-04",
+      "textJa": "設定資料を特別公開㊙️第2弾。謎の資料を入手いたしました。気になる詳細は、続報をお待ちください。",
+      "textFr": "Révélation spéciale de documents de conception (2ᵉ volet). Des documents mystérieux ont été obtenus ; les détails seront communiqués prochainement.",
+      "url": "https://x.com/inazuma_cross/status/2062459788798423063",
+      "hasMedia": true
+    },
+    {
+      "id": "2062446758207082765",
+      "date": "2026-06-04",
+      "textJa": "新必殺技紹介。予想キャンペーンも実施していた、帝国学園ユニフォームの豪炎寺が放つ必殺技の名前は「インフェルノペンギン」でした！本日は改めて必殺技の動画を公開いたします。",
+      "textFr": "Présentation d'une nouvelle technique spéciale. La technique du Gouenji (Axel Blaze) en uniforme de Teikoku, objet de la campagne de pronostics, s'appelle « Inferno Penguin » (インフェルノペンギン). La vidéo de la technique est dévoilée.",
+      "url": "https://x.com/inazuma_cross/status/2062446758207082765",
+      "hasMedia": true
+    },
+    {
+      "id": "2062097346352284151",
+      "date": "2026-06-03",
+      "textJa": "設定資料を特別公開㊙️。イナイレクロスで新登場する主人公の幼馴染「野乃見リン」のキャラクターデザイン設定資料を特別に公開。やぶのてんや先生による読み切り漫画にも登場しています。",
+      "textFr": "Révélation spéciale de documents de conception : la fiche de design du personnage « Rin Nonomi » (野乃見リン), amie d'enfance du héros qui fait son apparition dans Inazuma Eleven Cross. Elle apparaît aussi dans le one-shot manga du sensei Tenya Yabuno.",
+      "url": "https://x.com/inazuma_cross/status/2062097346352284151",
+      "hasMedia": true
+    },
+    {
+      "id": "2060337674117087539",
+      "date": "2026-05-29",
+      "textJa": "サービス開始日決定！イナイレクロスのサービス開始日が【2026/6/9(火)】に決定いたしました。サービス開始まで今しばらくお待ちください！",
+      "textFr": "Date de lancement fixée ! La date de sortie d'Inazuma Eleven Cross est arrêtée au mardi 9 juin 2026. Encore un peu de patience jusqu'au lancement.",
+      "url": "https://x.com/inazuma_cross/status/2060337674117087539",
+      "hasMedia": true
+    }
+  ],
+  "tweetsNote": "Tweets réels du compte officiel @inazuma_cross (récupérés via bxc x_client le 2026-06-06), du plus récent au plus ancien. Texte JP réel traduit factuellement en FR. Les replies de campagnes répétitives (« 格言 ») et les simples retweets ont été écartés.",
+  "links": {
+    "officialSite": "https://www.inazuma-cross.jp/",
+    "x": "https://x.com/inazuma_cross",
+    "googlePlay": "https://play.google.com/store/apps/details?id=jp.co.level5.inazumacross",
+    "appStore": "https://apps.apple.com/jp/app/id6756994116",
+    "youtubePlaylists": [
+      "https://www.youtube.com/playlist?list=PLlapDTT9GR4Q7HVHLMn_-wUB-cZM3TLpB",
+      "https://www.youtube.com/playlist?list=PLlapDTT9GR4TwdLT5pbq88rfeuKXe3XLv"
+    ],
+    "level5": "https://www.level5.co.jp/",
+    "aiming": "https://aiming-inc.com/",
+    "corocoro": "https://www.corocoro.jp/title/1177",
+    "ievr": "https://www.inazuma.jp/victory-road/",
+    "cbtReport": "https://www.inazuma-cross.jp/cbt-report/",
+    "samuraiBlue2026": "https://www.inazuma-cross.jp/samuraiblue2026/",
+    "privacyPolicy": "https://www.level5.co.jp/about/privacy.html",
+    "terms": "https://www.inazuma-cross.jp/terms/",
+    "guidelines": "https://www.inazuma-cross.jp/guidelines/",
+    "parents": "https://www.inazuma-cross.jp/parents/"
+  },
+  "localImages": {
+    "keyVisual": "/inazuma-cross/home-keyvisual.webp",
+    "logo": "/inazuma-cross/home-menu-logo.webp",
+    "commonBg": "/inazuma-cross/common-bg.webp",
+    "commonBgPattern": "/inazuma-cross/common-bg-pattern.webp",
+    "introHeading": "/inazuma-cross/intro-heading.webp",
+    "introBg": "/inazuma-cross/intro-bg-pc.webp",
+    "protagonist": "/inazuma-cross/intro-character.webp",
+    "characterName": "/inazuma-cross/character-name.webp",
+    "systemHeading": "/inazuma-cross/system-heading.webp",
+    "rewardHeading": "/inazuma-cross/reward-heading.webp",
+    "rewardBadge": "/inazuma-cross/reward-badge.webp",
+    "appicon": "/inazuma-cross/appicon.webp",
+    "ogp": "/inazuma-cross/ogp.jpg",
+    "samuraiBlueBanner": "/inazuma-cross/banner-samuraiblue-collabo.webp",
+    "samuraiBlueKeyVisual": "/inazuma-cross/sb-keyvisual.webp",
+    "samuraiBlueCharacter": "/inazuma-cross/sb-hissatsu-chara.webp",
+    "samuraiBlueItems": "/inazuma-cross/sb-items-lounge.webp",
+    "systemScreenshots": [
+      "/inazuma-cross/system-ss-01-01.webp",
+      "/inazuma-cross/system-ss-01-02.webp",
+      "/inazuma-cross/system-ss-02-01.webp",
+      "/inazuma-cross/system-ss-02-02.webp"
+    ],
+    "systemText": [
+      "/inazuma-cross/system-text-01.webp",
+      "/inazuma-cross/system-text-02.webp",
+      "/inazuma-cross/system-text-03.webp"
+    ],
+    "rewardImages": [
+      "/inazuma-cross/reward-image1.webp",
+      "/inazuma-cross/reward-image2.webp",
+      "/inazuma-cross/reward-image3.webp",
+      "/inazuma-cross/reward-image4.webp"
+    ],
+    "samuraiBlueSlides": [
+      "/inazuma-cross/sb-slide1.webp",
+      "/inazuma-cross/sb-slide2.webp",
+      "/inazuma-cross/sb-slide3.webp"
+    ],
+    "samuraiBlueWear": [
+      "/inazuma-cross/sb-wear-away.webp",
+      "/inazuma-cross/sb-wear-gk.webp"
+    ],
+    "samuraiBlueAds": [
+      "/inazuma-cross/sb-ad-image1.webp",
+      "/inazuma-cross/sb-ad-image2.webp"
+    ],
+    "samuraiBlueAdChars": [
+      "/inazuma-cross/sb-ad-chara1.webp",
+      "/inazuma-cross/sb-ad-chara2.webp",
+      "/inazuma-cross/sb-ad-chara3.webp"
+    ],
+    "cbtBanner": "/inazuma-cross/cbt-banner1.webp",
+    "cbtResults": "/inazuma-cross/cbt-results.webp",
+    "cbtProgressRanking": "/inazuma-cross/cbt-progress-ranking.webp",
+    "cbtScreenshots": [
+      "/inazuma-cross/cbt-ss1.webp",
+      "/inazuma-cross/cbt-ss2.webp",
+      "/inazuma-cross/cbt-ss3.webp",
+      "/inazuma-cross/cbt-ss4.webp",
+      "/inazuma-cross/cbt-ss5.webp",
+      "/inazuma-cross/cbt-ss6.webp",
+      "/inazuma-cross/cbt-ss7.webp",
+      "/inazuma-cross/cbt-ss8.webp",
+      "/inazuma-cross/cbt-ss9.webp",
+      "/inazuma-cross/cbt-ss10.webp"
+    ],
+    "youtubeThumbs": {
+      "fpiqLTzmEtU": "/inazuma-cross/yt-fpiqLTzmEtU.webp",
+      "K47IkCIn0T8": "/inazuma-cross/yt-K47IkCIn0T8.webp",
+      "EJF5WOK0JDc": "/inazuma-cross/yt-EJF5WOK0JDc.webp",
+      "o0rIafgYq8c": "/inazuma-cross/yt-o0rIafgYq8c.webp",
+      "E0kBnA62Q3I": "/inazuma-cross/yt-E0kBnA62Q3I.webp"
+    },
+    "footerBanners": {
+      "youtube": "/inazuma-cross/footer-banner-youtube.webp",
+      "x": "/inazuma-cross/footer-banner-x.webp",
+      "report": "/inazuma-cross/footer-banner-report.webp",
+      "inazuma": "/inazuma-cross/footer-banner-inazuma.webp",
+      "victoryRoad": "/inazuma-cross/footer-banner-victory-road.webp"
+    },
+    "logoLevel5": "/inazuma-cross/logo-level5.webp",
+    "logoAiming": "/inazuma-cross/logo-aiming.webp",
+    "rewardAchieve": [
+      "/inazuma-cross/reward-image1-achieve.webp",
+      "/inazuma-cross/reward-image2-achieve.webp",
+      "/inazuma-cross/reward-image3-achieve.webp",
+      "/inazuma-cross/reward-image4-achieve.webp"
+    ],
+    "firstview": "/inazuma-cross/firstview-image-pc.webp",
+    "preregistrationText": "/inazuma-cross/preregistration-text.webp",
+    "badgeAppStore": "/inazuma-cross/badge-appstore.svg",
+    "badgeGooglePlay": "/inazuma-cross/badge-googleplay.png"
+  }
+}

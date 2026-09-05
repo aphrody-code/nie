@@ -1,0 +1,532 @@
+{
+  "metadata": {
+    "date": "2026-06-01T22:23:09.707Z",
+    "totalAudited": 5463,
+    "totalIssues": 12,
+    "bySeverity": {
+      "high": 0,
+      "medium": 12
+    }
+  },
+  "issues": [
+    {
+      "code": "0xB2370A90",
+      "hash": "k/o/y/oyf1x6tgvom",
+      "dbNameEn": "Arion Matlock Hermes",
+      "dbNameFr": "Arion Matlock Hermès",
+      "dbNameJa": "経目 須商 ヘルメス",
+      "dbPosition": "Milieu",
+      "dbElement": "Forêt",
+      "dbGender": "M",
+      "dbSeries": "Ares",
+      "dbRarity": "Normal",
+      "dbStats": [
+        155,
+        179,
+        181,
+        130,
+        132,
+        130,
+        160
+      ],
+      "zukanNameEn": "Arion Matlock",
+      "zukanNameJa": "経目 須商",
+      "zukanPosition": "MF",
+      "zukanElement": "Forest",
+      "zukanGender": "Male",
+      "zukanGame": "Inazuma Eleven",
+      "zukanStats": [
+        101,
+        109,
+        107,
+        88,
+        89,
+        81,
+        97
+      ],
+      "statsCorrelation": 0.9196428571428571,
+      "severity": "medium",
+      "category": "era_mismatch",
+      "problems": [
+        "Ère: DB=Ares(Modern) image=Inazuma Eleven(OG)"
+      ],
+      "imageUrl": "https://dxi4wb638ujep.cloudfront.net/1/k/o/y/oyf1x6tgvom.png"
+    },
+    {
+      "code": "0xD0A05E79",
+      "hash": "k/9/j/9j8_3qpak3m",
+      "dbNameEn": "Arion Matlock Hermes",
+      "dbNameFr": "Arion Matlock Hermès",
+      "dbNameJa": "経目 須商 ヘルメス",
+      "dbPosition": "Milieu",
+      "dbElement": "Forêt",
+      "dbGender": "M",
+      "dbSeries": "Inazuma Eleven",
+      "dbRarity": "Normal",
+      "dbStats": [
+        155,
+        179,
+        181,
+        130,
+        132,
+        130,
+        160
+      ],
+      "zukanNameEn": "Arion Matlock",
+      "zukanNameJa": "経目 須商",
+      "zukanPosition": "MF",
+      "zukanElement": "Forest",
+      "zukanGender": "Male",
+      "zukanGame": "Inazuma Eleven Ares",
+      "zukanStats": [
+        101,
+        109,
+        107,
+        88,
+        89,
+        81,
+        97
+      ],
+      "statsCorrelation": 0.9196428571428571,
+      "severity": "medium",
+      "category": "era_mismatch",
+      "problems": [
+        "Ère: DB=Inazuma Eleven(OG) image=Ares(Modern)"
+      ],
+      "imageUrl": "https://dxi4wb638ujep.cloudfront.net/1/k/9/j/9j8_3qpak3m.png"
+    },
+    {
+      "code": "0x35AF165F",
+      "hash": "k/z/a/zauucflacbk",
+      "dbNameEn": "Artie Mishman Artemis",
+      "dbNameFr": "Artie Mishman Artémis",
+      "dbNameJa": "在手 実弓 アルテミス",
+      "dbPosition": "Milieu",
+      "dbElement": "Vent",
+      "dbGender": "M",
+      "dbSeries": "Ares",
+      "dbRarity": "Normal",
+      "dbStats": [
+        155,
+        179,
+        181,
+        130,
+        132,
+        130,
+        160
+      ],
+      "zukanNameEn": "Artie Mishman",
+      "zukanNameJa": "在手 実弓",
+      "zukanPosition": "MF",
+      "zukanElement": "Wind",
+      "zukanGender": "Male",
+      "zukanGame": "Inazuma Eleven",
+      "zukanStats": [
+        101,
+        109,
+        107,
+        88,
+        89,
+        81,
+        97
+      ],
+      "statsCorrelation": 0.9196428571428571,
+      "severity": "medium",
+      "category": "era_mismatch",
+      "problems": [
+        "Ère: DB=Ares(Modern) image=Inazuma Eleven(OG)"
+      ],
+      "imageUrl": "https://dxi4wb638ujep.cloudfront.net/1/k/z/a/zauucflacbk.png"
+    },
+    {
+      "code": "0xC9BB6F38",
+      "hash": "k/j/j/jjdngdq4tik",
+      "dbNameEn": "Artie Mishman Artemis",
+      "dbNameFr": "Artie Mishman Artémis",
+      "dbNameJa": "在手 実弓 アルテミス",
+      "dbPosition": "Milieu",
+      "dbElement": "Vent",
+      "dbGender": "M",
+      "dbSeries": "Inazuma Eleven",
+      "dbRarity": "Normal",
+      "dbStats": [
+        155,
+        179,
+        181,
+        130,
+        132,
+        130,
+        160
+      ],
+      "zukanNameEn": "Artie Mishman",
+      "zukanNameJa": "在手 実弓",
+      "zukanPosition": "MF",
+      "zukanElement": "Wind",
+      "zukanGender": "Male",
+      "zukanGame": "Inazuma Eleven Ares",
+      "zukanStats": [
+        101,
+        109,
+        107,
+        88,
+        89,
+        81,
+        97
+      ],
+      "statsCorrelation": 0.9196428571428571,
+      "severity": "medium",
+      "category": "era_mismatch",
+      "problems": [
+        "Ère: DB=Inazuma Eleven(OG) image=Ares(Modern)"
+      ],
+      "imageUrl": "https://dxi4wb638ujep.cloudfront.net/1/k/j/j/jjdngdq4tik.png"
+    },
+    {
+      "code": "0x12B74634",
+      "hash": "k/g/l/gltgpqjnrn0",
+      "dbNameEn": "Byron Love Aphrody",
+      "dbNameFr": "Byron Love Aphrody",
+      "dbNameJa": "亜風炉 照美 アフロディ",
+      "dbPosition": "Milieu",
+      "dbElement": "Forêt",
+      "dbGender": "M",
+      "dbSeries": "Inazuma Eleven",
+      "dbRarity": "BASARA",
+      "dbStats": [
+        238,
+        258,
+        250,
+        211,
+        210,
+        195,
+        230
+      ],
+      "zukanNameEn": "Byron Love",
+      "zukanNameJa": "亜風炉 照美",
+      "zukanPosition": "MF",
+      "zukanElement": "Forest",
+      "zukanGender": "Male",
+      "zukanGame": "Inazuma Eleven GO: Light / Shadow",
+      "zukanStats": [
+        104,
+        112,
+        109,
+        91,
+        92,
+        85,
+        100
+      ],
+      "statsCorrelation": 0.9642857142857143,
+      "severity": "medium",
+      "category": "era_mismatch",
+      "problems": [
+        "Ère: DB=Inazuma Eleven(OG) image=Inazuma Eleven GO(GO)"
+      ],
+      "imageUrl": "https://dxi4wb638ujep.cloudfront.net/1/k/g/l/gltgpqjnrn0.png"
+    },
+    {
+      "code": "0x209B996D",
+      "hash": "k/6/q/6q1af7euf9m",
+      "dbNameEn": "Byron Love Aphrody",
+      "dbNameFr": "Byron Love Aphrody",
+      "dbNameJa": "亜風炉 照美 アフロディ",
+      "dbPosition": "Milieu",
+      "dbElement": "Forêt",
+      "dbGender": "M",
+      "dbSeries": "Inazuma Eleven",
+      "dbRarity": "Héros",
+      "dbStats": [
+        238,
+        258,
+        250,
+        211,
+        210,
+        195,
+        230
+      ],
+      "zukanNameEn": "Byron Love",
+      "zukanNameJa": "亜風炉 照美",
+      "zukanPosition": "MF",
+      "zukanElement": "Forest",
+      "zukanGender": "Male",
+      "zukanGame": "Inazuma Eleven Ares",
+      "zukanStats": [
+        104,
+        112,
+        109,
+        91,
+        92,
+        85,
+        100
+      ],
+      "statsCorrelation": 0.9642857142857143,
+      "severity": "medium",
+      "category": "era_mismatch",
+      "problems": [
+        "Ère: DB=Inazuma Eleven(OG) image=Ares(Modern)"
+      ],
+      "imageUrl": "https://dxi4wb638ujep.cloudfront.net/1/k/6/q/6q1af7euf9m.png"
+    },
+    {
+      "code": "0x24F07F94",
+      "hash": "k/p/j/pjw-aty8hpc",
+      "dbNameEn": "Lucas",
+      "dbNameFr": "Lucas",
+      "dbNameJa": "光",
+      "dbPosition": "Milieu",
+      "dbElement": "Vent",
+      "dbGender": "M",
+      "dbSeries": "Orion",
+      "dbRarity": "Héros",
+      "dbStats": [
+        238,
+        258,
+        250,
+        211,
+        210,
+        195,
+        230
+      ],
+      "zukanNameEn": "Lucas Star",
+      "zukanNameJa": "一星 光",
+      "zukanPosition": "?",
+      "zukanElement": "?",
+      "zukanGender": "?",
+      "zukanGame": "Inazuma Eleven Orion",
+      "zukanStats": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "statsCorrelation": 1,
+      "severity": "medium",
+      "category": "attribute_mismatch",
+      "problems": [
+        "Position: DB=Milieu image=?",
+        "Élément: DB=Vent image=?"
+      ],
+      "imageUrl": "https://dxi4wb638ujep.cloudfront.net/1/k/p/j/pjw-aty8hpc.png"
+    },
+    {
+      "code": "0x3F14143F",
+      "hash": "k/p/j/pjw-aty8hpc",
+      "dbNameEn": "Lucas",
+      "dbNameFr": "Lucas",
+      "dbNameJa": "光",
+      "dbPosition": "Milieu",
+      "dbElement": "Vent",
+      "dbGender": "M",
+      "dbSeries": "Orion",
+      "dbRarity": "BASARA",
+      "dbStats": [
+        238,
+        258,
+        250,
+        211,
+        210,
+        195,
+        230
+      ],
+      "zukanNameEn": "Lucas Star",
+      "zukanNameJa": "一星 光",
+      "zukanPosition": "?",
+      "zukanElement": "?",
+      "zukanGender": "?",
+      "zukanGame": "Inazuma Eleven Orion",
+      "zukanStats": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "statsCorrelation": 1,
+      "severity": "medium",
+      "category": "attribute_mismatch",
+      "problems": [
+        "Position: DB=Milieu image=?",
+        "Élément: DB=Vent image=?"
+      ],
+      "imageUrl": "https://dxi4wb638ujep.cloudfront.net/1/k/p/j/pjw-aty8hpc.png"
+    },
+    {
+      "code": "0xB380F082",
+      "hash": "k/p/j/pjw-aty8hpc",
+      "dbNameEn": "Lucas",
+      "dbNameFr": "Lucas",
+      "dbNameJa": "光",
+      "dbPosition": "Milieu",
+      "dbElement": "Vent",
+      "dbGender": "M",
+      "dbSeries": "Orion",
+      "dbRarity": "Normal",
+      "dbStats": [
+        160,
+        174,
+        169,
+        141,
+        140,
+        129,
+        155
+      ],
+      "zukanNameEn": "Lucas Star",
+      "zukanNameJa": "一星 光",
+      "zukanPosition": "?",
+      "zukanElement": "?",
+      "zukanGender": "?",
+      "zukanGame": "Inazuma Eleven Orion",
+      "zukanStats": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "statsCorrelation": 1,
+      "severity": "medium",
+      "category": "attribute_mismatch",
+      "problems": [
+        "Position: DB=Milieu image=?",
+        "Élément: DB=Vent image=?"
+      ],
+      "imageUrl": "https://dxi4wb638ujep.cloudfront.net/1/k/p/j/pjw-aty8hpc.png"
+    },
+    {
+      "code": "0x03DE1A70",
+      "hash": "k/m/_/m_e9hnffsbe",
+      "dbNameEn": "Norbert Dexter",
+      "dbNameFr": "Norbert Dexter",
+      "dbNameJa": "エディ",
+      "dbPosition": "Attaquant",
+      "dbElement": "Feu",
+      "dbGender": "M",
+      "dbSeries": "Orion",
+      "dbRarity": "Normal",
+      "dbStats": [
+        177,
+        173,
+        156,
+        135,
+        139,
+        130,
+        155
+      ],
+      "zukanNameEn": "Norbert Poindexter",
+      "zukanNameJa": "エディ・ハワード",
+      "zukanPosition": "FW",
+      "zukanElement": "Fire",
+      "zukanGender": "Male",
+      "zukanGame": "Inazuma Eleven 3: Lightning Bolt / Bomb Blast / Team Ogre Attacks!",
+      "zukanStats": [
+        118,
+        112,
+        102,
+        83,
+        81,
+        81,
+        89
+      ],
+      "statsCorrelation": 0.9375,
+      "severity": "medium",
+      "category": "era_mismatch",
+      "problems": [
+        "Ère: DB=Orion(Modern) image=Inazuma Eleven 3(OG)"
+      ],
+      "imageUrl": "https://dxi4wb638ujep.cloudfront.net/1/k/m/_/m_e9hnffsbe.png"
+    },
+    {
+      "code": "0x31972A58",
+      "hash": "k/a/b/abvgyltmhds",
+      "dbNameEn": "Victoria Vanguard Tori",
+      "dbNameFr": "Victoria Vanguard Tori",
+      "dbNameJa": "財前 塔子",
+      "dbPosition": "Milieu",
+      "dbElement": "Vent",
+      "dbGender": "F",
+      "dbSeries": "Inazuma Eleven GO",
+      "dbRarity": "Normal",
+      "dbStats": [
+        160,
+        174,
+        169,
+        141,
+        140,
+        129,
+        155
+      ],
+      "zukanNameEn": "Victoria Vanguard",
+      "zukanNameJa": "財前 塔子",
+      "zukanPosition": "MF",
+      "zukanElement": "Wind",
+      "zukanGender": "Female",
+      "zukanGame": "Inazuma Eleven 2: Firestorm / Blizzard",
+      "zukanStats": [
+        103,
+        111,
+        108,
+        90,
+        90,
+        83,
+        99
+      ],
+      "statsCorrelation": 0.9910714285714286,
+      "severity": "medium",
+      "category": "era_mismatch",
+      "problems": [
+        "Ère: DB=Inazuma Eleven GO(GO) image=Inazuma Eleven 2(OG)"
+      ],
+      "imageUrl": "https://dxi4wb638ujep.cloudfront.net/1/k/a/b/abvgyltmhds.png"
+    },
+    {
+      "code": "0x01A0E982",
+      "hash": "k/3/f/3fu1s2p-6ic",
+      "dbNameEn": "Fei / Fei Rune",
+      "dbNameFr": "",
+      "dbNameJa": "",
+      "dbPosition": "FW",
+      "dbElement": "Forest",
+      "dbGender": null,
+      "dbSeries": null,
+      "dbRarity": "",
+      "dbStats": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "zukanNameEn": "Fei Rune",
+      "zukanNameJa": "フェイ・ルーン",
+      "zukanPosition": "FW",
+      "zukanElement": "Forest",
+      "zukanGender": "Male",
+      "zukanGame": "Inazuma Eleven GO Chrono Stones: Wildfire / Thunderflash",
+      "zukanStats": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "statsCorrelation": 1,
+      "severity": "medium",
+      "category": "duplicate_hash",
+      "problems": [
+        "Hash partagé entre: Fei, Fei Rune"
+      ],
+      "imageUrl": "https://dxi4wb638ujep.cloudfront.net/1/k/3/f/3fu1s2p-6ic.png"
+    }
+  ]
+}

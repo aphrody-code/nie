@@ -68,7 +68,6 @@ const CHR_MODEL_NAMES_FILES = [
 		: undefined,
 	path.resolve(process.cwd(), "data", "chr-model-names.json"),
 	path.resolve(process.cwd(), "apps/azalee/data", "chr-model-names.json"),
-	"/home/ubuntu/rg/apps/azalee/data/chr-model-names.json",
 ].filter((p): p is string => Boolean(p));
 
 let _modelNames: ChrModelNames | null = null;

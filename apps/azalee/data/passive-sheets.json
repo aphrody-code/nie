@@ -1,0 +1,2587 @@
+{
+  "playerPassives": [
+    {
+      "no": 1,
+      "playstyle": "",
+      "requirement": "For players of the same element",
+      "stat": "Shot AT",
+      "legendary": {
+        "low": "1%",
+        "high": "1.5%"
+      },
+      "top": {
+        "low": "0.8%",
+        "high": "1.2%"
+      },
+      "advanced": {
+        "low": "0.7%",
+        "high": "1%"
+      },
+      "growing": {
+        "low": "0.6%",
+        "high": "0.7%"
+      },
+      "common": {
+        "low": "0.5%",
+        "high": "0.5%"
+      }
+    },
+    {
+      "no": 2,
+      "playstyle": "",
+      "requirement": "For players of the same element",
+      "stat": "Focus AT & DF",
+      "legendary": {
+        "low": "1%",
+        "high": "1.1%"
+      },
+      "top": {
+        "low": "0.8%",
+        "high": "1%"
+      },
+      "advanced": {
+        "low": "0.7%",
+        "high": "0.9%"
+      },
+      "growing": {
+        "low": "0.6%",
+        "high": "0.8%"
+      },
+      "common": {
+        "low": "0.5%",
+        "high": "0.7%"
+      }
+    },
+    {
+      "no": 3,
+      "playstyle": "",
+      "requirement": "For players of the same element",
+      "stat": "Scramble AT & DF",
+      "legendary": {
+        "low": "2%",
+        "high": "3.5%"
+      },
+      "top": {
+        "low": "1.7%",
+        "high": "3.04%"
+      },
+      "advanced": {
+        "low": "1.5%",
+        "high": "2.5%"
+      },
+      "growing": {
+        "low": "1.2%",
+        "high": "2%"
+      },
+      "common": {
+        "low": "1%",
+        "high": "1.5%"
+      }
+    },
+    {
+      "no": 4,
+      "playstyle": "",
+      "requirement": "For players of the same element",
+      "stat": "Castle Wall DF",
+      "legendary": {
+        "low": "1%",
+        "high": "1.5%"
+      },
+      "top": {
+        "low": "0.8%",
+        "high": "1.3%"
+      },
+      "advanced": {
+        "low": "0.7%",
+        "high": "1.1%"
+      },
+      "growing": {
+        "low": "0.6%",
+        "high": "0.9%"
+      },
+      "common": {
+        "low": "0.5%",
+        "high": "0.7%"
+      }
+    },
+    {
+      "no": 5,
+      "playstyle": "",
+      "requirement": "For players of different elements",
+      "stat": "Shot AT",
+      "legendary": {
+        "low": "1%",
+        "high": "1.5%"
+      },
+      "top": {
+        "low": "0.8%",
+        "high": "1.3%"
+      },
+      "advanced": {
+        "low": "0.7%",
+        "high": "1.1%"
+      },
+      "growing": {
+        "low": "0.6%",
+        "high": "0.9%"
+      },
+      "common": {
+        "low": "0.5%",
+        "high": "0.7%"
+      }
+    },
+    {
+      "no": 6,
+      "playstyle": "",
+      "requirement": "For players of different elements",
+      "stat": "Focus AT & DF",
+      "legendary": {
+        "low": "1%",
+        "high": "1.5%"
+      },
+      "top": {
+        "low": "0.8%",
+        "high": "1.3%"
+      },
+      "advanced": {
+        "low": "0.7%",
+        "high": "1.1%"
+      },
+      "growing": {
+        "low": "0.6%",
+        "high": "0.9%"
+      },
+      "common": {
+        "low": "0.5%",
+        "high": "0.7%"
+      }
+    },
+    {
+      "no": 7,
+      "playstyle": "",
+      "requirement": "For players of different elements",
+      "stat": "Scramble AT & DF",
+      "legendary": {
+        "low": "3%",
+        "high": "4.5%"
+      },
+      "top": {
+        "low": "2.7%",
+        "high": "4%"
+      },
+      "advanced": {
+        "low": "2.5%",
+        "high": "3.5%"
+      },
+      "growing": {
+        "low": "2.2%",
+        "high": "3%"
+      },
+      "common": {
+        "low": "2%",
+        "high": "2.5%"
+      }
+    },
+    {
+      "no": 8,
+      "playstyle": "",
+      "requirement": "For players of different elements",
+      "stat": "Castle Wall DF",
+      "legendary": {
+        "low": "1%",
+        "high": "1.5%"
+      },
+      "top": {
+        "low": "0.8%",
+        "high": "1.3%"
+      },
+      "advanced": {
+        "low": "0.7%",
+        "high": "1.1%"
+      },
+      "growing": {
+        "low": "0.56%",
+        "high": "0.9%"
+      },
+      "common": {
+        "low": "0.5%",
+        "high": "0.7%"
+      }
+    },
+    {
+      "no": 9,
+      "playstyle": "",
+      "requirement": "For players of the same positions",
+      "stat": "Shot AT",
+      "legendary": {
+        "low": "2.5%",
+        "high": "3.5%"
+      },
+      "top": {
+        "low": "2.2%",
+        "high": "3.1%"
+      },
+      "advanced": {
+        "low": "2%",
+        "high": "2.7%"
+      },
+      "growing": {
+        "low": "1.7%",
+        "high": "2.3%"
+      },
+      "common": {
+        "low": "1.5%",
+        "high": "2%"
+      }
+    },
+    {
+      "no": 10,
+      "playstyle": "",
+      "requirement": "For players of the same positions",
+      "stat": "Team Focus AT & DF",
+      "legendary": {
+        "low": "1%",
+        "high": "1.5%"
+      },
+      "top": {
+        "low": "0.8%",
+        "high": "1.3%"
+      },
+      "advanced": {
+        "low": "0.7%",
+        "high": "1.1%"
+      },
+      "growing": {
+        "low": "0.6%",
+        "high": "0.9%"
+      },
+      "common": {
+        "low": "0.5%",
+        "high": "0.7%"
+      }
+    },
+    {
+      "no": 11,
+      "playstyle": "",
+      "requirement": "For players of the same positions",
+      "stat": "Scramble AT & DF",
+      "legendary": {
+        "low": "7%",
+        "high": "8.5%"
+      },
+      "top": {
+        "low": "6.7%",
+        "high": "8%"
+      },
+      "advanced": {
+        "low": "6.5%",
+        "high": "7.5%"
+      },
+      "growing": {
+        "low": "6.2%",
+        "high": "7%"
+      },
+      "common": {
+        "low": "6%",
+        "high": "6.5%"
+      }
+    },
+    {
+      "no": 14,
+      "playstyle": "",
+      "requirement": "For players of different positions",
+      "stat": "Focus AT & DF",
+      "legendary": {
+        "low": "1%",
+        "high": "1.2%"
+      },
+      "top": {
+        "low": "0.8%",
+        "high": "1%"
+      },
+      "advanced": {
+        "low": "0.7%",
+        "high": "0.9%"
+      },
+      "growing": {
+        "low": "0.6%",
+        "high": "0.8%"
+      },
+      "common": {
+        "low": "0.5%",
+        "high": "0.7%"
+      }
+    },
+    {
+      "no": 15,
+      "playstyle": "",
+      "requirement": "For players of different positions",
+      "stat": "Scramble AT & DF",
+      "legendary": {
+        "low": "3%",
+        "high": "4.5%"
+      },
+      "top": {
+        "low": "2.7%",
+        "high": "4%"
+      },
+      "advanced": {
+        "low": "2.5%",
+        "high": "3.5%"
+      },
+      "growing": {
+        "low": "2.2%",
+        "high": "3%"
+      },
+      "common": {
+        "low": "2%",
+        "high": "2.5%"
+      }
+    },
+    {
+      "no": 16,
+      "playstyle": "",
+      "requirement": "For players of different positions",
+      "stat": "Castle Wall DF",
+      "legendary": {
+        "low": "1.5%",
+        "high": "2%"
+      },
+      "top": {
+        "low": "1.2%",
+        "high": "1.7%"
+      },
+      "advanced": {
+        "low": "1%",
+        "high": "1.5%"
+      },
+      "growing": {
+        "low": "0.72%",
+        "high": "1.2%"
+      },
+      "common": {
+        "low": "0.5%",
+        "high": "1%"
+      }
+    },
+    {
+      "no": 17,
+      "playstyle": "",
+      "requirement": "For nearby players",
+      "stat": "Shot AT",
+      "legendary": {
+        "low": "2%",
+        "high": "3.5%"
+      },
+      "top": {
+        "low": "1.7%",
+        "high": "3%"
+      },
+      "advanced": {
+        "low": "1.5%",
+        "high": "2.5%"
+      },
+      "growing": {
+        "low": "1.2%",
+        "high": "2%"
+      },
+      "common": {
+        "low": "1%",
+        "high": "1.5%"
+      }
+    },
+    {
+      "no": 18,
+      "playstyle": "",
+      "requirement": "For nearby players",
+      "stat": "Focus AT & DF",
+      "legendary": {
+        "low": "1.5%",
+        "high": "2%"
+      },
+      "top": {
+        "low": "1.2%",
+        "high": "1.7%"
+      },
+      "advanced": {
+        "low": "1%",
+        "high": "1.5%"
+      },
+      "growing": {
+        "low": "0.7%",
+        "high": "1.2%"
+      },
+      "common": {
+        "low": "0.5%",
+        "high": "1%"
+      }
+    },
+    {
+      "no": 19,
+      "playstyle": "",
+      "requirement": "For nearby players",
+      "stat": "Scramble AT & DF",
+      "legendary": {
+        "low": "7%",
+        "high": "8.5%"
+      },
+      "top": {
+        "low": "6.7%",
+        "high": "8%"
+      },
+      "advanced": {
+        "low": "6.5%",
+        "high": "7.5%"
+      },
+      "growing": {
+        "low": "6.2%",
+        "high": "7%"
+      },
+      "common": {
+        "low": "6%",
+        "high": "6.5%"
+      }
+    },
+    {
+      "no": 20,
+      "playstyle": "",
+      "requirement": "For nearby players",
+      "stat": "Castle Wall DF",
+      "legendary": {
+        "low": "2%",
+        "high": "3.5%"
+      },
+      "top": {
+        "low": "1.7%",
+        "high": "3%"
+      },
+      "advanced": {
+        "low": "1.5%",
+        "high": "2.5%"
+      },
+      "growing": {
+        "low": "1.2%",
+        "high": "2%"
+      },
+      "common": {
+        "low": "1%",
+        "high": "1.5%"
+      }
+    },
+    {
+      "no": 21,
+      "playstyle": "",
+      "requirement": "When a player of the same element is nearby",
+      "stat": "Own Shot AT",
+      "legendary": {
+        "low": "6%",
+        "high": "8%"
+      },
+      "top": {
+        "low": "5%",
+        "high": "7%"
+      },
+      "advanced": {
+        "low": "4%",
+        "high": "6%"
+      },
+      "growing": {
+        "low": "3%",
+        "high": "5%"
+      },
+      "common": {
+        "low": "2%",
+        "high": "4%"
+      }
+    },
+    {
+      "no": 22,
+      "playstyle": "",
+      "requirement": "When a player of the same element is nearby",
+      "stat": "Own Focus AT & DF",
+      "legendary": {
+        "low": "7%",
+        "high": "8%"
+      },
+      "top": {
+        "low": "6%",
+        "high": "7%"
+      },
+      "advanced": {
+        "low": "5%",
+        "high": "6%"
+      },
+      "growing": {
+        "low": "4%",
+        "high": "5%"
+      },
+      "common": {
+        "low": "3%",
+        "high": "4%"
+      }
+    },
+    {
+      "no": 23,
+      "playstyle": "",
+      "requirement": "When a player of the same element is nearby",
+      "stat": "Own Scramble AT & DF",
+      "legendary": {
+        "low": "15%",
+        "high": "20%"
+      },
+      "top": {
+        "low": "12%",
+        "high": "17%"
+      },
+      "advanced": {
+        "low": "10.2%",
+        "high": "15%"
+      },
+      "growing": {
+        "low": "7%",
+        "high": "12%"
+      },
+      "common": {
+        "low": "5%",
+        "high": "10%"
+      }
+    },
+    {
+      "no": 24,
+      "playstyle": "",
+      "requirement": "When a player of the same element is nearby",
+      "stat": "Own Castle Wall DF",
+      "legendary": {
+        "low": "6%",
+        "high": "7%"
+      },
+      "top": {
+        "low": "5.5%",
+        "high": "6.5%"
+      },
+      "advanced": {
+        "low": "5%",
+        "high": "6%"
+      },
+      "growing": {
+        "low": "4.5%",
+        "high": "5.5%"
+      },
+      "common": {
+        "low": "4%",
+        "high": "5%"
+      }
+    },
+    {
+      "no": 25,
+      "playstyle": "",
+      "requirement": "When a player of a different element is nearby",
+      "stat": "Own Shot AT",
+      "legendary": {
+        "low": "6%",
+        "high": "8%"
+      },
+      "top": {
+        "low": "5%",
+        "high": "7%"
+      },
+      "advanced": {
+        "low": "4%",
+        "high": "6%"
+      },
+      "growing": {
+        "low": "3%",
+        "high": "5%"
+      },
+      "common": {
+        "low": "2%",
+        "high": "4%"
+      }
+    },
+    {
+      "no": 26,
+      "playstyle": "",
+      "requirement": "When a player of a different element is nearby",
+      "stat": "Own Focus AT & DF",
+      "legendary": {
+        "low": "5.5%",
+        "high": "7%"
+      },
+      "top": {
+        "low": "5.3%",
+        "high": "6.5%"
+      },
+      "advanced": {
+        "low": "5%",
+        "high": "6%"
+      },
+      "growing": {
+        "low": "4.7%",
+        "high": "5.5%"
+      },
+      "common": {
+        "low": "4.5%",
+        "high": "5%"
+      }
+    },
+    {
+      "no": 27,
+      "playstyle": "",
+      "requirement": "When a player of a different element is nearby",
+      "stat": "Own Castle Wall DF",
+      "legendary": {
+        "low": "4%",
+        "high": "5%"
+      },
+      "top": {
+        "low": "3.7%",
+        "high": "4.7%"
+      },
+      "advanced": {
+        "low": "3.5%",
+        "high": "4.5%"
+      },
+      "growing": {
+        "low": "3.2%",
+        "high": "4.2%"
+      },
+      "common": {
+        "low": "3%",
+        "high": "4%"
+      }
+    },
+    {
+      "no": 28,
+      "playstyle": "",
+      "requirement": "On your half of the pitch",
+      "stat": "Own Focus AT & DF",
+      "legendary": {
+        "low": "5.5%",
+        "high": "7%"
+      },
+      "top": {
+        "low": "5.3%",
+        "high": "6.5%"
+      },
+      "advanced": {
+        "low": "5%",
+        "high": "6%"
+      },
+      "growing": {
+        "low": "4.7%",
+        "high": "5.5%"
+      },
+      "common": {
+        "low": "4.5%",
+        "high": "5%"
+      }
+    },
+    {
+      "no": 29,
+      "playstyle": "",
+      "requirement": "On your half of the pitch",
+      "stat": "Own Scramble AT & DF",
+      "legendary": {
+        "low": "12%",
+        "high": "15%"
+      },
+      "top": {
+        "low": "10%",
+        "high": "13%"
+      },
+      "advanced": {
+        "low": "9%",
+        "high": "12%"
+      },
+      "growing": {
+        "low": "8%",
+        "high": "11%"
+      },
+      "common": {
+        "low": "7%",
+        "high": "10%"
+      }
+    },
+    {
+      "no": 30,
+      "playstyle": "",
+      "requirement": "On your half of the pitch",
+      "stat": "Team Focus AT & DF",
+      "legendary": {
+        "low": "0.6%",
+        "high": "1%"
+      },
+      "top": {
+        "low": "0.48%",
+        "high": "0.8%"
+      },
+      "advanced": {
+        "low": "0.36%",
+        "high": "0.36%"
+      },
+      "growing": {
+        "low": "0.24%",
+        "high": "0.24%"
+      },
+      "common": {
+        "low": "0.12%",
+        "high": "0.2%"
+      }
+    },
+    {
+      "no": 31,
+      "playstyle": "",
+      "requirement": "On the opposition's half of the pitch",
+      "stat": "Own Shot AT",
+      "legendary": {
+        "low": "6%",
+        "high": "8%"
+      },
+      "top": {
+        "low": "5%",
+        "high": "7%"
+      },
+      "advanced": {
+        "low": "4%",
+        "high": "6%"
+      },
+      "growing": {
+        "low": "3%",
+        "high": "5%"
+      },
+      "common": {
+        "low": "2%",
+        "high": "4%"
+      }
+    },
+    {
+      "no": 32,
+      "playstyle": "",
+      "requirement": "On the opposition's half of the pitch",
+      "stat": "Own Focus AT & DF",
+      "legendary": {
+        "low": "6%",
+        "high": "7%"
+      },
+      "top": {
+        "low": "5.5%",
+        "high": "6.5%"
+      },
+      "advanced": {
+        "low": "5%",
+        "high": "6%"
+      },
+      "growing": {
+        "low": "4.5%",
+        "high": "5.5%"
+      },
+      "common": {
+        "low": "4%",
+        "high": "5%"
+      }
+    },
+    {
+      "no": 33,
+      "playstyle": "",
+      "requirement": "On the opposition's half of the pitch",
+      "stat": "Own Scramble AT & DF",
+      "legendary": {
+        "low": "10%",
+        "high": "13%"
+      },
+      "top": {
+        "low": "9%",
+        "high": "12%"
+      },
+      "advanced": {
+        "low": "8%",
+        "high": "11%"
+      },
+      "growing": {
+        "low": "7%",
+        "high": "10%"
+      },
+      "common": {
+        "low": "6%",
+        "high": "9%"
+      }
+    },
+    {
+      "no": 34,
+      "playstyle": "",
+      "requirement": "On the opposition's half of the pitch",
+      "stat": "Team Focus AT & DF",
+      "legendary": {
+        "low": "0.6%",
+        "high": "1%"
+      },
+      "top": {
+        "low": "0.48%",
+        "high": "0.8%"
+      },
+      "advanced": {
+        "low": "0.36%",
+        "high": "0.6%"
+      },
+      "growing": {
+        "low": "0.24%",
+        "high": "0.4%"
+      },
+      "common": {
+        "low": "0.12%",
+        "high": "0.2%"
+      }
+    },
+    {
+      "no": 35,
+      "playstyle": "",
+      "requirement": "When outside the zone",
+      "stat": "Own Focus AT & DF",
+      "legendary": {
+        "low": "5%",
+        "high": "6%"
+      },
+      "top": {
+        "low": "4.5%",
+        "high": "5.5%"
+      },
+      "advanced": {
+        "low": "4%",
+        "high": "5%"
+      },
+      "growing": {
+        "low": "3.5%",
+        "high": "4.5%"
+      },
+      "common": {
+        "low": "3%",
+        "high": "4%"
+      }
+    },
+    {
+      "no": 36,
+      "playstyle": "",
+      "requirement": "When outside the zone",
+      "stat": "Own Scramble AT & DF",
+      "legendary": {
+        "low": "10%",
+        "high": "13%"
+      },
+      "top": {
+        "low": "8%",
+        "high": "11%"
+      },
+      "advanced": {
+        "low": "7%",
+        "high": "10%"
+      },
+      "growing": {
+        "low": "6%",
+        "high": "9%"
+      },
+      "common": {
+        "low": "5%",
+        "high": "8%"
+      }
+    },
+    {
+      "no": 37,
+      "playstyle": "",
+      "requirement": "When outside the zone",
+      "stat": "Team Focus AT & DF",
+      "legendary": {
+        "low": "0.6%",
+        "high": "1%"
+      },
+      "top": {
+        "low": "0.48%",
+        "high": "0.8%"
+      },
+      "advanced": {
+        "low": "0.36%",
+        "high": "0.6%"
+      },
+      "growing": {
+        "low": "0.24%",
+        "high": "0.4%"
+      },
+      "common": {
+        "low": "0.12%",
+        "high": "0.2%"
+      }
+    },
+    {
+      "no": 40,
+      "playstyle": "Breach",
+      "requirement": "Non-Conditional",
+      "stat": "Team Breach Rate",
+      "legendary": {
+        "low": "1.2%",
+        "high": "1.8%"
+      },
+      "top": {
+        "low": "1%",
+        "high": "1.44%"
+      },
+      "advanced": {
+        "low": "0.8%",
+        "high": "1.08%"
+      },
+      "growing": {
+        "low": "0.7%",
+        "high": "0.72%"
+      },
+      "common": {
+        "low": "0.5%",
+        "high": "0.36%"
+      }
+    },
+    {
+      "no": 41,
+      "playstyle": "Breach",
+      "requirement": "When tied or behind in goals",
+      "stat": "Team Breach Rate",
+      "legendary": {
+        "low": "2%",
+        "high": "2.7%"
+      },
+      "top": {
+        "low": "1.7%",
+        "high": "2.4%"
+      },
+      "advanced": {
+        "low": "1.5%",
+        "high": "2%"
+      },
+      "growing": {
+        "low": "1.3%",
+        "high": "1.7%"
+      },
+      "common": {
+        "low": "1%",
+        "high": "1.5%"
+      }
+    },
+    {
+      "no": 42,
+      "playstyle": "Breach",
+      "requirement": "When at +15% or higher Breach Rate",
+      "stat": "Team Castle Wall Pierce Rate",
+      "legendary": {
+        "low": "2.5%",
+        "high": "3.6%"
+      },
+      "top": {
+        "low": "2.2%",
+        "high": "3%"
+      },
+      "advanced": {
+        "low": "2%",
+        "high": "2.6%"
+      },
+      "growing": {
+        "low": "1.7%",
+        "high": "2.3%"
+      },
+      "common": {
+        "low": "1.5%",
+        "high": "2%"
+      }
+    },
+    {
+      "no": 43,
+      "playstyle": "Breach",
+      "requirement": "Non-Conditional",
+      "stat": "Team Tension Breach Cost",
+      "legendary": {
+        "low": "-2.5%",
+        "high": "-3.6%"
+      },
+      "top": {
+        "low": "-2.2%",
+        "high": "-3.3%"
+      },
+      "advanced": {
+        "low": "-2%",
+        "high": "-3%"
+      },
+      "growing": {
+        "low": "-1.7%",
+        "high": "-2.7%"
+      },
+      "common": {
+        "low": "-1.5%",
+        "high": "-2.5%"
+      }
+    },
+    {
+      "no": 44,
+      "playstyle": "Tension",
+      "requirement": "When opposition passes the ball out during Focus Battle",
+      "stat": "Drain Tension",
+      "legendary": {
+        "low": "50%",
+        "high": "65%"
+      },
+      "top": {
+        "low": "40%",
+        "high": "50%"
+      },
+      "advanced": {
+        "low": "30%",
+        "high": "35%"
+      },
+      "growing": {
+        "low": "20%",
+        "high": "20%"
+      },
+      "common": {
+        "low": "10%",
+        "high": "15%"
+      }
+    },
+    {
+      "no": 45,
+      "playstyle": "Tension",
+      "requirement": "When winning a Focus or Scramble Battle",
+      "stat": "Team Tension",
+      "legendary": {
+        "low": "4%",
+        "high": "5.4%"
+      },
+      "top": {
+        "low": "3.7%",
+        "high": "4.9%"
+      },
+      "advanced": {
+        "low": "3.5%",
+        "high": "4.6%"
+      },
+      "growing": {
+        "low": "3.2%",
+        "high": "4.3%"
+      },
+      "common": {
+        "low": "3%",
+        "high": "4%"
+      }
+    },
+    {
+      "no": 46,
+      "playstyle": "Tension",
+      "requirement": "When at 50% or higher tension",
+      "stat": "Team Focus AT & DF",
+      "legendary": {
+        "low": "1.5%",
+        "high": "2%"
+      },
+      "top": {
+        "low": "1.4%",
+        "high": "1.8%"
+      },
+      "advanced": {
+        "low": "1.3%",
+        "high": "1.7%"
+      },
+      "growing": {
+        "low": "1.2%",
+        "high": "1.6%"
+      },
+      "common": {
+        "low": "1.1%",
+        "high": "1.5%"
+      }
+    },
+    {
+      "no": 47,
+      "playstyle": "Tension",
+      "requirement": "When at 100% Tension",
+      "stat": "Team Shot AT",
+      "legendary": {
+        "low": "4.5%",
+        "high": "5.5%"
+      },
+      "top": {
+        "low": "4.3%",
+        "high": "5.3%"
+      },
+      "advanced": {
+        "low": "4%",
+        "high": "5%"
+      },
+      "growing": {
+        "low": "3.7%",
+        "high": "4.7%"
+      },
+      "common": {
+        "low": "3.5%",
+        "high": "4.5%"
+      }
+    },
+    {
+      "no": 48,
+      "playstyle": "Counter",
+      "requirement": "On gaining possession (excluding catches) (15s)",
+      "stat": "Team Shot AT",
+      "legendary": {
+        "low": "3%",
+        "high": "3.5%"
+      },
+      "top": {
+        "low": "2.7%",
+        "high": "3.2%"
+      },
+      "advanced": {
+        "low": "2.5%",
+        "high": "3%"
+      },
+      "growing": {
+        "low": "2.2%",
+        "high": "2.7%"
+      },
+      "common": {
+        "low": "2%",
+        "high": "2.5%"
+      }
+    },
+    {
+      "no": 49,
+      "playstyle": "Counter",
+      "requirement": "On gaining possession (excluding catches) (15s)",
+      "stat": "[MF] Focus AT & DF",
+      "legendary": {
+        "low": "1.5%",
+        "high": "2%"
+      },
+      "top": {
+        "low": "1.3%",
+        "high": "1.7%"
+      },
+      "advanced": {
+        "low": "1.2%",
+        "high": "1.5%"
+      },
+      "growing": {
+        "low": "1.1%",
+        "high": "1.2%"
+      },
+      "common": {
+        "low": "1%",
+        "high": "1%"
+      }
+    },
+    {
+      "no": 50,
+      "playstyle": "Counter",
+      "requirement": "On gaining possession (excluding catches) (15s)",
+      "stat": "[DF] Focus AT & DF",
+      "legendary": {
+        "low": "1.5%",
+        "high": "2%"
+      },
+      "top": {
+        "low": "1.3%",
+        "high": "1.7%"
+      },
+      "advanced": {
+        "low": "1.2%",
+        "high": "1.5%"
+      },
+      "growing": {
+        "low": "1.1%",
+        "high": "1.2%"
+      },
+      "common": {
+        "low": "1%",
+        "high": "1%"
+      }
+    },
+    {
+      "no": 51,
+      "playstyle": "Counter",
+      "requirement": "On gaining possession (excluding catches) (15s)",
+      "stat": "[KP] KP",
+      "legendary": {
+        "low": "3.5%",
+        "high": "5%"
+      },
+      "top": {
+        "low": "3.3%",
+        "high": "4.5%"
+      },
+      "advanced": {
+        "low": "3%",
+        "high": "4%"
+      },
+      "growing": {
+        "low": "2.7%",
+        "high": "3.5%"
+      },
+      "common": {
+        "low": "2.5%",
+        "high": "3%"
+      }
+    },
+    {
+      "no": 52,
+      "playstyle": "Counter",
+      "requirement": "On gaining possession (excluding catches) (15s)",
+      "stat": "Team Rough Attack AT & DF",
+      "legendary": {
+        "low": "4.5%",
+        "high": "6%"
+      },
+      "top": {
+        "low": "4.2%",
+        "high": "5.5%"
+      },
+      "advanced": {
+        "low": "4%",
+        "high": "5%"
+      },
+      "growing": {
+        "low": "3.7%",
+        "high": "4.5%"
+      },
+      "common": {
+        "low": "3.5%",
+        "high": "4%"
+      }
+    },
+    {
+      "no": 53,
+      "playstyle": "Bond",
+      "requirement": "When making a pass",
+      "stat": "Team Bond Power",
+      "legendary": {
+        "low": "4%",
+        "high": "5.5%"
+      },
+      "top": {
+        "low": "3.7%",
+        "high": "5%"
+      },
+      "advanced": {
+        "low": "3.5%",
+        "high": "4.5%"
+      },
+      "growing": {
+        "low": "3.2%",
+        "high": "4%"
+      },
+      "common": {
+        "low": "3%",
+        "high": "3.5%"
+      }
+    },
+    {
+      "no": 54,
+      "playstyle": "Bond",
+      "requirement": "When at 20% of more Bond Power",
+      "stat": "Team Scramble AT & DF",
+      "legendary": {
+        "low": "7%",
+        "high": "9%"
+      },
+      "top": {
+        "low": "6%",
+        "high": "8%"
+      },
+      "advanced": {
+        "low": "5%",
+        "high": "7%"
+      },
+      "growing": {
+        "low": "4%",
+        "high": "6%"
+      },
+      "common": {
+        "low": "3%",
+        "high": "5%"
+      }
+    },
+    {
+      "no": 55,
+      "playstyle": "Bond",
+      "requirement": "When at 20% of more Bond Power",
+      "stat": "Team Direct Shot AT",
+      "legendary": {
+        "low": "3%",
+        "high": "3.5%"
+      },
+      "top": {
+        "low": "2.7%",
+        "high": "3.2%"
+      },
+      "advanced": {
+        "low": "2.5%",
+        "high": "3%"
+      },
+      "growing": {
+        "low": "2.3%",
+        "high": "2.7%"
+      },
+      "common": {
+        "low": "2%",
+        "high": "2.5%"
+      }
+    },
+    {
+      "no": 56,
+      "playstyle": "Bond",
+      "requirement": "When losing a Scramble",
+      "stat": "Team Bond Power Loss",
+      "legendary": {
+        "low": "-9%",
+        "high": ""
+      },
+      "top": {
+        "low": "-8%",
+        "high": ""
+      },
+      "advanced": {
+        "low": "-7%",
+        "high": ""
+      },
+      "growing": {
+        "low": "-6%",
+        "high": ""
+      },
+      "common": {
+        "low": "-5%",
+        "high": ""
+      }
+    },
+    {
+      "no": 57,
+      "playstyle": "Rough Play",
+      "requirement": "Non-Conditional",
+      "stat": "Team Dash Foul Rate",
+      "legendary": {
+        "low": "-2.5%",
+        "high": "-4%"
+      },
+      "top": {
+        "low": "-2.2%",
+        "high": "-3.7%"
+      },
+      "advanced": {
+        "low": "-2%",
+        "high": "-2.5%"
+      },
+      "growing": {
+        "low": "-1.7%",
+        "high": "-2.2%"
+      },
+      "common": {
+        "low": "-1.5%",
+        "high": "-2%"
+      }
+    },
+    {
+      "no": 58,
+      "playstyle": "Rough Play",
+      "requirement": "When outside the zone",
+      "stat": "Team Foul Rate",
+      "legendary": {
+        "low": "-2.5%",
+        "high": "-4%"
+      },
+      "top": {
+        "low": "-2.2%",
+        "high": "-3.7%"
+      },
+      "advanced": {
+        "low": "-2%",
+        "high": "-2.5%"
+      },
+      "growing": {
+        "low": "-1.7%",
+        "high": "-2.2%"
+      },
+      "common": {
+        "low": "-1.5%",
+        "high": "-2%"
+      }
+    },
+    {
+      "no": 59,
+      "playstyle": "Rough Play",
+      "requirement": "On Dash knockback",
+      "stat": "Team Tension",
+      "legendary": {
+        "low": "2.5%",
+        "high": "4%"
+      },
+      "top": {
+        "low": "2.2%",
+        "high": "3.7%"
+      },
+      "advanced": {
+        "low": "2%",
+        "high": "2.5%"
+      },
+      "growing": {
+        "low": "1.7%",
+        "high": "2.2%"
+      },
+      "common": {
+        "low": "1.5%",
+        "high": "2%"
+      }
+    },
+    {
+      "no": 60,
+      "playstyle": "Rough Play",
+      "requirement": "On Dash knockback",
+      "stat": "Team Rough Attack AT & DF",
+      "legendary": {
+        "low": "3.5%",
+        "high": "5%"
+      },
+      "top": {
+        "low": "3.3%",
+        "high": "4.5%"
+      },
+      "advanced": {
+        "low": "3%",
+        "high": "4%"
+      },
+      "growing": {
+        "low": "2.7%",
+        "high": "3.5%"
+      },
+      "common": {
+        "low": "2.5%",
+        "high": "3%"
+      }
+    },
+    {
+      "no": 61,
+      "playstyle": "Justice",
+      "requirement": "On Dash knockback",
+      "stat": "Team Bond Power",
+      "legendary": {
+        "low": "6%",
+        "high": "8%"
+      },
+      "top": {
+        "low": "5.5%",
+        "high": "7.5%"
+      },
+      "advanced": {
+        "low": "5%",
+        "high": "7%"
+      },
+      "growing": {
+        "low": "4.5%",
+        "high": "6.5%"
+      },
+      "common": {
+        "low": "4%",
+        "high": "6%"
+      }
+    },
+    {
+      "no": 62,
+      "playstyle": "Justice",
+      "requirement": "When the opposition commits a foul",
+      "stat": "Team Bond Power",
+      "legendary": {
+        "low": "6%",
+        "high": "7%"
+      },
+      "top": {
+        "low": "5.5%",
+        "high": "6.5%"
+      },
+      "advanced": {
+        "low": "5%",
+        "high": "6%"
+      },
+      "growing": {
+        "low": "4.5%",
+        "high": "5.5%"
+      },
+      "common": {
+        "low": "4%",
+        "high": "5%"
+      }
+    },
+    {
+      "no": 63,
+      "playstyle": "Justice",
+      "requirement": "Until you incur a foul",
+      "stat": "Team Castle Wall DF",
+      "legendary": {
+        "low": "1.5%",
+        "high": "2%"
+      },
+      "top": {
+        "low": "1.3%",
+        "high": "1.8%"
+      },
+      "advanced": {
+        "low": "1.2%",
+        "high": "1.7%"
+      },
+      "growing": {
+        "low": "1.1%",
+        "high": "1.6%"
+      },
+      "common": {
+        "low": "1%",
+        "high": "1.5%"
+      }
+    },
+    {
+      "no": 64,
+      "playstyle": "Justice",
+      "requirement": "Until you incur a foul",
+      "stat": "Team AT & DF",
+      "legendary": {
+        "low": "1.5%",
+        "high": "2%"
+      },
+      "top": {
+        "low": "1.3%",
+        "high": "1.8%"
+      },
+      "advanced": {
+        "low": "1.2%",
+        "high": "1.7%"
+      },
+      "growing": {
+        "low": "1.1%",
+        "high": "1.6%"
+      },
+      "common": {
+        "low": "1%",
+        "high": "1.5%"
+      }
+    }
+  ],
+  "customPassives": [
+    {
+      "no": 1,
+      "requirement": "For players of the same element",
+      "stat": "Shot AT",
+      "buff": "1%"
+    },
+    {
+      "no": 2,
+      "requirement": "For players of the same element",
+      "stat": "Focus AT & DF",
+      "buff": "1%"
+    },
+    {
+      "no": 3,
+      "requirement": "For players of the same element",
+      "stat": "Scramble AT & DF",
+      "buff": "1.5%"
+    },
+    {
+      "no": 4,
+      "requirement": "For players of the same element",
+      "stat": "Castle Wall DF",
+      "buff": "1%"
+    },
+    {
+      "no": 5,
+      "requirement": "For players of different elements",
+      "stat": "Shot AT",
+      "buff": "1%"
+    },
+    {
+      "no": 6,
+      "requirement": "For players of different elements",
+      "stat": "Focus AT & DF",
+      "buff": "1%"
+    },
+    {
+      "no": 7,
+      "requirement": "For players of different elements",
+      "stat": "Scramble AT & DF",
+      "buff": "1.5%"
+    },
+    {
+      "no": 8,
+      "requirement": "For players of different elements",
+      "stat": "Castle Wall DF",
+      "buff": "1%"
+    },
+    {
+      "no": 9,
+      "requirement": "For players of the same position",
+      "stat": "Shot AT",
+      "buff": "1%"
+    },
+    {
+      "no": 10,
+      "requirement": "For players of the same position",
+      "stat": "Focus AT & DF",
+      "buff": "1%"
+    },
+    {
+      "no": 11,
+      "requirement": "For players of the same position",
+      "stat": "Scramble AT & DF",
+      "buff": "1.5%"
+    },
+    {
+      "no": 12,
+      "requirement": "For players of different positions",
+      "stat": "Focus AT & DF",
+      "buff": "1%"
+    },
+    {
+      "no": 13,
+      "requirement": "For players of different positions",
+      "stat": "Scramble AT & DF",
+      "buff": "1.5%"
+    },
+    {
+      "no": 14,
+      "requirement": "For players of different positions",
+      "stat": "Castle Wall DF",
+      "buff": "1%"
+    },
+    {
+      "no": 15,
+      "requirement": "For nearby players",
+      "stat": "Shot AT",
+      "buff": "1.5%"
+    },
+    {
+      "no": 16,
+      "requirement": "For nearby players",
+      "stat": "Focus AT & DF",
+      "buff": "1.5%"
+    },
+    {
+      "no": 17,
+      "requirement": "For nearby players",
+      "stat": "Scramble AT & DF",
+      "buff": "2%"
+    },
+    {
+      "no": 18,
+      "requirement": "For nearby players",
+      "stat": "Castle Wall DF",
+      "buff": "1.5%"
+    },
+    {
+      "no": 19,
+      "requirement": "When a player of the same element is nearby",
+      "stat": "Own Shot AT",
+      "buff": "1.5%"
+    },
+    {
+      "no": 20,
+      "requirement": "When a player of the same element is nearby",
+      "stat": "Own Focus AT & DF",
+      "buff": "1.5%"
+    },
+    {
+      "no": 21,
+      "requirement": "When a player of the same element is nearby",
+      "stat": "Own Scramble AT & DF",
+      "buff": "2%"
+    },
+    {
+      "no": 22,
+      "requirement": "When a player of the same element is nearby",
+      "stat": "Own Castle Wall",
+      "buff": "1.5%"
+    },
+    {
+      "no": 23,
+      "requirement": "When a player of a different element is nearby",
+      "stat": "Own Shot AT",
+      "buff": "1.5%"
+    },
+    {
+      "no": 24,
+      "requirement": "When a player of a different element is nearby",
+      "stat": "Own Focus AT & DF",
+      "buff": "1.5%"
+    },
+    {
+      "no": 25,
+      "requirement": "When a player of a different element is nearby",
+      "stat": "Own Castle Wall",
+      "buff": "1.5%"
+    },
+    {
+      "no": 26,
+      "requirement": "On your half of the pitch",
+      "stat": "Own Focus AT & DF",
+      "buff": "1.5%"
+    },
+    {
+      "no": 27,
+      "requirement": "On your half of the pitch",
+      "stat": "Own Scramble AT & DF",
+      "buff": "2%"
+    },
+    {
+      "no": 28,
+      "requirement": "On your half of the pitch",
+      "stat": "Team Focus AT & DF",
+      "buff": "0.5%"
+    },
+    {
+      "no": 29,
+      "requirement": "On the opposition's half of the pitch",
+      "stat": "Own Shot AT",
+      "buff": "1.5%"
+    },
+    {
+      "no": 30,
+      "requirement": "On the opposition's half of the pitch",
+      "stat": "Own Focus AT & DF",
+      "buff": "1.5%"
+    },
+    {
+      "no": 31,
+      "requirement": "On the opposition's half of the pitch",
+      "stat": "Own Scramble AT & DF",
+      "buff": "2%"
+    },
+    {
+      "no": 32,
+      "requirement": "On the opposition's half of the pitch",
+      "stat": "Team Focus AT & DF",
+      "buff": "0.5%"
+    },
+    {
+      "no": 33,
+      "requirement": "When outside the zone",
+      "stat": "Own Focus AT & DF",
+      "buff": "1.5%"
+    },
+    {
+      "no": 34,
+      "requirement": "When outside the zone",
+      "stat": "Own Scramble AT & DF",
+      "buff": "2%"
+    },
+    {
+      "no": 35,
+      "requirement": "When outside the zone",
+      "stat": "Team Focus AT & DF",
+      "buff": "0.5%"
+    }
+  ],
+  "coordinatorPassives": [
+    {
+      "no": 1,
+      "playstyle": "",
+      "requirement": "For players of the same element",
+      "stat": "Shot AT",
+      "coordinatorCommon": "0.1%",
+      "coordinatorLegendary": "0.5%",
+      "managerCommon": "1.5%",
+      "managerLegendary": "3%"
+    },
+    {
+      "no": 2,
+      "playstyle": "",
+      "requirement": "For players of the same element",
+      "stat": "Focus AT & DF",
+      "coordinatorCommon": "0.1%",
+      "coordinatorLegendary": "0.5%",
+      "managerCommon": "0.5%",
+      "managerLegendary": "1.5%"
+    },
+    {
+      "no": 3,
+      "playstyle": "",
+      "requirement": "For players of the same element",
+      "stat": "Scramble AT & DF",
+      "coordinatorCommon": "0.1%",
+      "coordinatorLegendary": "0.9%",
+      "managerCommon": "5%",
+      "managerLegendary": "9%"
+    },
+    {
+      "no": 4,
+      "playstyle": "",
+      "requirement": "For players of the same element",
+      "stat": "Castle Wall DF",
+      "coordinatorCommon": "0.1%",
+      "coordinatorLegendary": "0.5%",
+      "managerCommon": "1.5%",
+      "managerLegendary": "3%"
+    },
+    {
+      "no": 5,
+      "playstyle": "",
+      "requirement": "For players of different elements",
+      "stat": "Shot AT",
+      "coordinatorCommon": "0.1%",
+      "coordinatorLegendary": "0.5%",
+      "managerCommon": "1.5%",
+      "managerLegendary": "3%"
+    },
+    {
+      "no": 6,
+      "playstyle": "",
+      "requirement": "For players of different elements",
+      "stat": "Focus AT & DF",
+      "coordinatorCommon": "0.1%",
+      "coordinatorLegendary": "0.5%",
+      "managerCommon": "0.5%",
+      "managerLegendary": "1.5%"
+    },
+    {
+      "no": 7,
+      "playstyle": "",
+      "requirement": "For players of different elements",
+      "stat": "Scramble AT & DF",
+      "coordinatorCommon": "0.1%",
+      "coordinatorLegendary": "0.9%",
+      "managerCommon": "5%",
+      "managerLegendary": "9%"
+    },
+    {
+      "no": 8,
+      "playstyle": "",
+      "requirement": "For players of different elements",
+      "stat": "Castle Wall DF",
+      "coordinatorCommon": "0.1%",
+      "coordinatorLegendary": "0.5%",
+      "managerCommon": "1.5%",
+      "managerLegendary": "3%"
+    },
+    {
+      "no": 9,
+      "playstyle": "",
+      "requirement": "On your half of the pitch",
+      "stat": "Team Focus AT & DF",
+      "coordinatorCommon": "",
+      "coordinatorLegendary": "0.5%",
+      "managerCommon": "",
+      "managerLegendary": "1.5%"
+    },
+    {
+      "no": 10,
+      "playstyle": "",
+      "requirement": "On the opposition's half of the pitch",
+      "stat": "Team Focus AT & DF",
+      "coordinatorCommon": "",
+      "coordinatorLegendary": "0.5%",
+      "managerCommon": "",
+      "managerLegendary": "1.5%"
+    },
+    {
+      "no": 11,
+      "playstyle": "",
+      "requirement": "When outside the zone",
+      "stat": "Team Focus AT & DF",
+      "coordinatorCommon": "",
+      "coordinatorLegendary": "0.5%",
+      "managerCommon": "",
+      "managerLegendary": "1.5%"
+    },
+    {
+      "no": 12,
+      "playstyle": "",
+      "requirement": "Upon being subbed in (15s)",
+      "stat": "[Substitute Player] AT",
+      "coordinatorCommon": "",
+      "coordinatorLegendary": "4%",
+      "managerCommon": "",
+      "managerLegendary": "12%"
+    },
+    {
+      "no": 13,
+      "playstyle": "",
+      "requirement": "Upon being subbed in (15s)",
+      "stat": "[Substitute Player] DF",
+      "coordinatorCommon": "",
+      "coordinatorLegendary": "4%",
+      "managerCommon": "",
+      "managerLegendary": "12%"
+    },
+    {
+      "no": 14,
+      "playstyle": "",
+      "requirement": "Non-Conditional",
+      "stat": "Own Special Tactics Cooldown",
+      "coordinatorCommon": "",
+      "coordinatorLegendary": "-1.5%",
+      "managerCommon": "",
+      "managerLegendary": "-4.5%"
+    },
+    {
+      "no": 15,
+      "playstyle": "",
+      "requirement": "For the first half",
+      "stat": "Team AT",
+      "coordinatorCommon": "",
+      "coordinatorLegendary": "1%",
+      "managerCommon": "",
+      "managerLegendary": "3%"
+    },
+    {
+      "no": 16,
+      "playstyle": "",
+      "requirement": "For the second half",
+      "stat": "Team DF",
+      "coordinatorCommon": "",
+      "coordinatorLegendary": "1%",
+      "managerCommon": "",
+      "managerLegendary": "3%"
+    },
+    {
+      "no": 17,
+      "playstyle": "Breach",
+      "requirement": "Non-Conditional",
+      "stat": "Team Breach Rate",
+      "coordinatorCommon": "0.5%",
+      "coordinatorLegendary": "1%",
+      "managerCommon": "1.5%",
+      "managerLegendary": "3%"
+    },
+    {
+      "no": 18,
+      "playstyle": "Breach",
+      "requirement": "When tied or behind in goals",
+      "stat": "Team Breach Rate",
+      "coordinatorCommon": "",
+      "coordinatorLegendary": "1.5%",
+      "managerCommon": "2.5%",
+      "managerLegendary": "4.5%"
+    },
+    {
+      "no": 19,
+      "playstyle": "Breach",
+      "requirement": "When at 15% of higher Breach Rate",
+      "stat": "Team Castle Wall Pierce Rate",
+      "coordinatorCommon": "",
+      "coordinatorLegendary": "2%",
+      "managerCommon": "4%",
+      "managerLegendary": "6%"
+    },
+    {
+      "no": 20,
+      "playstyle": "Breach",
+      "requirement": "Non-Conditional",
+      "stat": "Team Tension Breach Cost",
+      "coordinatorCommon": "-1%",
+      "coordinatorLegendary": "-2%",
+      "managerCommon": "-4%",
+      "managerLegendary": "-6%"
+    },
+    {
+      "no": 21,
+      "playstyle": "Tension",
+      "requirement": "When winning a Focus or Scramble Battle",
+      "stat": "Team Tension",
+      "coordinatorCommon": "",
+      "coordinatorLegendary": "3%",
+      "managerCommon": "",
+      "managerLegendary": "9%"
+    },
+    {
+      "no": 22,
+      "playstyle": "Tension",
+      "requirement": "When at 50% of higher Tension",
+      "stat": "Team Focus AT & DF",
+      "coordinatorCommon": "",
+      "coordinatorLegendary": "1%",
+      "managerCommon": "",
+      "managerLegendary": "3%"
+    },
+    {
+      "no": 23,
+      "playstyle": "Tension",
+      "requirement": "When at 100% Tension",
+      "stat": "Team Shot AT",
+      "coordinatorCommon": "",
+      "coordinatorLegendary": "3%",
+      "managerCommon": "",
+      "managerLegendary": "9%"
+    },
+    {
+      "no": 24,
+      "playstyle": "Counter",
+      "requirement": "On gaining possession(excluding catches) (15s)",
+      "stat": "Team Shot AT",
+      "coordinatorCommon": "",
+      "coordinatorLegendary": "2%",
+      "managerCommon": "",
+      "managerLegendary": "6%"
+    },
+    {
+      "no": 25,
+      "playstyle": "Counter",
+      "requirement": "On gaining possession(excluding catches) (15s)",
+      "stat": "[MF] Focus AT & DF",
+      "coordinatorCommon": "",
+      "coordinatorLegendary": "1%",
+      "managerCommon": "",
+      "managerLegendary": "3%"
+    },
+    {
+      "no": 26,
+      "playstyle": "Counter",
+      "requirement": "On gaining possession(excluding catches) (15s)",
+      "stat": "[DF] Focus AT & DF",
+      "coordinatorCommon": "",
+      "coordinatorLegendary": "1%",
+      "managerCommon": "",
+      "managerLegendary": "3%"
+    },
+    {
+      "no": 27,
+      "playstyle": "Counter",
+      "requirement": "On gaining possession(excluding catches) (15s)",
+      "stat": "[KP] KP",
+      "coordinatorCommon": "",
+      "coordinatorLegendary": "2.5%",
+      "managerCommon": "",
+      "managerLegendary": "7.5%"
+    },
+    {
+      "no": 28,
+      "playstyle": "Counter",
+      "requirement": "On gaining possession(excluding catches) (15s)",
+      "stat": "Team Rough Attack AT & DF",
+      "coordinatorCommon": "",
+      "coordinatorLegendary": "3%",
+      "managerCommon": "",
+      "managerLegendary": "9%"
+    },
+    {
+      "no": 29,
+      "playstyle": "Bond",
+      "requirement": "When making a pass",
+      "stat": "Team Bond Power",
+      "coordinatorCommon": "1.5%",
+      "coordinatorLegendary": "3%",
+      "managerCommon": "5%",
+      "managerLegendary": "9%"
+    },
+    {
+      "no": 30,
+      "playstyle": "Bond",
+      "requirement": "When at 20% or more Bond Power",
+      "stat": "Team Scramble AT & DF",
+      "coordinatorCommon": "",
+      "coordinatorLegendary": "5%",
+      "managerCommon": "10%",
+      "managerLegendary": "15%"
+    },
+    {
+      "no": 31,
+      "playstyle": "Bond",
+      "requirement": "When at 20% or more Bond Power",
+      "stat": "Team Direct Shot AT",
+      "coordinatorCommon": "1%",
+      "coordinatorLegendary": "2%",
+      "managerCommon": "4%",
+      "managerLegendary": "6%"
+    },
+    {
+      "no": 32,
+      "playstyle": "Bond",
+      "requirement": "When losing a Scramble",
+      "stat": "Team Bond Power Loss",
+      "coordinatorCommon": "",
+      "coordinatorLegendary": "-5%",
+      "managerCommon": "-10% (10s)",
+      "managerLegendary": "-15%"
+    },
+    {
+      "no": 33,
+      "playstyle": "Rough Play",
+      "requirement": "Non-Conditional",
+      "stat": "Team Dash Foul Rate",
+      "coordinatorCommon": "-0.5%",
+      "coordinatorLegendary": "-1.5%",
+      "managerCommon": "",
+      "managerLegendary": "-4.5%"
+    },
+    {
+      "no": 34,
+      "playstyle": "Rough Play",
+      "requirement": "When outside the zone",
+      "stat": "Team Foul Rate",
+      "coordinatorCommon": "-0.5%",
+      "coordinatorLegendary": "-1.5%",
+      "managerCommon": "",
+      "managerLegendary": "-4.5%"
+    },
+    {
+      "no": 35,
+      "playstyle": "Rough Play",
+      "requirement": "On Dash knockback",
+      "stat": "Team Tension",
+      "coordinatorCommon": "0.5%",
+      "coordinatorLegendary": "1%",
+      "managerCommon": "",
+      "managerLegendary": "3%"
+    },
+    {
+      "no": 36,
+      "playstyle": "Rough Play",
+      "requirement": "On Dash knockback",
+      "stat": "Team Rough Attack AT & DF",
+      "coordinatorCommon": "1.5%",
+      "coordinatorLegendary": "2.5%",
+      "managerCommon": "",
+      "managerLegendary": "7.5%"
+    },
+    {
+      "no": 37,
+      "playstyle": "Justice",
+      "requirement": "On Dash knockback",
+      "stat": "Team Bond Power",
+      "coordinatorCommon": "3.5%",
+      "coordinatorLegendary": "4.5%",
+      "managerCommon": "",
+      "managerLegendary": "15%"
+    },
+    {
+      "no": 38,
+      "playstyle": "Justice",
+      "requirement": "When the opposition commits a foul",
+      "stat": "Team Bond Power",
+      "coordinatorCommon": "",
+      "coordinatorLegendary": "3.8%",
+      "managerCommon": "",
+      "managerLegendary": "12%"
+    },
+    {
+      "no": 39,
+      "playstyle": "Justice",
+      "requirement": "Until you incur a foul",
+      "stat": "Team Castle Wall DF",
+      "coordinatorCommon": "0.5%",
+      "coordinatorLegendary": "1%",
+      "managerCommon": "",
+      "managerLegendary": "3%"
+    },
+    {
+      "no": 40,
+      "playstyle": "Justice",
+      "requirement": "Until you incur a foul",
+      "stat": "Team AT & DF",
+      "coordinatorCommon": "0.5%",
+      "coordinatorLegendary": "1%",
+      "managerCommon": "",
+      "managerLegendary": "3%"
+    },
+    {
+      "no": 41,
+      "playstyle": "",
+      "requirement": "For players of the same element",
+      "stat": "Shot AT",
+      "coordinatorCommon": "0.5%",
+      "coordinatorLegendary": "1%",
+      "managerCommon": "4%",
+      "managerLegendary": "6%"
+    },
+    {
+      "no": 42,
+      "playstyle": "",
+      "requirement": "For players of the same element",
+      "stat": "Focus AT & DF",
+      "coordinatorCommon": "0.5%",
+      "coordinatorLegendary": "1%",
+      "managerCommon": "1.5%",
+      "managerLegendary": "3%"
+    },
+    {
+      "no": 43,
+      "playstyle": "",
+      "requirement": "For players of the same element",
+      "stat": "Scramble AT & DF",
+      "coordinatorCommon": "1%",
+      "coordinatorLegendary": "2%",
+      "managerCommon": "10%",
+      "managerLegendary": "18%"
+    },
+    {
+      "no": 44,
+      "playstyle": "",
+      "requirement": "For players of the same element",
+      "stat": "Castle Wall DF",
+      "coordinatorCommon": "0.5%",
+      "coordinatorLegendary": "1%",
+      "managerCommon": "4%",
+      "managerLegendary": "6%"
+    },
+    {
+      "no": 45,
+      "playstyle": "",
+      "requirement": "For players of different elements",
+      "stat": "Shot AT",
+      "coordinatorCommon": "0.5%",
+      "coordinatorLegendary": "1%",
+      "managerCommon": "4%",
+      "managerLegendary": "6%"
+    },
+    {
+      "no": 46,
+      "playstyle": "",
+      "requirement": "For players of different elements",
+      "stat": "Focus AT & DF",
+      "coordinatorCommon": "0.5%",
+      "coordinatorLegendary": "1%",
+      "managerCommon": "1.5%",
+      "managerLegendary": "3%"
+    },
+    {
+      "no": 47,
+      "playstyle": "",
+      "requirement": "For players of different elements",
+      "stat": "Scramble AT & DF",
+      "coordinatorCommon": "1%",
+      "coordinatorLegendary": "2%",
+      "managerCommon": "10%",
+      "managerLegendary": "18%"
+    },
+    {
+      "no": 48,
+      "playstyle": "",
+      "requirement": "For players of different elements",
+      "stat": "Castle Wall DF",
+      "coordinatorCommon": "0.5%",
+      "coordinatorLegendary": "1%",
+      "managerCommon": "4%",
+      "managerLegendary": "6%"
+    },
+    {
+      "no": 49,
+      "playstyle": "",
+      "requirement": "On your half of the pitch",
+      "stat": "Team Focus AT & DF",
+      "coordinatorCommon": "0.5%",
+      "coordinatorLegendary": "1%",
+      "managerCommon": "1.5%",
+      "managerLegendary": "3%"
+    },
+    {
+      "no": 50,
+      "playstyle": "",
+      "requirement": "On the opposition's half of the pitch",
+      "stat": "Team Focus AT & DF",
+      "coordinatorCommon": "0.5%",
+      "coordinatorLegendary": "1%",
+      "managerCommon": "1.5%",
+      "managerLegendary": "3%"
+    },
+    {
+      "no": 51,
+      "playstyle": "",
+      "requirement": "When outside the zone",
+      "stat": "Team Focus AT & DF",
+      "coordinatorCommon": "0.5%",
+      "coordinatorLegendary": "1%",
+      "managerCommon": "1.5%",
+      "managerLegendary": "3%"
+    },
+    {
+      "no": 52,
+      "playstyle": "",
+      "requirement": "Upon being subbed in (15s)",
+      "stat": "[Substitute Player] AT",
+      "coordinatorCommon": "4% (15s)",
+      "coordinatorLegendary": "8%",
+      "managerCommon": "15% (15s)",
+      "managerLegendary": "25% (15s)"
+    },
+    {
+      "no": 53,
+      "playstyle": "",
+      "requirement": "Upon being subbed in (15s)",
+      "stat": "[Substitute Player] DF",
+      "coordinatorCommon": "4% (15s)",
+      "coordinatorLegendary": "8%",
+      "managerCommon": "15% (15s)",
+      "managerLegendary": "25% (15s)"
+    },
+    {
+      "no": 54,
+      "playstyle": "",
+      "requirement": "Non-Conditional",
+      "stat": "Own Special Tactics Cooldown",
+      "coordinatorCommon": "-1.5%",
+      "coordinatorLegendary": "-3%",
+      "managerCommon": "-5%",
+      "managerLegendary": "-9%"
+    },
+    {
+      "no": 55,
+      "playstyle": "",
+      "requirement": "For the first half",
+      "stat": "Team AT",
+      "coordinatorCommon": "1%",
+      "coordinatorLegendary": "2%",
+      "managerCommon": "4%",
+      "managerLegendary": "6%"
+    },
+    {
+      "no": 56,
+      "playstyle": "",
+      "requirement": "For the second half",
+      "stat": "Team DF",
+      "coordinatorCommon": "1%",
+      "coordinatorLegendary": "2%",
+      "managerCommon": "4%",
+      "managerLegendary": "6%"
+    },
+    {
+      "no": 57,
+      "playstyle": "Breach",
+      "requirement": "Non-Conditional",
+      "stat": "Team Breach Rate",
+      "coordinatorCommon": "1%",
+      "coordinatorLegendary": "2%",
+      "managerCommon": "4%",
+      "managerLegendary": "6%"
+    },
+    {
+      "no": 58,
+      "playstyle": "Breach",
+      "requirement": "When tied or behind in goals",
+      "stat": "Team Breach Rate",
+      "coordinatorCommon": "1.5%",
+      "coordinatorLegendary": "3%",
+      "managerCommon": "5%",
+      "managerLegendary": "9%"
+    },
+    {
+      "no": 59,
+      "playstyle": "Breach",
+      "requirement": "When at 15% of higher Breach Rate",
+      "stat": "Team Castle Wall Pierce Rate",
+      "coordinatorCommon": "2%",
+      "coordinatorLegendary": "4%",
+      "managerCommon": "4%",
+      "managerLegendary": "12%"
+    },
+    {
+      "no": 60,
+      "playstyle": "Breach",
+      "requirement": "Non-Conditional",
+      "stat": "Team Tension Breach Cost",
+      "coordinatorCommon": "-2%",
+      "coordinatorLegendary": "-4%",
+      "managerCommon": "-4%",
+      "managerLegendary": "-12%"
+    },
+    {
+      "no": 61,
+      "playstyle": "Tension",
+      "requirement": "When winning a Focus or Scramble Battle",
+      "stat": "Team Tension",
+      "coordinatorCommon": "4%",
+      "coordinatorLegendary": "6%",
+      "managerCommon": "10%",
+      "managerLegendary": "18%"
+    },
+    {
+      "no": 62,
+      "playstyle": "Tension",
+      "requirement": "When at 50% of higher Tension",
+      "stat": "Team Focus AT & DF",
+      "coordinatorCommon": "1%",
+      "coordinatorLegendary": "2%",
+      "managerCommon": "4%",
+      "managerLegendary": "6%"
+    },
+    {
+      "no": 63,
+      "playstyle": "Tension",
+      "requirement": "When at 100% Tension",
+      "stat": "Team Shot AT",
+      "coordinatorCommon": "4%",
+      "coordinatorLegendary": "6%",
+      "managerCommon": "10%",
+      "managerLegendary": "18%"
+    },
+    {
+      "no": 64,
+      "playstyle": "Counter",
+      "requirement": "On gaining possession(excluding catches) (15s)",
+      "stat": "Team Shot AT",
+      "coordinatorCommon": "2% (15s)",
+      "coordinatorLegendary": "4%",
+      "managerCommon": "4% (15s)",
+      "managerLegendary": "12% (15s)"
+    },
+    {
+      "no": 65,
+      "playstyle": "Counter",
+      "requirement": "On gaining possession(excluding catches) (15s)",
+      "stat": "[MF] Focus AT & DF",
+      "coordinatorCommon": "1% (15s)",
+      "coordinatorLegendary": "2%",
+      "managerCommon": "4% (15s)",
+      "managerLegendary": "6% (15s)"
+    },
+    {
+      "no": 66,
+      "playstyle": "Counter",
+      "requirement": "On gaining possession(excluding catches) (15s)",
+      "stat": "[DF] Focus AT & DF",
+      "coordinatorCommon": "1% (15s)",
+      "coordinatorLegendary": "2%",
+      "managerCommon": "4% (15s)",
+      "managerLegendary": "6% (15s)"
+    },
+    {
+      "no": 67,
+      "playstyle": "Counter",
+      "requirement": "On gaining possession(excluding catches) (15s)",
+      "stat": "[KP] KP",
+      "coordinatorCommon": "3% (15s)",
+      "coordinatorLegendary": "5%",
+      "managerCommon": "10% (15s)",
+      "managerLegendary": "15% (15s)"
+    },
+    {
+      "no": 68,
+      "playstyle": "Counter",
+      "requirement": "On gaining possession(excluding catches) (15s)",
+      "stat": "Team Rough Attack AT & DF",
+      "coordinatorCommon": "4% (15s)",
+      "coordinatorLegendary": "6%",
+      "managerCommon": "10% (15s)",
+      "managerLegendary": "18% (15s)"
+    },
+    {
+      "no": 69,
+      "playstyle": "Bond",
+      "requirement": "When making a pass",
+      "stat": "Team Bond Power",
+      "coordinatorCommon": "4%",
+      "coordinatorLegendary": "6%",
+      "managerCommon": "10%",
+      "managerLegendary": "18%"
+    },
+    {
+      "no": 70,
+      "playstyle": "Bond",
+      "requirement": "When at 20% or more Bond Power",
+      "stat": "Team Scramble AT & DF",
+      "coordinatorCommon": "5%",
+      "coordinatorLegendary": "10%",
+      "managerCommon": "20%",
+      "managerLegendary": "30%"
+    },
+    {
+      "no": 71,
+      "playstyle": "Bond",
+      "requirement": "When at 20% or more Bond Power",
+      "stat": "Team Direct Shot AT",
+      "coordinatorCommon": "2%",
+      "coordinatorLegendary": "4%",
+      "managerCommon": "4%",
+      "managerLegendary": "12%"
+    },
+    {
+      "no": 72,
+      "playstyle": "Bond",
+      "requirement": "When losing a Scramble",
+      "stat": "Team Bond Power Loss",
+      "coordinatorCommon": "-5% (10s)",
+      "coordinatorLegendary": "-10%",
+      "managerCommon": "-10% (10s)",
+      "managerLegendary": "-30% (10s)"
+    },
+    {
+      "no": 73,
+      "playstyle": "Rough Play",
+      "requirement": "Non-Conditional",
+      "stat": "Team Dash Foul Rate",
+      "coordinatorCommon": "-1.5%",
+      "coordinatorLegendary": "-3%",
+      "managerCommon": "-5%",
+      "managerLegendary": "-9%"
+    },
+    {
+      "no": 74,
+      "playstyle": "Rough Play",
+      "requirement": "When outside the zone",
+      "stat": "Team Foul Rate",
+      "coordinatorCommon": "-1.5%",
+      "coordinatorLegendary": "-3%",
+      "managerCommon": "-5%",
+      "managerLegendary": "-9%"
+    },
+    {
+      "no": 75,
+      "playstyle": "Rough Play",
+      "requirement": "On Dash knockback",
+      "stat": "Team Tension",
+      "coordinatorCommon": "1%",
+      "coordinatorLegendary": "2%",
+      "managerCommon": "4%",
+      "managerLegendary": "6%"
+    },
+    {
+      "no": 76,
+      "playstyle": "Rough Play",
+      "requirement": "On Dash knockback",
+      "stat": "Team Rough Attack AT & DF",
+      "coordinatorCommon": "1%",
+      "coordinatorLegendary": "5%",
+      "managerCommon": "10%",
+      "managerLegendary": "15%"
+    },
+    {
+      "no": 77,
+      "playstyle": "Justice",
+      "requirement": "On Dash knockback",
+      "stat": "Team Bond Power",
+      "coordinatorCommon": "4%",
+      "coordinatorLegendary": "9%",
+      "managerCommon": "10%",
+      "managerLegendary": "30%"
+    },
+    {
+      "no": 78,
+      "playstyle": "Justice",
+      "requirement": "When the opposition commits a foul",
+      "stat": "Team Bond Power",
+      "coordinatorCommon": "4%",
+      "coordinatorLegendary": "8%",
+      "managerCommon": "20%",
+      "managerLegendary": "25%"
+    },
+    {
+      "no": 79,
+      "playstyle": "Justice",
+      "requirement": "Until you incur a foul",
+      "stat": "Team Castle Wall DF",
+      "coordinatorCommon": "1%",
+      "coordinatorLegendary": "2%",
+      "managerCommon": "4%",
+      "managerLegendary": "6%"
+    },
+    {
+      "no": 80,
+      "playstyle": "Justice",
+      "requirement": "Until you incur a foul",
+      "stat": "Team AT & DF",
+      "coordinatorCommon": "1%",
+      "coordinatorLegendary": "2%",
+      "managerCommon": "4%",
+      "managerLegendary": "6%"
+    }
+  ],
+  "playstyles": [
+    "Breach",
+    "Tension",
+    "Counter",
+    "Bond",
+    "Rough Play",
+    "Justice"
+  ],
+  "extractedAt": "2026-02-08T05:24:52.461Z"
+}
