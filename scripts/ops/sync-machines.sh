@@ -37,13 +37,22 @@
 # récentes si on copie le seul fichier principal.
 #
 # Usage : scripts/ops/sync-machines.sh [--sans-moisson] [--sans-rapatriement]
+#
+# Ce script ne synchronise que les données Niers (moisson + SQLite). Pour le
+# code des deux dépôts, utiliser rg/scripts/ops/repo-sync.ts ; garder deux
+# implémentations Git ferait réapparaître les divergences de l'ancien audit.
 set -euo pipefail
 
-VPS="${NIE_VPS:-ovh-vps-direct}"
-RACINE_VPS="/home/ubuntu/niers"
+VPS="${NIE_VPS:-${REPO_SYNC_VPS:-}}"
+RACINE_VPS="${NIE_REMOTE_NIERS_ROOT:-/home/ubuntu/niers}"
 BUN_VPS="/home/ubuntu/.bun/bin/bun"
 PATH_VPS="/home/ubuntu/.bun/bin:/usr/local/bin:/usr/bin:/bin"
 GIT_VPS="git -c safe.directory=${RACINE_VPS}"
+
+if [ -z "$VPS" ]; then
+    echo "NIE_VPS/REPO_SYNC_VPS est absent : configurez l'alias SSH du poste avant la synchronisation." >&2
+    exit 2
+fi
 
 MOISSON=1
 RAPATRIER=1

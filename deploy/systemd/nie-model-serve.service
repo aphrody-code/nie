@@ -32,7 +32,7 @@ ExecStart=/home/ubuntu/niers/target/release/nie-model-serve \
     --asset-cross-ref /home/ubuntu/niers/data/asset-cross-reference.json \
     --menu-cfg-dir /home/ubuntu/niers/data/common/gamedata/menu/cfg \
     --db /home/ubuntu/niers/var/mirror.sqlite \
-    --port 8790 --preload --http-threads 8 --http-queue 256
+    --port 8790 --threads 2 --http-threads 4 --http-queue 128 --memory-cache-mib 128
 Environment=RUST_LOG=info
 Environment=NIE_CPK_CACHE_BUDGET_GIB=8
 Restart=always
@@ -53,12 +53,13 @@ LimitNOFILE=65536
 
 # TasksMax n'était PAS la limite atteinte : sans déclaration, l'unité héritait de
 # DefaultTasksMax=51593, vingt-cinq fois au-dessus des 2048 threads observés. La borne
-# est maintenant dans le code (pool HTTP de 8 workers, file de 256) ; celle-ci n'est
+# est maintenant dans le code (pool HTTP de 4 workers, file de 128) ; celle-ci n'est
 # qu'un filet : 1024 threads laissent cent fois la marge du fonctionnement normal
 # (≈ 15 threads) et rendent impossible un retour à l'emballement d'alors.
 TasksMax=1024
 
-# Plafonds mémoire — fusionnés depuis le drop-in memory.conf, qui échappait au dépôt.
+# Plafonds mémoire — bornes conservatrices pour que le cache modèle ne puisse
+# plus prendre la RAM de l'hôte au détriment des surfaces publiques.
 #
 # Ce service a été tué le 14/8/2026 à 02h16 par l'OOM killer GLOBAL
 # (`constraint=CONSTRAINT_NONE`, 10,7 Gio résidents), alors que sa propre limite était
@@ -66,12 +67,14 @@ TasksMax=1024
 # haut que la RAM disponible ne protège rien — il désigne seulement la victime au
 # hasard, et la prochaine aurait pu être le wiki public.
 #
-# 10 Gio, c'est le budget applicatif du cache CPK (NIE_CPK_CACHE_BUDGET_GIB=8) plus la
-# marge de décodage. Si ce plafond est atteint, le service redémarre seul en cinq
-# secondes ; c'est très préférable à un hôte qui manque de mémoire pour tout le monde.
-MemoryHigh=8G
-MemoryMax=10G
-MemorySwapMax=2G
+# Le preload global de 6 387 modèles créait un cache disque de 14 Gio et une
+# pointe de plusieurs Gio au démarrage. Les modèles sont désormais chargés à la
+# demande ; le cache disque reste borné séparément par scripts/ops/prune-runtime.ts.
+MemoryHigh=5G
+MemoryMax=7G
+MemorySwapMax=1G
+CPUWeight=80
+IOWeight=100
 # Si l'hôte manque quand même de mémoire, que le noyau choisisse CELUI-CI plutôt qu'une
 # surface publique : azalee-web et website-web sont à -200, les bots à -300. Un rendu de
 # modèle 3D interrompu se relance ; un wiki tué se voit.

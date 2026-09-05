@@ -234,3 +234,20 @@ bun --bun packages/nie-catalog/src/cli.ts personnage mark-evans-0x06E25622
 
 Les tests qui exigent un gisement peuplé **s'annoncent quand ils se sautent** : un test muet qui
 ne s'exécute pas est un faux vert.
+
+## Synchronisation et ressources
+
+La synchronisation inter-dépôts est centralisée dans
+`/home/ubuntu/rg/scripts/ops/repo-sync.ts` et son registre
+`rg/docs/REPO-SYNC.md`. Niers ne maintient pas une seconde implémentation : le
+script traite ce dépôt comme source des formats, manifests et outils, refuse
+les données/artefacts avant `git add`, et ne lance aucun déploiement. Le chemin
+`apps/azalee/data` reste une compatibilité consommée par les services tant que
+la migration de ces références n'est pas prouvée.
+
+Le cache GLB (`var/model-cache`) et `target/debug` sont régénérables mais ne
+sont pas supprimés par Git. Leur purge bornée passe par
+`rg/scripts/ops/prune-runtime.ts`, après arrêt contrôlé de
+`nie-model-serve.service`. Les unités systemd de Niers restent la source de
+vérité installable ; toute modification doit être copiée dans `/etc/systemd`
+et suivie de `daemon-reload` et d'une sonde `/health`.

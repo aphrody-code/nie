@@ -1,7 +1,8 @@
 [Unit]
 Description=cdn-variants — variantes resize+webp (cache disque) pour cdn.rosegriffon.fr
-After=network.target iecode-cdn.service
-Wants=iecode-cdn.service
+# Le CDN origin (`rg-cdn.service`) est un service partagé mais indépendant.
+# `iecode-cdn.service` a été retiré : aucune dépendance fantôme ne doit rester.
+After=network.target
 
 [Service]
 Type=simple
