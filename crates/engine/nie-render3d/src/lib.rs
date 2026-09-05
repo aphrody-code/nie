@@ -34,6 +34,7 @@
 #![forbid(unsafe_code)]
 
 pub mod glb;
+pub mod document;
 #[cfg(feature = "gpu")]
 pub mod gpu;
 pub mod render;

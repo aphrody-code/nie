@@ -8,6 +8,7 @@ use anyhow::{Context, Result, bail};
 use serde_json::Value;
 
 /// Une texture décodée en RGBA8 (atlas du modèle : corps, visage, uniforme…).
+#[derive(Clone)]
 pub struct Texture {
     pub width: u32,
     pub height: u32,
@@ -16,6 +17,7 @@ pub struct Texture {
 
 /// Une primitive de mesh : triangles indexés, positions + normales + UV (espace monde),
 /// et l'indice de sa texture dans [`Model::textures`] (s'il y en a une).
+#[derive(Clone)]
 pub struct Primitive {
     pub positions: Vec<[f32; 3]>,
     pub normals: Vec<[f32; 3]>,
@@ -25,6 +27,7 @@ pub struct Primitive {
 }
 
 /// Modèle GLB chargé : toutes les primitives + les atlas de textures décodés.
+#[derive(Clone)]
 pub struct Model {
     pub primitives: Vec<Primitive>,
     pub textures: Vec<Texture>,

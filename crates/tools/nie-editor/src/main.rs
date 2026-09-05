@@ -1,303 +1,381 @@
-//! **nie-editor** — l'éditeur de scène 3D de niers.
-//!
-//! Plutôt que de réécrire un éditeur, celui-ci **embarque l'éditeur Fyrox**
-//! (`fyroxed_base::Editor`, publié en bibliothèque) et lui apporte ce que Fyrox ne peut pas
-//! savoir : comment lire les assets d'*Inazuma Eleven: Victory Road*. On récupère ainsi d'un coup
-//! le graphe de scène, l'inspecteur réflexif, les gizmos de déplacement/rotation/échelle,
-//! l'undo/redo, le world viewer et le navigateur d'assets — l'essentiel d'un éditeur type Unreal,
-//! déjà éprouvé sur de vrais projets.
-//!
-//! **Rendu GPU natif.** Fyrox rend en OpenGL 3.3 via `fyrox-graphics-gl` : c'est une fenêtre
-//! native, pas un canevas de navigateur. Aucun WebGL n'intervient.
-//!
-//! ## Le pont assets
-//!
-//! Fyrox n'importe que FBX et son format natif RGS — pas de glTF. Les modèles du jeu, eux,
-//! sortent de `nie_formats::assemble` sous forme de GLB. Le pont est donc fait **par code** :
-//! `Model` (géométrie + atlas décodés) → `Mesh` Fyrox (surfaces + textures) → scène `.rgs` que
-//! l'éditeur ouvre au démarrage. Aucun format intermédiaire sur disque, aucune conversion
-//! manuelle demandée à l'utilisatrice.
-
-use std::path::{Path, PathBuf};
-
+//! Éditeur NIE natif : document partagé, inspection et viewport sur le même device GPU que l'UI.
 use anyhow::{Context, Result};
 use clap::Parser;
-
-use fyrox::asset::untyped::ResourceKind;
-use fyrox::core::algebra::Vector3;
-use fyrox::core::log::Log;
-
-use fyrox::event_loop::EventLoop;
-use fyrox::material::{Material, MaterialResource};
-use fyrox::resource::texture::{TextureResource, TextureResourceExtension};
-use fyrox::scene::base::BaseBuilder;
-use fyrox::core::math::TriangleDefinition;
-use fyrox::scene::mesh::buffer::{TriangleBuffer, VertexBuffer};
-use fyrox::scene::mesh::surface::{Surface, SurfaceData, SurfaceResource};
-use fyrox::scene::mesh::vertex::StaticVertex;
-use fyrox::scene::mesh::MeshBuilder;
-
-use fyrox::scene::transform::TransformBuilder;
-use fyrox::scene::Scene;
-use fyroxed_base::{Editor, StartupData};
-
-use nie_formats::vfs::Vfs;
-use nie_render3d::glb::Model;
+use eframe::{egui, egui_wgpu, wgpu};
+use nie_render3d::{
+    document::{SceneDocument, SceneObject},
+    glb,
+    gpu::{Backend, Camera, GpuModel, GpuRenderer},
+};
+use std::{collections::HashMap, path::PathBuf};
 
 #[derive(Parser)]
-#[command(
-    name = "nie-editor",
-    about = "Éditeur de scène 3D niers — éditeur Fyrox alimenté par les vrais assets IEVR"
-)]
+#[command(about = "Éditeur 3D NIE natif — DirectX 12 / Vulkan / OpenGL")]
 struct Cli {
-    /// Racine du jeu (contient `data/cpk_list.cfg.bin`).
+    /// Modèle GLB à importer au démarrage.
     #[arg(long)]
-    game_dir: PathBuf,
-    /// Chemin VFS du modèle à ouvrir (ex. `data/common/chr/.../c01000010.g4md`).
-    /// Absent = éditeur ouvert sur une scène vide.
+    glb: Option<PathBuf>,
+    /// Projet JSON à ouvrir ou à créer.
     #[arg(long)]
-    asset: Option<String>,
-    /// Répertoire de travail de l'éditeur (où la scène convertie est écrite).
-    /// Défaut : un sous-dossier `nie-editor` du répertoire temporaire.
+    project: Option<PathBuf>,
+    /// Backend strict : dx12 sur Windows, vulkan sur Linux par défaut ; gl disponible.
     #[arg(long)]
-    workspace: Option<PathBuf>,
+    backend: Option<Backend>,
 }
 
 fn main() -> Result<()> {
-    Log::set_file_name("nie-editor.log");
     let cli = Cli::parse();
-
-    let workspace = cli
-        .workspace
-        .unwrap_or_else(|| std::env::temp_dir().join("nie-editor"));
-    std::fs::create_dir_all(&workspace)
-        .with_context(|| format!("création de l'espace de travail {}", workspace.display()))?;
-
-    // La scène n'est construite que si un asset est demandé : l'éditeur reste utilisable seul,
-    // pour ouvrir une scène déjà enregistrée.
-    let startup_data = match cli.asset.as_deref() {
-        Some(asset) => {
-            let scene_path = build_scene_file(&cli.game_dir, asset, &workspace)?;
-            Some(StartupData {
-                working_directory: workspace.clone(),
-                scenes: vec![scene_path],
-                named_objects: false,
-            })
-        }
-        None => Some(StartupData {
-            working_directory: workspace.clone(),
-            scenes: vec![],
-            named_objects: false,
-        }),
-    };
-
-    Editor::new(startup_data).run(EventLoop::new().context("création de la boucle d'événements")?);
-    Ok(())
-}
-
-/// Assemble le modèle du jeu, le convertit en scène Fyrox et l'écrit en `.rgs`.
-/// Renvoie le chemin de la scène produite.
-fn build_scene_file(game_dir: &Path, asset: &str, workspace: &Path) -> Result<PathBuf> {
-    let model = load_game_model(game_dir, asset)?;
-    let mut scene = scene_from_model(&model, asset);
-
-    let stem = asset.rsplit('/').next().unwrap_or(asset).replace('.', "_");
-    let scene_path = workspace.join(format!("{stem}.rgs"));
-
-    let mut visitor = fyrox::core::visitor::Visitor::new();
-    scene
-        .save("Scene", &mut visitor)
-        .map_err(|e| anyhow::anyhow!("sérialisation de la scène : {e}"))?;
-    visitor
-        .save_binary_to_file(&scene_path)
-        .map_err(|e| anyhow::anyhow!("écriture de {} : {e}", scene_path.display()))?;
-
-    Ok(scene_path)
-}
-
-/// Monte le VFS du jeu et assemble le modèle (G4MD + son G4MG frère + son atlas G4TX).
-///
-/// Même résolution de frères que l'aperçu de `nie-explorer` : un `.g4md` seul ne porte pas la
-/// géométrie, elle vit dans le `.g4mg` de même nom dans le même dossier.
-fn load_game_model(game_dir: &Path, asset: &str) -> Result<Model> {
-    use nie_formats::assemble::{
-        EmbeddedTexture, GenericModelInput, MeshComponent, assemble_generic_model,
-    };
-
-    let mut vfs = Vfs::new();
-    vfs.init(game_dir).map_err(|e| anyhow::anyhow!("montage du VFS {} : {e}", game_dir.display()))?;
-
-    let data = vfs
-        .read(asset)
-        .map_err(|e| anyhow::anyhow!("lecture de {asset} : {e}"))?;
-
-    let base = asset.rsplit('/').next().unwrap_or(asset);
-    let stem = base.rsplit_once('.').map(|(s, _)| s).unwrap_or(base);
-    let dir_prefix = asset.strip_suffix(base).unwrap_or("");
-    let sibling = |ext: &str| -> Option<Vec<u8>> {
-        let candidate = format!("{dir_prefix}{stem}.{ext}");
-        if candidate == asset { Some(data.clone()) } else { vfs.read(&candidate).ok() }
-    };
-
-    let g4md = sibling("g4md").context("G4MD introuvable (fichier ou frère de même nom)")?;
-    let g4mg = sibling("g4mg").context("G4MG introuvable (frère requis pour la géométrie)")?;
-
-    let mut assembled = assemble_generic_model(GenericModelInput {
-        code: stem.to_string(),
-        g4md,
-        g4mg,
-        component: MeshComponent::Generic,
-    })
-    .map_err(|e| anyhow::anyhow!("assemblage du modèle : {e}"))?;
-
-    if let Some(png) = sibling("g4tx").and_then(|g4tx| nie_formats::g4tx_decode::decode_best_to_png(&g4tx, stem)) {
-        assembled.embedded_textures.push(EmbeddedTexture {
-            component: MeshComponent::Generic,
-            name: format!("{stem}_tex"),
-            png_bytes: png,
-        });
-    }
-
-    let glb = assembled.to_glb_embedded();
-    nie_render3d::glb::parse(&glb).map_err(|e| anyhow::anyhow!("relecture du GLB assemblé : {e}"))
-}
-
-/// Convertit un [`Model`] (géométrie + atlas déjà décodés en RGBA8) en scène Fyrox.
-///
-/// Une primitive du modèle = une surface Fyrox, avec son propre matériau : les atlas diffèrent
-/// d'une primitive à l'autre (corps, yeux, bouche sont des textures distinctes), les fusionner
-/// donnerait un personnage au visage plaqué sur le torse.
-fn scene_from_model(model: &Model, label: &str) -> Scene {
-    let mut scene = Scene::new();
-
-    for (i, prim) in model.primitives.iter().enumerate() {
-        if prim.indices.len() < 3 || prim.positions.is_empty() {
-            continue;
-        }
-
-        let vertices: Vec<StaticVertex> = (0..prim.positions.len())
-            .map(|v| {
-                let p = prim.positions[v];
-                let uv = prim.uv.get(v).copied().unwrap_or([0.0, 0.0]);
-                // Normale absente → vers le haut : une normale nulle rendrait l'éclairage
-                // indéfini et la surface uniformément noire.
-                let n = prim.normals.get(v).copied().unwrap_or([0.0, 1.0, 0.0]);
-                StaticVertex::from_pos_uv_normal(
-                    Vector3::new(p[0], p[1], p[2]),
-                    fyrox::core::algebra::Vector2::new(uv[0], uv[1]),
-                    Vector3::new(n[0], n[1], n[2]),
-                )
-            })
-            .collect();
-
-        let triangles: Vec<TriangleDefinition> = prim
-            .indices
-            .chunks_exact(3)
-            .map(|t| TriangleDefinition([t[0], t[1], t[2]]))
-            .collect();
-
-        let Ok(vertex_buffer) = VertexBuffer::new(vertices.len(), vertices) else {
-            continue;
-        };
-        let data = SurfaceData::new(vertex_buffer, TriangleBuffer::new(triangles));
-
-        let mut material = Material::standard();
-        if let Some(texture) = prim.texture.and_then(|t| model.textures.get(t))
-            && let Some(res) = texture_resource(texture)
-        {
-            material.bind("diffuseTexture", res);
-        }
-
-        let mut surface =
-            Surface::new(SurfaceResource::new_ok(Default::default(), ResourceKind::Embedded, data));
-        surface.set_material(MaterialResource::new_ok(
-            Default::default(),
-            ResourceKind::Embedded,
-            material,
-        ));
-
-        MeshBuilder::new(
-            BaseBuilder::new()
-                .with_name(format!("{label}#{i}"))
-                .with_local_transform(TransformBuilder::new().build()),
-        )
-        .with_surfaces(vec![surface])
-        .build(&mut scene.graph);
-    }
-
-    add_default_lighting(&mut scene);
-    scene
-}
-
-/// Crée une texture Fyrox depuis les octets RGBA8 déjà décodés par `g4tx_decode`.
-fn texture_resource(texture: &nie_render3d::glb::Texture) -> Option<TextureResource> {
-    TextureResource::from_bytes(
-        // Identifiant de ressource neuf : ces atlas sont reconstruits à la volée depuis les CPK,
-        // ils n'ont pas d'UUID stable dans un projet Fyrox.
-        fyrox::core::Uuid::new_v4(),
-        fyrox::resource::texture::TextureKind::Rectangle {
-            width: texture.width,
-            height: texture.height,
+    let backend = cli.backend.unwrap_or_default();
+    let mut setup = egui_wgpu::WgpuSetupCreateNew::without_display_handle();
+    setup.instance_descriptor.backends = backend.backends();
+    let options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default().with_inner_size([1280., 800.]),
+        renderer: eframe::Renderer::Wgpu,
+        wgpu_options: egui_wgpu::WgpuConfiguration {
+            wgpu_setup: setup.into(),
+            ..Default::default()
         },
-        fyrox::resource::texture::TexturePixelKind::RGBA8,
-        texture.rgba.clone(),
-        ResourceKind::Embedded,
+        ..Default::default()
+    };
+    eframe::run_native(
+        "NIE Studio",
+        options,
+        Box::new(move |cc| Ok(Box::new(Studio::new(cc, cli)?))),
     )
+    .map_err(|e| anyhow::anyhow!("éditeur natif : {e}"))
 }
 
-/// Lumière directionnelle + caméra cadrées sur l'origine.
-///
-/// Sans ça, la scène s'ouvre noire : les modèles du jeu n'embarquent aucune lumière, et une scène
-/// Fyrox neuve n'en a pas non plus.
-fn add_default_lighting(scene: &mut Scene) {
-    use fyrox::core::algebra::UnitQuaternion;
-    use fyrox::scene::light::{BaseLightBuilder, directional::DirectionalLightBuilder};
-
-    // Orientation par angles d'Euler plutôt que `look_at` : une matrice de vue est l'INVERSE de la
-    // transformation d'un noeud, la passer telle quelle éclairerait à l'opposé.
-    let rotation = UnitQuaternion::from_euler_angles(-0.9, 0.7, 0.0);
-
-    DirectionalLightBuilder::new(BaseLightBuilder::new(
-        BaseBuilder::new().with_name("Soleil").with_local_transform(
-            TransformBuilder::new()
-                .with_local_position(Vector3::new(0.0, 5.0, 0.0))
-                .with_local_rotation(rotation)
-                .build(),
-        ),
-    ))
-    .build(&mut scene.graph);
+struct Studio {
+    renderer: GpuRenderer,
+    render_state: egui_wgpu::RenderState,
+    gpu_model: Option<GpuModel>,
+    texture: Option<egui::TextureId>,
+    document: SceneDocument,
+    undo: Vec<SceneDocument>,
+    redo: Vec<SceneDocument>,
+    pending_edit: Option<SceneDocument>,
+    assets: HashMap<String, glb::Model>,
+    selected: Option<usize>,
+    camera: Camera,
+    framing: Option<([f32; 3], f32)>,
+    asset_path: String,
+    project_path: String,
+    status: String,
+    dirty: bool,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// Vérifie la conversion `Model` → scène Fyrox sur un modèle synthétique : une primitive
-    /// texturée doit produire un noeud de maillage, plus la lumière par défaut.
-    #[test]
-    fn convertit_un_modele_en_scene() {
-        let model = Model {
-            primitives: vec![nie_render3d::glb::Primitive {
-                positions: vec![[-1.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
-                normals: vec![[0.0, 0.0, 1.0]; 3],
-                uv: vec![[0.0, 0.0], [1.0, 0.0], [0.5, 1.0]],
-                indices: vec![0, 1, 2],
-                texture: Some(0),
-            }],
-            textures: vec![nie_render3d::glb::Texture {
-                width: 1,
-                height: 1,
-                rgba: vec![255, 0, 0, 255],
-            }],
+impl Studio {
+    fn new(cc: &eframe::CreationContext<'_>, cli: Cli) -> Result<Self> {
+        cc.egui_ctx.set_visuals(egui::Visuals::dark());
+        let state = cc.wgpu_render_state.clone().context("device GPU absent")?;
+        let info = state.adapter.get_info();
+        println!(
+            "NIE Studio backend={:?} adapter={:?} type={:?}",
+            info.backend, info.name, info.device_type
+        );
+        let mut studio = Self {
+            renderer: GpuRenderer::from_device(info, state.device.clone(), state.queue.clone()),
+            render_state: state,
+            gpu_model: None,
+            texture: None,
+            document: SceneDocument::default(),
+            undo: vec![],
+            redo: vec![],
+            pending_edit: None,
+            assets: HashMap::new(),
+            selected: None,
+            camera: Camera::default(),
+            framing: None,
+            asset_path: String::new(),
+            project_path: cli
+                .project
+                .as_ref()
+                .map(|p| p.to_string_lossy().into_owned())
+                .unwrap_or_default(),
+            status: "Importez un GLB ou ouvrez un projet NIE.".into(),
+            dirty: true,
         };
+        if let Some(path) = cli.project.filter(|p| p.exists()) {
+            studio.open_project(&path)?;
+        }
+        if let Some(path) = cli.glb {
+            studio.import(&path)?;
+        }
+        Ok(studio)
+    }
 
-        use fyrox::graph::SceneGraph;
-        let scene = scene_from_model(&model, "test");
-        let meshes = scene
-            .graph
-            .pair_iter()
-            .filter(|(_, n)| n.is_mesh())
-            .count();
-        assert_eq!(meshes, 1, "une primitive doit donner exactement un maillage");
+    fn checkpoint(&mut self, before: SceneDocument) {
+        if before == self.document {
+            return;
+        }
+        self.undo.push(before);
+        if self.undo.len() > 100 {
+            self.undo.remove(0);
+        }
+        self.redo.clear();
+        self.dirty = true;
+    }
+
+    fn import(&mut self, path: &std::path::Path) -> Result<()> {
+        let path = path
+            .canonicalize()
+            .with_context(|| format!("asset {}", path.display()))?;
+        let key = path.to_string_lossy().into_owned();
+        let model = glb::parse(&std::fs::read(&path)?)?;
+        anyhow::ensure!(self.document.objects.len() < 128, "maximum 128 objets");
+        let before = self.document.clone();
+        self.assets.insert(key.clone(), model);
+        self.document.objects.push(SceneObject {
+            name: path
+                .file_stem()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .into_owned(),
+            asset: key,
+            position: [0.; 3],
+            yaw: 0.,
+            scale: [1.; 3],
+            visible: true,
+        });
+        self.selected = Some(self.document.objects.len() - 1);
+        self.framing = None;
+        self.checkpoint(before);
+        self.status = "Modèle importé dans la scène.".into();
+        Ok(())
+    }
+
+    fn open_project(&mut self, path: &std::path::Path) -> Result<()> {
+        let bytes = std::fs::read(path)?;
+        anyhow::ensure!(bytes.len() < 1_000_000, "projet trop volumineux");
+        let document: SceneDocument = serde_json::from_slice(&bytes)?;
+        document.validate()?;
+        let mut assets = HashMap::new();
+        for object in &document.objects {
+            let asset = path
+                .parent()
+                .unwrap_or(std::path::Path::new("."))
+                .join(&object.asset);
+            assets.insert(object.asset.clone(), glb::parse(&std::fs::read(asset)?)?);
+        }
+        self.document = document;
+        self.assets = assets;
+        self.undo.clear();
+        self.redo.clear();
+        self.pending_edit = None;
+        self.selected = None;
+        self.framing = None;
+        self.dirty = true;
+        self.status = "Projet ouvert.".into();
+        Ok(())
+    }
+
+    fn rebuild(&mut self) -> Result<()> {
+        let model = self.document.compose(|path| {
+            self.assets
+                .get(path)
+                .cloned()
+                .with_context(|| format!("asset manquant : {path}"))
+        })?;
+        let mut gpu_model = self.renderer.upload(&model);
+        let (center, radius) = *self
+            .framing
+            .get_or_insert_with(|| nie_render3d::render::bounds(&model));
+        gpu_model.set_framing(center, radius.max(0.001))?;
+        self.gpu_model = Some(gpu_model);
+        self.dirty = false;
+        Ok(())
+    }
+}
+
+impl Studio {
+    fn studio_ui(&mut self, ui: &mut egui::Ui) {
+        let mut result: Result<()> = Ok(());
+        ui.horizontal(|ui| {
+            ui.heading("NIE Studio");
+            ui.label(format!(
+                "{:?} · {}",
+                self.renderer.adapter_info().backend,
+                self.renderer.adapter_info().name
+            ));
+        });
+        ui.horizontal(|ui| {
+            ui.label("GLB");
+            ui.text_edit_singleline(&mut self.asset_path);
+            if ui.button("Importer").clicked() {
+                result = self.import(&PathBuf::from(&self.asset_path));
+            }
+            if ui
+                .add_enabled(!self.undo.is_empty(), egui::Button::new("Annuler"))
+                .clicked()
+                && let Some(previous) = self.undo.pop()
+            {
+                self.redo
+                    .push(std::mem::replace(&mut self.document, previous));
+                self.dirty = true;
+            }
+            if ui
+                .add_enabled(!self.redo.is_empty(), egui::Button::new("Rétablir"))
+                .clicked()
+                && let Some(next) = self.redo.pop()
+            {
+                self.undo.push(std::mem::replace(&mut self.document, next));
+                self.dirty = true;
+            }
+        });
+        ui.horizontal(|ui| {
+            ui.label("Projet");
+            ui.text_edit_singleline(&mut self.project_path);
+            if ui.button("Ouvrir").clicked() {
+                result = self.open_project(&PathBuf::from(&self.project_path));
+            }
+            if ui.button("Enregistrer").clicked() {
+                result = (|| {
+                    self.document.validate()?;
+                    std::fs::write(
+                        &self.project_path,
+                        serde_json::to_vec_pretty(&self.document)?,
+                    )?;
+                    self.status = "Projet enregistré.".into();
+                    Ok(())
+                })();
+            }
+            if ui.button("Recadrer").clicked() {
+                self.camera = Camera::default();
+                self.framing = None;
+                self.dirty = true;
+            }
+        });
+        ui.separator();
+        let before = self.document.clone();
+        egui::Panel::left("hierarchie")
+            .default_size(280.)
+            .show_inside(ui, |pane| {
+                pane.heading("Scène");
+                for (index, object) in self.document.objects.iter().enumerate() {
+                    if pane
+                        .selectable_label(self.selected == Some(index), &object.name)
+                        .clicked()
+                    {
+                        self.selected = Some(index);
+                    }
+                }
+                if let Some(index) = self.selected.filter(|i| *i < self.document.objects.len()) {
+                    let object = &mut self.document.objects[index];
+                    pane.separator();
+                    pane.heading("Inspecteur");
+                    pane.text_edit_singleline(&mut object.name);
+                    pane.checkbox(&mut object.visible, "Visible");
+                    for axis in 0..3 {
+                        pane.horizontal(|ui| {
+                            ui.label(["X", "Y", "Z"][axis]);
+                            ui.add(
+                                egui::DragValue::new(&mut object.position[axis])
+                                    .speed(0.01)
+                                    .range(-1e6..=1e6),
+                            );
+                        });
+                    }
+                    pane.add(egui::Slider::new(&mut object.yaw, -180.0..=180.0).text("Rotation Y"));
+                    for axis in 0..3 {
+                        pane.add(
+                            egui::Slider::new(&mut object.scale[axis], 0.01..=10.)
+                                .text(format!("Échelle {}", ["X", "Y", "Z"][axis])),
+                        );
+                    }
+                    if pane.button("Dupliquer").clicked() && self.document.objects.len() < 128 {
+                        let mut copy = self.document.objects[index].clone();
+                        copy.position[0] += 1.;
+                        self.document.objects.push(copy);
+                    }
+                    if pane.button("Supprimer").clicked() {
+                        self.document.objects.remove(index);
+                        self.selected = None;
+                    }
+                }
+            });
+        if before != self.document && ui.input(|input| input.pointer.primary_down()) {
+            self.pending_edit.get_or_insert(before);
+            self.dirty = true;
+        } else if !ui.input(|input| input.pointer.primary_down()) {
+            if let Some(start) = self.pending_edit.take() {
+                self.checkpoint(start);
+            } else {
+                self.checkpoint(before);
+            }
+        }
+        if self.dirty
+            && let Err(error) = self.rebuild()
+        {
+            self.status = error.to_string();
+        }
+        egui::CentralPanel::default().show_inside(ui, |pane| {
+            let size = pane.available_size().max(egui::vec2(1., 1.));
+            if let Some(model) = &self.gpu_model {
+                let pixels = pane.ctx().pixels_per_point();
+                match self.renderer.render_to_texture(
+                    model,
+                    self.camera,
+                    (size.x * pixels) as u32,
+                    (size.y * pixels) as u32,
+                ) {
+                    Ok(view) => {
+                        let mut painter = self.render_state.renderer.write();
+                        let id = if let Some(id) = self.texture {
+                            painter.update_egui_texture_from_wgpu_texture(
+                                &self.render_state.device,
+                                &view,
+                                wgpu::FilterMode::Linear,
+                                id,
+                            );
+                            id
+                        } else {
+                            let id = painter.register_native_texture(
+                                &self.render_state.device,
+                                &view,
+                                wgpu::FilterMode::Linear,
+                            );
+                            self.texture = Some(id);
+                            id
+                        };
+                        drop(painter);
+                        let response =
+                            pane.add(egui::Image::new((id, size)).sense(egui::Sense::drag()));
+                        if response.dragged() {
+                            let delta = pane.input(|i| i.pointer.delta());
+                            self.camera.yaw -= delta.x * 0.008;
+                            self.camera.pitch += delta.y * 0.008;
+                            self.camera = self.camera.clamped();
+                            pane.ctx().request_repaint();
+                        }
+                        if response.hovered() {
+                            let scroll = pane.input(|i| i.smooth_scroll_delta.y);
+                            if scroll != 0. {
+                                self.camera.distance *= (-scroll * 0.002).exp();
+                                self.camera = self.camera.clamped();
+                                pane.ctx().request_repaint();
+                            }
+                        }
+                    }
+                    Err(error) => self.status = error.to_string(),
+                }
+            }
+        });
+        if let Err(error) = result {
+            self.status = error.to_string();
+        }
+        ui.label(&self.status);
+        for dropped in ui.ctx().input(|i| i.raw.dropped_files.clone()) {
+            if let Some(path) = dropped.path
+                && let Err(error) = self.import(&path)
+            {
+                self.status = error.to_string();
+            }
+        }
+    }
+}
+
+impl eframe::App for Studio {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show_inside(ui, |ui| self.studio_ui(ui));
     }
 }

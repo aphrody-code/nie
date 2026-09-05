@@ -71,7 +71,9 @@ impl std::str::FromStr for Backend {
 }
 
 impl Backend {
-    fn backends(self) -> wgpu::Backends {
+    /// Masque strict pour créer l'instance de l'hôte natif ou web.
+    #[must_use]
+    pub fn backends(self) -> wgpu::Backends {
         match self {
             Self::Auto => wgpu::Backends::all(),
             Self::Dx12 => wgpu::Backends::DX12,
@@ -190,6 +192,15 @@ pub struct GpuModel {
 }
 
 impl GpuModel {
+    /// Fixe un cadre de caméra indépendant des transformations éditées.
+    /// Sans cela, déplacer ou agrandir un objet seul serait annulé visuellement par l'auto-cadrage.
+    pub fn set_framing(&mut self, center: [f32; 3], radius: f32) -> Result<()> {
+        anyhow::ensure!(center.iter().all(|v| v.is_finite()) && radius.is_finite() && radius > 0., "cadre de caméra invalide");
+        self.center = center;
+        self.radius = radius;
+        Ok(())
+    }
+
     /// Rayon de la sphère englobante (unités du modèle).
     #[must_use]
     pub fn radius(&self) -> f32 {
@@ -294,6 +305,13 @@ impl GpuRenderer {
             experimental_features: wgpu::ExperimentalFeatures::disabled(),
         }).await
         .context("création du device wgpu")?;
+
+        Ok(Self::from_device(adapter_info, device, queue))
+    }
+
+    /// Partage le device de l'hôte : UI et scène échangent des textures, pas des captures CPU.
+    #[must_use]
+    pub fn from_device(adapter_info: wgpu::AdapterInfo, device: wgpu::Device, queue: wgpu::Queue) -> Self {
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("nie viewport"),
@@ -409,7 +427,7 @@ impl GpuRenderer {
             ..Default::default()
         });
 
-        Ok(Self { adapter_info, device, queue, pipeline, camera_layout, texture_layout, sampler, targets: None })
+        Self { adapter_info, device, queue, pipeline, camera_layout, texture_layout, sampler, targets: None }
     }
 
     /// Identité mesurée du GPU et de l'API employés par ce renderer.
