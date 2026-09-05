@@ -73,16 +73,26 @@ logs/
 !.vscode/settings.json
 !.vscode/extensions.json
 
-# AI instructions files — gardés en local seulement, jamais commit/push
-
-**/CLAUDE.md
-GEMINI.md
-**/GEMINI.md
-AGENTS.md
+# Fichiers d'instructions d'agent — VERSIONNES.
+#
+# Ce bloc les gardait "en local seulement" (`**/CLAUDE.md`, `GEMINI.md`, `AGENTS.md`,
+# `.agents/` sauf UN skill). C'etait un piege a retardement : `CLAUDE.md` et `AGENTS.md`
+# ne survivaient que parce qu'ils avaient ete traques AVANT la regle — un `.gitignore` ne
+# s'applique plus a un fichier deja suivi. Tout fichier d'instructions cree APRES sortait
+# du depot sans un mot, et l'agent suivant demarrait sans consigne.
+#
+# Ces fichiers SONT le contrat de travail du depot : ils se versionnent, se relisent en
+# diff et se corrigent. Les secrets, eux, n'ont jamais eu leur place dedans — ils sont
+# exclus par le bloc « Secrets » juste en dessous.
 skills-lock.json
 .claude/
-.agents/
-!.agents/skills/bun/SKILL.md
+# `.agents/` porte des skills, c'est-a-dire du travail du depot : seul son markdown rentre,
+# pas ses caches ni ses etats locaux. Ecrit `.agents/**` et non `.agents/` : git ne descend
+# JAMAIS dans un repertoire exclu, donc `!.agents/**/*.md` seul ne ramenerait rien. Il faut
+# exclure le CONTENU, re-inclure les repertoires, puis re-inclure le markdown.
+.agents/**
+!.agents/**/
+!.agents/**/*.md
 
 # Secrets (jamais commités) — ex. token registry privé @rose-griffon (npm.pkg.github.com)
 .env
@@ -162,37 +172,34 @@ crates/**/pkg/
 __pycache__/
 *.pyc
 
-# Markdown — only allow root README/CHANGELOG/SECURITY/LICENSE + docs/**
-*.md
+# Markdown — TOUT le markdown du depot est versionne, sans liste d'exceptions.
+#
+# La regle inverse (`*.md` + une dizaine de `!` a tenir a jour) a fait disparaitre du depot,
+# en silence et une fois chacun : `AGENTS.md` (le SEUL fichier d'instructions de Codex — sur
+# un clone frais il demarrait sans consigne), les 5 sous-agents et les 5 skills du plugin
+# `niers` (un LIVRABLE), et les README des personnages originaux. Aucun de ces trous ne
+# s'est signale : un `.md` ignore ne produit ni erreur ni avertissement, il n'existe juste
+# pas chez le suivant. Le cout d'une liste d'exceptions qu'on oublie d'etendre est plus eleve
+# que celui de versionner un markdown de trop.
+#
+# Restent dehors, et uniquement eux, exclus par LEUR PROPRE regle ailleurs dans ce fichier :
+#   - les artefacts d'installation : `node_modules/`, `target/`, `.venv/`, `.next/`, `dist/`
+#   - le clone tiers `/refs/` — `refs/iecode-re` est un depot git complet (124 Mo, son propre
+#     historique) : l'absorber n'aurait rien a voir avec "versionner un markdown"
+#   - `data/` (111 Go de contenu de jeu (c) LEVEL-5), sauf `data/oc/` re-inclus plus haut.
+#     Git ne descend pas dans un repertoire exclu : faire rentrer les quelques .md d'analyse
+#     de `data/` imposerait de re-inclure ses repertoires, donc de faire parcourir 111 Go a
+#     chaque `git status`. Le cout ne vaut pas ces 6 fichiers.
 *.txt
 !README.md
 !CHANGELOG.md
 !SECURITY.md
 !LICENSE
-!CLAUDE.md
-# `AGENTS.md` est aux agents non-Claude (Codex) ce que `CLAUDE.md` est a Claude : leur SEUL
-# fichier d'instructions. `*.md` ci-dessus le gardait hors du depot — sur un clone frais,
-# Codex demarrait donc sans aucune consigne, sans que rien ne le signale.
-# Ancre volontairement a la racine : sans le `/`, la regle designore AUSSI les AGENTS.md
-# GENERES dans les sous-arbres (`apps/azalee/AGENTS.md`, pose par Next.js), qui n'ont rien
-# a faire dans le depot.
-!/AGENTS.md
 !PROVENANCE.md
 !APP_EXPORT_README.md
-!docs/**/*.md
 !docs/**/*.txt
 # Recettes de live modding (nie-mem) — de la doc exécutable, pas des données de travail.
 !crates/forge/nie-trace/recettes/*.txt
-!packages/*/README.md
-!apps/nie-explorer/ROADMAP.md
-!plugins/niers-blender/NIERS_VENDORING_NOTE.md
-# Le plugin Claude Code `niers` est un LIVRABLE du depot : ses agents et ses
-# skills SONT du markdown. Sans cette ligne, `*.md` n'en commitait que le README
-# (les 5 sous-agents et les 5 skills restaient hors du depot).
-!plugins/niers-plugin/**/*.md
-# `data/oc/**` est re-inclus plus haut, mais `*.md` ci-dessus est POSTERIEUR et l'emporte :
-# sans cette ligne, les README des personnages originaux sortent du depot en silence.
-!data/oc/**/*.md
 !data/oc/**/*.txt
 
 # ATTENTION : `*.txt` ci-dessus ignorait AUSSI tous les CMakeLists.txt — c'est-a-dire
