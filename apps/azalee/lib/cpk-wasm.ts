@@ -21,7 +21,7 @@ import init, {
 } from "./nie-wasm-web/nie_wasm.js";
 
 /** URL same-origin du binaire wasm. */
-const WASM_URL = "/wasm/nie_wasm_bg.wasm";
+const WASM_URL = "/wasm/nie_wasm_bg.wasm?v=atlas-20260905";
 
 let initPromise: Promise<void> | null = null;
 

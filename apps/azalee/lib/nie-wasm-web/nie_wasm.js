@@ -1123,7 +1123,7 @@ async function __wbg_init(module_or_path) {
     }
 
     if (module_or_path === undefined) {
-        module_or_path = new URL('nie_wasm_bg.wasm', import.meta.url);
+        throw new Error("nie-wasm: module_or_path requis");
     }
     const imports = __wbg_get_imports();
 
