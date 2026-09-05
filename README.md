@@ -1,24 +1,45 @@
-# nie
+<h1 align="center">nie</h1>
 
-**A byte-exact reimplementation of _Inazuma Eleven: Victory Road_ in pure Rust — and a forge that
-rebuilds the original `nie.exe`, byte for byte, to prove it.**
+<p align="center">
+  <strong>A byte-exact reimplementation of <em>Inazuma Eleven: Victory Road</em> in pure Rust —<br>
+  and a forge that rebuilds the original <code>nie.exe</code>, byte for byte, to prove it.</strong>
+</p>
 
-![version](https://img.shields.io/badge/version-0.5.2-blue)
-![rust](https://img.shields.io/badge/rust-nightly--2026--05--17-orange)
-![tests](https://img.shields.io/badge/tests-2%2C448%20passing-brightgreen)
-![forge](https://img.shields.io/badge/forge-69.37%25%20of%20nie.exe-yellow)
+<p align="center">
+  <a href="https://github.com/aphrody-code/nie/actions/workflows/ci.yml"><img alt="ci" src="https://github.com/aphrody-code/nie/actions/workflows/ci.yml/badge.svg"></a>
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.9-blue">
+  <img alt="rust" src="https://img.shields.io/badge/rust-nightly--2026--05--17-orange">
+  <img alt="edition" src="https://img.shields.io/badge/edition-2024-orange">
+  <img alt="forge" src="https://img.shields.io/badge/forge-69.37%25%20of%20nie.exe-yellow">
+  <img alt="license" src="https://img.shields.io/badge/license-RG--L5--VR--2026--001-red">
+</p>
 
-📥 **Desktop app** (VFS explorer + Blender add-on): **<https://azalee.rosegriffon.fr/tools/niers>**
+<p align="center">
+  <strong>Desktop app</strong> (VFS explorer + Blender add-on):
+  <a href="https://azalee.rosegriffon.fr/tools/niers">azalee.rosegriffon.fr/tools/niers</a>
+</p>
 
----
+## Table of contents
 
-## What this is
+- [Overview](#overview)
+- [Status](#status)
+- [Quick start](#quick-start)
+- [Repository layout](#repository-layout)
+- [Platform support](#platform-support)
+- [Development](#development)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [Legal](#legal)
+- [License](#license)
+
+## Overview
 
 Two halves of one goal, and each keeps the other honest:
 
 1. **The engine** — the game rewritten in Rust: file formats parsed natively, game data loaded,
    matches simulated, assets decoded. Runs native and headless; a WebAssembly surface exposes the
-   verified parts to the browser. It is **not a playable game yet** — see the limits below.
+   verified parts to the browser. It is **not a playable game yet** — see
+   [known limits](#known-limits-stated-plainly).
 2. **The forge** — `crates/forge/` *generates* `nie.exe` from this repository and fails the build
    unless the output is byte-identical to the original. It measures, to the byte, how much of the
    binary the repo actually produces; the rest is copied from the reference, and labelled as such.
@@ -28,8 +49,8 @@ understood. That turns "we ported a lot" into a falsifiable number.
 
 Reverse engineering is the **means**, not the end.
 
-The repository is named after its target, `nie.exe`. The CLI stays `niers` — `nie` alone would
-name the game's binary.
+> The repository is named after its target, `nie.exe`. The CLI stays `niers` — `nie` alone would
+> name the game's binary.
 
 ## Status
 
@@ -37,12 +58,12 @@ Every number below is measured by a command, never copied from a document. Regen
 yourself:
 
 | What | Measured | Command |
-|---|---|---|
+| --- | --- | --- |
 | Bytes of `nie.exe` produced by this repo | **69.37 %** of the file · **90.36 %** of `.text` | `nie-forge report` |
 | VFS files in a format we parse | **99.56 %** (254,187 / 255,308 across 936 CPK) | `niers vfs stats` |
 | Functions classified in the binary | **92.65 %** (100,664 / 108,650) · 13,653 named | `niers coverage --db var/niers.sqlite` |
 | Functions ported **and** proven byte-exact | **43** | `uv run scripts/validate_re.py` |
-| Test suite | **2,448 passing** | `cargo test --workspace` |
+| Test suite | see the CI badge above | `cargo test --workspace` |
 
 Byte-exactness is not a slogan. A format counts as ported when it parses its **entire real
 corpus**; a data table when it is recomputed **bit for bit** against the game's own dump; a
@@ -100,8 +121,8 @@ Without `--gpu`, the deterministic CPU renderer is used. `--gpu` creates one ren
 entire export, uses linear texture filtering and smooth shading, and composites the transparent
 viewport over the same opaque QA background as CPU captures. `--hardware-only` turns a missing
 real adapter into a clear failure instead of silently testing a software adapter. A PNG/GIF is a
-visual inspection aid, not proof of pixel-perfect equivalence to an in-game screenshot: compare
-against a capture made with the same camera and record the backend.
+visual inspection aid, **not** proof of pixel-perfect equivalence to an in-game screenshot:
+compare against a capture made with the same camera and record the backend.
 
 ### Rebuilding the binary
 
@@ -118,7 +139,7 @@ Four implementations live under one root, each with a role it owns
 ([`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)):
 
 | Tree | Language | Role |
-|---|---|---|
+| --- | --- | --- |
 | `crates/` | Rust | The engine, the forge, and the **only** user-facing CLI |
 | `src/` | C++ | The `iecode` toolkit; decompiled C on its way to a playable `nie` |
 | `csharp/` | C# | Dumping, packing, memory reading, texture conversion |
@@ -127,31 +148,6 @@ Four implementations live under one root, each with a role it owns
 
 `niers` is the single entry point: `niers cpp …` and `niers cs …` delegate to the other two
 toolchains, `niers backends` reports what is built and where.
-
-### Everything Inazuma Eleven lives here
-
-The work used to be spread across three repositories. The same character existed four times over
-— a row in the wiki's database, files in the VFS, strings in the reversed binary, an episode in
-the anime catalogue — and nothing joined those four existences.
-
-They now sit under one root, and `@niers/catalog` is the joint:
-
-```bash
-bun --bun packages/nie-catalog/src/cli.ts etat
-bun --bun packages/nie-catalog/src/cli.ts personnage mark-evans-0x06E25622
-```
-
-| Gisement | What it holds | Where it lives |
-|---|---|---|
-| **jeu** | the game's files, decoded on demand | `nie-model-serve` — `NIE_CDN_URL` |
-| **extrait** | 66 `inagle_*` tables pulled from those files | `var/mirror.sqlite` |
-| **re** | the reverse of `nie.exe` | `var/niers.sqlite` |
-| **anime** | the series' episodes | `data/anime/episodes.db` |
-
-Every join carries how it was obtained — a shared key, a path prefix, or a name match. That last
-one matters: the game and the series share no key at all, so a name match is useful but is never
-presented as a fact. See [`docs/FUSION.md`](docs/FUSION.md) and
-[`packages/nie-catalog/README.md`](packages/nie-catalog/README.md).
 
 ### Rust crates (34 total, 32 compiled)
 
@@ -166,12 +162,37 @@ presented as a fact. See [`docs/FUSION.md`](docs/FUSION.md) and
   `nie-model-serve`, `nie-editor`, `nie-bench`, `nie-tasks`.
 - **`crates/archive/`** (2) — excluded from the build. Read-only RE reference, compiled by nobody.
 
+### Everything Inazuma Eleven lives here
+
+The work used to be spread across three repositories. The same character existed four times over
+— a row in the wiki's database, files in the VFS, strings in the reversed binary, an episode in
+the anime catalogue — and nothing joined those four existences.
+
+They now sit under one root, and `@niers/catalog` is the joint:
+
+```bash
+bun --bun packages/nie-catalog/src/cli.ts etat
+bun --bun packages/nie-catalog/src/cli.ts personnage mark-evans-0x06E25622
+```
+
+| Source | What it holds | Where it lives |
+| --- | --- | --- |
+| **jeu** | the game's files, decoded on demand | `nie-model-serve` — `NIE_CDN_URL` |
+| **extrait** | 66 `inagle_*` tables pulled from those files | `var/mirror.sqlite` |
+| **re** | the reverse of `nie.exe` | `var/niers.sqlite` |
+| **anime** | the series' episodes | `data/anime/episodes.db` |
+
+Every join carries how it was obtained — a shared key, a path prefix, or a name match. That last
+one matters: the game and the series share no key at all, so a name match is useful but is never
+presented as a fact. See [`docs/FUSION.md`](docs/FUSION.md) and
+[`packages/nie-catalog/README.md`](packages/nie-catalog/README.md).
+
 ## Platform support
 
 The same binary serves a headless Linux server and a Windows workstation:
 
 | | Linux server | Windows workstation |
-|---|---|---|
+| --- | --- | --- |
 | Graphics backend | Vulkan — lavapipe when there is no hardware | **D3D12** first, Vulkan as fallback |
 | Adapter | the only one, software | `HighPerformance` → the discrete GPU |
 
@@ -199,11 +220,31 @@ Python goes through `uv run`, never a bare `python`.
 Tests backed by the game's JSON dumps resolve their corpus from `NIE_GAMEDATA_JSON` and **announce
 on stderr when they skip** — a golden that silently does nothing is a false green.
 
-More: [`docs/PLAN.md`](docs/PLAN.md) (the plan, with numbers) ·
+Further reading: [`docs/PLAN.md`](docs/PLAN.md) (the plan, with numbers) ·
 [`docs/FORGE.md`](docs/FORGE.md) (producing the binary) ·
 [`docs/RE.md`](docs/RE.md) (the target and the loop) ·
 [`docs/FORMATS.md`](docs/FORMATS.md) (file formats) ·
 [`apps/nie-explorer/ROADMAP.md`](apps/nie-explorer/ROADMAP.md) (desktop app).
+
+## Roadmap
+
+`nie.aphrody.com` is reserved for an Axum/Tokio showcase, **100 % Rust**, built inside this
+workspace as a `crates/tools/nie-site` crate bound to `127.0.0.1:8085` behind nginx and TLS. It
+will publish only reproducible results and the Inazuma Eleven content whose exploitation and
+distribution are permitted by the agreement below. No personal data and no secret is ever
+published. Build and security rules: [`AGENTS.md`](AGENTS.md).
+
+## Contributing
+
+This repository is worked on by **several agents at once** (Claude Code, Codex). Before touching
+anything, read the two files that make that possible:
+
+- [`AGENTS.md`](AGENTS.md) — the context every agent reads first, whatever its engine.
+- [`docs/A2A-CODEX.md`](docs/A2A-CODEX.md) — the coexistence protocol: announce your scope before
+  writing, stay inside it, one commit author, and talk over the `.coord/` mailbox.
+
+The gate before any commit is `cargo clippy -p <crate> --lib --tests` with **0 warnings** — never
+`cargo build --workspace --all-targets`, which saturates the disk.
 
 ## Legal
 
@@ -221,18 +262,16 @@ rights to reverse-engineer, port, and build mods and tooling for the game.
   never committed. `just forge-lift` regenerates it in seconds from your own copy.
 - Provenance of each tree, and what was dropped on import: [`PROVENANCE.md`](PROVENANCE.md).
 
-> **Note:** the crate manifests declare `license = "MIT"`, which does not match the agreement in
+## License
+
+Governed by the agreement in [`LICENSE`](LICENSE), not by an OSI licence.
+
+> [!WARNING]
+> The crate manifests declare `license = "MIT"`, which **does not match** the agreement in
 > `LICENSE`. The agreement governs. This discrepancy is tracked and needs resolving.
 
 ---
 
-Built by Rose Griffon · <https://github.com/aphrody-code/nie>
-
-## Future vitrine Rust
-
-`nie.aphrody.com` est réservé à une vitrine Axum/Tokio 100 % Rust intégrée à ce
-workspace. Elle présentera uniquement les résultats reproductibles et les
-contenus Inazuma Eleven dont l'exploitation et la diffusion sont autorisées par
-l'Accord Commercial Officiel N° RG-L5-VR-2026-001, y compris les assets prévus
-par celui-ci. Aucune donnée personnelle ni aucun secret ne sera publié. Les
-règles de construction et de sécurité sont définies dans [`AGENTS.md`](AGENTS.md).
+<p align="center">
+  Built by Rose Griffon · <a href="https://github.com/aphrody-code/nie">github.com/aphrody-code/nie</a>
+</p>
