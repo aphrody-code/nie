@@ -1,0 +1,155 @@
+# PLAN — une semaine de bout en bout, du 2026-09-05 au 2026-09-11
+
+**But.** À la fin de la semaine : **Azalée** (`azalee.rosegriffon.fr`, DA Rose Griffon)
+tourne sur Vercel en full serverless sur Supabase Cloud ; **Aphrody** (`aphrody.com`, DA du
+vrai jeu) sert les outils et les assets depuis `nie-site` (Axum, 100 % Rust) ; **Inacord**
+(ex `nie-explorer`) et Aphrody sont **la même interface**, `packages/inacord-ui`, montée par
+deux hôtes ; le jeu s'appelle **nie** et ne bouge pas. Chaque jour a un propriétaire, une
+gate qui **compte**, et un rollback.
+
+La stack est **gelée** : [`docs/stack/`](docs/stack/README.md) (décisions, versions,
+alternatives rejetées, gates). Ce fichier est le plan d'exécution de cette semaine ; le plan
+maître du moteur et de la forge reste [`docs/PLAN.md`](docs/PLAN.md).
+
+## Les trois agents
+
+| Agent | Moteur | Dépôt en écriture | Mission | Commits |
+|---|---|---|---|---|
+| **Fable 5.1** | Claude Code (`claude@aphrody-code/niers`) | `/home/ubuntu/niers` | orchestrateur ; tout le code : wiki serverless, `asset-source`, `inacord-ui`, `apps/inacord`, `apps/nie-web`, `crates/tools/nie-site`, DA du jeu, docs | seul auteur de commits dans `niers` |
+| **GPT 6** | Codex (`codex@aphrody-code/niers`) | `/home/ubuntu/rg` et l'infrastructure du VPS | la production actuelle et son extinction : remédiation sécurité (8 actions), nginx (vhost `aphrody.com`, `supabase-compat.inc`, vhost `nie-model-serve`), unités systemd, arrêt d'`azalee-web` à J6, `deploy.ts` sans cible `azalee` | seul auteur de commits dans `rg` |
+| **Astra** | Gemini (CLI `gemini` / `agy`) | **aucun** — écrit dans `var/mesures/` (hors dépôt) | vérificateur indépendant : rejoue chaque gate depuis un autre shell, matrices `curl`/`hyperfine`, captures `bxc` (rendu réel, CSP comprise), revue DA contre la référence, compte tout ; ne corrige rien | aucun ; rend des `fact:` A2A |
+
+**Frontière (consigne utilisateur du 2026-09-05) :** Codex dans `rg`, Claude dans `niers`,
+chacun son dépôt, chacun sa mission. Plus de rapatriement, plus de build concurrent croisé.
+Le tick Codex `env-b002ca32` a lu la frontière **à l'envers** ; le tick de J1 la rétablit.
+
+**Protocole :** `aphrody a2a tick --iteration <n> --side <moi> --peer <lui> --kind fact
+--subject "<type>: <sujet>" --body "<mesure>"` ; types `goal:` (ordre), `claim:` (périmètre),
+`fact:` (mesure), `block:` (arbitrage), `done:` (lot fini, avec ses comptes). Un `fact` porte
+un chiffre, jamais une intention. **À VÉRIFIER J1 :** `ai.json` ne connaît que `claude` et
+`codex` ; Astra y reçoit son identité et sa boîte `.coord/inbox-from-astra.jsonl`.
+
+**Exige le go explicite de l'utilisateur** (aucun agent ne le fait seul) : bascule DNS,
+`nginx reload`, `systemctl stop/daemon-reload`, rotation d'un secret, premier
+`vercel --prod`, toute suppression de données, tout `git push`.
+
+## Départ mesuré — J1, 2026-09-05, VPS
+
+| Mesure | Valeur | Source |
+|---|---|---|
+| Gate serverless (Cloud, miroir `/nonexistent`) | `/chara` **200** liens, `/skill` 60, `/item` 48, `/equipe` 208, fiche 200 ; build `EXIT_REEL=0`, 120/120 pages | `scripts/ops/gate-serverless.sh --no-build`, 07:05 |
+| Le faux vert qui a précédé | `/chara` 200 en 87 ms, 136 921 o, **0 lien** (`SUPABASE_INTERNAL_URL` de `.env.local` gagnait dans `pickUrl()`) | tick A2A 20, retiré |
+| Production `/chara` | TTFB 33 ms, **2 355 397 o** HTML, 620 liens, 404 `<img>` sans `srcset` | `curl -w`, prod |
+| Production `/textures`, `/modeles` | TTFB **392 ms**, **229 ms** | idem |
+| Supabase Cloud | 224 tables, 1 478 colonnes, 5 vues, 155 + 64 policies ; 65 tables / 165 277 lignes, 0 écart | `load-mirror-to-cloud.sh`, `84d4a54` |
+| Ce que le wiki lit encore de local | `bun:sqlite` 41 fichiers, `node:fs` 44, `/home/ubuntu` 15, compat Supabase 19 ; 91 pages, 30 routes API | `rg -l`, `apps/azalee` + `packages/azalee` |
+| Explorateur | 158 fichiers TS/TSX, 34 avec `@tauri-apps`, `api.ts` 630 l., `productName: "niers"` 0.5.9, identifiant `dev.niers.explorer` | `rg`, `tauri.conf.json` |
+| `aphrody.com` | DNS → ce VPS, TLS émis, `aphrody-site` :8083 rend 265 o (corps vide), 10 hôtes dans un seul bloc nginx, CSP `default-src 'none'` | `dig`, `curl`, `conf.d/aphrody.com.conf` |
+| `Cargo.lock` | `axum` **absent** ; `tokio` 1.53.1, `tower` 0.5.3, `tower-http` 0.6.11, `rusqlite` 0.37.0, `reqwest` 0.13.4, `wgpu` 29.0.3 présents | `awk` sur le lock |
+| Sécurité self-host | RPC anonyme destructif, `anon` écrit sur 129 tables, 2 105 lignes `discord_members` publiques, JWT lisible, SSH root par mot de passe | `docs/SECURITE-BASCULE.md`, `4f53936` |
+
+## Jour par jour
+
+### J1 — samedi 2026-09-05 — trancher, geler, prouver
+
+| Qui | Quoi | Gate |
+|---|---|---|
+| Fable | gate serverless **avec comptes** ✔ · `docs/stack` tranché et gelé ✔ · ce `PLAN.md` ✔ · `AGENTS.md`/`CLAUDE.md` alignés (Aphrody, nie, Inacord, `aphrody.com`) · tick Codex : frontière rétablie + verdict + plan · commit | les comptes sont dans le commit |
+| Codex | prendre acte de la frontière (`rg` + infra) · écrire les **8 actions de sécurité sous forme de commandes prêtes, non exécutées**, une par une avec sa vérification · inventorier tout ce que `azalee-web` et `supabase-compat.inc` servent encore (17–19 consommateurs) | un `fact:` listant les 8 commandes et les consommateurs |
+| Astra | recevoir son identité A2A · rejouer `gate-serverless.sh --no-build` depuis un autre shell et publier **ses** comptes · matrice de départ : 5 URL × 20 runs en production (`/`, `/chara`, `/chara/mark-evans`, `/textures`, `/modeles`), p50/p95/p99, poids avec et sans `Accept-Encoding: br` | ses comptes égalent ceux de Fable ; matrice dans `var/mesures/j1-prod.json` |
+
+**Rollback :** aucun changement de production ce jour.
+
+### J2 — dimanche 2026-09-06 — le wiki ne lit plus rien
+
+| Qui | Quoi | Gate |
+|---|---|---|
+| Fable | déplacer hors d'`apps/azalee` ce qui lit un fichier : `/cpk`, `/textures`, `/modeles`, `/mode`, `/sons`, `/videos`, `/avatar`, `/demo`, `/save`, `/vroid`, `api/cpk`, `api/mode-tex`, `lib/cpk/index.ts`, le wasm — vers `apps/nie-web` (en attente J5) · retirer le Proxy SQLite du chemin métier, **une seule** URL Supabase (plus de `pickUrl` en cascade) · les 19 consommateurs compat → `*.supabase.co` · `vercel link` + variables (`~/.config/niers/vercel.env`, jamais affichées) · **preview #1** · les 308 vers `aphrody.com` écrites derrière `NEXT_PUBLIC_TOOLS_ORIGIN`, inactives | `rg -l 'bun:sqlite\|node:fs\|/home/ubuntu\|SQLITE_DB_PATH\|SUPABASE_INTERNAL_URL\|DATABASE_URL' apps/azalee packages/azalee` → **0** ; Gate 1 contre la preview : `/chara` ≥ 50, fiche 200 |
+| Codex | sécurité **1–2** (révoquer l'exécution `anon` des RPC d'écriture et les grants d'écriture ; retirer `discord_members`/`settings` de l'accès anonyme), **avec go** · `nie-model-serve` : `limit_req`/`limit_conn` prêts | `POST /rest/v1/rpc/rg_liberer_profil_discord` → 401/403 ; `GET /rest/v1/discord_members?limit=1` → 401/403 ; comptes de grants avant/après |
+| Astra | Gate 1 contre la preview depuis **l'extérieur** du VPS · latence preview → eu-west-3 : fiche perso n = 20, p50/p95/p99 · `bxc` : rendu réel de `/`, `/chara`, une fiche (CSP, chunks) | p95 fiche **< 800 ms**, sinon `block:` |
+
+**Rollback :** la preview n'est pas la production ; `azalee-web` inchangé.
+
+### J3 — lundi 2026-09-07 — poids et ISR
+
+| Qui | Quoi | Gate |
+|---|---|---|
+| Fable | `/chara` : pagination (620 → 60 liens), `srcset` par `cdn-variants ?w=&format=webp` sur les 404 vignettes, markup aplati · ISR `revalidate = 3600` + `dynamicParams` sur les 6 fiches, `POST /api/ops/revalidate/wiki` · lot 2 de `docs/MIGRATION-EXPLORATEUR.md` §4 : pages `/tools/*` mortes et leurs 7 références entrantes — **sauf** `app/tools/niers/latest.json/route.ts` · unité `deploy/nie-miroir-cloud.service` (miroir → Cloud → revalidation) écrite, pas installée · preview #2 | `/chara` **< 250 Ko** en `br`, `<img>` sans `srcset` = **0**, Gate 1 sur preview #2 |
+| Codex | sécurité **3–4** : plan de rotation atomique de `SUPABASE_JWT_SECRET` (liste des services qui le valident, ordre, retour arrière) ; SSH : vérifier une session par clé puis `PermitRootLogin no`, `PasswordAuthentication no` — **avec go** · installer `nie-miroir-cloud.timer` (`daemon-reload` **avec go**) | `sshd -T` montre les deux valeurs ; le timer est `active` ; le plan de rotation est un `fact:` |
+| Astra | matrice **avant/après** J3 sur la preview (mêmes 5 URL × 20) · Lighthouse mobile sur `/`, `/chara`, une fiche · vérifie le compte de `<img srcset>` par lui-même | deltas publiés ; aucun régressif sur `/` |
+
+**Rollback :** revert du commit ; la production n'a pas bougé.
+
+### J4 — mardi 2026-09-08 — Inacord et l'interface partagée
+
+| Qui | Quoi | Gate |
+|---|---|---|
+| Fable | `packages/asset-source` : `contract.ts` (`AssetSource` : vfs, texture, model, avatar, audio, video, wiki + `capabilities`), `types.ts`, `desktop-source.ts` (= `api.ts` renommé), `web-source.ts` (fetch vers `/api/v1` et `/assets`), `url-conventions.ts` (ré-export de `nie-catalog/src/jeu.ts`) · `packages/inacord-ui` : les 124 fichiers sans Tauri + modules purs (`galerie`, `traduction`, `filtrage`, `equipe`, `recherche`, `thumbs`, `cinema`, `sources`), les 22 composants passent par `useAssetSource()` · `git mv apps/nie-explorer apps/inacord`, `productName: "Inacord"`, titre de fenêtre `Inacord`, identifiant **conservé**, tous les chemins (`release-desktop.sh`, `packager-bases-explorer.sh`, `justfile`, hooks, `CLAUDE.md`) · `@rosegriffon/ui` sort d'`inacord-ui` | `rg -l '@tauri-apps' packages/inacord-ui` → **0** ; `rg -l 'apps/nie-explorer' --glob '!docs/**' --glob '!*.md'` → **0** ; `bun run typecheck` vert ; `cargo check` dans `apps/inacord/src-tauri` vert ; `bun run --filter inacord build` vert |
+| Codex | sécurité **5–6** : `limit_req`/`limit_conn` et `MemoryMax` sur `nie-model-serve` (**go**), jeton fine-grained pour l'updater GitHub · **brouillon** de la découpe du vhost `aphrody.com` (deux blocs : `aphrody.com www` → `:8085` sans CSP nginx ; les 8 autres hôtes → `:8083` inchangés ; `nie.aphrody.com` → 308), `nginx -t` sur une copie, **pas de reload** | `nginx -t` vert sur le brouillon ; `curl -sI` des 10 hôtes archivé comme référence « avant » |
+| Astra | relit le diff d'extraction : cherche un import Tauri résiduel, un chemin `apps/nie-explorer` oublié, un composant hors `useAssetSource` · rejoue `typecheck` seul | ses comptes = ceux de Fable ; sinon `block:` |
+
+**Rollback :** revert ; rien en production. **À VÉRIFIER hors VPS :** l'installeur « Inacord »
+met à jour une 0.5.9 réelle (Windows) au lieu d'installer à côté — sinon la release attend.
+
+### J5 — mercredi 2026-09-09 — Aphrody : `nie-web`, `nie-site`, la DA du jeu
+
+| Qui | Quoi | Gate |
+|---|---|---|
+| Fable | `crates/tools/nie-site` : `main/app/config/error`, routes `health`, `well_known`, `static_files` (pré-compressé `br`/`zstd`, immuable par empreinte), `api/v1` (`rusqlite` ro, pagination, DTO), `assets` (proxy `nie-model-serve :8790` : `limit`, `timeout` 10 s, taille bornée, cache `moka`, ETag `blake3`), `index.html` via `askama` (titre, `og:` par route), erreurs, `robots.txt`, `security.txt`, `sitemap.xml`, CSP posée par la crate ; tests qui **comptent** ; `benches/routing.rs` · `apps/nie-web` : hôte Vite d'`inacord-ui` + `web-source.ts`, les routes sorties du wiki à J2 · **DA du jeu** : `niers design tokens` → `game-tokens.css` (70 variables), coquille **menu principal** pour Aphrody (`shell/main-menu/` : `SkewTile`, `TileRow`, `HeaderBanner`, `SidePanel`, `TitleBand`, `VersionChip`, `Callout`, `Badge`) sur les textures du jeu servies par `/assets` · coquille **InaCord** pour Inacord (`shell/inacord/` : `PhoneFrame`, `RoomList`, `MessageThread`, `HexBackdrop`, `TabBar` ; panneaux `#323544`/`#374D5B`, accent `#4FAECC`), références archivées dans `data/design/` · `deploy/nie-site.service` (`Restart=always`, `MemoryMax`) · `cargo build --release -p nie-site` | `cargo clippy -p nie-site --all-targets -- -D warnings` = 0 ; `cargo test -p nie-site` compte ; bundle initial **< 300 Ko gz** ; 70 tokens ; TTFB local `/api/v1/textures?page=1` **< 50 ms** |
+| Codex | installer `nie-site.service` (**go**) · appliquer la découpe du vhost et retirer la CSP nginx du bloc Aphrody, `nginx -t`, **reload avec go** · `nie.aphrody.com` → 308 · vérifier les 10 hôtes après | `aphrody.com/healthz` répond `nie-site` ; les 8 autres hôtes répondent **comme avant** (diff des `curl -sI`) ; la CSP vue est celle de `nie-site` |
+| Astra | Gate 5 : `hyperfine --warmup 3` sur `/`, `/api/v1/textures?page=1`, `/assets/tex/<une texture>` ; poids du bundle ; **capture `bxc` de `aphrody.com`** posée à côté de `data/design/aphrody-ui-ref-mainmenu-7.1.2.png` pour revue ; les 10 hôtes avant/après | TTFB `/textures` **< 50 ms** (départ 392), `/modeles` **< 50 ms** (départ 229) ; aucune régression sur `api.`, `mcp.`, `downloads.` |
+
+**Rollback :** vhost `aphrody.com` → `:8083` (une ligne, `aphrody-site` n'est jamais arrêté).
+
+### J6 — jeudi 2026-09-10 — la bascule
+
+| Qui | Quoi | Gate |
+|---|---|---|
+| Fable | `vercel --prod` (**go**) · `NEXT_PUBLIC_TOOLS_ORIGIN=https://aphrody.com` : les dix 308 s'activent · Gate 1 contre la production dès le DNS basculé · `docs/EXPLOITATION.md`, `docs/AZALEE.md`, `docs/MIGRATION-EXPLORATEUR.md` mis à jour · release Inacord **si** la mise à jour depuis 0.5.9 est vérifiée, sinon J7 ou après | `dig +short azalee.rosegriffon.fr` = Vercel ; `/chara` ≥ 50 liens en prod ; `/tools/niers/latest.json` **200** ; les dix préfixes **308** vers `aphrody.com` ; `/tools` **pas** redirigé |
+| Utilisateur | bascule DNS `azalee.rosegriffon.fr` → Vercel (registrar) | — |
+| Codex | `systemctl stop azalee-web` (**go**, unité conservée 7 jours) · `supabase-compat.inc` et le vhost `azalee` retirés de nginx, vhost public de `nie-model-serve` retiré, **reload avec go** · sécurité **7–8** : `NEXT_PUBLIC_SUPABASE_URL` n'est plus servie par le VPS, ports publics et vhosts revus · `deploy.ts` de `rg` sans cible `azalee` (déjà `410ed795`), `rg-releases/azalee` gardé 7 jours | `ss -ltnp` : rien de nouveau en écoute publique ; `nginx -t` ; les 19 consommateurs compat répondent depuis `*.supabase.co` |
+| Astra | Gate 6 complet : Gate 1 en production, updater 200, les dix 308, Realtime **101**, une URL signée Storage télécharge, `aphrody.com` intact, `azalee-web` arrêté | tout publié en un `fact:` avec chaque compte |
+
+**Rollback :** DNS → VPS + `systemctl start azalee-web` (l'unité et le slot sont conservés) ;
+Vercel garde la version précédente ; rien n'est supprimé avant J13.
+
+### J7 — vendredi 2026-09-11 — performance, durcissement, docs, marge
+
+| Qui | Quoi | Gate |
+|---|---|---|
+| Fable | `nie-site` : réglage `moka` (TTL, poids), pré-compression complète, baseline `criterion` commitée · `/chara` : matrice finale · docs : `CLAUDE.md`, `AGENTS.md`, `docs/README.md`, `docs/stack` (amendement daté si une brique a bougé) · mémoire · ce `PLAN.md` : chaque ligne marquée ✔ / ✗ avec son compte | toutes les gates vertes **avec leurs comptes dans les commits** |
+| Codex | rotation `SUPABASE_JWT_SECRET` (**go**, si le plan de J3 est validé) · SSH fermé si pas encore fait · calendrier de suppression J13 (`azalee-web`, `rg-releases/azalee`, `supabase-compat.inc.bak`) | `sshd -T` ; les services qui valident le JWT répondent après rotation |
+| Astra | régression complète : les 6 gates, la matrice J1 rejouée à l'identique, rapport final | un `fact:` par gate ; aucun compte inférieur au seuil |
+
+La marge de J7 absorbe un glissement de J4 ou J5. Si J6 glisse, la bascule attend la semaine
+suivante : **on ne bascule pas un vendredi soir.**
+
+## Hors semaine — gelé
+
+- Mobile Tauri d'Inacord, jeu mobile natif, adaptateur Steam : spécifiés dans
+  `docs/stack/game-platforms.md` et `desktop-mobile.md`, **non commencés**.
+- Bump `wgpu 29.0.3 → 30.0.1` : lot compilé et golden-testé, pas cette semaine.
+- Leptos, Dioxus, SQLx dans `nie-site`, Drizzle SQLite, Actix : **rejetés**, voir l'ADR.
+- `auth.users` : **jamais** migré.
+- Réconciliation du manifeste 66 / 165 244 contre 65 / 165 277 : à faire, sans bloquer.
+
+## Risques et rollback
+
+| Risque | Propriétaire | Parade | Rollback |
+|---|---|---|---|
+| Une redirection attrape `/tools/*` et coupe l'updater d'Inacord | Fable | dix préfixes explicites, jamais de regex ; `/tools/niers/latest.json` testé à J6 | retirer la ligne, redéployer |
+| Latence Vercel → eu-west-3 > 800 ms au p95 | Astra mesure, Fable corrige | ISR sur les fiches ; sinon `block:` et la bascule attend | pas de bascule |
+| `supabase-compat.inc` : realtime/storage morts sans erreur de build | Fable + Codex | 19 consommateurs → `*.supabase.co` à J2, handshake 101 vérifié à J6 | `azalee-web` redémarré |
+| Découpe du vhost `aphrody.com` coupe `api.`/`mcp.`/`downloads.` | Codex | brouillon J4, `nginx -t`, `curl -sI` des 10 hôtes avant/après | vhost → `:8083` |
+| CSP nginx + CSP `nie-site` s'additionnent et cassent le site | Codex | pas d'`add_header CSP` sur le bloc Aphrody | idem |
+| Renommage `niers → Inacord` installe à côté au lieu de mettre à jour | Fable | identifiant conservé ; test sur une 0.5.9 réelle avant release | ne pas publier |
+| Un agent écrit dans le dépôt de l'autre, ou le démon capte un lot à mi-course | tous | `claim:` avant d'écrire ; relire `git log` ; un commit par lot | `git revert` |
+| Faux vert (200, exit 0, N pages) sur un site vide | Astra | **compter**, toujours ; deux agents publient les mêmes comptes | — |
+
+## Ce que « fini » veut dire
+
+Un jour est fini quand sa gate a **tourné**, a **compté**, et que le compte est dans le commit
+avec la commande, l'hôte et la date. La semaine est finie quand `azalee.rosegriffon.fr` sert
+ses données depuis Vercel sans un seul fichier local, quand `aphrody.com` sert Aphrody dans la
+DA du jeu en moins de 50 ms sur ses catalogues, quand Inacord et Aphrody sont un seul code, et
+quand `azalee-web` est arrêté sans que personne ne l'ait remarqué.

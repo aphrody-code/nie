@@ -1,123 +1,189 @@
-# ADR — plateforme Rust multi-client
+# ADR — deux sites, trois noms, une interface partagée, une plateforme Rust
 
 - **Date :** 2026-09-05
-- **Décision :** approuvée
-- **Accord A2A :** Claude, `env-fa1cdc42`
-- **Périmètre :** documentation dans `rg`; aucun changement de code dans cet
-  ADR
+- **Décision :** tranchée et **gelée**
+- **Arbitre :** Claude, orchestrateur du dépôt `niers`, sur demande explicite de
+  l'utilisateur ; débat A2A avec Codex (`env-fa1cdc42`, `env-b002ca32`) ; consignes
+  utilisateur du même jour sur les noms, le domaine et les directions artistiques
+- **Périmètre :** documentation dans `niers` ; le code suit dans [`/PLAN.md`](../../PLAN.md)
 
 ## Contexte
 
-Azalée combine un wiki éditorial, un studio d'outils, un explorateur Tauri et
-un moteur qui doit rester fidèle aux formats et aux sorties du jeu. Le dépôt
-contient déjà deux réalités : le monorepo web `/home/ubuntu/rg` et le moteur
-Rust `/home/ubuntu/niers`.
+`azalee.rosegriffon.fr` est une seule application Next.js qui mêle deux métiers sans public
+ni profil de charge communs : un **wiki éditorial** (fiches, articles, lu par des visiteurs et
+des moteurs) et un **atelier d'outils** (250 800 fichiers du jeu, 53 126 textures, 6 236
+modèles, sons, cinématiques, éditeur d'avatar) adossé au décodeur Rust `nie-model-serve` et
+aux 111 Go du VPS. **MESURÉ** en production le 2026-09-05 : une page d'atelier répond en
+392 ms (`/textures`) là où le wiki répond en 30 ms (`/`).
 
-La contrainte produit est de partager le code de `nie-explorer` avec le studio
-web. L'explorateur est une SPA React/Vite de **37 975 lignes TS/TSX mesurées**
-(158 fichiers, dont 124 sans dépendance Tauri) et son hôte Tauri contient
-**10 922 lignes Rust mesurées**. Une conversion totale en Leptos serait donc
-un chantier de portage, pas une optimisation locale.
+Trois exigences de l'utilisateur tranchent l'architecture : le wiki tourne sur **Vercel en
+full serverless** ; le site d'outils **partage tout le code de l'explorateur** ; les deux sites
+ont **deux directions artistiques** — celle de Rose Griffon pour le wiki, celle du vrai jeu
+pour le site d'outils. La deuxième interdit toute réécriture d'interface : l'explorateur est
+une SPA React/Vite de **158 fichiers TS/TSX MESURÉS**, dont **34** seulement importent
+`@tauri-apps` ; sa façade vers le natif est un fichier unique, `src/lib/api.ts` (630 lignes).
 
-## Choix
+## Décision
 
-### Web et données
+### Les noms
 
-- `Axum 0.8.9` sur `Tokio 1.53.1` pour `nie-site` et les services Rust.
-- `Leptos 0.8.19` + `leptos_axum 0.8.10` pour les pages SSR/hydratées dont
-  `nie-site` est propriétaire; le bundle React/Vite reste servi ou intégré
-  quand le partage existant l'exige.
-- `SQLx 0.9.0` avec PostgreSQL 18 comme interface SQL typée côté serveur.
-- PostgreSQL/Supabase reste une capacité d'infrastructure, pas une base
-  directement exposée aux clients.
+- **Azalée** — le wiki, `azalee.rosegriffon.fr`. Nom, domaine et design inchangés.
+- **Aphrody** — le site d'outils et d'assets, **`aphrody.com`** et `www.aphrody.com`.
+- **Inacord** — l'application de bureau et mobile, ex `nie-explorer` : `apps/inacord`,
+  `productName: "Inacord"`, fenêtre titrée `Inacord`. L'identifiant Tauri
+  `dev.niers.explorer`, le dossier `%APPDATA%\dev.niers.explorer\` et les deux URL de
+  l'updater (`azalee.rosegriffon.fr/tools/niers/latest.json`, GitHub `aphrody-code/nie`)
+  **ne changent pas** : c'est ce qui permet aux 0.5.x installés de se mettre à jour.
+- **nie** — le jeu : le moteur Rust, ses hôtes natif, headless et WASM, et le préfixe des
+  crates. La CLI reste `niers`.
+- **`packages/inacord-ui`** — l'interface partagée par Inacord et Aphrody ; **Aphrody est
+  Inacord dans le navigateur**. `packages/asset-source` en est le contrat d'accès aux données.
 
-### Clients
+### Les deux directions artistiques
 
-- `Tauri 2.11.5` pour l'explorateur/studio desktop et mobile, avec le frontend
-  statique React/Vite actuel.
-- `wgpu 30.0.1` + `winit 0.30.13` pour le renderer natif desktop/mobile/web;
-  le cœur `nie-core` reste hors ECS et byte-exact.
-- `steamworks 0.13.1` uniquement dans un adaptateur PC optionnel. Le crate
-  actuel `nie-steam` est un outil d'acquisition de dépôts IEVR et ne publie
-  pas le jeu.
+- **Azalée = Rose Griffon.** Le thème M3 existant (`apps/azalee/app/globals.css`, 109
+  tokens `--md-sys-color-*`, primaire `#f2a93b` clair / `#ffc66c` sombre) est la DA ; rien
+  n'y touche cette semaine au-delà du poids des pages.
+- **Aphrody et Inacord = le vrai jeu.** Le thème est **extrait des données du jeu**, jamais
+  inventé : la palette de texte `common/font/font_color.cfg.bin` (70 couleurs `FONT_COLOR`,
+  déjà portée dans `nie-data::font_color`), les textures de menu servies par `nie-model-serve`
+  (cadres, fonds, boutons), les atlas d'icônes déjà exploités par `sprites.css` et
+  `data/re/menu-icon-atlases.txt`, et la fonte du jeu (`font_def.g4tx` + métriques) pour les
+  titres. Il vit dans `packages/inacord-ui/src/theme/` ; les couleurs y sont **générées** par
+  une commande `niers` depuis le fichier du jeu, avec leur nom d'origine. Ce que l'extraction
+  ne fournit pas (corps de texte, espacements) est **ESTIMÉ** et dit tel quel. Une seule
+  interface, **deux coquilles du même jeu** : le site reprend le **menu principal**,
+  l'application reprend **InaCord**, l'application de messagerie du téléphone du mode histoire.
+- **La référence d'Aphrody est le menu principal du jeu** (`mainmenu01`), capture ver. 7.1.2 de
+  2 497 × 1 414 fournie par l'utilisateur le 2026-09-05 et conservée hors dépôt dans
+  `data/design/aphrody-ui-ref-mainmenu-7.1.2.png` (© LEVEL-5, jamais commitée). C'est
+  l'écran que `docs/DESIGN.md` décompose déjà (31 objbin, textures du groupe B dans le VFS).
+  La coquille d'Aphrody en reprend la grammaire : bandeau haut (logo, notification,
+  version), deux panneaux latéraux illustrés, une rangée de **tuiles en parallélogramme** à
+  fond photo teinté cyan et icône blanche, une bande bleue de titre, une seconde rangée de
+  trois tuiles, des badges en bas. Palette **MESURÉE** sur la capture (ImageMagick, 12
+  couleurs) : blanc `#FDFEFE` (60 % des pixels), cyans `#D9EFED` `#A4E4F7` `#46B9F2`, bleus
+  `#5BA2E3` `#2F69C7` `#295B9F`, marine `#293D60`, jaune `#F6E028`, orange `#D55025`.
+  Ces valeurs cadrent le thème ; les couleurs **finales** viennent des fichiers du jeu.
+- **La référence d'Inacord est InaCord** (イナコード), l'application de messagerie du
+  téléphone dans le mode histoire — c'est de là que vient le nom. Référence officielle
+  fournie par l'utilisateur : `inazuma.jp/victory-road/assets/img/story/story-system/img_photography_01.webp`
+  (1 280 × 720, archivée hors dépôt dans `data/design/inazuma-jp-story-photography-01.webp`).
+  Grammaire : cadre de téléphone, panneaux sombres, colonne de salons à gauche, fil de
+  messages avec avatars ronds, accent turquoise, motif hexagonal en fond, barre d'onglets du
+  menu principal au-dessus. Palette **MESURÉE** (ImageMagick, 8 couleurs) : `#323544`
+  `#374D5B` `#44484F` (panneaux), `#4FAECC` (accent), `#1E67C5` `#07346E` (bleus),
+  `#A8CFD2` (clair), `#7B8F6B`. Les écrans d'InaCord existent dans le VFS du jeu : leurs
+  textures et leur palette `FONT_COLOR` priment sur ces valeurs de cadrage.
 
-## Ce qui n'est pas décidé
+### Le wiki — Vercel + Supabase Cloud
 
-- Aucun remplacement immédiat du wiki Next/React.
-- Aucun remplacement immédiat de l'UI React/Vite de `nie-explorer`.
-- Aucun déplacement de données vers Supabase Cloud sans migration dry-run,
-  vérification de schéma, mesure de latence et accord concernant les données
-  personnelles.
-- Aucun ajout de Steamworks dans les builds web, Android ou iOS.
-- Aucun changement de `wgpu 29.0.3` dans `niers` par la seule création de ces
-  documents; le passage à 30.0.1 doit être un changement compilé et testé.
+- `apps/azalee` reste **Next.js 16** (canary 16.3.0-canary.37 du catalogue Bun), déployé sur
+  **Vercel**, runtime **Node**. ISR horaire sur les fiches détail, `dynamicParams = true`,
+  `POST /api/ops/revalidate/wiki` protégé par `AZALEE_REVALIDATE_SECRET`.
+- **Supabase Cloud `kvnlbhatjqqmhhxaxlbi` (eu-west-3) est la seule source de données.** Le
+  wiki ne lit plus jamais un fichier : ni `var/mirror.sqlite`, ni `/home/ubuntu/...`, ni
+  `process.cwd()`. Le Proxy PostgREST de `lib/supabase/server.ts` disparaît du chemin métier.
+- Les tables `inagle_*` sont lisibles anonymement sous RLS par la policy `lecture_publique`
+  (commit `84d4a54`). Aucune écriture anonyme. `auth.users` (1 931 lignes) **n'est pas
+  migrée** : les comptes se recréent, la réinscription vaut consentement.
+- Ce qui lit un fichier ou un service local (`bun:sqlite` : 41 fichiers, `node:fs` : 44,
+  `/home/ubuntu` : 15, `/rest/v1|/realtime/v1|/storage/v1` : 19 — **MESURÉ** sur
+  `apps/azalee` + `packages/azalee`) **part chez Aphrody** ou vise l'origine Supabase
+  dédiée ; rien n'est « corrigé sur place ».
 
-## Bloqueurs qui précèdent la réécriture
+### Aphrody — `nie-site` + `nie-web`
 
-Ils ont été reproduits pendant le débat A2A et ne sont pas corrigés par un
-changement de framework.
+- `crates/tools/nie-site` : **Axum 0.8**, Tokio 1.53, Tower 0.5, `tower-http` 0.6,
+  `askama` 0.14, `moka` 0.12, `blake3`, `rusqlite` 0.37 ; `publish = false`, écoute
+  **uniquement** `127.0.0.1:8085`, nginx termine le TLS. Il **sert** le bundle `nie-web`,
+  **lit** les trois gisements du VPS en lecture seule, et **proxifie** `nie-model-serve`
+  (`127.0.0.1:8790`) en lui ajoutant ce qu'il n'a pas : limite de débit, budget de temps,
+  budget mémoire, cache.
+- **`aphrody.com` aujourd'hui** (MESURÉ) : DNS déjà sur ce VPS, certificat Let's Encrypt
+  déjà émis, `aphrody-site` (:8083, dépôt `aphrody`) y rend une page de 265 octets au corps
+  vide et un `/healthz`. La bascule est une modification du vhost nginx : `aphrody.com` et
+  `www.aphrody.com` vers `:8085`, **les autres hôtes du bloc** (`api.`, `downloads.`, `cdn.`,
+  `bot.`, `admin.`, `mcp.`, `bxc.`, `n2b.`) **restent sur `:8083`**. `nie.aphrody.com`
+  redirige en 308 vers `aphrody.com`. L'en-tête `Content-Security-Policy: default-src 'none'`
+  qu'nginx ajoute aujourd'hui **doit être retiré de ce vhost** : les CSP s'additionnent et la
+  plus stricte gagne — `nie-site` pose la sienne.
+- `apps/nie-web` : hôte Vite de `packages/inacord-ui` avec `web-source.ts`.
+  `apps/inacord` : hôte Tauri de la même UI avec `desktop-source.ts` (`api.ts` renommé).
+  Les conventions d'URL viennent de `packages/nie-catalog/src/jeu.ts` (757 lignes, déjà
+  testé contre `main.rs`), pas d'une réécriture.
 
-1. **Réseau :** `DATABASE_URL` vise `127.0.0.1:5432/rg`; depuis Vercel,
-   `127.0.0.1` désigne la machine Vercel. `NEXT_PUBLIC_SUPABASE_URL` vise par
-   ailleurs le domaine Azalée, qui sert la compatibilité REST/Realtime/Storage
-   sous le même hôte.
-2. **N+1 :** `apps/azalee/app/chara/[id]/page.tsx:410` lançait une requête par
-   technique; le gate a compté 599 requêtes sur `inagle_skills`. Le correctif
-   `cf11153` est **MESURÉ comme correctif commité dans `niers`** : 1 à 2
-   requêtes au lieu de N, 10 tests/0 échec/954 assertions avec les deux
-   backends, cas maximal mesuré 245 techniques → 2 requêtes. Sa
-   réconciliation dans `rg` et son déploiement restent à faire.
-3. **Charge :** le fallback SQLite → Postgres fonctionne, mais le build forcé
-   sans miroir accessible a échoué sur plusieurs fiches après trois tentatives.
-   Le regroupement réduit le N+1; il ne remplace ni la mesure de charge ni la
-   correction des limites de `nie-model-serve`.
-4. **Exposition :** l'audit compagnon a confirmé PostgREST/Storage/Realtime
-   publics, des écritures `anon` et un RPC destructif anonyme. Ce durcissement
-   est un prérequis indépendant, détaillé dans [security.md](security.md).
+### Le moteur et les clients natifs — inchangés cette semaine
 
-## Historique Vercel vérifié
-
-| Commit | Fait établi |
-| --- | --- |
-| `abcfb69f` | Le build Bun + Next 16 échouait au prerender de `/_global-error` (`useContext null`); un build standalone sous Node avec `node:sqlite` a été essayé. |
-| `3c01c323` | Correction de la recherche de Node sur Vercel Node 24 (`exit 127`). |
-| `6fe2a626` | Découpage explicite : website Vercel, Azalée VPS. |
-| `2cf27f1c` | Vercel retiré du monorepo; Azalée devient VPS-first. |
-| `9594ba0d` | Préparation d'un failover frontend; les services stateful restent requis sur VPS. |
-
-**Conclusion :** ces expériences justifient la séparation des responsabilités,
-pas une réécriture du wiki. Une future cible Vercel ne sera acceptable qu'avec
-une base et des services réellement joignables, un N+1 validé et une API
-durcie; un build vert avec le miroir SQLite local ne prouve pas la compatibilité
-serverless.
+- `wgpu 29.0.3` + `winit 0.30.13` gelés ; le bump `wgpu 30.0.1` est un lot ultérieur,
+  compilé et validé par goldens D3D12/Vulkan/Metal/WASM.
+- Tauri 2 reste l'enveloppe d'Inacord, desktop aujourd'hui, mobile plus tard.
+- Mobile natif du jeu et adaptateur Steam : **hors semaine**, spécifications gelées dans
+  [game-platforms.md](game-platforms.md).
 
 ## Alternatives rejetées
 
-| Alternative | Rejet dans ce contexte |
-| --- | --- |
-| Actix | Très bon débit brut, mais pas le choix greenfield retenu par `best-stack-2026`; Axum offre la continuité Tokio/Tower et s'aligne sur les spécifications existantes. |
-| Topcoat | Le README officiel le décrit encore comme « early-stage and experimental »; impossible de le prendre comme socle de production. |
-| Dioxus | Alternative sérieuse full-stack desktop/mobile/web, mais elle ne préserve pas l'UI React/Vite exigée; à réévaluer pour un futur produit Rust-first. |
-| Sycamore/Perseus/Yew | Solutions WASM valables, mais moins adaptées au contrat Axum/Leptos retenu ou à la fraîcheur/maintenance exigée. |
-| Bevy / `bevy-steamworks` | ECS et abstractions de moteur incompatibles avec les structs/layouts et l'ordre byte-exact du cœur; éventuellement prototype isolé, jamais chemin canonique. |
-| Tauri pour le jeu | Une webview convient à l'outil, pas au renderer et à la boucle native wgpu du jeu. |
-| SQLite comme source distante | Le miroir est un cache/offline; il ne résout ni l'accès Vercel à PostgreSQL ni la charge N+1. |
+| Alternative | Raison du rejet |
+|---|---|
+| **Wiki self-host VPS** (décision de Codex dans `rg/docs/decision-archi-donnees-azalee.md`) | vise l'inverse de la cible ; couple le rendu web à un fichier SQLite local — cause directe du faux vert du 2026-09-05 |
+| **`nie.rosegriffon.fr`** pour le site d'outils | deux marques, deux DA : Rose Griffon est la communauté et son wiki, Aphrody est l'univers du jeu ; le SSO par cookie parent est sans objet, Aphrody ne porte pas de comptes cette semaine |
+| **`nie.aphrody.com`** | un sous-domaine pour le produit principal du domaine ; le placeholder d'`aphrody-site` sur `aphrody.com` ne contient rien |
+| **Socle `aphrody-web`** du dépôt `aphrody` (tokens et squelette communs aux vitrines) | la DA d'Aphrody est celle du jeu, pas une charte commune ; `SITES-PLATFORM.md` du dépôt `aphrody` est à amender par son propriétaire |
+| **Leptos 0.8** pour `nie-site` | seconde pile d'UI à côté de React : 0 ligne partagée avec Inacord ; mainteneur unique et maintenance « légère » (issue #4707) ; 37 975 lignes TS/TSX à porter pour l'égaler |
+| **Dioxus 0.7** | même défaut de partage ; plan B seulement si le produit devient Rust-first partout |
+| **SQLx + PostgreSQL** dans `nie-site` | un saut réseau pour des données que `var/mirror.sqlite` sert localement ; Inacord lit déjà ces fichiers : même source ⇒ mêmes réponses |
+| **Drizzle dual-runtime `bun-sqlite`/`node-sqlite`** (Codex) | fige le SQLite local comme dépendance de production ; la partie utile — remplacer 494 lignes d'émulation PostgREST — est reprise côté Postgres |
+| **Actix** | débit brut supérieur sur benchmark synthétique, mais hors continuité Tokio/Tower et hors `best-stack-2026` |
+| **Absorber `nie-model-serve` dans `nie-site`** | 7 956 lignes écrites à la main (ni Axum ni tokio) ; le réécrire n'apporte rien que le proxy durci n'apporte déjà |
+| **Changer l'identifiant Tauri** avec le nom Inacord | nouveau dossier de données, updater NSIS/MSI qui installe à côté au lieu de mettre à jour |
+| **Une DA « Aphrody » ou « Inacord » inventée, hors du jeu** | la consigne est le vrai jeu : le site reprend le menu principal, l'application reprend InaCord ; une interface, deux coquilles, aucune couleur dessinée de mémoire |
+| **Migrer `auth.users`** | données personnelles ; aucune base légale documentée |
+| **Bevy / ECS, Tauri pour le jeu, SQLite distant** | inchangé : incompatibles avec le byte-exact, le rendu natif, ou le serverless |
+
+## Ce que le débat a établi (et qui a survécu)
+
+- **Le faux vert.** Un build vert, 70/70 pages, `/chara` 200 en 87 ms et 136 921 octets —
+  et **0 lien** dedans. Deux causes en une journée : RLS sans policy (PostgREST rend 200 et
+  un tableau vide) puis `SUPABASE_INTERNAL_URL` testé avant `NEXT_PUBLIC_SUPABASE_URL` par
+  `pickUrl()`. Leçon gravée dans [verification.md](verification.md) : compter, pas croire.
+- **Le N+1** de `chara/[id]/page.tsx` (599 requêtes `inagle_skills`) est corrigé par
+  `cf11153` : 245 techniques → 2 requêtes, 10 tests, 954 assertions, deux backends.
+- **La bascule a réussi sans miroir** : gate du 2026-09-05, comptes dans
+  [README.md](README.md#état-mesuré-au-gel-2026-09-05-vps).
+- **La sécurité** est indépendante de la bascule et la précède ; ordre dans
+  [security.md](security.md).
+
+## Historique Vercel vérifié
+
+`abcfb69f` (prerender `/_global-error` en échec sous Bun), `3c01c323` (Node 24 introuvable),
+`6fe2a626` (website Vercel, Azalée VPS), `2cf27f1c` (Vercel retiré), `9594ba0d` (failover).
+Ces échecs venaient d'un runtime Bun et d'une base en `127.0.0.1` ; aucun ne tient avec le
+runtime Node et Supabase Cloud. Ils justifiaient la séparation wiki/outils, pas le renoncement.
 
 ## Risques et déclencheurs de révision
 
-- **Leptos :** le projet est feature-complete mais sa maintenance est légère
-  selon son mainteneur (issue officielle #4707). Revoir le choix si les mises
-  à jour de sécurité, Rust ou WASM prennent du retard.
-- **Tauri mobile :** valider les permissions/capabilities et le cycle de vie
-  Android/iOS sur appareils réels avant promesse produit.
-- **wgpu 30 :** bump séparé, avec vérification des goldens sur D3D12, Vulkan,
-  Metal et WASM.
-- **Steamworks :** revue juridique avant distribution; le SDK Valve n'est
-  pas une dépendance open source libre et le binding peut embarquer des
-  fichiers régis par les conditions Valve.
-- **Données :** le projet Supabase Cloud contrôlé `kvnlbhatjqqmhhxaxlbi` était
-  d'abord mesuré à 0 table. Après application vérifiée des cinq migrations, il
-  contient **224 tables, 1 478 colonnes, 5 vues et 155 policies mesurées**;
-  le chargement des 66 tables de données utiles n'est pas encore validé. Les
-  1 931 lignes mesurées dans `auth.users` sont des données personnelles et ne
-  doivent pas être migrées sans consentement et procédure de minimisation.
+1. **Auto-update d'Inacord** : une redirection qui attraperait `/tools/*` couperait la mise à
+   jour de toutes les installations. `app/tools/niers/latest.json/route.ts` reste au wiki, et
+   les 308 sont posés par préfixe explicite, jamais par regex. Le renommage `niers → Inacord`
+   du `productName` doit être **vérifié sur une installation 0.5.9 réelle** (Windows) avant
+   publication : l'installeur doit mettre à jour, pas installer à côté.
+2. **`supabase-compat.inc`** : realtime et storage servis sous le domaine du wiki cassent sur
+   Vercel **sans erreur de build**. Origine Supabase dédiée, CORS explicite, 19 consommateurs
+   à tester un par un.
+3. **Vercel ↔ eu-west-3** : aucune latence mesurée avant le premier déploiement preview ; si
+   la fiche perso dépasse 800 ms au p95, la bascule DNS attend.
+4. **Le vhost `aphrody.com`** porte dix hôtes dans un seul bloc `server` : la découpe doit
+   laisser `api.`, `downloads.`, `cdn.`, `bot.`, `admin.`, `mcp.`, `bxc.`, `n2b.` sur `:8083`,
+   et retirer la CSP nginx du seul bloc Aphrody. Une faute ici coupe les services du dépôt
+   `aphrody`. Test : `nginx -t`, puis un `curl` par hôte avant et après.
+5. **Exposer `nie-model-serve` nu** : jamais ; `nie-site` est obligatoire devant.
+6. **Deux agents, deux dépôts** : Codex dans `rg`, Claude dans `niers`, plus un démon qui
+   commit des checkpoints. Un lot peut être capté à mi-course ; relire `git log`.
+7. **La DA du jeu** est une extraction, pas un dessin : ce que les fichiers ne donnent pas
+   (corps de texte, espacements, comportement responsive) reste **ESTIMÉ** et se corrige sur
+   capture réelle, jamais de mémoire (règle « ne rien halluciner du jeu »).
+
+## Amendements
+
+*Aucun.* Toute modification de la stack s'écrit ici, datée, avec sa mesure et son
+alternative rejetée — et ne modifie aucun autre fichier du dossier.

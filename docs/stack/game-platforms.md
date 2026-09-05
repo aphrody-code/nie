@@ -1,5 +1,10 @@
 # Moteur, mobile, WASM et Steam
 
+> **Gelé le 2026-09-05 — hors semaine.** Rien de ce document n'est exécuté par
+> [`/PLAN.md`](../../PLAN.md) : `wgpu` reste en 29.0.3, aucun hôte mobile ni adaptateur
+> Steam n'est commencé. Les spécifications ci-dessous restent la référence quand leur lot
+> s'ouvrira ; d'ici là, elles ne changent que par amendement daté de l'ADR.
+
 ## Principe
 
 Le jeu ne sera pas réécrit pour satisfaire les plateformes. Les hôtes
@@ -15,16 +20,16 @@ lot de code.
 
 ## Composition
 
-| Couche | Choix | Règle |
-| --- | --- | --- |
-| Logique | `nie-core` | structs/layouts et ordre d'itération préservés |
-| Données | `nie-formats`, `nie-data` | formats propriétaires, VFS et fixtures |
-| Runtime | `nie-runtime`, `nie-app` | boucle et orchestration sans règle GPU |
-| Fenêtre/input | `winit 0.30.13` | adaptateur par plateforme |
-| GPU | `wgpu 30.0.1` cible | bump contrôlé depuis 29.0.3 existant |
-| Buffer/layout | `bytemuck 1.25` | seulement quand le layout est vérifié |
-| Async utilitaire | Tokio `rt` current-thread sur le chemin de jeu | jamais de réordonnancement caché |
-| Web | `nie-wasm` + WebGPU/WebGL2 | cible distincte, non preuve de parité native |
+- **Logique** — `nie-core`; structs/layouts et ordre d'itération préservés.
+- **Données** — `nie-formats`, `nie-data`; formats propriétaires, VFS et
+  fixtures.
+- **Runtime** — `nie-runtime`, `nie-app`; boucle sans règle GPU.
+- **Fenêtre/input** — `winit 0.30.13`; adaptateur par plateforme.
+- **GPU** — `wgpu 30.0.1` cible; bump contrôlé depuis 29.0.3.
+- **Buffer/layout** — `bytemuck 1.25`; uniquement si le layout est vérifié.
+- **Async utilitaire** — Tokio `rt` current-thread sur le chemin de jeu; aucun
+  réordonnancement caché.
+- **Web** — `nie-wasm` + WebGPU/WebGL2; cible distincte de la parité native.
 
 Le `wgpu 29.0.3` est la version réellement déclarée dans le workspace
 `niers`; `30.0.1` est la version stable retenue par fact-check pour le prochain
@@ -32,14 +37,12 @@ bump. Ce dossier ne fait pas le bump.
 
 ## Plateformes
 
-| Cible | Renderer | Décision |
-| --- | --- | --- |
-| Windows | D3D12 puis Vulkan | chemin Steam principal |
-| Linux | Vulkan, lavapipe en fallback | test serveur et distribution Linux |
-| macOS | Metal | build natif à valider |
-| Android | Vulkan/GLES selon appareil | jeu natif wgpu; Tauri séparé pour l'outil |
-| iOS/iPadOS | Metal | jeu natif wgpu; permissions/cycle de vie à valider |
-| Web | WebGPU, WebGL2 best effort | `nie-wasm`, avec limites documentées |
+- **Windows** — D3D12 puis Vulkan; chemin Steam principal.
+- **Linux** — Vulkan, lavapipe en fallback; serveur et distribution Linux.
+- **macOS** — Metal; build natif à valider.
+- **Android** — Vulkan/GLES selon l'appareil; jeu wgpu, Tauri séparé.
+- **iOS/iPadOS** — Metal; permissions et cycle de vie à valider.
+- **Web** — WebGPU, WebGL2 best effort; `nie-wasm` et limites documentées.
 
 Cette matrice est une cible de support; **À VÉRIFIER** signifie qu'une build et
 un smoke test sur appareil/driver sont encore nécessaires.
@@ -55,8 +58,8 @@ Il y a deux produits mobiles complémentaires :
    React/Vite partagé, API HTTPS et cache offline contrôlé. Il n'est pas le
    renderer du jeu.
 
-Le chemin Leptos peut fournir des pages web au studio, mais une webview Tauri
-ne devient pas le chemin de rendu du match. Toute fonctionnalité indisponible
+Les pages web du studio sont celles de `nie-web` (React/Vite partagé, servi par
+`nie-site`), mais une webview Tauri ne devient pas le chemin de rendu du match. Toute fonctionnalité indisponible
 offline doit être signalée dans l'UI; les données lourdes restent paginées et
 les fichiers passent par URLs signées.
 
@@ -104,4 +107,3 @@ Les gates du moteur sont plus importantes que le choix de framework :
 
 Bevy 0.19.1 peut rester un outil ou un prototype isolé, mais
 `bevy_ecs`/`bevy-steamworks` ne doivent pas entrer dans le cœur canonique.
-

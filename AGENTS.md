@@ -110,18 +110,29 @@ chercher qui pointe dessus **hors du dépôt** :
   distingue pas les auteurs et **peut capter un lot à mi-course**. Relire `git log` avant de
   conclure qu'un commit est le sien.
 
-## 6. Contrainte produit — vitrine `nie.aphrody.com`
+## 6. Contrainte produit — Aphrody sur `aphrody.com`, Inacord, nie
 
-Toute évolution publique de Niers passe par une crate `nie-site` **100 % Rust**,
-`publish = false`, sous `crates/tools/` : Axum 0.8, Tokio 1.x, Tower, rustls ; aucun serveur
-Bun/Node. Écoute **uniquement** sur `127.0.0.1:8085`, derrière nginx et TLS. Fournir
-`/healthz`, `/robots.txt`, `/.well-known/security.txt` ; API futures sous `/api/v1/`,
-authentifiées, sans détail d'infrastructure. Tests de routes + clippy sans avertissement
-avant d'activer nginx.
+Décision **gelée le 2026-09-05** (`docs/stack/`, plan d'exécution `/PLAN.md`). Trois noms :
+**Azalée** le wiki (`azalee.rosegriffon.fr`, Vercel, DA Rose Griffon), **Aphrody** le site
+d'outils et d'assets (`aphrody.com`, DA du vrai jeu), **Inacord** l'application de bureau et
+mobile (`apps/inacord`, ex `nie-explorer`) ; le jeu s'appelle **nie** et les crates gardent
+leur préfixe.
+
+Aphrody est servi par la crate `nie-site` **100 % Rust**, `publish = false`, sous
+`crates/tools/` : Axum 0.8, Tokio 1.x, Tower, `askama`, `moka`, `rusqlite` en lecture seule ;
+aucun serveur Bun/Node ; pas de Leptos, pas de SQLx. Écoute **uniquement** sur
+`127.0.0.1:8085`, derrière nginx qui termine le TLS. Fournir `/healthz`, `/robots.txt`,
+`/.well-known/security.txt` ; API sous `/api/v1/`, paginée, sans détail d'infrastructure ;
+`nie-model-serve` n'est atteint **que** par son proxy. Tests de routes qui **comptent** +
+clippy sans avertissement avant d'activer nginx. Aphrody et Inacord sont **la même
+interface** (`packages/inacord-ui`, contrat `packages/asset-source`) : rien ne se réécrit d'un
+côté.
 
 Les contenus Inazuma Eleven sont exploitables au titre de l'Accord Commercial Officiel
 N° RG-L5-VR-2026-001 (sites, jeux, mods, traductions, dérivés, assets). **Jamais** de donnée
 personnelle, de secret, de credential, de chemin machine ni de dump hors périmètre.
 
-Le DNS et le TLS sont réservés par le dépôt Aphrody ; la stratégie commune des vitrines vit
-dans `../aphrody/docs/SITES-PLATFORM.md`.
+Sur `aphrody.com`, seuls `aphrody.com` et `www` passent à `nie-site` ; `api.`, `downloads.`,
+`cdn.`, `bot.`, `admin.`, `mcp.`, `bxc.`, `n2b.` restent au dépôt `aphrody` (`aphrody-site`,
+:8083), dont `docs/SITES-PLATFORM.md` prévoyait « Niers » sur `nie.aphrody.com` : à amender
+par son propriétaire.

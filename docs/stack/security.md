@@ -8,20 +8,35 @@ secret et ne lance aucune correction d'infrastructure.
 
 L'exposition existe déjà en self-host. Elle n'est pas créée par Vercel, mais
 une nouvelle cible web, Tauri ou mobile ne doit pas l'étendre. Les corrections
-doivent précéder toute bascule publique et sont indépendantes du choix
-Leptos/Axum.
+doivent précéder toute bascule publique et sont indépendantes de la stack.
+Elles sont planifiées jour par jour dans [`/PLAN.md`](../../PLAN.md) : propriétaire
+**Codex** (dépôt `rg`, infrastructure self-host), chaque action avec approbation
+opérationnelle de l'utilisateur, aucune appliquée par ce document.
 
-| Gravité | Fait MESURÉ | Conséquence |
+Ce que la bascule change : le wiki sur Vercel ne porte que la clé `anon` et ne lit
+que sous RLS `lecture_publique`; `nie-model-serve` passe derrière `nie-site` et perd
+son vhost public; `supabase-compat.inc` disparaît avec `azalee-web`. Trois des neuf
+lignes ci-dessous tombent donc mécaniquement à J6 (URL Supabase sur Azalée,
+`nie-model-serve` sans limites, `limit_req_zone` inerte); les six autres ne
+tombent que par la remédiation.
+
+| Gravité | Surface mesurée | Conséquence |
 | --- | --- | --- |
-| Critique | RPC `rg_liberer_profil_discord` appelable anonymement; il peut supprimer un profil précréé et sa ligne `auth.users` | intégrité et comptes |
-| Critique | `anon` a `INSERT/UPDATE/DELETE/TRUNCATE` sur 129 tables; RLS est la seule barrière | écriture de masse si une policy est faible |
-| Critique | `SUPABASE_JWT_SECRET` présent en clair dans un fichier d'environnement; il permet de forger `service_role`/bypass RLS | compromission totale si le secret fuit |
-| Critique | SSH accepte root par mot de passe (`PermitRootLogin yes`, `PasswordAuthentication yes`) | prise de contrôle brute-force |
-| Élevé | `GET /rest/v1/discord_members` anonyme : 2 105 lignes nominatives, dont identifiant Discord, pseudo, avatar et rôles | fuite de données personnelles |
-| Élevé | `nie-model-serve` : 0 auth, 0 rate-limit, 5,65 Gio RSS et une route GLB mesurée en 504 après 30 s | déni de service et saturation mémoire |
-| Élevé | `limit_req_zone` existe dans nginx mais aucun `limit_req`/`limit_conn` ne l'applique | garde-fou inerte |
-| Élevé | `NEXT_PUBLIC_SUPABASE_URL` pointe l'origine Azalée; 17 fichiers l'utilisent | 404 silencieuses si l'origine devient Vercel |
-| Moyen | updater desktop appelle GitHub sans auth | quota partagé et 404 intermittents sur Vercel |
+| Critique | RPC Discord destructif anonyme | intégrité et comptes |
+| Critique | grants `anon` sur 129 tables | écriture de masse possible |
+| Critique | JWT Supabase lisible côté serveur | forge de `service_role` |
+| Critique | SSH root par mot de passe | prise de contrôle brute-force |
+| Élevé | 2 105 membres Discord lisibles anonymement | fuite de PII |
+| Élevé | `nie-model-serve` sans limites, RSS 5,65 Gio | déni de service |
+| Élevé | `limit_req_zone` non appliquée par nginx | garde-fou inerte |
+| Élevé | URL Supabase sur Azalée, 17 consommateurs | 404 avec Vercel |
+| Moyen | updater GitHub sans auth | quota/intermittence |
+
+Détails critiques : le RPC peut supprimer un profil précréé et sa ligne
+`auth.users`; le secret permet de forger `service_role`/bypass RLS; SSH a
+`PermitRootLogin yes` et `PasswordAuthentication yes`. Le GET anonyme expose
+identifiant Discord, pseudo, avatar et rôles. La route GLB a rendu 504 après
+30 s lors de la mesure.
 
 La traversée de chemin dans `nie-model-serve` a été **infirmée** par trois
 contrôles; son risque réel est l'épuisement de ressources, pas une lecture
@@ -73,4 +88,3 @@ appliquée par l'audit :
   services Steam facultatifs échouent proprement sans bloquer le match;
 - journaux sans JWT, mot de passe, identifiant Discord complet ou payload
   personnel.
-

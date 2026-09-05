@@ -43,10 +43,10 @@ la [discussion Chrome 150](https://github.com/krausest/js-framework-benchmark/di
 au repos, trois échauffements et sept mesures médianes; les commandes sont
 reproduites dans `/home/ubuntu/niers/docs/BENCHMARKS.md`.
 
-| Noyau | Rust | C++ | C# JIT | C# AOT |
+| Noyau (débit en Mio/s) | Rust | C++ | C# JIT | C# AOT |
 | --- | ---: | ---: | ---: | ---: |
-| CRC32 slicing-by-8, 64 Mio | 2 312 Mio/s | **2 943 Mio/s** | 606 Mio/s | 600 Mio/s |
-| CRILAYLA, 14,6 Kio → 28,9 Kio | 626 Mio/s | 553 Mio/s | **817 Mio/s** | 711 Mio/s |
+| CRC32, 64 Mio | 2 312 | **2 943** | 606 | 600 |
+| CRILAYLA, 14,6 → 28,9 Kio | 626 | 553 | **817** | 711 |
 | G4TX → PNG, 2640×1200 BC7 | **659 ms** | n/a | 7 169 ms | — |
 
 Le pipeline complet G4TX → PNG favorise Rust dans cette campagne; l'algorithme
@@ -64,25 +64,18 @@ target/release/nie-bench crc32 --mib 64
 bench/cpp/bench.exe crc32-slice8 64
 ```
 
-## Gate serverless Azalée
+## Gate serverless Azalée — trois runs le 2026-09-05, VPS
 
-**MESURÉ pendant le débat A2A le 2026-09-05.** Le gate correct a été lancé
-depuis `apps/azalee` avec `SQLITE_DB_PATH=/nonexistent/mirror.sqlite`; le log
-`/tmp/gate-vercel.log` indiquait `EXIT_REEL=1` sur 14 250 lignes.
+| Run | Origine réellement visée | Résultat | Ce qu'il prouvait |
+|---|---|---|---|
+| 1 — `EXIT_REEL=1`, 14 250 lignes de log | PostgREST du VPS (`:8811`), avant `cf11153` | 776 replis, 599 requêtes `inagle_skills`, fiches en échec après 3 tentatives | le N+1, et que le repli SQLite → Postgres fonctionne |
+| 2 — « faux vert », `EXIT_REEL=0`, 70/70 pages | **PostgREST du VPS**, alors que le Cloud était annoncé | `/chara` 200 en 87 ms, 136 921 o, **0 lien** | rien : `SUPABASE_INTERNAL_URL=http://127.0.0.1:8811` de `.env.local` passait avant l'URL Cloud dans `pickUrl()` |
+| 3 — `scripts/ops/gate-serverless.sh`, `EXIT_REEL=0`, 120/120 | **Supabase Cloud**, miroir `/nonexistent`, 1 114 replis `SQLITE_CANTOPEN` | `/chara` **200 liens**, `/skill` 60, `/item` 48, `/equipe` 208, `/chara/mark-evans` 200 ; TTFB `/` 17 ms, `/chara` 52 ms, fiche 6 ms | **le wiki rend ses données sans fichier local** |
 
-- 776 replis vers Postgres;
-- 599 requêtes `inagle_skills` et 125 `inagle_characters` attribuées au
-  chargement des fiches;
-- échec de `/chara/<slug>` après trois tentatives pour plusieurs fiches,
-  dont `astro-lor`, `fei`, `kevin`, `maxwell-carson` et `nathan-swift`;
-- le repli n'est pas structurellement cassé : `createSqliteClient()` construit
-  un objet paresseux et `getSqliteDb()` est appelé dans le `try` de
-  `apps/azalee/lib/supabase/server.ts`; le log des replis le démontre.
-
-Le build avec `SQLITE_DB_PATH` vide n'est pas une preuve serverless : les
-replis 3 et 4 peuvent retrouver le miroir local. Une campagne fiable doit
-forcer une base distante joignable, enregistrer le code de sortie réel et
-séparer build de données de build de frontend.
+Le run 2 est la mesure la plus importante des trois : il montre qu'un code de sortie, un
+nombre de pages et un code HTTP peuvent tous être verts sur un site vide. Le run 3 ne vaut
+que par ses **comptes**. Aucune latence Vercel → eu-west-3 n'existe encore : elle se mesure
+sur la preview de J2, pas depuis le VPS.
 
 ### Validation du correctif N+1
 
@@ -100,21 +93,27 @@ la latence de production.
 **MESURÉ le 2026-09-05** via l'API de gestion Supabase : le projet Cloud est
 passé de 0 table à 224 tables, 1 478 colonnes, 5 vues et 155 policies RLS;
 les cinq migrations ont été rejouées avec succès et l'idempotence contrôlée.
-Le chargement des données (66 tables utiles, environ 165 244 lignes et 110 Mo)
-reste un lot distinct; aucun chiffre de latence Vercel n'est disponible.
+Le chargement complet a ensuite rendu 65 tables, 165 277 lignes et 0 écart
+exact. `skill_videos` a été rejouée après correction de l'ordre FK (1 211 →
+1 211). L'ancien inventaire local 66/165 244 doit être rapproché du manifeste
+du loader (`11ee9e0`); aucun chiffre de latence Vercel n'est disponible.
 
 ## Mesures à obtenir avant bascule
 
 Les objectifs suivants sont **ESTIMÉS**, pas des résultats.
 
-| Gate | Cible à définir puis mesurer | Preuve attendue |
-| --- | --- | --- |
-| Page fiche | p95 acceptable sans miroir local | URL, corpus, nombre de requêtes, p50/p95/p99 |
-| `/chara` | budget de poids mobile par breakpoint | trace réseau et poids compressé |
-| API `nie-site` | p95 sous charge représentative | outil, concurrence, payload et version |
-| Postgres/Supabase | latence régionale réelle | déploiement réel, timestamp, plusieurs séries |
-| Client Tauri mobile | démarrage et mémoire | appareils Android/iOS nommés |
-| Jeu | hash de replay et captures RGBA8 | corpus, GPU/backend, hash et logs |
+- **Page fiche** — mesurer le p95 sans miroir local; conserver URL, corpus,
+  nombre de requêtes et p50/p95/p99.
+- **`/chara`** — mesurer le budget de poids mobile par breakpoint; conserver
+  trace réseau et poids compressé.
+- **API `nie-site`** — mesurer le p95 sous charge représentative; conserver
+  outil, concurrence, payload et version.
+- **Postgres/Supabase** — mesurer la latence régionale réelle sur un
+  déploiement actif; conserver timestamp et séries.
+- **Client Tauri mobile** — mesurer démarrage et mémoire sur appareils Android
+  et iOS nommés.
+- **Jeu** — conserver hash de replay et captures RGBA8 avec corpus,
+  GPU/backend et logs.
 
 Ne pas annoncer une latence « Vercel → eu-west-3 » avant d'avoir un projet
 Vercel actif et une mesure horodatée; aucune latence de ce type n'était

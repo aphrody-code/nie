@@ -1,11 +1,18 @@
-# Desktop et mobile — Tauri, React/Vite et Leptos
+# Desktop et mobile — Tauri et React/Vite
+
+> **Gelé le 2026-09-05.** La partie desktop est exécutée cette semaine (J4–J5 de
+> [`/PLAN.md`](../../PLAN.md)) ; la partie mobile est **hors semaine** et ne change que par
+> amendement daté de l'ADR.
 
 ## Décision
 
-`nie-explorer` reste une application React/Vite. `Tauri 2.11.5` l'emballe pour
-desktop et Android/iOS; `nie-site` peut servir ce bundle ou un frontend web
-équivalent. Leptos est ajouté uniquement aux pages Rust-first, sans supprimer
-le code React partagé.
+L'explorateur s'appelle **Inacord** (`apps/inacord`, ex `apps/nie-explorer`) et reste une
+application React/Vite. Son interface est extraite dans `packages/inacord-ui`, montée par
+deux hôtes : `Tauri 2` pour le bureau (et plus tard Android/iOS), `apps/nie-web` pour le
+site **Aphrody** (`aphrody.com`) servi par `nie-site`. Les deux implémentent le même contrat
+`packages/asset-source` et portent la même DA, celle du vrai jeu. `productName` devient
+`Inacord` ; l'identifiant `dev.niers.explorer` et les URL de l'updater ne changent pas.
+**Leptos n'est pas retenu** : une seconde pile d'UI ne partagerait rien avec Inacord.
 
 Tauri utilise les webviews système : WKWebView sur macOS/iOS, WebView2 sur
 Windows, WebKitGTK sur Linux et WebView système sur Android. Cette propriété
@@ -13,12 +20,13 @@ est adaptée à un studio/outillage, pas à la boucle de rendu du jeu.
 
 ## Matrice de livraison
 
-| Surface | Frontend | Backend | Offline |
-| --- | --- | --- | --- |
-| Web studio | bundle React/Vite partagé; pages Leptos ciblées | API `nie-site` HTTPS | cache explicite |
-| Desktop explorer | React/Vite dans Tauri | API distante + fonctionnalités locales | oui, selon écran |
-| Android/iOS explorer | même frontend, capabilities mobiles | API distante | cache limité et sécurisé |
-| Jeu desktop/mobile | wgpu/winit natif | runtime local | oui pour le cœur |
+- **Web studio** — `apps/nie-web`, bundle React/Vite partagé servi par `nie-site`;
+  API `/api/v1` HTTPS; cache explicite.
+- **Inacord desktop** — React/Vite dans Tauri; API distante et fonctions
+  locales; offline selon l'écran.
+- **Inacord Android/iOS** — même frontend et capabilities mobiles; API
+  distante; cache limité et sécurisé; hors semaine.
+- **Jeu desktop/mobile** — wgpu/winit natif et runtime local; cœur offline.
 
 ## Règles de sécurité Tauri
 
@@ -50,11 +58,11 @@ ensuite une build release par architecture et un smoke test sur appareil réel.
 
 ## Relation avec `nie-site`
 
-Le serveur Rust doit exposer une API stable et des assets contrôlés. Il ne doit
-pas forcer le studio à réimplémenter ses composants React. Les pages Leptos
-peuvent cohabiter via un shell distinct, un routage documenté ou une migration
-écran par écran, mais le contrat de partage est prioritaire.
+Le serveur Rust expose une API stable et des assets contrôlés. Il ne force pas le
+studio à réimplémenter ses composants React : le contrat de partage
+(`packages/asset-source`) est prioritaire. Les seules pages rendues côté serveur
+(`askama`) sont des coquilles — `index.html` enrichi de ses balises `og:`, erreurs,
+`robots.txt`, `sitemap.xml` — jamais des écrans.
 
 Les uploads, previews 3D et gros fichiers doivent être streamés/paginés; une
 page mobile ne doit pas charger le catalogue complet des 250 000+ fichiers.
-

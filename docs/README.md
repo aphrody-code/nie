@@ -7,6 +7,7 @@ pas de journal, pas d'historique daté — l'état vient des outils, l'histoire 
 
 | Document | Contenu |
 |---|---|
+| [../PLAN.md](../PLAN.md) | **La semaine du 2026-09-05 au 2026-09-11** : Azalée sur Vercel, Aphrody sur `aphrody.com`, Inacord — jour par jour, trois agents, une gate qui compte par jour |
 | [PLAN.md](PLAN.md) | **L'objectif et l'état chiffré** : les deux faces (moteur et forge), ce qui est mesuré, les priorités |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | **La carte** : les quatre arbres, qui fait autorité sur quoi, les crates, les ponts, les fusions interdites |
 | [FORGE.md](FORGE.md) | Produire `nie.exe` au byte près depuis le workspace — le juge du projet |
@@ -22,6 +23,7 @@ pas de journal, pas d'historique daté — l'état vient des outils, l'histoire 
 | [AVATAR.md](AVATAR.md) | L'éditeur d'avatar (`chara_edit`) : composition, icônes, ce qui reste non prouvé |
 | [BENCHMARKS.md](BENCHMARKS.md) | Banc d'essai inter-langages des hot paths |
 | [PLAN-SESSION-3D.md](PLAN-SESSION-3D.md) | Le plan de travail en cours sur le moteur 3D, les avatars et la publication |
+| [stack/README.md](stack/README.md) | **Stack gelée le 2026-09-05** : Azalée sur Vercel + Supabase Cloud, Aphrody (`aphrody.com`) servi par `nie-site` (Axum, 100 % Rust), Inacord et l'interface partagée `inacord-ui` ; mobile et Steam gelés hors semaine |
 
 ## Le binaire et ses données
 
