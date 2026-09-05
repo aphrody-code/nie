@@ -414,6 +414,95 @@ demandent aucun compte et peuvent suivre immédiatement. Les étapes 5 et 6 (con
 modération) ne démarrent pas avant que **quelqu'un accepte de modérer** — c'est une charge
 humaine, pas une fonctionnalité.
 
+### A5 — 2026-09-05 : la chaîne pixel-perfect vit dans `nie-aphrody`, portable et partagée
+
+**Décision.** La chaîne « image du jeu → asset reproduit » — mesure, comparaison chiffrée,
+vectorisation, planche de sprites, jetons de couleur — vit dans **une seule crate,
+`nie-aphrody`**, qui acquiert au passage le contrat « pet » de Codex. Elle sert Aphrody
+(`nie-web`), Inacord et le web depuis la même source, sans réimplémentation par hôte.
+
+**Portabilité — MESURÉE, pas supposée.** `cargo check -p nie-aphrody --target
+wasm32-unknown-unknown --no-default-features --lib` → **0 erreur, 0 warning** (VPS,
+2026-09-05). Deux décisions la rendent réelle plutôt que nominale :
+
+- le module `pets` **ne lit jamais l'horloge** : le temps écoulé est un argument en
+  millisecondes. Un `Instant::now()` interne aurait imposé une horloge au navigateur et rendu
+  les tests dépendants du temps réel ;
+- `Image::depuis_octets` est le point d'entrée portable ; `Image::charger` (disque) passe
+  derrière la feature **`fs`**, active par défaut. Un hôte sans système de fichiers ne peut
+  donc plus appeler une fonction qui échouerait toujours à l'exécution.
+
+**Ce qui n'est PAS réécrit.** `nie_formats::sprite_sheet` produisait déjà, depuis les
+rectangles d'un atlas du jeu, la feuille **CSS** (mode image et mode masque `currentColor`),
+le **SVG** autonome à `<symbol>` et le **JSON** des régions. `pixel planche` lui *apporte* une
+planche assemblée au lieu d'un `.g4tx` : un sprite issu de poses rendues et un sprite issu
+d'un atlas du jeu s'emploient donc identiquement dans `inacord-ui`. Aucun générateur CSS
+concurrent n'entre dans le dépôt.
+
+**Bibliothèques — versions et licences relevées le 2026-09-05** (crates.io + `gh api`, pas de
+mémoire). Ce tableau vaut pour ce dossier ; il ne modifie pas `dependencies.md`, conformément
+à la règle de gel.
+
+| Rôle | Crate | Version | Licence | Rejeté, et pourquoi |
+|---|---|---|---|---|
+| Rastérisation SVG | `resvg` / `usvg` | 0.48.1 | Apache-2.0 OR MIT | `vello` (exige wgpu, pas de SVG natif), `femtovg` (contexte OpenGL) |
+| Back-end 2D CPU | `tiny-skia` | 0.12.0 | **BSD-3-Clause** | — (clause de non-endossement à porter dans les mentions) |
+| Image | `image` | 0.25.10 | MIT OR Apache-2.0 | `sharp` côté Bun : binding libvips, inutile ici |
+| Comparaison SSIM | `image-compare` | 0.5.0 | MIT | **`dssim` : AGPL-3.0** — contaminerait tout binaire distribué. C'est la seule licence non permissive du lot |
+| Couleur Oklab/Oklch | `palette` | 0.7.7 | MIT OR Apache-2.0 | `oklab` (2 ans sans commit, ni Oklch ni gamut mapping) |
+| Vectorisation | **aucune** | — | — | `potrace` : GPL-2.0 **et** sans crate ; `vtracer` : tirerait un **second `image`** (^0.23) plus `clap 2` et `pyo3`. Suivre le bord d'un masque puis simplifier tient en deux fonctions — un carré en sort en 4 sommets, là où un traceur générique en rend 32 |
+
+**Contrat pet, et l'écart assumé.** Le module `pets` réimplémente le sous-système `pets`
+d'`openai/codex` (**Apache-2.0**, attribution dans `crates/engine/nie-aphrody/NOTICE`) :
+schéma `pet.json`, valeurs par défaut, bornes de validation, sémantique `loop_start` /
+`fallback`, choix de frame par accumulation de durées, états à durée de vie (3 min / 1 h /
+24 h / 7 j). **Un écart :** Codex fige la grille à 8 × 9 et rejette tout autre atlas ;
+appliqué à la lettre, il rejetterait notre propre pet, qui est un 8 × **11**. La géométrie est
+donc lue dans le **manifeste** — ce que Codex fait déjà pour ses pets personnalisés — et sa
+validation stricte s'applique à la géométrie déclarée. Cellule 192 × 208 et 8 colonnes sont
+identiques de part et d'autre : Aphrody v2 est une extension du même contrat. Les **assets**
+de Codex ne sont pas repris : ils ne sont pas dans leur dépôt (CDN) et ne sont donc pas
+couverts par sa licence.
+
+**Branchement Inacord.** `nie-aphrody` est atteignable depuis Tauri par les trois pas
+obligatoires du dépôt : dépendance de chemin, façade `src/aphrody.rs` à **DTO locaux**, 7
+commandes dans `collect_commands!`, bindings régénérées. Aucun `specta` n'entre dans les
+crates moteur — aucune n'en dépend, et leur en imposer un ferait payer une dépendance
+d'interface à `nie-wasm`, aux goldens et à la forge. Toutes les commandes sont `async` : une
+commande synchrone tourne sur le thread principal et figerait la fenêtre sur une lecture
+disque.
+
+**Correction apportée à la décision gelée.** Le README annonce que les tokens de la DA
+d'Aphrody sont « extraits des données » de `mainmenu01`. La mesure du jour oblige à
+distinguer :
+
+- les **couleurs** le sont — palette k-means en Oklab sur la capture ver. 7.1.2 : rangée de
+  tuiles `#2D5DA1` 38,4 %, `#578FD8` 29,7 %, `#0C2F64` 23,1 %, `#CEE1F6` 8,8 %, rendues en
+  `oklch()` avec le HEX en commentaire ;
+- la **géométrie ne l'est pas**. L'ajustement des bords des tuiles rend un R² entre **0,004 et
+  0,45**, très en dessous du seuil de 0,95 : l'outil refuse de donner un angle, parce que le
+  bord suit le contenu du sprite et non le cadre. Écrire un `skewX(-18°)` tiré de la capture
+  serait **inventé**. La géométrie doit venir du layout runtime.
+
+Or ce layout est précisément ce qui manque : composition statique à **22 des 31** objbin de
+`mainmenu01`, SSIM contre la référence **≈ 0,004** (plancher de non-régression 0,003,
+`menu_render_gate.rs:588`). Le blocage n'est pas un format — les motions `g4pkm` ne portent
+**aucune keyframe de position** ; le placement vient de la machine d'état C++ `G4RA` et des
+callbacks Lua `Setup*`, jamais reversés. Carte complète et prochain pas chiffré :
+[`docs/mainmenu01-analyse-visuelle.md`](../mainmenu01-analyse-visuelle.md).
+
+**Conséquence pour la semaine.** La DA d'Aphrody peut partir sur les couleurs mesurées et sur
+les atlas d'icônes du VFS ; elle ne peut **pas** prétendre reproduire la mise en page de
+`mainmenu01` tant que le placement n'est pas reversé. Le dire dans le thème plutôt que de
+laisser croire à une conformité non prouvée — « pixel-perfect » reste un objectif mesuré,
+jamais un adjectif que l'on s'accorde.
+
+**Gate.** `cargo test -p nie-aphrody --lib` → **30/30** ; `cargo clippy -p nie-aphrody --lib
+--bins --tests` → **0 warning** ; `cargo check --target wasm32-unknown-unknown
+--no-default-features` → **0 erreur** ; l'app Tauri compile. Toute affirmation de fidélité
+visuelle s'accompagne d'un SSIM ou d'un pourcentage de pixels dans la tolérance, et dit
+lequel.
+
 ---
 
 Toute modification de la stack s'écrit ici, datée, avec sa mesure et son alternative
