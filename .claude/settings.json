@@ -1,7 +1,4 @@
 {
-  "enabledPlugins": {
-    "niers@niers-marketplace": true
-  },
   "env": {
     "NIERS_REPO": "/home/ubuntu/niers",
     "BASH_ENV": "/home/ubuntu/niers/.claude/shell-init.sh",
@@ -31,5 +28,9 @@
         ]
       }
     ]
+  },
+  "enabledPlugins": {
+    "niers@niers-marketplace": true,
+    "supabase@claude-plugins-official": true
   }
 }
