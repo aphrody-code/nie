@@ -491,6 +491,30 @@ impl Motion {
         let channel = self.rotation_channel(clip, target_index)?;
         self.sample_channel(data, channel, frame).map(normalize_quat)
     }
+
+    /// Échantillonne tous les canaux TRS d'un os, en conservant la pose de repos pour
+    /// les composantes absentes. Les clips additifs sont refusés car ils exigent une base.
+    #[must_use]
+    pub fn sample_local_trs(&self, data: &[u8], clip: &Clip, target_index: u16, frame: f32, rest: crate::g4sk::LocalTrs) -> Option<crate::g4sk::LocalTrs> {
+        if clip.is_additive() || !frame.is_finite() { return None; }
+        let start = clip.target_info_start as usize;
+        let end = start + clip.target_info_count as usize;
+        let info = self.target_infos.get(start..end)?.iter().find(|t| t.target_index == target_index)?;
+        let cs = info.channel_start as usize;
+        let ce = cs + info.channel_count as usize;
+        let mut pose = rest;
+        for channel in self.channels.get(cs..ce)? {
+            let value = self.sample_channel(data, channel, frame)?;
+            if !value.iter().all(|v| v.is_finite()) { return None; }
+            match channel.channel_type {
+                1..=3 => pose.scale[channel.channel_type as usize - 1] = value[0],
+                9 => pose.quat = normalize_quat(value),
+                10..=12 => pose.translation[channel.channel_type as usize - 10] = value[0],
+                _ => {}
+            }
+        }
+        Some(pose)
+    }
 }
 
 /// Résout chaque hash de cible ([`Motion::target_hashes`]) contre une liste de noms d'os (ordre =
@@ -626,7 +650,7 @@ mod tests {
             buf[OFF_DATA + 8 + i * 2..OFF_DATA + 8 + i * 2 + 2].copy_from_slice(&v.to_le_bytes());
         }
 
-        let motion = Motion::parse(&buf).expect("motion synthétique");
+        let mut motion = Motion::parse(&buf).expect("motion synthétique");
         assert_eq!(motion.clips.len(), 1);
         assert_eq!(motion.target_hashes, alloc::vec![target_hash]);
         let clip = &motion.clips[0];
@@ -643,6 +667,36 @@ mod tests {
         let q_mid = motion.sample_rotation(&buf, clip, 0, 0.5).expect("q_mid");
         let n = (q_mid[0] * q_mid[0] + q_mid[1] * q_mid[1] + q_mid[2] * q_mid[2] + q_mid[3] * q_mid[3]).sqrt();
         assert!((n - 1.0).abs() < 0.01, "q_mid normalisé : {n}");
+
+        let rest = crate::g4sk::LocalTrs {
+            scale: [2.0, 3.0, 4.0], quat: [0.0, 0.0, 0.0, 1.0], translation: [5.0, 6.0, 7.0],
+        };
+        let local = motion.sample_local_trs(&buf, clip, 0, 0.5, rest).unwrap();
+        assert_eq!(local.quat, q_mid);
+        assert_eq!(local.translation, rest.translation);
+        assert_eq!(local.scale, rest.scale);
+        assert!(motion.sample_local_trs(&buf, clip, 0, f32::NAN, rest).is_none());
+
+        // Un canal scalaire ne normalise pas sa valeur comme un quaternion ; les axes
+        // non animés restent ceux de repos, y compris pour translation et échelle.
+        motion.channels[0].channel_type = 11;
+        motion.channels[0].variant = 4;
+        motion.channels[0].n_comp = 1;
+        motion.channels[0].stride = 4;
+        buf[OFF_DATA..OFF_DATA + 4].copy_from_slice(&(-2.0f32).to_le_bytes());
+        buf[OFF_DATA + 4..OFF_DATA + 8].copy_from_slice(&6.0f32.to_le_bytes());
+        let clip = &motion.clips[0];
+        let local = motion.sample_local_trs(&buf, clip, 0, 0.5, rest).unwrap();
+        assert_eq!(local.translation[0], 5.0);
+        assert_eq!(local.translation[1], 2.0);
+        assert_eq!(local.translation[2], 7.0);
+        assert_eq!(local.quat, rest.quat);
+        motion.channels[0].channel_type = 3;
+        let local = motion.sample_local_trs(&buf, &motion.clips[0], 0, 1.0, rest).unwrap();
+        assert_eq!(&local.scale[..2], &[2.0, 3.0]);
+        assert_eq!(local.scale[2], 6.0);
+        motion.clips[0].flags = 1;
+        assert!(motion.sample_local_trs(&buf, &motion.clips[0], 0, 0.0, rest).is_none());
     }
 
     /// Golden croisé contre l'implémentation Python indépendante (`plugins/niers-blender`, submodule)

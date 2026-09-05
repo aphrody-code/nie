@@ -216,7 +216,7 @@ struct UniformMapEntry {
 /// Version de l'assembleur de personnages. À incrémenter à chaque changement de recette ou de
 /// format de sortie : le cache GLB (`var/model-cache`) est purgé au démarrage quand la version
 /// enregistrée dans `VERSION` diffère, et chaque rapport la cite avec le SHA-256 du GLB servi.
-const ASSEMBLER_VERSION: &str = "2026-09-04.skin-4";
+const ASSEMBLER_VERSION: &str = "2026-09-05.presentation-6";
 
 /// État partagé entre les threads (derrière Arc).
 struct State {
@@ -1209,6 +1209,7 @@ fn bind_piece_textures(
     model: &mut nie_formats::assemble::AssembledModel,
     src: &PieceTextures,
     bound: &mut BTreeSet<String>,
+    skin_rgb: Option<[u8; 3]>,
 ) -> Value {
     use serde_json::json;
     let materials: Vec<String> = model
@@ -1301,13 +1302,29 @@ fn bind_piece_textures(
             }));
             continue;
         };
-        let Some(png_bytes) = g4tx_decode::decode_named_to_png(&g4tx_data, &texture) else {
+        let Some(mut png_bytes) = g4tx_decode::decode_named_to_png(&g4tx_data, &texture) else {
             warn!("planche {texture} indécodable dans {}", src.container);
             entries.push(
                 json!({ "material": material, "texture": texture, "rule": rule, "decoded": false }),
             );
             continue;
         };
+        let mut skin_tinted = false;
+        if src.component == MeshComponent::Uniform
+            && let Some(rgb) = skin_rgb
+            && let Some((w, h, mut rgba)) = g4tx_decode::decode_named_to_rgba(&g4tx_data, &texture)
+            && let Some((mw, mh, mask)) =
+                g4tx_decode::decode_named_to_rgba(&g4tx_data, &format!("{texture}msk"))
+        {
+            skin_tinted = tint_skin_mask(&mut rgba, w, h, &mask, mw, mh, rgb);
+            if skin_tinted {
+                if let Some(png) = g4tx_decode::encode_rgba_to_png(&rgba, w as usize, h as usize) {
+                    png_bytes = png;
+                } else {
+                    skin_tinted = false;
+                }
+            }
+        }
         model.embedded_textures.push(EmbeddedTexture {
             component: src.component,
             name: material.clone(),
@@ -1333,10 +1350,144 @@ fn bind_piece_textures(
         }
         entries.push(json!({
             "material": material, "texture": texture, "rule": rule, "decoded": true,
-            "roles": roles,
+            "roles": roles, "skin_tinted": skin_tinted,
         }));
     }
     json!({ "piece": src.piece, "container": src.container, "materials": entries })
+}
+
+/// Carnation de repli : couleur opaque majoritaire de la planche d'expressions.
+/// Exige une majorité absolue ; une planche ambiguë ne reçoit aucune couleur devinée.
+fn expression_skin_color(rgba: &[u8]) -> Option<[u8; 3]> {
+    let mut counts = std::collections::HashMap::<[u8; 3], usize>::new();
+    let mut opaque = 0usize;
+    for p in rgba.chunks_exact(4).filter(|p| p[3] == 255) {
+        *counts.entry([p[0], p[1], p[2]]).or_default() += 1;
+        opaque += 1;
+    }
+    let (rgb, count) = counts.into_iter().max_by_key(|(_, count)| *count)?;
+    (count > opaque / 2).then_some(rgb)
+}
+
+/// Pose debout fournie par le jeu. Les inverse-bind restent celles du maillage ;
+/// les TRS locaux des os sont échantillonnés dans le clip non additif.
+fn apply_viewer_pose(state: &State, model: &mut nie_formats::assemble::AssembledModel) -> Value {
+    use nie_formats::{g4mt, g4pk};
+    let Some(skeleton) = model.skeleton.as_mut() else {
+        return serde_json::json!({"applied": false, "reason": "sans squelette"});
+    };
+    let path = skeleton.source.replace(".g4sk", "_p010.g4pk");
+    let selected = state.vfs.read(&path).ok().and_then(|bytes| {
+        let pack = g4pk::parse(&bytes).ok()?;
+        for file in &pack.files {
+            if !file.name.ends_with(".g4mt") { continue; }
+            let data = bytes.get(file.offset..file.offset.checked_add(file.size)?)?;
+            let Some(motion) = g4mt::Motion::parse(data) else { continue; };
+            let Some(clip) = motion.clips.iter().find(|c| c.name == "立ち1L" && !c.is_additive()) else { continue; };
+            let names: Vec<&str> = skeleton.bones.iter().map(|b| b.name.as_str()).collect();
+            let resolved = g4mt::resolve_targets(&motion.target_hashes, &names);
+            let rotations: Vec<_> = motion.target_indices(clip).into_iter().filter_map(|target| {
+                let bone = resolved.get(target as usize).copied().flatten()?;
+                let pose = motion.sample_local_trs(data, clip, target, 0.0, skeleton.bones[bone].local)?;
+                Some((bone, pose))
+            }).collect();
+            return Some(rotations);
+        }
+        None
+    });
+    let Some(rotations) = selected.filter(|r| !r.is_empty()) else {
+        return serde_json::json!({"applied": false, "source": path, "reason": "clip debout absent ou illisible"});
+    };
+    for (bone, rotation) in &rotations {
+        skeleton.bones[*bone].local = *rotation;
+    }
+    serde_json::json!({"applied": true, "source": path, "clip": "立ち1L", "frame": 0, "bones": rotations.len()})
+}
+
+/// Réglages de présentation attestés par une référence externe, distincts des défauts CFG.
+/// L'atlas original des dossards est une grille 10×10 (0..99), les UV bruts pointent sur 0.
+fn apply_reference_presentation(model: &mut nie_formats::assemble::AssembledModel) -> Option<Value> {
+    static PRESETS: std::sync::LazyLock<Value> = std::sync::LazyLock::new(|| {
+        serde_json::from_str(include_str!("presentation.json")).expect("présentations JSON intégrées valides")
+    });
+    let preset = PRESETS.get(&model.internal_code)?;
+    let parts = model.report["uniform"]["parts"].as_array()?;
+    let armbands: BTreeSet<String> = parts.iter().filter(|p| p["role"] == "armband")
+        .filter_map(|p| p["piece"].as_str().map(str::to_owned)).collect();
+    let nameplates: BTreeSet<String> = parts.iter().filter(|p| p["role"] == "nameplate")
+        .filter_map(|p| p["piece"].as_str().map(str::to_owned)).collect();
+    let mut removed = 0;
+    if preset["captain"] == false {
+        let before = model.primitives.len();
+        model.primitives.retain(|p| !armbands.contains(&p.piece));
+        removed = before - model.primitives.len();
+    }
+    let mut numbered = 0;
+    if let Some(number) = preset["jersey_number"].as_u64().filter(|n| *n < 100) {
+        for primitive in model.primitives.iter_mut().filter(|p| nameplates.contains(&p.piece)) {
+            if !primitive.uv0.is_empty() && primitive.uv0.iter().all(|uv| (0.0..=0.1).contains(&uv.u) && (0.0..=0.1).contains(&uv.v)) {
+                for uv in &mut primitive.uv0 {
+                    uv.u += (number % 10) as f32 / 10.0;
+                    uv.v += (number / 10) as f32 / 10.0;
+                }
+                numbered += 1;
+            }
+        }
+    }
+    let mut expressions = 0;
+    if let Some(slot) = preset["mouth_expression"].as_u64().filter(|n| *n < 8) {
+        for primitive in model.primitives.iter_mut().filter(|p| p.piece == model.internal_code && p.material_name == "mouth_10") {
+            if !primitive.uv0.is_empty() && primitive.uv0.iter().all(|uv| (0.0..=0.25).contains(&uv.u) && (0.0..=0.5).contains(&uv.v)) {
+                for uv in &mut primitive.uv0 {
+                    uv.u += (slot % 4) as f32 / 4.0;
+                    uv.v += (slot / 4) as f32 / 2.0;
+                }
+                expressions += 1;
+            }
+        }
+    }
+    Some(serde_json::json!({"reference": preset, "armband_primitives_hidden": removed, "nameplates_numbered": numbered, "mouth_expressions_selected": expressions}))
+}
+
+/// Le canal rouge du masque de tenue désigne la carnation. Le masque peut être une
+/// petite planche uniforme : l'échantillonnage suit les UV, indépendamment de sa taille.
+fn tint_skin_mask(
+    rgba: &mut [u8],
+    w: u32,
+    h: u32,
+    mask: &[u8],
+    mw: u32,
+    mh: u32,
+    rgb: [u8; 3],
+) -> bool {
+    if w == 0
+        || h == 0
+        || mw == 0
+        || mh == 0
+        || rgba.len() as u64 != u64::from(w) * u64::from(h) * 4
+        || mask.len() as u64 != u64::from(mw) * u64::from(mh) * 4
+    {
+        return false;
+    }
+    let mut changed = false;
+    for (i, pixel) in rgba.chunks_exact_mut(4).enumerate() {
+        let x = i as u64 % u64::from(w);
+        let y = i as u64 / u64::from(w);
+        let m = ((y * u64::from(mh) / u64::from(h)) * u64::from(mw)
+            + x * u64::from(mw) / u64::from(w)) as usize
+            * 4;
+        let weight = u32::from(mask[m].saturating_sub(mask[m + 1].max(mask[m + 2])));
+        if weight == 0 {
+            continue;
+        }
+        changed = true;
+        for c in 0..3 {
+            pixel[c] = ((u32::from(pixel[c]) * (255 * (255 - weight) + u32::from(rgb[c]) * weight)
+                + 32512)
+                / 65025) as u8;
+        }
+    }
+    changed
 }
 
 /// Assemble un personnage (code `cXXXXXXXX`) depuis les tables réelles du jeu.
@@ -1623,9 +1774,22 @@ fn assemble_chara(state: &State, code: &str) -> Result<Assembled> {
             container: face_container,
         },
     );
+    let skin_rgb = state
+        .vfs
+        .read(&texture_sources[usize::from(input.body_raw.is_some())].container)
+        .ok()
+        .and_then(|data| g4tx_decode::decode_named_to_rgba(&data, &format!("{code}_10")))
+        .and_then(|(_, _, rgba)| expression_skin_color(&rgba));
     for src in &texture_sources {
-        textures_report.push(bind_piece_textures(state, &mut model, src, &mut bound));
+        textures_report.push(bind_piece_textures(
+            state, &mut model, src, &mut bound, skin_rgb,
+        ));
     }
+    model.report["skin_color"] = json!({
+        "rgb": skin_rgb,
+        "source": "majorité opaque de la planche d'expressions du visage",
+        "confidence": "inférence de texture, pas paramètre shader décodé",
+    });
     // Les composants lus en GLB pré-converti n'ont pas de nom de matériau : ils reçoivent la
     // première planche de leur composant (repli explicite, journalisé), comme avant.
     if input.face_raw.is_none()
@@ -1670,6 +1834,12 @@ fn assemble_chara(state: &State, code: &str) -> Result<Assembled> {
     model.report["materials_without_texture"] = json!(unbound);
     model.report["notes"] = json!(notes);
 
+    if let Some(presentation) = apply_reference_presentation(&mut model) {
+        model.report["reference_presentation"] = presentation;
+        model.report["primitives"] = json!(model.primitives.len());
+        model.report["skinned_primitives"] = json!(model.primitives.iter().filter(|p| p.skin.is_some()).count());
+    }
+    model.report["presentation_pose"] = apply_viewer_pose(state, &mut model);
     let report = std::mem::take(&mut model.report);
     Ok(Assembled {
         glb: model.to_glb_embedded(),
@@ -6064,6 +6234,37 @@ fn audit_models(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn skin_mask_preserves_cloth_and_alpha_at_different_resolutions() {
+        let mut rgba = vec![
+            255, 255, 255, 99, 255, 255, 255, 255, 100, 100, 100, 255, 100, 100, 100, 255,
+        ];
+        assert!(super::tint_skin_mask(
+            &mut rgba,
+            4,
+            1,
+            &[255, 0, 0, 255, 0, 0, 0, 255],
+            2,
+            1,
+            [241, 209, 177]
+        ));
+        assert_eq!(&rgba[..8], &[241, 209, 177, 99, 241, 209, 177, 255]);
+        assert_eq!(&rgba[8..], &[100, 100, 100, 255, 100, 100, 100, 255]);
+        assert!(!super::tint_skin_mask(&mut rgba, 4, 1, &[], 0, 0, [0; 3]));
+    }
+
+    #[test]
+    fn expression_skin_color_requires_an_opaque_majority() {
+        assert_eq!(
+            super::expression_skin_color(&[241, 209, 177, 255, 241, 209, 177, 255, 0, 0, 0, 255]),
+            Some([241, 209, 177])
+        );
+        assert_eq!(
+            super::expression_skin_color(&[241, 209, 177, 255, 0, 0, 0, 255]),
+            None
+        );
+        assert_eq!(super::expression_skin_color(&[241, 209, 177, 0]), None);
+    }
     use super::*;
     /// Le cache est indexé par version d'assembleur : un GLB écrit par une version antérieure
     /// n'est jamais resservi tel quel après un rebuild.

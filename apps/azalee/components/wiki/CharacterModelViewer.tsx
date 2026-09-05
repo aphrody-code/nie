@@ -68,7 +68,7 @@ export default function CharacterModelViewer({ glbUrl, name, inline }: Character
 		const mv = document.createElement("model-viewer");
 		mv.setAttribute("alt", `Modèle 3D de ${name ?? "personnage"}`);
 			mv.setAttribute("camera-controls", "");
-			mv.setAttribute("camera-orbit", "180deg 75deg auto");
+			mv.setAttribute("camera-orbit", "0deg 85deg auto");
 		mv.setAttribute("auto-rotate", "");
 		mv.setAttribute("rotation-per-second", "30deg");
 		mv.setAttribute("shadow-intensity", "1");

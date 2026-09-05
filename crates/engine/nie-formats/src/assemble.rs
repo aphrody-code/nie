@@ -3496,6 +3496,14 @@ fn build_glb_embedded(model: &AssembledModel) -> Vec<u8> {
             MeshComponent::Face => "BLEND",
             _ => "MASK",
         };
+        // Une texture opaque doit écrire la profondeur, même sur une pièce Face : le tri
+        // des triangles d'une chevelure en BLEND provoque des auto-superpositions noires.
+        #[cfg(feature = "textures")]
+        let alpha_mode = if png_is_opaque(&etex.png_bytes) == Some(true) {
+            "OPAQUE"
+        } else {
+            alpha_mode
+        };
         let mut material = json!({
             "name": etex.name,
             "pbrMetallicRoughness": {
@@ -3871,6 +3879,26 @@ fn build_glb_embedded(model: &AssembledModel) -> Vec<u8> {
     glb.extend_from_slice(&bin_padded);
 
     glb
+}
+
+#[cfg(feature = "textures")]
+fn png_is_opaque(bytes: &[u8]) -> Option<bool> {
+    let mut decoder = png::Decoder::new(std::io::Cursor::new(bytes));
+    decoder.set_transformations(png::Transformations::EXPAND | png::Transformations::STRIP_16);
+    let mut reader = decoder.read_info().ok()?;
+    let size = reader.output_buffer_size()?;
+    if size > 256 * 1024 * 1024 {
+        return None;
+    }
+    let mut pixels = vec![0; size];
+    let info = reader.next_frame(&mut pixels).ok()?;
+    let pixels = &pixels[..info.buffer_size()];
+    Some(match info.color_type {
+        png::ColorType::Rgba => pixels.chunks_exact(4).all(|p| p[3] == 255),
+        png::ColorType::GrayscaleAlpha => pixels.chunks_exact(2).all(|p| p[1] == 255),
+        png::ColorType::Rgb | png::ColorType::Grayscale => true,
+        png::ColorType::Indexed => return None,
+    })
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -4444,6 +4472,17 @@ mod tests {
         assert!(face.get("alphaCutoff").is_none());
         assert_eq!(uniform["alphaMode"], "MASK");
         assert_eq!(uniform["alphaCutoff"], 0.5);
+    }
+
+    #[test]
+    #[cfg(feature = "textures")]
+    fn opaque_hair_texture_does_not_enter_transparent_render_queue() {
+        let opaque = crate::g4tx_decode::encode_rgba_to_png(&[155, 154, 175, 255], 1, 1).unwrap();
+        let transparent =
+            crate::g4tx_decode::encode_rgba_to_png(&[155, 154, 175, 0], 1, 1).unwrap();
+        assert_eq!(png_is_opaque(&opaque), Some(true));
+        assert_eq!(png_is_opaque(&transparent), Some(false));
+        assert_eq!(png_is_opaque(b"invalid"), None);
     }
 
     #[test]
