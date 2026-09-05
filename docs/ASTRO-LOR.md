@@ -159,14 +159,35 @@ Deux voies, à trancher sur mesure et non par principe :
 La seconde voie est la bonne première étape : elle permet de valider V1, V3 et V4
 sans dépendre de V2.
 
-### V3 — Encoder une texture · non bloquant
+### V3 — Encoder une texture · bloquant, pour une raison inattendue
 
-Le décodage BC7 est validé. L'encodage existe côté C# et côté C++ ; la conversion
-C++ est la moins bonne des trois et ne doit pas être étendue. Passer par
-`niers cs` pour les textures et les icônes.
+Trois choses ont été vérifiées ici, et deux ont démenti ce que ce document disait.
 
-Les deux icônes de portrait sont déjà prêtes en 512×512
-(`apps/azalee/public/oc/astro-lor/face-og.webp`, `face-go.webp`).
+**La voie C# n'existe pas sur cette machine.** `niers cs` répond « assembly .NET
+`iecode.dll` introuvable », et `dotnet` est absent du VPS. Tout ce qui passait par
+là est indisponible.
+
+**La voie Rust existe, et personne ne l'avait citée.**
+`nie_formats::g4tx_encode` fournit `decode_png_to_rgba8`, `encode_dds_bgra8` et
+`encode_g4tx_single_texture`, et `niers mod texture` les appelle déjà —
+« Remplace une texture par un PNG (g4tx mono-texture, sans région d'atlas) ».
+Aucun besoin de dotnet.
+
+**Et pourtant l'étape reste bloquée.** Les icônes de portrait ne sont pas
+mono-texture. Vérifié sur quatre personnages de quatre séries
+(`c01000100`, `c02023290`, `c02023380`, `c05024700`) : **toutes** portent
+**deux** textures de 256×256, nommées `<code>_1_l00` et `<code>_2_l00`.
+`encode_g4tx_single_texture` n'en écrit qu'une ; `niers mod texture` refuse donc
+le fichier.
+
+L'écart est petit et nommé : il manque un `encode_g4tx_multi_texture`, ou une
+option de `niers mod texture` qui préserve les textures qu'elle ne remplace pas.
+Tant qu'il n'existe pas, aucune icône de portrait du jeu n'est remplaçable — ce
+qui vaut pour tout le monde, pas seulement pour un personnage original.
+
+Les deux portraits sont prêts en 512×512
+(`apps/azalee/public/oc/astro-lor/face-og.webp`, `face-go.webp`) ; il faudra les
+réduire à 256×256 pour épouser le gabarit.
 
 ### V4 — Injecter dans le VFS · non bloquant
 

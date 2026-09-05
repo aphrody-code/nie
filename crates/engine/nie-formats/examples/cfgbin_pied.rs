@@ -104,4 +104,141 @@ fn main() {
     } else if n_t2b > 0 {
         println!("\nTous les T2B lus portent la signature : le pied est bien une partie du format.");
     }
+
+    correler_octet_variable(&vfs, &chemins);
+}
+
+/// En-tête T2B, tel que `parse_t2b` le lit : quatre entiers de 32 bits.
+struct Entete {
+    entrees: i32,
+    chaines_offset: i32,
+    chaines_longueur: i32,
+    chaines_nombre: i32,
+}
+
+fn entete(octets: &[u8]) -> Option<Entete> {
+    if octets.len() < 16 {
+        return None;
+    }
+    // La longueur est déjà garantie ≥ 16 : les quatre lectures ne peuvent pas échouer.
+    let lire = |i: usize| i32::from_le_bytes(octets[i..i + 4].try_into().unwrap());
+    Some(Entete {
+        entrees: lire(0),
+        chaines_offset: lire(4),
+        chaines_longueur: lire(8),
+        chaines_nombre: lire(12),
+    })
+}
+
+/// Nombre d'entrées de la table de clés, lu là où `encode_t2b` l'écrit : après la table de
+/// chaînes, aligné sur 16, second entier du sous-en-tête. `None` si le fichier s'arrête avant.
+fn nombre_de_cles(octets: &[u8], e: &Entete) -> Option<i32> {
+    if e.chaines_offset < 0 || e.chaines_longueur < 0 {
+        return None;
+    }
+    let fin = (e.chaines_offset as usize).checked_add(e.chaines_longueur as usize)?;
+    let debut = fin.div_ceil(16) * 16;
+    let champ = debut.checked_add(4)?;
+    if champ + 4 > octets.len() {
+        return None;
+    }
+    Some(i32::from_le_bytes(octets[champ..champ + 4].try_into().ok()?))
+}
+
+/// Croise la seule valeur variable du pied (offset 6) avec ce que porte le fichier.
+///
+/// Le pied ne compte que deux motifs sur 70 798 fichiers : quinze octets constants et un seul
+/// qui bascule entre `0x00` et `0x01`. Reste à savoir ce qu'il dit. On le confronte donc aux
+/// grandeurs que l'en-tête donne — nombre d'entrées, de chaînes, de clés — et on regarde
+/// laquelle le sépare proprement. Une grandeur qui vaut toujours zéro d'un côté et jamais de
+/// l'autre est la réponse ; une grandeur qui se mélange ne l'est pas.
+fn correler_octet_variable(vfs: &nie_formats::vfs::Vfs, chemins: &[String]) {
+    /// Ce qu'on retient d'un groupe : les extrêmes et le compte des cas nuls.
+    #[derive(Default)]
+    struct Bilan {
+        n: usize,
+        entrees_nulles: usize,
+        chaines_nulles: usize,
+        cles_nulles: usize,
+        cles_absentes: usize,
+        entrees_max: i32,
+        chaines_max: i32,
+        cles_max: i32,
+        exemple: Option<String>,
+    }
+
+    let mut groupes: [Bilan; 2] = [Bilan::default(), Bilan::default()];
+
+    for chemin in chemins {
+        let Ok(octets) = vfs.read(chemin) else { continue };
+        if nie_formats::cfgbin::is_rdbn(&octets) || octets.len() < PIED {
+            continue;
+        }
+        if nie_formats::cfgbin::parse_t2b(&octets).is_err() {
+            continue;
+        }
+        let drapeau = octets[octets.len() - PIED + 6];
+        let Some(index) = (match drapeau {
+            0x00 => Some(0usize),
+            0x01 => Some(1usize),
+            _ => None,
+        }) else {
+            continue;
+        };
+        let Some(e) = entete(&octets) else { continue };
+        let cles = nombre_de_cles(&octets, &e);
+
+        let b = &mut groupes[index];
+        b.n += 1;
+        if e.entrees == 0 {
+            b.entrees_nulles += 1;
+        }
+        if e.chaines_nombre == 0 {
+            b.chaines_nulles += 1;
+        }
+        match cles {
+            None => b.cles_absentes += 1,
+            Some(0) => b.cles_nulles += 1,
+            Some(c) => b.cles_max = b.cles_max.max(c),
+        }
+        b.entrees_max = b.entrees_max.max(e.entrees);
+        b.chaines_max = b.chaines_max.max(e.chaines_nombre);
+        if b.exemple.is_none() {
+            b.exemple = Some(chemin.clone());
+        }
+    }
+
+    println!("\nL'octet variable (offset 6 du pied), croisé avec l'en-tête :");
+    println!(
+        "{:>7} {:>8} {:>14} {:>14} {:>12} {:>12} {:>11} {:>10} {:>10}",
+        "valeur", "n", "entrées=0", "chaînes=0", "clés=0", "clés absentes",
+        "entrées max", "chaînes max", "clés max"
+    );
+    for (v, b) in groupes.iter().enumerate() {
+        println!(
+            "{:>7} {:>8} {:>14} {:>14} {:>12} {:>12} {:>11} {:>10} {:>10}",
+            format!("0x{v:02X}"), b.n, b.entrees_nulles, b.chaines_nulles,
+            b.cles_nulles, b.cles_absentes, b.entrees_max, b.chaines_max, b.cles_max
+        );
+    }
+
+    // Une colonne sépare les deux groupes si elle est totale d'un côté et nulle de l'autre.
+    let separe = |extrait: fn(&Bilan) -> usize, nom: &str| {
+        let (a, b) = (&groupes[0], &groupes[1]);
+        let ta = a.n > 0 && extrait(a) == a.n;
+        let tb = b.n > 0 && extrait(b) == b.n;
+        if (ta && extrait(b) == 0) || (tb && extrait(a) == 0) {
+            println!("  → « {nom} » sépare exactement les deux groupes.");
+        }
+    };
+    separe(|b| b.entrees_nulles, "aucune entrée");
+    separe(|b| b.chaines_nulles, "aucune chaîne");
+    separe(|b| b.cles_nulles, "aucune clé");
+    separe(|b| b.cles_absentes, "table de clés absente");
+
+    for (v, b) in groupes.iter().enumerate() {
+        if let Some(chemin) = &b.exemple {
+            println!("  exemple 0x{v:02X} : {chemin}");
+        }
+    }
 }
