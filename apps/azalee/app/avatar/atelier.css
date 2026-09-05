@@ -25,7 +25,8 @@
 .atelier-titre { margin-right: auto; }
 .atelier-titre p { font-size: .875rem; color: #c6d2e2; margin-top: 6px; }
 .atelier-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.atelier-entete .atelier-actions [data-slot=button] { --primary: #dfeaf8; --primary-foreground: #172c48; color: #172c48; }
+.atelier-entete .atelier-actions [data-slot=button] { background: #e7edf3; border-color: #cbd4df; color: #172c48; }
+.atelier-entete .atelier-actions [data-slot=button]:not(:disabled):hover { background: #fff; }
 .atelier-statut { margin: 0; padding: 12px 24px; border-bottom: 1px solid #d9dfe7; font-size: .8rem; color: #52657b; }
 .atelier-espace { display: grid; grid-template-columns: minmax(0, 1fr); }
 .atelier-panneau { min-width: 0; padding: 20px; background: #fcfcfa; display: flex; flex-direction: column; gap: 18px; }
