@@ -377,7 +377,14 @@ export function CharacterSheet({
 	const emblemUrl = emblemCode ? getEmblemImageUrl(emblemCode) : null;
 
 	// Gender icon — via sprite sheet
-	const genderSprite = gender ? ((gender === "F" ? "girl" : "boy") as SpriteCommonKey) : null;
+	// `X` = non-binaire : le jeu n'a que deux pictogrammes (garçon / fille), on n'en
+	// force donc aucun plutôt que d'en afficher un faux.
+	const genderSprite =
+		gender === "F"
+			? ("girl" as SpriteCommonKey)
+			: gender === "M"
+				? ("boy" as SpriteCommonKey)
+				: null;
 
 	// Uniform URLs
 	const internalCode =

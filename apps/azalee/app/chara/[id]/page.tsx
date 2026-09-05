@@ -185,6 +185,10 @@ export default async function PlayerDetailPage({ params }: { params: Promise<{ i
 		teamId: (baseChar as any).teams?.[0]?.id as string | undefined,
 		teamName: (baseChar as any).teams?.[0]?.names?.fr || (baseChar as any).teams?.[0]?.names?.en,
 		zukanHash: baseChar.zukanHash || variant.zukanHash,
+		// Portées par le personnage de base, pas par la variante : sans ce report,
+		// la section encyclopédique et le numéro de maillot restaient invisibles.
+		uniformNumber: (baseChar as any).uniformNumber,
+		wikiSections: (baseChar as any).wikiSections,
 	};
 
 	// Fetch all distinct forms of this character (same baseSlug/chara_id, different pos/elem/rarity)
@@ -584,11 +588,13 @@ export default async function PlayerDetailPage({ params }: { params: Promise<{ i
 				description={formatDescription(player.descriptions?.fr || player.descriptions?.en, "fr")}
 				descriptions={player.descriptions}
 				position={displayPosition as "ATT" | "MIL" | "DEF" | "GAR"}
-				jerseyNumber={10}
+				jerseyNumber={(player as any).uniformNumber ?? 10}
 				rarity={player.rarity}
 				element={player.element}
 				series={(baseChar as any).series}
-				gender={(baseChar as any).gender === 1 ? "F" : "M"}
+				gender={
+					(baseChar as any).gender === 1 ? "F" : (baseChar as any).gender === 2 ? "X" : "M"
+				}
 				stats={{
 					agility: stats.agility,
 					control: stats.control,

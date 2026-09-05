@@ -262,6 +262,8 @@ capture/
 
 # Références privées conservées sur le poste et le VPS, hors dépôt public.
 /astro/*.jpg
+/astro/*.png
+/astro/*.webp
 /astro/manifest-*.json
 # Outils binaires téléchargés pour produire le WASM, reproductibles.
 /outputs/webgpu-wasm-tools/

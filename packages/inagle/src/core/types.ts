@@ -281,8 +281,11 @@ export interface BaseCharacter {
 	/** Romanized name data */
 	romanized?: RomanizedName;
 
-	/** Gender (0=male, 1=female) */
+	/** Gender (0=male, 1=female, 2=non-binary) */
 	gender: number;
+
+	/** Numéro de maillot affiché sur la fiche (`inagle_characters.uniform_number`) */
+	uniformNumber?: number;
 
 	/** All variants of this character */
 	variants: CharacterVariant[];

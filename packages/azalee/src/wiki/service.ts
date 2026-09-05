@@ -2585,7 +2585,9 @@ export const wikiService = {
 			charaId: char.chara_id || char.internal_code || char.id,
 			internalCode: faceCode,
 			names: { fr: char.name_fr, en: char.name_en, ja: char.name_ja },
-			gender: char.gender === "F" ? 1 : 0,
+			// 0 = masculin, 1 = féminin, 2 = non-binaire (`gender = 'X'` en base).
+			gender: char.gender === "F" ? 1 : char.gender === "X" ? 2 : 0,
+			uniformNumber: char.uniform_number ?? undefined,
 			variants: [variant as any],
 			bestRarity: char.rarity_label || "Normal",
 			bestRarityCode: rarityCode,
