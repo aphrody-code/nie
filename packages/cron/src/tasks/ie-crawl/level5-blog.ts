@@ -9,8 +9,9 @@ import * as cheerio from "cheerio";
 import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { dansLeDepot } from "../../lib/racine";
 
-const DATA_ROOT = "/home/ubuntu/niers/data/level5.co.jp/blog";
+const DATA_ROOT = dansLeDepot("data", "level5.co.jp", "blog");
 
 async function safeGoto(page: Page, url: string, timeout = 30000): Promise<unknown> {
 	return Promise.race([

@@ -7,8 +7,9 @@
 import { Browser, Page, type NavigationResponse } from "@aphrody-code/bxc";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { dansLeDepot } from "../../lib/racine";
 
-const DATA_ROOT = "/home/ubuntu/niers/data/inazuma.jp/re";
+const DATA_ROOT = dansLeDepot("data", "inazuma.jp", "re");
 
 interface RePageTarget {
 	lang: string;

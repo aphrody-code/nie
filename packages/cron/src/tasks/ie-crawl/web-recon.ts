@@ -7,6 +7,7 @@
 import { spawn } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { dansLeDepot } from "../../lib/racine";
 
 // Recon web EXHAUSTIF d'un site officiel Inazuma Eleven (cible par défaut :
 // victory-road/fr). Complète les scrapers `news.ts`/`re.ts` (qui ne sauvent que
@@ -608,7 +609,7 @@ export async function crawlWebRecon(opts: WebReconOptions): Promise<WebReconResu
  * (renvoie {success} comme les autres crawlers, n'émet pas d'exception).
  */
 export async function crawlWebReconTask(
-	outDir = "/home/ubuntu/niers/data/inazuma.jp/victory-road/_recon/fr"
+	outDir = dansLeDepot("data", "inazuma.jp", "victory-road", "_recon", "fr")
 ): Promise<{ success: boolean; pages?: number; endpoints?: number; error?: string }> {
 	try {
 		const res = await crawlWebRecon({ outDir });

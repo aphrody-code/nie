@@ -78,8 +78,8 @@ texte, et expose l'API HTTP headless. Runtime Bun (ou Node ≥ 22).
 ```ts
 import { wikiService, resolveMirrorPath, resolveDataDir } from "@rosegriffon/azalee/server";
 
-resolveMirrorPath(); // /home/ubuntu/rg/apps/azalee/data/backups/mirror.sqlite
-resolveDataDir();    // /home/ubuntu/rg/apps/azalee/data
+resolveMirrorPath(); // /home/ubuntu/niers/var/mirror.sqlite (miroir du dépôt, publié par nie-miroir.timer)
+resolveDataDir();    // /home/ubuntu/niers/apps/azalee/data
 
 const { data, total } = await wikiService.getCharactersList({ q: "Mark", page: 1, limit: 2 });
 total;                 // 5130 personnages au total dans le miroir courant

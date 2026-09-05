@@ -118,7 +118,8 @@ export function getOfficialXAccounts(primaryOnly = false): readonly string[] {
 export function loadBxcXCookieHeader(): string | null {
 	try {
 		const fs = require("node:fs") as typeof import("node:fs");
-		const path = "/home/ubuntu/.bxc/cookies/xcom.json";
+		const nodePath = require("node:path") as typeof import("node:path");
+		const path = nodePath.join(process.env.HOME ?? "/home/ubuntu", ".bxc/cookies/xcom.json");
 		if (!fs.existsSync(path)) return null;
 		const cookies = JSON.parse(fs.readFileSync(path, "utf-8")) as Array<{ name: string; value: string }>;
 		const auth = cookies.find((c) => c.name === "auth_token");
@@ -134,7 +135,8 @@ export function loadBxcXCookieHeader(): string | null {
 export function loadBxcXCookies(): Array<{ name: string; value: string; domain?: string; path?: string }> {
 	try {
 		const fs = require("node:fs") as typeof import("node:fs");
-		const path = "/home/ubuntu/.bxc/cookies/xcom.json";
+		const nodePath = require("node:path") as typeof import("node:path");
+		const path = nodePath.join(process.env.HOME ?? "/home/ubuntu", ".bxc/cookies/xcom.json");
 		if (!fs.existsSync(path)) return [];
 		const cookies = JSON.parse(fs.readFileSync(path, "utf-8")) as Array<{ name: string; value: string; domain?: string; path?: string }>;
 		return cookies.map((c) => ({

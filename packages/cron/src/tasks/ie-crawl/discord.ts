@@ -8,8 +8,9 @@ import { getDiscordClient, GUILD_ID } from "../../lib/discord.js";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { existsSync } from "node:fs";
+import { dansLeDepot } from "../../lib/racine";
 
-const DATA_ROOT = "/home/ubuntu/niers/data/discord";
+const DATA_ROOT = dansLeDepot("data", "discord");
 
 interface DiscordMessage {
 	id: string;

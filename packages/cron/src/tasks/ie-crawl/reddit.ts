@@ -7,8 +7,9 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { existsSync } from "node:fs";
+import { dansLeDepot } from "../../lib/racine";
 
-const DATA_ROOT = "/home/ubuntu/niers/data/reddit";
+const DATA_ROOT = dansLeDepot("data", "reddit");
 
 interface RedditPost {
 	id: string;

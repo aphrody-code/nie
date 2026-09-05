@@ -2,7 +2,7 @@
 
 Exports consolidés inagle/azalee — données de jeu agrégées, prêtes à servir.
 Glob : `data/exports/**/*.json` (7 fichiers). Tout le contenu ci-dessous est **factuel**,
-extrait directement des JSON (`scripts/analyze_exports_inagle.ts` / `analyze_exports_inagle2.ts`).
+extrait directement des JSON (analyse ad hoc, scripts non committés).
 
 Source des feuilles tabulaires : *Inazuma Eleven VR Document v3.06 (Last Updated 3/2/2026)*
 (document communautaire repris dans `sheet_data.json` et `sheet_export.json`).

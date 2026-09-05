@@ -10,7 +10,7 @@
 #   (`.next/standalone/.../server.js` ABSENT) → impossible de déployer.
 #   Sous Node (/usr/bin/node, v22+) le prerender passe.
 #
-#   En contrepartie, le cache SQLite embarqué (`lib/supabase/sqlite-client.ts`)
+#   En contrepartie, le cache SQLite embarqué (`packages/azalee/src/db/sqlite-client.ts`)
 #   utilisait `bun:sqlite` (indispo sous Node) → fallback Postgres → timeouts >60s
 #   sur les milliers de fiches perso. Résolu : `node:sqlite` (`DatabaseSync`,
 #   Node >= 22) via `process.getBuiltinModule` côté build.

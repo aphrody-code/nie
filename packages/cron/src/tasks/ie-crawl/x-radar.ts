@@ -11,6 +11,7 @@ import { loadBxcXCookies, loadBxcXCookieHeader } from "./x-accounts";
 import { processTweets } from "./process-tweets";
 import * as cheerio from "cheerio";
 import { XClient, XSession, radarSearch } from "@aphrody-code/x";
+import { dansLeDepot } from "../../lib/racine";
 
 const RADAR_BASE = "https://x.com/i/radar";
 
@@ -104,7 +105,7 @@ export async function crawlXRadar(
 		const html = await page.content();
 		const { mkdir, writeFile } = await import("node:fs/promises");
 		const { join } = await import("node:path");
-		const snapDir = join("/home/ubuntu/niers/data/radar", radarId);
+		const snapDir = join(dansLeDepot("data", "radar"), radarId);
 		await mkdir(snapDir, { recursive: true });
 		await writeFile(join(snapDir, "page.html"), html);
 		console.log(`[Crawl X Radar] Snapshot saved: ${snapDir}/page.html`);

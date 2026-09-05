@@ -28,7 +28,7 @@ interface DBTweetRow {
 	category?: string | null;
 }
 
-const DATA_ROOT = "/home/ubuntu/niers/data/inazuma.jp/victory-road";
+const DATA_ROOT = dansLeDepot("data", "inazuma.jp", "victory-road");
 
 function parseFrontmatter(fileContent: string): {
 	data: Record<string, string[] | string>;
