@@ -62,4 +62,7 @@ pas de journal, pas d'historique daté — l'état vient des outils, l'histoire 
 
 Chaque arbre porte son propre README : [`../crates/`](../crates/README.md),
 [`../packages/`](../packages/README.md), [`../apps/`](../apps/README.md),
-[`../csharp/`](../csharp/README.md), [`../scripts/`](../scripts/README.md).
+[`../csharp/`](../csharp/README.md), [`../python/`](../python/README.md),
+[`../scripts/`](../scripts/README.md), [`../deploy/`](../deploy/README.md),
+[`../plugins/`](../plugins/README.md), [`../cmake/`](../cmake/README.md),
+[`../third_party/`](../third_party/README.md), [`../supabase/`](../supabase/README.md).

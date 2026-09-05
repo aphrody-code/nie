@@ -88,7 +88,7 @@ niers/
 | `NOTICE` — attributions `third_party/`, marques LEVEL-5 | ajouté |
 | `SECURITY.md` — périmètre, signalement, chaîne de signature | ajouté |
 | `.github/` — `CODEOWNERS`, gabarit de PR, deux gabarits d'issue | ajouté |
-| un `README.md` par arbre — `crates/`, `packages/`, `apps/`, `csharp/`, `scripts/` | ajouté |
+| un `README.md` par arbre — `crates/`, `packages/`, `apps/`, `csharp/`, `scripts/`, `deploy/`, `plugins/`, `cmake/`, `third_party/` (9 ; `docs/`, `python/`, `supabase/` en avaient déjà un) | ajouté |
 
 ## Lots restants, et ce qui les bloque
 
