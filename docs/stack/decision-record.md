@@ -39,6 +39,19 @@ une SPA React/Vite de **158 fichiers TS/TSX MESURÉS**, dont **34** seulement im
 - **`packages/inacord-ui`** — l'interface partagée par Inacord et Aphrody ; **Aphrody est
   Inacord dans le navigateur**. `packages/asset-source` en est le contrat d'accès aux données.
 
+### La propriété
+
+Seule **Azalée** appartient à Rose Griffon. **Aphrody, Inacord et nie sont des projets
+`aphrody-dev`, hors Rose Griffon.** Conséquences gelées : pas de marque ni de mention Rose
+Griffon sur `aphrody.com` ou dans Inacord ; pas de paquet `@rosegriffon/*` dans
+`packages/inacord-ui`, `apps/nie-web`, `apps/inacord` (MESURÉ au départ : 13 fichiers, 23
+imports, 19 mentions — les types et helpers utiles passent dans `packages/asset-source` ou
+`nie-catalog`) ; pas de compte ni de SSO Rose Griffon ; l'updater d'Inacord vise d'abord
+`aphrody.com/downloads/inacord/latest.json` (servi par `nie-site` avec la même logique
+GitHub), la route `azalee.rosegriffon.fr/tools/niers/latest.json` survivant en redirection
+pour les 0.5.x déjà installés. La base légale d'exploitation des assets LEVEL-5 hors Rose
+Griffon est **à confirmer par l'utilisateur** ; ce dossier ne la présume pas.
+
 ### Les deux directions artistiques
 
 - **Azalée = Rose Griffon.** Le thème M3 existant (`apps/azalee/app/globals.css`, 109

@@ -720,11 +720,15 @@ et mobile (`apps/inacord`, ex `nie-explorer`, identifiant Tauri conservé). Le j
 Tokio 1.x, Tower, `askama`, `moka`, `rusqlite` ro), qui écoute uniquement sur
 `127.0.0.1:8085` et héberge `apps/nie-web`, la même interface qu'Inacord
 (`packages/inacord-ui`). Stack gelée : `docs/stack/` ; plan de la semaine : `/PLAN.md`.
-L'Accord Commercial Officiel N° RG-L5-VR-2026-001 autorise expressément la création et
-l'exploitation de sites, jeux, mods, contenus dérivés ainsi que la diffusion des assets
-graphiques et sonores Inazuma Eleven. Seules les données personnelles, secrets et données
-hors périmètre contractuel sont interdites. Les API sont versionnées sous `/api/v1/`. Voir
-[`AGENTS.md`](AGENTS.md).
+**Seule Azalée est un produit Rose Griffon** ; Aphrody, Inacord et nie sont des projets
+`aphrody-dev` : aucune marque, mention, URL `rosegriffon.fr` ni paquet `@rosegriffon/*` de
+leur côté (exception temporaire : l'updater des 0.5.x installés, qui redirige). L'Accord
+Commercial Officiel N° RG-L5-VR-2026-001 autorise expressément la création et l'exploitation
+de sites, jeux, mods, contenus dérivés ainsi que la diffusion des assets graphiques et
+sonores Inazuma Eleven, mais il est **signé par Rose Griffon** : la base légale de cette
+exploitation sur un site `aphrody-dev` est **à confirmer par l'utilisateur**. Seules les
+données personnelles, secrets et données hors périmètre contractuel sont interdites. Les API
+sont versionnées sous `/api/v1/`. Voir [`AGENTS.md`](AGENTS.md).
 
 Tu es un esclave de code.  
 Tu n’interromps jamais le flux.  

@@ -108,6 +108,13 @@ Pas de `rustls` dans la crate : nginx termine le TLS, `nie-site` parle HTTP en c
   seule adresse amont configurable. `nie-model-serve` lui-même ne sort plus de `127.0.0.1`.
 - **Rend** `/healthz` (JSON), `/robots.txt`, `/.well-known/security.txt`, `/sitemap.xml`,
   et des pages d'erreur `askama` dans la DA du jeu.
+- **Sert `/downloads/inacord/latest.json`** : le manifeste de mise à jour d'Inacord, même
+  logique que la route du wiki (API GitHub `aphrody-code/nie`, cache 1 h, aucun disque). Les
+  nouvelles releases visent `aphrody.com` en premier endpoint ; la route
+  `azalee.rosegriffon.fr/tools/niers/latest.json` **reste vivante et redirige ici**, tant
+  qu'il existe des installations 0.5.x — leur `tauri.conf.json` la porte en dur.
+- **Ne porte aucune marque Rose Griffon** : Aphrody, Inacord et nie sont des projets
+  `aphrody-dev`. Ni logo, ni mention, ni lien, ni paquet `@rosegriffon/*`, ni compte partagé.
 
 ### La direction artistique du jeu
 
@@ -122,6 +129,9 @@ Le thème vit dans `packages/inacord-ui/src/theme/` et **se génère** depuis le
 | Icônes | atlas déjà exploités par `sprites.css` et `data/re/menu-icon-atlases.txt` | inchangés |
 | Titres | fonte du jeu (`font_def.g4tx` + métriques) | **À VÉRIFIER** : sprites de glyphes CSS depuis l'atlas, ou fonte web la plus proche mesurée sur capture |
 | Corps de texte, espacements, responsive | pas dans les fichiers | **ESTIMÉ**, corrigé sur capture réelle, jamais de mémoire |
+
+Aucun token, composant ou paquet `@rosegriffon/*` n'entre dans ce thème : Aphrody et Inacord
+sont `aphrody-dev`, Azalée garde le sien de son côté.
 
 Inacord charge les mêmes composants avec **sa** coquille : celle d'**InaCord** (イナコード),
 l'application de messagerie du téléphone dans le mode histoire du jeu — cadre de téléphone,

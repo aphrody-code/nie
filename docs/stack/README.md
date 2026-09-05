@@ -30,6 +30,18 @@ semaine ; mobile et Steam sont **hors semaine**, gelés tels que documentés.
 | Le jeu | **nie** | le moteur Rust et ses hôtes (natif, headless, WASM) | `crates/engine/*`, `nie-*` | le jeu lui-même |
 | L'interface partagée | — | écrans, composants, hooks communs à Inacord et Aphrody | `packages/inacord-ui` + contrat `packages/asset-source` | un jeu de composants, **deux coquilles du jeu** : `shell/main-menu/` (Aphrody), `shell/inacord/` (Inacord) |
 
+**Propriété (consigne utilisateur, 2026-09-05).** Seule **Azalée** est un produit Rose
+Griffon. **Aphrody, Inacord et nie sont des projets `aphrody-dev`, hors Rose Griffon** :
+aucune marque, aucun compte, aucun paquet `@rosegriffon/*` et aucune URL `rosegriffon.fr`
+dans `nie-site`, `nie-web`, `inacord-ui` ou `apps/inacord`. Départ MESURÉ dans
+l'explorateur : 13 fichiers importent `@rosegriffon/azalee` (20) et `@rosegriffon/ui` (3),
+19 fichiers mentionnent Rose Griffon — tout sort à J4. Seule exception, temporaire :
+l'updater des 0.5.x installés lit `azalee.rosegriffon.fr/tools/niers/latest.json` ; cette route
+reste vivante (redirection vers `aphrody.com/downloads/inacord/latest.json`) tant que ces
+installations existent, et les nouvelles releases pointent d'abord `aphrody.com`. **À
+CONFIRMER par l'utilisateur** : la base légale d'exploitation des assets sur `aphrody.com`,
+l'Accord N° RG-L5-VR-2026-001 étant signé par Rose Griffon.
+
 Ce qui ne change **pas** de nom : les crates `nie-*` (le préfixe est celui du jeu), la CLI
 `niers`, le plugin Blender `niers-blender`, l'identifiant Tauri `dev.niers.explorer` (dossier
 de données et continuité de l'updater), les URL de l'updater.

@@ -128,9 +128,18 @@ clippy sans avertissement avant d'activer nginx. Aphrody et Inacord sont **la m�
 interface** (`packages/inacord-ui`, contrat `packages/asset-source`) : rien ne se réécrit d'un
 côté.
 
+**Propriété.** Seule Azalée est un produit **Rose Griffon**. Aphrody, Inacord et nie sont des
+projets **`aphrody-dev`** : aucune marque, mention, URL `rosegriffon.fr`, paquet
+`@rosegriffon/*` ni compte partagé dans `nie-site`, `nie-web`, `inacord-ui`, `apps/inacord`.
+Seule exception, temporaire : l'updater des installations 0.5.x lit encore
+`azalee.rosegriffon.fr/tools/niers/latest.json`, qui redirige vers
+`aphrody.com/downloads/inacord/latest.json`.
+
 Les contenus Inazuma Eleven sont exploitables au titre de l'Accord Commercial Officiel
-N° RG-L5-VR-2026-001 (sites, jeux, mods, traductions, dérivés, assets). **Jamais** de donnée
-personnelle, de secret, de credential, de chemin machine ni de dump hors périmètre.
+N° RG-L5-VR-2026-001 — **signé par Rose Griffon** : la base légale de leur exploitation sur
+un site `aphrody-dev` est **à confirmer par l'utilisateur**, aucun agent ne la présume.
+**Jamais** de donnée personnelle, de secret, de credential, de chemin machine ni de dump hors
+périmètre.
 
 Sur `aphrody.com`, seuls `aphrody.com` et `www` passent à `nie-site` ; `api.`, `downloads.`,
 `cdn.`, `bot.`, `admin.`, `mcp.`, `bxc.`, `n2b.` restent au dépôt `aphrody` (`aphrody-site`,
