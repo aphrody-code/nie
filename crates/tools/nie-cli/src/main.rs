@@ -1963,12 +1963,14 @@ fn run() -> anyhow::Result<()> {
             } => render_cmd::glb_png(
                 &glb,
                 &out,
-                width,
-                height,
+                render_cmd::RenderConfig {
+                    width,
+                    height,
+                    gpu,
+                    backend: &backend,
+                    hardware_only,
+                },
                 angle,
-                gpu,
-                &backend,
-                hardware_only,
             ),
             RenderOp::GlbGif {
                 glb,
@@ -1983,13 +1985,15 @@ fn run() -> anyhow::Result<()> {
             } => render_cmd::glb_gif(
                 &glb,
                 &out,
-                width,
-                height,
+                render_cmd::RenderConfig {
+                    width,
+                    height,
+                    gpu,
+                    backend: &backend,
+                    hardware_only,
+                },
                 frames,
                 fps,
-                gpu,
-                &backend,
-                hardware_only,
             ),
         },
         Cmd::Lua {

@@ -20,6 +20,15 @@ const MAX_PIXELS: u64 = 16 * 1024 * 1024;
 /// Garde-fou d'un GIF : la sortie est destinée à inspecter un tour, non à encoder une vidéo.
 const MAX_GIF_FRAMES: u32 = 240;
 
+/// Paramètres communs à une capture fixe et à un turntable.
+pub(crate) struct RenderConfig<'a> {
+    pub(crate) width: u32,
+    pub(crate) height: u32,
+    pub(crate) gpu: bool,
+    pub(crate) backend: &'a str,
+    pub(crate) hardware_only: bool,
+}
+
 fn verifier_dimensions(width: u32, height: u32) -> Result<()> {
     ensure!(
         width > 0 && height > 0,
@@ -44,7 +53,7 @@ fn charger(glb_path: &Path) -> Result<glb::Model> {
 enum Renderer<'a> {
     Cpu(&'a glb::Model),
     Gpu {
-        renderer: GpuRenderer,
+        renderer: Box<GpuRenderer>,
         model: GpuModel,
     },
 }
@@ -66,7 +75,7 @@ impl<'a> Renderer<'a> {
         );
         let gpu_model = renderer.upload(model);
         Ok(Self::Gpu {
-            renderer,
+            renderer: Box::new(renderer),
             model: gpu_model,
         })
     }
@@ -126,27 +135,23 @@ fn encoder_png(rgba: &[u8], width: u32, height: u32) -> Result<Vec<u8>> {
 pub(crate) fn glb_png(
     glb_path: &Path,
     out: &Path,
-    width: u32,
-    height: u32,
+    config: RenderConfig<'_>,
     angle: f32,
-    gpu: bool,
-    backend: &str,
-    hardware_only: bool,
 ) -> Result<()> {
-    verifier_dimensions(width, height)?;
+    verifier_dimensions(config.width, config.height)?;
     ensure!(angle.is_finite(), "l'angle doit être un nombre fini");
     let model = charger(glb_path)?;
-    let mut renderer = Renderer::new(&model, gpu, backend, hardware_only)?;
-    let rgba = renderer.frame(angle, width, height)?;
-    let png = encoder_png(&rgba, width, height)?;
+    let mut renderer = Renderer::new(&model, config.gpu, config.backend, config.hardware_only)?;
+    let rgba = renderer.frame(angle, config.width, config.height)?;
+    let png = encoder_png(&rgba, config.width, config.height)?;
     fs::write(out, png).with_context(|| format!("écriture PNG {}", out.display()))?;
     println!(
         "png={} source={} dimensions={}×{} angle={angle:.6} rendu={}",
         out.display(),
         glb_path.display(),
-        width,
-        height,
-        if gpu { "gpu" } else { "cpu" }
+        config.width,
+        config.height,
+        if config.gpu { "gpu" } else { "cpu" }
     );
     Ok(())
 }
@@ -155,15 +160,11 @@ pub(crate) fn glb_png(
 pub(crate) fn glb_gif(
     glb_path: &Path,
     out: &Path,
-    width: u32,
-    height: u32,
+    config: RenderConfig<'_>,
     frames: u32,
     fps: u32,
-    gpu: bool,
-    backend: &str,
-    hardware_only: bool,
 ) -> Result<()> {
-    verifier_dimensions(width, height)?;
+    verifier_dimensions(config.width, config.height)?;
     ensure!(frames >= 2, "un GIF turntable exige au moins 2 images");
     ensure!(
         frames <= MAX_GIF_FRAMES,
@@ -175,15 +176,15 @@ pub(crate) fn glb_gif(
     );
 
     let model = charger(glb_path)?;
-    let mut renderer = Renderer::new(&model, gpu, backend, hardware_only)?;
+    let mut renderer = Renderer::new(&model, config.gpu, config.backend, config.hardware_only)?;
     let file = File::create(out).with_context(|| format!("écriture GIF {}", out.display()))?;
     let mut encoder = GifEncoder::new(file);
     encoder.set_repeat(Repeat::Infinite).context("boucle GIF")?;
     let delay = Delay::from_numer_denom_ms(1000, fps);
     for index in 0..frames {
         let angle = std::f32::consts::TAU * index as f32 / frames as f32;
-        let rgba = renderer.frame(angle, width, height)?;
-        let buffer = ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(width, height, rgba)
+        let rgba = renderer.frame(angle, config.width, config.height)?;
+        let buffer = ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(config.width, config.height, rgba)
             .context("taille de frame GIF incohérente")?;
         encoder
             .encode_frame(Frame::from_parts(buffer, 0, 0, delay))
@@ -193,9 +194,9 @@ pub(crate) fn glb_gif(
         "gif={} source={} dimensions={}×{} frames={frames} fps={fps} rendu={}",
         out.display(),
         glb_path.display(),
-        width,
-        height,
-        if gpu { "gpu" } else { "cpu" }
+        config.width,
+        config.height,
+        if config.gpu { "gpu" } else { "cpu" }
     );
     Ok(())
 }

@@ -81,6 +81,28 @@ Elsewhere, point at the install with `NIE_GAME_DIR`. No machine path is ever com
 binary: the root is resolved at runtime from `NIE_GAME_DIR`, then the working directory or an
 ancestor holding `data/cpk_list.cfg.bin`, then the executable's own directory.
 
+### Visual GLB QA
+
+`niers render` produces reviewable artifacts from an assembled GLB: a lossless PNG for a stable
+reference view and a looping GIF turntable for silhouette, UV and texture checks. It keeps the
+same camera framing across runs and bounds dimensions and frame count so an accidental command
+cannot exhaust the workstation.
+
+```bash
+# A reproducible real-character probe: Shawn Froste's c02023290 model.
+niers render glb-png c02023290.glb -o shawn.png --width 2048 --height 2048 \
+  --gpu --backend dx12 --hardware-only
+niers render glb-gif c02023290.glb -o shawn-turntable.gif --width 720 --height 720 \
+  --frames 24 --fps 12 --gpu --backend dx12 --hardware-only
+```
+
+Without `--gpu`, the deterministic CPU renderer is used. `--gpu` creates one renderer for the
+entire export, uses linear texture filtering and smooth shading, and composites the transparent
+viewport over the same opaque QA background as CPU captures. `--hardware-only` turns a missing
+real adapter into a clear failure instead of silently testing a software adapter. A PNG/GIF is a
+visual inspection aid, not proof of pixel-perfect equivalence to an in-game screenshot: compare
+against a capture made with the same camera and record the backend.
+
 ### Rebuilding the binary
 
 ```bash
