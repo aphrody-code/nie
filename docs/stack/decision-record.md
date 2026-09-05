@@ -91,7 +91,7 @@ Griffon est **à confirmer par l'utilisateur** ; ce dossier ne la présume pas.
 
 ### Le wiki — Vercel + Supabase Cloud
 
-- `apps/azalee` reste **Next.js 16** (canary 16.3.0-canary.37 du catalogue Bun), déployé sur
+- `apps/azalee` reste **Next.js 16** (**stable 16.3.4** — corrigé le 2026-09-05 : la canary 16.3.0-canary.37 du catalogue est derrière le stable), déployé sur
   **Vercel**, runtime **Node**. ISR horaire sur les fiches détail, `dynamicParams = true`,
   `POST /api/ops/revalidate/wiki` protégé par `AZALEE_REVALIDATE_SECRET`.
 - **Supabase Cloud `kvnlbhatjqqmhhxaxlbi` (eu-west-3) est la seule source de données.** Le
@@ -107,8 +107,8 @@ Griffon est **à confirmer par l'utilisateur** ; ce dossier ne la présume pas.
 
 ### Aphrody — `nie-site` + `nie-web`
 
-- `crates/tools/nie-site` : **Axum 0.8**, Tokio 1.53, Tower 0.5, `tower-http` 0.6,
-  `askama` 0.14, `moka` 0.12, `blake3`, `rusqlite` 0.37 ; `publish = false`, écoute
+- `crates/tools/nie-site` : **Axum 0.8**, Tokio 1.53, Tower 0.5, `tower-http` 0.7,
+  `askama` 0.16 (+ `askama_web`), `moka` 0.12.16, `blake3` 1.8, `rusqlite` 0.40 ; `publish = false`, écoute
   **uniquement** `127.0.0.1:8085`, nginx termine le TLS. Il **sert** le bundle `nie-web`,
   **lit** les trois gisements du VPS en lecture seule, et **proxifie** `nie-model-serve`
   (`127.0.0.1:8790`) en lui ajoutant ce qu'il n'a pas : limite de débit, budget de temps,
@@ -258,7 +258,7 @@ sans le paquet, tout en lisant et écrivant les mêmes tables.
 
 | Élément | Aujourd'hui (TypeScript) | Cible (Rust) |
 |---|---|---|
-| Abstraction de base | `DataAdapter`, 2 impls : `SupabaseAdapter`, `PostgresAdapter` | un trait à 2 impls : SQLite (`rusqlite` 0.37, déjà au lock) et PostgreSQL (`sqlx` 0.8, `postgres` + `runtime-tokio` + `tls-rustls` + `macros`) |
+| Abstraction de base | `DataAdapter`, 2 impls : `SupabaseAdapter`, `PostgresAdapter` | un trait à 2 impls : SQLite (`rusqlite` 0.40, le lock est en 0.37) et PostgreSQL (`sqlx` 0.9, `postgres` + `runtime-tokio` + `tls-rustls-ring-native-roots` + `macros`) |
 | Transport vers le Cloud | `@supabase/supabase-js`, donc **PostgREST en HTTP** | SQL direct via `sqlx` — une couche réseau **supprimée**, pas reproduite |
 | Workflow | 18 fonctions `import*` / `export*`, 2 575 l. (`cli-push.ts` + `push-categories.ts`) : `importCharacters` 164 l., `importSkills` 129, `importItems` 106, `importAuras` 100, `importGrowthTables` 66, `importDrops` 51… | une commande `niers push`, un module par famille, alimenté par `nie-data` (déjà byte-exact, 130 goldens) |
 | Idempotence | `ON CONFLICT` par `id`, `delete + reinsert` pour les tables curatées | identique, en transactions explicites |
