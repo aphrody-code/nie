@@ -173,7 +173,10 @@ __pycache__/
 # `AGENTS.md` est aux agents non-Claude (Codex) ce que `CLAUDE.md` est a Claude : leur SEUL
 # fichier d'instructions. `*.md` ci-dessus le gardait hors du depot — sur un clone frais,
 # Codex demarrait donc sans aucune consigne, sans que rien ne le signale.
-!AGENTS.md
+# Ancre volontairement a la racine : sans le `/`, la regle designore AUSSI les AGENTS.md
+# GENERES dans les sous-arbres (`apps/azalee/AGENTS.md`, pose par Next.js), qui n'ont rien
+# a faire dans le depot.
+!/AGENTS.md
 !PROVENANCE.md
 !APP_EXPORT_README.md
 !docs/**/*.md
