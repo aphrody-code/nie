@@ -82,3 +82,12 @@
 @media (prefers-reduced-motion: reduce) {
  .nie-atelier *, .atelier-menu { animation: none !important; transition: none !important; }
 }
+
+/* La couleur hors palette : le nuancier natif, sa saisie hexadécimale, et le retour au jeu. */
+.atelier-couleur-libre { display: grid; grid-template-columns: 44px 1fr auto; gap: 8px; align-items: center; }
+.atelier-couleur-libre input[type=color] { width: 44px; height: 36px; padding: 2px; border: 1px solid #a5b0bd; border-radius: 8px; background: #fff; cursor: pointer; }
+.atelier-couleur-libre [data-slot=input] { background: #fff; font-variant-numeric: tabular-nums; }
+
+/* Les notes de la fiche : plusieurs lignes, même habillage que les autres champs. */
+.atelier-zone-texte { width: 100%; min-height: 84px; padding: 8px 10px; font: inherit; font-weight: 400; color: inherit; background: #fff; border: 1px solid #d9dfe7; border-radius: 9px; resize: vertical; }
+.atelier-zone-texte:focus-visible { outline: 2px solid #315c96; outline-offset: 1px; }

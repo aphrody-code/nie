@@ -3,7 +3,7 @@ import type { Catalogue } from "./types";
 
 /** Compose la requête canonique depuis les identifiants de pièces, indépendamment de leur rang UI. */
 export function composerUrlAvatar(catalogue: Catalogue, cdn: string, avatar: EtatAvatar): string | null {
-	const { choix, valeurs, genre, morphologie } = avatar;
+	const { choix, valeurs, champs, genre, morphologie } = avatar;
 	// Le SQUELETTE de la morphologie choisie, et rien d'autre : le serveur en déduit le corps
 	// habillé qui va avec. L'appariement corps↔squelette est mesuré (chaque variante de corps
 	// épouse un squelette à 33 mm près, tout autre appariement dépassant 194 mm) et vit dans
@@ -105,7 +105,16 @@ export function composerUrlAvatar(catalogue: Catalogue, cdn: string, avatar: Eta
 	// peau choisie y va. Les valeurs RGB des palettes ne vivent que dans la mémoire du jeu —
 	// `niers mem palettes` les relève et les fusionne dans le catalogue sous `couleursRgb`.
 	// À défaut de choix, la route retombe sur la couleur des recettes du jeu.
+	//
+	// Une couleur LIBRE prime sur la palette. Les 65 teintes de cheveux et les 49 d'yeux du jeu
+	// sont un choix de jeu, pas une charte : une autrice ou un auteur arrive avec la couleur de
+	// son personnage déjà fixée, et l'approximation la plus proche n'est pas la bonne couleur.
+	// Elle se range dans `champs["couleur.libre.<type>"]` sous la forme de six chiffres
+	// hexadécimaux, ce qui ne change rien au format d'échange : `champs` accepte déjà toute clé
+	// en `[a-zA-Z0-9_.-]` et toute valeur texte, et un projet écrit sans elle se relit tel quel.
 	const rgbDe = (type: number): string | null => {
+		const libre = champs[`couleur.libre.${type}`];
+		if (libre && /^[0-9A-Fa-f]{6}$/.test(libre)) return libre.toUpperCase();
 		const cat = catalogue.categories.find((c) => c.faceSettingType === type);
 		const i = valeurs[`couleur.${type}`];
 		const id = cat?.couleurs?.[i ?? -1];

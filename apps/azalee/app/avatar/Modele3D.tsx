@@ -7,7 +7,13 @@ import { loadModelViewer } from "../../lib/model-viewer-loader";
 import { telecharger, type Projet } from "./projet";
 import "./atelier.css";
 
-type Viewer = HTMLElement & { exportScene: () => Promise<Blob>; updateFraming: () => void; updateComplete: Promise<boolean> };
+type Viewer = HTMLElement & {
+ exportScene: () => Promise<Blob>;
+ /** Capture la vue courante. `idealAspect: false` garde le cadrage affiché à l'écran. */
+ toBlob: (options?: { mimeType?: string; qualityArgument?: number; idealAspect?: boolean }) => Promise<Blob>;
+ updateFraming: () => void;
+ updateComplete: Promise<boolean>;
+};
 const IDENTITE = { rotation: 0, echelle: 1 };
 
 /** Un seul viewer : les changements de recette préservent la caméra. */
@@ -82,6 +88,22 @@ export function Modele3D({ url, transformation = IDENTITE, edition = false }: {
      catch { if (viewer.current === mv) setErreur("Export GLB impossible. Réessayez après le chargement complet."); }
      finally { if (viewer.current === mv && exportToken.current === token) setExporte(false); }
     }}>{exporte ? "Export en cours…" : "Exporter le GLB"}</Button>
+    {/*
+      L'image de la vue courante. Le GLB s'ouvre dans un logiciel 3D ; une planche de
+      référence, une fiche, un message se collent avec un PNG. `idealAspect: false` capture
+      exactement le cadrage à l'écran, pas un cadrage recalculé.
+    */}
+    <Button variant="outline" disabled={!charge} onClick={async () => {
+     const mv = viewer.current;
+     if (!mv) return;
+     const version = revision.current;
+     try {
+      await mv.updateComplete;
+      if (viewer.current !== mv || revision.current !== version) return;
+      const image = await mv.toBlob({ mimeType: "image/png", idealAspect: false });
+      if (viewer.current === mv && revision.current === version) telecharger(image, "avatar.png");
+     } catch { if (viewer.current === mv) setErreur("Capture impossible. Réessayez après le chargement complet."); }
+    }}>Capturer en PNG</Button>
    </>}
   </div>
  </div>;
