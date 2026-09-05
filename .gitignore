@@ -84,15 +84,10 @@ logs/
 # Ces fichiers SONT le contrat de travail du depot : ils se versionnent, se relisent en
 # diff et se corrigent. Les secrets, eux, n'ont jamais eu leur place dedans — ils sont
 # exclus par le bloc « Secrets » juste en dessous.
-skills-lock.json
-.claude/
-# `.agents/` porte des skills, c'est-a-dire du travail du depot : seul son markdown rentre,
-# pas ses caches ni ses etats locaux. Ecrit `.agents/**` et non `.agents/` : git ne descend
-# JAMAIS dans un repertoire exclu, donc `!.agents/**/*.md` seul ne ramenerait rien. Il faut
-# exclure le CONTENU, re-inclure les repertoires, puis re-inclure le markdown.
-.agents/**
-!.agents/**/
-!.agents/**/*.md
+# La regle est donc RETIREE, pas amenagee : `skills-lock.json` (reproductibilite des
+# skills) et `.agents/` (des skills, donc du travail du depot) rentrent sans condition.
+# Seul reste dehors ce qui est LOCAL A UNE MACHINE, traite plus bas : `.claude/*` garde
+# `settings.local.json` et `worktrees/` hors du depot, et re-inclut ce qui est partage.
 
 # Secrets (jamais commités) — ex. token registry privé @rose-griffon (npm.pkg.github.com)
 .env
@@ -288,6 +283,15 @@ mods/
 !.claude/hooks/*.sh
 !.claude/commands/
 !.claude/commands/*.md
+!.claude/skills/
+!.claude/skills/**
+# `settings.json` pose `BASH_ENV` sur ce fichier : sans lui, `set -o pipefail` ne s'applique
+# pas et un `uv run x.py | tail` rend le code de `tail`, donc 0 — une preuve en echec qui
+# passe pour verte. Il etait reference et NON versionne : sur un clone frais, le reglage
+# disparaissait en silence. Meme piege que `AGENTS.md`.
+!.claude/shell-init.sh
+# Restent locaux a la machine, et eux seuls : `settings.local.json` (reglages personnels) et
+# `worktrees/` (etat de travail).
 
 # Captures de vérification visuelle de nie-explorer (scripts/capture-explorer.ts) — locales.
 capture/

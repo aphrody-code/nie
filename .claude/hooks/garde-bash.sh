@@ -1,7 +1,19 @@
 #!/usr/bin/env bash
 # PreToolUse(Bash) — garde-fous des pieges REELS de ce depot, sur CETTE machine (Linux).
-# Principe : ne bloquer que ce qui est faux a coup sur ou irreversible, avec la correction
-# dans le message. Aucun blocage sur un piege propre a Windows : il n'y en a pas ici.
+#
+# Doctrine, revisee le 2026-09-05 pour ne plus entraver l'autonomie :
+#
+#   deny   = uniquement l'IRREVERSIBLE et le DESTRUCTEUR. Trois cas, pas un de plus.
+#   ask    = uniquement l'EXTERNE (ce qui sort de la machine).
+#   allow+ = tout le reste. Le conseil est transmis, la commande PASSE.
+#
+# La version precedente refusait cinq pieges de STYLE (`python`, `node`, `bun install`,
+# python multi-lignes, `cargo --workspace`). Ils sont reels, mais aucun n'est destructeur :
+# au pire la commande echoue, et l'agent lit l'erreur. Les refuser coutait un aller-retour
+# a chaque fois, y compris sur des formes parfaitement valides — un `python3 - <<'EOF'`
+# avec heredoc QUOTE ne subit aucune substitution shell, et etait bloque quand meme.
+# Un garde-fou qui se trompe apprend a l'agent a le contourner, pas a s'en servir.
+#
 # Toujours exit 0 : un hook casse ne doit jamais casser la session.
 
 set -u
@@ -17,7 +29,7 @@ case "$cmd" in
     cmd=${cmd%%-m*}; cmd=${cmd%%--message*}; cmd=${cmd%%-F*}; cmd=${cmd%%--body*} ;;
 esac
 
-refus() { # $1 = decision (deny|ask), $2 = raison
+decision() { # $1 = allow|ask|deny, $2 = raison
   jq -nc --arg d "$1" --arg r "$2" \
     '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:$d,permissionDecisionReason:$r}}'
   exit 0
@@ -26,43 +38,47 @@ refus() { # $1 = decision (deny|ask), $2 = raison
 # Un « mot de commande » : en debut de ligne ou apres ; && || | ( &
 mot() { printf '%s' "$cmd" | grep -qE "(^|[;&|(]|&&|\|\|)[[:space:]]*$1([[:space:]]|$)"; }
 
-# --- irreversible / externe : demander ---------------------------------------
-mot 'git[[:space:]]+push' && refus ask \
-  "git push est externe et irreversible. La regle du depot : committer sur main librement, POUSSER SUR DEMANDE. Confirme avec l'utilisateur d'abord."
+# =============================================================================
+# deny — irreversible ou destructeur. Ces trois-la seulement.
+# =============================================================================
 
-printf '%s' "$cmd" | grep -qE 'git[[:space:]]+(add|commit).*(-f|--force).*(^|[[:space:]/])(data/|nie\.exe|nie_eacpatched\.exe)' && refus deny \
-  "Ces chemins sont des assets (c) LEVEL-5, gitignores exprès. Ne jamais les forcer dans un commit."
-
-printf '%s' "$cmd" | grep -qE 'pkill[[:space:]]+(-[a-zA-Z]+[[:space:]]+)*-f' && refus deny \
+printf '%s' "$cmd" | grep -qE 'pkill[[:space:]]+(-[a-zA-Z]+[[:space:]]+)*-f' && decision deny \
   "pkill -f tue la session Claude elle-meme (son argv contient le motif). Cible un PID explicite : pgrep -a <motif> puis kill <PID>."
 
 # Le `[^;&|]*` est essentiel : avec `.*`, la regex traversait les separateurs et un
 # `rm -rf target/debug/x ; du -sh target/release` etait refuse a tort (vecu le 2026-09-02).
-printf '%s' "$cmd" | grep -qE 'rm[[:space:]]+-[a-zA-Z]*r[a-zA-Z]*[[:space:]]+[^;&|]*target/release([[:space:]]|/|$)' && refus deny \
+printf '%s' "$cmd" | grep -qE 'rm[[:space:]]+-[a-zA-Z]*r[a-zA-Z]*[[:space:]]+[^;&|]*target/release([[:space:]]|/|$)' && decision deny \
   "target/release/ contient 20 binaires deja construits (niers, nie-forge, nie-game, nie-play…) qui evitent des rebuilds de plusieurs minutes. Supprime un binaire precis, ou nettoie target/debug/{incremental,examples}."
 
-# --- faux a coup sur : la commande n'aurait pas marche -----------------------
-mot 'python3?' && refus deny \
-  "Sur ce depot, Python passe TOUJOURS par uv : 'uv run script.py' ou 'uv run python -c \"...\"'. Ajoute --with <paquet> pour une dependance absente du venv (ex. numpy)."
+printf '%s' "$cmd" | grep -qE 'git[[:space:]]+(add|commit).*(-f|--force).*(^|[[:space:]/])(data/|nie\.exe|nie_eacpatched\.exe)' && decision deny \
+  "Ces chemins sont des assets (c) LEVEL-5, gitignores expres. Ne jamais les forcer dans un commit."
 
-mot 'node' && refus deny \
-  "node est interdit ici : tout passe par Bun, et 'bun run' ne suffit pas (le shebang '#!/usr/bin/env node' est honore). Utilise 'bun --bun <script>'."
+# =============================================================================
+# ask — sort de la machine. Le seul cas.
+# =============================================================================
 
-printf '%s' "$cmd" | grep -qE 'bun[[:space:]]+install' && ! printf '%s' "$cmd" | grep -qE '(cd[[:space:]]+/home/ubuntu/niers[[:space:]]*(;|&&)|^[[:space:]]*bun[[:space:]]+install)' && refus deny \
-  "bun install se lance depuis la RACINE du depot, jamais dans un sous-paquet : un seul lockfile, et les versions sont partagees par catalogue."
+mot 'git[[:space:]]+push' && decision ask \
+  "git push est externe et irreversible. La regle du depot : committer sur main librement, POUSSER SUR DEMANDE."
 
-# --- fragile a coup sur : du Python dans une chaine shell --------------------
-# Le corps traverse bash AVANT python : $VAR substitue, $(...) EXECUTE, \\ reduit a \.
-# On ne vise QUE la forme « bloc » : le guillemet ouvrant termine la ligne, le corps suit.
-# Un one-liner passe. Un python cite dans l'argument d'une autre commande (jq --arg, echo,
-# harnais de test du hook) n'est pas une execution : il doit passer, d'ou l'ancrage de segment.
+# =============================================================================
+# allow + conseil — la commande passe, l'agent est prevenu.
+# =============================================================================
+
+mot 'python3?' && decision allow \
+  "Rappel : sur ce depot Python passe par uv ('uv run script.py'), sinon le .venv du projet (capstone, pefile, unicorn…) est absent. Si ta commande echoue en ModuleNotFoundError, c'est ca."
+
+mot 'node' && decision allow \
+  "Rappel : ici tout passe par Bun. 'bun run' ne suffit pas — le shebang '#!/usr/bin/env node' est honore et relance node. Utilise 'bun --bun <script>'."
+
+printf '%s' "$cmd" | grep -qE 'bun[[:space:]]+install' && ! printf '%s' "$cmd" | grep -qE '(cd[[:space:]]+/home/ubuntu/niers[[:space:]]*(;|&&)|^[[:space:]]*bun[[:space:]]+install)' && decision allow \
+  "Rappel : 'bun install' se lance depuis la RACINE, jamais dans un sous-paquet — un seul lockfile, et les versions sont partagees par catalogue. Lance ailleurs, il desynchronise l'arbre."
+
 printf '%s' "$cmd" | grep -qE "(^|[;&|(]|&&|\|\|)[[:space:]]*(uv[[:space:]]+run[[:space:]]+)?(--with[[:space:]]+[^[:space:]]+[[:space:]]+)?python3?[[:space:]]+-c[[:space:]]*[\"'][[:space:]]*$" \
-  && refus deny \
-  "Python multi-lignes dans une chaine shell : le corps traverse bash AVANT python (\$VAR substitue, \$(...) EXECUTE, \\\\ reduit a \\ — cause reelle de 'SyntaxError: unterminated string literal'). Ecris-le dans un fichier : scratchpad si jetable, scripts/ si versionne, puis 'uv run <fichier>'. Les dependances vont DANS le fichier (PEP 723 : '# /// script' puis '# dependencies = [\"numpy\"]' puis '# ///'), pas en --with. Pour lire du JSON, jq suffit et n'a qu'une seule couche de quoting."
+  && decision allow \
+  "Rappel : le corps d'un 'python -c' multi-lignes traverse bash AVANT python (\$VAR substitue, \$(...) EXECUTE, \\\\ reduit a \\ — cause reelle de 'SyntaxError: unterminated string literal'). Un fichier + 'uv run <fichier>' evite ces deux couches de quoting. Un heredoc QUOTE (<<'EOF') n'a pas ce probleme."
 
-# --- couteux : proposer la forme qui tient dans le budget --------------------
 printf '%s' "$cmd" | grep -qE 'cargo[[:space:]]+(test|build)[[:space:]].*--workspace' \
-  && ! printf '%s' "$cmd" | grep -qE '(>[[:space:]]*[^[:space:]]+|run_in_background)' && refus deny \
-  "cargo (test|build) --workspace depasse le timeout de 600 s sur ce depot (34 crates). Deux issues : (1) le lancer en arriere-plan AVEC redirection vers un fichier — une sortie filtree par un pipe est perdue ; (2) pour une simple verification, 'cargo clippy --all-targets' (check, sans edition de liens) suffit et ne sature pas le disque."
+  && ! printf '%s' "$cmd" | grep -qE '(>[[:space:]]*[^[:space:]]+|run_in_background)' && decision allow \
+  "Rappel : 'cargo (test|build) --workspace' depasse les 600 s sur ce depot (34 crates) et sature un disque deja a 92 %. Prefere 'cargo clippy --all-targets' (check, sans edition de liens), ou lance-le en arriere-plan AVEC redirection vers un fichier — une sortie filtree par un pipe est perdue."
 
 exit 0

@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": {
+    "ghidra-headless": {
+      "source": "trailofbits/skills-curated",
+      "sourceType": "github",
+      "skillPath": "plugins/ghidra-headless/skills/ghidra-headless/SKILL.md",
+      "computedHash": "a1eaf804c217721003163fa8c5a3993332899dba7f79361c1dc3379f0231dc7d"
+    },
+    "m15-anti-pattern": {
+      "source": "zhanghandong/rust-skills",
+      "sourceType": "github",
+      "skillPath": "skills/m15-anti-pattern/SKILL.md",
+      "computedHash": "d9f5d80bd2ab49f063a61d90a96100298788ea0e1e5bd5e917be3c7e124078a2"
+    }
+  }
+}
