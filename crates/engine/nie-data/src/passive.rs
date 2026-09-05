@@ -7,7 +7,7 @@
 //! - Parser : `packages/inagle/src/parsers/passive-skill-config.ts` (collectEffects l.115-133,
 //!   collectSkills l.136-180) ; classification : `packages/inagle/src/skills/mapper-passive.ts`
 //!   (`detectScope` l.131-161, `detectBoostType` l.165-225).
-//! - Données : `/home/ubuntu/niers/data/common/gamedata/skill/passive_skill_config_0.08.86.cfg.bin.json`.
+//! - Données : `data/common/gamedata/skill/passive_skill_config_5.00.07.00.cfg.bin.json`.
 //!
 //! Noeud vérifié `PASSIVE_SKILL_INFO_0` (6 vars Int) :
 //! `[975948532, 1105141741, 0, 0, 6, 0]` → passiveId=0x3A2BCAF4, effectId=0x41DF1FED,

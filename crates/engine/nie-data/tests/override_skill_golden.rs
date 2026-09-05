@@ -216,11 +216,18 @@ fn resolution_couvre_toutes_les_refs_sans_debordement() {
 
 #[test]
 fn validation_contre_vrai_dump_si_present() {
-    // Validation byte-à-byte contre le vrai cfg.bin si le VFS Steam est monté.
+    // Validation byte-à-byte contre le vrai cfg.bin si le VFS du jeu est monté.
     // Skip silencieux sinon (le jeu n'est pas dans le repo). Source :
     // data/common/gamedata/skill/override_skill_config_3.00.21.00.cfg.bin
-    let dir = "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road";
-    if !std::path::Path::new(dir).exists() {
+    //
+    // `NIE_GAME_DIR` d'abord (doctrine `resolve_game_dir()`), sinon l'install Steam
+    // Windows par défaut — l'ancienne garde ne testait QUE ce second cas et sautait
+    // toujours en silence sur une machine où seule `NIE_GAME_DIR` est posée (faux vert).
+    let dir = std::env::var("NIE_GAME_DIR").unwrap_or_else(|_| {
+        "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road"
+            .to_string()
+    });
+    if !std::path::Path::new(&dir).join("data").is_dir() {
         return;
     }
     // Validé hors-ligne via crates/engine/nie-game/examples/extract_override_skill.rs :

@@ -3,7 +3,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! - Dump réel : `/home/ubuntu/niers/data/common/gamedata/setting_menu/setting_list_config_3.00.18.cfg.bin.json`
+//! - Dump réel : `data/common/gamedata/setting_menu/setting_list_config_7.00.17.cfg.bin.json`
 //! - Format **`entries`** (noeuds nommés, variables positionnelles) — comme `command` et `music_app`.
 //! - Aucun parseur TS inagle n'existe pour cette famille : la **sémantique fine des colonnes
 //!   est observée** (statistiques + recoupements), non confirmée par une source. Les noms de
@@ -58,7 +58,7 @@ use crate::hash::HashId;
 
 /// Entrée `SETTING_INFO_N` — un réglage du menu des options (8 variables positionnelles).
 ///
-/// Vérité terrain : `setting_list_config_3.00.18`, `SETTING_INFO_0` =
+/// Vérité terrain : `setting_list_config_7.00.17`, `SETTING_INFO_0` =
 /// `[0, 977641936, 1497198424, 1654251620, 1832944595, 1, 1, -1132488914]`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -106,7 +106,7 @@ impl SettingInfo {
 
 /// Entrée `KEYCONFIG_SETTING_INFO_N` — un réglage de configuration des touches (9 variables).
 ///
-/// Vérité terrain : `setting_list_config_3.00.18`, `KEYCONFIG_SETTING_INFO_0` =
+/// Vérité terrain : `setting_list_config_7.00.17`, `KEYCONFIG_SETTING_INFO_0` =
 /// `[0, 460547571, -719460217, 7528472, 329380469, 2, 0, 0, 2]`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -157,7 +157,7 @@ impl KeyConfigSettingInfo {
 
 /// Entrée `SETTING_PLATFORM_TYPE_INFO_N` — capacités d'un type de plateforme (id + 8 drapeaux).
 ///
-/// Vérité terrain : `setting_list_config_3.00.18`, `SETTING_PLATFORM_TYPE_INFO_0` =
+/// Vérité terrain : `setting_list_config_7.00.17`, `SETTING_PLATFORM_TYPE_INFO_0` =
 /// `[-1132488914, 1, 1, 1, 1, 1, 1, 1, 1]` (toutes capacités activées).
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -185,7 +185,7 @@ impl SettingPlatformType {
 
 /// Entrée `KEYCONFIG_MAPPING_LIST_MAPPING_DATA_N` — une entrée du pool de mappages (4 variables).
 ///
-/// Vérité terrain : `setting_list_config_3.00.18`,
+/// Vérité terrain : `setting_list_config_7.00.17`,
 /// `KEYCONFIG_MAPPING_LIST_MAPPING_DATA_0` = `[-1752149677, -1056368196, -1801524732, 0]`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -391,7 +391,7 @@ where
 
 /// Parse un `setting_list_config_*.cfg.bin.json` complet (11 listes, refs résolues).
 ///
-/// Compte réel (`setting_list_config_3.00.18`) : 73 settings, 72 keyconfig settings,
+/// Compte réel (`setting_list_config_7.00.17`) : 73 settings, 72 keyconfig settings,
 /// 7 platform types, 29 obj infos, 86 mapping infos, 90 explanation texts, 11 pad groupkeys.
 #[must_use]
 pub fn parse_setting_list_config(root: &Value) -> SettingListConfig {

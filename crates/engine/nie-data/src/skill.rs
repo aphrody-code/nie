@@ -4,8 +4,10 @@
 //!
 //! - Type TS : `RawSkillConfigInfo`, `packages/inagle/src/skills/types.ts` (l.17-44),
 //!   enums `ELEMENT_NAMES` / `CATEGORY_NAMES` (l.85-104).
-//! - Données : `/home/ubuntu/niers/data/common/gamedata/skill/skill_config_4.00.17.00.cfg.bin.json`,
-//!   liste `m_skillInfoList` = 2627 valeurs.
+//! - Données : `data/common/gamedata/skill/skill_config_5.00.07.00.cfg.bin.json`
+//!   (version antérieure `4.00.17.00`, disparue après une MAJ du jeu — chemin corrigé,
+//!   compte NON revérifié : la MAJ du jeu peut avoir changé le nombre de valeurs de
+//!   `m_skillInfoList`, précédemment mesuré à 2627).
 //! - Jointure name/desc : `packages/inagle/src/skills/mapper.ts` (`parseSkillText`, l.66-105) :
 //!   NOUN_INFO var[5] = nom, TEXT_INFO var[2] = description, var[0] = hash (>>> 0).
 //!

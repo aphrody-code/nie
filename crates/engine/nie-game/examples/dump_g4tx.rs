@@ -2,7 +2,6 @@
 //! `cargo run -p nie-game --example dump_g4tx -- title02_00` → /tmp/g4tx/<name>.png par texture.
 use image_dds::Surface;
 use nie_formats::{g4tx, vfs::Vfs};
-use std::path::Path;
 
 fn dxgi_to_fmt(dxgi: u32) -> Option<image_dds::ImageFormat> {
     use image_dds::ImageFormat::*;
@@ -44,9 +43,9 @@ fn decode(g4tx_data: &[u8], tex: &g4tx::G4txTexture) -> Option<(u32, u32, Vec<u8
 
 fn main() {
     let arg = std::env::args().nth(1).unwrap_or_else(|| "title02_00".into());
-    let dir = "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road";
+    let dir = nie_formats::vfs::resolve_game_dir();
     let mut vfs = Vfs::new();
-    vfs.init(Path::new(dir).join("data").as_path()).expect("vfs init");
+    vfs.init(dir.join("data").as_path()).expect("vfs init");
     let path = vfs
         .iter()
         .map(|(p, _)| p.to_string())

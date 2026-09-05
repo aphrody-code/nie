@@ -2,7 +2,6 @@
 //! `cargo run -p nie-game --example extract_win_treasure`
 use nie_formats::cfgbin::{self, CfgEntry, Value};
 use nie_formats::vfs::Vfs;
-use std::path::Path;
 
 fn vstr(v: &Value) -> String {
     match v {
@@ -32,9 +31,9 @@ fn rename(siblings: &[CfgEntry]) -> Vec<(String, &CfgEntry)> {
 }
 
 fn main() {
-    let dir = "/mnt/c/Program Files (x86)/Steam/steamapps/common/INAZUMA ELEVEN Victory Road";
+    let dir = nie_formats::vfs::resolve_game_dir();
     let mut vfs = Vfs::new();
-    vfs.init(Path::new(dir).join("data").as_path()).expect("vfs init");
+    vfs.init(dir.join("data").as_path()).expect("vfs init");
     let path = vfs
         .iter()
         .map(|(p, _)| p.to_string())

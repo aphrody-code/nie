@@ -5,7 +5,7 @@
 //!
 //! ## Vérité terrain
 //!
-//! - Dump réel : `/home/ubuntu/niers/data/common/gamedata/trophy/trophy_config_0.00.00.00.cfg.bin.json`
+//! - Dump réel : `data/common/gamedata/trophy/trophy_config_7.00.12.00.cfg.bin.json`
 //! - Format `entries` (nœuds positionnels), 5 nœuds racine :
 //!   - `TROPHY_TARGET_MAP_INFO_LIST_BEG_0` — liste vide dans le dump réel (`var[0] = 0`,
 //!     aucun enfant). Structure des entrées inconnue (jamais peuplée) : non modélisée.
@@ -272,7 +272,7 @@ fn find_entry<'a>(root: &'a Value, prefix: &str) -> Option<Node<'a>> {
 /// Renvoie un [`TrophyConfig`] avec les 3 listes peuplées et le chemin de base texture.
 /// Les nœuds `_REF_` sont fusionnés dans le nœud principal qui les précède (offset/count).
 ///
-/// Vérité terrain : `trophy_config_0.00.00.00.cfg.bin.json` →
+/// Vérité terrain : `trophy_config_7.00.12.00.cfg.bin.json` →
 /// 384 récompenses, 436 paliers, 230 trophées.
 #[must_use]
 pub fn parse_trophy_config(root: &Value) -> TrophyConfig {
