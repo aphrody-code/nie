@@ -1,0 +1,110 @@
+{
+  "source_message": "https://discord.com/channels/1544475258591907961/1544482971934007336/1545590117895250101",
+  "bot_id": "1544463751279812740",
+  "service": "niers-wonderbot.service",
+  "message_http_status": 200,
+  "retrieved_at": "2026-09-05T00:34:21.003479+00:00",
+  "images": [
+    {
+      "file": "attachment-1545590115227672776-939c4b6206260a80.jpg",
+      "kind": "attachment",
+      "source_id": "1545590115227672776",
+      "http_status": 200,
+      "width": 4161,
+      "height": 3000,
+      "format": "JPEG",
+      "bytes": 478937,
+      "sha256": "939c4b6206260a80d2492384ceec3d8945eedf7ec52f962b1a53b65b78f74ba3"
+    },
+    {
+      "file": "attachment-1545590115747889232-3618da6685be4f7d.jpg",
+      "kind": "attachment",
+      "source_id": "1545590115747889232",
+      "http_status": 200,
+      "width": 4161,
+      "height": 3000,
+      "format": "JPEG",
+      "bytes": 484704,
+      "sha256": "3618da6685be4f7db324f1124f2f182a121f5502b8150b374065ad4018bb9900"
+    },
+    {
+      "file": "attachment-1545590116028776458-bee44251ac35c60c.jpg",
+      "kind": "attachment",
+      "source_id": "1545590116028776458",
+      "http_status": 200,
+      "width": 4161,
+      "height": 3000,
+      "format": "JPEG",
+      "bytes": 349171,
+      "sha256": "bee44251ac35c60c412129faeefcc20a58c6513f25c41a43d6cbcae3a7bb53b7"
+    },
+    {
+      "file": "attachment-1545590116280438866-c304acd6b30049bd.jpg",
+      "kind": "attachment",
+      "source_id": "1545590116280438866",
+      "http_status": 200,
+      "width": 4161,
+      "height": 3000,
+      "format": "JPEG",
+      "bytes": 482861,
+      "sha256": "c304acd6b30049bd9ace1c5d3647f76ec84f40a37968988fcf869ff2995a85d2"
+    },
+    {
+      "file": "attachment-1545590116544938014-eb9e969bb2b2f682.jpg",
+      "kind": "attachment",
+      "source_id": "1545590116544938014",
+      "http_status": 200,
+      "width": 4161,
+      "height": 3000,
+      "format": "JPEG",
+      "bytes": 540439,
+      "sha256": "eb9e969bb2b2f68298cb4aebaf4e919fa6a1f9d88d8ab956d8fa0474b1ec3618"
+    },
+    {
+      "file": "attachment-1545590116804730930-e399dd8abc23bf73.jpg",
+      "kind": "attachment",
+      "source_id": "1545590116804730930",
+      "http_status": 200,
+      "width": 4161,
+      "height": 3000,
+      "format": "JPEG",
+      "bytes": 500063,
+      "sha256": "e399dd8abc23bf73b46af0bc0a111da11b3f7c17097c8637aa85472677859f17"
+    },
+    {
+      "file": "attachment-1545590117069103204-c857bef7f7cff5b5.jpg",
+      "kind": "attachment",
+      "source_id": "1545590117069103204",
+      "http_status": 200,
+      "width": 4161,
+      "height": 3000,
+      "format": "JPEG",
+      "bytes": 512692,
+      "sha256": "c857bef7f7cff5b5b6d0a39fdf309ee916e1a935ad597b63455b4a7d0f370fb7"
+    },
+    {
+      "file": "attachment-1545590117349986416-9ec04b09fb15e8fd.jpg",
+      "kind": "attachment",
+      "source_id": "1545590117349986416",
+      "http_status": 200,
+      "width": 4161,
+      "height": 3000,
+      "format": "JPEG",
+      "bytes": 355992,
+      "sha256": "9ec04b09fb15e8fd127dd1de338f52ea84a799b5a7ceb021a941dd12e667417f"
+    },
+    {
+      "file": "attachment-1545590117614358639-ea86fce08fa43dd2.jpg",
+      "kind": "attachment",
+      "source_id": "1545590117614358639",
+      "http_status": 200,
+      "width": 4161,
+      "height": 3000,
+      "format": "JPEG",
+      "bytes": 514056,
+      "sha256": "ea86fce08fa43dd2feafefba45a759113a36b21ac6155bcdc9f1277699792ab3"
+    }
+  ],
+  "skipped": [],
+  "linked_embed_hosts": []
+}

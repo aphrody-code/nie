@@ -95,21 +95,21 @@
       "page": 1,
       "publie": "apps/azalee/public/oc/astro-lor/bd-page-1.webp",
       "octets": 373244,
-      "source": "astro/10-astro-bd-page-1.webp",
+      "source": "astro/sources/bd/page-1.webp",
       "octets_source": 652400
     },
     {
       "page": 2,
       "publie": "apps/azalee/public/oc/astro-lor/bd-page-2.webp",
       "octets": 255188,
-      "source": "astro/11-astro-bd-page-2.webp",
+      "source": "astro/sources/bd/page-2.webp",
       "octets_source": 258784
     },
     {
       "page": 3,
       "publie": "apps/azalee/public/oc/astro-lor/bd-page-3.webp",
       "octets": 199686,
-      "source": "astro/12-astro-bd-page-3.webp",
+      "source": "astro/sources/bd/page-3.webp",
       "octets_source": 204402
     }
   ],

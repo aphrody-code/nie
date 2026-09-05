@@ -236,6 +236,59 @@ fn correler_octet_variable(vfs: &nie_formats::vfs::Vfs, chemins: &[String]) {
     separe(|b| b.cles_nulles, "aucune clé");
     separe(|b| b.cles_absentes, "table de clés absente");
 
+    // Aucun compteur de l'en-tête ne sépare les deux groupes — mesuré : `entrées=0` vaut 36/12 974
+    // d'un côté et 2/57 824 de l'autre, `chaînes=0` 721 contre 2 709, et tous les maxima se
+    // chevauchent. Le drapeau ne décrit donc pas la forme du fichier. Restait la piste que les
+    // deux exemples désignaient : un `EventMap` d'un côté, un fichier de `/text/` de l'autre —
+    // c'est-à-dire l'emplacement, donc la nature du contenu. On ventile par premier dossier.
+    let mut par_dossier: BTreeMap<String, [usize; 2]> = BTreeMap::new();
+    for chemin in chemins {
+        let Ok(octets) = vfs.read(chemin) else { continue };
+        if nie_formats::cfgbin::is_rdbn(&octets) || octets.len() < PIED {
+            continue;
+        }
+        if nie_formats::cfgbin::parse_t2b(&octets).is_err() {
+            continue;
+        }
+        let index = match octets[octets.len() - PIED + 6] {
+            0x00 => 0usize,
+            0x01 => 1usize,
+            _ => continue,
+        };
+        // Deux premiers segments après `data/` : assez pour distinguer `common/text` de
+        // `common/event`, sans éclater en un dossier par épisode.
+        let racine = chemin
+            .strip_prefix("data/")
+            .unwrap_or(chemin)
+            .split('/')
+            .take(2)
+            .collect::<Vec<_>>()
+            .join("/");
+        par_dossier.entry(racine).or_default()[index] += 1;
+    }
+
+    println!("\nLe même octet, ventilé par emplacement :");
+    println!("{:<32} {:>10} {:>10}  {}", "dossier", "0x00", "0x01", "verdict");
+    let mut lignes: Vec<(&String, &[usize; 2])> = par_dossier.iter().collect();
+    lignes.sort_by_key(|(_, c)| core::cmp::Reverse(c[0] + c[1]));
+    let mut homogenes = 0usize;
+    for (dossier, c) in lignes.iter().take(20) {
+        let verdict = match (c[0], c[1]) {
+            (0, _) | (_, 0) => "homogène",
+            _ => "mélangé",
+        };
+        if verdict == "homogène" {
+            homogenes += 1;
+        }
+        println!("{:<32} {:>10} {:>10}  {}", dossier, c[0], c[1], verdict);
+    }
+    let total_dossiers = par_dossier.len();
+    let tous_homogenes = par_dossier.values().filter(|c| c[0] == 0 || c[1] == 0).count();
+    println!(
+        "\n{tous_homogenes}/{total_dossiers} dossiers sont homogènes ({homogenes} parmi les 20 \
+         affichés). Un dossier mélangé suffit à réfuter « l'octet suit l'emplacement »."
+    );
+
     for (v, b) in groupes.iter().enumerate() {
         if let Some(chemin) = &b.exemple {
             println!("  exemple 0x{v:02X} : {chemin}");

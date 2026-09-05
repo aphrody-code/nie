@@ -20,7 +20,7 @@ from pathlib import Path
 
 RACINE = Path(__file__).resolve().parents[2]
 SORTIE = RACINE / "astro" / "manifeste-assets.json"
-SOURCES = RACINE / "astro"
+SOURCES = RACINE / "astro" / "sources"
 PUBLIC = RACINE / "apps" / "azalee" / "public" / "oc" / "astro-lor"
 
 # Gabarit : un gardien de Raimon déjà dans le jeu. Ses fichiers donnent la forme exacte
@@ -175,8 +175,8 @@ manifeste = {
     "bandes_dessinees": [
         {"page": i, "publie": str((PUBLIC / f"bd-page-{i}.webp").relative_to(RACINE)),
          "octets": taille_locale(PUBLIC / f"bd-page-{i}.webp"),
-         "source": str((SOURCES / f"1{i - 1}-astro-bd-page-{i}.webp").relative_to(RACINE)),
-         "octets_source": taille_locale(SOURCES / f"1{i - 1}-astro-bd-page-{i}.webp")}
+         "source": str((SOURCES / "bd" / f"page-{i}.webp").relative_to(RACINE)),
+         "octets_source": taille_locale(SOURCES / "bd" / f"page-{i}.webp")}
         for i in (1, 2, 3)
     ],
     "cibles": cibles,

@@ -3,6 +3,7 @@ import hashlib
 import io
 import json
 import os
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.error import HTTPError
@@ -13,7 +14,18 @@ from dotenv import dotenv_values
 from PIL import Image
 
 SOURCE = 'https://discord.com/channels/1544475258591907961/1544482971934007336/1545590117895250101'
-OUTPUT = Path('/home/ubuntu/niers/astro')
+
+# Le dossier de sortie est OBLIGATOIRE et n'a pas de valeur par défaut : ce script nomme ce
+# qu'il récupère `attachment-<id Discord>-<empreinte>.jpg`, pas `01-og-tenue-jaune.jpg`. Seul
+# un regard humain sait ce que montre une planche, donc le renommage vers `astro/sources/`
+# reste un geste manuel. Avec un défaut pointant sur `astro/`, un simple rejeu y déverserait
+# douze doublons sous leur nom brut — c'est exactement ce qui était arrivé.
+if len(sys.argv) != 2:
+    raise SystemExit(
+        'usage : uv run scripts/donnees/astro-lor-planches-discord.py <dossier de sortie>\n'
+        '        (un dossier de travail, PAS astro/sources — cf. astro/README.md)'
+    )
+OUTPUT = Path(sys.argv[1])
 config = dotenv_values('/home/ubuntu/.config/niers/wonderbot.env', interpolate=False)
 token = next((config.get(k) for k in ('WONDERBOT_DISCORD_TOKEN', 'DISCORD_BOT_TOKEN', 'DISCORD_TOKEN') if config.get(k)), None)
 if not token or token.startswith(('$', 'eyJ2Ijo')):

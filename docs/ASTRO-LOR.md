@@ -231,6 +231,7 @@ est en aval n'est que du volume.
 
 ## Références
 
+- Le dossier, sa structure et sa provenance : `astro/README.md`
 - Manifeste d'assets : `astro/manifeste-assets.json`
 - Générateur : `scripts/donnees/astro-lor-manifeste.py`
 - Données du wiki : `scripts/donnees/astro-lor-oc.py`, `astro-lor-auras.py`
