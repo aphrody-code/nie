@@ -2,7 +2,7 @@
 /// Push donnees de jeu vers Supabase/PostgreSQL.
 ///
 /// Usage :
-///   iecode push --db-url "postgresql://postgres:pw@host:5432/postgres" --data /path/to/data
+///   iecode push --db-url "postgresql://postgres:pw@host:5432/postgres" --data <data-dir>
 ///   iecode push --db-url "$DATABASE_URL" --data packages/inagle/data --batch 200
 
 #include "commands.h"

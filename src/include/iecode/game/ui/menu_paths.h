@@ -292,7 +292,8 @@ inline constexpr std::string_view MENU_SCRIPT_DIR =
     "data/common/script/lua/menu";
 
 /// Construit le chemin d'un script Lua menu.
-/// Format : data/common/script/lua/menu/{name}.lua.bin
+/// Le nom doit inclure la version presente dans le VFS.
+/// Format : data/common/script/lua/menu/{versioned_name}.lua.bin
 /// Loader principal : FUN_14103df90 (CRC32 lookup + snprintf).
 /// Les .lua.bin sont chiffres CRI XOR (0x1717E18E) puis comprimes LZ10.
 [[nodiscard]] inline std::string menu_script(std::string_view name) {
@@ -327,7 +328,7 @@ inline constexpr std::string_view MINIMAP_CONFIG =
 /// Config pad virtuel tactile (FUN_1401326f0).
 /// Charge par MenuVirtualPadComponent.
 inline constexpr std::string_view VIRTUAL_PAD_CONFIG =
-    "data/common/menu/config/"
+    "data/common/gamedata/menu/"
     "virtual_pad_button_config_1.04.17.01.cfg.bin";
 
 /// Config icones de visage personnages (FUN_140fb0560).
@@ -345,13 +346,13 @@ inline constexpr std::string_view GRAPHIC_NUMBER_CONFIG =
 /// Config poses modeles 3D personnages dans les menus.
 /// Charge par CMenuCharaModelComponent.
 inline constexpr std::string_view CHARA_MODEL_POSE_CONFIG =
-    "data/common/menu/config/"
+    "data/common/gamedata/menu/"
     "menu_chara_model_pose_config_1.02.38.cfg.bin";
 
 /// Config parametres de creation (craft, trade).
 /// Charge par BeansTradeMenu et MenuListViewCraft.
 inline constexpr std::string_view CREATE_SETTING =
-    "data/common/menu/config/"
+    "data/common/gamedata/menu/"
     "menu_create_setting_5.00.27.00.cfg.bin";
 
 } // namespace config

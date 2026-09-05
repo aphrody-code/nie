@@ -8,6 +8,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -47,7 +48,9 @@ TEST(VendorMio, EmptyMmapHandledGracefully) {
     // Un chemin inexistant doit retourner une erreur, pas crasher
     mio::mmap_source mmap;
     std::error_code ec;
-    mmap.map("/tmp/nonexistent_mio_test_42.bin", 0, mio::map_entire_file, ec);
+    const auto missing =
+        std::filesystem::temp_directory_path() / "nonexistent_mio_test_42.bin";
+    mmap.map(missing.string(), 0, mio::map_entire_file, ec);
     EXPECT_TRUE(ec);
     EXPECT_FALSE(mmap.is_open());
 }

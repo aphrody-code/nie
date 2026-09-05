@@ -42,7 +42,7 @@ TEST_F(ProjectTest, CreateWritesValidJsonFile)
     const ProjectSettings settings{
         .name = "Mon Projet",
         .game_data_path = "data",
-        .game_install_path = "C:/Program Files/Steam/steamapps/common/IEVR",
+        .game_install_path = "data",
         .last_open_file = "",
         .recent_files = {},
     };
@@ -180,7 +180,7 @@ TEST_F(ProjectTest, RoundtripPreservesAllFields)
     const ProjectSettings original{
         .name = "Roundtrip Test",
         .game_data_path = "data",
-        .game_install_path = "C:\\Games\\IEVR",
+        .game_install_path = "data",
         .last_open_file = "test.cfg.bin",
         .recent_files = {"1.bin", "2.g4tx", "3.g4mg"},
     };

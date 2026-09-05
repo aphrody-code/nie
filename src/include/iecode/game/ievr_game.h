@@ -50,9 +50,6 @@ public:
     static constexpr std::string_view EXE_NAME = "nie.exe";
     static constexpr std::string_view GAME_FOLDER_NAME =
         "INAZUMA ELEVEN Victory Road";
-    static constexpr std::string_view DEFAULT_STEAM_PATH =
-        R"(C:\Program Files (x86)\Steam\steamapps\common\INAZUMA ELEVEN Victory Road)";
-
     /// Cree depuis un chemin explicite vers le dossier du jeu.
     /// @param game_path chemin vers le dossier d'installation (contient nie.exe + data/)
     explicit IevrGame(std::filesystem::path game_path);

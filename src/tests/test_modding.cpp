@@ -479,7 +479,7 @@ TEST(ConfigManager, SaveAndLoadRoundtrip) {
     ConfigManager mgr(config_path);
 
     AppConfig config;
-    config.game_path = "C:/Games/IEVR";
+    config.game_path = "data";
     config.mods_dir = "my_mods";
     config.profiles_dir = "my_profiles";
     config.selected_cpk_name = "custom.cpk";
@@ -491,7 +491,7 @@ TEST(ConfigManager, SaveAndLoadRoundtrip) {
     EXPECT_TRUE(mgr.save(config));
 
     auto loaded = mgr.load();
-    EXPECT_EQ(loaded.game_path, fs::path("C:/Games/IEVR"));
+    EXPECT_EQ(loaded.game_path, fs::path("data"));
     EXPECT_EQ(loaded.mods_dir, fs::path("my_mods"));
     EXPECT_EQ(loaded.selected_cpk_name, "custom.cpk");
     EXPECT_TRUE(loaded.show_technical_logs);
@@ -576,7 +576,7 @@ TEST(ConfigManager, MigrateDefaultValues) {
     const auto config_path = tmp.path() / "config.json";
 
     // Ecrire un JSON minimal (simule une ancienne version sans mods_dir)
-    write_file(config_path, R"({"game_path": "C:/test"})");
+    write_file(config_path, R"({"game_path": "data"})");
 
     ConfigManager mgr(config_path);
     auto config = mgr.load();
@@ -659,7 +659,7 @@ TEST(LastInstallManager, SaveAndLoad) {
     LastInstallManager mgr(tmp.path());
 
     LastInstallRecord record;
-    record.game_path = "C:/Games/IEVR";
+    record.game_path = "data";
     record.installed_mods = {"mod_a", "mod_b"};
     record.installed_files = {"data/tex/file.g4tx", "data/mesh/model.g4mg"};
     record.applied_at = "2025-06-01T12:00:00Z";
@@ -669,7 +669,7 @@ TEST(LastInstallManager, SaveAndLoad) {
 
     auto loaded = mgr.load();
     ASSERT_TRUE(loaded.has_value());
-    EXPECT_EQ(loaded->game_path, fs::path("C:/Games/IEVR"));
+    EXPECT_EQ(loaded->game_path, fs::path("data"));
     EXPECT_EQ(loaded->installed_mods.size(), 2u);
     EXPECT_EQ(loaded->installed_files.size(), 2u);
     EXPECT_EQ(loaded->applied_at, "2025-06-01T12:00:00Z");
@@ -687,7 +687,7 @@ TEST(LastInstallManager, ClearRemovesFile) {
     LastInstallManager mgr(tmp.path());
 
     LastInstallRecord record;
-    record.game_path = "C:/test";
+    record.game_path = "data";
     EXPECT_TRUE(mgr.save(record));
     EXPECT_TRUE(mgr.load().has_value());
 
@@ -808,7 +808,7 @@ TEST(LastInstallManager, AtomicWriteNoTempResidue) {
     LastInstallManager mgr(tmp.path());
 
     LastInstallRecord record;
-    record.game_path = "C:/test";
+    record.game_path = "data";
     EXPECT_TRUE(mgr.save(record));
 
     // Le fichier .tmp ne doit pas subsister

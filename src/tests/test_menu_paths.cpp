@@ -125,9 +125,9 @@ TEST(MenuPathsImg, GenericLocalizedFormat) {
 // ============================================================================
 
 TEST(MenuPathsLua, MenuScriptFormat) {
-    auto path = lua::menu_script("chara_select");
+    auto path = lua::menu_script("chara_select_menu_0.00.00");
     EXPECT_EQ(path,
-              "data/common/script/lua/menu/chara_select.lua.bin");
+              "data/common/script/lua/menu/chara_select_menu_0.00.00.lua.bin");
 }
 
 TEST(MenuPathsLua, MenuScriptDir) {

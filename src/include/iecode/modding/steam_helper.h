@@ -30,7 +30,7 @@ struct SteamDetectionResult {
     uint32_t app_id = 2799860);
 
 /// Trouve le dossier d'installation de Steam.
-/// Windows : lit HKCU\Software\Valve\Steam + HKLM\... + fallback C:/Program Files (x86)/Steam
+/// Windows : lit HKCU\Software\Valve\Steam + HKLM\... + répertoires système de l'hôte
 /// Linux : ~/.steam/steam, ~/.local/share/Steam, flatpak paths
 [[nodiscard]] std::optional<std::filesystem::path> find_steam_install();
 

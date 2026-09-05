@@ -2,7 +2,7 @@
 
 /// @file physics_component.h
 /// Composants physiques du moteur Level-5.
-/// nie.exe : PhysX 3.4 statique depuis D:\SVN\PhysX3.4\.
+/// nie.exe embarque PhysX 3.4 en liaison statique.
 /// iecode  : backend Bullet3 (cf. physics_world.h).
 /// MXCSR = 0x9FC0 (FTZ+DAZ — flush denormals to zero).
 

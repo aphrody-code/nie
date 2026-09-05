@@ -160,7 +160,7 @@ TEST_F(EacServiceTest, DisableWithLauncherAlreadyBackedUp) {
 }
 
 TEST_F(EacServiceTest, InvalidGameDir) {
-    EacService svc(fs::path("C:/nonexistent_dir_12345"));
+    EacService svc(fs::temp_directory_path() / "nonexistent_dir_12345");
     EXPECT_FALSE(svc.disable_eac());
     EXPECT_FALSE(svc.restore_eac());
 }

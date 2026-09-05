@@ -384,7 +384,9 @@ TEST(NieJsonTest, IndexToJson) {
 // ── Test fichier inexistant ─────────────────────────────────────────
 
 TEST(NieParserTest, NonExistentFile) {
-    auto index = iecode::decomp::parse_nie("/tmp/nonexistent_nie.c");
+    const auto missing =
+        fs::temp_directory_path() / "nonexistent_nie_parser_input.c";
+    auto index = iecode::decomp::parse_nie(missing.string());
     EXPECT_EQ(index.total_lines, 0u);
     EXPECT_EQ(index.total_functions, 0u);
 }

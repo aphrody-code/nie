@@ -11,6 +11,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <cstdlib>
 #include <fstream>
 #include <string>
 
@@ -109,14 +110,14 @@ std::optional<fs::path> find_steam_install() {
         }
     }
 
-    // 4. Fallback chemins connus
-    const fs::path fallbacks[] = {
-        "C:/Program Files (x86)/Steam",
-        "C:/Program Files/Steam",
-        "D:/Steam",
-        "D:/Program Files (x86)/Steam",
+    // 4. Fallback dérivé des répertoires système de l'hôte.
+    const char* roots[] = {
+        std::getenv("ProgramFiles(x86)"),
+        std::getenv("ProgramFiles"),
     };
-    for (const auto& fb : fallbacks) {
+    for (const char* root : roots) {
+        if (root == nullptr || *root == '\0') continue;
+        const fs::path fb = fs::path(root) / "Steam";
         if (fs::exists(fb / "steam.exe")) {
             spdlog::debug("steam_helper: trouve via fallback: {}", fb.string());
             return fb;

@@ -2,6 +2,8 @@
 #include "iecode/converters/texture_export.h"
 #include "iecode/formats/level5/g4tx.h"
 
+#include <filesystem>
+
 using namespace iecode::converters;
 using namespace iecode::level5;
 
@@ -52,10 +54,14 @@ TEST(TextureExport, DecodeRGBA8TruncatedFails) {
 
 TEST(TextureExport, ExportPngEmptyFails) {
     G4txTexture tex;
-    EXPECT_FALSE(export_png(tex, "/tmp/iecode_test_empty.png"));
+    const auto output =
+        std::filesystem::temp_directory_path() / "iecode_test_empty.png";
+    EXPECT_FALSE(export_png(tex, output));
 }
 
 TEST(TextureExport, ExportDdsEmptyFails) {
     G4txTexture tex;
-    EXPECT_FALSE(export_dds(tex, "/tmp/iecode_test_empty.dds"));
+    const auto output =
+        std::filesystem::temp_directory_path() / "iecode_test_empty.dds";
+    EXPECT_FALSE(export_dds(tex, output));
 }
