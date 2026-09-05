@@ -37,7 +37,7 @@ const MIROIR = join(RACINE, "var", "mirror.sqlite");
 
 function args() {
     const a = process.argv.slice(2);
-    const drapeaux = new Set(["--sortie", "--zukan", "--fandom", "--google"]);
+    const drapeaux = new Set(["--sortie", "--zukan", "--fandom", "--google", "--fiche"]);
     const lire = (nom: string, defaut: string) => {
         const i = a.indexOf(nom);
         return i >= 0 && a[i + 1] ? a[i + 1]! : defaut;
@@ -49,8 +49,12 @@ function args() {
     // `--fandom lang:Page`, repetable. Le wiki anglais est nettement plus structure que le
     // francais (Keshin, Mixi Max, Voicelines, Recruitment) : les deux valent d'etre compares.
     const fandom = a.flatMap((x, i) => (x === "--fandom" && a[i + 1] ? [a[i + 1]!] : []));
+    // Les fiches `chara_param` ne sont pas devinables : leurs URL viennent des colonnes
+    // `lien_fiche` du tableau de resultats. `--fiche auto` les suit toutes seules.
+    const fiche = a.flatMap((x, i) => (x === "--fiche" && a[i + 1] ? [a[i + 1]!] : []));
     return {
         fandom,
+        fiche,
         google: lire("--google", ""),
         slug: positionnels[0] ?? "byron-love-aphrody",
         sortie: lire("--sortie", join(RACINE, "var", "aphrody")),
@@ -197,6 +201,102 @@ function parseZukan(md: string, locale: "ja" | "en" = "en") {
             description_officielle_en: cell(13).replace(/\s*·\s*/g, " ").replace(/\s+/g, " ").trim(),
         };
     });
+}
+
+// ---------------------------------------------------------------- fiche zukan (chara_param)
+
+const STATS_JA: Record<string, string> = {
+    キック: "frappe", コントロール: "controle", テクニック: "technique",
+    プレッシャー: "pression", フィジカル: "physique", アジリティ: "agilite",
+    インテリジェンス: "intelligence",
+};
+const STATS_EN: Record<string, string> = {
+    Kick: "frappe", Control: "controle", Technique: "technique", Pressure: "pression",
+    Physical: "physique", Agility: "agilite", Intelligence: "intelligence",
+};
+
+/**
+ * Lit une fiche `chara_param` du zukan. C'est la page la plus riche du site officiel :
+ * elle porte la methode d'obtention, les routes de chronique, les equipes par jeu et les
+ * parametres officiels par niveau — soit la section « Recruitment » que notre couverture
+ * signalait comme absente.
+ *
+ * Le Markdown melange le formulaire de recherche et le resultat : tout ce qui precede
+ * « 検索結果 » / « Search Results » est du formulaire et doit etre jete, sinon on prend les
+ * libelles des filtres (les 9 jeux, les 4 elements) pour des donnees du personnage.
+ */
+function parseFiche(md: string, locale: "ja" | "en") {
+    const i = md.search(/検索結果|Search Results/);
+    const corps = i > 0 ? md.slice(i) : md;
+    const lignes = corps.split("\n");
+
+    // « * キック » puis un tableau |Lv50| / |104| quelques lignes plus bas.
+    const table = locale === "ja" ? STATS_JA : STATS_EN;
+    const parametres: Record<string, Record<string, number>> = {};
+    for (let j = 0; j < lignes.length; j++) {
+        const nom = lignes[j]!.replace(/^\s*\*\s*/, "").trim();
+        const cle = table[nom];
+        if (!cle) continue;
+        const fenetre = lignes.slice(j + 1, j + 8);
+        const entetes = fenetre.find((l) => /\|\s*Lv\s*\d+/i.test(l));
+        const valeurs = fenetre.find((l) => /^\s*\|[\s\d|]+\|\s*$/.test(l));
+        if (!entetes || !valeurs) continue;
+        const niveaux = [...entetes.matchAll(/Lv\s*(\d+)/gi)].map((m) => `lv${m[1]}`);
+        const nombres = valeurs.split("|").map((x) => x.trim()).filter((x) => /^\d+$/.test(x)).map(Number);
+        if (niveaux.length && niveaux.length === nombres.length) {
+            for (const [k, niv] of niveaux.entries()) (parametres[niv] ??= {})[cle] = nombres[k]!;
+        }
+    }
+
+    // Libelles de la fiche qui suivent les puces d'une section sans lui appartenir : sans
+    // cette liste, « ポジション » (le libelle « Poste ») ressort comme une equipe de IE3.
+    const ETIQUETTES = /^(ポジション|属性|年代区分|学年|性別|キャラカテゴリ|Position|Element|Age Group|School Year|Gender|Character Role)$/;
+
+    /** Contenu d'une section : les puces qui suivent un intitule, jusqu'a la puce suivante. */
+    const section = (etiquette: RegExp) => {
+        const d = lignes.findIndex((l) => etiquette.test(l));
+        if (d < 0) return [];
+        const out: string[] = [];
+        for (const l of lignes.slice(d + 1, d + 25)) {
+            const m = l.match(/^\s*\*\s+(.+?)\s*$/);
+            const v = m?.[1]?.replace(/\s+/g, " ").trim();
+            if (v && ETIQUETTES.test(v)) break;
+            if (m && v && !/^\\?<|^\[/.test(v)) out.push(v);
+            else if (out.length && l.trim() && !/^\s*\*/.test(l)) break;
+        }
+        return out;
+    };
+
+    const apres = (etiquette: RegExp) => {
+        const l = lignes.find((x) => etiquette.test(x));
+        return l ? l.replace(etiquette, "").replace(/^\s*\*\s*/, "").trim() || null : null;
+    };
+
+    return {
+        locale,
+        parametres,
+        obtention: apres(/入手方法|How to Obtain/),
+        constellations: section(/入手方法|How to Obtain/),
+        routes: {
+            football_frontier: section(/フットボールフロンティアルート|Football Frontier/),
+            aliea: section(/エイリアルート|Aliea/),
+            ff_international: section(/ＦＦインターナショナルルート|FF International/),
+        },
+        equipes_par_jeu: Object.fromEntries(
+            lignes
+                .flatMap((l, j) => {
+                    const m = l.match(/^\s*(イナズマイレブン[0-9]?|Inazuma Eleven ?[0-9]?)\s*$/);
+                    if (!m) return [];
+                    const eq = section(new RegExp(`^\\s*${m[1]!.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`));
+                    return eq.length ? [[m[1]!.trim(), eq] as const] : [];
+                })
+                .slice(0, 12),
+        ),
+        tranche_age: apres(/年代区分|Age Group/),
+        annee_scolaire: apres(/学年|School Year/),
+        genre: apres(/性別|Gender/),
+        categorie: apres(/キャラカテゴリ|Character Role/),
+    };
 }
 
 // ---------------------------------------------------------------- Fandom : couverture seule
@@ -397,6 +497,105 @@ function jsonLd(d: Ligne) {
     };
 }
 
+// ---------------------------------------------------------------- Markdown
+
+/** Le dossier en Markdown : la forme lisible, celle qu'on relit et qu'on cite. */
+function markdown(d: Ligne): string {
+    const id = d.identite as Ligne;
+    const st = d.statistiques as Ligne;
+    const md = d.medias as Ligne;
+    const fo = d.fiche_officielle as Ligne | null;
+    const L: string[] = [];
+    const champ = (nom: string, v: unknown) =>
+        v === null || v === undefined || v === "" || (Array.isArray(v) && !v.length)
+            ? null
+            : `| ${nom} | ${Array.isArray(v) ? v.join(", ") : v} |`;
+
+    L.push(`# ${id.nom_fr}`, "");
+    if (id.nom_ja_officiel) L.push(`**${id.nom_ja_officiel}**${id.furigana ? ` (${id.furigana})` : ""}${id.romaji ? ` — ${id.romaji}` : ""}`, "");
+    if (md.portrait) L.push(`![${id.nom_fr}](${md.portrait})`, "");
+
+    L.push("## Identité", "", "| Champ | Valeur |", "|---|---|");
+    for (const [n, v] of [
+        ["Nom (FR)", id.nom_fr], ["Nom (EN)", id.nom_en], ["Nom (JA)", id.nom_ja_officiel ?? id.nom_ja],
+        ["Furigana", id.furigana], ["Romaji", id.romaji], ["Surnom", id.surnom], ["Surnom (JA)", id.surnom_ja],
+        ["N° zukan (interne)", id.zukan], ["N° zukan (officiel)", id.zukan_officiel],
+        ["Série", id.serie], ["Série (JA)", id.serie_ja], ["Élément", id.element], ["Poste", id.poste],
+        ["Genre", id.genre], ["Rareté", id.rarete], ["Constellation", id.constellation],
+        ["Tranche d'âge", id.tranche_age], ["Année scolaire", id.annee_scolaire],
+        ["Rôle", id.role], ["Équipes", id.equipes], ["Équipes (JA)", id.equipes_ja],
+        ["Codes internes", d.codes_internes],
+    ] as [string, unknown][]) {
+        const l = champ(n, v);
+        if (l) L.push(l);
+    }
+    L.push("");
+
+    for (const [titre, cle] of [["Description (FR)", "description_fr"], ["Description (EN)", "description_en"], ["Description (JA)", "description_ja"]] as const) {
+        if (id[cle]) L.push(`**${titre}** — ${String(id[cle]).replace(/\n/g, " ")}`, "");
+    }
+
+    if (fo) {
+        L.push("## Fiche officielle LEVEL-5", "");
+        if (fo.obtention) L.push(`**Obtention** — ${fo.obtention}`, "");
+        if ((fo.constellations as string[])?.length) L.push(`**Constellations** — ${(fo.constellations as string[]).join(" · ")}`, "");
+        for (const [nom, v] of Object.entries((fo.routes ?? {}) as Record<string, string[]>))
+            if (v.length) L.push(`**Route ${nom.replace(/_/g, " ")}** — ${v.join(" · ")}`, "");
+        for (const [jeu, eq] of Object.entries((fo.equipes_par_jeu ?? {}) as Record<string, string[]>))
+            L.push(`**${jeu}** — ${eq.join(" · ")}`, "");
+        L.push(`Source : ${fo.url}`, "");
+    }
+
+    L.push("## Statistiques", "", `Total : **${st.total}**`, "", "| Attribut | Niv. 1 | Niv. 99 |", "|---|---:|---:|");
+    for (const k of Object.keys((st.niveau_99 ?? {}) as Ligne))
+        L.push(`| ${k} | ${(st.niveau_1 as Ligne)[k] ?? "—"} | ${(st.niveau_99 as Ligne)[k] ?? "—"} |`);
+    L.push("");
+
+    const cz = st.controle_zukan as Ligne[] | null;
+    if (cz?.length) {
+        L.push("### Croisement avec les paramètres publiés par LEVEL-5", "");
+        for (const c of cz) {
+            L.push(`**${c.niveau}** — zukan : ${Object.entries(c.zukan as Ligne).map(([k, v]) => `${k} ${v}`).join(", ")}`, "");
+            L.push(`> ${c.note}`, "");
+        }
+    }
+
+    const tech = (d.techniques as Ligne[]) ?? [];
+    if (tech.length) {
+        L.push(`## Techniques (${tech.length})`, "", "| Niv. | Nom | Élément | Type | Puissance | TP |", "|---:|---|---|---|---|---:|");
+        for (const t of tech)
+            L.push(`| ${t.niveau_apprentissage ?? "—"} | [${t.nom_fr ?? t.nom_en}](${t.url}) | ${t.element ?? "—"} | ${t.categorie ?? "—"} | ${(t.puissance as number[])?.join("–") ?? "—"} | ${t.cout_tp ?? "—"} |`);
+        L.push("");
+    }
+
+    L.push("## Médias", "");
+    if ((md.visages as string[])?.length) L.push(...(md.visages as string[]).map((u, i) => `- Visage ${(d.codes_internes as string[])[i] ?? i} : ${u}`), "");
+    for (const z of (md.zukan as Ligne[]) ?? [])
+        L.push(`- ${z.jeu} : ${z.image ?? "—"}${z.fiche ? ` · [fiche](${z.fiche})` : ""}${z.modele_3d ? ` · [modèle 3D](${z.modele_3d})` : ""}`);
+    L.push("");
+
+    const dem = (d.sources as Ligne).demande_publique as Ligne | null;
+    if ((dem?.suggestions as string[])?.length) {
+        L.push("## Ce que le public cherche", "", "Autocomplétion Google — une demande mesurée, pas supposée.", "");
+        L.push(...(dem!.suggestions as string[]).map((q) => `- ${q}`), "");
+    }
+
+    const manq = (d.couverture as Ligne).manquants as string[];
+    if (manq.length) {
+        L.push("## Ce qui nous manque encore", "");
+        L.push("Mesuré contre la structure des wikis (titres de sections et noms de champs uniquement) :", "");
+        L.push(...manq.map((m) => `- ${m}`), "");
+    }
+
+    L.push("## Sources", "");
+    for (const [nom, v] of Object.entries(d.sources as Ligne)) {
+        if (!v) continue;
+        L.push(`- **${nom}** — ${JSON.stringify(v).slice(0, 300)}`);
+    }
+    L.push("", "## JSON-LD", "", "```json", JSON.stringify(jsonLd(d), null, 2), "```", "");
+    return L.join("\n");
+}
+
 // ---------------------------------------------------------------- main
 
 const o = args();
@@ -410,6 +609,7 @@ let zukan: ReturnType<typeof parseZukan> = [];
 let zukanJa: ReturnType<typeof parseZukan> = [];
 let wikis: Couverture[] = [];
 let web: Awaited<ReturnType<typeof suggestions>> = null;
+let fiches: ReturnType<typeof parseFiche>[] = [];
 let publiee: string | null = null;
 
 if (!o.horsLigne) {
@@ -433,12 +633,25 @@ if (!o.horsLigne) {
     }
     // Si une seule langue a ete fournie, elle sert de reference pour les deux.
     if (zukan.length === 0) zukan = zukanJa;
+    // Les fiches detaillees : celles demandees, sinon celles que le tableau vient de nous
+    // donner (une par version, dans chaque langue disponible).
+    const urlsFiches = o.fiche.length
+        ? o.fiche
+        : [...zukan, ...zukanJa].map((z) => z.lien_fiche).filter((x): x is string => !!x).map((x) => `https://zukan.inazuma.jp${x}`);
+    const vues = new Set<string>();
+    const aLire = urlsFiches.filter((u) => !vues.has(u) && (vues.add(u), true)).slice(0, 8);
+    fiches = (await Promise.all(aLire.map(async (u) => {
+        const md = await bxc(u);
+        return md ? { ...parseFiche(md, localeZukan(u)), url: u } : null;
+    }))).filter((x): x is NonNullable<typeof x> => x !== null);
+
     publiee = mdPage;
     wikis = cov.filter((x): x is NonNullable<typeof x> => x !== null);
     web = g6;
     console.error(
         `  zukan : ${zukan.length} versions EN, ${zukanJa.length} JA · azalee : ${publiee ? "lue" : "non lue"}` +
             ` · fandom : ${wikis.map((w) => `${w.lang}=${w.sections.length} sections`).join(", ") || "indisponible"}` +
+            ` · fiches : ${fiches.length}` +
             (web ? ` · suggest : ${web.suggestions.length} requetes` : ""),
     );
 }
@@ -502,11 +715,44 @@ const dossier: Ligne = {
         poste: v.position,
         principale: !!v.is_primary,
     })),
+    fiche_officielle: (() => {
+        const f = fiches.find((x) => x.locale === "ja") ?? fiches[0];
+        if (!f) return null;
+        return {
+            url: (f as Ligne).url,
+            obtention: f.obtention,
+            constellations: f.constellations,
+            routes: f.routes,
+            equipes_par_jeu: f.equipes_par_jeu,
+            tranche_age: f.tranche_age,
+            annee_scolaire: f.annee_scolaire,
+            categorie: f.categorie,
+            parametres: f.parametres,
+        };
+    })(),
     statistiques: {
         total: p.stat_total,
         niveau_1: Object.fromEntries(["frappe", "controle", "technique", "pression", "physique", "agilite", "intelligence"].map((n) => [n, p[`stat_lv1_${n}`] ?? null])),
         niveau_99: Object.fromEntries(["frappe", "controle", "technique", "pression", "physique", "agilite", "intelligence"].map((n) => [n, p[`stat_${n}`] ?? null])),
         progression: Object.fromEntries(["frappe", "controle", "technique", "pression", "physique", "agilite", "intelligence"].map((n) => [n, stat(n)])),
+        // Croisement avec les parametres publies par LEVEL-5. Un ecart n'est pas une erreur
+        // en soi — c'est un fait a expliquer avant d'aligner quoi que ce soit.
+        controle_zukan: (() => {
+            const f = fiches.find((x) => Object.keys(x.parametres).length);
+            if (!f) return null;
+            return Object.entries(f.parametres).map(([niveau, vals]) => ({
+                niveau,
+                zukan: vals,
+                notre: Object.fromEntries(Object.keys(vals).map((k) => [k, p[`stat_${k}`] ?? null])),
+                ecart: Object.fromEntries(
+                    Object.entries(vals).map(([k, v]) => {
+                        const notre = niveau === "lv99" ? Number(p[`stat_${k}`] ?? NaN) : NaN;
+                        return [k, Number.isFinite(notre) ? v - notre : null];
+                    }),
+                ),
+                note: "les niveaux intermediaires ne sont pas stockes dans le gisement : l'ecart n'est calcule qu'au niveau 99",
+            }));
+        })(),
     },
     techniques: g.skills.map((s) => ({
         internal_code: s.internal_code,
@@ -565,10 +811,10 @@ const dossier: Ligne = {
 
 mkdirSync(o.sortie, { recursive: true });
 const fJson = join(o.sortie, "aphrody.json");
-const fLd = join(o.sortie, "aphrody.ld");
+const fMd = join(o.sortie, "aphrody.md");
 writeFileSync(fJson, JSON.stringify(dossier, null, 2) + "\n");
-writeFileSync(fLd, JSON.stringify(jsonLd(dossier), null, 2) + "\n");
+writeFileSync(fMd, markdown(dossier));
 
 console.error(`\n  ${fJson}`);
-console.error(`  ${fLd}`);
+console.error(`  ${fMd}`);
 console.error(`  ${(dossier.couverture as Ligne).manquants as string[]}`.replace(/,/g, ", "));
