@@ -26,6 +26,7 @@
 import { Database } from "bun:sqlite";
 import { romaji, romajiNom } from "./kana.ts";
 import { assets, type Asset } from "./sources/vfs.ts";
+import { lirePet } from "./sources/pet.ts";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
@@ -698,9 +699,35 @@ function markdown(d: Ligne): string {
         if (Array.isArray(rj) && rj.length) L.push(`### Références et clins d'œil — ${rj.length}`, "");
     }
 
+    const pt = d.pet as Ligne | null;
+    if (pt) {
+        const at = pt.atlas as Ligne;
+        L.push("## Le pet — `crates/engine/nie-aphrody`", "");
+        L.push(`**${pt.nom}** v${pt.version_sprite} — ${pt.description}`, "");
+        L.push(`> ${pt.lien_au_personnage}`, "");
+        L.push(
+            `Atlas **${at.largeur}×${at.hauteur}** : ${at.colonnes}×${at.lignes} cellules de ` +
+                `${(at.cellule as Ligne).largeur}×${(at.cellule as Ligne).hauteur}, ${at.cellules_inutilisees} inutilisées. ` +
+                `WebP ${at.conteneur_webp} ${at.gain_webp}.`,
+            "",
+        );
+        if (at.webp_decode_identique_au_png)
+            L.push(
+                "Le WebP et le PNG **décodent vers les mêmes pixels** — empreinte RGBA identique " +
+                    `(\`${String(at.sha256_rgba_png).slice(0, 16)}…\`). Le WebP n'est pas une version dégradée, ` +
+                    "c'est le même RGBA dans un autre conteneur.",
+                "",
+            );
+        L.push(`### Animations — ${(pt.animations as Ligne[]).length} pour ${pt.total_frames} frames`, "");
+        L.push("| Animation | Frames | Ligne | Genre | Durée |", "|---|---:|---:|---|---:|");
+        for (const a of pt.animations as Ligne[])
+            L.push(`| ${a.nom} | ${a.frames} | ${a.ligne} | ${a.genre ?? "—"} | ${a.duree_ms ? `${a.duree_ms} ms` : "—"} |`);
+        L.push("");
+    }
+
     const hom = d.homonymes as Ligne | null;
     if (hom) {
-        L.push("## Homonymes dans le dépôt — à ne pas confondre", "");
+        L.push("## Ce qui ne partage que le nom", "");
         for (const [k, v] of Object.entries(hom)) L.push(`- **${k}** — ${v}`);
         L.push("");
     }
@@ -810,6 +837,11 @@ if (!o.horsLigne) {
     console.error(`  vfs : ${Object.values(assetsVfs).flat().length} fichiers pour ${Object.keys(assetsVfs).length} codes`);
 }
 
+// Le pet est lu depuis la crate, sans la compiler : elle embarque ces memes fichiers par
+// include_bytes!/include_str!.
+const pet = lirePet(RACINE);
+if (pet) console.error(`  pet : ${pet.total_frames} frames, ${pet.animations.length} animations, atlas ${pet.atlas.colonnes}x${pet.atlas.lignes}`);
+
 const face = (code: string) => `${CDN}/dx11/menu/200_icon/10_icon_chr/face/${code}_l.png`;
 const stat = (n: string) => ({
     lv1: p[`stat_lv1_${n}`] ?? null,
@@ -834,14 +866,22 @@ const dossier: Ligne = {
               references: rust.references ?? null,
           }
         : null,
-    // Trois choses portent le nom « Aphrody » dans ce depot, et rien ne les distingue au
-    // premier coup d'oeil. La confusion coute une demi-heure a qui cherche « la crate
-    // aphrody » en pensant au personnage.
+    // Le pet est la MEME entite que le personnage, sous une autre forme : son manifeste dit
+    // « faithfully based on official full-body and facial assets » et le decrit comme le
+    // milieu de terrain de Zeus. Une premiere version de ce dossier le rangeait parmi les
+    // homonymes — c'etait faux, et le nom de la crate y invite.
+    pet: pet
+        ? {
+              ...pet,
+              // Le detail frame par frame est volumineux et rarement utile ici : on garde les
+              // rectangles dans le JSON, mais le Markdown n'en montre que la synthese.
+              lien_au_personnage: "meme entite : mascotte tiree des assets officiels du personnage",
+          }
+        : null,
+    // Ce qui, en revanche, ne partage QUE le nom.
     homonymes: {
-        personnage: "Byron Love Aphrody (亜風炉 照美 アフロディ) — le sujet de ce dossier",
-        crate_nie_aphrody: "crates/engine/nie-aphrody — le PET Codex Aphrody v2 : atlas RGBA 8x11 de cellules 192x208, 11 animations. Aucun rapport avec le personnage.",
-        crate_aphrody_re: "crates/forge/aphrody-re — primitives de reverse-engineering (triage PE/ELF, chaines, desassemblage x86). Aucun rapport non plus.",
-        site_aphrody: "aphrody.com — le site d'outils et d'assets (crate nie-site), projet aphrody-dev. Encore autre chose.",
+        crate_aphrody_re: "crates/forge/aphrody-re — primitives de reverse-engineering (triage PE/ELF, chaines, desassemblage x86). Aucun rapport avec le personnage.",
+        site_aphrody: "aphrody.com — le site d'outils et d'assets (crate nie-site), projet aphrody-dev. Le nom vient du personnage, le contenu n'a rien a voir.",
     },
     identite: {
         nom_fr: p.name_fr,
