@@ -7,7 +7,7 @@ const html = `<!doctype html><html lang="fr"><meta charset="utf-8"><title>Valida
 Bun.serve({hostname:'127.0.0.1',port:8794,async fetch(req){const path=new URL(req.url).pathname;
  if(path==='/')return new Response(html,{headers:{'Content-Type':'text/html; charset=utf-8'}});
  if(path==='/toon')return new Response(`<style>body{margin:0;background:#241f17;color:white;font:16px sans-serif}main{display:flex}#viewer,img{width:50vw;height:85vh;object-fit:contain}button{padding:10px;margin:5px}</style><nav>${Array.from({length:8},(_,i)=>`<button data-angle="${i}">Angle ${i}</button>`).join('')}<span id="status">Chargement</span></nav><main><div id="viewer"></div><img id="reference" src="/reference/0.png"></main><script type="module" src="/toon.js"></script>`,{headers:{'Content-Type':'text/html'}});
- if(path==='/toon.js')return new Response(Bun.file('outputs/toon.js'));
+ if(path==='/toon.js')return new Response(Bun.file('var/outputs/toon.js'));
  if(path==='/atlas')return new Response('<body style="background:black"><img src="/atlas.png" width="700">',{headers:{'Content-Type':'text/html'}});
  if(path==='/atlas.png')return new Response(Bun.file('outputs/c05024700-n000105_10.png'));
  if(path==='/model-viewer.js')return new Response(Bun.file('apps/azalee/public/vendor/model-viewer.min.js'));

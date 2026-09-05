@@ -1,6 +1,6 @@
 # Documentation de niers
 
-Neuf documents, un rôle chacun. Ce qui n'y est pas mesurable ou vérifiable n'y a pas sa place :
+Vingt documents, un rôle chacun. Ce qui n'y est pas mesurable ou vérifiable n'y a pas sa place :
 pas de journal, pas d'historique daté — l'état vient des outils, l'histoire vient de `git log`.
 
 ## Commencer ici
@@ -10,6 +10,7 @@ pas de journal, pas d'historique daté — l'état vient des outils, l'histoire 
 | [PLAN.md](PLAN.md) | **L'objectif et l'état chiffré** : les deux faces (moteur et forge), ce qui est mesuré, les priorités |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | **La carte** : les quatre arbres, qui fait autorité sur quoi, les crates, les ponts, les fusions interdites |
 | [FORGE.md](FORGE.md) | Produire `nie.exe` au byte près depuis le workspace — le juge du projet |
+| [INSTALLATION.md](INSTALLATION.md) | Installer la CLI `niers` |
 | [../PROVENANCE.md](../PROVENANCE.md) | D'où vient chaque arbre, ce qui a été écarté à la copie |
 
 ## Le moteur
@@ -18,7 +19,9 @@ pas de journal, pas d'historique daté — l'état vient des outils, l'histoire 
 |---|---|
 | [STACK.md](STACK.md) | Les briques runtime, ce qui est écarté et pourquoi, les règles de la boucle et de Lua |
 | [DESIGN.md](DESIGN.md) | Rendu pixel-perfect des écrans START et MENU, décomposition par couche |
+| [AVATAR.md](AVATAR.md) | L'éditeur d'avatar (`chara_edit`) : composition, icônes, ce qui reste non prouvé |
 | [BENCHMARKS.md](BENCHMARKS.md) | Banc d'essai inter-langages des hot paths |
+| [PLAN-SESSION-3D.md](PLAN-SESSION-3D.md) | Le plan de travail en cours sur le moteur 3D, les avatars et la publication |
 
 ## Le binaire et ses données
 
@@ -31,7 +34,24 @@ pas de journal, pas d'historique daté — l'état vient des outils, l'histoire 
 | [nie-rtti-classes.txt](nie-rtti-classes.txt) | Les 1 234 classes RTTI extraites |
 | [dll-exports/](dll-exports/) | Exports des DLL tierces (Steam, EOS, curl) |
 
+## Le wiki, l'application et la production
+
+| Document | Contenu |
+|---|---|
+| [FUSION.md](FUSION.md) | Pourquoi tout ce qui touche Inazuma Eleven vit dans ce dépôt, et comment les gisements s'y rejoignent |
+| [AZALEE.md](AZALEE.md) | Le wiki : les trois choses que « Azalée » désigne, et leur rapport à niers |
+| [MIGRATION-EXPLORATEUR.md](MIGRATION-EXPLORATEUR.md) | Le passage des outils et de la galerie du web vers l'explorateur de bureau |
+| [EXPLOITATION.md](EXPLOITATION.md) | Ce qui tourne sur cette machine, d'où, et sous quel service |
+| [ASTRO-LOR.md](ASTRO-LOR.md) | Astro Lor, personnage original : du wiki au jeu |
+
+## Chantiers transverses
+
+| Document | Contenu |
+|---|---|
+| [ABSORPTION-IECODE.md](ABSORPTION-IECODE.md) | Rendre `csharp/` redondant en portant ce qu'il sait faire |
+| [A2A-CODEX.md](A2A-CODEX.md) | Le protocole entre les agents qui codent ici en même temps |
+
 ## Ailleurs dans le dépôt
 
-`../CLAUDE.md` (règles de travail) · `../apps/nie-explorer/ROADMAP.md` (app desktop) ·
-`../plugins/niers-plugin/` (plugin et skills).
+`../CLAUDE.md` et `../AGENTS.md` (règles de travail) · `../apps/nie-explorer/ROADMAP.md`
+(app desktop) · `../plugins/niers-plugin/` (plugin et skills).

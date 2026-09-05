@@ -18,8 +18,8 @@ const serveur = Bun.serve({ hostname: "127.0.0.1", port: 8796, async fetch(req) 
 		return new Response(Bun.file(new URL(`../../../public${url.pathname}`, import.meta.url)));
 	}
 	if (url.pathname === "/wasm/nie_wasm_bg.wasm") return new Response(Bun.file(new URL("../../../public/wasm/nie_wasm_bg.wasm", import.meta.url)), { headers: { "content-type": "application/wasm" } });
-	if (url.pathname === "/fixture.glb") return new Response(Bun.file(new URL("../../../../../outputs/byron-current.glb", import.meta.url)));
-	if (url.pathname === "/fixture.glb.gz") return new Response(Bun.gzipSync(await Bun.file(new URL("../../../../../outputs/byron-current.glb", import.meta.url)).arrayBuffer()));
+	if (url.pathname === "/fixture.glb") return new Response(Bun.file(new URL("./fixtures/byron-current.glb", import.meta.url)));
+	if (url.pathname === "/fixture.glb.gz") return new Response(Bun.gzipSync(await Bun.file(new URL("./fixtures/byron-current.glb", import.meta.url)).arrayBuffer()));
 	if (url.pathname === "/avatar/catalog.json" || url.pathname.startsWith("/model-avatar/") || url.pathname.startsWith("/g4tx/dx11/menu/200_icon/21_icon_avatar/")) {
 		const reponse = await fetch(`https://cdn.rosegriffon.fr${url.pathname}${url.search}`);
 		return new Response(reponse.body, { status: reponse.status, headers: { "content-type": reponse.headers.get("content-type") || "application/octet-stream" } });
