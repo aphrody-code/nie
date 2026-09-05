@@ -216,7 +216,12 @@ function BaseCharacterRow({ character, rowIndex }: { character: BaseCharacter; r
 							fill
 							className="object-cover object-top group-hover:scale-110 transition-transform"
 							sizes="48px"
-							unoptimized
+							// PAS de `unoptimized` ici, contrairement au défaut de `SafeImage`.
+							// Sa règle vise les « images CDN tierces déjà en webp » — mais les
+							// portraits zukan de CloudFront sont des PNG PLEINE RÉSOLUTION :
+							// mesuré 27 150 o pour une vignette affichée en 48 px, et 404 images
+							// par page. L'optimiseur les rend en AVIF 2 624 o (w=96), soit un
+							// facteur 10 sur ce qui fait 99 % du poids de cette page.
 						/>
 					</div>
 					<div className="flex flex-col">
@@ -500,7 +505,8 @@ function BaseCharacterCard({ character, rowIndex }: { character: BaseCharacter; 
 						fill
 						className="object-cover object-top group-hover:scale-110 transition-transform duration-300"
 						sizes="64px"
-						unoptimized
+						// Même raison qu'au-dessus : portrait zukan PNG pleine résolution,
+						// affiché en 64 px.
 					/>
 				</Link>
 
