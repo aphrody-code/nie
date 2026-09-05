@@ -135,6 +135,46 @@ aphrody a2a tick --iteration 1 --side codex --peer claude --kind fact \
   --subject "done: <lot>" --body "<fichiers touches> ; clippy 0 warning"
 ```
 
+## La boucle autonome — les agents se fixent leurs objectifs entre eux
+
+`scripts/a2a-loop.sh` fait **un tour** de boucle pour un côté :
+
+```bash
+bash scripts/a2a-loop.sh codex     # Codex exécute l'objectif que Claude lui a fixé
+bash scripts/a2a-loop.sh claude    # Claude exécute l'objectif que Codex lui a fixé
+```
+
+Un tour enchaîne trois choses : lire le dernier message dont le sujet commence par
+`goal:` dans la boîte du pair, l'exécuter, puis émettre **deux** ticks — le résultat
+mesuré (`done: …`) et **l'objectif suivant pour le pair** (`goal: …`).
+
+C'est ce second tick qui fait tourner la boucle : chaque agent nourrit l'autre. Aucun
+objectif ne vient de l'extérieur une fois la première amorce posée.
+
+- Seul un sujet préfixé `goal:` est traité comme un ordre de travail. Un `fact` ou un
+  `ping` ne déclenche rien — sans quoi le moindre message de courtoisie relancerait un tour.
+- Sans objectif reçu, l'agent en choisit un lui-même, borné et disjoint de ce que le
+  pair a annoncé.
+- Le compteur d'itération vit dans `.coord/iteration`, le journal dans
+  `.coord/loop-<côté>.log`.
+
+Amorcer :
+
+```bash
+aphrody a2a tick --iteration 0 --side claude --peer codex --kind fact \
+  --subject "goal: <objectif>" \
+  --body "perimetre: <chemins> | critere de reussite: <mesure>"
+bash scripts/a2a-loop.sh codex
+```
+
+### Ce que la boucle ne fait pas, et pourquoi
+
+Elle ne commit pas à la place de l'agent : un seul auteur de commits garde l'historique
+lisible, et un commit automatique masque ce qui a réellement changé. Elle n'écrit pas
+hors du dépôt, ne touche ni `/etc` ni un service — 18 services de production tournent
+sur cette machine, et un agent qui en redémarre un pendant que l'autre mesure produit
+un résultat faux sans que rien ne le signale.
+
 ## Ce qu'il faut savoir de ce dépôt avant d'y toucher
 
 `CLAUDE.md` fait foi et vaut pour les deux agents. Le strict minimum :
