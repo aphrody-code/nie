@@ -200,6 +200,14 @@ struct Cli {
     #[cfg(feature = "gpu")]
     #[arg(long)]
     gpu: bool,
+    /// API graphique : dx12, vulkan, gl, webgpu, metal ou auto. Implique le rendu GPU.
+    #[cfg(feature = "gpu")]
+    #[arg(long)]
+    backend: Option<nie_render3d::gpu::Backend>,
+    /// Refuse un adaptateur logiciel. Implique le rendu GPU.
+    #[cfg(feature = "gpu")]
+    #[arg(long)]
+    hardware_only: bool,
     /// Compare la première image CPU et GPU et rend le verdict, comme `nie-game --verify`.
     ///
     /// Les deux rastériseurs ne peuvent pas être identiques au bit — le GPU interpole et filtre
@@ -334,14 +342,20 @@ fn main() -> Result<()> {
     // le renderer garde son état (device, pipeline, tampons) d'une image à l'autre, et c'est
     // précisément ce qui fait la différence.
     #[cfg(feature = "gpu")]
-    if cli.gpu || cli.verify {
+    if cli.gpu || cli.verify || cli.backend.is_some() || cli.hardware_only {
         anyhow::ensure!(
             !cli.scene && !cli.map,
             "--gpu ne compose ni --scene ni --map : ces modes construisent une géométrie \
              (sol, chunks) que le pipeline GPU ne connaît pas"
         );
         let debut = std::time::Instant::now();
-        let mut renderer = nie_render3d::gpu::GpuRenderer::new()?;
+        let mut renderer = nie_render3d::gpu::GpuRenderer::with_options(nie_render3d::gpu::GpuOptions {
+            backend: cli.backend.unwrap_or_default(),
+            allow_software: !cli.hardware_only,
+        })?;
+        let adapter = renderer.adapter_info();
+        println!("backend={:?} adapter={:?} type={:?} driver={:?}",
+            adapter.backend, adapter.name, adapter.device_type, adapter.driver);
         let gm = renderer.upload(model);
         println!(
             "gpu: {} triangles, {} sommets téléversés en {:?}",
