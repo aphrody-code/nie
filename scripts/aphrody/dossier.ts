@@ -24,7 +24,7 @@
  */
 
 import { Database } from "bun:sqlite";
-import { createHash } from "node:crypto";
+import { romaji, romajiNom } from "./kana.ts";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
@@ -225,24 +225,26 @@ async function couvertureFandom(lang: string, page: string) {
 // ---------------------------------------------------------------- recherche web
 
 /**
- * Liens de reference trouves par `bxc search`. On ne garde QUE titre + URL : le but est de
- * savoir ou la donnee existe ailleurs, pas d'en aspirer le contenu. Une recherche qui ne
- * rend rien est rapportee comme telle — c'est arrive sur « 亜風炉 照美 », profil `fetch`.
+ * Ce que le public cherche reellement, via l'autocompletion Google (`bxc google suggest`).
+ *
+ * Pourquoi l'autocompletion et pas la recherche : mesure du 2026-09-05 — `bxc search` ET
+ * `bxc google search` rendent tous deux une liste VIDE sur ces requetes, tandis que
+ * `suggest` repond (il est keyless et n'est pas derriere la meme protection). Et le
+ * resultat est plus utile qu'une liste de liens : sur « 亜風炉 照美 » il rend 声優
+ * (doubleur), 誕生日 (anniversaire), 読み方 (lecture), 背番号 (numero de maillot) — soit
+ * exactement les champs que notre ecart de couverture signale comme manquants. Une demande
+ * mesuree, pas supposee.
  */
-async function recherche(q: string) {
+async function suggestions(q: string) {
     if (!q) return null;
-    const p = Bun.spawn(["bxc", "search", q, "--json"], { cwd: "/tmp", stdout: "pipe", stderr: "ignore" });
+    const p = Bun.spawn(["bxc", "google", "suggest", q], { cwd: "/tmp", stdout: "pipe", stderr: "ignore" });
     const txt = await new Response(p.stdout).text();
     await p.exited;
     try {
-        const j = JSON.parse(txt) as { organic?: { title?: string; link?: string; url?: string }[]; profileUsed?: string };
-        return {
-            requete: q,
-            profil: j.profileUsed ?? null,
-            resultats: (j.organic ?? []).map((r) => ({ titre: r.title ?? null, url: r.link ?? r.url ?? null })),
-        };
+        const l = JSON.parse(txt) as unknown;
+        return { requete: q, suggestions: Array.isArray(l) ? (l as string[]) : [] };
     } catch {
-        return { requete: q, profil: null, resultats: [] as { titre: string | null; url: string | null }[] };
+        return { requete: q, suggestions: [] as string[] };
     }
 }
 
@@ -347,7 +349,7 @@ function jsonLd(d: Ligne) {
                 "@type": ["Person", "Thing"],
                 "@id": `${url}#concept`,
                 name: id.nom_fr,
-                alternateName: [...new Set([id.nom_en, id.nom_ja, id.nom_ja_officiel, id.furigana, id.surnom, id.surnom_ja].filter(Boolean))],
+                alternateName: [...new Set([id.nom_en, id.nom_ja, id.nom_ja_officiel, id.furigana, id.romaji, id.surnom, id.surnom_ja].filter(Boolean))],
                 identifier: (d.codes_internes as string[])?.[0],
                 description: id.description_fr ?? id.description_en,
                 image: [m.portrait, ...((m.visages as string[]) ?? [])].filter(Boolean),
@@ -366,6 +368,7 @@ function jsonLd(d: Ligne) {
                     ["Numéro de zukan", id.zukan],
                     ["Série", id.serie],
                     ["Lecture (furigana)", id.furigana],
+                    ["Romaji", id.romaji],
                     ["Nom japonais officiel", id.nom_ja_officiel],
                     ...Object.entries((d.statistiques as Ligne)?.niveau_99 ?? {}),
                 ]
@@ -406,7 +409,7 @@ console.error(`  extrait : ${g.variantes.length} variantes, ${g.codes.length} co
 let zukan: ReturnType<typeof parseZukan> = [];
 let zukanJa: ReturnType<typeof parseZukan> = [];
 let wikis: Couverture[] = [];
-let web: Awaited<ReturnType<typeof recherche>> = null;
+let web: Awaited<ReturnType<typeof suggestions>> = null;
 let publiee: string | null = null;
 
 if (!o.horsLigne) {
@@ -420,7 +423,7 @@ if (!o.horsLigne) {
         Promise.all(o.zukan.map(async (u) => ({ url: u, md: await bxc(u) }))),
         bxc(`${SITE}/chara/${o.slug}`),
         Promise.all(cibles.map((c) => couvertureFandom(c.lang, c.page))),
-        recherche(o.google),
+        suggestions(o.google),
     ]);
     for (const { url, md } of pagesZukan) {
         if (!md) continue;
@@ -436,7 +439,7 @@ if (!o.horsLigne) {
     console.error(
         `  zukan : ${zukan.length} versions EN, ${zukanJa.length} JA · azalee : ${publiee ? "lue" : "non lue"}` +
             ` · fandom : ${wikis.map((w) => `${w.lang}=${w.sections.length} sections`).join(", ") || "indisponible"}` +
-            (web ? ` · web : ${web.resultats.length} liens` : ""),
+            (web ? ` · suggest : ${web.suggestions.length} requetes` : ""),
     );
 }
 
@@ -455,6 +458,11 @@ const dossier: Ligne = {
         nom_ja: p.name_ja,
         nom_ja_officiel: zukanJa[0]?.nom_complet ?? null,
         furigana: zukanJa[0]?.furigana ?? null,
+        // Calcule hors ligne depuis le furigana officiel : deterministe, donc rejouable.
+        // `bxc google translate` aurait pu le rendre, mais il tombe en 429 des le 2e appel
+        // et deux imports donneraient deux romanisations differentes.
+        romaji: zukanJa[0]?.furigana ? romajiNom(zukanJa[0].furigana) : null,
+        romaji_surnom: zukanJa[0]?.surnom ? romaji(zukanJa[0].surnom) : null,
         surnom: p.nickname ?? zukan[0]?.surnom ?? null,
         surnom_ja: zukanJa[0]?.surnom ?? null,
         zukan: p.zukan_order,
@@ -547,7 +555,7 @@ const dossier: Ligne = {
         fandom: wikis.length
             ? { role: "checklist de couverture uniquement — aucun texte lu ni repris", wikis }
             : null,
-        web: web,
+        demande_publique: web,
     },
     couverture: { manquants: [] as string[] },
 };
