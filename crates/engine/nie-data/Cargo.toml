@@ -39,11 +39,6 @@ name = "export_skills"
 path = "src/bin/export_skills.rs"
 required-features = ["serde", "std"]
 
-[[bin]]
-name = "export_aphrody"
-path = "src/bin/export_aphrody.rs"
-required-features = ["serde", "std"]
-
 # `nie-data` n'active par defaut que `std` : `serde` est optionnelle, et tout
 # `nie_data::typed` est derriere elle. Ces 24 tests l'appellent sans la declarer, si bien que
 # `cargo clippy -p nie-data --lib --tests` — le portail de verification documente dans

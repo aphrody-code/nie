@@ -11,8 +11,15 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
+# Le dossier du jeu (`gisement`) parse chara_param, skill_config et aura_skill_config : ces
+# parseurs vivent dans nie-data, et il n'y a pas de cycle — nie-data n'importe pas cette crate.
+nie-data = { workspace = true, features = ["serde", "std"] }
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 png = "0.18"
 
+
+[[bin]]
+name = "export_aphrody"
+path = "src/bin/export_aphrody.rs"

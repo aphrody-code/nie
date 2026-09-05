@@ -30,7 +30,7 @@ import { lirePet } from "./sources/pet.ts";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
-const RACINE = resolve(dirname(new URL(import.meta.url).pathname), "..", "..");
+const RACINE = resolve(dirname(new URL(import.meta.url).pathname), "..", "..", "..", "..");
 const SITE = "https://azalee.rosegriffon.fr";
 const CDN = "https://cdn.rosegriffon.fr";
 const MIROIR = join(RACINE, "var", "mirror.sqlite");

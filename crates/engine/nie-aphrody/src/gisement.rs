@@ -2,7 +2,7 @@
 //! (亜風炉 照美 アフロディ) d'*Inazuma Eleven: Victory Road*.
 //!
 //! Ce module ne définit pas de nouveau format : il **croise** les parseurs existants
-//! ([`crate::chara_param`], [`crate::skill`], [`crate::aura`]) pour produire un dossier
+//! ([`nie_data::chara_param`], [`nie_data::skill`], [`nie_data::aura`]) pour produire un dossier
 //! navigable d'un personnage précis, identifié par ses 3 `charaBaseId`.
 //!
 //! ## Vérité terrain (anti-hallucination)
@@ -22,16 +22,14 @@
 //! - Auras : `wap01005`(0xA17C3D72 « Instant Burst »), `wap01001`(0xA611F96B « Burning Overdrive »)
 //!   — `skillId1=0` (pas de hissatsu lié), `var8=5` clampé à élément 0.
 
-use alloc::format;
-use alloc::string::{String, ToString};
-use alloc::vec::Vec;
+use std::string::ToString;
 
 use serde_json::Value;
 
-use crate::aura::{parse_all_aura_cmds, AuraCmd};
-use crate::chara_param::{parse_all_chara_params, CharaParam};
-use crate::hash::HashId;
-use crate::skill::{parse_skill_config, CutinAssets, SkillInfo};
+use nie_data::aura::{parse_all_aura_cmds, AuraCmd};
+use nie_data::chara_param::{parse_all_chara_params, CharaParam};
+use nie_data::hash::HashId;
+use nie_data::skill::{parse_skill_config, CutinAssets, SkillInfo};
 
 /// Les 3 séries/codes d'Aphrody (code interne, `charaBaseId`, libellé, sous-dossier visage).
 ///
@@ -68,7 +66,7 @@ pub const PRIMARY_CHARA_PARAM_ID: HashId = HashId(0x9E23_A289);
 
 /// Définition statique d'une série (constante de [`SERIES`]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[derive(serde::Serialize)]
 pub struct AphrodySeriesDef {
     /// Code interne (`c01001900`).
     pub code: &'static str,
@@ -82,7 +80,7 @@ pub struct AphrodySeriesDef {
 
 /// Une ligne de stats (7 attributs IEVR). Source : `inagle_characters.data.stats`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[derive(serde::Serialize)]
 pub struct StatLine {
     pub kick: u16,
     pub control: u16,
@@ -114,7 +112,7 @@ impl StatLine {
 /// `growth_table_config` + la rareté → `charaRank`, non passées ici ; on expose donc les valeurs
 /// validées par inagle. TODO(growth) : recalculer via `crate::growth` si les tables sont fournies.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[derive(serde::Serialize)]
 pub struct AphrodyStats {
     pub lv1: StatLine,
     pub lv50: StatLine,
@@ -162,16 +160,16 @@ impl AphrodyStats {
 /// Le `chara_param` ne porte **pas** le nom (résolu via `chara_text` par hash) : ces champs sont
 /// des constantes ancrées sur les fichiers texte réels, pas des valeurs inventées.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[derive(serde::Serialize)]
 pub struct AphrodyIdentity {
     pub name_fr: &'static str,
     pub name_en: &'static str,
     pub name_ja: &'static str,
     pub nickname_en: &'static str,
     pub nickname_ja: &'static str,
-    /// Élément brut (2 = Forêt) — cf. `crate::chara_param::element_id_to_names`.
+    /// Élément brut (2 = Forêt) — cf. `nie_data::chara_param::element_id_to_names`.
     pub element_id: i64,
-    /// Poste principal (3 = MF) — cf. `crate::chara_param::position_id_to_code`.
+    /// Poste principal (3 = MF) — cf. `nie_data::chara_param::position_id_to_code`.
     pub main_position: i64,
     /// Sous-poste (2 = FW).
     pub sub_position: i64,
@@ -212,7 +210,7 @@ impl AphrodyIdentity {
 /// servables par `nie-model-serve` (`/raw`, `/tex`, `/audio`, `/model-full`). Templates vérifiés
 /// live (HTTP 200).
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[derive(serde::Serialize)]
 pub struct AphrodyAssets {
     /// Code interne (`c01001900`).
     pub code: String,
@@ -251,7 +249,7 @@ impl AphrodyAssets {
 
 /// Une technique apprise par Aphrody, résolue contre le `skill_config` + ses assets de cut-in.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[derive(serde::Serialize)]
 pub struct AphrodyTechnique {
     /// Niveau d'apprentissage (slot du `chara_param`).
     pub learn_level: u8,
@@ -263,7 +261,7 @@ pub struct AphrodyTechnique {
 
 /// Une aura équipée par Aphrody, résolue contre l'`aura_skill_config`.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[derive(serde::Serialize)]
 pub struct AphrodyAura {
     /// Niveau d'apprentissage (slot du `chara_param`, = 38 pour les deux).
     pub learn_level: u8,
@@ -273,7 +271,7 @@ pub struct AphrodyAura {
 
 /// Une variante de carte d'Aphrody (une ligne `CHARA_PARAM_INFO`), avec techniques/auras séparées.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[derive(serde::Serialize)]
 pub struct AphrodyVariant {
     /// `charaParamId` (ID unique de la variante).
     pub chara_param_id: HashId,
@@ -301,7 +299,7 @@ pub struct AphrodyVariant {
 
 /// Dossier agrégé complet d'Aphrody.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[derive(serde::Serialize)]
 pub struct AphrodyDossier {
     /// Identité (constantes vérifiées 3 langues).
     pub identity: AphrodyIdentity,

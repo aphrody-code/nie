@@ -1,6 +1,6 @@
 //! Génère le **dossier complet d'Aphrody** (Byron Love) vers `apps/azalee/data/aphrody-dossier.json`.
 //!
-//! Croise chara_param + skill_config + aura_skill_config via [`nie_data::aphrody::build_aphrody_dossier`]
+//! Croise chara_param + skill_config + aura_skill_config via [`nie_aphrody::gisement::build_aphrody_dossier`]
 //! (3 codes/séries, techniques+auras re-séparées, CutinAssets, assets par code). « Set up » du
 //! personnage : données agrégées prêtes à servir l'UI / un RAG.
 //!
@@ -21,7 +21,7 @@ fn default_data_root() -> PathBuf {
         .unwrap_or_else(|_| PathBuf::from("data"))
 }
 
-use nie_data::aphrody::build_aphrody_dossier;
+use nie_aphrody::gisement::build_aphrody_dossier;
 use serde_json::Value;
 
 fn main() {
