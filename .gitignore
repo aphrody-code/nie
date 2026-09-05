@@ -170,6 +170,10 @@ __pycache__/
 !SECURITY.md
 !LICENSE
 !CLAUDE.md
+# `AGENTS.md` est aux agents non-Claude (Codex) ce que `CLAUDE.md` est a Claude : leur SEUL
+# fichier d'instructions. `*.md` ci-dessus le gardait hors du depot — sur un clone frais,
+# Codex demarrait donc sans aucune consigne, sans que rien ne le signale.
+!AGENTS.md
 !PROVENANCE.md
 !APP_EXPORT_README.md
 !docs/**/*.md
@@ -277,6 +281,12 @@ mods/
 
 # Captures de vérification visuelle de nie-explorer (scripts/capture-explorer.ts) — locales.
 capture/
+
+# Boîte aux lettres A2A entre les agents qui codent en parallèle sur ce dépôt (`aphrody a2a`).
+# Volatile et propre à une machine : les envelopes et les heartbeats se rejouent, ils ne se
+# versionnent pas. Ce qui est versionné, c'est la carte (`ai.json`) et le protocole
+# (`docs/A2A-CODEX.md`).
+/.coord/
 
 # Outils binaires téléchargés pour produire le WASM, reproductibles.
 /outputs/webgpu-wasm-tools/

@@ -10,7 +10,7 @@ Rien n'est cité de mémoire. Le manifeste se construit en trois temps :
 
 Chaque ligne du manifeste porte donc un statut mesuré, jamais supposé.
 
-    uv run scripts/donnees/astro-lor-manifeste.py
+    uv run scripts/donnees/astro-lor-manifest.py
     jq '.resume' data/oc/astro-lor/manifest.json
 """
 

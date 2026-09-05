@@ -22,7 +22,7 @@ SOURCE = 'https://discord.com/channels/1544475258591907961/1544482971934007336/1
 # rejeu y déverserait douze doublons sous leur nom brut — c'est exactement ce qui était arrivé.
 if len(sys.argv) != 2:
     raise SystemExit(
-        'usage : uv run scripts/donnees/astro-lor-planches-discord.py <dossier de sortie>\n'
+        'usage : uv run scripts/donnees/astro-lor-sheets-discord.py <dossier de sortie>\n'
         '        (un dossier de travail, PAS data/oc/astro-lor/source —\n'
         '         cf. data/oc/astro-lor/README.md)'
     )

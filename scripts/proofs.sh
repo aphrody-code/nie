@@ -7,9 +7,9 @@
 # en silence — c'est le « golden muet = faux vert » que ce dépôt proscrit ailleurs.
 #
 # Usage :
-#   bash scripts/preuves.sh              # les 47
-#   bash scripts/preuves.sh parabola     # celles dont le nom contient « parabola »
-#   PREUVES_TIMEOUT=30 bash scripts/preuves.sh
+#   bash scripts/proofs.sh              # les 47
+#   bash scripts/proofs.sh parabola     # celles dont le nom contient « parabola »
+#   PREUVES_TIMEOUT=30 bash scripts/proofs.sh
 #
 # PIÈGE PAYÉ (2026-09-02) : ne jamais lire `$?` à travers un pipe. `uv run x.py | tail` rend le
 # code de `tail`, donc 0, et toute preuve en échec passe pour verte. Capturer, PUIS lire $?.

@@ -105,7 +105,7 @@ health: build
 # Rejoue les preuves uemu (scripts/validate_*.py) : N ✓ / N ✗ / N ⧗, sort en 1 si une tombe.
 # `just preuves parabola` n'en rejoue qu'une famille ; PREUVES_TIMEOUT=30 raccourcit l'attente.
 preuves motif="":
-    bash scripts/preuves.sh {{motif}}
+    bash scripts/proofs.sh {{motif}}
 
 # Publie dans ~/.local/bin les 20 binaires Rust + 5 CLI Bun, par liens symboliques (aucune copie).
 # Refuse d'ecraser un executable etranger deja dans le PATH. `just installer --dry-run` pour voir.
@@ -114,11 +114,11 @@ installer *args:
 
 # Verifie que les commandes du depot sont publiees et que les 4 gisements repondent.
 outils:
-    bash scripts/pipeline-donnees.sh --verif-seule
+    bash scripts/data-pipeline.sh --verif-seule
 
 # Chaine complete des donnees : outils -> gisements -> 4 exports, via le PATH et @niers/catalog.
 donnees:
-    bash scripts/pipeline-donnees.sh
+    bash scripts/data-pipeline.sh
 
 # --- Regen des artefacts var/ ------------------------------------------------
 

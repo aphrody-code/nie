@@ -6,7 +6,7 @@
 # autre répertoire, et il masque le fait qu'une commande n'a jamais été publiée. Le PATH échoue
 # franchement, tout de suite, avec le nom manquant.
 #
-# Usage : bash scripts/pipeline-donnees.sh [--verif-seule]
+# Usage : bash scripts/data-pipeline.sh [--verif-seule]
 set -u
 
 sec=${1:-}

@@ -1,0 +1,60 @@
+{
+  "version": "1.0.0",
+  "spec": "a2a/v1.0",
+  "id": "niers@aphrody-code/niers",
+  "schema_version": "1.0.0",
+  "kind": "agent",
+  "name": "niers",
+  "description": "Réécriture pixel-perfect / byte-perfect d'Inazuma Eleven: Victory Road en Rust pur. Carte A2A du dépôt : deux agents y codent en parallèle et se coordonnent par la boîte JSONL `.coord/` et le listener JSON-RPC local.",
+  "a2a_protocol_version": "1.0",
+  "documentation_url": "https://github.com/aphrody-code/aphrody/blob/main/docs/a2a/README.md",
+  "provider": {
+    "organization": "aphrody-code",
+    "url": "https://github.com/aphrody-code/aphrody"
+  },
+  "supported_interfaces": [
+    {
+      "url": "http://127.0.0.1:8792",
+      "protocol_binding": "JSONRPC",
+      "protocol_version": "1.0"
+    }
+  ],
+  "capabilities": {
+    "streaming": true,
+    "pushNotifications": false,
+    "extendedAgentCard": false
+  },
+  "default_input_modes": ["text/plain"],
+  "default_output_modes": ["text/plain", "application/json"],
+  "peers": [
+    {
+      "id": "claude@aphrody-code/niers",
+      "role": "orchestrator",
+      "transport": "claude-code",
+      "binary": "claude",
+      "invocation": "claude -p <prompt> --output-format text",
+      "description": "Claude Code. Découpe le travail, tient le périmètre partagé et arbitre les collisions."
+    },
+    {
+      "id": "codex@aphrody-code/niers",
+      "role": "subagent",
+      "transport": "cli",
+      "binary": "codex",
+      "invocation": "codex exec --cd /home/ubuntu/niers --skip-git-repo-check <prompt>",
+      "description": "Codex CLI, non interactif. Lit AGENTS.md et CLAUDE.md ; MCP `aphrody` et `niers-game` déjà déclarés dans ~/.codex/config.toml."
+    }
+  ],
+  "coordination": {
+    "channel_dir": ".coord",
+    "mailboxes": {
+      "claude@aphrody-code/niers": ".coord/inbox-from-claude.jsonl",
+      "codex@aphrody-code/niers": ".coord/inbox-from-codex.jsonl"
+    },
+    "heartbeats": {
+      "claude@aphrody-code/niers": ".coord/heartbeat-claude.txt",
+      "codex@aphrody-code/niers": ".coord/heartbeat-codex.txt"
+    },
+    "protocol": "docs/A2A-CODEX.md",
+    "note": "La boîte est volatile et non versionnée. Le protocole, lui, est dans le dépôt."
+  }
+}
