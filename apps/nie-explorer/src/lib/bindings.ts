@@ -436,8 +436,8 @@ export const commands = {
 	 *  Même décodage audio que [`vfs_audio_preview_b64`], mais depuis une entrée du CPK brut ouvert
 	 *  (hors VFS) — un seul fichier autonome (HCA/ADX ne référence jamais de fichier frère), donc pas
 	 *  de dépendance à l'indexation VFS. (L'aperçu 3D, qui a besoin des frères g4md/g4mg, a sa PROPRE
-	 *  résolution scopée au CPK courant plutôt que le VFS — cf. [`raw_cpk_glb_preview_png_b64`]/
-	 *  [`assemble_glb_from_cpk_entries`], plus VFS-only depuis 2026-08-08.)
+	 *  résolution scopée au CPK courant plutôt que le VFS — cf.
+	 *  [`assemble_glb_from_cpk_entries`].)
 	 */
 	rawCpkAudioPreviewB64: (index: number) => typedError<string, string>(__TAURI_INVOKE("raw_cpk_audio_preview_b64", { index })),
 	/**
@@ -697,12 +697,8 @@ export const commands = {
 	/**
 	 *  Renvoie le **GLB assemblé lui-même** (base64), pas un rendu de celui-ci.
 	 * 
-	 *  Toutes les commandes d'aperçu 3D existantes rastérisent côté Rust et renvoient une image
-	 *  (`vfs_glb_preview_png_b64`) ou une vidéo pré-rendue (`..._turntable_mp4_b64`) : la caméra est
-	 *  donc figée par le backend, et « interactif » se limitait à faire défiler des images déjà
-	 *  calculées. En renvoyant le GLB brut, le frontend peut le charger dans un VRAI moteur temps
-	 *  réel (WebGL) : caméra libre, éclairage, sélection de maillage — le viewport d'un éditeur, pas
-	 *  une planche-contact.
+	 *  Le frontend le charge dans le moteur temps réel WebGL commun : caméra libre, éclairage,
+	 *  sélection de maillage — le viewport d'un éditeur, pas une planche-contact.
 	 * 
 	 *  Le GLB est auto-suffisant : `to_glb_embedded` embarque géométrie ET textures (le `.g4tx` frère
 	 *  décodé en PNG, cf. [`assemble_glb_for_preview`]), donc aucun aller-retour supplémentaire pour
@@ -724,19 +720,6 @@ export const commands = {
 	 *  de frères scopée au CPK courant, cf. [`assemble_glb_from_cpk_entries`].
 	 */
 	rawCpkGlbBytesB64: (index: number) => typedError<string, string>(__TAURI_INVOKE("raw_cpk_glb_bytes_b64", { index })),
-	vfsGlbPreviewPngB64: (path: string, gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("vfs_glb_preview_png_b64", { path, gameDir })),
-	/**
-	 *  Aperçu 3D **interactif** (§2.3 roadmap, « caméra orbitale ») : au lieu d'une image fixe,
-	 *  rend un **turntable** (36 images à angles régulièrement espacés sur 360°, EN PROCESS via
-	 *  `nie_render3d::render::render`) remuxé en MP4 par `ffmpeg` en sous-processus (seul `ffmpeg`
-	 *  reste externe — même outil déjà requis pour l'aperçu vidéo USM, cf. [`vfs_video_preview_b64`],
-	 *  le mux H.264 n'a pas d'équivalent pur-Rust raisonnable dans ce budget) — le frontend l'affiche
-	 *  dans un `<video controls>`, dont la barre de défilement native EST la caméra orbitale (glisser
-	 *  = tourner autour du modèle). Alternative délibérément choisie à l'embarquement d'une fenêtre
-	 *  wgpu native dans WebView2 (fenêtrage Win32 imbriqué fragile, hors de portée raisonnable ici) —
-	 *  même moteur de rendu (`nie-render3d`) que [`vfs_glb_preview_png_b64`], juste plus d'images.
-	 */
-	vfsGlbPreviewTurntableMp4B64: (path: string, gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("vfs_glb_preview_turntable_mp4_b64", { path, gameDir })),
 	/**
 	 *  Décode n'importe quel format audio Criware du VFS (`.acb`/`.awb`/`.hca`/`.adx`, dispatch par
 	 *  magic) en WAV PCM16, base64 — `nie_formats::cri_audio::decode_to_wav` (feature `audio-decode`,
@@ -770,11 +753,6 @@ export const commands = {
 	 *  [`vfs_audio_preview_b64`], pour la même raison (`cridecoder` déborde la pile Windows par défaut).
 	 */
 	vfsAudioCueWavB64: (path: string, awbId: number, gameDir: string | null) => typedError<string, string>(__TAURI_INVOKE("vfs_audio_cue_wav_b64", { path, awbId, gameDir })),
-	/**
-	 *  Aperçu 3D fixe pour une entrée du CPK brut ouvert (hors VFS) — équivalent de
-	 *  [`vfs_glb_preview_png_b64`], résolution de frères via [`assemble_glb_from_cpk_entries`].
-	 */
-	rawCpkGlbPreviewPngB64: (index: number) => typedError<string, string>(__TAURI_INVOKE("raw_cpk_glb_preview_png_b64", { index })),
 	/**
 	 *  Pose une VRAIE liste de fichiers sur le presse-papiers Windows (CF_HDROP) — ce que
 	 *  l'Explorateur Windows (ou n'importe quelle appli) sait coller comme de VRAIS fichiers, pas du

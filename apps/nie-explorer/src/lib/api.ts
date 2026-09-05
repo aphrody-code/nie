@@ -343,9 +343,6 @@ export const api = {
   // Parité RawCpkView (hors VFS) : même décodage audio/vidéo/3D, depuis une entrée du CPK brut ouvert.
   rawCpkAudioPreviewB64: (index: number) => unwrap<string>(commands.rawCpkAudioPreviewB64(index)),
   rawCpkVideoPreviewB64: (index: number) => unwrap<string>(commands.rawCpkVideoPreviewB64(index)),
-  // Aperçu 3D d'une entrée .g4md du CPK ouvert — frères g4mg/g4tx résolus DANS ce CPK (pas le VFS),
-  // cf. `assemble_glb_from_cpk_entries` côté Rust. Roadmap §6, gap fermé 2026-08-08.
-  rawCpkGlbPreviewPngB64: (index: number) => unwrap<string>(commands.rawCpkGlbPreviewPngB64(index)),
   // Viewport 3D temps réel (mode Éditeur) : le GLB assemblé LUI-MÊME, pas un rendu de celui-ci
   // — la caméra vit côté frontend (three.js), plus côté Rust.
   // ── Atelier Lua (cf. `components/LuaView.tsx`) ────────────────────────────────────────────
@@ -402,9 +399,6 @@ export const api = {
   // il a sa propre boucle d'événements et sa propre fenêtre GPU.
   openInSceneEditor: (path: string | null, gameDir?: string) => unwrap<string>(commands.openInSceneEditor(path, gd(gameDir))),
   rawCpkGlbBytesB64: (index: number) => unwrap<string>(commands.rawCpkGlbBytesB64(index)),
-  glbPreviewPngB64: (path: string, gameDir?: string) => unwrap<string>(commands.vfsGlbPreviewPngB64(path, gd(gameDir))),
-  // Turntable MP4 (§2.3, caméra orbitale via la barre de défilement vidéo) — cf. api ci-dessus.
-  glbPreviewTurntableMp4B64: (path: string, gameDir?: string) => unwrap<string>(commands.vfsGlbPreviewTurntableMp4B64(path, gd(gameDir))),
 
   // CPK brut hors VFS — ouvre n'importe quel `.cpk` du disque (mod téléchargé, DLC séparé…) sans
   // passer par l'index du jeu. `open` remplace le CPK actuellement ouvert côté Rust (un seul à la

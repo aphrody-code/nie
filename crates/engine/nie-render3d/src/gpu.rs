@@ -46,11 +46,17 @@ pub enum Backend {
 
 impl Default for Backend {
     fn default() -> Self {
-        if cfg!(target_arch = "wasm32") { Self::WebGpu }
-        else if cfg!(target_os = "windows") { Self::Dx12 }
-        else if cfg!(target_os = "linux") { Self::Vulkan }
-        else if cfg!(target_os = "macos") { Self::Metal }
-        else { Self::Auto }
+        if cfg!(target_arch = "wasm32") {
+            Self::WebGpu
+        } else if cfg!(target_os = "windows") {
+            Self::Dx12
+        } else if cfg!(target_os = "linux") {
+            Self::Vulkan
+        } else if cfg!(target_os = "macos") {
+            Self::Metal
+        } else {
+            Self::Auto
+        }
     }
 }
 
@@ -65,7 +71,9 @@ impl std::str::FromStr for Backend {
             "gl" | "opengl" => Ok(Self::OpenGl),
             "webgpu" => Ok(Self::WebGpu),
             "metal" => Ok(Self::Metal),
-            _ => Err(format!("backend inconnu {value:?} : auto, dx12, vulkan, gl, webgpu ou metal attendu")),
+            _ => Err(format!(
+                "backend inconnu {value:?} : auto, dx12, vulkan, gl, webgpu ou metal attendu"
+            )),
         }
     }
 }
@@ -96,7 +104,10 @@ pub struct GpuOptions {
 
 impl Default for GpuOptions {
     fn default() -> Self {
-        Self { backend: Backend::default(), allow_software: true }
+        Self {
+            backend: Backend::default(),
+            allow_software: true,
+        }
     }
 }
 
@@ -107,12 +118,17 @@ struct Vertex {
     position: [f32; 3],
     normal: [f32; 3],
     uv: [f32; 2],
+    /// 1.0 lorsque la primitive a un atlas, 0.0 pour le matériau argile.
+    ///
+    /// Cette donnée est immuable pour toute la durée du modèle GPU : la placer dans le sommet
+    /// évite de recréer un uniforme et un bind group pour chaque primitive et chaque image.
+    has_texture: f32,
 }
 
 const VERTEX_LAYOUT: wgpu::VertexBufferLayout<'static> = wgpu::VertexBufferLayout {
     array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
     step_mode: wgpu::VertexStepMode::Vertex,
-    attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2],
+    attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2, 3 => Float32],
 };
 
 /// Uniformes de la passe — doit rester binairement identique à `struct Camera` de `gpu.wgsl`.
@@ -128,7 +144,7 @@ struct CameraUniform {
     /// la rotation au lieu d'une source immobile. Une `mat4` plutôt qu'une `mat3` : une `mat3x3`
     /// WGSL s'aligne de toute façon sur trois `vec4`, autant que le côté Rust le dise.
     normal_rot: [[f32; 4]; 4],
-    /// `xyz` = direction de lumière normalisée, `w` = 1.0 si la primitive porte une texture.
+    /// `xyz` = direction de lumière normalisée ; `w` reste un padding explicite WGSL.
     light: [f32; 4],
 }
 
@@ -148,7 +164,11 @@ impl Default for Camera {
     fn default() -> Self {
         // Trois-quarts légèrement plongeant : l'angle sous lequel un personnage se lit le mieux,
         // et celui qu'utilise déjà le rendu CPU par défaut (`angle = 0.6`, `tilt = 0.20`).
-        Self { yaw: 0.6, pitch: 0.20, distance: 3.1 }
+        Self {
+            yaw: 0.6,
+            pitch: 0.20,
+            distance: 3.1,
+        }
     }
 }
 
@@ -174,7 +194,6 @@ struct GpuPrimitive {
     /// Groupe de liaison de la texture — toujours présent (un atlas 1×1 blanc sert de bouche-trou
     /// quand la primitive n'a pas de texture, pour ne pas multiplier les pipelines).
     texture_bind_group: wgpu::BindGroup,
-    has_texture: bool,
 }
 
 /// Modèle résident en mémoire GPU. Le construire est coûteux (téléversement) ; le rendre ne l'est
@@ -195,7 +214,10 @@ impl GpuModel {
     /// Fixe un cadre de caméra indépendant des transformations éditées.
     /// Sans cela, déplacer ou agrandir un objet seul serait annulé visuellement par l'auto-cadrage.
     pub fn set_framing(&mut self, center: [f32; 3], radius: f32) -> Result<()> {
-        anyhow::ensure!(center.iter().all(|v| v.is_finite()) && radius.is_finite() && radius > 0., "cadre de caméra invalide");
+        anyhow::ensure!(
+            center.iter().all(|v| v.is_finite()) && radius.is_finite() && radius > 0.,
+            "cadre de caméra invalide"
+        );
         self.center = center;
         self.radius = radius;
         Ok(())
@@ -218,7 +240,10 @@ pub struct GpuRenderer {
     device: wgpu::Device,
     queue: wgpu::Queue,
     pipeline: wgpu::RenderPipeline,
-    camera_layout: wgpu::BindGroupLayout,
+    /// Uniforme et groupe de liaison réemployés à chaque image. Seules ses données changent avec
+    /// la caméra ; aucun objet GPU n'est donc alloué dans la boucle des primitives.
+    camera_buffer: wgpu::Buffer,
+    camera_bind_group: wgpu::BindGroup,
     texture_layout: wgpu::BindGroupLayout,
     sampler: wgpu::Sampler,
     /// Cibles de rendu, recréées uniquement quand la taille demandée change.
@@ -228,7 +253,10 @@ pub struct GpuRenderer {
 struct Targets {
     width: u32,
     height: u32,
-    color: wgpu::Texture,
+    // La vue de couleur conserve une référence interne à cette texture. Le champ doit donc vivre
+    // avec elle, même lorsque le chemin WebGPU ne fait aucune capture CPU.
+    _color: wgpu::Texture,
+    color_view: wgpu::TextureView,
     depth: wgpu::TextureView,
     /// Tampon de lecture CPU — sa largeur de ligne est alignée sur 256 octets (exigence wgpu).
     #[cfg(not(target_arch = "wasm32"))]
@@ -270,49 +298,67 @@ impl GpuRenderer {
 
     /// Initialise sans bloquer la boucle d'événements, notamment dans un navigateur WASM.
     pub async fn with_options_async(options: GpuOptions) -> Result<Self> {
-        anyhow::ensure!(options.backend != Backend::Dx12 || cfg!(target_os = "windows"),
-            "DirectX 12 nécessite Windows ; aucun autre backend ne sera substitué");
+        anyhow::ensure!(
+            options.backend != Backend::Dx12 || cfg!(target_os = "windows"),
+            "DirectX 12 nécessite Windows ; aucun autre backend ne sera substitué"
+        );
         let mut descriptor = wgpu::InstanceDescriptor::new_without_display_handle();
         descriptor.backends = options.backend.backends();
         let instance = wgpu::Instance::new(descriptor);
-        let requested = instance.request_adapter(&wgpu::RequestAdapterOptions {
-            power_preference: wgpu::PowerPreference::HighPerformance,
-            compatible_surface: None,
-            force_fallback_adapter: false,
-        }).await;
+        let requested = instance
+            .request_adapter(&wgpu::RequestAdapterOptions {
+                power_preference: wgpu::PowerPreference::HighPerformance,
+                compatible_surface: None,
+                force_fallback_adapter: false,
+            })
+            .await;
         let adapter = match requested {
             Ok(adapter) => Ok(adapter),
-            Err(_) if options.allow_software => instance.request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::None,
-                compatible_surface: None,
-                force_fallback_adapter: true,
-            }).await,
+            Err(_) if options.allow_software => {
+                instance
+                    .request_adapter(&wgpu::RequestAdapterOptions {
+                        power_preference: wgpu::PowerPreference::None,
+                        compatible_surface: None,
+                        force_fallback_adapter: true,
+                    })
+                    .await
+            }
             Err(error) => Err(error),
         }
         .with_context(|| format!("aucun adaptateur disponible pour {:?}", options.backend))?;
         let adapter_info = adapter.get_info();
-        anyhow::ensure!(options.allow_software || adapter_info.device_type != wgpu::DeviceType::Cpu,
-            "adaptateur logiciel refusé : {}", adapter_info.name);
-        anyhow::ensure!(options.backend != Backend::Dx12 || adapter_info.backend == wgpu::Backend::Dx12,
-            "le backend obtenu n'est pas DirectX 12");
+        anyhow::ensure!(
+            options.allow_software || adapter_info.device_type != wgpu::DeviceType::Cpu,
+            "adaptateur logiciel refusé : {}",
+            adapter_info.name
+        );
+        anyhow::ensure!(
+            options.backend != Backend::Dx12 || adapter_info.backend == wgpu::Backend::Dx12,
+            "le backend obtenu n'est pas DirectX 12"
+        );
 
-        let (device, queue) = adapter.request_device(&wgpu::DeviceDescriptor {
-            label: Some("nie-render3d gpu"),
-            required_features: wgpu::Features::empty(),
-            required_limits: wgpu::Limits::downlevel_defaults(),
-            memory_hints: wgpu::MemoryHints::default(),
-            trace: wgpu::Trace::Off,
-            experimental_features: wgpu::ExperimentalFeatures::disabled(),
-        }).await
-        .context("création du device wgpu")?;
+        let (device, queue) = adapter
+            .request_device(&wgpu::DeviceDescriptor {
+                label: Some("nie-render3d gpu"),
+                required_features: wgpu::Features::empty(),
+                required_limits: wgpu::Limits::downlevel_defaults(),
+                memory_hints: wgpu::MemoryHints::default(),
+                trace: wgpu::Trace::Off,
+                experimental_features: wgpu::ExperimentalFeatures::disabled(),
+            })
+            .await
+            .context("création du device wgpu")?;
 
         Ok(Self::from_device(adapter_info, device, queue))
     }
 
     /// Partage le device de l'hôte : UI et scène échangent des textures, pas des captures CPU.
     #[must_use]
-    pub fn from_device(adapter_info: wgpu::AdapterInfo, device: wgpu::Device, queue: wgpu::Queue) -> Self {
-
+    pub fn from_device(
+        adapter_info: wgpu::AdapterInfo,
+        device: wgpu::Device,
+        queue: wgpu::Queue,
+    ) -> Self {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("nie viewport"),
             source: wgpu::ShaderSource::Wgsl(include_str!("gpu.wgsl").into()),
@@ -427,7 +473,32 @@ impl GpuRenderer {
             ..Default::default()
         });
 
-        Self { adapter_info, device, queue, pipeline, camera_layout, texture_layout, sampler, targets: None }
+        let camera_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("camera"),
+            size: std::mem::size_of::<CameraUniform>() as u64,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("camera"),
+            layout: &camera_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: camera_buffer.as_entire_binding(),
+            }],
+        });
+
+        Self {
+            adapter_info,
+            device,
+            queue,
+            pipeline,
+            camera_buffer,
+            camera_bind_group,
+            texture_layout,
+            sampler,
+            targets: None,
+        }
     }
 
     /// Identité mesurée du GPU et de l'API employés par ce renderer.
@@ -438,11 +509,15 @@ impl GpuRenderer {
 
     /// Device partagé avec l'hôte de présentation ; les textures ne doivent pas changer de device.
     #[must_use]
-    pub fn device(&self) -> &wgpu::Device { &self.device }
+    pub fn device(&self) -> &wgpu::Device {
+        &self.device
+    }
 
     /// File GPU partagée avec la présentation de l'éditeur.
     #[must_use]
-    pub fn queue(&self) -> &wgpu::Queue { &self.queue }
+    pub fn queue(&self) -> &wgpu::Queue {
+        &self.queue
+    }
 
     /// Téléverse un [`Model`] en mémoire GPU. À faire une fois par modèle, pas par image.
     #[must_use = "le modèle doit être conservé pour être rendu"]
@@ -467,30 +542,6 @@ impl GpuRenderer {
             if prim.indices.is_empty() || prim.positions.is_empty() {
                 continue;
             }
-            let vertices: Vec<Vertex> = (0..prim.positions.len())
-                .map(|i| Vertex {
-                    position: prim.positions[i],
-                    // Normale manquante → vers le haut : un zéro rendrait le Lambert indéfini et
-                    // la primitive uniformément noire.
-                    normal: prim.normals.get(i).copied().unwrap_or([0.0, 1.0, 0.0]),
-                    uv: prim.uv.get(i).copied().unwrap_or([0.0, 0.0]),
-                })
-                .collect();
-
-            triangle_count += (prim.indices.len() / 3) as u32;
-            vertex_count += vertices.len() as u32;
-
-            let vbuf = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("vertices"),
-                contents: bytemuck::cast_slice(&vertices),
-                usage: wgpu::BufferUsages::VERTEX,
-            });
-            let ibuf = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("indices"),
-                contents: bytemuck::cast_slice(&prim.indices),
-                usage: wgpu::BufferUsages::INDEX,
-            });
-
             // Les atlas sont téléversés UNE fois (`texture_groups`) et le groupe de liaison est
             // cloné — c'est un handle, pas la texture. Deux primitives partageant un atlas ne
             // doivent pas le renvoyer deux fois sur le bus.
@@ -498,17 +549,50 @@ impl GpuRenderer {
                 Some(group) => (group.clone(), true),
                 None => (white.clone(), false),
             };
+            let vertices: Vec<Vertex> = (0..prim.positions.len())
+                .map(|i| Vertex {
+                    position: prim.positions[i],
+                    // Normale manquante → vers le haut : un zéro rendrait le Lambert indéfini et
+                    // la primitive uniformément noire.
+                    normal: prim.normals.get(i).copied().unwrap_or([0.0, 1.0, 0.0]),
+                    uv: prim.uv.get(i).copied().unwrap_or([0.0, 0.0]),
+                    has_texture: f32::from(has_texture),
+                })
+                .collect();
+
+            triangle_count += (prim.indices.len() / 3) as u32;
+            vertex_count += vertices.len() as u32;
+
+            let vbuf = self
+                .device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("vertices"),
+                    contents: bytemuck::cast_slice(&vertices),
+                    usage: wgpu::BufferUsages::VERTEX,
+                });
+            let ibuf = self
+                .device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("indices"),
+                    contents: bytemuck::cast_slice(&prim.indices),
+                    usage: wgpu::BufferUsages::INDEX,
+                });
 
             primitives.push(GpuPrimitive {
                 vertices: vbuf,
                 indices: ibuf,
                 index_count: prim.indices.len() as u32,
                 texture_bind_group: bind_group,
-                has_texture,
             });
         }
 
-        GpuModel { primitives, center, radius, triangle_count, vertex_count }
+        GpuModel {
+            primitives,
+            center,
+            radius,
+            triangle_count,
+            vertex_count,
+        }
     }
 
     fn create_texture_bind_group(&self, width: u32, height: u32, rgba: &[u8]) -> wgpu::BindGroup {
@@ -516,7 +600,11 @@ impl GpuRenderer {
         let height = height.max(1);
         let texture = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("atlas"),
-            size: wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+            size: wgpu::Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
@@ -544,7 +632,11 @@ impl GpuRenderer {
                 bytes_per_row: Some(width * 4),
                 rows_per_image: Some(height),
             },
-            wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+            wgpu::Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
         );
 
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
@@ -552,8 +644,14 @@ impl GpuRenderer {
             label: Some("atlas"),
             layout: &self.texture_layout,
             entries: &[
-                wgpu::BindGroupEntry { binding: 0, resource: wgpu::BindingResource::TextureView(&view) },
-                wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::Sampler(&self.sampler) },
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&self.sampler),
+                },
             ],
         })
     }
@@ -566,7 +664,11 @@ impl GpuRenderer {
         {
             return;
         }
-        let size = wgpu::Extent3d { width, height, depth_or_array_layers: 1 };
+        let size = wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        };
         let color = self.device.create_texture(&wgpu::TextureDescriptor {
             label: Some("color"),
             size,
@@ -574,9 +676,12 @@ impl GpuRenderer {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: COLOR_FORMAT,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::TEXTURE_BINDING,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                | wgpu::TextureUsages::COPY_SRC
+                | wgpu::TextureUsages::TEXTURE_BINDING,
             view_formats: &[],
         });
+        let color_view = color.create_view(&wgpu::TextureViewDescriptor::default());
         let depth = self
             .device
             .create_texture(&wgpu::TextureDescriptor {
@@ -591,7 +696,12 @@ impl GpuRenderer {
             })
             .create_view(&wgpu::TextureViewDescriptor::default());
 
-        self.targets = Some(Targets { width, height, color, depth,
+        self.targets = Some(Targets {
+            width,
+            height,
+            _color: color,
+            color_view,
+            depth,
             #[cfg(not(target_arch = "wasm32"))]
             readback: None,
         });
@@ -599,29 +709,49 @@ impl GpuRenderer {
 
     /// Dessine dans une texture GPU sans lecture CPU ni attente bloquante.
     /// La vue retournée est échantillonnable par l'hôte natif ou WebGPU sur le même device.
-    pub fn render_to_texture(&mut self, model: &GpuModel, camera: Camera, width: u32, height: u32) -> Result<wgpu::TextureView> {
+    pub fn render_to_texture(
+        &mut self,
+        model: &GpuModel,
+        camera: Camera,
+        width: u32,
+        height: u32,
+    ) -> Result<&wgpu::TextureView> {
         let width = width.max(1);
         let height = height.max(1);
         let limit = self.device.limits().max_texture_dimension_2d;
-        anyhow::ensure!(width <= limit && height <= limit, "dimensions du viewport supérieures à la limite GPU ({limit})");
+        anyhow::ensure!(
+            width <= limit && height <= limit,
+            "dimensions du viewport supérieures à la limite GPU ({limit})"
+        );
         self.ensure_targets(width, height);
-        let targets = self.targets.as_ref().expect("cibles créées juste au-dessus");
+        let targets = self
+            .targets
+            .as_ref()
+            .expect("cibles créées juste au-dessus");
 
         let camera = camera.clamped();
         let view_proj = view_projection(model, camera, width as f32 / height as f32);
         let normal_rot = rotation_normales(camera);
         let light = normalize3([0.35, 0.75, 0.55]);
 
-        let color_view = targets.color.create_view(&wgpu::TextureViewDescriptor::default());
+        let uniform = CameraUniform {
+            view_proj,
+            normal_rot,
+            light: [light[0], light[1], light[2], 0.0],
+        };
+        self.queue
+            .write_buffer(&self.camera_buffer, 0, bytemuck::bytes_of(&uniform));
         let mut encoder = self
             .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("viewport") });
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("viewport"),
+            });
 
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("viewport"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &color_view,
+                    view: &targets.color_view,
                     depth_slice: None,
                     resolve_target: None,
                     ops: wgpu::Operations {
@@ -645,27 +775,9 @@ impl GpuRenderer {
             });
 
             pass.set_pipeline(&self.pipeline);
+            pass.set_bind_group(0, &self.camera_bind_group, &[]);
 
             for prim in &model.primitives {
-                // Un uniforme par primitive : `light.w` porte la présence de texture, qui varie
-                // d'une primitive à l'autre.
-                let uniform = CameraUniform {
-                    view_proj,
-                    normal_rot,
-                    light: [light[0], light[1], light[2], if prim.has_texture { 1.0 } else { 0.0 }],
-                };
-                let buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("camera"),
-                    contents: bytemuck::bytes_of(&uniform),
-                    usage: wgpu::BufferUsages::UNIFORM,
-                });
-                let camera_bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
-                    label: Some("camera"),
-                    layout: &self.camera_layout,
-                    entries: &[wgpu::BindGroupEntry { binding: 0, resource: buffer.as_entire_binding() }],
-                });
-
-                pass.set_bind_group(0, &camera_bind_group, &[]);
                 pass.set_bind_group(1, &prim.texture_bind_group, &[]);
                 pass.set_vertex_buffer(0, prim.vertices.slice(..));
                 pass.set_index_buffer(prim.indices.slice(..), wgpu::IndexFormat::Uint32);
@@ -674,15 +786,24 @@ impl GpuRenderer {
         }
 
         self.queue.submit(Some(encoder.finish()));
-        Ok(color_view)
+        Ok(&targets.color_view)
     }
 
     /// Capture RGBA8 bloquante, réservée aux exports et tests natifs.
     /// Les viewports interactifs emploient [`Self::render_to_texture`] sans aller-retour CPU.
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn render(&mut self, model: &GpuModel, camera: Camera, width: u32, height: u32) -> Result<Vec<u8>> {
+    pub fn render(
+        &mut self,
+        model: &GpuModel,
+        camera: Camera,
+        width: u32,
+        height: u32,
+    ) -> Result<Vec<u8>> {
         self.render_to_texture(model, camera, width, height)?;
-        let targets = self.targets.as_mut().expect("cibles créées par render_to_texture");
+        let targets = self
+            .targets
+            .as_mut()
+            .expect("cibles créées par render_to_texture");
         let (width, height) = (targets.width, targets.height);
         // Aucun tampon de capture n'est alloué pour un viewport interactif ni sur le web.
         let readback = targets.readback.get_or_insert_with(|| {
@@ -694,12 +815,19 @@ impl GpuRenderer {
                 usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
                 mapped_at_creation: false,
             });
-            Readback { buffer, padded_bytes_per_row }
+            Readback {
+                buffer,
+                padded_bytes_per_row,
+            }
         });
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("capture viewport") });
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("capture viewport"),
+            });
         encoder.copy_texture_to_buffer(
             wgpu::TexelCopyTextureInfo {
-                texture: &targets.color,
+                texture: &targets._color,
                 mip_level: 0,
                 origin: wgpu::Origin3d::ZERO,
                 aspect: wgpu::TextureAspect::All,
@@ -712,7 +840,11 @@ impl GpuRenderer {
                     rows_per_image: Some(height),
                 },
             },
-            wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+            wgpu::Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
         );
 
         self.queue.submit(Some(encoder.finish()));
@@ -724,8 +856,12 @@ impl GpuRenderer {
         slice.map_async(wgpu::MapMode::Read, move |r| {
             let _ = tx.send(r);
         });
-        self.device.poll(wgpu::PollType::wait_indefinitely()).context("attente du GPU")?;
-        rx.recv().context("canal de mappage rompu")?.context("mappage du tampon de lecture")?;
+        self.device
+            .poll(wgpu::PollType::wait_indefinitely())
+            .context("attente du GPU")?;
+        rx.recv()
+            .context("canal de mappage rompu")?
+            .context("mappage du tampon de lecture")?;
 
         let padded = slice.get_mapped_range();
         let mut out = Vec::with_capacity((width * height * 4) as usize);
@@ -761,7 +897,12 @@ fn view_projection(model: &GpuModel, camera: Camera, aspect: f32) -> [[f32; 4]; 
     // choisi indépendamment (1,0 rad ici avant le 2026-08-28, contre 2·atan(1/1,7) ≈ 1,083) rend
     // le modèle sensiblement plus gros : 16 % de pixels couverts en plus sur un personnage, ce
     // qui se lit comme une divergence de rendu alors que ce n'est qu'un réglage de caméra.
-    let proj = perspective(2.0 * (1.0 / crate::render::FOCALE).atan(), aspect, near, far);
+    let proj = perspective(
+        2.0 * (1.0 / crate::render::FOCALE).atan(),
+        aspect,
+        near,
+        far,
+    );
     let view = look_at(eye, model.center, [0.0, 1.0, 0.0]);
     mat_mul(proj, view)
 }
@@ -840,11 +981,19 @@ fn dot3(a: [f32; 3], b: [f32; 3]) -> f32 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 fn cross3(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
-    [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
+    [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    ]
 }
 fn normalize3(v: [f32; 3]) -> [f32; 3] {
     let n = dot3(v, v).sqrt();
-    if n <= 1e-6 { [0.0, 1.0, 0.0] } else { [v[0] / n, v[1] / n, v[2] / n] }
+    if n <= 1e-6 {
+        [0.0, 1.0, 0.0]
+    } else {
+        [v[0] / n, v[1] / n, v[2] / n]
+    }
 }
 
 #[cfg(test)]
@@ -853,13 +1002,28 @@ mod tests {
 
     #[test]
     fn selection_backend_est_stricte() {
-        assert_eq!("dx12".parse::<Backend>().unwrap().backends(), wgpu::Backends::DX12);
+        assert_eq!(
+            "dx12".parse::<Backend>().unwrap().backends(),
+            wgpu::Backends::DX12
+        );
         assert!("directx11".parse::<Backend>().is_err());
-        assert_eq!("gl".parse::<Backend>().unwrap().backends(), wgpu::Backends::GL);
-        assert_eq!("webgpu".parse::<Backend>().unwrap().backends(), wgpu::Backends::BROWSER_WEBGPU);
-        if cfg!(target_os = "windows") { assert_eq!(Backend::default(), Backend::Dx12); }
-        if cfg!(target_os = "linux") { assert_eq!(Backend::default(), Backend::Vulkan); }
-        if cfg!(target_arch = "wasm32") { assert_eq!(Backend::default(), Backend::WebGpu); }
+        assert_eq!(
+            "gl".parse::<Backend>().unwrap().backends(),
+            wgpu::Backends::GL
+        );
+        assert_eq!(
+            "webgpu".parse::<Backend>().unwrap().backends(),
+            wgpu::Backends::BROWSER_WEBGPU
+        );
+        if cfg!(target_os = "windows") {
+            assert_eq!(Backend::default(), Backend::Dx12);
+        }
+        if cfg!(target_os = "linux") {
+            assert_eq!(Backend::default(), Backend::Vulkan);
+        }
+        if cfg!(target_arch = "wasm32") {
+            assert_eq!(Backend::default(), Backend::WebGpu);
+        }
     }
 
     /// Rend un triangle texturé sur le GPU et vérifie que des pixels sont réellement écrits.
@@ -883,25 +1047,44 @@ mod tests {
                 indices: vec![0, 1, 2],
                 texture: Some(0),
             }],
-            textures: vec![crate::glb::Texture { width: 1, height: 1, rgba: vec![255, 0, 0, 255] }],
+            textures: vec![crate::glb::Texture {
+                width: 1,
+                height: 1,
+                rgba: vec![255, 0, 0, 255],
+            }],
         };
 
         let gpu_model = renderer.upload(&model);
         assert_eq!(gpu_model.triangle_count, 1);
         assert_eq!(gpu_model.vertex_count, 3);
 
-        let camera = Camera { yaw: 0.0, pitch: 0.0, distance: 3.0 };
-        let pixels = renderer.render(&gpu_model, camera, 64, 64).expect("rendu GPU");
+        let camera = Camera {
+            yaw: 0.0,
+            pitch: 0.0,
+            distance: 3.0,
+        };
+        let pixels = renderer
+            .render(&gpu_model, camera, 64, 64)
+            .expect("rendu GPU");
         assert_eq!(pixels.len(), 64 * 64 * 4);
 
         // Le fond est effacé en transparent : tout pixel opaque vient du triangle. En exiger un
         // nombre plancher (et pas « au moins un ») distingue un vrai rendu d'un artefact isolé.
         let opaques = pixels.chunks_exact(4).filter(|p| p[3] > 200).count();
-        assert!(opaques > 200, "trop peu de pixels rendus ({opaques}) — le triangle n'a pas été dessiné");
+        assert!(
+            opaques > 200,
+            "trop peu de pixels rendus ({opaques}) — le triangle n'a pas été dessiné"
+        );
 
         // La texture est rouge pur, modulée par l'éclairage : le canal rouge doit dominer.
-        let sample = pixels.chunks_exact(4).find(|p| p[3] > 200).expect("au moins un pixel opaque");
-        assert!(sample[0] > sample[1] && sample[0] > sample[2], "couleur inattendue : {sample:?}");
+        let sample = pixels
+            .chunks_exact(4)
+            .find(|p| p[3] > 200)
+            .expect("au moins un pixel opaque");
+        assert!(
+            sample[0] > sample[1] && sample[0] > sample[2],
+            "couleur inattendue : {sample:?}"
+        );
     }
 
     /// Le pipeline GPU cadre la **même vue** que le rastériseur CPU de référence.
@@ -948,11 +1131,23 @@ mod tests {
         let gpu_model = renderer.upload(&model);
         // Conversion de convention, la même que celle du binaire : orbiter de +θ montre ce que
         // montre une rotation du modèle de −θ.
-        let camera = Camera { yaw: -angle, ..Default::default() }.clamped();
+        let camera = Camera {
+            yaw: -angle,
+            ..Default::default()
+        }
+        .clamped();
         let limit = renderer.device().limits().max_texture_dimension_2d;
-        assert!(renderer.render_to_texture(&gpu_model, camera, limit + 1, H).is_err());
-        renderer.render_to_texture(&gpu_model, camera, W, H).expect("rendu sans lecture CPU");
-        let gpu_px = renderer.render(&gpu_model, camera, W, H).expect("rendu GPU");
+        assert!(
+            renderer
+                .render_to_texture(&gpu_model, camera, limit + 1, H)
+                .is_err()
+        );
+        renderer
+            .render_to_texture(&gpu_model, camera, W, H)
+            .expect("rendu sans lecture CPU");
+        let gpu_px = renderer
+            .render(&gpu_model, camera, W, H)
+            .expect("rendu GPU");
         let cpu_px = crate::render::render(&model, angle, W, H);
 
         let (mut inter, mut union) = (0usize, 0usize);
@@ -966,7 +1161,10 @@ mod tests {
                 inter += usize::from(c && g);
             }
         }
-        assert!(union > 500, "les deux rendus sont quasi vides ({union} px couverts)");
+        assert!(
+            union > 500,
+            "les deux rendus sont quasi vides ({union} px couverts)"
+        );
         let iou = inter as f64 / union as f64;
         assert!(
             iou > 0.95,

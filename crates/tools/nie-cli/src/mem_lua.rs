@@ -85,13 +85,16 @@ fn lire(pid: i32, addr: u64, n: usize) -> Option<Vec<u8>> {
 
 /// Lit un `u32` little-endian.
 fn u32_at(buf: &[u8], off: usize) -> Option<u32> {
-    buf.get(off..off + 4).map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+    buf.get(off..off + 4)
+        .map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
 }
 
 /// Lit un `u64` little-endian.
 fn u64_at(buf: &[u8], off: usize) -> Option<u64> {
     let b = buf.get(off..off + 8)?;
-    Some(u64::from_le_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]]))
+    Some(u64::from_le_bytes([
+        b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7],
+    ]))
 }
 
 /// Rend le nom d'une `TString` Lua, si l'objet a bien cette forme.
@@ -133,17 +136,27 @@ fn relever_nodes(pid: i32, tstring: u64, limite: usize) -> Vec<Releve> {
             Some(n) => n,
             None => continue,
         };
-        let Some(buf) = lire(pid, node, NODE_SIZE as usize) else { continue };
+        let Some(buf) = lire(pid, node, NODE_SIZE as usize) else {
+            continue;
+        };
         // La clé doit être une chaîne : sinon le pointeur a été trouvé ailleurs qu'en position
         // de clé (table de chaînes internées, pool de constantes d'un prototype…).
-        let Some(key_tt) = u32_at(&buf, KEY_OFFSET as usize + 8) else { continue };
+        let Some(key_tt) = u32_at(&buf, KEY_OFFSET as usize + 8) else {
+            continue;
+        };
         if key_tt & TT_MASK != 4 {
             continue;
         }
-        let Some(val_tt) = u32_at(&buf, 8) else { continue };
+        let Some(val_tt) = u32_at(&buf, 8) else {
+            continue;
+        };
         let mut charge = [0u8; 8];
         charge.copy_from_slice(&buf[..8]);
-        out.push(Releve { node, valeur: decoder_valeur(charge, val_tt), tt: val_tt & TT_MASK });
+        out.push(Releve {
+            node,
+            valeur: decoder_valeur(charge, val_tt),
+            tt: val_tt & TT_MASK,
+        });
     }
     out
 }
@@ -152,15 +165,27 @@ fn relever_nodes(pid: i32, tstring: u64, limite: usize) -> Vec<Releve> {
 fn voisins(pid: i32, node: u64, rayon: i64, max_nom: usize) -> Vec<(String, String)> {
     let mut out = Vec::new();
     for k in -rayon..=rayon {
-        let Some(addr) = node.checked_add_signed(k * NODE_SIZE as i64) else { continue };
-        let Some(buf) = lire(pid, addr, NODE_SIZE as usize) else { continue };
-        let Some(key_tt) = u32_at(&buf, KEY_OFFSET as usize + 8) else { continue };
+        let Some(addr) = node.checked_add_signed(k * NODE_SIZE as i64) else {
+            continue;
+        };
+        let Some(buf) = lire(pid, addr, NODE_SIZE as usize) else {
+            continue;
+        };
+        let Some(key_tt) = u32_at(&buf, KEY_OFFSET as usize + 8) else {
+            continue;
+        };
         if key_tt & TT_MASK != 4 {
             continue;
         }
-        let Some(key_ptr) = u64_at(&buf, KEY_OFFSET as usize) else { continue };
-        let Some(nom) = nom_tstring(pid, key_ptr, max_nom) else { continue };
-        let Some(val_tt) = u32_at(&buf, 8) else { continue };
+        let Some(key_ptr) = u64_at(&buf, KEY_OFFSET as usize) else {
+            continue;
+        };
+        let Some(nom) = nom_tstring(pid, key_ptr, max_nom) else {
+            continue;
+        };
+        let Some(val_tt) = u32_at(&buf, 8) else {
+            continue;
+        };
         let mut charge = [0u8; 8];
         charge.copy_from_slice(&buf[..8]);
         out.push((nom, decoder_valeur(charge, val_tt)));
@@ -197,7 +222,10 @@ pub fn lua_field(
         println!("  aucune TString internée « {nom} » — le champ n'existe pas dans ce process.");
         return Ok(());
     }
-    println!("  {} objet(s) TString « {nom} » (pid {pid})", tstrings.len());
+    println!(
+        "  {} objet(s) TString « {nom} » (pid {pid})",
+        tstrings.len()
+    );
 
     let mut total = 0usize;
     for ts in &tstrings {
@@ -211,7 +239,10 @@ pub fn lua_field(
         if releves.is_empty() {
             continue;
         }
-        println!("\n  TString 0x{ts:x} — {} entrée(s) de table", releves.len());
+        println!(
+            "\n  TString 0x{ts:x} — {} entrée(s) de table",
+            releves.len()
+        );
         for r in &releves {
             total += 1;
             println!("    node 0x{:012x}  {nom} = {}", r.node, r.valeur);
@@ -273,7 +304,9 @@ pub fn palettes(
     let mut vus: std::collections::BTreeMap<u32, [u8; 4]> = std::collections::BTreeMap::new();
     let mut offset = 0usize;
     while offset + 8 <= octets.len() {
-        let Some(id) = u32_at(&octets, offset) else { break };
+        let Some(id) = u32_at(&octets, offset) else {
+            break;
+        };
         if attendus.contains(&id) {
             let argb = [
                 octets[offset + 4],

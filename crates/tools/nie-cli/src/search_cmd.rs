@@ -40,18 +40,15 @@ fn build_globset(globs: &[String], exts: &[String]) -> Result<Option<GlobSet>> {
     }
     for e in exts {
         let e = e.trim_start_matches('.');
-        b.add(Glob::new(&format!("**/*.{e}")).with_context(|| format!("extension invalide : {e}"))?);
+        b.add(
+            Glob::new(&format!("**/*.{e}")).with_context(|| format!("extension invalide : {e}"))?,
+        );
     }
     Ok(Some(b.build().context("construction du GlobSet")?))
 }
 
 /// Prépare un parcours : racine, fichiers cachés, respect de `.gitignore`, profondeur.
-fn walker(
-    dir: &Path,
-    hidden: bool,
-    no_ignore: bool,
-    depth: Option<usize>,
-) -> WalkBuilder {
+fn walker(dir: &Path, hidden: bool, no_ignore: bool, depth: Option<usize>) -> WalkBuilder {
     let mut w = WalkBuilder::new(dir);
     w.hidden(!hidden) // `hidden(true)` = **exclure** les cachés : on inverse le drapeau utilisateur.
         .git_ignore(!no_ignore)
@@ -111,7 +108,9 @@ pub fn find(args: &FindArgs) -> Result<usize> {
             let needle = needle.clone();
             let set = set.clone();
             Box::new(move |entry| {
-                let Ok(e) = entry else { return WalkState::Continue };
+                let Ok(e) = entry else {
+                    return WalkState::Continue;
+                };
                 let is_dir = e.file_type().is_some_and(|t| t.is_dir());
                 if (only_files && is_dir) || (only_dirs && !is_dir) {
                     return WalkState::Continue;
@@ -131,7 +130,11 @@ pub fn find(args: &FindArgs) -> Result<usize> {
                 }
                 if !needle.is_empty() {
                     let hay = path.to_string_lossy();
-                    let hay = if args_case(&needle) { hay.to_string() } else { hay.to_lowercase() };
+                    let hay = if args_case(&needle) {
+                        hay.to_string()
+                    } else {
+                        hay.to_lowercase()
+                    };
                     if !hay.contains(&needle) {
                         return WalkState::Continue;
                     }
@@ -146,7 +149,10 @@ pub fn find(args: &FindArgs) -> Result<usize> {
             })
         });
 
-    let mut v = hits.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
+    let mut v = hits
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone();
     v.sort_unstable();
     let n = v.len();
     if args.count {
@@ -216,7 +222,9 @@ pub fn grep(args: &GrepArgs) -> Result<usize> {
                 .line_number(true)
                 .build();
             Box::new(move |entry| {
-                let Ok(e) = entry else { return WalkState::Continue };
+                let Ok(e) = entry else {
+                    return WalkState::Continue;
+                };
                 if !e.file_type().is_some_and(|t| t.is_file()) {
                     return WalkState::Continue;
                 }
@@ -258,7 +266,10 @@ pub fn grep(args: &GrepArgs) -> Result<usize> {
             })
         });
 
-    let mut v = out.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
+    let mut v = out
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone();
     v.sort_unstable();
     let n = v.len();
     let stdout = std::io::stdout();

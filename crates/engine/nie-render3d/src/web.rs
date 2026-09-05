@@ -77,6 +77,10 @@ mod browser {
         camera: Camera,
         layout: wgpu::BindGroupLayout,
         pipeline: wgpu::RenderPipeline,
+        /// Le rendu partagé conserve sa texture cible tant que le canvas garde ses dimensions.
+        /// Le bind group de présentation peut donc être conservé lui aussi au lieu d'être créé
+        /// à chaque `requestAnimationFrame`.
+        presentation_bind: Option<wgpu::BindGroup>,
         lost: Arc<Mutex<Option<String>>>,
     }
 
@@ -212,6 +216,7 @@ mod browser {
                 camera: Camera::default(),
                 layout,
                 pipeline,
+                presentation_bind: None,
                 lost,
             })
         }
@@ -277,9 +282,9 @@ mod browser {
                     primitive.indices.len().is_multiple_of(3),
                     "indices non triangulaires"
                 );
-                // Vertex partagé = position + normale + UV = 32 octets.
+                // Vertex partagé = position + normale + UV + drapeau matériau = 36 octets.
                 ensure!(
-                    (primitive.positions.len() as u64) * 32 <= limits.max_buffer_size
+                    (primitive.positions.len() as u64) * 36 <= limits.max_buffer_size
                         && (primitive.indices.len() as u64) * 4 <= limits.max_buffer_size,
                     "maillage supérieur aux limites GPU"
                 );
@@ -313,6 +318,9 @@ mod browser {
             self.config.width = width;
             self.config.height = height;
             self.surface.configure(self.renderer.device(), &self.config);
+            // `GpuRenderer` recréera sa texture cible au prochain rendu ; le groupe précédent
+            // référence alors l'ancienne vue et ne doit surtout pas être réemployé.
+            self.presentation_bind = None;
             Ok(())
         }
 
@@ -339,21 +347,31 @@ mod browser {
                     bail!("validation de surface WebGPU échouée")
                 }
             };
+            // Le handle Device est Arc-backed. Le cloner avant l'emprunt mutable du renderer
+            // permet de bâtir le bind group à partir de la vue renvoyée sans créer un second
+            // device ni contourner les règles d'emprunt.
+            let device = self.renderer.device().clone();
             let image = self.renderer.render_to_texture(
                 model,
                 self.camera,
                 self.config.width,
                 self.config.height,
             )?;
-            let device = self.renderer.device();
-            let bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("NIE image canvas"),
-                layout: &self.layout,
-                entries: &[wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&image),
-                }],
-            });
+            if self.presentation_bind.is_none() {
+                self.presentation_bind =
+                    Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
+                        label: Some("NIE image canvas"),
+                        layout: &self.layout,
+                        entries: &[wgpu::BindGroupEntry {
+                            binding: 0,
+                            resource: wgpu::BindingResource::TextureView(image),
+                        }],
+                    }));
+            }
+            let bind = self
+                .presentation_bind
+                .as_ref()
+                .expect("bind group créé ci-dessus");
             let target = frame
                 .texture
                 .create_view(&wgpu::TextureViewDescriptor::default());
@@ -378,13 +396,13 @@ mod browser {
                     multiview_mask: None,
                 });
                 pass.set_pipeline(&self.pipeline);
-                pass.set_bind_group(0, &bind, &[]);
+                pass.set_bind_group(0, bind, &[]);
                 pass.draw(0..6, 0..1);
             }
             self.renderer.queue().submit(Some(encoder.finish()));
             frame.present();
             if reconfigure {
-                self.surface.configure(device, &self.config);
+                self.surface.configure(&device, &self.config);
             }
             Ok(true)
         }

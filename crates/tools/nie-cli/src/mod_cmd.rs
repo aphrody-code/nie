@@ -226,7 +226,11 @@ fn reencoder(doc: &Doc, json: &Value) -> anyhow::Result<Vec<u8>> {
 /// `C:/Program Files/Git/entries/0/...`. L'erreur qui en découle accuse le pointeur alors que
 /// le shell est en cause. Accepter `entries/0/...` donne une forme qui traverse le shell intacte.
 fn normaliser_pointeur(p: &str) -> String {
-    if p.is_empty() || p.starts_with('/') { p.to_string() } else { format!("/{p}") }
+    if p.is_empty() || p.starts_with('/') {
+        p.to_string()
+    } else {
+        format!("/{p}")
+    }
 }
 
 /// Compte les entrées **déjà hors paquet** d'un `cpk_list.cfg.bin`.
@@ -236,7 +240,9 @@ fn normaliser_pointeur(p: &str) -> String {
 /// `cpk_list` illisible rend `0` — on ne bloquera pas l'installation sur un fichier qu'on n'a
 /// pas su lire, `pack_mod` échouera de toute façon avec une meilleure erreur.
 fn compter_loose(cpk_list: &[u8]) -> usize {
-    let Ok((cfg, _)) = nie_viola::decode_cpk_list(cpk_list) else { return 0 };
+    let Ok((cfg, _)) = nie_viola::decode_cpk_list(cpk_list) else {
+        return 0;
+    };
     cfg.entries.first().map_or(0, |racine| {
         racine
             .children
@@ -264,7 +270,8 @@ fn octets_courants(dir: &Path, vfs: &str, game_dir: Option<PathBuf>) -> anyhow::
         return std::fs::read(&p).with_context(|| format!("lecture « {} »", p.display()));
     }
     let v = crate::open_vfs(game_dir)?;
-    v.read(vfs).map_err(|e| anyhow::anyhow!("« {vfs} » introuvable dans le VFS : {e}"))
+    v.read(vfs)
+        .map_err(|e| anyhow::anyhow!("« {vfs} » introuvable dans le VFS : {e}"))
 }
 
 /// Écrit un fichier dans le mod, en créant l'arborescence.
@@ -284,27 +291,56 @@ fn ecrire_dans_le_mod(dir: &Path, vfs: &str, octets: &[u8]) -> anyhow::Result<Pa
 /// Remonte toute erreur d'E/S, de format ou de validation.
 pub fn executer(op: ModOp) -> anyhow::Result<()> {
     match op {
-        ModOp::Init { nom, auteur, dir, description } => init(&nom, &auteur, &dir, &description),
-        ModOp::Add { chemins, dir, ecraser, game_dir } => add(&chemins, &dir, ecraser, game_dir),
-        ModOp::Get { chemin, pointeur, limite, dir, game_dir } => {
-            get(&chemin, pointeur.as_deref(), limite, &dir, game_dir)
-        }
-        ModOp::Set { chemin, pointeur, valeur, dir, game_dir } => {
-            set(&chemin, &pointeur, &valeur, &dir, game_dir)
-        }
-        ModOp::Texture { chemin, png, dir, game_dir } => texture(&chemin, &png, &dir, game_dir),
+        ModOp::Init {
+            nom,
+            auteur,
+            dir,
+            description,
+        } => init(&nom, &auteur, &dir, &description),
+        ModOp::Add {
+            chemins,
+            dir,
+            ecraser,
+            game_dir,
+        } => add(&chemins, &dir, ecraser, game_dir),
+        ModOp::Get {
+            chemin,
+            pointeur,
+            limite,
+            dir,
+            game_dir,
+        } => get(&chemin, pointeur.as_deref(), limite, &dir, game_dir),
+        ModOp::Set {
+            chemin,
+            pointeur,
+            valeur,
+            dir,
+            game_dir,
+        } => set(&chemin, &pointeur, &valeur, &dir, game_dir),
+        ModOp::Texture {
+            chemin,
+            png,
+            dir,
+            game_dir,
+        } => texture(&chemin, &png, &dir, game_dir),
         ModOp::Status { dir, game_dir } => status(&dir, game_dir),
         ModOp::Validate { dir, game_dir } => validate(&dir, game_dir).map(|_| ()),
-        ModOp::Install { dir, game_dir, switch, a_blanc } => {
-            install(&dir, game_dir, switch, a_blanc)
-        }
+        ModOp::Install {
+            dir,
+            game_dir,
+            switch,
+            a_blanc,
+        } => install(&dir, game_dir, switch, a_blanc),
         ModOp::Uninstall { game_dir, dir } => uninstall(game_dir, dir.as_deref()),
     }
 }
 
 fn init(nom: &str, auteur: &str, dir: &Path, description: &str) -> anyhow::Result<()> {
     if Manifeste::chemin(dir).exists() {
-        bail!("« {} » contient déjà un mod — `init` n'écrase pas", dir.display());
+        bail!(
+            "« {} » contient déjà un mod — `init` n'écrase pas",
+            dir.display()
+        );
     }
     let mut m = Manifeste::gabarit(nom, auteur);
     m.description = description.to_string();
@@ -315,7 +351,12 @@ fn init(nom: &str, auteur: &str, dir: &Path, description: &str) -> anyhow::Resul
     Ok(())
 }
 
-fn add(chemins: &[String], dir: &Path, ecraser: bool, game_dir: Option<PathBuf>) -> anyhow::Result<()> {
+fn add(
+    chemins: &[String],
+    dir: &Path,
+    ecraser: bool,
+    game_dir: Option<PathBuf>,
+) -> anyhow::Result<()> {
     let vfs = crate::open_vfs(game_dir)?;
     // Un préfixe de dossier vaut pour tout ce qu'il contient : ajouter une famille entière au
     // mod est le geste courant, et l'énumérer à la main sur des milliers d'entrées ne l'est pas.
@@ -327,8 +368,12 @@ fn add(chemins: &[String], dir: &Path, ecraser: bool, game_dir: Option<PathBuf>)
             continue;
         }
         let prefixe = format!("{c}/");
-        let sous: Vec<String> =
-            vfs.iter().map(|(p, _)| p).filter(|p| p.starts_with(&prefixe)).map(String::from).collect();
+        let sous: Vec<String> = vfs
+            .iter()
+            .map(|(p, _)| p)
+            .filter(|p| p.starts_with(&prefixe))
+            .map(String::from)
+            .collect();
         if sous.is_empty() {
             bail!("« {c} » n'est ni un fichier ni un dossier du VFS");
         }
@@ -376,9 +421,9 @@ fn get(
     let pointeur = pointeur.map(normaliser_pointeur);
     let vue = match &pointeur {
         None => &json,
-        Some(p) => json
-            .pointer(p)
-            .ok_or_else(|| anyhow::anyhow!("le pointeur « {p} » ne désigne rien dans ce fichier"))?,
+        Some(p) => json.pointer(p).ok_or_else(|| {
+            anyhow::anyhow!("le pointeur « {p} » ne désigne rien dans ce fichier")
+        })?,
     };
     let texte = serde_json::to_string_pretty(vue)?;
     if limite > 0 && texte.len() > limite {
@@ -386,7 +431,10 @@ fn get(
         // produirait une chaîne invalide, et ces fichiers portent du texte japonais.
         let coupe: String = texte.chars().take(limite).collect();
         println!("{coupe}");
-        println!("… tronqué à {limite} caractères sur {} — `--limite 0` pour tout voir", texte.chars().count());
+        println!(
+            "… tronqué à {limite} caractères sur {} — `--limite 0` pour tout voir",
+            texte.chars().count()
+        );
     } else {
         println!("{texte}");
     }
@@ -404,12 +452,12 @@ fn set(
     let (doc, mut json) = charger(&octets)?;
     let pointeur = &normaliser_pointeur(pointeur);
 
-    let cible = json
-        .pointer_mut(pointeur)
-        .ok_or_else(|| anyhow::anyhow!(
+    let cible = json.pointer_mut(pointeur).ok_or_else(|| {
+        anyhow::anyhow!(
             "le pointeur « {pointeur} » ne désigne rien — `set` ne crée jamais un champ, \
              car un champ ajouté ne serait pas réencodable (cf. doc du module)"
-        ))?;
+        )
+    })?;
 
     let avant = cible.clone();
     // Dans la forme du pont, toute valeur de variable est une chaîne — y compris les entiers et
@@ -418,23 +466,24 @@ fn set(
     if cible.is_string() {
         *cible = Value::String(valeur.to_string());
     } else {
-        *cible = serde_json::from_str(valeur)
-            .with_context(|| format!("« {valeur} » n'est pas du JSON, et le nœud visé n'est pas une chaîne"))?;
+        *cible = serde_json::from_str(valeur).with_context(|| {
+            format!("« {valeur} » n'est pas du JSON, et le nœud visé n'est pas une chaîne")
+        })?;
     }
     let apres = cible.clone();
 
     let nouveaux = reencoder(&doc, &json)?;
     // Relire ce qu'on vient d'écrire, tout de suite : un encodage qui ne se redécode pas doit
     // échouer ici, pas au moment de l'installation, et surtout pas dans le jeu.
-    let (_, verif) = charger(&nouveaux)
-        .context("le fichier réencodé ne se relit pas — modification refusée")?;
+    let (_, verif) =
+        charger(&nouveaux).context("le fichier réencodé ne se relit pas — modification refusée")?;
     // Dire ce qui a été relu, et non pas seulement que ça diffère : sans la valeur trouvée, on
     // ne distingue pas un pointeur qui a glissé (nœud absent) d'un reformatage de la valeur.
     match verif.pointer(pointeur) {
         Some(relu) if relu == &apres => {}
-        Some(relu) => bail!(
-            "le fichier réencodé rend {relu} là où {apres} a été posé — modification refusée"
-        ),
+        Some(relu) => {
+            bail!("le fichier réencodé rend {relu} là où {apres} a été posé — modification refusée")
+        }
         None => {
             // Dire OÙ le chemin se brise : un pointeur perdu sans plus de précision ne se
             // diagnostique pas. On redescend segment par segment jusqu'au premier absent.
@@ -454,7 +503,10 @@ fn set(
                 |v| match v {
                     Value::Array(a) => format!("tableau de {} éléments", a.len()),
                     Value::Object(o) => {
-                        format!("objet {{{}}}", o.keys().cloned().collect::<Vec<_>>().join(", "))
+                        format!(
+                            "objet {{{}}}",
+                            o.keys().cloned().collect::<Vec<_>>().join(", ")
+                        )
                     }
                     autre => format!("{autre}"),
                 },
@@ -490,7 +542,10 @@ fn texture(chemin: &str, png: &Path, dir: &Path, game_dir: Option<PathBuf>) -> a
             atlas.header.sub_texture_count
         );
     }
-    let tex = atlas.textures.first().ok_or_else(|| anyhow::anyhow!("{chemin} : aucune texture"))?;
+    let tex = atlas
+        .textures
+        .first()
+        .ok_or_else(|| anyhow::anyhow!("{chemin} : aucune texture"))?;
 
     let image = std::fs::read(png).with_context(|| format!("lecture « {} »", png.display()))?;
     let (l, h, rgba) = nie_formats::g4tx_encode::decode_png_to_rgba8(&image)
@@ -498,7 +553,8 @@ fn texture(chemin: &str, png: &Path, dir: &Path, game_dir: Option<PathBuf>) -> a
     let dds = nie_formats::g4tx_encode::encode_dds_bgra8(l, h, &rgba)
         .map_err(|e| anyhow::anyhow!("encodage DDS : {e}"))?;
     let (li, hi) = (i16::try_from(l)?, i16::try_from(h)?);
-    let nouveaux = nie_formats::g4tx_encode::encode_g4tx_single_texture(&tex.name, tex.id, li, hi, &dds);
+    let nouveaux =
+        nie_formats::g4tx_encode::encode_g4tx_single_texture(&tex.name, tex.id, li, hi, &dds);
 
     let p = ecrire_dans_le_mod(dir, chemin, &nouveaux)?;
     println!("texture   {} — {l}×{h}", tex.name);
@@ -527,7 +583,10 @@ fn status(dir: &Path, game_dir: Option<PathBuf>) -> anyhow::Result<()> {
         match vfs.read(&f.vfs) {
             Err(_) => {
                 neufs += 1;
-                println!("  neuf       {} ({taille} o) — absent du jeu vanilla", f.vfs);
+                println!(
+                    "  neuf       {} ({taille} o) — absent du jeu vanilla",
+                    f.vfs
+                );
             }
             Ok(vanilla) => {
                 let a_jour = std::fs::read(&f.absolu).unwrap_or_default();
@@ -543,7 +602,9 @@ fn status(dir: &Path, game_dir: Option<PathBuf>) -> anyhow::Result<()> {
     if identiques > 0 {
         // Un fichier identique au vanilla ne change rien mais bascule quand même son entrée en
         // loose : ce n'est pas neutre, et le taire donnerait un mod plus gros que son effet.
-        println!("  {identiques} identique(s) au vanilla — sans effet, mais installé(s) quand même");
+        println!(
+            "  {identiques} identique(s) au vanilla — sans effet, mais installé(s) quand même"
+        );
     }
     println!("bilan     {modifies} modifié(s), {neufs} neuf(s), {identiques} identique(s)");
     Ok(())
@@ -557,7 +618,9 @@ fn validate(dir: &Path, game_dir: Option<PathBuf>) -> anyhow::Result<Vec<manifes
     // Un fichier hors `data/` ne serait jamais chargé, et surtout jamais signalé : c'est le
     // piège exact du dossier de travail à noms aplatis.
     for f in manifeste::valider_arborescence(dir).map_err(anyhow::Error::msg)? {
-        fautes.push(format!("« {f} » n'est pas sous data/ — le jeu ne le chargerait jamais"));
+        fautes.push(format!(
+            "« {f} » n'est pas sous data/ — le jeu ne le chargerait jamais"
+        ));
     }
 
     let fichiers = manifeste::fichiers(dir).map_err(anyhow::Error::msg)?;
@@ -568,7 +631,10 @@ fn validate(dir: &Path, game_dir: Option<PathBuf>) -> anyhow::Result<Vec<manifes
         if let Some(v) = &vfs
             && !v.iter().any(|(p, _)| p == f.vfs)
         {
-            println!("  note     {} est absent du jeu vanilla (fichier ajouté ?)", f.vfs);
+            println!(
+                "  note     {} est absent du jeu vanilla (fichier ajouté ?)",
+                f.vfs
+            );
         }
         if !f.vfs.ends_with(".cfg.bin") {
             continue;
@@ -583,7 +649,12 @@ fn validate(dir: &Path, game_dir: Option<PathBuf>) -> anyhow::Result<Vec<manifes
     }
 
     if fautes.is_empty() {
-        println!("mod       {} v{} — {} fichier(s)", m.nom, m.version, fichiers.len());
+        println!(
+            "mod       {} v{} — {} fichier(s)",
+            m.nom,
+            m.version,
+            fichiers.len()
+        );
         println!("verdict   valide");
         return Ok(fichiers);
     }
@@ -604,7 +675,10 @@ fn install(
     let cpk_list = data.join("cpk_list.cfg.bin");
     let sauvegarde = chemin_sauvegarde(&cpk_list);
     if !cpk_list.is_file() {
-        bail!("« {} » introuvable — ce n'est pas une installation du jeu", cpk_list.display());
+        bail!(
+            "« {} » introuvable — ce n'est pas une installation du jeu",
+            cpk_list.display()
+        );
     }
 
     // Valider AVANT de toucher au jeu. Un mod refusé ne doit laisser aucune trace.
@@ -620,7 +694,12 @@ fn install(
     if sources.len() > 1 {
         println!(
             "ordre     {} (du plus prioritaire au moins prioritaire)",
-            sources.iter().filter_map(|p| p.file_name()).map(|n| n.to_string_lossy()).collect::<Vec<_>>().join(" > ")
+            sources
+                .iter()
+                .filter_map(|p| p.file_name())
+                .map(|n| n.to_string_lossy())
+                .collect::<Vec<_>>()
+                .join(" > ")
         );
     }
 
@@ -637,19 +716,30 @@ fn install(
             );
         }
         if a_blanc {
-            println!("à blanc   sauvegarderait {} → {}", cpk_list.display(), sauvegarde.display());
+            println!(
+                "à blanc   sauvegarderait {} → {}",
+                cpk_list.display(),
+                sauvegarde.display()
+            );
         } else {
             std::fs::copy(&cpk_list, &sauvegarde)?;
             println!("sauvegarde {}", sauvegarde.display());
         }
     } else {
-        println!("sauvegarde {} (déjà présente, réutilisée comme vanilla)", sauvegarde.display());
+        println!(
+            "sauvegarde {} (déjà présente, réutilisée comme vanilla)",
+            sauvegarde.display()
+        );
     }
 
     if a_blanc {
         for d in &sources {
             let n = manifeste::fichiers(d).map_err(anyhow::Error::msg)?.len();
-            println!("à blanc   {} : {n} fichier(s) vers {}", d.display(), racine.display());
+            println!(
+                "à blanc   {} : {n} fichier(s) vers {}",
+                d.display(),
+                racine.display()
+            );
         }
         println!("à blanc   rien n'a été écrit");
         return Ok(());
@@ -669,9 +759,17 @@ fn install(
             &nie_viola::MergeStrategy::Semantique(&resoudre),
         )
         .map_err(anyhow::Error::msg)?;
-        println!("fusion    {} copiés, {} fusionnés, {} conflits", r.copies, r.fusionnes, r.conflits.len());
+        println!(
+            "fusion    {} copiés, {} fusionnés, {} conflits",
+            r.copies,
+            r.fusionnes,
+            r.conflits.len()
+        );
         for c in &r.conflits {
-            println!("  conflit  {} — {} champs en désaccord", c.chemin, c.champs_en_desaccord);
+            println!(
+                "  conflit  {} — {} champs en désaccord",
+                c.chemin, c.champs_en_desaccord
+            );
         }
         temporaire.clone()
     };
@@ -690,8 +788,12 @@ fn install(
 
     let fichiers = manifeste::fichiers(&source_unique).map_err(anyhow::Error::msg)?;
     let chemins: Vec<String> = fichiers.iter().map(|f| f.vfs.clone()).collect();
-    let rapport = nie_viola::patch::patcher_clair(&mut clair, &chemins).map_err(anyhow::Error::msg)?;
-    anyhow::ensure!(clair.len() == avant, "le patch a changé la taille du cpk_list — abandon");
+    let rapport =
+        nie_viola::patch::patcher_clair(&mut clair, &chemins).map_err(anyhow::Error::msg)?;
+    anyhow::ensure!(
+        clair.len() == avant,
+        "le patch a changé la taille du cpk_list — abandon"
+    );
 
     if !rapport.introuvables.is_empty() {
         // Ajouter une entrée déplacerait tous les offsets : hors de portée d'un patch en place.
@@ -726,7 +828,10 @@ fn install(
 
     println!("rendus loose {}", rapport.rendus_loose.len());
     println!("déjà loose   {}", rapport.deja_loose.len());
-    println!("octets patchés {} (sur {} du cpk_list)", rapport.octets_modifies, avant);
+    println!(
+        "octets patchés {} (sur {} du cpk_list)",
+        rapport.octets_modifies, avant
+    );
     println!("copiés     {copies}");
     println!("installé dans {}", racine.display());
     println!("\n`niers mod uninstall` rend au jeu son cpk_list d'origine, à l'octet.");
@@ -752,7 +857,11 @@ fn uninstall(game_dir: Option<PathBuf>, dir: Option<&Path>) -> anyhow::Result<()
     if relu != vanilla {
         bail!("la restauration n'a pas rendu les mêmes octets — le jeu est dans un état incertain");
     }
-    println!("restauré  {} ({} octets, identiques à la sauvegarde)", cpk_list.display(), relu.len());
+    println!(
+        "restauré  {} ({} octets, identiques à la sauvegarde)",
+        cpk_list.display(),
+        relu.len()
+    );
 
     if let Some(d) = dir {
         let fichiers = manifeste::fichiers(d).map_err(anyhow::Error::msg)?;

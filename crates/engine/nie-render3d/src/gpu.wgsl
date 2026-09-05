@@ -10,7 +10,7 @@ struct Camera {
     // Rotation des normales : le CPU tourne le modèle sous une lumière fixe, ici la caméra
     // orbite — sans cette matrice, la lumière tournerait avec l'objet.
     normal_rot: mat4x4<f32>,
-    // xyz = direction de la lumière (normalisée), w = 1.0 si la primitive a une texture.
+    // xyz = direction de la lumière (normalisée), w = padding explicite.
     light: vec4<f32>,
 };
 
@@ -22,12 +22,14 @@ struct VertexIn {
     @location(0) position: vec3<f32>,
     @location(1) normal: vec3<f32>,
     @location(2) uv: vec2<f32>,
+    @location(3) has_texture: f32,
 };
 
 struct VertexOut {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) normal: vec3<f32>,
     @location(1) uv: vec2<f32>,
+    @location(2) has_texture: f32,
 };
 
 @vertex
@@ -36,6 +38,7 @@ fn vs_main(in: VertexIn) -> VertexOut {
     out.clip_position = camera.view_proj * vec4<f32>(in.position, 1.0);
     out.normal = in.normal;
     out.uv = in.uv;
+    out.has_texture = in.has_texture;
     return out;
 }
 
@@ -51,7 +54,7 @@ fn fs_main(in: VertexOut) -> @location(0) vec4<f32> {
     let lit = 0.35 + 0.65 * lambert;
 
     var base: vec4<f32>;
-    if (camera.light.w > 0.5) {
+    if (in.has_texture > 0.5) {
         base = textureSample(atlas, atlas_sampler, in.uv);
     } else {
         // Repli argile — même gris neutre que le CPU pour les primitives sans atlas.

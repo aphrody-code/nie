@@ -19,7 +19,11 @@ use anyhow::{Context, bail};
 /// CMake dépose l'exécutable dans `build/<preset>/src/cli/` ; le générateur Visual Studio
 /// ajoute un niveau de configuration (`Debug/`, `Release/`).
 fn iecode_candidates() -> Vec<PathBuf> {
-    let exe = if cfg!(windows) { "iecode.exe" } else { "iecode" };
+    let exe = if cfg!(windows) {
+        "iecode.exe"
+    } else {
+        "iecode"
+    };
     let mut out = Vec::new();
     for preset in ["msvc", "debug", "release", "relwithdebinfo"] {
         for conf in ["", "Debug", "Release"] {

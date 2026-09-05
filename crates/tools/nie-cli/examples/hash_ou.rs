@@ -92,7 +92,9 @@ fn main() {
         let Ok(rdbn) = cfgbin::parse(&data) else {
             // Pas un RDBN : c'est un T2B. Ses variables sont des `Int` **signés** ; un hash y
             // apparaît donc en négatif dès que le bit 31 est posé — on compare sur les 32 bits.
-            let Ok(cfg) = cfgbin::cfgbin_parse(&data) else { continue };
+            let Ok(cfg) = cfgbin::cfgbin_parse(&data) else {
+                continue;
+            };
             let mut pile: Vec<(&cfgbin::CfgEntry, String)> =
                 cfg.entries.iter().map(|e| (e, String::new())).collect();
             while let Some((noeud, chemin_noeud)) = pile.pop() {
@@ -153,10 +155,17 @@ fn main() {
                     "{}\n  {} [{i}] · champ(s) {}",
                     chemin.trim_start_matches(&prefixe),
                     liste.name,
-                    champs.iter().map(|c| c.as_str()).collect::<Vec<_>>().join(", ")
+                    champs
+                        .iter()
+                        .map(|c| c.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ")
                 );
-                let corps: Vec<String> =
-                    row.fields.iter().map(|(k, v)| format!("{k}={}", court(v))).collect();
+                let corps: Vec<String> = row
+                    .fields
+                    .iter()
+                    .map(|(k, v)| format!("{k}={}", court(v)))
+                    .collect();
                 println!("    {}\n", corps.join("  "));
             }
         }

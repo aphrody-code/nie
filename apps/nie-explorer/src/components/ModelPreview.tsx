@@ -4,20 +4,34 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const Viewport = lazy(() => import("./editor/Viewport3D").then((m) => ({ default: m.Viewport3D })));
 
-/** Aperçu VFS utilisant le même moteur et le même assemblage que l'éditeur. */
-export function ModelPreview({ path, gameDir }: { path: string; gameDir?: string }) {
+/**
+ * Surface 3D unique de l'Explorer.
+ *
+ * Le chargeur VFS par défaut et le chargeur CPK brut ne diffèrent que par la provenance du GLB :
+ * ils aboutissent tous deux au même viewport temps réel, avec les mêmes contrôles de caméra.
+ */
+export function ModelPreview({
+  path,
+  gameDir,
+  loadGlb,
+}: {
+  path: string;
+  gameDir?: string;
+  loadGlb?: () => Promise<string>;
+}) {
   const [model, setModel] = useState<{ path: string; glbB64: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
     setModel(null);
     setError(null);
-    api.glbBytesB64(path, gameDir).then(
+    const load = loadGlb ?? (() => api.glbBytesB64(path, gameDir));
+    load().then(
       (glbB64) => { if (!cancelled) setModel({ path, glbB64 }); },
       (reason) => { if (!cancelled) setError(String(reason)); },
     );
     return () => { cancelled = true; };
-  }, [path, gameDir]);
+  }, [path, gameDir, loadGlb]);
   return (
     <section aria-label="Aperçu 3D" className="shrink-0 overflow-hidden rounded-lg border border-app-line">
       <ErrorBoundary zone="Aperçu 3D" resetKeys={[path, gameDir]}>

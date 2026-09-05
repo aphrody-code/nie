@@ -97,18 +97,32 @@ pub enum VideoCmd {
 /// Remonte les échecs de lecture VFS, de démultiplexage et d'écriture de fichier.
 pub fn run(op: &VideoCmd, vfs: &Vfs) -> Result<()> {
     match op {
-        VideoCmd::Info { chemin, json, tables } => info(vfs, chemin, *json, *tables),
-        VideoCmd::Liste { prefixe, json, limit, rapide } => {
-            liste(vfs, prefixe, *json, *limit, *rapide)
-        }
-        VideoCmd::Export { chemin, out, audio, brut } => export(vfs, chemin, out, *audio, *brut),
+        VideoCmd::Info {
+            chemin,
+            json,
+            tables,
+        } => info(vfs, chemin, *json, *tables),
+        VideoCmd::Liste {
+            prefixe,
+            json,
+            limit,
+            rapide,
+        } => liste(vfs, prefixe, *json, *limit, *rapide),
+        VideoCmd::Export {
+            chemin,
+            out,
+            audio,
+            brut,
+        } => export(vfs, chemin, out, *audio, *brut),
         VideoCmd::Catalogue { out, rapide } => catalogue(vfs, out.as_deref(), *rapide),
     }
 }
 
 /// Lit et démultiplexe un film. Renvoie aussi la taille brute du conteneur.
 fn charger(vfs: &Vfs, chemin: &str) -> Result<(Usm, u64)> {
-    let brut = vfs.read(chemin).with_context(|| format!("lecture VFS {chemin}"))?;
+    let brut = vfs
+        .read(chemin)
+        .with_context(|| format!("lecture VFS {chemin}"))?;
     let taille = brut.len() as u64;
     let u = usm::demuxer_nomme(&brut, usm::nom_fichier_de(chemin))
         .with_context(|| format!("démultiplexage {chemin}"))?;
@@ -184,7 +198,11 @@ fn afficher(f: &Film) {
             b.frequence,
             b.canaux,
             f64::from(b.duree_ms) / 1000.0,
-            if b.confirme_par_hash { " (confirmée par le bgmName)" } else { "" },
+            if b.confirme_par_hash {
+                " (confirmée par le bgmName)"
+            } else {
+                ""
+            },
         ),
         None if f.audio.is_empty() => {
             println!("  bande-son   aucune (ni conteneur, ni anime_stream)");
@@ -250,7 +268,10 @@ fn liste(
         .collect();
 
     if en_json {
-        println!("{}", serde_json::to_string_pretty(&serde_json::json!({ "films": fiches }))?);
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&serde_json::json!({ "films": fiches }))?
+        );
         return Ok(());
     }
 
@@ -259,8 +280,11 @@ fn liste(
         "film", "octets", "définition", "durée", "cadence", "son"
     );
     for f in &fiches {
-        let definition =
-            if f.largeur > 0 { format!("{}×{}", f.largeur, f.hauteur) } else { "-".to_string() };
+        let definition = if f.largeur > 0 {
+            format!("{}×{}", f.largeur, f.hauteur)
+        } else {
+            "-".to_string()
+        };
         println!(
             "{:<24} {:>10} {:>11} {:>7.2}s {:>8.3}  {:<5} {}",
             f.nom,
@@ -294,10 +318,16 @@ fn export(vfs: &Vfs, entree: &str, out: &Path, avec_audio: bool, brut: bool) -> 
     }
 
     if u.codec.lisible_par_navigateur() && !brut {
-        let c = u.en_conteneur_web().map_err(|e| anyhow::anyhow!("remux : {e}"))?;
+        let c = u
+            .en_conteneur_web()
+            .map_err(|e| anyhow::anyhow!("remux : {e}"))?;
         // L'extension suit le conteneur choisi par le codec, pas celle demandée : écrire un
         // WebM sous un nom `.mp4` tromperait tous les lecteurs qui se fient à l'extension.
-        let cible = cible.with_extension(if c.mime == "video/webm" { "webm" } else { "mp4" });
+        let cible = cible.with_extension(if c.mime == "video/webm" {
+            "webm"
+        } else {
+            "mp4"
+        });
         std::fs::write(&cible, &c.octets)
             .with_context(|| format!("écriture {}", cible.display()))?;
         println!(

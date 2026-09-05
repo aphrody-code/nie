@@ -10,10 +10,9 @@
 //   │  navigateur de contenu (VFS, vignettes, filtres par type d'asset)      │
 //   └───────────────────────────────────────────────────────────────────────┘
 //
-// Ce qui change par rapport à l'aperçu 3D existant : le backend ne renvoie plus une IMAGE d'un
-// modèle (`vfs_glb_preview_png_b64`, caméra figée) mais le GLB assemblé lui-même
-// (`vfs_glb_bytes_b64`) — le modèle vit dans un moteur temps réel côté frontend, avec une vraie
-// caméra orbitale, un raycast de sélection, un mode wireframe et des statistiques de scène.
+// Le backend renvoie le GLB assemblé (`vfs_glb_bytes_b64`) et le modèle vit dans le même moteur
+// temps réel que les aperçus VFS et CPK brut : caméra orbitale, raycast de sélection, wireframe
+// et statistiques de scène.
 //
 // Le panneau « Détails » est l'éditeur de propriétés déjà en place (`PropertyEditor`) : il relie
 // l'objet sélectionné à ses fichiers, ses `.cfg.bin` éditables et les fonctions/adresses de

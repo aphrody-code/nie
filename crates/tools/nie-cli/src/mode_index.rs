@@ -22,8 +22,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use anyhow::{Context, Result};
 use nie_formats::cfgbin::{self, CfgEntry, Value};
-use nie_formats::vfs::Vfs;
 use nie_formats::objbin;
+use nie_formats::vfs::Vfs;
 use nie_lua::bytecode;
 use serde_json::Value as Json;
 
@@ -228,8 +228,12 @@ const LOCALES: [&str; 3] = ["fr", "en", "ja"];
 fn charger_menu_text(vfs: &Vfs, locale: &str) -> BTreeMap<u32, String> {
     let mut out = BTreeMap::new();
     let path = format!("data/common/text/{locale}/menu_text.cfg.bin");
-    let Ok(bytes) = vfs.read(&path) else { return out };
-    let Ok(file) = cfgbin::parse_t2b(&bytes) else { return out };
+    let Ok(bytes) = vfs.read(&path) else {
+        return out;
+    };
+    let Ok(file) = cfgbin::parse_t2b(&bytes) else {
+        return out;
+    };
     walk(&file.entries, &mut |e: &CfgEntry| {
         if !e.name.starts_with("TEXT_INFO") || e.name.contains("BEGIN") || e.name.contains("END") {
             return;
@@ -306,12 +310,19 @@ pub fn collect(vfs: &Vfs, def: &ModeDef) -> ModeFacts {
         {
             cfg_paths.push(path.to_string());
         } else if path.starts_with("data/common/gamedata/menu/obj/") && path.ends_with(".objbin") {
-            if let Some(stem) = path.rsplit('/').next().and_then(|f| f.strip_suffix(".objbin")) {
+            if let Some(stem) = path
+                .rsplit('/')
+                .next()
+                .and_then(|f| f.strip_suffix(".objbin"))
+            {
                 obj_paths.insert(stem.to_string(), path.to_string());
             }
         } else if path.contains("/script/lua/")
             && path.ends_with(".lua.bin")
-            && let Some(stem) = path.rsplit('/').next().and_then(|f| f.strip_suffix(".lua.bin"))
+            && let Some(stem) = path
+                .rsplit('/')
+                .next()
+                .and_then(|f| f.strip_suffix(".lua.bin"))
         {
             // Les scripts portent parfois un suffixe de version (`_1.02.92.00`) : on teste le
             // nom complet ET sa racine, sinon `main_menu_1.02.92.00` échapperait au préfixe.
@@ -336,7 +347,9 @@ pub fn collect(vfs: &Vfs, def: &ModeDef) -> ModeFacts {
             continue;
         }
         let Ok(bytes) = vfs.read(&path) else { continue };
-        let Ok(file) = cfgbin::parse_t2b(&bytes) else { continue };
+        let Ok(file) = cfgbin::parse_t2b(&bytes) else {
+            continue;
+        };
         facts.screens.insert(stem.to_string(), path.clone());
 
         walk(&file.entries, &mut |e: &CfgEntry| {
@@ -355,10 +368,14 @@ pub fn collect(vfs: &Vfs, def: &ModeDef) -> ModeFacts {
 
     // Calques -> objbin -> assets. Un calque nomme son objbin (même stem).
     for layer in facts.layers.clone() {
-        let Some(p) = obj_paths.get(&layer) else { continue };
+        let Some(p) = obj_paths.get(&layer) else {
+            continue;
+        };
         facts.objbins.insert(p.clone());
         let Ok(bytes) = vfs.read(p) else { continue };
-        let Ok(obj) = objbin::parse(&bytes) else { continue };
+        let Ok(obj) = objbin::parse(&bytes) else {
+            continue;
+        };
         if let Some(g) = &obj.g4pkm_path {
             facts.g4pkm.insert(g.clone());
         }
@@ -382,7 +399,9 @@ pub fn collect(vfs: &Vfs, def: &ModeDef) -> ModeFacts {
                     for e in &t.entries {
                         for h in &e.hashes {
                             if *h != 0 {
-                                facts.text_slots.insert((obj.name.clone(), e.key.clone(), *h));
+                                facts
+                                    .text_slots
+                                    .insert((obj.name.clone(), e.key.clone(), *h));
                             }
                         }
                     }
@@ -403,7 +422,9 @@ pub fn collect(vfs: &Vfs, def: &ModeDef) -> ModeFacts {
 /// enrichissement en moins.
 fn charger_handlers_funclua() -> BTreeMap<u32, u64> {
     let mut out = BTreeMap::new();
-    let Ok(cwd) = std::env::current_dir() else { return out };
+    let Ok(cwd) = std::env::current_dir() else {
+        return out;
+    };
     let mut courant: &std::path::Path = &cwd;
     let chemin = loop {
         let candidat = courant.join("data/re/funclua-cmdid-handlers.json");
@@ -415,12 +436,18 @@ fn charger_handlers_funclua() -> BTreeMap<u32, u64> {
             None => return out,
         }
     };
-    let Ok(texte) = std::fs::read_to_string(&chemin) else { return out };
-    let Ok(brut) = serde_json::from_str::<BTreeMap<String, String>>(&texte) else { return out };
+    let Ok(texte) = std::fs::read_to_string(&chemin) else {
+        return out;
+    };
+    let Ok(brut) = serde_json::from_str::<BTreeMap<String, String>>(&texte) else {
+        return out;
+    };
     for (k, v) in brut {
         let (Some(id), Some(va)) = (
-            k.strip_prefix("0x").and_then(|h| u32::from_str_radix(h, 16).ok()),
-            v.strip_prefix("0x").and_then(|h| u64::from_str_radix(h, 16).ok()),
+            k.strip_prefix("0x")
+                .and_then(|h| u32::from_str_radix(h, 16).ok()),
+            v.strip_prefix("0x")
+                .and_then(|h| u64::from_str_radix(h, 16).ok()),
         ) else {
             continue;
         };
@@ -526,7 +553,9 @@ pub fn contenu_json(vfs: &Vfs, def: &ModeDef, exe: Option<&std::path::Path>) -> 
     let mut screens = Vec::new();
     for (stem, path) in &facts.screens {
         let Ok(bytes) = vfs.read(path) else { continue };
-        let Ok(file) = cfgbin::parse_t2b(&bytes) else { continue };
+        let Ok(file) = cfgbin::parse_t2b(&bytes) else {
+            continue;
+        };
         let (mut layers, mut focus) = (Vec::new(), 0usize);
         walk(&file.entries, &mut |e: &CfgEntry| {
             if e.name.contains("LIST_BEG") || e.name.contains("LIST_END") {
@@ -550,7 +579,9 @@ pub fn contenu_json(vfs: &Vfs, def: &ModeDef, exe: Option<&std::path::Path>) -> 
     let mut objbins = Vec::new();
     for path in &facts.objbins {
         let Ok(bytes) = vfs.read(path) else { continue };
-        let Ok(obj) = objbin::parse(&bytes) else { continue };
+        let Ok(obj) = objbin::parse(&bytes) else {
+            continue;
+        };
         objbins.push(serde_json::json!({
             "path": path, "octets": bytes.len(), "objet": obj,
         }));
@@ -561,8 +592,12 @@ pub fn contenu_json(vfs: &Vfs, def: &ModeDef, exe: Option<&std::path::Path>) -> 
     for path in &facts.g4tx {
         // Le chemin catalogué porte `<LG>` pour la locale ; le VFS, lui, veut un chemin réel.
         for candidat in chemins_locale(path) {
-            let Ok(bytes) = vfs.read(&candidat) else { continue };
-            let Ok(atlas) = nie_formats::g4tx::parse(&bytes) else { continue };
+            let Ok(bytes) = vfs.read(&candidat) else {
+                continue;
+            };
+            let Ok(atlas) = nie_formats::g4tx::parse(&bytes) else {
+                continue;
+            };
             let tex: Vec<Json> = atlas
                 .textures
                 .iter()
@@ -600,9 +635,10 @@ pub fn contenu_json(vfs: &Vfs, def: &ModeDef, exe: Option<&std::path::Path>) -> 
         })
         .collect();
 
-    let messages = def
-        .key_pattern
-        .map_or_else(|| serde_json::json!({}), |motif| messages_du_mode(vfs, motif, exe));
+    let messages = def.key_pattern.map_or_else(
+        || serde_json::json!({}),
+        |motif| messages_du_mode(vfs, motif, exe),
+    );
 
     Ok(serde_json::json!({
         "slug": def.slug,
@@ -621,13 +657,19 @@ pub fn contenu_json(vfs: &Vfs, def: &ModeDef, exe: Option<&std::path::Path>) -> 
 /// dossier de locale, qui est celle des atlas non localisés.
 fn chemins_locale(path: &str) -> Vec<String> {
     let prefixe = |p: &str| {
-        if p.starts_with("data/") { p.to_string() } else { format!("data/{p}") }
+        if p.starts_with("data/") {
+            p.to_string()
+        } else {
+            format!("data/{p}")
+        }
     };
     if !path.contains("<LG>") {
         return vec![prefixe(path)];
     }
-    let mut v: Vec<String> =
-        ["fr", "en", "ja"].iter().map(|l| prefixe(&path.replace("<LG>", l))).collect();
+    let mut v: Vec<String> = ["fr", "en", "ja"]
+        .iter()
+        .map(|l| prefixe(&path.replace("<LG>", l)))
+        .collect();
     v.push(prefixe(&path.replace("<LG>/", "")));
     v
 }
@@ -639,8 +681,12 @@ fn chemins_locale(path: &str) -> Vec<String> {
 /// que leur CRC-32. On lit donc les chaînes du binaire, on garde celles qui contiennent `motif`,
 /// et on les cherche dans toutes les tables de la locale.
 fn messages_du_mode(vfs: &Vfs, motif: &str, exe: Option<&std::path::Path>) -> Json {
-    let Some(exe) = exe else { return serde_json::json!({}) };
-    let Ok(bin) = std::fs::read(exe) else { return serde_json::json!({}) };
+    let Some(exe) = exe else {
+        return serde_json::json!({});
+    };
+    let Ok(bin) = std::fs::read(exe) else {
+        return serde_json::json!({});
+    };
 
     // Chaînes ASCII imprimables du binaire, filtrées sur le motif du mode.
     let mut cles: BTreeSet<String> = BTreeSet::new();
@@ -675,8 +721,12 @@ fn messages_du_mode(vfs: &Vfs, motif: &str, exe: Option<&std::path::Path>) -> Js
             .collect();
         let mut par_cle = serde_json::Map::new();
         for table in tables {
-            let Ok(bytes) = vfs.read(&table) else { continue };
-            let Ok(file) = cfgbin::parse_t2b(&bytes) else { continue };
+            let Ok(bytes) = vfs.read(&table) else {
+                continue;
+            };
+            let Ok(file) = cfgbin::parse_t2b(&bytes) else {
+                continue;
+            };
             let mut index: BTreeMap<u32, String> = BTreeMap::new();
             walk(&file.entries, &mut |e: &CfgEntry| {
                 if !e.name.starts_with("TEXT_INFO")
@@ -790,8 +840,10 @@ pub fn index(db: &nie_index::Db, vfs: &Vfs) -> Result<(usize, usize, usize, usiz
     conn.execute_batch("BEGIN")?;
 
     // Libellés officiels : le nom que le JEU affiche, dans les trois locales.
-    let textes: Vec<(&str, BTreeMap<u32, String>)> =
-        LOCALES.iter().map(|lg| (*lg, charger_menu_text(vfs, lg))).collect();
+    let textes: Vec<(&str, BTreeMap<u32, String>)> = LOCALES
+        .iter()
+        .map(|lg| (*lg, charger_menu_text(vfs, lg)))
+        .collect();
     let libelle = |lg: &str, h: Option<u32>| -> Option<String> {
         let h = h?;
         textes.iter().find(|(l, _)| *l == lg)?.1.get(&h).cloned()
@@ -819,7 +871,9 @@ pub fn index(db: &nie_index::Db, vfs: &Vfs) -> Result<(usize, usize, usize, usiz
                 libelle("ja", def.text_hash),
                 def.text_hash.map(i64::from),
                 i64::from(def.official),
-                def.icon_region.map(|_| "data/dx11/menu/100_mainmenu/mainmenu90/mainmenu90_01/mainmenu90_01.g4tx"),
+                def.icon_region.map(
+                    |_| "data/dx11/menu/100_mainmenu/mainmenu90/mainmenu90_01/mainmenu90_01.g4tx"
+                ),
                 def.icon_region,
                 f.screens.len() as i64,
                 f.layers.len() as i64,
@@ -828,7 +882,9 @@ pub fn index(db: &nie_index::Db, vfs: &Vfs) -> Result<(usize, usize, usize, usiz
             ],
         )?;
         let mode_id: i64 =
-            conn.query_row("SELECT id FROM mode WHERE slug=?1", [def.slug], |r| r.get(0))?;
+            conn.query_row("SELECT id FROM mode WHERE slug=?1", [def.slug], |r| {
+                r.get(0)
+            })?;
 
         for (stem, path) in &f.screens {
             conn.execute(
@@ -917,17 +973,20 @@ pub fn export_json(db: &nie_index::Db) -> Result<serde_json::Value> {
     for row in rows {
         let (id, slug, label, atlas, region, screens, layers, focus, note, en, ja, official) = row?;
         let mut screens_v = Vec::new();
-        let mut s = conn.prepare(
-            "SELECT screen, cfg_path FROM mode_screen WHERE mode_id=?1 ORDER BY screen",
-        )?;
-        for r in s.query_map([id], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))? {
+        let mut s = conn
+            .prepare("SELECT screen, cfg_path FROM mode_screen WHERE mode_id=?1 ORDER BY screen")?;
+        for r in s.query_map([id], |r| {
+            Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+        })? {
             let (screen, cfg) = r?;
             screens_v.push(serde_json::json!({ "screen": screen, "cfg": cfg }));
         }
         let mut assets = serde_json::Map::new();
-        let mut a = conn
-            .prepare("SELECT kind, path FROM mode_asset WHERE mode_id=?1 ORDER BY kind, path")?;
-        for r in a.query_map([id], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))? {
+        let mut a =
+            conn.prepare("SELECT kind, path FROM mode_asset WHERE mode_id=?1 ORDER BY kind, path")?;
+        for r in a.query_map([id], |r| {
+            Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+        })? {
             let (kind, path) = r?;
             assets
                 .entry(kind)

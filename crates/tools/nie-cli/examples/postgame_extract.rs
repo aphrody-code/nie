@@ -42,7 +42,9 @@ fn charger_textes(vfs: &Vfs, langue: &str) -> BTreeMap<u32, String> {
     let mut map = BTreeMap::new();
     for f in &fichiers {
         let Ok(data) = vfs.read(f) else { continue };
-        let Ok(cfg) = cfgbin::cfgbin_parse(&data) else { continue };
+        let Ok(cfg) = cfgbin::cfgbin_parse(&data) else {
+            continue;
+        };
         let json = t2b_to_json(&cfg);
         for (h, t) in parse_text_file(&json) {
             map.insert(h.0, t);
@@ -64,14 +66,22 @@ fn charger_personnages(vfs: &Vfs, textes: &BTreeMap<u32, String>) -> BTreeMap<u3
     else {
         return BTreeMap::new();
     };
-    let Ok(data) = vfs.read(&chemin) else { return BTreeMap::new() };
-    let Ok(cfg) = cfgbin::cfgbin_parse(&data) else { return BTreeMap::new() };
+    let Ok(data) = vfs.read(&chemin) else {
+        return BTreeMap::new();
+    };
+    let Ok(cfg) = cfgbin::cfgbin_parse(&data) else {
+        return BTreeMap::new();
+    };
     let json = t2b_to_json(&cfg);
 
     let mut map = BTreeMap::new();
     for b in parse_all_chara_base(&json) {
         let prenom = textes.get(&b.name_hash.0).cloned().unwrap_or_default();
-        let nom = b.last_name_hash.and_then(|h| textes.get(&h.0)).cloned().unwrap_or_default();
+        let nom = b
+            .last_name_hash
+            .and_then(|h| textes.get(&h.0))
+            .cloned()
+            .unwrap_or_default();
         // `name_hash` porte souvent déjà le nom complet (« Hohira Ayumu ») : ne préfixer par le
         // nom de famille que s'il n'y est pas déjà, sinon on obtient « Hohira Hohira Ayumu ».
         let affiche = match (nom.is_empty(), prenom.is_empty()) {
@@ -93,15 +103,17 @@ fn charger_personnages(vfs: &Vfs, textes: &BTreeMap<u32, String>) -> BTreeMap<u3
 /// `charaId` de base. On rattache la variante à son personnage de base et on annote l'élément
 /// et la position, tous deux portés par `chara_param`.
 fn etendre_variantes(vfs: &Vfs, personnages: &mut BTreeMap<u32, String>) -> usize {
-    let Some(chemin) = vfs
-        .iter()
-        .map(|(c, _)| c.to_string())
-        .find(|c| c.contains("/character/chara_param_") && c.ends_with(".cfg.bin") && !c.contains("table"))
-    else {
+    let Some(chemin) = vfs.iter().map(|(c, _)| c.to_string()).find(|c| {
+        c.contains("/character/chara_param_") && c.ends_with(".cfg.bin") && !c.contains("table")
+    }) else {
         return 0;
     };
-    let Ok(data) = vfs.read(&chemin) else { return 0 };
-    let Ok(cfg) = cfgbin::cfgbin_parse(&data) else { return 0 };
+    let Ok(data) = vfs.read(&chemin) else {
+        return 0;
+    };
+    let Ok(cfg) = cfgbin::cfgbin_parse(&data) else {
+        return 0;
+    };
     let json = t2b_to_json(&cfg);
 
     let mut n = 0;
@@ -114,7 +126,8 @@ fn etendre_variantes(vfs: &Vfs, personnages: &mut BTreeMap<u32, String>) -> usiz
             .cloned()
             .unwrap_or_else(|| format!("0x{:08X}", p.chara_base_id.0));
         let pos = nie_data::chara_param::position_id_to_code(p.main_position).unwrap_or("?");
-        let elem = nie_data::chara_param::element_id_to_names(p.element).map_or("?", |(fr, _, _)| fr);
+        let elem =
+            nie_data::chara_param::element_id_to_names(p.element).map_or("?", |(fr, _, _)| fr);
         personnages.insert(p.chara_param_id.0, format!("{base} — {pos}/{elem}"));
         n += 1;
     }
@@ -148,8 +161,11 @@ fn rendre(
             if d.story_threshold.is_none() && d.required_events.is_empty() {
                 return format!("\"{c}\"");
             }
-            let evs: Vec<String> =
-                d.required_events.iter().map(|e| format!("{}≥{}", e.crc_hex(), e.count)).collect();
+            let evs: Vec<String> = d
+                .required_events
+                .iter()
+                .map(|e| format!("{}≥{}", e.crc_hex(), e.count))
+                .collect();
             match d.story_threshold {
                 Some(s) if evs.is_empty() => format!("story≥{s}"),
                 Some(s) => format!("story≥{s} & [{}]", evs.join(" & ")),
@@ -210,7 +226,10 @@ fn main() {
         .flat_map(|l| l.rows.iter())
         .flat_map(|r| r.fields.iter())
         .find_map(|(_, v)| match v {
-            RdbnValue::Condition(c) => decode_unlock_condition(c).required_events.first().map(|e| e.crc),
+            RdbnValue::Condition(c) => decode_unlock_condition(c)
+                .required_events
+                .first()
+                .map(|e| e.crc),
             _ => None,
         });
     // Repli : un mod peut avoir neutralisé la condition d'extend_story (c'est exactement ce que
@@ -293,7 +312,9 @@ fn main() {
 
     for chemin in &fichiers {
         let Ok(data) = vfs.read(chemin) else { continue };
-        let Ok(rdbn) = cfgbin::parse(&data) else { continue };
+        let Ok(rdbn) = cfgbin::parse(&data) else {
+            continue;
+        };
         for liste in cfgbin::read_values(&rdbn, &data) {
             for (i, row) in liste.rows.iter().enumerate() {
                 let mut par_flag = false;
@@ -359,7 +380,10 @@ fn main() {
     // ── Regroupement par (fichier, liste) ─────────────────────────────────────────────────
     let mut groupes: BTreeMap<(String, String), Vec<&Ligne>> = BTreeMap::new();
     for l in &lignes {
-        groupes.entry((l.fichier.clone(), l.liste.clone())).or_default().push(l);
+        groupes
+            .entry((l.fichier.clone(), l.liste.clone()))
+            .or_default()
+            .push(l);
     }
 
     let _ = std::fs::create_dir_all(&out);
@@ -390,12 +414,23 @@ fn main() {
             ls.len()
         ));
         for l in ls.iter().take(max) {
-            let corps: Vec<String> =
-                l.champs.iter().map(|(k, v)| format!("`{k}` = {v}")).collect();
-            md.push_str(&format!("- **[{}]** _{}_ · {}\n", l.index, l.voie, corps.join(" · ")));
+            let corps: Vec<String> = l
+                .champs
+                .iter()
+                .map(|(k, v)| format!("`{k}` = {v}"))
+                .collect();
+            md.push_str(&format!(
+                "- **[{}]** _{}_ · {}\n",
+                l.index,
+                l.voie,
+                corps.join(" · ")
+            ));
         }
         if ls.len() > max {
-            md.push_str(&format!("- … {} entrée(s) de plus (voir le JSON)\n", ls.len() - max));
+            md.push_str(&format!(
+                "- … {} entrée(s) de plus (voir le JSON)\n",
+                ls.len() - max
+            ));
         }
         md.push('\n');
     }
@@ -420,7 +455,10 @@ fn main() {
 
     let p_json = format!("{out}/postgame_lignes.json");
     let p_md = format!("{out}/POSTGAME.md");
-    if let Err(e) = std::fs::write(&p_json, serde_json::to_vec_pretty(&doc).expect("sérialisation")) {
+    if let Err(e) = std::fs::write(
+        &p_json,
+        serde_json::to_vec_pretty(&doc).expect("sérialisation"),
+    ) {
         eprintln!("écriture {p_json} : {e}");
     }
     if let Err(e) = std::fs::write(&p_md, md) {

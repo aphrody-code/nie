@@ -38,7 +38,9 @@ fn main() {
     let arg = std::env::args()
         .nth(1)
         .unwrap_or_else(|| "data/dx11/chr/_face/20_EDIT/_base/base_normal_00.g4tx".to_string());
-    let dir = nie_formats::vfs::resolve_game_dir().to_string_lossy().into_owned();
+    let dir = nie_formats::vfs::resolve_game_dir()
+        .to_string_lossy()
+        .into_owned();
     let mut vfs = Vfs::new();
     vfs.init(Path::new(&dir).join("data").as_path())
         .expect("vfs init");

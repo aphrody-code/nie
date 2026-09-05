@@ -3,7 +3,7 @@
 // les ouvrant ». Même lecteur `nie_formats::cpk::CpkReader` que le VFS (`crates/engine/nie-formats/src/
 // cpk.rs`), juste sans passer par l'indirection `cpk_list.cfg.bin`/`Vfs` : un mod téléchargé, un
 // DLC séparé ou une copie de sauvegarde d'un pack peuvent être ouverts directement.
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
 import { api, type RawCpkEntry } from "@/lib/api";
@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Icon } from "@/components/ui/Icon";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ModelPreview } from "@/components/ModelPreview";
 
 /** Extension en minuscule d'une entrée CPK — pilote l'affichage conditionnel des boutons audio/vidéo. */
 function entryExt(entry: RawCpkEntry): string {
@@ -44,8 +45,6 @@ export function RawCpkView() {
   const [audioLoading, setAudioLoading] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [videoLoading, setVideoLoading] = useState(false);
-  const [glbPngUrl, setGlbPngUrl] = useState<string | null>(null);
-  const [glbLoading, setGlbLoading] = useState(false);
 
   async function openCpk() {
     // Ouvre directement dans `<jeu>/data/packs` — c'est là que vivent RÉELLEMENT les `.cpk` du
@@ -79,7 +78,6 @@ export function RawCpkView() {
     setRawBytes(null);
     setAudioUrl(null);
     setVideoUrl(null);
-    setGlbPngUrl(null);
     try {
       setLines(await api.rawCpkDescribe(entry.index));
     } catch (e) {
@@ -113,18 +111,10 @@ export function RawCpkView() {
     }
   }
 
-  async function loadGlb() {
-    if (!selected) return;
-    setGlbLoading(true);
-    try {
-      const b64 = await api.rawCpkGlbPreviewPngB64(selected.index);
-      setGlbPngUrl(`data:image/png;base64,${b64}`);
-    } catch (e) {
-      toast.error(String(e));
-    } finally {
-      setGlbLoading(false);
-    }
-  }
+  const loadSelectedGlb = useCallback(
+    () => selected ? api.rawCpkGlbBytesB64(selected.index) : Promise.reject(new Error("aucune entrée sélectionnée")),
+    [selected],
+  );
 
   async function loadRaw() {
     if (!selected) return;
@@ -275,11 +265,6 @@ export function RawCpkView() {
                   {videoLoading ? "Remuxage ffmpeg…" : "▶️ Aperçu vidéo"}
                 </Button>
               )}
-              {entryExt(selected) === "g4md" && !glbPngUrl && (
-                <Button size="sm" variant="outline" onClick={loadGlb} disabled={glbLoading}>
-                  {glbLoading ? "Assemblage + rendu…" : "🔄 Aperçu 3D"}
-                </Button>
-              )}
             </div>
             {audioUrl && (
               // eslint-disable-next-line jsx-a11y/media-has-caption
@@ -289,12 +274,8 @@ export function RawCpkView() {
               // eslint-disable-next-line jsx-a11y/media-has-caption
               <video src={videoUrl} controls className="max-h-72 w-full rounded-xl border border-app-line bg-black" />
             )}
-            {glbPngUrl && (
-              <img
-                src={glbPngUrl}
-                alt={`Aperçu 3D de ${selected.path}`}
-                className="max-h-72 w-full rounded-lg border border-app-line bg-app-box object-contain"
-              />
+            {entryExt(selected) === "g4md" && (
+              <ModelPreview key={selected.index} path={selected.path} loadGlb={loadSelectedGlb} />
             )}
             <ScrollArea className="min-h-0 flex-1 rounded-lg border border-app-line bg-app-dark-box">
               <pre className="whitespace-pre-wrap p-3 font-mono text-xs leading-relaxed text-on-surface">

@@ -83,7 +83,9 @@ fn charger_textes(vfs: &Vfs, langue: &str) -> BTreeMap<u32, String> {
     let mut map = BTreeMap::new();
     for f in &fichiers {
         let Ok(data) = vfs.read(f) else { continue };
-        let Ok(cfg) = cfgbin::cfgbin_parse(&data) else { continue };
+        let Ok(cfg) = cfgbin::cfgbin_parse(&data) else {
+            continue;
+        };
         for (h, t) in parse_text_file(&t2b_to_json(&cfg)) {
             map.insert(h.0, t);
         }
@@ -99,8 +101,12 @@ fn listes(vfs: &Vfs, motif: &str) -> Vec<RdbnList> {
     else {
         return Vec::new();
     };
-    let Ok(data) = vfs.read(&chemin) else { return Vec::new() };
-    let Ok(rdbn) = cfgbin::parse(&data) else { return Vec::new() };
+    let Ok(data) = vfs.read(&chemin) else {
+        return Vec::new();
+    };
+    let Ok(rdbn) = cfgbin::parse(&data) else {
+        return Vec::new();
+    };
     cfgbin::read_values(&rdbn, &data)
 }
 
@@ -160,7 +166,9 @@ fn main() {
         if let Some(reste) = chemin.strip_prefix("data/common/map/") {
             // `<famille>/<nom>/...` — la famille est une lettre ou deux (`w`, `k`, `gi`, `ar`).
             let mut it = reste.split('/');
-            let (Some(famille), Some(nom)) = (it.next(), it.next()) else { continue };
+            let (Some(famille), Some(nom)) = (it.next(), it.next()) else {
+                continue;
+            };
             if it.next().is_none() {
                 continue; // pas un fichier dans un dossier de map
             }
@@ -186,7 +194,10 @@ fn main() {
             m.fichiers = *n;
         }
     }
-    println!("maps     {} recensées dans le VFS (assets + gamedata)", maps.len());
+    println!(
+        "maps     {} recensées dans le VFS (assets + gamedata)",
+        maps.len()
+    );
 
     // ── Les warps ─────────────────────────────────────────────────────────────────────────
     struct Warp {
@@ -216,7 +227,10 @@ fn main() {
                 }
             };
             let nom_id = hash(row, "warp_spot_name_id");
-            let nom = textes.get(&nom_id).cloned().unwrap_or_else(|| format!("0x{nom_id:08X}"));
+            let nom = textes
+                .get(&nom_id)
+                .cloned()
+                .unwrap_or_else(|| format!("0x{nom_id:08X}"));
             let e = maps.entry(map_id).or_default();
             e.warps += 1;
             if !verrouille {
@@ -225,7 +239,13 @@ fn main() {
             if !e.lieux.contains(&nom) {
                 e.lieux.push(nom.clone());
             }
-            warps.push(Warp { map_id, nom, ouverture, verrouille, warp_type: octet(row, "warp_type") });
+            warps.push(Warp {
+                map_id,
+                nom,
+                ouverture,
+                verrouille,
+                warp_type: octet(row, "warp_type"),
+            });
         }
     }
 
@@ -235,7 +255,10 @@ fn main() {
         for row in &l.rows {
             let map_id = hash(row, "mapId");
             let t = hash(row, "mapTextId");
-            let nom = textes.get(&t).cloned().unwrap_or_else(|| format!("0x{t:08X}"));
+            let nom = textes
+                .get(&t)
+                .cloned()
+                .unwrap_or_else(|| format!("0x{t:08X}"));
             maps.entry(map_id).or_default().fast_travel += 1;
             fast.push((map_id, nom));
         }
@@ -246,7 +269,10 @@ fn main() {
         for row in &l.rows {
             let map_id = hash(row, "map_id");
             let t = hash(row, "area_text_id");
-            let nom = textes.get(&t).cloned().unwrap_or_else(|| format!("0x{t:08X}"));
+            let nom = textes
+                .get(&t)
+                .cloned()
+                .unwrap_or_else(|| format!("0x{t:08X}"));
             let e = maps.entry(map_id).or_default();
             if !e.zones.contains(&nom) {
                 e.zones.push(nom);
@@ -272,10 +298,17 @@ fn main() {
     }
 
     println!("\n── Maps ATTEIGNABLES ──");
-    let mut atteignables: Vec<&Map> = maps.values().filter(|m| m.acces() == "atteignable").collect();
+    let mut atteignables: Vec<&Map> = maps
+        .values()
+        .filter(|m| m.acces() == "atteignable")
+        .collect();
     atteignables.sort_by(|a, b| b.warps.cmp(&a.warps).then(a.nom.cmp(&b.nom)));
     for m in &atteignables {
-        let nom = if m.nom.is_empty() { "«non recensée»" } else { m.nom.as_str() };
+        let nom = if m.nom.is_empty() {
+            "«non recensée»"
+        } else {
+            m.nom.as_str()
+        };
         println!(
             "  {nom:<12} {} warp(s) dont {} libre(s), {} rapide  {}",
             m.warps,
@@ -286,14 +319,19 @@ fn main() {
     }
 
     println!("\n── Maps HORS CARTE (assets présents, aucun accès) ──");
-    let mut hors: Vec<&Map> = maps.values().filter(|m| m.acces() == "hors_carte").collect();
+    let mut hors: Vec<&Map> = maps
+        .values()
+        .filter(|m| m.acces() == "hors_carte")
+        .collect();
     hors.sort_by(|a, b| b.fichiers.cmp(&a.fichiers).then(a.nom.cmp(&b.nom)));
     for m in hors.iter().take(60) {
         println!(
             "  {:<14} {:>5} fichier(s)  {}{}",
             m.nom,
             m.fichiers,
-            m.assets.clone().unwrap_or_else(|| String::from("(données seules)")),
+            m.assets
+                .clone()
+                .unwrap_or_else(|| String::from("(données seules)")),
             if m.gamedata { "  +gamedata" } else { "" }
         );
     }
@@ -341,7 +379,10 @@ fn main() {
     if let Some(p) = std::path::Path::new(&sortie).parent() {
         let _ = std::fs::create_dir_all(p);
     }
-    match std::fs::write(&sortie, serde_json::to_vec_pretty(&doc).expect("sérialisation")) {
+    match std::fs::write(
+        &sortie,
+        serde_json::to_vec_pretty(&doc).expect("sérialisation"),
+    ) {
         Ok(()) => println!("\nJSON     {sortie}"),
         Err(e) => eprintln!("\nécriture impossible ({sortie}) : {e}"),
     }

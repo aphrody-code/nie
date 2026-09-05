@@ -34,7 +34,7 @@ use std::collections::BTreeMap;
 use nie_data::text::parse_text_file;
 use nie_explore::bridge::t2b_to_json;
 use nie_formats::cfgbin::{self, RdbnValue};
-use nie_formats::rdbn_patch::{localiser, patch_verifie, Modif, Val};
+use nie_formats::rdbn_patch::{Modif, Val, localiser, patch_verifie};
 use nie_formats::vfs::{self, Vfs};
 use sha2::{Digest, Sha256};
 
@@ -65,7 +65,9 @@ fn charger_textes(vfs: &Vfs, langue: &str) -> BTreeMap<u32, String> {
     fichiers.dedup();
     for f in &fichiers {
         let Ok(data) = vfs.read(f) else { continue };
-        let Ok(cfg) = cfgbin::cfgbin_parse(&data) else { continue };
+        let Ok(cfg) = cfgbin::cfgbin_parse(&data) else {
+            continue;
+        };
         for (h, t) in parse_text_file(&t2b_to_json(&cfg)) {
             map.insert(h.0, t);
         }
@@ -79,7 +81,10 @@ fn texte_contenant<'a>(
     motif: &str,
 ) -> Option<(u32, &'a String)> {
     let m = motif.to_lowercase();
-    textes.iter().find(|(_, t)| t.to_lowercase().contains(&m)).map(|(h, t)| (*h, t))
+    textes
+        .iter()
+        .find(|(_, t)| t.to_lowercase().contains(&m))
+        .map(|(h, t)| (*h, t))
 }
 
 /// Trouve l'index de ligne dont un champ `Hash` vaut `cible`.
@@ -96,7 +101,9 @@ fn ligne_par_hash(data: &[u8], liste: &str, champ: &str, cible: u32) -> Option<u
 
 /// Lit la valeur courante d'un champ, pour l'affichage « avant → après ».
 fn valeur_actuelle(data: &[u8], liste: &str, ligne: usize, champ: &str) -> String {
-    let Ok(rdbn) = cfgbin::parse(data) else { return String::from("?") };
+    let Ok(rdbn) = cfgbin::parse(data) else {
+        return String::from("?");
+    };
     cfgbin::read_values(&rdbn, data)
         .iter()
         .find(|l| l.name == liste)
@@ -114,11 +121,20 @@ fn traiter(
     a_blanc: bool,
 ) -> Result<(), String> {
     let chemin_mod = format!("{dir}/{chemin_vfs}");
-    let vanilla = vfs.read(chemin_vfs).map_err(|e| format!("vanilla illisible : {e}"))?;
+    let vanilla = vfs
+        .read(chemin_vfs)
+        .map_err(|e| format!("vanilla illisible : {e}"))?;
     let mut data = std::fs::read(&chemin_mod).map_err(|e| format!("{chemin_mod} : {e}"))?;
 
-    println!("\n╔═ {}", chemin_vfs.trim_start_matches("data/common/gamedata/"));
-    println!("║ vanilla  {} o  sha256 {}", vanilla.len(), &sha256(&vanilla)[..16]);
+    println!(
+        "\n╔═ {}",
+        chemin_vfs.trim_start_matches("data/common/gamedata/")
+    );
+    println!(
+        "║ vanilla  {} o  sha256 {}",
+        vanilla.len(),
+        &sha256(&vanilla)[..16]
+    );
 
     // Localiser d'abord : un offset invalide doit échouer avant d'écrire quoi que ce soit.
     let rdbn = cfgbin::parse(&data).map_err(|e| format!("RDBN illisible : {e}"))?;
@@ -139,10 +155,15 @@ fn traiter(
         .filter(|(_, (a, b))| a != b)
         .map(|(i, _)| i)
         .collect();
-    let attendus: Vec<usize> =
-        cibles.iter().flat_map(|(_, loc, _)| loc.offset..loc.offset + loc.size).collect();
-    let hors_cible: Vec<usize> =
-        diffs.iter().copied().filter(|o| !attendus.contains(o)).collect();
+    let attendus: Vec<usize> = cibles
+        .iter()
+        .flat_map(|(_, loc, _)| loc.offset..loc.offset + loc.size)
+        .collect();
+    let hors_cible: Vec<usize> = diffs
+        .iter()
+        .copied()
+        .filter(|o| !attendus.contains(o))
+        .collect();
 
     println!(
         "║ patché   {} o  sha256 {}",
@@ -151,7 +172,11 @@ fn traiter(
     );
     println!(
         "║ taille   {}  ({} → {})",
-        if verif.taille_preservee() { "PRÉSERVÉE" } else { "MODIFIÉE — anormal" },
+        if verif.taille_preservee() {
+            "PRÉSERVÉE"
+        } else {
+            "MODIFIÉE — anormal"
+        },
         verif.taille_avant,
         verif.taille_apres
     );
@@ -169,7 +194,10 @@ fn traiter(
     }
 
     if !hors_cible.is_empty() {
-        return Err(format!("{} octet(s) modifiés hors des champs visés", hors_cible.len()));
+        return Err(format!(
+            "{} octet(s) modifiés hors des champs visés",
+            hors_cible.len()
+        ));
     }
 
     if a_blanc {
@@ -201,10 +229,30 @@ fn main() {
     // ── 1. Cap de niveau ──────────────────────────────────────────────────────────────────
     let f_level = "data/common/gamedata/system/level_limit_config_0.00.00.00.cfg.bin";
     let modifs_level = vec![
-        Modif { liste: "m_LevelLimitInfoList".into(), ligne: 0, champ: "level".into(), valeur: Val::I32(99) },
-        Modif { liste: "m_LevelLimitInfoList".into(), ligne: 1, champ: "level".into(), valeur: Val::I32(99) },
-        Modif { liste: "m_RareLimitInfoList".into(), ligne: 0, champ: "rarity".into(), valeur: Val::I32(7) },
-        Modif { liste: "m_RareLimitInfoList".into(), ligne: 1, champ: "rarity".into(), valeur: Val::I32(7) },
+        Modif {
+            liste: "m_LevelLimitInfoList".into(),
+            ligne: 0,
+            champ: "level".into(),
+            valeur: Val::I32(99),
+        },
+        Modif {
+            liste: "m_LevelLimitInfoList".into(),
+            ligne: 1,
+            champ: "level".into(),
+            valeur: Val::I32(99),
+        },
+        Modif {
+            liste: "m_RareLimitInfoList".into(),
+            ligne: 0,
+            champ: "rarity".into(),
+            valeur: Val::I32(7),
+        },
+        Modif {
+            liste: "m_RareLimitInfoList".into(),
+            ligne: 1,
+            champ: "rarity".into(),
+            valeur: Val::I32(7),
+        },
     ];
 
     // ── 2. extend_story ───────────────────────────────────────────────────────────────────
@@ -224,9 +272,19 @@ fn main() {
     let f_story = "data/common/gamedata/extend_story/extend_story_data_config_0.00.02.00.cfg.bin";
     let mut modifs_story = vec![
         // Le type d'histoire étendue : 1 → 2 (l'autre valeur portée par le champ dans le jeu).
-        Modif { liste: "m_exStoryDataConfigList".into(), ligne: 0, champ: "extendStoryType".into(), valeur: Val::U8(2) },
+        Modif {
+            liste: "m_exStoryDataConfigList".into(),
+            ligne: 0,
+            champ: "extendStoryType".into(),
+            valeur: Val::U8(2),
+        },
         // Condition de validité neutralisée : plus besoin d'avoir fini l'histoire.
-        Modif { liste: "m_exStoryDataConfigList".into(), ligne: 0, champ: "validCond".into(), valeur: Val::StrOffset(AUCUNE_CONDITION) },
+        Modif {
+            liste: "m_exStoryDataConfigList".into(),
+            ligne: 0,
+            champ: "validCond".into(),
+            valeur: Val::StrOffset(AUCUNE_CONDITION),
+        },
     ];
     if let Some((h, _)) = titre {
         modifs_story.push(Modif {
@@ -248,21 +306,49 @@ fn main() {
     // ── 3. Archon Aphrodite Teita Tanji ───────────────────────────────────────────────────
     let f_pu = "data/common/gamedata/players_universe/players_universe_config_1.03.59.00.cfg.bin";
     let vanilla_pu = vfs.read(f_pu).expect("players_universe lisible");
-    let Some(ligne) =
-        ligne_par_hash(&vanilla_pu, "m_starSignCharaInfoList", "charaParamId", APHRODITE_PARAM_ID)
-    else {
+    let Some(ligne) = ligne_par_hash(
+        &vanilla_pu,
+        "m_starSignCharaInfoList",
+        "charaParamId",
+        APHRODITE_PARAM_ID,
+    ) else {
         eprintln!("charaParamId 0x{APHRODITE_PARAM_ID:08X} introuvable dans players_universe");
         std::process::exit(1);
     };
     println!("aphrodite ligne {ligne} de m_starSignCharaInfoList");
 
     let mut modifs_pu = vec![
-        Modif { liste: "m_starSignCharaInfoList".into(), ligne, champ: "enableCond".into(), valeur: Val::StrOffset(AUCUNE_CONDITION) },
-        Modif { liste: "m_starSignCharaInfoList".into(), ligne, champ: "charaRarity".into(), valeur: Val::U8(7) },
-        Modif { liste: "m_starSignCharaInfoList".into(), ligne, champ: "charaRateDefault".into(), valeur: Val::I32(1000) },
-        Modif { liste: "m_starSignCharaInfoList".into(), ligne, champ: "isRemarkable".into(), valeur: Val::Bool(true) },
+        Modif {
+            liste: "m_starSignCharaInfoList".into(),
+            ligne,
+            champ: "enableCond".into(),
+            valeur: Val::StrOffset(AUCUNE_CONDITION),
+        },
+        Modif {
+            liste: "m_starSignCharaInfoList".into(),
+            ligne,
+            champ: "charaRarity".into(),
+            valeur: Val::U8(7),
+        },
+        Modif {
+            liste: "m_starSignCharaInfoList".into(),
+            ligne,
+            champ: "charaRateDefault".into(),
+            valeur: Val::I32(1000),
+        },
+        Modif {
+            liste: "m_starSignCharaInfoList".into(),
+            ligne,
+            champ: "isRemarkable".into(),
+            valeur: Val::Bool(true),
+        },
     ];
-    for boost in ["charaRateBoostA", "charaRateBoostB", "charaRateBoostC", "charaRateBoostD"] {
+    for boost in [
+        "charaRateBoostA",
+        "charaRateBoostB",
+        "charaRateBoostC",
+        "charaRateBoostD",
+    ] {
         modifs_pu.push(Modif {
             liste: "m_starSignCharaInfoList".into(),
             ligne,
@@ -272,19 +358,18 @@ fn main() {
     }
 
     let mut echecs = 0;
-    for (chemin, modifs) in
-        [(f_level, &modifs_level), (f_story, &modifs_story), (f_pu, &modifs_pu)]
-    {
+    for (chemin, modifs) in [
+        (f_level, &modifs_level),
+        (f_story, &modifs_story),
+        (f_pu, &modifs_pu),
+    ] {
         if let Err(e) = traiter(&vfs, &dir, chemin, modifs, a_blanc) {
             eprintln!("║ ÉCHEC {chemin} : {e}");
             echecs += 1;
         }
     }
 
-    println!(
-        "\n{} fichier(s) patché(s), {echecs} échec(s)",
-        3 - echecs
-    );
+    println!("\n{} fichier(s) patché(s), {echecs} échec(s)", 3 - echecs);
     if echecs > 0 {
         std::process::exit(1);
     }

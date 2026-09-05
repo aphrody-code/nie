@@ -1,11 +1,8 @@
 // Viewport 3D TEMPS RÉEL — le cœur du mode éditeur.
 //
-// Jusqu'ici, « aperçu 3D » voulait dire une image rastérisée côté Rust (`vfs_glb_preview_png_b64`)
-// ou une vidéo turntable pré-rendue de 36 images (`..._turntable_mp4_b64`) : la caméra était
-// décidée par le backend, et « interactif » se réduisait à faire défiler des images déjà
-// calculées. Ici le GLB assemblé (géométrie + textures embarquées, `vfs_glb_bytes_b64`) est chargé
-// dans un VRAI moteur temps réel WebGL — caméra libre, éclairage, sélection de maillage,
-// wireframe : le viewport d'un éditeur, pas une planche-contact.
+// Les aperçus VFS et CPK brut convergent ici : le GLB assemblé (géométrie + textures embarquées)
+// est chargé dans un VRAI moteur temps réel WebGL — caméra libre, éclairage, sélection de
+// maillage, wireframe : le viewport d'un éditeur, pas une planche-contact.
 //
 // three.js est importé depuis le paquet npm (bundlé par Vite) — aucun CDN, l'app reste
 // intégralement hors ligne comme le reste de niers (même contrainte que `monacoSetup.ts`).

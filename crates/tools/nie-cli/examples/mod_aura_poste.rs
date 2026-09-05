@@ -28,7 +28,7 @@ use nie_data::chara_param::{parse_all_chara_params, position_id_to_code};
 use nie_data::text::parse_text_file;
 use nie_explore::bridge::t2b_to_json;
 use nie_formats::cfgbin::{self, Value};
-use nie_formats::t2b_patch::{localiser_tout, patch_verifie, ModifT2b, ValT2b, VarType};
+use nie_formats::t2b_patch::{ModifT2b, ValT2b, VarType, localiser_tout, patch_verifie};
 use nie_formats::vfs::{self, Vfs};
 use sha2::{Digest, Sha256};
 
@@ -53,7 +53,9 @@ fn charger_textes(vfs: &Vfs, langue: &str) -> BTreeMap<u32, String> {
     let mut map = BTreeMap::new();
     for f in &fichiers {
         let Ok(data) = vfs.read(f) else { continue };
-        let Ok(cfg) = cfgbin::cfgbin_parse(&data) else { continue };
+        let Ok(cfg) = cfgbin::cfgbin_parse(&data) else {
+            continue;
+        };
         for (h, t) in parse_text_file(&t2b_to_json(&cfg)) {
             map.insert(h.0, t);
         }
@@ -69,7 +71,12 @@ fn main() {
     let mut equipe = String::from("Solaria-Zeus");
     let a_blanc = args.iter().any(|a| a == "--a-blanc");
     args.retain(|a| a != "--a-blanc");
-    for (drapeau, cible) in [("--dir", 0), ("--postes", 1), ("--aura", 2), ("--equipe", 3)] {
+    for (drapeau, cible) in [
+        ("--dir", 0),
+        ("--postes", 1),
+        ("--aura", 2),
+        ("--equipe", 3),
+    ] {
         if let Some(i) = args.iter().position(|a| a == drapeau) {
             let v = args.get(i + 1).cloned().unwrap_or_default();
             match cible {
@@ -136,14 +143,21 @@ fn main() {
                 let listes = cfgbin::read_values(&rdbn, &d);
                 listes.iter().flat_map(|l| l.rows.iter()).find_map(|row| {
                     let champ = |n: &str| {
-                        row.fields.iter().find(|(k, _)| k == n).map(|(_, v)| v).cloned()
+                        row.fields
+                            .iter()
+                            .find(|(k, _)| k == n)
+                            .map(|(_, v)| v)
+                            .cloned()
                     };
                     let (Some(cfgbin::RdbnValue::Hash(id)), Some(cfgbin::RdbnValue::Hash(t))) =
                         (champ("belongTeamId"), champ("teamNameTextId"))
                     else {
                         return None;
                     };
-                    textes.get(&t).filter(|n| n.eq_ignore_ascii_case(&equipe)).map(|_| id)
+                    textes
+                        .get(&t)
+                        .filter(|n| n.eq_ignore_ascii_case(&equipe))
+                        .map(|_| id)
                 })
             });
         match trouve {
@@ -157,19 +171,22 @@ fn main() {
             }
         }
     };
-    let membres: Vec<&nie_data::chara_base::CharaBase> =
-        bases.iter().filter(|b| b.belong_team_id.is_some_and(|t| t.0 == team_id)).collect();
-    println!("équipe   « {equipe} » (0x{team_id:08X}) — {} membre(s)", membres.len());
+    let membres: Vec<&nie_data::chara_base::CharaBase> = bases
+        .iter()
+        .filter(|b| b.belong_team_id.is_some_and(|t| t.0 == team_id))
+        .collect();
+    println!(
+        "équipe   « {equipe} » (0x{team_id:08X}) — {} membre(s)",
+        membres.len()
+    );
     if membres.is_empty() {
         eprintln!("aucun membre pour cet identifiant d'équipe");
         std::process::exit(1);
     }
 
-    let Some(f_param) = vfs
-        .iter()
-        .map(|(c, _)| c.to_string())
-        .find(|c| c.contains("/character/chara_param_") && c.ends_with(".cfg.bin") && !c.contains("table"))
-    else {
+    let Some(f_param) = vfs.iter().map(|(c, _)| c.to_string()).find(|c| {
+        c.contains("/character/chara_param_") && c.ends_with(".cfg.bin") && !c.contains("table")
+    }) else {
         eprintln!("chara_param introuvable");
         std::process::exit(1);
     };
@@ -253,7 +270,9 @@ fn main() {
             println!("  ⚠ {code} : aucun emplacement de compétence libre (fiche pleine)");
             continue;
         };
-        let Some(var) = e.variables.get(idx + 1) else { continue };
+        let Some(var) = e.variables.get(idx + 1) else {
+            continue;
+        };
         journal.push(format!(
             "  {code:11} {poste:2}  entrée {} paire {idx}/{} @0x{:06X}  libre → niveau 1, 0x{aura:08X}",
             e.index,
@@ -261,7 +280,11 @@ fn main() {
             var.offset
         ));
         // Niveau d'apprentissage 1 : l'aura est acquise d'emblée.
-        modifs.push(ModifT2b { entree: e.index, variable: idx, valeur: ValT2b::Entier(1) });
+        modifs.push(ModifT2b {
+            entree: e.index,
+            variable: idx,
+            valeur: ValT2b::Entier(1),
+        });
         modifs.push(ModifT2b {
             entree: e.index,
             variable: idx + 1,
@@ -284,8 +307,15 @@ fn main() {
         }
     };
 
-    println!("\n╔═ {}", f_param.trim_start_matches("data/common/gamedata/"));
-    println!("║ vanilla  {} o  sha256 {}", data_param.len(), &sha256(&data_param)[..16]);
+    println!(
+        "\n╔═ {}",
+        f_param.trim_start_matches("data/common/gamedata/")
+    );
+    println!(
+        "║ vanilla  {} o  sha256 {}",
+        data_param.len(),
+        &sha256(&data_param)[..16]
+    );
     for l in &journal {
         println!("║{l}");
     }
@@ -303,7 +333,11 @@ fn main() {
         "║ patché   {} o  sha256 {}\n║ taille   {}\n║ octets   {diffs} différents du vanilla pour {} champ(s)",
         data.len(),
         &sha256(&data)[..16],
-        if verif.taille_preservee() { "PRÉSERVÉE" } else { "MODIFIÉE — anormal" },
+        if verif.taille_preservee() {
+            "PRÉSERVÉE"
+        } else {
+            "MODIFIÉE — anormal"
+        },
         modifs.len()
     );
     if diffs > modifs.len() * 4 {

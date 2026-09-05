@@ -35,6 +35,7 @@ tokio = { workspace = true }
 nie-lua.workspace = true
 nie-save.workspace = true
 nie-wiki.workspace = true
+nie-render3d = { workspace = true, features = ["gpu"] }
 clap.workspace = true
 anyhow.workspace = true
 tracing.workspace = true
@@ -61,6 +62,7 @@ image = { version = "0.25", default-features = false, features = [
     "bmp",
     "tiff",
 ] }
+png = "0.18"
 
 # `niers find` / `niers grep` : recherche de fichiers et de contenu sur le disque.
 ignore.workspace = true

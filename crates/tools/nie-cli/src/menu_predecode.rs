@@ -56,8 +56,8 @@ pub fn run(
     all_menu: bool,
 ) -> anyhow::Result<PredecodeStats> {
     // --- Connexion Redis ---
-    let client = redis::Client::open(redis_url)
-        .with_context(|| format!("connexion Redis {redis_url}"))?;
+    let client =
+        redis::Client::open(redis_url).with_context(|| format!("connexion Redis {redis_url}"))?;
     let mut conn = client.get_connection().context("get_connection Redis")?;
 
     // --- Collecte des chemins à traiter ---
@@ -131,7 +131,10 @@ pub fn run(
     for p in &paths {
         let redis_key = format!("data/{p}");
         if let Some(cpk_name) = cpk_map.get(&redis_key).and_then(|v| v.as_deref()) {
-            by_cpk.entry(cpk_name.to_string()).or_default().push(p.clone());
+            by_cpk
+                .entry(cpk_name.to_string())
+                .or_default()
+                .push(p.clone());
         } else {
             eprintln!("warn: pas de CPK pour {p}");
             failed.fetch_add(1, Ordering::Relaxed);
@@ -181,10 +184,8 @@ pub fn run(
 
             for sprite_path in &sprite_paths {
                 // sprite_path = "dx11/menu/..."
-                let png_out = dump_root.join(format!(
-                    "{}.png",
-                    sprite_path.trim_end_matches(".g4tx")
-                ));
+                let png_out =
+                    dump_root.join(format!("{}.png", sprite_path.trim_end_matches(".g4tx")));
 
                 // Idempotent : skip si le PNG existe et est non-vide.
                 if png_out.exists() {
@@ -254,8 +255,8 @@ pub fn run(
 /// Seule la première texture principale (mip 0) est exportée.
 fn g4tx_to_png(data: &[u8], debug_path: &str) -> anyhow::Result<Vec<u8>> {
     // Parse le conteneur G4TX pour trouver le payload DDS.
-    let g4tx = nie_formats::g4tx::parse(data)
-        .with_context(|| format!("parse G4TX {debug_path}"))?;
+    let g4tx =
+        nie_formats::g4tx::parse(data).with_context(|| format!("parse G4TX {debug_path}"))?;
 
     let tex = g4tx
         .textures
@@ -274,11 +275,10 @@ fn g4tx_to_png(data: &[u8], debug_path: &str) -> anyhow::Result<Vec<u8>> {
         })?;
 
     // Décode le DDS en RgbaImage via image_dds.
-    let dds = Dds::read(Cursor::new(payload))
-        .with_context(|| format!("parse DDS {debug_path}"))?;
+    let dds = Dds::read(Cursor::new(payload)).with_context(|| format!("parse DDS {debug_path}"))?;
 
-    let rgba_image = image_dds::image_from_dds(&dds, 0)
-        .with_context(|| format!("decode DDS {debug_path}"))?;
+    let rgba_image =
+        image_dds::image_from_dds(&dds, 0).with_context(|| format!("decode DDS {debug_path}"))?;
 
     // Encode en PNG lossless.
     let mut png_bytes: Vec<u8> = Vec::new();
@@ -295,9 +295,8 @@ fn g4tx_to_png(data: &[u8], debug_path: &str) -> anyhow::Result<Vec<u8>> {
 
 fn write_png(out: &Path, bytes: &[u8]) -> anyhow::Result<()> {
     if let Some(parent) = out.parent() {
-        std::fs::create_dir_all(parent).with_context(|| {
-            format!("création dossiers {}", parent.display())
-        })?;
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("création dossiers {}", parent.display()))?;
     }
     std::fs::write(out, bytes).with_context(|| format!("écriture {}", out.display()))?;
     Ok(())
@@ -316,7 +315,11 @@ fn should_include(rel_path: &str, target_langs: &[&str]) -> bool {
         return false;
     }
     // La langue est l'avant-dernier segment (avant le nom de fichier).
-    let lang_candidate = if parts.len() >= 2 { parts[parts.len() - 2] } else { "" };
+    let lang_candidate = if parts.len() >= 2 {
+        parts[parts.len() - 2]
+    } else {
+        ""
+    };
 
     // Inclure si c'est une langue cible.
     if target_langs.contains(&lang_candidate) {
@@ -338,9 +341,7 @@ fn should_include(rel_path: &str, target_langs: &[&str]) -> bool {
 }
 
 /// Parse le résultat HSCAN Redis en (next_cursor, Vec<(field, value)>).
-fn parse_hscan_result(
-    val: redis::Value,
-) -> anyhow::Result<(u64, Vec<(String, String)>)> {
+fn parse_hscan_result(val: redis::Value) -> anyhow::Result<(u64, Vec<(String, String)>)> {
     use redis::Value;
     if let Value::Array(outer) = val {
         if outer.len() != 2 {
@@ -350,9 +351,7 @@ fn parse_hscan_result(
         let items_val = &outer[1];
 
         let cursor: u64 = match cursor_val {
-            Value::BulkString(b) => {
-                String::from_utf8_lossy(b).parse().unwrap_or(0)
-            }
+            Value::BulkString(b) => String::from_utf8_lossy(b).parse().unwrap_or(0),
             Value::Int(n) => *n as u64,
             _ => 0,
         };

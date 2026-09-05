@@ -45,7 +45,7 @@
 #![forbid(unsafe_code)]
 #![allow(clippy::pedantic)]
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, VecDeque};
 use std::fs;
 use std::io::{BufRead, BufReader, Write as IoWrite};
 use std::net::{TcpListener, TcpStream};
@@ -119,6 +119,14 @@ struct Cli {
     /// Répertoire de cache GLB assemblés.
     #[arg(long)]
     cache_dir: Option<PathBuf>,
+
+    /// Budget du cache mémoire des GLB, en Mio (0 = désactivé).
+    ///
+    /// Le cache disque reste l'autorité durable ; celui-ci évite seulement de relire et recopier
+    /// les mêmes modèles pendant une session de l'éditeur ou une rafale de prévisualisations.
+    /// Il est strictement borné pour respecter `MemoryMax` du service.
+    #[arg(long, default_value_t = 128)]
+    memory_cache_mib: usize,
 
     /// Répertoire des layouts de menu (`<screen>.json`) pour le rendu serveur `/menu-render/`.
     /// Vit dans le dépôt azalee : aucun défaut ne peut être juste, la route est inactive sans lui.
@@ -218,6 +226,59 @@ struct UniformMapEntry {
 /// enregistrée dans `VERSION` diffère, et chaque rapport la cite avec le SHA-256 du GLB servi.
 const ASSEMBLER_VERSION: &str = "2026-09-05.presentation-6";
 
+/// Cache LRU borné de GLB servis fréquemment.
+///
+/// Les valeurs sont partagées (`Arc<[u8]>`) : une même réponse peut être écrite vers plusieurs
+/// sockets sans recopier son modèle. Le verrou ne couvre que les métadonnées ; le VFS, le disque
+/// et l'assemblage restent hors verrou pour que les workers HTTP continuent à progresser.
+struct GlbMemoryCache {
+    max_bytes: usize,
+    used_bytes: usize,
+    entries: HashMap<String, Arc<[u8]>>,
+    least_recent_first: VecDeque<String>,
+}
+
+impl GlbMemoryCache {
+    fn new(max_bytes: usize) -> Self {
+        Self {
+            max_bytes,
+            used_bytes: 0,
+            entries: HashMap::new(),
+            least_recent_first: VecDeque::new(),
+        }
+    }
+
+    fn get(&mut self, key: &str) -> Option<Arc<[u8]>> {
+        let value = self.entries.get(key)?.clone();
+        self.least_recent_first.retain(|candidate| candidate != key);
+        self.least_recent_first.push_back(key.to_string());
+        Some(value)
+    }
+
+    fn insert(&mut self, key: String, value: Arc<[u8]>) {
+        let size = value.len();
+        if self.max_bytes == 0 || size > self.max_bytes {
+            return;
+        }
+        if let Some(previous) = self.entries.remove(&key) {
+            self.used_bytes = self.used_bytes.saturating_sub(previous.len());
+            self.least_recent_first
+                .retain(|candidate| candidate != &key);
+        }
+        while self.used_bytes.saturating_add(size) > self.max_bytes {
+            let Some(oldest) = self.least_recent_first.pop_front() else {
+                break;
+            };
+            if let Some(previous) = self.entries.remove(&oldest) {
+                self.used_bytes = self.used_bytes.saturating_sub(previous.len());
+            }
+        }
+        self.used_bytes = self.used_bytes.saturating_add(size);
+        self.least_recent_first.push_back(key.clone());
+        self.entries.insert(key, value);
+    }
+}
+
 /// État partagé entre les threads (derrière Arc).
 struct State {
     /// Index des fichiers du jeu. PAS de `Mutex` autour : `Vfs` est `Send + Sync` (ses
@@ -251,6 +312,8 @@ struct State {
     /// L'`Option` porte la décision de publier : une route absente ne peut pas fuiter, alors
     /// qu'un drapeau lu à chaque requête finit par être oublié quelque part.
     depot: Option<nie_explore::depot::Depot>,
+    /// Cache LRU vivant uniquement pendant le processus, après le cache disque.
+    glb_memory: Mutex<GlbMemoryCache>,
 }
 
 /// Une source qui référence un asset, telle qu'écrite par
@@ -266,6 +329,41 @@ struct AssetSource {
 }
 
 impl State {
+    /// Charge un GLB du cache mémoire, puis du cache disque, et enfin le construit.
+    ///
+    /// `build` s'exécute hors verrou : deux requêtes froides peuvent exceptionnellement assembler
+    /// le même modèle, mais aucune requête lente ne bloque les hits mémoire ni les autres routes.
+    fn get_or_build_cached_glb<F>(
+        &self,
+        key: String,
+        cache_path: &Path,
+        build: F,
+    ) -> Result<GlbBytes>
+    where
+        F: FnOnce() -> Result<GlbBytes>,
+    {
+        if let Ok(mut cache) = self.glb_memory.lock()
+            && let Some(glb) = cache.get(&key)
+        {
+            debug!("cache mémoire GLB : {key}");
+            return Ok(glb);
+        }
+
+        let glb = if cache_path.exists() {
+            debug!("cache disque GLB : {key}");
+            Arc::<[u8]>::from(
+                fs::read(cache_path)
+                    .with_context(|| format!("lecture cache {}", cache_path.display()))?,
+            )
+        } else {
+            build()?
+        };
+        if let Ok(mut cache) = self.glb_memory.lock() {
+            cache.insert(key, glb.clone());
+        }
+        Ok(glb)
+    }
+
     /// Charge le manifeste CRC→chemin depuis le fichier NDJSON.
     fn load_crc_manifest(path: &Path) -> Result<Vec<nie_formats::assemble::ManifestEntry>> {
         if !path.exists() {
@@ -1087,7 +1185,7 @@ fn load_armed_texture_png(state: &State, code: &str) -> Option<Vec<u8>> {
 // ── Assemblage du modèle ──────────────────────────────────────────────────────
 
 /// Résultat de l'assemblage : bytes GLB.
-type GlbBytes = Vec<u8>;
+type GlbBytes = Arc<[u8]>;
 
 /// Résultat d'un assemblage : le GLB et son rapport machine-readable.
 struct Assembled {
@@ -1380,17 +1478,37 @@ fn apply_viewer_pose(state: &State, model: &mut nie_formats::assemble::Assembled
     let selected = state.vfs.read(&path).ok().and_then(|bytes| {
         let pack = g4pk::parse(&bytes).ok()?;
         for file in &pack.files {
-            if !file.name.ends_with(".g4mt") { continue; }
+            if !file.name.ends_with(".g4mt") {
+                continue;
+            }
             let data = bytes.get(file.offset..file.offset.checked_add(file.size)?)?;
-            let Some(motion) = g4mt::Motion::parse(data) else { continue; };
-            let Some(clip) = motion.clips.iter().find(|c| c.name == "立ち1L" && !c.is_additive()) else { continue; };
+            let Some(motion) = g4mt::Motion::parse(data) else {
+                continue;
+            };
+            let Some(clip) = motion
+                .clips
+                .iter()
+                .find(|c| c.name == "立ち1L" && !c.is_additive())
+            else {
+                continue;
+            };
             let names: Vec<&str> = skeleton.bones.iter().map(|b| b.name.as_str()).collect();
             let resolved = g4mt::resolve_targets(&motion.target_hashes, &names);
-            let rotations: Vec<_> = motion.target_indices(clip).into_iter().filter_map(|target| {
-                let bone = resolved.get(target as usize).copied().flatten()?;
-                let pose = motion.sample_local_trs(data, clip, target, 0.0, skeleton.bones[bone].local)?;
-                Some((bone, pose))
-            }).collect();
+            let rotations: Vec<_> = motion
+                .target_indices(clip)
+                .into_iter()
+                .filter_map(|target| {
+                    let bone = resolved.get(target as usize).copied().flatten()?;
+                    let pose = motion.sample_local_trs(
+                        data,
+                        clip,
+                        target,
+                        0.0,
+                        skeleton.bones[bone].local,
+                    )?;
+                    Some((bone, pose))
+                })
+                .collect();
             return Some(rotations);
         }
         None
@@ -1406,16 +1524,25 @@ fn apply_viewer_pose(state: &State, model: &mut nie_formats::assemble::Assembled
 
 /// Réglages de présentation attestés par une référence externe, distincts des défauts CFG.
 /// L'atlas original des dossards est une grille 10×10 (0..99), les UV bruts pointent sur 0.
-fn apply_reference_presentation(model: &mut nie_formats::assemble::AssembledModel) -> Option<Value> {
+fn apply_reference_presentation(
+    model: &mut nie_formats::assemble::AssembledModel,
+) -> Option<Value> {
     static PRESETS: std::sync::LazyLock<Value> = std::sync::LazyLock::new(|| {
-        serde_json::from_str(include_str!("presentation.json")).expect("présentations JSON intégrées valides")
+        serde_json::from_str(include_str!("presentation.json"))
+            .expect("présentations JSON intégrées valides")
     });
     let preset = PRESETS.get(&model.internal_code)?;
     let parts = model.report["uniform"]["parts"].as_array()?;
-    let armbands: BTreeSet<String> = parts.iter().filter(|p| p["role"] == "armband")
-        .filter_map(|p| p["piece"].as_str().map(str::to_owned)).collect();
-    let nameplates: BTreeSet<String> = parts.iter().filter(|p| p["role"] == "nameplate")
-        .filter_map(|p| p["piece"].as_str().map(str::to_owned)).collect();
+    let armbands: BTreeSet<String> = parts
+        .iter()
+        .filter(|p| p["role"] == "armband")
+        .filter_map(|p| p["piece"].as_str().map(str::to_owned))
+        .collect();
+    let nameplates: BTreeSet<String> = parts
+        .iter()
+        .filter(|p| p["role"] == "nameplate")
+        .filter_map(|p| p["piece"].as_str().map(str::to_owned))
+        .collect();
     let mut removed = 0;
     if preset["captain"] == false {
         let before = model.primitives.len();
@@ -1424,8 +1551,17 @@ fn apply_reference_presentation(model: &mut nie_formats::assemble::AssembledMode
     }
     let mut numbered = 0;
     if let Some(number) = preset["jersey_number"].as_u64().filter(|n| *n < 100) {
-        for primitive in model.primitives.iter_mut().filter(|p| nameplates.contains(&p.piece)) {
-            if !primitive.uv0.is_empty() && primitive.uv0.iter().all(|uv| (0.0..=0.1).contains(&uv.u) && (0.0..=0.1).contains(&uv.v)) {
+        for primitive in model
+            .primitives
+            .iter_mut()
+            .filter(|p| nameplates.contains(&p.piece))
+        {
+            if !primitive.uv0.is_empty()
+                && primitive
+                    .uv0
+                    .iter()
+                    .all(|uv| (0.0..=0.1).contains(&uv.u) && (0.0..=0.1).contains(&uv.v))
+            {
                 for uv in &mut primitive.uv0 {
                     uv.u += (number % 10) as f32 / 10.0;
                     uv.v += (number / 10) as f32 / 10.0;
@@ -1436,8 +1572,17 @@ fn apply_reference_presentation(model: &mut nie_formats::assemble::AssembledMode
     }
     let mut expressions = 0;
     if let Some(slot) = preset["mouth_expression"].as_u64().filter(|n| *n < 8) {
-        for primitive in model.primitives.iter_mut().filter(|p| p.piece == model.internal_code && p.material_name == "mouth_10") {
-            if !primitive.uv0.is_empty() && primitive.uv0.iter().all(|uv| (0.0..=0.25).contains(&uv.u) && (0.0..=0.5).contains(&uv.v)) {
+        for primitive in model
+            .primitives
+            .iter_mut()
+            .filter(|p| p.piece == model.internal_code && p.material_name == "mouth_10")
+        {
+            if !primitive.uv0.is_empty()
+                && primitive
+                    .uv0
+                    .iter()
+                    .all(|uv| (0.0..=0.25).contains(&uv.u) && (0.0..=0.5).contains(&uv.v))
+            {
                 for uv in &mut primitive.uv0 {
                     uv.u += (slot % 4) as f32 / 4.0;
                     uv.v += (slot / 4) as f32 / 2.0;
@@ -1446,7 +1591,9 @@ fn apply_reference_presentation(model: &mut nie_formats::assemble::AssembledMode
             }
         }
     }
-    Some(serde_json::json!({"reference": preset, "armband_primitives_hidden": removed, "nameplates_numbered": numbered, "mouth_expressions_selected": expressions}))
+    Some(
+        serde_json::json!({"reference": preset, "armband_primitives_hidden": removed, "nameplates_numbered": numbered, "mouth_expressions_selected": expressions}),
+    )
 }
 
 /// Le canal rouge du masque de tenue désigne la carnation. Le masque peut être une
@@ -1837,12 +1984,13 @@ fn assemble_chara(state: &State, code: &str) -> Result<Assembled> {
     if let Some(presentation) = apply_reference_presentation(&mut model) {
         model.report["reference_presentation"] = presentation;
         model.report["primitives"] = json!(model.primitives.len());
-        model.report["skinned_primitives"] = json!(model.primitives.iter().filter(|p| p.skin.is_some()).count());
+        model.report["skinned_primitives"] =
+            json!(model.primitives.iter().filter(|p| p.skin.is_some()).count());
     }
     model.report["presentation_pose"] = apply_viewer_pose(state, &mut model);
     let report = std::mem::take(&mut model.report);
     Ok(Assembled {
-        glb: model.to_glb_embedded(),
+        glb: model.to_glb_embedded().into(),
         report,
     })
 }
@@ -1937,7 +2085,7 @@ fn assemble_keshin_code(state: &State, code: &str) -> Result<GlbBytes> {
         });
     }
 
-    Ok(model.to_glb_embedded())
+    Ok(model.to_glb_embedded().into())
 }
 
 /// Assemble une armure (code `kaXXXXXX`).
@@ -1974,7 +2122,7 @@ fn assemble_armed_code(state: &State, code: &str) -> Result<GlbBytes> {
         });
     }
 
-    Ok(model.to_glb_embedded())
+    Ok(model.to_glb_embedded().into())
 }
 
 /// Point d'entrée d'assemblage : dispatch selon le code.
@@ -2057,10 +2205,10 @@ fn assemble_chr_generic(state: &State, sub: &str, code: &str) -> Result<GlbBytes
             name: format!("{code}_{sub}"),
             png_bytes,
         });
-        return Ok(model.to_glb_embedded());
+        return Ok(model.to_glb_embedded().into());
     }
 
-    Ok(model.to_glb())
+    Ok(model.to_glb().into())
 }
 
 /// Assemble un modèle de **map/stage** : `data/common/map/<rel>/<base>.{g4mg,g4pkm}` où
@@ -2173,7 +2321,7 @@ fn assemble_map(state: &State, rel: &str) -> Result<GlbBytes> {
             }
         }
         if !model.embedded_textures.is_empty() {
-            return Ok(model.to_glb_embedded());
+            return Ok(model.to_glb_embedded().into());
         }
         // Repli : texture de sol dominante si aucun binding par matériau n'a abouti.
         if let Some(tex) = g4tx
@@ -2191,10 +2339,10 @@ fn assemble_map(state: &State, rel: &str) -> Result<GlbBytes> {
                 name: format!("{base}_map"),
                 png_bytes,
             });
-            return Ok(model.to_glb_embedded());
+            return Ok(model.to_glb_embedded().into());
         }
     }
-    Ok(model.to_glb())
+    Ok(model.to_glb().into())
 }
 
 /// Cache disque pour un modèle de map (`map_<rel-sécurisé>.glb`).
@@ -2202,17 +2350,14 @@ fn get_or_build_map_glb(state: &State, rel: &str) -> Result<GlbBytes> {
     let cache_path = state
         .cache_dir
         .join(format!("map_{}.glb", rel.replace('/', "_")));
-    if cache_path.exists() {
-        debug!("cache hit : map {rel}");
-        return fs::read(&cache_path)
-            .with_context(|| format!("lecture cache {}", cache_path.display()));
-    }
-    info!("assemblage live : map {rel}");
-    let glb = assemble_map(state, rel)?;
-    if let Err(e) = fs::write(&cache_path, &glb) {
-        warn!("écriture cache map {rel} échouée : {e}");
-    }
-    Ok(glb)
+    state.get_or_build_cached_glb(format!("map:{rel}"), &cache_path, || {
+        info!("assemblage live : map {rel}");
+        let glb = assemble_map(state, rel)?;
+        if let Err(e) = fs::write(&cache_path, &glb) {
+            warn!("écriture cache map {rel} échouée : {e}");
+        }
+        Ok(glb)
+    })
 }
 
 /// Extrait les octets du premier fichier `.g4md` d'une archive `.g4pkm` (paquet de modèle waza).
@@ -2553,15 +2698,9 @@ fn catalogue_video(state: &State) -> Result<String, String> {
 /// Retourne les bytes du GLB : depuis le cache disque ou assemblage live + mise en cache.
 fn get_or_build_glb(state: &State, code: &str) -> Result<GlbBytes> {
     let cache_path = state.cache_dir.join(format!("{code}.glb"));
-
-    // Cache hit.
-    if cache_path.exists() {
-        debug!("cache hit : {code}");
-        return fs::read(&cache_path)
-            .with_context(|| format!("lecture cache {}", cache_path.display()));
-    }
-
-    Ok(build_and_cache(state, code)?.glb)
+    state.get_or_build_cached_glb(format!("full:{code}"), &cache_path, || {
+        Ok(build_and_cache(state, code)?.glb)
+    })
 }
 
 /// Rapport d'assemblage d'un modèle : lu dans le cache (`<code>.report.json`), sinon produit
@@ -2642,23 +2781,16 @@ fn purge_stale_cache(cache_dir: &Path) {
 /// d'espace de noms avec `/model-full/<code>`).
 fn get_or_build_chr_glb(state: &State, sub: &str, code: &str) -> Result<GlbBytes> {
     let cache_path = state.cache_dir.join(format!("chr_{sub}_{code}.glb"));
-
-    if cache_path.exists() {
-        debug!("cache hit : chr_{sub}_{code}");
-        return fs::read(&cache_path)
-            .with_context(|| format!("lecture cache {}", cache_path.display()));
-    }
-
-    info!("assemblage live : chr_{sub}_{code}");
-    let glb = assemble_chr_generic(state, sub, code)?;
-
-    if let Err(e) = fs::write(&cache_path, &glb) {
-        warn!("écriture cache chr_{sub}_{code} échouée : {e}");
-    } else {
-        debug!("cache écrit : chr_{sub}_{code} ({}B)", glb.len());
-    }
-
-    Ok(glb)
+    state.get_or_build_cached_glb(format!("chr:{sub}:{code}"), &cache_path, || {
+        info!("assemblage live : chr_{sub}_{code}");
+        let glb = assemble_chr_generic(state, sub, code)?;
+        if let Err(e) = fs::write(&cache_path, &glb) {
+            warn!("écriture cache chr_{sub}_{code} échouée : {e}");
+        } else {
+            debug!("cache écrit : chr_{sub}_{code} ({}B)", glb.len());
+        }
+        Ok(glb)
+    })
 }
 
 /// Assemble (ou relit du cache) un modèle de l'éditeur d'avatar.
@@ -2668,57 +2800,53 @@ fn get_or_build_chr_glb(state: &State, sub: &str, code: &str) -> Result<GlbBytes
 /// `<nom>M.g4tx` pour les coiffures.
 fn get_or_build_edit_glb(state: &State, dossier: &str, nom: &str) -> Result<GlbBytes> {
     let cache_path = state.cache_dir.join(format!("edit_{dossier}_{nom}.glb"));
-    if cache_path.exists() {
-        debug!("cache hit : edit_{dossier}_{nom}");
-        return fs::read(&cache_path)
-            .with_context(|| format!("lecture cache {}", cache_path.display()));
-    }
+    state.get_or_build_cached_glb(format!("edit:{dossier}:{nom}"), &cache_path, || {
+        info!("assemblage live : edit_{dossier}_{nom}");
+        let base = format!("data/common/chr/_face/20_EDIT/{dossier}/{nom}");
+        let (g4md, g4mg, g4tx) = {
+            let vfs = &state.vfs;
+            let g4md = vfs
+                .read(&format!("{base}.g4md"))
+                .with_context(|| format!("G4MD {base}.g4md"))?;
+            let g4mg = vfs
+                .read(&format!("{base}.g4mg"))
+                .with_context(|| format!("G4MG {base}.g4mg"))?;
+            let tex_base = format!("data/dx11/chr/_face/20_EDIT/{dossier}/{nom}");
+            let g4tx = vfs
+                .read(&format!("{tex_base}.g4tx"))
+                .or_else(|_| vfs.read(&format!("{tex_base}M.g4tx")))
+                .ok();
+            (g4md, g4mg, g4tx)
+        };
 
-    info!("assemblage live : edit_{dossier}_{nom}");
-    let base = format!("data/common/chr/_face/20_EDIT/{dossier}/{nom}");
-    let (g4md, g4mg, g4tx) = {
-        let vfs = &state.vfs;
-        let g4md = vfs
-            .read(&format!("{base}.g4md"))
-            .with_context(|| format!("G4MD {base}.g4md"))?;
-        let g4mg = vfs
-            .read(&format!("{base}.g4mg"))
-            .with_context(|| format!("G4MG {base}.g4mg"))?;
-        let tex_base = format!("data/dx11/chr/_face/20_EDIT/{dossier}/{nom}");
-        let g4tx = vfs
-            .read(&format!("{tex_base}.g4tx"))
-            .or_else(|_| vfs.read(&format!("{tex_base}M.g4tx")))
-            .ok();
-        (g4md, g4mg, g4tx)
-    };
+        let mut model = assemble_generic_model(GenericModelInput {
+            code: nom.to_string(),
+            g4md,
+            g4mg,
+            component: MeshComponent::Generic,
+        })
+        .with_context(|| format!("assemblage {dossier}/{nom}"))?;
 
-    let mut model = assemble_generic_model(GenericModelInput {
-        code: nom.to_string(),
-        g4md,
-        g4mg,
-        component: MeshComponent::Generic,
-    })
-    .with_context(|| format!("assemblage {dossier}/{nom}"))?;
+        let glb: GlbBytes = match g4tx
+            .as_deref()
+            .and_then(|d| g4tx_decode::decode_best_to_png(d, nom))
+        {
+            Some(png_bytes) => {
+                model.embedded_textures.push(EmbeddedTexture {
+                    component: MeshComponent::Generic,
+                    name: format!("{nom}_{dossier}"),
+                    png_bytes,
+                });
+                model.to_glb_embedded().into()
+            }
+            None => model.to_glb().into(),
+        };
 
-    let glb = match g4tx
-        .as_deref()
-        .and_then(|d| g4tx_decode::decode_best_to_png(d, nom))
-    {
-        Some(png_bytes) => {
-            model.embedded_textures.push(EmbeddedTexture {
-                component: MeshComponent::Generic,
-                name: format!("{nom}_{dossier}"),
-                png_bytes,
-            });
-            model.to_glb_embedded()
+        if let Err(e) = fs::write(&cache_path, &glb) {
+            warn!("écriture cache edit_{dossier}_{nom} échouée : {e}");
         }
-        None => model.to_glb(),
-    };
-
-    if let Err(e) = fs::write(&cache_path, &glb) {
-        warn!("écriture cache edit_{dossier}_{nom} échouée : {e}");
-    }
-    Ok(glb)
+        Ok(glb)
+    })
 }
 
 /// La tenue dont l'éditeur d'avatar habille TOUJOURS son personnage.
@@ -2922,10 +3050,23 @@ fn get_or_build_avatar_glb(
         "avatar_v{AVATAR_CACHE_VERSION}_{}.glb",
         cle_courte(&cle)
     ));
+    let memory_key = format!("avatar:{cle}");
+    if let Ok(mut cache) = state.glb_memory.lock()
+        && let Some(glb) = cache.get(&memory_key)
+    {
+        debug!("cache mémoire : avatar_{cle}");
+        return Ok(glb);
+    }
     if cache_path.exists() {
         debug!("cache hit : avatar_{cle}");
-        return fs::read(&cache_path)
-            .with_context(|| format!("lecture cache {}", cache_path.display()));
+        let glb: GlbBytes = Arc::from(
+            fs::read(&cache_path)
+                .with_context(|| format!("lecture cache {}", cache_path.display()))?,
+        );
+        if let Ok(mut cache) = state.glb_memory.lock() {
+            cache.insert(memory_key, glb.clone());
+        }
+        return Ok(glb);
     }
     info!("assemblage live : avatar_{cle}");
 
@@ -3464,6 +3605,10 @@ fn get_or_build_avatar_glb(
 
     if let Err(e) = fs::write(&cache_path, &glb) {
         warn!("écriture cache avatar_{cle} échouée : {e}");
+    }
+    let glb: GlbBytes = glb.into();
+    if let Ok(mut cache) = state.glb_memory.lock() {
+        cache.insert(memory_key, glb.clone());
     }
     Ok(glb)
 }
@@ -4243,7 +4388,9 @@ fn handle_connection(mut stream: TcpStream, state: Arc<State>) {
                     .and_then(|n| n.split('.').next())
                     .unwrap_or_default()
                     .to_string();
-                get_or_build_glb(&state, &code).map_err(|e| e.to_string())
+                get_or_build_glb(&state, &code)
+                    .map(|glb| glb.to_vec())
+                    .map_err(|e| e.to_string())
             }
             // `wav` demande le VFS autant que `glb` : une banque ACB porte souvent son AWB
             // DEHORS, et `nie_explore::export::produire` ne voit que les octets du fichier
@@ -5836,6 +5983,9 @@ fn main() -> Result<()> {
         menu_cfg_dir: menu_cfg_dir.clone(),
         asset_roles,
         depot,
+        glb_memory: Mutex::new(GlbMemoryCache::new(
+            cli.memory_cache_mib.saturating_mul(1024 * 1024),
+        )),
     });
 
     // Audit hors ligne : pas de serveur (donc pas de port à prendre — un serveur peut tourner à
@@ -6266,6 +6416,29 @@ mod tests {
         assert_eq!(super::expression_skin_color(&[241, 209, 177, 0]), None);
     }
     use super::*;
+
+    #[test]
+    fn glb_memory_cache_evicts_the_least_recent_entry() {
+        let mut cache = GlbMemoryCache::new(6);
+        cache.insert("a".to_string(), Arc::from(&b"aaa"[..]));
+        cache.insert("b".to_string(), Arc::from(&b"bbb"[..]));
+        assert_eq!(&*cache.get("a").expect("a présent"), b"aaa");
+
+        cache.insert("c".to_string(), Arc::from(&b"ccc"[..]));
+        assert!(cache.get("a").is_some());
+        assert!(cache.get("b").is_none());
+        assert_eq!(&*cache.get("c").expect("c présent"), b"ccc");
+        assert_eq!(cache.used_bytes, 6);
+    }
+
+    #[test]
+    fn glb_memory_cache_rejects_entries_larger_than_its_budget() {
+        let mut cache = GlbMemoryCache::new(2);
+        cache.insert("oversize".to_string(), Arc::from(&b"aaa"[..]));
+        assert!(cache.entries.is_empty());
+        assert_eq!(cache.used_bytes, 0);
+    }
+
     /// Le cache est indexé par version d'assembleur : un GLB écrit par une version antérieure
     /// n'est jamais resservi tel quel après un rebuild.
     #[test]

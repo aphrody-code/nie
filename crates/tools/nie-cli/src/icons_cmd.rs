@@ -107,12 +107,16 @@ fn indexer(vfs: &Vfs, prefix: &str, skip: &[String]) -> BTreeMap<String, Icone> 
         .iter()
         .map(|(p, _)| p.to_string())
         .filter(|p| {
-            p.contains(prefix) && p.ends_with(".g4tx") && !skip.iter().any(|s| p.contains(s.as_str()))
+            p.contains(prefix)
+                && p.ends_with(".g4tx")
+                && !skip.iter().any(|s| p.contains(s.as_str()))
         })
         .collect();
     for chemin in chemins {
         let Ok(raw) = vfs.read(&chemin) else { continue };
-        let Ok(tx) = nie_formats::g4tx::parse(&raw) else { continue };
+        let Ok(tx) = nie_formats::g4tx::parse(&raw) else {
+            continue;
+        };
         for tex in &tx.textures {
             // Les placeholders du jeu (`dmy`, 4×4) ne sont pas des icônes.
             if tex.name.contains("dmy") || (tex.width <= 4 && tex.height <= 4) {
@@ -147,8 +151,11 @@ pub fn run(cmd: &IconsCmd, game_dir: &Path) -> Result<()> {
 
     match cmd {
         IconsCmd::Index { prefix, skip, out } => {
-            let skip: Vec<String> =
-                skip.split(',').filter(|s| !s.is_empty()).map(str::to_string).collect();
+            let skip: Vec<String> = skip
+                .split(',')
+                .filter(|s| !s.is_empty())
+                .map(str::to_string)
+                .collect();
             let index = indexer(&vfs, prefix, &skip);
             let doc: BTreeMap<&String, serde_json::Value> = index
                 .iter()
@@ -181,9 +188,17 @@ pub fn run(cmd: &IconsCmd, game_dir: &Path) -> Result<()> {
             println!("indexé {} icônes → {}", index.len(), out.display());
         }
 
-        IconsCmd::Dict { prefix, skip, out_dir, dry_run } => {
-            let skip: Vec<String> =
-                skip.split(',').filter(|s| !s.is_empty()).map(str::to_string).collect();
+        IconsCmd::Dict {
+            prefix,
+            skip,
+            out_dir,
+            dry_run,
+        } => {
+            let skip: Vec<String> = skip
+                .split(',')
+                .filter(|s| !s.is_empty())
+                .map(str::to_string)
+                .collect();
             let index = indexer(&vfs, prefix, &skip);
 
             let chemin_crc = out_dir.join("menu-crc32-dictionary.json");
@@ -227,7 +242,11 @@ pub fn run(cmd: &IconsCmd, game_dir: &Path) -> Result<()> {
                 .with_context(|| format!("écriture {}", chemin_crc.display()))?;
             std::fs::write(&chemin_reg, serde_json::to_vec_pretty(&reg)?)
                 .with_context(|| format!("écriture {}", chemin_reg.display()))?;
-            println!("  écrits : {} · {}", chemin_crc.display(), chemin_reg.display());
+            println!(
+                "  écrits : {} · {}",
+                chemin_crc.display(),
+                chemin_reg.display()
+            );
         }
 
         IconsCmd::Extract { prefix, limit } => {
@@ -242,14 +261,16 @@ pub fn run(cmd: &IconsCmd, game_dir: &Path) -> Result<()> {
                 // Le nom de l'ICÔNE, pas celui de sa texture porteuse : `decode_named_to_png`
                 // rogne le rectangle de la région quand le nom en désigne une. Passer la texture
                 // écrivait l'atlas entier sous chaque nom d'icône — 592 Ko par icône de 80×80.
-                let Some(png) = nie_formats::g4tx_decode::decode_named_to_png(&raw, nom)
-                else {
+                let Some(png) = nie_formats::g4tx_decode::decode_named_to_png(&raw, nom) else {
                     echecs += 1;
                     continue;
                 };
                 // À côté de l'atlas dans le dump, là où le CDN sert `/dx11/…` en statique.
                 let dossier = game_dir.join(
-                    Path::new(&ic.atlas).parent().and_then(Path::to_str).unwrap_or("data"),
+                    Path::new(&ic.atlas)
+                        .parent()
+                        .and_then(Path::to_str)
+                        .unwrap_or("data"),
                 );
                 if std::fs::create_dir_all(&dossier).is_err() {
                     echecs += 1;
@@ -261,7 +282,10 @@ pub fn run(cmd: &IconsCmd, game_dir: &Path) -> Result<()> {
                     echecs += 1;
                 }
             }
-            println!("{ecrits} PNG écrits, {echecs} échec(s) — {} indexées", index.len());
+            println!(
+                "{ecrits} PNG écrits, {echecs} échec(s) — {} indexées",
+                index.len()
+            );
         }
     }
     Ok(())

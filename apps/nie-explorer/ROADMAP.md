@@ -84,6 +84,11 @@ compressé pour l'export de mod, G4TX mono-texture.
 Disposition d'éditeur de moteur : viewport 3D temps réel (three, GLB assemblé côté Rust et rendu
 dans le navigateur — aucun CDN), hiérarchie, détails, navigateur de contenu.
 
+**Viewport unique.** Le détail VFS, l'exploration d'un CPK brut et le mode Éditeur livrent tous
+un GLB auto-suffisant au même composant WebGL. Les anciens aperçus PNG et turntable MP4 ont été
+supprimés : une seule caméra interactive, un seul cycle de vie GPU et une seule voie d'assemblage
+par origine (VFS ou CPK), sans rasteriseur Rust ou vidéo intermédiaire.
+
 **Gizmos** de déplacement, rotation et échelle, avec les trois écueils traités : la caméra orbitale
 est coupée pendant la manipulation, le raycast de sélection renonce quand le gizmo est saisi, et le
 cadre de sélection suit l'objet. **Scène multi-assets** : les modèles s'ajoutent au Ctrl+clic,

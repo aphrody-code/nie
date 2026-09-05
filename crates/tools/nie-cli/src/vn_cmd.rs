@@ -214,10 +214,9 @@ fn identites(vfs: &Vfs, langue_noms: &str) -> Vec<Fiche> {
     };
     let chemin_texte = format!("data/common/text/{langue_noms}/chara_text.cfg.bin");
 
-    let (Some(base_json), Some(texte_json)) = (
-        lire_t2b(vfs, &chemin_base),
-        lire_t2b(vfs, &chemin_texte),
-    ) else {
+    let (Some(base_json), Some(texte_json)) =
+        (lire_t2b(vfs, &chemin_base), lire_t2b(vfs, &chemin_texte))
+    else {
         return Vec::new();
     };
 
@@ -307,7 +306,10 @@ fn banques(vfs: &Vfs, langue: &str) -> Vec<Banque> {
         let Some(reste) = path.strip_prefix(prefixe.as_str()) else {
             continue;
         };
-        let Some(radical) = reste.strip_suffix(".acb").or_else(|| reste.strip_suffix(".awb")) else {
+        let Some(radical) = reste
+            .strip_suffix(".acb")
+            .or_else(|| reste.strip_suffix(".awb"))
+        else {
             continue;
         };
         // Seules les banques de personnage : `c` suivi de chiffres.
@@ -739,7 +741,11 @@ fn export(
             // personnages disparaissaient du catalogue sans un mot.
             None => {
                 eprintln!("  {c} — aucune banque de voix, textures et dialogue seuls");
-                retenues.push(Banque { code: c.clone(), acb: String::new(), poids: 0 });
+                retenues.push(Banque {
+                    code: c.clone(),
+                    acb: String::new(),
+                    poids: 0,
+                });
             }
         }
     }

@@ -34,7 +34,7 @@ use nie_data::text::parse_text_file;
 use nie_data::unlock_condition::{crc32_str, decode_unlock_condition};
 use nie_explore::bridge::t2b_to_json;
 use nie_formats::cfgbin::{self, RdbnValue};
-use nie_formats::rdbn_patch::{localiser, patch_verifie, Modif, Val};
+use nie_formats::rdbn_patch::{Modif, Val, localiser, patch_verifie};
 use nie_formats::vfs::{self, Vfs};
 use sha2::{Digest, Sha256};
 
@@ -77,7 +77,9 @@ fn charger_textes(vfs: &Vfs, langue: &str) -> BTreeMap<u32, String> {
     let mut map = BTreeMap::new();
     for f in &fichiers {
         let Ok(data) = vfs.read(f) else { continue };
-        let Ok(cfg) = cfgbin::cfgbin_parse(&data) else { continue };
+        let Ok(cfg) = cfgbin::cfgbin_parse(&data) else {
+            continue;
+        };
         for (h, t) in parse_text_file(&t2b_to_json(&cfg)) {
             map.insert(h.0, t);
         }
@@ -103,11 +105,20 @@ fn traiter(
     a_blanc: bool,
 ) -> Result<(), String> {
     let chemin_mod = format!("{dir}/{chemin_vfs}");
-    let vanilla = vfs.read(chemin_vfs).map_err(|e| format!("vanilla illisible : {e}"))?;
+    let vanilla = vfs
+        .read(chemin_vfs)
+        .map_err(|e| format!("vanilla illisible : {e}"))?;
     let mut data = std::fs::read(&chemin_mod).map_err(|e| format!("{chemin_mod} : {e}"))?;
 
-    println!("\n╔═ {}", chemin_vfs.trim_start_matches("data/common/gamedata/"));
-    println!("║ vanilla  {} o  sha256 {}", vanilla.len(), &sha256(&vanilla)[..16]);
+    println!(
+        "\n╔═ {}",
+        chemin_vfs.trim_start_matches("data/common/gamedata/")
+    );
+    println!(
+        "║ vanilla  {} o  sha256 {}",
+        vanilla.len(),
+        &sha256(&vanilla)[..16]
+    );
 
     let rdbn = cfgbin::parse(&data).map_err(|e| format!("RDBN illisible : {e}"))?;
     let mut attendus: Vec<usize> = Vec::new();
@@ -127,10 +138,18 @@ fn traiter(
         .collect();
     let hors_cible = diffs.iter().filter(|o| !attendus.contains(o)).count();
 
-    println!("║ patché   {} o  sha256 {}", data.len(), &sha256(&data)[..16]);
+    println!(
+        "║ patché   {} o  sha256 {}",
+        data.len(),
+        &sha256(&data)[..16]
+    );
     println!(
         "║ taille   {}  ({} → {})",
-        if verif.taille_preservee() { "PRÉSERVÉE" } else { "MODIFIÉE — anormal" },
+        if verif.taille_preservee() {
+            "PRÉSERVÉE"
+        } else {
+            "MODIFIÉE — anormal"
+        },
         verif.taille_avant,
         verif.taille_apres
     );
@@ -140,7 +159,9 @@ fn traiter(
         modifs.len()
     );
     if hors_cible > 0 {
-        return Err(format!("{hors_cible} octet(s) modifiés hors des champs visés"));
+        return Err(format!(
+            "{hors_cible} octet(s) modifiés hors des champs visés"
+        ));
     }
 
     if a_blanc {
@@ -191,7 +212,12 @@ fn main() {
     let mut modifs_warp = Vec::new();
     let mut deja_libres = 0usize;
     for (i, row) in liste_warp.rows.iter().enumerate() {
-        let brut = match row.fields.iter().find(|(k, _)| k == "open_cond").map(|(_, v)| v) {
+        let brut = match row
+            .fields
+            .iter()
+            .find(|(k, _)| k == "open_cond")
+            .map(|(_, v)| v)
+        {
             Some(RdbnValue::Condition(s)) => s.clone(),
             _ => {
                 deja_libres += 1;
@@ -233,9 +259,9 @@ fn main() {
     println!("\n── Destinations du téléporteur ──");
     for (slot, (nom_map, libelle)) in DESTINATIONS.iter().enumerate() {
         let prefixe_assets = "data/common/map/";
-        let present = vfs.iter().any(|(c, _)| {
-            c.starts_with(prefixe_assets) && c.contains(&format!("/{nom_map}/"))
-        });
+        let present = vfs
+            .iter()
+            .any(|(c, _)| c.starts_with(prefixe_assets) && c.contains(&format!("/{nom_map}/")));
         let map_id = crc32_str(nom_map);
         let texte = libelle.and_then(|l| hash_du_texte(&textes, l));
         println!(
@@ -273,7 +299,10 @@ fn main() {
     }
 
     let mut echecs = 0;
-    for (chemin, modifs) in [(f_warp.as_str(), &modifs_warp), (f_fast.as_str(), &modifs_fast)] {
+    for (chemin, modifs) in [
+        (f_warp.as_str(), &modifs_warp),
+        (f_fast.as_str(), &modifs_fast),
+    ] {
         if let Err(e) = traiter(&vfs, &dir, chemin, modifs, a_blanc) {
             eprintln!("║ ÉCHEC {chemin} : {e}");
             echecs += 1;

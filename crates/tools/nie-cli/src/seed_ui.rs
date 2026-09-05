@@ -132,10 +132,7 @@ pub fn run(db: &nie_index::Db, vfs: &Vfs, with_textures: bool) -> Result<Stats> 
             cfgs.push(path.to_string());
         } else if path.starts_with("data/common/gamedata/menu/obj/") && path.ends_with(".objbin") {
             objs.push(path.to_string());
-        } else if with_textures
-            && path.starts_with("data/dx11/menu/")
-            && path.ends_with(".g4tx")
-        {
+        } else if with_textures && path.starts_with("data/dx11/menu/") && path.ends_with(".g4tx") {
             texs.push(path.to_string());
         }
     }
@@ -145,7 +142,10 @@ pub fn run(db: &nie_index::Db, vfs: &Vfs, with_textures: bool) -> Result<Stats> 
 
     let conn = db.conn();
     conn.execute_batch("BEGIN")?;
-    let mut sink = Sink { conn, stats: Stats::default() };
+    let mut sink = Sink {
+        conn,
+        stats: Stats::default(),
+    };
 
     for path in &cfgs {
         let Ok(bytes) = vfs.read(path) else {
@@ -193,7 +193,11 @@ pub fn run(db: &nie_index::Db, vfs: &Vfs, with_textures: bool) -> Result<Stats> 
             if kind == "menu_cmd" {
                 pending.push((kind, name.to_string(), -1));
             } else {
-                pending.push((kind, name.to_string(), i64::from(u32::from_ne_bytes(hash.to_ne_bytes()))));
+                pending.push((
+                    kind,
+                    name.to_string(),
+                    i64::from(u32::from_ne_bytes(hash.to_ne_bytes())),
+                ));
             }
         });
         for (kind, name, hash) in pending {

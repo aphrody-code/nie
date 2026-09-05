@@ -43,10 +43,10 @@
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use goblin::pe::PE;
 use iced_x86::{Decoder, DecoderOptions, Instruction, Mnemonic, OpKind};
-use nie_index::rusqlite::{params, Connection};
+use nie_index::rusqlite::{Connection, params};
 use sha2::{Digest, Sha256};
 
 /// Étiquette de provenance écrite dans `func_str_ref.source`.
@@ -255,7 +255,8 @@ fn scan_utf16(
             j += 2;
         }
         let units = (j - i) / 2;
-        if j + 1 < data.len() && unit(j) == 0 && units >= min_len && !covered[i..j].contains(&true) {
+        if j + 1 < data.len() && unit(j) == 0 && units >= min_len && !covered[i..j].contains(&true)
+        {
             if j - i > MAX_STR_BYTES {
                 *oversized += 1;
             } else {
@@ -334,7 +335,13 @@ fn suffix_str(src: &FoundStr, vaddr: u64, off: usize) -> FoundStr {
         Enc::Ascii => src.value[off..].to_string(),
         Enc::Utf16 => src.value.chars().skip(off / 2).collect(),
     };
-    FoundStr { vaddr, len: src.len - off, sec: src.sec, enc: src.enc, value }
+    FoundStr {
+        vaddr,
+        len: src.len - off,
+        sec: src.sec,
+        enc: src.enc,
+        value,
+    }
 }
 
 /// Géométrie d'une section chargée.
@@ -370,7 +377,12 @@ fn sections<'a>(pe: &PE, bytes: &'a [u8], wanted: &[String]) -> Vec<SecView<'a>>
 
 /// Résout le binaire ciblé : la vue `#pdata` en priorité (c'est elle qui porte les fonctions
 /// aux bornes réelles), sinon la vue fichier.
-fn resolve_binary(conn: &Connection, exe: &Path, sha: &str, forced: Option<i64>) -> Result<(i64, String)> {
+fn resolve_binary(
+    conn: &Connection,
+    exe: &Path,
+    sha: &str,
+    forced: Option<i64>,
+) -> Result<(i64, String)> {
     if let Some(id) = forced {
         let path: String = conn
             .query_row("SELECT path FROM binary WHERE id = ?1", [id], |r| r.get(0))
@@ -531,11 +543,9 @@ pub fn run(db: &nie_index::Db, exe: &Path, opts: &Options) -> Result<Stats> {
             &mut stats.oversized,
         );
         stats.utf16 += found.len() - n;
-        stats.par_section.push((
-            sec.name,
-            stats.ascii - before.0,
-            stats.utf16 - before.1,
-        ));
+        stats
+            .par_section
+            .push((sec.name, stats.ascii - before.0, stats.utf16 - before.1));
     }
     found.sort_unstable_by_key(|f| f.vaddr);
     found.dedup_by_key(|f| f.vaddr);
@@ -563,8 +573,11 @@ pub fn run(db: &nie_index::Db, exe: &Path, opts: &Options) -> Result<Stats> {
                 fid.insert(v, id);
             }
         }
-        let mapped: HashSet<u64> =
-            roots.iter().map(|r| r.start).filter(|s| fid.contains_key(s)).collect();
+        let mapped: HashSet<u64> = roots
+            .iter()
+            .map(|r| r.start)
+            .filter(|s| fid.contains_key(s))
+            .collect();
         stats.roots_mapped = mapped.len();
 
         let text = pe
@@ -642,8 +655,7 @@ pub fn run(db: &nie_index::Db, exe: &Path, opts: &Options) -> Result<Stats> {
             let (Some(&id), Some(st)) = (fid.get(f), by_addr.get(s)) else {
                 continue;
             };
-            stats.str_refs_inserted +=
-                ins.execute(params![binary_id, id, st.value, SOURCE])?;
+            stats.str_refs_inserted += ins.execute(params![binary_id, id, st.value, SOURCE])?;
             stats.xrefs_inserted +=
                 xins.execute(params![binary_id, *f as i64, *s as i64, XREF_KIND])?;
         }

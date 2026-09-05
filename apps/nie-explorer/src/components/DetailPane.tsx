@@ -93,10 +93,6 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [videoError, setVideoError] = useState<string | null>(null);
   const [videoLoading, setVideoLoading] = useState(false);
-  const [glbUrl, setGlbUrl] = useState<string | null>(null);
-  const [glbTurntableUrl, setGlbTurntableUrl] = useState<string | null>(null);
-  const [glbError, setGlbError] = useState<string | null>(null);
-  const [glbLoading, setGlbLoading] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioError, setAudioError] = useState<string | null>(null);
   const [audioLoading, setAudioLoading] = useState(false);
@@ -136,9 +132,6 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
     setError(null);
     setVideoUrl(null);
     setVideoError(null);
-    setGlbUrl(null);
-    setGlbTurntableUrl(null);
-    setGlbError(null);
     setAudioUrl(null);
     setAudioError(null);
     setIsLoose(false);
@@ -438,36 +431,6 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
     }
   }
 
-  async function loadGlb() {
-    if (!target || target.kind !== "vfs") return;
-    setGlbLoading(true);
-    setGlbError(null);
-    try {
-      const b64 = await api.glbPreviewPngB64(target.path, settings.gameDir);
-      setGlbUrl(`data:image/png;base64,${b64}`);
-    } catch (e) {
-      setGlbError(String(e));
-    } finally {
-      setGlbLoading(false);
-    }
-  }
-
-  /** Aperçu 3D INTERACTIF (§2.3 roadmap) — turntable MP4 (36 images/360°) au lieu d'une image
-   * fixe : la barre de défilement du `<video controls>` EST la caméra orbitale. */
-  async function loadGlbTurntable() {
-    if (!target || target.kind !== "vfs") return;
-    setGlbLoading(true);
-    setGlbError(null);
-    try {
-      const b64 = await api.glbPreviewTurntableMp4B64(target.path, settings.gameDir);
-      setGlbTurntableUrl(`data:video/mp4;base64,${b64}`);
-    } catch (e) {
-      setGlbError(String(e));
-    } finally {
-      setGlbLoading(false);
-    }
-  }
-
   async function loadAudio() {
     if (!target || target.kind !== "vfs") return;
     setAudioLoading(true);
@@ -585,16 +548,6 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
             🧊 Ouvrir dans Blender
           </Button>
         )}
-        {target.kind === "vfs" && (ext === "g4md" || ext === "g4mg") && !glbUrl && (
-          <Button size="sm" variant="outline" onClick={loadGlb} disabled={glbLoading}>
-            {glbLoading ? "Rendu nie-render3d…" : "🧊 Aperçu 3D (natif)"}
-          </Button>
-        )}
-        {target.kind === "vfs" && (ext === "g4md" || ext === "g4mg") && !glbTurntableUrl && (
-          <Button size="sm" variant="outline" onClick={loadGlbTurntable} disabled={glbLoading} title="Vidéo pré-rendue de 36 vues">
-            {glbLoading ? "Rendu turntable…" : "Vidéo de rotation 360°"}
-          </Button>
-        )}
         {target.kind === "vfs" && ext === "usm" && !videoUrl && (
           <Button size="sm" variant="outline" onClick={loadVideo} disabled={videoLoading}>
             {videoLoading ? "Remuxage ffmpeg…" : "▶️ Aperçu vidéo"}
@@ -672,23 +625,8 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
         </div>
       )}
 
-      {glbError && <p className="type-body-small text-error">{glbError}</p>}
       {target.kind === "vfs" && (ext === "g4md" || ext === "g4mg") && (
         <ModelPreview key={`${settings.gameDir}:${target.path}`} path={target.path} gameDir={settings.gameDir} />
-      )}
-      {glbUrl && (
-        <div className="max-h-96 overflow-auto rounded-lg border border-app-line bg-app-dark-box p-2">
-          <img src={glbUrl} alt={`Rendu 3D de ${name}`} className="max-w-full" />
-        </div>
-      )}
-      {glbTurntableUrl && (
-        <div className="overflow-hidden rounded-lg border border-app-line bg-black">
-          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-          <video src={glbTurntableUrl} controls loop className="max-h-96 w-full" />
-          <p className="p-1 text-center type-label-small text-on-surface-variant">
-            Glissez la barre de défilement pour tourner autour du modèle (turntable pré-rendu, 36 vues).
-          </p>
-        </div>
       )}
 
       {audioError && <p className="type-body-small text-error">{audioError}</p>}

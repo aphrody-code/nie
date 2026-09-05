@@ -67,9 +67,13 @@ fn main() {
     let mut touches = 0usize;
     for chemin in &fichiers {
         let Ok(data) = vfs.read(chemin) else { continue };
-        let Ok(rdbn) = cfgbin::parse(&data) else { continue };
+        let Ok(rdbn) = cfgbin::parse(&data) else {
+            continue;
+        };
         for liste in cfgbin::read_values(&rdbn, &data) {
-            let Some(premiere) = liste.rows.first() else { continue };
+            let Some(premiere) = liste.rows.first() else {
+                continue;
+            };
             let cibles: Vec<&String> = premiere
                 .fields
                 .iter()
@@ -98,5 +102,8 @@ fn main() {
             }
         }
     }
-    println!("\n{touches} liste(s) portant un champ « {motif} » sur {} fichiers", fichiers.len());
+    println!(
+        "\n{touches} liste(s) portant un champ « {motif} » sur {} fichiers",
+        fichiers.len()
+    );
 }

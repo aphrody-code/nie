@@ -33,7 +33,9 @@ fn charger(vfs: &Vfs, langue: &str) -> Vec<(u32, String, String)> {
     let mut out = Vec::new();
     for f in &fichiers {
         let Ok(data) = vfs.read(f) else { continue };
-        let Ok(cfg) = cfgbin::cfgbin_parse(&data) else { continue };
+        let Ok(cfg) = cfgbin::cfgbin_parse(&data) else {
+            continue;
+        };
         let court = f.trim_start_matches(&prefixe).to_string();
         for (h, t) in parse_text_file(&t2b_to_json(&cfg)) {
             out.push((h.0, t, court.clone()));
@@ -78,7 +80,9 @@ fn main() {
         total += entrees.len();
         for (h, t, fichier) in entrees {
             if t.to_lowercase().contains(&motif) {
-                let e = trouves.entry(h).or_insert_with(|| (BTreeMap::new(), fichier));
+                let e = trouves
+                    .entry(h)
+                    .or_insert_with(|| (BTreeMap::new(), fichier));
                 e.0.insert(langue.clone(), t);
             }
         }

@@ -50,6 +50,9 @@ struct Studio {
     render_state: egui_wgpu::RenderState,
     gpu_model: Option<GpuModel>,
     texture: Option<egui::TextureId>,
+    /// Dimensions physiques de la vue inscrite auprès d'egui. La texture cible est persistante
+    /// entre deux redimensionnements : éviter de la réenregistrer à chaque frame.
+    texture_size: Option<[u32; 2]>,
     document: SceneDocument,
     undo: Vec<SceneDocument>,
     redo: Vec<SceneDocument>,
@@ -78,6 +81,7 @@ impl Studio {
             render_state: state,
             gpu_model: None,
             texture: None,
+            texture_size: None,
             document: SceneDocument::default(),
             undo: vec![],
             redo: vec![],
@@ -312,29 +316,34 @@ impl Studio {
             let size = pane.available_size().max(egui::vec2(1., 1.));
             if let Some(model) = &self.gpu_model {
                 let pixels = pane.ctx().pixels_per_point();
+                let texture_size = [(size.x * pixels) as u32, (size.y * pixels) as u32];
                 match self.renderer.render_to_texture(
                     model,
                     self.camera,
-                    (size.x * pixels) as u32,
-                    (size.y * pixels) as u32,
+                    texture_size[0],
+                    texture_size[1],
                 ) {
                     Ok(view) => {
                         let mut painter = self.render_state.renderer.write();
                         let id = if let Some(id) = self.texture {
-                            painter.update_egui_texture_from_wgpu_texture(
-                                &self.render_state.device,
-                                &view,
-                                wgpu::FilterMode::Linear,
-                                id,
-                            );
+                            if self.texture_size != Some(texture_size) {
+                                painter.update_egui_texture_from_wgpu_texture(
+                                    &self.render_state.device,
+                                    view,
+                                    wgpu::FilterMode::Linear,
+                                    id,
+                                );
+                                self.texture_size = Some(texture_size);
+                            }
                             id
                         } else {
                             let id = painter.register_native_texture(
                                 &self.render_state.device,
-                                &view,
+                                view,
                                 wgpu::FilterMode::Linear,
                             );
                             self.texture = Some(id);
+                            self.texture_size = Some(texture_size);
                             id
                         };
                         drop(painter);

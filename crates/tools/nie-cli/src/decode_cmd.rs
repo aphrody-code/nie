@@ -22,7 +22,11 @@ const EXT_PNG: &[&str] = &["g4tx"];
 /// G4TX passe par le décodeur de textures (PNG) ; tout le reste par le dispatch JSON. `basename`
 /// (le nom du fichier source sans extension) départage les conteneurs multi-textures — sans lui,
 /// un `icon_item05.g4tx` rendrait une de ses 80 icônes au hasard.
-fn decode_bytes(data: &[u8], basename: &str, as_png: bool) -> Option<(Vec<u8>, &'static str, &'static str)> {
+fn decode_bytes(
+    data: &[u8],
+    basename: &str,
+    as_png: bool,
+) -> Option<(Vec<u8>, &'static str, &'static str)> {
     if as_png {
         return nie_formats::g4tx_decode::decode_best_to_png(data, basename)
             .map(|png| (png, "png", "g4tx"));
@@ -54,7 +58,9 @@ pub fn file(src: &Path, out: Option<&Path>, quiet: bool) -> anyhow::Result<()> {
     };
 
     let dest = match out {
-        Some(p) if p.is_dir() => p.join(src.file_name().unwrap_or_default()).with_extension(ext),
+        Some(p) if p.is_dir() => p
+            .join(src.file_name().unwrap_or_default())
+            .with_extension(ext),
         Some(p) => p.to_path_buf(),
         None => src.with_extension(ext),
     };
