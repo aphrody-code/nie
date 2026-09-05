@@ -14,6 +14,8 @@
 pub mod assets;
 pub mod codex;
 pub mod gisement;
+/// Mesure, comparaison et rastérisation — le socle de la skill `pixel-perfect`.
+pub mod pixel;
 
 use serde::Deserialize;
 use sha2::{Digest, Sha256};

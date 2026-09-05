@@ -139,6 +139,21 @@ nie-runtime = { path = "crates/engine/nie-runtime" }
 nie-viola = { path = "crates/engine/nie-viola" }
 nie-steam = { path = "crates/tools/nie-steam" }
 
+# chaîne « image → SVG → raster » (skill pixel-perfect, crate nie-aphrody).
+# Choix mesurés le 2026-09-05, avec les rejets et leur raison :
+# plugins/niers-plugin/skills/pixel-perfect/references/bibliotheques.md
+# À retenir : `dssim` est AGPL (banni, `image-compare` rend le même SSIM en MIT),
+# potrace est GPL et sans crate, et `vtracer` tirerait un SECOND `image` (^0.23)
+# plus clap 2 et pyo3. La vectorisation, elle, n'a tiré AUCUNE dépendance : suivre le
+# contour d'un masque puis le simplifier tient dans `nie_aphrody::pixel`, et rend des chemins
+# lisibles là où un traceur générique en rend des milliers.
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
+image-compare = "0.5"
+palette = { version = "0.7", default-features = false, features = ["std"] }
+resvg = { version = "0.48", default-features = false }
+usvg = { version = "0.48", default-features = false }
+tiny-skia = "0.12"
+
 # tests CLI (dev-dep commune)
 assert_cmd = "2"
 tempfile = "3"

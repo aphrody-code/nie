@@ -19,6 +19,19 @@ serde_json.workspace = true
 sha2.workspace = true
 png = "0.18"
 
+# Chaîne « image → SVG → raster » (module `pixel`). Choix mesurés et rejets documentés dans
+# plugins/niers-plugin/skills/pixel-perfect/references/bibliotheques.md — notamment `dssim`
+# écarté parce qu'AGPL, et `vtracer` parce qu'il tirerait un second `image`.
+image.workspace = true
+image-compare.workspace = true
+palette.workspace = true
+resvg.workspace = true
+usvg.workspace = true
+tiny-skia.workspace = true
+
+[[bin]]
+name = "pixel"
+path = "src/bin/pixel.rs"
 
 [[bin]]
 name = "export_aphrody"
