@@ -1,4 +1,4 @@
-# astro/ — le dossier d'Astro Lor
+# astro-lor — le dossier d'Astro Lor
 
 Astro Lor est un **personnage original** (OC) inséré dans l'univers d'*Inazuma Eleven*.
 Il n'existe dans aucun fichier du jeu : tout ce qui le concerne est produit ici.
@@ -11,22 +11,25 @@ dérivés publiés, ni les données, ni le plan — chacun a sa place, dite plus
 ## Structure
 
 ```
-astro/
+data/oc/astro-lor/
 ├── README.md                      ce fichier
-├── manifeste-assets.json          ce qu'il faut produire pour que le jeu le connaisse
+├── manifest.json                  ce qu'il faut produire pour que le jeu le connaisse
 ├── provenance/                    d'où vient chaque original — versionné
-│   ├── discord-<id message>.json  journal de récupération : ids, empreintes, dimensions
-│   └── empreintes.sha256          les 12 originaux, vérifiables
-└── sources/                       les originaux — JAMAIS versionnés
-    ├── planches/                  9 planches de character design (JPEG 4161×3000)
-    └── bd/                        3 pages de bande dessinée (WebP 914×1280)
+│   ├── SHA256SUMS                 les 12 originaux, vérifiables
+│   └── discord-<id message>.json  journal de récupération : ids, empreintes, dimensions
+└── source/                        les originaux — JAMAIS versionnés
+    ├── sheets/                    9 planches de character design (JPEG 4161×3000)
+    └── comic/                     3 pages de bande dessinée (WebP 914×1280)
 ```
+
+Pourquoi un dossier versionné sous `data/`, qui est ignoré en entier :
+[`data/oc/README.md`](../README.md).
 
 ## Droits
 
 Character design et planches : **@Karumina_san**. Les originaux sont son œuvre.
 
-`sources/` est exclu du dépôt (`.gitignore`). Ce qui reste versionné à côté —
+`source/` est exclu du dépôt (`.gitignore`). Ce qui reste versionné à côté —
 la provenance et les empreintes — dit d'où chaque fichier vient et ce qu'il pèse,
 **sans le distribuer**.
 
@@ -39,7 +42,7 @@ Les **9 planches** viennent d'un message Discord, récupéré par le bot
 image, son identifiant Discord, son empreinte sha256, ses dimensions et son poids.
 
 Les **3 pages de bande dessinée** viennent d'URL fournies à la main. Elles n'ont pas
-de journal de récupération : leur trace est dans `provenance/empreintes.sha256`.
+de journal de récupération : leur trace est dans `provenance/SHA256SUMS`.
 
 Rien ne garantit que ce dossier soit **complet** : il contient ce qui a été
 transmis, pas nécessairement tout ce qui existe.
@@ -47,7 +50,7 @@ transmis, pas nécessairement tout ce qui existe.
 ### Vérifier que rien n'a bougé
 
 ```bash
-cd astro/sources && sha256sum -c ../provenance/empreintes.sha256
+cd data/oc/astro-lor/source && sha256sum -c ../provenance/SHA256SUMS
 ```
 
 Douze lignes `OK` attendues. Les empreintes des neuf planches recoupent celles du
@@ -63,27 +66,29 @@ journal Discord — la chaîne se vérifie de bout en bout.
 | Récupération Discord | `scripts/donnees/astro-lor-planches-discord.py` | le dépôt range ses scripts dans `scripts/` |
 
 Les dérivés sont volontairement de basse résolution : ils suffisent à l'affichage
-et ne remplacent pas les originaux.
+et ne remplacent pas les originaux. Leurs noms de fichiers sont restés ceux que
+le site sert déjà (`planche-og-tenue-jaune.webp`, …) : les renommer casserait des
+URL publiées.
 
 ## Commandes
 
 ```bash
 # Régénérer le manifeste d'assets (interroge le VFS ; quelques minutes)
 uv run scripts/donnees/astro-lor-manifeste.py
-jq '.resume' astro/manifeste-assets.json
+jq '.resume' data/oc/astro-lor/manifest.json
 
 # Vérifier l'intégrité des originaux
-cd astro/sources && sha256sum -c ../provenance/empreintes.sha256
+cd data/oc/astro-lor/source && sha256sum -c ../provenance/SHA256SUMS
 
-# Récupérer à nouveau depuis Discord — dans un dossier de TRAVAIL, pas dans sources/
+# Récupérer à nouveau depuis Discord — dans un dossier de TRAVAIL, pas dans source/
 uv run scripts/donnees/astro-lor-planches-discord.py /tmp/astro-brut
 ```
 
 ## Deux pièges déjà payés
 
-**Ne pas rejouer la récupération Discord dans `sources/`.** Le script nomme ce
-qu'il rapporte `attachment-<id>-<empreinte>.jpg`, pas `01-og-tenue-jaune.jpg` :
-seul un regard humain sait ce que montre une planche. Un rejeu dans `sources/`
+**Ne pas rejouer la récupération Discord dans `source/`.** Le script nomme ce
+qu'il rapporte `attachment-<id>-<empreinte>.jpg`, pas `01-og-outfit-yellow.jpg` :
+seul un regard humain sait ce que montre une planche. Un rejeu dans `source/`
 y déverse douze doublons sous leur nom brut — c'est arrivé, et il a fallu les
 retrouver par empreinte pour les distinguer des vrais. Le script exige désormais
 un dossier de sortie explicite, sans valeur par défaut.
@@ -97,5 +102,5 @@ donné en JPEG. Vérifier avec `identify` ou `file`, pas avec le nom.
 Le wiki connaît Astro : fiche complète sur `/chara/astro-lor`, au même niveau
 qu'un personnage du jeu.
 
-Le jeu, lui, ne le connaît pas. `manifeste-assets.json` dit ce qui manque, et
+Le jeu, lui, ne le connaît pas. `manifest.json` dit ce qui manque, et
 `docs/ASTRO-LOR.md` pourquoi — les deux affirmations sont vraies en même temps.
