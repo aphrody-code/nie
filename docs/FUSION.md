@@ -31,7 +31,7 @@ des services.
 | `rg/apps/storage` | `apps/storage` | l'API Storage compatible Supabase |
 | `rg/scripts/ops/deploy.ts` | `scripts/ops/deploy.ts` | le déploiement bleu/vert — **une racine par app** (voir plus bas) |
 | `rg/scripts/next-build.sh` | `scripts/next-build.sh` | le build Next standalone sous Node, dont dépend `apps/azalee` |
-| `rg/happydom.ts` | `happydom.ts` | les globals DOM des tests, préchargés par `bunfig.toml` |
+| `rg/happydom.ts` | `packages/nie-plugin/src/happydom.ts` | les globals DOM des tests, préchargés par `bunfig.toml` |
 
 Le catalogue de versions de `rg` (183 entrées) a été fusionné dans celui d'ici. Deux conflits,
 tranchés en faveur de niers pour ne pas faire cohabiter deux TypeScript :

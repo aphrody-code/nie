@@ -28,7 +28,10 @@ linker = "isolated"       # pnpm-style strict node_modules
 # `happydom.ts` rend à Bun ses primitives réseau juste après avoir posé le DOM — sans quoi
 # tout `fetch` hors `localhost:3000` échoue en « Cross-Origin Request Blocked » et
 # `Bun.serve` refuse les `Response` de happy-dom. Le détail est dans le fichier.
-preload = ["./packages/nie-plugin/src/register.ts", "./happydom.ts"]
+preload = [
+	"./packages/nie-plugin/src/register.ts",
+	"./packages/nie-plugin/src/happydom.ts",
+]
 coverage = false
 
 [run]

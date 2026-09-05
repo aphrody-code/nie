@@ -8,7 +8,7 @@ application avec un `bin` va dans [`apps/`](../apps)**. Un seul lockfile, à la 
 | `nie` | bindings FFI de `libnie_ffi` — la porte d'entrée TS vers les crates Rust |
 | `nie-bridge` | protocole de contrôle partagé `nie-mcp` ↔ `nie-explorer` |
 | `nie-catalog` | **la façade des quatre gisements** (jeu / extrait / re / anime) et leurs jointures |
-| `nie-plugin` | plugin Bun d'import des formats — préchargé par `bunfig.toml` |
+| `nie-plugin` | les deux préchargements de `bunfig.toml` : `register.ts` (import des formats du jeu) et `happydom.ts` (globals DOM des tests, réseau rendu natif) |
 | `azalee` | la bibliothèque du wiki — service, images, clients CDN client-safe |
 | `inagle` | le pipeline des données du jeu : parsers, entités, push vers Postgres |
 | `inagle-cross` | les rapprochements entre gisements |

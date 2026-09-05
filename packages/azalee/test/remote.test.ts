@@ -10,7 +10,7 @@
 
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 
-import { rendreReseauNatif } from "../../../happydom";
+import { rendreReseauNatif } from "../../nie-plugin/src/happydom";
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 
 import {

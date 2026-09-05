@@ -82,6 +82,7 @@ niers/
 | `ACCORD_COMMERCIAL_*.pdf` → `docs/legal/` (refs `CLAUDE.md`, `PROVENANCE.md` suivies) | fait |
 | `APP_EXPORT_README.md` → `docs/EXPORT-APP.md` | fait |
 | `CMakeLists.app_export.txt` → `cmake/` | fait |
+| `happydom.ts` → `packages/nie-plugin/src/` — les deux préchargements de `bunfig.toml` au même endroit | fait |
 | `.gitattributes` — fins de ligne, binaires, classement GitHub | ajouté |
 | `CHANGELOG.md` — les 11 versions, comptes de commits réels | ajouté |
 | `NOTICE` — attributions `third_party/`, marques LEVEL-5 | ajouté |
