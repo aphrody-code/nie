@@ -188,7 +188,7 @@ fn main() {
     let mut echantillon: Vec<String> = Vec::new();
     let mut cache: BTreeMap<String, Option<nie_formats::g4pkm::G4pkmLayout>> = BTreeMap::new();
 
-    let mut charger = |chemin: &str,
+    let charger = |chemin: &str,
                        cache: &mut BTreeMap<String, Option<nie_formats::g4pkm::G4pkmLayout>>|
      -> bool { cache.contains_key(chemin) || {
             let v = vfs.read(chemin).ok().and_then(|b| nie_formats::g4pkm::parse(&b).ok());
