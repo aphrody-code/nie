@@ -66,8 +66,9 @@ echo
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "$tmpdir"' EXIT
 
-charge=0; saute=0; vide=0; lignes_total=0
+charge=0; saute=0; vide=0; echec=0; lignes_total=0
 : > /tmp/lmc-sautees.txt
+: > /tmp/lmc-echecs.txt
 
 while read -r t; do
 	[ -n "$SEULE" ] && [ "$t" != "$SEULE" ] && continue
@@ -89,19 +90,50 @@ while read -r t; do
 		continue
 	fi
 
+	# Les colonnes de type ARRAY cote Postgres sont stockees en JSON dans le miroir
+	# (`["a","b"]`). COPY refuse ce litteral : « [ must introduce explicitly-specified
+	# array dimensions ». On le convertit en litteral Postgres (`{"a","b"}`) — les
+	# guillemets doubles y sont valides, seuls les crochets changent.
+	arrays=$(psql "$PG" -tAc "select string_agg(column_name,',') from information_schema.columns where table_schema='public' and table_name='$t' and data_type='ARRAY'")
+	select_list="*"
+	if [ -n "$arrays" ]; then
+		select_list=""
+		IFS=',' read -ra cols <<< "$cs"
+		for c in "${cols[@]}"; do
+			if [[ ",$arrays," == *",$c,"* ]]; then
+				select_list="$select_list, replace(replace(\"$c\",'[','{'),']','}') as \"$c\""
+			else
+				select_list="$select_list, \"$c\""
+			fi
+		done
+		select_list="${select_list#, }"
+	fi
+
 	csv="$tmpdir/$t.csv"
-	sqlite3 -csv -cmd ".nullvalue \\N" "$MIROIR" "select * from \"$t\"" > "$csv"
-	psql "$PG" -q -c "truncate table public.\"$t\" cascade" \
-		-c "\\copy public.\"$t\" from '$csv' with (format csv, null '\\N')"
-	apres=$(psql "$PG" -tAc "select count(*) from public.\"$t\"")
-	statut=$([ "$apres" = "$n" ] && echo "ok" || echo "ECART")
-	printf "  %-40s %8s -> %-8s %s\n" "$t" "$n" "$apres" "$statut"
-	charge=$((charge + 1)); lignes_total=$((lignes_total + apres))
+	sqlite3 -csv -cmd ".nullvalue \\N" "$MIROIR" "select $select_list from \"$t\"" > "$csv"
+	# `set -e` ferait mourir tout le chargement sur une seule table recalcitrante, et les
+	# tables suivantes ne seraient jamais tentees. On isole l'echec et on continue.
+	if psql "$PG" -q -v ON_ERROR_STOP=1 \
+		-c "truncate table public.\"$t\" cascade" \
+		-c "\\copy public.\"$t\" from '$csv' with (format csv, null '\\N')" 2> "$tmpdir/$t.err"; then
+		apres=$(psql "$PG" -tAc "select count(*) from public.\"$t\"")
+		statut=$([ "$apres" = "$n" ] && echo "ok" || echo "ECART")
+		printf "  %-40s %8s -> %-8s %s\n" "$t" "$n" "$apres" "$statut"
+		charge=$((charge + 1)); lignes_total=$((lignes_total + apres))
+	else
+		printf "  %-40s %8s -> ECHEC   %s\n" "$t" "$n" "$(head -1 "$tmpdir/$t.err" | cut -c1-70)"
+		printf '%s\n' "$t" >> /tmp/lmc-echecs.txt
+		echec=$((echec + 1))
+	fi
 done < /tmp/lmc-communes.txt
 
 echo
 echo "chargees : $charge tables, $lignes_total lignes"
 echo "vides    : $vide tables (rien a charger)"
 echo "sautees  : $saute tables aux colonnes divergentes"
-[ "$saute" -gt 0 ] && { echo "  --- a traiter a la main ---"; head -20 /tmp/lmc-sautees.txt | sed 's/^/  /'; }
+echo "echecs   : $echec tables"
+[ "$saute" -gt 0 ] && { echo "  --- colonnes divergentes ---"; head -20 /tmp/lmc-sautees.txt | sed 's/^/  /'; }
+[ "$echec" -gt 0 ] && { echo "  --- echecs de chargement ---"; head -20 /tmp/lmc-echecs.txt | sed 's/^/  /'; }
+# Un echec ne doit pas passer pour un succes : le code de sortie le porte.
+[ "$echec" -eq 0 ] || exit 1
 exit 0
