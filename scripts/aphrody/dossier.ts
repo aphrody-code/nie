@@ -26,7 +26,7 @@
 import { Database } from "bun:sqlite";
 import { romaji, romajiNom } from "./kana.ts";
 import { assets, type Asset } from "./sources/vfs.ts";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
 const RACINE = resolve(dirname(new URL(import.meta.url).pathname), "..", "..");
@@ -38,7 +38,7 @@ const MIROIR = join(RACINE, "var", "mirror.sqlite");
 
 function args() {
     const a = process.argv.slice(2);
-    const drapeaux = new Set(["--sortie", "--zukan", "--fandom", "--google", "--fiche"]);
+    const drapeaux = new Set(["--sortie", "--zukan", "--fandom", "--google", "--fiche", "--base"]);
     const lire = (nom: string, defaut: string) => {
         const i = a.indexOf(nom);
         return i >= 0 && a[i + 1] ? a[i + 1]! : defaut;
@@ -56,6 +56,9 @@ function args() {
     return {
         fandom,
         fiche,
+        // Le dossier produit par `export_aphrody` (Rust). C'est LA source des donnees du jeu :
+        // ce script ne la refait pas, il l'enrichit de ce qui vient du dehors.
+        base: lire("--base", join(RACINE, "apps", "azalee", "data", "aphrody-dossier.json")),
         google: lire("--google", ""),
         slug: positionnels[0] ?? "byron-love-aphrody",
         sortie: lire("--sortie", join(RACINE, "var", "aphrody")),
@@ -659,6 +662,49 @@ function markdown(d: Ligne): string {
         L.push(...manq.map((m) => `- ${m}`), "");
     }
 
+    const jeu = d.jeu as Ligne | null;
+    if (jeu) {
+        L.push("## Données du jeu — dossier `export_aphrody`", "");
+        L.push(`Produit par \`${jeu.produit_par}\`, lu depuis \`${jeu.source}\`.`, "");
+        const idj = jeu.identite as Ligne | null;
+        if (idj) {
+            L.push("| Champ | Valeur |", "|---|---|");
+            for (const [k, v] of Object.entries(idj)) {
+                if (v === null || v === undefined || v === "") continue;
+                L.push(`| ${k} | ${typeof v === "object" ? JSON.stringify(v) : v} |`);
+            }
+            L.push("");
+        }
+        const pj = jeu.profil as Ligne | null;
+        if (pj) {
+            L.push("### Profil", "");
+            for (const [k, v] of Object.entries(pj)) if (v) L.push(`- **${k}** : ${v}`);
+            L.push("");
+        }
+        const st = jeu.stats as Ligne | null;
+        if (st) {
+            const niveaux = Object.keys(st);
+            const attrs = [...new Set(niveaux.flatMap((n) => Object.keys((st[n] ?? {}) as Ligne)))];
+            L.push("### Statistiques par niveau", "", `| Attribut | ${niveaux.join(" | ")} |`, `|---|${niveaux.map(() => "---:").join("|")}|`);
+            for (const a of attrs) L.push(`| ${a} | ${niveaux.map((n) => (st[n] as Ligne)?.[a] ?? "—").join(" | ")} |`);
+            L.push("");
+        }
+        const dj = jeu.dialogues as unknown[] | Ligne | null;
+        if (dj) {
+            const n = Array.isArray(dj) ? dj.length : Object.keys(dj).length;
+            L.push(`### Dialogues — ${n} scènes`, "", "> Références seulement : le texte reste dans le gisement.", "");
+        }
+        const rj = jeu.references as unknown[] | null;
+        if (Array.isArray(rj) && rj.length) L.push(`### Références et clins d'œil — ${rj.length}`, "");
+    }
+
+    const hom = d.homonymes as Ligne | null;
+    if (hom) {
+        L.push("## Homonymes dans le dépôt — à ne pas confondre", "");
+        for (const [k, v] of Object.entries(hom)) L.push(`- **${k}** — ${v}`);
+        L.push("");
+    }
+
     L.push("## Sources", "");
     for (const [nom, v] of Object.entries(d.sources as Ligne)) {
         if (!v) continue;
@@ -672,6 +718,31 @@ function markdown(d: Ligne): string {
 
 const o = args();
 console.error(`dossier « ${o.slug} »`);
+
+/**
+ * Le dossier Rust (`cargo run --bin export_aphrody`), s'il est la.
+ *
+ * Il existait AVANT ce script et croise deja chara_param + skill_config + aura_skill_config :
+ * identite complete, epithetes, kana, stats lv1/lv50/lv99, variantes, series, dialogues,
+ * assets, references. Le redoubler serait une faute — ce script ne fait que l'ENRICHIR de ce
+ * qu'il ne peut pas savoir : le canon officiel du zukan, le romaji, ce que les wikis
+ * documentent et pas nous, ce que le public cherche.
+ */
+function dossierRust(): Ligne | null {
+    try {
+        const f = Bun.file(o.base);
+        if (f.size === 0) return null;
+        return JSON.parse(readFileSync(o.base, "utf8")) as Ligne;
+    } catch {
+        return null;
+    }
+}
+const rust = dossierRust();
+console.error(
+    rust
+        ? `  base Rust : ${Object.keys(rust).length} blocs (${o.base.replace(RACINE + "/", "")})`
+        : `  base Rust ABSENTE (${o.base}) — lancer: cargo run --bin export_aphrody --features serde,std`,
+);
 
 const g = gisement(o.slug);
 const p = g.principal;
@@ -748,6 +819,30 @@ const stat = (n: string) => ({
 const dossier: Ligne = {
     slug: o.slug,
     genere_le: new Date().toISOString(),
+    // Ce que le dossier Rust apporte, repris tel quel plutot que recalcule.
+    jeu: rust
+        ? {
+              source: o.base.replace(RACINE + "/", ""),
+              produit_par: "cargo run --bin export_aphrody --features serde,std",
+              identite: rust.identity ?? null,
+              profil: rust.profile ?? null,
+              stats: rust.stats ?? null,
+              variantes: rust.variants ?? null,
+              series: rust.series ?? null,
+              dialogues: rust.dialogues ?? null,
+              assets: rust.assets ?? null,
+              references: rust.references ?? null,
+          }
+        : null,
+    // Trois choses portent le nom « Aphrody » dans ce depot, et rien ne les distingue au
+    // premier coup d'oeil. La confusion coute une demi-heure a qui cherche « la crate
+    // aphrody » en pensant au personnage.
+    homonymes: {
+        personnage: "Byron Love Aphrody (亜風炉 照美 アフロディ) — le sujet de ce dossier",
+        crate_nie_aphrody: "crates/engine/nie-aphrody — le PET Codex Aphrody v2 : atlas RGBA 8x11 de cellules 192x208, 11 animations. Aucun rapport avec le personnage.",
+        crate_aphrody_re: "crates/forge/aphrody-re — primitives de reverse-engineering (triage PE/ELF, chaines, desassemblage x86). Aucun rapport non plus.",
+        site_aphrody: "aphrody.com — le site d'outils et d'assets (crate nie-site), projet aphrody-dev. Encore autre chose.",
+    },
     identite: {
         nom_fr: p.name_fr,
         nom_en: p.name_en,
