@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useTheme } from "next-themes";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -6,23 +6,9 @@ import { toast } from "sonner";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
-import { DashboardView } from "@/components/DashboardView";
 import { ExplorerView } from "@/components/ExplorerView";
 import { ExplorerTabsBar } from "@/components/ExplorerTabsBar";
-import { EditorView, type EditorViewState } from "@/components/editor/EditorView";
-import { GameDataView } from "@/components/GameDataView";
-import { SearchView } from "@/components/SearchView";
-import { ModsView } from "@/components/ModsView";
-import { RawCpkView } from "@/components/RawCpkView";
-import { ReToolsView } from "@/components/ReToolsView";
-import { LuaView } from "@/components/LuaView";
-import { LiveModView } from "@/components/LiveModView";
-import { ViolaView } from "@/components/ViolaView";
-import { CinemaView } from "@/components/CinemaView";
-import { GalleryView } from "@/components/GalleryView";
-import { ToolsView } from "@/components/ToolsView";
-import { SaveView } from "@/components/SaveView";
-import { SettingsView } from "@/components/SettingsView";
+import type { EditorViewState } from "@/components/editor/EditorView";
 import { DetailPane } from "@/components/DetailPane";
 import { CommandPalette } from "@/components/CommandPalette";
 import { Sidebar, type SidebarSection } from "@/components/Sidebar";
@@ -43,6 +29,28 @@ import { jobsDb } from "@/lib/jobsDb";
 import { vfsIndexDb } from "@/lib/vfsIndexDb";
 import { LIBELLE_GROUPE, libellesVues, vuesDuGroupe } from "@/lib/vues";
 
+/** Les vues hors parcours Explorer sont chargées à leur première ouverture. Cela laisse le
+ * démarrage et les changements de dossier libres des bundles Monaco, vidéo, forge et catalogue. */
+const DashboardView = lazy(() => import("@/components/DashboardView").then(({ DashboardView }) => ({ default: DashboardView })));
+const EditorView = lazy(() => import("@/components/editor/EditorView").then(({ EditorView }) => ({ default: EditorView })));
+const GameDataView = lazy(() => import("@/components/GameDataView").then(({ GameDataView }) => ({ default: GameDataView })));
+const SearchView = lazy(() => import("@/components/SearchView").then(({ SearchView }) => ({ default: SearchView })));
+const ModsView = lazy(() => import("@/components/ModsView").then(({ ModsView }) => ({ default: ModsView })));
+const RawCpkView = lazy(() => import("@/components/RawCpkView").then(({ RawCpkView }) => ({ default: RawCpkView })));
+const ReToolsView = lazy(() => import("@/components/ReToolsView").then(({ ReToolsView }) => ({ default: ReToolsView })));
+const LuaView = lazy(() => import("@/components/LuaView").then(({ LuaView }) => ({ default: LuaView })));
+const LiveModView = lazy(() => import("@/components/LiveModView").then(({ LiveModView }) => ({ default: LiveModView })));
+const ViolaView = lazy(() => import("@/components/ViolaView").then(({ ViolaView }) => ({ default: ViolaView })));
+const CinemaView = lazy(() => import("@/components/CinemaView").then(({ CinemaView }) => ({ default: CinemaView })));
+const GalleryView = lazy(() => import("@/components/GalleryView").then(({ GalleryView }) => ({ default: GalleryView })));
+const ToolsView = lazy(() => import("@/components/ToolsView").then(({ ToolsView }) => ({ default: ToolsView })));
+const SaveView = lazy(() => import("@/components/SaveView").then(({ SaveView }) => ({ default: SaveView })));
+const SettingsView = lazy(() => import("@/components/SettingsView").then(({ SettingsView }) => ({ default: SettingsView })));
+
+function VueEnChargement() {
+  return <div className="grid h-full place-items-center text-sm text-ink-faint">Ouverture de la vue…</div>;
+}
+
 /** Largeur de la barre latérale — même valeur que `ShellLayout.tsx` de spacedrive (220 px, dont
  * 8 px de marge flottante de chaque côté), lue par `TopBar` pour se décaler d'autant. */
 const SIDEBAR_WIDTH = 200;
@@ -53,11 +61,9 @@ const CLE_SIDEBAR_REPLIEE = "nie-explorer:sidebar:repliee";
 export default function App() {
   const t = useT();
   useApplyAppearance();
-  // Le Cinéma ouvre l'application, et sa première question est « qui regarde ? » — comme les
-  // deux plateformes dont la médiathèque emprunte la forme. Le tableau de bord reste à un clic
-  // (ou `Ctrl+2`) : il dit ce que cette machine peut faire, mais ce n'est pas la question qu'on
-  // se pose en ouvrant la fenêtre.
-  const [tab, setTab] = useState("cinema");
+  // L'Explorateur est la porte d'entrée : il donne immédiatement accès aux fichiers du jeu ;
+  // l'Éditeur reste le premier espace de travail voisin, sans charger son moteur 3D avant besoin.
+  const [tab, setTab] = useState("explorer");
   /** Les réglages, en lecture RÉACTIVE : la barre latérale doit se réorganiser dès qu'on
    *  bascule « Outils avancés », sans relancer l'application. */
   const reglages = useSettings();
@@ -500,6 +506,7 @@ export default function App() {
               </div>
             ) : (
               <Tabs value={tab} className="h-full min-h-0">
+                <Suspense fallback={<VueEnChargement />}>
                 <TabsContent value="dashboard" className="h-full min-h-0">
                   <DashboardView onSelectTab={setTab} />
                 </TabsContent>
@@ -597,6 +604,7 @@ export default function App() {
                 <TabsContent value="settings" className="h-full min-h-0 overflow-auto">
                   <SettingsView />
                 </TabsContent>
+                </Suspense>
               </Tabs>
             )}
           </div>

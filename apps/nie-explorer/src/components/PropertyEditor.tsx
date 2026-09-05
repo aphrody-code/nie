@@ -22,12 +22,11 @@
 // Rien n'est inventé ici : chaque source est un module déjà en place (`vfsIndexDb`, `api.related`,
 // `reDb`, `api.vfsDecodeCfgbin`/`encodeCfgbinConfig`). Ce composant est le point de jonction qui
 // manquait.
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { confirm } from "@tauri-apps/plugin-dialog";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { toast } from "sonner";
 
-import { CfgbinViewer } from "@/components/CfgbinViewer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/Icon";
@@ -40,6 +39,12 @@ import { defaultReDbPath, reDb, toStaticHex, type FunctionRow, type RttiClassRow
 import { useSettings } from "@/lib/settings";
 import { codeOf, vfsIndexDb } from "@/lib/vfsIndexDb";
 import { cn } from "@/lib/utils";
+
+// Même séparation que l'inspecteur : un panneau de propriétés ne charge Monaco qu'au moment où
+// l'utilisateur édite réellement une configuration décodée.
+const CfgbinViewer = lazy(() =>
+  import("@/components/CfgbinViewer").then(({ CfgbinViewer }) => ({ default: CfgbinViewer })),
+);
 
 type Aspect = "files" | "data" | "engine";
 
@@ -177,7 +182,9 @@ function ConfigEditor({ path, gameDir }: { path: string; gameDir?: string }) {
       </div>
       {/* Même visionneuse que `DetailPane` : sans ça, les deux points d'édition d'un `.cfg.bin`
        * divergeraient dès la première évolution de l'un des deux. */}
-      <CfgbinViewer value={json} onChange={setJson} format={format ?? "t2b"} className="min-h-0 flex-1" />
+      <Suspense fallback={<p className="p-3 text-xs text-ink-faint">Chargement de l’éditeur de configuration…</p>}>
+        <CfgbinViewer value={json} onChange={setJson} format={format ?? "t2b"} className="min-h-0 flex-1" />
+      </Suspense>
     </div>
   );
 }

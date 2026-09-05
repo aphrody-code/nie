@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { save, confirm } from "@tauri-apps/plugin-dialog";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { toast } from "sonner";
@@ -10,7 +10,6 @@ import { modsDb, type ModRow } from "@/lib/modsDb";
 import { stageReplacement, stageTextureReplacement } from "@/lib/modWorkspace";
 import { codeOf } from "@/lib/vfsIndexDb";
 import { useResolvedName } from "@/lib/nameResolve";
-import { CfgbinViewer } from "@/components/CfgbinViewer";
 import { TextureSheet } from "@/components/TextureSheet";
 import { AudioBankPanel } from "@/components/AudioBankPanel";
 import { CameraTrackView } from "@/components/CameraTrackView";
@@ -28,6 +27,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+// Monaco et ses workers ne sont utiles qu'après le décodage explicite d'un `.cfg.bin`.
+// Les garder hors du chunk de l'Explorateur évite de payer l'éditeur de texte pour chaque dossier.
+const CfgbinViewer = lazy(() =>
+  import("@/components/CfgbinViewer").then(({ CfgbinViewer }) => ({ default: CfgbinViewer })),
+);
 
 const BLENDER_EXTS = new Set(["g4md", "g4mg", "g4sk", "g4mt"]);
 
@@ -646,12 +651,14 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
               Aucun parseur nommé pour cette famille — vue générique seule.
             </p>
           )}
-          <CfgbinViewer
-            value={configJson}
-            onChange={setConfigJson}
-            format={configFormat ?? "t2b"}
-            readOnly={target.kind !== "vfs"}
-          />
+          <Suspense fallback={<p className="p-3 text-xs text-ink-faint">Chargement de l’éditeur de configuration…</p>}>
+            <CfgbinViewer
+              value={configJson}
+              onChange={setConfigJson}
+              format={configFormat ?? "t2b"}
+              readOnly={target.kind !== "vfs"}
+            />
+          </Suspense>
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" onClick={saveConfigAs} disabled={configSaving}>
               Enregistrer sous…
