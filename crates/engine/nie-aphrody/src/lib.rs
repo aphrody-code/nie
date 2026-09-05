@@ -11,6 +11,7 @@
 //! cette crate reste volontairement sur le contrat atlas/raster, tout en exposant des rectangles
 //! utilisables par les surfaces 2D de `nie-formats`.
 
+pub mod assets;
 pub mod codex;
 pub mod gisement;
 

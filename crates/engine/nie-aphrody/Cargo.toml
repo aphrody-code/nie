@@ -23,3 +23,7 @@ png = "0.18"
 [[bin]]
 name = "export_aphrody"
 path = "src/bin/export_aphrody.rs"
+
+[[bin]]
+name = "export_assets"
+path = "src/bin/export_assets.rs"
