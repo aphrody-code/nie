@@ -99,14 +99,20 @@ le toolkit C++ `iecode`. Codex n'a pas de `src/` racine, il a `codex-rs/` et `co
 
 **Bloqué, pas abandonné.** Ce dépôt est travaillé par deux agents en parallèle
 ([`A2A-CODEX.md`](A2A-CODEX.md)) et `src/**` est actuellement pris en exclusivité. Un
-renommage pendant une édition en cours écrase du travail. À rejouer dès libération :
+renommage pendant une édition en cours écrase du travail.
+
+Le lot est **prêt à jouer** dès libération :
 
 ```bash
-git mv src cpp
-# puis, dans l'ordre : CMakeLists.txt racine, CMakePresets.json, justfile,
-# crates/tools/nie-cli/src/delegate.rs, .clangd, .github/workflows/ci.yml, docs/
-rg -n --glob '!node_modules' --glob '!refs/**' '(^|["'"'"' (])src/'
+scripts/renommer-src-en-cpp.sh
 ```
+
+Le script refuse de démarrer tant qu'un fichier de `src/` n'est pas commité (c'est
+exactement la garde qui protège le travail de l'autre agent), fait le `git mv`, réécrit
+les seuls motifs propres à l'arbre C++ — `src/decomp`, `src/include`, `src/cli`,
+`src/tests`, `src/nie_rs`… jamais un `packages/*/src/` ni un `crates/*/src/` —, puis
+**liste** ce qui cite encore `src/` sans correspondre à un motif connu, à relire à la
+main. Il est idempotent : rejoué, il constate que `cpp/` existe et sort.
 
 Le `GLOB_RECURSE` de `src/CMakeLists.txt` et les `list(FILTER … EXCLUDE REGEX ".*/src/<nom>/.*")`
 qui l'accompagnent citent `src/` littéralement : ils doivent être repris dans le même
