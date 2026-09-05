@@ -232,11 +232,15 @@ Further reading: [`docs/PLAN.md`](docs/PLAN.md) (the plan, with numbers) ·
 
 ## Roadmap
 
-`nie.aphrody.com` is reserved for an Axum/Tokio showcase, **100 % Rust**, built inside this
-workspace as a `crates/tools/nie-site` crate bound to `127.0.0.1:8085` behind nginx and TLS. It
-will publish only reproducible results and the Inazuma Eleven content whose exploitation and
-distribution are permitted by the agreement below. No personal data and no secret is ever
-published. Build and security rules: [`AGENTS.md`](AGENTS.md).
+**Aphrody** (`aphrody.com`) is the tools and assets site, served by a `crates/tools/nie-site`
+crate — Axum 0.8, **100 % Rust**, bound to `127.0.0.1:8085` behind nginx and TLS. It hosts
+`apps/nie-web`, the same interface as **Inacord**, the desktop and mobile app (formerly
+`nie-explorer`). Both address resources by their **VFS path**, exactly like the game does:
+no translated slug ever identifies a file. The wiki, **Azalée**, is a separate product and
+moves to Vercel. Only reproducible results and Inazuma Eleven content covered by the
+agreement below are published; no personal data and no secret, ever. Decisions and versions:
+[`docs/stack/`](docs/stack/README.md); week plan: [`PLAN.md`](PLAN.md); build and security
+rules: [`AGENTS.md`](AGENTS.md).
 
 ## Contributing
 

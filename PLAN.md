@@ -26,8 +26,8 @@ Le tick Codex `env-b002ca32` a lu la frontière **à l'envers** ; le tick de J1 
 **Protocole :** `aphrody a2a tick --iteration <n> --side <moi> --peer <lui> --kind fact
 --subject "<type>: <sujet>" --body "<mesure>"` ; types `goal:` (ordre), `claim:` (périmètre),
 `fact:` (mesure), `block:` (arbitrage), `done:` (lot fini, avec ses comptes). Un `fact` porte
-un chiffre, jamais une intention. **À VÉRIFIER J1 :** `ai.json` ne connaît que `claude` et
-`codex` ; Astra y reçoit son identité et sa boîte `.coord/inbox-from-astra.jsonl`.
+un chiffre, jamais une intention. Astra a reçu son identité `astra@aphrody-code/niers`
+(rôle `verifier`) dans `ai.json` et sa boîte `.coord/inbox-from-astra.jsonl` — fait à J1.
 
 **Exige le go explicite de l'utilisateur** (aucun agent ne le fait seul) : bascule DNS,
 `nginx reload`, `systemctl stop/daemon-reload`, rotation d'un secret, premier
@@ -54,7 +54,7 @@ un chiffre, jamais une intention. **À VÉRIFIER J1 :** `ai.json` ne connaît qu
 
 | Qui | Quoi | Gate |
 |---|---|---|
-| Fable | gate serverless **avec comptes** ✔ · `docs/stack` tranché et gelé ✔ · ce `PLAN.md` ✔ · `AGENTS.md`/`CLAUDE.md` alignés (Aphrody, nie, Inacord, `aphrody.com`) · tick Codex : frontière rétablie + verdict + plan · commit | les comptes sont dans le commit |
+| Fable | gate serverless **avec comptes** ✔ · `docs/stack` tranché, gelé, puis **relu et consolidé en v2** (A1 révisé par A2, A3 complété) ✔ · ce `PLAN.md` ✔ · `AGENTS.md`/`CLAUDE.md`/`README.md` alignés ✔ · Astra inscrit dans `ai.json` ✔ · tick Codex : frontière rétablie + verdict + plan ✔ · commits | les comptes sont dans les commits |
 | Codex | prendre acte de la frontière (`rg` + infra) · écrire les **8 actions de sécurité sous forme de commandes prêtes, non exécutées**, une par une avec sa vérification · inventorier tout ce que `azalee-web` et `supabase-compat.inc` servent encore (17–19 consommateurs) | un `fact:` listant les 8 commandes et les consommateurs |
 | Astra | recevoir son identité A2A · rejouer `gate-serverless.sh --no-build` depuis un autre shell et publier **ses** comptes · matrice de départ : 5 URL × 20 runs en production (`/`, `/chara`, `/chara/mark-evans`, `/textures`, `/modeles`), p50/p95/p99, poids avec et sans `Accept-Encoding: br` | ses comptes égalent ceux de Fable ; matrice dans `var/mesures/j1-prod.json` |
 
@@ -95,9 +95,9 @@ met à jour une 0.5.9 réelle (Windows) au lieu d'installer à côté — sinon 
 
 | Qui | Quoi | Gate |
 |---|---|---|
-| Fable | `crates/tools/nie-site` : `main/app/config/error`, routes `health`, `well_known`, `static_files` (pré-compressé `br`/`zstd`, immuable par empreinte), `api/v1` (`rusqlite` ro, pagination, DTO), `assets` (proxy `nie-model-serve :8790` : `limit`, `timeout` 10 s, taille bornée, cache `moka`, ETag `blake3`), `index.html` via `askama` (titre, `og:` par route), erreurs, `robots.txt`, `security.txt`, `sitemap.xml`, CSP posée par la crate ; tests qui **comptent** ; `benches/routing.rs` · `apps/nie-web` : hôte Vite d'`inacord-ui` + `web-source.ts`, les routes sorties du wiki à J2 · **DA du jeu** : `niers design tokens` → `game-tokens.css` (70 variables), coquille **menu principal** pour Aphrody (`shell/main-menu/` : `SkewTile`, `TileRow`, `HeaderBanner`, `SidePanel`, `TitleBand`, `VersionChip`, `Callout`, `Badge`) sur les textures du jeu servies par `/assets` · coquille **InaCord** pour Inacord (`shell/inacord/` : `PhoneFrame`, `RoomList`, `MessageThread`, `HexBackdrop`, `TabBar` ; panneaux `#323544`/`#374D5B`, accent `#4FAECC`), références archivées dans `data/design/` · `deploy/nie-site.service` (`Restart=always`, `MemoryMax`) · `cargo build --release -p nie-site` | `cargo clippy -p nie-site --all-targets -- -D warnings` = 0 ; `cargo test -p nie-site` compte ; bundle initial **< 300 Ko gz** ; 70 tokens ; TTFB local `/api/v1/textures?page=1` **< 50 ms** |
+| Fable | `crates/tools/nie-site` : `main/app/config/error`, routes `health`, `well_known`, `static_files` (pré-compressé `br`/`zstd`, immuable par empreinte), **`/f/<chemin VFS verbatim>`** (une ressource, extension du jeu conservée) et **`/b/<préfixe VFS>`** (parcours d'un dossier) — amendement A3, chemin en **segment**, jamais en query ; les vues nommées (`/textures`, `/modeles`, `/sons`, `/videos`) sont des **filtres enregistrés** sur ces deux espaces, elles ne désignent jamais un fichier · `api/v1` (`rusqlite` ro, pagination, DTO), `assets` (proxy `nie-model-serve :8790` : `limit`, `timeout` 10 s, taille bornée, cache `moka`, ETag `blake3`), `index.html` via `askama` (titre, `og:` par route), erreurs, `robots.txt`, `security.txt`, `sitemap.xml`, CSP posée par la crate ; tests qui **comptent** ; `benches/routing.rs` · `apps/nie-web` : hôte Vite d'`inacord-ui` + `web-source.ts`, les routes sorties du wiki à J2 · **DA du jeu** : `niers design tokens` → `game-tokens.css` (70 variables), coquille **menu principal** pour Aphrody (`shell/main-menu/` : `SkewTile`, `TileRow`, `HeaderBanner`, `SidePanel`, `TitleBand`, `VersionChip`, `Callout`, `Badge`) sur les textures du jeu servies par `/assets` · coquille **InaCord** pour Inacord (`shell/inacord/` : `PhoneFrame`, `RoomList`, `MessageThread`, `HexBackdrop`, `TabBar` ; panneaux `#323544`/`#374D5B`, accent `#4FAECC`), références archivées dans `data/design/` · `deploy/nie-site.service` (`Restart=always`, `MemoryMax`) · `cargo build --release -p nie-site` | `cargo clippy -p nie-site --all-targets -- -D warnings` = 0 ; `cargo test -p nie-site` compte ; bundle initial **< 300 Ko gz** ; 70 tokens ; TTFB local `/api/v1/textures?page=1` **< 50 ms** |
 | Codex | installer `nie-site.service` (**go**) · appliquer la découpe du vhost et retirer la CSP nginx du bloc Aphrody, `nginx -t`, **reload avec go** · `nie.aphrody.com` → 308 · vérifier les 10 hôtes après | `aphrody.com/healthz` répond `nie-site` ; les 8 autres hôtes répondent **comme avant** (diff des `curl -sI`) ; la CSP vue est celle de `nie-site` |
-| Astra | Gate 5 : `hyperfine --warmup 3` sur `/`, `/api/v1/textures?page=1`, `/assets/tex/<une texture>` ; poids du bundle ; **capture `bxc` de `aphrody.com`** posée à côté de `data/design/aphrody-ui-ref-mainmenu-7.1.2.png` pour revue ; les 10 hôtes avant/après | TTFB `/textures` **< 50 ms** (départ 392), `/modeles` **< 50 ms** (départ 229) ; aucune régression sur `api.`, `mcp.`, `downloads.` |
+| Astra | Gate 5 : `hyperfine --warmup 3` sur `/`, `/api/v1/textures?page=1`, `/f/<une texture>` ; **200 chemins tirés de `niers vfs find` répondent 200 sur `/f/`** sous leur forme VFS exacte, dont une entité nommée `unknown` (gate A3) ; poids du bundle ; **capture `bxc` de `aphrody.com`** posée à côté de `data/design/aphrody-ui-ref-mainmenu-7.1.2.png` pour revue ; les 10 hôtes avant/après | TTFB `/textures` **< 50 ms** (départ 392), `/modeles` **< 50 ms** (départ 229) ; 200/200 chemins VFS ; aucune régression sur `api.`, `mcp.`, `downloads.` |
 
 **Rollback :** vhost `aphrody.com` → `:8083` (une ligne, `aphrody-site` n'est jamais arrêté).
 
@@ -124,14 +124,35 @@ Vercel garde la version précédente ; rien n'est supprimé avant J13.
 La marge de J7 absorbe un glissement de J4 ou J5. Si J6 glisse, la bascule attend la semaine
 suivante : **on ne bascule pas un vendredi soir.**
 
-## Hors semaine — gelé
+## Hors semaine — décidé, pas encore planifié
 
+- **`nie-db` et `niers push`** (amendement A2) : couche SQL native — `rusqlite` pour SQLite,
+  `sqlx` 0.8 pour PostgreSQL — et reprise du workflow des tables `inagle_*` (18 importeurs,
+  2 575 l. du paquet Bun), alimentée par `nie-data`. Gate : `niers push --dry-run` annonce
+  les lignes table par table, puis un push réel rend **le même total qu'aujourd'hui, écart
+  0**. Jusque-là, `nie-site` ne crée **aucune nouvelle** lecture d'`inagle_*` et le miroir
+  nocturne reste la source. C'est le premier lot après la semaine.
+- **Rebranchement des cinq requêtes** de `nie-model-serve` et `nie-play` sur le gisement
+  produit par `niers push` — suit `nie-db`, ne le précède pas.
 - Mobile Tauri d'Inacord, jeu mobile natif, adaptateur Steam : spécifiés dans
   `docs/stack/game-platforms.md` et `desktop-mobile.md`, **non commencés**.
 - Bump `wgpu 29.0.3 → 30.0.1` : lot compilé et golden-testé, pas cette semaine.
-- Leptos, Dioxus, SQLx dans `nie-site`, Drizzle SQLite, Actix : **rejetés**, voir l'ADR.
+- Portage du domaine `inagle_cross_*` (153 tables, jeu mobile) : **non décidé**, aucun
+  décodeur Rust n'existe ; reste au paquet Bun tant que personne ne le tranche.
+- Leptos, Dioxus, Drizzle SQLite, Actix, `sqlx` **dans `nie-site`** : **rejetés**, voir l'ADR.
 - `auth.users` : **jamais** migré.
 - Réconciliation du manifeste 66 / 165 244 contre 65 / 165 277 : à faire, sans bloquer.
+
+## La seule question ouverte, et elle est pour l'utilisateur
+
+L'Accord Commercial N° RG-L5-VR-2026-001, qui autorise la diffusion des assets LEVEL-5, est
+signé **par Rose Griffon**. Aphrody, Inacord et nie en sortent (décision `aphrody-dev`). La
+base légale de leur exploitation des assets sur `aphrody.com` n'est donc **pas acquise** :
+elle est couverte par l'accord existant, elle demande un avenant, ou Aphrody diffuse sous
+couvert de Rose Griffon malgré la séparation de marque. Aucun agent ne tranche cela.
+
+Rien d'autre n'attend de réponse. Le plan avance sans elle jusqu'à J5 ; c'est l'ouverture
+publique d'`aphrody.com` avec des assets du jeu qui la rend nécessaire.
 
 ## Risques et rollback
 

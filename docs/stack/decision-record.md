@@ -198,22 +198,30 @@ runtime Node et Supabase Cloud. Ils justifiaient la séparation wiki/outils, pas
 
 ## Amendements
 
-### A1 — 2026-09-05 : Aphrody, Inacord et nie fonctionnent sans `inagle`
+> **Gel v2 du 2026-09-05.** Les trois amendements du jour ont été relus ensemble et
+> consolidés : A1 est **remplacé par A2** sur la question des tables, et A3 reçoit la
+> distinction ressource/vue qui lui manquait. Un amendement ultérieur repart de A4.
 
-**Décision.** Aucun des trois produits `aphrody-dev` ne dépend d'`inagle`, ni de son paquet
-(`@rosegriffon/inagle`, propriété Rose Griffon) ni de ses tables `inagle_*`. `inagle` reste
-la chaîne de publication d'**Azalée** et rien d'autre. Corollaire de la séparation
-`aphrody-dev` : une dépendance de données est une dépendance tout court.
+### A1 — Aphrody, Inacord et nie fonctionnent sans le paquet `inagle` *(révisé par A2)*
 
-**Coût mesuré le 2026-09-05.**
+**Décision.** Aucun des trois produits `aphrody-dev` ne dépend du paquet
+`@rosegriffon/inagle`, propriété Rose Griffon. `inagle` reste la chaîne de publication
+d'**Azalée** et rien d'autre.
 
-*Code — déjà acquis.* Inacord déclare `@rosegriffon/inagle` dans son `package.json` mais ne
-l'importe **0 fois** ; son `src-tauri` ne dépend que de crates `nie-*` ; les 37 crates du
-moteur n'y font aucune référence de code. Retirer la déclaration suffit (J4, avec les 20
-imports `@rosegriffon/azalee` et les 3 `@rosegriffon/ui`).
+**Ce qu'A1 disait de faux, et qu'A2 corrige.** A1 étendait l'indépendance aux **tables**
+`inagle_*`. C'était une erreur de lecture : `inagle_` est un **préfixe de table**, pas un
+lien au paquet. Les tables sont un schéma de données de jeu, légitime, et elles restent —
+13 crates, le wiki, le miroir et l'installeur d'Inacord s'y adossent ; les renommer casserait
+tout pour rien. Ce qui change, c'est **qui les produit** : voir A2.
 
-*Données — cinq requêtes.* `nie-model-serve`, que `nie-site` proxifie, lit réellement le
-miroir pour assembler les modèles :
+**Coût mesuré le 2026-09-05, côté code — déjà acquis.** Inacord déclare
+`@rosegriffon/inagle` dans son `package.json` mais ne l'importe **0 fois** ; son `src-tauri`
+ne dépend que de crates `nie-*` ; les 37 crates du moteur n'y font aucune référence de code.
+Retirer la déclaration suffit (J4, avec les 20 imports `@rosegriffon/azalee` et les 3
+`@rosegriffon/ui`).
+
+**Coût côté données — cinq requêtes**, qui ne disparaissent pas mais **changent de source**
+(A2). `nie-model-serve`, que `nie-site` proxifie, lit le miroir pour assembler les modèles :
 
 | Table lue | Lignes | Requêtes | Module `nie-data` équivalent |
 |---|---:|---:|---|
@@ -224,19 +232,14 @@ miroir pour assembler les modèles :
 
 `nie-play` lit la même table de sous-titres. `nie-formats`, `nie-data`, `nie-save` et
 `nie-explore` ne la lisent **pas** : leurs occurrences d'`inagle_*` sont des commentaires.
-Les quatre familles étant déjà décodées par `nie-data`, l'indépendance ne demande aucun
-parseur nouveau — seulement de brancher ces cinq requêtes sur la source Rust, dans un
-gisement propre à `aphrody-dev` (par exemple `var/game.sqlite`, produit par un `niers push`).
+Les quatre familles étant déjà décodées par `nie-data`, il n'y a **aucun parseur à écrire**.
 
-**Ce qui reste chez Azalée, et n'est pas repris :** les 153 tables `inagle_cross_*`
-(*Inazuma Eleven Cross*, jeu mobile distinct, sans décodeur Rust) et les 2 575 lignes de
-publication (`cli-push.ts`, `push-categories.ts`). Aucun des trois produits n'en a besoin.
+**Ce qui reste chez Azalée :** les 153 tables `inagle_cross_*` (*Inazuma Eleven Cross*, jeu
+mobile distinct, sans décodeur Rust) et les 2 575 lignes de publication du paquet Bun.
 
-**Gate.** `rg -n 'inagle_' crates/tools/nie-model-serve/src crates/engine/nie-play/src
---glob '*.rs' | grep -v '^\S*:[0-9]*: *//'` → **0** ; `rg '@rosegriffon/'
-apps/inacord/package.json packages/inacord-ui apps/nie-web` → **0**. Lot à planifier ; il
-n'est **pas** dans la semaine J1–J7, et `nie-site` ne doit pas créer de nouvelle lecture
-d'`inagle_*` en attendant.
+**Gate.** `rg '@rosegriffon/' apps/inacord/package.json packages/inacord-ui apps/nie-web`
+→ **0**. Contrainte immédiate : `nie-site` ne crée **aucune nouvelle** lecture d'`inagle_*`
+tant qu'A2 n'a pas livré.
 
 ### A2 — 2026-09-05 : `nie` gère nativement SQL et possède le workflow des tables `inagle_*`
 
@@ -333,10 +336,26 @@ deviennent adressables sans table de correspondance.
 **Ce qui n'est pas concerné.** Azalée : ses URL indexées ne bougent pas, ses slugs traduits
 non plus. Les 153 tables `inagle_cross_*` (jeu mobile, pas de VFS) gardent leurs clés.
 
-**Gate.** Un échantillon de 200 chemins tirés de `niers vfs find` répond 200 sur Aphrody
-sous la forme exacte du VFS ; le même chemin ouvert dans Inacord désigne la même ressource ;
-`rg` sur les routes d'Aphrody ne trouve **aucun** slug traduit ; et une entité dont le nom
-est `unknown` reste adressable — c'est le cas qui prouve la règle.
+**Ressource et vue — la distinction qui manquait.** A3 gouverne l'**identité** d'une
+ressource, pas le nom d'un écran. Aphrody a donc deux espaces d'adresses, et deux seulement :
+
+| Espace | Forme | Rôle |
+|---|---|---|
+| **Ressource** | `/f/<chemin VFS verbatim>` | un fichier du jeu, exactement un, identité stable |
+| **Parcours** | `/b/<préfixe VFS>` | un dossier du VFS, requête de préfixe |
+
+Les noms d'écrans (`/textures`, `/modeles`, `/sons`, `/videos`) restent **autorisés** : ce
+sont des **filtres enregistrés** sur le VFS, pas une taxonomie inventée ni une identité —
+`/textures` équivaut à `/b/data/dx11` filtré sur `.g4tx` (les 54 203 textures y vivent ; les
+modèles vivent sous `data/common/chr/`). Ils préservent les dix redirections 308 venant
+d'Azalée, donc les URL indexées. Ce qu'ils ne font jamais : désigner un fichier. Un fichier
+n'a qu'une adresse, `/f/<chemin>`.
+
+**Gate.** Un échantillon de 200 chemins tirés de `niers vfs find` répond 200 sur
+`/f/<chemin>` sous la forme exacte du VFS ; le même chemin ouvert dans Inacord désigne la
+même ressource ; `rg` sur les routes d'Aphrody ne trouve **aucun** slug traduit dans un
+identifiant ; et une entité dont le nom est `unknown` reste adressable — c'est le cas qui
+prouve la règle.
 
 ---
 

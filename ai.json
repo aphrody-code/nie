@@ -24,8 +24,13 @@
     "pushNotifications": false,
     "extendedAgentCard": false
   },
-  "default_input_modes": ["text/plain"],
-  "default_output_modes": ["text/plain", "application/json"],
+  "default_input_modes": [
+    "text/plain"
+  ],
+  "default_output_modes": [
+    "text/plain",
+    "application/json"
+  ],
   "peers": [
     {
       "id": "claude@aphrody-code/niers",
@@ -42,6 +47,14 @@
       "binary": "codex",
       "invocation": "codex exec --cd /home/ubuntu/niers --skip-git-repo-check <prompt>",
       "description": "Codex CLI, non interactif. Lit AGENTS.md et CLAUDE.md ; MCP `aphrody` et `niers-game` déjà déclarés dans ~/.codex/config.toml."
+    },
+    {
+      "id": "astra@aphrody-code/niers",
+      "role": "verifier",
+      "transport": "cli",
+      "binary": "gemini",
+      "invocation": "gemini -p <prompt>",
+      "description": "Astra (Gemini). Verificateur independant : rejoue chaque gate depuis un autre shell, publie ses propres comptes, ne corrige rien et n'ecrit dans aucun depot. Ses mesures vont dans var/mesures/ (hors depot)."
     }
   ],
   "coordination": {
