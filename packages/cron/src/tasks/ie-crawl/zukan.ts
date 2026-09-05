@@ -53,10 +53,28 @@ export async function crawlZukanOrder(): Promise<{
 		// propre signature — sinon un ordre inchangé masquerait un age_group/nickname
 		// corrigé sur zukan (ou simplement pas encore synchronisé, cf. déploiement du
 		// 1/9/2026) puisque la comparaison ci-dessous décide SEULE si on écrit en base.
-		const bioMapObj: Record<string, { a: string | null; s: string | null; n: string | null }> =
-			{};
+		const bioMapObj: Record<
+			string,
+			{
+				a: string | null;
+				s: string | null;
+				n: string | null;
+				g: string | null;
+				r: string | null;
+				d: string | null;
+			}
+		> = {};
 		for (const c of allCharacters) {
-			if (c.zukanHash) bioMapObj[c.zukanHash] = { a: c.ageGroup, s: c.schoolYear, n: c.nickname };
+			if (c.zukanHash) {
+				bioMapObj[c.zukanHash] = {
+					a: c.ageGroup,
+					s: c.schoolYear,
+					n: c.nickname,
+					g: c.gender,
+					r: c.characterRole,
+					d: c.description,
+				};
+			}
 		}
 		const snapshot = { bio: bioMapObj, order: orderMapObj };
 
@@ -101,11 +119,23 @@ export async function crawlZukanOrder(): Promise<{
 						age_group?: string;
 						school_year?: string;
 						nickname?: string;
+						gender?: string;
+						description_en?: string;
 					} = {};
 					if (order !== undefined) updatePayload.zukan_order = order;
 					if (bio?.a) updatePayload.age_group = bio.a;
 					if (bio?.s) updatePayload.school_year = bio.s;
 					if (bio?.n) updatePayload.nickname = bio.n;
+					if (bio?.g) {
+						const genderMap: Record<string, string> = {
+							Male: "M",
+							Female: "F",
+							Unknown: "U",
+							Neutral: "N",
+						};
+						if (genderMap[bio.g]) updatePayload.gender = genderMap[bio.g];
+					}
+					if (bio?.d) updatePayload.description_en = bio.d;
 
 					if (Object.keys(updatePayload).length > 0) {
 						const { error: updateError } = await client

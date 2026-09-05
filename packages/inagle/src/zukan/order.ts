@@ -42,6 +42,46 @@ export interface ZukanOrderCharacter {
 	ageGroup: string | null;
 	/** `ul.basic` : "Grade 7" / "Grade 8" / "Grade 9" (brut, EN). */
 	schoolYear: string | null;
+	/** Genre affiché par le Zukan (Male/Female/Unknown/Neutral). */
+	gender: string | null;
+	/** Rôle officiel (Player/Coordinator/Manager/Coach). */
+	characterRole: string | null;
+	/** Description officielle dans la langue de la page crawlée. */
+	description: string | null;
+}
+
+/** Parse une page SSR `chara_param` dans l'ordre exact du Zukan. */
+export function parseZukanOrderHtml(html: string, startOrder = 0): ZukanOrderCharacter[] {
+	const $ = cheerio.load(html);
+	const result: ZukanOrderCharacter[] = [];
+	$("ul.charaListBox > li").each((index, el) => {
+		const img = $(el).find("img[src*='cloudfront']").first();
+		const source = $(el).find("source[srcset*='cloudfront.net/1/']").first();
+		const src = img.attr("src") || source.attr("srcset") || "";
+		const hashMatch = src.match(ZUKAN_HASH_RE);
+		const zukanHash = (hashMatch && hashMatch[1]) || null;
+		const basic = (label: string) =>
+			$(el).find(`.basic dl:has(dt:contains('${label}')) dd`).first().text().trim() || null;
+
+		const descriptionNode = $(el).find(".rBox > .description").first().clone();
+		descriptionNode.find("br").replaceWith(" ");
+		result.push({
+			id: zukanHash || `chara-${startOrder + index}`,
+			name: img.attr("alt")?.trim() || $(el).find(".nameBox .name").text().trim() || "?",
+			zukanHash,
+			position: $(el).find("dl:has(dt:contains('Position')) dd p").first().text().trim() || "?",
+			element: $(el).find("dl:has(dt:contains('Element')) dd p").first().text().trim() || "?",
+			game: $(el).find("dl.appearedWorks dd").first().text().trim() || "?",
+			order: startOrder + index,
+			nickname: $(el).find(".lBox .name .nickname").text().trim() || null,
+			ageGroup: basic("Age Group"),
+			schoolYear: basic("School Year"),
+			gender: basic("Gender"),
+			characterRole: basic("Character Role"),
+			description: descriptionNode.text().replace(/\s+/g, " ").trim() || null,
+		});
+	});
+	return result;
 }
 
 export interface CrawlZukanOrderOptions {
@@ -115,50 +155,15 @@ export async function crawlZukanOrderPages(
 				}
 
 				const html = await page.content();
-				const $ = cheerio.load(html);
-
-				const listItems = $("ul.charaListBox > li");
-				if (listItems.length === 0) {
+				const pageCharacters = parseZukanOrderHtml(html, globalIndex);
+				if (pageCharacters.length === 0) {
 					log(`[Crawl Zukan] Page ${pageNum} vide. Fin du crawl.`);
 					break;
 				}
+				allCharacters.push(...pageCharacters);
+				globalIndex += pageCharacters.length;
 
-				listItems.each((_i, el) => {
-					const img = $(el).find("img[src*='cloudfront']").first();
-					const source = $(el).find("source[srcset*='cloudfront.net/1/']").first();
-					const src = img.attr("src") || source.attr("srcset") || "";
-					const hashMatch = src.match(ZUKAN_HASH_RE);
-					const zukanHash = (hashMatch && hashMatch[1]) || null;
-
-					const name = img.attr("alt")?.trim() || "?";
-					const position = $(el).find("dl:has(dt:contains('Position')) dd p").text().trim() || "?";
-					const element = $(el).find("dl:has(dt:contains('Element')) dd p").text().trim() || "?";
-					const game = $(el).find("dl.appearedWorks dd").text().trim() || "?";
-					// `.basic` porte Age Group / School Year / Gender / Character Role — déjà présents
-					// dans la même page (SSR, pas besoin d'un crawl séparé de chara_list/chara_param
-					// en détail). Seuls Age Group/School Year/le surnom manquaient à l'appel.
-					const nickname = $(el).find(".lBox .name .nickname").text().trim() || null;
-					const ageGroup =
-						$(el).find(".basic dl:has(dt:contains('Age Group')) dd").text().trim() || null;
-					const schoolYear =
-						$(el).find(".basic dl:has(dt:contains('School Year')) dd").text().trim() || null;
-
-					allCharacters.push({
-						id: zukanHash || `chara-${globalIndex}`,
-						name,
-						zukanHash,
-						position,
-						element,
-						game,
-						order: globalIndex,
-						nickname,
-						ageGroup,
-						schoolYear,
-					});
-					globalIndex++;
-				});
-
-				log(`[Crawl Zukan] Page ${pageNum} : ${listItems.length} personnages trouvés.`);
+				log(`[Crawl Zukan] Page ${pageNum} : ${pageCharacters.length} personnages trouvés.`);
 			} catch (err) {
 				log(`[Crawl Zukan] Erreur sur la page ${pageNum} : ${err}`);
 				break;
