@@ -12,6 +12,7 @@ import { getPgPool } from "@/lib/db/pg";
 import { getMiximaxImageUrl, resolveAssetUrl, resolveAuraTelopUrl } from "@rosegriffon/azalee/images";
 
 import { createSqliteClient } from "@rosegriffon/azalee/db";
+import { origineSupabase } from "@/lib/supabase/url";
 
 // Lazy getter for Supabase to prevent top-level execution during build
 let _supabase: ReturnType<typeof createClient> | null = null;
@@ -22,15 +23,9 @@ function getSupabase(): ReturnType<typeof createClient> {
 		return _supabase;
 	}
 
-	const url =
-		typeof window === "undefined" &&
-		process.env.SUPABASE_INTERNAL_URL &&
-		process.env.SUPABASE_INTERNAL_URL.startsWith("http")
-			? process.env.SUPABASE_INTERNAL_URL
-			: process.env.NEXT_PUBLIC_SUPABASE_URL &&
-				  process.env.NEXT_PUBLIC_SUPABASE_URL.startsWith("http")
-				? process.env.NEXT_PUBLIC_SUPABASE_URL
-				: (typeof window === "undefined" ? "http://127.0.0.1:8811" : window.location.origin);
+	// Résolution unique : cf. `lib/supabase/url`. Le serveur et le navigateur visent
+	// désormais la MÊME origine — la branche `typeof window` faisait diverger les deux.
+	const url = origineSupabase();
 
 	const key =
 		process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&

@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { origineSupabase } from "@/lib/supabase/url";
 
 // We can define Database type here or import it if we share types package.
 // For now, let's use 'any' or a minimal interface if needed, but 'any' is fine for internal tool.
@@ -22,7 +23,7 @@ const PLACEHOLDER_SERVICE_KEY =
 	"***REDACTED-SERVICE-ROLE***";
 
 export function getSupabaseClient() {
-	let supabaseUrl = process.env.SUPABASE_INTERNAL_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+	let supabaseUrl = origineSupabase();
 	let supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 	if (!isValidHttpUrl(supabaseUrl)) {

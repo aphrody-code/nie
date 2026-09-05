@@ -1,5 +1,6 @@
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@rosegriffon/db";
+import { origineSupabase } from "@/lib/supabase/url";
 
 const PLACEHOLDER_URL = (typeof window === "undefined" ? "http://127.0.0.1:8811" : window.location.origin);
 const PLACEHOLDER_ANON_JWT =
@@ -17,12 +18,8 @@ function isValidKey(v: string | undefined | null): v is string {
 	);
 }
 
-const supabaseUrl =
-	(isValidHttpUrl(process.env.SUPABASE_INTERNAL_URL) ? process.env.SUPABASE_INTERNAL_URL : null) ||
-	(isValidHttpUrl(process.env.NEXT_PUBLIC_SUPABASE_URL)
-		? process.env.NEXT_PUBLIC_SUPABASE_URL
-		: null) ||
-	PLACEHOLDER_URL;
+// Résolution unique : cf. `./url`. La variante interne (`127.0.0.1`) n'est plus consultée.
+const supabaseUrl = origineSupabase();
 
 const supabaseAnonKey =
 	(isValidKey(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
