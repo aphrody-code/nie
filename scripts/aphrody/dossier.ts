@@ -25,6 +25,7 @@
 
 import { Database } from "bun:sqlite";
 import { romaji, romajiNom } from "./kana.ts";
+import { assets, type Asset } from "./sources/vfs.ts";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
@@ -152,8 +153,52 @@ function gisement(slugBase: string) {
         ? (db.query("select * from inagle_teams where id = ?1 or internal_code = ?1").get(String(principal.team_id)) as Ligne | null)
         : null;
 
+    // Auras : `data.auras` porte des {skillId, learnLevel}, et `inagle_auras.id` vaut
+    // « aura_<skillId> ». La jointure est donc directe — inutile de chercher un wap0xxxx
+    // dans le JSON, il n'y en a pas (premiere version de ce script : 0 aura trouvee).
+    const niveauAura = new Map<string, number>();
+    for (const v of variantes) {
+        try {
+            for (const a of (JSON.parse(String(v.data ?? "{}")) as Ligne).auras as Ligne[] ?? [])
+                if (a.skillId) niveauAura.set(`aura_${String(a.skillId)}`, Number(a.learnLevel ?? 0));
+        } catch {
+            /* colonne `data` absente ou non-JSON */
+        }
+    }
+    const auras = niveauAura.size
+        ? (db
+              .query(
+                  `select id, name_fr, name_en, name_ja, description_fr, element_id, sub_type, asset_code, image_url
+                     from inagle_auras where id in (${[...niveauAura.keys()].map(() => "?").join(",")})`,
+              )
+              .all(...niveauAura.keys()) as Ligne[]).map((a) => ({ ...a, niveau_apprentissage: niveauAura.get(String(a.id)) ?? null }))
+        : [];
+
+    // Dialogues : on ne retient QUE le decompte et les references de scene. Le texte reste
+    // dans le gisement — le dossier dit ou regarder, il ne recopie pas les repliques.
+    //
+    // Limite mesuree, et il faut la dire : `inagle_event_subtitles` n'a AUCUN lien vers un
+    // personnage. `line_label` est un identifiant de ligne (« ev02_00800_010_530 »), pas un
+    // locuteur. La seule liaison possible ici est la mention du nom dans le texte, ce qui
+    // ne trouve que les repliques ou quelqu'un le nomme — pas les siennes. Sur Aphrody :
+    // 1 scene, alors que la page publiee en annonce 11. Ce compte-la vient d'une autre
+    // source (probablement var/niers.sqlite), non branchee ici : ne pas presenter le
+    // chiffre du dossier comme le nombre de ses dialogues.
+    const motifs = [principal.nickname, principal.name_fr, principal.name_en]
+        .flatMap((x) => (x ? [String(x)] : []))
+        .concat(String(principal.name_ja ?? "").split(/\s+/).filter((x) => x.length > 1));
+    const dial = motifs.length
+        ? (db
+              .query(
+                  `select event_id, count(*) as repliques from inagle_event_subtitles
+                    where ${motifs.map(() => "text_ja like ? or text_fr like ? or text_en like ?").join(" or ")}
+                    group by event_id order by repliques desc limit 40`,
+              )
+              .all(...motifs.flatMap((m) => [`%${m}%`, `%${m}%`, `%${m}%`])) as Ligne[])
+        : [];
+
     db.close();
-    return { variantes, principal, codes, skills, equipe, orphelins };
+    return { variantes, principal, codes, skills, equipe, orphelins, auras, dialogues: dial };
 }
 
 // ---------------------------------------------------------------- zukan officiel
@@ -568,6 +613,33 @@ function markdown(d: Ligne): string {
         L.push("");
     }
 
+    const au = (d.auras as Ligne[]) ?? [];
+    if (au.length) {
+        L.push(`## Auras (${au.length})`, "", "| Niv. | Code | Nom | Type | Description |", "|---:|---|---|---|---|");
+        for (const a of au) L.push(`| ${a.niveau_apprentissage ?? "—"} | ${a.code} | ${a.nom_fr ?? a.nom_en ?? "—"} | ${a.type ?? "—"} | ${String(a.description_fr ?? "—").replace(/\n/g, " ")} |`);
+        L.push("");
+    }
+
+    const av = (d.assets_vfs ?? {}) as Record<string, Ligne[]>;
+    const nAssets = Object.values(av).flat().length;
+    if (nAssets) {
+        L.push(`## Fichiers du jeu (${nAssets})`, "", "Extraits du VFS — les CPK, que ni `rg` ni `fd` ne savent lire.", "");
+        for (const [code, liste] of Object.entries(av)) {
+            L.push(`### \`${code}\``, "", "| Rôle | Octets | Chemin |", "|---|---:|---|");
+            for (const a of liste) L.push(`| ${a.role} | ${a.octets} | \`${a.chemin}\` |`);
+            L.push("");
+        }
+    }
+
+    const di = d.dialogues as Ligne | null;
+    if (di && Number(di.repliques)) {
+        L.push("## Dialogues", "", `**${di.repliques}** répliques réparties sur **${di.scenes}** scènes.`, "");
+        L.push(`> ${di.note}`, "");
+        L.push("| Scène | Répliques |", "|---|---:|");
+        for (const r of ((di.references as Ligne[]) ?? []).slice(0, 20)) L.push(`| \`${r.event_id}\` | ${r.repliques} |`);
+        L.push("");
+    }
+
     L.push("## Médias", "");
     if ((md.visages as string[])?.length) L.push(...(md.visages as string[]).map((u, i) => `- Visage ${(d.codes_internes as string[])[i] ?? i} : ${u}`), "");
     for (const z of (md.zukan as Ligne[]) ?? [])
@@ -656,6 +728,17 @@ if (!o.horsLigne) {
     );
 }
 
+// Les vrais fichiers du jeu, un lot par code interne. C'est la seule source complete :
+// le VFS n'est pas sur le disque et aucun index SQL ne le remplace.
+const assetsVfs: Record<string, Asset[]> = {};
+if (!o.horsLigne) {
+    for (const code of g.codes) {
+        const a = await assets(code).catch(() => [] as Asset[]);
+        if (a.length) assetsVfs[code] = a;
+    }
+    console.error(`  vfs : ${Object.values(assetsVfs).flat().length} fichiers pour ${Object.keys(assetsVfs).length} codes`);
+}
+
 const face = (code: string) => `${CDN}/dx11/menu/200_icon/10_icon_chr/face/${code}_l.png`;
 const stat = (n: string) => ({
     lv1: p[`stat_lv1_${n}`] ?? null,
@@ -732,6 +815,14 @@ const dossier: Ligne = {
     })(),
     statistiques: {
         total: p.stat_total,
+        // `data.stats` porte lv1, lv50 ET lv99 : le niveau 50 n'a pas a etre interpole.
+        niveaux_stockes: (() => {
+            try {
+                return ((JSON.parse(String(p.data ?? "{}")) as Ligne).stats ?? null) as Ligne | null;
+            } catch {
+                return null;
+            }
+        })(),
         niveau_1: Object.fromEntries(["frappe", "controle", "technique", "pression", "physique", "agilite", "intelligence"].map((n) => [n, p[`stat_lv1_${n}`] ?? null])),
         niveau_99: Object.fromEntries(["frappe", "controle", "technique", "pression", "physique", "agilite", "intelligence"].map((n) => [n, p[`stat_${n}`] ?? null])),
         progression: Object.fromEntries(["frappe", "controle", "technique", "pression", "physique", "agilite", "intelligence"].map((n) => [n, stat(n)])),
@@ -740,17 +831,28 @@ const dossier: Ligne = {
         controle_zukan: (() => {
             const f = fiches.find((x) => Object.keys(x.parametres).length);
             if (!f) return null;
+            // `data.stats` nomme ses attributs en anglais ; le zukan, chez nous, en francais.
+            const EN_CLE: Record<string, string> = {
+                frappe: "kick", controle: "control", technique: "technique", pression: "pressure",
+                physique: "physical", agilite: "agility", intelligence: "intelligence",
+            };
+            let stockes: Ligne | null = null;
+            try {
+                stockes = ((JSON.parse(String(p.data ?? "{}")) as Ligne).stats ?? null) as Ligne | null;
+            } catch {
+                stockes = null;
+            }
             return Object.entries(f.parametres).map(([niveau, vals]) => ({
                 niveau,
                 zukan: vals,
-                notre: Object.fromEntries(Object.keys(vals).map((k) => [k, p[`stat_${k}`] ?? null])),
+                notre: Object.fromEntries(Object.keys(vals).map((k) => [k, (stockes?.[niveau] as Ligne)?.[EN_CLE[k] ?? k] ?? p[`stat_${k}`] ?? null])),
                 ecart: Object.fromEntries(
                     Object.entries(vals).map(([k, v]) => {
-                        const notre = niveau === "lv99" ? Number(p[`stat_${k}`] ?? NaN) : NaN;
+                        const notre = Number((stockes?.[niveau] as Ligne)?.[EN_CLE[k] ?? k] ?? (niveau === "lv99" ? p[`stat_${k}`] : NaN));
                         return [k, Number.isFinite(notre) ? v - notre : null];
                     }),
                 ),
-                note: "les niveaux intermediaires ne sont pas stockes dans le gisement : l'ecart n'est calcule qu'au niveau 99",
+                note: stockes?.[niveau] ? "ecart mesure, meme niveau des deux cotes" : "niveau absent du gisement : ecart non calculable",
             }));
         })(),
     },
@@ -781,6 +883,25 @@ const dossier: Ligne = {
               url: `${SITE}/equipe/${g.equipe.internal_code ?? g.equipe.id}`,
           }
         : null,
+    auras: g.auras.map((a) => ({
+        code: a.asset_code,
+        nom_fr: a.name_fr,
+        nom_en: a.name_en,
+        nom_ja: a.name_ja,
+        description_fr: a.description_fr,
+        type: a.sub_type,
+        niveau_apprentissage: (a as Ligne).niveau_apprentissage,
+        image: a.image_url,
+    })),
+    dialogues: {
+        scenes: g.dialogues.length,
+        repliques: g.dialogues.reduce((n, d) => n + Number(d.repliques ?? 0), 0),
+        references: g.dialogues.map((d) => ({ event_id: d.event_id, repliques: d.repliques })),
+        note:
+            "scenes ou le personnage est NOMME — inagle_event_subtitles ne porte aucun lien vers un " +
+            "locuteur, ce n'est donc pas le compte de ses repliques. Texte non recopie.",
+    },
+    assets_vfs: assetsVfs,
     medias: {
         portrait: p.image_url ?? zukan[0]?.image ?? null,
         visages: g.codes.map(face),
