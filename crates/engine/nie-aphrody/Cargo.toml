@@ -14,6 +14,10 @@ workspace = true
 # Le dossier du jeu (`gisement`) parse chara_param, skill_config et aura_skill_config : ces
 # parseurs vivent dans nie-data, et il n'y a pas de cycle — nie-data n'importe pas cette crate.
 nie-data = { workspace = true, features = ["serde", "std"] }
+# `sprite_sheet` : atlas → CSS (2 modes) + SVG `<symbol>` + JSON. Le module existe et porte
+# déjà les rectangles du jeu ; `pixel` lui APPORTE une planche assemblée au lieu d'un `.g4tx`,
+# il ne réimplémente ni le CSS ni le SVG.
+nie-formats.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true

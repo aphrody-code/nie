@@ -6,7 +6,7 @@
 
 use nie_aphrody::pixel::{
     Boite, Comparaison, Image, Masque, Mesure, Reglages, ReglagesVecteur, comparer, mesurer,
-    rasteriser_svg, vectoriser,
+    planche, rasteriser_svg, tokens_css, vectoriser,
 };
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -16,6 +16,8 @@ pixel — mesure et reproduction au pixel près
 
   pixel mesurer <IMG> [--boite X0 Y0 X1 Y1] [--k N] [--alpha S|--sombre S|--teinte MIN MAX SAT]
         [--json]
+  pixel planche <IMG...> -o <BASE> [--colonnes N] [--nom NOM]
+        → BASE.png + BASE.css + BASE.svg + BASE.json (feuille de sprites du depot)
   pixel comparer <A> <B> [--tolerance N] [--json]
   pixel vectoriser <IMG> [--k N] [--tolerance PX] [--aire-min N] [--alpha S|--sombre S] [-o SVG]
   pixel rasteriser <SVG> --largeur N -o <PNG>
@@ -83,6 +85,7 @@ fn executer(args: &[String]) -> Result<(), String> {
         "mesurer" => cmd_mesurer(&mut reste),
         "comparer" => cmd_comparer(&mut reste),
         "vectoriser" => cmd_vectoriser(&mut reste),
+        "planche" => cmd_planche(&mut reste),
         "rasteriser" => cmd_rasteriser(&mut reste),
         "-h" | "--help" | "aide" => {
             print!("{AIDE}");
@@ -106,6 +109,10 @@ fn charger(chemin: &Path) -> Result<Image, String> {
 
 fn cmd_mesurer(args: &mut Vec<String>) -> Result<(), String> {
     let json = drapeau(args, "--json");
+    // `--css` accepte un préfixe optionnel ; sans lui, `nie`.
+    let prefixe_css = option(args, "--css", 1)?
+        .map(|v| v[0].clone())
+        .or_else(|| drapeau(args, "--css").then(|| "nie".to_string()));
     let masque = lire_masque(args)?;
     let k = option(args, "--k", 1)?.map(|v| nombre::<usize>(&v[0], "--k")).transpose()?;
     let boite = option(args, "--boite", 4)?
@@ -129,6 +136,10 @@ fn cmd_mesurer(args: &mut Vec<String>) -> Result<(), String> {
     }
 
     let m = mesurer(&charger(&chemin)?, reglages).map_err(|e| e.to_string())?;
+    if let Some(p) = prefixe_css {
+        print!("{}", tokens_css(&m, &p));
+        return Ok(());
+    }
     if json {
         println!("{}", serde_json::to_string_pretty(&m).map_err(|e| e.to_string())?);
     } else {
@@ -279,5 +290,64 @@ fn cmd_rasteriser(args: &mut Vec<String>) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
     std::fs::write(&sortie, png).map_err(|e| format!("{} : {e}", sortie.display()))?;
     eprintln!("{} écrit — {}x{}", sortie.display(), img.largeur, img.hauteur);
+    Ok(())
+}
+
+/// Assemble des images en planche, et écrit les quatre fichiers que le web attend.
+fn cmd_planche(args: &mut Vec<String>) -> Result<(), String> {
+    let colonnes =
+        option(args, "--colonnes", 1)?.map(|v| nombre::<usize>(&v[0], "--colonnes")).transpose()?;
+    let nom = option(args, "--nom", 1)?.map_or_else(|| "planche".to_string(), |v| v[0].clone());
+    let base = option(args, "-o", 1)?
+        .map(|v| PathBuf::from(&v[0]))
+        .ok_or_else(|| "planche exige -o <BASE> (sans extension)".to_string())?;
+
+    let mut images = Vec::new();
+    while let Some(i) = args.iter().position(|a| !a.starts_with("--")) {
+        let chemin = PathBuf::from(args.remove(i));
+        // Le nom du sprite vient du FICHIER, jamais de son rang : un rang se décale au premier
+        // ajout et tous les sélecteurs CSS déjà écrits pointent alors ailleurs.
+        let nom_sprite = chemin
+            .file_stem()
+            .map_or_else(|| chemin.display().to_string(), |s| s.to_string_lossy().into_owned());
+        images.push((nom_sprite, charger(&chemin)?));
+    }
+    if images.is_empty() {
+        return Err(format!("aucune image donnée\n\n{AIDE}"));
+    }
+
+    let (img, feuille) = planche(&images, colonnes, &nom).map_err(|e| e.to_string())?;
+    let png = nie_aphrody::assets::encoder_png(&img.rgba, img.largeur, img.hauteur)
+        .map_err(|e| e.to_string())?;
+
+    let ecrire = |suffixe: &str, contenu: &[u8]| -> Result<PathBuf, String> {
+        let mut p = base.clone();
+        let nom_fichier = format!(
+            "{}{suffixe}",
+            base.file_name().map_or_else(String::new, |n| n.to_string_lossy().into_owned())
+        );
+        p.set_file_name(nom_fichier);
+        std::fs::write(&p, contenu).map_err(|e| format!("{} : {e}", p.display()))?;
+        Ok(p)
+    };
+
+    let chemin_png = ecrire(".png", &png)?;
+    let url = chemin_png
+        .file_name()
+        .map_or_else(|| "planche.png".to_string(), |n| n.to_string_lossy().into_owned());
+    ecrire(".css", feuille.vers_css(&url).as_bytes())?;
+    ecrire(
+        ".svg",
+        feuille.vers_svg(&nie_formats::sprite_sheet::data_uri(&png, "image/png")).as_bytes(),
+    )?;
+    ecrire(".json", feuille.vers_json().as_bytes())?;
+
+    eprintln!(
+        "{} — {}x{}, {} sprite(s).\nCSS, SVG et JSON écrits par nie_formats::sprite_sheet : c'est le MÊME rendu que pour un\natlas du jeu, donc un sprite venu d'ici et un sprite venu d'un .g4tx s'emploient pareil.",
+        chemin_png.display(),
+        img.largeur,
+        img.hauteur,
+        feuille.sprites.len()
+    );
     Ok(())
 }

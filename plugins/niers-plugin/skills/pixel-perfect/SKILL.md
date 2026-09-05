@@ -41,6 +41,8 @@ cargo run -p nie-aphrody --bin pixel -- mesurer /tmp/x.png --json
 cargo run -p nie-aphrody --bin pixel -- mesurer /tmp/x.png --boite X0 Y0 X1 Y1 --k 6
 ```
 
+Sous-commandes : `mesurer`, `comparer`, `vectoriser`, `planche`, `rasteriser`.
+
 Ce qu'il rend, et ce que chaque grandeur sert à décider :
 
 | Grandeur | Décide |
@@ -51,6 +53,7 @@ Ce qu'il rend, et ce que chaque grandeur sert à décider :
 | palette k-means (part, HEX, HSL, OKLCH) | les couleurs du dégradé, les aplats |
 | épaisseur du trait en % de la largeur | `stroke-width`, qui se pose en pourcentage, jamais en px absolus |
 | profil de silhouette (colonnes/lignes pleines) | les creux et les bosses à poser avant de bomber |
+| pente des bords + **R²** | l'angle d'une DA en parallélogrammes, qui se traduit tel quel en `skewX`. **L'outil se tait si R² < 0,95** — un bord coupé par la boîte, ou qui suit le contenu du sprite au lieu du cadre, donnerait un angle inventé |
 
 **Contrôle de vraisemblance, obligatoire.** Une palette contient toujours des couleurs qui
 n'appartiennent pas au sujet (le fond happé par le masque, un élément voisin). Une épaisseur de
@@ -129,6 +132,39 @@ Pour une **feuille de sprites** : rendre N poses à taille fixe, rogner sur l'al
 écrire les rectangles dans un JSON à côté. Le contrat d'atlas de référence du dépôt est celui du
 pet Aphrody (`Pet`, `Frame`, `Rect` dans `nie-aphrody`) — le réutiliser plutôt que d'en inventer
 un autre.
+
+### C bis. Planche de sprites et CSS — passer par `nie_formats::sprite_sheet`
+
+**Ne pas réécrire de générateur CSS.** `nie_formats::sprite_sheet` produit déjà, depuis les
+rectangles d'un atlas : la feuille **CSS** (mode image ou mode masque `currentColor`), le **SVG**
+autonome à `<symbol>`, et le **JSON** des régions. C'est le rendu employé pour les atlas du jeu.
+
+`pixel planche` lui **apporte** une planche assemblée au lieu d'un `.g4tx` — un sprite venu de
+poses rendues et un sprite venu d'un atlas du jeu s'emploient donc exactement pareil :
+
+```bash
+pixel planche pose_*.png -o /tmp/poses --colonnes 4 --nom poses_c01000010
+# → /tmp/poses.png + .css + .svg + .json
+```
+
+Deux règles portées par le code :
+
+- toutes les cases font la taille de la **plus grande** image, et chaque image est posée en haut
+  à gauche **sans rééchantillonnage** — recentrer pose par pose fait sauter le sujet d'une case
+  à l'autre, et cela ne se voit qu'une fois l'animation en marche ;
+- le nom du sprite vient du **fichier**, jamais de son rang : un rang se décale au premier ajout
+  et tous les sélecteurs CSS déjà écrits pointent alors ailleurs.
+
+Les **couleurs** se posent en jetons, pas en HEX recopiés à la main :
+
+```bash
+pixel mesurer <IMG> --boite X0 Y0 X1 Y1 --css menu-tuile
+# :root { --menu-tuile-0: oklch(0.4806 0.1216 257.52);  /* #2D5DA1 — 38.39 % des pixels */ }
+```
+
+`oklch()` parce que c'est la forme dans laquelle une couleur se **décline** (éclaircir = monter
+`L` sans toucher `C` ni `h`). Le HEX mesuré reste en commentaire : sans lui, plus rien ne
+rattache le jeton à la mesure dont il sort.
 
 ### D. Extraire une texture / un asset plat
 

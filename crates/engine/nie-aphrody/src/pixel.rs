@@ -834,6 +834,116 @@ pub fn vectoriser(img: &Image, reglages: ReglagesVecteur) -> Result<String, Erro
     ))
 }
 
+
+// ---------------------------------------------------------------------------------------------
+// Planche de sprites et jetons CSS — le pont vers `nie_formats::sprite_sheet`
+// ---------------------------------------------------------------------------------------------
+
+/// Assemble des images nommées en une planche, et rend la feuille de sprites qui la décrit.
+///
+/// Le type de sortie est celui du dépôt, [`nie_formats::sprite_sheet::SpriteSheet`] : la même
+/// structure que celle tirée d'un `.g4tx`, donc les mêmes `vers_css` / `vers_svg` / `vers_json`
+/// derrière. Ce module **apporte une planche**, il ne réimplémente pas leur écriture.
+///
+/// Toutes les cases font la taille de la plus grande image, et chaque image est **posée en haut
+/// à gauche de sa case, sans rééchantillonnage**. C'est délibéré : recentrer ou redimensionner
+/// pose par pose fait sauter le sujet d'une case à l'autre à la lecture, et le défaut ne se voit
+/// qu'une fois l'animation en marche.
+///
+/// # Erreurs
+/// Si la liste est vide, ou si la planche demandée dépasse ce que `u32` peut adresser.
+pub fn planche(
+    images: &[(String, Image)],
+    colonnes: Option<usize>,
+    nom: &str,
+) -> Result<(Image, nie_formats::sprite_sheet::SpriteSheet), Error> {
+    use nie_formats::sprite_sheet::{Sprite, SpriteSheet, assainir_nom};
+
+    if images.is_empty() {
+        return Err(Error::Invalid("aucune image à assembler".into()));
+    }
+    let cw = images.iter().map(|(_, i)| i.largeur).max().unwrap_or(0);
+    let ch = images.iter().map(|(_, i)| i.hauteur).max().unwrap_or(0);
+    if cw == 0 || ch == 0 {
+        return Err(Error::Invalid("une image de la planche est vide".into()));
+    }
+    // Grille par défaut : la plus carrée possible, ce qui donne la planche la plus compacte à
+    // décoder pour le GPU comme pour le navigateur.
+    #[expect(clippy::cast_possible_truncation, clippy::cast_sign_loss, reason = "≥ 1, borné")]
+    let cols = colonnes
+        .unwrap_or_else(|| (images.len() as f64).sqrt().ceil().max(1.0) as usize)
+        .max(1);
+    let lignes = images.len().div_ceil(cols);
+
+    let (Ok(pw), Ok(ph)) = (u32::try_from(cols), u32::try_from(lignes)) else {
+        return Err(Error::Invalid("planche trop grande".into()));
+    };
+    let (largeur, hauteur) = (cw * pw, ch * ph);
+    let mut rgba = vec![0u8; (largeur as usize) * (hauteur as usize) * 4];
+    let mut sprites = Vec::with_capacity(images.len());
+
+    for (i, (nom_sprite, img)) in images.iter().enumerate() {
+        #[expect(clippy::cast_possible_truncation, reason = "cols et lignes tiennent en u32")]
+        let (col, ligne) = ((i % cols) as u32, (i / cols) as u32);
+        let (ox, oy) = (col * cw, ligne * ch);
+        for y in 0..img.hauteur {
+            let src = (y as usize) * (img.largeur as usize) * 4;
+            let dst = (((oy + y) as usize) * (largeur as usize) + (ox as usize)) * 4;
+            let n = (img.largeur as usize) * 4;
+            rgba[dst..dst + n].copy_from_slice(&img.rgba[src..src + n]);
+        }
+        let (Ok(x), Ok(y), Ok(w), Ok(h)) = (
+            i32::try_from(ox),
+            i32::try_from(oy),
+            i32::try_from(img.largeur),
+            i32::try_from(img.hauteur),
+        ) else {
+            return Err(Error::Invalid("planche trop grande pour i32".into()));
+        };
+        sprites.push(Sprite {
+            classe: assainir_nom(nom_sprite),
+            nom: nom_sprite.clone(),
+            x,
+            y,
+            largeur: w,
+            hauteur: h,
+        });
+    }
+
+    let (Ok(pl), Ok(phh)) = (i32::try_from(largeur), i32::try_from(hauteur)) else {
+        return Err(Error::Invalid("planche trop grande pour i32".into()));
+    };
+    let feuille = SpriteSheet { nom: nom.to_owned(), largeur: pl, hauteur: phh, sprites };
+    Ok((Image::nouvelle(largeur, hauteur, rgba)?, feuille))
+}
+
+/// Écrit la palette mesurée en propriétés personnalisées CSS, en `oklch()`.
+///
+/// `oklch()` plutôt que le HEX mesuré : c'est la forme dans laquelle une couleur se **décline**
+/// (éclaircir un ton, c'est monter `L` sans toucher `C` ni `h`), et la seule où deux teintes
+/// voisines le restent après ajustement. Le HEX d'origine reste en commentaire sur chaque ligne
+/// — sans lui, plus rien ne rattache le jeton à la mesure dont il sort.
+#[must_use]
+pub fn tokens_css(mesure: &Mesure, prefixe: &str) -> String {
+    let mut css = format!(
+        "/* Jetons mesurés — {}x{}, boîte {}x{}, remplissage {:.2} %.\n   \
+         Régénérer par `pixel mesurer <IMG> --css` ; ne pas retoucher à la main. */\n:root {{\n",
+        mesure.source[0],
+        mesure.source[1],
+        mesure.boite.largeur(),
+        mesure.boite.hauteur(),
+        mesure.remplissage_pct
+    );
+    for (i, c) in mesure.palette.iter().enumerate() {
+        css.push_str(&format!(
+            "  --{prefixe}-{i}: oklch({:.4} {:.4} {:.2});  /* {} — {:.2} % des pixels */\n",
+            c.oklch[0], c.oklch[1], c.oklch[2], c.hex, c.part_pct
+        ));
+    }
+    css.push_str("}\n");
+    css
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -932,5 +1042,51 @@ mod tests {
         // Le contrôle qui compte : le vecteur doit RESSEMBLER à sa source, chiffres à l'appui.
         assert!(c.ssim > 0.90, "ssim {} trop bas", c.ssim);
         assert!(c.pixels_dans_tolerance_pct > 95.0, "{} % dans la tolérance", c.pixels_dans_tolerance_pct);
+    }
+
+    #[test]
+    fn une_planche_pose_les_cases_sans_reechantillonner() {
+        let images = vec![
+            ("pose idle".to_string(), disque(32)),
+            ("pose/court".to_string(), disque(24)),
+            ("pose tir".to_string(), disque(32)),
+        ];
+        let (planche_img, feuille) = planche(&images, Some(2), "poses").expect("planche");
+        // 3 images, 2 colonnes → 2 lignes ; case = la plus grande image.
+        assert_eq!((planche_img.largeur, planche_img.hauteur), (64, 64));
+        assert_eq!(feuille.sprites.len(), 3);
+        // La case garde la taille RÉELLE de son image, pas celle de la case.
+        assert_eq!((feuille.sprites[1].largeur, feuille.sprites[1].hauteur), (24, 24));
+        assert_eq!((feuille.sprites[2].x, feuille.sprites[2].y), (0, 32));
+        // Le nom est assaini pour servir de classe, l'original est conservé.
+        assert_eq!(feuille.sprites[1].nom, "pose/court");
+        assert!(!feuille.sprites[1].classe.contains('/'), "{}", feuille.sprites[1].classe);
+    }
+
+    #[test]
+    fn la_planche_se_rend_en_css_et_en_svg_par_nie_formats() {
+        let images = vec![("a".to_string(), disque(16)), ("b".to_string(), disque(16))];
+        let (_, feuille) = planche(&images, Some(2), "poses").expect("planche");
+        let css = feuille.vers_css("poses.webp");
+        assert!(css.contains("background-size: 32px 16px;"), "{css}");
+        // La forme exacte vient de `nie_formats::sprite_sheet`, elle n'est PAS réécrite ici :
+        // c'est tout l'intérêt du branchement, et ce test le verrouille.
+        assert!(css.contains(".nie-b { width: 16px; height: 16px; background-position: -16px 0px; }"), "{css}");
+        assert!(feuille.vers_svg("data:image/png;base64,AA").contains("<symbol"));
+        assert!(feuille.vers_json().contains("\"nom\": \"poses\""));
+    }
+
+    #[test]
+    fn les_jetons_css_gardent_le_hex_qui_les_justifie() {
+        let m = mesurer(&disque(64), Reglages::default()).expect("mesure");
+        let css = tokens_css(&m, "menu");
+        assert!(css.contains("--menu-0: oklch("), "{css}");
+        assert!(css.contains("#F3A13A"), "le HEX mesuré doit rester lisible : {css}");
+    }
+
+    #[test]
+    fn une_planche_vide_est_une_erreur() {
+        let err = planche(&[], None, "x").expect_err("doit échouer");
+        assert!(format!("{err}").contains("aucune image"));
     }
 }
