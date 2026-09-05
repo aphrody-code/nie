@@ -172,6 +172,13 @@ manifeste = {
         "fichiers": [{"chemin": f["path"], "octets": f["size"]} for f in gabarit_fichiers],
     },
     "groupes_de_dossier": GROUPES,
+    "bandes_dessinees": [
+        {"page": i, "publie": str((PUBLIC / f"bd-page-{i}.webp").relative_to(RACINE)),
+         "octets": taille_locale(PUBLIC / f"bd-page-{i}.webp"),
+         "source": str((SOURCES / f"1{i - 1}-astro-bd-page-{i}.webp").relative_to(RACINE)),
+         "octets_source": taille_locale(SOURCES / f"1{i - 1}-astro-bd-page-{i}.webp")}
+        for i in (1, 2, 3)
+    ],
     "cibles": cibles,
     "tables_a_declarer": tables,
     "verrous": [

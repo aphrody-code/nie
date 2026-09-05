@@ -92,22 +92,58 @@ produire**, et 9 planches de référence disponibles.
 
 C'est le verrou décisif, et il précède tout le reste.
 
-Constat déjà payé : un aller-retour **à vide** de `cpk_list.cfg.bin` change le sha
-et perd 16 octets, sans qu'aucune modification ait été faite — et le jeu refuse le
-fichier. Sur `game_param.cfg.bin`, `/entries/0/children` retombe de 812 à 1
-élément. Ne rien conclure d'un fichier « relu correctement » : le parseur du dépôt
-est plus permissif que le jeu.
+Le **patch en place** existe déjà et fonctionne : `nie_formats::t2b_patch` et
+`nie_formats::rdbn_patch` réécrivent une variable sans déplacer un octet — toute
+variable T2B occupe exactement 4 octets, donc un entier, un flottant ou l'offset
+d'une chaîne s'écrivent sur place, et `patch_verifie` relit derrière. C'est ce
+qui rend le modding à taille constante possible aujourd'hui.
 
-Le correctif prévu pour le modding — patcher les octets en place, offsets
-conservés — **ne suffit pas ici** : ajouter un personnage, c'est ajouter une ligne,
-donc changer la taille du fichier.
+Il **ne suffit pas ici** : ajouter un personnage, c'est ajouter une ligne, donc
+changer la taille du fichier. Il faut réencoder, et le réencodage n'est pas fidèle.
 
-Chemin : établir un aller-retour byte-exact sur les deux formats derrière
-`.cfg.bin` (RDBN à listes et T2B), le prouver sur les neuf tables visées avant
-d'écrire quoi que ce soit, puis seulement ajouter une ligne.
+#### Ce que l'écart vaut, mesuré
 
-Preuve d'arrêt : `sha256(réencodé) == sha256(original)` sur les neuf tables,
-inchangées.
+`cargo run -p nie-formats --example t2b_roundtrip --release -- --vfs chara_`
+
+Sur les 152 `.cfg.bin` dont le nom porte `chara_` : **0 octet-identique**, 10 de
+même taille mais au contenu différent, 142 de taille différente, et un écart cumulé
+de **−65 398 octets** — le réencodage **rogne**.
+
+#### La première cause est trouvée
+
+Le plus petit cas divergent, `chara_cloth_change_1.00.29.cfg.bin`, fait 48 octets,
+en perd exactement **16**, et diverge à l'**offset 32** : ses 32 premiers octets
+sont déjà rendus à l'identique. Il ne manque que les 16 derniers.
+
+Ces 16 octets sont un **pied de page**, relevé sur tout le corpus par
+`cargo run -p nie-formats --example cfgbin_pied --release` :
+
+```
+70 798 fichiers T2B — 100 % portent la chaîne « t2b » dans leurs 16 derniers octets
+×57 824   01 74 32 62 FE 01 01 00 01 00 FF FF FF FF FF FF
+×12 974   01 74 32 62 FE 01 00 00 01 00 FF FF FF FF FF FF
+```
+
+Quinze octets sur seize sont **constants sur 70 798 fichiers**. Un seul varie, à
+l'offset 6, entre `0x00` et `0x01`. `encode_t2b` s'arrête après la table de clés et
+n'écrit rien de tout cela.
+
+#### Pourquoi les tests ne le voyaient pas
+
+`encode_t2b_round_trip_sur_le_vrai_jeu` passe à 498/498, et son équivalent RDBN à
+16/16. Ces tests comparent l'**arbre relu par notre propre décodeur**, lequel
+n'ouvre jamais le pied. Un arbre qui survit ne dit rien de ce que le jeu accepte :
+c'est un vert qui mesure notre cohérence interne, pas la conformité.
+
+#### Suite
+
+1. Déterminer ce que vaut l'octet 6 — corréler ses deux valeurs avec le contenu
+   (présence d'une table de clés, de chaînes, nombre d'entrées).
+2. Écrire le pied dans `encode_t2b`, et remesurer : le fichier de 48 octets doit
+   devenir octet-identique.
+3. Reprendre le corpus et traiter la cause suivante, s'il en reste.
+
+Preuve d'arrêt : `t2b_roundtrip --vfs chara_` rend **152/152 octet-identiques**.
 
 ### V2 — Écrire un modèle · bloquant
 
@@ -178,5 +214,10 @@ est en aval n'est que du volume.
 - Générateur : `scripts/donnees/astro-lor-manifeste.py`
 - Données du wiki : `scripts/donnees/astro-lor-oc.py`, `astro-lor-auras.py`
 - Migration : `supabase/migrations/20260905000000_chara_wiki_sections.sql`
-- Modding : section « Modding » de `CLAUDE.md`
+- Diagnostic de réencodage : `cargo run -p nie-formats --example t2b_roundtrip`
+  (un fichier, ou `--vfs <motif>` pour tout le corpus)
+- Relevé du pied T2B : `cargo run -p nie-formats --example cfgbin_pied`
+- Patch en place : `nie_formats::t2b_patch`, `nie_formats::rdbn_patch`
+- Modding LEVEL-5 en Rust natif : crate `nie-viola`, commande `niers viola`
+- Modding : `niers mod`, et la section « Modding » de `CLAUDE.md`
 - Éditeur d'avatar : `docs/AVATAR.md`
