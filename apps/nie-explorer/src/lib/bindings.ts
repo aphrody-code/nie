@@ -587,6 +587,15 @@ export const commands = {
 	 *  par `nie-save`. Anti-hallucination côté serveur : un ID absent revient `name: null`.
 	 */
 	remoteResolveRoster: (baseUrl: string, ids: string[]) => typedError<unknown, string>(__TAURI_INVOKE("remote_resolve_roster", { baseUrl, ids })),
+	/**  Charge le catalogue réellement exporté par `niers avatar export` depuis le service de modèles. */
+	modelServiceAvatarCatalog: (baseUrl: string) => typedError<unknown, string>(__TAURI_INVOKE("model_service_avatar_catalog", { baseUrl })),
+	/**
+	 *  Récupère un avatar GLB assemblé par le serveur. La route reste bornée à `/model-avatar/` : le
+	 *  réglage de service ne devient pas un proxy HTTP généraliste.
+	 */
+	modelServiceAvatarGlbB64: (baseUrl: string, modelPath: string) => typedError<string, string>(__TAURI_INVOKE("model_service_avatar_glb_b64", { baseUrl, modelPath })),
+	/**  Rend un écran de menu depuis son layout réel (sprites + positions du jeu), en PNG. */
+	modelServiceMenuPngB64: (baseUrl: string, screen: string) => typedError<string, string>(__TAURI_INVOKE("model_service_menu_png_b64", { baseUrl, screen })),
 	/**
 	 *  Déchiffre + parse un fichier de sauvegarde Lives (ex. `002AB8F4-USERDATALIVE`) et renvoie
 	 *  son résumé (`nie_save::SaveSummary`, sérialisé tel quel — joueur, niveau, temps de jeu,

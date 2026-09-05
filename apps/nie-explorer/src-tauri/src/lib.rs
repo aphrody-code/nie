@@ -4495,6 +4495,70 @@ fn remote_resolve_roster(base_url: String, ids: Vec<String>) -> Result<RawJson, 
     resp.into_json::<serde_json::Value>().map(RawJson).map_err(|e| format!("réponse non-JSON : {e}"))
 }
 
+// ─── Pipeline 3D distante (avatar + menus) ─────────────────────────────────────────
+//
+// Le service de modèles possède l'assemblage des couches de visage, les recettes de corps et le
+// renderer de menus. Le desktop transporte ses artefacts finis vers le viewport WebGL, sans en
+// créer une seconde implémentation. Les requêtes sortent du thread UI.
+const MODEL_SERVICE_DEFAULT_URL: &str = "https://cdn.rosegriffon.fr";
+
+fn model_service_base(base_url: &str) -> Result<&str, String> {
+    let base = if base_url.trim().is_empty() { MODEL_SERVICE_DEFAULT_URL } else { base_url.trim() };
+    if !(base.starts_with("https://") || base.starts_with("http://")) || base.contains('?') || base.contains('#') {
+        return Err("l'URL du service de modèles doit être une origine http(s), sans chemin ni paramètre".to_string());
+    }
+    Ok(base.trim_end_matches('/'))
+}
+
+fn model_service_get(base_url: &str, path: &str) -> Result<Vec<u8>, String> {
+    let base = model_service_base(base_url)?;
+    let url = format!("{base}/{path}");
+    let response = ureq::get(&url).call().map_err(|e| format!("service de modèles injoignable ({url}) : {e}"))?;
+    let mut reader = response.into_reader();
+    let mut bytes = Vec::new();
+    std::io::Read::read_to_end(&mut reader, &mut bytes).map_err(|e| format!("lecture de {url} : {e}"))?;
+    Ok(bytes)
+}
+
+/// Charge le catalogue réellement exporté par `niers avatar export` depuis le service de modèles.
+#[tauri::command]
+#[specta::specta]
+async fn model_service_avatar_catalog(base_url: String) -> Result<RawJson, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let bytes = model_service_get(&base_url, "avatar/catalog.json")?;
+        serde_json::from_slice(&bytes).map(RawJson).map_err(|e| format!("catalogue avatar invalide : {e}"))
+    }).await.map_err(|e| format!("tâche catalogue interrompue : {e}"))?
+}
+
+/// Récupère un avatar GLB assemblé par le serveur. La route reste bornée à `/model-avatar/` : le
+/// réglage de service ne devient pas un proxy HTTP généraliste.
+#[tauri::command]
+#[specta::specta]
+async fn model_service_avatar_glb_b64(base_url: String, model_path: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let path = model_path.trim_start_matches('/');
+        if !path.starts_with("model-avatar/") || path.len() > 8_192 || path.contains('#') || path.contains("..") {
+            return Err("route d'avatar invalide".to_string());
+        }
+        let bytes = model_service_get(&base_url, path)?;
+        Ok(base64::engine::general_purpose::STANDARD.encode(bytes))
+    }).await.map_err(|e| format!("tâche avatar interrompue : {e}"))?
+}
+
+/// Rend un écran de menu depuis son layout réel (sprites + positions du jeu), en PNG.
+#[tauri::command]
+#[specta::specta]
+async fn model_service_menu_png_b64(base_url: String, screen: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let screen = screen.trim();
+        if screen.is_empty() || screen.len() > 64 || !screen.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-') {
+            return Err("nom d'écran invalide".to_string());
+        }
+        let bytes = model_service_get(&base_url, &format!("menu-render/{screen}.png"))?;
+        Ok(base64::engine::general_purpose::STANDARD.encode(bytes))
+    }).await.map_err(|e| format!("tâche de rendu de menu interrompue : {e}"))?
+}
+
 fn urlencode(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for b in s.bytes() {
@@ -4603,6 +4667,9 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
         remote_search_waza,
         remote_cpk_search,
         remote_resolve_roster,
+        model_service_avatar_catalog,
+        model_service_avatar_glb_b64,
+        model_service_menu_png_b64,
         default_save_path,
         save_open,
         save_list_blobs,

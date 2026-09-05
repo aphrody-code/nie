@@ -24,6 +24,8 @@ export interface Settings {
   wikiDb: string;
   blenderExe: string;
   azaleeUrl: string;
+  /** Origine de `nie-model-serve`/CDN : avatar assemblé et rendu de menus réels. */
+  modelServiceUrl: string;
   /** Langue de l'interface. */
   locale: Locale;
   /** Échelle de la taille de police de base (agit sur `html { font-size }`, tout le reste est en rem). */
@@ -60,6 +62,7 @@ const DEFAULTS: Settings = {
   wikiDb: "",
   blenderExe: "",
   azaleeUrl: "",
+  modelServiceUrl: "",
   locale: "fr",
   fontScale: 1,
   uiZoom: 1,

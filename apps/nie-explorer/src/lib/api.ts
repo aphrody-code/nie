@@ -183,6 +183,12 @@ async function unwrap<T>(p: Promise<{ status: "ok"; data: unknown } | { status: 
 }
 
 export const api = {
+  /** Pipeline 3D de `nie-model-serve` : le montage Rust reste la source de vérité. */
+  modelServiceAvatarCatalog: (baseUrl: string) => unwrap<unknown>(commands.modelServiceAvatarCatalog(baseUrl)),
+  modelServiceAvatarGlbB64: (baseUrl: string, modelPath: string) =>
+    unwrap<string>(commands.modelServiceAvatarGlbB64(baseUrl, modelPath)),
+  modelServiceMenuPngB64: (baseUrl: string, screen: string) =>
+    unwrap<string>(commands.modelServiceMenuPngB64(baseUrl, screen)),
   defaultGameDir: () => commands.defaultGameDir(),
   checkGameDir: (game_dir: string) => commands.checkGameDir(game_dir),
   // Miroir wiki (`supabase-*.sqlite`) auto-détecté (NIE_WIKI_DB/SQLITE_DB_PATH, ou

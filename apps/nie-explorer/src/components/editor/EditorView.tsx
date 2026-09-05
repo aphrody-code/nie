@@ -33,6 +33,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { ContentBrowser } from "@/components/editor/ContentBrowser";
+import { AvatarPipelinePanel } from "@/components/editor/AvatarPipelinePanel";
+import { MenuPipelinePanel } from "@/components/editor/MenuPipelinePanel";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import {
   Viewport3D,
@@ -57,6 +59,7 @@ import { cn } from "@/lib/utils";
  * d'entrée). Le navigateur de contenu ne présente comme ouvrable que le .g4md dont le frère
  * existe ; ce jeu-ci reste plus large pour ne pas refuser une sélection venue d'ailleurs. */
 const VIEWPORT_EXTS = new Set(["g4md", "g4mg"]);
+const AVATAR_SCENE_KEY = "__avatar_assemble__";
 
 /** Les modes du gizmo, dans l'ordre de la barre d'outils. */
 const GIZMO_MODES: readonly (readonly [GizmoMode, string, string])[] = [
@@ -64,6 +67,42 @@ const GIZMO_MODES: readonly (readonly [GizmoMode, string, string])[] = [
   ["translate", "open_with", "Déplacer"],
   ["rotate", "rotate_ccw", "Pivoter"],
   ["scale", "scale", "Redimensionner"],
+];
+
+/**
+ * Racines réellement employées par les trois sous-systèmes à faire converger dans l'éditeur.
+ *
+ * - `20_EDIT` porte les mailles et les couches de visage que `nie-model-serve` recompose en
+ *   avatar ;
+ * - `21_icon_avatar` porte les planches de vignettes du même atelier ;
+ * - `common/menu` contient les layouts et les scripts que `nie-lua::menu_host` pilote.
+ *
+ * Ces raccourcis n'inventent donc pas de second catalogue UI. Le rendu de menu reste 2D et
+ * l'assemblage d'avatar reste côté Rust ; l'Éditeur devient leur point d'entrée commun pour
+ * inspecter les assets, les textures et les modèles sources.
+ */
+const ESPACES_TRAVAIL: readonly { id: string; label: string; icon: string; prefix: string; title: string }[] = [
+  {
+    id: "avatar-modeles",
+    label: "Avatar 3D",
+    icon: "person",
+    prefix: "data/common/chr/_face/20_EDIT",
+    title: "Pièces 3D et couches de l'avatar",
+  },
+  {
+    id: "avatar-ui",
+    label: "Avatar UI",
+    icon: "grid_view",
+    prefix: "data/dx11/menu/200_icon/21_icon_avatar",
+    title: "Vignettes et éléments de menu de l'atelier avatar",
+  },
+  {
+    id: "menus",
+    label: "Menus",
+    icon: "menu",
+    prefix: "data/common/menu",
+    title: "Layouts et scripts des menus du jeu",
+  },
 ];
 
 function extOf(path: string): string {
@@ -108,6 +147,7 @@ export function EditorView({
   /** Assets ajoutés à la scène par ctrl/cmd+clic, hors asset principal. */
   const [extras, setExtras] = useState<string[]>([]);
   const [glbs, setGlbs] = useState<Record<string, string>>({});
+  const [avatarGlb, setAvatarGlb] = useState<string | null>(null);
   const [glbErrors, setGlbErrors] = useState<Record<string, string>>({});
   const [glbLoading, setGlbLoading] = useState(false);
   const [nodes, setNodes] = useState<SceneNode[]>([]);
@@ -139,8 +179,9 @@ export function EditorView({
   const scenePaths = useMemo(() => {
     const list = primary ? [primary] : [];
     for (const p of extras) if (!list.includes(p)) list.push(p);
+    if (avatarGlb) list.unshift(AVATAR_SCENE_KEY);
     return list;
-  }, [primary, extras]);
+  }, [primary, extras, avatarGlb]);
   const scenePathsKey = scenePaths.join("\n");
 
   // Le GLB d'un chemin ne change pas : on ne charge que les entrées manquantes et on oublie celles
@@ -154,7 +195,7 @@ export function EditorView({
     if (Object.keys(loaded).some((p) => !wanted.has(p))) {
       setGlbs((prev) => Object.fromEntries(Object.entries(prev).filter(([p]) => wanted.has(p))));
     }
-    const missing = scenePaths.filter((p) => !(p in loaded));
+    const missing = scenePaths.filter((p) => p !== AVATAR_SCENE_KEY && !(p in loaded));
     if (missing.length === 0) return;
 
     let cancelled = false;
@@ -188,6 +229,12 @@ export function EditorView({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scenePathsKey, settings.gameDir]);
+
+  // Le GLB déjà assemblé par `nie-model-serve` suit le même chemin de rendu que les GLB VFS,
+  // mais ne doit évidemment pas être redemandé au VFS local.
+  useEffect(() => {
+    setGlbs((prev) => avatarGlb ? { ...prev, [AVATAR_SCENE_KEY]: avatarGlb } : Object.fromEntries(Object.entries(prev).filter(([key]) => key !== AVATAR_SCENE_KEY)));
+  }, [avatarGlb]);
 
   const assets = useMemo<ViewportAsset[]>(
     () => scenePaths.filter((p) => glbs[p]).map((p) => ({ key: p, glbB64: glbs[p]! })),
@@ -257,6 +304,18 @@ export function EditorView({
     onStateChange({ ...state, selected: path });
   }
 
+  /** Change de corpus sans conserver une scène ou une sélection de l'espace précédent. */
+  function ouvrirEspace(prefix: string) {
+    setPrimary(null);
+    setExtras([]);
+    setNodes([]);
+    setStats({ meshes: 0, triangles: 0, vertices: 0, materials: 0 });
+    setSelectedNode(null);
+    setTransforms({});
+    setGizmoMode("none");
+    onStateChange({ prefix, selected: null });
+  }
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       {/* Barre d'outils */}
@@ -281,6 +340,29 @@ export function EditorView({
               disabled={mode !== "none" && !selectedNode}
               onClick={() => setGizmoMode(mode)}
             />
+          ))}
+        </div>
+
+        {/* Les raccourcis sont des CORPUS de travail, pas des modes graphiques concurrents :
+            chaque sélection conserve le viewport, le navigateur et l'inspecteur de l'Éditeur. */}
+        <div className="flex shrink-0 items-center gap-1 border-r border-app-line pr-3" aria-label="Espaces de travail">
+          {ESPACES_TRAVAIL.map((espace) => (
+            <button
+              key={espace.id}
+              type="button"
+              className={cn(
+                "flex items-center gap-1 rounded px-1.5 py-1 text-tiny transition-colors",
+                state.prefix === espace.prefix
+                  ? "bg-accent text-white"
+                  : "text-ink-dull hover:bg-app-hover hover:text-ink",
+              )}
+              title={espace.title}
+              aria-label={espace.label}
+              onClick={() => ouvrirEspace(espace.prefix)}
+            >
+              <Icon name={espace.icon} size={13} />
+              <span>{espace.label}</span>
+            </button>
           ))}
         </div>
 
@@ -335,6 +417,10 @@ export function EditorView({
           <span>{stats.materials} mat</span>
         </div>
       </div>
+      {state.prefix === "data/common/chr/_face/20_EDIT" && (
+        <AvatarPipelinePanel baseUrl={settings.modelServiceUrl} onGlb={(glb) => { setAvatarGlb(glb); setSelectedNode(null); }} />
+      )}
+      {state.prefix === "data/common/menu" && <MenuPipelinePanel baseUrl={settings.modelServiceUrl} />}
 
       {/* Corps : (viewport | panneaux droits) au-dessus du navigateur de contenu */}
       <SplitPane

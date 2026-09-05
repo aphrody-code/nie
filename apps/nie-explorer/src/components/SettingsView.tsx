@@ -565,6 +565,15 @@ export function SettingsView() {
               onChange={(e) => setSettings({ azaleeUrl: e.target.value })}
             />
           </div>
+          <div className="mt-3 space-y-1.5">
+            <Label>Service de modèles 3D</Label>
+            <Input
+              value={settings.modelServiceUrl}
+              placeholder="https://cdn.rosegriffon.fr"
+              onChange={(e) => setSettings({ modelServiceUrl: e.target.value })}
+            />
+            <p className="type-body-small text-tertiary">Avatar assemblé et rendu de menus. Vide = CDN Rose Griffon.</p>
+          </div>
         </CardContent>
       </Card>
 
