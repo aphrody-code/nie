@@ -30,4 +30,4 @@ iecode (60 fichiers, 597 Ko), non rapatrié.
 ## Licence
 
 Assets et binaire du jeu © LEVEL-5, jamais versionnés. Développements couverts par l'accord
-`public/ACCORD_COMMERCIAL_RG-L5-VR-2026-001.pdf`.
+`docs/legal/ACCORD_COMMERCIAL_RG-L5-VR-2026-001.pdf`.

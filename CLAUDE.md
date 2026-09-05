@@ -705,7 +705,7 @@ le suivant. C'est le mode d'échec le plus cher du dépôt, et il s'est répét�
 
 ## Références légales
 
-- Accord cadre : `public/ACCORD_COMMERCIAL_RG-L5-VR-2026-001.pdf`
+- Accord cadre : `docs/legal/ACCORD_COMMERCIAL_RG-L5-VR-2026-001.pdf`
 - Tous les développements de ce dépôt s’inscrivent dans les droits exclusifs concédés par LEVEL-5 Inc. à Rose Griffon.
 
 ## Règle absolue de comportement

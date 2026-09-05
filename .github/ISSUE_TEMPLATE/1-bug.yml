@@ -1,0 +1,53 @@
+name: Bug
+description: Quelque chose ne fait pas ce qu'il annonce
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Merci de vérifier d'abord que le problème n'est pas un piège d'environnement déjà
+        documenté dans `CLAUDE.md` (VFS non monté, `NIE_GAME_DIR` absente, feature Cargo
+        éteinte, DLL FFI non construite).
+  - type: input
+    id: commande
+    attributes:
+      label: Commande exacte
+      description: La ligne lancée, telle quelle.
+      placeholder: niers vfs find chara_base
+    validations:
+      required: true
+  - type: textarea
+    id: attendu-obtenu
+    attributes:
+      label: Attendu / obtenu
+      description: La sortie réelle, copiée-collée, pas résumée. Avec le code retour.
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface concernée
+      options:
+        - CLI niers
+        - nie-explorer (application de bureau)
+        - forge / reverse-engineering
+        - site azalée / serveur d'assets
+        - toolkit C++ iecode
+        - outillage .NET
+        - autre
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: "`niers --version`, ou le tag / commit."
+    validations:
+      required: true
+  - type: input
+    id: plateforme
+    attributes:
+      label: Plateforme
+      placeholder: Windows 11 24H2 / Ubuntu 24.04
+    validations:
+      required: true

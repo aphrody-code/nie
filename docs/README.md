@@ -48,10 +48,18 @@ pas de journal, pas d'historique daté — l'état vient des outils, l'histoire 
 
 | Document | Contenu |
 |---|---|
+| [ORGANISATION.md](ORGANISATION.md) | **Où va quoi** : la structure du dépôt, prise sur `openai/codex`, et les écarts assumés |
 | [ABSORPTION-IECODE.md](ABSORPTION-IECODE.md) | Rendre `csharp/` redondant en portant ce qu'il sait faire |
 | [A2A-CODEX.md](A2A-CODEX.md) | Le protocole entre les agents qui codent ici en même temps |
+| [EXPORT-APP.md](EXPORT-APP.md) | L'outil C++ d'export des icônes d'application (WebP + zstd) |
+| [legal/](legal/) | L'accord commercial signé |
 
 ## Ailleurs dans le dépôt
 
 `../CLAUDE.md` et `../AGENTS.md` (règles de travail) · `../apps/nie-explorer/ROADMAP.md`
-(app desktop) · `../plugins/niers-plugin/` (plugin et skills).
+(app desktop) · `../plugins/niers-plugin/` (plugin et skills) · `../CHANGELOG.md`,
+`../NOTICE`, `../SECURITY.md`.
+
+Chaque arbre porte son propre README : [`../crates/`](../crates/README.md),
+[`../packages/`](../packages/README.md), [`../apps/`](../apps/README.md),
+[`../csharp/`](../csharp/README.md), [`../scripts/`](../scripts/README.md).

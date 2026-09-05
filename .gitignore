@@ -191,7 +191,8 @@ __pycache__/
 !SECURITY.md
 !LICENSE
 !PROVENANCE.md
-!APP_EXPORT_README.md
+!NOTICE
+!AUTHORS
 !docs/**/*.txt
 # Recettes de live modding (nie-mem) — de la doc exécutable, pas des données de travail.
 !crates/forge/nie-trace/recettes/*.txt

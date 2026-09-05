@@ -149,12 +149,16 @@ Four implementations live under one root, each with a role it owns
 `niers` is the single entry point: `niers cpp …` and `niers cs …` delegate to the other two
 toolchains, `niers backends` reports what is built and where.
 
-### Rust crates (34 total, 32 compiled)
+Where a new file goes, and why, is [`docs/ORGANISATION.md`](docs/ORGANISATION.md); each tree
+also carries its own README ([`crates/`](crates/README.md), [`packages/`](packages/README.md),
+[`apps/`](apps/README.md), [`csharp/`](csharp/README.md), [`scripts/`](scripts/README.md)).
 
-- **`crates/forge/`** (8) — `nie-pe` (byte-exact PE64 read/write), `nie-asm` (x86-64 encoder in the
+### Rust crates (38 directories, 36 compiled — `cargo metadata --no-deps`)
+
+- **`crates/forge/`** (10) — `nie-pe` (byte-exact PE64 read/write), `nie-asm` (x86-64 encoder in the
   MSVC dialect), `nie-forge` (the loop and the measurement), plus the RE scaffolding: `nie-re`,
-  `nie-index`, `nie-seed`, `nie-queue`, `nie-trace`.
-- **`crates/engine/`** (16) — `nie-formats` (38 parsers: CPK, cfg.bin, the G4* family, Criware
+  `nie-dump`, `nie-index`, `nie-seed`, `nie-queue`, `nie-trace`, `aphrody-re`.
+- **`crates/engine/`** (18) — `nie-formats` (38 parsers: CPK, cfg.bin, the G4* family, Criware
   audio, DXBC, collision, navmesh), `nie-data` (121 typed config families), `nie-core` (ported
   game logic), `nie-lua` (the game's real Lua 5.2 VM), `nie-game` (wgpu host), `nie-wasm`,
   `nie-save`, and others.

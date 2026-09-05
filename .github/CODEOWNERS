@@ -1,0 +1,22 @@
+# Propriétaires par défaut de tout le dépôt.
+* @aphrody-code
+
+# La chaîne de production du binaire : toute modification y est jugée au byte près
+# (`nie-forge build` échoue si le sha256 de dist/nie.exe diffère de la référence).
+/crates/forge/    @aphrody-code
+/forge/           @aphrody-code
+
+# Le contrat légal et la provenance : ne se modifient pas au fil d'un lot technique.
+/LICENSE          @aphrody-code
+/NOTICE           @aphrody-code
+/PROVENANCE.md    @aphrody-code
+/docs/legal/      @aphrody-code
+
+# Les consignes lues par les agents avant d'écrire une ligne.
+/AGENTS.md        @aphrody-code
+/CLAUDE.md        @aphrody-code
+/docs/A2A-CODEX.md @aphrody-code
+
+# La publication : une erreur ici casse l'updater de tous les clients installés.
+/scripts/release-desktop.sh @aphrody-code
+/.github/workflows/         @aphrody-code

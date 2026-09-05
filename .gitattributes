@@ -1,0 +1,64 @@
+# Attributs Git de niers — dépôt travaillé depuis DEUX machines (poste Windows + VPS Linux).
+#
+# POURQUOI IL N'Y A PAS DE `* text=auto`
+# Le dépôt porte des fixtures comparées au byte près (forge, goldens nie-data, dumps PE).
+# Une renormalisation globale des fins de ligne réécrirait ces fichiers au checkout et
+# ferait diverger une comparaison qui est précisément le contrat du projet. On déclare
+# donc explicitement ce qui doit être normalisé, et rien d'autre.
+
+# --- Ce qui DOIT rester en LF, sous peine de ne pas s'exécuter sur le VPS -------------
+*.sh            text eol=lf
+*.bash          text eol=lf
+justfile        text eol=lf
+*.just          text eol=lf
+Dockerfile      text eol=lf
+*.service       text eol=lf
+*.timer         text eol=lf
+
+# --- Ce qui DOIT rester en CRLF, sous peine de ne pas s'exécuter sous Windows ---------
+*.ps1           text eol=crlf
+*.cmd           text eol=crlf
+*.bat           text eol=crlf
+*.sln           text eol=crlf
+*.vcxproj       text eol=crlf
+
+# --- Binaires : jamais de conversion, jamais de diff textuel -------------------------
+*.png           binary
+*.jpg           binary
+*.webp          binary
+*.gif           binary
+*.ico           binary
+*.pdf           binary
+*.exe           binary
+*.dll           binary
+*.so            binary
+*.dylib         binary
+*.a             binary
+*.lib           binary
+*.pdb           binary
+*.zip           binary
+*.gz            binary
+*.zst           binary
+*.cpk           binary
+*.cfg.bin       binary
+*.g4tx          binary
+*.g4mg          binary
+*.g4sk          binary
+*.g4mt          binary
+*.sqlite        binary
+*.db            binary
+*.wasm          binary
+
+# --- Lockfiles : générés, illisibles en revue, comptés à part ------------------------
+Cargo.lock      linguist-generated=true -diff
+bun.lock        linguist-generated=true -diff
+uv.lock         linguist-generated=true -diff
+pnpm-lock.yaml  linguist-generated=true -diff
+*.lock          linguist-generated=true -diff
+
+# --- Classement GitHub : ce qui n'est pas le code du projet --------------------------
+third_party/**  linguist-vendored=true
+refs/**         linguist-vendored=true
+data/**         linguist-vendored=true
+docs/**         linguist-documentation=true
+plugins/**      linguist-documentation=true

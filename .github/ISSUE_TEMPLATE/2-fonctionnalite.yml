@@ -1,0 +1,33 @@
+name: Demande de fonctionnalité
+description: Proposer un ajout au moteur, à la CLI, à l'explorateur ou au wiki
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: besoin
+    attributes:
+      label: Le besoin
+      description: Ce qui est impossible ou pénible aujourd'hui. Pas la solution — le besoin.
+    validations:
+      required: true
+  - type: textarea
+    id: existant
+    attributes:
+      label: Ce qui existe déjà
+      description: |
+        Presque tout est déjà porté quelque part (Rust, C++, C#, TypeScript). Ce qui a été
+        cherché avant de demander — `niers find`, `niers grep`, la façade `@niers/catalog`.
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface concernée
+      options:
+        - CLI niers
+        - nie-explorer (application de bureau)
+        - moteur (rendu, physique, menus)
+        - forge / reverse-engineering
+        - site azalée / données de jeu
+        - autre
+    validations:
+      required: true

@@ -1,0 +1,42 @@
+niers — Inazuma Eleven: Victory Road, réécrit en Rust
+Copyright (c) 2026 Rose Griffon (Level 5 France)
+
+Ce projet est réalisé dans le cadre de l'Accord Commercial Officiel d'Exploitation
+N° RG-L5-VR-2026-001 du 8 août 2026 entre Rose Griffon et LEVEL-5 Inc., qui concède les
+droits exclusifs de reverse-engineering, de développement de mods, de portage et d'outils
+associés. Le texte de l'accord est le fichier LICENSE de ce dépôt ; l'original signé est
+docs/legal/ACCORD_COMMERCIAL_RG-L5-VR-2026-001.pdf.
+
+--------------------------------------------------------------------------------
+Marques et contenus de LEVEL-5
+--------------------------------------------------------------------------------
+
+« Inazuma Eleven », « Victory Road », LEVEL-5 et les personnages, noms, images, textes,
+musiques et modèles du jeu sont la propriété de LEVEL-5 Inc.
+
+Ce dépôt NE REDISTRIBUE PAS ces contenus : `data/` et `nie.exe` sont ignorés par Git, et
+les paquets publiés (CLI, application de bureau, site) lisent une installation du jeu que
+l'utilisateur possède déjà. Ce qui est versionné ici est du code écrit pour ce projet, plus
+des descriptions de formats et des mesures issues du reverse-engineering.
+
+--------------------------------------------------------------------------------
+Sources tierces vendorisées — third_party/
+--------------------------------------------------------------------------------
+
+Ces bibliothèques sont incluses telles quelles (header-only) et compilées dans le toolkit
+C++ `iecode`. Le texte complet de chaque licence figure dans l'en-tête du fichier concerné.
+
+  third_party/stb/stb_image.h          stb_image      Sean Barrett — domaine public / MIT
+  third_party/stb/stb_image_write.h    stb_image_write Sean Barrett — domaine public / MIT
+  third_party/bcdec/bcdec.h            bcdec          Sergii Kudlai — domaine public / MIT
+  third_party/mio/mio.hpp              mio            mandreyel — MIT
+  third_party/tinygltf/tiny_gltf.h     TinyGLTF       Syoyo Fujita, Aurélien Chatelain — MIT
+
+--------------------------------------------------------------------------------
+Dépendances non vendorisées
+--------------------------------------------------------------------------------
+
+Les dépendances Rust (Cargo.lock), TypeScript (bun.lock), Python (uv.lock), .NET (NuGet)
+et C++ (vcpkg.json) sont résolues à la construction et ne sont pas copiées dans ce dépôt.
+Leurs licences respectives s'appliquent aux binaires distribués ; l'inventaire se régénère
+avec `cargo tree`, `bun pm ls` et `vcpkg list`.

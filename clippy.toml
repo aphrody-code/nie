@@ -1,0 +1,19 @@
+# Configuration Clippy du workspace.
+#
+# Les LINTS eux-mêmes sont déclarés dans `[workspace.lints]` du Cargo.toml racine
+# (`todo!`, `unimplemented!`, `dbg_macro` → deny). Ce fichier ne règle que les seuils et
+# les tolérances de clippy, qui ne s'expriment pas en attributs.
+#
+# Le gate du dépôt est `cargo clippy -p <crate> --lib --tests` à 0 warning : tout ce qui
+# est assoupli ici doit l'être pour une raison écrite, sinon c'est le gate qu'on abaisse.
+
+# Dans un TEST, `unwrap`/`expect` sont la façon correcte d'échouer : un test qui propage
+# une erreur au lieu de paniquer transforme un échec en `Err` silencieux.
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true
+
+# Les erreurs du reverse et des parseurs portent du contexte (adresse, offset, nom de
+# section, octets attendus contre octets lus) : c'est ce contexte qui rend un échec de
+# forge diagnosticable. Le seuil par défaut (128 o) les ferait toutes signaler.
+large-error-threshold = 256
