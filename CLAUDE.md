@@ -5,6 +5,15 @@ Réécriture **pixel-perfect / byte-perfect** d’*Inazuma Eleven: Victory Road*
 Projet réalisé dans le cadre de l’**Accord Commercial Officiel d’Exploitation N° RG-L5-VR-2026-001** du 8 août 2026 entre Rose Griffon (Level 5 France) et LEVEL-5 Inc.  
 Droits exclusifs de reverse-engineering, développement de mods, portage et outils associés explicitement concédés.
 
+## Dépôt multi-agents — tu n'y es pas seul
+
+Claude Code et Codex y codent **en même temps**. Avant d'écrire une ligne, lire
+**`AGENTS.md`** (contexte commun à tous les agents) et **`docs/A2A-CODEX.md`** (le protocole).
+En bref : annoncer son périmètre avant d'écrire, ne rien toucher en dehors, un seul auteur de
+commits, et se parler par `aphrody a2a tick` — dont **`--kind` n'accepte que `fact` et `ping`**
+(`claim`, `done`, `goal`, `block` retombent sur `ping` en silence, d'où le type codé dans le
+sujet). Listener de ce dépôt : `127.0.0.1:8792` ; `8788` est celui du dépôt `aphrody`.
+
 ## Deux machines — savoir sur laquelle on est
 
 Ce fichier a été écrit depuis le **poste Windows**. Le VPS Linux (`/home/ubuntu/niers`) est une
@@ -162,7 +171,19 @@ ceux qui n'apportent rien ici sont dits tels quels plutôt que recommandés par 
   optionnelles. Un test `#![cfg(all(…))]` sur une feature éteinte affiche « ok. 0 passed » — un
   **faux vert**, deux fois vécu. Déclarer `[[test]] required-features = […]` (le harnais dit alors
   pourquoi il saute), et lancer `--features images,textures` pour tout ce qui touche l'image.
+- **Même piège, forme plus brutale, réparé le 2026-09-05** : une feature éteinte ne donne pas
+  toujours un faux vert, elle peut CASSER le portail. 24 tests de `nie-data` appelaient
+  `nie_data::typed` (gaté derrière `serde`) sans le déclarer : `cargo clippy -p nie-data --lib
+  --tests` échouait en **E0433**, sur un crate sain. Qui suivait la consigne à la lettre voyait
+  une erreur et devait deviner `--features serde`. Corrigé par 24 `[[test]] required-features`.
+  Devant un clippy qui échoue sans raison, regarder les features optionnelles du crate **avant**
+  d'accuser son propre code.
 - Une suite qui rend `0 passed` n'est jamais un succès : c'est une suite qui n'a pas tourné.
+- **Une garde de test qui teste un chemin en dur au lieu de `NIE_GAME_DIR` se skippe TOUJOURS**,
+  en silence (vécu sur `override_skill_golden.rs`, qui ne testait que `/mnt/c/…` : sur le VPS il
+  ne s'exécutait jamais et la suite s'annonçait verte). Une garde se lit `NIE_GAME_DIR` d'abord.
+- **`dotnet` est ABSENT du VPS** : `csharp/` ne s'y compile ni ne s'y teste. Un lot C# n'y est
+  que **relu** — le dire, ne jamais l'annoncer vérifié.
 - Le dépôt peut être réorganisé **pendant** une session (crates déplacés/créés par un travail
   parallèle) : si un build échoue sur un crate étranger, vérifier `cargo metadata --no-deps`,
   attendre, et ne jamais déplacer ni « réparer » le crate d'une autre session.
@@ -645,6 +666,42 @@ alors que 77 `.py` versionnés existent déjà.
   manquants). Utiliser `sqlite3 src ".backup 'dest'"`.
 - Une page qui rend un titre correct peut quand même être en 500 : **démarrer le service** est ce
   qui trouve le bug, pas relire le diff.
+
+## `.gitignore` — ce qui disparaît en silence
+
+Un fichier ignoré ne produit **ni erreur ni avertissement** : il n'existe simplement pas chez
+le suivant. C'est le mode d'échec le plus cher du dépôt, et il s'est répété.
+
+- **Git ne descend JAMAIS dans un répertoire exclu.** `!data/oc/` seul ne ramène rien tant que
+  `data/` est ignoré : il faut ré-inclure le parent (`!/data/`), ré-exclure son contenu direct
+  (`/data/*`), **puis** ré-inclure la cible. Même règle pour un sous-arbre : écrire
+  `.agents/**` (+ `!.agents/**/`), jamais `.agents/`, si l'on veut ré-inclure dedans.
+- **Un `.gitignore` ne s'applique plus à un fichier déjà suivi.** `CLAUDE.md` et `AGENTS.md`
+  n'ont survécu à la règle `*.md` que parce qu'ils avaient été traqués **avant** elle. Tout
+  fichier d'instructions créé après sortait du dépôt sans un mot — sur un clone frais, l'agent
+  démarrait sans consigne.
+- **La dernière règle qui matche l'emporte** : une ré-inclusion posée avant une règle large
+  (`*.md`, ligne 166 à l'époque) ne sert à rien. Vérifier **chaque** cas par
+  `git check-ignore -v <fichier>`, jamais au raisonnement.
+- Depuis le 2026-09-05, **tout le markdown du dépôt est versionné**, sans liste d'exceptions :
+  elle avait fait disparaître `AGENTS.md`, les 5 sous-agents et 5 skills du plugin `niers` (un
+  livrable) et les README des OC. Restent dehors, chacun pour une raison mesurée : les
+  artefacts d'installation, `/refs/` (un dépôt git **complet** de 124 Mo), et `/var` + `data/`
+  hors `data/oc/` — y faire rentrer quelques `.md` imposerait de ré-inclure leurs répertoires,
+  donc de faire parcourir 15,5 Go et 111 Go à chaque `git status`.
+
+## Avant de renommer ou déplacer — qui pointe dessus hors du dépôt ?
+
+- `/etc/systemd/system/nie-miroir.service` cible **en dur**
+  `scripts/donnees/miroir-inagle.sh`, son timer est actif et son `ExecStartPost` redémarre
+  `nie-model-serve`. Le déplacer casse la rotation nocturne du miroir ; le réparer demande un
+  `daemon-reload`, donc l'accord de l'utilisateur. Ce dossier n'a **pas** été anglicisé pour
+  cette raison, alors que le reste de `scripts/` l'a été.
+- Réflexe : `systemctl list-unit-files`, `rg` dans `deploy/`, et chercher le chemin en absolu
+  avant tout `git mv` d'un script.
+- **Un démon externe commit sous `chore(sync): checkpoint <horodatage>`.** Il ne distingue pas
+  les auteurs et peut capter un lot **à mi-course**. Relire `git log` avant de conclure qu'un
+  commit est le sien.
 
 ## Références légales
 
