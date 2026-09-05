@@ -474,6 +474,107 @@ function fallbackSkillLabel(categorie: string, element: string): string {
 	return "Technique sans nom";
 }
 
+/**
+ * Construit un `Skill` depuis une ligne `inagle_skills` déjà résolue.
+ *
+ * Extrait de `getSkill` (2026-09-05) pour être partagé avec `getSkillsByIds` :
+ * la résolution groupée doit produire EXACTEMENT le même objet que la
+ * résolution unitaire pour une même ligne — une seule fonction de mapping,
+ * jamais deux implémentations qui pourraient diverger en silence.
+ */
+function skillFromRow(h: DbSkill): Skill {
+	const elementMap: Record<string, { en: string; ja: string; fr: string }> = {
+		Feu: { en: "Fire", ja: "火", fr: "Feu" },
+		Vent: { en: "Wind", ja: "風", fr: "Vent" },
+		Forêt: { en: "Forest", ja: "林", fr: "Forêt" },
+		Montagne: { en: "Mountain", ja: "山", fr: "Montagne" },
+		Néant: { en: "Void", ja: "無", fr: "Néant" },
+		Aucun: { en: "Void", ja: "無", fr: "Néant" }
+	};
+	const categoryMap: Record<string, { en: string; ja: string; fr: string }> = {
+		Tir: { en: "Shoot", ja: "シュート", fr: "Tir" },
+		Dribble: { en: "Dribble", ja: "ドリブル", fr: "Dribble" },
+		Défense: { en: "Block", ja: "ブロック", fr: "Défense" },
+		Arrêt: { en: "Catch", ja: "キャッチ", fr: "Arrêt" }
+	};
+	const elementInfo = elementMap[h.element || ""] || { en: "Void", ja: "無", fr: "Néant" };
+	const categoryInfo = categoryMap[h.category || ""] || { en: "None", ja: "なし", fr: "Aucun" };
+	// La surface complète inagle (shops, foulRate, tags, recastTime…) vit dans la
+	// colonne `data` ; `sheet_data` ne porte que les overrides communautaires (souvent
+	// vide pour les hissatsu wh*/rh*). On fusionne les deux, sheet_data prioritaire.
+	const sd = { ...(((h as any).data as any) || {}), ...((h.sheet_data as any) || {}) } as any;
+
+	// Les quatre techniques dont les trois noms valent leur code interne sont
+	// traitées comme sans nom : un code de fichier n'est jamais un titre.
+	const nomFr = realSkillName(h.name_fr, h.internal_code, h.id);
+	const nomEn = realSkillName(h.name_en, h.internal_code, h.id);
+	const nomJa = realSkillName(h.name_ja, h.internal_code, h.id);
+
+	return {
+		// Spread all inagle fields from data + sheet_data (foulRate, tags, shops, etc.)
+		...sd,
+		// Override with DB column values (authoritative)
+		skillId: h.id,
+		// Le hex `0x…` — clé des combinaisons Overdrive et des movesets de
+		// personnage. `skillId` ne le porte PAS (il vaut le code interne) : les
+		// deux doivent rester distincts et nommés pour ce qu'ils sont.
+		skillHexId: typeof sd.skillID === "string" ? sd.skillID : null,
+		internalCode: h.internal_code,
+		names: { en: nomEn, fr: nomFr, ja: nomJa },
+		descriptions: { fr: h.description_fr, ja: h.description_ja },
+		displayName: nomFr || nomEn || fallbackSkillLabel(categoryInfo.fr, elementInfo.fr),
+		name_FR: nomFr,
+		name_EN: nomEn,
+		name_JA: nomJa,
+		desc_FR: h.description_fr || sd.desc_FR,
+		desc_EN: sd.desc_EN,
+		power_min: h.power_min,
+		power_max: h.power_max,
+		// `tension_cost` est NULL sur les 1002 lignes : le coût réel vit dans
+		// `tp_cost`. Lire la seule colonne vide affichait « aucune tension »
+		// partout, sur une fiche dont c'est une caractéristique centrale.
+		consumeTp: h.tp_cost ?? h.tension_cost,
+		// Colonnes chargées par la fiche mais jusqu'ici jamais rendues. Elles
+		// sont exposées sous un nom qui ne recouvre PAS `growthType` du JSON
+		// `data` (un entier), lu par l'affichage de l'évolution.
+		growthTypeId: h.growth_type ?? null,
+		skillEffectBitFlag: h.skill_effect_bit_flag ?? null,
+		hashId: h.hash_id ?? null,
+		hasTelop: h.has_telop ?? null,
+		elementName: elementInfo,
+		categoryName: categoryInfo,
+		image: resolveAssetUrl(h.image_url) || h.image_url,
+		videoUrl: h.video_url || null,
+		// Vidéo officielle zukan : `poster_url` est la vraie image d'attente
+		// (image extraite de la vidéo), `thumbnail_url` sa vignette webp légère.
+		posterUrl: h.poster_url || null,
+		thumbnailUrl: h.thumbnail_url || null,
+		// Community sheet data (from match-skills enrichment or nested sheetData)
+		sheetData:
+			sd.sheetData ||
+			({
+				matchedName: sd.matchedName,
+				shop: sd.shop,
+				type: sd.type,
+				subType: sd.subType,
+				power: sd.power,
+				tension: sd.tension,
+				duration: sd.duration,
+			} as any),
+	} as any;
+}
+
+/**
+ * Un identifiant de technique nettoyé pour un `.or()` PostgREST, ou `null`
+ * quand il ne reste rien après `sanitizeFilter` (ex. entrée composée
+ * uniquement de caractères structurels) — auquel cas ni `getSkill` ni
+ * `getSkillsByIds` ne peuvent trouver de ligne, par construction.
+ */
+function safeSkillFilterId(id: string): string | null {
+	const safe = sanitizeFilter(id);
+	return safe === "" ? null : safe;
+}
+
 export const wikiService = {
 	/** Get all distinct constellations for a character (by name — heroes appear in multiple constellations via different chara_ids) */
 	async _getHeroConstellations(row: any): Promise<Array<{ name: string; index: number }>> {
@@ -1973,88 +2074,103 @@ export const wikiService = {
 		}
 
 		if (row) {
-			const h = row as unknown as DbSkill;
-			const elementMap: Record<string, { en: string; ja: string; fr: string }> = {
-				Feu: { en: "Fire", ja: "火", fr: "Feu" },
-				Vent: { en: "Wind", ja: "風", fr: "Vent" },
-				Forêt: { en: "Forest", ja: "林", fr: "Forêt" },
-				Montagne: { en: "Mountain", ja: "山", fr: "Montagne" },
-				Néant: { en: "Void", ja: "無", fr: "Néant" },
-				Aucun: { en: "Void", ja: "無", fr: "Néant" }
-			};
-			const categoryMap: Record<string, { en: string; ja: string; fr: string }> = {
-				Tir: { en: "Shoot", ja: "シュート", fr: "Tir" },
-				Dribble: { en: "Dribble", ja: "ドリブル", fr: "Dribble" },
-				Défense: { en: "Block", ja: "ブロック", fr: "Défense" },
-				Arrêt: { en: "Catch", ja: "キャッチ", fr: "Arrêt" }
-			};
-			const elementInfo = elementMap[h.element || ""] || { en: "Void", ja: "無", fr: "Néant" };
-			const categoryInfo = categoryMap[h.category || ""] || { en: "None", ja: "なし", fr: "Aucun" };
-			// La surface complète inagle (shops, foulRate, tags, recastTime…) vit dans la
-			// colonne `data` ; `sheet_data` ne porte que les overrides communautaires (souvent
-			// vide pour les hissatsu wh*/rh*). On fusionne les deux, sheet_data prioritaire.
-			const sd = { ...(((h as any).data as any) || {}), ...((h.sheet_data as any) || {}) } as any;
-
-			// Les quatre techniques dont les trois noms valent leur code interne sont
-			// traitées comme sans nom : un code de fichier n'est jamais un titre.
-			const nomFr = realSkillName(h.name_fr, h.internal_code, h.id);
-			const nomEn = realSkillName(h.name_en, h.internal_code, h.id);
-			const nomJa = realSkillName(h.name_ja, h.internal_code, h.id);
-
-			return {
-				// Spread all inagle fields from data + sheet_data (foulRate, tags, shops, etc.)
-				...sd,
-				// Override with DB column values (authoritative)
-				skillId: h.id,
-				// Le hex `0x…` — clé des combinaisons Overdrive et des movesets de
-				// personnage. `skillId` ne le porte PAS (il vaut le code interne) : les
-				// deux doivent rester distincts et nommés pour ce qu'ils sont.
-				skillHexId: typeof sd.skillID === "string" ? sd.skillID : null,
-				internalCode: h.internal_code,
-				names: { en: nomEn, fr: nomFr, ja: nomJa },
-				descriptions: { fr: h.description_fr, ja: h.description_ja },
-				displayName: nomFr || nomEn || fallbackSkillLabel(categoryInfo.fr, elementInfo.fr),
-				name_FR: nomFr,
-				name_EN: nomEn,
-				name_JA: nomJa,
-				desc_FR: h.description_fr || sd.desc_FR,
-				desc_EN: sd.desc_EN,
-				power_min: h.power_min,
-				power_max: h.power_max,
-				// `tension_cost` est NULL sur les 1002 lignes : le coût réel vit dans
-				// `tp_cost`. Lire la seule colonne vide affichait « aucune tension »
-				// partout, sur une fiche dont c'est une caractéristique centrale.
-				consumeTp: h.tp_cost ?? h.tension_cost,
-				// Colonnes chargées par la fiche mais jusqu'ici jamais rendues. Elles
-				// sont exposées sous un nom qui ne recouvre PAS `growthType` du JSON
-				// `data` (un entier), lu par l'affichage de l'évolution.
-				growthTypeId: h.growth_type ?? null,
-				skillEffectBitFlag: h.skill_effect_bit_flag ?? null,
-				hashId: h.hash_id ?? null,
-				hasTelop: h.has_telop ?? null,
-				elementName: elementInfo,
-				categoryName: categoryInfo,
-				image: resolveAssetUrl(h.image_url) || h.image_url,
-				videoUrl: h.video_url || null,
-				// Vidéo officielle zukan : `poster_url` est la vraie image d'attente
-				// (image extraite de la vidéo), `thumbnail_url` sa vignette webp légère.
-				posterUrl: h.poster_url || null,
-				thumbnailUrl: h.thumbnail_url || null,
-				// Community sheet data (from match-skills enrichment or nested sheetData)
-				sheetData:
-					sd.sheetData ||
-					({
-						matchedName: sd.matchedName,
-						shop: sd.shop,
-						type: sd.type,
-						subType: sd.subType,
-						power: sd.power,
-						tension: sd.tension,
-						duration: sd.duration,
-					} as any),
-			} as any;
+			return skillFromRow(row as unknown as DbSkill);
 		}
 		return undefined;
+	},
+
+	/**
+	 * Résolution GROUPÉE de techniques par identifiant (hex `0x…`, code interne
+	 * ou nom) — même sémantique que `getSkill` appelé une fois par id, mais en
+	 * 2 requêtes au plus au lieu d'une par id.
+	 *
+	 * Corrige le N+1 mesuré sur `chara/[id]` (jusqu'à ~600 requêtes
+	 * `inagle_skills` pour une seule fiche en repli Postgres, cause du timeout
+	 * de build sur Vercel — SQLite local encaissait ça sans broncher).
+	 *
+	 * Chaque id est retrouvé par EXACTEMENT la même condition que `getSkill` :
+	 * branche hex → `id`/`data->>skillID`/`sheet_data->>skillID` en `eq` ;
+	 * branche code/nom → `internal_code`/`name_en`/`name_fr` en `eq`. Elles
+	 * sont simplement combinées en un unique `OR` (au lieu d'un `OR` par
+	 * appel), donc rendues par le même moteur SQL en un seul aller-retour —
+	 * aucun opérateur nouveau, aucun changement de sémantique par colonne.
+	 *
+	 * Ambiguïté préexistante, pas introduite ici : plusieurs lignes peuvent
+	 * partager le même `name_fr`/`name_en` (constaté sur le miroir, ex.
+	 * « Attaque cosmique » ×3). `getSkill` ne garantissait déjà AUCUN ordre
+	 * dans ce cas (pas d'`ORDER BY`, `LIMIT 1` sur un simple `OR`) : cette
+	 * fonction retient la première ligne du même jeu de résultats, ce qui
+	 * coïncide avec `getSkill` tant que Postgres/SQLite scannent la table
+	 * dans le même ordre pour un filtre à 1 terme et à N termes — vérifié
+	 * empiriquement sur les deux moteurs (cf. `getSkillsByIds.regression.test.ts`).
+	 *
+	 * Renvoie une `Map` clé = id d'ENTRÉE (pas normalisé) → `Skill | undefined`,
+	 * pour un lookup direct après un `Promise.all`.
+	 */
+	async getSkillsByIds(ids: string[]): Promise<Map<string, Skill | undefined>> {
+		const result = new Map<string, Skill | undefined>();
+		const uniqueIds = [...new Set(ids.filter((id): id is string => Boolean(id)))];
+		if (uniqueIds.length === 0) {
+			return result;
+		}
+
+		const supabase = await createClient();
+		const hexIds = uniqueIds.filter((id) => id.startsWith("0x"));
+		const codeIds = uniqueIds.filter((id) => !id.startsWith("0x"));
+
+		// Construit un `.or()` unique couvrant TOUS les ids d'un groupe, chacun
+		// répété sur les mêmes colonnes que la version unitaire.
+		const buildOr = (idsGroup: string[], cols: string[]): string => {
+			const parts: string[] = [];
+			for (const id of idsGroup) {
+				const safeId = safeSkillFilterId(id);
+				if (safeId === null) continue;
+				for (const col of cols) {
+					parts.push(`${col}.eq.${safeId}`);
+				}
+			}
+			return parts.join(",");
+		};
+
+		const fetchGroup = async (idsGroup: string[], cols: string[]): Promise<any[]> => {
+			const orExpr = buildOr(idsGroup, cols);
+			if (!orExpr) return [];
+			const { data, error } = await supabase.from("inagle_skills").select("*").or(orExpr);
+			if (error) {
+				console.error("Error batch-fetching skills:", error);
+				return [];
+			}
+			return (data as any[]) || [];
+		};
+
+		const HEX_COLS = ["id", "data->>skillID", "sheet_data->>skillID"];
+		const CODE_COLS = ["internal_code", "name_en", "name_fr"];
+
+		const [hexRows, codeRows] = await Promise.all([
+			fetchGroup(hexIds, HEX_COLS),
+			fetchGroup(codeIds, CODE_COLS),
+		]);
+
+		const matchesHex = (row: any, safeId: string): boolean =>
+			row.id === safeId ||
+			(row.data as any)?.skillID === safeId ||
+			(row.sheet_data as any)?.skillID === safeId;
+
+		const matchesCode = (row: any, safeId: string): boolean =>
+			row.internal_code === safeId || row.name_en === safeId || row.name_fr === safeId;
+
+		for (const id of hexIds) {
+			const safeId = safeSkillFilterId(id);
+			const row = safeId === null ? undefined : hexRows.find((r) => matchesHex(r, safeId));
+			result.set(id, row ? skillFromRow(row as unknown as DbSkill) : undefined);
+		}
+		for (const id of codeIds) {
+			const safeId = safeSkillFilterId(id);
+			const row = safeId === null ? undefined : codeRows.find((r) => matchesCode(r, safeId));
+			result.set(id, row ? skillFromRow(row as unknown as DbSkill) : undefined);
+		}
+
+		return result;
 	},
 
 	async getSkillsList(params: ListParams): Promise<ListResult<Skill>> {

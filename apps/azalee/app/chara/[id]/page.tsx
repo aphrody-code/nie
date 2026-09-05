@@ -212,14 +212,14 @@ export default async function PlayerDetailPage({ params }: { params: Promise<{ i
 			if (sk.skillId) variantSkillIds.add(sk.skillId);
 		}
 	}
-	const skillPromises = Array.from(variantSkillIds).map(async (skillId) => {
-		const sk = await wikiService.getSkill(skillId);
-		return { id: skillId, name: sk?.displayName || sk?.name_FR || sk?.name_EN || skillId };
-	});
-	const resolvedSkillsList = await Promise.all(skillPromises);
+	// Résolution groupée (1-2 requêtes) au lieu d'un `getSkill` par technique
+	// distincte — jusqu'à plusieurs dizaines par personnage entre toutes ses
+	// variantes.
+	const variantSkillsById = await wikiService.getSkillsByIds(Array.from(variantSkillIds));
 	const skillsMap = new Map<string, string>();
-	for (const s of resolvedSkillsList) {
-		skillsMap.set(s.id, s.name);
+	for (const skillId of variantSkillIds) {
+		const sk = variantSkillsById.get(skillId);
+		skillsMap.set(skillId, sk?.displayName || sk?.name_FR || sk?.name_EN || skillId);
 	}
 
 	// Calculate comparisons against the youngest base variant
@@ -279,7 +279,11 @@ export default async function PlayerDetailPage({ params }: { params: Promise<{ i
 			.map((s) => s.trim())
 			.filter((s) => s && !s.startsWith("#N/A") && !s.startsWith("Mix "));
 
-		const resolvedSkills = await Promise.all(moveNames.map((name) => wikiService.getSkill(name)));
+		// Résolution groupée : un moveset compte rarement plus d'une poignée de
+		// noms distincts (souvent répétés pour les paliers d'évolution) — 1-2
+		// requêtes au lieu d'une par nom, y compris les doublons.
+		const skillsByName = await wikiService.getSkillsByIds(moveNames);
+		const resolvedSkills = moveNames.map((name) => skillsByName.get(name));
 
 		// Parallelize any aura searches for missing skills
 		const auraPromises = resolvedSkills.map((skill, index) => {
@@ -407,8 +411,11 @@ export default async function PlayerDetailPage({ params }: { params: Promise<{ i
 			})
 			.filter((s) => !PHANTOM_IDS.has(s.skillId));
 
-		const skillPromises = skillList.map((s) => wikiService.getSkill(s.skillId));
-		const fetchedSkills = await Promise.all(skillPromises);
+		// Résolution groupée : c'est ce chemin (moveset binaire de secours) qui
+		// émettait une requête `inagle_skills` par technique — jusqu'à ~600 sur
+		// une seule fiche en repli Postgres (build Vercel). 1-2 requêtes ici.
+		const skillsById = await wikiService.getSkillsByIds(skillList.map((s) => s.skillId));
+		const fetchedSkills = skillList.map((s) => skillsById.get(s.skillId));
 
 		const unsorted: MovesetSkill[] = [];
 		fetchedSkills.forEach((skill, index) => {
