@@ -6,7 +6,7 @@ document de présentation et des planches de référence signées **@Karumina_sa
 
 Ce document dit ce qui est **fait et mesuré**, puis ce qu'il reste à faire pour
 qu'il devienne un personnage du jeu lui-même. Le détail asset par asset vit dans
-`astro/manifeste-assets.json`, régénéré par
+`data/oc/astro-lor/manifest.json`, régénéré par
 `uv run scripts/donnees/astro-lor-manifeste.py` — jamais recopié à la main.
 
 ---
@@ -231,8 +231,8 @@ est en aval n'est que du volume.
 
 ## Références
 
-- Le dossier, sa structure et sa provenance : `astro/README.md`
-- Manifeste d'assets : `astro/manifeste-assets.json`
+- Le dossier, sa structure et sa provenance : `data/oc/astro-lor/README.md`
+- Manifeste d'assets : `data/oc/astro-lor/manifest.json`
 - Générateur : `scripts/donnees/astro-lor-manifeste.py`
 - Données du wiki : `scripts/donnees/astro-lor-oc.py`, `astro-lor-auras.py`
 - Migration : `supabase/migrations/20260905000000_chara_wiki_sections.sql`

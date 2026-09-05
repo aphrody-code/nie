@@ -27,6 +27,20 @@ packages/*/src/data/**/*.json
 # Sortie par defaut des exportateurs de familles nie-data (`export_formations --out`) : du
 # contenu de jeu (c) LEVEL-5 reserialise en JSON, regenerable, jamais du code du depot.
 /export/
+# `data/oc/` — personnages originaux (OC). Seule exception au `data/` ci-dessus : leur doc,
+# leur provenance et leurs manifestes sont du travail DU DEPOT, pas du contenu de jeu, donc
+# ils se versionnent. Git ne descend jamais dans un repertoire exclu : re-inclure directement
+# `!/data/oc/` ne ferait rien. Il faut d'abord re-inclure `/data/` lui-meme, puis re-exclure
+# tout son contenu direct, et seulement ensuite re-inclure `/data/oc/`.
+!/data/
+/data/*
+!/data/oc/
+!/data/oc/**
+# Les originaux (planches, pages de BD) sont l'oeuvre de leur auteur : conserves sur le poste
+# et le VPS, hors depot public. Ce qui reste versionne a cote — la provenance et les
+# empreintes — dit d'ou chaque fichier vient et ce qu'il pese, sans le distribuer.
+# Cf. `data/oc/astro-lor/README.md`.
+/data/oc/*/source/
 
 # Rust build
 /target
@@ -169,6 +183,10 @@ __pycache__/
 # skills SONT du markdown. Sans cette ligne, `*.md` n'en commitait que le README
 # (les 5 sous-agents et les 5 skills restaient hors du depot).
 !plugins/niers-plugin/**/*.md
+# `data/oc/**` est re-inclus plus haut, mais `*.md` ci-dessus est POSTERIEUR et l'emporte :
+# sans cette ligne, les README des personnages originaux sortent du depot en silence.
+!data/oc/**/*.md
+!data/oc/**/*.txt
 
 # ATTENTION : `*.txt` ci-dessus ignorait AUSSI tous les CMakeLists.txt — c'est-a-dire
 # l'integralite de la chaine de build C++ (13 fichiers : racine, src/, cli/, tests/,
@@ -260,10 +278,5 @@ mods/
 # Captures de vérification visuelle de nie-explorer (scripts/capture-explorer.ts) — locales.
 capture/
 
-# Planches originales d'Astro Lor : œuvre de son autrice/auteur, conservée sur le poste et le
-# VPS, hors dépôt public. Ce qui reste versionné à côté — `astro/provenance/` et
-# `astro/manifeste-assets.json` — dit d'où chaque fichier vient et ce qu'il pèse, sans le
-# distribuer. Cf. `astro/README.md`.
-/astro/sources/
 # Outils binaires téléchargés pour produire le WASM, reproductibles.
 /outputs/webgpu-wasm-tools/

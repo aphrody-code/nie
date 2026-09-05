@@ -11,7 +11,7 @@ Rien n'est cité de mémoire. Le manifeste se construit en trois temps :
 Chaque ligne du manifeste porte donc un statut mesuré, jamais supposé.
 
     uv run scripts/donnees/astro-lor-manifeste.py
-    jq '.resume' astro/manifeste-assets.json
+    jq '.resume' data/oc/astro-lor/manifest.json
 """
 
 import json
@@ -19,8 +19,9 @@ import subprocess
 from pathlib import Path
 
 RACINE = Path(__file__).resolve().parents[2]
-SORTIE = RACINE / "astro" / "manifeste-assets.json"
-SOURCES = RACINE / "astro" / "sources"
+OC = RACINE / "data" / "oc" / "astro-lor"
+SORTIE = OC / "manifest.json"
+SOURCES = OC / "source"
 PUBLIC = RACINE / "apps" / "azalee" / "public" / "oc" / "astro-lor"
 
 # Gabarit : un gardien de Raimon déjà dans le jeu. Ses fichiers donnent la forme exacte
@@ -175,8 +176,8 @@ manifeste = {
     "bandes_dessinees": [
         {"page": i, "publie": str((PUBLIC / f"bd-page-{i}.webp").relative_to(RACINE)),
          "octets": taille_locale(PUBLIC / f"bd-page-{i}.webp"),
-         "source": str((SOURCES / "bd" / f"page-{i}.webp").relative_to(RACINE)),
-         "octets_source": taille_locale(SOURCES / "bd" / f"page-{i}.webp")}
+         "source": str((SOURCES / "comic" / f"page-{i}.webp").relative_to(RACINE)),
+         "octets_source": taille_locale(SOURCES / "comic" / f"page-{i}.webp")}
         for i in (1, 2, 3)
     ],
     "cibles": cibles,

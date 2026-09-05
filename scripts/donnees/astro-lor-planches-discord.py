@@ -17,13 +17,14 @@ SOURCE = 'https://discord.com/channels/1544475258591907961/1544482971934007336/1
 
 # Le dossier de sortie est OBLIGATOIRE et n'a pas de valeur par défaut : ce script nomme ce
 # qu'il récupère `attachment-<id Discord>-<empreinte>.jpg`, pas `01-og-tenue-jaune.jpg`. Seul
-# un regard humain sait ce que montre une planche, donc le renommage vers `astro/sources/`
-# reste un geste manuel. Avec un défaut pointant sur `astro/`, un simple rejeu y déverserait
-# douze doublons sous leur nom brut — c'est exactement ce qui était arrivé.
+# un regard humain sait ce que montre une planche, donc le renommage vers
+# `data/oc/astro-lor/source/` reste un geste manuel. Avec un défaut pointant dessus, un simple
+# rejeu y déverserait douze doublons sous leur nom brut — c'est exactement ce qui était arrivé.
 if len(sys.argv) != 2:
     raise SystemExit(
         'usage : uv run scripts/donnees/astro-lor-planches-discord.py <dossier de sortie>\n'
-        '        (un dossier de travail, PAS astro/sources — cf. astro/README.md)'
+        '        (un dossier de travail, PAS data/oc/astro-lor/source —\n'
+        '         cf. data/oc/astro-lor/README.md)'
     )
 OUTPUT = Path(sys.argv[1])
 config = dotenv_values('/home/ubuntu/.config/niers/wonderbot.env', interpolate=False)
