@@ -198,5 +198,47 @@ runtime Node et Supabase Cloud. Ils justifiaient la séparation wiki/outils, pas
 
 ## Amendements
 
-*Aucun.* Toute modification de la stack s'écrit ici, datée, avec sa mesure et son
-alternative rejetée — et ne modifie aucun autre fichier du dossier.
+### A1 — 2026-09-05 : Aphrody, Inacord et nie fonctionnent sans `inagle`
+
+**Décision.** Aucun des trois produits `aphrody-dev` ne dépend d'`inagle`, ni de son paquet
+(`@rosegriffon/inagle`, propriété Rose Griffon) ni de ses tables `inagle_*`. `inagle` reste
+la chaîne de publication d'**Azalée** et rien d'autre. Corollaire de la séparation
+`aphrody-dev` : une dépendance de données est une dépendance tout court.
+
+**Coût mesuré le 2026-09-05.**
+
+*Code — déjà acquis.* Inacord déclare `@rosegriffon/inagle` dans son `package.json` mais ne
+l'importe **0 fois** ; son `src-tauri` ne dépend que de crates `nie-*` ; les 37 crates du
+moteur n'y font aucune référence de code. Retirer la déclaration suffit (J4, avec les 20
+imports `@rosegriffon/azalee` et les 3 `@rosegriffon/ui`).
+
+*Données — cinq requêtes.* `nie-model-serve`, que `nie-site` proxifie, lit réellement le
+miroir pour assembler les modèles :
+
+| Table lue | Lignes | Requêtes | Module `nie-data` équivalent |
+|---|---:|---:|---|
+| `inagle_characters` | 6 168 | 1 | `chara_base.rs` |
+| `inagle_teams` | 208 | 1 | `team.rs` |
+| `inagle_uniforms` | 627 | 1 | `uniform.rs` |
+| `inagle_event_subtitles` | 2 093 | 2 | `event_subtitle.rs` |
+
+`nie-play` lit la même table de sous-titres. `nie-formats`, `nie-data`, `nie-save` et
+`nie-explore` ne la lisent **pas** : leurs occurrences d'`inagle_*` sont des commentaires.
+Les quatre familles étant déjà décodées par `nie-data`, l'indépendance ne demande aucun
+parseur nouveau — seulement de brancher ces cinq requêtes sur la source Rust, dans un
+gisement propre à `aphrody-dev` (par exemple `var/game.sqlite`, produit par un `niers push`).
+
+**Ce qui reste chez Azalée, et n'est pas repris :** les 153 tables `inagle_cross_*`
+(*Inazuma Eleven Cross*, jeu mobile distinct, sans décodeur Rust) et les 2 575 lignes de
+publication (`cli-push.ts`, `push-categories.ts`). Aucun des trois produits n'en a besoin.
+
+**Gate.** `rg -n 'inagle_' crates/tools/nie-model-serve/src crates/engine/nie-play/src
+--glob '*.rs' | grep -v '^\S*:[0-9]*: *//'` → **0** ; `rg '@rosegriffon/'
+apps/inacord/package.json packages/inacord-ui apps/nie-web` → **0**. Lot à planifier ; il
+n'est **pas** dans la semaine J1–J7, et `nie-site` ne doit pas créer de nouvelle lecture
+d'`inagle_*` en attendant.
+
+---
+
+Toute modification de la stack s'écrit ici, datée, avec sa mesure et son alternative
+rejetée — et ne modifie aucun autre fichier du dossier.

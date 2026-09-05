@@ -42,6 +42,12 @@ installations existent, et les nouvelles releases pointent d'abord `aphrody.com`
 CONFIRMER par l'utilisateur** : la base légale d'exploitation des assets sur `aphrody.com`,
 l'Accord N° RG-L5-VR-2026-001 étant signé par Rose Griffon.
 
+Corollaire acté (amendement A1) : **les trois produits fonctionnent sans `inagle`**, ni son
+paquet ni ses tables `inagle_*`. Côté code c'est déjà vrai (Inacord le déclare mais ne
+l'importe jamais) ; côté données il reste **cinq requêtes** dans `nie-model-serve` et
+`nie-play`, sur quatre familles que `nie-data` décode déjà. `inagle` reste la chaîne de
+publication d'Azalée, avec les 153 tables `inagle_cross_*` du jeu mobile.
+
 Ce qui ne change **pas** de nom : les crates `nie-*` (le préfixe est celui du jeu), la CLI
 `niers`, le plugin Blender `niers-blender`, l'identifiant Tauri `dev.niers.explorer` (dossier
 de données et continuité de l'updater), les URL de l'updater.
