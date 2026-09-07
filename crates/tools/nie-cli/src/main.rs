@@ -4,7 +4,6 @@
 
 mod avatar_cmd;
 mod decode_cmd;
-mod delegate;
 mod icons_cmd;
 mod img_cmd;
 mod lua_audit_cmd;
@@ -63,28 +62,6 @@ enum Cmd {
         #[arg(long, default_value = "http://127.0.0.1:8080/mcp")]
         ghidra_url: String,
     },
-    /// Délègue au toolkit C++ `iecode` (~40 commandes non encore portées).
-    ///
-    /// `niers` est la seule CLI utilisateur (cf. docs/ARCHITECTURE.md) : les
-    /// commandes du C++ passent par ici tant qu'elles ne sont pas portées en Rust.
-    ///
-    /// `disable_help_flag` : `--help`/`-h` doivent atteindre le délégué, pas être avalés par
-    /// clap — sinon `niers cpp --help` n'affiche jamais l'aide des 40 commandes déléguées.
-    #[command(name = "cpp", disable_help_flag = true)]
-    Cpp {
-        /// Arguments transmis tels quels à `iecode`.
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        args: Vec<String>,
-    },
-    /// Délègue à l'outillage .NET `IECODE.CLI` (~37 commandes : dump, pack, cdn, pipeline…).
-    #[command(name = "cs", disable_help_flag = true)]
-    Cs {
-        /// Arguments transmis tels quels à `iecode.dll`.
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        args: Vec<String>,
-    },
-    /// Dit quels back-ends de la CLI unique sont construits, et où.
-    Backends,
     /// Le cycle de modding complet : créer un mod, l'éditer, le valider, l'installer.
     ///
     /// `viola` porte les opérations de bas niveau sur les archives ; `mod` porte le cycle de
@@ -96,8 +73,7 @@ enum Cmd {
     },
     /// Opérations de modding LEVEL-5 — le périmètre de l'outil Viola, en Rust natif.
     ///
-    /// Reprend ce que `niers cs dump` / `niers cpp pack` déléguaient : chaque sous-commande ici
-    /// retire une délégation, et l'écart avec les toolkits externes se mesure.
+    /// Porte les opérations de dump/pack/merge qui appartenaient aux anciens toolkits.
     Viola {
         #[command(subcommand)]
         op: ViolaOp,
@@ -1067,8 +1043,8 @@ enum VfsOp {
 
 /// Les quatre opérations de modding LEVEL-5, servies par `nie_viola` **en process**.
 ///
-/// Chaque sous-commande ici retire une délégation à `niers cs` / `niers cpp` : c'est la mesure
-/// de l'absorption (cf. `docs/ABSORPTION-IECODE.md`).
+/// Les opérations sont natives et ne dépendent d'aucun toolkit externe
+/// (cf. `docs/IECODE-MIGRATION.md`).
 #[derive(Subcommand)]
 enum ViolaOp {
     /// Extrait le VFS complet vers un dossier — packs ordonnés par volume, mappés en mémoire,
@@ -1971,18 +1947,8 @@ fn run() -> anyhow::Result<()> {
             );
             Ok(())
         }
-        Cmd::Cpp { args } => delegate::cpp(&args),
-        Cmd::Cs { args } => delegate::cs(&args),
         Cmd::Mod { op } => mod_cmd::executer(op),
         Cmd::Viola { op } => viola_cmd(op),
-        Cmd::Backends => {
-            // Le nombre de commandes vient de clap : il suit le binaire, pas une note qui derive.
-            let n = <Cli as clap::CommandFactory>::command()
-                .get_subcommands()
-                .count();
-            delegate::status(n);
-            Ok(())
-        }
         Cmd::Format { src } => decode_cmd::format(&src),
         Cmd::Decode { src, out, quiet } => {
             if src.is_dir() {

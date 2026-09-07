@@ -1,7 +1,7 @@
 # `third_party/` — les sources tierces vendorisées
 
-Bibliothèques C/C++ **header-only**, copiées telles quelles et compilées dans le toolkit
-`iecode`. Elles sont ici, et non dans `vcpkg.json`, parce qu'un seul en-tête ne justifie
+Bibliothèques **header-only**, copiées telles quelles et utilisées par les crates Rust. Elles
+sont ici, et non dans un gestionnaire externe, parce qu'un seul en-tête ne justifie
 pas un port.
 
 | Chemin | Bibliothèque | Licence | Ce qu'on en fait |

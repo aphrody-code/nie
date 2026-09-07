@@ -16,6 +16,11 @@
 > (`/avatar`, `/options`), reverse-engineering, and external decisions are recorded as blocked,
 > not silently left as open work.
 
+> **Implementation boundary — 2026-09-07.** IECODE C++/.NET has been exported to dedicated
+> historical repositories and removed from `niers`. The canonical mapping and post-removal gate
+> are tracked in [`IECODE-MIGRATION.md`](IECODE-MIGRATION.md); no roadmap item may add a legacy
+> build or process delegation back to this repository.
+
 ---
 
 ## 1. Hierarchy & Guiding Principle

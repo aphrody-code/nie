@@ -108,7 +108,8 @@ C'est la raison d'être de ce poste, et elle est mesurée dans
   captures de vérification : il faut un écran et un GPU ;
 - **lire la mémoire du jeu** — `nie-mem.exe` et `nie-edit.exe` (`ReadProcessMemory`), avec
   élévation. `niers mem` est l'équivalent Linux et n'existe pas ici ;
-- **le C#** — `dotnet` est **absent du VPS** : `csharp/` n'y compile ni ne s'y teste. Un lot C#
+- **les anciennes sources IECODE** — elles sont archivées dans les dépôts dédiés et ne sont plus
+  une chaîne de build de `niers`. Un lot C#
   ne peut y être que *relu*, jamais vérifié.
 
 Inversement, le VPS garde la moisson réseau et les 19 services.

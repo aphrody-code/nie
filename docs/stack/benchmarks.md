@@ -43,25 +43,20 @@ la [discussion Chrome 150](https://github.com/krausest/js-framework-benchmark/di
 au repos, trois échauffements et sept mesures médianes; les commandes sont
 reproduites dans `/home/ubuntu/niers/docs/BENCHMARKS.md`.
 
-| Noyau (débit en Mio/s) | Rust | C++ | C# JIT | C# AOT |
-| --- | ---: | ---: | ---: | ---: |
-| CRC32, 64 Mio | 2 312 | **2 943** | 606 | 600 |
-| CRILAYLA, 14,6 → 28,9 Kio | 626 | 553 | **817** | 711 |
-| G4TX → PNG, 2640×1200 BC7 | **659 ms** | n/a | 7 169 ms | — |
+| Noyau (débit en Mio/s) | Rust |
+| --- | ---: |
+| CRC32, 64 Mio | 2 312 |
+| CRILAYLA, 14,6 → 28,9 Kio | 626 |
+| G4TX → PNG, 2640×1200 BC7 | **659 ms** |
 
-Le pipeline complet G4TX → PNG favorise Rust dans cette campagne; l'algorithme
-et les flags comptent davantage que le langage. La comparaison de pixels Rust
-et C# sur `story01_00.g4tx` a mesuré un écart maximal nul; cela valide la
-conversion, pas le rendu du jeu.
+Le pipeline complet G4TX → PNG est désormais mesuré par le harnais Rust ; les anciennes colonnes
+inter-langages ont été archivées avec IECODE.
 
 Commandes de référence :
 
 ```bash
 cargo build --release -p nie-bench
-pwsh bench/cpp/build.ps1
-dotnet build bench/cs/Bench.csproj -c Release
 target/release/nie-bench crc32 --mib 64
-bench/cpp/bench.exe crc32-slice8 64
 ```
 
 ## Gate serverless Azalée — trois runs le 2026-09-05, VPS

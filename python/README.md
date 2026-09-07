@@ -113,7 +113,7 @@ r.capturer_region("atlas.g4tx", "icone_01", "game/nie/images/icone_01.png")
 `nie-game` est atteint en **sous-processus**, jamais en process, et c'est délibéré : il n'a
 pas de `lib.rs`, c'est un hôte wgpu. Charger un contexte GPU dans une bibliothèque elle-même
 chargée par le Python de Ren'Py est une bonne façon d'obtenir des plantages illisibles. Le
-dépôt applique déjà cette règle au toolkit C++ (`niers cpp`), pour la même raison.
+dépôt applique déjà cette règle à la CLI Rust `niers`, pour la même raison.
 
 Seuls les modes **hors-écran** sont exposés. `--window` et `--play` ouvrent une fenêtre et ne
 rendent la main qu'à sa fermeture : les appeler depuis un jeu déjà lancé le bloquerait.

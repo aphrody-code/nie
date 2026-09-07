@@ -6,7 +6,7 @@ allowed-tools: Bash, Read, Write, Edit, Grep, Glob
 Famille visee : $ARGUMENTS
 
 1. **Verifier l'existant AVANT d'ecrire une ligne** — la quasi-totalite est deja portee, et les modules sont nommes par concept, pas par nom de fichier :
-   `grep -rl "<MARQUEUR>" crates/engine/nie-data/src/` ; balaye aussi `src/` (C++), `csharp/` (IECODE), `packages/` (TS).
+   `grep -rl "<MARQUEUR>" crates/engine/nie-data/src/` ; balaye aussi `packages/` (TS).
 2. **Sonder le format reel** : `target/debug/examples/probe_rdbn <prefix>` (RDBN) ou `probe_t2b <prefix>` (T2B), `NIE_GAME_DIR` pose.
    Deux formats derriere `.cfg.bin` : RDBN a listes (`cfgbin::is_rdbn` → `parse` + `read_values`) et T2B (`cfgbin::cfgbin_parse`, arbre `CfgEntry`). Tout `common/property/**` est T2B.
 3. **Porter** dans `crates/engine/nie-data/src/`, en suivant l'idiome du module voisin le plus proche.

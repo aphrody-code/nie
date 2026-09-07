@@ -37,6 +37,6 @@ Dépendances non vendorisées
 --------------------------------------------------------------------------------
 
 Les dépendances Rust (Cargo.lock), TypeScript (bun.lock), Python (uv.lock), .NET (NuGet)
-et C++ (vcpkg.json) sont résolues à la construction et ne sont pas copiées dans ce dépôt.
+et les crates Rust sont résolues à la construction et ne sont pas copiées dans ce dépôt.
 Leurs licences respectives s'appliquent aux binaires distribués ; l'inventaire se régénère
 avec `cargo tree`, `bun pm ls` et `vcpkg list`.

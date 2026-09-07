@@ -7,6 +7,11 @@
 > non démontrables (oracle, driver runtime complet, pixel-perfect, reverse `.g4tg`) sont clôturés
 > comme `INCOMPLET/BLOQUÉ` avec leur preuve et ne restent pas des tâches implicites.
 
+> **Absorption IECODE — 2026-09-07.** Les arbres C++ et C# ne font plus partie de ce checkout et
+> ne sont plus des prérequis de build. La cartographie des ports Rust et les preuves de retrait
+> sont dans [`IECODE-MIGRATION.md`](IECODE-MIGRATION.md). Toute mention d'iecode ci-dessous est
+> une référence historique de provenance, pas une dépendance opérationnelle.
+
 ## L'objectif
 
 **Un moteur de jeu complet en Rust, et une chaîne qui produit `nie.exe` identique à l'original au

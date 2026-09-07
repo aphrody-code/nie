@@ -41,8 +41,8 @@ typées) · `nie-core` (la logique de jeu portée) · `nie-lua` (la VM Lua 5.2 d
 `nie-cli` (le binaire `niers`, **seule** CLI utilisateur) · `nie-model-serve` (le serveur
 d'assets) · `nie-wiki`, `nie-zukan`, `nie-steam`, `nie-editor`, `nie-bench`, `nie-tasks`.
 
-Une commande nouvelle s'écrit dans `nie-cli`, jamais dans un binaire de plus : les
-toolchains C++ et .NET s'atteignent par `niers cpp …` et `niers cs …`.
+Une commande nouvelle s'écrit dans `nie-cli`, jamais dans un binaire de plus. Les anciennes
+toolchains C++/.NET sont historiques et ne sont plus des dépendances du dépôt.
 
 ## Vérifier
 

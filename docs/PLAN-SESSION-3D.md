@@ -6,6 +6,10 @@
 Dernière consolidation : 7 septembre 2026. Chaque item est maintenant clôturé par `✓` (livré et
 vérifié) ou `✗` (non livré, bloqué ou hors autorisation), jamais par une case cochée par défaut.
 
+La référence C++/C# historique a été retirée du checkout le 7 septembre 2026 après export vers
+les dépôts dédiés. Les validations de cette annexe doivent désormais cibler exclusivement
+`nie-render3d`, `nie-game`, `nie-formats` et les hôtes UI ; voir [`IECODE-MIGRATION.md`](IECODE-MIGRATION.md).
+
 ## Règles et arbitrages
 
 - Réutiliser Explorer, son éditeur, nie-render3d, les parseurs WASM et l'atelier avatar existants. Ne pas créer une nouvelle application parallèle.

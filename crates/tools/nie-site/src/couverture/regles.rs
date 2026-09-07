@@ -1400,7 +1400,7 @@ pub static REGLES: &[Regle] = &[
         Iecode,
         Motif::Tout,
         interne(
-            "toolkit C++ atteint par `niers cpp` : API d'administration, non affichée (§ 5, lot 7)"
+            "capacité historique IECODE : les sources sont exportées, aucune délégation n'est maintenue"
         )
     ),
     // ------------------------------------------------------------------ VFS (par extension)

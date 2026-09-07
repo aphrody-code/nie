@@ -141,23 +141,22 @@ the contract.
 
 ## Repository layout
 
-Four implementations live under one root, each with a role it owns
+Two maintained ecosystems live under one root, each with a role it owns
 ([`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)):
 
 | Tree | Language | Role |
 | --- | --- | --- |
 | `crates/` | Rust | The engine, the forge, and the **only** user-facing CLI |
-| `src/` | C++ | The `iecode` toolkit; decompiled C on its way to a playable `nie` |
-| `csharp/` | C# | Dumping, packing, memory reading, texture conversion |
 | `packages/`, `apps/` | Bun/TS | The wiki and its library, the data pipeline, the cron daemon, the Discord bots, the MCP server, the desktop app |
 | `supabase/migrations/` | SQL | The schema of the extracted game data — replayable, idempotent, verified against production |
 
-`niers` is the single entry point: `niers cpp …` and `niers cs …` delegate to the other two
-toolchains, `niers backends` reports what is built and where.
+`niers` is the single entry point and is implemented in Rust. Format, Steam, and modding
+operations do not require a second toolkit.
 
 Where a new file goes, and why, is [`docs/ORGANISATION.md`](docs/ORGANISATION.md); each tree
 also carries its own README ([`crates/`](crates/README.md), [`packages/`](packages/README.md),
-[`apps/`](apps/README.md), [`csharp/`](csharp/README.md), [`scripts/`](scripts/README.md)).
+[`apps/`](apps/README.md), [`scripts/`](scripts/README.md)). Historical port provenance is
+tracked in [`docs/IECODE-MIGRATION.md`](docs/IECODE-MIGRATION.md).
 
 ### Rust crates (38 directories, 36 compiled — `cargo metadata --no-deps`)
 

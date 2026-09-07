@@ -1,34 +1,27 @@
 # Architecture
 
-Quatre implémentations d'IEVR sous une racine. Ce document dit **qui fait quoi**, **par où les
-arbres se parlent**, et **ce qu'il ne faut jamais fusionner**.
+Une implémentation maintenue d'IEVR sous une racine. Ce document dit **qui fait quoi** et
+**ce qu'il ne faut jamais fusionner**. Le détail de l'absorption historique est dans
+[`IECODE-MIGRATION.md`](IECODE-MIGRATION.md).
 
-## Les quatre arbres
+## Les arbres maintenus
 
 | Arbre | Racine | Volume | Build |
 |---|---|---|---|
-| Rust — moteur + forge | `crates/`, `forge/` | 582 f. / 174 386 l | `cargo` |
-| C++ — toolkit iecode | `src/` (+ `third_party/`, `cmake/`) | 595 f. / 88 622 l | `cmake` + vcpkg |
-| C# — IECODE | `csharp/` | 230 f. / 46 922 l | `dotnet` (`IECODE.sln`) |
-| TypeScript/Bun | `packages/`, `apps/` | 94 f. / 16 315 l | `bun` |
+| Rust — moteur, forge et outils | `crates/`, `forge/` | workspace Cargo | `cargo` |
+| TypeScript/Bun | `packages/`, `apps/` | workspaces Bun | `bun` |
 
-`just all-build` · `just all-test` · `just all-check` pilotent les quatre.
+`just all-build` · `just all-test` · `just all-check` pilotent ces deux chaînes.
 
 ## Doctrine — un rôle, un langage
 
 | Langage | Rôles |
 |---|---|
-| **C++** | C décompilé → jeu `nie` jouable ; libs sans équivalent (assimp, Bullet) |
-| **C#** | dump, pack, memory, conversion de texture |
-| **Rust** | la seule CLI, GUI, core lib, wasm, RE, byte-exact |
+| **Rust** | la seule CLI, GUI, core lib, wasm, RE, byte-exact et runtime |
 | **Bun/TS** | MCP, serveur web, types, API, UI |
 
 Règles qui en découlent :
 
-- La conversion de texture C++ est la moins bonne des trois : ne pas l'étendre. Elle ne subsiste
-  que pour l'export WebP, qui n'existe nulle part ailleurs.
-- La lecture mémoire du process et l'outillage de dump sont **C#** (`csharp/IECODE.Core/Dump`,
-  `Native`).
 - `nie-formats::g4tx_decode` reste Rust : sans lui, wasm n'a pas d'images.
 - Porter une capacité se justifie par la doctrine ou par une contrainte technique (byte-exact,
   wasm, dépendance native) — jamais par le goût du langage.
@@ -36,14 +29,12 @@ Règles qui en découlent :
 ## La CLI unique
 
 ```bash
-niers backends        # ce qui est construit, et où
-niers cpp <args...>   # → build/<preset>/src/cli/iecode[.exe]
-niers cs  <args...>   # → csharp/IECODE.CLI/bin/*/net10.0/iecode.dll
 niers decode <src>    # fichier ou arborescence → JSON / PNG (rayon)
+niers viola dump ...  # extraction VFS native
+niers steam sync ...  # acquisition Steam native
 ```
 
-Les arguments passent tels quels (`--help` compris), le code de sortie du délégué est propagé.
-Surcharges : `NIE_IECODE_EXE`, `NIE_IECODE_DLL`. Code : `crates/tools/nie-cli/src/delegate.rs`.
+Il n'existe plus de délégation vers un binaire C++, une assembly .NET, CMake ou vcpkg.
 
 ## Les crates Rust
 
@@ -106,23 +97,18 @@ lecture seule, référence de portage, jamais compilées par `cargo build --work
 | `nie-zukan` | Ingesteur de l'encyclopédie officielle Level-5 Inagle (JP/FR/EN) | 53 |
 | `nie-wiki` | Exploration game-data IEVR depuis le miroir SQLite (personnages, skills, items, équipes) | 0 |
 | `nie-editor` | Éditeur 3D NIE natif, viewport GPU partagé DirectX 12/Vulkan/OpenGL | 1 |
-| `nie-bench` | Banc d'essai inter-langages : mesure les hot paths Rust, échantillons pour C++/C#/TS | 2 |
+| `nie-bench` | Banc de mesure des hot paths Rust et des contrats de format | 2 |
 | `nie-tasks` | Orchestration de jobs asynchrones annulables/pausables avec progression | 0 |
 
 ## Les ponts
 
 | Pont | Sens | Point d'entrée |
 |---|---|---|
-| `nie-forge cc` | Rust → C | `src/decomp/functions/*.c`, annotés `/* @nie 0x… */` |
-| `iecode export-knowledge` | C# → Rust | JSON → `crates/forge/nie-seed/src/format_catalog.rs` |
 | `packages/nie` | Rust → TS | `nie_ffi` via `bun:ffi` (préchargé par `bunfig.toml`) — **seul** natif chargé côté TS |
-| `niers cpp` / `niers cs` | Rust → C++ / C# | délégation par sous-processus, `crates/tools/nie-cli/src/delegate.rs` |
-| `scripts/sync-gamedata.ts` | TS → C# | `dotnet` puis `iecode.dll` |
+| `scripts/sync-gamedata.ts` | TS → Rust | `niers steam` puis `niers viola` |
 | `packages/nie-bridge` | TS ↔ TS | protocole `nie-mcp` ↔ `nie-explorer` |
 
-Non ponté : C# ↔ natif (la couche `csharp/IECODE.Core/Native` est du SIMD .NET pur). Le C++
-n'expose **aucune FFI** : il ne se parle avec les autres arbres que par la façade CLI, en
-sous-processus. `crates/archive/nie-rs` est du décompilé porté en Rust, hors workspace et compilé
+`crates/archive/nie-rs` est du décompilé porté en Rust, hors workspace et compilé
 par personne : matière de RE, pas un pont.
 
 ## Fusions interdites
@@ -146,12 +132,6 @@ des tests qui restent verts.
 
 ## Contraintes de structure
 
-- `src/CMakeLists.txt` fait un `GLOB_RECURSE` sur tout `src/` pour `iecode_core` : les sous-arbres
-  à target propre (`cli`, `tests`, `ffi`, `decomp`, `driver`, `include`) en sont exclus par
-  `list(FILTER … EXCLUDE REGEX ".*/src/<nom>/.*")`. En ajouter un sans son filtre met plusieurs
-  `main()` dans la lib.
 - Bun ne charge **que** `nie_ffi` (Rust). C'est délibéré : `bunfig.toml` précharge `nie-plugin`,
   donc tout natif joint à cette chaîne ferait échouer n'importe quelle commande `bun` du dépôt dès
-  qu'il n'est pas construit. Le C++ s'atteint par la CLI (`niers cpp`), jamais en process.
-- vcpkg n'est pas installé par défaut : la chaîne C++ ne compile pas tant que `just cpp-bootstrap`
-  n'a pas tourné. `just all-check` exclut donc le C++.
+  qu'il n'est pas construit.

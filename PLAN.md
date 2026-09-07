@@ -1,5 +1,21 @@
 # PLAN — une semaine de bout en bout, du 2026-09-05 au 2026-09-11
 
+## Amendement du 2026-09-07 — absorption IECODE clôturée
+
+Le portage des capacités nécessaires est désormais consommable depuis `niers` :
+`scripts/sync-gamedata.ts` utilise `niers steam` pour l’acquisition et `niers viola dump` pour
+le dump sélectif. Les sous-commandes de délégation `niers cpp` et `niers cs` ont été retirées,
+ainsi que `delegate.rs`, les recettes CMake/vcpkg/.NET et les benchmarks qui exigeaient les
+anciens arbres. Les sources historiques ont été exportées dans les dépôts dédiés
+[`iecode-cpp`](https://github.com/aphrody-code/iecode-cpp) et
+[`iecode-csharp`](https://github.com/aphrody-code/iecode-csharp), puis supprimées de ce checkout.
+
+La correspondance détaillée source → crate, les limites de compatibilité et la mesure avant
+retrait sont conservées dans [`docs/IECODE-MIGRATION.md`](docs/IECODE-MIGRATION.md). Cette décision
+ferme la porte d’exécution C++/.NET ; les mentions historiques restantes dans les annexes sont
+des références de provenance, jamais des prérequis de build. Prochaine action mesurable : passer
+les gates Rust et Bun après retrait, puis corriger uniquement les régressions avérées.
+
 > **Référentiel canonique — état au 2026-09-07, session interrompue volontairement.**
 > Toute nouvelle décision, mesure ou reprise commence ici. Les documents spécialisés ci-dessous
 > restent les annexes de preuve ; ils ne portent pas un objectif concurrent.

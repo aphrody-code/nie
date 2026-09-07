@@ -3,7 +3,7 @@
 `nie-game` est atteint en **sous-processus**, jamais en process, et c'est délibéré : il n'a
 pas de `lib.rs`, c'est un hôte wgpu. Charger un contexte GPU dans une bibliothèque elle-même
 chargée par le Python de Ren'Py est une bonne façon d'obtenir des plantages illisibles. Le
-dépôt applique déjà cette règle au toolkit C++ (`niers cpp`), pour la même raison.
+dépôt applique déjà cette règle à la CLI Rust `niers`, pour la même raison.
 
 Le pont n'expose donc que les modes **hors-écran**, qui rendent un fichier et se terminent.
 Les modes fenêtrés (`--window`, `--play`) ouvrent une fenêtre et rendent la main quand

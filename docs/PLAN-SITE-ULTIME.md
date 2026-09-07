@@ -12,6 +12,11 @@
 > le reverse et les décisions de production/juridique sont eux aussi clôturés par statut dans
 > les sections dédiées : aucune ouverture n'est laissée sans propriétaire ni preuve manquante.
 
+> **Boundary update — 2026-09-07.** The C++ and C# implementations formerly used as executable
+> comparison backends have been exported and removed from this checkout. Site coverage and
+> format work now target the Rust crates only; provenance and compatibility limits are recorded
+> in [`IECODE-MIGRATION.md`](IECODE-MIGRATION.md).
+
 ---
 
 > **Amendment 2026-09-06 (9) — the real VFS is mounted, Lua is fully audited, and the menu tree
@@ -685,9 +690,10 @@ déclarée « reste sur Azalée » **avec sa raison** (Azalée demeure le wiki d
 
 **Gate :** 81 = portées + restées + classées, `manquant = 0`.
 
-### Lot 7 — les gisements et le toolkit C++
+### Lot 7 — les gisements et la surface Rust
 
-- `iecode` : 39 sous-commandes derrière `niers cpp`, atteignables par l'API d'administration.
+- Les anciennes commandes IECODE sont archivées ; les capacités maintenues sont exposées par
+  `niers`, `nie-site` et les crates Rust correspondantes.
 - Les quatre gisements (`jeu`, `extrait`, `re`, `anime`) passent par `@niers/catalog` — jamais
   une base rouverte à la main.
 - `nie-db` / `niers push` (amendement A2) : la couche SQL native remplace les 18 importeurs

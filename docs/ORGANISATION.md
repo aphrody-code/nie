@@ -40,8 +40,6 @@ niers/
 │   ├── engine/      le moteur
 │   ├── tools/       l'outillage, dont la CLI `niers`
 │   └── archive/     hors build, référence en lecture seule
-├── src/             C++ — le toolkit iecode (voir « Lots restants »)
-├── csharp/          C# — IECODE.Core / IECODE.CLI / IECODE.Core.Tests → csharp/README.md
 ├── python/          Python — le paquet `niepy` et ses tests
 ├── packages/        Bun/TS — 19 bibliothèques                   → packages/README.md
 ├── apps/            Bun/TS — 10 applications                    → apps/README.md
@@ -49,9 +47,8 @@ niers/
 ├── scripts/         scripts et preuves                          → scripts/README.md
 ├── supabase/        les migrations SQL du wiki
 ├── deploy/          les unités systemd
-├── cmake/           modules CMake, overlay-ports vcpkg
 ├── third_party/     sources tierces vendorisées (header-only)
-├── bench/           bancs d'essai inter-langages
+├── bench/           bancs de mesure Rust
 ├── docs/            la documentation                            → docs/README.md
 │   └── legal/       l'accord commercial signé
 ├── data/  var/  refs/  target/  node_modules/     ignorés par Git
@@ -63,7 +60,7 @@ niers/
 
 | Ce que c'est | Où | Pourquoi |
 |---|---|---|
-| une commande utilisateur | `crates/tools/nie-cli` | `niers` est la **seule** CLI ; le C++ et le .NET s'atteignent par `niers cpp` / `niers cs` |
+| une commande utilisateur | `crates/tools/nie-cli` | `niers` est la **seule** CLI native |
 | une bibliothèque TypeScript | `packages/` | pas de `bin` |
 | une application TypeScript | `apps/` | a un point d'entrée qu'on lance |
 | une recherche qu'on rejouera | `crates/tools/nie-cli` (`niers find`/`grep`) | `rg` en direct ne vaut que pour l'exploration jetable d'une session |
@@ -88,48 +85,22 @@ niers/
 | `NOTICE` — attributions `third_party/`, marques LEVEL-5 | ajouté |
 | `SECURITY.md` — périmètre, signalement, chaîne de signature | ajouté |
 | `.github/` — `CODEOWNERS`, gabarit de PR, deux gabarits d'issue | ajouté |
-| un `README.md` par arbre — `crates/`, `packages/`, `apps/`, `csharp/`, `scripts/`, `deploy/`, `plugins/`, `cmake/`, `third_party/` (9 ; `docs/`, `python/`, `supabase/` en avaient déjà un) | ajouté |
+| un `README.md` par arbre — `crates/`, `packages/`, `apps/`, `scripts/`, `deploy/`, `plugins/`, `third_party/` | ajouté |
 
-## Lots restants, et ce qui les bloque
+## Décisions de structure
 
-### 1. `src/` → `cpp/` — le seul écart de fond avec codex
+### Retrait des arbres historiques
 
-`src/` à la racine d'un monorepo à quatre langages est un nom qui ment : il ne contient que
-le toolkit C++ `iecode`. Codex n'a pas de `src/` racine, il a `codex-rs/` et `codex-cli/`.
+Les arbres C++ et C# ont été exportés vers les dépôts historiques dédiés puis retirés de ce
+checkout. La correspondance des capacités est tenue dans [`IECODE-MIGRATION.md`](IECODE-MIGRATION.md).
 
-**Bloqué, pas abandonné.** Ce dépôt est travaillé par deux agents en parallèle
-([`A2A-CODEX.md`](A2A-CODEX.md)) et `src/**` est actuellement pris en exclusivité. Un
-renommage pendant une édition en cours écrase du travail.
-
-Le lot est **prêt à jouer** dès libération :
-
-```bash
-scripts/renommer-src-en-cpp.sh
-```
-
-Le script refuse de démarrer tant qu'un fichier de `src/` n'est pas commité (c'est
-exactement la garde qui protège le travail de l'autre agent), fait le `git mv`, réécrit
-les seuls motifs propres à l'arbre C++ — `src/decomp`, `src/include`, `src/cli`,
-`src/tests`, `src/nie_rs`… jamais un `packages/*/src/` ni un `crates/*/src/` —, puis
-**liste** ce qui cite encore `src/` sans correspondre à un motif connu, à relire à la
-main. Il est idempotent : rejoué, il constate que `cpp/` existe et sort.
-
-Le `GLOB_RECURSE` de `src/CMakeLists.txt` et les `list(FILTER … EXCLUDE REGEX ".*/src/<nom>/.*")`
-qui l'accompagnent citent `src/` littéralement : ils doivent être repris dans le même
-commit, sinon plusieurs `main()` se retrouvent dans `iecode_core`.
-
-### 2. Le commentaire orphelin de `src/CMakeLists.txt:23`
-
-Il pointe `CMakeLists.app_export.txt` à la racine, qui vit désormais dans `cmake/`. C'est un
-commentaire, rien ne casse — mais la référence est fausse. Même blocage que ci-dessus.
-
-### 3. `crates/nie-wasm/pkg`
+### `crates/nie-wasm/pkg`
 
 1,1 Mo d'artefact `wasm-pack` non suivi, posé sous `crates/` alors que la crate est
 `crates/engine/nie-wasm`. Rien ne le lit ; il se régénère. À supprimer, avec l'accord de
 l'utilisateur puisque c'est une suppression.
 
-### 4. Les noms de `docs/`
+### Les noms de `docs/`
 
 Codex écrit `docs/getting-started.md` ; niers écrit `docs/PLAN.md`. Le kebab-case minuscule
 est la convention la plus répandue, mais renommer 22 documents cités par `CLAUDE.md`,
@@ -138,7 +109,7 @@ de rupture réel pour les deux agents et tous les liens existants. **Écart assu
 convention de ce dépôt est MAJUSCULES pour un document, kebab pour un sous-sujet
 (`modele-de-match.md`). Elle ne change pas sans une raison meilleure que l'esthétique.
 
-### 5. Le workspace Rust n'est pas déplacé dans `rust/`
+### Le workspace Rust n'est pas déplacé dans `rust/`
 
 Codex isole son workspace dans `codex-rs/` (avec son `Cargo.toml`, son `Cargo.lock`, son
 `.cargo/`). Ici, `Cargo.toml` est à la racine. **Écart assumé** : le workspace Rust est
@@ -146,7 +117,7 @@ l'arbre principal du projet — c'est lui qui produit le binaire, la CLI et la m
 la moitié de l'outillage (justfile, CI, `just installer`) le suppose à la racine. Le
 déplacer coûterait cher pour un gain de symétrie.
 
-### 6. Les crates ne sont pas plates
+### Les crates ne sont pas plates
 
 Codex range 80 crates à plat sous `codex-rs/`. Niers les range par rôle
 (`forge` / `engine` / `tools` / `archive`). **Écart assumé, et documenté dans

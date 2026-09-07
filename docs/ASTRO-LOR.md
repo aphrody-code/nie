@@ -184,8 +184,8 @@ sans dépendre de V2.
 
 Trois choses ont été vérifiées ici, et deux ont démenti ce que ce document disait.
 
-**La voie C# n'existe pas sur cette machine.** `niers cs` répond « assembly .NET
-`iecode.dll` introuvable », et `dotnet` est absent du VPS. Tout ce qui passait par
+**La voie C# est historique et archivée.** Les capacités maintenues passent par `niers` natif ;
+aucune assembly .NET n'est requise. Tout ce qui passait par
 là est indisponible.
 
 **La voie Rust existe, et personne ne l'avait citée.**

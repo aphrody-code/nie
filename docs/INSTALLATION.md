@@ -18,8 +18,8 @@ N° RG-L5-VR-2026-001. Installer la CLI ne redistribue pas les données du jeu.
 
 Certaines commandes dépendent de la plateforme ou d'outils externes. En
 particulier, `niers mem` utilise `process_vm_readv` et n'est disponible que sous
-Linux. Les délégations `niers cpp` et `niers cs` nécessitent respectivement le
-backend C++ et .NET ; le cœur de la CLI et `niers --version` n'en dépendent pas.
+Linux. Les opérations de formats, de modding et d'acquisition sont natives Rust
+et ne requièrent ni CMake, ni vcpkg, ni .NET.
 
 ## Installation globale
 

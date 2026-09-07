@@ -58,7 +58,7 @@ Cet encodeur est **falsifiable** : il applique des règles canoniques, il ne col
 MSVC a choisi une autre forme, le résultat diffère et l'unité est refusée — elle reste recopiée, et
 la cause est journalisée. Aucun faux positif n'est possible.
 
-### Voie B — compiler avec le compilateur d'origine (`nie-forge cc`)
+### Voie historique — comparaison MSVC (`nie-forge cc`)
 
 **MSVC 14.44 est installé sur la machine de développement** (`cl.exe` 19.44.35228), c'est-à-dire le
 toolset qui a lié `nie.exe`. Le binaire peut donc être reproduit par **le compilateur qui l'a
@@ -69,9 +69,10 @@ unsigned int f(void) { return 0xefec8a0dU; }   /* cl /O2 /GS- /Gy /Zl */
 → b8 0d 8a ec ef c3   = octets exacts de la fonction 0x1411194b0 du jeu
 ```
 
-Les sources vivent dans `src/decomp/functions/*.c` — l'échafaudage rapatrié d'IECODE, dont le
-`CMakeLists.txt` compile déjà ces fichiers **en C** avec un pont vers l'API C++
-(cf. `PROVENANCE.md`). Chaque fonction porte l'adresse qu'elle prétend reproduire :
+Les sources C de cette voie ont été exportées avec IECODE et ne font plus partie du checkout
+maintenu. La commande est conservée uniquement pour lire des artefacts historiques quand un
+opérateur fournit explicitement une source externe. La voie maintenue est `lift`/`build` depuis
+`forge/asm` et les unités Rust :
 
 ```c
 /* @nie 0x14004e9e0 */
@@ -100,7 +101,7 @@ crates/forge/
   nie-forge   CLI : split · lift · cc · build · verify · report · match · candidates · unit
   nie-re · nie-index · nie-seed · nie-queue · nie-trace   échafaudage de reverse qui alimente la forge
 
-src/decomp/   sources C reproduites, compilées par MSVC 14.44 (voie B)
+forge/asm/    source assembleur régénérable maintenue par la forge
 ```
 
 Les autres familles servent la même fin :
@@ -114,7 +115,7 @@ just forge                      # la boucle complète, ci-dessous en détail
 
 nie-forge split                 # nie.exe → recouvrement total (var/forge/cover.json)
 nie-forge lift                  # octets → source assembleur (forge/asm/lifted.s) + causes de blocage
-nie-forge cc --register         # src/decomp/functions/*.c → MSVC → correspondances byte-exactes
+nie-forge lift                  # relève les unités identiques vers forge/asm
 nie-forge build                 # sources + registre → dist/nie.exe, échoue si sha256 diffère
 nie-forge verify --reference nie.exe --got dist/nie.exe
 nie-forge report                # part réellement produite par le dépôt

@@ -68,8 +68,8 @@ const unifiedAgentsContent = `# UNIFIED-AGENTS.md — Single Authority & Operati
 ### 3.2 Polyglot Architecture
 - **Rust (\`crates/\`):** The primary CLI (\`niers\`), GUI core, WebAssembly, formats, rendering, and RE.
 - **Bun/TypeScript (\`packages/\`, \`apps/\`):** \`packages/inacord-ui\` shared UI, MCP server (\`apps/nie-mcp\`), web serving (\`apps/nie-web\`), and pipelines.
-- **C++ (\`src/\`):** Decompiled \`nie.exe\` game rebuild, native Assimp/Bullet dependencies, accessed via \`niers cpp\`.
-- **C# (\`csharp/\`):** Legacy format dumps, memory inspection, texture converters, accessed via \`niers cs\`.
+- **Rust (\`crates/\`):** Maintained format parsers, game runtime, RE tooling, and the \`niers\` CLI.
+- **Historical IECODE:** C++/.NET sources are maintained only in their dedicated historical repositories; they are not build inputs here.
 
 ### 3.3 Critical Traps & Anti-Patterns
 1. **Bun Preload Trap:** \`bunfig.toml\` preloads \`register.ts\` which binds \`libnie_ffi.dll\`. If \`nie-ffi\` is missing or locked, all Bun commands fail. Fix: \`cargo build -p nie-ffi\`.

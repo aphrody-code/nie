@@ -9,7 +9,7 @@
  * `@aphrody/bxc@0.8.0` publie déjà tout `src/`, CLI compris : le déléguer ne
  * perd aucune commande et n'en duplique aucune.
  *
- * C'est la même doctrine que `niers cpp` / `niers cs` côté Rust : une façade,
+ * C'est la même doctrine que la CLI native `niers` côté Rust : une façade,
  * un sous-processus, zéro réimplémentation.
  */
 

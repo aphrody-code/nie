@@ -160,7 +160,6 @@ nie_eacpatched.exe
 
 # Binaire EAC vendorisé en resource par IECODE.Core (2 Mio, même raison que /EACLauncher.exe
 # ci-dessus : jamais committer un binaire EAC, même embarqué dans un sous-projet).
-csharp/IECODE.Core/Resources/EACLauncher.zip
 
 # Fichiers .bak divers (backups manuels laissés sur disque, ex. NuGet.config.bak)
 *.bak
@@ -244,12 +243,7 @@ __pycache__/
 # (il est servi a tout le monde) et inutile s'il n'est pas deploye.
 !apps/azalee/public/*.txt
 
-# ATTENTION : `*.txt` ci-dessus ignorait AUSSI tous les CMakeLists.txt — c'est-a-dire
-# l'integralite de la chaine de build C++ (13 fichiers : racine, src/, cli/, tests/,
-# ffi/, decomp/, driver/, third_party/). Ils sont re-inclus explicitement.
-!CMakeLists.txt
-!**/CMakeLists.txt
-!CMakeLists.*.txt
+# Les fichiers de build sont suivis uniquement lorsqu'un sous-projet maintenu en a besoin.
 
 # --- Forge -------------------------------------------------------------------
 # Recouvrement + magasin de travail : derives du binaire de reference (c) LEVEL-5.
@@ -285,14 +279,13 @@ compile_commands.json
 
 # --- Banc d'essai -------------------------------------------------------------
 # Echantillons derives du jeu (blobs CRILAYLA extraits d'un CPK) et binaires du
-# harnais : regenerables par `nie-bench sample` et `bench/cpp/build.ps1`.
+# harnais : regenerables par `nie-bench sample`.
 /bench/data/
-/bench/cpp/*.exe
-/bench/cpp/*.obj
-# La sortie `dotnet build` du harnais C# (bench/cs/bin, ~170 Mo de DLL recopiees)
-# tombe deja sous les regles `bin/` / `obj/` en tete de fichier.
 
 # --- Dumps de reverse-engineering ---------------------------------------------
+# The legacy C# tree is not tracked; any local build residue is disposable and ignored.
+/csharp/
+
 # `refs/` porte l'index Ghidra/iecode derive de `nie.exe` (124 Mo, 1 628 fichiers,
 # dont un depot git imbrique `refs/iecode-re/.git`). Il est une DEPENDANCE DE BUILD
 # reelle — 18 fichiers suivis y font reference, et `just re-seed` lit

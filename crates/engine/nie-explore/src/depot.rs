@@ -41,7 +41,7 @@ use serde::{Deserialize, Serialize};
 /// des artefacts, `var/` héberge des bases dont une de 15,5 Go, `.git/` l'historique compressé).
 /// Les exposer ferait tomber n'importe quel client sur un fichier illisible ou gigantesque.
 ///
-/// Tout le **code** reste atteignable : `crates/`, `apps/`, `packages/`, `src/`, `csharp/`,
+/// Tout le **code** reste atteignable : `crates/`, `apps/`, `packages/`,
 /// `docs/`, `scripts/`, `plugins/`, `supabase/`, et les manifestes de la racine.
 pub const DOSSIERS_EXCLUS: &[&str] = &["refs", "data", "var", ".git", "target", "node_modules"];
 
