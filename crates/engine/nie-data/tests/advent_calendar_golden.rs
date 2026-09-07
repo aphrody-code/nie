@@ -27,8 +27,8 @@ fn load_real() -> Option<AdventCalendarConfig> {
 #[test]
 fn comptes_listes() {
     let Some(cfg) = load_real() else { return };
-    assert_eq!(cfg.calendar.len(), 5, "m_AdventCalendarInfoList");
-    assert_eq!(cfg.news.len(), 6, "m_NewsInfoList");
+    assert_eq!(cfg.calendar.len(), 7, "m_AdventCalendarInfoList");
+    assert_eq!(cfg.news.len(), 7, "m_NewsInfoList");
     assert_eq!(
         cfg.login_bonus_reward_items.len(),
         1,
@@ -69,11 +69,11 @@ fn calendar_entree2() {
 #[test]
 fn news_entrees() {
     let Some(cfg) = load_real() else { return };
-    // m_NewsInfoList[0] : essentiellement vide hormis id_crc + news_type=1
+    // m_NewsInfoList[0] : sentinelles texte/résolution explicites + id_crc + news_type=1
     let n0 = &cfg.news[0];
     assert_eq!(n0.id_crc, HashId(0xF43E_EA20));
     assert_eq!(n0.news_type, 1);
-    assert_eq!(n0.banner_start_res_name, "");
+    assert_eq!(n0.banner_start_res_name, "0xFFFFFFFF");
     // m_NewsInfoList[1]
     let n1 = &cfg.news[1];
     assert_eq!(n1.id_crc, HashId(0x7A12_D002));
@@ -83,9 +83,9 @@ fn news_entrees() {
     assert_eq!(n1.banner_start_res_name, "calendar_update_img_01_001");
     assert_eq!(n1.news_type, 0);
     assert_eq!(n1.detail_window_res_name, "box_win_update_img01_001");
-    // m_NewsInfoList[5] : news_type=3
-    assert_eq!(cfg.news[5].id_crc, HashId(0x385E_32A5));
-    assert_eq!(cfg.news[5].news_type, 3);
+    // m_NewsInfoList[6] : news_type=3
+    assert_eq!(cfg.news[6].id_crc, HashId(0x0D11_7E8F));
+    assert_eq!(cfg.news[6].news_type, 3);
 }
 
 #[test]
