@@ -8,7 +8,9 @@
 #   sudo systemctl daemon-reload && sudo systemctl enable --now nie-site
 #   curl -s http://127.0.0.1:8085/healthz | jq .        # doit répondre "nie-site"
 #
-# Rollback : le vhost `nie.aphrody.com` repointe sur :8083 (`aphrody-site` n'est jamais arrêté).
+# Rollback : `git revert` sur `deploy/nginx/aphrody.com.conf`, puis `nginx -t` et reload.
+# PAS « repointer sur :8083 » : `aphrody-site` est inactif et desactive, rien n'y ecoute, et
+# ce repli rendrait des 502. Carte mesuree : `docs/HOSTS-AND-PORTS.md`.
 
 [Unit]
 Description=nie-site — nie (bundle nie-web, /api/v1, espaces VFS /f et /b, proxy nie-model-serve)

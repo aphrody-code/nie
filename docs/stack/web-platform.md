@@ -200,7 +200,7 @@ amender par son propriétaire — c'est bien ce sous-domaine que le site occupe.
 | Composant | Où | Comment | Rollback |
 |---|---|---|---|
 | Azalée | Vercel | `vercel deploy` depuis `niers`, preview puis production ; DNS `azalee.rosegriffon.fr` → Vercel à J6 | repointer le DNS sur le VPS, `azalee-web` gardé arrêté-mais-installé 7 jours |
-| `nie-site` | VPS, `systemd` | `cargo build --release -p nie-site`, unité `nie-site.service`, `Restart=always`, `MemoryMax` ; vhost `nie.aphrody.com` → `:8085` | vhost → `:8083`, `aphrody-site` jamais arrêté |
+| `nie-site` | VPS, `systemd` | `cargo build --release -p nie-site`, unité `nie-site.service`, `Restart=always`, `MemoryMax` ; vhost `nie.aphrody.com` → `:8085` | `git revert` du vhost puis reload — **pas** `:8083`, qui est mort ([`HOSTS-AND-PORTS.md`](../HOSTS-AND-PORTS.md)) |
 | `nie-web` | VPS, fichiers | `bun run build` dans `apps/nie-web`, dossier daté + lien `current` | rebasculer le lien |
 | `nie-model-serve` | VPS | inchangé ; vhost public retiré à J6 | — |
 | Inacord | GitHub Releases | `scripts/release-desktop.sh <X.Y.Z>` inchangé ; `productName` Inacord | l'updater lit `latest.json`, la release précédente reste publiée |

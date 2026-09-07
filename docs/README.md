@@ -13,6 +13,7 @@ Pour éviter les doublons et les contradictions entre agents (Claude, Codex, Ast
 | Document | Rôle & Contenu |
 | :--- | :--- |
 | **[../AGENTS.md](../AGENTS.md)** | **Instructions opérationnelles courtes pour tous les agents** : hiérarchie des sources, architecture, gates Cargo/Bun, sécurité et pièges d'environnement (VFS, FFI, Windows). |
+| **[HOSTS-AND-PORTS.md](HOSTS-AND-PORTS.md)** | **Hôtes, ports et DNS — MESURÉS.** Qui répond quoi sur ce VPS. Fait autorité contre tout plan qui dirait autre chose. |
 | **[UNIFIED-PLAN.md](UNIFIED-PLAN.md)** | **Feuille de route & Plans unifiés** : synthèse du cap ultime (`manquant = 0`), des 7 blocs prioritaires actifs, de la bascule Vercel/nie.aphrody.com et de la forge byte-exacte. |
 | **[AUDIT-USAGE-GEMINI-FLASH.md](AUDIT-USAGE-GEMINI-FLASH.md)** | **Analyse des quotas & capacité de travail** : mesure des 307 623 lignes Rust, calcul de l'overhead agy-cli et projection d'autonomie avec Gemini 3.8 Flash (Thinking Low). |
 

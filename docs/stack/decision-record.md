@@ -120,7 +120,8 @@ Griffon est **à confirmer par l'utilisateur** ; ce dossier ne la présume pas.
   vide et un `/healthz`. La bascule est une modification du vhost nginx : `nie.aphrody.com`
   vers `:8085`, `aphrody.com` et `www.aphrody.com` en **308** vers lui, `cdn.aphrody.com` vers
   `nie-model-serve` (:8790), **les autres hôtes du bloc** (`api.`, `downloads.`, `bot.`,
-  `admin.`, `mcp.`, `bxc.`, `n2b.`) **restent sur `:8083`**.
+  `admin.`, `mcp.`, `bxc.`, `n2b.`) **ne bougent pas**. Mesure du 2026-09-07 : ils pointent
+  `:8084` (`bxc-site`), pas `:8083` — voir [`HOSTS-AND-PORTS.md`](../HOSTS-AND-PORTS.md).
   L'en-tête `Content-Security-Policy: default-src 'none'`
   qu'nginx ajoute aujourd'hui **doit être retiré de ce vhost** : les CSP s'additionnent et la
   plus stricte gagne — `nie-site` pose la sienne.
@@ -189,7 +190,7 @@ runtime Node et Supabase Cloud. Ils justifiaient la séparation wiki/outils, pas
 3. **Vercel ↔ eu-west-3** : aucune latence mesurée avant le premier déploiement preview ; si
    la fiche perso dépasse 800 ms au p95, la bascule DNS attend.
 4. **Le vhost `aphrody.com`** porte dix hôtes dans un seul bloc `server` : la découpe doit
-   laisser `api.`, `downloads.`, `bot.`, `admin.`, `mcp.`, `bxc.`, `n2b.` sur `:8083`,
+   laisser `api.`, `downloads.`, `bot.`, `admin.`, `mcp.`, `bxc.`, `n2b.` là où ils sont,
    et retirer la CSP nginx du seul bloc `nie.`. Une faute ici coupe les services du dépôt
    `aphrody`. Test : `nginx -t`, puis un `curl` par hôte avant et après.
 5. **Exposer `nie-model-serve` nu** : jamais ; `nie-site` est obligatoire devant.

@@ -70,7 +70,7 @@ de données et continuité de l'updater), les URL de l'updater.
 | Hébergement du wiki | **Vercel**, runtime Node, ISR + revalidation on-demand | VPS self-host : couple le wiki à une machine et à un miroir SQLite local — la cause du faux vert du 2026-09-05 |
 | Données du wiki | **Supabase Cloud** `kvnlbhatjqqmhhxaxlbi` (eu-west-3), lecture anonyme sous RLS `lecture_publique` | PostgREST self-host : `127.0.0.1` n'existe pas depuis Vercel ; miroir SQLite : un fichier, donc pas serverless |
 | Comptes utilisateurs | **Pas de migration** des 1 931 lignes `auth.users` ; réinscription = consentement | Copie silencieuse de données personnelles |
-| Domaine du site d'outils | **`nie.aphrody.com`**, site nommé **nie** ; `nie-site` remplace `aphrody-site` (:8083) sur cet hôte ; `aphrody.com` et `www` n'y renvoient plus qu'un **308** ; `cdn.` et `api.` servent `nie-model-serve` et l'API, en `noindex` | `nie.rosegriffon.fr` : deux marques, deux DA — Rose Griffon est la communauté, nie est l'univers du jeu ; l'apex `aphrody.com` : le nom `Aphrody` reste au dépôt `aphrody-code/aphrody` |
+| Domaine du site d'outils | **`nie.aphrody.com`**, site nommé **nie** ; `nie-site` y remplace ce que servait `aphrody-site`, aujourd'hui **inactif** ; `aphrody.com` et `www` n'y renvoient plus qu'un **308** ; `cdn.` et `api.` servent `nie-model-serve` et l'API, en `noindex` | `nie.rosegriffon.fr` : deux marques, deux DA — Rose Griffon est la communauté, nie est l'univers du jeu ; l'apex `aphrody.com` : le nom `Aphrody` reste au dépôt `aphrody-code/aphrody` |
 | Serveur du site | **`nie-site`**, Axum 0.8 sur `127.0.0.1:8085` derrière nginx, TLS Let's Encrypt déjà émis pour `nie.aphrody.com` | socle `aphrody-web` du dépôt `aphrody` (tokens communs) : la DA de nie est celle du jeu, pas une charte commune aux vitrines |
 | Interface du site | **`packages/inacord-ui`** (React/Vite, extrait d'Inacord) montée par `apps/nie-web` et par Inacord | **Leptos** : une seconde pile d'UI, 0 ligne partagée avec l'app, mainteneur unique (issue #4707) ; **Dioxus** : même défaut |
 | Données du site | Les trois gisements du VPS (`var/mirror.sqlite`, `var/niers.sqlite`, `data/anime/episodes.db`) lus par **`rusqlite` 0.40** en lecture seule — les fichiers qu'Inacord embarque | **SQLx + PostgreSQL** pour `nie-site` : un saut réseau pour des données servies localement, et des réponses qui divergeraient d'Inacord |
@@ -94,7 +94,8 @@ nie.aphrody.com / www ────── VPS nginx (TLS) ── crates/tools/nie
                                 │        └── proxifie nie-model-serve :8790 (débit, délai, mémoire, cache moka)
 aphrody.com / www.aphrody.com ───────── VPS nginx (TLS) ── 308 vers https://nie.aphrody.com
 cdn.aphrody.com ─────────────────────── VPS nginx (TLS) ── nie-model-serve :8790 (limite de débit)
-api. downloads. bot. admin. mcp. bxc. n2b.aphrody.com ── inchangés, aphrody-site :8083 (dépôt aphrody)
+cdn.aphrody.com ─────────────── nie-model-serve :8790, sous limite de débit (dépôt niers)
+downloads. bot. admin. bxc. n2b.aphrody.com ── bxc-site :8084 (dépôt bxc) — PAS :8083, qui est mort
 
 apps/inacord (Tauri 2) ── même packages/inacord-ui, packages/asset-source (desktop) ── updater inchangé
 ```
