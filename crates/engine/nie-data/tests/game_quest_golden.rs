@@ -22,8 +22,8 @@ fn comptes_et_valeurs() {
     let cfg = parse_game_quest_config(&root);
     assert_eq!(cfg.icons.len(), 713);
     assert_eq!(cfg.quest_data.len(), 948);
-    assert_eq!(cfg.game_infos.len(), 175);
-    assert_eq!(cfg.game_quests.len(), 175);
+    assert_eq!(cfg.game_infos.len(), 183);
+    assert_eq!(cfg.game_quests.len(), 183);
     // quest_data[0] byte-exact.
     let q = &cfg.quest_data[0];
     assert_eq!(q.explain_text_id, HashId(0x223C_1733));
@@ -48,5 +48,5 @@ fn dispatch_typed() {
     );
     let (label, json) = decode_by_key("game_quest_config", &root).expect("câblé");
     assert_eq!(label, "game_quest");
-    assert_eq!(json["game_quests"].as_array().map(Vec::len), Some(175));
+    assert_eq!(json["game_quests"].as_array().map(Vec::len), Some(183));
 }
