@@ -1,6 +1,6 @@
 # `scripts/` — les scripts du dépôt
 
-109 fichiers suivis. Un script ici est **de la doc exécutable** : il se rejoue à
+Les scripts suivis sont **de la doc exécutable** : ils se rejouent à
 l'identique, il se cite en `chemin:ligne`, et il ne repasse pas par le quoting du shell.
 
 | Sous-dossier | Contenu |
@@ -11,7 +11,7 @@ l'identique, il se cite en `chemin:ligne`, et il ne repasse pas par le quoting d
 | `validation/` | harnais de validation partagé des preuves uemu |
 | `lua/`, `blender/`, `ops/` | codec Lua, extension Blender, exploitation du VPS |
 
-À la racine du dossier : 83 fichiers, dont **47 `validate_*.py`** — les preuves uemu, une
+À la racine du dossier se trouvent notamment les preuves `validate_*.py` — les preuves uemu, une
 par fonction reversée. Elles sont référencées nommément par `justfile`,
 `forge/registry.json`, `crates/forge/nie-pe/src/units.rs` et
 `crates/forge/nie-forge/src/registry.rs` : leur nom fait partie du contrat, elles ne se
