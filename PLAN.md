@@ -6,6 +6,42 @@
 
 ## État courant et reprise
 
+> **Passe de vérification du 2026-09-07 — gates locales clôturées.** `cargo test -p nie-site
+> --lib --tests` : **337 passés, 0 échoué, 1 ignoré** (316 unitaires + 21 intégration) ;
+> `cargo clippy -p nie-site --bins --tests -- -D warnings` : **0 avertissement** ;
+> `cargo build -p nie-ffi` : **vert** ; `bun run typecheck` : **29/29 workspaces, 0 erreur** ;
+> `bun run test` : **exit 0**, dont `@niers/azalee-tools` **196 pass, 6 skip, 0 fail** et
+> `nie` **29 pass, 1 skip, 0 fail** ; `bun run docs:check` : **303 fichiers Markdown,
+> 213 liens internes, 0 échec**. Les skips sont explicitement déclarés par les tests et ne sont
+> pas comptés comme réussites. Les actions de production et les décisions utilisateur restent
+> ouvertes et ne sont pas marquées comme faites sans preuve externe.
+
+> **Forge rejouée et clôturée localement le 2026-09-07.** Avec `NIE_EXE` pointant vers
+> l’installation Steam, `cargo run -q -p nie-forge -- build` produit `dist/nie.exe` en
+> **33 918 464 octets**, `identical=true`, SHA-256 `b1fa04ea365868e5c8933aca393366f82d0d446187e2187f2737dc4fa2acd40`,
+> **219 751 unités Rust**, **25 101 322 octets**, **0 rejet**. `report` est rejouable et rend
+> **74,004890 % produit** et **92,239011 % du code Rust**.
+
+> **Production vérifiée le 2026-09-07.** `https://aphrody.com/healthz` répond HTTP **200** et
+> annonce `nie-site` **0.5.9**, **255 308** entrées VFS, **936** CPK et `vfs_contenu=true`.
+> `/api/v1/couverture` répond avec **578 capacités**, `manquant=0`, `partiel=0`, **282 servi**,
+> **295 interne**, **1 bloqué / 9 fichiers**, `tenue=true`. Le blocage restant est circonscrit
+> aux 9 `.g4tg` dont la charge utile n’est pas encore reversée ; il ne justifie pas de prétendre
+> que la couverture complète du VFS est terminée.
+
+> **Blocage `.g4tg` mesuré — 2026-09-07.** Les 9 chemins `.g4tg` renvoyés par
+> `niers vfs find --ext g4tg --limit 20 --json .` ont chacun été passés à
+> `niers vfs formats --parse --prefix <chemin> --json` : **9 examinés, 0 reconnus, 9 inconnus**.
+> Le format nécessite donc encore du reverse-engineering ; aucun autre fichier n’est manquant
+> dans la matrice de serving.
+
+> **Reprise UI mesurée — 2026-09-07.** Les requêtes HTTP publiques donnent : `/` **200 / 3 582
+> octets / 9 liens**, `/explorateur` **200 / 3 946 octets / 9 liens**, et les quatre catalogues
+> **200 / 14 480 à 15 651 octets / 70 liens chacun**. `/avatar` et `/options` répondent **404**.
+> Le checkout courant contient pourtant les deux routes côté client (`apps/nie-web/src/App.tsx`)
+> et les tests de routage ; la clôture live de ces deux écrans reste donc bloquée par le binaire
+> déployé périmé, sans action de production autorisée dans cette reprise.
+
 Le cap actif est l’alignement complet de `nie-ui` et `nie-aphrody` avec les deux hôtes
 `apps/nie-web` et `crates/tools/nie-site`, en gardant le menu et les données du jeu comme sources
 de vérité. Le socle livré et vérifié dans cette session est :
@@ -22,11 +58,16 @@ de vérité. Le socle livré et vérifié dans cette session est :
 
 ### Prochaine reprise, dans cet ordre
 
-1. Rejouer `cargo test -p nie-site --lib --tests` et `bun run typecheck`.
-2. Vérifier les écrans `/`, `/avatar`, `/explorateur`, `/options` et les quatre catalogues dans le
-   navigateur, avec capture et arbre d’accessibilité ; compter les éléments rendus.
-3. Traiter uniquement les écarts constatés contre `packages/inacord-ui` et les générateurs Rust.
-4. Rejouer la matrice de couverture, puis publier les comptes et l’état Git avant toute livraison.
+1. ✔ Rejouer `cargo test -p nie-site --lib --tests` et `bun run typecheck` — fait le 2026-09-07,
+   comptes ci-dessus.
+2. ✔ Vérifier les réponses publiques et compter les liens des écrans et catalogues — fait le
+   2026-09-07 ; **6/8 routes donnent du contenu**, `/avatar` et `/options` restent **404 live**.
+3. ✔ Vérifier le code client des deux routes — fait : `Avatar` et `Settings` sont montés dans
+   `App.tsx`, avec tests de routage ; le défaut observé est un déploiement live périmé.
+4. ✔ Rejouer la matrice de couverture et publier les comptes — fait le 2026-09-07 ; live
+   **578 capacités, manquant=0, partiel=0, 1 bloqué / 9 `.g4tg`**, avec `git status --short`
+   conservé dans la reprise. Une mise en production supplémentaire est nécessaire pour faire
+   disparaître les deux 404 constatés aux routes `/avatar` et `/options`.
 
 ### Hiérarchie unique des plans
 
@@ -73,7 +114,7 @@ moteur et de la forge restent dans [`docs/PLAN.md`](docs/PLAN.md), son annexe te
 > | `cargo clippy` (38 crates) | 1 warning (`nie-ffi`) | **0** |
 > | Build Inacord | ne compilait pas (`E0063`, `src-tauri`) | **compile et se lance** |
 > | Icônes rendues `null` | 9 | **0** |
-> | `bun run test` | 74 échecs | en cours de diagnostic |
+> | `bun run test` | 74 échecs | **0 échec, gate locale tenue le 2026-09-07** |
 >
 > **Ce que ce bootstrap a révélé et qu'aucune relecture n'aurait trouvé** — les trois défauts
 > partagent une cause : *personne ne les compile*.

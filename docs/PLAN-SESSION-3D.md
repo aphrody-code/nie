@@ -3,7 +3,8 @@
 > Plan actif : [`../PLAN.md`](../PLAN.md). Cette annexe décrit uniquement le lot 3D/avatar et
 > doit y reporter toute nouvelle mesure ou décision.
 
-Dernière consolidation : 5 septembre 2026. Les cases ne sont cochées qu'après vérification.
+Dernière consolidation : 7 septembre 2026. Chaque item est maintenant clôturé par `✓` (livré et
+vérifié) ou `✗` (non livré, bloqué ou hors autorisation), jamais par une case cochée par défaut.
 
 ## Règles et arbitrages
 
@@ -17,36 +18,36 @@ Dernière consolidation : 5 septembre 2026. Les cases ne sont cochées qu'après
 
 1. Références
    - [x] Récupérer et vérifier toutes les images du message Discord serveur 1544475258591907961 / salon 1544482971934007336 / message 1545590117895250101 vers astro : neuf JPEG, HTTP 200, SHA-256 concordants poste/VPS. Références privées hors Git public.
-   - [ ] Vérifier le lot Zukan déjà téléchargé (16 images : huit portraits et huit corps entiers), manifeste et correspondance des angles.
+   - ✗ Vérifier le lot Zukan déjà téléchargé (16 images : huit portraits et huit corps entiers), manifeste et correspondance des angles — corpus privé incomplet dans le checkout, preuve manquante.
 2. Imports dans l'avatar existant
-   - [ ] Images PNG/JPEG/WebP, planches Chara à grille explicite, atlas G4TX via WASM et rectangles JSON NIE ; aperçu, animation et export.
-   - [ ] GLB, glTF et ressources locales, gzip, compression de maillage ; erreurs explicites pour formats non pris en charge.
-   - [ ] Vérification fichiers invalides, tailles, ressources manquantes, annulation, nettoyage mémoire et tests navigateur.
+   - ✗ Images PNG/JPEG/WebP, planches Chara à grille explicite, atlas G4TX via WASM et rectangles JSON NIE ; aperçu, animation et export — import partiel seulement, couverture complète non prouvée.
+   - ✗ GLB, glTF et ressources locales, gzip, compression de maillage ; erreurs explicites pour formats non pris en charge — couverture complète non prouvée.
+   - ✗ Vérification fichiers invalides, tailles, ressources manquantes, annulation, nettoyage mémoire et tests navigateur — audit navigateur complet non prouvé.
    - [x] Script de test des liaisons texture/pièce/icône : 502 pièces, 491 icônes uniques, CRC source et comparaison pixels entre URL UI et icône canonique ; 0 erreur mesurée le 5 septembre 2026.
    - [x] Réutiliser les vrais composants @rosegriffon/ui pour boutons, listes, champs et inspecteur ; disposition responsive, bibliothèque de vignettes, scène centrale et inspecteur.
-   - [ ] Vérifier chaque sélection UI vers la bonne recette et le bon assemblage, pas seulement la présence des images.
+   - ✗ Vérifier chaque sélection UI vers la bonne recette et le bon assemblage, pas seulement la présence des images — matrice de recettes absente.
 3. Astro
-   - [ ] Examiner les références réellement reçues, produire un modèle 3D fidèle avec les outils locaux existants.
-   - [ ] Textures, pose/squelette selon références, export GLB et import réel dans le créateur ; preuves visuelles.
+   - ✗ Examiner les références réellement reçues, produire un modèle 3D fidèle avec les outils locaux existants — modèle Astro fidèle non produit.
+   - ✗ Textures, pose/squelette selon références, export GLB et import réel dans le créateur ; preuves visuelles — preuves de fidélité absentes.
 4. Pipeline personnages et interfaces
-   - [ ] Revalider les corrections héritées de Claude : matériaux par primitive, yeux/visage sans contamination des cheveux, teinte peau, pose, face/dos, numéro et accessoires.
-   - [ ] Consolider NieModelServer et NieRender3D avec tests de régression.
-   - [ ] Revalider le viewer réutilisé de l'éditeur dans l'aperçu Explorer, pas une simple vidéo.
-   - [ ] Galerie /modeles/chara et détail sans erreurs sur le corpus validé ; annoncer la portée mesurée, pas « zéro erreur » universel sans audit.
-   - [ ] Intégrer ou écarter explicitement le rendu cel expérimental après comparaison aux références.
+   - ✗ Revalider les corrections héritées de Claude : matériaux par primitive, yeux/visage sans contamination des cheveux, teinte peau, pose, face/dos, numéro et accessoires — régression complète non prouvée.
+   - ✗ Consolider NieModelServer et NieRender3D avec tests de régression — couverture de régression complète non prouvée.
+   - ✗ Revalider le viewer réutilisé de l'éditeur dans l'aperçu Explorer, pas une simple vidéo — validation visuelle manquante.
+   - ✗ Galerie /modeles/chara et détail sans erreurs sur le corpus validé ; annoncer la portée mesurée, pas « zéro erreur » universel sans audit — route live non validée sur le corpus requis.
+   - ✗ Intégrer ou écarter explicitement le rendu cel expérimental après comparaison aux références — comparaison aux références absente.
 5. Moteur partagé
-   - [ ] Raccorder la surface native DX12 aux composants existants ; ne pas poursuivre un studio parallèle.
-   - [ ] Présentation WebGPU réelle depuis WASM, interactions et ressources partagées avec le créateur/galerie.
-   - [ ] Vérifier compilation Linux et backends Vulkan/OpenGL sur environnement disponible ; séparer compilation et lancement GPU.
+   - ✗ Raccorder la surface native DX12 aux composants existants ; ne pas poursuivre un studio parallèle — intégration native non livrée.
+   - ✗ Présentation WebGPU réelle depuis WASM, interactions et ressources partagées avec le créateur/galerie — compilation prouvée, intégration navigateur non prouvée.
+   - ✗ Vérifier compilation Linux et backends Vulkan/OpenGL sur environnement disponible ; séparer compilation et lancement GPU — environnement Linux/GPU indisponible.
 6. Compétences
    - [x] Agent skill-creator : trois compétences NIE de création 3D, textures/assemblage et peaufinage, inspirées des outils Blender/Game Development Studio existants ; quick_validate et références vérifiés.
    - [x] Valider les compétences et leur disponibilité dans le plugin NIE, préserver les intégrations existantes : cache installé et activé 0.1.0+codex.20260905003718, trois skills présents.
    - [x] Workflow de publication enregistré via la note demandée (commit/push, synchronisation VPS, rebuild/déploiement, services et CDN ; respecter les demandes plus récentes).
 7. Livraison
-   - [ ] Tests ciblés, compilation, lancement réel et captures ; corriger les erreurs rencontrées.
-   - [ ] Commit/push du code vérifié, pull de niers et rg sur VPS sans écraser de modifications.
-   - [ ] Rebuild des composants concernés, déploiement Azalée, redémarrages des services concernés et invalidation/versionnement des caches CDN.
-   - [ ] Contrôles publics, versions locales/distantes concordantes et bilan des limites restantes.
+   - ✗ Tests ciblés, compilation, lancement réel et captures ; corriger les erreurs rencontrées — tests compilatoires passés, captures et lancement complet non prouvés.
+   - ✗ Commit/push du code vérifié, pull de niers et rg sur VPS sans écraser de modifications — non autorisé et non réalisé dans cette reprise.
+   - ✗ Rebuild des composants concernés, déploiement Azalée, redémarrages des services concernés et invalidation/versionnement des caches CDN — action de production non autorisée.
+   - ✗ Contrôles publics, versions locales/distantes concordantes et bilan des limites restantes — deux routes live (`/avatar`, `/options`) restent 404.
 
 ## Incrément en cours
 

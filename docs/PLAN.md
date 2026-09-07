@@ -3,6 +3,10 @@
 > Plan actif et décisions : [`../PLAN.md`](../PLAN.md). Ce document est l’annexe technique
 > moteur/forge ; toute évolution de priorité ou de gate doit d’abord être reportée au plan racine.
 
+> **Clôture de l’annexe — 2026-09-07.** Les gates locales et la forge sont vérifiées. Les sujets
+> non démontrables (oracle, driver runtime complet, pixel-perfect, reverse `.g4tg`) sont clôturés
+> comme `INCOMPLET/BLOQUÉ` avec leur preuve et ne restent pas des tâches implicites.
+
 ## L'objectif
 
 **Un moteur de jeu complet en Rust, et une chaîne qui produit `nie.exe` identique à l'original au
@@ -24,9 +28,38 @@ Le reverse-engineering est **l'échafaudage**, pas la fin : il sert à résoudre
 
 ## L'état, mesuré
 
+> **Clôture de la passe locale — 2026-09-07.** Les gates de l’annexe sont rejouées :
+> `cargo test -p nie-site --lib --tests` = **337 passés, 0 échec, 1 ignoré** ;
+> `cargo clippy -p nie-site --bins --tests -- -D warnings` = **0 avertissement** ;
+> `bun run typecheck` = **29/29 workspaces, 0 erreur** ; `bun run test` = **exit 0** ;
+> `bun run docs:check` = **303 Markdown, 213 liens internes, 0 échec**. Les éléments non
+> rejouables ou dépendants d’un service externe restent explicitement `INCOMPLET` jusqu’à leur
+> preuve : oracle logique, driver runtime du menu et comparaison pixel réelle.
+
+> **Forge mise à jour — 2026-09-07.** Le corpus local est disponible et la reconstruction est
+> vérifiée : `cargo run -q -p nie-forge -- build` = **identical=true**, 33 918 464 octets,
+> SHA-256 `b1fa04ea365868e5c8933aca393366f82d0d446187e2187f2737dc4fa2acd40`, 219 751 unités,
+> 25 101 322 octets Rust, 0 rejet. `nie-forge report` = **74,004890 % produit** et
+> **92,239011 % code Rust**. La forge n’est donc plus classée non rejouable ; les autres
+> items explicitement incomplets restent inchangés.
+
+> **État live Aphrody — 2026-09-07.** `/healthz` est HTTP **200** (`nie-site` 0.5.9,
+> 255 308 entrées VFS, 936 CPK, contenu présent) ; `/api/v1/couverture` rend **578 capacités**,
+> `manquant=0`, `partiel=0`, `tenue=true`, avec **1 règle bloquée portant 9 fichiers `.g4tg`**.
+
+> **Piliers Rust rejoués — 2026-09-07.** `cargo test -p nie-core --lib --tests` = **311 passés,
+> 0 échec** (297 unitaires, 8 `chara_param_growth`, 6 `simulation_formation`) ;
+> `cargo test -p nie-formats --lib --tests` = **299 unitaires passés, 0 échec**. Le test
+> d’interchangeabilité `dump_vs_packs` reste non validable ici car `data/` contient un dump
+> JSON sans les fichiers binaires loose attendus ; l’installation Steam a été vérifiée séparément.
+
+> **Format restant vérifié — 2026-09-07.** La recherche VFS réelle trouve **9 `.g4tg`** ; les
+> 9 mesures ciblées `vfs formats --parse` rendent **0 reconnu / 9 inconnu**. C’est le seul
+> blocage de la matrice live et il est correctement conservé comme `INCOMPLET` jusqu’au reverse.
+
 | Couverture | Ce qu'elle mesure | État |
 |---|---|---|
-| **Forge** | part de `nie.exe` produite par le dépôt | **51,86 %** du fichier · **66,09 %** du `.text` — mesure du 2026-08-10, cible byte-identique au binaire installé au 2026-08-15 (même sha256, `.pdata` identique à l'octet), mais `var/forge/` absent sur ce VPS donc non rejouable ici. **Toujours pas rejouable le 2026-08-28** : `var/forge/` est absent de la machine Windows aussi (`nie-forge report` → « recouvrement absent : var/forge\cover.json »). Le chiffre tient parce que la cible n'a pas bougé, pas parce qu'on l'a revérifié |
+| **Forge** | part de `nie.exe` produite par le dépôt | **74,004890 %** produit, **92,239011 %** du code Rust — mesure rejouée le 2026-09-07 avec `cargo run -q -p nie-forge -- report`, après `build` identique à la cible : 33 918 464 octets, 219 751 unités Rust, 25 101 322 octets Rust, 0 rejet |
 | **Formats** | fichiers du VFS dans un format parsé | **88,91 %** réellement décodés (226 994 / 255 316) — mesure du 2026-08-28 sur le dump complet, `niers vfs formats --parse`, 0 fichier illisible. **94,80 %** en retirant les 15 876 `.g4mg`, qui ne sont pas décodables seuls par construction. S'y ajoutent 11 215 fichiers au magic connu sans décodeur autonome (`@UTF` 5 513, `AWB` 5 512, `USM` 190 : conteneurs média), et 1 197 `.lua.bin` que `nie-lua` exécute déjà sans passer par `decode`. Reste **~30 fichiers** réellement non lus. L'ancien chiffre de 99,56 % n'était adossé à aucune commande : il n'est pas « tombé », il n'a jamais été rejouable |
 | **Données** | familles `cfg.bin` typées et recalculées au bit | 117 modules, **121 familles routées**, 127 fichiers golden |
 | **Logique** | fonctions de gameplay portées **et** validées byte-exact | **43** validations dans la suite oracle — non rejouées le 2026-08-15 ; le binaire cible n'a pas changé (cf. Forge ci-dessus) donc rien n'indique qu'elles soient tombées, mais elles n'ont pas non plus été reconfirmées cette session |
@@ -410,8 +443,8 @@ wasm-portables ou byte-exactes sans re-validation.
 1. **Le driver de menu runtime** — débloque le menu et tous les sous-menus visuels.
 2. **La forge** — continuer à monter la part produite ; la cible se choisit par le chiffre
    (`nie-forge candidates --no-reloc`, les lignes `blocker` de `lift`), jamais à l'intuition.
-   Préalable devenu bloquant : `var/forge/` n'existe sur aucune des deux machines, donc *aucune*
-   mesure de forge n'est rejouable aujourd'hui. Relancer `just forge` avant de citer un chiffre.
+   La mesure est désormais rejouable sur Windows : `build` est identique à la cible et `report`
+   rend 74,004890 % du produit et 92,239011 % du code Rust (2026-09-07).
 3. **La physique de match byte-fidèle** — poursuivre les ports validés par oracle.
 4. **Le dialogue du mode Histoire** — résoudre la source du texte au runtime.
 5. **Rendre les mesures rejouables** — la ligne Formats l'est depuis le 2026-08-28

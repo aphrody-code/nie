@@ -7,6 +7,11 @@
 > reste valable pour la bascule Azalée → Vercel et ses gates). Il ne décrit pas une semaine :
 > il décrit **l'état d'arrivée** — un seul site, qui expose tout ce que ce dépôt sait faire.
 
+> **Clôture de l'annexe — 2026-09-07.** La matrice live est clôturée avec `manquant=0` et
+> `partiel=0`; les 9 `.g4tg` restent une règle `bloqué` explicitement mesurée. Les écrans,
+> le reverse et les décisions de production/juridique sont eux aussi clôturés par statut dans
+> les sections dédiées : aucune ouverture n'est laissée sans propriétaire ni preuve manquante.
+
 ---
 
 > **Amendment 2026-09-06 (9) — the real VFS is mounted, Lua is fully audited, and the menu tree

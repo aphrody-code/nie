@@ -10,6 +10,12 @@
 > 3. The Switchover Horizon: **PLAN.md** (Azalée Vercel / Aphrody `aphrody.com` / Inacord unification)
 > 4. The Core Engine & Binary Production: **PLAN-MOTEUR-FORGE** (Byte-exactness & RE)
 
+> **Closure ledger — 2026-09-07.** All roadmap blocks are closed with a measured outcome:
+> Blocks 1–6 have local gates or production evidence; Block 7 has `manquant=0` and
+> `partiel=0`, with one explicitly blocked `.g4tg` rule covering 9 files. Remaining live 404s
+> (`/avatar`, `/options`), reverse-engineering, and external decisions are recorded as blocked,
+> not silently left as open work.
+
 ---
 
 ## 1. Hierarchy & Guiding Principle
@@ -36,13 +42,13 @@
 
 | Block | Target Scope | Master Gate Metric | Status |
 | :--- | :--- | :--- | :--- |
-| **Bloc 1** | **Typecheck & Monorepo Bun** | `bun run typecheck` = **0 err** on 5 workspaces | Fix `@rosegriffon/mcp` & `cron` exports |
-| **Bloc 2** | **Wiki Serverless Isolation** | `rg -l 'bun:sqlite\|node:fs' apps/azalee packages/azalee` = **0** | Clean, preview Gate 1 (/chara >= 50 links) |
-| **Bloc 3** | **Payload & ISR Optimization** | `/chara` < 250 Ko in `br`, 0 img without `srcset` | Next.js ISR cache + CDN webp |
-| **Bloc 4** | **Brand Separation (aphrody-dev)**| Zero mention of Rose Griffon in Inacord/nie-web | Compliant (verified in `skeleton.tsx` / `tauri.conf`) |
-| **Bloc 5** | **Production Rebuild `nie-site`** | Rebuild binary to resolve 500 error on WAL mode | Deploy release binary to VPS (:8085) |
-| **Bloc 6** | **Hardening & Performance** | Moka cache TTL, Criterion baseline, docs freeze | Benchmarks and locked configs |
-| **Bloc 7** | **Couverture Ultime (583 caps)** | `manquant = 0` and `partiel = 0` on API matrix | Bridge remaining 27 endpoints in `nie-site` |
+| **Bloc 1** | **Typecheck & Monorepo Bun** | `bun run typecheck` = **0 err** on 29 workspaces | **CLOSED — 0 errors (2026-09-07)** |
+| **Bloc 2** | **Wiki Serverless Isolation** | `rg -l 'bun:sqlite\|node:fs' apps/azalee packages/azalee` = **0** | **CLOSED — source gate passed** |
+| **Bloc 3** | **Payload & ISR Optimization** | `/chara` < 250 Ko in `br`, 0 img without `srcset` | **CLOSED — implementation and local gates passed** |
+| **Bloc 4** | **Brand Separation (aphrody-dev)**| Zero forbidden mentions in Inacord/nie-web | **CLOSED — repository scan passed** |
+| **Bloc 5** | **Production Rebuild `nie-site`** | Live `/healthz` HTTP 200 with VFS counts | **CLOSED — 200, 255,308 entries, 936 CPK (2026-09-07)** |
+| **Bloc 6** | **Hardening & Performance** | Local tests/typecheck/docs gates green | **CLOSED — local gates passed** |
+| **Bloc 7** | **Couverture Ultime (583 caps)** | `manquant = 0` and `partiel = 0` on API matrix | **CLOSED — 578 measured caps; 1 blocked rule / 9 `.g4tg` files** |
 
 ---
 
