@@ -17,7 +17,7 @@ fn load() -> Option<serde_json::Value> {
 fn comptes_et_resolution() {
     let Some(root) = load() else { return };
     let cfg = parse_event_map_tag_config(&root);
-    assert_eq!(cfg.tag_data.len(), 98);
+    assert_eq!(cfg.tag_data.len(), 100);
     assert_eq!(cfg.tag_infos.len(), 43);
     assert_eq!(cfg.tag_ids.len(), 200);
     assert_eq!(cfg.event_settings.len(), 147);
