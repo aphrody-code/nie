@@ -148,7 +148,7 @@ bash scripts/ship-azalee.sh     # build → standalone → azalee-web.service (:
 
 Le script ignore le code de sortie 132 de Next 16 sous Bun (crash à la sortie
 du processus **après** un build réussi). Procédures complètes, diagnostic et
-interdits : [`docs/deploy.md`](../../docs/deploy.md).
+interdits : [`docs/WORKFLOW-UNIFIE.md`](../../docs/WORKFLOW-UNIFIE.md).
 
 ## Licence
 

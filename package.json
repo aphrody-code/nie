@@ -210,7 +210,8 @@
 		"test": "bun run --filter '*' test",
 		"typecheck": "bun run --filter '*' typecheck",
 		"lint": "bunx oxlint -c .oxlintrc.json -A style -A pedantic -A restriction packages apps",
-		"lint:fix": "bunx oxlint -c .oxlintrc.json -A style -A pedantic -A restriction --fix packages apps"
+		"lint:fix": "bunx oxlint -c .oxlintrc.json -A style -A pedantic -A restriction --fix packages apps",
+		"docs:check": "bun run scripts/docs/check.ts"
 	},
 	"engines": {
 		"bun": ">=1.3.0"
