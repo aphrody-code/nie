@@ -623,16 +623,21 @@ pub fn parse_delivery_list_config(root: &Value) -> Vec<DeliveryListInfo> {
         if !beg.name().starts_with("DELIVERY_INFO_LIST_BEG") {
             continue;
         }
-        for info in beg.children() {
-            let name = info.name();
-            // Exclure les noeuds de sous-liste/contenu : seuls `DELIVERY_INFO_<n>` comptent.
-            if !name.starts_with("DELIVERY_INFO_")
-                || name.starts_with("DELIVERY_INFO_DATA")
-                || name.contains("_LIST_BEG")
+        for child in beg.children() {
+            let name = child.name();
+            if name.starts_with("DELIVERY_INFO_DATA_LIST_BEG") {
+                if let Some(info) = out.last_mut() {
+                    info.data.extend(
+                        child
+                            .children()
+                            .into_iter()
+                            .filter(|data| data.name().starts_with("DELIVERY_INFO_DATA_"))
+                            .map(DeliveryListData::from_node),
+                    );
+                }
+            } else if name.starts_with("DELIVERY_INFO_")
+                && let Some(parsed) = DeliveryListInfo::from_node(child)
             {
-                continue;
-            }
-            if let Some(parsed) = DeliveryListInfo::from_node(info) {
                 out.push(parsed);
             }
         }
