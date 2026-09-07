@@ -46,11 +46,11 @@ trois écrasaient :
 
 | État | Fichiers | Part | Ce que ça veut dire |
 |---|---:|---:|---|
-| **servi** | 246196 | 96.43 % | une route rend le contenu **interprété**, avec un code HTTP mesuré |
+| **servi** | 249787 | 97.84 % | une route rend le contenu **interprété**, avec un code HTTP mesuré |
 | **manquant** | **0** | 0 % | les 21 250 fichiers qui l'étaient ont été câblés le 2026-09-06 au soir (`routes::level5`), 124/124 décodés à la mesure |
 | **partiel** | **0** | 0 % | aucun : les 15 875 `.g4mg` sont décodés en process, y compris ceux que l'amont ne sait pas assembler (§ 2 bis) |
 | **interne** | 5512 | 2.16 % | délibérément non exposé, **avec sa raison écrite** |
-| **bloqué** | 3600 | 1.41 % | ni route ni parseur : du reverse d'abord. Y compris les 9 `.g4tg` non identifiés et 10 `.bin` hors `.cfg.bin`/`.lua.bin` |
+| **bloqué** | **9** | **0.00 %** | ni route ni parseur : les 9 `.g4tg` restent à reverser |
 | | **255308** | **100 %** | |
 
 **Les 21 250 sont câblés le soir même.** `crates/tools/nie-site/src/routes/level5.rs` décode les
@@ -73,9 +73,9 @@ du dépôt décodait déjà sans qu'aucune route ne l'appelle sont servis par
 `/api/v1/formats/decode/{chemin}` — cf. § 2 bis. Le diagnostic tenait : ce n'était pas un trou
 de connaissance mais un trou de câblage, et il s'est refermé sans une dépendance de plus.
 
-À l'opposé, **3 600 fichiers (1,41 %) sont `bloqué`** : shaders, effets, particules, tissu.
-Aucune route n'est possible avant du reverse — les promettre serait mentir. La navigation
-(`.g4nv`) en est SORTIE : son parseur existe, elle est `manquant`.
+À l'opposé, **9 fichiers (0,00 %) sont `bloqué`** : les `.g4tg` dont la disposition reste à
+reverser. Les shaders, effets, particules, tissu et navigation ont été identifiés ou servis ;
+aucune route supplémentaire ne doit être promise pour ces neuf fichiers avant leur reverse.
 
 ## 2 bis. Le câblage du 2026-09-06 — `manquant` : 67 878 → 0, `partiel` : 15 875 → 0
 

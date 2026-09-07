@@ -51,6 +51,11 @@ les gates Rust et Bun après retrait, puis corriger uniquement les régressions 
 > Le format nécessite donc encore du reverse-engineering ; aucun autre fichier n’est manquant
 > dans la matrice de serving.
 
+> **Documentation VFS réalignée — 2026-09-07.** `var/couverture-site.json` mesure désormais
+> 249 787 fichiers servis, 5 512 internes et 9 bloqués sur 255 308 ; `docs/VFS.md` a été
+> corrigé pour ne plus republier l’ancien total bloqué de 3 600. La commande de mesure est
+> `nie-site --regenerer-couverture var/couverture-site.json`, sur le poste Windows local.
+
 > **Reprise UI mesurée — 2026-09-07.** Les requêtes HTTP publiques donnent : `/` **200 / 3 582
 > octets / 9 liens**, `/explorateur` **200 / 3 946 octets / 9 liens**, et les quatre catalogues
 > **200 / 14 480 à 15 651 octets / 70 liens chacun**. `/avatar` et `/options` répondent **404**.
