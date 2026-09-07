@@ -132,7 +132,6 @@ $specs = [ordered]@{
     'niers-azalee' = 'packages/azalee-tools/src/cli.ts'
     'niers-inagle' = 'packages/inagle/src/cli.ts'
     'niers-mcp'    = 'packages/mcp/src/cli.ts'
-    'niers-bxc'    = 'apps/bxc/src/cli.ts'
 }
 foreach ($nom in $specs.Keys) {
     $src = $specs[$nom]

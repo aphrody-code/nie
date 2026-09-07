@@ -8,9 +8,7 @@ bibliothèque va dans [`packages/`](../packages). Toutes partagent le lockfile d
 | `azalee` | le site du wiki (Next.js 16.3.0-canary.37, App Router) | service `azalee-web`, déploiement bleu/vert |
 | `nie-explorer` | explorateur / éditeur de bureau (Tauri : React + Rust) | `bun run tauri dev`, publié par `scripts/release-desktop.sh` |
 | `nie-mcp` | serveur MCP `niers-game` — VFS, assets, KB RE, pilotage de l'explorateur | déclaré dans `.mcp.json` |
-| `bxc` | passerelle vers `@aphrody/bxc` et workflow de scrapping unifié | `bun --bun apps/bxc/src/…` |
 | `nie-bot` | le bot Discord du wiki | service `azalee-bot` |
-| `cdn`, `cdn-variants` | service d'assets et ses variantes d'image | services `rg-cdn`, `cdn-variants` |
 | `storage`, `realtime`, `rag-api` | le socle du wiki en Bun natif (stockage, temps réel, recherche vectorielle) | services `rg-storage`, `rg-realtime`, `rg-rag-embed` |
 
 Les 18 services de production tournent sur le VPS Linux ; `systemctl` fait foi sur ce qui

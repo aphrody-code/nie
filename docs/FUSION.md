@@ -19,14 +19,12 @@ des services.
 | `rg/apps/azalee/scripts/ops/backup-supabase-to-sqlite.ts` | `scripts/donnees/dump-inagle-sqlite.ts` | le dump Postgres → SQLite |
 | `rg/apps/azalee/scripts/ops/mirror-sync.sh` | `scripts/donnees/miroir-inagle.sh` | la republication du miroir, **vers `var/` d'ici** |
 | `bxc/packages/{ietv,ietv-client,wonderbot,zukan}` | `packages/*` | le catalogue d'épisodes et son bot Discord |
-| `bxc/` (app) | `apps/bxc` | l'automatisation de navigateur dont dépend le crawler |
 | `~/.cache/ietv/episodes.db` | `data/anime/episodes.db` | 355 épisodes, 10 saisons, 3 chaînes |
 | `rg/apps/azalee` | `apps/azalee` | le site du wiki (Next.js 16.3.0-canary.37) — sans `.next` ni `data/` |
 | `rg/packages/azalee` | `packages/azalee` | sa bibliothèque — sans `bin/azalee`, 79 Mo de binaire recompilable |
 | `rg/packages/{ui,assets,mcp}` | `packages/*` | le socle d'interface, les images, le serveur MCP |
 | *(généré depuis la base)* | `supabase/migrations/` | le schéma des 66 tables `inagle_*`, qui n'existait nulle part |
 | *(nouveau)* | `packages/nie-catalog` | **la façade** — voir plus bas |
-| `rg/apps/cdn` | `apps/cdn` | le serveur d'images de `cdn.rosegriffon.fr` |
 | `rg/apps/realtime` | `apps/realtime` | la diffusion SSE des changements Postgres |
 | `rg/apps/storage` | `apps/storage` | l'API Storage compatible Supabase |
 | `rg/scripts/ops/deploy.ts` | `scripts/ops/deploy.ts` | le déploiement bleu/vert — **une racine par app** (voir plus bas) |
@@ -126,7 +124,6 @@ qu'un `var/` homonyme rencontré en chemin ne soit jamais pris pour la racine �
 | `rg-cron.service` | **désarmé** | `nie-cron.service`, **actif** depuis `packages/cron` |
 | `rg-storage.service` | **basculée** | `WorkingDirectory=/home/ubuntu/niers`, sert `apps/storage` |
 | `rg-realtime.service` | **basculée** | idem, sert `apps/realtime` |
-| `rg-cdn.service` | **basculée** | `apps/cdn`, avec son `.env` rapatrié |
 | `rg-mcp.service` | **basculée** | `packages/mcp` ; le jeton d'administration est désormais **déclaré** (voir plus bas) |
 | `azalee-web` | **construit et servi depuis ici** | bascule bleu/vert sans coupure ; la version publiée porte le commit de **niers** |
 | `azalee-api`, `cdn-variants`, `nie-model-serve` | déjà ici | basculés lors de la première vague |
