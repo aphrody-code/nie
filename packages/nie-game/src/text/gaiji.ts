@@ -15,7 +15,7 @@
 export const GAIJI_ATLAS_VFS = "data/dx11/font/fr/gaiji_game2.png";
 
 export const GAIJI_ATLAS = {
-	url: `https://aphrody.com/f/${GAIJI_ATLAS_VFS}`,
+	url: `https://nie.aphrody.com/f/${GAIJI_ATLAS_VFS}`,
 	width: 416,
 	height: 436,
 } as const;

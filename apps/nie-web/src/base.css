@@ -161,7 +161,7 @@ body {
 	 * shortcut, circle-button) ──────────────────────────────────────────────────────────────
 	 * Vocabulaire Spacedrive d'Inacord : nativement destiné à la coquille `--inacord-*`
 	 * (game-tokens.css § deux coquilles), hors périmètre ici. Cette passerelle ne sert QUE l'hôte
-	 * Aphrody : reconstruit avec les 4 paliers `--jeu-fond-*` (abysse → moyen) plutôt que
+	 * nie : reconstruit avec les 4 paliers `--jeu-fond-*` (abysse → moyen) plutôt que
 	 * d'introduire des jetons inacord dans le pont du jeu. */
 	--color-app-overlay: var(--jeu-fond-nuit);
 	--color-app-box: var(--jeu-fond-profond);
@@ -177,7 +177,7 @@ body {
 
 	/* ── Primitive shadcn Sidebar (sidebar.tsx) ──────────────────────────────────────────────
 	 * Primitive générique, pas skinnée pour Inacord : rien n'indique qu'elle doive être sombre —
-	 * elle reçoit la même famille claire que le reste d'Aphrody, pas la coquille app-* / ink-*. */
+	 * elle reçoit la même famille claire que le reste de nie, pas la coquille app-* / ink-*. */
 	--color-sidebar: var(--jeu-surface-glace);
 	--color-sidebar-foreground: var(--jeu-nuit-profonde);
 	--color-sidebar-accent: var(--jeu-surface-craie);
@@ -192,7 +192,7 @@ body {
 	--color-primary-hover: var(--jeu-tuile-active-haut); /* text-primary-hover (TranslatorClient.tsx) : ni primary ni primary-container ne conviennent à un survol de lien — le jeu a déjà un jeton "tuile pressée/active", plus saturé, exactement ce paradigme */
 
 	/* bg-rg-rose / text-rg-rose (dashboard-stats-card.tsx) : NON mappé. Couleur de marque Rose
-	 * Griffon — interdite sur Aphrody/Inacord/nie (CLAUDE.md § Produit : "0 marque, 0 URL").
+	 * Griffon — interdite sur nie/Inacord (CLAUDE.md § Produit : "0 marque, 0 URL").
 	 * Lui donner un jeton --jeu-* masquerait cette fuite au lieu de la signaler ; le vrai
 	 * correctif est de retirer ce rôle du composant partagé, hors périmètre d'un seul fichier. */
 }

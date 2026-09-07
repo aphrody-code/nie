@@ -441,10 +441,6 @@ pub struct Inspector {
 /// Corps de `GET /api/v1/inspect`.
 #[derive(Debug, Clone, Serialize)]
 pub struct Catalog {
-    /// Toujours `nie-site`.
-    pub service: &'static str,
-    /// Version de la crate.
-    pub version: &'static str,
     /// Vrai quand l'index du VFS est prêt : sans lui, aucun corpus n'est mesurable.
     pub vfs_ready: bool,
     /// Features de `nie-formats` réellement compilées — source unique,
@@ -558,8 +554,6 @@ pub async fn catalog(State(state): State<EtatSite>) -> Json<Catalog> {
         None => None,
     };
     Json(Catalog {
-        service: crate::SERVICE,
-        version: crate::VERSION,
         vfs_ready: index.is_some(),
         formats_features: super::formats::features(),
         corpus: counted,

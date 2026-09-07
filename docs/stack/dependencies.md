@@ -97,7 +97,7 @@ une route existe quand elle répond et qu'un test compte sa réponse.
 
 ---
 
-## Le front d'Aphrody — état MESURÉ le 2026-09-06
+## Le front de nie — état MESURÉ le 2026-09-06
 
 > Ce document ne couvrait que le Rust de `nie-site`. Le front n'y figurait pas, alors qu'il a
 > changé de nature ce jour-là : `apps/nie-web` a reçu **Tailwind v4** et monte désormais les

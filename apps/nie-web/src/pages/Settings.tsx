@@ -3,7 +3,7 @@
  *
  * La page ne dessine rien : `SettingsScreen` vient du paquet partagé et demande lui-même à
  * l'hôte ce qu'il sait faire. Ce qui reste ici est ce qui appartient à CET hôte : la langue.
- * Sous Aphrody, changer de langue n'est pas un état local — c'est une navigation entière,
+ * Sous nie, changer de langue n'est pas un état local — c'est une navigation entière,
  * servie par `nie-site` sous son préfixe (`/en/settings`, `/ja/settings`). La page aligne donc
  * le réglage `locale` sur l'URL à l'ouverture, et navigue quand « Appliquer » l'a changé.
  */

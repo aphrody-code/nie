@@ -1,4 +1,4 @@
-# Filtres — état mesuré des quatre surfaces, et ce qui manque à Aphrody
+# Filtres — état mesuré des quatre surfaces, et ce qui manque à nie
 
 > **Deux dates, et il faut les distinguer.**
 >
@@ -14,7 +14,7 @@
 > tables**. Une matrice lue est vraie le jour où on l'écrit ; celle-ci est mesurée à chaque
 > exécution.
 >
-> Les colonnes **Azalée**, **Inacord** et **Aphrody (client)** restent celles du matin : aucun
+> Les colonnes **Azalée**, **Inacord** et **nie (client)** restent celles du matin : aucun
 > code front n'a bougé entre les deux mesures.
 >
 > Périmètre : les pages qui **listent** quelque chose. Un formulaire, un lecteur, un éditeur
@@ -24,7 +24,7 @@
 ## Commandes de la mesure
 
 ```bash
-# Le serveur d'Aphrody, lu ligne à ligne
+# Le serveur de nie, lu ligne à ligne
 cat -n crates/tools/nie-site/src/vfs_index.rs
 cat -n crates/tools/nie-site/src/routes/api_v1.rs
 cat -n crates/tools/nie-site/src/routes/vfs.rs
@@ -49,7 +49,7 @@ Résultats structurants :
 - `inagle_characters` : **6 166 lignes, 40 colonnes**. Cardinalités des facettes candidates —
   `element` 6, `position` 5, `rarity` 4, `series` 9, `gender` 2, `constellation` 30,
   `team_id` 199.
-- Les quatre vues d'Aphrody couvrent **143 246 fichiers sur 255 308** (recompté depuis
+- Les quatre vues de nie couvrent **143 246 fichiers sur 255 308** (recompté depuis
   l'histogramme : g4tx 54 203 ; g4md 8 956 + g4mg 15 876 + g4sk 339 + g4mt 71 + g4pk 45 591 +
   g4pkm 6 992 ; acb 5 512 + awb 5 512 ; usm 194). Le chiffre concorde avec celui déjà écrit dans
   `crates/tools/nie-site/src/vfs_index.rs:172`. **112 062 fichiers** (`.bin` 72 308, `.p3lip`
@@ -178,7 +178,7 @@ contrat de source (`source.tsx:39`, `:84`, `:102`) et les vignettes (`lib/thumbs
 
 ---
 
-## 3. Aphrody aujourd'hui — `apps/nie-web/src/**` + `crates/tools/nie-site`
+## 3. nie aujourd'hui — `apps/nie-web/src/**` + `crates/tools/nie-site`
 
 > `apps/nie-web/src/legacy/**` **n'est routé par aucune page** — vérifié : la seule mention est un
 > commentaire (`pages/Catalogue.tsx:6`). Ses filtres ne sont pas actifs et ne comptent pas ici.
@@ -237,9 +237,9 @@ Catalogue affiche « Le catalogue est en cours de préparation » (`Catalogue.ts
 
 | Capacité | Preuve | Qui l'utilise |
 |---|---|---|
-| Filtre par extension | `niers vfs find --ext <ext>` ; `niers vfs extract --ext` | Inacord (`ext`), la CLI. **Pas Aphrody** |
+| Filtre par extension | `niers vfs find --ext <ext>` ; `niers vfs extract --ext` | Inacord (`ext`), la CLI. **Pas nie** |
 | CPK conteneur d'une entrée | `VfsEntry.cpk_filename` — `crates/engine/nie-formats/src/vfs.rs:129-134` ; `niers vfs stat` l'affiche | **personne** côté web |
-| Nombre de CPK / entrées extra / loose | `Vfs::cpk_count()`, `extra_count()`, `loose_count()` — `vfs.rs:732-746` | `niers vfs stats` (936 CPK, 5 loose). Pas Aphrody |
+| Nombre de CPK / entrées extra / loose | `Vfs::cpk_count()`, `extra_count()`, `loose_count()` — `vfs.rs:732-746` | `niers vfs stats` (936 CPK, 5 loose). Pas nie |
 | Montage dump vs packs | `Vfs::is_dump()` — `vfs.rs:417` | `/api/v1/health` (`Capacites.vfs_dump`, `state.rs:78`), affiché nulle part comme filtre |
 | Histogramme des extensions | `niers vfs stats --top N` | CLI seule — **aucune route ne le publie** |
 | Couverture de format **mesurée** (magic ou décodage complet) | `niers vfs formats [--parse] [--prefix] [--limit]` | CLI seule |
@@ -266,7 +266,7 @@ ou change un ordre — un `200` ne suffit pas · **ABSENT** le paramètre est av
 refusé en `400`, ou la route n'existe pas · **CLIENT** sans objet côté serveur (une grille, une
 vignette), compté à part et jamais comme un manque.
 
-| # | Filtre | Azalée | Inacord | **Aphrody** | **API (mesuré)** | Preuve |
+| # | Filtre | Azalée | Inacord | **nie** | **API (mesuré)** | Preuve |
 |---|---|:--:|:--:|:--:|:--:|---|
 | **Fichiers / VFS** |
 | 1 | Recherche sous-chaîne sur le chemin | — | ✅ | ◐ catalogue oui, **explorateur non** | **SERVI** | 255 308 → 1 |
@@ -359,7 +359,7 @@ servis 41 · absents 5 · côté client 2 · à relire 0  (sur 48)
   - Restent deux vrais manques, tous deux du **classement** et non du filtrage : #40 pertinence
     pondérée et #41 repli approché. `apps/inacord/src/lib/recherche.ts:186-295` en est le
     portage direct.
-- **Aphrody côté interface : le retard est comblé, et les écrans ont fusionné.** Câblé le
+- **nie côté interface : le retard est comblé, et les écrans ont fusionné.** Câblé le
   2026-09-06 sans une ligne de serveur, puis réuni en **une seule page** sur décision de
   l'utilisateur :
   - **`/explorateur`** — *la* page. Recherche à deux portées (ce dossier par `/b`, tout le
@@ -406,7 +406,7 @@ Trois restent une **forme** de filtre (glob, sous-arbre, fuzzy) plutôt qu'une d
 
 ## 7. Ordre de priorité — réordonné sur la mesure du soir
 
-1. **Câbler l'interface d'Aphrody sur ce qui est déjà servi.** C'est le premier poste et de loin :
+1. **Câbler l'interface de nie sur ce qui est déjà servi.** C'est le premier poste et de loin :
    32 filtres servis, 3 utilisés. L'explorateur (`Explorateur.tsx:43-117`) n'a aucun champ de
    recherche alors que `/b?q=` répond ; le catalogue fige `PAR_PAGE = 60` alors que `per_page`
    monte à 200 ; aucun état ne passe par l'URL. **Zéro ligne de serveur.**

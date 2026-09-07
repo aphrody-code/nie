@@ -37,7 +37,7 @@ un wiki qui crée 6 pages, dont une riche avec ses variantes, gagne.
 ### 1. Une page par concept, jamais par ligne
 
 L'unité éditoriale est le **concept**, identifié par `internal_code` — le même code que celui
-qui nomme les fichiers du VFS, donc le même identifiant qu'Aphrody utilise en chemin
+qui nomme les fichiers du VFS, donc le même identifiant que nie utilise en chemin
 (amendement A3). Les deux sites décrivent le même objet avec la même identité ; l'un l'affiche
 en chemin, l'autre en slug lisible. Les variantes (`hero_type`, `_5000`, doublons de fiche)
 sont des **sections** de la page du concept, pas des pages.

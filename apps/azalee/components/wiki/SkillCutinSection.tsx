@@ -8,7 +8,7 @@
  *
  * La **scène 3D** (R3F + timeline + export MP4) a quitté le wiki au lot J2 : elle lisait des
  * fichiers du jeu en local, ce qu'une page servie sans serveur ne peut plus faire. Elle vit
- * désormais dans Aphrody, et cette section n'en garde qu'un lien — actif seulement si
+ * désormais dans nie, et cette section n'en garde qu'un lien — actif seulement si
  * `NEXT_PUBLIC_TOOLS_ORIGIN` est renseignée, pour ne jamais pointer dans le vide.
  */
 import { useState } from "react";
@@ -56,7 +56,7 @@ export function SkillCutinSection({
 	// `getSkillImageUrl`, contre le même index, et rend `null` quand rien n'existe
 	// (pas de placeholder : il n'a rien à faire dans une section « assets »).
 	const telopUrl = getSkillTelopUrl(skillCode);
-	// Vide tant qu'Aphrody n'est pas en ligne : le lien disparaît plutôt que de casser.
+	// Vide tant que nie n'est pas en ligne : le lien disparaît plutôt que de casser.
 	const outilsOrigin = process.env.NEXT_PUBLIC_TOOLS_ORIGIN;
 	const textureUrl = cpkAssetUrl(cutin.texture_g4tx);
 
@@ -100,7 +100,7 @@ export function SkillCutinSection({
 								className="inline-flex items-center gap-1.5 rounded-full bg-surface-container-high px-3 py-1.5 text-sm font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest transition-colors"
 								rel="noreferrer"
 							>
-								<Icon name="open_in_new" size={14} /> Ouvrir la scène dans Aphrody
+								<Icon name="open_in_new" size={14} /> Ouvrir la scène dans nie
 							</a>
 						</div>
 					)}

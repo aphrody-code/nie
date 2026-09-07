@@ -6,7 +6,7 @@
  * `apps/azalee/components` porte 184 composants dont la valeur est réelle — listes filtrables,
  * fiches, éditeur, tableaux de bord — et **143 imports de `next/*`** qui les clouent au sol :
  * mesuré le 2026-09-06, `next/link` 61 fois, `next/image` 53, `next/navigation` 27. Ce paquet
- * est monté par deux hôtes dont **aucun n'est Next** : Aphrody est un Vite/SPA, Inacord une
+ * est monté par deux hôtes dont **aucun n'est Next** : nie est un Vite/SPA, Inacord une
  * application Tauri. Chacun de ces imports y échoue à la résolution.
  *
  * Trois adaptateurs suffisent donc à en débloquer 141 sur 143 — les deux restants
@@ -24,7 +24,7 @@ import * as React from "react";
 /**
  * L'hôte décide comment on navigue.
  *
- * Aphrody pousse une entrée d'historique et change d'écran sans recharger ; un hôte sans
+ * nie pousse une entrée d'historique et change d'écran sans recharger ; un hôte sans
  * routeur laisse le navigateur suivre le `href`. Le défaut — `null` — est le comportement d'un
  * `<a>` ordinaire, qui est correct partout.
  */

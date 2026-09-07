@@ -1,5 +1,0 @@
-Contact: mailto:security@aphrody.com
-Expires: {{ expiration }}
-Preferred-Languages: fr, en
-Canonical: {{ origine }}/.well-known/security.txt
-Policy: {{ origine }}/securite

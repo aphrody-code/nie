@@ -1,5 +1,5 @@
 /**
- * `WebSource` — l'implémentation d'`AssetSource` pour Aphrody, dans un navigateur.
+ * `WebSource` — l'implémentation d'`AssetSource` pour nie, dans un navigateur.
  *
  * Elle ne parle qu'à `nie-site` (`crates/tools/nie-site`), en HTTP. Chaque route employée ici
  * est vérifiée par la suite de bout en bout `scripts/e2e-site.sh` : aucune n'est supposée, et

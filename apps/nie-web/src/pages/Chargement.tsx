@@ -1,5 +1,5 @@
 /**
- * L'écran d'attente d'Aphrody : celui du jeu, pendant que l'index du VFS se monte.
+ * L'écran d'attente de nie : celui du jeu, pendant que l'index du VFS se monte.
  *
  * ## Ce qu'il remplace
  *
@@ -54,7 +54,7 @@ const LAYOUT = lireLayout(brut);
  * La bande fait 136 px de haut et son ancre est au centre du canevas : elle occupe donc
  * y 292→428. Le personnage est posé au-dessus, ancré par son bas, à 32 px du haut de la bande —
  * la seule contrainte est de ne pas la recouvrir, et cette position est une composition
- * d'Aphrody, pas une mesure du jeu.
+ * de nie, pas une mesure du jeu.
  */
 const HAUT_BANDE = LAYOUT.canvas.h / 2 - 136 / 2;
 const Y_PET = HAUT_BANDE - 32;

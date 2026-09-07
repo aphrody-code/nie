@@ -303,8 +303,8 @@ bunx oxlint -c .oxlintrc.json -A style -A pedantic -A restriction apps/inacord/s
   catalogue de la racine si on veut la parité de geste.
 * **Le retrait côté `apps/azalee` est fait** (2026-09-06) — cf. §4. Les URL retirées sont
   redirigées en 308 vers **deux destinations distinctes**, mesurées et non supposées :
-  `/textures`, `/modeles`, `/sons` et `/videos` vers `https://aphrody.com` (que `nie-site` sert
+  `/textures`, `/modeles`, `/sons` et `/videos` vers `https://nie.aphrody.com` (que `nie-site` sert
   réellement, avec titre et canonique propres) ; `/gallery` et les cinq outils vers
   **`/tools/niers`**, la page de téléchargement de l'explorateur — `apps/nie-web` ne connaît que
   `medias` et `explorateur`, toute autre route y retombe sur l'accueil, et servir l'accueil
-  d'Aphrody sous l'URL d'un outil serait pire qu'un 404.
+  de nie sous l'URL d'un outil serait pire qu'un 404.

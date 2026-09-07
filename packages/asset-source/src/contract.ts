@@ -5,7 +5,7 @@
  * ## Pourquoi un contrat plutôt qu'un client
  *
  * La même interface tourne dans deux hôtes qui n'ont pas les mêmes pouvoirs : **Inacord**
- * (Tauri) parle au disque, aux CPK et au jeu en cours ; **Aphrody** (navigateur) ne parle qu'à
+ * (Tauri) parle au disque, aux CPK et au jeu en cours ; **nie** (navigateur) ne parle qu'à
  * `nie-site` en HTTP. Sur les 147 commandes que l'hôte desktop expose, une soixantaine sont
  * portables — lire le VFS, les données du jeu, une texture, un modèle — et le reste ne le sera
  * jamais : exécuter du Lua, écrire un mod, piloter Blender, lire la mémoire du jeu.
@@ -82,7 +82,7 @@ export interface ContenuDossier {
 /**
  * Ce qu'on peut demander en parcourant un dossier.
  *
- * **L'asymétrie est réelle et assumée.** Aphrody filtre côté serveur (`/b?q=&ext=`, index trié
+ * **L'asymétrie est réelle et assumée.** nie filtre côté serveur (`/b?q=&ext=`, index trié
  * de 255 308 chemins) ; Inacord reçoit le dossier entier par IPC et filtre en mémoire. Les deux
  * rendent la même chose pour un dossier, et c'est ce qui compte ici : un dossier du VFS tient
  * en quelques milliers d'entrées, jamais en 255 308. Là où l'asymétrie serait fausse — la
@@ -191,7 +191,7 @@ export interface AssetSource {
 	 * Une vignette prête à poser dans un `<img src>`.
 	 *
 	 * Asynchrone, et c'est ce qui compte : les deux hôtes produisent une URL, mais pas de la
-	 * même façon. Aphrody rend une URL HTTP servie par `/assets` ; Inacord décode la texture
+	 * même façon. nie rend une URL HTTP servie par `/assets` ; Inacord décode la texture
 	 * en natif et rend une URL de données (`data:image/png;base64,…`), faute de serveur local.
 	 * Un contrat qui n'exposerait qu'une URL synchrone obligerait le desktop à contrefaire un
 	 * serveur, ou le web à contrefaire un décodeur — et ce genre de contrainte finit toujours

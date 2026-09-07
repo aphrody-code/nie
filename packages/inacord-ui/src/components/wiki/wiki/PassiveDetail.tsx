@@ -41,7 +41,7 @@ const ELEMENT_COLORS: Record<string, string> = {
 	// Rôles `element-*` : les teintes du JEU, relevées sur ses icônes officielles. Les classes
 	// Tailwind en dur d'avant divergeaient d'un écran à l'autre — le vent y était bleu ici, vert
 	// ailleurs. Ce paquet ne fournit AUCUNE valeur : chaque hôte mappe le rôle dans son
-	// `@theme inline` (`apps/nie-web/src/base.css` pour Aphrody), et un rôle non mappé s'affiche
+	// `@theme inline` (`apps/nie-web/src/base.css` pour nie), et un rôle non mappé s'affiche
 	// transparent sur transparent, sans erreur.
 	fire: "bg-element-feu/15 text-element-feu border-element-feu/40",
 	forest: "bg-element-foret/15 text-element-foret border-element-foret/40",

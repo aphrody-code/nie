@@ -1,7 +1,7 @@
 //! Le routeur et les couches communes.
 //!
 //! La `Content-Security-Policy` est posée **ici**, par la crate, et nulle part ailleurs : deux
-//! CSP s'additionnent et la plus stricte gagne, donc le bloc nginx d'`aphrody.com` n'en pose
+//! CSP s'additionnent et la plus stricte gagne, donc le bloc nginx d'`nie.aphrody.com` n'en pose
 //! aucune (cf. `docs/stack/web-platform.md`). Un en-tête qui vient de deux endroits est un
 //! en-tête que personne ne contrôle.
 
@@ -15,7 +15,7 @@ use tower_http::trace::TraceLayer;
 
 use crate::state::EtatSite;
 
-/// La politique de sécurité du contenu servie par Aphrody.
+/// La politique de sécurité du contenu servie par nie.
 ///
 /// `img-src`/`media-src` acceptent `blob:` et `data:` parce que le site décode des textures et
 /// de l'audio côté client à partir d'octets bruts ; `connect-src 'self'` suffit puisque `/f`,
@@ -126,7 +126,6 @@ declarer_routes! {
     "/manifest.webmanifest" => crate::routes::well_known::manifeste,
     "/en/manifest.webmanifest" => crate::routes::well_known::manifeste,
     "/ja/manifest.webmanifest" => crate::routes::well_known::manifeste,
-    "/.well-known/security.txt" => crate::routes::well_known::security,
     "/sitemap.xml" => crate::routes::well_known::sitemap,
     "/feed.atom" => crate::routes::feed::atom,
     "/api/v1/health" => crate::routes::api_v1::health,
@@ -470,7 +469,7 @@ mod tests {
     #[test]
     fn contrat_de_routes() {
         let routes = chemins();
-        assert_eq!(routes.len(), 84, "84 routes montees");
+        assert_eq!(routes.len(), 83, "83 routes montees");
         for r in &routes {
             assert!(r.starts_with('/'), "{r}");
             // Syntaxe axum 0.7 (`:id`, `*path`) : elle PANIQUE au `route()`, elle ne degrade

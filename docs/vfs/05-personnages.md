@@ -1,6 +1,6 @@
 # Domaine VFS 5 — personnages, modèles 3D et effets
 
-Cahier des charges de routes pour Aphrody. Inventaire source : `var/vfs/lot5-chr.txt` (39 146
+Cahier des charges de routes pour nie. Inventaire source : `var/vfs/lot5-chr.txt` (39 146
 lignes, format `chemin taille [cpk]`), couvrant `data/common/chr/`, `data/dx11/chr/`,
 `data/common/effect/`, `data/dx11/effect/`. Toute commande citée est rejouable telle quelle.
 

@@ -9,7 +9,7 @@ const THRESHOLD = 80;
  * Tirer vers le bas pour rafraîchir — porté du wiki vers le paquet partagé.
  *
  * Il appelait `useRouter().refresh()` de `next/navigation`. Ce paquet est monté par **deux
- * hôtes** dont aucun n'est Next — Aphrody est un Vite/SPA, Inacord une application Tauri — et
+ * hôtes** dont aucun n'est Next — nie est un Vite/SPA, Inacord une application Tauri — et
  * cet import aurait fait échouer les deux à la résolution. Le geste est donc rendu à
  * l'appelant : le composant sait *quand* rafraîchir, l'hôte sait *comment*.
  *

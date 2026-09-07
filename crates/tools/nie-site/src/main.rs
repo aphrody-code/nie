@@ -1,4 +1,4 @@
-//! Binaire `nie-site` — Aphrody sur `127.0.0.1:8085`, derrière nginx.
+//! Binaire `nie-site` — nie sur `127.0.0.1:8085`, derrière nginx.
 //!
 //! Le processus démarre **avant** que le VFS ne soit monté : le montage d'un dump de 255 000
 //! fichiers prend du temps, et un serveur qui n'écoute qu'après lui est un serveur que

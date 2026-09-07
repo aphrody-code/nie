@@ -91,10 +91,9 @@ fn json(corps: &[u8]) -> serde_json::Value {
 async fn toutes_les_routes_declarees_repondent() {
     let etat = etat();
     // Une instance concrète par route déclarée, dans le même ordre que `app::chemins()`.
-    let instances: [(&str, &[u16]); 85] = [
+    let instances: [(&str, &[u16]); 84] = [
         ("/healthz", &[200]),
         ("/robots.txt", &[200]),
-        ("/.well-known/security.txt", &[200]),
         ("/sitemap.xml", &[200]),
         // Le flux Atom lit le MEME catalogue que `/api/v1/episodes` : absent dans l'etat de
         // test, il le dit en 503 plutot que de rendre un flux vide qu'un lecteur prendrait
@@ -116,7 +115,7 @@ async fn toutes_les_routes_declarees_repondent() {
         // DIT plutot que de rendre une liste vide qu'un client prendrait pour un catalogue a
         // jour. C'est la porte de mise a jour des Inacord installes.
         ("/api/v1/episodes", &[503]),
-        // Aphrody : embarquee au build par `include_bytes!`, donc servie meme sur une machine
+        // nie : embarquee au build par `include_bytes!`, donc servie meme sur une machine
         // sans jeu, sans miroir et sans amont. C'est ce qui la distingue de tout le reste.
         ("/pet/aphrody.json", &[200]),
         ("/pet/atlas.webp", &[200]),
@@ -235,7 +234,7 @@ async fn toutes_les_routes_declarees_repondent() {
     ];
 
     let declarees = nie_site::app::chemins();
-    assert_eq!(declarees.len(), 84, "le routeur monte 84 routes");
+    assert_eq!(declarees.len(), 83, "le routeur monte 83 routes");
     assert!(
         instances.len() >= declarees.len(),
         "au moins une instance par route declaree"
@@ -267,7 +266,7 @@ async fn toutes_les_routes_declarees_repondent() {
         );
         vus += 1;
     }
-    assert_eq!(vus, 85, "85 instances interrogees pour 84 routes");
+    assert_eq!(vus, 84, "84 instances interrogees pour 83 routes");
 }
 
 /// Vrai quand `uri` est une instance du motif de route `motif` (syntaxe axum 0.8).
@@ -297,14 +296,20 @@ fn correspond(motif: &str, uri: &str) -> bool {
     segments_uri.next().is_none()
 }
 
+/// La sonde dit ce que l'instance PEUT faire, et rien de ce qu'elle EST.
+///
+/// Le nom du serveur et sa version en sont sortis : sur une origine qui se presente comme le
+/// jeu, ils annoncent un serveur d'outils, et la version designe exactement quoi chercher dans
+/// un avis de securite. Le test le verifie par l'ABSENCE, pas par l'oubli — sans ces deux
+/// assertions, les reintroduire ne casserait rien.
 #[tokio::test]
-async fn healthz_annonce_le_service_et_sa_version() {
+async fn healthz_ne_nomme_ni_le_service_ni_sa_version() {
     let (statut, entetes, corps) = reponse(&etat(), "/healthz").await;
     assert_eq!(statut, StatusCode::OK);
     assert_eq!(entetes[header::CONTENT_TYPE], "application/json");
     let v = json(&corps);
-    assert_eq!(v["service"], "nie-site");
-    assert_eq!(v["version"], nie_site::VERSION);
+    assert!(v.get("service").is_none(), "le service ne se nomme pas");
+    assert!(v.get("version").is_none(), "la version ne se publie pas");
     assert_eq!(v["etat"], "ok");
     assert_eq!(v["capacites"]["vfs"], "pret");
     assert_eq!(v["capacites"]["vfs_entrees"], 10);
@@ -350,8 +355,8 @@ async fn documents_well_known() {
     assert!(texte.contains("Allow: /api/v1/"), "l'API leur est ouverte");
 
     // Les deux documents destines aux agents repondent, en texte brut, et se citent l'origine
-    // configuree — pas `aphrody.com` en dur, sinon une preview oriente vers la production.
-    for (uri, debut) in [("/llms.txt", "# Aphrody"), ("/llms-full.txt", "# Aphrody")] {
+    // configuree — pas `nie.aphrody.com` en dur, sinon une preview oriente vers la production.
+    for (uri, debut) in [("/llms.txt", "# nie"), ("/llms-full.txt", "# nie")] {
         let (statut, entetes, corps) = reponse(&etat, uri).await;
         assert_eq!(statut, StatusCode::OK, "{uri}");
         assert_eq!(
@@ -365,15 +370,12 @@ async fn documents_well_known() {
             "{uri} ne commence pas par son titre"
         );
         assert!(doc.contains("https://exemple.test"), "{uri} : origine");
-        assert!(!doc.contains("aphrody.com"), "{uri} : origine codee en dur");
+        assert!(!doc.contains("nie.aphrody.com"), "{uri} : origine codee en dur");
     }
 
-    let (statut, _, corps) = reponse(&etat, "/.well-known/security.txt").await;
-    assert_eq!(statut, StatusCode::OK);
-    let texte = String::from_utf8(corps).unwrap();
-    assert!(texte.contains("Contact:"), "RFC 9116 exige Contact");
-    assert!(texte.contains("Expires:"), "RFC 9116 exige Expires");
-    assert!(texte.contains("https://exemple.test/.well-known/security.txt"));
+    // `security.txt` a ete retire : il ne peut pas exister sans publier un contact.
+    let (statut, _, _) = reponse(&etat, "/.well-known/security.txt").await;
+    assert_eq!(statut, StatusCode::NOT_FOUND);
 
     let (statut, entetes, corps) = reponse(&etat, "/sitemap.xml").await;
     assert_eq!(statut, StatusCode::OK);
@@ -723,7 +725,7 @@ async fn la_coquille_porte_les_balises_og_de_la_route() {
         12,
         "og: avec vignette"
     );
-    assert!(html.contains(r#"content="https://aphrody.com/static/og.png""#));
+    assert!(html.contains(r#"content="https://nie.aphrody.com/static/og.png""#));
     assert_eq!(
         html.matches("og:locale:alternate").count(),
         2,
@@ -739,17 +741,17 @@ async fn la_coquille_porte_les_balises_og_de_la_route() {
         "route du bundle : la coquille repond"
     );
     let html = String::from_utf8(corps).unwrap();
-    assert!(html.contains("<title>Textures — Aphrody</title>"));
-    assert!(html.contains("og:url\" content=\"https://aphrody.com/textures\""));
+    assert!(html.contains("<title>Textures — nie</title>"));
+    assert!(html.contains("og:url\" content=\"https://nie.aphrody.com/textures\""));
     assert!(html.contains("data-route=\"/textures\""));
 
     // La meme route dans les deux autres langues : titre traduit, canonical prefixe, et le
     // MEME groupe hreflang des trois cotes — c'est la reciprocite qui rend le groupe valide.
     for (chemin, titre, lang) in [
-        ("/en/textures", "Textures — Aphrody", "en"),
+        ("/en/textures", "Textures — nie", "en"),
         (
             "/ja/textures",
-            "\u{30c6}\u{30af}\u{30b9}\u{30c1}\u{30e3} — Aphrody",
+            "\u{30c6}\u{30af}\u{30b9}\u{30c1}\u{30e3} — nie",
             "ja",
         ),
     ] {
@@ -766,7 +768,7 @@ async fn la_coquille_porte_les_balises_og_de_la_route() {
         );
         assert!(
             html.contains(&format!(
-                "rel=\"canonical\" href=\"https://aphrody.com{chemin}\""
+                "rel=\"canonical\" href=\"https://nie.aphrody.com{chemin}\""
             )),
             "{chemin} : canonical"
         );
@@ -783,7 +785,7 @@ async fn la_coquille_porte_les_balises_og_de_la_route() {
         );
         assert!(
             html.contains(
-                r#"type="application/atom+xml" title="Aphrody — épisodes" href="/feed.atom""#
+                r#"type="application/atom+xml" title="nie — épisodes" href="/feed.atom""#
             ),
             "{chemin} : le flux doit etre decouvrable depuis le <head>"
         );
@@ -905,7 +907,7 @@ async fn head_repond_comme_get_sans_corps() {
 /// elle ne charge pas le bundle. Rien ne le signale — ni le build, ni un test de route, ni un
 /// contrôle de taille. C'est arrivé le 2026-09-05 : `apps/nie-web` écrit ses fichiers empreintés
 /// dans `dist/static/` (parce que `/assets/` est déjà pris par le proxy vers `nie-model-serve`)
-/// et la recherche du point d'entrée ne regardait que `dist/assets/`. Aphrody servait alors une
+/// et la recherche du point d'entrée ne regardait que `dist/assets/`. nie servait alors une
 /// page d'accueil sans une ligne de JavaScript.
 ///
 /// Ce test compte les `<script>` de la coquille pour les trois cas possibles.

@@ -40,7 +40,7 @@ if (!existsSync(join(repoRoot, "CLAUDE.md"))) {
 }
 
 export const config = {
-  /** API publique/interne `nie-site` (Aphrody), utilisée par les intégrations clientes. */
+  /** API publique/interne `nie-site` (nie), utilisée par les intégrations clientes. */
   aphrodyApiUrl: env("NIE_APHRODY_API_URL", "http://127.0.0.1:8085").replace(/\/+$/, ""),
   /** URL Redis. La base 3 (index VFS CPK) est sélectionnée explicitement au chargement. */
   redisUrl: env("NIERS_REDIS", "redis://127.0.0.1:6379"),

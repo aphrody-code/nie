@@ -3,7 +3,7 @@
  *
  * Les composants de ce paquet n'appellent jamais Tauri ni `fetch` en direct : ils demandent
  * leur source par `useAssetSource()`, et l'hôte la fournit au montage. C'est ce qui permet aux
- * MÊMES composants de tourner dans Inacord (Tauri) et dans Aphrody (navigateur).
+ * MÊMES composants de tourner dans Inacord (Tauri) et dans nie (navigateur).
  *
  * ## Pourquoi les capacités sont un état, pas une constante
  *
@@ -33,7 +33,7 @@ const Contexte = createContext<ContexteSource | null>(null);
 /**
  * Monte une source pour tout le sous-arbre.
  *
- * @param source l'implémentation de l'hôte — `creerWebSource()` pour Aphrody, l'enveloppe des
+ * @param source l'implémentation de l'hôte — `creerWebSource()` pour nie, l'enveloppe des
  * liaisons `tauri-specta` pour Inacord.
  */
 export function AssetSourceProvider({
@@ -86,7 +86,7 @@ export function useAssetSource(): AssetSource {
 	if (!ctx) {
 		throw new Error(
 			"useAssetSource() hors d'un <AssetSourceProvider>. L'hôte doit monter sa source : " +
-				"creerWebSource() pour Aphrody, l'enveloppe Tauri pour Inacord.",
+				"creerWebSource() pour nie, l'enveloppe Tauri pour Inacord.",
 		);
 	}
 	return ctx.source;

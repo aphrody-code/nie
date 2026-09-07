@@ -8,7 +8,7 @@
 //! `calculer_synergie_equipe`, prend un **effectif complet** et un entraîneur — `routes::regles`
 //! écrit noir sur blanc qu'« elle n'est pas routée ici ».
 //!
-//! Elle l'est maintenant, et c'est ce qui manquait pour qu'Aphrody vaille l'outil « Mon équipe »
+//! Elle l'est maintenant, et c'est ce qui manquait pour que nie vaille l'outil « Mon équipe »
 //! d'Azalée : là-bas, les moyennes d'équipe et le score sont **recalculés en TypeScript** dans
 //! le navigateur (`TeamStats.tsx`), à côté d'un moteur Rust qui sait déjà le faire. Deux
 //! implémentations d'une même règle divergent au premier ajustement.

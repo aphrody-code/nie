@@ -73,7 +73,7 @@ a:focus-visible { outline: 3px solid var(--jeu-accent-ambre); outline-offset: 3p
 ///
 /// Elle n'etait **jamais** emise : `image` valait `None` en dur, et le seul appelant ne la
 /// posait pas. Consequence invisible en developpement et visible partout ailleurs — tout lien
-/// vers Aphrody partage sur Discord, Slack, X ou WhatsApp s'affichait sans vignette, et rien
+/// vers nie partage sur Discord, Slack, X ou WhatsApp s'affichait sans vignette, et rien
 /// dans les tests ne le disait, puisqu'ils verifiaient la balise sur une coquille de test ou
 /// l'image etait injectee a la main.
 ///
@@ -105,17 +105,17 @@ struct Entree {
     descriptions: [&'static str; 3],
 }
 
-/// Les entrées d'Aphrody, dans l'ordre où elles sont présentées.
+/// Les entrées de nie, dans l'ordre où elles sont présentées.
 ///
 /// L'explorateur en fait partie. Il n'y figurait pas, et il n'était donc décrit nulle part
-/// côté serveur : `/explorateur` sortait avec `<title>explorateur — Aphrody</title>` — le
+/// côté serveur : `/explorateur` sortait avec `<title>explorateur — nie</title>` — le
 /// segment d'URL brut, en minuscule, identique dans les trois langues — parce qu'il tombait
 /// dans la branche générique de [`metadonnees`]. Une entrée du menu que le serveur ne connaît
 /// pas est une page sans titre, absente du plan du site et non déclarée à `robots.txt`.
 const ENTREES: [Entree; 8] = [
     Entree {
         // `/medias` manquait, alors que c'est l'une des DEUX entrées du menu et qu'elle figure
-        // au plan du site : elle sortait donc en `<title>medias — Aphrody</title>`, description
+        // au plan du site : elle sortait donc en `<title>medias — nie</title>`, description
         // générique et `og:type` d'article — le défaut corrigé pour `/explorateur`, laissé
         // intact sur la page qui rassemble les quatre catalogues.
         segment: "medias",
@@ -177,9 +177,9 @@ const ENTREES: [Entree; 8] = [
         segment: "settings",
         titres: ["Options", "Settings", "オプション"],
         descriptions: [
-            "Langue, thème, densité des listes, taille du texte : les réglages d'Aphrody, dans l'écran des Options du jeu.",
-            "Language, theme, list density, text size: Aphrody's settings, in the game's Options screen.",
-            "言語・テーマ・リストの密度・文字サイズなど、Aphrody の設定をゲームのオプション画面で。",
+            "Langue, thème, densité des listes, taille du texte : les réglages de nie, dans l'écran des Options du jeu.",
+            "Language, theme, list density, text size: nie's settings, in the game's Options screen.",
+            "言語・テーマ・リストの密度・文字サイズなど、nie の設定をゲームのオプション画面で。",
         ],
     },
     Entree {
@@ -204,7 +204,7 @@ const ALIAS: [&str; 2] = ["recherche", "donnees"];
 ///
 /// `/recherche` et `/donnees` sont les deux adresses héritées des écrans fusionnés dans
 /// l'explorateur : elles montrent la MÊME page. Servies telles quelles, elles sortaient avec
-/// leur segment brut en titre (« donnees — Aphrody ») et un canonique sur elles-mêmes — trois
+/// leur segment brut en titre (« donnees — nie ») et un canonique sur elles-mêmes — trois
 /// URL pour une page, c'est-à-dire la dilution que le plan du site évite en ne les annonçant
 /// pas. Le canonique les ramène donc à `/explorateur`.
 #[must_use]
@@ -221,8 +221,8 @@ pub fn route_canonique(route: &str) -> String {
 ///
 /// La question a une conséquence mesurable : `nie-site` rendait la coquille en **200** pour
 /// n'importe quel chemin, avec un `<title>` fabriqué à partir du segment et un canonique
-/// pointant sur lui-même. `https://aphrody.com/gallery` et `/tools/compare` sortaient donc en
-/// « gallery — Aphrody » et « tools — Aphrody », indexables, alors qu'aucune des deux n'existe :
+/// pointant sur lui-même. `https://nie.aphrody.com/gallery` et `/tools/compare` sortaient donc en
+/// « gallery — nie » et « tools — nie », indexables, alors qu'aucune des deux n'existe :
 /// le client y affiche l'accueil. Une adresse inventée devenait une page.
 #[must_use]
 pub fn route_servie(route: &str) -> bool {
@@ -240,15 +240,32 @@ const fn rang(langue: Langue) -> usize {
     }
 }
 
+/// Le nom du site, ecrit UNE fois.
+///
+/// `concat!` n'accepte que des litteraux : sans cette macro, le suffixe des titres reecrirait
+/// le nom a cote de [`SITE`], et un renommage en oublierait un.
+macro_rules! nom_du_site {
+    () => {
+        "nie"
+    };
+}
+
 /// Le titre de l'accueil : le nom du site, seul.
 ///
-/// Il portait le nom du jeu en apposition — « Aphrody — les fichiers d'Inazuma Eleven: Victory
+/// Il portait le nom du jeu en apposition — « nie — les fichiers d'Inazuma Eleven: Victory
 /// Road ». Trois défauts, chacun suffisant : l'onglet du navigateur, qui tronque vers 30
 /// caractères, n'affichait plus que le nom du jeu ; la page d'accueil se présentait donc sous
 /// un titre qui n'est pas le sien ; et le nom du jeu revenait ensuite dans la description, dans
 /// le `og:title`, dans le balisage structuré et sur l'écran lui-même. La description, elle, dit
 /// toujours ce que le site fait — c'est sa place.
-pub const SITE: &str = "Aphrody";
+pub const SITE: &str = nom_du_site!();
+
+/// Le suffixe des titres de page : `« Textures — nie »`.
+///
+/// Il se derive du meme jeton que [`SITE`] plutot que de le repeter — un titre est ecrit ici,
+/// relu par le fil d'Ariane (`trim_end_matches`) et attendu par la suite de tests : trois
+/// endroits qu'un nom en dur laisserait diverger.
+pub const SUFFIXE_TITRE: &str = concat!(" — ", nom_du_site!());
 
 /// Titre et description de l'accueil.
 fn accueil(langue: Langue) -> (String, String) {
@@ -523,7 +540,7 @@ pub fn metadonnees(route: &str, langue: Langue) -> (String, String, &'static str
     let i = rang(langue);
     if let Some(e) = ENTREES.iter().find(|e| e.segment == premier) {
         return (
-            format!("{} — Aphrody", e.titres[i]),
+            format!("{}{SUFFIXE_TITRE}", e.titres[i]),
             e.descriptions[i].to_owned(),
             "website",
         );
@@ -534,7 +551,7 @@ pub fn metadonnees(route: &str, langue: Langue) -> (String, String, &'static str
         Langue::Ja => "イナズマイレブン Victory Road のファイルを閲覧します。",
     };
     (
-        format!("{premier} — Aphrody"),
+        format!("{premier}{SUFFIXE_TITRE}"),
         generique.to_owned(),
         "article",
     )
@@ -572,7 +589,7 @@ fn donnees_structurees(
     let mut graphe = vec![serde_json::json!({
         "@type": "WebSite",
         "@id": format!("{racine}#site"),
-        "name": "Aphrody",
+        "name": SITE,
         "url": racine,
         "inLanguage": langue.code(),
         "description": description,
@@ -634,8 +651,8 @@ fn donnees_structurees(
         graphe.push(serde_json::json!({
             "@type": "BreadcrumbList",
             "itemListElement": [
-                { "@type": "ListItem", "position": 1, "name": "Aphrody", "item": racine },
-                { "@type": "ListItem", "position": 2, "name": titre.trim_end_matches(" — Aphrody"), "item": url },
+                { "@type": "ListItem", "position": 1, "name": SITE, "item": racine },
+                { "@type": "ListItem", "position": 2, "name": titre.trim_end_matches(SUFFIXE_TITRE), "item": url },
             ],
         }));
     }
@@ -676,7 +693,7 @@ pub fn construire(
         .map(|l| Lien {
             // Relatif, et non absolu comme le `hreflang` du `<head>`. Les deux ne servent pas
             // le meme public : `hreflang` s'adresse a un moteur, qui exige une URL absolue ;
-            // ceci est un lien qu'un visiteur clique, et une URL absolue vers `aphrody.com`
+            // ceci est un lien qu'un visiteur clique, et une URL absolue vers `nie.aphrody.com`
             // ferait quitter une preview ou une machine de developpement pour la production.
             href: match l.url("", route).as_str() {
                 "" => "/".to_owned(),
@@ -888,7 +905,7 @@ mod tests {
     use super::*;
 
     fn page(route: &str, langue: Langue) -> String {
-        construire("https://aphrody.com", route, langue, None, None, None)
+        construire("https://nie.aphrody.com", route, langue, None, None, None)
             .render()
             .expect("rendu")
     }
@@ -918,14 +935,14 @@ mod tests {
         // Les deux alias montrent la page de l'explorateur : ils doivent la DESIGNER, sinon
         // trois URL se declarent trois pages pour un seul ecran.
         for alias in ["/recherche", "/donnees"] {
-            let c = construire("https://aphrody.com", alias, Langue::Fr, None, None, None);
-            assert_eq!(c.url, "https://aphrody.com/explorateur", "{alias}");
-            assert_eq!(c.titre, "Explorer — Aphrody", "{alias}");
+            let c = construire("https://nie.aphrody.com", alias, Langue::Fr, None, None, None);
+            assert_eq!(c.url, "https://nie.aphrody.com/explorateur", "{alias}");
+            assert_eq!(c.titre, "Explorer — nie", "{alias}");
             assert!(!c.noindex, "{alias} est servie");
             assert_eq!(c.route, alias, "le bundle garde la route demandee");
         }
         let inconnue = construire(
-            "https://aphrody.com",
+            "https://nie.aphrody.com",
             "/gallery",
             Langue::Fr,
             None,
@@ -937,8 +954,8 @@ mod tests {
 
     #[test]
     fn metadonnees_par_route() {
-        assert!(metadonnees("/", Langue::Fr).0.starts_with("Aphrody"));
-        assert_eq!(metadonnees("/textures", Langue::Fr).0, "Textures — Aphrody");
+        assert!(metadonnees("/", Langue::Fr).0.starts_with("nie"));
+        assert_eq!(metadonnees("/textures", Langue::Fr).0, "Textures — nie");
         assert_eq!(metadonnees("/modeles/x/y", Langue::Fr).2, "website");
         assert_eq!(metadonnees("/inconnue", Langue::Fr).2, "article");
     }
@@ -948,9 +965,9 @@ mod tests {
         let fr = metadonnees("/modeles", Langue::Fr).0;
         let en = metadonnees("/modeles", Langue::En).0;
         let ja = metadonnees("/modeles", Langue::Ja).0;
-        assert_eq!(fr, "Modèles — Aphrody");
-        assert_eq!(en, "Models — Aphrody");
-        assert_eq!(ja, "モデル — Aphrody");
+        assert_eq!(fr, "Modèles — nie");
+        assert_eq!(en, "Models — nie");
+        assert_eq!(ja, "モデル — nie");
         // Une traduction oubliée se voit ici, pas en production.
         assert_ne!(fr, en);
         assert_ne!(en, ja);
@@ -964,10 +981,10 @@ mod tests {
     fn coquille_porte_les_balises_og() {
         // L'image n'est plus injectee par le test : elle doit etre la SANS qu'on la pose,
         // sinon on verifie une balise que la production n'emet pas.
-        let c = construire("https://aphrody.com", "/", Langue::Fr, None, None, None);
+        let c = construire("https://nie.aphrody.com", "/", Langue::Fr, None, None, None);
         assert_eq!(
             c.image.as_deref(),
-            Some("https://aphrody.com/static/og.png")
+            Some("https://nie.aphrody.com/static/og.png")
         );
         let html = c.render().expect("rendu");
         for balise in [
@@ -1018,10 +1035,10 @@ mod tests {
         for langue in Langue::TOUTES {
             let html = page("/textures", langue);
             for attendu in [
-                r#"hreflang="fr" href="https://aphrody.com/textures""#,
-                r#"hreflang="en" href="https://aphrody.com/en/textures""#,
-                r#"hreflang="ja" href="https://aphrody.com/ja/textures""#,
-                r#"hreflang="x-default" href="https://aphrody.com/textures""#,
+                r#"hreflang="fr" href="https://nie.aphrody.com/textures""#,
+                r#"hreflang="en" href="https://nie.aphrody.com/en/textures""#,
+                r#"hreflang="ja" href="https://nie.aphrody.com/ja/textures""#,
+                r#"hreflang="x-default" href="https://nie.aphrody.com/textures""#,
             ] {
                 assert!(html.contains(attendu), "en {langue}, absent : {attendu}");
             }
@@ -1043,10 +1060,10 @@ mod tests {
     fn le_canonical_porte_le_prefixe_de_langue() {
         assert!(
             page("/textures", Langue::Ja)
-                .contains(r#"<link rel="canonical" href="https://aphrody.com/ja/textures">"#)
+                .contains(r#"<link rel="canonical" href="https://nie.aphrody.com/ja/textures">"#)
         );
         assert!(
-            page("/", Langue::Fr).contains(r#"<link rel="canonical" href="https://aphrody.com">"#)
+            page("/", Langue::Fr).contains(r#"<link rel="canonical" href="https://nie.aphrody.com">"#)
         );
     }
 
@@ -1083,7 +1100,7 @@ mod tests {
     fn la_largeur_compte_les_ideogrammes_pour_deux() {
         assert_eq!(largeur_affichage("abc"), 3);
         assert_eq!(largeur_affichage("テクスチャ"), 10);
-        assert_eq!(largeur_affichage("モデル — Aphrody"), 6 + 1 + 1 + 1 + 7);
+        assert_eq!(largeur_affichage("モデル — nie"), 6 + 1 + 1 + 1 + 3);
         // Un caractère latin pleine chasse compte double, comme un idéogramme.
         assert_eq!(largeur_affichage("Ａ"), 2);
         assert_eq!(largeur_affichage(""), 0);
@@ -1155,7 +1172,7 @@ mod tests {
     #[test]
     fn le_catalogue_est_rendu_cote_serveur() {
         let c = construire(
-            "https://aphrody.com",
+            "https://nie.aphrody.com",
             "/textures",
             Langue::Fr,
             None,
@@ -1177,7 +1194,7 @@ mod tests {
     #[test]
     fn la_pagination_se_declare_dans_le_canonique_et_dans_le_head() {
         let c = construire(
-            "https://aphrody.com",
+            "https://nie.aphrody.com",
             "/textures",
             Langue::Ja,
             None,
@@ -1186,13 +1203,13 @@ mod tests {
         );
         // Sans `?page=` au canonique, les pages 2 et suivantes se declarent copies de la
         // premiere, et disparaissent de l'index.
-        assert_eq!(c.url, "https://aphrody.com/ja/textures?page=7");
+        assert_eq!(c.url, "https://nie.aphrody.com/ja/textures?page=7");
         let html = c.render().expect("rendu");
         assert!(html.contains(r#"<link rel="prev" href="/textures?page=6">"#));
         assert!(html.contains(r#"<link rel="next" href="/textures?page=8">"#));
         assert!(
             html.contains(
-                r#"<link rel="canonical" href="https://aphrody.com/ja/textures?page=7">"#
+                r#"<link rel="canonical" href="https://nie.aphrody.com/ja/textures?page=7">"#
             )
         );
         // Les libelles suivent la langue.
@@ -1200,13 +1217,13 @@ mod tests {
         assert!(html.contains("54203 件 · 7 / 904 ページ"));
         // Le groupe hreflang reste celui de la ROUTE, sans le numero de page : les trois
         // langues d'une meme page se pointent, pas la page 7 francaise depuis la page 1.
-        assert!(html.contains(r#"hreflang="fr" href="https://aphrody.com/textures""#));
+        assert!(html.contains(r#"hreflang="fr" href="https://nie.aphrody.com/textures""#));
     }
 
     #[test]
     fn la_derniere_page_n_annonce_pas_de_suivante() {
         let c = construire(
-            "https://aphrody.com",
+            "https://nie.aphrody.com",
             "/textures",
             Langue::En,
             None,
@@ -1223,7 +1240,7 @@ mod tests {
     #[test]
     fn l_itemlist_ne_decrit_que_ce_que_la_page_porte() {
         let c = construire(
-            "https://aphrody.com",
+            "https://nie.aphrody.com",
             "/textures",
             Langue::Fr,
             None,
@@ -1252,10 +1269,10 @@ mod tests {
         assert_eq!(liste["itemListElement"][0]["position"], 1);
         assert_eq!(
             liste["itemListElement"][0]["url"],
-            "https://aphrody.com/f/data/dx11/chr/x000.g4tx"
+            "https://nie.aphrody.com/f/data/dx11/chr/x000.g4tx"
         );
         // Une page sans catalogue n'en fabrique pas.
-        let sans = construire("https://aphrody.com", "/", Langue::Fr, None, None, None);
+        let sans = construire("https://nie.aphrody.com", "/", Langue::Fr, None, None, None);
         assert!(!sans.jsonld.contains("ItemList"));
     }
 
@@ -1263,7 +1280,7 @@ mod tests {
     fn les_donnees_structurees_sont_du_json_valide_et_inoffensif() {
         for langue in Langue::TOUTES {
             for route in ["/", "/textures"] {
-                let c = construire("https://aphrody.com", route, langue, None, None, None);
+                let c = construire("https://nie.aphrody.com", route, langue, None, None, None);
                 // Le `<` échappé doit se relire comme du JSON : sinon la page porte un bloc mort.
                 let brut = c
                     .jsonld
@@ -1278,7 +1295,7 @@ mod tests {
             }
         }
         let c = construire(
-            "https://aphrody.com",
+            "https://nie.aphrody.com",
             "/textures",
             Langue::Fr,
             None,

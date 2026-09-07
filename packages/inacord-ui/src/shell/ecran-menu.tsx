@@ -444,7 +444,7 @@ export function KeyCap({ children }: { children: ReactNode }) {
 /**
  * Une banniere penchee, comme la pile du coin bas-droit du menu.
  *
- * Le jeu y annonce ses DLC ; Aphrody y met des liens reels. La forme est la meme : bande
+ * Le jeu y annonce ses DLC ; nie y met des liens reels. La forme est la meme : bande
  * penchee, texte clair sur fond sature, empilee vers le haut.
  */
 export function Banniere({

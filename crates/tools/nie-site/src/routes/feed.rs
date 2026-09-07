@@ -3,7 +3,7 @@
 //! ## Pourquoi un flux, et pourquoi celui-là
 //!
 //! Le site n'avait aucun flux. Il n'en a qu'un seul contenu possible, et il faut le dire
-//! franchement : sur les cinq espaces qu'Aphrody publie, quatre — textures, modèles, sons,
+//! franchement : sur les cinq espaces que nie publie, quatre — textures, modèles, sons,
 //! vidéos — sont des vues de l'index du VFS, et **le VFS ne porte aucune date**. Un fichier du
 //! jeu n'a pas de « date d'ajout » : il apparaît avec une mise à jour du jeu et disparaît avec
 //! la suivante. Il n'existe donc rien à syndiquer là-bas, et fabriquer une date d'ajout serait
@@ -175,7 +175,7 @@ pub async fn atom(State(etat): State<EtatSite>) -> Response {
         .unwrap_or_else(|| crate::routes::well_known::iso8601_utc(0));
 
     let flux = Flux {
-        titre: "Aphrody — épisodes",
+        titre: "nie — épisodes",
         sous_titre: "Les épisodes de la série moissonnés par ce serveur, du plus récent au plus ancien.",
         origine: &etat.config.origine,
         version: crate::VERSION,
@@ -255,7 +255,7 @@ pub fn lire(
 ///
 /// L'identifiant est dérivé de l'origine configurée, comme toutes les URL de la crate : rien
 /// n'est codé en dur, au prix assumé qu'un changement d'origine renumérote le flux — un
-/// déploiement de préversion doit se décrire lui-même plutôt qu'usurper `aphrody.com`.
+/// déploiement de préversion doit se décrire lui-même plutôt qu'usurper `nie.aphrody.com`.
 #[expect(
     clippy::too_many_arguments,
     reason = "neuf colonnes de la table, nommees une par une"
@@ -442,7 +442,7 @@ mod tests {
             "un flux doit savoir se nommer"
         );
         assert!(
-            !rendu.contains("aphrody.com"),
+            !rendu.contains("nie.aphrody.com"),
             "aucune origine codee en dur"
         );
     }

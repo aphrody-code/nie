@@ -7,7 +7,7 @@
 > Synthesizes:
 > 1. The Supreme Objective: **PLAN-SITE-ULTIME** (Master coverage towards `manquant = 0`)
 > 2. The Current Sprint: **CODEX-JOUR-UNIQUE** (7 priority blocks executed in 1 day)
-> 3. The Switchover Horizon: **PLAN.md** (Azalée Vercel / Aphrody `aphrody.com` / Inacord unification)
+> 3. The Switchover Horizon: **PLAN.md** (Azalée Vercel / nie `nie.aphrody.com` / Inacord unification)
 > 4. The Core Engine & Binary Production: **PLAN-MOTEUR-FORGE** (Byte-exactness & RE)
 
 > **Closure ledger — 2026-09-07.** All roadmap blocks are closed with a measured outcome:
@@ -32,7 +32,7 @@
             ┌──────────────────┴──────────────────┐
             ▼                                     ▼
      [ PLAN-SEMAINE (PLAN.md) ]          [ FORGE & MOTEUR (docs/PLAN.md) ]
-  (Bascule Vercel / Aphrody.com)         (nie.exe byte-exact, 92.24% .text)
+  (Bascule Vercel / nie.aphrody.com)         (nie.exe byte-exact, 92.24% .text)
             │
             ▼
  [ CODEX-JOUR-UNIQUE (Sprint Actif) ]
@@ -61,7 +61,7 @@
 
 - **Azalée (`azalee.rosegriffon.fr`)**: Next.js 16.3.0-canary.37 via the root catalog, deployed
   serverless on Vercel and querying Supabase Cloud directly (verified in `package.json`).
-- **Aphrody (`aphrody.com`)**: Native Axum server in Rust (`nie-site`), rendering game UI DA in < 50ms TTFB.
+- **nie (`nie.aphrody.com`)**: Native Axum server in Rust (`nie-site`), rendering game UI DA in < 50ms TTFB.
 - **Inacord (`packages/inacord-ui`)**: Unified frontend mounted by both Tauri (desktop) and Vite/nie-web (browser) via `packages/asset-source`.
 - **The Forge (`nie-forge`)**: Verified at **74.00% file coverage** and **92.24% of `.text`** byte-identical to `nie.exe` (`b1fa04ea3658...`).
 

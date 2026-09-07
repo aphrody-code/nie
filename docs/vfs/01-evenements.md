@@ -1,6 +1,6 @@
 # Domaine 1 — Événements, scénario, scripts
 
-Cahier des charges des routes Aphrody pour `data/common/event/`, `data/common/event_cfg/`,
+Cahier des charges des routes nie pour `data/common/event/`, `data/common/event_cfg/`,
 `data/common/script/`. Toute mesure ci-dessous est reproductible par la commande citée.
 Inventaire source : `var/vfs/lot1-event.txt` (une ligne `chemin taille [cpk]`).
 

@@ -1,4 +1,4 @@
-//! `nie-site` — le serveur d'**Aphrody** (`aphrody.com`), 100 % Rust.
+//! `nie-site` — le serveur de **nie** (`nie.aphrody.com`), 100 % Rust.
 //!
 //! Un seul processus, écoutant sur `127.0.0.1:8085` derrière nginx, qui :
 //!
@@ -10,7 +10,7 @@
 //!   `SQLITE_OPEN_READ_ONLY` sur le miroir ;
 //! - proxifie `nie-model-serve` sous `/assets/*` (concurrence bornée, délai maximal, taille
 //!   de réponse bornée, cache `moka`, ETag `blake3`) ;
-//! - rend `/healthz`, `/robots.txt`, `/.well-known/security.txt`, `/sitemap.xml` et les pages
+//! - rend `/healthz`, `/robots.txt`, `/sitemap.xml` et les pages
 //!   d'erreur, et pose **lui-même** sa `Content-Security-Policy` (nginx n'en pose aucune :
 //!   deux CSP s'additionnent et la plus stricte gagne).
 //!

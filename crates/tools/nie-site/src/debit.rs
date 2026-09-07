@@ -6,7 +6,7 @@
 //!
 //! - ligne 131, hôte `nie.` : `limit_req zone=nie_assets burst=20 nodelay` ;
 //! - ligne 211, hôte `api.` : `limit_req zone=nie_assets burst=40 nodelay` ;
-//! - lignes 50 à 77, hôte **`aphrody.com` lui-même** : `proxy_pass 127.0.0.1:8085`, et
+//! - lignes 50 à 77, hôte **`nie.aphrody.com` lui-même** : `proxy_pass 127.0.0.1:8085`, et
 //!   **aucun `limit_req`**.
 //!
 //! Le site public est donc le seul des trois à n'avoir aucune borne de débit, et c'est celui

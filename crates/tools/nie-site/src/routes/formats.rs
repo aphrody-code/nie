@@ -1,4 +1,4 @@
-//! La couche « formats Level-5 » du dépôt, servie par Aphrody — `/api/v1/formats/*`.
+//! La couche « formats Level-5 » du dépôt, servie par nie — `/api/v1/formats/*`.
 //!
 //! ## Ce que cette crate décode elle-même, et ce qu'elle délègue
 //!
@@ -174,10 +174,6 @@ pub struct Famille {
 /// Corps de `/api/v1/formats`.
 #[derive(Debug, Clone, Serialize)]
 pub struct CapacitesFormats {
-    /// Toujours `nie-site`.
-    pub service: &'static str,
-    /// Version de la crate.
-    pub version: &'static str,
     /// Vrai quand l'index du VFS est prêt : sans lui, aucun compte n'est mesurable.
     pub vfs_pret: bool,
     /// Nombre total de chemins indexés.
@@ -283,8 +279,6 @@ pub async fn capacites(State(etat): State<EtatSite>) -> Json<CapacitesFormats> {
         .collect();
 
     Json(CapacitesFormats {
-        service: crate::SERVICE,
-        version: crate::VERSION,
         vfs_pret: index.is_some(),
         vfs_entrees: index.as_ref().map_or(0, |i| i.len()),
         features: features(),

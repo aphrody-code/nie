@@ -1,5 +1,5 @@
 /**
- * Les quatre catalogues du jeu — textures, modèles, sons, vidéos — portés du wiki vers Aphrody.
+ * Les quatre catalogues du jeu — textures, modèles, sons, vidéos — portés du wiki vers nie.
  *
  * ## Une page pour quatre vues, et pourquoi
  *
@@ -15,7 +15,7 @@
  *
  * Elles parlaient au VFS par la couche `cpk/live` du wiki, adossée au disque du VPS. Celle-ci
  * ne connaît que le contrat : elle demande une page de catalogue à `AssetSource`, et l'hôte
- * décide d'où elle vient. Aphrody la sert par `/api/v1/<vue>`, Inacord par sa recherche
+ * décide d'où elle vient. nie la sert par `/api/v1/<vue>`, Inacord par sa recherche
  * native.
  *
  * ## La vue est un FILTRE, jamais un dossier

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Mesure les FILTRES que l'API d'Aphrody applique reellement — lot 8 de docs/PLAN-SITE-ULTIME.md.
+# Mesure les FILTRES que l'API de nie applique reellement — lot 8 de docs/PLAN-SITE-ULTIME.md.
 #
 #   scripts/validation/mesurer-filtres.sh [base]
 #

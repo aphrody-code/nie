@@ -1,5 +1,5 @@
 /**
- * `@niers/inacord-ui` — l'interface partagee d'Inacord et d'Aphrody.
+ * `@niers/inacord-ui` — l'interface partagee d'Inacord et de nie.
  *
  * Un composant de ce paquet ne connait pas son hote : il demande sa source par
  * `useAssetSource()` et ce qu'elle sait faire par `useCapacites()`. C'est la condition pour que
@@ -15,7 +15,7 @@ export {
 
 // --- Coquilles : la direction artistique du jeu ------------------------------------------
 //
-// Deux ambiances, montees par deux hotes : le MENU PRINCIPAL pour Aphrody, INACORD pour
+// Deux ambiances, montees par deux hotes : le MENU PRINCIPAL pour nie, INACORD pour
 // l'application de bureau. Elles ne dessinent que des formes — aucune source, aucun hote.
 // Les couleurs vivent dans `shell/game-tokens.css`, mesurees sur la reference archivee.
 export {
@@ -109,7 +109,7 @@ export {
 // `next/*` — mesures : `next/link` 61 fois, `next/image` 53, `next/navigation` 27 — et ce
 // paquet est monte par DEUX hotes dont aucun n'est Next. Trois adaptateurs les remplacent, et
 // `FournisseurNavigation` est ce que l'hote installe pour que `Link` navigue a sa maniere :
-// par etat sous Aphrody, par le navigateur ailleurs.
+// par etat sous nie, par le navigateur ailleurs.
 export {
 	FournisseurNavigation,
 	Image,

@@ -43,7 +43,7 @@ les 10 plus grosses :
 | `10_win` | 281 | fenêtres génériques (popups, listes) |
 | `75_vroad` | 239 | mode Victory Road |
 | `107_vs` | 215 | écrans de mise en versus |
-| `100_mainmenu` | 186 | **menu principal — DA de référence d'Aphrody** |
+| `100_mainmenu` | 186 | **menu principal — DA de référence de nie** |
 
 Le reste (161_avatar, 160_town, 91_quest, 150_shop, 108_option, 105_datafile, 210_minimap,
 103_item, 115_calendar, 90_map, 106_info, 122_opponent, 150_list, 121_inacord, 55_information,
@@ -168,13 +168,13 @@ un écran.
 ## 5. Ce que le site sert déjà (mesuré en direct, 2026-09-06)
 
 Deux services distincts répondent sur cette machine :
-- `nie-site` (crate Rust servant Aphrody), `127.0.0.1:8085`
+- `nie-site` (crate Rust servant nie), `127.0.0.1:8085`
 - `nie-model-serve`, `127.0.0.1:8790` — routes `/tex`, `/menu-tree`, `/vfs`
 
 ```
 curl -s http://127.0.0.1:8085/api/v1/formats
 ```
-→ `{"service":"nie-site","version":"0.5.9","vfs_pret":true,"vfs_entrees":255308,…}`.
+→ `{"etat":"ok","capacites":{"vfs":"pret","vfs_entrees":255308,…}}` — ni nom de service ni version.
 Entrée `.g4tx` : `{"decodage":"delegue","route":"/assets/tex/{chemin}.png","sortie":"image/png",
 "fichiers":54203,"octets":82004879296}` — chiffre couvrant tout le VFS (menus + autres domaines
 texture), pas seulement ce lot de 44 612.

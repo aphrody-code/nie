@@ -1,4 +1,8 @@
-//! `/robots.txt`, `/.well-known/security.txt` et `/sitemap.xml`.
+//! `/robots.txt` et `/sitemap.xml`.
+//!
+//! `/.well-known/security.txt` a ete RETIRE. La RFC 9116 impose un champ `Contact`, et un
+//! contact est une identite publiee : c'est la seule chose que cette origine disait d'elle
+//! au-dela du jeu. Servir un document invalide aurait ete pire que ne rien servir.
 //!
 //! Les trois sont rendus par `askama` depuis l'origine configurée : rien n'est codé en dur, un
 //! déploiement sur une autre origine (preview, machine de développement) rend des documents
@@ -18,6 +22,7 @@ use axum::response::{IntoResponse, Response};
 
 use crate::i18n::{Alternative, Langue, alternatives};
 use crate::state::EtatSite;
+use crate::routes::pages::SITE;
 
 /// Une route de navigation publiée au plan de site, avant traduction.
 #[derive(Debug, Clone)]
@@ -176,13 +181,6 @@ struct LlmsComplet<'a> {
 }
 
 #[derive(Template)]
-#[template(path = "security.txt")]
-struct Securite<'a> {
-    origine: &'a str,
-    expiration: String,
-}
-
-#[derive(Template)]
 #[template(path = "sitemap.xml")]
 struct Plan<'a> {
     urls: &'a [EntreePlan],
@@ -214,22 +212,6 @@ pub async fn robots(State(etat): State<EtatSite>) -> Response {
             origine: &etat.config.origine,
             chemins: chemins_autorises(),
             agents: &AGENTS_IA,
-        }
-        .render(),
-        "text/plain; charset=utf-8",
-    )
-}
-
-/// `/.well-known/security.txt`.
-///
-/// `Expires` est obligatoire (RFC 9116) et doit être dans le futur : il est calculé à
-/// l'exécution, un an après le démarrage, plutôt que figé dans le dépôt où il périme sans
-/// que personne ne le voie.
-pub async fn security(State(etat): State<EtatSite>) -> Response {
-    texte(
-        Securite {
-            origine: &etat.config.origine,
-            expiration: expiration_dans_un_an(),
         }
         .render(),
         "text/plain; charset=utf-8",
@@ -279,15 +261,15 @@ pub async fn manifeste(uri: axum::http::Uri) -> Response {
     };
     let (nom, description) = match langue {
         Langue::Fr => (
-            "Aphrody",
+            SITE,
             "Explorer, décoder et exporter les fichiers d'Inazuma Eleven: Victory Road.",
         ),
         Langue::En => (
-            "Aphrody",
+            SITE,
             "Browse, decode and export the files of Inazuma Eleven: Victory Road.",
         ),
         Langue::Ja => (
-            "Aphrody",
+            SITE,
             "イナズマイレブン Victory Road のファイルを閲覧・デコード・書き出しできます。",
         ),
     };
@@ -348,15 +330,6 @@ fn lastmod_du_gisement(db: &std::path::Path) -> Option<String> {
     Some(iso8601_utc(secondes).chars().take(10).collect())
 }
 
-/// Horodatage ISO 8601 UTC, un an après maintenant, sans dépendance de calendrier.
-fn expiration_dans_un_an() -> String {
-    let secondes = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |d| d.as_secs())
-        + 365 * 24 * 3600;
-    iso8601_utc(secondes)
-}
-
 /// Convertit un instant Unix en `AAAA-MM-JJTHH:MM:SSZ` (calendrier grégorien proleptique).
 ///
 /// Visible dans la crate parce que le flux Atom en a besoin mot pour mot : un flux exige du
@@ -391,7 +364,7 @@ mod tests {
     #[test]
     fn plan_complet() {
         assert_eq!(PLAN.len(), 5);
-        let urls = plan_trilingue("https://aphrody.com");
+        let urls = plan_trilingue("https://nie.aphrody.com");
         assert_eq!(urls.len(), 15, "5 routes x 3 langues");
         let rendu = Plan {
             urls: &urls,
@@ -401,25 +374,25 @@ mod tests {
         .unwrap();
         assert_eq!(rendu.matches("<url>").count(), 15);
         assert!(rendu.starts_with("<?xml"));
-        assert!(rendu.contains("https://aphrody.com/medias"));
-        assert!(rendu.contains("https://aphrody.com/ja/medias"));
+        assert!(rendu.contains("https://nie.aphrody.com/medias"));
+        assert!(rendu.contains("https://nie.aphrody.com/ja/medias"));
         // Les quatre URL de catalogue restent SERVIES, mais ne sont plus annoncées : une page,
         // une URL canonique.
-        assert!(!rendu.contains("https://aphrody.com/textures"));
-        assert!(!rendu.contains("https://aphrody.com/videos"));
-        assert!(!rendu.contains("https://aphrody.com/en/videos"));
+        assert!(!rendu.contains("https://nie.aphrody.com/textures"));
+        assert!(!rendu.contains("https://nie.aphrody.com/videos"));
+        assert!(!rendu.contains("https://nie.aphrody.com/en/videos"));
         // L'explorateur est une entrée du site : il a sa page, donc sa place au plan.
-        assert!(rendu.contains("https://aphrody.com/explorateur"));
-        assert!(rendu.contains("https://aphrody.com/ja/explorateur"));
+        assert!(rendu.contains("https://nie.aphrody.com/explorateur"));
+        assert!(rendu.contains("https://nie.aphrody.com/ja/explorateur"));
         // `/recherche` et `/donnees`, elles, n'y sont PAS : elles mènent à l'explorateur, et
         // trois URL pour une page les feraient concourir entre elles.
-        assert!(!rendu.contains("https://aphrody.com/donnees"));
-        assert!(!rendu.contains("https://aphrody.com/recherche"));
+        assert!(!rendu.contains("https://nie.aphrody.com/donnees"));
+        assert!(!rendu.contains("https://nie.aphrody.com/recherche"));
         // Les Options ont leur page, donc leur place au plan — dans les trois langues.
-        assert!(rendu.contains("https://aphrody.com/settings"));
-        assert!(rendu.contains("https://aphrody.com/en/settings"));
-        assert!(rendu.contains("https://aphrody.com/avatar"));
-        assert!(rendu.contains("https://aphrody.com/ja/avatar"));
+        assert!(rendu.contains("https://nie.aphrody.com/settings"));
+        assert!(rendu.contains("https://nie.aphrody.com/en/settings"));
+        assert!(rendu.contains("https://nie.aphrody.com/avatar"));
+        assert!(rendu.contains("https://nie.aphrody.com/ja/avatar"));
         // Chaque entrée porte son groupe complet : 12 x 4 liens alternatifs.
         assert_eq!(rendu.matches("xhtml:link").count(), 60);
         assert_eq!(rendu.matches("hreflang=\"x-default\"").count(), 15);
@@ -430,7 +403,7 @@ mod tests {
 
     #[test]
     fn un_gisement_absent_n_invente_pas_de_date() {
-        let urls = plan_trilingue("https://aphrody.com");
+        let urls = plan_trilingue("https://nie.aphrody.com");
         let rendu = Plan {
             urls: &urls,
             lastmod: None,
@@ -447,13 +420,13 @@ mod tests {
     #[test]
     fn robots_pointe_le_plan() {
         let r = Robots {
-            origine: "https://aphrody.com",
+            origine: "https://nie.aphrody.com",
             chemins: chemins_autorises(),
             agents: &AGENTS_IA,
         }
         .render()
         .unwrap();
-        assert!(r.contains("Sitemap: https://aphrody.com/sitemap.xml"));
+        assert!(r.contains("Sitemap: https://nie.aphrody.com/sitemap.xml"));
         // 9 : les 5 du regime general, plus les 4 que le regime des agents repete. Un
         // `Disallow` pose dans un bloc ne vaut QUE pour ce bloc — l'oublier dans le second
         // ouvrirait les 255 000 fichiers aux agents.
@@ -480,7 +453,7 @@ mod tests {
             );
         }
         let r = Robots {
-            origine: "https://aphrody.com",
+            origine: "https://nie.aphrody.com",
             chemins,
             agents: &AGENTS_IA,
         }
@@ -499,7 +472,7 @@ mod tests {
     #[test]
     fn les_agents_ont_leur_propre_regime() {
         let r = Robots {
-            origine: "https://aphrody.com",
+            origine: "https://nie.aphrody.com",
             chemins: chemins_autorises(),
             agents: &AGENTS_IA,
         }
@@ -542,11 +515,11 @@ mod tests {
         .unwrap();
         // Aucune origine en dur : un deploiement de preview doit se decrire lui-meme.
         for doc in [&court, &complet] {
-            assert!(!doc.contains("aphrody.com"), "origine codee en dur");
+            assert!(!doc.contains("nie.aphrody.com"), "origine codee en dur");
             assert!(doc.contains("https://exemple.test"));
         }
         assert!(
-            court.starts_with("# Aphrody"),
+            court.starts_with("# nie"),
             "llms.txt commence par son titre"
         );
         assert!(court.contains("> "), "llms.txt porte son resume");
@@ -589,6 +562,5 @@ mod tests {
         assert_eq!(iso8601_utc(0), "1970-01-01T00:00:00Z");
         // 2026-09-05T00:00:00Z
         assert_eq!(iso8601_utc(1_788_566_400), "2026-09-05T00:00:00Z");
-        assert!(expiration_dans_un_an().as_str() > "2027-01-01T00:00:00Z");
     }
 }

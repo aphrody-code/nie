@@ -488,7 +488,7 @@ pub fn decode_by_key(key: &str, root: &Value) -> Option<(&'static str, Value)> {
                 crate::event_map_tag::parse_event_map_tag_config(root)
             )
         }
-        // Seize familles ajoutees le 2026-09-06, apres que la matrice de couverture d'Aphrody
+        // Seize familles ajoutees le 2026-09-06, apres que la matrice de couverture de nie
         // (`docs/PLAN-SITE-ULTIME.md` § 4) eut chiffre ce qui manquait : chacune a son parseur
         // ecrit et golden-teste dans ce crate, sa cle presente dans le VFS du jeu, et n'etait
         // atteignable par AUCUN des trois consommateurs de cette facade (nie-model-serve,

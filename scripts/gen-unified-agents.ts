@@ -29,7 +29,7 @@ const unifiedAgentsContent = `# UNIFIED-AGENTS.md — Single Authority & Operati
 ### 1.2 Language Convention
 - **English** for all machine-readable and technical identifiers: file & directory names, variables, functions, types, fields, constants, modules, **URLs, route patterns, query parameters, site slugs, public JSON keys**, CLI commands, DB tables/columns, and documentation written for agents.
 - **French** strictly reserved for prose addressed to the user (reports, summaries, explanations).
-- **Product Names Frozen:** Azalée, Aphrody, Inacord, nie, \`niers\`, the \`nie-*\` crates, and the \`inagle_\` table prefix.
+- **Product Names Frozen:** Azalée, Inacord, nie, \`niers\`, the \`nie-*\` crates, and the \`inagle_\` table prefix.
 
 ### 1.3 Never Overwrite Another Agent
 1. **Announce Scope Before Writing:** Post a \`claim: <paths>\` before touching files outside your current batch.

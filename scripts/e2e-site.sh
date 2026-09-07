@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# e2e-site.sh — suite de bout en bout d'Aphrody : le VRAI binaire, le VRAI bundle, le VRAI VFS.
+# e2e-site.sh — suite de bout en bout de nie : le VRAI binaire, le VRAI bundle, le VRAI VFS.
 #
 # ## Pourquoi cette suite existe
 #
@@ -134,7 +134,7 @@ entete() {
 		'tolower($1) == n { sub(/^[^:]*: /, ""); print; exit }'
 }
 
-echo "▸ Aphrody — suite de bout en bout (port $PORT)"
+echo "▸ nie — suite de bout en bout (port $PORT)"
 
 # --- 1. Construire ce qui sera servi ---------------------------------------------------------
 if [ "$BUILD" -eq 1 ]; then
@@ -225,7 +225,12 @@ verifier "GET /healthz" "200 " "$(req /healthz | cut -d' ' -f1) "
 read -r code _ <<<"$(req /api/v1/health)"
 verifier "GET /api/v1/health" "200" "$code"
 SANTE="$(cat "$CORPS")"
-verifier "service annoncé" "nie-site" "$(jq -r '.service' <<<"$SANTE")"
+# Le service ne se nomme plus dans ses reponses : la sonde se verifie sur ce qu'elle
+# MESURE. `.capacites` n'existe que chez `nie-site` — l'ancien service de :8083 rendait
+# une page vide, pas un objet de capacites.
+verifier "sonde sans nom de service" "null" "$(jq -r '.service' <<<"$SANTE")"
+verifier "sonde sans version" "null" "$(jq -r '.version' <<<"$SANTE")"
+verifier "capacites mesurees" "object" "$(jq -r '.capacites | type' <<<"$SANTE")"
 verifier "version d'API" "v1" "$(jq -r '.api' <<<"$SANTE")"
 verifier "bundle vu par le serveur" "true" "$(jq -r '.capacites.bundle' <<<"$SANTE")"
 
@@ -318,7 +323,7 @@ for chemin in "/f/../../etc/passwd" "/f/data/../../../etc/passwd" "/assets/../..
 done
 
 # --- 8. Fichiers de référencement --------------------------------------------------------------
-for chemin in /robots.txt /.well-known/security.txt /sitemap.xml; do
+for chemin in /robots.txt /sitemap.xml; do
 	verifier "GET $chemin" "200" "$(req "$chemin" | cut -d' ' -f1)"
 done
 
@@ -392,7 +397,7 @@ if [ "$ETAT_VFS" = "pret" ]; then
 
 	# Les sous-dossiers sont des chemins COMPLETS, pas des noms relatifs — un client qui les
 	# concatène au préfixe courant demande `data/data/common` et reçoit un dossier vide, sans
-	# erreur ni trace. Le défaut a existé dans l'explorateur d'Aphrody le 2026-09-05 ; cette
+	# erreur ni trace. Le défaut a existé dans l'explorateur de nie le 2026-09-05 ; cette
 	# vérification le rend impossible à réintroduire en silence.
 	premier_dossier="$(jq -r '(.dossiers // [])[0] // ""' <"$CORPS")"
 	verifier "/b : les sous-dossiers sont des chemins complets" "1" \
@@ -467,7 +472,7 @@ fi
 
 # --- Rapport ----------------------------------------------------------------------------------
 echo
-echo "── Aphrody, bout en bout ──────────────────────────────────────────"
+echo "── nie, bout en bout ──────────────────────────────────────────"
 printf '%s\n' "${LIGNES[@]}"
 echo "───────────────────────────────────────────────────────────────────"
 echo "  VFS $ETAT_VFS ($VFS_ENTREES entrées) · bundle $(du -sh "$BUNDLE" | cut -f1)"

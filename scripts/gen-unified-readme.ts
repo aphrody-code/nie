@@ -15,7 +15,7 @@ Pour éviter la dispersion et les redondances entre agents (Claude, Codex, Astra
 | Document | Rôle & Contenu |
 | :--- | :--- |
 | **[UNIFIED-AGENTS.md](UNIFIED-AGENTS.md)** | **Contrat opérationnel unique** : règles multi-agents, urgence/YOLO, convention de langue (EN identifiants / FR utilisateur), gates Cargo/Bun, protocole A2A, pièges de compilation et environnement Windows/Linux. |
-| **[UNIFIED-PLAN.md](UNIFIED-PLAN.md)** | **Feuille de route & Plans unifiés** : synthèse du cap ultime (\`manquant = 0\`), des 7 blocs prioritaires actifs, de la bascule Vercel/Aphrody.com et de la forge byte-exacte. |
+| **[UNIFIED-PLAN.md](UNIFIED-PLAN.md)** | **Feuille de route & Plans unifiés** : synthèse du cap ultime (\`manquant = 0\`), des 7 blocs prioritaires actifs, de la bascule Vercel/nie.aphrody.com et de la forge byte-exacte. |
 | **[AUDIT-USAGE-GEMINI-FLASH.md](AUDIT-USAGE-GEMINI-FLASH.md)** | **Analyse des quotas & capacité de travail** : mesure des 307 623 lignes Rust, calcul de l'overhead agy-cli et projection d'autonomie avec Gemini 3.8 Flash (Thinking Low). |
 
 ---
@@ -37,7 +37,7 @@ Pour éviter la dispersion et les redondances entre agents (Claude, Codex, Astra
 
 ### 2.3 Applications, Wiki & Production Web
 - **[AZALEE.md](AZALEE.md)** & **[MIGRATION-SUPABASE-CLOUD-ANALYSIS.md](MIGRATION-SUPABASE-CLOUD-ANALYSIS.md)** : Architecture serverless du wiki Azalée sur Vercel et pooler Supabase Cloud.
-- **[MIGRATION-EXPLORATEUR.md](MIGRATION-EXPLORATEUR.md)** : Unification Inacord / Aphrody via \`packages/inacord-ui\`.
+- **[MIGRATION-EXPLORATEUR.md](MIGRATION-EXPLORATEUR.md)** : Unification Inacord / nie via \`packages/inacord-ui\`.
 - **[FILTRES.md](FILTRES.md)** : Matrice des filtres et navigation du catalogue.
 - **[EXPLOITATION.md](EXPLOITATION.md)** & **[SECURITE-BASCULE.md](SECURITE-BASCULE.md)** : Gestion de la production VPS, services systemd, nginx et remédiation sécurité.
 - **[FUSION.md](FUSION.md)** : Justification du monorepo unifié pour l'écosystème Inazuma Eleven.

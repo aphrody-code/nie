@@ -1,4 +1,4 @@
-# Aphrody (aphrody.com) — servi par la crate `nie-site`, 100 % Rust, sur 127.0.0.1:8085.
+# nie (nie.aphrody.com) — servi par la crate `nie-site`, 100 % Rust, sur 127.0.0.1:8085.
 #
 # NE PAS INSTALLER depuis cette session : l'installation, le `daemon-reload` et le `reload`
 # nginx sont des actes de production (J5 du PLAN, propriétaire Codex, avec le go de
@@ -8,10 +8,10 @@
 #   sudo systemctl daemon-reload && sudo systemctl enable --now nie-site
 #   curl -s http://127.0.0.1:8085/healthz | jq .        # doit répondre "nie-site"
 #
-# Rollback : le vhost `aphrody.com` repointe sur :8083 (`aphrody-site` n'est jamais arrêté).
+# Rollback : le vhost `nie.aphrody.com` repointe sur :8083 (`aphrody-site` n'est jamais arrêté).
 
 [Unit]
-Description=nie-site — Aphrody (bundle nie-web, /api/v1, espaces VFS /f et /b, proxy nie-model-serve)
+Description=nie-site — nie (bundle nie-web, /api/v1, espaces VFS /f et /b, proxy nie-model-serve)
 Documentation=file:///home/ubuntu/niers/docs/stack/web-platform.md
 After=network.target
 # Le proxy /assets dégrade proprement quand l'amont est absent (502/504) : la dépendance est
@@ -29,7 +29,7 @@ ExecStart=/home/ubuntu/niers/target/release/nie-site \
     --db /home/ubuntu/niers/var/mirror.sqlite \
     --upstream http://127.0.0.1:8790 \
     --bundle-dir /home/ubuntu/niers/apps/nie-web/dist \
-    --origin https://aphrody.com
+    --origin https://nie.aphrody.com
 
 # Le VFS se monte en tâche de fond : le processus écoute et répond /healthz immédiatement,
 # et /f + /b passent de 503 à 200 quand l'index des ~255 000 entrées est construit.

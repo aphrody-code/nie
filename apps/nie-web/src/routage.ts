@@ -1,12 +1,12 @@
 /**
- * Le routage d'Aphrody : l'entrée courante vit dans le CHEMIN, pas dans un paramètre.
+ * Le routage de nie : l'entrée courante vit dans le CHEMIN, pas dans un paramètre.
  *
  * ## Pourquoi ce changement
  *
  * L'entrée vivait dans `?vue=textures`. Le serveur, lui, annonçait depuis le début quatre URL
  * distinctes — `/textures`, `/modeles`, `/sons`, `/videos` — avec pour chacune son `<title>`,
  * sa description, son canonique et son entrée au plan du site. Les deux ne se rencontraient
- * jamais : `https://aphrody.com/textures` servait les métadonnées des textures et affichait
+ * jamais : `https://nie.aphrody.com/textures` servait les métadonnées des textures et affichait
  * l'accueil. Quatre URL indexées, un seul contenu rendu, et aucun message d'erreur nulle part.
  *
  * Un paramètre de requête n'est de toute façon pas une page distincte pour un moteur, et il ne

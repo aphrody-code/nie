@@ -44,7 +44,7 @@ const llmsContent = `# Azalée — Wiki Inazuma Eleven: Victory Road
 - [Passifs](https://azalee.rosegriffon.fr/passive) : compétences passives.
 - [Tactiques](https://azalee.rosegriffon.fr/tactic) : tactiques d'équipe.
 - [Actualités](https://azalee.rosegriffon.fr/news) : annonces et patch-notes.
-- [Explorateur Inacord](https://aphrody.com) : outils de bureau et navigation de catalogue.
+- [Explorateur Inacord](https://nie.aphrody.com) : outils de bureau et navigation de catalogue.
 
 ## Liens utiles
 - [Sitemap](https://azalee.rosegriffon.fr/sitemap.xml)

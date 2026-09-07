@@ -1,9 +1,9 @@
 /**
- * La coquille « menu principal » — la direction artistique du jeu, pour Aphrody.
+ * La coquille « menu principal » — la direction artistique du jeu, pour nie.
  *
  * Ces composants ne dessinent que des FORMES : ils ne savent rien des donnees, ne lisent aucune
  * source, et ne connaissent pas leur hote. Ce qui les rend reutilisables tels quels dans
- * Inacord comme dans Aphrody.
+ * Inacord comme dans nie.
  *
  * Le trait qui signe l'interface du jeu est le BISEAU : les tuiles du menu ne sont pas des
  * rectangles arrondis mais des parallelogrammes coupes, empiles en rangees decalees. Tout le

@@ -885,7 +885,7 @@ const dossier: Ligne = {
     // Ce qui, en revanche, ne partage QUE le nom.
     homonymes: {
         crate_aphrody_re: "crates/forge/aphrody-re — primitives de reverse-engineering (triage PE/ELF, chaines, desassemblage x86). Aucun rapport avec le personnage.",
-        site_aphrody: "aphrody.com — le site d'outils et d'assets (crate nie-site), projet aphrody-dev. Le nom vient du personnage, le contenu n'a rien a voir.",
+        site_aphrody: "nie.aphrody.com — le site d'outils et d'assets (crate nie-site), projet aphrody-dev. Le nom vient du personnage, le contenu n'a rien a voir.",
     },
     identite: {
         nom_fr: p.name_fr,

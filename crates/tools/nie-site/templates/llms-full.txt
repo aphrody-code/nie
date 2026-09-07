@@ -1,4 +1,4 @@
-# Aphrody — full reference for automated clients
+# nie — full reference for automated clients
 
 > Everything an agent needs to read this site without guessing a URL. Every convention below is
 > enforced by the server, not by habit: a wrong shape returns an error rather than an empty page.
@@ -27,7 +27,7 @@ Base: `{{ origine }}/api/v1`
 
 | Endpoint            | Returns                                                       |
 |---------------------|---------------------------------------------------------------|
-| `/health`           | service name, version, and which capabilities are live         |
+| `/health`           | which capabilities are live on this instance                   |
 | `/chara`            | characters, with `name_fr`, `name_en`, `name_ja`               |
 | `/{catalogue}`      | files of one catalogue: `textures`, `modeles`, `sons`, `videos` |
 | `/episodes`         | the animated series catalogue                                  |
@@ -46,12 +46,13 @@ later request fail without explanation.
     {{ origine }}/b/<prefix>    one directory listing
 
 The path is a **segment**, never a query parameter, and the game's extension is preserved. This
-is deliberate: the identifier of a file here is the identifier the game uses, so a path found in
-a decompiled resource can be pasted directly.
+is deliberate: the identifier of a file here is the identifier the game uses, so a path read
+anywhere else in the game can be pasted directly.
 
 Notes that save a round trip:
 
-- Roughly 255 000 files exist. Neither `robots.txt` nor the sitemap lists them.
+- Neither `robots.txt` nor the sitemap lists the files: there are far too many of them for
+  a crawl to be the right shape.
 - `/b/` with no prefix lists the roots.
 - Responses carry a `blake3` ETag; `If-None-Match` is honoured and answers `304`.
 - Files are cached for a day and revalidate in the background.
@@ -75,7 +76,7 @@ capability is missing rather than returning an empty result.
 
 - No account, no session, no write path. The whole site is read-only.
 - No search endpoint yet; select through a catalogue and paginate.
-- No bulk archive. Fetch files individually, or use the repository tooling.
+- No bulk archive. Fetch files individually.
 
 ## 7. Provenance
 

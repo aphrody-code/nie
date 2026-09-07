@@ -67,7 +67,7 @@ export function creerDesktopSource(racineJeu?: string): AssetSource {
 				audio: jeuPresent,
 				video: jeuPresent,
 				// Ces trois-là ne dépendent pas du jeu : ce sont les pouvoirs de l'hôte natif,
-				// et ils sont ce qui distingue Inacord d'Aphrody.
+				// et ils sont ce qui distingue Inacord de nie.
 				wiki: true,
 				ecriture: true,
 				disque: true,
@@ -81,9 +81,7 @@ export function creerDesktopSource(racineJeu?: string): AssetSource {
 			// La forme est celle de `nie-site`, pour que l'interface n'ait qu'un seul modèle à
 			// lire. L'hôte natif n'a ni bundle ni version d'API : il le dit plutôt que d'inventer.
 			return {
-				service: "inacord",
 				api: "tauri",
-				version: "",
 				capacites: {
 					vfs: entrees > 0 ? "pret" : "absent",
 					vfs_entrees: entrees,
@@ -105,7 +103,7 @@ export function creerDesktopSource(racineJeu?: string): AssetSource {
 			const tous = (ls?.files ?? []) as unknown as EntreeVfs[];
 			// Le filtre est appliqué ICI, pas par l'IPC : `ls` rend le dossier entier de toute
 			// façon, et un dossier du VFS tient en quelques milliers d'entrées. Filtrer en
-			// mémoire donne donc le même résultat que le filtre serveur d'Aphrody, pour le même
+			// mémoire donne donc le même résultat que le filtre serveur de nie, pour le même
 			// coût de transport — l'asymétrie serait fausse sur une VUE (six extensions,
 			// 255 308 entrées), pas sur un dossier.
 			const q = options.q?.trim().toLowerCase();

@@ -25,10 +25,10 @@
  * callbacks Lua `Setup*`), ce fichier est une RECONSTRUCTION mesuree sur une image, jamais une
  * mesure du binaire. Ne pas presenter ce qu'il produit comme pixel-perfect.
  *
- * ## Aphrody n'est pas le jeu
+ * ## nie n'est pas le jeu
  *
  * La FORME vient d'ici ; le CONTENU est celui du site. Le jeu aligne 8 tuiles dans sa rangee,
- * Aphrody en a 5 parce qu'il expose 5 entrees reelles — inventer trois tuiles mortes pour
+ * nie en a 5 parce qu'il expose 5 entrees reelles — inventer trois tuiles mortes pour
  * remplir la largeur ferait joli et mentirait. Les tuiles gardent en revanche la taille et la
  * pente mesurees, et la rangee reste centree sur le centre mesure.
  */

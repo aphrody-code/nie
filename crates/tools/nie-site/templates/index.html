@@ -12,7 +12,7 @@
    rien ne le signale. `ja` est le code de langue ; `jp` est un code pays et serait ignore. #}
 {% for a in alternatives %}<link rel="alternate" hreflang="{{ a.hreflang }}" href="{{ a.url }}">
 {% endfor %}<meta property="og:type" content="{{ type_og }}">
-<meta property="og:site_name" content="Aphrody">
+<meta property="og:site_name" content="nie">
 <meta property="og:locale" content="{{ og_locale }}">
 {% for l in og_locales_alternes %}<meta property="og:locale:alternate" content="{{ l }}">
 {% endfor %}<meta property="og:title" content="{{ titre }}">
@@ -28,12 +28,12 @@
 {% endif %}<meta name="twitter:title" content="{{ titre }}">
 <meta name="twitter:description" content="{{ description }}">
 {# Palette MESUREE du menu principal du jeu (docs/stack/web-platform.md) : la DA
-   d'Aphrody est celle de nie, pas Material Design. `theme-color` n'accepte pas de variable CSS. #}
+   du site est celle de nie, pas Material Design. `theme-color` n'accepte pas de variable CSS. #}
 {% if let Some(cat) = catalogue %}{% if let Some(prec) = cat.precedent %}<link rel="prev" href="{{ prec }}">
 {% endif %}{% if let Some(suiv) = cat.suivant %}<link rel="next" href="{{ suiv }}">
 {% endif %}{% endif %}<meta name="theme-color" content="{{ couleur_theme }}">
 <link rel="manifest" href="{{ prefixe_langue }}/manifest.webmanifest">
-<link rel="alternate" type="application/atom+xml" title="Aphrody — épisodes" href="/feed.atom">
+<link rel="alternate" type="application/atom+xml" title="nie — épisodes" href="/feed.atom">
 <link rel="icon" href="/static/favicon.ico" sizes="any">
 <link rel="icon" href="/static/icone.svg" type="image/svg+xml">
 <link rel="icon" href="/static/icone-16.png" sizes="16x16" type="image/png">

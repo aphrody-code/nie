@@ -30,7 +30,7 @@ documents linked there; do not duplicate large specifications here.
 - Make the smallest coherent change; preserve public signatures and existing integrations.
 - Keep code, filenames, schemas, routes, public API keys, and agent-facing documentation in
   English. French is for human reports and explanations. Preserve frozen product names: Azalée,
-  Aphrody, Inacord, nie, `niers`, `nie-*`, and `inagle_*`.
+  Inacord, nie, `niers`, `nie-*`, and `inagle_*`.
 - Prefer repository scripts and package managers. Use `uv run` for Python; never use bare
   `python`/`python3` when a project script exists.
 - Do not add dependencies, alter deployment, rotate credentials, delete data, force-reset history,

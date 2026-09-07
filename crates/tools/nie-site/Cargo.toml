@@ -1,6 +1,6 @@
 [package]
 name = "nie-site"
-description = "Aphrody — serveur HTTP 100 % Rust (Axum 0.8) : bundle nie-web, /api/v1, espaces VFS /f et /b, proxy nie-model-serve"
+description = "nie — serveur HTTP 100 % Rust (Axum 0.8) : bundle nie-web, /api/v1, espaces VFS /f et /b, proxy nie-model-serve"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

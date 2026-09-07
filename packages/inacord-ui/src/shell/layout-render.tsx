@@ -10,7 +10,7 @@
  *
  * ## Il ne connait pas non plus son hote
  *
- * L'URL d'une texture est demandee a la source montee par l'hote (`useAssetSource`). Aphrody
+ * L'URL d'une texture est demandee a la source montee par l'hote (`useAssetSource`). nie
  * la sert par `/assets/tex/...`, Inacord la decode en natif : le composant ne sait pas lequel
  * des deux l'heberge, et n'a pas a le savoir.
  *

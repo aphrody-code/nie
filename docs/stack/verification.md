@@ -88,7 +88,7 @@ cargo bench -p nie-site                                  # criterion, routage et
 hyperfine --warmup 3 'curl -s http://127.0.0.1:8085/api/v1/textures?page=1'
 ```
 
-Attendu : `/healthz` 200 JSON, `/robots.txt`, `/.well-known/security.txt`, `/` sert
+Attendu : `/healthz` 200 JSON **sans `service` ni `version`**, `/robots.txt`, `/` sert
 `index.html` du bundle avec ses balises `og:`, `/api/v1/textures?page=1` rend `per_page`
 éléments **comptés** dans le test, `/assets/…` répond via le proxy avec `ETag` et `br`, un
 amont absent rend **503 en moins de 10 s** et jamais un 504 à 30 s. Bundle initial de
@@ -99,24 +99,27 @@ Chaque test de route affirme un contenu (`assert!(count >= n)`), pas seulement u
 
 **DA du jeu** : `niers design tokens --out packages/inacord-ui/src/theme/game-tokens.css`
 écrit **70** variables — le compte du fichier `font_color.cfg.bin`, pas un chiffre choisi —
-et le test le vérifie ; la page d'accueil d'Aphrody est capturée par `bxc` (rendu réel, CSP
+et le test le vérifie ; la page d'accueil de nie est capturée par `bxc` (rendu réel, CSP
 comprise) et posée à côté de la référence `data/design/aphrody-ui-ref-mainmenu-7.1.2.png`
 pour revue ; aucune couleur, icône ou texture du thème n'est écrite « de mémoire ».
 
 **Vhost `aphrody.com`** (go de l'utilisateur) : `nginx -t` ; `curl -sI` sur les dix hôtes
-**avant et après** le `reload` — `aphrody.com` et `www` répondent `nie-site`, les huit autres
-répondent comme avant ; `nie.aphrody.com` rend 308 vers `aphrody.com` ; l'en-tête CSP vu par
-le navigateur est **celui de `nie-site`**, pas `default-src 'none'`.
+**avant et après** le `reload` — `nie.aphrody.com` rend un `/healthz` porteur de `capacites` ;
+`aphrody.com` et `www`
+rendent **308** vers `https://nie.aphrody.com` ; `cdn.aphrody.com` sert `nie-model-serve` ; les
+cinq autres répondent comme avant ; l'en-tête CSP vu par le navigateur est **celui de
+`nie-site`**, pas `default-src 'none'`.
 
 ## Gate 6 — bascule (J6, go de l'utilisateur)
 
 1. `dig +short azalee.rosegriffon.fr` pointe Vercel ; Gate 1 rejoué **contre la production**.
 2. Les dix préfixes (`/cpk`, `/textures`, `/modeles`, `/mode`, `/sons`, `/videos`, `/avatar`,
-   `/demo`, `/save`, `/vroid`) rendent **308** vers `aphrody.com` — et **`/tools/niers/latest.json`
+   `/demo`, `/save`, `/vroid`) rendent **308** vers `nie.aphrody.com` — et **`/tools/niers/latest.json`
    rend 200** depuis `azalee.rosegriffon.fr` : c'est l'updater de toutes les installations d'Inacord.
 3. Les 19 consommateurs de `/rest/v1|/realtime/v1|/storage/v1` visent `*.supabase.co` ;
    handshake WebSocket Realtime **101** ; une URL signée Storage télécharge.
-4. `aphrody.com/healthz` 200 servi par `nie-site` ; `nie-model-serve` n'a plus de vhost public.
+4. `nie.aphrody.com/healthz` 200 avec ses `capacites` ; `nie-model-serve` n'est joignable que
+   par `cdn.aphrody.com`, sous limite de débit, et jamais nu.
 5. `azalee-web.service` arrêté, non supprimé, 7 jours ; rollback = DNS + `systemctl start`.
 
 ## Gates gelés — hors semaine

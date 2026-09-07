@@ -3,7 +3,7 @@
 	"version": "0.1.0",
 	"private": true,
 	"type": "module",
-	"description": "L'interface partagee d'Inacord et d'Aphrody. Aucun acces direct a l'hote : tout passe par AssetSource.",
+	"description": "L'interface partagee d'Inacord et de nie. Aucun acces direct a l'hote : tout passe par AssetSource.",
 	"exports": {
 		".": "./src/index.ts",
 		"./source": "./src/source.tsx",

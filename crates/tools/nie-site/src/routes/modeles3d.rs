@@ -1,4 +1,4 @@
-//! La couche 3D du dépôt, servie par Aphrody — `/api/v1/3d/*` et `/model/*`.
+//! La couche 3D du dépôt, servie par nie — `/api/v1/3d/*` et `/model/*`.
 //!
 //! ## Ce que le dépôt sait faire en 3D, et qui le fait
 //!
@@ -348,10 +348,6 @@ pub struct MoteurRendu {
 /// Corps de `/api/v1/3d`.
 #[derive(Debug, Clone, Serialize)]
 pub struct Capacites3d {
-    /// Toujours `nie-site`.
-    pub service: &'static str,
-    /// Version de la crate.
-    pub version: &'static str,
     /// Base de l'amont qui assemble les GLB.
     pub amont: String,
     /// Vrai quand l'index du VFS est prêt : sans lui, les cinq familles de fichiers sont vides.
@@ -569,8 +565,6 @@ pub async fn capacites(State(etat): State<EtatSite>) -> Json<Capacites3d> {
         .collect();
 
     Json(Capacites3d {
-        service: crate::SERVICE,
-        version: crate::VERSION,
         amont: etat.config.amont.clone(),
         vfs_pret: index.is_some(),
         miroir_present: etat.gisement.present(),
@@ -1058,7 +1052,7 @@ async fn apercu(
         // Le rastériseur prend des radians ; l'URL parle en degrés.
         let angle = (degres as f32).to_radians();
         let rgba = nie_render3d::render::render(&modele, angle, l, h);
-        // L'encodeur PNG du dépôt, celui qui sert déjà les frames d'Aphrody. En ajouter un
+        // L'encodeur PNG du dépôt, celui qui sert déjà les frames de nie. En ajouter un
         // second ferait cohabiter deux réglages de compression pour un seul format.
         nie_aphrody::assets::encoder_png(&rgba, l, h)
             .map_err(|e| ErreurSite::Interne(format!("encodage PNG: {e}")))

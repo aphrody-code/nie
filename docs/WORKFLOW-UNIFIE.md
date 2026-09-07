@@ -1,9 +1,9 @@
-# Workflow unifié — Aphrody, WinClean, niers et Ghidra
+# Workflow unifié — nie, WinClean, niers et Ghidra
 
 **Statut :** contrat opérationnel proposé, 2026-09-07.
 
 Ce document décrit comment passer d'une demande humaine à une preuve reproductible. Il ne
-fusionne pas les produits : Aphrody reste le site d'outils, Inacord l'explorateur, `nie` le
+fusionne pas les produits : `nie` est le site d'outils comme le jeu, Inacord reste
 jeu et `niers` le socle d'analyse.
 
 ## 1. Principe directeur
@@ -14,7 +14,7 @@ Chaque action suit la chaîne suivante :
 demande humaine
   -> plan borné et identifiant de run
   -> niers (CLI / crates Rust / MCP)
-  -> outil spécialisé (Aphrody, WinClean ou Ghidra)
+  -> outil spécialisé (nie, WinClean ou Ghidra)
   -> artefact + journal + preuve
   -> décision humaine ou étape suivante
 ```
@@ -28,13 +28,13 @@ le code de sortie et l'artefact observé.
 | Surface | Responsabilité | Entrée canonique | Sortie attendue |
 |---|---|---|---|
 | `niers` | orchestration, formats Level-5, VFS, données, CLI, traces et rapports | chemins VFS, binaire, dump, config de run | JSON/PNG/GLB/rapport reproductible |
-| Aphrody (`nie-site`) | présentation publique et API d'outils autorisée | résultats validés de `niers` | page ou endpoint borné, sans accès arbitraire au dépôt |
+| nie (`nie-site`) | présentation publique et API d'outils autorisée | résultats validés de `niers` | page ou endpoint borné, sans accès arbitraire au dépôt |
 | WinClean | observation et contrôle Windows explicitement autorisé | application, fenêtre, PID, action native | observation avant/après, PID et état UI |
 | Ghidra/GhidrAssistMCP | analyse interactive du binaire actuellement ouvert | projet CodeBrowser, binaire, adresse/fonction | décompilation, symboles, xrefs, structures, export |
 | Codex Computer Use | pilotage visible et vérification de l'interface | surface déclarée, état observé | action UI et nouvelle observation |
 
 WinClean et Computer Use ne deviennent pas des moteurs de vérité : ils pilotent ou observent.
-Ghidra produit du savoir de RE ; `niers` le normalise et le versionne. Aphrody ne reçoit que des
+Ghidra produit du savoir de RE ; `niers` le normalise et le versionne. nie ne reçoit que des
 résultats explicitement destinés à être servis.
 
 ## 3. Routage par type de demande
@@ -54,7 +54,7 @@ résultats explicitement destinés à être servis.
 4. **Rendu, asset ou interface** : produire avec les outils du dépôt, lancer la surface réelle,
    capturer l'artefact et inspecter visuellement. Une capture hors écran prouve le rendu produit,
    pas automatiquement la fidélité au jeu.
-5. **Publication Aphrody** : valider localement le résultat, servir uniquement la route prévue,
+5. **Publication nie** : valider localement le résultat, servir uniquement la route prévue,
    vérifier la réponse live et conserver le rapport. Les routes de lecture de code dépôt restent
    désactivées par défaut et authentifiées si elles sont nécessaires.
 

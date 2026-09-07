@@ -1,16 +1,15 @@
-# Aphrody
+# nie
 
-> The files of the video game *Inazuma Eleven: Victory Road*, served from their original
-> in-game paths. Textures, models, sounds and videos are decoded on demand; the catalogues are
-> also available as paginated JSON. Nothing here is transcoded ahead of time and nothing is
-> renamed: a path on this site is the path inside the game.
+> *Inazuma Eleven: Victory Road*, in the browser. The game's own screens, its own text, its own
+> files — served from the paths the game itself uses. Nothing is renamed and nothing is
+> transcoded ahead of time: an address here is an address inside the game.
 
-Aphrody is served by a single Rust process. Three languages share one origin, distinguished by
-a URL segment: French at the root, English under `/en/`, Japanese under `/ja/`. The three are
-declared to each other with `hreflang`; the content behind them is the same catalogue.
+Three languages share one origin, told apart by a URL segment: French at the root, English under
+`/en/`, Japanese under `/ja/`. The three declare each other with `hreflang`; what lies behind
+them is the same content.
 
-If you are an agent, prefer the JSON API below over the HTML pages. It is paginated, stable,
-and returns the same identifiers the game uses.
+If you are an agent, prefer the JSON API below over the HTML pages. It is paginated, stable, and
+returns the same identifiers the game uses.
 
 ## Sections (HTML)
 
@@ -23,7 +22,7 @@ and returns the same identifiers the game uses.
 
 ## JSON API
 
-- [Service health]({{ origine }}/api/v1/health): what this instance can currently answer.
+- [Health]({{ origine }}/api/v1/health): what this instance can currently answer.
 - [Characters]({{ origine }}/api/v1/chara): names in French, English and Japanese.
 - [A catalogue]({{ origine }}/api/v1/textures): also `modeles`, `sons`, `videos`.
 - [Episodes]({{ origine }}/api/v1/episodes): the animated series catalogue.
@@ -33,12 +32,12 @@ at 200. Responses carry a total, so a crawl is bounded before it starts.
 
 ## Files
 
-- `{{ origine }}/f/<vfs path>` — one file, at its exact in-game path, extension preserved.
-- `{{ origine }}/b/<vfs prefix>` — list one directory of the game's virtual filesystem.
+- `{{ origine }}/f/<path>` — one file, at its exact in-game path, extension preserved.
+- `{{ origine }}/b/<prefix>` — list one directory of the game's file tree.
 
-There are around 255 000 files. They are deliberately excluded from `robots.txt` and from the
-sitemap: crawling them one by one is the wrong shape for this data. Use `/b/` to walk the tree,
-or the catalogue API to select first.
+They are deliberately excluded from `robots.txt` and from the sitemap: crawling them one by one
+is the wrong shape for this data. Use `/b/` to walk the tree, or the catalogue API to select
+first.
 
 ## Optional
 

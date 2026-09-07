@@ -3,8 +3,8 @@
 **Statut : GELÉE le 2026-09-05.** Décision arbitrée par Claude (orchestrateur `niers`) sur
 demande explicite de l'utilisateur, après le débat A2A avec Codex (`env-fa1cdc42`,
 `env-b002ca32`), et complétée le même jour par trois consignes de l'utilisateur : le site
-d'outils s'appelle **Aphrody** et vit sur **`aphrody.com`**, le jeu s'appelle **nie**,
-l'application de bureau et mobile s'appelle **Inacord** ; `aphrody.com` porte la **direction
+d'outils s'appelle **nie**, comme le jeu, et vit sur **`nie.aphrody.com`**,
+l'application de bureau et mobile s'appelle **Inacord** ; `nie.aphrody.com` porte la **direction
 artistique du vrai jeu**, Azalée garde celle de **Rose Griffon**. Ce dossier ne change plus :
 une brique qui doit bouger passe par un **amendement daté** dans
 [decision-record.md](decision-record.md), section *Amendements*, et nulle part ailleurs. Le
@@ -14,7 +14,7 @@ plan d'exécution qui en découle est [`/PLAN.md`](../../PLAN.md), une semaine d
 
 Le wiki **Azalée** (`azalee.rosegriffon.fr`, DA Rose Griffon) part sur **Vercel en full
 serverless**, adossé à **Supabase Cloud** comme seule source de données ; les outils et
-assets deviennent un second site, **Aphrody** (`aphrody.com`, DA du vrai jeu), servi par une
+assets deviennent un second site, **nie** (`nie.aphrody.com`, DA du vrai jeu), servi par une
 crate **`nie-site` (Axum 0.8, 100 % Rust)** sur le VPS, qui héberge **`nie-web`** : la même
 interface que l'application **Inacord** (ex `nie-explorer`), partagée par extraction dans
 `packages/inacord-ui` et non réécrite. Le jeu, **nie**, reste `wgpu 29.0.3` + `winit` cette
@@ -25,21 +25,21 @@ semaine ; mobile et Steam sont **hors semaine**, gelés tels que documentés.
 | Produit | Nom public | Ce que c'est | Où dans le dépôt | Direction artistique |
 |---|---|---|---|---|
 | Le wiki | **Azalée** | fiches, articles, actualités — `azalee.rosegriffon.fr` | `apps/azalee`, `packages/azalee` | **Rose Griffon** : les 109 tokens M3 de `app/globals.css` (primaire `#f2a93b` / `#ffc66c`), inchangés |
-| Le site d'outils et d'assets | **Aphrody** | 250 800 fichiers, 53 126 textures, 6 236 modèles, sons, vidéos, avatar — `aphrody.com` | `crates/tools/nie-site` (serveur) + `apps/nie-web` (bundle) | **le vrai jeu** : la référence est le **menu principal** du jeu (`mainmenu01`, capture ver. 7.1.2 fournie par l'utilisateur le 2026-09-05, `data/design/`, hors dépôt) — tuiles en parallélogramme, blanc et cyan, icônes blanches ; tokens extraits des données (palette `FONT_COLOR`, textures de menu, atlas d'icônes, fonte du jeu) |
+| Le site d'outils et d'assets | **Aphrody** | 250 800 fichiers, 53 126 textures, 6 236 modèles, sons, vidéos, avatar — `nie.aphrody.com` | `crates/tools/nie-site` (serveur) + `apps/nie-web` (bundle) | **le vrai jeu** : la référence est le **menu principal** du jeu (`mainmenu01`, capture ver. 7.1.2 fournie par l'utilisateur le 2026-09-05, `data/design/`, hors dépôt) — tuiles en parallélogramme, blanc et cyan, icônes blanches ; tokens extraits des données (palette `FONT_COLOR`, textures de menu, atlas d'icônes, fonte du jeu) |
 | L'application de bureau et mobile | **Inacord** | l'explorateur/éditeur Tauri, aujourd'hui `productName: "niers"` v0.5.9 | `apps/inacord` (ex `apps/inacord`) | **le vrai jeu** : **InaCord** (イナコード), l'application de messagerie du téléphone du mode histoire, d'où vient le nom — panneaux sombres, accent turquoise, motif hexagonal (référence officielle `inazuma.jp`, archivée dans `data/design/`, hors dépôt) |
 | Le jeu | **nie** | le moteur Rust et ses hôtes (natif, headless, WASM) | `crates/engine/*`, `nie-*` | le jeu lui-même |
-| L'interface partagée | — | écrans, composants, hooks communs à Inacord et Aphrody | `packages/inacord-ui` + contrat `packages/asset-source` | un jeu de composants, **deux coquilles du jeu** : `shell/main-menu/` (Aphrody), `shell/inacord/` (Inacord) |
+| L'interface partagée | — | écrans, composants, hooks communs à Inacord et nie | `packages/inacord-ui` + contrat `packages/asset-source` | un jeu de composants, **deux coquilles du jeu** : `shell/main-menu/` (nie), `shell/inacord/` (Inacord) |
 
 **Propriété (consigne utilisateur, 2026-09-05).** Seule **Azalée** est un produit Rose
-Griffon. **Aphrody, Inacord et nie sont des projets `aphrody-dev`, hors Rose Griffon** :
+Griffon. **Inacord et nie sont des projets `aphrody-dev`, hors Rose Griffon** :
 aucune marque, aucun compte, aucun paquet `@rosegriffon/*` et aucune URL `rosegriffon.fr`
 dans `nie-site`, `nie-web`, `inacord-ui` ou `apps/inacord`. Départ MESURÉ dans
 l'explorateur : 13 fichiers importent `@rosegriffon/azalee` (20) et `@rosegriffon/ui` (3),
 19 fichiers mentionnent Rose Griffon — tout sort à J4. Seule exception, temporaire :
 l'updater des 0.5.x installés lit `azalee.rosegriffon.fr/tools/niers/latest.json` ; cette route
-reste vivante (redirection vers `aphrody.com/downloads/inacord/latest.json`) tant que ces
-installations existent, et les nouvelles releases pointent d'abord `aphrody.com`. **À
-CONFIRMER par l'utilisateur** : la base légale d'exploitation des assets sur `aphrody.com`,
+reste vivante (redirection vers `nie.aphrody.com/downloads/inacord/latest.json`) tant que ces
+installations existent, et les nouvelles releases pointent d'abord `nie.aphrody.com`. **À
+CONFIRMER par l'utilisateur** : la base légale d'exploitation des assets sur `nie.aphrody.com`,
 l'Accord N° RG-L5-VR-2026-001 étant signé par Rose Griffon.
 
 Corollaire acté (amendements **A1** et **A2**) : **les trois produits fonctionnent sans le
@@ -50,7 +50,7 @@ workflow — les 2 575 lignes et 18 importeurs du paquet Bun deviennent `niers p
 par `nie-data`. Restent au TypeScript, sans bloquer personne : les 153 tables
 `inagle_cross_*` du jeu mobile, le scraping zukan et le RAG.
 
-**Identité (amendements A3 et A4).** Aphrody et Inacord calquent slugs, URL et arborescence
+**Identité (amendements A3 et A4).** nie et Inacord calquent slugs, URL et arborescence
 de base sur le **VFS**, comme `nie.exe` : l'adresse est le chemin du jeu verbatim, le slug est
 le code du jeu (`c01000010`), **aucun nom traduit dans une adresse**. Azalée vise la place de
 Fandom et garde des slugs **lisibles**, mais adresse le **concept** et non la ligne : les deux
@@ -70,11 +70,11 @@ de données et continuité de l'updater), les URL de l'updater.
 | Hébergement du wiki | **Vercel**, runtime Node, ISR + revalidation on-demand | VPS self-host : couple le wiki à une machine et à un miroir SQLite local — la cause du faux vert du 2026-09-05 |
 | Données du wiki | **Supabase Cloud** `kvnlbhatjqqmhhxaxlbi` (eu-west-3), lecture anonyme sous RLS `lecture_publique` | PostgREST self-host : `127.0.0.1` n'existe pas depuis Vercel ; miroir SQLite : un fichier, donc pas serverless |
 | Comptes utilisateurs | **Pas de migration** des 1 931 lignes `auth.users` ; réinscription = consentement | Copie silencieuse de données personnelles |
-| Domaine du site d'outils | **`aphrody.com`** (+ `www`), site nommé **Aphrody** ; `nie-site` remplace `aphrody-site` (:8083) sur ces deux hôtes ; **amendement du 2026-09-05** : `nie.` et `api.` cessent d'être des alternatives rejetées et servent `nie-model-serve` et l'API, en `noindex` | `nie.rosegriffon.fr` : deux marques, deux DA — Rose Griffon est la communauté, Aphrody est l'univers du jeu ; `nie.aphrody.com` : un sous-domaine pour le produit principal |
-| Serveur du site | **`nie-site`**, Axum 0.8 sur `127.0.0.1:8085` derrière nginx, TLS Let's Encrypt déjà émis pour `aphrody.com` | socle `aphrody-web` du dépôt `aphrody` (tokens communs) : la DA d'Aphrody est celle du jeu, pas une charte commune aux vitrines |
+| Domaine du site d'outils | **`nie.aphrody.com`**, site nommé **nie** ; `nie-site` remplace `aphrody-site` (:8083) sur cet hôte ; `aphrody.com` et `www` n'y renvoient plus qu'un **308** ; `cdn.` et `api.` servent `nie-model-serve` et l'API, en `noindex` | `nie.rosegriffon.fr` : deux marques, deux DA — Rose Griffon est la communauté, nie est l'univers du jeu ; l'apex `aphrody.com` : le nom `Aphrody` reste au dépôt `aphrody-code/aphrody` |
+| Serveur du site | **`nie-site`**, Axum 0.8 sur `127.0.0.1:8085` derrière nginx, TLS Let's Encrypt déjà émis pour `nie.aphrody.com` | socle `aphrody-web` du dépôt `aphrody` (tokens communs) : la DA de nie est celle du jeu, pas une charte commune aux vitrines |
 | Interface du site | **`packages/inacord-ui`** (React/Vite, extrait d'Inacord) montée par `apps/nie-web` et par Inacord | **Leptos** : une seconde pile d'UI, 0 ligne partagée avec l'app, mainteneur unique (issue #4707) ; **Dioxus** : même défaut |
 | Données du site | Les trois gisements du VPS (`var/mirror.sqlite`, `var/niers.sqlite`, `data/anime/episodes.db`) lus par **`rusqlite` 0.40** en lecture seule — les fichiers qu'Inacord embarque | **SQLx + PostgreSQL** pour `nie-site` : un saut réseau pour des données servies localement, et des réponses qui divergeraient d'Inacord |
-| HTML rendu côté serveur | **`askama` 0.16** (+ `askama_web`, `askama_axum` est mort) pour `index.html` enrichi (`og:`), erreurs, `robots.txt`, `security.txt`, `sitemap.xml` | `tera`, `minijinja` : parsing à l'exécution ; `maud` : DSL macro |
+| HTML rendu côté serveur | **`askama` 0.16** (+ `askama_web`, `askama_axum` est mort) pour `index.html` enrichi (`og:`), erreurs, `robots.txt`, `sitemap.xml` | `tera`, `minijinja` : parsing à l'exécution ; `maud` : DSL macro |
 | Cache mémoire | **`moka` 0.12.16** (plancher : en deçà l'éviction LRU peut se figer) + ETag **`blake3`** | `lru` : mono-thread, sans TTL |
 | Décodage des assets | **`nie-model-serve` reste le décodeur**, proxifié par `nie-site` avec débit, délai, mémoire | l'absorber : 7 956 lignes réécrites pour rien ; l'exposer nu : le risque n° 1 |
 | Application Inacord | **Tauri 2** inchangé, hôte mince d'`inacord-ui` ; `productName` → `Inacord`, identifiant conservé | réécriture native : rien ne l'exige ; changer l'identifiant : casse le dossier de données et l'updater |
@@ -88,11 +88,13 @@ azalee.rosegriffon.fr ── Vercel (serverless) ── apps/azalee (Next 16, No
                                 │
                                 └── HTTPS ──> Supabase Cloud kvnlbhatjqqmhhxaxlbi
 
-aphrody.com / www ────── VPS nginx (TLS) ── crates/tools/nie-site (Axum 0.8) :8085
+nie.aphrody.com / www ────── VPS nginx (TLS) ── crates/tools/nie-site (Axum 0.8) :8085
                                 │        ├── sert apps/nie-web (bundle Vite de packages/inacord-ui, DA du jeu)
                                 │        ├── lit var/mirror.sqlite, var/niers.sqlite, episodes.db (rusqlite, ro)
                                 │        └── proxifie nie-model-serve :8790 (débit, délai, mémoire, cache moka)
-api. downloads. cdn. bot. admin. mcp. bxc. n2b.aphrody.com ── inchangés, aphrody-site :8083 (dépôt aphrody)
+aphrody.com / www.aphrody.com ───────── VPS nginx (TLS) ── 308 vers https://nie.aphrody.com
+cdn.aphrody.com ─────────────────────── VPS nginx (TLS) ── nie-model-serve :8790 (limite de débit)
+api. downloads. bot. admin. mcp. bxc. n2b.aphrody.com ── inchangés, aphrody-site :8083 (dépôt aphrody)
 
 apps/inacord (Tauri 2) ── même packages/inacord-ui, packages/asset-source (desktop) ── updater inchangé
 ```
@@ -105,10 +107,10 @@ apps/inacord (Tauri 2) ── même packages/inacord-ui, packages/asset-source (
 3. **J3** — poids de `/chara` et ISR ; matrice de latence avant/après.
 4. **J4** — extraction `packages/asset-source` + `packages/inacord-ui` ; `apps/inacord`
    devient `apps/inacord` et redevient vert.
-5. **J5** — `apps/nie-web` + `crates/tools/nie-site` + thème du jeu ; vhost `aphrody.com`
+5. **J5** — `apps/nie-web` + `crates/tools/nie-site` + thème du jeu ; vhost `nie.aphrody.com`
    basculé de `:8083` à `:8085` (go de l'utilisateur).
 6. **J6** — bascule DNS du wiki sur Vercel (go de l'utilisateur), redirections 308 vers
-   `aphrody.com`, arrêt d'`azalee-web` sur le VPS.
+   `nie.aphrody.com`, arrêt d'`azalee-web` sur le VPS.
 7. **J7** — performance, durcissement, documentation, marge.
 
 Détail, propriétaires et gates : [`/PLAN.md`](../../PLAN.md).
@@ -134,13 +136,13 @@ l'applique ; aucun verdict serverless n'est recevable sans ses comptes.
 - **Supabase Cloud** : 224 tables, 1 478 colonnes, 5 vues, 155 policies, plus 64 policies
   `lecture_publique` (commit `84d4a54`) ; 65 tables / 165 277 lignes chargées, 0 écart.
   L'inventaire local 66 / 165 244 reste **À RÉCONCILIER** par manifeste.
-- **`aphrody.com` aujourd'hui** : DNS → ce VPS (51.77.147.152), certificat Let's Encrypt
-  émis, `aphrody-site` (:8083) rend une page de 265 octets (`<title>Aphrody`, corps vide),
+- **`nie.aphrody.com` aujourd'hui** : DNS → ce VPS (51.77.147.152), certificat Let's Encrypt
+  émis, `aphrody-site` (:8083) rend une page de 265 octets (`<title>nie`, corps vide),
   `/healthz` 200, `/downloads` et `/version` 404. Rien à préserver sur ces deux hôtes.
 - **Poids** : `/chara` pèse 2 708 582 octets non compressés (2 355 397 en production) ;
   81 % sont du DOM réel — 620 liens, 404 `<img>` sans `srcset`. Cible **< 250 Ko**.
 - **Sécurité** : expositions critiques de l'infrastructure self-host inchangées, listées et
-  ordonnées dans [security.md](security.md) ; aucune n'est reproduite sur Vercel ni sur Aphrody.
+  ordonnées dans [security.md](security.md) ; aucune n'est reproduite sur Vercel ni sur nie.
 
 ## Documents
 
@@ -154,26 +156,31 @@ l'applique ; aucun verdict serverless n'est recevable sans ses comptes.
 - [Moteur, mobile, WASM et Steam — gelé, hors semaine](game-platforms.md)
 - [Desktop et mobile Tauri — gelé, hors semaine](desktop-mobile.md)
 
-## Amendement du 2026-09-05 — les sous-domaines servent, et Aphrody est le menu du jeu
+## Amendement du 2026-09-05 — les sous-domaines servent, et nie est le menu du jeu
 
 Deux corrections apportées par la mise en ligne, contre ce que ce document disait.
 
-**`nie.aphrody.com` n'est plus une alternative rejetée.** Le tableau ci-dessus l'écartait comme
-« un sous-domaine pour le produit principal ». La mesure a montré autre chose : sept
-sous-domaines résolvaient vers cette machine et n'y servaient **rien** — `aphrody.com`, `www`,
-`api`, `downloads`, `cdn`, `nie`, `bot`, `admin`, `bxc`, `n2b` rendaient tous **502**, parce que
-`aphrody-site` (:8083) n'écoutait plus. Le rollback prévu — « repointer sur :8083, `aphrody-site`
-n'est jamais arrêté » — était donc **illusoire** : il n'y avait pas de service à retrouver.
+**`nie.aphrody.com` n'est plus une alternative rejetée : c'est l'origine du site.** Le tableau
+ci-dessus l'écartait comme « un sous-domaine pour le produit principal ». La mesure a montré
+autre chose : sept sous-domaines résolvaient vers cette machine et n'y servaient **rien** —
+`aphrody.com`, `www`, `api`, `downloads`, `cdn`, `nie`, `bot`, `admin`, `bxc`, `n2b` rendaient
+tous **502**, parce que `aphrody-site` (:8083) n'écoutait plus. Le rollback prévu — « repointer
+sur :8083, `aphrody-site` n'est jamais arrêté » — était donc **illusoire** : il n'y avait pas de
+service à retrouver.
 
-Depuis, `nie.aphrody.com` sert `nie-model-serve` (décodage à la demande, sous `limit_req 10r/s`
-et `limit_conn 8`, car ce service n'a aucune protection propre — il ne lit même pas la méthode
-HTTP), et `api.aphrody.com` sert l'API de `nie-site` **et rien d'autre** : `location / { return
-404; }`, pour que deux origines ne rendent pas le même contenu avec chacune son canonique. Les
-deux sont en `noindex`.
+Le site s'appelle **nie** et vit sur `nie.aphrody.com` ; le nom `Aphrody` reste au dépôt
+`aphrody-code/aphrody`. L'apex et `www` ne portent plus de contenu et rendent un **308** vers le
+sous-domaine — un 308, pas un 301, pour que la méthode et le corps survivent à la redirection.
 
-**Aphrody n'est ni un wiki ni un explorateur de fichiers.** Le wiki est Azalée, l'explorateur est
+`nie-model-serve` a donc quitté `nie.` pour `cdn.aphrody.com` (décodage à la demande, sous
+`limit_req 10r/s` et `limit_conn 8`, car ce service n'a aucune protection propre — il ne lit même
+pas la méthode HTTP), et `api.aphrody.com` sert l'API de `nie-site` **et rien d'autre** :
+`location / { return 404; }`, pour que deux origines ne rendent pas le même contenu avec chacune
+son canonique. Les deux sont en `noindex`.
+
+**nie n'est ni un wiki ni un explorateur de fichiers.** Le wiki est Azalée, l'explorateur est
 Inacord. La formule « site d'outils et d'assets » a laissé dériver l'interface vers des listes de
-catalogues, c'est-à-dire vers le métier d'Inacord. L'interface d'Aphrody **reproduit le menu
+catalogues, c'est-à-dire vers le métier d'Inacord. L'interface de nie **reproduit le menu
 principal du jeu**, et la disposition ne se dessine pas de mémoire : `nie-game --runtime --menu
 <écran> --export-layout` la rend depuis le jeu — pour `mainmenu01`, un canevas de 1280×720 et
 34 objets portant leur `transform`, leur `drawPriority`, leur sprite et leurs textes déjà

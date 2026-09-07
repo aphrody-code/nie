@@ -138,7 +138,7 @@ export function useThumbnail(path: string, ext: string, gameDir?: string) {
         liberer();
         return;
       }
-      // La vignette vient de l'hôte : URL HTTP sur Aphrody, URL de données sur Inacord, qui
+      // La vignette vient de l'hôte : URL HTTP sur nie, URL de données sur Inacord, qui
       // décode la texture en natif. Le crochet ne connaît ni l'un ni l'autre.
       Promise.resolve(source.vignette?.(path, COTE, gameDir) ?? null)
         .then((url) => {

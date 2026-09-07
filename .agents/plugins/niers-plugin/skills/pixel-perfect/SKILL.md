@@ -69,7 +69,7 @@ mémoire quelle que soit l'allure du code.
 
 ### A. Reproduire un écran en interface (site ou app)
 
-Cible : `apps/nie-web` / `packages/inacord-ui` (la DA d'Aphrody est celle du **vrai jeu**,
+Cible : `apps/nie-web` / `packages/inacord-ui` (la DA de nie est celle du **vrai jeu**,
 référence `mainmenu01`). Ne jamais poser une capture en image de fond : on rebâtit la mise en
 page.
 

@@ -1,7 +1,7 @@
 /**
  * `@niers/asset-source` — la porte unique de l'interface partagée vers les ressources du jeu.
  *
- * Inacord (Tauri) et Aphrody (navigateur) montent la MÊME interface ; ce paquet est ce qui
+ * Inacord (Tauri) et nie (navigateur) montent la MÊME interface ; ce paquet est ce qui
  * rend cela possible sans que les composants sachent lequel des deux les héberge.
  *
  * Le paquet ne dépend pas de Tauri, et c'est délibéré : il doit rester consommable par un

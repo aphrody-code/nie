@@ -67,7 +67,7 @@ export function resolveTheme(theme: Settings["theme"]): "light" | "dark" {
  * `font-size` — ce que les feuilles de style lisent ; le `zoom` va sur `<body>`, comme sous
  * Inacord. L'hôte le monte une fois, à sa racine.
  *
- * La langue n'est PAS appliquée ici : sous Aphrody, changer de langue est une navigation
+ * La langue n'est PAS appliquée ici : sous nie, changer de langue est une navigation
  * entière servie par `nie-site`, et c'est l'hôte qui la fait.
  */
 export function useApplySettings(): void {

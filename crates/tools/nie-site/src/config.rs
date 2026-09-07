@@ -68,7 +68,7 @@ pub struct Config {
     /// Borne de débit par IP réelle du client (cf. [`crate::debit`]).
     ///
     /// Elle ferme un trou mesuré : le vhost pose un `limit_req` sur `nie.` et sur `api.`, et
-    /// **aucun** sur `aphrody.com`. `par_seconde = 0` la désactive entièrement.
+    /// **aucun** sur `nie.aphrody.com`. `par_seconde = 0` la désactive entièrement.
     pub debit: crate::debit::Reglage,
 }
 
@@ -86,7 +86,7 @@ impl Default for Config {
             taille_max_amont: 32 * 1024 * 1024,
             cache_octets: 256 * 1024 * 1024,
             cache_ttl: Duration::from_secs(300),
-            origine: "https://aphrody.com".to_owned(),
+            origine: "https://nie.aphrody.com".to_owned(),
             debit: crate::debit::Reglage::defaut(),
         }
     }
@@ -97,7 +97,7 @@ impl Default for Config {
 #[derive(Debug, Parser)]
 #[command(
     name = "nie-site",
-    about = "Aphrody — serveur HTTP du bundle nie-web, de /api/v1, des espaces VFS /f et /b et du proxy nie-model-serve"
+    about = "nie — serveur HTTP du bundle nie-web, de /api/v1, des espaces VFS /f et /b et du proxy nie-model-serve"
 )]
 pub struct Options {
     /// Adresse d'écoute (défaut `127.0.0.1:8085`).

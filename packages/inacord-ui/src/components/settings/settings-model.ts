@@ -5,7 +5,7 @@
  *
  * Inacord porte ses réglages dans `lib/settings.ts` (le magasin) et les dessine dans
  * `SettingsView.tsx` (l'écran), sans rien entre les deux : l'écran connaît chaque champ par
- * son nom, son libellé, ses bornes. Aphrody doit montrer les MÊMES réglages dans un autre écran
+ * son nom, son libellé, ses bornes. nie doit montrer les MÊMES réglages dans un autre écran
  * — celui des Options du jeu — et ne peut pas recopier cette connaissance sans qu'elle diverge.
  *
  * Ici, chaque réglage est une **définition** : son identifiant (celui du magasin, donc celui

@@ -1,6 +1,6 @@
 # Domaine 6 — Monde, données de jeu et rendu
 
-Cahier des charges de routes pour Aphrody, sur le périmètre :
+Cahier des charges de routes pour nie, sur le périmètre :
 `data/common/map/`, `data/common/gamedata/`, `data/common/craft/`, `data/common/action/`,
 `data/common/system/`, `data/common/input/`, `data/common/camera/`, `data/dx11/map/`,
 `data/dx11/shader/`, `data/dx11/event/`.

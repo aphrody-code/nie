@@ -1,4 +1,4 @@
-//! Les trois langues d'Aphrody — français, anglais, japonais.
+//! Les trois langues de nie — français, anglais, japonais.
 //!
 //! ## Pourquoi le segment d'URL et pas le sous-domaine ni le paramètre
 //!
@@ -30,7 +30,7 @@
 
 use std::fmt;
 
-/// Une des trois langues servies par Aphrody.
+/// Une des trois langues servies par nie.
 ///
 /// L'ordre de la variante n'a aucune signification de préséance : c'est [`Langue::TOUTES`] qui
 /// fixe l'ordre d'émission des balises `hreflang`.
@@ -278,16 +278,16 @@ mod tests {
     fn le_francais_n_a_pas_de_prefixe() {
         assert_eq!(Langue::Fr.prefixe(), "");
         assert_eq!(
-            Langue::Fr.url("https://aphrody.com", "/"),
-            "https://aphrody.com"
+            Langue::Fr.url("https://nie.aphrody.com", "/"),
+            "https://nie.aphrody.com"
         );
         assert_eq!(
-            Langue::En.url("https://aphrody.com", "/textures"),
-            "https://aphrody.com/en/textures"
+            Langue::En.url("https://nie.aphrody.com", "/textures"),
+            "https://nie.aphrody.com/en/textures"
         );
         assert_eq!(
-            Langue::Ja.url("https://aphrody.com", "/"),
-            "https://aphrody.com/ja"
+            Langue::Ja.url("https://nie.aphrody.com", "/"),
+            "https://nie.aphrody.com/ja"
         );
     }
 
@@ -338,20 +338,20 @@ mod tests {
 
     #[test]
     fn les_alternatives_sont_reciproques_et_completes() {
-        let liens = alternatives("https://aphrody.com", "/textures");
+        let liens = alternatives("https://nie.aphrody.com", "/textures");
         assert_eq!(liens.len(), 4, "trois langues plus x-default");
         let codes: Vec<_> = liens.iter().map(|l| l.hreflang).collect();
         assert_eq!(codes, ["fr", "en", "ja", "x-default"]);
-        assert_eq!(liens[0].url, "https://aphrody.com/textures");
-        assert_eq!(liens[1].url, "https://aphrody.com/en/textures");
-        assert_eq!(liens[2].url, "https://aphrody.com/ja/textures");
+        assert_eq!(liens[0].url, "https://nie.aphrody.com/textures");
+        assert_eq!(liens[1].url, "https://nie.aphrody.com/en/textures");
+        assert_eq!(liens[2].url, "https://nie.aphrody.com/ja/textures");
         // x-default et fr visent la MEME url : c'est voulu, la racine est la version de repli.
         assert_eq!(liens[3].url, liens[0].url);
 
         // Réciprocité : partir de n'importe quelle langue rend le même groupe.
         for langue in Langue::TOUTES {
             let depuis = Langue::separer(&format!("{}/textures", langue.prefixe()));
-            assert_eq!(alternatives("https://aphrody.com", &depuis.route), liens);
+            assert_eq!(alternatives("https://nie.aphrody.com", &depuis.route), liens);
         }
     }
 }

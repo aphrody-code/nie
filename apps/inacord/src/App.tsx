@@ -634,7 +634,7 @@ function CorpsApp() {
 }
 
 /**
- * L'hôte desktop : il construit sa source et la monte, comme Aphrody monte la sienne. Toute
+ * L'hôte desktop : il construit sa source et la monte, comme nie monte la sienne. Toute
  * l'interface en dessous vient de `@niers/inacord-ui` et ignore qu'elle tourne dans Tauri.
  *
  * La source est mémorisée SUR LA RACINE DU JEU, et pas une fois pour toutes : l'utilisateur

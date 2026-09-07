@@ -4,7 +4,7 @@ import { cn } from "../../lib/utils";
  * Le rectangle d'attente d'un contenu qui arrive.
  *
  * Écrit ici plutôt qu'importé : le squelette du wiki venait de `@rosegriffon/ui`, et ce paquet
- * partagé est monté par **deux hôtes** qui ne sont pas Rose Griffon — Aphrody et Inacord sont
+ * partagé est monté par **deux hôtes** qui ne sont pas Rose Griffon — nie et Inacord sont
  * des projets `aphrody-dev`. Cinq lignes valent mieux qu'une dépendance de marque (CLAUDE.md
  * § *Propriété*).
  *

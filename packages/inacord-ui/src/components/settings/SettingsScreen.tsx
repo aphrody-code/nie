@@ -13,7 +13,7 @@
  * ## Ce qu'il ne montre pas
  *
  * Les réglages que l'hôte ne sait pas honorer. Il ne le décide pas lui-même : il demande
- * `useCapacites()` et laisse le modèle filtrer (`visibleSettings`). Sous Aphrody, ni chemin de
+ * `useCapacites()` et laisse le modèle filtrer (`visibleSettings`). Sous nie, ni chemin de
  * disque, ni pont MCP, ni outils avancés — et aucune condition d'hôte n'est écrite ici.
  *
  * ## Les touches

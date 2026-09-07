@@ -785,7 +785,7 @@ pub static REGLES: &[Regle] = &[
         Azalee,
         Motif::Prefixe("/tools"),
         interne(
-            "page d'index sans donnée : cinq cartes de navigation écrites en dur. L'équivalent d'Aphrody est son menu, engendré par le serveur — une page de liens ne se porte pas, elle se remplace"
+            "page d'index sans donnée : cinq cartes de navigation écrites en dur. L'équivalent de nie est son menu, engendré par le serveur — une page de liens ne se porte pas, elle se remplace"
         )
     ),
     r!(
@@ -798,7 +798,7 @@ pub static REGLES: &[Regle] = &[
         "azalee-auth",
         Azalee,
         Motif::Prefixe("/auth"),
-        interne("comptes utilisateurs : hors périmètre d'Aphrody")
+        interne("comptes utilisateurs : hors périmètre de nie")
     ),
     r!(
         "azalee-legal",
@@ -828,7 +828,7 @@ pub static REGLES: &[Regle] = &[
         "azalee-compte",
         Azalee,
         Motif::Prefixe("/settings"),
-        interne("réglages de compte : hors périmètre d'Aphrody")
+        interne("réglages de compte : hors périmètre de nie")
     ),
     r!(
         "azalee-login",
@@ -870,7 +870,7 @@ pub static REGLES: &[Regle] = &[
         "azalee-accueil",
         Azalee,
         Motif::Exact("/"),
-        interne("accueil du wiki : Aphrody a le sien, dans la DA du jeu")
+        interne("accueil du wiki : nie a le sien, dans la DA du jeu")
     ),
     r!(
         "azalee-chara",
@@ -879,7 +879,7 @@ pub static REGLES: &[Regle] = &[
         servi("/api/v1/chara")
     ),
     // Les fiches encyclopédiques restent sur Azalée — mais leurs DONNÉES doivent être
-    // atteignables depuis Aphrody, et elles ne le sont pas. C'est `manquant`, pas `interne` :
+    // atteignables depuis nie, et elles ne le sont pas. C'est `manquant`, pas `interne` :
     // « reste sur Azalée » justifie la page, jamais l'absence de la donnée.
     // Les fiches encyclopediques restent sur Azalee — c'est le lot 6 du plan, et la separation
     // de marque tient. Ce qui NE devait pas rester ailleurs, c'est la donnee : elle est servie
@@ -943,7 +943,7 @@ pub static REGLES: &[Regle] = &[
         "azalee-api-jeton",
         AzaleeApi,
         Motif::Exact("/api/supabase-token"),
-        interne("émet un jeton : un secret ne traverse jamais Aphrody")
+        interne("émet un jeton : un secret ne traverse jamais nie")
     ),
     r!(
         "azalee-api-llm",

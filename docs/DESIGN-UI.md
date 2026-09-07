@@ -112,7 +112,7 @@ prochaine session.
 - Pas de dépendance à un framework CSS-in-Rust (`stylist`, `grass`…) ni à un framework Rust
   « React-like » (Leptos/Dioxus/Yew) : cette crate ne rend rien, elle transpose des valeurs et
   assemble du texte — `std::fmt` y suffit, sans dépendance nouvelle. `CLAUDE.md` exclut déjà
-  Leptos de la pile Aphrody (`nie-site` est Axum + askama). Tailwind CSS v4 et shadcn/ui restent
+  Leptos de la pile nie (`nie-site` est Axum + askama). Tailwind CSS v4 et shadcn/ui restent
   la pile réelle côté hôtes web (`apps/nie-web/src/base.css`, `@import "tailwindcss"` +
   `@theme inline`) ; `roles.rs` est le pont **typé** vers cette pile, pas un remplacement.
 - Pas de conversion sRGB↔OKLCH : les jetons stockent la valeur OKLCH telle qu'écrite dans le CSS

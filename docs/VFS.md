@@ -5,7 +5,7 @@
 > Chaque domaine a son document détaillé ; **celui-ci ne fait que la synthèse et la matrice**.
 > Aucun compte de ce fichier n'est estimé : ils sont tous recalculés depuis l'inventaire.
 
-L'objectif que ce document sert : **qu'Aphrody expose le VFS comme `nie.exe` le lit** — chaque
+L'objectif que ce document sert : **que nie expose le VFS comme `nie.exe` le lit** — chaque
 fichier, chaque dossier, chaque mode atteignable par une route, ou classé avec sa raison.
 
 ## 1. Les six domaines

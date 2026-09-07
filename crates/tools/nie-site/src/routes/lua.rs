@@ -1,4 +1,4 @@
-//! La couche Lua du dépôt, servie par Aphrody — `/api/v1/lua/*`.
+//! La couche Lua du dépôt, servie par nie — `/api/v1/lua/*`.
 //!
 //! ## Ce que le jeu met dans un `.lua.bin`, et ce qu'on en sert
 //!
@@ -185,10 +185,6 @@ pub struct Capacite {
 /// Corps de `/api/v1/lua`.
 #[derive(Debug, Clone, Serialize)]
 pub struct CapacitesLua {
-    /// Toujours `nie-site`.
-    pub service: &'static str,
-    /// Version de la crate.
-    pub version: &'static str,
     /// Vrai quand l'index du VFS est prêt : sans lui, le catalogue est vide.
     pub vfs_pret: bool,
     /// Nombre de `.lua.bin` indexés, **compté** sur le VFS.
@@ -276,8 +272,6 @@ pub async fn capacites(State(etat): State<EtatSite>) -> Json<CapacitesLua> {
         None => (0, 0),
     };
     Json(CapacitesLua {
-        service: crate::SERVICE,
-        version: crate::VERSION,
         vfs_pret: index.is_some(),
         scripts,
         octets,

@@ -38,7 +38,7 @@ parallèle.
 | Le typecheck Bun **échoue sur deux paquets** | `@rosegriffon/mcp` : 5 erreurs `TS2307` (`@rosegriffon/azalee/server` introuvable) · `@rosegriffon/cron` : 3 erreurs `TS2305` (`@aphrody/bxc` sans `detectPii`/`redactPii`/`redactObject`) | `bun run typecheck` |
 | Le reste du typecheck est vert | `inacord`, `nie-web`, `@niers/inacord-ui`, `azalee-tools`, `azalee-web` = 0 | idem |
 | `nie-site` en production sert un binaire **périmé** | `/api/v1/episodes` rend **500** en ligne ; la cause (WAL + `ProtectSystem=strict`) est corrigée dans les sources, le binaire n'a pas été rebâti | session parallèle, 2026-09-06 |
-| Aphrody rend le menu principal | 14 blocs mesurés contre la capture du jeu ; écart ≤ 10 px sur 6 d'entre eux, 392 px sur la rangée (assumé : 5 entrées réelles contre 8 tuiles) | `scripts/validation/mesurer-mainmenu.py` |
+| nie rend le menu principal | 14 blocs mesurés contre la capture du jeu ; écart ≤ 10 px sur 6 d'entre eux, 392 px sur la rangée (assumé : 5 entrées réelles contre 8 tuiles) | `scripts/validation/mesurer-mainmenu.py` |
 | Le dépôt est poussé | `a25ea27..f683f36 main` — 532 fichiers, `cargo check` vert avant push | 2026-09-06 |
 
 ## 3. Ce qui reste à faire, par ordre de dépendance
@@ -127,7 +127,7 @@ liens**, jamais se contenter du code HTTP — c'est exactement le piège qui a c
 
 ### Bloc 4 — finir J4 : plus aucune marque Rose Griffon côté `aphrody-dev`
 
-Décision gelée : seule Azalée est un produit Rose Griffon ; Aphrody, Inacord et nie sont
+Décision gelée : seule Azalée est un produit Rose Griffon ; Inacord et nie sont
 `aphrody-dev`.
 
 ```bash
@@ -145,7 +145,7 @@ forme non filtrée sont des exceptions, et aucune n'est un oubli :
 
 1. `apps/inacord/src-tauri/tauri.conf.json:41` — l'updater des 0.5.x déjà installées lit encore
    `azalee.rosegriffon.fr/tools/niers/latest.json` (qui redirige), en **2ᵉ** position derrière
-   `aphrody.com/downloads/inacord/latest.json`. Le retirer figerait silencieusement toutes les
+   `nie.aphrody.com/downloads/inacord/latest.json`. Le retirer figerait silencieusement toutes les
    0.5.x. Il partira quand le parc aura basculé, pas avant.
 2. `packages/inacord-ui/src/components/ui/skeleton.tsx:6-7` — un **commentaire de doctrine**,
    sans `import` ni URL ni marque affichée : il explique que le squelette a été réécrit ici
@@ -216,7 +216,7 @@ Ils ne se font pas, ils se **préparent** : une commande, sa vérification, son 
 publiés dans un `fact:`. C'est la seule partie du plan qu'un agent ne peut pas clore seul.
 
 1. bascule DNS `azalee.rosegriffon.fr` → Vercel ;
-2. `nginx -t` puis `reload` (découpe du vhost `aphrody.com`, retrait de `supabase-compat.inc`) ;
+2. `nginx -t` puis `reload` (découpe du vhost `nie.aphrody.com`, retrait de `supabase-compat.inc`) ;
 3. `systemctl stop/start/daemon-reload` — dont l'installation du `nie-site` rebâti et
    `nie-miroir-cloud.timer` ;
 4. rotation d'un secret (`SUPABASE_JWT_SECRET`, mot de passe Postgres) ;

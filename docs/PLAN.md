@@ -48,7 +48,7 @@ Le reverse-engineering est **l'échafaudage**, pas la fin : il sert à résoudre
 > **92,239011 % code Rust**. La forge n’est donc plus classée non rejouable ; les autres
 > items explicitement incomplets restent inchangés.
 
-> **État live Aphrody — 2026-09-07.** `/healthz` est HTTP **200** (`nie-site` 0.5.9,
+> **État live nie — 2026-09-07.** `/healthz` est HTTP **200** (`nie-site` 0.5.9,
 > 255 308 entrées VFS, 936 CPK, contenu présent) ; `/api/v1/couverture` rend **578 capacités**,
 > `manquant=0`, `partiel=0`, `tenue=true`, avec **1 règle bloquée portant 9 fichiers `.g4tg`**.
 

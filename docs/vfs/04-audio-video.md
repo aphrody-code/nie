@@ -2,7 +2,7 @@
 
 Cartographie du sous-arbre `data/common/sound/`, `data/common/sound_asset/`,
 `data/common/movie/`, `data/dx11/movie/` du VFS d'*Inazuma Eleven: Victory Road*, en vue des
-routes Aphrody qui doivent le servir **comme `nie.exe`** : par cue, pas par fichier physique.
+routes nie qui doivent le servir **comme `nie.exe`** : par cue, pas par fichier physique.
 Inventaire source : `var/vfs/lot4-audio.txt` (`chemin taille [cpk]`).
 
 ## 1. Les chiffres
@@ -97,7 +97,7 @@ catalogue audio. Exemple de granularité extrême déjà documenté : `waza_stre
 `/audio-info/data/common/sound_asset/bgm_title.acb`).
 
 **Défaut déjà recensé** (`docs/PLAN-SITE-ULTIME.md` § « pièges d'édition » / § catalogage) : la
-page « Sons » d'Aphrody catalogue aujourd'hui par fichier physique (`.awb` listé comme un son),
+page « Sons » de nie catalogue aujourd'hui par fichier physique (`.awb` listé comme un son),
 ce qui masque la structure réelle. Le bon niveau est le **cue**, adressé par `cueId` (l'identifiant
 AFS2 stable), jamais par rang de fichier — cf. §7.
 
@@ -146,7 +146,7 @@ visèmes datés (`{duration_s, frames:[{time_s, viseme, channel, param}]}`).
 `nie-site` (port 8085, Axum, `/api/v1/*`) proxifie `nie-model-serve` (port 8790, le vrai décodeur).
 Les routes audio/vidéo vivent sur **8790**, pas sur `/assets/*` de 8085 comme le laisserait
 supposer une convention générique — vérifié : `curl 127.0.0.1:8085/audio-info/...` rend du HTML
-(la coquille Aphrody), pas du JSON ; c'est `127.0.0.1:8790/audio-info/...` qui répond.
+(la coquille nie), pas du JSON ; c'est `127.0.0.1:8790/audio-info/...` qui répond.
 
 Routes trouvées par balayage de `crates/tools/nie-model-serve/src/main.rs`
 (`rg 'strip_prefix\("/'`) et testées par `curl` :
@@ -191,7 +191,7 @@ volée « tiendrait la connexion une minute »).**
 | Décodage lip-sync `.p3lip` | **servi** | `/lip/<x>.p3lip` → 200, visèmes datés |
 | Export brut (octets VFS, sans décodage) | **servi** | `/export/<x>` → 200 pour n'importe quelle extension du domaine |
 | Total de cues à l'échelle du domaine | **interne (mesuré ici, non exposé en API)** | 284 115, calculé par agrégation côté client (`jq -s`) sur 5 512 appels `/audio-info` — pas d'endpoint qui le rend en un appel |
-| Catalogue "Sons" par cue (pas par fichier `.acb`/`.awb`) | **manquant côté front, servi côté API** | l'API (`/audio-info`) porte déjà la structure correcte ; c'est la page Sons d'Aphrody qui affiche l'AWB comme une piste — défaut recensé au plan |
+| Catalogue "Sons" par cue (pas par fichier `.acb`/`.awb`) | **manquant côté front, servi côté API** | l'API (`/audio-info`) porte déjà la structure correcte ; c'est la page Sons de nie qui affiche l'AWB comme une piste — défaut recensé au plan |
 | Page "Vidéos" listant les 97 films avec statut de lecture | **à vérifier** | l'API répond par fichier (`/video/?info=1`) ; pas constaté ici si une page liste les 97 avec leur `lisibleNavigateur` |
 | Téléchargement nommé par cue (pas par fichier source) | **manquant** | aucune route observée ne pose `Content-Disposition` avec un nom dérivé du `cueId`/nom de cue — cf. §7, défaut de la même famille que celui déjà payé sur les textures nommées d'un G4TX |
 
@@ -218,7 +218,7 @@ volée « tiendrait la connexion une minute »).**
    Données déjà disponibles via `@niers/catalog/jeu` (`AudioBank`/`AudioCue`,
    `packages/nie-catalog/src/jeu.ts:601-648`) et `packages/azalee/src/cpk/audio.ts`
    (`cpkAudioCueUrl`, adressage par `awbId`/cue-id, pas par rang — déjà correct côté azalee, à
-   répliquer côté Aphrody).
+   répliquer côté nie).
 5. **Page "Vidéos" avec statut par film** — 97 films logiques (`common`+`dx11`, jumeaux),
    `lisibleNavigateur` en badge, fallback MPEG-2 = lien `/export/` brut + mention explicite
    "non lisible dans le navigateur, codec Sofdec Prime".

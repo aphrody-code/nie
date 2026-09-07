@@ -9,7 +9,7 @@
  * Deux familles cohabitent, et il ne faut pas les confondre :
  *
  * - celles de `@niers/catalog/jeu` visent `nie-model-serve` (le decodage a la volee) ;
- * - celles de `./nie-site` visent la crate Rust d'Aphrody (`/f`, `/b`, `/api/v1`).
+ * - celles de `./nie-site` visent la crate Rust de nie (`/f`, `/b`, `/api/v1`).
  *
  * Un hote choisit sa famille ; les composants, eux, passent par `AssetSource` et n'en voient
  * aucune.

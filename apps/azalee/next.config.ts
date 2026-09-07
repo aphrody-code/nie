@@ -158,13 +158,13 @@ const nextConfig: NextConfig = {
 		// Ou vont les pages retirees du wiki. DEUX destinations, pas une.
 		//
 		// 1. Les quatre catalogues media (`/textures`, `/modeles`, `/sons`, `/videos`) sont
-		//    SERVIS par Aphrody : `nie-site` leur rend un document propre, avec titre,
+		//    SERVIS par nie : `nie-site` leur rend un document propre, avec titre,
 		//    description et canonique, et le site les publie a son plan. Les y renvoyer mene a
 		//    la page demandee.
 		// 2. La galerie et les cinq outils sont partis dans l'explorateur de BUREAU
-		//    (`docs/MIGRATION-EXPLORATEUR.md`). Aphrody ne les sert pas : `apps/nie-web` ne
+		//    (`docs/MIGRATION-EXPLORATEUR.md`). nie ne les sert pas : `apps/nie-web` ne
 		//    connait que `medias` et `explorateur`, toute autre route y retombe sur l'accueil.
-		//    Les renvoyer chez Aphrody afficherait donc son accueil sous l'URL d'un outil —
+		//    Les renvoyer chez nie afficherait donc son accueil sous l'URL d'un outil —
 		//    pire qu'un 404, qui au moins ne ment pas. Ils vont a `/tools/niers`, la page qui
 		//    dit ou est passe l'outil et permet de le telecharger.
 		//
@@ -176,8 +176,8 @@ const nextConfig: NextConfig = {
 		// `NEXT_PUBLIC_TOOLS_ORIGIN` reste surchargeable, mais elle a desormais un DEFAUT :
 		// les pages sont supprimees du depot, laisser la liste vide ne rend plus le wiki
 		// d'avant, seulement dix 404.
-		const origineMedias = process.env.NEXT_PUBLIC_TOOLS_ORIGIN || "https://aphrody.com";
-		const versAphrody = ["/textures", "/modeles", "/sons", "/videos"].map((prefixe) => ({
+		const origineMedias = process.env.NEXT_PUBLIC_TOOLS_ORIGIN || "https://nie.aphrody.com";
+		const versNie = ["/textures", "/modeles", "/sons", "/videos"].map((prefixe) => ({
 			// 308 et non 301 : la methode et le corps sont conserves, et le cache des
 			// navigateurs ne fige pas la redirection de facon irreversible.
 			destination: `${origineMedias}${prefixe}/:path*`,
@@ -204,7 +204,7 @@ const nextConfig: NextConfig = {
 		}));
 
 		return [
-			...versAphrody,
+			...versNie,
 			...versExplorateur,
 			...raccourcisOutils,
 			{
@@ -221,7 +221,7 @@ const nextConfig: NextConfig = {
 			// `/tools/random-team`, retirés avec les cinq outils partis dans l'explorateur.
 			// Une redirection permanente vers une page morte est pire qu'un 404 : elle est
 			// mise en cache par le navigateur. Les quatre URL sont donc traitées ensemble
-			// par `versAphrody` quand `NEXT_PUBLIC_TOOLS_ORIGIN` est posée.
+			// par `versNie` quand `NEXT_PUBLIC_TOOLS_ORIGIN` est posée.
 			{
 				destination: "/news",
 				permanent: true,

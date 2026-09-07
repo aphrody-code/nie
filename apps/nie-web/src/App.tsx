@@ -23,7 +23,7 @@ import { Settings } from "./pages/Settings";
 import { ACCUEIL, cheminPourEntree, entreeDemandee, separerLangue } from "./routage";
 
 /**
- * Coquille d'Aphrody.
+ * Coquille de nie.
  *
  * L'hôte n'a qu'un rôle : construire sa source et la monter. Tout le reste vient de
  * `@niers/inacord-ui` — la même interface que celle d'Inacord, dans la DA du menu principal du

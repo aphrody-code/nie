@@ -1,5 +1,5 @@
 /**
- * L'accueil d'Aphrody : le menu principal, et rien d'autre.
+ * L'accueil de nie : le menu principal, et rien d'autre.
  *
  * ## Ce que cet écran a cessé d'afficher, et pourquoi
  *
@@ -281,7 +281,7 @@ export function MenuPrincipal({
 			{/* Le titre reste dans le document, hors de la vue : la page a besoin d'un `h1` —
 			    le serveur en rend un, React remplace ce qu'il a rendu, et un écran qui n'en a
 			    plus se présente sans niveau de titre à qui l'écoute. */}
-			<h1 style={HORS_VUE}>Aphrody</h1>
+			<h1 style={HORS_VUE}>nie</h1>
 
 			{/* --- La rangée principale : les entrées du site, et la seule zone interactive ---
 			    Sans compte sous le libellé : le jeu n'en met pas, et le chiffre était déjà écrit
@@ -330,7 +330,7 @@ export function MenuPrincipal({
 			</CanvasItem>
 
 			{/* --- La recherche, dans l'encart haut-droit ---------------------------------------
-			    Le jeu y met « Alt Inazuma Post » ; Aphrody y met la seule question qu'on pose à
+			    Le jeu y met « Alt Inazuma Post » ; nie y met la seule question qu'on pose à
 			    un site de ressources : où est ce fichier. La barre porte sa touche, et la touche
 			    est branchée par la barre de guides du bas. */}
 			<CanvasItem

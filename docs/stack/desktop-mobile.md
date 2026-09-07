@@ -9,7 +9,7 @@
 L'explorateur s'appelle **Inacord** (`apps/inacord`, ex `apps/inacord`) et reste une
 application React/Vite. Son interface est extraite dans `packages/inacord-ui`, montée par
 deux hôtes : `Tauri 2` pour le bureau (et plus tard Android/iOS), `apps/nie-web` pour le
-site **Aphrody** (`aphrody.com`) servi par `nie-site`. Les deux implémentent le même contrat
+site **nie** (`nie.aphrody.com`) servi par `nie-site`. Les deux implémentent le même contrat
 `packages/asset-source` et portent la même DA, celle du vrai jeu. `productName` devient
 `Inacord` ; l'identifiant `dev.niers.explorer` et les URL de l'updater ne changent pas.
 **Leptos n'est pas retenu** : une seconde pile d'UI ne partagerait rien avec Inacord.

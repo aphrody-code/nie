@@ -20,7 +20,7 @@
 ---
 
 > **Amendment 2026-09-06 (9) — the real VFS is mounted, Lua is fully audited, and the menu tree
-> is now addressed through Aphrody.**
+> is now addressed through nie.**
 >
 > This session replaced the inventory-only proof with a proof against the real Steam CPK
 > payloads, using an explicit `NIE_GAME_DIR`: local and `ovh-vps-ubuntu-direct` both mount
@@ -70,7 +70,7 @@
 > - la 3D est servie en **12 routes** mesurées (`/api/v1/3d/*` décrit, `/model/*` sert) sur un
 >   corpus de **6 191 modèles assemblables** — et le catalogue ne proposait jusque-là que des
 >   *pièces* (`.g4mg` seuls, 143 000 fichiers dont aucun n'était affichable) ;
-> - les filtres d'Aphrody sont inventoriés contre leurs équivalents : **48 recensés,
+> - les filtres de nie sont inventoriés contre leurs équivalents : **48 recensés,
 >   42 manquants** (`docs/FILTRES.md`) — chiffre **corrigé le soir même** par la mesure :
 >   **41 servis, 5 absents, 2 côté client**. Le recensement lu se trompait d'un facteur six, et
 >   c'est l'amendement 8 qui le raconte ;
@@ -284,7 +284,7 @@
 
 ## 1. Ce que « ultime » veut dire ici
 
-Un seul site — Aphrody, servi par `nie-site`, monté par `apps/nie-web` et par Inacord — où :
+Un seul site — nie, servi par `nie-site`, monté par `apps/nie-web` et par Inacord — où :
 
 - l'interface est **l'UI du jeu**, mesurée contre des captures, pas dessinée de mémoire ;
 - **tous les composants d'Azalée** sont disponibles, dans la DA du site ;
@@ -369,7 +369,7 @@ Ce plan est fondé sur ces échecs. Chaque ligne est un défaut réellement pay�
 | Le calque exporté du jeu, rendu **sous** l'interface à 18 % d'opacité, laissait son texte dans le document : « Photos commémoratives disponibles après », « Exclure plusieurs joueurs », « Fusion rapide » | des libellés d'un AUTRE écran du jeu lus par les lecteurs d'écran et les moteurs, au milieu de l'accueil | **Une opacité n'efface rien.** Un calque de validation ne se met pas en façade ; ce qui est décoratif ne doit pas être lisible. |
 | Deux guides de touches — « F » et « V » — alors que `rg 'keydown|onKeyDown'` rend **0** dans `nie-web` et `inacord-ui` | une interface qui promet un raccourci inexistant | **Une affordance se vérifie avant d'être dessinée.** |
 | Sept liens d'infrastructure en façade : `nie-site 0.5.9`, `255 308` entrées indexées, `/api/v1/health`, `sitemap.xml`, `llms.txt`, GitHub, et le domaine du site écrit sur le site | l'utilisateur lisait l'exploitation, pas le produit | **Aucune donnée ni lien technique en façade.** Le SEO et l'API restent servis — pour les robots et les agents, pas dans le menu. |
-| `/explorateur` sortait avec `<title>explorateur — Aphrody</title>`, identique dans les trois langues, et manquait au plan de site comme à `robots.txt` | une entrée du menu invisible pour les moteurs | **Une entrée que le serveur ne connaît pas est une page sans titre.** Le front et le back partagent la même liste d'entrées. |
+| `/explorateur` sortait avec `<title>explorateur — nie</title>`, identique dans les trois langues, et manquait au plan de site comme à `robots.txt` | une entrée du menu invisible pour les moteurs | **Une entrée que le serveur ne connaît pas est une page sans titre.** Le front et le back partagent la même liste d'entrées. |
 | Une capture Chrome headless à budget court montrait la page complète et **la place du sprite vide**, alors que le DOM portait le bon élément et la bonne position de fond | une heure passée à chercher un bug de composant | **Une capture ne prouve pas une absence.** Vérifier `--dump-dom` avant d'accuser le rendu ; un atlas de 1,5 Mo n'est pas décodé dans un budget de 3 s. |
 | Le personnage était agrandi **×1,52** — 1,35 posés par le composant, ×1,125 par la mise à l'échelle du canevas 1280 → 1440 | un sprite crénelé sans qu'aucune valeur soit fausse | **Dans un canevas mis à l'échelle, les facteurs se multiplient.** L'échelle d'un élément se raisonne en pixels rendus, pas en pixels du canevas. |
 | `format!("{:?}")` sur une `Option` publiait `"Some(V2)"` dans un JSON destiné à être lu | le nom Rust d'une variante, entouré de son conteneur, servi comme donnée | **Un JSON public ne se sérialise pas par `Debug`.** |
@@ -700,15 +700,15 @@ déclarée « reste sur Azalée » **avec sa raison** (Azalée demeure le wiki d
   Bun. Gate connue : `niers push --dry-run` annonce table par table, puis un push réel rend
   **le même total qu'aujourd'hui, écart 0**.
 
-### Lot 8 — les filtres : chaque page d'Aphrody vaut son équivalent
+### Lot 8 — les filtres : chaque page de nie vaut son équivalent
 
-Inventaire du 2026-09-06 : `docs/FILTRES.md`. Il compare page à page Aphrody, Azalée (21 pages
+Inventaire du 2026-09-06 : `docs/FILTRES.md`. Il compare page à page nie, Azalée (21 pages
 de liste publiques, 24 clés de `searchParams` validées par zod) et Inacord (17 vues filtrantes,
 dont un vrai langage de requête sur le Cinéma — `s3e12 lang:vf vu:non`).
 
 **Le compte : 48 filtres recensés, 3 pleinement présents, 3 partiels, `manquant = 42`.**
 
-L'écart n'est pas ergonomique, il est structurel : l'explorateur d'Aphrody n'a **aucun** filtre,
+L'écart n'est pas ergonomique, il est structurel : l'explorateur de nie n'a **aucun** filtre,
 le catalogue a `q` + `page` avec un `PAR_PAGE = 60` écrit en dur, et les 4 vues ne couvrent que
 **143 246 des 255 308** entrées. Les **112 062** restantes — `.bin` 72 308, `.p3lip` 21 047,
 `.objbin` 12 190 — ne sont atteignables que par le parcours, sans le moindre filtre. C'est ce
@@ -763,7 +763,7 @@ appris tient en cinq points, et aucun n'était dans le plan du matin.
 
 Les trois défauts à réparer sont réparés : `/b?q=` filtre (46 → 1), `cpk=` filtre
 (255 308 → 19 913), et l'état de l'explorateur vit dans l'URL (`?d=…&q=…&ext=…`, vérifié à
-l'écran par `chromium --dump-dom` sur `https://aphrody.com`).
+l'écran par `chromium --dump-dom` sur `https://nie.aphrody.com`).
 
 **Ce qui reste, et c'est le vrai reste :** 35 des 41 filtres servis n'ont **aucune commande à
 l'écran**. Le retard a changé de côté — il n'est plus dans le serveur, il est dans l'interface,
@@ -921,7 +921,7 @@ Trois conséquences déjà mesurées :
    les pièces produit des 404 ; il doit lister ce qui s'assemble, et dire pourquoi le reste
    ne s'assemble pas.
 3. **Le slug est le code du jeu**, jamais un nom traduit — c'est la règle d'identité déjà gelée
-   pour Aphrody et Inacord.
+   pour nie et Inacord.
 
 #### 9.6 — Couverture ≠ indexation
 
@@ -988,7 +988,7 @@ arithmétique ne la trouve.
 | La façade purgée : doublons, texte étranger, liens d'infrastructure | le DOM rendu ne porte plus qu'une fois chaque information ; aucune route technique dans le menu |
 | Une seule coquille (`pages/Ecran.tsx`) au lieu de deux chartes | l'accueil et les écrans secondaires partagent fond, biseaux, typographie et la même rangée de tuiles |
 | `nie-aphrody` servie en sept routes ; le personnage remplace le titre | lot 5 ci-dessus |
-| Le SEO recentré sur ce que le site est | `<title>` de l'accueil = « Aphrody » ; `/explorateur` titré et traduit ; **18** URL au plan de site (15 avant), `robots.txt` et `llms.txt` alignés |
+| Le SEO recentré sur ce que le site est | `<title>` de l'accueil = « nie » ; `/explorateur` titré et traduit ; **18** URL au plan de site (15 avant), `robots.txt` et `llms.txt` alignés |
 | La compatibilité `?vue=` retirée | le type de `entreeDemandee` l'interdit désormais **à la compilation**, ce qu'aucun test ne garantissait |
 | Portails | `cargo test -p nie-site` 96/96, `bun test` 87/87, clippy et lint sans avertissement sur les crates et paquets touchés |
 | Le design system de couleur : `nie-aphrody` est la **source** des 29 couleurs du site | `game-tokens.css` est **engendré** (`cargo run -p nie-aphrody --bin design`), 48 propriétés dont 29 couleurs, **zéro hexadécimal écrit à la main** ; un golden le prouve par falsification |
@@ -1014,7 +1014,7 @@ arithmétique ne la trouve.
    `d010020` 7 962. Les captures sont une preuve de parsing/rendu sans erreur ; elles ne
    prétendent pas encore à une fidélité pixel-perfect.
 2. ~~**`app::ROUTES` est périmé**~~ — **réglé le 2026-09-06.** Il figeait 19 routes pour un
-   routeur qui en montait **37** : les 7 d'Aphrody, les 5 de la 3D et les 6 de Lua/formats n'y
+   routeur qui en montait **37** : les 7 de nie, les 5 de la 3D et les 6 de Lua/formats n'y
    étaient jamais entrées, chaque lot ayant respecté son périmètre et la liste n'appartenant à
    aucun. La macro `declarer_routes!` supprime la classe de défaut : une route ajoutée est
    montée **et** listée, une route retirée disparaît des deux. La garde ne tient plus à une
@@ -1039,7 +1039,7 @@ arithmétique ne la trouve.
 7. ~~**Le sas `apps/nie-web/src/legacy/`**~~ — **vidé le 2026-09-06 : 90 fichiers, 23 647
    lignes.** Il en portait **87** au dernier compte du plan ; la mesure du jour en trouve 90,
    et **40 d'entre eux** citaient Rose Griffon — ce que la décision du 2026-09-05 interdit
-   côté Aphrody. Après : `fd . apps/nie-web/src/legacy` → **0**, et
+   côté nie. Après : `fd . apps/nie-web/src/legacy` → **0**, et
    `rg -il '@rosegriffon/|rose ?griffon' apps/nie-web/src packages/inacord-ui apps/inacord` →
    **une seule** occurrence, l'URL de repli de l'updater, qui est l'exception écrite.
    `bun run typecheck` : 12 paquets à 0 ; `bun run --filter '*nie-web*' build` : 54 modules,
@@ -1059,9 +1059,9 @@ arithmétique ne la trouve.
    | Supprimé | Lignes | Ce qui sert la donnée aujourd'hui |
    |---|---:|---|
    | `app/avatar` | 11 683 | `/api/v1/donnees/famille/chara_edit` (16 listes) — **l'écran, lui, reste à écrire** |
-   | `app/cpk` + `lib/cpk` | 3 086 | `/b`, `/f`, `/api/v1/formats/decode`, `/api/v1/donnees` — l'explorateur riche est le métier d'**Inacord**, pas d'Aphrody |
+   | `app/cpk` + `lib/cpk` | 3 086 | `/b`, `/f`, `/api/v1/formats/decode`, `/api/v1/donnees` — l'explorateur riche est le métier d'**Inacord**, pas de nie |
    | `components/wiki` + `lib/cutin` | 3 456 | `/api/v1/formats/decode` sur `.g4cm` (parseur **Rust**) ; les composants de fiche sont le métier d'**Azalée** |
-   | `app/videos`, `sons`, `modeles`, `textures` | 3 108 | les **4 vues en ligne** d'Aphrody, lecture audio et vidéo comprises |
+   | `app/videos`, `sons`, `modeles`, `textures` | 3 108 | les **4 vues en ligne** de nie, lecture audio et vidéo comprises |
    | `app/vroid` | 907 | rien, et c'est voulu : classé `interne` (OAuth et secrets tiers) |
    | `app/mode` | 755 | `/api/v1/modes/{slug}`, câblé le jour même |
    | `app/demo` | 329 | `/api/v1/3d/*` et `/model/{famille}/{fichier}` |
@@ -1111,7 +1111,7 @@ arithmétique ne la trouve.
   rendues côté serveur par entrée, et `/f/` — qui ne rend que des octets, jamais un document —
   maintenu hors index. C'est ce que je propose ; l'inverse (tout exposer, `/f/` compris) reste
   la décision de l'utilisateur.
-- **Le préchargement du VFS par nginx** touche le vhost `aphrody.com`. ~~Il attend un go.~~
+- **Le préchargement du VFS par nginx** touche le vhost `nie.aphrody.com`. ~~Il attend un go.~~
   **Plus depuis le 2026-09-06** : il se fait, `nginx -t` puis `reload`, et on mesure le premier
   octet avant et après. Noter que le serveur monte **déjà** le VFS en fond
   (`EtatSite::monter_vfs_en_fond`, 255 308 entrées) — l'étage nginx est une optimisation du

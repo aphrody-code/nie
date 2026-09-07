@@ -3,7 +3,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 /**
- * Hote web d'Aphrody. Le bundle est servi par la crate `nie-site` (Axum), qui
+ * Hote web de nie. Le bundle est servi par la crate `nie-site` (Axum), qui
  * lit `apps/nie-web/dist` : ne pas changer `outDir` sans changer
  * `NIE_SITE_STATIC_DIR` cote Rust.
  *

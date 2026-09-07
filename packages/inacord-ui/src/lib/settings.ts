@@ -30,7 +30,7 @@ export interface Settings {
    * Thème clair/sombre/système.
    *
    * Sous Inacord, `next-themes` reste la source de vérité (sa propre clé `theme`) : ce champ y
-   * est ignoré. Sous Aphrody, où il n'y a pas de `ThemeProvider`, c'est ce champ que l'hôte
+   * est ignoré. Sous nie, où il n'y a pas de `ThemeProvider`, c'est ce champ que l'hôte
    * applique — `useApplySettings()` pose `data-theme` sur `<html>`. Le porter ici, avec le même
    * identifiant que la clé de `next-themes`, rend la synchronisation future triviale.
    */

@@ -398,7 +398,7 @@ donnée existe déjà dans un gisement joignable (le miroir, ou le VFS). Les com
 - **`cross/*`** (§ 1.2) : 15 exports morts sur 17 et 153 tables non typées. Le sujet n'est pas
   une route, c'est une décision — garder ou supprimer le hub *Cross*.
 - **`team-code.ts`** : format du wiki, pas du jeu.
-- **`rag.ts`** : dépend de Redis et d'un sidecar d'embeddings, hors de la stack gelée d'Aphrody.
+- **`rag.ts`** : dépend de Redis et d'un sidecar d'embeddings, hors de la stack gelée de nie.
 - **`tweets`** : donnée éditoriale du site communautaire, absente du miroir — elle n'a rien à
   faire dans une API du jeu.
 

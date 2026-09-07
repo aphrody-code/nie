@@ -1,7 +1,7 @@
 {
-  "name": "Aphrody",
-  "short_name": "Aphrody",
-  "description": "Aphrody, the graceful sharp-eyed Zeus midfielder, faithfully based on official full-body and facial assets.",
+  "name": "nie",
+  "short_name": "nie",
+  "description": "Browse, decode and export the files of Inazuma Eleven: Victory Road, from their original path.",
   "icons": [
     { "src": "/icone-16.png", "sizes": "16x16", "type": "image/png" },
     { "src": "/icone-32.png", "sizes": "32x32", "type": "image/png" },

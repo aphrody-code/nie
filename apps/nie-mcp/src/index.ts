@@ -84,7 +84,7 @@ async function main(): Promise<void> {
   server.registerTool(
     "aphrody_api_health",
     {
-      title: "Vérifier l'API Aphrody nie-site",
+      title: "Vérifier l'API nie nie-site",
       description: "Teste GET /api/v1/health sur nie-site et renvoie son état réel.",
       inputSchema: {},
     },

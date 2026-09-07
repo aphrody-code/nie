@@ -28,7 +28,7 @@ une SPA React/Vite de **158 fichiers TS/TSX MESURÉS**, dont **34** seulement im
 ### Les noms
 
 - **Azalée** — le wiki, `azalee.rosegriffon.fr`. Nom, domaine et design inchangés.
-- **Aphrody** — le site d'outils, **`aphrody.com`** et `www.aphrody.com`. **Ni un wiki ni un
+- **nie** — le site d'outils, **`nie.aphrody.com`** et `www.aphrody.com`. **Ni un wiki ni un
   explorateur de fichiers** : le wiki est Azalée, l'explorateur est Inacord. Son interface
   reproduit le **menu principal du jeu** (précision de l'utilisateur, 2026-09-05).
 - **Inacord** — l'application de bureau et mobile, ex `nie-explorer` : `apps/inacord`,
@@ -38,18 +38,18 @@ une SPA React/Vite de **158 fichiers TS/TSX MESURÉS**, dont **34** seulement im
   **ne changent pas** : c'est ce qui permet aux 0.5.x installés de se mettre à jour.
 - **nie** — le jeu : le moteur Rust, ses hôtes natif, headless et WASM, et le préfixe des
   crates. La CLI reste `niers`.
-- **`packages/inacord-ui`** — l'interface partagée par Inacord et Aphrody ; **Aphrody est
+- **`packages/inacord-ui`** — l'interface partagée par Inacord et nie ; **nie est
   Inacord dans le navigateur**. `packages/asset-source` en est le contrat d'accès aux données.
 
 ### La propriété
 
-Seule **Azalée** appartient à Rose Griffon. **Aphrody, Inacord et nie sont des projets
+Seule **Azalée** appartient à Rose Griffon. **Inacord et nie sont des projets
 `aphrody-dev`, hors Rose Griffon.** Conséquences gelées : pas de marque ni de mention Rose
-Griffon sur `aphrody.com` ou dans Inacord ; pas de paquet `@rosegriffon/*` dans
+Griffon sur `nie.aphrody.com` ou dans Inacord ; pas de paquet `@rosegriffon/*` dans
 `packages/inacord-ui`, `apps/nie-web`, `apps/inacord` (MESURÉ au départ : 13 fichiers, 23
 imports, 19 mentions — les types et helpers utiles passent dans `packages/asset-source` ou
 `nie-catalog`) ; pas de compte ni de SSO Rose Griffon ; l'updater d'Inacord vise d'abord
-`aphrody.com/downloads/inacord/latest.json` (servi par `nie-site` avec la même logique
+`nie.aphrody.com/downloads/inacord/latest.json` (servi par `nie-site` avec la même logique
 GitHub), la route `azalee.rosegriffon.fr/tools/niers/latest.json` survivant en redirection
 pour les 0.5.x déjà installés. La base légale d'exploitation des assets LEVEL-5 hors Rose
 Griffon est **à confirmer par l'utilisateur** ; ce dossier ne la présume pas.
@@ -59,7 +59,7 @@ Griffon est **à confirmer par l'utilisateur** ; ce dossier ne la présume pas.
 - **Azalée = Rose Griffon.** Le thème M3 existant (`apps/azalee/app/globals.css`, 109
   tokens `--md-sys-color-*`, primaire `#f2a93b` clair / `#ffc66c` sombre) est la DA ; rien
   n'y touche cette semaine au-delà du poids des pages.
-- **Aphrody et Inacord = le vrai jeu.** Le thème est **extrait des données du jeu**, jamais
+- **nie et Inacord = le vrai jeu.** Le thème est **extrait des données du jeu**, jamais
   inventé : la palette de texte `common/font/font_color.cfg.bin` (70 couleurs `FONT_COLOR`,
   déjà portée dans `nie-data::font_color`), les textures de menu servies par `nie-model-serve`
   (cadres, fonds, boutons), les atlas d'icônes déjà exploités par `sprites.css` et
@@ -69,11 +69,11 @@ Griffon est **à confirmer par l'utilisateur** ; ce dossier ne la présume pas.
   ne fournit pas (corps de texte, espacements) est **ESTIMÉ** et dit tel quel. Une seule
   interface, **deux coquilles du même jeu** : le site reprend le **menu principal**,
   l'application reprend **InaCord**, l'application de messagerie du téléphone du mode histoire.
-- **La référence d'Aphrody est le menu principal du jeu** (`mainmenu01`), capture ver. 7.1.2 de
+- **La référence de nie est le menu principal du jeu** (`mainmenu01`), capture ver. 7.1.2 de
   2 497 × 1 414 fournie par l'utilisateur le 2026-09-05 et conservée hors dépôt dans
   `data/design/aphrody-ui-ref-mainmenu-7.1.2.png` (© LEVEL-5, jamais commitée). C'est
   l'écran que `docs/DESIGN.md` décompose déjà (31 objbin, textures du groupe B dans le VFS).
-  La coquille d'Aphrody en reprend la grammaire : bandeau haut (logo, notification,
+  La coquille de nie en reprend la grammaire : bandeau haut (logo, notification,
   version), deux panneaux latéraux illustrés, une rangée de **tuiles en parallélogramme** à
   fond photo teinté cyan et icône blanche, une bande bleue de titre, une seconde rangée de
   trois tuiles, des badges en bas. Palette **MESURÉE** sur la capture (ImageMagick, 12
@@ -104,10 +104,10 @@ Griffon est **à confirmer par l'utilisateur** ; ce dossier ne la présume pas.
   migrée** : les comptes se recréent, la réinscription vaut consentement.
 - Ce qui lit un fichier ou un service local (`bun:sqlite` : 41 fichiers, `node:fs` : 44,
   `/home/ubuntu` : 15, `/rest/v1|/realtime/v1|/storage/v1` : 19 — **MESURÉ** sur
-  `apps/azalee` + `packages/azalee`) **part chez Aphrody** ou vise l'origine Supabase
+  `apps/azalee` + `packages/azalee`) **part chez nie** ou vise l'origine Supabase
   dédiée ; rien n'est « corrigé sur place ».
 
-### Aphrody — `nie-site` + `nie-web`
+### nie — `nie-site` + `nie-web`
 
 - `crates/tools/nie-site` : **Axum 0.8**, Tokio 1.53, Tower 0.5, `tower-http` 0.7,
   `askama` 0.16 (+ `askama_web`), `moka` 0.12.16, `blake3` 1.8, `rusqlite` 0.40 ; `publish = false`, écoute
@@ -115,12 +115,13 @@ Griffon est **à confirmer par l'utilisateur** ; ce dossier ne la présume pas.
   **lit** les trois gisements du VPS en lecture seule, et **proxifie** `nie-model-serve`
   (`127.0.0.1:8790`) en lui ajoutant ce qu'il n'a pas : limite de débit, budget de temps,
   budget mémoire, cache.
-- **`aphrody.com` aujourd'hui** (MESURÉ) : DNS déjà sur ce VPS, certificat Let's Encrypt
+- **`nie.aphrody.com` aujourd'hui** (MESURÉ) : DNS déjà sur ce VPS, certificat Let's Encrypt
   déjà émis, `aphrody-site` (:8083, dépôt `aphrody`) y rend une page de 265 octets au corps
-  vide et un `/healthz`. La bascule est une modification du vhost nginx : `aphrody.com` et
-  `www.aphrody.com` vers `:8085`, **les autres hôtes du bloc** (`api.`, `downloads.`, `cdn.`,
-  `bot.`, `admin.`, `mcp.`, `bxc.`, `n2b.`) **restent sur `:8083`**. `nie.aphrody.com`
-  redirige en 308 vers `aphrody.com`. L'en-tête `Content-Security-Policy: default-src 'none'`
+  vide et un `/healthz`. La bascule est une modification du vhost nginx : `nie.aphrody.com`
+  vers `:8085`, `aphrody.com` et `www.aphrody.com` en **308** vers lui, `cdn.aphrody.com` vers
+  `nie-model-serve` (:8790), **les autres hôtes du bloc** (`api.`, `downloads.`, `bot.`,
+  `admin.`, `mcp.`, `bxc.`, `n2b.`) **restent sur `:8083`**.
+  L'en-tête `Content-Security-Policy: default-src 'none'`
   qu'nginx ajoute aujourd'hui **doit être retiré de ce vhost** : les CSP s'additionnent et la
   plus stricte gagne — `nie-site` pose la sienne.
 - `apps/nie-web` : hôte Vite de `packages/inacord-ui` avec `web-source.ts`.
@@ -141,9 +142,9 @@ Griffon est **à confirmer par l'utilisateur** ; ce dossier ne la présume pas.
 | Alternative | Raison du rejet |
 |---|---|
 | **Wiki self-host VPS** (décision de Codex dans `rg/docs/decision-archi-donnees-azalee.md`) | vise l'inverse de la cible ; couple le rendu web à un fichier SQLite local — cause directe du faux vert du 2026-09-05 |
-| **`nie.rosegriffon.fr`** pour le site d'outils | deux marques, deux DA : Rose Griffon est la communauté et son wiki, Aphrody est l'univers du jeu ; le SSO par cookie parent est sans objet, Aphrody ne porte pas de comptes cette semaine |
-| **`nie.aphrody.com`** | un sous-domaine pour le produit principal du domaine ; le placeholder d'`aphrody-site` sur `aphrody.com` ne contient rien |
-| **Socle `aphrody-web`** du dépôt `aphrody` (tokens et squelette communs aux vitrines) | la DA d'Aphrody est celle du jeu, pas une charte commune ; `SITES-PLATFORM.md` du dépôt `aphrody` est à amender par son propriétaire |
+| **`nie.rosegriffon.fr`** pour le site d'outils | deux marques, deux DA : Rose Griffon est la communauté et son wiki, nie est l'univers du jeu ; le SSO par cookie parent est sans objet, nie ne porte pas de comptes cette semaine |
+| **L'apex `aphrody.com`** pour le site | le nom `Aphrody` reste au dépôt `aphrody-code/aphrody` ; ce site s'appelle `nie` et vit sur le sous-domaine du produit, l'apex n'étant plus qu'un 308 |
+| **Socle `aphrody-web`** du dépôt `aphrody` (tokens et squelette communs aux vitrines) | la DA de nie est celle du jeu, pas une charte commune ; `SITES-PLATFORM.md` du dépôt `aphrody` est à amender par son propriétaire |
 | **Leptos 0.8** pour `nie-site` | seconde pile d'UI à côté de React : 0 ligne partagée avec Inacord ; mainteneur unique et maintenance « légère » (issue #4707) ; 37 975 lignes TS/TSX à porter pour l'égaler |
 | **Dioxus 0.7** | même défaut de partage ; plan B seulement si le produit devient Rust-first partout |
 | **SQLx + PostgreSQL** dans `nie-site` | un saut réseau pour des données que `var/mirror.sqlite` sert localement ; Inacord lit déjà ces fichiers : même source ⇒ mêmes réponses |
@@ -151,7 +152,7 @@ Griffon est **à confirmer par l'utilisateur** ; ce dossier ne la présume pas.
 | **Actix** | débit brut supérieur sur benchmark synthétique, mais hors continuité Tokio/Tower et hors `best-stack-2026` |
 | **Absorber `nie-model-serve` dans `nie-site`** | 7 956 lignes écrites à la main (ni Axum ni tokio) ; le réécrire n'apporte rien que le proxy durci n'apporte déjà |
 | **Changer l'identifiant Tauri** avec le nom Inacord | nouveau dossier de données, updater NSIS/MSI qui installe à côté au lieu de mettre à jour |
-| **Une DA « Aphrody » ou « Inacord » inventée, hors du jeu** | la consigne est le vrai jeu : le site reprend le menu principal, l'application reprend InaCord ; une interface, deux coquilles, aucune couleur dessinée de mémoire |
+| **Une DA « nie » ou « Inacord » inventée, hors du jeu** | la consigne est le vrai jeu : le site reprend le menu principal, l'application reprend InaCord ; une interface, deux coquilles, aucune couleur dessinée de mémoire |
 | **Migrer `auth.users`** | données personnelles ; aucune base légale documentée |
 | **Bevy / ECS, Tauri pour le jeu, SQLite distant** | inchangé : incompatibles avec le byte-exact, le rendu natif, ou le serverless |
 
@@ -188,8 +189,8 @@ runtime Node et Supabase Cloud. Ils justifiaient la séparation wiki/outils, pas
 3. **Vercel ↔ eu-west-3** : aucune latence mesurée avant le premier déploiement preview ; si
    la fiche perso dépasse 800 ms au p95, la bascule DNS attend.
 4. **Le vhost `aphrody.com`** porte dix hôtes dans un seul bloc `server` : la découpe doit
-   laisser `api.`, `downloads.`, `cdn.`, `bot.`, `admin.`, `mcp.`, `bxc.`, `n2b.` sur `:8083`,
-   et retirer la CSP nginx du seul bloc Aphrody. Une faute ici coupe les services du dépôt
+   laisser `api.`, `downloads.`, `bot.`, `admin.`, `mcp.`, `bxc.`, `n2b.` sur `:8083`,
+   et retirer la CSP nginx du seul bloc `nie.`. Une faute ici coupe les services du dépôt
    `aphrody`. Test : `nginx -t`, puis un `curl` par hôte avant et après.
 5. **Exposer `nie-model-serve` nu** : jamais ; `nie-site` est obligatoire devant.
 6. **Deux agents, deux dépôts** : Codex dans `rg`, Claude dans `niers`, plus un démon qui
@@ -204,7 +205,7 @@ runtime Node et Supabase Cloud. Ils justifiaient la séparation wiki/outils, pas
 > consolidés : A1 est **remplacé par A2** sur la question des tables, et A3 reçoit la
 > distinction ressource/vue qui lui manquait. Un amendement ultérieur repart de A4.
 
-### A1 — Aphrody, Inacord et nie fonctionnent sans le paquet `inagle` *(révisé par A2)*
+### A1 — Inacord et nie fonctionnent sans le paquet `inagle` *(révisé par A2)*
 
 **Décision.** Aucun des trois produits `aphrody-dev` ne dépend du paquet
 `@rosegriffon/inagle`, propriété Rose Griffon. `inagle` reste la chaîne de publication
@@ -253,7 +254,7 @@ miroir et l'installeur d'Inacord s'y adossent ; renommer casserait tout pour rie
 **Décision.** `nie` acquiert une **couche SQL native** — SQLite et PostgreSQL — et reprend
 **tout le workflow** des tables `inagle_*` que le paquet Bun assurait : lire les données de
 jeu, normaliser, publier, vérifier. `inagle` cesse d'être le producteur ; il devient
-l'ancêtre dont on garde le schéma et les leçons. Aphrody, Inacord et nie fonctionnent alors
+l'ancêtre dont on garde le schéma et les leçons. Inacord et nie fonctionnent alors
 sans le paquet, tout en lisant et écrivant les mêmes tables.
 
 **Ce qui est porté, mesuré le 2026-09-05.**
@@ -279,7 +280,7 @@ la même règle — le client suit la distance à la donnée.
 **Ce qui n'est pas repris tout de suite.** Les 153 tables `inagle_cross_*` (*Inazuma Eleven
 Cross*, jeu mobile) n'ont aucun décodeur Rust : leur alimentation reste au paquet Bun jusqu'à
 ce que quelqu'un décide de porter ce domaine. Le scraping zukan (navigateur headless `bxc`)
-et l'étage RAG restent également TypeScript ; ils ne bloquent ni Aphrody, ni Inacord, ni nie.
+et l'étage RAG restent également TypeScript ; ils ne bloquent ni nie, ni Inacord, ni nie.
 
 **Gate.** `niers push --dry-run` annonce, table par table, le nombre de lignes qu'il écrirait ;
 un `niers push` réel suivi d'un comptage rend **le même total qu'aujourd'hui**, table par
@@ -291,13 +292,13 @@ hors commentaires → les requêtes visent le gisement produit par `niers push`.
 ne crée aucune nouvelle lecture d'`inagle_*` en attendant, et le miroir nocturne reste la
 source jusqu'à ce que `niers push` ait prouvé l'égalité.
 
-### A3 — 2026-09-05 : Aphrody et Inacord sont calqués sur le VFS, comme `nie.exe`
+### A3 — 2026-09-05 : nie et Inacord sont calqués sur le VFS, comme `nie.exe`
 
-**Décision.** Slugs, URL et arborescence de base d'Aphrody et d'Inacord suivent le **VFS du
+**Décision.** Slugs, URL et arborescence de base de nie et d'Inacord suivent le **VFS du
 jeu**, chemin pour chemin, code pour code. **Aucun nom traduit dans une adresse.** Les noms
 français ou anglais restent des **libellés d'affichage** ; ils ne désignent jamais une
 ressource. Azalée garde ses slugs traduits — c'est un wiki lu par des humains et des
-moteurs ; Aphrody est un atelier sur les fichiers du jeu, et parle donc la langue du jeu.
+moteurs ; nie est un atelier sur les fichiers du jeu, et parle donc la langue du jeu.
 
 **Pourquoi, mesuré le 2026-09-05.** Le slug traduit n'identifie pas. Sur les 6 168 lignes
 d'`inagle_characters` : **5 199 `base_slug` distincts, soit 969 collisions**, contre 5 737
@@ -310,7 +311,7 @@ dit si le chemin existe, ce qu'aucun slug ne permet.
 **Les règles.**
 
 1. **L'adresse est le chemin VFS, verbatim**, y compris `data/`, `common/`, `dx11/` :
-   `aphrody.com/f/data/common/chr/_face/01_IE1/c01000010/c01000010.g4md`. Pas de
+   `nie.aphrody.com/f/data/common/chr/_face/01_IE1/c01000010/c01000010.g4md`. Pas de
    réécriture, pas de raccourci, pas de casse normalisée — le VFS est sensible à la casse.
 2. **Le slug d'une entité est son code de jeu** : `c01000010` pour un personnage,
    l'identifiant natif pour une équipe, un item, une technique. Jamais `mark-evans`. Quand
@@ -329,9 +330,9 @@ dit si le chemin existe, ce qu'aucun slug ne permet.
 6. **Les noms traduits restent affichables et cherchables**, dans le corps de la page et
    dans l'index de recherche — jamais dans l'adresse, jamais comme clé.
 
-**Conséquences.** Aphrody et Inacord partagent alors la **même arborescence** que
+**Conséquences.** nie et Inacord partagent alors la **même arborescence** que
 l'utilisateur voit dans l'application de bureau : un chemin copié depuis Inacord s'ouvre
-dans Aphrody, et inversement. `packages/asset-source` n'a plus qu'un espace de noms à
+dans nie, et inversement. `packages/asset-source` n'a plus qu'un espace de noms à
 porter, celui du VFS, ce qui simplifie `url-conventions.ts`. Les 255 308 entrées du VFS
 deviennent adressables sans table de correspondance.
 
@@ -339,7 +340,7 @@ deviennent adressables sans table de correspondance.
 non plus. Les 153 tables `inagle_cross_*` (jeu mobile, pas de VFS) gardent leurs clés.
 
 **Ressource et vue — la distinction qui manquait.** A3 gouverne l'**identité** d'une
-ressource, pas le nom d'un écran. Aphrody a donc deux espaces d'adresses, et deux seulement :
+ressource, pas le nom d'un écran. nie a donc deux espaces d'adresses, et deux seulement :
 
 | Espace | Forme | Rôle |
 |---|---|---|
@@ -355,7 +356,7 @@ n'a qu'une adresse, `/f/<chemin>`.
 
 **Gate.** Un échantillon de 200 chemins tirés de `niers vfs find` répond 200 sur
 `/f/<chemin>` sous la forme exacte du VFS ; le même chemin ouvert dans Inacord désigne la
-même ressource ; `rg` sur les routes d'Aphrody ne trouve **aucun** slug traduit dans un
+même ressource ; `rg` sur les routes de nie ne trouve **aucun** slug traduit dans un
 identifiant ; et une entité dont le nom est `unknown` reste adressable — c'est le cas qui
 prouve la règle.
 
@@ -384,8 +385,8 @@ Trois conséquences :
    `/chara/mark-evans-victory-road`, le code en dernier recours ; table de slugs versionnée,
    `301` permanent à chaque renommage, page de désambiguïsation pour les homonymes. Les 969
    collisions deviennent une fonctionnalité.
-3. **Azalée et Aphrody convergent sur la même identité.** `internal_code` est exactement le
-   code qui nomme les fichiers du VFS (amendement A3). Aphrody l'affiche en chemin, Azalée en
+3. **Azalée et nie convergent sur la même identité.** `internal_code` est exactement le
+   code qui nomme les fichiers du VFS (amendement A3). nie l'affiche en chemin, Azalée en
    slug lisible : deux sites, deux publics, un seul objet désigné. Ce n'est pas un hasard,
    c'est ce qui rend les liens croisés fiables.
 
@@ -462,7 +463,7 @@ schéma `pet.json`, valeurs par défaut, bornes de validation, sémantique `loop
 appliqué à la lettre, il rejetterait notre propre pet, qui est un 8 × **11**. La géométrie est
 donc lue dans le **manifeste** — ce que Codex fait déjà pour ses pets personnalisés — et sa
 validation stricte s'applique à la géométrie déclarée. Cellule 192 × 208 et 8 colonnes sont
-identiques de part et d'autre : Aphrody v2 est une extension du même contrat. Les **assets**
+identiques de part et d'autre : nie v2 est une extension du même contrat. Les **assets**
 de Codex ne sont pas repris : ils ne sont pas dans leur dépôt (CDN) et ne sont donc pas
 couverts par sa licence.
 
@@ -475,7 +476,7 @@ commande synchrone tourne sur le thread principal et figerait la fenêtre sur un
 disque.
 
 **Correction apportée à la décision gelée.** Le README annonce que les tokens de la DA
-d'Aphrody sont « extraits des données » de `mainmenu01`. La mesure du jour oblige à
+de nie sont « extraits des données » de `mainmenu01`. La mesure du jour oblige à
 distinguer :
 
 - les **couleurs** le sont — palette k-means en Oklab sur la capture ver. 7.1.2 : rangée de
@@ -493,7 +494,7 @@ Or ce layout est précisément ce qui manque : composition statique à **22 des 
 callbacks Lua `Setup*`, jamais reversés. Carte complète et prochain pas chiffré :
 [`docs/mainmenu01-analyse-visuelle.md`](../mainmenu01-analyse-visuelle.md).
 
-**Conséquence pour la semaine.** La DA d'Aphrody peut partir sur les couleurs mesurées et sur
+**Conséquence pour la semaine.** La DA de nie peut partir sur les couleurs mesurées et sur
 les atlas d'icônes du VFS ; elle ne peut **pas** prétendre reproduire la mise en page de
 `mainmenu01` tant que le placement n'est pas reversé. Le dire dans le thème plutôt que de
 laisser croire à une conformité non prouvée — « pixel-perfect » reste un objectif mesuré,

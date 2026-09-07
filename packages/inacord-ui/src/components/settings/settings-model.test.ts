@@ -9,7 +9,7 @@ import {
 	visibleSettings,
 } from "./settings-model";
 
-/** Ce qu'Aphrody mesure sur `nie-site` : lecture seule, pas de disque, pas d'outils. */
+/** Ce que nie mesure sur `nie-site` : lecture seule, pas de disque, pas d'outils. */
 const WEB = {
 	vfs: true,
 	texture: true,

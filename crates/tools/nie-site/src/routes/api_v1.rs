@@ -46,12 +46,8 @@ pub const COLONNES_CHARA: [&str; 12] = [
 /// Corps de `/api/v1/health`.
 #[derive(Debug, Serialize)]
 pub struct SanteApi {
-    /// Toujours `nie-site`.
-    pub service: &'static str,
     /// Version de l'API exposée par ce préfixe.
     pub api: &'static str,
-    /// Version de la crate.
-    pub version: &'static str,
     /// Capacités mesurées.
     pub capacites: crate::state::Capacites,
     /// Nombre de chemins retenus par chaque filtre enregistré, dans l'ordre de [`VUES`].
@@ -113,9 +109,7 @@ pub async fn health(
         None
     };
     Json(SanteApi {
-        service: crate::SERVICE,
         api: "v1",
-        version: crate::VERSION,
         capacites: etat.capacites(),
         vues,
         extensions,

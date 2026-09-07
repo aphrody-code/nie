@@ -34,7 +34,7 @@ cd apps/azalee && rg -n 'NIE_CDN|model-serve' app lib                       # 1 
 ```
 
 Azalée ne connaît **pas** la façade des quatre gisements : elle parle à Postgres. C'est la
-première conséquence pratique de tout portage vers Aphrody — il n'y a aucun code à réutiliser
+première conséquence pratique de tout portage vers nie — il n'y a aucun code à réutiliser
 côté accès données, seulement la forme des vues.
 
 ### Deux docstrings périmées qui décrivent un chemin qui n'existe plus
@@ -255,7 +255,7 @@ Restent, dans les 40, six pages qui ne lisent `inagle_*` que pour des **comptes*
 `/dashboard/database`, `/dashboard/database/verification`, `/dashboard/database/[table]`
 (table dynamique).
 
-C'est **la** distinction qui décide de ce qu'Aphrody peut servir nativement : le panier A n'a
+C'est **la** distinction qui décide de ce que nie peut servir nativement : le panier A n'a
 besoin que du VFS ; les paniers B, C et D (20 pages distinctes) dépendent d'un contenu qui n'est
 **pas** dans `nie.exe` ni dans les CPK.
 
@@ -291,7 +291,7 @@ Les 20 **à trancher**, avec leur question : cf. la colonne *Note* de §1.1. Ell
    `drop_rates`, `override_skills`) — sont-elles régénérables depuis le VFS, ou perdues ?
    (`/tactic`, `/tactic/[id]`, `/entraineur`, `/entraineur/[id]`, `/stade`, `/stade/[id]`,
    `/drops`, `/skill`, `/tools/random-team`)
-4. Les vidéos de techniques (`inagle_skill_videos`) sont scrapées — Aphrody les sert-elle, ou
+4. Les vidéos de techniques (`inagle_skill_videos`) sont scrapées — nie les sert-elle, ou
    affiche-t-elle le cut-in décodé du jeu à la place ? (`/skill/[id]`)
 5. La recherche floue (`ufuzzy`, `smart-search`) n'a pas d'équivalent Rust : classement identique
    exigé ou non ? (`/search`, `/` accueil)

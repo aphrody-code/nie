@@ -259,7 +259,7 @@ plan order (cap, deadline, execution, long term, frozen decisions) is in
 [`docs/README.md`](docs/README.md).
 
 
-**Aphrody** (`aphrody.com`) is the tools site, served by a `crates/tools/nie-site`
+**nie** (`nie.aphrody.com`) is the tools site, served by a `crates/tools/nie-site`
 crate — Axum 0.8, **100 % Rust**, bound to `127.0.0.1:8085` behind nginx and TLS. It is
 **neither the wiki nor the file explorer**: the wiki is **Azalée**, the explorer is
 **Inacord**. Its interface reproduces the game's **main menu**, whose real layout is exported

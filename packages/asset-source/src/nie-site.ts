@@ -91,11 +91,15 @@ export interface Capacites {
 	bundle: boolean;
 }
 
-/** Corps de `/api/v1/health`. */
+/**
+ * Corps de `/api/v1/health`.
+ *
+ * Ni `service` ni `version` : le serveur ne se nomme plus dans ses reponses publiques. La
+ * sonde dit ce que l'instance PEUT faire (`capacites`), pas ce qu'elle EST — c'est la seule
+ * chose dont l'interface se sert, et la seule qu'une origine publique ait a publier.
+ */
 export interface SanteApi {
-	service: string;
 	api: string;
-	version: string;
 	capacites: Capacites;
 	/** Un resume par filtre ; `total` reste `null` tant que le VFS n'est pas pret. */
 	vues: { nom: string; extensions: string[]; total: number | null }[];
