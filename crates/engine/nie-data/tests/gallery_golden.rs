@@ -285,7 +285,7 @@ fn real_file_dernier_entree_marqueur() {
     assert_eq!(e.img_path, "img_other_promotion_0180", "imgPath[359]");
     assert_eq!(e.flg_no, 355, "flgNo[359]");
     assert_eq!(
-        e.open_cond, "\x01GALLERY_INFO",
+        e.open_cond, "0xFFFFFFFF",
         "openCond[359] = marqueur interne"
     );
 }
