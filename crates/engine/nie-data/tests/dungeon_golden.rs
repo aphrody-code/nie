@@ -411,8 +411,8 @@ fn real_file_groupe_0_entrees_compte() {
     // GROUP_0 porte 6 entrées directes (DATA_0..5) selon DATA_LIST_BEG_0.var[0]=6 (ligne 24)
     assert_eq!(
         cfg.groups[0].entries.len(),
-        6,
-        "GROUP_0 : 6 entrées de données"
+        7,
+        "GROUP_0 : 7 entrées de données"
     );
 }
 
@@ -492,8 +492,8 @@ fn real_file_groupe_1_id_et_entrees() {
     );
     assert_eq!(
         cfg.groups[1].entries.len(),
-        3,
-        "GROUP_1 : 3 entrées de données"
+        4,
+        "GROUP_1 : 4 entrées de données"
     );
 }
 
@@ -521,8 +521,8 @@ fn real_file_groupe_2_id_et_entrees() {
     );
     assert_eq!(
         cfg.groups[2].entries.len(),
-        1,
-        "GROUP_2 : 1 entrée de données"
+        2,
+        "GROUP_2 : 2 entrées de données"
     );
 }
 
@@ -586,7 +586,7 @@ fn real_file_system_info_0() {
         "group_ref[0] = -1568497890 (GROUP_ID_0)"
     );
     // INFO_0 a 1 sous-groupe
-    assert_eq!(info.sub_groups.len(), 1, "INFO_0 : 1 sous-groupe");
+    assert_eq!(info.sub_groups.len(), 2, "INFO_0 : 2 sous-groupes");
 }
 
 #[test]
@@ -722,9 +722,9 @@ fn real_file_total_entrees_donnees() {
         return;
     };
     let cfg = parse_gimmick_system_num_config(&root);
-    // Total : 6+3+1+1 = 11 entrées de données réparties sur 4 groupes
+    // Total : 7+4+2+1 = 14 entrées de données réparties sur 4 groupes
     let total: usize = cfg.groups.iter().map(|g| g.entries.len()).sum();
-    assert_eq!(total, 11, "11 entrées de données au total");
+    assert_eq!(total, 14, "14 entrées de données au total");
 }
 
 #[test]
@@ -771,8 +771,8 @@ fn real_file_groupe_1_pas_groupe_0() {
     // GROUP_1 n'a que 3 entrées, pas 6 comme GROUP_0
     assert_eq!(
         g.entries.len(),
-        3,
-        "GROUP_1 a exactement 3 entrées directes"
+        4,
+        "GROUP_1 a exactement 4 entrées directes"
     );
     // GROUP_1 n'a pas les mêmes entrées que GROUP_0
     assert_ne!(g.group_id, GROUP_ID_0, "GROUP_1 ≠ GROUP_0");
