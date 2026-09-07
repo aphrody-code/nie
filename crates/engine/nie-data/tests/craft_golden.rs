@@ -231,9 +231,9 @@ fn real_obj_comptes() {
     assert_eq!(cfg.lottery_unique_charas.len(), 1005, "loteries");
     assert_eq!(cfg.sockets.len(), 87, "sockets");
     assert_eq!(cfg.npc_stick_points.len(), 105, "npc stick points");
-    assert_eq!(cfg.visual_infos.len(), 187, "visuals");
-    assert_eq!(cfg.visual_groups.len(), 167, "groupes de visuels");
-    assert_eq!(cfg.objs.len(), 157, "objets de craft");
+    assert_eq!(cfg.visual_infos.len(), 190, "visuals");
+    assert_eq!(cfg.visual_groups.len(), 170, "groupes de visuels");
+    assert_eq!(cfg.objs.len(), 160, "objets de craft");
     assert_eq!(cfg.categories.len(), 5, "catégories");
 }
 
@@ -489,8 +489,8 @@ fn real_theme_comptes() {
         return;
     };
     let cfg = parse_craft_theme_config(&root);
-    assert_eq!(cfg.theme_types.len(), 9, "9 types");
-    assert_eq!(cfg.themes.len(), 3, "3 thèmes");
+    assert_eq!(cfg.theme_types.len(), 10, "10 types");
+    assert_eq!(cfg.themes.len(), 4, "4 thèmes");
 }
 
 #[test]
@@ -535,8 +535,8 @@ fn real_theme_infos_et_refs() {
     assert_eq!(cfg.themes[2].hash2, HashId(0x778C_D287));
     assert_eq!(cfg.themes[2].ref_types.offset, 6);
 
-    // types_of_theme résout la plage (3 types par thème, 3×3 = 9)
-    for th in &cfg.themes {
-        assert_eq!(cfg.types_of_theme(th).len(), 3);
+    // types_of_theme résout les plages du corpus courant : [3, 3, 3, 1].
+    for (th, expected) in cfg.themes.iter().zip([3, 3, 3, 1]) {
+        assert_eq!(cfg.types_of_theme(th).len(), expected);
     }
 }
