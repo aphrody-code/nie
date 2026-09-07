@@ -54,8 +54,8 @@ actionable answer with code examples.
 
 - **Pass the full question as the query** — vague single-word queries
   return generic results.
-- **Version awareness** — use version-specific IDs when the user is
-  pinned (Next.js 15, React 19, tokio 1.45, …).
+   - **Version awareness** — use version-specific IDs whenever the user
+     pins a library or framework version.
 - **Prefer official sources** — `/vercel/next.js` over a community fork.
 - **Library IDs always start with `/`** — `/facebook/react`, not
   `facebook/react`.
