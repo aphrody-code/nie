@@ -112,7 +112,19 @@ struct Entree {
 /// segment d'URL brut, en minuscule, identique dans les trois langues — parce qu'il tombait
 /// dans la branche générique de [`metadonnees`]. Une entrée du menu que le serveur ne connaît
 /// pas est une page sans titre, absente du plan du site et non déclarée à `robots.txt`.
-const ENTREES: [Entree; 8] = [
+const ENTREES: [Entree; 9] = [
+    Entree {
+        // La navigation, qui occupait la racine jusqu'au 2026-09-07. La racine sert le jeu ;
+        // le menu a donc son adresse. Il n'est PAS au plan du site : une page de liens vers
+        // des pages déjà listées ne se référence pas deux fois.
+        segment: "menu",
+        titres: ["Menu", "Menu", "メニュー"],
+        descriptions: [
+            "Les catalogues, l'explorateur et les Options, depuis un seul écran.",
+            "The catalogues, the file browser and the Settings, from a single screen.",
+            "カタログ・ファイルブラウザー・オプションを、ひとつの画面から。",
+        ],
+    },
     Entree {
         // `/medias` manquait, alors que c'est l'une des DEUX entrées du menu et qu'elle figure
         // au plan du site : elle sortait donc en `<title>medias — nie</title>`, description
@@ -268,19 +280,24 @@ pub const SITE: &str = nom_du_site!();
 pub const SUFFIXE_TITRE: &str = concat!(" — ", nom_du_site!());
 
 /// Titre et description de l'accueil.
+///
+/// La description disait ce que l'OUTILLAGE fait — « explorer, décoder et exporter […] depuis
+/// leur chemin d'origine ». C'est exact, et c'est la description d'un site de travail sur des
+/// fichiers. L'accueil sert le jeu ; il se décrit donc par le jeu. Les catalogues restent
+/// servis et gardent leurs propres descriptions, chacune à sa page.
 fn accueil(langue: Langue) -> (String, String) {
     match langue {
         Langue::Fr => (
             SITE.to_owned(),
-            "Explorer, décoder et exporter les textures, modèles, sons et vidéos du jeu, depuis leur chemin d'origine.".to_owned(),
+            "Inazuma Eleven: Victory Road, dans le navigateur.".to_owned(),
         ),
         Langue::En => (
             SITE.to_owned(),
-            "Browse, decode and export the game's textures, models, sounds and videos, straight from their original path.".to_owned(),
+            "Inazuma Eleven: Victory Road, in the browser.".to_owned(),
         ),
         Langue::Ja => (
             SITE.to_owned(),
-            "ゲームのテクスチャ・モデル・サウンド・ムービーを、元のパスのまま閲覧・デコード・書き出しできます。".to_owned(),
+            "イナズマイレブン Victory Road を、ブラウザーで。".to_owned(),
         ),
     }
 }

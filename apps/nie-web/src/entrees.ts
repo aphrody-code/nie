@@ -67,6 +67,17 @@ export const SETTINGS = "settings";
 /** L'éditeur d'avatar, alimenté par les tables `chara_edit` du VFS. */
 export const AVATAR = "avatar";
 
+/**
+ * Le menu de navigation — les catalogues, l'explorateur, les Options.
+ *
+ * Il occupait la racine tant que le site était un catalogue. La racine sert le JEU depuis le
+ * 2026-09-07 ; le menu a donc besoin d'une adresse à lui, sans quoi les quatre catalogues et
+ * l'explorateur ne seraient plus atteignables que par URL directe. Segment anglais, comme toute
+ * route nouvelle. Il n'entre PAS au plan du site : une page de liens vers des pages déjà
+ * listées ne se référence pas deux fois.
+ */
+export const MENU = "menu";
+
 /** Une entrée du menu : sa route, son libellé, son pictogramme. */
 export interface EntreeMenu {
 	/** Le segment d'URL — c'est aussi l'identité de l'entrée. */
@@ -106,7 +117,7 @@ export function libelleEntree(vue: string): string {
  * serait payer une décision d'affichage avec les liens des autres.
  */
 export function routesReconnues(etat: SanteApi | null): string[] {
-	return [...entreesMenu(etat).map((e) => e.vue), ...ALIAS, ...CATALOGUES];
+	return [MENU, ...entreesMenu(etat).map((e) => e.vue), ...ALIAS, ...CATALOGUES];
 }
 
 /**

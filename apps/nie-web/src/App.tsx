@@ -12,12 +12,13 @@ import "@niers/inacord-ui/shell/game-tokens.css";
 import "@niers/inacord-ui/shell/game-screens.css";
 import * as React from "react";
 import { useEffect, useMemo, useState } from "react";
-import { ALIAS, AVATAR, EXPLORATEUR, MEDIAS, SETTINGS, routesReconnues } from "./entrees";
+import { ALIAS, AVATAR, EXPLORATEUR, MEDIAS, MENU, SETTINGS, routesReconnues } from "./entrees";
 import { Catalogue } from "./pages/Catalogue";
 import { Chargement } from "./pages/Chargement";
 import { Avatar } from "./pages/Avatar";
 import { EcranSecondaire, Note } from "./pages/Ecran";
 import { Explorateur } from "./pages/Explorateur";
+import { Jeu } from "./pages/Jeu";
 import { MenuPrincipal } from "./pages/MenuPrincipal";
 import { Settings } from "./pages/Settings";
 import { ACCUEIL, cheminPourEntree, entreeDemandee, separerLangue } from "./routage";
@@ -149,9 +150,17 @@ function Site() {
 	// vides pendant la premiere seconde.
 	const pret = Boolean(capacites?.vfs);
 
-	// Tant que le serveur n'a pas tranché sur son VFS, le site montre l'écran d'attente DU JEU
-	// plutôt qu'un menu dont aucune entrée ne mènerait à quelque chose. La panne, elle, est un
-	// état tranché : elle s'affiche dans le même écran, avec l'humeur correspondante.
+	// L'accueil est le JEU. Il passe AVANT la garde sur le VFS : le moteur wasm embarque sa
+	// logique et sa police, il n'interroge pas l'index du catalogue, et le faire attendre une
+	// capacité dont il ne se sert pas ajouterait un écran vide devant lui.
+	if (vue === ACCUEIL) {
+		return <Jeu />;
+	}
+
+	// Tant que le serveur n'a pas tranché sur son VFS, les écrans qui en DÉPENDENT montrent
+	// l'écran d'attente du jeu plutôt qu'un menu dont aucune entrée ne mènerait à quelque
+	// chose. La panne, elle, est un état tranché : elle s'affiche dans le même écran, avec
+	// l'humeur correspondante.
 	if (vfs === null || vfs === "en_cours") {
 		return (
 			// Même raison qu'en dessous : `GameCanvas` prend la hauteur de son parent.
@@ -161,8 +170,9 @@ function Site() {
 		);
 	}
 
-	// L'accueil occupe tout l'écran : le menu principal EST la page, pas un panneau dedans.
-	if (vue === ACCUEIL) {
+	// Le menu de navigation reste atteignable, mais il n'est plus la page d'accueil : les
+	// catalogues restent servis, ils ne sont simplement plus la première chose qu'on voit.
+	if (vue === MENU) {
 		return (
 			// `fixed; inset: 0` et non `height: 100vh` : la seconde forme depend de la hauteur de
 			// tous ses ancetres, et il suffit qu'un seul ne la propage pas pour que la zone mesuree
@@ -184,7 +194,7 @@ function Site() {
 	// touche Échap ramène au menu. Elles ne dépendent pas du catalogue — on y arrive même
 	// quand le VFS n'est pas prêt.
 	if (vue === SETTINGS) {
-		return <Settings prefixe={prefixe} onRetour={() => setVue(ACCUEIL)} />;
+		return <Settings prefixe={prefixe} onRetour={() => setVue(MENU)} />;
 	}
 
 	return (

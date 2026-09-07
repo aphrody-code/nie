@@ -9,15 +9,17 @@ Navigateur ── azalee.rosegriffon.fr ── Vercel ── apps/azalee (Next 1
                                     Supabase Cloud kvnlbhatjqqmhhxaxlbi
                                     Postgres · PostgREST · Auth · Storage · Realtime
 
-Navigateur ── nie.aphrody.com / www ── nginx (TLS) ── nie-site :8085 (Axum 0.8) — « nie »
-Inacord (Tauri) ─────────────────────────────────┐   ├── /            bundle nie-web (inacord-ui, DA du jeu)
+Navigateur ── nie.aphrody.com ────── nginx (TLS) ── nie-site :8085 (Axum 0.8) — « nie »
+Inacord (Tauri) ─────────────────────────────────┐   ├── /            LE JEU (nie-wasm dans un canevas)
+                                                 │   ├── /menu        bundle nie-web (inacord-ui, DA du jeu)
                                                  │   ├── /api/v1/*    DTO serde, rusqlite ro sur les 3 gisements
                                                  │   └── /assets/*    proxy durci → nie-model-serve :8790
                                                  └── desktop-source.ts : mêmes écrans, invoke() au lieu de fetch()
 
 aphrody.com / www.aphrody.com ─────────── nginx (TLS) ── 308 vers https://nie.aphrody.com
-cdn.aphrody.com ───────────────────────── nginx (TLS) ── nie-model-serve :8790, sous limite de débit
-api. downloads. bot. admin. mcp. bxc. n2b.aphrody.com ── aphrody-site :8083, dépôt aphrody, inchangés
+api.aphrody.com ───────────────────────── nginx (TLS) ── nie-site :8085, API SEULE, noindex
+downloads. cdn. bot. admin. bxc. n2b. ─── nginx (TLS) ── bxc-site :8084, dépôt bxc, inchangés
+nie-model-serve :8790 ─────────────────── AUCUNE façade publique : seul /assets/* y mène
 ```
 
 Le wiki ne reçoit jamais autre chose que la clé **anon** ; `nie-site` ne reçoit jamais de
@@ -180,9 +182,12 @@ Aujourd'hui (MESURÉ) : `conf.d/aphrody.com.conf` a **un** bloc `server` pour di
 2. `aphrody.com` et `www.aphrody.com` → `return 308 https://nie.aphrody.com$request_uri` : le
    site vit sur le sous-domaine du produit, l'apex ne porte plus de contenu. Un 308, pas un
    301 : la méthode et le corps survivent à la redirection ;
-3. `cdn.aphrody.com` → `proxy_pass http://127.0.0.1:8790` : `nie-model-serve` quitte `nie.`,
-   que le site occupe désormais, pour un hôte qui résolvait déjà sans rien servir ;
-4. un bloc pour les cinq autres hôtes, **inchangé**, vers `:8083` ;
+3. `nie-model-serve` **perd sa façade publique** : il occupait `nie.`, que le site prend, et
+   aucun autre hôte n'est libre — `downloads.`, `cdn.`, `bot.`, `admin.` et `n2b.` servent tous
+   `bxc-site` sur `:8084` (mesure `ss -ltnp` du 2026-09-07). Le décodage reste joignable par
+   `nie.aphrody.com/assets/*`, que `nie-site` proxifie avec la limite de débit, le budget de
+   temps, la taille bornée et le cache que le service n'a pas ;
+4. un bloc pour les cinq hôtes de la vitrine bxc, **inchangé**, vers `:8084` ;
 5. `nginx -t`, puis un `curl -I` par hôte avant et après le `reload` ; le `reload` est un
    acte de production : **go de l'utilisateur**.
 

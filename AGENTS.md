@@ -19,6 +19,10 @@ documents linked there; do not duplicate large specifications here.
 - `crates/engine/*`: Rust engine, formats, data, rendering, Lua, and UI primitives.
 - `crates/forge/*`: binary production and reverse-engineering tooling.
 - `crates/tools/*`: CLI, site, model serving, and operational tools.
+- `deploy/nginx/` and `deploy/systemd/`: the vhosts and units that run this stack. They are the
+  source; `/etc` holds the installed copy and drifts. Reconcile against the machine
+  (`ss -ltnp`, `diff` against `/etc`) before editing one, and never install from an agent
+  session — `cp` into `/etc`, `daemon-reload`, `nginx -t` and `reload` are production acts.
 - `apps/nie-web`: Vite browser host; `apps/inacord`: Tauri desktop host.
 - `packages/inacord-ui` and `packages/asset-source`: shared UI and asset-source contracts.
 - `apps/azalee`: Next.js App Router wiki backed by Supabase Cloud.
@@ -31,6 +35,16 @@ documents linked there; do not duplicate large specifications here.
 - Keep code, filenames, schemas, routes, public API keys, and agent-facing documentation in
   English. French is for human reports and explanations. Preserve frozen product names: Azalée,
   Inacord, nie, `niers`, `nie-*`, and `inagle_*`.
+- The **site** is `nie`, on `nie.aphrody.com` (`aphrody.com` and `www.` only `308` to it).
+  **Aphrody** is a character — `crates/engine/nie-aphrody`, the pet routes, `Mode Aphrody`,
+  Byron Love — and the name of the separate `aphrody-code/aphrody` repository. It is never the
+  name of this site. `routes::pages::SITE` is the single source for that name.
+- The origin publishes **no identity and no fingerprint**: no GitHub link, no contact, no
+  service name, no version, in any served response. Before adding a field to a public DTO, ask
+  what it tells a reader about the machine.
+- `/` serves the game (`crates/engine/nie-wasm` in a canvas). That crate renders a **2D
+  placeholder**, not the game's interface: never present it as a faithful reproduction, in
+  code, in docs, or in a commit message.
 - Prefer repository scripts and package managers. Use `uv run` for Python; never use bare
   `python`/`python3` when a project script exists.
 - Do not add dependencies, alter deployment, rotate credentials, delete data, force-reset history,

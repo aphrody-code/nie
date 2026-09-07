@@ -37,21 +37,11 @@ pub struct UrlPlan {
 
 /// Les routes de navigation publiées au plan de site. Les espaces `/f` et `/b` n'y sont
 /// **jamais** : ce sont 255 000 fichiers, et un plan de site n'est pas un index d'assets.
-pub const PLAN: [UrlPlan; 5] = [
+pub const PLAN: [UrlPlan; 3] = [
     UrlPlan {
         chemin: "/",
         frequence: "daily",
         priorite: "1.0",
-    },
-    UrlPlan {
-        chemin: "/medias",
-        frequence: "weekly",
-        priorite: "0.8",
-    },
-    UrlPlan {
-        chemin: "/explorateur",
-        frequence: "weekly",
-        priorite: "0.6",
     },
     UrlPlan {
         // Les Options : une page de réglages change rarement, et n'est pas ce qu'on cherche.
@@ -363,40 +353,42 @@ mod tests {
 
     #[test]
     fn plan_complet() {
-        assert_eq!(PLAN.len(), 5);
+        assert_eq!(PLAN.len(), 3);
         let urls = plan_trilingue("https://nie.aphrody.com");
-        assert_eq!(urls.len(), 15, "5 routes x 3 langues");
+        assert_eq!(urls.len(), 9, "3 routes x 3 langues");
         let rendu = Plan {
             urls: &urls,
             lastmod: Some("2026-09-05".to_owned()),
         }
         .render()
         .unwrap();
-        assert_eq!(rendu.matches("<url>").count(), 15);
+        assert_eq!(rendu.matches("<url>").count(), 9);
         assert!(rendu.starts_with("<?xml"));
-        assert!(rendu.contains("https://nie.aphrody.com/medias"));
-        assert!(rendu.contains("https://nie.aphrody.com/ja/medias"));
-        // Les quatre URL de catalogue restent SERVIES, mais ne sont plus annoncées : une page,
-        // une URL canonique.
-        assert!(!rendu.contains("https://nie.aphrody.com/textures"));
-        assert!(!rendu.contains("https://nie.aphrody.com/videos"));
-        assert!(!rendu.contains("https://nie.aphrody.com/en/videos"));
-        // L'explorateur est une entrée du site : il a sa page, donc sa place au plan.
-        assert!(rendu.contains("https://nie.aphrody.com/explorateur"));
-        assert!(rendu.contains("https://nie.aphrody.com/ja/explorateur"));
-        // `/recherche` et `/donnees`, elles, n'y sont PAS : elles mènent à l'explorateur, et
-        // trois URL pour une page les feraient concourir entre elles.
-        assert!(!rendu.contains("https://nie.aphrody.com/donnees"));
-        assert!(!rendu.contains("https://nie.aphrody.com/recherche"));
+        // Le catalogue est RELÉGUÉ : `/medias`, `/explorateur` et les quatre vues restent
+        // servies et gardent leurs métadonnées, mais le plan du site ne les annonce plus. Ce
+        // que le site propose, c'est le jeu, ses Options et l'éditeur d'avatar.
+        for absente in [
+            "https://nie.aphrody.com/medias",
+            "https://nie.aphrody.com/ja/medias",
+            "https://nie.aphrody.com/explorateur",
+            "https://nie.aphrody.com/textures",
+            "https://nie.aphrody.com/videos",
+            "https://nie.aphrody.com/en/videos",
+            "https://nie.aphrody.com/donnees",
+            "https://nie.aphrody.com/recherche",
+            "https://nie.aphrody.com/menu",
+        ] {
+            assert!(!rendu.contains(absente), "{absente} ne doit plus etre annoncee");
+        }
         // Les Options ont leur page, donc leur place au plan — dans les trois langues.
         assert!(rendu.contains("https://nie.aphrody.com/settings"));
         assert!(rendu.contains("https://nie.aphrody.com/en/settings"));
         assert!(rendu.contains("https://nie.aphrody.com/avatar"));
         assert!(rendu.contains("https://nie.aphrody.com/ja/avatar"));
-        // Chaque entrée porte son groupe complet : 12 x 4 liens alternatifs.
-        assert_eq!(rendu.matches("xhtml:link").count(), 60);
-        assert_eq!(rendu.matches("hreflang=\"x-default\"").count(), 15);
-        assert_eq!(rendu.matches("<lastmod>2026-09-05</lastmod>").count(), 15);
+        // Chaque entrée porte son groupe complet : 9 x 4 liens alternatifs.
+        assert_eq!(rendu.matches("xhtml:link").count(), 36);
+        assert_eq!(rendu.matches("hreflang=\"x-default\"").count(), 9);
+        assert_eq!(rendu.matches("<lastmod>2026-09-05</lastmod>").count(), 9);
         // L'espace de noms xhtml doit être déclaré, sinon les `xhtml:link` sont du bruit.
         assert!(rendu.contains("xmlns:xhtml=\"http://www.w3.org/1999/xhtml\""));
     }
@@ -436,17 +428,9 @@ mod tests {
     #[test]
     fn robots_autorise_les_trois_langues() {
         let chemins = chemins_autorises();
-        // 5 routes x 3 langues, moins la racine française déjà couverte par `Allow: /$`.
-        assert_eq!(chemins.len(), 14);
-        for attendu in [
-            "/medias",
-            "/en/medias",
-            "/ja/medias",
-            "/en",
-            "/ja",
-            "/settings",
-            "/ja/settings",
-        ] {
+        // 3 routes x 3 langues, moins la racine française déjà couverte par `Allow: /$`.
+        assert_eq!(chemins.len(), 8);
+        for attendu in ["/en", "/ja", "/settings", "/ja/settings", "/avatar"] {
             assert!(
                 chemins.iter().any(|c| c == attendu),
                 "{attendu} non autorisé"
@@ -459,11 +443,11 @@ mod tests {
         }
         .render()
         .unwrap();
-        // 22 : 14 chemins + `/$` + `/llms.txt` + `/feed.atom` pour le regime general, puis les
+        // 16 : 8 chemins + `/$` + `/llms.txt` + `/feed.atom` pour le regime general, puis les
         // 5 du regime des agents (`/`, `/llms.txt`, `/llms-full.txt`, `/feed.atom`, `/api/v1/`).
         assert_eq!(
             r.matches("Allow: ").count(),
-            22,
+            16,
             "les deux regimes, chemin par chemin"
         );
         assert!(r.contains("Allow: /$"));

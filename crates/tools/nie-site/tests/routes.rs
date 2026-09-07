@@ -385,28 +385,35 @@ async fn documents_well_known() {
     );
     let texte = String::from_utf8(corps).unwrap();
     assert!(texte.starts_with("<?xml"));
-    // 5 routes x 3 langues, et chaque entree porte le groupe complet de ses traductions.
-    // Cinq : les quatre catalogues ont fusionne dans `/medias`, les trois vues
-    // d'exploration dans `/explorateur`, et `/settings` a sa page. Une page, une URL canonique.
-    assert_eq!(texte.matches("<url>").count(), 15);
-    assert_eq!(texte.matches("<loc>").count(), 15);
+    // 3 routes x 3 langues, et chaque entree porte le groupe complet de ses traductions.
+    // Trois : l'accueil (le jeu), les Options et l'editeur d'avatar. Les catalogues et
+    // l'explorateur restent SERVIS avec leurs metadonnees, mais le plan ne les annonce plus.
+    assert_eq!(texte.matches("<url>").count(), 9);
+    assert_eq!(texte.matches("<loc>").count(), 9);
     assert_eq!(
         texte.matches("xhtml:link").count(),
-        60,
+        36,
         "4 alternates par entree"
     );
-    assert_eq!(texte.matches(r#"hreflang="x-default""#).count(), 15);
+    assert_eq!(texte.matches(r#"hreflang="x-default""#).count(), 9);
     // Sans la declaration de l'espace de noms, les `xhtml:link` ne sont que du bruit.
     assert!(texte.contains(r#"xmlns:xhtml="http://www.w3.org/1999/xhtml""#));
     for attendu in [
-        "<loc>https://exemple.test/medias</loc>",
-        "<loc>https://exemple.test/en/medias</loc>",
-        "<loc>https://exemple.test/ja/medias</loc>",
         "<loc>https://exemple.test/settings</loc>",
         "<loc>https://exemple.test/en/settings</loc>",
         "<loc>https://exemple.test/avatar</loc>",
     ] {
         assert!(texte.contains(attendu), "{attendu} absent du plan");
+    }
+    // Et l'inverse, qui est la vraie garde : le catalogue est relegue, pas simplement
+    // depriorise. Sans ces lignes, le remettre au plan ne casserait rien.
+    for absente in [
+        "<loc>https://exemple.test/medias</loc>",
+        "<loc>https://exemple.test/ja/medias</loc>",
+        "<loc>https://exemple.test/explorateur</loc>",
+        "<loc>https://exemple.test/menu</loc>",
+    ] {
+        assert!(!texte.contains(absente), "{absente} ne doit plus etre annoncee");
     }
 }
 

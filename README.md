@@ -259,18 +259,30 @@ plan order (cap, deadline, execution, long term, frozen decisions) is in
 [`docs/README.md`](docs/README.md).
 
 
-**nie** (`nie.aphrody.com`) is the tools site, served by a `crates/tools/nie-site`
-crate — Axum 0.8, **100 % Rust**, bound to `127.0.0.1:8085` behind nginx and TLS. It is
-**neither the wiki nor the file explorer**: the wiki is **Azalée**, the explorer is
-**Inacord**. Its interface reproduces the game's **main menu**, whose real layout is exported
-by `nie-game --runtime --menu <screen> --export-layout` rather than drawn from memory. It
-hosts `apps/nie-web`, the same interface as **Inacord**, the desktop and mobile app (formerly
-`nie-explorer`). Both address resources by their **VFS path**, exactly like the game does:
-no translated slug ever identifies a file. The wiki, **Azalée**, is a separate product and
-moves to Vercel. Only reproducible results and Inazuma Eleven content covered by the
-agreement below are published; no personal data and no secret, ever. Decisions and versions:
-[`docs/stack/`](docs/stack/README.md); week plan: [`PLAN.md`](PLAN.md); build and security
-rules: [`AGENTS.md`](AGENTS.md).
+**nie** (`nie.aphrody.com`) is the site, served by a `crates/tools/nie-site` crate — Axum
+0.8, **100 % Rust**, bound to `127.0.0.1:8085` behind nginx and TLS. `aphrody.com` and `www.`
+answer a `308` to it and hold nothing themselves; the name **Aphrody** stays with
+[`aphrody-code/aphrody`](https://github.com/aphrody-code/aphrody), and only the character
+keeps it here (`crates/engine/nie-aphrody`, the pet routes, the auras).
+
+**Its home page is the game.** `/` mounts `crates/engine/nie-wasm` — the ported logic compiled
+to WebAssembly, driven by the keyboard, drawn into a canvas. Be exact about what that is:
+`nie-wasm` renders a **2D placeholder**, not the game's interface, because the real menu is
+built at runtime by the C++ menu-manager driving Lua through `funcLuaMenuCommand`, a loop that
+is not ported. What the page proves is that the ported logic runs in a browser; it does not
+prove fidelity, and nothing in this repository should claim otherwise.
+
+The catalogues (`/textures`, `/modeles`, `/sons`, `/videos`, `/explorateur`) are still served
+with their own metadata, reachable from `/menu`, and deliberately absent from the sitemap: the
+site is **neither the wiki nor the file explorer** — the wiki is **Azalée**, the explorer is
+**Inacord**. It hosts `apps/nie-web`, the same interface as **Inacord**, the desktop and mobile
+app (formerly `nie-explorer`). Both address resources by their **VFS path**, exactly like the
+game does: no translated slug ever identifies a file. Only reproducible results and Inazuma
+Eleven content covered by the agreement below are published; no personal data and no secret,
+ever — the origin does not even name itself, `/healthz` returning measured capabilities and
+neither a service name nor a version. Deployment (vhosts and units) is versioned under
+[`deploy/`](deploy/README.md). Decisions and versions: [`docs/stack/`](docs/stack/README.md);
+week plan: [`PLAN.md`](PLAN.md); build and security rules: [`AGENTS.md`](AGENTS.md).
 
 ## Contributing
 

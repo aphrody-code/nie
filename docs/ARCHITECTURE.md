@@ -91,7 +91,7 @@ lecture seule, référence de portage, jamais compilées par `cargo build --work
 | Crate | Rôle | Tests |
 |---|---|---:|
 | `nie-cli` | Binaire `niers` — la seule CLI utilisateur, pilote aussi la boucle RE et la frontière redis | 24 |
-| `nie-site` | Serveur HTTP nie (Axum 0.8) : bundle `nie-web`, `/api/v1`, VFS `/f` `/b`, proxy `nie-model-serve` | 275 |
+| `nie-site` | Serveur HTTP nie (Axum 0.8) : le jeu wasm en `/`, bundle `nie-web`, `/api/v1`, VFS `/f` `/b`, proxy `nie-model-serve` | 275 |
 | `nie-model-serve` | Serveur HTTP live d'assemblage GLB IEVR (corps+face+uniforme depuis CPK, cache disque) | 13 |
 | `nie-steam` | Acquisition Steam native (download/dump de dépôts IEVR), remplace SteamKit2 | 35 |
 | `nie-zukan` | Ingesteur de l'encyclopédie officielle Level-5 Inagle (JP/FR/EN) | 53 |
