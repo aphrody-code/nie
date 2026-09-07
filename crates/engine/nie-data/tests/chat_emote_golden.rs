@@ -180,11 +180,11 @@ fn real_1_03_17_entree0() {
     assert_eq!(e.flag_idx, 0);
     assert_eq!(e.sort_id, 0);
     assert_eq!(e.type_, 0);
-    assert_eq!(e.tex_file_path, SENTINEL_CONFIG);
+    assert_eq!(e.tex_file_path, "0xFFFFFFFF");
     assert_eq!(e.tex_name, HashId::ZERO);
     assert_eq!(e.text_id, HashId(0x55FB_BA47));
     assert_eq!(e.stamp_idx, 0);
-    assert_eq!(e.enable_cond, SENTINEL_CONFIG);
+    assert_eq!(e.enable_cond, "0xFFFFFFFF");
 }
 
 #[test]
