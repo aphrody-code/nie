@@ -17,7 +17,7 @@
 //! - `is_chara_bank_move_disabled`  = true
 //! - `is_team_dock_change_disabled` = false
 //!
-//! ### [9] (dernière des 10 entrées is_chara_bank_move_disabled = true)
+//! ### [11] (dernière des 12 entrées is_chara_bank_move_disabled = true)
 //! - `character_id`                 = `"0x77BB1BD4"`
 //! - `is_chara_bank_move_disabled`  = true
 //!
@@ -269,13 +269,13 @@ fn real_file_remove_club_toujours_vrai() {
 fn real_file_bank_move_dix_entrees() {
     let Some(cfg) = load_real() else { return };
 
-    // is_chara_bank_move_disabled = true pour exactement 10 entrées (les 10 premières).
+    // is_chara_bank_move_disabled = true pour exactement 12 entrées.
     let n = cfg
         .restrictions
         .iter()
         .filter(|e| e.is_chara_bank_move_disabled)
         .count();
-    assert_eq!(n, 10, "10 entrées avec is_chara_bank_move_disabled = true");
+    assert_eq!(n, 12, "12 entrées avec is_chara_bank_move_disabled = true");
 }
 
 #[test]
