@@ -731,11 +731,17 @@ impl PhaseCheckInfo {
         }
         let (cond_id_list_offset, cond_id_list_count) = array2_i64(v, "conditionIdList");
         let (cond_id_list2_offset, cond_id_list2_count) = array2_i64(v, "conditionIdList2");
+        let condition = field_str(v, "condition").unwrap_or("");
+        let condition2 = field_str(v, "condition2").unwrap_or("");
         Some(Self {
             phase_id,
             phase_state_id: field_i64(v, "phaseStateId").unwrap_or(0),
-            condition: owned(field_str(v, "condition").unwrap_or("")),
-            condition2: owned(field_str(v, "condition2").unwrap_or("")),
+            condition: owned(if condition != "0xFFFFFFFF" { condition } else { "" }),
+            condition2: owned(if condition2 != "0xFFFFFFFF" {
+                condition2
+            } else {
+                ""
+            }),
             cond_id_list_offset,
             cond_id_list_count,
             cond_id_list2_offset,
