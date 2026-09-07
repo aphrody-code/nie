@@ -68,7 +68,11 @@ if (!rootPlan.includes("Référentiel canonique") && !rootPlan.includes("canonic
   failures.push(`${manifest.canonicalPlan}: canonical-plan marker is missing`);
 }
 const generatedWriters = Bun.spawnSync(["rg", "-l", "writeFileSync\\(.*(PLAN|README|AGENTS)", "scripts", "-g", "*.ts"]).stdout.toString().trim().split(/\r?\n/).filter(Boolean);
-if (generatedWriters.length) console.log(`notice: generated document writers require source review: ${generatedWriters.join(", ")}`);
+const generatedWriterStalePatterns = generatedWriters.flatMap((writer) => manifest.stalePatterns
+  .filter((stale) => readFileSync(resolve(root, writer), "utf8").includes(stale))
+  .map((stale) => `${writer}: generated writer contains stale pattern ${JSON.stringify(stale)}`));
+failures.push(...generatedWriterStalePatterns);
+if (generatedWriters.length) console.log(`notice: checked generated document writers: ${generatedWriters.join(", ")}`);
 
 const allowedBrokenLinkCount = Object.values(manifest.allowedBrokenLinks).reduce((count, links) => count + links.length, 0);
 console.log(JSON.stringify({ markdownFiles: tracked.length, internalLinks: linkCount, allowedBrokenLinks: allowedBrokenLinkCount, instructionFiles: manifest.instructionFiles.length, failures: failures.length }, null, 2));
