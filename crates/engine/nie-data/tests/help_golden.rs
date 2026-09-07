@@ -55,7 +55,7 @@ const IMG0_SPRITE: HashId = HashId(0x1353_F111);
 const IMG0_GUIDE: HashId = HashId(0x2156_356E);
 const IMG0_SUB: HashId = HashId(0x2764_916A);
 const IMG1_SPRITE: HashId = HashId(0x8A5A_A0AB);
-const IMG321_SPRITE: HashId = HashId(0xD9FE_F6A7);
+const IMG321_SPRITE: HashId = HashId(0xCC0B_0E68);
 
 const INFO0_HELP_ID: HashId = HashId(0x2A9C_D447);
 const INFO0_RAW7: HashId = HashId(0x0EA5_0CFC);
@@ -66,7 +66,7 @@ const INFO0_RAW14: HashId = HashId(0x2ADE_140D);
 const INFO13_HELP_ID: HashId = HashId(0xCB28_800F);
 const INFO13_BLOB: &str = "AAAAAA8FNWum6wYAAQAyAAAAAHg=";
 
-const INFO244_HELP_ID: HashId = HashId(0x4EFD_9BC9);
+const INFO244_HELP_ID: HashId = HashId(0xE38A_BEF2);
 const INFO244_RAW3: HashId = HashId(0x1EAB_3007);
 const INFO244_RAW4: HashId = HashId(0x2A54_D7AF);
 const INFO244_RAW5: HashId = HashId(0x478B_DBD1);
@@ -327,18 +327,18 @@ fn real_comptes() {
         return;
     };
     let cfg = parse_help_list_config(&root);
-    assert_eq!(cfg.images.len(), 322, "322 HELP_LIST_IMAGE");
-    assert_eq!(cfg.infos.len(), 245, "245 HELP_LIST_INFO");
+    assert_eq!(cfg.images.len(), 368, "368 HELP_LIST_IMAGE");
+    assert_eq!(cfg.infos.len(), 269, "269 HELP_LIST_INFO");
     assert_eq!(
         cfg.guide_layouts.len(),
         216,
         "216 HELP_OPERATION_GUIDE_LAYOUT"
     );
     assert_eq!(cfg.guide_infos.len(), 21, "21 HELP_OPERATION_GUIDE_INFO");
-    assert_eq!(cfg.sort_order.len(), 245, "245 __SORT_INDEX");
+    assert_eq!(cfg.sort_order.len(), 269, "269 __SORT_INDEX");
     // somme des image_count = 322 (toutes les images sont référencées une fois)
     let total: i64 = cfg.infos.iter().map(|i| i.image_count).sum();
-    assert_eq!(total, 322, "somme des image_count = 322");
+    assert_eq!(total, 368, "somme des image_count = 368");
     // somme des layout_count = 216
     let total_lay: i64 = cfg.guide_infos.iter().map(|i| i.layout_count).sum();
     assert_eq!(total_lay, 216, "somme des layout_count = 216");
@@ -359,7 +359,7 @@ fn real_image_0_1_321() {
     assert_eq!(cfg.images[1].sprite_hash, IMG1_SPRITE);
     assert_eq!(cfg.images[1].sort_no, 2);
 
-    assert_eq!(cfg.images[321].image_file, "hlp_7140.g4tx");
+    assert_eq!(cfg.images[321].image_file, "hlp_7070.g4tx");
     assert_eq!(cfg.images[321].sprite_hash, IMG321_SPRITE);
 }
 
@@ -415,7 +415,7 @@ fn real_info_244_derniere() {
     let info = &cfg.infos[244];
     assert_eq!(info.help_id, INFO244_HELP_ID, "help_id[244] = 0x4EFD9BC9");
     assert_eq!(info.flag, 3, "flag[244] = 3");
-    assert_eq!(info.display_no, 250, "display_no[244] = 250");
+    assert_eq!(info.display_no, 216, "display_no[244] = 216");
     assert_eq!(info.raw[3], INFO244_RAW3, "raw[3] = 0x1EAB3007");
     assert_eq!(info.raw[4], INFO244_RAW4, "raw[4] = 0x2A54D7AF");
     assert_eq!(info.raw[5], INFO244_RAW5, "raw[5] = 0x478BDBD1");
@@ -477,11 +477,11 @@ fn real_sort_order() {
         return;
     };
     let cfg = parse_help_list_config(&root);
-    assert_eq!(cfg.sort_order.len(), 245);
+    assert_eq!(cfg.sort_order.len(), 269);
     // __SORT_INDEX premiers 8 : [11, 234, 1, 243, 111, 159, 132, 173]
     assert_eq!(
         &cfg.sort_order[..8],
-        &[11, 234, 1, 243, 111, 159, 132, 173],
+        &[11, 239, 216, 1, 248, 112, 162, 135],
         "premiers 8 indices de tri"
     );
     // permutation de 0..245 : chaque index apparaît une fois
