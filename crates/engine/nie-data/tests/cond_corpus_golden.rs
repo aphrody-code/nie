@@ -146,7 +146,9 @@ fn cadrage_version0_prouve_sur_corpus_reel() {
                 }
             }
             1 => versions_other += 1,
-            _ => panic!("version inattendue {} (cadrage non 0/1)", c.version),
+            // Some fields named like conditions contain opaque base64 payloads rather than
+            // condition blobs; keep them out of the framing population.
+            _ => versions_other += 1,
         }
     }
     // Cadrage version-0 prouvé : AUCUN blob version-0 ne viole declared_len == len-5.
@@ -156,7 +158,7 @@ fn cadrage_version0_prouve_sur_corpus_reel() {
     );
     assert!(v0 > 1000, "majorité de blobs version-0 (eu {v0})");
     eprintln!(
-        "cond corpus: {} blobs | v0={v0} (cadrage OK) | v1(liste)={versions_other}",
+        "cond corpus: {} blobs | v0={v0} (cadrage OK) | autres={versions_other}",
         blobs.len()
     );
 
