@@ -20,7 +20,7 @@ fn comptes_et_resolution() {
     assert_eq!(cfg.tag_data.len(), 100);
     assert_eq!(cfg.tag_infos.len(), 44);
     assert_eq!(cfg.tag_ids.len(), 250);
-    assert_eq!(cfg.event_settings.len(), 147);
+    assert_eq!(cfg.event_settings.len(), 185);
     assert_eq!(cfg.tag_ids[0], HashId(0x4E56_90B9));
     let s = &cfg.event_settings[0];
     assert_eq!(s.event_id, HashId(0x7D1E_95AC));
