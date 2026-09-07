@@ -71,6 +71,8 @@ pub struct MenuObjectState {
     /// Hash de texture du sprite (`SetSprite` / `SetIconTexture`). Pour `SetIconSprite` c'est le
     /// hash du CHEMIN g4tx (`GetTexturePath…()`), à apparier avec [`Self::sprite_region_hash`].
     pub sprite_texture_hash: Option<u32>,
+    /// Cell index written by `SetSprite`; it is not a texture-path hash.
+    pub sprite_cell_id: Option<u32>,
     /// Hash du NOM de région/texture dans l'atlas (arg `textureNameCrc` de `SetIconSprite`). Avec
     /// `sprite_texture_hash` (chemin), forme la paire (chemin g4tx, région) résoluble en texture
     /// réelle via le dico CRC32 du corpus Lua décompilé → render-from-runtime.
@@ -134,6 +136,7 @@ impl MenuObjectState {
             visible: true,
             active: true,
             sprite_texture_hash: None,
+            sprite_cell_id: None,
             sprite_region_hash: None,
             frame: None,
             color_hash: None,
@@ -1391,6 +1394,8 @@ fn dispatch_menu_command(state: &mut MenuState, cmd_id: u32, args: &[Value]) -> 
             let layer = target_layer(state, args, 5);
             state.known_cmd_log.push(("SetSprite".to_string(), layer));
             let obj = state.layer(layer).obj(obj_id);
+            obj.sprite_cell_id = Some(cell_id);
+            // Keep the legacy field populated for consumers that still serialize it.
             obj.sprite_texture_hash = Some(cell_id);
             obj.frame = Some(frame);
             obj.color_hash = color;
