@@ -506,10 +506,10 @@ fn real_file_soccer_event_comptes() {
     };
     let config = parse_cmd_events(&root);
 
-    // soccer_cmd_event_0.07.70 : 99 ALL_CMD_EVENT_INFO + 50 CHARA_CMD_EVENT_FUNC
+    // soccer_cmd_event_0.07.70 : 100 ALL_CMD_EVENT_INFO + 51 CHARA_CMD_EVENT_FUNC
     // (51 children dans CHARA_CMD_EVENT_FUNC_LIST_BEG_0 dont 1 CMD_EVENT_DATA_LIST_BEG_0 ignoré)
-    assert_eq!(config.all_cmd_events.len(), 99, "99 ALL_CMD_EVENT_INFO");
-    assert_eq!(config.chara_cmd_funcs.len(), 50, "50 CHARA_CMD_EVENT_FUNC");
+    assert_eq!(config.all_cmd_events.len(), 100, "100 ALL_CMD_EVENT_INFO");
+    assert_eq!(config.chara_cmd_funcs.len(), 51, "51 CHARA_CMD_EVENT_FUNC");
 }
 
 #[test]
@@ -671,11 +671,11 @@ fn real_file_common_compte() {
         return;
     };
     let ids = parse_chara_cmd_common(&root);
-    // chara_cmd_event_common_0.00.00 : CHARA_ACTION_CMD_DATA_LIST_BEG_0.var[0] = 32
+    // chara_cmd_event_common_0.00.00 : CHARA_ACTION_CMD_DATA_LIST_BEG_0.var[0] = 33
     assert_eq!(
         ids.len(),
-        32,
-        "chara_cmd_event_common : 32 CHARA_ACTION_CMD_DATA"
+        33,
+        "chara_cmd_event_common : 33 CHARA_ACTION_CMD_DATA"
     );
 }
 
