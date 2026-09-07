@@ -155,58 +155,15 @@ const nextConfig: NextConfig = {
 	},
 
 	async redirects() {
-		// Ou vont les pages retirees du wiki. DEUX destinations, pas une.
+		// Les catalogues media, la galerie et les cinq outils ont ete retires du wiki. Ils ne
+		// sont PAS redirige ailleurs : une redirection est une mention, elle envoie le
+		// visiteur — et le robot qui la suit — sur un nom que ce site ne porte plus. Les huit
+		// prefixes rendent donc un 404, qui ne ment pas et ne se met pas en cache comme un
+		// 301 le ferait.
 		//
-		// 1. Les quatre catalogues media (`/textures`, `/modeles`, `/sons`, `/videos`) sont
-		//    SERVIS par nie : `nie-site` leur rend un document propre, avec titre,
-		//    description et canonique, et le site les publie a son plan. Les y renvoyer mene a
-		//    la page demandee.
-		// 2. La galerie et les cinq outils sont partis dans l'explorateur de BUREAU
-		//    (`docs/MIGRATION-EXPLORATEUR.md`). nie ne les sert pas : `apps/nie-web` ne
-		//    connait que `medias` et `explorateur`, toute autre route y retombe sur l'accueil.
-		//    Les renvoyer chez nie afficherait donc son accueil sous l'URL d'un outil —
-		//    pire qu'un 404, qui au moins ne ment pas. Ils vont a `/tools/niers`, la page qui
-		//    dit ou est passe l'outil et permet de le telecharger.
-		//
-		// Des PREFIXES EXPLICITES, jamais une expression reguliere sur `/tools` :
-		// `/tools/niers/latest.json` est l'endpoint de mise a jour des Inacord deja installes,
-		// et une regle large l'attraperait — les clients cesseraient de se mettre a jour sans
-		// qu'aucune page ne semble cassee.
-		//
-		// `NEXT_PUBLIC_TOOLS_ORIGIN` reste surchargeable, mais elle a desormais un DEFAUT :
-		// les pages sont supprimees du depot, laisser la liste vide ne rend plus le wiki
-		// d'avant, seulement dix 404.
-		const origineMedias = process.env.NEXT_PUBLIC_TOOLS_ORIGIN || "https://nie.aphrody.com";
-		const versNie = ["/textures", "/modeles", "/sons", "/videos"].map((prefixe) => ({
-			// 308 et non 301 : la methode et le corps sont conserves, et le cache des
-			// navigateurs ne fige pas la redirection de facon irreversible.
-			destination: `${origineMedias}${prefixe}/:path*`,
-			permanent: true,
-			source: `${prefixe}/:path*`,
-		}));
-		const versExplorateur = [
-			"/gallery",
-			"/tools/translator",
-			"/tools/stats",
-			"/tools/compare",
-			"/tools/random-team",
-			"/tools/my-team",
-		].map((prefixe) => ({
-			destination: "/tools/niers",
-			permanent: true,
-			source: `${prefixe}/:path*`,
-		}));
-		// Les deux raccourcis historiques menaient aux memes outils, sous un autre chemin.
-		const raccourcisOutils = ["/compare", "/random-team"].map((source) => ({
-			destination: "/tools/niers",
-			permanent: true,
-			source,
-		}));
-
+		// `NEXT_PUBLIC_TOOLS_ORIGIN` n'est plus lue ici. La variable reste posee ailleurs dans
+		// l'application ; ce fichier n'en depend plus.
 		return [
-			...versNie,
-			...versExplorateur,
-			...raccourcisOutils,
 			{
 				destination: "/cross",
 				permanent: true,

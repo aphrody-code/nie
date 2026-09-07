@@ -168,14 +168,6 @@ export const navigationItems: NavItem[] = [
 		path: "/succes",
 	},
 	{
-		// Les collections média et les cinq outils du wiki ont migré vers l'explorateur de
-		// bureau (`docs/MIGRATION-EXPLORATEUR.md`). Ne reste ici que sa page de
-		// téléchargement : un menu ne doit pointer que vers des routes servies.
-		icon: "build",
-		label: "nav.tools",
-		path: "/tools/niers",
-	},
-	{
 		icon: "settings",
 		label: "nav.settings",
 		path: "/settings",
@@ -214,12 +206,6 @@ export const mobileNavItems: NavItem[] = [
 		icon: "newspaper",
 		label: "nav.news",
 		path: "/news",
-	},
-	{
-		activePaths: ["/tools"],
-		icon: "build",
-		label: "nav.tools",
-		path: "/tools/niers",
 	},
 	{
 		activePaths: ["/settings"],

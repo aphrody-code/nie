@@ -123,7 +123,13 @@ blake3 = "1.8.7"
 
 # Client vers nie-model-serve. Localhost en clair : aucune pile TLS n'entre dans la crate
 # (nginx termine le TLS). `default-features = false` ⇒ ni native-tls ni rustls.
-reqwest = { version = "0.13.4", default-features = false, features = ["http2"] }
+# La feature `rustls` a ete ajoutee le 2026-09-07 : le client ne parlait qu'a `nie-model-serve`
+# sur `http://127.0.0.1`, donc sans TLS, et la route `/downloads/inacord/latest.json`
+# doit joindre `https://api.github.com`. Sans lui, l'appel echoue en « injoignable »,
+# ce qui se lit comme une panne de reseau au lieu d'un binaire sans autorite de
+# certification. Racines webpki plutot que celles du systeme : elles sont dans le
+# binaire, donc insensibles a `ProtectSystem=strict` et a une derive du magasin local.
+reqwest = { version = "0.13.4", default-features = false, features = ["http2", "rustls"] }
 
 # Lecture seule des gisements (var/mirror.sqlite). Version du lock (0.37) : le bump vers 0.40
 # est un lot de workspace, pas une décision de cette crate.

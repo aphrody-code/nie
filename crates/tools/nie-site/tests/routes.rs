@@ -91,7 +91,7 @@ fn json(corps: &[u8]) -> serde_json::Value {
 async fn toutes_les_routes_declarees_repondent() {
     let etat = etat();
     // Une instance concrète par route déclarée, dans le même ordre que `app::chemins()`.
-    let instances: [(&str, &[u16]); 84] = [
+    let instances: [(&str, &[u16]); 85] = [
         ("/healthz", &[200]),
         ("/robots.txt", &[200]),
         ("/sitemap.xml", &[200]),
@@ -231,10 +231,14 @@ async fn toutes_les_routes_declarees_repondent() {
         ("/couverture", &[503]),
         ("/api/v1/couverture", &[503]),
         ("/", &[200]),
+        // L'updater d'Inacord sort vers GitHub : sans reseau, `502`/`504` sont les
+        // reponses correctes. Ce que ce cas garde, c'est que la route EXISTE — elle
+        // a rendu 404 en production pendant des semaines sans que rien ne le dise.
+        ("/downloads/inacord/latest.json", &[200, 404, 502, 504]),
     ];
 
     let declarees = nie_site::app::chemins();
-    assert_eq!(declarees.len(), 83, "le routeur monte 83 routes");
+    assert_eq!(declarees.len(), 84, "le routeur monte 84 routes");
     assert!(
         instances.len() >= declarees.len(),
         "au moins une instance par route declaree"
@@ -266,7 +270,7 @@ async fn toutes_les_routes_declarees_repondent() {
         );
         vus += 1;
     }
-    assert_eq!(vus, 84, "84 instances interrogees pour 83 routes");
+    assert_eq!(vus, 85, "85 instances interrogees pour 84 routes");
 }
 
 /// Vrai quand `uri` est une instance du motif de route `motif` (syntaxe axum 0.8).

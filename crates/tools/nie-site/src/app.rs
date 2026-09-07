@@ -127,6 +127,8 @@ declarer_routes! {
     "/en/manifest.webmanifest" => crate::routes::well_known::manifeste,
     "/ja/manifest.webmanifest" => crate::routes::well_known::manifeste,
     "/sitemap.xml" => crate::routes::well_known::sitemap,
+    // L'updater d'Inacord : cette URL est gravee dans les binaires deja distribues.
+    "/downloads/inacord/latest.json" => crate::routes::downloads::inacord_latest,
     "/feed.atom" => crate::routes::feed::atom,
     "/api/v1/health" => crate::routes::api_v1::health,
     "/api/v1/chara" => crate::routes::api_v1::chara,
@@ -469,7 +471,7 @@ mod tests {
     #[test]
     fn contrat_de_routes() {
         let routes = chemins();
-        assert_eq!(routes.len(), 83, "83 routes montees");
+        assert_eq!(routes.len(), 84, "84 routes montees");
         for r in &routes {
             assert!(r.starts_with('/'), "{r}");
             // Syntaxe axum 0.7 (`:id`, `*path`) : elle PANIQUE au `route()`, elle ne degrade

@@ -95,13 +95,6 @@ export function SkillCutinSection({
 							<p className="text-xs text-on-surface-variant mb-1">
 								Scène cut-in (modèle 3D composé · timeline · export MP4)
 							</p>
-							<a
-								href={`${outilsOrigin}/cutin/${encodeURIComponent(skillCode)}`}
-								className="inline-flex items-center gap-1.5 rounded-full bg-surface-container-high px-3 py-1.5 text-sm font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest transition-colors"
-								rel="noreferrer"
-							>
-								<Icon name="open_in_new" size={14} /> Ouvrir la scène dans nie
-							</a>
 						</div>
 					)}
 					{textureUrl && (

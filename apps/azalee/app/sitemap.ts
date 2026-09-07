@@ -84,7 +84,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 		// `/mode`) et les cinq outils (`/tools/{stats,compare,random-team,my-team,translator}`)
 		// ont migré vers l'explorateur de bureau — cf. `docs/MIGRATION-EXPLORATEUR.md`. Un plan
 		// de site n'annonce que des URLs servies : ne pas les remettre ici.
-		{ changeFrequency: "monthly" as const, priority: 0.4, url: "/tools/niers" },
 		{ changeFrequency: "yearly" as const, priority: 0.3, url: "/contact" },
 		{ changeFrequency: "yearly" as const, priority: 0.3, url: "/soutenir" },
 		{ changeFrequency: "yearly" as const, priority: 0.2, url: "/charte" },

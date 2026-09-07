@@ -108,7 +108,8 @@ pub struct EtatSite {
     pub anime: Arc<Gisement>,
     /// Cache des réponses d'amont, borné en poids et en durée.
     pub cache: Cache<String, ReponseCachee>,
-    /// Client HTTP vers `nie-model-serve`.
+    /// Client HTTP sortant : `nie-model-serve` en clair sur la boucle locale, et
+    /// `api.github.com` en TLS pour le manifeste de mise a jour d'Inacord.
     pub client: reqwest::Client,
     /// Jetons de concurrence vers l'amont : au-delà, on attend plutôt que d'écrouler l'amont.
     pub jetons_amont: Arc<tokio::sync::Semaphore>,

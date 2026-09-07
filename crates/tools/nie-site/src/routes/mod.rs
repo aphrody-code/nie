@@ -6,6 +6,7 @@ pub mod assets;
 pub mod conditions;
 pub mod couverture;
 pub mod donnees;
+pub mod downloads;
 pub mod entites;
 pub mod episodes;
 pub mod feed;
