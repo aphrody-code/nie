@@ -28,19 +28,39 @@ and it is false now: there is no service to fall back to, and repointing there r
 reload.** The file is versioned precisely so that the previous state is recoverable; the
 machine's own copy is not a backup.
 
-## DNS — correct, and not ours to change
+## DNS — eleven names, and exactly eleven
 
 The eleven hosts all resolve to **`51.77.147.152`**, this VPS. `aphrody.com` and
-`n2b.aphrody.com` are `A` records; the nine others are `CNAME` to `aphrody.com`.
+`n2b.aphrody.com` are `A` records; the nine others are `CNAME` to `aphrody.com`. The certificate
+`letsencrypt/live/aphrody.com` covers those eleven and no more. Nothing to issue.
 
-`aphrody.com` is served by OVH nameservers (`dns200.anycast.me`, `ns200.anycast.me`), but the
-API credentials in `~/.ovh.conf` only see the `rosegriffon.fr` zone — `aphrody.com` lives in
-another account. **No DNS change can be made from this machine**, and none is needed: the
-records are already right. A new subdomain (`assets.`, for instance) would need both a record
-and a certificate this one does not cover, which is why every arbitration above reuses an
-existing host.
+**The three sets now match**, which is the property to preserve:
 
-The certificate `letsencrypt/live/aphrody.com` covers the eleven hosts. Nothing to issue.
+```text
+DNS (A/CNAME)  ==  nginx server_name  ==  certificate SAN  ==  11 hosts
+```
+
+A twelfth name used to break it: `ftp.aphrody.com`, a `CNAME` left by OVH at domain creation. It
+resolved to this VPS with no vhost, no certificate coverage, no FTP listener and not one mention
+in any repository — a name that points at your machine without being served is a surface, not a
+service. It was **deleted on 2026-09-07**. Restoring it is one `POST`:
+`CNAME` / `ftp` / `aphrody.com.` / `ttl 0`.
+
+### Credentials — two OVH accounts, do not confuse them
+
+| File | Section / variables | Zones it can see |
+|---|---|---|
+| `/home/ubuntu/.bash_secrets` | `OVH_APPLICATION_KEY`, `OVH_APPLICATION_SECRET`, `OVH_CONSUMER_KEY` | **`aphrody.com`**, `rpbey.fr` |
+| `/home/ubuntu/.ovh.conf` | `[ovh-eu]` | `rosegriffon.fr` only |
+| `/home/ubuntu/.config/ovh/dbfr.conf`, `/etc/letsencrypt/ovh-dbfr.ini` | `[ovh-eu]`, `dns_ovh_*` | `dragonballfr.com` only |
+
+Reaching for `~/.ovh.conf` to manage `aphrody.com` gives a **404 on the zone**, not a permission
+error — which reads like "the zone does not exist" and sends you looking in the wrong place. The
+`aphrody.com` credentials are the ones in `.bash_secrets`.
+
+Email is hosted at OVH and is **not** ours to tidy: four `MX`, the `SPF` record (published as
+`TXT`, verified with `dig`), two DKIM `CNAME`, `_dmarc` and the autodiscover `SRV`. Touching them
+breaks mail silently.
 
 ## Ports that are not facades
 
