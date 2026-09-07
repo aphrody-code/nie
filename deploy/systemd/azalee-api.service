@@ -25,7 +25,7 @@ Environment=AZALEE_HOST=127.0.0.1
 # Miroir épinglé — même source que azalee-web (cf. drop-in azalee-web.service).
 Environment=SQLITE_DB_PATH=/home/ubuntu/niers/var/mirror.sqlite
 Environment=AZALEE_DATA_DIR=/home/ubuntu/niers/apps/azalee/data
-ExecStart=/home/ubuntu/.bun/bin/bun packages/azalee/src/server/main.ts
+ExecStart=/home/ubuntu/.bun/bin/bun packages/azalee-tools/src/server/main.ts
 Restart=always
 RestartSec=5
 

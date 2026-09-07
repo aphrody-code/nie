@@ -8,7 +8,7 @@
  * d'un autre poste, GUI Tauri, scripts — les mêmes données que le wiki web,
  * même quand la machine cliente n'a ni miroir SQLite ni dump du jeu.
  *
- *     AZALEE_PORT=8807 bun packages/azalee/src/server/main.ts
+ *     AZALEE_PORT=8807 bun packages/azalee-tools/src/server/main.ts
  *
  * Variables : `AZALEE_PORT`, `AZALEE_HOST`, `AZALEE_CORS` (origine autorisée,
  * `*` par défaut), plus celles de `src/config.ts` pour localiser les données.
