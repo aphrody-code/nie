@@ -60,6 +60,11 @@ les gates Rust et Bun après retrait, puis corriger uniquement les régressions 
 > (249 787 servis, 5 512 internes, 9 bloqués) et ne republie plus l'ancien inventaire de
 > fichiers « non reconnus » du 2026-08-28.
 
+> **Workflow d'administration documenté — 2026-09-07.** `AGENTS.md` intègre désormais les
+> alias `vps`/`dbfr`, les wrappers de `C:\Users\aphro\bin`, le protocole dry-run puis `-Apply`
+> de `vps-sync`, et la vérification hash + porcelain après synchronisation. Les données
+> ignorées (`var/`, dumps, assets) restent hors d'un sync Git exact par défaut.
+
 > **Reprise UI mesurée — 2026-09-07.** Les requêtes HTTP publiques donnent : `/` **200 / 3 582
 > octets / 9 liens**, `/explorateur` **200 / 3 946 octets / 9 liens**, et les quatre catalogues
 > **200 / 14 480 à 15 651 octets / 70 liens chacun**. `/avatar` et `/options` répondent **404**.

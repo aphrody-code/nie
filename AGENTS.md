@@ -67,6 +67,25 @@ not proof; inspect payloads and count rendered records/links/assertions.
 - For production claims, verify the live endpoint and a non-zero/meaningful response after any
   restart. `systemctl active` alone is insufficient.
 
+## Windows ↔ VPS workflow
+
+- The configured administration aliases are `vps` (OVH, `51.77.147.152`) and `dbfr`
+  (`51.255.162.6`). Prefer the wrappers from `C:\Users\aphro\bin` over hand-written `scp`,
+  `rclone`, or SSH pipelines: `vps-status`, `vps-ports`, `vps-api`, and `vps-logs` provide
+  bounded, auditable operations.
+- For file transfer, use `vps-copy`/`vps-upload` when the destination must retain extra files;
+  use `vps-sync` only when deletion on the destination is intended. Always run the default
+  dry-run first, inspect its deletion list, then pass `-Apply` explicitly.
+- Before changing a remote checkout, record `hostname`, `git status --short --untracked-files=all`,
+  and `git rev-parse HEAD`. A Git-exact checkout sync may restore tracked files and remove
+  untracked checkout files, but must leave ignored game data (`var/`, dumps, and assets) alone
+  unless that data path is explicitly named.
+- After a remote sync, verify both local and remote `HEAD` hashes and an empty remote porcelain
+  status. For service changes, run `vps-systemd status <unit>` plus `vps-api <health-url>` (or
+  an equivalent response-body check); an `active` status alone is insufficient.
+- Never print private keys, `rclone.conf`, tokens, or private endpoint contents. Do not use
+  `vps-scan all` unless a full TCP scan is specifically required.
+
 ## Documentation maintenance
 
 - Every changed volatile number needs a command, source path, host, and measurement date.
