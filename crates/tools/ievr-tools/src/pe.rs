@@ -243,8 +243,8 @@ impl PeReport {
         writeln!(out, "--- Sections ({}) ---", self.sections.len())?;
         writeln!(
             out,
-            "  {:<16}  {:>10}  {:>10}  {:>10}  {}",
-            "Name", "VirtSize", "RVA", "RawSize", "Characteristics"
+            "  {:<16}  {:>10}  {:>10}  {:>10}  Characteristics",
+            "Name", "VirtSize", "RVA", "RawSize"
         )?;
         for s in &self.sections {
             writeln!(

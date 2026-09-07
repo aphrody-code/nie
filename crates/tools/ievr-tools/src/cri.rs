@@ -112,7 +112,7 @@ pub struct CpkHeader {
 // ---------------------------------------------------------------------------
 
 const UTF_MAGIC: [u8; 4] = [0x40, 0x55, 0x54, 0x46]; // "@UTF"
-const CPK_MAGIC: [u8; 4] = [b'C', b'P', b'K', b' ']; // "CPK "
+const CPK_MAGIC: [u8; 4] = *b"CPK ";
 
 /// Storage-class nibble values (high nibble of flags byte).
 const STORAGE_ZERO: u8 = 0x00;

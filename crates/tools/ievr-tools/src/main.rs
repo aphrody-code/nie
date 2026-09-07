@@ -60,7 +60,7 @@ fn main() -> anyhow::Result<()> {
             );
         }
         Command::ByExt => {
-            println!("{:>12}  {:>6}  {:>15}  {}", "ext", "count", "bytes", "MB");
+            println!("{:>12}  {:>6}  {:>15}  MB", "ext", "count", "bytes");
             println!("{}", "-".repeat(50));
             for (ext, count, bytes) in inv.by_ext() {
                 let ext_display = if ext.is_empty() { "(none)" } else { &ext };
@@ -74,7 +74,7 @@ fn main() -> anyhow::Result<()> {
             }
         }
         Command::Top { n } => {
-            println!("{:>4}  {:>15}  {}", "#", "bytes", "rel_path");
+            println!("{:>4}  {:>15}  rel_path", "#", "bytes");
             println!("{}", "-".repeat(70));
             for (i, b) in inv.largest(n).iter().enumerate() {
                 println!("{:>4}. {:>15}  {}", i + 1, b.size_bytes, b.rel_path);

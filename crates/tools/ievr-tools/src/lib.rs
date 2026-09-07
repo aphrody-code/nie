@@ -101,7 +101,7 @@ impl Inventory {
             .map(|(ext, (count, bytes))| (ext, count, bytes))
             .collect();
         // Primary sort: largest total byte footprint first.
-        v.sort_by(|a, b| b.2.cmp(&a.2));
+        v.sort_by_key(|b| std::cmp::Reverse(b.2));
         v
     }
 
@@ -112,7 +112,7 @@ impl Inventory {
     #[must_use]
     pub fn largest(&self, n: usize) -> Vec<&Binary> {
         let mut sorted: Vec<&Binary> = self.binaries.iter().collect();
-        sorted.sort_by(|a, b| b.size_bytes.cmp(&a.size_bytes));
+        sorted.sort_by_key(|b| std::cmp::Reverse(b.size_bytes));
         sorted.into_iter().take(n).collect()
     }
 }

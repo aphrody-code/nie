@@ -159,7 +159,7 @@ pub fn probe(path: &Path) -> anyhow::Result<ManifestProbe> {
     const MAGIC_HIT_CAP: usize = 4_096;
     const ALIGNED_CAP: usize = 16;
     // Plausible file-size range for embedded 4-byte BE size fields (1 MiB..=64 MiB).
-    const PLAUSIBLE_SIZE_MIN: u32 = 1 * 1024 * 1024; // 1 MiB
+    const PLAUSIBLE_SIZE_MIN: u32 = 1024 * 1024; // 1 MiB
     const PLAUSIBLE_SIZE_MAX: u32 = 64 * 1024 * 1024; // 64 MiB
 
     let metadata = std::fs::metadata(path).with_context(|| format!("stat `{}`", path.display()))?;
@@ -223,7 +223,7 @@ pub fn probe(path: &Path) -> anyhow::Result<ManifestProbe> {
             // BigEndian::ReadBytesExt::read_u32 cannot fail on an in-memory
             // 4-byte slice — the only error would be EOF which is impossible here.
             let word = cursor.read_u32::<BigEndian>().unwrap_or(0);
-            if word >= PLAUSIBLE_SIZE_MIN && word <= PLAUSIBLE_SIZE_MAX {
+            if (PLAUSIBLE_SIZE_MIN..=PLAUSIBLE_SIZE_MAX).contains(&word) {
                 aligned_offsets_8.push(offset as u64);
             }
             offset += 8;
