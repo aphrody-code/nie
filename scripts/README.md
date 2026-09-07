@@ -13,7 +13,7 @@ l'identique, il se cite en `chemin:ligne`, et il ne repasse pas par le quoting d
 
 À la racine du dossier se trouvent notamment les preuves `validate_*.py` — les preuves uemu, une
 par fonction reversée. Elles sont référencées nommément par `justfile`,
-`forge/registry.json`, `crates/forge/nie-pe/src/units.rs` et
+`crates/forge/nie-pe/src/units.rs` et
 `crates/forge/nie-forge/src/registry.rs` : leur nom fait partie du contrat, elles ne se
 déplacent pas au fil d'un rangement.
 
