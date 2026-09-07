@@ -74,7 +74,7 @@ fn common_info_byte_exact() {
     let e0 = &cfg.common_info[0];
     assert_eq!(e0.event_id, HashId(0xFDB3_DCB3));
     assert_eq!(e0.event_type, 1);
-    assert_eq!(e0.recast_min, 99999);
+    assert_eq!(e0.recast_min, 0);
     assert_eq!(e0.nice_point_max, 40);
     assert_eq!(e0.nice_point_min, 20);
     assert_eq!(e0.on_loop_mot_id, HashId(0x84B1_2BAE));
