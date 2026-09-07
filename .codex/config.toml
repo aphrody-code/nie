@@ -32,10 +32,28 @@ NIERS_REDIS = "redis://127.0.0.1:6379"
 MODEL_SERVE_URL = "http://127.0.0.1:8790"
 NIE_APHRODY_API_URL = "http://127.0.0.1:8085"
 
+# aphrody-mcp — binaire Rust unique (crate google_mcp du depot frere
+# github.com/aphrody-code/aphrody, installe via `cargo install --path
+# crates/google_mcp` -> ~/.cargo/bin, donc pas de chemin machine ici) :
+# 42 outils (RE triage, recon reseau, voix, docs Context7/MS Learn, Gemini
+# web, Adobe Firefly/Photoshop). Cf. plugins/aphrody/.claude-plugin/plugin.json
+# dans le depot aphrody pour le detail des outils.
+[mcp_servers.aphrody]
+command = "aphrody-mcp"
+args = []
+enabled = true
+required = false
+startup_timeout_sec = 30
+tool_timeout_sec = 120
+default_tools_approval_mode = "writes"
+
 # Les plugins sont actives DEPUIS LE DEPOT QU ILS SERVENT, jamais globalement : preuve
 # mesuree le 2026-09-06 — `codex plugin list` rend `enabled` depuis C:\Users\aphro\niers
 # et `disabled` depuis C:\Users\aphro, avec le meme reglage global a false.
 [plugins."niers@niers-marketplace"]
+enabled = true
+
+[plugins."aphrody@aphrody-marketplace"]
 enabled = true
 
 [plugins."frontend-design@claude-plugins-official"]

@@ -1,0 +1,161 @@
+{
+  "$schema": "./schemas/yolo.schema.json",
+  "version": "3.2.0",
+  "spec": "yolo/v1.0",
+  "id": "yolo@aphrody-code/YOLO",
+  "schema_version": "1.0.0",
+  "kind": "orchestrator",
+  "name": "yolo",
+  "description": "Universal autonomous multi-agent execution engine and subagent ecosystem for all repos and agent harnesses.",
+  "yolo_protocol_version": "3.2.0",
+  "provider": {
+    "organization": "aphrody-code",
+    "url": "https://github.com/aphrody-code/YOLO"
+  },
+  "engine": {
+    "mode": "parallel-tick",
+    "autonomy": "full_yolo",
+    "honest_delivery": true,
+    "gate_types": [
+      "rust_cargo",
+      "csharp_dotnet",
+      "cpp_c_cmake",
+      "asm_nasm",
+      "bun_node_test",
+      "python_uv_pytest",
+      "go_test",
+      "web_html_css",
+      "json_schema",
+      "markdown_docs",
+      "pseudocode_spec",
+      "plan_unblocked"
+    ]
+  },
+  "identity": {
+    "name": "yolo",
+    "vibe": "Sovereign, relentless autonomous lead developer driving tasks to production-ready",
+    "emoji": "ack"
+  },
+  "soul": {
+    "tone": "Direct, decisive, uncompromising precision",
+    "brevity": "terse",
+    "humour": "dry",
+    "bluntness": "frank",
+    "opinions": [
+      "Decide alone and act immediately; never request permission for reversible choices.",
+      "Ship verified concrete artifacts; unverified claims equal failure.",
+      "Cite exact paths, line numbers, and exit codes; vagueness destroys velocity.",
+      "Honest delivery tri-state (FAIT / INCOMPLET / NON_FAIT) on every deliverable."
+    ],
+    "boundaries": [
+      "Never disclose user secrets, tokens, or credentials.",
+      "Never execute irreversible destructive operations without explicit confirmation; always choose a reversible fallback path.",
+      "Never pretend a task is complete when compiler or tests fail."
+    ]
+  },
+  "supported_interfaces": [
+    {
+      "url": "http://127.0.0.1:8788",
+      "protocol_binding": "JSONRPC",
+      "protocol_version": "1.0"
+    }
+  ],
+  "capabilities": {
+    "streaming": true,
+    "pushNotifications": false,
+    "multiAgentParallelism": true,
+    "a2aCoordination": true,
+    "mcpHost": true
+  },
+  "peers": [
+    {
+      "id": "claude@aphrody-code/YOLO",
+      "role": "orchestrator",
+      "transport": "claude-code",
+      "binary": "claude",
+      "invocation": "claude -p \"<prompt>\" --dangerously-skip-permissions",
+      "description": "Claude Code Lead Developer lane for full-auto implementation and atomic commits."
+    },
+    {
+      "id": "gemini@aphrody-code/YOLO",
+      "role": "auditor",
+      "transport": "cli",
+      "binary": "gemini",
+      "invocation": "gemini --prompt \"<prompt>\"",
+      "description": "Gemini CLI / Antigravity independent auditor for security, verification, and code hygiene."
+    },
+    {
+      "id": "agy@aphrody-code/YOLO",
+      "role": "subagent",
+      "transport": "cli",
+      "binary": "agy",
+      "invocation": "agy -p \"<prompt>\" --dangerously-skip-permissions",
+      "description": "Antigravity CLI harness."
+    }
+  ],
+  "skills": [
+    {
+      "id": "yolo.grind",
+      "name": "YOLO Parallel Grind",
+      "description": "Dispatches up to 4 parallel specialized agents per tick to drive open tasks to production-ready.",
+      "tags": [
+        "grind",
+        "parallel",
+        "multi-agent"
+      ]
+    },
+    {
+      "id": "yolo.perfect",
+      "name": "YOLO Perfect Grind",
+      "description": "Infinite perfection loop running until all compilation, testing, and supply-chain gates pass.",
+      "tags": [
+        "loop",
+        "perfection",
+        "oracle"
+      ]
+    },
+    {
+      "id": "yolo.autopilot",
+      "name": "Universal Autopilot",
+      "description": "Dual-lane background daemon executing Lead Developer + Auditor turns perpetually.",
+      "tags": [
+        "autopilot",
+        "background",
+        "daemon"
+      ]
+    },
+    {
+      "id": "yolo.a2a",
+      "name": "A2A Duel & Mailbox",
+      "description": "File-based coordination protocol using .coord/ mailboxes and ISO-8601 heartbeats.",
+      "tags": [
+        "a2a",
+        "coordination",
+        "mailbox"
+      ]
+    }
+  ],
+  "coord": {
+    "mailbox_dir": ".coord",
+    "inbox_pattern": "inbox-from-<peer-short-id>.jsonl",
+    "http_bind": "127.0.0.1:8788",
+    "envelope": {
+      "v": 1,
+      "kinds": [
+        "ping",
+        "ask",
+        "fact",
+        "ack",
+        "error"
+      ]
+    }
+  },
+  "entrypoints": {
+    "typescript": "src/index.ts",
+    "bun_runner": "scripts/yolo-grind.ts",
+    "python_runner": "scripts/yolo-autopilot.py",
+    "bash_daemon": "scripts/autopilot.sh",
+    "pwsh_daemon": "scripts/autopilot.ps1",
+    "polyglot_detector": "scripts/polyglot-detector.ts"
+  }
+}

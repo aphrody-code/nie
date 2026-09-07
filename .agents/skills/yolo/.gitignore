@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.pyc
+
+# Node / Bun
+node_modules/
+bun.lockb
+
+# Runtime logs (heartbeat mailbox files are intentionally tracked)
+var/log/
+
+# Turbo cache
+.turbo/

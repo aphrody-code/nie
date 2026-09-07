@@ -1,0 +1,208 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/aphrody-code/YOLO/main/schemas/yolo.schema.json",
+  "title": "YoloManifest",
+  "description": "JSON schema for YOLO autonomous agent coordination manifests, adhering to A2A collaboration contracts.",
+  "type": "object",
+  "required": [
+    "version",
+    "spec",
+    "id",
+    "kind",
+    "name",
+    "yolo_protocol_version",
+    "capabilities",
+    "engine"
+  ],
+  "properties": {
+    "version": {
+      "type": "string"
+    },
+    "spec": {
+      "type": "string",
+      "enum": [
+        "yolo/v1.0",
+        "a2a/v1.0"
+      ]
+    },
+    "id": {
+      "type": "string"
+    },
+    "schema_version": {
+      "type": "string",
+      "default": "1.0.0"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "agent",
+        "orchestrator",
+        "engine",
+        "service"
+      ]
+    },
+    "name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "yolo_protocol_version": {
+      "type": "string",
+      "default": "3.2.0"
+    },
+    "provider": {
+      "type": "object",
+      "required": [
+        "organization",
+        "url"
+      ],
+      "properties": {
+        "organization": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      }
+    },
+    "engine": {
+      "type": "object",
+      "required": [
+        "mode",
+        "autonomy",
+        "honest_delivery"
+      ],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "single-feature",
+            "parallel-tick",
+            "perfection-oracle",
+            "autopilot-dual"
+          ]
+        },
+        "autonomy": {
+          "type": "string",
+          "enum": [
+            "full_yolo",
+            "gated"
+          ],
+          "default": "full_yolo"
+        },
+        "honest_delivery": {
+          "type": "boolean",
+          "default": true
+        },
+        "gate_types": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "soul": {
+      "type": "object",
+      "required": [
+        "tone",
+        "brevity",
+        "humour",
+        "bluntness"
+      ],
+      "properties": {
+        "tone": {
+          "type": "string"
+        },
+        "brevity": {
+          "type": "string",
+          "enum": [
+            "terse",
+            "balanced",
+            "verbose"
+          ]
+        },
+        "humour": {
+          "type": "string",
+          "enum": [
+            "none",
+            "dry",
+            "playful"
+          ]
+        },
+        "bluntness": {
+          "type": "string",
+          "enum": [
+            "gentle",
+            "direct",
+            "frank"
+          ]
+        },
+        "opinions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "boundaries": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "identity": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "vibe": {
+          "type": "string"
+        },
+        "emoji": {
+          "type": "string"
+        }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "properties": {
+        "streaming": {
+          "type": "boolean",
+          "default": true
+        },
+        "pushNotifications": {
+          "type": "boolean",
+          "default": false
+        },
+        "multiAgentParallelism": {
+          "type": "boolean",
+          "default": true
+        },
+        "a2aCoordination": {
+          "type": "boolean",
+          "default": true
+        },
+        "mcpHost": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "peers": {
+      "type": "array"
+    },
+    "skills": {
+      "type": "array"
+    },
+    "coord": {
+      "type": "object"
+    }
+  }
+}

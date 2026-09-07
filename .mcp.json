@@ -12,6 +12,11 @@
         "MODEL_SERVE_URL": "http://127.0.0.1:8790",
         "NIE_APHRODY_API_URL": "http://127.0.0.1:8085"
       }
+    },
+    "aphrody": {
+      "type": "stdio",
+      "command": "aphrody-mcp",
+      "args": []
     }
   }
 }

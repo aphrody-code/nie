@@ -28,8 +28,9 @@
     "yolo": {
       "source": "aphrody-code/YOLO",
       "sourceType": "github",
+      "ref": "e484d770b47d2b6ab8e4ecf7d858bacdcd48d9b2",
       "skillPath": "SKILL.md",
-      "computedHash": "3e2889ef5cdd1fe2fec9d4fc212f1aadddb165644429199b23b50c170b541d21"
+      "computedHash": "1d8157db2e9b78df93c3cc3742482362ffb51bbd7a4d4238775090ab62b7f252"
     }
   }
 }

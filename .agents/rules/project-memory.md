@@ -857,7 +857,7 @@ L'utilisateur veut que je sois le plus proactif et autonome possible : « no hum
 
 **Why:** L'utilisateur tourne déjà en mode `bypassPermissions` par défaut (voir [[bypass-permissions-default]]) et privilégie la rapidité d'exécution sur les validations.
 
-**How to apply:** Prendre les décisions raisonnables par défaut et exécuter de bout en bout sans s'arrêter pour demander. Ne solliciter l'utilisateur que pour les choix réellement irréversibles ou ambigus qui lui appartiennent. Mener les tâches multi-étapes jusqu'au bout, vérifier soi-même le résultat, puis rendre compte des faits. Skill `/yolo` (`~/.claude/skills/yolo/SKILL.md`) qui formalise ce mode en autonomie totale + boucle continue via ScheduleWakeup.
+**How to apply:** Prendre les décisions raisonnables par défaut et exécuter de bout en bout sans s'arrêter pour demander. Ne solliciter l'utilisateur que pour les choix réellement irréversibles ou ambigus qui lui appartiennent. Mener les tâches multi-étapes jusqu'au bout, vérifier soi-même le résultat, puis rendre compte des faits. Skill `/yolo` (`.agents/skills/yolo/SKILL.md`, chargé via le symlink `.claude/skills/yolo`) qui formalise ce mode en autonomie totale + boucle continue via ScheduleWakeup. Épinglé sur `aphrody-code/YOLO@e484d770b47d2b6ab8e4ecf7d858bacdcd48d9b2` (voir `skills-lock.json`).
 
 ---
 
