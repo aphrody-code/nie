@@ -1,0 +1,37 @@
+[Unit]
+# rg-cdn — serveur d'images de cdn.rosegriffon.fr, servi depuis `niers/apps/cdn`.
+#
+# Même raisonnement que `rg-storage` et `rg-realtime` : le code a suivi la fusion, le NOM
+# de l'unité reste `rg-*` — il est référencé par `rg-watchdog@rg-cdn.timer` et par nginx,
+# et le service diffuse les images des DEUX surfaces (le wiki d'ici, le site vitrine resté
+# dans `rg`). Ce qui compte est qu'aucun chemin ne pointe plus vers `/home/ubuntu/rg`.
+#
+# `cdn-variants.service` est un service DISTINCT, déjà servi depuis ce dépôt : il fabrique
+# les variantes de taille, celui-ci diffuse les originaux.
+#
+# Le `.env` porte `CDN_API_KEY` : il reste hors de git (ignoré par `.gitignore`).
+#
+# Installation :
+#   sudo cp deploy/systemd/rg-cdn.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl restart rg-cdn.service
+Description=rg-cdn — serveur d'images (upload/images/health) pour cdn.rosegriffon.fr (depuis niers)
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/niers/apps/cdn
+EnvironmentFile=/home/ubuntu/niers/apps/cdn/.env
+ExecStart=/home/ubuntu/.bun/bin/bun --bun server.ts
+# `always` : une sortie en code 0 laissait le service mort sans alerte (cf. cdn-variants).
+Restart=always
+RestartSec=3
+
+# Plafond mémoire (raisonnement complet dans azalee-api.service). Mesuré : 8 Mio ; le
+# service diffuse des fichiers, il ne les charge pas.
+MemoryHigh=512M
+MemoryMax=1G
+MemorySwapMax=256M
+
+[Install]
+WantedBy=multi-user.target

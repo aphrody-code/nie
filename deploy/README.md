@@ -73,10 +73,19 @@ normal en non-root et arrive **après** la validation : la configuration a été
 | `azalee-api.service` | l'API du wiki |
 | `rg-storage`, `rg-realtime`, `rag-api` | le socle du wiki en Bun natif |
 | `rg-mcp.service` | le serveur MCP |
+| `rg-cdn.service` | le CDN d'images de `cdn.rosegriffon.fr`, servi depuis `apps/cdn` |
+| `cdn-variants.service` | la fabrique des variantes de taille, `127.0.0.1:8805` |
+| `niers-wonderbot.service` | le bot, exécuté depuis `apps/bxc` mais avec ce dépôt pour racine |
 
 ## Ce qui n'est PAS ici, et pourquoi
 
-La machine porte aussi les unités `bxc-*` et `rg-*` (CDN, postgrest, sauvegarde, watchdogs) et
+Les trois dernières gardent un nom `rg-*`/`bxc`-adjacent par héritage : le code a suivi la
+fusion, le nom de l'unité est référencé par `rg-watchdog@*.timer` et par nginx, le renommer
+casserait la surveillance. C'est le chemin qui tranche l'appartenance, pas le nom — elles
+tournent toutes depuis `/home/ubuntu/niers`, et les copies restées dans `rg/infra/systemd/` sont
+**périmées** (elles pointent encore `/home/ubuntu/rg`).
+
+La machine porte aussi les unités `bxc-*` et `rg-*` (postgrest, sauvegarde, watchdogs) et
 les vhosts `rosegriffon.conf`, `cdn.rosegriffon.conf`, `supabase*`, `studio.*`. Ils
 appartiennent aux dépôts `bxc` et `rg` : les recopier ici créerait une seconde source de vérité
 pour des fichiers que ce dépôt ne modifie pas. La frontière est celle du 2026-09-05 — Codex
