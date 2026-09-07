@@ -331,7 +331,8 @@ d'un coup. Tester la forme **disque** d'un chemin ne pouvait pas marcher — le 
 
 Restent 2 valeurs non résolues par un chemin (`0xA30165ED`, présente dans 616 scripts sur 651, et
 `0x32A55794`) : cohérent avec la double sémantique du champ — `SetSprite` y écrit un `cell_id`,
-pas un hash de nom. Séparer les deux champs reste à faire.
+pas un hash de nom. Le modèle runtime sépare désormais explicitement `sprite_cell_id` et le hash
+de texture (export `spriteCellId`) ; la résolution des deux valeurs reste à faire.
 
 L'explication est dans `menu_host.rs` : le champ `sprite_texture_hash` a **deux sémantiques
 selon la commande qui l'écrit** — `SetSprite` y met un `cell_id` (index de cellule d'atlas,
