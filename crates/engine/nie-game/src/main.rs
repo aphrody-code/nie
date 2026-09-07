@@ -3189,6 +3189,8 @@ struct MergedObj {
     part_flag_args: std::collections::BTreeMap<u32, Vec<u32>>,
     /// Hash de texture/chemin g4tx du sprite (`SetSprite`/`SetIconSprite` arg1).
     sprite_hash: Option<u32>,
+    /// Cell index written by `SetSprite`; unlike `sprite_hash`, this is not a CRC32 path.
+    sprite_cell_id: Option<u32>,
     /// Hash de la région/texture dans l'atlas (`SetIconSprite` arg2). Paire (chemin, région).
     sprite_region: Option<u32>,
     /// Texte affiché (`SetText`).
@@ -3208,6 +3210,7 @@ impl Default for MergedObj {
             part_param_args: std::collections::BTreeMap::new(),
             part_flag_args: std::collections::BTreeMap::new(),
             sprite_hash: None,
+            sprite_cell_id: None,
             sprite_region: None,
             text: None,
             number: None,
@@ -3517,6 +3520,9 @@ fn cmd_export_layout_runtime(
                     m.sprite_hash = o.sprite_texture_hash;
                     m.sprite_region = o.sprite_region_hash;
                 }
+                if m.sprite_cell_id.is_none() {
+                    m.sprite_cell_id = o.sprite_cell_id;
+                }
                 if m.text.is_none() {
                     m.text = o.text.clone();
                 }
@@ -3627,6 +3633,9 @@ fn cmd_export_layout_runtime(
                     }
                 }
             }
+        }
+        if let Some(cell_id) = m.sprite_cell_id {
+            rt.insert("spriteCellId".into(), json!(cell_id));
         }
         // Visibilité : celle de l'INSTANCE si une commande a nommé son index, la visibilité
         // d'objet sinon. Les exemplaires d'un même gabarit se suivent dans l'ordre des slots
