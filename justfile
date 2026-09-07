@@ -188,3 +188,7 @@ all-check: fmt-check clippy
     cargo test --workspace
     -just ts-check
     @echo "all-check=OK"
+
+# Full local readiness gate; fails at the first red check and prints each gate name.
+verify:
+    powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-monorepo.ps1

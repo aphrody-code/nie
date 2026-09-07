@@ -35,10 +35,7 @@ fn contient_dump(racine: &Path) -> bool {
             let chemin = entree.path();
             if chemin.is_dir() {
                 pile.push(chemin);
-            } else if chemin
-                .to_string_lossy()
-                .ends_with(".cfg.bin.json")
-            {
+            } else if chemin.to_string_lossy().ends_with(".cfg.bin.json") {
                 return true;
             }
         }
@@ -50,9 +47,7 @@ fn depuis(base: &Path) -> Option<PathBuf> {
     SOUS_CHEMINS
         .iter()
         .map(|s| base.join(s))
-        .find(|p| {
-            p.is_dir() && contient_dump(p)
-        })
+        .find(|p| p.is_dir() && contient_dump(p))
 }
 
 /// Racine du corpus de dumps, ou `None` si absent de cette machine.

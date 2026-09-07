@@ -736,7 +736,11 @@ impl PhaseCheckInfo {
         Some(Self {
             phase_id,
             phase_state_id: field_i64(v, "phaseStateId").unwrap_or(0),
-            condition: owned(if condition != "0xFFFFFFFF" { condition } else { "" }),
+            condition: owned(if condition != "0xFFFFFFFF" {
+                condition
+            } else {
+                ""
+            }),
             condition2: owned(if condition2 != "0xFFFFFFFF" {
                 condition2
             } else {
