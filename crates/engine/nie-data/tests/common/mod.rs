@@ -25,11 +25,34 @@ use std::sync::OnceLock;
 /// Sous-chemins candidats d'une racine de dumps, relatifs à une racine de jeu ou de travail.
 const SOUS_CHEMINS: [&str; 2] = ["dump/gamedata", "data/common/gamedata"];
 
+fn contient_dump(racine: &Path) -> bool {
+    let mut pile = vec![racine.to_path_buf()];
+    while let Some(dir) = pile.pop() {
+        let Ok(entrees) = std::fs::read_dir(dir) else {
+            continue;
+        };
+        for entree in entrees.flatten() {
+            let chemin = entree.path();
+            if chemin.is_dir() {
+                pile.push(chemin);
+            } else if chemin
+                .to_string_lossy()
+                .ends_with(".cfg.bin.json")
+            {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 fn depuis(base: &Path) -> Option<PathBuf> {
     SOUS_CHEMINS
         .iter()
         .map(|s| base.join(s))
-        .find(|p| p.is_dir())
+        .find(|p| {
+            p.is_dir() && contient_dump(p)
+        })
 }
 
 /// Racine du corpus de dumps, ou `None` si absent de cette machine.
@@ -46,6 +69,17 @@ pub fn racine() -> Option<&'static Path> {
                 && let Some(p) = depuis(Path::new(&v))
             {
                 return Some(p);
+            }
+            // Cargo may choose a target-dependent working directory for workspace tests.
+            // Anchor the repository lookup at the crate manifest as well as the process cwd.
+            let mut manifeste = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+            loop {
+                if let Some(p) = depuis(&manifeste) {
+                    return Some(p);
+                }
+                if !manifeste.pop() {
+                    break;
+                }
             }
             let mut courant = std::env::current_dir().ok();
             while let Some(d) = courant {
