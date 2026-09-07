@@ -15,24 +15,23 @@ de l'index (100,000 %, mesuré le 2026-08-28) et rend des octets identiques à l
 
 Inspection : `niers vfs ls|find|stat|cat|extract|stats|formats`.
 
-**Ce que le dépôt sait réellement lire** — `niers vfs formats --parse` sur les 255 316 fichiers du
-dump (2026-08-28) :
+**Ce que le dépôt sait réellement lire** — la matrice de couverture régénérée le 2026-09-07
+sur le poste Windows local (`nie-site --regenerer-couverture var/couverture-site.json`) :
 
 | Catégorie | Fichiers | Part |
 |---:|---|---:|
-| Décodés par un parseur | 226 994 | **88,91 %** |
-| Magic connu, sans décodeur autonome (`@UTF`, `AWB`, `USM`) | 11 215 | 4,39 % |
-| Ni magic ni parseur (dont 15 876 `.g4mg`) | 17 107 | 6,70 % |
-| Illisibles | 0 | 0 % |
+| Servis par une route interprétée | 249 787 | **97,84 %** |
+| Internes, avec une raison publiée | 5 512 | 2,16 % |
+| Bloqués faute de disposition reversée (`.g4tg`) | 9 | 0,00 % |
+| Manquants ou partiels | 0 | 0 % |
 
 Un `.g4mg` n'a pas de magic et n'est pas décodable seul : c'est un tampon de sommets brut dont la
 structure vit dans le `.g4md` frère. Le compter comme « format manquant » serait faux — hors
 `.g4mg`, **94,80 %** des fichiers décodables le sont (226 994 / 239 440).
 
-Les 17 107 non reconnus, par extension : 15 876 `.g4mg`, 1 197 `.lua.bin` (bytecode Lua 5.2, que
-`nie-lua` charge et exécute — `decode` ne peut pas l'appeler, `nie-lua` dépend de `nie-formats`),
-9 `.g4tg`, 5 échecs isolés (`.usm`, `.g4mt`) et 20 fichiers de travail hors jeu (`data/mod/`).
-**Ce qui reste réellement non lu tient en ~30 fichiers.**
+Les **9 `.g4tg`** sont le seul corpus bloqué dans la matrice : les autres extensions sont
+servies, internes ou déléguées à leur route spécialisée. La lecture brute reste disponible par
+`/f/{chemin}` même lorsqu'une interprétation n'est pas publiée.
 
 ### `.vfxo` / `.pfxo` / `.gfxo` / `.cfxo` — shaders DXBC
 
@@ -79,8 +78,10 @@ Placeholders runtime dans les chemins : `<LG>` (langue), `<EVENT>`, `<SHADER_VER
 | 9 | `.g4tg` | textures d'effet | — |
 | 4 + 4 | `.g4vs` / `.g4la` | effets et lumières d'événement | `g4vs`, `g4la` |
 
-**1 121 fichiers (0,44 %)** restent sans parser : `.ptlb`, `.fxbin`, `.clobin`, `.g4tg`, `.linb`,
-et une poignée d'extensions numérotées `.r*`.
+Les **9 `.g4tg`** restent sans interprétation publiée (0,00 % du VFS) : leur charge utile et
+sa disposition sont encore à reverser. Les autres familles autrefois classées « sans parser »
+sont désormais identifiées ou servies par la route de décodage générique ; voir la matrice
+mesurée dans `PLAN.md` et `docs/VFS.md`.
 
 ### Racines de données
 
