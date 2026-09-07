@@ -27,10 +27,10 @@ fn load_real() -> Option<DeliveryConfig> {
 #[test]
 fn comptes_listes() {
     let Some(cfg) = load_real() else { return };
-    assert_eq!(cfg.contents.len(), 73, "m_DeliveryContentsDataList");
-    assert_eq!(cfg.infos.len(), 30, "m_DeliveryInfoList");
-    assert_eq!(cfg.password_codes.len(), 14, "m_PasswordCodesList");
-    assert_eq!(cfg.password_data.len(), 14, "m_PasswordDataList");
+    assert_eq!(cfg.contents.len(), 122, "m_DeliveryContentsDataList");
+    assert_eq!(cfg.infos.len(), 40, "m_DeliveryInfoList");
+    assert_eq!(cfg.password_codes.len(), 21, "m_PasswordCodesList");
+    assert_eq!(cfg.password_data.len(), 21, "m_PasswordDataList");
 }
 
 #[test]
@@ -49,9 +49,9 @@ fn contents_echantillons() {
     assert_eq!(c4.replace_item_id_crc, HashId(0x3B44_0CA2));
 
     // dernier [72]
-    let c72 = &cfg.contents[72];
-    assert_eq!(c72.item_id_crc, HashId(0x149D_BE6B));
-    assert_eq!(c72.num, 1);
+    let c121 = &cfg.contents[121];
+    assert_eq!(c121.item_id_crc, HashId(0x0260_1663));
+    assert_eq!(c121.num, 15);
 }
 
 #[test]
@@ -65,7 +65,7 @@ fn infos_echantillons() {
     assert_eq!(i0.send_target_type, 2);
     assert_eq!(i0.contents_offset, 0);
     assert_eq!(i0.contents_count, 1);
-    assert_eq!(i0.open_cond, "");
+    assert_eq!(i0.open_cond, "0xFFFFFFFF");
 
     let i1 = &cfg.infos[1];
     assert_eq!(i1.id_crc, HashId(0xFB62_7BFD));
@@ -94,9 +94,9 @@ fn password_codes_litteraux() {
     let Some(cfg) = load_real() else { return };
     // [0] : code japonais en kana, anglais vide
     assert_eq!(cfg.password_codes[0].japanese, "カハワヒコツイノモメオサ");
-    assert_eq!(cfg.password_codes[0].english, "");
+    assert_eq!(cfg.password_codes[0].english, "0xFFFFFFFF");
     // [3] : anglais renseigné, japonais vide
-    assert_eq!(cfg.password_codes[3].japanese, "");
+    assert_eq!(cfg.password_codes[3].japanese, "0xFFFFFFFF");
     assert_eq!(cfg.password_codes[3].english, "HPKCYJVQWTWX");
     // dernier [13]
     assert_eq!(cfg.password_codes[13].english, "CPVHNYBRBGNR");
