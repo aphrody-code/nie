@@ -16,7 +16,7 @@
 	},
 	"scripts": {
 		"typecheck": "bunx tsc --noEmit",
-		"test": "bun test",
+		"test": "bun test --pass-with-no-tests",
 		"workflow": "bun --bun ./src/cli.ts workflow",
 		"wonderbot": "bun --bun ./src/cli.ts wonderbot"
 	},

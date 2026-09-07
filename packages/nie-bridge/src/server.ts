@@ -81,7 +81,8 @@ export class BridgeServer {
 
   /** Vrai si une application est connectée. */
   get connected(): boolean {
-    return this.#socket !== null;
+    // A WebSocket can be open before the client has sent its hello frame.
+    return this.#socket !== null && this.#peer !== null;
   }
 
   /**

@@ -591,3 +591,18 @@ export function createSqliteClient() {
 		},
 	};
 }
+
+/** Ferme le handle singleton, principalement pour les hôtes qui reconfigurent leur source. */
+export function closeSqliteClient(): void {
+	const db = _sqliteDb as unknown as { close?: () => void } | null;
+	_sqliteDb = null;
+	_drizzle = null;
+	_openedPath = null;
+	_openedFingerprint = "";
+	_lastFreshnessCheck = 0;
+	try {
+		db?.close?.();
+	} catch {
+		// Le moteur peut déjà avoir fermé le handle.
+	}
+}

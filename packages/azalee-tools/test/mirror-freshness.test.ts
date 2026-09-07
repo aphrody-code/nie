@@ -11,10 +11,12 @@
 
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { Database } from "bun:sqlite";
+import { mkdir, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { configureAzalee, resetAzaleeConfig } from "../src/config";
-import { createSqliteClient } from "../src/db/sqlite-client";
+import { closeSqliteClient, createSqliteClient } from "../src/db/sqlite-client";
 
-const BAC = `${import.meta.dir}/.bac-miroir`;
+const BAC = `${tmpdir()}/azalee-tools-mirror-${process.pid}`;
 
 /**
  * Cette machine sait-elle créer un VRAI lien symbolique ?
@@ -29,15 +31,15 @@ const BAC = `${import.meta.dir}/.bac-miroir`;
 async function liensSymboliquesDisponibles(): Promise<boolean> {
 	const bac = `${import.meta.dir}/.bac-lien`;
 	try {
-		await Bun.spawn(["rm", "-rf", bac]).exited;
-		await Bun.spawn(["mkdir", "-p", bac]).exited;
+		await rm(bac, { recursive: true, force: true });
+		await mkdir(bac, { recursive: true });
 		await Bun.write(`${bac}/cible`, "x");
 		await Bun.spawn(["ln", "-sfn", "cible", `${bac}/lien`]).exited;
 		return (await Bun.spawn(["test", "-L", `${bac}/lien`]).exited) === 0;
 	} catch {
 		return false;
 	} finally {
-		await Bun.spawn(["rm", "-rf", bac]).exited;
+		await rm(bac, { recursive: true, force: true });
 	}
 }
 
@@ -69,13 +71,14 @@ async function lireNom(): Promise<string | undefined> {
 
 describe("réouverture du miroir après un swap", () => {
 	beforeEach(async () => {
-		await Bun.spawn(["rm", "-rf", BAC]).exited;
-		await Bun.spawn(["mkdir", "-p", BAC]).exited;
+		if (process.platform !== "win32") await rm(BAC, { recursive: true, force: true });
+		await mkdir(BAC, { recursive: true });
 	});
 
 	afterEach(async () => {
+		closeSqliteClient();
 		resetAzaleeConfig();
-		await Bun.spawn(["rm", "-rf", BAC]).exited;
+		if (process.platform !== "win32") await rm(BAC, { recursive: true, force: true });
 	});
 
 	test.skipIf(!liensDisponibles)("le remplacement du fichier est pris en compte sans redémarrage", async () => {

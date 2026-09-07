@@ -282,6 +282,9 @@ mod tests {
             "la page de couverture doit embarquer la feuille CSS générée"
         );
         assert!(html.contains("var(--jeu-ciel-clair)"));
-        assert!(!html.contains("#12141c"), "ancienne palette sombre résiduelle");
+        assert!(
+            !html.contains("#12141c"),
+            "ancienne palette sombre résiduelle"
+        );
     }
 }

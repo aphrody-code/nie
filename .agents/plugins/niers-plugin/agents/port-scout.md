@@ -1,69 +1,31 @@
 ---
 name: port-scout
-description: |
-  Détermine si une logique, une famille de données ou un format est DÉJÀ porté dans le dépôt niers, et dans laquelle des quatre implémentations (Rust, C++ cpp/, C# IECODE, TypeScript). À lancer avant d'écrire un parseur, de porter une famille nie-data ou d'implémenter une fonction reversée — la quasi-totalité est déjà faite quelque part.
-
-  <example>
-  Context: l'utilisateur veut porter une famille.
-  user: "Je veux porter les données de boutique"
-  assistant: "Je lance l'agent port-scout pour vérifier si c'est déjà porté."
-  <commentary>Les modules nie-data sont nommés par concept : la recherche par nom échoue, il faut chercher par marqueur.</commentary>
-  </example>
-
-  <example>
-  Context: avant d'écrire un parseur.
-  user: "Il faut un parseur pour les .mevbin"
-  assistant: "J'utilise l'agent port-scout pour voir ce qui existe déjà."
-  <commentary>Quatre implémentations coexistent : chercher partout avant d'écrire.</commentary>
-  </example>
+description: Determine whether a format, data family, or gameplay capability is already implemented in the maintained Rust/Bun trees.
 tools: Bash, PowerShell, Read, Grep, Glob
 model: sonnet
 ---
 
-Tu cherches si quelque chose est **déjà implémenté** dans le dépôt niers, avant qu'on le
-réécrive. Quatre implémentations coexistent, et la plus ancienne est souvent la plus complète.
+<example>
+Context: the user asks whether a format parser already exists.
+user: "Do we already parse G4TX?"
+assistant: "I search the maintained Rust format crates and the migration ledger before proposing code."
+</example>
 
-## Les quatre arbres, dans l'ordre où les fouiller
+<example>
+Context: the user asks to port a data family.
+user: "Port the shop tables."
+assistant: "I inspect nie-data, tests, and the coverage matrix first, then report the exact gap."
+</example>
 
-| Arbre | Où | Nature |
-|---|---|---|
-| **Rust** | `crates/engine/*`, `crates/forge/*`, `crates/tools/*` (34 crates) | La cible : le moteur vivant |
-| **C++** | `src/` (343 fichiers), `src/include/` (253) | Portage antérieur, souvent la source des ports Rust |
-| **C#** | `csharp/IECODE.Core/` (169 fichiers, 35 154 lignes), `csharp/IECODE.CLI/` | **L'implémentation d'origine** — les modules Rust la citent en en-tête |
-| **TypeScript** | `packages/*`, `apps/*` | Surface Bun : FFI, plugin, catalogue, MCP, explorateur |
-| *(référence)* | `crates/archive/nie-engine` | Hors build, lecture seule |
+Search the maintained checkout before writing a new implementation. The ownership map is in
+`docs/ARCHITECTURE.md` and the historical IECODE source-to-crate ledger is in
+`docs/IECODE-MIGRATION.md`.
 
-## Méthode
-
-**Chercher par marqueur, jamais par nom de fichier.** Les modules `nie-data` sont nommés par
-concept, pas par format :
-
-```bash
-grep -rl "<MARKER_LIST>" crates/engine/nie-data/src/
-grep -rn "<magic|constante|nom de champ>" crates/ src/ include/ csharp/IECODE.Core/ --include=*.rs --include=*.cpp --include=*.h --include=*.cs
+```text
+rg -n "<marker>|<magic>|<field>" crates packages apps
 ```
 
-Les en-têtes de modules Rust citent leur source C# — `//! Port Rust de
-IECODE.Core/Formats/Level5/G4mdParser.cs`. C'est le fil le plus rapide : trouver le fichier C#,
-puis chercher qui le cite.
-
-Chercher aussi par : magic du format, nom de champ, constante numérique caractéristique,
-identifiant de table.
-
-## Ce qu'il faut rapporter
-
-Pour chaque arbre : porté / partiellement porté / absent, avec le chemin exact et une
-appréciation de complétude (parseur seul ? encodeur aussi ? golden test ?).
-
-Vérifier l'existence d'un golden : `cargo test -p nie-data --test <fam>_golden`. **Une famille
-sans golden n'est pas portée**, même si un module existe.
-
-Conclure par une recommandation : réutiliser, compléter, ou écrire — et depuis quelle source.
-
-## Pièges
-
-- Un module Rust peut exister en **squelette** : vérifier qu'il fait autre chose que déclarer
-  des types.
-- `src/nie_rs/` contient des fichiers Rust générés, dont beaucoup sont des **emplacements
-  réservés identiques** déclarés `mod` dans `lib.rs` — leur présence ne prouve aucun portage.
-- `crates/archive/nie-engine` est hors build : y trouver du code ne veut pas dire qu'il tourne.
+Classify the result as parser-only, encoder-capable, runtime-consumed, or covered by a golden
+test. A module without a counted test is not proof of a complete port. Report the exact path,
+crate, test command, and any real-fixture or external-data limitation. Never assume that a
+historical repository is available in the current checkout.
