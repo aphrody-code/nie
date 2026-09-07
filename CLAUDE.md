@@ -77,7 +77,7 @@ that price on keeper, menu and match-sim.
 - **`nginx -t` on a repository file needs stand-in certificates** (the real ones are root-only).
   `syntax is ok` followed by `open() "/run/nginx.pid" failed` is the expected non-root outcome —
   the config was read and loaded. Recipe in [`deploy/README.md`](deploy/README.md).
-- **Three OVH accounts live here.** `aphrody.com` is only reachable with the keys in
+- **Three OVH accounts live here** ([`docs/OVH.md`](docs/OVH.md), tool `scripts/ops/ovh.py`). `aphrody.com` is only reachable with the keys in
   `~/.bash_secrets`; `~/.ovh.conf` sees `rosegriffon.fr` alone and returns **404 on the zone**,
   not 403 — which reads as "this zone does not exist" and sends you to the registrar. The
   python `ovh` module is not installed; sign the request by hand.

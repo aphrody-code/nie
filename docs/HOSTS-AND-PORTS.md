@@ -46,7 +46,9 @@ in any repository — a name that points at your machine without being served is
 service. It was **deleted on 2026-09-07**. Restoring it is one `POST`:
 `CNAME` / `ftp` / `aphrody.com.` / `ttl 0`.
 
-### Credentials — two OVH accounts, do not confuse them
+### Credentials — three OVH accounts, do not confuse them
+
+Full zone contents, record ids and the procedures are in [`docs/OVH.md`](OVH.md).
 
 | File | Section / variables | Zones it can see |
 |---|---|---|
