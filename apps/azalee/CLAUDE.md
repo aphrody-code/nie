@@ -164,3 +164,13 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **`fetch()` sur une URL `file:` n'est pas implémenté par Bun** (« not implemented... yet... ») :
   `fetch(new URL("./x.png", import.meta.url))` arrête le build avant toute page. Embarquer la
   ressource en constante, cf. `lib/og-logo-data.ts`.
+
+## Public surface
+
+No mention of nie, niers or the repository — **redirects included**: a redirect is a mention,
+it sends the visitor and the crawler that follows it to the name being removed. Removed
+prefixes answer 404, which does not lie and is not cached like a 301.
+
+LLM documents are no longer static files. `nie-site` generates `llms.txt` and `llms-full.txt`
+from the routes it actually mounts, and nginx exposes that single generator on the aphrody
+hosts. The 27 hand-copied files this replaced had drifted from what the sites serve.

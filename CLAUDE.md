@@ -66,6 +66,34 @@ that price on keeper, menu and match-sim.
   `feat(inacord): [peer-agent] <scope>` with `Co-authored-by: <Agent>`.
 - Rebase on `origin/main` before pushing — peers push to the same branch.
 
+## Traps measured on this machine (2026-09-07)
+
+- **`/etc/nginx` and `/etc/systemd` DRIFT from `deploy/`.** `diff` against `/etc` and run
+  `ss -ltnp` before editing a vhost — the installed file had been repointed `:8083` → `:8084`
+  and had `bxc.` split into its own file, none of which the repository knew.
+- **A host answering 200 is not free.** `cdn.aphrody.com` was serving `bxc-site` on `:8084`,
+  not a dead port. The measured map is [`docs/HOSTS-AND-PORTS.md`](docs/HOSTS-AND-PORTS.md);
+  it wins over any plan that says otherwise.
+- **`nginx -t` on a repository file needs stand-in certificates** (the real ones are root-only).
+  `syntax is ok` followed by `open() "/run/nginx.pid" failed` is the expected non-root outcome —
+  the config was read and loaded. Recipe in [`deploy/README.md`](deploy/README.md).
+- **Three OVH accounts live here.** `aphrody.com` is only reachable with the keys in
+  `~/.bash_secrets`; `~/.ovh.conf` sees `rosegriffon.fr` alone and returns **404 on the zone**,
+  not 403 — which reads as "this zone does not exist" and sends you to the registrar. The
+  python `ovh` module is not installed; sign the request by hand.
+- **`nie-site`'s `reqwest` only has TLS through the `rustls` feature** (`rustls-tls` does not
+  exist in 0.13). Without it every HTTPS call fails as "unreachable", which looks like a network
+  outage rather than a binary with no certificate authority.
+- **Adding a route to `nie-site` breaks four counters**: the assertion in `app.rs`, the
+  `instances` array size in `tests/routes.rs`, `declarees.len()`, and `vus`.
+- **The Azalée copy that ships is `apps/azalee`, not `rg/apps/azalee`** — the two diverge.
+  Verify with `/proc/<pid on :3003>/cwd` before editing; cleaning the wrong copy produces a
+  "done" that changes nothing online. Deploy with
+  `bun --bun scripts/ops/deploy.ts deploy azalee|website` (blue/green), never `restart`, and
+  never edit an app's tree while its build is running.
+- **Run `bun run typecheck` after any structural deletion.** Removing an entry from
+  `config/navigation.ts` by pattern left an orphan brace (`TS1136`) that no grep would show.
+
 ## What stays under the user's hand
 
 The pre-approval covers reversible work. It does **not** silently extend to: deleting data,
