@@ -18,8 +18,8 @@ Inacord (Tauri) ─────────────────────�
 
 aphrody.com / www.aphrody.com ─────────── nginx (TLS) ── 308 vers https://nie.aphrody.com
 api.aphrody.com ───────────────────────── nginx (TLS) ── nie-site :8085, API SEULE, noindex
-downloads. cdn. bot. admin. bxc. n2b. ─── nginx (TLS) ── bxc-site :8084, dépôt bxc, inchangés
-nie-model-serve :8790 ─────────────────── AUCUNE façade publique : seul /assets/* y mène
+cdn.aphrody.com ───────────────────────── nginx (TLS) ── nie-model-serve :8790, limite de débit
+downloads. bot. admin. bxc. n2b. ──────── nginx (TLS) ── bxc-site :8084, dépôt bxc, inchangés
 ```
 
 Le wiki ne reçoit jamais autre chose que la clé **anon** ; `nie-site` ne reçoit jamais de
@@ -182,12 +182,12 @@ Aujourd'hui (MESURÉ) : `conf.d/aphrody.com.conf` a **un** bloc `server` pour di
 2. `aphrody.com` et `www.aphrody.com` → `return 308 https://nie.aphrody.com$request_uri` : le
    site vit sur le sous-domaine du produit, l'apex ne porte plus de contenu. Un 308, pas un
    301 : la méthode et le corps survivent à la redirection ;
-3. `nie-model-serve` **perd sa façade publique** : il occupait `nie.`, que le site prend, et
-   aucun autre hôte n'est libre — `downloads.`, `cdn.`, `bot.`, `admin.` et `n2b.` servent tous
-   `bxc-site` sur `:8084` (mesure `ss -ltnp` du 2026-09-07). Le décodage reste joignable par
-   `nie.aphrody.com/assets/*`, que `nie-site` proxifie avec la limite de débit, le budget de
-   temps, la taille bornée et le cache que le service n'a pas ;
-4. un bloc pour les cinq hôtes de la vitrine bxc, **inchangé**, vers `:8084` ;
+3. `cdn.aphrody.com` → `proxy_pass http://127.0.0.1:8790` : `nie-model-serve` quitte `nie.`,
+   que le site prend. `cdn.` rendait **200** depuis `bxc-site` (mesure `ss -ltnp` du
+   2026-09-07, `:8084`), pas `502` : ce contenu cesse d'y être servi, et c'est assumé. Le
+   service n'ayant aucune protection propre, les `limit_req`/`limit_conn` du bloc sont la seule
+   chose entre lui et Internet sur cet hôte ;
+4. un bloc pour les quatre hôtes restants de la vitrine bxc, **inchangé**, vers `:8084` ;
 5. `nginx -t`, puis un `curl -I` par hôte avant et après le `reload` ; le `reload` est un
    acte de production : **go de l'utilisateur**.
 

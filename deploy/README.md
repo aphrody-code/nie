@@ -12,7 +12,8 @@ fichier. Chaque écart connu est écrit ci-dessous plutôt que supposé absent.
 | `nginx/aphrody.com.conf` | `nie.aphrody.com` | `127.0.0.1:8085` — `nie-site`, **le site** |
 | | `aphrody.com`, `www.` | 308 vers `https://nie.aphrody.com` |
 | | `api.aphrody.com` | `127.0.0.1:8085`, API seule (`404` ailleurs), `noindex` |
-| | `downloads.` `cdn.` `bot.` `admin.` `n2b.` | `127.0.0.1:8084` — `bxc-site`, dépôt `bxc` |
+| | `cdn.aphrody.com` | `127.0.0.1:8790` — `nie-model-serve`, sous limite de débit |
+| | `downloads.` `bot.` `admin.` `n2b.` | `127.0.0.1:8084` — `bxc-site`, dépôt `bxc` |
 | | `mcp.aphrody.com` | `127.0.0.1:8808` — serveur MCP |
 | `nginx/bxc.aphrody.com.conf` | `bxc.aphrody.com` | `127.0.0.1:8084` — **capture, ne pas modifier ici** |
 
@@ -20,12 +21,19 @@ Les onze hôtes partagent le certificat `letsencrypt/live/aphrody.com`. `bxc.aph
 propre fichier depuis le 2026-09-07 : il est copié ici pour que l'inventaire du domaine soit
 complet, mais il appartient au dépôt `bxc` et toute évolution vient de là.
 
-**`nie-model-serve` n'a plus de vhost public.** Il occupait `nie.aphrody.com`, que le site
-prend depuis le 2026-09-07 ; aucun autre hôte n'est libre, les cinq du bloc partagé servant
-tous `bxc-site`. Le décodage reste joignable par `nie.aphrody.com/assets/*`, que `nie-site`
-proxifie avec ce que le service n'a pas : limite de débit, budget de temps, taille bornée,
-cache. C'est la règle du dossier de décisions — « exposer `nie-model-serve` nu : jamais » — et
-la façade directe en était l'exception.
+**`nie-model-serve` passe de `nie.` à `cdn.`** (décision de l'utilisateur, 2026-09-07). Il
+occupait `nie.aphrody.com`, que le site prend ; `cdn.` décrit ce qu'il fait — servir des octets
+dérivés, décodés à la demande.
+
+Ce que ce déplacement coûte, écrit plutôt que découvert : `cdn.aphrody.com` ne répondait pas
+`502`, il rendait **200** depuis `bxc-site` comme les quatre hôtes qui l'entouraient, et ce
+contenu cesse d'y être servi. Les quatre autres ne bougent pas.
+
+Le service n'a **aucune protection propre** — il ne lit même pas la méthode HTTP. Sur `cdn.`,
+les `limit_req`/`limit_conn` du vhost sont donc la seule chose entre lui et Internet ; par
+`nie.aphrody.com/assets/*`, `nie-site` ajoute en plus un budget de temps, une taille bornée et
+un cache. Le décodage reste aussi public via `cdn.rosegriffon.conf`, qui ne dépend pas de ce
+fichier.
 
 ### Vérifier une modification sans toucher à la production
 
