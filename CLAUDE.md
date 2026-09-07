@@ -27,3 +27,48 @@ Formalized by the `yolo` skill (`.agents/skills/yolo/SKILL.md`, pinned to `aphro
   source; `cp` into `/etc`, `daemon-reload`, `nginx -t` and `reload` need the user's explicit
   go. Reconcile the repository with the measured machine (`ss -ltnp`, `diff` against `/etc`)
   before editing a vhost — the live file drifts.
+
+## Autonomous migration protocol — `nie-web` & the Inacord Rust workspace
+
+Target and starting point: [`docs/TARGET-ARCHITECTURE.md`](docs/TARGET-ARCHITECTURE.md). Read it
+before creating a crate — `inacord-api` and `inacord-core` already exist under other names.
+
+1. **`nie-web` = `nie.exe` in WebAssembly.** Isolate the engine loop and the graphics/audio
+   abstraction into `wasm32-unknown-unknown`-compatible modules; supply the `wasm-bindgen`
+   bindings and the memory shims; stub the OS-specific bindings (win32, memory hooks) onto web
+   targets.
+2. **Inacord, 100 % Rust.** Merge the data, format and VFS crates inherited from `nie-explorer`
+   and the legacy Azalée tools into the Cargo workspace, then bind the extracted libraries to
+   five surfaces: native desktop GUI, cross-compiled mobile, `axum`/`tokio` API, a native Rust
+   MCP server (`rmcp`, stdio and SSE), and a Blender bridge over C-FFI or IPC.
+
+**Extract before you bind.** Logic moves into a library crate with its tests, the existing CLI
+keeps working through that library, and only then does a second surface appear. A GUI written
+before the extraction is a second implementation that drifts — this repository has already paid
+that price on keeper, menu and match-sim.
+
+## Naming contract
+
+- **English for everything the machine reads**: files, folders, variables, types, functions,
+  URLs, slugs, JSON keys, database columns, commit messages, code comments, documentation.
+- **French only for prose addressed to the user** — a summary or an explanation, in a
+  conversation held in French. Never an identifier.
+- Frozen product names are the exception: Azalée, Inacord, nie, `niers`, `nie-*`, `inagle_*`.
+- Existing debt is **not** migrated in one pass: an already-served API is renamed in a dedicated
+  batch, never in passing.
+
+## Multi-agent watch and Git
+
+- Read the A2A channel continuously; publish progress there rather than assuming a peer knows.
+- When Codex or Gemini leaves a diff, **validate it before adopting it**: `cargo check`, the
+  narrow clippy gate, the relevant tests. Report counts, not exit codes.
+- Commit on a peer's behalf only once it passes, and attribute it:
+  `feat(inacord): [peer-agent] <scope>` with `Co-authored-by: <Agent>`.
+- Rebase on `origin/main` before pushing — peers push to the same branch.
+
+## What stays under the user's hand
+
+The pre-approval covers reversible work. It does **not** silently extend to: deleting data,
+force-pushing, rewriting shared history, rotating credentials, or changing what runs on a host
+outside this repository's scope. `push` and `deploy` are done when the user asks for them, and
+each one is reported with what actually changed.

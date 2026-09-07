@@ -29,6 +29,32 @@ documents linked there; do not duplicate large specifications here.
 - `data/` and `var/`: game assets and measurements; do not commit copyrighted game dumps or
   generated bulk data unless the repository explicitly tracks that exact artifact.
 
+## Target architecture (2026-09-07)
+
+`nie-web` is the **WebAssembly build of `nie.exe`**; Inacord is **one Rust suite** — Desktop,
+Mobile, CLI, library, MCP, Blender plugin — absorbing the legacy Azalée tools, the current
+Inacord inherited from `nie-explorer`, and every Rust crate (core, data, VFS, decoders). The
+component table, and what already exists for each, is in
+[`docs/TARGET-ARCHITECTURE.md`](docs/TARGET-ARCHITECTURE.md). Read it before creating a crate:
+several targets already exist under another name.
+
+**A CLI is a binding, never a home.** Logic goes in a library crate; the CLI binary, the GUI,
+the mobile app, the API handler and the MCP tool are five thin callers of one function. The
+order is fixed: extract to a library with its tests, keep the existing CLI working through it,
+*then* add the second surface. A GUI written before the extraction is a second implementation
+that drifts.
+
+## Naming contract
+
+- **English for everything the machine reads**: files, folders, variables, types, functions,
+  URLs, slugs, JSON keys, database columns, commit messages, code comments, documentation.
+- **French only for prose addressed to the user** — a summary, an explanation, an answer in a
+  conversation held in French. Never for an identifier.
+- Frozen product names are the exception: Azalée, Inacord, nie, `niers`, `nie-*`, `inagle_*`.
+- Existing debt is **not** migrated in one pass. An already-served API is renamed in a dedicated
+  batch, never in passing: renaming a route while fixing a bug breaks callers that were not part
+  of the change.
+
 ## Working rules
 
 - Make the smallest coherent change; preserve public signatures and existing integrations.
