@@ -67,9 +67,6 @@ const INFO13_HELP_ID: HashId = HashId(0xCB28_800F);
 const INFO13_BLOB: &str = "AAAAAA8FNWum6wYAAQAyAAAAAHg=";
 
 const INFO244_HELP_ID: HashId = HashId(0xE38A_BEF2);
-const INFO244_RAW3: HashId = HashId(0x1EAB_3007);
-const INFO244_RAW4: HashId = HashId(0x2A54_D7AF);
-const INFO244_RAW5: HashId = HashId(0x478B_DBD1);
 
 const LAY0_BUTTON: HashId = HashId(0xF2DD_6185);
 const LAY0_SUB: HashId = HashId(0xF52C_33F5);
@@ -417,8 +414,8 @@ fn real_info_244_derniere() {
     assert_eq!(info.flag, 3, "flag[244] = 3");
     assert_eq!(info.display_no, 216, "display_no[244] = 216");
     assert_eq!(info.raw[3], HashId(0xB3DC_153C), "raw[3] = 0xB3DC153C");
-    assert_eq!(info.raw[4], INFO244_RAW4, "raw[4] = 0x2A54D7AF");
-    assert_eq!(info.raw[5], INFO244_RAW5, "raw[5] = 0x478BDBD1");
+    assert_eq!(info.raw[4], HashId(0x8723_F294), "raw[4] = 0x8723F294");
+    assert_eq!(info.raw[5], HashId(0xEAFC_FEEA), "raw[5] = 0xEAFCFEEA");
 }
 
 #[test]
