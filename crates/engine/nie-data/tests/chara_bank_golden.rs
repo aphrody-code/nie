@@ -208,7 +208,7 @@ fn real_file_entree1_valeurs() {
 fn real_file_entree9_bank_move_dernier_true() {
     let Some(cfg) = load_real() else { return };
 
-    // m_soccerClubRoomCharaRestrictionInfoList[9] — dernière des 10 entrées bank_move = true
+    // m_soccerClubRoomCharaRestrictionInfoList[9] — une des 12 entrées bank_move = true
     let e = &cfg.restrictions[9];
     assert_eq!(e.character_id, HashId(0x77BB_1BD4), "character_id[9]");
     assert!(
@@ -266,7 +266,7 @@ fn real_file_remove_club_toujours_vrai() {
 }
 
 #[test]
-fn real_file_bank_move_dix_entrees() {
+fn real_file_bank_move_douze_entrees() {
     let Some(cfg) = load_real() else { return };
 
     // is_chara_bank_move_disabled = true pour exactement 12 entrées.
