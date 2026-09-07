@@ -31,7 +31,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use serde_json::Value;
 
-use crate::cfgbin::{Node, walk_named};
+use crate::cfgbin::Node;
 use crate::hash::HashId;
 
 // ─── GimmickNumTableGroupData ─────────────────────────────────────────────────
@@ -172,40 +172,91 @@ impl GimmickSystemNumConfig {
 #[must_use]
 pub fn parse_gimmick_system_num_config(root: &Value) -> GimmickSystemNumConfig {
     let mut groups = Vec::new();
-    walk_named(root, "DUNGEON_NUM_TABLE_GROUP_", |node| {
-        // Ignorer les conteneurs (_LIST_) et les entrées de données (_DATA_)
-        let name = node.name();
-        if name.contains("_DATA_") || name.contains("_LIST_") {
-            return;
-        }
-        // Noeud DUNGEON_NUM_TABLE_GROUP_N — var[0] = group_id
-        let group_id = node.hash(0);
-        let entries = collect_data_entries(node);
-        groups.push(GimmickNumTableGroup { group_id, entries });
-    });
+    if let Some(entries) = root.get("entries").and_then(Value::as_array) {
+        let nodes: Vec<_> = entries.iter().map(Node::new).collect();
+        collect_groups(&nodes, &mut groups);
+    }
 
     let mut system_infos = Vec::new();
-    walk_named(root, "DUNGEON_NUM_SYSTEM_INFO_", |node| {
-        // Ignorer les conteneurs (_LIST_) et les sous-groupes (_GROUP_)
-        let name = node.name();
-        if name.contains("_GROUP_") || name.contains("_LIST_") {
-            return;
-        }
-        // Noeud DUNGEON_NUM_SYSTEM_INFO_N — var[0] = info_id, var[1] = group_ref
-        let info_id = node.hash(0);
-        let group_ref = node.hash(1);
-        let sub_groups = collect_system_info_groups(node);
-        system_infos.push(GimmickNumSystemInfo {
-            info_id,
-            group_ref,
-            sub_groups,
-        });
-    });
+    if let Some(entries) = root.get("entries").and_then(Value::as_array) {
+        let nodes: Vec<_> = entries.iter().map(Node::new).collect();
+        collect_system_infos(&nodes, &mut system_infos);
+    }
 
     GimmickSystemNumConfig {
         groups,
         system_infos,
     }
+}
+
+fn collect_groups(nodes: &[Node<'_>], out: &mut Vec<GimmickNumTableGroup>) {
+    for (index, node) in nodes.iter().enumerate() {
+        let name = node.name();
+        if name.starts_with("DUNGEON_NUM_TABLE_GROUP_")
+            && !name.contains("_DATA_")
+            && !name.contains("_LIST_")
+        {
+            let mut entries = collect_data_entries(*node);
+            if let Some(next) = nodes.get(index + 1).filter(|n| {
+                n.name()
+                    .starts_with("DUNGEON_NUM_TABLE_GROUP_DATA_LIST_BEG_")
+            }) {
+                entries.extend(collect_data_list(*next));
+            }
+            out.push(GimmickNumTableGroup {
+                group_id: node.hash(0),
+                entries,
+            });
+        }
+        collect_groups(&node.children(), out);
+    }
+}
+
+fn collect_data_list(list: Node<'_>) -> Vec<GimmickNumTableGroupData> {
+    list.children()
+        .into_iter()
+        .filter(|n| n.name().starts_with("DUNGEON_NUM_TABLE_GROUP_DATA_"))
+        .map(|n| GimmickNumTableGroupData {
+            param_id: n.hash(0),
+            value: n.var(1).map_or(0.0, |v| v.as_f64()),
+            flag: n.int(2),
+        })
+        .collect()
+}
+
+fn collect_system_infos(nodes: &[Node<'_>], out: &mut Vec<GimmickNumSystemInfo>) {
+    for (index, node) in nodes.iter().enumerate() {
+        let name = node.name();
+        if name.starts_with("DUNGEON_NUM_SYSTEM_INFO_")
+            && !name.contains("_GROUP_")
+            && !name.contains("_LIST_")
+        {
+            let mut sub_groups = collect_system_info_groups(*node);
+            if let Some(next) = nodes.get(index + 1).filter(|n| {
+                n.name()
+                    .starts_with("DUNGEON_NUM_SYSTEM_INFO_GROUP_LIST_BEG_")
+            }) {
+                sub_groups.extend(collect_system_info_list(*next));
+            }
+            out.push(GimmickNumSystemInfo {
+                info_id: node.hash(0),
+                group_ref: node.hash(1),
+                sub_groups,
+            });
+        }
+        collect_system_infos(&node.children(), out);
+    }
+}
+
+fn collect_system_info_list(list: Node<'_>) -> Vec<GimmickNumSystemInfoGroup> {
+    list.children()
+        .into_iter()
+        .filter(|n| n.name().starts_with("DUNGEON_NUM_SYSTEM_INFO_GROUP_"))
+        .map(|n| GimmickNumSystemInfoGroup {
+            group_id: n.hash(0),
+            payload_b64: n.string(1).into(),
+        })
+        .collect()
 }
 
 // ─── Helpers internes ─────────────────────────────────────────────────────────

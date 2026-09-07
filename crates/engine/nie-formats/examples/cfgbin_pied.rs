@@ -81,7 +81,7 @@ fn main() {
     println!("{n_avec_signature} portent la chaîne « t2b » dans leurs {PIED} derniers octets\n");
 
     println!("Position par position, sur les {PIED} derniers octets :");
-    println!("{:>4}  {:<9} {:>8}  {}", "off", "état", "valeurs", "détail");
+    println!("{:>4}  {:<9} {:>8}  détail", "off", "état", "valeurs");
     for (i, vues) in valeurs_vues.iter().enumerate() {
         let etat = if vues.len() == 1 {
             "CONSTANT"
@@ -308,10 +308,7 @@ fn correler_octet_variable(vfs: &nie_formats::vfs::Vfs, chemins: &[String]) {
     }
 
     println!("\nLe même octet, ventilé par emplacement :");
-    println!(
-        "{:<32} {:>10} {:>10}  {}",
-        "dossier", "0x00", "0x01", "verdict"
-    );
+    println!("{:<32} {:>10} {:>10}  verdict", "dossier", "0x00", "0x01");
     let mut lignes: Vec<(&String, &[usize; 2])> = par_dossier.iter().collect();
     lignes.sort_by_key(|(_, c)| core::cmp::Reverse(c[0] + c[1]));
     let mut homogenes = 0usize;
