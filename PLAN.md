@@ -634,6 +634,45 @@ remains open.
 
 ## Azalee UI and tool migration inventory — 2026-09-08
 
+## SQL, data and service boundary — 2026-09-08
+
+`nie-sql` is the single Rust owner for database URL selection, portable read value/query
+contracts and SQLite/PostgreSQL connections. The existing SQLx-compatible migration safety
+facade remains in `nie-explore::database` until it is moved in a dedicated compatibility batch.
+It is a library, not a server: Tauri, CLI, MCP, Axum and any future Wasm-compatible adapter call
+its explicit contracts, while browser clients continue to use authenticated HTTP APIs. The selected
+native PostgreSQL driver is the maintained `tokio-postgres` crate, which aligns with the workspace
+Tokio runtime; SQLite remains `rusqlite`. No host may emulate a PostgreSQL connection through a
+local SQLite file.
+
+The existing responsibility tree remains deliberate:
+
+| Concern | Canonical owner | Adapter / existing operational path |
+| --- | --- | --- |
+| Local editable desktop data and SQLx-compatible history | `nie-sql`, migrating the current `nie-explore::database` facade | Inacord Tauri keeps its `sqlite_*` command names until every caller moves. |
+| Read-only game/reverse/catalogue mirror queries | `nie-sql` plus domain-specific `nie-wiki::entities` / `nie-catalog` owners | CLI, MCP, site and desktop inject their source path and never expose arbitrary database files. |
+| PostgreSQL/Supabase domain API and browser authentication | existing `packages/db` and Azalee Supabase adapters | The Rust driver is for trusted native/server callers; it does not replace PostgREST, RLS or browser session handling. |
+| Versioned cloud migrations | existing tracked Supabase migration directories and `packages/db` inspection contract | A migration is applied only through its documented deployment workflow; discovery never applies it implicitly. |
+| Inagle data push and atomic SQLite mirror publication | existing `@rosegriffon/inagle` push plus `scripts/donnees/miroir-inagle.sh` | Cron preserves the established order: push, Zukan enrichment, then mirror publication. |
+| PostgreSQL logical backup, restoration check and retention | existing `scripts/ops/sauvegarde.ts` / `rg-sauvegarde.timer` | Do not recreate the retired cron backup task; the verified seven-copy rotation remains the production path. |
+
+The migration contract must reject duplicate versions, checksum drift, unfinished history and
+unknown applied versions before executing new SQL. Backend-specific SQL stays explicit where
+dialects differ; a migration never claims cross-database compatibility merely because its
+version number matches. Connection strings and error reports must not expose credentials.
+The next source batch replaces the `nie-explore::database` implementation with a compatibility
+facade over `nie-sql`, then adds thin trusted-server and Tauri adapters without changing their
+public command/API names. This decision preserves the existing data push, backup, API and source
+tree instead of creating parallel mechanisms.
+
+The read driver is implemented: SQLite uses an OS read-only handle; PostgreSQL uses parameterized
+`tokio-postgres` queries, certificate-verifying Rustls with native roots by default, an explicit
+trusted-local no-TLS constructor, and `default_transaction_read_only` in the server session.
+Its portable values include null, boolean, integer, real, text, bytes and JSON text. The focused
+`nie-sql` suite currently passes 5 tests and strict clippy; no live database claim follows from
+these local gates. Moving the writable migration registry and proving a PostgreSQL migration
+against a disposable server are still required before the SQL convergence row can close.
+
 This is the concrete migration ledger for the request to absorb Azalee's tools, UI and components
 into Inacord. It is an ownership decision, not a claim that every consumer has been rewired. The
 inventory was measured from the tracked `apps/azalee/components/**/*.tsx` and `apps/azalee/app/**`
