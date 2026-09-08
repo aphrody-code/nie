@@ -20,15 +20,13 @@ host = [
     "dep:grep-regex",
     "dep:grep-searcher",
     "dep:ignore",
-    "dep:rusqlite",
-    "dep:sha2",
+    "dep:nie-sql",
     "nie-lua/vm",
     "nie-lua/analysis",
 ]
 
 [dependencies]
-rusqlite = { workspace = true, optional = true, features = ["bundled", "column_decltype"] }
-sha2 = { workspace = true, optional = true }
+nie-sql = { workspace = true, optional = true }
 anyhow = { workspace = true, optional = true }
 globset = { workspace = true, optional = true }
 grep-regex = { workspace = true, optional = true }

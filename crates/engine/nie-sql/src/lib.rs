@@ -7,6 +7,9 @@
 
 #![forbid(unsafe_code)]
 
+pub mod sqlite_registry;
+pub use sqlite_registry::{DatabaseRegistry, ExecuteResult, Migration};
+
 use rusqlite::{
     Connection, OpenFlags, params_from_iter,
     types::{Value as SqliteValue, ValueRef},
