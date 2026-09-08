@@ -16,7 +16,7 @@ if (!databaseUrl) {
 }
 
 const configuredPoolMax = Number.parseInt(Bun.env.DATABASE_POOL_MAX ?? "", 10);
-const poolMax = configuredPoolMax > 0 ? Math.min(configuredPoolMax, 20) : 4;
+const poolMax = configuredPoolMax > 0 ? Math.min(configuredPoolMax, 4) : 4;
 
 export const sql = new SQL({
 	url: databaseUrl,

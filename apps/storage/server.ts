@@ -25,7 +25,7 @@ if (!JWT_SECRET) throw new Error("[rg-storage] SUPABASE_JWT_SECRET manquant");
 if (!DATABASE_URL) throw new Error("[rg-storage] DATABASE_URL manquant");
 
 const configuredPoolMax = Number.parseInt(process.env.DATABASE_POOL_MAX ?? "", 10);
-const poolMax = configuredPoolMax > 0 ? Math.min(configuredPoolMax, 20) : 4;
+const poolMax = configuredPoolMax > 0 ? Math.min(configuredPoolMax, 4) : 4;
 
 const sql = new SQL({
 	url: DATABASE_URL,
