@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { toggleReaction } from "@/app/actions/reactions";
 import { useAuth } from "@/components/providers/AuthProvider";
-import type { ReactionType } from "@/lib/reaction-types";
+import type { ReactionType } from "@niers/inacord-ui/lib/reactions";
 import { cn } from "@/lib/utils";
 
 const REACTIONS: Array<{ type: ReactionType; emoji: string; label: string }> = [

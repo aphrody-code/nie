@@ -204,3 +204,18 @@ export {
 	uniqueNativeText,
 	useNativeText,
 } from "./lib/native-text";
+export {
+	accumulateReactionStates,
+	createReactionStates,
+	isReactionType,
+	normalizeReactionArticleId,
+	parseReactionRequest,
+	parseReactionType,
+	REACTION_EMOJIS,
+	REACTION_TYPES,
+	type ReactionRequest,
+	type ReactionState,
+	type ReactionStates,
+	type ReactionToggleResult,
+	type ReactionType,
+} from "./lib/reactions";

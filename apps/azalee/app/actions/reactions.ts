@@ -2,14 +2,22 @@
 
 import { getServerSession } from "@/lib/auth-helpers";
 import { getPgPool } from "@/lib/db/pg";
-import { REACTION_TYPES } from "@/lib/reaction-types";
-import type { ReactionType } from "@/lib/reaction-types";
 import { createClient } from "@/lib/supabase/server";
+import {
+	accumulateReactionStates,
+	normalizeReactionArticleId,
+	parseReactionRequest,
+	parseReactionType,
+	type ReactionState,
+	type ReactionToggleResult,
+	type ReactionType,
+} from "@niers/inacord-ui/lib/reactions";
 
 export async function toggleReaction(
 	articleId: string,
 	reactionType: ReactionType = "like"
-): Promise<{ reacted: boolean; count: number }> {
+): Promise<ReactionToggleResult> {
+	const request = parseReactionRequest(articleId, reactionType);
 	const session = await getServerSession();
 	if (!session?.user) {
 		throw new Error("Non authentifié");
@@ -24,9 +32,9 @@ export async function toggleReaction(
 	const { data: existing } = await client
 		.from("article_reactions")
 		.select("id")
-		.eq("article_id", articleId)
+		.eq("article_id", request.articleId)
 		.eq("user_id", userId)
-		.eq("reaction_type", reactionType)
+		.eq("reaction_type", request.reactionType)
 		.maybeSingle();
 
 	if (existing) {
@@ -36,15 +44,19 @@ export async function toggleReaction(
 		// Add reaction
 		await client
 			.from("article_reactions")
-			.insert({ article_id: articleId, reaction_type: reactionType, user_id: userId });
+			.insert({
+				article_id: request.articleId,
+				reaction_type: request.reactionType,
+				user_id: userId,
+			});
 	}
 
 	// Get updated count
 	const { count } = await client
 		.from("article_reactions")
 		.select("id", { count: "exact", head: true })
-		.eq("article_id", articleId)
-		.eq("reaction_type", reactionType);
+		.eq("article_id", request.articleId)
+		.eq("reaction_type", request.reactionType);
 
 	return { count: count || 0, reacted: !existing };
 }
@@ -60,12 +72,14 @@ export async function getReactionCounts(
 	if (articleIds.length === 0) {
 		return {};
 	}
+	const normalizedArticleIds = articleIds.map(normalizeReactionArticleId);
+	const normalizedReactionType = parseReactionType(reactionType);
 
 	const session = await getServerSession();
 	const userId = session?.user?.id;
 
-	const result: Record<string, { count: number; userReacted: boolean }> = {};
-	for (const id of articleIds) {
+	const result: Record<string, ReactionState> = {};
+	for (const id of normalizedArticleIds) {
 		result[id] = { count: 0, userReacted: false };
 	}
 
@@ -75,7 +89,7 @@ export async function getReactionCounts(
 		// Get all reactions for these articles
 		const { rows: reactions } = await pool.query<{ article_id: string; user_id: string }>(
 			"SELECT article_id, user_id FROM article_reactions WHERE article_id = ANY($1) AND reaction_type = $2",
-			[articleIds, reactionType]
+			[normalizedArticleIds, normalizedReactionType]
 		);
 
 		for (const r of reactions) {
@@ -100,32 +114,25 @@ export async function getReactionCounts(
  */
 export async function getAllReactionCounts(
 	articleId: string
-): Promise<Record<ReactionType, { count: number; userReacted: boolean }>> {
+): Promise<Record<ReactionType, ReactionState>> {
+	const normalizedArticleId = parseReactionRequest(articleId).articleId;
 	const session = await getServerSession();
 	const userId = session?.user?.id;
 
-	const result = {} as Record<ReactionType, { count: number; userReacted: boolean }>;
-	for (const type of REACTION_TYPES) {
-		result[type] = { count: 0, userReacted: false };
-	}
+	let result = accumulateReactionStates([], userId);
 
 	const pool = getPgPool();
 
 	try {
 		const { rows: reactions } = await pool.query<{ reaction_type: string; user_id: string }>(
 			"SELECT reaction_type, user_id FROM article_reactions WHERE article_id = $1",
-			[articleId]
+			[normalizedArticleId]
 		);
 
-		for (const r of reactions) {
-			const type = r.reaction_type as ReactionType;
-			if (result[type]) {
-				result[type].count++;
-				if (userId && r.user_id === userId) {
-					result[type].userReacted = true;
-				}
-			}
-		}
+		result = accumulateReactionStates(
+			reactions.map((reaction) => ({ reactionType: reaction.reaction_type, userId: reaction.user_id })),
+			userId
+		);
 	} catch (error) {
 		console.error("getAllReactionCounts error:", error);
 	}
