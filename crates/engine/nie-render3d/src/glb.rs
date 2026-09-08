@@ -6,7 +6,7 @@
 //! (`primitive.material → materials[].baseColorTexture → textures[].source → images[]`).
 
 use anyhow::{Context, Result, bail};
-use nie_core::animation::{BoneId, BonePose, PoseFrame, Rotation, SkeletonId};
+use nie_core::animation::{BoneId, SkeletonId};
 use serde_json::Value;
 
 /// Une texture décodée en RGBA8 (atlas du modèle : corps, visage, uniforme…).
@@ -134,7 +134,7 @@ pub struct CpuSkinnedMesh {
     pub vertices: Vec<SkinVertex>,
 }
 
-/// Result of applying one local [`PoseFrame`] to a CPU-skinned mesh.
+/// Result of applying one local [`nie_core::animation::PoseFrame`] to a CPU-skinned mesh.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SkinnedVertex {
     pub position: [f32; 3],
