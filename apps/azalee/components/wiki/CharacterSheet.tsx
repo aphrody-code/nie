@@ -9,7 +9,6 @@ import {
 	PlayCircle,
 	Sparkles,
 	Star,
-	TrendingUp,
 } from "lucide-react";
 import NextImage from "next/image";
 import NextLink from "next/link";
@@ -30,10 +29,13 @@ import {
 import { japaneseToRomaji } from "@rosegriffon/azalee/text/japanese-romaji";
 import { TEAM_EMBLEM_MAP } from "@rosegriffon/azalee/game/team-emblem-map";
 import { cn } from "@/lib/utils";
+import {
+	CharacterSheetStatsPanel,
+	type CharacterSheetStats,
+} from "@niers/inacord-ui/components/wiki/wiki/CharacterSheetStatsPanel";
 import CharacterModelViewer from "./CharacterModelViewer";
 import { FormSelector } from "./FormSelector";
 import type { MovesetSkill } from "./MovesetList";
-import { StatHeptagon } from "./StatHeptagon";
 
 // Position badge colors - matching game exactly
 const POSITION_COLORS: Record<string, string> = {
@@ -84,15 +86,7 @@ const POSITION_FR: Record<string, string> = {
 	MIL: "Milieu",
 };
 
-export interface CharacterSheetStats {
-	kick: number;
-	control: number;
-	technique: number;
-	pressure: number;
-	physical: number;
-	agility: number;
-	intelligence: number;
-}
+export type { CharacterSheetStats };
 
 export interface SheetData {
 	playstyle?: string;
@@ -396,16 +390,6 @@ export function CharacterSheet({
 	// de pose de l'emblème (`_2`) — pas un dos. Le sélecteur devant/dos a donc disparu.
 	const uniformUrl = internalCode ? getCharacterUniformUrl(internalCode) : null;
 
-	// Total stats
-	const totalStats =
-		currentStats.kick +
-		currentStats.control +
-		currentStats.technique +
-		currentStats.pressure +
-		currentStats.physical +
-		currentStats.agility +
-		(currentStats.intelligence || 0);
-
 	return (
 		<div className={cn("w-full max-w-7xl mx-auto space-y-6", className)}>
 			{/* ═══════════════════════════════════════════════════
@@ -651,99 +635,21 @@ export function CharacterSheet({
           STATS + MOVESET - Split view like Victory Road
           ═══════════════════════════════════════════════════ */}
 			<div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-				{/* Stats Panel */}
-				<section className="bg-surface-container-lowest rounded-[24px] sm:rounded-[32px] border border-outline-variant/30 overflow-hidden shadow-sm">
-					<div className="bg-surface-container-low px-4 sm:px-8 py-3 sm:py-4 border-b border-outline-variant/20 flex items-center justify-between">
-						<div className="flex items-center gap-1.5 sm:gap-2">
-							<TrendingUp size={20} className="sm:size-6 text-primary" aria-hidden="true" />
-							<h2 className="text-xs sm:text-sm font-black uppercase tracking-widest text-on-surface">
-								Statistiques
-							</h2>
-						</div>
-						<div className="flex items-center gap-1.5">
-							<span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60">
-								Total
-							</span>
-							<span className="text-base sm:text-lg font-black text-primary tabular-nums">
-								{totalStats}
-							</span>
-						</div>
-					</div>
-					<div className="p-4 sm:p-6 flex flex-col items-center w-full">
-						{/* Heptagone SVG (dynamique) */}
-						<StatHeptagon stats={currentStats} size={280} showLabels />
-
-						{/* Niveau Slider */}
-						{statsLv1 && (
-							<div className="w-full max-w-xs px-2 mt-4 mb-6 space-y-2">
-								<div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-on-surface-variant">
-									<span>Niveau</span>
-									<span className="text-sm font-black text-primary bg-primary/10 px-2.5 py-0.5 rounded-md">
-										Niv. {level}
-									</span>
-								</div>
-								<input
-									type="range"
-									min="1"
-									max="99"
-									value={level}
-									onChange={(e) => setLevel(Number(e.target.value))}
-									className="w-full h-1.5 bg-surface-container-highest rounded-lg appearance-none cursor-pointer accent-primary focus:outline-hidden"
-								/>
-								<div className="flex justify-between text-[10px] text-on-surface-variant/50 font-bold">
-									<span>NIV. 1</span>
-									<span>NIV. 50</span>
-									<span>NIV. 99</span>
-								</div>
-							</div>
-						)}
-
-						{/* Stats Detail with Progressive Progress Bars */}
-						<div className="w-full max-w-xs space-y-3 mt-2">
-							{(
-								[
-									["Frappe", currentStats.kick, statsLv1?.kick, stats.kick],
-									["Contrôle", currentStats.control, statsLv1?.control, stats.control],
-									["Technique", currentStats.technique, statsLv1?.technique, stats.technique],
-									["Pression", currentStats.pressure, statsLv1?.pressure, stats.pressure],
-									["Physique", currentStats.physical, statsLv1?.physical, stats.physical],
-									["Agilité", currentStats.agility, statsLv1?.agility, stats.agility],
-									[
-										"Intelligence",
-										currentStats.intelligence,
-										statsLv1?.intelligence,
-										stats.intelligence,
-									],
-								] as Array<[string, number, number | undefined, number]>
-							).map(([label, current, lv1, lv99]) => {
-								const percentage = Math.min(100, Math.max(0, (current / 999) * 100));
-								return (
-									<div key={label} className="space-y-1">
-										<div className="flex justify-between text-xs">
-											<span className="font-bold text-on-surface-variant">{label}</span>
-											<div className="flex items-center gap-1.5">
-												<span className="font-black text-primary text-sm tabular-nums">
-													{current}
-												</span>
-												{lv1 !== undefined && (
-													<span className="text-[10px] text-on-surface-variant/40 tabular-nums">
-														({lv1} → {lv99})
-													</span>
-												)}
-											</div>
-										</div>
-										<div className="h-1.5 w-full bg-surface-container-high rounded-full overflow-hidden">
-											<div
-												className="h-full bg-linear-to-r from-amber-500 to-primary rounded-full transition-all duration-150"
-												style={{ width: `${percentage}%` }}
-											/>
-										</div>
-									</div>
-								);
-							})}
-						</div>
-					</div>
-				</section>
+				<CharacterSheetStatsPanel
+					stats={stats}
+					currentStats={currentStats}
+					statsAtLevelOne={statsLv1}
+					level={level}
+					onLevelChange={setLevel}
+					labels={{
+						heading: "Statistiques",
+						total: "Total",
+						level: "Niveau",
+						levelShort: "Niv.",
+						levelMarks: ["NIV. 1", "NIV. 50", "NIV. 99"],
+						stats: ["Frappe", "Contrôle", "Technique", "Pression", "Physique", "Agilité", "Intelligence"],
+					}}
+				/>
 
 				{/* Moveset Panel */}
 				<section className="bg-surface-container-lowest rounded-[24px] sm:rounded-[32px] border border-outline-variant/30 overflow-hidden shadow-sm flex flex-col">
