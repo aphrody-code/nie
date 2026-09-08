@@ -225,6 +225,8 @@ impl Studio {
         });
         ui.separator();
         let before = self.session.document().clone();
+        let mut duplicate_requested = false;
+        let mut remove_requested = false;
         egui::Panel::left("hierarchie")
             .default_size(280.)
             .show_inside(ui, |pane| {
@@ -244,7 +246,6 @@ impl Studio {
                         .expect("listed object exists");
                 }
                 if let Some(index) = self.session.selected() {
-                    let object_count = self.session.document().objects.len();
                     let object = &mut self.session.document_mut().objects[index];
                     pane.separator();
                     pane.heading("Inspecteur");
@@ -267,19 +268,8 @@ impl Studio {
                                 .text(format!("Échelle {}", ["X", "Y", "Z"][axis])),
                         );
                     }
-                    let duplicate = pane.button("Dupliquer").clicked() && object_count < 128;
-                    let remove = pane.button("Supprimer").clicked();
-                    if duplicate {
-                        let mut copy = object.clone();
-                        copy.position[0] += 1.;
-                        self.session.document_mut().objects.push(copy);
-                    }
-                    if remove {
-                        self.session.document_mut().objects.remove(index);
-                        self.session
-                            .select(None)
-                            .expect("clearing selection is valid");
-                    }
+                    duplicate_requested = pane.button("Dupliquer").clicked();
+                    remove_requested = pane.button("Supprimer").clicked();
                 }
             });
         if before != *self.session.document() && ui.input(|input| input.pointer.primary_down()) {
@@ -291,6 +281,16 @@ impl Studio {
             } else {
                 self.checkpoint(before);
             }
+        }
+        // Finish the interactive edit before recording a separate object operation.
+        if duplicate_requested {
+            result = self.session.duplicate_selected([1.0, 0.0, 0.0]).map(|_| {
+                self.dirty = true;
+            });
+        } else if remove_requested {
+            result = self.session.remove_selected().map(|_| {
+                self.dirty = true;
+            });
         }
         if self.dirty
             && let Err(error) = self.rebuild()

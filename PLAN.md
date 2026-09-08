@@ -392,3 +392,34 @@ The staged browser gate passed 18 checks with 150 requests and zero failures. Co
 validated previous production capture, `var/outputs/menu-visual/placement-regression/report.json`
 records SSIM 1, RGB delta 0 and zero changed pixels. Against the game reference, the renderer
 remains at SSIM 0.5578690454315838. Reports and captures stay under `var/outputs/menu-visual/`.
+
+### Published placement batch and exact Linux desktop artifact
+
+On 2026-09-08, host `vps-203bea89`, pushed commit
+`ef0602fed33d58c8384615a6fe86203c3fb646fd` passed 66 isolated and 66 public HTTP checks
+with zero failures or skips. Production browser validation passed 18 checks, 151 requests and
+zero failed requests. The downloaded public Wasm preserved 8 scenes, 61 layers and 76 objects;
+3 invalid inputs were rejected. Public/staged captures are pixel-identical. Sources: private
+`var/releases/ef0602fed33d58c8384615a6fe86203c3fb646fd/manifest.json`,
+`var/outputs/placement-release/`, and `var/outputs/menu-visual/production-ef0602f/`.
+
+The same frozen commit produced an unbundled Linux Inacord artifact using
+`bunx tauri build --no-bundle` and `cargo build -p nie-editor --release`. The staged application
+rendered 2 VFS root folders, installed its bundled mirror and launched the sibling native editor
+through its UI. Hashes and exact-source provenance are recorded in
+`var/releases/inacord-ef0602f/manifest.json`; captures are in
+`var/validation/inacord-ef0602f/`. Xvfb required software rendering. Deep-link registration and
+Windows/macOS installers remain unverified. Selected-asset handoff and persistent project reopen
+were exercised separately with the earlier candidate, not relabelled as exact-release evidence.
+
+### Shared editor object operations
+
+The native editor now delegates duplication and removal to `EditorSession`, after completing
+the pending interactive transform edit. Selection, capacity validation and undo/redo consequently
+use the same library operations as Wasm. On the same host/date, the 6 portable library tests,
+strict binary/test clippy and `wasm32-unknown-unknown` check passed. A real Xvfb traversal saved
+13 scene states and verified selection, delete/undo/redo, typed-transform history and drag history.
+Six actual Wasm states matched the native saved snapshots. Evidence:
+`var/validation/editor-operations/{states,wasm-parity}.json` and
+`var/releases/editor-operations-candidate/manifest.json`. This is a bounded object-operation
+migration; the remaining editor capabilities in P3 are still outstanding.
