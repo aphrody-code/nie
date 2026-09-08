@@ -115,6 +115,81 @@ pub fn read_page(path: &Path, since: i64, limit: u32) -> Result<EpisodePage, Epi
     })
 }
 
+pub fn read_feed(path: &Path, limit: u32) -> Result<Vec<Episode>, EpisodeError> {
+    let connection = open_read_only(path)?;
+    let mut query = connection.prepare("SELECT id, season, episode, NULL, title, url, titleJp, NULL, NULL, publishDate, language, NULL, createdAt FROM episodes ORDER BY createdAt DESC, id DESC LIMIT ?1").map_err(EpisodeError::Query)?;
+    query
+        .query_map([limit], |row| {
+            Ok(Episode {
+                id: row.get(0)?,
+                season: row.get(1)?,
+                episode: row.get(2)?,
+                video_id: None,
+                title: row.get(4)?,
+                url: row.get(5)?,
+                title_jp: row.get(6)?,
+                romaji: None,
+                thumbnail: None,
+                publish_date: row.get(9)?,
+                language: row.get(10)?,
+                duration: None,
+                created_at: row.get(12)?,
+            })
+        })
+        .map_err(EpisodeError::Query)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(EpisodeError::Query)
+}
+
+#[must_use]
+pub fn rfc3339_timestamp(raw: &str) -> Option<String> {
+    let value = raw.trim();
+    if value.is_empty() {
+        return None;
+    }
+    let valid_date = |date: &str| {
+        date.len() == 10
+            && date.as_bytes().iter().enumerate().all(|(index, byte)| {
+                if index == 4 || index == 7 {
+                    *byte == b'-'
+                } else {
+                    byte.is_ascii_digit()
+                }
+            })
+    };
+    let Some((date, time)) = value.split_once('T') else {
+        return valid_date(value).then(|| format!("{value}T00:00:00Z"));
+    };
+    if !valid_date(date) {
+        return None;
+    }
+    let (clock, offset) = match time.strip_suffix('Z') {
+        Some(clock) => (clock, None),
+        None if time.len() == 14 => (&time[..8], Some(&time[8..])),
+        None => return None,
+    };
+    let clock_ok = clock.len() == 8
+        && clock.as_bytes().iter().enumerate().all(|(index, byte)| {
+            if index == 2 || index == 5 {
+                *byte == b':'
+            } else {
+                byte.is_ascii_digit()
+            }
+        });
+    let offset_ok = offset.is_none_or(|offset| {
+        offset
+            .as_bytes()
+            .iter()
+            .enumerate()
+            .all(|(index, byte)| match index {
+                0 => *byte == b'+' || *byte == b'-',
+                3 => *byte == b':',
+                _ => byte.is_ascii_digit(),
+            })
+    });
+    (clock_ok && offset_ok).then(|| value.to_owned())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -138,5 +213,14 @@ mod tests {
         let uri = immutable_uri(Path::new("/tmp/a?b#c.db"));
         assert!(uri.contains("a%3fb%23c.db"));
         assert!(uri.ends_with("?mode=ro&immutable=1"));
+    }
+
+    #[test]
+    fn feed_orders_descending_and_normalizes_dates() {
+        assert_eq!(
+            rfc3339_timestamp("2008-10-05").as_deref(),
+            Some("2008-10-05T00:00:00Z")
+        );
+        assert!(rfc3339_timestamp("bad").is_none());
     }
 }

@@ -11,7 +11,6 @@
 use axum::extract::State;
 use axum::http::{StatusCode, header};
 use axum::response::{Html, IntoResponse, Response};
-use serde_json::Value;
 
 use crate::error::ErreurSite;
 use crate::state::EtatSite;
@@ -36,7 +35,11 @@ fn lire(etat: &EtatSite) -> Result<String, ErreurSite> {
 pub async fn json(State(etat): State<EtatSite>) -> Result<Response, ErreurSite> {
     let corps = lire(&etat)?;
     let matrix = parse_matrix(&corps)?;
-    let corps = serialize_public_matrix(&matrix)?;
+    let corps =
+        crate::couverture::serialize_public_matrix(&matrix, crate::SERVICE).map_err(|e| {
+            tracing::error!(erreur = %e, "matrice publique non sérialisable");
+            ErreurSite::Interne("sérialisation de la matrice publique impossible".to_owned())
+        })?;
     Ok((
         StatusCode::OK,
         [(header::CONTENT_TYPE, "application/json")],
@@ -53,46 +56,10 @@ pub async fn page(State(etat): State<EtatSite>) -> Result<Response, ErreurSite> 
 }
 
 fn parse_matrix(corps: &str) -> Result<crate::couverture::Matrice, ErreurSite> {
-    serde_json::from_str(corps).map_err(|e| {
+    crate::couverture::parse_matrix(corps).map_err(|e| {
         tracing::error!(erreur = %e, "matrice de couverture illisible (JSON)");
         ErreurSite::Indisponible("matrice de couverture illisible — la régénérer".to_string())
     })
-}
-
-/// Serialize the public matrix without process identity or version fingerprints.
-fn serialize_public_matrix(matrix: &crate::couverture::Matrice) -> Result<String, ErreurSite> {
-    let mut value = serde_json::to_value(matrix).map_err(|e| {
-        tracing::error!(erreur = %e, "matrice de couverture non sérialisable");
-        ErreurSite::Interne("sérialisation de la matrice impossible".to_owned())
-    })?;
-    if let Value::Object(object) = &mut value {
-        object.remove("service");
-        object.remove("version");
-    }
-    strip_public_identity(&mut value);
-    serde_json::to_string(&value).map_err(|e| {
-        tracing::error!(erreur = %e, "matrice publique non sérialisable");
-        ErreurSite::Interne("sérialisation de la matrice publique impossible".to_owned())
-    })
-}
-
-/// Remove the internal service name from free-form diagnostic strings without changing the
-/// source matrix stored on disk.
-fn strip_public_identity(value: &mut Value) {
-    match value {
-        Value::String(text) => *text = text.replace(crate::SERVICE, "le serveur"),
-        Value::Array(elements) => {
-            for element in elements {
-                strip_public_identity(element);
-            }
-        }
-        Value::Object(object) => {
-            for element in object.values_mut() {
-                strip_public_identity(element);
-            }
-        }
-        Value::Null | Value::Bool(_) | Value::Number(_) => {}
-    }
 }
 
 /// Rend la matrice en HTML — sans script, sans dépendance, et sans rien afficher que la mesure.
@@ -262,6 +229,7 @@ fn echapper(texte: &str) -> String {
 mod tests {
     use super::*;
     use crate::couverture::{Source, construire, mesure};
+    use serde_json::Value;
 
     fn matrice_temoin() -> crate::couverture::Matrice {
         let entrees = vec![
@@ -307,7 +275,8 @@ mod tests {
             .incoherences
             .push(format!("{} internal diagnostic", crate::SERVICE));
 
-        let json = serialize_public_matrix(&matrix).expect("public JSON");
+        let json = crate::couverture::serialize_public_matrix(&matrix, crate::SERVICE)
+            .expect("public JSON");
         let value: Value = serde_json::from_str(&json).expect("valid public JSON");
         assert!(value.get("version").is_none(), "version field is public");
         assert!(value.get("service").is_none(), "service field is public");

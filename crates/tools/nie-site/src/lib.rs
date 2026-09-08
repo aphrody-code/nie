@@ -31,6 +31,7 @@ pub mod etag;
 pub mod i18n;
 pub mod routes;
 pub mod state;
+pub mod update_policy;
 pub mod vfs_index;
 
 pub use app::routeur;

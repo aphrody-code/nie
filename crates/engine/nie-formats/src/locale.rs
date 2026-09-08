@@ -9,7 +9,9 @@ use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 
 /// Native locale tags established by the existing companion resolver and RE evidence.
-pub const LOCALE_TAGS: [&str; 10] = ["de", "en", "es", "fr", "it", "pt", "ja", "ko", "zh_hans", "zh_hant"];
+pub const LOCALE_TAGS: [&str; 10] = [
+    "de", "en", "es", "fr", "it", "pt", "ja", "ko", "zh_hans", "zh_hant",
+];
 
 /// A resource category inferred solely from its VFS path and extension.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

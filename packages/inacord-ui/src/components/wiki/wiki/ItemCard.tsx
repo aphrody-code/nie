@@ -44,6 +44,11 @@ const STAT_SHORT: Record<string, string> = {
 	agility: "AGI", control: "CTR", intelligence: "INT", kick: "TIR", physical: "PHY", pressure: "PRE", technique: "TEC",
 };
 
+function isPositiveStatEntry(entry: [string, unknown]): entry is [string, number] {
+	const [key, value] = entry;
+	return key in STAT_SHORT && typeof value === "number" && value > 0;
+}
+
 /** Shared item/tactic card. Resource resolution and locale data remain host adapters. */
 export function ItemCard({
 	id, name, category, categoryLabel, rarity: _rarity, internalCode, icon, price: _price, location, stats,
@@ -57,7 +62,7 @@ export function ItemCard({
 		? Object.entries(bonuses).filter(([key, value]) => key in STAT_SHORT && value !== 0)
 		: [];
 	const fallbackStatEntries = bonusEntries.length === 0 && stats
-		? Object.entries(stats).filter(([key, value]): value is number => key in STAT_SHORT && typeof value === "number" && value > 0)
+		? Object.entries(stats).filter(isPositiveStatEntry)
 		: [];
 	const topStats = [...(bonusEntries.length > 0 ? bonusEntries : fallbackStatEntries)]
 		.sort(([, left], [, right]) => Math.abs(right) - Math.abs(left))

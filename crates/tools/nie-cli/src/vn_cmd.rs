@@ -17,6 +17,15 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use nie_explore::audio;
+use nie_explore::vn::{
+    CastingOptions, CharacterIdentity, VoiceBank, casting_entries, discover_voice_banks,
+};
+use nie_explore::vn::{
+    ExportOptions, capitalize_name as capitaliser, catalogue as construire_catalogue,
+    collect_texts as collecter_textes, dialogue_references, identities_from_iecode, plan_export,
+    sanitize_filename as assainir, t2b_to_iecode as t2b_vers_iecode,
+    usable_dialogue as replique_utilisable,
+};
 use nie_formats::vfs::Vfs;
 
 /// Sous-commandes de `niers vn`.
@@ -79,28 +88,6 @@ pub enum VnCmd {
     },
 }
 
-/// Une banque de voix repérée dans le VFS.
-#[derive(Debug, Clone)]
-struct Banque {
-    /// Code interne du personnage (`c01000010`).
-    code: String,
-    /// Chemin VFS de l'ACB.
-    acb: String,
-    /// Taille de l'AWB frère, en octets — le proxy de « combien ce rôle parle ».
-    poids: u64,
-}
-
-/// Identité d'un personnage, résolue depuis les tables locales du jeu.
-#[derive(Debug, Clone)]
-pub struct Fiche {
-    /// Code interne (`c01000010`).
-    pub code: String,
-    /// Nom d'affichage complet, dans la langue demandée.
-    pub nom: String,
-    /// `"m"` ou `"f"`, d'après la table maîtresse.
-    pub genre: &'static str,
-}
-
 /// Point d'entrée de `niers vn`.
 pub fn run(cmd: &VnCmd, vfs: &Vfs) -> Result<()> {
     match cmd {
@@ -151,34 +138,6 @@ pub fn run(cmd: &VnCmd, vfs: &Vfs) -> Result<()> {
 // Identités : code interne <-> nom, lus dans l'installation locale
 // ---------------------------------------------------------------------------
 
-/// Convertit les frères T2B en forme `iecode`, celle qu'attendent les parseurs de `nie-data`.
-fn t2b_vers_iecode(entrees: &[nie_formats::cfgbin::CfgEntry]) -> Vec<serde_json::Value> {
-    use nie_formats::cfgbin;
-    entrees
-        .iter()
-        .map(|e| {
-            let variables: Vec<serde_json::Value> = e
-                .variables
-                .iter()
-                .map(|v| match v {
-                    cfgbin::Value::String(s) => serde_json::json!({ "type": "String", "value": s }),
-                    cfgbin::Value::Int(n) => {
-                        serde_json::json!({ "type": "Int", "value": n.to_string() })
-                    }
-                    cfgbin::Value::Float(f) => {
-                        serde_json::json!({ "type": "Float", "value": f.to_string() })
-                    }
-                })
-                .collect();
-            serde_json::json!({
-                "name": e.name,
-                "variables": variables,
-                "children": t2b_vers_iecode(&e.children),
-            })
-        })
-        .collect()
-}
-
 /// Lit un `cfg.bin` T2B du VFS et le rend dans la forme `iecode`.
 fn lire_t2b(vfs: &Vfs, chemin: &str) -> Option<serde_json::Value> {
     let raw = vfs.read(chemin).ok()?;
@@ -204,7 +163,7 @@ fn chercher_chemin(vfs: &Vfs, prefixe: &str, suffixe: &str) -> Option<String> {
 ///
 /// Rend une liste vide — sans erreur — quand l'installation ne porte pas ces tables : le
 /// pipeline doit rester utilisable avec les seuls codes internes.
-fn identites(vfs: &Vfs, langue_noms: &str) -> Vec<Fiche> {
+fn identites(vfs: &Vfs, langue_noms: &str) -> Vec<CharacterIdentity> {
     let Some(chemin_base) = chercher_chemin(
         vfs,
         "data/common/gamedata/character/chara_base_",
@@ -220,76 +179,7 @@ fn identites(vfs: &Vfs, langue_noms: &str) -> Vec<Fiche> {
         return Vec::new();
     };
 
-    let nouns = nie_data::chara_text::parse_all_nouns(&texte_json);
-    let bases = nie_data::chara_base::parse_all_chara_base(&base_json);
-
-    let mut fiches = Vec::new();
-    for base in &bases {
-        let prenom = nie_data::chara_base::resolve_first_name(base, &nouns).unwrap_or_default();
-        let nom_famille = nie_data::chara_base::resolve_last_name(base, &nouns).unwrap_or_default();
-        let complet = assembler_nom(prenom, nom_famille);
-        if complet.is_empty() || base.internal_code.is_empty() {
-            continue;
-        }
-        fiches.push(Fiche {
-            code: base.internal_code.clone(),
-            nom: complet,
-            genre: if base.gender == 2 { "f" } else { "m" },
-        });
-    }
-    fiches
-}
-
-/// Assemble un nom d'affichage sans répéter un segment déjà présent.
-///
-/// Les deux champs de la table maîtresse ne se répartissent pas proprement en
-/// « prénom » et « nom » : `name_hash` porte tantôt le seul prénom, tantôt le nom
-/// complet, et `last_name_hash` répète parfois le prénom. Concaténer à l'aveugle
-/// produisait des doublons (« Camellia Camellia », « Jude Jude Sharp »). On ne
-/// concatène donc que ce qui apporte un segment nouveau.
-fn assembler_nom(prenom: &str, nom_famille: &str) -> String {
-    let prenom = prenom.trim();
-    let famille = nom_famille.trim();
-
-    if famille.is_empty() {
-        return prenom.to_string();
-    }
-    if prenom.is_empty() {
-        return famille.to_string();
-    }
-
-    let mots_prenom: Vec<String> = prenom.split_whitespace().map(pliage).collect();
-    let mots_famille: Vec<&str> = famille.split_whitespace().collect();
-
-    // Ne garder du nom de famille que les mots absents du champ prénom.
-    let restants: Vec<&str> = mots_famille
-        .into_iter()
-        .filter(|m| !mots_prenom.contains(&pliage(m)))
-        .collect();
-
-    if restants.is_empty() {
-        prenom.to_string()
-    } else {
-        format!("{prenom} {}", restants.join(" "))
-    }
-}
-
-/// Forme comparable d'un nom : minuscules, sans accent, sans ponctuation.
-fn pliage(s: &str) -> String {
-    s.chars()
-        .flat_map(|c| c.to_lowercase())
-        .map(|c| match c {
-            'à' | 'â' | 'ä' | 'á' | 'ã' => 'a',
-            'é' | 'è' | 'ê' | 'ë' => 'e',
-            'î' | 'ï' | 'í' | 'ì' => 'i',
-            'ô' | 'ö' | 'ó' | 'ò' | 'õ' => 'o',
-            'û' | 'ü' | 'ú' | 'ù' => 'u',
-            'ç' => 'c',
-            'ñ' => 'n',
-            autre => autre,
-        })
-        .filter(|c| c.is_alphanumeric() || *c == ' ')
-        .collect()
+    identities_from_iecode(&base_json, &texte_json)
 }
 
 // ---------------------------------------------------------------------------
@@ -297,41 +187,12 @@ fn pliage(s: &str) -> String {
 // ---------------------------------------------------------------------------
 
 /// Toutes les banques `sound_asset/<langue>/c########.acb`, triées par poids décroissant.
-fn banques(vfs: &Vfs, langue: &str) -> Vec<Banque> {
-    let prefixe = format!("data/common/sound_asset/{langue}/");
-    let mut tailles: BTreeMap<String, u64> = BTreeMap::new();
-    let mut acbs: Vec<(String, String)> = Vec::new();
-
-    for (path, entry) in vfs.iter() {
-        let Some(reste) = path.strip_prefix(prefixe.as_str()) else {
-            continue;
-        };
-        let Some(radical) = reste
-            .strip_suffix(".acb")
-            .or_else(|| reste.strip_suffix(".awb"))
-        else {
-            continue;
-        };
-        // Seules les banques de personnage : `c` suivi de chiffres.
-        if !radical.starts_with('c') || !radical[1..].chars().all(|c| c.is_ascii_digit()) {
-            continue;
-        }
-        if reste.ends_with(".awb") {
-            tailles.insert(radical.to_string(), u64::from(entry.file_size));
-        } else {
-            acbs.push((radical.to_string(), path.to_string()));
-        }
-    }
-
-    let mut out: Vec<Banque> = acbs
-        .into_iter()
-        .map(|(code, acb)| {
-            let poids = tailles.get(&code).copied().unwrap_or(0);
-            Banque { code, acb, poids }
-        })
-        .collect();
-    out.sort_by(|a, b| b.poids.cmp(&a.poids).then_with(|| a.code.cmp(&b.code)));
-    out
+fn banques(vfs: &Vfs, langue: &str) -> Vec<VoiceBank> {
+    discover_voice_banks(
+        vfs.iter()
+            .map(|(path, entry)| (path.to_owned(), u64::from(entry.file_size))),
+        langue,
+    )
 }
 
 fn casting(
@@ -348,29 +209,20 @@ fn casting(
         anyhow::bail!("aucune banque de voix sous data/common/sound_asset/{langue}/");
     }
 
-    let index: BTreeMap<String, Fiche> = identites(vfs, langue_noms)
+    let index: BTreeMap<String, CharacterIdentity> = identites(vfs, langue_noms)
         .into_iter()
         .map(|f| (f.code.clone(), f))
         .collect();
 
-    let motif = chercher.map(pliage);
-    let retenues: Vec<&Banque> = banques
-        .iter()
-        .filter(|b| {
-            let fiche = index.get(&b.code);
-            if let Some(g) = genre
-                && fiche.map(|f| f.genre) != Some(g)
-            {
-                return false;
-            }
-            match (&motif, fiche) {
-                (Some(m), Some(f)) => pliage(&f.nom).contains(m.as_str()),
-                (Some(_), None) => false,
-                (None, _) => true,
-            }
-        })
-        .take(limit)
-        .collect();
+    let retenues = casting_entries(
+        banques.iter().cloned(),
+        index.values().cloned(),
+        &CastingOptions {
+            limit,
+            search: chercher.map(str::to_owned),
+            gender: genre.map(str::to_owned),
+        },
+    );
 
     if json {
         let liste: Vec<_> = retenues
@@ -378,10 +230,10 @@ fn casting(
             .map(|b| {
                 serde_json::json!({
                     "code": b.code,
-                    "nom": index.get(&b.code).map(|f| f.nom.clone()),
-                    "genre": index.get(&b.code).map(|f| f.genre),
+                    "nom": b.name,
+                    "genre": b.gender,
                     "acb": b.acb,
-                    "awb_octets": b.poids,
+                    "awb_octets": b.awb_bytes,
                 })
             })
             .collect();
@@ -395,10 +247,9 @@ fn casting(
         retenues.len()
     );
     for b in retenues {
-        let fiche = index.get(&b.code);
-        let nom = fiche.map_or("—", |f| f.nom.as_str());
-        let genre = fiche.map_or(" ", |f| f.genre);
-        println!("  {:>10}  {genre}  {:>12} o  {nom}", b.code, b.poids);
+        let nom = b.name.as_deref().unwrap_or("—");
+        let genre = b.gender.as_deref().unwrap_or(" ");
+        println!("  {:>10}  {genre}  {:>12} o  {nom}", b.code, b.awb_bytes);
     }
     Ok(())
 }
@@ -406,9 +257,6 @@ fn casting(
 // ---------------------------------------------------------------------------
 // Repliques d'evenement
 // ---------------------------------------------------------------------------
-
-/// Opcode de la commande << fait parler un personnage >> dans les scripts d'evenement.
-const OP_REPLIQUE: u32 = 0xA4C7_132D;
 
 /// Releve, pour chaque code vise, les repliques que le jeu lui fait prononcer.
 ///
@@ -462,38 +310,7 @@ fn relever_dialogues(
             continue;
         };
 
-        // Les commandes forment une suite plate : un en-tete, puis ses arguments.
-        let mut attendues: Vec<(String, String)> = Vec::new();
-        let mut opcode: Option<u32> = None;
-        for entree in &cfg.entries {
-            match entree.name.as_str() {
-                "EVENT_COMMAND_HEADER" => {
-                    opcode = match entree.variables.get(1) {
-                        Some(cfgbin::Value::Int(n)) => Some(*n as u32),
-                        _ => None,
-                    };
-                }
-                "EVENT_COMMAND_ARGS" => {
-                    if opcode == Some(OP_REPLIQUE) {
-                        let chaines: Vec<&str> = entree
-                            .variables
-                            .iter()
-                            .filter_map(|v| match v {
-                                cfgbin::Value::String(s) => Some(s.as_str()),
-                                _ => None,
-                            })
-                            .collect();
-                        let ligne = chaines.iter().find(|s| est_identifiant_de_ligne(s));
-                        let code = chaines.iter().rev().find(|s| codes.contains(**s));
-                        if let (Some(ligne), Some(code)) = (ligne, code) {
-                            attendues.push(((*code).to_string(), (*ligne).to_string()));
-                        }
-                    }
-                    opcode = None;
-                }
-                _ => {}
-            }
-        }
+        let attendues = dialogue_references(&cfg.entries, codes);
         if attendues.is_empty() {
             continue;
         }
@@ -573,121 +390,6 @@ fn table_des_balises(vfs: &Vfs, langue: &str) -> BTreeMap<String, String> {
     out
 }
 
-/// Rend un nom tout en majuscules lisible dans une phrase : `CHECKER` -> `Checker`.
-///
-/// Le jeu applique sa propre casse au moment du rendu ; hors de son moteur, la
-/// forme brute crierait au milieu du texte.
-fn capitaliser(nom: &str) -> String {
-    if !nom.chars().any(char::is_lowercase) && nom.chars().any(char::is_alphabetic) {
-        nom.split(' ')
-            .map(|mot| {
-                let mut c = mot.chars();
-                match c.next() {
-                    Some(p) => p.to_uppercase().collect::<String>() + &c.as_str().to_lowercase(),
-                    None => String::new(),
-                }
-            })
-            .collect::<Vec<_>>()
-            .join(" ")
-    } else {
-        nom.to_string()
-    }
-}
-
-/// Remplace les `<PREFIXE:BALISE>` d'une replique par les noms correspondants.
-fn resoudre_balises(texte: &str, balises: &BTreeMap<String, String>) -> String {
-    let mut out = String::with_capacity(texte.len());
-    let mut reste = texte;
-
-    while let Some(debut) = reste.find('<') {
-        out.push_str(&reste[..debut]);
-        let apres = &reste[debut + 1..];
-        let Some(fin) = apres.find('>') else {
-            out.push_str(&reste[debut..]);
-            return out;
-        };
-        let contenu = &apres[..fin];
-        match contenu.split_once(':') {
-            Some((_, cle)) if balises.contains_key(cle) => out.push_str(&balises[cle]),
-            _ => {
-                out.push('<');
-                out.push_str(contenu);
-                out.push('>');
-            }
-        }
-        reste = &apres[fin + 1..];
-    }
-    out.push_str(reste);
-    out
-}
-
-/// Rend une replique prete a etre affichee hors du moteur du jeu, ou `None`.
-///
-/// Deux ecarts entre le texte stocke et le texte affichable :
-///
-/// * les sauts de ligne sont ecrits `\n` en toutes lettres, deux caracteres que
-///   rien ne reinterprete en dehors du moteur ;
-/// * les noms sont poses en balises `<PREFIXE:CLE>`. [`resoudre_balises`] en
-///   remplace ce qu'il peut ; ce qui reste vient d'une table de balises que ce
-///   depot ne sait pas encore lire.
-///
-/// Une replique dont une balise survit est ECARTEE plutot que livree trouee : ce
-/// vivier sert de bouche-trou en attendant un vrai scenario, il n'a pas a etre
-/// exhaustif, il a a etre lisible.
-fn replique_utilisable(texte: &str, balises: &BTreeMap<String, String>) -> Option<String> {
-    let resolu = resoudre_balises(texte, balises).replace("\\n", "\n");
-    if resolu.trim().is_empty() {
-        return None;
-    }
-    if contient_balise_restante(&resolu) {
-        return None;
-    }
-    Some(resolu)
-}
-
-/// Vrai si le texte porte encore un `<...:...>` non resolu.
-fn contient_balise_restante(texte: &str) -> bool {
-    let mut reste = texte;
-    while let Some(debut) = reste.find('<') {
-        let apres = &reste[debut + 1..];
-        match apres.find('>') {
-            Some(fin) if apres[..fin].contains(':') => return true,
-            Some(fin) => reste = &apres[fin + 1..],
-            None => return false,
-        }
-    }
-    false
-}
-
-/// Vrai pour un identifiant de ligne d'evenement, qui finit toujours par `_NNN_NNN`.
-fn est_identifiant_de_ligne(s: &str) -> bool {
-    let octets = s.as_bytes();
-    if octets.len() < 8 {
-        return false;
-    }
-    let queue = &octets[octets.len() - 8..];
-    queue[0] == b'_'
-        && queue[4] == b'_'
-        && queue[1..4].iter().all(u8::is_ascii_digit)
-        && queue[5..8].iter().all(u8::is_ascii_digit)
-}
-
-/// Aplatit une table de texte d'evenement en `crc32 -> premiere chaine non vide`.
-fn collecter_textes(entrees: &[nie_formats::cfgbin::CfgEntry], out: &mut BTreeMap<u32, String>) {
-    use nie_formats::cfgbin;
-    for e in entrees {
-        if let Some(cfgbin::Value::Int(cle)) = e.variables.first()
-            && let Some(cfgbin::Value::String(texte)) = e
-                .variables
-                .iter()
-                .find(|v| matches!(v, cfgbin::Value::String(s) if !s.is_empty()))
-        {
-            out.entry(*cle as u32).or_insert_with(|| texte.clone());
-        }
-        collecter_textes(&e.children, out);
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Export
 // ---------------------------------------------------------------------------
@@ -711,57 +413,25 @@ fn export(
         anyhow::bail!("aucune banque de voix sous data/common/sound_asset/{langue}/");
     }
 
-    let index: BTreeMap<String, Fiche> = identites(vfs, langue_noms)
+    let index: BTreeMap<String, CharacterIdentity> = identites(vfs, langue_noms)
         .into_iter()
         .map(|f| (f.code.clone(), f))
         .collect();
 
-    // Un nom demandé sans banque de voix est signalé, pas ignoré en silence.
-    let mut par_nom: Vec<Banque> = Vec::new();
-    for demande in noms {
-        let motif = pliage(demande);
-        let trouve = toutes.iter().find(|b| {
-            index
-                .get(&b.code)
-                .is_some_and(|f| pliage(&f.nom).contains(motif.as_str()))
-        });
-        match trouve {
-            Some(b) => par_nom.push(b.clone()),
-            None => eprintln!("  « {demande} » — aucun personnage doublé de ce nom, ignoré"),
-        }
+    let plan = plan_export(
+        &toutes,
+        &index.values().cloned().collect::<Vec<_>>(),
+        &ExportOptions {
+            codes: codes.to_vec(),
+            names: noms.to_vec(),
+            language: langue.to_owned(),
+        },
+    )
+    .map_err(anyhow::Error::msg)?;
+    for warning in plan.warnings {
+        eprintln!("  {warning}");
     }
-
-    let mut retenues: Vec<Banque> = par_nom;
-    for c in codes {
-        match toutes.iter().find(|b| &b.code == c) {
-            Some(b) => retenues.push(b.clone()),
-            // Un code explicitement demande sans banque de voix n'est PAS ecarte en
-            // silence : on garde ses textures et son eventuel dialogue, la voix
-            // export ne produira simplement rien pour lui. Avant ce correctif, ces
-            // personnages disparaissaient du catalogue sans un mot.
-            None => {
-                eprintln!("  {c} — aucune banque de voix, textures et dialogue seuls");
-                retenues.push(Banque {
-                    code: c.clone(),
-                    acb: String::new(),
-                    poids: 0,
-                });
-            }
-        }
-    }
-    if codes.is_empty() && noms.is_empty() {
-        // Pas de casting « automatique » : trier par volume de voix ramenait des
-        // personnages que le projet n'a aucune raison de mettre en scène. Le choix
-        // est éditorial, il appartient à l'équipe et doit être écrit noir sur blanc.
-        anyhow::bail!(
-            "désigner le casting avec --noms ou --casting ({} personnages doublés disponibles ; \
-             `niers vn casting --chercher <nom>` aide à les trouver)",
-            toutes.len()
-        );
-    }
-    if retenues.is_empty() {
-        anyhow::bail!("aucun des personnages demandés n'a de banque de voix en « {langue} »");
-    }
+    let retenues = plan.banks;
 
     std::fs::create_dir_all(out).with_context(|| format!("création de {}", out.display()))?;
 
@@ -784,15 +454,15 @@ fn export(
         eprintln!(
             "  {} {} — {} voix, {} texture(s), {} replique(s) ecrite(s)",
             banque.code,
-            fiche.map_or(String::new(), |f| format!("({})", f.nom)),
+            fiche.map_or(String::new(), |f| format!("({})", f.name)),
             voix.len(),
             textures.len(),
             repliques.len()
         );
         personnages.push(serde_json::json!({
             "code": banque.code,
-            "nom": fiche.map(|f| f.nom.clone()),
-            "genre": fiche.map(|f| f.genre),
+            "nom": fiche.map(|f| f.name.clone()),
+            "genre": fiche.map(|f| f.gender.clone()),
             "voix": voix,
             "textures": textures,
             "dialogues": repliques,
@@ -805,12 +475,7 @@ fn export(
         Vec::new()
     };
 
-    let catalogue = serde_json::json!({
-        "version": 1,
-        "langue": langue,
-        "personnages": personnages,
-        "musique": musique,
-    });
+    let catalogue = construire_catalogue(langue, personnages, musique.clone());
     let chemin = out.join("catalogue.json");
     std::fs::write(&chemin, serde_json::to_vec_pretty(&catalogue)?)
         .with_context(|| format!("écriture de {}", chemin.display()))?;
@@ -828,7 +493,7 @@ fn export(
 fn exporter_voix(
     vfs: &Vfs,
     out: &Path,
-    banque: &Banque,
+    banque: &VoiceBank,
     max: usize,
 ) -> Result<Vec<serde_json::Value>> {
     if banque.acb.is_empty() {
@@ -938,26 +603,44 @@ fn exporter_bgm(vfs: &Vfs, out: &Path, max: usize) -> Result<Vec<serde_json::Val
     Ok(sortie)
 }
 
-/// Restreint un nom venu du jeu à ce qu'un système de fichiers accepte partout.
-fn assainir(nom: &str) -> String {
-    nom.chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() || c == '_' || c == '-' {
-                c
-            } else {
-                '_'
-            }
-        })
-        .collect()
-}
-
 #[cfg(test)]
 mod tests {
     use super::assainir;
+    use nie_explore::vn::{CastingOptions, CharacterIdentity, VoiceBank, casting_entries};
 
     #[test]
     fn assainir_remplace_les_separateurs() {
         assert_eq!(assainir("c01/00.0010"), "c01_00_0010");
         assert_eq!(assainir("ev74_00840_me"), "ev74_00840_me");
+    }
+
+    #[test]
+    fn casting_adapter_preserves_cli_json_field_names() {
+        let entries = casting_entries(
+            [VoiceBank {
+                code: "c1".into(),
+                acb: "c1.acb".into(),
+                awb_bytes: 7,
+            }],
+            [CharacterIdentity {
+                code: "c1".into(),
+                name: "Mark".into(),
+                gender: "m".into(),
+            }],
+            &CastingOptions {
+                limit: 1,
+                search: None,
+                gender: None,
+            },
+        );
+        let value = serde_json::json!({
+            "code": entries[0].code,
+            "nom": entries[0].name,
+            "genre": entries[0].gender,
+            "acb": entries[0].acb,
+            "awb_octets": entries[0].awb_bytes,
+        });
+        assert_eq!(value["nom"], "Mark");
+        assert_eq!(value["awb_octets"], 7);
     }
 }

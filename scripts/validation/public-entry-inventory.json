@@ -1,5 +1,7 @@
 {
   "schema": "niers.public-entry-inventory/v1",
+  "proofLevel": "source-delegation",
+  "proofLimitation": "Verified call-chain evidence does not prove the absence of residual portable logic in bindings; that requires semantic audit and review.",
   "generatedFrom": {
     "cli": "Cmd",
     "mcp": "#[tool(name)]",
@@ -21,7 +23,11 @@
       "capability": "mod",
       "classification": "portable",
       "owner": "crates/engine/nie-viola/src/lib.rs",
-      "rationale": "Mod delegates portable domain work to its named library owner."
+      "rationale": "Mod delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/main.rs",
+        "nie_viola::"
+      ]
     },
     {
       "surface": "cli",
@@ -29,7 +35,11 @@
       "capability": "viola",
       "classification": "portable",
       "owner": "crates/engine/nie-viola/src/lib.rs",
-      "rationale": "Viola delegates portable domain work to its named library owner."
+      "rationale": "Viola delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/main.rs",
+        "nie_viola::"
+      ]
     },
     {
       "surface": "cli",
@@ -37,7 +47,11 @@
       "capability": "format",
       "classification": "portable",
       "owner": "crates/engine/nie-formats/src/lib.rs",
-      "rationale": "Format delegates portable domain work to its named library owner."
+      "rationale": "Format delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/main.rs",
+        "nie_formats::"
+      ]
     },
     {
       "surface": "cli",
@@ -45,7 +59,11 @@
       "capability": "decode",
       "classification": "portable",
       "owner": "crates/engine/nie-formats/src/lib.rs",
-      "rationale": "Decode delegates portable domain work to its named library owner."
+      "rationale": "Decode delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/main.rs",
+        "nie_formats::"
+      ]
     },
     {
       "surface": "cli",
@@ -53,7 +71,11 @@
       "capability": "refreshtypedjson",
       "classification": "portable",
       "owner": "crates/engine/nie-formats/src/cfgbin.rs",
-      "rationale": "RefreshTypedJson delegates portable domain work to its named library owner."
+      "rationale": "RefreshTypedJson delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/main.rs",
+        "nie_formats::"
+      ]
     },
     {
       "surface": "cli",
@@ -61,7 +83,11 @@
       "capability": "steam",
       "classification": "portable",
       "owner": "crates/tools/nie-steam/src/lib.rs",
-      "rationale": "Steam delegates portable domain work to its named library owner."
+      "rationale": "Steam delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/main.rs",
+        "nie_steam::"
+      ]
     },
     {
       "surface": "cli",
@@ -77,7 +103,11 @@
       "capability": "locales",
       "classification": "portable",
       "owner": "crates/engine/nie-formats/src/locale.rs",
-      "rationale": "Locales delegates portable domain work to its named library owner."
+      "rationale": "Locales delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/main.rs",
+        "nie_formats::"
+      ]
     },
     {
       "surface": "cli",
@@ -85,7 +115,11 @@
       "capability": "convert",
       "classification": "portable",
       "owner": "crates/engine/nie-formats/src/lib.rs",
-      "rationale": "Convert delegates portable domain work to its named library owner."
+      "rationale": "Convert delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/main.rs",
+        "nie_formats::"
+      ]
     },
     {
       "surface": "cli",
@@ -93,7 +127,11 @@
       "capability": "render",
       "classification": "portable",
       "owner": "crates/engine/nie-render3d/src/lib.rs",
-      "rationale": "Render delegates portable domain work to its named library owner."
+      "rationale": "Render delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/render_cmd.rs",
+        "nie_render3d::"
+      ]
     },
     {
       "surface": "cli",
@@ -101,7 +139,11 @@
       "capability": "lua",
       "classification": "portable",
       "owner": "crates/engine/nie-lua/src/lib.rs",
-      "rationale": "Lua delegates portable domain work to its named library owner."
+      "rationale": "Lua delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/lua_audit_cmd.rs",
+        "nie_lua::"
+      ]
     },
     {
       "surface": "cli",
@@ -109,7 +151,11 @@
       "capability": "luarun",
       "classification": "portable",
       "owner": "crates/engine/nie-lua/src/lib.rs",
-      "rationale": "LuaRun delegates portable domain work to its named library owner."
+      "rationale": "LuaRun delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/lua_audit_cmd.rs",
+        "nie_lua::"
+      ]
     },
     {
       "surface": "cli",
@@ -117,7 +163,11 @@
       "capability": "luaaudit",
       "classification": "portable",
       "owner": "crates/engine/nie-lua/src/lib.rs",
-      "rationale": "LuaAudit delegates portable domain work to its named library owner."
+      "rationale": "LuaAudit delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/lua_audit_cmd.rs",
+        "nie_lua::"
+      ]
     },
     {
       "surface": "cli",
@@ -125,15 +175,23 @@
       "capability": "seed",
       "classification": "portable",
       "owner": "crates/forge/nie-seed/src/lib.rs",
-      "rationale": "Seed delegates portable domain work to its named library owner."
+      "rationale": "Seed delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/main.rs",
+        "nie_seed::"
+      ]
     },
     {
       "surface": "cli",
       "entry": "SeedUi",
       "capability": "seedui",
       "classification": "portable",
-      "owner": "crates/tools/nie-cli/src/main.rs",
-      "rationale": "SeedUi delegates portable domain work to its named library owner."
+      "owner": "crates/forge/nie-seed/src/ui_names.rs",
+      "rationale": "SeedUi delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/main.rs",
+        "seed_ui::run("
+      ]
     },
     {
       "surface": "cli",
@@ -141,7 +199,11 @@
       "capability": "strings",
       "classification": "portable",
       "owner": "crates/forge/nie-re/src/lib.rs",
-      "rationale": "Strings delegates portable domain work to its named library owner."
+      "rationale": "Strings delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/main.rs",
+        "nie_re::"
+      ]
     },
     {
       "surface": "cli",
@@ -165,7 +227,11 @@
       "capability": "img",
       "classification": "portable",
       "owner": "crates/engine/nie-formats/src/lib.rs",
-      "rationale": "Img delegates portable domain work to its named library owner."
+      "rationale": "Img delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/main.rs",
+        "nie_formats::"
+      ]
     },
     {
       "surface": "cli",
@@ -173,7 +239,11 @@
       "capability": "mode",
       "classification": "portable",
       "owner": "crates/engine/nie-explore/src/menu_mode_analysis.rs",
-      "rationale": "Mode delegates portable domain work to its named library owner."
+      "rationale": "Mode delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/main.rs",
+        "nie_explore::"
+      ]
     },
     {
       "surface": "cli",
@@ -181,15 +251,23 @@
       "capability": "icons",
       "classification": "portable",
       "owner": "crates/engine/nie-explore/src/menu_icons.rs",
-      "rationale": "Icons delegates portable domain work to its named library owner."
+      "rationale": "Icons delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/main.rs",
+        "nie_explore::"
+      ]
     },
     {
       "surface": "cli",
       "entry": "Avatar",
       "capability": "avatar",
       "classification": "portable",
-      "owner": "crates/tools/nie-cli/src/main.rs",
-      "rationale": "Avatar delegates portable domain work to its named library owner."
+      "owner": "crates/engine/nie-data/src/avatar.rs",
+      "rationale": "Avatar delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/avatar_cmd.rs",
+        "category_resource_prefix(cfg,"
+      ]
     },
     {
       "surface": "cli",
@@ -197,7 +275,11 @@
       "capability": "coverage",
       "classification": "portable",
       "owner": "crates/forge/nie-re/src/lib.rs",
-      "rationale": "Coverage delegates portable domain work to its named library owner."
+      "rationale": "Coverage delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/main.rs",
+        "nie_re::"
+      ]
     },
     {
       "surface": "cli",
@@ -205,7 +287,11 @@
       "capability": "queue",
       "classification": "portable",
       "owner": "crates/forge/nie-queue/src/lib.rs",
-      "rationale": "Queue delegates portable domain work to its named library owner."
+      "rationale": "Queue delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/main.rs",
+        "nie_queue::"
+      ]
     },
     {
       "surface": "cli",
@@ -213,7 +299,11 @@
       "capability": "propagate",
       "classification": "portable",
       "owner": "crates/forge/nie-re/src/lib.rs",
-      "rationale": "Propagate delegates portable domain work to its named library owner."
+      "rationale": "Propagate delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/main.rs",
+        "nie_re::"
+      ]
     },
     {
       "surface": "cli",
@@ -221,7 +311,11 @@
       "capability": "rtti",
       "classification": "portable",
       "owner": "crates/forge/nie-re/src/lib.rs",
-      "rationale": "Rtti delegates portable domain work to its named library owner."
+      "rationale": "Rtti delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/main.rs",
+        "nie_re::"
+      ]
     },
     {
       "surface": "cli",
@@ -229,7 +323,11 @@
       "capability": "index",
       "classification": "portable",
       "owner": "crates/forge/nie-index/src/lib.rs",
-      "rationale": "Index delegates portable domain work to its named library owner."
+      "rationale": "Index delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/main.rs",
+        "nie_index::"
+      ]
     },
     {
       "surface": "cli",
@@ -237,7 +335,11 @@
       "capability": "disasm",
       "classification": "portable",
       "owner": "crates/forge/nie-re/src/lib.rs",
-      "rationale": "Disasm delegates portable domain work to its named library owner."
+      "rationale": "Disasm delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/main.rs",
+        "nie_re::"
+      ]
     },
     {
       "surface": "cli",
@@ -245,23 +347,35 @@
       "capability": "pdata",
       "classification": "portable",
       "owner": "crates/forge/nie-re/src/lib.rs",
-      "rationale": "Pdata delegates portable domain work to its named library owner."
+      "rationale": "Pdata delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/main.rs",
+        "nie_re::"
+      ]
     },
     {
       "surface": "cli",
       "entry": "Rebuild",
       "capability": "rebuild",
       "classification": "portable",
-      "owner": "crates/tools/nie-cli/src/main.rs",
-      "rationale": "Rebuild delegates portable domain work to its named library owner."
+      "owner": "crates/forge/nie-re/src/workflow.rs",
+      "rationale": "Rebuild delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/main.rs",
+        "nie_re::workflow::rebuild("
+      ]
     },
     {
       "surface": "cli",
       "entry": "Recover",
       "capability": "recover",
       "classification": "portable",
-      "owner": "crates/tools/nie-cli/src/main.rs",
-      "rationale": "Recover delegates portable domain work to its named library owner."
+      "owner": "crates/forge/nie-re/src/workflow.rs",
+      "rationale": "Recover delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/main.rs",
+        "nie_re::workflow::recover_with_observer("
+      ]
     },
     {
       "surface": "cli",
@@ -269,7 +383,11 @@
       "capability": "save",
       "classification": "portable",
       "owner": "crates/engine/nie-save/src/lib.rs",
-      "rationale": "Save delegates portable domain work to its named library owner."
+      "rationale": "Save delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/main.rs",
+        "nie_save::"
+      ]
     },
     {
       "surface": "cli",
@@ -277,7 +395,11 @@
       "capability": "wiki",
       "classification": "portable",
       "owner": "crates/tools/nie-wiki/src/lib.rs",
-      "rationale": "Wiki delegates portable domain work to its named library owner."
+      "rationale": "Wiki delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/main.rs",
+        "nie_wiki::"
+      ]
     },
     {
       "surface": "cli",
@@ -285,7 +407,11 @@
       "capability": "uniformmap",
       "classification": "portable",
       "owner": "crates/engine/nie-explore/src/uniform_map.rs",
-      "rationale": "UniformMap delegates portable domain work to its named library owner."
+      "rationale": "UniformMap delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/main.rs",
+        "nie_explore::"
+      ]
     },
     {
       "surface": "cli",
@@ -293,15 +419,23 @@
       "capability": "textures",
       "classification": "portable",
       "owner": "crates/engine/nie-formats/src/lib.rs",
-      "rationale": "Textures delegates portable domain work to its named library owner."
+      "rationale": "Textures delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/main.rs",
+        "nie_formats::"
+      ]
     },
     {
       "surface": "cli",
       "entry": "MenuPredecode",
       "capability": "menupredecode",
       "classification": "portable",
-      "owner": "crates/tools/nie-cli/src/main.rs",
-      "rationale": "MenuPredecode delegates portable domain work to its named library owner."
+      "owner": "crates/engine/nie-explore/src/menu_predecode.rs",
+      "rationale": "MenuPredecode delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/menu_predecode.rs",
+        "let plan = plan(priority_paths,"
+      ]
     },
     {
       "surface": "cli",
@@ -317,15 +451,23 @@
       "capability": "vfs",
       "classification": "portable",
       "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "Vfs delegates portable domain work to its named library owner."
+      "rationale": "Vfs delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/main.rs",
+        "nie_explore::"
+      ]
     },
     {
       "surface": "cli",
       "entry": "Vn",
       "capability": "vn",
       "classification": "portable",
-      "owner": "crates/tools/nie-cli/src/main.rs",
-      "rationale": "Vn delegates portable domain work to its named library owner."
+      "owner": "crates/engine/nie-explore/src/vn.rs",
+      "rationale": "Vn delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/vn_cmd.rs",
+        "casting_entries("
+      ]
     },
     {
       "surface": "cli",
@@ -333,7 +475,11 @@
       "capability": "video",
       "classification": "portable",
       "owner": "crates/engine/nie-explore/src/cinema.rs",
-      "rationale": "Video delegates portable domain work to its named library owner."
+      "rationale": "Video delegates portable domain work to its named library owner.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/main.rs",
+        "nie_explore::"
+      ]
     },
     {
       "surface": "mcp",
@@ -372,40 +518,60 @@
       "entry": "vfs_list",
       "capability": "vfs-list",
       "classification": "transport",
-      "owner": "crates/tools/nie-cli/src/mcp.rs",
-      "rationale": "MCP tool vfs_list is an in-process transport adapter."
+      "owner": "crates/engine/nie-explore/src/mcp_vfs.rs",
+      "rationale": "MCP tool vfs_list is an in-process transport adapter.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/mcp.rs",
+        "nie_explore::mcp_vfs::list("
+      ]
     },
     {
       "surface": "mcp",
       "entry": "vfs_search",
       "capability": "vfs-search",
       "classification": "transport",
-      "owner": "crates/tools/nie-cli/src/mcp.rs",
-      "rationale": "MCP tool vfs_search is an in-process transport adapter."
+      "owner": "crates/engine/nie-explore/src/mcp_vfs.rs",
+      "rationale": "MCP tool vfs_search is an in-process transport adapter.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/mcp.rs",
+        "nie_explore::mcp_vfs::search("
+      ]
     },
     {
       "surface": "mcp",
       "entry": "vfs_stat",
       "capability": "vfs-stat",
       "classification": "transport",
-      "owner": "crates/tools/nie-cli/src/mcp.rs",
-      "rationale": "MCP tool vfs_stat is an in-process transport adapter."
+      "owner": "crates/engine/nie-explore/src/mcp_vfs.rs",
+      "rationale": "MCP tool vfs_stat is an in-process transport adapter.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/mcp.rs",
+        "nie_explore::mcp_vfs::stat("
+      ]
     },
     {
       "surface": "mcp",
       "entry": "vfs_cat",
       "capability": "vfs-cat",
       "classification": "transport",
-      "owner": "crates/tools/nie-cli/src/mcp.rs",
-      "rationale": "MCP tool vfs_cat is an in-process transport adapter."
+      "owner": "crates/engine/nie-explore/src/mcp_vfs.rs",
+      "rationale": "MCP tool vfs_cat is an in-process transport adapter.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/mcp.rs",
+        "nie_explore::mcp_vfs::cat("
+      ]
     },
     {
       "surface": "mcp",
       "entry": "asset_get",
       "capability": "asset-get",
       "classification": "transport",
-      "owner": "crates/tools/nie-cli/src/mcp.rs",
-      "rationale": "MCP tool asset_get is an in-process transport adapter."
+      "owner": "crates/engine/nie-explore/src/mcp_vfs.rs",
+      "rationale": "MCP tool asset_get is an in-process transport adapter.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/mcp.rs",
+        "nie_explore::mcp_vfs::asset("
+      ]
     },
     {
       "surface": "mcp",
@@ -420,16 +586,24 @@
       "entry": "re_function",
       "capability": "re-function",
       "classification": "transport",
-      "owner": "crates/tools/nie-cli/src/mcp.rs",
-      "rationale": "MCP tool re_function is an in-process transport adapter."
+      "owner": "crates/tools/nie-wiki/src/query.rs",
+      "rationale": "MCP tool re_function is an in-process transport adapter.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/mcp.rs",
+        "nie_wiki::query::re_function_report("
+      ]
     },
     {
       "surface": "mcp",
       "entry": "re_coverage",
       "capability": "re-coverage",
       "classification": "transport",
-      "owner": "crates/tools/nie-cli/src/mcp.rs",
-      "rationale": "MCP tool re_coverage is an in-process transport adapter."
+      "owner": "crates/tools/nie-wiki/src/query.rs",
+      "rationale": "MCP tool re_coverage is an in-process transport adapter.",
+      "sourceEvidence": [
+        "crates/tools/nie-cli/src/mcp.rs",
+        "nie_wiki::query::re_coverage_report("
+      ]
     },
     {
       "surface": "mcp",
@@ -493,7 +667,17 @@
       "capability": "sqlite-sqlite-load",
       "classification": "portable",
       "owner": "crates/engine/nie-explore/src/database.rs",
-      "rationale": "sqlite::sqlite_load is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "sqlite::sqlite_load delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/sqlite.rs",
+          "fn sqlite_load"
+        ],
+        [
+          "apps/inacord/src-tauri/src/sqlite.rs",
+          "registry.load("
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -501,7 +685,17 @@
       "capability": "sqlite-sqlite-select",
       "classification": "portable",
       "owner": "crates/engine/nie-explore/src/database.rs",
-      "rationale": "sqlite::sqlite_select is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "sqlite::sqlite_select delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/sqlite.rs",
+          "fn sqlite_select"
+        ],
+        [
+          "apps/inacord/src-tauri/src/sqlite.rs",
+          ".select("
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -509,7 +703,17 @@
       "capability": "sqlite-sqlite-execute",
       "classification": "portable",
       "owner": "crates/engine/nie-explore/src/database.rs",
-      "rationale": "sqlite::sqlite_execute is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "sqlite::sqlite_execute delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/sqlite.rs",
+          "fn sqlite_execute"
+        ],
+        [
+          "apps/inacord/src-tauri/src/sqlite.rs",
+          "registry.execute("
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -517,7 +721,17 @@
       "capability": "sqlite-sqlite-close",
       "classification": "portable",
       "owner": "crates/engine/nie-explore/src/database.rs",
-      "rationale": "sqlite::sqlite_close is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "sqlite::sqlite_close delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/sqlite.rs",
+          "fn sqlite_close"
+        ],
+        [
+          "apps/inacord/src-tauri/src/sqlite.rs",
+          "registry.close("
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -525,7 +739,21 @@
       "capability": "aphrody-pet-etat",
       "classification": "portable",
       "owner": "crates/engine/nie-aphrody/src/lib.rs",
-      "rationale": "aphrody_pet_etat is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "aphrody_pet_etat delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "aphrody::pet_etat("
+        ],
+        [
+          "apps/inacord/src-tauri/src/aphrody.rs",
+          "fn pet_etat"
+        ],
+        [
+          "apps/inacord/src-tauri/src/aphrody.rs",
+          "Pet::bundled("
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -533,7 +761,21 @@
       "capability": "aphrody-pet-frame-png-b64",
       "classification": "portable",
       "owner": "crates/engine/nie-aphrody/src/lib.rs",
-      "rationale": "aphrody_pet_frame_png_b64 is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "aphrody_pet_frame_png_b64 delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "aphrody::pet_frame_png_b64("
+        ],
+        [
+          "apps/inacord/src-tauri/src/aphrody.rs",
+          "fn pet_frame_png_b64"
+        ],
+        [
+          "apps/inacord/src-tauri/src/aphrody.rs",
+          "Pet::bundled("
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -541,7 +783,33 @@
       "capability": "aphrody-pixel-mesurer",
       "classification": "portable",
       "owner": "crates/engine/nie-aphrody/src/lib.rs",
-      "rationale": "aphrody_pixel_mesurer is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "aphrody_pixel_mesurer delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn aphrody_pixel_mesurer"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "aphrody::mesurer_fichier("
+        ],
+        [
+          "apps/inacord/src-tauri/src/aphrody.rs",
+          "fn mesurer_fichier"
+        ],
+        [
+          "apps/inacord/src-tauri/src/aphrody.rs",
+          "mesure_dto("
+        ],
+        [
+          "apps/inacord/src-tauri/src/aphrody.rs",
+          "fn mesure_dto"
+        ],
+        [
+          "apps/inacord/src-tauri/src/aphrody.rs",
+          "nie_aphrody::pixel::Mesure"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -549,15 +817,55 @@
       "capability": "aphrody-pixel-tokens-css",
       "classification": "portable",
       "owner": "crates/engine/nie-aphrody/src/lib.rs",
-      "rationale": "aphrody_pixel_tokens_css is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "aphrody_pixel_tokens_css delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "aphrody::tokens_css_fichier("
+        ],
+        [
+          "apps/inacord/src-tauri/src/aphrody.rs",
+          "fn tokens_css_fichier"
+        ],
+        [
+          "apps/inacord/src-tauri/src/aphrody.rs",
+          "tokens_css("
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "aphrody_pixel_comparer",
       "capability": "aphrody-pixel-comparer",
       "classification": "portable",
-      "owner": "crates/engine/nie-aphrody/src/lib.rs",
-      "rationale": "aphrody_pixel_comparer is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-viola/src/lib.rs",
+      "rationale": "aphrody_pixel_comparer delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn aphrody_pixel_comparer"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "aphrody::comparer_fichiers("
+        ],
+        [
+          "apps/inacord/src-tauri/src/aphrody.rs",
+          "fn comparer_fichiers"
+        ],
+        [
+          "apps/inacord/src-tauri/src/aphrody.rs",
+          "u32::from("
+        ],
+        [
+          "apps/inacord/src-tauri/src/viola.rs",
+          "fn from"
+        ],
+        [
+          "apps/inacord/src-tauri/src/viola.rs",
+          "nie_viola::Platform::Pc"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -565,15 +873,47 @@
       "capability": "aphrody-pixel-vectoriser",
       "classification": "portable",
       "owner": "crates/engine/nie-aphrody/src/lib.rs",
-      "rationale": "aphrody_pixel_vectoriser is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "aphrody_pixel_vectoriser delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "aphrody::vectoriser_fichier("
+        ],
+        [
+          "apps/inacord/src-tauri/src/aphrody.rs",
+          "fn vectoriser_fichier"
+        ],
+        [
+          "apps/inacord/src-tauri/src/aphrody.rs",
+          "vectoriser("
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "aphrody_pixel_planche",
       "capability": "aphrody-pixel-planche",
       "classification": "portable",
-      "owner": "crates/engine/nie-aphrody/src/lib.rs",
-      "rationale": "aphrody_pixel_planche is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "aphrody_pixel_planche delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn aphrody_pixel_planche"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "aphrody::planche_fichiers("
+        ],
+        [
+          "apps/inacord/src-tauri/src/aphrody.rs",
+          "fn planche_fichiers"
+        ],
+        [
+          "apps/inacord/src-tauri/src/aphrody.rs",
+          "nie_formats::sprite_sheet::data_uri"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -581,7 +921,13 @@
       "capability": "default-game-dir",
       "classification": "host_only",
       "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "default_game_dir requires native process, window, executable, or game-installation access."
+      "rationale": "default_game_dir requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn default_game_dir"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -589,15 +935,27 @@
       "capability": "check-game-dir",
       "classification": "host_only",
       "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "check_game_dir requires native process, window, executable, or game-installation access."
+      "rationale": "check_game_dir requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn check_game_dir"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "default_wiki_db",
       "capability": "default-wiki-db",
       "classification": "host_only",
-      "owner": "crates/tools/nie-wiki/src/lib.rs",
-      "rationale": "default_wiki_db requires native process, window, executable, or game-installation access."
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "default_wiki_db requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn default_wiki_db"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -605,7 +963,13 @@
       "capability": "default-re-db",
       "classification": "host_only",
       "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "default_re_db requires native process, window, executable, or game-installation access."
+      "rationale": "default_re_db requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn default_re_db"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -613,15 +977,47 @@
       "capability": "default-anime-db",
       "classification": "host_only",
       "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "default_anime_db requires native process, window, executable, or game-installation access."
+      "rationale": "default_anime_db requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn default_anime_db"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "preload_vfs",
       "capability": "preload-vfs",
       "classification": "host_only",
-      "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "preload_vfs requires native process, window, executable, or game-installation access."
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "preload_vfs requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn preload_vfs"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "vfs_stats("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_stats"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "vfs_stats_calcul("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_stats_calcul"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_explore::listing::stats"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -629,7 +1025,17 @@
       "capability": "vfs-ls",
       "classification": "portable",
       "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_ls is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "vfs_ls delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_ls"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_explore::listing::ls_paged"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -637,7 +1043,17 @@
       "capability": "vfs-find",
       "classification": "portable",
       "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_find is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "vfs_find delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_find"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_explore::listing::find"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -645,7 +1061,17 @@
       "capability": "vfs-find-paged",
       "classification": "portable",
       "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_find_paged is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "vfs_find_paged delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_find_paged"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_explore::listing::find_paged"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -653,7 +1079,25 @@
       "capability": "vfs-stats",
       "classification": "portable",
       "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_stats is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "vfs_stats delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_stats"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "vfs_stats_calcul("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_stats_calcul"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_explore::listing::stats"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -661,7 +1105,17 @@
       "capability": "vfs-entry-meta",
       "classification": "portable",
       "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_entry_meta is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "vfs_entry_meta delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_entry_meta"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_explore::listing::stat"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -669,63 +1123,135 @@
       "capability": "vfs-describe",
       "classification": "portable",
       "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_describe is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "vfs_describe delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_describe"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_explore::describe_content"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "vfs_read_b64",
       "capability": "vfs-read-b64",
-      "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_read_b64 is an IPC adapter expected to delegate to the named portable owner."
+      "classification": "transport",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "vfs_read_b64 forwards bytes or lifecycle control through the IPC/HTTP boundary.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_read_b64"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "vfs_texture_png_b64",
       "capability": "vfs-texture-png-b64",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_texture_png_b64 is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "vfs_texture_png_b64 delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_texture_png_b64"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_formats::g4tx_decode::basename_of"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "vfs_texture_thumb_png_b64",
       "capability": "vfs-texture-thumb-png-b64",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_texture_thumb_png_b64 is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "vfs_texture_thumb_png_b64 delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_texture_thumb_png_b64"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_formats::g4tx_decode::basename_of"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "vfs_texture_list",
       "capability": "vfs-texture-list",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_texture_list is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "vfs_texture_list delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_texture_list"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_formats::g4tx::parse"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "vfs_texture_named_png_b64",
       "capability": "vfs-texture-named-png-b64",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_texture_named_png_b64 is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "vfs_texture_named_png_b64 delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_texture_named_png_b64"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_formats::g4tx_decode::decode_named_to_png"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "vfs_texture_named_thumb_png_b64",
       "capability": "vfs-texture-named-thumb-png-b64",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_texture_named_thumb_png_b64 is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "vfs_texture_named_thumb_png_b64 delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_texture_named_thumb_png_b64"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_formats::image_out::g4tx_vignette_nommee"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "vfs_extract_to",
       "capability": "vfs-extract-to",
-      "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_extract_to is an IPC adapter expected to delegate to the named portable owner."
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "vfs_extract_to requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_extract_to"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -733,7 +1259,25 @@
       "capability": "vfs-export-formats",
       "classification": "portable",
       "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_export_formats is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "vfs_export_formats delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_export_formats"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "export::formats_pour("
+        ],
+        [
+          "apps/inacord/src-tauri/src/export.rs",
+          "fn formats_pour"
+        ],
+        [
+          "apps/inacord/src-tauri/src/export.rs",
+          "nie_explore::export::formats_pour"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -741,7 +1285,25 @@
       "capability": "vfs-export-default-name",
       "classification": "portable",
       "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_export_default_name is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "vfs_export_default_name delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_export_default_name"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "export::nom_propose("
+        ],
+        [
+          "apps/inacord/src-tauri/src/export.rs",
+          "fn nom_propose"
+        ],
+        [
+          "apps/inacord/src-tauri/src/export.rs",
+          "nie_explore::export::nom_propose"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -749,7 +1311,25 @@
       "capability": "vfs-export-as",
       "classification": "portable",
       "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_export_as is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "vfs_export_as delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_export_as"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "export::produire("
+        ],
+        [
+          "apps/inacord/src-tauri/src/export.rs",
+          "fn produire"
+        ],
+        [
+          "apps/inacord/src-tauri/src/export.rs",
+          "nie_explore::export::produire"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -757,31 +1337,67 @@
       "capability": "vfs-export-many",
       "classification": "portable",
       "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_export_many is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "vfs_export_many delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_export_many"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "export::formats_pour("
+        ],
+        [
+          "apps/inacord/src-tauri/src/export.rs",
+          "fn formats_pour"
+        ],
+        [
+          "apps/inacord/src-tauri/src/export.rs",
+          "nie_explore::export::formats_pour"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "vfs_write_b64",
       "capability": "vfs-write-b64",
-      "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_write_b64 is an IPC adapter expected to delegate to the named portable owner."
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "vfs_write_b64 requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_write_b64"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "vfs_write_loose_override_b64",
       "capability": "vfs-write-loose-override-b64",
-      "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_write_loose_override_b64 is an IPC adapter expected to delegate to the named portable owner."
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "vfs_write_loose_override_b64 requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_write_loose_override_b64"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "save_bytes_b64",
       "capability": "save-bytes-b64",
-      "classification": "portable",
-      "owner": "crates/engine/nie-save/src/lib.rs",
-      "rationale": "save_bytes_b64 is an IPC adapter expected to delegate to the named portable owner."
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "save_bytes_b64 requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn save_bytes_b64"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -789,247 +1405,673 @@
       "capability": "vfs-related",
       "classification": "portable",
       "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_related is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "vfs_related delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_related"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_explore::related::legacy_search"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "vfs_all_entries",
       "capability": "vfs-all-entries",
-      "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_all_entries is an IPC adapter expected to delegate to the named portable owner."
+      "classification": "transport",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "vfs_all_entries forwards bytes or lifecycle control through the IPC/HTTP boundary.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_all_entries"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "vfs_index_scan_start",
       "capability": "vfs-index-scan-start",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_index_scan_start is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/tools/nie-tasks/src/lib.rs",
+      "rationale": "vfs_index_scan_start delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_index_scan_start"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_tasks::TaskId::new"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "vfs_index_scan_cancel",
       "capability": "vfs-index-scan-cancel",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_index_scan_cancel is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/tools/nie-tasks/src/lib.rs",
+      "rationale": "vfs_index_scan_cancel delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_index_scan_cancel"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "parse_task_id("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn parse_task_id"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_tasks::TaskId"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "vfs_index_scan_take",
       "capability": "vfs-index-scan-take",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_index_scan_take is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/tools/nie-tasks/src/lib.rs",
+      "rationale": "vfs_index_scan_take delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_index_scan_take"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "parse_task_id("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn parse_task_id"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_tasks::TaskId"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "game_data_skills",
       "capability": "game-data-skills",
       "classification": "portable",
-      "owner": "crates/engine/nie-data/src/lib.rs",
-      "rationale": "game_data_skills is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "rationale": "game_data_skills delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "game_data::list_skills"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "pub fn list_skills"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "use nie_explore::game_data::"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "game_data_items",
       "capability": "game-data-items",
       "classification": "portable",
-      "owner": "crates/engine/nie-data/src/lib.rs",
-      "rationale": "game_data_items is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "rationale": "game_data_items delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "game_data::list_items"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "pub fn list_items"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "use nie_explore::game_data::"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "game_data_auras",
       "capability": "game-data-auras",
       "classification": "portable",
-      "owner": "crates/engine/nie-data/src/lib.rs",
-      "rationale": "game_data_auras is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "rationale": "game_data_auras delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "game_data::list_auras"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "pub fn list_auras"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "use nie_explore::game_data::"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "game_data_trophies",
       "capability": "game-data-trophies",
       "classification": "portable",
-      "owner": "crates/engine/nie-data/src/lib.rs",
-      "rationale": "game_data_trophies is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "rationale": "game_data_trophies delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "game_data::list_trophies"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "pub fn list_trophies"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "use nie_explore::game_data::"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "game_data_quests",
       "capability": "game-data-quests",
       "classification": "portable",
-      "owner": "crates/engine/nie-data/src/lib.rs",
-      "rationale": "game_data_quests is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "rationale": "game_data_quests delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "game_data::list_quests"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "pub fn list_quests"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "use nie_explore::game_data::"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "game_data_shops",
       "capability": "game-data-shops",
       "classification": "portable",
-      "owner": "crates/engine/nie-data/src/lib.rs",
-      "rationale": "game_data_shops is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "rationale": "game_data_shops delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "game_data::list_shops"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "pub fn list_shops"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "use nie_explore::game_data::"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "game_data_stadiums",
       "capability": "game-data-stadiums",
       "classification": "portable",
-      "owner": "crates/engine/nie-data/src/lib.rs",
-      "rationale": "game_data_stadiums is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "rationale": "game_data_stadiums delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "game_data::list_stadiums"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "pub fn list_stadiums"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "use nie_explore::game_data::"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "game_data_passives",
       "capability": "game-data-passives",
       "classification": "portable",
-      "owner": "crates/engine/nie-data/src/lib.rs",
-      "rationale": "game_data_passives is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "rationale": "game_data_passives delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "game_data::list_passives"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "pub fn list_passives"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "use nie_explore::game_data::"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "game_data_special_tactics",
       "capability": "game-data-special-tactics",
       "classification": "portable",
-      "owner": "crates/engine/nie-data/src/lib.rs",
-      "rationale": "game_data_special_tactics is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "rationale": "game_data_special_tactics delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "game_data::list_special_tactics"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "pub fn list_special_tactics"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "use nie_explore::game_data::"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "game_data_emblems",
       "capability": "game-data-emblems",
       "classification": "portable",
-      "owner": "crates/engine/nie-data/src/lib.rs",
-      "rationale": "game_data_emblems is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "rationale": "game_data_emblems delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "game_data::list_emblems"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "pub fn list_emblems"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "use nie_explore::game_data::"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "game_data_gallery",
       "capability": "game-data-gallery",
       "classification": "portable",
-      "owner": "crates/engine/nie-data/src/lib.rs",
-      "rationale": "game_data_gallery is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "rationale": "game_data_gallery delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "game_data::list_gallery"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "pub fn list_gallery"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "use nie_explore::game_data::"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "game_data_tricks",
       "capability": "game-data-tricks",
       "classification": "portable",
-      "owner": "crates/engine/nie-data/src/lib.rs",
-      "rationale": "game_data_tricks is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "rationale": "game_data_tricks delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "game_data::list_tricks"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "pub fn list_tricks"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "use nie_explore::game_data::"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "game_data_activities",
       "capability": "game-data-activities",
       "classification": "portable",
-      "owner": "crates/engine/nie-data/src/lib.rs",
-      "rationale": "game_data_activities is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "rationale": "game_data_activities delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "game_data::list_activities"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "pub fn list_activities"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "use nie_explore::game_data::"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "game_data_belong_teams",
       "capability": "game-data-belong-teams",
       "classification": "portable",
-      "owner": "crates/engine/nie-data/src/lib.rs",
-      "rationale": "game_data_belong_teams is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "rationale": "game_data_belong_teams delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "game_data::list_belong_teams"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "pub fn list_belong_teams"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "use nie_explore::game_data::"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "game_data_formations",
       "capability": "game-data-formations",
       "classification": "portable",
-      "owner": "crates/engine/nie-data/src/lib.rs",
-      "rationale": "game_data_formations is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "rationale": "game_data_formations delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "game_data::list_formations"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "pub fn list_formations"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "use nie_explore::game_data::"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "game_data_uniforms",
       "capability": "game-data-uniforms",
       "classification": "portable",
-      "owner": "crates/engine/nie-data/src/lib.rs",
-      "rationale": "game_data_uniforms is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "rationale": "game_data_uniforms delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "game_data::list_uniforms"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "pub fn list_uniforms"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "use nie_explore::game_data::"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "game_data_chara_picker",
       "capability": "game-data-chara-picker",
       "classification": "portable",
-      "owner": "crates/engine/nie-data/src/lib.rs",
-      "rationale": "game_data_chara_picker is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "rationale": "game_data_chara_picker delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "game_data::list_chara_picker"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "pub fn list_chara_picker"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "use nie_explore::game_data::"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "game_data_charas",
       "capability": "game-data-charas",
       "classification": "portable",
-      "owner": "crates/engine/nie-data/src/lib.rs",
-      "rationale": "game_data_charas is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "rationale": "game_data_charas delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "game_data::list_charas"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "pub fn list_charas"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "use nie_explore::game_data::"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "game_data_opponent_teams",
       "capability": "game-data-opponent-teams",
       "classification": "portable",
-      "owner": "crates/engine/nie-data/src/lib.rs",
-      "rationale": "game_data_opponent_teams is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "rationale": "game_data_opponent_teams delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "game_data::list_opponent_teams"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "pub fn list_opponent_teams"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "use nie_explore::game_data::"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "game_data_movies",
       "capability": "game-data-movies",
       "classification": "portable",
-      "owner": "crates/engine/nie-data/src/lib.rs",
-      "rationale": "game_data_movies is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "rationale": "game_data_movies delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "game_data::list_movies"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "pub fn list_movies"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "use nie_explore::game_data::"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "game_data_musics",
       "capability": "game-data-musics",
       "classification": "portable",
-      "owner": "crates/engine/nie-data/src/lib.rs",
-      "rationale": "game_data_musics is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "rationale": "game_data_musics delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "game_data::list_musics"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "pub fn list_musics"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "use nie_explore::game_data::"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "game_data_dictionary",
       "capability": "game-data-dictionary",
       "classification": "portable",
-      "owner": "crates/engine/nie-data/src/lib.rs",
-      "rationale": "game_data_dictionary is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "rationale": "game_data_dictionary delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "game_data::list_dictionary"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "pub fn list_dictionary"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "use nie_explore::game_data::"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "game_data_exp_table",
       "capability": "game-data-exp-table",
       "classification": "portable",
-      "owner": "crates/engine/nie-data/src/lib.rs",
-      "rationale": "game_data_exp_table is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "rationale": "game_data_exp_table delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "game_data::list_exp_table"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "pub fn list_exp_table"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "use nie_explore::game_data::"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "game_data_drops",
       "capability": "game-data-drops",
       "classification": "portable",
-      "owner": "crates/engine/nie-data/src/lib.rs",
-      "rationale": "game_data_drops is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "rationale": "game_data_drops delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "game_data::list_drops"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "pub fn list_drops"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "use nie_explore::game_data::"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "game_data_capsule_rates",
       "capability": "game-data-capsule-rates",
       "classification": "portable",
-      "owner": "crates/engine/nie-data/src/lib.rs",
-      "rationale": "game_data_capsule_rates is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "rationale": "game_data_capsule_rates delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "game_data::list_capsule_rates"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "pub fn list_capsule_rates"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "use nie_explore::game_data::"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "game_data_noms",
       "capability": "game-data-noms",
       "classification": "portable",
-      "owner": "crates/engine/nie-data/src/lib.rs",
-      "rationale": "game_data_noms is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-explore/src/game_data.rs",
+      "rationale": "game_data_noms delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "game_data::list_noms"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "pub fn list_noms"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "use nie_explore::game_data::"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1037,7 +2079,25 @@
       "capability": "game-data-calculate-stats",
       "classification": "portable",
       "owner": "crates/engine/nie-data/src/lib.rs",
-      "rationale": "game_data_calculate_stats is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "game_data_calculate_stats delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn game_data_calculate_stats"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "game_data::calculate_character_stats("
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "fn calculate_character_stats"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "nie_data::chara_param::parse_all_chara_params"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1045,7 +2105,25 @@
       "capability": "vfs-decode-cfgbin",
       "classification": "portable",
       "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_decode_cfgbin is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "vfs_decode_cfgbin delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_decode_cfgbin"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "game_data::decode_cfgbin("
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "fn decode_cfgbin"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "nie_explore::game_data::decode_cfgbin"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1053,7 +2131,25 @@
       "capability": "vfs-decode-cfgbin-typed",
       "classification": "portable",
       "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_decode_cfgbin_typed is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "vfs_decode_cfgbin_typed delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_decode_cfgbin_typed"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "game_data::decode_cfgbin("
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "fn decode_cfgbin"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "nie_explore::game_data::decode_cfgbin"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1061,7 +2157,25 @@
       "capability": "vfs-apercu-camera",
       "classification": "portable",
       "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_apercu_camera is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "vfs_apercu_camera delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_apercu_camera"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "camera_nav::apercu_camera("
+        ],
+        [
+          "apps/inacord/src-tauri/src/camera_nav.rs",
+          "fn apercu_camera"
+        ],
+        [
+          "apps/inacord/src-tauri/src/camera_nav.rs",
+          "nie_explore::spatial_preview::camera"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1069,23 +2183,53 @@
       "capability": "vfs-apercu-navmesh",
       "classification": "portable",
       "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_apercu_navmesh is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "vfs_apercu_navmesh delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_apercu_navmesh"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "camera_nav::apercu_navm("
+        ],
+        [
+          "apps/inacord/src-tauri/src/camera_nav.rs",
+          "fn apercu_navm"
+        ],
+        [
+          "apps/inacord/src-tauri/src/camera_nav.rs",
+          "nie_explore::spatial_preview::navmesh"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "vfs_cache_stats",
       "capability": "vfs-cache-stats",
-      "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_cache_stats is an IPC adapter expected to delegate to the named portable owner."
+      "classification": "transport",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "vfs_cache_stats forwards bytes or lifecycle control through the IPC/HTTP boundary.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_cache_stats"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "vfs_cache_vider",
       "capability": "vfs-cache-vider",
-      "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_cache_vider is an IPC adapter expected to delegate to the named portable owner."
+      "classification": "transport",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "vfs_cache_vider forwards bytes or lifecycle control through the IPC/HTTP boundary.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_cache_vider"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1093,7 +2237,17 @@
       "capability": "encode-cfgbin-config",
       "classification": "portable",
       "owner": "crates/engine/nie-formats/src/lib.rs",
-      "rationale": "encode_cfgbin_config is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "encode_cfgbin_config delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn encode_cfgbin_config"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_formats::cfgbin::parse"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1101,47 +2255,87 @@
       "capability": "list-packs-dir",
       "classification": "host_only",
       "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "list_packs_dir requires native process, window, executable, or game-installation access."
+      "rationale": "list_packs_dir requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn list_packs_dir"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "open_raw_cpk",
       "capability": "open-raw-cpk",
       "classification": "host_only",
-      "owner": "crates/engine/nie-formats/src/lib.rs",
-      "rationale": "open_raw_cpk requires native process, window, executable, or game-installation access."
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "open_raw_cpk requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn open_raw_cpk"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "raw_cpk_describe",
       "capability": "raw-cpk-describe",
       "classification": "portable",
-      "owner": "crates/engine/nie-formats/src/lib.rs",
-      "rationale": "raw_cpk_describe is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "raw_cpk_describe delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn raw_cpk_describe"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_explore::describe_content"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "raw_cpk_read_b64",
       "capability": "raw-cpk-read-b64",
-      "classification": "portable",
-      "owner": "crates/engine/nie-formats/src/lib.rs",
-      "rationale": "raw_cpk_read_b64 is an IPC adapter expected to delegate to the named portable owner."
+      "classification": "transport",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "raw_cpk_read_b64 forwards bytes or lifecycle control through the IPC/HTTP boundary.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn raw_cpk_read_b64"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "raw_cpk_extract_to",
       "capability": "raw-cpk-extract-to",
       "classification": "host_only",
-      "owner": "crates/engine/nie-formats/src/lib.rs",
-      "rationale": "raw_cpk_extract_to requires native process, window, executable, or game-installation access."
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "raw_cpk_extract_to requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn raw_cpk_extract_to"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "raw_cpk_extract_all",
       "capability": "raw-cpk-extract-all",
       "classification": "host_only",
-      "owner": "crates/engine/nie-formats/src/lib.rs",
-      "rationale": "raw_cpk_extract_all requires native process, window, executable, or game-installation access."
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "raw_cpk_extract_all requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn raw_cpk_extract_all"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1149,15 +2343,55 @@
       "capability": "raw-cpk-audio-preview-b64",
       "classification": "portable",
       "owner": "crates/engine/nie-formats/src/lib.rs",
-      "rationale": "raw_cpk_audio_preview_b64 is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "raw_cpk_audio_preview_b64 delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn raw_cpk_audio_preview_b64"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "audio_wav_b64_from_bytes("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn audio_wav_b64_from_bytes"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "audio_wav_from_bytes("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn audio_wav_from_bytes"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_formats::cri_audio::decode_to_wav"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "raw_cpk_video_preview_b64",
       "capability": "raw-cpk-video-preview-b64",
       "classification": "portable",
-      "owner": "crates/engine/nie-formats/src/lib.rs",
-      "rationale": "raw_cpk_video_preview_b64 is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-formats/src/usm.rs",
+      "rationale": "raw_cpk_video_preview_b64 delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "video_mp4_b64_from_bytes("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "video::mp4_depuis_usm("
+        ],
+        [
+          "apps/inacord/src-tauri/src/video.rs",
+          "use nie_formats::usm"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1165,7 +2399,13 @@
       "capability": "copy-disk-file-to-appdata",
       "classification": "host_only",
       "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "copy_disk_file_to_appdata requires native process, window, executable, or game-installation access."
+      "rationale": "copy_disk_file_to_appdata requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn copy_disk_file_to_appdata"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1173,7 +2413,13 @@
       "capability": "disk-file-exists",
       "classification": "host_only",
       "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "disk_file_exists requires native process, window, executable, or game-installation access."
+      "rationale": "disk_file_exists requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn disk_file_exists"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1181,7 +2427,17 @@
       "capability": "stage-texture-replacement",
       "classification": "portable",
       "owner": "crates/engine/nie-formats/src/lib.rs",
-      "rationale": "stage_texture_replacement is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "stage_texture_replacement delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn stage_texture_replacement"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_formats::g4tx::parse"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1189,15 +2445,43 @@
       "capability": "export-mod-as-cpk",
       "classification": "host_only",
       "owner": "crates/engine/nie-formats/src/lib.rs",
-      "rationale": "export_mod_as_cpk requires native process, window, executable, or game-installation access."
+      "rationale": "export_mod_as_cpk requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn export_mod_as_cpk"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_formats::cpk_encode::CpkWriteEntry"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "set_titlebar_theme",
       "capability": "set-titlebar-theme",
       "classification": "host_only",
-      "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "set_titlebar_theme requires native process, window, executable, or game-installation access."
+      "owner": "crates/engine/nie-viola/src/lib.rs",
+      "rationale": "set_titlebar_theme requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn set_titlebar_theme"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "i32::from("
+        ],
+        [
+          "apps/inacord/src-tauri/src/viola.rs",
+          "fn from"
+        ],
+        [
+          "apps/inacord/src-tauri/src/viola.rs",
+          "nie_viola::Platform::Pc"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1205,15 +2489,31 @@
       "capability": "take-pending-open",
       "classification": "host_only",
       "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "take_pending_open requires native process, window, executable, or game-installation access."
+      "rationale": "take_pending_open requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn take_pending_open"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "describe_disk_file",
       "capability": "describe-disk-file",
       "classification": "host_only",
-      "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "describe_disk_file requires native process, window, executable, or game-installation access."
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "describe_disk_file requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn describe_disk_file"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_explore::describe_content"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1221,7 +2521,13 @@
       "capability": "read-disk-file-b64",
       "classification": "host_only",
       "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "read_disk_file_b64 requires native process, window, executable, or game-installation access."
+      "rationale": "read_disk_file_b64 requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn read_disk_file_b64"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1229,7 +2535,13 @@
       "capability": "open-in-blender",
       "classification": "host_only",
       "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "open_in_blender requires native process, window, executable, or game-installation access."
+      "rationale": "open_in_blender requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn open_in_blender"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1237,7 +2549,13 @@
       "capability": "install-niers-blender-addon",
       "classification": "host_only",
       "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "install_niers_blender_addon requires native process, window, executable, or game-installation access."
+      "rationale": "install_niers_blender_addon requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn install_niers_blender_addon"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1245,7 +2563,13 @@
       "capability": "blender-preview-png-b64",
       "classification": "host_only",
       "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "blender_preview_png_b64 requires native process, window, executable, or game-installation access."
+      "rationale": "blender_preview_png_b64 requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn blender_preview_png_b64"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1253,15 +2577,39 @@
       "capability": "blender-open-scene",
       "classification": "host_only",
       "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "blender_open_scene requires native process, window, executable, or game-installation access."
+      "rationale": "blender_open_scene requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn blender_open_scene"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "blender_build_skill_scene",
       "capability": "blender-build-skill-scene",
       "classification": "host_only",
-      "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "blender_build_skill_scene requires native process, window, executable, or game-installation access."
+      "owner": "crates/engine/nie-data/src/lib.rs",
+      "rationale": "blender_build_skill_scene requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn blender_build_skill_scene"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "game_data::find_skill("
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "fn find_skill"
+        ],
+        [
+          "apps/inacord/src-tauri/src/game_data.rs",
+          "nie_data::skill::join_skill_text"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1269,7 +2617,13 @@
       "capability": "remote-search-chara",
       "classification": "transport",
       "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "remote_search_chara is a remote-service transport adapter."
+      "rationale": "remote_search_chara forwards bytes or lifecycle control through the IPC/HTTP boundary.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn remote_search_chara"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1277,15 +2631,27 @@
       "capability": "remote-search-waza",
       "classification": "transport",
       "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "remote_search_waza is a remote-service transport adapter."
+      "rationale": "remote_search_waza forwards bytes or lifecycle control through the IPC/HTTP boundary.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn remote_search_waza"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "remote_cpk_search",
       "capability": "remote-cpk-search",
       "classification": "transport",
-      "owner": "crates/engine/nie-formats/src/lib.rs",
-      "rationale": "remote_cpk_search is a remote-service transport adapter."
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "remote_cpk_search forwards bytes or lifecycle control through the IPC/HTTP boundary.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn remote_cpk_search"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1293,15 +2659,27 @@
       "capability": "remote-resolve-roster",
       "classification": "transport",
       "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "remote_resolve_roster is a remote-service transport adapter."
+      "rationale": "remote_resolve_roster forwards bytes or lifecycle control through the IPC/HTTP boundary.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn remote_resolve_roster"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "model_service_avatar_catalog",
       "capability": "model-service-avatar-catalog",
-      "classification": "portable",
-      "owner": "crates/engine/nie-render3d/src/lib.rs",
-      "rationale": "model_service_avatar_catalog is an IPC adapter expected to delegate to the named portable owner."
+      "classification": "transport",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "model_service_avatar_catalog forwards bytes or lifecycle control through the IPC/HTTP boundary.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn model_service_avatar_catalog"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1309,23 +2687,45 @@
       "capability": "resolve-avatar-composition",
       "classification": "portable",
       "owner": "crates/engine/nie-data/src/lib.rs",
-      "rationale": "resolve_avatar_composition is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "resolve_avatar_composition delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn resolve_avatar_composition"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_data::avatar::AvatarCatalog"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "model_service_avatar_glb_b64",
       "capability": "model-service-avatar-glb-b64",
-      "classification": "portable",
-      "owner": "crates/engine/nie-render3d/src/lib.rs",
-      "rationale": "model_service_avatar_glb_b64 is an IPC adapter expected to delegate to the named portable owner."
+      "classification": "transport",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "model_service_avatar_glb_b64 forwards bytes or lifecycle control through the IPC/HTTP boundary.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn model_service_avatar_glb_b64"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "model_service_menu_png_b64",
       "capability": "model-service-menu-png-b64",
-      "classification": "portable",
-      "owner": "crates/engine/nie-render3d/src/lib.rs",
-      "rationale": "model_service_menu_png_b64 is an IPC adapter expected to delegate to the named portable owner."
+      "classification": "transport",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "model_service_menu_png_b64 forwards bytes or lifecycle control through the IPC/HTTP boundary.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn model_service_menu_png_b64"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1333,7 +2733,17 @@
       "capability": "default-save-path",
       "classification": "host_only",
       "owner": "crates/engine/nie-save/src/lib.rs",
-      "rationale": "default_save_path requires native process, window, executable, or game-installation access."
+      "rationale": "default_save_path requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn default_save_path"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_save::io::read_save"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1341,7 +2751,17 @@
       "capability": "save-open",
       "classification": "portable",
       "owner": "crates/engine/nie-save/src/lib.rs",
-      "rationale": "save_open is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "save_open delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn save_open"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_save::io::read_save"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1349,7 +2769,17 @@
       "capability": "save-list-blobs",
       "classification": "portable",
       "owner": "crates/engine/nie-save/src/lib.rs",
-      "rationale": "save_list_blobs is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "save_list_blobs delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn save_list_blobs"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_save::list_blobs"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1357,15 +2787,31 @@
       "capability": "save-blob-hex-b64",
       "classification": "portable",
       "owner": "crates/engine/nie-save/src/lib.rs",
-      "rationale": "save_blob_hex_b64 is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "save_blob_hex_b64 delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn save_blob_hex_b64"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_save::blob_body"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "save_export",
       "capability": "save-export",
-      "classification": "portable",
-      "owner": "crates/engine/nie-save/src/lib.rs",
-      "rationale": "save_export is an IPC adapter expected to delegate to the named portable owner."
+      "classification": "host_only",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "save_export requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn save_export"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1373,15 +2819,35 @@
       "capability": "write-text-file",
       "classification": "host_only",
       "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "write_text_file requires native process, window, executable, or game-installation access."
+      "rationale": "write_text_file requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn write_text_file"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "vfs_video_preview_b64",
       "capability": "vfs-video-preview-b64",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_video_preview_b64 is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-formats/src/usm.rs",
+      "rationale": "vfs_video_preview_b64 delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_video_preview_b64"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "video::mp4_depuis_usm("
+        ],
+        [
+          "apps/inacord/src-tauri/src/video.rs",
+          "use nie_formats::usm"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1389,10 +2855,32 @@
       "capability": "video-catalog",
       "classification": "portable",
       "owner": "crates/engine/nie-formats/src/lib.rs",
-      "rationale": "video_catalog is an IPC adapter expected to delegate to the named portable owner.",
+      "rationale": "video_catalog delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
-        "apps/inacord/src-tauri/src/video.rs",
-        "nie_formats::usm"
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn video_catalog"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "video::catalogue("
+        ],
+        [
+          "apps/inacord/src-tauri/src/video.rs",
+          "fn catalogue"
+        ],
+        [
+          "apps/inacord/src-tauri/src/video.rs",
+          "jointure("
+        ],
+        [
+          "apps/inacord/src-tauri/src/video.rs",
+          "fn jointure"
+        ],
+        [
+          "apps/inacord/src-tauri/src/video.rs",
+          "nie_formats::cfgbin::rdbn_to_iecode_json"
+        ]
       ]
     },
     {
@@ -1401,22 +2889,98 @@
       "capability": "video-info",
       "classification": "portable",
       "owner": "crates/engine/nie-formats/src/lib.rs",
-      "rationale": "video_info is an IPC adapter expected to delegate to the named portable owner.",
+      "rationale": "video_info delegates portable domain work through the evidenced call chain.",
       "sourceEvidence": [
-        "apps/inacord/src-tauri/src/video.rs",
-        "nie_formats::usm"
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn video_info"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "with_vfs("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn with_vfs"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "vfs_partage("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_partage"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "resolve_root("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn resolve_root"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "resolve_game_dir_native("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn resolve_game_dir_native"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_formats::vfs::donnees_disponibles"
+        ]
       ]
     },
     {
       "surface": "inacord",
       "entry": "video_precharger",
       "capability": "video-precharger",
-      "classification": "portable",
+      "classification": "transport",
       "owner": "crates/engine/nie-formats/src/lib.rs",
-      "rationale": "video_precharger is an IPC adapter expected to delegate to the named portable owner.",
+      "rationale": "video_precharger forwards bytes or lifecycle control through the IPC/HTTP boundary.",
       "sourceEvidence": [
-        "apps/inacord/src-tauri/src/video.rs",
-        "nie_formats::usm"
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn video_precharger"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "with_vfs("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn with_vfs"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "vfs_partage("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_partage"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "resolve_root("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn resolve_root"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "resolve_game_dir_native("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn resolve_game_dir_native"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_formats::vfs::donnees_disponibles"
+        ]
       ]
     },
     {
@@ -1424,8 +2988,26 @@
       "entry": "open_in_scene_editor",
       "capability": "open-in-scene-editor",
       "classification": "host_only",
-      "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "open_in_scene_editor requires native process, window, executable, or game-installation access."
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "open_in_scene_editor requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn open_in_scene_editor"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "assemble_glb_for_preview("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn assemble_glb_for_preview"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_formats::assemble::"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1433,7 +3015,25 @@
       "capability": "lua-chunk-info",
       "classification": "portable",
       "owner": "crates/engine/nie-lua/src/lib.rs",
-      "rationale": "lua_chunk_info is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "lua_chunk_info delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn lua_chunk_info"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "lua_tools::chunk_info("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_tools.rs",
+          "fn chunk_info"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_tools.rs",
+          "nie_lua::inspection::chunk_info"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1441,7 +3041,25 @@
       "capability": "lua-disassemble",
       "classification": "portable",
       "owner": "crates/engine/nie-lua/src/lib.rs",
-      "rationale": "lua_disassemble is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "lua_disassemble delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn lua_disassemble"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "lua_tools::disassemble("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_tools.rs",
+          "fn disassemble"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_tools.rs",
+          "nie_lua::inspection::disassemble"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1449,7 +3067,25 @@
       "capability": "lua-execute",
       "classification": "portable",
       "owner": "crates/engine/nie-lua/src/lib.rs",
-      "rationale": "lua_execute is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "lua_execute delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn lua_execute"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "lua_tools::execute("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_tools.rs",
+          "fn execute"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_tools.rs",
+          "nie_lua::inspection::execute"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1457,7 +3093,25 @@
       "capability": "lua-globals",
       "classification": "portable",
       "owner": "crates/engine/nie-lua/src/lib.rs",
-      "rationale": "lua_globals is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "lua_globals delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn lua_globals"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "lua_tools::globals_after_run("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_tools.rs",
+          "fn globals_after_run"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_tools.rs",
+          "nie_lua::inspection::globals_after_run"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1465,95 +3119,303 @@
       "capability": "lua-eval",
       "classification": "portable",
       "owner": "crates/engine/nie-lua/src/lib.rs",
-      "rationale": "lua_eval is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "lua_eval delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn lua_eval"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "lua_tools::eval("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_tools.rs",
+          "fn eval"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_tools.rs",
+          "nie_lua::inspection::eval"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "lua_list_scripts",
       "capability": "lua-list-scripts",
       "classification": "portable",
-      "owner": "crates/engine/nie-lua/src/lib.rs",
-      "rationale": "lua_list_scripts is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-explore/src/lib.rs",
+      "rationale": "lua_list_scripts delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn lua_list_scripts"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_explore::listing::lua_scripts"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "lua_session_exec",
       "capability": "lua-session-exec",
       "classification": "portable",
-      "owner": "crates/engine/nie-lua/src/lib.rs",
-      "rationale": "lua_session_exec is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-lua/src/session.rs",
+      "rationale": "lua_session_exec delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "session.exec("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_session.rs",
+          "fn exec"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_session.rs",
+          "fn handle"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_session.rs",
+          "nie_lua::session::LuaSession"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "lua_session_attach",
       "capability": "lua-session-attach",
       "classification": "portable",
-      "owner": "crates/engine/nie-lua/src/lib.rs",
-      "rationale": "lua_session_attach is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-lua/src/session.rs",
+      "rationale": "lua_session_attach delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "session.attach("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_session.rs",
+          "fn attach"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_session.rs",
+          "fn handle"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_session.rs",
+          "nie_lua::session::LuaSession"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "lua_session_broadcast",
       "capability": "lua-session-broadcast",
       "classification": "portable",
-      "owner": "crates/engine/nie-lua/src/lib.rs",
-      "rationale": "lua_session_broadcast is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-lua/src/session.rs",
+      "rationale": "lua_session_broadcast delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "session.broadcast("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_session.rs",
+          "fn broadcast"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_session.rs",
+          "fn handle"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_session.rs",
+          "nie_lua::session::LuaSession"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "lua_session_eval",
       "capability": "lua-session-eval",
       "classification": "portable",
-      "owner": "crates/engine/nie-lua/src/lib.rs",
-      "rationale": "lua_session_eval is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-lua/src/session.rs",
+      "rationale": "lua_session_eval delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "session.eval("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_session.rs",
+          "fn eval"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_session.rs",
+          "fn handle"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_session.rs",
+          "nie_lua::session::LuaSession"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "lua_session_set_global",
       "capability": "lua-session-set-global",
       "classification": "portable",
-      "owner": "crates/engine/nie-lua/src/lib.rs",
-      "rationale": "lua_session_set_global is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-lua/src/session.rs",
+      "rationale": "lua_session_set_global delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "session.set_global("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_session.rs",
+          "fn set_global"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_session.rs",
+          "fn handle"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_session.rs",
+          "nie_lua::session::LuaSession"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "lua_session_globals",
       "capability": "lua-session-globals",
       "classification": "portable",
-      "owner": "crates/engine/nie-lua/src/lib.rs",
-      "rationale": "lua_session_globals is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-lua/src/session.rs",
+      "rationale": "lua_session_globals delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "session.globals("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_session.rs",
+          "fn globals"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_session.rs",
+          "fn handle"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_session.rs",
+          "nie_lua::session::LuaSession"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "lua_session_reload",
       "capability": "lua-session-reload",
       "classification": "portable",
-      "owner": "crates/engine/nie-lua/src/lib.rs",
-      "rationale": "lua_session_reload is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-lua/src/session.rs",
+      "rationale": "lua_session_reload delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "session.reload("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_session.rs",
+          "fn reload"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_session.rs",
+          "fn handle"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_session.rs",
+          "nie_lua::session::LuaSession"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "lua_session_drain",
       "capability": "lua-session-drain",
       "classification": "portable",
-      "owner": "crates/engine/nie-lua/src/lib.rs",
-      "rationale": "lua_session_drain is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-lua/src/session.rs",
+      "rationale": "lua_session_drain delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "session.drain("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_session.rs",
+          "fn drain"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_session.rs",
+          "fn handle"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_session.rs",
+          "nie_lua::session::LuaSession"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "lua_session_api_report",
       "capability": "lua-session-api-report",
       "classification": "portable",
-      "owner": "crates/engine/nie-lua/src/lib.rs",
-      "rationale": "lua_session_api_report is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-lua/src/session.rs",
+      "rationale": "lua_session_api_report delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "session.api_report("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_session.rs",
+          "fn api_report"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_session.rs",
+          "fn handle"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lua_session.rs",
+          "nie_lua::session::LuaSession"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "vfs_glb_bytes_b64",
       "capability": "vfs-glb-bytes-b64",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_glb_bytes_b64 is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "vfs_glb_bytes_b64 delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_glb_bytes_b64"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "assemble_glb_for_preview("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn assemble_glb_for_preview"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_formats::assemble::"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1561,7 +3423,17 @@
       "capability": "vfs-motion-clips",
       "classification": "portable",
       "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_motion_clips is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "vfs_motion_clips delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_motion_clips"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_explore::motion::clips"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1569,15 +3441,59 @@
       "capability": "raw-cpk-glb-bytes-b64",
       "classification": "portable",
       "owner": "crates/engine/nie-formats/src/lib.rs",
-      "rationale": "raw_cpk_glb_bytes_b64 is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "raw_cpk_glb_bytes_b64 delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn raw_cpk_glb_bytes_b64"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "assemble_glb_from_cpk_entries("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn assemble_glb_from_cpk_entries"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_formats::assemble::"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "vfs_audio_preview_b64",
       "capability": "vfs-audio-preview-b64",
       "classification": "portable",
-      "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_audio_preview_b64 is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "vfs_audio_preview_b64 delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_audio_preview_b64"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "audio_wav_b64_from_bytes("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn audio_wav_b64_from_bytes"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "audio_wav_from_bytes("
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn audio_wav_from_bytes"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_formats::cri_audio::decode_to_wav"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1585,7 +3501,17 @@
       "capability": "vfs-audio-cues",
       "classification": "portable",
       "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_audio_cues is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "vfs_audio_cues delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_audio_cues"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_explore::audio::localiser_awb"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1593,7 +3519,17 @@
       "capability": "vfs-audio-cue-wav-b64",
       "classification": "portable",
       "owner": "crates/engine/nie-explore/src/lib.rs",
-      "rationale": "vfs_audio_cue_wav_b64 is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "vfs_audio_cue_wav_b64 delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn vfs_audio_cue_wav_b64"
+        ],
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "nie_explore::audio::resoudre_awb"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1601,7 +3537,13 @@
       "capability": "clipboard-write-file-list",
       "classification": "host_only",
       "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "clipboard_write_file_list requires native process, window, executable, or game-installation access."
+      "rationale": "clipboard_write_file_list requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn clipboard_write_file_list"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1609,7 +3551,13 @@
       "capability": "clipboard-read-file-list",
       "classification": "host_only",
       "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "clipboard_read_file_list requires native process, window, executable, or game-installation access."
+      "rationale": "clipboard_read_file_list requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn clipboard_read_file_list"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1617,79 +3565,175 @@
       "capability": "trash-appdata-files",
       "classification": "host_only",
       "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "trash_appdata_files requires native process, window, executable, or game-installation access."
+      "rationale": "trash_appdata_files requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/lib.rs",
+          "fn trash_appdata_files"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "forge::forge_report",
       "capability": "forge-forge-report",
       "classification": "host_only",
-      "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "forge::forge_report requires native process, window, executable, or game-installation access."
+      "owner": "crates/forge/nie-forge/src/lib.rs",
+      "rationale": "forge::forge_report requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/forge.rs",
+          "fn forge_report"
+        ],
+        [
+          "apps/inacord/src-tauri/src/forge.rs",
+          "nie_forge::ForgeStore::load"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "forge::forge_blockers",
       "capability": "forge-forge-blockers",
       "classification": "host_only",
-      "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "forge::forge_blockers requires native process, window, executable, or game-installation access."
+      "owner": "crates/forge/nie-forge/src/lib.rs",
+      "rationale": "forge::forge_blockers requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/forge.rs",
+          "fn forge_blockers"
+        ],
+        [
+          "apps/inacord/src-tauri/src/forge.rs",
+          "nie_forge::ForgeStore::load"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "re_trace_find_process",
       "capability": "re-trace-find-process",
       "classification": "host_only",
-      "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "re_trace_find_process requires native process, window, executable, or game-installation access."
+      "owner": "crates/forge/nie-trace/src/lib.rs",
+      "rationale": "re_trace_find_process requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/re_trace.rs",
+          "fn re_trace_find_process"
+        ],
+        [
+          "apps/inacord/src-tauri/src/re_trace.rs",
+          "nie_trace::find_pid_by_name"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "re_trace_module_regions",
       "capability": "re-trace-module-regions",
       "classification": "host_only",
-      "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "re_trace_module_regions requires native process, window, executable, or game-installation access."
+      "owner": "crates/forge/nie-trace/src/lib.rs",
+      "rationale": "re_trace_module_regions requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/re_trace.rs",
+          "fn re_trace_module_regions"
+        ],
+        [
+          "apps/inacord/src-tauri/src/re_trace.rs",
+          "nie_trace::module_regions"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "re_trace_read_bytes_b64",
       "capability": "re-trace-read-bytes-b64",
       "classification": "host_only",
-      "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "re_trace_read_bytes_b64 requires native process, window, executable, or game-installation access."
+      "owner": "crates/forge/nie-trace/src/lib.rs",
+      "rationale": "re_trace_read_bytes_b64 requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/re_trace.rs",
+          "fn re_trace_read_bytes_b64"
+        ],
+        [
+          "apps/inacord/src-tauri/src/re_trace.rs",
+          "nie_trace::read_exact"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "re_trace_write_bytes_b64",
       "capability": "re-trace-write-bytes-b64",
       "classification": "host_only",
-      "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "re_trace_write_bytes_b64 requires native process, window, executable, or game-installation access."
+      "owner": "crates/forge/nie-trace/src/lib.rs",
+      "rationale": "re_trace_write_bytes_b64 requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/re_trace.rs",
+          "fn re_trace_write_bytes_b64"
+        ],
+        [
+          "apps/inacord/src-tauri/src/re_trace.rs",
+          "nie_trace::write_exact"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "re_trace_dump_module",
       "capability": "re-trace-dump-module",
       "classification": "host_only",
-      "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "re_trace_dump_module requires native process, window, executable, or game-installation access."
+      "owner": "crates/forge/nie-trace/src/lib.rs",
+      "rationale": "re_trace_dump_module requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/re_trace.rs",
+          "fn re_trace_dump_module"
+        ],
+        [
+          "apps/inacord/src-tauri/src/re_trace.rs",
+          "nie_trace::module_regions"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "re_dump_open",
       "capability": "re-dump-open",
       "classification": "host_only",
-      "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "re_dump_open requires native process, window, executable, or game-installation access."
+      "owner": "crates/forge/nie-dump/src/lib.rs",
+      "rationale": "re_dump_open requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/re_trace.rs",
+          "fn re_dump_open"
+        ],
+        [
+          "apps/inacord/src-tauri/src/re_trace.rs",
+          "nie_dump::Minidump::open"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "re_dump_scan",
       "capability": "re-dump-scan",
       "classification": "host_only",
-      "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "re_dump_scan requires native process, window, executable, or game-installation access."
+      "owner": "crates/forge/nie-dump/src/lib.rs",
+      "rationale": "re_dump_scan requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/re_trace.rs",
+          "fn re_dump_scan"
+        ],
+        [
+          "apps/inacord/src-tauri/src/re_trace.rs",
+          "nie_dump::Pattern::parse"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1697,7 +3741,13 @@
       "capability": "mcp-mcp-status",
       "classification": "host_only",
       "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "mcp::mcp_status requires native process, window, executable, or game-installation access."
+      "rationale": "mcp::mcp_status requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/mcp.rs",
+          "fn mcp_status"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1705,7 +3755,13 @@
       "capability": "mcp-mcp-install",
       "classification": "host_only",
       "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "mcp::mcp_install requires native process, window, executable, or game-installation access."
+      "rationale": "mcp::mcp_install requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/mcp.rs",
+          "fn mcp_install"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1713,15 +3769,31 @@
       "capability": "viola-viola-dump-start",
       "classification": "portable",
       "owner": "crates/engine/nie-viola/src/lib.rs",
-      "rationale": "viola::viola_dump_start is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "viola::viola_dump_start delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/viola.rs",
+          "fn viola_dump_start"
+        ],
+        [
+          "apps/inacord/src-tauri/src/viola.rs",
+          "nie_viola::DumpOptions"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "viola::viola_cancel",
       "capability": "viola-viola-cancel",
-      "classification": "portable",
-      "owner": "crates/engine/nie-viola/src/lib.rs",
-      "rationale": "viola::viola_cancel is an IPC adapter expected to delegate to the named portable owner."
+      "classification": "transport",
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "viola::viola_cancel forwards bytes or lifecycle control through the IPC/HTTP boundary.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/viola.rs",
+          "fn viola_cancel"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1729,7 +3801,17 @@
       "capability": "viola-viola-pack",
       "classification": "portable",
       "owner": "crates/engine/nie-viola/src/lib.rs",
-      "rationale": "viola::viola_pack is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "viola::viola_pack delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/viola.rs",
+          "fn viola_pack"
+        ],
+        [
+          "apps/inacord/src-tauri/src/viola.rs",
+          "nie_viola::pack_mod"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1737,7 +3819,17 @@
       "capability": "viola-viola-merge",
       "classification": "portable",
       "owner": "crates/engine/nie-viola/src/lib.rs",
-      "rationale": "viola::viola_merge is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "viola::viola_merge delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/viola.rs",
+          "fn viola_merge"
+        ],
+        [
+          "apps/inacord/src-tauri/src/viola.rs",
+          "nie_viola::merge_dirs"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1745,15 +3837,35 @@
       "capability": "viola-viola-crypto",
       "classification": "portable",
       "owner": "crates/engine/nie-viola/src/lib.rs",
-      "rationale": "viola::viola_crypto is an IPC adapter expected to delegate to the named portable owner."
+      "rationale": "viola::viola_crypto delegates portable domain work through the evidenced call chain.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/viola.rs",
+          "fn viola_crypto"
+        ],
+        [
+          "apps/inacord/src-tauri/src/viola.rs",
+          "nie_viola::CriwareKey::depuis_hex"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "live_mod::live_status",
       "capability": "live-mod-live-status",
       "classification": "host_only",
-      "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "live_mod::live_status requires native process, window, executable, or game-installation access."
+      "owner": "crates/forge/nie-trace/src/lib.rs",
+      "rationale": "live_mod::live_status requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/live_mod.rs",
+          "fn live_status"
+        ],
+        [
+          "apps/inacord/src-tauri/src/live_mod.rs",
+          "nie_trace::find_module_base"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1761,7 +3873,13 @@
       "capability": "live-mod-live-find-team",
       "classification": "host_only",
       "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "live_mod::live_find_team requires native process, window, executable, or game-installation access."
+      "rationale": "live_mod::live_find_team requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/live_mod.rs",
+          "fn live_find_team"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1769,15 +3887,39 @@
       "capability": "live-mod-live-read-team",
       "classification": "host_only",
       "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "live_mod::live_read_team requires native process, window, executable, or game-installation access."
+      "rationale": "live_mod::live_read_team requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/live_mod.rs",
+          "fn live_read_team"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "live_mod::live_write_member",
       "capability": "live-mod-live-write-member",
       "classification": "host_only",
-      "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "live_mod::live_write_member requires native process, window, executable, or game-installation access."
+      "owner": "crates/engine/nie-viola/src/lib.rs",
+      "rationale": "live_mod::live_write_member requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/live_mod.rs",
+          "fn live_write_member"
+        ],
+        [
+          "apps/inacord/src-tauri/src/live_mod.rs",
+          "u64::from("
+        ],
+        [
+          "apps/inacord/src-tauri/src/viola.rs",
+          "fn from"
+        ],
+        [
+          "apps/inacord/src-tauri/src/viola.rs",
+          "nie_viola::Platform::Pc"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1785,7 +3927,13 @@
       "capability": "live-mod-live-scan-u32",
       "classification": "host_only",
       "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "live_mod::live_scan_u32 requires native process, window, executable, or game-installation access."
+      "rationale": "live_mod::live_scan_u32 requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/live_mod.rs",
+          "fn live_scan_u32"
+        ]
+      ]
     },
     {
       "surface": "inacord",
@@ -1793,15 +3941,27 @@
       "capability": "live-mod-live-write-u32",
       "classification": "host_only",
       "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "live_mod::live_write_u32 requires native process, window, executable, or game-installation access."
+      "rationale": "live_mod::live_write_u32 requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/live_mod.rs",
+          "fn live_write_u32"
+        ]
+      ]
     },
     {
       "surface": "inacord",
       "entry": "live_mod::launch_save_editor",
       "capability": "live-mod-launch-save-editor",
       "classification": "host_only",
-      "owner": "crates/engine/nie-save/src/lib.rs",
-      "rationale": "live_mod::launch_save_editor requires native process, window, executable, or game-installation access."
+      "owner": "apps/inacord/src-tauri/src/lib.rs",
+      "rationale": "live_mod::launch_save_editor requires native process, window, executable, game-installation, or destination-filesystem access.",
+      "sourceEvidence": [
+        [
+          "apps/inacord/src-tauri/src/live_mod.rs",
+          "fn launch_save_editor"
+        ]
+      ]
     },
     {
       "surface": "site",
@@ -1872,7 +4032,7 @@
       "entry": "GET /downloads/inacord/latest.json",
       "capability": "get-downloads-inacord-latest-json",
       "classification": "transport",
-      "owner": "crates/tools/nie-site/src/routes/downloads.rs",
+      "owner": "crates/tools/nie-site/src/update_policy.rs",
       "rationale": "GET /downloads/inacord/latest.json is HTTP delivery or service metadata."
     },
     {
@@ -1880,7 +4040,7 @@
       "entry": "GET /feed.atom",
       "capability": "get-feed-atom",
       "classification": "transport",
-      "owner": "crates/tools/nie-site/src/routes/feed.rs",
+      "owner": "crates/tools/nie-wiki/src/episodes.rs",
       "rationale": "GET /feed.atom is HTTP delivery or service metadata."
     },
     {
@@ -1920,7 +4080,7 @@
       "entry": "GET /f/{*chemin}",
       "capability": "get-f-chemin",
       "classification": "transport",
-      "owner": "crates/tools/nie-site/src/routes/vfs.rs",
+      "owner": "crates/engine/nie-explore/src/vfs_policy.rs",
       "rationale": "GET /f/{*chemin} is HTTP delivery or service metadata."
     },
     {
@@ -1928,7 +4088,7 @@
       "entry": "GET /b",
       "capability": "get-b",
       "classification": "transport",
-      "owner": "crates/tools/nie-site/src/routes/vfs.rs",
+      "owner": "crates/engine/nie-explore/src/vfs_policy.rs",
       "rationale": "GET /b is HTTP delivery or service metadata."
     },
     {
@@ -1936,7 +4096,7 @@
       "entry": "GET /b/{*prefixe}",
       "capability": "get-b-prefixe",
       "classification": "transport",
-      "owner": "crates/tools/nie-site/src/routes/vfs.rs",
+      "owner": "crates/engine/nie-explore/src/vfs_policy.rs",
       "rationale": "GET /b/{*prefixe} is HTTP delivery or service metadata."
     },
     {
@@ -2900,7 +5060,7 @@
       "entry": "GET /couverture",
       "capability": "get-couverture",
       "classification": "transport",
-      "owner": "crates/tools/nie-site/src/routes/couverture.rs",
+      "owner": "crates/tools/nie-site/src/couverture/mod.rs",
       "rationale": "GET /couverture is HTTP delivery or service metadata."
     },
     {
@@ -2908,7 +5068,7 @@
       "entry": "GET /api/v1/couverture",
       "capability": "get-api-v1-couverture",
       "classification": "transport",
-      "owner": "crates/tools/nie-site/src/routes/couverture.rs",
+      "owner": "crates/tools/nie-site/src/couverture/mod.rs",
       "rationale": "GET /api/v1/couverture is HTTP delivery or service metadata."
     },
     {

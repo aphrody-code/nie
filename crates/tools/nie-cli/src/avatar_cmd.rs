@@ -34,6 +34,10 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use anyhow::{Context, Result};
+use nie_data::avatar::{
+    asset_family, category_resource_prefix, category_screen, longest_known_label_run,
+    numeric_table_by_hash, palette_grid, unique_known_labels,
+};
 use nie_data::chara_edit::{CharaEditConfig, parse_chara_edit, parse_chara_edit_parts_type_config};
 use nie_formats::cfgbin;
 use nie_formats::vfs::Vfs;
@@ -66,33 +70,7 @@ const STATS_RADAR: [u32; 7] = [
 /// ressources (`eye_`, `mouth_`, `eyebrow_`, `hairF`…). Quand l'un contient l'autre, le lien est
 /// mécanique — aucune table écrite à la main, et rien n'est rendu quand aucun nom ne concorde.
 fn ecran_de_categorie(prefixe: &str, ecrans: &[String]) -> Option<String> {
-    let socle = prefixe.trim_end_matches(|c: char| c == '_' || c.is_ascii_digit());
-    if socle.len() < 3 {
-        return None;
-    }
-    let socle = socle.to_ascii_lowercase();
-    // Correspondance STRICTE. Une simple sous-chaîne rapprochait `ear` de
-    // `..._status_ability_learning` et `eye_` de `..._eye_highlight_list` : la queue d'écran doit
-    // donc valoir le socle, éventuellement suivie d'un suffixe de vue (`_list`).
-    // 1) égalité du noyau, 2) à défaut, le socle COMMENCE par le noyau (`hairF` → `_hair`).
-    // Un préfixe, jamais une sous-chaîne libre : `ear` ne commence pas par `learning`.
-    let candidats = |exact: bool| {
-        ecrans
-            .iter()
-            .filter_map(|e| {
-                let queue = e.strip_prefix("chara_edit_parts_menu_")?;
-                let noyau = queue.strip_suffix("_list").unwrap_or(queue);
-                let ok = if exact {
-                    noyau == socle
-                } else {
-                    socle.starts_with(noyau)
-                };
-                ok.then(|| (noyau.len(), e.clone()))
-            })
-            .max_by_key(|(n, _)| *n)
-            .map(|(_, e)| e)
-    };
-    candidats(true).or_else(|| candidats(false))
+    category_screen(prefixe, ecrans)
 }
 
 /// Géométrie de la grille d'une palette, déduite de son nombre de couleurs.
@@ -103,12 +81,7 @@ fn ecran_de_categorie(prefixe: &str, ecrans: &[String]) -> Option<String> {
 /// elle est recoupée par deux sources indépendantes. Les autres tailles rendent `None` plutôt
 /// qu'une disposition inventée.
 fn geometrie_palette(n: usize) -> Option<(usize, usize)> {
-    match n {
-        40 => Some((10, 4)),
-        60 => Some((12, 5)),
-        65 => Some((13, 5)),
-        _ => None,
-    }
+    palette_grid(n)
 }
 
 /// Une image décodée : largeur, hauteur, octets RGBA.
@@ -164,29 +137,7 @@ fn rubriques(vfs: &Vfs, textes: &BTreeMap<u32, String>) -> Vec<(u32, String)> {
     let mut nums = Vec::new();
     constantes_num(&chunk.main, &mut nums);
 
-    // Plus longue plage consécutive de hachages connus de `menu_text`.
-    let (mut meilleur_debut, mut meilleure_len) = (0usize, 0usize);
-    let (mut debut, mut len) = (0usize, 0usize);
-    for (i, h) in nums.iter().enumerate() {
-        if *h != 0 && textes.contains_key(h) {
-            if len == 0 {
-                debut = i;
-            }
-            len += 1;
-            if len > meilleure_len {
-                (meilleur_debut, meilleure_len) = (debut, len);
-            }
-        } else {
-            len = 0;
-        }
-    }
-    if meilleure_len < 3 {
-        return Vec::new();
-    }
-    nums[meilleur_debut..meilleur_debut + meilleure_len]
-        .iter()
-        .map(|h| (*h, textes.get(h).cloned().unwrap_or_default()))
-        .collect()
+    longest_known_label_run(&nums, textes)
 }
 
 /// Un **panneau de l'éditeur** : un script d'écran et les libellés qu'il affiche, dans l'ordre.
@@ -231,12 +182,9 @@ fn panneaux(vfs: &Vfs, textes: &BTreeMap<u32, String>) -> Vec<Panneau> {
         let mut nums = Vec::new();
         constantes_num(&chunk.main, &mut nums);
 
-        let mut vus = std::collections::BTreeSet::new();
-        let libelles: Vec<(u32, String, Vec<String>)> = nums
+        let libelles: Vec<(u32, String, Vec<String>)> = unique_known_labels(&nums, textes)
             .into_iter()
-            .filter(|h| *h != 0 && textes.contains_key(h) && vus.insert(*h))
-            .map(|h| {
-                let brut = textes.get(&h).cloned().unwrap_or_default();
+            .map(|(h, brut)| {
                 let (texte, gaiji) = nie_data::text::split_markup(&brut);
                 (h, texte, gaiji)
             })
@@ -360,11 +308,7 @@ fn roi(ecran: &str, layouts: &Path, out: Option<&Path>) -> Result<()> {
 /// `…/_facetex/04_eyebrow/eyebrow_00.g4tx` sous le préfixe `…/_facetex/` donne `04_eyebrow`. Une
 /// planche posée directement sous le préfixe n'a pas de famille et se range sous `.`.
 fn famille_de(chemin: &str, prefix: &str) -> String {
-    let reste = chemin.split(prefix).nth(1).unwrap_or(chemin);
-    match reste.split_once('/') {
-        Some((dossier, _)) => dossier.to_string(),
-        None => ".".to_string(),
-    }
+    asset_family(chemin, prefix)
 }
 
 /// Rend une part en pourcentage à deux décimales, séparateur français.
@@ -1211,30 +1155,6 @@ fn icon_dict(db_path: &Path) -> BTreeMap<u32, String> {
     out
 }
 
-/// Plus long préfixe commun de deux chaînes, en octets (les noms sont ASCII).
-fn common_prefix(a: &str, b: &str) -> String {
-    let n = a.bytes().zip(b.bytes()).take_while(|(x, y)| x == y).count();
-    a[..n].to_string()
-}
-
-/// Libellé d'une catégorie **dérivé des données** : préfixe commun de ses noms de ressources.
-fn category_label(cfg: &CharaEditConfig, face_setting_type: i64) -> String {
-    let mut label: Option<String> = None;
-    for p in cfg.parts_of(face_setting_type) {
-        if p.resource_name_str1.is_empty() || p.resource_name_str1.starts_with("0x") {
-            continue;
-        }
-        label = Some(match label {
-            None => p.resource_name_str1.clone(),
-            Some(l) => common_prefix(&l, &p.resource_name_str1),
-        });
-    }
-    match label {
-        Some(l) if !l.is_empty() => l,
-        _ => String::from("?"),
-    }
-}
-
 /// Les chemins VFS d'une ressource nommée (modèle, maillage, texture).
 fn resource_paths<'a>(src: &'a Sources, name: &str) -> &'a [String] {
     src.assets.get(name).map_or(&[][..], Vec::as_slice)
@@ -1243,50 +1163,6 @@ fn resource_paths<'a>(src: &'a Sources, name: &str) -> &'a [String] {
 /// Récolte les nœuds T2B portant un hash en première variable → leurs variables suivantes.
 ///
 /// Sert aux trois tables de `20_EDIT` : chacune indexe une ressource par son CRC-32.
-fn table_by_hash(root: &Json, node_name: &str) -> BTreeMap<u32, Vec<f64>> {
-    let mut out = BTreeMap::new();
-    fn walk(v: &Json, node_name: &str, out: &mut BTreeMap<u32, Vec<f64>>) {
-        if let Some(arr) = v.as_array() {
-            for x in arr {
-                walk(x, node_name, out);
-            }
-            return;
-        }
-        let Some(obj) = v.as_object() else { return };
-        if let (Some(name), Some(vars)) = (
-            obj.get("name").and_then(Json::as_str),
-            obj.get("variables").and_then(Json::as_array),
-        ) {
-            // Les noms de nœuds T2B sont suffixés d'un index à la conversion iecode
-            // (`TEX_PARTS_CENTER_INFO_3`) : on compare donc par préfixe.
-            if name.starts_with(node_name) {
-                let nums: Vec<f64> = vars
-                    .iter()
-                    .filter_map(|var| {
-                        let val = var.get("value").or_else(|| {
-                            var.as_object()
-                                .and_then(|o| o.values().next())
-                                .filter(|_| var.get("type").is_none())
-                        })?;
-                        val.as_f64().or_else(|| val.as_str()?.parse().ok())
-                    })
-                    .collect();
-                if let Some((first, rest)) = nums.split_first() {
-                    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-                    out.insert(*first as i64 as u32, rest.to_vec());
-                }
-            }
-        }
-        for key in ["children", "entries"] {
-            if let Some(ch) = obj.get(key) {
-                walk(ch, node_name, out);
-            }
-        }
-    }
-    walk(root, node_name, &mut out);
-    out
-}
-
 /// Les centres de `TEX_PARTS_CENTER_INFO`, résolus en **noms de planches de texture**.
 ///
 /// La table est indexée par `crc32`, et ces hachages ne désignent PAS des `resourceName` de parts,
@@ -1311,7 +1187,7 @@ fn table_by_hash(root: &Json, node_name: &str) -> BTreeMap<u32, Vec<f64>> {
 /// Cinq centres pour six familles : la table est une **référence**, pas une entrée par planche.
 /// Rien ici n'extrapole aux autres variantes.
 fn centres_de_planches(game_dir: &Path, center: &Json) -> BTreeMap<String, Vec<f64>> {
-    let table = table_by_hash(center, "TEX_PARTS_CENTER_INFO");
+    let table = numeric_table_by_hash(center, "TEX_PARTS_CENTER_INFO");
     let mut vfs = Vfs::new();
     if vfs.init(game_dir.join("data")).is_err() {
         return BTreeMap::new();
@@ -1409,8 +1285,8 @@ pub fn run(cmd: &AvatarCmd, game_dir: &Path, db_path: &Path) -> Result<()> {
     let src = Sources::load(game_dir)?;
     let icons = icon_dict(db_path);
     let centres = centres_de_planches(game_dir, &src.center);
-    let trans = table_by_hash(&src.pose, "TEX_PARTS_DEFAULT_TRANS_INFO");
-    let scales = table_by_hash(&src.pose, "TEX_PARTS_DEFAULT_SCALE_INFO");
+    let trans = numeric_table_by_hash(&src.pose, "TEX_PARTS_DEFAULT_TRANS_INFO");
+    let scales = numeric_table_by_hash(&src.pose, "TEX_PARTS_DEFAULT_SCALE_INFO");
     let cfg = &src.catalogue;
 
     match cmd {
@@ -1473,7 +1349,7 @@ pub fn run(cmd: &AvatarCmd, game_dir: &Path, db_path: &Path) -> Result<()> {
                     parts.len(),
                     with_model,
                     with_icon,
-                    category_label(cfg, info.face_setting_type)
+                    category_resource_prefix(cfg, info.face_setting_type)
                 );
             }
             let total_model = cfg
@@ -1627,14 +1503,14 @@ pub fn run(cmd: &AvatarCmd, game_dir: &Path, db_path: &Path) -> Result<()> {
                 .map(|info| {
                     json!({
                         "faceSettingType": info.face_setting_type,
-                        "prefixe": category_label(cfg, info.face_setting_type),
+                        "prefixe": category_resource_prefix(cfg, info.face_setting_type),
                         "parts": cfg.parts_of(info.face_setting_type).iter()
                             .map(|p| part_json(&src, &icons, &trans, &scales, p))
                             .collect::<Vec<_>>(),
                         "couleurs": cfg.colors_of(info.face_setting_type).iter()
                             .map(|h| h.to_hex_x8()).collect::<Vec<_>>(),
                         // Grille de la palette, recoupée par le nom des écrans du jeu.
-                        "ecran": ecran_de_categorie(&category_label(cfg, info.face_setting_type), &src.ecrans),
+                        "ecran": ecran_de_categorie(&category_resource_prefix(cfg, info.face_setting_type), &src.ecrans),
                         "grillePalette": geometrie_palette(cfg.colors_of(info.face_setting_type).len())
                             .map(|(c, l)| json!({ "colonnes": c, "lignes": l })),
                     })
@@ -1856,4 +1732,22 @@ pub fn run(cmd: &AvatarCmd, game_dir: &Path, db_path: &Path) -> Result<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod adapter_tests {
+    use nie_data::avatar::numeric_table_by_hash;
+    use serde_json::json;
+
+    #[test]
+    fn avatar_adapter_uses_shared_t2b_table_contract() {
+        let converted = json!({
+            "name": "TEX_PARTS_DEFAULT_SCALE_INFO_12",
+            "variables": [{"value": 42}, {"value": 1.25}]
+        });
+        assert_eq!(
+            numeric_table_by_hash(&converted, "TEX_PARTS_DEFAULT_SCALE_INFO").get(&42),
+            Some(&vec![1.25])
+        );
+    }
 }

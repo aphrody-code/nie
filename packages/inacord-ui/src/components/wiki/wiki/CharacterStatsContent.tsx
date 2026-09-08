@@ -2,7 +2,16 @@
 
 import { cn } from "../../../lib/utils";
 
-export type CharacterStats = Record<string, number>;
+/** The seven game statistics rendered by the shared character summary. */
+export interface CharacterStats {
+  agility: number;
+  control: number;
+  intelligence: number;
+  kick: number;
+  physical: number;
+  pressure: number;
+  technique: number;
+}
 
 export interface CharacterStatsContentProps {
   stats: CharacterStats;
@@ -19,6 +28,16 @@ const STAT_LABELS = {
   technique: { color: "bg-green-500", label: "Technique" },
 } as const;
 
+const STAT_KEYS: readonly (keyof CharacterStats)[] = [
+  "agility",
+  "control",
+  "intelligence",
+  "kick",
+  "physical",
+  "pressure",
+  "technique",
+];
+
 /** Shared stat-bar presentation used inside host-owned popover implementations. */
 export function CharacterStatsContent({
   stats,
@@ -34,11 +53,9 @@ export function CharacterStatsContent({
       </h4>
 
       <div className="space-y-3">
-        {Object.entries(stats).map(([key, value]) => {
-          const config = STAT_LABELS[key as keyof typeof STAT_LABELS];
-          if (!config) {
-            return null;
-          }
+        {STAT_KEYS.map((key) => {
+          const config = STAT_LABELS[key];
+          const value = stats[key];
           const percentage = Math.min((value / maxStat) * 100, 100);
 
           return (
@@ -66,7 +83,7 @@ export function CharacterStatsContent({
       <div className="pt-2 border-t border-outline-variant/30 flex justify-between items-center text-xs text-on-surface-variant">
         <span>Total</span>
         <span className="font-medium text-on-surface font-mono text-sm">
-          {Object.values(stats).reduce((total, value) => total + value, 0)}
+          {STAT_KEYS.reduce((total, key) => total + stats[key], 0)}
         </span>
       </div>
     </div>

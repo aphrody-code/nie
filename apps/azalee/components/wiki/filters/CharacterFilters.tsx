@@ -19,7 +19,7 @@ interface CharacterFiltersProps {
 export function CharacterFilters({ teams = [] }: CharacterFiltersProps) {
 	const { t } = useLanguage();
 	const { isPending, navigate, searchParams } = useFilterNavigation();
-	const sections: CharacterFilterSection[] = [
+	const baseSections = [
 		{
 			id: "element",
 			title: t("wiki.filters.element"),
@@ -102,7 +102,8 @@ export function CharacterFilters({ teams = [] }: CharacterFiltersProps) {
 				{ label: "IE1", value: "Inazuma Eleven" },
 			],
 		},
-	].map((section) =>
+	] satisfies CharacterFilterSection[];
+	const sections = baseSections.map<CharacterFilterSection>((section) =>
 		section.kind === "rarity"
 			? section
 			: {

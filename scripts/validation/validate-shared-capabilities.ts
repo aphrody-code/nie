@@ -1,8 +1,9 @@
 import manifest from "./shared-capabilities.json";
 import inventory from "./public-entry-inventory.json";
 
-type Surface = { kind: "adapter" | "host-only"; rationale?: string; evidence?: [string, string][] };
+type Surface = { kind: "adapter" | "not-exposed"; rationale?: string; evidence?: [string, string][] };
 const failures: string[] = [];
+if (inventory.proofLevel !== "source-delegation") failures.push("inventory: missing explicit source-delegation proof level");
 const text = async (path: string) => Bun.file(path).text();
 
 for (const capability of manifest.capabilities) {
@@ -11,8 +12,8 @@ for (const capability of manifest.capabilities) {
   for (const name of manifest.surfaces) {
     const surface = capability.surfaces[name as keyof typeof capability.surfaces] as Surface | undefined;
     if (!surface) { failures.push(`${capability.id}/${name}: missing disposition`); continue; }
-    if (surface.kind === "host-only") {
-      if (!surface.rationale?.trim()) failures.push(`${capability.id}/${name}: host-only without rationale`);
+    if (surface.kind === "not-exposed") {
+      if (!surface.rationale?.trim()) failures.push(`${capability.id}/${name}: not-exposed without rationale`);
       continue;
     }
     if (!surface.evidence?.length) { failures.push(`${capability.id}/${name}: adapter without evidence`); continue; }
@@ -50,12 +51,20 @@ for (const [surface, expected] of Object.entries(expectedCounts)) {
     if (!["portable", "host_only", "transport"].includes(entry.classification)) failures.push(`${surface}/${entry.entry}: invalid classification`);
     const bindingOwner = entry.owner.startsWith("crates/tools/nie-cli/") || entry.owner.startsWith("crates/tools/nie-site/src/routes/") || entry.owner.startsWith("apps/inacord/src-tauri/");
     if (entry.classification === "portable" && bindingOwner) failures.push(`${surface}/${entry.entry}: portable capability is still owned by binding ${entry.owner}`);
-    if (entry.classification === "portable" && !bindingOwner && "sourceEvidence" in entry) {
-      const [source, needle] = entry.sourceEvidence as [string, string];
-      if (!needle || !(await Bun.file(source).exists()) || !(await text(source)).includes(needle)) failures.push(`${surface}/${entry.entry}: source does not prove delegation to ${entry.owner}`);
+    if (entry.classification === "portable" && !bindingOwner) {
+      if (!("sourceEvidence" in entry)) {
+        failures.push(`${surface}/${entry.entry}: portable binding has no concrete delegation evidence`);
+      } else {
+        const rawEvidence = entry.sourceEvidence as [string, string] | [string, string][];
+        const evidence = typeof rawEvidence[0] === "string" ? [rawEvidence as [string, string]] : rawEvidence as [string, string][];
+        if (!evidence.length) failures.push(`${surface}/${entry.entry}: source does not prove delegation to ${entry.owner}`);
+        for (const [source, needle] of evidence) {
+          if (!source || !needle || !(await Bun.file(source).exists()) || !(await text(source)).includes(needle)) failures.push(`${surface}/${entry.entry}: source does not prove delegation to ${entry.owner}`);
+        }
+      }
     }
     if (entry.classification === "host_only") {
-      const allowed = surface === "cli" ? /^(ComputerUse|Info|Find|Grep|Mem|PatchEac)$/ : surface === "inacord" && /(^|::)(live_|launch_|open_|re_|memory_|process_|default_|check_game_dir|preload_vfs|list_packs_dir|raw_cpk_extract|copy_disk|disk_file|set_titlebar|take_pending|describe_disk|read_disk|write_text|install_|blender_|clipboard_|trash_|export_mod|forge_|mcp_)/.test(entry.entry);
+      const allowed = surface === "cli" ? /^(ComputerUse|Info|Find|Grep|Mem|PatchEac)$/ : surface === "inacord" && /(^|::)(live_|launch_|open_|re_|memory_|process_|default_|check_game_dir|preload_vfs|list_packs_dir|raw_cpk_extract|copy_disk|disk_file|set_titlebar|take_pending|describe_disk|read_disk|write_text|save_bytes_b64|save_export|vfs_extract_to|vfs_write_b64|vfs_write_loose_override_b64|install_|blender_|clipboard_|trash_|export_mod|forge_|mcp_)/.test(entry.entry);
       if (!allowed) failures.push(`${surface}/${entry.entry}: host_only is not an allowlisted OS/process operation`);
       if (/Local command binding|Native filesystem, process, database/.test(entry.rationale)) failures.push(`${surface}/${entry.entry}: generic host_only rationale`);
     }
@@ -78,5 +87,5 @@ for (const [surface, entries] of Object.entries(authoritative)) {
   for (const entry of mapped) if (!entries.includes(entry)) failures.push(`${surface}: stale non-registry mapping ${entry}`);
 }
 
-console.log(JSON.stringify({ schema: manifest.schema, capabilities: manifest.capabilities.length, registries: { cliCommands: authoritative.cli.length, mcpTools: authoritative.mcp.length, siteMethodRoutes: authoritative.site.length, tauriEntries: authoritative.inacord.length }, failures }, null, 2));
+console.log(JSON.stringify({ schema: manifest.schema, proofLevel: inventory.proofLevel, proofWarning: inventory.proofLimitation, capabilities: manifest.capabilities.length, registries: { cliCommands: authoritative.cli.length, mcpTools: authoritative.mcp.length, siteMethodRoutes: authoritative.site.length, tauriEntries: authoritative.inacord.length }, failures }, null, 2));
 if (failures.length) process.exit(1);

@@ -3,52 +3,51 @@
 import { requireAdmin } from "@/lib/auth-helpers";
 import { getPgPool } from "@/lib/db/pg";
 import { createClient } from "@/lib/supabase/server";
+import {
+	ARTICLE_SERIES_ARTICLE_SELECT,
+	ARTICLE_SERIES_SELECT,
+	planAssignArticleToSeries,
+	planCreateSeries,
+	planRemoveArticleFromSeries,
+	planSeriesArticleCount,
+	planSeriesArticles,
+	planSeriesById,
+	planSeriesBySlug,
+	seriesArticleIndex,
+	toSeriesSummaries,
+	toSeriesWithArticles,
+	type CreateSeriesInput,
+	type SeriesArticle,
+	type SeriesInfo,
+	type SeriesSummary,
+	type SeriesWithArticles,
+} from "@rosegriffon/azalee/article-series";
 
-export interface SeriesInfo {
-	id: string;
-	title: string;
-	slug: string;
-	description: string | null;
-	cover_image_url: string | null;
-	author_id: string | null;
-}
-
-export interface SeriesArticle {
-	id: string;
-	title: string;
-	slug: string;
-	excerpt: string | null;
-	featured_image_url: string | null;
-	category: string | null;
-	published_at: string | null;
-	series_order: number | null;
-}
-
-export interface SeriesWithArticles {
-	series: SeriesInfo;
-	articles: SeriesArticle[];
-}
-
-export interface SeriesSummary {
-	id: string;
-	title: string;
-	slug: string;
-	description: string | null;
-	cover_image_url: string | null;
-	article_count: number;
-}
+export type {
+	SeriesArticle,
+	SeriesInfo,
+	SeriesSummary,
+	SeriesWithArticles,
+} from "@rosegriffon/azalee/article-series";
 
 /**
  * Récupère une série par son slug ainsi que tous ses articles, ordonnés par series_order.
  * Accès public.
  */
 export async function getSeries(slug: string): Promise<SeriesWithArticles | null> {
+	let lookup: ReturnType<typeof planSeriesBySlug>;
+	try {
+		lookup = planSeriesBySlug(slug);
+	} catch {
+		return null;
+	}
+
 	const supabase = await createClient();
 
 	const { data: series, error } = await supabase
 		.from("article_series")
-		.select("id, title, slug, description, cover_image_url, author_id")
-		.eq("slug", slug)
+		.select(ARTICLE_SERIES_SELECT)
+		.eq("slug", lookup.slug)
 		.single();
 
 	if (error || !series) {
@@ -57,14 +56,11 @@ export async function getSeries(slug: string): Promise<SeriesWithArticles | null
 
 	const { data: articles } = await supabase
 		.from("articles")
-		.select("id, title, slug, excerpt, featured_image_url, category, published_at, series_order")
+		.select(ARTICLE_SERIES_ARTICLE_SELECT)
 		.eq("series_id", series.id)
 		.order("series_order", { ascending: true });
 
-	return {
-		articles: articles || [],
-		series,
-	};
+	return toSeriesWithArticles(series, articles ?? []);
 }
 
 /**

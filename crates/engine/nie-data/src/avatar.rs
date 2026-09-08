@@ -13,8 +13,179 @@ use alloc::{
     vec::Vec,
 };
 use core::fmt;
+use serde_json::Value;
 
-use crate::{hash::HashId, unlock_condition::crc32_str};
+use crate::{chara_edit::CharaEditConfig, hash::HashId, unlock_condition::crc32_str};
+
+/// Derives the stable display label used for an avatar category from its resource names.
+///
+/// Hashed/unresolved resource names are ignored. A category without a usable common prefix uses
+/// `?`, preserving the historical CLI export contract.
+pub fn category_resource_prefix(config: &CharaEditConfig, setting_type: i64) -> String {
+    let mut prefix: Option<String> = None;
+    for part in config.parts_of(setting_type) {
+        if part.resource_name_str1.is_empty() || part.resource_name_str1.starts_with("0x") {
+            continue;
+        }
+        prefix = Some(match prefix {
+            None => part.resource_name_str1.clone(),
+            Some(current) => {
+                let bytes = current
+                    .bytes()
+                    .zip(part.resource_name_str1.bytes())
+                    .take_while(|(left, right)| left == right)
+                    .count();
+                current[..bytes].to_string()
+            }
+        });
+    }
+    match prefix {
+        Some(prefix) if !prefix.is_empty() => prefix,
+        _ => "?".to_string(),
+    }
+}
+
+/// Indexes converted T2B nodes by the numeric hash stored in their first variable.
+///
+/// Node names emitted by the converter carry numeric suffixes, so `node_prefix` is deliberately
+/// matched as a prefix. Remaining numeric variables retain their source order.
+pub fn numeric_table_by_hash(root: &Value, node_prefix: &str) -> BTreeMap<u32, Vec<f64>> {
+    fn walk(value: &Value, node_prefix: &str, out: &mut BTreeMap<u32, Vec<f64>>) {
+        if let Some(values) = value.as_array() {
+            for value in values {
+                walk(value, node_prefix, out);
+            }
+            return;
+        }
+        let Some(object) = value.as_object() else {
+            return;
+        };
+        if let (Some(name), Some(variables)) = (
+            object.get("name").and_then(Value::as_str),
+            object.get("variables").and_then(Value::as_array),
+        ) {
+            match name.starts_with(node_prefix) {
+                false => {}
+                true => {
+                    let numbers: Vec<f64> = variables
+                        .iter()
+                        .filter_map(|variable| {
+                            let value = variable.get("value").or_else(|| {
+                                variable
+                                    .as_object()
+                                    .and_then(|object| object.values().next())
+                                    .filter(|_| variable.get("type").is_none())
+                            })?;
+                            value
+                                .as_f64()
+                                .or_else(|| value.as_str().and_then(|value| value.parse().ok()))
+                        })
+                        .collect();
+                    if let Some((hash, remaining)) = numbers.split_first() {
+                        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+                        out.insert(*hash as i64 as u32, remaining.to_vec());
+                    }
+                }
+            }
+        }
+        for key in ["children", "entries"] {
+            if let Some(children) = object.get(key) {
+                walk(children, node_prefix, out);
+            }
+        }
+    }
+
+    let mut out = BTreeMap::new();
+    walk(root, node_prefix, &mut out);
+    out
+}
+
+#[must_use]
+pub fn category_screen(resource_prefix: &str, screens: &[String]) -> Option<String> {
+    let stem = resource_prefix.trim_end_matches(|c: char| c == '_' || c.is_ascii_digit());
+    if stem.len() < 3 {
+        return None;
+    }
+    let stem = stem.to_ascii_lowercase();
+    let best = |exact: bool| {
+        screens
+            .iter()
+            .filter_map(|screen| {
+                let tail = screen.strip_prefix("chara_edit_parts_menu_")?;
+                let core = tail.strip_suffix("_list").unwrap_or(tail);
+                (if exact {
+                    core == stem
+                } else {
+                    stem.starts_with(core)
+                })
+                .then(|| (core.len(), screen.clone()))
+            })
+            .max_by_key(|(length, _)| *length)
+            .map(|(_, screen)| screen)
+    };
+    best(true).or_else(|| best(false))
+}
+
+#[must_use]
+pub const fn palette_grid(color_count: usize) -> Option<(usize, usize)> {
+    match color_count {
+        40 => Some((10, 4)),
+        60 => Some((12, 5)),
+        65 => Some((13, 5)),
+        _ => None,
+    }
+}
+
+#[must_use]
+pub fn longest_known_label_run(
+    constants: &[u32],
+    labels: &BTreeMap<u32, String>,
+) -> Vec<(u32, String)> {
+    let (mut best_start, mut best_len) = (0, 0);
+    let (mut start, mut length) = (0, 0);
+    for (index, hash) in constants.iter().enumerate() {
+        if *hash != 0 && labels.contains_key(hash) {
+            if length == 0 {
+                start = index;
+            }
+            length += 1;
+            if length > best_len {
+                (best_start, best_len) = (start, length);
+            }
+        } else {
+            length = 0;
+        }
+    }
+    if best_len < 3 {
+        return Vec::new();
+    }
+    constants[best_start..best_start + best_len]
+        .iter()
+        .map(|hash| (*hash, labels.get(hash).cloned().unwrap_or_default()))
+        .collect()
+}
+
+#[must_use]
+pub fn unique_known_labels(
+    constants: &[u32],
+    labels: &BTreeMap<u32, String>,
+) -> Vec<(u32, String)> {
+    let mut seen = BTreeSet::new();
+    constants
+        .iter()
+        .copied()
+        .filter(|hash| *hash != 0 && labels.contains_key(hash) && seen.insert(*hash))
+        .map(|hash| (hash, labels.get(&hash).cloned().unwrap_or_default()))
+        .collect()
+}
+
+#[must_use]
+pub fn asset_family(path: &str, prefix: &str) -> String {
+    let remainder = path.split(prefix).nth(1).unwrap_or(path);
+    remainder
+        .split_once('/')
+        .map_or_else(|| ".".to_string(), |(family, _)| family.to_string())
+}
 
 /// Fields used from the existing resolved catalogue; unrelated export fields remain compatible.
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -619,4 +790,74 @@ pub fn resolve_avatar(
         hair_color: color(catalog, state, 4, &mut warnings)?,
         warnings,
     })
+}
+
+#[cfg(test)]
+mod catalog_tests {
+    use alloc::{collections::BTreeMap, string::ToString, vec};
+
+    use super::{
+        asset_family, category_screen, longest_known_label_run, numeric_table_by_hash,
+        palette_grid, unique_known_labels,
+    };
+    use serde_json::json;
+
+    #[test]
+    fn indexes_suffixed_t2b_nodes_and_preserves_remaining_values() {
+        let root = json!({
+            "children": [{
+                "name": "TEX_PARTS_CENTER_INFO_3",
+                "variables": [
+                    {"value": 4_294_967_295_f64},
+                    {"value": "0.3125"},
+                    {"value": 0.2275}
+                ]
+            }]
+        });
+        assert_eq!(
+            numeric_table_by_hash(&root, "TEX_PARTS_CENTER_INFO").get(&u32::MAX),
+            Some(&vec![0.3125, 0.2275])
+        );
+    }
+
+    #[test]
+    fn ignores_other_nodes_and_non_numeric_variables() {
+        let root = json!({"entries": [
+            {"name": "OTHER_0", "variables": [{"value": 7}, {"value": 1}]},
+            {"name": "POSE_0", "variables": [{"value": 8}, {"value": "bad"}, {"value": 2}]}
+        ]});
+        assert_eq!(
+            numeric_table_by_hash(&root, "POSE").get(&8),
+            Some(&vec![2.0])
+        );
+        assert!(!numeric_table_by_hash(&root, "POSE").contains_key(&7));
+    }
+
+    #[test]
+    fn category_screen_uses_strict_tail_matching() {
+        let screens = vec![
+            "chara_edit_parts_menu_hair".to_string(),
+            "chara_edit_parts_menu_learning".to_string(),
+            "status_ear".to_string(),
+        ];
+        assert_eq!(
+            category_screen("hairF001", &screens).as_deref(),
+            Some("chara_edit_parts_menu_hair")
+        );
+        assert_eq!(category_screen("ear_01", &screens), None);
+    }
+
+    #[test]
+    fn palette_labels_and_asset_family_are_data_driven() {
+        assert_eq!(palette_grid(65), Some((13, 5)));
+        assert_eq!(palette_grid(41), None);
+        let labels = BTreeMap::from([(1, "a".into()), (2, "b".into()), (3, "c".into())]);
+        assert_eq!(longest_known_label_run(&[9, 1, 2, 3, 0], &labels).len(), 3);
+        assert_eq!(
+            unique_known_labels(&[2, 2, 9, 1], &labels),
+            vec![(2, "b".into()), (1, "a".into())]
+        );
+        assert_eq!(asset_family("root/04_eye/a.g4tx", "root/"), "04_eye");
+        assert_eq!(asset_family("root/a.g4tx", "root/"), ".");
+    }
 }

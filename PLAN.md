@@ -640,6 +640,41 @@ executable ownership audit now reports three failed invariants, down from six: m
 browser TypeScript GLB decoder, and site-owned geometry dispatch. Strict completion therefore
 remains open.
 
+### Proof reset and exhaustive delegation ledger — 2026-09-08
+
+The earlier green result based only on assigning an owner pathname was rejected: a thick adapter
+could mention a library once and still pass. The generated ledger now enumerates every authoritative
+entry point — 41 CLI commands, 19 MCP tools, 163 Tauri commands and 106 site method/routes — and
+records one of three boundaries: portable behavior with a library owner, a native host operation,
+or protocol/presentation transport. A capability deliberately absent from a surface is
+`not-exposed`, never mislabeled `host-only`.
+
+The measured 329-entry disposition is 222 portable, 56 host-only and 51 transport entries. Portable
+Tauri entries carry a function-level call chain discovered from the registered handler through its
+helpers to the `nie-*` owner; the validator checks every source/needle hop. The master
+`audit-shared-surfaces.sh --require-complete` now invokes this exhaustive validator, so the old
+heuristic audit cannot publish a standalone false green.
+
+This convergence batch moved the remaining portable policy found by adversarial review:
+
+- CLI `SeedUi`, `Avatar`, `MenuPredecode`, `Vn`, `Rebuild` and `Recover` now delegate respectively
+  to `nie-seed`, `nie-data`, `nie-explore` and `nie-re`; Clap, VFS/file I/O, decoding and terminal
+  rendering remain adapters.
+- MCP VFS list/search/stat/cat/asset behavior is owned by `nie-explore::mcp_vfs`; RE reports are
+  owned by `nie-wiki::query`. MCP retains bounded arguments and transport DTOs.
+- Tauri VFS statistics/metadata and Lua script listing delegate to `nie-explore`; save-blob
+  inspection delegates to `nie-save`. Native state, locks, base64 and IPC errors remain Tauri.
+- Site updater selection, episode-feed query/date policy, VFS path/MIME policy and public coverage
+  sanitization now have non-route owners; Axum, cache, Atom/HTML and response mapping remain HTTP.
+
+The machine-readable proof level is deliberately named `source-delegation`. It proves registry
+exhaustiveness, owner existence and concrete call-chain evidence; it is not a formal proof that no
+portable statement remains in an adapter. That stronger conclusion always requires semantic review.
+This batch received an independent adversarial review, including rejection of the premature green,
+five thick Tauri adapters and seven thick MCP adapters before their extraction. Future changes must
+keep both the generated ledger and that review boundary; a passing substring search alone is not an
+architecture claim.
+
 ## Azalee UI and tool migration inventory — 2026-09-08
 
 ## SQL, data and service boundary — 2026-09-08
@@ -724,10 +759,6 @@ it does not mean copying a second version into the desktop adapter.
 | Cross/mobile-external product, advertising and third-party integrations: `/cross`, `AdSenseGate`, Discord/Google Docs, analytics, Vercel/public deployment configuration | Azalee host | **Host-only** | These are product/service integrations, not Inacord UI capabilities. Do not import them into the desktop suite. |
 
 ### Ordered execution and deletion rule
-
-Inventory validation currently has proof level `source-delegation`: it verifies registry coverage,
-owner files and concrete call-chain evidence. It does not prove that bindings contain no residual
-portable logic; that stronger claim still requires semantic audit and code review.
 
 1. Finish the existing partial wiki migration: filters, remaining entity cards/details, search and
    list rows, then update Azalee callers to use package imports.

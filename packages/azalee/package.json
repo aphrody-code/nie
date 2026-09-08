@@ -31,6 +31,7 @@
 	"exports": {
 		".": "./src/index.ts",
 		"./db": "./src/db/index.ts",
+		"./article-series": "./src/article-series.ts",
 		"./bookmarks": "./src/bookmarks.ts",
 		"./comments": "./src/comments.ts",
 		"./reactions": "./src/reactions.ts",

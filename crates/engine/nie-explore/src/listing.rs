@@ -16,6 +16,63 @@
 use nie_formats::vfs::Vfs;
 use std::collections::BTreeMap;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VfsStats {
+    pub mount: String,
+    pub total: u32,
+    pub cpk_count: u32,
+    pub extra_count: u32,
+    pub loose_count: u32,
+    pub top_extensions: Vec<(String, u32)>,
+}
+
+#[must_use]
+pub fn stats(vfs: &Vfs, extension_limit: usize) -> VfsStats {
+    let mut counts: BTreeMap<String, u32> = BTreeMap::new();
+    for (path, _) in vfs.iter() {
+        let name = path.rsplit('/').next().unwrap_or(path);
+        let extension = name.rsplit_once('.').map_or_else(
+            || "<none>".to_owned(),
+            |(_, extension)| extension.to_ascii_lowercase(),
+        );
+        *counts.entry(extension).or_default() += 1;
+    }
+    let mut top_extensions: Vec<_> = counts.into_iter().collect();
+    top_extensions.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    top_extensions.truncate(extension_limit);
+    VfsStats {
+        mount: if vfs.is_dump() { "dump" } else { "packs" }.to_owned(),
+        total: vfs.asset_count() as u32,
+        cpk_count: vfs.cpk_count() as u32,
+        extra_count: vfs.extra_count() as u32,
+        loose_count: vfs.loose_count() as u32,
+        top_extensions,
+    }
+}
+
+#[must_use]
+pub fn lua_scripts(vfs: &Vfs) -> Vec<FileEntry> {
+    let mut scripts: Vec<_> = vfs
+        .iter()
+        .filter_map(|(path, entry)| {
+            let lower = path.to_ascii_lowercase();
+            if !lower.ends_with(".lua") && !lower.ends_with(".lua.bin") {
+                return None;
+            }
+            let name = path.rsplit('/').next().unwrap_or(path);
+            Some(FileEntry {
+                name: name.to_owned(),
+                ext: ext_de(name),
+                path: path.to_owned(),
+                size: entry.file_size,
+                cpk: entry.cpk_filename.clone(),
+            })
+        })
+        .collect();
+    scripts.sort_by(|a, b| a.path.cmp(&b.path));
+    scripts
+}
+
 /// Un sous-dossier direct, avec le nombre de fichiers qu'il contient (récursivement).
 #[derive(Debug, Clone)]
 pub struct DirEntry {
@@ -244,5 +301,14 @@ mod tests {
         assert_eq!(sous_prefixe("data/a", "data/a"), None);
         // Un préfixe qui n'est pas une frontière de segment ne matche pas.
         assert_eq!(sous_prefixe("data/abc/x", "data/a"), None);
+    }
+
+    #[test]
+    fn empty_vfs_has_stable_stats_and_no_lua_scripts() {
+        let vfs = Vfs::new();
+        let result = stats(&vfs, 30);
+        assert_eq!(result.total, 0);
+        assert!(result.top_extensions.is_empty());
+        assert!(lua_scripts(&vfs).is_empty());
     }
 }

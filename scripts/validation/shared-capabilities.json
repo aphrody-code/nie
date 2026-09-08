@@ -27,7 +27,7 @@
         "site": {"kind":"adapter","evidence":[["crates/tools/nie-site/src/routes/screens.rs","build_icon_index("]]},
         "cli": {"kind":"adapter","evidence":[["crates/tools/nie-cli/src/icons_cmd.rs","build_icon_index("]]},
         "mcp": {"kind":"adapter","evidence":[["crates/tools/nie-mcp/src/main.rs","nie_cli::main_entry_with"]]},
-        "inacord": {"kind":"host-only","rationale":"Native UI consumes named texture APIs rather than the bulk icon catalogue."},
+        "inacord": {"kind":"not-exposed","rationale":"Native UI consumes named texture APIs rather than exposing the bulk icon catalogue."},
         "browser": {"kind":"adapter","evidence":[["apps/nie-web/src/game/screen-catalog.ts","/api/v1/icons"]]}
       },
       "proofTests": ["cargo test -p nie-explore --locked menu_icons", "cargo test -p nie-cli --lib --locked icons_cmd::tests", "cargo test -p nie-site --lib --locked routes::screens::tests"]
@@ -39,7 +39,7 @@
         "site": {"kind":"adapter","evidence":[["crates/tools/nie-site/src/routes/screens.rs","collect_shared_mode"]]},
         "cli": {"kind":"adapter","evidence":[["crates/tools/nie-cli/src/mode_index.rs","collect_mode("]]},
         "mcp": {"kind":"adapter","evidence":[["crates/tools/nie-mcp/src/main.rs","nie_cli::main_entry_with"]]},
-        "inacord": {"kind":"host-only","rationale":"No desktop mode-catalogue command is registered; desktop uses lower-level VFS adapters."},
+        "inacord": {"kind":"not-exposed","rationale":"No desktop mode-catalogue command is registered; desktop uses lower-level VFS adapters."},
         "browser": {"kind":"adapter","evidence":[["apps/nie-web/src/game/screen-catalog.ts","/api/v1/modes"]]}
       },
       "proofTests": ["cargo test -p nie-explore --locked menu_mode_analysis", "cargo test -p nie-cli --lib --locked mode_index::tests", "cargo test -p nie-site --lib --locked routes::screens::tests"]

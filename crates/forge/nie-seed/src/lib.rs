@@ -22,6 +22,8 @@ pub mod inagle;
 pub mod nie_index_json;
 #[cfg(feature = "host")]
 pub mod rtti_classes;
+#[cfg(feature = "host")]
+pub mod ui_names;
 
 #[cfg(feature = "host")]
 use std::path::Path;

@@ -24,6 +24,7 @@
 // --- Règles de jeu, texte, assets, recherche (purs) ------------------------
 export * from "./game";
 export * from "./images";
+export * from "./article-series";
 export * from "./bookmarks";
 export * from "./comments";
 export * from "./reading-history";

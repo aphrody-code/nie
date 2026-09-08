@@ -33,6 +33,34 @@ use std::borrow::Cow;
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+
+/// Parse a stored coverage matrix without any HTTP or filesystem policy.
+pub fn parse_matrix(source: &str) -> serde_json::Result<Matrice> {
+    serde_json::from_str(source)
+}
+
+/// Serialize a matrix after removing service/version fields and private identity strings.
+pub fn serialize_public_matrix(
+    matrix: &Matrice,
+    private_identity: &str,
+) -> serde_json::Result<String> {
+    fn strip(value: &mut Value, identity: &str) {
+        match value {
+            Value::String(text) => *text = text.replace(identity, "le serveur"),
+            Value::Array(values) => values.iter_mut().for_each(|value| strip(value, identity)),
+            Value::Object(values) => values.values_mut().for_each(|value| strip(value, identity)),
+            Value::Null | Value::Bool(_) | Value::Number(_) => {}
+        }
+    }
+    let mut value = serde_json::to_value(matrix)?;
+    if let Value::Object(object) = &mut value {
+        object.remove("service");
+        object.remove("version");
+    }
+    strip(&mut value, private_identity);
+    serde_json::to_string(&value)
+}
 
 /// D'où vient une capacité — c'est-à-dire ce qu'on a mesuré pour l'énumérer.
 ///

@@ -10,7 +10,7 @@
 use std::{path::Path, process::Command, time::Instant};
 
 use rusqlite::Connection;
-use serde_json::Value;
+use serde_json::{Value, json};
 
 use crate::{
     mirror::{merge_data_sheet, query_one, query_rows},
@@ -2508,6 +2508,64 @@ pub fn redis_cmd(
     }
 }
 
+/// Bounded reverse-engineering function lookup used by transport adapters.
+pub fn re_function_report(
+    connection: &Connection,
+    name: Option<&str>,
+    vaddr: Option<i64>,
+) -> anyhow::Result<Value> {
+    let predicate = match (name, vaddr) {
+        (Some(name), _) if !name.trim().is_empty() => {
+            format!("name LIKE '%{}%'", name.replace('\'', "''"))
+        }
+        (_, Some(vaddr)) => format!("vaddr = {vaddr}"),
+        _ => anyhow::bail!("re_function requires name or vaddr"),
+    };
+    let columns = "id, binary_id, vaddr, size, name, name_source, confidence, cc, n_args, subsystem, role, pagerank, ret_type, params, n_calls_in, n_calls_out, complexity";
+    let page = exec_readonly_sql_page(
+        connection,
+        &format!(
+            "SELECT {columns} FROM function WHERE {predicate} ORDER BY pagerank DESC, binary_id LIMIT 25"
+        ),
+        SqliteQueryOptions::re_database(25),
+    )?;
+    let mut result = json!({"query":{"name":name,"vaddr":vaddr.map(|v|format!("0x{v:x}"))},"total_matches":page.rows.len(),"matches":page.rows});
+    if let Some(best) = result["matches"].as_array().and_then(|rows| rows.first()) {
+        let binary_id = best["binary_id"]
+            .as_i64()
+            .ok_or_else(|| anyhow::anyhow!("function row has no binary_id"))?;
+        let address = best["vaddr"]
+            .as_str()
+            .and_then(|v| v.strip_prefix("0x"))
+            .and_then(|v| i64::from_str_radix(v, 16).ok())
+            .ok_or_else(|| anyhow::anyhow!("function row has no vaddr"))?;
+        let incoming=exec_readonly_sql_page(connection,&format!("SELECT x.from_addr, x.kind, f.name AS from_name FROM xref x LEFT JOIN function f ON f.vaddr = x.from_addr AND f.binary_id = x.binary_id WHERE x.to_addr = {address} AND x.binary_id = {binary_id} LIMIT 12"),SqliteQueryOptions::re_database(12))?.rows;
+        let outgoing=exec_readonly_sql_page(connection,&format!("SELECT x.to_addr, x.kind, f.name AS to_name FROM xref x LEFT JOIN function f ON f.vaddr = x.to_addr AND f.binary_id = x.binary_id WHERE x.from_addr = {address} AND x.binary_id = {binary_id} LIMIT 12"),SqliteQueryOptions::re_database(12))?.rows;
+        result["xrefs"] = json!({"of":best["name"].as_str().map_or_else(||format!("0x{address:x}"),str::to_owned),"incoming":incoming,"outgoing":outgoing});
+    }
+    Ok(result)
+}
+
+/// Aggregates the canonical RE coverage tables without exposing SQL to bindings.
+pub fn re_coverage_report(connection: &Connection) -> anyhow::Result<Value> {
+    let run = |sql, limit| {
+        exec_readonly_sql_page(connection, sql, SqliteQueryOptions::re_database(limit))
+            .map(|p| p.rows)
+    };
+    let latest = run(
+        "SELECT ts, binary_id, total_funcs, named, classified, pct FROM coverage ORDER BY id DESC LIMIT 1",
+        1,
+    )?;
+    let total = run("SELECT COUNT(*) AS n FROM function", 1)?;
+    let per_binary = run(
+        "SELECT binary_id, COUNT(*) AS rows_total, SUM(name IS NOT NULL) AS named FROM function GROUP BY binary_id ORDER BY binary_id",
+        1_000,
+    )?;
+    Ok(
+        json!({"latest":latest.into_iter().next(),"function_rows_total":total.first().and_then(|row|row["n"].as_i64()).unwrap_or(0),"per_binary":per_binary,"primary_binary_id":2}),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use rusqlite::Connection;
@@ -2516,8 +2574,21 @@ mod tests {
     use super::{
         SqliteQueryOptions, check_readonly_sql, compare_element_name, compare_position_code,
         exec_readonly_sql, exec_readonly_sql_page, interpolate_stat_curve, interpolate_stats,
-        lookup_item_legacy, lookup_skill_values, lookup_team_values, sanitize_filter,
+        lookup_item_legacy, lookup_skill_values, lookup_team_values, re_coverage_report,
+        re_function_report, sanitize_filter,
     };
+
+    #[test]
+    fn re_reports_preserve_mcp_shape_and_literal_name_search() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("CREATE TABLE function(id INTEGER, binary_id INTEGER, vaddr INTEGER, size INTEGER, name TEXT, name_source TEXT, confidence REAL, cc TEXT, n_args INTEGER, subsystem TEXT, role TEXT, pagerank REAL, ret_type TEXT, params TEXT, n_calls_in INTEGER, n_calls_out INTEGER, complexity INTEGER); CREATE TABLE xref(binary_id INTEGER, from_addr INTEGER, to_addr INTEGER, kind TEXT); CREATE TABLE coverage(id INTEGER, ts TEXT, binary_id INTEGER, total_funcs INTEGER, named INTEGER, classified INTEGER, pct REAL); INSERT INTO function VALUES(1,2,4096,4,'O''Brien',NULL,0.5,NULL,NULL,'menu',NULL,1.0,NULL,NULL,0,0,1); INSERT INTO coverage VALUES(1,'now',2,1,1,1,100.0);").unwrap();
+        let function = re_function_report(&conn, Some("O'Brien"), None).unwrap();
+        assert_eq!(function["total_matches"], 1);
+        assert_eq!(function["matches"][0]["name"], "O'Brien");
+        let coverage = re_coverage_report(&conn).unwrap();
+        assert_eq!(coverage["function_rows_total"], 1);
+        assert_eq!(coverage["primary_binary_id"], 2);
+    }
     use crate::model::{CompareSkillSlot, StatBlock};
 
     #[test]

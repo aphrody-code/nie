@@ -422,6 +422,19 @@ struct StatsDto {
     top_ext: Vec<(String, u32)>,
 }
 
+impl From<nie_explore::listing::VfsStats> for StatsDto {
+    fn from(stats: nie_explore::listing::VfsStats) -> Self {
+        Self {
+            montage: stats.mount,
+            total: stats.total,
+            cpk_count: stats.cpk_count,
+            extra_count: stats.extra_count,
+            loose_count: stats.loose_count,
+            top_ext: stats.top_extensions,
+        }
+    }
+}
+
 /// Racine de jeu par défaut — VRAIE détection (registre Steam + bibliothèques +
 /// `appmanifest_2799860.acf`, cf. [`resolve_game_dir_native`]), pas un chemin deviné.
 #[tauri::command]
@@ -580,26 +593,7 @@ async fn vfs_stats(
 /// Le calcul réel, sans cache — appelé une fois par racine.
 async fn vfs_stats_calcul(game_dir: Option<String>, state: &VfsState) -> Result<StatsDto, String> {
     sur_vfs_bloquant(game_dir, state, |vfs| {
-        let mut counts: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
-        for (path, _) in vfs.iter() {
-            let base = path.rsplit('/').next().unwrap_or(path);
-            let ext = base
-                .rsplit_once('.')
-                .map(|(_, e)| e.to_lowercase())
-                .unwrap_or_else(|| "<none>".to_string());
-            *counts.entry(ext).or_default() += 1;
-        }
-        let mut top_ext: Vec<(String, u32)> = counts.into_iter().collect();
-        top_ext.sort_by_key(|(_, c)| std::cmp::Reverse(*c));
-        top_ext.truncate(30);
-        Ok(StatsDto {
-            montage: if vfs.is_dump() { "dump" } else { "packs" }.to_string(),
-            total: vfs.asset_count() as u32,
-            cpk_count: vfs.cpk_count() as u32,
-            extra_count: vfs.extra_count() as u32,
-            loose_count: vfs.loose_count() as u32,
-            top_ext,
-        })
+        Ok(nie_explore::listing::stats(vfs, 30).into())
     })
     .await
 }
@@ -615,12 +609,7 @@ fn vfs_entry_meta(
     state: tauri::State<VfsState>,
 ) -> Result<Option<EntryDto>, String> {
     with_vfs(game_dir, &state, |vfs| {
-        Ok(vfs.find(&path).map(|e| EntryDto {
-            path: path.clone(),
-            name: path.rsplit('/').next().unwrap_or(&path).to_string(),
-            size: e.file_size,
-            cpk: e.cpk_filename.clone(),
-        }))
+        Ok(nie_explore::listing::stat(vfs, &path).map(EntryDto::from))
     })
 }
 
@@ -1146,14 +1135,12 @@ fn save_open(path: String, state: tauri::State<SaveState>) -> Result<RawJson, St
 fn save_list_blobs(state: tauri::State<SaveState>) -> Result<Vec<SaveBlobDto>, String> {
     let guard = state.0.lock().unwrap();
     let (container, _) = guard.as_ref().ok_or("aucune sauvegarde ouverte")?;
-    Ok(container
-        .entries
-        .iter()
-        .zip(&container.blobs)
-        .map(|(e, b)| SaveBlobDto {
-            filename: e.filename.clone(),
-            subtype: format!("{:?}", b.header.subtype),
-            size: b.body.len() as u32,
+    Ok(nie_save::list_blobs(container)
+        .into_iter()
+        .map(|blob| SaveBlobDto {
+            filename: blob.filename,
+            subtype: blob.subtype,
+            size: blob.size,
         })
         .collect())
 }
@@ -1163,11 +1150,8 @@ fn save_list_blobs(state: tauri::State<SaveState>) -> Result<Vec<SaveBlobDto>, S
 fn save_blob_hex_b64(index: u32, state: tauri::State<SaveState>) -> Result<String, String> {
     let guard = state.0.lock().unwrap();
     let (container, _) = guard.as_ref().ok_or("aucune sauvegarde ouverte")?;
-    let blob = container
-        .blobs
-        .get(index as usize)
-        .ok_or("index de blob invalide")?;
-    Ok(base64::engine::general_purpose::STANDARD.encode(&blob.body))
+    let body = nie_save::blob_body(container, index as usize).ok_or("index de blob invalide")?;
+    Ok(base64::engine::general_purpose::STANDARD.encode(body))
 }
 
 /// Écrit un texte (CSV/JSON/Markdown) à un chemin choisi par l'utilisatrice via la boîte de
@@ -4154,21 +4138,10 @@ fn lua_list_scripts(
     state: tauri::State<VfsState>,
 ) -> Result<Vec<EntryDto>, String> {
     with_vfs(game_dir, &state, |vfs| {
-        let mut out: Vec<EntryDto> = vfs
-            .iter()
-            .filter(|(p, _)| {
-                let lower = p.to_ascii_lowercase();
-                lower.ends_with(".lua.bin") || lower.ends_with(".lua")
-            })
-            .map(|(p, e)| EntryDto {
-                path: p.to_string(),
-                name: p.rsplit('/').next().unwrap_or(p).to_string(),
-                size: e.file_size,
-                cpk: e.cpk_filename.clone(),
-            })
-            .collect();
-        out.sort_by(|a, b| a.path.cmp(&b.path));
-        Ok(out)
+        Ok(nie_explore::listing::lua_scripts(vfs)
+            .into_iter()
+            .map(EntryDto::from)
+            .collect())
     })
 }
 

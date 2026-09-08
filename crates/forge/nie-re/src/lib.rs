@@ -53,6 +53,8 @@ pub mod strref;
 pub mod vtable;
 #[cfg(feature = "host")]
 pub mod vtable_anon;
+#[cfg(feature = "host")]
+pub mod workflow;
 
 /// Version du moteur.
 #[must_use]

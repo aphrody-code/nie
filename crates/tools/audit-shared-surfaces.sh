@@ -114,6 +114,13 @@ else
   row atlas_policy_library_owner PASS 'atlas policy is not route-owned'
 fi
 
+if inventory_output="$(bun --bun scripts/validation/validate-shared-capabilities.ts 2>&1)"; then
+  row exhaustive_registry PASS 'all authoritative CLI, MCP, Inacord and site entries have a classified owner and concrete delegation evidence'
+else
+  row exhaustive_registry FAIL 'public-entry inventory still contains unowned or unproved portable behavior'
+  printf '%s\n' "$inventory_output" >&2
+fi
+
 row audit_summary "$([[ $failures -eq 0 ]] && printf PASS || printf FAIL)" "$failures failed invariant(s)"
 
 if $require_complete && [[ $failures -ne 0 ]]; then

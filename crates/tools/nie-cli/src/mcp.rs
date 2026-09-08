@@ -470,19 +470,6 @@ fn open_re_database() -> anyhow::Result<nie_index::rusqlite::Connection> {
     .map_err(|error| anyhow::anyhow!("open {} read-only: {error}", path.display()))
 }
 
-fn query_re_rows(
-    connection: &nie_index::rusqlite::Connection,
-    sql: &str,
-    limit: usize,
-) -> anyhow::Result<(Vec<Value>, bool, Vec<String>)> {
-    let page = nie_wiki::query::exec_readonly_sql_page(
-        connection,
-        sql,
-        nie_wiki::query::SqliteQueryOptions::re_database(limit),
-    )?;
-    Ok((page.rows, page.truncated, page.columns))
-}
-
 fn safe_vfs_path(path: &str) -> Result<&str, String> {
     let path = path.trim();
     if path.is_empty()
@@ -494,36 +481,6 @@ fn safe_vfs_path(path: &str) -> Result<&str, String> {
         return Err("invalid VFS path".to_owned());
     }
     Ok(path)
-}
-
-fn decode_kind(path: &str) -> &'static str {
-    let lower = path.to_ascii_lowercase();
-    if lower.ends_with(".g4tx") {
-        "tex"
-    } else if lower.ends_with(".hca")
-        || lower.ends_with(".adx")
-        || lower.ends_with(".acb")
-        || lower.ends_with(".awb")
-    {
-        "audio"
-    } else if lower.ends_with(".cfg.bin")
-        || lower.ends_with(".objbin")
-        || lower.ends_with(".mevbin")
-    {
-        "cfg"
-    } else {
-        "raw"
-    }
-}
-
-fn vfs_extension(path: &str) -> &str {
-    let basename = path.rsplit('/').next().unwrap_or(path);
-    for extension in [".cfg.bin", ".objbin", ".fxbin", ".mevbin"] {
-        if basename.to_ascii_lowercase().ends_with(extension) {
-            return extension;
-        }
-    }
-    basename.rfind('.').map_or("", |index| &basename[index..])
 }
 
 async fn fetch_model_asset(request: AssetRequest) -> CompatibilityResult {
@@ -756,51 +713,7 @@ impl NiersMcpServer {
         let prefix = prefix.trim_matches('/').to_owned();
         blocking_json(move || {
             let vfs = super::open_vfs(None)?;
-            let mut directories = std::collections::BTreeSet::new();
-            let mut files = Vec::new();
-            let mut file_count = 0usize;
-            for (path, entry) in vfs.iter() {
-                let rest = if prefix.is_empty() {
-                    path
-                } else if let Some(rest) = path
-                    .strip_prefix(&prefix)
-                    .and_then(|rest| rest.strip_prefix('/'))
-                {
-                    rest
-                } else {
-                    continue;
-                };
-                if let Some((directory, _)) = rest.split_once('/') {
-                    directories.insert(directory.to_owned());
-                } else {
-                    file_count += 1;
-                    if files.len() < limit {
-                        files.push(json!({
-                            "name": rest,
-                            "path": path,
-                            "cpk": entry.cpk_filename,
-                            "size": entry.file_size
-                        }));
-                    }
-                }
-            }
-            let directories = directories.into_iter().collect::<Vec<_>>();
-            let directory_count = directories.len();
-            let visible_directories = directories
-                .into_iter()
-                .take(limit)
-                .collect::<Vec<_>>();
-            let remaining = limit.saturating_sub(visible_directories.len());
-            files.truncate(remaining);
-            let truncated = directory_count > visible_directories.len() || file_count > files.len();
-            Ok(json!({
-                "prefix": if prefix.is_empty() { "(root)".to_owned() } else { format!("{prefix}/") },
-                "directories": visible_directories,
-                "files": files,
-                "total_directories": directory_count,
-                "total_files": file_count,
-                "truncated": truncated
-            }))
+            Ok(nie_explore::mcp_vfs::list(&vfs, &prefix, limit))
         })
         .await
     }
@@ -821,31 +734,7 @@ impl NiersMcpServer {
                 "invalid query"
             );
             let vfs = super::open_vfs(None)?;
-            let glob = query
-                .chars()
-                .any(|c| matches!(c, '*' | '?' | '[' | ']' | '{' | '}'));
-            let matcher = glob
-                .then(|| globset::Glob::new(&query).map(|glob| glob.compile_matcher()))
-                .transpose()?;
-            let folded = query.to_ascii_lowercase();
-            let mut total = 0usize;
-            let mut matches = Vec::new();
-            for (path, entry) in vfs.iter() {
-                let matched = matcher.as_ref().map_or_else(
-                    || path.to_ascii_lowercase().contains(&folded),
-                    |matcher| matcher.is_match(path),
-                );
-                if !matched {
-                    continue;
-                }
-                total += 1;
-                if matches.len() < limit {
-                    matches.push(json!({ "name": path.rsplit('/').next(), "path": path, "cpk": entry.cpk_filename, "size": entry.file_size }));
-                }
-            }
-            Ok(
-                json!({ "query": query, "mode": if glob { "glob" } else { "substring" }, "total_matches": total, "matches": matches, "truncated": total > matches.len() }),
-            )
+            nie_explore::mcp_vfs::search(&vfs, &query, limit)
         })
         .await
     }
@@ -859,24 +748,8 @@ impl NiersMcpServer {
         Parameters(request): Parameters<PathRequest>,
     ) -> CompatibilityResult {
         blocking_json(move || {
-            let path = safe_vfs_path(&request.path).map_err(anyhow::Error::msg)?;
             let vfs = super::open_vfs(None)?;
-            if let Some(entry) = vfs.find(path) {
-                let decode = decode_kind(path);
-                return Ok(
-                    json!({ "kind": "file", "path": path, "cpk": entry.cpk_filename, "ext": vfs_extension(path), "decode": decode, "decodable": decode != "raw", "size": entry.file_size, "readable": vfs.is_readable(path) }),
-                );
-            }
-            let prefix = format!("{}/", path.trim_end_matches('/'));
-            let children = vfs
-                .iter()
-                .filter(|(candidate, _)| candidate.starts_with(&prefix))
-                .count();
-            if children > 0 {
-                Ok(json!({ "kind": "directory", "path": path, "child_count": children }))
-            } else {
-                Ok(json!({ "kind": "missing", "path": path }))
-            }
+            nie_explore::mcp_vfs::stat(&vfs, &request.path)
         })
         .await
     }
@@ -889,36 +762,13 @@ impl NiersMcpServer {
         &self,
         Parameters(request): Parameters<VfsCatRequest>,
     ) -> CompatibilityResult {
-        use base64::Engine as _;
         blocking_json(move || {
-            let path = safe_vfs_path(&request.path).map_err(anyhow::Error::msg)?;
             let cap = request
                 .max_bytes
                 .unwrap_or(256 * 1024)
                 .clamp(1, 8 * 1024 * 1024);
             let vfs = super::open_vfs(None)?;
-            let entry = vfs
-                .find(path)
-                .ok_or_else(|| anyhow::anyhow!("path not found in VFS"))?;
-            let data = vfs
-                .read(path)
-                .map_err(|error| anyhow::anyhow!("VFS read failed: {error}"))?;
-            let truncated = data.len() > cap;
-            let slice = &data[..data.len().min(cap)];
-            let mut value = json!({ "path": path, "cpk": entry.cpk_filename, "size": data.len(), "truncated": truncated });
-            let extension = vfs_extension(path);
-            let textual = ["txt", "json", "lua", "xml"]
-                .iter()
-                .any(|candidate| extension.contains(candidate));
-            if textual
-                && let Ok(text) = std::str::from_utf8(slice)
-            {
-                value["text"] = Value::String(text.to_owned());
-            } else {
-                value["base64"] =
-                    Value::String(base64::engine::general_purpose::STANDARD.encode(slice));
-            }
-            Ok(value)
+            nie_explore::mcp_vfs::cat(&vfs, &request.path, cap)
         })
         .await
     }
@@ -931,52 +781,17 @@ impl NiersMcpServer {
         &self,
         Parameters(request): Parameters<AssetRequest>,
     ) -> CompatibilityResult {
-        use base64::Engine as _;
         if request.decode.as_deref() == Some("model") {
             return fetch_model_asset(request).await;
         }
         blocking_json(move || {
-            let path = safe_vfs_path(&request.path).map_err(anyhow::Error::msg)?;
             let decode = request.decode.as_deref().unwrap_or("raw");
             let cap = request
                 .max_bytes
                 .unwrap_or(256 * 1024)
                 .clamp(1, 8 * 1024 * 1024);
             let vfs = super::open_vfs(None)?;
-            let source = vfs
-                .read(path)
-                .map_err(|error| anyhow::anyhow!("VFS read failed: {error}"))?;
-            let (bytes, content_type) = match decode {
-                "raw" => (source, "application/octet-stream"),
-                "cfg" => {
-                    let decoded = nie_formats::decode::decode(&source)
-                        .ok_or_else(|| anyhow::anyhow!("format is not decodable as JSON"))?;
-                    (decoded.json, "application/json")
-                }
-                "tex" => {
-                    let png = nie_formats::g4tx_decode::decode_best_to_png(
-                        &source,
-                        nie_formats::g4tx_decode::basename_of(path),
-                    )
-                    .ok_or_else(|| anyhow::anyhow!("texture could not be decoded"))?;
-                    (png, "image/png")
-                }
-                "audio" => (
-                    nie_formats::cri_audio::decode_to_wav(&source).map_err(anyhow::Error::msg)?,
-                    "audio/wav",
-                ),
-                other => anyhow::bail!("unknown decode mode: {other}"),
-            };
-            let truncated = bytes.len() > cap;
-            let slice = &bytes[..bytes.len().min(cap)];
-            let mut value = json!({ "path": path, "decode": decode, "source": "rust-native", "url": format!("nie://{path}"), "http_status": 200, "content_type": content_type, "content_length": bytes.len(), "truncated": truncated });
-            if content_type == "application/json" {
-                value["text"] = Value::String(String::from_utf8_lossy(slice).into_owned());
-            } else if !truncated {
-                value["base64"] =
-                    Value::String(base64::engine::general_purpose::STANDARD.encode(slice));
-            }
-            Ok(value)
+            nie_explore::mcp_vfs::asset(&vfs, &request.path, decode, cap)
         })
         .await
     }
@@ -1011,50 +826,18 @@ impl NiersMcpServer {
         Parameters(request): Parameters<FunctionRequest>,
     ) -> CompatibilityResult {
         blocking_json(move || {
-            let predicate = match (request.name.as_deref(), request.vaddr.as_deref()) {
-                (Some(name), _) if !name.trim().is_empty() => {
-                    format!("name LIKE '%{}%'", name.replace('\'', "''"))
-                }
-                (_, Some(vaddr)) if !vaddr.trim().is_empty() => {
-                    format!("vaddr = {}", super::parse_addr(vaddr).map_err(anyhow::Error::msg)?)
-                }
-                _ => anyhow::bail!("re_function requires name or vaddr"),
-            };
             let connection = open_re_database()?;
-            let columns = "id, binary_id, vaddr, size, name, name_source, confidence, cc, n_args, subsystem, role, pagerank, ret_type, params, n_calls_in, n_calls_out, complexity";
-            let sql = format!(
-                "SELECT {columns} FROM function WHERE {predicate} ORDER BY pagerank DESC, binary_id LIMIT 25"
-            );
-            let (matches, _, _) = query_re_rows(&connection, &sql, 25)?;
-            let mut result = json!({
-                "query": { "name": request.name, "vaddr": request.vaddr },
-                "total_matches": matches.len(),
-                "matches": matches
-            });
-            if let Some(best) = result["matches"].as_array().and_then(|rows| rows.first()) {
-                let binary_id = best["binary_id"]
-                    .as_i64()
-                    .ok_or_else(|| anyhow::anyhow!("function row has no binary_id"))?;
-                let address = best["vaddr"]
-                    .as_str()
-                    .and_then(|value| value.strip_prefix("0x"))
-                    .and_then(|value| i64::from_str_radix(value, 16).ok())
-                    .ok_or_else(|| anyhow::anyhow!("function row has no vaddr"))?;
-                let incoming_sql = format!(
-                    "SELECT x.from_addr, x.kind, f.name AS from_name FROM xref x LEFT JOIN function f ON f.vaddr = x.from_addr AND f.binary_id = x.binary_id WHERE x.to_addr = {address} AND x.binary_id = {binary_id} LIMIT 12"
-                );
-                let outgoing_sql = format!(
-                    "SELECT x.to_addr, x.kind, f.name AS to_name FROM xref x LEFT JOIN function f ON f.vaddr = x.to_addr AND f.binary_id = x.binary_id WHERE x.from_addr = {address} AND x.binary_id = {binary_id} LIMIT 12"
-                );
-                let (incoming, _, _) = query_re_rows(&connection, &incoming_sql, 12)?;
-                let (outgoing, _, _) = query_re_rows(&connection, &outgoing_sql, 12)?;
-                result["xrefs"] = json!({
-                    "of": best["name"].as_str().map_or_else(|| format!("0x{address:x}"), str::to_owned),
-                    "incoming": incoming,
-                    "outgoing": outgoing
-                });
-            }
-            Ok(result)
+            let address = request
+                .vaddr
+                .as_deref()
+                .filter(|v| !v.trim().is_empty())
+                .map(super::parse_addr)
+                .transpose()
+                .map_err(anyhow::Error::msg)?;
+            let mut report =
+                nie_wiki::query::re_function_report(&connection, request.name.as_deref(), address)?;
+            report["query"] = json!({"name":request.name,"vaddr":request.vaddr});
+            Ok(report)
         })
         .await
     }
@@ -1066,27 +849,7 @@ impl NiersMcpServer {
     async fn compatibility_re_coverage(&self) -> CompatibilityResult {
         blocking_json(move || {
             let connection = open_re_database()?;
-            let (latest, _, _) = query_re_rows(
-                &connection,
-                "SELECT ts, binary_id, total_funcs, named, classified, pct FROM coverage ORDER BY id DESC LIMIT 1",
-                1,
-            )?;
-            let (total, _, _) = query_re_rows(
-                &connection,
-                "SELECT COUNT(*) AS n FROM function",
-                1,
-            )?;
-            let (per_binary, _, _) = query_re_rows(
-                &connection,
-                "SELECT binary_id, COUNT(*) AS rows_total, SUM(name IS NOT NULL) AS named FROM function GROUP BY binary_id ORDER BY binary_id",
-                1_000,
-            )?;
-            Ok(json!({
-                "latest": latest.into_iter().next(),
-                "function_rows_total": total.first().and_then(|row| row["n"].as_i64()).unwrap_or(0),
-                "per_binary": per_binary,
-                "primary_binary_id": 2
-            }))
+            nie_wiki::query::re_coverage_report(&connection)
         })
         .await
     }
@@ -1358,8 +1121,22 @@ mod tests {
         assert!(safe_vfs_path("/data/file.g4tx").is_err());
         assert!(safe_vfs_path("data\\file.g4tx").is_err());
         assert!(safe_vfs_path("data/../file.g4tx").is_err());
-        assert_eq!(vfs_extension("data/example.cfg.bin"), ".cfg.bin");
-        assert_eq!(vfs_extension("data/example.lua"), ".lua");
+    }
+
+    #[test]
+    fn portable_mcp_tools_delegate_to_shared_owners() {
+        let source = include_str!("mcp.rs");
+        for call in [
+            "nie_explore::mcp_vfs::list(",
+            "nie_explore::mcp_vfs::search(",
+            "nie_explore::mcp_vfs::stat(",
+            "nie_explore::mcp_vfs::cat(",
+            "nie_explore::mcp_vfs::asset(",
+            "nie_wiki::query::re_function_report(",
+            "nie_wiki::query::re_coverage_report(",
+        ] {
+            assert!(source.contains(call), "missing shared-owner call {call}");
+        }
     }
 
     #[tokio::test]

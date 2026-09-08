@@ -101,50 +101,7 @@ struct Flux<'a> {
 /// `<published>` invalide fait rejeter l'entrée entière par un lecteur strict, en silence.
 #[must_use]
 pub fn horodatage(brut: &str) -> Option<String> {
-    let s = brut.trim();
-    if s.is_empty() {
-        return None;
-    }
-    let jour_valide = |j: &str| {
-        j.len() == 10
-            && j.as_bytes().iter().enumerate().all(|(i, c)| {
-                if i == 4 || i == 7 {
-                    *c == b'-'
-                } else {
-                    c.is_ascii_digit()
-                }
-            })
-    };
-    let Some((jour, heure)) = s.split_once('T') else {
-        return jour_valide(s).then(|| format!("{s}T00:00:00Z"));
-    };
-    if !jour_valide(jour) {
-        return None;
-    }
-    // La partie horaire est `hh:mm:ss` suivi de `Z` ou d'un décalage `+hh:mm` / `-hh:mm`. Les
-    // deux formes sont séparées ici, plutôt que reconnues par une expression rationnelle : une
-    // date fausse doit se voir refuser sur un critère qu'on peut nommer.
-    let (horloge, decalage) = match heure.strip_suffix('Z') {
-        Some(h) => (h, None),
-        None if heure.len() == 14 => (&heure[..8], Some(&heure[8..])),
-        None => return None,
-    };
-    let horloge_ok = horloge.len() == 8
-        && horloge.as_bytes().iter().enumerate().all(|(i, c)| {
-            if i == 2 || i == 5 {
-                *c == b':'
-            } else {
-                c.is_ascii_digit()
-            }
-        });
-    let decalage_ok = decalage.is_none_or(|d| {
-        d.as_bytes().iter().enumerate().all(|(i, c)| match i {
-            0 => *c == b'+' || *c == b'-',
-            3 => *c == b':',
-            _ => c.is_ascii_digit(),
-        })
-    });
-    (horloge_ok && decalage_ok).then(|| s.to_owned())
+    nie_wiki::episodes::rfc3339_timestamp(brut)
 }
 
 /// `GET /feed.atom`.
@@ -223,32 +180,24 @@ pub fn lire(
     origine: &str,
     limite: u32,
 ) -> Result<Vec<EntreeFlux>, ErreurSite> {
-    let cx = super::episodes::ouvrir(chemin)?;
-    let mut requete = cx
-        .prepare(
-            "SELECT id, season, episode, title, url, titleJp, publishDate, language, createdAt \
-             FROM episodes ORDER BY createdAt DESC, id DESC LIMIT ?1",
-        )
-        .map_err(|e| ErreurSite::Interne(format!("requête du flux: {e}")))?;
-    let lignes = requete
-        .query_map(rusqlite::params![limite], |l| {
-            let id: i64 = l.get(0)?;
-            let saison: Option<i64> = l.get(1)?;
-            let episode: Option<i64> = l.get(2)?;
-            let titre: Option<String> = l.get(3)?;
-            let url: Option<String> = l.get(4)?;
-            let titre_jp: Option<String> = l.get(5)?;
-            let publie: Option<String> = l.get(6)?;
-            let langue: Option<String> = l.get(7)?;
-            let moissonne: Option<i64> = l.get(8)?;
+    nie_wiki::episodes::read_feed(chemin, limite)
+        .map_err(|error| ErreurSite::Interne(format!("lecture du flux: {error}")))?
+        .into_iter()
+        .map(|episode| {
             Ok(entree(
-                origine, id, saison, episode, titre, url, titre_jp, publie, langue, moissonne,
+                origine,
+                episode.id,
+                episode.season,
+                episode.episode,
+                episode.title,
+                episode.url,
+                episode.title_jp,
+                episode.publish_date,
+                episode.language,
+                episode.created_at,
             ))
         })
-        .map_err(|e| ErreurSite::Interne(format!("lecture du flux: {e}")))?;
-    lignes
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| ErreurSite::Interne(format!("ligne de flux illisible: {e}")))
+        .collect()
 }
 
 /// Met une ligne en forme d'entrée Atom.

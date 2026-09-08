@@ -34,7 +34,7 @@ use axum::extract::State;
 use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use bytes::Bytes;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::error::ErreurSite;
 use crate::state::{EtatSite, ReponseCachee};
@@ -48,24 +48,6 @@ const URL_RELEASES: &str = "https://api.github.com/repos/aphrody-code/nie/releas
 
 /// La seule plate-forme publiée à ce jour. Le nom est celui de la table `platforms` de Tauri.
 const PLATEFORME: &str = "windows-x86_64";
-
-/// Un fichier attaché à une release.
-#[derive(Debug, Deserialize)]
-struct AssetGh {
-    name: String,
-    browser_download_url: String,
-}
-
-/// Une release, réduite à ce que le manifeste demande.
-#[derive(Debug, Deserialize)]
-struct ReleaseGh {
-    tag_name: String,
-    body: Option<String>,
-    published_at: String,
-    assets: Vec<AssetGh>,
-    draft: bool,
-    prerelease: bool,
-}
 
 /// L'entrée d'une plate-forme dans le manifeste Tauri.
 #[derive(Debug, Serialize, PartialEq, Eq)]
@@ -117,50 +99,52 @@ pub struct Choix {
 /// Rend [`ErreurSite::Amont`] si le corps n'est pas la liste JSON attendue, et
 /// [`ErreurSite::Introuvable`] si aucune release ne porte d'installeur signé.
 pub fn choisir(corps: &[u8]) -> Result<Choix, ErreurSite> {
-    let releases: Vec<ReleaseGh> = serde_json::from_slice(corps)
-        .map_err(|_| ErreurSite::Amont("réponse de l'index des releases illisible".to_owned()))?;
-
-    for r in releases.iter().filter(|r| !r.draft && !r.prerelease) {
-        let Some(installeur) = r.assets.iter().find(|a| a.name.ends_with("-setup.exe")) else {
-            continue;
-        };
-        let attendu = format!("{}.sig", installeur.name);
-        let Some(signature) = r.assets.iter().find(|a| a.name == attendu) else {
-            continue;
-        };
-        return Ok(Choix {
-            version: r
-                .tag_name
-                .strip_prefix('v')
-                .unwrap_or(&r.tag_name)
-                .to_owned(),
-            notes: r.body.clone().unwrap_or_default(),
-            pub_date: r.published_at.clone(),
-            url_installeur: installeur.browser_download_url.clone(),
-            url_signature: signature.browser_download_url.clone(),
-        });
-    }
-    Err(ErreurSite::Introuvable(format!(
-        "aucune release de {DEPOT} ne porte d'installeur signé"
-    )))
+    let selected =
+        crate::update_policy::select_signed_release(corps).map_err(|error| match error {
+            crate::update_policy::SelectionError::InvalidIndex => {
+                ErreurSite::Amont("réponse de l'index des releases illisible".to_owned())
+            }
+            crate::update_policy::SelectionError::NoSignedInstaller => ErreurSite::Introuvable(
+                format!("aucune release de {DEPOT} ne porte d'installeur signé"),
+            ),
+        })?;
+    Ok(Choix {
+        version: selected.version,
+        notes: selected.notes,
+        pub_date: selected.pub_date,
+        url_installeur: selected.installer_url,
+        url_signature: selected.signature_url,
+    })
 }
 
 /// Assemble le manifeste une fois la signature lue.
 #[must_use]
 pub fn assembler(choix: Choix, signature: String) -> Manifeste {
-    let mut platforms = std::collections::BTreeMap::new();
-    platforms.insert(
-        PLATEFORME.to_owned(),
-        Plateforme {
-            signature,
-            url: choix.url_installeur,
-        },
-    );
-    Manifeste {
+    let selected = crate::update_policy::Selection {
         version: choix.version,
         notes: choix.notes,
         pub_date: choix.pub_date,
-        platforms,
+        installer_url: choix.url_installeur,
+        signature_url: choix.url_signature,
+    };
+    let manifest = crate::update_policy::assemble_manifest(selected, signature, PLATEFORME);
+    Manifeste {
+        version: manifest.version,
+        notes: manifest.notes,
+        pub_date: manifest.pub_date,
+        platforms: manifest
+            .platforms
+            .into_iter()
+            .map(|(key, value)| {
+                (
+                    key,
+                    Plateforme {
+                        signature: value.signature,
+                        url: value.url,
+                    },
+                )
+            })
+            .collect(),
     }
 }
 

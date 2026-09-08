@@ -6089,6 +6089,7 @@ name = "nie-explore"
 version = "0.5.11"
 dependencies = [
  "anyhow",
+ "base64 0.22.1",
  "globset",
  "grep-regex",
  "grep-searcher",
@@ -6096,10 +6097,9 @@ dependencies = [
  "nie-data",
  "nie-formats",
  "nie-lua",
- "rusqlite",
+ "nie-sql",
  "serde",
  "serde_json",
- "sha2 0.10.9",
 ]
 
 [[package]]
@@ -6335,6 +6335,7 @@ name = "nie-seed"
 version = "0.5.11"
 dependencies = [
  "anyhow",
+ "nie-formats",
  "nie-index",
  "rusqlite",
  "serde",
@@ -6392,6 +6393,7 @@ dependencies = [
  "rustls",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "tempfile",
  "thiserror 2.0.20",
  "tokio",

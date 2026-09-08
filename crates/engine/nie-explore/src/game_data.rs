@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use nie_formats::cfgbin::CfgEntry;
 use nie_formats::vfs::Vfs;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::bridge::t2b_value_to_json;
 

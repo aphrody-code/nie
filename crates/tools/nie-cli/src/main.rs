@@ -3243,17 +3243,25 @@ fn recover_cmd(
 ) -> anyhow::Result<()> {
     let mut db = nie_index::Db::open(db_path).context("ouverture base")?;
     let bin = pdata_binary_id(&db)?;
-    // Les noms Ghidra (FID) sont ingeres en premier : ils identifient la ou
-    // les passes structurelles ne font que designer, et priment donc sur
-    // elles — mais pas sur un nom tire d'une chaine du binaire.
-    if let Some(csv) = ghidra_csv.filter(|_| !dry_run) {
-        let gs = nie_re::ghidra_import::ingest_ghidra_csv(&mut db, bin, csv)?;
+    let mut observe = |step| eprintln!("recover: étape terminée: {step:?}");
+    let report = nie_re::workflow::recover_with_observer(
+        &mut db,
+        exe_path,
+        &nie_re::workflow::RecoverOptions {
+            binary_id: bin,
+            dry_run,
+            ghidra_csv: ghidra_csv.map(std::path::Path::to_path_buf),
+        },
+        &mut observe,
+    )?;
+
+    if let Some(gs) = report.ghidra {
         println!(
             "  ghidra: {} lignes | {} noms par defaut ecartes, {} adresses sans correspondance | {} noms ecrits (dont {} remplacant un nom structurel)",
             gs.rows, gs.default_names, gs.unmatched, gs.named, gs.replaced_struct,
         );
     }
-    let st = nie_re::recover::recover_leaves(&mut db, bin, exe_path, dry_run)?;
+    let st = report.leaves;
     let pct_gap = if st.gap_bytes > 0 {
         100.0 * (st.recovered_gap_bytes + st.padding_bytes) as f64 / st.gap_bytes as f64
     } else {
@@ -3288,46 +3296,32 @@ fn recover_cmd(
         st.shape_inherited,
         st.pruned,
     );
-    if dry_run {
+    let Some(enrichment) = report.enrichment else {
         return Ok(());
-    }
-    // Les tables de pointeurs sans RTTI relèvent de la même passe structurelle :
-    // elles désignent des fonctions et les regroupent par unité de code.
-    let rtti_bin: i64 = db
-        .conn()
-        .query_row("SELECT id FROM binary ORDER BY id LIMIT 1", [], |r| {
-            r.get(0)
-        })
-        .context("aucun binaire indexé")?;
-    let av = nie_re::vtable_anon::anon_vtable_edges_into(&mut db, rtti_bin, bin, exe_path)?;
+    };
+    let av = enrichment.anonymous_vtables;
     println!(
         "  vtables sans RTTI: {}/{} tables ({} slots, {} methodes) | fonctions+={} cohesion={} noms={}",
         av.tables, av.tables_seen, av.slots, av.methods, av.new_funcs, av.cohesion_edges, av.named,
     );
-    // Sens : les chaines que le code manipule.
-    let sr = nie_re::strref::ingest_string_refs(&mut db, bin, exe_path)?;
+    let sr = enrichment.string_references;
     println!(
         "  chaines: {} relevees | {} fonctions scannees, {} references ({} nouvelles) | {} chaines identifiantes a referent unique | {} noms semantiques",
         sr.strings, sr.scanned, sr.refs, sr.refs_new, sr.unique_idents, sr.named,
     );
-    // Points d'entree du script : tables de repartition funcLua.
-    let fl = nie_re::funclua::ingest_funclua(&mut db, bin, exe_path)?;
+    let fl = enrichment.func_lua;
     println!(
         "  funcLua: {} tables ({} entrees, {} handlers) | fonctions+={} nommes={} classes script={}",
         fl.tables, fl.entries, fl.handlers, fl.new_funcs, fl.named, fl.classified,
     );
-    // Dernier recours pour le residu sans arete : la contiguite d'adresse.
-    let ad = nie_re::adjacency::classify_by_adjacency(&mut db, bin, false)?;
+    let ad = enrichment.adjacency;
     println!(
         "  contiguite: {} classees | coherence {:.1}% mesuree sur {} cas de controle (cohérence avec l'etiquetage existant, pas verite terrain)",
         ad.classified,
         ad.precision_estimate(),
         ad.control_cases,
     );
-    // Instantané de couverture : sans lui, la table `coverage` — la metrique
-    // que lisent le MCP et les rapports — resterait figee sur le dernier
-    // `rebuild` et sous-declarerait tout ce que cette passe vient d'ajouter.
-    let cov = db.snapshot_coverage(bin)?;
+    let cov = enrichment.coverage;
     println!(
         "  couverture: {}/{} classees ({:.2}%), {} nommees",
         cov.classified, cov.total, cov.pct, cov.named,
@@ -3341,89 +3335,55 @@ fn rebuild(
     rounds: usize,
 ) -> anyhow::Result<()> {
     let mut db = nie_index::Db::open(db_path).context("ouverture base")?;
-    let src_bin: i64 = db
+    let source_binary_id = db
         .conn()
-        .query_row("SELECT id FROM binary ORDER BY id LIMIT 1", [], |r| {
-            r.get(0)
+        .query_row("SELECT id FROM binary ORDER BY id LIMIT 1", [], |row| {
+            row.get(0)
         })
         .context("aucun binaire indexé — lancer `niers seed` d'abord")?;
-
-    // Binaire cible distinct (vérité .pdata) : sha dérivé pour ne pas écraser la source.
-    let (path_str, src_sha): (String, String) = db.conn().query_row(
-        "SELECT path, sha256 FROM binary WHERE id=?1",
-        [src_bin],
-        |r| Ok((r.get(0)?, r.get(1)?)),
+    let report = nie_re::workflow::rebuild(
+        &mut db,
+        exe_path,
+        nie_re::workflow::RebuildOptions {
+            source_binary_id,
+            image_base: NIE_IMAGE_BASE,
+            rounds,
+            skip_indirect: std::env::var("NIE_NO_INDIRECT").is_ok(),
+        },
     )?;
-    let dst_bin = db.upsert_binary(
-        &format!("{path_str}#pdata"),
-        &format!("{src_sha}-pdata"),
-        "x86_64",
-        64,
-        NIE_IMAGE_BASE,
-        0,
-        None,
-        None,
-    )?;
-
-    // A/B leviers indirects : NIE_NO_INDIRECT=1 saute l'ancrage de classe (vtable)
-    // ET l'insertion des arêtes LEA → mesure du delta de couverture réel.
-    let skip_indirect = std::env::var("NIE_NO_INDIRECT").is_ok();
-
-    let rb = nie_re::pdata::rebuild_from_pdata(&mut db, src_bin, dst_bin, exe_path)?;
-    let vt = nie_re::vtable::vtable_edges_into(&mut db, src_bin, dst_bin, exe_path, skip_indirect)?;
-    let dis = nie_re::disasm::recover_call_edges(&mut db, dst_bin, exe_path, skip_indirect)?;
-    let prop = nie_re::loop_db::propagate_db(&mut db, dst_bin, rounds)?;
-
-    // Couverture HONNÊTE à deux seuils : classé brut (≥1 voisin labellisé, même
-    // confiance quasi-nulle) ET confiance ≥ 0.3 (label sémantiquement utile).
-    let classified_conf: i64 = db.conn().query_row(
-        "SELECT COUNT(*) FROM function WHERE binary_id=?1 AND subsystem!='standalone' AND confidence>=0.3",
-        [dst_bin],
-        |r| r.get(0),
-    )?;
+    let prop = report.propagation;
     let pct_conf = if prop.total > 0 {
-        100.0 * classified_conf as f64 / prop.total as f64
+        100.0 * report.classified_confident as f64 / prop.total as f64
     } else {
         0.0
     };
-
-    // Noms réels écrits : fonctions ayant un `name` non nul dans dst_bin.
-    // Inclut les noms 'vtable-struct' générés à cette exécution ainsi que
-    // tout nom antérieur (name_source != NULL).  N'exclut pas de préfixe
-    // car les noms structurels ne commencent pas par 'FUN_'.
-    let named_total: i64 = db.conn().query_row(
-        "SELECT COUNT(*) FROM function WHERE binary_id=?1 AND name IS NOT NULL",
-        [dst_bin],
-        |r| r.get(0),
-    )?;
     let pct_named = if prop.total > 0 {
-        100.0 * named_total as f64 / prop.total as f64
+        100.0 * report.named_total as f64 / prop.total as f64
     } else {
         0.0
     };
-
     println!(
         "rebuild roots={} str={} ce={} rtti={} | vtable methods={} leaf+={} cohesion={} anchored={} named_struct={} | disasm new={} lea_new={} | named={}/{} ({:.2}%) | cov_brut={}/{} ({:.2}%) cov_conf>=0.3={}/{} ({:.2}%)",
-        rb.roots,
-        rb.str_refs_moved,
-        rb.ce_edges_mapped,
-        rb.rtti_copied,
-        vt.methods,
-        vt.new_leaf_funcs,
-        vt.cohesion_edges,
-        vt.class_anchored,
-        vt.named_struct,
-        dis.edges_new,
-        dis.lea_edges_new,
-        named_total,
+        report.pdata.roots,
+        report.pdata.str_refs_moved,
+        report.pdata.ce_edges_mapped,
+        report.pdata.rtti_copied,
+        report.vtable.methods,
+        report.vtable.new_leaf_funcs,
+        report.vtable.cohesion_edges,
+        report.vtable.class_anchored,
+        report.vtable.named_struct,
+        report.disassembly.edges_new,
+        report.disassembly.lea_edges_new,
+        report.named_total,
         prop.total,
         pct_named,
         prop.classified_after,
         prop.total,
         prop.coverage_after,
-        classified_conf,
+        report.classified_confident,
         prop.total,
-        pct_conf
+        pct_conf,
     );
     Ok(())
 }

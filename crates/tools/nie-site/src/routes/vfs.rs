@@ -42,22 +42,7 @@ pub const CONTROLE: &str = "public, max-age=86400, stale-while-revalidate=604800
 ///
 /// `Demande` quand le chemin est vide ou sort de l'espace VFS.
 pub fn normaliser(brut: &str) -> Result<String, ErreurSite> {
-    let brut = brut.trim_start_matches('/');
-    if brut.is_empty() {
-        return Err(ErreurSite::Demande("chemin VFS vide".to_owned()));
-    }
-    if brut.contains('\0') || brut.contains('\\') {
-        return Err(ErreurSite::Demande("chemin VFS invalide".to_owned()));
-    }
-    let mut segments = Vec::new();
-    for s in brut.split('/') {
-        match s {
-            "" | "." => return Err(ErreurSite::Demande("chemin VFS non normalise".to_owned())),
-            ".." => return Err(ErreurSite::Demande("chemin VFS sortant".to_owned())),
-            autre => segments.push(autre),
-        }
-    }
-    Ok(segments.join("/"))
+    nie_explore::vfs_policy::normalize_path(brut).map_err(path_error)
 }
 
 /// Normalise un préfixe de parcours. Le préfixe vide est licite : c'est la racine du VFS.
@@ -66,11 +51,20 @@ pub fn normaliser(brut: &str) -> Result<String, ErreurSite> {
 ///
 /// `Demande` quand le préfixe sort de l'espace VFS.
 pub fn normaliser_prefixe(brut: &str) -> Result<String, ErreurSite> {
-    let brut = brut.trim_matches('/');
-    if brut.is_empty() {
-        return Ok(String::new());
-    }
-    normaliser(brut)
+    nie_explore::vfs_policy::normalize_prefix(brut).map_err(path_error)
+}
+
+fn path_error(error: nie_explore::vfs_policy::PathError) -> ErreurSite {
+    use nie_explore::vfs_policy::PathError;
+    ErreurSite::Demande(
+        match error {
+            PathError::Empty => "chemin VFS vide",
+            PathError::Invalid => "chemin VFS invalide",
+            PathError::NonNormalized => "chemin VFS non normalise",
+            PathError::Traversal => "chemin VFS sortant",
+        }
+        .to_owned(),
+    )
 }
 
 /// Type de contenu d'une ressource du jeu.
@@ -80,28 +74,7 @@ pub fn normaliser_prefixe(brut: &str) -> Result<String, ErreurSite> {
 /// ce nom-là que l'utilisateur doit retrouver sur son disque.
 #[must_use]
 pub fn type_contenu(chemin: &str) -> &'static str {
-    let ext = chemin
-        .rsplit_once('.')
-        .map(|(_, e)| e.to_ascii_lowercase())
-        .unwrap_or_default();
-    match ext.as_str() {
-        "png" => "image/png",
-        "jpg" | "jpeg" => "image/jpeg",
-        "webp" => "image/webp",
-        "dds" => "image/vnd-ms.dds",
-        "mp4" => "video/mp4",
-        "webm" => "video/webm",
-        "wav" => "audio/wav",
-        "ogg" => "audio/ogg",
-        "json" => "application/json",
-        // `.log` et `.cfg` sont du texte, mesuré au contenu et non supposé : les 10 `.log` du
-        // VFS commencent par « **** fbx2g4 version… » (le journal de conversion FBX de
-        // l'outillage Level-5) et les 2 `.cfg` par « BLOCK_LIST_BEG ». Servis en
-        // `application/octet-stream`, ils se téléchargeaient au lieu de s'afficher.
-        "txt" | "csv" | "log" | "cfg" => "text/plain; charset=utf-8",
-        "xml" => "application/xml; charset=utf-8",
-        _ => "application/octet-stream",
-    }
+    nie_explore::vfs_policy::content_type(chemin)
 }
 
 /// `GET /f/{*chemin}` — une ressource du jeu, octets bruts, extension conservée.

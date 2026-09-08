@@ -28,6 +28,7 @@ use anyhow::Context;
 use rayon::prelude::*;
 
 use image_dds::ddsfile::Dds;
+use nie_explore::menu_predecode::plan;
 use nie_formats::cpk::CpkReader;
 
 // ---------------------------------------------------------------------------
@@ -61,7 +62,7 @@ pub fn run(
     let mut conn = client.get_connection().context("get_connection Redis")?;
 
     // --- Collecte des chemins à traiter ---
-    let mut paths: Vec<String> = Vec::new();
+    let mut indexed = Vec::new();
 
     // Priorité : chemins fournis par l'appelant (sprites layouts azalee).
     for p in priority_paths {
@@ -74,14 +75,13 @@ pub fn run(
             .ok()
             .flatten();
         if cpk.is_some() {
-            paths.push(p.to_string());
+            indexed.push((redis_key, cpk.unwrap_or_default()));
         }
     }
 
     if all_menu {
         // Scan HSCAN de tous les g4tx menu (fr, en, pt, de, es, it, zh_hans, ko, base).
         let mut cursor: u64 = 0;
-        let target_langs = ["fr", "en"];
         loop {
             let result: redis::Value = redis::cmd("HSCAN")
                 .arg("iev:file:index")
@@ -93,17 +93,7 @@ pub fn run(
                 .query(&mut conn)?;
 
             let (next_cursor, pairs) = parse_hscan_result(result)?;
-            for (field, _cpk) in &pairs {
-                // field = "data/dx11/menu/..."
-                let rel = field.strip_prefix("data/").unwrap_or(field);
-                // Filtre : langues cibles ou chemin de base (avant-dernier segment = nom_parent)
-                if should_include(rel, &target_langs) {
-                    // Déduplique vs priority_paths
-                    if !paths.contains(&rel.to_string()) {
-                        paths.push(rel.to_string());
-                    }
-                }
-            }
+            indexed.extend(pairs);
             cursor = next_cursor;
             if cursor == 0 {
                 break;
@@ -111,13 +101,9 @@ pub fn run(
         }
     }
 
-    let total = paths.len();
+    let plan = plan(priority_paths, &indexed, all_menu, &["fr", "en"]);
+    let total = plan.paths.len();
     eprintln!("predecode total={total} sprites à traiter");
-
-    // --- Construction de la map field -> cpk (batch HMGET) ---
-    // On recharge depuis Redis pour avoir les CPK de tous les chemins collectés.
-    let redis_keys: Vec<String> = paths.iter().map(|p| format!("data/{p}")).collect();
-    let cpk_map = batch_hmget(&mut conn, &redis_keys)?;
 
     // --- Traitement parallèle ---
     let decoded = AtomicU32::new(0);
@@ -127,21 +113,12 @@ pub fn run(
     // Index CPK déjà ouverts : chargés une fois par CPK (mmap-like via std::fs::read).
     // Chaque thread Rayon a son propre CPK buffer (clone minimal — taille ~10-50 MB/CPK).
     // Pour éviter de relire le même CPK plusieurs fois, on groupe par CPK.
-    let mut by_cpk: HashMap<String, Vec<String>> = HashMap::new();
-    for p in &paths {
-        let redis_key = format!("data/{p}");
-        if let Some(cpk_name) = cpk_map.get(&redis_key).and_then(|v| v.as_deref()) {
-            by_cpk
-                .entry(cpk_name.to_string())
-                .or_default()
-                .push(p.clone());
-        } else {
-            eprintln!("warn: pas de CPK pour {p}");
-            failed.fetch_add(1, Ordering::Relaxed);
-        }
+    for path in &plan.missing_archive {
+        eprintln!("warn: pas de CPK pour {path}");
+        failed.fetch_add(1, Ordering::Relaxed);
     }
 
-    let cpk_groups: Vec<(String, Vec<String>)> = by_cpk.into_iter().collect();
+    let cpk_groups: Vec<(String, Vec<String>)> = plan.by_archive.into_iter().collect();
     let total_cpks = cpk_groups.len();
     eprintln!("predecode {total_cpks} CPK distincts");
 
@@ -306,40 +283,6 @@ fn write_png(out: &Path, bytes: &[u8]) -> anyhow::Result<()> {
 // Helpers Redis
 // ---------------------------------------------------------------------------
 
-/// Filtre : inclut les g4tx pour les langues cibles + les chemins de base (sans dossier langue).
-fn should_include(rel_path: &str, target_langs: &[&str]) -> bool {
-    // rel_path = "dx11/menu/<screen>/<sub>/<file>/<lang>/<file>.g4tx"
-    // ou       = "dx11/menu/<screen>/<sub>/<file>.g4tx" (base, pas de langue)
-    let parts: Vec<&str> = rel_path.split('/').collect();
-    if parts.len() < 2 {
-        return false;
-    }
-    // La langue est l'avant-dernier segment (avant le nom de fichier).
-    let lang_candidate = if parts.len() >= 2 {
-        parts[parts.len() - 2]
-    } else {
-        ""
-    };
-
-    // Inclure si c'est une langue cible.
-    if target_langs.contains(&lang_candidate) {
-        return true;
-    }
-
-    // Inclure si l'avant-dernier segment ressemble au nom d'un sous-répertoire thématique
-    // (pas une langue), ce qui signifie que le fichier est à la racine de son sous-répertoire.
-    // Heuristique : les dossiers langue contiennent uniquement 2 lettres ou codes standards.
-    let known_langs = [
-        "fr", "en", "de", "es", "it", "pt", "ko", "ja", "zh_hans", "zh_hant", "ar", "ru",
-    ];
-    if known_langs.contains(&lang_candidate) {
-        return false; // Langue non ciblée.
-    }
-
-    // Pas de dossier langue -> chemin de base (japonais implicite).
-    true
-}
-
 /// Parse le résultat HSCAN Redis en (next_cursor, Vec<(field, value)>).
 fn parse_hscan_result(val: redis::Value) -> anyhow::Result<(u64, Vec<(String, String)>)> {
     use redis::Value;
@@ -381,32 +324,4 @@ fn redis_value_to_string(val: &redis::Value) -> Option<String> {
         Value::SimpleString(s) => Some(s.clone()),
         _ => None,
     }
-}
-
-/// Récupère les valeurs pour une liste de champs depuis un HASH Redis.
-/// Retourne une map field -> Option<String>.
-fn batch_hmget(
-    conn: &mut redis::Connection,
-    keys: &[String],
-) -> anyhow::Result<HashMap<String, Option<String>>> {
-    if keys.is_empty() {
-        return Ok(HashMap::new());
-    }
-
-    // On split en chunks de 500 pour éviter les commandes trop longues.
-    let mut result: HashMap<String, Option<String>> = HashMap::with_capacity(keys.len());
-
-    for chunk in keys.chunks(500) {
-        let mut cmd = redis::cmd("HMGET");
-        cmd.arg("iev:file:index");
-        for k in chunk {
-            cmd.arg(k);
-        }
-        let vals: Vec<Option<String>> = cmd.query(conn)?;
-        for (k, v) in chunk.iter().zip(vals) {
-            result.insert(k.clone(), v);
-        }
-    }
-
-    Ok(result)
 }

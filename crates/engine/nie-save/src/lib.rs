@@ -239,6 +239,31 @@ pub struct LivesContainer {
     pub blobs: Vec<Blob>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BlobInfo {
+    pub filename: String,
+    pub subtype: String,
+    pub size: u32,
+}
+
+#[must_use]
+pub fn list_blobs(container: &LivesContainer) -> Vec<BlobInfo> {
+    container
+        .entries
+        .iter()
+        .zip(&container.blobs)
+        .map(|(entry, blob)| BlobInfo {
+            filename: entry.filename.clone(),
+            subtype: format!("{:?}", blob.header.subtype),
+            size: blob.body.len() as u32,
+        })
+        .collect()
+}
+
+pub fn blob_body(container: &LivesContainer, index: usize) -> Option<&[u8]> {
+    container.blobs.get(index).map(|blob| blob.body.as_slice())
+}
+
 impl LivesContainer {
     /// Rechiffre le conteneur et produit les octets du fichier prêts à être écrits.
     ///
@@ -1286,6 +1311,38 @@ mod tests {
         let team = Team::unresolved();
         assert!(!team.resolved, "team.resolved doit être false");
         assert!(team.members.is_empty(), "team.members doit être vide");
+    }
+
+    #[test]
+    fn shared_blob_views_preserve_legacy_fields_and_body() {
+        let container = LivesContainer {
+            slot_name: "slot".into(),
+            key: 0,
+            entries: vec![DirEntry {
+                crc32: 0,
+                size: 3,
+                offset: 0,
+                filename: "A.bin".into(),
+            }],
+            blobs: vec![Blob {
+                header: BlobHeader {
+                    subtype: BlobSubtype::System,
+                    payload_size: 3,
+                    field8: 0,
+                },
+                body: vec![1, 2, 3],
+            }],
+        };
+        assert_eq!(
+            list_blobs(&container),
+            vec![BlobInfo {
+                filename: "A.bin".into(),
+                subtype: "System".into(),
+                size: 3,
+            }]
+        );
+        assert_eq!(blob_body(&container, 0), Some(&[1, 2, 3][..]));
+        assert_eq!(blob_body(&container, 1), None);
     }
 
     /// summarize sur un conteneur sans AUTOSAVE produit un Roster vide.
