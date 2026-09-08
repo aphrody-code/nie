@@ -660,10 +660,15 @@ The migration contract must reject duplicate versions, checksum drift, unfinishe
 unknown applied versions before executing new SQL. Backend-specific SQL stays explicit where
 dialects differ; a migration never claims cross-database compatibility merely because its
 version number matches. Connection strings and error reports must not expose credentials.
-The next source batch replaces the `nie-explore::database` implementation with a compatibility
-facade over `nie-sql`, then adds thin trusted-server and Tauri adapters without changing their
-public command/API names. This decision preserves the existing data push, backup, API and source
-tree instead of creating parallel mechanisms.
+The SQLite registry and its SQLx-compatible migration history now live in
+`nie-sql::sqlite_registry`; `nie-explore::database` is a compatibility `pub use`, so Inacord
+retains its public `sqlite_*` command names while all writable local state reaches the shared
+owner. The move preserved the eight existing registry/migration tests, which pass together with
+strict `nie-sql` clippy. The Inacord Cargo check passes with one pre-existing warning in
+`nie-render3d/glb.rs` outside this batch. The next source batch adds thin trusted-server adapters
+and proves a PostgreSQL migration against a disposable server without changing public command/API
+names. This decision preserves the existing data push, backup, API and source tree instead of
+creating parallel mechanisms.
 
 The read driver is implemented: SQLite uses an OS read-only handle; PostgreSQL uses parameterized
 `tokio-postgres` queries, certificate-verifying Rustls with native roots by default, an explicit
