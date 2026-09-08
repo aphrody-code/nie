@@ -14,6 +14,7 @@ import { ingestSources, type RagSource } from "./rag-store-local";
 import { chunkBySource, type SourceKind } from "./rag-chunkers";
 import { sql } from "../../lib/db.js";
 import { dansLeDepot } from "../../lib/racine";
+import { ragEnabled } from "./rag-enabled";
 
 interface DBTweetRow {
 	id: string;
@@ -543,6 +544,10 @@ export async function runRagSync(): Promise<{
 	processed: number;
 	errors: number;
 }> {
+	if (!ragEnabled()) {
+		console.log("[RAG Sync] désactivé par RAG_ENABLED=0.");
+		return { success: true, processed: 0, errors: 0 };
+	}
 	console.log("[RAG Sync] Lancement de la synchronisation vectorielle...");
 
 	let processed = 0;
@@ -787,6 +792,7 @@ export async function runRagSync(): Promise<{
  * Interroge le RAG en cherchant les documents les plus proches sémantiquement.
  */
 export async function queryRag(question: string, limit = 4) {
+	if (!ragEnabled()) return [];
 	console.log(`[RAG Query] Recherche sémantique pour : "${question}"`);
 
 	// Générer l'embedding de la question

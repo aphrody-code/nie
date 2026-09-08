@@ -16,6 +16,7 @@ import { upsertChunks, hybridSearch, type RagChunkRow } from "@rosegriffon/db/ra
 import { computeStringHash } from "./rag-utils";
 import { chunkBySource, type SourceKind } from "./rag-chunkers";
 import { embedBatch, embedOne, RAG_EMBED_DIM, type EmbedBackend } from "./rag-embed";
+import { ragEnabled } from "./rag-enabled";
 
 export interface RagSource {
 	/** Identifiant stable de la source parente (doc/entité/fichier). */
@@ -40,6 +41,10 @@ export interface IngestStats {
 /** Ingestion idempotente d'un lot de sources dans le store local. */
 export async function ingestSources(sources: RagSource[]): Promise<IngestStats> {
 	const stats: IngestStats = { sources: 0, chunks: 0, skipped: 0, backend: "hash" };
+	if (!ragEnabled()) {
+		stats.skipped = sources.length;
+		return stats;
+	}
 
 	for (const src of sources) {
 		const chunks = chunkBySource(src.kind, src.raw).filter((c) => c.content.trim().length >= 20);
@@ -109,6 +114,7 @@ export async function ragHybridSearch(
 	query: string,
 	opts: { k?: number; kinds?: SourceKind[] } = {}
 ): Promise<RagPgResult[]> {
+	if (!ragEnabled()) return [];
 	const { vector } = await embedOne(query);
 	try {
 		return hybridSearch(vector, query, { k: opts.k, kinds: opts.kinds });

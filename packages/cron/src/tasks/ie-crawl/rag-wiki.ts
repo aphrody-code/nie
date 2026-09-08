@@ -20,6 +20,7 @@
 
 import { createSupabaseServiceClient } from "@rosegriffon/db/service";
 import { ingestSources, type RagSource } from "./rag-store-local";
+import { ragEnabled } from "./rag-enabled";
 
 const PAGE_SIZE = 1000;
 const BATCH = 64;
@@ -285,6 +286,9 @@ async function ingestSkills(limit: number, totals: Totals): Promise<number> {
 export async function ingestWikiCorpus(
 	opts: { only?: "characters" | "skills"; limit?: number } = {}
 ): Promise<WikiIngestStats> {
+	if (!ragEnabled()) {
+		return { success: true, characters: 0, skills: 0, chunks: 0, backend: "hash" };
+	}
 	const limit = opts.limit ?? Infinity;
 	const totals: Totals = { sources: 0, chunks: 0, skipped: 0, backend: "hash" };
 

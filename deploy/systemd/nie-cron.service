@@ -46,6 +46,9 @@ Environment=AZALEE_URL=https://azalee.rosegriffon.fr
 Environment=WEBSITE_URL=https://rosegriffon.fr
 Environment=API_URL=https://api.rosegriffon.fr
 Environment=CDN_URL=https://cdn.rosegriffon.fr
+# Le RAG local/HTTP a été retiré. Le crawl de sources reste actif, mais ses
+# étapes d'embedding, d'indexation et de recherche deviennent des no-op explicites.
+Environment=RAG_ENABLED=0
 
 # `@aphrody-code/bxc` tente en dernier recours `cargo run --manifest-path rust-bridge/Cargo.toml`
 # pour localiser Chrome — ce dossier n'est jamais publié dans le tarball npm, donc l'appel échoue

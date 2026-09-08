@@ -33,6 +33,7 @@ export { embedBatch, embedOne, type EmbedBackend } from "./rag-embed";
 
 import { queryRag } from "./rag";
 import { ragWebSearch, type RagWebDoc } from "./rag-web";
+import { ragEnabled } from "./rag-enabled";
 
 export interface GroundedSource {
 	kind: "local" | "web";
@@ -72,6 +73,7 @@ export async function ragGroundedQuery(
 	question: string,
 	opts: GroundedQueryOptions = {}
 ): Promise<GroundedAnswer> {
+	if (!ragEnabled()) return { question, sources: [], local: 0, web: 0 };
 	const limit = opts.limit ?? 4;
 	const local = await queryRag(question, limit);
 
