@@ -55,7 +55,7 @@ for (const [surface, expected] of Object.entries(expectedCounts)) {
       if (!needle || !(await Bun.file(source).exists()) || !(await text(source)).includes(needle)) failures.push(`${surface}/${entry.entry}: source does not prove delegation to ${entry.owner}`);
     }
     if (entry.classification === "host_only") {
-      const allowed = surface === "cli" ? /^(ComputerUse|Mem|PatchEac)$/ : surface === "inacord" && /(^|::)(live_|launch_|open_|re_|memory_|process_|default_|check_game_dir|preload_vfs|list_packs_dir|raw_cpk_extract|copy_disk|disk_file|set_titlebar|take_pending|describe_disk|read_disk|write_text|install_|blender_|clipboard_|trash_|export_mod|forge_|mcp_)/.test(entry.entry);
+      const allowed = surface === "cli" ? /^(ComputerUse|Info|Find|Grep|Mem|PatchEac)$/ : surface === "inacord" && /(^|::)(live_|launch_|open_|re_|memory_|process_|default_|check_game_dir|preload_vfs|list_packs_dir|raw_cpk_extract|copy_disk|disk_file|set_titlebar|take_pending|describe_disk|read_disk|write_text|install_|blender_|clipboard_|trash_|export_mod|forge_|mcp_)/.test(entry.entry);
       if (!allowed) failures.push(`${surface}/${entry.entry}: host_only is not an allowlisted OS/process operation`);
       if (/Local command binding|Native filesystem, process, database/.test(entry.rationale)) failures.push(`${surface}/${entry.entry}: generic host_only rationale`);
     }

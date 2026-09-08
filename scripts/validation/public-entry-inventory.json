@@ -13,7 +13,7 @@
       "capability": "computeruse",
       "classification": "host_only",
       "owner": "crates/tools/nie-cli/src/main.rs",
-      "rationale": "ComputerUse requires a local process, executable, or memory boundary."
+      "rationale": "ComputerUse controls a local executable or Ghidra process boundary."
     },
     {
       "surface": "cli",
@@ -52,7 +52,7 @@
       "entry": "RefreshTypedJson",
       "capability": "refreshtypedjson",
       "classification": "portable",
-      "owner": "crates/tools/nie-cli/src/main.rs",
+      "owner": "crates/engine/nie-formats/src/cfgbin.rs",
       "rationale": "RefreshTypedJson delegates portable domain work to its named library owner."
     },
     {
@@ -67,16 +67,16 @@
       "surface": "cli",
       "entry": "Info",
       "capability": "info",
-      "classification": "portable",
+      "classification": "host_only",
       "owner": "crates/tools/nie-cli/src/main.rs",
-      "rationale": "Info delegates portable domain work to its named library owner."
+      "rationale": "Info inventories the locally installed game and filesystem metadata."
     },
     {
       "surface": "cli",
       "entry": "Locales",
       "capability": "locales",
       "classification": "portable",
-      "owner": "crates/tools/nie-cli/src/main.rs",
+      "owner": "crates/engine/nie-formats/src/locale.rs",
       "rationale": "Locales delegates portable domain work to its named library owner."
     },
     {
@@ -147,17 +147,17 @@
       "surface": "cli",
       "entry": "Find",
       "capability": "find",
-      "classification": "portable",
+      "classification": "host_only",
       "owner": "crates/tools/nie-cli/src/main.rs",
-      "rationale": "Find delegates portable domain work to its named library owner."
+      "rationale": "Find searches host filesystem paths outside the mounted VFS abstraction."
     },
     {
       "surface": "cli",
       "entry": "Grep",
       "capability": "grep",
-      "classification": "portable",
+      "classification": "host_only",
       "owner": "crates/tools/nie-cli/src/main.rs",
-      "rationale": "Grep delegates portable domain work to its named library owner."
+      "rationale": "Grep searches host file contents through native filesystem walkers."
     },
     {
       "surface": "cli",
@@ -244,7 +244,7 @@
       "entry": "Pdata",
       "capability": "pdata",
       "classification": "portable",
-      "owner": "crates/tools/nie-cli/src/main.rs",
+      "owner": "crates/forge/nie-re/src/lib.rs",
       "rationale": "Pdata delegates portable domain work to its named library owner."
     },
     {
@@ -284,7 +284,7 @@
       "entry": "UniformMap",
       "capability": "uniformmap",
       "classification": "portable",
-      "owner": "crates/tools/nie-cli/src/main.rs",
+      "owner": "crates/engine/nie-explore/src/uniform_map.rs",
       "rationale": "UniformMap delegates portable domain work to its named library owner."
     },
     {
@@ -309,7 +309,7 @@
       "capability": "mem",
       "classification": "host_only",
       "owner": "crates/tools/nie-cli/src/main.rs",
-      "rationale": "Mem requires a local process, executable, or memory boundary."
+      "rationale": "Mem reads or modifies an identified local game process."
     },
     {
       "surface": "cli",
@@ -332,7 +332,7 @@
       "entry": "Video",
       "capability": "video",
       "classification": "portable",
-      "owner": "crates/tools/nie-cli/src/main.rs",
+      "owner": "crates/engine/nie-explore/src/cinema.rs",
       "rationale": "Video delegates portable domain work to its named library owner."
     },
     {
@@ -1388,24 +1388,36 @@
       "entry": "video_catalog",
       "capability": "video-catalog",
       "classification": "portable",
-      "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "video_catalog is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "video_catalog is an IPC adapter expected to delegate to the named portable owner.",
+      "sourceEvidence": [
+        "apps/inacord/src-tauri/src/video.rs",
+        "nie_formats::usm"
+      ]
     },
     {
       "surface": "inacord",
       "entry": "video_info",
       "capability": "video-info",
       "classification": "portable",
-      "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "video_info is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "video_info is an IPC adapter expected to delegate to the named portable owner.",
+      "sourceEvidence": [
+        "apps/inacord/src-tauri/src/video.rs",
+        "nie_formats::usm"
+      ]
     },
     {
       "surface": "inacord",
       "entry": "video_precharger",
       "capability": "video-precharger",
       "classification": "portable",
-      "owner": "apps/inacord/src-tauri/src/lib.rs",
-      "rationale": "video_precharger is an IPC adapter expected to delegate to the named portable owner."
+      "owner": "crates/engine/nie-formats/src/lib.rs",
+      "rationale": "video_precharger is an IPC adapter expected to delegate to the named portable owner.",
+      "sourceEvidence": [
+        "apps/inacord/src-tauri/src/video.rs",
+        "nie_formats::usm"
+      ]
     },
     {
       "surface": "inacord",
@@ -1932,11 +1944,11 @@
       "entry": "GET /api/v1/episodes",
       "capability": "get-api-v1-episodes",
       "classification": "portable",
-      "owner": "crates/tools/nie-site/src/routes/episodes.rs",
+      "owner": "crates/tools/nie-wiki/src/episodes.rs",
       "rationale": "GET /api/v1/episodes delegates portable work to the named library owner.",
       "sourceEvidence": [
         "crates/tools/nie-site/src/routes/episodes.rs",
-        "nie_site"
+        "nie_wiki"
       ]
     },
     {
@@ -2492,11 +2504,11 @@
       "entry": "GET /api/v1/recherche",
       "capability": "get-api-v1-recherche",
       "classification": "portable",
-      "owner": "crates/tools/nie-site/src/routes/recherche.rs",
+      "owner": "crates/engine/nie-explore/src/search_query.rs",
       "rationale": "GET /api/v1/recherche delegates portable work to the named library owner.",
       "sourceEvidence": [
         "crates/tools/nie-site/src/routes/recherche.rs",
-        "nie_site"
+        "nie_explore"
       ]
     },
     {
