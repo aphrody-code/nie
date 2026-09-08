@@ -19,6 +19,48 @@ fn unavailable(error: impl std::fmt::Display) -> ErreurSite {
     ErreurSite::Indisponible("Wiki resource unavailable".into())
 }
 
+/// Bounded exact resource code batch with a requested game locale.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NamesQuery {
+    /// Comma-separated original resource codes, at most 200.
+    pub codes: String,
+    /// Requested game locale; mirror translations currently cover fr/en/ja.
+    pub locale: String,
+}
+
+/// Resolve names through the shared mirror owner without changing native resource IDs.
+pub async fn names(
+    State(state): State<EtatSite>,
+    Query(input): Query<NamesQuery>,
+) -> Result<Json<nie_wiki::names::NamePage>, ErreurSite> {
+    if input.codes.len() > 25_799 {
+        return Err(ErreurSite::Demande(
+            "Resource code batch is too large".into(),
+        ));
+    }
+    let codes: Vec<String> = if input.codes.is_empty() {
+        Vec::new()
+    } else {
+        input.codes.split(',').map(str::to_owned).collect()
+    };
+    nie_wiki::names::validate(&codes, &input.locale)
+        .map_err(|message| ErreurSite::Demande(message.into()))?;
+    let permit = Arc::clone(limiter())
+        .try_acquire_owned()
+        .map_err(|_| unavailable("Name resolution capacity busy"))?;
+    let data = Arc::clone(&state.gisement);
+    let page = tokio::task::spawn_blocking(move || {
+        let _permit = permit;
+        data.lire(|connection| {
+            nie_wiki::names::resolve(connection, &codes, &input.locale).map_err(unavailable)
+        })
+        .map_err(unavailable)
+    })
+    .await??;
+    Ok(Json(page))
+}
+
 /// Enrich original gallery resources from the same mirror used by wiki search.
 pub async fn gallery(
     State(state): State<EtatSite>,

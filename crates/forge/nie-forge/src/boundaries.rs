@@ -90,8 +90,8 @@ fn ancre_sure(code: &[u8], cible: usize, racines: &[usize]) -> Option<usize> {
         .filter(|&r| r >= plancher && r < cible)
 }
 
-/// Écarte les feuilles RE dont l'adresse ne tombe pas sur une frontière
-/// d'instruction.
+/// Écarte les feuilles RE dont le début ou la fin ne tombe pas sur une
+/// frontière d'instruction.
 ///
 /// Les feuilles sont supposées triées par adresse (c'est ce que rend la base).
 /// Une feuille hors des sections exécutables, ou dont l'ancrage sûr n'a pas été
@@ -134,13 +134,45 @@ pub fn valider(img: &PeImage, feuilles: &[(u64, u32)]) -> (Vec<(u64, u32)>, Verd
         };
         // `base_va` du tampon fichier : l'ancre et la cible sont des offsets,
         // seule leur différence compte pour le décodage.
-        if tombe_sur_une_frontiere(code, img.opt.image_base, ancre, off) {
-            retenues.push((va, len));
-            v.retenues += 1;
-        } else {
+        if !tombe_sur_une_frontiere(code, img.opt.image_base, ancre, off) {
             v.coupantes += 1;
             v.octets_ecartes += len as usize;
+            continue;
         }
+
+        // La taille récupérée est elle aussi une borne. Une feuille peut
+        // commencer correctement mais finir dans le déplacement de
+        // l'instruction précédente (cas observé à 0x14003e85d). On valide
+        // cette extrémité depuis son propre ancrage sûr, afin de ne pas
+        // désassembler linéairement les éventuelles données inline du corps.
+        let Some(fin_va) = va.checked_add(u64::from(len)) else {
+            retenues.push((va, len));
+            v.retenues += 1;
+            v.indecises += 1;
+            continue;
+        };
+        let Some(fin) = img.va_to_offset(fin_va) else {
+            retenues.push((va, len));
+            v.retenues += 1;
+            v.indecises += 1;
+            continue;
+        };
+        if fin > 0 && code[fin - 1] != INT3 {
+            let Some(ancre_fin) = ancre_sure(code, fin, &racines) else {
+                retenues.push((va, len));
+                v.retenues += 1;
+                v.indecises += 1;
+                continue;
+            };
+            if !tombe_sur_une_frontiere(code, img.opt.image_base, ancre_fin, fin) {
+                v.coupantes += 1;
+                v.octets_ecartes += len as usize;
+                continue;
+            }
+        }
+
+        retenues.push((va, len));
+        v.retenues += 1;
     }
     (retenues, v)
 }
@@ -191,5 +223,18 @@ mod tests {
         let code = vec![0x48, 0x89, 0x41, 0x38, 0x48, 0x89, 0x41, 0x40];
         assert_eq!(ancre_sure(&code, 6, &[]), None, "aucun ancrage disponible");
         assert_eq!(ancre_sure(&code, 6, &[0]), Some(0), "la racine ancre");
+    }
+
+    #[test]
+    fn une_fin_dans_un_deplacement_est_detectee() {
+        let mut code = vec![INT3; 8];
+        code.extend_from_slice(&[0x0f, 0x29, 0x05, 0x31, 0xc9, 0x26, 0x02]);
+        code.push(0xc3);
+
+        assert!(tombe_sur_une_frontiere(&code, 0x1_4000_0000, 8, 15));
+        assert!(
+            !tombe_sur_une_frontiere(&code, 0x1_4000_0000, 8, 13),
+            "la borne observée 0x14003e85d coupe le déplacement du movaps"
+        );
     }
 }

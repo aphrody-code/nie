@@ -1,3 +1,4 @@
+import { nameWithId, resolvedKindLabel } from "@niers/inacord-ui/lib/resolved-names";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { save, confirm } from "@tauri-apps/plugin-dialog";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
@@ -485,11 +486,11 @@ export function DetailPane({ target }: { target: DetailTarget | null }) {
       <div>
         <div className="flex items-center gap-2">
           <h3 className="truncate type-title-small text-on-surface" title={target.path}>
-            {resolvedName?.name ?? name}
+            {nameWithId(resolvedName?.name, resolvedName?.id ?? name)}
           </h3>
           {resolvedName && (
             <Badge variant="secondary" className="capitalize">
-              {resolvedName.kind === "chara" ? "personnage" : resolvedName.kind === "skill" ? "technique" : "objet"}
+              {resolvedKindLabel(resolvedName.kind, settings.locale)}
             </Badge>
           )}
           {target.kind === "disk" && <Badge variant="secondary">fichier externe</Badge>}

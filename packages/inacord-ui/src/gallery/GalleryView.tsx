@@ -1,3 +1,4 @@
+import { useResolvedNames, nameWithId } from "../lib/resolved-names";
 import { GalleryCard } from "../components/wiki/wiki/GalleryCard";
 // Vue **Galerie** — les illustrations du jeu, listées depuis le VFS.
 //
@@ -156,6 +157,7 @@ function Visionneuse({
   onOuvrirDansExplorateur?: (chemin: string) => void;
   gameDir?: string;
 }) {
+  const settings = useSettings();
   const item = liste[index];
   const [src, setSrc] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -276,7 +278,7 @@ function Visionneuse({
       </div>
 
       <div className="border-t border-app-line px-4 py-1.5 text-center type-label-small text-on-surface-variant">
-        {index + 1} / {liste.length.toLocaleString("fr-FR")} — ← → pour naviguer, Échap pour fermer
+        {index + 1} / {liste.length.toLocaleString(settings.locale)} — ← → pour naviguer, Échap pour fermer
       </div>
     </div>
   );
@@ -286,6 +288,8 @@ export interface GalleryViewProps {
   services: GalleryServices;
   onOpenFile?: (path: string) => void;
 }
+
+const resourceCode = (path: string) => path.split("/").pop()!.replace(/\.[^.]+$/, "");
 
 export function GalleryView({ services, onOpenFile }: GalleryViewProps) {
   const images = useMemo(() => createImageCache(services), [services]);
@@ -391,7 +395,13 @@ export function GalleryView({ services, onOpenFile }: GalleryViewProps) {
     };
   }, [categorie, sousDossier, enrichissements, settings.gameDir, services]);
 
-  const filtres = useMemo(() => filtrerIllustrations(items, recherche), [items, recherche]);
+  const codes = useMemo(() => items.map(item => resourceCode(item.chemin)), [items]);
+  const names = useResolvedNames(services.resolveNames, services.nameSource ?? "", settings.locale, codes);
+  const namedItems = items.map(item => {
+    const name = names.get(resourceCode(item.chemin));
+    return name ? { ...item, titre: nameWithId(name.name, name.id ?? resourceCode(item.chemin)) } : item;
+  });
+  const filtres = filtrerIllustrations(namedItems, recherche);
   const affiches = useMemo(() => filtres.slice(0, visibles), [filtres, visibles]);
 
   /** Sentinelle de fin de grille : sa venue à l'écran déclenche la page suivante. */
@@ -430,7 +440,7 @@ export function GalleryView({ services, onOpenFile }: GalleryViewProps) {
     <div className="relative flex h-full min-h-0 flex-col gap-3 p-3">
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="type-title-small text-on-surface">Galerie</h2>
-        <Badge variant="secondary">{total.toLocaleString("fr-FR")} illustrations</Badge>
+        <Badge variant="secondary">{total.toLocaleString(settings.locale)} illustrations</Badge>
         <Input
           className="ml-auto w-64"
           placeholder="Rechercher une illustration…"
@@ -462,7 +472,7 @@ export function GalleryView({ services, onOpenFile }: GalleryViewProps) {
               >
                 <span className="min-w-0 flex-1 truncate">{libelleCategorie(c.name)}</span>
                 <span className="tabular-nums type-label-small text-on-surface-variant">
-                  {c.count.toLocaleString("fr-FR")}
+                  {c.count.toLocaleString(settings.locale)}
                 </span>
               </button>
             ))}
@@ -494,8 +504,8 @@ export function GalleryView({ services, onOpenFile }: GalleryViewProps) {
           <div className="flex items-center gap-2 type-label-small text-on-surface-variant">
             {chargement
               ? "chargement…"
-              : `${filtres.length.toLocaleString("fr-FR")} illustration(s)${
-                  recherche.trim() ? ` sur ${items.length.toLocaleString("fr-FR")}` : ""
+              : `${filtres.length.toLocaleString(settings.locale)} illustration(s)${
+                  recherche.trim() ? ` sur ${items.length.toLocaleString(settings.locale)}` : ""
                 }`}
           </div>
 
@@ -506,6 +516,7 @@ export function GalleryView({ services, onOpenFile }: GalleryViewProps) {
                   onOpen={() => setOuvert(i)} onDoubleClick={() => onOpenFile?.(it.chemin)}
                   thumbnail={<Vignette chemin={it.cheminVignette} gameDir={settings.gameDir} />}
                   metadata={<span className="truncate type-label-small text-on-surface-variant">
+                    <code className="block">{resourceCode(it.chemin)}</code>
                     {services.formatBytes(it.octets)}{it.deblocage ? ` · ${it.deblocage}` : ""}
                   </span>}
                 />
@@ -521,7 +532,7 @@ export function GalleryView({ services, onOpenFile }: GalleryViewProps) {
                 className="state-layer mt-2 w-full rounded-lg py-2 type-label-medium text-on-surface-variant"
                 onClick={() => setVisibles((v) => Math.min(v + PAR_PAGE, filtres.length))}
               >
-                Chargement… ({(filtres.length - visibles).toLocaleString("fr-FR")} restantes)
+                Chargement… ({(filtres.length - visibles).toLocaleString(settings.locale)} restantes)
               </button>
             )}
             {!chargement && filtres.length === 0 && (

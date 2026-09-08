@@ -6279,6 +6279,7 @@ dependencies = [
  "anyhow",
  "clap",
  "nie-core",
+ "nie-formats",
  "nie-geom",
  "nie-render3d",
  "png 0.18.1",

@@ -1,3 +1,4 @@
+import { useResourceNames, resourceLabel } from "../game/resource-names";
 import { WebGallery } from "./WebGallery";
 /**
  * Les quatre catalogues du jeu — textures, modèles, sons, vidéos — portés du wiki vers nie.
@@ -312,6 +313,7 @@ function VfsCatalog({ view }: { view: CatalogView }) {
 	// PREMIER passage (`useRef`) pour ne pas effacer l'état lu dans l'URL — un `useRef` dont
 	// l'oubli ne se voit qu'en partageant un lien.
 	const [entries, setEntries] = useState<VfsEntry[]>([]);
+	const resourceNames = useResourceNames(entries.map(entry => entry.chemin));
 	const [total, setTotal] = useState(0);
 	const [pages, setPages] = useState(0);
 	const [error, setError] = useState(false);
@@ -526,7 +528,7 @@ function VfsCatalog({ view }: { view: CatalogView }) {
 										}}
 										title={entry.chemin}
 									>
-										{entry.nom}
+										{resourceLabel(entry.chemin, resourceNames)}
 									</div>
 									<div style={{ fontSize: "0.7rem", color: "var(--jeu-tuile-bas)" }}>
 										{readableSize(entry.taille)}

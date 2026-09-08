@@ -21,5 +21,6 @@ pub mod catalog;
 pub mod gallery;
 pub mod mirror;
 pub mod model;
+pub mod names;
 pub mod query;
 pub mod render;

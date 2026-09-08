@@ -1,3 +1,4 @@
+import { useResourceNames, resourceLabel } from "../game/resource-names";
 import type { ContenuDossier, EntreeVfs } from "@niers/asset-source";
 import { useAssetSource, useRouter } from "@niers/inacord-ui";
 import { NativeTexturePreview } from "../game/NativeTexturePreview";
@@ -227,6 +228,7 @@ export function ExplorerInacord({ onHome }: ExplorerInacordProps) {
 	);
 	const files = content?.fichiers ?? [];
 	const entries = [...folders.map((folder) => ({ path: folder.path, folder: true })), ...files.map((file) => ({ path: file.chemin, folder: false }))];
+	const resourceNames = useResourceNames(files.map(file => file.chemin));
 	const selectedFile = files.find((file) => file.chemin === activeTab.selected);
 	const selectedBytes = files.filter((file) => multiSelected.has(file.chemin)).reduce((sum, file) => sum + file.taille, 0);
 
@@ -326,7 +328,7 @@ export function ExplorerInacord({ onHome }: ExplorerInacordProps) {
 			>
 				<ExplorerEntries viewMode={activeTab.viewMode ?? "list"} gridSize={activeTab.gridSize ?? 96} onKeyDown={onEntriesKeyDown} ariaLabel="Fichiers et dossiers">
 					{folders.map((folder) => <button type="button" role="listitem" key={folder.path} data-explorer-path={folder.path} className={`inacord-explorer-entry ${multiSelected.has(folder.path) ? "is-selected" : ""}`} onClick={(event) => { if (event.ctrlKey || event.metaKey || event.shiftKey) select(folder.path, event); else navigate(folder.path); }} onAuxClick={(event) => { if (event.button === 1) setTabsState((state) => openTab(state, `explorer-${Date.now()}`, folder.path)); }}><MaterialIcon name="folder" /><span>{folder.name}</span><small>{content?.folderCounts?.[folder.path]?.toLocaleString("fr-FR") ?? ""}</small></button>)}
-					{files.map((file) => <button type="button" role="listitem" key={file.chemin} data-explorer-path={file.chemin} className={`inacord-explorer-entry ${activeTab.selected === file.chemin ? "is-active" : multiSelected.has(file.chemin) ? "is-selected" : ""}`} onClick={(event) => { select(file.chemin, event); patchActive({ selected: file.chemin }); }}><FileIcon file={file} source={source} grid={activeTab.viewMode === "grid"} /><span>{file.chemin.split("/").at(-1)}</span><small>{formatBytes(file.taille)}</small></button>)}
+					{files.map((file) => <button type="button" role="listitem" key={file.chemin} data-explorer-path={file.chemin} className={`inacord-explorer-entry ${activeTab.selected === file.chemin ? "is-active" : multiSelected.has(file.chemin) ? "is-selected" : ""}`} onClick={(event) => { select(file.chemin, event); patchActive({ selected: file.chemin }); }}><FileIcon file={file} source={source} grid={activeTab.viewMode === "grid"} /><span title={file.chemin}>{resourceLabel(file.chemin, resourceNames)}</span><small>{formatBytes(file.taille)}</small></button>)}
 					{!loading && !error && folders.length === 0 && files.length === 0 ? <p className="inacord-explorer-empty">Ce dossier est vide.</p> : null}
 				</ExplorerEntries>
 			</ExplorerSurface>

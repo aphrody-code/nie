@@ -1,3 +1,4 @@
+import type { NameResolver } from "../lib/resolved-names";
 /** Host-neutral projection of existing VFS and gallery metadata bindings. */
 export interface GalleryDirectory {
   name: string;
@@ -5,6 +6,8 @@ export interface GalleryDirectory {
 }
 
 export interface GalleryServices {
+  resolveNames?: NameResolver;
+  nameSource?: string;
   ls(prefix: string, gameDir?: string): Promise<{ dirs: GalleryDirectory[] }>;
   findPaged(query: string, ext: string, limit: number, offset: number, gameDir?: string): Promise<{
     files: { path: string; size: number }[];

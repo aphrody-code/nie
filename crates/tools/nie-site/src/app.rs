@@ -192,6 +192,7 @@ declarer_routes! {
     "/api/v1/resources/related/{*path}" => crate::routes::related::related,
     "/api/v1/wiki/search" => crate::routes::wiki::search,
     "/api/v1/wiki/gallery" => crate::routes::wiki::gallery,
+    "/api/v1/wiki/names" => crate::routes::wiki::names,
     "/api/v1/wiki/characters/{id}" => crate::routes::wiki::character,
     "/api/v1/zukan/rank" => crate::routes::zukan::contract,
     "/api/v1/motion/clips/{*path}" => crate::routes::motion::clips,

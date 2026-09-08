@@ -14,6 +14,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod g4mt;
 pub mod render;
 
 pub use nie_core::animation::{

@@ -1,3 +1,4 @@
+import { resolveResourceNames } from "../game/resource-names";
 import { useMemo, useState } from "react";
 import { useAssetSource } from "@niers/inacord-ui";
 import { writeBrowserHistory } from "@niers/inacord-ui/lib/browser-navigation";
@@ -17,6 +18,8 @@ export function WebGallery() {
    return response.blob();
   }
   return {
+   nameSource: "wiki-http",
+   resolveNames: resolveResourceNames,
    async ls(prefix) {
     const result = await source.parcourir(prefix, { ext: "g4tx", parPage: 1 });
     return { dirs: result.dossiers.map(path => ({
@@ -92,6 +95,7 @@ export function WebGallery() {
    url.searchParams.set("vue", "textures");
    url.searchParams.delete("display");
    url.searchParams.set("q", path);
+   url.searchParams.delete("page");
    writeBrowserHistory(url, window.history.state, "push");
   }} /></div>;
 }

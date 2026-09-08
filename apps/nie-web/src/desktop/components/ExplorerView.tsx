@@ -1,3 +1,4 @@
+import { nameWithId } from "@niers/inacord-ui/lib/resolved-names";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { writeText, readText } from "@tauri-apps/plugin-clipboard-manager";
 import { confirm } from "@tauri-apps/plugin-dialog";
@@ -989,8 +990,13 @@ export function ExplorerView({
                         <FileThumbnail path={f.path} ext={ext} gameDir={settings.gameDir} />
                       </div>
                       <span className="w-full truncate type-label-small text-on-surface">
-                        {resolved.get(codeOf(f.name))?.name ?? f.name}
+                        {nameWithId(resolved.get(codeOf(f.name))?.name, resolved.get(codeOf(f.name))?.id ?? f.name)}
                       </span>
+                      {resolved.has(codeOf(f.name)) && (
+                        <span className="w-full truncate type-label-small text-on-surface-variant" title={f.name}>
+                          {codeOf(f.name)}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -1016,7 +1022,7 @@ export function ExplorerView({
                     <span className="flex min-w-0 items-center gap-2">
                       <Icon name="description" size={16} className="shrink-0 text-on-surface-variant" />
                       <span className="flex min-w-0 flex-col">
-                        <span className="truncate">{name?.name ?? (searching ? f.path : f.name)}</span>
+                        <span className="truncate">{nameWithId(name?.name, name?.id ?? (searching ? f.path : f.name))}</span>
                         {name && (
                           <span className="truncate type-label-small text-on-surface-variant">
                             {searching ? f.path : f.name}

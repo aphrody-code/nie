@@ -1,5 +1,8 @@
 // Existing wiki queries executed through the shared native SQLite compatibility facade.
 import Database from "./sqlite";
+import { localizedName, type ResolvedName } from "@niers/inacord-ui/lib/resolved-names";
+import type { Locale } from "@niers/inacord-ui/lib/settings";
+export type { ResolvedName } from "@niers/inacord-ui/lib/resolved-names";
 import { japaneseToRomaji } from "@niers/game/text";
 
 import { dedoublonnerParNom, type EntreeNoms } from "@/lib/traduction";
@@ -72,12 +75,6 @@ function connect(dbPath: string): Promise<Database> {
 
 /** Nom résolu depuis un `code` (basename sans extension, cf. `vfsIndexDb.codeOf`) — utilisé par
  * l'Explorateur/le détail de fichier pour afficher « Mark Evans » plutôt que « c01000100 ». */
-export interface ResolvedName {
-  kind: "chara" | "skill" | "item";
-  name: string;
-  /** Élément/poste (perso) ou catégorie (technique/objet), pour contexte, si connu. */
-  extra: string | null;
-}
 
 /** Découpe `arr` en tranches d'au plus `size` éléments (paramètres SQLite bornés ~999). */
 function chunk<T>(arr: T[], size: number): T[][] {
@@ -93,7 +90,7 @@ export const wikiDb = {
    * de personnages peut lister des milliers d'entrées), sur le même principe que l'index
    * `vfs_files` : précision + un seul aller-retour au lieu de N.
    */
-  async resolveManyByCode(dbPath: string, codes: string[]): Promise<Map<string, ResolvedName>> {
+  async resolveManyByCode(dbPath: string, codes: string[], locale: Locale = "fr"): Promise<Map<string, ResolvedName>> {
     const unique = [...new Set(codes)].filter(Boolean);
     if (unique.length === 0) return new Map();
     const db = await connect(dbPath);
@@ -102,32 +99,50 @@ export const wikiDb = {
     for (const batch of chunk(unique, 400)) {
       const placeholders = batch.map((_, i) => `$${i + 1}`).join(",");
 
-      const chars = await db.select<{ internal_code: string; name_fr: string | null; name_en: string | null; element: string | null; position: string | null }[]>(
-        `SELECT internal_code, name_fr, name_en, element, position FROM inagle_characters WHERE internal_code IN (${placeholders})`,
+      const chars = await db.select<{ id: string; internal_code: string; name_fr: string | null; name_en: string | null; name_ja: string | null; element: string | null; position: string | null }[]>(
+        `SELECT id, internal_code, name_fr, name_en, name_ja, element, position FROM inagle_characters WHERE internal_code IN (${placeholders}) ORDER BY internal_code, id`,
         batch,
       );
       for (const c of chars) {
         if (out.has(c.internal_code)) continue;
         const extra = [c.element, c.position].filter(Boolean).join(" · ");
-        out.set(c.internal_code, { kind: "chara", name: c.name_fr ?? c.name_en ?? c.internal_code, extra: extra || null });
+        out.set(c.internal_code, { id: c.id, kind: "chara", name: localizedName(c, locale, c.internal_code), extra: extra || null });
       }
 
-      const skills = await db.select<{ internal_code: string; name_fr: string | null; name_en: string | null; category: string | null }[]>(
-        `SELECT internal_code, name_fr, name_en, category FROM inagle_skills WHERE internal_code IN (${placeholders})`,
+      const skills = await db.select<{ id: string; internal_code: string; name_fr: string | null; name_en: string | null; name_ja: string | null; category: string | null }[]>(
+        `SELECT id, internal_code, name_fr, name_en, name_ja, category FROM inagle_skills WHERE internal_code IN (${placeholders}) ORDER BY internal_code, id`,
         batch,
       );
       for (const s of skills) {
         if (out.has(s.internal_code)) continue;
-        out.set(s.internal_code, { kind: "skill", name: s.name_fr ?? s.name_en ?? s.internal_code, extra: s.category });
+        out.set(s.internal_code, { id: s.id, kind: "skill", name: localizedName(s, locale, s.internal_code), extra: s.category });
       }
 
-      const items = await db.select<{ internal_code: string; name_fr: string | null; name_en: string | null; category: string | null }[]>(
-        `SELECT internal_code, name_fr, name_en, category FROM inagle_items WHERE internal_code IN (${placeholders})`,
+      const items = await db.select<{ id: string; internal_code: string; name_fr: string | null; name_en: string | null; name_ja: string | null; category: string | null }[]>(
+        `SELECT id, internal_code, name_fr, name_en, name_ja, category FROM inagle_items WHERE internal_code IN (${placeholders}) ORDER BY internal_code, id`,
         batch,
       );
       for (const it of items) {
         if (out.has(it.internal_code)) continue;
-        out.set(it.internal_code, { kind: "item", name: it.name_fr ?? it.name_en ?? it.internal_code, extra: it.category });
+        out.set(it.internal_code, { id: it.id, kind: it.category === "special_tactics" ? "tactic" : "item", name: localizedName(it, locale, it.internal_code), extra: it.category });
+      }
+      const teams = await db.select<{ id: string; internal_code: string; name_fr: string | null; name_en: string | null; name_ja: string | null }[]>(
+        `SELECT id, internal_code, name_fr, name_en, name_ja FROM inagle_teams WHERE internal_code IN (${placeholders}) ORDER BY internal_code, id`, batch,
+      );
+      for (const team of teams) {
+        if (!out.has(team.internal_code)) out.set(team.internal_code, { id: team.id, kind: "team", name: localizedName(team, locale, team.internal_code), extra: null });
+      }
+      // These families use asset_code in the existing schema, never a derived file-prefix guess.
+      // Older SQLite mirrors omit that column; preserve their other resolved families.
+      for (const [table, kind] of [["inagle_keshins", "keshin"], ["inagle_souls", "soul"]] as const) {
+        const columns = await db.select<{ name: string }[]>(`PRAGMA table_info(${table})`);
+        if (!columns.some(column => column.name === "asset_code")) continue;
+        const rows = await db.select<{ id: string; asset_code: string; name_fr: string | null; name_en: string | null; name_ja: string | null }[]>(
+          `SELECT id, asset_code, name_fr, name_en, name_ja FROM ${table} WHERE asset_code IN (${placeholders}) ORDER BY asset_code, id`, batch,
+        );
+        for (const row of rows) {
+          if (!out.has(row.asset_code)) out.set(row.asset_code, { id: row.id, kind, name: localizedName(row, locale, row.asset_code), extra: null });
+        }
       }
     }
 

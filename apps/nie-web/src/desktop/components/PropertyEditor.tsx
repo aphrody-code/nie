@@ -1,3 +1,4 @@
+import { nameWithId, resolvedKindLabel } from "@niers/inacord-ui/lib/resolved-names";
 // Éditeur de propriétés — l'inspecteur « façon IDE » de niers.
 //
 // Une entité du jeu (un joueur, une technique, un objet, un mode de jeu) n'existe pas dans UN
@@ -297,11 +298,11 @@ export function PropertyEditor({
       <div className="flex flex-col gap-1 border-b border-app-line pb-2">
         <div className="flex items-center gap-2">
           <h3 className="min-w-0 flex-1 truncate text-sm font-semibold text-ink" title={code}>
-            {resolved?.name ?? code}
+            {nameWithId(resolved?.name, resolved?.id ?? code)}
           </h3>
           {resolved && (
             <Badge variant="secondary">
-              {resolved.kind === "chara" ? "personnage" : resolved.kind === "skill" ? "technique" : "objet"}
+              {resolvedKindLabel(resolved.kind, settings.locale)}
             </Badge>
           )}
         </div>

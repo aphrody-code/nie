@@ -5,6 +5,9 @@ import { GalleryView as SharedGalleryView } from "@niers/inacord-ui/gallery/Gall
 import type { GalleryServices } from "@niers/inacord-ui/gallery/contracts";
 import { api } from "@/lib/api";
 import { humanSize } from "@/lib/bytes";
+import { useMemo } from "react";
+import { useSettings } from "@niers/inacord-ui/lib/settings";
+import { wikiDb } from "@/lib/wikiDb";
 
 const services: GalleryServices = {
   ls: api.ls,
@@ -26,5 +29,7 @@ const services: GalleryServices = {
 };
 
 export function GalleryView(props: { onOpenFile?: (path: string) => void }) {
-  return <SharedGalleryView {...props} services={services} />;
+  const { wikiDb: nameSource } = useSettings();
+  const galleryServices = useMemo(() => ({ ...services, nameSource, resolveNames: wikiDb.resolveManyByCode }), [nameSource]);
+  return <SharedGalleryView {...props} services={galleryServices} />;
 }
