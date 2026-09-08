@@ -519,3 +519,37 @@ checks all passed (three scoped commands). Dependency ownership passed 1,636 ass
 measured with `bun run check:dependencies` in this checkout on 2026-09-08. The coherent source
 batch includes its prerequisite frontend relocation, workspace/catalog convergence and SQLite
 host adapter; remaining game reconstruction changes stay separate. Publication is not performed.
+
+## Gallery convergence and localized resource identities — 2026-09-08
+
+The shared gallery now combines Inacord's VFS categories, bounded thumbnails, full-resolution
+viewer, adjacent-image cache, PNG export and explorer actions with the reused Azalee card and
+controlled filter presentation. `apps/nie-web` mounts that same gallery through HTTP adapters
+from the media catalogue, retaining the file listing and other media views. SQL metadata and
+manifest resources in the legacy wiki service now form one deduplicated inventory for both
+list pagination and category counts; semantic categories and native folders remain separate
+facets. Existing cinema/profile/playback components remain intact; this does not certify full
+cinema-host migration.
+
+Names are display metadata, never rewritten VFS keys. The shared reactive resolver includes
+source and locale in its cache identity, publishes completion to concurrent consumers and
+permits remount retries after transient errors. Desktop explorer/details/properties and the
+shared gallery display localized names with exact IDs. Browser explorer, catalogue and gallery
+use `/api/v1/wiki/names`; original paths and file codes remain available. The Rust `nie-wiki`
+owner joins exact internal/asset codes for characters, skills, items, teams, keshins and souls,
+retains multiple matching identities and reports unresolved codes and unavailable families.
+The requested language is preferred, followed by available mirror translations and the exact ID.
+
+Remaining explicit localization work: no proven native text-CFG join currently supplies stadium
+names, story-moment labels or every media-folder category. Existing hand-written category labels
+must not be reported as native CFG localization. Complete these joins from actual resource/hash
+relations before claiming the user's full naming matrix. No fabricated file-code inference,
+player unlock state or native text hash has been introduced.
+
+Scoped validation: collection union/filter/count tests passed 7 cases with 33 assertions;
+shared name-resolver tests passed 8 cases with 37 assertions. Shared UI, desktop and Azalee
+TypeScript checks passed; browser typechecking also passed after its adapter syntax correction.
+The Rust gallery query passed 4 tests and name query passed 5 tests, including incomplete-schema
+isolation and malformed-value errors. Native wiki clippy passed after the final correction;
+site compilation passed with existing warnings, not a clean site clippy result. No browser or
+publication was performed.

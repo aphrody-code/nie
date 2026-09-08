@@ -108,6 +108,22 @@ pub fn resolve(conn: &Connection, codes: &[String], locale: &str) -> anyhow::Res
             page.unavailable_kinds.push(kind.into());
             continue;
         }
+        // Mirrors from older imports may contain the table without its native code
+        // or all translation columns. Diagnose that source, while preserving other
+        // families. Introspection and query failures still propagate as real errors.
+        let columns = {
+            let mut statement = snapshot.prepare("SELECT name FROM pragma_table_info(?1)")?;
+            statement
+                .query_map([table], |row| row.get::<_, String>(0))?
+                .collect::<Result<BTreeSet<_>, _>>()?
+        };
+        if [column, "id", "name_fr", "name_en", "name_ja"]
+            .iter()
+            .any(|required| !columns.contains(*required))
+        {
+            page.unavailable_kinds.push(kind.into());
+            continue;
+        }
         let sql = format!(
             "SELECT {column}, id, name_fr, name_en, name_ja FROM {table} WHERE {column} IN ({placeholders}) ORDER BY {column}, id LIMIT 10001"
         );
@@ -211,6 +227,36 @@ mod tests {
         assert_eq!(unnamed.name, "native-id-c");
         assert_eq!(unnamed.locale_used, None);
         assert_eq!(page.unresolved, ["keshin"]);
+    }
+
+    #[test]
+    fn incomplete_mirror_sources_do_not_block_other_families() {
+        let conn = fixture();
+        conn.execute_batch(
+            "ALTER TABLE inagle_keshins DROP COLUMN asset_code;
+            CREATE TABLE inagle_skills (internal_code TEXT, id TEXT, name_fr TEXT, name_en TEXT);",
+        )
+        .unwrap();
+        let page = resolve(&conn, &["c01000100".into(), "keshin-exact".into()], "fr").unwrap();
+        assert_eq!(page.records.len(), 2);
+        assert!(page.records.iter().all(|record| record.kind == "chara"));
+        assert_eq!(page.records[0].name, "Marc");
+        assert_eq!(page.unresolved, ["keshin-exact"]);
+        assert_eq!(
+            page.unavailable_kinds,
+            ["skill", "item", "team", "keshin", "soul"]
+        );
+    }
+
+    #[test]
+    fn malformed_source_values_remain_errors() {
+        let conn = fixture();
+        conn.execute(
+            "UPDATE inagle_characters SET name_fr = x'FF' WHERE id = 'native-id-a'",
+            [],
+        )
+        .unwrap();
+        assert!(resolve(&conn, &["c01000100".into()], "fr").is_err());
     }
 
     #[test]

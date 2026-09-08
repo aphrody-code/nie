@@ -49,7 +49,7 @@ test("two subscribers share one in-flight batch and both receive its resolved na
 	const resolver = mock(() => promise);
 	await act(async () => root.render(<><Consumer resolver={resolver} codes={["ch001", "ch001", ""]} /><Consumer resolver={resolver} slot="two" /></>));
 	expect(resolver).toHaveBeenCalledTimes(1);
-	expect(resolver.mock.calls[0]).toEqual(["game-a", ["ch001"], "fr"]);
+	expect(resolver.mock.calls[0] as unknown[]).toEqual(["game-a", ["ch001"], "fr"]);
 	expect(output()).toBe("unresolved"); expect(output("two")).toBe("unresolved");
 	await act(async () => resolve(new Map([["ch001", record("Resolved")]])));
 	expect(output()).toBe("Resolved"); expect(output("two")).toBe("Resolved");
@@ -76,6 +76,26 @@ test("a late response for the previous locale never replaces the current locale"
 	expect(output()).toBe("English");
 	await act(async () => resolve(new Map([["ch001", record("Français")]])));
 	expect(output()).toBe("English");
+});
+
+test("failed resolution stays idle until remount then retries successfully", async () => {
+	let attempts = 0;
+	const resolver = mock(async () => {
+		if (++attempts === 1) throw new Error("Temporary failure");
+		return new Map([["ch001", record("Recovered")]]);
+	});
+	await act(async () => root.render(<Consumer resolver={resolver} />));
+	expect(output()).toBe("unresolved");
+	expect(resolver).toHaveBeenCalledTimes(1);
+	// Unrelated renders and notification must not retry the failed batch.
+	for (let iteration = 0; iteration < 3; iteration++) {
+		await act(async () => root.render(<Consumer resolver={resolver} />));
+	}
+	expect(resolver).toHaveBeenCalledTimes(1);
+	await act(async () => root.render(null));
+	await act(async () => root.render(<Consumer resolver={resolver} />));
+	expect(output()).toBe("Recovered");
+	expect(resolver).toHaveBeenCalledTimes(2);
 });
 
 test("localized names prefer the requested language and fall back through English French Japanese then exact ID", () => {

@@ -2,7 +2,7 @@ import type { NameResolver, ResolvedName } from "@niers/inacord-ui/lib/resolved-
 import { useResolvedNames, nameWithId } from "@niers/inacord-ui/lib/resolved-names";
 import { useSettings } from "@niers/inacord-ui/lib/settings";
 
-export const resolveResourceNames: NameResolver = async (_source, codes, locale) {
+export const resolveResourceNames: NameResolver = async (_source, codes, locale) => {
     const names = new Map<string, ResolvedName>();
     const unique = [...new Set(codes)];
     for (let index = 0; index < unique.length; index += 200) {

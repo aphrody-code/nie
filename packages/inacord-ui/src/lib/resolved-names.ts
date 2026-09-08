@@ -50,6 +50,8 @@ export function useResolvedNames(optionalResolver: NameResolver | undefined, sou
       current.notify();
     };
     const retry = () => {
+      // Failure is not a missing-name result. A later mount or changed batch may
+      // retry; notification alone leaves this effect's dependencies unchanged.
       for (const code of missing) current.pending.delete(keyOf(source, locale, code));
       current.notify();
     };
