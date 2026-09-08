@@ -45,7 +45,7 @@
 #![forbid(unsafe_code)]
 #![allow(clippy::pedantic)]
 
-use std::collections::{BTreeSet, HashMap, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 use std::fs;
 use std::io::{BufRead, BufReader, Write as IoWrite};
 use std::net::{TcpListener, TcpStream};

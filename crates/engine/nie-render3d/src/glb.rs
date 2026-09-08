@@ -579,6 +579,75 @@ pub fn parse(data: &[u8]) -> Result<Model> {
 mod tests {
     use super::*;
 
+    /// The first real keshin uses indices in the global G4MG vertex space.  The assembler must
+    /// compact them into each glTF primitive before the canonical renderer sees the GLB.
+    ///
+    /// This is conditional because the copyrighted fixture remains in the user's game install;
+    /// no game bytes or generated GLB are written by the test.
+    #[test]
+    fn assembled_keshin_k000010_has_local_indices_and_parses() {
+        use nie_formats::assemble::assemble_keshin;
+        use nie_formats::vfs::Vfs;
+
+        let game_data = nie_formats::vfs::resolve_game_dir().join("data");
+        let mut vfs = Vfs::new();
+        if vfs.init(&game_data).is_err() {
+            eprintln!("SKIP: game VFS unavailable");
+            return;
+        }
+
+        let g4md = match vfs.read("data/common/chr/_keshin/k000010/k000010.g4md") {
+            Ok(bytes) => bytes,
+            Err(error) => {
+                eprintln!("SKIP: k000010 G4MD unavailable: {error}");
+                return;
+            }
+        };
+        let g4mg = match vfs.read("data/common/chr/_keshin/k000010/k000010.g4mg") {
+            Ok(bytes) => bytes,
+            Err(error) => {
+                eprintln!("SKIP: k000010 G4MG unavailable: {error}");
+                return;
+            }
+        };
+
+        let assembled = assemble_keshin("k000010", g4md, g4mg).expect("assemble k000010");
+        assert!(!assembled.primitives.is_empty(), "k000010 has primitives");
+        for primitive in &assembled.primitives {
+            assert!(
+                primitive
+                    .indices
+                    .iter()
+                    .all(|&index| (index as usize) < primitive.positions.len()),
+                "assembled primitive {} contains a non-local vertex index",
+                primitive.source_index
+            );
+        }
+
+        let glb = assembled.to_glb_embedded();
+        let parsed = parse(&glb).expect("canonical renderer parses assembled k000010 GLB");
+        assert!(
+            !parsed.primitives.is_empty(),
+            "parsed k000010 has primitives"
+        );
+        assert!(
+            parsed.primitives.iter().all(|primitive| primitive
+                .indices
+                .iter()
+                .all(|&index| (index as usize) < primitive.positions.len())),
+            "parsed k000010 primitives keep local indices"
+        );
+        assert!(
+            parsed
+                .primitives
+                .iter()
+                .map(|primitive| primitive.indices.len() / 3)
+                .sum::<usize>()
+                > 0,
+            "parsed k000010 has renderable triangles"
+        );
+    }
+
     fn fixture(root: Value) -> Vec<u8> {
         fixture_bin(root, vec![0; 12])
     }
