@@ -23,6 +23,7 @@ mod lua_session;
 mod lua_tools;
 mod mcp;
 mod re_trace;
+mod scene_editor;
 mod steam;
 mod video;
 mod viola;
@@ -3863,8 +3864,7 @@ fn assemble_glb_from_cpk_entries(
     Ok((stem, model.to_glb_embedded()))
 }
 
-/// Ouvre l'asset dans **nie-editor**, l'éditeur de scène 3D natif (éditeur Fyrox embarqué, rendu
-/// OpenGL — cf. `crates/tools/nie-editor`).
+/// Opens the current native scene editor with the same assembled GLB as the embedded viewport.
 ///
 /// Process séparé et non bloquant : l'éditeur a sa propre boucle d'événements winit et sa propre
 /// fenêtre GPU, deux choses qui ne peuvent pas cohabiter avec la boucle Tauri de cette
@@ -3872,7 +3872,13 @@ fn assemble_glb_from_cpk_entries(
 /// les cibles de développement du workspace.
 #[tauri::command]
 #[specta::specta]
-fn open_in_scene_editor(path: Option<String>, game_dir: Option<String>) -> Result<String, String> {
+async fn open_in_scene_editor(
+    app: tauri::AppHandle,
+    path: Option<String>,
+    game_dir: Option<String>,
+    state: tauri::State<'_, VfsState>,
+) -> Result<String, String> {
+    use tauri::Manager;
     let root = resolve_root(game_dir.as_deref());
     let exe_name = if cfg!(windows) {
         "nie-editor.exe"
@@ -3890,6 +3896,12 @@ fn open_in_scene_editor(path: Option<String>, game_dir: Option<String>) -> Resul
     }
     for profile in ["release", "debug"] {
         candidates.push(root.join("target").join(profile).join(exe_name));
+        if let Some(workspace) = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(3)
+        {
+            candidates.push(workspace.join("target").join(profile).join(exe_name));
+        }
     }
 
     let editor =
@@ -3905,18 +3917,39 @@ fn open_in_scene_editor(path: Option<String>, game_dir: Option<String>) -> Resul
             })?
             .clone();
 
-    let mut cmd = std::process::Command::new(&editor);
-    cmd.arg("--game-dir").arg(&root);
-    if let Some(asset) = path.as_deref().filter(|p| !p.trim().is_empty()) {
-        cmd.arg("--asset").arg(asset);
-    }
-    cmd.spawn()
-        .map_err(|e| format!("lancement de {} : {e}", editor.display()))?;
-
-    Ok(match path {
-        Some(p) => format!("Éditeur de scène ouvert sur {p}"),
-        None => "Éditeur de scène ouvert".to_string(),
+    let path = path.filter(|path| !path.trim().is_empty());
+    let vfs = if path.is_some() {
+        Some(vfs_partage(game_dir, &state)?)
+    } else {
+        None
+    };
+    let imports = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?
+        .join("scene-editor-imports");
+    tauri::async_runtime::spawn_blocking(move || {
+        scene_editor::verify_contract(&editor)?;
+        let glb = match (path.as_deref(), vfs.as_deref()) {
+            (Some(asset), Some(vfs)) => {
+                let (_, bytes) = assemble_glb_for_preview(vfs, asset)?;
+                Some(scene_editor::stage_import(&imports, &bytes)?)
+            }
+            _ => None,
+        };
+        if let Err(error) = scene_editor::launch(&editor, glb.as_deref()) {
+            if let Some(path) = glb {
+                let _ = std::fs::remove_file(path);
+            }
+            return Err(error);
+        }
+        Ok(match path {
+            Some(path) => format!("Éditeur de scène lancé sur {path}"),
+            None => "Éditeur de scène lancé".to_string(),
+        })
     })
+    .await
+    .map_err(|error| format!("Lancement de l'éditeur interrompu : {error}"))?
 }
 
 // ─── Atelier Lua (cf. `lua_tools.rs`) ────────────────────────────────────────────────────────
@@ -5143,7 +5176,16 @@ async fn aphrody_pixel_mesurer(
     saturation: Option<f64>,
 ) -> Result<aphrody::MesureDto, String> {
     aphrody::mesurer_fichier(
-        &chemin, k, boite, &mode, seuil, teinte_min, teinte_max, saturation,
+        &chemin,
+        aphrody::ImageMeasureOptions {
+            palette_size: k,
+            bounds: boite,
+            mode: &mode,
+            threshold: seuil,
+            hue_min: teinte_min,
+            hue_max: teinte_max,
+            saturation,
+        },
     )
 }
 

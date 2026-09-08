@@ -308,3 +308,43 @@ On the same host/date, `bun test apps/nie-web/src packages/inacord-ui/src/shell/
 passed 97 tests/332 assertions; Web typecheck passed. The isolated browser report at
 `var/outputs/menu-visual/focus-staged/browser-report.json` records 18 passed, 0 failed, 114 requests
 and zero failed requests. The game renderer remains visually partial.
+
+### Observed native menu inputs and current scene-editor launch
+
+The next coherent source batch adds four general-command getters whose byte loads and branches
+are verified in the local binary: `0x1953DBC1`, `0xB314C568`, `0xEF7BC853`, `0xDD5C4CD4`.
+`ObservedMenuNativeState` accepts optional unsigned bytes at the documented native offsets;
+missing observations still enter unresolved telemetry. `nie-game --menu-native-state <JSON>`
+requires runtime layout export and injects the validated state before callbacks. Sources:
+`data/re/funclua-cmdid-handlers.json`, corresponding handler bodies in
+`data/re/30-ghidra/exports/decompiled-c/nie.exe.c`, and binary SHA256
+`b1fa04ea365868e5c8933aca393366f82d0d446187e2187f2737dc4fa2acd40c`.
+These offsets are not asserted to be save-file fields or given guessed product meanings.
+
+On `/home/ubuntu/niers`, host `vps-203bea89`, 2026-09-08: Lua library tests passed 118 with
+1 ignored; VM-free tests passed 7 with 1 ignored; game unit tests passed 8; Wasm library tests
+passed 64. Lua/game clippy and portable Lua check passed. The explicitly executed
+`menu_native_state` reference-VFS integration test passed: no input retains 14 unknown general
+commands, whereas a **synthetic** observed-state branch reports 12, with 75/75 callbacks successful
+in both runs. Different branches invoke different unknown commands; this is not a zero-unknown
+claim. Actual observed native input capture remains outstanding.
+
+Inacord's scene-editor binding now uses the existing GLB assembler and the current `--glb` CLI,
+checks executable compatibility before decoding, and reports immediate process exit. Imports are
+retained in application data so saved scene projects can resolve them. The previously installed
+editor binary exposed the legacy CLI; the current release binary was rebuilt. Under Xvfb and
+Vulkan llvmpipe, an actual local model import rendered 1 object, duplication rendered 2, and undo
+restored 1. Captures/logs are in `var/validation/scene-editor-launch/`; they are not source assets.
+The native UI saved a 344-byte version-1 project and reopened its existing GLB reference in a
+fresh process. The generated Wasm for this batch also passes the actual 8-scene/61-layer/76-object
+equality gate; its SHA256 is `ee16737e614aac220f6e63fc5c9dcfd242b6494e27e298a1a88157e4c6172af1`.
+Tauri's 4 focused binding tests, independent Cargo check and Inacord TypeScript check passed.
+The strict Tauri clippy initially found two pre-existing argument-count diagnostics in
+`aphrody.rs` and `viola.rs`. Grouping private measurement options and documenting the existing
+flattened IPC exception makes the strict gate pass without changing public IPC keys.
+
+The focus correction `6b2375f618f8e402c84570b0fa73e0874d56178e` is deployed and validated:
+`var/outputs/menu-visual/production-6b2375f/browser-report.json` records 18 successful checks,
+150 requests and zero failures. Its visual report records SSIM 0.5578690454315838 and RGB mean
+absolute delta 70.70361963091564/255, with no excluded regions. The private release manifest marks
+the release validated and retains its rollback artifacts.

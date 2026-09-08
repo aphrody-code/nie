@@ -218,19 +218,30 @@ fn reglages_depuis(
     Ok(r)
 }
 
+/// Host measurement options; the IPC adapter retains its existing flattened arguments.
+pub struct ImageMeasureOptions<'a> {
+    pub palette_size: Option<u32>,
+    pub bounds: Option<Vec<u32>>,
+    pub mode: &'a str,
+    pub threshold: Option<u32>,
+    pub hue_min: Option<f64>,
+    pub hue_max: Option<f64>,
+    pub saturation: Option<f64>,
+}
+
 /// Mesure une image du disque.
 pub fn mesurer_fichier(
     chemin: &str,
-    k: Option<u32>,
-    boite: Option<Vec<u32>>,
-    mode: &str,
-    seuil: Option<u32>,
-    teinte_min: Option<f64>,
-    teinte_max: Option<f64>,
-    saturation: Option<f64>,
+    options: ImageMeasureOptions<'_>,
 ) -> Result<MesureDto, String> {
-    let masque = masque_depuis(mode, seuil, teinte_min, teinte_max, saturation)?;
-    let reglages = reglages_depuis(k, boite, masque)?;
+    let masque = masque_depuis(
+        options.mode,
+        options.threshold,
+        options.hue_min,
+        options.hue_max,
+        options.saturation,
+    )?;
+    let reglages = reglages_depuis(options.palette_size, options.bounds, masque)?;
     let m = mesurer(&charger(chemin)?, reglages).map_err(err)?;
     Ok(mesure_dto(&m))
 }

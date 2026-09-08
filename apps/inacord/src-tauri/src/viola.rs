@@ -126,6 +126,10 @@ pub struct ViolaMergeDto {
 /// L'avancement arrive par l'événement `viola-dump-progress`, la fin par `viola-dump-done`.
 #[tauri::command]
 #[specta::specta]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Preserve flattened IPC keys; app and state are injected host parameters"
+)]
 pub fn viola_dump_start(
     game_dir: Option<String>,
     sortie: String,

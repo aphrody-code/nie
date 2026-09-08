@@ -833,6 +833,26 @@ pub fn install_menu_host(lua: &Lua) -> mlua::Result<Rc<RefCell<MenuState>>> {
         let state = Rc::clone(&state);
         let f = lua.create_function(move |lua, args: Variadic<Value>| {
             let cmd_id = lua_to_u32(args.first());
+            let observed = state
+                .borrow()
+                .observed_native
+                .resolve_general_command(cmd_id);
+            if let Some(observed) = observed {
+                let value = match observed {
+                    crate::menu_state::ObservedMenuQueryValue::Boolean(value) => {
+                        Value::Boolean(value)
+                    }
+                    crate::menu_state::ObservedMenuQueryValue::Byte(value) => {
+                        Value::Number(f64::from(value))
+                    }
+                };
+                let layer = state.borrow().current_layer;
+                state
+                    .borrow_mut()
+                    .known_cmd_log
+                    .push((format!("ObservedNativeState(0x{cmd_id:08X})"), layer));
+                return Ok(MultiValue::from_vec(vec![value]));
+            }
             if matches!(cmd_id, CMD_GENERAL_GET_TEXT | CMD_GENERAL_GET_TEXT_CURRENT) {
                 let text_id = lua_to_u32(args.get(1));
                 let (layer, text) = {
@@ -2184,6 +2204,52 @@ mod dispatch_tests {
     }
     fn menu_cmd(lua: &mlua::Lua) -> Function {
         lua.globals().get("funcLuaMenuCommand").unwrap()
+    }
+
+    #[test]
+    fn observed_native_queries_keep_lua_boolean_and_numeric_types() {
+        let (lua, state) = host();
+        state.borrow_mut().observed_native = crate::menu_state::ObservedMenuNativeState {
+            context_69c8_field_2cac6f: Some(2),
+            context_69a8_field_9f10: None,
+            context_69a8_field_9f13: Some(255),
+        };
+        let values: (bool, u8, u8, u8) = lua.load(
+            "return funcLuaCommand(0x1953DBC1), funcLuaCommand(0xB314C568), funcLuaCommand(0xEF7BC853), funcLuaCommand(0xDD5C4CD4)"
+        ).eval().unwrap();
+        assert_eq!(values, (true, 2, 0, 255));
+        assert!(state.borrow().unknown_general_cmd_log.is_empty());
+        assert_eq!(state.borrow().known_cmd_log.len(), 4);
+        state.borrow_mut().observed_native.context_69c8_field_2cac6f = Some(255);
+        state.borrow_mut().observed_native.context_69a8_field_9f10 = Some(200);
+        let values: (bool, u8, u8, u8) = lua.load(
+            "return funcLuaCommand(0x1953DBC1), funcLuaCommand(0xB314C568), funcLuaCommand(0xEF7BC853), funcLuaCommand(0xDD5C4CD4)"
+        ).eval().unwrap();
+        assert_eq!(values, (false, 255, 2, 200));
+        assert_eq!(state.borrow().known_cmd_log.len(), 8);
+    }
+
+    #[test]
+    fn unobserved_native_queries_remain_explicitly_unresolved() {
+        let (lua, state) = host();
+        let command: Function = lua.globals().get("funcLuaCommand").unwrap();
+        let ids = [0x1953_DBC1_u32, 0xB314_C568, 0xEF7B_C853, 0xDD5C_4CD4];
+        for id in ids {
+            let _: Value = command.call(f64::from(id)).unwrap();
+        }
+        let unresolved: Vec<u32> = state
+            .borrow()
+            .unknown_general_cmd_log
+            .iter()
+            .map(|entry| entry.0)
+            .collect();
+        assert_eq!(unresolved, ids);
+        assert!(state.borrow().known_cmd_log.is_empty());
+        state.borrow_mut().observed_native.context_69c8_field_2cac6f = Some(2);
+        state.borrow_mut().observed_native.context_69a8_field_9f10 = Some(9);
+        let _: Value = command.call(f64::from(0xDD5C_4CD4_u32)).unwrap();
+        assert_eq!(state.borrow().unknown_general_cmd_log.len(), 5);
+        assert!(state.borrow().known_cmd_log.is_empty());
     }
 
     #[test]

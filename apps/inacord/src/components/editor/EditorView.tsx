@@ -382,14 +382,11 @@ export function EditorView({
             aria-label="Mode fil de fer"
             onClick={() => setWireframe((v) => !v)}
           />
-          {/* Éditeur de scène NATIF (nie-editor) : éditeur Fyrox complet — graphe de scène,
-           * inspecteur réflexif, gizmos de transformation, undo/redo — en rendu OpenGL, dans sa
-           * propre fenêtre. Le viewport ci-dessous reste l'aperçu intégré ; celui-ci est
-           * l'atelier. */}
+          {/* The native editor receives the same assembled GLB in its own GPU window. */}
           <CircleButton
             icon="wand"
             size="sm"
-            title="Ouvrir dans l'éditeur de scène natif (Fyrox)"
+            title="Ouvrir dans l'éditeur de scène natif"
             aria-label="Ouvrir dans l'éditeur de scène natif"
             onClick={() =>
               api

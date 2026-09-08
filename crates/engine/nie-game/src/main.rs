@@ -182,6 +182,11 @@ struct Cli {
     #[arg(long)]
     runtime: bool,
 
+    /// Inject observed native state bytes from JSON before runtime menu callbacks.
+    /// Missing fields remain unresolved; offsets follow the verified library schema.
+    #[arg(long, requires_all = ["runtime", "menu", "export_layout"])]
+    menu_native_state: Option<PathBuf>,
+
     /// Audite tous les `*_setting.cfg.bin` du VFS en une seule montée et écrit leurs comptes de
     /// layout statique dans un JSON. Ce mode ne lance pas Lua : il mesure la composition réelle
     /// `menu_setting → objbin → g4pkm → g4tx` écran par écran.
@@ -237,6 +242,18 @@ fn main() -> Result<()> {
             let name = cli.screen_name.as_deref().unwrap_or(screen);
             // --runtime : génère le layout en exécutant les vrais scripts Lua (comme nie.exe).
             if cli.runtime {
+                let observed_native = cli
+                    .menu_native_state
+                    .as_ref()
+                    .map(|path| {
+                        let bytes =
+                            std::fs::read(path).context("read observed native menu state")?;
+                        serde_json::from_slice::<nie_lua::menu_state::ObservedMenuNativeState>(
+                            &bytes,
+                        )
+                        .context("decode observed native menu state")
+                    })
+                    .transpose()?;
                 return cmd_export_layout_runtime(
                     &game_dir,
                     screen,
@@ -244,6 +261,7 @@ fn main() -> Result<()> {
                     out,
                     cli.from_setting,
                     cli.frames.unwrap_or(1),
+                    observed_native.as_ref(),
                 );
             }
             return cmd_export_layout(&game_dir, screen, name, out, cli.from_setting);
@@ -3243,6 +3261,7 @@ fn cmd_export_layout_runtime(
     out: &Path,
     from_setting: bool,
     frames: u32,
+    observed_native: Option<&nie_lua::menu_state::ObservedMenuNativeState>,
 ) -> Result<()> {
     use std::collections::BTreeMap;
     use std::rc::Rc;
@@ -3373,6 +3392,9 @@ fn cmd_export_layout_runtime(
             .ok_or_else(|| anyhow::anyhow!("session Lua sans MenuState"))?;
         {
             let mut state = state.borrow_mut();
+            if let Some(observed) = observed_native {
+                state.set_observed_native_state(observed.clone());
+            }
             for (id, text) in &menu_text {
                 state.set_text(id.0, text.clone());
             }
@@ -3768,6 +3790,7 @@ fn cmd_export_layout_runtime(
         "runtimeScenes": runtime_scenes,
         "objects": json_objects,
         "runtimeSummary": {
+            "observedNativeFields": observed_native.map_or(0, |state| state.observed_field_count()),
             "scripts": script_names,
             "decodedScripts": decoded_scripts,
             "decodeErrors": decode_errors,
@@ -4976,6 +4999,37 @@ mod tests {
     use super::{
         blit_over, crop_rgba, scale_nearest, screen_script_needles, script_matches_screen,
     };
+
+    #[test]
+    fn observed_native_input_requires_runtime_export_and_validates_library_schema() {
+        use crate::{Cli, PathBuf};
+        use clap::Parser;
+        assert!(Cli::try_parse_from(["nie-game", "--menu-native-state", "observed.json"]).is_err());
+        let cli = Cli::try_parse_from([
+            "nie-game",
+            "--menu",
+            "main_menu",
+            "--runtime",
+            "--export-layout",
+            "out.json",
+            "--menu-native-state",
+            "observed.json",
+        ])
+        .unwrap();
+        assert_eq!(cli.menu_native_state, Some(PathBuf::from("observed.json")));
+        type Observed = nie_lua::menu_state::ObservedMenuNativeState;
+        let valid: Observed = serde_json::from_str(r#"{"context_69c8_field_2cac6f":2}"#).unwrap();
+        assert_eq!(valid.observed_field_count(), 1);
+        assert_eq!(valid.context_69a8_field_9f10, None);
+        for invalid in [
+            r#"{"context_69c8_field_2cac6f":256}"#,
+            r#"{"context_69c8_field_2cac6f":-1}"#,
+            r#"{"context_69c8_field_2cac6f":1.5}"#,
+            r#"{"unverified_state":2}"#,
+        ] {
+            assert!(serde_json::from_str::<Observed>(invalid).is_err());
+        }
+    }
 
     #[test]
     fn main_menu_script_selection_excludes_distinct_victory_road_screen() {

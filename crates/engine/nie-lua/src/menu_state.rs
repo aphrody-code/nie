@@ -146,6 +146,9 @@ impl MenuLayerState {
 #[derive(Debug, Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 /// Observed Lua menu state and caller-supplied engine inputs. No missing game state is inferred.
 pub struct MenuState {
+    /// Optional native host observations used by proven general state queries.
+    #[serde(default)]
+    pub observed_native: ObservedMenuNativeState,
     /// Layers in deterministic hash order (BTreeMap does not retain insertion order).
     pub layers: BTreeMap<u32, MenuLayerState>,
     /// Scene attributes read by GetObjectAttr (0x4612788B), including actual AttachLocator item-button counts injected before callbacks.
@@ -173,6 +176,11 @@ pub struct MenuState {
 }
 
 impl MenuState {
+    /// Supply an observed native snapshot; missing fields remain unresolved.
+    pub fn set_observed_native_state(&mut self, observed: ObservedMenuNativeState) {
+        self.observed_native = observed;
+    }
+
     /// Return or create a layer.
     pub fn layer(&mut self, layer_id: u32) -> &mut MenuLayerState {
         self.layers
@@ -206,5 +214,126 @@ impl MenuState {
     /// Inject the observed native context+0x2728 value.
     pub fn set_engine_int_2728(&mut self, value: i32) {
         self.engine_int_2728 = Some(value);
+    }
+}
+
+/// Native menu inputs observed by a host; absent values remain unresolved.
+///
+/// The offsets deliberately retain native names: the handlers prove these loads,
+/// but do not establish a product-level meaning for the bytes. Sources are
+/// `data/re/funclua-cmdid-handlers.json` and the corresponding functions in
+/// `data/re/30-ghidra/exports/decompiled-c/nie.exe.c`.
+/// Binary SHA256: `b1fa04ea365868e5c8933aca393366f82d0d446187e2187f2737dc4fa2acd40c`.
+/// Dispatch entries were verified at file offsets 0x1cb8430, 0x1cb8420,
+/// 0x1cb8400 and 0x1cb83b0; disassembly confirms unsigned byte loads.
+#[derive(Debug, Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ObservedMenuNativeState {
+    /// Byte at `*(context + 0x69c8) + 0x2cac6f`.
+    pub context_69c8_field_2cac6f: Option<u8>,
+    /// Byte at `*(context + 0x69a8) + 0x9f10`.
+    pub context_69a8_field_9f10: Option<u8>,
+    /// Byte at `*(context + 0x69a8) + 0x9f13`.
+    pub context_69a8_field_9f13: Option<u8>,
+}
+
+/// Typed Lua result for an observed native-state query.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ObservedMenuQueryValue {
+    Boolean(bool),
+    Byte(u8),
+}
+
+impl ObservedMenuNativeState {
+    /// Count supplied observations without treating absent bytes as zero.
+    pub fn observed_field_count(&self) -> usize {
+        [
+            self.context_69c8_field_2cac6f,
+            self.context_69a8_field_9f10,
+            self.context_69a8_field_9f13,
+        ]
+        .iter()
+        .filter(|value| value.is_some())
+        .count()
+    }
+
+    /// Resolve only commands whose complete read/branch behavior is known.
+    /// Missing host observations return `None`, never an invented state value.
+    pub fn resolve_general_command(&self, command_id: u32) -> Option<ObservedMenuQueryValue> {
+        use ObservedMenuQueryValue::{Boolean, Byte};
+        let native_byte = self.context_69c8_field_2cac6f?;
+        match command_id {
+            // Handler 0x140c4d210: pushboolean(native byte == 2).
+            0x1953_DBC1 => Some(Boolean(native_byte == 2)),
+            // Handler 0x140c4d250: pushinteger(native byte).
+            0xB314_C568 => Some(Byte(native_byte)),
+            // Handler 0x140c4d2c0: pushinteger(native byte == 2 ? 0 : 2).
+            0xEF7B_C853 => Some(Byte(if native_byte == 2 { 0 } else { 2 })),
+            // Handler 0x140c4d500: select a save-context byte with the same predicate.
+            0xDD5C_4CD4 => {
+                if native_byte == 2 {
+                    self.context_69a8_field_9f13.map(Byte)
+                } else {
+                    self.context_69a8_field_9f10.map(Byte)
+                }
+            }
+            _ => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod observed_native_tests {
+    use super::*;
+
+    #[test]
+    fn native_queries_preserve_unsigned_bytes_and_both_state_branches() {
+        use ObservedMenuQueryValue::{Boolean, Byte};
+        for native_byte in [0, 1, 2, 3, u8::MAX] {
+            let observed = ObservedMenuNativeState {
+                context_69c8_field_2cac6f: Some(native_byte),
+                context_69a8_field_9f10: Some(200),
+                context_69a8_field_9f13: Some(255),
+            };
+            assert_eq!(
+                observed.resolve_general_command(0x1953_DBC1),
+                Some(Boolean(native_byte == 2))
+            );
+            assert_eq!(
+                observed.resolve_general_command(0xB314_C568),
+                Some(Byte(native_byte))
+            );
+            assert_eq!(
+                observed.resolve_general_command(0xEF7B_C853),
+                Some(Byte(if native_byte == 2 { 0 } else { 2 }))
+            );
+            assert_eq!(
+                observed.resolve_general_command(0xDD5C_4CD4),
+                Some(Byte(if native_byte == 2 { 255 } else { 200 }))
+            );
+        }
+    }
+
+    #[test]
+    fn native_queries_require_only_the_observed_selected_branch() {
+        let mut observed = ObservedMenuNativeState::default();
+        for id in [0x1953_DBC1, 0xB314_C568, 0xEF7B_C853, 0xDD5C_4CD4] {
+            assert_eq!(observed.resolve_general_command(id), None);
+        }
+        observed.context_69c8_field_2cac6f = Some(2);
+        observed.context_69a8_field_9f10 = Some(10);
+        assert_eq!(observed.resolve_general_command(0xDD5C_4CD4), None);
+        observed.context_69a8_field_9f13 = Some(13);
+        assert_eq!(
+            observed.resolve_general_command(0xDD5C_4CD4),
+            Some(ObservedMenuQueryValue::Byte(13))
+        );
+        observed.context_69c8_field_2cac6f = Some(1);
+        observed.context_69a8_field_9f13 = None;
+        assert_eq!(
+            observed.resolve_general_command(0xDD5C_4CD4),
+            Some(ObservedMenuQueryValue::Byte(10))
+        );
+        assert_eq!(observed.resolve_general_command(0xDEAD_BEEF), None);
     }
 }
