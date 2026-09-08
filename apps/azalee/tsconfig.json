@@ -14,6 +14,7 @@
 		"types": ["node", "react", "react-dom", "@webgpu/types"],
 		"paths": {
 			"@/*": ["./src/*", "./*"],
+			"@niers/asset-source": ["../../packages/asset-source/src/index.ts"],
 			"@rosegriffon/db": ["../../packages/db/src/index.ts"],
 			"@rosegriffon/db/*": ["../../packages/db/src/*"],
 			"@rosegriffon/types": ["../../packages/types/src/index.ts"],

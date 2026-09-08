@@ -106,7 +106,10 @@ export function CharacterSheetWithLevel({
 			)
 		: description;
 
-	const displayDesc = formatDescription(rawDesc, language);
+	const displayDesc = formatDescription(
+		rawDesc,
+		language === "fr" || language === "en" || language === "ja" ? language : "en"
+	);
 
 	return (
 		<div className={className}>

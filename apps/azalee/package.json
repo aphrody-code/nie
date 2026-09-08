@@ -73,6 +73,7 @@
 		"@rosegriffon/inagle-cross": "workspace:*",
 		"@rosegriffon/types": "workspace:*",
 		"@rosegriffon/ui": "workspace:*",
+		"@niers/asset-source": "workspace:*",
 		"@sentry/nextjs": "catalog:",
 		"@supabase/supabase-js": "catalog:",
 		"@theatre/core": "catalog:",

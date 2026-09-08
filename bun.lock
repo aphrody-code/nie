@@ -32,6 +32,7 @@
         "@lexical/utils": "catalog:",
         "@markdoc/markdoc": "catalog:",
         "@next/third-parties": "catalog:",
+        "@niers/asset-source": "workspace:*",
         "@niers/inacord-ui": "workspace:*",
         "@pixiv/three-vrm": "catalog:",
         "@radix-ui/react-accordion": "catalog:",
