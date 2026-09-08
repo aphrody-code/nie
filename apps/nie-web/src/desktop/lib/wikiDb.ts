@@ -1,7 +1,7 @@
 // Existing wiki queries executed through the shared native SQLite compatibility facade.
 import Database from "./sqlite";
 import { localizedName, type ResolvedName } from "@niers/inacord-ui/lib/resolved-names";
-import type { Locale } from "@niers/inacord-ui/lib/settings";
+import type { GameLocale } from "@niers/inacord-ui/lib/settings";
 export type { ResolvedName } from "@niers/inacord-ui/lib/resolved-names";
 import { japaneseToRomaji } from "@niers/game/text";
 
@@ -90,7 +90,7 @@ export const wikiDb = {
    * de personnages peut lister des milliers d'entrées), sur le même principe que l'index
    * `vfs_files` : précision + un seul aller-retour au lieu de N.
    */
-  async resolveManyByCode(dbPath: string, codes: string[], locale: Locale = "fr"): Promise<Map<string, ResolvedName>> {
+  async resolveManyByCode(dbPath: string, codes: string[], locale: GameLocale = "fr"): Promise<Map<string, ResolvedName>> {
     const unique = [...new Set(codes)].filter(Boolean);
     if (unique.length === 0) return new Map();
     const db = await connect(dbPath);

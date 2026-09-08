@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, mock, test } from "bun:test";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { localizedName, nameWithId, resolvedKindLabel, useResolvedNames, type NameResolver, type ResolvedName } from "./resolved-names";
-import type { Locale } from "./settings";
+import type { GameLocale } from "./settings";
 
 let root: Root;
 let container: HTMLDivElement;
@@ -17,7 +17,7 @@ afterEach(async () => {
 });
 
 function Consumer({ resolver, source = "game-a", locale = "fr", slot = "one", codes = ["ch001"] }: {
-	resolver?: NameResolver; source?: string; locale?: Locale; slot?: string; codes?: string[];
+	resolver?: NameResolver; source?: string; locale?: GameLocale; slot?: string; codes?: string[];
 }) {
 	const names = useResolvedNames(resolver, source, locale, codes);
 	return <output data-slot={slot}>{names.get("ch001")?.name ?? "unresolved"}</output>;
@@ -26,7 +26,7 @@ const record = (name: string): ResolvedName => ({ name, id: "0x1234", kind: "cha
 const output = (slot = "one") => container.querySelector(`[data-slot="${slot}"]`)!.textContent;
 
 test("locale and source cache identities stay separate and reuse only the matching result", async () => {
-	const resolver = mock(async (source: string, _codes: string[], locale: Locale) => new Map([["ch001", record(`${source}-${locale}`)]]));
+	const resolver = mock(async (source: string, _codes: string[], locale: GameLocale) => new Map([["ch001", record(`${source}-${locale}`)]]));
 	for (const [source, locale] of [["game-a", "fr"], ["game-a", "en"], ["game-b", "en"], ["game-a", "fr"]] as const) {
 		await act(async () => root.render(<Consumer resolver={resolver} source={source} locale={locale} />));
 		expect(output()).toBe(`${source}-${locale}`);

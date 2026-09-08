@@ -5,8 +5,8 @@ import { wikiDb, type ResolvedName } from "@/lib/wikiDb";
 
 const resolveNames = wikiDb.resolveManyByCode;
 export function useResolvedNames(dbPath: string, codes: string[]): Map<string, ResolvedName> {
-  const { locale } = useSettings();
-  return useSharedResolvedNames(resolveNames, dbPath, locale, codes);
+  const { gameLocale } = useSettings();
+  return useSharedResolvedNames(resolveNames, dbPath, gameLocale, codes);
 }
 export function useResolvedName(dbPath: string, code: string | null): ResolvedName | null {
   const names = useResolvedNames(dbPath, code ? [code] : []);

@@ -73,8 +73,8 @@ export function nameWithId(name: string | null | undefined, id: string): string 
 }
 
 export function localizedName(row: { name_fr: string | null; name_en: string | null; name_ja: string | null }, locale: GameLocale, id: string) {
-	const column = locale === "fr" || locale === "en" || locale === "ja" ? `name_${locale}` : undefined;
-	return [column ? row[column] : null, row.name_en, row.name_fr, row.name_ja].find(name => name?.trim())?.trim() ?? id;
+	const requested = locale === "fr" ? row.name_fr : locale === "en" ? row.name_en : locale === "ja" ? row.name_ja : null;
+	return [requested, row.name_en, row.name_fr, row.name_ja].find(name => name?.trim())?.trim() ?? id;
 }
 
 const KIND_LABELS: Record<Locale, Record<ResolvedName["kind"], string>> = {
