@@ -27,12 +27,14 @@ pub mod database;
 pub mod depot;
 pub mod export;
 pub mod folder_roles;
+pub mod geometry;
 #[cfg(feature = "host")]
 pub mod listing;
 pub mod menu_audio;
 pub mod menu_icons;
 /// Compatibility facade; menu layout ownership lives in `nie_formats::menu`.
 pub mod menu_layout;
+pub mod menu_mode_analysis;
 pub mod menu_modes;
 pub mod motion;
 pub mod native_audio;

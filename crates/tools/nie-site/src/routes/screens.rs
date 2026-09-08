@@ -64,10 +64,12 @@ use std::sync::OnceLock;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use nie_explore::menu_icons::{IconIndexPolicy, MenuIcon, build_icon_index};
+use nie_explore::menu_mode_analysis::{
+    MenuPaths as SharedMenuPaths, collect_mode as collect_shared_mode,
+};
 use nie_formats::cfgbin::{self, CfgEntry, Value};
 use nie_formats::objbin;
 use nie_formats::vfs::Vfs;
-use nie_lua::bytecode;
 use serde::{Deserialize, Serialize};
 
 use crate::error::ErreurSite;
@@ -492,6 +494,8 @@ pub const FUNCLUA_HANDLERS: &str = "data/re/funclua-cmdid-handlers.json";
 /// seule fois de [`IndexVfs`], qui est déjà construit au montage.
 #[derive(Debug, Default)]
 struct MenuPaths {
+    /// Canonical inventory consumed by the shared aggregation owner.
+    shared: SharedMenuPaths,
     /// Chemins des écrans `*_setting.cfg.bin`.
     screens: Vec<String>,
     /// Stem d'objet de menu → chemin VFS.
@@ -544,6 +548,13 @@ fn build_menu_paths(index: &IndexVfs) -> MenuPaths {
             out.scripts.push((p, s, base));
         }
     }
+    out.shared = SharedMenuPaths::from_paths(
+        out.screens
+            .iter()
+            .cloned()
+            .chain(out.objects.values().cloned())
+            .chain(out.scripts.iter().map(|(path, _, _)| path.clone())),
+    );
     out.elapsed_ms = start.elapsed().as_millis();
     tracing::info!(
         screens = out.screens.len(),
@@ -692,6 +703,7 @@ fn funclua_report(f: &Funclua) -> FuncluaTable {
 // ── Agrégation d'un mode ─────────────────────────────────────────────────────
 
 /// Vrai si `stem` relève d'un des préfixes du mode.
+#[cfg(test)]
 fn matches(def: &ModeDef, stem: &str) -> bool {
     def.prefixes.iter().any(|p| stem.starts_with(p))
 }
@@ -709,22 +721,6 @@ fn walk<'a>(entries: &'a [CfgEntry], f: &mut impl FnMut(&'a CfgEntry)) {
     for e in entries {
         f(e);
         walk(&e.children, f);
-    }
-}
-
-/// Nom RTTI d'un composant de menu.
-fn component_type_name(c: &objbin::MenuComponent) -> &str {
-    use objbin::MenuComponent as M;
-    match c {
-        M::Render(x) => &x.type_name,
-        M::Animation(x) => &x.type_name,
-        M::Text(x) => &x.type_name,
-        M::Primitive(x) => &x.type_name,
-        M::AttachLocator(x) => &x.type_name,
-        M::Collision(x) => &x.type_name,
-        M::SoundCmd(x) => &x.type_name,
-        M::MeshVisible(x) => &x.type_name,
-        M::Unknown(x) => &x.type_name,
     }
 }
 
@@ -897,221 +893,47 @@ pub struct ModeFacts {
 /// Un fichier illisible **individuellement** n'est pas une erreur — il est compté
 /// ([`ModeCounts::unreadable`]) et absent du résultat.
 fn collect(vfs: &Vfs, paths: &MenuPaths, def: &ModeDef, funclua: &Funclua) -> ModeFacts {
-    let mut facts = ModeFacts::default();
-
-    for path in &paths.screens {
-        let Some(name) = stem(path, SCREEN_SUFFIX) else {
-            continue;
-        };
-        if !matches(def, &name) {
-            continue;
-        }
-        let Ok(bytes) = vfs.read(path) else {
-            facts.unreadable += 1;
-            continue;
-        };
-        let Ok(file) = cfgbin::parse_t2b(&bytes) else {
-            facts.unreadable += 1;
-            continue;
-        };
-        let (mut layers, mut focus) = (Vec::new(), 0usize);
-        walk(&file.entries, &mut |e: &CfgEntry| {
-            if e.name.contains("LIST_BEG") || e.name.contains("LIST_END") {
-                return;
-            }
-            if e.name.starts_with("MENU_LAYER_INFO") {
-                if let Some(n) = first_string(e) {
-                    layers.push(n.to_owned());
-                }
-            } else if e.name.starts_with("MENU_FOCUS_BASE_INFO") {
-                focus += 1;
-            }
-        });
-        facts.focus += focus;
-        facts.layers.extend(layers.iter().cloned());
-        facts.screens.push(Screen {
-            screen: name,
-            cfg: path.clone(),
-            bytes: bytes.len(),
-            layers,
-            focus,
-        });
-    }
-    facts.screens.sort_by(|a, b| a.screen.cmp(&b.screen));
-
-    // Calque → objbin (même stem) → assets et composants.
-    for layer in facts.layers.clone() {
-        let Some(p) = paths.objects.get(&layer) else {
-            continue;
-        };
-        facts.objbins.insert(p.clone());
-        let Ok(bytes) = vfs.read(p) else {
-            facts.unreadable += 1;
-            continue;
-        };
-        let Ok(obj) = objbin::parse(&bytes) else {
-            facts.unreadable += 1;
-            continue;
-        };
-        if let Some(g) = &obj.g4pkm_path {
-            facts.g4pkm.insert(g.clone());
-        }
-        if let Some(t) = &obj.g4tx_path {
-            facts.g4tx.insert(t.clone());
-        }
-        for c in &obj.components {
-            *facts
-                .components
-                .entry(component_type_name(c).to_owned())
-                .or_default() += 1;
-            match c {
-                // Un composant non reconnu expose ses chaînes : c'est là que vivent les
-                // chemins de texture (`m_texPath`).
-                objbin::MenuComponent::Unknown(u) => {
-                    for s in u.strings() {
-                        if s.ends_with(ICONS_SUFFIX) {
-                            facts.g4tx.insert(s.to_owned());
-                        }
-                    }
-                }
-                // Le pont UI → texte : chaque slot porte le CRC-32 de son libellé.
-                objbin::MenuComponent::Text(t) => {
-                    for e in &t.entries {
-                        for h in &e.hashes {
-                            if *h != 0 {
-                                facts
-                                    .text_slots
-                                    .insert((obj.name.clone(), e.key.clone(), *h));
-                            }
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
-
-    for (path, name, base) in &paths.scripts {
-        if !matches(def, name) && !matches(def, base) {
-            continue;
-        }
-        let Ok(bytes) = vfs.read(path) else {
-            facts.unreadable += 1;
-            facts.scripts.push(Script {
-                path: path.clone(),
-                bytes: 0,
-                instructions: 0,
-                functions: 0,
-                includes: Vec::new(),
-                commands: Vec::new(),
-                error: Some("script indexe mais illisible sur ce montage".to_owned()),
-            });
-            continue;
-        };
-        facts
-            .scripts
-            .push(analyse_script(path, &bytes, &funclua.table));
-    }
-    facts.scripts.sort_by(|a, b| a.path.cmp(&b.path));
-
-    facts
-}
-
-/// Analyse **byte-exacte** d'un `.lua.bin`.
-///
-/// Désassemble le conteneur de bytecode Lua 5.2 réel ([`nie_lua::bytecode::parse`], pas un
-/// décompilateur externe) et en extrait ce qui intéresse une fiche de mode : nombre
-/// d'instructions et de fonctions, modules `INCLUDE`d, et les `cmdId` que le script est
-/// **structurellement capable** d'émettre.
-///
-/// Portage de `mode_index::analyse_lua` (`crates/tools/nie-cli/src/mode_index.rs:466`), à deux
-/// choses près : l'erreur sort dans un champ `error` typé plutôt que dans un objet `{erreur}`
-/// ad hoc, et les commandes n'ont pas de nom (cf. [`FuncluaTable::naming`]).
-fn analyse_script(path: &str, bytes: &[u8], handlers: &BTreeMap<u32, u64>) -> Script {
-    let chunk = match bytecode::parse(bytes) {
-        Ok(c) => c,
-        Err(e) => {
-            return Script {
-                path: path.to_owned(),
-                bytes: bytes.len(),
-                instructions: 0,
-                functions: 0,
-                includes: Vec::new(),
-                commands: Vec::new(),
-                error: Some(format!("bytecode Lua 5.2 non reconnu : {e}")),
-            };
-        }
-    };
-
-    let mut includes = std::collections::BTreeSet::new();
-    let mut cmd_ids = std::collections::BTreeSet::new();
-    walk_prototype(&chunk.main, &mut includes, &mut cmd_ids, handlers);
-
-    Script {
-        path: path.to_owned(),
-        bytes: bytes.len(),
-        instructions: chunk.main.total_instructions(),
-        functions: chunk.main.total_protos() + 1,
-        includes: includes.into_iter().collect(),
-        // `filter_map` et non `map` : un `cmdId` n'entre dans `cmd_ids` que s'il est déjà dans
-        // la table, donc la branche vide est inatteignable — mais la coder ainsi interdit
-        // structurellement de publier un `handler: ""`, qui se lirait comme une adresse.
-        commands: cmd_ids
+    let shared = collect_shared_mode(vfs, &paths.shared, def, &funclua.table);
+    ModeFacts {
+        screens: shared
+            .screens
             .into_iter()
-            .filter_map(|id| {
-                handlers.get(&id).map(|va| Command {
-                    cmd_id: format!("0x{id:08X}"),
-                    handler: format!("0x{va:X}"),
-                })
+            .map(|screen| Screen {
+                screen: screen.screen,
+                cfg: screen.cfg,
+                bytes: screen.bytes,
+                layers: screen.layers,
+                focus: screen.focus,
             })
             .collect(),
-        error: None,
-    }
-}
-
-/// Parcourt un prototype et **tous** ses prototypes imbriqués.
-///
-/// En Lua 5.2 chaque prototype a son propre pool de constantes : s'arrêter au principal
-/// perdrait la quasi-totalité des `cmdId`.
-fn walk_prototype(
-    p: &bytecode::Prototype,
-    includes: &mut std::collections::BTreeSet<String>,
-    cmd_ids: &mut std::collections::BTreeSet<u32>,
-    handlers: &BTreeMap<u32, u64>,
-) {
-    for c in &p.constants {
-        match c {
-            bytecode::Constant::String(s) => {
-                // Les modules partagés du moteur portent tous ce préfixe (`LUA_MENU_DEF`,
-                // `LUA_LISTVIEW_INC`…) : c'est la convention que lit `INCLUDE()` côté VM, pas
-                // une supposition locale.
-                if let Ok(txt) = core::str::from_utf8(s)
-                    && txt.starts_with("LUA_")
-                {
-                    includes.insert(txt.to_owned());
-                }
-            }
-            // Les cmdId arrivent en f64 côté Lua ; on ne retient que les entiers exacts de
-            // l'espace u32 ET présents dans le dump de handlers — sinon un flottant de jeu
-            // ordinaire (score, ratio…) pourrait coïncider.
-            bytecode::Constant::Number(n)
-                if *n >= 0.0 && n.fract() == 0.0 && *n <= f64::from(u32::MAX) =>
-            {
-                #[allow(
-                    clippy::cast_possible_truncation,
-                    clippy::cast_sign_loss,
-                    reason = "borne verifiee juste au-dessus : 0 <= n <= u32::MAX et n.fract() == 0"
-                )]
-                let id = *n as u32;
-                if handlers.contains_key(&id) {
-                    cmd_ids.insert(id);
-                }
-            }
-            _ => {}
-        }
-    }
-    for sub in &p.protos {
-        walk_prototype(sub, includes, cmd_ids, handlers);
+        layers: shared.layers,
+        objbins: shared.objbins,
+        g4pkm: shared.g4pkm,
+        g4tx: shared.g4tx,
+        components: shared.components,
+        scripts: shared
+            .scripts
+            .into_iter()
+            .map(|script| Script {
+                path: script.path,
+                bytes: script.bytes,
+                instructions: script.instructions,
+                functions: script.functions,
+                includes: script.includes,
+                commands: script
+                    .commands
+                    .into_iter()
+                    .map(|command| Command {
+                        cmd_id: format!("0x{:08X}", command.cmd_id),
+                        handler: format!("0x{:X}", command.handler),
+                    })
+                    .collect(),
+                error: script.error,
+            })
+            .collect(),
+        text_slots: shared.text_slots,
+        focus: shared.focus,
+        unreadable: shared.unreadable,
     }
 }
 
@@ -2278,7 +2100,11 @@ mod tests {
 
     #[test]
     fn un_script_illisible_porte_son_erreur_au_lieu_de_passer_pour_vide() {
-        let s = analyse_script("data/x.lua.bin", b"pas du bytecode", &BTreeMap::new());
+        let s = nie_explore::menu_mode_analysis::analyze_mode_script(
+            "data/x.lua.bin",
+            b"pas du bytecode",
+            &BTreeMap::new(),
+        );
         assert_eq!(s.instructions, 0);
         assert_eq!(s.functions, 0);
         assert!(s.commands.is_empty());

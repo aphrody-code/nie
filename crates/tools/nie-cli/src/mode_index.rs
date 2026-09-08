@@ -21,10 +21,10 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use anyhow::{Context, Result};
+use nie_explore::menu_mode_analysis::{MenuPaths, analyze_mode_script, collect_mode};
 use nie_formats::cfgbin::{self, CfgEntry, Value};
 use nie_formats::objbin;
 use nie_formats::vfs::Vfs;
-use nie_lua::bytecode;
 use serde_json::Value as Json;
 
 pub use nie_explore::menu_modes::MODES;
@@ -210,118 +210,27 @@ fn walk<'a>(entries: &'a [CfgEntry], f: &mut impl FnMut(&'a CfgEntry)) {
 
 /// Récolte les faits d'un mode depuis le VFS.
 pub fn collect(vfs: &Vfs, def: &ModeDef) -> ModeFacts {
-    let mut facts = ModeFacts::default();
-
-    // Index des chemins utiles, figé avant lecture (`iter` emprunte le VFS).
-    let mut cfg_paths: Vec<String> = Vec::new();
-    let mut obj_paths: BTreeMap<String, String> = BTreeMap::new();
-    for (path, _) in vfs.iter() {
-        if path.starts_with("data/common/gamedata/menu/cfg/") && path.ends_with("_setting.cfg.bin")
-        {
-            cfg_paths.push(path.to_string());
-        } else if path.starts_with("data/common/gamedata/menu/obj/") && path.ends_with(".objbin") {
-            if let Some(stem) = path
-                .rsplit('/')
-                .next()
-                .and_then(|f| f.strip_suffix(".objbin"))
-            {
-                obj_paths.insert(stem.to_string(), path.to_string());
-            }
-        } else if path.contains("/script/lua/")
-            && path.ends_with(".lua.bin")
-            && let Some(stem) = path
-                .rsplit('/')
-                .next()
-                .and_then(|f| f.strip_suffix(".lua.bin"))
-        {
-            // Les scripts portent parfois un suffixe de version (`_1.02.92.00`) : on teste le
-            // nom complet ET sa racine, sinon `main_menu_1.02.92.00` échapperait au préfixe.
-            let base = stem
-                .split_once(char::is_numeric)
-                .map_or(stem, |(a, _)| a.trim_end_matches('_'));
-            if matches_stem(def, stem) || matches_stem(def, base) {
-                facts.lua.insert(path.to_string());
-            }
-        }
+    let paths = MenuPaths::from_paths(vfs.iter().map(|(path, _)| path));
+    let shared = collect_mode(vfs, &paths, def, &BTreeMap::new());
+    ModeFacts {
+        screens: shared
+            .screens
+            .into_iter()
+            .map(|screen| (screen.screen, screen.cfg))
+            .collect(),
+        layers: shared.layers,
+        objbins: shared.objbins,
+        g4pkm: shared.g4pkm,
+        g4tx: shared.g4tx,
+        components: shared.components.into_keys().collect(),
+        lua: shared
+            .scripts
+            .into_iter()
+            .map(|script| script.path)
+            .collect(),
+        focus: shared.focus,
+        text_slots: shared.text_slots,
     }
-
-    for path in cfg_paths {
-        let Some(stem) = path
-            .rsplit('/')
-            .next()
-            .and_then(|f| f.strip_suffix("_setting.cfg.bin"))
-        else {
-            continue;
-        };
-        if !matches_stem(def, stem) {
-            continue;
-        }
-        let Ok(bytes) = vfs.read(&path) else { continue };
-        let Ok(file) = cfgbin::parse_t2b(&bytes) else {
-            continue;
-        };
-        facts.screens.insert(stem.to_string(), path.clone());
-
-        walk(&file.entries, &mut |e: &CfgEntry| {
-            if e.name.contains("LIST_BEG") || e.name.contains("LIST_END") {
-                return;
-            }
-            if e.name.starts_with("MENU_LAYER_INFO")
-                && let Some(n) = first_string(e)
-            {
-                facts.layers.insert(n.to_string());
-            } else if e.name.starts_with("MENU_FOCUS_BASE_INFO") {
-                facts.focus += 1;
-            }
-        });
-    }
-
-    // Calques -> objbin -> assets. Un calque nomme son objbin (même stem).
-    for layer in facts.layers.clone() {
-        let Some(p) = obj_paths.get(&layer) else {
-            continue;
-        };
-        facts.objbins.insert(p.clone());
-        let Ok(bytes) = vfs.read(p) else { continue };
-        let Ok(obj) = objbin::parse(&bytes) else {
-            continue;
-        };
-        if let Some(g) = &obj.g4pkm_path {
-            facts.g4pkm.insert(g.clone());
-        }
-        if let Some(t) = &obj.g4tx_path {
-            facts.g4tx.insert(t.clone());
-        }
-        for c in &obj.components {
-            facts.components.insert(component_type_name(c).to_string());
-            match c {
-                // Depuis le correctif de préservation typée, un composant non reconnu expose ses
-                // chaînes : c'est là que vivent les chemins de texture (`m_texPath`).
-                objbin::MenuComponent::Unknown(u) => {
-                    for s in u.strings() {
-                        if s.ends_with(".g4tx") {
-                            facts.g4tx.insert(s.to_string());
-                        }
-                    }
-                }
-                // Le pont UI -> texte : chaque slot porte le CRC-32 de son libellé.
-                objbin::MenuComponent::Text(t) => {
-                    for e in &t.entries {
-                        for h in &e.hashes {
-                            if *h != 0 {
-                                facts
-                                    .text_slots
-                                    .insert((obj.name.clone(), e.key.clone(), *h));
-                            }
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
-
-    facts
 }
 
 /// Table `cmdId -> VA handler` de `data/re/funclua-cmdid-handlers.json`, ou vide si absente.
@@ -377,69 +286,27 @@ fn charger_handlers_funclua() -> BTreeMap<u32, u64> {
 /// Renvoie `{"erreur": ...}` si le fichier n'est pas un bytecode Lua 5.2 reconnu, plutôt qu'un
 /// objet vide qui se ferait passer pour « rien à signaler ».
 fn analyse_lua(bytes: &[u8], handlers: &BTreeMap<u32, u64>) -> Json {
-    let chunk = match bytecode::parse(bytes) {
-        Ok(c) => c,
-        Err(e) => return serde_json::json!({ "erreur": e.to_string() }),
-    };
-
-    // Parcourt le prototype principal ET tous les prototypes imbriqués : chacun a son propre
-    // pool de constantes en Lua 5.2 (pas un pool global partagé par chunk).
-    let mut includes = BTreeSet::new();
-    let mut cmd_ids = BTreeSet::new();
-    fn walk_proto(
-        p: &bytecode::Prototype,
-        includes: &mut BTreeSet<String>,
-        cmd_ids: &mut BTreeSet<u32>,
-        handlers: &BTreeMap<u32, u64>,
-    ) {
-        for c in &p.constants {
-            match c {
-                bytecode::Constant::String(s) => {
-                    // Les modules partagés du moteur portent tous ce préfixe (`LUA_MENU_DEF`,
-                    // `LUA_LISTVIEW_INC`…) : c'est la même convention que lit `INCLUDE()` côté VM
-                    // (`nie_lua::lib::install_include`), pas une supposition locale.
-                    if let Ok(txt) = core::str::from_utf8(s)
-                        && txt.starts_with("LUA_")
-                    {
-                        includes.insert(txt.to_string());
-                    }
-                }
-                // Les cmdId arrivent en f64 côté Lua (cf. doc `menu_host.rs`) ; on ne retient que
-                // les entiers exacts dans l'espace u32 ET présents dans le dump de handlers —
-                // sinon un flottant de jeu ordinaire (score, ratio…) pourrait coïncider.
-                bytecode::Constant::Number(n)
-                    if *n >= 0.0 && n.fract() == 0.0 && *n <= f64::from(u32::MAX) =>
-                {
-                    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-                    let id = *n as u32;
-                    if handlers.contains_key(&id) {
-                        cmd_ids.insert(id);
-                    }
-                }
-                _ => {}
-            }
-        }
-        for sub in &p.protos {
-            walk_proto(sub, includes, cmd_ids, handlers);
-        }
+    let analysis = analyze_mode_script("", bytes, handlers);
+    if let Some(error) = analysis.error {
+        return serde_json::json!({ "erreur": error });
     }
-    walk_proto(&chunk.main, &mut includes, &mut cmd_ids, handlers);
-
-    let commandes: Vec<Json> = cmd_ids
+    let commandes: Vec<Json> = analysis
+        .commands
         .iter()
-        .map(|id| {
+        .map(|command| {
+            let id = command.cmd_id;
             serde_json::json!({
                 "cmdId": format!("0x{id:08X}"),
-                "nom": nie_lua::menu_host::command_name(*id),
-                "handler": handlers.get(id).map(|va| format!("0x{va:X}")),
+                "nom": nie_lua::menu_host::command_name(id),
+                "handler": format!("0x{:X}", command.handler),
             })
         })
         .collect();
 
     serde_json::json!({
-        "instructions": chunk.main.total_instructions(),
-        "fonctions": chunk.main.total_protos() + 1,
-        "includes": includes,
+        "instructions": analysis.instructions,
+        "fonctions": analysis.functions,
+        "includes": analysis.includes,
         "commandes": commandes,
     })
 }
@@ -732,21 +599,6 @@ fn messages_du_mode(vfs: &Vfs, motif: &str, exe: Option<&std::path::Path>) -> Js
         out.insert(locale.to_string(), Json::Object(par_cle));
     }
     Json::Object(out)
-}
-
-fn component_type_name(c: &objbin::MenuComponent) -> &str {
-    use objbin::MenuComponent as M;
-    match c {
-        M::Render(x) => &x.type_name,
-        M::Animation(x) => &x.type_name,
-        M::Text(x) => &x.type_name,
-        M::Primitive(x) => &x.type_name,
-        M::AttachLocator(x) => &x.type_name,
-        M::Collision(x) => &x.type_name,
-        M::SoundCmd(x) => &x.type_name,
-        M::MeshVisible(x) => &x.type_name,
-        M::Unknown(x) => &x.type_name,
-    }
 }
 
 /// Crée les tables du catalogue si elles manquent.

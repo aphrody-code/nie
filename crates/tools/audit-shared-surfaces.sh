@@ -61,13 +61,15 @@ else
   row icon_index_single_owner FAIL 'CLI and site do not both delegate icon indexing to nie-explore'
 fi
 
-if contains 'pub fn collect(' crates/tools/nie-cli/src/mode_index.rs \
-  && contains 'fn collect(' crates/tools/nie-site/src/routes/screens.rs \
-  && contains 'fn analyse_lua(' crates/tools/nie-cli/src/mode_index.rs \
-  && contains 'fn analyse_script(' crates/tools/nie-site/src/routes/screens.rs; then
-  row mode_analysis_single_owner FAIL 'CLI and site retain separate aggregation/analysis functions'
+if contains 'menu_mode_analysis' crates/tools/nie-cli/src/mode_index.rs \
+  && contains 'collect_mode' crates/tools/nie-cli/src/mode_index.rs \
+  && contains 'analyze_mode_script' crates/tools/nie-cli/src/mode_index.rs \
+  && contains 'menu_mode_analysis' crates/tools/nie-site/src/routes/screens.rs \
+  && contains 'collect_shared_mode' crates/tools/nie-site/src/routes/screens.rs \
+  && contains 'analyze_mode_script' crates/tools/nie-site/src/routes/screens.rs; then
+  row mode_analysis_single_owner PASS 'CLI and site delegate mode aggregation and Lua analysis to nie-explore'
 else
-  row mode_analysis_single_owner PASS 'no known CLI/site mode-analysis duplication found'
+  row mode_analysis_single_owner FAIL 'CLI and site do not both delegate mode analysis to nie-explore'
 fi
 
 if contains 'fn t2b_value_to_json(' crates/engine/nie-explore/src/bridge.rs \
@@ -96,11 +98,12 @@ else
   row glb_decoder_single_owner PASS 'no divergent TypeScript/Rust GLB decoder pair found'
 fi
 
-if contains 'pub fn famille_au_magic(' crates/tools/nie-site/src/routes/geometrie.rs \
-  && contains 'pub fn decoder(' crates/tools/nie-site/src/routes/geometrie.rs; then
-  row geometry_dispatch_library_owner FAIL 'geometry classification and dispatch are owned by a site route module'
+if contains 'pub use nie_explore::geometry::' crates/tools/nie-site/src/routes/geometrie.rs \
+  && contains 'pub fn famille_au_magic(' crates/engine/nie-explore/src/geometry.rs \
+  && contains 'pub fn decoder(' crates/engine/nie-explore/src/geometry.rs; then
+  row geometry_dispatch_library_owner PASS 'site delegates geometry classification and dispatch to nie-explore'
 else
-  row geometry_dispatch_library_owner PASS 'geometry dispatch is not route-owned'
+  row geometry_dispatch_library_owner FAIL 'geometry classification and dispatch are not fully delegated to nie-explore'
 fi
 
 if contains 'pub fn region_url(' crates/tools/nie-site/src/routes/screens.rs \
