@@ -10,7 +10,12 @@
 use nie_formats::cfgbin::{CfgBinFile, CfgEntry, RdbnList, RdbnRow, RdbnValue, Value as T2bValue};
 use serde_json::{Map, Value, json};
 
-fn t2b_value_to_json(v: &T2bValue) -> Value {
+/// Converts one decoded T2B variable to the canonical inagle JSON representation.
+///
+/// This small operation is public because host adapters that need an indexed or otherwise
+/// presentation-specific entry tree must still share the exact scalar wire representation.
+#[must_use]
+pub fn t2b_value_to_json(v: &T2bValue) -> Value {
     match v {
         T2bValue::String(s) => json!({ "type": "String", "value": s }),
         // `value` est TOUJOURS une chaîne dans la forme inagle (cf. nie_data::cfgbin) — les
@@ -360,6 +365,22 @@ mod tests {
     use super::*;
     use nie_formats::cfgbin::{encode_t2b, is_rdbn, parse_t2b};
     use nie_formats::vfs::Vfs;
+
+    #[test]
+    fn t2b_scalar_wire_representation_is_canonical() {
+        assert_eq!(
+            t2b_value_to_json(&T2bValue::String("text".to_owned())),
+            json!({ "type": "String", "value": "text" })
+        );
+        assert_eq!(
+            t2b_value_to_json(&T2bValue::Int(-42)),
+            json!({ "type": "Int", "value": "-42" })
+        );
+        assert_eq!(
+            t2b_value_to_json(&T2bValue::Float(1.5)),
+            json!({ "type": "Float", "value": "1.5" })
+        );
+    }
 
     /// Round-trip complet SUR LE VRAI JEU : octets → `CfgEntry` → JSON (`t2b_to_json`) → `CfgEntry`
     /// (`json_to_t2b_entries`) → octets (`encode_t2b`) → redécodage → comparaison structurelle à

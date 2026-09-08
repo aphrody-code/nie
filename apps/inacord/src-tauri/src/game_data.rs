@@ -15,10 +15,11 @@
 //! bridge), à étendre au besoin.
 
 use nie_data::skill::{SkillInfo, SkillTextMaps};
-use nie_formats::cfgbin::{CfgEntry, Value as CfgValue};
+use nie_explore::bridge::t2b_value_to_json;
+use nie_formats::cfgbin::CfgEntry;
 use nie_formats::vfs::Vfs;
 use serde::Serialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::collections::HashMap;
 
 /// Technique (hissatsu) — port applati de `nie_data::skill::SkillInfo` + son texte joint
@@ -152,16 +153,6 @@ pub fn list_skills(vfs: &Vfs) -> Result<Vec<SkillDto>, String> {
             }
         })
         .collect())
-}
-
-/// Convertit une valeur T2B (`nie_formats::cfgbin::Value`) en JSON forme "inagle" — même mapping
-/// que [`nie_explore::bridge::t2b_value_to_json`] (privé, donc reproduit ici plutôt qu'importé).
-fn t2b_value_to_json(v: &CfgValue) -> Value {
-    match v {
-        CfgValue::String(s) => json!({ "type": "String", "value": s }),
-        CfgValue::Int(i) => json!({ "type": "Int", "value": i.to_string() }),
-        CfgValue::Float(f) => json!({ "type": "Float", "value": f.to_string() }),
-    }
 }
 
 /// Convertit UNE liste de `CfgEntry` frères en JSON **avec suffixe d'index par nom dupliqué**

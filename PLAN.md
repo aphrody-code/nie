@@ -593,3 +593,10 @@ Tauri, MCP and Wasm where applicable. The strict audit must reach zero failed in
 applicable non-zero Cargo/Bun/interaction gates must pass. The next extraction target is the copied
 T2B conversion in `apps/inacord/src-tauri/src/game_data.rs`, followed by the route-owned SQLite
 query engine and the browser GLB decoder.
+
+The first extraction is complete: `nie-explore::bridge::t2b_value_to_json` is now the public
+canonical scalar conversion, Inacord imports it directly, and the copied Tauri implementation is
+deleted. Its String/Int/Float fixture passes one focused test; strict `nie-explore` clippy passes,
+and `cargo check -p inacord --locked` passes with one pre-existing `nie-render3d` unused-import
+warning. The executable audit improves from seven to six failed invariants. The full goal remains
+open; the next owner extraction is the generic SQLite engine currently inside the HTTP route.
