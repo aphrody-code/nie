@@ -79,14 +79,21 @@ export function GameCanvas({
 	children,
 	fond,
 	className,
+	onReady,
 }: {
 	canvas: CanvasLayout;
 	children: ReactNode;
 	/** Le fond de la zone, hors du canevas mis a l'echelle. */
 	fond?: string;
 	className?: string;
+	/** Called once the measured canvas is visible and its controls can receive focus. */
+	onReady?: () => void;
 }) {
 	const { zone, echelle } = useEchelleCanvas(canvas);
+	const ready = echelle > 0;
+	useEffect(() => {
+		if (ready) onReady?.();
+	}, [ready, onReady]);
 	return (
 		<div
 			ref={zone}

@@ -70,6 +70,7 @@ try {
 	await browser("--args", "--no-sandbox", "open", origin);
 	await browser("set", "viewport", "1920", "1080");
 	await waitFor('!!document.querySelector("[data-opening-phase=autosave]")');
+	await evaluate('window.__menuDelayStyle=document.createElement("style");window.__menuDelayStyle.textContent=".runtime-main-menu{display:none!important}";document.head.append(window.__menuDelayStyle);true');
 	await evaluate(`window.__menuPad={mapping:"standard",connected:true,index:0,buttons:Array.from({length:17},()=>({pressed:false,value:0})),axes:[0,0]};Object.defineProperty(navigator,"getGamepads",{configurable:true,value:()=>[window.__menuPad]});true`);
 	await evaluate("window.__menuPad.buttons[0]={pressed:true,value:1};true");
 	await waitFor('!!document.querySelector("[data-opening-phase=start]")');
@@ -83,7 +84,10 @@ try {
 	check("held gamepad A does not activate a menu destination", await phase(), "menu");
 	await evaluate("window.__menuPad.buttons[0]={pressed:false,value:0};true");
 	await Bun.sleep(100);
-	check("initial menu focus", await focus(), "media");
+	check("unmeasured hidden canvas does not force focus", await focus(), null);
+	await evaluate("window.__menuDelayStyle.remove();true");
+	await waitFor('document.activeElement?.closest("[data-menu-target]")?.getAttribute("data-menu-target") === "media"',2000);
+	check("initial menu focus after canvas measurement", await focus(), "media");
 	await browser("press", "ArrowRight");
 	await waitFor('document.activeElement?.closest("[data-menu-target]")?.getAttribute("data-menu-target") === "avatar"', 2000);
 	check("keyboard right focus", await focus(), "avatar");

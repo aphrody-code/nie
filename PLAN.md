@@ -292,3 +292,19 @@ callbacks (78 requested, 75 dispatched and successful); menu-command unknown cou
 Local command-handler mappings and decompiled bodies exist for the 14 general commands and are
 the next evidence source. Loading metadata names animation hashes but does not provide decoded
 motion curves. Production publication and final browser results are recorded after validation.
+
+### Public deployment and measured-canvas focus correction
+
+`aa4df0325f36dfd2f1564c153f8fec8635f88ef1` was pushed to `main` and deployed to
+`nie.aphrody.com` on 2026-09-08. The private release manifest under `var/releases/<commit>/`
+records the binary/bundle hashes and rollback copies. Live health retained 255308 VFS entries,
+936 CPKs and 40 extensions; legacy icon URLs returned 200. The first public traversal exposed
+intermittent initial focus despite the staged gate passing. This was recorded as a failed gate.
+
+The follow-up makes `GameCanvas` signal its first measured, visible layout and focuses the menu
+only after that signal. The browser regression deliberately hides the canvas before mount and
+reveals it later, proving focus follows actual measurement instead of a guessed animation frame.
+On the same host/date, `bun test apps/nie-web/src packages/inacord-ui/src/shell/menu-interaction.test.ts`
+passed 97 tests/332 assertions; Web typecheck passed. The isolated browser report at
+`var/outputs/menu-visual/focus-staged/browser-report.json` records 18 passed, 0 failed, 114 requests
+and zero failed requests. The game renderer remains visually partial.

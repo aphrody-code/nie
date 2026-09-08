@@ -72,6 +72,8 @@ export function MainMenu({ actions, onCancel, gamepadSampler }: MainMenuProps) {
 	const [pressedId, setPressedId] = useState<string | null>(null);
 	const [leavingId, setLeavingId] = useState<string | null>(null);
 	const [layerState, setLayerState] = useState<"loading" | "ready" | "failed">("loading");
+	const [canvasReady, setCanvasReady] = useState(false);
+	const onCanvasReady = useCallback(() => setCanvasReady(true), []);
 	const localGamepadSampler = useRef(createStandardGamepadMenuSampler());
 	const sampler = gamepadSampler ?? localGamepadSampler.current;
 	const menuRoot = useRef<HTMLElement | null>(null);
@@ -156,16 +158,12 @@ export function MainMenu({ actions, onCancel, gamepadSampler }: MainMenuProps) {
 	}, []);
 
 	useEffect(() => {
-		if (!focusedId) return;
-		// GameCanvas stays hidden until its first measurement has committed.
-		const frame = window.requestAnimationFrame(() => {
-			const target = menuRoot.current?.querySelector<HTMLButtonElement>(
-				`[data-menu-target="${CSS.escape(focusedId)}"] button`,
-			);
-			if (target && document.activeElement !== target) target.focus({ preventScroll: true });
-		});
-		return () => window.cancelAnimationFrame(frame);
-	}, [focusedId]);
+		if (!focusedId || !canvasReady) return;
+		const target = menuRoot.current?.querySelector<HTMLButtonElement>(
+			`[data-menu-target="${CSS.escape(focusedId)}"] button`,
+		);
+		if (target && document.activeElement !== target) target.focus({ preventScroll: true });
+	}, [focusedId, canvasReady]);
 
 	useEffect(() => {
 		if (typeof navigator.getGamepads !== "function") return;
@@ -187,7 +185,7 @@ export function MainMenu({ actions, onCancel, gamepadSampler }: MainMenuProps) {
 			data-runtime-completeness="partial"
 			className={`runtime-main-menu${leavingId ? " runtime-main-menu--leaving" : ""}`}
 		>
-			<GameCanvas canvas={FULL_LAYOUT.canvas} fond={FOND_MENU}>
+			<GameCanvas canvas={FULL_LAYOUT.canvas} fond={FOND_MENU} onReady={onCanvasReady}>
 				<LayoutRender
 					layout={VERIFIED_LAYOUT}
 					onTexture={(_, loaded) => setLayerState(loaded ? "ready" : "failed")}
