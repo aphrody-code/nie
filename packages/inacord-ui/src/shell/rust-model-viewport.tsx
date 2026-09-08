@@ -1,5 +1,5 @@
 /** Browser lifecycle and input binding for the shared Rust renderer. */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 export interface RustModelViewer {
 	load_glb(bytes: Uint8Array): void;
@@ -10,13 +10,43 @@ export interface RustModelViewer {
 }
 export type CreateRustModelViewer = (canvas: HTMLCanvasElement) => Promise<RustModelViewer>;
 
+export interface RustModelCamera {
+	yaw: number;
+	pitch: number;
+	distance: number;
+}
+
+interface RustModelViewportProps {
+	url: string | null;
+	createViewer: CreateRustModelViewer;
+	label?: string;
+	onReady?: () => void;
+	initialCamera?: RustModelCamera;
+	maxBytes?: number;
+	canvasStyle?: CSSProperties;
+	loadingFallback?: ReactNode;
+	renderError?: (error: Error, retry: () => void) => ReactNode;
+}
+
+function asError(value: unknown): Error {
+	return value instanceof Error ? value : new Error("Model viewer failed");
+}
+
 /** A new recipe preserves the camera. Failed/stale loads never replace the current selection. */
-export function RustModelViewport({ url, createViewer, label = "Avatar", onReady }: {
-	url: string | null; createViewer: CreateRustModelViewer; label?: string; onReady?: () => void;
-}) {
+export function RustModelViewport({
+	url,
+	createViewer,
+	label = "Avatar",
+	onReady,
+	initialCamera = { yaw: 0, pitch: 0, distance: 3.1 },
+	maxBytes = 64 * 1024 * 1024,
+	canvasStyle,
+	loadingFallback,
+	renderError,
+}: RustModelViewportProps) {
 	const canvas = useRef<HTMLCanvasElement>(null);
 	const viewer = useRef<RustModelViewer | null>(null);
-	const camera = useRef({ yaw: 0, pitch: 0, distance: 3.1 });
+	const camera = useRef({ ...initialCamera });
 	const needsRender = useRef(false);
 	const modelLoaded = useRef(false);
 	const pointer = useRef<{ id: number; x: number; y: number } | null>(null);
@@ -24,14 +54,14 @@ export function RustModelViewport({ url, createViewer, label = "Avatar", onReady
 	readyCallback.current = onReady;
 	const [instance, setInstance] = useState<RustModelViewer | null>(null);
 	const [attempt, setAttempt] = useState(0);
-	const [error, setError] = useState(false);
+	const [error, setError] = useState<Error | null>(null);
 	const [loading, setLoading] = useState(true);
 
 	useEffect(() => {
 		let disposed = false;
 		let owned: RustModelViewer | null = null;
 		let raf = 0;
-		setError(false);
+		setError(null);
 		setLoading(true);
 		const target = canvas.current;
 		if (!target) return;
@@ -62,10 +92,10 @@ export function RustModelViewport({ url, createViewer, label = "Avatar", onReady
 						}
 					}
 					raf = requestAnimationFrame(frame);
-				} catch { setError(true); setLoading(false); }
+				} catch (cause) { setError(asError(cause)); setLoading(false); }
 			};
 			raf = requestAnimationFrame(frame);
-		}).catch(() => { if (!disposed) { setError(true); setLoading(false); } });
+		}).catch((cause) => { if (!disposed) { setError(asError(cause)); setLoading(false); } });
 		return () => {
 			disposed = true;
 			cancelAnimationFrame(raf);
@@ -74,6 +104,11 @@ export function RustModelViewport({ url, createViewer, label = "Avatar", onReady
 			owned?.free();
 		};
 	}, [createViewer, attempt]);
+
+	useEffect(() => {
+		camera.current = { ...initialCamera };
+		needsRender.current = modelLoaded.current;
+	}, [url, initialCamera.yaw, initialCamera.pitch, initialCamera.distance]);
 
 	useEffect(() => {
 		if (!url) {
@@ -86,22 +121,22 @@ export function RustModelViewport({ url, createViewer, label = "Avatar", onReady
 		if (!instance || instance !== viewer.current) return;
 		const abort = new AbortController();
 		setLoading(true);
-		setError(false);
+		setError(null);
 		modelLoaded.current = false;
 		if (canvas.current) delete canvas.current.dataset.modelReady;
 		(async () => {
 			const response = await fetch(url, { signal: abort.signal });
-			if (!response.ok) throw new Error("Model response failed");
-			if (Number(response.headers.get("content-length")) > 64 * 1024 * 1024) throw new Error("Model too large");
+			if (!response.ok) throw new Error(`Model response failed (${response.status})`);
+			if (Number(response.headers.get("content-length")) > maxBytes) throw new Error("Model too large");
 			const bytes = new Uint8Array(await response.arrayBuffer());
 			if (abort.signal.aborted || instance !== viewer.current) return;
 			instance.load_glb(bytes);
 			modelLoaded.current = true;
 			needsRender.current = true;
 			setLoading(false);
-		})().catch(() => { if (!abort.signal.aborted) { setError(true); setLoading(false); } });
+		})().catch((cause) => { if (!abort.signal.aborted) { setError(asError(cause)); setLoading(false); } });
 		return () => abort.abort();
-	}, [instance, url]);
+	}, [instance, maxBytes, url]);
 
 	const orbit = (dx: number, dy: number) => {
 		camera.current.yaw += dx * 0.01;
@@ -110,12 +145,13 @@ export function RustModelViewport({ url, createViewer, label = "Avatar", onReady
 	};
 	return <div style={{ position: "relative", width: "100%", height: "100%" }} aria-busy={loading}>
 		<canvas ref={canvas} width={640} height={720} aria-label={label} tabIndex={0}
-			data-native-renderer="nie-render3d" style={{ width: "100%", height: "100%", touchAction: "none", outline: "none", visibility: loading || !url ? "hidden" : "visible" }}
+			data-native-renderer="nie-render3d" style={{ width: "100%", height: "100%", touchAction: "none", outline: "none", ...canvasStyle, visibility: loading || !url || error ? "hidden" : "visible" }}
 			onPointerDown={event => { if (event.button !== 0) return; event.currentTarget.focus(); event.currentTarget.setPointerCapture(event.pointerId); pointer.current = { id: event.pointerId, x: event.clientX, y: event.clientY }; }}
 			onPointerMove={event => { const p = pointer.current; if (p?.id !== event.pointerId) return; orbit(event.clientX - p.x, event.clientY - p.y); p.x = event.clientX; p.y = event.clientY; }}
 			onPointerUp={() => { pointer.current = null; }} onPointerCancel={() => { pointer.current = null; }} onLostPointerCapture={() => { pointer.current = null; }}
 			onWheel={event => { camera.current.distance = Math.max(1.2, Math.min(10, camera.current.distance * Math.exp(event.deltaY * 0.001))); needsRender.current = true; }}
 			onKeyDown={event => { if (event.key === "ArrowLeft" || event.key === "ArrowRight") { orbit(event.key === "ArrowLeft" ? -5 : 5, 0); event.preventDefault(); event.stopPropagation(); } }} />
-		{error ? <div role="alert" style={{ position: "absolute", bottom: 16, left: 16 }}>Le modèle n’a pas pu être affiché. <button type="button" onClick={() => setAttempt(value => value + 1)}>Réessayer</button></div> : null}
+		{loading ? loadingFallback : null}
+		{error ? (renderError?.(error, () => setAttempt(value => value + 1)) ?? <div role="alert" style={{ position: "absolute", bottom: 16, left: 16 }}>Le modèle n’a pas pu être affiché. <button type="button" onClick={() => setAttempt(value => value + 1)}>Réessayer</button></div>) : null}
 	</div>;
 }

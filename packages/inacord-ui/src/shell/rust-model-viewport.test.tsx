@@ -170,3 +170,40 @@ test("GPU initialization failure can retry and the successful viewer is freed on
 	expect(viewer.free).toHaveBeenCalledTimes(1);
 	expect(frames.size).toBe(0);
 });
+
+test("a host can preserve its fallback and error detail while enforcing a smaller byte limit", async () => {
+	const viewer = fakeViewer();
+	mockFetch(async () => new Response(new Uint8Array([1]), {
+		headers: { "content-length": "9" },
+	}));
+	await act(async () => root?.render(
+		<RustModelViewport
+			url="/model/large.glb"
+			createViewer={async () => viewer}
+			maxBytes={8}
+			loadingFallback={<span>Server preview loading</span>}
+			renderError={(error) => <div role="alert">Server preview: {error.message}</div>}
+		/>
+	));
+	expect(container.querySelector("[role=alert]")?.textContent).toContain("Model too large");
+	expect(viewer.load_glb).not.toHaveBeenCalled();
+});
+
+test("the configured initial camera is sent to the Rust viewer", async () => {
+	const viewer = fakeViewer();
+	mockFetch(async () => new Response(new Uint8Array([1])));
+	await act(async () => root?.render(
+		<RustModelViewport
+			url="/model/a.glb"
+			createViewer={async () => viewer}
+			initialCamera={{ yaw: 0.6, pitch: -0.2, distance: 4.5 }}
+		/>
+	));
+	const canvas = container.querySelector("canvas")!;
+	canvas.getBoundingClientRect = () => ({
+		x: 0, y: 0, width: 320, height: 360, top: 0, left: 0, right: 320, bottom: 360,
+		toJSON() {},
+	});
+	await presentFrame();
+	expect(viewer.orbit).toHaveBeenCalledWith(0.6, -0.2, 4.5);
+});

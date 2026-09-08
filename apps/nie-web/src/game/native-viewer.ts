@@ -6,3 +6,9 @@ export async function createNativeViewer(canvas: HTMLCanvasElement) {
 	await ensureWasm();
 	return WebGpuViewer.create_transparent(canvas);
 }
+
+/** Opaque Rust renderer for standalone model viewports. */
+export async function createOpaqueNativeViewer(canvas: HTMLCanvasElement) {
+	await ensureWasm();
+	return WebGpuViewer.create(canvas);
+}
