@@ -12,7 +12,8 @@
 //! - [`g4mg`] — géométrie G4MG (positions/normales/UV0/indices) pilotée par le `.g4md`.
 //! - [`g4sk`] — squelettes G4SK (header garanti + hiérarchie d'os RÉSOLUE via la table
 //!   d'offsets de l'en-tête, recoupée sur un `.g4sk` réel ; fallback heuristique).
-//! - [`g4pk`] — archives Level-5 G4PK / G4RA (table offsets/tailles/hashes/noms).
+//! - [`g4pk`] — Level-5 G4PK archives and legacy G4RA magic detection.
+//! - [`g4ra`] — static reference-animation state, clip and target bindings.
 //!
 //! ## Compatibilité `no_std`
 //!

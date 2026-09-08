@@ -163,17 +163,16 @@ struct RawChannel {
     data_offset: u32,
 }
 
-/// Animation squelettique décodée d'un conteneur G4MT/G4MA/G4TP : clips + cibles + canaux, prête à
-/// échantillonner à n'importe quelle frame (interpolation keyframe, pas d'hypothèse « 1 sample =
-/// 1 frame »).
+/// Decoded G4MT/G4MA clips, target identities, and channels.
+/// Menu G4RA bindings can use motion resource identities rather than bone names.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Motion {
     pub header: Level5Header,
     pub file_size: usize,
     pub clips: Vec<Clip>,
-    /// Hash CRC32 du nom d'os de chaque cible, dans l'ordre de la table `targets`. `target_index`
-    /// (cf. [`Motion::target_indices`]) indexe ce vecteur. Résoudre via [`resolve_targets`].
+    /// Target identity hashes, indexed by `target_index`. Bone-name resolution
+    /// applies only to profiles whose targets are actually skeleton bones.
     pub target_hashes: Vec<u32>,
     target_infos: Vec<RawTargetInfo>,
     channels: Vec<RawChannel>,
@@ -486,16 +485,24 @@ impl Motion {
                 (1, 1) => i8_at(data, base + c)?,
                 (1, 2) => i16_at(data, base + c * 2)?,
                 (1, 4) => f32_at(data, base + c * 4)?,
-                (2, 1) => f32::from(u8_at(data, base + c)?) * scale / 256.0,
-                (2, 2) => f32::from(u16_at(data, base + c * 2)?) * scale / 65536.0,
-                (3, 1) => i8_at(data, base + c)? * scale / 128.0,
-                (3, 2) => i16_at(data, base + c * 2)? * scale / 32768.0,
+                // Native scalar paths multiply by the stored reciprocal before scale.
+                // Dispatch table 1419814c0: 140507030/7220/7400/75f0.
+                // Constants at VA141a683dc/836c/83f4/8374 respectively.
+                (2, 1) => f32::from(u8_at(data, base + c)?) * f32::from_bits(0x3b80_8081) * scale,
+                (2, 2) => {
+                    f32::from(u16_at(data, base + c * 2)?) * f32::from_bits(0x3780_0080) * scale
+                }
+                (3, 1) => i8_at(data, base + c)? * f32::from_bits(0x3c01_0204) * scale,
+                (3, 2) => i16_at(data, base + c * 2)? * f32::from_bits(0x3800_0100) * scale,
                 _ => return None,
             };
         }
         Some(out)
     }
 
+    // FUN_140506910 locates the bracketing keys; FUN_140506b00 holds the left
+    // sample when encoding[2] is zero, otherwise interpolates scalar channels
+    // as a + (b - a) * t. There are no scalar tangent fields in this path.
     fn sample_channel(&self, data: &[u8], channel: &RawChannel, frame: f32) -> Option<[f32; 4]> {
         let ks = channel.key_start as usize;
         let ke = ks + channel.key_count as usize;
@@ -543,8 +550,9 @@ impl Motion {
             .map(normalize_quat)
     }
 
-    /// Échantillonne tous les canaux TRS d'un os, en conservant la pose de repos pour
-    /// les composantes absentes. Les clips additifs sont refusés car ils exigent une base.
+    /// Sample local TRS, retaining rest components when no corresponding channels
+    /// exist. Euler rotation requires all three scalar axes (6/7/8); mixed Euler
+    /// and quaternion channels, partial Euler axes, and additive clips are rejected.
     #[must_use]
     pub fn sample_local_trs(
         &self,
@@ -567,6 +575,8 @@ impl Motion {
         let cs = info.channel_start as usize;
         let ce = cs + info.channel_count as usize;
         let mut pose = rest;
+        let mut euler = [None; 3];
+        let mut quaternion = false;
         for channel in self.channels.get(cs..ce)? {
             let value = self.sample_channel(data, channel, frame)?;
             if !value.iter().all(|v| v.is_finite()) {
@@ -574,13 +584,45 @@ impl Motion {
             }
             match channel.channel_type {
                 1..=3 => pose.scale[channel.channel_type as usize - 1] = value[0],
-                9 => pose.quat = normalize_quat(value),
+                6..=8 => {
+                    let axis = &mut euler[channel.channel_type as usize - 6];
+                    if channel.n_comp != 1 || axis.is_some() {
+                        return None;
+                    }
+                    *axis = Some(value[0]);
+                }
+                9 => {
+                    quaternion = true;
+                    pose.quat = normalize_quat(value);
+                }
                 10..=12 => pose.translation[channel.channel_type as usize - 10] = value[0],
                 _ => {}
             }
         }
+        if euler.iter().any(Option::is_some) {
+            if quaternion {
+                return None;
+            }
+            pose.quat = euler_xyz_quaternion([euler[0]?, euler[1]?, euler[2]?]);
+        }
         Some(pose)
     }
+}
+
+// FUN_140060af0 consumes radians and computes Hamilton qz * qy * qx.
+// Formula verified against native instruction emulation, including mixed axes.
+// Standard-library trigonometry is numerically close, not bit-identical to the
+// native approximations. This conversion does not apply G4RA blending or timing.
+fn euler_xyz_quaternion([x, y, z]: [f32; 3]) -> [f32; 4] {
+    let (sx, cx) = (x * 0.5).sin_cos();
+    let (sy, cy) = (y * 0.5).sin_cos();
+    let (sz, cz) = (z * 0.5).sin_cos();
+    [
+        sx * cy * cz - cx * sy * sz,
+        cx * sy * cz + sx * cy * sz,
+        cx * cy * sz - sx * sy * cz,
+        cx * cy * cz + sx * sy * sz,
+    ]
 }
 
 /// Résout chaque hash de cible ([`Motion::target_hashes`]) contre une liste de noms d'os (ordre =
@@ -601,6 +643,164 @@ pub fn resolve_targets(target_hashes: &[u32], bone_names: &[&str]) -> Vec<Option
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn scalar_motion(scale: f32, keys: Vec<u16>) -> Motion {
+        Motion {
+            header: Level5Header {
+                magic: MAGIC,
+                header_size: 0x40,
+                type_id: 0,
+                reserved0: 0,
+                align: 0x10,
+                data_size: 0,
+            },
+            file_size: 0,
+            clips: Vec::new(),
+            target_hashes: Vec::new(),
+            target_infos: Vec::new(),
+            channels: Vec::new(),
+            scales: alloc::vec![scale],
+            keys,
+            data_offset: 0,
+        }
+    }
+
+    fn scalar_channel(codec: u8, variant: u8, key_count: u32) -> RawChannel {
+        RawChannel {
+            channel_type: 8,
+            codec,
+            variant,
+            n_comp: 1,
+            stride: variant,
+            scale_index: 0,
+            key_start: 0,
+            key_count,
+            data_offset: 0,
+            step: false,
+        }
+    }
+
+    #[test]
+    fn euler_triplet_matches_native_mixed_axis_reference_and_rejects_partial_input() {
+        let mut motion = scalar_motion(1.0, alloc::vec![0]);
+        motion.target_infos.push(RawTargetInfo {
+            target_index: 0,
+            channel_start: 0,
+            channel_count: 3,
+        });
+        for axis in 0..3 {
+            let mut channel = scalar_channel(1, 4, 1);
+            channel.channel_type = 6 + axis;
+            channel.data_offset = u32::from(axis) * 4;
+            motion.channels.push(channel);
+        }
+        let clip = Clip {
+            name: "native_reference".into(),
+            crc32: 0,
+            start_frame: 0,
+            end_frame: 1,
+            flags: 0,
+            fps: 30,
+            target_info_start: 0,
+            target_info_count: 1,
+        };
+        let rest = crate::g4sk::LocalTrs {
+            scale: [2.0, 3.0, 4.0],
+            quat: [0.0, 0.0, 0.0, 1.0],
+            translation: [5.0, 6.0, 7.0],
+        };
+        let bytes: Vec<_> = [0.3f32, 0.5, 0.7]
+            .into_iter()
+            .flat_map(f32::to_le_bytes)
+            .collect();
+        let pose = motion
+            .sample_local_trs(&bytes, &clip, 0, 0.0, rest)
+            .unwrap();
+        // Native PE instructions emulated with sin/cos helpers unchanged; only
+        // unsupported SIMD permutations/FMA received instruction-semantic shims.
+        let native = [0.052132413, 0.27944386, 0.29377714, 0.912627];
+        for (actual, expected) in pose.quat.into_iter().zip(native) {
+            assert!((actual - expected).abs() < 3e-7);
+        }
+        assert_eq!(pose.scale, rest.scale);
+        assert_eq!(pose.translation, rest.translation);
+        motion.target_infos[0].channel_count = 2;
+        assert!(
+            motion
+                .sample_local_trs(&bytes, &clip, 0, 0.0, rest)
+                .is_none()
+        );
+        motion.target_infos[0].channel_count = 3;
+        motion.channels[2].channel_type = 9;
+        assert!(
+            motion
+                .sample_local_trs(&bytes, &clip, 0, 0.0, rest)
+                .is_none()
+        );
+        motion.channels[2].channel_type = 7;
+        assert!(
+            motion
+                .sample_local_trs(&bytes, &clip, 0, 0.0, rest)
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn quantized_scalar_endpoints_use_native_full_range_reciprocals() {
+        let motion = scalar_motion(2.0, alloc::vec![0]);
+        for (codec, variant, bytes) in [
+            (2, 1, alloc::vec![255]),
+            (2, 2, alloc::vec![255, 255]),
+            (3, 1, alloc::vec![127]),
+            (3, 2, alloc::vec![255, 127]),
+        ] {
+            let channel = scalar_channel(codec, variant, 1);
+            assert_eq!(motion.decode_key(&bytes, &channel, 0).unwrap()[0], 2.0);
+        }
+        // Signed minimum is not clamped: native signed normalization exceeds -1.
+        assert!(
+            motion
+                .decode_key(&[128], &scalar_channel(3, 1, 1), 0)
+                .unwrap()[0]
+                < -2.0
+        );
+        assert!(
+            motion
+                .decode_key(&[0, 128], &scalar_channel(3, 2, 1), 0)
+                .unwrap()[0]
+                < -2.0
+        );
+    }
+
+    #[test]
+    fn scalar_key_interpolation_holds_or_lerps_with_native_rounding() {
+        let motion = scalar_motion(2.0, alloc::vec![0, 9, 10]);
+        let mut channel = scalar_channel(2, 2, 3);
+        let bytes = [0, 0, 0, 128, 255, 255];
+        let middle = motion.decode_key(&bytes, &channel, 1).unwrap()[0];
+        assert_eq!(middle.to_bits(), 0x3f80_0080);
+        assert_eq!(
+            motion.sample_channel(&bytes, &channel, 4.5).unwrap()[0],
+            middle * 0.5
+        );
+        assert_eq!(
+            motion.sample_channel(&bytes, &channel, 9.5).unwrap()[0],
+            middle + (2.0 - middle) * 0.5
+        );
+        assert_eq!(
+            motion.sample_channel(&bytes, &channel, 10.0).unwrap()[0],
+            2.0
+        );
+        channel.step = true;
+        assert_eq!(
+            motion.sample_channel(&bytes, &channel, 4.5).unwrap()[0],
+            0.0
+        );
+        assert_eq!(
+            motion.sample_channel(&bytes, &channel, 9.5).unwrap()[0],
+            middle
+        );
+    }
 
     #[test]
     fn parse_synthetique() {

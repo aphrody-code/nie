@@ -27,6 +27,68 @@ pub struct Binding {
     pub raw_words: [u32; 12],
 }
 
+impl Binding {
+    /// Map native 60 Hz state ticks to a frame of the resolved motion clip.
+    ///
+    /// This is the bounded direct-motion path of `FUN_140504d60`. The caller
+    /// supplies elapsed ticks including any native state-cycle accumulation;
+    /// this helper does not advance state or derive elapsed time from a clock.
+    /// Delay is measured in clip frames, before multiplying by row speed.
+    /// The exact end frame is retained even for looping rows.
+    ///
+    /// Unknown loop-flag bits, invalid clip ranges, nonfinite values, and values
+    /// outside the native integer wrap range return `None`.
+    #[must_use]
+    pub fn sample_frame(
+        &self,
+        elapsed_ticks_60hz: f32,
+        clip_start: u16,
+        clip_end: u16,
+        clip_fps: u8,
+    ) -> Option<f32> {
+        let loop_flags = (self.raw_words[8] >> 24) as u8;
+        let speed = f32::from_bits(self.raw_words[2]);
+        if !elapsed_ticks_60hz.is_finite()
+            || elapsed_ticks_60hz < 0.0
+            || !speed.is_finite()
+            || speed < 0.0
+            || clip_end < clip_start
+            || clip_fps == 0
+            || loop_flags & !1 != 0
+        {
+            return None;
+        }
+        let range = u32::from(clip_end - clip_start);
+        if range == 0 {
+            return Some(f32::from(clip_start));
+        }
+        let delay = (self.raw_words[1] >> 16) as u16;
+        // Keep native operation order: fps * (1/60), ticks, delay, speed.
+        let relative =
+            (f32::from(clip_fps) * 0.016_666_668 * elapsed_ticks_60hz - f32::from(delay)) * speed;
+        if !relative.is_finite() {
+            return None;
+        }
+        let frame = if relative <= 0.0 {
+            0.0
+        } else if relative <= range as f32 {
+            relative
+        } else if loop_flags == 0 {
+            range as f32
+        } else {
+            // Native truncates the positive quotient, multiplies as an integer,
+            // then subtracts. Reject overflow instead of inventing wrap behavior.
+            let quotient = relative / range as f32;
+            if quotient >= i32::MAX as f32 {
+                return None;
+            }
+            let completed = (quotient as u32).checked_mul(range)?;
+            relative - completed as f32
+        };
+        Some(f32::from(clip_start) + frame)
+    }
+}
+
 /// Static skeletal and material joins; this is not an animation player.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
@@ -315,6 +377,68 @@ mod tests {
             (material.target_hash, material.clip_hash, material.row_index),
             (0x3333, 0x5555, 0)
         );
+    }
+
+    #[test]
+    fn native_frame_mapping_delays_scales_and_retains_exact_end() {
+        let mut binding = parse(&fixture()).unwrap().skeletal_bindings.remove(0);
+        binding.raw_words[1] = 2 << 16; // Two clip-frame delay.
+        binding.raw_words[2] = 2.0_f32.to_bits();
+        for (ticks, expected) in [
+            (0.0, 5.0),
+            (4.0, 5.0),
+            (9.0, 10.0),
+            (14.0, 15.0),
+            (16.0, 15.0),
+        ] {
+            assert_eq!(binding.sample_frame(ticks, 5, 15, 30), Some(expected));
+        }
+        binding.raw_words[8] = 1 << 24;
+        assert_eq!(binding.sample_frame(14.0, 5, 15, 30), Some(15.0));
+        assert_eq!(binding.sample_frame(16.0, 5, 15, 30), Some(7.0));
+        assert_eq!(binding.sample_frame(24.0, 5, 15, 30), Some(5.0));
+    }
+
+    #[test]
+    fn native_frame_mapping_rejects_unsupported_inputs_and_handles_static_clips() {
+        let mut binding = parse(&fixture()).unwrap().skeletal_bindings.remove(0);
+        binding.raw_words[2] = 1.0_f32.to_bits();
+        assert_eq!(binding.sample_frame(12.0, 7, 7, 30), Some(7.0));
+        for ticks in [-1.0, f32::INFINITY, f32::NAN] {
+            assert_eq!(binding.sample_frame(ticks, 0, 10, 30), None);
+        }
+        assert_eq!(binding.sample_frame(1.0, 10, 0, 30), None);
+        assert_eq!(binding.sample_frame(1.0, 0, 10, 0), None);
+        binding.raw_words[8] = 2 << 24;
+        assert_eq!(binding.sample_frame(1.0, 0, 10, 30), None);
+        binding.raw_words[8] = 1 << 24;
+        assert_eq!(binding.sample_frame(f32::MAX, 0, 10, 30), None);
+        binding.raw_words[2] = f32::NAN.to_bits();
+        assert_eq!(binding.sample_frame(1.0, 0, 10, 30), None);
+    }
+
+    #[test]
+    fn native_frame_mapping_matches_loading_loop_instruction_samples() {
+        // FUN_140504d60 emulated with actual instructions; only resource lookup
+        // is replaced with the supplied clip record. These are output frames,
+        // not an inference from the clip or state names.
+        let mut binding = parse(&fixture()).unwrap().skeletal_bindings.remove(0);
+        binding.raw_words[1] = 0;
+        binding.raw_words[2] = 0.3_f32.to_bits();
+        binding.raw_words[8] = 1 << 24;
+        for (ticks, expected) in [
+            (0.0_f32, 0.0_f32),
+            (30.0, 4.5),
+            (60.0, 9.0),
+            (66.666_664, 10.0),
+            (90.0, 3.500_001),
+            (120.0, 8.0),
+        ] {
+            assert_eq!(
+                binding.sample_frame(ticks, 0, 10, 30).unwrap().to_bits(),
+                expected.to_bits()
+            );
+        }
     }
 
     #[test]

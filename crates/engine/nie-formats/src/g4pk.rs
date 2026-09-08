@@ -1,4 +1,7 @@
-//! Lecteurs d'archives Level-5 G4PK / G4RA.
+//! Level-5 G4PK archive reader and compatibility magic detection.
+//!
+//! G4RA is a reference-animation resource, not a G4PK archive. Its static bindings
+//! are decoded by [`crate::g4ra`]; [`is_g4ra`] remains here for existing callers.
 //!
 //! Port Rust de :
 //! - `IECODE.Core/Formats/Level5/G4pkParser.cs` (`G4pkHeader` L18-40, `ParseFiles` L81 :
@@ -27,9 +30,8 @@
 //!
 //! ## Validation
 //!
-//! Aucun `.g4pk`/`.g4ra` isolé n'est présent sur le VPS (ils vivent dans les `.cpk`). La logique
-//! de table est validée par un **fixture synthétique** respectant l'en-tête 0x40 + offsetTable +
-//! sizeTable + hashTable + stringTable, conformément à la consigne du livrable.
+//! The G4PK table tests use a synthetic 0x40 header followed by offset, size, hash
+//! and string tables. They do not validate G4RA reference-animation bindings.
 //!
 //! Compatible `no_std + alloc`.
 

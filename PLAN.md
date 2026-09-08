@@ -489,3 +489,36 @@ menu-state integration test passed. Strict formats/Lua/Wasm clippy, portable lib
 scoped formatting passed. The existing 8-scene/61-layer/76-object native/Wasm state gate also
 passed. Generated Wasm SHA256:
 `81cb629ea4b0573f4ba2f261f883fa9195fdd1664537b8e91a4873556e8d8b2e`.
+
+Commit `3d0953325ecf79ffd13f7cac7a393b26c22e2c83` was pushed and deployed on the same
+host/date. Public validation passed 66 HTTP checks and 18 browser scenarios, plus both actual
+downloaded-Wasm equality gates. Staged pixels matched the prior release; the public capture
+differed from staging at 15 of 2073600 pixels (SSIM 0.9999996215, RGB MAE 0.00007893).
+That measured variation is retained instead of claiming exact image equality. The validated
+manifest is `var/releases/3d0953325ecf79ffd13f7cac7a393b26c22e2c83/manifest.json`.
+
+### Native motion arithmetic and shared inspector routing
+
+The four quantized scalar codecs now use the native reciprocals of 255, 65535, 127 and 32767
+and preserve multiplication order. Complete Euler channel triplets 6/7/8 use radians and the
+proven Hamilton `qz*qy*qx` conversion; partial, duplicate or mixed quaternion/Euler data is
+rejected instead of inventing missing rotations. Native mixed-axis outputs and four actual
+loading frames validate this path. Sources: the instruction evidence and reproducible probe in
+`var/reports/loading-curves-20260908/`, plus native Euler evidence under
+`var/reports/loading-g4ra-native-20260908/`.
+
+`g4ra::Binding::sample_frame` maps caller-supplied native 60 Hz state ticks into the resolved
+clip using observed FPS, delay, speed and loop bit. It preserves the exact end frame and rejects
+unsupported flag/conversion ranges. Eighteen native instruction samples were captured; six
+loading samples are checked bit-for-bit. This helper does not drive a clock, change menu states,
+compose animated meshes or resolve blending.
+
+The shared `nie-explore::describe_content` dispatcher now identifies G4RA reference animations
+and reports the parser's state/binding counts or its explicit error. CLI, Tauri and the existing
+Wasm summary binding inherit this behavior. G4PK archive handling remains separate. On
+`vps-203bea89`, 2026-09-08: formats 313 tests and portable explorer 20 tests passed; strict
+formats/explorer clippy and portable formats checks passed. Actual native/Wasm summary parity
+passed for the real loading resource and malformed input. Both existing Wasm equality gates
+passed again (15 animation bindings and 8 scenes). Wasm SHA256:
+`acaed81daf31a05508e390814ae5e75eb0f5f01f3cf14218f67a42408baba90b`.
+Private logs are `var/motion-*.log`; summary evidence is in `var/reports/g4ra-summary-parity/`.

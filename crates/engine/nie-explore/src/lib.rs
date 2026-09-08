@@ -355,8 +355,28 @@ pub fn describe_content(path: &str, data: &[u8]) -> Option<Vec<String>> {
         return Some(out);
     }
 
-    if g4pk::is_g4pk(data) || g4pk::is_g4ra(data) {
-        let mut out = vec!["format      G4PK/G4RA (archive)".to_string()];
+    if g4pk::is_g4ra(data) {
+        let mut out = vec!["format      G4RA (reference animation)".to_string()];
+        match nie_formats::g4ra::parse(data) {
+            Ok(animation) => {
+                out.push(format!("states      {}", animation.state_hashes.len()));
+                out.push(format!(
+                    "skeletal    {} bindings",
+                    animation.skeletal_bindings.len()
+                ));
+                out.push(format!(
+                    "material    {} bindings",
+                    animation.material_bindings.len()
+                ));
+                out.push("playback    not evaluated by this summary".to_string());
+            }
+            Err(error) => out.push(format!("decode      {error}")),
+        }
+        return Some(out);
+    }
+
+    if g4pk::is_g4pk(data) {
+        let mut out = vec!["format      G4PK (archive)".to_string()];
         if let Ok(g) = g4pk::parse(data) {
             out.push(format!(
                 "sous-fichiers {}  variante={:?}",
